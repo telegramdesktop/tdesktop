@@ -397,7 +397,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				tr::lng_info_mobile_label(),
 				PhoneOrHiddenValue(user),
 				tr::lng_profile_copy_phone(tr::now)).text;
-			const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
+			using namespace Ui;
+			const auto hook = [=](FlatLabel::ContextMenuRequest request) {
+				if (user->phone().isEmpty()) {
+					return;
+				}
 				phoneLabel->fillContextMenu(request);
 				AddPhoneMenu(request.menu, user);
 			};

@@ -246,14 +246,27 @@ rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {
 	});
 }
 
+void SetupBlockedList(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<> updateTrigger,
+	Fn<void(Type)> showOther);
+
 void SetupPrivacy(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<> updateTrigger) {
+		rpl::producer<> updateTrigger,
+		Fn<void(Type)> showOther) {
 	AddSkip(container, st::settingsPrivacySkip);
 	AddSubsectionTitle(container, tr::lng_settings_privacy_title());
 
 	const auto session = &controller->session();
+
+	SetupBlockedList(
+		controller,
+		container,
+		rpl::duplicate(updateTrigger),
+		showOther);
 
 	using Key = Privacy::Key;
 	const auto add = [&](
@@ -281,21 +294,26 @@ void SetupPrivacy(
 		Key::LastSeen,
 		[=] { return std::make_unique<LastSeenPrivacyController>(session); });
 	add(
+		tr::lng_settings_profile_photo_privacy(),
+		{ &st::settingsIconAccount, kIconRed },
+		Key::ProfilePhoto,
+		[] { return std::make_unique<ProfilePhotoPrivacyController>(); });
+	add(
 		tr::lng_settings_forwards_privacy(),
 		{ &st::settingsIconForward, kIconLightOrange },
 		Key::Forwards,
 		[=] { return std::make_unique<ForwardsPrivacyController>(
 			controller); });
 	add(
-		tr::lng_settings_profile_photo_privacy(),
-		{ &st::settingsIconAccount, kIconRed },
-		Key::ProfilePhoto,
-		[] { return std::make_unique<ProfilePhotoPrivacyController>(); });
-	add(
 		tr::lng_settings_calls(),
 		{ &st::settingsIconVideoCalls, kIconGreen },
 		Key::Calls,
 		[] { return std::make_unique<CallsPrivacyController>(); });
+	add(
+		tr::lng_settings_groups_invite(),
+		{ &st::settingsIconGroup, kIconDarkBlue },
+		Key::Invites,
+		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 	AddPremiumPrivacyButton(
 		controller,
 		container,
@@ -303,16 +321,11 @@ void SetupPrivacy(
 		{ &st::settingsPremiumIconVoice, kIconRed },
 		Key::Voices,
 		[=] { return std::make_unique<VoicesPrivacyController>(session); });
-	add(
-		tr::lng_settings_groups_invite(),
-		{ &st::settingsIconGroup, kIconDarkBlue },
-		Key::Invites,
-		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
 
 	AddSkip(container, st::settingsPrivacySecurityPadding);
-	AddDividerText(container, tr::lng_settings_group_privacy_about());
+	AddDivider(container);
 }
 
 void SetupArchiveAndMute(
@@ -708,11 +721,6 @@ void SetupSecurity(
 	AddSkip(container, st::settingsPrivacySkip);
 	AddSubsectionTitle(container, tr::lng_settings_security());
 
-	SetupBlockedList(
-		controller,
-		container,
-		rpl::duplicate(updateTrigger),
-		showOther);
 	SetupSessionsList(
 		controller,
 		container,
@@ -865,10 +873,11 @@ void PrivacySecurity::setupContent(
 		return rpl::duplicate(updateOnTick);
 	};
 
-	SetupPrivacy(controller, content, trigger());
-	SetupSecurity(controller, content, trigger(), [=](Type type) {
+	const auto showOther = [=](Type type) {
 		_showOther.fire_copy(type);
-	});
+	};
+	SetupPrivacy(controller, content, trigger(), showOther);
+	SetupSecurity(controller, content, trigger(), showOther);
 #if !defined OS_MAC_STORE && !defined OS_WIN_STORE
 	SetupSensitiveContent(controller, content, trigger());
 #else // !OS_MAC_STORE && !OS_WIN_STORE
