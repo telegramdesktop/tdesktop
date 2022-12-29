@@ -132,7 +132,9 @@ void StartServiceAsync(Fn<void()> callback) {
 						const auto errorName =
 							Gio::DBus::ErrorUtils::get_remote_error(e).raw();
 
-						if (!ranges::contains(NotSupportedErrors, errorName)) {
+						if (!ranges::contains(
+								NotSupportedErrors,
+								errorName)) {
 							throw e;
 						}
 					}
@@ -534,12 +536,13 @@ bool NotificationData::init(
 				_actions.push_back(
 					tr::lng_notification_reply(tr::now).toStdString());
 
-				_notificationRepliedSignalId = _dbusConnection->signal_subscribe(
-					signalEmitted,
-					std::string(kService),
-					std::string(kInterface),
-					"NotificationReplied",
-					std::string(kObjectPath));
+				_notificationRepliedSignalId =
+					_dbusConnection->signal_subscribe(
+						signalEmitted,
+						std::string(kService),
+						std::string(kInterface),
+						"NotificationReplied",
+						std::string(kObjectPath));
 			} else {
 				// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
 				_actions.push_back("mail-reply-sender");
@@ -895,7 +898,8 @@ void Create(Window::Notifications::System *system) {
 			return;
 		}
 
-		GetServerInformation([=](const std::optional<ServerInformation> &result) {
+		GetServerInformation([=](
+				const std::optional<ServerInformation> &result) {
 			CurrentServerInformation = result;
 			oneReady();
 		});
