@@ -1196,6 +1196,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_tab_media" = "Media";
 "lng_info_public_photo" = "public photo";
 "lng_info_mobile_label" = "Mobile";
+"lng_info_mobile_context_menu_fragment_about" = "This number is not tied to a SIM card and was acquired on {link}.";
+"lng_info_mobile_context_menu_fragment_about_link" = "Fragment";
 "lng_info_mobile_hidden" = "Hidden";
 "lng_info_username_label" = "Username";
 "lng_info_usernames_label" = "also";

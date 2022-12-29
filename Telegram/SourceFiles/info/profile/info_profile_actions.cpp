@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_icon.h"
+#include "info/profile/info_profile_phone_menu.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_text.h"
 #include "support/support_helper.h"
@@ -391,10 +392,17 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				user->session().supportHelper().infoTextValue(user));
 		}
 
-		addInfoOneLine(
-			tr::lng_info_mobile_label(),
-			PhoneOrHiddenValue(user),
-			tr::lng_profile_copy_phone(tr::now));
+		{
+			const auto phoneLabel = addInfoOneLine(
+				tr::lng_info_mobile_label(),
+				PhoneOrHiddenValue(user),
+				tr::lng_profile_copy_phone(tr::now)).text;
+			const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
+				phoneLabel->fillContextMenu(request);
+				AddPhoneMenu(request.menu, user);
+			};
+			phoneLabel->setContextMenuHook(hook);
+		}
 		auto label = user->isBot()
 			? tr::lng_info_about_label()
 			: tr::lng_info_bio_label();
