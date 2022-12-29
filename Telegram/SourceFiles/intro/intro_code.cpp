@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
 #include "styles/style_intro.h"
-#include "styles/style_boxes.h"
 
 namespace Intro {
 namespace details {
@@ -428,7 +427,7 @@ rpl::producer<QString> CodeWidget::nextButtonText() const {
 
 const style::RoundButton *CodeWidget::nextButtonStyle() const {
 	return !getData()->codeByFragmentUrl.isEmpty()
-		? &st::fragmentBoxButton
+		? &st::introFragmentButton
 		: nullptr;
 }
 

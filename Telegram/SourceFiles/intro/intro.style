@@ -89,6 +89,13 @@ introNextButton: RoundButton(defaultActiveButton) {
 	textTop: 11px;
 	font: font(boxFontSize semibold);
 }
+introFragmentIcon: icon{{ "fragment", activeButtonFg }};
+introFragmentIconOver: icon{{ "fragment", activeButtonFgOver }};
+introFragmentButton: RoundButton(introNextButton) {
+	icon: introFragmentIcon;
+	iconOver: introFragmentIconOver;
+	iconPosition: point(-10px, 9px);
+}
 
 introStepFieldTop: 96px;
 introPhoneTop: 6px;
