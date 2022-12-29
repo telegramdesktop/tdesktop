@@ -41,6 +41,30 @@ private:
 
 };
 
+[[nodiscard]] int CountMinWidthForHeight(
+		not_null<Ui::FlatLabel*> label,
+		int basicWidth,
+		int heightLimit) {
+	const auto height = [&](int width) {
+		label->resizeToWidth(width);
+		return label->height();
+	};
+	auto widthMin = basicWidth;
+	auto widthMax = label->naturalWidth();
+	if (height(widthMin) <= heightLimit || height(widthMax) > heightLimit) {
+		return basicWidth;
+	}
+	while (widthMin + 1 < widthMax) {
+		const auto middle = (widthMin + widthMax) / 2;
+		if (height(middle) > heightLimit) {
+			widthMin = middle;
+		} else {
+			widthMax = middle;
+		}
+	}
+	return widthMax;
+}
+
 TextItem::TextItem(
 	not_null<Ui::RpWidget*> parent,
 	const style::Menu &st,
@@ -51,17 +75,25 @@ TextItem::TextItem(
 	std::move(text),
 	st::historyMessagesTTLLabel))
 , _dummyAction(Ui::CreateChild<QAction>(parent.get())) {
-
-	setMinWidth(st::historyMessagesTTLLabel.minWidth
-		+ st.itemPadding.left());
+	// Try to fit the phrase in two lines.
+	const auto limit = st::historyMessagesTTLLabel.style.font->height * 2;
+	const auto min1 = st::historyMessagesTTLLabel.minWidth;
+	const auto min2 = CountMinWidthForHeight(_label.get(), min1, limit);
+	const auto added = st.itemPadding.left() + st.itemPadding.right();
+	setMinWidth(std::max(min1, min2) + added);
 
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
+		if (s.width() <= added) {
+			return;
+		}
+		_label->resizeToWidth(s.width() - added);
 		_label->moveToLeft(
 			st.itemPadding.left(),
 			(s.height() - _label->height()) / 2);
 	}, lifetime());
 
+	_label->resizeToWidth(parent->width() - added);
 	initResizeHook(parent->sizeValue());
 }
 
