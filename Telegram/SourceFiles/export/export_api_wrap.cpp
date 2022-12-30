@@ -490,8 +490,6 @@ void ApiWrap::requestSplitRanges() {
 			_splits.push_back(MTP_messageRange(
 				MTP_int(1),
 				MTP_int(std::numeric_limits<int>::max())));
-		} else {
-			ranges::reverse(_splits);
 		}
 		_startProcess->splitIndex = useOnlyLastSplit()
 			? (_splits.size() - 1)
