@@ -18,7 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-PinnedBar::PinnedBar(not_null<QWidget*> parent, Fn<bool()> customEmojiPaused)
+PinnedBar::PinnedBar(
+	not_null<QWidget*> parent,
+	Fn<bool()> customEmojiPaused,
+	rpl::producer<> customEmojiPausedChanges)
 : _wrap(parent, object_ptr<RpWidget>(parent))
 , _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget()))
 , _customEmojiPaused(std::move(customEmojiPaused)) {
@@ -30,6 +33,14 @@ PinnedBar::PinnedBar(not_null<QWidget*> parent, Fn<bool()> customEmojiPaused)
 		QPainter(_wrap.entity()).fillRect(clip, st::historyPinnedBg);
 	}, lifetime());
 	_wrap.setAttribute(Qt::WA_OpaquePaintEvent);
+
+	if (customEmojiPausedChanges) {
+		std::move(
+			customEmojiPausedChanges
+		) | rpl::start_with_next([=] {
+			_wrap.entity()->update();
+		}, lifetime());
+	}
 }
 
 PinnedBar::~PinnedBar() {
