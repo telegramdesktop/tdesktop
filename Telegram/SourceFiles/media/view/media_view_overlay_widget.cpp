@@ -254,6 +254,7 @@ struct OverlayWidget::PipWrap {
 
 	PipDelegate delegate;
 	Pip wrapped;
+	rpl::lifetime lifetime;
 };
 
 OverlayWidget::Streamed::Streamed(
@@ -3352,6 +3353,16 @@ void OverlayWidget::switchToPip() {
 		_streamed->instance.shared(),
 		closeAndContinue,
 		[=] { _pip = nullptr; });
+
+	if (const auto raw = _message) {
+		raw->history()->owner().itemRemoved(
+		) | rpl::filter([=](not_null<const HistoryItem*> item) {
+			return (raw == item);
+		}) | rpl::start_with_next([=] {
+			_pip = nullptr;
+		}, _pip->lifetime);
+	}
+
 	if (isHidden()) {
 		clearBeforeHide();
 		clearAfterHide();
