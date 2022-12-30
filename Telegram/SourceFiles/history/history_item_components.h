@@ -246,6 +246,7 @@ struct HistoryMessageReply
 	WebPageId replyToWebPageId = 0;
 	ReplyToMessagePointer replyToMsg;
 	std::unique_ptr<HistoryMessageVia> replyToVia;
+	std::unique_ptr<Ui::SpoilerAnimation> spoiler;
 	ClickHandlerPtr replyToLnk;
 	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;

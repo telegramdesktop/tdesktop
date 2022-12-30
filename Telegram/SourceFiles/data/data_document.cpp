@@ -1198,26 +1198,29 @@ bool DocumentData::isStickerSetInstalled() const {
 
 Image *DocumentData::getReplyPreview(
 		Data::FileOrigin origin,
-		not_null<PeerData*> context) {
+		not_null<PeerData*> context,
+		bool spoiler) {
 	if (!hasThumbnail()) {
 		return nullptr;
 	} else if (!_replyPreview) {
 		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	return _replyPreview->image(origin, context);
+	return _replyPreview->image(origin, context, spoiler);
 }
 
 Image *DocumentData::getReplyPreview(not_null<HistoryItem*> item) {
-	return getReplyPreview(item->fullId(), item->history()->peer);
+	const auto media = item->media();
+	const auto spoiler = media && media->hasSpoiler();
+	return getReplyPreview(item->fullId(), item->history()->peer, spoiler);
 }
 
-bool DocumentData::replyPreviewLoaded() const {
+bool DocumentData::replyPreviewLoaded(bool spoiler) const {
 	if (!hasThumbnail()) {
 		return true;
 	} else if (!_replyPreview) {
 		return false;
 	}
-	return _replyPreview->loaded();
+	return _replyPreview->loaded(spoiler);
 }
 
 StickerData *DocumentData::sticker() const {

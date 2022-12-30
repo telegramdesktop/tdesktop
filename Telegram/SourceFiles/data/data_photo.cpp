@@ -209,22 +209,25 @@ bool PhotoData::uploading() const {
 
 Image *PhotoData::getReplyPreview(
 		Data::FileOrigin origin,
-		not_null<PeerData*> context) {
+		not_null<PeerData*> context,
+		bool spoiler) {
 	if (!_replyPreview) {
 		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	return _replyPreview->image(origin, context);
+	return _replyPreview->image(origin, context, spoiler);
 }
 
 Image *PhotoData::getReplyPreview(not_null<HistoryItem*> item) {
-	return getReplyPreview(item->fullId(), item->history()->peer);
+	const auto media = item->media();
+	const auto spoiler = media && media->hasSpoiler();
+	return getReplyPreview(item->fullId(), item->history()->peer, spoiler);
 }
 
-bool PhotoData::replyPreviewLoaded() const {
+bool PhotoData::replyPreviewLoaded(bool spoiler) const {
 	if (!_replyPreview) {
 		return false;
 	}
-	return _replyPreview->loaded();
+	return _replyPreview->loaded(spoiler);
 }
 
 void PhotoData::setRemoteLocation(

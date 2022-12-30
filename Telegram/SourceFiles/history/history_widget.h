@@ -70,6 +70,7 @@ class RequestsBar;
 struct PreparedList;
 class SendFilesWay;
 class SendAsButton;
+class SpoilerAnimation;
 enum class ReportReason;
 class ChooseThemeController;
 class ContinuousScroll;
@@ -626,6 +627,7 @@ private:
 
 	HistoryItem *_replyEditMsg = nullptr;
 	Ui::Text::String _replyEditMsgText;
+	std::unique_ptr<Ui::SpoilerAnimation> _replySpoiler;
 	mutable base::Timer _updateEditTimeLeftDisplay;
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;

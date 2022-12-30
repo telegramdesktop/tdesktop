@@ -7490,20 +7490,44 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	p.setInactive(
 		controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Any));
 	p.fillRect(myrtlrect(0, backy, width(), backh), st::historyReplyBg);
+
+	const auto media = (!drawWebPagePreview && drawMsgText)
+		? drawMsgText->media()
+		: nullptr;
+	const auto hasPreview = media && media->hasReplyPreview();
+	const auto preview = hasPreview ? media->replyPreview() : nullptr;
+	const auto spoilered = preview && media->hasSpoiler();
+	if (!spoilered) {
+		_replySpoiler = nullptr;
+	} else if (!_replySpoiler) {
+		_replySpoiler = std::make_unique<Ui::SpoilerAnimation>([=] {
+			updateField();
+		});
+	}
+
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
+		const auto now = crl::now();
+		const auto paused = p.inactive();
 		auto replyLeft = st::historyReplySkip;
 		(_editMsgId ? st::historyEditIcon : st::historyReplyIcon).paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
 		if (!drawWebPagePreview) {
 			if (drawMsgText) {
-				if (drawMsgText->media() && drawMsgText->media()->hasReplyPreview()) {
-					if (const auto image = drawMsgText->media()->replyPreview()) {
+				if (hasPreview) {
+					if (preview) {
 						auto to = QRect(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-						p.drawPixmap(to.x(), to.y(), image->pixSingle(
-							image->size() / style::DevicePixelRatio(),
+						p.drawPixmap(to.x(), to.y(), preview->pixSingle(
+							preview->size() / style::DevicePixelRatio(),
 							{
 								.options = Images::Option::RoundSmall,
 								.outer = to.size(),
 							}));
+						if (_replySpoiler) {
+							Ui::FillSpoilerRect(
+								p,
+								to,
+								Ui::DefaultImageSpoiler().frame(
+									_replySpoiler->index(now, paused)));
+						}
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 				}
@@ -7521,8 +7545,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					.availableWidth = width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
 					.palette = &st::historyComposeAreaPalette,
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
-					.now = crl::now(),
-					.paused = p.inactive(),
+					.now = now,
+					.paused = paused,
 					.elisionLines = 1,
 				});
 			} else {

@@ -283,9 +283,10 @@ bool HistoryMessageReply::updateData(
 	}
 
 	if (replyToMsg) {
+		const auto repaint = [=] { holder->customEmojiRepaint(); };
 		const auto context = Core::MarkedTextContext{
 			.session = &holder->history()->session(),
-			.customEmojiRepaint = [=] { holder->customEmojiRepaint(); },
+			.customEmojiRepaint = repaint,
 		};
 		replyToText.setMarkedText(
 			st::messageTextStyle,
@@ -312,9 +313,17 @@ bool HistoryMessageReply::updateData(
 				? replyToMsg->from()->id
 				: PeerId(0);
 		}
+
+		const auto media = replyToMsg->media();
+		if (!media || !media->hasReplyPreview() || !media->hasSpoiler()) {
+			spoiler = nullptr;
+		} else if (!spoiler) {
+			spoiler = std::make_unique<Ui::SpoilerAnimation>(repaint);
+		}
 	} else if (force) {
 		replyToMsgId = 0;
 		replyToColorKey = PeerId(0);
+		spoiler = nullptr;
 	}
 	if (force) {
 		holder->history()->owner().requestItemResize(holder);
@@ -463,14 +472,15 @@ void HistoryMessageReply::paint(
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
-			auto hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
+			const auto media = replyToMsg->media();
+			auto hasPreview = media && media->hasReplyPreview();
 			if (hasPreview && w < st::msgReplyBarSkip + st::msgReplyBarSize.height()) {
 				hasPreview = false;
 			}
 			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 
 			if (hasPreview) {
-				if (const auto image = replyToMsg->media()->replyPreview()) {
+				if (const auto image = media->replyPreview()) {
 					auto to = style::rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
 					const auto preview = image->pixSingle(
 						image->size() / style::DevicePixelRatio(),
@@ -482,6 +492,16 @@ void HistoryMessageReply::paint(
 							.outer = to.size(),
 						});
 					p.drawPixmap(to.x(), to.y(), preview);
+					if (spoiler) {
+						holder->clearCustomEmojiRepaint();
+						Ui::FillSpoilerRect(
+							p,
+							to,
+							Ui::DefaultImageSpoiler().frame(
+								spoiler->index(
+									context.now,
+									context.paused)));
+					}
 				}
 			}
 			if (w > st::msgReplyBarSkip + previewSkip) {

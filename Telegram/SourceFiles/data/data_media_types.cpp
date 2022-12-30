@@ -618,7 +618,7 @@ Image *MediaPhoto::replyPreview() const {
 }
 
 bool MediaPhoto::replyPreviewLoaded() const {
-	return _photo->replyPreviewLoaded();
+	return _photo->replyPreviewLoaded(_spoiler);
 }
 
 TextWithEntities MediaPhoto::notificationText() const {
@@ -854,7 +854,7 @@ Image *MediaFile::replyPreview() const {
 }
 
 bool MediaFile::replyPreviewLoaded() const {
-	return _document->replyPreviewLoaded();
+	return _document->replyPreviewLoaded(_spoiler);
 }
 
 ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
@@ -1479,10 +1479,11 @@ Image *MediaWebPage::replyPreview() const {
 }
 
 bool MediaWebPage::replyPreviewLoaded() const {
+	const auto spoiler = false;
 	if (const auto document = MediaWebPage::document()) {
-		return document->replyPreviewLoaded();
+		return document->replyPreviewLoaded(spoiler);
 	} else if (const auto photo = MediaWebPage::photo()) {
-		return photo->replyPreviewLoaded();
+		return photo->replyPreviewLoaded(spoiler);
 	}
 	return true;
 }
@@ -1552,10 +1553,11 @@ Image *MediaGame::replyPreview() const {
 }
 
 bool MediaGame::replyPreviewLoaded() const {
+	const auto spoiler = false;
 	if (const auto document = _game->document) {
-		return document->replyPreviewLoaded();
+		return document->replyPreviewLoaded(spoiler);
 	} else if (const auto photo = _game->photo) {
-		return photo->replyPreviewLoaded();
+		return photo->replyPreviewLoaded(spoiler);
 	}
 	return true;
 }
@@ -1675,8 +1677,9 @@ Image *MediaInvoice::replyPreview() const {
 }
 
 bool MediaInvoice::replyPreviewLoaded() const {
+	const auto spoiler = false;
 	if (const auto photo = _invoice.photo) {
-		return photo->replyPreviewLoaded();
+		return photo->replyPreviewLoaded(spoiler);
 	}
 	return true;
 }

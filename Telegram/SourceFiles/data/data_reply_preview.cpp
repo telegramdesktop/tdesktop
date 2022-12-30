@@ -27,7 +27,11 @@ ReplyPreview::ReplyPreview(not_null<PhotoData*> photo)
 
 ReplyPreview::~ReplyPreview() = default;
 
-void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
+void ReplyPreview::prepare(
+		not_null<Image*> image,
+		Images::Options options,
+		bool spoiler) {
+	using namespace Images;
 	if (image->isNull()) {
 		return;
 	}
@@ -41,24 +45,34 @@ void ReplyPreview::prepare(not_null<Image*> image, Images::Options options) {
 		: QSize(
 			st::msgReplyBarSize.height(),
 			h * st::msgReplyBarSize.height() / w);
-	thumbSize *= cIntRetinaFactor();
-	options |= Images::Option::TransparentBackground;
+	thumbSize *= style::DevicePixelRatio();
+	options |= Option::TransparentBackground;
 	auto outerSize = st::msgReplyBarSize.height();
-	auto bitmap = image->pixNoCache(
-		thumbSize,
-		{ .options = options, .outer = { outerSize, outerSize } });
-	_image = std::make_unique<Image>(bitmap.toImage());
-	_good = ((options & Images::Option::Blur) == 0);
+	auto original = spoiler
+		? image->original().scaled(
+			{ 40, 40 },
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation)
+		: image->original();
+	auto prepared = Prepare(std::move(original), thumbSize, {
+		.options = options | (spoiler ? Option::Blur : Option()),
+		.outer = { outerSize, outerSize },
+	});
+	(spoiler ? _spoilered : _regular) = std::make_unique<Image>(
+		std::move(prepared));
+	_good = spoiler || ((options & Option::Blur) == 0);
 }
 
 Image *ReplyPreview::image(
 		Data::FileOrigin origin,
-		not_null<PeerData*> context) {
-	if (_checked) {
-		return _image.get();
-	}
-	if (_document) {
-		if (!_image || (!_good && _document->hasThumbnail())) {
+		not_null<PeerData*> context,
+		bool spoiler) {
+	auto &image = spoiler ? _spoilered : _regular;
+	auto &checked = spoiler ? _checkedSpoilered : _checkedRegular;
+	if (checked) {
+		return image.get();
+	} else if (_document) {
+		if (!image || (!_good && _document->hasThumbnail())) {
 			if (!_documentMedia) {
 				_documentMedia = _document->createMediaView();
 				_documentMedia->thumbnailWanted(origin);
@@ -67,51 +81,67 @@ Image *ReplyPreview::image(
 			const auto option = _document->isVideoMessage()
 				? Images::Option::RoundCircle
 				: Images::Option::None;
-			if (thumbnail) {
+			if (spoiler) {
+				if (const auto image = _documentMedia->thumbnailInline()) {
+					prepare(image, option, true);
+				} else if (thumbnail) {
+					prepare(thumbnail, option, true);
+				}
+			} else if (thumbnail) {
 				prepare(thumbnail, option);
-			} else if (!_image) {
+			} else if (!image) {
 				if (const auto image = _documentMedia->thumbnailInline()) {
 					prepare(image, option | Images::Option::Blur);
 				}
 			}
 			if (_good || !_document->hasThumbnail()) {
-				_checked = true;
+				checked = true;
 				_documentMedia = nullptr;
 			}
 		}
 	} else {
 		Assert(_photo != nullptr);
-		if (!_image || !_good) {
+		if (!image || !_good) {
 			const auto inlineThumbnailBytes = _photo->inlineThumbnailBytes();
 			if (!_photoMedia) {
 				_photoMedia = _photo->createMediaView();
 			}
+			using Size = PhotoSize;
 			const auto loadThumbnail = inlineThumbnailBytes.isEmpty()
-				|| _photoMedia->autoLoadThumbnailAllowed(context);
+				|| (!spoiler
+					&& _photoMedia->autoLoadThumbnailAllowed(context));
 			if (loadThumbnail) {
-				_photoMedia->wanted(PhotoSize::Small, origin);
+				_photoMedia->wanted(Size::Small, origin);
 			}
-			if (const auto small = _photoMedia->image(PhotoSize::Small)) {
-				prepare(small, Images::Option(0));
-			} else if (const auto large = _photoMedia->image(
-					PhotoSize::Large)) {
-				prepare(large, Images::Option(0));
-			} else if (!_image) {
+			if (spoiler) {
+				const auto option = Images::Option::Blur;
+				if (const auto blurred = _photoMedia->thumbnailInline()) {
+					prepare(blurred, {}, true);
+				} else if (const auto small = _photoMedia->image(Size::Small)) {
+					prepare(small, {}, true);
+				} else if (const auto large = _photoMedia->image(Size::Large)) {
+					prepare(large, {}, true);
+				}
+			} else if (const auto small = _photoMedia->image(Size::Small)) {
+				prepare(small, {});
+			} else if (const auto large = _photoMedia->image(Size::Large)) {
+				prepare(large, {});
+			} else if (!image) {
 				if (const auto blurred = _photoMedia->thumbnailInline()) {
 					prepare(blurred, Images::Option::Blur);
 				}
 			}
 			if (_good) {
-				_checked = true;
+				checked = true;
 				_photoMedia = nullptr;
 			}
 		}
 	}
-	return _image.get();
+	return image.get();
 }
 
-bool ReplyPreview::loaded() const {
-	return _checked;
+bool ReplyPreview::loaded(bool spoiler) const {
+	return spoiler ? _checkedSpoilered : _checkedRegular;
 }
 
 } // namespace Data
