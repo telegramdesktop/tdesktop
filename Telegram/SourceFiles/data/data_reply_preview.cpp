@@ -114,7 +114,6 @@ Image *ReplyPreview::image(
 				_photoMedia->wanted(Size::Small, origin);
 			}
 			if (spoiler) {
-				const auto option = Images::Option::Blur;
 				if (const auto blurred = _photoMedia->thumbnailInline()) {
 					prepare(blurred, {}, true);
 				} else if (const auto small = _photoMedia->image(Size::Small)) {
