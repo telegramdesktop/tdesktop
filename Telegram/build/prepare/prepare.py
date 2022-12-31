@@ -419,7 +419,7 @@ win:
 """, 'ThirdParty')
 
 stage('python', """
-version: """ + (subprocess.run(['python', '-V'], capture_output=True, env=modifiedEnv).stdout.decode().strip().split()[-1] if win else '0') + """
+version: """ + (subprocess.run(['python', '-V'], capture_output=True, text=True, env=modifiedEnv).stdout.strip().split()[-1] if win else '0') + """
 win:
     python -m venv python
     python\\Scripts\\activate.bat
