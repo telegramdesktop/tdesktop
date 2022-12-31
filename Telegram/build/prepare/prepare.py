@@ -12,8 +12,15 @@ def error(text):
     print('[ERROR] ' + text)
     finish(1)
 
+def nativeToolsError():
+    error('Make sure to run from Native Tools Command Prompt.')
+
 win = (sys.platform == 'win32')
 mac = (sys.platform == 'darwin')
+
+if win and not 'Platform' in os.environ:
+    nativeToolsError()
+
 win32 = win and (os.environ['Platform'] == 'x86')
 win64 = win and (os.environ['Platform'] == 'x64')
 
@@ -21,7 +28,7 @@ if win and not 'COMSPEC' in os.environ:
     error('COMSPEC environment variable is not set.')
 
 if win and not win32 and not win64:
-    error('Make sure to run from Native Tools Command Prompt.')
+    nativeToolsError()
 
 os.chdir(scriptPath + '/../../../..')
 
