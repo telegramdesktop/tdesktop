@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "main/main_domain.h"
-#include "main/main_account.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 

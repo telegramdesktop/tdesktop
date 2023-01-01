@@ -91,13 +91,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "ui/boxes/confirm_box.h"
 
-#include <QtCore/QStandardPaths>
-
 #include "fakepasscode/log/fake_log.h"
 #include "fakepasscode/utils/file_utils.h"
 #include "fakepasscode/autodelete/autodelete_service.h"
 #include "fakepasscode/mtp_holder/mtp_holder.h"
 
+#include <QtCore/QStandardPaths>
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
@@ -1104,7 +1103,7 @@ void Application::preventOrInvoke(Fn<void()> &&callback) {
 }
 
 void Application::lockByPasscode() {
-    bool cleanup = _domain->local().IsCacheCleanedUpOnLock();
+	bool cleanup = _domain->local().IsCacheCleanedUpOnLock();
 	enumerateWindows([&](not_null<Window::Controller*> w) {
 		_passcodeLock = true;
 		if (cleanup) {
@@ -1113,6 +1112,12 @@ void Application::lockByPasscode() {
 			Ui::Emoji::ClearIrrelevantCache();
 		}
 		w->setupPasscodeLock();
+	});
+}
+
+void Application::maybeLockByPasscode() {
+	preventOrInvoke([=] {
+		lockByPasscode();
 	});
 }
 

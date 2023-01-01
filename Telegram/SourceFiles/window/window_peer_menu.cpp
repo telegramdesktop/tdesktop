@@ -285,14 +285,13 @@ private:
 	void addToggleMuteSubmenu(bool addSeparator);
 	void addSupportInfo();
 	void addInfo();
-    void addDeleteMyMessages();
+    //void addDeleteMyMessages();
     void addToggleFolder();
 	//void addToFolder();
 	void addToggleUnreadMark();
 	void addToggleArchive();
 	void addClearHistory();
 	void addDeleteChat();
-	void addJoinChat();
 	void addLeaveChat();
 	void addJoinChat();
 	void addTopicLink();
@@ -699,20 +698,6 @@ void Filler::addDeleteChat() {
 	});
 }
 
-void Filler::addJoinChat() {
-	const auto channel = _peer->asChannel();
-	if (!channel || channel->amIn()) {
-		return;
-	}
-
-	_addAction(
-		(_peer->isMegagroup()
-			? tr::lng_profile_join_group(tr::now)
-			: tr::lng_profile_join_channel(tr::now)),
-		[=] { channel->session().api().joinChannel(channel); },
-		&st::menuIconInvite);
-}
-
 void Filler::addLeaveChat() {
 	const auto channel = _peer->asChannel();
 	if (_topic || !channel || !channel->amIn()) {
@@ -1099,17 +1084,6 @@ void Filler::fill() {
 	}
 }
 
-void Filler::addDeleteMyMessages(){
-    const auto channel = _peer->asChannel();
-    if (channel && !_peer->isMegagroup() && !_peer->isGigagroup()) {
-        return;
-    }
-    _addAction(
-            tr::lng_profile_delete_my_messages(tr::now),
-            DeleteMyMessagesHandler(_controller, _peer),
-            &st::menuIconClear);
-}
-
 void Filler::addCreateTopic() {
 	if (!_peer || !_peer->canCreateTopics()) {
 		return;
@@ -1149,6 +1123,17 @@ void Filler::addSearchTopics() {
 		controller->content()->searchInChat(history);
 	}, &st::menuIconSearch);
 }
+
+/*void Filler::addDeleteMyMessages(){
+    const auto channel = _peer->asChannel();
+    if (channel && !_peer->isMegagroup() && !_peer->isGigagroup()) {
+        return;
+    }
+    _addAction(
+            tr::lng_profile_delete_my_messages(tr::now),
+            DeleteMyMessagesHandler(_controller, _peer),
+            &st::menuIconClear);
+}*/
 
 void Filler::fillChatsListActions() {
 	if (!_peer || !_peer->isForum()) {
@@ -1913,7 +1898,8 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			state->menu.get(),
 			type,
 			SendMenu::DefaultSilentCallback(submit),
-			SendMenu::DefaultScheduleCallback(state->box, type, submit));
+			SendMenu::DefaultScheduleCallback(state->box, type, submit),
+			SendMenu::DefaultAutoDeleteCallback(state->box, submit));
 		const auto success = (result == SendMenu::FillMenuResult::Success);
 		if (showForwardOptions || success) {
 			state->menu->setForcedVerticalOrigin(
@@ -2445,7 +2431,7 @@ bool FillVideoChatMenu(
 	return has || manager;
 }
 
-Fn<void()> DeleteMyMessagesHandler(
+/*Fn<void()> DeleteMyMessagesHandler(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
     //peer->session().data().histories().deleteMessages();
@@ -2506,6 +2492,6 @@ Fn<void()> DeleteMyMessagesHandler(
             //FAKE_LOG(qsl("Search FAILED"));
         }).send();
 	};
-}
+}*/
 
 } // namespace Window

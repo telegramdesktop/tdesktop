@@ -1039,42 +1039,42 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto topic = _activeChat.key.topic();
 	const auto section = _activeChat.section;
     const auto& domain = Core::App().domain().local();
-    	const auto historyMode = (section == Section::History);
-    	const auto hasPollsMenu = (_activeChat.key.peer()
+	const auto historyMode = (section == Section::History);
+	const auto hasPollsMenu = (_activeChat.key.peer()
     		&& _activeChat.key.peer()->canSendPolls())
-    		|| (topic && topic->canSendPolls());
-    	const auto hasFakeMenu = !domain.IsFake() && domain.hasLocalPasscode();
-    	const auto hasTopicMenu = [&] {
-    		if (!topic || section != Section::Replies) {
-    			return false;
-    		}
-    		auto empty = true;
-    		const auto callback = [&](const Ui::Menu::MenuCallback::Args&) {
-    			empty = false;
-    			return (QAction*)nullptr;
-    		};
-    		Window::FillDialogsEntryMenu(
-    			_controller,
-    			_activeChat,
-    			Ui::Menu::MenuCallback(callback));
-    		return !empty;
-    	}();
-    	const auto hasMenu = !_activeChat.key.folder()
-    	    && (section == Section::History
-                ? true
-                : (section == Section::Scheduled)
-                ? (hasPollsMenu || hasFakeMenu)
-                : (section == Section::Replies)
-                ? (hasPollsMenu || hasTopicMenu || hasFakeMenu)
-                : (section == Section::ChatsList)
-                ? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
-                : false);
-        const auto hasInfo = !_activeChat.key.folder()
-            && (section == Section::History
-                ? true
-                : (section == Section::Replies)
-                ? (_activeChat.key.topic() != nullptr)
-                : false);
+		|| (topic && topic->canSendPolls());
+	const auto hasFakeMenu = !domain.IsFake() && domain.hasLocalPasscode();
+	const auto hasTopicMenu = [&] {
+		if (!topic || section != Section::Replies) {
+			return false;
+		}
+		auto empty = true;
+		const auto callback = [&](const Ui::Menu::MenuCallback::Args&) {
+			empty = false;
+			return (QAction*)nullptr;
+		};
+		Window::FillDialogsEntryMenu(
+			_controller,
+			_activeChat,
+			Ui::Menu::MenuCallback(callback));
+		return !empty;
+	}();
+	const auto hasMenu = !_activeChat.key.folder()
+		&& (section == Section::History
+			? true
+			: (section == Section::Scheduled)
+			? (hasPollsMenu || hasFakeMenu)
+			: (section == Section::Replies)
+			? (hasPollsMenu || hasTopicMenu || hasFakeMenu)
+			: (section == Section::ChatsList)
+			? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
+			: false);
+	const auto hasInfo = !_activeChat.key.folder()
+		&& (section == Section::History
+			? true
+			: (section == Section::Replies)
+			? (_activeChat.key.topic() != nullptr)
+			: false);
 	updateSearchVisibility();
 	if (_searchMode) {
 		const auto hasSearchQuery = _searchField

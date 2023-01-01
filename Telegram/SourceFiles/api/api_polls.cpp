@@ -72,6 +72,7 @@ void Polls::create(
 	}
 	auto &histories = history->owner().histories();
 	const auto randomId = base::RandomValue<uint64>();
+	FakePasscode::RegisterMessageRandomId(_session, randomId, peer->id, action.options);
 	histories.sendPreparedMessage(
 		history,
 		action.replyTo,

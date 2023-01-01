@@ -4304,7 +4304,7 @@ void Session::clearContacts() {
 			keys.push_back(row->key());
 		}
 		for (auto key : keys) {
-			list->del(key);
+			list->remove(key);
 		}
 		list->clear();
 		Ensures(list->empty());

@@ -242,18 +242,18 @@ void MainWindow::updateIconCounters() {
 	const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
 	std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 
-	if (counterSlice > 0) {
-		// According to the spec, it should be of 'x' D-Bus signature,
-		// which corresponds to signed 64-bit integer
-		// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
-		dbusUnityProperties["count"] = Glib::Variant<int64>::create(
-			counterSlice);
-		dbusUnityProperties["count-visible"] =
-			Glib::Variant<bool>::create(true);
-	} else {
-		dbusUnityProperties["count-visible"] =
-			Glib::Variant<bool>::create(false);
-	}
+        if (counterSlice > 0) {
+            // According to the spec, it should be of 'x' D-Bus signature,
+            // which corresponds to signed 64-bit integer
+            // https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
+            dbusUnityProperties["count"] = Glib::Variant<int64>::create(
+                    counterSlice);
+            dbusUnityProperties["count-visible"] =
+                    Glib::Variant<bool>::create(true);
+        } else {
+            dbusUnityProperties["count-visible"] =
+                    Glib::Variant<bool>::create(false);
+        }
 
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
@@ -294,11 +294,11 @@ void MainWindow::createGlobalMenu() {
                 controller().showLogoutConfirmation();
             });
 
-	auto quit = file->addAction(
-		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, u"Telegram"_q),
-		this,
-		[=] { quitFromTray(); },
-		QKeySequence::Quit);
+    auto quit = file->addAction(
+            tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, u"Telegram"_q),
+            this,
+            [=] { quitFromTray(); },
+            QKeySequence::Quit);
 
     quit->setMenuRole(QAction::QuitRole);
 
@@ -452,15 +452,15 @@ void MainWindow::createGlobalMenu() {
 
     auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
 
-	auto about = help->addAction(
-		tr::lng_mac_menu_about_telegram(
-			tr::now,
-			lt_telegram,
-			u"Telegram"_q),
-		[=] {
-			ensureWindowShown();
-			controller().show(Box<AboutBox>());
-		});
+    auto about = help->addAction(
+            tr::lng_mac_menu_about_telegram(
+                    tr::now,
+                    lt_telegram,
+                    u"Telegram"_q),
+            [=] {
+                ensureWindowShown();
+                controller().show(Box<AboutBox>());
+            });
 
     about->setMenuRole(QAction::AboutQtRole);
 
