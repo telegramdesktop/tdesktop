@@ -3749,6 +3749,8 @@ void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
+	saveScrollState();
+
 	if (_reactionsItem.current() == item) {
 		_reactionsItem = nullptr;
 	}
