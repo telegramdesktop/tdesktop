@@ -1610,9 +1610,11 @@ Link::Link(
 				}),
 				parent->fullId());
 		} else if (_page->photo) {
-			if (_page->type == WebPageType::Profile || _page->type == WebPageType::Video) {
+			if (_page->type == WebPageType::Profile
+				|| _page->type == WebPageType::Video) {
 				_photol = createHandler(_page->url);
 			} else if (_page->type == WebPageType::Photo
+				|| _page->type == WebPageType::Document
 				|| _page->siteName == u"Twitter"_q
 				|| _page->siteName == u"Facebook"_q) {
 				_photol = std::make_shared<PhotoOpenClickHandler>(
