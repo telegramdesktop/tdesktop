@@ -1163,9 +1163,10 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupBelowWidget(
 
 	_saveAdditional = [=] {
 		if (removeButton->isHidden()) {
-			const auto photoId = SyncUserFallbackPhotoViewer(self);
-			if (const auto photo = self->owner().photo(*photoId)) {
-				controller->session().api().peerPhoto().clear(photo);
+			if (const auto photoId = SyncUserFallbackPhotoViewer(self)) {
+				if (const auto photo = self->owner().photo(*photoId)) {
+					controller->session().api().peerPhoto().clear(photo);
+				}
 			}
 		} else if (!state->localOriginal.isNull()) {
 			controller->session().api().peerPhoto().uploadFallback(
