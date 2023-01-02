@@ -84,6 +84,10 @@ layout:
   /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1
 
+package-repositories:
+  - type: apt
+    ppa: kisak/kisak-mesa
+
 parts:
   telegram:
     plugin: cmake
