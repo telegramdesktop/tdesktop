@@ -176,8 +176,8 @@ const char kOptionAutoScrollInactiveChat[] =
 
 namespace {
 
-constexpr auto kMessagesPerPageFirst = 10;
-constexpr auto kMessagesPerPage = 10;
+constexpr auto kMessagesPerPageFirst = 30;
+constexpr auto kMessagesPerPage = 50;
 constexpr auto kPreloadHeightsCount = 3; // when 3 screens to scroll left make a preload request
 constexpr auto kScrollToVoiceAfterScrolledMs = 1000;
 constexpr auto kSkipRepaintWhileScrollMs = 100;
