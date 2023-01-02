@@ -51,8 +51,8 @@ constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
 
 base::options::toggle ShowChatNameInNewWindow({
 	.id = kOptionShowChatNameInNewWindow,
-	.name = "Show chat name in title of separated windows",
-	.description = "",
+	.name = "Chat name in window title",
+	.description = "Show chat name in the additional windows titles.",
 });
 
 } // namespace
