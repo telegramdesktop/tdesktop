@@ -755,7 +755,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_download_path" = "Download path";
 "lng_download_path_temp" = "Temp folder";
 "lng_download_path_default" = "Default folder";
-"lng_download_path_unset" = "Unset";
 "lng_download_path_clear" = "Clear all";
 "lng_download_path_header" = "Choose download path";
 "lng_download_path_default_radio" = "Telegram folder in system «Downloads»";
