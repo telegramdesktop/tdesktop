@@ -252,15 +252,6 @@ void Application::run() {
 		return;
 	}
 
-	if (KSandbox::isInside()) {
-		const auto path = settings().downloadPath();
-		if (!path.isEmpty()
-			&& path != FileDialog::Tmp()
-			&& !base::CanReadDirectory(path)) {
-			settings().setDownloadPath(QString());
-		}
-	}
-
 	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
 
@@ -606,8 +597,7 @@ bool Application::canReadDefaultDownloadPath(bool always) const {
 }
 
 bool Application::canSaveFileWithoutAskingForPath() const {
-	return !Core::App().settings().askDownloadPath()
-		&& canReadDefaultDownloadPath();
+	return !Core::App().settings().askDownloadPath();
 }
 
 MTP::Config &Application::fallbackProductionConfig() const {

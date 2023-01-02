@@ -1057,7 +1057,7 @@ void SetupDataStorage(
 		if (text.isEmpty()) {
 			return Core::App().canReadDefaultDownloadPath(true)
 				? tr::lng_download_path_default(tr::now)
-				: tr::lng_download_path_unset(tr::now);
+				: tr::lng_download_path_temp(tr::now);
 		} else if (text == FileDialog::Tmp()) {
 			return tr::lng_download_path_temp(tr::now);
 		}

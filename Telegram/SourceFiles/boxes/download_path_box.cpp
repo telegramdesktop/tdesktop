@@ -147,7 +147,9 @@ void DownloadPathBox::setPathText(const QString &text) {
 DownloadPathBox::Directory DownloadPathBox::typeFromPath(
 		const QString &path) {
 	if (path.isEmpty()) {
-		return Directory::Downloads;
+		return Core::App().canReadDefaultDownloadPath(true)
+			? Directory::Downloads
+			: Directory::Temp;
 	} else if (path == FileDialog::Tmp()) {
 		return Directory::Temp;
 	}
