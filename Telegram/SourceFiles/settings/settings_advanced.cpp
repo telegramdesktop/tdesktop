@@ -500,10 +500,17 @@ void SetupSystemIntegrationContent(
 		) | rpl::filter([](bool checked) {
 			return (checked != cAutoStart());
 		}) | rpl::start_with_next([=](bool checked) {
+			const auto weak = base::make_weak(controller);
 			cSetAutoStart(checked);
 			Platform::AutostartToggle(checked, crl::guard(autostart, [=](
 					bool enabled) {
-				autostart->setChecked(enabled);
+				if (checked && !enabled && weak) {
+					weak->window().showToast(
+						Lang::Hard::AutostartEnableError());
+				}
+				Ui::PostponeCall(autostart, [=] {
+					autostart->setChecked(enabled);
+				});
 				if (enabled || !minimized->entity()->checked()) {
 					Local::writeSettings();
 				} else {

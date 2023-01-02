@@ -142,51 +142,78 @@ void DeleteMyModules() {
 	RemoveDirectory(modules.c_str());
 }
 
-void ManageAppLink(bool create, bool silent, int path_csidl, const wchar_t *args, const wchar_t *description) {
+bool ManageAppLink(
+		bool create,
+		bool silent,
+		const GUID &folderId,
+		const wchar_t *args,
+		const wchar_t *description) {
 	if (cExeName().isEmpty()) {
-		return;
+		return false;
 	}
-	WCHAR startupFolder[MAX_PATH];
-	HRESULT hr = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);
-	if (SUCCEEDED(hr)) {
-		QString lnk = QString::fromWCharArray(startupFolder) + '\\' + AppFile.utf16() + u".lnk"_q;
-		if (create) {
-			const auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
-				CLSID_ShellLink,
-				CLSCTX_INPROC_SERVER);
-			if (shellLink) {
-				QString exe = QDir::toNativeSeparators(cExeDir() + cExeName()), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
-				shellLink->SetArguments(args);
-				shellLink->SetPath(exe.toStdWString().c_str());
-				shellLink->SetWorkingDirectory(dir.toStdWString().c_str());
-				shellLink->SetDescription(description);
-
-				if (const auto propertyStore = shellLink.try_as<IPropertyStore>()) {
-					PROPVARIANT appIdPropVar;
-					hr = InitPropVariantFromString(AppUserModelId::getId(), &appIdPropVar);
-					if (SUCCEEDED(hr)) {
-						hr = propertyStore->SetValue(AppUserModelId::getKey(), appIdPropVar);
-						PropVariantClear(&appIdPropVar);
-						if (SUCCEEDED(hr)) {
-							hr = propertyStore->Commit();
-						}
-					}
-				}
-
-				if (const auto persistFile = shellLink.try_as<IPersistFile>()) {
-					hr = persistFile->Save(lnk.toStdWString().c_str(), TRUE);
-				} else {
-					if (!silent) LOG(("App Error: could not create interface IID_IPersistFile %1").arg(hr));
-				}
-			} else {
-				if (!silent) LOG(("App Error: could not create instance of IID_IShellLink %1").arg(hr));
-			}
-		} else {
-			QFile::remove(lnk);
+	PWSTR startupFolder;
+	HRESULT hr = SHGetKnownFolderPath(
+		folderId,
+		KF_FLAG_CREATE,
+		nullptr,
+		&startupFolder);
+	const auto guard = gsl::finally([&] {
+		CoTaskMemFree(startupFolder);
+	});
+	if (!SUCCEEDED(hr)) {
+		WCHAR buffer[64];
+		const auto size = base::array_size(buffer) - 1;
+		const auto length = StringFromGUID2(folderId, buffer, size);
+		if (length > 0 && length <= size) {
+			buffer[length] = 0;
+			if (!silent) LOG(("App Error: could not get %1 folder: %2").arg(buffer).arg(hr));
 		}
-	} else {
-		if (!silent) LOG(("App Error: could not get CSIDL %1 folder %2").arg(path_csidl).arg(hr));
+		return false;
 	}
+	const auto lnk = QString::fromWCharArray(startupFolder)
+		+ '\\'
+		+ AppFile.utf16()
+		+ u".lnk"_q;
+	if (!create) {
+		QFile::remove(lnk);
+		return true;
+	}
+	const auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
+		CLSID_ShellLink,
+		CLSCTX_INPROC_SERVER);
+	if (!shellLink) {
+		if (!silent) LOG(("App Error: could not create instance of IID_IShellLink %1").arg(hr));
+		return false;
+	}
+	QString exe = QDir::toNativeSeparators(cExeDir() + cExeName()), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
+	shellLink->SetArguments(args);
+	shellLink->SetPath(exe.toStdWString().c_str());
+	shellLink->SetWorkingDirectory(dir.toStdWString().c_str());
+	shellLink->SetDescription(description);
+
+	if (const auto propertyStore = shellLink.try_as<IPropertyStore>()) {
+		PROPVARIANT appIdPropVar;
+		hr = InitPropVariantFromString(AppUserModelId::getId(), &appIdPropVar);
+		if (SUCCEEDED(hr)) {
+			hr = propertyStore->SetValue(AppUserModelId::getKey(), appIdPropVar);
+			PropVariantClear(&appIdPropVar);
+			if (SUCCEEDED(hr)) {
+				hr = propertyStore->Commit();
+			}
+		}
+	}
+
+	const auto persistFile = shellLink.try_as<IPersistFile>();
+	if (!persistFile) {
+		if (!silent) LOG(("App Error: could not create interface IID_IPersistFile %1").arg(hr));
+		return false;
+	}
+	hr = persistFile->Save(lnk.toStdWString().c_str(), TRUE);
+	if (!SUCCEEDED(hr)) {
+		if (!silent) LOG(("App Error: could not save IPersistFile to path %1").arg(lnk));
+		return false;
+	}
+	return true;
 }
 
 } // namespace
@@ -415,9 +442,15 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 		done ? Fn<void(bool)>(callback) : nullptr);
 #else // OS_WIN_STORE
 	const auto silent = !done;
-	ManageAppLink(enabled, silent, CSIDL_STARTUP, L"-autostart", L"Telegram autorun link.\nYou can disable autorun in Telegram settings.");
+	const auto success = ManageAppLink(
+		enabled,
+		silent,
+		FOLDERID_Startup,
+		L"-autostart",
+		L"Telegram autorun link.\n"
+		"You can disable autorun in Telegram settings.");
 	if (done) {
-		done(enabled);
+		done(enabled && success);
 	}
 #endif // OS_WIN_STORE
 }
@@ -586,7 +619,13 @@ void NewVersionLaunched(int oldVersion) {
 } // namespace Platform
 
 void psSendToMenu(bool send, bool silent) {
-	ManageAppLink(send, silent, CSIDL_SENDTO, L"-sendpath", L"Telegram send to link.\nYou can disable send to menu item in Telegram settings.");
+	ManageAppLink(
+		send,
+		silent,
+		FOLDERID_SendTo,
+		L"-sendpath",
+		L"Telegram send to link.\n"
+		"You can disable send to menu item in Telegram settings.");
 }
 
 bool psLaunchMaps(const Data::LocationPoint &point) {
