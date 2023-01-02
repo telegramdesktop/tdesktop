@@ -1,3 +1,8 @@
+4.5.1 (02.01.22)
+
+- Fix crash in profile photo privacy edition.
+- Allow sending photos larger than 1280px (in Experimental Settings).
+
 4.5 (30.12.22)
 
 - Media with spoiler effects. You can wrap photos and videos you send in a fuzzy cover by selecting media in the attachment menu and tapping (...) > Hide With Spoiler.
