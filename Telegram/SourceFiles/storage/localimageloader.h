@@ -24,6 +24,10 @@ constexpr auto kFileSizeLimit = 2'000 * int64(1024 * 1024);
 // Load files up to 4'000 MB.
 constexpr auto kFileSizePremiumLimit = 4'000 * int64(1024 * 1024);
 
+extern const char kOptionSendLargePhotos[];
+
+[[nodiscard]] int PhotoSideLimit();
+
 enum class SendMediaType {
 	Photo,
 	Audio,

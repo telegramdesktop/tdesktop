@@ -80,6 +80,7 @@ struct PreparedFile {
 	std::unique_ptr<Ui::PreparedFileInformation> information;
 	QImage preview;
 	QSize shownDimensions;
+	QSize originalDimensions;
 	Type type = Type::File;
 	bool spoiler = false;
 };

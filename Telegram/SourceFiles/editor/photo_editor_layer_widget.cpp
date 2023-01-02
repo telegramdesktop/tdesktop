@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h" // InformBox
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
+#include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "window/window_controller.h"
@@ -42,10 +43,11 @@ void OpenWithPreparedFile(
 		return;
 	}
 
+	const auto sideLimit = PhotoSideLimit();
 	auto callback = [=, done = std::move(doneCallback)](
 			const PhotoModifications &mods) {
 		image->modifications = mods;
-		Storage::UpdateImageDetails(*file, previewWidth);
+		Storage::UpdateImageDetails(*file, previewWidth, sideLimit);
 		{
 			using namespace Ui;
 			const auto size = file->preview.size();

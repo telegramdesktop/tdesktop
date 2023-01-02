@@ -451,7 +451,8 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 					&file.information->media);
 
 				image->modifications = mods;
-				Storage::UpdateImageDetails(file, previewWidth);
+				const auto sideLimit = PhotoSideLimit();
+				Storage::UpdateImageDetails(file, previewWidth, sideLimit);
 				rebuildPreview();
 			};
 			const auto fileImage = std::make_shared<Image>(*large);

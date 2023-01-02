@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kPhotoSideLimit = 1280;
+constexpr auto kPhotoSideLimit = 2560;
 
 using Data::PhotoMedia;
 using Data::PhotoSize;

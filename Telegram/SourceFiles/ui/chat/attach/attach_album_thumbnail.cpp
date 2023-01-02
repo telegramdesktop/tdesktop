@@ -81,8 +81,7 @@ AlbumThumbnail::AlbumThumbnail(
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
 		_name = "image.png";
-		_status = FormatImageSizeText(_fullPreview.size()
-			/ _fullPreview.devicePixelRatio());
+		_status = FormatImageSizeText(file.originalDimensions);
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		_name = fileinfo.fileName();

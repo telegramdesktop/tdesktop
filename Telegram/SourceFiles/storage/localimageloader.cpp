@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "base/random.h"
 #include "editor/scene/scene_item_sticker.h"
@@ -48,6 +49,13 @@ constexpr auto kPhotoUploadPartSize = 32 * 1024;
 constexpr auto kRecompressAfterBpp = 4;
 
 using Ui::ValidateThumbDimensions;
+
+base::options::toggle SendLargePhotos({
+	.id = kOptionSendLargePhotos,
+	.name = "Send large photos",
+	.description = "Increase the side limit on compressed images to 2560px.",
+});
+std::atomic<bool> SendLargePhotosAtomic/* = false*/;
 
 struct PreparedFileThumbnail {
 	uint64 id = 0;
@@ -191,7 +199,21 @@ struct PreparedFileThumbnail {
 	return result;
 }
 
+[[nodiscard]] int PhotoSideLimit(bool large) {
+	return large ? 2560 : 1280;
+}
+
+[[nodiscard]] int PhotoSideLimitAtomic() {
+	return PhotoSideLimit(SendLargePhotosAtomic.load());
+}
+
 } // namespace
+
+const char kOptionSendLargePhotos[] = "send-large-photos";
+
+int PhotoSideLimit() {
+	return PhotoSideLimit(SendLargePhotos.value());
+}
 
 SendMediaPrepare::SendMediaPrepare(
 	const QString &file,
@@ -518,7 +540,6 @@ void FileLoadResult::setThumbData(const QByteArray &thumbdata) {
 	}
 }
 
-
 FileLoadTask::FileLoadTask(
 	not_null<Main::Session*> session,
 	const QString &filepath,
@@ -543,6 +564,8 @@ FileLoadTask::FileLoadTask(
 	Expects(to.options.scheduled
 		|| !to.replaceMediaOf
 		|| IsServerMsgId(to.replaceMediaOf));
+
+	SendLargePhotosAtomic = SendLargePhotos.value();
 }
 
 FileLoadTask::FileLoadTask(
@@ -942,8 +965,9 @@ void FileLoadTask::process(Args &&args) {
 				}
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 
-				const auto downscaled = (w > 1280 || h > 1280);
-				auto full = downscaled ? fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
+				const auto limit = PhotoSideLimitAtomic();
+				const auto downscaled = (w > limit || h > limit);
+				auto full = downscaled ? fullimage.scaled(limit, limit, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				if (downscaled) {
 					fullimagebytes = fullimageformat = QByteArray();
 				}

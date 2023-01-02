@@ -348,8 +348,9 @@ void SendFilesBox::enqueueNextPrepare() {
 	_list.filesToProcess.pop_front();
 	const auto weak = Ui::MakeWeak(this);
 	_preparing = true;
-	crl::async([weak, file = std::move(file)]() mutable {
-		Storage::PrepareDetails(file, st::sendMediaPreviewSize);
+	const auto sideLimit = PhotoSideLimit(); // Get on main thread.
+	crl::async([weak, sideLimit, file = std::move(file)]() mutable {
+		Storage::PrepareDetails(file, st::sendMediaPreviewSize, sideLimit);
 		crl::on_main([weak, file = std::move(file)]() mutable {
 			if (weak) {
 				weak->addPreparedAsyncFile(std::move(file));

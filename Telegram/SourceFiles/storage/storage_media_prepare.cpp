@@ -47,13 +47,10 @@ bool ValidVideoForAlbum(const PreparedFileInformation::Video &video) {
 	return Ui::ValidateThumbDimensions(width, height);
 }
 
-QSize PrepareShownDimensions(const QImage &preview) {
-	constexpr auto kMaxWidth = 1280;
-	constexpr auto kMaxHeight = 1280;
-
+QSize PrepareShownDimensions(const QImage &preview, int sideLimit) {
 	const auto result = preview.size();
-	return (result.width() > kMaxWidth || result.height() > kMaxHeight)
-		? result.scaled(kMaxWidth, kMaxHeight, Qt::KeepAspectRatio)
+	return (result.width() > sideLimit || result.height() > sideLimit)
+		? result.scaled(sideLimit, sideLimit, Qt::KeepAspectRatio)
 		: result;
 }
 
@@ -63,10 +60,11 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 	if (result.files.empty()) {
 		return;
 	}
+	const auto sideLimit = PhotoSideLimit(); // Get on main thread.
 	QSemaphore semaphore;
 	for (auto &file : result.files) {
 		crl::async([=, &semaphore, &file] {
-			PrepareDetails(file, previewWidth);
+			PrepareDetails(file, previewWidth, sideLimit);
 			semaphore.release();
 		});
 	}
@@ -272,7 +270,7 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 	}
 }
 
-void PrepareDetails(PreparedFile &file, int previewWidth) {
+void PrepareDetails(PreparedFile &file, int previewWidth, int sideLimit) {
 	if (!file.path.isEmpty()) {
 		file.information = FileLoadTask::ReadMediaInformation(
 			file.path,
@@ -293,7 +291,7 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 			&file.information->media)) {
 		Assert(!image->data.isNull());
 		if (ValidPhotoForAlbum(*image, file.information->filemime)) {
-			UpdateImageDetails(file, previewWidth);
+			UpdateImageDetails(file, previewWidth, sideLimit);
 			file.type = PreparedFile::Type::Photo;
 		} else if (image->animated) {
 			file.type = PreparedFile::Type::None;
@@ -303,7 +301,10 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 		if (ValidVideoForAlbum(*video)) {
 			auto blurred = Images::Blur(
 				Images::Opaque(base::duplicate(video->thumbnail)));
-			file.shownDimensions = PrepareShownDimensions(video->thumbnail);
+			file.originalDimensions = video->thumbnail.size();
+			file.shownDimensions = PrepareShownDimensions(
+				video->thumbnail,
+				sideLimit);
 			file.preview = std::move(blurred).scaledToWidth(
 				previewWidth * cIntRetinaFactor(),
 				Qt::SmoothTransformation);
@@ -316,7 +317,10 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 	}
 }
 
-void UpdateImageDetails(PreparedFile &file, int previewWidth) {
+void UpdateImageDetails(
+		PreparedFile &file,
+		int previewWidth,
+		int sideLimit) {
 	const auto image = std::get_if<Image>(&file.information->media);
 	if (!image) {
 		return;
@@ -326,7 +330,8 @@ void UpdateImageDetails(PreparedFile &file, int previewWidth) {
 		? Editor::ImageModified(image->data, image->modifications)
 		: image->data;
 	Assert(!preview.isNull());
-	file.shownDimensions = PrepareShownDimensions(preview);
+	file.originalDimensions = preview.size();
+	file.shownDimensions = PrepareShownDimensions(preview, sideLimit);
 	const auto toWidth = std::min(
 		previewWidth,
 		style::ConvertScale(preview.width())
