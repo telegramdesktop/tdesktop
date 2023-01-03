@@ -3739,6 +3739,9 @@ void InnerWidget::setupShortcuts() {
 			Command::ChatPinned3,
 			Command::ChatPinned4,
 			Command::ChatPinned5,
+			Command::ChatPinned6,
+			Command::ChatPinned7,
+			Command::ChatPinned8,
 		};
 		auto &&pinned = ranges::views::zip(
 			kPinned,

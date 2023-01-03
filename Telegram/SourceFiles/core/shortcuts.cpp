@@ -370,6 +370,9 @@ void Manager::fillDefaults() {
 	set(u"ctrl+3"_q, Command::ChatPinned3);
 	set(u"ctrl+4"_q, Command::ChatPinned4);
 	set(u"ctrl+5"_q, Command::ChatPinned5);
+	set(u"ctrl+6"_q, Command::ChatPinned6);
+	set(u"ctrl+7"_q, Command::ChatPinned7);
+	set(u"ctrl+8"_q, Command::ChatPinned8);
 
 	auto &&folders = ranges::views::zip(
 		kShowFolder,
