@@ -1,3 +1,9 @@
+4.5.2 (03.01.22)
+
+- Fix unread reactions button in private chats.
+- Fix tile background saving after an app update.
+- Allow Ctrl+6,7,8 to activate extra pinned chats.
+
 4.5.1 (02.01.22)
 
 - Fix crash in profile photo privacy edition.
