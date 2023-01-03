@@ -923,11 +923,21 @@ QImage ChatBackground::createCurrentImage() const {
 }
 
 bool ChatBackground::tile() const {
+	if (!started()) {
+		const auto &set = nightMode()
+			? _localStoredTileNightValue
+			: _localStoredTileDayValue;
+		if (set.has_value()) {
+			return *set;
+		}
+	}
 	return nightMode() ? _tileNightValue : _tileDayValue;
 }
 
 bool ChatBackground::tileDay() const {
-	if (Data::details::IsTestingThemeWallPaper(_paper) ||
+	if (!started() && _localStoredTileDayValue.has_value()) {
+		return *_localStoredTileDayValue;
+	} else if (Data::details::IsTestingThemeWallPaper(_paper) ||
 		Data::details::IsTestingDefaultWallPaper(_paper)) {
 		if (!nightMode()) {
 			return _tileForRevert;
@@ -937,7 +947,9 @@ bool ChatBackground::tileDay() const {
 }
 
 bool ChatBackground::tileNight() const {
-	if (Data::details::IsTestingThemeWallPaper(_paper) ||
+	if (!started() && _localStoredTileNightValue.has_value()) {
+		return *_localStoredTileNightValue;
+	} else if (Data::details::IsTestingThemeWallPaper(_paper) ||
 		Data::details::IsTestingDefaultWallPaper(_paper)) {
 		if (nightMode()) {
 			return _tileForRevert;
