@@ -3794,14 +3794,14 @@ void InnerWidget::setupShortcuts() {
 		});
 
 		request->check(Command::ReadChat) && request->handle([=] {
-			const auto history = _selected ? _selected->history() : nullptr;
-			if (history) {
-				if (history->chatListBadgesState().unread) {
-					session().data().histories().readInbox(history);
-				}
-				return true;
+			const auto thread = _selected ? _selected->thread() : nullptr;
+			if (!thread) {
+				return false;
 			}
-			return (history != nullptr);
+			if (Window::IsUnreadThread(thread)) {
+				Window::MarkAsReadThread(thread);
+			}
+			return true;
 		});
 
 		request->check(Command::ShowContacts) && request->handle([=] {

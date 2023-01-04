@@ -161,31 +161,6 @@ void SetActionText(not_null<QAction*> action, rpl::producer<QString> &&text) {
 	}, *lifetime);
 }
 
-[[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread) {
-	return thread->chatListBadgesState().unread;
-}
-
-void MarkAsReadThread(not_null<Data::Thread*> thread) {
-	const auto readHistory = [&](not_null<History*> history) {
-		history->owner().histories().readInbox(history);
-	};
-	if (!IsUnreadThread(thread)) {
-		return;
-	} else if (const auto forum = thread->asForum()) {
-		forum->enumerateTopics([](
-			not_null<Data::ForumTopic*> topic) {
-			MarkAsReadThread(topic);
-		});
-	} else if (const auto history = thread->asHistory()) {
-		readHistory(history);
-		if (const auto migrated = history->migrateSibling()) {
-			readHistory(migrated);
-		}
-	} else if (const auto topic = thread->asTopic()) {
-		topic->readTillEnd();
-	}
-}
-
 void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
 	auto mark = std::vector<not_null<History*>>();
 	for (const auto &row : list->indexed()->all()) {
@@ -2389,6 +2364,31 @@ bool FillVideoChatMenu(
 			&st::menuIconStartStreamWith);
 	}
 	return has || manager;
+}
+
+bool IsUnreadThread(not_null<Data::Thread*> thread) {
+	return thread->chatListBadgesState().unread;
+}
+
+void MarkAsReadThread(not_null<Data::Thread*> thread) {
+	const auto readHistory = [&](not_null<History*> history) {
+		history->owner().histories().readInbox(history);
+	};
+	if (!IsUnreadThread(thread)) {
+		return;
+	} else if (const auto forum = thread->asForum()) {
+		forum->enumerateTopics([](
+			not_null<Data::ForumTopic*> topic) {
+			MarkAsReadThread(topic);
+		});
+	} else if (const auto history = thread->asHistory()) {
+		readHistory(history);
+		if (const auto migrated = history->migrateSibling()) {
+			readHistory(migrated);
+		}
+	} else if (const auto topic = thread->asTopic()) {
+		topic->readTillEnd();
+	}
 }
 
 } // namespace Window
