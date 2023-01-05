@@ -279,11 +279,11 @@ void LoadCloudFile(
 		if (const auto onstack = progress) {
 			onstack();
 		}
-	}, [=, &file](bool started) {
+	}, [=, &file](FileLoader::Error error) {
 		finish(file);
 		file.flags |= CloudFile::Flag::Failed;
 		if (const auto onstack = fail) {
-			onstack(started);
+			onstack(error.started);
 		}
 	}, [=, &file] {
 		finish(file);

@@ -1816,7 +1816,7 @@ void FormController::loadFile(File &file) {
 	loader->updates(
 	) | rpl::start_with_next_error_done([=] {
 		fileLoadProgress(key, loader->currentOffset());
-	}, [=](bool started) {
+	}, [=](FileLoader::Error error) {
 		fileLoadFail(key);
 	}, [=] {
 		fileLoadDone(key, loader->bytes());
