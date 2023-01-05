@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QLockFile>
 #include <QtGui/QSessionManager>
 #include <QtGui/QScreen>
+#include <QtGui/qpa/qplatformscreen.h>
 
 namespace Core {
 namespace {
@@ -210,38 +211,44 @@ void Sandbox::launchApplication() {
 }
 
 void Sandbox::setupScreenScale() {
-	const auto dpi = Sandbox::primaryScreen()->logicalDotsPerInch();
-	LOG(("Primary screen DPI: %1").arg(dpi));
-	if (dpi <= 108) {
-		cSetScreenScale(100); // 100%:  96 DPI (0-108)
-	} else if (dpi <= 132) {
-		cSetScreenScale(125); // 125%: 120 DPI (108-132)
-	} else if (dpi <= 168) {
-		cSetScreenScale(150); // 150%: 144 DPI (132-168)
-	} else if (dpi <= 216) {
-		cSetScreenScale(200); // 200%: 192 DPI (168-216)
-	} else if (dpi <= 264) {
-		cSetScreenScale(250); // 250%: 240 DPI (216-264)
-	} else {
-		cSetScreenScale(300); // 300%: 288 DPI (264-inf)
-	}
-
 	const auto ratio = devicePixelRatio();
-	if (ratio > 1.) {
-		if (!Platform::IsMac() || (ratio != 2.)) {
-			LOG(("Found non-trivial Device Pixel Ratio: %1").arg(ratio));
-			LOG(("Environmental variables: QT_DEVICE_PIXEL_RATIO='%1'").arg(qEnvironmentVariable("QT_DEVICE_PIXEL_RATIO")));
-			LOG(("Environmental variables: QT_SCALE_FACTOR='%1'").arg(qEnvironmentVariable("QT_SCALE_FACTOR")));
-			LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(qEnvironmentVariable("QT_AUTO_SCREEN_SCALE_FACTOR")));
-			LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(qEnvironmentVariable("QT_SCREEN_SCALE_FACTORS")));
+	LOG(("Global devicePixelRatio: %1").arg(ratio));
+	const auto logEnv = [](const char *name) {
+		const auto value = qEnvironmentVariable(name);
+		if (!value.isEmpty()) {
+			LOG(("%1: %2").arg(name).arg(value));
 		}
-		style::SetDevicePixelRatio(std::ceil(ratio));
-		if (Platform::IsMac() && ratio == 2.) {
-			cSetScreenScale(110); // 110% for Retina screens by default.
-		} else {
-			cSetScreenScale(style::kScaleDefault);
-		}
+	};
+	logEnv("QT_DEVICE_PIXEL_RATIO");
+	logEnv("QT_AUTO_SCREEN_SCALE_FACTOR");
+	logEnv("QT_ENABLE_HIGHDPI_SCALING");
+	logEnv("QT_SCALE_FACTOR");
+	logEnv("QT_SCREEN_SCALE_FACTORS");
+	logEnv("QT_SCALE_FACTOR_ROUNDING_POLICY");
+	logEnv("QT_DPI_ADJUSTMENT_POLICY");
+	logEnv("QT_USE_PHYSICAL_DPI");
+	logEnv("QT_FONT_DPI");
+
+	const auto useRatio = std::clamp(qCeil(ratio), 1, 3);
+	style::SetDevicePixelRatio(useRatio);
+
+	const auto screen = Sandbox::primaryScreen();
+	const auto dpi = screen->logicalDotsPerInch();
+	const auto basePair = screen->handle()->logicalBaseDpi();
+	const auto base = (basePair.first + basePair.second) * 0.5;
+	const auto screenScaleExact = dpi / base;
+	const auto screenScale = int(base::SafeRound(screenScaleExact * 4)) * 25;
+	LOG(("Primary screen DPI: %1, Base: %2.").arg(dpi).arg(base));
+	LOG(("Computed screen scale: %1").arg(screenScale));
+	if (Platform::IsMac()) {
+		// 110% for Retina screens by default.
+		cSetScreenScale((useRatio == 2) ? 110 : 100);
+	} else {
+		const auto clamped = std::clamp(screenScale, 50 * useRatio, 300);
+		cSetScreenScale(int(base::SafeRound(clamped * 1. / useRatio)));
 	}
+	LOG(("DevicePixelRatio: %1").arg(useRatio));
+	LOG(("ScreenScale: %1").arg(cScreenScale()));
 }
 
 Sandbox::~Sandbox() = default;
