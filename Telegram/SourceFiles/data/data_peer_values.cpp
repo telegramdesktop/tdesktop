@@ -514,7 +514,8 @@ bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
 
 rpl::producer<QImage> PeerUserpicImageValue(
 		not_null<PeerData*> peer,
-		int size) {
+		int size,
+		std::optional<int> radius) {
 	return [=](auto consumer) {
 		auto result = rpl::lifetime();
 		struct State {
@@ -541,7 +542,10 @@ rpl::producer<QImage> PeerUserpicImageValue(
 			}
 			state->key = key;
 			state->empty = false;
-			consumer.put_next(peer->generateUserpicImage(state->view, size));
+			consumer.put_next(peer->generateUserpicImage(
+				state->view,
+				size,
+				radius));
 		};
 		peer->session().changes().peerFlagsValue(
 			peer,

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/painter.h"
 #include "boxes/abstract_box.h"
@@ -391,6 +392,40 @@ void FillMenu(
 			.isAttention = true,
 		});
 	}
+}
+
+SliderWithLabel MakeSliderWithLabel(
+		QWidget *parent,
+		const style::MediaSlider &sliderSt,
+		const style::FlatLabel &labelSt,
+		int skip,
+		int minLabelWidth) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+	const auto height = std::max(
+		sliderSt.seekSize.height(),
+		labelSt.style.font->height);
+	raw->resize(sliderSt.seekSize.width(), height);
+	const auto slider = Ui::CreateChild<Ui::MediaSlider>(raw, sliderSt);
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(raw, labelSt);
+	slider->resize(slider->width(), sliderSt.seekSize.height());
+	rpl::combine(
+		raw->sizeValue(),
+		label->sizeValue()
+	) | rpl::start_with_next([=](QSize outer, QSize size) {
+		const auto right = std::max(size.width(), minLabelWidth) + skip;
+		label->moveToRight(0, (outer.height() - size.height()) / 2);
+		const auto width = std::max(
+			sliderSt.seekSize.width(),
+			outer.width() - right);
+		slider->resizeToWidth(width);
+		slider->moveToLeft(0, (outer.height() - slider->height()) / 2);
+	}, label->lifetime());
+	return {
+		.widget = std::move(result),
+		.slider = slider,
+		.label = label,
+	};
 }
 
 } // namespace Settings

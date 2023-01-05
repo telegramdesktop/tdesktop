@@ -133,7 +133,8 @@ inline auto PeerFullFlagValue(
 
 [[nodiscard]] rpl::producer<QImage> PeerUserpicImageValue(
 	not_null<PeerData*> peer,
-	int size);
+	int size,
+	std::optional<int> radius = {});
 
 [[nodiscard]] const AllowedReactions &PeerAllowedReactions(
 	not_null<PeerData*> peer);

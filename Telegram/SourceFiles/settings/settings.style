@@ -42,12 +42,18 @@ settingsOptionDisabled: SettingsButton(settingsButtonNoIcon) {
 settingsSectionSkip: 6px;
 settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
 settingsButtonRightSkip: 23px;
-settingsScalePadding: margins(63px, 7px, 21px, 4px);
+settingsScalePadding: margins(60px, 7px, 22px, 4px);
 settingsBigScalePadding: margins(21px, 7px, 21px, 4px);
 settingsSlider: SettingsSlider(defaultSettingsSlider) {
 	barFg: windowBgOver;
 	labelFg: windowSubTextFg;
 	labelFgActive: windowActiveTextFg;
+}
+settingsScale: MediaSlider(defaultContinuousSlider) {
+	seekSize: size(15px, 15px);
+}
+settingsScaleLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowActiveTextFg;
 }
 settingsUpdateToggle: SettingsButton(settingsButtonNoIcon) {
 	height: 40px;

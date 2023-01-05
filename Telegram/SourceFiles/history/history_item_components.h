@@ -195,6 +195,8 @@ struct HistoryMessageReply
 		Expects(replyToVia == nullptr);
 	}
 
+	static constexpr auto kBarAlpha = 230. / 255.;
+
 	bool updateData(not_null<HistoryItem*> holder, bool force = false);
 
 	// Must be called before destructor.
