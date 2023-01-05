@@ -869,7 +869,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolvePrivatePost
 		},
 		{
-			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number|/auto_delete|/information)?$"_q,
+			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number|/auto_delete|/information|/edit_profile)?$"_q,
 			ResolveSettings
 		},
 		{
