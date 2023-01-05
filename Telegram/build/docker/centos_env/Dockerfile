@@ -1,8 +1,8 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6_4_1" -%}
-{%- set QT_TAG = "v6.4.1" -%}
-{%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.4.1" -%}
+{%- set QT = "6_4_2" -%}
+{%- set QT_TAG = "v6.4.2" -%}
+{%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.4.2" -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
 {%- set CMAKE_VER = "3.24.3" -%}
@@ -56,7 +56,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 9e04e2eb9c \
+	&& git checkout 614ff3aebd \
 	&& rm -rf .git
 
 FROM builder AS nasm
