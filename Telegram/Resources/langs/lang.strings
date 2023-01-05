@@ -762,7 +762,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_download_path_dir_radio" = "Custom folder, cleared only manually";
 "lng_download_path_choose" = "Choose download path";
 "lng_sure_clear_downloads" = "Do you want to remove all downloaded files from temp folder? It is done automatically on logout or program uninstall.";
-"lng_download_path_failed" = "File download could not be started.\n\nThis might be because the download location you've selected is invalid. Try changing the \"Download path\" in Settings.";
+"lng_download_path_failed" = "File download could not be started.\n\nThe default download location will be used now. You can always change it in Settings > Advanced > Download Path.\n\nPlease try once again.";
 "lng_download_path_settings" = "Settings";
 "lng_download_finish_failed" = "File download could not be finished.\n\nWould you like to try again?";
 "lng_download_path_clearing" = "Clearing...";

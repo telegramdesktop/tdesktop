@@ -506,7 +506,7 @@ void webFileLoader::loadFinished(const QByteArray &data) {
 }
 
 void webFileLoader::loadFailed() {
-	cancel(true);
+	cancel(FailureReason::OtherFailure);
 }
 
 Storage::Cache::Key webFileLoader::cacheKey() const {

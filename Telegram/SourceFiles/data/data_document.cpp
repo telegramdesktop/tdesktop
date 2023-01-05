@@ -988,8 +988,9 @@ void DocumentData::handleLoaderUpdates() {
 	_loader->updates(
 	) | rpl::start_with_next_error_done([=] {
 		_owner->documentLoadProgress(this);
-	}, [=](bool started) {
-		if (started && _loader) {
+	}, [=](FileLoader::Error error) {
+		using FailureReason = FileLoader::FailureReason;
+		if (error.started && _loader) {
 			const auto origin = _loader->fileOrigin();
 			const auto failedFileName = _loader->fileName();
 			const auto retry = [=] {
@@ -1000,23 +1001,21 @@ void DocumentData::handleLoaderUpdates() {
 				tr::lng_download_finish_failed(),
 				crl::guard(&session(), retry)
 			}));
-		} else {
-			// Sometimes we have LOCATION_INVALID error in documents / stickers.
-			// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
-			//
-			//const auto openSettings = [=] {
-			//	Core::App().settings().etDownloadPathBookmark(QByteArray());
-			//	Core::App().settings().setDownloadPath(QString());
-			//	Ui::show(Box<DownloadPathBox>());
-			//};
-			//Ui::show(Box<Ui::ConfirmBox>(
-			//	tr::lng_download_path_failed(tr::now),
-			//	tr::lng_download_path_settings(tr::now),
-			//	crl::guard(&session(), openSettings)));
+		} else if (error.failureReason == FailureReason::FileWriteFailure) {
+			if (!Core::App().settings().downloadPath().isEmpty()) {
+				Core::App().settings().setDownloadPathBookmark(QByteArray());
+				Core::App().settings().setDownloadPath(QString());
+				Core::App().saveSettingsDelayed();
+				InvokeQueued(qApp, [] {
+					Ui::show(
+						Ui::MakeInformBox(
+							tr::lng_download_path_failed(tr::now)));
+				});
+			}
 		}
 		finishLoad();
 		status = FileDownloadFailed;
-		_owner->documentLoadFail(this, started);
+		_owner->documentLoadFail(this, error.started);
 	}, [=] {
 		finishLoad();
 		_owner->documentLoadDone(this);

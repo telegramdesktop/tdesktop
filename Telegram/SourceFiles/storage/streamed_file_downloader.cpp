@@ -59,7 +59,7 @@ StreamedFileDownloader::StreamedFileDownloader(
 	_reader->partsForDownloader(
 	) | rpl::start_with_next([=](const LoadedPart &part) {
 		if (part.offset == LoadedPart::kFailedOffset) {
-			cancel(true);
+			cancel(FailureReason::OtherFailure);
 		} else {
 			savePart(std::move(part));
 		}
