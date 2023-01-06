@@ -168,6 +168,11 @@ void Preview::watchParent() {
 }
 
 void Preview::reparent() {
+	if (_widget.window() == &_widget) {
+		// macOS just removes parenting for a _window.
+		_parentWatcher = nullptr;
+		return;
+	}
 	_widget.setParent(_widget.window());
 	if (_shown) {
 		_widget.show();
