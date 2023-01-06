@@ -38,18 +38,20 @@ constexpr auto kMaxTextLines = 3;
 
 class Preview final {
 public:
-	Preview(QWidget *parent, rpl::producer<QImage> userpic);
+	Preview(QWidget *slider, rpl::producer<QImage> userpic);
 
 	void toggle(ScalePreviewShow show, int scale, int globalX);
 
 private:
 	void init();
 	void initAsWindow();
+	void watchParent();
+	void reparent();
 
 	void updateToScale(int scale);
 	void updateGlobalPosition(int globalX);
 	void updateGlobalPosition();
-	void updateWindowGlobalPosition(QPoint global, int globalX);
+	void updateWindowGlobalPosition(QPoint global);
 	void updateOuterPosition(int globalX);
 	[[nodiscard]] QRect adjustByScreenGeometry(QRect geometry) const;
 
@@ -86,6 +88,7 @@ private:
 		const QColor &color) const;
 
 	Ui::RpWidget _widget;
+	not_null<QWidget*> _slider;
 	Ui::ChatTheme _theme;
 	style::TextStyle _nameStyle = st::fwdTextStyle;
 	Ui::Text::String _nameText = { kMaxTextWidth / 3 };
@@ -124,6 +127,7 @@ private:
 	bool _shown = false;
 
 	std::unique_ptr<QObject> _filter;
+	std::unique_ptr<QObject> _parentWatcher;
 
 };
 
@@ -132,8 +136,9 @@ private:
 		&& Ui::Platform::TranslucentWindowsSupported();
 }
 
-Preview::Preview(QWidget *parent, rpl::producer<QImage> userpic)
-: _widget(parent)
+Preview::Preview(QWidget *slider, rpl::producer<QImage> userpic)
+: _widget(slider->window())
+, _slider(slider)
 , _ratio(style::DevicePixelRatio())
 , _window(UseSeparateWindow()) {
 	std::move(userpic) | rpl::start_with_next([=](QImage &&userpic) {
@@ -144,10 +149,34 @@ Preview::Preview(QWidget *parent, rpl::producer<QImage> userpic)
 		}
 	}, _widget.lifetime());
 
+	watchParent();
+
 	init();
 }
 
-void Preview::toggle(ScalePreviewShow show, int scale, int globalX) {
+void Preview::watchParent() {
+	const auto parent = _widget.parentWidget();
+	_parentWatcher.reset(base::install_event_filter(parent, [=](
+			not_null<QEvent*> e) {
+		if (e->type() == QEvent::ParentChange) {
+			if (_widget.window() != parent) {
+				reparent();
+			}
+		}
+		return base::EventFilterResult::Continue;
+	}));
+}
+
+void Preview::reparent() {
+	_widget.setParent(_widget.window());
+	if (_shown) {
+		_widget.show();
+		updateGlobalPosition();
+	}
+	watchParent();
+}
+
+void Preview::toggle(ScalePreviewShow show, int scale, int sliderX) {
 	if (show == ScalePreviewShow::Hide) {
 		toggleShown(false);
 		return;
@@ -155,7 +184,7 @@ void Preview::toggle(ScalePreviewShow show, int scale, int globalX) {
 		return;
 	}
 	updateToScale(scale);
-	updateGlobalPosition(globalX);
+	updateGlobalPosition(sliderX);
 	if (_widget.isHidden()) {
 		Ui::Platform::UpdateOverlayed(&_widget);
 	}
@@ -215,7 +244,7 @@ void Preview::toggleFilter() {
 		}
 		self(widget->parentWidget(), self);
 	};
-	watch(_widget.parentWidget(), watch);
+	watch(_slider, watch);
 
 	const auto checkDeactivation = [=](Qt::ApplicationState state) {
 		if (state != Qt::ApplicationActive) {
@@ -431,31 +460,41 @@ void Preview::updateToScale(int scale) {
 	_canvasCornerMasks = Images::CornersMask(scaled(6)); // st::callRadius
 }
 
-void Preview::updateGlobalPosition(int globalX) {
-	const auto parent = _widget.parentWidget();
+void Preview::updateGlobalPosition(int sliderX) {
+	_localShiftLeft = sliderX;
 	if (_window) {
-		const auto global = parent->mapToGlobal(QPoint());
-		_localShiftLeft = globalX - global.x();
-		updateWindowGlobalPosition(global, globalX);
+		updateWindowGlobalPosition(_slider->mapToGlobal(QPoint()));
 	} else {
-		const auto position = parent->pos();
-			+ QPoint(parent->width() / 2, 0)
-			- QPoint(_outer.width() / 2, _outer.height());
-		_widget.setGeometry(QRect(position, _outer.size()));
-		updateOuterPosition(globalX);
+		updateGlobalPosition();
 	}
 }
 
 void Preview::updateGlobalPosition() {
-	const auto parent = _widget.parentWidget();
-	const auto global = parent->mapToGlobal(QPoint());
-	updateWindowGlobalPosition(global, global.x() + _localShiftLeft);
+	if (_window) {
+		const auto global = _slider->mapToGlobal(QPoint());
+		updateWindowGlobalPosition(global);
+	} else {
+		const auto parent = _widget.parentWidget();
+		const auto global = Ui::MapFrom(parent, _slider, QPoint());
+		const auto desiredLeft = global.x()
+			+ _localShiftLeft
+			- (_outer.width() / 2);
+		const auto desiredTop = global.y() - _outer.height();
+		const auto requiredRight = std::min(
+			desiredLeft + _outer.width(),
+			parent->width());
+		const auto left = std::max(
+			std::min(desiredLeft, requiredRight - _outer.width()),
+			0);
+		_widget.setGeometry(QRect(QPoint(left, desiredTop), _outer.size()));
+	}
+	_widget.raise();
 }
 
-void Preview::updateWindowGlobalPosition(QPoint global, int globalX) {
+void Preview::updateWindowGlobalPosition(QPoint global) {
 	const auto desiredLeft = global.x() - (_minOuterSize.width() / 2);
 	const auto desiredRight = global.x()
-		+ _widget.parentWidget()->width()
+		+ _slider->width()
 		+ (_maxOuterSize.width() / 2);
 	const auto requiredLeft = desiredRight - _maxOuterSize.width();
 	const auto left = std::min(desiredLeft, requiredLeft);
@@ -464,12 +503,11 @@ void Preview::updateWindowGlobalPosition(QPoint global, int globalX) {
 	const auto top = global.y() - _maxOuterSize.height();
 	auto result = QRect(left, top, right - left, _maxOuterSize.height());
 	_widget.setGeometry(adjustByScreenGeometry(result));
-	updateOuterPosition(globalX);
+	updateOuterPosition(global.x() + _localShiftLeft);
 }
 
 QRect Preview::adjustByScreenGeometry(QRect geometry) const {
-	const auto parent = _widget.parentWidget();
-	const auto screen = parent->screen();
+	const auto screen = _slider->screen();
 	if (!screen) {
 		return geometry;
 	}
@@ -716,7 +754,6 @@ void Preview::initAsWindow() {
 [[nodiscard]] Fn<void(ScalePreviewShow, int, int)> SetupScalePreview(
 		not_null<Window::Controller*> window,
 		not_null<Ui::RpWidget*> slider) {
-	const auto parent = slider->parentWidget();
 	const auto controller = window->sessionController();
 	const auto user = controller
 		? controller->session().user().get()

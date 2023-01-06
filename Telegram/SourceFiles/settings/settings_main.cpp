@@ -523,12 +523,11 @@ void SetupInterfaceScale(
 			if (values[i] <= scale
 				&& (i + 1 == valuesCount || values[i + 1] > scale)) {
 				const auto x = (slider->width() * i) / (valuesCount - 1);
-				const auto globalX = slider->mapToGlobal(QPoint(x, 0)).x();
-				togglePreview(show, scale, globalX);
+				togglePreview(show, scale, x);
 				return;
 			}
 		}
-		togglePreview(show, scale, QCursor::pos().x());
+		togglePreview(show, scale, slider->width() / 2);
 	};
 	const auto toggleHidePreview = [=] {
 		togglePreview(ScalePreviewShow::Hide, 0, 0);
