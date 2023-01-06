@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/bytes.h"
 #include "base/unixtime.h"
-#include "base/qt/qt_common_adapters.h"
 #include "storage/localstorage.h"
 #include "core/application.h"
 #include "core/changelogs.h"
@@ -664,7 +663,7 @@ void HttpChecker::start() {
 	_reply->connect(_reply, &QNetworkReply::finished, [=] {
 		gotResponse();
 	});
-	_reply->connect(_reply, base::QNetworkReply_error, [=](auto e) {
+	_reply->connect(_reply, &QNetworkReply::errorOccurred, [=](auto e) {
 		gotFailure(e);
 	});
 }
@@ -703,7 +702,7 @@ void HttpChecker::clearSentRequest() {
 		return;
 	}
 	reply->disconnect(reply, &QNetworkReply::finished, nullptr, nullptr);
-	reply->disconnect(reply, base::QNetworkReply_error, nullptr, nullptr);
+	reply->disconnect(reply, &QNetworkReply::errorOccurred, nullptr, nullptr);
 	reply->abort();
 	reply->deleteLater();
 	_manager = nullptr;
@@ -857,7 +856,7 @@ void HttpLoaderActor::sendRequest() {
 		&HttpLoaderActor::partFinished);
 	connect(
 		_reply.get(),
-		base::QNetworkReply_error,
+		&QNetworkReply::errorOccurred,
 		this,
 		&HttpLoaderActor::partFailed);
 	connect(
