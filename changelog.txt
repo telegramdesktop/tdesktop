@@ -1,3 +1,7 @@
+4.5.3 (06.01.22)
+
+- Attempt to fix incoming video in calls from mobile apps.
+
 4.5.2 (03.01.22)
 
 - Fix unread reactions button in private chats.
