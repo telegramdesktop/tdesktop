@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "mainwidget.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "inline_bots/bot_attach_web_view.h"
@@ -798,12 +799,13 @@ bool ResolveLoginCode(
 		const Match &match,
 		const QVariant &context) {
 	const auto loginCode = match->captured(2);
-	if (loginCode.isEmpty()) {
+	const auto &domain = Core::App().domain();
+	if (loginCode.isEmpty() || (!controller && !domain.started())) {
 		return false;
 	};
 	(controller
 		? controller->session().account()
-		: Core::App().activeAccount()).handleLoginCode(loginCode);
+		: domain.active()).handleLoginCode(loginCode);
 	if (controller) {
 		controller->window().activate();
 	} else if (const auto window = Core::App().activeWindow()) {
