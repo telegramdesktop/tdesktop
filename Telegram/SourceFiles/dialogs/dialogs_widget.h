@@ -33,6 +33,7 @@ class ContactStatus;
 } // namespace HistoryView
 
 namespace Ui {
+class AbstractButton;
 class IconButton;
 class PopupMenu;
 class DropdownMenu;
@@ -222,7 +223,10 @@ private:
 	int _narrowWidth = 0;
 	object_ptr<Ui::RpWidget> _searchControls;
 	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr } ;
-	object_ptr<Ui::IconButton> _mainMenuToggle;
+	struct {
+		object_ptr<Ui::IconButton> toggle;
+		object_ptr<Ui::AbstractButton> under;
+	} _mainMenu;
 	object_ptr<Ui::IconButton> _searchForNarrowFilters;
 	object_ptr<Ui::InputField> _filter;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;

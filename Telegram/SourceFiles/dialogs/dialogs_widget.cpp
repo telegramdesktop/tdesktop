@@ -188,7 +188,12 @@ Widget::Widget(
 	+ st::defaultDialogRow.photoSize
 	+ st::defaultDialogRow.padding.left())
 , _searchControls(this)
-, _mainMenuToggle(_searchControls, st::dialogsMenuToggle)
+, _mainMenu({
+	.toggle = object_ptr<Ui::IconButton>(
+		_searchControls,
+		st::dialogsMenuToggle),
+	.under = object_ptr<Ui::AbstractButton>(_searchControls),
+})
 , _searchForNarrowFilters(_searchControls, st::dialogsSearchForNarrowFilters)
 , _filter(_searchControls, st::dialogsFilter, tr::lng_dlg_filter())
 , _chooseFromUser(
@@ -431,7 +436,7 @@ Widget::Widget(
 		) | rpl::filter((rpl::mappers::_1 == 0.) || (rpl::mappers::_1 == 1.)
 		) | rpl::start_with_next([=](float64 shown) {
 			const auto color = (shown > 0.) ? &st::dialogsRippleBg : nullptr;
-			_mainMenuToggle->setRippleColorOverride(color);
+			_mainMenu.toggle->setRippleColorOverride(color);
 			_searchForNarrowFilters->setRippleColorOverride(color);
 		}, lifetime());
 
@@ -670,13 +675,18 @@ void Widget::setupSupportMode() {
 }
 
 void Widget::setupMainMenuToggle() {
-	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
+	_mainMenu.under->setClickedCallback([=] {
+        _mainMenu.toggle->clicked({}, Qt::LeftButton);
+	});
+	_mainMenu.under->stackUnder(_mainMenu.toggle);
+	_mainMenu.toggle->setClickedCallback([=] { showMainMenu(); });
 
 	rpl::single(rpl::empty) | rpl::then(
 		controller()->filtersMenuChanged()
 	) | rpl::start_with_next([=] {
 		const auto filtersHidden = !controller()->filtersWidth();
-		_mainMenuToggle->setVisible(filtersHidden);
+		_mainMenu.toggle->setVisible(filtersHidden);
+		_mainMenu.under->setVisible(filtersHidden);
 		_searchForNarrowFilters->setVisible(!filtersHidden);
 		updateControlsGeometry();
 	}, lifetime());
@@ -688,8 +698,8 @@ void Widget::setupMainMenuToggle() {
 			: !state.allMuted
 			? &st::dialogsMenuToggleUnread
 			: &st::dialogsMenuToggleUnreadMuted;
-		_mainMenuToggle->setIconOverride(icon, icon);
-	}, _mainMenuToggle->lifetime());
+		_mainMenu.toggle->setIconOverride(icon, icon);
+	}, _mainMenu.toggle->lifetime());
 }
 
 void Widget::setupShortcuts() {
@@ -2374,7 +2384,7 @@ void Widget::updateControlsGeometry() {
 
 	auto filterLeft = (controller()->filtersWidth()
 		? st::dialogsFilterSkip
-		: (st::dialogsFilterPadding.x() + _mainMenuToggle->width()))
+		: (st::dialogsFilterPadding.x() + _mainMenu.toggle->width()))
 		+ st::dialogsFilterPadding.x();
 	auto filterRight = (session().domain().local().hasLocalPasscode()
 		? (st::dialogsFilterPadding.x() + _lockUnlock->width())
@@ -2394,9 +2404,16 @@ void Widget::updateControlsGeometry() {
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
 	auto mainMenuLeft = anim::interpolate(
 		st::dialogsFilterPadding.x(),
-		(_narrowWidth - _mainMenuToggle->width()) / 2,
+		(_narrowWidth - _mainMenu.toggle->width()) / 2,
 		narrowRatio);
-	_mainMenuToggle->moveToLeft(mainMenuLeft, st::dialogsFilterPadding.y());
+	_mainMenu.toggle->moveToLeft(mainMenuLeft, st::dialogsFilterPadding.y());
+	_mainMenu.under->setGeometry(
+		0,
+		0,
+		filterLeft,
+		_mainMenu.toggle->y()
+			+ _mainMenu.toggle->height()
+			+ st::dialogsFilterPadding.y());
 	const auto searchLeft = anim::interpolate(
 		-_searchForNarrowFilters->width(),
 		(_narrowWidth - _searchForNarrowFilters->width()) / 2,
