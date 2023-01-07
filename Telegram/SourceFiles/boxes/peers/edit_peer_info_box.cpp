@@ -1913,7 +1913,7 @@ void Controller::deleteChannel() {
 	const auto session = &_peer->session();
 
 	_navigation->parentController()->hideLayer();
-	Core::App().closeChatFromWindows(_peer);
+	Core::App().closeChatFromWindows(channel);
 	if (chat) {
 		session->api().deleteConversation(chat, false);
 	}
