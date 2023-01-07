@@ -427,6 +427,14 @@ Widget::Widget(
 			updateControlsGeometry();
 		}, lifetime());
 
+		_childListShown.changes(
+		) | rpl::filter((rpl::mappers::_1 == 0.) || (rpl::mappers::_1 == 1.)
+		) | rpl::start_with_next([=](float64 shown) {
+			const auto color = (shown > 0.) ? &st::dialogsRippleBg : nullptr;
+			_mainMenuToggle->setRippleColorOverride(color);
+			_searchForNarrowFilters->setRippleColorOverride(color);
+		}, lifetime());
+
 		setupDownloadBar();
 	}
 }
