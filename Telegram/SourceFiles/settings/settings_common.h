@@ -207,6 +207,11 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	rpl::producer<QString> text,
 	style::margins addPadding = {},
 	const style::FlatLabel *st = nullptr);
+void AddDividerTextWithLottie(
+	not_null<Ui::VerticalLayout*> parent,
+	rpl::producer<> showFinished,
+	rpl::producer<TextWithEntities> text,
+	const QString &lottie);
 
 struct LottieIcon {
 	object_ptr<Ui::RpWidget> widget;

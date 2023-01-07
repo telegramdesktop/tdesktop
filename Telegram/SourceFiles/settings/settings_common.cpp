@@ -265,6 +265,47 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 		st::settingsSubsectionTitlePadding + addPadding);
 }
 
+void AddDividerTextWithLottie(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<> showFinished,
+		rpl::producer<TextWithEntities> text,
+		const QString &lottie) {
+	const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(parent.get());
+	const auto verticalLayout = parent->add(
+		object_ptr<Ui::VerticalLayout>(parent.get()));
+
+	auto icon = CreateLottieIcon(
+		verticalLayout,
+		{
+			.name = lottie,
+			.sizeOverride = {
+				st::settingsFilterIconSize,
+				st::settingsFilterIconSize,
+			},
+		},
+		st::settingsFilterIconPadding);
+	std::move(
+		showFinished
+	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+		animate(anim::repeat::once);
+	}, verticalLayout->lifetime());
+	verticalLayout->add(std::move(icon.widget));
+
+	verticalLayout->add(
+		object_ptr<Ui::CenterWrap<>>(
+			verticalLayout,
+			object_ptr<Ui::FlatLabel>(
+				verticalLayout,
+				std::move(text),
+				st::settingsFilterDividerLabel)),
+		st::settingsFilterDividerLabelPadding);
+
+	verticalLayout->geometryValue(
+	) | rpl::start_with_next([=](const QRect &r) {
+		divider->setGeometry(r);
+	}, divider->lifetime());
+}
+
 LottieIcon CreateLottieIcon(
 		not_null<QWidget*> parent,
 		Lottie::IconDescriptor &&descriptor,
