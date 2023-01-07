@@ -412,13 +412,13 @@ infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
 	margin: margins(5px, 5px, 5px, 5px);
 }
 infoLabelSkip: 2px;
-infoLabel: FlatLabel(infoLabeledOneLine) {
-	textFg: windowSubTextFg;
-}
 infoLabeled: FlatLabel(infoLabeledOneLine) {
 	minWidth: 180px;
 	maxHeight: 0px;
 	margin: margins(5px, 5px, 5px, 5px);
+}
+infoLabel: FlatLabel(infoLabeled) {
+	textFg: windowSubTextFg;
 }
 
 infoBlockHeaderLabel: FlatLabel(infoProfileStatus) {
