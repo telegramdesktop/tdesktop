@@ -265,6 +265,7 @@ void SetupPhoto(
 		wrap,
 		StatusValue(self),
 		st::settingsCoverStatus);
+	status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(
 		wrap->widthValue(),
 		photo->widthValue(),
