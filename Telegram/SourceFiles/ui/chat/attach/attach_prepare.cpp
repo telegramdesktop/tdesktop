@@ -312,11 +312,8 @@ QPixmap BlurredPreviewFromPixmap(QPixmap pixmap, RectParts corners) {
 	using namespace Images;
 	return PixmapFromImage(Prepare(
 		Blur(std::move(small), true),
-		image.size() / style::DevicePixelRatio(),
-		{
-			.options = RoundOptions(ImageRoundRadius::Large, corners),
-			.outer = image.size() / style::DevicePixelRatio(),
-		}));
+		image.size(),
+		{ .options = RoundOptions(ImageRoundRadius::Large, corners) }));
 }
 
 } // namespace Ui
