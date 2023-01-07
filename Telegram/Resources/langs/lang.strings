@@ -1529,6 +1529,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_ttl_changed_you" = "You set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_channel" = "New messages will auto-delete in {duration}";
 "lng_action_ttl_global" = "{from} uses a self-destruct timer for all chats. All new messages in this chat will be automatically deleted after {duration} they've been sent.";
+"lng_action_ttl_global_me" = "You set a self-destruct timer for all chats. All new messages in this chat will be automatically deleted after {duration} they’ve been sent.";
 "lng_action_ttl_removed" = "{from} has set messages not to auto-delete";
 "lng_action_ttl_removed_you" = "You disabled the auto-delete timer";
 "lng_action_ttl_removed_channel" = "New messages will not auto-delete";

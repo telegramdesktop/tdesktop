@@ -3676,18 +3676,22 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		const auto duration = (period == 5)
 			? u"5 seconds"_q
 			: Ui::FormatTTL(period);
-		if (const auto from = action.vauto_setting_from()) {
+		if (const auto from = action.vauto_setting_from(); from && period) {
 			if (const auto peer = _from->owner().peer(peerFromUser(*from))) {
-				if (!peer->isSelf() && period) {
-					result.text = tr::lng_action_ttl_global(
+				result.text = (peer->id == peer->session().userPeerId())
+					? tr::lng_action_ttl_global_me(
+						tr::now,
+						lt_duration,
+						{ .text = duration },
+						Ui::Text::WithEntities)
+					: tr::lng_action_ttl_global(
 						tr::now,
 						lt_from,
-						fromLinkText(), // Link 1.
+						Ui::Text::Link(peer->name(), 1), // Link 1.
 						lt_duration,
 						{ .text = duration },
 						Ui::Text::WithEntities);
-					return result;
-				}
+				return result;
 			}
 		}
 		if (isPost()) {
