@@ -985,6 +985,7 @@ void UserpicButton::prepareUserpicPixmap() {
 					} else {
 						image = Images::Circle(std::move(image));
 					}
+					image.setDevicePixelRatio(style::DevicePixelRatio());
 					p.drawImage(0, 0, image);
 				}
 			} else {
