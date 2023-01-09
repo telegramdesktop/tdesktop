@@ -55,8 +55,6 @@ struct CounterLayerArgs {
 [[nodiscard]] QImage GenerateCounterLayer(CounterLayerArgs &&args);
 [[nodiscard]] QImage WithSmallCounter(QImage image, CounterLayerArgs &&args);
 
-extern const char kOptionShowChatNameInNewWindow[];
-
 class MainWindow : public Ui::RpWindow {
 public:
 	explicit MainWindow(not_null<Controller*> controller);
@@ -121,7 +119,8 @@ public:
 
 	rpl::producer<> leaveEvents() const;
 
-	virtual void updateWindowIcon();
+	virtual void updateWindowIcon() = 0;
+	void updateTitle();
 
 	void clearWidgets();
 
@@ -184,7 +183,6 @@ protected:
 	virtual int32 screenNameChecksum(const QString &name) const;
 
 	void setPositionInited();
-	void updateUnreadCounter();
 
 	virtual QRect computeDesktopRect() const;
 
@@ -208,9 +206,6 @@ private:
 	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<Ui::RpWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
-
-	QIcon _icon;
-	bool _usingSupportIcon = false;
 
 	bool _isActive = false;
 

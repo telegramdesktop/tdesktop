@@ -62,6 +62,9 @@ Controller::~Controller() {
 	// We want to delete all widgets before the _sessionController.
 	_widget.ui_hideSettingsAndLayer(anim::type::instant);
 	_widget.clearWidgets();
+	_accountLifetime.destroy();
+	_sessionControllerValue = nullptr;
+	_sessionController = nullptr;
 }
 
 void Controller::showAccount(not_null<Main::Account*> account) {
@@ -103,6 +106,8 @@ void Controller::showAccount(
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;
+		_sessionControllerValue = _sessionController.get();
+
 		auto oldContentCache = _widget.grabForSlideAnimation();
 		_widget.updateWindowIcon();
 		if (session) {
@@ -123,6 +128,14 @@ void Controller::showAccount(
 			}, _sessionController->lifetime());
 
 			widget()->setInnerFocus();
+
+			_sessionController->activeChatChanges(
+			) | rpl::start_with_next([=] {
+				_widget.updateTitle();
+			}, _sessionController->lifetime());
+			if (_sessionController->activeChatCurrent().thread()) {
+				_widget.updateTitle();
+			}
 
 			session->updates().updateOnline(crl::now());
 		} else {
@@ -252,6 +265,16 @@ void Controller::finishFirstShow() {
 
 Main::Session *Controller::maybeSession() const {
 	return _account ? _account->maybeSession() : nullptr;
+}
+
+auto Controller::sessionControllerValue() const
+-> rpl::producer<SessionController*> {
+	return _sessionControllerValue.value();
+}
+
+auto Controller::sessionControllerChanges() const
+-> rpl::producer<SessionController*> {
+	return _sessionControllerValue.changes();
 }
 
 bool Controller::locked() const {

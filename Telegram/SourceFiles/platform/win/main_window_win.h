@@ -51,7 +51,7 @@ private:
 	struct Private;
 
 	void setupNativeWindowFrame();
-	void updateIconCounters();
+	void updateTaskbarAndIconCounters();
 	void validateWindowTheme(bool native, bool night);
 
 	void forceIconRefresh();

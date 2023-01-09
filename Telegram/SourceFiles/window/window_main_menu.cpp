@@ -943,25 +943,22 @@ void MainMenu::initResetScaleButton() {
 }
 
 OthersUnreadState OtherAccountsUnreadStateCurrent() {
-	auto &app = Core::App();
-	const auto active = &app.activeAccount();
+	auto &domain = Core::App().domain();
+	const auto active = &domain.active();
+	auto counter = 0;
 	auto allMuted = true;
-	for (const auto &[index, account] : app.domain().accounts()) {
+	for (const auto &[index, account] : domain.accounts()) {
 		if (account.get() == active) {
 			continue;
 		} else if (const auto session = account->maybeSession()) {
+			counter += session->data().unreadBadge();
 			if (!session->data().unreadBadgeMuted()) {
 				allMuted = false;
-				break;
 			}
 		}
 	}
-	// In case we are logging out in the last paint for the slide animation
-	// the account doesn't have the session here already.
-	const auto current = active->maybeSession();
 	return {
-		.count = (app.unreadBadge()
-			- (current ? current->data().unreadBadge() : 0)),
+		.count = counter,
 		.allMuted = allMuted,
 	};
 }

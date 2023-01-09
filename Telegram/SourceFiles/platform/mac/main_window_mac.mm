@@ -270,10 +270,10 @@ bool MainWindow::preventsQuit(Core::QuitReason reason) {
 }
 
 void MainWindow::unreadCounterChangedHook() {
-	updateIconCounters();
+	updateDockCounter();
 }
 
-void MainWindow::updateIconCounters() {
+void MainWindow::updateDockCounter() {
 	const auto counter = Core::App().unreadBadge();
 
 	const auto string = !counter

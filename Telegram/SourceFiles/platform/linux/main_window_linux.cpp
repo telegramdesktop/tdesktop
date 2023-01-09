@@ -229,12 +229,22 @@ void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 }
 
 void MainWindow::unreadCounterChangedHook() {
-	updateIconCounters();
+	updateUnityCounter();
 }
 
-void MainWindow::updateIconCounters() {
-	updateWindowIcon();
+void MainWindow::updateWindowIcon() {
+	const auto session = sessionController()
+		? &sessionController()->session()
+		: nullptr;
+	const auto supportIcon = session && session->supportMode();
+	if (supportIcon != _usingSupportIcon || _icon.isNull()) {
+		_icon = Window::CreateIcon(session);
+		_usingSupportIcon = supportIcon;
+	}
+	setWindowIcon(_icon);
+}
 
+void MainWindow::updateUnityCounter() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	const auto launcherUrl = Glib::ustring(
 		"application://"

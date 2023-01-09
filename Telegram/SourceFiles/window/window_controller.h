@@ -54,6 +54,10 @@ public:
 	[[nodiscard]] SessionController *sessionController() const {
 		return _sessionController.get();
 	}
+	[[nodiscard]] auto sessionControllerValue() const
+		-> rpl::producer<SessionController*>;
+	[[nodiscard]] auto sessionControllerChanges() const
+		-> rpl::producer<SessionController*>;
 	[[nodiscard]] bool locked() const;
 
 	[[nodiscard]] Adaptive &adaptive() const;
@@ -144,6 +148,7 @@ private:
 	::MainWindow _widget;
 	const std::unique_ptr<Adaptive> _adaptive;
 	std::unique_ptr<SessionController> _sessionController;
+	rpl::variable<SessionController*> _sessionControllerValue;
 	QPointer<Ui::BoxContent> _termsBox;
 
 	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;
