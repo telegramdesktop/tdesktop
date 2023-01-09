@@ -4950,6 +4950,11 @@ void OverlayWidget::updateHeader() {
 				&& (index == count - 1)
 				&& SyncUserFallbackPhotoViewer(_user)) {
 				_headerText = tr::lng_mediaview_profile_public_photo(tr::now);
+			} else if (_user
+				&& _user->hasPersonalPhoto()
+				&& _photo
+				&& (_photo->id == _user->userpicPhotoId())) {
+				_headerText = tr::lng_mediaview_profile_photo_by_you(tr::now);
 			} else {
 				_headerText = tr::lng_mediaview_n_of_amount(
 					tr::now,

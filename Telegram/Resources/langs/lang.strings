@@ -2499,6 +2499,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_channel_photo" = "Channel Photo";
 "lng_mediaview_profile_photo" = "Profile Photo";
 "lng_mediaview_profile_public_photo" = "Public Photo";
+"lng_mediaview_profile_photo_by_you" = "Photo set by you";
 "lng_mediaview_file_n_of_amount" = "{file} {n} of {amount}";
 "lng_mediaview_n_of_amount" = "Photo {n} of {amount}";
 "lng_mediaview_doc_image" = "File";
