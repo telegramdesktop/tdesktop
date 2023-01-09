@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_peer_values.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
@@ -987,12 +988,12 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	updateControlsGeometry(_wrap->size());
 	updateControlsVisibility();
 	updateFieldPlaceholder();
-	updateSendAsButton();
 	updateAttachBotsMenu();
 	//if (!_history) {
 	//	return;
 	//}
 	const auto peer = _history->peer;
+	initSendAsButton(peer);
 	if (peer->isChat() && peer->asChat()->noParticipantInfo()) {
 		session().api().requestFullPeer(peer);
 	} else if (const auto channel = peer->asMegagroup()) {
@@ -1342,7 +1343,6 @@ void ComposeControls::init() {
 	initField();
 	initTabbedSelector();
 	initSendButton();
-	initSendAsButton();
 	initWriteRestriction();
 	initVoiceRecordBar();
 	initKeyHandler();
@@ -2058,17 +2058,24 @@ void ComposeControls::initSendButton() {
 		SendMenu::DefaultScheduleCallback(_wrap.get(), sendMenuType(), send));
 }
 
-void ComposeControls::initSendAsButton() {
-	session().sendAsPeers().updated(
-	) | rpl::filter([=](not_null<PeerData*> peer) {
-		return _history && (peer == _history->peer);
-	}) | rpl::start_with_next([=] {
+void ComposeControls::initSendAsButton(not_null<PeerData*> peer) {
+	using namespace rpl::mappers;
+
+	// SendAsPeers::shouldChoose checks PeerData::canWrite(false).
+	rpl::combine(
+		rpl::single(peer) | rpl::then(
+			session().sendAsPeers().updated() | rpl::filter(_1 == peer)
+		),
+		Data::CanWriteValue(peer, false)
+	) | rpl::skip(1) | rpl::start_with_next([=] {
 		if (updateSendAsButton()) {
 			updateControlsVisibility();
 			updateControlsGeometry(_wrap->size());
 			orderControls();
 		}
 	}, _wrap->lifetime());
+
+	updateSendAsButton();
 }
 
 void ComposeControls::cancelInlineBot() {

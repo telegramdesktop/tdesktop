@@ -210,7 +210,7 @@ private:
 	void initField();
 	void initTabbedSelector();
 	void initSendButton();
-	void initSendAsButton();
+	void initSendAsButton(not_null<PeerData*> peer);
 	void initWebpageProcess();
 	void initForwardProcess();
 	void initWriteRestriction();
