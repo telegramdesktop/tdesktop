@@ -1395,6 +1395,7 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 		setReplyMarkup(base::take(edition.replyMarkup));
 	}
 	if (!isLocalUpdateMedia()) {
+		removeFromSharedMediaIndex();
 		refreshMedia(edition.mtpMedia);
 	}
 	if (!edition.useSameReactions) {
@@ -1405,6 +1406,9 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	setText(_media
 		? edition.textWithEntities
 		: EnsureNonEmpty(edition.textWithEntities));
+	if (!isLocalUpdateMedia()) {
+		indexAsNewItem();
+	}
 	if (!edition.useSameReplies) {
 		if (!edition.replies.isNull) {
 			if (checkRepliesPts(edition.replies)) {
@@ -1424,6 +1428,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup({});
+		removeFromSharedMediaIndex();
 		refreshMedia(nullptr);
 		setTextValue({});
 		changeViewsCount(-1);
@@ -1653,7 +1658,10 @@ void HistoryItem::destroyHistoryEntry() {
 
 Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
 	auto result = Storage::SharedMediaTypesMask {};
-	if (const auto media = this->media()) {
+	const auto media = _savedLocalEditMediaData
+		? _savedLocalEditMediaData->media.get()
+		: _media.get();
+	if (media) {
 		result.set(media->sharedMediaTypes());
 	}
 	if (hasTextLinks()) {
@@ -1680,6 +1688,18 @@ void HistoryItem::indexAsNewItem() {
 					topic->setHasPinnedMessages(true);
 				}
 			}
+		}
+	}
+}
+
+void HistoryItem::removeFromSharedMediaIndex() {
+	if (isRegular()) {
+		if (const auto types = sharedMediaTypes()) {
+			_history->session().storage().remove(
+				Storage::SharedMediaRemoveOne(
+					_history->peer->id,
+					types,
+					id));
 		}
 	}
 }

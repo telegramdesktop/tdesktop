@@ -346,6 +346,7 @@ public:
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const;
 
 	void indexAsNewItem();
+	void removeFromSharedMediaIndex();
 
 	[[nodiscard]] QString notificationHeader() const;
 	[[nodiscard]] TextWithEntities notificationText() const;

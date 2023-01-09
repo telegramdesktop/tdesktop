@@ -148,6 +148,7 @@ void EditMessageWithUploadedMedia(
 		MTPInputMedia media) {
 	const auto done = [=](Fn<void()> applyUpdates) {
 		if (item) {
+			item->removeFromSharedMediaIndex();
 			item->clearSavedMedia();
 			item->setIsLocalUpdateMedia(true);
 			applyUpdates();

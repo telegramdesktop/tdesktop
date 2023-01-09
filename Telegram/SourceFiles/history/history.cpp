@@ -845,18 +845,17 @@ not_null<HistoryItem*> History::addNewToBack(
 	addItemToBlock(item);
 
 	if (!unread && item->isRegular()) {
-		if (const auto sharedMediaTypes = item->sharedMediaTypes()) {
+		if (const auto types = item->sharedMediaTypes()) {
 			auto from = loadedAtTop() ? 0 : minMsgId();
 			auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
 			auto &storage = session().storage();
 			storage.add(Storage::SharedMediaAddExisting(
 				peer->id,
 				MsgId(0), // topicRootId
-				sharedMediaTypes,
+				types,
 				item->id,
 				{ from, till }));
-			const auto pinned = sharedMediaTypes.test(
-				Storage::SharedMediaType::Pinned);
+			const auto pinned = types.test(Storage::SharedMediaType::Pinned);
 			if (pinned) {
 				setHasPinnedMessages(true);
 			}
@@ -864,7 +863,7 @@ not_null<HistoryItem*> History::addNewToBack(
 				storage.add(Storage::SharedMediaAddExisting(
 					peer->id,
 					topic->rootId(),
-					sharedMediaTypes,
+					types,
 					item->id,
 					{ item->id, item->id}));
 				if (pinned) {
