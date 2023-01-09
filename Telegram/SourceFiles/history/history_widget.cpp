@@ -1979,6 +1979,14 @@ bool HistoryWidget::insideJumpToEndInsteadOfToUnread() const {
 	_history->calculateFirstUnreadMessage();
 	const auto unread = _history->firstUnreadMessage();
 	const auto visibleBottom = _scroll->scrollTop() + _scroll->height();
+	DEBUG_LOG(("JumpToEnd(%1, %2, %3): "
+		"unread: %4, top: %5, visibleBottom: %6."
+		).arg(_history->peer->name()
+		).arg(_history->inboxReadTillId().bare
+		).arg(Logs::b(_history->loadedAtBottom())
+		).arg(unread ? unread->data()->id.bare : 0
+		).arg(unread ? _list->itemTop(unread) : -1
+		).arg(visibleBottom));
 	return unread && _list->itemTop(unread) <= visibleBottom;
 }
 
@@ -2004,6 +2012,11 @@ void HistoryWidget::showHistory(
 
 			if (showAtMsgId == ShowAtUnreadMsgId
 				&& insideJumpToEndInsteadOfToUnread()) {
+				DEBUG_LOG(("JumpToEnd(%1, %2, %3): "
+					"Jumping to end instead of unread."
+					).arg(_history->peer->name()
+					).arg(_history->inboxReadTillId().bare
+					).arg(Logs::b(_history->loadedAtBottom())));
 				showAtMsgId = ShowAtTheEndMsgId;
 			} else if (showAtMsgId == ShowForChooseMessagesMsgId) {
 				if (_chooseForReport) {
@@ -2023,6 +2036,11 @@ void HistoryWidget::showHistory(
 			}
 			const auto canShowNow = _history->isReadyFor(showAtMsgId);
 			if (!canShowNow) {
+				DEBUG_LOG(("JumpToEnd(%1, %2, %3): Showing delayed at %4."
+					).arg(_history->peer->name()
+					).arg(_history->inboxReadTillId().bare
+					).arg(Logs::b(_history->loadedAtBottom())
+					).arg(showAtMsgId.bare));
 				delayedShowAt(showAtMsgId);
 			} else {
 				_history->forgetScrollState();
@@ -2042,6 +2060,13 @@ void HistoryWidget::showHistory(
 
 				setMsgId(showAtMsgId);
 				if (_historyInited) {
+					DEBUG_LOG(("JumpToEnd(%1, %2, %3): "
+						"Showing instant at %4."
+						).arg(_history->peer->name()
+						).arg(_history->inboxReadTillId().bare
+						).arg(Logs::b(_history->loadedAtBottom())
+						).arg(showAtMsgId.bare));
+
 					const auto to = countInitialScrollTop();
 					const auto item = getItemFromHistoryOrMigrated(
 						_showAtMsgId);
@@ -3266,6 +3291,12 @@ void HistoryWidget::loadMessages() {
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
 
+	DEBUG_LOG(("JumpToEnd(%1, %2, %3): Loading up before %4."
+		).arg(_history->peer->name()
+		).arg(_history->inboxReadTillId().bare
+		).arg(Logs::b(_history->loadedAtBottom())
+		).arg(offsetId.bare));
+
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
 	auto &histories = history->owner().histories();
@@ -3318,6 +3349,12 @@ void HistoryWidget::loadMessagesDown() {
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
 
+	DEBUG_LOG(("JumpToEnd(%1, %2, %3): Loading down after %4."
+		).arg(_history->peer->name()
+		).arg(_history->inboxReadTillId().bare
+		).arg(Logs::b(_history->loadedAtBottom())
+		).arg(offsetId.bare));
+
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
 	auto &histories = history->owner().histories();
@@ -3349,6 +3386,12 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 
 	clearAllLoadRequests();
 	_delayedShowAtMsgId = showAtMsgId;
+
+	DEBUG_LOG(("JumpToEnd(%1, %2, %3): Loading delayed around %4."
+		).arg(_history->peer->name()
+		).arg(_history->inboxReadTillId().bare
+		).arg(Logs::b(_history->loadedAtBottom())
+		).arg(showAtMsgId.bare));
 
 	auto from = _history;
 	auto offsetId = MsgId();
@@ -4028,6 +4071,10 @@ void HistoryWidget::doneShow() {
 void HistoryWidget::cornerButtonsShowAtPosition(
 		Data::MessagePosition position) {
 	if (position == Data::UnreadMessagePosition) {
+		DEBUG_LOG(("JumpToEnd(%1, %2, %3): Show at unread requested."
+			).arg(_history->peer->name()
+			).arg(_history->inboxReadTillId().bare
+			).arg(Logs::b(_history->loadedAtBottom())));
 		showHistory(_peer->id, ShowAtUnreadMsgId);
 	} else if (_peer && position.fullId.peer == _peer->id) {
 		showHistory(_peer->id, position.fullId.msg);
