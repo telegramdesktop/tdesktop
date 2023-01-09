@@ -1225,10 +1225,10 @@ win:
     jom -j16
     jom -j16 install
 
+    del /S *.cpp
+    del /S *.pdb
+    del /S *.obj
     cd ..
-    del /S qt_5_15_4\*.cpp
-    del /S qt_5_15_4\*.pdb
-    del /S qt_5_15_4\*.obj
 mac:
     find ../../patches/qtbase_5_15_7 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
