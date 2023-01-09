@@ -92,6 +92,9 @@ PRIVATE
     history/history_view_top_toast.cpp
     history/history_view_top_toast.h
 
+    info/profile/info_profile_icon.cpp
+    info/profile/info_profile_icon.h
+
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
     layout/layout_mosaic.cpp
