@@ -1036,13 +1036,18 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 		}, &st::mediaMenuIconProfile);
 	}();
 	[&] { // Report userpic.
-		if (!_peer || !_photo ) {
+		if (!_peer || !_photo) {
 			return;
 		}
 		using Type = SharedMediaType;
 		if (userPhotosKey()) {
 			if (_peer->isSelf() || _peer->isNotificationsUser()) {
 				return;
+			} else if (const auto user = _peer->asUser()) {
+				if (user->hasPersonalPhoto()
+					&& user->userpicPhotoId() == _photo->id) {
+					return;
+				}
 			}
 		} else if ((sharedMediaType().value_or(Type::File) == Type::ChatPhoto)
 			|| (_peer->userpicPhotoId() == _photo->id)) {
