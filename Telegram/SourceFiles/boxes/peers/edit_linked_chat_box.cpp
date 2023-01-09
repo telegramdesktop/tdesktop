@@ -227,31 +227,6 @@ void Controller::choose(not_null<ChatData*> chat) {
 	return tr::lng_manage_discussion_group_about(Ui::Text::WithEntities);
 }
 
-[[nodiscard]] object_ptr<Ui::RpWidget> SetupCreateGroup(
-		not_null<QWidget*> parent,
-		not_null<Window::SessionNavigation*> navigation,
-		not_null<ChannelData*> channel,
-		Fn<void(ChannelData*)> callback) {
-	Expects(channel->isBroadcast());
-
-	auto result = object_ptr<Ui::SettingsButton>(
-		parent,
-		tr::lng_manage_discussion_group_create(
-		) | Ui::Text::ToUpper(),
-		st::infoCreateLinkedChatButton);
-	result->addClickHandler([=] {
-		const auto guarded = crl::guard(parent, callback);
-		Window::Show(navigation).showBox(
-			Box<GroupInfoBox>(
-				navigation,
-				GroupInfoBox::Type::Megagroup,
-				channel->name() + " Chat",
-				guarded),
-			Ui::LayerOption::KeepOther);
-	});
-	return result;
-}
-
 [[nodiscard]] object_ptr<Ui::BoxContent> EditLinkedChatBox(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
@@ -294,8 +269,24 @@ void Controller::choose(not_null<ChatData*> chat) {
 			About(channel, chat),
 			u"discussion"_q);
 		if (!chat) {
-			above->add(
-				SetupCreateGroup(above, navigation, channel, callback));
+			Assert(channel->isBroadcast());
+
+			Settings::AddSkip(above);
+			Settings::AddButton(
+				above,
+				tr::lng_manage_discussion_group_create(),
+				st::infoCreateLinkedChatButton,
+				{ &st::settingsIconChat, Settings::kIconLightBlue }
+			)->addClickHandler([=, parent = above.data()] {
+				const auto guarded = crl::guard(parent, callback);
+				Window::Show(navigation).showBox(
+					Box<GroupInfoBox>(
+						navigation,
+						GroupInfoBox::Type::Megagroup,
+						channel->name() + " Chat",
+						guarded),
+					Ui::LayerOption::KeepOther);
+			});
 		}
 		box->peerListSetAboveWidget(std::move(above));
 
