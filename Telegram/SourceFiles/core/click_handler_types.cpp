@@ -93,7 +93,8 @@ QString HiddenUrlClickHandler::copyToClipboardContextItemText() const {
 }
 
 QString HiddenUrlClickHandler::dragText() const {
-	return HiddenUrlClickHandler::copyToClipboardText();
+	const auto result = HiddenUrlClickHandler::copyToClipboardText();
+	return result.startsWith(u"internal:"_q) ? QString() : result;
 }
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
