@@ -30,6 +30,17 @@ inline bool SkipTaskbarSupported() {
 inline void InstallLauncher(bool force) {
 }
 
+inline void ActivateThisProcess() {
+}
+
+// 1 - secondary, 2 - primary.
+void SetWindowPriority(not_null<QWidget*> window, uint32 priority);
+
+[[nodiscard]] uint64 ActivationWindowId(not_null<QWidget*> window);
+
+// Activate window with windowId (if found) or the largest priority.
+void ActivateOtherProcess(uint64 processId, uint64 windowId);
+
 namespace ThirdParty {
 
 void start();
@@ -43,7 +54,6 @@ inline void finish() {
 inline void psCheckLocalSocket(const QString &) {
 }
 
-void psActivateProcess(uint64 pid = 0);
 QString psAppDataPath();
 QString psAppDataPathOld();
 void psSendToMenu(bool send, bool silent = false);

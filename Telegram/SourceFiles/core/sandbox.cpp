@@ -36,8 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
-constexpr auto kEmptyPidForCommandResponse = 0ULL;
-
 QChar _toHex(ushort v) {
 	v = v & 0x000F;
 	return QChar::fromLatin1((v >= 10) ? ('a' + (v - 10)) : ('0' + v));
@@ -304,17 +302,21 @@ void Sandbox::socketReading() {
 		return;
 	}
 	_localSocketReadData.append(_localSocket.readAll());
-	if (QRegularExpression("RES:(\\d+);").match(_localSocketReadData).hasMatch()) {
-		uint64 pid = base::StringViewMid(
-			_localSocketReadData,
-			4,
-			_localSocketReadData.length() - 5).toULongLong();
-		if (pid != kEmptyPidForCommandResponse) {
-			psActivateProcess(pid);
-		}
-		LOG(("Show command response received, pid = %1, activating and quitting...").arg(pid));
-		return Quit();
+	const auto m = QRegularExpression(u"RES:(\\d+)_(\\d+);"_q).match(
+		_localSocketReadData);
+	if (!m.hasMatch()) {
+		return;
 	}
+	const auto processId = m.capturedView(1).toULongLong();
+	const auto windowId = m.capturedView(2).toULongLong();
+	if (windowId) {
+		Platform::ActivateOtherProcess(processId, windowId);
+	}
+	LOG(("Show command response received, processId = %1, windowId = %2, "
+		"activating and quitting..."
+		).arg(processId
+		).arg(windowId));
+	return Quit();
 }
 
 void Sandbox::socketError(QLocalSocket::LocalSocketError e) {
@@ -432,8 +434,9 @@ void Sandbox::readClients() {
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				auto cmd = base::StringViewMid(cmds, from, to - from);
 				if (cmd.startsWith(u"CMD:"_q)) {
-					execExternal(cmds.mid(from + 4, to - from - 4));
-					const auto response = u"RES:%1;"_q.arg(QApplication::applicationPid()).toLatin1();
+					const auto processId = QApplication::applicationPid();
+					const auto windowId = execExternal(cmds.mid(from + 4, to - from - 4));
+					const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
 					i->first->write(response.data(), response.size());
 				} else if (cmd.startsWith(u"SEND:"_q)) {
 					if (cSendPaths().isEmpty()) {
@@ -443,14 +446,12 @@ void Sandbox::readClients() {
 					qputenv("XDG_ACTIVATION_TOKEN", _escapeFrom7bit(cmds.mid(from + 21, to - from - 21)).toUtf8());
 				} else if (cmd.startsWith(u"OPEN:"_q)) {
 					startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5)).mid(0, 8192);
-					auto activateRequired = StartUrlRequiresActivate(startUrl);
-					if (activateRequired) {
-						execExternal("show");
-					}
-					const auto responsePid = activateRequired
-						? QApplication::applicationPid()
-						: kEmptyPidForCommandResponse;
-					const auto response = u"RES:%1;"_q.arg(responsePid).toLatin1();
+					const auto activationRequired = StartUrlRequiresActivate(startUrl);
+					const auto processId = QApplication::applicationPid();
+					const auto windowId = activationRequired
+						? execExternal("show")
+						: 0;
+					const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
 					i->first->write(response.data(), response.size());
 				} else {
 					LOG(("Sandbox Error: unknown command %1 passed in local socket").arg(cmd.toString()));
@@ -649,17 +650,21 @@ void Sandbox::closeApplication() {
 	_updateChecker = nullptr;
 }
 
-void Sandbox::execExternal(const QString &cmd) {
+uint64 Sandbox::execExternal(const QString &cmd) {
 	DEBUG_LOG(("Sandbox Info: executing external command '%1'").arg(cmd));
 	if (cmd == "show") {
 		if (Core::IsAppLaunched() && Core::App().primaryWindow()) {
-			Core::App().primaryWindow()->activate();
-		} else if (PreLaunchWindow::instance()) {
-			PreLaunchWindow::instance()->activate();
+			const auto window = Core::App().primaryWindow();
+			window->activate();
+			return Platform::ActivationWindowId(window->widget());
+		} else if (const auto window = PreLaunchWindow::instance()) {
+			window->activate();
+			return Platform::ActivationWindowId(window);
 		}
 	} else if (cmd == "quit") {
 		Quit();
 	}
+	return 0;
 }
 
 } // namespace Core

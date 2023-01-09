@@ -48,7 +48,32 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	int paddingVertical = (_size / 2);
 	int paddingHorizontal = _size;
 	int borderRadius = (_size / 5);
-	setStyleSheet(u"QPushButton { padding: %1px %2px; background-color: #ffffff; border-radius: %3px; }\nQPushButton#confirm:hover, QPushButton#cancel:hover { background-color: #e3f1fa; color: #2f9fea; }\nQPushButton#confirm { color: #2f9fea; }\nQPushButton#cancel { color: #aeaeae; }\nQLineEdit { border: 1px solid #e0e0e0; padding: 5px; }\nQLineEdit:focus { border: 2px solid #37a1de; padding: 4px; }"_q.arg(paddingVertical).arg(paddingHorizontal).arg(borderRadius));
+	setStyleSheet(uR"(
+QPushButton {
+	padding: %1px %2px;
+	background-color: #ffffff;
+	border-radius: %3px;
+}
+QPushButton#confirm:hover,
+QPushButton#cancel:hover {
+	background-color: #e3f1fa;
+	color: #2f9fea;
+}
+QPushButton#confirm {
+	color: #2f9fea;
+}
+QPushButton#cancel {
+	color: #aeaeae;
+}
+QLineEdit {
+	border: 1px solid #e0e0e0;
+	padding: 5px;
+}
+QLineEdit:focus {
+	border: 2px solid #37a1de;
+	padding: 4px;
+}
+)"_q.arg(paddingVertical).arg(paddingHorizontal).arg(borderRadius));
 	if (!PreLaunchWindowInstance) {
 		PreLaunchWindowInstance = this;
 	}
@@ -57,7 +82,7 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 void PreLaunchWindow::activate() {
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
-	psActivateProcess();
+	Platform::ActivateThisProcess();
 	raise();
 	activateWindow();
 }

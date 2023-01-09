@@ -615,7 +615,9 @@ void Manager::Private::handleActivation(const ToastActivation &activation) {
 			).arg(activation.args
 			).arg(my
 			).arg(pid));
-		psActivateProcess(pid);
+		const auto processId = pid;
+		const auto windowId = 0; // Activate some window.
+		Platform::ActivateOtherProcess(processId, windowId);
 		return;
 	}
 	const auto action = parsed.value("action");

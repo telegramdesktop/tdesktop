@@ -68,7 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #define WM_NCPOINTERUP 0x0243
 #endif
 
-using namespace Platform;
+using namespace ::Platform;
 
 namespace {
 
@@ -77,24 +77,39 @@ bool finished = true;
 QMargins simpleMargins, margins;
 HICON bigIcon = 0, smallIcon = 0, overlayIcon = 0;
 
-BOOL CALLBACK ActivateProcessByPid(HWND hWnd, LPARAM lParam) {
-	uint64 &processId(*(uint64*)lParam);
+[[nodiscard]] uint64 WindowIdFromHWND(HWND value) {
+	return (reinterpret_cast<uint64>(value) & 0xFFFFFFFFULL);
+}
+
+struct FindToActivateRequest {
+	uint64 processId = 0;
+	uint64 windowId = 0;
+	HWND result = nullptr;
+	uint32 resultLevel = 0; // Larger is better.
+};
+
+BOOL CALLBACK FindToActivate(HWND hwnd, LPARAM lParam) {
+	const auto request = reinterpret_cast<FindToActivateRequest*>(lParam);
 
 	DWORD dwProcessId;
-	::GetWindowThreadProcessId(hWnd, &dwProcessId);
+	::GetWindowThreadProcessId(hwnd, &dwProcessId);
 
-	if ((uint64)dwProcessId == processId) { // found top-level window
-		static const int32 nameBufSize = 1024;
-		WCHAR nameBuf[nameBufSize];
-		int32 len = GetWindowText(hWnd, nameBuf, nameBufSize);
-		if (len && len < nameBufSize) {
-			if (QRegularExpression(u"^Telegram(\\s*\\(\\d+\\))?$"_q).match(QString::fromStdWString(nameBuf)).hasMatch()) {
-				BOOL res = ::SetForegroundWindow(hWnd);
-				::SetFocus(hWnd);
-				return FALSE;
-			}
-		}
+	if ((uint64)dwProcessId != request->processId) {
+		return TRUE;
 	}
+	// Found a Top-Level window.
+	auto level = 0;
+	if (WindowIdFromHWND(hwnd) == request->windowId) {
+		request->result = hwnd;
+		request->resultLevel = 3;
+		return FALSE;
+	}
+	const auto data = static_cast<uint32>(GetWindowLong(hwnd, GWL_USERDATA));
+	if ((data != 1 && data != 2) || (data <= request->resultLevel)) {
+		return TRUE;
+	}
+	request->result = hwnd;
+	request->resultLevel = data;
 	return TRUE;
 }
 
@@ -217,12 +232,6 @@ bool ManageAppLink(
 }
 
 } // namespace
-
-void psActivateProcess(uint64 pid) {
-	if (pid) {
-		::EnumWindows((WNDENUMPROC)ActivateProcessByPid, (LPARAM)&pid);
-	}
-}
 
 QString psAppDataPath() {
 	static const int maxFileLen = MAX_PATH * 10;
@@ -486,6 +495,29 @@ void WriteCrashDumpDetails() {
 			<< " MB (current)\n";
 	}
 #endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
+}
+
+void SetWindowPriority(not_null<QWidget*> window, uint32 priority) {
+	const auto hwnd = reinterpret_cast<HWND>(window->winId());
+	Assert(hwnd != nullptr);
+
+	SetWindowLong(hwnd, GWL_USERDATA, static_cast<LONG>(priority));
+}
+
+uint64 ActivationWindowId(not_null<QWidget*> window) {
+	return WindowIdFromHWND(reinterpret_cast<HWND>(window->winId()));
+}
+
+void ActivateOtherProcess(uint64 processId, uint64 windowId) {
+	auto request = FindToActivateRequest{
+		.processId = processId,
+		.windowId = windowId,
+	};
+	::EnumWindows((WNDENUMPROC)FindToActivate, (LPARAM)&request);
+	if (const auto hwnd = request.result) {
+		::SetForegroundWindow(hwnd);
+		::SetFocus(hwnd);
+	}
 }
 
 } // namespace Platform

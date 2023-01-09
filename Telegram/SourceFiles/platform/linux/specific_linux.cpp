@@ -684,10 +684,6 @@ bool SkipTaskbarSupported() {
 
 } // namespace Platform
 
-void psActivateProcess(uint64 pid) {
-//	objc_activateProgram();
-}
-
 QString psAppDataPath() {
 	// Previously we used ~/.TelegramDesktop, so look there first.
 	// If we find data there, we should still use it.

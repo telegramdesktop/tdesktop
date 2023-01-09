@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
 #include "history/history.h"
 
 #include <QtWidgets/QDesktopWidget>
@@ -170,6 +171,8 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	qApp->installNativeEventFilter(&_private->filter);
 
 	setupNativeWindowFrame();
+
+	SetWindowPriority(this, controller->isPrimary() ? 2 : 1);
 
 	using namespace rpl::mappers;
 	Core::App().appDeactivatedValue(
