@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/send_action_animations.h"
 
 #include "api/api_send_progress.h"
+#include "base/never_freed_pointer.h"
 #include "ui/effects/animation_value.h"
 #include "ui/painter.h"
 #include "styles/style_widgets.h"
@@ -82,7 +83,7 @@ namespace {
 using ImplementationsMap = QMap<
 	Api::SendProgressType,
 	const SendActionAnimation::Impl::MetaData*>;
-NeverFreedPointer<ImplementationsMap> Implementations;
+base::NeverFreedPointer<ImplementationsMap> Implementations;
 
 class TypingAnimation : public SendActionAnimation::Impl {
 public:

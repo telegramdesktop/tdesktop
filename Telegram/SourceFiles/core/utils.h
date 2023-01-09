@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "base/flags.h"
 #include "base/algorithm.h"
-#include "base/assertion.h"
 #include "base/bytes.h"
 
 #include <crl/crl_time.h>
@@ -181,52 +180,3 @@ static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);
 static int32 MinArcLength = (FullArcLength / 360);
 static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
-
-// This pointer is used for global non-POD variables that are allocated
-// on demand by createIfNull(lambda) and are never automatically freed.
-template <typename T>
-class NeverFreedPointer {
-public:
-	NeverFreedPointer() = default;
-	NeverFreedPointer(const NeverFreedPointer<T> &other) = delete;
-	NeverFreedPointer &operator=(const NeverFreedPointer<T> &other) = delete;
-
-	template <typename... Args>
-	void createIfNull(Args&&... args) {
-		if (isNull()) {
-			reset(new T(std::forward<Args>(args)...));
-		}
-	};
-
-	T *data() const {
-		return _p;
-	}
-	T *release() {
-		return base::take(_p);
-	}
-	void reset(T *p = nullptr) {
-		delete _p;
-		_p = p;
-	}
-	bool isNull() const {
-		return data() == nullptr;
-	}
-
-	void clear() {
-		reset();
-	}
-	T *operator->() const {
-		return data();
-	}
-	T &operator*() const {
-		Assert(!isNull());
-		return *data();
-	}
-	explicit operator bool() const {
-		return !isNull();
-	}
-
-private:
-	T *_p;
-
-};
