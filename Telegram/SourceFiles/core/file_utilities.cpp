@@ -76,7 +76,7 @@ QString filedialogDefaultName(
 	QString base;
 	if (fileTime) {
 		const auto date = base::unixtime::parse(fileTime);
-		base = prefix + QLocale().toString(date, "_yyyy-MM-dd_HH-mm-ss");
+		base = prefix + date.toString("_yyyy-MM-dd_HH-mm-ss");
 	} else {
 		struct tm tm;
 		time_t t = time(NULL);
