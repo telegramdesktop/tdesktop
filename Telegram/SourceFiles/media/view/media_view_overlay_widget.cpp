@@ -1529,10 +1529,7 @@ void OverlayWidget::hideControls(bool force) {
 		if (!_dropdown->isHidden()
 			|| (_streamed && _streamed->controls.hasMenu())
 			|| _menu
-			|| _mousePressed
-			|| (_fullScreenVideo
-				&& !videoIsGifOrUserpic()
-				&& _streamed->controls.geometry().contains(_lastMouseMovePos))) {
+			|| _mousePressed) {
 			return;
 		}
 	}
@@ -3150,18 +3147,22 @@ void OverlayWidget::refreshClipControllerGeometry() {
 
 void OverlayWidget::playbackControlsPlay() {
 	playbackPauseResume();
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsPause() {
 	playbackPauseResume();
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsToFullScreen() {
 	playbackToggleFullScreen();
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsFromFullScreen() {
 	playbackToggleFullScreen();
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsToPictureInPicture() {
@@ -3280,7 +3281,7 @@ void OverlayWidget::playbackControlsSeekProgress(crl::time position) {
 	if (!_streamed->instance.player().paused()
 		&& !_streamed->instance.player().finished()) {
 		_streamed->pausedBySeek = true;
-		playbackControlsPause();
+		playbackPauseResume();
 	}
 }
 
@@ -3290,6 +3291,7 @@ void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 	_streamingStartPaused = !_streamed->pausedBySeek
 		&& !_streamed->instance.player().finished();
 	restartAtSeekPosition(position);
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
@@ -3307,6 +3309,7 @@ float64 OverlayWidget::playbackControlsCurrentVolume() {
 void OverlayWidget::playbackControlsVolumeToggled() {
 	const auto volume = Core::App().settings().videoVolume();
 	playbackControlsVolumeChanged(volume ? 0. : _lastPositiveVolume);
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsVolumeChangeFinished() {
@@ -3314,6 +3317,7 @@ void OverlayWidget::playbackControlsVolumeChangeFinished() {
 	if (volume > 0.) {
 		_lastPositiveVolume = volume;
 	}
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
