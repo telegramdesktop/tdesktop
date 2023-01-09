@@ -2196,6 +2196,9 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 		updateSearchFromVisibility();
 		clearSearchCache();
 	}
+	if (_searchInChat && _layout == Layout::Main) {
+		controller()->closeFolder();
+	}
 	_inner->searchInChat(_searchInChat, _searchFromAuthor);
 	if (_subsectionTopBar) {
 		_subsectionTopBar->searchEnableJumpToDate(
