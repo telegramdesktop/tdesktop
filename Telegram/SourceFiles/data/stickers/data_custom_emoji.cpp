@@ -447,14 +447,16 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 				Ui::CustomEmoji::RepaintRequest request) {
 			repaintLater(instance, request);
 		};
-		auto [loader, setId] = factory();
+		auto [loader, setId, colored] = factory();
 		i = instances.emplace(
 			documentId,
 			std::make_unique<Ui::CustomEmoji::Instance>(Loading{
 				std::move(loader),
 				prepareNonExactPreview(documentId, tag, sizeOverride)
 			}, std::move(repaint))).first;
-		if (_coloredSetId) {
+		if (colored) {
+			i->second->setColored();
+		} else if (_coloredSetId) {
 			if (_coloredSetId == setId) {
 				i->second->setColored();
 			}
@@ -608,6 +610,7 @@ auto CustomEmojiManager::createLoaderWithSetId(
 		return {
 			std::make_unique<CustomEmojiLoader>(document, tag, sizeOverride),
 			sticker->set.id,
+			document->emojiUsesTextColor(),
 		};
 	}
 	return createLoaderWithSetId(document->id, tag, sizeOverride);
@@ -625,7 +628,11 @@ auto CustomEmojiManager::createLoaderWithSetId(
 		sizeOverride);
 	if (const auto document = result->document()) {
 		if (const auto sticker = document->sticker()) {
-			return { std::move(result), sticker->set.id };
+			return {
+				std::move(result),
+				sticker->set.id,
+				document->emojiUsesTextColor(),
+			};
 		}
 	} else {
 		const auto i = SizeIndex(tag);
@@ -635,7 +642,7 @@ auto CustomEmojiManager::createLoaderWithSetId(
 			crl::on_main(this, [=] { request(); });
 		}
 	}
-	return { std::move(result), uint64() };
+	return { std::move(result), uint64(), false };
 }
 
 QString CustomEmojiManager::lookupSetName(uint64 setId) {
@@ -675,17 +682,28 @@ void CustomEmojiManager::request() {
 
 void CustomEmojiManager::fillColoredFlags(not_null<DocumentData*> document) {
 	const auto id = document->id;
+	const auto setColored = [&] {
+		for (auto &instances : _instances) {
+			const auto i = instances.find(id);
+			if (i != end(instances)) {
+				i->second->setColored();
+			}
+		}
+	};
+	if (document->emojiUsesTextColor()) {
+		setColored();
+		return;
+	}
 	const auto sticker = document->sticker();
 	const auto setId = sticker ? sticker->set.id : uint64();
 	if (!setId || (_coloredSetId && setId != _coloredSetId)) {
 		return;
-	}
-	for (auto &instances : _instances) {
-		const auto i = instances.find(id);
-		if (i != end(instances)) {
-			if (setId == _coloredSetId) {
-				i->second->setColored();
-			} else {
+	} else if (setId == _coloredSetId) {
+		setColored();
+	} else {
+		for (auto &instances : _instances) {
+			const auto i = instances.find(id);
+			if (i != end(instances)) {
 				_coloredSetPending[setId].emplace(i->second.get());
 			}
 		}
@@ -915,6 +933,7 @@ void InsertCustomEmoji(
 		return;
 	}
 	Ui::InsertCustomEmojiAtCursor(
+		field,
 		field->textCursor(),
 		sticker->alt,
 		Ui::InputField::CustomEmojiLink(SerializeCustomEmojiId(document)));

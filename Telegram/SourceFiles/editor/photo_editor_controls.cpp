@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
 #include "styles/style_editor.h"
 
@@ -55,7 +57,7 @@ EdgeButton::EdgeButton(
 	const style::RippleAnimation &st)
 : Ui::RippleButton(parent, st)
 , _fg(fg)
-, _text(st::semiboldTextStyle, text)
+, _text(st::photoEditorButtonStyle, text)
 , _width(_text.maxWidth()
 	+ st::photoEditorTextButtonPadding.left()
 	+ st::photoEditorTextButtonPadding.right())
@@ -78,7 +80,7 @@ void EdgeButton::init() {
 		paintRipple(p, _rippleRect.x(), _rippleRect.y());
 
 		p.setPen(_fg);
-		const auto textTop = (height() - _text.minHeight()) / 2;
+		const auto textTop = st::photoEditorButtonTextTop;
 		_text.draw(p, 0, textTop, width(), style::al_center);
 	}, lifetime());
 }
@@ -122,25 +124,49 @@ ButtonBar::ButtonBar(
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
 		const auto children = RpWidget::children();
-		if (children.empty()) {
-			return;
-		}
 		const auto widgets = ranges::views::all(
 			children
 		) | ranges::views::filter([](not_null<const QObject*> object) {
 			return object->isWidgetType();
 		}) | ranges::views::transform([](not_null<QObject*> object) {
-			return static_cast<Ui::RpWidget*>(object.get());
+			return static_cast<QWidget*>(object.get());
 		}) | ranges::to_vector;
+		if (widgets.size() < 2) {
+			return;
+		}
 
-		const auto residualWidth = size.width()
-			- ranges::accumulate(widgets, 0, ranges::plus(), &QWidget::width);
-		const auto step = residualWidth / float(widgets.size() - 1);
+		const auto layout = [&](bool symmetrical) {
+			auto widths = widgets | ranges::views::transform(
+				&QWidget::width
+			) | ranges::to_vector;
+			const auto count = int(widths.size());
+			const auto middle = count / 2;
+			if (symmetrical) {
+				for (auto i = 0; i != middle; ++i) {
+					const auto j = count - i - 1;
+					widths[i] = widths[j] = std::max(widths[i], widths[j]);
+				}
+			}
+			const auto residualWidth = size.width()
+				- ranges::accumulate(widths, 0);
+			if (symmetrical && residualWidth < 0) {
+				return false;
+			}
+			const auto step = residualWidth / float(count - 1);
 
-		auto left = 0.;
-		for (const auto &widget : widgets) {
-			widget->moveToLeft(int(left), 0);
-			left += widget->width() + step;
+			auto left = 0.;
+			auto &&ints = ranges::views::ints(0, ranges::unreachable);
+			auto &&list = ranges::views::zip(widgets, widths, ints);
+			for (const auto &[widget, width, index] : list) {
+				widget->move(int((index >= middle)
+					? (left + width - widget->width())
+					: left), 0);
+				left += width + step;
+			}
+			return true;
+		};
+		if (!layout(true)) {
+			layout(false);
 		}
 
 		auto result = QImage(
@@ -165,37 +191,45 @@ PhotoEditorControls::PhotoEditorControls(
 	not_null<Ui::RpWidget*> parent,
 	std::shared_ptr<Controllers> controllers,
 	const PhotoModifications modifications,
-	bool doneControls)
+	const EditorData &data)
 : RpWidget(parent)
 , _bg(st::roundedBg)
 , _buttonHeight(st::photoEditorButtonBarHeight)
 , _transformButtons(base::make_unique_q<ButtonBar>(this, _bg))
 , _paintTopButtons(base::make_unique_q<ButtonBar>(this, _bg))
 , _paintBottomButtons(base::make_unique_q<ButtonBar>(this, _bg))
+, _about(data.about.empty()
+	? nullptr
+	: base::make_unique_q<Ui::FadeWrap<Ui::FlatLabel>>(
+		this,
+		object_ptr<Ui::FlatLabel>(
+			this,
+			rpl::single(data.about),
+			st::photoEditorAbout)))
 , _transformCancel(base::make_unique_q<EdgeButton>(
 	_transformButtons,
 	tr::lng_cancel(tr::now),
 	_buttonHeight,
 	true,
 	_bg,
-	st::activeButtonFg,
+	st::mediaviewCaptionFg,
 	st::photoEditorRotateButton.ripple))
-, _rotateButton(base::make_unique_q<Ui::IconButton>(
-	_transformButtons,
-	st::photoEditorRotateButton))
 , _flipButton(base::make_unique_q<Ui::IconButton>(
 	_transformButtons,
 	st::photoEditorFlipButton))
+, _rotateButton(base::make_unique_q<Ui::IconButton>(
+	_transformButtons,
+	st::photoEditorRotateButton))
 , _paintModeButton(base::make_unique_q<Ui::IconButton>(
 	_transformButtons,
 	st::photoEditorPaintModeButton))
 , _transformDone(base::make_unique_q<EdgeButton>(
 	_transformButtons,
-	tr::lng_box_done(tr::now),
+	(data.confirm.isEmpty() ? tr::lng_box_done(tr::now) : data.confirm),
 	_buttonHeight,
 	false,
 	_bg,
-	st::lightButtonFg,
+	st::mediaviewTextLinkFg,
 	st::photoEditorRotateButton.ripple))
 , _paintCancel(base::make_unique_q<EdgeButton>(
 	_paintBottomButtons,
@@ -203,7 +237,7 @@ PhotoEditorControls::PhotoEditorControls(
 	_buttonHeight,
 	true,
 	_bg,
-	st::activeButtonFg,
+	st::mediaviewCaptionFg,
 	st::photoEditorRotateButton.ripple))
 , _undoButton(base::make_unique_q<Ui::IconButton>(
 	_paintTopButtons,
@@ -225,18 +259,8 @@ PhotoEditorControls::PhotoEditorControls(
 	_buttonHeight,
 	false,
 	_bg,
-	st::lightButtonFg,
+	st::mediaviewTextLinkFg,
 	st::photoEditorRotateButton.ripple)) {
-
-	{
-		const auto &padding = st::photoEditorButtonBarPadding;
-		const auto w = st::photoEditorButtonBarWidth
-			- padding.left()
-			- padding.right();
-		_transformButtons->resize(w, _buttonHeight);
-		_paintBottomButtons->resize(w, _buttonHeight);
-		_paintTopButtons->resize(w, _buttonHeight);
-	}
 
 	{
 		const auto icon = &st::photoEditorPaintIconActive;
@@ -250,6 +274,14 @@ PhotoEditorControls::PhotoEditorControls(
 			return;
 		}
 
+		const auto &padding = st::photoEditorButtonBarPadding;
+		const auto w = std::min(st::photoEditorButtonBarWidth, size.width())
+			- padding.left()
+			- padding.right();
+		_transformButtons->resize(w, _buttonHeight);
+		_paintBottomButtons->resize(w, _buttonHeight);
+		_paintTopButtons->resize(w, _buttonHeight);
+
 		const auto buttonsTop = bottomButtonsTop();
 
 		const auto &current = _transformButtons->isHidden()
@@ -259,6 +291,16 @@ PhotoEditorControls::PhotoEditorControls(
 		current->moveToLeft(
 			(size.width() - current->width()) / 2,
 			buttonsTop);
+
+		if (_about) {
+			const auto &margin = st::photoEditorAboutMargin;
+			const auto skip = st::photoEditorCropPointSize;
+			_about->resizeToWidth(
+				size.width() - margin.left() - margin.right());
+			_about->moveToLeft(
+				(size.width() - _about->width()) / 2,
+				margin.top() - skip);
+		}
 	}, lifetime());
 
 	_mode.changes(
@@ -413,6 +455,9 @@ void PhotoEditorControls::showAnimated(
 	const auto duration = st::photoEditorBarAnimationDuration;
 
 	const auto isTransform = (mode == Mode::Transform);
+	if (_about) {
+		_about->toggle(isTransform, animated);
+	}
 
 	const auto buttonsLeft = (width() - _transformButtons->width()) / 2;
 	const auto buttonsTop = bottomButtonsTop();

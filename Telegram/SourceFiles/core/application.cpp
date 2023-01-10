@@ -276,7 +276,7 @@ void Application::run() {
 	Ui::InitTextOptions();
 	Ui::StartCachedCorners();
 	Ui::Emoji::Init();
-	Ui::PrepareTextSpoilerMask();
+	Ui::PreloadTextSpoilerMask();
 	startEmojiImageLoader();
 	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());
@@ -291,9 +291,6 @@ void Application::run() {
 	}, _lifetime);
 
 	DEBUG_LOG(("Application Info: inited..."));
-
-	cChangeDateFormat(QLocale().dateFormat(QLocale::ShortFormat));
-	cChangeTimeFormat(QLocale().timeFormat(QLocale::ShortFormat));
 
 	DEBUG_LOG(("Application Info: starting app..."));
 
@@ -606,16 +603,19 @@ void Application::saveSettings() {
 	Local::writeSettings();
 }
 
-bool Application::canSaveFileWithoutAskingForPath() const {
-	if (Core::App().settings().askDownloadPath()) {
-		return false;
-	} else if (KSandbox::isInside()
-		&& Core::App().settings().downloadPath().isEmpty()) {
+bool Application::canReadDefaultDownloadPath(bool always) const {
+	if (KSandbox::isInside()
+		&& (always || Core::App().settings().downloadPath().isEmpty())) {
 		const auto path = QStandardPaths::writableLocation(
 			QStandardPaths::DownloadLocation);
 		return base::CanReadDirectory(path);
 	}
 	return true;
+}
+
+bool Application::canSaveFileWithoutAskingForPath() const {
+	return !Core::App().settings().askDownloadPath()
+		&& canReadDefaultDownloadPath();
 }
 
 MTP::Config &Application::fallbackProductionConfig() const {

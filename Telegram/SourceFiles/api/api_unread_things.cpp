@@ -36,7 +36,7 @@ bool UnreadThings::trackMentions(Data::Thread *thread) const {
 
 bool UnreadThings::trackReactions(Data::Thread *thread) const {
 	const auto peer = thread ? thread->peer().get() : nullptr;
-	return peer && (peer->isChat() || peer->isMegagroup());
+	return peer && (peer->isUser() || peer->isChat() || peer->isMegagroup());
 }
 
 void UnreadThings::preloadEnough(Data::Thread *thread) {

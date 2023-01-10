@@ -944,20 +944,16 @@ void Reader::loadForDownloader(
 		_loader->attachDownloader(downloader);
 	}
 	_downloaderOffsetRequests.emplace(uint32(offset));
-	if (_streamingActive) {
-		wakeFromSleep();
-	} else {
-		processDownloaderRequests();
-	}
+	// Will be processed in continueDownloaderFromMainThread()
+	// from StreamedFileDownloader::requestParts().
 }
 
 void Reader::doneForDownloader(int64 offset) {
 	Expects(offset >= 0 && offset <= std::numeric_limits<uint32>::max());
 
 	_downloaderOffsetAcks.emplace(offset);
-	if (!_streamingActive) {
-		processDownloaderRequests();
-	}
+	// Will be processed in continueDownloaderFromMainThread()
+	// from StreamedFileDownloader::requestParts().
 }
 
 void Reader::cancelForDownloader(
@@ -1104,10 +1100,15 @@ bool Reader::downloaderWaitForCachedSlice(uint32 offset) {
 }
 
 void Reader::checkCacheResultsForDownloader() {
+	continueDownloaderFromMainThread();
+}
+
+void Reader::continueDownloaderFromMainThread() {
 	if (_streamingActive) {
-		return;
+		wakeFromSleep();
+	} else {
+		processDownloaderRequests();
 	}
-	processDownloaderRequests();
 }
 
 void Reader::setLoaderPriority(int priority) {

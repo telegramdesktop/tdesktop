@@ -190,18 +190,19 @@ public:
 		Data::FileOrigin origin,
 		Fn<void()> handler);
 
-	int leftToUpdate() const;
-	int rightToUpdate() const;
+	[[nodiscard]] int leftToUpdate() const;
+	[[nodiscard]] int rightToUpdate() const;
 
 	void animateToLeft(not_null<Thumb*> next);
 	void animateToRight(not_null<Thumb*> prev);
 
 	void setState(State state);
-	State state() const;
-	bool removed() const;
+	[[nodiscard]] State state() const;
+	[[nodiscard]] bool inited() const;
+	[[nodiscard]] bool removed() const;
 
 	void paint(QPainter &p, int x, int y, int outerWidth, float64 progress);
-	ClickHandlerPtr getState(QPoint point) const;
+	[[nodiscard]] ClickHandlerPtr getState(QPoint point) const;
 
 private:
 	QSize wantedPixSize() const;
@@ -398,6 +399,10 @@ void GroupThumbs::Thumb::animateToRight(not_null<Thumb*> prev) {
 
 auto GroupThumbs::Thumb::state() const -> State {
 	return _state;
+}
+
+bool GroupThumbs::Thumb::inited() const {
+	return _fullWidth != 0;
 }
 
 bool GroupThumbs::Thumb::removed() const {
@@ -819,20 +824,26 @@ void GroupThumbs::paint(QPainter &p, int x, int y, int outerWidth) {
 		: _animation.value(1.);
 	x += (_width / 2);
 	y += st::mediaviewGroupPadding.top();
+	auto initedCurrentIndex = int(_items.size());
 	for (auto i = _cache.begin(); i != _cache.end();) {
-		const auto &thumb = i->second;
+		const auto thumb = not_null{ i->second.get() };
+		const auto inited = thumb->inited();
 		thumb->paint(p, x, y, outerWidth, progress);
 		if (thumb->removed()) {
-			_dying.erase(
-				ranges::remove(
-					_dying,
-					thumb.get(),
-					[](not_null<Thumb*> thumb) { return thumb.get(); }),
-				_dying.end());
+			_dying.erase(ranges::remove(_dying, thumb), _dying.end());
 			i = _cache.erase(i);
 		} else {
+			if (!inited
+				&& thumb->inited()
+				&& thumb->state() == Thumb::State::Current) {
+				initedCurrentIndex = ranges::find(_items, thumb)
+					- begin(_items);
+			}
 			++i;
 		}
+	}
+	if (initedCurrentIndex < _items.size()) {
+		animateAliveItems(initedCurrentIndex);
 	}
 }
 

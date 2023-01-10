@@ -18,7 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/painter.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_message.h" // FromNameFg.
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
@@ -244,7 +245,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	text.setMarkedText(st::fwdTextStyle, phrase);
 
 	text.setLink(1, fromChannel
-		? goToMessageClickHandler(originalSender, originalId)
+		? JumpToMessageClickHandler(originalSender, originalId)
 		: originalSender
 		? originalSender->openLink()
 		: HiddenSenderInfo::ForwardClickHandler());
@@ -254,7 +255,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 }
 
 bool HistoryMessageReply::updateData(
-		not_null<HistoryMessage*> holder,
+		not_null<HistoryItem*> holder,
 		bool force) {
 	const auto guard = gsl::finally([&] { refreshReplyToMedia(); });
 	if (!force) {
@@ -282,9 +283,10 @@ bool HistoryMessageReply::updateData(
 	}
 
 	if (replyToMsg) {
+		const auto repaint = [=] { holder->customEmojiRepaint(); };
 		const auto context = Core::MarkedTextContext{
 			.session = &holder->history()->session(),
-			.customEmojiRepaint = [=] { holder->customEmojiRepaint(); },
+			.customEmojiRepaint = repaint,
 		};
 		replyToText.setMarkedText(
 			st::messageTextStyle,
@@ -311,9 +313,17 @@ bool HistoryMessageReply::updateData(
 				? replyToMsg->from()->id
 				: PeerId(0);
 		}
+
+		const auto media = replyToMsg->media();
+		if (!media || !media->hasReplyPreview() || !media->hasSpoiler()) {
+			spoiler = nullptr;
+		} else if (!spoiler) {
+			spoiler = std::make_unique<Ui::SpoilerAnimation>(repaint);
+		}
 	} else if (force) {
 		replyToMsgId = 0;
 		replyToColorKey = PeerId(0);
+		spoiler = nullptr;
 	}
 	if (force) {
 		holder->history()->owner().requestItemResize(holder);
@@ -322,13 +332,13 @@ bool HistoryMessageReply::updateData(
 }
 
 void HistoryMessageReply::setReplyToLinkFrom(
-		not_null<HistoryMessage*> holder) {
+		not_null<HistoryItem*> holder) {
 	replyToLnk = replyToMsg
-		? goToMessageClickHandler(replyToMsg.get(), holder->fullId())
+		? JumpToMessageClickHandler(replyToMsg.get(), holder->fullId())
 		: nullptr;
 }
 
-void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
+void HistoryMessageReply::clearData(not_null<HistoryItem*> holder) {
 	replyToVia = nullptr;
 	if (replyToMsg) {
 		holder->history()->owner().unregisterDependentMessage(
@@ -341,7 +351,7 @@ void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 }
 
 PeerData *HistoryMessageReply::replyToFrom(
-		not_null<HistoryMessage*> holder) const {
+		not_null<HistoryItem*> holder) const {
 	if (!replyToMsg) {
 		return nullptr;
 	} else if (holder->Has<HistoryMessageForwarded>()) {
@@ -356,7 +366,7 @@ PeerData *HistoryMessageReply::replyToFrom(
 }
 
 QString HistoryMessageReply::replyToFromName(
-		not_null<HistoryMessage*> holder) const {
+		not_null<HistoryItem*> holder) const {
 	if (!replyToMsg) {
 		return QString();
 	} else if (holder->Has<HistoryMessageForwarded>()) {
@@ -381,7 +391,7 @@ QString HistoryMessageReply::replyToFromName(
 }
 
 bool HistoryMessageReply::isNameUpdated(
-		not_null<HistoryMessage*> holder) const {
+		not_null<HistoryItem*> holder) const {
 	if (const auto from = replyToFrom(holder)) {
 		if (replyToVersion < from->nameVersion()) {
 			updateName(holder);
@@ -392,7 +402,7 @@ bool HistoryMessageReply::isNameUpdated(
 }
 
 void HistoryMessageReply::updateName(
-		not_null<HistoryMessage*> holder) const {
+		not_null<HistoryItem*> holder) const {
 	if (const auto name = replyToFromName(holder); !name.isEmpty()) {
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		if (const auto from = replyToFrom(holder)) {
@@ -423,7 +433,7 @@ void HistoryMessageReply::resize(int width) const {
 }
 
 void HistoryMessageReply::itemRemoved(
-		HistoryMessage *holder,
+		HistoryItem *holder,
 		HistoryItem *removed) {
 	if (replyToMsg.get() == removed) {
 		clearData(holder);
@@ -462,14 +472,15 @@ void HistoryMessageReply::paint(
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
-			auto hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
+			const auto media = replyToMsg->media();
+			auto hasPreview = media && media->hasReplyPreview();
 			if (hasPreview && w < st::msgReplyBarSkip + st::msgReplyBarSize.height()) {
 				hasPreview = false;
 			}
 			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 
 			if (hasPreview) {
-				if (const auto image = replyToMsg->media()->replyPreview()) {
+				if (const auto image = media->replyPreview()) {
 					auto to = style::rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
 					const auto preview = image->pixSingle(
 						image->size() / style::DevicePixelRatio(),
@@ -481,6 +492,16 @@ void HistoryMessageReply::paint(
 							.outer = to.size(),
 						});
 					p.drawPixmap(to.x(), to.y(), preview);
+					if (spoiler) {
+						holder->clearCustomEmojiRepaint();
+						Ui::FillSpoilerRect(
+							p,
+							to,
+							Ui::DefaultImageSpoiler().frame(
+								spoiler->index(
+									context.now,
+									context.paused)));
+					}
 				}
 			}
 			if (w > st::msgReplyBarSkip + previewSkip) {

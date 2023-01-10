@@ -59,6 +59,9 @@ struct SubscribeButtonArgs final {
 [[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
 	SubscribeButtonArgs &&args);
 
+[[nodiscard]] std::vector<PremiumPreview> PremiumPreviewOrder(
+	not_null<::Main::Session*> session);
+
 
 } // namespace Settings
 

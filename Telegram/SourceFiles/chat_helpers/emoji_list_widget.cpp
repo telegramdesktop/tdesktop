@@ -438,9 +438,6 @@ EmojiListWidget::EmojiListWidget(
 		resizeToWidth(width());
 	}, lifetime());
 
-	if (_mode == Mode::EmojiStatus) {
-		_emojiStatusColor = std::make_unique<Ui::Text::CustomEmojiColored>();
-	}
 	rpl::single(
 		rpl::empty
 	) | rpl::then(
@@ -449,12 +446,6 @@ EmojiListWidget::EmojiListWidget(
 		initButton(_add, tr::lng_stickers_featured_add(tr::now), false);
 		initButton(_unlock, tr::lng_emoji_featured_unlock(tr::now), true);
 		initButton(_restore, tr::lng_emoji_premium_restore(tr::now), true);
-		if (const auto status = _emojiStatusColor.get()) {
-			status->color = anim::color(
-				st::stickerPanPremium1,
-				st::stickerPanPremium2,
-				0.5);
-		}
 	}, lifetime());
 
 	if (!descriptor.customRecentList.empty()) {
@@ -842,10 +833,36 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 	paint(p, {}, clip);
 }
 
+void EmojiListWidget::validateEmojiPaintContext(
+		const ExpandingContext &context) {
+	auto value = Ui::Text::CustomEmojiPaintContext{
+		.textColor = (_mode == Mode::EmojiStatus
+			? anim::color(
+				st::stickerPanPremium1,
+				st::stickerPanPremium2,
+				0.5)
+			: st::windowFg->c),
+		.size = QSize(_customSingleSize, _customSingleSize),
+		.now = crl::now(),
+		.scale = context.progress,
+		.paused = paused(),
+		.scaled = context.expanding,
+	};
+	if (!_emojiPaintContext) {
+		_emojiPaintContext = std::make_unique<
+			Ui::Text::CustomEmojiPaintContext
+		>(std::move(value));
+	} else {
+		*_emojiPaintContext = std::move(value);
+	}
+}
+
 void EmojiListWidget::paint(
 		QPainter &p,
 		ExpandingContext context,
 		QRect clip) {
+	validateEmojiPaintContext(context);
+
 	auto fromColumn = floorclamp(
 		clip.x() - _rowsLeft,
 		_singleSize.width(),
@@ -861,10 +878,7 @@ void EmojiListWidget::paint(
 		fromColumn = _columnCount - fromColumn;
 		toColumn = _columnCount - toColumn;
 	}
-
 	const auto expandProgress = context.progress;
-	const auto paused = this->paused();
-	const auto now = crl::now();
 	auto selectedButton = std::get_if<OverButton>(!v::is_null(_pressed)
 		? &_pressed
 		: &_selected);
@@ -968,12 +982,12 @@ void EmojiListWidget::paint(
 						_overBg.paint(p, QRect(tl, st::emojiPanArea));
 					}
 					if (info.section == int(Section::Recent)) {
-						drawRecent(p, context, w, now, paused, index);
+						drawRecent(p, context, w, index);
 					} else if (info.section < _staticCount) {
 						drawEmoji(p, context, w, _emoji[info.section][index]);
 					} else {
 						const auto set = info.section - _staticCount;
-						drawCustom(p, context, w, now, paused, set, index);
+						drawCustom(p, context, w, set, index);
 					}
 				}
 			}
@@ -1006,24 +1020,15 @@ void EmojiListWidget::drawRecent(
 		QPainter &p,
 		const ExpandingContext &context,
 		QPoint position,
-		crl::time now,
-		bool paused,
 		int index) {
 	_recentPainted = true;
 	auto &recent = _recent[index];
 	if (const auto custom = recent.custom) {
-		position += _innerPosition + _customPosition;
-		const auto paintContext = Ui::Text::CustomEmoji::Context{
-			.preview = st::windowBgRipple->c,
-			.colored = _emojiStatusColor.get(),
-			.size = QSize(_customSingleSize, _customSingleSize),
-			.now = now,
-			.scale = context.progress,
-			.position = position,
-			.paused = paused,
-			.scaled = context.expanding,
-		};
-		custom->paint(p, paintContext);
+		_emojiPaintContext->scale = context.progress;
+		_emojiPaintContext->position = position
+			+ _innerPosition
+			+ _customPosition;
+		custom->paint(p, *_emojiPaintContext);
 	} else if (const auto emoji = std::get_if<EmojiPtr>(&recent.id.data)) {
 		if (_mode == Mode::EmojiStatus) {
 			position += QPoint(
@@ -1057,24 +1062,17 @@ void EmojiListWidget::drawCustom(
 		QPainter &p,
 		const ExpandingContext &context,
 		QPoint position,
-		crl::time now,
-		bool paused,
 		int set,
 		int index) {
 	position += _innerPosition + _customPosition;
 	auto &custom = _custom[set];
 	custom.painted = true;
 	auto &entry = custom.list[index];
-	entry.custom->paint(p, {
-		.preview = st::windowBgRipple->c,
-		.colored = _emojiStatusColor.get(),
-		.size = QSize(_customSingleSize, _customSingleSize),
-		.now = now,
-		.scale = context.progress,
-		.position = position,
-		.paused = paused,
-		.scaled = context.expanding,
-	});
+	_emojiPaintContext->scale = context.progress;
+	_emojiPaintContext->position = position
+		+ _innerPosition
+		+ _customPosition;
+	entry.custom->paint(p, *_emojiPaintContext);
 }
 
 bool EmojiListWidget::checkPickerHide() {

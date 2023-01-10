@@ -206,7 +206,7 @@ void EditMessageWithUploadedPhoto(
 	EditMessageWithUploadedMedia(
 		item,
 		options,
-		PrepareUploadedPhoto(std::move(info)));
+		PrepareUploadedPhoto(item, std::move(info)));
 }
 
 mtpRequestId EditCaption(

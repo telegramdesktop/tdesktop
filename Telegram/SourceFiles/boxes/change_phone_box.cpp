@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/change_phone_box.h"
 
+#include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/sent_code_field.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/phone_banned_box.h"
 #include "countries/countries_instance.h" // Countries::ExtractPhoneCode.
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -67,6 +69,10 @@ void CreateErrorLabel(
 	}
 }
 
+[[nodiscard]] int ErrorSkip() {
+	return st::boxLittleSkip + st::changePhoneError.style.font->height;
+}
+
 } // namespace
 
 namespace Settings {
@@ -109,6 +115,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		const QString &phone,
 		const QString &hash,
+		const QString &openUrl,
 		int codeLength,
 		int callTimeout);
 
@@ -120,7 +127,7 @@ protected:
 	void prepare() override;
 
 private:
-	void submit();
+	void submit(const QString &code);
 	void sendCall();
 	void updateCall();
 	void sendCodeFail(const MTP::Error &error);
@@ -128,18 +135,20 @@ private:
 	void hideError() {
 		showError(QString());
 	}
-	int countHeight();
+	[[nodiscard]] int countHeight() const;
 
 	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 
 	QString _phone;
 	QString _hash;
+	QString _openUrl;
 	int _codeLength = 0;
 	int _callTimeout = 0;
 	object_ptr<Ui::SentCodeField> _code = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 	object_ptr<Ui::FlatLabel> _callLabel = { nullptr };
+	object_ptr<Ui::RoundButton> _fragment = { nullptr };
 	mtpRequestId _requestId = 0;
 	Ui::SentCodeCall _call;
 
@@ -174,11 +183,9 @@ void ChangePhone::EnterPhone::prepare() {
 		this,
 		tr::lng_change_phone_new_description(tr::now),
 		st::changePhoneLabel);
-	const auto errorSkip = st::boxLittleSkip
-		+ st::changePhoneError.style.font->height;
 	description->moveToLeft(
 		st::boxPadding.left(),
-		_phone->y() + _phone->height() + errorSkip + st::boxLittleSkip);
+		_phone->y() + _phone->height() + ErrorSkip() + st::boxLittleSkip);
 
 	setDimensions(
 		st::boxWidth,
@@ -221,6 +228,7 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 		return false;
 	};
 	auto codeLength = 0;
+	auto codeByFragmentUrl = QString();
 	const auto hasLength = data.vtype().match([&](
 			const MTPDauth_sentCodeTypeApp &typeData) {
 		LOG(("Error: should not be in-app code!"));
@@ -231,6 +239,7 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 		return true;
 	}, [&](const MTPDauth_sentCodeTypeFragmentSms &typeData) {
 		codeLength = typeData.vlength().v;
+		codeByFragmentUrl = qs(typeData.vurl());
 		return true;
 	}, [&](const MTPDauth_sentCodeTypeCall &typeData) {
 		codeLength = typeData.vlength().v;
@@ -263,6 +272,7 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 			_controller,
 			phoneNumber,
 			phoneCodeHash,
+			codeByFragmentUrl,
 			codeLength,
 			callTimeout),
 		Ui::LayerOption::KeepOther);
@@ -307,18 +317,21 @@ ChangePhone::EnterCode::EnterCode(
 	not_null<Window::SessionController*> controller,
 	const QString &phone,
 	const QString &hash,
+	const QString &openUrl,
 	int codeLength,
 	int callTimeout)
 : _controller(controller)
 , _api(&controller->session().mtp())
 , _phone(phone)
 , _hash(hash)
+, _openUrl(openUrl)
 , _codeLength(codeLength)
 , _callTimeout(callTimeout)
 , _call([this] { sendCall(); }, [this] { updateCall(); }) {
 }
 
 void ChangePhone::EnterCode::prepare() {
+	const auto width = st::boxWidth;
 	setTitle(tr::lng_change_phone_title());
 
 	const auto descriptionText = tr::lng_change_phone_code_description(
@@ -332,44 +345,69 @@ void ChangePhone::EnterCode::prepare() {
 		st::changePhoneLabel);
 	description->moveToLeft(st::boxPadding.left(), 0);
 
+	const auto submitInput = [=] { submit(_code->getDigitsOnly()); };
+
 	const auto phoneValue = QString();
 	_code.create(
 		this,
 		st::defaultInputField,
 		tr::lng_change_phone_code_title(),
 		phoneValue);
-	_code->setAutoSubmit(_codeLength, [=] { submit(); });
+	_code->setAutoSubmit(_codeLength, submitInput);
 	_code->setChangedCallback([=] { hideError(); });
 
-	_code->resize(st::boxWidth - 2 * st::boxPadding.left(), _code->height());
+	_code->resize(width - 2 * st::boxPadding.left(), _code->height());
 	_code->moveToLeft(st::boxPadding.left(), description->bottomNoMargins());
-	connect(_code, &Ui::InputField::submitted, [=] { submit(); });
+	connect(_code, &Ui::InputField::submitted, submitInput);
 
-	setDimensions(st::boxWidth, countHeight());
+	if (!_openUrl.isEmpty()) {
+		_fragment.create(
+			this,
+			tr::lng_intro_fragment_button(),
+			st::fragmentBoxButton);
+		_fragment->setClickedCallback([=] { File::OpenUrl(_openUrl); });
+		_fragment->setTextTransform(
+			Ui::RoundButton::TextTransform::NoTransform);
+		const auto codeBottom = _code->y() + _code->height();
+		_fragment->setFullWidth(_code->width());
+		_fragment->moveToLeft(
+			(width - _fragment->width()) / 2,
+			codeBottom + ErrorSkip() + st::boxLittleSkip);
+	}
+
+	_controller->session().account().setHandleLoginCode([=](QString code) {
+		submit(code);
+	});
+	boxClosing(
+	) | rpl::start_with_next([controller = _controller] {
+		controller->session().account().setHandleLoginCode(nullptr);
+	}, lifetime());
+
+	setDimensions(width, countHeight());
 
 	if (_callTimeout > 0) {
 		_call.setStatus({ Ui::SentCodeCall::State::Waiting, _callTimeout });
 		updateCall();
 	}
 
-	addButton(tr::lng_change_phone_new_submit(), [=] { submit(); });
+	addButton(tr::lng_change_phone_new_submit(), submitInput);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
-int ChangePhone::EnterCode::countHeight() {
-	const auto errorSkip = st::boxLittleSkip
-		+ st::changePhoneError.style.font->height;
-	return _code->bottomNoMargins() + errorSkip + 3 * st::boxLittleSkip;
+int ChangePhone::EnterCode::countHeight() const {
+	return _code->bottomNoMargins()
+		+ ErrorSkip()
+		+ 3 * st::boxLittleSkip
+		+ (_fragment ? _fragment->height() : 0);
 }
 
-void ChangePhone::EnterCode::submit() {
+void ChangePhone::EnterCode::submit(const QString &code) {
 	if (_requestId) {
 		return;
 	}
 	hideError();
 
 	const auto session = &_controller->session();
-	const auto code = _code->getDigitsOnly();
 	const auto weak = Ui::MakeWeak(this);
 	_requestId = session->api().request(MTPaccount_ChangePhone(
 		MTP_string(_phone),

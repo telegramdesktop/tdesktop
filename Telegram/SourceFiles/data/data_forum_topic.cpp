@@ -168,7 +168,7 @@ TextWithEntities ForumTopicIconWithTitle(
 	return (rootId == ForumTopic::kGeneralId)
 		? TextWithEntities{ u"# "_q + title }
 		: iconId
-		? Data::SingleCustomEmoji(iconId).append(title)
+		? Data::SingleCustomEmoji(iconId).append(' ').append(title)
 		: TextWithEntities{ title };
 }
 
@@ -582,7 +582,11 @@ void ForumTopic::paintUserpic(
 				(st->height - size) / 2);
 		}
 		_icon->paint(p, {
-			.preview = st::windowBgOver->c,
+			.textColor = (context.active
+				? st::dialogsNameFgActive
+				: context.selected
+				? st::dialogsNameFgOver
+				: st::dialogsNameFg)->c,
 			.now = context.now,
 			.position = position,
 			.paused = context.paused,

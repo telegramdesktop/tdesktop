@@ -161,4 +161,7 @@ void UnpinAllMessages(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<Data::Thread*> thread);
 
+[[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread);
+void MarkAsReadThread(not_null<Data::Thread*> thread);
+
 } // namespace Window

@@ -36,7 +36,6 @@ MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque)
 , _animation([=](crl::time now) {
 	if (now > _nextBirthTime && !_paused) {
 		createStar(now);
-		_nextBirthTime = now + randomInterval(_lifeLength);
 	}
 	if (_rectToUpdate.isValid()) {
 		updateCallback(base::take(_rectToUpdate));
@@ -44,7 +43,10 @@ MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque)
 }) {
 	if (anim::Disabled()) {
 		const auto from = _deathTime.from + _deathTime.length;
-		for (auto i = -from; i < 0; i += randomInterval(_lifeLength)) {
+		auto r = bytes::vector(from + 1);
+		base::RandomFill(r.data(), r.size());
+
+		for (auto i = -from; i < 0; i += randomInterval(_lifeLength, r[-i])) {
 			createStar(i);
 		}
 		updateCallback(_rectToUpdate);
@@ -53,8 +55,10 @@ MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque)
 	}
 }
 
-int MiniStars::randomInterval(const Interval &interval) const {
-	return interval.from + base::RandomIndex(interval.length);
+int MiniStars::randomInterval(
+		const Interval &interval,
+		const bytes::type &random) const {
+	return interval.from + (uchar(random) % interval.length);
 }
 
 crl::time MiniStars::timeNow() const {
@@ -64,8 +68,9 @@ crl::time MiniStars::timeNow() const {
 void MiniStars::paint(QPainter &p, const QRectF &rect) {
 	const auto center = rect.center();
 	const auto opacity = p.opacity();
+	const auto now = timeNow();
 	for (const auto &ministar : _ministars) {
-		const auto progress = (timeNow() - ministar.birthTime)
+		const auto progress = (now - ministar.birthTime)
 			/ float64(ministar.deathTime - ministar.birthTime);
 		if (progress > 1.) {
 			continue;
@@ -122,21 +127,27 @@ void MiniStars::setPaused(bool paused) {
 	_paused = paused;
 }
 
-int MiniStars::angle() const {
-	const auto &interval = _availableAngles[
-		base::RandomIndex(_availableAngles.size())];
-	return base::RandomIndex(interval.length) + interval.from;
-}
-
 void MiniStars::createStar(crl::time now) {
+	constexpr auto kRandomSize = 8;
+	auto random = bytes::vector(kRandomSize);
+	base::RandomFill(random.data(), random.size());
+
+	auto i = 0;
+	auto next = [&] { return random[i++]; };
+
+	_nextBirthTime = now + randomInterval(_lifeLength, next());
+
+	const auto &angleInterval = _availableAngles[
+		uchar(next()) % _availableAngles.size()];
+
 	auto ministar = MiniStar{
 		.birthTime = now,
-		.deathTime = now + randomInterval(_deathTime),
-		.angle = angle(),
-		.size = float64(randomInterval(_size)),
-		.alpha = float64(randomInterval(_alpha)) / 100.,
-		.sinFactor = randomInterval(_sinFactor) / 100.
-			* (base::RandomIndex(2) == 1 ? 1. : -1.),
+		.deathTime = now + randomInterval(_deathTime, next()),
+		.angle = randomInterval(angleInterval, next()),
+		.size = float64(randomInterval(_size, next())),
+		.alpha = float64(randomInterval(_alpha, next())) / 100.,
+		.sinFactor = randomInterval(_sinFactor, next()) / 100.
+			* ((uchar(next()) % 2) == 1 ? 1. : -1.),
 	};
 	for (auto i = 0; i < _ministars.size(); i++) {
 		if (ministar.birthTime > _ministars[i].deathTime) {

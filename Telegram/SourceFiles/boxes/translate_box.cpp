@@ -21,12 +21,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
+#include "ui/painter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/multi_select.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_info.h" // inviteLinkListItem.
 #include "styles/style_layers.h"
 #include "styles/style_settings.h" // settingsSubsectionTitlePadding.
 
@@ -38,9 +41,17 @@ namespace {
 [[nodiscard]] std::vector<QLocale::Language> Languages() {
 	return std::vector<QLocale::Language>{
 		QLocale::English,
+		QLocale::Afrikaans,
 		QLocale::Albanian,
+		QLocale::Amharic,
+		QLocale::Arabic,
 		QLocale::Armenian,
+		QLocale::Azerbaijani,
+		QLocale::Basque,
+		QLocale::Belarusian,
+		QLocale::Bosnian,
 		QLocale::Bulgarian,
+		QLocale::Burmese,
 		QLocale::Catalan,
 		QLocale::Chinese,
 		QLocale::Croatian,
@@ -49,38 +60,150 @@ namespace {
 		QLocale::Dutch,
 		QLocale::Esperanto,
 		QLocale::Estonian,
+		QLocale::Finnish,
 		QLocale::French,
+		QLocale::Gaelic,
+		QLocale::Galician,
+		QLocale::Georgian,
 		QLocale::German,
 		QLocale::Greek,
+		QLocale::Gusii,
+		QLocale::Hausa,
 		QLocale::Hebrew,
-		QLocale::Hindi,
 		QLocale::Hungarian,
+		QLocale::Icelandic,
+		QLocale::Igbo,
 		QLocale::Indonesian,
+		QLocale::Irish,
 		QLocale::Italian,
 		QLocale::Japanese,
+		QLocale::Kazakh,
+		QLocale::Kinyarwanda,
 		QLocale::Korean,
+		QLocale::Kurdish,
+		QLocale::Lao,
 		QLocale::Latvian,
 		QLocale::Lithuanian,
+		QLocale::Luxembourgish,
+		QLocale::Macedonian,
+		QLocale::Malagasy,
+		QLocale::Malay,
+		QLocale::Maltese,
+		QLocale::Maori,
+		QLocale::Mongolian,
+		QLocale::Nepali,
+		QLocale::Pashto,
 		QLocale::Persian,
 		QLocale::Polish,
 		QLocale::Portuguese,
 		QLocale::Romanian,
 		QLocale::Russian,
 		QLocale::Serbian,
+		QLocale::Shona,
+		QLocale::Sindhi,
+		QLocale::Sinhala,
 		QLocale::Slovak,
 		QLocale::Slovenian,
+		QLocale::Somali,
 		QLocale::Spanish,
+		QLocale::Sundanese,
+		QLocale::Swahili,
 		QLocale::Swedish,
 		QLocale::Tajik,
-		QLocale::Tamil,
+		QLocale::Tatar,
+		QLocale::Teso,
+		QLocale::Thai,
 		QLocale::Turkish,
+		QLocale::Turkmen,
 		QLocale::Ukrainian,
+		QLocale::Urdu,
+		QLocale::Uzbek,
 		QLocale::Vietnamese,
 		QLocale::Welsh,
+		QLocale::WesternFrisian,
+		QLocale::Xhosa,
+		QLocale::Yiddish,
 	};
 }
 
-class ShowButton : public RpWidget {
+class Row final : public Ui::SettingsButton {
+public:
+	Row(not_null<Ui::RpWidget*> parent, const QLocale &locale);
+
+	[[nodiscard]] bool filtered(const QString &query) const;
+	[[nodiscard]] QLocale locale() const;
+
+	int resizeGetHeight(int newWidth) override;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	const style::PeerListItem &_st;
+	const QLocale _locale;
+	const QString _status;
+	const QString _titleText;
+	Ui::Text::String _title;
+
+};
+
+Row::Row(not_null<Ui::RpWidget*> parent, const QLocale &locale)
+: SettingsButton(parent, rpl::never<QString>())
+, _st(st::inviteLinkListItem)
+, _locale(locale)
+, _status(QLocale::languageToString(locale.language()))
+, _titleText(LanguageName(locale))
+, _title(_st.nameStyle, _titleText) {
+}
+
+QLocale Row::locale() const {
+	return _locale;
+}
+
+bool Row::filtered(const QString &query) const {
+	return _status.startsWith(query, Qt::CaseInsensitive)
+		|| _titleText.startsWith(query, Qt::CaseInsensitive);
+}
+
+int Row::resizeGetHeight(int newWidth) {
+	return _st.height;
+}
+
+void Row::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+
+	const auto paintOver = (isOver() || isDown()) && !isDisabled();
+	Ui::SettingsButton::paintBg(p, e->rect(), paintOver);
+	Ui::SettingsButton::paintRipple(p, 0, 0);
+	Ui::SettingsButton::paintToggle(p, width());
+
+	const auto &color = st::windowSubTextFg;
+	p.setPen(Qt::NoPen);
+	p.setBrush(color);
+
+	const auto left = st::settingsSubsectionTitlePadding.left();
+	const auto toggleRect = Ui::SettingsButton::maybeToggleRect();
+	const auto right = left
+		+ (toggleRect.isEmpty() ? 0 : (width() - toggleRect.x()));
+
+	p.setPen(_st.nameFg);
+	_title.drawLeft(
+		p,
+		left,
+		_st.namePosition.y(),
+		width() - left - right,
+		width() - left - right);
+
+	p.setPen(paintOver ? _st.statusFgOver : _st.statusFg);
+	p.setFont(st::contactsStatusFont);
+	p.drawTextLeft(
+		left,
+		_st.statusPosition.y(),
+		width() - left - right,
+		_status);
+}
+
+class ShowButton final : public RpWidget {
 public:
 	ShowButton(not_null<Ui::RpWidget*> parent);
 
@@ -129,11 +252,36 @@ rpl::producer<Qt::MouseButton> ShowButton::clicks() const {
 
 } // namespace
 
+namespace Translate {
+
+std::vector<QLocale> LocalesFromSettings() {
+	const auto langs = Core::App().settings().skipTranslationForLanguages();
+	if (langs.empty()) {
+		return { QLocale(QLocale::English) };
+	}
+	return ranges::views::all(
+		langs
+	) | ranges::view::transform([](int langId) {
+		const auto lang = QLocale::Language(langId);
+		return (lang == QLocale::English)
+			? QLocale(Lang::LanguageIdOrDefault(Lang::Id()))
+			: (lang == QLocale::C)
+			? QLocale(QLocale::English)
+			: QLocale(lang);
+	}) | ranges::to_vector;
+}
+
+} // namespace Translate
+
+using namespace Translate;
+
 QString LanguageName(const QLocale &locale) {
 	if (locale.language() == QLocale::English
 			&& (locale.country() == QLocale::UnitedStates
 				|| locale.country() == QLocale::AnyCountry)) {
 		return u"English"_q;
+	} else if (locale.language() == QLocale::Spanish) {
+		return QString::fromUtf8("\x45\x73\x70\x61\xc3\xb1\x6f\x6c");
 	} else {
 		const auto name = locale.nativeLanguageName();
 		return name.left(1).toUpper() + name.mid(1);
@@ -149,13 +297,7 @@ void TranslateBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
-	const auto settingsLang =
-		Core::App().settings().skipTranslationForLanguage();
-	const auto defaultId = (settingsLang == QLocale::English)
-		? Lang::LanguageIdOrDefault(Lang::Id())
-		: (settingsLang == QLocale::C)
-		? u"en"_q
-		: QLocale(settingsLang).name().mid(0, 2);
+	const auto defaultId = LocalesFromSettings().front().name().mid(0, 2);
 
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
@@ -301,28 +443,104 @@ void TranslateBox(
 		if (loading->toggled()) {
 			return;
 		}
-		Ui::BoxShow(box).showBox(Box(ChooseLanguageBox, [=](QLocale locale) {
+		Ui::BoxShow(box).showBox(Box(ChooseLanguageBox, [=](
+				std::vector<QLocale> locales) {
+			const auto &locale = locales.front();
 			state->locale.fire_copy(locale);
 			loading->show(anim::type::instant);
 			translated->hide(anim::type::instant);
 			send(locale.name().mid(0, 2));
-		}));
+		}, std::vector<QLocale>()));
 	});
-
 }
 
 void ChooseLanguageBox(
 		not_null<Ui::GenericBox*> box,
-		Fn<void(QLocale)> callback) {
+		Fn<void(std::vector<QLocale>)> callback,
+		std::vector<QLocale> toggled) {
+	box->setMinHeight(st::boxWidth);
+	box->setMaxHeight(st::boxWidth);
 	box->setTitle(tr::lng_languages());
-	for (const auto &lang : Languages()) {
+
+	const auto hasToggled = !toggled.empty();
+
+	const auto multiSelect = box->setPinnedToTopContent(
+		object_ptr<Ui::MultiSelect>(
+			box,
+			st::defaultMultiSelect,
+			tr::lng_participant_filter()));
+	box->setFocusCallback([=] { multiSelect->setInnerFocus(); });
+
+	const auto container = box->verticalLayout();
+	const auto langs = [&] {
+		auto langs = Languages();
+		const auto current = QLocale(
+			Lang::LanguageIdOrDefault(Lang::Id())).language();
+		if (const auto it = ranges::find(langs, current); it != end(langs)) {
+			base::reorder(langs, std::distance(begin(langs), it), 0);
+		}
+		return langs;
+	}();
+	auto rows = std::vector<not_null<Ui::SlideWrap<Row>*>>();
+	rows.reserve(langs.size());
+	for (const auto &lang : langs) {
 		const auto locale = QLocale(lang);
-		const auto button = Settings::AddButton(
-			box->verticalLayout(),
-			rpl::single(LanguageName(locale)),
-			st::defaultSettingsButton);
-		button->setClickedCallback([=] {
-			callback(locale);
+		const auto button = container->add(
+			object_ptr<Ui::SlideWrap<Row>>(
+				container,
+				object_ptr<Row>(container, locale)));
+		if (hasToggled) {
+			button->entity()->toggleOn(
+				rpl::single(ranges::contains(toggled, locale)),
+				false);
+		} else {
+			button->entity()->setClickedCallback([=] {
+				callback({ locale });
+				box->closeBox();
+			});
+		}
+		rows.push_back(button);
+	}
+
+	multiSelect->setQueryChangedCallback([=](const QString &query) {
+		for (const auto &row : rows) {
+			const auto toggled = row->entity()->filtered(query);
+			if (toggled != row->toggled()) {
+				row->toggle(toggled, anim::type::instant);
+			}
+		}
+	});
+
+	{
+		const auto label = Ui::CreateChild<Ui::FlatLabel>(
+			box.get(),
+			tr::lng_languages_none(),
+			st::membersAbout);
+		box->verticalLayout()->geometryValue(
+		) | rpl::start_with_next([=](const QRect &geometry) {
+			const auto shown = (geometry.height() <= 0);
+			label->setVisible(shown);
+			if (shown) {
+				label->moveToLeft(
+					(geometry.width() - label->width()) / 2,
+					geometry.y() + st::membersAbout.style.font->height * 4);
+				label->stackUnder(box->verticalLayout());
+			}
+		}, label->lifetime());
+	}
+
+	if (hasToggled) {
+		box->addButton(tr::lng_settings_save(), [=] {
+			auto result = ranges::views::all(
+				rows
+			) | ranges::views::filter([](const auto &row) {
+				return row->entity()->toggled();
+			}) | ranges::views::transform([](const auto &row) {
+				return row->entity()->locale();
+			}) | ranges::to_vector;
+			if (!result.empty()) {
+				callback(std::move(result));
+			}
 			box->closeBox();
 		});
 	}
@@ -356,14 +574,9 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 	if (result.unknown) {
 		return false;
 	}
-	const auto settingsLang =
-		Core::App().settings().skipTranslationForLanguage();
-	const auto skip = (settingsLang == QLocale::English)
-		? QLocale(Lang::LanguageIdOrDefault(Lang::Id())).language()
-		: (settingsLang == QLocale::C)
-		? QLocale::English
-		: settingsLang;
-	return (result.locale.language() == skip);
+	return ranges::any_of(LocalesFromSettings(), [&](const QLocale &l) {
+		return result.locale.language() == l.language();
+	});
 #else
     return false;
 #endif

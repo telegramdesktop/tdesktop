@@ -34,10 +34,12 @@ Invoice::Invoice(
 
 void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	if (invoice->photo) {
+		const auto spoiler = false;
 		_attach = std::make_unique<Photo>(
 			_parent,
 			_parent->data(),
-			invoice->photo);
+			invoice->photo,
+			spoiler);
 	} else {
 		_attach = nullptr;
 	}

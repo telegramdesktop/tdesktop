@@ -47,9 +47,6 @@ QByteArray gLocalSalt;
 int gScreenScale = style::kScaleAuto;
 int gConfigScale = style::kScaleAuto;
 
-QString gDateFormat = u"dd.MM.yy"_q;
-QString gTimeFormat = u"hh:mm"_q;
-
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 

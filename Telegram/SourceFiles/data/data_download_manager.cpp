@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_message.h"
+#include "history/history_item_helpers.h"
 #include "core/application.h"
 #include "core/mime_type.h"
 #include "ui/controls/download_bar.h"

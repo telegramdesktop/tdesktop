@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -41,7 +42,8 @@ void SendRequest(
 		bool sharePhone,
 		const QString &first,
 		const QString &last,
-		const QString &phone) {
+		const QString &phone,
+		Fn<void()> done) {
 	const auto wasContact = user->isContact();
 	using Flag = MTPcontacts_AddContact::Flag;
 	user->session().api().request(MTPcontacts_AddContact(
@@ -73,6 +75,7 @@ void SendRequest(
 			}
 			box->closeBox();
 		}
+		done();
 	}).send();
 }
 
@@ -103,6 +106,7 @@ private:
 	QString _phone;
 	Fn<void()> _focus;
 	Fn<void()> _save;
+	Fn<std::optional<QImage>()> _updatedPersonalPhoto;
 
 };
 
@@ -136,15 +140,17 @@ void Controller::setupContent() {
 }
 
 void Controller::setupCover() {
-	_box->addRow(
+	const auto cover = _box->addRow(
 		object_ptr<Info::Profile::Cover>(
 			_box,
-			_user,
 			_window,
+			_user,
+			Info::Profile::Cover::Role::EditContact,
 			(_phone.isEmpty()
 				? tr::lng_contact_mobile_hidden()
 				: rpl::single(Ui::FormatPhone(_phone)))),
-		style::margins())->setAttribute(Qt::WA_TransparentForMouseEvents);
+		style::margins());
+	_updatedPersonalPhoto = [=] { return cover->updatedPersonalPhoto(); };
 }
 
 void Controller::setupNameFields() {
@@ -198,13 +204,29 @@ void Controller::initNameFields(
 			(inverted ? last : first)->showError();
 			return;
 		}
+		const auto user = _user;
+		const auto personal = _updatedPersonalPhoto
+			? _updatedPersonalPhoto()
+			: std::nullopt;
+		const auto done = [=] {
+			if (personal) {
+				if (personal->isNull()) {
+					user->session().api().peerPhoto().clearPersonal(user);
+				} else {
+					user->session().api().peerPhoto().upload(
+						user,
+						base::duplicate(*personal));
+				}
+			}
+		};
 		SendRequest(
 			Ui::MakeWeak(_box),
-			_user,
+			user,
 			_sharePhone && _sharePhone->checked(),
 			firstValue,
 			lastValue,
-			_phone);
+			_phone,
+			done);
 	};
 	const auto submit = [=] {
 		const auto firstValue = first->getLastText().trimmed();

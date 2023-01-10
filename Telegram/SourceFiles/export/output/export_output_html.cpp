@@ -1163,12 +1163,19 @@ auto HtmlWriter::Wrap::pushMessage(
 				+ "&raquo;");
 		}
 		return serviceFrom + " changed topic " + parts.join(',');
+	}, [&](const ActionSuggestProfilePhoto &data) {
+		return serviceFrom + " suggests to use this photo";
+	}, [&](const ActionAttachMenuBotAllowed &data) {
+		return "You allowed this bot to message you "
+			"when you added it in the attachment menu."_q;
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
 		const auto &content = message.action.content;
 		const auto photo = v::is<ActionChatEditPhoto>(content)
 			? &v::get<ActionChatEditPhoto>(content).photo
+			: v::is<ActionSuggestProfilePhoto>(content)
+			? &v::get<ActionSuggestProfilePhoto>(content).photo
 			: nullptr;
 		return { info, pushServiceMessage(
 			message.id,

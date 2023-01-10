@@ -55,6 +55,8 @@ public:
 	void finished() override;
 	void cancelled() override;
 	void submit() override;
+	rpl::producer<QString> nextButtonText() const override;
+	rpl::producer<const style::RoundButton*> nextButtonStyle() const override;
 
 	void updateDescText();
 
@@ -83,6 +85,8 @@ private:
 	void noTelegramCodeDone(const MTPauth_SentCode &result);
 	void noTelegramCodeFail(const MTP::Error &result);
 
+	void submitCode();
+
 	void stopCheck();
 
 	object_ptr<Ui::LinkButton> _noTelegramCode;
@@ -91,6 +95,8 @@ private:
 	object_ptr<CodeInput> _code;
 	QString _sentCode;
 	mtpRequestId _sentRequest = 0;
+
+	rpl::variable<bool> _isFragment = false;
 
 	base::Timer _callTimer;
 	CallStatus _callStatus = CallStatus();

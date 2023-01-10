@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_transcribe_button.h"
 #include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_media_spoiler.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
 #include "ui/chat/attach/attach_prepare.h"
@@ -38,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/spoiler_mess.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_document.h"
@@ -80,13 +82,19 @@ Gif::Streamed::Streamed(
 Gif::Gif(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
-	not_null<DocumentData*> document)
+	not_null<DocumentData*> document,
+	bool spoiler)
 : File(parent, realParent)
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
+, _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
 	setDocumentLinks(_data, realParent);
 	setStatusSize(Ui::FileStatusSizeReady);
+
+	if (_spoiler) {
+		createSpoilerLink(_spoiler.get());
+	}
 
 	refreshCaption();
 	if ((_dataMedia = _data->activeMediaView())) {
@@ -324,9 +332,59 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		&& canBePlayed
 		&& CanPlayInline(_data);
 	const auto activeRoundPlaying = activeRoundStreamed();
+
+	auto paintx = 0, painty = 0, paintw = width(), painth = height();
+	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
+	const bool bubble = _parent->hasBubble();
+	const auto outbg = context.outbg;
+	const auto inWebPage = (_parent->media() != this);
+	const auto isRound = _data->isVideoMessage();
+
+	const auto rounding = inWebPage
+		? std::optional<Ui::BubbleRounding>()
+		: adjustedBubbleRoundingWithCaption(_caption);
+	if (bubble) {
+		if (!_caption.isEmpty()) {
+			painth -= st::mediaCaptionSkip + _caption.countHeight(captionw);
+			if (isBubbleBottom()) {
+				painth -= st::msgPadding.bottom();
+			}
+		}
+	}
+
+	auto usex = 0, usew = paintw;
+	const auto unwrapped = isUnwrapped();
+	const auto via = unwrapped ? item->Get<HistoryMessageVia>() : nullptr;
+	const auto reply = unwrapped ? _parent->displayedReply() : nullptr;
+	const auto forwarded = unwrapped ? item->Get<HistoryMessageForwarded>() : nullptr;
+	const auto rightAligned = unwrapped
+		&& outbg
+		&& !_parent->delegate()->elementIsChatWide();
+	if (via || reply || forwarded) {
+		usew = maxWidth() - additionalWidth(via, reply, forwarded);
+		if (rightAligned) {
+			usex = width() - usew;
+		}
+	}
+	if (isRound) {
+		accumulate_min(usew, painth);
+	}
+	if (rtl()) usex = width() - usex - usew;
+
+	QRect rthumb(style::rtlrect(usex + paintx, painty, usew, painth, width()));
+
+	const auto revealed = (!isRound && _spoiler)
+		? _spoiler->revealAnimation.value(_spoiler->revealed ? 1. : 0.)
+		: 1.;
+	const auto fullHiddenBySpoiler = (revealed == 0.);
+	if (revealed < 1.) {
+		validateSpoilerImageCache(rthumb.size(), rounding);
+	}
+
 	const auto startPlay = autoplay
 		&& !_streamed
-		&& !activeRoundPlaying;
+		&& !activeRoundPlaying
+		&& !fullHiddenBySpoiler;
 	if (startPlay) {
 		const_cast<Gif*>(this)->playAnimation(true);
 	} else {
@@ -335,13 +393,6 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto streamingMode = _streamed || activeRoundPlaying || autoplay;
 	const auto activeOwnPlaying = activeOwnStreamed();
 
-	auto paintx = 0, painty = 0, paintw = width(), painth = height();
-	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
-	const bool bubble = _parent->hasBubble();
-	const auto outbg = context.outbg;
-	const auto inWebPage = (_parent->media() != this);
-	const auto isRound = _data->isVideoMessage();
-	const auto unwrapped = isUnwrapped();
 	auto displayMute = false;
 	const auto streamed = activeRoundPlaying
 		? activeRoundPlaying
@@ -368,38 +419,6 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto radial = isRadialAnimation()
 		|| (streamedForWaiting && streamedForWaiting->waitingShown());
 
-	const auto rounding = inWebPage
-		? std::optional<Ui::BubbleRounding>()
-		: adjustedBubbleRoundingWithCaption(_caption);
-	if (bubble) {
-		if (!_caption.isEmpty()) {
-			painth -= st::mediaCaptionSkip + _caption.countHeight(captionw);
-			if (isBubbleBottom()) {
-				painth -= st::msgPadding.bottom();
-			}
-		}
-	}
-
-	auto usex = 0, usew = paintw;
-	const auto via = unwrapped ? item->Get<HistoryMessageVia>() : nullptr;
-	const auto reply = unwrapped ? _parent->displayedReply() : nullptr;
-	const auto forwarded = unwrapped ? item->Get<HistoryMessageForwarded>() : nullptr;
-	const auto rightAligned = unwrapped
-		&& outbg
-		&& !_parent->delegate()->elementIsChatWide();
-	if (via || reply || forwarded) {
-		usew = maxWidth() - additionalWidth(via, reply, forwarded);
-		if (rightAligned) {
-			usex = width() - usew;
-		}
-	}
-	if (isRound) {
-		accumulate_min(usew, painth);
-	}
-	if (rtl()) usex = width() - usex - usew;
-
-	QRect rthumb(style::rtlrect(usex + paintx, painty, usew, painth, width()));
-
 	if (!bubble && !unwrapped) {
 		Assert(rounding.has_value());
 		fillImageShadow(p, rthumb, *rounding, context);
@@ -407,7 +426,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	const auto skipDrawingContent = context.skipDrawingParts
 		== PaintContext::SkipDrawingParts::Content;
-	if (streamed && !skipDrawingContent) {
+	if (streamed && !skipDrawingContent && !fullHiddenBySpoiler) {
 		auto paused = context.paused;
 		auto request = ::Media::Streaming::FrameRequest{
 			.outer = QSize(usew, painth) * cIntRetinaFactor(),
@@ -470,12 +489,18 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				p.setOpacity(1.);
 			}
 		}
-	} else if (!skipDrawingContent) {
+	} else if (!skipDrawingContent && !fullHiddenBySpoiler) {
 		ensureDataMediaCreated();
 		validateThumbCache({ usew, painth }, isRound, rounding);
 		p.drawImage(rthumb, _thumbCache);
 	}
 
+	if (!isRound && revealed < 1.) {
+		p.setOpacity(1. - revealed);
+		p.drawImage(rthumb.topLeft(), _spoiler->background);
+		fillImageSpoiler(p, _spoiler.get(), rthumb, context);
+		p.setOpacity(1.);
+	}
 	if (context.selected()) {
 		if (isRound) {
 			Ui::FillComplexEllipse(p, st, rthumb);
@@ -487,13 +512,14 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (radial
 		|| (!streamingMode
 			&& ((!loaded && !_data->loading()) || !autoplay))) {
-		const auto radialOpacity = (item->isSending() || _data->uploading())
+		const auto opacity = (item->isSending() || _data->uploading())
 			? 1.
 			: streamedForWaiting
 			? streamedForWaiting->waitingOpacity()
 			: (radial && loaded)
 			? _animation->radial.opacity()
 			: 1.;
+		const auto radialOpacity = opacity * revealed;
 		const auto innerSize = st::msgFileLayout.thumbSize;
 		auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 		p.setPen(Qt::NoPen);
@@ -531,7 +557,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		if (icon) {
 			icon->paintInCenter(p, inner);
 		}
-		p.setOpacity(1);
+		p.setOpacity(revealed);
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			if (streamedForWaiting && !_data->uploading()) {
@@ -551,6 +577,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 					sti->historyFileThumbRadialFg);
 			}
 		}
+		p.setOpacity(1.);
 	}
 	if (displayMute) {
 		auto muteRect = style::rtlrect(rthumb.x() + (rthumb.width() - st::historyVideoMessageMuteSize) / 2, rthumb.y() + st::msgDateImgDelta, st::historyVideoMessageMuteSize, st::historyVideoMessageMuteSize, width());
@@ -797,6 +824,40 @@ QImage Gif::prepareThumbCache(QSize outer) const {
 		blurFromLarge ? large : blurred);
 }
 
+void Gif::validateSpoilerImageCache(
+		QSize outer,
+		std::optional<Ui::BubbleRounding> rounding) const {
+	Expects(_spoiler != nullptr);
+
+	const auto ratio = style::DevicePixelRatio();
+	if (_spoiler->background.size() == (outer * ratio)
+		&& _spoiler->backgroundRounding == rounding) {
+		return;
+	}
+	const auto normal = _dataMedia->thumbnail();
+	auto container = std::optional<Image>();
+	const auto downscale = [&](Image *image) {
+		if (!image || (image->width() <= 40 && image->height() <= 40)) {
+			return image;
+		}
+		container.emplace(image->original().scaled(
+			{ 40, 40 },
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation));
+		return &*container;
+	};
+	const auto embedded = _dataMedia->thumbnailInline();
+	const auto blurred = embedded ? embedded : downscale(normal);
+	_spoiler->background = Images::Round(
+		PrepareWithBlurredBackground(
+			outer,
+			::Media::Streaming::ExpandDecision(),
+			nullptr,
+			blurred),
+		MediaRoundingMask(rounding));
+	_spoiler->backgroundRounding = rounding;
+}
+
 void Gif::drawCornerStatus(
 		Painter &p,
 		const PaintContext &context,
@@ -973,7 +1034,9 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	}
 	if (QRect(usex + paintx, painty, usew, painth).contains(point)) {
 		ensureDataMediaCreated();
-		result.link = _data->uploading()
+		result.link = (_spoiler && !_spoiler->revealed)
+			? _spoiler->link
+			: _data->uploading()
 			? _cancell
 			: _realParent->isSending()
 			? nullptr
@@ -1094,6 +1157,15 @@ void Gif::drawGrouped(
 	const auto fullFeatured = fullFeaturedGrouped(sides);
 	const auto cornerDownload = fullFeatured && downloadInCorner();
 	const auto canBePlayed = _dataMedia->canBePlayed(_realParent);
+
+	const auto revealed = _spoiler
+		? _spoiler->revealAnimation.value(_spoiler->revealed ? 1. : 0.)
+		: 1.;
+	const auto fullHiddenBySpoiler = (revealed == 0.);
+	if (revealed < 1.) {
+		validateSpoilerImageCache(geometry.size(), rounding);
+	}
+
 	const auto autoplay = fullFeatured
 		&& autoplayEnabled()
 		&& canBePlayed
@@ -1128,7 +1200,7 @@ void Gif::drawGrouped(
 	const auto radial = isRadialAnimation()
 		|| (streamedForWaiting && streamedForWaiting->waitingShown());
 
-	if (streamed) {
+	if (streamed && !fullHiddenBySpoiler) {
 		const auto original = sizeForAspectRatio();
 		const auto originalWidth = style::ConvertScale(original.width());
 		const auto originalHeight = style::ConvertScale(original.height());
@@ -1160,9 +1232,16 @@ void Gif::drawGrouped(
 				streamed->markFrameShown();
 			}
 		}
-	} else {
+	} else if (!fullHiddenBySpoiler) {
 		validateGroupedCache(geometry, rounding, cacheKey, cache);
 		p.drawPixmap(geometry, *cache);
+	}
+
+	if (revealed < 1.) {
+		p.setOpacity(1. - revealed);
+		p.drawImage(geometry.topLeft(), _spoiler->background);
+		fillImageSpoiler(p, _spoiler.get(), geometry, context);
+		p.setOpacity(1.);
 	}
 
 	const auto overlayOpacity = context.selected()
@@ -1180,13 +1259,14 @@ void Gif::drawGrouped(
 	if (radial
 		|| (!streamingMode
 			&& ((!loaded && !_data->loading()) || !autoplay))) {
-		const auto radialOpacity = (item->isSending() || _data->uploading())
+		const auto opacity = (item->isSending() || _data->uploading())
 			? 1.
 			: streamedForWaiting
 			? streamedForWaiting->waitingOpacity()
 			: (radial && loaded)
 			? _animation->radial.opacity()
 			: 1.;
+		const auto radialOpacity = opacity * revealed;
 		const auto radialSize = st::historyGroupRadialSize;
 		const auto inner = QRect(
 			geometry.x() + (geometry.width() - radialSize) / 2,
@@ -1237,7 +1317,7 @@ void Gif::drawGrouped(
 				icon->paintInCenter(p, inner);
 			}
 		}
-		p.setOpacity(1);
+		p.setOpacity(revealed);
 		if (radial) {
 			const auto line = st::historyGroupRadialLine;
 			const auto rinner = inner.marginsRemoved({ line, line, line, line });
@@ -1258,6 +1338,7 @@ void Gif::drawGrouped(
 					sti->historyFileThumbRadialFg);
 			}
 		}
+		p.setOpacity(1.);
 	}
 	if (fullFeatured) {
 		drawCornerStatus(p, context, geometry.topLeft());
@@ -1278,7 +1359,9 @@ TextState Gif::getStateGrouped(
 		}
 	}
 	ensureDataMediaCreated();
-	return TextState(_parent, _data->uploading()
+	return TextState(_parent, (_spoiler && !_spoiler->revealed)
+		? _spoiler->link
+		: _data->uploading()
 		? _cancell
 		: _realParent->isSending()
 		? nullptr
@@ -1310,6 +1393,13 @@ void Gif::dataMediaCreated() const {
 
 bool Gif::uploading() const {
 	return _data->uploading();
+}
+
+void Gif::hideSpoilers() {
+	_caption.setSpoilerRevealed(false, anim::type::instant);
+	if (_spoiler) {
+		_spoiler->revealed = false;
+	}
 }
 
 bool Gif::needsBubble() const {
@@ -1538,12 +1628,16 @@ void Gif::parentTextUpdated() {
 }
 
 bool Gif::hasHeavyPart() const {
-	return _streamed || _dataMedia;
+	return (_spoiler && _spoiler->animation) || _streamed || _dataMedia;
 }
 
 void Gif::unloadHeavyPart() {
 	stopAnimation();
 	_dataMedia = nullptr;
+	if (_spoiler) {
+		_spoiler->background = _spoiler->cornerCache = QImage();
+		_spoiler->animation = nullptr;
+	}
 	_thumbCache = QImage();
 	_videoThumbnailFrame = nullptr;
 	_caption.unloadPersistentAnimation();

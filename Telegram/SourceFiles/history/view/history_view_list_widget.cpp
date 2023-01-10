@@ -10,8 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/qt/qt_common_adapters.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/history_item_text.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
@@ -1614,18 +1615,6 @@ Context ListWidget::elementContext() {
 	return _delegate->listContext();
 }
 
-std::unique_ptr<Element> ListWidget::elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing) {
-	return std::make_unique<Message>(this, message, replacing);
-}
-
-std::unique_ptr<Element> ListWidget::elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing) {
-	return std::make_unique<Service>(this, message, replacing);
-}
-
 bool ListWidget::elementUnderCursor(
 		not_null<const HistoryView::Element*> view) {
 	return (_overElement == view);
@@ -2288,9 +2277,6 @@ TextForMimeData ListWidget::getSelectedText() const {
 		return _selectedText;
 	}
 
-	const auto timeFormat = QString(", [%1 %2]\n")
-		.arg(cDateFormat())
-		.arg(cTimeFormat());
 	auto groups = base::flat_set<not_null<const Data::Group*>>();
 	auto fullSize = 0;
 	auto texts = std::vector<std::pair<
@@ -2301,7 +2287,8 @@ TextForMimeData ListWidget::getSelectedText() const {
 	const auto wrapItem = [&](
 			not_null<HistoryItem*> item,
 			TextForMimeData &&unwrapped) {
-		auto time = QLocale().toString(ItemDateTime(item), timeFormat);
+		auto time = QString(", [%1]\n").arg(
+			QLocale().toString(ItemDateTime(item), QLocale::ShortFormat));
 		auto part = TextForMimeData();
 		auto size = item->author()->name().size()
 			+ time.size()
@@ -3762,6 +3749,8 @@ void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
+	saveScrollState();
+
 	if (_reactionsItem.current() == item) {
 		_reactionsItem = nullptr;
 	}

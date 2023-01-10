@@ -81,6 +81,7 @@ void SubmitChatInvite(
 		} else if (type == u"CHANNELS_TOO_MUCH"_q) {
 			strongController->show(
 				Box(ChannelsLimitBox, &strongController->session()));
+			return;
 		}
 
 		strongController->hideLayer();

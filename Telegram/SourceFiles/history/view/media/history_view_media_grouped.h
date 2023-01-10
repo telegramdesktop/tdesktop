@@ -67,6 +67,7 @@ public:
 		bool pressed) override;
 
 	TextWithEntities getCaption() const override;
+	void hideSpoilers() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool overrideEditedDate() const override {

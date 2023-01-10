@@ -17,7 +17,7 @@ struct FullMsgId;
 namespace Ui {
 class ChatStyle;
 class ScrollArea;
-class HistoryDownButton;
+class JumpDownButton;
 } // namespace Ui
 
 namespace Data {
@@ -32,7 +32,7 @@ struct CornerButton {
 	CornerButton(Args &&...args) : widget(std::forward<Args>(args)...) {
 	}
 
-	object_ptr<Ui::HistoryDownButton> widget;
+	object_ptr<Ui::JumpDownButton> widget;
 	Ui::Animations::Simple animation;
 	bool shown = false;
 };

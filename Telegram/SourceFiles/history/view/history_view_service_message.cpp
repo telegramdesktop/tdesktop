@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_service_message.h"
 
-#include "history/history.h"
-#include "history/history_service.h"
 #include "history/view/media/history_view_media.h"
-#include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "data/data_abstract_structure.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
@@ -400,13 +401,9 @@ QVector<int> ServiceMessagePainter::CountLineWidths(
 
 Service::Service(
 	not_null<ElementDelegate*> delegate,
-	not_null<HistoryService*> data,
+	not_null<HistoryItem*> data,
 	Element *replacing)
 : Element(delegate, data, replacing, Flag::ServiceMessage) {
-}
-
-not_null<HistoryService*> Service::message() const {
-	return static_cast<HistoryService*>(data().get());
 }
 
 QRect Service::innerGeometry() const {
@@ -430,8 +427,12 @@ QSize Service::performCountCurrentSize(int newWidth) {
 	if (isHidden()) {
 		return { newWidth, newHeight };
 	}
-
-	if (!text().isEmpty()) {
+	const auto media = this->media();
+	if (media && data()->isUserpicSuggestion()) {
+		newHeight += st::msgServiceMargin.top()
+			+ media->resizeGetHeight(newWidth)
+			+ st::msgServiceMargin.bottom();
+	} else if (!text().isEmpty()) {
 		auto contentWidth = newWidth;
 		if (delegate()->elementIsChatWide()) {
 			accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
@@ -446,7 +447,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 			? minHeight()
 			: textHeightFor(nwidth);
 		newHeight += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
-		if (const auto media = this->media()) {
+		if (media) {
 			newHeight += st::msgServiceMargin.top() + media->resizeGetHeight(media->maxWidth());
 		}
 	}
@@ -457,11 +458,14 @@ QSize Service::performCountCurrentSize(int newWidth) {
 QSize Service::performCountOptimalSize() {
 	validateText();
 
-	auto maxWidth = text().maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
-	auto minHeight = text().minHeight();
 	if (const auto media = this->media()) {
 		media->initDimensions();
+		if (data()->isUserpicSuggestion()) {
+			return { media->maxWidth(), media->minHeight() };
+		}
 	}
+	auto maxWidth = text().maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
+	auto minHeight = text().minHeight();
 	return { maxWidth, minHeight };
 }
 
@@ -522,40 +526,42 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	p.setTextPalette(st->serviceTextPalette());
 
 	const auto media = this->media();
-	if (media) {
-		height -= margin.top() + media->height();
+	const auto onlyMedia = (media && data()->isUserpicSuggestion());
+
+	if (!onlyMedia) {
+		if (media) {
+			height -= margin.top() + media->height();
+		}
+		const auto trect = QRect(g.left(), margin.top(), g.width(), height)
+			- st::msgServicePadding;
+
+		ServiceMessagePainter::PaintComplexBubble(
+			p,
+			context.st,
+			g.left(),
+			g.width(),
+			text(),
+			trect);
+
+		p.setBrush(Qt::NoBrush);
+		p.setPen(st->msgServiceFg());
+		p.setFont(st::msgServiceFont);
+		prepareCustomEmojiPaint(p, context, text());
+		text().draw(p, {
+			.position = trect.topLeft(),
+			.availableWidth = trect.width(),
+			.align = style::al_top,
+			.palette = &st->serviceTextPalette(),
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
+			.selection = context.selection,
+			.fullWidthSelection = false,
+		});
 	}
-
-	const auto trect = QRect(g.left(), margin.top(), g.width(), height)
-		- st::msgServicePadding;
-
-	ServiceMessagePainter::PaintComplexBubble(
-		p,
-		context.st,
-		g.left(),
-		g.width(),
-		text(),
-		trect);
-
-	p.setBrush(Qt::NoBrush);
-	p.setPen(st->msgServiceFg());
-	p.setFont(st::msgServiceFont);
-	prepareCustomEmojiPaint(p, context, text());
-	text().draw(p, {
-		.position = trect.topLeft(),
-		.availableWidth = trect.width(),
-		.align = style::al_top,
-		.palette = &st->serviceTextPalette(),
-		.spoiler = Ui::Text::DefaultSpoilerCache(),
-		.now = context.now,
-		.paused = context.paused,
-		.selection = context.selection,
-		.fullWidthSelection = false,
-	});
-
 	if (media) {
 		const auto left = margin.left() + (g.width() - media->maxWidth()) / 2;
-		const auto top = margin.top() + height + margin.top();
+		const auto top = margin.top() + (onlyMedia ? 0 : (height + margin.top()));
 		p.translate(left, top);
 		media->draw(p, context.translated(-left, -top).withSelection({}));
 		p.translate(-left, -top);
@@ -592,8 +598,9 @@ PointState Service::pointState(QPoint point) const {
 }
 
 TextState Service::textState(QPoint point, StateRequest request) const {
-	const auto item = message();
+	const auto item = data();
 	const auto media = this->media();
+	const auto onlyMedia = (media && data()->isUserpicSuggestion());
 
 	auto result = TextState(item);
 
@@ -612,7 +619,9 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 		g.setHeight(g.height() - unreadbarh);
 	}
 
-	if (media) {
+	if (onlyMedia) {
+		return media->textState(point - QPoint(st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, st::msgServiceMargin.top()), request);
+	} else if (media) {
 		g.setHeight(g.height() - (st::msgServiceMargin.top() + media->height()));
 	}
 	auto trect = g.marginsAdded(-st::msgServicePadding);

@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
+namespace style {
+struct RoundButton;
+} // namespace style;
+
 namespace Main {
 class Account;
 } // namespace Main;
@@ -77,6 +81,8 @@ public:
 
 	virtual void submit() = 0;
 	[[nodiscard]] virtual rpl::producer<QString> nextButtonText() const;
+	[[nodiscard]] virtual auto nextButtonStyle() const
+		-> rpl::producer<const style::RoundButton*>;
 
 	[[nodiscard]] int contentLeft() const;
 	[[nodiscard]] int contentTop() const;

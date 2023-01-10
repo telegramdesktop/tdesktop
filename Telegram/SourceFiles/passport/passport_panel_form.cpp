@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "core/click_handler_types.h"
 #include "data/data_user.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/widgets/buttons.h"
@@ -23,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
-#include "ui/special_buttons.h"
 #include "styles/style_passport.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -73,7 +73,6 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		object_ptr<Ui::UserpicButton>(
 			userpicWrap,
 			bot,
-			Ui::UserpicButton::Role::Custom,
 			st::passportFormUserpic));
 	userpicWrap->widthValue(
 	) | rpl::start_with_next([=](int width) {

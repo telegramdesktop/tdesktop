@@ -1242,9 +1242,9 @@ msgServiceGiftBoxSize: size(206px, 231px); // Plus msgServiceGiftBoxTopSkip.
 msgServiceGiftBoxRadius: 12px;
 msgServiceGiftBoxTopSkip: 4px;
 msgServiceGiftBoxButtonHeight: 32px;
-msgServiceGiftBoxButtonMargins: margins(2px, 0px, 2px, 0px);
-msgServiceGiftBoxButtonPadding: margins(0px, 17px, 0px, 17px);
-msgServiceGiftBoxTitlePadding: margins(0px, 126px, 0px, 2px);
+msgServiceGiftBoxButtonPadding: margins(2px, 0px, 2px, 0px);
+msgServiceGiftBoxButtonMargins: margins(0px, 13px, 0px, 17px);
+msgServiceGiftBoxTitlePadding: margins(0px, 5px, 0px, 2px);
 msgServiceGiftBoxStickerTop: -19px;
 msgServiceGiftBoxStickerSize: size(140px, 140px);
 

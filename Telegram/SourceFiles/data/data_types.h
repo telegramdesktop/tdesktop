@@ -285,6 +285,9 @@ enum class MessageFlag : uint64 {
 
 	// Optimization for item text custom emoji repainting.
 	CustomEmojiRepainting = (1ULL << 32),
+
+	// Profile photo suggestion, views have special media type.
+	IsUserpicSuggestion   = (1ULL << 33),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

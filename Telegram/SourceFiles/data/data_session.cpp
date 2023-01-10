@@ -1176,6 +1176,7 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 			setChatPinned(history, FilterId(), false);
 		}
 		removeChatListEntry(history);
+		history->clearFolder();
 		history->clear(peer->isChannel()
 			? History::ClearType::Unload
 			: History::ClearType::DeleteChat);
@@ -2340,14 +2341,20 @@ void Session::processNonChannelMessagesDeleted(const QVector<MTPint> &data) {
 
 void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 	const auto i = _dependentMessages.find(item);
-	if (i == end(_dependentMessages)) {
-		return;
-	}
-	const auto items = std::move(i->second);
-	_dependentMessages.erase(i);
+	if (i != end(_dependentMessages)) {
+		const auto items = std::move(i->second);
+		_dependentMessages.erase(i);
 
-	for (const auto &dependent : items) {
-		dependent->dependencyItemRemoved(item);
+		for (const auto &dependent : items) {
+			dependent->dependencyItemRemoved(item);
+		}
+	}
+	if (item->groupId()) {
+		if (const auto group = groups().find(item)) {
+			for (const auto &groupedItem : group->items) {
+				updateDependentMessages(groupedItem);
+			}
+		}
 	}
 }
 

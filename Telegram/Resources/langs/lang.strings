@@ -166,6 +166,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_scam_badge" = "SCAM";
 "lng_fake_badge" = "FAKE";
 
+"lng_remember" = "Remember this choice";
+
 "lng_channels_limit_title" = "Too Many Communities";
 "lng_channels_limit1#one" = "You are a member of **{count}** groups and channels.";
 "lng_channels_limit1#other" = "You are a member of **{count}** groups and channels.";
@@ -306,11 +308,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_caption_voice" = "Sorry, you can't edit your message while you're having an unsent voice message.";
 
 "lng_intro_about" = "Welcome to the official Telegram Desktop app.\nIt's fast and secure.";
-"lng_start_msgs" = "START MESSAGING";
+"lng_start_msgs" = "Start messaging";
 
-"lng_intro_next" = "NEXT";
-"lng_intro_finish" = "SIGN UP";
-"lng_intro_submit" = "SUBMIT";
+"lng_intro_next" = "Next";
+"lng_intro_finish" = "Sign up";
+"lng_intro_submit" = "Submit";
 
 "lng_photo_caption" = "Caption";
 "lng_photos_comment" = "Comment";
@@ -320,6 +322,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_intro_qr_step2" = "Go to Settings > Devices > Link Desktop";
 "lng_intro_qr_step3" = "Scan this image to Log In";
 "lng_intro_qr_skip" = "Or log in using your phone number";
+
+"lng_intro_fragment_title" = "Enter code";
+"lng_intro_fragment_about" = "Get the code for {phone_number} in the Anonymous Numbers section on Fragment.";
+"lng_intro_fragment_button" = "Open Fragment";
 
 "lng_phone_title" = "Your Phone Number";
 "lng_phone_desc" = "Please confirm your country code and\nenter your mobile phone number.";
@@ -391,8 +397,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_settings_save" = "Save";
 "lng_settings_upload" = "Set Profile Photo";
-"lng_settings_crop_profile" = "Select an area for your profile photo";
-"lng_settings_uploading_photo" = "Uploading photo...";
 "lng_settings_edit" = "Edit";
 "lng_settings_drop_area_subtitle" = "to set it as your photo";
 
@@ -493,6 +497,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
 "lng_languages_none" = "No languages found.";
+"lng_languages_count#one" = "{count} language";
+"lng_languages_count#other" = "{count} languages";
 "lng_sure_save_language" = "Telegram will restart in order to change language";
 "lng_settings_update_automatically" = "Update automatically";
 "lng_settings_install_beta" = "Install beta versions";
@@ -749,6 +755,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_download_path" = "Download path";
 "lng_download_path_temp" = "Temp folder";
 "lng_download_path_default" = "Default folder";
+"lng_download_path_unset" = "Unset";
 "lng_download_path_clear" = "Clear all";
 "lng_download_path_header" = "Choose download path";
 "lng_download_path_default_radio" = "Telegram folder in system «Downloads»";
@@ -1037,6 +1044,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_forwards_always_empty" = "Always allow";
 "lng_edit_privacy_forwards_never_empty" = "Never allow";
 "lng_edit_privacy_forwards_exceptions" = "These settings will override the values above.";
+"lng_edit_privacy_forwards_exceptions_everyone" = "You can add users or entire groups which will not see your profile photo.";
+"lng_edit_privacy_forwards_exceptions_nobody" = "Add users or entire groups which will still see your profile photo.";
 "lng_edit_privacy_forwards_always_title" = "Always allow";
 "lng_edit_privacy_forwards_never_title" = "Never allow";
 "lng_edit_privacy_forwards_sample_message" = "Reinhardt, we need to find you some new tunes 🎶";
@@ -1051,6 +1060,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_profile_photo_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_profile_photo_always_title" = "Always allow";
 "lng_edit_privacy_profile_photo_never_title" = "Never allow";
+"lng_edit_privacy_profile_photo_public_set" = "Set Public Photo";
+"lng_edit_privacy_profile_photo_public_update" = "Update Public Photo";
+"lng_edit_privacy_profile_photo_public_remove" = "Remove Public Photo";
+"lng_edit_privacy_profile_photo_public_about" = "You can upload a public photo for those who are restricted from viewing your real profile photo.";
+"lng_edit_privacy_profile_photo_public_toast" = "This photo is now set for those who are restricted from viewing your main photo.";
 
 "lng_edit_privacy_voices_title" = "Voice messages settings";
 "lng_edit_privacy_voices_header" = "Who can send me voice messages";
@@ -1137,6 +1151,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
 "lng_profile_add_via_link" = "Invite via Link";
+"lng_profile_hide_participants" = "Hide Members";
+"lng_profile_hide_participants_about" = "Switch this on to hide the list of members in this group. Admins will remain visible.";
 "lng_profile_view_channel" = "View Channel";
 "lng_profile_view_discussion" = "View discussion";
 "lng_profile_join_channel" = "Join Channel";
@@ -1179,7 +1195,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_profile_info_section" = "Info";
 "lng_info_tab_media" = "Media";
+"lng_info_public_photo" = "public photo";
 "lng_info_mobile_label" = "Mobile";
+"lng_info_mobile_context_menu_fragment_about" = "This number is not tied to a SIM card and was acquired on {link}.";
+"lng_info_mobile_context_menu_fragment_about_link" = "Fragment";
 "lng_info_mobile_hidden" = "Hidden";
 "lng_info_username_label" = "Username";
 "lng_info_usernames_label" = "also";
@@ -1196,6 +1215,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_send_message" = "Send Message";
 "lng_info_add_as_contact" = "Add to contacts";
 "lng_profile_shared_media" = "Shared media";
+"lng_profile_suggest_photo" = "Suggest Profile Photo";
+"lng_profile_set_photo_for" = "Set Profile Photo";
+"lng_profile_photo_reset" = "Reset to Original";
+"lng_profile_set_for_done" = "You will now always see this photo for {user}'s account.";
+"lng_profile_suggest_sure" = "You can suggest {user} to set this photo for their page.";
+"lng_profile_suggest_button" = "Suggest";
+"lng_profile_set_personal_sure" = "Only you will see this photo and it will replace any photo {user} sets for themselves.";
+"lng_profile_accept_photo_sure" = "{user} suggests you to use this profile photo for your Telegram account.";
+"lng_profile_set_photo_button" = "Set Photo";
+"lng_profile_accept_video_sure" = "{user} suggests you to use this profile video for your Telegram account.";
+"lng_profile_set_video_button" = "Set Video";
+"lng_profile_changed_photo_title" = "Photo updated";
+"lng_profile_changed_photo_about" = "You can change it in {link}.";
+"lng_profile_changed_photo_link" = "Settings";
 "lng_media_type_photos" = "Photos";
 "lng_media_type_gifs" = "GIFs";
 "lng_media_type_videos" = "Videos";
@@ -1430,9 +1463,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_create_channel_link_pending" = "Checking name...";
 "lng_create_channel_link_copied" = "Link copied to clipboard";
 
-"lng_create_group_crop" = "Select an area for group photo";
-"lng_create_channel_crop" = "Select an area for channel photo";
-
 "lng_failed_add_participant" = "Could not add user. Please try again later.";
 "lng_failed_add_not_mutual" = "Sorry, if a person leaves a group, only a mutual contact can bring them back (they need to have your phone number, and you need theirs).";
 "lng_failed_add_not_mutual_channel" = "Sorry, if a person leaves a channel, only a mutual contact can bring them back (they need to have your phone number, and you need theirs).";
@@ -1555,6 +1585,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_webview_data_done" = "You have just successfully transferred data from the «{text}» button to the bot.";
 "lng_action_gift_received" = "{user} sent you a gift for {cost}";
 "lng_action_gift_received_me" = "You sent to {user} a gift for {cost}";
+"lng_action_suggested_photo_me" = "You suggested {user} to use this profile photo.";
+"lng_action_suggested_photo" = "{user} suggests you to use this profile photo.";
+"lng_action_suggested_photo_button" = "View Photo";
+"lng_action_suggested_video_me" = "You suggested {user} to use this profile video.";
+"lng_action_suggested_video" = "{user} suggests you to use this profile video.";
+"lng_action_suggested_video_button" = "View Video";
+"lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";
@@ -2318,6 +2355,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_animated_reactions_many#one" = "Reactions contain emoji from **{count} pack**.";
 "lng_context_animated_reactions_many#other" = "Reactions contain emoji from **{count} packs**.";
 
+"lng_context_spoiler_effect" = "Hide with Spoiler";
+"lng_context_disable_spoiler" = "Remove Spoiler";
+
 "lng_downloads_section" = "Downloads";
 "lng_downloads_view_in_chat" = "View in chat";
 "lng_downloads_view_in_section" = "View in downloads";
@@ -2331,17 +2371,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_images_selected#one" = "{count} image selected";
 "lng_send_images_selected#other" = "{count} images selected";
-"lng_send_photos#one" = "Send {count} photo";
-"lng_send_photos#other" = "Send {count} photos";
-"lng_send_separate_photos" = "Send as separate photos";
-"lng_send_separate_photos_videos" = "Send as separate media";
 "lng_send_files_selected#one" = "{count} file selected";
 "lng_send_files_selected#other" = "{count} files selected";
-"lng_send_files#one" = "Send {count} file";
-"lng_send_files#other" = "Send {count} files";
 "lng_send_grouped" = "Group items";
+"lng_send_compressed_one" = "Compress the image";
 "lng_send_compressed" = "Compress images";
 "lng_send_media_invalid_files" = "Sorry, no valid files found.";
+"lng_send_image" = "Send an image";
+"lng_send_file" = "Send a file";
+"lng_send_video" = "Send a video file";
 
 "lng_forward_choose" = "Choose recipient...";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
@@ -2460,6 +2498,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_group_photo" = "Group Photo";
 "lng_mediaview_channel_photo" = "Channel Photo";
 "lng_mediaview_profile_photo" = "Profile Photo";
+"lng_mediaview_profile_public_photo" = "Public Photo";
 "lng_mediaview_file_n_of_amount" = "{file} {n} of {amount}";
 "lng_mediaview_n_of_amount" = "Photo {n} of {amount}";
 "lng_mediaview_doc_image" = "File";
@@ -3108,6 +3147,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_participant_joined_by_link_channel" = "{from} joined the channel via {link}";
 "lng_admin_log_participant_approved_by_link" = "{from} was approved to join the group via {link} by {user}";
 "lng_admin_log_participant_approved_by_link_channel" = "{from} was approved to join the channel via {link} by {user}";
+"lng_admin_log_participant_approved_by_request" = "{from} joined to the group via public request, approved by {user}";
+"lng_admin_log_participant_approved_by_request_channel" = "{from} joined to the channel via public request, approved by {user}";
 "lng_admin_log_revoke_invite_link" = "{from} revoked invite link {link}";
 "lng_admin_log_delete_invite_link" = "{from} deleted invite link {link}";
 "lng_admin_log_participant_left" = "{from} left the group";

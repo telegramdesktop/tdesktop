@@ -926,7 +926,8 @@ void Stickers::specialSetReceived(
 			LOG(("API Error: "
 				"received recent attached stickers hash %1 "
 				"while counted hash is %2"
-				).arg(hash, counted));
+				).arg(hash
+				).arg(counted));
 		}
 		session().local().writeRecentMasks();
 	} break;
@@ -1462,6 +1463,7 @@ not_null<StickersSet*> Stickers::feedSet(
 		return feedSet(data.vset());
 	});
 	data.match([](const MTPDstickerSetCovered &data) {
+	}, [&](const MTPDstickerSetNoCovered &data) {
 	}, [&](const MTPDstickerSetMultiCovered &data) {
 		feedSetCovers(set, data.vcovers().v);
 	}, [&](const MTPDstickerSetFullCovered &data) {

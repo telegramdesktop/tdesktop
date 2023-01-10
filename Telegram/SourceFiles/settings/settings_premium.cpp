@@ -397,6 +397,8 @@ public:
 	virtual void setPaused(bool paused) = 0;
 	virtual void setTextPosition(int x, int y) = 0;
 
+	[[nodiscard]] virtual rpl::producer<int> additionalHeight() const = 0;
+
 protected:
 	void paintEdges(QPainter &p, const QBrush &brush) const;
 	void paintEdges(QPainter &p) const;
@@ -600,6 +602,8 @@ public:
 
 	void setPaused(bool paused) override;
 	void setTextPosition(int x, int y) override;
+
+	rpl::producer<int> additionalHeight() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -912,6 +916,10 @@ void TopBarUser::setTextPosition(int x, int y) {
 	_smallTop.position = { x, y };
 }
 
+rpl::producer<int> TopBarUser::additionalHeight() const {
+	return rpl::never<int>();
+}
+
 void TopBarUser::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
@@ -938,6 +946,8 @@ public:
 
 	void setPaused(bool paused) override;
 	void setTextPosition(int x, int y) override;
+
+	rpl::producer<int> additionalHeight() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -1018,6 +1028,13 @@ void TopBar::setPaused(bool paused) {
 
 void TopBar::setTextPosition(int x, int y) {
 	_titlePosition = { x, y };
+}
+
+rpl::producer<int> TopBar::additionalHeight() const {
+	return _about->heightValue(
+	) | rpl::map([l = st::settingsPremiumAbout.style.lineHeight](int height) {
+		return std::max(height - l * 2, 0);
+	});
 }
 
 void TopBar::resizeEvent(QResizeEvent *e) {
@@ -1342,6 +1359,9 @@ void Premium::setupContent() {
 					box->closeBox();
 				}, box->lifetime());
 
+				box->boxClosing(
+				) | rpl::start_with_next(hidden, box->lifetime());
+
 				if (controller->session().premium()) {
 					box->addButton(tr::lng_close(), [=] {
 						box->closeBox();
@@ -1352,9 +1372,6 @@ void Premium::setupContent() {
 						box,
 						[] { return u"double_limits"_q; }
 					});
-
-					box->boxClosing(
-					) | rpl::start_with_next(hidden, box->lifetime());
 
 					box->setShowFinishedCallback([=] {
 						button->startGlareAnimation();
@@ -1530,12 +1547,25 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		content->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, content->lifetime());
 
-	content->setMaximumHeight(isEmojiStatus
-		? st::settingsPremiumUserHeight + TopTransitionSkip()
-		: st::settingsPremiumTopHeight);
+	const auto calculateMaximumHeight = [=] {
+		return isEmojiStatus
+			? st::settingsPremiumUserHeight + TopTransitionSkip()
+			: st::settingsPremiumTopHeight;
+	};
+
+	content->setMaximumHeight(calculateMaximumHeight());
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
 
 	content->resize(content->width(), content->maximumHeight());
+	content->additionalHeight(
+	) | rpl::start_with_next([=](int additionalHeight) {
+		const auto wasMax = (content->height() == content->maximumHeight());
+		content->setMaximumHeight(calculateMaximumHeight()
+			+ additionalHeight);
+		if (wasMax) {
+			content->resize(content->width(), content->maximumHeight());
+		}
+	}, content->lifetime());
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
@@ -1838,6 +1868,43 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	}, label->lifetime());
 
 	return result;
+}
+
+[[nodiscard]] std::vector<PremiumPreview> PremiumPreviewOrder(
+		not_null<Main::Session*> session) {
+	const auto mtpOrder = session->account().appConfig().get<Order>(
+		"premium_promo_order",
+		FallbackOrder());
+	return ranges::views::all(
+		mtpOrder
+	) | ranges::views::transform([](const QString &s) {
+		if (s == u"more_upload"_q) {
+			return PremiumPreview::MoreUpload;
+		} else if (s == u"faster_download"_q) {
+			return PremiumPreview::FasterDownload;
+		} else if (s == u"voice_to_text"_q) {
+			return PremiumPreview::VoiceToText;
+		} else if (s == u"no_ads"_q) {
+			return PremiumPreview::NoAds;
+		} else if (s == u"emoji_status"_q) {
+			return PremiumPreview::EmojiStatus;
+		} else if (s == u"infinite_reactions"_q) {
+			return PremiumPreview::InfiniteReactions;
+		} else if (s == u"premium_stickers"_q) {
+			return PremiumPreview::Stickers;
+		} else if (s == u"animated_emoji"_q) {
+			return PremiumPreview::AnimatedEmoji;
+		} else if (s == u"advanced_chat_management"_q) {
+			return PremiumPreview::AdvancedChatManagement;
+		} else if (s == u"profile_badge"_q) {
+			return PremiumPreview::ProfileBadge;
+		} else if (s == u"animated_userpics"_q) {
+			return PremiumPreview::AnimatedUserpics;
+		}
+		return PremiumPreview::kCount;
+	}) | ranges::views::filter([](PremiumPreview type) {
+		return (type != PremiumPreview::kCount);
+	}) | ranges::to_vector;
 }
 
 } // namespace Settings

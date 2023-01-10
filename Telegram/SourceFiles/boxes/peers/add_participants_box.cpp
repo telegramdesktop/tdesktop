@@ -46,7 +46,7 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 	if (const auto chat = peer->asChat()) {
 		return chat->participants;
 	} else if (const auto channel = peer->asChannel()) {
-		if (channel->isMegagroup()) {
+		if (channel->isMegagroup() && channel->canViewMembers()) {
 			const auto &participants = channel->mgInfo->lastParticipants;
 			return { participants.cbegin(), participants.cend() };
 		}
@@ -140,6 +140,7 @@ bool AddParticipantsBoxController::isAlreadyIn(
 	} else if (const auto channel = _peer->asChannel()) {
 		return _alreadyIn.contains(user)
 			|| (channel->isMegagroup()
+				&& channel->canViewMembers()
 				&& base::contains(channel->mgInfo->lastParticipants, user));
 	}
 	Unexpected("User in AddParticipantsBoxController::isAlreadyIn");

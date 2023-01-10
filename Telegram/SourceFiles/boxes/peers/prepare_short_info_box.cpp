@@ -354,7 +354,9 @@ bool ProcessCurrent(
 
 [[nodiscard]] PreparedShortInfoUserpic UserpicValue(
 		not_null<PeerData*> peer,
-		const style::ShortInfoCover &st) {
+		const style::ShortInfoCover &st,
+		rpl::producer<UserPhotosSlice> slices,
+		Fn<bool(not_null<UserpicState*>)> customProcess) {
 	const auto moveRequests = std::make_shared<rpl::event_stream<int>>();
 	auto move = [=](int shift) {
 		moveRequests->fire_copy(shift);
@@ -367,7 +369,7 @@ bool ProcessCurrent(
 		state->size = size;
 		state->roundMask = Images::CornersMask(radius);
 		const auto push = [=](bool force = false) {
-			if (ProcessCurrent(peer, state) || force) {
+			if (customProcess(state) || force) {
 				consumer.put_next_copy(state->current);
 			}
 		};
@@ -381,17 +383,12 @@ bool ProcessCurrent(
 			push();
 		}, lifetime);
 
-		if (const auto user = peer->asUser()) {
-			UserPhotosReversedViewer(
-				&peer->session(),
-				UserPhotosSlice::Key(peerToUser(user->id), PhotoId()),
-				kOverviewLimit,
-				kOverviewLimit
-			) | rpl::start_with_next([=](UserPhotosSlice &&slice) {
-				state->userSlice = std::move(slice);
-				push();
-			}, lifetime);
-		}
+		rpl::duplicate(
+			slices
+		) | rpl::start_with_next([=](UserPhotosSlice &&slice) {
+			state->userSlice = std::move(slice);
+			push();
+		}, lifetime);
 
 		moveRequests->events(
 		) | rpl::filter([=] {
@@ -429,7 +426,7 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		: peer->isBroadcast()
 		? PeerShortInfoType::Channel
 		: PeerShortInfoType::Group;
-	auto userpic = UserpicValue(peer, st::shortInfoCover);
+	auto userpic = PrepareShortInfoUserpic(peer, st::shortInfoCover);
 	auto result = Box<PeerShortInfoBox>(
 		type,
 		FieldsValue(peer),
@@ -467,5 +464,39 @@ rpl::producer<QString> PrepareShortInfoStatus(not_null<PeerData*> peer) {
 PreparedShortInfoUserpic PrepareShortInfoUserpic(
 		not_null<PeerData*> peer,
 		const style::ShortInfoCover &st) {
-	return UserpicValue(peer, st);
+	auto slices = peer->isUser()
+		? UserPhotosReversedViewer(
+			&peer->session(),
+			UserPhotosSlice::Key(peerToUser(peer->asUser()->id), PhotoId()),
+			kOverviewLimit,
+			kOverviewLimit)
+		: rpl::never<UserPhotosSlice>();
+	auto process = [=](not_null<UserpicState*> state) {
+		return ProcessCurrent(peer, state);
+	};
+	return UserpicValue(peer, st, std::move(slices), std::move(process));
+}
+
+PreparedShortInfoUserpic PrepareShortInfoFallbackUserpic(
+		not_null<PeerData*> peer,
+		const style::ShortInfoCover &st) {
+	Expects(peer->isUser());
+
+	const auto photoId = SyncUserFallbackPhotoViewer(peer->asUser());
+	auto slices = photoId
+		? rpl::single<UserPhotosSlice>(UserPhotosSlice(
+			Storage::UserPhotosKey(peerToUser(peer->id), *photoId),
+			std::deque<PhotoId>({ *photoId }),
+			1,
+			1,
+			1))
+		: (rpl::never<UserPhotosSlice>() | rpl::type_erased());
+	auto process = [=](not_null<UserpicState*> state) {
+		if (photoId) {
+			ProcessFullPhoto(peer, state, peer->owner().photo(*photoId));
+			return true;
+		}
+		return false;
+	};
+	return UserpicValue(peer, st, std::move(slices), std::move(process));
 }

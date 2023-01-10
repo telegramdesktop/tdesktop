@@ -16,8 +16,8 @@ public:
 	: ms(ms)
 	, selecting(selecting) {
 	}
-	crl::time ms;
-	bool selecting;
+	crl::time ms = 0;
+	bool selecting = false;
 
 };
 

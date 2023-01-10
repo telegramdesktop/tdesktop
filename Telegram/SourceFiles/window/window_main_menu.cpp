@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/effects/snowflakes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
@@ -24,9 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
-#include "ui/special_buttons.h"
 #include "ui/empty_userpic.h"
-#include "dialogs/ui/dialogs_layout.h"
+#include "ui/unread_badge_paint.h"
 #include "base/call_delayed.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -77,6 +78,20 @@ namespace Window {
 namespace {
 
 constexpr auto kPlayStatusLimit = 2;
+
+[[nodiscard]] bool CanCheckSpecialEvent() {
+	static const auto result = [] {
+		const auto now = QDate::currentDate();
+		return (now.month() == 12) || (now.month() == 1 && now.day() == 1);
+	}();
+	return result;
+}
+
+[[nodiscard]] bool CheckSpecialEvent() {
+	const auto now = QDate::currentDate();
+	return (now.month() == 12 && now.day() >= 24)
+		|| (now.month() == 1 && now.day() == 1);
+}
 
 void ShowCallsBox(not_null<Window::SessionController*> window) {
 	auto controller = std::make_unique<Calls::BoxController>(window);
@@ -271,7 +286,7 @@ void MainMenu::ToggleAccountsButton::paintUnreadBadge(Painter &p) {
 		- st::mainMenuTogglePosition.y()
 		- st::mainMenuBadgeSize / 2;
 	p.setOpacity(progress);
-	Dialogs::Ui::PaintUnreadBadge(p, _unreadBadge, right, top, st);
+	Ui::PaintUnreadBadge(p, _unreadBadge, right, top, st);
 }
 
 void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
@@ -289,7 +304,7 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 	if (!_unreadBadge.isEmpty()) {
 		const auto st = Settings::Badge::Style();
 		skip += 2 * st::mainMenuToggleSize
-			+ Dialogs::Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
+			+ Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
 	}
 	_rightSkip = skip;
 }
@@ -354,9 +369,7 @@ MainMenu::MainMenu(
 , _controller(controller)
 , _userpicButton(
 	this,
-	_controller,
 	_controller->session().user(),
-	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
 , _setEmojiStatus(this, SetStatusLabel(&controller->session()))
@@ -471,6 +484,42 @@ MainMenu::MainMenu(
 	}, lifetime());
 
 	initResetScaleButton();
+
+	if (CanCheckSpecialEvent() && CheckSpecialEvent()) {
+		const auto snowLifetime = lifetime().make_state<rpl::lifetime>();
+		const auto rebuild = [=] {
+			const auto snowRaw = Ui::CreateChild<Ui::RpWidget>(this);
+			const auto snow = snowLifetime->make_state<Ui::Snowflakes>(
+				[=](const QRect &r) { snowRaw->update(r); });
+			snow->setBrush(QColor(230, 230, 230));
+			_showFinished.value(
+			) | rpl::start_with_next([=](bool shown) {
+				snow->setPaused(!shown);
+			}, snowRaw->lifetime());
+			snowRaw->paintRequest(
+			) | rpl::start_with_next([=](const QRect &r) {
+				auto p = Painter(snowRaw);
+				p.fillRect(r, st::mainMenuBg);
+				drawName(p);
+				snow->paint(p, snowRaw->rect());
+			}, snowRaw->lifetime());
+			widthValue(
+			) | rpl::start_with_next([=](int width) {
+				snowRaw->setGeometry(0, 0, width, st::mainMenuCoverHeight);
+			}, snowRaw->lifetime());
+			snowRaw->show();
+			snowRaw->lower();
+			snowRaw->setAttribute(Qt::WA_TransparentForMouseEvents);
+			snowLifetime->add([=] { base::unique_qptr{ snowRaw }; });
+		};
+		Window::Theme::IsNightModeValue(
+		) | rpl::start_with_next([=](bool isNightMode) {
+			snowLifetime->destroy();
+			if (isNightMode) {
+				rebuild();
+			}
+		}, lifetime());
+	}
 }
 
 MainMenu::~MainMenu() = default;
@@ -649,6 +698,10 @@ void MainMenu::parentResized() {
 	resize(st::mainMenuWidth, parentWidget()->height());
 }
 
+void MainMenu::showFinished() {
+	_showFinished = true;
+}
+
 void MainMenu::setupMenu() {
 	using namespace Settings;
 
@@ -814,37 +867,41 @@ void MainMenu::chooseEmojiStatus() {
 }
 
 void MainMenu::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = Painter(this);
 	const auto clip = e->rect();
 	const auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight);
 
 	p.fillRect(clip, st::mainMenuBg);
 	if (cover.intersects(clip)) {
-		const auto widthText = width()
-			- st::mainMenuCoverNameLeft
-			- _toggleAccounts->rightSkip();
-
-		const auto user = _controller->session().user();
-		if (_nameVersion < user->nameVersion()) {
-			_nameVersion = user->nameVersion();
-			_name.setText(
-				st::semiboldTextStyle,
-				user->name(),
-				Ui::NameTextOptions());
-			moveBadge();
-		}
-		p.setFont(st::semiboldFont);
-		p.setPen(st::windowBoldFg);
-		_name.drawLeftElided(
-			p,
-			st::mainMenuCoverNameLeft,
-			st::mainMenuCoverNameTop,
-			(widthText
-				- (_badge->widget()
-					? (st::semiboldFont->spacew + _badge->widget()->width())
-					: 0)),
-			width());
+		drawName(p);
 	}
+}
+
+void MainMenu::drawName(Painter &p) {
+	const auto widthText = width()
+		- st::mainMenuCoverNameLeft
+		- _toggleAccounts->rightSkip();
+
+	const auto user = _controller->session().user();
+	if (_nameVersion < user->nameVersion()) {
+		_nameVersion = user->nameVersion();
+		_name.setText(
+			st::semiboldTextStyle,
+			user->name(),
+			Ui::NameTextOptions());
+		moveBadge();
+	}
+	p.setFont(st::semiboldFont);
+	p.setPen(st::windowBoldFg);
+	_name.drawLeftElided(
+		p,
+		st::mainMenuCoverNameLeft,
+		st::mainMenuCoverNameTop,
+		(widthText
+			- (_badge->widget()
+				? (st::semiboldFont->spacew + _badge->widget()->width())
+				: 0)),
+		width());
 }
 
 void MainMenu::initResetScaleButton() {
@@ -899,8 +956,12 @@ OthersUnreadState OtherAccountsUnreadStateCurrent() {
 			}
 		}
 	}
+	// In case we are logging out in the last paint for the slide animation
+	// the account doesn't have the session here already.
+	const auto current = active->maybeSession();
 	return {
-		.count = (app.unreadBadge() - active->session().data().unreadBadge()),
+		.count = (app.unreadBadge()
+			- (current ? current->data().unreadBadge() : 0)),
 		.allMuted = allMuted,
 	};
 }

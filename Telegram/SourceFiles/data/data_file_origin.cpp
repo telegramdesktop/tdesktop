@@ -17,6 +17,12 @@ struct FileReferenceAccumulator {
 			push(item);
 		}
 	}
+	template <typename Type>
+	void push(const tl::conditional<Type> &data) {
+		if (data) {
+			push(*data);
+		}
+	}
 	void push(const MTPPhoto &data) {
 		data.match([&](const MTPDphoto &data) {
 			result.data.emplace(
@@ -47,52 +53,34 @@ struct FileReferenceAccumulator {
 	}
 	void push(const MTPTheme &data) {
 		data.match([&](const MTPDtheme &data) {
-			if (const auto document = data.vdocument()) {
-				push(*document);
-			}
+			push(data.vdocument());
 		});
 	}
 	void push(const MTPWebPageAttribute &data) {
 		data.match([&](const MTPDwebPageAttributeTheme &data) {
-			if (const auto documents = data.vdocuments()) {
-				push(*documents);
-			}
+			push(data.vdocuments());
 		});
 	}
 	void push(const MTPWebPage &data) {
 		data.match([&](const MTPDwebPage &data) {
-			if (const auto document = data.vdocument()) {
-				push(*document);
-			}
-			if (const auto attributes = data.vattributes()) {
-				push(*attributes);
-			}
-			if (const auto photo = data.vphoto()) {
-				push(*photo);
-			}
-			if (const auto page = data.vcached_page()) {
-				push(*page);
-			}
+			push(data.vdocument());
+			push(data.vattributes());
+			push(data.vphoto());
+			push(data.vcached_page());
 		}, [](const auto &data) {
 		});
 	}
 	void push(const MTPGame &data) {
 		data.match([&](const MTPDgame &data) {
-			if (const auto document = data.vdocument()) {
-				push(*document);
-			}
+			push(data.vdocument());
 		}, [](const auto &data) {
 		});
 	}
 	void push(const MTPMessageMedia &data) {
 		data.match([&](const MTPDmessageMediaPhoto &data) {
-			if (const auto photo = data.vphoto()) {
-				push(*photo);
-			}
+			push(data.vphoto());
 		}, [&](const MTPDmessageMediaDocument &data) {
-			if (const auto document = data.vdocument()) {
-				push(*document);
-			}
+			push(data.vdocument());
 		}, [&](const MTPDmessageMediaWebPage &data) {
 			push(data.vwebpage());
 		}, [&](const MTPDmessageMediaGame &data) {
@@ -102,12 +90,12 @@ struct FileReferenceAccumulator {
 	}
 	void push(const MTPMessage &data) {
 		data.match([&](const MTPDmessage &data) {
-			if (const auto media = data.vmedia()) {
-				push(*media);
-			}
+			push(data.vmedia());
 		}, [&](const MTPDmessageService &data) {
 			data.vaction().match(
 			[&](const MTPDmessageActionChatEditPhoto &data) {
+				push(data.vphoto());
+			}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
 				push(data.vphoto());
 			}, [](const auto &data) {
 			});
@@ -123,6 +111,11 @@ struct FileReferenceAccumulator {
 	void push(const MTPphotos_Photos &data) {
 		data.match([&](const auto &data) {
 			push(data.vphotos());
+		});
+	}
+	void push(const MTPusers_UserFull &data) {
+		data.match([&](const auto &data) {
+			push(data.vfull_user().data().vpersonal_photo());
 		});
 	}
 	void push(const MTPmessages_RecentStickers &data) {
@@ -178,6 +171,10 @@ UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data) {
 }
 
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPusers_UserFull &data) {
 	return GetFileReferencesHelper(data);
 }
 

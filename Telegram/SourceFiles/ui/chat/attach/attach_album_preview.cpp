@@ -9,10 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/attach/attach_album_thumbnail.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
+#include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -58,6 +61,29 @@ void AlbumPreview::updateFileRows() {
 		thumb->setButtonVisible(isFile && !thumb->isCompressedSticker());
 		thumb->moveButtons(top);
 		top += thumb->fileHeight() + st::sendMediaRowSkip;
+	}
+}
+
+base::flat_set<int> AlbumPreview::collectSpoileredIndices() {
+	auto result = base::flat_set<int>();
+	result.reserve(_thumbs.size());
+	auto i = 0;
+	for (const auto &thumb : _thumbs) {
+		if (thumb->hasSpoiler()) {
+			result.emplace(i);
+		}
+		++i;
+	}
+	return result;
+}
+
+bool AlbumPreview::canHaveSpoiler(int index) const {
+	return _sendWay.sendImagesAsPhotos();
+}
+
+void AlbumPreview::toggleSpoilers(bool enabled) {
+	for (auto &thumb : _thumbs) {
+		thumb->setSpoiler(enabled);
 	}
 }
 
@@ -112,6 +138,7 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 			items[i],
 			layout[i],
 			this,
+			[=] { update(); },
 			[=] { changeThumbByIndex(thumbIndex(thumbUnderCursor())); },
 			[=] { deleteThumbByIndex(thumbIndex(thumbUnderCursor())); }));
 		if (_thumbs.back()->isCompressedSticker()) {
@@ -365,11 +392,7 @@ void AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 			} else if (bottom <= clip.y()) {
 				continue;
 			}
-			if (thumb->isCompressedSticker()) {
-				thumb->paintPhoto(p, left, top, outerWidth);
-			} else {
-				thumb->paintFile(p, left, top, outerWidth);
-			}
+			thumb->paintFile(p, left, top, outerWidth);
 		}
 	}
 }
@@ -393,15 +416,6 @@ void AlbumPreview::deleteThumbByIndex(int index) {
 	if (index < 0) {
 		return;
 	}
-	const auto orderIt = ranges::find(_order, index);
-	Expects(orderIt != _order.end());
-
-	_order.erase(orderIt);
-	ranges::for_each(_order, [=](auto &i) {
-		if (i > index) {
-			i--;
-		}
-	});
 	_thumbDeleted.fire(std::move(index));
 }
 
@@ -448,7 +462,8 @@ void AlbumPreview::mousePressEvent(QMouseEvent *e) {
 
 		const auto isAlbum = _sendWay.sendImagesAsPhotos()
 			&& _sendWay.groupFiles();
-		if (!isAlbum) {
+		if (!isAlbum || e->button() != Qt::LeftButton) {
+			_dragTimer.cancel();
 			return;
 		}
 
@@ -554,11 +569,37 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (const auto thumb = base::take(_pressedThumb)) {
 		const auto was = _pressedButtonType;
 		const auto now = thumb->buttonTypeFromPoint(e->pos());
-		if (was == now) {
+		if (e->button() == Qt::RightButton) {
+			showContextMenu(thumb, e->globalPos());
+		} else if (was == now) {
 			thumbButtonsCallback(thumb, now);
 		}
 	}
 	_pressedButtonType = AttachButtonType::None;
+}
+
+void AlbumPreview::showContextMenu(
+		not_null<AlbumThumbnail*> thumb,
+		QPoint position) {
+	if (!_sendWay.sendImagesAsPhotos()) {
+		return;
+	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+
+	const auto spoilered = thumb->hasSpoiler();
+	_menu->addAction(spoilered
+		? tr::lng_context_disable_spoiler(tr::now)
+		: tr::lng_context_spoiler_effect(tr::now), [=] {
+		thumb->setSpoiler(!spoilered);
+	}, spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
+
+	if (_menu->empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->popup(position);
+	}
 }
 
 void AlbumPreview::switchToDrag() {

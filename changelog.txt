@@ -1,3 +1,39 @@
+4.5.3 (06.01.22)
+
+- Attempt to fix incoming video in calls from mobile apps.
+
+4.5.2 (03.01.22)
+
+- Fix unread reactions button in private chats.
+- Fix tile background saving after an app update.
+- Allow Ctrl+6,7,8 to activate extra pinned chats.
+
+4.5.1 (02.01.22)
+
+- Fix crash in profile photo privacy edition.
+- Allow sending photos larger than 1280px (in Experimental Settings).
+
+4.5 (30.12.22)
+
+- Media with spoiler effects. You can wrap photos and videos you send in a fuzzy cover by selecting media in the attachment menu and tapping (...) > Hide With Spoiler.
+- Setting pictures for your contacts. You can choose your own picture for a contact – only you will see it on their profile.
+- Suggested profile pictures. When editing your contacts, you can suggest a photo for their profile. It will take them just two clicks to add the picture you suggested.
+- Public profile pictures. If you only allow certain users to see your profile photos, you can set a public picture for everyone else. 
+- Ultimate profile picture privacy. You can set 'Who can see my profile photos' to 'Nobody' and add some users or groups as exceptions.
+- Member list privacy. Owners of large groups can hide the list of members.
+
+4.4.3 beta (29.12.22)
+
+- Support for anonymous numbers from the Fragment.com platform.
+- Fix a crash in own profile photo updating.
+- Bug fixes and other minor improvements.
+
+4.4.2 beta (28.12.22)
+
+- Send photos and video files hidden by a spoiler effect.
+- Set a public photo for those who are restricted to see your profile photo in the Privacy Settings.
+- Bug fixes and other minor improvements.
+
 4.4.1 (07.12.22)
 
 - Bug fixes and other minor improvements.

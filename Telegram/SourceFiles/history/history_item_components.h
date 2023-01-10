@@ -195,20 +195,19 @@ struct HistoryMessageReply
 		Expects(replyToVia == nullptr);
 	}
 
-	bool updateData(not_null<HistoryMessage*> holder, bool force = false);
+	bool updateData(not_null<HistoryItem*> holder, bool force = false);
 
 	// Must be called before destructor.
-	void clearData(not_null<HistoryMessage*> holder);
+	void clearData(not_null<HistoryItem*> holder);
 
-	[[nodiscard]] PeerData *replyToFrom(
-		not_null<HistoryMessage*> holder) const;
+	[[nodiscard]] PeerData *replyToFrom(not_null<HistoryItem*> holder) const;
 	[[nodiscard]] QString replyToFromName(
-		not_null<HistoryMessage*> holder) const;
+		not_null<HistoryItem*> holder) const;
 	[[nodiscard]] QString replyToFromName(not_null<PeerData*> peer) const;
-	[[nodiscard]] bool isNameUpdated(not_null<HistoryMessage*> holder) const;
-	void updateName(not_null<HistoryMessage*> holder) const;
+	[[nodiscard]] bool isNameUpdated(not_null<HistoryItem*> holder) const;
+	void updateName(not_null<HistoryItem*> holder) const;
 	void resize(int width) const;
-	void itemRemoved(HistoryMessage *holder, HistoryItem *removed);
+	void itemRemoved(HistoryItem *holder, HistoryItem *removed);
 
 	void paint(
 		Painter &p,
@@ -234,8 +233,7 @@ struct HistoryMessageReply
 	[[nodiscard]] ClickHandlerPtr replyToLink() const {
 		return replyToLnk;
 	}
-	void setReplyToLinkFrom(
-		not_null<HistoryMessage*> holder);
+	void setReplyToLinkFrom(not_null<HistoryItem*> holder);
 
 	void refreshReplyToMedia();
 
@@ -248,6 +246,7 @@ struct HistoryMessageReply
 	WebPageId replyToWebPageId = 0;
 	ReplyToMessagePointer replyToMsg;
 	std::unique_ptr<HistoryMessageVia> replyToVia;
+	std::unique_ptr<Ui::SpoilerAnimation> spoiler;
 	ClickHandlerPtr replyToLnk;
 	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;
@@ -452,7 +451,7 @@ private:
 
 // Special type of Component for the channel actions log.
 struct HistoryMessageLogEntryOriginal
-	: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {
+: public RuntimeComponent<HistoryMessageLogEntryOriginal, HistoryItem> {
 	HistoryMessageLogEntryOriginal();
 	HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other);
 	HistoryMessageLogEntryOriginal &operator=(HistoryMessageLogEntryOriginal &&other);
@@ -460,6 +459,94 @@ struct HistoryMessageLogEntryOriginal
 
 	WebPageData *page = nullptr;
 
+};
+
+struct HistoryServiceData
+: public RuntimeComponent<HistoryServiceData, HistoryItem> {
+	std::vector<ClickHandlerPtr> textLinks;
+};
+
+struct HistoryServiceDependentData {
+	PeerId peerId = 0;
+	HistoryItem *msg = nullptr;
+	ClickHandlerPtr lnk;
+	MsgId msgId = 0;
+	MsgId topId = 0;
+	bool topicPost = false;
+};
+
+struct HistoryServicePinned
+: public RuntimeComponent<HistoryServicePinned, HistoryItem>
+, public HistoryServiceDependentData {
+};
+
+struct HistoryServiceTopicInfo
+: public RuntimeComponent<HistoryServiceTopicInfo, HistoryItem>
+, public HistoryServiceDependentData {
+	QString title;
+	DocumentId iconId = 0;
+	bool closed = false;
+	bool reopened = false;
+	bool reiconed = false;
+	bool renamed = false;
+	bool hidden = false;
+	bool unhidden = false;
+
+	[[nodiscard]] bool created() const {
+		return !closed
+			&& !reopened
+			&& !reiconed
+			&& !renamed
+			&& !hidden
+			&& !unhidden;
+	}
+};
+
+struct HistoryServiceGameScore
+: public RuntimeComponent<HistoryServiceGameScore, HistoryItem>
+, public HistoryServiceDependentData {
+	int score = 0;
+};
+
+struct HistoryServicePayment
+: public RuntimeComponent<HistoryServicePayment, HistoryItem>
+, public HistoryServiceDependentData {
+	QString slug;
+	QString amount;
+	ClickHandlerPtr invoiceLink;
+	bool recurringInit = false;
+	bool recurringUsed = false;
+};
+
+enum class HistorySelfDestructType {
+	Photo,
+	Video,
+};
+
+struct HistoryServiceSelfDestruct
+: public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
+	using Type = HistorySelfDestructType;
+
+	Type type = Type::Photo;
+	crl::time timeToLive = 0;
+	crl::time destructAt = 0;
+};
+
+struct HistoryServiceOngoingCall
+: public RuntimeComponent<HistoryServiceOngoingCall, HistoryItem> {
+	CallId id = 0;
+	ClickHandlerPtr link;
+	rpl::lifetime lifetime;
+};
+
+struct HistoryServiceChatThemeChange
+: public RuntimeComponent<HistoryServiceChatThemeChange, HistoryItem> {
+	ClickHandlerPtr link;
+};
+
+struct HistoryServiceTTLChange
+: public RuntimeComponent<HistoryServiceTTLChange, HistoryItem> {
+	ClickHandlerPtr link;
 };
 
 class FileClickHandler;

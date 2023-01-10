@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_topics_view.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
@@ -185,6 +186,11 @@ void MessageView::prepare(
 		context);
 	_textCachedFor = item;
 	_imagesCache = std::move(preview.images);
+	if (!ranges::any_of(_imagesCache, &ItemPreviewImage::hasSpoiler)) {
+		_spoiler = nullptr;
+	} else if (!_spoiler) {
+		_spoiler = std::make_unique<SpoilerAnimation>(customEmojiRepaint);
+	}
 	if (preview.loadingContext.has_value()) {
 		if (!_loadingContext) {
 			_loadingContext = std::make_unique<LoadingContext>();
@@ -218,6 +224,12 @@ void MessageView::addTopicJumpRipple(
 void MessageView::stopLastRipple() {
 	if (_topics) {
 		_topics->stopLastRipple();
+	}
+}
+
+void MessageView::clearRipple() {
+	if (_topics) {
+		_topics->clearRipple();
 	}
 }
 
@@ -302,10 +314,19 @@ void MessageView::paint(
 		if (rect.width() < st::dialogsMiniPreview) {
 			break;
 		}
-		p.drawImage(
+		const auto mini = QRect(
 			rect.x(),
 			rect.y() + st::dialogsMiniPreviewTop,
-			image.data);
+			st::dialogsMiniPreview,
+			st::dialogsMiniPreview);
+		if (!image.data.isNull()) {
+			p.drawImage(mini, image.data);
+			if (image.hasSpoiler()) {
+				const auto frame = DefaultImageSpoiler().frame(
+					_spoiler->index(context.now, context.paused));
+				FillSpoilerRect(p, mini, frame);
+			}
+		}
 		rect.setLeft(rect.x()
 			+ st::dialogsMiniPreview
 			+ st::dialogsMiniPreviewSkip);

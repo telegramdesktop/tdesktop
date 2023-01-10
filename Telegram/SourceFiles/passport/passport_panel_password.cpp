@@ -8,12 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_password.h"
 
 #include "passport/passport_panel_controller.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
-#include "ui/special_buttons.h"
 #include "boxes/passcode_box.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
@@ -31,7 +31,6 @@ PanelAskPassword::PanelAskPassword(
 , _userpic(
 	this,
 	_controller->bot(),
-	Ui::UserpicButton::Role::Custom,
 	st::passportPasswordUserpic)
 , _about1(
 	this,

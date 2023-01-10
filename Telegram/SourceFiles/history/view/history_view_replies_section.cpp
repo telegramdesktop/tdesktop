@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/chat_style.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/popup_menu.h"
@@ -37,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/message_sending_animation_controller.h"
-#include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "ui/toasts/common_toasts.h"
 #include "base/timer_rpl.h"
@@ -442,7 +442,7 @@ void RepliesWidget::setupRootView() {
 	_rootView = std::make_unique<Ui::PinnedBar>(this, [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
-	});
+	}, controller()->gifPauseLevelChanged());
 	_rootView->setContent(rpl::combine(
 		RootViewContent(
 			_history,
@@ -1592,7 +1592,7 @@ void RepliesWidget::checkPinnedBarState() {
 	_pinnedBar = std::make_unique<Ui::PinnedBar>(this, [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
-	});
+	}, controller()->gifPauseLevelChanged());
 	auto pinnedRefreshed = Info::Profile::SharedMediaCountValue(
 		_history->peer,
 		_rootId,

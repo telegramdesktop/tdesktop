@@ -66,9 +66,10 @@ public:
 
 	[[nodiscard]] Image *getReplyPreview(
 		Data::FileOrigin origin,
-		not_null<PeerData*> context);
+		not_null<PeerData*> context,
+		bool spoiler);
 	[[nodiscard]] Image *getReplyPreview(not_null<HistoryItem*> item);
-	[[nodiscard]] bool replyPreviewLoaded() const;
+	[[nodiscard]] bool replyPreviewLoaded(bool spoiler) const;
 
 	void setRemoteLocation(
 		int32 dc,

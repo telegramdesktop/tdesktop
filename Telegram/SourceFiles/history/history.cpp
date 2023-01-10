@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
-#include "history/history_message.h"
-#include "history/history_service.h"
+#include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/history_inner_widget.h"
 #include "history/history_unread_things.h"
 #include "dialogs/dialogs_indexed_list.h"
@@ -419,7 +419,9 @@ not_null<HistoryItem*> History::createItem(
 		}
 		return result;
 	}
-	return HistoryItem::Create(this, id, message, localFlags);
+	return message.match([&](const auto &data) {
+		return makeMessage(id, data, localFlags);
+	});
 }
 
 std::vector<not_null<HistoryItem*>> History::createItems(
@@ -877,7 +879,9 @@ not_null<HistoryItem*> History::addNewToBack(
 				if (auto chat = peer->asChat()) {
 					return &chat->lastAuthors;
 				} else if (auto channel = peer->asMegagroup()) {
-					return &channel->mgInfo->lastParticipants;
+					return channel->canViewMembers()
+						? &channel->mgInfo->lastParticipants
+						: nullptr;
 				}
 				return nullptr;
 			};
@@ -996,7 +1000,8 @@ void History::applyServiceChanges(
 			not_null<ChannelData*> megagroup,
 			not_null<MegagroupInfo*> mgInfo,
 			not_null<UserData*> user) {
-		if (!base::contains(mgInfo->lastParticipants, user)) {
+		if (!base::contains(mgInfo->lastParticipants, user)
+			&& megagroup->canViewMembers()) {
 			mgInfo->lastParticipants.push_front(user);
 			session().changes().peerUpdated(
 				peer,
@@ -3080,7 +3085,7 @@ MsgRange History::rangeForDifferenceRequest() const {
 	return MsgRange();
 }
 
-HistoryService *History::insertJoinedMessage() {
+HistoryItem *History::insertJoinedMessage() {
 	const auto channel = peer->asChannel();
 	if (!channel
 		|| _joinedMessage

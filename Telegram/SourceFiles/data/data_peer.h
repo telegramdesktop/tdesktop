@@ -423,7 +423,6 @@ private:
 
 	mutable Data::CloudImage _userpic;
 	PhotoId _userpicPhotoId = kUnknownPhotoId;
-	bool _userpicHasVideo = false;
 
 	mutable std::unique_ptr<Ui::EmptyUserpic> _userpicEmpty;
 
@@ -443,6 +442,7 @@ private:
 	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
+	bool _userpicHasVideo = false;
 
 	QString _requestChatTitle;
 	TimeId _requestChatDate = 0;

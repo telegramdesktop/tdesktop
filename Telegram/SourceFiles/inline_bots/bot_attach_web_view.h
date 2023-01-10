@@ -58,6 +58,7 @@ struct AttachWebViewBot {
 	PeerTypes types = 0;
 	bool inactive = false;
 	bool hasSettings = false;
+	bool requestWriteAccess = false;
 };
 
 class AttachWebView final : public base::has_weak_ptr {
@@ -69,6 +70,7 @@ public:
 		QString text;
 		QString startCommand;
 		QByteArray url;
+		bool fromMenu = false;
 	};
 	void request(
 		const Api::SendAction &action,
@@ -119,15 +121,21 @@ private:
 		not_null<Window::SessionController*> controller,
 		Fn<void()> done);
 
+	enum class ToggledState {
+		Removed,
+		Added,
+		AllowedToWrite,
+	};
 	void toggleInMenu(
 		not_null<UserData*> bot,
-		bool enabled,
+		ToggledState state,
 		Fn<void()> callback = nullptr);
 
 	void show(
 		uint64 queryId,
 		const QString &url,
-		const QString &buttonText = QString());
+		const QString &buttonText = QString(),
+		bool fromMenu = false);
 	void confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback = nullptr);

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_changes.h"
@@ -24,9 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_forum_topic_box.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
-#include "ui/special_buttons.h"
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
@@ -73,49 +74,20 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 		: tr::lng_channel_status(tr::now);
 };
 
-} // namespace
-
-Cover::Cover(
-	QWidget *parent,
-	not_null<PeerData*> peer,
-	not_null<Window::SessionController*> controller)
-: Cover(parent, peer, controller, NameValue(peer)) {
-}
-
-Cover::Cover(
-	QWidget *parent,
-	not_null<Data::ForumTopic*> topic,
-	not_null<Window::SessionController*> controller)
-: Cover(
-	parent,
-	topic->channel(),
-	topic,
-	controller,
-	TitleValue(topic)) {
-}
-
-Cover::Cover(
-	QWidget *parent,
-	not_null<PeerData*> peer,
-	not_null<Window::SessionController*> controller,
-	rpl::producer<QString> title)
-: Cover(
-	parent,
-	peer,
-	nullptr,
-	controller,
-	std::move(title)) {
-}
-
 [[nodiscard]] const style::InfoProfileCover &CoverStyle(
 		not_null<PeerData*> peer,
-		Data::ForumTopic *topic) {
-	return topic
+		Data::ForumTopic *topic,
+		Cover::Role role) {
+	return (role == Cover::Role::EditContact)
+		? st::infoEditContactCover
+		: topic
 		? st::infoTopicCover
 		: peer->isMegagroup()
 		? st::infoProfileMegagroupCover
 		: st::infoProfileCover;
 }
+
+} // namespace
 
 TopicIconView::TopicIconView(
 	not_null<Data::ForumTopic*> topic,
@@ -272,12 +244,49 @@ TopicIconButton::TopicIconButton(
 
 Cover::Cover(
 	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer)
+: Cover(parent, controller, peer, Role::Info, NameValue(peer)) {
+}
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<Data::ForumTopic*> topic)
+: Cover(
+	parent,
+	controller,
+	topic->channel(),
+	topic,
+	Role::Info,
+	TitleValue(topic)) {
+}
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	Role role,
+	rpl::producer<QString> title)
+: Cover(
+	parent,
+	controller,
+	peer,
+	nullptr,
+	role,
+	std::move(title)) {
+}
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
-	not_null<Window::SessionController*> controller,
+	Role role,
 	rpl::producer<QString> title)
-: FixedHeightWidget(parent, CoverStyle(peer, topic).height)
-, _st(CoverStyle(peer, topic))
+: FixedHeightWidget(parent, CoverStyle(peer, topic, role).height)
+, _st(CoverStyle(peer, topic, role))
+, _role(role)
 , _controller(controller)
 , _peer(peer)
 , _emojiStatusPanel(peer->isSelf()
@@ -300,7 +309,15 @@ Cover::Cover(
 		controller,
 		_peer,
 		Ui::UserpicButton::Role::OpenPhoto,
+		Ui::UserpicButton::Source::PeerPhoto,
 		_st.photo))
+, _changePersonal((role == Role::Info
+	|| topic
+	|| !_peer->isUser()
+	|| _peer->isSelf()
+	|| _peer->asUser()->isBot())
+	? nullptr
+	: CreateUploadSubButton(this, _peer->asUser(), controller).get())
 , _iconButton(topic
 	? object_ptr<TopicIconButton>(this, controller, topic)
 	: nullptr)
@@ -331,12 +348,6 @@ Cover::Cover(
 	setupChildGeometry();
 
 	if (_userpic) {
-		_userpic->uploadPhotoRequests(
-		) | rpl::start_with_next([=] {
-			_peer->session().api().peerPhoto().upload(
-				_peer,
-				_userpic->takeResultImage());
-		}, _userpic->lifetime());
 	} else if (topic->canEdit()) {
 		_iconButton->setClickedCallback([=] {
 			_controller->show(Box(
@@ -358,19 +369,28 @@ void Cover::setupChildGeometry() {
 		} else {
 			_iconButton->moveToLeft(_st.photoLeft, _st.photoTop, newWidth);
 		}
+		if (_changePersonal) {
+			_changePersonal->moveToLeft(
+				(_st.photoLeft
+					+ _st.photo.photoSize
+					- _changePersonal->width()
+					+ st::infoEditContactPersonalLeft),
+				(_userpic->y()
+					+ _userpic->height()
+					- _changePersonal->height()));
+		}
 		refreshNameGeometry(newWidth);
 		refreshStatusGeometry(newWidth);
 	}, lifetime());
 }
 
 Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
-	std::move(
-		count
-	) | rpl::start_with_next([this](int count) {
-		_onlineCount = count;
-		refreshStatusText();
-	}, lifetime());
+	_onlineCount = std::move(count);
 	return this;
+}
+
+std::optional<QImage> Cover::updatedPersonalPhoto() const {
+	return _personalChosen;
 }
 
 void Cover::initViewers(rpl::producer<QString> title) {
@@ -382,36 +402,100 @@ void Cover::initViewers(rpl::producer<QString> title) {
 		refreshNameGeometry(width());
 	}, lifetime());
 
-	_peer->session().changes().peerFlagsValue(
-		_peer,
-		Flag::OnlineStatus | Flag::Members
-	) | rpl::start_with_next(
-		[=] { refreshStatusText(); },
-		lifetime());
-	if (!_peer->isUser()) {
+	rpl::combine(
 		_peer->session().changes().peerFlagsValue(
 			_peer,
-			Flag::Rights
-		) | rpl::start_with_next(
-			[=] { refreshUploadPhotoOverlay(); },
-			lifetime());
-	} else if (_peer->isSelf()) {
+			Flag::OnlineStatus | Flag::Members),
+		_onlineCount.value()
+	) | rpl::start_with_next([=] {
+		refreshStatusText();
+	}, lifetime());
+
+	_peer->session().changes().peerFlagsValue(
+		_peer,
+		(_peer->isUser() ? Flag::IsContact : Flag::Rights)
+	) | rpl::start_with_next([=] {
 		refreshUploadPhotoOverlay();
-	}
+	}, lifetime());
+
+	setupChangePersonal();
 }
 
 void Cover::refreshUploadPhotoOverlay() {
 	if (!_userpic) {
 		return;
+	} else if (_role == Role::EditContact) {
+		_userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
+		return;
 	}
+
 	_userpic->switchChangePhotoOverlay([&] {
 		if (const auto chat = _peer->asChat()) {
 			return chat->canEditInformation();
 		} else if (const auto channel = _peer->asChannel()) {
 			return channel->canEditInformation();
+		} else if (const auto user = _peer->asUser()) {
+			return user->isSelf()
+				|| (user->isContact()
+					&& !user->isInaccessible()
+					&& !user->isServiceUser());
 		}
-		return _peer->isSelf();
-	}());
+		Unexpected("Peer type in Info::Profile::Cover.");
+	}(), [=](Ui::UserpicButton::ChosenImage chosen) {
+		using ChosenType = Ui::UserpicButton::ChosenType;
+		auto &image = chosen.image;
+		switch (chosen.type) {
+		case ChosenType::Set:
+			_userpic->showCustom(base::duplicate(image));
+			_peer->session().api().peerPhoto().upload(
+				_peer,
+				std::move(image));
+			break;
+		case ChosenType::Suggest:
+			_peer->session().api().peerPhoto().suggest(
+				_peer,
+				std::move(image));
+			break;
+		}
+	});
+
+	if (const auto user = _peer->asUser()) {
+		_userpic->resetPersonalRequests(
+		) | rpl::start_with_next([=] {
+			user->session().api().peerPhoto().clearPersonal(user);
+			_userpic->showSource(Ui::UserpicButton::Source::PeerPhoto);
+		}, lifetime());
+	}
+}
+
+void Cover::setupChangePersonal() {
+	if (!_changePersonal) {
+		return;
+	}
+
+	_changePersonal->chosenImages(
+	) | rpl::start_with_next([=](Ui::UserpicButton::ChosenImage &&chosen) {
+		if (chosen.type == Ui::UserpicButton::ChosenType::Suggest) {
+			_peer->session().api().peerPhoto().suggest(
+				_peer,
+				std::move(chosen.image));
+		} else {
+			_personalChosen = std::move(chosen.image);
+			_userpic->showCustom(base::duplicate(*_personalChosen));
+			_changePersonal->overrideHasPersonalPhoto(true);
+			_changePersonal->showSource(
+				Ui::UserpicButton::Source::NonPersonalIfHasPersonal);
+		}
+	}, _changePersonal->lifetime());
+
+	_changePersonal->resetPersonalRequests(
+	) | rpl::start_with_next([=] {
+		_personalChosen = QImage();
+		_userpic->showSource(
+			Ui::UserpicButton::Source::NonPersonalPhoto);
+		_changePersonal->overrideHasPersonalPhoto(false);
+		_changePersonal->showCustom(QImage());
+	}, _changePersonal->lifetime());
 }
 
 void Cover::refreshStatusText() {
@@ -438,15 +522,17 @@ void Cover::refreshStatusText() {
 			if (!chat->amIn()) {
 				return tr::lng_chat_status_unaccessible({}, WithEntities);
 			}
-			auto fullCount = std::max(
+			const auto onlineCount = _onlineCount.current();
+			const auto fullCount = std::max(
 				chat->count,
 				int(chat->participants.size()));
-			return { .text = ChatStatusText(fullCount, _onlineCount, true) };
+			return { .text = ChatStatusText(fullCount, onlineCount, true) };
 		} else if (auto channel = _peer->asChannel()) {
-			auto fullCount = qMax(channel->membersCount(), 1);
+			const auto onlineCount = _onlineCount.current();
+			const auto fullCount = qMax(channel->membersCount(), 1);
 			auto result = ChatStatusText(
 				fullCount,
-				_onlineCount,
+				onlineCount,
 				channel->isMegagroup());
 			return hasMembersLink
 				? PlainLink(result)

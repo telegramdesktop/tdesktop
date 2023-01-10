@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "mainwidget.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
@@ -209,7 +210,7 @@ void BoxController::Row::refreshStatus() {
 		return;
 	}
 	auto text = [this] {
-		auto time = QLocale().toString(ItemDateTime(_items.front()).time(), cTimeFormat());
+		auto time = QLocale().toString(ItemDateTime(_items.front()).time(), QLocale::ShortFormat);
 		auto today = QDateTime::currentDateTime().date();
 		if (_date == today) {
 			return tr::lng_call_box_status_today(tr::now, lt_time, time);

@@ -19,9 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "boxes/language_box.h"
 #include "boxes/username_box.h"
-#include "ui/boxes/confirm_box.h"
 #include "boxes/about_box.h"
 #include "ui/basic_click_handlers.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/padding_wrap.h"
@@ -30,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "ui/special_buttons.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "data/data_user.h"
@@ -123,6 +123,7 @@ Cover::Cover(
 	controller,
 	_user,
 	Ui::UserpicButton::Role::OpenPhoto,
+	Ui::UserpicButton::Source::PeerPhoto,
 	st::infoProfileCover.photo)
 , _name(this, st::infoProfileCover.name)
 , _phone(this, st::defaultFlatLabel)
@@ -138,13 +139,12 @@ Cover::Cover(
 	initViewers();
 	setupChildGeometry();
 
-	_userpic->switchChangePhotoOverlay(_user->isSelf());
-	_userpic->uploadPhotoRequests(
-	) | rpl::start_with_next([=] {
-		_user->session().api().peerPhoto().upload(
-			_user,
-			_userpic->takeResultImage());
-	}, _userpic->lifetime());
+	_userpic->switchChangePhotoOverlay(_user->isSelf(), [=](
+			Ui::UserpicButton::ChosenImage chosen) {
+		auto &image = chosen.image;
+		_userpic->showCustom(base::duplicate(image));
+		_user->session().api().peerPhoto().upload(_user, std::move(image));
+	});
 
 	_badge.setPremiumClickCallback([=] {
 		_emojiStatusPanel.show(

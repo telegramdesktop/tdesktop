@@ -58,6 +58,7 @@ enum class ChannelDataFlag {
 	RequestToJoin = (1 << 22),
 	Forum = (1 << 23),
 	AntiSpam = (1 << 24),
+	ParticipantsHidden = (1 << 25),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;

@@ -54,6 +54,7 @@ public:
 	}
 
 	TextWithEntities getCaption() const override;
+	void hideSpoilers() override;
 	bool needsBubble() const override {
 		return true;
 	}

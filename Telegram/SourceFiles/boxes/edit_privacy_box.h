@@ -57,6 +57,10 @@ public:
 		Exception exception) const = 0;
 	[[nodiscard]] virtual auto exceptionsDescription()
 		const -> rpl::producer<QString> = 0;
+	virtual void handleExceptionsChange(
+		Exception exception,
+		rpl::producer<int> value) {
+	}
 
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupAboveWidget(
 			not_null<QWidget*> parent,
@@ -72,7 +76,7 @@ public:
 	}
 	[[nodiscard]] virtual object_ptr<Ui::RpWidget> setupBelowWidget(
 			not_null<Window::SessionController*> controller,
-			not_null<QWidget*> parent) const {
+			not_null<QWidget*> parent) {
 		return { nullptr };
 	}
 

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/special_buttons.h"
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
@@ -44,6 +43,7 @@ class PlainShadow;
 class DownloadBar;
 class GroupCallBar;
 class RequestsBar;
+class JumpDownButton;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
@@ -166,6 +166,7 @@ private:
 	void showSearchFrom();
 	void showMainMenu();
 	void clearSearchCache();
+	void setSearchQuery(const QString &query);
 	void updateControlsVisibility(bool fast = false);
 	void updateLockUnlockVisibility();
 	void updateLoadMoreChatsVisibility();
@@ -247,7 +248,7 @@ private:
 	rpl::variable<float64> _shownProgressValue;
 
 	Ui::Animations::Simple _scrollToTopShown;
-	object_ptr<Ui::HistoryDownButton> _scrollToTop;
+	object_ptr<Ui::JumpDownButton> _scrollToTop;
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
 

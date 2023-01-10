@@ -28,6 +28,7 @@
     <url type="homepage">https://desktop.telegram.org/</url>
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
     <url type="translate">https://translations.telegram.org/</url>
+    <url type="contribute">https://github.com/telegramdesktop/tdesktop/blob/dev/.github/CONTRIBUTING.md</url>
     <screenshots>
       <screenshot type="default">
         <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png</image>
@@ -43,6 +44,15 @@
         <keyword>sms</keyword>
         <keyword>im</keyword>
     </keywords>
+    <requires>
+        <display_length compare="ge">medium</display_length>
+        <internet>always</internet>
+    </requires>
+    <supports>
+        <control>pointing</control>
+        <control>keyboard</control>
+        <control>touch</control>
+    </supports>
     <content_rating type="oars-1.1">
         <content_attribute id="violence-cartoon">none</content_attribute>
         <content_attribute id="violence-fantasy">none</content_attribute>

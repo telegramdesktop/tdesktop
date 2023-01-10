@@ -1,8 +1,8 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6_4_1" -%}
-{%- set QT_TAG = "v6.4.1" -%}
-{%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.4.1" -%}
+{%- set QT = "6_4_2" -%}
+{%- set QT_TAG = "v6.4.2" -%}
+{%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.4.2" -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
 {%- set CMAKE_VER = "3.24.3" -%}
@@ -56,7 +56,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout b842feb5f8 \
+	&& git checkout 614ff3aebd \
 	&& rm -rf .git
 
 FROM builder AS nasm
@@ -157,7 +157,7 @@ RUN git clone -b v1.0.9 --depth=1 {{ GIT }}/google/brotli.git \
 	&& rm -rf brotli
 
 FROM builder AS highway
-RUN git clone -b 1.0.1 --depth=1 {{ GIT }}/google/highway.git \
+RUN git clone -b 1.0.2 --depth=1 {{ GIT }}/google/highway.git \
 	&& cd highway \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -208,7 +208,7 @@ RUN git clone -b 1.0.0 --depth=1 {{ GIT }}/videolan/dav1d.git \
 	&& rm -rf dav1d
 
 FROM builder AS libde265
-RUN git clone -b v1.0.8 --depth=1 {{ GIT }}/strukturag/libde265.git \
+RUN git clone -b v1.0.9 --depth=1 {{ GIT }}/strukturag/libde265.git \
 	&& cd libde265 \
 	&& cmake -GNinja . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -238,7 +238,7 @@ RUN git clone -b v1.11.0 --depth=1 {{ GIT }}/webmproject/libvpx.git \
 FROM builder AS libavif
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 
-RUN git clone -b v0.10.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
+RUN git clone -b v0.11.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
 	&& cd libavif \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -252,7 +252,7 @@ RUN git clone -b v0.10.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
 FROM builder AS libheif
 COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
 
-RUN git clone -b v1.13.0 --depth=1 {{ GIT }}/strukturag/libheif.git \
+RUN git clone -b v1.14.0 --depth=1 {{ GIT }}/strukturag/libheif.git \
 	&& cd libheif \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -678,6 +678,7 @@ FROM patches AS qt
 COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
+COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
@@ -751,7 +752,7 @@ COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin {{ GIT }}/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin 9b70d7679e86e6c216127d5a6a06ef5aa4f54793 \
+	&& git fetch --depth=1 origin 5098730b9eb6173f0b52068fe2555b7c1015123a \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \

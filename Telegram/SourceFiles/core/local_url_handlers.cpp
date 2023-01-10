@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "payments/payments_checkout_process.h"
 #include "settings/settings_common.h"
+#include "settings/settings_information.h"
 #include "settings/settings_global_ttl.h"
 #include "settings/settings_folders.h"
 #include "settings/settings_main.h"
@@ -48,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_chat.h"
 #include "settings/settings_premium.h"
 #include "mainwidget.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "inline_bots/bot_attach_web_view.h"
@@ -488,6 +490,8 @@ bool ResolveSettings(
 			return ::Settings::ChangePhone::Id();
 		} else if (section == u"auto_delete"_q) {
 			return ::Settings::GlobalTTLId();
+		} else if (section == u"information"_q) {
+			return ::Settings::Information::Id();
 		}
 		return ::Settings::Main::Id();
 	}();
@@ -789,6 +793,25 @@ bool ResolvePremiumOffer(
 	return true;
 }
 
+bool ResolveLoginCode(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	const auto loginCode = match->captured(2);
+	if (loginCode.isEmpty()) {
+		return false;
+	};
+	(controller
+		? controller->session().account()
+		: Core::App().activeAccount()).handleLoginCode(loginCode);
+	if (controller) {
+		controller->window().activate();
+	} else if (const auto window = Core::App().activeWindow()) {
+		window->activate();
+	}
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -846,7 +869,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolvePrivatePost
 		},
 		{
-			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number|/auto_delete)?$"_q,
+			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number|/auto_delete|/information|/edit_profile)?$"_q,
 			ResolveSettings
 		},
 		{
@@ -860,6 +883,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"premium_offer/?(\\?.+)?(#|$)"_q,
 			ResolvePremiumOffer,
+		},
+		{
+			u"^login/?(\\?code=([0-9]+))(&|$)"_q,
+			ResolveLoginCode
 		},
 		{
 			u"^([^\\?]+)(\\?|#|$)"_q,

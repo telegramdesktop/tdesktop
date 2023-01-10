@@ -84,10 +84,17 @@ introCoverDuration: 200;
 
 introNextButton: RoundButton(defaultActiveButton) {
 	width: 300px;
-	height: 56px;
-
-	textTop: 17px;
-	font: font(17px semibold);
+	height: 42px;
+	radius: 6px;
+	textTop: 11px;
+	font: font(boxFontSize semibold);
+}
+introFragmentIcon: icon{{ "fragment", activeButtonFg }};
+introFragmentIconOver: icon{{ "fragment", activeButtonFgOver }};
+introFragmentButton: RoundButton(introNextButton) {
+	icon: introFragmentIcon;
+	iconOver: introFragmentIconOver;
+	iconPosition: point(-10px, 9px);
 }
 
 introStepFieldTop: 96px;

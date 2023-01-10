@@ -325,6 +325,11 @@ infoTopicCover: InfoProfileCover(infoProfileMegagroupCover) {
 	statusLeft: 79px;
 	statusTop: 38px;
 }
+infoEditContactCover: InfoProfileCover(infoProfileCover) {
+	nameTop: 33px;
+	statusTop: 57px;
+}
+infoEditContactPersonalLeft: 6px;
 
 infoProfileInaccessibleUserpic: icon {{ "info/inaccessible_userpic", historyPeerUserpicFg }};
 
@@ -384,6 +389,7 @@ infoRoundedIconInviteLinks: icon {{ "info/edit/group_manage_links", settingsIcon
 infoRoundedIconReactions: icon {{ "info/edit/group_manage_reactions", settingsIconFg }};
 infoRoundedIconSignature: icon {{ "info/edit/channel_manage_signature", settingsIconFg }};
 infoRoundedIconAntiSpam: icon {{ "info/edit/antispam", settingsIconFg }};
+infoRoundedIconHideMembers: icon {{ "info/edit/hidden_members", settingsIconFg }};
 
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};

@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/reactions/history_view_reactions_strip.h"
 #include "lang/lang_keys.h"
@@ -447,7 +447,7 @@ void AddReactionCustomIcon(
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = Data::FrameSizeFromTag(tag) / ratio;
 		state->custom->paint(p, {
-			.preview = st::windowBgRipple->c,
+			.textColor = st::windowFg->c,
 			.now = crl::now(),
 			.position = QPoint(
 				(widget->width() - size) / 2,

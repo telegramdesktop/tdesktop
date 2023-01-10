@@ -8,14 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/tooltip.h"
-#include "ui/effects/animations.h"
-#include "ui/effects/cross_line.h"
 #include "ui/userpic_view.h"
-#include "styles/style_window.h"
-#include "styles/style_widgets.h"
 
 class PeerData;
+
+namespace Data {
+class PhotoMedia;
+} // namespace Data
 
 namespace Window {
 class Controller;
@@ -31,52 +30,36 @@ struct Information;
 } // namespace Streaming
 } // namespace Media
 
+namespace style {
+struct UserpicButton;
+} // namespace style
+
+namespace Ui::Menu {
+class ItemBase;
+} // namespace Ui::Menu
+
 namespace Ui {
 
 class PopupMenu;
 
-class HistoryDownButton : public RippleButton {
-public:
-	HistoryDownButton(QWidget *parent, const style::TwoIconButton &st);
-
-	void setUnreadCount(int unreadCount);
-	int unreadCount() const {
-		return _unreadCount;
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-private:
-	const style::TwoIconButton &_st;
-
-	int _unreadCount = 0;
-
-};
-
-class UserpicButton : public RippleButton {
+class UserpicButton final : public RippleButton {
 public:
 	enum class Role {
 		ChoosePhoto,
 		ChangePhoto,
 		OpenPhoto,
-		OpenProfile,
+		Custom,
+	};
+	enum class Source {
+		PeerPhoto,
+		NonPersonalPhoto,
+		NonPersonalIfHasPersonal,
 		Custom,
 	};
 
 	UserpicButton(
 		QWidget *parent,
 		not_null<::Window::Controller*> window,
-		not_null<PeerData*> peer,
-		Role role,
-		const style::UserpicButton &st);
-	UserpicButton(
-		QWidget *parent,
-		not_null<::Window::Controller*> window,
-		const QString &cropTitle,
 		Role role,
 		const style::UserpicButton &st);
 	UserpicButton(
@@ -84,31 +67,43 @@ public:
 		not_null<::Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		Role role,
+		Source source,
 		const style::UserpicButton &st);
 	UserpicButton(
 		QWidget *parent,
-		not_null<PeerData*> peer,
-		Role role,
+		not_null<PeerData*> peer, // Role::Custom, Source::PeerPhoto
 		const style::UserpicButton &st);
+	~UserpicButton();
 
-	void switchChangePhotoOverlay(bool enabled);
+	enum class ChosenType {
+		Set,
+		Suggest,
+	};
+	struct ChosenImage {
+		QImage image;
+		ChosenType type = ChosenType::Set;
+	};
+
+	// Role::OpenPhoto
+	void switchChangePhotoOverlay(
+		bool enabled,
+		Fn<void(ChosenImage)> chosen);
 	void showSavedMessagesOnSelf(bool enabled);
 
-	// Role::ChoosePhoto
-	[[nodiscard]] rpl::producer<QImage> chosenImages() const {
+	// Role::ChoosePhoto or Role::ChangePhoto
+	[[nodiscard]] rpl::producer<ChosenImage> chosenImages() const {
 		return _chosenImages.events();
-	}
-
-	// Role::ChangePhoto
-	[[nodiscard]] rpl::producer<> uploadPhotoRequests() const {
-		return _uploadPhotoRequests.events();
 	}
 	[[nodiscard]] QImage takeResultImage() {
 		return std::move(_result);
 	}
 
-	// For Role::OpenPhoto as if it is Role::ChangePhoto.
-	void changeTo(QImage &&image);
+	void showCustom(QImage &&image);
+	void showSource(Source source);
+	void showCustomOnChosen();
+
+	void overrideHasPersonalPhoto(bool has);
+	[[nodiscard]] rpl::producer<> resetPersonalRequests() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -122,7 +117,6 @@ protected:
 
 private:
 	void prepare();
-	void setImage(QImage &&image);
 	void setupPeerViewers();
 	void startAnimation();
 	void processPeerPhoto();
@@ -148,23 +142,26 @@ private:
 
 	void grabOldUserpic();
 	void setClickHandlerByRole();
+	void requestSuggestAvailability();
 	void openPeerPhoto();
 	void choosePhotoLocally();
-	void changePhotoLocally(bool requestToUpload = false);
+	[[nodiscard]] bool canSuggestPhoto(not_null<UserData*> user) const;
+	[[nodiscard]] bool hasPersonalPhotoLocally() const;
+	[[nodiscard]] auto makeResetToOriginalAction()
+		-> base::unique_qptr<Menu::ItemBase>;
 
 	const style::UserpicButton &_st;
 	::Window::SessionController *_controller = nullptr;
 	::Window::Controller *_window = nullptr;
 	PeerData *_peer = nullptr;
 	PeerUserpicView _userpicView;
-	QString _cropTitle;
+	std::shared_ptr<Data::PhotoMedia> _nonPersonalView;
 	Role _role = Role::ChangePhoto;
 	bool _notShownYet = true;
 	bool _waiting = false;
 	QPixmap _userpic, _oldUserpic;
 	bool _userpicHasImage = false;
-	bool _userpicCustom = false;
-	bool _requestToUpload = false;
+	bool _showPeerUserpic = false;
 	InMemoryKey _userpicUniqueKey;
 	Animations::Simple _a_appearance;
 	QImage _result;
@@ -181,43 +178,22 @@ private:
 	bool _changeOverlayEnabled = false;
 	Animations::Simple _changeOverlayShown;
 
-	rpl::event_stream<QImage> _chosenImages;
-	rpl::event_stream<> _uploadPhotoRequests;
+	rpl::event_stream<ChosenImage> _chosenImages;
+
+	Source _source = Source::Custom;
+	std::optional<bool> _overrideHasPersonalPhoto;
+	rpl::event_stream<> _resetPersonalRequests;
+	rpl::lifetime _sourceLifetime;
 
 };
 
-class SilentToggle final
-	: public RippleButton
-	, public AbstractTooltipShower {
-public:
-	SilentToggle(QWidget *parent, not_null<ChannelData*> channel);
+[[nodiscard]] not_null<Ui::UserpicButton*> CreateUploadSubButton(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Window::SessionController*> controller);
 
-	void setChecked(bool checked);
-	bool checked() const {
-		return _checked;
-	}
-
-	// AbstractTooltipShower interface
-	QString tooltipText() const override;
-	QPoint tooltipPos() const override;
-	bool tooltipWindowActive() const override;
-
-protected:
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-private:
-	const style::IconButton &_st;
-
-	not_null<ChannelData*> _channel;
-	bool _checked = false;
-
-	Animations::Simple _crossLineAnimation;
-
-};
+[[nodiscard]] not_null<Ui::UserpicButton*> CreateUploadSubButton(
+	not_null<Ui::RpWidget*> parent,
+	not_null<UserData*> contact,
+	not_null<Window::SessionController*> controller);
 
 } // namespace Ui

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/controls/download_bar.h"
+#include "ui/controls/jump_down_button.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
@@ -1465,6 +1466,16 @@ void Widget::showMainMenu() {
 void Widget::searchMessages(
 		const QString &query,
 		Key inChat) {
+	if (_childList) {
+		const auto forum = controller()->shownForum().current();
+		const auto topic = inChat.topic();
+		if ((forum && forum->channel() == inChat.peer())
+			|| (topic && topic->forum() == forum)) {
+			_childList->searchMessages(query, inChat);
+			return;
+		}
+		hideChildList();
+	}
 	const auto inChatChanged = [&] {
 		const auto inPeer = inChat.peer();
 		const auto inTopic = inChat.topic();
@@ -1481,12 +1492,12 @@ void Widget::searchMessages(
 		}
 		return true;
 	}();
-	if ((_filter->getLastText() != query) || inChatChanged) {
+	if ((currentSearchQuery() != query) || inChatChanged) {
 		if (inChat) {
 			cancelSearch();
 			setSearchInChat(inChat);
 		}
-		_filter->setText(query);
+		setSearchQuery(query);
 		applyFilterUpdate(true);
 		_searchTimer.cancel();
 		searchMessages();
@@ -2149,13 +2160,13 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 		}
 	}
 	_searchInMigrated = nullptr;
-	if (peer) {
-		if (const auto migrateTo = peer->migrateTo()) {
+	if (peer && !forum) {
+		if (_layout != Layout::Main) {
+			return false;
+		} else if (const auto migrateTo = peer->migrateTo()) {
 			return setSearchInChat(peer->owner().history(migrateTo), from);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
-			if (!forum) {
-				_searchInMigrated = peer->owner().history(migrateFrom);
-			}
+			_searchInMigrated = peer->owner().history(migrateFrom);
 		}
 	}
 	if (searchInPeerUpdated) {
@@ -2566,6 +2577,14 @@ void Widget::clearSearchField() {
 		_subsectionTopBar->searchClear();
 	} else {
 		_filter->clear();
+	}
+}
+
+void Widget::setSearchQuery(const QString &query) {
+	if (_subsectionTopBar) {
+		_subsectionTopBar->searchSetText(query);
+	} else {
+		_filter->setText(query);
 	}
 }
 

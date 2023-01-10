@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/chat/attach/attach_bot_webview.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_item_base.h"
@@ -41,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
+#include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
 
 #include <QSvgRenderer>
@@ -121,6 +123,7 @@ struct ParsedBot {
 				.types = ResolvePeerTypes(data.vpeer_types().v),
 				.inactive = data.is_inactive(),
 				.hasSettings = data.is_has_settings(),
+				.requestWriteAccess = data.is_request_write_access(),
 			} : std::optional<AttachWebViewBot>();
 	});
 	if (result && result->icon) {
@@ -490,7 +493,11 @@ void AttachWebView::request(const WebViewButton &button) {
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
 		result.match([&](const MTPDwebViewResultUrl &data) {
-			show(data.vquery_id().v, qs(data.vurl()), button.text);
+			show(
+				data.vquery_id().v,
+				qs(data.vurl()),
+				button.text,
+				button.fromMenu);
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
@@ -632,7 +639,7 @@ void AttachWebView::requestAddToMenu(
 }
 
 void AttachWebView::removeFromMenu(not_null<UserData*> bot) {
-	toggleInMenu(bot, false, [=] {
+	toggleInMenu(bot, ToggledState::Removed, [=] {
 		Ui::ShowMultilineToast({
 			.text = { tr::lng_bot_remove_from_menu_done(tr::now) },
 		});
@@ -792,7 +799,8 @@ void AttachWebView::ClearAll() {
 void AttachWebView::show(
 		uint64 queryId,
 		const QString &url,
-		const QString &buttonText) {
+		const QString &buttonText,
+		bool fromMenu) {
 	Expects(_bot != nullptr && _action.has_value());
 
 	const auto close = crl::guard(this, [=] {
@@ -916,6 +924,7 @@ void AttachWebView::show(
 		.menuButtons = buttons,
 		.handleMenuButton = handleMenuButton,
 		.themeParams = [] { return Window::Theme::WebViewParams(); },
+		.allowClipboardRead = fromMenu,
 	});
 	*panel = _panel.get();
 	started(queryId);
@@ -959,38 +968,66 @@ void AttachWebView::started(uint64 queryId) {
 void AttachWebView::confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback) {
-	const auto done = [=](Fn<void()> close) {
-		toggleInMenu(bot.user, true, [=] {
-			if (callback) {
-				callback();
-			}
-			Ui::ShowMultilineToast({
-				.text = { tr::lng_bot_add_to_menu_done(tr::now) },
-			});
-		});
-		close();
-	};
 	const auto active = Core::App().activeWindow();
 	if (!active) {
 		return;
 	}
-	_confirmAddBox = active->show(Ui::MakeConfirmBox({
-		tr::lng_bot_add_to_menu(
-			tr::now,
-			lt_bot,
-			Ui::Text::Bold(bot.name),
-			Ui::Text::WithEntities),
-		done,
+	_confirmAddBox = active->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto allowed = std::make_shared<Ui::Checkbox*>();
+		const auto done = [=](Fn<void()> close) {
+			const auto state = ((*allowed) && (*allowed)->checked())
+				? ToggledState::AllowedToWrite
+				: ToggledState::Added;
+			toggleInMenu(bot.user, state, [=] {
+				if (callback) {
+					callback();
+				}
+				Ui::ShowMultilineToast({
+					.text = { tr::lng_bot_add_to_menu_done(tr::now) },
+				});
+			});
+			close();
+		};
+		Ui::ConfirmBox(box, {
+			tr::lng_bot_add_to_menu(
+				tr::now,
+				lt_bot,
+				Ui::Text::Bold(bot.name),
+				Ui::Text::WithEntities),
+			done,
+		});
+		if (bot.requestWriteAccess) {
+			(*allowed) = box->addRow(
+				object_ptr<Ui::Checkbox>(
+					box,
+					tr::lng_url_auth_allow_messages(
+						tr::now,
+						lt_bot,
+						Ui::Text::Bold(bot.name),
+						Ui::Text::WithEntities),
+					true,
+					st::urlAuthCheckbox),
+				style::margins(
+					st::boxRowPadding.left(),
+					st::boxPhotoCaptionSkip,
+					st::boxRowPadding.right(),
+					st::boxPhotoCaptionSkip));
+			(*allowed)->setAllowTextLines();
+		}
 	}));
 }
 
 void AttachWebView::toggleInMenu(
 		not_null<UserData*> bot,
-		bool enabled,
+		ToggledState state,
 		Fn<void()> callback) {
+	using Flag = MTPmessages_ToggleBotInAttachMenu::Flag;
 	_session->api().request(MTPmessages_ToggleBotInAttachMenu(
+		MTP_flags((state == ToggledState::AllowedToWrite)
+			? Flag::f_write_allowed
+			: Flag()),
 		bot->inputUser,
-		MTP_bool(enabled)
+		MTP_bool(state != ToggledState::Removed)
 	)).done([=] {
 		_requestId = 0;
 		requestBots();
@@ -1022,11 +1059,18 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		if (!PeerMatchesTypes(peer, bot.user, bot.types)) {
 			continue;
 		}
+		const auto callback = [=] {
+			bots->request(
+				nullptr,
+				actionFactory(),
+				bot.user,
+				{ .fromMenu = true });
+		};
 		auto action = base::make_unique_q<BotAction>(
 			raw,
 			raw->menu()->st(),
 			bot,
-			[=] { bots->request(nullptr, actionFactory(), bot.user, {}); });
+			callback);
 		action->forceShown(
 		) | rpl::start_with_next([=](bool shown) {
 			if (shown) {

@@ -20,9 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
-#include "ui/special_buttons.h"
+#include "ui/unread_badge_paint.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -35,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_changes.h"
 #include "data/data_premium_limits.h"
-#include "dialogs/ui/dialogs_layout.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_badge.h"
 #include "lang/lang_keys.h"
@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_window.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -232,54 +233,6 @@ private:
 	};
 }
 
-[[nodiscard]] not_null<Ui::UserpicButton*> CreateUploadButton(
-		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller) {
-	const auto background = Ui::CreateChild<Ui::RpWidget>(parent.get());
-	const auto upload = Ui::CreateChild<Ui::UserpicButton>(
-		parent.get(),
-		&controller->window(),
-		tr::lng_settings_crop_profile(tr::now),
-		Ui::UserpicButton::Role::ChoosePhoto,
-		st::settingsInfoUpload);
-
-	const auto border = st::settingsInfoUploadBorder;
-	const auto size = upload->rect().marginsAdded(
-		{ border, border, border, border }
-	).size();
-
-	background->resize(size);
-	background->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(background);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setBrush(st::boxBg);
-		p.setPen(Qt::NoPen);
-		p.drawEllipse(background->rect());
-	}, background->lifetime());
-
-	upload->positionValue(
-	) | rpl::start_with_next([=](QPoint position) {
-		background->move(position - QPoint(border, border));
-	}, background->lifetime());
-
-	return upload;
-}
-
-void UploadPhoto(not_null<UserData*> user, QImage image) {
-	auto bytes = QByteArray();
-	auto buffer = QBuffer(&bytes);
-	image.save(&buffer, "JPG", 87);
-	user->setUserpic(
-		base::RandomValue<PhotoId>(),
-		ImageLocation(
-			{ .data = InMemoryLocation{ .bytes = bytes } },
-			image.width(),
-			image.height()),
-		false);
-	user->session().api().peerPhoto().upload(user, std::move(image));
-}
-
 void SetupPhoto(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
@@ -292,13 +245,16 @@ void SetupPhoto(
 		controller,
 		self,
 		Ui::UserpicButton::Role::OpenPhoto,
+		Ui::UserpicButton::Source::PeerPhoto,
 		st::settingsInfoPhoto);
-	const auto upload = CreateUploadButton(wrap, controller);
+	const auto upload = CreateUploadSubButton(wrap, controller);
 
 	upload->chosenImages(
-	) | rpl::start_with_next([=](QImage &&image) {
-		UploadPhoto(self, image);
-		photo->changeTo(std::move(image));
+	) | rpl::start_with_next([=](Ui::UserpicButton::ChosenImage &&chosen) {
+		auto &image = chosen.image;
+		UpdatePhotoLocally(self, image);
+		photo->showCustom(base::duplicate(image));
+		self->session().api().peerPhoto().upload(self, std::move(image));
 	}, upload->lifetime());
 
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
@@ -976,13 +932,26 @@ AccountsEvents SetupAccounts(
 	};
 }
 
+void UpdatePhotoLocally(not_null<UserData*> user, const QImage &image) {
+	auto bytes = QByteArray();
+	auto buffer = QBuffer(&bytes);
+	image.save(&buffer, "JPG", 87);
+	user->setUserpic(
+		base::RandomValue<PhotoId>(),
+		ImageLocation(
+			{ .data = InMemoryLocation{ .bytes = bytes } },
+			image.width(),
+			image.height()),
+		false);
+}
+
 namespace Badge {
 
-Dialogs::Ui::UnreadBadgeStyle Style() {
-	auto result = Dialogs::Ui::UnreadBadgeStyle();
+Ui::UnreadBadgeStyle Style() {
+	auto result = Ui::UnreadBadgeStyle();
 	result.font = st::mainMenuBadgeFont;
 	result.size = st::mainMenuBadgeSize;
-	result.sizeId = Dialogs::Ui::UnreadBadgeSize::MainMenu;
+	result.sizeId = Ui::UnreadBadgeSize::MainMenu;
 	return result;
 }
 
@@ -1019,7 +988,7 @@ not_null<Ui::RpWidget*> CreateUnread(
 		}
 
 		Ui::RpWidget widget;
-		Dialogs::Ui::UnreadBadgeStyle st = Style();
+		Ui::UnreadBadgeStyle st = Style();
 		int count = 0;
 		QString string;
 	};
@@ -1035,7 +1004,7 @@ not_null<Ui::RpWidget*> CreateUnread(
 			return;
 		}
 		state->string = Lang::FormatCountToShort(state->count).string;
-		state->widget.resize(CountUnreadBadgeSize(state->string, state->st));
+		state->widget.resize(Ui::CountUnreadBadgeSize(state->string, state->st));
 		if (state->widget.isHidden()) {
 			state->widget.show();
 		}
@@ -1044,7 +1013,7 @@ not_null<Ui::RpWidget*> CreateUnread(
 	state->widget.paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = Painter(&state->widget);
-		Dialogs::Ui::PaintUnreadBadge(
+		Ui::PaintUnreadBadge(
 			p,
 			state->string,
 			state->widget.width(),

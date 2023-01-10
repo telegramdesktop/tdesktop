@@ -62,6 +62,18 @@ defaultUserpicButton: UserpicButton {
 	uploadIcon: defaultUploadUserpicIcon;
 	uploadIconPosition: point(-1px, 1px);
 }
+uploadUserpicSize: 32px;
+uploadUserpicButton: UserpicButton(defaultUserpicButton) {
+	size: size(uploadUserpicSize, uploadUserpicSize);
+	photoSize: uploadUserpicSize;
+	changeIcon: icon {{ "settings/photo", activeButtonFg }};
+	changeIconPosition: point(4px, 4px);
+}
+uploadUserpicButtonBorder: 2px;
+restoreUserpicIcon: UserpicButton(defaultUserpicButton) {
+	size: size(22px, 22px);
+	photoSize: 22px;
+}
 
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
@@ -279,6 +291,10 @@ membersAbout: FlatLabel(defaultFlatLabel) {
 	textFg: membersAboutLimitFg;
 	align: align(top);
 	style: boxLabelStyle;
+}
+
+fragmentBoxButton: RoundButton(introFragmentButton) {
+	width: 256px;
 }
 
 passcodeHeaderFont: font(19px);
@@ -565,9 +581,6 @@ colorResultInput: InputField(colorValueInput) {
 
 changePhoneButton: RoundButton(defaultActiveButton) {
 	width: 256px;
-	height: 42px;
-	textTop: 11px;
-	font: boxButtonFont;
 }
 changePhoneButtonPadding: margins(0px, 32px, 0px, 44px);
 changePhoneTitle: FlatLabel(boxTitle) {

@@ -34,7 +34,6 @@ namespace Ui {
 class ScrollArea;
 class PlainShadow;
 class FlatButton;
-class HistoryDownButton;
 class PinnedBar;
 struct PreparedList;
 class SendFilesWay;

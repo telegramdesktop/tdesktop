@@ -20,7 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
-#include "history/history_message.h" // NewMessageFlags.
+#include "history/history_item.h"
+#include "history/history_item_helpers.h" // NewMessageFlags.
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
 #include "ui/text/text_entity.h" // TextWithEntities.
@@ -444,13 +445,17 @@ void SendConfirmedFile(
 
 	const auto media = MTPMessageMedia([&] {
 		if (file->type == SendMediaType::Photo) {
+			using Flag = MTPDmessageMediaPhoto::Flag;
 			return MTP_messageMediaPhoto(
-				MTP_flags(MTPDmessageMediaPhoto::Flag::f_photo),
+				MTP_flags(Flag::f_photo
+					| (file->spoiler ? Flag::f_spoiler : Flag())),
 				file->photo,
 				MTPint());
 		} else if (file->type == SendMediaType::File) {
+			using Flag = MTPDmessageMediaDocument::Flag;
 			return MTP_messageMediaDocument(
-				MTP_flags(MTPDmessageMediaDocument::Flag::f_document),
+				MTP_flags(Flag::f_document
+					| (file->spoiler ? Flag::f_spoiler : Flag())),
 				file->document,
 				MTPint());
 		} else if (file->type == SendMediaType::Audio) {

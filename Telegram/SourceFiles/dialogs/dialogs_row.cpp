@@ -252,6 +252,10 @@ Row::Row(Key key, int index, int top) : _id(key), _top(top), _index(index) {
 	}
 }
 
+Row::~Row() {
+	clearTopicJumpRipple();
+}
+
 void Row::recountHeight(float64 narrowRatio) {
 	if (const auto history = _id.history()) {
 		_height = history->isForum()
@@ -487,6 +491,11 @@ void Row::stopLastRipple() {
 	}
 }
 
+void Row::clearRipple() {
+	BasicRow::clearRipple();
+	clearTopicJumpRipple();
+}
+
 void Row::addTopicJumpRipple(
 		QPoint origin,
 		not_null<Ui::TopicJumpCache*> topicJumpCache,
@@ -503,10 +512,15 @@ void Row::addTopicJumpRipple(
 }
 
 void Row::clearTopicJumpRipple() {
-	if (_topicJumpRipple) {
-		clearRipple();
-		_topicJumpRipple = 0;
+	if (!_topicJumpRipple) {
+		return;
 	}
+	const auto history = this->history();
+	const auto view = history ? &history->lastItemDialogsView() : nullptr;
+	if (view) {
+		view->clearRipple();
+	}
+	_topicJumpRipple = 0;
 }
 
 bool Row::topicJumpRipple() const {

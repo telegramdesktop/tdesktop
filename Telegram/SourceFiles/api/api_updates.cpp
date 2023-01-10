@@ -1515,7 +1515,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			// Request last active supergroup participants if the 'from' user was not loaded yet.
 			// This will optimize similar getDifference() calls for almost all next messages.
 			if (isDataLoaded == DataIsLoadedResult::FromNotLoaded && channel && channel->isMegagroup()) {
-				if (channel->mgInfo->lastParticipants.size() < _session->serverConfig().chatSizeMax
+				if (channel->canViewMembers()
+					&& channel->mgInfo->lastParticipants.size() < _session->serverConfig().chatSizeMax
 					&& (channel->mgInfo->lastParticipants.empty()
 						|| channel->mgInfo->lastParticipants.size() < channel->membersCount())) {
 					session().api().chatParticipants().requestLast(channel);
@@ -1899,26 +1900,12 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
-	case mtpc_updateUserPhoto: {
-		auto &d = update.c_updateUserPhoto();
-		if (auto user = session().data().userLoaded(d.vuser_id())) {
-			user->setPhoto(d.vphoto());
-			user->loadUserpic();
-			// After that update we don't have enough information to
-			// create a 'photo' with all necessary fields. So if
-			// we receive second such update we end up with a 'photo_id'
-			// in user_photos list without a loaded 'photo'.
-			// It fails to show in media overview if you try to open it.
-			//
-			//if (mtpIsTrue(d.vprevious()) || !user->userpicPhotoId()) {
-				session().storage().remove(Storage::UserPhotosRemoveAfter(
-					peerToUser(user->id),
-					user->userpicPhotoId()));
-			//} else {
-			//	session().storage().add(Storage::UserPhotosAddNew(
-			//		peerToUser(user->id),
-			//		user->userpicPhotoId()));
-			//}
+	case mtpc_updateUser: {
+		auto &d = update.c_updateUser();
+		if (const auto user = session().data().userLoaded(d.vuser_id())) {
+			if (user->wasFullUpdated()) {
+				user->updateFullForced();
+			}
 		}
 	} break;
 

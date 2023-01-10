@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/rp_window.h"
 #include "ui/chat/group_call_bar.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -35,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/round_rect.h"
-#include "ui/special_buttons.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -1244,7 +1244,6 @@ void Panel::refreshTopButton() {
 			auto joinAsToggle = object_ptr<Ui::UserpicButton>(
 				widget(),
 				joinAs,
-				Ui::UserpicButton::Role::Custom,
 				st::groupCallJoinAsToggle);
 			_joinAsToggle.destroy();
 			_joinAsToggle = std::move(joinAsToggle);

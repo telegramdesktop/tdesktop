@@ -184,6 +184,8 @@ PRIVATE
     boxes/peers/edit_forum_topic_box.h
     boxes/peers/edit_linked_chat_box.cpp
     boxes/peers/edit_linked_chat_box.h
+    boxes/peers/edit_members_visible.cpp
+    boxes/peers/edit_members_visible.h
     boxes/peers/edit_participant_box.cpp
     boxes/peers/edit_participant_box.h
     boxes/peers/edit_participants_box.cpp
@@ -703,14 +705,18 @@ PRIVATE
     history/view/media/history_view_media_common.h
     history/view/media/history_view_media_grouped.cpp
     history/view/media/history_view_media_grouped.h
+    history/view/media/history_view_media_spoiler.cpp
+    history/view/media/history_view_media_spoiler.h
     history/view/media/history_view_media_unwrapped.cpp
     history/view/media/history_view_media_unwrapped.h
     history/view/media/history_view_photo.cpp
     history/view/media/history_view_photo.h
     history/view/media/history_view_poll.cpp
     history/view/media/history_view_poll.h
-    history/view/media/history_view_service_media_gift.cpp
-    history/view/media/history_view_service_media_gift.h
+    history/view/media/history_view_premium_gift.cpp
+    history/view/media/history_view_premium_gift.h
+    history/view/media/history_view_service_box.cpp
+    history/view/media/history_view_service_box.h
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_slot_machine.h
     history/view/media/history_view_sticker.cpp
@@ -720,6 +726,8 @@ PRIVATE
     history/view/media/history_view_sticker_player_abstract.h
     history/view/media/history_view_theme_document.cpp
     history/view/media/history_view_theme_document.h
+    history/view/media/history_view_userpic_suggestion.cpp
+    history/view/media/history_view_userpic_suggestion.h
     history/view/media/history_view_web_page.cpp
     history/view/media/history_view_web_page.h
     history/view/reactions/history_view_reactions.cpp
@@ -800,6 +808,8 @@ PRIVATE
     history/history_item_components.h
     history/history_item_edition.cpp
     history/history_item_edition.h
+    history/history_item_helpers.cpp
+    history/history_item_helpers.h
     history/history_item_reply_markup.cpp
     history/history_item_reply_markup.h
     history/history_item_text.cpp
@@ -808,10 +818,6 @@ PRIVATE
     history/history_inner_widget.h
     history/history_location_manager.cpp
     history/history_location_manager.h
-    history/history_message.cpp
-    history/history_message.h
-    history/history_service.cpp
-    history/history_service.h
     history/history_unread_things.cpp
     history/history_unread_things.h
     history/history_view_highlight_manager.cpp
@@ -879,6 +885,8 @@ PRIVATE
     info/profile/info_profile_members.h
     info/profile/info_profile_members_controllers.cpp
     info/profile/info_profile_members_controllers.h
+    info/profile/info_profile_phone_menu.cpp
+    info/profile/info_profile_phone_menu.h
     info/profile/info_profile_text.cpp
     info/profile/info_profile_text.h
     info/profile/info_profile_values.cpp
@@ -1290,6 +1298,10 @@ PRIVATE
     ui/chat/choose_send_as.h
     ui/chat/choose_theme_controller.cpp
     ui/chat/choose_theme_controller.h
+    ui/controls/silent_toggle.cpp
+    ui/controls/silent_toggle.h
+    ui/controls/userpic_button.cpp
+    ui/controls/userpic_button.h
     ui/effects/emoji_fly_animation.cpp
     ui/effects/emoji_fly_animation.h
     ui/effects/message_sending_animation_common.h
@@ -1318,8 +1330,6 @@ PRIVATE
     ui/resize_area.h
     ui/search_field_controller.cpp
     ui/search_field_controller.h
-    ui/special_buttons.cpp
-    ui/special_buttons.h
     ui/text/format_song_document_name.cpp
     ui/text/format_song_document_name.h
     ui/unread_badge.cpp

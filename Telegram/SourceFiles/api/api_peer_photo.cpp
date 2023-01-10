@@ -13,10 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_user_photos.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "storage/file_upload.h"
@@ -112,7 +114,54 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 	});
 }
 
-void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
+void PeerPhoto::upload(
+		not_null<PeerData*> peer,
+		QImage &&image,
+		Fn<void()> done) {
+	upload(peer, std::move(image), UploadType::Default, std::move(done));
+}
+
+void PeerPhoto::uploadFallback(not_null<PeerData*> peer, QImage &&image) {
+	upload(peer, std::move(image), UploadType::Fallback, nullptr);
+}
+
+void PeerPhoto::updateSelf(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin,
+		Fn<void()> done) {
+	const auto send = [=](auto resend) -> void {
+		const auto usedFileReference = photo->fileReference();
+		_api.request(MTPphotos_UpdateProfilePhoto(
+			MTP_flags(0),
+			photo->mtpInput()
+		)).done([=](const MTPphotos_Photo &result) {
+			result.match([&](const MTPDphotos_photo &data) {
+				_session->data().processPhoto(data.vphoto());
+				_session->data().processUsers(data.vusers());
+			});
+			if (done) {
+				done();
+			}
+		}).fail([=](const MTP::Error &error) {
+			if (error.code() == 400
+				&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
+				photo->session().api().refreshFileReference(origin, [=](
+						const auto &) {
+					if (photo->fileReference() != usedFileReference) {
+						resend(resend);
+					}
+				});
+			}
+		}).send();
+	};
+	send(send);
+}
+
+void PeerPhoto::upload(
+		not_null<PeerData*> peer,
+		QImage &&image,
+		UploadType type,
+		Fn<void()> done) {
 	peer = peer->migrateToOrMe();
 	const auto ready = PreparePeerPhoto(
 		_api.instance().mainDcId(),
@@ -125,19 +174,26 @@ void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
 	const auto already = ranges::find(
 		_uploads,
 		peer,
-		[](const auto &pair) { return pair.second; });
+		[](const auto &pair) { return pair.second.peer; });
 	if (already != end(_uploads)) {
 		_session->uploader().cancel(already->first);
 		_uploads.erase(already);
 	}
-	_uploads.emplace(fakeId, peer);
+	_uploads.emplace(
+		fakeId,
+		UploadValue{ peer, type, std::move(done) });
 	_session->uploader().uploadMedia(fakeId, ready);
+}
+
+void PeerPhoto::suggest(not_null<PeerData*> peer, QImage &&image) {
+	upload(peer, std::move(image), UploadType::Suggestion, nullptr);
 }
 
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
 	const auto self = _session->user();
 	if (self->userpicPhotoId() == photo->id) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
+			MTP_flags(0),
 			MTP_inputPhotoEmpty()
 		)).done([=](const MTPphotos_Photo &result) {
 			self->setPhoto(MTP_userProfilePhotoEmpty());
@@ -158,12 +214,44 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 			)).done(applier).send();
 		}
 	} else {
-		_api.request(MTPphotos_DeletePhotos(
-			MTP_vector<MTPInputPhoto>(1, photo->mtpInput())
-		)).send();
+		const auto fallbackPhotoId = SyncUserFallbackPhotoViewer(self);
+		if (fallbackPhotoId && (*fallbackPhotoId) == photo->id) {
+			_api.request(MTPphotos_UpdateProfilePhoto(
+				MTP_flags(MTPphotos_UpdateProfilePhoto::Flag::f_fallback),
+				MTP_inputPhotoEmpty()
+			)).send();
+			_session->storage().add(Storage::UserPhotosSetBack(
+				peerToUser(self->id),
+				PhotoId()));
+		} else {
+			_api.request(MTPphotos_DeletePhotos(
+				MTP_vector<MTPInputPhoto>(1, photo->mtpInput())
+			)).send();
+			_session->storage().remove(Storage::UserPhotosRemoveOne(
+				peerToUser(self->id),
+				photo->id));
+		}
+	}
+}
+
+void PeerPhoto::clearPersonal(not_null<UserData*> user) {
+	_api.request(MTPphotos_UploadContactProfilePhoto(
+		MTP_flags(MTPphotos_UploadContactProfilePhoto::Flag::f_save),
+		user->inputUser,
+		MTPInputFile(),
+		MTPInputFile(), // video
+		MTPdouble() // video_start_ts
+	)).done([=](const MTPphotos_Photo &result) {
+		result.match([&](const MTPDphotos_photo &data) {
+			_session->data().processPhoto(data.vphoto());
+			_session->data().processUsers(data.vusers());
+		});
+	}).send();
+
+	if (!user->userpicPhotoUnknown() && user->hasPersonalPhoto()) {
 		_session->storage().remove(Storage::UserPhotosRemoveOne(
-			peerToUser(self->id),
-			photo->id));
+			peerToUser(user->id),
+			user->userpicPhotoId()));
 	}
 }
 
@@ -173,6 +261,7 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 	}
 	if (peer == _session->user()) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
+			MTP_flags(0),
 			photo->mtpInput()
 		)).done([=](const MTPphotos_Photo &result) {
 			result.match([&](const MTPDphotos_photo &data) {
@@ -199,25 +288,40 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 }
 
 void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
-	const auto maybePeer = _uploads.take(msgId);
-	if (!maybePeer) {
+	const auto maybeUploadValue = _uploads.take(msgId);
+	if (!maybeUploadValue) {
 		return;
 	}
-	const auto peer = *maybePeer;
+	const auto peer = maybeUploadValue->peer;
+	const auto type = maybeUploadValue->type;
+	const auto done = maybeUploadValue->done;
 	const auto applier = [=](const MTPUpdates &result) {
 		_session->updates().applyUpdates(result);
+		if (done) {
+			done();
+		}
 	};
 	if (peer->isSelf()) {
 		_api.request(MTPphotos_UploadProfilePhoto(
-			MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file),
+			MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file
+				| ((type == UploadType::Fallback)
+					? MTPphotos_UploadProfilePhoto::Flag::f_fallback
+					: MTPphotos_UploadProfilePhoto::Flags(0))),
 			file,
 			MTPInputFile(), // video
 			MTPdouble() // video_start_ts
 		)).done([=](const MTPphotos_Photo &result) {
-			result.match([&](const MTPDphotos_photo &data) {
-				_session->data().processPhoto(data.vphoto());
-				_session->data().processUsers(data.vusers());
-			});
+			const auto photoId = _session->data().processPhoto(
+				result.data().vphoto())->id;
+			_session->data().processUsers(result.data().vusers());
+			if (type == UploadType::Fallback) {
+				_session->storage().add(Storage::UserPhotosSetBack(
+					peerToUser(peer->id),
+					photoId));
+			}
+			if (done) {
+				done();
+			}
 		}).send();
 	} else if (const auto chat = peer->asChat()) {
 		const auto history = _session->data().history(chat);
@@ -239,6 +343,29 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 				MTPInputFile(), // video
 				MTPdouble()) // video_start_ts
 		)).done(applier).afterRequest(history->sendRequestId).send();
+	} else if (const auto user = peer->asUser()) {
+		using Flag = MTPphotos_UploadContactProfilePhoto::Flag;
+		_api.request(MTPphotos_UploadContactProfilePhoto(
+			MTP_flags(Flag::f_file
+				| ((type == UploadType::Suggestion)
+					? Flag::f_suggest
+					: Flag::f_save)),
+			user->inputUser,
+			file,
+			MTPInputFile(), // video
+			MTPdouble() // video_start_ts
+		)).done([=](const MTPphotos_Photo &result) {
+			result.match([&](const MTPDphotos_photo &data) {
+				_session->data().processPhoto(data.vphoto());
+				_session->data().processUsers(data.vusers());
+			});
+			if (type != UploadType::Suggestion) {
+				user->updateFullForced();
+			}
+			if (done) {
+				done();
+			}
+		}).send();
 	}
 }
 
@@ -257,26 +384,34 @@ void PeerPhoto::requestUserPhotos(
 	)).done([this, user](const MTPphotos_Photos &result) {
 		_userPhotosRequests.remove(user);
 
-		const auto fullCount = result.match([](const MTPDphotos_photos &d) {
+		auto fullCount = result.match([](const MTPDphotos_photos &d) {
 			return int(d.vphotos().v.size());
 		}, [](const MTPDphotos_photosSlice &d) {
 			return d.vcount().v;
 		});
 
+		auto &owner = _session->data();
 		auto photoIds = result.match([&](const auto &data) {
-			auto &owner = _session->data();
 			owner.processUsers(data.vusers());
 
 			auto photoIds = std::vector<PhotoId>();
 			photoIds.reserve(data.vphotos().v.size());
 
-			for (const auto &photo : data.vphotos().v) {
-				if (const auto photoData = owner.processPhoto(photo)) {
-					photoIds.push_back(photoData->id);
+			for (const auto &single : data.vphotos().v) {
+				const auto photo = owner.processPhoto(single);
+				if (!photo->isNull()) {
+					photoIds.push_back(photo->id);
 				}
 			}
 			return photoIds;
 		});
+		if (!user->userpicPhotoUnknown() && user->hasPersonalPhoto()) {
+			const auto photo = owner.photo(user->userpicPhotoId());
+			if (!photo->isNull()) {
+				++fullCount;
+				photoIds.insert(begin(photoIds), photo->id);
+			}
+		}
 
 		_session->storage().add(Storage::UserPhotosAddSlice(
 			peerToUser(user->id),
@@ -287,6 +422,23 @@ void PeerPhoto::requestUserPhotos(
 		_userPhotosRequests.remove(user);
 	}).send();
 	_userPhotosRequests.emplace(user, requestId);
+}
+
+// Non-personal photo in case a personal photo is set.
+void PeerPhoto::registerNonPersonalPhoto(
+		not_null<UserData*> user,
+		not_null<PhotoData*> photo) {
+	_nonPersonalPhotos.emplace_or_assign(user, photo);
+}
+
+void PeerPhoto::unregisterNonPersonalPhoto(not_null<UserData*> user) {
+	_nonPersonalPhotos.erase(user);
+}
+
+PhotoData *PeerPhoto::nonPersonalPhoto(
+		not_null<UserData*> user) const {
+	const auto i = _nonPersonalPhotos.find(user);
+	return (i != end(_nonPersonalPhotos)) ? i->second.get() : nullptr;
 }
 
 } // namespace Api

@@ -88,6 +88,7 @@ void StreamedFileDownloader::requestParts() {
 		&& _partsRequested < kRequestPartsCount) {
 		requestPart();
 	}
+	_reader->continueDownloaderFromMainThread();
 }
 
 void StreamedFileDownloader::requestPart() {

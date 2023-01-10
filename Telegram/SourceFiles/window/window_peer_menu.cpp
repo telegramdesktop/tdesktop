@@ -54,8 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
-#include "history/history_item.h"
-#include "history/history_message.h" // GetErrorTextForSending.
+#include "history/history_item_helpers.h" // GetErrorTextForSending.
 #include "history/view/history_view_context_menu.h"
 #include "window/window_adaptive.h" // Adaptive::isThreeColumn
 #include "window/window_session_controller.h"
@@ -165,31 +164,6 @@ void SetActionText(not_null<QAction*> action, rpl::producer<QString> &&text) {
 	) | rpl::start_with_next([=](const QString &actionText) {
 		action->setText(actionText);
 	}, *lifetime);
-}
-
-[[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread) {
-	return thread->chatListBadgesState().unread;
-}
-
-void MarkAsReadThread(not_null<Data::Thread*> thread) {
-	const auto readHistory = [&](not_null<History*> history) {
-		history->owner().histories().readInbox(history);
-	};
-	if (!IsUnreadThread(thread)) {
-		return;
-	} else if (const auto forum = thread->asForum()) {
-		forum->enumerateTopics([](
-			not_null<Data::ForumTopic*> topic) {
-			MarkAsReadThread(topic);
-		});
-	} else if (const auto history = thread->asHistory()) {
-		readHistory(history);
-		if (const auto migrated = history->migrateSibling()) {
-			readHistory(migrated);
-		}
-	} else if (const auto topic = thread->asTopic()) {
-		topic->readTillEnd();
-	}
 }
 
 void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
@@ -2429,6 +2403,31 @@ bool FillVideoChatMenu(
 			&st::menuIconStartStreamWith);
 	}
 	return has || manager;
+}
+
+bool IsUnreadThread(not_null<Data::Thread*> thread) {
+	return thread->chatListBadgesState().unread;
+}
+
+void MarkAsReadThread(not_null<Data::Thread*> thread) {
+	const auto readHistory = [&](not_null<History*> history) {
+		history->owner().histories().readInbox(history);
+	};
+	if (!IsUnreadThread(thread)) {
+		return;
+	} else if (const auto forum = thread->asForum()) {
+		forum->enumerateTopics([](
+			not_null<Data::ForumTopic*> topic) {
+			MarkAsReadThread(topic);
+		});
+	} else if (const auto history = thread->asHistory()) {
+		readHistory(history);
+		if (const auto migrated = history->migrateSibling()) {
+			readHistory(migrated);
+		}
+	} else if (const auto topic = thread->asTopic()) {
+		topic->readTillEnd();
+	}
 }
 
 /*Fn<void()> DeleteMyMessagesHandler(

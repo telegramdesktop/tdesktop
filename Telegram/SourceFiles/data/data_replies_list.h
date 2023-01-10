@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class History;
-class HistoryService;
 
 namespace Data {
 
@@ -123,7 +122,7 @@ private:
 	rpl::variable<std::optional<int>> _unreadCount;
 	MsgId _inboxReadTillId = 0;
 	MsgId _outboxReadTillId = 0;
-	HistoryService *_divider = nullptr;
+	HistoryItem *_divider = nullptr;
 	bool _dividerWithComments = false;
 	int _beforeId = 0;
 	int _afterId = 0;

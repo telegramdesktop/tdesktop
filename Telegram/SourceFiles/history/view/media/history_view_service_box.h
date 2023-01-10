@@ -8,12 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media.h"
-#include "history/view/media/history_view_media_unwrapped.h"
-#include "history/view/media/history_view_sticker.h"
-
-namespace Data {
-class MediaGiftBox;
-} // namespace Data
 
 namespace Ui {
 class RippleAnimation;
@@ -21,10 +15,36 @@ class RippleAnimation;
 
 namespace HistoryView {
 
-class MediaGift final : public Media {
+class ServiceBoxContent {
 public:
-	MediaGift(not_null<Element*> parent, not_null<Data::MediaGiftBox*> gift);
-	~MediaGift();
+	virtual ~ServiceBoxContent() = default;
+
+	[[nodiscard]] virtual int top() = 0;
+	[[nodiscard]] virtual QSize size() = 0;
+	[[nodiscard]] virtual QString title() = 0;
+	[[nodiscard]] virtual QString subtitle() = 0;
+	[[nodiscard]] virtual QString button() = 0;
+	virtual void draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &geometry) = 0;
+	[[nodiscard]] virtual ClickHandlerPtr createViewLink() = 0;
+
+	virtual void stickerClearLoopPlayed() = 0;
+	[[nodiscard]] virtual std::unique_ptr<StickerPlayer> stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) = 0;
+
+	[[nodiscard]] virtual bool hasHeavyPart() = 0;
+	virtual void unloadHeavyPart() = 0;
+};
+
+class ServiceBox final : public Media {
+public:
+	ServiceBox(
+		not_null<Element*> parent,
+		std::unique_ptr<ServiceBoxContent> content);
+	~ServiceBox();
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -53,14 +73,11 @@ public:
 	void unloadHeavyPart() override;
 
 private:
-	void ensureStickerCreated() const;
 	[[nodiscard]] QRect buttonRect() const;
-	[[nodiscard]] QRect stickerRect() const;
+	[[nodiscard]] QRect contentRect() const;
 
 	const not_null<Element*> _parent;
-	const not_null<Data::MediaGiftBox*> _gift;
-	const QSize &_size;
-	const QSize _innerSize;
+	const std::unique_ptr<ServiceBoxContent> _content;
 
 	struct Button {
 		void drawBg(QPainter &p) const;
@@ -77,10 +94,11 @@ private:
 		mutable QPoint lastPoint;
 	} _button;
 
+	const int _maxWidth = 0;
 	Ui::Text::String _title;
 	Ui::Text::String _subtitle;
-
-	mutable std::optional<Sticker> _sticker;
+	const QSize _size;
+	const QSize _innerSize;
 
 };
 

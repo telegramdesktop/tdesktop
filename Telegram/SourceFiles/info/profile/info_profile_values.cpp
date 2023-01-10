@@ -549,6 +549,20 @@ rpl::producer<int> FullReactionsCountValue(
 	}) | rpl::distinct_until_changed();
 }
 
+rpl::producer<bool> CanViewParticipantsValue(
+		not_null<ChannelData*> megagroup) {
+	if (megagroup->amCreator()) {
+		return rpl::single(true);
+	}
+	return rpl::combine(
+		megagroup->session().changes().peerFlagsValue(
+			megagroup,
+			UpdateFlag::Rights),
+		megagroup->flagsValue(),
+		[=] { return megagroup->canViewMembers(); }
+	) | rpl::distinct_until_changed();
+}
+
 template <typename Flag, typename Peer>
 rpl::producer<BadgeType> BadgeValueFromFlags(Peer peer) {
 	return rpl::combine(

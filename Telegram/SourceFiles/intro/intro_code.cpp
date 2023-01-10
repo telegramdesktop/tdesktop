@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "intro/intro_signup.h"
 #include "intro/intro_password_check.h"
+#include "core/file_utilities.h"
 #include "core/update_checker.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -99,8 +100,18 @@ CodeWidget::CodeWidget(
 
 	_code->setDigitsCountMax(getData()->codeLength);
 
-	setTitleText(rpl::single(Ui::FormatPhone(getData()->phone)));
 	updateDescText();
+	setTitleText(_isFragment.value(
+	) | rpl::map([=](bool isFragment) {
+		return !isFragment
+			? rpl::single(Ui::FormatPhone(getData()->phone))
+			: tr::lng_intro_fragment_title();
+	}) | rpl::flatten_latest());
+
+	account->setHandleLoginCode([=](const QString &code) {
+		_code->setText(code);
+		submitCode();
+	});
 }
 
 void CodeWidget::refreshLang() {
@@ -117,9 +128,18 @@ int CodeWidget::errorTop() const {
 
 void CodeWidget::updateDescText() {
 	const auto byTelegram = getData()->codeByTelegram;
+	const auto isFragment = !getData()->codeByFragmentUrl.isEmpty();
+	_isFragment = isFragment;
 	setDescriptionText(
-		(byTelegram ? tr::lng_code_from_telegram : tr::lng_code_desc)(
-			Ui::Text::RichLangValue));
+		isFragment
+			? tr::lng_intro_fragment_about(
+				lt_phone_number,
+				rpl::single(TextWithEntities{
+					.text = Ui::FormatPhone(getData()->phone)
+				}),
+				Ui::Text::RichLangValue)
+			: (byTelegram ? tr::lng_code_from_telegram : tr::lng_code_desc)(
+				Ui::Text::RichLangValue));
 	if (getData()->codeByTelegram) {
 		_noTelegramCode->show();
 		_callTimer.cancel();
@@ -204,6 +224,7 @@ void CodeWidget::activate() {
 
 void CodeWidget::finished() {
 	Step::finished();
+	account().setHandleLoginCode(nullptr);
 	_checkRequestTimer.cancel();
 	_callTimer.cancel();
 	apiClear();
@@ -300,7 +321,7 @@ void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 
 void CodeWidget::codeChanged() {
 	hideError();
-	submit();
+	submitCode();
 }
 
 void CodeWidget::sendCall() {
@@ -362,10 +383,18 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 }
 
 void CodeWidget::submit() {
+	if (getData()->codeByFragmentUrl.isEmpty()) {
+		submitCode();
+	} else {
+		File::OpenUrl(getData()->codeByFragmentUrl);
+	}
+}
+
+void CodeWidget::submitCode() {
 	const auto text = QString(
 		_code->getLastText()
 	).remove(
-		QRegularExpression("[^\\d]")
+		TextUtilities::RegExpDigitsExclude()
 	).mid(0, getData()->codeLength);
 
 	if (_sentRequest
@@ -391,6 +420,22 @@ void CodeWidget::submit() {
 	}).fail([=](const MTP::Error &error) {
 		codeSubmitFail(error);
 	}).handleFloodErrors().send();
+}
+
+rpl::producer<QString> CodeWidget::nextButtonText() const {
+	return _isFragment.value(
+	) | rpl::map([=](bool isFragment) {
+		return isFragment
+			? tr::lng_intro_fragment_button()
+			: Step::nextButtonText();
+	}) | rpl::flatten_latest();
+}
+
+rpl::producer<const style::RoundButton*> CodeWidget::nextButtonStyle() const {
+	return _isFragment.value(
+	) | rpl::map([](bool isFragment) {
+		return isFragment ? &st::introFragmentButton : nullptr;
+	});
 }
 
 void CodeWidget::noTelegramCode() {

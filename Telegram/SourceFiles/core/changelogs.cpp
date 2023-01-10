@@ -76,6 +76,23 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix spoiler revealing in media viewer captions.\n"
 		
 		"- Fix crash in folder editing on Linux.\n"
+	},
+	{
+		4004002,
+		"- Send photos and video files hidden by a spoiler effect.\n"
+
+		"- Set a public photo for those who are restricted to see "
+		"your profile photo in the Privacy Settings.\n"
+
+		"- Bug fixes and other minor improvements.\n"
+	},
+	{
+		4004003,
+		"- Support for anonymous numbers from the Fragment.com platform.\n"
+
+		"- Fix a crash in own profile photo updating.\n"
+
+		"- Bug fixes and other minor improvements.\n"
 	}
 	};
 };

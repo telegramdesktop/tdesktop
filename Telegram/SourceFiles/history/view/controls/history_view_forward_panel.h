@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Painter;
 class HistoryItem;
 
+namespace Ui {
+class SpoilerAnimation;
+} // namespace Ui
+
 namespace Data {
 class Thread;
 } // namespace Data
@@ -57,6 +61,7 @@ private:
 
 	rpl::event_stream<> _itemsUpdated;
 	Ui::Text::String _from, _text;
+	mutable std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 	int _nameVersion = 0;
 
 };

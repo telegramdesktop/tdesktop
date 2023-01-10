@@ -15,12 +15,20 @@ settingsButton: SettingsButton(infoProfileButton) {
 	padding: margins(60px, 10px, 22px, 10px);
 	iconLeft: 20px;
 }
+settingsButtonLight: SettingsButton(settingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+}
 settingsButtonNoIcon: SettingsButton(settingsButton) {
 	padding: margins(22px, 10px, 22px, 8px);
 }
 settingsButtonActive: SettingsButton(infoMainButton, settingsButton) {
 }
 settingsAttentionButton: SettingsButton(settingsButtonNoIcon) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+settingsAttentionButtonWithIcon: SettingsButton(settingsButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
@@ -94,6 +102,7 @@ settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
 settingsIconTopics: icon {{ "settings/topics", settingsIconFg }};
 settingsIconTTL: icon {{ "settings/ttl", settingsIconFg }};
+settingsIconPhoto: icon {{ "settings/photo", settingsIconFg }};
 
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
@@ -178,14 +187,6 @@ settingsInfoPhoto: UserpicButton(defaultUserpicButton) {
 	size: size(settingsInfoPhotoSize, settingsInfoPhotoSize);
 	photoSize: settingsInfoPhotoSize;
 }
-settingsInfoUploadSize: 32px;
-settingsInfoUpload: UserpicButton(defaultUserpicButton) {
-	size: size(settingsInfoUploadSize, settingsInfoUploadSize);
-	photoSize: settingsInfoUploadSize;
-	changeIcon: icon {{ "settings/photo", activeButtonFg }};
-	changeIconPosition: point(4px, 4px);
-}
-settingsInfoUploadBorder: 2px;
 settingsInfoPhotoTop: 0px;
 settingsInfoPhotoSkip: 7px;
 settingsInfoNameSkip: -1px;

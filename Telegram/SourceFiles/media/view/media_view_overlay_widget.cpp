@@ -46,7 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_player.h"
 #include "media/player/media_player_instance.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -253,6 +254,7 @@ struct OverlayWidget::PipWrap {
 
 	PipDelegate delegate;
 	Pip wrapped;
+	rpl::lifetime lifetime;
 };
 
 OverlayWidget::Streamed::Streamed(
@@ -840,7 +842,7 @@ void OverlayWidget::updateControls() {
 		}
 		return dNow;
 	}();
-	_dateText = Ui::FormatDateTime(d, cDateFormat(), cTimeFormat());
+	_dateText = Ui::FormatDateTime(d);
 	if (!_fromName.isEmpty()) {
 		_fromNameLabel.setText(st::mediaviewTextStyle, _fromName, Ui::NameTextOptions());
 		_nameNav = QRect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromNameLabel.maxWidth(), width() / 3), st::mediaviewFont->height);
@@ -3333,14 +3335,14 @@ void OverlayWidget::switchToPip() {
 	Expects(_document != nullptr);
 
 	const auto document = _document;
-	const auto message = _message;
+	const auto messageId = _message ? _message->fullId() : FullMsgId();
 	const auto topicRootId = _topicRootId;
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
 		show(OpenRequest(
 			findWindow(false),
 			document,
-			message,
+			document->owner().message(messageId),
 			topicRootId,
 			true));
 	};
@@ -3351,6 +3353,16 @@ void OverlayWidget::switchToPip() {
 		_streamed->instance.shared(),
 		closeAndContinue,
 		[=] { _pip = nullptr; });
+
+	if (const auto raw = _message) {
+		raw->history()->owner().itemRemoved(
+		) | rpl::filter([=](not_null<const HistoryItem*> item) {
+			return (raw == item);
+		}) | rpl::start_with_next([=] {
+			_pip = nullptr;
+		}, _pip->lifetime);
+	}
+
 	if (isHidden()) {
 		clearBeforeHide();
 		clearAfterHide();
@@ -4929,16 +4941,24 @@ void OverlayWidget::updateHeader() {
 				lt_amount,
 				QString::number(count));
 		} else {
-			_headerText = tr::lng_mediaview_n_of_amount(
-				tr::now,
-				lt_n,
-				QString::number(index + 1),
-				lt_amount,
-				QString::number(count));
+			if (_user
+				&& (index == count - 1)
+				&& SyncUserFallbackPhotoViewer(_user)) {
+				_headerText = tr::lng_mediaview_profile_public_photo(tr::now);
+			} else {
+				_headerText = tr::lng_mediaview_n_of_amount(
+					tr::now,
+					lt_n,
+					QString::number(index + 1),
+					lt_amount,
+					QString::number(count));
+			}
 		}
 	} else {
 		if (_document) {
-			_headerText = _document->filename().isEmpty() ? tr::lng_mediaview_doc_image(tr::now) : _document->filename();
+			_headerText = _document->filename().isEmpty()
+				? tr::lng_mediaview_doc_image(tr::now)
+				: _document->filename();
 		} else if (_message) {
 			_headerText = tr::lng_mediaview_single_photo(tr::now);
 		} else if (_user) {

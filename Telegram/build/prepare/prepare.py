@@ -12,8 +12,15 @@ def error(text):
     print('[ERROR] ' + text)
     finish(1)
 
+def nativeToolsError():
+    error('Make sure to run from Native Tools Command Prompt.')
+
 win = (sys.platform == 'win32')
 mac = (sys.platform == 'darwin')
+
+if win and not 'Platform' in os.environ:
+    nativeToolsError()
+
 win32 = win and (os.environ['Platform'] == 'x86')
 win64 = win and (os.environ['Platform'] == 'x64')
 
@@ -21,7 +28,7 @@ if win and not 'COMSPEC' in os.environ:
     error('COMSPEC environment variable is not set.')
 
 if win and not win32 and not win64:
-    error('Make sure to run from Native Tools Command Prompt.')
+    nativeToolsError()
 
 os.chdir(scriptPath + '/../../../..')
 
@@ -397,7 +404,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b842feb5f8
+    git checkout 9e04e2eb9c
 """)
 
 stage('msys64', """
@@ -411,11 +418,12 @@ win:
     del msys64.exe
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
     pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
+
     SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
 
 stage('python', """
-version: """ + (subprocess.run(['python', '-V'], capture_output=True, env=modifiedEnv).stdout.decode().strip().split()[-1] if win else '0') + """
+version: """ + (subprocess.run(['python', '-V'], capture_output=True, text=True, env=modifiedEnv).stdout.strip().split()[-1] if win else '0') + """
 win:
     python -m venv python
     python\\Scripts\\activate.bat
@@ -1387,4 +1395,10 @@ win:
 #         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
 #     cmake --build . $MAKE_THREADS_CNT
 
-runStages()
+if win:
+    currentCodePage = subprocess.run('chcp', capture_output=True, shell=True, text=True, env=modifiedEnv).stdout.strip().split()[-1]
+    subprocess.run('chcp 65001 > nul', shell=True, env=modifiedEnv)
+    runStages()
+    subprocess.run('chcp ' + currentCodePage + ' > nul', shell=True, env=modifiedEnv)
+else:
+    runStages()

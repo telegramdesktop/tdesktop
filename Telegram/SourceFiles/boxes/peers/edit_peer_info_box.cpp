@@ -43,8 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "settings/settings_common.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/rp_widget.h"
-#include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/text/text_utilities.h"
@@ -470,12 +470,14 @@ object_ptr<Ui::RpWidget> Controller::createPhotoEdit() {
 		_wrap,
 		object_ptr<Ui::UserpicButton>(
 			_wrap,
-			&_navigation->parentController()->window(),
+			_navigation->parentController(),
 			_peer,
 			Ui::UserpicButton::Role::ChangePhoto,
+			Ui::UserpicButton::Source::PeerPhoto,
 			st::defaultUserpicButton),
 		st::editPeerPhotoMargins);
 	_controls.photo = photoWrap->entity();
+	_controls.photo->showCustomOnChosen();
 
 	return photoWrap;
 }

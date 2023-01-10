@@ -1117,7 +1117,8 @@ void LanguageBox::prepare() {
 		Core::App().saveSettingsDelayed();
 	}, translateEnabled->lifetime());
 
-	const auto label = lifetime().make_state<rpl::event_stream<QLocale>>();
+	using Locales = std::vector<QLocale>;
+	const auto label = lifetime().make_state<rpl::event_stream<Locales>>();
 	const auto translateSkipWrap = topContainer->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			topContainer,
@@ -1129,30 +1130,27 @@ void LanguageBox::prepare() {
 	const auto translateSkip = Settings::AddButtonWithLabel(
 		translateSkipWrap->entity(),
 		tr::lng_translate_settings_choose(),
-		label->events() | rpl::map(Ui::LanguageName),
+		label->events(
+		) | rpl::map([](const Locales &locales) {
+			return (locales.size() > 1)
+				? tr::lng_languages_count(tr::now, lt_count, locales.size())
+				: Ui::LanguageName(locales.front());
+		}),
 		st::settingsButtonNoIcon);
 
-	{
-		const auto settingsLang =
-			Core::App().settings().skipTranslationForLanguage();
-		const auto locale = (settingsLang == QLocale::English)
-			? QLocale(Lang::LanguageIdOrDefault(Lang::Id()))
-			: (settingsLang == QLocale::C)
-			? QLocale(QLocale::English)
-			: QLocale(settingsLang);
-		label->fire_copy(locale);
-	}
+	label->fire(Ui::Translate::LocalesFromSettings());
 	translateSkip->setClickedCallback([=] {
 		Ui::BoxShow(this).showBox(
-			Box(Ui::ChooseLanguageBox, [=](QLocale locale) {
-				label->fire_copy(locale);
-				const auto result = (locale.language() == QLocale::English)
-					? QLocale::c()
-					: locale;
-				Core::App().settings().setSkipTranslationForLanguage(
-					result.language());
+			Box(Ui::ChooseLanguageBox, [=](std::vector<QLocale> locales) {
+				label->fire_copy(locales);
+				const auto result = ranges::views::all(
+					locales
+				) | ranges::views::transform([](const QLocale &l) {
+					return int(l.language());
+				}) | ranges::to_vector;
+				Core::App().settings().setSkipTranslationForLanguages(result);
 				Core::App().saveSettingsDelayed();
-			}),
+			}, Ui::Translate::LocalesFromSettings()),
 			Ui::LayerOption::KeepOther);
 	});
 	Settings::AddSkip(topContainer);

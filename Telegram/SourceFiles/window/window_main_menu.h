@@ -47,6 +47,7 @@ public:
 	~MainMenu();
 
 	void parentResized() override;
+	void showFinished() override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -73,6 +74,8 @@ private:
 	void toggleAccounts();
 	void chooseEmojiStatus();
 
+	void drawName(Painter &p);
+
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;
 	Ui::Text::String _name;
@@ -95,6 +98,8 @@ private:
 	rpl::event_stream<bool> _nightThemeSwitches;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+
+	rpl::variable<bool> _showFinished = false;
 
 };
 
