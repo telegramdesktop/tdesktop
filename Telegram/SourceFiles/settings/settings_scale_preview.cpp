@@ -73,9 +73,6 @@ private:
 	void validateShadowCache();
 
 	[[nodiscard]] int scaled(int value) const;
-	[[nodiscard]] QPoint scaled(QPoint value) const;
-	[[nodiscard]] QSize scaled(QSize value) const;
-	[[nodiscard]] QRect scaled(QRect value) const;
 	[[nodiscard]] QMargins scaled(QMargins value) const;
 	[[nodiscard]] style::font scaled(
 		const style::font &value, int size) const;
@@ -308,18 +305,6 @@ void Preview::init() {
 
 int Preview::scaled(int value) const {
 	return style::ConvertScale(value, _scale);
-}
-
-QPoint Preview::scaled(QPoint value) const {
-	return { scaled(value.x()), scaled(value.y()) };
-}
-
-QSize Preview::scaled(QSize value) const {
-	return { scaled(value.width()), scaled(value.height()) };
-}
-
-QRect Preview::scaled(QRect value) const {
-	return { scaled(value.topLeft()), scaled(value.size()) };
 }
 
 QMargins Preview::scaled(QMargins value) const {

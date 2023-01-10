@@ -518,7 +518,6 @@ void SetupInterfaceScale(
 			? ScalePreviewShow::Update
 			: ScalePreviewShow::Show;
 		*shown = true;
-		auto index = 0;
 		for (auto i = 0; i != valuesCount; ++i) {
 			if (values[i] <= scale
 				&& (i + 1 == valuesCount || values[i + 1] > scale)) {
