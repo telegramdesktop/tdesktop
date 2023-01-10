@@ -748,7 +748,6 @@ void Preview::initAsWindow() {
 	const auto user = controller
 		? controller->session().user().get()
 		: nullptr;
-	auto view = user->activeUserpicView();
 	const auto preview = slider->lifetime().make_state<Preview>(
 		slider.get(),
 		user ? Data::PeerUserpicImageValue(user, 160, 0) : nullptr);
