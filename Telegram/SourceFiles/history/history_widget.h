@@ -103,8 +103,6 @@ class TTLButton;
 class BotKeyboard;
 class HistoryInner;
 
-extern const char kOptionAutoScrollInactiveChat[];
-
 class HistoryWidget final
 	: public Window::AbstractSectionWidget
 	, private HistoryView::CornerButtonsDelegate {

@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_intro.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
+#include "base/options.h"
 #include "base/variant.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -84,6 +85,9 @@ base::options::toggle AutoScrollInactiveChat({
 });
 
 } // namespace
+
+const char kOptionAutoScrollInactiveChat[] =
+	"auto-scroll-inactive-chat";
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Platform::MainWindow(controller) {
@@ -545,7 +549,7 @@ bool MainWindow::markingAsRead() const {
 		&& !_main->isHidden()
 		&& !_main->animatingShow()
 		&& !_layer
-		&& (AutoScrollInactiveChat().value()
+		&& (AutoScrollInactiveChat.value()
 			|| (isActive() && !_main->session().updates().isIdle()));
 }
 

@@ -126,7 +126,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "core/application.h"
 #include "apiwrap.h"
-#include "base/options.h"
 #include "base/qthelp_regex.h"
 #include "ui/boxes/report_box.h"
 #include "ui/chat/pinned_bar.h"
@@ -170,9 +169,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
-
-const char kOptionAutoScrollInactiveChat[] =
-	"auto-scroll-inactive-chat";
 
 namespace {
 

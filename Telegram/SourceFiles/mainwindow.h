@@ -42,6 +42,8 @@ class LayerStackWidget;
 
 class MediaPreviewWidget;
 
+extern const char kOptionAutoScrollInactiveChat[];
+
 class MainWindow : public Platform::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
