@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_step.h"
 
 #include "intro/intro_widget.h"
+#include "intro/intro_signup.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "lang/lang_keys.h"
@@ -139,6 +140,28 @@ void Step::goReplace(Step *step, Animate animate) {
 	if (_goCallback) {
 		_goCallback(step, StackAction::Replace, animate);
 	}
+}
+
+void Step::finish(const MTPauth_Authorization &auth, QImage &&photo) {
+	auth.match([&](const MTPDauth_authorization &data) {
+		if (data.vuser().type() != mtpc_user
+			|| !data.vuser().c_user().is_self()) {
+			showError(rpl::single(Lang::Hard::ServerError())); // wtf?
+			return;
+		}
+		finish(data.vuser(), std::move(photo));
+	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
+		if (const auto terms = data.vterms_of_service()) {
+			terms->match([&](const MTPDhelp_termsOfService &data) {
+				getData()->termsLock = Window::TermsLock::FromMTP(
+					nullptr,
+					data);
+			});
+		} else {
+			getData()->termsLock = Window::TermsLock();
+		}
+		goReplace<SignupWidget>(Animate::Forward);
+	});
 }
 
 void Step::finish(const MTPUser &user, QImage &&photo) {
@@ -334,6 +357,8 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 		bad("FlashCall");
 	}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
 		bad("MissedCall");
+	}, [&](const MTPDauth_sentCodeTypeFirebaseSms &) {
+		bad("FirebaseSms");
 	}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
 		bad("EmailCode");
 	}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {

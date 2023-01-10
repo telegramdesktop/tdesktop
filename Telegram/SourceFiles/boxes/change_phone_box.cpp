@@ -204,7 +204,11 @@ void ChangePhone::EnterPhone::submit() {
 	const auto phoneNumber = _phone->getLastText().trimmed();
 	_requestId = _api.request(MTPaccount_SendChangePhoneCode(
 		MTP_string(phoneNumber),
-		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
+		MTP_codeSettings(
+			MTP_flags(0),
+			MTPVector<MTPbytes>(),
+			MTPstring(),
+			MTPBool())
 	)).done([=](const MTPauth_SentCode &result) {
 		_requestId = 0;
 		sendPhoneDone(result, phoneNumber);
@@ -217,10 +221,17 @@ void ChangePhone::EnterPhone::submit() {
 void ChangePhone::EnterPhone::sendPhoneDone(
 		const MTPauth_SentCode &result,
 		const QString &phoneNumber) {
-	using CodeData = const MTPDauth_sentCode&;
-	const auto &data = result.match([](const auto &data) -> CodeData {
-		return data;
+	const auto data = result.match([](const MTPDauth_sentCode &data) {
+		return &data;
+	}, [](const MTPDauth_sentCodeSuccess &) -> const MTPDauth_sentCode* {
+		LOG(("API Error: Unexpected auth.sentCodeSuccess "
+			"(ChangePhone::EnterPhone)."));
+		return nullptr;
 	});
+	if (!data) {
+		showError(Lang::Hard::ServerError());
+		return;
+	}
 
 	const auto bad = [&](const char *type) {
 		LOG(("API Error: Should not be '%1'.").arg(type));
@@ -229,7 +240,7 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 	};
 	auto codeLength = 0;
 	auto codeByFragmentUrl = QString();
-	const auto hasLength = data.vtype().match([&](
+	const auto hasLength = data->vtype().match([&](
 			const MTPDauth_sentCodeTypeApp &typeData) {
 		LOG(("Error: should not be in-app code!"));
 		showError(Lang::Hard::ServerError());
@@ -248,6 +259,8 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 		return bad("FlashCall");
 	}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
 		return bad("MissedCall");
+	}, [&](const MTPDauth_sentCodeTypeFirebaseSms &) {
+		return bad("FirebaseSms");
 	}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
 		return bad("EmailCode");
 	}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
@@ -256,11 +269,11 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 	if (!hasLength) {
 		return;
 	}
-	const auto phoneCodeHash = qs(data.vphone_code_hash());
+	const auto phoneCodeHash = qs(data->vphone_code_hash());
 	const auto callTimeout = [&] {
-		if (const auto nextType = data.vnext_type()) {
+		if (const auto nextType = data->vnext_type()) {
 			return nextType->match([&](const MTPDauth_sentCodeTypeCall &) {
-				return data.vtimeout().value_or(60);
+				return data->vtimeout().value_or(60);
 			}, [](const auto &) {
 				return 0;
 			});
@@ -434,7 +447,7 @@ void ChangePhone::EnterCode::sendCall() {
 	_api.request(MTPauth_ResendCode(
 		MTP_string(_phone),
 		MTP_string(_hash)
-	)).done([=](const MTPauth_SentCode &result) {
+	)).done([=] {
 		_call.callDone();
 	}).send();
 }

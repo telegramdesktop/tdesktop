@@ -404,6 +404,10 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			disabled);
 	} break;
 
+	case ButtonType::RequestPeer: { // #TODO request_peer
+		HideSingleUseKeyboard(controller, item);
+	} break;
+
 	case ButtonType::SwitchInlineSame:
 	case ButtonType::SwitchInline: {
 		if (const auto bot = item->getMessageBot()) {

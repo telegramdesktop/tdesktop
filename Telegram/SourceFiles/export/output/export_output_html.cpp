@@ -1168,6 +1168,8 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionAttachMenuBotAllowed &data) {
 		return "You allowed this bot to message you "
 			"when you added it in the attachment menu."_q;
+	}, [&](const ActionRequestedPeer &data) {
+		return "requested: "_q/* + data.peerId*/;
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

@@ -122,17 +122,14 @@ void PasswordCheckWidget::cancelled() {
 	api().request(base::take(_sentRequest)).cancel();
 }
 
-void PasswordCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
+void PasswordCheckWidget::pwdSubmitDone(
+		bool recover,
+		const MTPauth_Authorization &result) {
 	_sentRequest = 0;
 	if (recover) {
 		cSetPasswordRecovered(true);
 	}
-	auto &d = result.c_auth_authorization();
-	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
-		showError(rpl::single(Lang::Hard::ServerError()));
-		return;
-	}
-	finish(d.vuser());
+	finish(result);
 }
 
 void PasswordCheckWidget::pwdSubmitFail(const MTP::Error &error) {

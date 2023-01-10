@@ -110,12 +110,7 @@ void SignupWidget::cancelled() {
 }
 
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
-	auto &d = result.c_auth_authorization();
-	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
-		showError(rpl::single(Lang::Hard::ServerError()));
-		return;
-	}
-	finish(d.vuser(), _photo->takeResultImage());
+	finish(result);
 }
 
 void SignupWidget::nameSubmitFail(const MTP::Error &error) {

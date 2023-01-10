@@ -1175,6 +1175,11 @@ ServiceAction ParseServiceAction(
 		result.content = content;
 	}, [&](const MTPDmessageActionAttachMenuBotAllowed &data) {
 		result.content = ActionAttachMenuBotAllowed();
+	}, [&](const MTPDmessageActionRequestedPeer &data) {
+		auto content = ActionRequestedPeer();
+		content.peerId = ParsePeerId(data.vpeer());
+		content.buttonId = data.vbutton_id().v;
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

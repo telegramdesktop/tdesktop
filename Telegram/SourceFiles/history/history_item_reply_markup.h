@@ -37,6 +37,7 @@ struct HistoryMessageMarkupButton {
 		RequestPhone,
 		RequestLocation,
 		RequestPoll,
+		RequestPeer,
 		SwitchInline,
 		SwitchInlineSame,
 		Game,

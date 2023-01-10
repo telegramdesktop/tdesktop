@@ -515,6 +515,11 @@ struct ActionSuggestProfilePhoto {
 struct ActionAttachMenuBotAllowed {
 };
 
+struct ActionRequestedPeer {
+	PeerId peerId = 0;
+	int buttonId = 0;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -551,7 +556,8 @@ struct ServiceAction {
 		ActionTopicCreate,
 		ActionTopicEdit,
 		ActionSuggestProfilePhoto,
-		ActionAttachMenuBotAllowed> content;
+		ActionAttachMenuBotAllowed,
+		ActionRequestedPeer> content;
 };
 
 ServiceAction ParseServiceAction(

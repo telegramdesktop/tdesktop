@@ -69,6 +69,13 @@ void HistoryMessageMarkupData::fillRows(
 					row.emplace_back(Type::RequestLocation, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
 					row.emplace_back(Type::RequestPhone, qs(data.vtext()));
+				}, [&](const MTPDkeyboardButtonRequestPeer &data) {
+					row.emplace_back(
+						Type::RequestPeer,
+						qs(data.vtext()),
+						QByteArray(), // #TODO request_peer
+						QString(),
+						int64(data.vbutton_id().v));
 				}, [&](const MTPDkeyboardButtonUrl &data) {
 					row.emplace_back(
 						Type::Url,

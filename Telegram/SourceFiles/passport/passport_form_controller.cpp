@@ -2167,7 +2167,11 @@ QString FormController::getPlainTextFromValue(
 void FormController::startPhoneVerification(not_null<Value*> value) {
 	value->verification.requestId = _api.request(MTPaccount_SendVerifyPhoneCode(
 		MTP_string(getPhoneFromValue(value)),
-		MTP_codeSettings(MTP_flags(0), MTP_vector<MTPbytes>())
+		MTP_codeSettings(
+			MTP_flags(0),
+			MTPVector<MTPbytes>(),
+			MTPstring(),
+			MTPBool())
 	)).done([=](const MTPauth_SentCode &result) {
 		result.match([&](const MTPDauth_sentCode &data) {
 			const auto next = data.vnext_type();
@@ -2215,12 +2219,17 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 				bad("FlashCall");
 			}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
 				bad("MissedCall");
+			}, [&](const MTPDauth_sentCodeTypeFirebaseSms &) {
+				bad("FirebaseSms");
 			}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
 				bad("EmailCode");
 			}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
 				bad("SetUpEmailRequired");
 			});
 			_verificationNeeded.fire_copy(value);
+		}, [](const MTPDauth_sentCodeSuccess &) {
+			LOG(("API Error: Unexpected auth.sentCodeSuccess "
+				"(FormController::startPhoneVerification)."));
 		});
 	}).fail([=](const MTP::Error &error) {
 		value->verification.requestId = 0;
@@ -2256,7 +2265,7 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 	_api.request(MTPauth_ResendCode(
 		MTP_string(getPhoneFromValue(value)),
 		MTP_string(value->verification.phoneCodeHash)
-	)).done([=](const MTPauth_SentCode &code) {
+	)).done([=] {
 		value->verification.call->callDone();
 	}).send();
 }

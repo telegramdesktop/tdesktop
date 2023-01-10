@@ -3947,6 +3947,11 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		} };
 	};
 
+	auto prepareRequestedPeer = [](
+			const MTPDmessageActionRequestedPeer &action) {
+		return PreparedServiceText{ { } };
+	};
+
 	setServiceText(action.match([&](
 			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -4023,6 +4028,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return prepareSuggestProfilePhoto(data);
 	}, [&](const MTPDmessageActionAttachMenuBotAllowed &data) {
 		return prepareAttachMenuBotAllowed(data);
+	}, [&](const MTPDmessageActionRequestedPeer &data) {
+		return prepareRequestedPeer(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}));
