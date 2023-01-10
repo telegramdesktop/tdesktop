@@ -1033,8 +1033,8 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto section = _activeChat.section;
 	const auto historyMode = (section == Section::History);
 	const auto hasPollsMenu = (_activeChat.key.peer()
-		&& _activeChat.key.peer()->canSendPolls())
-		|| (topic && topic->canSendPolls());
+		&& Data::CanSend(_activeChat.key.peer(), ChatRestriction::SendPolls))
+		|| (topic && Data::CanSend(topic, ChatRestriction::SendPolls));
 	const auto hasTopicMenu = [&] {
 		if (!topic || section != Section::Replies) {
 			return false;

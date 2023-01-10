@@ -73,6 +73,8 @@ struct PreparedFile {
 
 	[[nodiscard]] bool canBeInAlbumType(AlbumType album) const;
 	[[nodiscard]] AlbumType albumType(bool sendImagesAsPhotos) const;
+	[[nodiscard]] bool isSticker() const;
+	[[nodiscard]] bool isGifv() const;
 
 	QString path;
 	QByteArray content;

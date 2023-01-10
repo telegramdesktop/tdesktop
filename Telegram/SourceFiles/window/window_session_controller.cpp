@@ -1871,6 +1871,13 @@ void SessionController::hideLayer(anim::type animated) {
 	_window->hideLayer(animated);
 }
 
+void SessionController::showToast(TextWithEntities &&text) {
+	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(this).toastParent(),
+		.text = std::move(text),
+	});
+}
+
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId contextId,

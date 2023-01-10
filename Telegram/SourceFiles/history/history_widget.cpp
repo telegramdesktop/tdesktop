@@ -25,8 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
-#include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/emoji_config.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/choose_theme_controller.h"
@@ -726,7 +724,7 @@ HistoryWidget::HistoryWidget(
 				const auto account = &_peer->account();
 				closeCurrent();
 				if (const auto primary = Core::App().windowFor(account)) {
-					primary->show(Ui::MakeInformBox(unavailable));
+					controller->showToast({ unavailable });
 				}
 				return;
 			}
@@ -940,19 +938,14 @@ void HistoryWidget::initVoiceRecordBar() {
 			if (_peer) {
 				if (const auto error = Data::RestrictionError(
 						_peer,
-						ChatRestriction::SendMedia)) {
-					return error;
-				}
-				if (const auto error = Data::RestrictionError(
-						_peer,
-						UserRestriction::SendVoiceMessages)) {
+						ChatRestriction::SendVoiceMessages)) {
 					return error;
 				}
 			}
 			return std::nullopt;
 		}();
 		if (error) {
-			controller()->show(Ui::MakeInformBox(*error));
+			controller()->showToast({ *error });
 			return true;
 		} else if (showSlowmodeError()) {
 			return true;
@@ -1013,10 +1006,7 @@ void HistoryWidget::initVoiceRecordBar() {
 
 	_voiceRecordBar->recordingTipRequests(
 	) | rpl::start_with_next([=] {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(controller()).toastParent(),
-			.text = { tr::lng_record_hold_tip(tr::now) },
-		});
+		controller()->showToast({ tr::lng_record_hold_tip(tr::now) });
 	}, lifetime());
 
 	_voiceRecordBar->hideFast();
@@ -1564,10 +1554,7 @@ void HistoryWidget::toggleChooseChatTheme(not_null<PeerData*> peer) {
 		}
 		return;
 	} else if (_voiceRecordBar->isActive()) {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(controller()).toastParent(),
-			.text = { tr::lng_chat_theme_cant_voice(tr::now) },
-		});
+		controller()->showToast({ tr::lng_chat_theme_cant_voice(tr::now) });
 		return;
 	}
 	_chooseTheme = std::make_unique<Ui::ChooseThemeController>(
@@ -2144,7 +2131,7 @@ void HistoryWidget::showHistory(
 
 	if (peerId) {
 		_peer = session().data().peer(peerId);
-		_canSendMessages = _peer->canWrite();
+		_canSendMessages = Data::CanSendAnything(_peer);
 		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
 			controller(),
 			this,
@@ -2621,8 +2608,10 @@ bool HistoryWidget::canWriteMessage() const {
 }
 
 std::optional<QString> HistoryWidget::writeRestriction() const {
-	auto result = _peer
-		? Data::RestrictionError(_peer, ChatRestriction::SendMessages)
+	const auto allWithoutPolls = Data::AllSendRestrictions()
+		& ~ChatRestriction::SendPolls;
+	auto result = (_peer && !Data::CanSendAnyOf(_peer, allWithoutPolls))
+		? Data::RestrictionError(_peer, ChatRestriction::SendOther)
 		: std::nullopt;
 	if (result) {
 		return result;
@@ -2827,7 +2816,15 @@ void HistoryWidget::updateControlsVisibility() {
 			_botMenuButton->hide();
 		}
 		_kbScroll->hide();
-		_fieldBarCancel->hide();
+		if (_replyToId || readyToForward() || _kbReplyTo) {
+			if (_fieldBarCancel->isHidden()) {
+				_fieldBarCancel->show();
+				updateControlsGeometry();
+				update();
+			}
+		} else {
+			_fieldBarCancel->hide();
+		}
 		_tabbedSelectorToggle->hide();
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
@@ -3010,12 +3007,9 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 		auto was = _peer;
 		closeCurrent();
 		if (const auto primary = Core::App().windowFor(&was->account())) {
-			Ui::ShowMultilineToast({
-				.parentOverride = Window::Show(primary).toastParent(),
-				.text = { (was && was->isMegagroup())
-					? tr::lng_group_not_accessible(tr::now)
-					: tr::lng_channel_not_accessible(tr::now) },
-			});
+			controller()->showToast({ (was && was->isMegagroup())
+				? tr::lng_group_not_accessible(tr::now)
+				: tr::lng_channel_not_accessible(tr::now) });
 		}
 		return;
 	}
@@ -3653,8 +3647,9 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	} else if (!left.text.isEmpty()) {
 		const auto remove = left.text.size();
-		controller()->show(Ui::MakeInformBox(
-			tr::lng_edit_limit_reached(tr::now, lt_count, remove)));
+		controller()->showToast({
+			tr::lng_edit_limit_reached(tr::now, lt_count, remove)
+		});
 		return;
 	}
 
@@ -3687,14 +3682,14 @@ void HistoryWidget::saveEditMsg() {
 				_saveEditMsgRequestId = 0;
 			}
 			if (ranges::contains(Api::kDefaultEditMessagesErrors, error)) {
-				controller()->show(Ui::MakeInformBox(tr::lng_edit_error()));
+				controller()->showToast({ tr::lng_edit_error(tr::now) });
 			} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
 				cancelEdit();
 			} else if (error == u"MESSAGE_EMPTY"_q) {
 				_field->selectAll();
 				_field->setFocus();
 			} else {
-				controller()->show(Ui::MakeInformBox(tr::lng_edit_error()));
+				controller()->showToast({ tr::lng_edit_error(tr::now) });
 			}
 			update();
 		})();
@@ -3796,27 +3791,12 @@ void HistoryWidget::send(Api::SendOptions options) {
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
 	message.webPageId = webPageId;
 
-	if (_canSendMessages) {
-		const auto topicRootId = _replyEditMsg
-			? _replyEditMsg->topicRootId()
-			: 0;
-		const auto error = GetErrorTextForSending(
-			_peer,
-			{
-				.topicRootId = topicRootId,
-				.forward = &_forwardPanel->items(),
-				.text = &message.textWithTags,
-				.ignoreSlowmodeCountdown = (options.scheduled != 0),
-			});
-		if (!error.isEmpty()) {
-			Ui::ShowMultilineToast({
-				.parentOverride = Window::Show(controller()).toastParent(),
-				.text = { error },
-			});
-			return;
-		}
+	const auto ignoreSlowmodeCountdown = (options.scheduled != 0);
+	if (showSendMessageError(
+			message.textWithTags,
+			ignoreSlowmodeCountdown)) {
+		return;
 	}
-
 	session().api().sendMessage(std::move(message));
 
 	clearFieldText();
@@ -3849,6 +3829,12 @@ void HistoryWidget::sendSilent() {
 
 void HistoryWidget::sendScheduled() {
 	if (!_list) {
+		return;
+	}
+	const auto ignoreSlowmodeCountdown = true;
+	if (showSendMessageError(
+			_field->getTextWithAppliedMarkdown(),
+			ignoreSlowmodeCountdown)) {
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
@@ -4127,19 +4113,14 @@ void HistoryWidget::finishAnimating() {
 void HistoryWidget::chooseAttach(
 		std::optional<bool> overrideSendImagesAsPhotos) {
 	if (_editMsgId) {
-		controller()->show(Ui::MakeInformBox(tr::lng_edit_caption_attach()));
+		controller()->showToast({ tr::lng_edit_caption_attach(tr::now) });
 		return;
 	}
 
 	if (!_peer || !_canSendMessages) {
 		return;
-	} else if (const auto error = Data::RestrictionError(
-			_peer,
-			ChatRestriction::SendMedia)) {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(controller()).toastParent(),
-			.text = { *error },
-		});
+	} else if (const auto error = Data::AnyFileRestrictionError(_peer)) {
+		controller()->showToast({ *error });
 		return;
 	} else if (showSlowmodeError()) {
 		return;
@@ -4371,9 +4352,8 @@ bool HistoryWidget::readyToForward() const {
 
 bool HistoryWidget::hasSilentToggle() const {
 	return _peer
-		&& _peer->isChannel()
-		&& !_peer->isMegagroup()
-		&& _peer->canWrite()
+		&& _peer->isBroadcast()
+		&& Data::CanSendAnything(_peer)
 		&& !session().data().notifySettings().silentPostsUnknown(_peer);
 }
 
@@ -4421,7 +4401,7 @@ bool HistoryWidget::isChoosingTheme() const {
 bool HistoryWidget::isMuteUnmute() const {
 	return _peer
 		&& ((_peer->isBroadcast() && !_peer->asChannel()->canPublish())
-			|| (_peer->isGigagroup() && !_peer->asChannel()->canWrite())
+			|| (_peer->isGigagroup() && !Data::CanSendAnything(_peer))
 			|| _peer->isRepliesChat());
 }
 
@@ -4725,9 +4705,15 @@ void HistoryWidget::showMembersDropdown() {
 bool HistoryWidget::pushTabbedSelectorToThirdSection(
 		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) {
+	const auto selectorTypes = ChatRestriction::SendOther
+		| ChatRestriction::SendInline
+		| ChatRestriction::SendStickers
+		| ChatRestriction::SendGifs;
 	if (!_tabbedPanel) {
 		return true;
-	} else if (!thread->canWrite()) {
+	} else if (!Data::CanSendAnyOf(
+			thread,
+			Data::TabbedPanelSendRestrictions())) {
 		Core::App().settings().setTabbedReplacedWithInfo(true);
 		controller()->showPeerInfo(thread, params.withThirdColumn());
 		return false;
@@ -4978,19 +4964,18 @@ void HistoryWidget::updateFieldPlaceholder() {
 
 bool HistoryWidget::showSendingFilesError(
 		const Ui::PreparedList &list) const {
+	return showSendingFilesError(list, std::nullopt);
+}
+
+bool HistoryWidget::showSendingFilesError(
+		const Ui::PreparedList &list,
+		std::optional<bool> compress) const {
 	const auto text = [&] {
 		const auto error = _peer
-			? Data::RestrictionError(
-				_peer,
-				ChatRestriction::SendMedia)
+			? Data::FileRestrictionError(_peer, list, compress)
 			: std::nullopt;
 		if (error) {
 			return *error;
-		} else if (!canWriteMessage()) {
-			return tr::lng_forward_send_files_cant(tr::now);
-		}
-		if (_peer->slowmodeApplied() && !list.canBeSentInSlowmode()) {
-			return tr::lng_slowmode_no_many(tr::now);
 		} else if (const auto left = _peer->slowmodeSecondsLeft()) {
 			return tr::lng_slowmode_enabled(
 				tr::now,
@@ -5017,11 +5002,31 @@ bool HistoryWidget::showSendingFilesError(
 		controller()->show(Box(FileSizeLimitBox, &session(), fileSize));
 		return true;
 	}
+	controller()->showToast({ text });
+	return true;
+}
 
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(controller()).toastParent(),
-		.text = { text },
-	});
+bool HistoryWidget::showSendMessageError(
+		const TextWithTags &textWithTags,
+		bool ignoreSlowmodeCountdown) const {
+	if (!_canSendMessages) {
+		return false;
+	}
+	const auto topicRootId = _replyEditMsg
+		? _replyEditMsg->topicRootId()
+		: 0;
+	const auto error = GetErrorTextForSending(
+		_peer,
+		{
+			.topicRootId = topicRootId,
+			.forward = &_forwardPanel->items(),
+			.text = &textWithTags,
+			.ignoreSlowmodeCountdown = ignoreSlowmodeCountdown,
+		});
+	if (error.isEmpty()) {
+		return false;
+	}
+	controller()->showToast({ error });
 	return true;
 }
 
@@ -5045,11 +5050,10 @@ bool HistoryWidget::confirmSendingFiles(
 bool HistoryWidget::confirmSendingFiles(
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel) {
-	if (showSendingFilesError(list)) {
-		return false;
-	}
 	if (_editMsgId) {
-		controller()->show(Ui::MakeInformBox(tr::lng_edit_caption_attach()));
+		controller()->showToast({ tr::lng_edit_caption_attach(tr::now) });
+		return false;
+	} else if (showSendingFilesError(list)) {
 		return false;
 	}
 
@@ -5061,7 +5065,8 @@ bool HistoryWidget::confirmSendingFiles(
 		controller(),
 		std::move(list),
 		text,
-		_peer,
+		DefaultLimitsForPeer(_peer),
+		DefaultCheckForPeer(controller(), _peer),
 		Api::SendType::Normal,
 		sendMenuType());
 	_field->setTextWithTags({});
@@ -5106,16 +5111,15 @@ void HistoryWidget::sendingFilesConfirmed(
 		bool ctrlShiftEnter) {
 	Expects(list.filesToProcess.empty());
 
-	if (showSendingFilesError(list)) {
+	const auto compress = way.sendImagesAsPhotos();
+	if (showSendingFilesError(list, compress)) {
 		return;
 	}
 	auto groups = DivideByGroups(
 		std::move(list),
 		way,
 		_peer->slowmodeApplied());
-	const auto type = way.sendImagesAsPhotos()
-		? SendMediaType::Photo
-		: SendMediaType::File;
+	const auto type = compress ? SendMediaType::Photo : SendMediaType::File;
 	auto action = prepareSendAction(options);
 	action.clearDraft = false;
 	if ((groups.size() != 1 || !groups.front().sentWithCaption())
@@ -5412,10 +5416,7 @@ int HistoryWidget::countInitialScrollTop() {
 		const auto itemTop = _list->itemTop(item);
 		if (itemTop < 0) {
 			setMsgId(0);
-			Ui::ShowMultilineToast({
-				.parentOverride = Window::Show(controller()).toastParent(),
-				.text = { tr::lng_message_not_found(tr::now) },
-			});
+			controller()->showToast({ tr::lng_message_not_found(tr::now) });
 			return countInitialScrollTop();
 		} else {
 			const auto view = item->mainView();
@@ -6112,10 +6113,7 @@ bool HistoryWidget::showSlowmodeError() {
 	if (text.isEmpty()) {
 		return false;
 	}
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(controller()).toastParent(),
-		.text = { text },
-	});
+	controller()->showToast({ text });
 	return true;
 }
 
@@ -6136,7 +6134,7 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 
 	auto errorText = result.result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		controller()->show(Ui::MakeInformBox(errorText));
+		controller()->showToast({ errorText });
 		return;
 	}
 
@@ -6602,9 +6600,7 @@ bool HistoryWidget::sendExistingDocument(
 		? Data::RestrictionError(_peer, ChatRestriction::SendStickers)
 		: std::nullopt;
 	if (error) {
-		controller()->show(
-			Ui::MakeInformBox(*error),
-			Ui::LayerOption::KeepOther);
+		controller()->showToast({ *error });
 		return false;
 	} else if (!_peer
 		|| !_canSendMessages
@@ -6636,12 +6632,10 @@ bool HistoryWidget::sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		Api::SendOptions options) {
 	const auto error = _peer
-		? Data::RestrictionError(_peer, ChatRestriction::SendMedia)
+		? Data::RestrictionError(_peer, ChatRestriction::SendPhotos)
 		: std::nullopt;
 	if (error) {
-		controller()->show(
-			Ui::MakeInformBox(*error),
-			Ui::LayerOption::KeepOther);
+		controller()->showToast({ *error });
 		return false;
 	} else if (!_peer || !_canSendMessages) {
 		return false;
@@ -6754,7 +6748,7 @@ void HistoryWidget::processReply() {
 		return;
 	} else if (_processingReplyItem->history() == _migrated) {
 		if (_processingReplyItem->isService()) {
-			controller()->show(Ui::MakeInformBox(tr::lng_reply_cant()));
+			controller()->showToast({ tr::lng_reply_cant(tr::now) });
 		} else {
 			const auto itemId = _processingReplyItem->fullId();
 			controller()->show(
@@ -6777,13 +6771,13 @@ void HistoryWidget::processReply() {
 		if (forum->topicDeleted(topicRootId)) {
 			return processCancel();
 		} else if (const auto topic = forum->topicFor(topicRootId)) {
-			if (!topic->canWrite()) {
+			if (!Data::CanSendAnything(topic)) {
 				return processCancel();
 			}
 		} else {
 			forum->requestTopic(topicRootId, processContinue());
 		}
-	} else if (!_peer->canWrite()) {
+	} else if (!Data::CanSendAnything(_peer)) {
 		return processCancel();
 	}
 	setReplyFieldsFromProcessing();
@@ -6849,8 +6843,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	} else if (_chooseTheme) {
 		toggleChooseChatTheme(_peer);
 	} else if (_voiceRecordBar->isActive()) {
-		controller()->show(
-			Ui::MakeInformBox(tr::lng_edit_caption_voice()));
+		controller()->showToast({ tr::lng_edit_caption_voice(tr::now) });
 		return;
 	} else if (_composeSearch) {
 		_composeSearch->hideAnimated();
@@ -7264,9 +7257,11 @@ void HistoryWidget::handlePeerUpdate() {
 bool HistoryWidget::updateCanSendMessage() {
 	const auto replyTo = (_replyToId && !_editMsgId) ? _replyEditMsg : 0;
 	const auto topic = replyTo ? replyTo->topic() : nullptr;
+	const auto allWithoutPolls = Data::AllSendRestrictions()
+		& ~ChatRestriction::SendPolls;
 	const auto newCanSendMessages = topic
-		? topic->canWrite()
-		: _peer->canWrite();
+		? Data::CanSendAnyOf(topic, allWithoutPolls)
+		: Data::CanSendAnyOf(_peer, allWithoutPolls);
 	if (_canSendMessages == newCanSendMessages) {
 		return false;
 	}
@@ -7740,9 +7735,17 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	const auto clip = e->rect();
 	if (_list) {
-		if (!_field->isHidden() || isRecording()) {
+		const auto restrictionHidden = !_field->isHidden() || isRecording();
+		if (restrictionHidden
+			|| replyToId()
+			|| readyToForward()
+			|| _kbShown) {
 			drawField(p, clip);
-		} else if (const auto error = writeRestriction()) {
+		}
+		const auto error = restrictionHidden
+			? std::nullopt
+			: writeRestriction();
+		if (error) {
 			drawRestrictedWrite(p, *error);
 		}
 	} else {

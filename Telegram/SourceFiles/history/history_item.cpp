@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_game.h"
 #include "data/data_user.h"
 #include "data/data_group_call.h" // Data::GroupCall::id().
+#include "data/data_poll.h" // PollData::publicVotes.
 #include "data/data_sponsored_messages.h"
 #include "data/data_web_page.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -1836,9 +1837,9 @@ bool HistoryItem::canBeEdited() const {
 			if (isPost()) {
 				return channel->canPublish();
 			} else if (const auto topic = this->topic()) {
-				return topic->canWrite();
+				return Data::CanSendAnything(topic);
 			} else {
-				return channel->canWrite();
+				return Data::CanSendAnything(channel);
 			}
 		} else {
 			return false;
@@ -1956,6 +1957,53 @@ bool HistoryItem::suggestDeleteAllReport() const {
 		return false;
 	}
 	return !isPost() && !out();
+}
+
+ChatRestriction HistoryItem::requiredSendRight() const {
+	const auto media = this->media();
+	if (media && media->game()) {
+		return ChatRestriction::SendGames;
+	}
+	const auto photo = (media && !media->webpage())
+		? media->photo()
+		: nullptr;
+	const auto document = (media && !media->webpage())
+		? media->document()
+		: nullptr;
+	if (photo) {
+		return ChatRestriction::SendPhotos;
+	} else if (document) {
+		return document->requiredSendRight();
+	} else if (media && media->poll()) {
+		return ChatRestriction::SendPolls;
+	}
+	return ChatRestriction::SendOther;
+}
+
+bool HistoryItem::requiresSendInlineRight() const {
+	return Has<HistoryMessageVia>();
+}
+
+std::optional<QString> HistoryItem::errorTextForForward(
+		not_null<Data::Thread*> to) const {
+	const auto requiredRight = requiredSendRight();
+	const auto requiresInline = requiresSendInlineRight();
+	const auto peer = to->peer();
+	constexpr auto kInline = ChatRestriction::SendInline;
+	if (const auto error = Data::RestrictionError(peer, requiredRight)) {
+		return *error;
+	} else if (requiresInline && !Data::CanSend(to, kInline)) {
+		return Data::RestrictionError(peer, kInline).value_or(
+			tr::lng_forward_cant(tr::now));
+	} else if (_media
+		&& _media->poll()
+		&& _media->poll()->publicVotes()
+		&& peer->isBroadcast()) {
+		return tr::lng_restricted_send_public_polls(tr::now);
+	} else if (!Data::CanSend(to, requiredRight, false)) {
+		return tr::lng_forward_cant(tr::now);
+	}
+	return {};
 }
 
 bool HistoryItem::canReact() const {

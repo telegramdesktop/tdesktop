@@ -41,15 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-[[nodiscard]] bool HasInlineItems(const HistoryItemsList &items) {
-	for (const auto &item : items) {
-		if (item->viaBot()) {
-			return true;
-		}
-	}
-	return false;
-}
-
 bool PeerCallKnown(not_null<PeerData*> peer) {
 	if (peer->groupCall() != nullptr) {
 		return true;
@@ -70,29 +61,28 @@ QString GetErrorTextForSending(
 	const auto topic = forum
 		? forum->topicFor(request.topicRootId)
 		: nullptr;
-	if (!(topic ? topic->canWrite() : peer->canWrite())) {
-		return tr::lng_forward_cant(tr::now);
-	}
-
+	const auto thread = topic
+		? not_null<Data::Thread*>(topic)
+		: peer->owner().history(peer);
 	if (request.forward) {
 		for (const auto &item : *request.forward) {
-			if (const auto media = item->media()) {
-				const auto error = media->errorTextForForward(peer);
-				if (!error.isEmpty() && error != u"skip"_q) {
-					return error;
-				}
+			if (const auto error = item->errorTextForForward(thread)) {
+				return *error;
 			}
 		}
 	}
-	const auto error = Data::RestrictionError(
-		peer,
-		ChatRestriction::SendInline);
-	if (error && request.forward && HasInlineItems(*request.forward)) {
-		return *error;
+	const auto hasText = (request.text && !request.text->empty());
+	if (hasText) {
+		const auto error = Data::RestrictionError(
+			peer,
+			ChatRestriction::SendOther);
+		if (error) {
+			return *error;
+		} else if (!Data::CanSendTexts(thread)) {
+			return tr::lng_forward_cant(tr::now);
+		}
 	}
-
 	if (peer->slowmodeApplied()) {
-		const auto hasText = (request.text && !request.text->empty());
 		const auto count = (hasText ? 1 : 0)
 			+ (request.forward ? int(request.forward->size()) : 0);
 		if (const auto history = peer->owner().historyLoaded(peer)) {

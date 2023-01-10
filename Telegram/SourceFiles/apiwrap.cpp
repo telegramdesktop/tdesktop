@@ -3509,7 +3509,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		? action.topicRootId
 		: Data::ForumTopic::kGeneralId;
 	const auto topic = peer->forumTopicFor(topicRootId);
-	if (!(topic ? topic->canWrite() : peer->canWrite())
+	if (!(topic ? Data::CanSendTexts(topic) : Data::CanSendTexts(peer))
 		|| Api::SendDice(message)) {
 		return;
 	}

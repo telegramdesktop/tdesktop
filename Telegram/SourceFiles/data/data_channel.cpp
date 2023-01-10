@@ -321,13 +321,18 @@ ChatRestrictionsInfo ChannelData::KickedRestrictedRights(
 		not_null<PeerData*> participant) {
 	using Flag = ChatRestriction;
 	const auto flags = Flag::ViewMessages
-		| Flag::SendMessages
-		| Flag::SendMedia
-		| Flag::EmbedLinks
 		| Flag::SendStickers
 		| Flag::SendGifs
 		| Flag::SendGames
-		| Flag::SendInline;
+		| Flag::SendInline
+		| Flag::SendPhotos
+		| Flag::SendVideos
+		| Flag::SendVideoMessages
+		| Flag::SendMusic
+		| Flag::SendVoiceMessages
+		| Flag::SendFiles
+		| Flag::SendOther
+		| Flag::EmbedLinks;
 	return ChatRestrictionsInfo(
 		(participant->isUser() ? flags : Flag::ViewMessages),
 		std::numeric_limits<int32>::max());
@@ -549,10 +554,6 @@ bool ChannelData::canAddMembers() const {
 		: ((adminRights() & AdminRight::InviteByLinkOrAdd) || amCreator());
 }
 
-bool ChannelData::canSendPolls() const {
-	return canWrite() && !amRestricted(ChatRestriction::SendPolls);
-}
-
 bool ChannelData::canAddAdmins() const {
 	return amCreator()
 		|| (adminRights() & AdminRight::AddAdmins);
@@ -561,18 +562,6 @@ bool ChannelData::canAddAdmins() const {
 bool ChannelData::canPublish() const {
 	return amCreator()
 		|| (adminRights() & AdminRight::PostMessages);
-}
-
-bool ChannelData::canWrite(bool checkForForum) const {
-	// Duplicated in Data::CanWriteValue().
-	const auto allowed = amIn()
-		|| ((flags() & Flag::HasLink) && !(flags() & Flag::JoinToWrite));
-	const auto forumRestriction = checkForForum && isForum();
-	return allowed
-		&& !forumRestriction
-		&& (canPublish()
-			|| (!isBroadcast()
-				&& !amRestricted(Restriction::SendMessages)));
 }
 
 bool ChannelData::allowsForwarding() const {

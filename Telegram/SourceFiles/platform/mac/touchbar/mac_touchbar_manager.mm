@@ -9,8 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h" // ApiWrap::updateStickers()
 #include "core/application.h"
-#include "data/data_peer.h" // PeerData::canWrite()
-#include "data/data_forum_topic.h" // Data::ForumTopic::canWrite()
+#include "data/data_chat_participant_status.h" // Data::CanSendAnyOf.
 #include "data/data_session.h"
 #include "data/stickers/data_stickers.h" // Stickers::setsRef()
 #include "main/main_domain.h"
@@ -146,9 +145,11 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 			) | rpl::map([](Dialogs::Key k) {
 				const auto topic = k.topic();
 				const auto peer = k.peer();
+				const auto rights = ChatRestriction::SendStickers
+					| ChatRestriction::SendOther;
 				return topic
-					? topic->canWrite()
-					: (peer && peer->canWrite());
+					? Data::CanSendAnyOf(topic, rights)
+					: (peer && Data::CanSendAnyOf(peer, rights));
 			}) | rpl::distinct_until_changed()
 		) | rpl::start_with_next([=](
 				bool canApplyMarkdown,

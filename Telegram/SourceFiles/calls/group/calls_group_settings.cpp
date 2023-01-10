@@ -194,7 +194,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		showToast(tr::lng_share_done(tr::now));
 	};
 	auto filterCallback = [](not_null<Data::Thread*> thread) {
-		return thread->canWrite();
+		return Data::CanSend(thread, ChatRestriction::SendOther);
 	};
 
 	const auto scheduleStyle = [&] {

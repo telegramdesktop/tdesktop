@@ -112,7 +112,6 @@ public:
 	[[nodiscard]] bool isBot() const;
 	[[nodiscard]] bool isSupport() const;
 	[[nodiscard]] bool isInaccessible() const;
-	[[nodiscard]] bool canWrite() const;
 	[[nodiscard]] bool applyMinPhoto() const;
 	[[nodiscard]] bool hasPersonalPhoto() const;
 
@@ -120,7 +119,6 @@ public:
 	[[nodiscard]] bool canAddContact() const;
 
 	[[nodiscard]] bool canReceiveGifts() const;
-	[[nodiscard]] bool canReceiveVoices() const;
 
 	// In Data::Session::processUsers() we check only that.
 	// When actually trying to share contact we perform

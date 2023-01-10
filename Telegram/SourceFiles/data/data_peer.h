@@ -20,7 +20,6 @@ class ChatData;
 class ChannelData;
 
 enum class ChatRestriction;
-enum class UserRestriction;
 
 namespace Ui {
 class EmptyUserpic;
@@ -205,7 +204,6 @@ public:
 		return _notify;
 	}
 
-	[[nodiscard]] bool canWrite(bool checkForForum = true) const;
 	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
 		ChatRestriction right) const;
@@ -214,7 +212,6 @@ public:
 	[[nodiscard]] bool slowmodeApplied() const;
 	[[nodiscard]] rpl::producer<bool> slowmodeAppliedValue() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
-	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool canManageGroupCall() const;
 
 	[[nodiscard]] UserData *asUser();
@@ -453,14 +450,6 @@ private:
 };
 
 namespace Data {
-
-std::optional<QString> RestrictionError(
-	not_null<PeerData*> peer,
-	ChatRestriction restriction);
-
-std::optional<QString> RestrictionError(
-	not_null<PeerData*> peer,
-	UserRestriction restriction);
 
 void SetTopPinnedMessageId(
 	not_null<PeerData*> peer,

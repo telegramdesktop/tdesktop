@@ -1120,10 +1120,14 @@ void ShareBox::Inner::chooseForumTopic(not_null<Data::Forum*> forum) {
 			box->closeBox();
 		}, box->lifetime());
 	};
+	auto filter = [=](not_null<Data::ForumTopic*> topic) {
+		return guard && _descriptor.filterCallback(topic);
+	};
 	auto box = Box<PeerListBox>(
 		std::make_unique<ChooseTopicBoxController>(
 			forum,
-			std::move(chosen)),
+			std::move(chosen),
+			std::move(filter)),
 		std::move(initBox));
 	*weak = box.data();
 	_show->showBox(std::move(box));
@@ -1507,8 +1511,12 @@ void FastShareMessage(
 		}
 	};
 
-	auto filterCallback = [isGame](not_null<Data::Thread*> thread) {
-		return thread->canWrite()
+	const auto requiredRight = item->requiredSendRight();
+	const auto requiresInline = item->requiresSendInlineRight();
+	auto filterCallback = [=](not_null<Data::Thread*> thread) {
+		return Data::CanSend(thread, requiredRight)
+			&& (!requiresInline
+				|| Data::CanSend(thread, ChatRestriction::SendInline))
 			&& (!isGame || !thread->peer()->isBroadcast());
 	};
 	auto copyLinkCallback = canCopyLink

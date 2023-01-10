@@ -337,8 +337,9 @@ public:
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther,
 		anim::type animated = anim::type::normal);
-
 	void hideLayer(anim::type animated = anim::type::normal);
+
+	void showToast(TextWithEntities &&text);
 
 	[[nodiscard]] auto sendingAnimation() const
 	-> Ui::MessageSendingAnimationController &;

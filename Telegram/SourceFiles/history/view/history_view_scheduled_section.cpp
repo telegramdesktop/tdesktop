@@ -16,18 +16,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h" // GetErrorTextForSending.
 #include "menu/menu_send.h" // SendMenu::Type.
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/item_text_options.h"
-#include "ui/toast/toast.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/ui_utility.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
 #include "api/api_common.h"
 #include "api/api_editing.h"
 #include "api/api_sending.h"
@@ -53,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "data/data_user.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer_values.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "inline_bots/inline_bot_result.h"
@@ -199,7 +199,30 @@ ScheduledWidget::ScheduledWidget(
 ScheduledWidget::~ScheduledWidget() = default;
 
 void ScheduledWidget::setupComposeControls() {
-	_composeControls->setHistory({ .history = _history.get() });
+	auto writeRestriction = rpl::combine(
+		session().changes().peerFlagsValue(
+			_history->peer,
+			Data::PeerUpdate::Flag::Rights),
+		Data::CanSendAnythingValue(_history->peer)
+	) | rpl::map([=] {
+		const auto allWithoutPolls = Data::AllSendRestrictions()
+			& ~ChatRestriction::SendPolls;
+		const auto canSendAnything = Data::CanSendAnyOf(
+			_history->peer,
+			allWithoutPolls);
+		const auto restriction = Data::RestrictionError(
+			_history->peer,
+			ChatRestriction::SendOther);
+		return !canSendAnything
+			? (restriction
+				? restriction
+				: tr::lng_group_not_accessible(tr::now))
+			: std::optional<QString>();
+	});
+	_composeControls->setHistory({
+		.history = _history.get(),
+		.writeRestriction = std::move(writeRestriction),
+	});
 
 	_composeControls->height(
 	) | rpl::start_with_next([=] {
@@ -308,13 +331,8 @@ void ScheduledWidget::setupComposeControls() {
 }
 
 void ScheduledWidget::chooseAttach() {
-	if (const auto error = Data::RestrictionError(
-			_history->peer,
-			ChatRestriction::SendMedia)) {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(controller()).toastParent(),
-			.text = { *error },
-		});
+	if (const auto error = Data::AnyFileRestrictionError(_history->peer)) {
+		controller()->showToast({ *error });
 		return;
 	}
 
@@ -392,10 +410,11 @@ bool ScheduledWidget::confirmSendingFiles(
 		controller(),
 		std::move(list),
 		_composeControls->getTextWithAppliedMarkdown(),
-		_history->peer,
-		CanScheduleUntilOnline(_history->peer)
+		DefaultLimitsForPeer(_history->peer),
+		DefaultCheckForPeer(controller(), _history->peer),
+		(CanScheduleUntilOnline(_history->peer)
 			? Api::SendType::ScheduledToUser
-			: Api::SendType::Scheduled,
+			: Api::SendType::Scheduled),
 		SendMenu::Type::Disabled);
 
 	box->setConfirmedCallback(crl::guard(this, [=](
@@ -429,7 +448,7 @@ void ScheduledWidget::sendingFilesConfirmed(
 		bool ctrlShiftEnter) {
 	Expects(list.filesToProcess.empty());
 
-	if (showSendingFilesError(list)) {
+	if (showSendingFilesError(list, way.sendImagesAsPhotos())) {
 		return;
 	}
 	auto groups = DivideByGroups(std::move(list), way, false);
@@ -512,15 +531,19 @@ void ScheduledWidget::uploadFile(
 
 bool ScheduledWidget::showSendingFilesError(
 		const Ui::PreparedList &list) const {
+	return showSendingFilesError(list, std::nullopt);
+}
+
+bool ScheduledWidget::showSendingFilesError(
+		const Ui::PreparedList &list,
+		std::optional<bool> compress) const {
 	const auto text = [&] {
-		const auto error = Data::RestrictionError(
-			_history->peer,
-			ChatRestriction::SendMedia);
+		using Error = Ui::PreparedList::Error;
+		const auto peer = _history->peer;
+		const auto error = Data::FileRestrictionError(peer, list, compress);
 		if (error) {
 			return *error;
-		}
-		using Error = Ui::PreparedList::Error;
-		switch (list.error) {
+		} else switch (list.error) {
 		case Error::None: return QString();
 		case Error::EmptyFile:
 		case Error::Directory:
@@ -540,10 +563,7 @@ bool ScheduledWidget::showSendingFilesError(
 		return true;
 	}
 
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(controller()).toastParent(),
-		.text = { text },
-	});
+	controller()->showToast({ text });
 	return true;
 }
 
@@ -555,7 +575,21 @@ Api::SendAction ScheduledWidget::prepareSendAction(
 }
 
 void ScheduledWidget::send() {
-	if (_composeControls->getTextWithAppliedMarkdown().text.isEmpty()) {
+	const auto textWithTags = _composeControls->getTextWithAppliedMarkdown();
+	if (textWithTags.text.isEmpty()) {
+		return;
+	}
+
+	const auto error = GetErrorTextForSending(
+		_history->peer,
+		{
+			.topicRootId = MsgId(),
+			.forward = nullptr,
+			.text = &textWithTags,
+			.ignoreSlowmodeCountdown = true,
+		});
+	if (!error.isEmpty()) {
+		controller()->showToast({ error });
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
@@ -570,18 +604,6 @@ void ScheduledWidget::send(Api::SendOptions options) {
 	auto message = ApiWrap::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();
 	message.webPageId = webPageId;
-
-	//const auto error = GetErrorTextForSending(
-	//	_peer,
-	//	_toForward,
-	//	message.textWithTags);
-	//if (!error.isEmpty()) {
-	//	Ui::ShowMultilineToast({
-	//		.parentOverride = Window::Show(controller()).toastParent(),
-	//		.text = { error },
-	//	});
-	//	return;
-	//}
 
 	session().api().sendMessage(std::move(message));
 
@@ -647,8 +669,9 @@ void ScheduledWidget::edit(
 		return;
 	} else if (!left.text.isEmpty()) {
 		const auto remove = left.text.size();
-		controller()->show(Ui::MakeInformBox(
-			tr::lng_edit_limit_reached(tr::now, lt_count, remove)));
+		controller()->showToast({
+			tr::lng_edit_limit_reached(tr::now, lt_count, remove)
+		});
 		return;
 	}
 
@@ -672,13 +695,13 @@ void ScheduledWidget::edit(
 		}
 
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, error)) {
-			controller()->show(Ui::MakeInformBox(tr::lng_edit_error()));
+			controller()->showToast({ tr::lng_edit_error(tr::now) });
 		} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
 			_composeControls->cancelEditMessage();
 		} else if (error == u"MESSAGE_EMPTY"_q) {
 			_composeControls->focus();
 		} else {
-			controller()->show(Ui::MakeInformBox(tr::lng_edit_error()));
+			controller()->showToast({ tr::lng_edit_error(tr::now) });
 		}
 		update();
 		return true;
@@ -712,9 +735,7 @@ bool ScheduledWidget::sendExistingDocument(
 		_history->peer,
 		ChatRestriction::SendStickers);
 	if (error) {
-		controller()->show(
-			Ui::MakeInformBox(*error),
-			Ui::LayerOption::KeepOther);
+		controller()->showToast({ *error });
 		return false;
 	} else if (ShowSendPremiumError(controller(), document)) {
 		return false;
@@ -743,11 +764,9 @@ bool ScheduledWidget::sendExistingPhoto(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::SendMedia);
+		ChatRestriction::SendPhotos);
 	if (error) {
-		controller()->show(
-			Ui::MakeInformBox(*error),
-			Ui::LayerOption::KeepOther);
+		controller()->showToast({ *error });
 		return false;
 	}
 
@@ -765,7 +784,7 @@ void ScheduledWidget::sendInlineResult(
 		not_null<UserData*> bot) {
 	const auto errorText = result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		controller()->show(Ui::MakeInformBox(errorText));
+		controller()->showToast({ errorText });
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) {

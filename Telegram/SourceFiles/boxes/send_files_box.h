@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/variable.h>
+#include "base/flags.h"
 #include "boxes/abstract_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
@@ -48,6 +48,30 @@ namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
 
+enum class SendFilesAllow {
+	OnlyOne = (1 << 0),
+	Photos = (1 << 1),
+	Videos = (1 << 2),
+	Music = (1 << 3),
+	Files = (1 << 4),
+	Stickers = (1 << 5),
+	Gifs = (1 << 6),
+	EmojiWithoutPremium = (1 << 7),
+	Texts = (1 << 8),
+};
+inline constexpr bool is_flag_type(SendFilesAllow) { return true; }
+using SendFilesLimits = base::flags<SendFilesAllow>;
+
+using SendFilesCheck = Fn<bool(
+	const Ui::PreparedFile &file,
+	bool compress,
+	bool silent)>;
+
+[[nodiscard]] SendFilesLimits DefaultLimitsForPeer(not_null<PeerData*> peer);
+[[nodiscard]] SendFilesCheck DefaultCheckForPeer(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer);
+
 class SendFilesBox : public Ui::BoxContent {
 public:
 	enum class SendLimit {
@@ -59,7 +83,8 @@ public:
 		not_null<Window::SessionController*> controller,
 		Ui::PreparedList &&list,
 		const TextWithTags &caption,
-		not_null<PeerData*> peer,
+		SendFilesLimits limits,
+		SendFilesCheck check,
 		Api::SendType sendType,
 		SendMenu::Type sendMenuType);
 
@@ -126,6 +151,13 @@ private:
 	[[nodiscard]] bool hasSendMenu() const;
 	[[nodiscard]] bool hasSpoilerMenu() const;
 	[[nodiscard]] bool allWithSpoilers();
+	[[nodiscard]] bool checkWithWay(
+		Ui::SendFilesWay way,
+		bool silent = false) const;
+	[[nodiscard]] bool checkWith(
+		const Ui::PreparedList &added,
+		Ui::SendFilesWay way,
+		bool silent = false) const;
 	void addMenuButton();
 	void applyBlockChanges();
 	void toggleSpoilers(bool enabled);
@@ -177,10 +209,10 @@ private:
 	Ui::PreparedList _list;
 	std::optional<int> _removingIndex;
 
-	SendLimit _sendLimit = SendLimit::Many;
+	SendFilesLimits _limits = {};
 	SendMenu::Type _sendMenuType = SendMenu::Type();
-	bool _allowEmojiWithoutPremium = false;
 
+	SendFilesCheck _check;
 	Fn<void(
 		Ui::PreparedList &&list,
 		Ui::SendFilesWay way,

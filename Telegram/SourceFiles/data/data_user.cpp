@@ -293,11 +293,6 @@ bool UserData::isInaccessible() const {
 	return flags() & UserDataFlag::Deleted;
 }
 
-bool UserData::canWrite() const {
-	// Duplicated in Data::CanWriteValue().
-	return !isInaccessible() && !isRepliesChat();
-}
-
 bool UserData::applyMinPhoto() const {
 	return !(flags() & UserDataFlag::DiscardMinPhoto);
 }
@@ -312,10 +307,6 @@ bool UserData::canAddContact() const {
 
 bool UserData::canReceiveGifts() const {
 	return flags() & UserDataFlag::CanReceiveGifts;
-}
-
-bool UserData::canReceiveVoices() const {
-	return !(flags() & UserDataFlag::VoiceMessagesForbidden);
 }
 
 bool UserData::canShareThisContactFast() const {

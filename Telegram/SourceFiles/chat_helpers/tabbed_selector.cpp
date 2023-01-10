@@ -388,7 +388,9 @@ TabbedSelector::TabbedSelector(
 		_tabsSlider->raise();
 	}
 
-	if (hasStickersTab() || hasGifsTab()) {
+	if (hasStickersTab()
+		|| hasGifsTab()
+		|| (hasEmojiTab() && _mode == Mode::Full)) {
 		session().changes().peerUpdates(
 			Data::PeerUpdate::Flag::Rights
 		) | rpl::filter([=](const Data::PeerUpdate &update) {
@@ -892,6 +894,14 @@ void TabbedSelector::checkRestrictedPeer() {
 			? Data::RestrictionError(
 				_currentPeer,
 				ChatRestriction::SendGifs)
+			: (_currentTabType == SelectorTab::Emoji && _mode == Mode::Full)
+			? (Data::RestrictionError(
+				_currentPeer,
+				ChatRestriction::SendInline)
+				? Data::RestrictionError(
+					_currentPeer,
+					ChatRestriction::SendOther)
+				: std::nullopt)
 			: std::nullopt;
 		if (error) {
 			if (!_restrictedLabel) {

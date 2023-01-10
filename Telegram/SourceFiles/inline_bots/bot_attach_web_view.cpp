@@ -145,7 +145,7 @@ void ShowChooseBox(
 	};
 	auto filter = [=](not_null<Data::Thread*> thread) -> bool {
 		const auto peer = thread->peer();
-		if (!thread->canWrite()) {
+		if (!Data::CanSend(thread, ChatRestriction::SendInline, false)) {
 			return false;
 		} else if (const auto user = peer->asUser()) {
 			if (user->isBot()) {

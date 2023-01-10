@@ -123,22 +123,25 @@ auto Dependencies(ChatRestrictions)
 		{ Flag::SendInline, Flag::SendStickers },
 		{ Flag::SendStickers, Flag::SendInline },
 
-		// stickers -> send_messages
-		{ Flag::SendStickers, Flag::SendMessages },
+		// embed_links -> send_plain
+		{ Flag::EmbedLinks, Flag::SendOther },
 
-		// embed_links -> send_messages
-		{ Flag::EmbedLinks, Flag::SendMessages },
-
-		// send_media -> send_messages
-		{ Flag::SendMedia, Flag::SendMessages },
-
-		// send_polls -> send_messages
-		{ Flag::SendPolls, Flag::SendMessages },
-
-		// send_messages -> view_messages
-		{ Flag::SendMessages, Flag::ViewMessages },
+		// send_* -> view_messages
+		{ Flag::SendStickers, Flag::ViewMessages },
+		{ Flag::SendGifs, Flag::ViewMessages },
+		{ Flag::SendGames, Flag::ViewMessages },
+		{ Flag::SendInline, Flag::ViewMessages },
+		{ Flag::SendPolls, Flag::ViewMessages },
+		{ Flag::SendPhotos, Flag::ViewMessages },
+		{ Flag::SendVideos, Flag::ViewMessages },
+		{ Flag::SendVideoMessages, Flag::ViewMessages },
+		{ Flag::SendMusic, Flag::ViewMessages },
+		{ Flag::SendVoiceMessages, Flag::ViewMessages },
+		{ Flag::SendFiles, Flag::ViewMessages },
+		{ Flag::SendOther, Flag::ViewMessages },
 	};
 }
+
 
 ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 	using Flag = ChatRestriction;
@@ -154,10 +157,15 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		| Flag::SendGames
 		| Flag::SendGifs
 		| Flag::SendInline
-		| Flag::SendMedia
-		| Flag::SendMessages
 		| Flag::SendPolls
-		| Flag::SendStickers);
+		| Flag::SendStickers
+		| Flag::SendPhotos
+		| Flag::SendVideos
+		| Flag::SendVideoMessages
+		| Flag::SendMusic
+		| Flag::SendVoiceMessages
+		| Flag::SendFiles
+		| Flag::SendOther);
 }
 
 auto Dependencies(ChatAdminRights)
@@ -722,13 +730,20 @@ void EditPeerPermissionsBox::addBannedButtons(
 std::vector<RestrictionLabel> RestrictionLabels(
 		Data::RestrictionsSetOptions options) {
 	using Flag = ChatRestriction;
+
 	auto result = std::vector<RestrictionLabel>{
-		{ Flag::SendMessages, tr::lng_rights_chat_send_text(tr::now) },
-		{ Flag::SendMedia, tr::lng_rights_chat_send_media(tr::now) },
+		{ Flag::SendOther, tr::lng_rights_chat_send_text(tr::now) },
+		// { Flag::SendMedia, tr::lng_rights_chat_send_media(tr::now) },
+		{ Flag::SendPhotos, tr::lng_rights_chat_photos(tr::now) },
+		{ Flag::SendVideos, tr::lng_rights_chat_videos(tr::now) },
+		{ Flag::SendVideoMessages, tr::lng_rights_chat_video_messages(tr::now) },
+		{ Flag::SendMusic, tr::lng_rights_chat_music(tr::now) },
+		{ Flag::SendVoiceMessages, tr::lng_rights_chat_voice_messages(tr::now) },
+		{ Flag::SendFiles, tr::lng_rights_chat_files(tr::now) },
 		{ Flag::SendStickers
 			| Flag::SendGifs
 			| Flag::SendGames
-			| Flag::SendInline, tr::lng_rights_chat_send_stickers(tr::now) },
+			| Flag::SendInline, tr::lng_rights_chat_stickers(tr::now) },
 		{ Flag::EmbedLinks, tr::lng_rights_chat_send_links(tr::now) },
 		{ Flag::SendPolls, tr::lng_rights_chat_send_polls(tr::now) },
 		{ Flag::AddParticipants, tr::lng_rights_chat_add_members(tr::now) },

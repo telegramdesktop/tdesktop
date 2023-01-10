@@ -841,6 +841,22 @@ void DocumentData::setLoadedInMediaCache(bool loaded) {
 	}
 }
 
+ChatRestriction DocumentData::requiredSendRight() const {
+	return isVideoFile()
+		? ChatRestriction::SendVideos
+		: isSong()
+		? ChatRestriction::SendMusic
+		: isVoiceMessage()
+		? ChatRestriction::SendVoiceMessages
+		: isVideoMessage()
+		? ChatRestriction::SendVideoMessages
+		: sticker()
+		? ChatRestriction::SendStickers
+		: isAnimation()
+		? ChatRestriction::SendGifs
+		: ChatRestriction::SendFiles;
+}
+
 void DocumentData::setFileName(const QString &remoteFileName) {
 	_filename = remoteFileName;
 

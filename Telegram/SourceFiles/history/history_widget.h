@@ -430,6 +430,12 @@ private:
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
+	bool showSendingFilesError(
+		const Ui::PreparedList &list,
+		std::optional<bool> compress) const;
+	bool showSendMessageError(
+		const TextWithTags &textWithTags,
+		bool ignoreSlowmodeCountdown) const;
 
 	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,

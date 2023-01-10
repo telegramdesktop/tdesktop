@@ -318,7 +318,6 @@ public:
 	void setDefaultRestrictions(ChatRestrictions rights);
 
 	// Like in ChatData.
-	[[nodiscard]] bool canWrite(bool checkForForum = true) const;
 	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditPermissions() const;
@@ -327,7 +326,6 @@ public:
 	[[nodiscard]] bool canAddMembers() const;
 	[[nodiscard]] bool canAddAdmins() const;
 	[[nodiscard]] bool canBanMembers() const;
-	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool anyoneCanAddMembers() const;
 
 	[[nodiscard]] bool canEditMessages() const;

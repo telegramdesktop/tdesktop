@@ -947,13 +947,13 @@ not_null<HistoryItem*> History::addNewToBack(
 					if (peer->isChat()) {
 						botNotInChat = item->from()->isUser()
 							&& (!peer->asChat()->participants.empty()
-								|| !peer->canWrite())
+								|| !Data::CanSendAnything(peer))
 							&& !peer->asChat()->participants.contains(
 								item->from()->asUser());
 					} else if (peer->isMegagroup()) {
 						botNotInChat = item->from()->isUser()
 							&& (peer->asChannel()->mgInfo->botStatus != 0
-								|| !peer->canWrite())
+								|| !Data::CanSendAnything(peer))
 							&& !peer->asChannel()->mgInfo->bots.contains(
 								item->from()->asUser());
 					}
@@ -1501,9 +1501,15 @@ void History::addItemsToLists(
 							if (!lastKeyboardInited) {
 								bool botNotInChat = false;
 								if (peer->isChat()) {
-									botNotInChat = (!peer->canWrite() || !peer->asChat()->participants.empty()) && item->author()->isUser() && !peer->asChat()->participants.contains(item->author()->asUser());
+									botNotInChat = (!Data::CanSendAnything(peer)
+										|| !peer->asChat()->participants.empty())
+										&& item->author()->isUser()
+										&& !peer->asChat()->participants.contains(item->author()->asUser());
 								} else if (peer->isMegagroup()) {
-									botNotInChat = (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && item->author()->isUser() && !peer->asChannel()->mgInfo->bots.contains(item->author()->asUser());
+									botNotInChat = (!Data::CanSendAnything(peer)
+										|| peer->asChannel()->mgInfo->botStatus != 0)
+										&& item->author()->isUser()
+										&& !peer->asChannel()->mgInfo->bots.contains(item->author()->asUser());
 								}
 								if (wasKeyboardHide || botNotInChat) {
 									clearLastKeyboard();

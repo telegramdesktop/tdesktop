@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
+#include "data/data_forum_topic.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -363,9 +364,13 @@ MainWidget::MainWidget(
 		const auto peer = key.peer();
 		const auto topic = key.topic();
 		auto canWrite = topic
-			? Data::CanWriteValue(topic)
+			? Data::CanSendAnyOfValue(
+				topic,
+				Data::TabbedPanelSendRestrictions())
 			: peer
-			? Data::CanWriteValue(peer)
+			? Data::CanSendAnyOfValue(
+
+				peer, Data::TabbedPanelSendRestrictions())
 			: rpl::single(false);
 		return std::move(
 			canWrite
@@ -559,7 +564,7 @@ bool MainWidget::setForwardDraft(
 			.ignoreSlowmodeCountdown = true,
 		});
 	if (!error.isEmpty()) {
-		Ui::show(Ui::MakeInformBox(error), Ui::LayerOption::KeepOther);
+		_controller->show(Ui::MakeInformBox(error));
 		return false;
 	}
 
@@ -575,7 +580,7 @@ bool MainWidget::shareUrl(
 		not_null<Data::Thread*> thread,
 		const QString &url,
 		const QString &text) const {
-	if (!thread->canWrite()) {
+	if (!Data::CanSendTexts(thread)) {
 		_controller->show(Ui::MakeInformBox(tr::lng_share_cant()));
 		return false;
 	}
@@ -606,8 +611,8 @@ bool MainWidget::shareUrl(
 bool MainWidget::inlineSwitchChosen(
 		not_null<Data::Thread*> thread,
 		const QString &botAndQuery) const {
-	if (!thread->canWrite()) {
-		Ui::show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
+	if (!Data::CanSend(thread, ChatRestriction::SendInline)) {
+		_controller->show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
 		return false;
 	}
 	const auto textWithTags = TextWithTags{
@@ -637,13 +642,13 @@ bool MainWidget::inlineSwitchChosen(
 bool MainWidget::sendPaths(
 		not_null<Data::Thread*> thread,
 		const QStringList &paths) {
-	if (!thread->canWrite()) {
-		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
+	if (!Data::CanSendAnyOf(thread, Data::FilesSendRestrictions())) {
+		_controller->show(Ui::MakeInformBox(
+			tr::lng_forward_send_files_cant()));
 		return false;
-	} else if (const auto error = Data::RestrictionError(
-			thread->peer(),
-			ChatRestriction::SendMedia)) {
-		Ui::show(Ui::MakeInformBox(*error));
+	} else if (const auto error = Data::AnyFileRestrictionError(
+			thread->peer())) {
+		_controller->show(Ui::MakeInformBox(*error));
 		return false;
 	} else {
 		_controller->showThread(
@@ -685,8 +690,13 @@ bool MainWidget::filesOrForwardDrop(
 			clearHider(_hider);
 		}
 		return false;
-	} else if (!thread->canWrite()) {
-		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
+	} else if (!Data::CanSendAnyOf(thread, Data::FilesSendRestrictions())) {
+		_controller->show(Ui::MakeInformBox(
+			tr::lng_forward_send_files_cant()));
+		return false;
+	} else if (const auto error = Data::AnyFileRestrictionError(
+			thread->peer())) {
+		_controller->show(Ui::MakeInformBox(*error));
 		return false;
 	} else {
 		_controller->showThread(
@@ -2111,7 +2121,8 @@ void MainWidget::hideAll() {
 void MainWidget::showAll() {
 	if (cPasswordRecovered()) {
 		cSetPasswordRecovered(false);
-		Ui::show(Ui::MakeInformBox(tr::lng_cloud_password_updated()));
+		_controller->show(Ui::MakeInformBox(
+			tr::lng_cloud_password_updated()));
 	}
 	if (isOneColumn()) {
 		if (_sideShadow) {
@@ -2720,7 +2731,7 @@ void MainWidget::activate() {
 				_controller,
 				paths[0].mid(interpret.size()));
 			if (!error.isEmpty()) {
-				Ui::show(Ui::MakeInformBox(error));
+				_controller->show(Ui::MakeInformBox(error));
 			}
 		} else {
 			const auto chosen = [=](not_null<Data::Thread*> thread) {

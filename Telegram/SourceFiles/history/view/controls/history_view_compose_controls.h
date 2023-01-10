@@ -150,6 +150,7 @@ public:
 
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] bool readyToForward() const;
+	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] FullMsgId replyingToMessage() const;
 
 	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;

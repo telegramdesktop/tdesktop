@@ -3015,6 +3015,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_chat_send_links" = "Embed links";
 "lng_rights_chat_send_polls" = "Send polls";
 "lng_rights_chat_add_members" = "Add members";
+"lng_rights_chat_photos" = "Photos";
+"lng_rights_chat_videos" = "Video files";
+"lng_rights_chat_stickers" = "Stickers & GIFs";
+"lng_rights_chat_music" = "Music";
+"lng_rights_chat_files" = "Files";
+"lng_rights_chat_voice_messages" = "Voice messages";
+"lng_rights_chat_video_messages" = "Video messages";
 "lng_rights_chat_banned_until_header" = "Restricted until";
 "lng_rights_chat_banned_forever" = "Forever";
 "lng_rights_chat_banned_day#one" = "For {count} day";
@@ -3044,21 +3051,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bots_password_confirm_description" = "Please enter your password to confirm the action.";
 
 "lng_restricted_send_message" = "The admins of this group restricted you from writing here.";
-"lng_restricted_send_media" = "The admins of this group restricted you from posting media content here.";
+"lng_restricted_send_photos" = "The admins of this group restricted you from posting photos here.";
+"lng_restricted_send_videos" = "The admins of this group restricted you from posting video files here.";
+"lng_restricted_send_music" = "The admins of this group restricted you from posting music here.";
+"lng_restricted_send_files" = "The admins of this group restricted you from posting files here.";
+"lng_restricted_send_voice_messages_group" = "The admins of this group restricted you from posting voice messages here.";
+"lng_restricted_send_video_messages_group" = "The admins of this group restricted you from posting video messages here.";
 "lng_restricted_send_stickers" = "The admins of this group restricted you from posting stickers here.";
 "lng_restricted_send_gifs" = "The admins of this group restricted you from posting GIFs here.";
 "lng_restricted_send_inline" = "The admins of this group restricted you from posting inline content here.";
 "lng_restricted_send_polls" = "The admins of this group restricted you from posting polls here.";
 
 "lng_restricted_send_message_until" = "The admins of this group restricted you from writing here until {date}, {time}.";
-"lng_restricted_send_media_until" = "The admins of this group restricted you from posting media content here until {date}, {time}.";
+"lng_restricted_send_photos_until" = "The admins of this group restricted you from posting photos here until {date}, {time}.";
+"lng_restricted_send_videos_until" = "The admins of this group restricted you from posting video files here until {date}, {time}.";
+"lng_restricted_send_music_until" = "The admins of this group restricted you from posting music here until {date}, {time}.";
+"lng_restricted_send_files_until" = "The admins of this group restricted you from posting files here until {date}, {time}.";
+"lng_restricted_send_voice_messages_until" = "The admins of this group restricted you from posting voice messages here until {date}, {time}.";
+"lng_restricted_send_video_messages_until" = "The admins of this group restricted you from posting video messages here until {date}, {time}.";
 "lng_restricted_send_stickers_until" = "The admins of this group restricted you from posting stickers here until {date}, {time}.";
 "lng_restricted_send_gifs_until" = "The admins of this group restricted you from posting GIFs here until {date}, {time}.";
 "lng_restricted_send_inline_until" = "The admins of this group restricted you from posting inline content here until {date}, {time}.";
 "lng_restricted_send_polls_until" = "The admins of this group restricted you from posting polls here until {date}, {time}.";
 
 "lng_restricted_send_message_all" = "Writing messages isn't allowed in this group.";
-"lng_restricted_send_media_all" = "Posting media content isn't allowed in this group.";
+"lng_restricted_send_photos_all" = "Posting photos isn't allowed in this group.";
+"lng_restricted_send_videos_all" = "Posting video files isn't allowed in this group.";
+"lng_restricted_send_music_all" = "Posting music isn't allowed in this group.";
+"lng_restricted_send_files_all" = "Posting files isn't allowed in this group.";
+"lng_restricted_send_voice_messages_all" = "Posting voice messages isn't allowed in this group.";
+"lng_restricted_send_video_messages_all" = "Posting video messages isn't allowed in this group.";
 "lng_restricted_send_stickers_all" = "Posting stickers isn't allowed in this group.";
 "lng_restricted_send_gifs_all" = "Posting GIFs isn't allowed in this group.";
 "lng_restricted_send_inline_all" = "Posting inline content isn't allowed in this group.";
@@ -3219,7 +3241,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_restricted_until" = "until {date}";
 "lng_admin_log_banned_view_messages" = "Read messages";
 "lng_admin_log_banned_send_messages" = "Send messages";
-"lng_admin_log_banned_send_media" = "Send media";
+"lng_admin_log_banned_send_photos" = "Send photos";
+"lng_admin_log_banned_send_videos" = "Send video files";
+"lng_admin_log_banned_send_music" = "Send music";
+"lng_admin_log_banned_send_files" = "Send files";
+"lng_admin_log_banned_send_voice_messages" = "Send voice messages";
+"lng_admin_log_banned_send_video_messages" = "Send video messages";
 "lng_admin_log_banned_send_stickers" = "Send stickers & GIFs";
 "lng_admin_log_banned_embed_links" = "Embed links";
 "lng_admin_log_banned_send_polls" = "Send polls";

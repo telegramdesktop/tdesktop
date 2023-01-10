@@ -393,6 +393,10 @@ public:
 	[[nodiscard]] bool suggestReport() const;
 	[[nodiscard]] bool suggestBanReport() const;
 	[[nodiscard]] bool suggestDeleteAllReport() const;
+	[[nodiscard]] ChatRestriction requiredSendRight() const;
+	[[nodiscard]] bool requiresSendInlineRight() const;
+	[[nodiscard]] std::optional<QString> errorTextForForward(
+		not_null<Data::Thread*> to) const;
 
 	[[nodiscard]] bool canReact() const;
 	enum class ReactionSource {

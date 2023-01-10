@@ -224,6 +224,9 @@ private:
 		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
+	bool showSendingFilesError(
+		const Ui::PreparedList &list,
+		std::optional<bool> compress) const;
 	void sendingFilesConfirmed(
 		Ui::PreparedList &&list,
 		Ui::SendFilesWay way,

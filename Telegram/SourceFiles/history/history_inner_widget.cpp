@@ -2070,7 +2070,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto canReply = [&] {
 			const auto peer = item->history()->peer;
 			const auto topic = item->topic();
-			return topic ? topic->canWrite() : peer->canWrite();
+			return topic
+				? Data::CanSendAnything(topic)
+				: Data::CanSendAnything(peer);
 		}();
 		if (canReply) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {

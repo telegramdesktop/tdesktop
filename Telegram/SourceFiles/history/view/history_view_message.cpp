@@ -2955,16 +2955,18 @@ bool Message::hasFastReply() const {
 }
 
 bool Message::displayFastReply() const {
-	const auto canWrite = [&] {
+	const auto canSendAnything = [&] {
 		const auto item = data();
 		const auto peer = item->history()->peer;
 		const auto topic = item->topic();
-		return topic ? topic->canWrite() : peer->canWrite();
+		return topic
+			? Data::CanSendAnything(topic)
+			: Data::CanSendAnything(peer);
 	};
 
 	return hasFastReply()
 		&& data()->isRegular()
-		&& canWrite()
+		&& canSendAnything()
 		&& !delegate()->elementInSelectionMode();
 }
 

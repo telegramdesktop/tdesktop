@@ -588,7 +588,9 @@ bool AddReplyToMessageAction(
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
 		|| !item->isRegular()
-		|| (topic ? !topic->canWrite() : !peer->canWrite())
+		|| !(topic
+			? Data::CanSendAnything(topic)
+			: Data::CanSendAnything(peer))
 		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}

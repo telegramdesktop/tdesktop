@@ -951,7 +951,11 @@ void Filler::addManageChat() {
 }
 
 void Filler::addCreatePoll() {
-	if (!(_topic ? _topic->canSendPolls() : _peer->canSendPolls())) {
+	constexpr auto kRight = ChatRestriction::SendPolls;
+	const auto can = _topic
+		? Data::CanSend(_topic, kRight)
+		: Data::CanSend(_peer, kRight);
+	if (!can) {
 		return;
 	}
 	const auto peer = _peer;
@@ -1329,7 +1333,7 @@ void PeerMenuShareContactBox(
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto callback = [=](not_null<Data::Thread*> thread) {
 		const auto peer = thread->peer();
-		if (!thread->canWrite()) {
+		if (!Data::CanSend(thread, ChatRestriction::SendOther)) {
 			navigation->parentController()->show(
 				Ui::MakeInformBox(tr::lng_forward_share_cant()),
 				Ui::LayerOption::KeepOther);
@@ -1946,10 +1950,9 @@ QPointer<Ui::BoxContent> ShowShareGameBox(
 			Ui::LayerOption::KeepOther);
 	};
 	auto filter = [](not_null<Data::Thread*> thread) {
-		const auto peer = thread->peer();
-		return (thread->canWrite() || thread->asForum())
-			&& !peer->amRestricted(ChatRestriction::SendGames)
-			&& !peer->isSelf();
+		return !thread->peer()->isSelf()
+			&& (Data::CanSend(thread, ChatRestriction::SendGames)
+				|| thread->asForum());
 	};
 	auto initBox = [](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] {

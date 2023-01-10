@@ -7,10 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/filter.h>
-#include <rpl/map.h>
-#include <rpl/combine.h>
 #include "data/data_peer.h"
+#include "data/data_chat_participant_status.h"
 
 enum class ImageRoundRadius;
 
@@ -53,6 +51,7 @@ template <
 	typename ChangeType = typename PeerType::Flags::Change>
 inline auto PeerFlagsValue(PeerType *peer) {
 	Expects(peer != nullptr);
+
 	return peer->flagsValue();
 }
 
@@ -101,15 +100,48 @@ inline auto PeerFullFlagValue(
 	return SingleFlagValue(PeerFullFlagsValue(peer), flag);
 }
 
-[[nodiscard]] rpl::producer<bool> CanWriteValue(UserData *user);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(ChatData *chat);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(
-	ChannelData *channel,
-	bool checkForForum = true);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(
+[[nodiscard]] rpl::producer<bool> CanSendAnyOfValue(
+	not_null<Data::Thread*> thread,
+	ChatRestrictions rights,
+	bool forbidInForums = true);
+[[nodiscard]] rpl::producer<bool> CanSendAnyOfValue(
 	not_null<PeerData*> peer,
-	bool checkForForum = true);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(not_null<ForumTopic*> topic);
+	ChatRestrictions rights,
+	bool forbidInForums = true);
+
+[[nodiscard]] inline rpl::producer<bool> CanSendValue(
+		not_null<Thread*> thread,
+		ChatRestriction right,
+		bool forbidInForums = true) {
+	return CanSendAnyOfValue(thread, right, forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendValue(
+		not_null<PeerData*> peer,
+		ChatRestriction right,
+		bool forbidInForums = true) {
+	return CanSendAnyOfValue(peer, right, forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendTextsValue(
+		not_null<Thread*> thread,
+		bool forbidInForums = true) {
+	return CanSendValue(thread, ChatRestriction::SendOther, forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendTextsValue(
+		not_null<PeerData*> peer,
+		bool forbidInForums = true) {
+	return CanSendValue(peer, ChatRestriction::SendOther, forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendAnythingValue(
+		not_null<Thread*> thread,
+		bool forbidInForums = true) {
+	return CanSendAnyOfValue(thread, AllSendRestrictions(), forbidInForums);
+}
+[[nodiscard]] inline rpl::producer<bool> CanSendAnythingValue(
+		not_null<PeerData*> peer,
+		bool forbidInForums = true) {
+	return CanSendAnyOfValue(peer, AllSendRestrictions(), forbidInForums);
+}
+
 [[nodiscard]] rpl::producer<bool> CanPinMessagesValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanManageGroupCallValue(

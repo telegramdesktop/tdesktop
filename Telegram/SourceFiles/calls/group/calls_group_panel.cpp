@@ -845,7 +845,7 @@ void Panel::setupMembers() {
 	_members->addMembersRequests(
 	) | rpl::start_with_next([=] {
 		if (!_peer->isBroadcast()
-			&& _peer->canWrite(false)
+			&& Data::CanSend(_peer, ChatRestriction::SendOther, false)
 			&& _call->joinAs()->isSelf()) {
 			addMembers();
 		} else if (const auto channel = _peer->asChannel()) {

@@ -164,129 +164,136 @@ inline auto DefaultRestrictionValue(
 	return SingleFlagValue(DefaultRestrictionsValue(chat), flag);
 }
 
-rpl::producer<bool> CanWriteValue(UserData *user) {
-	using namespace rpl::mappers;
-
-	if (user->isRepliesChat()) {
-		return rpl::single(false);
+// Duplicated in CanSendAnyOf().
+[[nodiscard]] rpl::producer<bool> CanSendAnyOfValue(
+		not_null<Thread*> thread,
+		ChatRestrictions rights,
+		bool forbidInForums) {
+	if (const auto topic = thread->asTopic()) {
+		using Flag = ChannelDataFlag;
+		const auto mask = Flag()
+			| Flag::Left
+			| Flag::JoinToWrite
+			| Flag::HasLink
+			| Flag::Forbidden
+			| Flag::Creator;
+		const auto channel = topic->channel();
+		return rpl::combine(
+			PeerFlagsValue(channel.get(), mask),
+			RestrictionsValue(channel, rights),
+			DefaultRestrictionsValue(channel, rights),
+			AdminRightsValue(channel, ChatAdminRight::ManageTopics),
+			topic->session().changes().topicFlagsValue(
+				topic,
+				TopicUpdate::Flag::Closed),
+			[=](
+					ChannelDataFlags flags,
+					ChatRestrictions sendRestriction,
+					ChatRestrictions defaultSendRestriction,
+					auto,
+					auto) {
+				const auto notAmInFlags = Flag::Left | Flag::Forbidden;
+				const auto allowed = !(flags & notAmInFlags)
+					|| ((flags & Flag::HasLink)
+						&& !(flags & Flag::JoinToWrite));
+				return allowed
+					&& ((flags & Flag::Creator)
+						|| (!sendRestriction && !defaultSendRestriction))
+					&& (!topic->closed() || topic->canToggleClosed());
+			});
 	}
-	return PeerFlagValue(user, UserDataFlag::Deleted)
-		| rpl::map(!_1);
+	return CanSendAnyOfValue(thread->peer(), rights, forbidInForums);
 }
 
-rpl::producer<bool> CanWriteValue(ChatData *chat) {
-	using namespace rpl::mappers;
-	const auto mask = 0
-		| ChatDataFlag::Deactivated
-		| ChatDataFlag::Forbidden
-		| ChatDataFlag::Left
-		| ChatDataFlag::Creator;
-	return rpl::combine(
-		PeerFlagsValue(chat, mask),
-		AdminRightsValue(chat),
-		DefaultRestrictionValue(
-			chat,
-			ChatRestriction::SendMessages),
-		[](
+// Duplicated in CanSendAnyOf().
+[[nodiscard]] rpl::producer<bool> CanSendAnyOfValue(
+		not_null<PeerData*> peer,
+		ChatRestrictions rights,
+		bool forbidInForums) {
+	if (const auto user = peer->asUser()) {
+		if (user->isRepliesChat()) {
+			return rpl::single(false);
+		}
+		using namespace rpl::mappers;
+		const auto other = rights & ~(ChatRestriction::SendPolls
+			| ChatRestriction::SendVoiceMessages
+			| ChatRestriction::SendVideoMessages);
+		if (other) {
+			return PeerFlagValue(user, UserDataFlag::Deleted)
+				| rpl::map(!_1);
+		} else if (rights & ChatRestriction::SendPolls) {
+			if (CanSend(user, ChatRestriction::SendPolls)) {
+				return PeerFlagValue(user, UserDataFlag::Deleted)
+					| rpl::map(!_1);
+			} else if (rights == ChatRestriction::SendPolls) {
+				return rpl::single(false);
+			}
+		}
+		const auto mask = UserDataFlag::Deleted
+			| UserDataFlag::VoiceMessagesForbidden;
+		return PeerFlagsValue(user, mask) | rpl::map(!_1);
+	} else if (const auto chat = peer->asChat()) {
+		const auto mask = ChatDataFlag()
+			| ChatDataFlag::Deactivated
+			| ChatDataFlag::Forbidden
+			| ChatDataFlag::Left
+			| ChatDataFlag::Creator;
+		return rpl::combine(
+			PeerFlagsValue(chat, mask),
+			AdminRightsValue(chat),
+			DefaultRestrictionsValue(chat, rights),
+			[rights](
 				ChatDataFlags flags,
 				Data::Flags<ChatAdminRights>::Change adminRights,
-				bool defaultSendMessagesRestriction) {
-			const auto amOutFlags = 0
+				ChatRestrictions defaultSendRestrictions) {
+			const auto amOutFlags = ChatDataFlag()
 				| ChatDataFlag::Deactivated
 				| ChatDataFlag::Forbidden
 				| ChatDataFlag::Left;
-			return !(flags & amOutFlags)
-				&& ((flags & ChatDataFlag::Creator)
-					|| (adminRights.value != ChatAdminRights(0))
-					|| !defaultSendMessagesRestriction);
+		return !(flags & amOutFlags)
+			&& ((flags & ChatDataFlag::Creator)
+				|| (adminRights.value != ChatAdminRights(0))
+				|| (rights & ~defaultSendRestrictions));
 		});
-}
-
-rpl::producer<bool> CanWriteValue(ChannelData *channel, bool checkForForum) {
-	using Flag = ChannelDataFlag;
-	const auto mask = 0
-		| Flag::Left
-		| Flag::Forum
-		| Flag::JoinToWrite
-		| Flag::HasLink
-		| Flag::Forbidden
-		| Flag::Creator
-		| Flag::Broadcast;
-	return rpl::combine(
-		PeerFlagsValue(channel, mask),
-		AdminRightValue(
-			channel,
-			ChatAdminRight::PostMessages),
-		RestrictionValue(
-			channel,
-			ChatRestriction::SendMessages),
-		DefaultRestrictionValue(
-			channel,
-			ChatRestriction::SendMessages),
-		[=](
-				ChannelDataFlags flags,
-				bool postMessagesRight,
-				bool sendMessagesRestriction,
-				bool defaultSendMessagesRestriction) {
-			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
-			const auto forumRestriction = checkForForum
-				&& (flags & Flag::Forum);
-			const auto allowed = !(flags & notAmInFlags)
-				|| ((flags & Flag::HasLink) && !(flags & Flag::JoinToWrite));
-			return allowed
-				&& !forumRestriction
-				&& (postMessagesRight
-					|| (flags & Flag::Creator)
-					|| (!(flags & Flag::Broadcast)
-						&& !sendMessagesRestriction
-						&& !defaultSendMessagesRestriction));
-		});
-}
-
-rpl::producer<bool> CanWriteValue(
-		not_null<PeerData*> peer,
-		bool checkForForum) {
-	if (auto user = peer->asUser()) {
-		return CanWriteValue(user);
-	} else if (auto chat = peer->asChat()) {
-		return CanWriteValue(chat);
-	} else if (auto channel = peer->asChannel()) {
-		return CanWriteValue(channel, checkForForum);
+	} else if (const auto channel = peer->asChannel()) {
+		using Flag = ChannelDataFlag;
+		const auto mask = Flag()
+			| Flag::Left
+			| Flag::Forum
+			| Flag::JoinToWrite
+			| Flag::HasLink
+			| Flag::Forbidden
+			| Flag::Creator
+			| Flag::Broadcast;
+		return rpl::combine(
+			PeerFlagsValue(channel, mask),
+			AdminRightValue(
+				channel,
+				ChatAdminRight::PostMessages),
+			RestrictionsValue(channel, rights),
+			DefaultRestrictionsValue(channel, rights),
+			[=](
+					ChannelDataFlags flags,
+					bool postMessagesRight,
+					ChatRestrictions sendRestriction,
+					ChatRestrictions defaultSendRestriction) {
+				const auto notAmInFlags = Flag::Left | Flag::Forbidden;
+				const auto forumRestriction = forbidInForums
+					&& (flags & Flag::Forum);
+				const auto allowed = !(flags & notAmInFlags)
+					|| ((flags & Flag::HasLink)
+						&& !(flags & Flag::JoinToWrite));
+				const auto restricted = sendRestriction
+					| defaultSendRestriction;
+				return allowed
+					&& !forumRestriction
+					&& (postMessagesRight
+						|| (flags & Flag::Creator)
+						|| (!(flags & Flag::Broadcast)
+							&& (rights & ~restricted)));
+			});
 	}
-	Unexpected("Bad peer value in CanWriteValue");
-}
-
-rpl::producer<bool> CanWriteValue(not_null<ForumTopic*> topic) {
-	using Flag = ChannelDataFlag;
-	const auto mask = 0
-		| Flag::Left
-		| Flag::JoinToWrite
-		| Flag::Forum
-		| Flag::Forbidden;
-	const auto channel = topic->channel();
-	return rpl::combine(
-		PeerFlagsValue(channel.get(), mask),
-		RestrictionValue(
-			channel,
-			ChatRestriction::SendMessages),
-		DefaultRestrictionValue(
-			channel,
-			ChatRestriction::SendMessages),
-		topic->session().changes().topicFlagsValue(
-			topic,
-			TopicUpdate::Flag::Closed),
-		[=](
-				ChannelDataFlags flags,
-				bool sendMessagesRestriction,
-				bool defaultSendMessagesRestriction,
-				auto) {
-			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
-			const auto allowed = !(flags & notAmInFlags);
-			return allowed
-				&& !sendMessagesRestriction
-				&& !defaultSendMessagesRestriction
-				&& (!topic->closed() || topic->canToggleClosed());
-		});
+	Unexpected("Peer type in Data::CanSendAnyOfValue.");
 }
 
 // This is duplicated in PeerData::canPinMessages().
