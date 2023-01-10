@@ -241,7 +241,10 @@ void Sandbox::setupScreenScale() {
 		// 110% for Retina screens by default.
 		cSetScreenScale((useRatio == 2) ? 110 : 100);
 	} else {
-		const auto clamped = std::clamp(screenScale, 50 * useRatio, 300);
+		const auto clamped = std::clamp(
+			screenScale * useRatio,
+			50 * useRatio,
+			300);
 		cSetScreenScale(int(base::SafeRound(clamped * 1. / useRatio)));
 	}
 	LOG(("DevicePixelRatio: %1").arg(useRatio));
