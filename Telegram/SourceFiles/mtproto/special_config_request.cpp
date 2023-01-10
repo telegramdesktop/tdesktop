@@ -199,16 +199,7 @@ SpecialConfigRequest::SpecialConfigRequest(
 
 	_manager.setProxy(QNetworkProxy::NoProxy);
 
-	auto domains = DnsDomains();
-	const auto domainsCount = domains.size();
-
 	std::random_device rd;
-	ranges::shuffle(domains, std::mt19937(rd()));
-	const auto takeDomain = [&] {
-		const auto result = domains.back();
-		domains.pop_back();
-		return result;
-	};
 	const auto shuffle = [&](int from, int till) {
 		Expects(till > from);
 
@@ -231,7 +222,7 @@ SpecialConfigRequest::SpecialConfigRequest(
 
 	shuffle(0, 2);
 	if (!_timeDoneCallback) {
-		shuffle(_attempts.size() - (domainsCount + 1), _attempts.size());
+		shuffle(_attempts.size() - (int(DnsDomains().size()) + 1), _attempts.size());
 	}
 	if (isTestMode) {
 		_attempts.erase(ranges::remove_if(_attempts, [](
