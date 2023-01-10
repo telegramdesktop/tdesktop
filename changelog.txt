@@ -1,3 +1,10 @@
+4.5.4 beta (10.01.22)
+
+- Allow wide range of interface scale options.
+- Show opened chat name in the window title.
+- Bug fixes and other minor improvements.
+- Fix updating on macOS older than 10.14.
+
 4.5.3 (06.01.22)
 
 - Attempt to fix incoming video in calls from mobile apps.
