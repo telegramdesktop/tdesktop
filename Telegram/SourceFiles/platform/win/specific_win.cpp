@@ -104,7 +104,7 @@ BOOL CALLBACK FindToActivate(HWND hwnd, LPARAM lParam) {
 		request->resultLevel = 3;
 		return FALSE;
 	}
-	const auto data = static_cast<uint32>(GetWindowLong(hwnd, GWL_USERDATA));
+	const auto data = static_cast<uint32>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 	if ((data != 1 && data != 2) || (data <= request->resultLevel)) {
 		return TRUE;
 	}
@@ -501,7 +501,7 @@ void SetWindowPriority(not_null<QWidget*> window, uint32 priority) {
 	const auto hwnd = reinterpret_cast<HWND>(window->winId());
 	Assert(hwnd != nullptr);
 
-	SetWindowLong(hwnd, GWL_USERDATA, static_cast<LONG>(priority));
+	SetWindowLongPtr(hwnd, GWLP_USERDATA, static_cast<LONG_PTR>(priority));
 }
 
 uint64 ActivationWindowId(not_null<QWidget*> window) {
