@@ -1,3 +1,7 @@
+4.5.5 beta (10.01.22)
+
+- Fix crash in Settings.
+
 4.5.4 beta (10.01.22)
 
 - Allow wide range of interface scale options.
