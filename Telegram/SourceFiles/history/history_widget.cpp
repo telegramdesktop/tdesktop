@@ -194,13 +194,6 @@ constexpr auto kCommonModifiers = 0
 	| Qt::ControlModifier;
 const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
 
-base::options::toggle AutoScrollInactiveChat({
-	.id = kOptionAutoScrollInactiveChat,
-	.name = "Enable auto-scroll of inactive chat",
-	.description = "Enable auto-scrolling chat for new messages, "
-		"even when the window is not in focus.",
-});
-
 [[nodiscard]] rpl::producer<PeerData*> ActivePeerValue(
 		not_null<Window::SessionController*> controller) {
 	return controller->activeChatValue(
@@ -5460,9 +5453,6 @@ int HistoryWidget::countAutomaticScrollTop() {
 	Expects(_list != nullptr);
 
 	if (const auto unread = _history->firstUnreadMessage()) {
-		if (AutoScrollInactiveChat.value()) {
-			return ScrollMax;
-		}
 		const auto firstUnreadTop = _list->itemTop(unread);
 		const auto possibleUnreadBarTop = _scroll->scrollTopMax()
 			+ HistoryView::UnreadBar::height()
