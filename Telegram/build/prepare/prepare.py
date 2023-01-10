@@ -1369,7 +1369,6 @@ win:
         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
         -Dprotobuf_DEBUG_POSTFIX=""
     cmake --build . --config Release --parallel
-    cmake --build . --config Debug --parallel
 """)
 # mac:
 #     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
