@@ -459,7 +459,7 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 void ProxyRow::paintCheck(Painter &p) {
 	const auto loading = _progress
 		? _progress->computeState()
-		: Ui::RadialState{ 0., 0, FullArcLength };
+		: Ui::RadialState{ 0., 0, arc::kFullLength };
 	const auto toggled = _toggled.value(_view.selected ? 1. : 0.)
 		* (1. - loading.shown);
 	const auto _st = &st::defaultRadio;
@@ -484,7 +484,7 @@ void ProxyRow::paintCheck(Painter &p) {
 			_st->thickness,
 			pen.color(),
 			_st->bg);
-	} else if (loading.arcLength < FullArcLength) {
+	} else if (loading.arcLength < arc::kFullLength) {
 		p.drawArc(rect, loading.arcFrom, loading.arcLength);
 	} else {
 		p.drawEllipse(rect);

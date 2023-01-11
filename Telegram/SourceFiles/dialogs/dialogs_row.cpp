@@ -91,8 +91,6 @@ constexpr auto kNoneLayer = 0;
 		style::al_center);
 
 	constexpr auto kPenWidth = 1.5;
-	constexpr auto kAngleStart = 90 * 16;
-	constexpr auto kAngleSpan = 180 * 16;
 
 	const auto penWidth = style::ConvertScaleExact(kPenWidth);
 	auto pen = QPen(st::premiumButtonFg);
@@ -102,7 +100,7 @@ constexpr auto kNoneLayer = 0;
 
 	q.setPen(pen);
 	q.setBrush(Qt::NoBrush);
-	q.drawArc(innerRect, kAngleStart, kAngleSpan);
+	q.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
 
 	q.setClipRect(innerRect
 		- QMargins(innerRect.width() / 2, 0, -penWidth, -penWidth));

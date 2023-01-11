@@ -213,6 +213,8 @@ void RecordAnimation::paint(
 	auto size = st::historySendActionRecordPosition.x()
 		+ st::historySendActionRecordDelta * progress;
 	y += st::historySendActionRecordPosition.y();
+	constexpr auto kAngleStart = -arc::kFullLength / 24;
+	constexpr auto kAngleSpan = arc::kFullLength / 12;
 	for (auto i = 0; i != kRecordArcsCount; ++i) {
 		p.setOpacity((i == 0)
 			? progress
@@ -220,7 +222,7 @@ void RecordAnimation::paint(
 			? (1. - progress)
 			: 1.);
 		auto rect = QRectF(x - size, y - size, 2 * size, 2 * size);
-		p.drawArc(rect, -FullArcLength / 24, FullArcLength / 12);
+		p.drawArc(rect, kAngleStart, kAngleSpan);
 		size += st::historySendActionRecordDelta;
 	}
 	p.setOpacity(1.);

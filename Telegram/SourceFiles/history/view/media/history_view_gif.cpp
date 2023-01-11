@@ -486,8 +486,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				p.setPen(pen);
 				p.setOpacity(st::historyVideoMessageProgressOpacity);
 
-				auto from = QuarterArcLength;
-				auto len = -qRound(FullArcLength * value);
+				auto from = arc::kQuarterLength;
+				auto len = -qRound(arc::kFullLength * value);
 				auto stepInside = st::radialLine / 2;
 				{
 					PainterHighQualityEnabler hq(p);

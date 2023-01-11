@@ -106,7 +106,7 @@ void TranscribeButton::paint(
 				_st->thickness,
 				pen.color(),
 				_st->bg);
-		} else if (state.arcLength < FullArcLength) {
+		} else if (state.arcLength < arc::kFullLength) {
 			const auto opacity = p.opacity();
 			p.setOpacity(state.shown * (1. - opened));
 			p.drawArc(r, state.arcFrom, state.arcLength);
