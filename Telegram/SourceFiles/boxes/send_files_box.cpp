@@ -559,7 +559,8 @@ void SendFilesBox::addMenuButton() {
 				_menu.get(),
 				_sendMenuType,
 				[=] { sendSilent(); },
-				[=] { sendScheduled(); });
+				[=] { sendScheduled(); },
+                [=] { sendAutoDelete(); });
 		}
 		_menu->popup(QCursor::pos());
 		return true;
