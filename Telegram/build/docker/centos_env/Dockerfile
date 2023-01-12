@@ -56,7 +56,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 614ff3aebd \
+	&& git checkout 6df6441445 \
 	&& rm -rf .git
 
 FROM builder AS nasm
@@ -713,7 +713,6 @@ RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} 
 		-no-icu \
 		-no-feature-xcb-sm \
 		-no-feature-egl-extension-platform-wayland \
-		-no-feature-highdpiscaling \
 		-static \
 		-dbus-runtime \
 		-openssl-linked \
