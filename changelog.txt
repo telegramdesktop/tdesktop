@@ -1,3 +1,12 @@
+4.5.6 beta (12.01.22)
+
+- Try enabling non-fractional scale High DPI support on Windows and Linux.
+- Experimental setting for fractional scale High DPI support on Windows and Linux.
+- Fix navigation to bottom problems in groups you didn't join.
+- Fix a crash in chat export settings changes.
+- Fix a crash in sending some of JPEG images.
+- Fix CJK fonts on Windows.
+
 4.5.5 beta (10.01.22)
 
 - Fix crash in Settings.

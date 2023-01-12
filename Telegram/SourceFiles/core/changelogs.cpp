@@ -48,6 +48,22 @@ std::map<int, const char*> BetaLogs() {
 		"- Bug fixes and other minor improvements.\n"
 
 		"- Fix updating on macOS older than 10.14.\n"
+	},
+	{
+		4005006,
+		"- Try enabling non-fractional scale "
+		"High DPI support on Windows and Linux.\n"
+
+		"- Experimental setting for fractional scale "
+		"High DPI support on Windows and Linux.\n"
+
+		"- Fix navigation to bottom problems in groups you didn't join.\n"
+
+		"- Fix a crash in chat export settings changes.\n"
+
+		"- Fix a crash in sending some of JPEG images.\n"
+
+		"- Fix CJK fonts on Windows.\n"
 	}
 	};
 };
