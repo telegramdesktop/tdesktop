@@ -3947,9 +3947,18 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		} };
 	};
 
-	auto prepareRequestedPeer = [](
+	auto prepareRequestedPeer = [&](
 			const MTPDmessageActionRequestedPeer &action) {
-		return PreparedServiceText{ { } };
+		const auto peerId = peerFromMTP(action.vpeer());
+		const auto peer = history()->owner().peer(peerId);
+		auto result = PreparedServiceText{};
+		result.text = TextWithEntities{
+			u"You chose "_q
+		}.append(
+			Ui::Text::Link(peer->name(), 1)
+		).append(u" for the bot."_q);
+		result.links.push_back(peer->createOpenLink());
+		return result;
 	};
 
 	setServiceText(action.match([&](

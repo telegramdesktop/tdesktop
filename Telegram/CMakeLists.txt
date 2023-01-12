@@ -178,6 +178,8 @@ PRIVATE
     boxes/peers/add_bot_to_chat_box.h
     boxes/peers/add_participants_box.cpp
     boxes/peers/add_participants_box.h
+    boxes/peers/choose_peer_box.cpp
+    boxes/peers/choose_peer_box.h
     boxes/peers/edit_contact_box.cpp
     boxes/peers/edit_contact_box.h
     boxes/peers/edit_forum_topic_box.cpp

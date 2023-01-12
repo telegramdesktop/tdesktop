@@ -527,3 +527,11 @@ settingsPremiumUserAbout: FlatLabel(boxDividerLabel) {
 
 settingsPremiumLock: icon{{ "emoji/premium_lock", windowActiveTextFg, point(0px, 1px) }};
 settingsPremiumLockSkip: 3px;
+
+requestPeerRestriction: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	style: TextStyle(boxTextStyle) {
+		lineHeight: 22px;
+	}
+}

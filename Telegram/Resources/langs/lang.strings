@@ -3684,6 +3684,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_messages#other" = "{count} messages";
 "lng_forum_show_topics_list" = "Show Topics List";
 
+"lng_request_peer_requirements" = "Requirements";
+"lng_request_peer_rights" = "You should have the admin rights to {rights}.";
+"lng_request_peer_rights_and" = "{rights} and {last}";
+"lng_request_user_title" = "Choose User";
+"lng_request_user_premium_yes" = "The user should have a Premium subscription.";
+"lng_request_user_premium_no" = "The user shouldn't have a Premium subscription.";
+"lng_request_user_no" = "No such users";
+"lng_request_user_no_about" = "You don't have users that meet the requirements for this bot.";
+"lng_request_bot_title" = "Choose Bot";
+"lng_request_bot_no" = "No bots";
+"lng_request_bot_no_about" = "You don't have any bots.";
+"lng_request_group_title" = "Choose Group";
+"lng_request_group_no" = "No such groups";
+"lng_request_group_no_about" = "You don't have groups that meet the requirements for this bot.";
+"lng_request_group_public_yes" = "The group should be public.";
+"lng_request_group_public_no" = "The group should be private.";
+"lng_request_group_topics_yes" = "The group should have topics turned on.";
+"lng_request_group_topics_no" = "The group should have topics turned off.";
+"lng_request_group_am_owner" = "You should be the owner of the group.";
+"lng_request_group_change_info" = "change group info";
+"lng_request_group_delete_messages" = "delete messages";
+"lng_request_group_ban_users" = "ban users";
+"lng_request_group_invite" = "invite users via link";
+"lng_request_group_pin_messages" = "pin messages";
+"lng_request_group_manage_topics" = "manage topics";
+"lng_request_group_manage_video_chats" = "manage video chats";
+"lng_request_group_anonymous" = "remain anonymous";
+"lng_request_group_add_admins" = "add new admins";
+"lng_request_group_create" = "Create a New Group for This";
+"lng_request_channel_title" = "Choose Channel";
+"lng_request_channel_no" = "No such channels";
+"lng_request_channel_no_about" = "You don't have channels that meet the requirements for this bot.";
+"lng_request_channel_public_yes" = "The channel should be public.";
+"lng_request_channel_public_no" = "The channel should be private.";
+"lng_request_channel_am_owner" = "You should be the owner of the channel.";
+"lng_request_channel_change_info" = "change channel info";
+"lng_request_channel_post_messages" = "post messages";
+"lng_request_channel_edit_messages" = "edit messages of others";
+"lng_request_channel_delete_messages" = "delete messages";
+"lng_request_channel_add_subscribers" = "add subscribers";
+"lng_request_channel_manage_livestreams" = "manage live streams";
+"lng_request_channel_add_admins" = "add new admins";
+"lng_request_channel_create" = "Create a New Channel for This";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
