@@ -277,7 +277,7 @@ base::options::toggle OptionFractionalScalingEnabled({
 	.id = kOptionFractionalScalingEnabled,
 	.name = "Enable precise High DPI scaling",
 	.description = "Follow system interface scale settings exactly.",
-	.scope = base::options::windows,
+	.scope = base::options::windows | base::options::linux,
 	.restartRequired = true,
 });
 
