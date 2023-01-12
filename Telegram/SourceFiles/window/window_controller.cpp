@@ -133,9 +133,7 @@ void Controller::showAccount(
 			) | rpl::start_with_next([=] {
 				_widget.updateTitle();
 			}, _sessionController->lifetime());
-			if (_sessionController->activeChatCurrent().thread()) {
-				_widget.updateTitle();
-			}
+			_widget.updateTitle();
 
 			session->updates().updateOnline(crl::now());
 		} else {
