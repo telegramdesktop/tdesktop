@@ -240,187 +240,140 @@ bool PortalAutostart(bool start, bool silent) {
 }
 
 void LaunchGApplication() {
-	const auto connection = [] {
-		try {
-			return Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::SESSION);
-		} catch (...) {
-			return Glib::RefPtr<Gio::DBus::Connection>();
-		}
-	}();
+	Glib::signal_idle().connect_once([] {
+		const auto appId = QGuiApplication::desktopFileName()
+			.chopped(8)
+			.toStdString();
 
-	using namespace base::Platform::DBus;
-	const auto activatableNames = [&] {
-		try {
-			if (connection) {
-				return ListActivatableNames(connection);
-			}
-		} catch (...) {
-		}
+		const auto app = Glib::wrap(
+			G_APPLICATION(
+				g_object_new(
+					t_desktop_application_get_type(),
+					"application-id",
+					Gio::Application::id_is_valid(appId)
+						? appId.c_str()
+						: nullptr,
+					"flags",
+					G_APPLICATION_HANDLES_OPEN,
+					nullptr)));
 
-		return std::vector<Glib::ustring>();
-	}();
+		app->signal_startup().connect([=] {
+			// GNotification
+			InvokeQueued(qApp, [] {
+				Core::App().notifications().createManager();
+			});
 
-	const auto freedesktopNotifications = [&] {
-		try {
-			if (connection && NameHasOwner(
-				connection,
-				"org.freedesktop.Notifications")) {
-				return true;
-			}
-		} catch (...) {
-		}
+			QEventLoop().exec();
+			app->quit();
+		}, true);
 
-		if (ranges::contains(
-			activatableNames,
-			"org.freedesktop.Notifications",
-			&Glib::ustring::raw)) {
-			return true;
-		}
+		app->signal_activate().connect([] {
+			Core::Sandbox::Instance().customEnterFromEventLoop([] {
+				const auto window = Core::IsAppLaunched()
+					? Core::App().primaryWindow()
+					: nullptr;
+				if (window) {
+					window->activate();
+				}
+			});
+		}, true);
 
-		return false;
-	};
-
-	if (OptionGApplication.value()
-		|| (KSandbox::isFlatpak() && !freedesktopNotifications())) {
-		Glib::signal_idle().connect_once([] {
-			const auto appId = QGuiApplication::desktopFileName()
-				.chopped(8)
-				.toStdString();
-
-			const auto app = Glib::wrap(
-				G_APPLICATION(
-					g_object_new(
-						t_desktop_application_get_type(),
-						"application-id",
-						Gio::Application::id_is_valid(appId)
-							? appId.c_str()
-							: nullptr,
-						"flags",
-						G_APPLICATION_HANDLES_OPEN,
-						nullptr)));
-
-			app->signal_startup().connect([=] {
-				// GNotification
-				InvokeQueued(qApp, [] {
-					Core::App().notifications().createManager();
-				});
-
-				QEventLoop().exec();
-				app->quit();
-			}, true);
-
-			app->signal_activate().connect([] {
-				Core::Sandbox::Instance().customEnterFromEventLoop([] {
-					const auto window = Core::IsAppLaunched()
-						? Core::App().primaryWindow()
-						: nullptr;
-					if (window) {
-						window->activate();
+		app->signal_open().connect([](
+				const Gio::Application::type_vec_files &files,
+				const Glib::ustring &hint) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				for (const auto &file : files) {
+					if (file->get_uri_scheme() == "file") {
+						gSendPaths.append(
+							QString::fromStdString(file->get_path()));
+						continue;
 					}
-				});
-			}, true);
+					const auto url = QString::fromStdString(file->get_uri());
+					if (url.isEmpty()) {
+						continue;
+					}
+					if (url.startsWith(qstr("interpret://"))) {
+						gSendPaths.append(url);
+						continue;
+					}
+					if (Core::StartUrlRequiresActivate(url)) {
+						const auto window = Core::IsAppLaunched()
+							? Core::App().primaryWindow()
+							: nullptr;
+						if (window) {
+							window->activate();
+						}
+					}
+					cSetStartUrl(url);
+					Core::App().checkStartUrl();
+				}
 
-			app->signal_open().connect([](
-					const Gio::Application::type_vec_files &files,
-					const Glib::ustring &hint) {
+				if (!cSendPaths().isEmpty()) {
+					Core::App().checkSendPaths();
+				}
+			});
+		}, true);
+
+		app->add_action("Quit", [] {
+			Core::Sandbox::Instance().customEnterFromEventLoop([] {
+				Core::Quit();
+			});
+		});
+
+		using Window::Notifications::Manager;
+		using NotificationId = Manager::NotificationId;
+		using NotificationIdTuple = std::invoke_result_t<
+			decltype(&NotificationId::toTuple),
+			NotificationId*
+		>;
+
+		const auto notificationIdVariantType = [] {
+			try {
+				return base::Platform::MakeGlibVariant(
+					NotificationId().toTuple()).get_type();
+			} catch (...) {
+				return Glib::VariantType();
+			}
+		}();
+
+		app->add_action_with_parameter(
+			"notification-reply",
+			notificationIdVariantType,
+			[](const Glib::VariantBase &parameter) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-					for (const auto &file : files) {
-						if (file->get_uri_scheme() == "file") {
-							gSendPaths.append(
-								QString::fromStdString(file->get_path()));
-							continue;
-						}
-						const auto url = QString::fromStdString(
-							file->get_uri());
-						if (url.isEmpty()) {
-							continue;
-						}
-						if (url.startsWith(qstr("interpret://"))) {
-							gSendPaths.append(url);
-							continue;
-						}
-						if (Core::StartUrlRequiresActivate(url)) {
-							const auto window = Core::IsAppLaunched()
-								? Core::App().primaryWindow()
-								: nullptr;
-							if (window) {
-								window->activate();
-							}
-						}
-						cSetStartUrl(url);
-						Core::App().checkStartUrl();
+					try {
+						const auto &app = Core::App();
+						app.notifications().manager().notificationActivated(
+							NotificationId::FromTuple(
+								base::Platform::GlibVariantCast<
+									NotificationIdTuple
+								>(parameter)));
+					} catch (...) {
 					}
-
-					if (!cSendPaths().isEmpty()) {
-						Core::App().checkSendPaths();
-					}
-				});
-			}, true);
-
-			app->add_action("Quit", [] {
-				Core::Sandbox::Instance().customEnterFromEventLoop([] {
-					Core::Quit();
 				});
 			});
 
-			using Window::Notifications::Manager;
-			using NotificationId = Manager::NotificationId;
-			using NotificationIdTuple = std::invoke_result_t<
-				decltype(&NotificationId::toTuple),
-				NotificationId*
-			>;
-
-			const auto notificationIdVariantType = [] {
-				try {
-					return base::Platform::MakeGlibVariant(
-						NotificationId().toTuple()).get_type();
-				} catch (...) {
-					return Glib::VariantType();
-				}
-			}();
-
-			app->add_action_with_parameter(
-				"notification-reply",
-				notificationIdVariantType,
-				[](const Glib::VariantBase &parameter) {
-					Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-						try {
-							const auto &app = Core::App();
-							const auto &notifications = app.notifications();
-							notifications.manager().notificationActivated(
-								NotificationId::FromTuple(
-									base::Platform::GlibVariantCast<
-										NotificationIdTuple
-									>(parameter)));
-						} catch (...) {
-						}
-					});
+		app->add_action_with_parameter(
+			"notification-mark-as-read",
+			notificationIdVariantType,
+			[](const Glib::VariantBase &parameter) {
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					try {
+						const auto &app = Core::App();
+						app.notifications().manager().notificationReplied(
+							NotificationId::FromTuple(
+								base::Platform::GlibVariantCast<
+									NotificationIdTuple
+								>(parameter)),
+							{});
+					} catch (...) {
+					}
 				});
+			});
 
-			app->add_action_with_parameter(
-				"notification-mark-as-read",
-				notificationIdVariantType,
-				[](const Glib::VariantBase &parameter) {
-					Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-						try {
-							const auto &app = Core::App();
-							const auto &notifications = app.notifications();
-							notifications.manager().notificationReplied(
-								NotificationId::FromTuple(
-									base::Platform::GlibVariantCast<
-										NotificationIdTuple
-									>(parameter)),
-								{});
-						} catch (...) {
-						}
-					});
-				});
-
-			app->hold();
-			app->run(0, nullptr);
-		});
-	}
+		app->hold();
+		app->run(0, nullptr);
+	});
 }
 
 bool GenerateDesktopFile(

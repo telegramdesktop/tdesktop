@@ -1137,7 +1137,6 @@ PRIVATE
     platform/platform_integration.h
     platform/platform_main_window.h
     platform/platform_notifications_manager.h
-    platform/platform_specific.cpp
     platform/platform_specific.h
     platform/platform_tray.h
     platform/platform_window_title.h

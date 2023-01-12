@@ -77,6 +77,17 @@ QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
 
 } // namespace
 
+const char kOptionGNotification[] = "gnotification";
+
+base::options::toggle OptionGNotification({
+	.id = kOptionGNotification,
+	.name = "GNotification",
+	.description = "Force enable GLib's GNotification."
+		" When disabled, autodetect is used.",
+	.scope = base::options::linux,
+	.restartRequired = true,
+});
+
 struct System::Waiter {
 	NotificationInHistoryKey key;
 	UserData *reactionSender = nullptr;

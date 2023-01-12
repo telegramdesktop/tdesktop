@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
-#include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "core/core_settings.h"
@@ -319,6 +318,18 @@ Glib::ustring GetImageKey(const QVersionNumber &specificationVersion) {
 	return "icon_data";
 }
 
+bool UseGNotification() {
+	if (!Gio::Application::get_default()) {
+		return false;
+	}
+
+	if (Window::Notifications::OptionGNotification.value()) {
+		return true;
+	}
+
+	return KSandbox::isFlatpak() && !ServiceRegistered;
+}
+
 class NotificationData final : public base::has_weak_ptr {
 public:
 	using NotificationId = Window::Notifications::Manager::NotificationId;
@@ -378,7 +389,7 @@ NotificationData::NotificationData(
 	NotificationId id)
 : _manager(manager)
 , _id(id)
-, _application(Gio::Application::get_default()) {
+, _application(UseGNotification() ? Gio::Application::get_default() : {}) {
 }
 
 bool NotificationData::init(
@@ -811,13 +822,13 @@ bool WaitForInputForCustom() {
 }
 
 bool Supported() {
-	return ServiceRegistered || Gio::Application::get_default();
+	return ServiceRegistered || UseGNotification();
 }
 
 bool Enforced() {
 	// Wayland doesn't support positioning
 	// and custom notifications don't work here
-	return IsWayland() || OptionGApplication.value();
+	return IsWayland() || Window::Notifications::OptionGNotification.value();
 }
 
 bool ByDefault() {
@@ -841,7 +852,7 @@ bool ByDefault() {
 }
 
 void Create(Window::Notifications::System *system) {
-	static auto ServiceWatcher = CreateServiceWatcher();
+	static const auto ServiceWatcher = CreateServiceWatcher();
 
 	const auto managerSetter = [=] {
 		using ManagerType = Window::Notifications::ManagerType;
@@ -860,35 +871,15 @@ void Create(Window::Notifications::System *system) {
 		}
 	};
 
-	if (Gio::Application::get_default()) {
-		ServiceWatcher = nullptr;
-		ServiceRegistered = false;
-		CurrentServerInformation = std::nullopt;
-		CurrentCapabilities = QStringList{};
-		managerSetter();
-		return;
-	}
-
 	const auto counter = std::make_shared<int>(2);
 	const auto oneReady = [=] {
 		if (!--*counter) {
-			// GApplication may be created while the reply is received
-			if (Gio::Application::get_default()) {
-				Core::App().notifications().createManager();
-				return;
-			}
 			managerSetter();
 		}
 	};
 
 	// snap doesn't allow access when the daemon is not running :(
 	StartServiceAsync([=] {
-		// GApplication may be created while the reply is received
-		if (Gio::Application::get_default()) {
-			Core::App().notifications().createManager();
-			return;
-		}
-
 		ServiceRegistered = GetServiceRegistered();
 
 		if (!ServiceRegistered) {
