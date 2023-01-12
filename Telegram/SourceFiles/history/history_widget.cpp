@@ -1960,7 +1960,9 @@ void HistoryWidget::applyCloudDraft(History *history) {
 }
 
 bool HistoryWidget::insideJumpToEndInsteadOfToUnread() const {
-	if (session().supportMode()) {
+	Expects(_history != nullptr);
+
+	if (session().supportMode() || !_history->trackUnreadMessages()) {
 		return true;
 	} else if (!_historyInited) {
 		return false;
@@ -2192,6 +2194,10 @@ void HistoryWidget::showHistory(
 			}
 		} else {
 			_chooseForReport = nullptr;
+		}
+		if (_showAtMsgId == ShowAtUnreadMsgId
+			&& !_history->trackUnreadMessages()) {
+			_showAtMsgId = ShowAtTheEndMsgId;
 		}
 		refreshTopBarActiveChat();
 		updateTopBarSelection();
@@ -2984,7 +2990,9 @@ void HistoryWidget::unreadCountUpdated() {
 			}
 		});
 	} else {
-		_cornerButtons.updateJumpDownVisibility(_history->isForum()
+		const auto hideCounter = _history->isForum()
+			|| !_history->trackUnreadMessages();
+		_cornerButtons.updateJumpDownVisibility(hideCounter
 			? 0
 			: _history->chatListBadgesState().unreadCounter);
 	}
@@ -5899,7 +5907,10 @@ std::optional<bool> HistoryWidget::cornerButtonsDownShown() {
 	}
 
 	const auto haveUnreadBelowBottom = [&](History *history) {
-		if (!_list || !history || history->unreadCount() <= 0) {
+		if (!_list
+			|| !history
+			|| history->unreadCount() <= 0
+			|| !history->trackUnreadMessages()) {
 			return false;
 		}
 		const auto unread = history->firstUnreadMessage();
