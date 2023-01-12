@@ -148,7 +148,7 @@ void SetupExperimental(
 	addToggle(Settings::kOptionMonoSettingsIcons);
 	addToggle(Webview::kOptionWebviewDebugEnabled);
 	addToggle(kOptionAutoScrollInactiveChat);
-	addToggle(Windows::Notifications::kOptionGNotification);
+	addToggle(Window::Notifications::kOptionGNotification);
 }
 
 } // namespace

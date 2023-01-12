@@ -389,7 +389,9 @@ NotificationData::NotificationData(
 	NotificationId id)
 : _manager(manager)
 , _id(id)
-, _application(UseGNotification() ? Gio::Application::get_default() : {}) {
+, _application(UseGNotification()
+		? Gio::Application::get_default()
+		: nullptr) {
 }
 
 bool NotificationData::init(
