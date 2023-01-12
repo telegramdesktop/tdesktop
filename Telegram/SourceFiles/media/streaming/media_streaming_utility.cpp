@@ -285,10 +285,10 @@ QImage PrepareBlurredBackground(QSize outer, QImage frame) {
 	const auto bsize = frame.size();
 	const auto copyw = std::min(
 		bsize.width(),
-		outer.width() * bsize.height() / outer.height());
+		std::max(outer.width() * bsize.height() / outer.height(), 1));
 	const auto copyh = std::min(
 		bsize.height(),
-		outer.height() * bsize.width() / outer.width());
+		std::max(outer.height() * bsize.width() / outer.width(), 1));
 	auto copy = (bsize == QSize(copyw, copyh))
 		? std::move(frame)
 		: frame.copy(
