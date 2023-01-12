@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Core {
 
+extern const char kOptionFractionalScalingEnabled[];
+
 class Launcher {
 public:
 	Launcher(int argc, char *argv[]);
@@ -52,6 +54,7 @@ private:
 	void init();
 	virtual void initHook() {
 	}
+	virtual void initHighDpi();
 
 	virtual bool launchUpdater(UpdaterLaunch action) = 0;
 

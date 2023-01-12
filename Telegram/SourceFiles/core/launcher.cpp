@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
+#include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "ui/main_queue_processor.h"
@@ -272,7 +273,17 @@ bool CheckPortableVersionFolder() {
 	return true;
 }
 
+base::options::toggle OptionFractionalScalingEnabled({
+	.id = kOptionFractionalScalingEnabled,
+	.name = "Enable precise High DPI scaling",
+	.description = "Follow system interface scale settings exactly.",
+	.scope = base::options::windows,
+	.restartRequired = true,
+});
+
 } // namespace
+
+const char kOptionFractionalScalingEnabled[] = "fractional-scaling-enabled";
 
 std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
@@ -294,9 +305,6 @@ void Launcher::init() {
 	initQtMessageLogging();
 
 	QApplication::setApplicationName(u"TelegramDesktop"_q);
-	QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
-	QApplication::setHighDpiScaleFactorRoundingPolicy(
-		Qt::HighDpiScaleFactorRoundingPolicy::Floor);
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	// fallback session management is useless for tdesktop since it doesn't have
@@ -311,6 +319,17 @@ void Launcher::init() {
 	initHook();
 }
 
+void Launcher::initHighDpi() {
+	QApplication::setAttribute(Qt::AA_EnableHighDpiScaling, true);
+	if (OptionFractionalScalingEnabled.value()) {
+		QApplication::setHighDpiScaleFactorRoundingPolicy(
+			Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+	} else {
+		QApplication::setHighDpiScaleFactorRoundingPolicy(
+			Qt::HighDpiScaleFactorRoundingPolicy::RoundPreferFloor);
+	}
+}
+
 int Launcher::exec() {
 	init();
 
@@ -323,6 +342,9 @@ int Launcher::exec() {
 	// Must be started before Platform is started.
 	Logs::start(this);
 	base::options::init(cWorkingDir() + "tdata/experimental_options.json");
+
+	// Must be called after options are inited.
+	initHighDpi();
 
 	if (Logs::DebugEnabled()) {
 		const auto openalLogPath = QDir::toNativeSeparators(

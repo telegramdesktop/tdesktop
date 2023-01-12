@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style_radius.h"
 #include "base/options.h"
 #include "core/application.h"
+#include "core/launcher.h"
 #include "platform/platform_specific.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "dialogs/dialogs_inner_widget.h"
@@ -137,6 +138,7 @@ void SetupExperimental(
 	};
 
 	addToggle(ChatHelpers::kOptionTabbedPanelShowOnClick);
+	addToggle(Core::kOptionFractionalScalingEnabled);
 	addToggle(Window::kOptionViewProfileInChatsListContextMenu);
 	addToggle(Dialogs::kOptionCtrlClickChatNewWindow);
 	addToggle(Ui::GL::kOptionAllowLinuxNvidiaOpenGL);
