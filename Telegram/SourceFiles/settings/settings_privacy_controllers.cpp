@@ -15,13 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/peer_short_info_box.h"
 #include "boxes/peers/prepare_short_info_box.h"
-#include "calls/calls_instance.h"
 #include "core/application.h"
-#include "core/core_settings.h"
 #include "data/data_changes.h"
-#include "data/data_file_origin.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
-#include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_user_photos.h" // UserPhotosViewer.
@@ -29,37 +25,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/history.h"
-#include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_element.h"
-#include "history/view/history_view_message.h"
-#include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
 #include "settings/settings_privacy_security.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/cached_round_corners.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
-#include "ui/image/image_prepare.h"
-#include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
 #include "window/section_widget.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
-#include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"
 
 #include <QtGui/QGuiApplication>
-#include <QtGui/QClipboard>
 
 namespace Settings {
 namespace {
