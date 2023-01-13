@@ -64,6 +64,10 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix a crash in sending some of JPEG images.\n"
 
 		"- Fix CJK fonts on Windows.\n"
+	},
+	{
+		4005007,
+		"- Fix glitches after moving window to another screen.\n",
 	}
 	};
 };
