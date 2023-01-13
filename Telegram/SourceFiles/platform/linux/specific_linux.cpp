@@ -519,6 +519,36 @@ bool GenerateDesktopFile(
 
 	return true;
 }
+
+void InstallLauncher() {
+	static const auto DisabledByEnv = !qEnvironmentVariableIsEmpty(
+		"DESKTOPINTEGRATION");
+
+	// don't update desktop file for alpha version or if updater is disabled
+	if (cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv) {
+		return;
+	}
+
+	const auto applicationsPath = QStandardPaths::writableLocation(
+		QStandardPaths::ApplicationsLocation) + '/';
+
+	GenerateDesktopFile(applicationsPath);
+
+	const auto icons = QStandardPaths::writableLocation(
+		QStandardPaths::GenericDataLocation) + u"/icons/"_q;
+
+	if (!QDir(icons).exists()) QDir().mkpath(icons);
+
+	const auto icon = icons + base::IconName() + u".png"_q;
+	QFile::remove(icon);
+	if (QFile::copy(u":/gui/art/logo_256.png"_q, icon)) {
+		DEBUG_LOG(("App Info: Icon copied to '%1'").arg(icon));
+	}
+
+	QProcess::execute("update-desktop-database", {
+		applicationsPath
+	});
+}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 } // namespace
@@ -753,47 +783,6 @@ void start() {
 void finish() {
 }
 
-void InstallLauncher(bool force) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static const auto DisabledByEnv = !qEnvironmentVariableIsEmpty(
-		"DESKTOPINTEGRATION");
-
-	// don't update desktop file for alpha version or if updater is disabled
-	if ((cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv)
-		&& !force) {
-		return;
-	}
-
-	const auto applicationsPath = QStandardPaths::writableLocation(
-		QStandardPaths::ApplicationsLocation) + '/';
-
-	GenerateDesktopFile(applicationsPath);
-
-	const auto icons = QStandardPaths::writableLocation(
-		QStandardPaths::GenericDataLocation) + u"/icons/"_q;
-
-	if (!QDir(icons).exists()) QDir().mkpath(icons);
-
-	const auto icon = icons + base::IconName() + u".png"_q;
-	auto iconExists = QFile::exists(icon);
-	if (Local::oldSettingsVersion() < 2008012 && iconExists) {
-		// Icon was changed.
-		if (QFile::remove(icon)) {
-			iconExists = false;
-		}
-	}
-	if (!iconExists) {
-		if (QFile::copy(u":/gui/art/logo_256.png"_q, icon)) {
-			DEBUG_LOG(("App Info: Icon copied to '%1'").arg(icon));
-		}
-	}
-
-	QProcess::execute("update-desktop-database", {
-		applicationsPath
-	});
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-}
-
 PermissionStatus GetPermissionStatus(PermissionType type) {
 	return PermissionStatus::Granted;
 }
@@ -871,6 +860,7 @@ void start() {
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	InstallLauncher();
 	LaunchGApplication();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
