@@ -834,6 +834,11 @@ bool Enforced() {
 }
 
 bool ByDefault() {
+	// The capabilities are static, equivalent to 'body' and 'actions' only
+	if (UseGNotification()) {
+		return false;
+	}
+
 	// A list of capabilities that offer feature parity
 	// with custom notifications
 	static const auto NeededCapabilities = {
