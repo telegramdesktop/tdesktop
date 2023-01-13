@@ -124,9 +124,7 @@ void CopyImage(not_null<PhotoData*> photo) {
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	}
-
-	const auto image = media->image(Data::PhotoSize::Large)->original();
-	QGuiApplication::clipboard()->setImage(image);
+	media->setToClipboard();
 }
 
 void ShowStickerPackInfo(

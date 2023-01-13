@@ -976,14 +976,11 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 				QString());
 		if (result.error == Ui::PreparedList::Error::None) {
 			return result;
-		} else if (data->hasImage()) {
-			auto image = qvariant_cast<QImage>(data->imageData());
-			if (!image.isNull()) {
-				return Storage::PrepareMediaFromImage(
-					std::move(image),
-					QByteArray(),
-					st::sendMediaPreviewSize);
-			}
+		} else if (auto read = Core::ReadMimeImage(data)) {
+			return Storage::PrepareMediaFromImage(
+				std::move(read.image),
+				std::move(read.content),
+				st::sendMediaPreviewSize);
 		}
 		return result;
 	}();

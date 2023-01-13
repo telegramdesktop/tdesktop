@@ -2638,8 +2638,7 @@ void HistoryInner::copyContextImage(
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	} else if (!showCopyMediaRestriction(item)) {
-		const auto image = media->image(Data::PhotoSize::Large)->original();
-		QGuiApplication::clipboard()->setImage(image);
+		media->setToClipboard();
 	}
 }
 

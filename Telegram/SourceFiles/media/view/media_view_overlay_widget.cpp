@@ -1948,11 +1948,21 @@ void OverlayWidget::copyMedia() {
 	}
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_document) {
-		QGuiApplication::clipboard()->setImage(transformedShownContent());
+		const auto filepath = _document->filepath(true);
+		auto image = transformedShownContent();
+		if (!image.isNull() || !filepath.isEmpty()) {
+			auto mime = std::make_unique<QMimeData>();
+			if (!image.isNull()) {
+				mime->setImageData(std::move(image));
+			}
+			if (!filepath.isEmpty() && !videoShown()) {
+				mime->setUrls({ QUrl::fromLocalFile(filepath) });
+				KUrlMimeData::exportUrlsToPortal(mime.get());
+			}
+			QGuiApplication::clipboard()->setMimeData(mime.release());
+		}
 	} else if (_photo && _photoMedia->loaded()) {
-		const auto image = _photoMedia->image(
-			Data::PhotoSize::Large)->original();
-		QGuiApplication::clipboard()->setImage(image);
+		_photoMedia->setToClipboard();
 	}
 }
 
