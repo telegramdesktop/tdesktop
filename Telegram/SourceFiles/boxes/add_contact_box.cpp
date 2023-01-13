@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 
 #include "lang/lang_keys.h"
+#include "base/call_delayed.h"
 #include "base/random.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "countries/countries_instance.h" // Countries::ExtractPhoneCode.
+#include "history/history_item_reply_markup.h"
 #include "window/window_session_controller.h"
 #include "menu/menu_ttl.h"
 #include "ui/controls/userpic_button.h"
@@ -72,7 +74,8 @@ void ChatCreateDone(
 		not_null<Window::SessionNavigation*> navigation,
 		QImage image,
 		TimeId ttlPeriod,
-		const MTPUpdates &updates) {
+		const MTPUpdates &updates,
+		Fn<void(not_null<PeerData*>)> done) {
 	navigation->session().api().applyUpdates(updates);
 
 	const auto success = base::make_optional(&updates)
@@ -106,12 +109,35 @@ void ChatCreateDone(
 			if (ttlPeriod) {
 				chat->setMessagesTTL(ttlPeriod);
 			}
-			navigation->showPeerHistory(chat);
+			if (done) {
+				done(chat);
+			} else {
+				navigation->showPeerHistory(chat);
+			}
 		};
 	if (!success) {
 		LOG(("API Error: chat not found in updates "
 			"(ContactsBox::creationDone)"));
 	}
+}
+
+void MustBePublicDestroy(not_null<ChannelData*> channel) {
+	const auto session = &channel->session();
+	session->api().request(MTPchannels_DeleteChannel(
+		channel->inputChannel
+	)).done([=](const MTPUpdates &result) {
+		session->api().applyUpdates(result);
+	}).send();
+}
+
+void MustBePublicFailed(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChannelData*> channel) {
+	const auto text = channel->isMegagroup()
+		? "Can't create a public group :("
+		: "Can't create a public channel :(";
+	Ui::Toast::Show(Window::Show(navigation).toastParent(), text);
+	MustBePublicDestroy(channel);
 }
 
 } // namespace
@@ -456,7 +482,33 @@ GroupInfoBox::GroupInfoBox(
 , _api(&_navigation->session().mtp())
 , _type(type)
 , _initialTitle(title)
-, _channelDone(std::move(channelDone)) {
+, _done([channelDone = std::move(channelDone)](not_null<PeerData*> peer) {
+	if (const auto channel = peer->asChannel()) {
+		if (const auto onstack = channelDone) {
+			onstack(channel);
+		}
+	}
+}) {
+}
+
+GroupInfoBox::GroupInfoBox(
+	QWidget*,
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<UserData*> bot,
+	RequestPeerQuery query,
+	Fn<void(not_null<PeerData*>)> done)
+: _navigation(navigation)
+, _api(&_navigation->session().mtp())
+, _type((query.type == RequestPeerQuery::Type::Broadcast)
+	? Type::Channel
+	: (query.groupIsForum == RequestPeerQuery::Restriction::Yes)
+	? Type::Forum
+	: (query.hasUsername == RequestPeerQuery::Restriction::Yes)
+	? Type::Megagroup
+	: Type::Group)
+, _mustBePublic(query.hasUsername == RequestPeerQuery::Restriction::Yes)
+, _canAddBot(query.isBotParticipant ? bot.get() : nullptr)
+, _done(std::move(done)) {
 }
 
 void GroupInfoBox::prepare() {
@@ -466,7 +518,8 @@ void GroupInfoBox::prepare() {
 		this,
 		&_navigation->parentController()->window(),
 		Ui::UserpicButton::Role::ChoosePhoto,
-		st::defaultUserpicButton);
+		st::defaultUserpicButton,
+		(_type == Type::Forum));
 	_photo->showCustomOnChosen();
 	_title.create(
 		this,
@@ -517,7 +570,7 @@ void GroupInfoBox::prepare() {
 	connect(_title, &Ui::InputField::submitted, [=] { submitName(); });
 
 	addButton(
-		(_type != Type::Group
+		((_type != Type::Group || _canAddBot)
 			? tr::lng_create_group_create()
 			: tr::lng_create_group_next()),
 		[=] { submit(); });
@@ -613,7 +666,7 @@ void GroupInfoBox::submitName() {
 }
 
 void GroupInfoBox::createGroup(
-		not_null<PeerListBox*> selectUsersBox,
+		QPointer<Ui::BoxContent> selectUsersBox,
 		const QString &title,
 		const std::vector<not_null<PeerData*>> &users) {
 	if (_creationRequestId) {
@@ -643,16 +696,19 @@ void GroupInfoBox::createGroup(
 		auto image = _photo->takeResultImage();
 		const auto period = _ttlPeriod;
 		const auto navigation = _navigation;
+		const auto done = _done;
 
 		getDelegate()->hideLayer(); // Destroys 'this'.
-		ChatCreateDone(navigation, std::move(image), period, result);
+		ChatCreateDone(navigation, std::move(image), period, result, done);
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		_creationRequestId = 0;
 		const auto controller = _navigation->parentController();
 		if (type == u"NO_CHAT_TITLE"_q) {
 			const auto weak = Ui::MakeWeak(this);
-			selectUsersBox->closeBox();
+			if (const auto strong = selectUsersBox.data()) {
+				strong->closeBox();
+			}
 			if (weak) {
 				_title->showError();
 			}
@@ -693,14 +749,19 @@ void GroupInfoBox::submit() {
 	}
 	if (_type != Type::Group) {
 		createChannel(title, description);
+	} else if (_canAddBot) {
+		createGroup(nullptr, title, { not_null<PeerData*>(_canAddBot) });
 	} else {
 		auto initBox = [title, weak = Ui::MakeWeak(this)](
 				not_null<PeerListBox*> box) {
 			auto create = [box, title, weak] {
-				if (weak) {
+				if (const auto strong = weak.data()) {
 					auto rows = box->collectSelectedRows();
 					if (!rows.empty()) {
-						weak->createGroup(box, title, rows);
+						strong->createGroup(
+							box.get(),
+							title,
+							std::move(rows));
 					}
 				}
 			};
@@ -721,10 +782,13 @@ void GroupInfoBox::createChannel(
 		const QString &description) {
 	Expects(!_creationRequestId);
 
-	const auto flags = ((_type == Type::Megagroup)
-			? MTPchannels_CreateChannel::Flag::f_megagroup
-			: MTPchannels_CreateChannel::Flag::f_broadcast)
-		| (_ttlPeriod
+	using Flag = MTPchannels_CreateChannel::Flag;
+	const auto flags = Flag()
+		| ((_type == Type::Megagroup || _type == Type::Forum)
+			? Flag::f_megagroup
+			: Flag::f_broadcast)
+		| ((_type == Type::Forum) ? Flag::f_forum : Flag())
+		| ((_type == Type::Megagroup && _ttlPeriod)
 			? MTPchannels_CreateChannel::Flag::f_ttl_period
 			: MTPchannels_CreateChannel::Flags(0));
 	_creationRequestId = _api.request(MTPchannels_CreateChannel(
@@ -818,14 +882,18 @@ void GroupInfoBox::checkInviteLink() {
 }
 
 void GroupInfoBox::channelReady() {
-	if (_channelDone) {
-		const auto callback = _channelDone;
+	if (_done && !_mustBePublic) {
+		const auto callback = _done;
 		const auto argument = _createdChannel;
 		closeBox();
 		callback(argument);
 	} else {
 		_navigation->parentController()->show(
-			Box<SetupChannelBox>(_navigation, _createdChannel),
+			Box<SetupChannelBox>(
+				_navigation,
+				_createdChannel,
+				_mustBePublic,
+				_done),
 			Ui::LayerOption::CloseOther);
 	}
 }
@@ -853,11 +921,13 @@ SetupChannelBox::SetupChannelBox(
 	QWidget*,
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
-	bool existing)
+	bool mustBePublic,
+	Fn<void(not_null<PeerData*>)> done)
 : _navigation(navigation)
 , _channel(channel)
 , _api(&_channel->session().mtp())
-, _existing(existing)
+, _mustBePublic(mustBePublic)
+, _done(std::move(done))
 , _privacyGroup(
 	std::make_shared<Ui::RadioenumGroup<Privacy>>(Privacy::Public))
 , _public(
@@ -903,6 +973,10 @@ SetupChannelBox::SetupChannelBox(
 	channel->username(),
 	channel->session().createInternalLink(QString()))
 , _checkTimer([=] { check(); }) {
+	if (_mustBePublic) {
+		_public.destroy();
+		_private.destroy();
+	}
 }
 
 void SetupChannelBox::prepare() {
@@ -923,9 +997,16 @@ void SetupChannelBox::prepare() {
 	}).send();
 
 	addButton(tr::lng_settings_save(), [=] { save(); });
+
+	const auto cancel = [=] {
+		if (_mustBePublic) {
+			MustBePublicDestroy(_channel);
+		}
+		closeBox();
+	};
 	addButton(
-		_existing ? tr::lng_cancel() : tr::lng_create_group_skip(),
-		[=] { closeBox(); });
+		_mustBePublic ? tr::lng_cancel() : tr::lng_create_group_skip(),
+		cancel);
 
 	connect(_link, &Ui::MaskedInputField::changed, [=] { handleChange(); });
 	_link->setVisible(_privacyGroup->value() == Privacy::Public);
@@ -942,7 +1023,7 @@ void SetupChannelBox::prepare() {
 	}, lifetime());
 
 	boxClosing() | rpl::start_with_next([=] {
-		if (!_existing) {
+		if (!_mustBePublic) {
 			AddParticipantsBoxController::Start(_navigation, _channel);
 		}
 	}, lifetime());
@@ -961,12 +1042,16 @@ void SetupChannelBox::setInnerFocus() {
 void SetupChannelBox::updateMaxHeight() {
 	auto newHeight = st::boxPadding.top()
 		+ st::newGroupPadding.top()
-		+ _public->heightNoMargins()
-		+ _aboutPublicHeight
-		+ st::newGroupSkip
-		+ _private->heightNoMargins()
-		+ _aboutPrivate.countHeight(_aboutPublicWidth)
-		+ st::newGroupSkip
+		+ (_public
+			? (_public->heightNoMargins()
+				+ _aboutPublicHeight
+				+ st::newGroupSkip)
+			: 0)
+		+ (_private
+			? (_private->heightNoMargins()
+				+ _aboutPrivate.countHeight(_aboutPublicWidth)
+				+ st::newGroupSkip)
+			: 0)
 		+ st::newGroupPadding.bottom();
 	if (!_channel->isMegagroup()
 		|| _privacyGroup->value() == Privacy::Public) {
@@ -998,36 +1083,38 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::boxBg);
 	p.setPen(st::newGroupAboutFg);
 
-	const auto aboutPublic = QRect(
-		st::boxPadding.left()
-			+ st::newGroupPadding.left()
-			+ st::defaultRadio.diameter
-			+ st::defaultBoxCheckbox.textPosition.x(),
-		_public->bottomNoMargins(),
-		_aboutPublicWidth,
-		_aboutPublicHeight);
-	_aboutPublic.drawLeft(
-		p,
-		aboutPublic.x(),
-		aboutPublic.y(),
-		aboutPublic.width(),
-		width());
-
-	const auto aboutPrivate = QRect(
-		st::boxPadding.left()
-			+ st::newGroupPadding.left()
-			+ st::defaultRadio.diameter
-			+ st::defaultBoxCheckbox.textPosition.x(),
-		_private->bottomNoMargins(),
-		_aboutPublicWidth,
-		_aboutPublicHeight);
-	_aboutPrivate.drawLeft(
-		p,
-		aboutPrivate.x(),
-		aboutPrivate.y(),
-		aboutPrivate.width(),
-		width());
-
+	if (_public) {
+		const auto aboutPublic = QRect(
+			st::boxPadding.left()
+				+ st::newGroupPadding.left()
+				+ st::defaultRadio.diameter
+				+ st::defaultBoxCheckbox.textPosition.x(),
+			_public->bottomNoMargins(),
+			_aboutPublicWidth,
+			_aboutPublicHeight);
+		_aboutPublic.drawLeft(
+			p,
+			aboutPublic.x(),
+			aboutPublic.y(),
+			aboutPublic.width(),
+			width());
+	}
+	if (_private) {
+		const auto aboutPrivate = QRect(
+			st::boxPadding.left()
+				+ st::newGroupPadding.left()
+				+ st::defaultRadio.diameter
+				+ st::defaultBoxCheckbox.textPosition.x(),
+			_private->bottomNoMargins(),
+			_aboutPublicWidth,
+			_aboutPublicHeight);
+		_aboutPrivate.drawLeft(
+			p,
+			aboutPrivate.x(),
+			aboutPrivate.y(),
+			aboutPrivate.width(),
+			width());
+	}
 	if (!_channel->isMegagroup() || !_link->isHidden()) {
 		p.setPen(st::boxTextFg);
 		p.setFont(st::newGroupLinkFont);
@@ -1077,13 +1164,14 @@ void SetupChannelBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
 	const auto left = st::boxPadding.left() + st::newGroupPadding.left();
-	_public->moveToLeft(
-		left,
-		st::boxPadding.top() + st::newGroupPadding.top());
-	_private->moveToLeft(
-		left,
-		_public->bottomNoMargins() + _aboutPublicHeight + st::newGroupSkip);
-
+	if (_public && _private) {
+		_public->moveToLeft(
+			left,
+			st::boxPadding.top() + st::newGroupPadding.top());
+		_private->moveToLeft(
+			left,
+			_public->bottomNoMargins() + _aboutPublicHeight + st::newGroupSkip);
+	}
 	_link->resize(
 		width()
 			- st::boxPadding.left()
@@ -1092,11 +1180,20 @@ void SetupChannelBox::resizeEvent(QResizeEvent *e) {
 		_link->height());
 	_link->moveToLeft(
 		st::boxPadding.left() + st::newGroupLinkPadding.left(),
-		_private->bottomNoMargins()
-			+ _aboutPrivate.countHeight(_aboutPublicWidth)
-			+ st::newGroupSkip
+		(st::boxPadding.top()
+			+ st::newGroupPadding.top()
+			+ (_public
+				? (_public->heightNoMargins()
+					+ _aboutPublicHeight
+					+ st::newGroupSkip)
+				: 0)
+			+ (_private
+				? (_private->heightNoMargins()
+					+ _aboutPrivate.countHeight(_aboutPublicWidth)
+					+ st::newGroupSkip)
+				: 0)
 			+ st::newGroupPadding.bottom()
-			+ st::newGroupLinkPadding.top());
+			+ st::newGroupLinkPadding.top()));
 	_invitationLink = QRect(
 		_link->x(),
 		_link->y() + (_link->height() / 2) - st::boxTextFont->height,
@@ -1144,10 +1241,15 @@ void SetupChannelBox::save() {
 			_channel->inputChannel,
 			MTP_string(_sentUsername)
 		)).done([=] {
+			const auto done = _done;
+			const auto channel = _channel;
 			_channel->setName(
 				TextUtilities::SingleLine(_channel->name()),
 				_sentUsername);
-			closeBox();
+			closeBox(); // Deletes `this`.
+			if (done) {
+				done(channel);
+			}
 		}).fail([=](const MTP::Error &error) {
 			_saveRequestId = 0;
 			updateFail(parseError(error.type()));
@@ -1156,11 +1258,7 @@ void SetupChannelBox::save() {
 	if (_saveRequestId) {
 		return;
 	} else if (_privacyGroup->value() == Privacy::Private) {
-		if (_existing) {
-			saveUsername(QString());
-		} else {
-			closeBox();
-		}
+		closeBox();
 	} else {
 		const auto link = _link->text().trimmed();
 		if (link.isEmpty()) {
@@ -1315,9 +1413,12 @@ void SetupChannelBox::updateFail(UsernameResult result) {
 
 void SetupChannelBox::checkFail(UsernameResult result) {
 	if (result == UsernameResult::NA) {
+		if (_mustBePublic) {
+			mustBePublicFailed();
+		}
 		getDelegate()->hideLayer();
 	} else if (result == UsernameResult::ChatsTooMuch) {
-		if (_existing) {
+		if (_mustBePublic) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
@@ -1338,24 +1439,44 @@ void SetupChannelBox::checkFail(UsernameResult result) {
 
 void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 	const auto channel = _channel;
-	const auto existing = _existing;
+	const auto mustBePublic = _mustBePublic;
+	const auto done = _done;
 	const auto navigation = _navigation;
+	const auto revoked = std::make_shared<bool>(false);
 	const auto callback = [=] {
-		Ui::show(
-			Box<SetupChannelBox>(navigation, channel, existing),
+		*revoked = true;
+		navigation->parentController()->show(
+			Box<SetupChannelBox>(navigation, channel, mustBePublic, done),
 			Ui::LayerOption::KeepOther);
 	};
-	closeBox();
-	Ui::show(
+	const auto revoker = navigation->parentController()->show(
 		Box(PublicLinksLimitBox, navigation, callback),
 		Ui::LayerOption::KeepOther);
+	const auto session = &navigation->session();
+	revoker->boxClosing(
+	) | rpl::start_with_next(crl::guard(session, [=] {
+		base::call_delayed(200, session, [=] {
+			if (*revoked) {
+				return;
+			}
+			MustBePublicDestroy(channel);
+		});
+	}), revoker->lifetime());
+	closeBox();
+}
+
+void SetupChannelBox::mustBePublicFailed() {
+	MustBePublicFailed(_navigation, _channel);
 }
 
 void SetupChannelBox::firstCheckFail(UsernameResult result) {
 	if (result == UsernameResult::NA) {
+		if (_mustBePublic) {
+			mustBePublicFailed();
+		}
 		getDelegate()->hideLayer();
 	} else if (result == UsernameResult::ChatsTooMuch) {
-		if (_existing) {
+		if (_mustBePublic) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;

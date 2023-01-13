@@ -424,7 +424,11 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				peer->session().api().applyUpdates(result);
 			}).send();
 		};
-		ShowChoosePeerBox(controller, chosen, query);
+		if (const auto bot = item->getMessageBot()) {
+			ShowChoosePeerBox(controller, bot, query, chosen);
+		} else {
+			LOG(("API Error: Bot not found for RequestPeer button."));
+		}
 	} break;
 
 	case ButtonType::SwitchInlineSame:

@@ -19,5 +19,6 @@ class SessionNavigation;
 
 QPointer<Ui::BoxContent> ShowChoosePeerBox(
 	not_null<Window::SessionNavigation*> navigation,
-	Fn<void(not_null<PeerData*>)> &&chosen,
-	RequestPeerQuery query);
+	not_null<UserData*> bot,
+	RequestPeerQuery query,
+	Fn<void(not_null<PeerData*>)> &&chosen);

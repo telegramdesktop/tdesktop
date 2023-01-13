@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/choose_peer_box.h"
 
+#include "boxes/add_contact_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/premium_limits_box.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_peer.h"
@@ -30,9 +32,10 @@ class ChoosePeerBoxController final
 	, public base::has_weak_ptr {
 public:
 	ChoosePeerBoxController(
-		not_null<Main::Session*> session,
-		Fn<void(not_null<PeerData*>)> callback,
-		RequestPeerQuery query);
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<UserData*> bot,
+		RequestPeerQuery query,
+		Fn<void(not_null<PeerData*>)> callback);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -48,9 +51,10 @@ private:
 
 	void prepareRestrictions();
 
-	const not_null<Main::Session*> _session;
-	Fn<void(not_null<PeerData*>)> _callback;
+	const not_null<Window::SessionNavigation*> _navigation;
+	not_null<UserData*> _bot;
 	RequestPeerQuery _query;
+	Fn<void(not_null<PeerData*>)> _callback;
 
 };
 
@@ -166,9 +170,24 @@ private:
 }
 
 object_ptr<Ui::BoxContent> CreatePeerByQueryBox(
-		not_null<Main::Session*> session,
-		RequestPeerQuery query) {
-	return object_ptr<Ui::BoxContent>(nullptr);
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<UserData*> bot,
+		RequestPeerQuery query,
+		Fn<void(not_null<PeerData*>)> done) {
+	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	auto callback = [=](not_null<PeerData*> peer) {
+		done(peer);
+		if (const auto strong = weak->data()) {
+			strong->closeBox();
+		}
+	};
+	auto result = Box<GroupInfoBox>(
+		navigation,
+		bot,
+		query,
+		std::move(callback));
+	*weak = result.data();
+	return result;
 }
 
 [[nodiscard]] bool FilterPeerByQuery(
@@ -223,17 +242,19 @@ object_ptr<Ui::BoxContent> CreatePeerByQueryBox(
 }
 
 ChoosePeerBoxController::ChoosePeerBoxController(
-	not_null<Main::Session*> session,
-	Fn<void(not_null<PeerData*>)> callback,
-	RequestPeerQuery query)
-: ChatsListBoxController(session)
-, _session(session)
-, _callback(std::move(callback))
-, _query(query) {
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<UserData*> bot,
+	RequestPeerQuery query,
+	Fn<void(not_null<PeerData*>)> callback)
+: ChatsListBoxController(&navigation->session())
+, _navigation(navigation)
+, _bot(bot)
+, _query(query)
+, _callback(std::move(callback)) {
 }
 
 Main::Session &ChoosePeerBoxController::session() const {
-	return *_session;
+	return _navigation->session();
 }
 
 void ChoosePeerBoxController::prepareRestrictions() {
@@ -273,8 +294,8 @@ void ChoosePeerBoxController::prepareRestrictions() {
 		}, icon->lifetime());
 
 		button->setClickedCallback([=] {
-			delegate()->peerListShowBox(
-				CreatePeerByQueryBox(&session(), _query));
+			_navigation->parentController()->show(
+				CreatePeerByQueryBox(_navigation, _bot, _query, _callback));
 		});
 
 		button->events(
@@ -351,8 +372,9 @@ QString ChoosePeerBoxController::emptyBoxText() const {
 
 QPointer<Ui::BoxContent> ShowChoosePeerBox(
 		not_null<Window::SessionNavigation*> navigation,
-		Fn<void(not_null<PeerData*>)> &&chosen,
-		RequestPeerQuery query) {
+		not_null<UserData*> bot,
+		RequestPeerQuery query,
+		Fn<void(not_null<PeerData*>)> &&chosen) {
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] {
@@ -367,9 +389,10 @@ QPointer<Ui::BoxContent> ShowChoosePeerBox(
 	};
 	*weak = navigation->parentController()->show(Box<PeerListBox>(
 		std::make_unique<ChoosePeerBoxController>(
-			&navigation->session(),
-			std::move(callback),
-			query),
+			navigation,
+			bot,
+			query,
+			std::move(callback)),
 		std::move(initBox)), Ui::LayerOption::KeepOther);
 	return weak->data();
 }
