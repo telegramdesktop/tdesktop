@@ -55,6 +55,7 @@ void CameraBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> controller,
 		PeerData *peer,
+		bool forceForumShape,
 		Fn<void(QImage &&image)> &&doneCallback) {
 	using namespace Webrtc;
 
@@ -79,12 +80,14 @@ void CameraBox(
 			box->closeBox();
 			done(std::move(image));
 		};
+		const auto useForumShape = forceForumShape
+			|| (peer && peer->isForum());
 		PrepareProfilePhoto(
 			box,
 			controller,
 			{
 				.confirm = tr::lng_profile_set_photo_button(tr::now),
-				.cropType = ((peer && peer->isForum())
+				.cropType = (useForumShape
 					? EditorData::CropType::RoundedRect
 					: EditorData::CropType::Ellipse),
 				.keepAspectRatio = true,
@@ -141,11 +144,13 @@ UserpicButton::UserpicButton(
 	QWidget *parent,
 	not_null<Window::Controller*> window,
 	Role role,
-	const style::UserpicButton &st)
+	const style::UserpicButton &st,
+	bool forceForumShape)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _controller(window->sessionController())
 , _window(window)
+, _forceForumShape(forceForumShape)
 , _role(role) {
 	Expects(_role == Role::ChangePhoto || _role == Role::ChoosePhoto);
 
@@ -295,7 +300,7 @@ void UserpicButton::choosePhotoLocally() {
 						.confirm = ((type == ChosenType::Suggest)
 							? tr::lng_profile_suggest_button(tr::now)
 							: tr::lng_profile_set_photo_button(tr::now)),
-						.cropType = ((_peer && _peer->isForum())
+						.cropType = (useForumShape()
 							? EditorData::CropType::RoundedRect
 							: EditorData::CropType::Ellipse),
 						.keepAspectRatio = true,
@@ -333,6 +338,7 @@ void UserpicButton::choosePhotoLocally() {
 					CameraBox,
 					_window,
 					_peer,
+					_forceForumShape,
 					callback(ChosenType::Set)));
 			}, &st::menuIconPhotoSet);
 		}
@@ -546,8 +552,7 @@ void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
 		auto size = QSize{ _st.photoSize, _st.photoSize };
 		const auto ratio = style::DevicePixelRatio();
 		request.outer = request.resize = size * ratio;
-		const auto forum = _peer && _peer->isForum();
-		if (forum) {
+		if (useForumShape()) {
 			const auto radius = int(_st.photoSize
 				* Ui::ForumUserpicRadiusMultiplier());
 			if (_roundingCorners[0].width() != radius * ratio) {
@@ -789,6 +794,10 @@ void UserpicButton::processNewPeerPhoto() {
 	}
 }
 
+bool UserpicButton::useForumShape() const {
+	return _forceForumShape || (_peer && _peer->isForum());
+}
+
 void UserpicButton::grabOldUserpic() {
 	auto photoRect = QRect(
 		countPhotoPosition(),
@@ -893,9 +902,11 @@ void UserpicButton::showCustom(QImage &&image) {
 			size * cIntRetinaFactor(),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
-		const auto forum = _peer && _peer->isForum();
-		_userpic = Ui::PixmapFromImage(forum
-			? Images::Round(std::move(small), Images::Option::RoundLarge)
+		_userpic = Ui::PixmapFromImage(useForumShape()
+			? Images::Round(
+				std::move(small),
+				Images::CornersMask(_st.photoSize
+					* Ui::ForumUserpicRadiusMultiplier()))
 			: Images::Circle(std::move(small)));
 	} else {
 		_userpic = CreateSquarePixmap(_st.photoSize, [&](Painter &p) {
@@ -945,7 +956,7 @@ void UserpicButton::fillShape(QPainter &p, const style::color &color) const {
 	p.setPen(Qt::NoPen);
 	p.setBrush(color);
 	const auto size = _st.photoSize;
-	if (_peer && _peer->isForum()) {
+	if (useForumShape()) {
 		const auto radius = size * Ui::ForumUserpicRadiusMultiplier();
 		p.drawRoundedRect(0, 0, size, size, radius, radius);
 	} else {
@@ -977,14 +988,12 @@ void UserpicButton::prepareUserpicPixmap() {
 						QSize(size, size) * ratio,
 						Qt::IgnoreAspectRatio,
 						Qt::SmoothTransformation);
-					if (_peer->isForum()) {
-						image = Images::Round(
+					image = useForumShape()
+						? Images::Round(
 							std::move(image),
 							Images::CornersMask(size
-								* Ui::ForumUserpicRadiusMultiplier()));
-					} else {
-						image = Images::Circle(std::move(image));
-					}
+								* Ui::ForumUserpicRadiusMultiplier()))
+						: Images::Circle(std::move(image));
 					image.setDevicePixelRatio(style::DevicePixelRatio());
 					p.drawImage(0, 0, image);
 				}
@@ -996,7 +1005,7 @@ void UserpicButton::prepareUserpicPixmap() {
 					((user && user->isInaccessible())
 						? Ui::EmptyUserpic::InaccessibleName()
 						: _peer->name()));
-				if (_peer->isForum()) {
+				if (useForumShape()) {
 					empty.paintRounded(
 						p,
 						0,

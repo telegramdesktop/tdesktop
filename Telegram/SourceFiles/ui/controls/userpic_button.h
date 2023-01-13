@@ -61,7 +61,8 @@ public:
 		QWidget *parent,
 		not_null<::Window::Controller*> window,
 		Role role,
-		const style::UserpicButton &st);
+		const style::UserpicButton &st,
+		bool forceForumShape = false);
 	UserpicButton(
 		QWidget *parent,
 		not_null<::Window::SessionController*> controller,
@@ -140,6 +141,7 @@ private:
 	void streamingReady(Media::Streaming::Information &&info);
 	void paintUserpicFrame(Painter &p, QPoint photoPosition);
 
+	[[nodiscard]] bool useForumShape() const;
 	void grabOldUserpic();
 	void setClickHandlerByRole();
 	void requestSuggestAvailability();
@@ -154,6 +156,7 @@ private:
 	::Window::SessionController *_controller = nullptr;
 	::Window::Controller *_window = nullptr;
 	PeerData *_peer = nullptr;
+	bool _forceForumShape = false;
 	PeerUserpicView _userpicView;
 	std::shared_ptr<Data::PhotoMedia> _nonPersonalView;
 	Role _role = Role::ChangePhoto;
