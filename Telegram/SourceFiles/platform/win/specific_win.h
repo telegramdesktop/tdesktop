@@ -27,9 +27,6 @@ inline bool SkipTaskbarSupported() {
 	return true;
 }
 
-inline void InstallLauncher(bool force) {
-}
-
 inline void ActivateThisProcess() {
 }
 

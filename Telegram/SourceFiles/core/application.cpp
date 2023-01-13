@@ -240,7 +240,6 @@ void Application::run() {
 	refreshGlobalProxy(); // Depends on app settings being read.
 
 	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
-		Platform::InstallLauncher();
 		InvokeQueued(this, [] { RegisterUrlScheme(); });
 		Platform::NewVersionLaunched(old);
 	}

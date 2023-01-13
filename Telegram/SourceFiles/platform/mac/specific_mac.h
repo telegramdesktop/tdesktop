@@ -33,9 +33,6 @@ inline bool SkipTaskbarSupported() {
 	return false;
 }
 
-inline void InstallLauncher(bool force) {
-}
-
 void ActivateThisProcess();
 
 inline uint64 ActivationWindowId(not_null<QWidget*> window) {
