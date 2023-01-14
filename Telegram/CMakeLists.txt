@@ -48,7 +48,7 @@ if (WIN32)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    add_compile_options("/Zm1000")
+    add_compile_options("/Zm200")
 endif()
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
