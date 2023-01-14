@@ -124,27 +124,6 @@ private:
 
 };
 
-void PaintColorButton(QPainter &p, QColor color, float64 selected) {
-	const auto size = st::settingsAccentColorSize;
-	const auto rect = QRect(0, 0, size, size);
-
-	p.setBrush(color);
-	p.setPen(Qt::NoPen);
-	p.drawEllipse(rect);
-
-	if (selected > 0.) {
-		const auto startSkip = -st::settingsAccentColorLine / 2.;
-		const auto endSkip = float64(st::settingsAccentColorSkip);
-		const auto skip = startSkip + (endSkip - startSkip) * selected;
-		auto pen = st::boxBg->p;
-		pen.setWidth(st::settingsAccentColorLine);
-		p.setBrush(Qt::NoBrush);
-		p.setPen(pen);
-		p.setOpacity(selected);
-		p.drawEllipse(QRectF(rect).marginsRemoved({ skip, skip, skip, skip }));
-	}
-}
-
 void PaintCustomButton(QPainter &p, const std::vector<QColor> &colors) {
 	Expects(colors.size() >= kCustomColorButtonParts);
 
@@ -229,7 +208,7 @@ void ColorsPalette::Button::paint() {
 	PainterHighQualityEnabler hq(p);
 
 	if (_colors.size() == 1) {
-		PaintColorButton(
+		PaintRoundColorButton(
 			p,
 			_colors.front(),
 			_selectedAnimation.value(_selected ? 1. : 0.));
@@ -391,6 +370,27 @@ void ColorsPalette::updateInnerGeometry() {
 }
 
 } // namespace
+
+void PaintRoundColorButton(QPainter &p, QBrush brush, float64 selected) {
+	const auto size = st::settingsAccentColorSize;
+	const auto rect = QRect(0, 0, size, size);
+
+	p.setBrush(brush);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(rect);
+
+	if (selected > 0.) {
+		const auto startSkip = -st::settingsAccentColorLine / 2.;
+		const auto endSkip = float64(st::settingsAccentColorSkip);
+		const auto skip = startSkip + (endSkip - startSkip) * selected;
+		auto pen = st::boxBg->p;
+		pen.setWidth(st::settingsAccentColorLine);
+		p.setBrush(Qt::NoBrush);
+		p.setPen(pen);
+		p.setOpacity(selected);
+		p.drawEllipse(QRectF(rect).marginsRemoved({ skip, skip, skip, skip }));
+	}
+}
 
 class BackgroundRow : public Ui::RpWidget {
 public:
