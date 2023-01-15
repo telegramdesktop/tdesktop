@@ -264,6 +264,8 @@ PRIVATE
     ui/text/text_options.cpp
     ui/text/text_options.h
 
+    ui/widgets/color_editor.cpp
+    ui/widgets/color_editor.h
     ui/widgets/continuous_sliders.cpp
     ui/widgets/continuous_sliders.h
     ui/widgets/discrete_sliders.cpp

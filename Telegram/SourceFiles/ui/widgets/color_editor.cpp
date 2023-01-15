@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/edit_color_box.h"
+#include "ui/widgets/color_editor.h"
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/shadow.h"
@@ -69,8 +69,8 @@ QCursor ColorEditor::Picker::generateCursor() {
 	auto diameter = style::ConvertScale(16);
 	auto line = style::ConvertScale(1);
 	auto size = ((diameter + 2 * line) >= 32) ? 64 : 32;
-	auto cursor = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	cursor.setDevicePixelRatio(cRetinaFactor());
+	auto cursor = QImage(QSize(size, size) * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+	cursor.setDevicePixelRatio(style::DevicePixelRatio());
 	cursor.fill(Qt::transparent);
 	{
 		auto p = QPainter(&cursor);
@@ -97,7 +97,7 @@ ColorEditor::Picker::Picker(QWidget *parent, Mode mode, QColor color)
 	auto size = QSize(st::colorPickerSize, st::colorPickerSize);
 	resize(size);
 
-	_palette = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	_palette = QImage(size * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
 
 	setFromColor(color);
 }
@@ -149,7 +149,7 @@ void ColorEditor::Picker::preparePalette() {
 	} else {
 		preparePaletteHSL();
 	}
-	_palette.setDevicePixelRatio(cRetinaFactor());
+	_palette.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 void ColorEditor::Picker::preparePaletteRGBA() {
@@ -400,9 +400,9 @@ void ColorEditor::Slider::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void ColorEditor::Slider::generatePixmap() {
-	auto size = (isHorizontal() ? width() : height()) * cIntRetinaFactor();
-	auto image = QImage(size, cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(cRetinaFactor());
+	auto size = (isHorizontal() ? width() : height()) * style::DevicePixelRatio();
+	auto image = QImage(size, style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
 	auto ints = reinterpret_cast<uint32*>(image.bits());
 	auto intsPerLine = image.bytesPerLine() / sizeof(uint32);
 	auto intsPerLineAdded = intsPerLine - size;
@@ -415,7 +415,7 @@ void ColorEditor::Slider::generatePixmap() {
 		for (auto x = 0; x != size; ++x) {
 			const auto color = QColor::fromHsv(x * 360 / size, 255, 255);
 			const auto value = anim::getPremultiplied(color.toRgb());
-			for (auto y = 0; y != cIntRetinaFactor(); ++y) {
+			for (auto y = 0; y != style::DevicePixelRatio(); ++y) {
 				ints[y * intsPerLine] = value;
 			}
 			++ints;
@@ -427,7 +427,7 @@ void ColorEditor::Slider::generatePixmap() {
 	} else if (_type == Type::Opacity) {
 		auto color = anim::shifted(QColor(255, 255, 255, 255));
 		auto transparent = anim::shifted(QColor(255, 255, 255, 0));
-		for (auto y = 0; y != cIntRetinaFactor(); ++y) {
+		for (auto y = 0; y != style::DevicePixelRatio(); ++y) {
 			auto x_accumulated = 0;
 			for (auto x = 0; x != size; ++x, x_accumulated += part) {
 				auto x_ratio = x_accumulated >> (LargeBit - 8);
@@ -451,7 +451,7 @@ void ColorEditor::Slider::generatePixmap() {
 				_color.hslSaturation(),
 				_lightnessMin + x * range / size);
 			const auto value = anim::getPremultiplied(color.toRgb());
-			for (auto y = 0; y != cIntRetinaFactor(); ++y) {
+			for (auto y = 0; y != style::DevicePixelRatio(); ++y) {
 				ints[y * intsPerLine] = value;
 			}
 			++ints;

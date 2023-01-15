@@ -243,8 +243,6 @@ PRIVATE
     boxes/download_path_box.h
     boxes/edit_caption_box.cpp
     boxes/edit_caption_box.h
-    boxes/edit_color_box.cpp
-    boxes/edit_color_box.h
     boxes/edit_privacy_box.cpp
     boxes/edit_privacy_box.h
     boxes/gift_premium_box.cpp
