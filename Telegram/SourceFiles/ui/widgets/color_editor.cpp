@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/color_editor.h"
 
-#include "lang/lang_keys.h"
-#include "ui/widgets/shadow.h"
-#include "ui/widgets/input_fields.h"
-#include "ui/painter.h"
-#include "ui/ui_utility.h"
 #include "base/platform/base_platform_info.h"
+#include "lang/lang_keys.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/ui_utility.h"
+#include "ui/widgets/input_fields.h"
+#include "ui/widgets/shadow.h"
 #include "styles/style_boxes.h"
 #include "styles/style_media_view.h"
 
@@ -66,10 +67,13 @@ private:
 };
 
 QCursor ColorEditor::Picker::generateCursor() {
-	auto diameter = style::ConvertScale(16);
-	auto line = style::ConvertScale(1);
-	auto size = ((diameter + 2 * line) >= 32) ? 64 : 32;
-	auto cursor = QImage(QSize(size, size) * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+	const auto diameter = style::ConvertScale(16);
+	const auto line = style::ConvertScale(1);
+	const auto size = ((diameter + 2 * line) >= 32) ? 64 : 32;
+	const auto diff = (size - diameter) / 2;
+	auto cursor = QImage(
+		QSize(size, size) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
 	cursor.setDevicePixelRatio(style::DevicePixelRatio());
 	cursor.fill(Qt::transparent);
 	{
@@ -80,11 +84,11 @@ QCursor ColorEditor::Picker::generateCursor() {
 		auto pen = QPen(Qt::white);
 		pen.setWidth(3 * line);
 		p.setPen(pen);
-		p.drawEllipse((size - diameter) / 2, (size - diameter) / 2, diameter, diameter);
+		p.drawEllipse(diff, diff, diameter, diameter);
 		pen = QPen(Qt::black);
 		pen.setWidth(line);
 		p.setPen(pen);
-		p.drawEllipse((size - diameter) / 2, (size - diameter) / 2, diameter, diameter);
+		p.drawEllipse(diff, diff, diameter, diameter);
 	}
 	return QCursor(QPixmap::fromImage(cursor));
 }
@@ -94,10 +98,12 @@ ColorEditor::Picker::Picker(QWidget *parent, Mode mode, QColor color)
 , _mode(mode) {
 	setCursor(generateCursor());
 
-	auto size = QSize(st::colorPickerSize, st::colorPickerSize);
+	const auto size = QSize(st::colorPickerSize, st::colorPickerSize);
 	resize(size);
 
-	_palette = QImage(size * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+	_palette = QImage(
+		size * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
 
 	setFromColor(color);
 }
@@ -109,20 +115,24 @@ void ColorEditor::Picker::paintEvent(QPaintEvent *e) {
 
 	p.drawImage(0, 0, _palette);
 
-	auto left = anim::color(_topleft, _bottomleft, _y);
-	auto right = anim::color(_topright, _bottomright, _y);
-	auto color = anim::color(left, right, _x);
-	auto lightness = 0.2989 * color.redF() + 0.5870 * color.greenF() + 0.1140 * color.blueF();
-	auto pen = QPen((lightness > 0.6) ? QColor(0, 0, 0) : QColor(255, 255, 255));
+	const auto left = anim::color(_topleft, _bottomleft, _y);
+	const auto right = anim::color(_topright, _bottomright, _y);
+	const auto color = anim::color(left, right, _x);
+	const auto lightness = 0.2989 * color.redF()
+		+ 0.5870 * color.greenF()
+		+ 0.1140 * color.blueF();
+	auto pen = QPen((lightness > 0.6)
+		? QColor(0, 0, 0)
+		: QColor(255, 255, 255));
 	pen.setWidth(st::colorPickerMarkLine);
 	p.setPen(pen);
 	p.setBrush(Qt::NoBrush);
 
-	auto x = anim::interpolate(0, width() - 1, _x);
-	auto y = anim::interpolate(0, height() - 1, _y);
+	const auto x = anim::interpolate(0, width() - 1, _x);
+	const auto y = anim::interpolate(0, height() - 1, _y);
 	PainterHighQualityEnabler hq(p);
 
-	p.drawEllipse(QRect(x - st::colorPickerMarkRadius, y - st::colorPickerMarkRadius, 2 * st::colorPickerMarkRadius, 2 * st::colorPickerMarkRadius));
+	p.drawEllipse(QRect(x, y, 0, 0) + Margins(st::colorPickerMarkRadius));
 }
 
 void ColorEditor::Picker::mousePressEvent(QMouseEvent *e) {
@@ -155,39 +165,45 @@ void ColorEditor::Picker::preparePalette() {
 void ColorEditor::Picker::preparePaletteRGBA() {
 	const auto size = _palette.width();
 	auto ints = reinterpret_cast<uint32*>(_palette.bits());
-	const auto intsAddPerLine = (_palette.bytesPerLine() - size * sizeof(uint32)) / sizeof(uint32);
+	const auto intsAddPerLine = (_palette.bytesPerLine()
+			- size * sizeof(uint32))
+		/ sizeof(uint32);
 
-	constexpr auto Large = 1024 * 1024;
-	constexpr auto LargeBit = 20; // n / Large == (n >> LargeBit)
-	const auto part = Large / size;
+	constexpr auto kLarge = 1024 * 1024;
+	constexpr auto kLargeBit = 20; // n / kLarge == (n >> kLargeBit)
+	const auto part = kLarge / size;
 
 	const auto topleft = anim::shifted(_topleft);
 	const auto topright = anim::shifted(_topright);
 	const auto bottomleft = anim::shifted(_bottomleft);
 	const auto bottomright = anim::shifted(_bottomright);
 
-	auto y_accumulated = 0;
-	for (auto y = 0; y != size; ++y, y_accumulated += part) {
-		auto y_ratio = y_accumulated >> (LargeBit - 8); // (y_accumulated * 256) / Large;
-		// 0 <= y_accumulated < Large
-		// 0 <= y_ratio < 256
+	auto yAccumulated = 0;
+	for (auto y = 0; y != size; ++y, yAccumulated += part) {
+		// (yAccumulated * 256) / kLarge;
+		const auto yRatio = yAccumulated >> (kLargeBit - 8);
+		// 0 <= yAccumulated < kLarge
+		// 0 <= yRatio < 256
 
-		const auto top_ratio = 256 - y_ratio;
-		const auto bottom_ratio = y_ratio;
+		const auto topRatio = 256 - yRatio;
+		const auto bottomRatio = yRatio;
 
-		const auto left = anim::reshifted(bottomleft * bottom_ratio + topleft * top_ratio);
-		const auto right = anim::reshifted(bottomright * bottom_ratio + topright * top_ratio);
+		const auto left = anim::reshifted(bottomleft * bottomRatio
+			+ topleft * topRatio);
+		const auto right = anim::reshifted(bottomright * bottomRatio
+			+ topright * topRatio);
 
-		auto x_accumulated = 0;
-		for (auto x = 0; x != size; ++x, x_accumulated += part) {
-			auto x_ratio = x_accumulated >> (LargeBit - 8); // (x_accumulated * 256) / Large;
-			// 0 <= x_accumulated < Large
-			// 0 <= x_ratio < 256
+		auto xAccumulated = 0;
+		for (auto x = 0; x != size; ++x, xAccumulated += part) {
+			// (xAccumulated * 256) / kLarge;
+			const auto xRatio = xAccumulated >> (kLargeBit - 8);
+			// 0 <= xAccumulated < kLarge
+			// 0 <= xRatio < 256
 
-			auto left_ratio = 256 - x_ratio;
-			auto right_ratio = x_ratio;
+			const auto leftRatio = 256 - xRatio;
+			const auto rightRatio = xRatio;
 
-			*ints++ = anim::unshifted(left * left_ratio + right * right_ratio);
+			*ints++ = anim::unshifted(left * leftRatio + right * rightRatio);
 		}
 		ints += intsAddPerLine;
 	}
@@ -195,12 +211,14 @@ void ColorEditor::Picker::preparePaletteRGBA() {
 
 void ColorEditor::Picker::preparePaletteHSL() {
 	const auto size = _palette.width();
-	const auto intsAddPerLine = (_palette.bytesPerLine() - size * sizeof(uint32)) / sizeof(uint32);
+	const auto intsAddPerLine = (_palette.bytesPerLine()
+			- size * sizeof(uint32))
+		/ sizeof(uint32);
 	auto ints = reinterpret_cast<uint32*>(_palette.bits());
 
-	constexpr auto Large = 1024 * 1024;
-	constexpr auto LargeBit = 20; // n / Large == (n >> LargeBit)
-	const auto part = Large / size;
+	constexpr auto kLarge = 1024 * 1024;
+	constexpr auto kLargeBit = 20; // n / kLarge == (n >> kLargeBit)
+	const auto part = kLarge / size;
 
 	const auto lightness = _topleft.lightness();
 	const auto right = anim::shifted(_bottomright);
@@ -210,15 +228,16 @@ void ColorEditor::Picker::preparePaletteHSL() {
 		const auto color = QColor::fromHsl(hue, 255, lightness).toRgb();
 		const auto left = anim::shifted(anim::getPremultiplied(color));
 
-		auto x_accumulated = 0;
-		for (auto x = 0; x != size; ++x, x_accumulated += part) {
-			auto x_ratio = x_accumulated >> (LargeBit - 8); // (x_accumulated * 256) / Large;
-			// 0 <= x_accumulated < Large
-			// 0 <= x_ratio < 256
+		auto xAccumulated = 0;
+		for (auto x = 0; x != size; ++x, xAccumulated += part) {
+			// (xAccumulated * 256) / kLarge;
+			const auto xRatio = xAccumulated >> (kLargeBit - 8);
+			// 0 <= xAccumulated < kLarge
+			// 0 <= xRatio < 256
 
-			auto left_ratio = 256 - x_ratio;
-			auto right_ratio = x_ratio;
-			*ints++ = anim::unshifted(left * left_ratio + right * right_ratio);
+			const auto leftRatio = 256 - xRatio;
+			const auto rightRatio = xRatio;
+			*ints++ = anim::unshifted(left * leftRatio + right * rightRatio);
 		}
 		ints += intsAddPerLine;
 	}
@@ -228,8 +247,10 @@ void ColorEditor::Picker::preparePaletteHSL() {
 }
 
 void ColorEditor::Picker::updateCurrentPoint(QPoint localPosition) {
-	auto x = std::clamp(localPosition.x(), 0, width()) / float64(width());
-	auto y = std::clamp(localPosition.y(), 0, height()) / float64(height());
+	const auto x = std::clamp(localPosition.x(), 0, width())
+		/ float64(width());
+	const auto y = std::clamp(localPosition.y(), 0, height())
+		/ float64(height());
 	if (_x != x || _y != y) {
 		_x = x;
 		_y = y;
@@ -241,7 +262,7 @@ void ColorEditor::Picker::updateCurrentPoint(QPoint localPosition) {
 void ColorEditor::Picker::setHSB(HSB hsb) {
 	if (_mode == Mode::RGBA) {
 		_topleft = QColor(255, 255, 255);
-		_topright.setHsv(qMax(0, hsb.hue), 255, 255);
+		_topright.setHsv(std::max(0, hsb.hue), 255, 255);
 		_topright = _topright.toRgb();
 		_bottomleft = _bottomright = QColor(0, 0, 0);
 
@@ -356,26 +377,42 @@ ColorEditor::Slider::Slider(
 }
 
 void ColorEditor::Slider::prepareMinSize() {
-	auto minSize = st::colorSliderSkip + st::colorSliderWidth + st::colorSliderSkip;
+	const auto minSize = st::colorSliderSkip * 2 + st::colorSliderWidth;
 	resize(minSize, minSize);
 }
 
 void ColorEditor::Slider::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
-	auto to = rect().marginsRemoved(QMargins(st::colorSliderSkip, st::colorSliderSkip, st::colorSliderSkip, st::colorSliderSkip));
+	const auto to = rect() - Margins(st::colorSliderSkip);
 	Ui::Shadow::paint(p, to, width(), st::defaultRoundShadow);
 	if (_type == Type::Opacity) {
 		p.fillRect(to, _transparent);
 	}
 	p.drawPixmap(to, _pixmap, _pixmap.rect());
 	if (isHorizontal()) {
-		auto x = st::colorSliderSkip + qRound(_value * to.width());
-		st::colorSliderArrowTop.paint(p, x - st::colorSliderArrowTop.width() / 2, 0, width());
-		st::colorSliderArrowBottom.paint(p, x - st::colorSliderArrowBottom.width() / 2, height() - st::colorSliderArrowBottom.height(), width());
+		const auto x = st::colorSliderSkip + std::round(_value * to.width());
+		st::colorSliderArrowTop.paint(
+			p,
+			x - st::colorSliderArrowTop.width() / 2,
+			0,
+			width());
+		st::colorSliderArrowBottom.paint(
+			p,
+			x - st::colorSliderArrowBottom.width() / 2,
+			height() - st::colorSliderArrowBottom.height(),
+			width());
 	} else {
-		auto y = st::colorSliderSkip + qRound(_value * to.height());
-		st::colorSliderArrowLeft.paint(p, 0, y - st::colorSliderArrowLeft.height() / 2, width());
-		st::colorSliderArrowRight.paint(p, width() - st::colorSliderArrowRight.width(), y - st::colorSliderArrowRight.height() / 2, width());
+		const auto y = st::colorSliderSkip + std::round(_value * to.height());
+		st::colorSliderArrowLeft.paint(
+			p,
+			0,
+			y - st::colorSliderArrowLeft.height() / 2,
+			width());
+		st::colorSliderArrowRight.paint(
+			p,
+			width() - st::colorSliderArrowRight.width(),
+			y - st::colorSliderArrowRight.height() / 2,
+			width());
 	}
 }
 
@@ -400,16 +437,20 @@ void ColorEditor::Slider::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void ColorEditor::Slider::generatePixmap() {
-	auto size = (isHorizontal() ? width() : height()) * style::DevicePixelRatio();
-	auto image = QImage(size, style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+	const auto size = (isHorizontal() ? width() : height())
+		* style::DevicePixelRatio();
+	auto image = QImage(
+		size,
+		style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(style::DevicePixelRatio());
 	auto ints = reinterpret_cast<uint32*>(image.bits());
-	auto intsPerLine = image.bytesPerLine() / sizeof(uint32);
-	auto intsPerLineAdded = intsPerLine - size;
+	const auto intsPerLine = image.bytesPerLine() / sizeof(uint32);
+	const auto intsPerLineAdded = intsPerLine - size;
 
-	constexpr auto Large = 1024 * 1024;
-	constexpr auto LargeBit = 20; // n / Large == (n >> LargeBit)
-	auto part = Large / size;
+	constexpr auto kLarge = 1024 * 1024;
+	constexpr auto kLargeBit = 20; // n / kLarge == (n >> kLargeBit)
+	const auto part = kLarge / size;
 
 	if (_type == Type::Hue) {
 		for (auto x = 0; x != size; ++x) {
@@ -421,25 +462,28 @@ void ColorEditor::Slider::generatePixmap() {
 			++ints;
 		}
 		if (!isHorizontal()) {
-			image = std::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
+			image = std::move(image).transformed(
+				QTransform(0, -1, 1, 0, 0, 0));
 		}
 		_pixmap = Ui::PixmapFromImage(std::move(image));
 	} else if (_type == Type::Opacity) {
 		auto color = anim::shifted(QColor(255, 255, 255, 255));
 		auto transparent = anim::shifted(QColor(255, 255, 255, 0));
 		for (auto y = 0; y != style::DevicePixelRatio(); ++y) {
-			auto x_accumulated = 0;
-			for (auto x = 0; x != size; ++x, x_accumulated += part) {
-				auto x_ratio = x_accumulated >> (LargeBit - 8);
-				// 0 <= x_accumulated < Large
-				// 0 <= x_ratio < 256
+			auto xAccumulated = 0;
+			for (auto x = 0; x != size; ++x, xAccumulated += part) {
+				const auto xRatio = xAccumulated >> (kLargeBit - 8);
+				// 0 <= xAccumulated < kLarge
+				// 0 <= xRatio < 256
 
-				*ints++ = anim::unshifted(color * x_ratio + transparent * (256 - x_ratio));
+				*ints++ = anim::unshifted(color * xRatio
+					+ transparent * (256 - xRatio));
 			}
 			ints += intsPerLineAdded;
 		}
 		if (!isHorizontal()) {
-			image = std::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
+			image = std::move(image).transformed(
+				QTransform(0, -1, 1, 0, 0, 0));
 		}
 		_mask = std::move(image);
 		updatePixmapFromMask();
@@ -457,7 +501,8 @@ void ColorEditor::Slider::generatePixmap() {
 			++ints;
 		}
 		if (!isHorizontal()) {
-			image = std::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
+			image = std::move(image).transformed(
+				QTransform(0, -1, 1, 0, 0, 0));
 		}
 		_pixmap = Ui::PixmapFromImage(std::move(image));
 	}
@@ -534,9 +579,13 @@ void ColorEditor::Slider::updatePixmapFromMask() {
 }
 
 void ColorEditor::Slider::updateCurrentPoint(QPoint localPosition) {
-	auto coord = (isHorizontal() ? localPosition.x() : localPosition.y()) - st::colorSliderSkip;
-	auto maximum = (isHorizontal() ? width() : height()) - 2 * st::colorSliderSkip;
-	auto value = std::clamp(coord, 0, maximum) / float64(maximum);
+	const auto coord = (isHorizontal()
+		? localPosition.x()
+		: localPosition.y()) - st::colorSliderSkip;
+	const auto maximum = (isHorizontal()
+		? width()
+		: height()) - 2 * st::colorSliderSkip;
+	const auto value = std::clamp(coord, 0, maximum) / float64(maximum);
 	if (_value != value) {
 		_value = value;
 		update();
@@ -559,7 +608,12 @@ QColor ColorEditor::Slider::applyLimits(QColor color) const {
 
 class ColorEditor::Field : public Ui::MaskedInputField {
 public:
-	Field(QWidget *parent, const style::InputField &st, const QString &placeholder, int limit, const QString &units = QString());
+	Field(
+		QWidget *parent,
+		const style::InputField &st,
+		const QString &placeholder,
+		int limit,
+		const QString &units = QString());
 
 	int value() const {
 		return getLastText().toInt();
@@ -573,7 +627,11 @@ public:
 	}
 
 protected:
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
 	void paintAdditionalPlaceholder(QPainter &p) override;
 
 	void wheelEvent(QWheelEvent *e) override;
@@ -589,16 +647,28 @@ private:
 
 };
 
-ColorEditor::Field::Field(QWidget *parent, const style::InputField &st, const QString &placeholder, int limit, const QString &units) : Ui::MaskedInputField(parent, st)
+ColorEditor::Field::Field(
+	QWidget *parent,
+	const style::InputField &st,
+	const QString &placeholder,
+	int limit,
+	const QString &units)
+: Ui::MaskedInputField(parent, st)
 , _placeholder(placeholder)
 , _units(units)
 , _limit(limit)
 , _digitLimit(QString::number(_limit).size()) {
 }
 
-void ColorEditor::Field::correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
-	QString newText;
-	int oldPos(nowCursor), newPos(-1), oldLen(now.length());
+void ColorEditor::Field::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
+	const auto oldPos = nowCursor;
+	const auto oldLen = now.length();
+	auto newText = QString();
+	auto newPos = -1;
 
 	newText.reserve(oldLen);
 	for (int i = 0; i < oldLen; ++i) {
@@ -606,7 +676,7 @@ void ColorEditor::Field::correctValue(const QString &was, int wasCursor, QString
 			newPos = newText.length();
 		}
 
-		QChar ch(now[i]);
+		const auto ch = (now[i]);
 		if (ch.isDigit()) {
 			newText += ch;
 		}
@@ -636,7 +706,11 @@ void ColorEditor::Field::correctValue(const QString &was, int wasCursor, QString
 void ColorEditor::Field::paintAdditionalPlaceholder(QPainter &p) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
-	auto inner = QRect(_st.textMargins.right(), _st.textMargins.top(), width() - 2 * _st.textMargins.right(), height() - _st.textMargins.top() - _st.textMargins.bottom());
+	const auto inner = QRect(
+		_st.textMargins.right(),
+		_st.textMargins.top(),
+		width() - 2 * _st.textMargins.right(),
+		height() - rect::m::sum::v(_st.textMargins));
 	p.drawText(inner, _placeholder, style::al_topleft);
 	if (!_units.isEmpty()) {
 		p.drawText(inner, _units, style::al_topright);
@@ -648,24 +722,25 @@ void ColorEditor::Field::wheelEvent(QWheelEvent *e) {
 		return;
 	}
 
-	auto deltaX = e->angleDelta().x(), deltaY = e->angleDelta().y();
+	auto deltaX = e->angleDelta().x();
+	auto deltaY = e->angleDelta().y();
 	if (Platform::IsMac()) {
 		deltaY *= -1;
 	} else {
 		deltaX *= -1;
 	}
-	_wheelDelta += (qAbs(deltaX) > qAbs(deltaY)) ? deltaX : deltaY;
+	_wheelDelta += (std::abs(deltaX) > std::abs(deltaY)) ? deltaX : deltaY;
 
-	constexpr auto step = 5;
-	if (auto delta = _wheelDelta / step) {
-		_wheelDelta -= delta * step;
+	constexpr auto kStep = 5;
+	if (const auto delta = _wheelDelta / kStep) {
+		_wheelDelta -= delta * kStep;
 		changeValue(delta);
 	}
 }
 
 void ColorEditor::Field::changeValue(int delta) {
-	auto currentValue = value();
-	auto newValue = std::clamp(currentValue + delta, 0, _limit);
+	const auto currentValue = value();
+	const auto newValue = std::clamp(currentValue + delta, 0, _limit);
 	if (newValue != currentValue) {
 		setText(QString::number(newValue));
 		setFocus();
@@ -696,27 +771,42 @@ public:
 	}
 
 protected:
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
 	void paintAdditionalPlaceholder(QPainter &p) override;
 
 };
 
-ColorEditor::ResultField::ResultField(QWidget *parent, const style::InputField &st) : Ui::MaskedInputField(parent, st) {
+ColorEditor::ResultField::ResultField(
+	QWidget *parent,
+	const style::InputField &st)
+: Ui::MaskedInputField(parent, st) {
 }
 
-void ColorEditor::ResultField::correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
-	QString newText;
-	int oldPos(nowCursor), newPos(-1), oldLen(now.length());
+void ColorEditor::ResultField::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
+	const auto oldPos = nowCursor;
+	const auto oldLen = now.length();
+	auto newText = QString();
+	auto newPos = -1;
 
 	newText.reserve(oldLen);
-	for (int i = 0; i < oldLen; ++i) {
+	for (auto i = 0; i < oldLen; ++i) {
 		if (i == oldPos) {
 			newPos = newText.length();
 		}
 
-		QChar ch(now[i]);
-		auto code = ch.unicode();
-		if ((code >= '0' && code <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+		const auto ch = (now[i]);
+		const auto code = ch.unicode();
+		if ((code >= '0' && code <= '9')
+			|| (ch >= 'a' && ch <= 'f')
+			|| (ch >= 'A' && ch <= 'F')) {
 			newText += ch;
 		}
 		if (newText.size() >= 8) {
@@ -741,7 +831,14 @@ void ColorEditor::ResultField::correctValue(const QString &was, int wasCursor, Q
 void ColorEditor::ResultField::paintAdditionalPlaceholder(QPainter &p) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
-	p.drawText(QRect(_st.textMargins.right(), _st.textMargins.top(), width(), height() - _st.textMargins.top() - _st.textMargins.bottom()), "#", style::al_topleft);
+	p.drawText(
+		QRect(
+			_st.textMargins.right(),
+			_st.textMargins.top(),
+			width(),
+			height() - rect::m::sum::v(_st.textMargins)),
+		"#",
+		style::al_topleft);
 }
 
 ColorEditor::ColorEditor(
@@ -751,9 +848,12 @@ ColorEditor::ColorEditor(
 : RpWidget()
 , _mode(mode)
 , _picker(this, mode, current)
-, _hueField(this, st::colorValueInput, "H", 360, QString() + QChar(176)) // degree character
+, _hueField(this, st::colorValueInput, "H", 360, QString(QChar(176))) // degree character
 , _saturationField(this, st::colorValueInput, "S", 100, "%")
-, _brightnessField(this, st::colorValueInput, (mode == Mode::RGBA) ? "B" : "L", 100, "%")
+, _brightnessField(
+	this,
+	st::colorValueInput,
+	(mode == Mode::RGBA) ? "B" : "L", 100, "%")
 , _redField(this, st::colorValueInput, "R", 255)
 , _greenField(this, st::colorValueInput, "G", 255)
 , _blueField(this, st::colorValueInput, "B", 255)
@@ -817,7 +917,11 @@ void ColorEditor::prepare() {
 	connect(_blueField, &Ui::MaskedInputField::submitted, submitted);
 	connect(_result, &Ui::MaskedInputField::submitted, submitted);
 
-	auto height = st::colorEditSkip + st::colorPickerSize + st::colorEditSkip + st::colorSliderWidth + st::colorEditSkip;
+	const auto height = st::colorEditSkip
+		+ st::colorPickerSize
+		+ st::colorEditSkip
+		+ st::colorSliderWidth
+		+ st::colorEditSkip;
 	resize(st::colorEditWidth, height);
 
 	rpl::merge(
@@ -849,16 +953,16 @@ rpl::producer<> ColorEditor::submitRequests() const {
 }
 
 void ColorEditor::fieldSubmitted() {
-	Ui::MaskedInputField *fields[] = {
+	const auto fields = std::array<Ui::MaskedInputField*, 7>{ {
 		_hueField,
 		_saturationField,
 		_brightnessField,
 		_redField,
 		_greenField,
 		_blueField,
-		_result
-	};
-	for (auto i = 0, count = int(base::array_size(fields)); i + 1 != count; ++i) {
+		_result,
+	} };
+	for (auto i = 0, count = int(fields.size()); i + 1 != count; ++i) {
 		if (fields[i]->hasFocus()) {
 			fields[i + 1]->setFocus();
 			fields[i + 1]->selectAll();
@@ -873,8 +977,10 @@ void ColorEditor::fieldSubmitted() {
 void ColorEditor::updateHSBFields() {
 	const auto hsb = hsbFromControls();
 	_hueField->setTextWithFocus(QString::number(hsb.hue));
-	_saturationField->setTextWithFocus(QString::number(percentFromByte(hsb.saturation)));
-	_brightnessField->setTextWithFocus(QString::number(percentFromByte(hsb.brightness)));
+	_saturationField->setTextWithFocus(
+		QString::number(percentFromByte(hsb.saturation)));
+	_brightnessField->setTextWithFocus(
+		QString::number(percentFromByte(hsb.brightness)));
 }
 
 void ColorEditor::updateRGBFields() {
@@ -885,14 +991,14 @@ void ColorEditor::updateRGBFields() {
 
 void ColorEditor::updateResultField() {
 	auto text = QString();
-	auto addHex = [&text](int value) {
+	const auto addHex = [&text](int value) {
 		if (value >= 0 && value <= 9) {
 			text.append('0' + value);
 		} else if (value >= 10 && value <= 15) {
 			text.append('a' + (value - 10));
 		}
 	};
-	auto addValue = [addHex](int value) {
+	const auto addValue = [&](int value) {
 		addHex(value / 16);
 		addHex(value % 16);
 	};
@@ -908,48 +1014,93 @@ void ColorEditor::updateResultField() {
 void ColorEditor::resizeEvent(QResizeEvent *e) {
 	const auto fullwidth = _picker->width()
 		+ ((_mode == Mode::RGBA)
-			? (2 * (st::colorEditSkip - st::colorSliderSkip) + _hueSlider->width())
+			? (2 * (st::colorEditSkip - st::colorSliderSkip)
+				+ _hueSlider->width())
 			: (2 * st::colorEditSkip))
 		+ st::colorSampleSize.width();
-	auto left = (width() - fullwidth) / 2;
+	const auto left = (width() - fullwidth) / 2;
 	_picker->moveToLeft(left, st::colorEditSkip);
 	if (_hueSlider) {
-		_hueSlider->setGeometryToLeft(_picker->x() + _picker->width() + st::colorEditSkip - st::colorSliderSkip, st::colorEditSkip - st::colorSliderSkip, _hueSlider->width(), st::colorPickerSize + 2 * st::colorSliderSkip);
+		_hueSlider->setGeometryToLeft(
+			rect::right(_picker) + st::colorEditSkip - st::colorSliderSkip,
+			st::colorEditSkip - st::colorSliderSkip,
+			_hueSlider->width(),
+			st::colorPickerSize + 2 * st::colorSliderSkip);
 	}
-	if (_opacitySlider) {
-		_opacitySlider->setGeometryToLeft(_picker->x() - st::colorSliderSkip, _picker->y() + _picker->height() + st::colorEditSkip - st::colorSliderSkip, _picker->width() + 2 * st::colorSliderSkip, _opacitySlider->height());
-	}
-	if (_lightnessSlider) {
-		_lightnessSlider->setGeometryToLeft(_picker->x() - st::colorSliderSkip, _picker->y() + _picker->height() + st::colorEditSkip - st::colorSliderSkip, _picker->width() + 2 * st::colorSliderSkip, _lightnessSlider->height());
+	{
+		const auto rectSlider = QRect(
+			_picker->x() - st::colorSliderSkip,
+			rect::bottom(_picker) + st::colorEditSkip - st::colorSliderSkip,
+			_picker->width() + 2 * st::colorSliderSkip,
+			0);
+		if (_opacitySlider) {
+			_opacitySlider->setGeometryToLeft(rectSlider
+				+ QMargins(0, 0, 0, _opacitySlider->height()));
+		}
+		if (_lightnessSlider) {
+			_lightnessSlider->setGeometryToLeft(rectSlider
+				+ QMargins(0, 0, 0, _lightnessSlider->height()));
+		}
 	}
 	const auto fieldLeft = (_mode == Mode::RGBA)
-		? (_hueSlider->x() + _hueSlider->width() + st::colorEditSkip - st::colorSliderSkip)
-		: (_picker->x() + _picker->width() + st::colorEditSkip);
+		? (rect::right(_hueSlider) + st::colorEditSkip - st::colorSliderSkip)
+		: (rect::right(_picker) + st::colorEditSkip);
 	const auto addWidth = (_mode == Mode::RGBA) ? 0 : st::colorEditSkip;
 	const auto fieldWidth = st::colorSampleSize.width() + addWidth;
 	const auto fieldHeight = _hueField->height();
-	_newRect = QRect(fieldLeft, st::colorEditSkip, fieldWidth, st::colorSampleSize.height());
+	_newRect = QRect(
+		fieldLeft,
+		st::colorEditSkip,
+		fieldWidth,
+		st::colorSampleSize.height());
 	_currentRect = _newRect.translated(0, st::colorSampleSize.height());
-	_hueField->setGeometryToLeft(fieldLeft, _currentRect.y() + _currentRect.height() + st::colorFieldSkip, fieldWidth, fieldHeight);
-	_saturationField->setGeometryToLeft(fieldLeft, _hueField->y() + _hueField->height(), fieldWidth, fieldHeight);
-	_brightnessField->setGeometryToLeft(fieldLeft, _saturationField->y() + _saturationField->height(), fieldWidth, fieldHeight);
-	_redField->setGeometryToLeft(fieldLeft, _brightnessField->y() + _brightnessField->height() + st::colorFieldSkip, fieldWidth, fieldHeight);
-	_greenField->setGeometryToLeft(fieldLeft, _redField->y() + _redField->height(), fieldWidth, fieldHeight);
-	_blueField->setGeometryToLeft(fieldLeft, _greenField->y() + _greenField->height(), fieldWidth, fieldHeight);
+	{
+		const auto fieldRect = QRect(fieldLeft, 0, fieldWidth, fieldHeight);
+		_hueField->setGeometryToLeft(fieldRect.translated(
+			0,
+			rect::bottom(_currentRect) + st::colorFieldSkip));
+		_saturationField->setGeometryToLeft(fieldRect.translated(
+			0,
+			rect::bottom(_hueField)));
+		_brightnessField->setGeometryToLeft(fieldRect.translated(
+			0,
+			rect::bottom(_saturationField)));
+		_redField->setGeometryToLeft(fieldRect.translated(
+			0,
+			rect::bottom(_brightnessField) + st::colorFieldSkip));
+		_greenField->setGeometryToLeft(fieldRect.translated(
+			0,
+			rect::bottom(_redField)));
+		_blueField->setGeometryToLeft(fieldRect.translated(
+			0,
+			rect::bottom(_greenField)));
+	}
 	const auto resultDelta = (_mode == Mode::RGBA)
 		? (st::colorEditSkip + st::colorSliderWidth)
 		: 0;
 	const auto resultBottom = (_mode == Mode::RGBA)
-		? (_opacitySlider->y() + _opacitySlider->height())
-		: (_lightnessSlider->y() + _lightnessSlider->height());
-	_result->setGeometryToLeft(fieldLeft - resultDelta, resultBottom - st::colorSliderSkip - _result->height(), fieldWidth + resultDelta, fieldHeight);
+		? (rect::bottom(_opacitySlider))
+		: (rect::bottom(_lightnessSlider));
+	_result->setGeometryToLeft(
+		fieldLeft - resultDelta,
+		resultBottom - st::colorSliderSkip - _result->height(),
+		fieldWidth + resultDelta,
+		fieldHeight);
 }
 
 void ColorEditor::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	Ui::Shadow::paint(p, _picker->geometry(), width(), st::defaultRoundShadow);
+	Ui::Shadow::paint(
+		p,
+		_picker->geometry(),
+		width(),
+		st::defaultRoundShadow);
 
-	Ui::Shadow::paint(p, QRect(_newRect.x(), _newRect.y(), _newRect.width(), _newRect.height() + _currentRect.height()), width(), st::defaultRoundShadow);
+	Ui::Shadow::paint(
+		p,
+		_newRect + QMargins(0, 0, 0, _currentRect.height()),
+		width(),
+		st::defaultRoundShadow);
 	if (_new.alphaF() < 1.) {
 		p.fillRect(myrtlrect(_newRect), _transparent);
 	}
@@ -968,17 +1119,17 @@ void ColorEditor::mousePressEvent(QMouseEvent *e) {
 
 ColorEditor::HSB ColorEditor::hsbFromControls() const {
 	const auto hue = (_mode == Mode::RGBA)
-		? qRound((1. - _hueSlider->value()) * 360)
-		: qRound(_picker->valueX() * 360);
+		? std::round((1. - _hueSlider->value()) * 360)
+		: std::round(_picker->valueX() * 360);
 	const auto saturation = (_mode == Mode::RGBA)
-		? qRound(_picker->valueX() * 255)
-		: qRound((1. - _picker->valueY()) * 255);
+		? std::round(_picker->valueX() * 255)
+		: std::round((1. - _picker->valueY()) * 255);
 	const auto brightness = (_mode == Mode::RGBA)
-		? qRound((1. - _picker->valueY()) * 255)
+		? std::round((1. - _picker->valueY()) * 255)
 		: (_lightnessMin
-			+ qRound(_lightnessSlider->value()
+			+ std::round(_lightnessSlider->value()
 				* (_lightnessMax - _lightnessMin)));
-	return { hue, saturation, brightness };
+	return { int(hue), int(saturation), int(brightness) };
 }
 
 QColor ColorEditor::applyLimits(QColor color) const {
@@ -1006,7 +1157,7 @@ void ColorEditor::updateFromColor(QColor color) {
 void ColorEditor::updateFromControls() {
 	const auto hsb = hsbFromControls();
 	const auto alpha = _opacitySlider
-		? qRound(_opacitySlider->value() * 255)
+		? std::round(_opacitySlider->value() * 255)
 		: 255;
 	setHSB(hsb, alpha);
 	updateHSBFields();
@@ -1021,7 +1172,7 @@ void ColorEditor::updateFromHSBFields() {
 		_lightnessMin,
 		_lightnessMax);
 	const auto alpha = _opacitySlider
-		? qRound(_opacitySlider->value() * 255)
+		? std::round(_opacitySlider->value() * 255)
 		: 255;
 	setHSB({ hue, saturation, brightness }, alpha);
 	updateControlsFromHSB({ hue, saturation, brightness });
@@ -1032,19 +1183,19 @@ void ColorEditor::updateFromRGBFields() {
 	const auto blue = _blueField->value();
 	const auto green = _greenField->value();
 	const auto alpha = _opacitySlider
-		? qRound(_opacitySlider->value() * 255)
+		? std::round(_opacitySlider->value() * 255)
 		: 255;
 	setRGB(red, green, blue, alpha);
 	updateResultField();
 }
 
 void ColorEditor::updateFromResultField() {
-	auto text = _result->getLastText();
+	const auto text = _result->getLastText();
 	if (text.size() != 6 && text.size() != 8) {
 		return;
 	}
 
-	auto fromHex = [](QChar hex) {
+	const auto fromHex = [](QChar hex) {
 		auto code = hex.unicode();
 		if (code >= 'A' && code <= 'F') {
 			return (code - 'A' + 10);
@@ -1053,13 +1204,13 @@ void ColorEditor::updateFromResultField() {
 		}
 		return code - '0';
 	};
-	auto fromChars = [fromHex](QChar a, QChar b) {
+	const auto fromChars = [&](QChar a, QChar b) {
 		return fromHex(a) * 0x10 + fromHex(b);
 	};
-	auto red = fromChars(text[0], text[1]);
-	auto green = fromChars(text[2], text[3]);
-	auto blue = fromChars(text[4], text[5]);
-	auto alpha = (text.size() == 8) ? fromChars(text[6], text[7]) : 255;
+	const auto red = fromChars(text[0], text[1]);
+	const auto green = fromChars(text[2], text[3]);
+	const auto blue = fromChars(text[4], text[5]);
+	const auto alpha = (text.size() == 8) ? fromChars(text[6], text[7]) : 255;
 	setRGB(red, green, blue, alpha);
 	updateRGBFields();
 }
@@ -1078,10 +1229,10 @@ void ColorEditor::updateControlsFromHSB(HSB hsb) {
 }
 
 void ColorEditor::updateControlsFromColor() {
-	auto red = _new.red();
-	auto green = _new.green();
-	auto blue = _new.blue();
-	auto alpha = _new.alpha();
+	const auto red = _new.red();
+	const auto green = _new.green();
+	const auto blue = _new.blue();
+	const auto alpha = _new.alpha();
 	_picker->setRGB(red, green, blue);
 	if (_hueSlider) {
 		_hueSlider->setRGB(red, green, blue);
