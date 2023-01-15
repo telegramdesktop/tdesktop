@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "boxes/abstract_box.h"
 #include "base/parse_helper.h"
 #include "base/zlib_help.h"
 #include "base/call_delayed.h"
@@ -229,7 +230,9 @@ public:
 	void recreateRows();
 
 	~Inner() {
-		if (_context.box) _context.box->closeBox();
+		if (_context.colorEditor.box) {
+			_context.colorEditor.box->closeBox();
+		}
 	}
 
 protected:

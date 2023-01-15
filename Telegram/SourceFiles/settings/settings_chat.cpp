@@ -341,17 +341,30 @@ void ColorsPalette::selectCustom(not_null<const Scheme*> scheme) {
 	const auto colorizer = Window::Theme::ColorizerFrom(
 		*scheme,
 		scheme->accentColor);
-	auto box = Box<EditColorBox>(
-		tr::lng_settings_theme_accent_title(tr::now),
-		EditColorBox::Mode::HSL,
-		(*selected)->color());
-	box->setLightnessLimits(
-		colorizer.lightnessMin,
-		colorizer.lightnessMax);
-	box->setSaveCallback(crl::guard(_outer, [=](QColor result) {
-		_selected.fire_copy(result);
+	Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto editor = box->addRow(object_ptr<ColorEditor>(
+			box,
+			ColorEditor::Mode::HSL,
+			(*selected)->color()));
+
+		const auto save = crl::guard(_outer, [=] {
+			_selected.fire_copy(editor->color());
+			box->closeBox();
+		});
+		editor->submitRequests(
+		) | rpl::start_with_next(save, editor->lifetime());
+		editor->setLightnessLimits(
+			colorizer.lightnessMin,
+			colorizer.lightnessMax);
+
+		box->setFocusCallback([=] {
+			editor->setInnerFocus();
+		});
+		box->addButton(tr::lng_settings_save(), save);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		box->setTitle(tr::lng_settings_theme_accent_title());
+		box->setWidth(editor->width());
 	}));
-	Ui::show(std::move(box));
 }
 
 rpl::producer<QColor> ColorsPalette::selected() const {

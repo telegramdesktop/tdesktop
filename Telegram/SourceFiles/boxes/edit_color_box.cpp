@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_media_view.h"
 
-class EditColorBox::Picker : public TWidget {
+class ColorEditor::Picker : public TWidget {
 public:
 	Picker(QWidget *parent, Mode mode, QColor color);
 
@@ -65,7 +65,7 @@ private:
 
 };
 
-QCursor EditColorBox::Picker::generateCursor() {
+QCursor ColorEditor::Picker::generateCursor() {
 	auto diameter = style::ConvertScale(16);
 	auto line = style::ConvertScale(1);
 	auto size = ((diameter + 2 * line) >= 32) ? 64 : 32;
@@ -89,7 +89,7 @@ QCursor EditColorBox::Picker::generateCursor() {
 	return QCursor(QPixmap::fromImage(cursor));
 }
 
-EditColorBox::Picker::Picker(QWidget *parent, Mode mode, QColor color)
+ColorEditor::Picker::Picker(QWidget *parent, Mode mode, QColor color)
 : TWidget(parent)
 , _mode(mode) {
 	setCursor(generateCursor());
@@ -102,7 +102,7 @@ EditColorBox::Picker::Picker(QWidget *parent, Mode mode, QColor color)
 	setFromColor(color);
 }
 
-void EditColorBox::Picker::paintEvent(QPaintEvent *e) {
+void ColorEditor::Picker::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	preparePalette();
@@ -125,22 +125,22 @@ void EditColorBox::Picker::paintEvent(QPaintEvent *e) {
 	p.drawEllipse(QRect(x - st::colorPickerMarkRadius, y - st::colorPickerMarkRadius, 2 * st::colorPickerMarkRadius, 2 * st::colorPickerMarkRadius));
 }
 
-void EditColorBox::Picker::mousePressEvent(QMouseEvent *e) {
+void ColorEditor::Picker::mousePressEvent(QMouseEvent *e) {
 	_choosing = true;
 	updateCurrentPoint(e->pos());
 }
 
-void EditColorBox::Picker::mouseMoveEvent(QMouseEvent *e) {
+void ColorEditor::Picker::mouseMoveEvent(QMouseEvent *e) {
 	if (_choosing) {
 		updateCurrentPoint(e->pos());
 	}
 }
 
-void EditColorBox::Picker::mouseReleaseEvent(QMouseEvent *e) {
+void ColorEditor::Picker::mouseReleaseEvent(QMouseEvent *e) {
 	_choosing = false;
 }
 
-void EditColorBox::Picker::preparePalette() {
+void ColorEditor::Picker::preparePalette() {
 	if (!_paletteInvalidated) return;
 	_paletteInvalidated = false;
 
@@ -152,7 +152,7 @@ void EditColorBox::Picker::preparePalette() {
 	_palette.setDevicePixelRatio(cRetinaFactor());
 }
 
-void EditColorBox::Picker::preparePaletteRGBA() {
+void ColorEditor::Picker::preparePaletteRGBA() {
 	const auto size = _palette.width();
 	auto ints = reinterpret_cast<uint32*>(_palette.bits());
 	const auto intsAddPerLine = (_palette.bytesPerLine() - size * sizeof(uint32)) / sizeof(uint32);
@@ -193,7 +193,7 @@ void EditColorBox::Picker::preparePaletteRGBA() {
 	}
 }
 
-void EditColorBox::Picker::preparePaletteHSL() {
+void ColorEditor::Picker::preparePaletteHSL() {
 	const auto size = _palette.width();
 	const auto intsAddPerLine = (_palette.bytesPerLine() - size * sizeof(uint32)) / sizeof(uint32);
 	auto ints = reinterpret_cast<uint32*>(_palette.bits());
@@ -227,7 +227,7 @@ void EditColorBox::Picker::preparePaletteHSL() {
 		QTransform(0, 1, 1, 0, 0, 0));
 }
 
-void EditColorBox::Picker::updateCurrentPoint(QPoint localPosition) {
+void ColorEditor::Picker::updateCurrentPoint(QPoint localPosition) {
 	auto x = std::clamp(localPosition.x(), 0, width()) / float64(width());
 	auto y = std::clamp(localPosition.y(), 0, height()) / float64(height());
 	if (_x != x || _y != y) {
@@ -238,7 +238,7 @@ void EditColorBox::Picker::updateCurrentPoint(QPoint localPosition) {
 	}
 }
 
-void EditColorBox::Picker::setHSB(HSB hsb) {
+void ColorEditor::Picker::setHSB(HSB hsb) {
 	if (_mode == Mode::RGBA) {
 		_topleft = QColor(255, 255, 255);
 		_topright.setHsv(qMax(0, hsb.hue), 255, 255);
@@ -259,11 +259,11 @@ void EditColorBox::Picker::setHSB(HSB hsb) {
 	update();
 }
 
-void EditColorBox::Picker::setRGB(int red, int green, int blue) {
+void ColorEditor::Picker::setRGB(int red, int green, int blue) {
 	setFromColor(QColor(red, green, blue));
 }
 
-void EditColorBox::Picker::setFromColor(QColor color) {
+void ColorEditor::Picker::setFromColor(QColor color) {
 	if (_mode == Mode::RGBA) {
 		setHSB({ color.hsvHue(), color.hsvSaturation(), color.value() });
 	} else {
@@ -271,7 +271,7 @@ void EditColorBox::Picker::setFromColor(QColor color) {
 	}
 }
 
-class EditColorBox::Slider : public TWidget {
+class ColorEditor::Slider : public TWidget {
 public:
 	enum class Direction {
 		Horizontal,
@@ -339,7 +339,7 @@ private:
 
 };
 
-EditColorBox::Slider::Slider(
+ColorEditor::Slider::Slider(
 	QWidget *parent,
 	Direction direction,
 	Type type,
@@ -355,12 +355,12 @@ EditColorBox::Slider::Slider(
 	prepareMinSize();
 }
 
-void EditColorBox::Slider::prepareMinSize() {
+void ColorEditor::Slider::prepareMinSize() {
 	auto minSize = st::colorSliderSkip + st::colorSliderWidth + st::colorSliderSkip;
 	resize(minSize, minSize);
 }
 
-void EditColorBox::Slider::paintEvent(QPaintEvent *e) {
+void ColorEditor::Slider::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	auto to = rect().marginsRemoved(QMargins(st::colorSliderSkip, st::colorSliderSkip, st::colorSliderSkip, st::colorSliderSkip));
 	Ui::Shadow::paint(p, to, width(), st::defaultRoundShadow);
@@ -379,27 +379,27 @@ void EditColorBox::Slider::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void EditColorBox::Slider::resizeEvent(QResizeEvent *e) {
+void ColorEditor::Slider::resizeEvent(QResizeEvent *e) {
 	generatePixmap();
 	update();
 }
 
-void EditColorBox::Slider::mousePressEvent(QMouseEvent *e) {
+void ColorEditor::Slider::mousePressEvent(QMouseEvent *e) {
 	_choosing = true;
 	updateCurrentPoint(e->pos());
 }
 
-void EditColorBox::Slider::mouseMoveEvent(QMouseEvent *e) {
+void ColorEditor::Slider::mouseMoveEvent(QMouseEvent *e) {
 	if (_choosing) {
 		updateCurrentPoint(e->pos());
 	}
 }
 
-void EditColorBox::Slider::mouseReleaseEvent(QMouseEvent *e) {
+void ColorEditor::Slider::mouseReleaseEvent(QMouseEvent *e) {
 	_choosing = false;
 }
 
-void EditColorBox::Slider::generatePixmap() {
+void ColorEditor::Slider::generatePixmap() {
 	auto size = (isHorizontal() ? width() : height()) * cIntRetinaFactor();
 	auto image = QImage(size, cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
@@ -463,7 +463,7 @@ void EditColorBox::Slider::generatePixmap() {
 	}
 }
 
-void EditColorBox::Slider::setHSB(HSB hsb) {
+void ColorEditor::Slider::setHSB(HSB hsb) {
 	if (_type == Type::Hue) {
 		// hue == 360 converts to 0 if done in general way
 		_value = valueFromHue(hsb.hue);
@@ -480,12 +480,12 @@ void EditColorBox::Slider::setHSB(HSB hsb) {
 	}
 }
 
-void EditColorBox::Slider::setRGB(int red, int green, int blue) {
+void ColorEditor::Slider::setRGB(int red, int green, int blue) {
 	_color = applyLimits(QColor(red, green, blue));
 	colorUpdated();
 }
 
-void EditColorBox::Slider::colorUpdated() {
+void ColorEditor::Slider::colorUpdated() {
 	if (_type == Type::Hue) {
 		_value = valueFromColor(_color);
 	} else if (!_mask.isNull()) {
@@ -497,7 +497,7 @@ void EditColorBox::Slider::colorUpdated() {
 	update();
 }
 
-float64 EditColorBox::Slider::valueFromColor(QColor color) const {
+float64 ColorEditor::Slider::valueFromColor(QColor color) const {
 	return (_type == Type::Hue)
 		? valueFromHue(color.hsvHue())
 		: (_type == Type::Opacity)
@@ -509,18 +509,18 @@ float64 EditColorBox::Slider::valueFromColor(QColor color) const {
 			1.);
 }
 
-float64 EditColorBox::Slider::valueFromHue(int hue) const {
+float64 ColorEditor::Slider::valueFromHue(int hue) const {
 	return (1. - std::clamp(hue, 0, 360) / 360.);
 }
 
-void EditColorBox::Slider::setAlpha(int alpha) {
+void ColorEditor::Slider::setAlpha(int alpha) {
 	if (_type == Type::Opacity) {
 		_value = std::clamp(alpha, 0, 255) / 255.;
 		update();
 	}
 }
 
-void EditColorBox::Slider::setLightnessLimits(int min, int max) {
+void ColorEditor::Slider::setLightnessLimits(int min, int max) {
 	Expects(max > min);
 
 	_lightnessMin = min;
@@ -529,11 +529,11 @@ void EditColorBox::Slider::setLightnessLimits(int min, int max) {
 	colorUpdated();
 }
 
-void EditColorBox::Slider::updatePixmapFromMask() {
+void ColorEditor::Slider::updatePixmapFromMask() {
 	_pixmap = Ui::PixmapFromImage(style::colorizeImage(_mask, _color));
 }
 
-void EditColorBox::Slider::updateCurrentPoint(QPoint localPosition) {
+void ColorEditor::Slider::updateCurrentPoint(QPoint localPosition) {
 	auto coord = (isHorizontal() ? localPosition.x() : localPosition.y()) - st::colorSliderSkip;
 	auto maximum = (isHorizontal() ? width() : height()) - 2 * st::colorSliderSkip;
 	auto value = std::clamp(coord, 0, maximum) / float64(maximum);
@@ -544,7 +544,7 @@ void EditColorBox::Slider::updateCurrentPoint(QPoint localPosition) {
 	}
 }
 
-QColor EditColorBox::Slider::applyLimits(QColor color) const {
+QColor ColorEditor::Slider::applyLimits(QColor color) const {
 	if (_type != Type::Lightness) {
 		return color;
 	}
@@ -557,7 +557,7 @@ QColor EditColorBox::Slider::applyLimits(QColor color) const {
 	return QColor::fromHsl(color.hslHue(), color.hslSaturation(), clamped);
 }
 
-class EditColorBox::Field : public Ui::MaskedInputField {
+class ColorEditor::Field : public Ui::MaskedInputField {
 public:
 	Field(QWidget *parent, const style::InputField &st, const QString &placeholder, int limit, const QString &units = QString());
 
@@ -589,14 +589,14 @@ private:
 
 };
 
-EditColorBox::Field::Field(QWidget *parent, const style::InputField &st, const QString &placeholder, int limit, const QString &units) : Ui::MaskedInputField(parent, st)
+ColorEditor::Field::Field(QWidget *parent, const style::InputField &st, const QString &placeholder, int limit, const QString &units) : Ui::MaskedInputField(parent, st)
 , _placeholder(placeholder)
 , _units(units)
 , _limit(limit)
 , _digitLimit(QString::number(_limit).size()) {
 }
 
-void EditColorBox::Field::correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
+void ColorEditor::Field::correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
 	QString newText;
 	int oldPos(nowCursor), newPos(-1), oldLen(now.length());
 
@@ -633,7 +633,7 @@ void EditColorBox::Field::correctValue(const QString &was, int wasCursor, QStrin
 	}
 }
 
-void EditColorBox::Field::paintAdditionalPlaceholder(QPainter &p) {
+void ColorEditor::Field::paintAdditionalPlaceholder(QPainter &p) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
 	auto inner = QRect(_st.textMargins.right(), _st.textMargins.top(), width() - 2 * _st.textMargins.right(), height() - _st.textMargins.top() - _st.textMargins.bottom());
@@ -643,7 +643,7 @@ void EditColorBox::Field::paintAdditionalPlaceholder(QPainter &p) {
 	}
 }
 
-void EditColorBox::Field::wheelEvent(QWheelEvent *e) {
+void ColorEditor::Field::wheelEvent(QWheelEvent *e) {
 	if (!hasFocus()) {
 		return;
 	}
@@ -663,7 +663,7 @@ void EditColorBox::Field::wheelEvent(QWheelEvent *e) {
 	}
 }
 
-void EditColorBox::Field::changeValue(int delta) {
+void ColorEditor::Field::changeValue(int delta) {
 	auto currentValue = value();
 	auto newValue = std::clamp(currentValue + delta, 0, _limit);
 	if (newValue != currentValue) {
@@ -674,7 +674,7 @@ void EditColorBox::Field::changeValue(int delta) {
 	}
 }
 
-void EditColorBox::Field::keyPressEvent(QKeyEvent *e) {
+void ColorEditor::Field::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Up) {
 		changeValue(1);
 	} else if (e->key() == Qt::Key_Down) {
@@ -684,7 +684,7 @@ void EditColorBox::Field::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-class EditColorBox::ResultField : public Ui::MaskedInputField {
+class ColorEditor::ResultField : public Ui::MaskedInputField {
 public:
 	ResultField(QWidget *parent, const style::InputField &st);
 
@@ -701,10 +701,10 @@ protected:
 
 };
 
-EditColorBox::ResultField::ResultField(QWidget *parent, const style::InputField &st) : Ui::MaskedInputField(parent, st) {
+ColorEditor::ResultField::ResultField(QWidget *parent, const style::InputField &st) : Ui::MaskedInputField(parent, st) {
 }
 
-void EditColorBox::ResultField::correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
+void ColorEditor::ResultField::correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
 	QString newText;
 	int oldPos(nowCursor), newPos(-1), oldLen(now.length());
 
@@ -738,19 +738,17 @@ void EditColorBox::ResultField::correctValue(const QString &was, int wasCursor, 
 	}
 }
 
-void EditColorBox::ResultField::paintAdditionalPlaceholder(QPainter &p) {
+void ColorEditor::ResultField::paintAdditionalPlaceholder(QPainter &p) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
 	p.drawText(QRect(_st.textMargins.right(), _st.textMargins.top(), width(), height() - _st.textMargins.top() - _st.textMargins.bottom()), "#", style::al_topleft);
 }
 
-EditColorBox::EditColorBox(
-	QWidget*,
-	const QString &title,
+ColorEditor::ColorEditor(
+	QWidget *parent,
 	Mode mode,
 	QColor current)
-: BoxContent()
-, _title(title)
+: RpWidget()
 , _mode(mode)
 , _picker(this, mode, current)
 , _hueField(this, st::colorValueInput, "H", 360, QString() + QChar(176)) // degree character
@@ -781,9 +779,10 @@ EditColorBox::EditColorBox(
 			Slider::Type::Lightness,
 			current);
 	}
+	prepare();
 }
 
-void EditColorBox::setLightnessLimits(int min, int max) {
+void ColorEditor::setLightnessLimits(int min, int max) {
 	Expects(_mode == Mode::HSL);
 
 	_lightnessMin = min;
@@ -796,9 +795,7 @@ void EditColorBox::setLightnessLimits(int min, int max) {
 	}
 }
 
-void EditColorBox::prepare() {
-	setTitle(rpl::single(_title));
-
+void ColorEditor::prepare() {
 	const auto hsbChanged = [=] { updateFromHSBFields(); };
 	const auto rgbChanged = [=] { updateFromRGBFields(); };
 	connect(_hueField, &Ui::MaskedInputField::changed, hsbChanged);
@@ -820,11 +817,8 @@ void EditColorBox::prepare() {
 	connect(_blueField, &Ui::MaskedInputField::submitted, submitted);
 	connect(_result, &Ui::MaskedInputField::submitted, submitted);
 
-	addButton(tr::lng_settings_save(), [=] { saveColor(); });
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
-
 	auto height = st::colorEditSkip + st::colorPickerSize + st::colorEditSkip + st::colorSliderWidth + st::colorEditSkip;
-	setDimensions(st::colorEditWidth, height);
+	resize(st::colorEditWidth, height);
 
 	rpl::merge(
 		_picker->changed(),
@@ -835,24 +829,26 @@ void EditColorBox::prepare() {
 		updateFromControls();
 	}, lifetime());
 
-	boxClosing() | rpl::start_with_next([=] {
-		if (_cancelCallback) {
-			_cancelCallback();
-		}
-	}, lifetime());
-
 	updateRGBFields();
 	updateHSBFields();
 	updateResultField();
 	update();
 }
 
-void EditColorBox::setInnerFocus() {
+void ColorEditor::setInnerFocus() const {
 	_result->setFocus();
 	_result->selectAll();
 }
 
-void EditColorBox::fieldSubmitted() {
+QColor ColorEditor::color() const {
+	return _new.toRgb();
+}
+
+rpl::producer<> ColorEditor::submitRequests() const {
+	return _submitRequests.events();
+}
+
+void ColorEditor::fieldSubmitted() {
 	Ui::MaskedInputField *fields[] = {
 		_hueField,
 		_saturationField,
@@ -870,35 +866,24 @@ void EditColorBox::fieldSubmitted() {
 		}
 	}
 	if (_result->hasFocus()) {
-		saveColor();
+		_submitRequests.fire({});
 	}
 }
 
-void EditColorBox::saveColor() {
-	const auto weak = Ui::MakeWeak(this);
-	_cancelCallback = nullptr;
-	if (_saveCallback) {
-		_saveCallback(_new.toRgb());
-	}
-	if (weak) {
-		closeBox();
-	}
-}
-
-void EditColorBox::updateHSBFields() {
+void ColorEditor::updateHSBFields() {
 	const auto hsb = hsbFromControls();
 	_hueField->setTextWithFocus(QString::number(hsb.hue));
 	_saturationField->setTextWithFocus(QString::number(percentFromByte(hsb.saturation)));
 	_brightnessField->setTextWithFocus(QString::number(percentFromByte(hsb.brightness)));
 }
 
-void EditColorBox::updateRGBFields() {
+void ColorEditor::updateRGBFields() {
 	_redField->setTextWithFocus(QString::number(_new.red()));
 	_greenField->setTextWithFocus(QString::number(_new.green()));
 	_blueField->setTextWithFocus(QString::number(_new.blue()));
 }
 
-void EditColorBox::updateResultField() {
+void ColorEditor::updateResultField() {
 	auto text = QString();
 	auto addHex = [&text](int value) {
 		if (value >= 0 && value <= 9) {
@@ -920,7 +905,7 @@ void EditColorBox::updateResultField() {
 	_result->setTextWithFocus(text);
 }
 
-void EditColorBox::resizeEvent(QResizeEvent *e) {
+void ColorEditor::resizeEvent(QResizeEvent *e) {
 	const auto fullwidth = _picker->width()
 		+ ((_mode == Mode::RGBA)
 			? (2 * (st::colorEditSkip - st::colorSliderSkip) + _hueSlider->width())
@@ -960,9 +945,7 @@ void EditColorBox::resizeEvent(QResizeEvent *e) {
 	_result->setGeometryToLeft(fieldLeft - resultDelta, resultBottom - st::colorSliderSkip - _result->height(), fieldWidth + resultDelta, fieldHeight);
 }
 
-void EditColorBox::paintEvent(QPaintEvent *e) {
-	BoxContent::paintEvent(e);
-
+void ColorEditor::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	Ui::Shadow::paint(p, _picker->geometry(), width(), st::defaultRoundShadow);
 
@@ -977,13 +960,13 @@ void EditColorBox::paintEvent(QPaintEvent *e) {
 	p.fillRect(myrtlrect(_currentRect), _current);
 }
 
-void EditColorBox::mousePressEvent(QMouseEvent *e) {
+void ColorEditor::mousePressEvent(QMouseEvent *e) {
 	if (myrtlrect(_currentRect).contains(e->pos())) {
 		updateFromColor(_current);
 	}
 }
 
-EditColorBox::HSB EditColorBox::hsbFromControls() const {
+ColorEditor::HSB ColorEditor::hsbFromControls() const {
 	const auto hue = (_mode == Mode::RGBA)
 		? qRound((1. - _hueSlider->value()) * 360)
 		: qRound(_picker->valueX() * 360);
@@ -998,7 +981,7 @@ EditColorBox::HSB EditColorBox::hsbFromControls() const {
 	return { hue, saturation, brightness };
 }
 
-QColor EditColorBox::applyLimits(QColor color) const {
+QColor ColorEditor::applyLimits(QColor color) const {
 	if (_mode != Mode::HSL) {
 		return color;
 	}
@@ -1011,7 +994,7 @@ QColor EditColorBox::applyLimits(QColor color) const {
 	return QColor::fromHsl(color.hslHue(), color.hslSaturation(), clamped);
 }
 
-void EditColorBox::updateFromColor(QColor color) {
+void ColorEditor::updateFromColor(QColor color) {
 	_new = applyLimits(color);
 	updateControlsFromColor();
 	updateRGBFields();
@@ -1020,7 +1003,7 @@ void EditColorBox::updateFromColor(QColor color) {
 	update();
 }
 
-void EditColorBox::updateFromControls() {
+void ColorEditor::updateFromControls() {
 	const auto hsb = hsbFromControls();
 	const auto alpha = _opacitySlider
 		? qRound(_opacitySlider->value() * 255)
@@ -1030,7 +1013,7 @@ void EditColorBox::updateFromControls() {
 	updateControlsFromHSB(hsb);
 }
 
-void EditColorBox::updateFromHSBFields() {
+void ColorEditor::updateFromHSBFields() {
 	const auto hue = _hueField->value();
 	const auto saturation = percentToByte(_saturationField->value());
 	const auto brightness = std::clamp(
@@ -1044,7 +1027,7 @@ void EditColorBox::updateFromHSBFields() {
 	updateControlsFromHSB({ hue, saturation, brightness });
 }
 
-void EditColorBox::updateFromRGBFields() {
+void ColorEditor::updateFromRGBFields() {
 	const auto red = _redField->value();
 	const auto blue = _blueField->value();
 	const auto green = _greenField->value();
@@ -1055,7 +1038,7 @@ void EditColorBox::updateFromRGBFields() {
 	updateResultField();
 }
 
-void EditColorBox::updateFromResultField() {
+void ColorEditor::updateFromResultField() {
 	auto text = _result->getLastText();
 	if (text.size() != 6 && text.size() != 8) {
 		return;
@@ -1081,7 +1064,7 @@ void EditColorBox::updateFromResultField() {
 	updateRGBFields();
 }
 
-void EditColorBox::updateControlsFromHSB(HSB hsb) {
+void ColorEditor::updateControlsFromHSB(HSB hsb) {
 	_picker->setHSB(hsb);
 	if (_hueSlider) {
 		_hueSlider->setHSB(hsb);
@@ -1094,7 +1077,7 @@ void EditColorBox::updateControlsFromHSB(HSB hsb) {
 	}
 }
 
-void EditColorBox::updateControlsFromColor() {
+void ColorEditor::updateControlsFromColor() {
 	auto red = _new.red();
 	auto green = _new.green();
 	auto blue = _new.blue();
@@ -1112,7 +1095,7 @@ void EditColorBox::updateControlsFromColor() {
 	}
 }
 
-void EditColorBox::setHSB(HSB hsb, int alpha) {
+void ColorEditor::setHSB(HSB hsb, int alpha) {
 	if (_mode == Mode::RGBA) {
 		_new.setHsv(hsb.hue, hsb.saturation, hsb.brightness, alpha);
 	} else {
@@ -1123,7 +1106,7 @@ void EditColorBox::setHSB(HSB hsb, int alpha) {
 	update();
 }
 
-void EditColorBox::setRGB(int red, int green, int blue, int alpha) {
+void ColorEditor::setRGB(int red, int green, int blue, int alpha) {
 	_new = applyLimits(QColor(red, green, blue, alpha));
 	updateControlsFromColor();
 	updateHSBFields();

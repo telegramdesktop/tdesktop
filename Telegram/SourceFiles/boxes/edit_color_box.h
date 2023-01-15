@@ -7,39 +7,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/rp_widget.h"
+#include "base/object_ptr.h"
 
-class EditColorBox : public Ui::BoxContent {
+class ColorEditor : public Ui::RpWidget {
 public:
 	enum class Mode {
 		RGBA,
 		HSL,
 	};
-	EditColorBox(QWidget*, const QString &title, Mode mode, QColor current);
+	ColorEditor(
+		QWidget *parent,
+		Mode mode,
+		QColor current);
 
 	void setLightnessLimits(int min, int max);
 
-	void setSaveCallback(Fn<void(QColor)> callback) {
-		_saveCallback = std::move(callback);
-	}
-
-	void setCancelCallback(Fn<void()> callback) {
-		_cancelCallback = std::move(callback);
-	}
+	[[nodiscard]] QColor color() const;
+	[[nodiscard]] rpl::producer<> submitRequests() const;
 
 	void showColor(QColor color) {
 		updateFromColor(color);
 	}
 
+	void setInnerFocus() const;
+
 protected:
-	void prepare() override;
+	void prepare();
 
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 	void mousePressEvent(QMouseEvent *e) override;
-
-	void setInnerFocus() override;
 
 private:
 	struct HSB { // HSV or HSL depending on Mode.
@@ -47,7 +46,6 @@ private:
 		int saturation = 0;
 		int brightness = 0;
 	};
-	void saveColor();
 	void fieldSubmitted();
 
 	[[nodiscard]] HSB hsbFromControls() const;
@@ -77,7 +75,6 @@ private:
 	class Field;
 	class ResultField;
 
-	QString _title;
 	Mode _mode = Mode();
 
 	object_ptr<Picker> _picker;
@@ -103,7 +100,6 @@ private:
 	int _lightnessMin = 0;
 	int _lightnessMax = 255;
 
-	Fn<void(QColor)> _saveCallback;
-	Fn<void()> _cancelCallback;
+	rpl::event_stream<> _submitRequests;
 
 };
