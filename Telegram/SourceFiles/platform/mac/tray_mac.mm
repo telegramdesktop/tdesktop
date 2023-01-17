@@ -223,8 +223,9 @@ void UpdateIcon(const NSStatusItem *status) {
 }
 
 [[nodiscard]] QWidget *Parent() {
-	Expects(Core::App().primaryWindow() != nullptr);
-	return Core::App().primaryWindow()->widget();
+	Expects(Core::App().activePrimaryWindow() != nullptr);
+
+	return Core::App().activePrimaryWindow()->widget();
 }
 
 } // namespace

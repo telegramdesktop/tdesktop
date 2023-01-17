@@ -308,7 +308,8 @@ void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 	data->streamed = nullptr;
 
 	_roundPlaying = false;
-	if (const auto window = Core::App().primaryWindow()) {
+	// #TODO windows
+	if (const auto window = Core::App().activePrimaryWindow()) {
 		if (const auto controller = window->sessionController()) {
 			controller->disableGifPauseReason(
 				Window::GifPauseReason::RoundPlaying);
@@ -1292,7 +1293,8 @@ void Instance::handleStreamingUpdate(
 				requestRoundVideoRepaint();
 			});
 			_roundPlaying = true;
-			if (const auto window = Core::App().primaryWindow()) {
+			// #TODO windows
+			if (const auto window = Core::App().activePrimaryWindow()) {
 				if (const auto controller = window->sessionController()) {
 					controller->enableGifPauseReason(
 						Window::GifPauseReason::RoundPlaying);

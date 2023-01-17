@@ -1194,10 +1194,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	const auto admin = IsGroupCallAdmin(_peer, participantPeer);
 	const auto session = &_peer->session();
 	const auto getCurrentWindow = [=]() -> Window::SessionController* {
-		if (const auto window = Core::App().separateWindowForPeer(
-				participantPeer)) {
-			return window->sessionController();
-		} else if (const auto window = Core::App().primaryWindow()) {
+		if (const auto window = Core::App().windowFor(participantPeer)) {
 			if (const auto controller = window->sessionController()) {
 				if (&controller->session() == session) {
 					return controller;

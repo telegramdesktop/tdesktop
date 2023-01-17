@@ -43,6 +43,11 @@ namespace Window {
 Controller::Controller() : Controller(CreateArgs{}) {
 }
 
+Controller::Controller(not_null<Main::Account*> account)
+: Controller(CreateArgs{}) {
+	showAccount(account);
+}
+
 Controller::Controller(
 	not_null<PeerData*> singlePeer,
 	MsgId showAtMsgId)

@@ -124,7 +124,8 @@ QString UiIntegration::angleBackendFilePath() {
 }
 
 void UiIntegration::textActionsUpdated() {
-	if (const auto window = Core::App().primaryWindow()) {
+	// #TODO windows global menu
+	if (const auto window = Core::App().activePrimaryWindow()) {
 		window->widget()->updateGlobalMenu();
 	}
 }

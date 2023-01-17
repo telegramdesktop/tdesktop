@@ -71,6 +71,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
@@ -977,9 +979,10 @@ void SessionController::showForum(
 		not_null<Data::Forum*> forum,
 		const SectionShow &params) {
 	if (!isPrimary()) {
-		const auto primary = Core::App().primaryWindow();
+		auto primary = Core::App().windowFor(&session().account());
 		if (&primary->account() != &session().account()) {
-			primary->showAccount(&session().account());
+			Core::App().domain().activate(&session().account());
+			primary = Core::App().windowFor(&session().account());
 		}
 		if (&primary->account() == &session().account()) {
 			primary->sessionController()->showForum(forum, params);

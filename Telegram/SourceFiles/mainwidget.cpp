@@ -1214,10 +1214,22 @@ bool MainWidget::showHistoryInDifferentWindow(
 			showAtMsgId);
 		separate->activate();
 		return true;
-	} else if (isPrimary() || (singlePeer()->id == peerId)) {
+	} else if (isPrimary()) {
+		const auto primary = Core::App().separateWindowForAccount(
+			&peer->account());
+		if (primary != &_controller->window()) {
+			primary->sessionController()->showPeerHistory(
+				peerId,
+				params,
+				showAtMsgId);
+			primary->activate();
+			return true;
+		}
+		return false;
+	} else if (singlePeer()->id == peerId) {
 		return false;
 	}
-	const auto primary = Core::App().primaryWindow();
+	const auto primary = Core::App().activePrimaryWindow();
 	if (&primary->account() != &session().account()) {
 		primary->showAccount(&session().account());
 	}

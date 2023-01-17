@@ -206,12 +206,8 @@ void MainWindow::shadowsDeactivate() {
 }
 
 void MainWindow::destroyedFromSystem() {
-	if (isPrimary()) {
+	if (!Core::App().closeNonLastAsync(&controller())) {
 		Core::Quit();
-	} else {
-		crl::on_main(this, [=] {
-			Core::App().closeWindow(&controller());
-		});
 	}
 }
 

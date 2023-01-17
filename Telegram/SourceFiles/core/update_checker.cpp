@@ -1649,7 +1649,7 @@ void UpdateApplication() {
 	} else {
 		cSetAutoUpdate(true);
 		const auto window = Core::IsAppLaunched()
-			? Core::App().primaryWindow()
+			? Core::App().activePrimaryWindow()
 			: nullptr;
 		if (window) {
 			if (const auto controller = window->sessionController()) {

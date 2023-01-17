@@ -90,8 +90,9 @@ constexpr auto kTooltipDelay = crl::time(10000);
 }
 
 [[nodiscard]] QWidget *Parent() {
-	Expects(Core::App().primaryWindow() != nullptr);
-	return Core::App().primaryWindow()->widget();
+	Expects(Core::App().activePrimaryWindow() != nullptr);
+
+	return Core::App().activePrimaryWindow()->widget();
 }
 
 } // namespace
@@ -135,7 +136,7 @@ void Tray::updateIcon() {
 	}
 	const auto counter = Core::App().unreadBadge();
 	const auto muted = Core::App().unreadBadgeMuted();
-	const auto controller = Core::App().primaryWindow();
+	const auto controller = Core::App().activePrimaryWindow();
 	const auto session = !controller
 		? nullptr
 		: !controller->sessionController()

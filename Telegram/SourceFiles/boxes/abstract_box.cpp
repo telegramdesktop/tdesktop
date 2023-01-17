@@ -20,7 +20,7 @@ void showBox(
 		LayerOptions options,
 		anim::type animated) {
 	const auto window = Core::IsAppLaunched()
-		? Core::App().primaryWindow()
+		? Core::App().activePrimaryWindow()
 		: nullptr;
 	if (window) {
 		window->show(std::move(content), options, animated);
@@ -31,7 +31,7 @@ void showBox(
 
 void hideLayer(anim::type animated) {
 	const auto window = Core::IsAppLaunched()
-		? Core::App().primaryWindow()
+		? Core::App().activePrimaryWindow()
 		: nullptr;
 	if (window) {
 		window->hideLayer(animated);
@@ -40,7 +40,7 @@ void hideLayer(anim::type animated) {
 
 bool isLayerShown() {
 	const auto window = Core::IsAppLaunched()
-		? Core::App().primaryWindow()
+		? Core::App().activePrimaryWindow()
 		: nullptr;
 	return window && window->isLayerShown();
 }

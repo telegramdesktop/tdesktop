@@ -666,11 +666,8 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 		e->accept();
 		Core::Quit();
 		return;
-	} else if (!isPrimary()) {
+	} else if (Core::App().closeNonLastAsync(&controller())) {
 		e->accept();
-		crl::on_main(this, [=] {
-			Core::App().closeWindow(&controller());
-		});
 		return;
 	}
 	e->ignore();

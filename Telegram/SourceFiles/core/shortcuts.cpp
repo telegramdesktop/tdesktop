@@ -443,7 +443,7 @@ void Manager::set(const QString &keys, Command command, bool replace) {
 	}
 	auto shortcut = base::make_unique_q<QShortcut>(
 		result,
-		Core::App().primaryWindow()->widget().get(),
+		Core::App().activePrimaryWindow()->widget().get(), // #TODO windows
 		nullptr,
 		nullptr,
 		Qt::ApplicationShortcut);

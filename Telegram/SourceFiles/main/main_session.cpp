@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_dice_pack.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "storage/file_download.h"
 #include "storage/download_manager_mtproto.h"
@@ -411,12 +413,12 @@ bool Session::uploadsInProgress() const {
 }
 
 void Session::uploadsStopWithConfirmation(Fn<void()> done) {
-	const auto window = Core::App().primaryWindow();
-	if (!window) {
-		return;
-	}
 	const auto id = _uploader->currentUploadId();
-	const auto exists = !!data().message(id);
+	const auto message = data().message(id);
+	const auto exists = (message != nullptr);
+	const auto window = message
+		? Core::App().windowFor(message->history()->peer)
+		: Core::App().activePrimaryWindow();
 	auto box = Box([=](not_null<Ui::GenericBox*> box) {
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(

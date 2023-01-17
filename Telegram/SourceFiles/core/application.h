@@ -152,13 +152,25 @@ public:
 
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
-	[[nodiscard]] Window::Controller *primaryWindow() const;
+
+	// Don't auto-switch.
 	[[nodiscard]] Window::Controller *activeWindow() const;
+	[[nodiscard]] Window::Controller *activePrimaryWindow() const;
+	[[nodiscard]] Window::Controller *separateWindowForAccount(
+		not_null<Main::Account*> account) const;
 	[[nodiscard]] Window::Controller *separateWindowForPeer(
 		not_null<PeerData*> peer) const;
 	Window::Controller *ensureSeparateWindowForPeer(
 		not_null<PeerData*> peer,
 		MsgId showAtMsgId);
+	Window::Controller *ensureSeparateWindowForAccount(
+		not_null<Main::Account*> account);
+	[[nodiscard]] Window::Controller *windowFor( // Doesn't auto-switch.
+		not_null<PeerData*> peer) const;
+	[[nodiscard]] Window::Controller *windowFor( // Doesn't auto-switch.
+		not_null<Main::Account*> account) const;
+	[[nodiscard]] bool closeNonLastAsync(
+		not_null<Window::Controller*> window);
 	void closeWindow(not_null<Window::Controller*> window);
 	void windowActivated(not_null<Window::Controller*> window);
 	bool closeActiveWindow();
@@ -325,9 +337,10 @@ private:
 	void startSystemDarkModeViewer();
 	void startTray();
 
+	void showAccount(not_null<Main::Account*> account);
 	void enumerateWindows(
 		Fn<void(not_null<Window::Controller*>)> callback) const;
-	void processSecondaryWindow(not_null<Window::Controller*> window);
+	void processCreatedWindow(not_null<Window::Controller*> window);
 
 	friend void QuitAttempt();
 	void quitDelayed();
@@ -375,11 +388,15 @@ private:
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;
 	const std::unique_ptr<Calls::Instance> _calls;
-	std::unique_ptr<Window::Controller> _primaryWindow;
+	base::flat_map<
+		Main::Account*,
+		std::unique_ptr<Window::Controller>> _primaryWindows;
+	base::flat_set<not_null<Window::Controller*>> _closingAsyncWindows;
 	base::flat_map<
 		not_null<History*>,
 		std::unique_ptr<Window::Controller>> _secondaryWindows;
 	Window::Controller *_lastActiveWindow = nullptr;
+	Window::Controller *_lastActivePrimaryWindow = nullptr;
 
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;

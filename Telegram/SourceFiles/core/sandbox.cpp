@@ -661,8 +661,8 @@ void Sandbox::closeApplication() {
 uint64 Sandbox::execExternal(const QString &cmd) {
 	DEBUG_LOG(("Sandbox Info: executing external command '%1'").arg(cmd));
 	if (cmd == "show") {
-		if (Core::IsAppLaunched() && Core::App().primaryWindow()) {
-			const auto window = Core::App().primaryWindow();
+		if (Core::IsAppLaunched() && Core::App().activePrimaryWindow()) {
+			const auto window = Core::App().activePrimaryWindow();
 			window->activate();
 			return Platform::ActivationWindowId(window->widget());
 		} else if (const auto window = PreLaunchWindow::instance()) {

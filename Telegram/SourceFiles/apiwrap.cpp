@@ -123,22 +123,18 @@ using UpdatedFileReferences = Data::UpdatedFileReferences;
 
 [[nodiscard]] std::shared_ptr<Window::Show> ShowForPeer(
 		not_null<PeerData*> peer) {
-	const auto separate = Core::App().separateWindowForPeer(peer);
-	const auto window = separate ? separate : Core::App().primaryWindow();
-	return std::make_shared<Window::Show>(window);
+	return std::make_shared<Window::Show>(Core::App().windowFor(peer));
 }
 
 void ShowChannelsLimitBox(not_null<PeerData*> peer) {
-	const auto primary = Core::App().primaryWindow();
-	if (!primary) {
-		return;
+	if (const auto window = Core::App().windowFor(peer)) {
+		window->invokeForSessionController(
+			&peer->session().account(),
+			peer,
+			[&](not_null<Window::SessionController*> controller) {
+				controller->show(Box(ChannelsLimitBox, &peer->session()));
+			});
 	}
-	primary->invokeForSessionController(
-		&peer->session().account(),
-		peer,
-		[&](not_null<Window::SessionController*> controller) {
-			controller->show(Box(ChannelsLimitBox, &peer->session()));
-		});
 }
 
 } // namespace

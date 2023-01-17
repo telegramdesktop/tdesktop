@@ -270,7 +270,7 @@ void LaunchGApplication() {
 		app->signal_activate().connect([] {
 			Core::Sandbox::Instance().customEnterFromEventLoop([] {
 				const auto window = Core::IsAppLaunched()
-					? Core::App().primaryWindow()
+					? Core::App().activePrimaryWindow()
 					: nullptr;
 				if (window) {
 					window->activate();
@@ -298,7 +298,7 @@ void LaunchGApplication() {
 					}
 					if (Core::StartUrlRequiresActivate(url)) {
 						const auto window = Core::IsAppLaunched()
-							? Core::App().primaryWindow()
+							? Core::App().activePrimaryWindow()
 							: nullptr;
 						if (window) {
 							window->activate();

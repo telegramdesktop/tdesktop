@@ -732,8 +732,9 @@ HistoryWidget::HistoryWidget(
 		if (flags & PeerUpdateFlag::UnavailableReason) {
 			const auto unavailable = _peer->computeUnavailableReason();
 			if (!unavailable.isEmpty()) {
+				const auto account = &_peer->account();
 				closeCurrent();
-				if (const auto primary = Core::App().primaryWindow()) {
+				if (const auto primary = Core::App().windowFor(account)) {
 					primary->show(Ui::MakeInformBox(unavailable));
 				}
 				return;
@@ -3017,7 +3018,7 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 		|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
 		auto was = _peer;
 		closeCurrent();
-		if (const auto primary = Core::App().primaryWindow()) {
+		if (const auto primary = Core::App().windowFor(&was->account())) {
 			Ui::ShowMultilineToast({
 				.parentOverride = Window::Show(primary).toastParent(),
 				.text = { (was && was->isMegagroup())

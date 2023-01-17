@@ -70,7 +70,7 @@ namespace {
 constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
 
-base::options::toggle TabbedPanelShowOnClick({
+base::options::toggle CtrlClickChatNewWindow({
 	.id = kOptionCtrlClickChatNewWindow,
 	.name = "New chat window by Ctrl+Click",
 	.description = "Open chat in a new window by Ctrl+Click "
@@ -3310,7 +3310,7 @@ bool InnerWidget::chooseRow(
 	const auto modifyChosenRow = [](
 			ChosenRow row,
 			Qt::KeyboardModifiers modifiers) {
-		if (TabbedPanelShowOnClick.value()) {
+		if (CtrlClickChatNewWindow.value()) {
 			row.newWindow = (modifiers & Qt::ControlModifier);
 		}
 		return row;

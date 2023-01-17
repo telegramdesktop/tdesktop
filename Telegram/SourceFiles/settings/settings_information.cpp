@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_information.h"
 
+#include "dialogs/dialogs_inner_widget.h" // kOptionCtrlClickChatNewWindow.
 #include "editor/photo_editor_layer_widget.h"
 #include "settings/settings_common.h"
 #include "ui/wrap/vertical_layout.h"
@@ -51,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_names.h"
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "base/random.h"
 #include "styles/style_dialogs.h" // dialogsPremiumIcon
@@ -560,7 +562,7 @@ void SetupAccountsWrap(
 		QWidget *parent,
 		not_null<Window::SessionController*> window,
 		not_null<Main::Account*> account,
-		Fn<void()> callback,
+		Fn<void(Qt::KeyboardModifiers)> callback,
 		bool locked) {
 	const auto active = (account == &Core::App().activeAccount());
 	const auto session = &account->session();
@@ -642,7 +644,7 @@ void SetupAccountsWrap(
 	raw->clicks(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
-			callback();
+			callback(raw->clickModifiers());
 			return;
 		} else if (which != Qt::RightButton) {
 			return;
@@ -854,17 +856,24 @@ void AccountsList::rebuild() {
 			button = nullptr;
 		} else if (!button) {
 			const auto nextIsLocked = (inner->count() >= premiumLimit);
-			auto callback = [=] {
+			auto callback = [=](Qt::KeyboardModifiers modifiers) {
 				if (_reordering) {
 					return;
 				}
-				if (account == &Core::App().domain().active()) {
+				if (account == &_controller->session().account()) {
 					_currentAccountActivations.fire({});
 					return;
 				}
+				const auto newWindow = (modifiers & Qt::ControlModifier)
+					&& base::options::lookup<bool>(
+						Dialogs::kOptionCtrlClickChatNewWindow).value();
 				auto activate = [=, guard = _accountSwitchGuard.make_guard()]{
 					if (guard) {
 						_reorder->finishReordering();
+						if (newWindow) {
+							Core::App().ensureSeparateWindowForAccount(
+								account);
+						}
 						Core::App().domain().maybeActivate(account);
 					}
 				};

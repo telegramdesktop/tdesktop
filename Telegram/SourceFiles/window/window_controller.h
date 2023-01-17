@@ -25,6 +25,7 @@ namespace Window {
 class Controller final : public base::has_weak_ptr {
 public:
 	Controller();
+	explicit Controller(not_null<Main::Account*> account);
 	Controller(
 		not_null<PeerData*> singlePeer,
 		MsgId showAtMsgId);

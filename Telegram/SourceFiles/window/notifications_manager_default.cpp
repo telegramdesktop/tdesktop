@@ -47,15 +47,17 @@ namespace Notifications {
 namespace Default {
 namespace {
 
-QPoint notificationStartPosition() {
+[[nodiscard]] QPoint notificationStartPosition() {
 	const auto corner = Core::App().settings().notificationsCorner();
-	const auto window = Core::App().primaryWindow();
+	const auto window = Core::App().activePrimaryWindow();
 	const auto r = window
 		? window->widget()->desktopRect()
 		: QGuiApplication::primaryScreen()->availableGeometry();
 	const auto isLeft = Core::Settings::IsLeftCorner(corner);
 	const auto isTop = Core::Settings::IsTopCorner(corner);
-	const auto x = (isLeft == rtl()) ? (r.x() + r.width() - st::notifyWidth - st::notifyDeltaX) : (r.x() + st::notifyDeltaX);
+	const auto x = (isLeft == rtl())
+		? (r.x() + r.width() - st::notifyWidth - st::notifyDeltaX)
+		: (r.x() + st::notifyDeltaX);
 	const auto y = isTop ? r.y() : (r.y() + r.height());
 	return QPoint(x, y);
 }

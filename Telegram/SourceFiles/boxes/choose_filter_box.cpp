@@ -69,10 +69,11 @@ void ChangeFilterById(
 			MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
 			MTP_int(filter.id()),
 			filter.tl()
-		)).done([=, chat = history->peer->name(), name = filter.title()]{
+		)).done([=, chat = history->peer->name(), name = filter.title()] {
 			// Since only the primary window has dialogs list,
 			// We can safely show toast there.
-			if (const auto controller = Core::App().primaryWindow()) {
+			const auto account = &history->session().account();
+			if (const auto controller = Core::App().windowFor(account)) {
 				auto text = (add
 					? tr::lng_filters_toast_add
 					: tr::lng_filters_toast_remove)(

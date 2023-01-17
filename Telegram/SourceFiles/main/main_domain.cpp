@@ -75,7 +75,7 @@ Storage::StartResult Domain::start(const QByteArray &passcode) {
 
 void Domain::finish() {
 	_accountToActivate = -1;
-	_active = nullptr;
+	_active.reset(nullptr);
 	base::take(_accounts);
 }
 
@@ -417,9 +417,13 @@ void Domain::checkForLastProductionConfig(
 }
 
 void Domain::maybeActivate(not_null<Main::Account*> account) {
-	Core::App().preventOrInvoke(crl::guard(account, [=] {
+	if (Core::App().separateWindowForAccount(account)) {
 		activate(account);
-	}));
+	} else {
+		Core::App().preventOrInvoke(crl::guard(account, [=] {
+			activate(account);
+		}));
+	}
 }
 
 void Domain::activate(not_null<Main::Account*> account) {
