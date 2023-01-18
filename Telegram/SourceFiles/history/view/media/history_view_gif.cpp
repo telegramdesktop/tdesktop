@@ -92,6 +92,7 @@ Gif::Gif(
 	setDocumentLinks(_data, realParent, [=] {
 		if (!_data->createMediaView()->canBePlayed(realParent)
 			|| !_data->isAnimation()
+			|| _data->isVideoMessage()
 			|| !CanPlayInline(_data)) {
 			return false;
 		}
