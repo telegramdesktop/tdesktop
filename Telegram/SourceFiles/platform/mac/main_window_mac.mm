@@ -213,7 +213,8 @@ MainWindow::Private::~Private() {
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
-, _private(std::make_unique<Private>(this)) {
+, _private(std::make_unique<Private>(this))
+, psMainMenu(this) {
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 }

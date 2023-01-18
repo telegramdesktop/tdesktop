@@ -1688,6 +1688,9 @@ void SessionController::showPeerHistory(
 		const SectionShow &params,
 		MsgId msgId) {
 	content()->showPeerHistory(peerId, params, msgId);
+	if (peerId && params.activation != anim::activation::background) {
+		_window->activate();
+	}
 }
 
 void SessionController::showMessage(
@@ -1704,6 +1707,9 @@ void SessionController::showMessage(
 					params);
 			} else {
 				controller->content()->showMessage(item, params);
+			}
+			if (params.activation != anim::activation::background) {
+				controller->window().activate();
 			}
 		});
 }
