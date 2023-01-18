@@ -1845,13 +1845,14 @@ bool MainWidget::preventsCloseSection(
 
 void MainWidget::showBackFromStack(
 		const SectionShow &params) {
-
 	if (preventsCloseSection([=] { showBackFromStack(params); }, params)) {
 		return;
 	}
 
 	if (_stack.empty()) {
-		_controller->clearSectionStack(params);
+		if (isPrimary()) {
+			_controller->clearSectionStack(params);
+		}
 		crl::on_main(this, [=] {
 			_controller->widget()->setInnerFocus();
 		});
@@ -2521,28 +2522,40 @@ void MainWidget::returnTabbedSelector() {
 }
 
 bool MainWidget::eventFilter(QObject *o, QEvent *e) {
+	const auto widget = o->isWidgetType()
+		? static_cast<QWidget*>(o)
+		: nullptr;
 	if (e->type() == QEvent::FocusIn) {
-		if (o->isWidgetType()) {
-			const auto widget = static_cast<QWidget*>(o);
+		if (widget && (widget->window() == window())) {
 			if (_history == widget || _history->isAncestorOf(widget)
-				|| (_mainSection && (_mainSection == widget || _mainSection->isAncestorOf(widget)))
-				|| (_thirdSection && (_thirdSection == widget || _thirdSection->isAncestorOf(widget)))) {
+				|| (_mainSection
+					&& (_mainSection == widget
+						|| _mainSection->isAncestorOf(widget)))
+				|| (_thirdSection
+					&& (_thirdSection == widget
+						|| _thirdSection->isAncestorOf(widget)))) {
 				_controller->setDialogsListFocused(false);
 			} else if (_dialogs
-				&& (_dialogs == widget || _dialogs->isAncestorOf(widget))) {
+				&& (_dialogs == widget
+					|| _dialogs->isAncestorOf(widget))) {
 				_controller->setDialogsListFocused(true);
 			}
 		}
 	} else if (e->type() == QEvent::MouseButtonPress) {
-		if (static_cast<QMouseEvent*>(e)->button() == Qt::BackButton) {
-			if (!Core::App().hideMediaView()) {
-				handleHistoryBack();
+		if (widget && (widget->window() == window())) {
+			const auto event = static_cast<QMouseEvent*>(e);
+			if (event->button() == Qt::BackButton) {
+				if (!Core::App().hideMediaView()) {
+					handleHistoryBack();
+				}
+				return true;
 			}
-			return true;
 		}
 	} else if (e->type() == QEvent::Wheel) {
-		if (const auto result = floatPlayerFilterWheelEvent(o, e)) {
-			return *result;
+		if (widget && (widget->window() == window())) {
+			if (const auto result = floatPlayerFilterWheelEvent(o, e)) {
+				return *result;
+			}
 		}
 	}
 	return RpWidget::eventFilter(o, e);
@@ -2559,10 +2572,6 @@ void MainWidget::handleAdaptiveLayoutUpdate() {
 }
 
 void MainWidget::handleHistoryBack() {
-	// #TODO windows
-	if (!_dialogs) {
-		return;
-	}
 	const auto openedFolder = _controller->openedFolder().current();
 	const auto openedForum = _controller->shownForum().current();
 	const auto rootPeer = !_stack.empty()
@@ -2579,10 +2588,12 @@ void MainWidget::handleHistoryBack() {
 	if (openedForum && (!rootPeer || rootPeer->forum() != openedForum)) {
 		_controller->closeForum();
 	} else if (!openedFolder
-		|| rootFolder == openedFolder
-		|| _dialogs->isHidden()) {
+		|| (rootFolder == openedFolder)
+		|| (!_dialogs || _dialogs->isHidden())) {
 		_controller->showBackFromStack();
-		_dialogs->setInnerFocus();
+		if (_dialogs) {
+			_dialogs->setInnerFocus();
+		}
 	} else {
 		_controller->closeFolder();
 	}

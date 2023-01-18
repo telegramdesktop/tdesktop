@@ -2979,7 +2979,6 @@ void HistoryWidget::unreadCountUpdated() {
 		crl::on_main(this, [=, history = _history] {
 			if (history == _history) {
 				closeCurrent();
-				_cancelRequests.fire({});
 			}
 		});
 	} else {
@@ -5969,7 +5968,6 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Back) {
-		controller()->showBackFromStack();
 		_cancelRequests.fire({});
 	} else if (e->key() == Qt::Key_PageDown) {
 		_scroll->keyPressEvent(e);
