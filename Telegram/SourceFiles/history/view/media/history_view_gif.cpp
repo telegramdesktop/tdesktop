@@ -89,7 +89,15 @@ Gif::Gif(
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
-	setDocumentLinks(_data, realParent);
+	setDocumentLinks(_data, realParent, [=] {
+		if (!_data->createMediaView()->canBePlayed(realParent)
+			|| !_data->isAnimation()
+			|| !CanPlayInline(_data)) {
+			return false;
+		}
+		playAnimation(false);
+		return true;
+	});
 	setStatusSize(Ui::FileStatusSizeReady);
 
 	if (_spoiler) {

@@ -1695,27 +1695,10 @@ void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
 	}
 }
 
-void Session::requestAnimationPlayInline(not_null<HistoryItem*> item) {
-	_animationPlayInlineRequest.fire_copy(item);
-
-	if (const auto media = item->media()) {
-		if (const auto data = media->document()) {
-			if (data && data->isVideoMessage()) {
-				const auto msgId = item->fullId();
-				::Media::Player::instance()->playPause({ data, msgId });
-			}
-		}
-	}
-}
-
 void Session::requestUnreadReactionsAnimation(not_null<HistoryItem*> item) {
 	enumerateItemViews(item, [&](not_null<ViewElement*> view) {
 		view->animateUnreadReactions();
 	});
-}
-
-rpl::producer<not_null<HistoryItem*>> Session::animationPlayInlineRequest() const {
-	return _animationPlayInlineRequest.events();
 }
 
 rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved() const {

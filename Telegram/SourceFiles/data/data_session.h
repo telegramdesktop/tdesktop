@@ -275,9 +275,7 @@ public:
 	void requestItemViewRefresh(not_null<HistoryItem*> item);
 	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> itemViewRefreshRequest() const;
 	void requestItemTextRefresh(not_null<HistoryItem*> item);
-	void requestAnimationPlayInline(not_null<HistoryItem*> item);
 	void requestUnreadReactionsAnimation(not_null<HistoryItem*> item);
-	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> animationPlayInlineRequest() const;
 	void notifyHistoryUnloaded(not_null<const History*> history);
 	[[nodiscard]] rpl::producer<not_null<const History*>> historyUnloaded() const;
 	void notifyItemDataChange(not_null<HistoryItem*> item);
@@ -861,7 +859,6 @@ private:
 	rpl::event_stream<not_null<HistoryItem*>> _itemViewRefreshRequest;
 	rpl::event_stream<not_null<HistoryItem*>> _itemTextRefreshRequest;
 	rpl::event_stream<not_null<HistoryItem*>> _itemDataChanges;
-	rpl::event_stream<not_null<HistoryItem*>> _animationPlayInlineRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRemoved;
 	rpl::event_stream<not_null<const History*>> _historyUnloaded;

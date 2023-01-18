@@ -294,14 +294,6 @@ InnerWidget::InnerWidget(
 			view->itemDataChanged();
 		}
 	}, lifetime());
-	session().data().animationPlayInlineRequest(
-	) | rpl::start_with_next([=](auto item) {
-		if (const auto view = viewForItem(item)) {
-			if (const auto media = view->media()) {
-				media->playAnimation();
-			}
-		}
-	}, lifetime());
 	session().data().itemVisibilityQueries(
 	) | rpl::filter([=](
 			const Data::Session::ItemVisibilityQuery &query) {

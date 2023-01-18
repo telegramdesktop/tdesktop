@@ -341,14 +341,6 @@ ListWidget::ListWidget(
 			view->itemDataChanged();
 		}
 	}, lifetime());
-	session().data().animationPlayInlineRequest(
-	) | rpl::start_with_next([this](auto item) {
-		if (const auto view = viewForItem(item)) {
-			if (const auto media = view->media()) {
-				media->playAnimation();
-			}
-		}
-	}, lifetime());
 
 	session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
