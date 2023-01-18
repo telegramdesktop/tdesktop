@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <functiondiscoverykeys.h>
 #include <intsafe.h>
 #include <guiddef.h>
+#include <locale.h>
 
 #ifndef DCX_USESTYLE
 #define DCX_USESTYLE 0x00010000
@@ -367,6 +368,8 @@ void start() {
 } // namespace ThirdParty
 
 void start() {
+	// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/setlocale-wsetlocale#utf-8-support
+	setlocale(LC_ALL, ".UTF8");
 }
 
 void finish() {
