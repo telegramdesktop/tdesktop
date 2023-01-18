@@ -470,7 +470,6 @@ void SendFilesBox::refreshAllAfterChanges(int fromItem, Fn<void()> perform) {
 void SendFilesBox::openDialogToAddFileToAlbum() {
 	const auto toastParent = Ui::BoxShow(this).toastParent();
 	const auto checkResult = [=](const Ui::PreparedList &list) {
-		if (_check)
 		if (!(_limits & SendFilesAllow::OnlyOne)) {
 			return true;
 		} else if (!_list.canBeSentInSlowmodeWith(list)) {

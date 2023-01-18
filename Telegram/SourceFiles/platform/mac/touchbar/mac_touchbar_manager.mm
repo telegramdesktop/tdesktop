@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h" // ApiWrap::updateStickers()
 #include "core/application.h"
 #include "data/data_chat_participant_status.h" // Data::CanSendAnyOf.
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/stickers/data_stickers.h" // Stickers::setsRef()
 #include "main/main_domain.h"

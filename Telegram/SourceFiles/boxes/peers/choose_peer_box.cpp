@@ -77,7 +77,7 @@ private:
 			ChatAdminRights rights,
 			std::vector<std::pair<Flag, tr::phrase<>>> phrases) {
 		auto list = QStringList();
-		for (const auto [flag, phrase] : phrases) {
+		for (const auto &[flag, phrase] : phrases) {
 			if (rights & flag) {
 				list.push_back(phrase(tr::now));
 			}
