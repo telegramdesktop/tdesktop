@@ -89,12 +89,6 @@ constexpr auto kTooltipDelay = crl::time(10000);
 	return result;
 }
 
-[[nodiscard]] QWidget *Parent() {
-	Expects(Core::App().activePrimaryWindow() != nullptr);
-
-	return Core::App().activePrimaryWindow()->widget();
-}
-
 } // namespace
 
 Tray::Tray() {
@@ -102,7 +96,7 @@ Tray::Tray() {
 
 void Tray::createIcon() {
 	if (!_icon) {
-		_icon = base::make_unique_q<QSystemTrayIcon>(Parent());
+		_icon = base::make_unique_q<QSystemTrayIcon>(nullptr);
 		updateIcon();
 		_icon->setToolTip(AppName.utf16());
 		using Reason = QSystemTrayIcon::ActivationReason;
