@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::sessionValue.
 #include "core/application.h"
 #include "core/sandbox.h"
+#include "core/shortcuts.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
@@ -352,6 +353,8 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 			updateControlsGeometry();
 		}, _outdated->lifetime());
 	}
+
+	Shortcuts::Listen(this);
 }
 
 Main::Account &MainWindow::account() const {

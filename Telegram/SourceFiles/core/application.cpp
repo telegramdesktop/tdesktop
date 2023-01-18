@@ -183,9 +183,6 @@ Application::~Application() {
 		Local::writeSettings();
 	}
 
-	// Depend on primaryWindow() for now :(
-	Shortcuts::Finish();
-
 	_closingAsyncWindows.clear();
 	_secondaryWindows.clear();
 	_primaryWindows.clear();
@@ -261,6 +258,7 @@ void Application::run() {
 	Ui::StartCachedCorners();
 	Ui::Emoji::Init();
 	Ui::PreloadTextSpoilerMask();
+	startShortcuts();
 	startEmojiImageLoader();
 	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());
@@ -329,10 +327,7 @@ void Application::run() {
 
 	DEBUG_LOG(("Application Info: window created..."));
 
-	// Depend on primaryWindow() for now :(
-	startShortcuts();
 	startDomain();
-
 	startTray();
 
 	_lastActivePrimaryWindow->widget()->show();
@@ -567,7 +562,7 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 		const auto event = static_cast<QShortcutEvent*>(e);
 		DEBUG_LOG(("Shortcut event caught: %1"
 			).arg(event->key().toString()));
-		if (Shortcuts::HandleEvent(event)) {
+		if (Shortcuts::HandleEvent(object, event)) {
 			return true;
 		}
 	} break;
