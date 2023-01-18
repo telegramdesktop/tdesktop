@@ -254,9 +254,10 @@ List CreateList(
 
 class TopBar final : public Ui::RpWidget {
 public:
-	TopBar(not_null<Ui::RpWidget*> parent);
+	TopBar(not_null<Ui::RpWidget*> parent, const QString &query);
 
 	void setInnerFocus();
+	void setQuery(const QString &query);
 
 	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
 	[[nodiscard]] rpl::producer<PeerData*> fromValue() const;
@@ -291,13 +292,14 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _keyEvents;
 };
 
-TopBar::TopBar(not_null<Ui::RpWidget*> parent)
+TopBar::TopBar(not_null<Ui::RpWidget*> parent, const QString &query)
 : Ui::RpWidget(parent)
 , _cancel(base::make_unique_q<Ui::IconButton>(this, st::historyTopBarBack))
 , _select(base::make_unique_q<Ui::MultiSelect>(
 	this,
 	st::searchInChatMultiSelect,
-	tr::lng_dlg_filter()))
+	tr::lng_dlg_filter(),
+	query))
 , _searchTimer([=] { requestSearch(); }) {
 
 	parent->geometryValue(
@@ -350,6 +352,10 @@ rpl::producer<not_null<QKeyEvent*>> TopBar::keyEvents() const {
 
 void TopBar::setInnerFocus() {
 	_select->setInnerFocus();
+}
+
+void TopBar::setQuery(const QString &query) {
+	_select->setQuery(query);
 }
 
 void TopBar::clearItems() {
@@ -647,11 +653,13 @@ public:
 	Inner(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> window,
-		not_null<History*> history);
+		not_null<History*> history,
+		const QString &query);
 	~Inner();
 
 	void hideAnimated();
 	void setInnerFocus();
+	void setQuery(const QString &query);
 
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
 	[[nodiscard]] rpl::lifetime &lifetime();
@@ -683,10 +691,11 @@ private:
 ComposeSearch::Inner::Inner(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> window,
-	not_null<History*> history)
+	not_null<History*> history,
+	const QString &query)
 : _window(window)
 , _history(history)
-, _topBar(base::make_unique_q<TopBar>(parent))
+, _topBar(base::make_unique_q<TopBar>(parent, query))
 , _bottomBar(base::make_unique_q<BottomBar>(parent, HasChooseFrom(history)))
 , _list(CreateList(parent, history))
 , _apiSearch(history) {
@@ -835,10 +844,18 @@ ComposeSearch::Inner::Inner(
 	) | rpl::map([=](PeerData *from) {
 		return HasChooseFrom(_history) && !from;
 	}));
+
+	if (!query.isEmpty()) {
+		_apiSearch.search({ query });
+	}
 }
 
 void ComposeSearch::Inner::setInnerFocus() {
 	_topBar->setInnerFocus();
+}
+
+void ComposeSearch::Inner::setQuery(const QString &query) {
+	_topBar->setQuery(query);
 }
 
 void ComposeSearch::Inner::showAnimated() {
@@ -874,8 +891,9 @@ ComposeSearch::Inner::~Inner() {
 ComposeSearch::ComposeSearch(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> window,
-	not_null<History*> history)
-: _inner(std::make_unique<Inner>(parent, window, history)) {
+	not_null<History*> history,
+	const QString &query)
+: _inner(std::make_unique<Inner>(parent, window, history, query)) {
 }
 
 ComposeSearch::~ComposeSearch() {
@@ -887,6 +905,10 @@ void ComposeSearch::hideAnimated() {
 
 void ComposeSearch::setInnerFocus() {
 	_inner->setInnerFocus();
+}
+
+void ComposeSearch::setQuery(const QString &query) {
+	_inner->setQuery(query);
 }
 
 rpl::producer<> ComposeSearch::destroyRequests() const {

@@ -731,15 +731,33 @@ void MainWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
 }
 
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
-	// #TODO windows
-	if (!_dialogs) {
-		return;
-	}
-	_dialogs->searchMessages(query, inChat);
-	if (isOneColumn()) {
-		_controller->clearSectionStack();
+	if (controller()->isPrimary()) {
+		_dialogs->searchMessages(query, inChat);
+		if (isOneColumn()) {
+			_controller->clearSectionStack();
+		} else {
+			_dialogs->setInnerFocus();
+		}
 	} else {
-		_dialogs->setInnerFocus();
+		const auto searchIn = [&](not_null<Window::Controller*> window) {
+			if (const auto controller = window->sessionController()) {
+				controller->content()->searchMessages(query, inChat);
+				controller->widget()->activate();
+			}
+		};
+		const auto account = &session().account();
+		if (const auto peer = inChat.peer()) {
+			if (peer == controller()->singlePeer()) {
+				if (_history->peer() != peer) {
+					controller()->showPeerHistory(peer);
+				}
+				_history->searchInChatEmbedded(query);
+			} else if (const auto window = Core::App().windowFor(peer)) {
+				searchIn(window);
+			}
+		} else if (const auto window = Core::App().windowFor(account)) {
+			searchIn(window);
+		}
 	}
 }
 

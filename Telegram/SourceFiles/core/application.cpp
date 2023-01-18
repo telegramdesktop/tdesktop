@@ -1304,6 +1304,7 @@ void Application::closeWindow(not_null<Window::Controller*> window) {
 		_lastActiveWindow = next;
 		if (_lastActiveWindow) {
 			_lastActiveWindow->activate();
+			_lastActiveWindow->widget()->updateGlobalMenu();
 		}
 	}
 	_closingAsyncWindows.remove(window);
@@ -1362,6 +1363,7 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 	if (window->isPrimary()) {
 		_lastActivePrimaryWindow = window;
 	}
+	window->widget()->updateGlobalMenu();
 
 	const auto wasSession = was ? was->maybeSession() : nullptr;
 	const auto nowSession = now->maybeSession();

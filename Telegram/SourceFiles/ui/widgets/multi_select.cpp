@@ -416,9 +416,11 @@ public:
 		QWidget *parent,
 		const style::MultiSelect &st,
 		rpl::producer<QString> placeholder,
+		const QString &query,
 		ScrollCallback callback);
 
-	QString getQuery() const;
+	[[nodiscard]] QString getQuery() const;
+	void setQuery(const QString &query);
 	bool setInnerFocus();
 	void clearQuery();
 
@@ -511,7 +513,8 @@ private:
 MultiSelect::MultiSelect(
 	QWidget *parent,
 	const style::MultiSelect &st,
-	rpl::producer<QString> placeholder)
+	rpl::producer<QString> placeholder,
+	const QString &query)
 : RpWidget(parent)
 , _st(st)
 , _scroll(this, _st.scroll) {
@@ -522,6 +525,7 @@ MultiSelect::MultiSelect(
 		this,
 		st,
 		std::move(placeholder),
+		query,
 		scrollCallback));
 	_scroll->installEventFilter(this);
 	_inner->setResizedCallback([this](int innerHeightDelta) {
@@ -597,6 +601,10 @@ QString MultiSelect::getQuery() const {
 	return _inner->getQuery();
 }
 
+void MultiSelect::setQuery(const QString &query) {
+	_inner->setQuery(query);
+}
+
 void MultiSelect::addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage, AddItemWay way) {
 	addItemInBunch(itemId, text, color, std::move(paintRoundImage));
 	_inner->finishItemsBunch(way);
@@ -643,11 +651,12 @@ MultiSelect::Inner::Inner(
 	QWidget *parent,
 	const style::MultiSelect &st,
 	rpl::producer<QString> placeholder,
+	const QString &query,
 	ScrollCallback callback)
 : TWidget(parent)
 , _st(st)
 , _scrollCallback(std::move(callback))
-, _field(this, _st.field, std::move(placeholder))
+, _field(this, _st.field, std::move(placeholder), query)
 , _cancel(this, _st.fieldCancel) {
 	_field->customUpDown(true);
 	connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
@@ -672,6 +681,13 @@ void MultiSelect::Inner::queryChanged() {
 
 QString MultiSelect::Inner::getQuery() const {
 	return _field->getLastText().trimmed();
+}
+
+void MultiSelect::Inner::setQuery(const QString &query) {
+	_field->setText(query);
+	if (const auto last = _field->getLastText(); !last.isEmpty()) {
+		_field->setCursorPosition(last.size());
+	}
 }
 
 bool MultiSelect::Inner::setInnerFocus() {

@@ -4549,35 +4549,52 @@ void HistoryWidget::searchInChat() {
 		return;
 	} else if (controller()->isPrimary()) {
 		controller()->content()->searchInChat(_history);
-	} else if (!_composeSearch) {
-		const auto search = [=] {
-			const auto update = [=] {
-				updateControlsVisibility();
-				updateBotKeyboard();
-				updateFieldPlaceholder();
+	} else {
+		searchInChatEmbedded();
+	}
+}
 
-				updateControlsGeometry();
-			};
-			_composeSearch = std::make_unique<HistoryView::ComposeSearch>(
-				this,
-				controller(),
-				_history);
-
-			update();
-			setInnerFocus();
-			_composeSearch->destroyRequests(
-			) | rpl::take(
-				1
-			) | rpl::start_with_next([=] {
-				_composeSearch = nullptr;
-
-				update();
-				setInnerFocus();
-			}, _composeSearch->lifetime());
-		};
-		if (!preventsClose(search)) {
-			search();
+void HistoryWidget::searchInChatEmbedded(std::optional<QString> query) {
+	if (!_history) {
+		return;
+	} else if (_composeSearch) {
+		if (query) {
+			_composeSearch->setQuery(*query);
 		}
+		_composeSearch->setInnerFocus();
+		return;
+	}
+	const auto search = crl::guard(_list, [=] {
+		if (!_history) {
+			return;
+		}
+		const auto update = [=] {
+			updateControlsVisibility();
+			updateBotKeyboard();
+			updateFieldPlaceholder();
+
+			updateControlsGeometry();
+		};
+		_composeSearch = std::make_unique<HistoryView::ComposeSearch>(
+			this,
+			controller(),
+			_history,
+			query.value_or(QString()));
+
+		update();
+		setInnerFocus();
+		_composeSearch->destroyRequests(
+		) | rpl::take(
+			1
+		) | rpl::start_with_next([=] {
+			_composeSearch = nullptr;
+
+		update();
+		setInnerFocus();
+		}, _composeSearch->lifetime());
+	});
+	if (!preventsClose(search)) {
+		search();
 	}
 }
 
