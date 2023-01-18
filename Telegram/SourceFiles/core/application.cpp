@@ -238,7 +238,7 @@ void Application::run() {
 
 	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
 		Platform::InstallLauncher();
-		RegisterUrlScheme();
+		InvokeQueued(this, [] { RegisterUrlScheme(); });
 		Platform::NewVersionLaunched(old);
 	}
 
