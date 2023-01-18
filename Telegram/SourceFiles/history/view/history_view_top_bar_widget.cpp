@@ -1318,6 +1318,10 @@ bool TopBarWidget::searchSetFocus() {
 	return true;
 }
 
+bool TopBarWidget::searchMode() const {
+	return _searchMode;
+}
+
 bool TopBarWidget::searchHasFocus() const {
 	return _searchMode && _searchField->hasFocus();
 }

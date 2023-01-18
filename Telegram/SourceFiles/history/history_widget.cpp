@@ -4536,12 +4536,8 @@ bool HistoryWidget::updateCmdStartShown() {
 }
 
 void HistoryWidget::searchInChat() {
-	if (!_history) {
-		return;
-	} else if (controller()->isPrimary()) {
+	if (_history) {
 		controller()->content()->searchInChat(_history);
-	} else {
-		searchInChatEmbedded();
 	}
 }
 

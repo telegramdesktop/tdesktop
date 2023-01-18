@@ -2652,16 +2652,7 @@ int MainWidget::backgroundFromY() const {
 }
 
 void MainWidget::searchInChat(Dialogs::Key chat) {
-	// #TODO windows
-	if (!_dialogs) {
-		return;
-	}
-	_dialogs->searchInChat(chat);
-	if (isOneColumn()) {
-		_controller->clearSectionStack();
-	} else {
-		_dialogs->setInnerFocus();
-	}
+	searchMessages(QString(), chat);
 }
 
 bool MainWidget::contentOverlapped(const QRect &globalRect) {

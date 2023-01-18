@@ -1481,9 +1481,7 @@ void Widget::showMainMenu() {
 	controller()->widget()->showMainMenu();
 }
 
-void Widget::searchMessages(
-		const QString &query,
-		Key inChat) {
+void Widget::searchMessages(const QString &query, Key inChat) {
 	if (_childList) {
 		const auto forum = controller()->shownForum().current();
 		const auto topic = inChat.topic();
@@ -1494,18 +1492,27 @@ void Widget::searchMessages(
 		}
 		hideChildList();
 	}
+	if (_openedFolder) {
+		controller()->closeFolder();
+	}
+
 	const auto inChatChanged = [&] {
 		const auto inPeer = inChat.peer();
 		const auto inTopic = inChat.topic();
-		if (!inTopic && _openedForum && inPeer == _openedForum->channel()) {
+		if (!inTopic
+			&& _openedForum
+			&& inPeer == _openedForum->channel()
+			&& _subsectionTopBar
+			&& _subsectionTopBar->searchMode()) {
 			return false;
 		} else if ((inTopic || (inPeer && !inPeer->isForum()))
 			&& (inChat == _searchInChat)) {
 			return false;
 		} else if (const auto inPeer = inChat.peer()) {
-			if (inPeer->migrateTo() == _searchInChat.peer()
-				&& !_searchInChat.topic()) {
-				return false;
+			if (const auto to = inPeer->migrateTo()) {
+				if (to == _searchInChat.peer() && !_searchInChat.topic()) {
+					return false;
+				}
 			}
 		}
 		return true;
@@ -2130,18 +2137,7 @@ void Widget::closeChildList(anim::type animated) {
 }
 
 void Widget::searchInChat(Key chat) {
-	if (_openedForum && !chat.peer()->forum()) {
-		controller()->closeForum();
-	}
-	if (_openedFolder) {
-		if (_childList && _childList->setSearchInChat(chat)) {
-			return;
-		}
-		controller()->closeFolder();
-	}
-	cancelSearch();
-	setSearchInChat(chat);
-	applyFilterUpdate(true);
+	searchMessages(QString(), chat);
 }
 
 bool Widget::setSearchInChat(Key chat, PeerData *from) {
