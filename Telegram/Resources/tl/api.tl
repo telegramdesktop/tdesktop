@@ -129,7 +129,7 @@ channel#83259464 flags:# creator:flags.0?true left:flags.2?true broadcast:flags.
 channelForbidden#17d493d5 flags:# broadcast:flags.5?true megagroup:flags.8?true id:long access_hash:long title:string until_date:flags.16?int = Chat;
 
 chatFull#c9d31138 flags:# can_set_username:flags.7?true has_scheduled:flags.8?true id:long about:string participants:ChatParticipants chat_photo:flags.2?Photo notify_settings:PeerNotifySettings exported_invite:flags.13?ExportedChatInvite bot_info:flags.3?Vector<BotInfo> pinned_msg_id:flags.6?int folder_id:flags.11?int call:flags.12?InputGroupCall ttl_period:flags.14?int groupcall_default_join_as:flags.15?Peer theme_emoticon:flags.16?string requests_pending:flags.17?int recent_requesters:flags.17?Vector<long> available_reactions:flags.18?ChatReactions = ChatFull;
-channelFull#f2355507 flags:# can_view_participants:flags.3?true can_set_username:flags.6?true can_set_stickers:flags.7?true hidden_prehistory:flags.10?true can_set_location:flags.16?true has_scheduled:flags.19?true can_view_stats:flags.20?true blocked:flags.22?true flags2:# can_delete_channel:flags2.0?true antispam:flags2.1?true participants_hidden:flags2.2?true id:long about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int banned_count:flags.2?int online_count:flags.13?int read_inbox_max_id:int read_outbox_max_id:int unread_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:flags.23?ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?long migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int stickerset:flags.8?StickerSet available_min_id:flags.9?int folder_id:flags.11?int linked_chat_id:flags.14?long location:flags.15?ChannelLocation slowmode_seconds:flags.17?int slowmode_next_send_date:flags.18?int stats_dc:flags.12?int pts:int call:flags.21?InputGroupCall ttl_period:flags.24?int pending_suggestions:flags.25?Vector<string> groupcall_default_join_as:flags.26?Peer theme_emoticon:flags.27?string requests_pending:flags.28?int recent_requesters:flags.28?Vector<long> default_send_as:flags.29?Peer available_reactions:flags.30?ChatReactions = ChatFull;
+channelFull#f2355507 flags:# can_view_participants:flags.3?true can_set_username:flags.6?true can_set_stickers:flags.7?true hidden_prehistory:flags.10?true can_set_location:flags.16?true has_scheduled:flags.19?true can_view_stats:flags.20?true blocked:flags.22?true flags2:# can_delete_channel:flags2.0?true antispam:flags2.1?true participants_hidden:flags2.2?true translations_disabled:flags2.3?true id:long about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int banned_count:flags.2?int online_count:flags.13?int read_inbox_max_id:int read_outbox_max_id:int unread_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:flags.23?ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?long migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int stickerset:flags.8?StickerSet available_min_id:flags.9?int folder_id:flags.11?int linked_chat_id:flags.14?long location:flags.15?ChannelLocation slowmode_seconds:flags.17?int slowmode_next_send_date:flags.18?int stats_dc:flags.12?int pts:int call:flags.21?InputGroupCall ttl_period:flags.24?int pending_suggestions:flags.25?Vector<string> groupcall_default_join_as:flags.26?Peer theme_emoticon:flags.27?string requests_pending:flags.28?int recent_requesters:flags.28?Vector<long> default_send_as:flags.29?Peer available_reactions:flags.30?ChatReactions = ChatFull;
 
 chatParticipant#c02d4007 user_id:long inviter_id:long date:int = ChatParticipant;
 chatParticipantCreator#e46bcee4 user_id:long = ChatParticipant;
@@ -198,7 +198,7 @@ messageActionSuggestProfilePhoto#57de635e photo:Photo = MessageAction;
 messageActionAttachMenuBotAllowed#e7e75f97 = MessageAction;
 messageActionRequestedPeer#fe77345d button_id:int peer:Peer = MessageAction;
 
-dialog#d58a08c6 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int ttl_period:flags.5?int = Dialog;
+dialog#d58a08c6 flags:# pinned:flags.2?true unread_mark:flags.3?true translations_disabled:flags.6?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int ttl_period:flags.5?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
@@ -407,6 +407,7 @@ updateMessageExtendedMedia#5a73a98c peer:Peer msg_id:int extended_media:MessageE
 updateChannelPinnedTopic#192efbe3 flags:# pinned:flags.0?true channel_id:long topic_id:int = Update;
 updateChannelPinnedTopics#fe198602 flags:# channel_id:long order:flags.0?Vector<int> = Update;
 updateUser#20529438 user_id:long = Update;
+updateAutoSaveSettings#ec05b097 = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -1247,6 +1248,7 @@ help.promoDataEmpty#98f6ac75 expires:int = help.PromoData;
 help.promoData#8c39793f flags:# proxy:flags.0?true expires:int peer:Peer chats:Vector<Chat> users:Vector<User> psa_type:flags.1?string psa_message:flags.2?string = help.PromoData;
 
 videoSize#de33b094 flags:# type:string w:int h:int size:int video_start_ts:flags.0?double = VideoSize;
+videoSizeEmojiMarkup#badb646 type:string emoji_id:long background_colors:Vector<int> = VideoSize;
 
 statsGroupTopPoster#9d04af9b user_id:long messages:int avg_chars:int = StatsGroupTopPoster;
 
@@ -1371,9 +1373,6 @@ availableReaction#c077ec01 flags:# inactive:flags.0?true premium:flags.2?true re
 messages.availableReactionsNotModified#9f071957 = messages.AvailableReactions;
 messages.availableReactions#768e3aad hash:int reactions:Vector<AvailableReaction> = messages.AvailableReactions;
 
-messages.translateNoResult#67ca4737 = messages.TranslatedText;
-messages.translateResultText#a214f7d0 text:string = messages.TranslatedText;
-
 messagePeerReaction#b156fe9c flags:# big:flags.0?true unread:flags.1?true peer_id:Peer reaction:Reaction = MessagePeerReaction;
 
 groupCallStreamChannel#80eb48af channel:int scale:int last_timestamp_ms:long = GroupCallStreamChannel;
@@ -1429,7 +1428,7 @@ messages.transcribedAudio#93752c52 flags:# pending:flags.0?true transcription_id
 
 help.premiumPromo#5334759c status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> period_options:Vector<PremiumSubscriptionOption> users:Vector<User> = help.PremiumPromo;
 
-inputStorePaymentPremiumSubscription#a6751e66 flags:# restore:flags.0?true = InputStorePaymentPurpose;
+inputStorePaymentPremiumSubscription#a6751e66 flags:# restore:flags.0?true upgrade:flags.1?true = InputStorePaymentPurpose;
 inputStorePaymentGiftPremium#616f7fe8 user_id:InputUser currency:string amount:long = InputStorePaymentPurpose;
 
 premiumGiftOption#74c34319 flags:# months:int currency:string amount:long bot_url:string store_product:flags.0?string = PremiumGiftOption;
@@ -1465,7 +1464,7 @@ emailVerificationApple#96d074fd token:string = EmailVerification;
 account.emailVerified#2b96cd1b email:string = account.EmailVerified;
 account.emailVerifiedLogin#e1bb0d61 email:string sent_code:auth.SentCode = account.EmailVerified;
 
-premiumSubscriptionOption#b6f11ebe flags:# current:flags.1?true can_purchase_upgrade:flags.2?true months:int currency:string amount:long bot_url:string store_product:flags.0?string = PremiumSubscriptionOption;
+premiumSubscriptionOption#5f2d1df2 flags:# current:flags.1?true can_purchase_upgrade:flags.2?true transaction:flags.3?string months:int currency:string amount:long bot_url:string store_product:flags.0?string = PremiumSubscriptionOption;
 
 sendAsPeer#b81c7034 flags:# premium_required:flags.0?true peer:Peer = SendAsPeer;
 
@@ -1491,6 +1490,21 @@ requestPeerTypeBroadcast#339bef6c flags:# creator:flags.0?true has_username:flag
 
 emojiListNotModified#481eadfa = EmojiList;
 emojiList#7a1e11d1 hash:long document_id:Vector<long> = EmojiList;
+
+emojiGroup#7a9abda9 title:string icon_emoji_id:long emoticons:Vector<string> = EmojiGroup;
+
+messages.emojiGroupsNotModified#6fb4ad87 = messages.EmojiGroups;
+messages.emojiGroups#881fb94b hash:int groups:Vector<EmojiGroup> = messages.EmojiGroups;
+
+textWithEntities#751f3146 text:string entities:Vector<MessageEntity> = TextWithEntities;
+
+messages.translateResult#33db32f8 result:Vector<TextWithEntities> = messages.TranslatedText;
+
+autoSaveSettings#c84834ce flags:# photos:flags.0?true videos:flags.1?true video_max_size:flags.2?long = AutoSaveSettings;
+
+autoSaveException#81602d47 peer:Peer settings:AutoSaveSettings = AutoSaveException;
+
+account.autoSaveSettings#4c3e069d users_settings:AutoSaveSettings chats_settings:AutoSaveSettings broadcasts_settings:AutoSaveSettings exceptions:Vector<AutoSaveException> chats:Vector<Chat> users:Vector<User> = account.AutoSaveSettings;
 
 ---functions---
 
@@ -1608,6 +1622,9 @@ account.reorderUsernames#ef500eab order:Vector<string> = Bool;
 account.toggleUsername#58d6b376 username:string active:Bool = Bool;
 account.getDefaultProfilePhotoEmojis#e2750328 hash:long = EmojiList;
 account.getDefaultGroupPhotoEmojis#915860ae hash:long = EmojiList;
+account.getAutoSaveSettings#adcbbcda = account.AutoSaveSettings;
+account.saveAutoSaveSettings#d69b8361 flags:# users:flags.0?true chats:flags.1?true broadcasts:flags.2?true peer:flags.3?InputPeer settings:AutoSaveSettings = Bool;
+account.deleteAutoSaveExceptions#53bc0020 = Bool;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#b60f5918 id:InputUser = users.UserFull;
@@ -1792,7 +1809,7 @@ messages.getMessageReactionsList#461b3f48 flags:# peer:InputPeer id:int reaction
 messages.setChatAvailableReactions#feb16771 peer:InputPeer available_reactions:ChatReactions = Updates;
 messages.getAvailableReactions#18dea0ac hash:int = messages.AvailableReactions;
 messages.setDefaultReaction#4f47a016 reaction:Reaction = Bool;
-messages.translateText#24ce6dee flags:# peer:flags.0?InputPeer msg_id:flags.0?int text:flags.1?string from_lang:flags.2?string to_lang:string = messages.TranslatedText;
+messages.translateText#63183030 flags:# peer:flags.0?InputPeer id:flags.0?Vector<int> text:flags.1?Vector<TextWithEntities> to_lang:string = messages.TranslatedText;
 messages.getUnreadReactions#3223495b flags:# peer:InputPeer top_msg_id:flags.0?int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 messages.readReactions#54aa7f8e flags:# peer:InputPeer top_msg_id:flags.0?int = messages.AffectedHistory;
 messages.searchSentMedia#107e31a0 q:string filter:MessagesFilter limit:int = messages.Messages;
@@ -1817,13 +1834,17 @@ messages.getExtendedMedia#84f80814 peer:InputPeer id:Vector<int> = Updates;
 messages.setDefaultHistoryTTL#9eb51445 period:int = Bool;
 messages.getDefaultHistoryTTL#658b7188 = DefaultHistoryTTL;
 messages.sendBotRequestedPeer#fe38d01b peer:InputPeer msg_id:int button_id:int requested_peer:InputPeer = Updates;
+messages.getEmojiGroups#7488ce5b hash:int = messages.EmojiGroups;
+messages.getEmojiStatusGroups#2ecd56cd hash:int = messages.EmojiGroups;
+messages.searchCustomEmoji#2c11c0d7 emoticon:string hash:long = EmojiList;
+messages.togglePeerTranslations#e47cb579 flags:# disabled:flags.0?true peer:InputPeer = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
 updates.getChannelDifference#3173d78 flags:# force:flags.0?true channel:InputChannel filter:ChannelMessagesFilter pts:int limit:int = updates.ChannelDifference;
 
 photos.updateProfilePhoto#1c3d5956 flags:# fallback:flags.0?true id:InputPhoto = photos.Photo;
-photos.uploadProfilePhoto#89f30f69 flags:# fallback:flags.3?true file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double = photos.Photo;
+photos.uploadProfilePhoto#93c9a51 flags:# fallback:flags.3?true file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double video_emoji_markup:flags.4?VideoSize = photos.Photo;
 photos.deletePhotos#87cf7f2f id:Vector<InputPhoto> = Vector<long>;
 photos.getUserPhotos#91cd32a8 user_id:InputUser offset:int max_id:long limit:int = photos.Photos;
 photos.uploadContactProfilePhoto#b91a83bf flags:# suggest:flags.3?true save:flags.4?true user_id:InputUser file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double = photos.Photo;

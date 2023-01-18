@@ -309,7 +309,8 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 					: MTPphotos_UploadProfilePhoto::Flags(0))),
 			file,
 			MTPInputFile(), // video
-			MTPdouble() // video_start_ts
+			MTPdouble(), // video_start_ts
+			MTPVideoSize() // video_emoji_markup
 		)).done([=](const MTPphotos_Photo &result) {
 			const auto photoId = _session->data().processPhoto(
 				result.data().vphoto())->id;

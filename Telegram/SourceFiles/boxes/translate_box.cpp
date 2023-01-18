@@ -318,7 +318,7 @@ void TranslateBox(
 
 	using Flag = MTPmessages_translateText::Flag;
 	const auto flags = msgId
-		? (Flag::f_peer | Flag::f_msg_id)
+		? (Flag::f_peer | Flag::f_id)
 		: !text.text.isEmpty()
 		? Flag::f_text
 		: Flag(0);
@@ -420,18 +420,21 @@ void TranslateBox(
 		api->request(MTPmessages_TranslateText(
 			MTP_flags(flags),
 			msgId ? peer->input : MTP_inputPeerEmpty(),
-			MTP_int(msgId),
-			MTP_string(text.text),
-			MTPstring(),
+			(msgId
+				? MTP_vector<MTPint>(1, MTP_int(msgId))
+				: MTPVector<MTPint>()),
+			(msgId
+				? MTPVector<MTPTextWithEntities>()
+				: MTP_vector<MTPTextWithEntities>(1, MTP_textWithEntities(
+					MTP_string(text.text),
+					MTP_vector<MTPMessageEntity>()))),
 			MTP_string(toLang)
 		)).done([=](const MTPmessages_TranslatedText &result) {
-			const auto text = result.match([](
-					const MTPDmessages_translateNoResult &data) {
-				return tr::lng_translate_box_error(tr::now);
-			}, [](const MTPDmessages_translateResultText &data) {
-				return qs(data.vtext());
-			});
-			showText(text);
+			const auto &data = result.data();
+			const auto &list = data.vresult().v;
+			showText(list.isEmpty()
+				? tr::lng_translate_box_error(tr::now)
+				: qs(list.front().data().vtext()));
 		}).fail([=](const MTP::Error &error) {
 			showText(tr::lng_translate_box_error(tr::now));
 		}).send();
