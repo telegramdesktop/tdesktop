@@ -2123,6 +2123,9 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void MainWidget::updateControlsGeometry() {
+	if (!width()) {
+		return;
+	}
 	updateWindowAdaptiveLayout();
 	if (_dialogs) {
 		if (Core::App().settings().dialogsWidthRatio() > 0) {
