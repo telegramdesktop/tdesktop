@@ -304,8 +304,6 @@ public:
 	void setScreenIsLocked(bool locked);
 	bool screenIsLocked() const;
 
-	static void RegisterUrlScheme();
-
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
@@ -324,6 +322,7 @@ private:
 	void startEmojiImageLoader();
 	void startSystemDarkModeViewer();
 	void startTray();
+	void registerUrlScheme();
 
 	void enumerateWindows(
 		Fn<void(not_null<Window::Controller*>)> callback) const;

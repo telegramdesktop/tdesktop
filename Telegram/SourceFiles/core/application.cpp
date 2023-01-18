@@ -238,7 +238,7 @@ void Application::run() {
 
 	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
 		Platform::InstallLauncher();
-		RegisterUrlScheme();
+		registerUrlScheme();
 		Platform::NewVersionLaunched(old);
 	}
 
@@ -1457,19 +1457,21 @@ void Application::startShortcuts() {
 	}, _lifetime);
 }
 
-void Application::RegisterUrlScheme() {
-	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
-		.executable = cExeDir() + cExeName(),
-		.arguments = Sandbox::Instance().customWorkingDir()
-			? u"-workdir \"%1\""_q.arg(cWorkingDir())
-			: QString(),
-		.protocol = u"tg"_q,
-		.protocolName = u"Telegram Link"_q,
-		.shortAppName = u"tdesktop"_q,
-		.longAppName = QCoreApplication::applicationName(),
-		.displayAppName = AppName.utf16(),
-		.displayAppDescription = AppName.utf16(),
-	});
+void Application::registerUrlScheme() {
+	InvokeQueued(this, [] {
+		base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
+			.executable = cExeDir() + cExeName(),
+			.arguments = Sandbox::Instance().customWorkingDir()
+				? u"-workdir \"%1\""_q.arg(cWorkingDir())
+				: QString(),
+			.protocol = u"tg"_q,
+			.protocolName = u"Telegram Link"_q,
+			.shortAppName = u"tdesktop"_q,
+			.longAppName = QCoreApplication::applicationName(),
+			.displayAppName = AppName.utf16(),
+			.displayAppDescription = AppName.utf16(),
+		});
+	})
 }
 
 bool IsAppLaunched() {
