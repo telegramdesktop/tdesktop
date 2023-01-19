@@ -361,9 +361,8 @@ bool ApplyModifications(PreparedList &list) {
 			continue;
 		}
 		applied = true;
-		if (!file.path.isEmpty()) {
-			file.path = QString();
-		}
+		file.path = QString();
+		file.content = QByteArray();
 		image->data = Editor::ImageModified(
 			std::move(image->data),
 			image->modifications);
