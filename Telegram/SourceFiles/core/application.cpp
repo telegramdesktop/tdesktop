@@ -184,6 +184,8 @@ Application::~Application() {
 		Local::writeSettings();
 	}
 
+	setLastActiveWindow(nullptr);
+	_lastActivePrimaryWindow = nullptr;
 	_closingAsyncWindows.clear();
 	_secondaryWindows.clear();
 	_primaryWindows.clear();
@@ -287,9 +289,8 @@ void Application::run() {
 	QMimeDatabase().mimeTypeForName(u"text/plain"_q);
 
 	_primaryWindows.emplace(nullptr, std::make_unique<Window::Controller>());
-	_lastActiveWindow
-		= _lastActivePrimaryWindow
-		= _primaryWindows.front().second.get();
+	setLastActiveWindow(_primaryWindows.front().second.get());
+	_lastActivePrimaryWindow = _lastActiveWindow;
 
 	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
@@ -737,35 +738,12 @@ bool Application::screenIsLocked() const {
 	return _screenIsLocked;
 }
 
-void Application::setDefaultFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> delegate) {
-	Expects(!_defaultFloatPlayerDelegate == !_floatPlayers);
-
-	_defaultFloatPlayerDelegate = delegate;
-	_replacementFloatPlayerDelegate = nullptr;
-	if (_floatPlayers) {
-		_floatPlayers->replaceDelegate(delegate);
-	} else {
-		_floatPlayers = std::make_unique<Media::Player::FloatController>(
-			delegate);
-	}
-}
-
-void Application::replaceFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement) {
-	Expects(_floatPlayers != nullptr);
-
-	_replacementFloatPlayerDelegate = replacement;
-	_floatPlayers->replaceDelegate(replacement);
-}
-
-void Application::restoreFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement) {
-	Expects(_floatPlayers != nullptr);
-
-	if (_replacementFloatPlayerDelegate == replacement) {
-		_replacementFloatPlayerDelegate = nullptr;
-		_floatPlayers->replaceDelegate(_defaultFloatPlayerDelegate);
+void Application::floatPlayerToggleGifsPaused(bool paused) {
+	_floatPlayerGifsPaused = paused;
+	if (_lastActiveWindow) {
+		if (const auto delegate = _lastActiveWindow->floatPlayerDelegate()) {
+			delegate->floatPlayerToggleGifsPaused(paused);
+		}
 	}
 }
 
@@ -1304,6 +1282,35 @@ bool Application::closeNonLastAsync(not_null<Window::Controller*> window) {
 	return true;
 }
 
+void Application::setLastActiveWindow(Window::Controller *window) {
+	_floatPlayerDelegateLifetime.destroy();
+
+	if (_floatPlayerGifsPaused && _lastActiveWindow) {
+		if (const auto delegate = _lastActiveWindow->floatPlayerDelegate()) {
+			delegate->floatPlayerToggleGifsPaused(false);
+		}
+	}
+	_lastActiveWindow = window;
+	if (!window) {
+		_floatPlayers = nullptr;
+		return;
+	}
+	window->floatPlayerDelegateValue(
+	) | rpl::start_with_next([=](Media::Player::FloatDelegate *value) {
+		if (!value) {
+			_floatPlayers = nullptr;
+		} else if (_floatPlayers) {
+			_floatPlayers->replaceDelegate(value);
+		} else if (value) {
+			_floatPlayers = std::make_unique<Media::Player::FloatController>(
+				value);
+		}
+		if (value && _floatPlayerGifsPaused) {
+			value->floatPlayerToggleGifsPaused(true);
+		}
+	}, _floatPlayerDelegateLifetime);
+}
+
 void Application::closeWindow(not_null<Window::Controller*> window) {
 	const auto next = (_primaryWindows.front().second.get() != window)
 		? _primaryWindows.front().second.get()
@@ -1314,7 +1321,7 @@ void Application::closeWindow(not_null<Window::Controller*> window) {
 		_lastActivePrimaryWindow = next;
 	}
 	if (_lastActiveWindow == window) {
-		_lastActiveWindow = next;
+		setLastActiveWindow(next);
 		if (_lastActiveWindow) {
 			_lastActiveWindow->activate();
 			_lastActiveWindow->widget()->updateGlobalMenu();
@@ -1371,7 +1378,8 @@ void Application::closeChatFromWindows(not_null<PeerData*> peer) {
 void Application::windowActivated(not_null<Window::Controller*> window) {
 	const auto was = _lastActiveWindow;
 	const auto now = window;
-	_lastActiveWindow = window;
+
+	setLastActiveWindow(window);
 
 	if (window->isPrimary()) {
 		_lastActivePrimaryWindow = window;

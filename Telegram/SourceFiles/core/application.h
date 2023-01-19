@@ -258,12 +258,7 @@ public:
 	[[nodiscard]] QString changelogLink() const;
 
 	// Float player.
-	void setDefaultFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> delegate);
-	void replaceFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement);
-	void restoreFloatPlayerDelegate(
-		not_null<Media::Player::FloatDelegate*> replacement);
+	void floatPlayerToggleGifsPaused(bool paused);
 	[[nodiscard]] rpl::producer<FullMsgId> floatPlayerClosed() const;
 
 	// Calls.
@@ -339,6 +334,7 @@ private:
 	void startSystemDarkModeViewer();
 	void startTray();
 
+	void setLastActiveWindow(Window::Controller *window);
 	void showAccount(not_null<Main::Account*> account);
 	void enumerateWindows(
 		Fn<void(not_null<Window::Controller*>)> callback) const;
@@ -412,8 +408,8 @@ private:
 	const std::unique_ptr<Tray> _tray;
 
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
-	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
-	Media::Player::FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
+	rpl::lifetime _floatPlayerDelegateLifetime;
+	bool _floatPlayerGifsPaused = false;
 
 	rpl::variable<bool> _passcodeLock;
 	bool _screenIsLocked = false;

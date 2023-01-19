@@ -89,7 +89,7 @@ Widget::Widget(
 		this,
 		account,
 		rpl::single(true))) {
-	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+	controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 
 	getData()->country = ComputeNewAccountCountry();
 
@@ -173,6 +173,9 @@ auto Widget::floatPlayerSectionDelegate()
 
 not_null<Ui::RpWidget*> Widget::floatPlayerWidget() {
 	return this;
+}
+
+void Widget::floatPlayerToggleGifsPaused(bool paused) {
 }
 
 auto Widget::floatPlayerGetSection(Window::Column column)

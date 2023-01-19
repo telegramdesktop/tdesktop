@@ -480,6 +480,40 @@ auto Controller::openInMediaViewRequests() const
 	return _openInMediaViewRequests.events();
 }
 
+void Controller::setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate) {
+	_defaultFloatPlayerDelegate = delegate;
+	_replacementFloatPlayerDelegate = nullptr;
+	_floatPlayerDelegate = delegate;
+}
+
+void Controller::replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_defaultFloatPlayerDelegate != nullptr);
+
+	_replacementFloatPlayerDelegate = replacement;
+	_floatPlayerDelegate = replacement;
+}
+
+void Controller::restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_defaultFloatPlayerDelegate != nullptr);
+
+	if (_replacementFloatPlayerDelegate == replacement) {
+		_replacementFloatPlayerDelegate = nullptr;
+		_floatPlayerDelegate = _defaultFloatPlayerDelegate;
+	}
+}
+
+auto Controller::floatPlayerDelegate() const -> FloatDelegate* {
+	return _floatPlayerDelegate.current();
+}
+
+auto Controller::floatPlayerDelegateValue() const
+-> rpl::producer<FloatDelegate*> {
+	return _floatPlayerDelegate.value();
+}
+
 rpl::lifetime &Controller::lifetime() {
 	return _lifetime;
 }

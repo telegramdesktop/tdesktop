@@ -20,6 +20,10 @@ namespace Media::View {
 struct OpenRequest;
 } // namespace Media::View
 
+namespace Media::Player {
+class FloatDelegate;
+} // namespace Media::Player
+
 namespace Window {
 
 class Controller final : public base::has_weak_ptr {
@@ -114,9 +118,20 @@ public:
 	[[nodiscard]] auto openInMediaViewRequests() const
 	-> rpl::producer<Media::View::OpenRequest>;
 
-	QPoint getPointForCallPanelCenter() const;
+	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
 
-	rpl::lifetime &lifetime();
+	using FloatDelegate = Media::Player::FloatDelegate;
+	void setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate);
+	void replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	void restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	[[nodiscard]] FloatDelegate *floatPlayerDelegate() const;
+	[[nodiscard]] auto floatPlayerDelegateValue() const
+		-> rpl::producer<FloatDelegate*>;
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	struct CreateArgs {
@@ -153,6 +168,10 @@ private:
 	QPointer<Ui::BoxContent> _termsBox;
 
 	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;
+
+	FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
+	FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
+	rpl::variable<FloatDelegate*> _floatPlayerDelegate = nullptr;
 
 	rpl::lifetime _accountLifetime;
 	rpl::lifetime _lifetime;

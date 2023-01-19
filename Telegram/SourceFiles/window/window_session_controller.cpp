@@ -745,10 +745,6 @@ SessionController::SessionController(
 		}
 	}, _lifetime);
 
-	if (Media::Player::instance()->pauseGifByRoundVideo()) {
-		enableGifPauseReason(GifPauseReason::RoundPlaying);
-	}
-
 	session->changes().peerUpdates(
 		Data::PeerUpdate::Flag::FullInfo
 	) | rpl::filter([=](const Data::PeerUpdate &update) {

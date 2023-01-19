@@ -166,8 +166,6 @@ public:
 	[[nodiscard]] rpl::producer<Seeking> seekingChanges(
 		AudioMsgId::Type type) const;
 
-	[[nodiscard]] bool pauseGifByRoundVideo() const;
-
 	[[nodiscard]] rpl::producer<> closePlayerRequests() const {
 		return _closePlayerRequests.events();
 	}

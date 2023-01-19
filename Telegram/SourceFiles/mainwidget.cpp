@@ -271,9 +271,9 @@ MainWidget::MainWidget(
 		_callTopBar->finishAnimating();
 	}
 
-	if (isPrimary()) {
-		Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
-	}
+	controller->window().setDefaultFloatPlayerDelegate(
+		floatPlayerDelegate());
+
 	Core::App().floatPlayerClosed(
 	) | rpl::start_with_next([=](FullMsgId itemId) {
 		floatPlayerClosed(itemId);
@@ -429,6 +429,15 @@ not_null<Media::Player::FloatDelegate*> MainWidget::floatPlayerDelegate() {
 
 not_null<Ui::RpWidget*> MainWidget::floatPlayerWidget() {
 	return this;
+}
+
+void MainWidget::floatPlayerToggleGifsPaused(bool paused) {
+	constexpr auto kReason = Window::GifPauseReason::RoundPlaying;
+	if (paused) {
+		_controller->enableGifPauseReason(kReason);
+	} else {
+		_controller->disableGifPauseReason(kReason);
+	}
 }
 
 auto MainWidget::floatPlayerGetSection(Window::Column column)
