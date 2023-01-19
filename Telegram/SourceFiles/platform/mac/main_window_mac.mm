@@ -131,10 +131,14 @@ namespace Platform {
 namespace {
 
 void SendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-	const auto focused = QApplication::focusWidget();
-	if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || dynamic_cast<HistoryInner*>(focused)) {
-		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
-		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
+	const auto focused = static_cast<QObject*>(QApplication::focusWidget());
+	if (qobject_cast<QLineEdit*>(focused)
+		|| qobject_cast<QTextEdit*>(focused)
+		|| dynamic_cast<HistoryInner*>(focused)) {
+		QKeyEvent pressEvent(QEvent::KeyPress, key, modifiers);
+		focused->event(&pressEvent);
+		QKeyEvent releaseEvent(QEvent::KeyRelease, key, modifiers);
+		focused->event(&releaseEvent);
 	}
 }
 
