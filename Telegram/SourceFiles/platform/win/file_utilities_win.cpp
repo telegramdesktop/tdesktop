@@ -230,7 +230,10 @@ bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
 			menuInfo.dwTypeData = nameArr;
 			InsertMenuItem(menu, GetMenuItemCount(menu), TRUE, &menuInfo);
 
-			int sel = TrackPopupMenu(menu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON | TPM_RETURNCMD, menuPosition.x(), menuPosition.y(), 0, parentHWND, 0);
+			// menuPosition is incorrect because of devicePixelRatio :(
+			POINT position;
+			GetCursorPos(&position);
+			int sel = TrackPopupMenu(menu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON | TPM_RETURNCMD, position.x, position.y, 0, parentHWND, 0);
 			DestroyMenu(menu);
 
 			if (sel > 0) {
