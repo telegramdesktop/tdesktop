@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_float.h"
 #include "media/clip/media_clip_reader.h" // For Media::Clip::Finish().
+#include "media/system_media_controls_manager.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/window_lock_widgets.h"
@@ -147,6 +148,9 @@ Application::Application(not_null<Launcher*> launcher)
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
+, _mediaControlsManager(MediaControlsManager::Supported()
+	? std::make_unique<MediaControlsManager>()
+	: nullptr)
 , _downloadManager(std::make_unique<Data::DownloadManager>())
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _exportManager(std::make_unique<Export::Manager>())
@@ -484,25 +488,31 @@ void Application::startTray() {
 
 	_tray->showFromTrayRequests(
 	) | rpl::start_with_next([=] {
-		const auto last = _lastActiveWindow;
-		const auto primary = _lastActivePrimaryWindow;
-		enumerateWindows([&](WindowRaw w) {
-			if (w != last && w != primary) {
-				w->widget()->showFromTray();
-			}
-		});
-		if (primary) {
-			primary->widget()->showFromTray();
-		}
-		if (last && last != primary) {
-			last->widget()->showFromTray();
-		}
+		activate();
 	}, _lifetime);
 
 	_tray->hideToTrayRequests(
 	) | rpl::start_with_next([=] {
-		enumerateWindows([&](WindowRaw w) { w->widget()->minimizeToTray(); });
+		enumerateWindows([&](WindowRaw w) {
+			w->widget()->minimizeToTray();
+		});
 	}, _lifetime);
+}
+
+void Application::activate() {
+	const auto last = _lastActiveWindow;
+	const auto primary = _lastActivePrimaryWindow;
+	enumerateWindows([&](not_null<Window::Controller*> w) {
+		if (w != last && w != primary) {
+			w->widget()->showFromTray();
+		}
+	});
+	if (primary) {
+		primary->widget()->showFromTray();
+	}
+	if (last && last != primary) {
+		last->widget()->showFromTray();
+	}
 }
 
 auto Application::prepareEmojiSourceImages()

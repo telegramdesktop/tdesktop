@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h" // Stickers::setsRef()
 #include "main/main_domain.h"
 #include "main/main_session.h"
-#include "mainwidget.h" // MainWidget::closeBothPlayers
 #include "media/audio/media_audio_capture.h"
 #include "media/player/media_player_instance.h"
 #include "platform/mac/touchbar/mac_touchbar_audio.h"
@@ -171,9 +170,7 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 			autorelease];
 		item.groupTouchBar = touchBar;
 		[touchBar closeRequests] | rpl::start_with_next([=] {
-			if (const auto session = _controller->sessionController()) {
-				session->content()->closeBothPlayers();
-			}
+			Media::Player::instance()->stopAndClose();
 		}, [item lifetime]);
 		return [item autorelease];
 	}

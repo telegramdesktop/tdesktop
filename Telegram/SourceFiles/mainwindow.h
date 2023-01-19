@@ -19,10 +19,6 @@ class Widget;
 enum class EnterPoint : uchar;
 } // namespace Intro
 
-namespace Media {
-class SystemMediaControlsManager;
-} // namespace Media
-
 namespace Window {
 class MediaPreviewWidget;
 class SectionMemento;
@@ -135,8 +131,6 @@ private:
 		anim::type animated);
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
-
-	std::unique_ptr<Media::SystemMediaControlsManager> _mediaControlsManager;
 
 	QPoint _lastMousePosition;
 

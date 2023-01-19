@@ -71,6 +71,7 @@ namespace Player {
 class FloatController;
 class FloatDelegate;
 } // namespace Player
+class SystemMediaControlsManager;
 } // namespace Media
 
 namespace Lang {
@@ -180,6 +181,7 @@ public:
 	void checkSystemDarkMode();
 	[[nodiscard]] bool isActiveForTrayMenu() const;
 	void closeChatFromWindows(not_null<PeerData*> peer);
+	void activate();
 
 	// Media view interface.
 	bool hideMediaView();
@@ -384,6 +386,8 @@ private:
 	// Mutable because is created in run() after OpenSSL is inited.
 	std::unique_ptr<Window::Notifications::System> _notifications;
 
+	using MediaControlsManager = Media::SystemMediaControlsManager;
+	const std::unique_ptr<MediaControlsManager> _mediaControlsManager;
 	const std::unique_ptr<Data::DownloadManager> _downloadManager;
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;

@@ -1280,6 +1280,15 @@ bool Instance::pauseGifByRoundVideo() const {
 	return _roundPlaying;
 }
 
+void Instance::stopAndClose() {
+	_closePlayerRequests.fire({});
+
+	stop(AudioMsgId::Type::Voice);
+	stop(AudioMsgId::Type::Song);
+
+	Shortcuts::ToggleMediaShortcuts(false);
+}
+
 void Instance::handleStreamingUpdate(
 		not_null<Data*> data,
 		Streaming::Update &&update) {
