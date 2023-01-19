@@ -387,7 +387,7 @@ private:
 	std::unique_ptr<Window::Notifications::System> _notifications;
 
 	using MediaControlsManager = Media::SystemMediaControlsManager;
-	const std::unique_ptr<MediaControlsManager> _mediaControlsManager;
+	std::unique_ptr<MediaControlsManager> _mediaControlsManager;
 	const std::unique_ptr<Data::DownloadManager> _downloadManager;
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;

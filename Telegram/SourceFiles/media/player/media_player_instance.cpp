@@ -765,6 +765,7 @@ auto Media::Player::Instance::seekingChanges(AudioMsgId::Type type) const
 
 not_null<Instance*> instance() {
 	Expects(SingleInstance != nullptr);
+
 	return SingleInstance;
 }
 

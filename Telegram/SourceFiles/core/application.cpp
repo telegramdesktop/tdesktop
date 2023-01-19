@@ -148,9 +148,6 @@ Application::Application(not_null<Launcher*> launcher)
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
-, _mediaControlsManager(MediaControlsManager::Supported()
-	? std::make_unique<MediaControlsManager>()
-	: nullptr)
 , _downloadManager(std::make_unique<Data::DownloadManager>())
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _exportManager(std::make_unique<Export::Manager>())
@@ -216,6 +213,8 @@ Application::~Application() {
 
 	Window::Theme::Uninitialize();
 
+	_mediaControlsManager = nullptr;
+
 	Media::Player::finish(_audio.get());
 	style::stopManager();
 
@@ -266,6 +265,10 @@ void Application::run() {
 	startEmojiImageLoader();
 	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());
+
+	if (MediaControlsManager::Supported()) {
+		_mediaControlsManager = std::make_unique<MediaControlsManager>();
+	}
 
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=](bool playing) {
