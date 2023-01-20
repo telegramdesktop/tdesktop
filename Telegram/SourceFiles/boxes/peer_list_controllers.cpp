@@ -633,10 +633,13 @@ auto ChooseTopicBoxController::Row::generatePaintUserpicCallback(
 			int y,
 			int outerWidth,
 			int size) {
+		const auto &st = st::forumTopicRow;
+		x -= st.padding.left();
+		y -= st.padding.top();
 		auto view = Ui::PeerUserpicView();
 		p.translate(x, y);
 		_topic->paintUserpic(p, view, {
-			.st = &st::forumTopicRow,
+			.st = &st,
 			.currentBg = st::windowBg,
 			.now = crl::now(),
 			.width = outerWidth,

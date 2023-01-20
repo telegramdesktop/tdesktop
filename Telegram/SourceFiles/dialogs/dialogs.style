@@ -475,8 +475,8 @@ editTopicMaxHeight: 408px;
 
 chooseTopicListItem: PeerListItem(defaultPeerListItem) {
 	height: 44px;
-	photoSize: 28px;
-	photoPosition: point(8px, 5px);
+	photoSize: 20px;
+	photoPosition: point(16px, 12px);
 	namePosition: point(55px, 11px);
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
