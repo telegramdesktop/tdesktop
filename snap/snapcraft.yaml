@@ -77,10 +77,8 @@ slots:
     name: tdesktop
 
 layout:
-  /usr/share/alsa:
-    bind: $SNAP/usr/share/alsa
-  /usr/share/X11:
-    bind: $SNAP/usr/share/X11
+  /usr/share:
+    bind: $SNAP/usr/share
   /usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2
   /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
@@ -311,8 +309,8 @@ parts:
     stage-packages:
       - libasound2
       - libdbus-1-3
-      - libpipewire-0.3-0
       - libpulse0
+      - pipewire
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -547,7 +545,6 @@ parts:
       - libglib2.0-0
       - libopenh264-6
       - libopus0
-      - libpipewire-0.3-0
       - libvpx7
       - libx11-6
       - libxcomposite1
@@ -557,6 +554,7 @@ parts:
       - libxrender1
       - libxrandr2
       - libxtst6
+      - pipewire
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
