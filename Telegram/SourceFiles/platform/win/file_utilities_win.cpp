@@ -142,7 +142,7 @@ void UnsafeOpenEmailLink(const QString &email) {
 	}
 }
 
-bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
+bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 	if (!Dlls::SHAssocEnumHandlers || !Dlls::SHCreateItemFromParsingName) {
 		return false;
 	}
@@ -230,7 +230,6 @@ bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
 			menuInfo.dwTypeData = nameArr;
 			InsertMenuItem(menu, GetMenuItemCount(menu), TRUE, &menuInfo);
 
-			// menuPosition is incorrect because of devicePixelRatio :(
 			POINT position;
 			GetCursorPos(&position);
 			int sel = TrackPopupMenu(menu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON | TPM_RETURNCMD, position.x, position.y, 0, parentHWND, 0);

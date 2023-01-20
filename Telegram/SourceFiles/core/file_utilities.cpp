@@ -138,9 +138,9 @@ void OpenEmailLink(const QString &email) {
 	});
 }
 
-void OpenWith(const QString &filepath, QPoint menuPosition) {
+void OpenWith(const QString &filepath) {
 	InvokeQueued(QCoreApplication::instance(), [=] {
-		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath, menuPosition)) {
+		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath)) {
 			Ui::PreventDelayedActivation();
 			if (!Platform::File::UnsafeShowOpenWith(filepath)) {
 				Platform::File::UnsafeLaunch(filepath);
