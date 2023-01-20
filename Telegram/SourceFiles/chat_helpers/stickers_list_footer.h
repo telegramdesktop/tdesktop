@@ -48,6 +48,7 @@ enum class ValidateIconAnimations {
 [[nodiscard]] uint64 EmojiSectionSetId(Ui::Emoji::Section section);
 [[nodiscard]] uint64 RecentEmojiSectionSetId();
 [[nodiscard]] uint64 AllEmojiSectionSetId();
+[[nodiscard]] uint64 SearchEmojiSectionSetId();
 [[nodiscard]] std::optional<Ui::Emoji::Section> SetIdEmojiSection(uint64 id);
 
 struct StickerIcon {
@@ -99,7 +100,6 @@ public:
 		not_null<Main::Session*> session;
 		Fn<bool()> paused;
 		not_null<RpWidget*> parent;
-		bool searchButtonVisible = false;
 		bool settingsButtonVisible = false;
 		bool barSelection = false;
 		const style::EmojiPan *st = nullptr;
@@ -153,7 +153,6 @@ protected:
 private:
 	enum class SpecialOver {
 		None,
-		Search,
 		Settings,
 	};
 	struct IconId {
@@ -227,7 +226,6 @@ private:
 
 	void paint(Painter &p, const ExpandingContext &context) const;
 	void paintStickerSettingsIcon(QPainter &p) const;
-	void paintSearchIcon(QPainter &p) const;
 	void paintSetIcon(
 		Painter &p,
 		const ExpandingContext &context,
@@ -254,7 +252,6 @@ private:
 
 	const not_null<Main::Session*> _session;
 	const Fn<bool()> _paused;
-	const bool _searchButtonVisible = false;
 	const bool _settingsButtonVisible = false;
 
 	static constexpr auto kVisibleIconsCount = 8;

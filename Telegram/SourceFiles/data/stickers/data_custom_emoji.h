@@ -52,6 +52,10 @@ public:
 		SizeTag tag = SizeTag::Normal,
 		int sizeOverride = 0);
 
+	[[nodiscard]] Ui::Text::CustomEmojiFactory factory(
+		SizeTag tag = SizeTag::Normal,
+		int sizeOverride = 0);
+
 	class Listener {
 	public:
 		virtual void customEmojiResolveDone(

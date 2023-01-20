@@ -264,7 +264,6 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 		.session = &session(),
 		.paused = pausedMethod(),
 		.parent = this,
-		.searchButtonVisible = !_isMasks,
 		.settingsButtonVisible = true,
 		.barSelection = true,
 	});

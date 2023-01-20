@@ -474,6 +474,14 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		std::move(update));
 }
 
+Ui::Text::CustomEmojiFactory CustomEmojiManager::factory(
+		SizeTag tag,
+		int sizeOverride) {
+	return [=](QStringView data, Fn<void()> update) {
+		return create(data, std::move(update), tag, sizeOverride);
+	};
+}
+
 Ui::CustomEmoji::Preview CustomEmojiManager::prepareNonExactPreview(
 		DocumentId documentId,
 		SizeTag tag,

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 
 #include "base/unixtime.h"
+#include "ui/controls/tabbed_search.h"
 #include "ui/text/format_values.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/buttons.h"
@@ -23,11 +24,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_position.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_peer_values.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/stickers_list_footer.h"
 #include "emoji_suggestions_data.h"
@@ -44,6 +47,8 @@ namespace {
 
 constexpr auto kCollapsedRows = 3;
 constexpr auto kAppearDuration = 0.3;
+constexpr auto kPlainSearchLimit = 32;
+constexpr auto kCustomSearchLimit = 256;
 
 using Core::RecentEmojiId;
 using Core::RecentEmojiDocument;
@@ -402,6 +407,10 @@ EmojiListWidget::EmojiListWidget(
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 
+	if (_mode != Mode::RecentReactions) {
+		setupSearch();
+	}
+
 	_customSingleSize = Data::FrameSizeFromTag(
 		Data::CustomEmojiManager::SizeTag::Large
 	) / style::DevicePixelRatio();
@@ -457,6 +466,142 @@ EmojiListWidget::~EmojiListWidget() {
 	base::take(_customEmoji);
 }
 
+void EmojiListWidget::setupSearch() {
+	using Descriptor = Ui::SearchDescriptor;
+	_search = std::make_unique<Ui::TabbedSearch>(this, st(), Descriptor{
+		.st = st().search,
+		.groups = (_mode == Mode::EmojiStatus
+			? session().data().emojiStatuses().statusGroupsValue()
+			: session().data().emojiStatuses().emojiGroupsValue()),
+		.customEmojiFactory = session().data().customEmojiManager().factory()
+	});
+	_search->queryValue(
+	) | rpl::start_with_next([=](std::vector<QString> &&query) {
+		_nextSearchQuery = std::move(query);
+		InvokeQueued(this, [=] {
+			applyNextSearchQuery();
+		});
+	}, lifetime());
+}
+
+void EmojiListWidget::applyNextSearchQuery() {
+	if (_searchQuery == _nextSearchQuery) {
+		return;
+	}
+	_searchQuery = _nextSearchQuery;
+	std::swap(_searchEmoji, _searchEmojiPrevious);
+	_searchEmoji.clear();
+	const auto finish = [&](bool searching = true) {
+		if (!_searchMode && !searching) {
+			return;
+		}
+		_searchMode = searching;
+		if (!searching) {
+			_searchResults.clear();
+			_searchCustomIds.clear();
+		}
+		clearSelection();
+		resizeToWidth(width());
+		update();
+	};
+	if (_searchQuery.empty()) {
+		finish(false);
+		return;
+	}
+	const auto guard = gsl::finally([&] { finish(); });
+	auto plain = collectPlainSearchResults();
+	if (_searchEmoji == _searchEmojiPrevious) {
+		return;
+	}
+	_searchResults.clear();
+	_searchCustomIds.clear();
+	if (_mode == Mode::EmojiStatus || session().premium()) {
+		appendPremiumSearchResults();
+	}
+	if (_mode != Mode::EmojiStatus) {
+		for (const auto emoji : plain) {
+			_searchResults.push_back({
+				.id = { emoji },
+			});
+		}
+	}
+}
+
+std::vector<EmojiPtr> EmojiListWidget::collectPlainSearchResults() {
+	auto result = std::vector<EmojiPtr>();
+	const auto pushPlain = [&](EmojiPtr emoji) {
+		if (result.size() < kPlainSearchLimit
+			&& _searchEmoji.emplace(emoji).second) {
+			result.push_back(emoji);
+		}
+		if (const auto original = emoji->original(); original != emoji) {
+			_searchEmoji.emplace(original);
+		}
+	};
+	auto refreshed = false;
+	auto &keywords = Core::App().emojiKeywords();
+	for (const auto &entry : _searchQuery) {
+		if (const auto emoji = Ui::Emoji::Find(entry)) {
+			pushPlain(emoji);
+			if (result.size() >= kPlainSearchLimit) {
+				return result;
+			}
+		} else if (!entry.isEmpty()) {
+			if (!refreshed) {
+				refreshed = true;
+				keywords.refresh();
+			}
+			const auto list = keywords.queryMine(entry);
+			for (const auto &entry : list) {
+				pushPlain(entry.emoji);
+				if (result.size() >= kPlainSearchLimit) {
+					return result;
+				}
+			}
+		}
+	}
+	return result;
+}
+
+void EmojiListWidget::appendPremiumSearchResults() {
+	const auto test = session().isTestMode();
+	auto &owner = session().data();
+	const auto checkCustom = [&](EmojiPtr emoji, DocumentId id) {
+		return emoji
+			&& _searchEmoji.contains(emoji)
+			&& (_searchResults.size() < kCustomSearchLimit)
+			&& _searchCustomIds.emplace(id).second;
+	};
+	for (const auto &recent : _recent) {
+		if (!recent.custom) {
+			continue;
+		}
+		const auto &idData = recent.id.data;
+		const auto id = std::get_if<Core::RecentEmojiDocument>(&idData);
+		if (!id || id->test != test) {
+			continue;
+		}
+		const auto sticker = owner.document(id->id)->sticker();
+		const auto emoji = sticker
+			? Ui::Emoji::Find(sticker->alt)
+			: nullptr;
+		if (checkCustom(emoji, id->id)) {
+			_searchResults.push_back(recent);
+		}
+	}
+	for (const auto &set : _custom) {
+		for (const auto &one : set.list) {
+			const auto id = one.document->id;
+			if (checkCustom(one.emoji, id)) {
+				_searchResults.push_back({
+					.custom = one.custom,
+					.id = { RecentEmojiDocument{ .id = id, .test = test } },
+				});
+			}
+		}
+	}
+}
+
 void EmojiListWidget::provideRecent(
 		const std::vector<DocumentId> &customRecentList) {
 	clearSelection();
@@ -466,6 +611,13 @@ void EmojiListWidget::provideRecent(
 
 void EmojiListWidget::repaintCustom(uint64 setId) {
 	if (!_repaintsScheduled.emplace(setId).second) {
+		return;
+	}
+	const auto repaintSearch = (setId == SearchEmojiSectionSetId());
+	if (_searchMode) {
+		if (repaintSearch) {
+			update();
+		}
 		return;
 	}
 	const auto repaintRecent = (setId == RecentEmojiSectionSetId());
@@ -600,7 +752,7 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 			? kCollapsedRows
 			: (info.count + _columnCount - 1) / _columnCount;
 		info.rowsTop = info.top
-			+ (i == 0 ? st().padding.top() : st().header);
+			+ (i == 0 ? _rowsTop : st().header);
 		info.rowsBottom = info.rowsTop
 			+ (info.rowsCount * _singleSize.height())
 			+ st::roundRadiusSmall;
@@ -610,6 +762,11 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 		info.top = info.rowsBottom;
 		return true;
 	};
+	if (_searchMode) {
+		info.section = i;
+		info.count = _searchResults.size();
+		return next();
+	}
 	for (; i != _staticCount; ++i) {
 		info.section = i;
 		info.count = i ? _counts[i] : _recent.size();
@@ -660,7 +817,7 @@ EmojiListWidget::SectionInfo EmojiListWidget::sectionInfoByOffset(
 }
 
 int EmojiListWidget::sectionsCount() const {
-	return _staticCount + int(_custom.size());
+	return _searchMode ? 1 : (_staticCount + int(_custom.size()));
 }
 
 void EmojiListWidget::setSingleSize(QSize size) {
@@ -686,6 +843,7 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 	const auto innerWidth = fullWidth - padding.left() - padding.right();
 	_columnCount = std::max(innerWidth / st().desiredSize, 1);
 	const auto singleWidth = innerWidth / _columnCount;
+	_rowsTop = _search ? _search->height() : padding.top();
 	_rowsLeft = padding.left()
 		+ (innerWidth - _columnCount * singleWidth) / 2
 		- st().margin.left();
@@ -698,9 +856,12 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 		return info.top
 			+ qMax(info.rowsBottom - info.top, minimalLastHeight);
 	};
-	const auto minimalLastHeight = minimalHeight;
-	return qMax(minimalHeight, countResult(minimalLastHeight))
-		+ padding.bottom();
+	const auto minimalLastHeight = std::max(
+		minimalHeight - padding.bottom(),
+		0);
+	return qMax(
+		minimalHeight,
+		countResult(minimalLastHeight) + padding.bottom());
 }
 
 int EmojiListWidget::defaultMinimalHeight() const {
@@ -953,7 +1114,7 @@ void EmojiListWidget::paint(
 					);
 					const auto w = position + _areaPosition;
 					if (context.expanding) {
-						const auto y = (position.y() - st().padding.top());
+						const auto y = (position.y() - _rowsTop);
 						const auto x = (position.x() - _rowsLeft);
 						const auto sum = y
 							+ std::max(std::min(y, width()) - x, 0);
@@ -981,8 +1142,10 @@ void EmojiListWidget::paint(
 						}
 						_overBg.paint(p, QRect(tl, st::emojiPanArea));
 					}
-					if (info.section == int(Section::Recent)) {
-						drawRecent(p, context, w, index);
+					if (_searchMode) {
+						drawRecent(p, context, w, _searchResults[index]);
+					} else if (info.section == int(Section::Recent)) {
+						drawRecent(p, context, w, _recent[index]);
 					} else if (info.section < _staticCount) {
 						drawEmoji(p, context, w, _emoji[info.section][index]);
 					} else {
@@ -1020,9 +1183,8 @@ void EmojiListWidget::drawRecent(
 		QPainter &p,
 		const ExpandingContext &context,
 		QPoint position,
-		int index) {
+		const RecentOne &recent) {
 	_recentPainted = true;
-	auto &recent = _recent[index];
 	if (const auto custom = recent.custom) {
 		_emojiPaintContext->scale = context.progress;
 		_emojiPaintContext->position = position
@@ -1032,8 +1194,8 @@ void EmojiListWidget::drawRecent(
 	} else if (const auto emoji = std::get_if<EmojiPtr>(&recent.id.data)) {
 		if (_mode == Mode::EmojiStatus) {
 			position += QPoint(
-				(_singleSize.width() - st::stickersPremium.width()) / 2,
-				(_singleSize.height() - st::stickersPremium.height()) / 2
+				(_singleSize.width() - st::emojiStatusDefault.width()) / 2,
+				(_singleSize.height() - st::emojiStatusDefault.height()) / 2
 			) - _areaPosition;
 			p.drawImage(position, _premiumIcon->image());
 		} else {
@@ -1087,7 +1249,16 @@ bool EmojiListWidget::checkPickerHide() {
 DocumentData *EmojiListWidget::lookupCustomEmoji(
 		int index,
 		int section) const {
-	if (section == int(Section::Recent) && index < _recent.size()) {
+	if (_searchMode) {
+		if (index < _searchResults.size()) {
+			const auto document = std::get_if<RecentEmojiDocument>(
+				&_searchResults[index].id.data);
+			if (document) {
+				return session().data().document(document->id);
+			}
+		}
+		return nullptr;
+	} else if (section == int(Section::Recent) && index < _recent.size()) {
 		const auto document = std::get_if<RecentEmojiDocument>(
 			&_recent[index].id.data);
 		if (document) {
@@ -1104,9 +1275,14 @@ DocumentData *EmojiListWidget::lookupCustomEmoji(
 EmojiPtr EmojiListWidget::lookupOverEmoji(const OverEmoji *over) const {
 	const auto section = over ? over->section : -1;
 	const auto index = over ? over->index : -1;
-	return (section == int(Section::Recent)
-		&& index < _recent.size()
-		&& v::is<EmojiPtr>(_recent[index].id.data))
+	return _searchMode
+		? ((index < _searchResults.size()
+			&& v::is<EmojiPtr>(_searchResults[index].id.data))
+			? v::get<EmojiPtr>(_searchResults[index].id.data)
+			: nullptr)
+		: (section == int(Section::Recent)
+			&& index < _recent.size()
+			&& v::is<EmojiPtr>(_recent[index].id.data))
 		? v::get<EmojiPtr>(_recent[index].id.data)
 		: (section > int(Section::Recent)
 			&& section < _staticCount
@@ -1119,9 +1295,10 @@ EmojiChosen EmojiListWidget::lookupChosen(
 		EmojiPtr emoji,
 		not_null<const OverEmoji*> over) {
 	const auto rect = emojiRect(over->section, over->index);
+	const auto size = st::emojiStatusDefault.size();
 	const auto icon = QRect(
-		rect.x() + (_singleSize.width() - st::stickersPremium.width()) / 2,
-		rect.y() + (_singleSize.height() - st::stickersPremium.height()) / 2,
+		rect.x() + (_singleSize.width() - size.width()) / 2,
+		rect.y() + (_singleSize.height() - size.height()) / 2,
 		rect.width(),
 		rect.height());
 	return {
@@ -1622,10 +1799,11 @@ void EmojiListWidget::refreshCustom() {
 		auto set = std::vector<CustomOne>();
 		set.reserve(list.size());
 		for (const auto document : list) {
-			if (document->sticker()) {
+			if (const auto sticker = document->sticker()) {
 				set.push_back({
 					.custom = resolveCustomEmoji(document, setId),
 					.document = document,
+					.emoji = Ui::Emoji::Find(sticker->alt),
 				});
 				if (!premium && document->isPremiumEmoji()) {
 					premium = true;
@@ -1667,6 +1845,9 @@ Fn<void()> EmojiListWidget::repaintCallback(
 		repaintCustom(setId);
 		if (_recentCustomIds.contains(documentId)) {
 			repaintCustom(RecentEmojiSectionSetId());
+		}
+		if (_searchCustomIds.contains(documentId)) {
+			repaintCustom(SearchEmojiSectionSetId());
 		}
 	};
 }

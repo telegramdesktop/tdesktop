@@ -322,11 +322,9 @@ void InitMessageFieldHandlers(
 		const style::InputField *fieldStyle) {
 	field->setTagMimeProcessor(
 		FieldTagMimeProcessor(session, allowPremiumEmoji));
-	field->setCustomEmojiFactory([=](QStringView data, Fn<void()> update) {
-		return session->data().customEmojiManager().create(
-			data,
-			std::move(update));
-	}, std::move(customEmojiPaused));
+	field->setCustomEmojiFactory(
+		session->data().customEmojiManager().factory(),
+		std::move(customEmojiPaused));
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());

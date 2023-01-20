@@ -1020,7 +1020,7 @@ void TabbedSelector::fillTabsSliderSections() {
 				return tr::lng_switch_masks;
 			}
 			Unexpected("SelectorTab value in fillTabsSliderSections.");
-		}()(tr::now).toUpper();
+		}()(tr::now);
 	}) | ranges::to_vector;
 	_tabsSlider->setSections(sections);
 }

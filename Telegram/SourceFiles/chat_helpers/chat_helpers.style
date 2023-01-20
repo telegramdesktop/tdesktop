@@ -10,6 +10,22 @@ using "ui/basic.style";
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
 
+TabbedSearch {
+	outer: color;
+	bg: color;
+	fg: color;
+	fgActive: color;
+	fadeLeft: icon;
+	fadeRight: icon;
+	field: InputField;
+	search: IconButton;
+	back: IconButton;
+	cancel: CrossButton;
+	defaultFieldWidth: pixels;
+	groupWidth: pixels;
+	height: pixels;
+}
+
 EmojiPan {
 	margin: margins;
 	padding: margins;
@@ -28,6 +44,8 @@ EmojiPan {
 	overBg: color;
 	fadeLeft: icon;
 	fadeRight: icon;
+	search: TabbedSearch;
+	searchMargin: margins;
 }
 
 switchPmButton: RoundButton(defaultBoxButton) {
@@ -132,8 +150,7 @@ stickersTrendingUnread: icon {
 	{ "emoji/stickers_add_dot", dialogsUnreadBg }
 };
 stickersRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
-stickersSearch: icon {{ "emoji/stickers_search", emojiIconFg }};
-stickersPremium: icon {{ "emoji/stickers_premium", emojiIconFg }};
+emojiStatusDefault: icon {{ "emoji/stickers_premium", emojiIconFg }};
 
 stickersSettingsUnreadSize: 6px;
 stickersSettingsUnreadPosition: point(6px, 10px);
@@ -145,27 +162,27 @@ filtersRemove: IconButton(stickersRemove) {
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
 emojiTabs: SettingsSlider(defaultTabsSlider) {
-	height: 55px;
-	barTop: 52px;
-	labelTop: 19px;
+	height: 45px;
+	barTop: 42px;
+	labelTop: 13px;
 }
 emojiScroll: defaultSolidScroll;
 emojiRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
 emojiRecentActive: icon {{ "emoji/emoji_recent", emojiSubIconFgActive }};
-emojiPeople: icon {{ "emoji/emoji_people", emojiIconFg }};
-emojiPeopleActive: icon {{ "emoji/emoji_people", emojiSubIconFgActive }};
+emojiPeople: icon {{ "emoji/emoji_smile", emojiIconFg }};
+emojiPeopleActive: icon {{ "emoji/emoji_smile", emojiSubIconFgActive }};
 emojiNature: icon {{ "emoji/emoji_nature", emojiIconFg }};
 emojiNatureActive: icon {{ "emoji/emoji_nature", emojiSubIconFgActive }};
 emojiFood: icon {{ "emoji/emoji_food", emojiIconFg }};
 emojiFoodActive: icon {{ "emoji/emoji_food", emojiSubIconFgActive }};
-emojiActivity: icon {{ "emoji/emoji_activity", emojiIconFg }};
-emojiActivityActive: icon {{ "emoji/emoji_activity", emojiSubIconFgActive }};
+emojiActivity: icon {{ "emoji/emoji_activities", emojiIconFg }};
+emojiActivityActive: icon {{ "emoji/emoji_activities", emojiSubIconFgActive }};
 emojiTravel: icon {{ "emoji/emoji_travel", emojiIconFg }};
 emojiTravelActive: icon {{ "emoji/emoji_travel", emojiSubIconFgActive }};
 emojiObjects: icon {{ "emoji/emoji_objects", emojiIconFg }};
 emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiSubIconFgActive }};
-emojiSymbols: icon {{ "emoji/emoji_symbols", emojiIconFg }};
-emojiSymbolsActive: icon {{ "emoji/emoji_symbols", emojiSubIconFgActive }};
+emojiSymbols: icon {{ "emoji/emoji_love", emojiIconFg }};
+emojiSymbolsActive: icon {{ "emoji/emoji_love", emojiSubIconFgActive }};
 
 emojiCategoryIconTop: 6px;
 emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
@@ -185,6 +202,37 @@ emojiPanLeft: 13px;
 emojiPanRight: 17px;
 emojiPanRadius: 8px;
 
+defaultTabbedSearch: TabbedSearch {
+	outer: emojiPanBg;
+	bg: emojiPanCategories;
+	fg: emojiIconFg;
+	fgActive: emojiSubIconFgActive;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
+	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
+	field: InputField(defaultMultiSelectSearchField) {
+		textMargins: margins(2px, 7px, 2px, 0px);
+	}
+	search: IconButton(defaultIconButton) {
+		width: 33px;
+		height: 33px;
+		icon: icon{{ "emoji/emoji_search_input", emojiIconFg }};
+		iconOver: icon{{ "emoji/emoji_search_input", emojiIconFg }};
+		iconPosition: point(12px, -1px);
+		ripple: emptyRippleAnimation;
+	}
+	back: IconButton(defaultIconButton) {
+		width: 33px;
+		height: 33px;
+		icon: icon{{ "emoji/emoji_back", menuIconFg }};
+		iconOver: icon{{ "emoji/emoji_back", menuIconFg }};
+		iconPosition: point(12px, -1px);
+		ripple: emptyRippleAnimation;
+	}
+	cancel: defaultMultiSelectSearchCancel;
+	defaultFieldWidth: 95px;
+	groupWidth: 30px;
+	height: 33px;
+}
 defaultEmojiPan: EmojiPan {
 	margin: margins(roundRadiusSmall, 0px, 14px, 0px);
 	padding: margins(13px, 12px, 17px, 12px);
@@ -203,6 +251,8 @@ defaultEmojiPan: EmojiPan {
 	overBg: emojiPanHover;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
+	search: defaultTabbedSearch;
+	searchMargin: margins(6px, 10px, 6px, 10px);
 }
 
 inlineResultsMinHeight: 278px;
@@ -215,13 +265,6 @@ emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
 emojiColorsSepColor: shadowFg;
 
-emojiSwitchSkip: 27px;
-emojiSwitchImgSkip: 21px;
-emojiSwitchColor: windowActiveTextFg;
-emojiSwitchStickers: icon {{ "emoji/emoji_switch", emojiSwitchColor }};
-emojiSwitchEmoji: icon {{ "emoji/emoji_switch-flip_horizontal", emojiSwitchColor }};
-
-emojiIconPadding: 7px;
 emojiIconSelectSkip: 3px;
 emojiPremiumRequired: icon{{ "emoji/premium_lock", windowSubTextFg }};
 

@@ -71,6 +71,12 @@ uint64 AllEmojiSectionSetId() {
 	return kEmojiSectionSetIdBase;
 }
 
+uint64 SearchEmojiSectionSetId() {
+	return kEmojiSectionSetIdBase
+		+ static_cast<uint64>(EmojiSection::Symbols)
+		+ 2;
+}
+
 std::optional<EmojiSection> SetIdEmojiSection(uint64 id) {
 	const auto base = RecentEmojiSectionSetId();
 	if (id < base) {
@@ -161,8 +167,8 @@ QImage GradientPremiumStar::image() const {
 }
 
 void GradientPremiumStar::renderOnDemand() const {
-	const auto size = st::stickersPremium.size();
-	const auto mask = st::stickersPremium.instance(Qt::white);
+	const auto size = st::emojiStatusDefault.size();
+	const auto mask = st::emojiStatusDefault.instance(Qt::white);
 	const auto factor = style::DevicePixelRatio();
 	_image = QImage(
 		size * factor,
@@ -188,7 +194,6 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 	descriptor.st ? *descriptor.st : st::defaultEmojiPan)
 , _session(descriptor.session)
 , _paused(descriptor.paused)
-, _searchButtonVisible(descriptor.searchButtonVisible)
 , _settingsButtonVisible(descriptor.settingsButtonVisible)
 , _iconState([=] { update(); })
 , _subiconState([=] { update(); })
@@ -197,9 +202,7 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 , _barSelection(descriptor.barSelection) {
 	setMouseTracking(true);
 
-	_iconsLeft = st().iconSkip + (_searchButtonVisible
-		? st::stickerIconWidth
-		: 0);
+	_iconsLeft = st().iconSkip;
 	_iconsRight = st().iconSkip + (_settingsButtonVisible
 		? st::stickerIconWidth
 		: 0);
@@ -568,9 +571,6 @@ void StickersListFooter::paintEvent(QPaintEvent *e) {
 void StickersListFooter::paint(
 		Painter &p,
 		const ExpandingContext &context) const {
-	if (_searchButtonVisible) {
-		paintSearchIcon(p);
-	}
 	if (_icons.empty() || _searchShown) {
 		return;
 	}
@@ -751,8 +751,6 @@ void StickersListFooter::mousePressEvent(QMouseEvent *e) {
 
 	if (_selected == SpecialOver::Settings) {
 		_openSettingsRequests.fire({});
-	} else if (_selected == SpecialOver::Search) {
-		toggleSearch(true);
 	} else {
 		_pressed = _selected;
 		_iconsMouseDown = _iconsMousePos;
@@ -940,13 +938,7 @@ void StickersListFooter::updateSelected() {
 	const auto settingsLeft = width() - _iconsRight;
 	const auto searchLeft = _iconsLeft - _singleWidth;
 	auto newOver = OverState(SpecialOver::None);
-	if (_searchButtonVisible
-		&& x >= searchLeft
-		&& x < searchLeft + _singleWidth
-		&& y >= _iconsTop
-		&& y < _iconsTop + st().footer) {
-		newOver = SpecialOver::Search;
-	} else if (_settingsButtonVisible
+	if (_settingsButtonVisible
 		&& x >= settingsLeft
 		&& x < settingsLeft + _singleWidth
 		&& y >= _iconsTop
@@ -1111,15 +1103,6 @@ void StickersListFooter::paintStickerSettingsIcon(QPainter &p) const {
 		p,
 		settingsLeft
 			+ (_singleWidth - st::stickersSettings.width()) / 2,
-		_iconsTop + st::emojiCategoryIconTop,
-		width());
-}
-
-void StickersListFooter::paintSearchIcon(QPainter &p) const {
-	const auto searchLeft = _iconsLeft - _singleWidth;
-	st::stickersSearch.paint(
-		p,
-		searchLeft + (_singleWidth - st::stickersSearch.width()) / 2,
 		_iconsTop + st::emojiCategoryIconTop,
 		width());
 }
@@ -1309,7 +1292,7 @@ void StickersListFooter::paintSetIcon(
 			width(),
 			st::stickerGroupCategorySize);
 	} else if (icon.setId == Data::Stickers::PremiumSetId) {
-		const auto size = st::stickersPremium.size();
+		const auto size = st::emojiStatusDefault.size();
 		p.drawImage(
 			info.adjustedLeft + (_singleWidth - size.width()) / 2,
 			_iconsTop + (st().footer - size.height()) / 2,
