@@ -17,7 +17,7 @@ QString UrlToLocal(const QUrl &url);
 // All these functions may enter a nested event loop. Use with caution.
 void UnsafeOpenUrl(const QString &url);
 void UnsafeOpenEmailLink(const QString &email);
-bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition);
+bool UnsafeShowOpenWithDropdown(const QString &filepath);
 bool UnsafeShowOpenWith(const QString &filepath);
 void UnsafeLaunch(const QString &filepath);
 
