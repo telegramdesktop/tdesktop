@@ -94,19 +94,36 @@ constexpr auto kPlayStatusLimit = 2;
 }
 
 void ShowCallsBox(not_null<Window::SessionController*> window) {
-	auto controller = std::make_unique<Calls::BoxController>(window);
-	const auto initBox = [
-		window,
-		controller = controller.get()
-	](not_null<PeerListBox*> box) {
+	struct State {
+		State(not_null<Window::SessionController*> window)
+		: callsController(window) {
+		}
+		Calls::BoxController callsController;
+		PeerListContentDelegateSimple callsDelegate;
+
+		base::unique_qptr<Ui::PopupMenu> menu;
+	};
+
+	window->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto state = box->lifetime().make_state<State>(window);
+		const auto content = box->addRow(
+			object_ptr<PeerListContent>(box, &state->callsController),
+			{});
+		state->callsDelegate.setContent(content);
+		state->callsController.setDelegate(&state->callsDelegate);
+
+		box->setWidth(state->callsController.contentWidth());
+		state->callsController.boxHeightValue(
+		) | rpl::start_with_next([=](int height) {
+			box->setMinHeight(height);
+		}, box->lifetime());
+		box->setTitle(tr::lng_call_box_title());
 		box->addButton(tr::lng_close(), [=] {
 			box->closeBox();
 		});
-		using MenuPointer = base::unique_qptr<Ui::PopupMenu>;
-		const auto menu = std::make_shared<MenuPointer>();
 		const auto menuButton = box->addTopButton(st::infoTopBarMenu);
 		menuButton->setClickedCallback([=] {
-			*menu = base::make_unique_q<Ui::PopupMenu>(
+			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				menuButton,
 				st::popupMenuWithIcons);
 			const auto showSettings = [=] {
@@ -115,23 +132,22 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 					Window::SectionShow(anim::type::instant));
 			};
 			const auto clearAll = crl::guard(box, [=] {
-				box->getDelegate()->show(Box(Calls::ClearCallsBox, window));
+				Ui::BoxShow(box).showBox(Box(Calls::ClearCallsBox, window));
 			});
-			(*menu)->addAction(
+			state->menu->addAction(
 				tr::lng_settings_section_call_settings(tr::now),
 				showSettings,
 				&st::menuIconSettings);
-			if (controller->delegate()->peerListFullRowsCount() > 0) {
-				(*menu)->addAction(
+			if (state->callsDelegate.peerListFullRowsCount() > 0) {
+				state->menu->addAction(
 					tr::lng_call_box_clear_all(tr::now),
 					clearAll,
 					&st::menuIconDelete);
 			}
-			(*menu)->popup(QCursor::pos());
+			state->menu->popup(QCursor::pos());
 			return true;
 		});
-	};
-	window->show(Box<PeerListBox>(std::move(controller), initBox));
+	}));
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> SetStatusLabel(
