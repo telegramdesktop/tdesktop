@@ -79,6 +79,8 @@ slots:
 layout:
   /usr/share:
     bind: $SNAP/usr/share
+  /usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0
   /usr/lib/$CRAFT_ARCH_TRIPLET/pipewire-0.3:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/pipewire-0.3
   /usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2:
@@ -201,6 +203,27 @@ parts:
     after:
       - mozjpeg
       - qt
+
+  generate-caches:
+    plugin: nil
+    build-packages:
+      - gtk-update-icon-cache
+      - libglib2.0-bin
+      - libgtk-3-0
+      - shared-mime-info
+    override-prime: |
+      snapcraftctl prime
+      update-mime-database usr/share/mime
+      glib-compile-schemas usr/share/glib-2.0/schemas
+      for theme in usr/share/icons/*; do
+        if [ -f "$theme/index.theme" ] && [ ! -f "$theme/icon-theme.cache" ]; then
+          update-icon-caches "$theme"
+        fi
+      done
+      export GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0
+      /usr/lib/$CRAFT_ARCH_TRIPLET/libgtk-3-0/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0/3.0.0/immodules/immodules.cache
+    after:
+      - telegram
 
   ffmpeg:
     plugin: nil
