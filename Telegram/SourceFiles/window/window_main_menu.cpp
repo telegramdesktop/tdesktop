@@ -96,16 +96,40 @@ constexpr auto kPlayStatusLimit = 2;
 void ShowCallsBox(not_null<Window::SessionController*> window) {
 	struct State {
 		State(not_null<Window::SessionController*> window)
-		: callsController(window) {
+		: callsController(window)
+		, groupCallsController(window) {
 		}
 		Calls::BoxController callsController;
 		PeerListContentDelegateSimple callsDelegate;
+
+		Calls::GroupCalls::ListController groupCallsController;
+		PeerListContentDelegateSimple groupCallsDelegate;
 
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
 
 	window->show(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto state = box->lifetime().make_state<State>(window);
+
+		const auto groupCalls = box->addRow(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				box,
+				object_ptr<Ui::VerticalLayout>(box)),
+			{});
+		groupCalls->hide(anim::type::instant);
+		groupCalls->toggleOn(state->groupCallsController.shownValue());
+
+		Settings::AddSubsectionTitle(
+			groupCalls->entity(),
+			tr::lng_call_box_groupcalls_subtitle());
+		state->groupCallsDelegate.setContent(groupCalls->entity()->add(
+			object_ptr<PeerListContent>(box, &state->groupCallsController),
+			{}));
+		state->groupCallsController.setDelegate(&state->groupCallsDelegate);
+		Settings::AddSkip(groupCalls->entity());
+		Settings::AddDivider(groupCalls->entity());
+		Settings::AddSkip(groupCalls->entity());
+
 		const auto content = box->addRow(
 			object_ptr<PeerListContent>(box, &state->callsController),
 			{});

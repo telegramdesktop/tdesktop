@@ -369,6 +369,10 @@ callCameraReDial: IconButton(callReDial) {
 	icon: icon {{ "calls/call_camera_active", menuIconFg }};
 	iconOver: icon {{ "calls/call_camera_active", menuIconFgOver }};
 }
+callGroupCall: IconButton(callCameraReDial) {
+	icon: icon {{ "top_bar_group_call", menuIconFg }};
+	iconOver: icon {{ "top_bar_group_call", menuIconFgOver }};
+}
 
 callRatingPadding: margins(24px, 12px, 24px, 0px);
 callRatingStar: IconButton {
