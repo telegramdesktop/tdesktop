@@ -79,6 +79,8 @@ slots:
 layout:
   /usr/share:
     bind: $SNAP/usr/share
+  /usr/lib/$CRAFT_ARCH_TRIPLET/pipewire-0.3:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/pipewire-0.3
   /usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2
   /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
