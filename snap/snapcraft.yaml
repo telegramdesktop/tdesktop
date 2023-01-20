@@ -81,6 +81,8 @@ layout:
     bind: $SNAP/usr/share/alsa
   /usr/share/X11:
     bind: $SNAP/usr/share/X11
+  /usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2
   /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1
 
