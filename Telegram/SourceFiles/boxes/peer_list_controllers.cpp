@@ -590,11 +590,10 @@ void ChooseTopicSearchController::searchOnServer() {
 			}
 			delegate()->peerListSearchAddRow(topic->rootId().bare);
 		});
-		if (_offsetTopicId != savedTopicId) {
-			delegate()->peerListSearchRefreshRows();
-		} else {
+		if (_offsetTopicId == savedTopicId) {
 			_allLoaded = true;
 		}
+		delegate()->peerListSearchRefreshRows();
 	}).fail([=] {
 		_allLoaded = true;
 	}).send();
@@ -699,7 +698,7 @@ void ChooseTopicBoxController::rowClicked(not_null<PeerListRow*> row) {
 
 void ChooseTopicBoxController::prepare() {
 	delegate()->peerListSetTitle(tr::lng_forward_choose());
-	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
+	setSearchNoResultsText(tr::lng_topics_not_found(tr::now));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	refreshRows(true);
 

@@ -390,6 +390,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_no_chats_filter" = "No chats currently belong to this folder.";
 "lng_contacts_loading" = "Loading...";
 "lng_contacts_not_found" = "No contacts found";
+"lng_topics_not_found" = "No topics found.";
 "lng_dlg_search_for_messages" = "Search for messages";
 "lng_update_telegram" = "Update Telegram";
 "lng_dlg_search_in" = "Search messages in";
