@@ -68,6 +68,13 @@ std::map<int, const char*> BetaLogs() {
 	{
 		4005007,
 		"- Fix glitches after moving window to another screen.\n",
+	},
+	{
+		4005008,
+		"- Allow opening another account in a new window "
+		"(see Settings > Advanced > Experimental Settings).\n"
+
+		"- A lot of bugfixes for working with more than one window.\n"
 	}
 	};
 };

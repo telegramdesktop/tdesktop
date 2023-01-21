@@ -1,3 +1,8 @@
+4.5.8 beta (21.01.22)
+
+- Allow opening another account in a new window (see Settings > Advanced > Experimental Settings).
+- A lot of bugfixes for working with more than one window.
+
 4.5.7 beta (13.01.22)
 
 - Fix glitches after moving window to another screen (Windows only).
