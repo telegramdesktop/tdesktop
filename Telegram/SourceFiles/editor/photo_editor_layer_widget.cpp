@@ -19,11 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 
 namespace Editor {
-namespace {
-
-constexpr auto kProfilePhotoSize = 640;
-
-} // namespace
 
 void OpenWithPreparedFile(
 		not_null<QWidget*> parent,

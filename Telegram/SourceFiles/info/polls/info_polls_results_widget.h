@@ -68,5 +68,5 @@ private:
 
 };
 
-} // namespace Settings
+} // namespace Polls
 } // namespace Info
