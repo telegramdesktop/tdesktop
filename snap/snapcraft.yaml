@@ -166,7 +166,6 @@ parts:
     prime:
       - -./lib/systemd
     after:
-      - desktop-qt
       - ffmpeg
       - libjxl
       - glibmm
@@ -174,6 +173,7 @@ parts:
       - openal
       - openssl
       - protobuf
+      - qt
       - rnnoise
       - webrtc
 
@@ -196,25 +196,15 @@ parts:
     build-packages:
       - build-essential
       - dpkg-dev
+      - gtk-update-icon-cache
+      - libglib2.0-bin
+      - libgtk-3-0
     stage-packages:
       - libxkbcommon0
       - shared-mime-info
       - libgdk-pixbuf-2.0-0
       - locales-all
       - xdg-user-dirs
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
-    after:
-      - mozjpeg
-      - qt
-
-  generate-caches:
-    plugin: nil
-    build-packages:
-      - gtk-update-icon-cache
-      - libglib2.0-bin
-      - libgtk-3-0
-      - shared-mime-info
     override-prime: |
       snapcraftctl prime
       update-mime-database usr/share/mime
@@ -224,8 +214,9 @@ parts:
           update-icon-caches "$theme"
         fi
       done
-      export GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0
-      /usr/lib/$CRAFT_ARCH_TRIPLET/libgtk-3-0/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0/3.0.0/immodules/immodules.cache
+      GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0 /usr/lib/$CRAFT_ARCH_TRIPLET/libgtk-3-0/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0/3.0.0/immodules/immodules.cache
+    stage:
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - telegram
 
