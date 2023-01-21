@@ -224,7 +224,6 @@ rpl::producer<bool> ListController::shownValue() const {
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
 	const auto window = _window;
-	const auto peer = row->peer();
 	crl::on_main(window, [=, peer = row->peer()] {
 		window->showPeerHistory(
 			peer,
