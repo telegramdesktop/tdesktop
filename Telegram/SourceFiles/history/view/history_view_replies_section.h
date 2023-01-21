@@ -365,11 +365,7 @@ public:
 	RepliesMemento(
 		not_null<History*> history,
 		MsgId rootId,
-		MsgId highlightId = 0)
-	: _history(history)
-	, _rootId(rootId)
-	, _highlightId(highlightId) {
-	}
+		MsgId highlightId = 0);
 	explicit RepliesMemento(
 		not_null<HistoryItem*> commentsItem,
 		MsgId commentId = 0);

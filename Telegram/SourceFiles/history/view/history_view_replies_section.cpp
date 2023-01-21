@@ -133,17 +133,24 @@ rpl::producer<Ui::MessageBarContent> RootViewContent(
 } // namespace
 
 RepliesMemento::RepliesMemento(
-	not_null<HistoryItem*> commentsItem,
-	MsgId commentId)
-: RepliesMemento(commentsItem->history(), commentsItem->id, commentId) {
-	if (commentId) {
+	not_null<History*> history,
+	MsgId rootId,
+	MsgId highlightId)
+: _history(history)
+, _rootId(rootId)
+, _highlightId(highlightId) {
+	if (highlightId) {
 		_list.setAroundPosition({
-			.fullId = FullMsgId(
-				commentsItem->history()->peer->id,
-				commentId),
+			.fullId = FullMsgId(_history->peer->id, highlightId),
 			.date = TimeId(0),
 		});
 	}
+}
+
+RepliesMemento::RepliesMemento(
+	not_null<HistoryItem*> commentsItem,
+	MsgId commentId)
+: RepliesMemento(commentsItem->history(), commentsItem->id, commentId) {
 }
 
 void RepliesMemento::setFromTopic(not_null<Data::ForumTopic*> topic) {

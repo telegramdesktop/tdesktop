@@ -612,6 +612,7 @@ private:
 
 	Data::MessagePosition _aroundPosition;
 	Data::MessagePosition _shownAtPosition;
+	Data::MessagePosition _initialAroundPosition;
 	Context _context;
 	int _aroundIndex = -1;
 	int _idsLimit = kMinimalIdsLimit;
