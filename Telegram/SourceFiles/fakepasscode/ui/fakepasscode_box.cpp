@@ -216,8 +216,6 @@ void FakePasscodeBox::save(bool force) {
         }
     }
     const auto onlyCheck = onlyCheckCurrent();
-    FAKE_LOG(qsl("We have onlyCheck=%1. Also old=%2, pwd=%3, conf=%4, has=%5")
-            .arg(onlyCheck).arg(old).arg(pwd).arg(conf).arg(has));
     if (!onlyCheck && pwd != conf) {
         _reenterPasscode->selectAll();
         _reenterPasscode->setFocus();

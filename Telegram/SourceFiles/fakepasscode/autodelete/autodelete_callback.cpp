@@ -23,9 +23,7 @@ bool DisableAutoDeleteInContextMenu() {
         if (auto* controller = window->sessionController()) {
             if (auto* peer = controller->content()->peer(); peer &&
                     peer->isChannel() &&
-                    !peer->isChat() &&
-                    !peer->isMegagroup() &&
-                    !peer->isGigagroup()) {
+                    !peer->isChat()) {
                 FAKE_LOG(qsl("We try to send auto deletable to channel. This feature is disabled for now."));
                 is_channel = true;
             }
