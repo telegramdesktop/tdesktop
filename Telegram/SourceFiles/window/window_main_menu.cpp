@@ -272,8 +272,7 @@ void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 	const auto y = 0. + height() - st::mainMenuTogglePosition.y();
 	const auto size = st::mainMenuToggleSize;
 	const auto size2 = size / 2.;
-	const auto sqrt2 = sqrt(2.);
-	const auto stroke = (st::mainMenuToggleFourStrokes / 4.) / sqrt2;
+	const auto stroke = (st::mainMenuToggleFourStrokes / 4.) / M_SQRT2;
 	const auto left = x - size;
 	const auto right = x + size;
 	const auto bottom = y + size2;
