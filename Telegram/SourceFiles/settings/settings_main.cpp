@@ -546,6 +546,10 @@ void SetupInterfaceScale(
 	}) | rpl::start_with_next([=](int scale) {
 		setScale(scale, setScale);
 	}, button->lifetime());
+
+	if (!icon) {
+		AddSkip(container, st::settingsThumbSkip);
+	}
 }
 
 void OpenFaq() {
