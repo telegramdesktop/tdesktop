@@ -84,6 +84,10 @@ object_ptr<Window::SectionWidget> PinnedMemento::createWidget(
 	return result;
 }
 
+Data::ForumTopic *PinnedMemento::topicForRemoveRequests() const {
+	return _thread->asTopic();
+}
+
 PinnedWidget::PinnedWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,

@@ -153,6 +153,11 @@ void RepliesMemento::setFromTopic(not_null<Data::ForumTopic*> topic) {
 	}
 }
 
+
+Data::ForumTopic *RepliesMemento::topicForRemoveRequests() const {
+	return _history->peer->forumTopicFor(_rootId);
+}
+
 void RepliesMemento::setReadInformation(
 		MsgId inboxReadTillId,
 		int unreadCount,

@@ -210,6 +210,8 @@ public:
 		return _highlightId;
 	}
 
+	Data::ForumTopic *topicForRemoveRequests() const override;
+
 private:
 	const not_null<Data::Thread*> _thread;
 	const UniversalMsgId _highlightId = 0;

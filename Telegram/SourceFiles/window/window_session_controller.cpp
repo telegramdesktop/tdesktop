@@ -1001,10 +1001,16 @@ void SessionController::showForum(
 	}
 	forum->destroyed(
 	) | rpl::start_with_next([=, history = forum->history()] {
+		const auto now = activeChatCurrent().owningHistory();
+		const auto showHistory = !now || (now == history);
 		closeForum();
-		showPeerHistory(
-			history,
-			{ anim::type::normal, anim::activation::background });
+		if (showHistory) {
+			showPeerHistory(history, {
+				SectionShow::Way::Backward,
+				anim::type::normal,
+				anim::activation::background,
+			});
+		}
 	}, _shownForumLifetime);
 	content()->showForum(forum, params);
 }

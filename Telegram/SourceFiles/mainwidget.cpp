@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
+#include "data/data_forum_topic.h"
 #include "data/data_wall_paper.h"
 #include "data/data_web_page.h"
 #include "data/data_game.h"
@@ -150,13 +151,20 @@ public:
 	}
 
 	[[nodiscard]] virtual StackItemType type() const = 0;
-	[[nodiscard]] virtual rpl::producer<> removeRequests() const = 0;
+	[[nodiscard]] rpl::producer<> removeRequests() const {
+		return rpl::merge(
+			_thirdSectionRemoveRequests.events(),
+			sectionRemoveRequests());
+	}
 	virtual ~StackItem() = default;
 
 private:
+	[[nodiscard]] virtual rpl::producer<> sectionRemoveRequests() const = 0;
+
 	PeerData *_peer = nullptr;
 	QPointer<Window::SectionWidget> _thirdSectionWeak;
 	std::shared_ptr<Window::SectionMemento> _thirdSectionMemento;
+	rpl::event_stream<> _thirdSectionRemoveRequests;
 
 	rpl::lifetime _lifetime;
 
@@ -177,13 +185,15 @@ public:
 	StackItemType type() const override {
 		return HistoryStackItem;
 	}
-	rpl::producer<> removeRequests() const override {
-		return rpl::never<>();
-	}
 
 	not_null<History*> history;
 	MsgId msgId;
 	QVector<FullMsgId> replyReturns;
+
+private:
+	rpl::producer<> sectionRemoveRequests() const override {
+		return rpl::never<>();
+	}
 
 };
 
@@ -195,14 +205,13 @@ public:
 	StackItemType type() const override {
 		return SectionStackItem;
 	}
-	rpl::producer<> removeRequests() const override {
-		return _memento->removeRequests();
-	}
 	std::shared_ptr<Window::SectionMemento> takeMemento() {
 		return std::move(_memento);
 	}
 
 private:
+	rpl::producer<> sectionRemoveRequests() const override;
+
 	std::shared_ptr<Window::SectionMemento> _memento;
 
 };
@@ -210,12 +219,23 @@ private:
 void StackItem::setThirdSectionMemento(
 		std::shared_ptr<Window::SectionMemento> memento) {
 	_thirdSectionMemento = std::move(memento);
+	if (const auto memento = _thirdSectionMemento.get()) {
+		memento->removeRequests(
+		) | rpl::start_to_stream(_thirdSectionRemoveRequests, _lifetime);
+	}
 }
 
 StackItemSection::StackItemSection(
 	std::shared_ptr<Window::SectionMemento> memento)
 : StackItem(nullptr)
 , _memento(std::move(memento)) {
+}
+
+rpl::producer<> StackItemSection::sectionRemoveRequests() const {
+	if (const auto topic = _memento->topicForRemoveRequests()) {
+		return rpl::merge(_memento->removeRequests(), topic->destroyed());
+	}
+	return _memento->removeRequests();
 }
 
 struct MainWidget::SettingBackground {

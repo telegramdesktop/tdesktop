@@ -408,6 +408,8 @@ public:
 		return _replyReturns;
 	}
 
+	Data::ForumTopic *topicForRemoveRequests() const override;
+
 	[[nodiscard]] not_null<ListMemento*> list() {
 		return &_list;
 	}
