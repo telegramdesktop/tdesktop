@@ -724,11 +724,11 @@ void start() {
 	qputenv("PULSE_PROP_application.icon_name", base::IconName().toLatin1());
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	Glib::init();
-	Gio::init();
-
 	Glib::set_prgname(cExeName().toStdString());
 	Glib::set_application_name(AppName.data());
+
+	Glib::init();
+	Gio::init();
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
 	g_warning(
