@@ -23,6 +23,7 @@ set(style_files
     calls/calls.style
     export/view/export.style
     info/info.style
+    info/userpic/info_userpic_builder.style
     intro/intro.style
     media/player/media_player.style
     passport/passport.style
@@ -94,6 +95,8 @@ PRIVATE
 
     info/profile/info_profile_icon.cpp
     info/profile/info_profile_icon.h
+    info/userpic/info_userpic_colors_palette_chooser.cpp
+    info/userpic/info_userpic_colors_palette_chooser.h
 
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
