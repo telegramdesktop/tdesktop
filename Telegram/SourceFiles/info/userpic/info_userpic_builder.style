@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
+using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
 
 userpicBuilderEmojiPreviewPadding: margins(0px, 36px, 0px, 8px);
@@ -21,6 +22,24 @@ userpicBuilderEmojiBubblePaletteSize: size(356px, 56px);
 userpicBuilderEmojiBubblePalettePadding: margins(12px, 8px, 12px, 8px);
 
 userpicBuilderEmojiSelectorLeft: 5px;
+
+userpicBuilderEmojiButton: RoundButton(defaultBoxButton) {
+	textFg: boxTextFg;
+	textFgOver: boxTextFg;
+	textBg: boxDividerBg;
+	textBgOver: boxDividerBg;
+
+	ripple: universalRippleAnimation;
+}
+userpicBuilderEmojiBackButton: IconButton(backButton) {
+	icon: icon {{ "box_button_back", boxTextFg }};
+	iconOver: icon {{ "box_button_back", boxTextFg }};
+
+	ripple: universalRippleAnimation;
+}
+
+userpicBuilderEmojiBackPosiiton: point(8px, 8px);
+userpicBuilderEmojiSavePosiiton: point(7px, 12px);
 
 userpicBuilderEmojiAccentColorSize: 30px;
 userpicBuilderEmojiBubblePadding: margins(5px, 5px, 5px, 5px);
