@@ -298,12 +298,9 @@ TabbedSelector::TabbedSelector(
 , _controller(controller)
 , _level(level)
 , _mode(mode)
-, _panelRounding(Ui::PrepareCornerPixmaps(
-	ImageRoundRadius::Small,
-	st::emojiPanBg))
-, _categoriesRounding(Ui::PrepareCornerPixmaps(
-	ImageRoundRadius::Small,
-	st::emojiPanCategories))
+, _panelRounding(Ui::PrepareCornerPixmaps(st::emojiPanRadius, _st.bg))
+, _categoriesRounding(
+	Ui::PrepareCornerPixmaps(st::emojiPanRadius, _st.categoriesBg))
 , _topShadow(full() ? object_ptr<Ui::PlainShadow>(this) : nullptr)
 , _bottomShadow(this)
 , _scroll(this, st::emojiScroll)
@@ -421,10 +418,10 @@ TabbedSelector::TabbedSelector(
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_panelRounding = Ui::PrepareCornerPixmaps(
-			ImageRoundRadius::Small,
+			st::emojiPanRadius,
 			st::emojiPanBg);
 		_categoriesRounding = Ui::PrepareCornerPixmaps(
-			ImageRoundRadius::Small,
+			st::emojiPanRadius,
 			st::emojiPanCategories);
 	}, lifetime());
 
@@ -586,13 +583,13 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 }
 
 void TabbedSelector::updateScrollGeometry(QSize oldSize) {
-	auto scrollWidth = width() - st::roundRadiusSmall;
+	auto scrollWidth = width() - st::emojiPanRadius;
 	auto scrollHeight = height() - scrollTop() - scrollBottom();
 	auto inner = currentTab()->widget();
 	auto innerWidth = scrollWidth - st::emojiScroll.width;
 	auto setScrollGeometry = [&] {
 		_scroll->setGeometryToLeft(
-			st::roundRadiusSmall,
+			st::emojiPanRadius,
 			scrollTop(),
 			scrollWidth,
 			scrollHeight);
@@ -722,7 +719,7 @@ void TabbedSelector::paintContent(QPainter &p) {
 				sidesHeight),
 			st::emojiPanBg);
 		p.fillRect(
-			myrtlrect(0, sidesTop, st::roundRadiusSmall, sidesHeight),
+			myrtlrect(0, sidesTop, st::emojiPanRadius, sidesHeight),
 			st::emojiPanBg);
 	}
 }
@@ -1083,7 +1080,7 @@ void TabbedSelector::switchTab() {
 		slidingRect,
 		wasSectionIcons);
 	_slideAnimation->setCornerMasks(
-		Images::CornersMask(ImageRoundRadius::Small));
+		Images::CornersMask(st::emojiPanRadius));
 	_slideAnimation->start();
 
 	hideForSliding();

@@ -177,7 +177,7 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(0, 0, _cache);
 		return;
 	}
-	Ui::Shadow::paint(p, inner, width(), st::defaultRoundShadow);
+	Ui::Shadow::paint(p, inner, width(), st::emojiPanAnimation.shadow);
 	Ui::FillRoundRect(p, inner, st::boxBg, Ui::BoxCorners);
 
 	auto x = st::emojiPanMargins.left() + 2 * st::emojiColorsPadding + _singleSize.width();
@@ -413,6 +413,9 @@ EmojiListWidget::EmojiListWidget(
 
 	_customSingleSize = Data::FrameSizeFromTag(
 		Data::CustomEmojiManager::SizeTag::Large
+	) / style::DevicePixelRatio();
+	_customSetIconSize = Data::FrameSizeFromTag(
+		Data::CustomEmojiManager::SizeTag::SetIcon
 	) / style::DevicePixelRatio();
 
 	_picker->hide();
@@ -755,7 +758,7 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 			+ (i == 0 ? _rowsTop : st().header);
 		info.rowsBottom = info.rowsTop
 			+ (info.rowsCount * _singleSize.height())
-			+ st::roundRadiusSmall;
+			+ st::emojiPanRadius;
 		if (!callback(info)) {
 			return false;
 		}
@@ -1485,9 +1488,9 @@ void EmojiListWidget::showPicker() {
 		_picker->showEmoji(emoji);
 
 		auto y = emojiRect(over->section, over->index).y();
-		y -= _picker->height() - st::roundRadiusSmall + getVisibleTop();
+		y -= _picker->height() - st::emojiPanRadius + getVisibleTop();
 		if (y < st().header) {
-			y += _picker->height() - st::roundRadiusSmall + _singleSize.height() - st::roundRadiusSmall;
+			y += _picker->height() - st::emojiPanRadius + _singleSize.height() - st::emojiPanRadius;
 		}
 		auto xmax = width() - _picker->width();
 		auto coef = float64(over->index % _columnCount) / float64(_columnCount - 1);
@@ -1935,7 +1938,7 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	} else {
 		result.emplace_back(AllEmojiSectionSetId());
 	}
-	const auto esize = _customSingleSize;
+	const auto esize = _customSetIconSize;
 	for (const auto &custom : _custom) {
 		const auto set = custom.set;
 		result.emplace_back(set, custom.thumbnailDocument, esize, esize);

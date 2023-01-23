@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_reader.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "mtproto/sender.h"
+#include "ui/dpr/dpr_image.h"
 #include "ui/round_rect.h"
 #include "ui/userpic_view.h"
 
@@ -232,6 +233,17 @@ private:
 		const IconInfo &info,
 		crl::time now,
 		bool paused) const;
+	void prepareSetIcon(
+		const ExpandingContext &context,
+		const IconInfo &info,
+		crl::time now,
+		bool paused) const;
+	void paintSetIconToCache(
+		Painter &p,
+		const ExpandingContext &context,
+		const IconInfo &info,
+		crl::time now,
+		bool paused) const;
 	void paintSelectionBg(
 		QPainter &p,
 		const ExpandingContext &context) const;
@@ -247,6 +259,10 @@ private:
 	void toggleSearch(bool visible);
 	void resizeSearchControls();
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
+
+	void validateFadeLeft(int leftWidth) const;
+	void validateFadeRight(int rightWidth) const;
+	void validateFadeMask() const;
 
 	void clipCallback(Media::Clip::Notification notification, uint64 setId);
 
@@ -270,6 +286,13 @@ private:
 	int _iconsTop = 0;
 	int _singleWidth = 0;
 	QPoint _areaPosition;
+
+	mutable QImage _fadeLeftCache;
+	mutable QColor _fadeLeftColor;
+	mutable QImage _fadeRightCache;
+	mutable QColor _fadeRightColor;
+	mutable QImage _fadeMask;
+	mutable QImage _setIconCache;
 
 	ScrollState _iconState;
 	ScrollState _subiconState;

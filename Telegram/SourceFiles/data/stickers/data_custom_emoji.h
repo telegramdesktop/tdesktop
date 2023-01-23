@@ -25,6 +25,7 @@ enum class CustomEmojiSizeTag : uchar {
 	Normal,
 	Large,
 	Isolated,
+	SetIcon,
 
 	kCount,
 };

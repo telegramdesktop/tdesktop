@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 
 using "boxes/boxes.style";
+using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 
 TabbedSearch {
@@ -42,6 +43,7 @@ EmojiPan {
 	iconArea: pixels;
 	bg: color;
 	overBg: color;
+	categoriesBg: color;
 	fadeLeft: icon;
 	fadeRight: icon;
 	search: TabbedSearch;
@@ -162,11 +164,10 @@ filtersRemove: IconButton(stickersRemove) {
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
 emojiTabs: SettingsSlider(defaultTabsSlider) {
-	height: 45px;
-	barTop: 42px;
-	labelTop: 13px;
+	height: 43px;
+	barTop: 40px;
+	labelTop: 12px;
 }
-emojiScroll: defaultSolidScroll;
 emojiRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
 emojiRecentActive: icon {{ "emoji/emoji_recent", emojiSubIconFgActive }};
 emojiPeople: icon {{ "emoji/emoji_smile", emojiIconFg }};
@@ -187,6 +188,7 @@ emojiSymbolsActive: icon {{ "emoji/emoji_love", emojiSubIconFgActive }};
 emojiCategoryIconTop: 6px;
 emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
 	fadeBg: emojiPanBg;
+	shadow: boxRoundShadow;
 }
 emojiPanPadding: 12px;
 emojiPanWidth: 345px;
@@ -217,7 +219,7 @@ defaultTabbedSearch: TabbedSearch {
 		height: 33px;
 		icon: icon{{ "emoji/emoji_search_input", emojiIconFg }};
 		iconOver: icon{{ "emoji/emoji_search_input", emojiIconFg }};
-		iconPosition: point(12px, -1px);
+		iconPosition: point(7px, -1px);
 		ripple: emptyRippleAnimation;
 	}
 	back: IconButton(defaultIconButton) {
@@ -225,34 +227,35 @@ defaultTabbedSearch: TabbedSearch {
 		height: 33px;
 		icon: icon{{ "emoji/emoji_back", menuIconFg }};
 		iconOver: icon{{ "emoji/emoji_back", menuIconFg }};
-		iconPosition: point(12px, -1px);
+		iconPosition: point(7px, -1px);
 		ripple: emptyRippleAnimation;
 	}
 	cancel: defaultMultiSelectSearchCancel;
-	defaultFieldWidth: 95px;
+	defaultFieldWidth: 101px;
 	groupWidth: 30px;
 	height: 33px;
 }
 defaultEmojiPan: EmojiPan {
-	margin: margins(roundRadiusSmall, 0px, 14px, 0px);
-	padding: margins(13px, 12px, 17px, 12px);
-	desiredSize: 39px;
-	verticalSizeSub: 2px;
-	header: 40px;
-	headerLeft: 23px;
-	headerLockLeft: 17px;
-	headerLockedLeft: 36px;
-	headerTop: 12px;
-	footer: 46px;
-	iconSkip: 4px;
-	iconWidth: 35px;
-	iconArea: 32px;
+	margin: margins(7px, 0px, 7px, 0px);
+	padding: margins(7px, 0px, 4px, 7px);
+	desiredSize: 37px;
+	verticalSizeSub: 1px;
+	header: 25px;
+	headerLeft: 14px;
+	headerLockLeft: 7px;
+	headerLockedLeft: 26px;
+	headerTop: 2px;
+	footer: 36px;
+	iconSkip: 3px;
+	iconWidth: 30px;
+	iconArea: 28px;
 	bg: emojiPanBg;
 	overBg: emojiPanHover;
+	categoriesBg: emojiPanCategories;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
 	search: defaultTabbedSearch;
-	searchMargin: margins(6px, 10px, 6px, 10px);
+	searchMargin: margins(1px, 11px, 2px, 5px);
 }
 
 inlineResultsMinHeight: 278px;
@@ -385,14 +388,8 @@ reactPanelEmojiPan: EmojiPan(defaultEmojiPan) {
 	padding: margins(reactStripSkip, 0px, reactStripSkip, reactStripSkip);
 	desiredSize: reactStripSize;
 	verticalSizeSub: 0px;
-	headerLeft: 13px;
-	headerLockLeft: 7px;
-	headerLockedLeft: 26px;
-	footer: 42px;
-	iconSkip: 6px;
-	iconWidth: 33px;
-	iconArea: 30px;
 	overBg: transparent;
+	categoriesBg: windowBg;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
 	fadeRight: icon {{ "fade_horizontal", windowBg }};
 }
@@ -404,6 +401,7 @@ reactPanelScroll: ScrollArea(defaultSolidScroll) {
 	deltax: 2px;
 	hiding: 0;
 }
+emojiScroll: reactPanelScroll;
 
 emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
 emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};

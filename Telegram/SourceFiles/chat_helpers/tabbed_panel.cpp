@@ -62,7 +62,7 @@ TabbedPanel::TabbedPanel(
 	Expects(_selector != nullptr);
 
 	_selector->setParent(this);
-	_selector->setRoundRadius(st::roundRadiusSmall);
+	_selector->setRoundRadius(st::emojiPanRadius);
 	_selector->setAfterShownCallback([=](SelectorTab tab) {
 		_controller->enableGifPauseReason(_selector->level());
 	});
@@ -347,7 +347,7 @@ void TabbedPanel::startShowAnimation() {
 		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, _dropDown ? Ui::PanelAnimation::Origin::TopRight : Ui::PanelAnimation::Origin::BottomRight);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
 		_showAnimation->setFinalImage(std::move(image), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
-		_showAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
+		_showAnimation->setCornerMasks(Images::CornersMask(st::emojiPanRadius));
 		_showAnimation->start();
 	}
 	hideChildren();
@@ -471,8 +471,9 @@ bool TabbedPanel::overlaps(const QRect &globalRect) const {
 
 	auto testRect = QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size());
 	auto inner = rect().marginsRemoved(st::emojiPanMargins);
-	return inner.marginsRemoved(QMargins(st::roundRadiusSmall, 0, st::roundRadiusSmall, 0)).contains(testRect)
-		|| inner.marginsRemoved(QMargins(0, st::roundRadiusSmall, 0, st::roundRadiusSmall)).contains(testRect);
+	const auto radius = st::emojiPanRadius;
+	return inner.marginsRemoved(QMargins(radius, 0, radius, 0)).contains(testRect)
+		|| inner.marginsRemoved(QMargins(0, radius, 0, radius)).contains(testRect);
 }
 
 TabbedPanel::~TabbedPanel() {

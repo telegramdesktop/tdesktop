@@ -48,8 +48,6 @@ protected:
 
 	bool initGeometryFromSystem() override;
 
-	QRect computeDesktopRect() const override;
-
 private:
 	struct Private;
 
