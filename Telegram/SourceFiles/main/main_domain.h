@@ -79,7 +79,7 @@ public:
 
 private:
 	void activateAfterStarting();
-	void activateAuthedAccount();
+	void closeAccountWindows(not_null<Main::Account*> account);
 	bool removePasscodeIfEmpty();
 	void removeRedundantAccounts();
 	void watchSession(not_null<Account*> account);
