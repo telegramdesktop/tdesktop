@@ -1344,6 +1344,12 @@ void Application::closeWindow(not_null<Window::Controller*> window) {
 			++i;
 		}
 	}
+	const auto account = domain().started()
+		? &domain().active()
+		: nullptr;
+	if (account && !_primaryWindows.contains(account) && _lastActiveWindow) {
+		domain().activate(&_lastActiveWindow->account());
+	}
 }
 
 void Application::closeChatFromWindows(not_null<PeerData*> peer) {

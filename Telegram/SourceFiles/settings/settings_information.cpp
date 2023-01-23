@@ -564,7 +564,7 @@ void SetupAccountsWrap(
 		not_null<Main::Account*> account,
 		Fn<void(Qt::KeyboardModifiers)> callback,
 		bool locked) {
-	const auto active = (account == &Core::App().activeAccount());
+	const auto active = (account == &window->session().account());
 	const auto session = &account->session();
 	const auto user = session->user();
 
@@ -659,8 +659,7 @@ void SetupAccountsWrap(
 			state->menu->popup(QCursor::pos());
 			return;
 		}
-		if (&session->account() == &Core::App().activeAccount()
-			|| state->menu) {
+		if (session == &window->session() || state->menu) {
 			return;
 		}
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
