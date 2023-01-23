@@ -95,6 +95,8 @@ PRIVATE
 
     info/profile/info_profile_icon.cpp
     info/profile/info_profile_icon.h
+    info/userpic/info_userpic_bubble_wrap.cpp
+    info/userpic/info_userpic_bubble_wrap.h
     info/userpic/info_userpic_colors_palette_chooser.cpp
     info/userpic/info_userpic_colors_palette_chooser.h
 

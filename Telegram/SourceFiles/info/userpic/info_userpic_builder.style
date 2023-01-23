@@ -8,3 +8,4 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 
 userpicBuilderEmojiAccentColorSize: 30px;
+userpicBuilderEmojiBubblePadding: margins(5px, 5px, 5px, 5px);
