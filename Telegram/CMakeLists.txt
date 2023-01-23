@@ -857,6 +857,8 @@ PRIVATE
     info/profile/info_profile_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
+    info/userpic/info_userpic_emoji_builder_widget.cpp
+    info/userpic/info_userpic_emoji_builder_widget.h
     inline_bots/bot_attach_web_view.cpp
     inline_bots/bot_attach_web_view.h
     inline_bots/inline_bot_layout_internal.cpp

@@ -3753,6 +3753,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_request_channel_add_admins" = "add new admins";
 "lng_request_channel_create" = "Create a New Channel for This";
 
+"lng_userpic_builder_color_subtitle" = "Choose background";
+"lng_userpic_builder_emoji_subtitle" = "Choose sticker or emoji";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
