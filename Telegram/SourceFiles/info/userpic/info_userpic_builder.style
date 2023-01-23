@@ -9,3 +9,5 @@ using "ui/basic.style";
 
 userpicBuilderEmojiAccentColorSize: 30px;
 userpicBuilderEmojiBubblePadding: margins(5px, 5px, 5px, 5px);
+
+userpicBuilderEmojiLayerMinHeight: 496px;

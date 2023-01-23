@@ -99,6 +99,8 @@ PRIVATE
     info/userpic/info_userpic_bubble_wrap.h
     info/userpic/info_userpic_colors_palette_chooser.cpp
     info/userpic/info_userpic_colors_palette_chooser.h
+    info/userpic/info_userpic_emoji_builder_layer.cpp
+    info/userpic/info_userpic_emoji_builder_layer.h
 
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
