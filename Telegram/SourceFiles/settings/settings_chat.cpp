@@ -210,6 +210,7 @@ void ColorsPalette::Button::paint() {
 	if (_colors.size() == 1) {
 		PaintRoundColorButton(
 			p,
+			st::settingsAccentColorSize,
 			_colors.front(),
 			_selectedAnimation.value(_selected ? 1. : 0.));
 	} else if (_colors.size() >= kCustomColorButtonParts) {
@@ -371,8 +372,11 @@ void ColorsPalette::updateInnerGeometry() {
 
 } // namespace
 
-void PaintRoundColorButton(QPainter &p, QBrush brush, float64 selected) {
-	const auto size = st::settingsAccentColorSize;
+void PaintRoundColorButton(
+		QPainter &p,
+		int size,
+		QBrush brush,
+		float64 selected) {
 	const auto rect = QRect(0, 0, size, size);
 
 	p.setBrush(brush);

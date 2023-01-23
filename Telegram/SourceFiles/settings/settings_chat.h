@@ -31,7 +31,11 @@ void SetupExport(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container);
 
-void PaintRoundColorButton(QPainter &p, QBrush brush, float64 selected);
+void PaintRoundColorButton(
+	QPainter &p,
+	int size,
+	QBrush brush,
+	float64 selected);
 
 class Chat : public Section<Chat> {
 public:
