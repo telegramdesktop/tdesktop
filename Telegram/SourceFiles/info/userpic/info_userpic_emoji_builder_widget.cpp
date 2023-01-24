@@ -147,7 +147,15 @@ bool PreviewPainter::paintForeground(QPainter &p) {
 			crl::now(),
 			_paused);
 
-		p.drawImage(_frameRect, frame.image);
+		if (frame.image.width() == frame.image.height()) {
+			p.drawImage(_frameRect, frame.image);
+		} else {
+			auto frameRect = Rect(frame.image.size().scaled(
+				_frameRect.size(),
+				Qt::KeepAspectRatio));
+			frameRect.moveCenter(_frameRect.center());
+			p.drawImage(frameRect, frame.image);
+		}
 		if (!_paused) {
 			_player->markFrameShown();
 		}
