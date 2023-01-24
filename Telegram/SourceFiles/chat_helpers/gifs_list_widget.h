@@ -28,6 +28,7 @@ class Result;
 namespace Ui {
 class PopupMenu;
 class RoundButton;
+class TabbedSearch;
 } // namespace Ui
 
 namespace Window {
@@ -119,6 +120,7 @@ private:
 		InlineResults results;
 	};
 
+	void setupSearch();
 	void clearHeavyData();
 	void cancelGifsSearch();
 	void switchToSavedGifs();
@@ -152,6 +154,7 @@ private:
 		bool forceSend = false);
 
 	not_null<Window::SessionController*> _controller;
+	std::unique_ptr<Ui::TabbedSearch> _search;
 
 	MTP::Sender _api;
 

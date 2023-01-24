@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_emoji_statuses.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
@@ -20,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "menu/menu_send.h" // SendMenu::FillSendMenu
 #include "core/click_handler_types.h"
+#include "ui/controls/tabbed_search.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
@@ -186,6 +189,8 @@ GifsListWidget::GifsListWidget(
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
+	setupSearch();
+
 	_inlineRequestTimer.setSingleShot(true);
 	connect(
 		&_inlineRequestTimer,
@@ -215,9 +220,8 @@ GifsListWidget::GifsListWidget(
 		_mosaic.setFullWidth(s.width());
 	}, lifetime());
 
-	_mosaic.setOffset(
-		st::inlineResultsLeft - st::roundRadiusSmall,
-		st::stickerPanPadding);
+	_mosaic.setPadding(st::gifsPadding
+		+ QMargins(-st::emojiPanRadius, _search->height(), 0, 0));
 	_mosaic.setRightSkip(st::inlineResultsSkip);
 }
 
@@ -262,7 +266,7 @@ void GifsListWidget::checkLoadMore() {
 }
 
 int GifsListWidget::countDesiredHeight(int newWidth) {
-	return _mosaic.countDesiredHeight(newWidth) + st::stickerPanPadding * 2;
+	return _mosaic.countDesiredHeight(newWidth);
 }
 
 GifsListWidget::~GifsListWidget() {
@@ -272,7 +276,7 @@ GifsListWidget::~GifsListWidget() {
 }
 
 void GifsListWidget::cancelGifsSearch() {
-	_footer->setLoading(false);
+	_search->setLoading(false);
 	if (_inlineRequestId) {
 		_api.request(_inlineRequestId).cancel();
 		_inlineRequestId = 0;
@@ -284,7 +288,7 @@ void GifsListWidget::cancelGifsSearch() {
 }
 
 void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
-	_footer->setLoading(false);
+	_search->setLoading(false);
 	_inlineRequestId = 0;
 
 	auto it = _inlineCache.find(_inlineQuery);
@@ -774,14 +778,14 @@ Data::FileOrigin GifsListWidget::inlineItemFileOrigin() {
 }
 
 void GifsListWidget::afterShown() {
-	if (_footer) {
-		_footer->stealFocus();
+	if (_search) {
+		_search->stealFocus();
 	}
 }
 
 void GifsListWidget::beforeHiding() {
-	if (_footer) {
-		_footer->returnFocus();
+	if (_search) {
+		_search->returnFocus();
 	}
 }
 
@@ -795,6 +799,26 @@ bool GifsListWidget::refreshInlineRows(int32 *added) {
 	auto result = refreshInlineRows(entry, false);
 	if (added) *added = result;
 	return (entry != nullptr);
+}
+
+void GifsListWidget::setupSearch() {
+	const auto owner = &_controller->session().data();
+	using Descriptor = Ui::SearchDescriptor;
+	_search = std::make_unique<Ui::TabbedSearch>(this, st(), Descriptor{
+		.st = st().search,
+		.groups = owner->emojiStatuses().emojiGroupsValue(),
+		.customEmojiFactory = owner->customEmojiManager().factory(
+			Data::CustomEmojiManager::SizeTag::SetIcon,
+			Ui::SearchWithGroups::IconSizeOverride())
+	});
+	_search->queryValue(
+	) | rpl::start_with_next([=](std::vector<QString> &&query) {
+		searchForGifs(ranges::accumulate(query, QString(), [](
+				QString a,
+				QString b) {
+			return a.isEmpty() ? b : (a + ' ' + b);
+		}));
+	}, lifetime());
 }
 
 int32 GifsListWidget::showInlineRows(bool newResults) {
@@ -813,7 +837,7 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 
 	if (_inlineQuery != query) {
-		_footer->setLoading(false);
+		_search->setLoading(false);
 		if (_inlineRequestId) {
 			_api.request(_inlineRequestId).cancel();
 			_inlineRequestId = 0;
@@ -862,7 +886,7 @@ void GifsListWidget::sendInlineRequest() {
 
 	if (!_searchBot) {
 		// Wait for the bot being resolved.
-		_footer->setLoading(true);
+		_search->setLoading(true);
 		_inlineRequestTimer.start(kSearchRequestDelay);
 		return;
 	}
@@ -874,12 +898,12 @@ void GifsListWidget::sendInlineRequest() {
 	if (it != _inlineCache.cend()) {
 		nextOffset = it->second->nextOffset;
 		if (nextOffset.isEmpty()) {
-			_footer->setLoading(false);
+			_search->setLoading(false);
 			return;
 		}
 	}
 
-	_footer->setLoading(true);
+	_search->setLoading(true);
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
 		_searchBot->inputUser,
@@ -891,7 +915,7 @@ void GifsListWidget::sendInlineRequest() {
 		inlineResultsDone(result);
 	}).fail([this] {
 		// show error?
-		_footer->setLoading(false);
+		_search->setLoading(false);
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
 }

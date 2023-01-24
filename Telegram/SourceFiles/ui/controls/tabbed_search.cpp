@@ -316,6 +316,7 @@ void SearchWithGroups::initField() {
 		} else {
 			_debounceTimer.callOnce(kDebounceTimeout);
 			_chosenGroup = QString();
+			scrollGroupsToStart();
 		}
 	});
 
@@ -518,6 +519,26 @@ auto SearchWithGroups::debouncedQueryValue() const
 	return _debouncedQuery.value();
 }
 
+void SearchWithGroups::setLoading(bool loading) {
+	_cancel->setLoadingAnimation(loading);
+}
+
+void SearchWithGroups::stealFocus() {
+	if (!_focusTakenFrom) {
+		_focusTakenFrom = QApplication::focusWidget();
+	}
+	_field->setFocus();
+}
+
+void SearchWithGroups::returnFocus() {
+	if (_field && _focusTakenFrom) {
+		if (_field->hasFocus()) {
+			_focusTakenFrom->setFocus();
+		}
+		_focusTakenFrom = nullptr;
+	}
+}
+
 int SearchWithGroups::IconSizeOverride() {
 	return style::ConvertScale(kCategoryIconSizeOverride);
 }
@@ -598,6 +619,18 @@ TabbedSearch::TabbedSearch(
 
 int TabbedSearch::height() const {
 	return _search.height() + rect::m::sum::v(_st.searchMargin);
+}
+
+void TabbedSearch::setLoading(bool loading) {
+	_search.setLoading(loading);
+}
+
+void TabbedSearch::stealFocus() {
+	_search.stealFocus();
+}
+
+void TabbedSearch::returnFocus() {
+	_search.returnFocus();
 }
 
 rpl::producer<std::vector<QString>> TabbedSearch::queryValue() const {

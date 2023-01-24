@@ -53,6 +53,10 @@ public:
 	[[nodiscard]] auto debouncedQueryValue() const
 		-> rpl::producer<std::vector<QString>>;
 
+	void setLoading(bool loading);
+	void stealFocus();
+	void returnFocus();
+
 	[[nodiscard]] static int IconSizeOverride();
 
 private:
@@ -79,6 +83,7 @@ private:
 	not_null<FadeWrap<IconButton>*> _back;
 	not_null<CrossButton*> _cancel;
 	not_null<InputField*> _field;
+	QPointer<QWidget> _focusTakenFrom;
 	not_null<FadeWrap<RpWidget>*> _groups;
 	not_null<RpWidget*> _fade;
 	rpl::variable<float64> _fadeOpacity = 0.;
@@ -110,6 +115,10 @@ public:
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;
 	[[nodiscard]] auto debouncedQueryValue() const
 		->rpl::producer<std::vector<QString>>;
+
+	void setLoading(bool loading);
+	void stealFocus();
+	void returnFocus();
 
 private:
 	const style::EmojiPan &_st;

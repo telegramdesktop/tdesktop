@@ -348,6 +348,7 @@ inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltab: stickerPanPadding;
 }
 
+gifsPadding: margins(9px, 5px, 3px, 9px);
 gifsSearchField: defaultMultiSelectSearchField;
 gifsSearchFieldPosition: point(42px, 7px);
 gifsSearchCancel: defaultMultiSelectSearchCancel;
