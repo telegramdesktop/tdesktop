@@ -1436,8 +1436,6 @@ bool StickersListWidget::hasRemoveButton(int index) const {
 			return true;
 		}
 		return !set.stickers.empty() && _megagroupSet->canEditStickers();
-	} else if (set.id == Data::Stickers::PremiumSetId) {
-		return !set.stickers.empty();
 	}
 	return false;
 }
@@ -1867,43 +1865,17 @@ void StickersListWidget::refreshMySets() {
 	_favedStickersMap.clear();
 	_mySets.reserve(defaultSetsOrder().size() + 3);
 
-	refreshPremiumStickers();
 	refreshFavedStickers();
 	refreshRecentStickers(false);
 	refreshMegagroupStickers(GroupStickersPlace::Visible);
-
-	const auto i = ranges::find(
-		_mySets,
-		Data::Stickers::PremiumSetId,
-		&Set::id);
-	_premiumsIndex = (i != end(_mySets)) ? int(i - begin(_mySets)) : -1;
 
 	for (const auto setId : defaultSetsOrder()) {
 		const auto externalLayout = false;
 		appendSet(_mySets, setId, externalLayout, AppendSkip::Archived);
 	}
-	if (_premiumsIndex >= 0) {
-		appendPremiumCloudSet();
-	}
-
-	if (_premiumsIndex >= 0 && _mySets[_premiumsIndex].stickers.empty()) {
-		_mySets.erase(_mySets.begin() + _premiumsIndex);
-		_premiumsIndex = -1;
-	}
-
 	refreshMegagroupStickers(GroupStickersPlace::Hidden);
 
 	takeHeavyData(_mySets, wasSets);
-}
-
-void StickersListWidget::appendPremiumCloudSet() {
-	Expects(_premiumsIndex >= 0 && _premiumsIndex < _mySets.size());
-
-	auto &set = _mySets[_premiumsIndex];
-	for (const auto &document : session().api().premium().cloudSet()) {
-		set.stickers.push_back(Sticker{ document });
-		++set.count;
-	}
 }
 
 void StickersListWidget::refreshFeaturedSets() {
@@ -2043,19 +2015,6 @@ bool StickersListWidget::appendSet(
 		externalLayout,
 		std::move(elements));
 	to.back().thumbnailDocument = set->lookupThumbnailDocument();
-	if (!externalLayout && _premiumsIndex >= 0 && session().premium()) {
-		for (const auto &sticker : to.back().stickers) {
-			const auto document = sticker.document;
-			if (document->isPremiumSticker()) {
-				auto &set = to[_premiumsIndex];
-				auto &list = set.stickers;
-				if (!ranges::contains(list, document, &Sticker::document)) {
-					list.push_back(Sticker{ document });
-					++set.count;
-				}
-			}
-		}
-	}
 	return true;
 }
 
@@ -2163,25 +2122,6 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 		resizeToWidth(width());
 		updateSelected();
 	}
-}
-
-void StickersListWidget::refreshPremiumStickers() {
-	if (_isMasks || session().settings().skipPremiumStickersSet()) {
-		return;
-	}
-	clearSelection();
-	const auto externalLayout = false;
-	const auto shortName = QString();
-	const auto count = 0;
-	_mySets.insert(_mySets.begin(), Set{
-		Data::Stickers::PremiumSetId,
-		nullptr,
-		(SetFlag::Official | SetFlag::Special),
-		tr::lng_premium_stickers(tr::now),
-		shortName,
-		count,
-		externalLayout
-	});
 }
 
 void StickersListWidget::refreshFavedStickers() {
@@ -2327,10 +2267,6 @@ std::vector<StickerIcon> StickersListWidget::fillIcons() {
 		if (result.empty() || result.back().setId != Data::Stickers::FavedSetId) {
 			result.emplace_back(Data::Stickers::RecentSetId);
 		}
-	}
-	if (i != _mySets.size() && _mySets[i].id == Data::Stickers::PremiumSetId) {
-		++i;
-		result.emplace_back(Data::Stickers::PremiumSetId);
 	}
 	for (auto l = _mySets.size(); i != l; ++i) {
 		if (_mySets[i].id == Data::Stickers::MegagroupSetId) {
@@ -2685,22 +2621,6 @@ StickersListWidget::~StickersListWidget() = default;
 object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 		not_null<Main::Session*> session,
 		uint64 setId) {
-	if (setId == Data::Stickers::PremiumSetId) {
-		return Ui::MakeConfirmBox({
-			.text = tr::lng_stickers_remove_pack(
-				tr::now,
-				lt_sticker_pack,
-				tr::lng_premium_stickers(tr::now)),
-			.confirmed = [=](Fn<void()> &&close) {
-				close();
-				session->settings().setSkipPremiumStickersSet(true);
-				session->saveSettingsDelayed();
-				session->data().stickers().notifyUpdated(
-					Data::StickersType::Stickers);
-			},
-			.confirmText = tr::lng_stickers_remove_pack_confirm(),
-		});
-	}
 	const auto &sets = session->data().stickers().sets();
 	const auto it = sets.find(setId);
 	if (it == sets.cend()) {

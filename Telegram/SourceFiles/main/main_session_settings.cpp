@@ -83,7 +83,7 @@ QByteArray SessionSettings::serialize() const {
 			stream << quint64(period);
 		}
 		stream
-			<< qint32(_skipPremiumStickersSet ? 1 : 0)
+			<< qint32(0) // old _skipPremiumStickersSet
 			<< qint32(_hiddenPinnedMessages.size());
 		for (const auto &[key, value] : _hiddenPinnedMessages) {
 			stream
@@ -152,7 +152,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 supportAllSilent = _supportAllSilent ? 1 : 0;
 	qint32 photoEditorHintShowsCount = _photoEditorHintShowsCount;
 	std::vector<TimeId> mutePeriods;
-	qint32 skipPremiumStickersSet = _skipPremiumStickersSet ? 1 : 0;
+	qint32 legacySkipPremiumStickersSet = 0;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -388,7 +388,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		}
 	}
 	if (!stream.atEnd()) {
-		stream >> skipPremiumStickersSet;
+		stream >> legacySkipPremiumStickersSet;
 	}
 	if (!stream.atEnd()) {
 		auto count = qint32(0);
@@ -454,7 +454,6 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_supportAllSilent = (supportAllSilent == 1);
 	_photoEditorHintShowsCount = std::move(photoEditorHintShowsCount);
 	_mutePeriods = std::move(mutePeriods);
-	_skipPremiumStickersSet = (skipPremiumStickersSet == 1);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);

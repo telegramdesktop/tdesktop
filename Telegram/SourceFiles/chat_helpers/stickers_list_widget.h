@@ -217,7 +217,6 @@ private:
 	bool stickerHasDeleteButton(const Set &set, int index) const;
 	std::vector<Sticker> collectRecentStickers();
 	void refreshRecentStickers(bool resize = true);
-	void refreshPremiumStickers();
 	void refreshFavedStickers();
 	enum class GroupStickersPlace {
 		Visible,
@@ -225,7 +224,6 @@ private:
 	};
 	void refreshMegagroupStickers(GroupStickersPlace place);
 	void refreshSettingsVisibility();
-	void appendPremiumCloudSet();
 
 	void updateSelected();
 	void setSelected(OverState newSelected);
@@ -338,7 +336,6 @@ private:
 	std::vector<Set> _mySets;
 	std::vector<Set> _officialSets;
 	std::vector<Set> _searchSets;
-	int _premiumsIndex = -1;
 	int _featuredSetsCount = 0;
 	std::vector<bool> _custom;
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;

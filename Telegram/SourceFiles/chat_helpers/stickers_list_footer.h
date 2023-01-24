@@ -291,7 +291,6 @@ private:
 	OverState _pressed = SpecialOver::None;
 
 	QPoint _iconsMousePos, _iconsMouseDown;
-	GradientPremiumStar _premiumIcon;
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
 	int _iconsTop = 0;

@@ -239,7 +239,7 @@ void GradientPremiumStar::renderOnDemand() const {
 	gradient.setStops({
 		{ 0., st::stickerPanPremium1->c },
 		{ 1., st::stickerPanPremium2->c },
-		});
+	});
 	p.fillRect(QRect(QPoint(), size), gradient);
 	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 	p.drawImage(QRect(QPoint(), size), mask);
@@ -1468,12 +1468,6 @@ void StickersListFooter::paintSetIconToCache(
 			(st().footer - size) / 2,
 			width(),
 			st::stickerGroupCategorySize);
-	} else if (icon.setId == Data::Stickers::PremiumSetId) {
-		const auto size = st::emojiStatusDefault.size();
-		p.drawImage(
-			(_singleWidth - size.width()) / 2,
-			(st().footer - size.height()) / 2,
-			_premiumIcon.image());
 	} else {
 		using Section = Ui::Emoji::Section;
 		const auto sectionIcon = [&](Section section, bool active) {
