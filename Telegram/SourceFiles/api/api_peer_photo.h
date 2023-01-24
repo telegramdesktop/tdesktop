@@ -44,6 +44,9 @@ public:
 
 	void requestUserPhotos(not_null<UserData*> user, UserPhotoId afterId);
 
+	void requestProfileEmojiList();
+	[[nodiscard]] std::vector<DocumentId> profileEmojiList() const;
+
 	// Non-personal photo in case a personal photo is set.
 	void registerNonPersonalPhoto(
 		not_null<UserData*> user,
@@ -82,6 +85,8 @@ private:
 	base::flat_map<
 		not_null<UserData*>,
 		not_null<PhotoData*>> _nonPersonalPhotos;
+
+	std::vector<DocumentId> _profileEmojiList;
 
 };
 

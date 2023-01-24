@@ -425,6 +425,22 @@ void PeerPhoto::requestUserPhotos(
 	_userPhotosRequests.emplace(user, requestId);
 }
 
+void PeerPhoto::requestProfileEmojiList() {
+	_api.request(MTPaccount_GetDefaultProfilePhotoEmojis(
+	)).done([=](const MTPEmojiList &result) {
+		result.match([](const MTPDemojiListNotModified &data) {
+		}, [&](const MTPDemojiList &data) {
+			_profileEmojiList = ranges::views::all(
+				data.vdocument_id().v
+			) | ranges::views::transform(&MTPlong::v) | ranges::to_vector;
+		});
+	}).send();
+}
+
+std::vector<DocumentId> PeerPhoto::profileEmojiList() const {
+	return _profileEmojiList;
+}
+
 // Non-personal photo in case a personal photo is set.
 void PeerPhoto::registerNonPersonalPhoto(
 		not_null<UserData*> user,
