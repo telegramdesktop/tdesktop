@@ -479,8 +479,6 @@ public:
 	void paint(QPainter &p);
 
 private:
-	[[nodiscard]] QPixmap paintedPixmap(const QSize &size) const;
-
 	void resolveIsColored();
 
 	QRectF _rect;
@@ -523,6 +521,11 @@ EmojiStatusTopBar::EmojiStatusTopBar(
 				_media->owner()->location(),
 				_media->bytes(),
 				size.toSize());
+		} else if (sticker) {
+			_player = std::make_unique<HistoryView::StaticStickerPlayer>(
+				_media->owner()->location(),
+				_media->bytes(),
+				size.toSize());
 		}
 		if (_player) {
 			_player->setRepaintCallback([=] { callback(_rect.toRect()); });
@@ -542,18 +545,6 @@ void EmojiStatusTopBar::setPaused(bool paused) {
 	_paused = paused;
 }
 
-QPixmap EmojiStatusTopBar::paintedPixmap(const QSize &size) const {
-	const auto good = _media->goodThumbnail();
-	if (const auto image = _media->getStickerLarge()) {
-		return image->pix(size);
-	} else if (good) {
-		return good->pix(size);
-	} else if (const auto thumbnail = _media->thumbnail()) {
-		return thumbnail->pix(size, { .options = Images::Option::Blur });
-	}
-	return QPixmap();
-}
-
 void EmojiStatusTopBar::resolveIsColored() {
 	if (_isColoredResolved) {
 		return;
@@ -570,25 +561,21 @@ void EmojiStatusTopBar::resolveIsColored() {
 }
 
 void EmojiStatusTopBar::paint(QPainter &p) {
-	if (_player) {
-		if (_player->ready()) {
-			resolveIsColored();
-			const auto frame = _player->frame(
-				_rect.size().toSize(),
-				(_isColored
-					? st::profileVerifiedCheckBg->c
-					: QColor(0, 0, 0, 0)),
-				false,
-				crl::now(),
-				_paused);
+	if (_player && _player->ready()) {
+		resolveIsColored();
+		const auto frame = _player->frame(
+			_rect.size().toSize(),
+			(_isColored
+				? st::profileVerifiedCheckBg->c
+				: QColor(0, 0, 0, 0)),
+			false,
+			crl::now(),
+			_paused);
 
-			p.drawImage(_rect.toRect(), frame.image);
-			if (!_paused) {
-				_player->markFrameShown();
-			}
+		p.drawImage(_rect.toRect(), frame.image);
+		if (!_paused) {
+			_player->markFrameShown();
 		}
-	} else if (_media) {
-		p.drawPixmap(_rect.topLeft(), paintedPixmap(_rect.size().toSize()));
 	}
 }
 
