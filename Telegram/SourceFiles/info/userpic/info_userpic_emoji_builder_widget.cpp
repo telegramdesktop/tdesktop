@@ -173,9 +173,7 @@ private:
 
 };
 
-EmojiUserpic::EmojiUserpic(
-	not_null<Ui::RpWidget*> parent,
-	const QSize &size)
+EmojiUserpic::EmojiUserpic(not_null<Ui::RpWidget*> parent, const QSize &size)
 : Ui::RpWidget(parent)
 , _painter(size.width()) {
 	resize(size);
@@ -358,6 +356,7 @@ void EmojiSelector::prepare() {
 not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
+		StartData data,
 		BothWayCommunication communication) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
 
@@ -368,6 +367,11 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 				container,
 				Size(st::settingsInfoPhotoSize))),
 		st::userpicBuilderEmojiPreviewPadding)->entity();
+	if (const auto id = data.documentId) {
+		if (const auto document = controller->session().data().document(id)) {
+			preview->setDocument(document);
+		}
+	}
 
 	container->add(
 		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
@@ -383,7 +387,9 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		st::userpicBuilderEmojiBubblePaletteSize,
 		[=] { return controller->chatStyle(); });
 
-	const auto palette = Ui::CreateChild<ColorsPalette>(paletteBg.get());
+	const auto palette = Ui::CreateChild<ColorsPalette>(
+		paletteBg.get(),
+		data.colorIndex);
 	palette->stopsValue(
 	) | rpl::start_with_next([=](QGradientStops stops) {
 		preview->setGradientStops(std::move(stops));

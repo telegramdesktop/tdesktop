@@ -15,7 +15,7 @@ namespace UserpicBuilder {
 
 class ColorsPalette final : public Ui::RpWidget {
 public:
-	ColorsPalette(not_null<Ui::RpWidget*> parent);
+	ColorsPalette(not_null<Ui::RpWidget*> parent, int index = 0);
 
 	[[nodiscard]] rpl::producer<QGradientStops> stopsValue();
 

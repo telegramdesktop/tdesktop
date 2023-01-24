@@ -19,6 +19,7 @@ namespace UserpicBuilder {
 
 void ShowLayer(
 		not_null<Window::SessionController*> controller,
+		StartData data,
 		Fn<void(QImage &&image)> &&doneCallback) {
 	auto layer = std::make_unique<LayerWidget>();
 	const auto layerRaw = layer.get();
@@ -31,6 +32,7 @@ void ShowLayer(
 		const auto content = CreateUserpicBuilder(
 			layerRaw,
 			controller,
+			data,
 			BothWayCommunication{
 				.triggers = state->clicks.events(),
 				.result = [=, done = std::move(doneCallback)](QImage &&i) {

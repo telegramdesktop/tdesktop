@@ -18,6 +18,11 @@ class SessionController;
 
 namespace UserpicBuilder {
 
+struct StartData {
+	DocumentId documentId = DocumentId(0);
+	int colorIndex = 0;
+};
+
 struct BothWayCommunication {
 	rpl::producer<> triggers;
 	Fn<void(QImage &&image)> result;
@@ -26,6 +31,7 @@ struct BothWayCommunication {
 not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> controller,
+	StartData data,
 	BothWayCommunication communication);
 
 } // namespace UserpicBuilder

@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace UserpicBuilder {
 namespace {
 
+constexpr auto kColorsCount = 7;
+
 [[nodiscard]] QLinearGradient VerticalGradient(
 		float64 size,
 		const QColor &c1,
@@ -78,8 +80,9 @@ void ColorsPalette::CircleButton::paintEvent(QPaintEvent *event) {
 	Settings::PaintRoundColorButton(p, h, _brush, _selectedProgress);
 }
 
-ColorsPalette::ColorsPalette(not_null<Ui::RpWidget*> parent)
-: Ui::RpWidget(parent) {
+ColorsPalette::ColorsPalette(not_null<Ui::RpWidget*> parent, int index)
+: Ui::RpWidget(parent)
+, _currentIndex(index % kColorsCount) {
 	rebuildButtons();
 }
 
@@ -90,7 +93,6 @@ rpl::producer<QGradientStops> ColorsPalette::stopsValue() {
 }
 
 void ColorsPalette::rebuildButtons() {
-	constexpr auto kColorsCount = 7;
 	const auto size = resizeGetHeight(0);
 	for (auto i = 0; i < kColorsCount; i++) {
 		_buttons.emplace_back(base::make_unique_q<CircleButton>(this));
