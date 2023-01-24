@@ -549,7 +549,6 @@ void StickersListFooter::processHideFinished() {
 	_subiconState.animation.stop();
 	_subiconState.animationStart = 0;
 	_subiconState.x.finish();
-	_horizontal = false;
 }
 
 void StickersListFooter::leaveToChildEvent(QEvent *e, QWidget *child) {
@@ -942,9 +941,6 @@ void StickersListFooter::scrollByWheelEvent(
 	auto vertical = (e->angleDelta().y() != 0);
 	if (!horizontal && !vertical) {
 		return;
-	}
-	if (horizontal) {
-		_horizontal = true;
 	}
 	auto delta = horizontal
 		? ((rtl() ? -1 : 1) * (e->pixelDelta().x()

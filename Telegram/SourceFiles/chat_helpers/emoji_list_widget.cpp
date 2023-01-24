@@ -476,7 +476,9 @@ void EmojiListWidget::setupSearch() {
 		.groups = (_mode == Mode::EmojiStatus
 			? session().data().emojiStatuses().statusGroupsValue()
 			: session().data().emojiStatuses().emojiGroupsValue()),
-		.customEmojiFactory = session().data().customEmojiManager().factory()
+		.customEmojiFactory = session().data().customEmojiManager().factory(
+			Data::CustomEmojiManager::SizeTag::SetIcon,
+			Ui::SearchWithGroups::IconSizeOverride())
 	});
 	_search->queryValue(
 	) | rpl::start_with_next([=](std::vector<QString> &&query) {

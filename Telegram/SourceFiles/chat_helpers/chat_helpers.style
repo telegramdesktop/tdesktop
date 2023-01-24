@@ -24,6 +24,7 @@ TabbedSearch {
 	cancel: CrossButton;
 	defaultFieldWidth: pixels;
 	groupWidth: pixels;
+	groupSkip: pixels;
 	height: pixels;
 }
 
@@ -248,8 +249,9 @@ defaultTabbedSearch: TabbedSearch {
 		loadingPeriod: 1000;
 		ripple: emptyRippleAnimation;
 	}
-	defaultFieldWidth: 101px;
+	defaultFieldWidth: 103px;
 	groupWidth: 30px;
+	groupSkip: 2px;
 	height: 33px;
 }
 defaultEmojiPan: EmojiPan {

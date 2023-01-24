@@ -15,10 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtWidgets/QApplication>
+
 namespace Ui {
 namespace {
 
 constexpr auto kDebounceTimeout = crl::time(400);
+constexpr auto kCategoryIconSizeOverride = 22;
 
 class GroupsStrip final : public RpWidget {
 public:
@@ -28,22 +31,34 @@ public:
 		rpl::producer<std::vector<EmojiGroup>> groups,
 		Text::CustomEmojiFactory factory);
 
-	[[nodiscard]] rpl::producer<EmojiGroup> chosen() const;
+	void scrollByWheel(QWheelEvent *e);
+
+	struct Chosen {
+		not_null<const EmojiGroup*> group;
+		int iconLeft = 0;
+		int iconRight = 0;
+	};
+	[[nodiscard]] rpl::producer<Chosen> chosen() const;
 	void clearChosen();
+
+	[[nodiscard]] rpl::producer<int> moveRequests() const;
 
 private:
 	struct Button {
 		EmojiGroup group;
 		QString iconId;
-		std::unique_ptr<Ui::Text::CustomEmoji> icon;
+		std::unique_ptr<Text::CustomEmoji> icon;
 	};
 
 	void init(rpl::producer<std::vector<EmojiGroup>> groups);
 	void set(std::vector<EmojiGroup> list);
 
 	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+
+	void fireChosenGroup();
 
 	static inline auto FindById(auto &&buttons, QStringView id) {
 		return ranges::find(buttons, id, &Button::iconId);
@@ -53,8 +68,10 @@ private:
 	const Text::CustomEmojiFactory _factory;
 
 	std::vector<Button> _buttons;
-	rpl::event_stream<EmojiGroup> _chosenGroup;
-	int _selected = -1;
+	rpl::event_stream<Chosen> _chosenGroup;
+	rpl::event_stream<int> _moveRequests;
+	QPoint _globalPressPoint, _globalLastPoint;
+	bool _dragging = false;
 	int _pressed = -1;
 	int _chosen = -1;
 
@@ -78,8 +95,12 @@ GroupsStrip::GroupsStrip(
 	init(std::move(groups));
 }
 
-rpl::producer<EmojiGroup> GroupsStrip::chosen() const {
+rpl::producer<GroupsStrip::Chosen> GroupsStrip::chosen() const {
 	return _chosenGroup.events();
+}
+
+rpl::producer<int> GroupsStrip::moveRequests() const {
+	return _moveRequests.events();
 }
 
 void GroupsStrip::clearChosen() {
@@ -138,7 +159,7 @@ void GroupsStrip::set(std::vector<EmojiGroup> list) {
 		const auto i = FindById(_buttons, chosen);
 		if (i != end(_buttons)) {
 			_chosen = (i - begin(_buttons));
-			_chosenGroup.fire_copy(i->group);
+			fireChosenGroup();
 		} else {
 			_chosen = -1;
 		}
@@ -150,17 +171,22 @@ void GroupsStrip::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	auto index = 0;
 	const auto single = _st.groupWidth;
+	const auto skip = _st.groupSkip;
 	const auto height = this->height();
 	const auto clip = e->rect();
 	const auto now = crl::now();
 	for (const auto &button : _buttons) {
 		const auto left = index * single;
 		const auto top = 0;
-		const auto size = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
+		const auto size = SearchWithGroups::IconSizeOverride();
 		if (_chosen == index) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::windowBgRipple);
-			p.drawEllipse(left, top + (height - single) / 2, single, single);
+			p.drawEllipse(
+				left + skip,
+				top + (height - single) / 2 + skip,
+				single - 2 * skip,
+				single - 2 * skip);
 		}
 		if (QRect(left, top, single, height).intersects(clip)) {
 			button.icon->paint(p, {
@@ -175,25 +201,72 @@ void GroupsStrip::paintEvent(QPaintEvent *e) {
 	}
 }
 
+void GroupsStrip::scrollByWheel(QWheelEvent *e) {
+	auto horizontal = (e->angleDelta().x() != 0);
+	auto vertical = (e->angleDelta().y() != 0);
+	if (!horizontal && !vertical) {
+		return;
+	}
+	const auto delta = horizontal
+		? ((style::RightToLeft() ? -1 : 1) * (e->pixelDelta().x()
+			? e->pixelDelta().x()
+			: e->angleDelta().x()))
+		: (e->pixelDelta().y()
+			? e->pixelDelta().y()
+			: e->angleDelta().y());
+	_moveRequests.fire_copy(delta);
+}
+
+void GroupsStrip::mouseMoveEvent(QMouseEvent *e) {
+	const auto point = e->globalPos();
+	if (!_dragging) {
+		const auto distance = (point - _globalPressPoint).manhattanLength();
+		if (distance >= QApplication::startDragDistance()) {
+			_dragging = true;
+			_globalLastPoint = _globalPressPoint;
+		}
+	}
+	if (_dragging) {
+		const auto delta = (point - _globalLastPoint).x();
+		_globalLastPoint = point;
+		_moveRequests.fire_copy(delta);
+	}
+}
+
 void GroupsStrip::mousePressEvent(QMouseEvent *e) {
 	const auto index = e->pos().x() / _st.groupWidth;
 	const auto chosen = (index < 0 || index >= _buttons.size())
 		? -1
 		: index;
 	_pressed = chosen;
+	_globalPressPoint = e->globalPos();
 }
 
 void GroupsStrip::mouseReleaseEvent(QMouseEvent *e) {
+	const auto pressed = std::exchange(_pressed, -1);
+	if (_dragging) {
+		_dragging = false;
+		return;
+	}
 	const auto index = e->pos().x() / _st.groupWidth;
 	const auto chosen = (index < 0 || index >= _buttons.size())
 		? -1
 		: index;
-	const auto pressed = std::exchange(_pressed, -1);
 	if (pressed == index && index >= 0) {
 		_chosen = pressed;
-		_chosenGroup.fire_copy(_buttons[index].group);
+		fireChosenGroup();
 		update();
 	}
+}
+
+void GroupsStrip::fireChosenGroup() {
+	Expects(_chosen >= 0 && _chosen < _buttons.size());
+
+	_chosenGroup.fire({
+		.group = &_buttons[_chosen].group,
+		.iconLeft = _chosen * _st.groupWidth,
+		.iconRight = (_chosen + 1) * _st.groupWidth,
+	});
 }
 
 } // namespace
@@ -218,17 +291,12 @@ SearchWithGroups::SearchWithGroups(
 		_st,
 		std::move(descriptor.groups),
 		std::move(descriptor.customEmojiFactory))))
-, _fadeLeft(CreateChild<FadeWrap<RpWidget>>(
-	this,
-	object_ptr<RpWidget>(this)))
-, _fadeRight(CreateChild<FadeWrap<RpWidget>>(
-	this,
-	object_ptr<RpWidget>(this)))
+, _fade(CreateChild<RpWidget>(this))
 , _debounceTimer([=] { _debouncedQuery = _query.current(); }) {
 	initField();
 	initGroups();
-	initEdges();
 	initButtons();
+	initEdges();
 }
 
 anim::type SearchWithGroups::animated() const {
@@ -266,7 +334,9 @@ void SearchWithGroups::initField() {
 void SearchWithGroups::initGroups() {
 	const auto widget = static_cast<GroupsStrip*>(_groups->entity());
 
-	_groups->move(_search->entity()->width() + _st.defaultFieldWidth, 0);
+	const auto &search = _st.search;
+	_fadeLeftStart = search.iconPosition.x() + search.icon.width();
+	_groups->move(_fadeLeftStart + _st.defaultFieldWidth, 0);
 	widget->resize(widget->width(), _st.height);
 	widget->widthValue(
 	) | rpl::filter([=] {
@@ -276,11 +346,17 @@ void SearchWithGroups::initGroups() {
 	}, widget->lifetime());
 
 	widget->chosen(
-	) | rpl::start_with_next([=](const EmojiGroup &group) {
-		_chosenGroup = group.iconId;
-		_query = group.emoticons;
-		_debouncedQuery = group.emoticons;
+	) | rpl::start_with_next([=](const GroupsStrip::Chosen &chosen) {
+		_chosenGroup = chosen.group->iconId;
+		_query = chosen.group->emoticons;
+		_debouncedQuery = chosen.group->emoticons;
 		_debounceTimer.cancel();
+		scrollGroupsToIcon(chosen.iconLeft, chosen.iconRight);
+	}, lifetime());
+
+	widget->moveRequests(
+	) | rpl::start_with_next([=](int delta) {
+		moveGroupsBy(width(), delta);
 	}, lifetime());
 
 	_chosenGroup.value(
@@ -291,10 +367,45 @@ void SearchWithGroups::initGroups() {
 		_back->toggle(!empty, animated());
 		if (empty) {
 			widget->clearChosen();
+			if (_field->getLastText().isEmpty()) {
+				_query = {};
+				_debouncedQuery = {};
+				_debounceTimer.cancel();
+			}
 		} else {
 			_field->setText({});
 		}
 	}, lifetime());
+}
+
+void SearchWithGroups::scrollGroupsToIcon(int iconLeft, int iconRight) {
+	const auto single = _st.groupWidth;
+	const auto fadeRight = _fadeLeftStart + _st.fadeLeft.width();
+	if (_groups->x() < fadeRight + single - iconLeft) {
+		scrollGroupsTo(fadeRight + single - iconLeft);
+	} else if (_groups->x() > width() - single - iconRight) {
+		scrollGroupsTo(width() - single - iconRight);
+	} else {
+		_groupsLeftAnimation.stop();
+	}
+}
+
+void SearchWithGroups::scrollGroupsToStart() {
+	scrollGroupsTo(width());
+}
+
+void SearchWithGroups::scrollGroupsTo(int left) {
+	left = clampGroupsLeft(width(), left);
+	_groupsLeftTo = left;
+	const auto delta = _groupsLeftTo - _groups->x();
+	if (!delta) {
+		_groupsLeftAnimation.stop();
+		return;
+	}
+	_groupsLeftAnimation.start([=] {
+		const auto d = int(base::SafeRound(_groupsLeftAnimation.value(0)));
+		moveGroupsTo(width(), _groupsLeftTo - d);
+	}, delta, 0, st::slideWrapDuration, anim::sineInOut);
 }
 
 void SearchWithGroups::initEdges() {
@@ -305,6 +416,7 @@ void SearchWithGroups::initEdges() {
 	const auto makeEdge = [&](bool left) {
 		const auto edge = CreateChild<RpWidget>(this);
 		const auto size = QSize(height() / 2, height());
+		edge->setAttribute(Qt::WA_TransparentForMouseEvents);
 		edge->resize(size);
 		if (left) {
 			edge->move(0, 0);
@@ -329,6 +441,30 @@ void SearchWithGroups::initEdges() {
 	makeEdge(true);
 	makeEdge(false);
 
+	_fadeOpacity.changes(
+	) | rpl::start_with_next([=] {
+		_fade->update();
+	}, _fade->lifetime());
+
+	_fade->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(_fade);
+		p.setOpacity(_fadeOpacity.current());
+		const auto fill = QRect(0, 0, _fadeLeftStart, _st.height);
+		if (fill.intersects(clip)) {
+			p.fillRect(fill, _st.bg);
+		}
+		const auto icon = QRect(
+			_fadeLeftStart,
+			0,
+			_st.fadeLeft.width(),
+			_st.height);
+		if (clip.intersects(icon)) {
+			_st.fadeLeft.fill(p, icon);
+		}
+	}, _fade->lifetime());
+	_fade->setAttribute(Qt::WA_TransparentForMouseEvents);
+
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_rounding = QImage();
@@ -339,6 +475,22 @@ void SearchWithGroups::initButtons() {
 	_cancel->setClickedCallback([=] {
 		_field->setText(QString());
 	});
+	_back->entity()->setClickedCallback([=] {
+		_chosenGroup = QString();
+		scrollGroupsToStart();
+	});
+	_search->entity()->setClickedCallback([=] {
+		_field->setFocus();
+		scrollGroupsToStart();
+	});
+	QObject::connect(_field, &InputField::focused, [=] {
+		scrollGroupsToStart();
+	});
+	_field->raise();
+	_fade->raise();
+	_search->raise();
+	_back->raise();
+	_cancel->raise();
 }
 
 void SearchWithGroups::ensureRounding(int size, float64 ratio) {
@@ -366,19 +518,41 @@ auto SearchWithGroups::debouncedQueryValue() const
 	return _debouncedQuery.value();
 }
 
+int SearchWithGroups::IconSizeOverride() {
+	return style::ConvertScale(kCategoryIconSizeOverride);
+}
+
 int SearchWithGroups::resizeGetHeight(int newWidth) {
 	_back->moveToLeft(0, 0, newWidth);
 	_search->moveToLeft(0, 0, newWidth);
 	_cancel->moveToRight(0, 0, newWidth);
 
-	const auto searchWidth = _search->entity()->width();
-	const auto groupsLeftDefault = searchWidth + _st.defaultFieldWidth;
-	const auto groupsLeftMin = newWidth - _groups->entity()->width();
+	moveGroupsBy(newWidth, 0);
+
+	const auto fadeWidth = _fadeLeftStart + _st.fadeLeft.width();
+	const auto fade = QRect(0, 0, fadeWidth, _st.height);
+	_fade->setGeometry(fade);
+
+	return _st.height;
+}
+
+void SearchWithGroups::wheelEvent(QWheelEvent *e) {
+	static_cast<GroupsStrip*>(_groups->entity())->scrollByWheel(e);
+}
+
+int SearchWithGroups::clampGroupsLeft(int width, int desiredLeft) const {
+	const auto groupsLeftDefault = _fadeLeftStart + _st.defaultFieldWidth;
+	const auto groupsLeftMin = width - _groups->entity()->width();
 	const auto groupsLeftMax = std::max(groupsLeftDefault, groupsLeftMin);
-	const auto groupsLeft = std::clamp(
-		_groups->x(),
-		groupsLeftMin,
-		groupsLeftMax);
+	return std::clamp(desiredLeft, groupsLeftMin, groupsLeftMax);
+}
+
+void SearchWithGroups::moveGroupsBy(int width, int delta) {
+	moveGroupsTo(width, _groups->x() + delta);
+}
+
+void SearchWithGroups::moveGroupsTo(int width, int to) {
+	const auto groupsLeft = clampGroupsLeft(width, to);
 	_groups->move(groupsLeft, 0);
 
 	const auto placeholderMargins = _st.field.textMargins
@@ -388,12 +562,24 @@ int SearchWithGroups::resizeGetHeight(int newWidth) {
 		rect::m::sum::h(placeholderMargins) + placeholderWidth,
 		_st.defaultFieldWidth);
 	const auto fieldWidth = std::max(
-		groupsLeft - searchWidth,
+		groupsLeft - _st.search.width,
 		fieldWidthMin);
 	_field->resizeToWidth(fieldWidth);
-	_field->moveToLeft(groupsLeft - fieldWidth, 0);
+	const auto fieldLeft = groupsLeft - fieldWidth;
+	_field->moveToLeft(fieldLeft, 0);
 
-	return _st.height;
+	if (fieldLeft >= _fadeLeftStart) {
+		if (!_fade->isHidden()) {
+			_fade->hide();
+		}
+	} else {
+		if (_fade->isHidden()) {
+			_fade->show();
+		}
+		_fadeOpacity = (fieldLeft < _fadeLeftStart / 2)
+			? 1.
+			: (_fadeLeftStart - fieldLeft) / float64(_fadeLeftStart / 2);
+	}
 }
 
 TabbedSearch::TabbedSearch(

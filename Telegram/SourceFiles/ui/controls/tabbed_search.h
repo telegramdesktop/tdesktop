@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "ui/text/text_custom_emoji.h"
 
 namespace style {
@@ -52,8 +53,18 @@ public:
 	[[nodiscard]] auto debouncedQueryValue() const
 		-> rpl::producer<std::vector<QString>>;
 
+	[[nodiscard]] static int IconSizeOverride();
+
 private:
 	int resizeGetHeight(int newWidth) override;
+	void wheelEvent(QWheelEvent *e) override;
+
+	[[nodiscard]] int clampGroupsLeft(int width, int desiredLeft) const;
+	void moveGroupsBy(int width, int delta);
+	void moveGroupsTo(int width, int to);
+	void scrollGroupsToIcon(int iconLeft, int iconRight);
+	void scrollGroupsToStart();
+	void scrollGroupsTo(int left);
 
 	[[nodiscard]] anim::type animated() const;
 	void initField();
@@ -69,10 +80,13 @@ private:
 	not_null<CrossButton*> _cancel;
 	not_null<InputField*> _field;
 	not_null<FadeWrap<RpWidget>*> _groups;
-	not_null<FadeWrap<RpWidget>*> _fadeLeft;
-	not_null<FadeWrap<RpWidget>*> _fadeRight;
+	not_null<RpWidget*> _fade;
+	rpl::variable<float64> _fadeOpacity = 0.;
+	int _fadeLeftStart = 0;
 
 	rpl::variable<int> _fieldPlaceholderWidth;
+	Ui::Animations::Simple _groupsLeftAnimation;
+	int _groupsLeftTo = 0;
 
 	QImage _rounding;
 

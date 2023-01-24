@@ -304,8 +304,6 @@ private:
 	bool _barSelection = false;
 	bool _repaintScheduled = false;
 
-	bool _horizontal = false;
-
 	bool _searchShown = false;
 	object_ptr<Ui::InputField> _searchField = { nullptr };
 	object_ptr<Ui::CrossButton> _searchCancel = { nullptr };
