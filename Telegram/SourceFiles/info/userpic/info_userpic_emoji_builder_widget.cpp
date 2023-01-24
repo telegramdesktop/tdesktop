@@ -63,7 +63,7 @@ private:
 
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
-	bool _paused = false;
+	bool _paused = true;
 	rpl::lifetime _lifetime;
 
 };
@@ -300,9 +300,7 @@ EmojiSelector::Selector EmojiSelector::createEmojiList() const {
 		.session = session,
 		.mode = ChatHelpers::EmojiListMode::FullReactions,
 		.controller = _controller,
-		.paused = [=, reason = Window::GifPauseReason::Layer] {
-			return _controller->isGifPausedAtLeastFor(reason);
-		},
+		.paused = [=] { return true; },
 		.customRecentList = session->api().peerPhoto().profileEmojiList(),
 		.customRecentFactory = [=](DocumentId id, Fn<void()> repaint) {
 			return manager->create(id, std::move(repaint), tag);
@@ -325,7 +323,7 @@ EmojiSelector::Selector EmojiSelector::createStickersList() const {
 		object_ptr<ChatHelpers::StickersListWidget>(
 			_scroll,
 			_controller,
-			Window::GifPauseReason::Layer));
+			Window::GifPauseReason::Any));
 	const auto footer = list->createFooter().data();
 	list->refreshRecent();
 	list->chosen(
