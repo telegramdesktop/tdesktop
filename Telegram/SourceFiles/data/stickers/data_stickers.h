@@ -48,7 +48,7 @@ public:
 	static constexpr auto RecentSetId = 0xFFFFFFFFFFFFFFFEULL;
 	static constexpr auto NoneSetId = 0xFFFFFFFFFFFFFFFDULL;
 	static constexpr auto FeaturedSetId = 0xFFFFFFFFFFFFFFFBULL;
-	
+
 	// For cloud-stored recent stickers.
 	static constexpr auto CloudRecentSetId = 0xFFFFFFFFFFFFFFFCULL;
 	static constexpr auto CloudRecentAttachedSetId = 0xFFFFFFFFFFFFFFF9ULL;
@@ -230,8 +230,9 @@ public:
 	void gifsReceived(const QVector<MTPDocument> &items, uint64 hash);
 
 	std::vector<not_null<DocumentData*>> getListByEmoji(
-		not_null<EmojiPtr> emoji,
-		uint64 seed);
+		std::vector<EmojiPtr> emoji,
+		uint64 seed,
+		bool forceAllResults = false);
 	std::optional<std::vector<not_null<EmojiPtr>>> getEmojiListFromSet(
 		not_null<DocumentData*> document);
 

@@ -532,13 +532,19 @@ void StickersListWidget::sendSearchRequest() {
 	}).handleAllErrors().send();
 }
 
-void StickersListWidget::searchForSets(const QString &query) {
+void StickersListWidget::searchForSets(
+		const QString &query,
+		std::vector<EmojiPtr> emoji) {
 	const auto cleaned = query.trimmed();
 	if (cleaned.isEmpty()) {
 		cancelSetsSearch();
 		return;
 	}
 
+	_filteredStickers = session().data().stickers().getListByEmoji(
+		std::move(emoji),
+		0,
+		true);
 	if (_searchQuery != cleaned) {
 		_search->setLoading(false);
 		if (const auto requestId = base::take(_searchRequestId)) {
@@ -562,6 +568,7 @@ void StickersListWidget::cancelSetsSearch() {
 	}
 	_searchRequestTimer.cancel();
 	_searchQuery = _searchNextQuery = QString();
+	_filteredStickers.clear();
 	_searchCache.clear();
 	refreshSearchRows(nullptr);
 }
@@ -591,6 +598,7 @@ void StickersListWidget::refreshSearchRows(
 		}
 	});
 
+	fillFilteredStickersRow();
 	fillLocalSearchRows(_searchNextQuery);
 
 	if (!cloudSets && _searchNextQuery.isEmpty()) {
@@ -655,6 +663,27 @@ void StickersListWidget::fillCloudSearchRows(
 			addSearchRow(it->second.get());
 		}
 	}
+}
+
+void StickersListWidget::fillFilteredStickersRow() {
+	if (_filteredStickers.empty()) {
+		return;
+	}
+	auto elements = ranges::views::all(
+		_filteredStickers
+	) | ranges::views::transform([](not_null<DocumentData*> document) {
+		return Sticker{ document };
+	}) | ranges::to_vector;
+
+	_searchSets.emplace_back(
+		SearchEmojiSectionSetId(),
+		nullptr,
+		Data::StickersSetFlag::Special,
+		QString(), // title
+		QString(), // shortName
+		_filteredStickers.size(),
+		false, // externalLayout
+		std::move(elements));
 }
 
 void StickersListWidget::addSearchRow(not_null<StickersSet*> set) {
@@ -2528,11 +2557,17 @@ void StickersListWidget::beforeHiding() {
 void StickersListWidget::setupSearch() {
 	const auto session = &_controller->session();
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
-		searchForSets(ranges::accumulate(query, QString(), [](
+		auto emoji = query | ranges::views::transform([](const QString &k) {
+			return Ui::Emoji::Find(k);
+		}) | ranges::views::filter([](EmojiPtr emoji) {
+			return (emoji != nullptr);
+		}) | ranges::to_vector;
+		auto text = ranges::accumulate(query, QString(), [](
 				QString a,
 				QString b) {
 			return a.isEmpty() ? b : (a + ' ' + b);
-		}));
+		});
+		searchForSets(std::move(text), std::move(emoji));
 	}, session);
 }
 

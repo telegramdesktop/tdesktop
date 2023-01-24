@@ -2543,8 +2543,8 @@ void ApiWrap::setGroupStickerSet(
 }
 
 std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
-		not_null<EmojiPtr> emoji) {
-	const auto it = _stickersByEmoji.find(emoji);
+		const QString &key) {
+	const auto it = _stickersByEmoji.find(key);
 	const auto sendRequest = [&] {
 		if (it == _stickersByEmoji.end()) {
 			return true;
@@ -2559,7 +2559,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			? it->second.hash
 			: uint64(0);
 		request(MTPmessages_GetStickers(
-			MTP_string(emoji->text()),
+			MTP_string(key),
 			MTP_long(hash)
 		)).done([=](const MTPmessages_Stickers &result) {
 			if (result.type() == mtpc_messages_stickersNotModified) {
@@ -2567,7 +2567,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			}
 			Assert(result.type() == mtpc_messages_stickers);
 			const auto &data = result.c_messages_stickers();
-			auto &entry = _stickersByEmoji[emoji];
+			auto &entry = _stickersByEmoji[key];
 			entry.list.clear();
 			entry.list.reserve(data.vstickers().v.size());
 			for (const auto &sticker : data.vstickers().v) {
@@ -2584,7 +2584,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 		}).send();
 	}
 	if (it == _stickersByEmoji.end()) {
-		_stickersByEmoji.emplace(emoji, StickersByEmoji());
+		_stickersByEmoji.emplace(key, StickersByEmoji());
 	} else if (it->second.received > 0) {
 		return &it->second.list;
 	}

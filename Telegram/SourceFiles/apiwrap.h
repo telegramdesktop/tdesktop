@@ -238,8 +238,8 @@ public:
 	void setGroupStickerSet(
 		not_null<ChannelData*> megagroup,
 		const StickerSetIdentifier &set);
-	std::vector<not_null<DocumentData*>> *stickersByEmoji(
-		not_null<EmojiPtr> emoji);
+	[[nodiscard]] std::vector<not_null<DocumentData*>> *stickersByEmoji(
+		const QString &key);
 
 	void joinChannel(not_null<ChannelData*> channel);
 	void leaveChannel(not_null<ChannelData*> channel);
@@ -596,7 +596,7 @@ private:
 	base::Timer _featuredSetsReadTimer;
 	base::flat_set<uint64> _featuredSetsRead;
 
-	base::flat_map<not_null<EmojiPtr>, StickersByEmoji> _stickersByEmoji;
+	base::flat_map<QString, StickersByEmoji> _stickersByEmoji;
 
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;

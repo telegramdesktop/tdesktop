@@ -1656,8 +1656,8 @@ void Account::writeStickerSet(
 	}
 	stream << qint32(set.emoji.size());
 	for (auto j = set.emoji.cbegin(), e = set.emoji.cend(); j != e; ++j) {
-		stream << j.key()->id() << qint32(j->size());
-		for (const auto sticker : *j) {
+		stream << j->first->id() << qint32(j->second.size());
+		for (const auto sticker : j->second) {
 			stream << quint64(sticker->id);
 		}
 	}
@@ -1724,7 +1724,7 @@ void Account::writeStickerSets(
 
 		size += sizeof(qint32); // emojiCount
 		for (auto j = raw->emoji.cbegin(), e = raw->emoji.cend(); j != e; ++j) {
-			size += Serialize::stringSize(j.key()->id()) + sizeof(qint32) + (j->size() * sizeof(quint64));
+			size += Serialize::stringSize(j->first->id()) + sizeof(qint32) + (j->second.size() * sizeof(quint64));
 		}
 
 		++setsCount;
@@ -1960,7 +1960,7 @@ void Account::readStickerSets(
 			if (fillStickers) {
 				if (auto emoji = Ui::Emoji::Find(emojiString)) {
 					emoji = emoji->original();
-					set->emoji.insert(emoji, pack);
+					set->emoji[emoji] = std::move(pack);
 				}
 			}
 		}

@@ -89,7 +89,7 @@ public:
 	uint64 currentSet(int yOffset) const;
 
 	void sendSearchRequest();
-	void searchForSets(const QString &query);
+	void searchForSets(const QString &query, std::vector<EmojiPtr> emoji);
 
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 
@@ -319,6 +319,7 @@ private:
 	void searchResultsDone(const MTPmessages_FoundStickerSets &result);
 	void refreshSearchRows();
 	void refreshSearchRows(const std::vector<uint64> *cloudSets);
+	void fillFilteredStickersRow();
 	void fillLocalSearchRows(const QString &query);
 	void fillCloudSearchRows(const std::vector<uint64> &cloudSets);
 	void addSearchRow(not_null<Data::StickersSet*> set);
@@ -387,6 +388,7 @@ private:
 
 	std::unique_ptr<StickerPremiumMark> _premiumMark;
 
+	std::vector<not_null<DocumentData*>> _filteredStickers;
 	std::map<QString, std::vector<uint64>> _searchCache;
 	std::vector<std::pair<uint64, QStringList>> _searchIndex;
 	base::Timer _searchRequestTimer;
