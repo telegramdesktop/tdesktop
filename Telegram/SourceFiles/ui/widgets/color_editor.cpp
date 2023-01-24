@@ -948,6 +948,10 @@ QColor ColorEditor::color() const {
 	return _new.toRgb();
 }
 
+rpl::producer<QColor> ColorEditor::colorValue() const {
+	return _newChanges.events_starting_with_copy(_new);
+}
+
 rpl::producer<> ColorEditor::submitRequests() const {
 	return _submitRequests.events();
 }
@@ -1147,6 +1151,7 @@ QColor ColorEditor::applyLimits(QColor color) const {
 
 void ColorEditor::updateFromColor(QColor color) {
 	_new = applyLimits(color);
+	_newChanges.fire_copy(_new);
 	updateControlsFromColor();
 	updateRGBFields();
 	updateHSBFields();
@@ -1252,6 +1257,7 @@ void ColorEditor::setHSB(HSB hsb, int alpha) {
 	} else {
 		_new.setHsl(hsb.hue, hsb.saturation, hsb.brightness, alpha);
 	}
+	_newChanges.fire_copy(_new);
 	updateRGBFields();
 	updateResultField();
 	update();
@@ -1259,6 +1265,7 @@ void ColorEditor::setHSB(HSB hsb, int alpha) {
 
 void ColorEditor::setRGB(int red, int green, int blue, int alpha) {
 	_new = applyLimits(QColor(red, green, blue, alpha));
+	_newChanges.fire_copy(_new);
 	updateControlsFromColor();
 	updateHSBFields();
 	update();

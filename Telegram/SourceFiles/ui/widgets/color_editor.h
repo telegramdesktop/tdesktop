@@ -24,6 +24,7 @@ public:
 	void setLightnessLimits(int min, int max);
 
 	[[nodiscard]] QColor color() const;
+	[[nodiscard]] rpl::producer<QColor> colorValue() const;
 	[[nodiscard]] rpl::producer<> submitRequests() const;
 
 	void showColor(QColor color) {
@@ -101,5 +102,6 @@ private:
 	int _lightnessMax = 255;
 
 	rpl::event_stream<> _submitRequests;
+	rpl::event_stream<QColor> _newChanges;
 
 };
