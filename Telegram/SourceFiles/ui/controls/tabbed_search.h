@@ -59,6 +59,7 @@ private:
 	void initField();
 	void initGroups();
 	void initEdges();
+	void initButtons();
 
 	void ensureRounding(int size, float64 rounding);
 

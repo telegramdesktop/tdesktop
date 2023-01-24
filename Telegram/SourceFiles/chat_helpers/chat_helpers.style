@@ -230,7 +230,24 @@ defaultTabbedSearch: TabbedSearch {
 		iconPosition: point(7px, -1px);
 		ripple: emptyRippleAnimation;
 	}
-	cancel: defaultMultiSelectSearchCancel;
+	cancel: CrossButton {
+		width: 33px;
+		height: 33px;
+
+		cross: CrossAnimation {
+			size: 27px;
+			skip: 8px;
+			stroke: 1.;
+			minScale: 0.3;
+		}
+		crossFg: menuIconFg;
+		crossFgOver: menuIconFg;
+		crossPosition: point(1px, 3px);
+
+		duration: 150;
+		loadingPeriod: 1000;
+		ripple: emptyRippleAnimation;
+	}
 	defaultFieldWidth: 101px;
 	groupWidth: 30px;
 	height: 33px;

@@ -228,6 +228,7 @@ SearchWithGroups::SearchWithGroups(
 	initField();
 	initGroups();
 	initEdges();
+	initButtons();
 }
 
 anim::type SearchWithGroups::animated() const {
@@ -332,6 +333,12 @@ void SearchWithGroups::initEdges() {
 	) | rpl::start_with_next([=] {
 		_rounding = QImage();
 	}, lifetime());
+}
+
+void SearchWithGroups::initButtons() {
+	_cancel->setClickedCallback([=] {
+		_field->setText(QString());
+	});
 }
 
 void SearchWithGroups::ensureRounding(int size, float64 ratio) {
