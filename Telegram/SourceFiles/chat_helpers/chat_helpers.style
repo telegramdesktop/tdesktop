@@ -353,8 +353,6 @@ gifsSearchField: defaultMultiSelectSearchField;
 gifsSearchFieldPosition: point(42px, 7px);
 gifsSearchCancel: defaultMultiSelectSearchCancel;
 gifsSearchCancelPosition: point(1px, 1px);
-gifsSearchIcon: boxFieldSearchIcon;
-gifsSearchIconPosition: point(6px, 7px);
 
 emojiSuggestionsDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, emojiColorsPadding, 0px, emojiColorsPadding);

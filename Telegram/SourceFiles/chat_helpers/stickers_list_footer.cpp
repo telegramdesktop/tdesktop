@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_list_footer.h"
 
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/stickers/data_stickers.h"
@@ -16,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
@@ -88,6 +91,58 @@ std::optional<EmojiSection> SetIdEmojiSection(uint64 id) {
 	return (index <= uint64(EmojiSection::Symbols))
 		? static_cast<EmojiSection>(index)
 		: std::optional<EmojiSection>();
+}
+
+[[nodiscard]] std::vector<QString> GifSearchEmojiFallback() {
+	return {
+		u"\xf0\x9f\x91\x8d"_q,
+		u"\xf0\x9f\x98\x98"_q,
+		u"\xf0\x9f\x98\x8d"_q,
+		u"\xf0\x9f\x98\xa1"_q,
+		u"\xf0\x9f\xa5\xb3"_q,
+		u"\xf0\x9f\x98\x82"_q,
+		u"\xf0\x9f\x98\xae"_q,
+		u"\xf0\x9f\x99\x84"_q,
+		u"\xf0\x9f\x98\x8e"_q,
+		u"\xf0\x9f\x91\x8e"_q,
+	};
+}
+
+rpl::producer<std::vector<GifSection>> GifSectionsValue(
+		not_null<Main::Session*> session) {
+	const auto config = &session->account().appConfig();
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		config->refreshed()
+	) | rpl::map([=] {
+		return config->get<std::vector<QString>>(
+			u"gif_search_emojies"_q,
+			GifSearchEmojiFallback());
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([=](const std::vector<QString> &emoji) {
+		const auto list = ranges::views::all(
+			emoji
+		) | ranges::views::transform([](const QString &val) {
+			return Ui::Emoji::Find(val);
+		}) | ranges::views::filter([](EmojiPtr emoji) {
+			return emoji != nullptr;
+		}) | ranges::to_vector;
+
+		const auto pack = &session->emojiStickersPack();
+		return rpl::single(
+			rpl::empty_value()
+		) | rpl::then(
+			pack->refreshed()
+		) | rpl::map([=, list = std::move(list)] {
+			 return list | ranges::views::transform([&](EmojiPtr emoji) {
+				const auto document = pack->stickerForEmoji(emoji).document;
+				return GifSection{ document, emoji };
+			}) | ranges::views::filter([](GifSection section) {
+				return (section.document != nullptr);
+			}) | ranges::to_vector;
+		}) | rpl::distinct_until_changed();
+	}) | rpl::flatten_latest();
 }
 
 StickerIcon::StickerIcon(uint64 setId) : setId(setId) {

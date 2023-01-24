@@ -52,6 +52,17 @@ enum class ValidateIconAnimations {
 [[nodiscard]] uint64 SearchEmojiSectionSetId();
 [[nodiscard]] std::optional<Ui::Emoji::Section> SetIdEmojiSection(uint64 id);
 
+struct GifSection {
+	DocumentData *document = nullptr;
+	EmojiPtr emoji;
+
+	friend inline constexpr auto operator<=>(
+		GifSection,
+		GifSection) = default;
+};
+[[nodiscard]] rpl::producer<std::vector<GifSection>> GifSectionsValue(
+	not_null<Main::Session*> session);
+
 struct StickerIcon {
 	explicit StickerIcon(uint64 setId);
 	StickerIcon(

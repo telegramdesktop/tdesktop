@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_toggling_media.h" // Api::ToggleSavedGif
 #include "base/const_string.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "chat_helpers/stickers_list_footer.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_emoji_statuses.h"
@@ -83,94 +84,6 @@ void AddGifAction(
 	}, saved ? &st::menuIconDelete : &st::menuIconGif);
 }
 
-class GifsListWidget::Footer : public TabbedSelector::InnerFooter {
-public:
-	Footer(not_null<GifsListWidget*> parent);
-
-	void stealFocus();
-	void returnFocus();
-	void setLoading(bool loading) {
-		_cancel->setLoadingAnimation(loading);
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void processPanelHideFinished() override;
-
-private:
-	not_null<GifsListWidget*> _pan;
-
-	object_ptr<Ui::InputField> _field;
-	object_ptr<Ui::CrossButton> _cancel;
-
-	QPointer<QWidget> _focusTakenFrom;
-
-};
-
-GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent)
-: InnerFooter(parent, st::defaultEmojiPan)
-, _pan(parent)
-, _field(this, st::gifsSearchField, tr::lng_gifs_search())
-, _cancel(this, st::gifsSearchCancel) {
-	connect(_field, &Ui::InputField::submitted, [=] {
-		_pan->sendInlineRequest();
-	});
-	connect(_field, &Ui::InputField::cancelled, [=] {
-		if (_field->getLastText().isEmpty()) {
-			_pan->cancelled();
-		} else {
-			_field->setText(QString());
-		}
-	});
-	connect(_field, &Ui::InputField::changed, [=] {
-		_cancel->toggle(
-			!_field->getLastText().isEmpty(),
-			anim::type::normal);
-		_pan->searchForGifs(_field->getLastText());
-	});
-	_cancel->setClickedCallback([=] {
-		_field->setText(QString());
-	});
-}
-
-void GifsListWidget::Footer::stealFocus() {
-	if (!_focusTakenFrom) {
-		_focusTakenFrom = QApplication::focusWidget();
-	}
-	_field->setFocus();
-}
-
-void GifsListWidget::Footer::returnFocus() {
-	if (_focusTakenFrom) {
-		if (_field->hasFocus()) {
-			_focusTakenFrom->setFocus();
-		}
-		_focusTakenFrom = nullptr;
-	}
-}
-
-void GifsListWidget::Footer::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	st::gifsSearchIcon.paint(p, st::gifsSearchIconPosition.x(), st::gifsSearchIconPosition.y(), width());
-}
-
-void GifsListWidget::Footer::resizeEvent(QResizeEvent *e) {
-	auto fieldWidth = width()
-		- st::gifsSearchFieldPosition.x()
-		- st::gifsSearchCancelPosition.x()
-		- st::gifsSearchCancel.width;
-	_field->resizeToWidth(fieldWidth);
-	_field->moveToLeft(st::gifsSearchFieldPosition.x(), st::gifsSearchFieldPosition.y());
-	_cancel->moveToRight(st::gifsSearchCancelPosition.x(), st::gifsSearchCancelPosition.y());
-}
-
-void GifsListWidget::Footer::processPanelHideFinished() {
-	// Preserve panel state through visibility toggles.
-	//_field->setText(QString());
-}
-
 GifsListWidget::GifsListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
@@ -241,8 +154,89 @@ auto GifsListWidget::inlineResultChosen() const
 object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 	Expects(_footer == nullptr);
 
-	auto result = object_ptr<Footer>(this);
+	using FooterDescriptor = StickersListFooter::Descriptor;
+	auto result = object_ptr<StickersListFooter>(FooterDescriptor{
+		.session = &session(),
+		.paused = pausedMethod(),
+		.parent = this,
+		.st = &st(),
+	});
 	_footer = result;
+
+	GifSectionsValue(
+		&session()
+	) | rpl::start_with_next([=](std::vector<GifSection> &&list) {
+		_sections = std::move(list);
+		refreshIcons();
+	}, _footer->lifetime());
+
+	_footer->setChosen(
+	) | rpl::start_with_next([=](uint64 setId) {
+		_chosenSetId = setId;
+		refreshIcons();
+		const auto i = ranges::find(_sections, setId, [](GifSection value) {
+			return value.document->id;
+		});
+		if (i != end(_sections)) {
+			searchForGifs(i->emoji->text());
+		}
+	}, _footer->lifetime());
+
+	return result;
+}
+
+void GifsListWidget::refreshIcons() {
+	if (_footer) {
+		_footer->refreshIcons(
+			fillIcons(),
+			_chosenSetId,
+			nullptr,
+			ValidateIconAnimations::None);
+	}
+}
+
+std::vector<StickerIcon> GifsListWidget::fillIcons() {
+	auto result = std::vector<StickerIcon>();
+	result.reserve(_sections.size() + 1);
+	result.emplace_back(Data::Stickers::RecentSetId);
+	for (const auto &section : _sections) {
+		const auto s = section.document;
+		const auto id = s->id;
+		const auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding;
+		const auto availh = st().footer - 2 * st::stickerIconPadding;
+		const auto size = s->hasThumbnail()
+			? QSize(
+				s->thumbnailLocation().width(),
+				s->thumbnailLocation().height())
+			: QSize();
+		auto thumbw = size.width(), thumbh = size.height(), pixw = 1, pixh = 1;
+		if (availw * thumbh > availh * thumbw) {
+			pixh = availh;
+			pixw = (pixh * thumbw) / thumbh;
+		} else {
+			pixw = availw;
+			pixh = thumbw ? ((pixw * thumbh) / thumbw) : 1;
+		}
+		if (pixw < 1) pixw = 1;
+		if (pixh < 1) pixh = 1;
+		const auto owner = &s->owner();
+		const auto already = _fakeSets.find(id);
+		const auto set = (already != end(_fakeSets))
+			? already
+			: _fakeSets.emplace(
+				id,
+				std::make_unique<Data::StickersSet>(
+					owner,
+					id,
+					0,
+					0,
+					QString(),
+					QString(),
+					0,
+					Data::StickersSetFlag::Special,
+					0)).first;
+		result.emplace_back(set->second.get(), s, pixw, pixh);
+	}
 	return result;
 }
 
@@ -546,10 +540,16 @@ TabbedSelector::InnerFooter *GifsListWidget::getFooter() const {
 void GifsListWidget::processHideFinished() {
 	clearSelection();
 	clearHeavyData();
+	if (_footer) {
+		_footer->clearHeavyData();
+	}
 }
 
 void GifsListWidget::processPanelHideFinished() {
 	clearHeavyData();
+	if (_footer) {
+		_footer->clearHeavyData();
+	}
 }
 
 void GifsListWidget::clearHeavyData() {
@@ -813,6 +813,8 @@ void GifsListWidget::setupSearch() {
 	});
 	_search->queryValue(
 	) | rpl::start_with_next([=](std::vector<QString> &&query) {
+		_chosenSetId = Data::Stickers::RecentSetId;
+		refreshIcons();
 		searchForGifs(ranges::accumulate(query, QString(), [](
 				QString a,
 				QString b) {

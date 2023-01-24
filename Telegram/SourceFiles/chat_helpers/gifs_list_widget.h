@@ -39,12 +39,20 @@ namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
 
+namespace Data {
+class StickersSet;
+} // namespace Data
+
 namespace ChatHelpers {
 
 void AddGifAction(
 	Fn<void(QString, Fn<void()> &&, const style::icon*)> callback,
 	Window::SessionController *controller,
 	not_null<DocumentData*> document);
+
+class StickersListFooter;
+struct StickerIcon;
+struct GifSection;
 
 class GifsListWidget
 	: public TabbedSelector::Inner
@@ -109,7 +117,6 @@ private:
 		Inlines,
 		Gifs,
 	};
-	class Footer;
 
 	using InlineResult = InlineBots::Result;
 	using InlineResults = std::vector<std::unique_ptr<InlineResult>>;
@@ -134,6 +141,8 @@ private:
 
 	void updateSelected();
 	void paintInlineItems(Painter &p, QRect clip);
+	void refreshIcons();
+	[[nodiscard]] std::vector<StickerIcon> fillIcons();
 
 	void updateInlineItems();
 	void repaintItems(crl::time now = 0);
@@ -171,7 +180,10 @@ private:
 		not_null<InlineResult*>,
 		std::unique_ptr<LayoutItem>> _inlineLayouts;
 
-	Footer *_footer = nullptr;
+	StickersListFooter *_footer = nullptr;
+	std::vector<GifSection> _sections;
+	base::flat_map<uint64, std::unique_ptr<Data::StickersSet>> _fakeSets;
+	uint64 _chosenSetId = 0;
 
 	Mosaic::Layout::MosaicLayout<LayoutItem> _mosaic;
 
