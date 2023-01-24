@@ -2557,17 +2557,13 @@ void StickersListWidget::beforeHiding() {
 void StickersListWidget::setupSearch() {
 	const auto session = &_controller->session();
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
-		auto emoji = query | ranges::views::transform([](const QString &k) {
-			return Ui::Emoji::Find(k);
-		}) | ranges::views::filter([](EmojiPtr emoji) {
-			return (emoji != nullptr);
-		}) | ranges::to_vector;
+		auto set = base::flat_set<EmojiPtr>();
 		auto text = ranges::accumulate(query, QString(), [](
 				QString a,
 				QString b) {
 			return a.isEmpty() ? b : (a + ' ' + b);
 		});
-		searchForSets(std::move(text), std::move(emoji));
+		searchForSets(std::move(text), SearchEmoji(query, set));
 	}, session);
 }
 

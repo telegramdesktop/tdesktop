@@ -1273,11 +1273,11 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 				for (const auto document : *list) {
 					const auto sticker = document->sticker();
 					if (!sticker) {
-						return;
+						continue;
 					} else if (!single) {
 						const auto main = Ui::Emoji::Find(sticker->alt);
 						if (!main || !all.contains(main)) {
-							return;
+							continue;
 						}
 					}
 					const auto installDate = my ? set->installDate : TimeId(0);

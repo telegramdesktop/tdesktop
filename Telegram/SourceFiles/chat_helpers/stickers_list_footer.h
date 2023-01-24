@@ -63,6 +63,10 @@ struct GifSection {
 [[nodiscard]] rpl::producer<std::vector<GifSection>> GifSectionsValue(
 	not_null<Main::Session*> session);
 
+[[nodiscard]] std::vector<EmojiPtr> SearchEmoji(
+	const std::vector<QString> &query,
+	base::flat_set<EmojiPtr> &outResultSet);
+
 struct StickerIcon {
 	explicit StickerIcon(uint64 setId);
 	StickerIcon(

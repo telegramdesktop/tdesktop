@@ -46,7 +46,6 @@ namespace {
 
 constexpr auto kCollapsedRows = 3;
 constexpr auto kAppearDuration = 0.3;
-constexpr auto kPlainSearchLimit = 32;
 constexpr auto kCustomSearchLimit = 256;
 
 using Core::RecentEmojiId;
@@ -519,39 +518,7 @@ void EmojiListWidget::applyNextSearchQuery() {
 }
 
 std::vector<EmojiPtr> EmojiListWidget::collectPlainSearchResults() {
-	auto result = std::vector<EmojiPtr>();
-	const auto pushPlain = [&](EmojiPtr emoji) {
-		if (result.size() < kPlainSearchLimit
-			&& _searchEmoji.emplace(emoji).second) {
-			result.push_back(emoji);
-		}
-		if (const auto original = emoji->original(); original != emoji) {
-			_searchEmoji.emplace(original);
-		}
-	};
-	auto refreshed = false;
-	auto &keywords = Core::App().emojiKeywords();
-	for (const auto &entry : _searchQuery) {
-		if (const auto emoji = Ui::Emoji::Find(entry)) {
-			pushPlain(emoji);
-			if (result.size() >= kPlainSearchLimit) {
-				return result;
-			}
-		} else if (!entry.isEmpty()) {
-			if (!refreshed) {
-				refreshed = true;
-				keywords.refresh();
-			}
-			const auto list = keywords.queryMine(entry);
-			for (const auto &entry : list) {
-				pushPlain(entry.emoji);
-				if (result.size() >= kPlainSearchLimit) {
-					return result;
-				}
-			}
-		}
-	}
-	return result;
+	return SearchEmoji(_searchQuery, _searchEmoji);
 }
 
 void EmojiListWidget::appendPremiumSearchResults() {

@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_list_footer.h"
 
+#include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "core/application.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -36,6 +38,7 @@ namespace ChatHelpers {
 namespace {
 
 constexpr auto kEmojiSectionSetIdBase = uint64(0x77FF'FFFF'FFFF'FFF0ULL);
+constexpr auto kEmojiSearchLimit = 32;
 
 using EmojiSection = Ui::Emoji::Section;
 
@@ -143,6 +146,44 @@ rpl::producer<std::vector<GifSection>> GifSectionsValue(
 			}) | ranges::to_vector;
 		}) | rpl::distinct_until_changed();
 	}) | rpl::flatten_latest();
+}
+
+[[nodiscard]] std::vector<EmojiPtr> SearchEmoji(
+		const std::vector<QString> &query,
+		base::flat_set<EmojiPtr> &outResultSet) {
+	auto result = std::vector<EmojiPtr>();
+	const auto pushPlain = [&](EmojiPtr emoji) {
+		if (result.size() < kEmojiSearchLimit
+			&& outResultSet.emplace(emoji).second) {
+			result.push_back(emoji);
+		}
+		if (const auto original = emoji->original(); original != emoji) {
+			outResultSet.emplace(original);
+		}
+	};
+	auto refreshed = false;
+	auto &keywords = Core::App().emojiKeywords();
+	for (const auto &entry : query) {
+		if (const auto emoji = Ui::Emoji::Find(entry)) {
+			pushPlain(emoji);
+			if (result.size() >= kEmojiSearchLimit) {
+				return result;
+			}
+		} else if (!entry.isEmpty()) {
+			if (!refreshed) {
+				refreshed = true;
+				keywords.refresh();
+			}
+			const auto list = keywords.queryMine(entry);
+			for (const auto &entry : list) {
+				pushPlain(entry.emoji);
+				if (result.size() >= kEmojiSearchLimit) {
+					return result;
+				}
+			}
+		}
+	}
+	return result;
 }
 
 StickerIcon::StickerIcon(uint64 setId) : setId(setId) {
