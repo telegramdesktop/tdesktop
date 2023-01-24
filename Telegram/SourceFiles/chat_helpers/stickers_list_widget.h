@@ -29,6 +29,7 @@ class PopupMenu;
 class RippleAnimation;
 class BoxContent;
 class PathShiftGradient;
+class TabbedSearch;
 } // namespace Ui
 
 namespace Lottie {
@@ -196,6 +197,7 @@ private:
 		const QVector<DocumentData*> &pack,
 		bool skipPremium);
 
+	void setupSearch();
 	void preloadMoreOfficial();
 	QSize boundingBoxSize() const;
 
@@ -329,6 +331,7 @@ private:
 		not_null<DocumentData*> document);
 
 	not_null<Window::SessionController*> _controller;
+	std::unique_ptr<Ui::TabbedSearch> _search;
 	MTP::Sender _api;
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
 	ChannelData *_megagroupSet = nullptr;

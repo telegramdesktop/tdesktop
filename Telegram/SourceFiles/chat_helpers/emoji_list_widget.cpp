@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_position.h"
-#include "data/data_emoji_statuses.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_peer_values.h"
@@ -414,9 +413,6 @@ EmojiListWidget::EmojiListWidget(
 	_customSingleSize = Data::FrameSizeFromTag(
 		Data::CustomEmojiManager::SizeTag::Large
 	) / style::DevicePixelRatio();
-	_customSetIconSize = Data::FrameSizeFromTag(
-		Data::CustomEmojiManager::SizeTag::SetIcon
-	) / style::DevicePixelRatio();
 
 	_picker->hide();
 
@@ -470,23 +466,13 @@ EmojiListWidget::~EmojiListWidget() {
 }
 
 void EmojiListWidget::setupSearch() {
-	using Descriptor = Ui::SearchDescriptor;
-	_search = std::make_unique<Ui::TabbedSearch>(this, st(), Descriptor{
-		.st = st().search,
-		.groups = (_mode == Mode::EmojiStatus
-			? session().data().emojiStatuses().statusGroupsValue()
-			: session().data().emojiStatuses().emojiGroupsValue()),
-		.customEmojiFactory = session().data().customEmojiManager().factory(
-			Data::CustomEmojiManager::SizeTag::SetIcon,
-			Ui::SearchWithGroups::IconSizeOverride())
-	});
-	_search->queryValue(
-	) | rpl::start_with_next([=](std::vector<QString> &&query) {
+	const auto session = &_controller->session();
+	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
 		_nextSearchQuery = std::move(query);
 		InvokeQueued(this, [=] {
 			applyNextSearchQuery();
 		});
-	}, lifetime());
+	}, session, (_mode == Mode::EmojiStatus));
 }
 
 void EmojiListWidget::applyNextSearchQuery() {
@@ -1940,7 +1926,7 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	} else {
 		result.emplace_back(AllEmojiSectionSetId());
 	}
-	const auto esize = _customSetIconSize;
+	const auto esize = StickersListFooter::IconFrameSize();
 	for (const auto &custom : _custom) {
 		const auto set = custom.set;
 		result.emplace_back(set, custom.thumbnailDocument, esize, esize);

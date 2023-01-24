@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h" // SendMenu::FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/stickers_list_footer.h"
+#include "ui/controls/tabbed_search.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/animations.h"
@@ -201,6 +202,10 @@ StickersListWidget::StickersListWidget(
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
+	if (!_isMasks) {
+		setupSearch();
+	}
+
 	_settings->addClickHandler([=] {
 		using Section = StickersBox::Section;
 		controller->show(
@@ -265,7 +270,6 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 		.paused = pausedMethod(),
 		.parent = this,
 		.settingsButtonVisible = true,
-		.barSelection = true,
 	});
 	_footer = result;
 
@@ -286,15 +290,6 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 				: StickersBox::Section::Installed),
 			onlyFeatured ? false : _isMasks),
 		Ui::LayerOption::KeepOther);
-	}, _footer->lifetime());
-
-	_footer->searchRequests(
-	) | rpl::start_with_next([=](StickersListFooter::SearchRequest request) {
-		if (request.forced) {
-			sendSearchRequest();
-		} else {
-			searchForSets(request.text);
-		}
 	}, _footer->lifetime());
 
 	return result;
@@ -417,6 +412,7 @@ int StickersListWidget::featuredRowHeight() const {
 template <typename Callback>
 bool StickersListWidget::enumerateSections(Callback callback) const {
 	auto info = SectionInfo();
+	info.top = _search ? _search->height() : 0;
 	const auto &sets = shownSets();
 	for (auto i = 0; i != sets.size(); ++i) {
 		auto &set = sets[i];
@@ -517,11 +513,11 @@ void StickersListWidget::sendSearchRequest() {
 
 	auto it = _searchCache.find(_searchQuery);
 	if (it != _searchCache.cend()) {
-		_footer->setLoading(false);
+		_search->setLoading(false);
 		return;
 	}
 
-	_footer->setLoading(true);
+	_search->setLoading(true);
 	const auto hash = uint64(0);
 	_searchRequestId = _api.request(MTPmessages_SearchStickerSets(
 		MTP_flags(0),
@@ -531,7 +527,7 @@ void StickersListWidget::sendSearchRequest() {
 		searchResultsDone(result);
 	}).fail([=] {
 		// show error?
-		_footer->setLoading(false);
+		_search->setLoading(false);
 		_searchRequestId = 0;
 	}).handleAllErrors().send();
 }
@@ -544,7 +540,7 @@ void StickersListWidget::searchForSets(const QString &query) {
 	}
 
 	if (_searchQuery != cleaned) {
-		_footer->setLoading(false);
+		_search->setLoading(false);
 		if (const auto requestId = base::take(_searchRequestId)) {
 			_api.request(requestId).cancel();
 		}
@@ -560,7 +556,7 @@ void StickersListWidget::searchForSets(const QString &query) {
 }
 
 void StickersListWidget::cancelSetsSearch() {
-	_footer->setLoading(false);
+	_search->setLoading(false);
 	if (const auto requestId = base::take(_searchRequestId)) {
 		_api.request(requestId).cancel();
 	}
@@ -758,7 +754,7 @@ auto StickersListWidget::shownSets() -> std::vector<Set> & {
 
 void StickersListWidget::searchResultsDone(
 		const MTPmessages_FoundStickerSets &result) {
-	_footer->setLoading(false);
+	_search->setLoading(false);
 	_searchRequestId = 0;
 
 	if (result.type() == mtpc_messages_foundStickerSetsNotModified) {
@@ -926,7 +922,12 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 						set.ripple.reset();
 					}
 				}
-				(selected ? st::stickerPanRemoveSet.iconOver : st::stickerPanRemoveSet.icon).paint(p, remove.topLeft() + st::stickerPanRemoveSet.iconPosition, width());
+				const auto &icon = selected ? st::stickerPanRemoveSet.iconOver : st::stickerPanRemoveSet.icon;
+				icon.paint(
+					p,
+					remove.x() + (remove.width() - icon.width()) / 2,
+					remove.y() + (remove.height() - icon.height()) / 2,
+					width());
 
 				widthForTitle -= remove.width();
 			}
@@ -2253,10 +2254,6 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 std::vector<StickerIcon> StickersListWidget::fillIcons() {
 	auto result = std::vector<StickerIcon>();
 	result.reserve(_mySets.size() + 1);
-	if (!_officialSets.empty() && !_isMasks) {
-		result.emplace_back(Data::Stickers::FeaturedSetId);
-	}
-
 	auto i = 0;
 	if (i != _mySets.size() && _mySets[i].id == Data::Stickers::FavedSetId) {
 		++i;
@@ -2268,6 +2265,7 @@ std::vector<StickerIcon> StickersListWidget::fillIcons() {
 			result.emplace_back(Data::Stickers::RecentSetId);
 		}
 	}
+	const auto side = StickersListFooter::IconFrameSize();
 	for (auto l = _mySets.size(); i != l; ++i) {
 		if (_mySets[i].id == Data::Stickers::MegagroupSetId) {
 			result.emplace_back(Data::Stickers::MegagroupSetId);
@@ -2277,8 +2275,6 @@ std::vector<StickerIcon> StickersListWidget::fillIcons() {
 		const auto set = _mySets[i].set;
 		Assert(set != nullptr);
 		const auto s = _mySets[i].thumbnailDocument;
-		const auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding;
-		const auto availh = st().footer - 2 * st::stickerIconPadding;
 		const auto size = set->hasThumbnail()
 			? QSize(
 				set->thumbnailLocation().width(),
@@ -2288,17 +2284,8 @@ std::vector<StickerIcon> StickersListWidget::fillIcons() {
 				s->thumbnailLocation().width(),
 				s->thumbnailLocation().height())
 			: QSize();
-		auto thumbw = size.width(), thumbh = size.height(), pixw = 1, pixh = 1;
-		if (availw * thumbh > availh * thumbw) {
-			pixh = availh;
-			pixw = (pixh * thumbw) / thumbh;
-		} else {
-			pixw = availw;
-			pixh = thumbw ? ((pixw * thumbh) / thumbw) : 1;
-		}
-		if (pixw < 1) pixw = 1;
-		if (pixh < 1) pixh = 1;
-		result.emplace_back(set, s, pixw, pixh);
+		const auto pix = size.scaled(side, side, Qt::KeepAspectRatio);
+		result.emplace_back(set, s, pix.width(), pix.height());
 	}
 	return result;
 }
@@ -2471,7 +2458,7 @@ void StickersListWidget::showStickerSet(uint64 setId) {
 	auto y = 0;
 	enumerateSections([this, setId, &y](const SectionInfo &info) {
 		if (shownSets()[info.section].id == setId) {
-			y = info.top;
+			y = info.section ? info.top : 0;
 			return false;
 		}
 		return true;
@@ -2527,15 +2514,26 @@ void StickersListWidget::showMegagroupSet(ChannelData *megagroup) {
 }
 
 void StickersListWidget::afterShown() {
-	if (_footer) {
-		_footer->stealFocus();
+	if (_search) {
+		_search->stealFocus();
 	}
 }
 
 void StickersListWidget::beforeHiding() {
-	if (_footer) {
-		_footer->returnFocus();
+	if (_search) {
+		_search->returnFocus();
 	}
+}
+
+void StickersListWidget::setupSearch() {
+	const auto session = &_controller->session();
+	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
+		searchForSets(ranges::accumulate(query, QString(), [](
+				QString a,
+				QString b) {
+			return a.isEmpty() ? b : (a + ' ' + b);
+		}));
+	}, session);
 }
 
 void StickersListWidget::displaySet(uint64 setId) {

@@ -321,11 +321,6 @@ stickerPanRemoveSet: IconButton(hashtagClose) {
 	iconPosition: point(-1px, -1px);
 	rippleAreaPosition: point(0px, 0px);
 }
-stickerIconWidth: 42px;
-stickerIconPadding: 5px;
-stickerIconOpacity: 0.7;
-stickerIconSel: 2px;
-stickerIconSelColor: emojiIconFgActive;
 stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
@@ -349,10 +344,6 @@ inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 }
 
 gifsPadding: margins(9px, 5px, 3px, 9px);
-gifsSearchField: defaultMultiSelectSearchField;
-gifsSearchFieldPosition: point(42px, 7px);
-gifsSearchCancel: defaultMultiSelectSearchCancel;
-gifsSearchCancelPosition: point(1px, 1px);
 
 emojiSuggestionsDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, emojiColorsPadding, 0px, emojiColorsPadding);

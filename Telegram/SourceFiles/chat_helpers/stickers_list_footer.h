@@ -113,7 +113,6 @@ public:
 		Fn<bool()> paused;
 		not_null<RpWidget*> parent;
 		bool settingsButtonVisible = false;
-		bool barSelection = false;
 		const style::EmojiPan *st = nullptr;
 	};
 	explicit StickersListFooter(Descriptor &&descriptor);
@@ -131,26 +130,18 @@ public:
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 
-	void stealFocus();
-	void returnFocus();
-	void setLoading(bool loading);
-
 	void clearHeavyData();
 
 	[[nodiscard]] rpl::producer<uint64> setChosen() const;
 	[[nodiscard]] rpl::producer<> openSettingsRequests() const;
-
-	struct SearchRequest {
-		QString text;
-		bool forced = false;
-	};
-	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
 
 	void paintExpanding(
 		Painter &p,
 		QRect clip,
 		float64 radius,
 		RectPart origin);
+
+	[[nodiscard]] static int IconFrameSize();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -258,7 +249,6 @@ private:
 	void paintSelectionBg(
 		QPainter &p,
 		const ExpandingContext &context) const;
-	void paintSelectionBar(QPainter &p) const;
 	void paintLeftRightFading(
 		QPainter &p,
 		const ExpandingContext &context) const;
@@ -266,9 +256,6 @@ private:
 	void updateEmojiSectionWidth();
 	void updateEmojiWidthCallback();
 
-	void initSearch();
-	void toggleSearch(bool visible);
-	void resizeSearchControls();
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
 
 	void validateFadeLeft(int leftWidth) const;
@@ -311,17 +298,10 @@ private:
 	Ui::Animations::Simple _subiconsWidthAnimation;
 	int _subiconsWidth = 0;
 	bool _subiconsExpanded = false;
-	bool _barSelection = false;
 	bool _repaintScheduled = false;
-
-	bool _searchShown = false;
-	object_ptr<Ui::InputField> _searchField = { nullptr };
-	object_ptr<Ui::CrossButton> _searchCancel = { nullptr };
-	QPointer<QWidget> _focusTakenFrom;
 
 	rpl::event_stream<> _openSettingsRequests;
 	rpl::event_stream<uint64> _setChosen;
-	rpl::event_stream<SearchRequest> _searchRequests;
 
 };
 

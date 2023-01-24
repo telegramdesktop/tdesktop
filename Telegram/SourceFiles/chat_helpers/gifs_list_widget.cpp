@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_footer.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
-#include "data/data_emoji_statuses.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -199,26 +198,16 @@ std::vector<StickerIcon> GifsListWidget::fillIcons() {
 	auto result = std::vector<StickerIcon>();
 	result.reserve(_sections.size() + 1);
 	result.emplace_back(Data::Stickers::RecentSetId);
+	const auto side = StickersListFooter::IconFrameSize();
 	for (const auto &section : _sections) {
 		const auto s = section.document;
 		const auto id = s->id;
-		const auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding;
-		const auto availh = st().footer - 2 * st::stickerIconPadding;
 		const auto size = s->hasThumbnail()
 			? QSize(
 				s->thumbnailLocation().width(),
 				s->thumbnailLocation().height())
 			: QSize();
-		auto thumbw = size.width(), thumbh = size.height(), pixw = 1, pixh = 1;
-		if (availw * thumbh > availh * thumbw) {
-			pixh = availh;
-			pixw = (pixh * thumbw) / thumbh;
-		} else {
-			pixw = availw;
-			pixh = thumbw ? ((pixw * thumbh) / thumbw) : 1;
-		}
-		if (pixw < 1) pixw = 1;
-		if (pixh < 1) pixh = 1;
+		const auto pix = size.scaled(side, side, Qt::KeepAspectRatio);
 		const auto owner = &s->owner();
 		const auto already = _fakeSets.find(id);
 		const auto set = (already != end(_fakeSets))
@@ -235,7 +224,7 @@ std::vector<StickerIcon> GifsListWidget::fillIcons() {
 					0,
 					Data::StickersSetFlag::Special,
 					0)).first;
-		result.emplace_back(set->second.get(), s, pixw, pixh);
+		result.emplace_back(set->second.get(), s, pix.width(), pix.height());
 	}
 	return result;
 }
@@ -802,17 +791,8 @@ bool GifsListWidget::refreshInlineRows(int32 *added) {
 }
 
 void GifsListWidget::setupSearch() {
-	const auto owner = &_controller->session().data();
-	using Descriptor = Ui::SearchDescriptor;
-	_search = std::make_unique<Ui::TabbedSearch>(this, st(), Descriptor{
-		.st = st().search,
-		.groups = owner->emojiStatuses().emojiGroupsValue(),
-		.customEmojiFactory = owner->customEmojiManager().factory(
-			Data::CustomEmojiManager::SizeTag::SetIcon,
-			Ui::SearchWithGroups::IconSizeOverride())
-	});
-	_search->queryValue(
-	) | rpl::start_with_next([=](std::vector<QString> &&query) {
+	const auto session = &_controller->session();
+	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
 		_chosenSetId = Data::Stickers::RecentSetId;
 		refreshIcons();
 		searchForGifs(ranges::accumulate(query, QString(), [](
@@ -820,7 +800,7 @@ void GifsListWidget::setupSearch() {
 				QString b) {
 			return a.isEmpty() ? b : (a + ' ' + b);
 		}));
-	}, lifetime());
+	}, session);
 }
 
 int32 GifsListWidget::showInlineRows(bool newResults) {

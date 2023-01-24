@@ -359,7 +359,6 @@ private:
 		DocumentId,
 		std::unique_ptr<Ui::Text::CustomEmoji>> _customRecent;
 	int _customSingleSize = 0;
-	int _customSetIconSize = 0;
 	bool _allowWithoutPremium = false;
 	Ui::RoundRect _overBg;
 

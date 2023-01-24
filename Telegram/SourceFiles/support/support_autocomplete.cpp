@@ -397,7 +397,7 @@ void Autocomplete::setupContent() {
 		this,
 		object_ptr<Ui::InputField>(
 			this,
-			st::gifsSearchField,
+			st::defaultMultiSelectSearchField,
 			rpl::single(u"Search for templates"_q)), // #TODO hard_lang
 		st::autocompleteSearchPadding);
 	const auto input = inputWrap->entity();

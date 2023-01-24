@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
 #include "menu/menu_send.h"
+#include "ui/controls/tabbed_search.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "storage/localstorage.h"
 #include "data/data_channel.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
@@ -286,6 +288,32 @@ void TabbedSelector::Tab::saveScrollTop() {
 	Expects(widget() != nullptr);
 
 	_scrollTop = widget()->getVisibleTop();
+}
+
+std::unique_ptr<Ui::TabbedSearch> MakeSearch(
+		not_null<Ui::RpWidget*> parent,
+		const style::EmojiPan &st,
+		Fn<void(std::vector<QString>&&)> callback,
+		not_null<Main::Session*> session,
+		bool statusCategories) {
+	using Descriptor = Ui::SearchDescriptor;
+	const auto owner = &session->data();
+	auto result = std::make_unique<Ui::TabbedSearch>(parent, st, Descriptor{
+		.st = st.search,
+		.groups = (statusCategories
+			? owner->emojiStatuses().statusGroupsValue()
+			: owner->emojiStatuses().emojiGroupsValue()),
+		.customEmojiFactory = owner->customEmojiManager().factory(
+			Data::CustomEmojiManager::SizeTag::SetIcon,
+			Ui::SearchWithGroups::IconSizeOverride())
+	});
+
+	result->queryValue(
+	) | rpl::skip(1) | rpl::start_with_next(
+		std::move(callback),
+		parent->lifetime());
+
+	return result;
 }
 
 TabbedSelector::TabbedSelector(
