@@ -322,7 +322,7 @@ TabbedSelector::TabbedSelector(
 	Window::GifPauseReason level,
 	Mode mode)
 : RpWidget(parent)
-, _st(st::defaultEmojiPan)
+, _st((mode == Mode::EmojiStatus) ? st::statusEmojiPan : st::defaultEmojiPan)
 , _controller(controller)
 , _level(level)
 , _mode(mode)
@@ -369,12 +369,6 @@ TabbedSelector::TabbedSelector(
 		createTabsSlider();
 	}
 	setWidgetToScrollArea();
-
-	_bottomShadow->setGeometry(
-		0,
-		_scroll->y() + _scroll->height() - st::lineWidth,
-		width(),
-		st::lineWidth);
 
 	for (auto &tab : _tabs) {
 		const auto widget = tab.widget();
@@ -484,13 +478,16 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 		switch (type) {
 		case SelectorTab::Emoji:
 			using EmojiMode = EmojiListWidget::Mode;
-			return object_ptr<EmojiListWidget>(
-				this,
-				_controller,
-				_level,
-				(_mode == Mode::EmojiStatus
+			using Descriptor = EmojiListDescriptor;
+			return object_ptr<EmojiListWidget>(this, Descriptor{
+				.session = &_controller->session(),
+				.mode = (_mode == Mode::EmojiStatus
 					? EmojiMode::EmojiStatus
-					: EmojiMode::Full));
+					: EmojiMode::Full),
+				.controller = _controller,
+				.paused = Window::PausedIn(_controller, _level),
+				.st = &_st,
+			});
 		case SelectorTab::Stickers:
 			return object_ptr<StickersListWidget>(this, _controller, _level);
 		case SelectorTab::Gifs:
@@ -637,7 +634,7 @@ void TabbedSelector::updateScrollGeometry(QSize oldSize) {
 	}
 	_bottomShadow->setGeometry(
 		0,
-		_scroll->y() + _scroll->height() - st::lineWidth,
+		_scroll->y() + (_dropDown ? 0 : (_scroll->height() - st::lineWidth)),
 		width(),
 		st::lineWidth);
 }
@@ -705,9 +702,7 @@ void TabbedSelector::paintBgRoundedPart(QPainter &p) {
 }
 
 void TabbedSelector::paintContent(QPainter &p) {
-	auto &footerBg = hasSectionIcons()
-		? st::emojiPanCategories
-		: st::emojiPanBg;
+	const auto &footerBg = hasSectionIcons() ? _st.categoriesBg : _st.bg;
 	if (_roundRadius > 0) {
 		paintBgRoundedPart(p);
 
@@ -729,7 +724,7 @@ void TabbedSelector::paintContent(QPainter &p) {
 		});
 	} else {
 		if (_tabsSlider) {
-			p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
+			p.fillRect(0, 0, width(), _tabsSlider->height(), _st.bg);
 		}
 		p.fillRect(0, _footerTop, width(), _st.footer, footerBg);
 	}
@@ -949,7 +944,7 @@ void TabbedSelector::checkRestrictedPeer() {
 		if (!_a_slide.animating()) {
 			currentTab()->footer()->show();
 			_scroll->show();
-			_bottomShadow->setVisible(_currentTabType == SelectorTab::Gifs);
+			_bottomShadow->setVisible(_mode == Mode::EmojiStatus);
 			update();
 		}
 	}
@@ -966,7 +961,7 @@ void TabbedSelector::showAll() {
 	} else {
 		currentTab()->footer()->show();
 		_scroll->show();
-		_bottomShadow->setVisible(_currentTabType == SelectorTab::Gifs);
+		_bottomShadow->setVisible(_mode == Mode::EmojiStatus);
 	}
 	if (_topShadow) {
 		_topShadow->show();
@@ -1051,7 +1046,7 @@ void TabbedSelector::fillTabsSliderSections() {
 }
 
 bool TabbedSelector::hasSectionIcons() const {
-	return (_currentTabType != SelectorTab::Gifs) && !_restrictedLabel;
+	return !_restrictedLabel;
 }
 
 void TabbedSelector::switchTab() {

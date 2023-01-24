@@ -276,6 +276,11 @@ defaultEmojiPan: EmojiPan {
 	search: defaultTabbedSearch;
 	searchMargin: margins(1px, 11px, 2px, 5px);
 }
+statusEmojiPan: EmojiPan(defaultEmojiPan) {
+	categoriesBg: windowBg;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
+	fadeRight: icon {{ "fade_horizontal", windowBg }};
+}
 
 inlineResultsMinHeight: 278px;
 inlineResultsMaxHeight: 640px;
@@ -398,15 +403,12 @@ reactStripBubble: icon{
 	{ "chat/reactions_bubble", windowBg },
 };
 reactStripBubbleRight: 20px;
-reactPanelEmojiPan: EmojiPan(defaultEmojiPan) {
+reactPanelEmojiPan: EmojiPan(statusEmojiPan) {
 	margin: margins(reactStripSkip, 0px, reactStripSkip, 0px);
 	padding: margins(reactStripSkip, 0px, reactStripSkip, reactStripSkip);
 	desiredSize: reactStripSize;
 	verticalSizeSub: 0px;
 	overBg: transparent;
-	categoriesBg: windowBg;
-	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
-	fadeRight: icon {{ "fade_horizontal", windowBg }};
 }
 reactPanelScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 3px;
