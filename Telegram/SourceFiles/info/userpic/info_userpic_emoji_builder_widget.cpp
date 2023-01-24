@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker_player.h"
 #include "info/userpic/info_userpic_bubble_wrap.h"
 #include "info/userpic/info_userpic_colors_palette_chooser.h"
+#include "ui/empty_userpic.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -436,6 +437,27 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	}, preview->lifetime());
 
 	return container;
+}
+
+not_null<Ui::RpWidget*> CreateEmojiUserpic(
+		not_null<Ui::RpWidget*> parent,
+		const QSize &size,
+		rpl::producer<not_null<DocumentData*>> document,
+		rpl::producer<int> colorIndex) {
+	const auto widget = Ui::CreateChild<EmojiUserpic>(parent.get(), size);
+	std::move(
+		document
+	) | rpl::start_with_next([=](not_null<DocumentData*> d) {
+		widget->setDocument(d);
+	}, widget->lifetime());
+	std::move(
+		colorIndex
+	) | rpl::start_with_next([=](int index) {
+		const auto c = Ui::EmptyUserpic::UserpicColor(
+			Ui::EmptyUserpic::ColorIndex(index));
+		widget->setGradientStops({ { 0, c.color1->c }, { 1, c.color2->c } });
+	}, widget->lifetime());
+	return widget;
 }
 
 } // namespace UserpicBuilder

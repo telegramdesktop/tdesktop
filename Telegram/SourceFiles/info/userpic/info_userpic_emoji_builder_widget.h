@@ -34,4 +34,10 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	StartData data,
 	BothWayCommunication communication);
 
+[[nodiscard]] not_null<Ui::RpWidget*> CreateEmojiUserpic(
+	not_null<Ui::RpWidget*> parent,
+	const QSize &size,
+	rpl::producer<not_null<DocumentData*>> document,
+	rpl::producer<int> colorIndex);
+
 } // namespace UserpicBuilder

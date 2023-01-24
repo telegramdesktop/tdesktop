@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
+#include "info/userpic/info_userpic_emoji_builder_menu_item.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
@@ -337,20 +338,31 @@ void UserpicButton::choosePhotoLocally() {
 			_menu->addAction(makeResetToOriginalAction());
 		}
 	} else {
-		if (!IsCameraAvailable()) {
-			chooseFile();
-		} else {
+		const auto hasCamera = IsCameraAvailable();
+		if (hasCamera || _controller) {
 			_menu->addAction(tr::lng_attach_file(tr::now), [=] {
 				chooseFile();
 			}, &st::menuIconPhoto);
-			_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
-				_window->show(Box(
-					CameraBox,
-					_window,
-					_peer,
-					_forceForumShape,
-					callback(ChosenType::Set)));
-			}, &st::menuIconPhotoSet);
+			if (hasCamera) {
+				_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
+					_window->show(Box(
+						CameraBox,
+						_window,
+						_peer,
+						_forceForumShape,
+						callback(ChosenType::Set)));
+				}, &st::menuIconPhotoSet);
+			}
+			if (_controller) {
+				auto &session = _controller->session();
+				UserpicBuilder::AddEmojiBuilderAction(
+					_controller,
+					_menu,
+					session.api().peerPhoto().profileEmojiList(),
+					callback(ChosenType::Set));
+			}
+		} else {
+			chooseFile();
 		}
 	}
 	_menu->popup(QCursor::pos());
