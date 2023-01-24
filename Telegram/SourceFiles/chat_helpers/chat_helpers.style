@@ -72,7 +72,7 @@ stickersTrendingSubheaderFg: windowSubTextFg;
 stickersTrendingSubheaderTop: 31px;
 
 emojiPanButtonRight: 7px;
-emojiPanButtonTop: 10px;
+emojiPanButtonTop: 0px;
 emojiPanButton: RoundButton(defaultActiveButton) {
 	width: -24px;
 	height: 23px;
@@ -280,6 +280,7 @@ inlineResultsMaxHeight: 640px;
 
 emojiPanHeaderFont: semiboldFont;
 emojiPanRemoveSkip: 10px;
+emojiPanRemoveTop: 2px;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
@@ -312,7 +313,12 @@ stickerPanDeleteOpacityBg: 0.3;
 stickerPanDeleteOpacityBgOver: 0.5;
 stickerPanDeleteOpacityFg: 0.8;
 stickerPanDeleteOpacityFgOver: 1.;
-stickerPanRemoveSet: hashtagClose;
+stickerPanRemoveSet: IconButton(hashtagClose) {
+	width: 20px;
+	height: 20px;
+	iconPosition: point(-1px, -1px);
+	rippleAreaPosition: point(0px, 0px);
+}
 stickerIconWidth: 42px;
 stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;

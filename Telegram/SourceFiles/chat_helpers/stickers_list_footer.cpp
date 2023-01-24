@@ -1303,8 +1303,14 @@ void StickersListFooter::paintSetIcon(
 			p.translate(-center);
 		}
 	}
-	prepareSetIcon(context, info, now, paused);
-	p.drawImage(info.adjustedLeft, _iconsTop, _setIconCache);
+	if (icon.sticker) {
+		prepareSetIcon(context, info, now, paused);
+		p.drawImage(info.adjustedLeft, _iconsTop, _setIconCache);
+	} else {
+		p.translate(info.adjustedLeft, _iconsTop);
+		paintSetIconToCache(p, context, info, now, paused);
+		p.translate(-info.adjustedLeft, -_iconsTop);
+	}
 	if (context.expanding) {
 		if (icon.custom) {
 			p.translate(-expandingShift);

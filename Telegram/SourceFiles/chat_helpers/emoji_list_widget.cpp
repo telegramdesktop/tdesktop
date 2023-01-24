@@ -1531,7 +1531,7 @@ QRect EmojiListWidget::removeButtonRect(const SectionInfo &info) const {
 		+ st::stickerPanRemoveSet.rippleAreaSize;
 	const auto buttonh = st::stickerPanRemoveSet.height;
 	const auto buttonx = emojiRight() - st::emojiPanRemoveSkip - buttonw;
-	const auto buttony = info.top + (st().header - buttonh) / 2;
+	const auto buttony = info.top + st::emojiPanRemoveTop;
 	return QRect(buttonx, buttony, buttonw, buttonh);
 }
 
@@ -1971,12 +1971,16 @@ int EmojiListWidget::paintButtonGetWidth(
 					custom.ripple.reset();
 				}
 			}
-			(selected
+			const auto &icon = selected
 				? st::stickerPanRemoveSet.iconOver
-				: st::stickerPanRemoveSet.icon).paint(
-					p,
-					remove.topLeft() + st::stickerPanRemoveSet.iconPosition,
-					width());
+				: st::stickerPanRemoveSet.icon;
+			icon.paint(
+				p,
+				(remove.topLeft()
+					+ QPoint(
+						remove.width() - icon.width(),
+						remove.height() - icon.height()) / 2),
+				width());
 		}
 		return emojiRight() - remove.x();
 	}
