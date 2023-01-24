@@ -46,3 +46,8 @@ userpicBuilderEmojiBubblePadding: margins(5px, 5px, 5px, 5px);
 
 userpicBuilderEmojiLayerMinHeight: 496px;
 userpicBuilderEmojiSelectorMinHeight: 216px;
+userpicBuilderEmojiSelectorTogglePosition: point(6px, 6px);
+
+userpicBuilderEmojiToggleEmojiIcon: icon {{ "chat/input_smile_face", emojiIconFg }};
+userpicBuilderEmojiToggleEmojiSize: 18px;
+userpicBuilderEmojiToggleStickersIcon: icon {{ "menu/stickers", emojiIconFg }};

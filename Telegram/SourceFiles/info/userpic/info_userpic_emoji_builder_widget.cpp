@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/userpic/info_userpic_emoji_builder_widget.h"
 
-#include "apiwrap.h"
 #include "api/api_peer_photo.h"
+#include "apiwrap.h"
 #include "chat_helpers/emoji_list_widget.h"
+#include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -20,10 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker_player.h"
 #include "info/userpic/info_userpic_bubble_wrap.h"
 #include "info/userpic/info_userpic_colors_palette_chooser.h"
-#include "ui/empty_userpic.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/controls/emoji_button.h"
+#include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/widgets/labels.h"
@@ -31,10 +33,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info_userpic_builder.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
 
 namespace UserpicBuilder {
 namespace {
@@ -248,11 +252,23 @@ public:
 	[[nodiscard]] rpl::producer<not_null<DocumentData*>> chosen() const;
 
 private:
-	void prepare();
+	using Footer = ChatHelpers::TabbedSelector::InnerFooter;
+	using List = ChatHelpers::TabbedSelector::Inner;
+	using Type = ChatHelpers::SelectorTab;
+	void createSelector(Type type);
+
+	struct Selector {
+		not_null<List*> list;
+		not_null<Footer*> footer;
+	};
+	[[nodiscard]] Selector createEmojiList() const;
+	[[nodiscard]] Selector createStickersList() const;
 
 	const not_null<Window::SessionController*> _controller;
+	base::unique_qptr<Ui::RpWidget> _container;
 	base::unique_qptr<Ui::ScrollArea> _scroll;
-	ChatHelpers::EmojiListWidget *_selector;
+
+	rpl::event_stream<not_null<DocumentData*>> _chosen;
 
 };
 
@@ -261,27 +277,17 @@ EmojiSelector::EmojiSelector(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller) {
-	prepare();
+	createSelector(Type::Emoji);
 }
 
 rpl::producer<not_null<DocumentData*>> EmojiSelector::chosen() const {
-	return _selector->customChosen(
-	) | rpl::map([](const ChatHelpers::FileChosen &chosen) {
-		return chosen.document;
-	});
+	return _chosen.events();
 }
 
-void EmojiSelector::prepare() {
-	const auto ref = Data::PossibleItemReactionsRef{
-		.morePremiumAvailable = true,
-		.customAllowed = true,
-	};
-
-	const auto manager = &_controller->session().data().customEmojiManager();
-	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
-	const auto &stScroll = st::reactPanelScroll;
+EmojiSelector::Selector EmojiSelector::createEmojiList() const {
 	const auto session = &_controller->session();
-	_scroll = base::make_unique_q<Ui::ScrollArea>(this, stScroll);
+	const auto manager = &session->data().customEmojiManager();
+	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
 	auto args = ChatHelpers::EmojiListDescriptor{
 		.session = session,
 		.mode = ChatHelpers::EmojiListMode::FullReactions,
@@ -295,34 +301,113 @@ void EmojiSelector::prepare() {
 		},
 		.st = &st::reactPanelEmojiPan,
 	};
-	_selector = _scroll->setOwnedWidget(
+	const auto list = _scroll->setOwnedWidget(
 		object_ptr<ChatHelpers::EmojiListWidget>(_scroll, std::move(args)));
-	const auto footer = _selector->createFooter().data();
-	footer->setParent(this);
-	_selector->refreshEmoji();
+	const auto footer = list->createFooter().data();
+	list->refreshEmoji();
+	list->customChosen(
+	) | rpl::start_with_next([=](const ChatHelpers::FileChosen &chosen) {
+		_chosen.fire_copy(chosen.document);
+	}, list->lifetime());
+	return { list, footer };
+}
 
-	const auto updateVisibleTopBottom = [=] {
+EmojiSelector::Selector EmojiSelector::createStickersList() const {
+	const auto list = _scroll->setOwnedWidget(
+		object_ptr<ChatHelpers::StickersListWidget>(
+			_scroll,
+			_controller,
+			Window::GifPauseReason::Layer));
+	const auto footer = list->createFooter().data();
+	list->refreshRecent();
+	list->chosen(
+	) | rpl::start_with_next([=](const ChatHelpers::FileChosen &chosen) {
+		_chosen.fire_copy(chosen.document);
+	}, list->lifetime());
+	return { list, footer };
+}
+
+void EmojiSelector::createSelector(Type type) {
+	Expects((type == Type::Emoji) || (type == Type::Stickers));
+
+	const auto isEmoji = (type == Type::Emoji);
+	const auto &stScroll = st::reactPanelScroll;
+
+	_container = base::make_unique_q<Ui::RpWidget>(this);
+	const auto container = _container.get();
+	container->show();
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		container->setGeometry(Rect(s));
+	}, container->lifetime());
+
+	_scroll = base::make_unique_q<Ui::ScrollArea>(container, stScroll);
+
+	const auto selector = isEmoji
+		? createEmojiList()
+		: createStickersList();
+	selector.footer->setParent(container);
+
+	const auto toggleButton = Ui::CreateChild<Ui::AbstractButton>(container);
+	const auto &togglePos = st::userpicBuilderEmojiSelectorTogglePosition;
+	{
+		const auto &pos = togglePos;
+		toggleButton->resize(st::menuIconStickers.size()
+			// Trying to overlap the settings button under.
+			+ QSize(pos.x() * 2, pos.y() * 2));
+		toggleButton->show();
+		toggleButton->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(toggleButton);
+			const auto r = toggleButton->rect()
+				- QMargins(pos.x(), pos.y(), pos.x(), pos.y());
+			p.fillRect(r, st::boxBg);
+			const auto &icon = st::userpicBuilderEmojiToggleStickersIcon;
+			if (isEmoji) {
+				icon.paintInCenter(p, r);
+			} else {
+				st::userpicBuilderEmojiToggleEmojiIcon.paintInCenter(p, r);
+				const auto line = style::ConvertScaleExact(
+					st::historyEmojiCircleLine);
+				p.setPen(QPen(
+					st::emojiIconFg,
+					line,
+					Qt::SolidLine,
+					Qt::RoundCap));
+				p.setBrush(Qt::NoBrush);
+				PainterHighQualityEnabler hq(p);
+				const auto diff = (icon.width()
+					- st::userpicBuilderEmojiToggleEmojiSize) / 2;
+				p.drawEllipse(r - Margins(diff));
+			}
+		}, toggleButton->lifetime());
+	}
+	toggleButton->show();
+	toggleButton->setClickedCallback([=] {
+		createSelector(isEmoji ? Type::Stickers : Type::Emoji);
+	});
+
+	_scroll->scrollTopChanges(
+	) | rpl::start_with_next([=] {
 		const auto scrollTop = _scroll->scrollTop();
 		const auto scrollBottom = scrollTop + _scroll->height();
-		_selector->setVisibleTopBottom(scrollTop, scrollBottom);
-	};
-	_scroll->scrollTopChanges(
-	) | rpl::start_with_next(updateVisibleTopBottom, _selector->lifetime());
+		selector.list->setVisibleTopBottom(scrollTop, scrollBottom);
+	}, selector.list->lifetime());
 
-	_selector->scrollToRequests(
+	selector.list->scrollToRequests(
 	) | rpl::start_with_next([=](int y) {
 		_scroll->scrollToY(y);
 		// _shadow->update();
-	}, _selector->lifetime());
+	}, selector.list->lifetime());
 
-	const auto separator = Ui::CreateChild<Ui::RpWidget>(this);
+	const auto separator = Ui::CreateChild<Ui::RpWidget>(container);
 	separator->paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
 		auto p = QPainter(separator);
 		p.fillRect(r, st::shadowFg);
 	}, separator->lifetime());
 
-	footer->show();
+	selector.footer->show();
 	separator->show();
 	_scroll->show();
 
@@ -330,24 +415,27 @@ void EmojiSelector::prepare() {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		const auto left = st::userpicBuilderEmojiSelectorLeft;
+		const auto mostTop = st::userpicBuilderEmojiSelectorLeft;
 
-		footer->setGeometry(
-			left,
-			st::userpicBuilderEmojiSelectorLeft,
+		toggleButton->move(QPoint(left, mostTop));
+
+		selector.footer->setGeometry(
+			(isEmoji ? (rect::right(toggleButton) - togglePos.x()) : left),
+			mostTop,
 			s.width() - left,
-			footer->height());
+			selector.footer->height());
 
 		separator->setGeometry(
 			0,
-			rect::bottom(footer),
+			rect::bottom(selector.footer),
 			s.width(),
 			st::lineWidth);
 
-		_selector->resizeToWidth(s.width() - st::boxRadius * 2);
+		selector.list->resizeToWidth(s.width() - st::boxRadius * 2);
 		_scroll->setGeometry(
 			st::boxRadius,
 			rect::bottom(separator),
-			_selector->width() + scrollWidth,
+			selector.list->width() + scrollWidth,
 			s.height() - rect::bottom(separator));
 	}, lifetime());
 }
