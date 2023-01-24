@@ -90,6 +90,7 @@ private:
 	int _fadeLeftStart = 0;
 
 	rpl::variable<int> _fieldPlaceholderWidth;
+	rpl::variable<bool> _fieldEmpty = true;
 	Ui::Animations::Simple _groupsLeftAnimation;
 	int _groupsLeftTo = 0;
 

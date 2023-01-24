@@ -276,15 +276,15 @@ SearchWithGroups::SearchWithGroups(
 	SearchDescriptor descriptor)
 : RpWidget(parent)
 , _st(descriptor.st)
-, _search(CreateChild<FadeWrap<IconButton>>(
+, _search(CreateChild<FadeWrapScaled<IconButton>>(
 	this,
 	object_ptr<IconButton>(this, _st.search)))
-, _back(CreateChild<FadeWrap<IconButton>>(
+, _back(CreateChild<FadeWrapScaled<IconButton>>(
 	this,
 	object_ptr<IconButton>(this, _st.back)))
 , _cancel(CreateChild<CrossButton>(this, _st.cancel))
 , _field(CreateChild<InputField>(this, _st.field, tr::lng_dlg_filter()))
-, _groups(CreateChild<FadeWrap<RpWidget>>(
+, _groups(CreateChild<FadeWrapScaled<RpWidget>>(
 	this,
 	object_ptr<GroupsStrip>(
 		this,
@@ -297,6 +297,7 @@ SearchWithGroups::SearchWithGroups(
 	initGroups();
 	initButtons();
 	initEdges();
+	_inited = true;
 }
 
 anim::type SearchWithGroups::animated() const {
@@ -308,8 +309,7 @@ void SearchWithGroups::initField() {
 		const auto last = FieldQuery(_field);
 		_query = last;
 		const auto empty = last.empty();
-		_cancel->toggle(!empty, animated());
-		_groups->toggle(empty, animated());
+		_fieldEmpty = empty;
 		if (empty) {
 			_debounceTimer.cancel();
 			_debouncedQuery = last;
@@ -330,6 +330,13 @@ void SearchWithGroups::initField() {
 	const auto last = FieldQuery(_field);
 	_query = last;
 	_debouncedQuery = last;
+	_fieldEmpty = last.empty();
+	_fieldEmpty.value(
+	) | rpl::start_with_next([=](bool empty) {
+		_cancel->toggle(!empty, animated());
+		_groups->toggle(empty, animated());
+		resizeToWidth(width());
+	}, lifetime());
 }
 
 void SearchWithGroups::initGroups() {
@@ -544,6 +551,9 @@ int SearchWithGroups::IconSizeOverride() {
 }
 
 int SearchWithGroups::resizeGetHeight(int newWidth) {
+	if (!newWidth) {
+		return _st.height;
+	}
 	_back->moveToLeft(0, 0, newWidth);
 	_search->moveToLeft(0, 0, newWidth);
 	_cancel->moveToRight(0, 0, newWidth);
@@ -582,11 +592,13 @@ void SearchWithGroups::moveGroupsTo(int width, int to) {
 	const auto fieldWidthMin = std::min(
 		rect::m::sum::h(placeholderMargins) + placeholderWidth,
 		_st.defaultFieldWidth);
-	const auto fieldWidth = std::max(
-		groupsLeft - _st.search.width,
-		fieldWidthMin);
+	const auto fieldWidth = _fieldEmpty.current()
+		? std::max(groupsLeft - _st.search.width, fieldWidthMin)
+		: (width - _fadeLeftStart - _st.cancel.width);
 	_field->resizeToWidth(fieldWidth);
-	const auto fieldLeft = groupsLeft - fieldWidth;
+	const auto fieldLeft = _fieldEmpty.current()
+		? (groupsLeft - fieldWidth)
+		: _fadeLeftStart;
 	_field->moveToLeft(fieldLeft, 0);
 
 	if (fieldLeft >= _fadeLeftStart) {
