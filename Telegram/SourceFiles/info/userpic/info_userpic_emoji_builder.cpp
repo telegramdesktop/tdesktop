@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/userpic/info_userpic_emoji_builder.h"
 
+#include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_layer.h"
 #include "info/userpic/info_userpic_emoji_builder_widget.h"
 #include "lang/lang_keys.h"
@@ -33,7 +34,7 @@ void ShowLayer(
 			layerRaw,
 			controller,
 			data,
-			BothWayCommunication{
+			BothWayCommunication<QImage&&>{
 				.triggers = state->clicks.events(),
 				.result = [=, done = std::move(doneCallback)](QImage &&i) {
 					done(std::move(i));

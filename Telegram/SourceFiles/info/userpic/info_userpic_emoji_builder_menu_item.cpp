@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "info/userpic/info_userpic_emoji_builder.h"
+#include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"

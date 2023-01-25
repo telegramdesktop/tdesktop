@@ -859,6 +859,8 @@ PRIVATE
     info/settings/info_settings_widget.h
     info/userpic/info_userpic_emoji_builder.cpp
     info/userpic/info_userpic_emoji_builder.h
+    info/userpic/info_userpic_emoji_builder_common.cpp
+    info/userpic/info_userpic_emoji_builder_common.h
     info/userpic/info_userpic_emoji_builder_menu_item.cpp
     info/userpic/info_userpic_emoji_builder_menu_item.h
     info/userpic/info_userpic_emoji_builder_preview.cpp

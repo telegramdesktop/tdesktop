@@ -18,21 +18,16 @@ class SessionController;
 
 namespace UserpicBuilder {
 
-struct StartData {
-	DocumentId documentId = DocumentId(0);
-	int colorIndex = 0;
-};
+struct StartData;
 
-struct BothWayCommunication {
-	rpl::producer<> triggers;
-	Fn<void(QImage &&image)> result;
-};
+template <typename Result>
+struct BothWayCommunication;
 
 not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> controller,
 	StartData data,
-	BothWayCommunication communication);
+	BothWayCommunication<QImage&&> communication);
 
 [[nodiscard]] not_null<Ui::RpWidget*> CreateEmojiUserpic(
 	not_null<Ui::RpWidget*> parent,

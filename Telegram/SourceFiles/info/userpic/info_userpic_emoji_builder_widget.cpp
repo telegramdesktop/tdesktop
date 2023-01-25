@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h" // Editor::kProfilePhotoSize.
 #include "info/userpic/info_userpic_bubble_wrap.h"
 #include "info/userpic/info_userpic_colors_palette_chooser.h"
+#include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_preview.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -241,7 +242,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
 		StartData data,
-		BothWayCommunication communication) {
+		BothWayCommunication<QImage&&> communication) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
 
 	const auto preview = container->add(
@@ -273,7 +274,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 
 	const auto palette = Ui::CreateChild<ColorsPalette>(
 		paletteBg.get(),
-		data.colorIndex);
+		data.builderColorIndex);
 	palette->stopsValue(
 	) | rpl::start_with_next([=](QGradientStops stops) {
 		preview->setGradientStops(std::move(stops));
