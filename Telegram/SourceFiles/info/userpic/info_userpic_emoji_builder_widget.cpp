@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_widget.h"
+#include "data/data_document.h"
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -59,6 +60,39 @@ void AlignChildren(not_null<Ui::RpWidget*> widget, int fullWidth) {
 	const auto step = (fullWidth - widgetsWidth) / (widgetsCount - 1);
 	for (auto i = 0; i < widgetsCount; i++) {
 		widgets[i]->move(i * (widgetWidth + step), widgets[i]->y());
+	}
+}
+
+[[nodiscard]] QImage GenerateSpecial(
+		int size,
+		const std::vector<QColor> colors) {
+	if (colors.empty()) {
+		auto image = QImage(
+			Size(size * style::DevicePixelRatio()),
+			QImage::Format_ARGB32_Premultiplied);
+		image.setDevicePixelRatio(style::DevicePixelRatio());
+		image.fill(Qt::transparent);
+		{
+			auto p = QPainter(&image);
+			st::userpicBuilderEmojiColorPlus.icon.paintInCenter(
+				p,
+				Rect(Size(size)));
+		}
+		return image;
+	} else {
+		auto image = GenerateGradient(Size(size), colors);
+		{
+			auto p = QPainter(&image);
+			constexpr auto kEllipseSize = 1;
+			const auto center = QPointF(size / 2., size / 2.);
+			const auto shift = QPointF(kEllipseSize * 4, 0);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::boxBg);
+			p.drawEllipse(center, kEllipseSize, kEllipseSize);
+			p.drawEllipse(center + shift, kEllipseSize, kEllipseSize);
+			p.drawEllipse(center - shift, kEllipseSize, kEllipseSize);
+		}
+		return image;
 	}
 }
 
@@ -310,6 +344,9 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		std::vector<not_null<CircleButton*>> circleButtons;
 		Ui::Animations::Simple chosenColorAnimation;
 		int colorIndex = -1;
+
+		std::vector<QColor> editorColors;
+		StartData gradientEditorStartData;
 	};
 	const auto state = container->lifetime().make_state<State>();
 
@@ -339,21 +376,50 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		container,
 		st::userpicBuilderEmojiBubblePaletteSize,
 		[=] { return controller->chatStyle(); });
-
 	const auto palette = Ui::CreateChild<Ui::RpWidget>(paletteBg.get());
 	{
 		constexpr auto kColorsCount = int(7);
+		const auto checkIsSpecial = [=](int i) {
+			return (i == kColorsCount);
+		};
 		const auto size = st::userpicBuilderEmojiAccentColorSize;
-		for (auto i = 0; i < kColorsCount; i++) {
+		for (auto i = 0; i < kColorsCount + 1; i++) {
+			const auto isSpecial = checkIsSpecial(i);
 			const auto colors = ColorsByIndex(i);
 			const auto button = Ui::CreateChild<CircleButton>(palette);
 			state->circleButtons.push_back(button);
 			button->resize(size, size);
-			button->setBrush(GenerateGradient(Size(size), colors));
+			button->setBrush(isSpecial
+				? GenerateSpecial(size, state->editorColors)
+				: GenerateGradient(Size(size), colors));
+
+			const auto openEditor = isSpecial
+				? Fn<void()>([=] {
+					if (checkIsSpecial(state->colorIndex)) {
+						state->colorIndex = -1;
+					}
+					ShowGradientEditor(
+						controller,
+						state->gradientEditorStartData,
+						[=](std::vector<QColor> colors) {
+							state->editorColors = std::move(colors);
+							button->setBrush(
+								GenerateSpecial(size, state->editorColors));
+							button->clicked({}, Qt::LeftButton);
+						});
+				})
+				: nullptr;
+
 			button->setClickedCallback([=] {
+				if (openEditor && state->editorColors.empty()) {
+					return openEditor();
+				}
 				const auto was = state->colorIndex;
 				const auto now = i;
 				if (was == now) {
+					if (openEditor) {
+						openEditor();
+					}
 					return;
 				}
 				state->chosenColorAnimation.stop();
@@ -366,7 +432,11 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 				}, 0., 1., st::userpicBuilderEmojiSlideDuration);
 				state->colorIndex = now;
 
-				preview->setGradientColors(colors);
+				const auto result = isSpecial
+					? state->editorColors
+					: colors;
+				state->gradientEditorStartData.gradientEditorColors = result;
+				preview->setGradientColors(result);
 			});
 		}
 		const auto current = data.builderColorIndex % kColorsCount;
@@ -399,6 +469,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		controller);
 	selector->chosen(
 	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		state->gradientEditorStartData.documentId = document->id;
 		preview->setDocument(document);
 	}, preview->lifetime());
 	selectorBg->innerRectValue(
