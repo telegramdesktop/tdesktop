@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "editor/photo_editor_layer_widget.h" // Editor::kProfilePhotoSize.
 #include "info/userpic/info_userpic_bubble_wrap.h"
-#include "info/userpic/info_userpic_colors_palette_chooser.h"
+#include "info/userpic/info_userpic_color_circle_button.h"
 #include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_preview.h"
 #include "lang/lang_keys.h"
@@ -40,6 +40,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace UserpicBuilder {
 namespace {
+
+void AlignChildren(not_null<Ui::RpWidget*> widget, int fullWidth) {
+	const auto children = widget->children();
+	const auto widgets = ranges::views::all(
+		children
+	) | ranges::views::filter([](not_null<const QObject*> object) {
+		return object->isWidgetType();
+	}) | ranges::views::transform([](not_null<QObject*> object) {
+		return static_cast<QWidget*>(object.get());
+	}) | ranges::to_vector;
+
+	const auto widgetWidth = widgets.front()->width();
+	const auto widgetsCount = widgets.size();
+	const auto widgetsWidth = widgetWidth * widgetsCount;
+	const auto step = (fullWidth - widgetsWidth) / (widgetsCount - 1);
+	for (auto i = 0; i < widgetsCount; i++) {
+		widgets[i]->move(i * (widgetWidth + step), widgets[i]->y());
+	}
+}
+
+[[nodiscard]] std::vector<QColor> ColorsByIndex(int index) {
+	const auto c = Ui::EmptyUserpic::UserpicColor(
+		Ui::EmptyUserpic::ColorIndex(index));
+	return { c.color1->c, c.color2->c };
+}
 
 class EmojiSelector final : public Ui::RpWidget {
 public:
@@ -245,6 +270,13 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		BothWayCommunication<QImage&&> communication) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
 
+	struct State {
+		std::vector<not_null<CircleButton*>> circleButtons;
+		Ui::Animations::Simple chosenColorAnimation;
+		int colorIndex = -1;
+	};
+	const auto state = container->lifetime().make_state<State>();
+
 	const auto preview = container->add(
 		object_ptr<Ui::CenterWrap<EmojiUserpic>>(
 			container,
@@ -272,22 +304,43 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		st::userpicBuilderEmojiBubblePaletteSize,
 		[=] { return controller->chatStyle(); });
 
-	const auto palette = Ui::CreateChild<ColorsPalette>(
-		paletteBg.get(),
-		data.builderColorIndex);
-	palette->stopsValue(
-	) | rpl::start_with_next([=](QGradientStops stops) {
-		const auto colors = ranges::views::all(
-			stops
-		) | ranges::views::transform([](const QGradientStop &stop) {
-			return stop.second;
-		}) | ranges::to_vector;
-		preview->setGradientColors(colors);
-	}, preview->lifetime());
+	const auto palette = Ui::CreateChild<Ui::RpWidget>(paletteBg.get());
+	{
+		constexpr auto kColorsCount = int(7);
+		const auto size = st::userpicBuilderEmojiAccentColorSize;
+		for (auto i = 0; i < kColorsCount; i++) {
+			const auto colors = ColorsByIndex(i);
+			const auto button = Ui::CreateChild<CircleButton>(palette);
+			state->circleButtons.push_back(button);
+			button->resize(size, size);
+			button->setBrush(GenerateGradient(Size(size), colors));
+			button->setClickedCallback([=] {
+				const auto was = state->colorIndex;
+				const auto now = i;
+				if (was == now) {
+					return;
+				}
+				state->chosenColorAnimation.stop();
+				state->chosenColorAnimation.start([=](float64 progress) {
+					if (was >= 0) {
+						state->circleButtons[was]->setSelectedProgress(
+							1. - progress);
+					}
+					state->circleButtons[now]->setSelectedProgress(progress);
+				}, 0., 1., st::slideDuration);
+				state->colorIndex = now;
+
+				preview->setGradientColors(colors);
+			});
+		}
+		const auto current = data.builderColorIndex % kColorsCount;
+		state->circleButtons[current]->setSelectedProgress(1.);
+		state->circleButtons[current]->clicked({}, Qt::LeftButton);
+	}
 	paletteBg->innerRectValue(
 	) | rpl::start_with_next([=](const QRect &r) {
-		palette->setGeometry(r
-			- st::userpicBuilderEmojiBubblePalettePadding);
+		palette->setGeometry(r - st::userpicBuilderEmojiBubblePalettePadding);
+		AlignChildren(palette, palette->width());
 	}, palette->lifetime());
 
 	container->add(
@@ -342,9 +395,7 @@ not_null<Ui::RpWidget*> CreateEmojiUserpic(
 	std::move(
 		colorIndex
 	) | rpl::start_with_next([=](int index) {
-		const auto c = Ui::EmptyUserpic::UserpicColor(
-			Ui::EmptyUserpic::ColorIndex(index));
-		widget->setGradientColors({ c.color1->c, c.color2->c });
+		widget->setGradientColors(ColorsByIndex(index));
 	}, widget->lifetime());
 	return widget;
 }

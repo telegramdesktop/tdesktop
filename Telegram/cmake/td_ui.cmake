@@ -97,8 +97,8 @@ PRIVATE
     info/profile/info_profile_icon.h
     info/userpic/info_userpic_bubble_wrap.cpp
     info/userpic/info_userpic_bubble_wrap.h
-    info/userpic/info_userpic_colors_palette_chooser.cpp
-    info/userpic/info_userpic_colors_palette_chooser.h
+    info/userpic/info_userpic_color_circle_button.cpp
+    info/userpic/info_userpic_color_circle_button.h
     info/userpic/info_userpic_emoji_builder_layer.cpp
     info/userpic/info_userpic_emoji_builder_layer.h
 
