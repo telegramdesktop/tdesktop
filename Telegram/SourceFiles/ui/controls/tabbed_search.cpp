@@ -633,6 +633,10 @@ int TabbedSearch::height() const {
 	return _search.height() + rect::m::sum::v(_st.searchMargin);
 }
 
+QImage TabbedSearch::grab() {
+	return Ui::GrabWidgetToImage(&_search);
+}
+
 void TabbedSearch::setLoading(bool loading) {
 	_search.setLoading(loading);
 }

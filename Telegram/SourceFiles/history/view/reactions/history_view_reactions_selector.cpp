@@ -247,7 +247,7 @@ int Selector::extendTopForCategories() const {
 int Selector::minimalHeight() const {
 	return _skipy
 		+ (_recentRows * _size)
-		+ st::roundRadiusSmall
+		+ st::emojiPanRadius
 		+ st::reactPanelEmojiPan.padding.bottom();
 }
 
@@ -431,7 +431,7 @@ auto Selector::paintExpandingBg(QPainter &p, float64 progress)
 	constexpr auto kFramesCount = Ui::RoundAreaWithShadow::kFramesCount;
 	const auto frame = int(base::SafeRound(progress * (kFramesCount - 1)));
 	const auto radiusStart = st::reactStripHeight / 2.;
-	const auto radiusEnd = st::roundRadiusSmall;
+	const auto radiusEnd = st::emojiPanRadius;
 	const auto radius = _reactions.customAllowed
 		? (radiusStart + progress * (radiusEnd - radiusStart))
 		: radiusStart;
@@ -521,7 +521,7 @@ void Selector::finishExpand() {
 		const auto pattern = _cachedRound.validateFrame(
 			kFramesCount - 1,
 			1.,
-			st::roundRadiusSmall);
+			st::emojiPanRadius);
 		const auto fill = _cachedRound.FillWithImage(q, rect(), pattern);
 		if (!fill.isEmpty()) {
 			q.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
@@ -677,6 +677,7 @@ void Selector::expand() {
 	cacheExpandIcon();
 
 	[[maybe_unused]] const auto grabbed = Ui::GrabWidget(_scroll);
+	_list->prepareExpanding();
 	setSelected(-1);
 
 	base::call_delayed(kExpandDelay, this, [this] {

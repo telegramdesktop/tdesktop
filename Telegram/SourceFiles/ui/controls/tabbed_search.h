@@ -112,6 +112,7 @@ public:
 		SearchDescriptor &&descriptor);
 
 	[[nodiscard]] int height() const;
+	[[nodiscard]] QImage grab();
 
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;
 	[[nodiscard]] auto debouncedQueryValue() const

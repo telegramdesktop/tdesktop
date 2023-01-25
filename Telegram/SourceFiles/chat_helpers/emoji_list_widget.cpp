@@ -608,15 +608,34 @@ rpl::producer<> EmojiListWidget::jumpedToPremium() const {
 	return _jumpedToPremium.events();
 }
 
+void EmojiListWidget::prepareExpanding() {
+	if (_search) {
+		_searchExpandCache = _search->grab();
+	}
+}
+
 void EmojiListWidget::paintExpanding(
 		QPainter &p,
 		QRect clip,
 		int finalBottom,
 		float64 progress,
 		RectPart origin) {
-	const auto shift = clip.topLeft();
+	const auto searchShift = _search
+		? anim::interpolate(
+			st().padding.top() - _search->height(),
+			0,
+			progress)
+		: 0;
+	const auto shift = clip.topLeft() + QPoint(0, searchShift);
 	const auto adjusted = clip.translated(-shift);
 	const auto finalHeight = (finalBottom - clip.y());
+	if (!_searchExpandCache.isNull()) {
+		p.setClipRect(clip);
+		p.drawImage(
+			clip.x() + st().searchMargin.left(),
+			clip.y() + st().searchMargin.top() + searchShift,
+			_searchExpandCache);
+	}
 	p.translate(shift);
 	p.setClipRect(adjusted);
 	paint(p, ExpandingContext{
@@ -712,8 +731,7 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 		info.rowsTop = info.top
 			+ (i == 0 ? _rowsTop : st().header);
 		info.rowsBottom = info.rowsTop
-			+ (info.rowsCount * _singleSize.height())
-			+ st::emojiPanRadius;
+			+ (info.rowsCount * _singleSize.height());
 		if (!callback(info)) {
 			return false;
 		}
@@ -807,13 +825,12 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 		- st().margin.left();
 	setSingleSize({ singleWidth, singleWidth - 2 * st().verticalSizeSub });
 
-	auto visibleHeight = minimalHeight();
-	auto minimalHeight = (visibleHeight - st::stickerPanPadding);
-	auto countResult = [this](int minimalLastHeight) {
+	const auto countResult = [this](int minimalLastHeight) {
 		const auto info = sectionInfo(sectionsCount() - 1);
 		return info.top
 			+ qMax(info.rowsBottom - info.top, minimalLastHeight);
 	};
+	const auto minimalHeight = this->minimalHeight();
 	const auto minimalLastHeight = std::max(
 		minimalHeight - padding.bottom(),
 		0);
@@ -947,6 +964,9 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 	} else if (st().bg->c.alpha() > 0) {
 		p.fillRect(clip, st().bg);
+	}
+	if (!_searchExpandCache.isNull()) {
+		_searchExpandCache = QImage();
 	}
 
 	paint(p, {}, clip);

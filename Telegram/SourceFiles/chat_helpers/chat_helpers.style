@@ -73,7 +73,7 @@ stickersTrendingSubheaderFg: windowSubTextFg;
 stickersTrendingSubheaderTop: 31px;
 
 emojiPanButtonRight: 7px;
-emojiPanButtonTop: 0px;
+emojiPanButtonTop: 8px;
 emojiPanButton: RoundButton(defaultActiveButton) {
 	width: -24px;
 	height: 23px;
@@ -259,11 +259,11 @@ defaultEmojiPan: EmojiPan {
 	padding: margins(7px, 0px, 4px, 7px);
 	desiredSize: 37px;
 	verticalSizeSub: 1px;
-	header: 25px;
+	header: 33px;
 	headerLeft: 14px;
 	headerLockLeft: 7px;
 	headerLockedLeft: 26px;
-	headerTop: 2px;
+	headerTop: 10px;
 	footer: 36px;
 	iconSkip: 3px;
 	iconWidth: 30px;
@@ -287,7 +287,7 @@ inlineResultsMaxHeight: 640px;
 
 emojiPanHeaderFont: semiboldFont;
 emojiPanRemoveSkip: 10px;
-emojiPanRemoveTop: 2px;
+emojiPanRemoveTop: 10px;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
@@ -410,15 +410,17 @@ reactPanelEmojiPan: EmojiPan(statusEmojiPan) {
 	verticalSizeSub: 0px;
 	overBg: transparent;
 }
-reactPanelScroll: ScrollArea(defaultSolidScroll) {
+emojiScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 3px;
 	deltab: 3px;
-	round: 1px;
+	round: -1px;
 	width: 7px;
 	deltax: 2px;
 	hiding: 0;
 }
-emojiScroll: reactPanelScroll;
+reactPanelScroll: ScrollArea(emojiScroll) {
+	deltab: 7px;
+}
 
 emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
 emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};

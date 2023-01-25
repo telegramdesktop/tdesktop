@@ -119,6 +119,7 @@ public:
 
 	void provideRecent(const std::vector<DocumentId> &customRecentList);
 
+	void prepareExpanding();
 	void paintExpanding(
 		QPainter &p,
 		QRect clip,
@@ -361,6 +362,7 @@ private:
 	int _customSingleSize = 0;
 	bool _allowWithoutPremium = false;
 	Ui::RoundRect _overBg;
+	QImage _searchExpandCache;
 
 	std::vector<QString> _nextSearchQuery;
 	std::vector<QString> _searchQuery;
