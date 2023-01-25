@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h" // Editor::kProfilePhotoSize.
 #include "info/userpic/info_userpic_bubble_wrap.h"
 #include "info/userpic/info_userpic_color_circle_button.h"
+#include "info/userpic/info_userpic_colors_editor.h"
 #include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_preview.h"
 #include "lang/lang_keys.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/empty_userpic.h"
+#include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/widgets/labels.h"
@@ -64,6 +66,40 @@ void AlignChildren(not_null<Ui::RpWidget*> widget, int fullWidth) {
 	const auto c = Ui::EmptyUserpic::UserpicColor(
 		Ui::EmptyUserpic::ColorIndex(index));
 	return { c.color1->c, c.color2->c };
+}
+
+void ShowGradientEditor(
+		not_null<Window::SessionController*> controller,
+		StartData data,
+		Fn<void(std::vector<QColor>)> &&doneCallback) {
+	Window::Show(controller).showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		struct State {
+			rpl::event_stream<> saveRequests;
+		};
+		const auto state = box->lifetime().make_state<State>();
+		box->setTitle(tr::lng_chat_theme_change());
+		box->addButton(tr::lng_settings_save(), [=] {
+			state->saveRequests.fire({});
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+		auto content = CreateGradientEditor(
+			box,
+			data.documentId
+				? controller->session().data().document(data.documentId)
+				: nullptr,
+			data.gradientEditorColors,
+			BothWayCommunication<std::vector<QColor>>{
+				state->saveRequests.events(),
+				[=](std::vector<QColor> colors) {
+					box->closeBox();
+					doneCallback(std::move(colors));
+				},
+			});
+		box->setWidth(content->width());
+		box->addRow(std::move(content), {});
+
+	}));
 }
 
 class EmojiSelector final : public Ui::RpWidget {
