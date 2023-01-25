@@ -345,7 +345,7 @@ void Mixer::Track::createStream(AudioMsgId::Type type) {
 		alSourcei(
 			stream.source,
 			alGetEnumValue("AL_DIRECT_CHANNELS_SOFT"),
-			alcGetEnumValue(nullptr, "AL_REMIX_UNMATCHED_SOFT"));
+			alGetEnumValue("AL_REMIX_UNMATCHED_SOFT"));
 	}
 	alGenBuffers(3, stream.buffers);
 	if (speedEffect) {
