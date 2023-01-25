@@ -526,6 +526,12 @@ auto SearchWithGroups::debouncedQueryValue() const
 	return _debouncedQuery.value();
 }
 
+void SearchWithGroups::cancel() {
+	_field->setText(QString());
+	_chosenGroup = QString();
+	scrollGroupsToStart();
+}
+
 void SearchWithGroups::setLoading(bool loading) {
 	_cancel->setLoadingAnimation(loading);
 }
@@ -635,6 +641,10 @@ int TabbedSearch::height() const {
 
 QImage TabbedSearch::grab() {
 	return Ui::GrabWidgetToImage(&_search);
+}
+
+void TabbedSearch::cancel() {
+	_search.cancel();
 }
 
 void TabbedSearch::setLoading(bool loading) {

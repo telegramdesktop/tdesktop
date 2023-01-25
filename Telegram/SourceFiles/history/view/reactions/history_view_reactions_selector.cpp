@@ -282,6 +282,12 @@ void Selector::initGeometry(int innerTop) {
 	}
 }
 
+void Selector::beforeDestroy() {
+	if (_list) {
+		_list->beforeHiding();
+	}
+}
+
 void Selector::updateShowState(
 		float64 progress,
 		float64 opacity,
@@ -531,6 +537,7 @@ void Selector::finishExpand() {
 		_footer->show();
 	}
 	_scroll->show();
+	_list->afterShown();
 
 	if (const auto controller = _parentController.get()) {
 		controller->session().api().updateCustomEmoji();
@@ -940,6 +947,12 @@ AttachSelectorResult MakeJustSelectorMenu(
 	}
 	const auto selectorInnerTop = menu->preparedPadding().top()
 		- st::reactStripExtend.top();
+	menu->animatePhaseValue(
+	) | rpl::start_with_next([=](Ui::PopupMenu::AnimatePhase phase) {
+		if (phase == Ui::PopupMenu::AnimatePhase::StartHide) {
+			selector->beforeDestroy();
+		}
+	}, selector->lifetime());
 	selector->initGeometry(selectorInnerTop);
 	selector->show();
 
@@ -1005,6 +1018,12 @@ AttachSelectorResult AttachSelectorToMenu(
 	const auto selectorInnerTop = selector->useTransparency()
 		? (menu->preparedPadding().top() - st::reactStripExtend.top())
 		: st::lineWidth;
+	menu->animatePhaseValue(
+	) | rpl::start_with_next([=](Ui::PopupMenu::AnimatePhase phase) {
+		if (phase == Ui::PopupMenu::AnimatePhase::StartHide) {
+			selector->beforeDestroy();
+		}
+	}, selector->lifetime());
 	selector->initGeometry(selectorInnerTop);
 	selector->show();
 

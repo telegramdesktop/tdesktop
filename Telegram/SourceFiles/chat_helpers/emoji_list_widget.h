@@ -102,6 +102,9 @@ public:
 	void clearSelection() override;
 	object_ptr<TabbedSelector::InnerFooter> createFooter() override;
 
+	void afterShown() override;
+	void beforeHiding() override;
+
 	void showSet(uint64 setId);
 	[[nodiscard]] uint64 currentSet(int yOffset) const;
 	void setAllowWithoutPremium(bool allow);

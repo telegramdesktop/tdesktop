@@ -718,6 +718,20 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	return result;
 }
 
+void EmojiListWidget::afterShown() {
+	const auto steal = (_mode == Mode::EmojiStatus)
+		|| (_mode == Mode::FullReactions);
+	if (_search && steal) {
+		_search->stealFocus();
+	}
+}
+
+void EmojiListWidget::beforeHiding() {
+	if (_search) {
+		_search->returnFocus();
+	}
+}
+
 template <typename Callback>
 bool EmojiListWidget::enumerateSections(Callback callback) const {
 	Expects(_columnCount > 0);
@@ -2153,6 +2167,10 @@ void EmojiListWidget::refreshEmoji() {
 
 void EmojiListWidget::showSet(uint64 setId) {
 	clearSelection();
+	if (_search && _searchMode) {
+		_search->cancel();
+		applyNextSearchQuery();
+	}
 
 	auto y = 0;
 	enumerateSections([&](const SectionInfo &info) {

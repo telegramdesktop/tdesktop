@@ -53,6 +53,7 @@ public:
 	[[nodiscard]] auto debouncedQueryValue() const
 		-> rpl::producer<std::vector<QString>>;
 
+	void cancel();
 	void setLoading(bool loading);
 	void stealFocus();
 	void returnFocus();
@@ -118,6 +119,7 @@ public:
 	[[nodiscard]] auto debouncedQueryValue() const
 		->rpl::producer<std::vector<QString>>;
 
+	void cancel();
 	void setLoading(bool loading);
 	void stealFocus();
 	void returnFocus();
