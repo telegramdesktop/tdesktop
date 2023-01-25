@@ -9,72 +9,23 @@ compression: lzo
 apps:
   telegram-desktop:
     command: usr/bin/telegram-desktop
-    command-chain:
-      - bin/desktop-launch
     common-id: org.telegram.desktop
     desktop: usr/share/applications/org.telegram.desktop.desktop
     autostart: telegram-desktop_telegram-desktop.desktop
+    extensions: [gnome]
     plugs:
-      - alsa
       - audio-playback
       - audio-record
       - camera
-      - desktop
-      - desktop-legacy
-      - gsettings
       - hardware-observe
       - home
       - network
       - network-bind
       - network-status
-      - opengl
       - removable-media
       - unity7
-      - wayland
-      - x11
     slots:
       - mpris
-
-hooks:
-  configure:
-    command-chain:
-      - bin/hooks-configure-desktop
-    plugs:
-      - desktop
-
-plugs:
-  desktop:
-    mount-host-font-cache: false
-  # Support for common GTK themes
-  # https://forum.snapcraft.io/t/how-to-use-the-system-gtk-theme-via-the-gtk-common-themes-snap/6235
-  gtk-3-themes:
-    interface: content
-    target: $SNAP/data-dir/themes
-    default-provider: gtk-common-themes
-  icon-themes:
-    interface: content
-    target: $SNAP/data-dir/icons
-    default-provider: gtk-common-themes
-  sound-themes:
-    interface: content
-    target: $SNAP/data-dir/sounds
-    default-provider: gtk-common-themes
-
-layout:
-  /usr/share/alsa:
-    bind: $SNAP/usr/share/alsa
-  /usr/share/pipewire:
-    bind: $SNAP/usr/share/pipewire
-  /usr/share/X11:
-    bind: $SNAP/usr/share/X11
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pipewire-0.3:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pipewire-0.3
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/spa-0.2:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/spa-0.2
-  /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/webkit2gtk-4.1
 
 parts:
   telegram:
@@ -87,40 +38,24 @@ parts:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - clang
-      - libtool-bin
-      - python3
       - libavif-dev
       - libboost-regex-dev
-      - libgirepository1.0-dev
-      - libglib2.0-dev
       - libheif-dev
       - libopenal-dev
       - libssl-dev
-      - libxcb1-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
       - libxcb-screensaver0-dev
-      - zlib1g-dev
     stage-packages:
       - libavif16
       - libgeoclue-2-0
-      - libgeocode-glib-2-0
-      - libglib2.0-0t64
-      - libheif1
       - libopenal1
-      - libssl3t64
-      - libwebkit2gtk-4.1-0
-      - libxcb1
-      - libxcb-keysyms1
       - libxcb-record0
       - libxcb-screensaver0
-      - zlib1g
-      - glib-networking
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
     override-pull: |
@@ -172,41 +107,6 @@ parts:
       rm -rf patches
     stage: [-./*]
 
-  desktop-qt:
-    source: https://github.com/desktop-app/snapcraft-desktop-helpers.git
-    source-depth: 1
-    source-subdir: qt
-    plugin: make
-    make-parameters: ["FLAVOR=qt5"]
-    build-environment:
-      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-    build-packages:
-      - build-essential
-      - dpkg-dev
-      - gtk-update-icon-cache
-      - libglib2.0-bin
-      - libgtk-3-0t64
-    stage-packages:
-      - libc-bin
-      - libgdk-pixbuf-2.0-0
-      - libnvidia-egl-wayland1
-      - libxkbcommon0
-      - locales-all
-      - shared-mime-info
-      - xdg-user-dirs
-    override-prime: |
-      craftctl default
-      update-mime-database usr/share/mime
-      glib-compile-schemas usr/share/glib-2.0/schemas
-      for theme in usr/share/icons/*; do
-        if [ -f "$theme/index.theme" ] && [ ! -f "$theme/icon-theme.cache" ]; then
-          update-icon-caches "$theme"
-        fi
-      done
-      GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0 /usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgtk-3-0t64/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gtk-3.0/3.0.0/immodules/immodules.cache
-    after:
-      - telegram
-
   ada:
     source: https://github.com/ada-url/ada.git
     source-depth: 1
@@ -242,8 +142,6 @@ parts:
       - libavutil58
       - libswresample4
       - libswscale7
-      - va-driver-all
-      - vdpau-driver-all
     override-build: |
       craftctl default
       mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/blas/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
@@ -258,6 +156,8 @@ parts:
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
+    build-packages:
+      - libhwy-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -274,9 +174,9 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
-    stage:
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libbrotli*
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libhwy*
+      - -DJPEGXL_FORCE_SYSTEM_BROTLI=ON
+      - -DJPEGXL_FORCE_SYSTEM_LCMS2=ON
+      - -DJPEGXL_FORCE_SYSTEM_HWY=ON
     prime:
       - -./usr/bin
       - -./usr/include
@@ -293,10 +193,6 @@ parts:
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
-    build-packages:
-      - zlib1g-dev
-    stage-packages:
-      - zlib1g
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -325,93 +221,30 @@ parts:
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
-      - libdbus-1-dev
-      - libegl-dev
-      - libfontconfig1-dev
-      - libfreetype-dev
-      - libglib2.0-dev
-      - libglx-dev
-      - libgtk-3-dev
-      - libharfbuzz-dev
-      - libice-dev
-      - libicu-dev
-      - liblcms2-dev
-      - libopengl-dev
-      - libpcre2-dev
-      - libpng-dev
-      - libsm-dev
       - libssl-dev
-      - libvulkan-dev
-      - libwayland-dev
-      - libx11-dev
-      - libx11-xcb-dev
-      - libxcb1-dev
       - libxcb-cursor-dev
       - libxcb-glx0-dev
       - libxcb-icccm4-dev
       - libxcb-image0-dev
       - libxcb-keysyms1-dev
       - libxcb-randr0-dev
-      - libxcb-render0-dev
       - libxcb-render-util0-dev
       - libxcb-shape0-dev
-      - libxcb-shm0-dev
       - libxcb-sync-dev
       - libxcb-util-dev
       - libxcb-xfixes0-dev
       - libxcb-xkb-dev
-      - libxkbcommon-dev
       - libxkbcommon-x11-dev
-      - zlib1g-dev
     stage-packages:
-      - libdbus-1-3
-      - libegl1
-      - libfontconfig1
-      - libfreetype6
-      - libglib2.0-0t64
-      - libglx0
-      - libgtk-3-0t64
-      - libharfbuzz0b
-      - libice6
-      - libicu74
-      - liblcms2-2
-      - libopengl0
-      - libpcre2-16-0
-      - libpng16-16t64
-      - libsm6
-      - libssl3t64
-      - libvulkan1
-      - libwayland-client0
-      - libwayland-cursor0
-      - libwayland-egl1
-      - libwayland-server0
-      - libx11-6
-      - libx11-xcb1
-      - libxcb1
       - libxcb-cursor0
       - libxcb-glx0
-      - libxcb-icccm4
-      - libxcb-image0
-      - libxcb-keysyms1
       - libxcb-randr0
-      - libxcb-render0
-      - libxcb-render-util0
-      - libxcb-shape0
-      - libxcb-shm0
       - libxcb-sync1
-      - libxcb-util1
       - libxcb-xfixes0
-      - libxcb-xkb1
-      - libxkbcommon0
-      - libxkbcommon-x11-0
-      - zlib1g
-      - mesa-vulkan-drivers
-      - xkb-data
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
       - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - -DINPUT_openssl=linked
     override-pull: |
@@ -479,10 +312,6 @@ parts:
     build-packages:
       - gperf
       - libssl-dev
-      - zlib1g-dev
-    stage-packages:
-      - libssl3t64
-      - zlib1g
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -503,48 +332,17 @@ parts:
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
-      - libdrm-dev
-      - libegl-dev
-      - libgbm-dev
-      - libgl-dev
-      - libglib2.0-dev
       - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
       - libssl-dev
       - libvpx-dev
-      - libx11-dev
-      - libxcomposite-dev
-      - libxdamage-dev
-      - libxext-dev
-      - libxfixes-dev
-      - libxrender-dev
-      - libxrandr-dev
-      - libxtst-dev
     stage-packages:
-      - libdrm2
-      - libegl1
-      - libgbm1
-      - libgl1
-      - libglib2.0-0t64
       - libopenh264-7
-      - libopus0
-      - libssl3t64
-      - libvpx9
-      - libx11-6
-      - libxcomposite1
-      - libxdamage1
-      - libxext6
-      - libxfixes3
-      - libxrender1
-      - libxrandr2
-      - libxtst6
-      - pipewire
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DCMAKE_PREFIX_PATH=$CRAFT_STAGE/usr
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/cmake
