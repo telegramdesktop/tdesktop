@@ -27,9 +27,8 @@ public:
 	[[nodiscard]] rpl::producer<QColor> colorValue() const;
 	[[nodiscard]] rpl::producer<> submitRequests() const;
 
-	void showColor(QColor color) {
-		updateFromColor(color);
-	}
+	void showColor(QColor color);
+	void setCurrent(QColor color);
 
 	void setInnerFocus() const;
 

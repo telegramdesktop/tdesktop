@@ -274,7 +274,9 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 	buttonsContainer->chosenChanges(
 	) | rpl::start_with_next([=](ColorsLine::Chosen *chosen) {
 		if (chosen) {
-			editor->showColor(state->colors[chosen->index()]);
+			const auto color = state->colors[chosen->index()];
+			editor->showColor(color);
+			editor->setCurrent(color);
 		}
 	}, editor->lifetime());
 

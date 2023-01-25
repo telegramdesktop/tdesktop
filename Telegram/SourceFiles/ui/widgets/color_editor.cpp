@@ -1270,3 +1270,12 @@ void ColorEditor::setRGB(int red, int green, int blue, int alpha) {
 	updateHSBFields();
 	update();
 }
+
+void ColorEditor::showColor(QColor color) {
+	updateFromColor(color);
+}
+
+void ColorEditor::setCurrent(QColor color) {
+	_current = color;
+	update();
+}
