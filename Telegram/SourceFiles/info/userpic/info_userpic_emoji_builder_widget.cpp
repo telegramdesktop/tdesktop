@@ -327,7 +327,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 							1. - progress);
 					}
 					state->circleButtons[now]->setSelectedProgress(progress);
-				}, 0., 1., st::slideDuration);
+				}, 0., 1., st::userpicBuilderEmojiSlideDuration);
 				state->colorIndex = now;
 
 				preview->setGradientColors(colors);

@@ -48,6 +48,25 @@ userpicBuilderEmojiLayerMinHeight: 496px;
 userpicBuilderEmojiSelectorMinHeight: 216px;
 userpicBuilderEmojiSelectorTogglePosition: point(6px, 6px);
 
+userpicBuilderEmojiColorMinus: IconButton(defaultIconButton) {
+	width: userpicBuilderEmojiAccentColorSize;
+	height: userpicBuilderEmojiAccentColorSize;
+
+	icon: icon {{ "settings/minus", menuIconFg }};
+	iconOver: icon {{ "settings/minus", menuIconFg }};
+
+	rippleAreaSize: userpicBuilderEmojiAccentColorSize;
+	rippleAreaPosition: point(0px, 0px);
+	ripple: universalRippleAnimation;
+}
+
+userpicBuilderEmojiColorPlus: IconButton(userpicBuilderEmojiColorMinus) {
+	icon: icon {{ "settings/plus", menuIconFg }};
+	iconOver: icon {{ "settings/plus", menuIconFg }};
+}
+
 userpicBuilderEmojiToggleEmojiIcon: icon {{ "chat/input_smile_face", emojiIconFg }};
 userpicBuilderEmojiToggleEmojiSize: 18px;
 userpicBuilderEmojiToggleStickersIcon: icon {{ "menu/stickers", emojiIconFg }};
+
+userpicBuilderEmojiSlideDuration: 120;
