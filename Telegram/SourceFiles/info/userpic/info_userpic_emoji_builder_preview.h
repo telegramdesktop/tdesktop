@@ -33,7 +33,7 @@ public:
 		not_null<DocumentData*> document,
 		Fn<void()> updateCallback);
 
-	void paintBackground(QPainter &p, const QBrush &brush);
+	void paintBackground(QPainter &p, const QImage &image);
 	bool paintForeground(QPainter &p);
 
 private:
@@ -53,7 +53,7 @@ public:
 	EmojiUserpic(not_null<Ui::RpWidget*> parent, const QSize &size);
 
 	void result(int size, Fn<void(QImage &&image)> done);
-	void setGradientStops(QGradientStops stops);
+	void setGradientColors(std::vector<QColor> colors);
 	void setDocument(not_null<DocumentData*> document);
 	void setDuration(crl::time duration);
 
@@ -63,9 +63,9 @@ protected:
 private:
 	PreviewPainter _painter;
 
-	QBrush _previousBrush;
-	QBrush _brush;
-	QGradientStops _stops;
+	QImage _previousImage;
+	QImage _image;
+	std::vector<QColor> _colors;
 
 	crl::time _duration;
 	Ui::Animations::Simple _animation;

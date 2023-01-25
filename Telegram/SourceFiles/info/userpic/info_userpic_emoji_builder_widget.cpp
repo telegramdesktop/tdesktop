@@ -277,7 +277,12 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		data.builderColorIndex);
 	palette->stopsValue(
 	) | rpl::start_with_next([=](QGradientStops stops) {
-		preview->setGradientStops(std::move(stops));
+		const auto colors = ranges::views::all(
+			stops
+		) | ranges::views::transform([](const QGradientStop &stop) {
+			return stop.second;
+		}) | ranges::to_vector;
+		preview->setGradientColors(colors);
 	}, preview->lifetime());
 	paletteBg->innerRectValue(
 	) | rpl::start_with_next([=](const QRect &r) {
@@ -339,7 +344,7 @@ not_null<Ui::RpWidget*> CreateEmojiUserpic(
 	) | rpl::start_with_next([=](int index) {
 		const auto c = Ui::EmptyUserpic::UserpicColor(
 			Ui::EmptyUserpic::ColorIndex(index));
-		widget->setGradientStops({ { 0, c.color1->c }, { 1, c.color2->c } });
+		widget->setGradientColors({ c.color1->c, c.color2->c });
 	}, widget->lifetime());
 	return widget;
 }

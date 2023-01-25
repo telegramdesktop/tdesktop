@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "history/view/media/history_view_sticker_player.h"
+#include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "main/main_session.h"
-#include "ui/painter.h"
 #include "ui/rect.h"
 
 namespace UserpicBuilder {
@@ -78,11 +78,8 @@ void PreviewPainter::setDocument(
 	}, _lifetime);
 }
 
-void PreviewPainter::paintBackground(QPainter &p, const QBrush &brush) {
-	PainterHighQualityEnabler hq(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(brush);
-	p.drawEllipse(0, 0, _size, _size);
+void PreviewPainter::paintBackground(QPainter &p, const QImage &image) {
+	p.drawImage(0, 0, image);
 }
 
 bool PreviewPainter::paintForeground(QPainter &p) {
@@ -126,15 +123,10 @@ void EmojiUserpic::setDocument(not_null<DocumentData*> document) {
 }
 
 void EmojiUserpic::result(int size, Fn<void(QImage &&image)> done) {
-	const auto colors = ranges::views::all(
-		_stops
-	) | ranges::views::transform([](const QGradientStop &stop) {
-		return stop.second;
-	}) | ranges::to_vector;
 	const auto painter = lifetime().make_state<PreviewPainter>(size);
 	// Reset to the first frame.
 	painter->setDocument(_painter.document(), [=] {
-		auto background = Images::GenerateLinearGradient(Size(size), colors);
+		auto background = GenerateGradient(Size(size), _colors, false);
 
 		auto p = QPainter(&background);
 		while (true) {
@@ -146,20 +138,16 @@ void EmojiUserpic::result(int size, Fn<void(QImage &&image)> done) {
 	});
 }
 
-void EmojiUserpic::setGradientStops(QGradientStops stops) {
-	if (_stops == stops) {
+void EmojiUserpic::setGradientColors(std::vector<QColor> colors) {
+	if (_colors == colors) {
 		return;
 	}
-	if (!_stops.empty()) {
-		auto gradient = QLinearGradient(0, 0, width() / 2., height());
-		gradient.setStops(base::take(_stops));
-		_previousBrush = QBrush(std::move(gradient));
+	if (const auto colors = base::take(_colors); !colors.empty()) {
+		_previousImage = GenerateGradient(size(), colors);
 	}
-	_stops = std::move(stops);
+	_colors = std::move(colors);
 	{
-		auto gradient = QLinearGradient(0, 0, width() / 2., height());
-		gradient.setStops(_stops);
-		_brush = QBrush(std::move(gradient));
+		_image = GenerateGradient(size(), _colors);
 	}
 	if (_duration) {
 		_animation.stop();
@@ -172,13 +160,13 @@ void EmojiUserpic::setGradientStops(QGradientStops stops) {
 void EmojiUserpic::paintEvent(QPaintEvent *event) {
 	auto p = QPainter(this);
 
-	if (_animation.animating() && (_previousBrush != Qt::NoBrush)) {
-		_painter.paintBackground(p, _previousBrush);
+	if (_animation.animating() && !_previousImage.isNull()) {
+		_painter.paintBackground(p, _previousImage);
 
 		p.setOpacity(_animation.value(1.));
 	}
 
-	_painter.paintBackground(p, _brush);
+	_painter.paintBackground(p, _image);
 
 	p.setOpacity(1.);
 	_painter.paintForeground(p);
