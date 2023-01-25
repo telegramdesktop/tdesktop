@@ -409,6 +409,10 @@ reactPanelEmojiPan: EmojiPan(statusEmojiPan) {
 	desiredSize: reactStripSize;
 	verticalSizeSub: 0px;
 	overBg: transparent;
+	search: TabbedSearch(defaultTabbedSearch) {
+		defaultFieldWidth: 88px;
+	}
+	searchMargin: margins(1px, 10px, 2px, 6px);
 }
 emojiScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 3px;

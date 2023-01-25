@@ -1218,11 +1218,11 @@ reactionPremiumLocked: icon{
 };
 reactionExpandPanel: icon{
 	{ "chat/reactions_round_big", windowBgRipple },
-	{ "chat/reactions_expand_panel", windowBg },
+	{ "chat/reactions_expand_panel", windowSubTextFg },
 };
 reactionsExpandDropdown: icon{
 	{ "chat/reactions_round_small", windowBgRipple },
-	{ "chat/reactions_expand_panel", windowBg },
+	{ "chat/reactions_expand_panel", windowSubTextFg },
 };
 
 searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {
