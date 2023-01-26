@@ -56,8 +56,10 @@ public:
 	using Groups = std::vector<Ui::EmojiGroup>;
 	[[nodiscard]] rpl::producer<Groups> emojiGroupsValue() const;
 	[[nodiscard]] rpl::producer<Groups> statusGroupsValue() const;
+	[[nodiscard]] rpl::producer<Groups> profilePhotoGroupsValue() const;
 	void requestEmojiGroups();
 	void requestStatusGroups();
+	void requestProfilePhotoGroups();
 
 private:
 	struct GroupsType {
@@ -105,6 +107,7 @@ private:
 
 	GroupsType _emojiGroups;
 	GroupsType _statusGroups;
+	GroupsType _profilePhotoGroups;
 
 	rpl::lifetime _lifetime;
 

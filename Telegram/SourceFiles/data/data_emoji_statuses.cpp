@@ -137,6 +137,12 @@ auto EmojiStatuses::statusGroupsValue() const -> rpl::producer<Groups> {
 	return _statusGroups.data.value();
 }
 
+auto EmojiStatuses::profilePhotoGroupsValue() const
+-> rpl::producer<Groups> {
+	const_cast<EmojiStatuses*>(this)->requestProfilePhotoGroups();
+	return _profilePhotoGroups.data.value();
+}
+
 void EmojiStatuses::requestEmojiGroups() {
 	requestGroups(
 		&_emojiGroups,
@@ -148,6 +154,13 @@ void EmojiStatuses::requestStatusGroups() {
 	requestGroups(
 		&_statusGroups,
 		MTPmessages_GetEmojiStatusGroups(MTP_int(_statusGroups.hash)));
+}
+
+void EmojiStatuses::requestProfilePhotoGroups() {
+	requestGroups(
+		&_profilePhotoGroups,
+		MTPmessages_GetEmojiProfilePhotoGroups(
+			MTP_int(_profilePhotoGroups.hash)));
 }
 
 [[nodiscard]] std::vector<Ui::EmojiGroup> GroupsFromTL(
