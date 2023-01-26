@@ -119,9 +119,10 @@ void ShowGradientEditor(
 
 		auto content = CreateGradientEditor(
 			box,
-			data.documentId
-				? controller->session().data().document(data.documentId)
-				: nullptr,
+			(data.documentId
+				? controller->session().data().document(
+					data.documentId).get()
+				: nullptr),
 			data.gradientEditorColors,
 			BothWayCommunication<std::vector<QColor>>{
 				state->saveRequests.events(),

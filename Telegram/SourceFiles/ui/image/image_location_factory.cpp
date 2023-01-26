@@ -352,6 +352,8 @@ ImageWithLocation FromVideoSize(
 		};
 	}, [](const MTPDvideoSizeEmojiMarkup &) {
 		return ImageWithLocation();
+	}, [](const MTPDvideoSizeStickerMarkup &) {
+		return ImageWithLocation();
 	});
 }
 
@@ -375,6 +377,8 @@ ImageWithLocation FromVideoSize(
 			.bytesCount = data.vsize().v,
 		};
 	}, [](const MTPDvideoSizeEmojiMarkup &) {
+		return ImageWithLocation();
+	}, [](const MTPDvideoSizeStickerMarkup &) {
 		return ImageWithLocation();
 	});
 }

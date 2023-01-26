@@ -332,7 +332,8 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 				MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
 				file,
 				MTPInputFile(), // video
-				MTPdouble()) // video_start_ts
+				MTPdouble(), // video_start_ts
+				MTPVideoSize()) // video_emoji_markup
 		)).done(applier).afterRequest(history->sendRequestId).send();
 	} else if (const auto channel = peer->asChannel()) {
 		const auto history = _session->data().history(channel);
@@ -342,7 +343,8 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 				MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
 				file,
 				MTPInputFile(), // video
-				MTPdouble()) // video_start_ts
+				MTPdouble(), // video_start_ts
+				MTPVideoSize()) // video_emoji_markup
 		)).done(applier).afterRequest(history->sendRequestId).send();
 	} else if (const auto user = peer->asUser()) {
 		using Flag = MTPphotos_UploadContactProfilePhoto::Flag;
