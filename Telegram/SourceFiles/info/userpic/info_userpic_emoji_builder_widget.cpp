@@ -155,12 +155,13 @@ private:
 		not_null<List*> list;
 		not_null<Footer*> footer;
 	};
-	[[nodiscard]] Selector createEmojiList() const;
-	[[nodiscard]] Selector createStickersList() const;
+	[[nodiscard]] Selector createEmojiList(
+		not_null<Ui::ScrollArea*> scroll) const;
+	[[nodiscard]] Selector createStickersList(
+		not_null<Ui::ScrollArea*> scroll) const;
 
 	const not_null<Window::SessionController*> _controller;
 	base::unique_qptr<Ui::RpWidget> _container;
-	base::unique_qptr<Ui::ScrollArea> _scroll;
 
 	rpl::event_stream<not_null<DocumentData*>> _chosen;
 
@@ -178,7 +179,8 @@ rpl::producer<not_null<DocumentData*>> EmojiSelector::chosen() const {
 	return _chosen.events();
 }
 
-EmojiSelector::Selector EmojiSelector::createEmojiList() const {
+EmojiSelector::Selector EmojiSelector::createEmojiList(
+		not_null<Ui::ScrollArea*> scroll) const {
 	const auto session = &_controller->session();
 	const auto manager = &session->data().customEmojiManager();
 	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
@@ -193,8 +195,8 @@ EmojiSelector::Selector EmojiSelector::createEmojiList() const {
 		},
 		.st = &st::reactPanelEmojiPan,
 	};
-	const auto list = _scroll->setOwnedWidget(
-		object_ptr<ChatHelpers::EmojiListWidget>(_scroll, std::move(args)));
+	const auto list = scroll->setOwnedWidget(
+		object_ptr<ChatHelpers::EmojiListWidget>(scroll, std::move(args)));
 	const auto footer = list->createFooter().data();
 	list->refreshEmoji();
 	list->customChosen(
@@ -204,10 +206,11 @@ EmojiSelector::Selector EmojiSelector::createEmojiList() const {
 	return { list, footer };
 }
 
-EmojiSelector::Selector EmojiSelector::createStickersList() const {
-	const auto list = _scroll->setOwnedWidget(
+EmojiSelector::Selector EmojiSelector::createStickersList(
+		not_null<Ui::ScrollArea*> scroll) const {
+	const auto list = scroll->setOwnedWidget(
 		object_ptr<ChatHelpers::StickersListWidget>(
-			_scroll,
+			scroll,
 			_controller,
 			Window::GifPauseReason::Any));
 	const auto footer = list->createFooter().data();
@@ -233,11 +236,11 @@ void EmojiSelector::createSelector(Type type) {
 		container->setGeometry(Rect(s));
 	}, container->lifetime());
 
-	_scroll = base::make_unique_q<Ui::ScrollArea>(container, stScroll);
+	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(container, stScroll);
 
 	const auto selector = isEmoji
-		? createEmojiList()
-		: createStickersList();
+		? createEmojiList(scroll)
+		: createStickersList(scroll);
 	selector.footer->setParent(container);
 
 	const auto toggleButton = Ui::CreateChild<Ui::AbstractButton>(container);
@@ -280,8 +283,8 @@ void EmojiSelector::createSelector(Type type) {
 	});
 
 	rpl::combine(
-		_scroll->scrollTopValue(),
-		_scroll->heightValue()
+		scroll->scrollTopValue(),
+		scroll->heightValue()
 	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
 		const auto scrollBottom = scrollTop + scrollHeight;
 		selector.list->setVisibleTopBottom(scrollTop, scrollBottom);
@@ -289,7 +292,7 @@ void EmojiSelector::createSelector(Type type) {
 
 	selector.list->scrollToRequests(
 	) | rpl::start_with_next([=](int y) {
-		_scroll->scrollToY(y);
+		scroll->scrollToY(y);
 		// _shadow->update();
 	}, selector.list->lifetime());
 
@@ -302,7 +305,7 @@ void EmojiSelector::createSelector(Type type) {
 
 	selector.footer->show();
 	separator->show();
-	_scroll->show();
+	scroll->show();
 
 	const auto scrollWidth = stScroll.width;
 	sizeValue(
@@ -325,7 +328,7 @@ void EmojiSelector::createSelector(Type type) {
 			st::lineWidth);
 
 		selector.list->resizeToWidth(s.width() - st::boxRadius * 2);
-		_scroll->setGeometry(
+		scroll->setGeometry(
 			st::boxRadius,
 			rect::bottom(separator),
 			selector.list->width() + scrollWidth,
