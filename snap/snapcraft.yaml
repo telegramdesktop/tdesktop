@@ -288,13 +288,13 @@ parts:
       craftctl default
       sed -i 's/NOT JPEGXL_ENABLE_SKCMS/0/' lib/jxl.cmake
     stage:
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libbrotli*
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libbrotli*
     prime:
       - -./usr/bin
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
 
   mozjpeg:
