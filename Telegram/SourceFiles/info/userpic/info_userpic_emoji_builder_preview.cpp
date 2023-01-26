@@ -50,7 +50,7 @@ void PreviewPainter::setDocument(
 			return;
 		}
 		_lifetime.destroy();
-		const auto emojiSize = Size(_emojiSize);
+		const auto emojiSize = Size(_size * style::DevicePixelRatio());
 		if (sticker->isLottie()) {
 			_player = std::make_unique<HistoryView::LottiePlayer>(
 				ChatHelpers::LottiePlayerFromDocument(
