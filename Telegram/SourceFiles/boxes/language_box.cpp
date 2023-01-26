@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "settings/settings_common.h"
+#include "spellcheck/spellcheck_types.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -43,6 +44,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 
 namespace {
+namespace {
+
+[[nodiscard]] std::vector<QLocale> SkipLocalesFromSettings() {
+	const auto list = Core::App().settings().skipTranslationLanguages();
+	return list
+		| ranges::views::transform(&LanguageId::locale)
+		| ranges::to_vector;
+}
+
+} // namespace
 
 using Language = Lang::Language;
 using Languages = Lang::CloudManager::Languages;
@@ -1138,19 +1149,19 @@ void LanguageBox::prepare() {
 		}),
 		st::settingsButtonNoIcon);
 
-	label->fire(Ui::Translate::LocalesFromSettings());
+	label->fire(SkipLocalesFromSettings());
 	translateSkip->setClickedCallback([=] {
 		Ui::BoxShow(this).showBox(
-			Box(Ui::ChooseLanguageBox, [=](std::vector<QLocale> locales) {
+			Box(Ui::ChooseLanguageBox, [=](Locales locales) {
 				label->fire_copy(locales);
-				const auto result = ranges::views::all(
+				using namespace ranges::views;
+				Core::App().settings().setSkipTranslationLanguages(all(
 					locales
-				) | ranges::views::transform([](const QLocale &l) {
-					return int(l.language());
-				}) | ranges::to_vector;
-				Core::App().settings().setSkipTranslationForLanguages(result);
+				) | transform([](const QLocale &l) {
+					return LanguageId{ l.language() };
+				}) | ranges::to_vector);
 				Core::App().saveSettingsDelayed();
-			}, Ui::Translate::LocalesFromSettings()),
+			}, SkipLocalesFromSettings()),
 			Ui::LayerOption::KeepOther);
 	});
 	Settings::AddSkip(topContainer);

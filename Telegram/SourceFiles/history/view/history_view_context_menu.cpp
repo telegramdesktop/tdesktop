@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "spellcheck/spellcheck_types.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -1058,7 +1059,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 					.append('\n')
 					.append(item->originalText()))
 				: item->originalText();
-			if (!translate.text.isEmpty()
+			if ((!item->translation() || !item->history()->translatedTo())
+				&& !translate.text.isEmpty()
 				&& !Ui::SkipTranslate(translate)) {
 				result->addAction(tr::lng_context_translate(tr::now), [=] {
 					if (const auto item = owner->message(itemId)) {

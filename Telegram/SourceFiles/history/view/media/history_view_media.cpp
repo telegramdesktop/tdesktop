@@ -305,7 +305,7 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 	};
 	result.setMarkedText(
 		st::messageTextStyle,
-		item->originalTextWithLocalEntities(),
+		item->translatedTextWithLocalEntities(),
 		Ui::ItemTextOptions(item),
 		context);
 	FillTextWithAnimatedSpoilers(_parent, result);

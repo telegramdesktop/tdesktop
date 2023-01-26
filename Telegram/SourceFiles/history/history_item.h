@@ -21,10 +21,12 @@ struct HistoryMessageReply;
 struct HistoryMessageViews;
 struct HistoryMessageMarkupData;
 struct HistoryMessageReplyMarkup;
+struct HistoryMessageTranslation;
 struct HistoryServiceDependentData;
 enum class HistorySelfDestructType;
 struct PreparedServiceText;
 class ReplyKeyboard;
+struct LanguageId;
 
 namespace base {
 template <typename Enum>
@@ -259,6 +261,8 @@ public:
 	[[nodiscard]] bool definesReplyKeyboard() const;
 	[[nodiscard]] ReplyMarkupFlags replyKeyboardFlags() const;
 
+	void cacheOnlyEmojiAndSpaces(bool only);
+	[[nodiscard]] bool isOnlyEmojiAndSpaces() const;
 	[[nodiscard]] bool hasSwitchInlineButton() const {
 		return _flags & MessageFlag::HasSwitchInlineButton;
 	}
@@ -358,8 +362,9 @@ public:
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
 	[[nodiscard]] ItemPreview toPreview(ToPreviewOptions options) const;
 	[[nodiscard]] TextWithEntities inReplyText() const;
-	[[nodiscard]] TextWithEntities originalText() const;
-	[[nodiscard]] TextWithEntities originalTextWithLocalEntities() const;
+	[[nodiscard]] const TextWithEntities &originalText() const;
+	[[nodiscard]] const TextWithEntities &translatedText() const;
+	[[nodiscard]] TextWithEntities translatedTextWithLocalEntities() const;
 	[[nodiscard]] const std::vector<ClickHandlerPtr> &customTextLinks() const;
 	[[nodiscard]] TextForMimeData clipboardText() const;
 
@@ -397,6 +402,10 @@ public:
 	[[nodiscard]] bool requiresSendInlineRight() const;
 	[[nodiscard]] std::optional<QString> errorTextForForward(
 		not_null<Data::Thread*> to) const;
+	[[nodiscard]] const HistoryMessageTranslation *translation() const;
+	[[nodiscard]] bool translationShowRequiresCheck(LanguageId to) const;
+	bool translationShowRequiresRequest(LanguageId to);
+	void translationDone(LanguageId to, TextWithEntities result);
 
 	[[nodiscard]] bool canReact() const;
 	enum class ReactionSource {
@@ -542,6 +551,9 @@ private:
 	void setupChatThemeChange();
 	void setupTTLChange();
 
+	void translationToggle(
+		not_null<HistoryMessageTranslation*> translation,
+		bool used);
 	void setSelfDestruct(HistorySelfDestructType type, int ttlSeconds);
 
 	TextWithEntities fromLinkText() const;

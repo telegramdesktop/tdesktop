@@ -295,17 +295,6 @@ RepliesWidget::RepliesWidget(
 		searchInTopic();
 	}, _topBar->lifetime());
 
-	if (_rootView) {
-		_rootView->raise();
-	}
-	if (_pinnedBar) {
-		_pinnedBar->raise();
-	}
-	if (_topicReopenBar) {
-		_topicReopenBar->bar().raise();
-	}
-	_topBarShadow->raise();
-
 	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
@@ -425,6 +414,9 @@ void RepliesWidget::orderWidgets() {
 	}
 	if (_pinnedBar) {
 		_pinnedBar->raise();
+	}
+	if (_topicReopenBar) {
+		_topicReopenBar->bar().raise();
 	}
 	_topBarShadow->raise();
 	_composeControls->raisePanels();

@@ -546,6 +546,32 @@ void PeerData::checkFolder(FolderId folderId) {
 	}
 }
 
+void PeerData::setTranslationDisabled(bool disabled) {
+	const auto flag = disabled
+		? TranslationFlag::Disabled
+		: TranslationFlag::Enabled;
+	if (_translationFlag != flag) {
+		_translationFlag = flag;
+		session().changes().peerUpdated(
+			this,
+			UpdateFlag::TranslationDisabled);
+	}
+}
+
+PeerData::TranslationFlag PeerData::translationFlag() const {
+	return _translationFlag;
+}
+
+void PeerData::saveTranslationDisabled(bool disabled) {
+	setTranslationDisabled(disabled);
+
+	using Flag = MTPmessages_TogglePeerTranslations::Flag;
+	session().api().request(MTPmessages_TogglePeerTranslations(
+		MTP_flags(disabled ? Flag::f_disabled : Flag()),
+		input
+	)).send();
+}
+
 void PeerData::setSettings(const MTPPeerSettings &data) {
 	data.match([&](const MTPDpeerSettings &data) {
 		_requestChatTitle = data.vrequest_chat_title().value_or_empty();

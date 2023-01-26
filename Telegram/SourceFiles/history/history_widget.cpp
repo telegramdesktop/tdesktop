@@ -102,6 +102,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_requests_bar.h"
 #include "history/view/history_view_sticker_toast.h"
+#include "history/view/history_view_translate_bar.h"
 #include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
@@ -1488,6 +1489,9 @@ void HistoryWidget::orderWidgets() {
 	if (_pinnedBar) {
 		_pinnedBar->raise();
 	}
+	if (_translateBar) {
+		_translateBar->raise();
+	}
 	if (_requestsBar) {
 		_requestsBar->raise();
 	}
@@ -2093,6 +2097,7 @@ void HistoryWidget::showHistory(
 		_history->showAtMsgId = _showAtMsgId;
 
 		destroyUnreadBarOnClose();
+		_translateBar = nullptr;
 		_pinnedBar = nullptr;
 		_pinnedTracker = nullptr;
 		_groupCallBar = nullptr;
@@ -2238,6 +2243,7 @@ void HistoryWidget::showHistory(
 
 		_updateHistoryItems.cancel();
 
+		setupTranslateBar();
 		setupPinnedTracker();
 		setupGroupCallBar();
 		setupRequestsBar();
@@ -3966,6 +3972,9 @@ void HistoryWidget::showAnimated(
 	show();
 	_topBar->finishAnimating();
 	_cornerButtons.finishAnimations();
+	if (_translateBar) {
+		_translateBar->finishAnimating();
+	}
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
@@ -4029,6 +4038,9 @@ void HistoryWidget::doneShow() {
 	_preserveScrollTop = true;
 	preloadHistoryIfNeeded();
 	updatePinnedViewer();
+	if (_translateBar) {
+		_translateBar->finishAnimating();
+	}
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
@@ -5320,7 +5332,12 @@ void HistoryWidget::updateControlsGeometry() {
 		_requestsBar->move(0, requestsTop);
 		_requestsBar->resizeToWidth(width());
 	}
-	const auto pinnedBarTop = requestsTop + (_requestsBar ? _requestsBar->height() : 0);
+	const auto translateTop = requestsTop + (_requestsBar ? _requestsBar->height() : 0);
+	if (_translateBar) {
+		_translateBar->move(0, translateTop);
+		_translateBar->resizeToWidth(width());
+	}
+	const auto pinnedBarTop = translateTop + (_translateBar ? _translateBar->height() : 0);
 	if (_pinnedBar) {
 		_pinnedBar->move(0, pinnedBarTop);
 		_pinnedBar->resizeToWidth(width());
@@ -5499,6 +5516,9 @@ void HistoryWidget::updateHistoryGeometry(
 	}
 
 	auto newScrollHeight = height() - _topBar->height();
+	if (_translateBar) {
+		newScrollHeight -= _translateBar->height();
+	}
 	if (_pinnedBar) {
 		newScrollHeight -= _pinnedBar->height();
 	}
@@ -6226,6 +6246,40 @@ void HistoryWidget::checkLastPinnedClickedIdReset(
 		_pinnedClickedId = FullMsgId();
 		_minPinnedId = std::nullopt;
 		updatePinnedViewer();
+	}
+}
+
+void HistoryWidget::setupTranslateBar() {
+	Expects(_history != nullptr);
+
+	_translateBar = std::make_unique<HistoryView::TranslateBar>(
+		this,
+		_history);
+
+	controller()->adaptive().oneColumnValue(
+	) | rpl::start_with_next([=, raw = _translateBar.get()](bool one) {
+		raw->setShadowGeometryPostprocess([=](QRect geometry) {
+			if (!one) {
+				geometry.setLeft(geometry.left() + st::lineWidth);
+			}
+			return geometry;
+		});
+	}, _translateBar->lifetime());
+
+	_translateBarHeight = 0;
+	_translateBar->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		_topDelta = _preserveScrollTop ? 0 : (height - _translateBarHeight);
+		_translateBarHeight = height;
+		updateHistoryGeometry();
+		updateControlsGeometry();
+		_topDelta = 0;
+	}, _translateBar->lifetime());
+
+	orderWidgets();
+
+	if (_showAnimation) {
+		_translateBar->hide();
 	}
 }
 

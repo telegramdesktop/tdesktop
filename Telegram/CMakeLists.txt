@@ -756,6 +756,10 @@ PRIVATE
     history/view/history_view_sticker_toast.h
     history/view/history_view_transcribe_button.cpp
     history/view/history_view_transcribe_button.h
+    history/view/history_view_translate_bar.cpp
+    history/view/history_view_translate_bar.h
+    history/view/history_view_translate_tracker.cpp
+    history/view/history_view_translate_tracker.h
     history/view/history_view_top_bar_widget.cpp
     history/view/history_view_top_bar_widget.h
     history/view/history_view_view_button.cpp
@@ -782,6 +786,8 @@ PRIVATE
     history/history_inner_widget.h
     history/history_location_manager.cpp
     history/history_location_manager.h
+    history/history_translation.cpp
+    history/history_translation.h
     history/history_unread_things.cpp
     history/history_unread_things.h
     history/history_view_highlight_manager.cpp

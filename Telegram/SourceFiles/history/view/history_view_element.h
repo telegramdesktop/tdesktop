@@ -58,6 +58,12 @@ enum class Context : char {
 	ContactPreview
 };
 
+enum class OnlyEmojiAndSpaces : char {
+	Unknown,
+	Yes,
+	No,
+};
+
 class Element;
 class ElementDelegate {
 public:
@@ -308,6 +314,8 @@ public:
 
 	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	[[nodiscard]] Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
+
+	[[nodiscard]] OnlyEmojiAndSpaces isOnlyEmojiAndSpaces() const;
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
 	void setAttachToPrevious(bool attachToNext, Element *previous = nullptr);

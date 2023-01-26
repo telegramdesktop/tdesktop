@@ -31,6 +31,7 @@ enum class CursorState : char;
 enum class PointState : char;
 class EmptyPainter;
 class Element;
+class TranslateTracker;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
@@ -445,6 +446,7 @@ private:
 
 	std::unique_ptr<BotAbout> _botAbout;
 	std::unique_ptr<HistoryView::EmptyPainter> _emptyPainter;
+	std::unique_ptr<HistoryView::TranslateTracker> _translateTracker;
 
 	mutable History *_curHistory = nullptr;
 	mutable int _curBlock = 0;

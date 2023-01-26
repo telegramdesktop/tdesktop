@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "history/history_widget.h"
+#include "history/view/history_view_translate_tracker.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -324,6 +325,7 @@ HistoryInner::HistoryInner(
 	&controller->session(),
 	[=](not_null<const Element*> view) { return itemTop(view); }))
 , _migrated(history->migrateFrom())
+, _translateTracker(std::make_unique<HistoryView::TranslateTracker>(history))
 , _pathGradient(
 	HistoryView::MakePathShiftGradient(
 		controller->chatStyle(),
@@ -340,6 +342,7 @@ HistoryInner::HistoryInner(
 	_history->delegateMixin()->setCurrent(this);
 	if (_migrated) {
 		_migrated->delegateMixin()->setCurrent(this);
+		_migrated->translateTo(_history->translatedTo());
 	}
 
 	Window::ChatThemeValueFromPeer(
@@ -431,7 +434,8 @@ HistoryInner::HistoryInner(
 
 	session().changes().historyUpdates(
 		_history,
-		Data::HistoryUpdate::Flag::OutboxRead
+		(Data::HistoryUpdate::Flag::OutboxRead
+			| Data::HistoryUpdate::Flag::TranslatedTo)
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
@@ -910,6 +914,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	const auto historyDisplayedEmpty = _history->isDisplayedEmpty()
 		&& (!_migrated || _migrated->isDisplayedEmpty());
+	const auto translatedTo = _history->translatedTo();
 	if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 		const auto st = context.st;
 		const auto stm = &st->messageStyle(false, false);
@@ -958,9 +963,11 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	_translateTracker->startBunch();
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
+		_translateTracker->finishBunch();
 		if (readTill && _widget->markingMessagesRead()) {
 			session().data().histories().readInboxTill(readTill);
 		}
@@ -974,6 +981,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			not_null<Element*> view,
 			int top,
 			int height) {
+		_translateTracker->add(view, translatedTo);
 		const auto item = view->data();
 		const auto isSponsored = item->isSponsored();
 		const auto isUnread = !item->out()
@@ -2414,7 +2422,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							[=] { copyContextText(itemId); },
 							&st::menuIconCopy);
 					}
-					if (view->hasVisibleText() || mediaHasTextForCopy) {
+					if ((!item->translation() || !_history->translatedTo())
+						&& (view->hasVisibleText() || mediaHasTextForCopy)) {
 						const auto translate = mediaHasTextForCopy
 							? (HistoryView::TransribedText(item)
 								.append('\n')
@@ -3925,6 +3934,7 @@ void HistoryInner::notifyIsBotChanged() {
 
 void HistoryInner::notifyMigrateUpdated() {
 	_migrated = _history->migrateFrom();
+	_migrated->translateTo(_history->translatedTo());
 }
 
 void HistoryInner::applyDragSelection() {

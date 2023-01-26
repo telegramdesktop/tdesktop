@@ -91,6 +91,7 @@ class TopBarWidget;
 class ContactStatus;
 class Element;
 class PinnedTracker;
+class TranslateBar;
 class ComposeSearch;
 namespace Controls {
 class RecordLock;
@@ -494,6 +495,7 @@ private:
 	void updateReplyEditText(not_null<HistoryItem*> item);
 
 	void updatePinnedViewer();
+	void setupTranslateBar();
 	void setupPinnedTracker();
 	void checkPinnedBarState();
 	void clearHidingPinnedBar();
@@ -637,6 +639,9 @@ private:
 	mutable base::Timer _updateEditTimeLeftDisplay;
 
 	object_ptr<Ui::IconButton> _fieldBarCancel;
+
+	std::unique_ptr<HistoryView::TranslateBar> _translateBar;
+	int _translateBarHeight = 0;
 
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
 	std::unique_ptr<Ui::PinnedBar> _pinnedBar;

@@ -16,9 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
-#ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "spellcheck/platform/platform_language.h"
-#endif
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
@@ -252,29 +250,6 @@ rpl::producer<Qt::MouseButton> ShowButton::clicks() const {
 
 } // namespace
 
-namespace Translate {
-
-std::vector<QLocale> LocalesFromSettings() {
-	const auto langs = Core::App().settings().skipTranslationForLanguages();
-	if (langs.empty()) {
-		return { QLocale(QLocale::English) };
-	}
-	return ranges::views::all(
-		langs
-	) | ranges::view::transform([](int langId) {
-		const auto lang = QLocale::Language(langId);
-		return (lang == QLocale::English)
-			? QLocale(Lang::LanguageIdOrDefault(Lang::Id()))
-			: (lang == QLocale::C)
-			? QLocale(QLocale::English)
-			: QLocale(lang);
-	}) | ranges::to_vector;
-}
-
-} // namespace Translate
-
-using namespace Translate;
-
 QString LanguageName(const QLocale &locale) {
 	if (locale.language() == QLocale::English
 			&& (locale.country() == QLocale::UnitedStates
@@ -297,7 +272,7 @@ void TranslateBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
-	const auto defaultId = LocalesFromSettings().front().name().mid(0, 2);
+	const auto translateTo = Core::App().settings().translateTo().locale();
 
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
@@ -316,7 +291,7 @@ void TranslateBox(
 		msgId = 0;
 	}
 
-	using Flag = MTPmessages_translateText::Flag;
+	using Flag = MTPmessages_TranslateText::Flag;
 	const auto flags = msgId
 		? (Flag::f_peer | Flag::f_id)
 		: !text.text.isEmpty()
@@ -428,7 +403,7 @@ void TranslateBox(
 				: MTP_vector<MTPTextWithEntities>(1, MTP_textWithEntities(
 					MTP_string(text.text),
 					MTP_vector<MTPMessageEntity>()))),
-			MTP_string(toLang)
+			MTP_string(toLang.mid(0, 2))
 		)).done([=](const MTPmessages_TranslatedText &result) {
 			const auto &data = result.data();
 			const auto &list = data.vresult().v;
@@ -439,8 +414,8 @@ void TranslateBox(
 			showText(tr::lng_translate_box_error(tr::now));
 		}).send();
 	};
-	send(defaultId);
-	state->locale.fire(QLocale(defaultId));
+	send(translateTo.name());
+	state->locale.fire_copy(translateTo);
 
 	box->addLeftButton(tr::lng_settings_language(), [=] {
 		if (loading->toggled()) {
@@ -449,10 +424,10 @@ void TranslateBox(
 		Ui::BoxShow(box).showBox(Box(ChooseLanguageBox, [=](
 				std::vector<QLocale> locales) {
 			const auto &locale = locales.front();
+			send(locale.name());
 			state->locale.fire_copy(locale);
 			loading->show(anim::type::instant);
 			translated->hide(anim::type::instant);
-			send(locale.name().mid(0, 2));
 		}, std::vector<QLocale>()));
 	});
 }
@@ -574,12 +549,9 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 	}
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto result = Platform::Language::Recognize(text);
-	if (result.unknown) {
-		return false;
-	}
-	return ranges::any_of(LocalesFromSettings(), [&](const QLocale &l) {
-		return result.locale.language() == l.language();
-	});
+	const auto skip = Core::App().settings().skipTranslationLanguages();
+	const auto test = (result == result);
+	return result.known() && ranges::contains(skip, result);
 #else
     return false;
 #endif

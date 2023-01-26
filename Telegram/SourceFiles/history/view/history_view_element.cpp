@@ -652,6 +652,18 @@ const Ui::Text::String &Element::text() const {
 	return _text;
 }
 
+OnlyEmojiAndSpaces Element::isOnlyEmojiAndSpaces() const {
+	if (data()->Has<HistoryMessageTranslation>()) {
+		return OnlyEmojiAndSpaces::No;
+	} else if (!_text.isEmpty() || data()->originalText().empty()) {
+		return _text.isOnlyEmojiAndSpaces()
+			? OnlyEmojiAndSpaces::Yes
+			: OnlyEmojiAndSpaces::No;
+	} else {
+		return OnlyEmojiAndSpaces::Unknown;
+	}
+}
+
 int Element::textHeightFor(int textWidth) {
 	validateText();
 	if (_textWidth != textWidth) {
@@ -837,7 +849,7 @@ void Element::validateText() {
 		};
 		_text.setMarkedText(
 			st::messageTextStyle,
-			item->originalTextWithLocalEntities(),
+			item->translatedTextWithLocalEntities(),
 			Ui::ItemTextOptions(item),
 			context);
 		if (!text.empty() && _text.isEmpty()) {

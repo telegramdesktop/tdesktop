@@ -1040,6 +1040,7 @@ void ApplyChannelUpdate(
 		}
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+	channel->setTranslationDisabled(update.is_translations_disabled());
 	if (const auto allowed = update.vavailable_reactions()) {
 		channel->setAllowedReactions(Data::Parse(*allowed));
 	} else {

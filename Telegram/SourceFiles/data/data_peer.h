@@ -349,6 +349,15 @@ public:
 		return _requestChatDate;
 	}
 
+	enum class TranslationFlag : uchar {
+		Unknown,
+		Disabled,
+		Enabled,
+	};
+	void setTranslationDisabled(bool disabled);
+	[[nodiscard]] TranslationFlag translationFlag() const;
+	void saveTranslationDisabled(bool disabled);
+
 	void setSettings(const MTPPeerSettings &data);
 
 	enum class BlockStatus : char {
@@ -439,6 +448,7 @@ private:
 	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
+	TranslationFlag _translationFlag = TranslationFlag::Unknown;
 	bool _userpicHasVideo = false;
 
 	QString _requestChatTitle;

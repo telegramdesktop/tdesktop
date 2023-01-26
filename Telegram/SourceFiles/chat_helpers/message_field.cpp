@@ -223,13 +223,13 @@ void EditLinkBox(
 	QObject::connect(text, &Ui::InputField::tabbed, [=] { url->setFocus(); });
 }
 
-TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
+TextWithEntities StripSupportHashtag(TextWithEntities text) {
 	static const auto expression = QRegularExpression(
 		u"\\n?#tsf[a-z0-9_-]*[\\s#a-z0-9_-]*$"_q,
 		QRegularExpression::CaseInsensitiveOption);
 	const auto match = expression.match(text.text);
 	if (!match.hasMatch()) {
-		return std::move(text);
+		return text;
 	}
 	text.text.chop(match.capturedLength());
 	const auto length = text.text.size();
@@ -246,7 +246,7 @@ TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
 		}
 		++i;
 	}
-	return std::move(text);
+	return text;
 }
 
 } // namespace

@@ -78,6 +78,25 @@ constexpr auto kPinnedMessageTextLimit = 16;
 
 using ItemPreview = HistoryView::ItemPreview;
 
+[[nodiscard]] bool IsOnlyEmojiAndSpaces(const QString &text) {
+	if (text.isEmpty()) {
+		return true;
+	}
+	auto emoji = 0;
+	auto start = text.data();
+	const auto end = start + text.size();
+	while (start < end) {
+		if (start->isSpace()) {
+			++start;
+		} else if (Ui::Emoji::Find(start, end, &emoji)) {
+			start += emoji;
+		} else {
+			return false;
+		}
+	}
+	return true;
+}
+
 } // namespace
 
 void HistoryItem::HistoryItem::Destroyer::operator()(HistoryItem *value) {
@@ -2006,6 +2025,94 @@ std::optional<QString> HistoryItem::errorTextForForward(
 	return {};
 }
 
+const HistoryMessageTranslation *HistoryItem::translation() const {
+	return Get<HistoryMessageTranslation>();
+}
+
+bool HistoryItem::translationShowRequiresCheck(LanguageId to) const {
+	// Check if a call to translationShowRequiresRequest(to) is not a no-op.
+	if (!to) {
+		if (const auto translation = Get<HistoryMessageTranslation>()) {
+			return (!translation->failed && translation->text.empty())
+				|| translation->used;
+		}
+		return false;
+	} else if (const auto translation = Get<HistoryMessageTranslation>()) {
+		if (translation->to == to) {
+			return !translation->used && !translation->text.empty();
+		}
+		return true;
+	} else {
+		return true;
+	}
+}
+
+bool HistoryItem::translationShowRequiresRequest(LanguageId to) {
+	// When changing be sure to reflect in translationShowRequiresCheck(to).
+	if (!to) {
+		if (const auto translation = Get<HistoryMessageTranslation>()) {
+			if (!translation->failed && translation->text.empty()) {
+				Assert(!translation->used);
+				RemoveComponents(HistoryMessageTranslation::Bit());
+			} else {
+				translationToggle(translation, false);
+			}
+		}
+		return false;
+	} else if (const auto translation = Get<HistoryMessageTranslation>()) {
+		if (translation->to == to) {
+			translationToggle(translation, true);
+			return false;
+		}
+		translationToggle(translation, false);
+		translation->to = to;
+		translation->requested = true;
+		translation->failed = false;
+		translation->text = {};
+		return true;
+	} else {
+		AddComponents(HistoryMessageTranslation::Bit());
+		const auto added = Get<HistoryMessageTranslation>();
+		added->to = to;
+		added->requested = true;
+		return true;
+	}
+}
+
+void HistoryItem::translationToggle(
+		not_null<HistoryMessageTranslation*> translation,
+		bool used) {
+	if (translation->used != used && !translation->text.empty()) {
+		translation->used = used;
+		_history->owner().requestItemTextRefresh(this);
+		_history->owner().updateDependentMessages(this);
+	}
+}
+
+void HistoryItem::translationDone(LanguageId to, TextWithEntities result) {
+	const auto set = [&](not_null<HistoryMessageTranslation*> translation) {
+		if (result.empty()) {
+			translation->failed = true;
+		} else {
+			translation->text = std::move(result);
+			if (_history->translatedTo() == to) {
+				translationToggle(translation, true);
+			}
+		}
+	};
+	if (const auto translation = Get<HistoryMessageTranslation>()) {
+		if (translation->to == to && translation->text.empty()) {
+			translation->requested = false;
+			set(translation);
+		}
+	} else {
+		AddComponents(HistoryMessageTranslation::Bit());
+		const auto added = Get<HistoryMessageTranslation>();
+		added->to = to;
+		set(added);
+	}
+}
+
 bool HistoryItem::canReact() const {
 	if (!isRegular() || isService()) {
 		return false;
@@ -2180,14 +2287,31 @@ MsgId HistoryItem::idOriginal() const {
 	return id;
 }
 
-TextWithEntities HistoryItem::originalText() const {
-	return isService() ? TextWithEntities() : _text;
+const TextWithEntities &HistoryItem::originalText() const {
+	static const auto kEmpty = TextWithEntities();
+	return isService() ? kEmpty : _text;
 }
 
-TextWithEntities HistoryItem::originalTextWithLocalEntities() const {
-	return isService()
-		? TextWithEntities()
-		: withLocalEntities(originalText());
+const TextWithEntities &HistoryItem::translatedText() const {
+	if (isService()) {
+		static const auto kEmpty = TextWithEntities();
+		return kEmpty;
+	} else if (const auto translation = this->translation()
+		; translation
+		&& translation->used
+		&& (translation->to == history()->translatedTo())) {
+		return translation->text;
+	} else {
+		return originalText();
+	}
+}
+
+TextWithEntities HistoryItem::translatedTextWithLocalEntities() const {
+	if (isService()) {
+		return {};
+	} else {
+		return withLocalEntities(translatedText());
+	}
 }
 
 TextForMimeData HistoryItem::clipboardText() const {
@@ -2595,6 +2719,7 @@ void HistoryItem::setText(const TextWithEntities &textWithEntities) {
 void HistoryItem::setTextValue(TextWithEntities text) {
 	const auto had = !_text.empty();
 	_text = std::move(text);
+	RemoveComponents(HistoryMessageTranslation::Bit());
 	if (had) {
 		history()->owner().requestItemTextRefresh(this);
 	}
@@ -2658,7 +2783,7 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		if (_media) {
 			return _media->toPreview(options);
 		} else if (!emptyText()) {
-			return { .text = _text };
+			return { .text = options.translated ? translatedText() : _text };
 		}
 		return {};
 	}();
@@ -2705,6 +2830,7 @@ TextWithEntities HistoryItem::inReplyText() const {
 		return toPreview({
 			.hideSender = true,
 			.generateImages = false,
+			.translated = true,
 		}).text;
 	}
 	auto result = notificationText();
@@ -4256,7 +4382,7 @@ PreparedServiceText HistoryItem::preparePinnedText() {
 		result.links.push_back(fromLink());
 		result.links.push_back(pinned->lnk);
 		if (mediaText.isEmpty()) {
-			auto original = pinned->msg->originalText();
+			auto original = pinned->msg->translatedText();
 			auto cutAt = 0;
 			auto limit = kPinnedMessageTextLimit;
 			auto size = original.text.size();
@@ -4542,6 +4668,23 @@ crl::time HistoryItem::getSelfDestructIn(crl::time now) {
 		}
 	}
 	return 0;
+}
+
+void HistoryItem::cacheOnlyEmojiAndSpaces(bool only) {
+	_flags |= MessageFlag::OnlyEmojiAndSpacesSet;
+	if (only) {
+		_flags |= MessageFlag::OnlyEmojiAndSpaces;
+	} else {
+		_flags &= ~MessageFlag::OnlyEmojiAndSpaces;
+	}
+}
+
+bool HistoryItem::isOnlyEmojiAndSpaces() const {
+	if (!(_flags & MessageFlag::OnlyEmojiAndSpacesSet)) {
+		const_cast<HistoryItem*>(this)->cacheOnlyEmojiAndSpaces(
+			IsOnlyEmojiAndSpaces(_text.text));
+	}
+	return (_flags & MessageFlag::OnlyEmojiAndSpaces);
 }
 
 void HistoryItem::setupChatThemeChange() {

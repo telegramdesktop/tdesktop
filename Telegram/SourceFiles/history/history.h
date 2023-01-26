@@ -18,9 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class HistoryBlock;
+class HistoryTranslation;
 class HistoryItem;
 struct HistoryMessageMarkupData;
 class HistoryMainElementDelegateMixin;
+struct LanguageId;
 
 namespace Main {
 class Session;
@@ -425,6 +427,13 @@ public:
 
 	[[nodiscard]] bool isTopPromoted() const;
 
+	void translateOfferFrom(LanguageId id);
+	[[nodiscard]] LanguageId translateOfferedFrom() const;
+	void translateTo(LanguageId id);
+	[[nodiscard]] LanguageId translatedTo() const;
+
+	[[nodiscard]] HistoryTranslation *translation() const;
+
 	const not_null<PeerData*> peer;
 
 	// Still public data.
@@ -617,6 +626,7 @@ private:
 		HistoryBlock *block = nullptr;
 	};
 	std::unique_ptr<BuildingBlock> _buildingFrontBlock;
+	std::unique_ptr<HistoryTranslation> _translation;
 
 	Data::HistoryDrafts _drafts;
 	base::flat_map<MsgId, TimeId> _acceptCloudDraftsAfter;
@@ -627,6 +637,7 @@ private:
 	QString _topPromotedType;
 
 	HistoryView::SendActionPainter _sendActionPainter;
+
 
 };
 

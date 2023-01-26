@@ -9,12 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
+#include "dialogs/dialogs_indexed_list.h"
+#include "history/history_inner_widget.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
-#include "history/history_inner_widget.h"
+#include "history/history_translation.h"
 #include "history/history_unread_things.h"
-#include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
@@ -44,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "calls/calls_instance.h"
+#include "spellcheck/spellcheck_types.h"
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -3454,6 +3456,46 @@ void History::cacheTopPromoted(bool promoted) {
 
 bool History::isTopPromoted() const {
 	return (_flags & Flag::IsTopPromoted);
+}
+
+void History::translateOfferFrom(LanguageId id) {
+	if (!id) {
+		if (translatedTo()) {
+			_translation->offerFrom(id);
+		} else if (_translation) {
+			_translation = nullptr;
+			session().changes().historyUpdated(
+				this,
+				UpdateFlag::TranslateFrom);
+		}
+	} else if (!_translation) {
+		_translation = std::make_unique<HistoryTranslation>(this, id);
+	} else {
+		_translation->offerFrom(id);
+	}
+}
+
+LanguageId History::translateOfferedFrom() const {
+	return _translation ? _translation->offeredFrom() : LanguageId();
+}
+
+void History::translateTo(LanguageId id) {
+	if (!_translation) {
+		return;
+	} else if (!id && !translateOfferedFrom()) {
+		_translation = nullptr;
+		session().changes().historyUpdated(this, UpdateFlag::TranslatedTo);
+	} else {
+		_translation->translateTo(id);
+	}
+}
+
+LanguageId History::translatedTo() const {
+	return _translation ? _translation->translatedTo() : LanguageId();
+}
+
+HistoryTranslation *History::translation() const {
+	return _translation.get();
 }
 
 HistoryBlock::HistoryBlock(not_null<History*> history)

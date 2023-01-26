@@ -1257,3 +1257,19 @@ historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	minWidth: 80px;
 }
 historyHasCustomEmojiPosition: point(12px, 4px);
+
+historyTranslateLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowActiveTextFg;
+	minWidth: 80px;
+}
+historyTranslateIcon: icon{{ "menu/translate", windowActiveTextFg }};
+historyTranslateSettings: IconButton(defaultIconButton) {
+	width: 46px;
+	height: 46px;
+	icon: icon{{ "menu/customize", windowActiveTextFg }};
+	iconOver: icon{{ "menu/customize", windowActiveTextFg }};
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 38px;
+	ripple: defaultRippleAnimation;
+}
