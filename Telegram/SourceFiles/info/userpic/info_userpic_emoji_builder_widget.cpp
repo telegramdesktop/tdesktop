@@ -279,10 +279,11 @@ void EmojiSelector::createSelector(Type type) {
 		createSelector(isEmoji ? Type::Stickers : Type::Emoji);
 	});
 
-	_scroll->scrollTopChanges(
-	) | rpl::start_with_next([=] {
-		const auto scrollTop = _scroll->scrollTop();
-		const auto scrollBottom = scrollTop + _scroll->height();
+	rpl::combine(
+		_scroll->scrollTopValue(),
+		_scroll->heightValue()
+	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
+		const auto scrollBottom = scrollTop + scrollHeight;
 		selector.list->setVisibleTopBottom(scrollTop, scrollBottom);
 	}, selector.list->lifetime());
 
