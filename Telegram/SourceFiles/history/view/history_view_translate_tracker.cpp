@@ -152,7 +152,7 @@ void TranslateTracker::switchTranslation(
 	if (item->translationShowRequiresRequest(id)) {
 		_itemsToRequest.emplace(
 			item->fullId(),
-			ItemToRequest{ item->originalText().text.size() });
+			ItemToRequest{ int(item->originalText().text.size()) });
 	}
 }
 

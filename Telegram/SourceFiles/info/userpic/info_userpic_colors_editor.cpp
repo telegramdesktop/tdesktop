@@ -47,7 +47,6 @@ public:
 
 	void init();
 	void fillButtons();
-	Success addColor();
 
 	[[nodiscard]] Chosen *chosen() const;
 	[[nodiscard]] rpl::producer<Chosen*> chosenChanges() const;
@@ -89,9 +88,6 @@ void ColorsLine::init() {
 	fillButtons();
 	processChange(*_colors, *_colors);
 	setLastChosen();
-}
-
-ColorsLine::Success ColorsLine::addColor() {
 }
 
 void ColorsLine::fillButtons() {
