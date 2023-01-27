@@ -305,14 +305,24 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	return account;
 }
 
-void Domain::addActivated(MTP::Environment environment) {
+void Domain::addActivated(MTP::Environment environment, bool newWindow) {
+	const auto added = [&](not_null<Main::Account*> account) {
+		if (newWindow) {
+			Core::App().ensureSeparateWindowForAccount(account);
+		} else if (const auto window = Core::App().separateWindowForAccount(
+				account)) {
+			window->activate();
+		} else {
+			activate(account);
+		}
+	};
 	if (accounts().size() < maxAccounts()) {
-		activate(add(environment));
+		added(add(environment));
 	} else {
 		for (auto &[index, account] : accounts()) {
 			if (!account->sessionExists()
 				&& account->mtp().environment() == environment) {
-				activate(account.get());
+				added(account.get());
 				break;
 			}
 		}

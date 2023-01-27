@@ -220,7 +220,7 @@ public:
 
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
 
-	void showPeerHistory(
+	void showHistory(
 		PeerId peer,
 		const SectionShow &params,
 		MsgId msgId);

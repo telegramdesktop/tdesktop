@@ -70,7 +70,7 @@ public:
 	[[nodiscard]] not_null<Main::Account*> add(MTP::Environment environment);
 	void maybeActivate(not_null<Main::Account*> account);
 	void activate(not_null<Main::Account*> account);
-	void addActivated(MTP::Environment environment);
+	void addActivated(MTP::Environment environment, bool newWindow = false);
 
 	// Interface for Storage::Domain.
 	void accountAddedInStorage(AccountWithIndex accountWithIndex);

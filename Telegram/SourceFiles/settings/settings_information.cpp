@@ -778,23 +778,38 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 				})))->setDuration(0);
 	const auto button = result->entity();
 
-	const auto add = [=](MTP::Environment environment) {
-		Core::App().preventOrInvoke([=] {
-			auto &domain = _controller->session().domain();
-			if (domain.accounts().size() >= domain.maxAccounts()) {
-				_controller->show(
-					Box(AccountsLimitBox, &_controller->session()));
-			} else {
-				domain.addActivated(environment);
+	using Environment = MTP::Environment;
+	const auto add = [=](Environment environment, bool newWindow = false) {
+		auto &domain = _controller->session().domain();
+		auto found = false;
+		for (const auto &[index, account] : domain.accounts()) {
+			const auto raw = account.get();
+			if (!raw->sessionExists()
+				&& raw->mtp().environment() == environment) {
+				found = true;
 			}
-		});
+		}
+		if (!found && domain.accounts().size() >= domain.maxAccounts()) {
+			_controller->show(
+				Box(AccountsLimitBox, &_controller->session()));
+		} else if (newWindow) {
+			domain.addActivated(environment, true);
+		} else {
+			_controller->window().preventOrInvoke([=] {
+				_controller->session().domain().addActivated(environment);
+			});
+		}
 	};
 
 	button->setAcceptBoth(true);
 	button->clicks(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
-			add(MTP::Environment::Production);
+			const auto modifiers = button->clickModifiers();
+			const auto newWindow = (modifiers & Qt::ControlModifier)
+				&& base::options::lookup<bool>(
+					Dialogs::kOptionCtrlClickChatNewWindow).value();
+			add(Environment::Production, newWindow);
 			return;
 		} else if (which != Qt::RightButton
 			|| !IsAltShift(button->clickModifiers())) {
@@ -802,10 +817,10 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 		}
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(_outer);
 		_contextMenu->addAction("Production Server", [=] {
-			add(MTP::Environment::Production);
+			add(Environment::Production);
 		});
 		_contextMenu->addAction("Test Server", [=] {
-			add(MTP::Environment::Test);
+			add(Environment::Test);
 		});
 		_contextMenu->popup(QCursor::pos());
 	}, button->lifetime());
