@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_quick_action.h"
 #include "history/view/history_view_emoji_interactions.h"
+#include "history/view/history_view_pinned_bar.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
 #include "ui/chat/chat_style.h"
@@ -967,6 +968,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
+		if (const auto item = _pinnedItem.current()) {
+			_translateTracker->add(item, translatedTo);
+		}
 		_translateTracker->finishBunch();
 		if (readTill && _widget->markingMessagesRead()) {
 			session().data().histories().readInboxTill(readTill);
@@ -3162,6 +3166,17 @@ void HistoryInner::updateSize() {
 	} else {
 		update();
 	}
+}
+
+void HistoryInner::setShownPinnedId(
+		rpl::producer<HistoryView::PinnedId> id) {
+	_pinnedItem = std::move(
+		id
+	) | rpl::map([=](const HistoryView::PinnedId &id) {
+		return id.message
+			? session().data().message(id.message)
+			: nullptr;
+	});
 }
 
 void HistoryInner::enterEventHook(QEnterEvent *e) {

@@ -32,6 +32,7 @@ enum class PointState : char;
 class EmptyPainter;
 class Element;
 class TranslateTracker;
+struct PinnedId;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
@@ -116,6 +117,7 @@ public:
 	void checkActivation();
 	void recountHistoryGeometry();
 	void updateSize();
+	void setShownPinnedId(rpl::producer<HistoryView::PinnedId> id);
 
 	void repaintItem(const HistoryItem *item);
 	void repaintItem(const Element *view);
@@ -469,6 +471,7 @@ private:
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 	rpl::variable<HistoryItem*> _reactionsItem;
+	rpl::variable<HistoryItem*> _pinnedItem;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

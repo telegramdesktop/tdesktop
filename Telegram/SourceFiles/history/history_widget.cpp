@@ -6287,6 +6287,8 @@ void HistoryWidget::setupPinnedTracker() {
 	Expects(_history != nullptr);
 
 	_pinnedTracker = std::make_unique<HistoryView::PinnedTracker>(_history);
+	_list->setShownPinnedId(_pinnedTracker->shownMessageId());
+
 	_pinnedBar = nullptr;
 	checkPinnedBarState();
 }
