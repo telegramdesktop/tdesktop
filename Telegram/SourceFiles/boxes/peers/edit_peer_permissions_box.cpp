@@ -52,59 +52,6 @@ int SlowmodeDelayByIndex(int index) {
 	Unexpected("Index in SlowmodeDelayByIndex.");
 }
 
-template <typename CheckboxesMap, typename DependenciesMap>
-void ApplyDependencies(
-		const CheckboxesMap &checkboxes,
-		const DependenciesMap &dependencies,
-		QPointer<Ui::Checkbox> changed) {
-	const auto checkAndApply = [&](
-			auto &&current,
-			auto dependency,
-			bool isChecked) {
-		for (auto &&checkbox : checkboxes) {
-			if ((checkbox.first & dependency)
-				&& (checkbox.second->checked() == isChecked)) {
-				current->setChecked(isChecked);
-				return true;
-			}
-		}
-		return false;
-	};
-	const auto applySomeDependency = [&] {
-		auto result = false;
-		for (auto &&entry : checkboxes) {
-			if (entry.second == changed) {
-				continue;
-			}
-			auto isChecked = entry.second->checked();
-			for (auto &&dependency : dependencies) {
-				const auto check = isChecked
-					? dependency.first
-					: dependency.second;
-				if (entry.first & check) {
-					if (checkAndApply(
-							entry.second,
-							(isChecked
-								? dependency.second
-								: dependency.first),
-							!isChecked)) {
-						result = true;
-						break;
-					}
-				}
-			}
-		}
-		return result;
-	};
-
-	const auto maxFixesCount = int(checkboxes.size());
-	for (auto i = 0; i != maxFixesCount; ++i) {
-		if (!applySomeDependency()) {
-			break;
-		}
-	};
-}
-
 auto Dependencies(ChatRestrictions)
 -> std::vector<std::pair<ChatRestriction, ChatRestriction>> {
 	using Flag = ChatRestriction;
@@ -207,22 +154,17 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 			: Flag::ChangeInfo);
 }
 
-not_null<Ui::Checkbox*> AddDefaultCheckbox(
+not_null<Ui::SettingsButton*> AddDefaultCheckbox(
 		not_null<Ui::VerticalLayout*> container,
 		const QString &text,
 		bool toggled,
 		bool locked) {
-	auto toggle = std::make_unique<Ui::ToggleView>(
-		st::rightsToggle,
-		toggled);
-	toggle->setLocked(locked);
-	return container->add(
-		object_ptr<Ui::Checkbox>(
-			container,
-			text,
-			st::rightsCheckbox,
-			std::move(toggle)),
-		st::rightsToggleMargin);
+	const auto button = Settings::AddButton(
+		container,
+		rpl::single(text),
+		st::rightsButton);
+	button->setToggleLocked(locked);
+	return button;
 };
 
 template <
@@ -237,13 +179,20 @@ template <
 		const DisabledMessagePairs &disabledMessagePairs,
 		const FlagLabelPairs &flagLabelPairs,
 		CheckboxFactory checkboxFactory) {
-	const auto checkboxes = container->lifetime(
-	).make_state<std::map<Flags, QPointer<Ui::Checkbox>>>();
+	struct FlagCheck final {
+		QPointer<Ui::SettingsButton> widget;
+		rpl::event_stream<bool> checkChanges;
+	};
+	struct State final {
+		std::map<Flags, FlagCheck> checkboxes;
+		rpl::event_stream<> anyChanges;
+	};
+	const auto state = container->lifetime().make_state<State>();
 
 	const auto value = [=] {
 		auto result = Flags(0);
-		for (const auto &[flags, checkbox] : *checkboxes) {
-			if (checkbox->checked()) {
+		for (const auto &[flags, checkbox] : state->checkboxes) {
+			if (checkbox.widget->toggled()) {
 				result |= flags;
 			} else {
 				result &= ~flags;
@@ -252,12 +201,55 @@ template <
 		return result;
 	};
 
-	const auto changes = container->lifetime(
-	).make_state<rpl::event_stream<>>();
-
-	const auto applyDependencies = [=](Ui::Checkbox *control) {
+	const auto applyDependencies = [=](Ui::SettingsButton *changed) {
 		static const auto dependencies = Dependencies(Flags());
-		ApplyDependencies(*checkboxes, dependencies, control);
+
+		const auto checkAndApply = [&](
+				auto &current,
+				auto dependency,
+				bool isChecked) {
+			for (const auto &checkbox : state->checkboxes) {
+				if ((checkbox.first & dependency)
+					&& (checkbox.second.widget->toggled() == isChecked)) {
+					current.checkChanges.fire_copy(isChecked);
+					return true;
+				}
+			}
+			return false;
+		};
+		const auto applySomeDependency = [&] {
+			auto result = false;
+			for (auto &entry : state->checkboxes) {
+				if (entry.second.widget.data() == changed) {
+					continue;
+				}
+				auto isChecked = entry.second.widget->toggled();
+				for (const auto &dependency : dependencies) {
+					const auto check = isChecked
+						? dependency.first
+						: dependency.second;
+					if (entry.first & check) {
+						if (checkAndApply(
+								entry.second,
+								(isChecked
+									? dependency.second
+									: dependency.first),
+								!isChecked)) {
+							result = true;
+							break;
+						}
+					}
+				}
+			}
+			return result;
+		};
+
+		const auto maxFixesCount = int(state->checkboxes.size());
+		for (auto i = 0; i != maxFixesCount; ++i) {
+			if (!applySomeDependency()) {
+				break;
+			}
+		};
 	};
 
 	container->add(
@@ -280,7 +272,11 @@ template <
 			text,
 			toggled,
 			locked.has_value());
-		control->checkedChanges(
+		const auto flagCheck = state->checkboxes.emplace(
+			flags,
+			FlagCheck{ .widget = Ui::MakeWeak(control) }).first;
+		control->toggleOn(flagCheck->second.checkChanges.events());
+		control->toggledChanges(
 		) | rpl::start_with_next([=](bool checked) {
 			if (locked.has_value()) {
 				if (checked != toggled) {
@@ -288,30 +284,30 @@ template <
 						.parentOverride = container,
 						.text = { *locked },
 					});
-					control->setChecked(toggled);
+					flagCheck->second.checkChanges.fire_copy(toggled);
 				}
 			} else {
 				InvokeQueued(control, [=] {
 					applyDependencies(control);
-					changes->fire({});
+					state->anyChanges.fire({});
 				});
 			}
 		}, control->lifetime());
-		checkboxes->emplace(flags, control);
+		flagCheck->second.checkChanges.fire_copy(toggled);
 	};
 	for (const auto &[flags, label] : flagLabelPairs) {
 		addCheckbox(flags, label);
 	}
 
 	applyDependencies(nullptr);
-	for (const auto &[flags, checkbox] : *checkboxes) {
-		checkbox->finishAnimating();
+	for (const auto &[flags, checkbox] : state->checkboxes) {
+		checkbox.widget->finishAnimating();
 	}
 
 	return {
 		nullptr,
 		value,
-		changes->events() | rpl::map(value)
+		state->anyChanges.events() | rpl::map(value)
 	};
 }
 

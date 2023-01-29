@@ -619,7 +619,6 @@ adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
 	margin: margins(8px, 6px, 8px, 6px);
 	checkPosition: point(8px, 6px);
 }
-
 rightsCheckbox: Checkbox(defaultCheckbox) {
 	textPosition: point(10px, 1px);
 	rippleBg: attentionButtonBgOver;
@@ -633,6 +632,14 @@ rightsToggle: Toggle(defaultToggle) {
 	vshift: 1px;
 	stroke: 2px;
 	duration: 120;
+}
+
+rightsButton: SettingsButton(defaultSettingsButton) {
+	padding: margins(22px, 8px, 22px, 8px);
+
+	toggle: rightsToggle;
+	toggleOver: rightsToggle;
+	toggleSkip: 19px;
 }
 rightsDividerHeight: boxDividerHeight;
 rightsDividerMargin: margins(0px, 0px, 0px, 20px);
