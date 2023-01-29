@@ -1886,6 +1886,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_profile_badge" = "A badge next to your name showing that you are helping support Telegram.";
 "lng_premium_summary_subtitle_animated_userpics" = "Animated Profile Pictures";
 "lng_premium_summary_about_animated_userpics" = "Video avatars animated in chat lists and chats to allow for additional self-expression.";
+"lng_premium_summary_subtitle_translation" = "Real-Time Translation";
+"lng_premium_summary_about_translation" = "Real-time translation of channels and chats into other languages.";
 "lng_premium_summary_bottom_subtitle" = "About Telegram Premium";
 "lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
 "lng_premium_summary_button" = "Subscribe for {cost} per month";
@@ -2356,6 +2358,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_context_spoiler_effect" = "Hide with Spoiler";
 "lng_context_disable_spoiler" = "Remove Spoiler";
+
+"lng_translate_show_original" = "Show Original";
+"lng_translate_bar_to" = "Translate to {name}";
+"lng_translate_menu_to" = "Translate To";
+"lng_translate_menu_dont" = "Don't translate {name}";
+"lng_translate_menu_hide" = "Hide";
+"lng_translate_hidden_user" = "Translation bar is now hidden for this chat.";
+"lng_translate_hidden_group" = "Translation bar is now hidden for this group.";
+"lng_translate_hidden_channel" = "Translation bar is now hidden for this channel.";
+"lng_translate_dont_added" = "{name} is added to the Do Not Translate list.";
+"lng_translate_settings" = "Settings";
+"lng_translate_undo" = "Undo";
 
 "lng_downloads_section" = "Downloads";
 "lng_downloads_view_in_chat" = "View in chat";
@@ -3518,6 +3532,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_translate_settings_subtitle" = "Translate Messages";
 "lng_translate_settings_show" = "Show Translate Button";
+"lng_translate_settings_chat" = "Translate Entire Chat";
 "lng_translate_settings_choose" = "Do Not Translate";
 "lng_translate_settings_about" = "The 'Translate' button will appear when you open a context menu on a text message.";
 
