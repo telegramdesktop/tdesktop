@@ -268,6 +268,8 @@ PRIVATE
     ui/effects/scroll_content_shadow.h
     ui/effects/snowflakes.cpp
     ui/effects/snowflakes.h
+    ui/effects/toggle_arrow.cpp
+    ui/effects/toggle_arrow.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp

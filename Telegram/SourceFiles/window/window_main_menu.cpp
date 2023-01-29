@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/snowflakes.h"
+#include "ui/effects/toggle_arrow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
@@ -267,39 +268,12 @@ MainMenu::ToggleAccountsButton::ToggleAccountsButton(QWidget *parent)
 void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 
-	const auto toggled = _toggledAnimation.value(_toggled ? 1. : 0.);
-	const auto x = 0. + width() - st::mainMenuTogglePosition.x();
-	const auto y = 0. + height() - st::mainMenuTogglePosition.y();
-	const auto size = st::mainMenuToggleSize;
-	const auto size2 = size / 2.;
-	const auto stroke = (st::mainMenuToggleFourStrokes / 4.) / M_SQRT2;
-	const auto left = x - size;
-	const auto right = x + size;
-	const auto bottom = y + size2;
-	constexpr auto kPointCount = 6;
-	std::array<QPointF, kPointCount> points = { {
-		{ left - stroke, bottom - stroke },
-		{ x, bottom - stroke - size - stroke },
-		{ right + stroke, bottom - stroke },
-		{ right - stroke, bottom + stroke },
-		{ x, bottom + stroke - size + stroke },
-		{ left + stroke, bottom + stroke }
-	} };
-	const auto alpha = (toggled - 1.) * M_PI;
-	const auto cosalpha = cos(alpha);
-	const auto sinalpha = sin(alpha);
-	for (auto &point : points) {
-		auto px = point.x() - x;
-		auto py = point.y() - y;
-		point.setX(x + px * cosalpha - py * sinalpha);
-		point.setY(y + py * cosalpha + px * sinalpha);
-	}
-	QPainterPath path;
-	path.moveTo(points[0]);
-	for (int i = 1; i != kPointCount; ++i) {
-		path.lineTo(points[i]);
-	}
-	path.lineTo(points[0]);
+	const auto path = Ui::ToggleUpDownArrowPath(
+		0. + width() - st::mainMenuTogglePosition.x(),
+		0. + height() - st::mainMenuTogglePosition.y(),
+		st::mainMenuToggleSize,
+		st::mainMenuToggleFourStrokes,
+		_toggledAnimation.value(_toggled ? 1. : 0.));
 
 	auto hq = PainterHighQualityEnabler(p);
 	p.fillPath(path, st::windowSubTextFg);
