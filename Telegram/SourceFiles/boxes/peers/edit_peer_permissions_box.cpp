@@ -207,16 +207,36 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 			: Flag::ChangeInfo);
 }
 
+not_null<Ui::Checkbox*> AddDefaultCheckbox(
+		not_null<Ui::VerticalLayout*> container,
+		const QString &text,
+		bool toggled,
+		bool locked) {
+	auto toggle = std::make_unique<Ui::ToggleView>(
+		st::rightsToggle,
+		toggled);
+	toggle->setLocked(locked);
+	return container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			text,
+			st::rightsCheckbox,
+			std::move(toggle)),
+		st::rightsToggleMargin);
+};
+
 template <
 	typename Flags,
 	typename DisabledMessagePairs,
-	typename FlagLabelPairs>
+	typename FlagLabelPairs,
+	typename CheckboxFactory>
 [[nodiscard]] EditFlagsControl<Flags, Ui::RpWidget> CreateEditFlags(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> header,
 		Flags checked,
 		const DisabledMessagePairs &disabledMessagePairs,
-		const FlagLabelPairs &flagLabelPairs) {
+		const FlagLabelPairs &flagLabelPairs,
+		CheckboxFactory checkboxFactory) {
 	const auto checkboxes = container->lifetime(
 	).make_state<std::map<Flags, QPointer<Ui::Checkbox>>>();
 
@@ -255,17 +275,11 @@ template <
 			? std::make_optional(lockedIt->second)
 			: std::nullopt;
 		const auto toggled = ((checked & flags) != 0);
-		auto toggle = std::make_unique<Ui::ToggleView>(
-			st::rightsToggle,
-			toggled);
-		toggle->setLocked(locked.has_value());
-		const auto control = container->add(
-			object_ptr<Ui::Checkbox>(
-				container,
-				text,
-				st::rightsCheckbox,
-				std::move(toggle)),
-			st::rightsToggleMargin);
+		const auto control = checkboxFactory(
+			container,
+			text,
+			toggled,
+			locked.has_value());
 		control->checkedChanges(
 		) | rpl::start_with_next([=](bool checked) {
 			if (locked.has_value()) {
@@ -740,7 +754,8 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 		header,
 		NegateRestrictions(restrictions),
 		disabledMessages,
-		RestrictionLabels(options));
+		RestrictionLabels(options),
+		AddDefaultCheckbox);
 	result.widget = std::move(widget);
 	result.value = [original = std::move(result.value)]{
 		return NegateRestrictions(original());
@@ -764,7 +779,8 @@ EditFlagsControl<ChatAdminRights, Ui::RpWidget> CreateEditAdminRights(
 		header,
 		rights,
 		disabledMessages,
-		AdminRightLabels(options));
+		AdminRightLabels(options),
+		AddDefaultCheckbox);
 	result.widget = std::move(widget);
 	return result;
 }
