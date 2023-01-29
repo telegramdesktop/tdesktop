@@ -212,14 +212,11 @@ template <
 	typename DisabledMessagePairs,
 	typename FlagLabelPairs>
 [[nodiscard]] EditFlagsControl<Flags, Ui::RpWidget> CreateEditFlags(
-		QWidget *parent,
+		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> header,
 		Flags checked,
 		const DisabledMessagePairs &disabledMessagePairs,
 		const FlagLabelPairs &flagLabelPairs) {
-	auto widget = object_ptr<Ui::VerticalLayout>(parent);
-	const auto container = widget.data();
-
 	const auto checkboxes = container->lifetime(
 	).make_state<std::map<Flags, QPointer<Ui::Checkbox>>>();
 
@@ -274,7 +271,7 @@ template <
 			if (locked.has_value()) {
 				if (checked != toggled) {
 					Ui::ShowMultilineToast({
-						.parentOverride = parent,
+						.parentOverride = container,
 						.text = { *locked },
 					});
 					control->setChecked(toggled);
@@ -298,7 +295,7 @@ template <
 	}
 
 	return {
-		std::move(widget),
+		nullptr,
 		value,
 		changes->events() | rpl::map(value)
 	};
@@ -737,12 +734,14 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 		ChatRestrictions restrictions,
 		std::map<ChatRestrictions, QString> disabledMessages,
 		Data::RestrictionsSetOptions options) {
+	auto widget = object_ptr<Ui::VerticalLayout>(parent);
 	auto result = CreateEditFlags(
-		parent,
+		widget.data(),
 		header,
 		NegateRestrictions(restrictions),
 		disabledMessages,
 		RestrictionLabels(options));
+	result.widget = std::move(widget);
 	result.value = [original = std::move(result.value)]{
 		return NegateRestrictions(original());
 	};
@@ -759,12 +758,15 @@ EditFlagsControl<ChatAdminRights, Ui::RpWidget> CreateEditAdminRights(
 		ChatAdminRights rights,
 		std::map<ChatAdminRights, QString> disabledMessages,
 		Data::AdminRightsSetOptions options) {
-	return CreateEditFlags(
-		parent,
+	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	auto result = CreateEditFlags(
+		widget.data(),
 		header,
 		rights,
 		disabledMessages,
 		AdminRightLabels(options));
+	result.widget = std::move(widget);
+	return result;
 }
 
 ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
