@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "main/main_session.h"
-#include "mainwindow.h"
 #include "apiwrap.h"
 #include "settings/settings_common.h"
 #include "styles/style_layers.h"
@@ -212,7 +211,7 @@ template <
 	typename Flags,
 	typename DisabledMessagePairs,
 	typename FlagLabelPairs>
-[[nodiscard]] EditFlagsControl<Flags> CreateEditFlags(
+[[nodiscard]] EditFlagsControl<Flags, Ui::RpWidget> CreateEditFlags(
 		QWidget *parent,
 		rpl::producer<QString> header,
 		Flags checked,
@@ -305,73 +304,283 @@ template <
 	};
 }
 
+void AddSlowmodeLabels(
+		not_null<Ui::VerticalLayout*> container) {
+	const auto labels = container->add(
+		object_ptr<Ui::FixedHeightWidget>(container, st::normalFont->height),
+		st::slowmodeLabelsMargin);
+	for (auto i = 0; i != kSlowmodeValues; ++i) {
+		const auto seconds = SlowmodeDelayByIndex(i);
+		const auto label = Ui::CreateChild<Ui::LabelSimple>(
+			labels,
+			st::slowmodeLabel,
+			(!seconds
+				? tr::lng_rights_slowmode_off(tr::now)
+				: (seconds < 60)
+				? tr::lng_seconds_tiny(tr::now, lt_count, seconds)
+				: (seconds < 3600)
+				? tr::lng_minutes_tiny(tr::now, lt_count, seconds / 60)
+				: tr::lng_hours_tiny(tr::now, lt_count,seconds / 3600)));
+		rpl::combine(
+			labels->widthValue(),
+			label->widthValue()
+		) | rpl::start_with_next([=](int outer, int inner) {
+			const auto skip = st::localStorageLimitMargin;
+			const auto size = st::localStorageLimitSlider.seekSize;
+			const auto available = outer
+				- skip.left()
+				- skip.right()
+				- size.width();
+			const auto shift = (i == 0)
+				? -(size.width() / 2)
+				: (i + 1 == kSlowmodeValues)
+				? (size.width() - (size.width() / 2) - inner)
+				: (-inner / 2);
+			const auto left = skip.left()
+				+ (size.width() / 2)
+				+ (i * available) / (kSlowmodeValues - 1)
+				+ shift;
+			label->moveToLeft(left, 0, outer);
+		}, label->lifetime());
+	}
+}
+
+Fn<int()> AddSlowmodeSlider(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<PeerData*> peer) {
+	using namespace rpl::mappers;
+
+	if (const auto chat = peer->asChat()) {
+		if (!chat->amCreator()) {
+			return [] { return 0; };
+		}
+	}
+	const auto channel = peer->asChannel();
+	auto &lifetime = container->lifetime();
+	const auto secondsCount = lifetime.make_state<rpl::variable<int>>(
+		channel ? channel->slowmodeSeconds() : 0);
+
+	container->add(
+		object_ptr<Ui::BoxContentDivider>(container),
+		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
+
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_rights_slowmode_header(),
+			st::rightsHeaderLabel),
+		st::rightsHeaderMargin);
+
+	AddSlowmodeLabels(container);
+
+	const auto slider = container->add(
+		object_ptr<Ui::MediaSlider>(container, st::localStorageLimitSlider),
+		st::localStorageLimitMargin);
+	slider->resize(st::localStorageLimitSlider.seekSize);
+	slider->setPseudoDiscrete(
+		kSlowmodeValues,
+		SlowmodeDelayByIndex,
+		secondsCount->current(),
+		[=](int seconds) {
+			(*secondsCount) = seconds;
+		});
+
+	auto hasSlowMode = secondsCount->value(
+	) | rpl::map(
+		_1 != 0
+	) | rpl::distinct_until_changed();
+
+	auto useSeconds = secondsCount->value(
+	) | rpl::map(
+		_1 < 60
+	) | rpl::distinct_until_changed();
+
+	auto interval = rpl::combine(
+		std::move(useSeconds),
+		tr::lng_rights_slowmode_interval_seconds(
+			lt_count,
+			secondsCount->value() | tr::to_count()),
+		tr::lng_rights_slowmode_interval_minutes(
+			lt_count,
+			secondsCount->value() | rpl::map(_1 / 60.))
+	) | rpl::map([](
+			bool use,
+			const QString &seconds,
+			const QString &minutes) {
+		return use ? seconds : minutes;
+	});
+
+	auto aboutText = rpl::combine(
+		std::move(hasSlowMode),
+		tr::lng_rights_slowmode_about(),
+		tr::lng_rights_slowmode_about_interval(
+			lt_interval,
+			std::move(interval))
+	) | rpl::map([](
+			bool has,
+			const QString &about,
+			const QString &aboutInterval) {
+		return has ? aboutInterval : about;
+	});
+
+	container->add(
+		object_ptr<Ui::DividerLabel>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(aboutText),
+				st::boxDividerLabel),
+			st::proxyAboutPadding),
+		style::margins(0, st::infoProfileSkip, 0, st::infoProfileSkip));
+
+	return [=] { return secondsCount->current(); };
+}
+
+void AddSuggestGigagroup(
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void()> callback) {
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_rights_gigagroup_title(),
+			st::rightsHeaderLabel),
+		st::rightsHeaderMargin);
+	container->add(EditPeerInfoBox::CreateButton(
+		container,
+		tr::lng_rights_gigagroup_convert(),
+		rpl::single(QString()),
+		std::move(callback),
+		st::peerPermissionsButton,
+		{}));
+
+	container->add(
+		object_ptr<Ui::DividerLabel>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				tr::lng_rights_gigagroup_about(),
+				st::boxDividerLabel),
+			st::proxyAboutPadding),
+		style::margins(0, st::infoProfileSkip, 0, st::infoProfileSkip));
+}
+
+void AddBannedButtons(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer) {
+	if (const auto chat = peer->asChat()) {
+		if (!chat->amCreator()) {
+			return;
+		}
+	}
+	const auto channel = peer->asChannel();
+	container->add(EditPeerInfoBox::CreateButton(
+		container,
+		tr::lng_manage_peer_exceptions(),
+		(channel
+			? Info::Profile::RestrictedCountValue(channel)
+			: rpl::single(0)) | ToPositiveNumberString(),
+		[=] {
+			ParticipantsBoxController::Start(
+				navigation,
+				peer,
+				ParticipantsBoxController::Role::Restricted);
+		},
+		st::peerPermissionsButton,
+		{}));
+	if (channel) {
+		container->add(EditPeerInfoBox::CreateButton(
+			container,
+			tr::lng_manage_peer_removed_users(),
+			Info::Profile::KickedCountValue(channel)
+			| ToPositiveNumberString(),
+			[=] {
+				ParticipantsBoxController::Start(
+					navigation,
+					peer,
+					ParticipantsBoxController::Role::Kicked);
+			},
+			st::peerPermissionsButton,
+			{}));
+	}
+}
+
 } // namespace
 
-ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
-	using Flag = ChatAdminRight;
-	using Restriction = ChatRestriction;
+void ShowEditPeerPermissionsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> channelOrGroup,
+		Fn<void(EditPeerPermissionsBoxResult)> done) {
+	const auto peer = channelOrGroup->migrateToOrMe();
 
+	box->setTitle(tr::lng_manage_peer_permissions());
+
+	const auto inner = box->verticalLayout();
+
+	using Flag = ChatRestriction;
+	using Flags = ChatRestrictions;
+
+	const auto disabledByAdminRights = DisabledByAdminRights(peer);
 	const auto restrictions = FixDependentRestrictions([&] {
 		if (const auto chat = peer->asChat()) {
-			return chat->defaultRestrictions();
+			return chat->defaultRestrictions()
+				| disabledByAdminRights;
 		} else if (const auto channel = peer->asChannel()) {
-			return channel->defaultRestrictions();
+			return channel->defaultRestrictions()
+				| (channel->isPublic()
+					? (Flag::ChangeInfo | Flag::PinMessages)
+					: Flags(0))
+				| disabledByAdminRights;
 		}
-		Unexpected("User in DisabledByDefaultRestrictions.");
+		Unexpected("User in EditPeerPermissionsBox.");
 	}());
-	return Flag(0)
-		| ((restrictions & Restriction::PinMessages)
-			? Flag(0)
-			: Flag::PinMessages)
-		//
-		// We allow to edit 'invite_users' admin right no matter what
-		// is chosen in default permissions for 'invite_users', because
-		// if everyone can 'invite_users' it handles invite link for admins.
-		//
-		//| ((restrictions & Restriction::AddParticipants)
-		//	? Flag(0)
-		//	: Flag::InviteByLinkOrAdd)
-		//
-		| ((restrictions & Restriction::ChangeInfo)
-			? Flag(0)
-			: Flag::ChangeInfo);
-}
-
-ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions) {
-	const auto &dependencies = Dependencies(restrictions);
-
-	// Fix iOS bug of saving send_inline like embed_links.
-	// We copy send_stickers to send_inline.
-	if (restrictions & ChatRestriction::SendStickers) {
-		restrictions |= ChatRestriction::SendInline;
-	} else {
-		restrictions &= ~ChatRestriction::SendInline;
-	}
-
-	// Apply the strictest.
-	const auto fixOne = [&] {
-		for (const auto &[first, second] : dependencies) {
-			if ((restrictions & second) && !(restrictions & first)) {
-				restrictions |= first;
-				return true;
+	const auto disabledMessages = [&] {
+		auto result = std::map<Flags, QString>();
+			result.emplace(
+				disabledByAdminRights,
+				tr::lng_rights_permission_cant_edit(tr::now));
+		if (const auto channel = peer->asChannel()) {
+			if (channel->isPublic()
+				|| (channel->isMegagroup() && channel->linkedChat())) {
+				result.emplace(
+					Flag::ChangeInfo | Flag::PinMessages,
+					tr::lng_rights_permission_unavailable(tr::now));
 			}
 		}
-		return false;
-	};
-	while (fixOne()) {
-	}
-	return restrictions;
-}
+		return result;
+	}();
 
-ChatAdminRights AdminRightsForOwnershipTransfer(
-		Data::AdminRightsSetOptions options) {
-	auto result = ChatAdminRights();
-	for (const auto &[flag, label] : AdminRightLabels(options)) {
-		if (!(flag & ChatAdminRight::Anonymous)) {
-			result |= flag;
+	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
+		inner,
+		tr::lng_rights_default_restrictions_header(),
+		restrictions,
+		disabledMessages,
+		{ .isForum = peer->isForum() });
+
+	inner->add(std::move(checkboxes));
+
+	const auto getSlowmodeSeconds = AddSlowmodeSlider(inner, peer);
+
+	if (const auto channel = peer->asChannel()) {
+		if (channel->amCreator()
+			&& channel->membersCount() >= kSuggestGigagroupThreshold) {
+			AddSuggestGigagroup(
+				inner,
+				AboutGigagroupCallback(
+					peer->asChannel(),
+					navigation->parentController()));
 		}
 	}
-	return result;
+
+	AddBannedButtons(inner, navigation, peer);
+
+	box->addButton(tr::lng_settings_save(), [=, rights = getRestrictions] {
+		done({ rights(), getSlowmodeSeconds() });
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+	box->setWidth(st::boxWideWidth);
 }
 
 Fn<void()> AboutGigagroupCallback(
@@ -445,286 +654,6 @@ Fn<void()> AboutGigagroupCallback(
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		}), Ui::LayerOption::KeepOther);
 	};
-}
-
-EditPeerPermissionsBox::EditPeerPermissionsBox(
-	QWidget*,
-	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer)
-: _navigation(navigation)
-, _peer(peer->migrateToOrMe()) {
-}
-
-auto EditPeerPermissionsBox::saveEvents() const -> rpl::producer<Result> {
-	Expects(_save != nullptr);
-
-	return _save->clicks() | rpl::map(_value);
-}
-
-void EditPeerPermissionsBox::prepare() {
-	setTitle(tr::lng_manage_peer_permissions());
-
-	const auto inner = setInnerWidget(object_ptr<Ui::VerticalLayout>(this));
-
-	using Flag = ChatRestriction;
-	using Flags = ChatRestrictions;
-
-	const auto disabledByAdminRights = DisabledByAdminRights(_peer);
-	const auto restrictions = FixDependentRestrictions([&] {
-		if (const auto chat = _peer->asChat()) {
-			return chat->defaultRestrictions()
-				| disabledByAdminRights;
-		} else if (const auto channel = _peer->asChannel()) {
-			return channel->defaultRestrictions()
-				| (channel->isPublic()
-					? (Flag::ChangeInfo | Flag::PinMessages)
-					: Flags(0))
-				| disabledByAdminRights;
-		}
-		Unexpected("User in EditPeerPermissionsBox.");
-	}());
-	const auto disabledMessages = [&] {
-		auto result = std::map<Flags, QString>();
-			result.emplace(
-				disabledByAdminRights,
-				tr::lng_rights_permission_cant_edit(tr::now));
-		if (const auto channel = _peer->asChannel()) {
-			if (channel->isPublic()
-				|| (channel->isMegagroup() && channel->linkedChat())) {
-				result.emplace(
-					Flag::ChangeInfo | Flag::PinMessages,
-					tr::lng_rights_permission_unavailable(tr::now));
-			}
-		}
-		return result;
-	}();
-
-	auto [checkboxes, getRestrictions, changes] = CreateEditRestrictions(
-		this,
-		tr::lng_rights_default_restrictions_header(),
-		restrictions,
-		disabledMessages,
-		{ .isForum = _peer->isForum() });
-
-	inner->add(std::move(checkboxes));
-
-	const auto getSlowmodeSeconds = addSlowmodeSlider(inner);
-
-	if (const auto channel = _peer->asChannel()) {
-		if (channel->amCreator()
-			&& channel->membersCount() >= kSuggestGigagroupThreshold) {
-			addSuggestGigagroup(inner);
-		}
-	}
-
-	addBannedButtons(inner);
-
-	_value = [=, rights = getRestrictions]() -> Result {
-		return { rights(), getSlowmodeSeconds() };
-	};
-	_save = addButton(tr::lng_settings_save());
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
-
-	setDimensionsToContent(st::boxWidth, inner);
-}
-
-Fn<int()> EditPeerPermissionsBox::addSlowmodeSlider(
-		not_null<Ui::VerticalLayout*> container) {
-	using namespace rpl::mappers;
-
-	if (const auto chat = _peer->asChat()) {
-		if (!chat->amCreator()) {
-			return [] { return 0; };
-		}
-	}
-	const auto channel = _peer->asChannel();
-	auto &lifetime = container->lifetime();
-	const auto secondsCount = lifetime.make_state<rpl::variable<int>>(
-		channel ? channel->slowmodeSeconds() : 0);
-
-	container->add(
-		object_ptr<Ui::BoxContentDivider>(container),
-		{ 0, st::infoProfileSkip, 0, st::infoProfileSkip });
-
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			tr::lng_rights_slowmode_header(),
-			st::rightsHeaderLabel),
-		st::rightsHeaderMargin);
-
-	addSlowmodeLabels(container);
-
-	const auto slider = container->add(
-		object_ptr<Ui::MediaSlider>(container, st::localStorageLimitSlider),
-		st::localStorageLimitMargin);
-	slider->resize(st::localStorageLimitSlider.seekSize);
-	slider->setPseudoDiscrete(
-		kSlowmodeValues,
-		SlowmodeDelayByIndex,
-		secondsCount->current(),
-		[=](int seconds) {
-			(*secondsCount) = seconds;
-		});
-
-	auto hasSlowMode = secondsCount->value(
-	) | rpl::map(
-		_1 != 0
-	) | rpl::distinct_until_changed();
-
-	auto useSeconds = secondsCount->value(
-	) | rpl::map(
-		_1 < 60
-	) | rpl::distinct_until_changed();
-
-	auto interval = rpl::combine(
-		std::move(useSeconds),
-		tr::lng_rights_slowmode_interval_seconds(
-			lt_count,
-			secondsCount->value() | tr::to_count()),
-		tr::lng_rights_slowmode_interval_minutes(
-			lt_count,
-			secondsCount->value() | rpl::map(_1 / 60.))
-	) | rpl::map([](
-			bool use,
-			const QString &seconds,
-			const QString &minutes) {
-		return use ? seconds : minutes;
-	});
-
-	auto aboutText = rpl::combine(
-		std::move(hasSlowMode),
-		tr::lng_rights_slowmode_about(),
-		tr::lng_rights_slowmode_about_interval(
-			lt_interval,
-			std::move(interval))
-	) | rpl::map([](
-			bool has,
-			const QString &about,
-			const QString &aboutInterval) {
-		return has ? aboutInterval : about;
-	});
-
-	container->add(
-		object_ptr<Ui::DividerLabel>(
-			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				std::move(aboutText),
-				st::boxDividerLabel),
-			st::proxyAboutPadding),
-		style::margins(0, st::infoProfileSkip, 0, st::infoProfileSkip));
-
-	return [=] { return secondsCount->current(); };
-}
-
-void EditPeerPermissionsBox::addSlowmodeLabels(
-		not_null<Ui::VerticalLayout*> container) {
-	const auto labels = container->add(
-		object_ptr<Ui::FixedHeightWidget>(container, st::normalFont->height),
-		st::slowmodeLabelsMargin);
-	for (auto i = 0; i != kSlowmodeValues; ++i) {
-		const auto seconds = SlowmodeDelayByIndex(i);
-		const auto label = Ui::CreateChild<Ui::LabelSimple>(
-			labels,
-			st::slowmodeLabel,
-			(!seconds
-				? tr::lng_rights_slowmode_off(tr::now)
-				: (seconds < 60)
-				? tr::lng_seconds_tiny(tr::now, lt_count, seconds)
-				: (seconds < 3600)
-				? tr::lng_minutes_tiny(tr::now, lt_count, seconds / 60)
-				: tr::lng_hours_tiny(tr::now, lt_count,seconds / 3600)));
-		rpl::combine(
-			labels->widthValue(),
-			label->widthValue()
-		) | rpl::start_with_next([=](int outer, int inner) {
-			const auto skip = st::localStorageLimitMargin;
-			const auto size = st::localStorageLimitSlider.seekSize;
-			const auto available = outer
-				- skip.left()
-				- skip.right()
-				- size.width();
-			const auto shift = (i == 0)
-				? -(size.width() / 2)
-				: (i + 1 == kSlowmodeValues)
-				? (size.width() - (size.width() / 2) - inner)
-				: (-inner / 2);
-			const auto left = skip.left()
-				+ (size.width() / 2)
-				+ (i * available) / (kSlowmodeValues - 1)
-				+ shift;
-			label->moveToLeft(left, 0, outer);
-		}, label->lifetime());
-	}
-}
-
-void EditPeerPermissionsBox::addSuggestGigagroup(
-		not_null<Ui::VerticalLayout*> container) {
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			tr::lng_rights_gigagroup_title(),
-			st::rightsHeaderLabel),
-		st::rightsHeaderMargin);
-	container->add(EditPeerInfoBox::CreateButton(
-		container,
-		tr::lng_rights_gigagroup_convert(),
-		rpl::single(QString()),
-		AboutGigagroupCallback(
-			_peer->asChannel(),
-			_navigation->parentController()),
-		st::peerPermissionsButton,
-		{}));
-
-	container->add(
-		object_ptr<Ui::DividerLabel>(
-			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				tr::lng_rights_gigagroup_about(),
-				st::boxDividerLabel),
-			st::proxyAboutPadding),
-		style::margins(0, st::infoProfileSkip, 0, st::infoProfileSkip));
-}
-
-void EditPeerPermissionsBox::addBannedButtons(
-		not_null<Ui::VerticalLayout*> container) {
-	if (const auto chat = _peer->asChat()) {
-		if (!chat->amCreator()) {
-			return;
-		}
-	}
-	const auto channel = _peer->asChannel();
-	container->add(EditPeerInfoBox::CreateButton(
-		container,
-		tr::lng_manage_peer_exceptions(),
-		(channel
-			? Info::Profile::RestrictedCountValue(channel)
-			: rpl::single(0)) | ToPositiveNumberString(),
-		[=] {
-			ParticipantsBoxController::Start(
-				_navigation,
-				_peer,
-				ParticipantsBoxController::Role::Restricted);
-		},
-		st::peerPermissionsButton,
-		{}));
-	if (channel) {
-		container->add(EditPeerInfoBox::CreateButton(
-			container,
-			tr::lng_manage_peer_removed_users(),
-			Info::Profile::KickedCountValue(channel)
-			| ToPositiveNumberString(),
-			[=] {
-				ParticipantsBoxController::Start(
-					_navigation,
-					_peer,
-					ParticipantsBoxController::Role::Kicked);
-			},
-			st::peerPermissionsButton,
-			{}));
-	}
 }
 
 std::vector<RestrictionLabel> RestrictionLabels(
@@ -802,7 +731,7 @@ std::vector<AdminRightLabel> AdminRightLabels(
 	}
 }
 
-EditFlagsControl<ChatRestrictions> CreateEditRestrictions(
+EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 		QWidget *parent,
 		rpl::producer<QString> header,
 		ChatRestrictions restrictions,
@@ -824,7 +753,7 @@ EditFlagsControl<ChatRestrictions> CreateEditRestrictions(
 	return result;
 }
 
-EditFlagsControl<ChatAdminRights> CreateEditAdminRights(
+EditFlagsControl<ChatAdminRights, Ui::RpWidget> CreateEditAdminRights(
 		QWidget *parent,
 		rpl::producer<QString> header,
 		ChatAdminRights rights,
@@ -836,4 +765,71 @@ EditFlagsControl<ChatAdminRights> CreateEditAdminRights(
 		rights,
 		disabledMessages,
 		AdminRightLabels(options));
+}
+
+ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
+	using Flag = ChatAdminRight;
+	using Restriction = ChatRestriction;
+
+	const auto restrictions = FixDependentRestrictions([&] {
+		if (const auto chat = peer->asChat()) {
+			return chat->defaultRestrictions();
+		} else if (const auto channel = peer->asChannel()) {
+			return channel->defaultRestrictions();
+		}
+		Unexpected("User in DisabledByDefaultRestrictions.");
+	}());
+	return Flag(0)
+		| ((restrictions & Restriction::PinMessages)
+			? Flag(0)
+			: Flag::PinMessages)
+		//
+		// We allow to edit 'invite_users' admin right no matter what
+		// is chosen in default permissions for 'invite_users', because
+		// if everyone can 'invite_users' it handles invite link for admins.
+		//
+		//| ((restrictions & Restriction::AddParticipants)
+		//	? Flag(0)
+		//	: Flag::InviteByLinkOrAdd)
+		//
+		| ((restrictions & Restriction::ChangeInfo)
+			? Flag(0)
+			: Flag::ChangeInfo);
+}
+
+ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions) {
+	const auto &dependencies = Dependencies(restrictions);
+
+	// Fix iOS bug of saving send_inline like embed_links.
+	// We copy send_stickers to send_inline.
+	if (restrictions & ChatRestriction::SendStickers) {
+		restrictions |= ChatRestriction::SendInline;
+	} else {
+		restrictions &= ~ChatRestriction::SendInline;
+	}
+
+	// Apply the strictest.
+	const auto fixOne = [&] {
+		for (const auto &[first, second] : dependencies) {
+			if ((restrictions & second) && !(restrictions & first)) {
+				restrictions |= first;
+				return true;
+			}
+		}
+		return false;
+	};
+	while (fixOne()) {
+	}
+	return restrictions;
+}
+
+ChatAdminRights AdminRightsForOwnershipTransfer(
+		Data::AdminRightsSetOptions options) {
+	auto result = ChatAdminRights();
+	for (const auto &[flag, label] : AdminRightLabels(options)) {
+		if (!(flag & ChatAdminRight::Anonymous)) {
+			result |= flag;
+		}
+	}
+	return result;
 }
