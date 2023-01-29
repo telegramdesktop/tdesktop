@@ -10,8 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "ui/effects/toggle_arrow.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/layers/generic_box.h"
+#include "ui/painter.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -31,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+#include "styles/style_window.h"
 
 namespace {
 
@@ -114,6 +118,23 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		| Flag::SendOther);
 }
 
+[[nodiscard]] std::vector<ChatRestrictions> MediaRestrictions() {
+	return std::vector<ChatRestrictions>{
+		ChatRestriction::SendPhotos,
+		ChatRestriction::SendVideos,
+		ChatRestriction::SendVideoMessages,
+		ChatRestriction::SendMusic,
+		ChatRestriction::SendVoiceMessages,
+		ChatRestriction::SendFiles,
+		ChatRestriction::SendStickers
+			| ChatRestriction::SendGifs
+			| ChatRestriction::SendGames
+			| ChatRestriction::SendInline,
+		ChatRestriction::EmbedLinks,
+		ChatRestriction::SendPolls,
+	};
+}
+
 auto Dependencies(ChatAdminRights)
 -> std::vector<std::pair<ChatAdminRight, ChatAdminRight>> {
 	return {};
@@ -152,6 +173,117 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 		| ((adminRights & Admin::ChangeInfo)
 			? Flag(0)
 			: Flag::ChangeInfo);
+}
+
+not_null<Ui::SettingsButton*> SendMediaToggle(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<int> checkedValue,
+		int total,
+		not_null<Ui::SlideWrap<>*> wrap,
+		Fn<void(bool)> toggleMedia) {
+	class Button final : public Ui::SettingsButton {
+	public:
+		using Ui::SettingsButton::SettingsButton;
+
+		[[nodiscard]] QRect innerToggleRect() const {
+			return Ui::SettingsButton::maybeToggleRect();
+		}
+		[[nodiscard]] bool toggleClicked() const {
+			return _togglePressed && _toggleReleased;
+		}
+
+	protected:
+		void mousePressEvent(QMouseEvent *event) override {
+			_togglePressed = Ui::SettingsButton::maybeToggleRect().contains(
+				event->pos());
+			Ui::SettingsButton::mousePressEvent(event);
+		}
+		void mouseReleaseEvent(QMouseEvent *event) override {
+			_toggleReleased = Ui::SettingsButton::maybeToggleRect().contains(
+				event->pos());
+			Ui::SettingsButton::mouseReleaseEvent(event);
+		}
+
+	private:
+		bool _togglePressed = false;
+		bool _toggleReleased = false;
+
+	};
+	const auto button = container->add(object_ptr<Button>(
+		container,
+		rpl::single(QString()),
+		st::rightsButton));
+	using namespace rpl::mappers;
+	button->toggleOn(rpl::duplicate(checkedValue) | rpl::map(_1 > 0), true);
+	struct State final {
+		Ui::Animations::Simple animation;
+	};
+	const auto state = button->lifetime().make_state<State>();
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		rpl::combine(
+			tr::lng_rights_chat_send_media(),
+			rpl::duplicate(checkedValue)
+		) | rpl::map([total](const QString &t, int checked) {
+			auto count = Ui::Text::Bold("  "
+				+ QString::number(checked)
+				+ '/'
+				+ QString::number(total));
+			return TextWithEntities::Simple(t).append(std::move(count));
+		}));
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto arrow = Ui::CreateChild<Ui::RpWidget>(button);
+	{
+		const auto size = st::mainMenuToggleSize * 4;
+		arrow->resize(size, size);
+		arrow->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(arrow);
+			const auto path = Ui::ToggleUpDownArrowPath(
+				size / 2.,
+				size / 2.,
+				size / 4.,
+				st::mainMenuToggleFourStrokes,
+				state->animation.value(wrap->toggled() ? 1. : 0.));
+
+			auto hq = PainterHighQualityEnabler(p);
+			p.fillPath(path, st::rightsButton.textFg);
+		}, arrow->lifetime());
+	}
+	button->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		const auto labelLeft = st::rightsButton.padding.left();
+		const auto labelRight = button->innerToggleRect().left();
+
+		label->resizeToWidth(labelRight - labelLeft - arrow->width());
+		label->moveToLeft(
+			labelLeft,
+			(s.height() - label->height()) / 2);
+		arrow->moveToLeft(
+			std::min(
+				labelLeft + label->naturalWidth(),
+				labelRight - arrow->width()),
+			(s.height() - arrow->height()) / 2);
+	}, button->lifetime());
+	wrap->toggledValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](bool toggled) {
+		state->animation.start(
+			[=] { arrow->update(); },
+			toggled ? 0. : 1.,
+			toggled ? 1. : 0.,
+			st::slideWrapDuration);
+	}, button->lifetime());
+
+	button->clicks(
+	) | rpl::start_with_next([=] {
+		if (button->toggleClicked()) {
+			toggleMedia(!button->toggled());
+		} else {
+			wrap->toggle(!wrap->toggled(), anim::type::normal);
+		}
+	}, button->lifetime());
+
+	return button;
 }
 
 not_null<Ui::SettingsButton*> AddDefaultCheckbox(
@@ -267,14 +399,15 @@ template <
 			? std::make_optional(lockedIt->second)
 			: std::nullopt;
 		const auto toggled = ((checked & flags) != 0);
+		auto flagCheck = state->checkboxes.emplace(flags, FlagCheck()).first;
 		const auto control = checkboxFactory(
 			container,
+			flags,
 			text,
 			toggled,
-			locked.has_value());
-		const auto flagCheck = state->checkboxes.emplace(
-			flags,
-			FlagCheck{ .widget = Ui::MakeWeak(control) }).first;
+			locked.has_value(),
+			[=](bool v) { flagCheck->second.checkChanges.fire_copy(v); });
+		flagCheck->second.widget = Ui::MakeWeak(control);
 		control->toggleOn(flagCheck->second.checkChanges.events());
 		control->toggledChanges(
 		) | rpl::start_with_next([=](bool checked) {
@@ -745,13 +878,64 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 		std::map<ChatRestrictions, QString> disabledMessages,
 		Data::RestrictionsSetOptions options) {
 	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	struct State {
+		Ui::SlideWrap<Ui::VerticalLayout> *inner = nullptr;
+		rpl::event_stream<ChatRestrictions> restrictions;
+		std::vector<Fn<void(bool)>> mediaToggleCallbacks;
+	};
+	const auto state = widget->lifetime().make_state<State>();
+	const auto mediaRestrictions = MediaRestrictions();
+	const auto checkboxFactory = [&](
+			not_null<Ui::VerticalLayout*> container,
+			ChatRestrictions flags,
+			const QString &text,
+			bool toggled,
+			bool locked,
+			Fn<void(bool)> toggleCallback) {
+		const auto isMedia = ranges::any_of(
+			mediaRestrictions,
+			[&](auto f) { return (flags & f); });
+		if (isMedia) {
+			state->mediaToggleCallbacks.push_back(toggleCallback);
+			if (!state->inner) {
+				auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+					container,
+					object_ptr<Ui::VerticalLayout>(container));
+				SendMediaToggle(
+					container,
+					state->restrictions.events_starting_with(
+						0
+					) | rpl::map([=](ChatRestrictions r) -> int {
+						return ranges::count_if(
+							mediaRestrictions,
+							[&](auto f) { return !(r & f); });
+					}),
+					mediaRestrictions.size(),
+					wrap.data(),
+					[=](bool toggled) {
+						for (auto &callback : state->mediaToggleCallbacks) {
+							callback(toggled);
+						}
+					});
+				state->inner = container->add(std::move(wrap));
+			}
+			const auto checkbox = AddDefaultCheckbox(
+				state->inner->entity(),
+				text,
+				toggled,
+				locked);
+			return checkbox;
+		} else {
+			return AddDefaultCheckbox(container, text, toggled, locked);
+		}
+	};
 	auto result = CreateEditFlags(
 		widget.data(),
 		header,
 		NegateRestrictions(restrictions),
 		disabledMessages,
 		RestrictionLabels(options),
-		AddDefaultCheckbox);
+		checkboxFactory);
 	result.widget = std::move(widget);
 	result.value = [original = std::move(result.value)]{
 		return NegateRestrictions(original());
@@ -759,6 +943,9 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 	result.changes = std::move(
 		result.changes
 	) | rpl::map(NegateRestrictions);
+	rpl::duplicate(
+		result.changes
+	) | rpl::start_to_stream(state->restrictions, state->inner->lifetime());
 
 	return result;
 }
@@ -770,13 +957,22 @@ EditFlagsControl<ChatAdminRights, Ui::RpWidget> CreateEditAdminRights(
 		std::map<ChatAdminRights, QString> disabledMessages,
 		Data::AdminRightsSetOptions options) {
 	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	const auto checkboxFactory = [&](
+			not_null<Ui::VerticalLayout*> container,
+			ChatAdminRights flags,
+			const QString &text,
+			bool toggled,
+			bool locked,
+			auto callback) {
+		return AddDefaultCheckbox(container, text, toggled, locked);
+	};
 	auto result = CreateEditFlags(
 		widget.data(),
 		header,
 		rights,
 		disabledMessages,
 		AdminRightLabels(options),
-		AddDefaultCheckbox);
+		checkboxFactory);
 	result.widget = std::move(widget);
 	return result;
 }
