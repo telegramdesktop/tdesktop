@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/binary_guard.h"
 
+struct LanguageId;
+
 namespace Ui {
 class MultiSelect;
 struct ScrollToRequest;

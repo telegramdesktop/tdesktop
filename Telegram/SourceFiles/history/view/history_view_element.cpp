@@ -655,10 +655,12 @@ const Ui::Text::String &Element::text() const {
 OnlyEmojiAndSpaces Element::isOnlyEmojiAndSpaces() const {
 	if (data()->Has<HistoryMessageTranslation>()) {
 		return OnlyEmojiAndSpaces::No;
-	} else if (!_text.isEmpty() || data()->originalText().empty()) {
-		return _text.isOnlyEmojiAndSpaces()
-			? OnlyEmojiAndSpaces::Yes
-			: OnlyEmojiAndSpaces::No;
+	} else if (!_text.isEmpty()) {
+		return _text.hasNotEmojiAndSpaces()
+			? OnlyEmojiAndSpaces::No
+			: OnlyEmojiAndSpaces::Yes;
+	} else if (data()->originalText().empty()) {
+		return OnlyEmojiAndSpaces::Yes;
 	} else {
 		return OnlyEmojiAndSpaces::Unknown;
 	}

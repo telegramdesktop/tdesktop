@@ -49,6 +49,7 @@ enum class PremiumPreview {
 	AdvancedChatManagement,
 	ProfileBadge,
 	AnimatedUserpics,
+	RealTimeTranslation,
 
 	kCount,
 };

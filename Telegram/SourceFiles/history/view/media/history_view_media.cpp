@@ -121,7 +121,9 @@ TextWithEntities AddTimestampLinks(
 		return text;
 	}
 	static const auto expression = QRegularExpression(
-		"(?<![^\\s\\(\\)\"\\,\\.\\-])(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)(?![^\\s\\(\\)\",\\.\\-])");
+		"(?<![^\\s\\(\\)\"\\,\\.\\-])"
+		"(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)"
+		"(?![^\\s\\(\\)\",\\.\\-\\+])");
 	const auto &string = text.text;
 	auto offset = 0;
 	while (true) {

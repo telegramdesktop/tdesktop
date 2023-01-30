@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "lang/lang_keys.h"
 
+#include "base/const_string.h"
 #include "lang/lang_file_parser.h"
 #include "ui/integration.h"
 
 #include <QtCore/QLocale>
 
 namespace {
+
+constexpr auto kDefaultLanguage = "en"_cs;
 
 template <typename WithYear, typename WithoutYear>
 inline QString langDateMaybeWithYear(
@@ -231,3 +234,15 @@ QString langDateTimeFull(const QDateTime &date) {
 		lt_time,
 		QLocale().toString(date.time(), QLocale::ShortFormat));
 }
+
+namespace Lang {
+
+QString DefaultLanguageId() {
+	return kDefaultLanguage.utf16();
+}
+
+QString LanguageIdOrDefault(const QString &id) {
+	return !id.isEmpty() ? id : DefaultLanguageId();
+}
+
+} // namespace Lang

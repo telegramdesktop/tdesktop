@@ -78,9 +78,9 @@ constexpr auto kPinnedMessageTextLimit = 16;
 
 using ItemPreview = HistoryView::ItemPreview;
 
-[[nodiscard]] bool IsOnlyEmojiAndSpaces(const QString &text) {
+[[nodiscard]] bool HasNotEmojiAndSpaces(const QString &text) {
 	if (text.isEmpty()) {
-		return true;
+		return false;
 	}
 	auto emoji = 0;
 	auto start = text.data();
@@ -91,10 +91,10 @@ using ItemPreview = HistoryView::ItemPreview;
 		} else if (Ui::Emoji::Find(start, end, &emoji)) {
 			start += emoji;
 		} else {
-			return false;
+			return true;
 		}
 	}
-	return true;
+	return false;
 }
 
 } // namespace
@@ -4682,7 +4682,7 @@ void HistoryItem::cacheOnlyEmojiAndSpaces(bool only) {
 bool HistoryItem::isOnlyEmojiAndSpaces() const {
 	if (!(_flags & MessageFlag::OnlyEmojiAndSpacesSet)) {
 		const_cast<HistoryItem*>(this)->cacheOnlyEmojiAndSpaces(
-			IsOnlyEmojiAndSpaces(_text.text));
+			!HasNotEmojiAndSpaces(_text.text));
 	}
 	return (_flags & MessageFlag::OnlyEmojiAndSpaces);
 }

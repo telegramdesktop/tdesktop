@@ -21,7 +21,6 @@ namespace {
 
 const auto kSerializeVersionTag = u"#new"_q;
 constexpr auto kSerializeVersion = 1;
-constexpr auto kDefaultLanguage = "en"_cs;
 constexpr auto kCloudLangPackName = "tdesktop"_cs;
 constexpr auto kCustomLanguage = "#custom"_cs;
 constexpr auto kLangValuesLimit = 20000;
@@ -212,14 +211,6 @@ void ParseKeyValue(
 }
 
 } // namespace
-
-QString DefaultLanguageId() {
-	return kDefaultLanguage.utf16();
-}
-
-QString LanguageIdOrDefault(const QString &id) {
-	return !id.isEmpty() ? id : DefaultLanguageId();
-}
 
 QString CloudLangPackName() {
 	return kCloudLangPackName.utf16();

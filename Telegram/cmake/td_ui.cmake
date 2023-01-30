@@ -156,6 +156,8 @@ PRIVATE
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
     ui/boxes/choose_date_time.h
+    ui/boxes/choose_language_box.cpp
+    ui/boxes/choose_language_box.h
     ui/boxes/choose_time.cpp
     ui/boxes/choose_time.h
     ui/boxes/confirm_box.cpp
@@ -326,6 +328,7 @@ PRIVATE
     desktop-app::lib_ffmpeg
     desktop-app::lib_webview
     desktop-app::lib_webrtc
+    desktop-app::lib_spellcheck
     desktop-app::lib_stripe
     desktop-app::external_kcoreaddons
 )

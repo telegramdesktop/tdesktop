@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/language_box.h"
 
 #include "lang/lang_keys.h"
+#include "ui/boxes/choose_language_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -44,16 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 
 namespace {
-namespace {
-
-[[nodiscard]] std::vector<QLocale> SkipLocalesFromSettings() {
-	const auto list = Core::App().settings().skipTranslationLanguages();
-	return list
-		| ranges::views::transform(&LanguageId::locale)
-		| ranges::to_vector;
-}
-
-} // namespace
 
 using Language = Lang::Language;
 using Languages = Lang::CloudManager::Languages;
@@ -1128,8 +1119,7 @@ void LanguageBox::prepare() {
 		Core::App().saveSettingsDelayed();
 	}, translateEnabled->lifetime());
 
-	using Locales = std::vector<QLocale>;
-	const auto label = lifetime().make_state<rpl::event_stream<Locales>>();
+	using Languages = std::vector<LanguageId>;
 	const auto translateSkipWrap = topContainer->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			topContainer,
@@ -1141,28 +1131,16 @@ void LanguageBox::prepare() {
 	const auto translateSkip = Settings::AddButtonWithLabel(
 		translateSkipWrap->entity(),
 		tr::lng_translate_settings_choose(),
-		label->events(
-		) | rpl::map([](const Locales &locales) {
-			return (locales.size() > 1)
-				? tr::lng_languages_count(tr::now, lt_count, locales.size())
-				: Ui::LanguageName(locales.front());
+		Core::App().settings().skipTranslationLanguagesValue(
+		) | rpl::map([](const Languages &list) {
+			return (list.size() > 1)
+				? tr::lng_languages_count(tr::now, lt_count, list.size())
+				: Ui::LanguageName(list.front());
 		}),
 		st::settingsButtonNoIcon);
 
-	label->fire(SkipLocalesFromSettings());
 	translateSkip->setClickedCallback([=] {
-		Ui::BoxShow(this).showBox(
-			Box(Ui::ChooseLanguageBox, [=](Locales locales) {
-				label->fire_copy(locales);
-				using namespace ranges::views;
-				Core::App().settings().setSkipTranslationLanguages(all(
-					locales
-				) | transform([](const QLocale &l) {
-					return LanguageId{ l.language() };
-				}) | ranges::to_vector);
-				Core::App().saveSettingsDelayed();
-			}, SkipLocalesFromSettings()),
-			Ui::LayerOption::KeepOther);
+		Ui::BoxShow(this).showBox(Ui::EditSkipTranslationLanguages());
 	});
 	Settings::AddSkip(topContainer);
 	Settings::AddDividerText(

@@ -1273,3 +1273,4 @@ historyTranslateSettings: IconButton(defaultIconButton) {
 	rippleAreaSize: 38px;
 	ripple: defaultRippleAnimation;
 }
+historyTranslateMenuPosition: point(-6px, 40px);

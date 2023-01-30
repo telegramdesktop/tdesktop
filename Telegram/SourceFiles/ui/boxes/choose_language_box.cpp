@@ -1,0 +1,321 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#include "ui/boxes/choose_language_box.h"
+
+#include "lang/lang_keys.h"
+#include "spellcheck/spellcheck_types.h"
+#include "ui/layers/generic_box.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/multi_select.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/painter.h"
+#include "styles/style_info.h"
+#include "styles/style_layers.h"
+#include "styles/style_settings.h"
+
+namespace Ui {
+namespace {
+
+const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
+
+[[nodiscard]] std::vector<LanguageId> TranslationLanguagesList() {
+	return {
+		{ QLocale::English },
+		{ QLocale::Afrikaans },
+		{ QLocale::Albanian },
+		{ QLocale::Amharic },
+		{ QLocale::Arabic },
+		{ QLocale::Armenian },
+		{ QLocale::Azerbaijani },
+		{ QLocale::Basque },
+		{ QLocale::Belarusian },
+		{ QLocale::Bosnian },
+		{ QLocale::Bulgarian },
+		{ QLocale::Burmese },
+		{ QLocale::Catalan },
+		{ QLocale::Chinese },
+		{ QLocale::Croatian },
+		{ QLocale::Czech },
+		{ QLocale::Danish },
+		{ QLocale::Dutch },
+		{ QLocale::Esperanto },
+		{ QLocale::Estonian },
+		{ QLocale::Finnish },
+		{ QLocale::French },
+		{ QLocale::Gaelic },
+		{ QLocale::Galician },
+		{ QLocale::Georgian },
+		{ QLocale::German },
+		{ QLocale::Greek },
+		{ QLocale::Gusii },
+		{ QLocale::Hausa },
+		{ QLocale::Hebrew },
+		{ QLocale::Hungarian },
+		{ QLocale::Icelandic },
+		{ QLocale::Igbo },
+		{ QLocale::Indonesian },
+		{ QLocale::Irish },
+		{ QLocale::Italian },
+		{ QLocale::Japanese },
+		{ QLocale::Kazakh },
+		{ QLocale::Kinyarwanda },
+		{ QLocale::Korean },
+		{ QLocale::Kurdish },
+		{ QLocale::Lao },
+		{ QLocale::Latvian },
+		{ QLocale::Lithuanian },
+		{ QLocale::Luxembourgish },
+		{ QLocale::Macedonian },
+		{ QLocale::Malagasy },
+		{ QLocale::Malay },
+		{ QLocale::Maltese },
+		{ QLocale::Maori },
+		{ QLocale::Mongolian },
+		{ QLocale::Nepali },
+		{ QLocale::Pashto },
+		{ QLocale::Persian },
+		{ QLocale::Polish },
+		{ QLocale::Portuguese },
+		{ QLocale::Romanian },
+		{ QLocale::Russian },
+		{ QLocale::Serbian },
+		{ QLocale::Shona },
+		{ QLocale::Sindhi },
+		{ QLocale::Sinhala },
+		{ QLocale::Slovak },
+		{ QLocale::Slovenian },
+		{ QLocale::Somali },
+		{ QLocale::Spanish },
+		{ QLocale::Sundanese },
+		{ QLocale::Swahili },
+		{ QLocale::Swedish },
+		{ QLocale::Tajik },
+		{ QLocale::Tatar },
+		{ QLocale::Teso },
+		{ QLocale::Thai },
+		{ QLocale::Turkish },
+		{ QLocale::Turkmen },
+		{ QLocale::Ukrainian },
+		{ QLocale::Urdu },
+		{ QLocale::Uzbek },
+		{ QLocale::Vietnamese },
+		{ QLocale::Welsh },
+		{ QLocale::WesternFrisian },
+		{ QLocale::Xhosa },
+		{ QLocale::Yiddish },
+	};
+}
+
+class Row final : public SettingsButton {
+public:
+	Row(not_null<RpWidget*> parent, LanguageId id);
+
+	[[nodiscard]] bool filtered(const QString &query) const;
+	[[nodiscard]] LanguageId id() const;
+
+	int resizeGetHeight(int newWidth) override;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	const style::PeerListItem &_st;
+	const LanguageId _id;
+	const QString _status;
+	const QString _titleText;
+	Text::String _title;
+
+};
+
+Row::Row(not_null<RpWidget*> parent, LanguageId id)
+: SettingsButton(parent, rpl::never<QString>())
+, _st(st::inviteLinkListItem)
+, _id(id)
+, _status(LanguageName(id))
+, _titleText(LanguageNameNative(id))
+, _title(_st.nameStyle, _titleText) {
+}
+
+LanguageId Row::id() const {
+	return _id;
+}
+
+bool Row::filtered(const QString &query) const {
+	return _status.startsWith(query, Qt::CaseInsensitive)
+		|| _titleText.startsWith(query, Qt::CaseInsensitive);
+}
+
+int Row::resizeGetHeight(int newWidth) {
+	return _st.height;
+}
+
+void Row::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+
+	const auto paintOver = (isOver() || isDown()) && !isDisabled();
+	SettingsButton::paintBg(p, e->rect(), paintOver);
+	SettingsButton::paintRipple(p, 0, 0);
+	SettingsButton::paintToggle(p, width());
+
+	const auto &color = st::windowSubTextFg;
+	p.setPen(Qt::NoPen);
+	p.setBrush(color);
+
+	const auto left = st::settingsSubsectionTitlePadding.left();
+	const auto toggleRect = SettingsButton::maybeToggleRect();
+	const auto right = left
+		+ (toggleRect.isEmpty() ? 0 : (width() - toggleRect.x()));
+
+	const auto availableWidth = std::min(
+		_title.maxWidth(),
+		width() - left - right);
+	p.setPen(_st.nameFg);
+	_title.drawLeft(
+		p,
+		left,
+		_st.namePosition.y(),
+		availableWidth,
+		width() - left - right);
+
+	p.setPen(paintOver ? _st.statusFgOver : _st.statusFg);
+	p.setFont(st::contactsStatusFont);
+	p.drawTextLeft(
+		left,
+		_st.statusPosition.y(),
+		width() - left - right,
+		_status);
+}
+
+} // namespace
+
+QString LanguageNameTranslated(const QString &twoLetterCode) {
+	return Lang::GetNonDefaultValue(
+		kLanguageNamePrefix + twoLetterCode.toUtf8());
+}
+
+QString LanguageName(LanguageId id) {
+	const auto code = id.locale().name().toLower().mid(0, 2);
+	const auto translated = LanguageNameTranslated(code);
+	return translated.isEmpty()
+		? QLocale::languageToString(id.locale().language())
+		: translated;
+}
+
+QString LanguageNameNative(LanguageId id) {
+	const auto locale = id.locale();
+	if (locale.language() == QLocale::English
+			&& (locale.country() == QLocale::UnitedStates
+				|| locale.country() == QLocale::AnyCountry)) {
+		return u"English"_q;
+	} else if (locale.language() == QLocale::Spanish) {
+		return QString::fromUtf8("\x45\x73\x70\x61\xc3\xb1\x6f\x6c");
+	} else {
+		const auto name = locale.nativeLanguageName();
+		return name.left(1).toUpper() + name.mid(1);
+	}
+}
+
+void ChooseLanguageBox(
+		not_null<GenericBox*> box,
+		rpl::producer<QString> title,
+		Fn<void(std::vector<LanguageId>)> callback,
+		std::optional<std::vector<LanguageId>> toggled) {
+	box->setMinHeight(st::boxWidth);
+	box->setMaxHeight(st::boxWidth);
+	box->setTitle(std::move(title));
+
+	const auto hasToggles = toggled.has_value();
+
+	const auto multiSelect = box->setPinnedToTopContent(
+		object_ptr<MultiSelect>(
+			box,
+			st::defaultMultiSelect,
+			tr::lng_participant_filter()));
+	box->setFocusCallback([=] { multiSelect->setInnerFocus(); });
+
+	const auto container = box->verticalLayout();
+	const auto langs = [&] {
+		auto list = TranslationLanguagesList();
+		const auto current = LanguageId{ QLocale(
+			Lang::LanguageIdOrDefault(Lang::Id())).language() };
+		if (const auto i = ranges::find(list, current); i != end(list)) {
+			base::reorder(list, std::distance(begin(list), i), 0);
+		}
+		if (hasToggles) {
+			ranges::stable_partition(list, [&](LanguageId id) {
+				return ranges::contains(*toggled, id);
+			});
+		}
+		return list;
+	}();
+	auto rows = std::vector<not_null<SlideWrap<Row>*>>();
+	rows.reserve(langs.size());
+	for (const auto &id : langs) {
+		const auto button = container->add(
+			object_ptr<SlideWrap<Row>>(
+				container,
+				object_ptr<Row>(container, id)));
+		if (hasToggles) {
+			button->entity()->toggleOn(
+				rpl::single(ranges::contains(*toggled, id)),
+				false);
+		} else {
+			button->entity()->setClickedCallback([=] {
+				callback({ id });
+				box->closeBox();
+			});
+		}
+		rows.push_back(button);
+	}
+
+	multiSelect->setQueryChangedCallback([=](const QString &query) {
+		for (const auto &row : rows) {
+			const auto toggled = row->entity()->filtered(query);
+			if (toggled != row->toggled()) {
+				row->toggle(toggled, anim::type::instant);
+			}
+		}
+	});
+
+	{
+		const auto label = CreateChild<FlatLabel>(
+			box.get(),
+			tr::lng_languages_none(),
+			st::membersAbout);
+		box->verticalLayout()->geometryValue(
+		) | rpl::start_with_next([=](const QRect &geometry) {
+			const auto shown = (geometry.height() <= 0);
+			label->setVisible(shown);
+			if (shown) {
+				label->moveToLeft(
+					(geometry.width() - label->width()) / 2,
+					geometry.y() + st::membersAbout.style.font->height * 4);
+				label->stackUnder(box->verticalLayout());
+			}
+		}, label->lifetime());
+	}
+
+	if (hasToggles) {
+		box->addButton(tr::lng_settings_save(), [=] {
+			auto result = ranges::views::all(
+				rows
+			) | ranges::views::filter([](const auto &row) {
+				return row->entity()->toggled();
+			}) | ranges::views::transform([](const auto &row) {
+				return row->entity()->id();
+			}) | ranges::to_vector;
+			if (!result.empty()) {
+				callback(std::move(result));
+			}
+			box->closeBox();
+		});
+	}
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+} // namespace Ui

@@ -14,13 +14,22 @@ struct LanguageId;
 
 namespace Ui {
 class PlainShadow;
+class PopupMenu;
+class IconButton;
 } // namespace Ui
+
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace HistoryView {
 
 class TranslateBar final {
 public:
-	TranslateBar(not_null<QWidget*> parent, not_null<History*> history);
+	TranslateBar(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		not_null<History*> history);
 	~TranslateBar();
 
 	void show();
@@ -43,10 +52,23 @@ private:
 	void setup(not_null<History*> history);
 	void updateShadowGeometry(QRect wrapGeometry);
 	void updateControlsGeometry(QRect wrapGeometry);
+	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> createMenu(
+		not_null<Ui::IconButton*> button);
+	void showMenu(base::unique_qptr<Ui::PopupMenu> menu);
 
+	void showHiddenToast(not_null<PeerData*> peer);
+	void showSettingsToast(not_null<PeerData*> peer, LanguageId ignored);
+	void showToast(
+		TextWithEntities text,
+		const QString &buttonText,
+		Fn<void()> buttonCallback);
+
+	const not_null<Window::SessionController*> _controller;
+	const not_null<History*> _history;
 	Ui::SlideWrap<> _wrap;
 	std::unique_ptr<Ui::PlainShadow> _shadow;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
 

@@ -6254,6 +6254,7 @@ void HistoryWidget::setupTranslateBar() {
 
 	_translateBar = std::make_unique<HistoryView::TranslateBar>(
 		this,
+		controller(),
 		_history);
 
 	controller()->adaptive().oneColumnValue(

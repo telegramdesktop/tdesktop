@@ -221,6 +221,7 @@ using Order = std::vector<QString>;
 		u"advanced_chat_management"_q,
 		u"profile_badge"_q,
 		u"animated_userpics"_q,
+		u"translations"_q,
 	};
 }
 
@@ -331,6 +332,15 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_animated_userpics(),
 				tr::lng_premium_summary_about_animated_userpics(),
 				PremiumPreview::AnimatedUserpics,
+			},
+		},
+		{
+			u"translations"_q,
+			Entry{
+				&st::settingsPremiumIconTranslations,
+				tr::lng_premium_summary_subtitle_translation(),
+				tr::lng_premium_summary_about_translation(),
+				PremiumPreview::RealTimeTranslation,
 			},
 		},
 	};
@@ -1887,6 +1897,8 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			return PremiumPreview::ProfileBadge;
 		} else if (s == u"animated_userpics"_q) {
 			return PremiumPreview::AnimatedUserpics;
+		} else if (s == u"translations"_q) {
+			return PremiumPreview::RealTimeTranslation;
 		}
 		return PremiumPreview::kCount;
 	}) | ranges::views::filter([](PremiumPreview type) {

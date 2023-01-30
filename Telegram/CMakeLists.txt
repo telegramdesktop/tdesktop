@@ -12,9 +12,7 @@ add_subdirectory(lib_crl)
 add_subdirectory(lib_base)
 add_subdirectory(lib_ui)
 add_subdirectory(lib_tl)
-if (NOT DESKTOP_APP_DISABLE_SPELLCHECK)
-    add_subdirectory(lib_spellcheck)
-endif()
+add_subdirectory(lib_spellcheck)
 add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
 add_subdirectory(lib_qr)
@@ -72,6 +70,7 @@ PRIVATE
     desktop-app::lib_crl
     desktop-app::lib_ui
     desktop-app::lib_tl
+    desktop-app::lib_spellcheck
     desktop-app::lib_storage
     desktop-app::lib_lottie
     desktop-app::lib_qr

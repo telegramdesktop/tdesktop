@@ -1447,6 +1447,7 @@ void StickersListFooter::paintSetIconToCache(
 			p.restore();
 		} else {
 			paintOne(0, [&] {
+				const auto selected = (info.index == _iconState.selected);
 				if (icon.setId == Data::Stickers::FeaturedSetId) {
 					const auto &stickers = _session->data().stickers();
 					return stickers.featuredSetsUnreadCount()
@@ -1457,9 +1458,9 @@ void StickersListFooter::paintSetIconToCache(
 				} else if (icon.setId == AllEmojiSectionSetId()) {
 					return &st::emojiPeople;
 				} else if (const auto section = SetIdEmojiSection(icon.setId)) {
-					return sectionIcon(*section, false);
+					return sectionIcon(*section, selected);
 				}
-				return &st::emojiRecent;
+				return sectionIcon(Section::Recent, selected);
 			}());
 		}
 	}

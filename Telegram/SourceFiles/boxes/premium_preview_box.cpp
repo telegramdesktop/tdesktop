@@ -114,6 +114,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_profile_badge();
 	case PremiumPreview::AnimatedUserpics:
 		return tr::lng_premium_summary_subtitle_animated_userpics();
+	case PremiumPreview::RealTimeTranslation:
+		return tr::lng_premium_summary_subtitle_translation();
 	}
 	Unexpected("PremiumPreview in SectionTitle.");
 }
@@ -142,6 +144,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_profile_badge();
 	case PremiumPreview::AnimatedUserpics:
 		return tr::lng_premium_summary_about_animated_userpics();
+	case PremiumPreview::RealTimeTranslation:
+		return tr::lng_premium_summary_about_translation();
 	}
 	Unexpected("PremiumPreview in SectionTitle.");
 }
@@ -453,6 +457,7 @@ struct VideoPreviewDocument {
 		case PremiumPreview::InfiniteReactions: return "infinite_reactions";
 		case PremiumPreview::ProfileBadge: return "profile_badge";
 		case PremiumPreview::AnimatedUserpics: return "animated_userpics";
+		case PremiumPreview::RealTimeTranslation: return "translations";
 		}
 		return "";
 	}();

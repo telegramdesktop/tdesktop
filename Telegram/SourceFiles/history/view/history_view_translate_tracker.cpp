@@ -57,13 +57,6 @@ void TranslateTracker::setup() {
 	const auto session = &_history->session();
 	peer->updateFull();
 
-	auto translationEnabled = session->changes().peerFlagsValue(
-		peer,
-		Data::PeerUpdate::Flag::TranslationDisabled
-	) | rpl::map([=] {
-		return peer->translationFlag() == PeerData::TranslationFlag::Enabled;
-	}) | rpl::distinct_until_changed();
-
 	_trackingLanguage = Data::AmPremiumValue(&_history->session());
 
 	_trackingLanguage.value(
@@ -340,7 +333,14 @@ void TranslateTracker::checkRecognized(const std::vector<LanguageId> &skip) {
 		: _allLoaded
 		? std::min(count, kEnoughForTranslation)
 		: kEnoughForTranslation;
-	if (ranges::accumulate(languages, 0, ranges::plus(), p) >= threshold) {
+	const auto translatable = ranges::accumulate(
+		languages,
+		0,
+		ranges::plus(),
+		p);
+	if (count < kEnoughForTranslation) {
+		// Don't change offer by small amount of messages.
+	} else if (translatable >= threshold) {
 		_history->translateOfferFrom(
 			ranges::max_element(languages, ranges::less(), p)->first);
 	} else {
