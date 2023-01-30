@@ -1,13 +1,13 @@
-4.5.8 beta (21.01.22)
+4.5.8 beta (21.01.23)
 
 - Allow opening another account in a new window (see Settings > Advanced > Experimental Settings).
 - A lot of bugfixes for working with more than one window.
 
-4.5.7 beta (13.01.22)
+4.5.7 beta (13.01.23)
 
 - Fix glitches after moving window to another screen (Windows only).
 
-4.5.6 beta (12.01.22)
+4.5.6 beta (12.01.23)
 
 - Try enabling non-fractional scale High DPI support on Windows and Linux.
 - Experimental setting for fractional scale High DPI support on Windows and Linux.
@@ -16,28 +16,28 @@
 - Fix a crash in sending some of JPEG images.
 - Fix CJK fonts on Windows.
 
-4.5.5 beta (10.01.22)
+4.5.5 beta (10.01.23)
 
 - Fix crash in Settings.
 
-4.5.4 beta (10.01.22)
+4.5.4 beta (10.01.23)
 
 - Allow wide range of interface scale options.
 - Show opened chat name in the window title.
 - Bug fixes and other minor improvements.
 - Fix updating on macOS older than 10.14.
 
-4.5.3 (06.01.22)
+4.5.3 (06.01.23)
 
 - Attempt to fix incoming video in calls from mobile apps.
 
-4.5.2 (03.01.22)
+4.5.2 (03.01.23)
 
 - Fix unread reactions button in private chats.
 - Fix tile background saving after an app update.
 - Allow Ctrl+6,7,8 to activate extra pinned chats.
 
-4.5.1 (02.01.22)
+4.5.1 (02.01.23)
 
 - Fix crash in profile photo privacy edition.
 - Allow sending photos larger than 1280px (in Experimental Settings).
