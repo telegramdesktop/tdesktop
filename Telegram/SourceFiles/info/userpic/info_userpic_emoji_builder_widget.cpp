@@ -157,14 +157,15 @@ private:
 		not_null<Footer*> footer;
 	};
 	[[nodiscard]] Selector createEmojiList(
-		not_null<Ui::ScrollArea*> scroll) const;
+		not_null<Ui::ScrollArea*> scroll);
 	[[nodiscard]] Selector createStickersList(
 		not_null<Ui::ScrollArea*> scroll) const;
 
 	const not_null<Window::SessionController*> _controller;
 	base::unique_qptr<Ui::RpWidget> _container;
 
-	rpl::variable<std::vector<DocumentId>> _recent;
+	rpl::event_stream<> _recentChanges;
+	std::vector<DocumentId> _lastRecent;
 	rpl::event_stream<not_null<DocumentData*>> _chosen;
 
 };
@@ -174,8 +175,13 @@ EmojiSelector::EmojiSelector(
 	not_null<Window::SessionController*> controller,
 	rpl::producer<std::vector<DocumentId>> recent)
 : RpWidget(parent)
-, _controller(controller)
-, _recent(std::move(recent)) {
+, _controller(controller) {
+	std::move(
+		recent
+	) | rpl::start_with_next([=](std::vector<DocumentId> ids) {
+		_lastRecent = std::move(ids);
+		_recentChanges.fire({});
+	}, lifetime());
 	createSelector(Type::Emoji);
 }
 
@@ -184,7 +190,7 @@ rpl::producer<not_null<DocumentData*>> EmojiSelector::chosen() const {
 }
 
 EmojiSelector::Selector EmojiSelector::createEmojiList(
-		not_null<Ui::ScrollArea*> scroll) const {
+		not_null<Ui::ScrollArea*> scroll) {
 	const auto session = &_controller->session();
 	const auto manager = &session->data().customEmojiManager();
 	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
@@ -193,7 +199,7 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 		.mode = ChatHelpers::EmojiListMode::UserpicBuilder,
 		.controller = _controller,
 		.paused = [=] { return true; },
-		.customRecentList = _recent.current(),
+		.customRecentList = _lastRecent,
 		.customRecentFactory = [=](DocumentId id, Fn<void()> repaint) {
 			return manager->create(id, std::move(repaint), tag);
 		},
@@ -206,6 +212,10 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 	list->customChosen(
 	) | rpl::start_with_next([=](const ChatHelpers::FileChosen &chosen) {
 		_chosen.fire_copy(chosen.document);
+	}, list->lifetime());
+	_recentChanges.events(
+	) | rpl::start_with_next([=] {
+		createSelector(Type::Emoji);
 	}, list->lifetime());
 	return { list, footer };
 }

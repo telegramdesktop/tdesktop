@@ -505,10 +505,12 @@ void EmojiListWidget::applyNextSearchQuery() {
 	}
 	_searchResults.clear();
 	_searchCustomIds.clear();
-	if (_mode == Mode::EmojiStatus || session().premium()) {
+	if ((_mode == Mode::EmojiStatus)
+		|| (_mode == Mode::UserpicBuilder)
+		|| session().premium()) {
 		appendPremiumSearchResults();
 	}
-	if (_mode != Mode::EmojiStatus) {
+	if (_mode != Mode::EmojiStatus && _mode != Mode::UserpicBuilder) {
 		for (const auto emoji : plain) {
 			_searchResults.push_back({
 				.id = { emoji },
