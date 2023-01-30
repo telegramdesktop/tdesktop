@@ -1254,7 +1254,7 @@ ItemPreview MediaLocation::toPreview(ToPreviewOptions options) const {
 TextWithEntities MediaLocation::notificationText() const {
 	return WithCaptionNotificationText(
 		tr::lng_maps_point(tr::now),
-		{ .text = _title});
+		{ .text = _title });
 }
 
 QString MediaLocation::pinnedTextSubstring() const {
@@ -1442,7 +1442,10 @@ bool MediaWebPage::replyPreviewLoaded() const {
 }
 
 ItemPreview MediaWebPage::toPreview(ToPreviewOptions options) const {
-	return { .text = notificationText() };
+	return { .text = options.translated
+		? parent()->translatedText()
+		: parent()->originalText()
+	};
 }
 
 TextWithEntities MediaWebPage::notificationText() const {
