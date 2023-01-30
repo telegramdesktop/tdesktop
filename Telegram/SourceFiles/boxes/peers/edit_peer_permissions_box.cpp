@@ -181,7 +181,8 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 		rpl::producer<int> checkedValue,
 		int total,
 		not_null<Ui::SlideWrap<>*> wrap,
-		Fn<void(bool)> toggleMedia) {
+		Fn<void(bool)> toggleMedia,
+		std::optional<QString> locked) {
 	const auto &stButton = st::rightsButton;
 	const auto button = container->add(object_ptr<Ui::SettingsButton>(
 		container,
@@ -219,6 +220,8 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 	using namespace rpl::mappers;
 	button->toggleOn(rpl::duplicate(checkedValue) | rpl::map(_1 > 0), true);
 	toggleButton->toggleOn(button->toggledValue(), true);
+	button->setToggleLocked(locked.has_value());
+	toggleButton->setToggleLocked(locked.has_value());
 	struct State final {
 		Ui::Animations::Simple animation;
 	};
@@ -278,14 +281,29 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 			st::slideWrapDuration);
 	}, button->lifetime());
 
+	const auto handleLocked = [=] {
+		if (locked.has_value()) {
+			Ui::ShowMultilineToast({
+				.parentOverride = container,
+				.text = { *locked },
+			});
+			return true;
+		}
+		return false;
+	};
+
 	button->clicks(
 	) | rpl::start_with_next([=] {
-		wrap->toggle(!wrap->toggled(), anim::type::normal);
+		if (!handleLocked()) {
+			wrap->toggle(!wrap->toggled(), anim::type::normal);
+		}
 	}, button->lifetime());
 
 	toggleButton->clicks(
 	) | rpl::start_with_next([=] {
-		toggleMedia(!button->toggled());
+		if (!handleLocked()) {
+			toggleMedia(!button->toggled());
+		}
 	}, toggleButton->lifetime());
 
 	return button;
@@ -340,13 +358,11 @@ not_null<Ui::SettingsButton*> AddInnerCheckbox(
 not_null<Ui::SettingsButton*> AddDefaultCheckbox(
 		not_null<Ui::VerticalLayout*> container,
 		const QString &text,
-		bool toggled,
-		bool locked) {
+		bool toggled) {
 	const auto button = Settings::AddButton(
 		container,
 		rpl::single(text),
 		st::rightsButton);
-	button->setToggleLocked(locked);
 	return button;
 };
 
@@ -456,10 +472,11 @@ template <
 			flags,
 			text,
 			toggled,
-			locked.has_value(),
+			locked,
 			[=](bool v) { flagCheck->second.checkChanges.fire_copy(v); });
 		flagCheck->second.widget = Ui::MakeWeak(control);
 		control->toggleOn(flagCheck->second.checkChanges.events());
+		control->setToggleLocked(locked.has_value());
 		control->toggledChanges(
 		) | rpl::start_with_next([=](bool checked) {
 			if (locked.has_value()) {
@@ -941,7 +958,7 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 			ChatRestrictions flags,
 			const QString &text,
 			bool toggled,
-			bool locked,
+			std::optional<QString> locked,
 			Fn<void(bool)> toggleCallback) {
 		const auto isMedia = ranges::any_of(
 			mediaRestrictions,
@@ -952,14 +969,19 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 				auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 					container,
 					object_ptr<Ui::VerticalLayout>(container));
+				if (locked.has_value()) {
+					wrap->hide(anim::type::instant);
+				}
 				SendMediaToggle(
 					container,
 					state->restrictions.events_starting_with(
-						0
+						ChatRestrictions(0)
 					) | rpl::map([=](ChatRestrictions r) -> int {
-						return ranges::count_if(
-							mediaRestrictions,
-							[&](auto f) { return !(r & f); });
+						return (r == ChatRestrictions(0))
+							? 0
+							: ranges::count_if(
+								mediaRestrictions,
+								[&](auto f) { return !(r & f); });
 					}),
 					mediaRestrictions.size(),
 					wrap.data(),
@@ -967,7 +989,8 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 						for (auto &callback : state->mediaToggleCallbacks) {
 							callback(toggled);
 						}
-					});
+					},
+					locked);
 				state->inner = container->add(std::move(wrap));
 			}
 			const auto checkbox = AddInnerCheckbox(
@@ -977,7 +1000,7 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 				state->restrictions.events() | rpl::to_empty);
 			return checkbox;
 		} else {
-			return AddDefaultCheckbox(container, text, toggled, locked);
+			return AddDefaultCheckbox(container, text, toggled);
 		}
 	};
 	auto result = CreateEditFlags(
@@ -1017,9 +1040,9 @@ EditFlagsControl<ChatAdminRights, Ui::RpWidget> CreateEditAdminRights(
 			ChatAdminRights flags,
 			const QString &text,
 			bool toggled,
-			bool locked,
-			auto callback) {
-		return AddDefaultCheckbox(container, text, toggled, locked);
+			std::optional<QString>,
+			auto&&) {
+		return AddDefaultCheckbox(container, text, toggled);
 	};
 	auto result = CreateEditFlags(
 		widget.data(),
