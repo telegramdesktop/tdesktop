@@ -141,7 +141,8 @@ class EmojiSelector final : public Ui::RpWidget {
 public:
 	EmojiSelector(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller);
+		not_null<Window::SessionController*> controller,
+		rpl::producer<std::vector<DocumentId>> recent);
 
 	[[nodiscard]] rpl::producer<not_null<DocumentData*>> chosen() const;
 
@@ -163,15 +164,18 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	base::unique_qptr<Ui::RpWidget> _container;
 
+	rpl::variable<std::vector<DocumentId>> _recent;
 	rpl::event_stream<not_null<DocumentData*>> _chosen;
 
 };
 
 EmojiSelector::EmojiSelector(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Window::SessionController*> controller)
+	not_null<Window::SessionController*> controller,
+	rpl::producer<std::vector<DocumentId>> recent)
 : RpWidget(parent)
-, _controller(controller) {
+, _controller(controller)
+, _recent(std::move(recent)) {
 	createSelector(Type::Emoji);
 }
 
@@ -189,7 +193,7 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 		.mode = ChatHelpers::EmojiListMode::UserpicBuilder,
 		.controller = _controller,
 		.paused = [=] { return true; },
-		.customRecentList = session->api().peerPhoto().profileEmojiList(),
+		.customRecentList = _recent.current(),
 		.customRecentFactory = [=](DocumentId id, Fn<void()> repaint) {
 			return manager->create(id, std::move(repaint), tag);
 		},
@@ -471,7 +475,8 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		[=] { return controller->chatStyle(); });
 	const auto selector = Ui::CreateChild<EmojiSelector>(
 		selectorBg.get(),
-		controller);
+		controller,
+		base::take(data.documents));
 	selector->chosen(
 	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
 		state->gradientEditorStartData.documentId = document->id;

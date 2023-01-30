@@ -219,9 +219,6 @@ void UserpicButton::prepare() {
 			: _peer
 			? &_peer->session().api()
 			: nullptr;
-		if (api) {
-			api->peerPhoto().requestProfileEmojiList();
-		}
 	}
 }
 
@@ -358,7 +355,9 @@ void UserpicButton::choosePhotoLocally() {
 				UserpicBuilder::AddEmojiBuilderAction(
 					_controller,
 					_menu,
-					session.api().peerPhoto().profileEmojiList(),
+					session.api().peerPhoto().emojiListValue(user
+						? Api::PeerPhoto::EmojiListType::Profile
+						: Api::PeerPhoto::EmojiListType::Group),
 					callback(ChosenType::Set));
 			}
 		} else {

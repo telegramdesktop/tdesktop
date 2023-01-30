@@ -28,6 +28,11 @@ public:
 	using UserPhotoId = PhotoId;
 	explicit PeerPhoto(not_null<ApiWrap*> api);
 
+	enum class EmojiListType {
+		Profile,
+		Group,
+	};
+
 	void upload(
 		not_null<PeerData*> peer,
 		QImage &&image,
@@ -44,8 +49,9 @@ public:
 
 	void requestUserPhotos(not_null<UserData*> user, UserPhotoId afterId);
 
-	void requestProfileEmojiList();
-	[[nodiscard]] std::vector<DocumentId> profileEmojiList() const;
+	void requestEmojiList(EmojiListType type);
+	using EmojiList = std::vector<DocumentId>;
+	[[nodiscard]] rpl::producer<EmojiList> emojiListValue(EmojiListType type);
 
 	// Non-personal photo in case a personal photo is set.
 	void registerNonPersonalPhoto(
@@ -86,7 +92,9 @@ private:
 		not_null<UserData*>,
 		not_null<PhotoData*>> _nonPersonalPhotos;
 
-	std::vector<DocumentId> _profileEmojiList;
+	mtpRequestId _requestIdEmojiList = 0;
+	rpl::variable<EmojiList> _profileEmojiList;
+	rpl::variable<EmojiList> _groupEmojiList;
 
 };
 

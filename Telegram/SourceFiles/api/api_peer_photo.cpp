@@ -427,20 +427,40 @@ void PeerPhoto::requestUserPhotos(
 	_userPhotosRequests.emplace(user, requestId);
 }
 
-void PeerPhoto::requestProfileEmojiList() {
-	_api.request(MTPaccount_GetDefaultProfilePhotoEmojis(
-	)).done([=](const MTPEmojiList &result) {
+void PeerPhoto::requestEmojiList(EmojiListType type) {
+	if (_requestIdEmojiList) {
+		return;
+	}
+	const auto isGroup = (type == EmojiListType::Group);
+	const auto d = [=](const MTPEmojiList &result) {
+		_requestIdEmojiList = 0;
 		result.match([](const MTPDemojiListNotModified &data) {
 		}, [&](const MTPDemojiList &data) {
-			_profileEmojiList = ranges::views::all(
+			auto &list = isGroup ? _profileEmojiList : _groupEmojiList;
+			list = ranges::views::all(
 				data.vdocument_id().v
 			) | ranges::views::transform(&MTPlong::v) | ranges::to_vector;
 		});
-	}).send();
+	};
+	const auto f = [=] { _requestIdEmojiList = 0; };
+	_requestIdEmojiList = isGroup
+		? _api.request(
+			MTPaccount_GetDefaultGroupPhotoEmojis()
+		).done(d).fail(f).send()
+		: _api.request(
+			MTPaccount_GetDefaultProfilePhotoEmojis()
+		).done(d).fail(f).send();
 }
 
-std::vector<DocumentId> PeerPhoto::profileEmojiList() const {
-	return _profileEmojiList;
+rpl::producer<PeerPhoto::EmojiList> PeerPhoto::emojiListValue(
+		EmojiListType type) {
+	auto &list = (type == EmojiListType::Group)
+		? _profileEmojiList
+		: _groupEmojiList;
+	if (list.current().empty() && !_requestIdEmojiList) {
+		requestEmojiList(type);
+	}
+	return list.value();
 }
 
 // Non-personal photo in case a personal photo is set.

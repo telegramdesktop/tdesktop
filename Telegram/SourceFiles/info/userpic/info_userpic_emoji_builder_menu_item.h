@@ -20,7 +20,7 @@ namespace UserpicBuilder {
 void AddEmojiBuilderAction(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::PopupMenu*> menu,
-	std::vector<DocumentId> documents,
+	rpl::producer<std::vector<DocumentId>> documents,
 	Fn<void(QImage &&image)> &&done);
 
 } // namespace UserpicBuilder

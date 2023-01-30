@@ -17,6 +17,7 @@ namespace UserpicBuilder {
 struct StartData {
 	DocumentId documentId = DocumentId(0);
 	int builderColorIndex = 0;
+	rpl::producer<std::vector<DocumentId>> documents;
 	std::vector<QColor> gradientEditorColors;
 };
 

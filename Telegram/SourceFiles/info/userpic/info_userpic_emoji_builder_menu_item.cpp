@@ -30,15 +30,19 @@ namespace UserpicBuilder {
 void AddEmojiBuilderAction(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::PopupMenu*> menu,
-		std::vector<DocumentId> documents,
+		rpl::producer<std::vector<DocumentId>> documents,
 		Fn<void(QImage &&image)> &&done) {
-	{
-		auto rd = std::random_device();
-		ranges::shuffle(documents, std::mt19937(rd()));
-	}
 	struct State final {
+		void next() {
+			documentIndex = documentIndex.current() + 1;
+			if (documentIndex.current() >= shuffledDocuments.size()) {
+				documentIndex = 0;
+			}
+			colorIndex = base::RandomIndex(std::numeric_limits<int>::max());
+		}
 		rpl::variable<int> documentIndex;
 		rpl::variable<int> colorIndex;
+		std::vector<DocumentId> shuffledDocuments;
 
 		base::Timer timer;
 	};
@@ -49,28 +53,28 @@ void AddEmojiBuilderAction(
 		Ui::Menu::CreateAction(
 			menu.get(),
 			tr::lng_attach_profile_emoji(tr::now),
-			[=, done = std::move(done)] {
+			[=, done = std::move(done), docs = rpl::duplicate(documents)] {
 				const auto index = state->documentIndex.current();
-				const auto id = index < documents.size()
-					? documents[index]
+				const auto id = index < state->shuffledDocuments.size()
+					? state->shuffledDocuments[index]
 					: 0;
 				UserpicBuilder::ShowLayer(
 					controller,
-					{ id, state->colorIndex.current() },
+					{ id, state->colorIndex.current(), docs },
 					base::duplicate(done));
 			}),
 		nullptr,
 		nullptr);
-	const auto timerCallback = [=] {
-		state->documentIndex = state->documentIndex.current() + 1;
-		if (state->documentIndex.current() >= documents.size()) {
-			state->documentIndex = 0;
-		}
-		state->colorIndex = base::RandomIndex(
-			std::numeric_limits<int>::max());
-	};
-	timerCallback();
-	state->timer.setCallback(timerCallback);
+	rpl::duplicate(
+		documents
+	) | rpl::start_with_next([=](std::vector<DocumentId> documents) {
+		state->shuffledDocuments = std::move(documents);
+		auto rd = std::random_device();
+		ranges::shuffle(state->shuffledDocuments, std::mt19937(rd()));
+		state->documentIndex = 0;
+	}, item->lifetime());
+	state->next();
+	state->timer.setCallback([=] { state->next(); });
 	constexpr auto kTimeout = crl::time(1500);
 	state->timer.callEach(kTimeout);
 	const auto icon = UserpicBuilder::CreateEmojiUserpic(
@@ -78,9 +82,10 @@ void AddEmojiBuilderAction(
 		st::restoreUserpicIcon.size,
 		state->documentIndex.value(
 		) | rpl::filter([=](int index) {
-			return index < documents.size();
+			return index < state->shuffledDocuments.size();
 		}) | rpl::map([=](int index) {
-			return controller->session().data().document(documents[index]);
+			return controller->session().data().document(
+				state->shuffledDocuments[index]);
 		}),
 		state->colorIndex.value());
 	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
