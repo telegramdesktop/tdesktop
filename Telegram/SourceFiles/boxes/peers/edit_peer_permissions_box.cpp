@@ -637,8 +637,8 @@ void AddSuggestGigagroup(
 		tr::lng_rights_gigagroup_convert(),
 		rpl::single(QString()),
 		std::move(callback),
-		st::peerPermissionsButton,
-		{}));
+		st::manageGroupTopicsButton,
+		{ &st::settingsIconAskQuestion, Settings::kIconGreen }));
 
 	container->add(
 		object_ptr<Ui::DividerLabel>(
@@ -673,8 +673,8 @@ void AddBannedButtons(
 				peer,
 				ParticipantsBoxController::Role::Restricted);
 		},
-		st::peerPermissionsButton,
-		{}));
+		st::manageGroupTopicsButton,
+		{ &st::settingsIconKey, Settings::kIconLightOrange }));
 	if (channel) {
 		container->add(EditPeerInfoBox::CreateButton(
 			container,
@@ -687,8 +687,8 @@ void AddBannedButtons(
 					peer,
 					ParticipantsBoxController::Role::Kicked);
 			},
-			st::peerPermissionsButton,
-			{}));
+			st::manageGroupTopicsButton,
+			{ &st::settingsIconMinus, Settings::kIconRed }));
 	}
 }
 
