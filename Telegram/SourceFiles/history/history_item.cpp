@@ -1421,8 +1421,12 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	if (!edition.useSameReactions) {
 		updateReactions(edition.mtpReactions);
 	}
-	changeViewsCount(edition.views);
-	setForwardsCount(edition.forwards);
+	if (!edition.useSameViews) {
+		changeViewsCount(edition.views);
+	}
+	if (!edition.useSameForwards) {
+		setForwardsCount(edition.forwards);
+	}
 	setText(_media
 		? edition.textWithEntities
 		: EnsureNonEmpty(edition.textWithEntities));
