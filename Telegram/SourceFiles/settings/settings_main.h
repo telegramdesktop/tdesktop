@@ -21,6 +21,7 @@ class VerticalLayout;
 namespace Settings {
 
 void SetupLanguageButton(
+	not_null<Window::Controller*> window,
 	not_null<Ui::VerticalLayout*> container,
 	bool icon = true);
 bool HasInterfaceScale();

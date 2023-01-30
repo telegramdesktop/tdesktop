@@ -86,6 +86,7 @@ void Controller::showAccount(
 		: 0;
 	_accountLifetime.destroy();
 	_account = account;
+	Core::App().checkWindowAccount(this);
 
 	const auto updateOnlineOfPrevSesssion = crl::guard(_account, [=] {
 		if (!prevSessionUniqueId) {

@@ -22,6 +22,14 @@ settingsButtonLight: SettingsButton(settingsButton) {
 settingsButtonNoIcon: SettingsButton(settingsButton) {
 	padding: margins(22px, 10px, 22px, 8px);
 }
+settingsButtonNoIconLocked : SettingsButton(settingsButtonNoIcon) {
+	toggle: Toggle(infoProfileToggle) {
+		lockIcon: icon {{ "info/info_rights_lock", menuIconFg }};
+	}
+	toggleOver: Toggle(infoProfileToggleOver) {
+		lockIcon: icon {{ "info/info_rights_lock", menuIconFgOver }};
+	}
+}
 settingsButtonActive: SettingsButton(infoMainButton, settingsButton) {
 }
 settingsAttentionButton: SettingsButton(settingsButtonNoIcon) {

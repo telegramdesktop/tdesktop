@@ -1278,7 +1278,7 @@ bool MainWidget::showHistoryInDifferentWindow(
 	} else if (isPrimary()) {
 		const auto primary = Core::App().separateWindowForAccount(
 			&peer->account());
-		if (primary != &_controller->window()) {
+		if (primary && primary != &_controller->window()) {
 			primary->sessionController()->showPeerHistory(
 				peerId,
 				params,

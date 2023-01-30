@@ -57,7 +57,11 @@ void TranslateTracker::setup() {
 	const auto session = &_history->session();
 	peer->updateFull();
 
-	_trackingLanguage = Data::AmPremiumValue(&_history->session());
+	using namespace rpl::mappers;
+	_trackingLanguage = rpl::combine(
+		Data::AmPremiumValue(&_history->session()),
+		Core::App().settings().translateChatEnabledValue(),
+		_1 && _2);
 
 	_trackingLanguage.value(
 	) | rpl::start_with_next([=](bool tracking) {

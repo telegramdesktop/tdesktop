@@ -181,6 +181,7 @@ public:
 	void checkSystemDarkMode();
 	[[nodiscard]] bool isActiveForTrayMenu() const;
 	void closeChatFromWindows(not_null<PeerData*> peer);
+	void checkWindowAccount(not_null<Window::Controller*> window);
 	void activate();
 
 	// Media view interface.

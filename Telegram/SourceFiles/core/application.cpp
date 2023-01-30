@@ -384,15 +384,19 @@ void Application::showAccount(not_null<Main::Account*> account) {
 		_lastActivePrimaryWindow = separate;
 		separate->activate();
 	} else if (const auto last = activePrimaryWindow()) {
-		for (auto &[key, window] : _primaryWindows) {
-			if (window.get() == last && key != account.get()) {
-				auto found = std::move(window);
-				_primaryWindows.remove(key);
-				_primaryWindows.emplace(account, std::move(found));
-				break;
-			}
-		}
 		last->showAccount(account);
+	}
+}
+
+void Application::checkWindowAccount(not_null<Window::Controller*> window) {
+	const auto account = window->maybeAccount();
+	for (auto &[key, existing] : _primaryWindows) {
+		if (existing.get() == window && key != account) {
+			auto found = std::move(existing);
+			_primaryWindows.remove(key);
+			_primaryWindows.emplace(account, std::move(found));
+			break;
+		}
 	}
 }
 
