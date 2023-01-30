@@ -83,19 +83,29 @@ void TranslateBar::setup(not_null<History*> history) {
 	_wrap.geometryValue(
 	) | rpl::start_with_next([=](QRect rect) {
 		updateShadowGeometry(rect);
-	updateControlsGeometry(rect);
+		updateControlsGeometry(rect);
 	}, _wrap.lifetime());
 
 	const auto button = static_cast<Ui::FlatButton*>(_wrap.entity());
-	button->setClickedCallback([=] {
-		const auto to = history->translatedTo()
-			? LanguageId()
-			: Core::App().settings().translateTo();
-		history->translateTo(to);
+	const auto translateTo = [=](LanguageId id) {
+		history->translateTo(id);
 		if (const auto migrated = history->migrateFrom()) {
-			migrated->translateTo(to);
+			migrated->translateTo(id);
 		}
+	};
+	button->setClickedCallback([=] {
+		translateTo(history->translatedTo()
+			? LanguageId()
+			: Core::App().settings().translateTo());
 	});
+
+	Core::App().settings().translateToValue(
+	) | rpl::filter([=](LanguageId should) {
+		const auto now = history->translatedTo();
+		return now && (now != should);
+	}) | rpl::start_with_next([=](LanguageId should) {
+		translateTo(should);
+	}, _wrap.lifetime());
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,

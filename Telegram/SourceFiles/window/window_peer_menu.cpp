@@ -270,6 +270,7 @@ private:
 	void addViewDiscussion();
 	void addToggleTopicClosed();
 	void addExportChat();
+	void addTranslate();
 	void addReport();
 	void addNewContact();
 	void addShareContact();
@@ -776,6 +777,23 @@ void Filler::addExportChat() {
 		&st::menuIconExport);
 }
 
+void Filler::addTranslate() {
+	if (_peer->translationFlag() != PeerData::TranslationFlag::Disabled
+		|| !_peer->session().premium()
+		|| !Core::App().settings().translateChatEnabled()) {
+		return;
+	}
+	const auto history = _peer->owner().historyLoaded(_peer);
+	if (!history
+		|| !history->translateOfferedFrom()
+		|| history->translatedTo()) {
+		return;
+	}
+	_addAction(tr::lng_context_translate(tr::now), [=] {
+		history->peer->saveTranslationDisabled(false);
+	}, &st::menuIconTranslate);
+}
+
 void Filler::addReport() {
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
@@ -1174,6 +1192,7 @@ void Filler::fillHistoryActions() {
 	addThemeEdit();
 	addViewDiscussion();
 	addExportChat();
+	addTranslate();
 	addReport();
 	addClearHistory();
 	addDeleteChat();
