@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "info/userpic/info_userpic_emoji_builder.h"
 #include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_widget.h"
@@ -32,17 +33,31 @@ void AddEmojiBuilderAction(
 		not_null<Ui::PopupMenu*> menu,
 		rpl::producer<std::vector<DocumentId>> documents,
 		Fn<void(QImage &&image)> &&done) {
+	constexpr auto kTimeout = crl::time(1500);
 	struct State final {
-		void next() {
-			documentIndex = documentIndex.current() + 1;
-			if (documentIndex.current() >= shuffledDocuments.size()) {
-				documentIndex = 0;
-			}
+		State() {
 			colorIndex = base::RandomIndex(std::numeric_limits<int>::max());
+		}
+		void next() {
+			auto nextIndex = documentIndex.current() + 1;
+			if (nextIndex >= shuffledDocuments.size()) {
+				nextIndex = 0;
+			}
+			documentIndex = nextIndex;
+		}
+		void documentShown() {
+			if (!firstDocumentShown) {
+				firstDocumentShown = true;
+			} else {
+				colorIndex = base::RandomIndex(
+					std::numeric_limits<int>::max());
+			}
+			timer.callOnce(kTimeout);
 		}
 		rpl::variable<int> documentIndex;
 		rpl::variable<int> colorIndex;
 		std::vector<DocumentId> shuffledDocuments;
+		bool firstDocumentShown = false;
 
 		base::Timer timer;
 	};
@@ -65,27 +80,28 @@ void AddEmojiBuilderAction(
 			}),
 		nullptr,
 		nullptr);
-	rpl::duplicate(
-		documents
-	) | rpl::start_with_next([=](std::vector<DocumentId> documents) {
-		state->shuffledDocuments = std::move(documents);
-		auto rd = std::random_device();
-		ranges::shuffle(state->shuffledDocuments, std::mt19937(rd()));
-		state->documentIndex = 0;
-	}, item->lifetime());
-	state->next();
 	state->timer.setCallback([=] { state->next(); });
-	constexpr auto kTimeout = crl::time(1500);
-	state->timer.callEach(kTimeout);
 	const auto icon = UserpicBuilder::CreateEmojiUserpic(
 		item.get(),
 		st::restoreUserpicIcon.size,
 		state->documentIndex.value(
 		) | rpl::filter([=](int index) {
-			return index < state->shuffledDocuments.size();
+			if (index >= state->shuffledDocuments.size()) {
+				state->next();
+				return false;
+			}
+			const auto id = state->shuffledDocuments[index];
+			if (!controller->session().data().document(id)->sticker()) {
+				state->next();
+				return false;
+			}
+			return true;
 		}) | rpl::map([=](int index) {
-			return controller->session().data().document(
+			return controller->session().data().customEmojiManager().resolve(
 				state->shuffledDocuments[index]);
+		}) | rpl::flatten_latest() | rpl::map([=](not_null<DocumentData*> d) {
+			state->documentShown();
+			return d;
 		}),
 		state->colorIndex.value());
 	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -93,6 +109,18 @@ void AddEmojiBuilderAction(
 		+ QPoint(
 			(st::menuIconRemove.width() - icon->width()) / 2,
 			(st::menuIconRemove.height() - icon->height()) / 2));
+
+	rpl::duplicate(
+		documents
+	) | rpl::start_with_next([=](std::vector<DocumentId> documents) {
+		if (documents.empty()) {
+			return;
+		}
+		auto rd = std::random_device();
+		ranges::shuffle(documents, std::mt19937(rd()));
+		state->shuffledDocuments = std::move(documents);
+		state->documentIndex.force_assign(0);
+	}, item->lifetime());
 
 	menu->addAction(std::move(item));
 }
