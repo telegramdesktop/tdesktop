@@ -98,7 +98,7 @@ void PreviewPainter::paintBackground(QPainter &p, const QImage &image) {
 bool PreviewPainter::paintForeground(QPainter &p) {
 	if (_player && _player->ready()) {
 		// resolveIsColored();
-		const auto frame = _player->frame(
+		auto frame = _player->frame(
 			Size(_emojiSize),
 			(/*_isColored
 				? st::profileVerifiedCheckBg->c
@@ -115,6 +115,9 @@ bool PreviewPainter::paintForeground(QPainter &p) {
 			}
 		}
 
+		frame.image = Images::Round(
+			base::take(frame.image),
+			ImageRoundRadius::Large);
 		if (frame.image.width() == frame.image.height()) {
 			p.drawImage(_frameRect, frame.image);
 		} else {
