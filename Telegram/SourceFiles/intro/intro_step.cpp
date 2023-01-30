@@ -226,7 +226,9 @@ void Step::createSession(
 		session.saveSettingsDelayed();
 	}
 	if (!photo.isNull()) {
-		session.api().peerPhoto().upload(session.user(), std::move(photo));
+		session.api().peerPhoto().upload(
+			session.user(),
+			{ std::move(photo) });
 	}
 	account->appConfig().refresh();
 	if (session.supportMode()) {

@@ -104,7 +104,7 @@ void ChatCreateDone(
 			if (!image.isNull()) {
 				chat->session().api().peerPhoto().upload(
 					chat,
-					std::move(image));
+					{ std::move(image) });
 			}
 			if (ttlPeriod) {
 				chat->setMessagesTTL(ttlPeriod);
@@ -828,7 +828,7 @@ void GroupInfoBox::createChannel(
 				if (!image.isNull()) {
 					channel->session().api().peerPhoto().upload(
 						channel,
-						std::move(image));
+						{ std::move(image) });
 				}
 				if (_ttlPeriod && channel->isMegagroup()) {
 					channel->setMessagesTTL(_ttlPeriod);

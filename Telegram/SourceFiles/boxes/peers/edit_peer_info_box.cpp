@@ -1879,7 +1879,9 @@ void Controller::savePhoto() {
 		? _controls.photo->takeResultImage()
 		: QImage();
 	if (!image.isNull()) {
-		_peer->session().api().peerPhoto().upload(_peer, std::move(image));
+		_peer->session().api().peerPhoto().upload(
+			_peer,
+			{ std::move(image) });
 	}
 	_box->closeBox();
 }

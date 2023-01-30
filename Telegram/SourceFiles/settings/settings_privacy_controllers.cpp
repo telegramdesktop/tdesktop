@@ -1171,7 +1171,7 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupBelowWidget(
 		} else if (!state->localOriginal.isNull()) {
 			controller->session().api().peerPhoto().uploadFallback(
 				self,
-				base::take(state->localOriginal));
+				{ base::take(state->localOriginal) });
 		}
 	};
 

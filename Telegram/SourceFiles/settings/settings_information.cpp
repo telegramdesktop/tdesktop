@@ -256,7 +256,7 @@ void SetupPhoto(
 		auto &image = chosen.image;
 		UpdatePhotoLocally(self, image);
 		photo->showCustom(base::duplicate(image));
-		self->session().api().peerPhoto().upload(self, std::move(image));
+		self->session().api().peerPhoto().upload(self, { std::move(image) });
 	}, upload->lifetime());
 
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(

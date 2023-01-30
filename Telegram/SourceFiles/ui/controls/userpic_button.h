@@ -83,6 +83,10 @@ public:
 	struct ChosenImage {
 		QImage image;
 		ChosenType type = ChosenType::Set;
+		struct {
+			DocumentId documentId = 0;
+			std::vector<QColor> colors;
+		} markup;
 	};
 
 	// Role::OpenPhoto

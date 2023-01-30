@@ -144,7 +144,9 @@ Cover::Cover(
 			Ui::UserpicButton::ChosenImage chosen) {
 		auto &image = chosen.image;
 		_userpic->showCustom(base::duplicate(image));
-		_user->session().api().peerPhoto().upload(_user, std::move(image));
+		_user->session().api().peerPhoto().upload(
+			_user,
+			{ std::move(image) });
 	});
 
 	_badge.setPremiumClickCallback([=] {
