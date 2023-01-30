@@ -29,6 +29,7 @@ public:
 
 	[[nodiscard]] not_null<DocumentData*> document() const;
 
+	void setPlayOnce(bool value);
 	void setDocument(
 		not_null<DocumentData*> document,
 		Fn<void()> updateCallback);
@@ -43,7 +44,9 @@ private:
 
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
-	bool _paused = true;
+	bool _playOnce = false;
+	bool _paused = false;
+	bool _firstFrameShown = false;
 	rpl::lifetime _lifetime;
 
 };
@@ -62,6 +65,8 @@ protected:
 
 private:
 	PreviewPainter _painter;
+
+	std::optional<bool> _playOnce;
 
 	QImage _previousImage;
 	QImage _image;
