@@ -471,7 +471,7 @@ void EmojiListWidget::setupSearch() {
 		InvokeQueued(this, [=] {
 			applyNextSearchQuery();
 		});
-	}, session, (_mode == Mode::EmojiStatus));
+	}, session, (_mode == Mode::EmojiStatus), _mode == Mode::UserpicBuilder);
 }
 
 void EmojiListWidget::applyNextSearchQuery() {
@@ -720,7 +720,8 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 
 void EmojiListWidget::afterShown() {
 	const auto steal = (_mode == Mode::EmojiStatus)
-		|| (_mode == Mode::FullReactions);
+		|| (_mode == Mode::FullReactions)
+		|| (_mode == Mode::UserpicBuilder);
 	if (_search && steal) {
 		_search->stealFocus();
 	}
@@ -1411,6 +1412,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			_jumpedToPremium.fire({});
 			switch (_mode) {
 			case Mode::Full:
+			case Mode::UserpicBuilder:
 				Settings::ShowPremium(_controller, u"animated_emoji"_q);
 				break;
 			case Mode::FullReactions:

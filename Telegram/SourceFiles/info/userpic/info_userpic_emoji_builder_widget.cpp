@@ -186,7 +186,7 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
 	auto args = ChatHelpers::EmojiListDescriptor{
 		.session = session,
-		.mode = ChatHelpers::EmojiListMode::FullReactions,
+		.mode = ChatHelpers::EmojiListMode::UserpicBuilder,
 		.controller = _controller,
 		.paused = [=] { return true; },
 		.customRecentList = session->api().peerPhoto().profileEmojiList(),

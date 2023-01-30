@@ -68,6 +68,7 @@ enum class EmojiListMode {
 	EmojiStatus,
 	FullReactions,
 	RecentReactions,
+	UserpicBuilder,
 };
 
 struct EmojiListDescriptor {

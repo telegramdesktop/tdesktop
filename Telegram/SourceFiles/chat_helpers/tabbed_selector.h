@@ -83,7 +83,8 @@ using InlineChosen = InlineBots::ResultSelected;
 	const style::EmojiPan &st,
 	Fn<void(std::vector<QString>&&)> callback,
 	not_null<Main::Session*> session,
-	bool statusCategories = false);
+	bool statusCategories = false,
+	bool profilePhotoCategories = false);
 
 class TabbedSelector : public Ui::RpWidget {
 public:
