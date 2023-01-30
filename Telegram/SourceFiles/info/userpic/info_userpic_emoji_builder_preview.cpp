@@ -163,7 +163,11 @@ void EmojiUserpic::result(int size, Fn<void(UserpicBuilder::Result)> done) {
 				}
 			}
 		}
-		done({ std::move(background), document->id, _colors });
+		if (*_playOnce) {
+			done({ std::move(background), document->id, _colors });
+		} else {
+			done({ std::move(background) });
+		}
 	});
 }
 

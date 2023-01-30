@@ -444,17 +444,22 @@ void Cover::refreshUploadPhotoOverlay() {
 	}(), [=](Ui::UserpicButton::ChosenImage chosen) {
 		using ChosenType = Ui::UserpicButton::ChosenType;
 		auto &image = chosen.image;
+		auto result = Api::PeerPhoto::UserPhoto{
+			std::move(image),
+			chosen.markup.documentId,
+			chosen.markup.colors,
+		};
 		switch (chosen.type) {
 		case ChosenType::Set:
 			_userpic->showCustom(base::duplicate(image));
 			_peer->session().api().peerPhoto().upload(
 				_peer,
-				{ std::move(image) });
+				std::move(result));
 			break;
 		case ChosenType::Suggest:
 			_peer->session().api().peerPhoto().suggest(
 				_peer,
-				{ std::move(image) });
+				std::move(result));
 			break;
 		}
 	});
@@ -478,7 +483,11 @@ void Cover::setupChangePersonal() {
 		if (chosen.type == Ui::UserpicButton::ChosenType::Suggest) {
 			_peer->session().api().peerPhoto().suggest(
 				_peer,
-				{ std::move(chosen.image) });
+				{
+					std::move(chosen.image),
+					chosen.markup.documentId,
+					chosen.markup.colors,
+				});
 		} else {
 			_personalChosen = std::move(chosen.image);
 			_userpic->showCustom(base::duplicate(*_personalChosen));

@@ -146,7 +146,11 @@ Cover::Cover(
 		_userpic->showCustom(base::duplicate(image));
 		_user->session().api().peerPhoto().upload(
 			_user,
-			{ std::move(image) });
+			{
+				std::move(image),
+				chosen.markup.documentId,
+				chosen.markup.colors,
+			});
 	});
 
 	_badge.setPremiumClickCallback([=] {
