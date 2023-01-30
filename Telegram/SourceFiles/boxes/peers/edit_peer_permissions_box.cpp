@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
+#include "styles/style_settings.h"
 
 namespace {
 
@@ -285,6 +286,52 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 
 	return button;
 }
+
+not_null<Ui::SettingsButton*> AddInnerCheckbox(
+		not_null<Ui::VerticalLayout*> container,
+		const QString &text,
+		bool toggled,
+		rpl::producer<> toggledChanges) {
+	class Button final : public Ui::SettingsButton {
+	public:
+		using Ui::SettingsButton::SettingsButton;
+
+	protected:
+		void paintEvent(QPaintEvent *e) override {
+			Painter p(this);
+
+			const auto paintOver = (isOver() || isDown()) && !isDisabled();
+			Ui::SettingsButton::paintBg(p, e->rect(), paintOver);
+			Ui::SettingsButton::paintRipple(p, 0, 0);
+		}
+
+	};
+
+	const auto checkbox = container->add(
+		object_ptr<Ui::Checkbox>(
+			container,
+			text,
+			toggled,
+			st::settingsCheckbox),
+		st::rightsButton.padding);
+	const auto button = Ui::CreateChild<Button>(
+		container.get(),
+		rpl::single(QString()));
+	button->stackUnder(checkbox);
+	rpl::combine(
+		container->widthValue(),
+		checkbox->geometryValue()
+	) | rpl::start_with_next([=](int w, const QRect &r) {
+		button->setGeometry(0, r.y(), w, r.height());
+	}, button->lifetime());
+	checkbox->setAttribute(Qt::WA_TransparentForMouseEvents);
+	std::move(
+		toggledChanges
+	) | rpl::start_with_next([=] {
+		checkbox->setChecked(button->toggled());
+	}, checkbox->lifetime());
+	return button;
+};
 
 not_null<Ui::SettingsButton*> AddDefaultCheckbox(
 		not_null<Ui::VerticalLayout*> container,
@@ -919,11 +966,11 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 					});
 				state->inner = container->add(std::move(wrap));
 			}
-			const auto checkbox = AddDefaultCheckbox(
+			const auto checkbox = AddInnerCheckbox(
 				state->inner->entity(),
 				text,
 				toggled,
-				locked);
+				state->restrictions.events() | rpl::to_empty);
 			return checkbox;
 		} else {
 			return AddDefaultCheckbox(container, text, toggled, locked);
@@ -946,6 +993,10 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 	rpl::duplicate(
 		result.changes
 	) | rpl::start_to_stream(state->restrictions, state->inner->lifetime());
+	result.widget->widthValue(
+	) | rpl::start_with_next([=](int w) {
+		state->inner->resizeToWidth(w);
+	}, state->inner->lifetime());
 
 	return result;
 }
