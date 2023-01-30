@@ -356,7 +356,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
 		StartData data,
-		BothWayCommunication<QImage&&> communication) {
+		BothWayCommunication<UserpicBuilder::Result> communication) {
 	const auto container = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
 
 	struct State {
@@ -500,8 +500,8 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	base::take(
 		communication.triggers
 	) | rpl::start_with_next([=, done = base::take(communication.result)] {
-		preview->result(Editor::kProfilePhotoSize, [=](QImage &&image) {
-			done(std::move(image));
+		preview->result(Editor::kProfilePhotoSize, [=](Result result) {
+			done(std::move(result));
 		});
 	}, preview->lifetime());
 

@@ -19,6 +19,7 @@ class SessionController;
 namespace UserpicBuilder {
 
 struct StartData;
+struct Result;
 
 template <typename Result>
 struct BothWayCommunication;
@@ -27,7 +28,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> controller,
 	StartData data,
-	BothWayCommunication<QImage&&> communication);
+	BothWayCommunication<UserpicBuilder::Result> communication);
 
 [[nodiscard]] not_null<Ui::RpWidget*> CreateEmojiUserpic(
 	not_null<Ui::RpWidget*> parent,

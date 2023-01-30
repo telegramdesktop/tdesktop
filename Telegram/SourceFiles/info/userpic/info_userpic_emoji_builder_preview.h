@@ -23,6 +23,8 @@ class DocumentData;
 
 namespace UserpicBuilder {
 
+struct Result;
+
 class PreviewPainter final {
 public:
 	PreviewPainter(int size);
@@ -55,7 +57,7 @@ class EmojiUserpic final : public Ui::RpWidget {
 public:
 	EmojiUserpic(not_null<Ui::RpWidget*> parent, const QSize &size);
 
-	void result(int size, Fn<void(QImage &&image)> done);
+	void result(int size, Fn<void(UserpicBuilder::Result)> done);
 	void setGradientColors(std::vector<QColor> colors);
 	void setDocument(not_null<DocumentData*> document);
 	void setDuration(crl::time duration);

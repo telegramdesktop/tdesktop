@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
+#include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_menu_item.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
@@ -351,6 +352,15 @@ void UserpicButton::choosePhotoLocally() {
 				}, &st::menuIconPhotoSet);
 			}
 			if (_controller) {
+				const auto done = [=](UserpicBuilder::Result data) {
+					auto result = ChosenImage{
+						base::take(data.image),
+						ChosenType::Set,
+					};
+					result.markup.documentId = data.id;
+					result.markup.colors = base::take(data.colors);
+					_chosenImages.fire(std::move(result));
+				};
 				auto &session = _controller->session();
 				UserpicBuilder::AddEmojiBuilderAction(
 					_controller,
@@ -358,7 +368,7 @@ void UserpicButton::choosePhotoLocally() {
 					session.api().peerPhoto().emojiListValue(user
 						? Api::PeerPhoto::EmojiListType::Profile
 						: Api::PeerPhoto::EmojiListType::Group),
-					callback(ChosenType::Set));
+					done);
 			}
 		} else {
 			chooseFile();

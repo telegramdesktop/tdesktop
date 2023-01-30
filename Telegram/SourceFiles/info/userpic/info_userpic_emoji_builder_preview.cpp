@@ -148,19 +148,22 @@ void EmojiUserpic::setDocument(not_null<DocumentData*> document) {
 	_painter.setPlayOnce(*_playOnce);
 }
 
-void EmojiUserpic::result(int size, Fn<void(QImage &&image)> done) {
+void EmojiUserpic::result(int size, Fn<void(UserpicBuilder::Result)> done) {
 	const auto painter = lifetime().make_state<PreviewPainter>(size);
 	// Reset to the first frame.
-	painter->setDocument(_painter.document(), [=] {
+	const auto document = _painter.document();
+	painter->setDocument(document, [=] {
 		auto background = GenerateGradient(Size(size), _colors, false);
 
-		auto p = QPainter(&background);
-		while (true) {
-			if (painter->paintForeground(p)) {
-				break;
+		{
+			auto p = QPainter(&background);
+			while (true) {
+				if (painter->paintForeground(p)) {
+					break;
+				}
 			}
 		}
-		done(std::move(background));
+		done({ std::move(background), document->id, _colors });
 	});
 }
 

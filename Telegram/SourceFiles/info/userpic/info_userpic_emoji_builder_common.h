@@ -9,6 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace UserpicBuilder {
 
+struct Result {
+	QImage&& image;
+	DocumentId id = 0;
+	std::vector<QColor> colors;
+};
+
 [[nodiscard]] QImage GenerateGradient(
 	const QSize &size,
 	const std::vector<QColor> &colors,

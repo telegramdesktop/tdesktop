@@ -13,11 +13,12 @@ class SessionController;
 
 namespace UserpicBuilder {
 
+struct Result;
 struct StartData;
 
 void ShowLayer(
 	not_null<Window::SessionController*> controller,
 	StartData data,
-	Fn<void(QImage &&image)> &&doneCallback);
+	Fn<void(UserpicBuilder::Result)> &&doneCallback);
 
 } // namespace UserpicBuilder
