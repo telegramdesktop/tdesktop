@@ -182,40 +182,43 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 		int total,
 		not_null<Ui::SlideWrap<>*> wrap,
 		Fn<void(bool)> toggleMedia) {
-	class Button final : public Ui::SettingsButton {
-	public:
-		using Ui::SettingsButton::SettingsButton;
-
-		[[nodiscard]] QRect innerToggleRect() const {
-			return Ui::SettingsButton::maybeToggleRect();
-		}
-		[[nodiscard]] bool toggleClicked() const {
-			return _togglePressed && _toggleReleased;
-		}
-
-	protected:
-		void mousePressEvent(QMouseEvent *event) override {
-			_togglePressed = Ui::SettingsButton::maybeToggleRect().contains(
-				event->pos());
-			Ui::SettingsButton::mousePressEvent(event);
-		}
-		void mouseReleaseEvent(QMouseEvent *event) override {
-			_toggleReleased = Ui::SettingsButton::maybeToggleRect().contains(
-				event->pos());
-			Ui::SettingsButton::mouseReleaseEvent(event);
-		}
-
-	private:
-		bool _togglePressed = false;
-		bool _toggleReleased = false;
-
-	};
-	const auto button = container->add(object_ptr<Button>(
+	const auto &stButton = st::rightsButton;
+	const auto button = container->add(object_ptr<Ui::SettingsButton>(
 		container,
 		rpl::single(QString()),
-		st::rightsButton));
+		stButton));
+	const auto toggleButton = Ui::CreateChild<Ui::SettingsButton>(
+		container.get(),
+		rpl::single(QString()),
+		stButton);
+	{
+		const auto separator = Ui::CreateChild<Ui::RpWidget>(container.get());
+		separator->paintRequest(
+		) | rpl::start_with_next([=, bg = stButton.textBgOver] {
+			auto p = QPainter(separator);
+			p.fillRect(separator->rect(), bg);
+		}, separator->lifetime());
+		const auto separatorHeight = 2 * stButton.toggle.border
+			+ stButton.toggle.diameter;
+		button->geometryValue(
+		) | rpl::start_with_next([=](const QRect &r) {
+			const auto w = st::rightsButtonToggleWidth;
+			constexpr auto kLineWidth = int(1);
+			toggleButton->setGeometry(
+				r.x() + r.width() - w,
+				r.y(),
+				w,
+				r.height());
+			separator->setGeometry(
+				toggleButton->x() - kLineWidth,
+				r.y() + (r.height() - separatorHeight) / 2,
+				kLineWidth,
+				separatorHeight);
+		}, toggleButton->lifetime());
+	}
 	using namespace rpl::mappers;
 	button->toggleOn(rpl::duplicate(checkedValue) | rpl::map(_1 > 0), true);
+	toggleButton->toggleOn(button->toggledValue(), true);
 	struct State final {
 		Ui::Animations::Simple animation;
 	};
@@ -254,7 +257,7 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 	button->sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		const auto labelLeft = st::rightsButton.padding.left();
-		const auto labelRight = button->innerToggleRect().left();
+		const auto labelRight = s.width() - toggleButton->width();
 
 		label->resizeToWidth(labelRight - labelLeft - arrow->width());
 		label->moveToLeft(
@@ -277,12 +280,13 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 
 	button->clicks(
 	) | rpl::start_with_next([=] {
-		if (button->toggleClicked()) {
-			toggleMedia(!button->toggled());
-		} else {
-			wrap->toggle(!wrap->toggled(), anim::type::normal);
-		}
+		wrap->toggle(!wrap->toggled(), anim::type::normal);
 	}, button->lifetime());
+
+	toggleButton->clicks(
+	) | rpl::start_with_next([=] {
+		toggleMedia(!button->toggled());
+	}, toggleButton->lifetime());
 
 	return button;
 }

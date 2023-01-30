@@ -641,9 +641,10 @@ rightsButton: SettingsButton(defaultSettingsButton) {
 	toggleOver: rightsToggle;
 	toggleSkip: 19px;
 }
+rightsButtonToggleWidth: 70px;
 rightsDividerHeight: boxDividerHeight;
 rightsDividerMargin: margins(0px, 0px, 0px, 20px);
-rightsHeaderMargin: margins(22px, 0px, 22px, 8px);
+rightsHeaderMargin: margins(22px, 13px, 22px, 7px);
 rightsToggleMargin: margins(22px, 8px, 22px, 8px);
 rightsAboutMargin: margins(22px, 8px, 22px, 8px);
 rightsPhotoButton: UserpicButton(defaultUserpicButton) {
