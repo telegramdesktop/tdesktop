@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     container:
-      image: ghcr.io/telegramdesktop/tdesktop/centos_env
+      image: ghcr.io/wrwrabbit/tdesktop/centos_env
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -102,6 +102,7 @@ jobs:
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.API_HASH }} \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
+          -D CMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
           $DEFINE
 
           cmake --build ../out --config Release --parallel

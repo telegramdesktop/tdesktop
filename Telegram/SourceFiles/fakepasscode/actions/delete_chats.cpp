@@ -41,6 +41,7 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         for (quint64 id : data.peer_ids) {
             auto peer_id = PeerId(id);
             auto peer = data_session.peer(peer_id);
+            FAKE_LOG(qsl("Remove chat %1").arg(peer->name()));
             auto history = data_session.history(peer_id);
             api.deleteConversation(peer, false);
             //api.clearHistory(peer, false);

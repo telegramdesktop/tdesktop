@@ -406,12 +406,11 @@ win:
     SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
-
     powershell -Command "iwr -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20221028.sfx.exe"
     msys64.exe
     del msys64.exe
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
-    pacman -S --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
+    pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
     SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
 
@@ -1226,10 +1225,10 @@ win:
     jom -j16
     jom -j16 install
 
+    del /S *.cpp
+    del /S *.pdb
+    del /S *.obj
     cd ..
-    del /S qt_5_15_4\*.cpp
-    del /S qt_5_15_4\*.pdb
-    del /S qt_5_15_4\*.obj
 mac:
     find ../../patches/qtbase_5_15_7 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
@@ -1370,7 +1369,6 @@ win:
         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
         -Dprotobuf_DEBUG_POSTFIX=""
     cmake --build . --config Release --parallel
-    cmake --build . --config Debug --parallel
 """)
 # mac:
 #     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
