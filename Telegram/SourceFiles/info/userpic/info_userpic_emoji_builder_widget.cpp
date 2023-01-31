@@ -348,6 +348,9 @@ void EmojiSelector::createSelector(Type type) {
 			selector.list->width() + scrollWidth,
 			s.height() - rect::bottom(separator));
 	}, lifetime());
+
+	// Reset all animations.
+	selector.list->hideFinished();
 }
 
 } // namespace
