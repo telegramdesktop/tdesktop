@@ -124,7 +124,6 @@ stickersFeaturedBadgeTextTop: -1px;
 stickersFeaturedBadgePadding: 4px;
 stickersFeaturedBadgeSkip: 4px;
 stickersFeaturedBadgeTop: 9px;
-stickersFeaturedPen: lightButtonFg;
 stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
@@ -141,8 +140,6 @@ stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;
 }
-stickersReorderPadding: margins(0px, 12px, 0px, 12px);
-stickersReorderFg: windowSubTextFg;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
@@ -152,11 +149,7 @@ stickersTrendingUnread: icon {
 	{ "emoji/stickers_add_unread", emojiIconFg },
 	{ "emoji/stickers_add_dot", dialogsUnreadBg }
 };
-stickersRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
 emojiStatusDefault: icon {{ "emoji/stickers_premium", emojiIconFg }};
-
-stickersSettingsUnreadSize: 6px;
-stickersSettingsUnreadPosition: point(6px, 10px);
 
 filtersRemove: IconButton(stickersRemove) {
 	ripple: defaultRippleAnimation;
@@ -191,7 +184,6 @@ emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
 	fadeBg: emojiPanBg;
 	shadow: boxRoundShadow;
 }
-emojiPanPadding: 12px;
 emojiPanWidth: 345px;
 emojiPanMinHeight: 278px;
 emojiPanMaxHeight: 640px;
@@ -201,8 +193,6 @@ emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
 emojiPanArea: size(34px, 32px);
-emojiPanLeft: 13px;
-emojiPanRight: 17px;
 emojiPanRadius: 8px;
 
 defaultTabbedSearch: TabbedSearch {
