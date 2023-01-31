@@ -1483,6 +1483,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_topic_renamed" = "{from} renamed the {link} to «{title}»";
 "lng_action_topic_icon_changed" = "{from} changed the {link} icon to {emoji}";
 "lng_action_topic_icon_removed" = "{from} removed the {link} icon";
+"lng_action_shared_chat_with_bot" = "You shared {chat} with {bot}";
 
 "lng_premium_gift_duration_months#one" = "for {count} month";
 "lng_premium_gift_duration_months#other" = "for {count} months";
@@ -3554,6 +3555,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_request_peer_requirements" = "Requirements";
 "lng_request_peer_rights" = "You should have the admin rights to {rights}.";
 "lng_request_peer_rights_and" = "{rights} and {last}";
+"lng_request_peer_confirm" = "Are you sure you want to send {chat} to {bot}?";
+"lng_request_peer_confirm_add" = "This will also add {bot} to {chat}.";
+"lng_request_peer_confirm_rights" = "This will also add {bot} to {chat} with the following rights: {rights}.";
+"lng_request_peer_confirm_send" = "Send";
 "lng_request_user_title" = "Choose User";
 "lng_request_user_premium_yes" = "The user should have a Premium subscription.";
 "lng_request_user_premium_no" = "The user shouldn't have a Premium subscription.";

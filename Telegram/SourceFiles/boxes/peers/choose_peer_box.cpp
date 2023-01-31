@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
@@ -167,6 +168,19 @@ private:
 		break;
 	}
 	return result;
+}
+
+object_ptr<Ui::BoxContent> MakeConfirmBox(
+		not_null<UserData*> bot,
+		not_null<PeerData*> peer,
+		RequestPeerQuery query,
+		Fn<void()> confirmed) {
+	auto text = TextWithEntities{ "Sure?.." };
+	return Ui::MakeConfirmBox({
+		.text = std::move(text),
+		.confirmed = std::move(confirmed),
+		.confirmText = tr::lng_request_peer_confirm_send(tr::now),
+	});
 }
 
 object_ptr<Ui::BoxContent> CreatePeerByQueryBox(
@@ -334,8 +348,12 @@ void ChoosePeerBoxController::prepareViewHook() {
 }
 
 void ChoosePeerBoxController::rowClicked(not_null<PeerListRow*> row) {
-	const auto onstack = _callback;
-	onstack(row->peer());
+	const auto peer = row->peer();
+	const auto done = [callback = _callback, peer] {
+		const auto onstack = callback;
+		onstack(peer);
+	};
+	delegate()->peerListShowBox(MakeConfirmBox(_bot, peer, _query, done));
 }
 
 auto ChoosePeerBoxController::createRow(not_null<History*> history)

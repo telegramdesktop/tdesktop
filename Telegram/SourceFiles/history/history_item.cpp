@@ -4130,12 +4130,15 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		const auto peerId = peerFromMTP(action.vpeer());
 		const auto peer = history()->owner().peer(peerId);
 		auto result = PreparedServiceText{};
-		result.text = TextWithEntities{
-			u"You chose "_q
-		}.append(
-			Ui::Text::Link(peer->name(), 1)
-		).append(u" for the bot."_q);
+		result.text = tr::lng_action_shared_chat_with_bot(
+			tr::now,
+			lt_chat,
+			Ui::Text::Link(peer->name(), 1),
+			lt_bot,
+			Ui::Text::Link(history()->peer->name(), 2),
+			Ui::Text::WithEntities);
 		result.links.push_back(peer->createOpenLink());
+		result.links.push_back(history()->peer->createOpenLink());
 		return result;
 	};
 
