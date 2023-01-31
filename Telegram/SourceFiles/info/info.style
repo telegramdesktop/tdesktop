@@ -30,12 +30,6 @@ InfoPeerBadge {
 
 infoMediaHeaderFg: windowFg;
 
-infoToggleCheckbox: Checkbox(defaultCheckbox) {
-	margin: margins(0px, 0px, 0px, 0px);
-	rippleBgActive: windowBgOver;
-	checkPosition: point(16px, 8px);
-	rippleAreaPosition: point(-8px, -8px);
-}
 infoToggle: InfoToggle {
 	color: menuIconFg;
 	duration: slideWrapDuration;
@@ -242,18 +236,11 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	radius: boxRadius;
 }
 
-infoTopBarMenuPosition: point(-2px, 35px);
 infoLayerTopBarMenuPosition: point(40px, 37px);
 
 infoMinimalWidth: 324px;
 infoDesiredWidth: 392px;
 infoMinimalLayerMargin: 48px;
-
-infoTabs: SettingsSlider(defaultTabsSlider) {
-	height: 55px;
-	barTop: 52px;
-	labelTop: 19px;
-}
 
 InfoProfileCover {
 	height: pixels;
@@ -380,7 +367,6 @@ infoIconMediaAudio: icon {{ "info/info_media_audio", infoIconFg }};
 infoIconMediaLink: icon {{ "info/info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info/info_common_groups", infoIconFg }};
 infoIconMediaVoice: icon {{ "info/info_media_voice", infoIconFg }};
-infoIconMediaRound: icon {{ "info/info_media_round", infoIconFg }};
 
 infoRoundedIconRequests: icon {{ "info/edit/group_manage_join_requests", settingsIconFg }};
 infoRoundedIconRecentActions: icon {{ "info/edit/group_manage_actions", settingsIconFg }};
@@ -400,7 +386,6 @@ infoIconBlock: icon {{ "info/info_block", attentionButtonFg }};
 infoIconMembers: icon {{ "info/info_members", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
-infoSharedMediaIconPosition: point(20px, 24px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoGroupMembersIconPosition: point(20px, 10px);
 infoChannelMembersIconPosition: point(20px, 19px);
@@ -455,7 +440,6 @@ infoMainButton: SettingsButton(infoProfileButton) {
 	textFgOver: lightButtonFgOver;
 	style: semiboldTextStyle;
 }
-infoSharedMediaCoverHeight: 62px;
 infoSharedMediaButton: infoProfileButton;
 infoSharedMediaBottomSkip: 12px;
 
@@ -473,7 +457,6 @@ infoUnlinkChatButton: SettingsButton(infoCreateLinkedChatButton) {
 infoBlockButtonSkip: 8px;
 
 infoMembersHeader: 56px;
-infoMembersHeaderPaddingBottom: 6px;
 infoMembersList: PeerList(defaultPeerList) {
 	item: PeerListItem(defaultPeerListItem) {
 		photoPosition: point(18px, 6px);
@@ -482,7 +465,6 @@ infoMembersList: PeerList(defaultPeerList) {
 	}
 }
 infoMembersButtonPosition: point(12px, 0px);
-infoMembersButtonIconPosition: point(3px, 3px);
 infoMembersButton: IconButton(defaultIconButton) {
 	width: 38px;
 	height: 38px;
@@ -523,11 +505,6 @@ infoMembersCancelSearch: CrossButton {
 }
 infoMembersSearchTop: 15px;
 
-infoChannelsAddChannel: IconButton(infoMembersButton) {
-	icon: icon {{ "settings/settings_edit_name", menuIconFg, point(9px, 9px) }};
-	iconOver: icon {{ "settings/settings_edit_name", menuIconFgOver, point(9px, 9px) }};
-}
-
 infoMediaHeaderStyle: TextStyle(semiboldTextStyle) {
 }
 infoMediaHeaderHeight: 28px;
@@ -551,12 +528,6 @@ infoCommonGroupsListItem: PeerListItem(defaultPeerListItem) {
 }
 infoCommonGroupsList: PeerList(infoMembersList) {
 	item: infoCommonGroupsListItem;
-}
-infoChannelsList: PeerList(infoCommonGroupsList) {
-	item: PeerListItem(infoCommonGroupsListItem) {
-		photoPosition: point(18px, 6px);
-		namePosition: point(79px, 15px);
-	}
 }
 
 managePeerButton: SettingsCountButton {
@@ -611,9 +582,6 @@ manageDeleteGroupButton: SettingsCountButton(manageGroupTopButtonWithText) {
 	iconPosition: point(0px, 0px);
 }
 
-editPeerSkip: 7px;
-editPeerHistoryVisibilityMargins: margins(15px, 0px, 20px, 16px);
-
 infoEmptyFg: windowSubTextFg;
 infoEmptyPhoto: icon {{ "info/info_media_photo_empty", infoEmptyFg }};
 infoEmptyVideo: icon {{ "info/info_media_video_empty", infoEmptyFg }};
@@ -630,7 +598,6 @@ infoEmptyLabel: FlatLabel(defaultFlatLabel) {
 }
 
 editPeerBottomButtonsLayoutMargins: margins(0px, 7px, 0px, 0px);
-editPeerTopButtonsLayoutMargins: margins(0px, 12px, 0px, 6px);
 
 editPeerTopButtonsLayoutSkip: 13px;
 editPeerTopButtonsLayoutSkipToBottom: 12px;
@@ -648,7 +615,6 @@ editPeerDescription: InputField(newGroupDescription) {
 }
 editPeerDescriptionMargins: margins(22px, 5px, 22px, 16px);
 editPeerPrivaciesMargins: margins(15px, 7px, 22px, 0px);
-editPeerPrivacyTopSkip: 10px;
 editPeerPrivacyBottomSkip: 16px;
 editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;
@@ -658,28 +624,15 @@ editPeerPrivacyBoxCheckbox: Checkbox(defaultBoxCheckbox) {
 	margin: margins(0px, 8px, 0px, 8px);
 	style: boxTextStyle;
 }
-editPeerHistoryVisibilityLabelMargins: margins(34px, 0px, 48px, 0px);
 editPeerPrivacyLabelMargins: margins(42px, 0px, 34px, 0px);
 editPeerPreHistoryLabelMargins: margins(34px, 0px, 34px, 0px);
-editPeerUsernameTitleLabelMargins: margins(22px, 17px, 22px, 10px);
 editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 0px);
 editPeerUsername: setupChannelLink;
-editPeerUsernameSkip: 8px;
-editPeerInviteLink: FlatLabel(defaultFlatLabel) {
-	minWidth: 1px; // for break everywhere
-	style: boxTextStyle;
-}
 editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 	textFg: boxTextFgGood;
 	style: boxTextStyle;
 }
-editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
-	textFg: boxTextFgError;
-}
 
-editPeerReactionsButton: SettingsButton(infoProfileButton) {
-	padding: margins(59px, 13px, 8px, 11px);
-}
 editPeerReactionsPreview: 24px;
 editPeerReactionsIconLeft: 21px;
 
@@ -689,9 +642,6 @@ historyTopBarBack: IconButton(infoTopBarBack) {
 topBarHeight: 54px;
 topBarMenuPosition: point(-6px, 45px);
 topBarMenuGroupCallSkip: 20px;
-topBarDuration: 200;
-topBarBackward: icon {{ "title_back", menuIconFg }};
-topBarForwardAlpha: 0.6;
 topBarBack: icon {{ "title_back", lightButtonFg }};
 topBarArrowPadding: margins(39px, 8px, 17px, 8px);
 topBarNameRightPadding: 3px;
@@ -765,8 +715,6 @@ topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimatio
 	thickness: 1px;
 	size: size(8px, 8px);
 }
-
-infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);
 
 inviteLinkFieldHeight: 44px;
 inviteLinkFieldMargin: margins(14px, 12px, 36px, 9px);
