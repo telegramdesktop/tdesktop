@@ -293,7 +293,8 @@ void PeerPhoto::clearPersonal(not_null<UserData*> user) {
 		user->inputUser,
 		MTPInputFile(),
 		MTPInputFile(), // video
-		MTPdouble() // video_start_ts
+		MTPdouble(), // video_start_ts
+		MTPVideoSize() // video_emoji_markup
 	)).done([=](const MTPphotos_Photo &result) {
 		result.match([&](const MTPDphotos_photo &data) {
 			_session->data().processPhoto(data.vphoto());
@@ -419,7 +420,8 @@ void PeerPhoto::ready(
 			user->inputUser,
 			*file,
 			MTPInputFile(), // video
-			MTPdouble() // video_start_ts
+			MTPdouble(), // video_start_ts
+			MTPVideoSize() // video_emoji_markup
 		)).done([=](const MTPphotos_Photo &result) {
 			result.match([&](const MTPDphotos_photo &data) {
 				_session->data().processPhoto(data.vphoto());
