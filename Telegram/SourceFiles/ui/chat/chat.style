@@ -1247,3 +1247,12 @@ historyTranslateSettings: IconButton(defaultIconButton) {
 	ripple: defaultRippleAnimation;
 }
 historyTranslateMenuPosition: point(-6px, 40px);
+
+historySendDisabled: FlatLabel(defaultFlatLabel) {
+	minWidth: 10px;
+	maxHeight: 20px;
+	textFg: placeholderFg;
+}
+historySendDisabledIcon: icon {{ "emoji/premium_lock", placeholderFgActive }};
+historySendDisabledIconSkip: 20px;
+historySendDisabledPosition: point(0px, 0px);

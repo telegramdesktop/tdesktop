@@ -569,6 +569,8 @@ private:
 	void clearFieldText(
 		TextUpdateEvents events = 0,
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
+	[[nodiscard]] int fieldHeight() const;
+	[[nodiscard]] bool fieldOrDisabledShown() const;
 
 	void unregisterDraftSources();
 	void registerDraftSource();
@@ -589,8 +591,8 @@ private:
 	void checkReplyReturns();
 	void scrollToAnimationCallback(FullMsgId attachToId, int relativeTo);
 
-	bool readyToForward() const;
-	bool hasSilentToggle() const;
+	[[nodiscard]] bool readyToForward() const;
+	[[nodiscard]] bool hasSilentToggle() const;
 
 	void checkSupportPreload(bool force = false);
 	void handleSupportSwitch(not_null<History*> updated);
@@ -676,6 +678,7 @@ private:
 	PeerData *_peer = nullptr;
 
 	bool _canSendMessages = false;
+	bool _canSendTexts = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
 
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
@@ -742,6 +745,7 @@ private:
 	std::unique_ptr<HistoryView::ComposeSearch> _composeSearch;
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
+	base::unique_qptr<Ui::RpWidget> _fieldDisabled;
 	bool _inReplyEditForward = false;
 	bool _inClickable = false;
 

@@ -918,9 +918,9 @@ void TabbedSelector::checkRestrictedPeer() {
 				_currentPeer,
 				ChatRestriction::SendGifs)
 			: (_currentTabType == SelectorTab::Emoji && _mode == Mode::Full)
-			? (Data::RestrictionError(
-				_currentPeer,
-				ChatRestriction::SendInline)
+			? ((true || Data::RestrictionError(
+				_currentPeer, // We don't allow input if texts are forbidden.
+				ChatRestriction::SendInline))
 				? Data::RestrictionError(
 					_currentPeer,
 					ChatRestriction::SendOther)

@@ -1737,7 +1737,7 @@ void HistoryWidget::setInnerFocus() {
 			|| isRecording()
 			|| isBotStart()
 			|| isBlocked()
-			|| !_canSendMessages) {
+			|| !_canSendTexts) {
 			_list->setFocus();
 		} else {
 			_field->setFocus();
@@ -1870,7 +1870,7 @@ void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
 void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	InvokeQueued(this, [=] { updateStickersByEmoji(); });
 
-	if (_voiceRecordBar->isActive()) {
+	if (_voiceRecordBar->isActive() || !_canSendTexts) {
 		return;
 	}
 
@@ -1884,7 +1884,7 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	if (!draft || (!_history->localEditDraft({}) && !fieldAvailable)) {
 		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, fieldHistoryAction);
-		_field->setFocus();
+		setInnerFocus();
 		_processingReplyItem = _replyEditMsg = nullptr;
 		_processingReplyId = _replyToId = 0;
 		setEditMsgId(0);
@@ -1898,7 +1898,7 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 
 	_textUpdateEvents = 0;
 	setFieldText(draft->textWithTags, 0, fieldHistoryAction);
-	_field->setFocus();
+	setInnerFocus();
 	draft->cursor.applyTo(_field);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft
 		| TextUpdateEvent::SendTyping;
@@ -2110,6 +2110,8 @@ void HistoryWidget::showHistory(
 		_list = nullptr;
 		_peer = nullptr;
 		_canSendMessages = false;
+		_canSendTexts = false;
+		_fieldDisabled = nullptr;
 		_silent.destroy();
 		updateBotKeyboard();
 	} else {
@@ -2136,7 +2138,6 @@ void HistoryWidget::showHistory(
 
 	if (peerId) {
 		_peer = session().data().peer(peerId);
-		_canSendMessages = Data::CanSendAnything(_peer);
 		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
 			controller(),
 			this,
@@ -2628,6 +2629,13 @@ std::optional<QString> HistoryWidget::writeRestriction() const {
 }
 
 void HistoryWidget::updateControlsVisibility() {
+	auto fieldDisabledRemoved = (_fieldDisabled != nullptr);
+	const auto guard = gsl::finally([&] {
+		if (fieldDisabledRemoved) {
+			_fieldDisabled = nullptr;
+		}
+	});
+
 	if (!_showAnimation) {
 		_topShadow->setVisible(_peer != nullptr);
 		_topBar->setVisible(_peer != nullptr);
@@ -2745,7 +2753,19 @@ void HistoryWidget::updateControlsVisibility() {
 		_send->show();
 		updateSendButtonType();
 
-		_field->show();
+		if (_canSendTexts) {
+			_field->show();
+		} else {
+			fieldDisabledRemoved = false;
+			if (!_fieldDisabled) {
+				_fieldDisabled = CreateDisabledFieldView(this, _peer);
+				orderWidgets();
+				updateControlsGeometry();
+				update();
+			}
+			_fieldDisabled->show();
+			hideFieldIfVisible();
+		}
 		if (_kbShown) {
 			_kbScroll->show();
 			_tabbedSelectorToggle->hide();
@@ -3696,7 +3716,7 @@ void HistoryWidget::saveEditMsg() {
 				cancelEdit();
 			} else if (error == u"MESSAGE_EMPTY"_q) {
 				_field->selectAll();
-				_field->setFocus();
+				setInnerFocus();
 			} else {
 				controller()->showToast({ tr::lng_edit_error(tr::now) });
 			}
@@ -3819,7 +3839,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	hideSelectorControlsAnimated();
 
 	if (_previewData && _previewData->pendingTill) previewCancel();
-	_field->setFocus();
+	setInnerFocus();
 
 	if (!_keyboard->hasMarkup() && _keyboard->forceReply() && !_kbReplyTo) {
 		toggleKeyboard();
@@ -4260,7 +4280,7 @@ void HistoryWidget::sendBotCommand(const Bot::SendCommandRequest &request) {
 		}
 	}
 
-	_field->setFocus();
+	setInnerFocus();
 }
 
 void HistoryWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
@@ -4281,7 +4301,7 @@ void HistoryWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
 }
 
 bool HistoryWidget::insertBotCommand(const QString &cmd) {
-	if (!canWriteMessage()) {
+	if (!_canSendTexts) {
 		return false;
 	}
 
@@ -4327,7 +4347,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 			{ toInsert, TextWithTags::Tags() },
 			TextUpdateEvent::SaveDraft,
 			Ui::InputField::HistoryAction::NewEntry);
-		_field->setFocus();
+		setInnerFocus();
 		return true;
 	}
 	return false;
@@ -4808,10 +4828,20 @@ void HistoryWidget::recountChatWidth() {
 	controller()->adaptive().setChatLayout(layout);
 }
 
+int HistoryWidget::fieldHeight() const {
+	return _canSendTexts
+		? _field->height()
+		: (st::historySendSize.height() - 2 * st::historySendPadding);
+}
+
+bool HistoryWidget::fieldOrDisabledShown() const {
+	return !_field->isHidden() || _fieldDisabled;
+}
+
 void HistoryWidget::moveFieldControls() {
 	auto keyboardHeight = 0;
 	auto bottom = height();
-	auto maxKeyboardHeight = computeMaxFieldHeight() - _field->height();
+	auto maxKeyboardHeight = computeMaxFieldHeight() - fieldHeight();
 	_keyboard->resizeToWidth(width(), maxKeyboardHeight);
 	if (_kbShown) {
 		keyboardHeight = qMin(_keyboard->height(), maxKeyboardHeight);
@@ -4834,6 +4864,11 @@ void HistoryWidget::moveFieldControls() {
 		_sendAs->moveToLeft(left, buttonsBottom); left += _sendAs->width();
 	}
 	_field->moveToLeft(left, bottom - _field->height() - st::historySendPadding);
+	if (_fieldDisabled) {
+		_fieldDisabled->moveToLeft(
+			left,
+			bottom - fieldHeight() - st::historySendPadding);
+	}
 	auto right = st::historySendRight;
 	_send->moveToRight(right, buttonsBottom); right += _send->width();
 	_voiceRecordBar->moveToLeft(0, bottom - _voiceRecordBar->height());
@@ -4896,6 +4931,9 @@ void HistoryWidget::updateFieldSize() {
 	if (_scheduled) fieldWidth -= _scheduled->width();
 	if (_ttlInfo) fieldWidth -= _ttlInfo->width();
 
+	if (_fieldDisabled) {
+		_fieldDisabled->resize(fieldWidth, fieldHeight());
+	}
 	if (_field->width() != fieldWidth) {
 		_field->resize(fieldWidth, _field->height());
 	} else {
@@ -5552,7 +5590,7 @@ void HistoryWidget::updateHistoryGeometry(
 		newScrollHeight -= _unblock->height();
 	} else {
 		if (editingMessage() || _canSendMessages) {
-			newScrollHeight -= (_field->height() + 2 * st::historySendPadding);
+			newScrollHeight -= (fieldHeight() + 2 * st::historySendPadding);
 		} else if (writeRestriction().has_value()) {
 			newScrollHeight -= _unblock->height();
 		}
@@ -6197,7 +6235,7 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 
 	hideSelectorControlsAnimated();
 
-	_field->setFocus();
+	setInnerFocus();
 }
 
 void HistoryWidget::updatePinnedViewer() {
@@ -6690,7 +6728,7 @@ bool HistoryWidget::sendExistingDocument(
 
 	hideSelectorControlsAnimated();
 
-	_field->setFocus();
+	setInnerFocus();
 	return true;
 }
 
@@ -6715,7 +6753,7 @@ bool HistoryWidget::sendExistingPhoto(
 
 	hideSelectorControlsAnimated();
 
-	_field->setFocus();
+	setInnerFocus();
 	return true;
 }
 
@@ -6889,9 +6927,7 @@ void HistoryWidget::setReplyFieldsFromProcessing() {
 	_saveDraftStart = crl::now();
 	saveDraft();
 
-	if (!_field->isHidden()) {
-		_field->setFocus();
-	}
+	setInnerFocus();
 }
 
 void HistoryWidget::editMessage(FullMsgId itemId) {
@@ -6961,7 +6997,9 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 
 	updateBotKeyboard();
 
-	if (!_field->isHidden()) _fieldBarCancel->show();
+	if (fieldOrDisabledShown()) {
+		_fieldBarCancel->show();
+	}
 	updateFieldPlaceholder();
 	updateMouseTracking();
 	updateReplyToName();
@@ -6972,7 +7010,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	_saveDraftStart = crl::now();
 	saveDraft();
 
-	_field->setFocus();
+	setInnerFocus();
 }
 
 void HistoryWidget::hidePinnedMessage() {
@@ -7328,10 +7366,15 @@ bool HistoryWidget::updateCanSendMessage() {
 	const auto newCanSendMessages = topic
 		? Data::CanSendAnyOf(topic, allWithoutPolls)
 		: Data::CanSendAnyOf(_peer, allWithoutPolls);
-	if (_canSendMessages == newCanSendMessages) {
+	const auto newCanSendTexts = topic
+		? Data::CanSend(topic, ChatRestriction::SendOther)
+		: Data::CanSend(_peer, ChatRestriction::SendOther);
+	if (_canSendMessages == newCanSendMessages
+		&& _canSendTexts == newCanSendTexts) {
 		return false;
 	}
 	_canSendMessages = newCanSendMessages;
+	_canSendTexts = newCanSendTexts;
 	if (!_canSendMessages) {
 		cancelReply();
 	}
@@ -7474,7 +7517,7 @@ void HistoryWidget::updateTopBarSelection() {
 			|| isRecording()
 			|| isBotStart()
 			|| isBlocked()
-			|| !_canSendMessages) {
+			|| !_canSendTexts) {
 			_list->setFocus();
 		} else {
 			_field->setFocus();
@@ -7504,7 +7547,7 @@ void HistoryWidget::updateReplyEditText(not_null<HistoryItem*> item) {
 		item->inReplyText(),
 		Ui::DialogTextOptions(),
 		context);
-	if (!_field->isHidden() || isRecording()) {
+	if (fieldOrDisabledShown() || isRecording()) {
 		_fieldBarCancel->show();
 		updateMouseTracking();
 	}
@@ -7581,7 +7624,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	_repaintFieldScheduled = false;
 
 	auto backy = _field->y() - st::historySendPadding;
-	auto backh = _field->height() + 2 * st::historySendPadding;
+	auto backh = fieldHeight() + 2 * st::historySendPadding;
 	auto hasForward = readyToForward();
 	auto drawMsgText = (_editMsgId || _replyToId) ? _replyEditMsg : _kbReplyTo;
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
@@ -7801,7 +7844,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	const auto clip = e->rect();
 	if (_list) {
-		const auto restrictionHidden = !_field->isHidden() || isRecording();
+		const auto restrictionHidden = fieldOrDisabledShown()
+			|| isRecording();
 		if (restrictionHidden
 			|| replyToId()
 			|| readyToForward()
@@ -7824,7 +7868,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		const auto tr = QRect(
 			(width() - w) / 2,
 			st::msgServiceMargin.top() + (height()
-				- _field->height()
+				- fieldHeight()
 				- 2 * st::historySendPadding
 				- h
 				- st::msgServiceMargin.top()
