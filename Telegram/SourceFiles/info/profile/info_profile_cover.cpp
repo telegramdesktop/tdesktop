@@ -443,15 +443,14 @@ void Cover::refreshUploadPhotoOverlay() {
 		Unexpected("Peer type in Info::Profile::Cover.");
 	}(), [=](Ui::UserpicButton::ChosenImage chosen) {
 		using ChosenType = Ui::UserpicButton::ChosenType;
-		auto &image = chosen.image;
 		auto result = Api::PeerPhoto::UserPhoto{
-			std::move(image),
+			base::take(chosen.image),
 			chosen.markup.documentId,
 			chosen.markup.colors,
 		};
 		switch (chosen.type) {
 		case ChosenType::Set:
-			_userpic->showCustom(base::duplicate(image));
+			_userpic->showCustom(base::duplicate(result.image));
 			_peer->session().api().peerPhoto().upload(
 				_peer,
 				std::move(result));
