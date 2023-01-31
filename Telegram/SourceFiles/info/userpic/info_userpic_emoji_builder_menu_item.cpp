@@ -32,7 +32,8 @@ void AddEmojiBuilderAction(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::PopupMenu*> menu,
 		rpl::producer<std::vector<DocumentId>> documents,
-		Fn<void(UserpicBuilder::Result)> &&done) {
+		Fn<void(UserpicBuilder::Result)> &&done,
+		bool isForum) {
 	constexpr auto kTimeout = crl::time(1500);
 	struct State final {
 		State() {
@@ -75,7 +76,7 @@ void AddEmojiBuilderAction(
 					: 0;
 				UserpicBuilder::ShowLayer(
 					controller,
-					{ id, state->colorIndex.current(), docs },
+					{ id, state->colorIndex.current(), docs, {}, isForum },
 					base::duplicate(done));
 			}),
 		nullptr,
@@ -103,7 +104,8 @@ void AddEmojiBuilderAction(
 			state->documentShown();
 			return d;
 		}),
-		state->colorIndex.value());
+		state->colorIndex.value(),
+		isForum);
 	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
 	icon->move(menu->st().menu.itemIconPosition
 		+ QPoint(

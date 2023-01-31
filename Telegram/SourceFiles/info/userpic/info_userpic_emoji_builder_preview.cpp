@@ -161,8 +161,12 @@ bool PreviewPainter::paintForeground(QPainter &p) {
 	return false;
 }
 
-EmojiUserpic::EmojiUserpic(not_null<Ui::RpWidget*> parent, const QSize &size)
+EmojiUserpic::EmojiUserpic(
+	not_null<Ui::RpWidget*> parent,
+	const QSize &size,
+	bool isForum)
 : Ui::RpWidget(parent)
+, _forum(isForum)
 , _painter(size.width())
 , _duration(st::slideWrapDuration) {
 	resize(size);
@@ -205,11 +209,11 @@ void EmojiUserpic::setGradientColors(std::vector<QColor> colors) {
 		return;
 	}
 	if (const auto colors = base::take(_colors); !colors.empty()) {
-		_previousImage = GenerateGradient(size(), colors);
+		_previousImage = GenerateGradient(size(), colors, !_forum, _forum);
 	}
 	_colors = std::move(colors);
 	{
-		_image = GenerateGradient(size(), _colors);
+		_image = GenerateGradient(size(), _colors, !_forum, _forum);
 	}
 	if (_duration) {
 		_animation.stop();

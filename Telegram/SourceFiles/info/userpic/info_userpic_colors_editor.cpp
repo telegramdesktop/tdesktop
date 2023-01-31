@@ -241,7 +241,8 @@ object_ptr<Ui::RpWidget> CreateGradientEditor(
 			container,
 			object_ptr<EmojiUserpic>(
 				container,
-				Size(st::defaultUserpicButton.photoSize))))->entity();
+				Size(st::defaultUserpicButton.photoSize),
+				false)))->entity();
 	preview->setDuration(0);
 	if (document) {
 		preview->setDocument(document);

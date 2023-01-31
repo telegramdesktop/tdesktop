@@ -23,6 +23,7 @@ void AddEmojiBuilderAction(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::PopupMenu*> menu,
 	rpl::producer<std::vector<DocumentId>> documents,
-	Fn<void(UserpicBuilder::Result)> &&done);
+	Fn<void(UserpicBuilder::Result)> &&done,
+	bool isForum);
 
 } // namespace UserpicBuilder

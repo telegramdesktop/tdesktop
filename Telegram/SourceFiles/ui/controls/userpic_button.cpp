@@ -335,7 +335,8 @@ void UserpicButton::choosePhotoLocally() {
 			_controller->session().api().peerPhoto().emojiListValue(user
 				? Api::PeerPhoto::EmojiListType::Profile
 				: Api::PeerPhoto::EmojiListType::Group),
-			done);
+			done,
+			_peer ? _peer->isForum() : false);
 	};
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,

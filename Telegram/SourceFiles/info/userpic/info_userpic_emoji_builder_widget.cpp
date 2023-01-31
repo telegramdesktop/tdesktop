@@ -367,7 +367,8 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 			container,
 			object_ptr<EmojiUserpic>(
 				container,
-				Size(st::settingsInfoPhotoSize))),
+				Size(st::settingsInfoPhotoSize),
+				data.isForum)),
 		st::userpicBuilderEmojiPreviewPadding)->entity();
 	if (const auto id = data.documentId) {
 		if (const auto document = controller->session().data().document(id)) {
@@ -504,8 +505,12 @@ not_null<Ui::RpWidget*> CreateEmojiUserpic(
 		not_null<Ui::RpWidget*> parent,
 		const QSize &size,
 		rpl::producer<not_null<DocumentData*>> document,
-		rpl::producer<int> colorIndex) {
-	const auto widget = Ui::CreateChild<EmojiUserpic>(parent.get(), size);
+		rpl::producer<int> colorIndex,
+		bool isForum) {
+	const auto widget = Ui::CreateChild<EmojiUserpic>(
+		parent.get(),
+		size,
+		isForum);
 	std::move(
 		document
 	) | rpl::start_with_next([=](not_null<DocumentData*> d) {

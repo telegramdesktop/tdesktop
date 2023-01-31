@@ -34,6 +34,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	not_null<Ui::RpWidget*> parent,
 	const QSize &size,
 	rpl::producer<not_null<DocumentData*>> document,
-	rpl::producer<int> colorIndex);
+	rpl::producer<int> colorIndex,
+	bool isForum);
 
 } // namespace UserpicBuilder

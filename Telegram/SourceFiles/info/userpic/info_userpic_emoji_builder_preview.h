@@ -59,7 +59,10 @@ private:
 
 class EmojiUserpic final : public Ui::RpWidget {
 public:
-	EmojiUserpic(not_null<Ui::RpWidget*> parent, const QSize &size);
+	EmojiUserpic(
+		not_null<Ui::RpWidget*> parent,
+		const QSize &size,
+		bool isForum);
 
 	void result(int size, Fn<void(UserpicBuilder::Result)> done);
 	void setGradientColors(std::vector<QColor> colors);
@@ -70,6 +73,7 @@ protected:
 	void paintEvent(QPaintEvent *event) override;
 
 private:
+	const bool _forum;
 	PreviewPainter _painter;
 
 	std::optional<bool> _playOnce;
