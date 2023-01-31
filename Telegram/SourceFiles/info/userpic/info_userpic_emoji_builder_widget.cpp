@@ -217,6 +217,7 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 	) | rpl::start_with_next([=] {
 		createSelector(Type::Emoji);
 	}, list->lifetime());
+	list->setAllowWithoutPremium(true);
 	return { list, footer };
 }
 
@@ -341,12 +342,14 @@ void EmojiSelector::createSelector(Type type) {
 			s.width(),
 			st::lineWidth);
 
-		selector.list->resizeToWidth(s.width() - st::boxRadius * 2);
+		const auto listWidth = s.width() - st::boxRadius * 2;
+		selector.list->resizeToWidth(listWidth);
 		scroll->setGeometry(
 			st::boxRadius,
 			rect::bottom(separator),
 			selector.list->width() + scrollWidth,
 			s.height() - rect::bottom(separator));
+		selector.list->setMinimalHeight(listWidth, scroll->height());
 	}, lifetime());
 
 	// Reset all animations.
