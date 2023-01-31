@@ -242,7 +242,6 @@ dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
 	iconOver: icon {{ "top_bar_search", menuIconFgOver }};
 	iconPosition: point(4px, 4px);
 }
-dialogsSearchFromPadding: margins(10px, 10px, 10px, 10px);
 
 dialogsFilter: InputField(defaultInputField) {
 	textBg: filterInputInactiveBg;
@@ -453,7 +452,6 @@ downloadInfoTop: 23px;
 downloadLoadingLeft: 15px;
 downloadLoadingSize: 24px;
 downloadLoadingLine: 2px;
-downloadLoadedSize: 30px;
 downloadIconDocument: icon {{ "dialogs/dialogs_downloads", windowFgActive }};
 downloadIconSize: 16px;
 downloadIconSizeDone: 20px;
