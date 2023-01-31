@@ -144,11 +144,8 @@ introTermsBottom: 20px;
 introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
 introCountryIconPosition: point(8px, 37px);
 
-introSelectDelta: 30px;
-
 introErrorTop: 235px;
 introErrorBelowLinkTop: 220px;
-introErrorDuration: 200;
 
 introError: FlatLabel(introDescription) {
 }
