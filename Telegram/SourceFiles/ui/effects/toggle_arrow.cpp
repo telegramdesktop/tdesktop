@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/toggle_arrow.h"
 
+#include <QtCore/QtMath>
+
 namespace Ui {
 
 [[nodiscard]] QPainterPath ToggleUpDownArrowPath(
