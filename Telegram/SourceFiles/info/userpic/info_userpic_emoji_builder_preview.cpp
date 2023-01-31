@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
 
 namespace UserpicBuilder {
@@ -23,7 +24,27 @@ namespace UserpicBuilder {
 PreviewPainter::PreviewPainter(int size)
 : _size(size)
 , _emojiSize(base::SafeRound(_size / M_SQRT2))
-, _frameRect(Rect(Size(_size)) - Margins((_size - _emojiSize) / 2)) {
+, _frameGeometry(Rect(Size(_size)) - Margins((_size - _emojiSize) / 2))
+, _frameRect(Rect(_frameGeometry.size()))
+, _mask(
+	_frameRect.size() * style::DevicePixelRatio(),
+	QImage::Format_ARGB32_Premultiplied)
+, _frame(_mask.size(), QImage::Format_ARGB32_Premultiplied) {
+	_frame.setDevicePixelRatio(style::DevicePixelRatio());
+	_mask.setDevicePixelRatio(style::DevicePixelRatio());
+	_mask.fill(Qt::transparent);
+	{
+		auto p = QPainter(&_mask);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBg);
+		constexpr auto kFrameRadiusPercent = 25;
+		p.drawRoundedRect(
+			_frameRect,
+			kFrameRadiusPercent,
+			kFrameRadiusPercent,
+			Qt::RelativeSize);
+	}
 }
 
 not_null<DocumentData*> PreviewPainter::document() const {
@@ -115,18 +136,23 @@ bool PreviewPainter::paintForeground(QPainter &p) {
 			}
 		}
 
-		frame.image = Images::Round(
-			base::take(frame.image),
-			ImageRoundRadius::Large);
-		if (frame.image.width() == frame.image.height()) {
-			p.drawImage(_frameRect, frame.image);
-		} else {
-			auto frameRect = Rect(frame.image.size().scaled(
-				_frameRect.size(),
-				Qt::KeepAspectRatio));
-			frameRect.moveCenter(_frameRect.center());
-			p.drawImage(frameRect, frame.image);
+		_frame.fill(Qt::transparent);
+		{
+			QPainter q(&_frame);
+			if (frame.image.width() == frame.image.height()) {
+				q.drawImage(_frameRect, frame.image);
+			} else {
+				auto frameRect = Rect(frame.image.size().scaled(
+					_frameRect.size(),
+					Qt::KeepAspectRatio));
+				frameRect.moveCenter(_frameRect.center());
+				q.drawImage(frameRect, frame.image);
+			}
+			q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+			q.drawImage(0, 0, _mask);
 		}
+
+		p.drawImage(_frameGeometry.topLeft(), _frame);
 		if (!_paused) {
 			_player->markFrameShown();
 		}

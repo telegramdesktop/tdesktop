@@ -42,7 +42,11 @@ public:
 private:
 	const int _size;
 	const int _emojiSize;
+	const QRect _frameGeometry;
 	const QRect _frameRect;
+
+	QImage _mask;
+	QImage _frame;
 
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
