@@ -224,8 +224,15 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 	toggleButton->setToggleLocked(locked.has_value());
 	struct State final {
 		Ui::Animations::Simple animation;
+		rpl::lifetime finishAnimatingLifetime;
 	};
 	const auto state = button->lifetime().make_state<State>();
+	rpl::duplicate(
+		checkedValue
+	) | rpl::start_with_next([=] {
+		button->finishAnimating();
+		toggleButton->finishAnimating();
+	}, state->finishAnimatingLifetime);
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		rpl::combine(
@@ -303,6 +310,7 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 	) | rpl::start_with_next([=] {
 		if (!handleLocked()) {
 			toggleMedia(!button->toggled());
+			state->finishAnimatingLifetime.destroy();
 		}
 	}, toggleButton->lifetime());
 
@@ -969,9 +977,7 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 				auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 					container,
 					object_ptr<Ui::VerticalLayout>(container));
-				if (locked.has_value()) {
-					wrap->hide(anim::type::instant);
-				}
+				wrap->hide(anim::type::instant);
 				SendMediaToggle(
 					container,
 					state->restrictions.events_starting_with(
