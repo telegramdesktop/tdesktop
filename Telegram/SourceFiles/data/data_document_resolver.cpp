@@ -183,7 +183,7 @@ vtx website ws wsc wsf wsh xbap xll xnk xs"_q;
 
 bool IsIpRevealingName(const QString &filepath) {
 	static const auto kExtensions = [] {
-		const auto joined = u"htm html svg"_q;
+		const auto joined = u"htm html svg m4v m3u8"_q;
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();
