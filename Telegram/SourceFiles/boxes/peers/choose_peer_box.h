@@ -17,8 +17,8 @@ namespace Window {
 class SessionNavigation;
 } // namespace Window
 
-QPointer<Ui::BoxContent> ShowChoosePeerBox(
+void ShowChoosePeerBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<UserData*> bot,
 	RequestPeerQuery query,
-	Fn<void(not_null<PeerData*>)> &&chosen);
+	Fn<void(not_null<PeerData*>)> chosen);

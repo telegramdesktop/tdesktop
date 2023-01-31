@@ -4089,6 +4089,50 @@ void ApiWrap::saveContactSignupSilent(bool silent) {
 	_contactSignupSilentRequestId = requestId;
 }
 
+auto ApiWrap::botCommonGroups(not_null<UserData*> bot) const
+-> std::optional<std::vector<not_null<PeerData*>>> {
+	const auto i = _botCommonGroups.find(bot);
+	return (i != end(_botCommonGroups))
+		? i->second
+		: std::optional<std::vector<not_null<PeerData*>>>();
+}
+
+void ApiWrap::requestBotCommonGroups(
+		not_null<UserData*> bot,
+		Fn<void()> done) {
+	if (_botCommonGroupsRequests.contains(bot)) {
+		return;
+	}
+	_botCommonGroupsRequests.emplace(bot, done);
+	const auto finish = [=](std::vector<not_null<PeerData*>> list) {
+		_botCommonGroups.emplace(bot, std::move(list));
+		if (const auto callback = _botCommonGroupsRequests.take(bot)) {
+			(*callback)();
+		}
+	};
+	const auto limit = 100;
+	request(MTPmessages_GetCommonChats(
+		bot->inputUser,
+		MTP_long(0), // max_id
+		MTP_int(limit)
+	)).done([=](const MTPmessages_Chats &result) {
+		const auto chats = result.match([](const auto &data) {
+			return &data.vchats().v;
+		});
+		auto &owner = session().data();
+		auto list = std::vector<not_null<PeerData*>>();
+		list.reserve(chats->size());
+		for (const auto &chat : *chats) {
+			if (const auto peer = owner.processChat(chat)) {
+				list.push_back(peer);
+			}
+		}
+		finish(std::move(list));
+	}).fail([=] {
+		finish({});
+	}).send();
+}
+
 void ApiWrap::saveSelfBio(const QString &text) {
 	if (_bio.requestId) {
 		if (text != _bio.requestedText) {
