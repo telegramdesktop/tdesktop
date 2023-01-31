@@ -48,7 +48,6 @@ settingsOptionDisabled: SettingsButton(settingsButtonNoIcon) {
 	toggleOver: infoProfileToggle;
 }
 settingsSectionSkip: 6px;
-settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
 settingsButtonRightSkip: 23px;
 settingsScalePadding: margins(60px, 7px, 22px, 4px);
 settingsBigScalePadding: margins(21px, 7px, 21px, 4px);
@@ -110,7 +109,6 @@ settingsIconEmail: icon {{ "settings/email", settingsIconFg }};
 settingsIconForward: icon {{ "settings/forward", settingsIconFg }};
 settingsIconSound: icon {{ "settings/sound", settingsIconFg }};
 settingsIconDock: icon {{ "settings/dock", settingsIconFg }};
-settingsIconPosition: icon {{ "settings/position", settingsIconFg }};
 settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
@@ -140,8 +138,6 @@ settingsCheckbox: Checkbox(defaultBoxCheckbox) {
 }
 settingsCheckboxPadding: margins(22px, 10px, 10px, 10px);
 settingsLink: boxLinkButton;
-settingsAdvancedNotificationsPadding: margins(22px, 20px, 10px, 10px);
-settingsLinkLabel: defaultFlatLabel;
 settingsCheckboxesSkip: 12px;
 
 settingsSendType: settingsCheckbox;
@@ -174,12 +170,6 @@ settingsPrivacySecurityPadding: 12px;
 settingsPrivacySkip: 14px;
 settingsPrivacySkipTop: 4px;
 
-settingsCloudPasswordLabel: FlatLabel(defaultFlatLabel) {
-	textFg: windowSubTextFg;
-	style: boxTextStyle;
-	maxHeight: 20px;
-}
-settingsCloudPasswordLabelPadding: margins(22px, 8px, 10px, 8px);
 settingsCloudPasswordIconSize: 100px;
 
 settingLocalPasscodeInputField: InputField(defaultInputField) {
@@ -230,7 +220,6 @@ settingsBio: InputField(defaultInputField) {
 
 	font: boxTextFont;
 }
-settingsInfoAfterSkip: 14px;
 
 settingsBioMargins: margins(22px, 6px, 22px, 4px);
 settingsBioCountdown: FlatLabel(defaultFlatLabel) {
@@ -249,8 +238,6 @@ settingsCoverName: FlatLabel(defaultFlatLabel) {
 settingsCoverStatus: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
-
-settingsPrivacyEditLabelPadding: margins(22px, 11px, 22px, 11px);
 
 settingsThemesTopSkip: 10px;
 settingsThemesBottomSkip: 8px;
@@ -283,15 +270,6 @@ settingsThemeNotSupportedIcon: icon {{ "theme_preview", menuIconFg }};
 autoDownloadLimitButton: SettingsButton(settingsButtonNoIcon) {
 	padding: margins(22px, 10px, 22px, 0px);
 }
-settingsAudioVolumeSlider: MediaSlider(defaultContinuousSlider) {
-	seekSize: size(15px, 15px);
-}
-settingsAudioVolumeSliderPadding: margins(22px, 5px, 20px, 10px);
-settingsAudioVolumeLabel: LabelSimple(defaultLabelSimple) {
-	font: boxTextFont;
-	textFg: windowBoldFg;
-}
-settingsAudioVolumeLabelPadding: margins(22px, 11px, 22px, 11px);
 settingsLevelMeterPadding: margins(22px, 10px, 20px, 10px);
 
 settingsForwardPrivacyPadding: 10px;
@@ -341,7 +319,6 @@ sessionsHeight: 350px;
 sessionLocationTop: 54px;
 sessionCurrentSkip: 8px;
 sessionSubtitleSkip: 14px;
-sessionLocationFg: windowSubTextFg;
 sessionInfoFg: windowSubTextFg;
 sessionTerminateTop: 9px;
 sessionTerminateSkip: 12px;
@@ -510,7 +487,6 @@ settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
 settingsPremiumArrowShift: point(-5px, -1px);
 settingsPremiumArrow: icon{{ "settings/premium/arrow", menuIconFg }};
 settingsPremiumArrowOver: icon{{ "settings/premium/arrow", menuIconFgOver }};
-settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);
 
 settingsPremiumOptionsPadding: margins(0px, 9px, 0px, 2px);
 settingsPremiumTopHeight: 220px;
