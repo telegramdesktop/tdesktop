@@ -41,23 +41,16 @@ void PaintExcludeTopShadow(QPainter &p, int radius, const QRect &r) {
 
 } // namespace
 
-QRect BubbleWrap::innerRect() const {
-	return rect() - st::userpicBuilderEmojiBubblePadding;
+QRect BubbleWrapInnerRect(const QRect &r) {
+	return r - st::userpicBuilderEmojiBubblePadding;
 }
 
-rpl::producer<QRect> BubbleWrap::innerRectValue() const {
-	return sizeValue() | rpl::map([](const QSize &s) {
-		return Rect(s) - st::userpicBuilderEmojiBubblePadding;
-	});
-}
-
-not_null<BubbleWrap*> AddBubbleWrap(
+not_null<Ui::RpWidget*> AddBubbleWrap(
 		not_null<Ui::VerticalLayout*> container,
-		const QSize &size,
-		Fn<not_null<const Ui::ChatStyle*>()> chatStyle) {
-	const auto bubble = container->add(object_ptr<Ui::CenterWrap<BubbleWrap>>(
+		const QSize &size) {
+	const auto bubble = container->add(object_ptr<Ui::CenterWrap<RpWidget>>(
 		container,
-		object_ptr<BubbleWrap>(container)))->entity();
+		object_ptr<Ui::RpWidget>(container)))->entity();
 	bubble->resize(size);
 
 	auto cached = QImage(
@@ -67,7 +60,7 @@ not_null<BubbleWrap*> AddBubbleWrap(
 	cached.fill(Qt::transparent);
 	{
 		auto p = QPainter(&cached);
-		const auto innerRect = bubble->innerRect();
+		const auto innerRect = BubbleWrapInnerRect(bubble->rect());
 		auto hq = PainterHighQualityEnabler(p);
 		const auto radius = st::bubbleRadiusSmall;
 		p.setPen(Qt::NoPen);

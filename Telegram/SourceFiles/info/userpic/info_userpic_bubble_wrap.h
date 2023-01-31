@@ -11,21 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-class ChatStyle;
 class VerticalLayout;
 
-class BubbleWrap final : public Ui::RpWidget {
-public:
-	using Ui::RpWidget::RpWidget;
+[[nodiscard]] QRect BubbleWrapInnerRect(const QRect &r);
 
-	[[nodiscard]] QRect innerRect() const;
-	[[nodiscard]] rpl::producer<QRect> innerRectValue() const;
-
-};
-
-not_null<BubbleWrap*> AddBubbleWrap(
+not_null<Ui::RpWidget*> AddBubbleWrap(
 	not_null<Ui::VerticalLayout*> container,
-	const QSize &size,
-	Fn<not_null<const Ui::ChatStyle*>()> chatStyle);
+	const QSize &size);
 
 } // namespace Ui

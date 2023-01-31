@@ -386,8 +386,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 
 	const auto paletteBg = Ui::AddBubbleWrap(
 		container,
-		st::userpicBuilderEmojiBubblePaletteSize,
-		[=] { return controller->chatStyle(); });
+		st::userpicBuilderEmojiBubblePaletteSize);
 	const auto palette = Ui::CreateChild<Ui::RpWidget>(paletteBg.get());
 	{
 		constexpr auto kColorsCount = int(7);
@@ -455,9 +454,10 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		state->circleButtons[current]->setSelectedProgress(1.);
 		state->circleButtons[current]->clicked({}, Qt::LeftButton);
 	}
-	paletteBg->innerRectValue(
-	) | rpl::start_with_next([=](const QRect &r) {
-		palette->setGeometry(r - st::userpicBuilderEmojiBubblePalettePadding);
+	paletteBg->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		palette->setGeometry(Ui::BubbleWrapInnerRect(Rect(s))
+			- st::userpicBuilderEmojiBubblePalettePadding);
 		AlignChildren(palette, palette->width());
 	}, palette->lifetime());
 
@@ -474,8 +474,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		container,
 		QSize(
 			st::userpicBuilderEmojiBubblePaletteSize.width(),
-			st::userpicBuilderEmojiSelectorMinHeight),
-		[=] { return controller->chatStyle(); });
+			st::userpicBuilderEmojiSelectorMinHeight));
 	const auto selector = Ui::CreateChild<EmojiSelector>(
 		selectorBg.get(),
 		controller,
@@ -485,9 +484,9 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 		state->gradientEditorStartData.documentId = document->id;
 		preview->setDocument(document);
 	}, preview->lifetime());
-	selectorBg->innerRectValue(
-	) | rpl::start_with_next([=](const QRect &r) {
-		selector->setGeometry(r);
+	selectorBg->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		selector->setGeometry(Ui::BubbleWrapInnerRect(Rect(s)));
 	}, selector->lifetime());
 
 	base::take(
