@@ -65,8 +65,6 @@ userpicBuilderEmojiColorPlus: IconButton(userpicBuilderEmojiColorMinus) {
 	iconOver: icon {{ "settings/plus", menuIconFg }};
 }
 
-userpicBuilderEmojiToggleEmojiIcon: icon {{ "chat/input_smile_face", emojiIconFg }};
-userpicBuilderEmojiToggleEmojiSize: 18px;
 userpicBuilderEmojiToggleStickersIcon: icon {{ "menu/stickers", emojiIconFg }};
 
 userpicBuilderEmojiSlideDuration: 120;

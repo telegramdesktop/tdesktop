@@ -272,23 +272,10 @@ void EmojiSelector::createSelector(Type type) {
 			const auto r = toggleButton->rect()
 				- QMargins(pos.x(), pos.y(), pos.x(), pos.y());
 			p.fillRect(r, st::boxBg);
-			const auto &icon = st::userpicBuilderEmojiToggleStickersIcon;
 			if (isEmoji) {
-				icon.paintInCenter(p, r);
+				st::userpicBuilderEmojiToggleStickersIcon.paintInCenter(p, r);
 			} else {
-				st::userpicBuilderEmojiToggleEmojiIcon.paintInCenter(p, r);
-				const auto line = style::ConvertScaleExact(
-					st::historyEmojiCircleLine);
-				p.setPen(QPen(
-					st::emojiIconFg,
-					line,
-					Qt::SolidLine,
-					Qt::RoundCap));
-				p.setBrush(Qt::NoBrush);
-				PainterHighQualityEnabler hq(p);
-				const auto diff = (icon.width()
-					- st::userpicBuilderEmojiToggleEmojiSize) / 2;
-				p.drawEllipse(r - Margins(diff));
+				st::emojiPeople.paintInCenter(p, r);
 			}
 		}, toggleButton->lifetime());
 	}
