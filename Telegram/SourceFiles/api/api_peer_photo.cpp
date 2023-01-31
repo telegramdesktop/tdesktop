@@ -412,16 +412,18 @@ void PeerPhoto::ready(
 		)).done(applier).afterRequest(history->sendRequestId).send();
 	} else if (const auto user = peer->asUser()) {
 		using Flag = MTPphotos_UploadContactProfilePhoto::Flag;
+		const auto none = MTPphotos_UploadContactProfilePhoto::Flags(0);
 		_api.request(MTPphotos_UploadContactProfilePhoto(
-			MTP_flags(Flag::f_file
+			MTP_flags((file ? Flag::f_file : none)
+				| (videoSize ? Flag::f_video_emoji_markup : none)
 				| ((type == UploadType::Suggestion)
 					? Flag::f_suggest
 					: Flag::f_save)),
 			user->inputUser,
-			*file,
+			file ? (*file) : MTPInputFile(),
 			MTPInputFile(), // video
 			MTPdouble(), // video_start_ts
-			MTPVideoSize() // video_emoji_markup
+			videoSize ? (*videoSize) : MTPVideoSize() // video_emoji_markup
 		)).done([=](const MTPphotos_Photo &result) {
 			result.match([&](const MTPDphotos_photo &data) {
 				_session->data().processPhoto(data.vphoto());

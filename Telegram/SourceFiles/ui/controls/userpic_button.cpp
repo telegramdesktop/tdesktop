@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
 namespace Ui {
@@ -317,10 +318,28 @@ void UserpicButton::choosePhotoLocally() {
 					callback(type));
 			}));
 	};
+	const auto user = _peer ? _peer->asUser() : nullptr;
+	const auto addUserpicBuilder = [&](ChosenType type) {
+		if (!_controller) {
+			return;
+		}
+		const auto done = [=](UserpicBuilder::Result data) {
+			auto result = ChosenImage{ base::take(data.image), type };
+			result.markup.documentId = data.id;
+			result.markup.colors = base::take(data.colors);
+			_chosenImages.fire(std::move(result));
+		};
+		UserpicBuilder::AddEmojiBuilderAction(
+			_controller,
+			_menu,
+			_controller->session().api().peerPhoto().emojiListValue(user
+				? Api::PeerPhoto::EmojiListType::Profile
+				: Api::PeerPhoto::EmojiListType::Group),
+			done);
+	};
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
-	const auto user = _peer ? _peer->asUser() : nullptr;
 	if (user && !user->isSelf()) {
 		_menu->addAction(
 			tr::lng_profile_set_photo_for(tr::now),
@@ -332,7 +351,9 @@ void UserpicButton::choosePhotoLocally() {
 				[=] { chooseFile(ChosenType::Suggest); },
 				&st::menuIconPhotoSuggest);
 		}
+		addUserpicBuilder(ChosenType::Set);
 		if (hasPersonalPhotoLocally()) {
+			_menu->addSeparator(&st::expandedMenuSeparator);
 			_menu->addAction(makeResetToOriginalAction());
 		}
 	} else {
@@ -351,25 +372,7 @@ void UserpicButton::choosePhotoLocally() {
 						callback(ChosenType::Set)));
 				}, &st::menuIconPhotoSet);
 			}
-			if (_controller) {
-				const auto done = [=](UserpicBuilder::Result data) {
-					auto result = ChosenImage{
-						base::take(data.image),
-						ChosenType::Set,
-					};
-					result.markup.documentId = data.id;
-					result.markup.colors = base::take(data.colors);
-					_chosenImages.fire(std::move(result));
-				};
-				auto &session = _controller->session();
-				UserpicBuilder::AddEmojiBuilderAction(
-					_controller,
-					_menu,
-					session.api().peerPhoto().emojiListValue(user
-						? Api::PeerPhoto::EmojiListType::Profile
-						: Api::PeerPhoto::EmojiListType::Group),
-					done);
-			}
+			addUserpicBuilder(ChosenType::Set);
 		} else {
 			chooseFile();
 		}
