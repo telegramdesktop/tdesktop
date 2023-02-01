@@ -61,7 +61,7 @@ template <typename CheckboxesMap, typename DependenciesMap>
 void ApplyDependencies(
 		const CheckboxesMap &checkboxes,
 		const DependenciesMap &dependencies,
-		QPointer<Ui::Checkbox> changed) {
+		Ui::AbstractCheckView *changed) {
 	const auto checkAndApply = [&](
 			auto &&current,
 			auto dependency,
@@ -69,7 +69,7 @@ void ApplyDependencies(
 		for (auto &&checkbox : checkboxes) {
 			if ((checkbox.first & dependency)
 				&& (checkbox.second->checked() == isChecked)) {
-				current->setChecked(isChecked);
+				current->setChecked(isChecked, anim::type::normal);
 				return true;
 			}
 		}
@@ -591,7 +591,7 @@ template <
 	const auto container = widget.data();
 
 	const auto checkboxes = container->lifetime(
-	).make_state<std::map<Flags, QPointer<Ui::Checkbox>>>();
+	).make_state<std::map<Flags, not_null<Ui::AbstractCheckView*>>>();
 
 	const auto value = [=] {
 		auto result = Flags(0);
@@ -608,9 +608,9 @@ template <
 	const auto changes = container->lifetime(
 	).make_state<rpl::event_stream<>>();
 
-	const auto applyDependencies = [=](Ui::Checkbox *control) {
+	const auto applyDependencies = [=](Ui::AbstractCheckView *view) {
 		static const auto dependencies = Dependencies(Flags());
-		ApplyDependencies(*checkboxes, dependencies, control);
+		ApplyDependencies(*checkboxes, dependencies, view);
 	};
 
 	container->add(
@@ -651,12 +651,12 @@ template <
 				}
 			} else {
 				InvokeQueued(control, [=] {
-					applyDependencies(control);
+					applyDependencies(control->checkView());
 					changes->fire({});
 				});
 			}
 		}, control->lifetime());
-		checkboxes->emplace(flags, control);
+		checkboxes->emplace(flags, control->checkView());
 	};
 	for (const auto &[flags, label] : flagLabelPairs) {
 		addCheckbox(flags, label);
