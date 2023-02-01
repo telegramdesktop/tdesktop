@@ -2642,6 +2642,9 @@ void HistoryWidget::updateControlsVisibility() {
 	if (_pinnedBar) {
 		_pinnedBar->show();
 	}
+	if (_translateBar) {
+		_translateBar->show();
+	}
 	if (_groupCallBar) {
 		_groupCallBar->show();
 	}
@@ -3722,6 +3725,9 @@ void HistoryWidget::hideChildWidgets() {
 	if (_pinnedBar) {
 		_pinnedBar->hide();
 	}
+	if (_translateBar) {
+		_translateBar->hide();
+	}
 	if (_groupCallBar) {
 		_groupCallBar->hide();
 	}
@@ -4010,6 +4016,9 @@ void HistoryWidget::showAnimated(
 
 void HistoryWidget::showFinished() {
 	_cornerButtons.finishAnimations();
+	if (_translateBar) {
+		_translateBar->finishAnimating();
+	}
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
