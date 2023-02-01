@@ -31,6 +31,8 @@ namespace UserpicBuilder {
 			return Images::Round(
 				std::move(i),
 				Images::CornersMask(radius / style::DevicePixelRatio()));
+		} else {
+			return std::move(i);
 		}
 	};
 	if (style::DevicePixelRatio() == 1) {

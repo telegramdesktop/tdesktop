@@ -444,7 +444,7 @@ void Cover::refreshUploadPhotoOverlay() {
 	}(), [=](Ui::UserpicButton::ChosenImage chosen) {
 		using ChosenType = Ui::UserpicButton::ChosenType;
 		auto result = Api::PeerPhoto::UserPhoto{
-			base::take(chosen.image),
+			base::take<QImage>(chosen.image), // Strange MSVC bug with take.
 			chosen.markup.documentId,
 			chosen.markup.colors,
 		};
