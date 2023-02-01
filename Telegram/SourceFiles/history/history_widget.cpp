@@ -1486,11 +1486,11 @@ void HistoryWidget::orderWidgets() {
 	if (_contactStatus) {
 		_contactStatus->bar().raise();
 	}
-	if (_pinnedBar) {
-		_pinnedBar->raise();
-	}
 	if (_translateBar) {
 		_translateBar->raise();
+	}
+	if (_pinnedBar) {
+		_pinnedBar->raise();
 	}
 	if (_requestsBar) {
 		_requestsBar->raise();
@@ -2097,8 +2097,8 @@ void HistoryWidget::showHistory(
 		_history->showAtMsgId = _showAtMsgId;
 
 		destroyUnreadBarOnClose();
-		_translateBar = nullptr;
 		_pinnedBar = nullptr;
+		_translateBar = nullptr;
 		_pinnedTracker = nullptr;
 		_groupCallBar = nullptr;
 		_requestsBar = nullptr;
@@ -3998,11 +3998,11 @@ void HistoryWidget::showAnimated(
 	show();
 	_topBar->finishAnimating();
 	_cornerButtons.finishAnimations();
-	if (_translateBar) {
-		_translateBar->finishAnimating();
-	}
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
+	}
+	if (_translateBar) {
+		_translateBar->finishAnimating();
 	}
 	if (_groupCallBar) {
 		_groupCallBar->finishAnimating();
@@ -4036,11 +4036,11 @@ void HistoryWidget::showAnimated(
 
 void HistoryWidget::showFinished() {
 	_cornerButtons.finishAnimations();
-	if (_translateBar) {
-		_translateBar->finishAnimating();
-	}
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
+	}
+	if (_translateBar) {
+		_translateBar->finishAnimating();
 	}
 	if (_groupCallBar) {
 		_groupCallBar->finishAnimating();
@@ -4067,11 +4067,11 @@ void HistoryWidget::doneShow() {
 	_preserveScrollTop = true;
 	preloadHistoryIfNeeded();
 	updatePinnedViewer();
-	if (_translateBar) {
-		_translateBar->finishAnimating();
-	}
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
+	}
+	if (_translateBar) {
+		_translateBar->finishAnimating();
 	}
 	if (_groupCallBar) {
 		_groupCallBar->finishAnimating();
@@ -5379,17 +5379,17 @@ void HistoryWidget::updateControlsGeometry() {
 		_requestsBar->move(0, requestsTop);
 		_requestsBar->resizeToWidth(width());
 	}
-	const auto translateTop = requestsTop + (_requestsBar ? _requestsBar->height() : 0);
-	if (_translateBar) {
-		_translateBar->move(0, translateTop);
-		_translateBar->resizeToWidth(width());
-	}
-	const auto pinnedBarTop = translateTop + (_translateBar ? _translateBar->height() : 0);
+	const auto pinnedBarTop = requestsTop + (_requestsBar ? _requestsBar->height() : 0);
 	if (_pinnedBar) {
 		_pinnedBar->move(0, pinnedBarTop);
 		_pinnedBar->resizeToWidth(width());
 	}
-	const auto contactStatusTop = pinnedBarTop + (_pinnedBar ? _pinnedBar->height() : 0);
+	const auto translateTop = pinnedBarTop + (_pinnedBar ? _pinnedBar->height() : 0);
+	if (_translateBar) {
+		_translateBar->move(0, translateTop);
+		_translateBar->resizeToWidth(width());
+	}
+	const auto contactStatusTop = translateTop + (_translateBar ? _translateBar->height() : 0);
 	if (_contactStatus) {
 		_contactStatus->bar().move(0, contactStatusTop);
 	}

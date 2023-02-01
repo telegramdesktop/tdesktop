@@ -1244,7 +1244,9 @@ historyTranslateSettings: IconButton(defaultIconButton) {
 	iconOver: icon{{ "menu/customize", windowActiveTextFg }};
 	rippleAreaPosition: point(4px, 4px);
 	rippleAreaSize: 38px;
-	ripple: defaultRippleAnimation;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
 }
 historyTranslateMenuPosition: point(-6px, 40px);
 

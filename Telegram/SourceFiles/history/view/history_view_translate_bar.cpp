@@ -15,14 +15,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "spellcheck/spellcheck_types.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/boxes/choose_language_box.h" // EditSkipTranslationLanguages.
 #include "ui/layers/box_content.h"
+#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -34,6 +37,193 @@ namespace {
 
 constexpr auto kToastDuration = 4 * crl::time(1000);
 
+class TwoTextAction final : public Ui::Menu::ItemBase {
+public:
+	TwoTextAction(
+		not_null<Ui::RpWidget*> parent,
+		const style::Menu &st,
+		const QString &text1,
+		const QString &text2,
+		Fn<void()> callback,
+		const style::icon *icon,
+		const style::icon *iconOver);
+
+	bool isEnabled() const override;
+	not_null<QAction*> action() const override;
+
+	void handleKeyPress(not_null<QKeyEvent*> e) override;
+
+private:
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	int contentHeight() const override;
+
+	void paint(Painter &p);
+	void prepare(const QString &text1);
+
+	const not_null<QAction*> _dummyAction;
+	const style::Menu &_st;
+	const style::icon *_icon;
+	const style::icon *_iconOver;
+	Ui::Text::String _text1;
+	QString _text2;
+	int _textWidth1 = 0;
+	int _textWidth2 = 0;
+	const int _height;
+
+};
+
+TextParseOptions MenuTextOptions = {
+	TextParseLinks, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
+TwoTextAction::TwoTextAction(
+	not_null<Ui::RpWidget*> parent,
+	const style::Menu &st,
+	const QString &text1,
+	const QString &text2,
+	Fn<void()> callback,
+	const style::icon *icon,
+	const style::icon *iconOver)
+: ItemBase(parent, st)
+, _dummyAction(new QAction(parent))
+, _st(st)
+, _icon(icon)
+, _iconOver(iconOver)
+, _text2(text2)
+, _height(st::ttlItemPadding.top()
+	+ _st.itemStyle.font->height
+	+ st::ttlItemTimerFont->height
+	+ st::ttlItemPadding.bottom()) {
+	initResizeHook(parent->sizeValue());
+	setClickedCallback(std::move(callback));
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(this);
+		paint(p);
+	}, lifetime());
+
+	enableMouseSelecting();
+	prepare(text1);
+}
+
+void TwoTextAction::paint(Painter &p) {
+	const auto selected = isSelected();
+	if (selected && _st.itemBgOver->c.alpha() < 255) {
+		p.fillRect(0, 0, width(), _height, _st.itemBg);
+	}
+	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
+	if (isEnabled()) {
+		paintRipple(p, 0, 0);
+	}
+
+	const auto normalHeight = _st.itemPadding.top()
+		+ _st.itemStyle.font->height
+		+ _st.itemPadding.bottom();
+	const auto deltaHeight = _height - normalHeight;
+	if (const auto icon = selected ? _iconOver : _icon) {
+		icon->paint(
+			p,
+			_st.itemIconPosition + QPoint(0, deltaHeight / 2),
+			width());
+	}
+
+	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
+	_text1.drawLeftElided(
+		p,
+		_st.itemPadding.left(),
+		st::ttlItemPadding.top(),
+		_textWidth1,
+		width());
+
+	p.setFont(st::ttlItemTimerFont);
+	p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
+	p.drawTextLeft(
+		_st.itemPadding.left(),
+		st::ttlItemPadding.top() + _st.itemStyle.font->height,
+		width(),
+		_text2);
+}
+
+void TwoTextAction::prepare(const QString &text1) {
+	_text1.setMarkedText(_st.itemStyle, { text1 }, MenuTextOptions);
+	const auto textWidth1 = _text1.maxWidth();
+	const auto textWidth2 = st::ttlItemTimerFont->width(_text2);
+	const auto &padding = _st.itemPadding;
+
+	const auto goodWidth = padding.left()
+		+ std::max(textWidth1, textWidth2)
+		+ padding.right();
+	const auto ttlMaxWidth = [&](const QString &duration) {
+		return padding.left()
+			+ st::ttlItemTimerFont->width(tr::lng_context_auto_delete_in(
+				tr::now,
+				lt_duration,
+				duration))
+			+ padding.right();
+	};
+	const auto maxWidth1 = ttlMaxWidth("23:59:59");
+	const auto maxWidth2 = ttlMaxWidth(tr::lng_days(tr::now, lt_count, 7));
+
+	const auto w = std::clamp(
+		std::max({ goodWidth, maxWidth1, maxWidth2 }),
+		_st.widthMin,
+		_st.widthMax);
+	_textWidth1 = w - (goodWidth - textWidth1);
+	_textWidth2 = w - (goodWidth - textWidth2);
+	setMinWidth(w);
+	update();
+}
+
+bool TwoTextAction::isEnabled() const {
+	return true;
+}
+
+not_null<QAction*> TwoTextAction::action() const {
+	return _dummyAction;
+}
+
+QPoint TwoTextAction::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos());
+}
+
+QImage TwoTextAction::prepareRippleMask() const {
+	return Ui::RippleAnimation::RectMask(size());
+}
+
+int TwoTextAction::contentHeight() const {
+	return _height;
+}
+
+void TwoTextAction::handleKeyPress(not_null<QKeyEvent*> e) {
+	if (!isSelected()) {
+		return;
+	}
+	const auto key = e->key();
+	if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+		setClicked(Ui::Menu::TriggeredSource::Keyboard);
+	}
+}
+
+[[nodiscard]] base::unique_qptr<Ui::Menu::ItemBase> MakeTranslateToItem(
+		not_null<Ui::Menu::Menu*> menu,
+		const QString &language,
+		Fn<void()> callback) {
+	return base::make_unique_q<TwoTextAction>(
+		menu,
+		menu->st(),
+		tr::lng_translate_menu_to(tr::now),
+		language,
+		std::move(callback),
+		&st::menuIconTranslate,
+		&st::menuIconTranslate);
+}
+
 } // namespace
 
 TranslateBar::TranslateBar(
@@ -42,10 +232,7 @@ TranslateBar::TranslateBar(
 	not_null<History*> history)
 : _controller(controller)
 , _history(history)
-, _wrap(parent, object_ptr<Ui::FlatButton>(
-	parent,
-	QString(),
-	st::historyComposeButton))
+, _wrap(parent, object_ptr<Ui::AbstractButton>(parent))
 , _shadow(std::make_unique<Ui::PlainShadow>(_wrap.parentWidget())) {
 	_wrap.hide(anim::type::instant);
 	_shadow->hide();
@@ -86,13 +273,21 @@ void TranslateBar::setup(not_null<History*> history) {
 		updateControlsGeometry(rect);
 	}, _wrap.lifetime());
 
-	const auto button = static_cast<Ui::FlatButton*>(_wrap.entity());
 	const auto translateTo = [=](LanguageId id) {
 		history->translateTo(id);
 		if (const auto migrated = history->migrateFrom()) {
 			migrated->translateTo(id);
 		}
 	};
+	const auto button = static_cast<Ui::AbstractButton*>(_wrap.entity());
+	button->resize(0, st::historyComposeButton.height);
+	button->setAttribute(Qt::WA_OpaquePaintEvent);
+
+	button->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		QPainter(button).fillRect(clip, st::historyComposeButton.bgColor);
+	}, button->lifetime());
+
 	button->setClickedCallback([=] {
 		translateTo(history->translatedTo()
 			? LanguageId()
@@ -214,11 +409,15 @@ void TranslateBar::showMenu(base::unique_qptr<Ui::PopupMenu> menu) {
 	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 
 	const auto weak = base::make_weak(_controller);
-	_menu->addAction(tr::lng_translate_menu_to(tr::now), [=] {
+	const auto chooseCallback = [=] {
 		if (const auto strong = weak.get()) {
 			strong->show(Ui::ChooseTranslateToBox());
 		}
-	}, &st::menuIconTranslate);
+	};
+	_menu->addAction(MakeTranslateToItem(
+		_menu->menu(),
+		Ui::LanguageName(Core::App().settings().translateTo()),
+		chooseCallback));
 	_menu->addSeparator();
 	const auto history = _history;
 	if (const auto translateOfferedFrom = _history->translateOfferedFrom()) {
