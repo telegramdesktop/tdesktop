@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_settings.h"
 
 namespace {
@@ -367,7 +368,7 @@ void ChoosePeerBoxController::prepareRestrictions() {
 			{ skip, 0, skip, st::membersMarginTop });
 		Settings::AddDivider(raw);
 	}
-	const auto make = [&](tr::phrase<> text) {
+	const auto make = [&](tr::phrase<> text, const style::icon &st) {
 		auto button = raw->add(
 			object_ptr<Ui::SettingsButton>(
 				raw,
@@ -376,12 +377,12 @@ void ChoosePeerBoxController::prepareRestrictions() {
 			{ 0, st::membersMarginTop, 0, 0 });
 		const auto icon = Ui::CreateChild<Info::Profile::FloatingIcon>(
 			button,
-			st::inviteViaLinkIcon,
+			st,
 			QPoint());
 		button->heightValue(
 		) | rpl::start_with_next([=](int height) {
 			icon->moveToLeft(
-				st::inviteViaLinkIconPosition.x(),
+				st::choosePeerCreateIconLeft,
 				(height - st::inviteViaLinkIcon.height()) / 2);
 		}, icon->lifetime());
 
@@ -399,9 +400,9 @@ void ChoosePeerBoxController::prepareRestrictions() {
 		return button;
 	};
 	if (_query.type == RequestPeerQuery::Type::Group) {
-		make(tr::lng_request_group_create);
+		make(tr::lng_request_group_create, st::choosePeerGroupIcon);
 	} else if (_query.type == RequestPeerQuery::Type::Broadcast) {
-		make(tr::lng_request_channel_create);
+		make(tr::lng_request_channel_create, st::choosePeerChannelIcon);
 	}
 
 	if (raw->count() > 0) {

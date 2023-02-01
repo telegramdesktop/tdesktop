@@ -419,3 +419,6 @@ reactPanelScroll: ScrollArea(emojiScroll) {
 emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
 emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};
 
+choosePeerGroupIcon: icon {{ "info/edit/create_group", lightButtonFg }};
+choosePeerChannelIcon: icon {{ "info/edit/create_channel", lightButtonFg }};
+choosePeerCreateIconLeft: 25px;
