@@ -434,24 +434,25 @@ not_null<Ui::SettingsButton*> AddDefaultCheckbox(
 template <
 	typename Flags,
 	typename DisabledMessagePairs,
-	typename FlagLabelPairs,
-	typename CheckboxFactory>
+	typename FlagLabelPairs>
 [[nodiscard]] EditFlagsControl<Flags, Ui::RpWidget> CreateEditFlags(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> header,
 		Flags checked,
 		const DisabledMessagePairs &disabledMessagePairs,
-		const FlagLabelPairs &flagLabelPairs,
-		CheckboxFactory checkboxFactory) {
+		const FlagLabelPairs &flagLabelPairs) {
 	struct FlagCheck final {
 		QPointer<Ui::SettingsButton> widget;
 		rpl::event_stream<bool> checkChanges;
 	};
 	struct State final {
+		Ui::SlideWrap<Ui::VerticalLayout> *inner = nullptr;
 		std::map<Flags, FlagCheck> checkboxes;
 		rpl::event_stream<> anyChanges;
+		std::vector<Fn<void(bool)>> mediaToggleCallbacks;
 	};
 	const auto state = container->lifetime().make_state<State>();
+	const auto mediaRestrictions = MediaRestrictions();
 
 	const auto value = [=] {
 		auto result = Flags(0);
@@ -532,13 +533,54 @@ template <
 			: std::nullopt;
 		const auto toggled = ((checked & flags) != 0);
 		auto flagCheck = state->checkboxes.emplace(flags, FlagCheck()).first;
-		const auto control = checkboxFactory(
-			container,
-			flags,
-			text,
-			toggled,
-			locked,
-			[=](bool v) { flagCheck->second.checkChanges.fire_copy(v); });
+
+		const auto control = [&] {
+			const auto isMedia = ranges::any_of(
+				mediaRestrictions,
+				[&](auto f) { return (flags & f); });
+			if (isMedia) {
+				state->mediaToggleCallbacks.push_back([=](bool v) {
+					flagCheck->second.checkChanges.fire_copy(v);
+				});
+				if (!state->inner) {
+					auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+						container,
+						object_ptr<Ui::VerticalLayout>(container));
+					wrap->hide(anim::type::instant);
+					SendMediaToggle(
+						container,
+						rpl::single(
+							ChatRestrictions(0)
+						) | rpl::then(
+							state->anyChanges.events(
+							) | rpl::map(value) | rpl::map(NegateRestrictions)
+						) | rpl::map([=](ChatRestrictions r) -> int {
+							return (r == ChatRestrictions(0))
+								? 0
+								: ranges::count_if(
+									mediaRestrictions,
+									[&](auto f) { return !(r & f); });
+						}),
+						mediaRestrictions.size(),
+						wrap.data(),
+						[=](bool toggled) {
+							for (auto &c : state->mediaToggleCallbacks) {
+								c(toggled);
+							}
+						},
+						locked);
+					state->inner = container->add(std::move(wrap));
+				}
+				const auto checkbox = AddInnerCheckbox(
+					state->inner->entity(),
+					text,
+					toggled,
+					state->anyChanges.events());
+				return checkbox;
+			} else {
+				return AddDefaultCheckbox(container, text, toggled);
+			}
+		}();
 		flagCheck->second.widget = Ui::MakeWeak(control);
 		control->toggleOn(flagCheck->second.checkChanges.events());
 		control->setToggleLocked(locked.has_value());
@@ -569,6 +611,13 @@ template <
 	for (const auto &[flags, checkbox] : state->checkboxes) {
 		checkbox.widget->finishAnimating();
 	}
+
+	//
+	container->widthValue(
+	) | rpl::start_with_next([=](int w) {
+		state->inner->resizeToWidth(w);
+	}, state->inner->lifetime());
+	//
 
 	return {
 		nullptr,
@@ -1108,68 +1157,12 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 		std::map<ChatRestrictions, QString> disabledMessages,
 		Data::RestrictionsSetOptions options) {
 	auto widget = object_ptr<Ui::VerticalLayout>(parent);
-	struct State {
-		Ui::SlideWrap<Ui::VerticalLayout> *inner = nullptr;
-		rpl::event_stream<ChatRestrictions> restrictions;
-		std::vector<Fn<void(bool)>> mediaToggleCallbacks;
-	};
-	const auto state = widget->lifetime().make_state<State>();
-	const auto mediaRestrictions = MediaRestrictions();
-	const auto checkboxFactory = [&](
-			not_null<Ui::VerticalLayout*> container,
-			ChatRestrictions flags,
-			const QString &text,
-			bool toggled,
-			std::optional<QString> locked,
-			Fn<void(bool)> toggleCallback) {
-		const auto isMedia = ranges::any_of(
-			mediaRestrictions,
-			[&](auto f) { return (flags & f); });
-		if (isMedia) {
-			state->mediaToggleCallbacks.push_back(toggleCallback);
-			if (!state->inner) {
-				auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-					container,
-					object_ptr<Ui::VerticalLayout>(container));
-				wrap->hide(anim::type::instant);
-				SendMediaToggle(
-					container,
-					state->restrictions.events_starting_with(
-						ChatRestrictions(0)
-					) | rpl::map([=](ChatRestrictions r) -> int {
-						return (r == ChatRestrictions(0))
-							? 0
-							: ranges::count_if(
-								mediaRestrictions,
-								[&](auto f) { return !(r & f); });
-					}),
-					mediaRestrictions.size(),
-					wrap.data(),
-					[=](bool toggled) {
-						for (auto &callback : state->mediaToggleCallbacks) {
-							callback(toggled);
-						}
-					},
-					locked);
-				state->inner = container->add(std::move(wrap));
-			}
-			const auto checkbox = AddInnerCheckbox(
-				state->inner->entity(),
-				text,
-				toggled,
-				state->restrictions.events() | rpl::to_empty);
-			return checkbox;
-		} else {
-			return AddDefaultCheckbox(container, text, toggled);
-		}
-	};
 	auto result = CreateEditFlags(
 		widget.data(),
 		header,
 		NegateRestrictions(restrictions),
 		disabledMessages,
-		RestrictionLabels(options),
-		checkboxFactory);
+		RestrictionLabels(options));
 	result.widget = std::move(widget);
 	result.value = [original = std::move(result.value)]{
 		return NegateRestrictions(original());
@@ -1177,13 +1170,6 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 	result.changes = std::move(
 		result.changes
 	) | rpl::map(NegateRestrictions);
-	rpl::duplicate(
-		result.changes
-	) | rpl::start_to_stream(state->restrictions, state->inner->lifetime());
-	result.widget->widthValue(
-	) | rpl::start_with_next([=](int w) {
-		state->inner->resizeToWidth(w);
-	}, state->inner->lifetime());
 
 	return result;
 }
