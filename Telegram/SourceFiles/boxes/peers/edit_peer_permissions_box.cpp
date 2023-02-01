@@ -229,7 +229,7 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 			: Flag::ChangeInfo);
 }
 
-not_null<Ui::SettingsButton*> SendMediaToggle(
+not_null<Ui::RpWidget*> SendMediaToggle(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<int> checkedValue,
 		int total,
@@ -239,12 +239,24 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 	const auto &stButton = st::rightsButton;
 	const auto button = container->add(object_ptr<Ui::SettingsButton>(
 		container,
-		rpl::single(QString()),
+		nullptr,
 		stButton));
 	const auto toggleButton = Ui::CreateChild<Ui::SettingsButton>(
 		container.get(),
-		rpl::single(QString()),
+		nullptr,
 		stButton);
+
+	struct State final {
+		State(const style::Toggle &st, Fn<void()> c)
+		: checkView(st, false, c) {
+		}
+		Ui::ToggleView checkView;
+		Ui::Animations::Simple animation;
+	};
+	const auto state = button->lifetime().make_state<State>(
+		stButton.toggle,
+		[=] { toggleButton->update(); });
+	const auto checkView = &state->checkView;
 	{
 		const auto separator = Ui::CreateChild<Ui::RpWidget>(container.get());
 		separator->paintRequest(
@@ -269,23 +281,28 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 				kLineWidth,
 				separatorHeight);
 		}, toggleButton->lifetime());
+
+		const auto checkWidget = Ui::CreateChild<Ui::RpWidget>(toggleButton);
+		checkWidget->resize(checkView->getSize());
+		checkWidget->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(checkWidget);
+			checkView->paint(p, 0, 0, checkWidget->width());
+		}, checkWidget->lifetime());
+		toggleButton->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			checkWidget->moveToRight(
+				stButton.toggleSkip,
+				(s.height() - checkWidget->height()) / 2);
+		}, toggleButton->lifetime());
 	}
-	using namespace rpl::mappers;
-	button->toggleOn(rpl::duplicate(checkedValue) | rpl::map(_1 > 0), true);
-	toggleButton->toggleOn(button->toggledValue(), true);
-	button->setToggleLocked(locked.has_value());
-	toggleButton->setToggleLocked(locked.has_value());
-	struct State final {
-		Ui::Animations::Simple animation;
-		rpl::lifetime finishAnimatingLifetime;
-	};
-	const auto state = button->lifetime().make_state<State>();
 	rpl::duplicate(
 		checkedValue
-	) | rpl::start_with_next([=] {
-		button->finishAnimating();
-		toggleButton->finishAnimating();
-	}, state->finishAnimatingLifetime);
+	) | rpl::start_with_next([=](int count) {
+		checkView->setChecked(count > 0, anim::type::normal);
+	}, toggleButton->lifetime());
+	checkView->setLocked(locked.has_value());
+	checkView->finishAnimating();
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		rpl::combine(
@@ -323,7 +340,7 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 	}
 	button->sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
-		const auto labelLeft = st::rightsButton.padding.left();
+		const auto labelLeft = stButton.padding.left();
 		const auto labelRight = s.width() - toggleButton->width();
 
 		label->resizeToWidth(labelRight - labelLeft - arrow->width());
@@ -366,70 +383,12 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 	toggleButton->clicks(
 	) | rpl::start_with_next([=] {
 		if (!handleLocked()) {
-			toggleMedia(!button->toggled());
-			state->finishAnimatingLifetime.destroy();
+			toggleMedia(!checkView->checked());
 		}
 	}, toggleButton->lifetime());
 
 	return button;
 }
-
-not_null<Ui::SettingsButton*> AddInnerCheckbox(
-		not_null<Ui::VerticalLayout*> container,
-		const QString &text,
-		bool toggled,
-		rpl::producer<> toggledChanges) {
-	class Button final : public Ui::SettingsButton {
-	public:
-		using Ui::SettingsButton::SettingsButton;
-
-	protected:
-		void paintEvent(QPaintEvent *e) override {
-			Painter p(this);
-
-			const auto paintOver = (isOver() || isDown()) && !isDisabled();
-			Ui::SettingsButton::paintBg(p, e->rect(), paintOver);
-			Ui::SettingsButton::paintRipple(p, 0, 0);
-		}
-
-	};
-
-	const auto checkbox = container->add(
-		object_ptr<Ui::Checkbox>(
-			container,
-			text,
-			toggled,
-			st::settingsCheckbox),
-		st::rightsButton.padding);
-	const auto button = Ui::CreateChild<Button>(
-		container.get(),
-		rpl::single(QString()));
-	button->stackUnder(checkbox);
-	rpl::combine(
-		container->widthValue(),
-		checkbox->geometryValue()
-	) | rpl::start_with_next([=](int w, const QRect &r) {
-		button->setGeometry(0, r.y(), w, r.height());
-	}, button->lifetime());
-	checkbox->setAttribute(Qt::WA_TransparentForMouseEvents);
-	std::move(
-		toggledChanges
-	) | rpl::start_with_next([=] {
-		checkbox->setChecked(button->toggled());
-	}, checkbox->lifetime());
-	return button;
-};
-
-not_null<Ui::SettingsButton*> AddDefaultCheckbox(
-		not_null<Ui::VerticalLayout*> container,
-		const QString &text,
-		bool toggled) {
-	const auto button = Settings::AddButton(
-		container,
-		rpl::single(text),
-		st::rightsButton);
-	return button;
-};
 
 template <
 	typename Flags,
@@ -441,23 +400,19 @@ template <
 		Flags checked,
 		const DisabledMessagePairs &disabledMessagePairs,
 		const FlagLabelPairs &flagLabelPairs) {
-	struct FlagCheck final {
-		QPointer<Ui::SettingsButton> widget;
-		rpl::event_stream<bool> checkChanges;
-	};
 	struct State final {
-		Ui::SlideWrap<Ui::VerticalLayout> *inner = nullptr;
-		std::map<Flags, FlagCheck> checkboxes;
+		std::map<Flags, not_null<Ui::AbstractCheckView*>> checkViews;
+		std::vector<not_null<Ui::AbstractCheckView*>> mediaChecks;
 		rpl::event_stream<> anyChanges;
-		std::vector<Fn<void(bool)>> mediaToggleCallbacks;
 	};
 	const auto state = container->lifetime().make_state<State>();
 	const auto mediaRestrictions = MediaRestrictions();
+	auto inner = (Ui::VerticalLayout*)(nullptr);
 
 	const auto value = [=] {
 		auto result = Flags(0);
-		for (const auto &[flags, checkbox] : state->checkboxes) {
-			if (checkbox.widget->toggled()) {
+		for (const auto &[flags, checkView] : state->checkViews) {
+			if (checkView->checked()) {
 				result |= flags;
 			} else {
 				result &= ~flags;
@@ -465,56 +420,15 @@ template <
 		}
 		return result;
 	};
-
-	const auto applyDependencies = [=](Ui::SettingsButton *changed) {
+	const auto applyDependencies = [=](Ui::AbstractCheckView *view) {
 		static const auto dependencies = Dependencies(Flags());
-
-		const auto checkAndApply = [&](
-				auto &current,
-				auto dependency,
-				bool isChecked) {
-			for (const auto &checkbox : state->checkboxes) {
-				if ((checkbox.first & dependency)
-					&& (checkbox.second.widget->toggled() == isChecked)) {
-					current.checkChanges.fire_copy(isChecked);
-					return true;
-				}
-			}
-			return false;
-		};
-		const auto applySomeDependency = [&] {
-			auto result = false;
-			for (auto &entry : state->checkboxes) {
-				if (entry.second.widget.data() == changed) {
-					continue;
-				}
-				auto isChecked = entry.second.widget->toggled();
-				for (const auto &dependency : dependencies) {
-					const auto check = isChecked
-						? dependency.first
-						: dependency.second;
-					if (entry.first & check) {
-						if (checkAndApply(
-								entry.second,
-								(isChecked
-									? dependency.second
-									: dependency.first),
-								!isChecked)) {
-							result = true;
-							break;
-						}
-					}
-				}
-			}
-			return result;
-		};
-
-		const auto maxFixesCount = int(state->checkboxes.size());
-		for (auto i = 0; i != maxFixesCount; ++i) {
-			if (!applySomeDependency()) {
-				break;
-			}
-		};
+		ApplyDependencies(state->checkViews, dependencies, view);
+	};
+	const auto toggleAllMedia = [=](bool toggled) {
+		for (const auto &checkView : state->mediaChecks) {
+			checkView->setChecked(toggled, anim::type::normal);
+		}
+		applyDependencies(nullptr);
 	};
 
 	container->add(
@@ -532,59 +446,102 @@ template <
 			? std::make_optional(lockedIt->second)
 			: std::nullopt;
 		const auto toggled = ((checked & flags) != 0);
-		auto flagCheck = state->checkboxes.emplace(flags, FlagCheck()).first;
+		const auto isMedia = ranges::any_of(
+			mediaRestrictions,
+			[&](auto f) { return (flags & f); });
 
-		const auto control = [&] {
-			const auto isMedia = ranges::any_of(
-				mediaRestrictions,
-				[&](auto f) { return (flags & f); });
+		const auto checkView = [&]() -> not_null<Ui::AbstractCheckView*> {
 			if (isMedia) {
-				state->mediaToggleCallbacks.push_back([=](bool v) {
-					flagCheck->second.checkChanges.fire_copy(v);
-				});
-				if (!state->inner) {
+				if (!inner) {
 					auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 						container,
 						object_ptr<Ui::VerticalLayout>(container));
-					wrap->hide(anim::type::instant);
+					const auto raw = wrap.data();
+					raw->hide(anim::type::instant);
+					inner = raw->entity();
 					SendMediaToggle(
 						container,
 						rpl::single(
-							ChatRestrictions(0)
-						) | rpl::then(
-							state->anyChanges.events(
-							) | rpl::map(value) | rpl::map(NegateRestrictions)
-						) | rpl::map([=](ChatRestrictions r) -> int {
-							return (r == ChatRestrictions(0))
-								? 0
-								: ranges::count_if(
-									mediaRestrictions,
-									[&](auto f) { return !(r & f); });
-						}),
+							0
+						) | rpl::then(state->anyChanges.events(
+						) | rpl::map([=]() -> int {
+							return ranges::count_if(
+								state->mediaChecks,
+								[](const auto &v) { return v->checked(); });
+						})),
 						mediaRestrictions.size(),
-						wrap.data(),
-						[=](bool toggled) {
-							for (auto &c : state->mediaToggleCallbacks) {
-								c(toggled);
-							}
-						},
+						raw,
+						toggleAllMedia,
 						locked);
-					state->inner = container->add(std::move(wrap));
+					container->add(std::move(wrap));
+					container->widthValue(
+					) | rpl::start_with_next([=](int w) {
+						raw->resizeToWidth(w);
+					}, raw->lifetime());
 				}
-				const auto checkbox = AddInnerCheckbox(
-					state->inner->entity(),
-					text,
-					toggled,
-					state->anyChanges.events());
-				return checkbox;
+				const auto checkbox = inner->add(
+					object_ptr<Ui::Checkbox>(
+						inner,
+						text,
+						toggled,
+						st::settingsCheckbox),
+					st::rightsButton.padding);
+				const auto button = Ui::CreateChild<Ui::RippleButton>(
+					inner,
+					st::defaultRippleAnimation);
+				button->stackUnder(checkbox);
+				rpl::combine(
+					inner->widthValue(),
+					checkbox->geometryValue()
+				) | rpl::start_with_next([=](int w, const QRect &r) {
+					button->setGeometry(0, r.y(), w, r.height());
+				}, button->lifetime());
+				checkbox->setAttribute(Qt::WA_TransparentForMouseEvents);
+				const auto checkView = checkbox->checkView();
+				button->setClickedCallback([=] {
+					checkView->setChecked(
+						!checkView->checked(),
+						anim::type::normal);
+				});
+
+				state->mediaChecks.push_back(checkView);
+
+				return checkView;
 			} else {
-				return AddDefaultCheckbox(container, text, toggled);
+				const auto button = Settings::AddButton(
+					container,
+					rpl::single(text),
+					st::rightsButton);
+				const auto toggle = Ui::CreateChild<Ui::RpWidget>(
+					button.get());
+				auto &lifetime = toggle->lifetime();
+				const auto checkView = lifetime.make_state<Ui::ToggleView>(
+					st::rightsButton.toggle,
+					toggled,
+					[=] { toggle->update(); });
+				toggle->resize(checkView->getSize());
+				toggle->paintRequest(
+				) | rpl::start_with_next([=] {
+					auto p = QPainter(toggle);
+					checkView->paint(p, 0, 0, toggle->width());
+				}, toggle->lifetime());
+				button->sizeValue(
+				) | rpl::start_with_next([=](const QSize &s) {
+					toggle->moveToRight(
+						st::rightsButton.toggleSkip,
+						(s.height() - toggle->height()) / 2);
+				}, toggle->lifetime());
+				button->setClickedCallback([=] {
+					checkView->setChecked(
+						!checkView->checked(),
+						anim::type::normal);
+				});
+				checkView->setLocked(locked.has_value());
+				return checkView;
 			}
 		}();
-		flagCheck->second.widget = Ui::MakeWeak(control);
-		control->toggleOn(flagCheck->second.checkChanges.events());
-		control->setToggleLocked(locked.has_value());
-		control->toggledChanges(
+		state->checkViews.emplace(flags, checkView);
+		checkView->checkedChanges(
 		) | rpl::start_with_next([=](bool checked) {
 			if (locked.has_value()) {
 				if (checked != toggled) {
@@ -592,32 +549,24 @@ template <
 						.parentOverride = container,
 						.text = { *locked },
 					});
-					flagCheck->second.checkChanges.fire_copy(toggled);
+					checkView->setChecked(toggled, anim::type::instant);
 				}
 			} else {
-				InvokeQueued(control, [=] {
-					applyDependencies(control);
+				InvokeQueued(container, [=] {
+					applyDependencies(checkView);
 					state->anyChanges.fire({});
 				});
 			}
-		}, control->lifetime());
-		flagCheck->second.checkChanges.fire_copy(toggled);
+		}, container->lifetime());
 	};
 	for (const auto &[flags, label] : flagLabelPairs) {
 		addCheckbox(flags, label);
 	}
 
 	applyDependencies(nullptr);
-	for (const auto &[flags, checkbox] : state->checkboxes) {
-		checkbox.widget->finishAnimating();
+	for (const auto &[flags, checkView] : state->checkViews) {
+		checkView->finishAnimating();
 	}
-
-	//
-	container->widthValue(
-	) | rpl::start_with_next([=](int w) {
-		state->inner->resizeToWidth(w);
-	}, state->inner->lifetime());
-	//
 
 	return {
 		nullptr,
