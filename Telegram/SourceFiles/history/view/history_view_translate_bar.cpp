@@ -237,17 +237,18 @@ TranslateBar::TranslateBar(
 	_wrap.hide(anim::type::instant);
 	_shadow->hide();
 
+	_shadow->showOn(rpl::combine(
+		_wrap.shownValue(),
+		_wrap.heightValue(),
+		rpl::mappers::_1 && rpl::mappers::_2 > 0
+	) | rpl::filter([=](bool shown) {
+		return (shown == _shadow->isHidden());
+	}));
+
 	setup(history);
 }
 
 TranslateBar::~TranslateBar() = default;
-
-void TranslateBar::updateControlsGeometry(QRect wrapGeometry) {
-	const auto hidden = _wrap.isHidden() || !wrapGeometry.height();
-	if (_shadow->isHidden() != hidden) {
-		_shadow->setVisible(!hidden);
-	}
-}
 
 void TranslateBar::setShadowGeometryPostprocess(
 		Fn<QRect(QRect)> postprocess) {
@@ -270,7 +271,6 @@ void TranslateBar::setup(not_null<History*> history) {
 	_wrap.geometryValue(
 	) | rpl::start_with_next([=](QRect rect) {
 		updateShadowGeometry(rect);
-		updateControlsGeometry(rect);
 	}, _wrap.lifetime());
 
 	const auto translateTo = [=](LanguageId id) {
@@ -563,7 +563,8 @@ void TranslateBar::show() {
 	_forceHidden = false;
 	if (_shouldBeShown) {
 		_wrap.show(anim::type::instant);
-		_shadow->show();
+	} else if (!_wrap.isHidden() && !_wrap.animating()) {
+		_wrap.hide(anim::type::instant);
 	}
 }
 
@@ -573,7 +574,6 @@ void TranslateBar::hide() {
 	}
 	_forceHidden = true;
 	_wrap.hide(anim::type::instant);
-	_shadow->hide();
 }
 
 void TranslateBar::raise() {

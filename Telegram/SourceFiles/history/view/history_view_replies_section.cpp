@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/view/history_view_pinned_section.h"
+#include "history/view/history_view_translate_bar.h"
+#include "history/view/history_view_translate_tracker.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
@@ -241,14 +243,15 @@ RepliesWidget::RepliesWidget(
 	[=](not_null<DocumentData*> emoji) { listShowPremiumToast(emoji); },
 	ComposeControls::Mode::Normal,
 	SendMenu::Type::SilentOnly))
+, _translateBar(std::make_unique<TranslateBar>(this, controller, history))
 , _scroll(std::make_unique<Ui::ScrollArea>(
 	this,
 	controller->chatStyle()->value(lifetime(), st::historyScroll),
 	false))
 , _cornerButtons(
-	_scroll.get(),
-	controller->chatStyle(),
-	static_cast<HistoryView::CornerButtonsDelegate*>(this)) {
+		_scroll.get(),
+		controller->chatStyle(),
+		static_cast<HistoryView::CornerButtonsDelegate*>(this)) {
 	controller->chatStyle()->paletteChanged(
 	) | rpl::start_with_next([=] {
 		_scroll->updateBars();
@@ -265,6 +268,7 @@ RepliesWidget::RepliesWidget(
 	setupRoot();
 	setupRootView();
 	setupShortcuts();
+	setupTranslateBar();
 
 	_history->peer->updateFull();
 
@@ -406,8 +410,9 @@ RepliesWidget::~RepliesWidget() {
 }
 
 void RepliesWidget::orderWidgets() {
-	if (_topBar) {
-		_topBar->raise();
+	_translateBar->raise();
+	if (_topicReopenBar) {
+		_topicReopenBar->bar().raise();
 	}
 	if (_rootView) {
 		_rootView->raise();
@@ -415,8 +420,8 @@ void RepliesWidget::orderWidgets() {
 	if (_pinnedBar) {
 		_pinnedBar->raise();
 	}
-	if (_topicReopenBar) {
-		_topicReopenBar->bar().raise();
+	if (_topBar) {
+		_topBar->raise();
 	}
 	_topBarShadow->raise();
 	_composeControls->raisePanels();
@@ -453,8 +458,12 @@ void RepliesWidget::setupRootView() {
 			_rootId,
 			[bar = _rootView.get()] { bar->customEmojiRepaint(); }),
 		_rootVisible.value()
-	) | rpl::map([=](Ui::MessageBarContent &&content, bool shown) {
-		return shown ? std::move(content) : Ui::MessageBarContent();
+	) | rpl::map([=](Ui::MessageBarContent &&content, bool show) {
+		const auto shown = !content.title.isEmpty() && !content.text.empty();
+		_shownPinnedItem = shown
+			? _history->owner().message(_history->peer->id, _rootId)
+			: nullptr;
+		return show ? std::move(content) : Ui::MessageBarContent();
 	}));
 
 	controller()->adaptive().oneColumnValue(
@@ -585,6 +594,7 @@ void RepliesWidget::setTopic(Data::ForumTopic *topic) {
 	refreshTopBarActiveChat();
 	if (_topic) {
 		if (_rootView) {
+			_shownPinnedItem = nullptr;
 			_rootView = nullptr;
 			_rootViewHeight = 0;
 		}
@@ -1510,6 +1520,29 @@ void RepliesWidget::checkLastPinnedClickedIdReset(
 	}
 }
 
+void RepliesWidget::setupTranslateBar() {
+	controller()->adaptive().oneColumnValue(
+	) | rpl::start_with_next([=, raw = _translateBar.get()](bool one) {
+		raw->setShadowGeometryPostprocess([=](QRect geometry) {
+			if (!one) {
+				geometry.setLeft(geometry.left() + st::lineWidth);
+			}
+			return geometry;
+		});
+	}, _translateBar->lifetime());
+
+	_translateBarHeight = 0;
+	_translateBar->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		if (const auto delta = height - _translateBarHeight) {
+			_translateBarHeight = height;
+			setGeometryWithTopMoved(geometry(), delta);
+		}
+	}, _translateBar->lifetime());
+
+	_translateBar->finishAnimating();
+}
+
 void RepliesWidget::setupPinnedTracker() {
 	Expects(_topic != nullptr);
 
@@ -1563,6 +1596,7 @@ void RepliesWidget::checkPinnedBarState() {
 		if (_pinnedBar) {
 			_pinnedBar->setContent(rpl::single(Ui::MessageBarContent()));
 			_pinnedTracker->reset();
+			_shownPinnedItem = nullptr;
 			_hidingPinnedBar = base::take(_pinnedBar);
 			const auto raw = _hidingPinnedBar.get();
 			base::call_delayed(st::defaultMessageBar.duration, this, [=] {
@@ -1614,7 +1648,12 @@ void RepliesWidget::checkPinnedBarState() {
 		std::move(pinnedRefreshed),
 		std::move(markupRefreshed),
 		_rootVisible.value()
-	) | rpl::map([](Ui::MessageBarContent &&content, auto, auto, bool show) {
+	) | rpl::map([=](Ui::MessageBarContent &&content, auto, auto, bool show) {
+		const auto shown = !content.title.isEmpty() && !content.text.empty();
+		_shownPinnedItem = shown
+			? _history->owner().message(
+				_pinnedTracker->currentMessageId().message)
+			: nullptr;
 		return (show || content.count > 1)
 			? std::move(content)
 			: Ui::MessageBarContent();
@@ -1896,6 +1935,7 @@ QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &pa
 	if (_pinnedBar) {
 		_pinnedBar->hide();
 	}
+	_translateBar->hide();
 	return result;
 }
 
@@ -2125,22 +2165,24 @@ void RepliesWidget::updateControlsGeometry() {
 	if (_rootView) {
 		_rootView->resizeToWidth(contentWidth);
 	}
+	auto top = _topBar->height() + _rootViewHeight;
 	if (_pinnedBar) {
-		_pinnedBar->move(0, _topBar->height());
+		_pinnedBar->move(0, top);
 		_pinnedBar->resizeToWidth(contentWidth);
+		top += _pinnedBarHeight;
 	}
+	if (_topicReopenBar) {
+		_topicReopenBar->bar().move(0, top);
+		top += _topicReopenBar->bar().height();
+	}
+	_translateBar->move(0, top);
+	_translateBar->resizeToWidth(contentWidth);
+	top += _translateBarHeight;
 
 	const auto bottom = height();
 	const auto controlsHeight = _joinGroup
 		? _joinGroup->height()
 		: _composeControls->heightCurrent();
-	auto top = _topBar->height()
-		+ _rootViewHeight
-		+ _pinnedBarHeight;
-	if (_topicReopenBar) {
-		_topicReopenBar->bar().move(0, top);
-		top += _topicReopenBar->bar().height();
-	}
 	const auto scrollHeight = bottom - top - controlsHeight;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
@@ -2250,11 +2292,6 @@ void RepliesWidget::setPinnedVisibility(bool shown) {
 				}
 			}
 		}
-		if (shown) {
-			_rootView->show();
-		} else {
-			_rootView->hide();
-		}
 		_rootVisible = shown;
 		if (!_rootViewInited) {
 			_rootView->finishAnimating();
@@ -2292,6 +2329,10 @@ void RepliesWidget::showFinishedHook() {
 	}
 	if (_pinnedBar) {
 		_pinnedBar->show();
+	}
+	_translateBar->show();
+	if (_topicReopenBar) {
+		_topicReopenBar->bar().show();
 	}
 
 	// We should setup the drag area only after
@@ -2534,6 +2575,17 @@ QString RepliesWidget::listElementAuthorRank(not_null<const Element*> view) {
 	return (_topic && view->data()->from()->id == _topic->creatorId())
 		? tr::lng_topic_author_badge(tr::now)
 		: QString();
+}
+
+History *RepliesWidget::listTranslateHistory() {
+	return _history;
+}
+
+void RepliesWidget::listAddTranslatedItems(
+		not_null<TranslateTracker*> tracker) {
+	if (_shownPinnedItem) {
+		tracker->add(_shownPinnedItem);
+	}
 }
 
 void RepliesWidget::setupEmptyPainter() {

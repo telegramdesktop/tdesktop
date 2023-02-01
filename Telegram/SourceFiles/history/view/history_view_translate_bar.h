@@ -51,7 +51,6 @@ public:
 private:
 	void setup(not_null<History*> history);
 	void updateShadowGeometry(QRect wrapGeometry);
-	void updateControlsGeometry(QRect wrapGeometry);
 	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> createMenu(
 		not_null<Ui::IconButton*> button);
 	void showMenu(base::unique_qptr<Ui::PopupMenu> menu);

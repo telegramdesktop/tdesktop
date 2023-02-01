@@ -32,6 +32,7 @@ namespace HistoryView {
 class Element;
 class TopBarWidget;
 class PinnedMemento;
+class TranslateBar;
 
 class PinnedWidget final
 	: public Window::SectionWidget
@@ -126,6 +127,9 @@ public:
 		Painter &p,
 		const Ui::ChatPaintContext &context) override;
 	QString listElementAuthorRank(not_null<const Element*> view) override;
+	History *listTranslateHistory() override;
+	void listAddTranslatedItems(
+		not_null<TranslateTracker*> tracker) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(
@@ -158,6 +162,7 @@ private:
 		FullMsgId originId = {});
 
 	void setupClearButton();
+	void setupTranslateBar();
 
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
@@ -174,6 +179,9 @@ private:
 	QPointer<ListWidget> _inner;
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
+
+	std::unique_ptr<TranslateBar> _translateBar;
+	int _translateBarHeight = 0;
 
 	bool _skipScrollEvent = false;
 	std::unique_ptr<Ui::ScrollArea> _scroll;

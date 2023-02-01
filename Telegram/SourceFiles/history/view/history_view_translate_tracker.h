@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "spellcheck/spellcheck_types.h"
+
 class History;
 class HistoryItem;
-struct LanguageId;
 
 namespace HistoryView {
 
@@ -22,24 +23,24 @@ public:
 
 	[[nodiscard]] bool enoughForRecognition() const;
 	void startBunch();
-	void add(not_null<Element*> view, LanguageId translatedTo);
-	void add(not_null<HistoryItem*> item, LanguageId translatedTo);
+	void add(not_null<Element*> view);
+	void add(not_null<HistoryItem*> item);
 	void finishBunch();
 
 	[[nodiscard]] rpl::producer<bool> trackingLanguage() const;
 
 private:
 	using MaybeLanguageId = std::variant<QString, LanguageId>;
-	struct ItemForRecognize;
+	struct ItemForRecognize {
+		uint64 generation = 0;
+		MaybeLanguageId id;
+	};
 	struct ItemToRequest {
 		int length = 0;
 	};
 
 	void setup();
-	void add(
-		not_null<HistoryItem*> item,
-		LanguageId translatedTo,
-		bool skipDependencies);
+	void add(not_null<HistoryItem*> item, bool skipDependencies);
 	void recognizeCollected();
 	void trackSkipLanguages();
 	void checkRecognized();
@@ -58,6 +59,7 @@ private:
 	rpl::variable<bool> _trackingLanguage = false;
 	base::flat_map<FullMsgId, ItemForRecognize> _itemsForRecognize;
 	uint64 _generation = 0;
+	LanguageId _bunchTranslatedTo;
 	int _limit = 0;
 	int _addedInBunch = -1;
 	bool _allLoaded = false;

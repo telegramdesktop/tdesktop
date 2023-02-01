@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_pinned_section.h"
 
 #include "history/view/history_view_top_bar_widget.h"
+#include "history/view/history_view_translate_bar.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -100,6 +101,7 @@ PinnedWidget::PinnedWidget(
 	: nullptr)
 , _topBar(this, controller)
 , _topBarShadow(this)
+, _translateBar(std::make_unique<TranslateBar>(this, controller, _history))
 , _scroll(std::make_unique<Ui::ScrollArea>(
 	this,
 	controller->chatStyle()->value(lifetime(), st::historyScroll),
@@ -150,6 +152,7 @@ PinnedWidget::PinnedWidget(
 		clearSelected();
 	}, _topBar->lifetime());
 
+	_translateBar->raise();
 	_topBarShadow->raise();
 	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
@@ -168,6 +171,7 @@ PinnedWidget::PinnedWidget(
 	}, lifetime());
 
 	setupClearButton();
+	setupTranslateBar();
 }
 
 PinnedWidget::~PinnedWidget() = default;
@@ -193,6 +197,29 @@ void PinnedWidget::setupClearButton() {
 			Window::UnpinAllMessages(controller(), _thread);
 		}
 	});
+}
+
+void PinnedWidget::setupTranslateBar() {
+	controller()->adaptive().oneColumnValue(
+	) | rpl::start_with_next([=, raw = _translateBar.get()](bool one) {
+		raw->setShadowGeometryPostprocess([=](QRect geometry) {
+			if (!one) {
+				geometry.setLeft(geometry.left() + st::lineWidth);
+			}
+			return geometry;
+		});
+	}, _translateBar->lifetime());
+
+	_translateBarHeight = 0;
+	_translateBar->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		if (const auto delta = height - _translateBarHeight) {
+			_translateBarHeight = height;
+			setGeometryWithTopMoved(geometry(), delta);
+		}
+	}, _translateBar->lifetime());
+
+	_translateBar->finishAnimating();
 }
 
 void PinnedWidget::cornerButtonsShowAtPosition(
@@ -261,6 +288,7 @@ QPixmap PinnedWidget::grabForShowAnimation(const Window::SectionSlideParams &par
 	if (params.withTopBarShadow) _topBarShadow->hide();
 	auto result = Ui::GrabWidget(this);
 	if (params.withTopBarShadow) _topBarShadow->show();
+	_translateBar->hide();
 	return result;
 }
 
@@ -370,8 +398,11 @@ void PinnedWidget::updateControlsGeometry() {
 	_clearButton->resizeToWidth(width());
 	_clearButton->move(0, bottom);
 	const auto controlsHeight = 0;
-	const auto scrollY = _topBar->height();
-	const auto scrollHeight = bottom - scrollY - controlsHeight;
+	auto top = _topBar->height();
+	_translateBar->move(0, top);
+	_translateBar->resizeToWidth(contentWidth);
+	top += _translateBarHeight;
+	const auto scrollHeight = bottom - top - controlsHeight;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
@@ -379,7 +410,7 @@ void PinnedWidget::updateControlsGeometry() {
 		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
 		_skipScrollEvent = false;
 	}
-	_scroll->move(0, scrollY);
+	_scroll->move(0, top);
 	if (!_scroll->isHidden()) {
 		if (newScrollTop) {
 			_scroll->scrollToY(*newScrollTop);
@@ -429,6 +460,7 @@ void PinnedWidget::showAnimatedHook(
 void PinnedWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
 	_inner->showFinished();
+	_translateBar->show();
 }
 
 bool PinnedWidget::floatPlayerHandleWheelEvent(QEvent *e) {
@@ -628,6 +660,14 @@ void PinnedWidget::listPaintEmpty(
 
 QString PinnedWidget::listElementAuthorRank(not_null<const Element*> view) {
 	return {};
+}
+
+History *PinnedWidget::listTranslateHistory() {
+	return _history;
+}
+
+void PinnedWidget::listAddTranslatedItems(
+	not_null<TranslateTracker*> tracker) {
 }
 
 void PinnedWidget::confirmDeleteSelected() {

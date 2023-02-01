@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
 #include "main/main_session.h"
-#include "spellcheck/spellcheck_types.h"
 #include "spellcheck/platform/platform_language.h"
 
 namespace HistoryView {
@@ -31,11 +30,6 @@ constexpr auto kRequestLengthLimit = 24 * 1024;
 constexpr auto kRequestCountLimit = 20;
 
 } // namespace
-
-struct TranslateTracker::ItemForRecognize {
-	uint64 generation = 0;
-	MaybeLanguageId id;
-};
 
 TranslateTracker::TranslateTracker(not_null<History*> history)
 : _history(history)
@@ -85,29 +79,25 @@ bool TranslateTracker::enoughForRecognition() const {
 
 void TranslateTracker::startBunch() {
 	_addedInBunch = 0;
+	_bunchTranslatedTo = _history->translatedTo();
 	++_generation;
 }
 
-void TranslateTracker::add(
-		not_null<Element*> view,
-		LanguageId translatedTo) {
+void TranslateTracker::add(not_null<Element*> view) {
 	const auto item = view->data();
 	const auto only = view->isOnlyEmojiAndSpaces();
 	if (only != OnlyEmojiAndSpaces::Unknown) {
 		item->cacheOnlyEmojiAndSpaces(only == OnlyEmojiAndSpaces::Yes);
 	}
-	add(item, translatedTo, false);
+	add(item, false);
+}
+
+void TranslateTracker::add(not_null<HistoryItem*> item) {
+	add(item, false);
 }
 
 void TranslateTracker::add(
 		not_null<HistoryItem*> item,
-		LanguageId translatedTo) {
-	add(item, translatedTo, false);
-}
-
-void TranslateTracker::add(
-		not_null<HistoryItem*> item,
-		LanguageId translatedTo,
 		bool skipDependencies) {
 	Expects(_addedInBunch >= 0);
 
@@ -117,15 +107,26 @@ void TranslateTracker::add(
 		|| item->isOnlyEmojiAndSpaces()) {
 		return;
 	}
-	if (item->translationShowRequiresCheck(translatedTo)) {
-		_switchTranslations[item] = translatedTo;
+	if (item->translationShowRequiresCheck(_bunchTranslatedTo)) {
+		_switchTranslations[item] = _bunchTranslatedTo;
 	}
 	if (!skipDependencies) {
 		if (const auto reply = item->Get<HistoryMessageReply>()) {
 			if (const auto to = reply->replyToMsg.get()) {
-				add(to, translatedTo, true);
+				add(to, true);
 			}
 		}
+#if 0 // I hope this is not needed, although I'm not sure.
+		if (item->groupId()) {
+			if (const auto group = _history->owner().groups().find(item)) {
+				for (const auto &other : group->items) {
+					if (other != item) {
+						add(other, true);
+					}
+				}
+			}
+		}
+#endif
 	}
 	const auto id = item->fullId();
 	const auto i = _itemsForRecognize.find(id);
@@ -162,7 +163,6 @@ void TranslateTracker::finishBunch() {
 			checkRecognized();
 		}
 	}
-	requestSome();
 	if (!_switchTranslations.empty()) {
 		auto switching = base::take(_switchTranslations);
 		for (const auto &[item, id] : switching) {
@@ -171,6 +171,7 @@ void TranslateTracker::finishBunch() {
 		_switchTranslations = std::move(switching);
 		_switchTranslations.clear();
 	}
+	requestSome();
 }
 
 void TranslateTracker::cancelToRequest() {

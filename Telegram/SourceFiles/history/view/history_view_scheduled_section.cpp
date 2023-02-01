@@ -1325,6 +1325,14 @@ QString ScheduledWidget::listElementAuthorRank(
 	return {};
 }
 
+History *ScheduledWidget::listTranslateHistory() {
+	return nullptr;
+}
+
+void ScheduledWidget::listAddTranslatedItems(
+	not_null<TranslateTracker*> tracker) {
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	ConfirmSendNowSelectedItems(_inner);
 }

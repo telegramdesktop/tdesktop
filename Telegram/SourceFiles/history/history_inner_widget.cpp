@@ -915,7 +915,6 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	const auto historyDisplayedEmpty = _history->isDisplayedEmpty()
 		&& (!_migrated || _migrated->isDisplayedEmpty());
-	const auto translatedTo = _history->translatedTo();
 	if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 		const auto st = context.st;
 		const auto stm = &st->messageStyle(false, false);
@@ -969,7 +968,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
 		if (_pinnedItem) {
-			_translateTracker->add(_pinnedItem, translatedTo);
+			_translateTracker->add(_pinnedItem);
 		}
 		_translateTracker->finishBunch();
 		if (readTill && _widget->markingMessagesRead()) {
@@ -985,7 +984,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			not_null<Element*> view,
 			int top,
 			int height) {
-		_translateTracker->add(view, translatedTo);
+		_translateTracker->add(view);
 		const auto item = view->data();
 		const auto isSponsored = item->isSponsored();
 		const auto isUnread = !item->out()

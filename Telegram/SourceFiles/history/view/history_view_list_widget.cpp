@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_translate_tracker.h"
 #include "history/view/history_view_quick_action.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
@@ -82,6 +83,11 @@ constexpr auto kPreloadIfLessThanScreens = 2;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
 constexpr auto kClearUserpicsAfter = 50;
+
+[[nodiscard]] std::unique_ptr<TranslateTracker> MaybeTranslateTracker(
+		History *history) {
+	return history ? std::make_unique<TranslateTracker>(history) : nullptr;
+}
 
 } // namespace
 
@@ -297,6 +303,7 @@ ListWidget::ListWidget(
 		this,
 		[=](QRect updated) { update(updated); },
 		controller->cachedReactionIconFactory().createMethod()))
+, _translateTracker(MaybeTranslateTracker(_delegate->listTranslateHistory()))
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _applyUpdatedScrollState([this] { applyUpdatedScrollState(); })
 , _selectEnabled(_delegate->listAllowsMultiSelect())
@@ -358,6 +365,15 @@ ListWidget::ListWidget(
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 		maybeMarkReactionsRead(update.item);
 	}, lifetime());
+
+	if (const auto history = _delegate->listTranslateHistory()) {
+		session().changes().historyUpdates(
+			history,
+			Data::HistoryUpdate::Flag::TranslatedTo
+		) | rpl::start_with_next([=] {
+			update();
+		}, lifetime());
+	}
 
 	session().data().itemVisibilityQueries(
 	) | rpl::start_with_next([=](
@@ -2025,9 +2041,16 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	if (_translateTracker) {
+		_translateTracker->startBunch();
+	}
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
+		if (_translateTracker) {
+			_delegate->listAddTranslatedItems(_translateTracker.get());
+			_translateTracker->finishBunch();
+		}
 		if (readTill && markingMessagesRead()) {
 			_delegate->listMarkReadTill(readTill);
 		}
@@ -2075,6 +2098,9 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			context.outbg = view->hasOutLayout();
 			context.selection = itemRenderSelection(view);
 			view->draw(p, context);
+		}
+		if (_translateTracker) {
+			_translateTracker->add(view);
 		}
 		const auto isSponsored = item->isSponsored();
 		const auto isUnread = _delegate->listElementShownUnread(view)
