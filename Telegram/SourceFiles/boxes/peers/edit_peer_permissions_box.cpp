@@ -636,103 +636,6 @@ template <
 	};
 }
 
-template <
-	typename Flags,
-	typename DisabledMessagePairs,
-	typename FlagLabelPairs>
-[[nodiscard]] EditFlagsControl<Flags, Ui::RpWidget> CreateEditAdminFlags(
-		QWidget *parent,
-		rpl::producer<QString> header,
-		Flags checked,
-		const DisabledMessagePairs &disabledMessagePairs,
-		const FlagLabelPairs &flagLabelPairs) {
-	auto widget = object_ptr<Ui::VerticalLayout>(parent);
-	const auto container = widget.data();
-
-	const auto checkboxes = container->lifetime(
-	).make_state<std::map<Flags, not_null<Ui::AbstractCheckView*>>>();
-
-	const auto value = [=] {
-		auto result = Flags(0);
-		for (const auto &[flags, checkbox] : *checkboxes) {
-			if (checkbox->checked()) {
-				result |= flags;
-			} else {
-				result &= ~flags;
-			}
-		}
-		return result;
-	};
-
-	const auto changes = container->lifetime(
-	).make_state<rpl::event_stream<>>();
-
-	const auto applyDependencies = [=](Ui::AbstractCheckView *view) {
-		static const auto dependencies = Dependencies(Flags());
-		ApplyDependencies(*checkboxes, dependencies, view);
-	};
-
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			std::move(header),
-			st::rightsHeaderLabel),
-		st::rightsHeaderMargin);
-
-	auto addCheckbox = [&](Flags flags, const QString &text) {
-		const auto lockedIt = ranges::find_if(
-			disabledMessagePairs,
-			[&](const auto &pair) { return (pair.first & flags) != 0; });
-		const auto locked = (lockedIt != end(disabledMessagePairs))
-			? std::make_optional(lockedIt->second)
-			: std::nullopt;
-		const auto toggled = ((checked & flags) != 0);
-		auto toggle = std::make_unique<Ui::ToggleView>(
-			st::rightsToggle,
-			toggled);
-		toggle->setLocked(locked.has_value());
-		const auto control = container->add(
-			object_ptr<Ui::Checkbox>(
-				container,
-				text,
-				st::rightsCheckbox,
-				std::move(toggle)),
-			st::rightsToggleMargin);
-		control->checkedChanges(
-		) | rpl::start_with_next([=](bool checked) {
-			if (locked.has_value()) {
-				if (checked != toggled) {
-					Ui::ShowMultilineToast({
-						.parentOverride = parent,
-						.text = { *locked },
-					});
-					control->setChecked(toggled);
-				}
-			} else {
-				InvokeQueued(control, [=] {
-					applyDependencies(control->checkView());
-					changes->fire({});
-				});
-			}
-		}, control->lifetime());
-		checkboxes->emplace(flags, control->checkView());
-	};
-	for (const auto &[flags, label] : flagLabelPairs) {
-		addCheckbox(flags, label);
-	}
-
-	applyDependencies(nullptr);
-	for (const auto &[flags, checkbox] : *checkboxes) {
-		checkbox->finishAnimating();
-	}
-
-	return {
-		std::move(widget),
-		value,
-		changes->events() | rpl::map(value)
-	};
-}
-
 void AddSlowmodeLabels(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto labels = container->add(
@@ -1164,12 +1067,19 @@ EditFlagsControl<ChatAdminRights, Ui::RpWidget> CreateEditAdminRights(
 		ChatAdminRights rights,
 		std::map<ChatAdminRights, QString> disabledMessages,
 		Data::AdminRightsSetOptions options) {
-	return CreateEditAdminFlags(
-		parent,
+	using String = std::optional<rpl::producer<QString>>;
+	using Labels = std::pair<String, std::vector<AdminRightLabel>>;
+
+	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	auto result = CreateEditFlags(
+		widget.data(),
 		header,
 		rights,
 		disabledMessages,
-		AdminRightLabels(options));
+		std::vector<Labels>{ { std::nullopt, AdminRightLabels(options) } });
+	result.widget = std::move(widget);
+
+	return result;
 }
 
 ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
