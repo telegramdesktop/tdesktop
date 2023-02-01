@@ -597,7 +597,7 @@ int TranslateBar::height() const {
 	return !_forceHidden
 		? _wrap.height()
 		: _shouldBeShown
-		? st::historyReplyHeight
+		? st::historyComposeButton.height
 		: 0;
 }
 

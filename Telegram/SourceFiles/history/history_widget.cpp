@@ -2647,6 +2647,11 @@ void HistoryWidget::updateControlsVisibility() {
 		return;
 	}
 
+	if (_firstLoadRequest && !_scroll->isHidden()) {
+		_scroll->hide();
+	} else if (!_firstLoadRequest && _scroll->isHidden()) {
+		_scroll->show();
+	}
 	if (_pinnedBar) {
 		_pinnedBar->show();
 	}
@@ -2658,11 +2663,6 @@ void HistoryWidget::updateControlsVisibility() {
 	}
 	if (_requestsBar) {
 		_requestsBar->show();
-	}
-	if (_firstLoadRequest && !_scroll->isHidden()) {
-		_scroll->hide();
-	} else if (!_firstLoadRequest && _scroll->isHidden()) {
-		_scroll->show();
 	}
 	if (_contactStatus) {
 		_contactStatus->show();
