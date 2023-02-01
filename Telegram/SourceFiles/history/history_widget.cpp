@@ -6335,8 +6335,6 @@ void HistoryWidget::setupPinnedTracker() {
 	Expects(_history != nullptr);
 
 	_pinnedTracker = std::make_unique<HistoryView::PinnedTracker>(_history);
-	_list->setShownPinnedId(_pinnedTracker->shownMessageId());
-
 	_pinnedBar = nullptr;
 	checkPinnedBarState();
 }
@@ -6361,6 +6359,7 @@ void HistoryWidget::checkPinnedBarState() {
 		if (_pinnedBar) {
 			_pinnedBar->setContent(rpl::single(Ui::MessageBarContent()));
 			_pinnedTracker->reset();
+			_list->setShownPinned(nullptr);
 			_hidingPinnedBar = base::take(_pinnedBar);
 			const auto raw = _hidingPinnedBar.get();
 			base::call_delayed(st::defaultMessageBar.duration, this, [=] {
@@ -6411,7 +6410,12 @@ void HistoryWidget::checkPinnedBarState() {
 			[bar = _pinnedBar.get()] { bar->customEmojiRepaint(); }),
 		std::move(pinnedRefreshed),
 		std::move(markupRefreshed)
-	) | rpl::map([](Ui::MessageBarContent &&content, bool, HistoryItem*) {
+	) | rpl::map([=](Ui::MessageBarContent &&content, bool, HistoryItem*) {
+		if (!content.title.isEmpty() || !content.text.empty()) {
+			_list->setShownPinned(
+				session().data().message(
+					_pinnedTracker->currentMessageId().message));
+		}
 		return std::move(content);
 	}));
 

@@ -968,8 +968,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
-		if (const auto item = _pinnedItem.current()) {
-			_translateTracker->add(item, translatedTo);
+		if (_pinnedItem) {
+			_translateTracker->add(_pinnedItem, translatedTo);
 		}
 		_translateTracker->finishBunch();
 		if (readTill && _widget->markingMessagesRead()) {
@@ -3168,15 +3168,8 @@ void HistoryInner::updateSize() {
 	}
 }
 
-void HistoryInner::setShownPinnedId(
-		rpl::producer<HistoryView::PinnedId> id) {
-	_pinnedItem = std::move(
-		id
-	) | rpl::map([=](const HistoryView::PinnedId &id) {
-		return id.message
-			? session().data().message(id.message)
-			: nullptr;
-	});
+void HistoryInner::setShownPinned(HistoryItem *item) {
+	_pinnedItem = item;
 }
 
 void HistoryInner::enterEventHook(QEnterEvent *e) {
