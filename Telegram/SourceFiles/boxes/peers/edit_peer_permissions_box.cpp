@@ -42,6 +42,54 @@ namespace {
 constexpr auto kSlowmodeValues = 7;
 constexpr auto kSuggestGigagroupThreshold = 199000;
 
+struct NestedRestrictionLabels {
+	std::optional<rpl::producer<QString>> nestedLabel;
+	std::vector<RestrictionLabel> restrictionLabels;
+};
+
+[[nodiscard]] auto NestedRestrictionLabelsList(
+		Data::RestrictionsSetOptions options) {
+	using Flag = ChatRestriction;
+
+	auto first = std::vector<RestrictionLabel>{
+		{ Flag::SendOther, tr::lng_rights_chat_send_text(tr::now) },
+		// { Flag::SendMedia, tr::lng_rights_chat_send_media(tr::now) },
+	};
+	auto inner = std::vector<RestrictionLabel>{
+		{ Flag::SendPhotos, tr::lng_rights_chat_photos(tr::now) },
+		{ Flag::SendVideos, tr::lng_rights_chat_videos(tr::now) },
+		{ Flag::SendVideoMessages, tr::lng_rights_chat_video_messages(tr::now) },
+		{ Flag::SendMusic, tr::lng_rights_chat_music(tr::now) },
+		{ Flag::SendVoiceMessages, tr::lng_rights_chat_voice_messages(tr::now) },
+		{ Flag::SendFiles, tr::lng_rights_chat_files(tr::now) },
+		{ Flag::SendStickers
+			| Flag::SendGifs
+			| Flag::SendGames
+			| Flag::SendInline, tr::lng_rights_chat_stickers(tr::now) },
+		{ Flag::EmbedLinks, tr::lng_rights_chat_send_links(tr::now) },
+		{ Flag::SendPolls, tr::lng_rights_chat_send_polls(tr::now) },
+	};
+	auto second = std::vector<RestrictionLabel>{
+		{ Flag::AddParticipants, tr::lng_rights_chat_add_members(tr::now) },
+		{ Flag::CreateTopics, tr::lng_rights_group_add_topics(tr::now) },
+		{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
+		{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
+	};
+	if (!options.isForum) {
+		second.erase(
+			ranges::remove(
+				second,
+				Flag::CreateTopics,
+				&RestrictionLabel::flags),
+			end(second));
+	}
+	return std::vector<NestedRestrictionLabels>{
+		{ std::nullopt, std::move(first) },
+		{ tr::lng_rights_chat_send_media(), std::move(inner) },
+		{ std::nullopt, std::move(second) },
+	};
+}
+
 int SlowmodeDelayByIndex(int index) {
 	Expects(index >= 0 && index < kSlowmodeValues);
 
@@ -229,12 +277,11 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 			: Flag::ChangeInfo);
 }
 
-not_null<Ui::RpWidget*> SendMediaToggle(
+not_null<Ui::RpWidget*> AddInnerToggle(
 		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<int> checkedValue,
-		int total,
+		std::vector<not_null<Ui::AbstractCheckView*>> innerCheckViews,
 		not_null<Ui::SlideWrap<>*> wrap,
-		Fn<void(bool)> toggleMedia,
+		rpl::producer<QString> buttonLabel,
 		std::optional<QString> locked) {
 	const auto &stButton = st::rightsButton;
 	const auto button = container->add(object_ptr<Ui::SettingsButton>(
@@ -252,10 +299,24 @@ not_null<Ui::RpWidget*> SendMediaToggle(
 		}
 		Ui::ToggleView checkView;
 		Ui::Animations::Simple animation;
+		rpl::event_stream<> anyChanges;
+		std::vector<not_null<Ui::AbstractCheckView*>> innerChecks;
 	};
 	const auto state = button->lifetime().make_state<State>(
 		stButton.toggle,
 		[=] { toggleButton->update(); });
+	state->innerChecks = std::move(innerCheckViews);
+	const auto countChecked = [=] {
+		return ranges::count_if(
+			state->innerChecks,
+			[](const auto &v) { return v->checked(); });
+	};
+	for (const auto &innerCheck : state->innerChecks) {
+		innerCheck->checkedChanges(
+		) | rpl::to_empty | rpl::start_to_stream(
+			state->anyChanges,
+			button->lifetime());
+	}
 	const auto checkView = &state->checkView;
 	{
 		const auto separator = Ui::CreateChild<Ui::RpWidget>(container.get());
@@ -296,23 +357,27 @@ not_null<Ui::RpWidget*> SendMediaToggle(
 				(s.height() - checkWidget->height()) / 2);
 		}, toggleButton->lifetime());
 	}
-	rpl::duplicate(
-		checkedValue
-	) | rpl::start_with_next([=](int count) {
+	state->anyChanges.events_starting_with(
+		rpl::empty_value()
+	) | rpl::map(countChecked) | rpl::start_with_next([=](int count) {
 		checkView->setChecked(count > 0, anim::type::normal);
 	}, toggleButton->lifetime());
 	checkView->setLocked(locked.has_value());
 	checkView->finishAnimating();
+
+	const auto totalInnerChecks = state->innerChecks.size();
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		rpl::combine(
-			tr::lng_rights_chat_send_media(),
-			rpl::duplicate(checkedValue)
-		) | rpl::map([total](const QString &t, int checked) {
+			std::move(buttonLabel),
+			state->anyChanges.events_starting_with(
+				rpl::empty_value()
+			) | rpl::map(countChecked)
+		) | rpl::map([=](const QString &t, int checked) {
 			auto count = Ui::Text::Bold("  "
 				+ QString::number(checked)
 				+ '/'
-				+ QString::number(total));
+				+ QString::number(totalInnerChecks));
 			return TextWithEntities::Simple(t).append(std::move(count));
 		}));
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -383,7 +448,10 @@ not_null<Ui::RpWidget*> SendMediaToggle(
 	toggleButton->clicks(
 	) | rpl::start_with_next([=] {
 		if (!handleLocked()) {
-			toggleMedia(!checkView->checked());
+			const auto checked = !checkView->checked();
+			for (const auto &innerCheck : state->innerChecks) {
+				innerCheck->setChecked(checked, anim::type::normal);
+			}
 		}
 	}, toggleButton->lifetime());
 
@@ -399,15 +467,12 @@ template <
 		rpl::producer<QString> header,
 		Flags checked,
 		const DisabledMessagePairs &disabledMessagePairs,
-		const FlagLabelPairs &flagLabelPairs) {
+		const FlagLabelPairs &flagLabelPairsNested) {
 	struct State final {
 		std::map<Flags, not_null<Ui::AbstractCheckView*>> checkViews;
-		std::vector<not_null<Ui::AbstractCheckView*>> mediaChecks;
 		rpl::event_stream<> anyChanges;
 	};
 	const auto state = container->lifetime().make_state<State>();
-	const auto mediaRestrictions = MediaRestrictions();
-	auto inner = (Ui::VerticalLayout*)(nullptr);
 
 	const auto value = [=] {
 		auto result = Flags(0);
@@ -424,12 +489,6 @@ template <
 		static const auto dependencies = Dependencies(Flags());
 		ApplyDependencies(state->checkViews, dependencies, view);
 	};
-	const auto toggleAllMedia = [=](bool toggled) {
-		for (const auto &checkView : state->mediaChecks) {
-			checkView->setChecked(toggled, anim::type::normal);
-		}
-		applyDependencies(nullptr);
-	};
 
 	container->add(
 		object_ptr<Ui::FlatLabel>(
@@ -438,7 +497,11 @@ template <
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
 
-	auto addCheckbox = [&](Flags flags, const QString &text) {
+	const auto addCheckbox = [&](
+			not_null<Ui::VerticalLayout*> verticalLayout,
+			bool isInner,
+			Flags flags,
+			const QString &text) {
 		const auto lockedIt = ranges::find_if(
 			disabledMessagePairs,
 			[&](const auto &pair) { return (pair.first & flags) != 0; });
@@ -446,52 +509,22 @@ template <
 			? std::make_optional(lockedIt->second)
 			: std::nullopt;
 		const auto toggled = ((checked & flags) != 0);
-		const auto isMedia = ranges::any_of(
-			mediaRestrictions,
-			[&](auto f) { return (flags & f); });
 
 		const auto checkView = [&]() -> not_null<Ui::AbstractCheckView*> {
-			if (isMedia) {
-				if (!inner) {
-					auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-						container,
-						object_ptr<Ui::VerticalLayout>(container));
-					const auto raw = wrap.data();
-					raw->hide(anim::type::instant);
-					inner = raw->entity();
-					SendMediaToggle(
-						container,
-						rpl::single(
-							0
-						) | rpl::then(state->anyChanges.events(
-						) | rpl::map([=]() -> int {
-							return ranges::count_if(
-								state->mediaChecks,
-								[](const auto &v) { return v->checked(); });
-						})),
-						mediaRestrictions.size(),
-						raw,
-						toggleAllMedia,
-						locked);
-					container->add(std::move(wrap));
-					container->widthValue(
-					) | rpl::start_with_next([=](int w) {
-						raw->resizeToWidth(w);
-					}, raw->lifetime());
-				}
-				const auto checkbox = inner->add(
+			if (isInner) {
+				const auto checkbox = verticalLayout->add(
 					object_ptr<Ui::Checkbox>(
-						inner,
+						verticalLayout,
 						text,
 						toggled,
 						st::settingsCheckbox),
 					st::rightsButton.padding);
 				const auto button = Ui::CreateChild<Ui::RippleButton>(
-					inner,
+					verticalLayout.get(),
 					st::defaultRippleAnimation);
 				button->stackUnder(checkbox);
 				rpl::combine(
-					inner->widthValue(),
+					verticalLayout->widthValue(),
 					checkbox->geometryValue()
 				) | rpl::start_with_next([=](int w, const QRect &r) {
 					button->setGeometry(0, r.y(), w, r.height());
@@ -504,12 +537,10 @@ template <
 						anim::type::normal);
 				});
 
-				state->mediaChecks.push_back(checkView);
-
 				return checkView;
 			} else {
 				const auto button = Settings::AddButton(
-					container,
+					verticalLayout,
 					rpl::single(text),
 					st::rightsButton);
 				const auto toggle = Ui::CreateChild<Ui::RpWidget>(
@@ -557,10 +588,40 @@ template <
 					state->anyChanges.fire({});
 				});
 			}
-		}, container->lifetime());
+		}, verticalLayout->lifetime());
+
+		return checkView;
 	};
-	for (const auto &[flags, label] : flagLabelPairs) {
-		addCheckbox(flags, label);
+	for (const auto &[nestedLabel, flagLabelPairs] : flagLabelPairsNested) {
+		const auto isInner = nestedLabel.has_value();
+		auto wrap = isInner
+			? object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				container,
+				object_ptr<Ui::VerticalLayout>(container))
+			: object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>{ nullptr };
+		const auto verticalLayout = wrap ? wrap->entity() : container.get();
+		auto innerChecks = std::vector<not_null<Ui::AbstractCheckView*>>();
+		for (const auto &[flags, label] : flagLabelPairs) {
+			const auto c = addCheckbox(verticalLayout, isInner, flags, label);
+			if (isInner) {
+				innerChecks.push_back(c);
+			}
+		}
+		if (wrap) {
+			const auto raw = wrap.data();
+			raw->hide(anim::type::instant);
+			AddInnerToggle(
+				container,
+				innerChecks,
+				raw,
+				*nestedLabel,
+				std::nullopt);
+			container->add(std::move(wrap));
+			container->widthValue(
+			) | rpl::start_with_next([=](int w) {
+				raw->resizeToWidth(w);
+			}, raw->lifetime());
+		}
 	}
 
 	applyDependencies(nullptr);
@@ -1026,35 +1087,9 @@ Fn<void()> AboutGigagroupCallback(
 
 std::vector<RestrictionLabel> RestrictionLabels(
 		Data::RestrictionsSetOptions options) {
-	using Flag = ChatRestriction;
-
-	auto result = std::vector<RestrictionLabel>{
-		{ Flag::SendOther, tr::lng_rights_chat_send_text(tr::now) },
-		// { Flag::SendMedia, tr::lng_rights_chat_send_media(tr::now) },
-		{ Flag::SendPhotos, tr::lng_rights_chat_photos(tr::now) },
-		{ Flag::SendVideos, tr::lng_rights_chat_videos(tr::now) },
-		{ Flag::SendVideoMessages, tr::lng_rights_chat_video_messages(tr::now) },
-		{ Flag::SendMusic, tr::lng_rights_chat_music(tr::now) },
-		{ Flag::SendVoiceMessages, tr::lng_rights_chat_voice_messages(tr::now) },
-		{ Flag::SendFiles, tr::lng_rights_chat_files(tr::now) },
-		{ Flag::SendStickers
-			| Flag::SendGifs
-			| Flag::SendGames
-			| Flag::SendInline, tr::lng_rights_chat_stickers(tr::now) },
-		{ Flag::EmbedLinks, tr::lng_rights_chat_send_links(tr::now) },
-		{ Flag::SendPolls, tr::lng_rights_chat_send_polls(tr::now) },
-		{ Flag::AddParticipants, tr::lng_rights_chat_add_members(tr::now) },
-		{ Flag::CreateTopics, tr::lng_rights_group_add_topics(tr::now) },
-		{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
-		{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
-	};
-	if (!options.isForum) {
-		result.erase(
-			ranges::remove(
-				result,
-				Flag::CreateTopics,
-				&RestrictionLabel::flags),
-			end(result));
+	auto result = std::vector<RestrictionLabel>();
+	for (const auto &[_, r] : NestedRestrictionLabelsList(options)) {
+		result.insert(result.end(), r.begin(), r.end());
 	}
 	return result;
 }
@@ -1111,7 +1146,7 @@ EditFlagsControl<ChatRestrictions, Ui::RpWidget> CreateEditRestrictions(
 		header,
 		NegateRestrictions(restrictions),
 		disabledMessages,
-		RestrictionLabels(options));
+		NestedRestrictionLabelsList(options));
 	result.widget = std::move(widget);
 	result.value = [original = std::move(result.value)]{
 		return NegateRestrictions(original());
