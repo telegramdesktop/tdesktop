@@ -364,7 +364,8 @@ void ChoosePeerBoxController::prepareRestrictions() {
 				raw,
 				separator + rows.join(separator),
 				st::requestPeerRestriction),
-			{ skip, 0, skip, 0 });
+			{ skip, 0, skip, st::membersMarginTop });
+		Settings::AddDivider(raw);
 	}
 	const auto make = [&](tr::phrase<> text) {
 		auto button = raw->add(
