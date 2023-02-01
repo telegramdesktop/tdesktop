@@ -196,13 +196,8 @@ UserpicButton::UserpicButton(
 , _source(Source::PeerPhoto) {
 	Expects(_role != Role::OpenPhoto);
 
-	if (_source == Source::Custom) {
-		showCustom({});
-	} else {
-		processPeerPhoto();
-		setupPeerViewers();
-	}
-	_waiting = false;
+	processPeerPhoto();
+	setupPeerViewers();
 	prepare();
 }
 
