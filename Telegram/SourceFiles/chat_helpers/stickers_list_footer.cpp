@@ -295,8 +295,8 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 , _settingsButtonVisible(descriptor.settingsButtonVisible)
 , _iconState([=] { update(); })
 , _subiconState([=] { update(); })
-, _selectionBg(st::emojiPanRadius, st::windowBgRipple)
-, _subselectionBg(st().iconArea / 2, st::windowBgRipple) {
+, _selectionBg(st::emojiPanRadius, st().categoriesBgOver)
+, _subselectionBg(st().iconArea / 2, st().categoriesBgOver) {
 	setMouseTracking(true);
 
 	_iconsLeft = st().iconSkip
@@ -679,7 +679,7 @@ void StickersListFooter::paintSelectionBg(
 			area / 2,
 			progress);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgRipple);
+		p.setBrush(st().categoriesBgOver);
 		p.drawRoundedRect(rect, radius, radius);
 	}
 }

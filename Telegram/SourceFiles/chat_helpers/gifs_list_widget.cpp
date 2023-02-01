@@ -176,9 +176,7 @@ object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 		const auto i = ranges::find(_sections, setId, [](GifSection value) {
 			return value.document->id;
 		});
-		if (i != end(_sections)) {
-			searchForGifs(i->emoji->text());
-		}
+		searchForGifs((i != end(_sections)) ? i->emoji->text() : QString());
 	}, _footer->lifetime());
 
 	return result;

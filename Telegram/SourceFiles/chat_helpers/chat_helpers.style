@@ -45,6 +45,7 @@ EmojiPan {
 	bg: color;
 	overBg: color;
 	categoriesBg: color;
+	categoriesBgOver: color;
 	fadeLeft: icon;
 	fadeRight: icon;
 	search: TabbedSearch;
@@ -261,6 +262,7 @@ defaultEmojiPan: EmojiPan {
 	bg: emojiPanBg;
 	overBg: emojiPanHover;
 	categoriesBg: emojiPanCategories;
+	categoriesBgOver: windowBgRipple;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
 	search: defaultTabbedSearch;
@@ -268,6 +270,7 @@ defaultEmojiPan: EmojiPan {
 }
 statusEmojiPan: EmojiPan(defaultEmojiPan) {
 	categoriesBg: windowBg;
+	categoriesBgOver: windowBgOver;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
 	fadeRight: icon {{ "fade_horizontal", windowBg }};
 }
