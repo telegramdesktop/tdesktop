@@ -890,3 +890,5 @@ reportReasonButton: SettingsButton(infoProfileButton) {
 	style: boxTextStyle;
 	padding: margins(62px, 7px, 8px, 7px);
 }
+
+permissionsExpandIcon: icon{{ "info/edit/expand_arrow_small", windowBoldFg }};

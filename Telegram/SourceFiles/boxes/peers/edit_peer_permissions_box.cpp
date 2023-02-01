@@ -248,20 +248,24 @@ not_null<Ui::SettingsButton*> SendMediaToggle(
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(button);
 	{
-		const auto size = st::mainMenuToggleSize * 4;
-		arrow->resize(size, size);
+		const auto &icon = st::permissionsExpandIcon;
+		arrow->resize(icon.size());
 		arrow->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::start_with_next([=, &icon] {
 			auto p = QPainter(arrow);
-			const auto path = Ui::ToggleUpDownArrowPath(
-				size / 2.,
-				size / 2.,
-				size / 4.,
-				st::mainMenuToggleFourStrokes,
-				state->animation.value(wrap->toggled() ? 1. : 0.));
-
-			auto hq = PainterHighQualityEnabler(p);
-			p.fillPath(path, st::rightsButton.textFg);
+			const auto center = QPointF(
+				icon.width() / 2.,
+				icon.height() / 2.);
+			const auto progress = state->animation.value(
+				wrap->toggled() ? 1. : 0.);
+			auto hq = std::optional<PainterHighQualityEnabler>();
+			if (progress > 0.) {
+				hq.emplace(p);
+				p.translate(center);
+				p.rotate(progress * 180.);
+				p.translate(-center);
+			}
+			icon.paint(p, 0, 0, arrow->width());
 		}, arrow->lifetime());
 	}
 	button->sizeValue(
