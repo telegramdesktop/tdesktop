@@ -340,6 +340,7 @@ private:
 	std::unique_ptr<Ui::PinnedBar> _rootView;
 	int _rootViewHeight = 0;
 	bool _rootViewInited = false;
+	bool _rootViewInitScheduled = false;
 	rpl::variable<bool> _rootVisible = false;
 
 	std::unique_ptr<Ui::ScrollArea> _scroll;
