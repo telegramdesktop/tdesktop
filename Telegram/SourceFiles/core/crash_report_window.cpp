@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/zlib_help.h"
 
 #include <QtWidgets/QFileDialog>
+#include <QtGui/QFontInfo>
 #include <QtGui/QScreen>
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStandardPaths>
@@ -43,7 +44,7 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	p.setColor(QPalette::Window, QColor(255, 255, 255));
 	setPalette(p);
 
-	_size = QFontMetrics(font()).height();
+	_size = QFontInfo(font()).pixelSize();
 
 	int paddingVertical = (_size / 2);
 	int paddingHorizontal = _size;
