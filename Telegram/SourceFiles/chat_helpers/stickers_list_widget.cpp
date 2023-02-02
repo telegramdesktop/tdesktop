@@ -2378,7 +2378,8 @@ void StickersListWidget::updateSelected() {
 }
 
 bool StickersListWidget::setHasTitle(const Set &set) const {
-	if (set.id == Data::Stickers::FavedSetId) {
+	if (set.id == Data::Stickers::FavedSetId
+		|| set.id == SearchEmojiSectionSetId()) {
 		return false;
 	} else if (set.id == Data::Stickers::RecentSetId) {
 		return !_mySets.empty()
