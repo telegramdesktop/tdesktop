@@ -653,8 +653,8 @@ WindowPosition MainWindow::nextInitialChildPosition(bool primary) {
 	const auto use = position + (skip * _lastChildIndex);
 	return withScreenInPosition({
 		.scale = cScale(),
-		.x = position.x(),
-		.y = position.y(),
+		.x = use.x(),
+		.y = use.y(),
 		.w = width,
 		.h = height,
 	});
