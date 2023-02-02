@@ -1,3 +1,9 @@
+4.5.9 beta (02.02.23)
+
+- Hide taskbar window preview when Telegram is locked by a passcode (Windows only).
+- More improvements for working with multiple windows.
+- Bug fixes and other minor improvements.
+
 4.5.8 beta (21.01.23)
 
 - Allow opening another account in a new window (see Settings > Advanced > Experimental Settings).
