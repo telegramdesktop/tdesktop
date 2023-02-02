@@ -52,8 +52,8 @@ userpicBuilderEmojiColorMinus: IconButton(defaultIconButton) {
 	width: userpicBuilderEmojiAccentColorSize;
 	height: userpicBuilderEmojiAccentColorSize;
 
-	icon: icon {{ "settings/minus", menuIconFg }};
-	iconOver: icon {{ "settings/minus", menuIconFg }};
+	icon: icon {{ "info/info_colors_remove", menuIconFg }};
+	iconOver: icon {{ "info/info_colors_remove", menuIconFg }};
 
 	rippleAreaSize: userpicBuilderEmojiAccentColorSize;
 	rippleAreaPosition: point(0px, 0px);
@@ -61,8 +61,8 @@ userpicBuilderEmojiColorMinus: IconButton(defaultIconButton) {
 }
 
 userpicBuilderEmojiColorPlus: IconButton(userpicBuilderEmojiColorMinus) {
-	icon: icon {{ "settings/plus", menuIconFg }};
-	iconOver: icon {{ "settings/plus", menuIconFg }};
+	icon: icon {{ "info/info_colors_add", menuIconFg }};
+	iconOver: icon {{ "info/info_colors_add", menuIconFg }};
 }
 
 userpicBuilderEmojiToggleStickersIcon: icon {{ "menu/stickers", emojiIconFg }};
