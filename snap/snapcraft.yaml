@@ -270,6 +270,7 @@ parts:
     source-depth: 1
     source-tag: v0.7.0
     plugin: cmake
+    cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
