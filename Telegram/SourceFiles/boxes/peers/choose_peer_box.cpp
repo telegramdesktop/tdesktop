@@ -141,7 +141,6 @@ using RightsMap = std::vector<std::pair<ChatAdminRight, tr::phrase<>>>;
 }
 
 [[nodiscard]] QStringList RestrictionsList(RequestPeerQuery query) {
-	using Flag = ChatAdminRight;
 	using Type = RequestPeerQuery::Type;
 	using Restriction = RequestPeerQuery::Restriction;
 	auto result = QStringList();
