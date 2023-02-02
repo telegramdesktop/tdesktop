@@ -34,6 +34,9 @@ public:
 
 	void destroyedFromSystem();
 
+	bool setDwmThumbnail(QSize size);
+	bool setDwmPreview(QSize size, int radius);
+
 	~MainWindow();
 
 protected:
@@ -50,12 +53,32 @@ protected:
 private:
 	struct Private;
 
+	class BitmapPointer {
+	public:
+		BitmapPointer(HBITMAP value = nullptr);
+		BitmapPointer(BitmapPointer &&other);
+		BitmapPointer& operator=(BitmapPointer &&other);
+		~BitmapPointer();
+
+		[[nodiscard]] HBITMAP get() const;
+		[[nodiscard]] explicit operator bool() const;
+
+		void release();
+		void reset(HBITMAP value = nullptr);
+
+	private:
+		HBITMAP _value = nullptr;
+
+	};
+
 	void setupNativeWindowFrame();
+	void setupPreviewPasscodeLock();
 	void updateTaskbarAndIconCounters();
 	void validateWindowTheme(bool native, bool night);
 
 	void forceIconRefresh();
 	void destroyCachedIcons();
+	void validateDwmPreviewColors();
 
 	const std::unique_ptr<Private> _private;
 	const std::unique_ptr<QWindow> _taskbarHiderWindow;
@@ -64,6 +87,13 @@ private:
 	HICON _iconBig = nullptr;
 	HICON _iconSmall = nullptr;
 	HICON _iconOverlay = nullptr;
+
+	BitmapPointer _dwmThumbnail;
+	BitmapPointer _dwmPreview;
+	QSize _dwmThumbnailSize;
+	QSize _dwmPreviewSize;
+	QColor _dwmBackground;
+	int _dwmPreviewRadius = 0;
 
 	// Workarounds for activation from tray icon.
 	crl::time _lastDeactivateTime = 0;
