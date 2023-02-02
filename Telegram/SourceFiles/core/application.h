@@ -153,8 +153,8 @@ public:
 
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
-
-	// Don't auto-switch.
+	[[nodiscard]] bool savingPositionFor(
+		not_null<Window::Controller*> window) const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
 	[[nodiscard]] Window::Controller *activePrimaryWindow() const;
 	[[nodiscard]] Window::Controller *separateWindowForAccount(
@@ -397,6 +397,7 @@ private:
 		std::unique_ptr<Window::Controller>> _secondaryWindows;
 	Window::Controller *_lastActiveWindow = nullptr;
 	Window::Controller *_lastActivePrimaryWindow = nullptr;
+	Window::Controller *_windowInSettings = nullptr;
 
 	std::unique_ptr<Media::View::OverlayWidget> _mediaView;
 	const std::unique_ptr<Lang::Instance> _langpack;

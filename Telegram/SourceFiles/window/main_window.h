@@ -77,7 +77,6 @@ public:
 	[[nodiscard]] QRect desktopRect() const;
 	[[nodiscard]] Core::WindowPosition withScreenInPosition(
 		Core::WindowPosition position) const;
-	[[nodiscard]] static Core::WindowPosition SecondaryInitPosition();
 
 	void init();
 
@@ -191,7 +190,9 @@ private:
 	void updateMinimumSize();
 	void updatePalette();
 
-	[[nodiscard]] Core::WindowPosition positionFromSettings() const;
+	[[nodiscard]] Core::WindowPosition initialPosition() const;
+	[[nodiscard]] Core::WindowPosition nextInitialChildPosition(
+		bool primary);
 	[[nodiscard]] QRect countInitialGeometry(Core::WindowPosition position);
 	void initGeometry();
 
@@ -212,6 +213,9 @@ private:
 	rpl::event_stream<> _leaveEvents;
 
 	bool _maximizedBeforeHide = false;
+
+	QPoint _lastMyChildCreatePosition;
+	int _lastChildIndex = 0;
 
 	mutable QRect _monitorRect;
 	mutable crl::time _monitorLastGot = 0;
