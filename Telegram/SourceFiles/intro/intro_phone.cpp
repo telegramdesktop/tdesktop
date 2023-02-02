@@ -146,6 +146,16 @@ void PhoneWidget::submit() {
 		return;
 	}
 
+	{
+		const auto hasCodeButWaitingPhone = _code->hasFocus()
+			&& (_code->getLastText().size() > 1)
+			&& _phone->getLastText().isEmpty();
+		if (hasCodeButWaitingPhone) {
+			_phone->hideError();
+			_phone->setFocus();
+			return;
+		}
+	}
 	const auto phone = fullNumber();
 	if (!AllowPhoneAttempt(phone)) {
 		showPhoneError(tr::lng_bad_phone());

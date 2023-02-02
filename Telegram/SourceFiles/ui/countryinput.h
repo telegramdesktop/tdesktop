@@ -8,11 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
-#include "styles/style_widgets.h"
 
-namespace Data {
-struct Info;
-} // namespace Data
+namespace style {
+struct InputField;
+} // namespace style
 
 namespace Countries {
 struct Info;
@@ -21,11 +20,6 @@ struct Info;
 namespace Window {
 class Show;
 } // namespace Window
-
-namespace Ui {
-class MultiSelect;
-class RippleAnimation;
-} // namespace Ui
 
 class CountryInput : public Ui::RpWidget {
 

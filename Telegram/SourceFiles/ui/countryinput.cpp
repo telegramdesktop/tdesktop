@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
+#include "styles/style_widgets.h"
 
 CountryInput::CountryInput(
 	QWidget *parent,
