@@ -442,6 +442,9 @@ void Domain::maybeActivate(not_null<Main::Account*> account) {
 }
 
 void Domain::activate(not_null<Main::Account*> account) {
+	if (const auto window = Core::App().separateWindowForAccount(account)) {
+		window->activate();
+	}
 	if (_active.current() == account.get()) {
 		return;
 	}

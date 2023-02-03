@@ -897,10 +897,14 @@ void AccountsList::rebuild() {
 						Core::App().domain().maybeActivate(account);
 					}
 				};
-				base::call_delayed(
-					st::defaultRippleAnimation.hideDuration,
-					account,
-					std::move(activate));
+				if (Core::App().separateWindowForAccount(account)) {
+					activate();
+				} else {
+					base::call_delayed(
+						st::defaultRippleAnimation.hideDuration,
+						account,
+						std::move(activate));
+				}
 			};
 			button.reset(inner->add(MakeAccountButton(
 				inner,
