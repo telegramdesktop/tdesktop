@@ -281,17 +281,20 @@ object_ptr<BoxContent> EditSkipTranslationLanguages() {
 		Core::App().settings().setSkipTranslationLanguages(
 			std::move(list));
 		Core::App().saveSettingsDelayed();
-	}, Core::App().settings().skipTranslationLanguages());
+	}, Core::App().settings().skipTranslationLanguages(), true);
 }
 
 object_ptr<BoxContent> ChooseTranslateToBox() {
+	const auto selected = std::vector<LanguageId>{
+		Core::App().settings().translateTo(),
+	};
 	return Box(ChooseLanguageBox, tr::lng_languages(), [=](
 			const std::vector<LanguageId> &ids) {
 		Expects(!ids.empty());
 
 		Core::App().settings().setTranslateTo(ids.front());
 		Core::App().saveSettingsDelayed();
-	}, std::nullopt);
+	}, selected, false);
 }
 
 } // namespace Ui

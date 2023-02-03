@@ -21,6 +21,7 @@ void ChooseLanguageBox(
 	not_null<GenericBox*> box,
 	rpl::producer<QString> title,
 	Fn<void(std::vector<LanguageId>)> callback,
-	std::optional<std::vector<LanguageId>> toggled);
+	std::vector<LanguageId> selected,
+	bool multiselect);
 
 } // namespace Ui

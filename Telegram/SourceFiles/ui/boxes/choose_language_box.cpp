@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
+#include "base/debug_log.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -24,33 +25,57 @@ namespace {
 const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
 
 [[nodiscard]] std::vector<LanguageId> TranslationLanguagesList() {
+	// If adding some languages here you need to check that it is
+	// supported on the server. Right now server supports those:
+	//
+	// 'af', 'sq', 'am', 'ar', 'hy', 'az', 'eu', 'be', 'bn', 'bs', 'bg',
+	// 'ca', 'ceb', 'zh-CN', 'zh', 'zh-TW', 'co', 'hr', 'cs', 'da', 'nl',
+	// 'en', 'eo', 'et', 'fi', 'fr', 'fy', 'gl', 'ka', 'de', 'el', 'gu',
+	// 'ht', 'ha', 'haw', 'he', 'iw', 'hi', 'hmn', 'hu', 'is', 'ig', 'id',
+	// 'ga', 'it', 'ja', 'jv', 'kn', 'kk', 'km', 'rw', 'ko', 'ku', 'ky',
+	// 'lo', 'la', 'lv', 'lt', 'lb', 'mk', 'mg', 'ms', 'ml', 'mt', 'mi',
+	// 'mr', 'mn', 'my', 'ne', 'no', 'ny', 'or', 'ps', 'fa', 'pl', 'pt',
+	// 'pa', 'ro', 'ru', 'sm', 'gd', 'sr', 'st', 'sn', 'sd', 'si', 'sk',
+	// 'sl', 'so', 'es', 'su', 'sw', 'sv', 'tl', 'tg', 'ta', 'tt', 'te',
+	// 'th', 'tr', 'tk', 'uk', 'ur', 'ug', 'uz', 'vi', 'cy', 'xh', 'yi',
+	// 'yo', 'zu',
 	return {
 		{ QLocale::English },
+		{ QLocale::Arabic },
+		{ QLocale::Belarusian },
+		{ QLocale::Catalan },
+		{ QLocale::Chinese },
+		{ QLocale::Dutch },
+		{ QLocale::French },
+		{ QLocale::German },
+		{ QLocale::Indonesian },
+		{ QLocale::Italian },
+		{ QLocale::Japanese },
+		{ QLocale::Korean },
+		{ QLocale::Polish },
+		{ QLocale::Portuguese },
+		{ QLocale::Russian },
+		{ QLocale::Spanish },
+		{ QLocale::Ukrainian },
+
 		{ QLocale::Afrikaans },
 		{ QLocale::Albanian },
 		{ QLocale::Amharic },
-		{ QLocale::Arabic },
 		{ QLocale::Armenian },
 		{ QLocale::Azerbaijani },
 		{ QLocale::Basque },
-		{ QLocale::Belarusian },
 		{ QLocale::Bosnian },
 		{ QLocale::Bulgarian },
 		{ QLocale::Burmese },
-		{ QLocale::Catalan },
-		{ QLocale::Chinese },
 		{ QLocale::Croatian },
 		{ QLocale::Czech },
 		{ QLocale::Danish },
-		{ QLocale::Dutch },
 		{ QLocale::Esperanto },
 		{ QLocale::Estonian },
 		{ QLocale::Finnish },
-		{ QLocale::French },
 		{ QLocale::Gaelic },
 		{ QLocale::Galician },
 		{ QLocale::Georgian },
-		{ QLocale::German },
 		{ QLocale::Greek },
 		{ QLocale::Gusii },
 		{ QLocale::Hausa },
@@ -58,13 +83,9 @@ const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
 		{ QLocale::Hungarian },
 		{ QLocale::Icelandic },
 		{ QLocale::Igbo },
-		{ QLocale::Indonesian },
 		{ QLocale::Irish },
-		{ QLocale::Italian },
-		{ QLocale::Japanese },
 		{ QLocale::Kazakh },
 		{ QLocale::Kinyarwanda },
-		{ QLocale::Korean },
 		{ QLocale::Kurdish },
 		{ QLocale::Lao },
 		{ QLocale::Latvian },
@@ -79,10 +100,7 @@ const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
 		{ QLocale::Nepali },
 		{ QLocale::Pashto },
 		{ QLocale::Persian },
-		{ QLocale::Polish },
-		{ QLocale::Portuguese },
 		{ QLocale::Romanian },
-		{ QLocale::Russian },
 		{ QLocale::Serbian },
 		{ QLocale::Shona },
 		{ QLocale::Sindhi },
@@ -90,7 +108,6 @@ const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
 		{ QLocale::Slovak },
 		{ QLocale::Slovenian },
 		{ QLocale::Somali },
-		{ QLocale::Spanish },
 		{ QLocale::Sundanese },
 		{ QLocale::Swahili },
 		{ QLocale::Swedish },
@@ -100,7 +117,6 @@ const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
 		{ QLocale::Thai },
 		{ QLocale::Turkish },
 		{ QLocale::Turkmen },
-		{ QLocale::Ukrainian },
 		{ QLocale::Urdu },
 		{ QLocale::Uzbek },
 		{ QLocale::Vietnamese },
@@ -224,12 +240,11 @@ void ChooseLanguageBox(
 		not_null<GenericBox*> box,
 		rpl::producer<QString> title,
 		Fn<void(std::vector<LanguageId>)> callback,
-		std::optional<std::vector<LanguageId>> toggled) {
+		std::vector<LanguageId> selected,
+		bool multiselect) {
 	box->setMinHeight(st::boxWidth);
 	box->setMaxHeight(st::boxWidth);
 	box->setTitle(std::move(title));
-
-	const auto hasToggles = toggled.has_value();
 
 	const auto multiSelect = box->setPinnedToTopContent(
 		object_ptr<MultiSelect>(
@@ -246,11 +261,9 @@ void ChooseLanguageBox(
 		if (const auto i = ranges::find(list, current); i != end(list)) {
 			base::reorder(list, std::distance(begin(list), i), 0);
 		}
-		if (hasToggles) {
-			ranges::stable_partition(list, [&](LanguageId id) {
-				return ranges::contains(*toggled, id);
-			});
-		}
+		ranges::stable_partition(list, [&](LanguageId id) {
+			return ranges::contains(selected, id);
+		});
 		return list;
 	}();
 	auto rows = std::vector<not_null<SlideWrap<Row>*>>();
@@ -260,9 +273,9 @@ void ChooseLanguageBox(
 			object_ptr<SlideWrap<Row>>(
 				container,
 				object_ptr<Row>(container, id)));
-		if (hasToggles) {
+		if (multiselect) {
 			button->entity()->toggleOn(
-				rpl::single(ranges::contains(*toggled, id)),
+				rpl::single(ranges::contains(selected, id)),
 				false);
 		} else {
 			button->entity()->setClickedCallback([=] {
@@ -300,7 +313,7 @@ void ChooseLanguageBox(
 		}, label->lifetime());
 	}
 
-	if (hasToggles) {
+	if (multiselect) {
 		box->addButton(tr::lng_settings_save(), [=] {
 			auto result = ranges::views::all(
 				rows
