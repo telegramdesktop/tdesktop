@@ -198,11 +198,11 @@ emojiPanRadius: 8px;
 
 defaultTabbedSearch: TabbedSearch {
 	outer: emojiPanBg;
-	bg: emojiPanCategories;
+	bg: emojiPanHover;
 	fg: emojiIconFg;
 	fgActive: emojiSubIconFgActive;
-	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
-	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanHover }};
+	fadeRight: icon {{ "fade_horizontal", emojiPanHover }};
 	field: InputField(defaultMultiSelectSearchField) {
 		textMargins: margins(2px, 7px, 2px, 0px);
 	}
