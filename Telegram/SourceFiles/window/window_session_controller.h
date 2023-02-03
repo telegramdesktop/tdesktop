@@ -553,6 +553,10 @@ public:
 		return *_cachedReactionIconFactory;
 	}
 
+	[[nodiscard]] QString authedName() const {
+		return _authedName;
+	}
+
 	void setPremiumRef(const QString &ref);
 	[[nodiscard]] QString premiumRef() const;
 
@@ -604,6 +608,8 @@ private:
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
 	const bool _isPrimary = false;
+
+	QString _authedName;
 
 	using SendingAnimation = Ui::MessageSendingAnimationController;
 	const std::unique_ptr<SendingAnimation> _sendingAnimation;

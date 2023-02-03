@@ -27,6 +27,9 @@ bool HasUpdate();
 void SetupUpdate(
 	not_null<Ui::VerticalLayout*> container,
 	Fn<void(Type)> showOther);
+void SetupWindowTitleContent(
+	Window::SessionController *controller,
+	not_null<Ui::VerticalLayout*> container);
 void SetupSystemIntegrationContent(
 	Window::SessionController *controller,
 	not_null<Ui::VerticalLayout*> container);

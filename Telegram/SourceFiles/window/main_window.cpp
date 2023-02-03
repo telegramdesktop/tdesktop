@@ -17,12 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "window/window_controller.h"
 #include "main/main_account.h" // Account::sessionValue.
+#include "main/main_domain.h"
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "core/shortcuts.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "base/options.h"
@@ -837,15 +839,24 @@ void MainWindow::updateTitle() {
 		return;
 	}
 
-	const auto counter = Core::App().unreadBadge();
-	const auto basic = (counter > 0)
-		? u"Telegram (%1)"_q.arg(counter)
-		: u"Telegram"_q;
-	const auto session = _controller->sessionController();
-	const auto key = session ? session->activeChatCurrent() : Dialogs::Key();
+	const auto settings = Core::App().settings().windowTitleContent();
+	const auto locked = Core::App().passcodeLocked();
+	const auto counter = settings.hideTotalUnread
+		? 0
+		: Core::App().unreadBadge();
+	const auto added = (counter > 0) ? u" (%1)"_q.arg(counter) : QString();
+	const auto session = locked ? nullptr : _controller->sessionController();
+	const auto user = (session
+		&& !settings.hideAccountName
+		&& Core::App().domain().accountsAuthedCount() > 1)
+		? session->authedName()
+		: QString();
+	const auto key = (session && !settings.hideChatName)
+		? session->activeChatCurrent()
+		: Dialogs::Key();
 	const auto thread = key ? key.thread() : nullptr;
 	if (!thread) {
-		setTitle(basic);
+		setTitle((user.isEmpty() ? u"Telegram"_q : user) + added);
 		return;
 	}
 	const auto history = thread->owningHistory();
@@ -859,7 +870,12 @@ void MainWindow::updateTitle() {
 	const auto primary = (threadCounter > 0)
 		? u"(%1) %2"_q.arg(threadCounter).arg(name)
 		: name;
-	setTitle(primary + u" \u2013 "_q + basic);
+	const auto middle = !user.isEmpty()
+		? (u" @ "_q + user)
+		: !added.isEmpty()
+		? u" \u2013"_q
+		: QString();
+	setTitle(primary + middle + added);
 }
 
 QRect MainWindow::computeDesktopRect() const {

@@ -170,6 +170,12 @@ Application::Application(not_null<Launcher*> launcher)
 	passcodeLockChanges(
 	) | rpl::start_with_next([=] {
 		_notifications->updateAll();
+		updateWindowTitles();
+	}, _lifetime);
+
+	settings().windowTitleContentChanges(
+	) | rpl::start_with_next([=] {
+		updateWindowTitles();
 	}, _lifetime);
 
 	_domain->activeSessionChanges(
@@ -1065,6 +1071,12 @@ bool Application::openCustomUrl(
 
 void Application::preventOrInvoke(Fn<void()> &&callback) {
 	_lastActivePrimaryWindow->preventOrInvoke(std::move(callback));
+}
+
+void Application::updateWindowTitles() {
+	enumerateWindows([](not_null<Window::Controller*> window) {
+		window->widget()->updateTitle();
+	});
 }
 
 void Application::lockByPasscode() {

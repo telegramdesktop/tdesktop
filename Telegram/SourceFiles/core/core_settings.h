@@ -54,6 +54,16 @@ struct WindowPosition {
 	int h = 0;
 };
 
+struct WindowTitleContent {
+	bool hideChatName : 1 = false;
+	bool hideAccountName : 1 = false;
+	bool hideTotalUnread : 1 = false;
+
+	friend inline constexpr auto operator<=>(
+		WindowTitleContent,
+		WindowTitleContent) = default;
+};
+
 constexpr auto kRecentEmojiLimit = 42;
 
 struct RecentEmojiDocument {
@@ -598,6 +608,15 @@ public:
 	[[nodiscard]] rpl::producer<bool> systemDarkModeEnabledChanges() const {
 		return _systemDarkModeEnabled.changes();
 	}
+	[[nodiscard]] WindowTitleContent windowTitleContent() const {
+		return _windowTitleContent.current();
+	}
+	[[nodiscard]] rpl::producer<WindowTitleContent> windowTitleContentChanges() const {
+		return _windowTitleContent.changes();
+	}
+	void setWindowTitleContent(WindowTitleContent content) {
+		_windowTitleContent = content;
+	}
 	[[nodiscard]] const WindowPosition &windowPosition() const {
 		return _windowPosition;
 	}
@@ -837,6 +856,7 @@ private:
 	rpl::variable<bool> _nativeWindowFrame = false;
 	rpl::variable<std::optional<bool>> _systemDarkMode = std::nullopt;
 	rpl::variable<bool> _systemDarkModeEnabled = false;
+	rpl::variable<WindowTitleContent> _windowTitleContent;
 	WindowPosition _windowPosition; // per-window
 	bool _disableOpenGL = false;
 	rpl::variable<WorkMode> _workMode = WorkMode::WindowAndTray;

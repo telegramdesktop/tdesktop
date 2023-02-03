@@ -181,6 +181,16 @@ Account *Domain::maybeLastOrSomeAuthedAccount() {
 	return result;
 }
 
+int Domain::accountsAuthedCount() const {
+	auto result = 0;
+	for (const auto &[index, account] : _accounts) {
+		if (account->sessionExists()) {
+			++result;
+		}
+	}
+	return result;
+}
+
 rpl::producer<Account*> Domain::activeValue() const {
 	return _active.value();
 }

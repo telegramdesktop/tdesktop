@@ -335,6 +335,7 @@ private:
 	void startSystemDarkModeViewer();
 	void startTray();
 
+	void updateWindowTitles();
 	void setLastActiveWindow(Window::Controller *window);
 	void showAccount(not_null<Main::Account*> account);
 	void enumerateWindows(

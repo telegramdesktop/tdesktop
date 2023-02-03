@@ -745,10 +745,23 @@ SessionController::SessionController(
 		}
 	}, _lifetime);
 
+	_authedName = session->user()->name();
 	session->changes().peerUpdates(
 		Data::PeerUpdate::Flag::FullInfo
+		| Data::PeerUpdate::Flag::Name
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
-		return (update.peer == _showEditPeer);
+		if (update.flags & Data::PeerUpdate::Flag::Name) {
+			const auto user = session->user();
+			if (update.peer == user) {
+				_authedName = user->name();
+				const auto &settings = Core::App().settings();
+				if (!settings.windowTitleContent().hideAccountName) {
+					widget()->updateTitle();
+				}
+			}
+		}
+		return (update.flags & Data::PeerUpdate::Flag::FullInfo)
+			&& (update.peer == _showEditPeer);
 	}) | rpl::start_with_next([=] {
 		show(Box<EditPeerInfoBox>(this, base::take(_showEditPeer)));
 	}, lifetime());

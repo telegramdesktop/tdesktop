@@ -54,6 +54,7 @@ public:
 	[[nodiscard]] rpl::producer<Account*> activeValue() const;
 	[[nodiscard]] rpl::producer<> accountsChanges() const;
 	[[nodiscard]] Account *maybeLastOrSomeAuthedAccount();
+	[[nodiscard]] int accountsAuthedCount() const;
 
 	// Expects(started());
 	[[nodiscard]] Account &active() const;

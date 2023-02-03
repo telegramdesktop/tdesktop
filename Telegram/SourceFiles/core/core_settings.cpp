@@ -159,7 +159,8 @@ QByteArray Settings::serialize() const {
 		+ sizeof(qint32) * 7
 		+ (skipLanguages.size() * sizeof(quint64))
 		+ sizeof(qint32)
-		+ sizeof(quint64);
+		+ sizeof(quint64)
+		+ sizeof(qint32) * 3;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -287,7 +288,10 @@ QByteArray Settings::serialize() const {
 
 		stream
 			<< qint32(_translateChatEnabled.current() ? 1 : 0)
-			<< quint64(QLocale::Language(_translateToRaw.current()));
+			<< quint64(QLocale::Language(_translateToRaw.current()))
+			<< qint32(_windowTitleContent.current().hideChatName ? 1 : 0)
+			<< qint32(_windowTitleContent.current().hideAccountName ? 1 : 0)
+			<< qint32(_windowTitleContent.current().hideTotalUnread ? 1 : 0);
 	}
 	return result;
 }
@@ -387,6 +391,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 rememberedDeleteMessageOnlyForYou = _rememberedDeleteMessageOnlyForYou ? 1 : 0;
 	qint32 translateChatEnabled = _translateChatEnabled.current() ? 1 : 0;
 	quint64 translateToRaw = _translateToRaw.current();
+	qint32 hideChatName = _windowTitleContent.current().hideChatName ? 1 : 0;
+	qint32 hideAccountName = _windowTitleContent.current().hideAccountName ? 1 : 0;
+	qint32 hideTotalUnread = _windowTitleContent.current().hideTotalUnread ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -606,6 +613,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> translateChatEnabled
 			>> translateToRaw;
 	}
+	if (!stream.atEnd()) {
+		stream
+			>> hideChatName
+			>> hideAccountName
+			>> hideTotalUnread;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -791,6 +804,11 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_rememberedDeleteMessageOnlyForYou = (rememberedDeleteMessageOnlyForYou == 1);
 	_translateChatEnabled = (translateChatEnabled == 1);
 	_translateToRaw = int(QLocale::Language(translateToRaw));
+	_windowTitleContent = WindowTitleContent{
+		.hideChatName = (hideChatName == 1),
+		.hideAccountName = (hideAccountName == 1),
+		.hideTotalUnread = (hideTotalUnread == 1),
+	};
 }
 
 QString Settings::getSoundPath(const QString &key) const {
