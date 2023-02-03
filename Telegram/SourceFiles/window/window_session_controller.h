@@ -477,6 +477,10 @@ public:
 		Fn<void(MessageIdsList)> done);
 	void clearChooseReportMessages();
 
+	void showInNewWindow(
+		not_null<PeerData*> peer,
+		MsgId msgId = ShowAtUnreadMsgId);
+
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
 
 	[[nodiscard]] bool dialogsListFocused() const {

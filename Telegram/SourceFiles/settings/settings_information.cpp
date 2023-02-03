@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_information.h"
 
-#include "dialogs/dialogs_inner_widget.h" // kOptionCtrlClickChatNewWindow.
 #include "editor/photo_editor_layer_widget.h"
 #include "settings/settings_common.h"
 #include "ui/wrap/vertical_layout.h"
@@ -23,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/text/text_utilities.h"
+#include "ui/delayed_activation.h"
 #include "ui/painter.h"
 #include "ui/unread_badge_paint.h"
 #include "core/application.h"
@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "base/unixtime.h"
 #include "base/random.h"
+#include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_dialogs.h" // dialogsPremiumIcon
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -670,9 +671,16 @@ void SetupAccountsWrap(
 		}
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
 			raw,
-			st::popupMenuWithIcons);
+			st::popupMenuExpandedSeparator);
 		const auto addAction = Ui::Menu::CreateAddActionCallback(
 			state->menu);
+		addAction(tr::lng_context_new_window(tr::now), [=] {
+			Ui::PreventDelayedActivation();
+			Core::App().ensureSeparateWindowForAccount(account);
+			Core::App().domain().maybeActivate(account);
+		}, &st::menuIconNewWindow);
+		Window::AddSeparatorAndShiftUp(addAction);
+
 		addAction(tr::lng_profile_copy_phone(tr::now), [=] {
 			const auto phone = rpl::variable<TextWithEntities>(
 				Info::Profile::PhoneValue(session->user()));
@@ -812,9 +820,7 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
 			const auto modifiers = button->clickModifiers();
-			const auto newWindow = (modifiers & Qt::ControlModifier)
-				&& base::options::lookup<bool>(
-					Dialogs::kOptionCtrlClickChatNewWindow).value();
+			const auto newWindow = (modifiers & Qt::ControlModifier);
 			add(Environment::Production, newWindow);
 			return;
 		} else if (which != Qt::RightButton
@@ -884,9 +890,7 @@ void AccountsList::rebuild() {
 					_currentAccountActivations.fire({});
 					return;
 				}
-				const auto newWindow = (modifiers & Qt::ControlModifier)
-					&& base::options::lookup<bool>(
-						Dialogs::kOptionCtrlClickChatNewWindow).value();
+				const auto newWindow = (modifiers & Qt::ControlModifier);
 				auto activate = [=, guard = _accountSwitchGuard.make_guard()]{
 					if (guard) {
 						_reorder->finishReordering();

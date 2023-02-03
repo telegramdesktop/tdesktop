@@ -147,7 +147,6 @@ private:
 		MsgId singlePeerShowAtMsgId);
 	void setupSideBar();
 	void sideBarChanged();
-	void logoutWithChecks(Main::Account *account);
 
 	void showBox(
 		object_ptr<Ui::BoxContent> content,

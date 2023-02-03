@@ -519,7 +519,7 @@ groupCallMenu: Menu(defaultMenu) {
 		padding: margins(0px, 4px, 0px, 4px);
 		fg: groupCallMenuBgOver;
 	}
-	arrow: icon {{ "dropdown_submenu_arrow", groupCallMemberNotJoinedStatus }};
+	arrow: icon {{ "menu/submenu_arrow", groupCallMemberNotJoinedStatus }};
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: groupCallMenuBgRipple;

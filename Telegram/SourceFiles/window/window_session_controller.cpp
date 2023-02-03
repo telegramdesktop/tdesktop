@@ -1460,7 +1460,7 @@ void SessionController::closeThirdSection() {
 
 bool SessionController::canShowSeparateWindow(
 		not_null<PeerData*> peer) const {
-	return peer->computeUnavailableReason().isEmpty();
+	return !peer->isForum() && peer->computeUnavailableReason().isEmpty();
 }
 
 void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
@@ -1688,6 +1688,33 @@ void SessionController::showChooseReportMessages(
 
 void SessionController::clearChooseReportMessages() {
 	content()->clearChooseReportMessages();
+}
+
+void SessionController::showInNewWindow(
+		not_null<PeerData*> peer,
+		MsgId msgId) {
+	if (!canShowSeparateWindow(peer)) {
+		showThread(
+			peer->owner().history(peer),
+			msgId,
+			Window::SectionShow::Way::ClearStack);
+		return;
+	}
+	const auto active = activeChatCurrent();
+	const auto fromActive = active.history()
+		? (active.history()->peer == peer)
+		: false;
+	const auto toSeparate = [=] {
+		Core::App().ensureSeparateWindowForPeer(peer, msgId);
+	};
+	if (fromActive) {
+		window().preventOrInvoke([=] {
+			clearSectionStack();
+			toSeparate();
+		});
+	} else {
+		toSeparate();
+	}
 }
 
 void SessionController::toggleChooseChatTheme(not_null<PeerData*> peer) {

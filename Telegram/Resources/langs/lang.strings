@@ -2124,6 +2124,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_choose_files" = "Choose files";
 "lng_game_tag" = "Game";
 
+"lng_context_new_window" = "Open in new window";
 "lng_context_view_profile" = "View profile";
 "lng_context_send_message" = "Send message";
 "lng_context_view_group" = "View group info";

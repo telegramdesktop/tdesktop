@@ -484,24 +484,8 @@ void Widget::chosenRow(const ChosenRow &row) {
 		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
 			? ShowAtUnreadMsgId
 			: row.message.fullId.msg;
-		if (row.newWindow && controller()->canShowSeparateWindow(peer)) {
-			const auto active = controller()->activeChatCurrent();
-			const auto fromActive = active.history()
-				? (active.history()->peer == peer)
-				: false;
-			const auto toSeparate = [=] {
-				Core::App().ensureSeparateWindowForPeer(
-					peer,
-					showAtMsgId);
-			};
-			if (fromActive) {
-				controller()->window().preventOrInvoke([=] {
-					controller()->clearSectionStack();
-					toSeparate();
-				});
-			} else {
-				toSeparate();
-			}
+		if (row.newWindow) {
+			controller()->showInNewWindow(peer, showAtMsgId);
 		} else {
 			controller()->showThread(
 				history,

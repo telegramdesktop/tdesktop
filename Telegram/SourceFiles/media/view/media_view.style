@@ -192,7 +192,7 @@ mediaviewControlsMenu: Menu(defaultMenu) {
 		fg: mediaviewPlaybackIconRipple;
 	}
 
-	arrow: icon {{ "dropdown_submenu_arrow", mediaviewPlaybackProgressFg }};
+	arrow: icon {{ "menu/submenu_arrow", mediaviewPlaybackProgressFg }};
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: mediaviewPlaybackIconRipple;
