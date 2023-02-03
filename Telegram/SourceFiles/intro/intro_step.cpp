@@ -213,7 +213,11 @@ void Step::createSession(
 	}
 
 	auto settings = std::make_unique<Main::SessionSettings>();
-	settings->setDialogsFiltersEnabled(!filters.isEmpty());
+	const auto hasFilters = ranges::contains(
+		filters,
+		mtpc_dialogFilter,
+		&MTPDialogFilter::type);
+	settings->setDialogsFiltersEnabled(hasFilters);
 
 	const auto account = _account;
 	account->createSession(user, std::move(settings));
@@ -222,7 +226,7 @@ void Step::createSession(
 	account->local().writeMtpData();
 	auto &session = account->session();
 	session.data().chatsFilters().setPreloaded(filters);
-	if (!filters.isEmpty()) {
+	if (hasFilters) {
 		session.saveSettingsDelayed();
 	}
 	if (!photo.isNull()) {
