@@ -497,7 +497,6 @@ void TranslateBar::showToast(
 		const QString &buttonText,
 		Fn<void()> buttonCallback) {
 	const auto st = std::make_shared<style::Toast>(st::historyPremiumToast);
-	const auto skip = st->padding.top();
 	st->padding.setRight(st::historyPremiumViewSet.font->width(buttonText)
 		- st::historyPremiumViewSet.width);
 

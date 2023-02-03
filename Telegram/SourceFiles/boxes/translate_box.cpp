@@ -267,7 +267,6 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto result = Platform::Language::Recognize(text);
 	const auto skip = Core::App().settings().skipTranslationLanguages();
-	const auto test = (result == result);
 	return result.known() && ranges::contains(skip, result);
 #else
     return false;

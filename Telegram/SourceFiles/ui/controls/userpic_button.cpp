@@ -210,13 +210,6 @@ void UserpicButton::prepare() {
 		prepareUserpicPixmap();
 	}
 	setClickHandlerByRole();
-	if ((_role == Role::ChoosePhoto) || (_role == Role::ChangePhoto)) {
-		const auto api = _controller
-			? &_controller->session().api()
-			: _peer
-			? &_peer->session().api()
-			: nullptr;
-	}
 }
 
 void UserpicButton::showCustomOnChosen() {

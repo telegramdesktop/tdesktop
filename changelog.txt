@@ -1,3 +1,12 @@
+4.6 (03.02.23)
+
+- Emoji Profile Pictures. Quickly create group and profile pictures from animated emoji and stickers with the new "Use an Emoji" option.
+- Emoji Categories. Filter stickers and emoji by categories like "love", "cheers" or "sleeping" in the sticker and emoji tabs.
+- Chat Translation. As a Premium user, translate entire chats in real time as you scroll them or receive new messages.
+- Media Permissions in Groups. Control whether members of your groups can send 9 distinct media types – like Photos, Voice or Video Messages.
+- Select Chats for Bots. Bot developers can now let users quickly select groups, channels or contacts that meet predefined criteria (more in @BotNews).
+- Open in New Window. Open chats or additional accounts in separate windows.
+
 4.5.9 beta (02.02.23)
 
 - Hide taskbar window preview when Telegram is locked by a passcode (Windows only).

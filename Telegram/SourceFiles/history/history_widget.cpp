@@ -4746,10 +4746,6 @@ void HistoryWidget::showMembersDropdown() {
 bool HistoryWidget::pushTabbedSelectorToThirdSection(
 		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) {
-	const auto selectorTypes = ChatRestriction::SendOther
-		| ChatRestriction::SendInline
-		| ChatRestriction::SendStickers
-		| ChatRestriction::SendGifs;
 	if (!_tabbedPanel) {
 		return true;
 	} else if (!Data::CanSendAnyOf(

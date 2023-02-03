@@ -220,23 +220,6 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		| Flag::SendOther);
 }
 
-[[nodiscard]] std::vector<ChatRestrictions> MediaRestrictions() {
-	return std::vector<ChatRestrictions>{
-		ChatRestriction::SendPhotos,
-		ChatRestriction::SendVideos,
-		ChatRestriction::SendVideoMessages,
-		ChatRestriction::SendMusic,
-		ChatRestriction::SendVoiceMessages,
-		ChatRestriction::SendFiles,
-		ChatRestriction::SendStickers
-			| ChatRestriction::SendGifs
-			| ChatRestriction::SendGames
-			| ChatRestriction::SendInline,
-		ChatRestriction::EmbedLinks,
-		ChatRestriction::SendPolls,
-	};
-}
-
 auto Dependencies(ChatAdminRights)
 -> std::vector<std::pair<ChatAdminRight, ChatAdminRight>> {
 	return {};

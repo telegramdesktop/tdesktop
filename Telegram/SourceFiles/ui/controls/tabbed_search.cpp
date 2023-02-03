@@ -252,7 +252,7 @@ void GroupsStrip::mouseReleaseEvent(QMouseEvent *e) {
 	const auto chosen = (index < 0 || index >= _buttons.size())
 		? -1
 		: index;
-	if (pressed == index && index >= 0) {
+	if (pressed == chosen && chosen >= 0) {
 		_chosen = pressed;
 		fireChosenGroup();
 		update();

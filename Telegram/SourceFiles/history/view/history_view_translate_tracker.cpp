@@ -48,7 +48,6 @@ rpl::producer<bool> TranslateTracker::trackingLanguage() const {
 
 void TranslateTracker::setup() {
 	const auto peer = _history->peer;
-	const auto session = &_history->session();
 	peer->updateFull();
 
 	using namespace rpl::mappers;
@@ -298,7 +297,6 @@ void TranslateTracker::applyLimit() {
 }
 
 void TranslateTracker::recognizeCollected() {
-	const auto owner = &_history->owner();
 	for (auto &[id, entry] : _itemsForRecognize) {
 		if (const auto text = std::get_if<QString>(&entry.id)) {
 			entry.id = Platform::Language::Recognize(*text);

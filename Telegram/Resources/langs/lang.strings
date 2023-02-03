@@ -1089,7 +1089,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_copy_phone" = "Copy Phone Number";
 "lng_profile_copy_fullname" = "Copy Name";
 
-"lng_info_public_photo" = "public photo";
 "lng_info_mobile_label" = "Mobile";
 "lng_info_mobile_context_menu_fragment_about" = "This number is not tied to a SIM card and was acquired on {link}.";
 "lng_info_mobile_context_menu_fragment_about_link" = "Fragment";
