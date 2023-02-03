@@ -1287,6 +1287,8 @@ bool MainWidget::showHistoryInDifferentWindow(
 			return true;
 		}
 		return false;
+	} else if (!peerId) {
+		return true;
 	} else if (singlePeer()->id == peerId) {
 		return false;
 	}
