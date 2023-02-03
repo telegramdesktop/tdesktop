@@ -96,10 +96,51 @@ void AlignChildren(not_null<Ui::RpWidget*> widget, int fullWidth) {
 	}
 }
 
-[[nodiscard]] std::vector<QColor> ColorsByIndex(int index) {
-	const auto c = Ui::EmptyUserpic::UserpicColor(
-		Ui::EmptyUserpic::ColorIndex(index));
-	return { c.color1->c, c.color2->c };
+[[nodiscard]] std::vector<std::vector<QColor>> PaletteGradients() {
+	return std::vector<std::vector<QColor>>{
+		{
+			QColor(32, 226, 205),
+			QColor(14, 225, 241),
+			QColor(77, 141, 255),
+			QColor(43, 191, 255),
+		},
+		{
+			QColor(69, 247, 183),
+			QColor(31, 241, 217),
+			QColor(94, 182, 251),
+			QColor(31, 206, 235),
+		},
+		{
+			QColor(193, 229, 38),
+			QColor(128, 223, 43),
+			QColor(9, 210, 96),
+			QColor(94, 220, 64),
+		},
+		{
+			QColor(255, 212, 18),
+			QColor(255, 167, 67),
+			QColor(245, 105, 78),
+			QColor(245, 119, 44),
+		},
+		{
+			QColor(246, 167, 48),
+			QColor(255, 119, 66),
+			QColor(246, 72, 132),
+			QColor(239, 91, 65),
+		},
+		{
+			QColor(255, 178, 58),
+			QColor(254, 126, 98),
+			QColor(249, 75, 160),
+			QColor(251, 92, 128),
+		},
+		{
+			QColor(255, 114, 169),
+			QColor(226, 105, 255),
+			QColor(131, 124, 255),
+			QColor(176, 99, 255),
+		},
+	};
 }
 
 void ShowGradientEditor(
@@ -395,9 +436,10 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 			return (i == kColorsCount);
 		};
 		const auto size = st::userpicBuilderEmojiAccentColorSize;
+		const auto paletteGradients = PaletteGradients();
 		for (auto i = 0; i < kColorsCount + 1; i++) {
 			const auto isSpecial = checkIsSpecial(i);
-			const auto colors = ColorsByIndex(i);
+			const auto colors = paletteGradients[i % kColorsCount];
 			const auto button = Ui::CreateChild<CircleButton>(palette);
 			state->circleButtons.push_back(button);
 			button->resize(size, size);
@@ -507,6 +549,7 @@ not_null<Ui::RpWidget*> CreateEmojiUserpic(
 		rpl::producer<not_null<DocumentData*>> document,
 		rpl::producer<int> colorIndex,
 		bool isForum) {
+	const auto paletteGradients = PaletteGradients();
 	const auto widget = Ui::CreateChild<EmojiUserpic>(
 		parent.get(),
 		size,
@@ -519,7 +562,8 @@ not_null<Ui::RpWidget*> CreateEmojiUserpic(
 	std::move(
 		colorIndex
 	) | rpl::start_with_next([=](int index) {
-		widget->setGradientColors(ColorsByIndex(index));
+		widget->setGradientColors(
+			paletteGradients[index % paletteGradients.size()]);
 	}, widget->lifetime());
 	return widget;
 }
