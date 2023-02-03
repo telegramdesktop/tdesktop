@@ -100,13 +100,14 @@ Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
 	if (_hiddenUserpicPlaceholder.isNull()) {
+		const auto ratio = style::DevicePixelRatio();
 		_hiddenUserpicPlaceholder = Ui::PixmapFromImage(
 			LogoNoMargin().scaled(
-				st::notifyPhotoSize,
-				st::notifyPhotoSize,
+				st::notifyPhotoSize * ratio,
+				st::notifyPhotoSize * ratio,
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation));
-		_hiddenUserpicPlaceholder.setDevicePixelRatio(cRetinaFactor());
+		_hiddenUserpicPlaceholder.setDevicePixelRatio(ratio);
 	}
 	return _hiddenUserpicPlaceholder;
 }
