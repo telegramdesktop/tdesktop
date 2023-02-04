@@ -201,10 +201,11 @@ parts:
       - libglib2.0-bin
       - libgtk-3-0
     stage-packages:
-      - libxkbcommon0
-      - shared-mime-info
+      - libc-bin
       - libgdk-pixbuf-2.0-0
+      - libxkbcommon0
       - locales-all
+      - shared-mime-info
       - xdg-user-dirs
     override-prime: |
       snapcraftctl prime
