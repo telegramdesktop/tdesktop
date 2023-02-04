@@ -104,7 +104,11 @@ void ColorsLine::fillButtons() {
 			container,
 			st::userpicBuilderEmojiColorMinus));
 	_wraps.push_back(minus);
+	minus->toggle(_colors->size() > 1, anim::type::instant);
 	minus->entity()->setClickedCallback([=] {
+		if (_colors->size() < 2) {
+			return;
+		}
 		const auto wasColors = *_colors;
 		_colors->erase(_colors->end() - 1);
 		const auto nowColors = *_colors;
@@ -148,7 +152,11 @@ void ColorsLine::fillButtons() {
 			container,
 			st::userpicBuilderEmojiColorPlus));
 	_wraps.push_back(plus);
+	plus->toggle(_colors->size() < kMaxColors, anim::type::instant);
 	plus->entity()->setClickedCallback([=] {
+		if (_colors->size() >= kMaxColors) {
+			return;
+		}
 		const auto wasColors = *_colors;
 		_colors->push_back(RandomColor(_colors->back()));
 		const auto nowColors = *_colors;
