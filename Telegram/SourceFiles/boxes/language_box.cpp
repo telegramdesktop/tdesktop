@@ -1232,7 +1232,10 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 	translateSkipWrap->toggle(
 		translateEnabled->toggled(),
 		anim::type::normal);
-	translateSkipWrap->toggleOn(translateEnabled->toggledValue());
+	translateSkipWrap->toggleOn(rpl::combine(
+		translateEnabled->toggledValue(),
+		translateChat->toggledValue(),
+		rpl::mappers::_1 || rpl::mappers::_2));
 	const auto translateSkip = Settings::AddButtonWithLabel(
 		translateSkipWrap->entity(),
 		tr::lng_translate_settings_choose(),
