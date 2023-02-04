@@ -2330,9 +2330,12 @@ void HistoryWidget::showHistory(
 	updateOverStates(mapFromGlobal(QCursor::pos()));
 
 	if (_history) {
+		const auto msgId = (_showAtMsgId == ShowAtTheEndMsgId)
+			? ShowAtUnreadMsgId
+			: _showAtMsgId;
 		controller()->setActiveChatEntry({
 			_history,
-			FullMsgId(_history->peer->id, _showAtMsgId) });
+			FullMsgId(_history->peer->id, msgId) });
 	}
 	update();
 	controller()->floatPlayerAreaUpdated();
