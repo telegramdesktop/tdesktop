@@ -347,9 +347,7 @@ void Application::run() {
 
 	_lastActivePrimaryWindow->widget()->show();
 
-	const auto current = _lastActivePrimaryWindow->widget()->geometry();
-	_mediaView = std::make_unique<Media::View::OverlayWidget>();
-	_lastActivePrimaryWindow->widget()->Ui::RpWidget::setGeometry(current);
+	startMediaView();
 
 	DEBUG_LOG(("Application Info: showing."));
 	_lastActivePrimaryWindow->finishFirstShow();
@@ -492,7 +490,38 @@ void Application::processCreatedWindow(
 	) | rpl::start_to_stream(_openInMediaViewRequests, window->lifetime());
 }
 
+void Application::startMediaView() {
+#ifdef Q_OS_MAC
+	// On macOS we create some windows async, otherwise they're
+	// added to the Dock Menu as a visible window and are removed
+	// only after first show and then hide.
+	InvokeQueued(this, [=] {
+		_mediaView = std::make_unique<Media::View::OverlayWidget>();
+	});
+#else // Q_OS_MAC
+	// On Windows we needed such hack for the main window, otherwise
+	// somewhere inside the media viewer creating code its geometry
+	// was broken / lost to some invalid values.
+	const auto current = _lastActivePrimaryWindow->widget()->geometry();
+	_mediaView = std::make_unique<Media::View::OverlayWidget>();
+	_lastActivePrimaryWindow->widget()->Ui::RpWidget::setGeometry(current);
+#endif // Q_OS_MAC
+}
+
 void Application::startTray() {
+#ifdef Q_OS_MAC
+	// On macOS we create some windows async, otherwise they're
+	// added to the Dock Menu as a visible window and are removed
+	// only after first show and then hide, tray icon being "Item-0".
+	InvokeQueued(this, [=] {
+		createTray();
+	});
+#else // Q_OS_MAC
+	createTray();
+#endif // Q_OS_MAC
+}
+
+void Application::createTray() {
 	using WindowRaw = not_null<Window::Controller*>;
 	_tray->create();
 	_tray->aboutToShowRequests(

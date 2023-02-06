@@ -333,8 +333,10 @@ private:
 	void startDomain();
 	void startEmojiImageLoader();
 	void startSystemDarkModeViewer();
+	void startMediaView();
 	void startTray();
 
+	void createTray();
 	void updateWindowTitles();
 	void setLastActiveWindow(Window::Controller *window);
 	void showAccount(not_null<Main::Account*> account);
