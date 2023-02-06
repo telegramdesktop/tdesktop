@@ -1,3 +1,10 @@
+4.6.1 (06.02.23)
+
+- Fix fonts fallback on Windows.
+- Fix crash in userpic editor.
+- Fix some crashes on 32 bit Window build.
+- Bug fixes and other minor improvements.
+
 4.6 (03.02.23)
 
 - Emoji Profile Pictures. Quickly create group and profile pictures from animated emoji and stickers with the new "Use an Emoji" option.
