@@ -79,7 +79,7 @@ struct NestedRestrictionLabels {
 		second.erase(
 			ranges::remove(
 				second,
-				Flag::CreateTopics,
+				Flag::CreateTopics | Flag(),
 				&RestrictionLabel::flags),
 			end(second));
 	}
@@ -1002,7 +1002,7 @@ std::vector<AdminRightLabel> AdminRightLabels(
 			result.erase(
 				ranges::remove(
 					result,
-					Flag::ManageTopics,
+					Flag::ManageTopics | Flag(),
 					&AdminRightLabel::flags),
 				end(result));
 		}
