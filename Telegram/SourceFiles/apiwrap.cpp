@@ -1727,6 +1727,29 @@ void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 }
 
 void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
+	const auto bad = peer.match([](const MTPDinputNotifyUsers &) {
+		return false;
+	}, [](const MTPDinputNotifyChats &) {
+		return false;
+	}, [](const MTPDinputNotifyBroadcasts &) {
+		return false;
+	}, [&](const MTPDinputNotifyPeer &data) {
+		if (data.vpeer().type() == mtpc_inputPeerEmpty) {
+			LOG(("Api Error: Requesting settings for empty peer."));
+			return true;
+		}
+		return false;
+	}, [&](const MTPDinputNotifyForumTopic &data) {
+		if (data.vpeer().type() == mtpc_inputPeerEmpty) {
+			LOG(("Api Error: Requesting settings for empty peer topic."));
+			return true;
+		}
+		return false;
+	});
+	if (bad) {
+		return;
+	}
+
 	const auto peerFromInput = [&](const MTPInputPeer &inputPeer) {
 		return inputPeer.match([&](const MTPDinputPeerSelf &) {
 			return _session->userPeerId();
