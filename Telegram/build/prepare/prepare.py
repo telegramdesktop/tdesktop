@@ -404,7 +404,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 73fe30738d
+    git checkout 5b3541af89
 """)
 
 stage('msys64', """
@@ -1211,7 +1211,7 @@ release:
 
 if buildQt5:
     stage('qt_5_15_8', """
-    git clone https://code.qt.io/qt/qt5.git qt_5_15_8
+    git clone https://github.com/qt/qt5.git qt_5_15_8
     cd qt_5_15_8
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
     git checkout v5.15.8-lts-lgpl
