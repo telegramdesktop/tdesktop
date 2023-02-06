@@ -4058,6 +4058,7 @@ void HistoryWidget::showFinished() {
 
 void HistoryWidget::doneShow() {
 	_topBar->setAnimatingMode(false);
+	updateCanSendMessage();
 	updateBotKeyboard();
 	updateControlsVisibility();
 	if (!_historyInited) {
@@ -7362,6 +7363,9 @@ void HistoryWidget::handlePeerUpdate() {
 }
 
 bool HistoryWidget::updateCanSendMessage() {
+	if (!_peer) {
+		return false;
+	}
 	const auto replyTo = (_replyToId && !_editMsgId) ? _replyEditMsg : 0;
 	const auto topic = replyTo ? replyTo->topic() : nullptr;
 	const auto allWithoutPolls = Data::AllSendRestrictions()
