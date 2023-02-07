@@ -97,7 +97,7 @@ void AlignChildren(not_null<Ui::RpWidget*> widget, int fullWidth) {
 }
 
 [[nodiscard]] std::vector<std::vector<QColor>> PaletteGradients() {
-	return std::vector<std::vector<QColor>>{
+	auto v = std::vector<std::vector<QColor>>{
 		{
 			QColor(32, 226, 205),
 			QColor(14, 225, 241),
@@ -141,6 +141,12 @@ void AlignChildren(not_null<Ui::RpWidget*> widget, int fullWidth) {
 			QColor(176, 99, 255),
 		},
 	};
+	for (auto &g : v) {
+		// Rotate 180 degrees.
+		std::swap(g[0], g[2]);
+		std::swap(g[1], g[3]);
+	}
+	return v;
 }
 
 void ShowGradientEditor(
