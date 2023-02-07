@@ -193,11 +193,12 @@ CardValidationResult ValidateCard(const QString &number) {
 	}
 	const auto range = MostSpecificBinRangeForNumber(sanitized);
 	const auto brand = range.brand;
-	if (sanitized.size() > range.length) {
-		return { .state = ValidationState::Invalid, .brand = brand };
-	} else if (sanitized.size() < range.length) {
-		return { .state = ValidationState::Incomplete, .brand = brand };
-	} else if (!IsValidLuhn(sanitized)) {
+	//if (sanitized.size() > range.length) {
+	//	return { .state = ValidationState::Invalid, .brand = brand };
+	//} else if (sanitized.size() < range.length) {
+	//	return { .state = ValidationState::Incomplete, .brand = brand };
+	//} else
+	if (!IsValidLuhn(sanitized)) {
 		return { .state = ValidationState::Invalid, .brand = brand };
 	}
 	return {
