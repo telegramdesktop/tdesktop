@@ -555,6 +555,9 @@ void HistoryInner::messagesReceived(
 		const QVector<MTPMessage> &messages) {
 	if (_history->peer == peer) {
 		_history->addOlderSlice(messages);
+		if (!messages.isEmpty()) {
+			_translateTracker->addBunchFromBlocks();
+		}
 	} else if (_migrated && _migrated->peer == peer) {
 		const auto newLoaded = _migrated
 			&& _migrated->isEmpty()

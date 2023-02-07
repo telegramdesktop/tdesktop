@@ -26,6 +26,7 @@ namespace {
 
 constexpr auto kEnoughForRecognition = 10;
 constexpr auto kEnoughForTranslation = 6;
+constexpr auto kMaxCheckInBunch = 100;
 constexpr auto kRequestLengthLimit = 24 * 1024;
 constexpr auto kRequestCountLimit = 20;
 
@@ -82,20 +83,20 @@ void TranslateTracker::startBunch() {
 	++_generation;
 }
 
-void TranslateTracker::add(not_null<Element*> view) {
+bool TranslateTracker::add(not_null<Element*> view) {
 	const auto item = view->data();
 	const auto only = view->isOnlyEmojiAndSpaces();
 	if (only != OnlyEmojiAndSpaces::Unknown) {
 		item->cacheOnlyEmojiAndSpaces(only == OnlyEmojiAndSpaces::Yes);
 	}
-	add(item, false);
+	return add(item, false);
 }
 
-void TranslateTracker::add(not_null<HistoryItem*> item) {
-	add(item, false);
+bool TranslateTracker::add(not_null<HistoryItem*> item) {
+	return add(item, false);
 }
 
-void TranslateTracker::add(
+bool TranslateTracker::add(
 		not_null<HistoryItem*> item,
 		bool skipDependencies) {
 	Expects(_addedInBunch >= 0);
@@ -104,7 +105,7 @@ void TranslateTracker::add(
 		|| item->isService()
 		|| !item->isRegular()
 		|| item->isOnlyEmojiAndSpaces()) {
-		return;
+		return false;
 	}
 	if (item->translationShowRequiresCheck(_bunchTranslatedTo)) {
 		_switchTranslations[item] = _bunchTranslatedTo;
@@ -131,7 +132,7 @@ void TranslateTracker::add(
 	const auto i = _itemsForRecognize.find(id);
 	if (i != end(_itemsForRecognize)) {
 		i->second.generation = _generation;
-		return;
+		return true;
 	}
 	const auto &text = item->originalText().text;
 	_itemsForRecognize.emplace(id, ItemForRecognize{
@@ -141,6 +142,7 @@ void TranslateTracker::add(
 			: MaybeLanguageId{ text }),
 	});
 	++_addedInBunch;
+	return true;
 }
 
 void TranslateTracker::switchTranslation(
@@ -171,6 +173,43 @@ void TranslateTracker::finishBunch() {
 		_switchTranslations.clear();
 	}
 	requestSome();
+}
+
+void TranslateTracker::addBunchFromBlocks() {
+	if (enoughForRecognition()) {
+		return;
+	}
+	startBunch();
+	const auto guard = gsl::finally([&] {
+		finishBunch();
+	});
+
+	auto check = kMaxCheckInBunch;
+	for (const auto &block : _history->blocks) {
+		for (const auto &view : block->messages) {
+			if (!check-- || (add(view.get()) && enoughForRecognition())) {
+				return;
+			}
+		}
+	}
+}
+
+void TranslateTracker::addBunchFrom(
+		const std::vector<not_null<Element*>> &views) {
+	if (enoughForRecognition()) {
+		return;
+	}
+	startBunch();
+	const auto guard = gsl::finally([&] {
+		finishBunch();
+	});
+
+	auto check = kMaxCheckInBunch;
+	for (const auto &view : views) {
+		if (!check-- || (add(view.get()) && enoughForRecognition())) {
+			return;
+		}
+	}
 }
 
 void TranslateTracker::cancelToRequest() {

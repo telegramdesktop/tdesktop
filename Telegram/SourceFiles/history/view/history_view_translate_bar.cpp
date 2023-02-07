@@ -279,7 +279,7 @@ void TranslateBar::setup(not_null<History*> history) {
 		}
 	};
 	const auto button = static_cast<Ui::AbstractButton*>(_wrap.entity());
-	button->resize(0, st::historyComposeButton.height);
+	button->resize(0, st::historyTranslateBarHeight);
 	button->setAttribute(Qt::WA_OpaquePaintEvent);
 
 	button->paintRequest(
@@ -619,7 +619,7 @@ int TranslateBar::height() const {
 	return !_forceHidden
 		? _wrap.height()
 		: _shouldBeShown
-		? st::historyComposeButton.height
+		? st::historyTranslateBarHeight
 		: 0;
 }
 

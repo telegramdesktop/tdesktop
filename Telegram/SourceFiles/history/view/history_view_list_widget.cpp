@@ -523,6 +523,9 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 			}
 		}
 	}
+	if (_translateTracker) {
+		_translateTracker->addBunchFrom(_items);
+	}
 	for (auto e = end(_items), i = e - addedToEndCount; i != e; ++i) {
 		_itemRevealPending.emplace(*i);
 	}

@@ -23,9 +23,12 @@ public:
 
 	[[nodiscard]] bool enoughForRecognition() const;
 	void startBunch();
-	void add(not_null<Element*> view);
-	void add(not_null<HistoryItem*> item);
+	bool add(not_null<Element*> view);
+	bool add(not_null<HistoryItem*> item);
 	void finishBunch();
+
+	void addBunchFromBlocks();
+	void addBunchFrom(const std::vector<not_null<Element*>> &views);
 
 	[[nodiscard]] rpl::producer<bool> trackingLanguage() const;
 
@@ -40,7 +43,7 @@ private:
 	};
 
 	void setup();
-	void add(not_null<HistoryItem*> item, bool skipDependencies);
+	bool add(not_null<HistoryItem*> item, bool skipDependencies);
 	void recognizeCollected();
 	void trackSkipLanguages();
 	void checkRecognized();

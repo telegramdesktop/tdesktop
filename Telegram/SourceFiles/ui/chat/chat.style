@@ -1237,18 +1237,19 @@ historyTranslateLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 80px;
 }
 historyTranslateIcon: icon{{ "menu/translate", windowActiveTextFg }};
+historyTranslateBarHeight: 36px;
 historyTranslateSettings: IconButton(defaultIconButton) {
 	width: 46px;
-	height: 46px;
+	height: 36px;
 	icon: icon{{ "menu/customize", windowActiveTextFg }};
 	iconOver: icon{{ "menu/customize", windowActiveTextFg }};
-	rippleAreaPosition: point(4px, 4px);
-	rippleAreaSize: 38px;
+	rippleAreaPosition: point(6px, 2px);
+	rippleAreaSize: 32px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: lightButtonBgOver;
 	}
 }
-historyTranslateMenuPosition: point(-6px, 40px);
+historyTranslateMenuPosition: point(-6px, 30px);
 
 historySendDisabled: FlatLabel(defaultFlatLabel) {
 	minWidth: 10px;
