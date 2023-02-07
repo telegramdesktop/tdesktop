@@ -152,10 +152,6 @@ private:
 		not_null<Listener*>,
 		base::flat_set<DocumentId>> _listeners;
 	base::flat_set<DocumentId> _pendingForRequest;
-	base::flat_map<
-		uint64,
-		base::flat_set<
-			not_null<Ui::CustomEmoji::Instance*>>> _coloredSetPending;
 
 	mtpRequestId _requestId = 0;
 

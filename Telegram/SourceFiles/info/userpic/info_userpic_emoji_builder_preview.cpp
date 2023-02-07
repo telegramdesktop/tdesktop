@@ -118,12 +118,10 @@ void PreviewPainter::paintBackground(QPainter &p, const QImage &image) {
 
 bool PreviewPainter::paintForeground(QPainter &p) {
 	if (_player && _player->ready()) {
-		// resolveIsColored();
+		const auto c = _media->owner()->emojiUsesTextColor() ? 255 : 0;
 		auto frame = _player->frame(
 			Size(_emojiSize),
-			(/*_isColored
-				? st::profileVerifiedCheckBg->c
-				: */QColor(0, 0, 0, 0)),
+			QColor(c, c, c, c),
 			false,
 			crl::now(),
 			_paused);

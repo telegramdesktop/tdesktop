@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/random.h"
 #include "base/unixtime.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_document.h"
@@ -125,7 +126,11 @@ constexpr auto kSharedMediaLimit = 100;
 			colors,
 			ranges::back_inserter(mtpColors),
 			[&](const QColor &c) { return MTP_int(serializeColor(c)); });
-		if (sticker->set.id && sticker->set.accessHash) {
+		if (sticker->setType == Data::StickersType::Emoji) {
+			return MTP_videoSizeEmojiMarkup(
+				MTP_long(document->id),
+				MTP_vector(mtpColors));
+		} else if (sticker->set.id && sticker->set.accessHash) {
 			return MTP_videoSizeStickerMarkup(
 				MTP_inputStickerSetID(
 					MTP_long(sticker->set.id),

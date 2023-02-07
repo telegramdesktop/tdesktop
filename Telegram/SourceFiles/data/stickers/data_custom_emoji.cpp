@@ -425,10 +425,6 @@ CustomEmojiManager::CustomEmojiManager(not_null<Session*> owner)
 			QString()).toULongLong();
 		if (setId) {
 			_coloredSetId = setId;
-			auto pending = base::take(_coloredSetPending);
-			for (const auto &instance : pending[setId]) {
-				instance->setColored();
-			}
 		}
 	}, _lifetime);
 }
@@ -460,12 +456,6 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			}, std::move(repaint))).first;
 		if (colored) {
 			i->second->setColored();
-		} else if (_coloredSetId) {
-			if (_coloredSetId == setId) {
-				i->second->setColored();
-			}
-		} else if (setId) {
-			_coloredSetPending[setId].emplace(i->second.get());
 		}
 	} else if (!i->second->hasImagePreview()) {
 		auto preview = prepareNonExactPreview(documentId, tag, sizeOverride);
@@ -693,30 +683,12 @@ void CustomEmojiManager::request() {
 }
 
 void CustomEmojiManager::fillColoredFlags(not_null<DocumentData*> document) {
-	const auto id = document->id;
-	const auto setColored = [&] {
+	if (document->emojiUsesTextColor()) {
+		const auto id = document->id;
 		for (auto &instances : _instances) {
 			const auto i = instances.find(id);
 			if (i != end(instances)) {
 				i->second->setColored();
-			}
-		}
-	};
-	if (document->emojiUsesTextColor()) {
-		setColored();
-		return;
-	}
-	const auto sticker = document->sticker();
-	const auto setId = sticker ? sticker->set.id : uint64();
-	if (!setId || (_coloredSetId && setId != _coloredSetId)) {
-		return;
-	} else if (setId == _coloredSetId) {
-		setColored();
-	} else {
-		for (auto &instances : _instances) {
-			const auto i = instances.find(id);
-			if (i != end(instances)) {
-				_coloredSetPending[setId].emplace(i->second.get());
 			}
 		}
 	}

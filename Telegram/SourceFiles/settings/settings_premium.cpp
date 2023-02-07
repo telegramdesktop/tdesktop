@@ -489,14 +489,10 @@ public:
 	void paint(QPainter &p);
 
 private:
-	void resolveIsColored();
-
 	QRectF _rect;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
 	bool _paused = false;
-	bool _isColored = false;
-	bool _isColoredResolved = false;
 	rpl::lifetime _lifetime;
 
 };
@@ -555,27 +551,11 @@ void EmojiStatusTopBar::setPaused(bool paused) {
 	_paused = paused;
 }
 
-void EmojiStatusTopBar::resolveIsColored() {
-	if (_isColoredResolved) {
-		return;
-	}
-	const auto document = _media->owner();
-	const auto manager = &document->owner().customEmojiManager();
-	const auto coloredSetId = manager->coloredSetId();
-	if (!coloredSetId) {
-		return;
-	}
-	_isColoredResolved = true;
-	const auto sticker = document->sticker();
-	_isColored = sticker && (sticker->set.id == coloredSetId);
-}
-
 void EmojiStatusTopBar::paint(QPainter &p) {
 	if (_player && _player->ready()) {
-		resolveIsColored();
 		const auto frame = _player->frame(
 			_rect.size().toSize(),
-			(_isColored
+			(_media->owner()->emojiUsesTextColor()
 				? st::profileVerifiedCheckBg->c
 				: QColor(0, 0, 0, 0)),
 			false,
