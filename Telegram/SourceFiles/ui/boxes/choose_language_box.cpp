@@ -22,7 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-const auto kLanguageNamePrefix = "cloud_lng_passport_in_";
+const auto kLanguageNamePrefix = "cloud_lng_language_";
+const auto kTranslateToPrefix = "cloud_lng_translate_to_";
 
 [[nodiscard]] std::vector<LanguageId> TranslationLanguagesList() {
 	// If adding some languages here you need to check that it is
@@ -214,12 +215,13 @@ QString LanguageNameTranslated(const QString &twoLetterCode) {
 		kLanguageNamePrefix + twoLetterCode.toUtf8());
 }
 
+QString LanguageNameLocal(LanguageId id) {
+	return QLocale::languageToString(id.language());
+}
+
 QString LanguageName(LanguageId id) {
-	const auto code = id.locale().name().toLower().mid(0, 2);
-	const auto translated = LanguageNameTranslated(code);
-	return translated.isEmpty()
-		? QLocale::languageToString(id.locale().language())
-		: translated;
+	const auto translated = LanguageNameTranslated(id.twoLetterCode());
+	return translated.isEmpty() ? LanguageNameLocal(id) : translated;
 }
 
 QString LanguageNameNative(LanguageId id) {
@@ -234,6 +236,29 @@ QString LanguageNameNative(LanguageId id) {
 		const auto name = locale.nativeLanguageName();
 		return name.left(1).toUpper() + name.mid(1);
 	}
+}
+
+rpl::producer<QString> TranslateBarTo(LanguageId id) {
+	const auto translated = Lang::GetNonDefaultValue(
+		kTranslateToPrefix + id.twoLetterCode().toUtf8());
+	return (translated.isEmpty()
+		? tr::lng_translate_bar_to_other
+		: tr::lng_translate_bar_to)(
+			lt_name,
+			rpl::single(translated.isEmpty()
+				? LanguageNameLocal(id)
+				: translated));
+}
+
+QString TranslateMenuDont(tr::now_t, LanguageId id) {
+	const auto translated = Lang::GetNonDefaultValue(
+		kTranslateToPrefix + id.twoLetterCode().toUtf8());
+	return (translated.isEmpty()
+		? tr::lng_translate_menu_dont_other
+		: tr::lng_translate_menu_dont)(
+			tr::now,
+			lt_name,
+			translated.isEmpty() ? LanguageNameLocal(id) : translated);
 }
 
 void ChooseLanguageBox(
@@ -256,6 +281,9 @@ void ChooseLanguageBox(
 	const auto container = box->verticalLayout();
 	const auto langs = [&] {
 		auto list = TranslationLanguagesList();
+		for (const auto id : list) {
+			LOG(("cloud_lng_language_%1").arg(id.twoLetterCode()));
+		}
 		const auto current = LanguageId{ QLocale(
 			Lang::LanguageIdOrDefault(Lang::Id())).language() };
 		if (const auto i = ranges::find(list, current); i != end(list)) {

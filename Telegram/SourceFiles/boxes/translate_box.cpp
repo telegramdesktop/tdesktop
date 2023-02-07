@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/ui_integration.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
+#include "history/history.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -96,9 +98,15 @@ void TranslateBox(
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
 
-	auto id = Core::App().settings().translateToValue();
-	const auto api = box->lifetime().make_state<MTP::Sender>(
-		&peer->session().mtp());
+	struct State {
+		State(not_null<Main::Session*> session) : api(&session->mtp()) {
+		}
+
+		MTP::Sender api;
+		rpl::variable<LanguageId> to;
+	};
+	const auto state = box->lifetime().make_state<State>(&peer->session());
+	state->to = ChooseTranslateTo(peer->owner().history(peer));
 
 	text.entities = ranges::views::all(
 		text.entities
@@ -174,10 +182,10 @@ void TranslateBox(
 		const auto padding = st::settingsSubsectionTitlePadding;
 		const auto subtitle = Settings::AddSubsectionTitle(
 			container,
-			rpl::duplicate(id) | rpl::map(LanguageName));
+			state->to.value() | rpl::map(LanguageName));
 
 		// Workaround.
-		rpl::duplicate(id) | rpl::start_with_next([=] {
+		state->to.value() | rpl::start_with_next([=] {
 			subtitle->resizeToWidth(container->width()
 				- padding.left()
 				- padding.right());
@@ -197,7 +205,7 @@ void TranslateBox(
 			box,
 			st::aboutLabel,
 			std::min(original->entity()->height() / lineHeight, kMaxLines),
-			rpl::duplicate(id) | rpl::map([=](LanguageId id) {
+			state->to.value() | rpl::map([=](LanguageId id) {
 				return id.locale().textDirection() == Qt::RightToLeft;
 			}))));
 
@@ -210,7 +218,7 @@ void TranslateBox(
 	const auto send = [=](LanguageId to) {
 		loading->show(anim::type::instant);
 		translated->hide(anim::type::instant);
-		api->request(MTPmessages_TranslateText(
+		state->api.request(MTPmessages_TranslateText(
 			MTP_flags(flags),
 			msgId ? peer->input : MTP_inputPeerEmpty(),
 			(msgId
@@ -221,7 +229,7 @@ void TranslateBox(
 				: MTP_vector<MTPTextWithEntities>(1, MTP_textWithEntities(
 					MTP_string(text.text),
 					MTP_vector<MTPMessageEntity>()))),
-			MTP_string(to.locale().name().mid(0, 2))
+			MTP_string(to.twoLetterCode())
 		)).done([=](const MTPmessages_TranslatedText &result) {
 			const auto &data = result.data();
 			const auto &list = data.vresult().v;
@@ -232,13 +240,15 @@ void TranslateBox(
 			showText(tr::lng_translate_box_error(tr::now));
 		}).send();
 	};
-	std::move(id) | rpl::start_with_next(send, box->lifetime());
+	state->to.value() | rpl::start_with_next(send, box->lifetime());
 
 	box->addLeftButton(tr::lng_settings_language(), [=] {
 		if (loading->toggled()) {
 			return;
 		}
-		Ui::BoxShow(box).showBox(ChooseTranslateToBox());
+		Ui::BoxShow(box).showBox(ChooseTranslateToBox(
+			state->to.current(),
+			crl::guard(box, [=](LanguageId id) { state->to = id; })));
 	});
 }
 
@@ -283,17 +293,50 @@ object_ptr<BoxContent> EditSkipTranslationLanguages() {
 	}, Core::App().settings().skipTranslationLanguages(), true);
 }
 
-object_ptr<BoxContent> ChooseTranslateToBox() {
-	const auto selected = std::vector<LanguageId>{
+object_ptr<BoxContent> ChooseTranslateToBox(
+		LanguageId bringUp,
+		Fn<void(LanguageId)> callback) {
+	auto selected = std::vector<LanguageId>{
 		Core::App().settings().translateTo(),
 	};
+	if (bringUp && bringUp != selected.front()) {
+		selected.push_back(bringUp);
+	}
 	return Box(ChooseLanguageBox, tr::lng_languages(), [=](
 			const std::vector<LanguageId> &ids) {
 		Expects(!ids.empty());
 
-		Core::App().settings().setTranslateTo(ids.front());
+		const auto id = ids.front();
+		Core::App().settings().setTranslateTo(id);
 		Core::App().saveSettingsDelayed();
+		callback(id);
 	}, selected, false);
+}
+
+LanguageId ChooseTranslateTo(not_null<History*> history) {
+	return ChooseTranslateTo(history->translateOfferedFrom());
+}
+
+LanguageId ChooseTranslateTo(LanguageId offeredFrom) {
+	auto &settings = Core::App().settings();
+	return ChooseTranslateTo(
+		offeredFrom,
+		settings.translateTo(),
+		settings.skipTranslationLanguages());
+}
+
+LanguageId ChooseTranslateTo(
+		not_null<History*> history,
+		LanguageId savedTo,
+		const std::vector<LanguageId> &skip) {
+	return ChooseTranslateTo(history->translateOfferedFrom(), savedTo, skip);
+}
+
+LanguageId ChooseTranslateTo(
+		LanguageId offeredFrom,
+		LanguageId savedTo,
+		const std::vector<LanguageId> &skip) {
+	return (offeredFrom != savedTo) ? savedTo : skip.front();
 }
 
 } // namespace Ui

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 
+class History;
 class PeerData;
 struct LanguageId;
 
@@ -27,6 +28,19 @@ void TranslateBox(
 [[nodiscard]] bool SkipTranslate(TextWithEntities textWithEntities);
 
 [[nodiscard]] object_ptr<BoxContent> EditSkipTranslationLanguages();
-[[nodiscard]] object_ptr<BoxContent> ChooseTranslateToBox();
+[[nodiscard]] object_ptr<BoxContent> ChooseTranslateToBox(
+	LanguageId bringUp,
+	Fn<void(LanguageId)> callback);
+
+[[nodiscard]] LanguageId ChooseTranslateTo(not_null<History*> history);
+[[nodiscard]] LanguageId ChooseTranslateTo(LanguageId offeredFrom);
+[[nodiscard]] LanguageId ChooseTranslateTo(
+	not_null<History*> history,
+	LanguageId savedTo,
+	const std::vector<LanguageId> &skip);
+[[nodiscard]] LanguageId ChooseTranslateTo(
+	LanguageId offeredFrom,
+	LanguageId savedTo,
+	const std::vector<LanguageId> &skip);
 
 } // namespace Ui

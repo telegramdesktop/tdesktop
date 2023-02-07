@@ -2233,8 +2233,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_translate_show_original" = "Show Original";
 "lng_translate_bar_to" = "Translate to {name}";
+"lng_translate_bar_to_other" = "Translate to {name}";
 "lng_translate_menu_to" = "Translate To";
 "lng_translate_menu_dont" = "Don't translate {name}";
+"lng_translate_menu_dont_other" = "Don't translate {name}";
 "lng_translate_menu_hide" = "Hide";
 "lng_translate_hidden_user" = "Translation bar is now hidden for this chat.";
 "lng_translate_hidden_group" = "Translation bar is now hidden for this group.";
@@ -3389,6 +3391,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_translate_settings_chat" = "Translate Entire Chat";
 "lng_translate_settings_choose" = "Do Not Translate";
 "lng_translate_settings_about" = "The 'Translate' button will appear when you open a context menu on a text message.";
+"lng_translate_settings_one" = "Please choose at least one language so that it can be used as the \"Translate to\" language.";
 
 "lng_launch_exe_warning" = "This file has a {extension} extension.\nAre you sure you want to run it?";
 "lng_launch_svg_warning" = "Opening this file can potentially expose your IP address to its sender. Continue?";

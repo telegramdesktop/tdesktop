@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/wrap/slide_wrap.h"
+#include "spellcheck/spellcheck_types.h"
 
 class History;
 struct LanguageId;
@@ -68,6 +69,8 @@ private:
 	std::unique_ptr<Ui::PlainShadow> _shadow;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
 	base::unique_qptr<Ui::PopupMenu> _menu;
+	rpl::variable<LanguageId> _overridenTo;
+	rpl::variable<LanguageId> _to;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
 

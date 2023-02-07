@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "spellcheck/spellcheck_types.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/boxes/choose_language_box.h" // EditSkipTranslationLanguages.
 #include "ui/layers/box_content.h"
@@ -294,14 +293,6 @@ void TranslateBar::setup(not_null<History*> history) {
 			: Core::App().settings().translateTo());
 	});
 
-	Core::App().settings().translateToValue(
-	) | rpl::filter([=](LanguageId should) {
-		const auto now = history->translatedTo();
-		return now && (now != should);
-	}) | rpl::start_with_next([=](LanguageId should) {
-		translateTo(should);
-	}, _wrap.lifetime());
-
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
 		st::historyTranslateLabel);
@@ -343,8 +334,34 @@ void TranslateBar::setup(not_null<History*> history) {
 		updateLabelGeometry();
 	}, lifetime());
 
-	rpl::combine(
+	_overridenTo = history->translatedTo();
+	_to = rpl::combine(
 		Core::App().settings().translateToValue(),
+		Core::App().settings().skipTranslationLanguagesValue(),
+		history->session().changes().historyFlagsValue(
+			history,
+			Data::HistoryUpdate::Flag::TranslateFrom),
+		_overridenTo.value()
+	) | rpl::map([=](
+			LanguageId to,
+			const std::vector<LanguageId> &skip,
+			const auto &,
+			LanguageId overridenTo) {
+		return overridenTo
+			? overridenTo
+			: Ui::ChooseTranslateTo(history, to, skip);
+	}) | rpl::distinct_until_changed();
+
+	_to.value(
+	) | rpl::filter([=](LanguageId should) {
+		const auto now = history->translatedTo();
+		return now && (now != should);
+	}) | rpl::start_with_next([=](LanguageId should) {
+		translateTo(should);
+	}, _wrap.lifetime());
+
+	rpl::combine(
+		_to.value(),
 		history->session().changes().historyFlagsValue(
 			history,
 			(Data::HistoryUpdate::Flag::TranslatedTo
@@ -352,16 +369,17 @@ void TranslateBar::setup(not_null<History*> history) {
 		history->session().changes().peerFlagsValue(
 			history->peer,
 			Data::PeerUpdate::Flag::TranslationDisabled)
-	) | rpl::map([=](LanguageId to, const auto&, const auto&) {
+	) | rpl::map([=](
+			LanguageId to,
+			const auto&,
+			const auto&) {
 		using Flag = PeerData::TranslationFlag;
 		return (history->peer->translationFlag() != Flag::Enabled)
 			? rpl::single(QString())
 			: history->translatedTo()
 			? tr::lng_translate_show_original()
 			: history->translateOfferedFrom()
-			? tr::lng_translate_bar_to(
-				lt_name,
-				rpl::single(Ui::LanguageName(to)))
+			? Ui::TranslateBarTo(to)
 			: rpl::single(QString());
 	}) | rpl::flatten_latest(
 	) | rpl::distinct_until_changed(
@@ -408,20 +426,25 @@ void TranslateBar::showMenu(base::unique_qptr<Ui::PopupMenu> menu) {
 	_menu = std::move(menu);
 	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 
+	const auto guard = Ui::MakeWeak(&_wrap);
+	const auto now = _history->translatedTo();
+	const auto to = now ? now : Ui::ChooseTranslateTo(_history);
 	const auto weak = base::make_weak(_controller);
 	const auto chooseCallback = [=] {
 		if (const auto strong = weak.get()) {
-			strong->show(Ui::ChooseTranslateToBox());
+			strong->show(Ui::ChooseTranslateToBox(
+				to,
+				crl::guard(guard, [=](LanguageId id) { _overridenTo = id; })
+			));
 		}
 	};
 	_menu->addAction(MakeTranslateToItem(
 		_menu->menu(),
-		Ui::LanguageName(Core::App().settings().translateTo()),
+		Ui::LanguageName(to ? to : Ui::ChooseTranslateTo(_history)),
 		chooseCallback));
 	_menu->addSeparator();
 	const auto history = _history;
 	if (const auto translateOfferedFrom = _history->translateOfferedFrom()) {
-		const auto name = Ui::LanguageName(translateOfferedFrom);
 		const auto addToIgnoreList = [=] {
 			showSettingsToast(history->peer, translateOfferedFrom);
 
@@ -436,7 +459,7 @@ void TranslateBar::showMenu(base::unique_qptr<Ui::PopupMenu> menu) {
 			Core::App().saveSettingsDelayed();
 		};
 		_menu->addAction(
-			tr::lng_translate_menu_dont(tr::now, lt_name, name),
+			Ui::TranslateMenuDont(tr::now, translateOfferedFrom),
 			addToIgnoreList,
 			&st::menuIconBlock);
 	}

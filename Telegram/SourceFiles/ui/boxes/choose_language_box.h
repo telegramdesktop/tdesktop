@@ -9,13 +9,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct LanguageId;
 
+namespace tr {
+struct now_t;
+} // namespace tr
+
 namespace Ui {
 
 class GenericBox;
 
 [[nodiscard]] QString LanguageNameTranslated(const QString &twoLetterCode);
+[[nodiscard]] QString LanguageNameLocal(LanguageId id);
 [[nodiscard]] QString LanguageName(LanguageId id);
 [[nodiscard]] QString LanguageNameNative(LanguageId id);
+
+[[nodiscard]] rpl::producer<QString> TranslateBarTo(LanguageId id);
+[[nodiscard]] QString TranslateMenuDont(tr::now_t, LanguageId id);
 
 void ChooseLanguageBox(
 	not_null<GenericBox*> box,

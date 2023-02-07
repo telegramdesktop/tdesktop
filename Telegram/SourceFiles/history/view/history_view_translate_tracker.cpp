@@ -234,7 +234,7 @@ void TranslateTracker::requestSome() {
 		peer->input,
 		MTP_vector<MTPint>(list),
 		MTPVector<MTPTextWithEntities>(),
-		MTP_string(to.locale().name().mid(0, 2))
+		MTP_string(to.twoLetterCode())
 	)).done([=](const MTPmessages_TranslatedText &result) {
 		requestDone(to, result.data().vresult().v);
 	}).fail([=] {
