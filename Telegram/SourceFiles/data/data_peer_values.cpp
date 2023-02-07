@@ -215,19 +215,11 @@ inline auto DefaultRestrictionValue(
 			return rpl::single(false);
 		}
 		using namespace rpl::mappers;
-		const auto other = rights & ~(ChatRestriction::SendPolls
-			| ChatRestriction::SendVoiceMessages
+		const auto other = rights & ~(ChatRestriction::SendVoiceMessages
 			| ChatRestriction::SendVideoMessages);
 		if (other) {
 			return PeerFlagValue(user, UserDataFlag::Deleted)
 				| rpl::map(!_1);
-		} else if (rights & ChatRestriction::SendPolls) {
-			if (CanSend(user, ChatRestriction::SendPolls)) {
-				return PeerFlagValue(user, UserDataFlag::Deleted)
-					| rpl::map(!_1);
-			} else if (rights == ChatRestriction::SendPolls) {
-				return rpl::single(false);
-			}
 		}
 		const auto mask = UserDataFlag::Deleted
 			| UserDataFlag::VoiceMessagesForbidden;

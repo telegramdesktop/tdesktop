@@ -96,7 +96,7 @@ ChatRestrictions TabbedPanelSendRestrictions() {
 
 // Duplicated in CanSendAnyOfValue().
 bool CanSendAnyOf(
-		not_null<Thread*> thread,
+		not_null<const Thread*> thread,
 		ChatRestrictions rights,
 		bool forbidInForums) {
 	const auto peer = thread->peer();
@@ -107,7 +107,7 @@ bool CanSendAnyOf(
 
 // Duplicated in CanSendAnyOfValue().
 bool CanSendAnyOf(
-		not_null<PeerData*> peer,
+		not_null<const PeerData*> peer,
 		ChatRestrictions rights,
 		bool forbidInForums) {
 	if (const auto user = peer->asUser()) {

@@ -991,10 +991,9 @@ void Filler::addManageChat() {
 }
 
 void Filler::addCreatePoll() {
-	constexpr auto kRight = ChatRestriction::SendPolls;
 	const auto can = _topic
-		? Data::CanSend(_topic, kRight)
-		: Data::CanSend(_peer, kRight);
+		? Data::CanSend(_topic, ChatRestriction::SendPolls)
+		: _peer->canCreatePolls();
 	if (!can) {
 		return;
 	}

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_user.h"
 #include "data/data_chat.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "data/data_photo.h"
@@ -475,6 +476,13 @@ bool PeerData::canPinMessages() const {
 	Unexpected("Peer type in PeerData::canPinMessages.");
 }
 
+bool PeerData::canCreatePolls() const {
+	if (const auto user = asUser()) {
+		return user->isBot() && !user->isSupport();
+	}
+	return Data::CanSend(this, ChatRestriction::SendPolls);
+}
+
 bool PeerData::canCreateTopics() const {
 	if (const auto channel = asChannel()) {
 		return channel->isForum()
@@ -938,10 +946,6 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 		return (right == ChatRestriction::SendVoiceMessages
 			|| right == ChatRestriction::SendVideoMessages)
 			? ((user->flags() & UserDataFlag::VoiceMessagesForbidden)
-				? Result::Explicit()
-				: Result::Allowed())
-			: (right == ChatRestriction::SendPolls)
-			? ((!user->isBot() || user->isSupport())
 				? Result::Explicit()
 				: Result::Allowed())
 			: (right == ChatRestriction::PinMessages)

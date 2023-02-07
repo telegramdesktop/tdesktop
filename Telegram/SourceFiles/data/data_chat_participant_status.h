@@ -131,43 +131,43 @@ struct RestrictionsSetOptions {
 [[nodiscard]] ChatRestrictions TabbedPanelSendRestrictions();
 
 [[nodiscard]] bool CanSendAnyOf(
-	not_null<Thread*> thread,
+	not_null<const Thread*> thread,
 	ChatRestrictions rights,
 	bool forbidInForums = true);
 [[nodiscard]] bool CanSendAnyOf(
-	not_null<PeerData*> peer,
+	not_null<const PeerData*> peer,
 	ChatRestrictions rights,
 	bool forbidInForums = true);
 
 [[nodiscard]] inline bool CanSend(
-		not_null<Thread*> thread,
+		not_null<const Thread*> thread,
 		ChatRestriction right,
 		bool forbidInForums = true) {
 	return CanSendAnyOf(thread, right, forbidInForums);
 }
 [[nodiscard]] inline bool CanSend(
-		not_null<PeerData*> peer,
+		not_null<const PeerData*> peer,
 		ChatRestriction right,
 		bool forbidInForums = true) {
 	return CanSendAnyOf(peer, right, forbidInForums);
 }
 [[nodiscard]] inline bool CanSendTexts(
-		not_null<Thread*> thread,
+		not_null<const Thread*> thread,
 		bool forbidInForums = true) {
 	return CanSend(thread, ChatRestriction::SendOther, forbidInForums);
 }
 [[nodiscard]] inline bool CanSendTexts(
-		not_null<PeerData*> peer,
+		not_null<const PeerData*> peer,
 		bool forbidInForums = true) {
 	return CanSend(peer, ChatRestriction::SendOther, forbidInForums);
 }
 [[nodiscard]] inline bool CanSendAnything(
-		not_null<Thread*> thread,
+		not_null<const Thread*> thread,
 		bool forbidInForums = true) {
 	return CanSendAnyOf(thread, AllSendRestrictions(), forbidInForums);
 }
 [[nodiscard]] inline bool CanSendAnything(
-		not_null<PeerData*> peer,
+		not_null<const PeerData*> peer,
 		bool forbidInForums = true) {
 	return CanSendAnyOf(peer, AllSendRestrictions(), forbidInForums);
 }
