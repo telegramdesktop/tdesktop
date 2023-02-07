@@ -1,3 +1,10 @@
+4.6.2 (07.02.23)
+
+- One more attempt to fix fonts on Windows.
+- Fix polls forwarding to private chats.
+- Improve translations bar appearance.
+- Improve userpic editor presets.
+
 4.6.1 (06.02.23)
 
 - Fix fonts fallback on Windows.
