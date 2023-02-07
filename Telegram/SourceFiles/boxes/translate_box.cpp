@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/choose_language_box.h"
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/painter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -38,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 namespace {
+
+constexpr auto kSkipAtLeastOneDuration = 3 * crl::time(1000);
 
 class ShowButton final : public RpWidget {
 public:
@@ -285,12 +288,36 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 
 object_ptr<BoxContent> EditSkipTranslationLanguages() {
 	auto title = tr::lng_translate_settings_choose();
-	return Box(ChooseLanguageBox, std::move(title), [=](
+	const auto selected = std::make_shared<std::vector<LanguageId>>(
+		Core::App().settings().skipTranslationLanguages());
+	const auto weak = std::make_shared<QPointer<BoxContent>>();
+	const auto check = [=](LanguageId id) {
+		const auto already = ranges::contains(*selected, id);
+		if (already) {
+			selected->erase(ranges::remove(*selected, id), selected->end());
+		} else {
+			selected->push_back(id);
+		}
+		if (already && selected->empty()) {
+			if (const auto strong = weak->data()) {
+				Ui::ShowMultilineToast({
+					.parentOverride = BoxShow(strong).toastParent(),
+					.text = { tr::lng_translate_settings_one(tr::now) },
+					.duration = kSkipAtLeastOneDuration,
+				});
+			}
+			return false;
+		}
+		return true;
+	};
+	auto result = Box(ChooseLanguageBox, std::move(title), [=](
 			std::vector<LanguageId> &&list) {
 		Core::App().settings().setSkipTranslationLanguages(
 			std::move(list));
 		Core::App().saveSettingsDelayed();
-	}, Core::App().settings().skipTranslationLanguages(), true);
+	}, *selected, true, check);
+	*weak = result.data();
+	return result;
 }
 
 object_ptr<BoxContent> ChooseTranslateToBox(
@@ -310,7 +337,7 @@ object_ptr<BoxContent> ChooseTranslateToBox(
 		Core::App().settings().setTranslateTo(id);
 		Core::App().saveSettingsDelayed();
 		callback(id);
-	}, selected, false);
+	}, selected, false, nullptr);
 }
 
 LanguageId ChooseTranslateTo(not_null<History*> history) {

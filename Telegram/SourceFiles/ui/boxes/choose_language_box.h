@@ -30,6 +30,7 @@ void ChooseLanguageBox(
 	rpl::producer<QString> title,
 	Fn<void(std::vector<LanguageId>)> callback,
 	std::vector<LanguageId> selected,
-	bool multiselect);
+	bool multiselect,
+	Fn<bool(LanguageId)> toggleCheck);
 
 } // namespace Ui

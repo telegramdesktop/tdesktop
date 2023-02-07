@@ -266,7 +266,8 @@ void ChooseLanguageBox(
 		rpl::producer<QString> title,
 		Fn<void(std::vector<LanguageId>)> callback,
 		std::vector<LanguageId> selected,
-		bool multiselect) {
+		bool multiselect,
+		Fn<bool(LanguageId)> toggleCheck) {
 	box->setMinHeight(st::boxWidth);
 	box->setMaxHeight(st::boxWidth);
 	box->setTitle(std::move(title));
@@ -294,6 +295,14 @@ void ChooseLanguageBox(
 		});
 		return list;
 	}();
+	struct ToggleOne {
+		LanguageId id;
+		bool selected = false;
+	};
+	struct State {
+		rpl::event_stream<ToggleOne> toggles;
+	};
+	const auto state = box->lifetime().make_state<State>();
 	auto rows = std::vector<not_null<SlideWrap<Row>*>>();
 	rows.reserve(langs.size());
 	for (const auto &id : langs) {
@@ -302,9 +311,21 @@ void ChooseLanguageBox(
 				container,
 				object_ptr<Row>(container, id)));
 		if (multiselect) {
-			button->entity()->toggleOn(
-				rpl::single(ranges::contains(selected, id)),
-				false);
+			button->entity()->toggleOn(rpl::single(
+				ranges::contains(selected, id)
+			) | rpl::then(state->toggles.events(
+			) | rpl::filter([=](ToggleOne one) {
+				return one.id == id;
+			}) | rpl::map([=](ToggleOne one) {
+				return one.selected;
+			})));
+
+			button->entity()->toggledChanges(
+			) | rpl::start_with_next([=](bool value) {
+				if (toggleCheck && !toggleCheck(id)) {
+					state->toggles.fire({ .id = id, .selected = !value });
+				}
+			}, button->lifetime());
 		} else {
 			button->entity()->setClickedCallback([=] {
 				callback({ id });
