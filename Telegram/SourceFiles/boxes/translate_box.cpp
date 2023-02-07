@@ -323,10 +323,16 @@ object_ptr<BoxContent> EditSkipTranslationLanguages() {
 object_ptr<BoxContent> ChooseTranslateToBox(
 		LanguageId bringUp,
 		Fn<void(LanguageId)> callback) {
+	auto &settings = Core::App().settings();
 	auto selected = std::vector<LanguageId>{
-		Core::App().settings().translateTo(),
+		settings.translateTo(),
 	};
-	if (bringUp && bringUp != selected.front()) {
+	for (const auto &id : settings.skipTranslationLanguages()) {
+		if (id != selected.front()) {
+			selected.push_back(id);
+		}
+	}
+	if (bringUp && ranges::contains(selected, bringUp)) {
 		selected.push_back(bringUp);
 	}
 	return Box(ChooseLanguageBox, tr::lng_languages(), [=](
