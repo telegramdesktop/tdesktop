@@ -218,6 +218,8 @@ public:
 		return _updates.events();
 	}
 
+	[[nodiscard]] std::optional<QDate> overrideExpireDateThreshold() const;
+
 	void validateInformation(const Ui::RequestedInformation &information);
 	void validateCard(
 		const Ui::UncheckedCardDetails &details,
@@ -284,9 +286,11 @@ private:
 		const Ui::RequestedInformation &information) const;
 
 	bool validateCardLocal(
-		const Ui::UncheckedCardDetails &details) const;
+		const Ui::UncheckedCardDetails &details,
+		const std::optional<QDate> &overrideExpireDateThreshold) const;
 	[[nodiscard]] Error cardErrorLocal(
-		const Ui::UncheckedCardDetails &details) const;
+		const Ui::UncheckedCardDetails &details,
+		const std::optional<QDate> &overrideExpireDateThreshold) const;
 
 	const InvoiceId _id;
 	const not_null<Main::Session*> _session;
