@@ -213,7 +213,7 @@ public:
 	void botCallbackSent(not_null<HistoryItem*> item);
 
 	void fastShowAtEnd(not_null<History*> history);
-	void applyDraft(
+	bool applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
 	void setChooseReportMessagesDetails(

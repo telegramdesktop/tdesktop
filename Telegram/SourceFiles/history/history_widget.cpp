@@ -1867,11 +1867,11 @@ void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
 	}
 }
 
-void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
+bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	InvokeQueued(this, [=] { updateStickersByEmoji(); });
 
 	if (_voiceRecordBar->isActive() || !_canSendTexts) {
-		return;
+		return false;
 	}
 
 	const auto editDraft = _history ? _history->localEditDraft({}) : nullptr;
@@ -1893,7 +1893,7 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			updateControlsGeometry();
 		}
 		refreshTopBarActiveChat();
-		return;
+		return true;
 	}
 
 	_textUpdateEvents = 0;
@@ -1930,6 +1930,7 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_processingReplyId = draft ? draft->msgId : MsgId();
 		processReply();
 	}
+	return true;
 }
 
 void HistoryWidget::applyCloudDraft(History *history) {
@@ -2261,7 +2262,9 @@ void HistoryWidget::showHistory(
 		handlePeerUpdate();
 
 		session().local().readDraftsWithCursors(_history);
-		applyDraft();
+		if (!applyDraft()) {
+			clearFieldText();
+		}
 		_send->finishAnimating();
 
 		updateControlsGeometry();
