@@ -434,8 +434,13 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 
 	const auto paletteBg = Ui::AddBubbleWrap(
 		container,
-		st::userpicBuilderEmojiBubblePaletteSize);
-	const auto palette = Ui::CreateChild<Ui::RpWidget>(paletteBg.get());
+		QSize(
+			st::userpicBuilderEmojiBubblePaletteWidth,
+			std::abs(Ui::BubbleWrapInnerRect(QRect(0, 0, 0, 0)).height())
+				+ st::userpicBuilderEmojiAccentColorSize
+				+ rect::m::sum::v(
+					st::userpicBuilderEmojiBubblePalettePadding)));
+	const auto palette = Ui::CreateChild<Ui::VerticalLayout>(paletteBg.get());
 	{
 		constexpr auto kColorsCount = int(7);
 		const auto checkIsSpecial = [=](int i) {
@@ -522,7 +527,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	const auto selectorBg = Ui::AddBubbleWrap(
 		container,
 		QSize(
-			st::userpicBuilderEmojiBubblePaletteSize.width(),
+			st::userpicBuilderEmojiBubblePaletteWidth,
 			st::userpicBuilderEmojiSelectorMinHeight));
 	const auto selector = Ui::CreateChild<EmojiSelector>(
 		selectorBg.get(),
