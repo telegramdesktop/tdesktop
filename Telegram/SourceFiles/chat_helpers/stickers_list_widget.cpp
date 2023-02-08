@@ -165,17 +165,18 @@ StickersListWidget::StickersListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	Window::GifPauseReason level,
-	bool masks)
+	Mode mode)
 : Inner(
 	parent,
 	st::defaultEmojiPan,
 	&controller->session(),
 	Window::PausedIn(controller, level))
+, _mode(mode)
 , _controller(controller)
 , _api(&session().mtp())
 , _localSetsManager(std::make_unique<LocalStickersManager>(&session()))
 , _section(Section::Stickers)
-, _isMasks(masks)
+, _isMasks(mode == Mode::Masks)
 , _updateItemsTimer([=] { updateItems(); })
 , _updateSetsTimer([=] { updateSets(); })
 , _trendingAddBgOver(
@@ -2565,7 +2566,7 @@ void StickersListWidget::setupSearch() {
 			return a.isEmpty() ? b : (a + ' ' + b);
 		});
 		searchForSets(std::move(text), SearchEmoji(query, set));
-	}, session);
+	}, session, false, (_mode == Mode::UserpicBuilder));
 }
 
 void StickersListWidget::displaySet(uint64 setId) {

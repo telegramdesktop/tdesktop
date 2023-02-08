@@ -274,7 +274,8 @@ EmojiSelector::Selector EmojiSelector::createStickersList(
 		object_ptr<ChatHelpers::StickersListWidget>(
 			scroll,
 			_controller,
-			Window::GifPauseReason::Any));
+			Window::GifPauseReason::Any,
+			ChatHelpers::StickersListMode::UserpicBuilder));
 	const auto footer = list->createFooter().data();
 	list->refreshRecent();
 	list->chosen(

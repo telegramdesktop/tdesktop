@@ -59,13 +59,21 @@ enum class ValidateIconAnimations;
 class StickersListFooter;
 class LocalStickersManager;
 
+enum class StickersListMode {
+	Full,
+	Masks,
+	UserpicBuilder,
+};
+
 class StickersListWidget final : public TabbedSelector::Inner {
 public:
+	using Mode = StickersListMode;
+
 	StickersListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		Window::GifPauseReason level,
-		bool masks = false);
+		Mode mode = Mode::Full);
 
 	rpl::producer<FileChosen> chosen() const;
 	rpl::producer<> scrollUpdated() const;
@@ -330,6 +338,8 @@ private:
 		int section,
 		int index,
 		not_null<DocumentData*> document);
+
+	const Mode _mode;
 
 	not_null<Window::SessionController*> _controller;
 	std::unique_ptr<Ui::TabbedSearch> _search;

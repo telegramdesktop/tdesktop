@@ -500,7 +500,7 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 				this,
 				_controller,
 				_level,
-				true);
+				StickersListWidget::Mode::Masks);
 		}
 		Unexpected("Type in TabbedSelector::createTab.");
 	};
