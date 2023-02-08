@@ -4,8 +4,8 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-add_library(td_ui STATIC)
-init_non_host_target(td_ui ltcg)
+add_library(td_ui OBJECT)
+init_non_host_target(td_ui)
 add_library(tdesktop::td_ui ALIAS td_ui)
 
 include(lib_ui/cmake/generate_styles.cmake)
