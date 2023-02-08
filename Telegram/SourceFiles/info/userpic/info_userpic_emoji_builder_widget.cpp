@@ -419,7 +419,8 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 				data.isForum)),
 		st::userpicBuilderEmojiPreviewPadding)->entity();
 	if (const auto id = data.documentId) {
-		if (const auto document = controller->session().data().document(id)) {
+		const auto document = controller->session().data().document(id);
+		if (document && document->sticker()) {
 			preview->setDocument(document);
 		}
 	}
