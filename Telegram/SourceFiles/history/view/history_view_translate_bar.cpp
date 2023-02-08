@@ -288,9 +288,7 @@ void TranslateBar::setup(not_null<History*> history) {
 	}, button->lifetime());
 
 	button->setClickedCallback([=] {
-		translateTo(history->translatedTo()
-			? LanguageId()
-			: Core::App().settings().translateTo());
+		translateTo(history->translatedTo() ? LanguageId() : _to.current());
 	});
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
