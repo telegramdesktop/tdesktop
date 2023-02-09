@@ -621,7 +621,7 @@ void EmojiListWidget::prepareExpanding() {
 }
 
 void EmojiListWidget::paintExpanding(
-		QPainter &p,
+		Painter &p,
 		QRect clip,
 		int finalBottom,
 		float64 progress,
@@ -974,7 +974,7 @@ base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 }
 
 void EmojiListWidget::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
+	auto p = Painter(this);
 
 	const auto clip = e ? e->rect() : rect();
 
@@ -1018,7 +1018,7 @@ void EmojiListWidget::validateEmojiPaintContext(
 }
 
 void EmojiListWidget::paint(
-		QPainter &p,
+		Painter &p,
 		ExpandingContext context,
 		QRect clip) {
 	validateEmojiPaintContext(context);
@@ -1042,6 +1042,9 @@ void EmojiListWidget::paint(
 	auto selectedButton = std::get_if<OverButton>(!v::is_null(_pressed)
 		? &_pressed
 		: &_selected);
+	if (_searchResults.empty() && _searchMode) {
+		paintEmptySearchResults(p);
+	}
 	enumerateSections([&](const SectionInfo &info) {
 		if (clip.top() >= info.rowsBottom) {
 			return true;
@@ -2005,6 +2008,13 @@ int EmojiListWidget::paintButtonGetWidth(
 			+ st::emojiPanButton.font->ascent),
 		button.text);
 	return emojiRight() - rect.x();
+}
+
+void EmojiListWidget::paintEmptySearchResults(Painter &p) {
+	Inner::paintEmptySearchResults(
+		p,
+		st::emojiEmpty,
+		tr::lng_emoji_nothing_found(tr::now));
 }
 
 bool EmojiListWidget::eventHook(QEvent *e) {

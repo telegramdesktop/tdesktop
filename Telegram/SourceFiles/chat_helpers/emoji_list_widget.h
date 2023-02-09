@@ -125,7 +125,7 @@ public:
 
 	void prepareExpanding();
 	void paintExpanding(
-		QPainter &p,
+		Painter &p,
 		QRect clip,
 		int finalBottom,
 		float64 progress,
@@ -271,7 +271,7 @@ private:
 		Api::SendOptions options = Api::SendOptions());
 	void selectEmoji(EmojiChosen data);
 	void selectCustom(FileChosen data);
-	void paint(QPainter &p, ExpandingContext context, QRect clip);
+	void paint(Painter &p, ExpandingContext context, QRect clip);
 	void drawCollapsedBadge(QPainter &p, QPoint position, int count);
 	void drawRecent(
 		QPainter &p,
@@ -313,6 +313,7 @@ private:
 		const SectionInfo &info,
 		bool selected,
 		QRect clip) const;
+	void paintEmptySearchResults(Painter &p);
 
 	void displaySet(uint64 setId);
 	void removeSet(uint64 setId);

@@ -1877,6 +1877,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_masks_archive_pack" = "Archive Masks";
 "lng_masks_has_been_archived" = "Mask pack has been archived.";
 "lng_masks_installed" = "Mask pack has been installed.";
+"lng_emoji_nothing_found" = "No emoji found";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_album" = "Album";

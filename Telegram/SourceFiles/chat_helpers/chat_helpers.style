@@ -335,6 +335,7 @@ stickersToast: Toast(defaultToast) {
 }
 
 stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
+emojiEmpty: icon {{ "stickers_empty", windowSubTextFg }};
 
 inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltat: stickerPanPadding;
@@ -396,7 +397,7 @@ reactStripBubble: icon{
 	{ "chat/reactions_bubble", windowBg },
 };
 reactStripBubbleRight: 20px;
-reactPanelEmojiPan: EmojiPan(statusEmojiPan) {
+userpicBuilderEmojiPan: EmojiPan(statusEmojiPan) {
 	margin: margins(reactStripSkip, 0px, reactStripSkip, 0px);
 	padding: margins(reactStripSkip, 0px, reactStripSkip, reactStripSkip);
 	desiredSize: reactStripSize;
@@ -405,6 +406,8 @@ reactPanelEmojiPan: EmojiPan(statusEmojiPan) {
 	search: TabbedSearch(defaultTabbedSearch) {
 		defaultFieldWidth: 88px;
 	}
+}
+reactPanelEmojiPan: EmojiPan(userpicBuilderEmojiPan) {
 	searchMargin: margins(1px, 10px, 2px, 6px);
 }
 emojiScroll: ScrollArea(defaultSolidScroll) {

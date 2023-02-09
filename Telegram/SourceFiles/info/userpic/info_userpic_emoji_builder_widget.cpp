@@ -250,7 +250,7 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 		.customRecentFactory = [=](DocumentId id, Fn<void()> repaint) {
 			return manager->create(id, std::move(repaint), tag);
 		},
-		.st = &st::reactPanelEmojiPan,
+		.st = &st::userpicBuilderEmojiPan,
 	};
 	const auto list = scroll->setOwnedWidget(
 		object_ptr<ChatHelpers::EmojiListWidget>(scroll, std::move(args)));
