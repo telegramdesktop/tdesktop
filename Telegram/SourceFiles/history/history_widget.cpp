@@ -491,7 +491,13 @@ HistoryWidget::HistoryWidget(
 	_botCommandStart->hide();
 
 	session().attachWebView().requestBots();
-	session().attachWebView().attachBotsUpdates(
+	rpl::merge(
+		session().attachWebView().attachBotsUpdates(),
+		session().changes().peerUpdates(
+			Data::PeerUpdate::Flag::Rights
+		) | rpl::filter([=](const Data::PeerUpdate &update) {
+			return update.peer == _peer;
+		}) | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		refreshAttachBotsMenu();
 	}, lifetime());
