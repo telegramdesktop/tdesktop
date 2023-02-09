@@ -471,22 +471,29 @@ void ForumTopic::applyTopicTopMessage(MsgId topMessageId) {
 		const auto itemId = FullMsgId(channel()->id, topMessageId);
 		if (const auto item = owner().message(itemId)) {
 			setLastServerMessage(item);
-
-			// If we set a single album part, request the full album.
-			if (item->groupId() != MessageGroupId()) {
-				if (owner().groups().isGroupOfOne(item)
-					&& !item->toPreview({
-						.hideSender = true,
-						.hideCaption = true }).images.empty()
-					&& _requestedGroups.emplace(item->fullId()).second) {
-					owner().histories().requestGroupAround(item);
-				}
-			}
+			resolveChatListMessageGroup();
 		} else {
 			setLastServerMessage(nullptr);
 		}
 	} else {
 		setLastServerMessage(nullptr);
+	}
+}
+
+void ForumTopic::resolveChatListMessageGroup() {
+	if (!(_flags & Flag::ResolveChatListMessage)) {
+		return;
+	}
+	// If we set a single album part, request the full album.
+	const auto item = _lastServerMessage.value_or(nullptr);
+	if (item && item->groupId() != MessageGroupId()) {
+		if (owner().groups().isGroupOfOne(item)
+			&& !item->toPreview({
+				.hideSender = true,
+				.hideCaption = true }).images.empty()
+				&& _requestedGroups.emplace(item->fullId()).second) {
+			owner().histories().requestGroupAround(item);
+		}
 	}
 }
 
@@ -548,10 +555,11 @@ void ForumTopic::setChatListMessage(HistoryItem *item) {
 	_forum->listMessageChanged(was, item);
 }
 
-void ForumTopic::loadUserpic() {
+void ForumTopic::chatListPreloadData() {
 	if (_icon) {
 		[[maybe_unused]] const auto preload = _icon->ready();
 	}
+	allowChatListMessageResolve();
 }
 
 void ForumTopic::paintUserpic(
@@ -838,6 +846,14 @@ Dialogs::UnreadState ForumTopic::unreadStateFor(
 	result.reactionsMuted = muted ? result.reactions : 0;
 	result.known = known;
 	return result;
+}
+
+void ForumTopic::allowChatListMessageResolve() {
+	if (_flags & Flag::ResolveChatListMessage) {
+		return;
+	}
+	_flags |= Flag::ResolveChatListMessage;
+	resolveChatListMessageGroup();
 }
 
 HistoryItem *ForumTopic::chatListMessage() const {

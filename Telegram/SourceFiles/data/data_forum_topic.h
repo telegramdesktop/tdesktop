@@ -146,7 +146,7 @@ public:
 		return _notify;
 	}
 
-	void loadUserpic() override;
+	void chatListPreloadData() override;
 	void paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,
@@ -169,6 +169,7 @@ private:
 		HasPinnedMessages = (1 << 3),
 		GeneralIconActive = (1 << 4),
 		GeneralIconSelected = (1 << 5),
+		ResolveChatListMessage = (1 << 6),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 	using Flags = base::flags<Flag>;
@@ -183,6 +184,8 @@ private:
 	void setLastMessage(HistoryItem *item);
 	void setLastServerMessage(HistoryItem *item);
 	void setChatListMessage(HistoryItem *item);
+	void allowChatListMessageResolve();
+	void resolveChatListMessageGroup();
 
 	int chatListNameVersion() const override;
 

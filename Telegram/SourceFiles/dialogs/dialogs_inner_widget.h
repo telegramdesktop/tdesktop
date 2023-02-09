@@ -243,7 +243,7 @@ private:
 		Qt::KeyboardModifiers modifiers);
 	void clearIrrelevantState();
 	void selectByMouse(QPoint globalPosition);
-	void loadPeerPhotos();
+	void preloadRowsData();
 	void scrollToItem(int top, int height);
 	void scrollToDefaultSelected();
 	void setCollapsedPressed(int pressed);

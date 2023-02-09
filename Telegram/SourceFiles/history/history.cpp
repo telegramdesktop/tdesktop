@@ -607,16 +607,6 @@ not_null<HistoryItem*> History::addNewItem(
 	} else {
 		addNewToBack(item, unread);
 		checkForLoadedAtTop(item);
-		if (!unread) {
-			// When we add just one last item, like we do while loading dialogs,
-			// we want to remove a single added grouped media, otherwise it will
-			// jump once we open the message history (first we show only that
-			// media, then we load the rest of the group and show the group).
-			//
-			// That way when we open the message history we show nothing until a
-			// whole history part is loaded, it certainly will contain the group.
-			removeOrphanMediaGroupPart();
-		}
 	}
 	return item;
 }
@@ -2241,6 +2231,44 @@ Dialogs::UnreadState History::computeUnreadState() const {
 	return result;
 }
 
+void History::allowChatListMessageResolve() {
+	if (_flags & Flag::ResolveChatListMessage) {
+		return;
+	}
+	_flags |= Flag::ResolveChatListMessage;
+	if (!chatListMessageKnown()) {
+		requestChatListMessage();
+	} else {
+		resolveChatListMessageGroup();
+	}
+}
+
+void History::resolveChatListMessageGroup() {
+	const auto item = _chatListMessage.value_or(nullptr);
+	if (!(_flags & Flag::ResolveChatListMessage)
+		|| !item
+		|| !hasOrphanMediaGroupPart()) {
+		return;
+	}
+	// If we set a single album part, request the full album.
+	const auto withImages = !item->toPreview({
+		.hideSender = true,
+		.hideCaption = true }).images.empty();
+	if (withImages) {
+		owner().histories().requestGroupAround(item);
+	}
+	if (unreadCountKnown() && !unreadCount()) {
+		// When we add just one last item, like we do while loading dialogs,
+		// we want to remove a single added grouped media, otherwise it will
+		// jump once we open the message history (first we show only that
+		// media, then we load the rest of the group and show the group).
+		//
+		// That way when we open the message history we show nothing until a
+		// whole history part is loaded, it certainly will contain the group.
+		clear(ClearType::Unload);
+	}
+}
+
 HistoryItem *History::chatListMessage() const {
 	return _chatListMessage.value_or(nullptr);
 }
@@ -2269,8 +2297,9 @@ const base::flat_set<QChar> &History::chatListFirstLetters() const {
 	return peer->nameFirstLetters();
 }
 
-void History::loadUserpic() {
+void History::chatListPreloadData() {
 	peer->loadUserpic();
+	allowChatListMessageResolve();
 }
 
 void History::paintUserpic(
@@ -2452,14 +2481,7 @@ void History::setChatListMessage(HistoryItem *item) {
 		}
 		_chatListMessage = item;
 		setChatListTimeId(item->date());
-
-		// If we have a single message from a group, request the full album.
-		if (hasOrphanMediaGroupPart()
-			&& !item->toPreview({
-				.hideSender = true,
-				.hideCaption = true }).images.empty()) {
-			owner().histories().requestGroupAround(item);
-		}
+		resolveChatListMessageGroup();
 	} else if (!_chatListMessage || *_chatListMessage) {
 		_chatListMessage = nullptr;
 		updateChatListEntry();
@@ -2560,13 +2582,21 @@ void History::requestChatListMessage() {
 }
 
 void History::setFakeChatListMessage() {
-	if (const auto chat = peer->asChat()) {
+	if (!(_flags & Flag::ResolveChatListMessage)) {
+		if (!chatListTimeId()) {
+			if (const auto last = lastMessage()) {
+				setChatListTimeId(last->date());
+			}
+		}
+		return;
+	} else if (const auto chat = peer->asChat()) {
 		// In chats we try to take the item before the 'last', which
 		// is the empty-displayed migration message.
 		owner().histories().requestFakeChatListMessage(this);
 	} else if (const auto from = migrateFrom()) {
 		// In megagroups we just try to use
 		// the message from the original group.
+		from->allowChatListMessageResolve();
 		from->requestChatListMessage();
 	}
 }
@@ -3307,14 +3337,6 @@ bool History::hasOrphanMediaGroupPart() const {
 	}
 	const auto last = blocks.front()->messages.front()->data();
 	return last->groupId() != MessageGroupId();
-}
-
-bool History::removeOrphanMediaGroupPart() {
-	if (hasOrphanMediaGroupPart()) {
-		clear(ClearType::Unload);
-		return true;
-	}
-	return false;
 }
 
 std::vector<MsgId> History::collectMessagesFromParticipantToDelete(
