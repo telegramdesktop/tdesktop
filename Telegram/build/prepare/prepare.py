@@ -1105,9 +1105,8 @@ depends:python/Scripts/activate.bat
 release:
     ninja -C out/Release%FolderPostfix% common crash_generation_client exception_handler
     cd tools\\windows\\dump_syms
-    gyp dump_syms.gyp --format=ninja
-    cd ..\\..\\..
-    ninja -C out/Release%FolderPostfix% dump_syms
+    gyp dump_syms.gyp --format=msvs
+    msbuild dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64"
 win:
     deactivate
 mac:
