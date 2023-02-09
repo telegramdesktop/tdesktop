@@ -164,6 +164,12 @@ local_folder = local_folder + '/'
 
 files = []
 files.append({
+  'local': 'sources',
+  'remote': 'tdesktop-' + version + '-full.tar.gz',
+  'mime': 'application/x-gzip',
+  'label': 'Source code (tar.gz, full)',
+})
+files.append({
   'local': 'tsetup.' + version_full + '.exe',
   'remote': 'tsetup.' + version_full + '.exe',
   'backup_folder': 'tsetup',
@@ -204,12 +210,6 @@ files.append({
   'backup_folder': 'tlinux',
   'mime': 'application/octet-stream',
   'label': 'Linux 64 bit: Binary',
-})
-files.append({
-  'local': 'sources',
-  'remote': 'tdesktop-' + version + '-full.tar.gz',
-  'mime': 'application/x-gzip',
-  'label': 'Source code (tar.gz, full)',
 })
 
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
