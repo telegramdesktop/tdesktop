@@ -161,6 +161,7 @@ object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 		.st = &st(),
 	});
 	_footer = result;
+	_chosenSetId = Data::Stickers::RecentSetId;
 
 	GifSectionsValue(
 		&session()
@@ -171,6 +172,9 @@ object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 
 	_footer->setChosen(
 	) | rpl::start_with_next([=](uint64 setId) {
+		if (_search) {
+			_search->cancel();
+		}
 		_chosenSetId = setId;
 		refreshIcons();
 		const auto i = ranges::find(_sections, setId, [](GifSection value) {
@@ -791,13 +795,16 @@ bool GifsListWidget::refreshInlineRows(int32 *added) {
 void GifsListWidget::setupSearch() {
 	const auto session = &_controller->session();
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
-		_chosenSetId = Data::Stickers::RecentSetId;
-		refreshIcons();
-		searchForGifs(ranges::accumulate(query, QString(), [](
+		const auto accumulated = ranges::accumulate(query, QString(), [](
 				QString a,
 				QString b) {
 			return a.isEmpty() ? b : (a + ' ' + b);
-		}));
+		});
+		_chosenSetId = accumulated.isEmpty()
+			? Data::Stickers::RecentSetId
+			: SearchEmojiSectionSetId();
+		refreshIcons();
+		searchForGifs(accumulated);
 	}, session);
 }
 

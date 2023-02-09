@@ -485,7 +485,10 @@ void EmojiListWidget::applyNextSearchQuery() {
 		if (!_searchMode && !searching) {
 			return;
 		}
-		_searchMode = searching;
+		const auto modeChanged = (_searchMode != searching);
+		if (modeChanged) {
+			_searchMode = searching;
+		}
 		if (!searching) {
 			_searchResults.clear();
 			_searchCustomIds.clear();
@@ -493,6 +496,9 @@ void EmojiListWidget::applyNextSearchQuery() {
 		clearSelection();
 		resizeToWidth(width());
 		update();
+		if (modeChanged) {
+			visibleTopBottomUpdated(getVisibleTop(), getVisibleBottom());
+		}
 	};
 	if (_searchQuery.empty()) {
 		finish(false);
@@ -2190,10 +2196,13 @@ void EmojiListWidget::showSet(uint64 setId) {
 }
 
 uint64 EmojiListWidget::sectionSetId(int section) const {
-	Expects(section < _staticCount
+	Expects(_searchMode
+		|| section < _staticCount
 		|| (section - _staticCount) < _custom.size());
 
-	return (section < _staticCount)
+	return _searchMode
+		? SearchEmojiSectionSetId()
+		: (section < _staticCount)
 		? EmojiSectionSetId(static_cast<Section>(section))
 		: _custom[section - _staticCount].id;
 }
