@@ -31,11 +31,18 @@ namespace Ui {
 class PopupMenu;
 class LinkButton;
 class RoundButton;
-namespace GL {
-struct ChosenRenderer;
-struct Capabilities;
-} // namespace GL
+class RpWindow;
 } // namespace Ui
+
+namespace Ui::GL {
+class Window;
+struct ChosenRenderer;
+enum class Backend;
+} // namespace Ui::GL
+
+namespace Ui::Platform {
+struct SeparateTitleControls;
+} // namespace Ui::Platform
 
 namespace Window {
 namespace Theme {
@@ -74,6 +81,8 @@ public:
 	};
 
 	[[nodiscard]] bool isHidden() const;
+	[[nodiscard]] bool isMinimized() const;
+	[[nodiscard]] bool isFullScreen() const;
 	[[nodiscard]] not_null<QWidget*> widget() const;
 	void hide();
 	void setCursor(style::cursor cursor);
@@ -93,6 +102,7 @@ public:
 
 	void activateControls();
 	void close();
+	void toggleFullScreen(bool fullscreen);
 
 	void notifyFileDialogShown(bool shown);
 
@@ -161,9 +171,12 @@ private:
 	void update(const QRegion &region);
 
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
-		Ui::GL::Capabilities capabilities);
+		Ui::GL::Backend backend);
 	void paint(not_null<Renderer*> renderer);
 
+	void setupWindow();
+	void orderWidgets();
+	void showAndActivate();
 	void handleMousePress(QPoint position, Qt::MouseButton button);
 	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleMouseMove(QPoint position);
@@ -438,11 +451,20 @@ private:
 
 	Window::SessionController *findWindow(bool switchTo = true) const;
 
+	const bool _supportWindowMode = false;
 	bool _opengl = false;
+	const std::unique_ptr<Ui::GL::Window> _wrap;
+	const not_null<Ui::RpWindow*> _window;
+#ifndef Q_OS_MAC
+	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
+#endif
+	const not_null<Ui::RpWidget*> _body;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
+	bool _fullscreen = true;
+	bool _windowed = false;
 
-	base::weak_ptr<Window::Controller> _window;
+	base::weak_ptr<Window::Controller> _openedFrom;
 	Main::Session *_session = nullptr;
 	rpl::lifetime _sessionLifetime;
 	PhotoData *_photo = nullptr;
@@ -562,7 +584,7 @@ private:
 	ControlsState _controlsState = ControlsShown;
 	crl::time _controlsAnimStarted = 0;
 	base::Timer _controlsHideTimer;
-	anim::value _controlsOpacity;
+	anim::value _controlsOpacity = { 1. };
 	bool _mousePressed = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;

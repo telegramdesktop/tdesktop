@@ -240,7 +240,6 @@ mediaviewTextTop: 24px;
 
 mediaviewIconOpacity: 0.45;
 mediaviewIconOverOpacity: 1.;
-mediaviewControlMargin: 0px;
 mediaviewControlSize: 90px;
 mediaviewIconSize: size(60px, 56px);
 

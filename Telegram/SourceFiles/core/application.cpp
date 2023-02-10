@@ -596,11 +596,11 @@ bool Application::isActiveForTrayMenu() const {
 }
 
 bool Application::hideMediaView() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->hide();
-		if (const auto window = activeWindow()) {
-			window->reActivate();
-		}
+	if (_mediaView
+		&& _mediaView->isFullScreen()
+		&& !_mediaView->isMinimized()
+		&& !_mediaView->isHidden()) {
+		_mediaView->close();
 		return true;
 	}
 	return false;
@@ -1489,7 +1489,10 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 			nowSession->updates().updateOnline();
 		}
 	}
-	if (_mediaView && !_mediaView->isHidden()) {
+	if (_mediaView
+		&& !_mediaView->isHidden()
+		&& !_mediaView->isMinimized()
+		&& _mediaView->isFullScreen()) {
 		_mediaView->activate();
 	}
 }
