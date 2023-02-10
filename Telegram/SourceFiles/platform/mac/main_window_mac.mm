@@ -226,7 +226,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 void MainWindow::closeWithoutDestroy() {
 	NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
 
-	auto isFullScreen = (([nsWindow styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
+	auto isFullScreen = (([nsWindow styleMask] & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen);
 	if (isFullScreen) {
 		_hideAfterFullScreenTimer.callOnce(kHideAfterFullscreenTimeoutMs);
 		[nsWindow toggleFullScreen:nsWindow];
@@ -266,7 +266,7 @@ bool MainWindow::preventsQuit(Core::QuitReason reason) {
 	// chromium.org/developers/design-documents/confirm-to-quit-experiment
 	return (reason == Core::QuitReason::QtQuitEvent)
 		&& Core::App().settings().macWarnBeforeQuit()
-		&& ([[NSApp currentEvent] type] == NSKeyDown)
+		&& ([[NSApp currentEvent] type] == NSEventTypeKeyDown)
 		&& !Platform::ConfirmQuit::RunModal(
 			tr::lng_mac_hold_to_quit(
 				tr::now,
