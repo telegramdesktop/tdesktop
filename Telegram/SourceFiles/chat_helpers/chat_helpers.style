@@ -335,7 +335,7 @@ stickersToast: Toast(defaultToast) {
 }
 
 stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
-emojiEmpty: icon {{ "stickers_empty", windowSubTextFg }};
+emojiEmpty: icon {{ "emoji_empty", windowSubTextFg }};
 
 inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltat: stickerPanPadding;
