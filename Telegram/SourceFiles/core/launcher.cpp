@@ -273,14 +273,6 @@ bool CheckPortableVersionFolder() {
 	return true;
 }
 
-base::options::toggle OptionFractionalScalingEnabled({
-	.id = kOptionFractionalScalingEnabled,
-	.name = "Enable precise High DPI scaling",
-	.description = "Follow system interface scale settings exactly.",
-	.scope = base::options::windows | base::options::linux,
-	.restartRequired = true,
-});
-
 } // namespace
 
 const char kOptionFractionalScalingEnabled[] = "fractional-scaling-enabled";
@@ -319,13 +311,21 @@ void Launcher::init() {
 	initHook();
 }
 
-void Launcher::initHighDpi() {
+void Launcher::initHighDpi(const base::options::toggle &fractionalScaling) {
 #if QT_VERSION < QT_VERSION_CHECK(6, 2, 0)
 	qputenv("QT_DPI_ADJUSTMENT_POLICY", "AdjustDpi");
 #endif // Qt < 6.2.0
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
+	if (noGL()) {
+		qunsetenv("QT_WIDGETS_HIGHDPI_DOWNSCALE");
+	} else {
+		qputenv("QT_WIDGETS_HIGHDPI_DOWNSCALE", "1");
+	}
+#endif // Qt >= 6.4.0
+
 	QApplication::setAttribute(Qt::AA_EnableHighDpiScaling, true);
-	if (OptionFractionalScalingEnabled.value()) {
+	if (fractionalScaling.value()) {
 		QApplication::setHighDpiScaleFactorRoundingPolicy(
 			Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 	} else {
@@ -345,10 +345,23 @@ int Launcher::exec() {
 
 	// Must be started before Platform is started.
 	Logs::start(this);
+
+	// needs cWorkingDir for noGL
+	static base::options::toggle OptionFractionalScalingEnabled({
+		.id = kOptionFractionalScalingEnabled,
+		.name = "Enable precise High DPI scaling",
+		.description = "Follow system interface scale settings exactly.",
+	#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
+		.defaultValue = !noGL(),
+	#endif // Qt > 6.4.0
+		.scope = base::options::windows | base::options::linux,
+		.restartRequired = true,
+	});
+
 	base::options::init(cWorkingDir() + "tdata/experimental_options.json");
 
 	// Must be called after options are inited.
-	initHighDpi();
+	initHighDpi(OptionFractionalScalingEnabled);
 
 	if (Logs::DebugEnabled()) {
 		const auto openalLogPath = QDir::toNativeSeparators(
@@ -410,6 +423,11 @@ void Launcher::writeInstallBetaVersionsSetting() {
 
 bool Launcher::checkPortableVersionFolder() {
 	return CheckPortableVersionFolder();
+}
+
+bool Launcher::noGL() const {
+	static const auto Result = QFile::exists(cWorkingDir() + u"tdata/nogl"_q);
+	return Result;
 }
 
 QStringList Launcher::readArguments(int argc, char *argv[]) const {

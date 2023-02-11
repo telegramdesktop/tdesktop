@@ -17,7 +17,7 @@ public:
 
 private:
 	void initHook() override;
-	void initHighDpi() override;
+	void initHighDpi(const base::options::toggle &fractionalScaling) override;
 
 	bool launchUpdater(UpdaterLaunch action) override;
 

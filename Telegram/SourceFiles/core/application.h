@@ -306,6 +306,7 @@ public:
 
 	void switchDebugMode();
 	void switchFreeType();
+	void refreshGL();
 	void writeInstallBetaVersionsSetting();
 
 	void preventOrInvoke(Fn<void()> &&callback);

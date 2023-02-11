@@ -27,7 +27,7 @@ void Launcher::initHook() {
 	base::RegisterBundledResources(u"Telegram.rcc"_q);
 }
 
-void Launcher::initHighDpi() {
+void Launcher::initHighDpi(const base::options::toggle &fractionalScaling) {
 	// macOS Retina display support is working fine.
 	QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling, true);
 }

@@ -226,9 +226,16 @@ void Sandbox::setupScreenScale() {
 	logEnv("QT_USE_PHYSICAL_DPI");
 	logEnv("QT_FONT_DPI");
 
+	// If High-DPI downscaling is supported, just ceil, otherwise
 	// Like Qt::HighDpiScaleFactorRoundingPolicy::RoundPreferFloor.
 	// Round up for .75 and higher. This favors "small UI" over "large UI".
-	const auto roundedRatio = ((ratio - qFloor(ratio)) < 0.75)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
+	const auto roundedRatio = !_launcher->noGL()
+#else // Qt >= 6.4.0
+	const auto roundedRatio = false
+#endif // Qt < 6.4.0
+		? qCeil(ratio)
+		: ((ratio - qFloor(ratio)) < 0.75)
 		? qFloor(ratio)
 		: qCeil(ratio);
 	const auto useRatio = std::clamp(roundedRatio, 1, 3);

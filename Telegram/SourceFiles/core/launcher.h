@@ -9,6 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/base_integration.h"
 
+namespace base::options {
+
+template <typename Type>
+class option;
+
+using toggle = option<bool>;
+
+} // namespace base::options
+
 namespace Core {
 
 extern const char kOptionFractionalScalingEnabled[];
@@ -23,6 +32,7 @@ public:
 
 	QString argumentsString() const;
 	bool customWorkingDir() const;
+	bool noGL() const;
 
 	uint64 installationTag() const;
 
@@ -54,7 +64,7 @@ private:
 	void init();
 	virtual void initHook() {
 	}
-	virtual void initHighDpi();
+	virtual void initHighDpi(const base::options::toggle &fractionalScaling);
 
 	virtual bool launchUpdater(UpdaterLaunch action) = 0;
 

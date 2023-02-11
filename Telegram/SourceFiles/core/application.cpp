@@ -245,7 +245,9 @@ void Application::run() {
 	startLocalStorage();
 	ValidateScale();
 
-	refreshGlobalProxy(); // Depends on app settings being read.
+	// Depends on app settings being read.
+	refreshGL();
+	refreshGlobalProxy();
 
 	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
 		InvokeQueued(this, [] { RegisterUrlScheme(); });
@@ -921,6 +923,24 @@ void Application::switchFreeType() {
 			f.close();
 		}
 		cSetUseFreeType(true);
+	}
+	Restart();
+}
+
+void Application::refreshGL() {
+	const auto path = cWorkingDir() + u"tdata/nogl"_q;
+	const auto use = Ui::GL::ChooseBackendDefault(
+		Ui::GL::CheckCapabilities(nullptr)) == Ui::GL::Backend::OpenGL;
+	if (use && _launcher->noGL()) {
+		QFile(path).remove();
+	} else if (!use && !_launcher->noGL()) {
+		QFile f(path);
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write("1");
+			f.close();
+		}
+	} else {
+		return;
 	}
 	Restart();
 }
