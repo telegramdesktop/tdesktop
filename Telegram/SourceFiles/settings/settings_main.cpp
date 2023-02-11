@@ -474,8 +474,9 @@ void SetupInterfaceScale(
 			if constexpr (Platform::IsMac()) {
 				return QString::number(scale) + '%';
 			} else {
-				const auto ratio = window->widget()->devicePixelRatioF();
-				return QString::number(int(scale * ratio)) + '%';
+				const auto handle = window->widget()->windowHandle();
+				const auto ratio = handle->devicePixelRatio();
+				return QString::number(base::SafeRound(scale * ratio)) + '%';
 			}
 		};
 		label->setText(labelText(cEvalScale(scale)));
