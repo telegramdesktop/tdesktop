@@ -523,9 +523,9 @@ void BottomInfo::layoutReactionsText() {
 		_reactions.clear();
 		return;
 	}
-	auto sorted = ranges::view::all(
+	auto sorted = ranges::views::all(
 		_data.reactions
-	) | ranges::view::transform([](const MessageReaction &reaction) {
+	) | ranges::views::transform([](const MessageReaction &reaction) {
 		return not_null{ &reaction };
 	}) | ranges::to_vector;
 	ranges::sort(

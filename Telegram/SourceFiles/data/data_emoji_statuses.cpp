@@ -172,7 +172,7 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 		const auto &data = group.data();
 		auto emoticons = ranges::views::all(
 			data.vemoticons().v
-		) | ranges::view::transform([](const MTPstring &emoticon) {
+		) | ranges::views::transform([](const MTPstring &emoticon) {
 			return qs(emoticon);
 		}) | ranges::to_vector;
 		result.push_back({
