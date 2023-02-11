@@ -244,12 +244,12 @@ void Sandbox::setupScreenScale() {
 	LOG(("Computed screen scale: %1").arg(screenScale));
 	if (Platform::IsMac()) {
 		// 110% for Retina screens by default.
-		cSetScreenScale((useRatio == 2) ? 110 : 100);
+		cSetScreenScale((useRatio == 2) ? 110 : style::kScaleDefault);
 	} else {
 		const auto clamped = std::clamp(
 			screenScale * useRatio,
-			50 * useRatio,
-			300);
+			style::kScaleMin * useRatio,
+			style::kScaleMax);
 		cSetScreenScale(int(base::SafeRound(clamped * 1. / useRatio)));
 	}
 	LOG(("DevicePixelRatio: %1").arg(useRatio));
