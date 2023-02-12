@@ -486,6 +486,7 @@ void EmojiListWidget::applyNextSearchQuery() {
 			return;
 		}
 		const auto modeChanged = (_searchMode != searching);
+		clearSelection();
 		if (modeChanged) {
 			_searchMode = searching;
 		}
@@ -493,12 +494,12 @@ void EmojiListWidget::applyNextSearchQuery() {
 			_searchResults.clear();
 			_searchCustomIds.clear();
 		}
-		clearSelection();
 		resizeToWidth(width());
 		update();
 		if (modeChanged) {
 			visibleTopBottomUpdated(getVisibleTop(), getVisibleBottom());
 		}
+		updateSelected();
 	};
 	if (_searchQuery.empty()) {
 		finish(false);
