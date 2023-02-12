@@ -81,6 +81,7 @@ void MainList::clear() {
 		recomputeFullListSize();
 	});
 	const auto notifier = unreadStateChangeNotifier(true);
+	_pinned.clear();
 	_all.clear();
 	_unreadState = UnreadState();
 	_cloudUnreadState = UnreadState();

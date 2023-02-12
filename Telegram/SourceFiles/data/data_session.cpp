@@ -381,6 +381,9 @@ void Session::clear() {
 	cSetRecentInlineBots(RecentInlineBots());
 	cSetRecentStickers(RecentStickerPack());
 	HistoryView::Element::ClearGlobal();
+	_contactsNoChatsList.clear();
+	_contactsList.clear();
+	_chatsList.clear();
 	_histories->clearAll();
 	_webpages.clear();
 	_locations.clear();
