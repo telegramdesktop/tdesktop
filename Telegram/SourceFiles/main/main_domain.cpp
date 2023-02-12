@@ -202,8 +202,6 @@ Account &Domain::active() const {
 	return *_active.current();
 }
 
-
-
 rpl::producer<not_null<Account*>> Domain::activeChanges() const {
 	return _active.changes() | rpl::map([](Account *value) {
 		return not_null{ value };
