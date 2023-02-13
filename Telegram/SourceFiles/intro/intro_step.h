@@ -111,7 +111,8 @@ protected:
 	[[nodiscard]] not_null<Data*> getData() const {
 		return _data;
 	}
-	void finish(const MTPUser &user, QImage &&photo = QImage());
+	void finish(const MTPauth_Authorization &auth, QImage &&photo = {});
+	void finish(const MTPUser &user, QImage &&photo = {});
 	void createSession(
 		const MTPUser &user,
 		QImage photo,

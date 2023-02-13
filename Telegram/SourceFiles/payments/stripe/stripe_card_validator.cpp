@@ -193,11 +193,12 @@ CardValidationResult ValidateCard(const QString &number) {
 	}
 	const auto range = MostSpecificBinRangeForNumber(sanitized);
 	const auto brand = range.brand;
-	if (sanitized.size() > range.length) {
-		return { .state = ValidationState::Invalid, .brand = brand };
-	} else if (sanitized.size() < range.length) {
-		return { .state = ValidationState::Incomplete, .brand = brand };
-	} else if (!IsValidLuhn(sanitized)) {
+	//if (sanitized.size() > range.length) {
+	//	return { .state = ValidationState::Invalid, .brand = brand };
+	//} else if (sanitized.size() < range.length) {
+	//	return { .state = ValidationState::Incomplete, .brand = brand };
+	//} else
+	if (!IsValidLuhn(sanitized)) {
 		return { .state = ValidationState::Invalid, .brand = brand };
 	}
 	return {
@@ -207,7 +208,9 @@ CardValidationResult ValidateCard(const QString &number) {
 	};
 }
 
-ExpireDateValidationResult ValidateExpireDate(const QString &date) {
+ExpireDateValidationResult ValidateExpireDate(
+		const QString &date,
+		const std::optional<QDate> &overrideExpireDateThreshold) {
 	const auto sanitized = RemoveWhitespaces(date).replace('/', QString());
 	if (!IsNumeric(sanitized)) {
 		return { ValidationState::Invalid };
@@ -225,12 +228,13 @@ ExpireDateValidationResult ValidateExpireDate(const QString &date) {
 	}
 	const auto year = 2000 + normalized.mid(2).toInt();
 
-	const auto currentDate = QDate::currentDate();
-	const auto currentMonth = currentDate.month();
-	const auto currentYear = currentDate.year();
-	if (year < currentYear) {
+	const auto thresholdDate = overrideExpireDateThreshold.value_or(
+		QDate::currentDate());
+	const auto thresholdMonth = thresholdDate.month();
+	const auto thresholdYear = thresholdDate.year();
+	if (year < thresholdYear) {
 		return { ValidationState::Invalid };
-	} else if (year == currentYear && month < currentMonth) {
+	} else if (year == thresholdYear && month < thresholdMonth) {
 		return { ValidationState::Invalid };
 	}
 	return { ValidationState::Valid, true };
@@ -238,15 +242,16 @@ ExpireDateValidationResult ValidateExpireDate(const QString &date) {
 
 ValidationState ValidateParsedExpireDate(
 		quint32 month,
-		quint32 year) {
+		quint32 year,
+		const std::optional<QDate> &overrideExpireDateThreshold) {
 	if ((year / 100) != 20) {
 		return ValidationState::Invalid;
 	}
-	return ValidateExpireDate(
-		QString("%1%2"
-		).arg(month, 2, 10, QChar('0')
-		).arg(year % 100, 2, 10, QChar('0'))
-	).state;
+	const auto date = QString("%1%2"
+	).arg(month, 2, 10, QChar('0')
+	).arg(year % 100, 2, 10, QChar('0'));
+
+	return ValidateExpireDate(date, overrideExpireDateThreshold).state;
 }
 
 CvcValidationResult ValidateCvc(

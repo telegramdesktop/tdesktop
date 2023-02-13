@@ -16,7 +16,7 @@ inline QString UrlToLocal(const QUrl &url) {
 	return ::File::internal::UrlToLocalDefault(url);
 }
 
-inline bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
+inline bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 	return false;
 }
 

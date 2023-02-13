@@ -375,18 +375,7 @@ void QrWidget::importTo(MTP::DcId dcId, const QByteArray &token) {
 }
 
 void QrWidget::done(const MTPauth_Authorization &authorization) {
-	authorization.match([&](const MTPDauth_authorization &data) {
-		if (data.vuser().type() != mtpc_user
-			|| !data.vuser().c_user().is_self()) {
-			showError(rpl::single(Lang::Hard::ServerError()));
-			return;
-		}
-		finish(data.vuser());
-	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
-		_requestId = 0;
-		LOG(("API Error: Unexpected auth.authorizationSignUpRequired."));
-		showError(rpl::single(Lang::Hard::ServerError()));
-	});
+	finish(authorization);
 }
 
 void QrWidget::sendCheckPasswordRequest() {

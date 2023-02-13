@@ -25,6 +25,8 @@ class SessionController;
 
 namespace Editor {
 
+constexpr auto kProfilePhotoSize = int(640);
+
 struct EditorData;
 
 void OpenWithPreparedFile(

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/text/text_utilities.h"
+#include "ui/delayed_activation.h"
 #include "ui/painter.h"
 #include "ui/unread_badge_paint.h"
 #include "core/application.h"
@@ -51,8 +52,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_names.h"
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "base/random.h"
+#include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_dialogs.h" // dialogsPremiumIcon
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
@@ -254,7 +257,13 @@ void SetupPhoto(
 		auto &image = chosen.image;
 		UpdatePhotoLocally(self, image);
 		photo->showCustom(base::duplicate(image));
-		self->session().api().peerPhoto().upload(self, std::move(image));
+		self->session().api().peerPhoto().upload(
+			self,
+			{
+				std::move(image),
+				chosen.markup.documentId,
+				chosen.markup.colors,
+			});
 	}, upload->lifetime());
 
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
@@ -265,6 +274,7 @@ void SetupPhoto(
 		wrap,
 		StatusValue(self),
 		st::settingsCoverStatus);
+	status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(
 		wrap->widthValue(),
 		photo->widthValue(),
@@ -559,9 +569,9 @@ void SetupAccountsWrap(
 		QWidget *parent,
 		not_null<Window::SessionController*> window,
 		not_null<Main::Account*> account,
-		Fn<void()> callback,
+		Fn<void(Qt::KeyboardModifiers)> callback,
 		bool locked) {
-	const auto active = (account == &Core::App().activeAccount());
+	const auto active = (account == &window->session().account());
 	const auto session = &account->session();
 	const auto user = session->user();
 
@@ -641,7 +651,7 @@ void SetupAccountsWrap(
 	raw->clicks(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
-			callback();
+			callback(raw->clickModifiers());
 			return;
 		} else if (which != Qt::RightButton) {
 			return;
@@ -656,15 +666,21 @@ void SetupAccountsWrap(
 			state->menu->popup(QCursor::pos());
 			return;
 		}
-		if (&session->account() == &Core::App().activeAccount()
-			|| state->menu) {
+		if (session == &window->session() || state->menu) {
 			return;
 		}
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
 			raw,
-			st::popupMenuWithIcons);
+			st::popupMenuExpandedSeparator);
 		const auto addAction = Ui::Menu::CreateAddActionCallback(
 			state->menu);
+		addAction(tr::lng_context_new_window(tr::now), [=] {
+			Ui::PreventDelayedActivation();
+			Core::App().ensureSeparateWindowForAccount(account);
+			Core::App().domain().maybeActivate(account);
+		}, &st::menuIconNewWindow);
+		Window::AddSeparatorAndShiftUp(addAction);
+
 		addAction(tr::lng_profile_copy_phone(tr::now), [=] {
 			const auto phone = rpl::variable<TextWithEntities>(
 				Info::Profile::PhoneValue(session->user()));
@@ -776,23 +792,36 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 				})))->setDuration(0);
 	const auto button = result->entity();
 
-	const auto add = [=](MTP::Environment environment) {
-		Core::App().preventOrInvoke([=] {
-			auto &domain = _controller->session().domain();
-			if (domain.accounts().size() >= domain.maxAccounts()) {
-				_controller->show(
-					Box(AccountsLimitBox, &_controller->session()));
-			} else {
-				domain.addActivated(environment);
+	using Environment = MTP::Environment;
+	const auto add = [=](Environment environment, bool newWindow = false) {
+		auto &domain = _controller->session().domain();
+		auto found = false;
+		for (const auto &[index, account] : domain.accounts()) {
+			const auto raw = account.get();
+			if (!raw->sessionExists()
+				&& raw->mtp().environment() == environment) {
+				found = true;
 			}
-		});
+		}
+		if (!found && domain.accounts().size() >= domain.maxAccounts()) {
+			_controller->show(
+				Box(AccountsLimitBox, &_controller->session()));
+		} else if (newWindow) {
+			domain.addActivated(environment, true);
+		} else {
+			_controller->window().preventOrInvoke([=] {
+				_controller->session().domain().addActivated(environment);
+			});
+		}
 	};
 
 	button->setAcceptBoth(true);
 	button->clicks(
 	) | rpl::start_with_next([=](Qt::MouseButton which) {
 		if (which == Qt::LeftButton) {
-			add(MTP::Environment::Production);
+			const auto modifiers = button->clickModifiers();
+			const auto newWindow = (modifiers & Qt::ControlModifier);
+			add(Environment::Production, newWindow);
 			return;
 		} else if (which != Qt::RightButton
 			|| !IsAltShift(button->clickModifiers())) {
@@ -800,10 +829,10 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 		}
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(_outer);
 		_contextMenu->addAction("Production Server", [=] {
-			add(MTP::Environment::Production);
+			add(Environment::Production);
 		});
 		_contextMenu->addAction("Test Server", [=] {
-			add(MTP::Environment::Test);
+			add(Environment::Test);
 		});
 		_contextMenu->popup(QCursor::pos());
 	}, button->lifetime());
@@ -853,24 +882,33 @@ void AccountsList::rebuild() {
 			button = nullptr;
 		} else if (!button) {
 			const auto nextIsLocked = (inner->count() >= premiumLimit);
-			auto callback = [=] {
+			auto callback = [=](Qt::KeyboardModifiers modifiers) {
 				if (_reordering) {
 					return;
 				}
-				if (account == &Core::App().domain().active()) {
+				if (account == &_controller->session().account()) {
 					_currentAccountActivations.fire({});
 					return;
 				}
+				const auto newWindow = (modifiers & Qt::ControlModifier);
 				auto activate = [=, guard = _accountSwitchGuard.make_guard()]{
 					if (guard) {
 						_reorder->finishReordering();
+						if (newWindow) {
+							Core::App().ensureSeparateWindowForAccount(
+								account);
+						}
 						Core::App().domain().maybeActivate(account);
 					}
 				};
-				base::call_delayed(
-					st::defaultRippleAnimation.hideDuration,
-					account,
-					std::move(activate));
+				if (Core::App().separateWindowForAccount(account)) {
+					activate();
+				} else {
+					base::call_delayed(
+						st::defaultRippleAnimation.hideDuration,
+						account,
+						std::move(activate));
+				}
 			};
 			button.reset(inner->add(MakeAccountButton(
 				inner,

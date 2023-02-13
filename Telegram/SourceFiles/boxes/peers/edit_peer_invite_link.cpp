@@ -1200,11 +1200,14 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 			(*box)->closeBox();
 		}
 	};
+	auto filterCallback = [](not_null<Data::Thread*> thread) {
+		return Data::CanSendTexts(thread);
+	};
 	auto object = Box<ShareBox>(ShareBox::Descriptor{
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
 		.submitCallback = std::move(submitCallback),
-		.filterCallback = [](auto thread) { return thread->canWrite(); },
+		.filterCallback = std::move(filterCallback),
 	});
 	*box = Ui::MakeWeak(object.data());
 	return object;

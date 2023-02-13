@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
+#include "info/userpic/info_userpic_emoji_builder_common.h"
+#include "info/userpic/info_userpic_emoji_builder_menu_item.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
@@ -41,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
 namespace Ui {
@@ -55,6 +58,7 @@ void CameraBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> controller,
 		PeerData *peer,
+		bool forceForumShape,
 		Fn<void(QImage &&image)> &&doneCallback) {
 	using namespace Webrtc;
 
@@ -79,12 +83,14 @@ void CameraBox(
 			box->closeBox();
 			done(std::move(image));
 		};
+		const auto useForumShape = forceForumShape
+			|| (peer && peer->isForum());
 		PrepareProfilePhoto(
 			box,
 			controller,
 			{
 				.confirm = tr::lng_profile_set_photo_button(tr::now),
-				.cropType = ((peer && peer->isForum())
+				.cropType = (useForumShape
 					? EditorData::CropType::RoundedRect
 					: EditorData::CropType::Ellipse),
 				.keepAspectRatio = true,
@@ -141,11 +147,13 @@ UserpicButton::UserpicButton(
 	QWidget *parent,
 	not_null<Window::Controller*> window,
 	Role role,
-	const style::UserpicButton &st)
+	const style::UserpicButton &st,
+	bool forceForumShape)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _controller(window->sessionController())
 , _window(window)
+, _forceForumShape(forceForumShape)
 , _role(role) {
 	Expects(_role == Role::ChangePhoto || _role == Role::ChoosePhoto);
 
@@ -188,13 +196,8 @@ UserpicButton::UserpicButton(
 , _source(Source::PeerPhoto) {
 	Expects(_role != Role::OpenPhoto);
 
-	if (_source == Source::Custom) {
-		showCustom({});
-	} else {
-		processPeerPhoto();
-		setupPeerViewers();
-	}
-	_waiting = false;
+	processPeerPhoto();
+	setupPeerViewers();
 	prepare();
 }
 
@@ -295,7 +298,7 @@ void UserpicButton::choosePhotoLocally() {
 						.confirm = ((type == ChosenType::Suggest)
 							? tr::lng_profile_suggest_button(tr::now)
 							: tr::lng_profile_set_photo_button(tr::now)),
-						.cropType = ((_peer && _peer->isForum())
+						.cropType = (useForumShape()
 							? EditorData::CropType::RoundedRect
 							: EditorData::CropType::Ellipse),
 						.keepAspectRatio = true,
@@ -303,10 +306,29 @@ void UserpicButton::choosePhotoLocally() {
 					callback(type));
 			}));
 	};
+	const auto user = _peer ? _peer->asUser() : nullptr;
+	const auto addUserpicBuilder = [&](ChosenType type) {
+		if (!_controller) {
+			return;
+		}
+		const auto done = [=](UserpicBuilder::Result data) {
+			auto result = ChosenImage{ base::take(data.image), type };
+			result.markup.documentId = data.id;
+			result.markup.colors = base::take(data.colors);
+			_chosenImages.fire(std::move(result));
+		};
+		UserpicBuilder::AddEmojiBuilderAction(
+			_controller,
+			_menu,
+			_controller->session().api().peerPhoto().emojiListValue(user
+				? Api::PeerPhoto::EmojiListType::Profile
+				: Api::PeerPhoto::EmojiListType::Group),
+			done,
+			_peer ? _peer->isForum() : false);
+	};
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
-	const auto user = _peer ? _peer->asUser() : nullptr;
 	if (user && !user->isSelf()) {
 		_menu->addAction(
 			tr::lng_profile_set_photo_for(tr::now),
@@ -318,23 +340,30 @@ void UserpicButton::choosePhotoLocally() {
 				[=] { chooseFile(ChosenType::Suggest); },
 				&st::menuIconPhotoSuggest);
 		}
+		addUserpicBuilder(ChosenType::Set);
 		if (hasPersonalPhotoLocally()) {
+			_menu->addSeparator(&st::expandedMenuSeparator);
 			_menu->addAction(makeResetToOriginalAction());
 		}
 	} else {
-		if (!IsCameraAvailable()) {
-			chooseFile();
-		} else {
+		const auto hasCamera = IsCameraAvailable();
+		if (hasCamera || _controller) {
 			_menu->addAction(tr::lng_attach_file(tr::now), [=] {
 				chooseFile();
 			}, &st::menuIconPhoto);
-			_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
-				_window->show(Box(
-					CameraBox,
-					_window,
-					_peer,
-					callback(ChosenType::Set)));
-			}, &st::menuIconPhotoSet);
+			if (hasCamera) {
+				_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
+					_window->show(Box(
+						CameraBox,
+						_window,
+						_peer,
+						_forceForumShape,
+						callback(ChosenType::Set)));
+				}, &st::menuIconPhotoSet);
+			}
+			addUserpicBuilder(ChosenType::Set);
+		} else {
+			chooseFile();
 		}
 	}
 	_menu->popup(QCursor::pos());
@@ -546,8 +575,7 @@ void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
 		auto size = QSize{ _st.photoSize, _st.photoSize };
 		const auto ratio = style::DevicePixelRatio();
 		request.outer = request.resize = size * ratio;
-		const auto forum = _peer && _peer->isForum();
-		if (forum) {
+		if (useForumShape()) {
 			const auto radius = int(_st.photoSize
 				* Ui::ForumUserpicRadiusMultiplier());
 			if (_roundingCorners[0].width() != radius * ratio) {
@@ -789,6 +817,10 @@ void UserpicButton::processNewPeerPhoto() {
 	}
 }
 
+bool UserpicButton::useForumShape() const {
+	return _forceForumShape || (_peer && _peer->isForum());
+}
+
 void UserpicButton::grabOldUserpic() {
 	auto photoRect = QRect(
 		countPhotoPosition(),
@@ -893,9 +925,11 @@ void UserpicButton::showCustom(QImage &&image) {
 			size * cIntRetinaFactor(),
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
-		const auto forum = _peer && _peer->isForum();
-		_userpic = Ui::PixmapFromImage(forum
-			? Images::Round(std::move(small), Images::Option::RoundLarge)
+		_userpic = Ui::PixmapFromImage(useForumShape()
+			? Images::Round(
+				std::move(small),
+				Images::CornersMask(_st.photoSize
+					* Ui::ForumUserpicRadiusMultiplier()))
 			: Images::Circle(std::move(small)));
 	} else {
 		_userpic = CreateSquarePixmap(_st.photoSize, [&](Painter &p) {
@@ -945,7 +979,7 @@ void UserpicButton::fillShape(QPainter &p, const style::color &color) const {
 	p.setPen(Qt::NoPen);
 	p.setBrush(color);
 	const auto size = _st.photoSize;
-	if (_peer && _peer->isForum()) {
+	if (useForumShape()) {
 		const auto radius = size * Ui::ForumUserpicRadiusMultiplier();
 		p.drawRoundedRect(0, 0, size, size, radius, radius);
 	} else {
@@ -977,14 +1011,13 @@ void UserpicButton::prepareUserpicPixmap() {
 						QSize(size, size) * ratio,
 						Qt::IgnoreAspectRatio,
 						Qt::SmoothTransformation);
-					if (_peer->isForum()) {
-						image = Images::Round(
+					image = useForumShape()
+						? Images::Round(
 							std::move(image),
 							Images::CornersMask(size
-								* Ui::ForumUserpicRadiusMultiplier()));
-					} else {
-						image = Images::Circle(std::move(image));
-					}
+								* Ui::ForumUserpicRadiusMultiplier()))
+						: Images::Circle(std::move(image));
+					image.setDevicePixelRatio(style::DevicePixelRatio());
 					p.drawImage(0, 0, image);
 				}
 			} else {
@@ -995,7 +1028,7 @@ void UserpicButton::prepareUserpicPixmap() {
 					((user && user->isInaccessible())
 						? Ui::EmptyUserpic::InaccessibleName()
 						: _peer->name()));
-				if (_peer->isForum()) {
+				if (useForumShape()) {
 					empty.paintRounded(
 						p,
 						0,

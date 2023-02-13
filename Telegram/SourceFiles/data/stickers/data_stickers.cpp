@@ -120,10 +120,10 @@ void RemoveFromSet(
 		set->dates.erase(set->dates.begin() + index);
 	}
 	for (auto i = set->emoji.begin(); i != set->emoji.end();) {
-		const auto index = i->indexOf(document);
+		const auto index = i->second.indexOf(document);
 		if (index >= 0) {
-			i->removeAt(index);
-			if (i->empty()) {
+			i->second.removeAt(index);
+			if (i->second.empty()) {
 				i = set->emoji.erase(i);
 				continue;
 			}
@@ -236,10 +236,10 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 		}
 		set->stickers.removeAt(index);
 		for (auto i = set->emoji.begin(); i != set->emoji.end();) {
-			if (const auto index = i->indexOf(document); index >= 0) {
-				removedFromEmoji.emplace_back(i.key());
-				i->removeAt(index);
-				if (i->isEmpty()) {
+			if (const auto index = i->second.indexOf(document); index >= 0) {
+				removedFromEmoji.emplace_back(i->first);
+				i->second.removeAt(index);
+				if (i->second.empty()) {
 					i = set->emoji.erase(i);
 					continue;
 				}
@@ -527,10 +527,10 @@ void Stickers::checkFavedLimit(
 	auto removing = set.stickers.back();
 	set.stickers.pop_back();
 	for (auto i = set.emoji.begin(); i != set.emoji.end();) {
-		auto index = i->indexOf(removing);
+		auto index = i->second.indexOf(removing);
 		if (index >= 0) {
-			i->removeAt(index);
-			if (i->empty()) {
+			i->second.removeAt(index);
+			if (i->second.empty()) {
 				i = set.emoji.erase(i);
 				continue;
 			}
@@ -563,7 +563,7 @@ void Stickers::moveFavedToFront(StickersSet &set, int index) {
 		set.stickers[index + 1] = set.stickers[index];
 	}
 	set.stickers[0] = document;
-	for (auto &list : set.emoji) {
+	for (auto &[emoji, list] : set.emoji) {
 		auto index = list.indexOf(document);
 		if (index > 0) {
 			while (index-- != 0) {
@@ -816,7 +816,7 @@ void Stickers::setPackAndEmoji(
 
 				p.push_back(document);
 			}
-			set.emoji.insert(emoji, p);
+			set.emoji[emoji] = std::move(p);
 		}
 	}
 }
@@ -1042,7 +1042,7 @@ void Stickers::featuredReceived(
 			set->flags = flags
 				| (set->flags & (SetFlag::NotLoaded | SetFlag::Special));
 			set->installDate = installDate;
-			if (set->count != data->vcount().v || set->hash != data->vhash().v || set->emoji.isEmpty()) {
+			if (set->count != data->vcount().v || set->hash != data->vhash().v || set->emoji.empty()) {
 				set->count = data->vcount().v;
 				set->hash = data->vhash().v;
 				set->flags |= SetFlag::NotLoaded; // need to request this set
@@ -1134,9 +1134,14 @@ void Stickers::gifsReceived(const QVector<MTPDocument> &items, uint64 hash) {
 }
 
 std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
-		not_null<EmojiPtr> emoji,
-		uint64 seed) {
-	const auto original = emoji->original();
+		std::vector<EmojiPtr> emoji,
+		uint64 seed,
+		bool forceAllResults) {
+	auto all = base::flat_set<EmojiPtr>();
+	for (const auto &one : emoji) {
+		all.emplace(one->original());
+	}
+	const auto single = (all.size() == 1) ? all.front() : nullptr;
 
 	struct StickerWithDate {
 		not_null<DocumentData*> document;
@@ -1187,7 +1192,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 			? date
 			: date / 2;
 	};
-	const auto InstallDate = [&](not_null<DocumentData*> document) {
+	const auto RecentInstallDate = [&](not_null<DocumentData*> document) {
 		Expects(document->sticker() != nullptr);
 
 		const auto sticker = document->sticker();
@@ -1203,24 +1208,37 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 	auto recentIt = sets.find(Stickers::CloudRecentSetId);
 	if (recentIt != sets.cend()) {
 		const auto recent = recentIt->second.get();
-		auto i = recent->emoji.constFind(original);
-		if (i != recent->emoji.cend()) {
-			result.reserve(i->size());
-			for (const auto document : *i) {
-				const auto usageDate = [&] {
-					if (recent->dates.empty()) {
-						return TimeId(0);
+		const auto i = single
+			? recent->emoji.find(single)
+			: recent->emoji.end();
+		const auto list = (i != recent->emoji.end())
+			? &i->second
+			: !single
+			? &recent->stickers
+			: nullptr;
+		if (list) {
+			const auto count = int(list->size());
+			result.reserve(count);
+			for (auto i = 0; i != count; ++i) {
+				const auto document = (*list)[i];
+				const auto sticker = document->sticker();
+				auto index = i;
+				if (!sticker) {
+					continue;
+				} else if (!single) {
+					const auto main = Ui::Emoji::Find(sticker->alt);
+					if (!main || !all.contains(main)) {
+						continue;
 					}
-					const auto index = recent->stickers.indexOf(document);
-					if (index < 0) {
-						return TimeId(0);
-					}
-					Assert(index < recent->dates.size());
-					return recent->dates[index];
-				}();
+				} else {
+					index = recent->stickers.indexOf(document);
+				}
+				const auto usageDate = (recent->dates.empty() || index < 0)
+					? 0
+					: recent->dates[index];
 				const auto date = usageDate
 					? usageDate
-					: InstallDate(document);
+					: RecentInstallDate(document);
 				result.push_back({
 					document,
 					date ? date : CreateRecentSortKey(document) });
@@ -1236,25 +1254,40 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 				continue;
 			}
 			const auto set = it->second.get();
-			if (set->emoji.isEmpty()) {
+			if (set->emoji.empty()) {
 				setsToRequest.emplace(set->id, set->accessHash);
 				set->flags |= SetFlag::NotLoaded;
 				continue;
 			}
-			auto i = set->emoji.constFind(original);
-			if (i == set->emoji.cend()) {
-				continue;
-			}
 			const auto my = (set->flags & SetFlag::Installed);
-			result.reserve(result.size() + i->size());
-			for (const auto document : *i) {
-				const auto installDate = my ? set->installDate : TimeId(0);
-				const auto date = (installDate > 1)
-					? InstallDateAdjusted(installDate, document)
-					: my
-					? CreateMySortKey(document)
-					: CreateFeaturedSortKey(document);
-				add(document, date);
+			const auto i = single
+				? set->emoji.find(single)
+				: set->emoji.end();
+			const auto list = (i != set->emoji.end())
+				? &i->second
+				: !single
+				? &set->stickers
+				: nullptr;
+			if (list) {
+				result.reserve(result.size() + list->size());
+				for (const auto document : *list) {
+					const auto sticker = document->sticker();
+					if (!sticker) {
+						continue;
+					} else if (!single) {
+						const auto main = Ui::Emoji::Find(sticker->alt);
+						if (!main || !all.contains(main)) {
+							continue;
+						}
+					}
+					const auto installDate = my ? set->installDate : TimeId(0);
+					const auto date = (installDate > 1)
+						? InstallDateAdjusted(installDate, document)
+						: my
+						? CreateMySortKey(document)
+						: CreateFeaturedSortKey(document);
+					add(document, date);
+				}
 			}
 		}
 	};
@@ -1269,14 +1302,20 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		session().api().requestStickerSets();
 	}
 
-	if (Core::App().settings().suggestStickersByEmoji()) {
-		const auto others = session().api().stickersByEmoji(original);
-		if (!others) {
+	if (forceAllResults || Core::App().settings().suggestStickersByEmoji()) {
+		const auto key = ranges::accumulate(
+			all,
+			QString(),
+			ranges::plus(),
+			&Ui::Emoji::One::text);
+		const auto others = session().api().stickersByEmoji(key);
+		if (others) {
+			result.reserve(result.size() + others->size());
+			for (const auto document : *others) {
+				add(document, CreateOtherSortKey(document));
+			}
+		} else if (!forceAllResults) {
 			return {};
-		}
-		result.reserve(result.size() + others->size());
-		for (const auto document : *others) {
-			add(document, CreateOtherSortKey(document));
 		}
 	}
 
@@ -1360,8 +1399,8 @@ std::optional<std::vector<not_null<EmojiPtr>>> Stickers::getEmojiListFromSet(
 		const auto set = it->second.get();
 		auto result = std::vector<not_null<EmojiPtr>>();
 		for (auto i = set->emoji.cbegin(), e = set->emoji.cend(); i != e; ++i) {
-			if (i->contains(document)) {
-				result.emplace_back(i.key());
+			if (i->second.contains(document)) {
+				result.emplace_back(i->first);
 			}
 		}
 		if (result.empty()) {
@@ -1422,7 +1461,7 @@ not_null<StickersSet*> Stickers::feedSet(const MTPStickerSet &info) {
 			: TimeId(0);
 		if (set->count != data.vcount().v
 			|| set->hash != data.vhash().v
-			|| set->emoji.isEmpty()) {
+			|| set->emoji.empty()) {
 			// Need to request this data.
 			set->count = data.vcount().v;
 			set->hash = data.vhash().v;
@@ -1544,7 +1583,7 @@ void Stickers::feedSetStickers(
 				}
 				p.push_back(document);
 			}
-			set->emoji.insert(emoji, p);
+			set->emoji[emoji] = std::move(p);
 		}
 	}
 

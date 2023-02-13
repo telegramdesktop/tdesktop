@@ -89,7 +89,16 @@ Gif::Gif(
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
-	setDocumentLinks(_data, realParent);
+	setDocumentLinks(_data, realParent, [=] {
+		if (!_data->createMediaView()->canBePlayed(realParent)
+			|| !_data->isAnimation()
+			|| _data->isVideoMessage()
+			|| !CanPlayInline(_data)) {
+			return false;
+		}
+		playAnimation(false);
+		return true;
+	});
 	setStatusSize(Ui::FileStatusSizeReady);
 
 	if (_spoiler) {
@@ -477,8 +486,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				p.setPen(pen);
 				p.setOpacity(st::historyVideoMessageProgressOpacity);
 
-				auto from = QuarterArcLength;
-				auto len = -qRound(FullArcLength * value);
+				auto from = arc::kQuarterLength;
+				auto len = -qRound(arc::kFullLength * value);
 				auto stepInside = st::radialLine / 2;
 				{
 					PainterHighQualityEnabler hq(p);

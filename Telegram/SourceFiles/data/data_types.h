@@ -288,6 +288,9 @@ enum class MessageFlag : uint64 {
 
 	// Profile photo suggestion, views have special media type.
 	IsUserpicSuggestion   = (1ULL << 33),
+
+	OnlyEmojiAndSpaces    = (1ULL << 34),
+	OnlyEmojiAndSpacesSet = (1ULL << 35),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

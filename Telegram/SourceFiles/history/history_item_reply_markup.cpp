@@ -11,6 +11,47 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 
+namespace {
+
+[[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
+		const MTPRequestPeerType &query) {
+	using Type = RequestPeerQuery::Type;
+	using Restriction = RequestPeerQuery::Restriction;
+	auto result = RequestPeerQuery();
+	const auto restriction = [](const MTPBool *value) {
+		return !value
+			? Restriction::Any
+			: mtpIsTrue(*value)
+			? Restriction::Yes
+			: Restriction::No;
+	};
+	const auto rights = [](const MTPChatAdminRights *value) {
+		return value ? ChatAdminRightsInfo(*value).flags : ChatAdminRights();
+	};
+	query.match([&](const MTPDrequestPeerTypeUser &data) {
+		result.type = Type::User;
+		result.userIsBot = restriction(data.vbot());
+		result.userIsPremium = restriction(data.vpremium());
+	}, [&](const MTPDrequestPeerTypeChat &data) {
+		result.type = Type::Group;
+		result.amCreator = data.is_creator();
+		result.isBotParticipant = data.is_bot_participant();
+		result.groupIsForum = restriction(data.vforum());
+		result.hasUsername = restriction(data.vhas_username());
+		result.myRights = rights(data.vuser_admin_rights());
+		result.botRights = rights(data.vbot_admin_rights());
+	}, [&](const MTPDrequestPeerTypeBroadcast &data) {
+		result.type = Type::Broadcast;
+		result.amCreator = data.is_creator();
+		result.hasUsername = restriction(data.vhas_username());
+		result.myRights = rights(data.vuser_admin_rights());
+		result.botRights = rights(data.vbot_admin_rights());
+	});
+	return result;
+}
+
+} // namespace
+
 HistoryMessageMarkupButton::HistoryMessageMarkupButton(
 	Type type,
 	const QString &text,
@@ -69,6 +110,16 @@ void HistoryMessageMarkupData::fillRows(
 					row.emplace_back(Type::RequestLocation, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonRequestPhone &data) {
 					row.emplace_back(Type::RequestPhone, qs(data.vtext()));
+				}, [&](const MTPDkeyboardButtonRequestPeer &data) {
+					const auto query = RequestPeerQueryFromTL(data.vpeer_type());
+					row.emplace_back(
+						Type::RequestPeer,
+						qs(data.vtext()),
+						QByteArray(
+							reinterpret_cast<const char*>(&query),
+							sizeof(query)),
+						QString(),
+						int64(data.vbutton_id().v));
 				}, [&](const MTPDkeyboardButtonUrl &data) {
 					row.emplace_back(
 						Type::Url,

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "ui/gl/gl_detection.h"
 #include "calls/group/calls_group_common.h"
+#include "spellcheck/spellcheck_types.h"
 
 namespace Core {
 namespace {
@@ -91,10 +92,13 @@ Settings::Settings()
 , _dialogsWidthRatio(DefaultDialogsWidthRatio()) {
 }
 
+Settings::~Settings() = default;
+
 QByteArray Settings::serialize() const {
 	const auto themesAccentColors = _themesAccentColors.serialize();
 	const auto windowPosition = Serialize(_windowPosition);
 	const auto proxy = _proxy.serialize();
+	const auto skipLanguages = _skipTranslationLanguages.current();
 
 	auto recentEmojiPreloadGenerated = std::vector<RecentEmojiPreload>();
 	if (_recentEmojiPreload.empty()) {
@@ -152,7 +156,11 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_customDeviceModel.current())
 		+ sizeof(qint32) * 4
 		+ (_accountsOrder.size() * sizeof(quint64))
-		+ sizeof(qint32) * 5;
+		+ sizeof(qint32) * 7
+		+ (skipLanguages.size() * sizeof(quint64))
+		+ sizeof(qint32)
+		+ sizeof(quint64)
+		+ sizeof(qint32) * 3;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -270,13 +278,20 @@ QByteArray Settings::serialize() const {
 			<< qint32(_translateButtonEnabled ? 1 : 0);
 
 		stream
-			<< qint32(_skipTranslationForLanguages.size());
-		for (const auto &lang : _skipTranslationForLanguages) {
-			stream << quint64(lang);
+			<< qint32(skipLanguages.size());
+		for (const auto &id : skipLanguages) {
+			stream << quint64(id.value);
 		}
 
 		stream
 			<< qint32(_rememberedDeleteMessageOnlyForYou ? 1 : 0);
+
+		stream
+			<< qint32(_translateChatEnabled.current() ? 1 : 0)
+			<< quint64(QLocale::Language(_translateToRaw.current()))
+			<< qint32(_windowTitleContent.current().hideChatName ? 1 : 0)
+			<< qint32(_windowTitleContent.current().hideAccountName ? 1 : 0)
+			<< qint32(_windowTitleContent.current().hideTotalUnread ? 1 : 0);
 	}
 	return result;
 }
@@ -371,9 +386,14 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 suggestAnimatedEmoji = _suggestAnimatedEmoji ? 1 : 0;
 	qint32 cornerReaction = _cornerReaction.current() ? 1 : 0;
 	qint32 legacySkipTranslationForLanguage = _translateButtonEnabled ? 1 : 0;
-	qint32 skipTranslationForLanguagesCount = 0;
-	std::vector<int> skipTranslationForLanguages;
+	qint32 skipTranslationLanguagesCount = 0;
+	std::vector<LanguageId> skipTranslationLanguages;
 	qint32 rememberedDeleteMessageOnlyForYou = _rememberedDeleteMessageOnlyForYou ? 1 : 0;
+	qint32 translateChatEnabled = _translateChatEnabled.current() ? 1 : 0;
+	quint64 translateToRaw = _translateToRaw.current();
+	qint32 hideChatName = _windowTitleContent.current().hideChatName ? 1 : 0;
+	qint32 hideAccountName = _windowTitleContent.current().hideAccountName ? 1 : 0;
+	qint32 hideTotalUnread = _windowTitleContent.current().hideTotalUnread ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -575,16 +595,29 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> legacySkipTranslationForLanguage;
 	}
 	if (!stream.atEnd()) {
-		stream >> skipTranslationForLanguagesCount;
+		stream >> skipTranslationLanguagesCount;
 		if (stream.status() == QDataStream::Ok) {
-			for (auto i = 0; i != skipTranslationForLanguagesCount; ++i) {
+			for (auto i = 0; i != skipTranslationLanguagesCount; ++i) {
 				quint64 language;
 				stream >> language;
-				skipTranslationForLanguages.emplace_back(language);
+				skipTranslationLanguages.push_back({
+					QLocale::Language(language)
+				});
 			}
 		}
 
 		stream >> rememberedDeleteMessageOnlyForYou;
+	}
+	if (!stream.atEnd()) {
+		stream
+			>> translateChatEnabled
+			>> translateToRaw;
+	}
+	if (!stream.atEnd()) {
+		stream
+			>> hideChatName
+			>> hideAccountName
+			>> hideTotalUnread;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -756,18 +789,26 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_suggestAnimatedEmoji = (suggestAnimatedEmoji == 1);
 	_cornerReaction = (cornerReaction == 1);
 	{ // Parse the legacy translation setting.
-		_skipTranslationForLanguages = skipTranslationForLanguages;
 		if (legacySkipTranslationForLanguage == 0) {
 			_translateButtonEnabled = false;
 		} else if (legacySkipTranslationForLanguage == 1) {
 			_translateButtonEnabled = true;
 		} else {
 			_translateButtonEnabled = (legacySkipTranslationForLanguage > 0);
-			_skipTranslationForLanguages.push_back(
-				std::abs(legacySkipTranslationForLanguage));
+			skipTranslationLanguages.push_back({
+				QLocale::Language(std::abs(legacySkipTranslationForLanguage))
+			});
 		}
+		_skipTranslationLanguages = std::move(skipTranslationLanguages);
 	}
 	_rememberedDeleteMessageOnlyForYou = (rememberedDeleteMessageOnlyForYou == 1);
+	_translateChatEnabled = (translateChatEnabled == 1);
+	_translateToRaw = int(QLocale::Language(translateToRaw));
+	_windowTitleContent = WindowTitleContent{
+		.hideChatName = (hideChatName == 1),
+		.hideAccountName = (hideAccountName == 1),
+		.hideTotalUnread = (hideTotalUnread == 1),
+	};
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1080,14 +1121,76 @@ float64 Settings::DefaultDialogsWidthRatio() {
 void Settings::setTranslateButtonEnabled(bool value) {
 	_translateButtonEnabled = value;
 }
+
 bool Settings::translateButtonEnabled() const {
 	return _translateButtonEnabled;
 }
-void Settings::setSkipTranslationForLanguages(std::vector<int> languages) {
-	_skipTranslationForLanguages = std::move(languages);
+
+void Settings::setTranslateChatEnabled(bool value) {
+	_translateChatEnabled = value;
 }
-std::vector<int> Settings::skipTranslationForLanguages() const {
-	return _skipTranslationForLanguages;
+
+bool Settings::translateChatEnabled() const {
+	return _translateChatEnabled.current();
+}
+
+rpl::producer<bool> Settings::translateChatEnabledValue() const {
+	return _translateChatEnabled.value();
+}
+
+[[nodiscard]] const std::vector<LanguageId> &DefaultSkipLanguages() {
+	using namespace Platform;
+
+	static auto Result = [&] {
+		auto list = std::vector<LanguageId>();
+		list.push_back({ LanguageId::FromName(Lang::Id()) });
+		const auto systemId = LanguageId::FromName(SystemLanguage());
+		if (list.back() != systemId) {
+			list.push_back(systemId);
+		}
+
+		Ensures(!list.empty());
+		return list;
+	}();
+	return Result;
+}
+
+[[nodiscard]] std::vector<LanguageId> NonEmptySkipList(
+		std::vector<LanguageId> list) {
+	return list.empty() ? DefaultSkipLanguages() : list;
+}
+
+void Settings::setTranslateTo(LanguageId id) {
+	_translateToRaw = int(id.value);
+}
+
+LanguageId Settings::translateTo() const {
+	if (const auto raw = _translateToRaw.current()) {
+		return { QLocale::Language(raw) };
+	}
+	return DefaultSkipLanguages().front();
+}
+
+rpl::producer<LanguageId> Settings::translateToValue() const {
+	return _translateToRaw.value() | rpl::map([=](int raw) {
+		return raw
+			? LanguageId{ QLocale::Language(raw) }
+			: DefaultSkipLanguages().front();
+	}) | rpl::distinct_until_changed();
+}
+
+void Settings::setSkipTranslationLanguages(
+		std::vector<LanguageId> languages) {
+	_skipTranslationLanguages = std::move(languages);
+}
+
+auto Settings::skipTranslationLanguages() const -> std::vector<LanguageId> {
+	return NonEmptySkipList(_skipTranslationLanguages.current());
+}
+
+auto Settings::skipTranslationLanguagesValue() const
+-> rpl::producer<std::vector<LanguageId>> {
+	return _skipTranslationLanguages.value() | rpl::map(NonEmptySkipList);
 }
 
 void Settings::setRememberedDeleteMessageOnlyForYou(bool value) {

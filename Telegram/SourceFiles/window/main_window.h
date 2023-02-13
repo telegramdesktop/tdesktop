@@ -55,8 +55,6 @@ struct CounterLayerArgs {
 [[nodiscard]] QImage GenerateCounterLayer(CounterLayerArgs &&args);
 [[nodiscard]] QImage WithSmallCounter(QImage image, CounterLayerArgs &&args);
 
-extern const char kOptionShowChatNameInNewWindow[];
-
 class MainWindow : public Ui::RpWindow {
 public:
 	explicit MainWindow(not_null<Controller*> controller);
@@ -79,7 +77,6 @@ public:
 	[[nodiscard]] QRect desktopRect() const;
 	[[nodiscard]] Core::WindowPosition withScreenInPosition(
 		Core::WindowPosition position) const;
-	[[nodiscard]] static Core::WindowPosition SecondaryInitPosition();
 
 	void init();
 
@@ -121,7 +118,8 @@ public:
 
 	rpl::producer<> leaveEvents() const;
 
-	virtual void updateWindowIcon();
+	virtual void updateWindowIcon() = 0;
+	void updateTitle();
 
 	void clearWidgets();
 
@@ -184,7 +182,6 @@ protected:
 	virtual int32 screenNameChecksum(const QString &name) const;
 
 	void setPositionInited();
-	void updateUnreadCounter();
 
 	virtual QRect computeDesktopRect() const;
 
@@ -193,7 +190,9 @@ private:
 	void updateMinimumSize();
 	void updatePalette();
 
-	[[nodiscard]] Core::WindowPosition positionFromSettings() const;
+	[[nodiscard]] Core::WindowPosition initialPosition() const;
+	[[nodiscard]] Core::WindowPosition nextInitialChildPosition(
+		bool primary);
 	[[nodiscard]] QRect countInitialGeometry(Core::WindowPosition position);
 	void initGeometry();
 
@@ -209,14 +208,14 @@ private:
 	object_ptr<Ui::RpWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
 
-	QIcon _icon;
-	bool _usingSupportIcon = false;
-
 	bool _isActive = false;
 
 	rpl::event_stream<> _leaveEvents;
 
 	bool _maximizedBeforeHide = false;
+
+	QPoint _lastMyChildCreatePosition;
+	int _lastChildIndex = 0;
 
 	mutable QRect _monitorRect;
 	mutable crl::time _monitorLastGot = 0;

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_folders.h"
 #include "settings/settings_calls.h"
 #include "settings/settings_premium.h"
+#include "settings/settings_scale_preview.h"
 #include "boxes/language_box.h"
 #include "boxes/username_box.h"
 #include "boxes/about_box.h"
@@ -27,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -143,7 +144,13 @@ Cover::Cover(
 			Ui::UserpicButton::ChosenImage chosen) {
 		auto &image = chosen.image;
 		_userpic->showCustom(base::duplicate(image));
-		_user->session().api().peerPhoto().upload(_user, std::move(image));
+		_user->session().api().peerPhoto().upload(
+			_user,
+			{
+				std::move(image),
+				chosen.markup.documentId,
+				chosen.markup.colors,
+			});
 	});
 
 	_badge.setPremiumClickCallback([=] {
@@ -250,6 +257,7 @@ void Cover::refreshUsernameGeometry(int newWidth) {
 } // namespace
 
 void SetupLanguageButton(
+		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container,
 		bool icon) {
 	const auto button = AddButtonWithLabel(
@@ -268,7 +276,7 @@ void SetupLanguageButton(
 		if ((m & Qt::ShiftModifier) && (m & Qt::AltModifier)) {
 			Lang::CurrentCloudManager().switchToLanguage({ u"#custom"_q });
 		} else {
-			*guard = LanguageBox::Show();
+			*guard = LanguageBox::Show(window->sessionController());
 		}
 	});
 }
@@ -372,7 +380,7 @@ void SetupSections(
 		Calls::Id(),
 		{ &st::settingsIconCalls, kIconGreen });
 
-	SetupLanguageButton(container);
+	SetupLanguageButton(&controller->window(), container);
 
 	if (controller->session().premiumPossible()) {
 		AddSkip(container);
@@ -421,34 +429,59 @@ void SetupInterfaceScale(
 		{ icon ? &st::settingsIconInterfaceScale : nullptr, kIconLightOrange }
 	)->toggleOn(toggled->events_starting_with_copy(switched));
 
-	const auto slider = container->add(
-		object_ptr<Ui::SettingsSlider>(container, st::settingsSlider),
-		icon ? st::settingsScalePadding : st::settingsBigScalePadding);
-
-	static const auto ScaleValues = [&] {
-		auto values = (cIntRetinaFactor() > 1)
-			? std::vector<int>{ 100, 110, 120, 130, 140, 150 }
-			: std::vector<int>{ 100, 125, 150, 200, 250, 300 };
-		if (cConfigScale() == style::kScaleAuto) {
-			return values;
+	const auto ratio = style::DevicePixelRatio();
+	const auto scaleMin = style::kScaleMin;
+	const auto scaleMax = style::kScaleMax / ratio;
+	const auto scaleConfig = cConfigScale();
+	const auto step = 5;
+	Assert(!((scaleMax - scaleMin) % step));
+	auto values = std::vector<int>();
+	for (auto i = scaleMin; i != scaleMax; i += step) {
+		values.push_back(i);
+		if (scaleConfig > i && scaleConfig < i + step) {
+			values.push_back(scaleConfig);
 		}
-		if (ranges::find(values, cConfigScale()) == end(values)) {
-			values.push_back(cConfigScale());
-		}
-		return values;
-	}();
+	}
+	values.push_back(scaleMax);
+	const auto valuesCount = int(values.size());
 
-	const auto sectionFromScale = [](int scale) {
+	const auto valueFromScale = [=](int scale) {
 		scale = cEvalScale(scale);
 		auto result = 0;
-		for (const auto value : ScaleValues) {
+		for (const auto value : values) {
 			if (scale == value) {
 				break;
 			}
 			++result;
 		}
-		return (result == ScaleValues.size()) ? (result - 1) : result;
+		return ((result == valuesCount) ? (result - 1) : result)
+			/ float64(valuesCount - 1);
 	};
+	auto sliderWithLabel = MakeSliderWithLabel(
+		container,
+		st::settingsScale,
+		st::settingsScaleLabel,
+		st::normalFont->spacew * 2,
+		st::settingsScaleLabel.style.font->width("300%"));
+	container->add(
+		std::move(sliderWithLabel.widget),
+		icon ? st::settingsScalePadding : st::settingsBigScalePadding);
+	const auto slider = sliderWithLabel.slider;
+	const auto label = sliderWithLabel.label;
+
+	const auto updateLabel = [=](int scale) {
+		const auto labelText = [&](int scale) {
+			if constexpr (Platform::IsMac()) {
+				return QString::number(scale) + '%';
+			} else {
+				const auto ratio = window->widget()->devicePixelRatioF();
+				return QString::number(int(scale * ratio)) + '%';
+			}
+		};
+		label->setText(labelText(cEvalScale(scale)));
+	};
+	updateLabel(cConfigScale());
+
 	const auto inSetScale = container->lifetime().make_state<bool>();
 	const auto setScale = [=](int scale, const auto &repeatSetScale) -> void {
 		if (*inSetScale) {
@@ -457,8 +490,9 @@ void SetupInterfaceScale(
 		*inSetScale = true;
 		const auto guard = gsl::finally([=] { *inSetScale = false; });
 
+		updateLabel(scale);
 		toggled->fire(scale == style::kScaleAuto);
-		slider->setActiveSection(sectionFromScale(scale));
+		slider->setValue(valueFromScale(scale));
 		if (cEvalScale(scale) != cEvalScale(cConfigScale())) {
 			const auto confirmed = crl::guard(button, [=] {
 				cSetConfigScale(scale);
@@ -484,31 +518,35 @@ void SetupInterfaceScale(
 		}
 	};
 
-	const auto label = [](int scale) {
-		if constexpr (Platform::IsMac()) {
-			return QString::number(scale) + '%';
-		} else {
-			return QString::number(scale * cIntRetinaFactor()) + '%';
+	const auto shown = container->lifetime().make_state<bool>();
+	const auto togglePreview = SetupScalePreview(window, slider);
+	const auto toggleForScale = [=](int scale) {
+		scale = cEvalScale(scale);
+		const auto show = *shown
+			? ScalePreviewShow::Update
+			: ScalePreviewShow::Show;
+		*shown = true;
+		for (auto i = 0; i != valuesCount; ++i) {
+			if (values[i] <= scale
+				&& (i + 1 == valuesCount || values[i + 1] > scale)) {
+				const auto x = (slider->width() * i) / (valuesCount - 1);
+				togglePreview(show, scale, x);
+				return;
+			}
 		}
+		togglePreview(show, scale, slider->width() / 2);
 	};
-	const auto scaleByIndex = [](int index) {
-		return *(ScaleValues.begin() + index);
+	const auto toggleHidePreview = [=] {
+		togglePreview(ScalePreviewShow::Hide, 0, 0);
+		*shown = false;
 	};
 
-	for (const auto value : ScaleValues) {
-		slider->addSection(label(value));
-	}
-	slider->setActiveSectionFast(sectionFromScale(cConfigScale()));
-	slider->sectionActivated(
-	) | rpl::map([=](int section) {
-		return scaleByIndex(section);
-	}) | rpl::filter([=](int scale) {
-		return cEvalScale(scale) != cEvalScale(cConfigScale());
-	}) | rpl::start_with_next([=](int scale) {
-		setScale(
-			(scale == cScreenScale()) ? style::kScaleAuto : scale,
-			setScale);
-	}, slider->lifetime());
+	slider->setPseudoDiscrete(
+		valuesCount,
+		[=](int index) { return values[index]; },
+		cConfigScale(),
+		[=](int scale) { updateLabel(scale); toggleForScale(scale); },
+		[=](int scale) { toggleHidePreview(); setScale(scale, setScale); });
 
 	button->toggledValue(
 	) | rpl::map([](bool checked) {
@@ -516,6 +554,10 @@ void SetupInterfaceScale(
 	}) | rpl::start_with_next([=](int scale) {
 		setScale(scale, setScale);
 	}, button->lifetime());
+
+	if (!icon) {
+		AddSkip(container, st::settingsThumbSkip);
+	}
 }
 
 void OpenFaq() {

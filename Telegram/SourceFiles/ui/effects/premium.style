@@ -48,14 +48,6 @@ premiumVideoStarSize: size(77px, 73px);
 
 premiumPreviewHeight: 312px;
 
-premiumReactionWidthSkip: 64px;
-premiumReactionHeightSkip: 75px;
-premiumReactionSize: 108px;
-premiumReactionAround: 164px;
-premiumReactionsMiddle: 148px;
-premiumReactionScale: 0.70;
-premiumReactionInfoTop: 260px;
-
 premiumDot: 6px;
 premiumDotPadding: margins(4px, 4px, 4px, 4px);
 premiumDotsMargin: margins(0px, 5px, 0px, 6px);

@@ -131,10 +131,14 @@ namespace Platform {
 namespace {
 
 void SendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-	const auto focused = QApplication::focusWidget();
-	if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || dynamic_cast<HistoryInner*>(focused)) {
-		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
-		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
+	const auto focused = static_cast<QObject*>(QApplication::focusWidget());
+	if (qobject_cast<QLineEdit*>(focused)
+		|| qobject_cast<QTextEdit*>(focused)
+		|| dynamic_cast<HistoryInner*>(focused)) {
+		QKeyEvent pressEvent(QEvent::KeyPress, key, modifiers);
+		focused->event(&pressEvent);
+		QKeyEvent releaseEvent(QEvent::KeyRelease, key, modifiers);
+		focused->event(&releaseEvent);
 	}
 }
 
@@ -213,7 +217,8 @@ MainWindow::Private::~Private() {
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
-, _private(std::make_unique<Private>(this)) {
+, _private(std::make_unique<Private>(this))
+, psMainMenu(this) {
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 }
@@ -270,10 +275,10 @@ bool MainWindow::preventsQuit(Core::QuitReason reason) {
 }
 
 void MainWindow::unreadCounterChangedHook() {
-	updateIconCounters();
+	updateDockCounter();
 }
 
-void MainWindow::updateIconCounters() {
+void MainWindow::updateDockCounter() {
 	const auto counter = Core::App().unreadBadge();
 
 	const auto string = !counter

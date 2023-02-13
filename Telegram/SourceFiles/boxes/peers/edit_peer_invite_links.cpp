@@ -35,8 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kFullArcLength = 360 * 16;
-
 enum class Color {
 	Permanent,
 	Expiring,
@@ -740,7 +738,7 @@ void LinksController::rowPaintIcon(
 			margins,
 			margins,
 			margins,
-		}), (kFullArcLength / 4), kFullArcLength * (1. - progress));
+		}), arc::kQuarterLength, arc::kFullLength * (1. - progress));
 	}
 }
 

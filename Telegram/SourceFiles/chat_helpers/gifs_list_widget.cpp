@@ -10,8 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_toggling_media.h" // Api::ToggleSavedGif
 #include "base/const_string.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "chat_helpers/stickers_list_footer.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
@@ -20,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "menu/menu_send.h" // SendMenu::FillSendMenu
 #include "core/click_handler_types.h"
+#include "ui/controls/tabbed_search.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
@@ -80,94 +83,6 @@ void AddGifAction(
 	}, saved ? &st::menuIconDelete : &st::menuIconGif);
 }
 
-class GifsListWidget::Footer : public TabbedSelector::InnerFooter {
-public:
-	Footer(not_null<GifsListWidget*> parent);
-
-	void stealFocus();
-	void returnFocus();
-	void setLoading(bool loading) {
-		_cancel->setLoadingAnimation(loading);
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void processPanelHideFinished() override;
-
-private:
-	not_null<GifsListWidget*> _pan;
-
-	object_ptr<Ui::InputField> _field;
-	object_ptr<Ui::CrossButton> _cancel;
-
-	QPointer<QWidget> _focusTakenFrom;
-
-};
-
-GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent)
-: InnerFooter(parent, st::defaultEmojiPan)
-, _pan(parent)
-, _field(this, st::gifsSearchField, tr::lng_gifs_search())
-, _cancel(this, st::gifsSearchCancel) {
-	connect(_field, &Ui::InputField::submitted, [=] {
-		_pan->sendInlineRequest();
-	});
-	connect(_field, &Ui::InputField::cancelled, [=] {
-		if (_field->getLastText().isEmpty()) {
-			_pan->cancelled();
-		} else {
-			_field->setText(QString());
-		}
-	});
-	connect(_field, &Ui::InputField::changed, [=] {
-		_cancel->toggle(
-			!_field->getLastText().isEmpty(),
-			anim::type::normal);
-		_pan->searchForGifs(_field->getLastText());
-	});
-	_cancel->setClickedCallback([=] {
-		_field->setText(QString());
-	});
-}
-
-void GifsListWidget::Footer::stealFocus() {
-	if (!_focusTakenFrom) {
-		_focusTakenFrom = QApplication::focusWidget();
-	}
-	_field->setFocus();
-}
-
-void GifsListWidget::Footer::returnFocus() {
-	if (_focusTakenFrom) {
-		if (_field->hasFocus()) {
-			_focusTakenFrom->setFocus();
-		}
-		_focusTakenFrom = nullptr;
-	}
-}
-
-void GifsListWidget::Footer::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	st::gifsSearchIcon.paint(p, st::gifsSearchIconPosition.x(), st::gifsSearchIconPosition.y(), width());
-}
-
-void GifsListWidget::Footer::resizeEvent(QResizeEvent *e) {
-	auto fieldWidth = width()
-		- st::gifsSearchFieldPosition.x()
-		- st::gifsSearchCancelPosition.x()
-		- st::gifsSearchCancel.width;
-	_field->resizeToWidth(fieldWidth);
-	_field->moveToLeft(st::gifsSearchFieldPosition.x(), st::gifsSearchFieldPosition.y());
-	_cancel->moveToRight(st::gifsSearchCancelPosition.x(), st::gifsSearchCancelPosition.y());
-}
-
-void GifsListWidget::Footer::processPanelHideFinished() {
-	// Preserve panel state through visibility toggles.
-	//_field->setText(QString());
-}
-
 GifsListWidget::GifsListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
@@ -185,6 +100,8 @@ GifsListWidget::GifsListWidget(
 , _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
+
+	setupSearch();
 
 	_inlineRequestTimer.setSingleShot(true);
 	connect(
@@ -215,9 +132,8 @@ GifsListWidget::GifsListWidget(
 		_mosaic.setFullWidth(s.width());
 	}, lifetime());
 
-	_mosaic.setOffset(
-		st::inlineResultsLeft - st::roundRadiusSmall,
-		st::stickerPanPadding);
+	_mosaic.setPadding(st::gifsPadding
+		+ QMargins(-st::emojiPanRadius, _search->height(), 0, 0));
 	_mosaic.setRightSkip(st::inlineResultsSkip);
 }
 
@@ -237,8 +153,77 @@ auto GifsListWidget::inlineResultChosen() const
 object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 	Expects(_footer == nullptr);
 
-	auto result = object_ptr<Footer>(this);
+	using FooterDescriptor = StickersListFooter::Descriptor;
+	auto result = object_ptr<StickersListFooter>(FooterDescriptor{
+		.session = &session(),
+		.paused = pausedMethod(),
+		.parent = this,
+		.st = &st(),
+	});
 	_footer = result;
+
+	GifSectionsValue(
+		&session()
+	) | rpl::start_with_next([=](std::vector<GifSection> &&list) {
+		_sections = std::move(list);
+		refreshIcons();
+	}, _footer->lifetime());
+
+	_footer->setChosen(
+	) | rpl::start_with_next([=](uint64 setId) {
+		_chosenSetId = setId;
+		refreshIcons();
+		const auto i = ranges::find(_sections, setId, [](GifSection value) {
+			return value.document->id;
+		});
+		searchForGifs((i != end(_sections)) ? i->emoji->text() : QString());
+	}, _footer->lifetime());
+
+	return result;
+}
+
+void GifsListWidget::refreshIcons() {
+	if (_footer) {
+		_footer->refreshIcons(
+			fillIcons(),
+			_chosenSetId,
+			nullptr,
+			ValidateIconAnimations::None);
+	}
+}
+
+std::vector<StickerIcon> GifsListWidget::fillIcons() {
+	auto result = std::vector<StickerIcon>();
+	result.reserve(_sections.size() + 1);
+	result.emplace_back(Data::Stickers::RecentSetId);
+	const auto side = StickersListFooter::IconFrameSize();
+	for (const auto &section : _sections) {
+		const auto s = section.document;
+		const auto id = s->id;
+		const auto size = s->hasThumbnail()
+			? QSize(
+				s->thumbnailLocation().width(),
+				s->thumbnailLocation().height())
+			: QSize();
+		const auto pix = size.scaled(side, side, Qt::KeepAspectRatio);
+		const auto owner = &s->owner();
+		const auto already = _fakeSets.find(id);
+		const auto set = (already != end(_fakeSets))
+			? already
+			: _fakeSets.emplace(
+				id,
+				std::make_unique<Data::StickersSet>(
+					owner,
+					id,
+					0,
+					0,
+					QString(),
+					QString(),
+					0,
+					Data::StickersSetFlag::Special,
+					0)).first;
+		result.emplace_back(set->second.get(), s, pix.width(), pix.height());
+	}
 	return result;
 }
 
@@ -262,7 +247,7 @@ void GifsListWidget::checkLoadMore() {
 }
 
 int GifsListWidget::countDesiredHeight(int newWidth) {
-	return _mosaic.countDesiredHeight(newWidth) + st::stickerPanPadding * 2;
+	return _mosaic.countDesiredHeight(newWidth);
 }
 
 GifsListWidget::~GifsListWidget() {
@@ -272,7 +257,7 @@ GifsListWidget::~GifsListWidget() {
 }
 
 void GifsListWidget::cancelGifsSearch() {
-	_footer->setLoading(false);
+	_search->setLoading(false);
 	if (_inlineRequestId) {
 		_api.request(_inlineRequestId).cancel();
 		_inlineRequestId = 0;
@@ -284,7 +269,7 @@ void GifsListWidget::cancelGifsSearch() {
 }
 
 void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
-	_footer->setLoading(false);
+	_search->setLoading(false);
 	_inlineRequestId = 0;
 
 	auto it = _inlineCache.find(_inlineQuery);
@@ -543,10 +528,16 @@ TabbedSelector::InnerFooter *GifsListWidget::getFooter() const {
 void GifsListWidget::processHideFinished() {
 	clearSelection();
 	clearHeavyData();
+	if (_footer) {
+		_footer->clearHeavyData();
+	}
 }
 
 void GifsListWidget::processPanelHideFinished() {
 	clearHeavyData();
+	if (_footer) {
+		_footer->clearHeavyData();
+	}
 }
 
 void GifsListWidget::clearHeavyData() {
@@ -775,14 +766,14 @@ Data::FileOrigin GifsListWidget::inlineItemFileOrigin() {
 }
 
 void GifsListWidget::afterShown() {
-	if (_footer) {
-		_footer->stealFocus();
+	if (_search) {
+		_search->stealFocus();
 	}
 }
 
 void GifsListWidget::beforeHiding() {
-	if (_footer) {
-		_footer->returnFocus();
+	if (_search) {
+		_search->returnFocus();
 	}
 }
 
@@ -796,6 +787,19 @@ bool GifsListWidget::refreshInlineRows(int32 *added) {
 	auto result = refreshInlineRows(entry, false);
 	if (added) *added = result;
 	return (entry != nullptr);
+}
+
+void GifsListWidget::setupSearch() {
+	const auto session = &_controller->session();
+	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
+		_chosenSetId = Data::Stickers::RecentSetId;
+		refreshIcons();
+		searchForGifs(ranges::accumulate(query, QString(), [](
+				QString a,
+				QString b) {
+			return a.isEmpty() ? b : (a + ' ' + b);
+		}));
+	}, session);
 }
 
 int32 GifsListWidget::showInlineRows(bool newResults) {
@@ -814,7 +818,7 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 
 	if (_inlineQuery != query) {
-		_footer->setLoading(false);
+		_search->setLoading(false);
 		if (_inlineRequestId) {
 			_api.request(_inlineRequestId).cancel();
 			_inlineRequestId = 0;
@@ -863,7 +867,7 @@ void GifsListWidget::sendInlineRequest() {
 
 	if (!_searchBot) {
 		// Wait for the bot being resolved.
-		_footer->setLoading(true);
+		_search->setLoading(true);
 		_inlineRequestTimer.start(kSearchRequestDelay);
 		return;
 	}
@@ -875,12 +879,12 @@ void GifsListWidget::sendInlineRequest() {
 	if (it != _inlineCache.cend()) {
 		nextOffset = it->second->nextOffset;
 		if (nextOffset.isEmpty()) {
-			_footer->setLoading(false);
+			_search->setLoading(false);
 			return;
 		}
 	}
 
-	_footer->setLoading(true);
+	_search->setLoading(true);
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
 		_searchBot->inputUser,
@@ -892,7 +896,7 @@ void GifsListWidget::sendInlineRequest() {
 		inlineResultsDone(result);
 	}).fail([this] {
 		// show error?
-		_footer->setLoading(false);
+		_search->setLoading(false);
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
 }

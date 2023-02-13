@@ -100,7 +100,6 @@ public:
 		not_null<UserData*> user);
 
 	// Like in ChannelData.
-	[[nodiscard]] bool canWrite() const;
 	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditPermissions() const;
@@ -110,7 +109,6 @@ public:
 	[[nodiscard]] bool canAddMembers() const;
 	[[nodiscard]] bool canAddAdmins() const;
 	[[nodiscard]] bool canBanMembers() const;
-	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool anyoneCanAddMembers() const;
 
 	void applyEditAdmin(not_null<UserData*> user, bool isAdmin);

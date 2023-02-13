@@ -25,6 +25,7 @@ enum class CustomEmojiSizeTag : uchar {
 	Normal,
 	Large,
 	Isolated,
+	SetIcon,
 
 	kCount,
 };
@@ -49,6 +50,10 @@ public:
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		not_null<DocumentData*> document,
 		Fn<void()> update,
+		SizeTag tag = SizeTag::Normal,
+		int sizeOverride = 0);
+
+	[[nodiscard]] Ui::Text::CustomEmojiFactory factory(
 		SizeTag tag = SizeTag::Normal,
 		int sizeOverride = 0);
 
@@ -147,10 +152,6 @@ private:
 		not_null<Listener*>,
 		base::flat_set<DocumentId>> _listeners;
 	base::flat_set<DocumentId> _pendingForRequest;
-	base::flat_map<
-		uint64,
-		base::flat_set<
-			not_null<Ui::CustomEmoji::Instance*>>> _coloredSetPending;
 
 	mtpRequestId _requestId = 0;
 

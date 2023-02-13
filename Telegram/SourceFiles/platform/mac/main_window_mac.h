@@ -50,7 +50,7 @@ private:
 	friend class Private;
 
 	void hideAndDeactivate();
-	void updateIconCounters();
+	void updateDockCounter();
 
 	std::unique_ptr<Private> _private;
 

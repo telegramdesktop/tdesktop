@@ -135,7 +135,7 @@ private:
 		uint64 queryId,
 		const QString &url,
 		const QString &buttonText = QString(),
-		bool fromMenu = false);
+		bool allowClipboardRead = false);
 	void confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback = nullptr);

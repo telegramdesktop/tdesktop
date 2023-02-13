@@ -79,8 +79,16 @@ slots:
 layout:
   /usr/share/alsa:
     bind: $SNAP/usr/share/alsa
+  /usr/share/pipewire:
+    bind: $SNAP/usr/share/pipewire
   /usr/share/X11:
     bind: $SNAP/usr/share/X11
+  /usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0
+  /usr/lib/$CRAFT_ARCH_TRIPLET/pipewire-0.3:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/pipewire-0.3
+  /usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/spa-0.2
   /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1
 
@@ -96,6 +104,7 @@ parts:
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+      - LDFLAGS: -s
     build-packages:
       - clang
       - python3
@@ -160,7 +169,6 @@ parts:
     prime:
       - -./lib/systemd
     after:
-      - desktop-qt
       - ffmpeg
       - libjxl
       - glibmm
@@ -168,6 +176,7 @@ parts:
       - openal
       - openssl
       - protobuf
+      - qt
       - rnnoise
       - webrtc
 
@@ -190,17 +199,30 @@ parts:
     build-packages:
       - build-essential
       - dpkg-dev
+      - gtk-update-icon-cache
+      - libglib2.0-bin
+      - libgtk-3-0
     stage-packages:
-      - libxkbcommon0
-      - shared-mime-info
+      - libc-bin
       - libgdk-pixbuf-2.0-0
+      - libxkbcommon0
       - locales-all
+      - shared-mime-info
       - xdg-user-dirs
+    override-prime: |
+      snapcraftctl prime
+      update-mime-database usr/share/mime
+      glib-compile-schemas usr/share/glib-2.0/schemas
+      for theme in usr/share/icons/*; do
+        if [ -f "$theme/index.theme" ] && [ ! -f "$theme/icon-theme.cache" ]; then
+          update-icon-caches "$theme"
+        fi
+      done
+      GTK_PATH=$PWD/usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0 /usr/lib/$CRAFT_ARCH_TRIPLET/libgtk-3-0/gtk-query-immodules-3.0 > usr/lib/$CRAFT_ARCH_TRIPLET/gtk-3.0/3.0.0/immodules/immodules.cache
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
-      - mozjpeg
-      - qt
+      - telegram
 
   ffmpeg:
     plugin: nil
@@ -237,6 +259,7 @@ parts:
     meson-parameters:
       - --buildtype=release
       - --prefix=/usr
+      - --strip
       - -Dbuild-documentation=false
       - -Dbuild-examples=false
       - -Dsigc++-3.0:build-documentation=false
@@ -252,6 +275,9 @@ parts:
     source-depth: 1
     source-tag: v0.7.0
     plugin: cmake
+    build-environment:
+      - LDFLAGS: -s
+    cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
@@ -270,13 +296,13 @@ parts:
       craftctl default
       sed -i 's/NOT JPEGXL_ENABLE_SKCMS/0/' lib/jxl.cmake
     stage:
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libbrotli*
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libbrotli*
     prime:
       - -./usr/bin
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
 
   mozjpeg:
@@ -284,6 +310,8 @@ parts:
     source-depth: 1
     source-tag: v4.0.3
     plugin: cmake
+    build-environment:
+      - LDFLAGS: -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -303,6 +331,8 @@ parts:
     source-depth: 1
     source-tag: 1.22.2
     plugin: cmake
+    build-environment:
+      - LDFLAGS: -s
     build-packages:
       - libasound2-dev
       - libdbus-1-dev
@@ -311,8 +341,8 @@ parts:
     stage-packages:
       - libasound2
       - libdbus-1-3
-      - libpipewire-0.3-0
       - libpulse0
+      - pipewire
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -331,6 +361,8 @@ parts:
     source-depth: 1
     source-branch: OpenSSL_1_1_1-stable
     plugin: make
+    build-environment:
+      - LDFLAGS: -s
     override-build: |
       ./config \
         shared \
@@ -352,6 +384,8 @@ parts:
     source-depth: 1
     source-tag: v21.9
     plugin: cmake
+    build-environment:
+      - LDFLAGS: -s
     build-packages:
       - zlib1g-dev
     stage-packages:
@@ -371,6 +405,8 @@ parts:
 
   qt:
     plugin: nil
+    build-environment:
+      - LDFLAGS: -s
     build-packages:
       - libdbus-1-dev
       - libegl-dev
@@ -470,7 +506,6 @@ parts:
         -no-feature-renameat2 \
         -no-feature-statx \
         -no-feature-egl-extension-platform-wayland \
-        -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
         -nomake tests
@@ -503,6 +538,8 @@ parts:
     source-depth: 1
     source-commit: 7f449bf8bd3b933891d12c30112268c4090e4d59
     plugin: autotools
+    build-environment:
+      - CFLAGS: -O2 -s
     autotools-configure-parameters:
       - --prefix=/usr
       - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET
@@ -521,6 +558,8 @@ parts:
     source-depth: 1
     source-commit: 5098730b9eb6173f0b52068fe2555b7c1015123a
     plugin: cmake
+    build-environment:
+      - LDFLAGS: -s
     build-packages:
       - yasm
       - libdrm-dev
@@ -548,7 +587,6 @@ parts:
       - libglib2.0-0
       - libopenh264-6
       - libopus0
-      - libpipewire-0.3-0
       - libvpx7
       - libx11-6
       - libxcomposite1
@@ -558,6 +596,7 @@ parts:
       - libxrender1
       - libxrandr2
       - libxtst6
+      - pipewire
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release

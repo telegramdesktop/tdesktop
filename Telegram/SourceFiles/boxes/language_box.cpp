@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/language_box.h"
 
+#include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
+#include "ui/boxes/choose_language_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -23,14 +25,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "storage/localstorage.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/translate_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "settings/settings_common.h"
+#include "spellcheck/spellcheck_types.h"
+#include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -1093,71 +1099,17 @@ Ui::ScrollToRequest Content::jump(int rows) {
 
 } // namespace
 
+LanguageBox::LanguageBox(QWidget*, Window::SessionController *controller)
+: _controller(controller) {
+}
+
 void LanguageBox::prepare() {
 	addButton(tr::lng_box_ok(), [=] { closeBox(); });
 
 	setTitle(tr::lng_languages());
 
 	const auto topContainer = Ui::CreateChild<Ui::VerticalLayout>(this);
-	Settings::AddSubsectionTitle(
-		topContainer,
-		tr::lng_translate_settings_subtitle());
-
-	const auto translateEnabled = Settings::AddButton(
-		topContainer,
-		tr::lng_translate_settings_show(),
-		st::settingsButtonNoIcon
-	)->toggleOn(rpl::single(Core::App().settings().translateButtonEnabled()));
-
-	translateEnabled->toggledValue(
-	) | rpl::filter([](bool checked) {
-		return (checked != Core::App().settings().translateButtonEnabled());
-	}) | rpl::start_with_next([=](bool checked) {
-		Core::App().settings().setTranslateButtonEnabled(checked);
-		Core::App().saveSettingsDelayed();
-	}, translateEnabled->lifetime());
-
-	using Locales = std::vector<QLocale>;
-	const auto label = lifetime().make_state<rpl::event_stream<Locales>>();
-	const auto translateSkipWrap = topContainer->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			topContainer,
-			object_ptr<Ui::VerticalLayout>(topContainer)));
-	translateSkipWrap->toggle(
-		translateEnabled->toggled(),
-		anim::type::normal);
-	translateSkipWrap->toggleOn(translateEnabled->toggledValue());
-	const auto translateSkip = Settings::AddButtonWithLabel(
-		translateSkipWrap->entity(),
-		tr::lng_translate_settings_choose(),
-		label->events(
-		) | rpl::map([](const Locales &locales) {
-			return (locales.size() > 1)
-				? tr::lng_languages_count(tr::now, lt_count, locales.size())
-				: Ui::LanguageName(locales.front());
-		}),
-		st::settingsButtonNoIcon);
-
-	label->fire(Ui::Translate::LocalesFromSettings());
-	translateSkip->setClickedCallback([=] {
-		Ui::BoxShow(this).showBox(
-			Box(Ui::ChooseLanguageBox, [=](std::vector<QLocale> locales) {
-				label->fire_copy(locales);
-				const auto result = ranges::views::all(
-					locales
-				) | ranges::views::transform([](const QLocale &l) {
-					return int(l.language());
-				}) | ranges::to_vector;
-				Core::App().settings().setSkipTranslationForLanguages(result);
-				Core::App().saveSettingsDelayed();
-			}, Ui::Translate::LocalesFromSettings()),
-			Ui::LayerOption::KeepOther);
-	});
-	Settings::AddSkip(topContainer);
-	Settings::AddDividerText(
-		topContainer,
-		tr::lng_translate_settings_about());
-
+	setupTop(topContainer);
 	const auto select = topContainer->add(
 		object_ptr<Ui::MultiSelect>(
 			topContainer,
@@ -1221,6 +1173,89 @@ void LanguageBox::prepare() {
 	};
 }
 
+void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
+	if (!_controller) {
+		return;
+	}
+	const auto translateEnabled = Settings::AddButton(
+		container,
+		tr::lng_translate_settings_show(),
+		st::settingsButtonNoIcon
+	)->toggleOn(
+		rpl::single(Core::App().settings().translateButtonEnabled()));
+
+	translateEnabled->toggledValue(
+	) | rpl::filter([](bool checked) {
+		return (checked != Core::App().settings().translateButtonEnabled());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setTranslateButtonEnabled(checked);
+		Core::App().saveSettingsDelayed();
+	}, translateEnabled->lifetime());
+
+	using namespace rpl::mappers;
+	auto premium = Data::AmPremiumValue(&_controller->session());
+	const auto translateChat = Settings::AddButton(
+		container,
+		tr::lng_translate_settings_chat(),
+		st::settingsButtonNoIconLocked
+	)->toggleOn(rpl::merge(
+		rpl::combine(
+			Core::App().settings().translateChatEnabledValue(),
+			rpl::duplicate(premium),
+			_1 && _2),
+		_translateChatTurnOff.events()));
+	std::move(premium) | rpl::start_with_next([=](bool value) {
+		translateChat->setToggleLocked(!value);
+	}, translateChat->lifetime());
+
+	translateChat->toggledValue(
+	) | rpl::filter([=](bool checked) {
+		const auto premium = _controller->session().premium();
+		if (checked && !premium) {
+			ShowPremiumPreviewToBuy(
+				_controller,
+				PremiumPreview::RealTimeTranslation);
+			_translateChatTurnOff.fire(false);
+		}
+		return premium
+			&& (checked != Core::App().settings().translateChatEnabled());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setTranslateChatEnabled(checked);
+		Core::App().saveSettingsDelayed();
+	}, translateChat->lifetime());
+
+	using Languages = std::vector<LanguageId>;
+	const auto translateSkipWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	translateSkipWrap->toggle(
+		translateEnabled->toggled(),
+		anim::type::normal);
+	translateSkipWrap->toggleOn(rpl::combine(
+		translateEnabled->toggledValue(),
+		translateChat->toggledValue(),
+		rpl::mappers::_1 || rpl::mappers::_2));
+	const auto translateSkip = Settings::AddButtonWithLabel(
+		translateSkipWrap->entity(),
+		tr::lng_translate_settings_choose(),
+		Core::App().settings().skipTranslationLanguagesValue(
+		) | rpl::map([](const Languages &list) {
+			return (list.size() > 1)
+				? tr::lng_languages_count(tr::now, lt_count, list.size())
+				: Ui::LanguageName(list.front());
+		}),
+		st::settingsButtonNoIcon);
+
+	translateSkip->setClickedCallback([=] {
+		Ui::BoxShow(this).showBox(Ui::EditSkipTranslationLanguages());
+	});
+	Settings::AddSkip(container);
+	Settings::AddDividerText(
+		container,
+		tr::lng_translate_settings_about());
+}
+
 void LanguageBox::keyPressEvent(QKeyEvent *e) {
 	const auto key = e->key();
 	if (key == Qt::Key_Escape) {
@@ -1252,11 +1287,12 @@ void LanguageBox::setInnerFocus() {
 	_setInnerFocus();
 }
 
-base::binary_guard LanguageBox::Show() {
+base::binary_guard LanguageBox::Show(Window::SessionController *controller) {
 	auto result = base::binary_guard();
 
 	auto &manager = Lang::CurrentCloudManager();
 	if (manager.languageList().empty()) {
+		const auto weak = base::make_weak(controller);
 		auto guard = std::make_shared<base::binary_guard>(
 			result.make_guard());
 		auto lifetime = std::make_shared<rpl::lifetime>();
@@ -1269,11 +1305,11 @@ base::binary_guard LanguageBox::Show() {
 				base::take(lifetime)->destroy();
 			}
 			if (show) {
-				Ui::show(Box<LanguageBox>());
+				Ui::show(Box<LanguageBox>(weak.get()));
 			}
 		}, *lifetime);
 	} else {
-		Ui::show(Box<LanguageBox>());
+		Ui::show(Box<LanguageBox>(controller));
 	}
 	manager.requestLanguageList();
 

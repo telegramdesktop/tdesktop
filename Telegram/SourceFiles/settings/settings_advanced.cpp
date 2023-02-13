@@ -345,6 +345,85 @@ void SetupSpellchecker(
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
 }
 
+void SetupWindowTitleContent(
+		Window::SessionController *controller,
+		not_null<Ui::VerticalLayout*> container) {
+	const auto checkbox = [&](rpl::producer<QString> &&label, bool checked) {
+		return object_ptr<Ui::Checkbox>(
+			container,
+			std::move(label),
+			checked,
+			st::settingsCheckbox);
+	};
+	const auto addCheckbox = [&](
+			rpl::producer<QString> &&label,
+			bool checked) {
+		return container->add(
+			checkbox(std::move(label), checked),
+			st::settingsCheckboxPadding);
+	};
+	const auto settings = &Core::App().settings();
+	if (controller) {
+		const auto content = [=] {
+			return settings->windowTitleContent();
+		};
+		const auto showChatName = addCheckbox(
+			tr::lng_settings_title_chat_name(),
+			!content().hideChatName);
+		showChatName->checkedChanges(
+		) | rpl::filter([=](bool checked) {
+			return (checked == content().hideChatName);
+		}) | rpl::start_with_next([=](bool checked) {
+			auto updated = content();
+			updated.hideChatName = !checked;
+			settings->setWindowTitleContent(updated);
+			Core::App().saveSettingsDelayed();
+		}, showChatName->lifetime());
+
+		if (Core::App().domain().accountsAuthedCount() > 1) {
+			const auto showAccountName = addCheckbox(
+				tr::lng_settings_title_account_name(),
+				!content().hideAccountName);
+			showAccountName->checkedChanges(
+			) | rpl::filter([=](bool checked) {
+				return (checked == content().hideAccountName);
+			}) | rpl::start_with_next([=](bool checked) {
+				auto updated = content();
+				updated.hideAccountName = !checked;
+				settings->setWindowTitleContent(updated);
+				Core::App().saveSettingsDelayed();
+			}, showAccountName->lifetime());
+		}
+
+		const auto showTotalUnread = addCheckbox(
+			tr::lng_settings_title_total_count(),
+			!content().hideTotalUnread);
+		showTotalUnread->checkedChanges(
+		) | rpl::filter([=](bool checked) {
+			return (checked == content().hideTotalUnread);
+		}) | rpl::start_with_next([=](bool checked) {
+			auto updated = content();
+			updated.hideTotalUnread = !checked;
+			settings->setWindowTitleContent(updated);
+			Core::App().saveSettingsDelayed();
+		}, showTotalUnread->lifetime());
+	}
+
+	if (Ui::Platform::NativeWindowFrameSupported()) {
+		const auto nativeFrame = addCheckbox(
+			tr::lng_settings_native_frame(),
+			Core::App().settings().nativeWindowFrame());
+
+		nativeFrame->checkedChanges(
+		) | rpl::filter([](bool checked) {
+			return (checked != Core::App().settings().nativeWindowFrame());
+		}) | rpl::start_with_next([=](bool checked) {
+			Core::App().settings().setNativeWindowFrame(checked);
+			Core::App().saveSettingsDelayed();
+		}, nativeFrame->lifetime());
+	}
+}
+
 void SetupSystemIntegrationContent(
 		Window::SessionController *controller,
 		not_null<Ui::VerticalLayout*> container) {
@@ -469,20 +548,6 @@ void SetupSystemIntegrationContent(
 	}, closeToTaskbar->lifetime());
 #endif // Q_OS_MAC
 
-	if (Ui::Platform::NativeWindowFrameSupported()) {
-		const auto nativeFrame = addCheckbox(
-			tr::lng_settings_native_frame(),
-			Core::App().settings().nativeWindowFrame());
-
-		nativeFrame->checkedChanges(
-		) | rpl::filter([](bool checked) {
-			return (checked != Core::App().settings().nativeWindowFrame());
-		}) | rpl::start_with_next([=](bool checked) {
-			Core::App().settings().setNativeWindowFrame(checked);
-			Core::App().saveSettingsDelayed();
-		}, nativeFrame->lifetime());
-	}
-
 	if (Platform::AutostartSupported() && controller) {
 		const auto minimizedToggled = [=] {
 			return cStartMinimized()
@@ -560,18 +625,37 @@ void SetupSystemIntegrationContent(
 	}
 }
 
-void SetupSystemIntegrationOptions(
+template <typename Fill>
+void CheckNonEmptyOptions(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
+		not_null<Ui::VerticalLayout*> container,
+		Fill fill) {
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	SetupSystemIntegrationContent(controller, wrap.data());
+	fill(controller, wrap.data());
 	if (wrap->count() > 0) {
 		container->add(object_ptr<Ui::OverrideMargins>(
 			container,
 			std::move(wrap)));
-
 		AddSkip(container, st::settingsCheckboxesSkip);
 	}
+}
+
+void SetupSystemIntegrationOptions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	CheckNonEmptyOptions(
+		controller,
+		container,
+		SetupSystemIntegrationContent);
+}
+
+void SetupWindowTitleOptions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	CheckNonEmptyOptions(
+		controller,
+		container,
+		SetupWindowTitleContent);
 }
 
 void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
@@ -731,10 +815,19 @@ void SetupPerformance(
 #endif // Q_OS_WIN
 }
 
+void SetupWindowTitle(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	AddDivider(container);
+	AddSkip(container);
+	AddSubsectionTitle(container, tr::lng_settings_window_system());
+	SetupWindowTitleOptions(controller, container);
+	AddSkip(container);
+}
+
 void SetupSystemIntegration(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container,
-		Fn<void(Type)> showOther) {
+		not_null<Ui::VerticalLayout*> container) {
 	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_system_integration());
@@ -785,9 +878,8 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	addDivider();
 	SetupDataStorage(controller, content);
 	SetupAutoDownload(controller, content);
-	SetupSystemIntegration(controller, content, [=](Type type) {
-		_showOther.fire_copy(type);
-	});
+	SetupWindowTitle(controller, content);
+	SetupSystemIntegration(controller, content);
 	empty = false;
 
 	AddDivider(content);

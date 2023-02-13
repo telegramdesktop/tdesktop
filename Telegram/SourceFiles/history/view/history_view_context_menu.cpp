@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "spellcheck/spellcheck_types.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -124,9 +125,7 @@ void CopyImage(not_null<PhotoData*> photo) {
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	}
-
-	const auto image = media->image(Data::PhotoSize::Large)->original();
-	QGuiApplication::clipboard()->setImage(image);
+	media->setToClipboard();
 }
 
 void ShowStickerPackInfo(
@@ -590,7 +589,9 @@ bool AddReplyToMessageAction(
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
 		|| !item->isRegular()
-		|| (topic ? !topic->canWrite() : !peer->canWrite())
+		|| !(topic
+			? Data::CanSendAnything(topic)
+			: Data::CanSendAnything(peer))
 		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}
@@ -1058,7 +1059,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 					.append('\n')
 					.append(item->originalText()))
 				: item->originalText();
-			if (!translate.text.isEmpty()
+			if ((!item->translation() || !item->history()->translatedTo())
+				&& !translate.text.isEmpty()
 				&& !Ui::SkipTranslate(translate)) {
 				result->addAction(tr::lng_context_translate(tr::now), [=] {
 					if (const auto item = owner->message(itemId)) {

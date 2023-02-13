@@ -89,11 +89,6 @@ constexpr auto kTooltipDelay = crl::time(10000);
 	return result;
 }
 
-[[nodiscard]] QWidget *Parent() {
-	Expects(Core::App().primaryWindow() != nullptr);
-	return Core::App().primaryWindow()->widget();
-}
-
 } // namespace
 
 Tray::Tray() {
@@ -101,7 +96,7 @@ Tray::Tray() {
 
 void Tray::createIcon() {
 	if (!_icon) {
-		_icon = base::make_unique_q<QSystemTrayIcon>(Parent());
+		_icon = base::make_unique_q<QSystemTrayIcon>(nullptr);
 		updateIcon();
 		_icon->setToolTip(AppName.utf16());
 		using Reason = QSystemTrayIcon::ActivationReason;
@@ -135,7 +130,7 @@ void Tray::updateIcon() {
 	}
 	const auto counter = Core::App().unreadBadge();
 	const auto muted = Core::App().unreadBadgeMuted();
-	const auto controller = Core::App().primaryWindow();
+	const auto controller = Core::App().activePrimaryWindow();
 	const auto session = !controller
 		? nullptr
 		: !controller->sessionController()

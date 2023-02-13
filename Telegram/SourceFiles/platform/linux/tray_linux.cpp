@@ -23,15 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 
-namespace {
-
-[[nodiscard]] QWidget *Parent() {
-	Expects(Core::App().primaryWindow() != nullptr);
-	return Core::App().primaryWindow()->widget();
-}
-
-} // namespace
-
 class IconGraphic final {
 public:
 	explicit IconGraphic();
@@ -334,7 +325,7 @@ void Tray::createIcon() {
 		const auto counter = Core::App().unreadBadge();
 		const auto muted = Core::App().unreadBadgeMuted();
 
-		_icon = base::make_unique_q<QSystemTrayIcon>(Parent());
+		_icon = base::make_unique_q<QSystemTrayIcon>(nullptr);
 		_icon->setIcon(_iconGraphic->trayIcon(
 			_iconGraphic->systemIcon(
 				iconThemeName,
@@ -404,7 +395,7 @@ void Tray::updateIcon() {
 
 void Tray::createMenu() {
 	if (!_menu) {
-		_menu = base::make_unique_q<QMenu>(Parent());
+		_menu = base::make_unique_q<QMenu>(nullptr);
 	}
 	if (!_menuXEmbed) {
 		_menuXEmbed = base::make_unique_q<Ui::PopupMenu>(nullptr);

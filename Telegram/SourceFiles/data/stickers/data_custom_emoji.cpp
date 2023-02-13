@@ -63,6 +63,7 @@ private:
 	case SizeTag::Normal: return LottieSize::EmojiInteraction;
 	case SizeTag::Large: return LottieSize::EmojiInteractionReserved1;
 	case SizeTag::Isolated: return LottieSize::EmojiInteractionReserved2;
+	case SizeTag::SetIcon: return LottieSize::EmojiInteractionReserved3;
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-LottieSizeFromTag.");
 }
@@ -73,6 +74,9 @@ private:
 	case SizeTag::Large: return Ui::Emoji::GetSizeLarge();
 	case SizeTag::Isolated:
 		return (st::largeEmojiSize + 2 * st::largeEmojiOutline)
+			* style::DevicePixelRatio();
+	case SizeTag::SetIcon:
+		return int(style::ConvertScale(18 * 7 / 6., style::Scale()))
 			* style::DevicePixelRatio();
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
@@ -421,10 +425,6 @@ CustomEmojiManager::CustomEmojiManager(not_null<Session*> owner)
 			QString()).toULongLong();
 		if (setId) {
 			_coloredSetId = setId;
-			auto pending = base::take(_coloredSetPending);
-			for (const auto &instance : pending[setId]) {
-				instance->setColored();
-			}
 		}
 	}, _lifetime);
 }
@@ -456,12 +456,6 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			}, std::move(repaint))).first;
 		if (colored) {
 			i->second->setColored();
-		} else if (_coloredSetId) {
-			if (_coloredSetId == setId) {
-				i->second->setColored();
-			}
-		} else if (setId) {
-			_coloredSetPending[setId].emplace(i->second.get());
 		}
 	} else if (!i->second->hasImagePreview()) {
 		auto preview = prepareNonExactPreview(documentId, tag, sizeOverride);
@@ -472,6 +466,14 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 	return std::make_unique<Ui::CustomEmoji::Object>(
 		i->second.get(),
 		std::move(update));
+}
+
+Ui::Text::CustomEmojiFactory CustomEmojiManager::factory(
+		SizeTag tag,
+		int sizeOverride) {
+	return [=](QStringView data, Fn<void()> update) {
+		return create(data, std::move(update), tag, sizeOverride);
+	};
 }
 
 Ui::CustomEmoji::Preview CustomEmojiManager::prepareNonExactPreview(
@@ -681,30 +683,12 @@ void CustomEmojiManager::request() {
 }
 
 void CustomEmojiManager::fillColoredFlags(not_null<DocumentData*> document) {
-	const auto id = document->id;
-	const auto setColored = [&] {
+	if (document->emojiUsesTextColor()) {
+		const auto id = document->id;
 		for (auto &instances : _instances) {
 			const auto i = instances.find(id);
 			if (i != end(instances)) {
 				i->second->setColored();
-			}
-		}
-	};
-	if (document->emojiUsesTextColor()) {
-		setColored();
-		return;
-	}
-	const auto sticker = document->sticker();
-	const auto setId = sticker ? sticker->set.id : uint64();
-	if (!setId || (_coloredSetId && setId != _coloredSetId)) {
-		return;
-	} else if (setId == _coloredSetId) {
-		setColored();
-	} else {
-		for (auto &instances : _instances) {
-			const auto i = instances.find(id);
-			if (i != end(instances)) {
-				_coloredSetPending[setId].emplace(i->second.get());
 			}
 		}
 	}

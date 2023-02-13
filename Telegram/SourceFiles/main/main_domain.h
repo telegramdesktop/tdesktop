@@ -54,6 +54,7 @@ public:
 	[[nodiscard]] rpl::producer<Account*> activeValue() const;
 	[[nodiscard]] rpl::producer<> accountsChanges() const;
 	[[nodiscard]] Account *maybeLastOrSomeAuthedAccount();
+	[[nodiscard]] int accountsAuthedCount() const;
 
 	// Expects(started());
 	[[nodiscard]] Account &active() const;
@@ -70,7 +71,7 @@ public:
 	[[nodiscard]] not_null<Main::Account*> add(MTP::Environment environment);
 	void maybeActivate(not_null<Main::Account*> account);
 	void activate(not_null<Main::Account*> account);
-	void addActivated(MTP::Environment environment);
+	void addActivated(MTP::Environment environment, bool newWindow = false);
 
 	// Interface for Storage::Domain.
 	void accountAddedInStorage(AccountWithIndex accountWithIndex);
@@ -79,7 +80,7 @@ public:
 
 private:
 	void activateAfterStarting();
-	void activateAuthedAccount();
+	void closeAccountWindows(not_null<Main::Account*> account);
 	bool removePasscodeIfEmpty();
 	void removeRedundantAccounts();
 	void watchSession(not_null<Account*> account);

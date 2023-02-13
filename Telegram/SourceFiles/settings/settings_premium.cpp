@@ -208,6 +208,7 @@ using Order = std::vector<QString>;
 		u"advanced_chat_management"_q,
 		u"profile_badge"_q,
 		u"animated_userpics"_q,
+		u"translations"_q,
 	};
 }
 
@@ -318,6 +319,15 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_animated_userpics(),
 				tr::lng_premium_summary_about_animated_userpics(),
 				PremiumPreview::AnimatedUserpics,
+			},
+		},
+		{
+			u"translations"_q,
+			Entry{
+				&st::settingsPremiumIconTranslations,
+				tr::lng_premium_summary_subtitle_translation(),
+				tr::lng_premium_summary_about_translation(),
+				PremiumPreview::RealTimeTranslation,
 			},
 		},
 	};
@@ -466,16 +476,10 @@ public:
 	void paint(QPainter &p);
 
 private:
-	[[nodiscard]] QPixmap paintedPixmap(const QSize &size) const;
-
-	void resolveIsColored();
-
 	QRectF _rect;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
 	bool _paused = false;
-	bool _isColored = false;
-	bool _isColoredResolved = false;
 	rpl::lifetime _lifetime;
 
 };
@@ -510,6 +514,11 @@ EmojiStatusTopBar::EmojiStatusTopBar(
 				_media->owner()->location(),
 				_media->bytes(),
 				size.toSize());
+		} else if (sticker) {
+			_player = std::make_unique<HistoryView::StaticStickerPlayer>(
+				_media->owner()->location(),
+				_media->bytes(),
+				size.toSize());
 		}
 		if (_player) {
 			_player->setRepaintCallback([=] { callback(_rect.toRect()); });
@@ -529,53 +538,21 @@ void EmojiStatusTopBar::setPaused(bool paused) {
 	_paused = paused;
 }
 
-QPixmap EmojiStatusTopBar::paintedPixmap(const QSize &size) const {
-	const auto good = _media->goodThumbnail();
-	if (const auto image = _media->getStickerLarge()) {
-		return image->pix(size);
-	} else if (good) {
-		return good->pix(size);
-	} else if (const auto thumbnail = _media->thumbnail()) {
-		return thumbnail->pix(size, { .options = Images::Option::Blur });
-	}
-	return QPixmap();
-}
-
-void EmojiStatusTopBar::resolveIsColored() {
-	if (_isColoredResolved) {
-		return;
-	}
-	const auto document = _media->owner();
-	const auto manager = &document->owner().customEmojiManager();
-	const auto coloredSetId = manager->coloredSetId();
-	if (!coloredSetId) {
-		return;
-	}
-	_isColoredResolved = true;
-	const auto sticker = document->sticker();
-	_isColored = sticker && (sticker->set.id == coloredSetId);
-}
-
 void EmojiStatusTopBar::paint(QPainter &p) {
-	if (_player) {
-		if (_player->ready()) {
-			resolveIsColored();
-			const auto frame = _player->frame(
-				_rect.size().toSize(),
-				(_isColored
-					? st::profileVerifiedCheckBg->c
-					: QColor(0, 0, 0, 0)),
-				false,
-				crl::now(),
-				_paused);
+	if (_player && _player->ready()) {
+		const auto frame = _player->frame(
+			_rect.size().toSize(),
+			(_media->owner()->emojiUsesTextColor()
+				? st::profileVerifiedCheckBg->c
+				: QColor(0, 0, 0, 0)),
+			false,
+			crl::now(),
+			_paused);
 
-			p.drawImage(_rect.toRect(), frame.image);
-			if (!_paused) {
-				_player->markFrameShown();
-			}
+		p.drawImage(_rect.toRect(), frame.image);
+		if (!_paused) {
+			_player->markFrameShown();
 		}
-	} else if (_media) {
-		p.drawPixmap(_rect.topLeft(), paintedPixmap(_rect.size().toSize()));
 	}
 }
 
@@ -1887,6 +1864,8 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			return PremiumPreview::ProfileBadge;
 		} else if (s == u"animated_userpics"_q) {
 			return PremiumPreview::AnimatedUserpics;
+		} else if (s == u"translations"_q) {
+			return PremiumPreview::RealTimeTranslation;
 		}
 		return PremiumPreview::kCount;
 	}) | ranges::views::filter([](PremiumPreview type) {

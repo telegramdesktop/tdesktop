@@ -59,10 +59,8 @@ void SendDataCommon::addToHistory(
 QString SendDataCommon::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
-	const auto error = Data::RestrictionError(
-		history->peer,
-		ChatRestriction::SendMessages);
-	return error.value_or(QString());
+	const auto type = ChatRestriction::SendOther;
+	return Data::RestrictionError(history->peer, type).value_or(QString());
 }
 
 SendDataCommon::SentMessageFields SendText::getSentMessageFields() const {
@@ -140,10 +138,8 @@ void SendPhoto::addToHistory(
 QString SendPhoto::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
-	const auto error = Data::RestrictionError(
-		history->peer,
-		ChatRestriction::SendMedia);
-	return error.value_or(QString());
+	const auto type = ChatRestriction::SendPhotos;
+	return Data::RestrictionError(history->peer, type).value_or(QString());
 }
 
 void SendFile::addToHistory(
@@ -173,24 +169,8 @@ void SendFile::addToHistory(
 QString SendFile::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
-	const auto errorMedia = Data::RestrictionError(
-		history->peer,
-		ChatRestriction::SendMedia);
-	const auto errorStickers = Data::RestrictionError(
-		history->peer,
-		ChatRestriction::SendStickers);
-	const auto errorGifs = Data::RestrictionError(
-		history->peer,
-		ChatRestriction::SendGifs);
-	return errorMedia
-		? *errorMedia
-		: (errorStickers && (_document->sticker() != nullptr))
-		? *errorStickers
-		: (errorGifs
-			&& _document->isAnimation()
-			&& !_document->isVideoMessage())
-		? *errorGifs
-		: QString();
+	const auto type = _document->requiredSendRight();
+	return Data::RestrictionError(history->peer, type).value_or(QString());
 }
 
 void SendGame::addToHistory(
@@ -219,10 +199,8 @@ void SendGame::addToHistory(
 QString SendGame::getErrorOnSend(
 		const Result *owner,
 		not_null<History*> history) const {
-	const auto error = Data::RestrictionError(
-		history->peer,
-		ChatRestriction::SendGames);
-	return error.value_or(QString());
+	const auto type = ChatRestriction::SendGames;
+	return Data::RestrictionError(history->peer, type).value_or(QString());
 }
 
 SendDataCommon::SentMessageFields SendInvoice::getSentMessageFields() const {

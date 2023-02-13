@@ -200,46 +200,46 @@ void SaveSlowmodeSeconds(
 void ShowEditPermissions(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer) {
-	auto content = Box<EditPeerPermissionsBox>(navigation, peer);
-	const auto box = QPointer<EditPeerPermissionsBox>(content.data());
-	navigation->parentController()->show(
-		std::move(content),
-		Ui::LayerOption::KeepOther);
-	const auto saving = box->lifetime().make_state<int>(0);
-	const auto save = [=](
-			not_null<PeerData*> peer,
-			EditPeerPermissionsBox::Result result) {
-		Expects(result.slowmodeSeconds == 0 || peer->isChannel());
+	auto createBox = [=](not_null<Ui::GenericBox*> box) {
+		const auto saving = box->lifetime().make_state<int>(0);
+		const auto save = [=](
+				not_null<PeerData*> peer,
+				EditPeerPermissionsBoxResult result) {
+			Expects(result.slowmodeSeconds == 0 || peer->isChannel());
 
-		const auto close = crl::guard(box, [=] { box->closeBox(); });
-		SaveDefaultRestrictions(
-			peer,
-			result.rights,
-			close);
-		if (const auto channel = peer->asChannel()) {
-			SaveSlowmodeSeconds(channel, result.slowmodeSeconds, close);
-		}
+			const auto close = crl::guard(box, [=] { box->closeBox(); });
+			SaveDefaultRestrictions(
+				peer,
+				result.rights,
+				close);
+			if (const auto channel = peer->asChannel()) {
+				SaveSlowmodeSeconds(channel, result.slowmodeSeconds, close);
+			}
+		};
+		auto done = [=](EditPeerPermissionsBoxResult result) {
+			if (*saving) {
+				return;
+			}
+			*saving = true;
+
+			const auto saveFor = peer->migrateToOrMe();
+			const auto chat = saveFor->asChat();
+			if (!result.slowmodeSeconds || !chat) {
+				save(saveFor, result);
+				return;
+			}
+			const auto api = &peer->session().api();
+			api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
+				save(channel, result);
+			}, [=](const QString &) {
+				*saving = false;
+			});
+		};
+		ShowEditPeerPermissionsBox(box, navigation, peer, std::move(done));
 	};
-	box->saveEvents(
-	) | rpl::start_with_next([=](EditPeerPermissionsBox::Result result) {
-		if (*saving) {
-			return;
-		}
-		*saving = true;
-
-		const auto saveFor = peer->migrateToOrMe();
-		const auto chat = saveFor->asChat();
-		if (!result.slowmodeSeconds || !chat) {
-			save(saveFor, result);
-			return;
-		}
-		const auto api = &peer->session().api();
-		api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
-			save(channel, result);
-		}, [=](const QString &) {
-			*saving = false;
-		});
-	}, box->lifetime());
+	navigation->parentController()->show(
+		Box(std::move(createBox)),
+		Ui::LayerOption::KeepOther);
 }
 
 } // namespace
@@ -1879,7 +1879,9 @@ void Controller::savePhoto() {
 		? _controls.photo->takeResultImage()
 		: QImage();
 	if (!image.isNull()) {
-		_peer->session().api().peerPhoto().upload(_peer, std::move(image));
+		_peer->session().api().peerPhoto().upload(
+			_peer,
+			{ std::move(image) });
 	}
 	_box->closeBox();
 }
@@ -1913,7 +1915,7 @@ void Controller::deleteChannel() {
 	const auto session = &_peer->session();
 
 	_navigation->parentController()->hideLayer();
-	Core::App().closeChatFromWindows(_peer);
+	Core::App().closeChatFromWindows(channel);
 	if (chat) {
 		session->api().deleteConversation(chat, false);
 	}

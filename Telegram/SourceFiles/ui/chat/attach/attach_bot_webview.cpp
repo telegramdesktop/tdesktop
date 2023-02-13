@@ -356,7 +356,7 @@ Panel::Panel(
 		postEvent("back_button_pressed");
 	}, _widget->lifetime());
 
-	rpl::combine(
+	rpl::merge(
 		style::PaletteChanged(),
 		_themeUpdateForced.events()
 	) | rpl::filter([=] {
@@ -631,6 +631,8 @@ bool Panel::createWebview() {
 			processBackButtonMessage(arguments);
 		} else if (command == "web_app_request_theme") {
 			_themeUpdateForced.fire({});
+		} else if (command == "web_app_request_viewport") {
+			sendViewport();
 		} else if (command == "web_app_open_tg_link") {
 			openTgLink(arguments);
 		} else if (command == "web_app_open_link") {
@@ -673,6 +675,13 @@ postEvent: function(eventType, eventData) {
 	setupProgressGeometry();
 
 	return true;
+}
+
+void Panel::sendViewport() {
+	postEvent("viewport_changed", "{ "
+		"height: window.innerHeight, "
+		"is_state_stable: true, "
+		"is_expanded: true }");
 }
 
 void Panel::setTitle(rpl::producer<QString> title) {

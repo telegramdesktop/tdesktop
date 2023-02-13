@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/widgets/popup_menu.h"
+#include "ui/layers/layer_widget.h"
+#include "ui/emoji_config.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_cloud_manager.h"
 #include "core/sandbox.h"
 #include "core/application.h"
@@ -19,11 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::sessionValue.
 #include "main/main_domain.h"
 #include "mainwidget.h"
-#include "media/system_media_controls_manager.h"
 #include "ui/boxes/confirm_box.h"
 #include "api/api_updates.h"
 #include "settings/settings_intro.h"
 #include "base/platform/base_platform_info.h"
+#include "base/options.h"
+#include "base/variant.h"
+#include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
 #include "window/window_main_menu.h"
@@ -57,7 +61,17 @@ void FeedLangTestingKey(int key) {
 	}
 }
 
+base::options::toggle AutoScrollInactiveChat({
+	.id = kOptionAutoScrollInactiveChat,
+	.name = "Mark as read of inactive chat",
+	.description = "Mark new messages as read and scroll the chat "
+		"even when the window is not in focus.",
+});
+
 } // namespace
+
+const char kOptionAutoScrollInactiveChat[] =
+	"auto-scroll-inactive-chat";
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Platform::MainWindow(controller) {
@@ -96,11 +110,6 @@ void MainWindow::initHook() {
 		this,
 		[=] { checkActivation(); },
 		Qt::QueuedConnection);
-
-	if (Media::SystemMediaControlsManager::Supported()) {
-		using MediaManager = Media::SystemMediaControlsManager;
-		_mediaControlsManager = std::make_unique<MediaManager>(&controller());
-	}
 }
 
 void MainWindow::applyInitialWorkMode() {
@@ -519,8 +528,8 @@ bool MainWindow::markingAsRead() const {
 		&& !_main->isHidden()
 		&& !_main->animatingShow()
 		&& !_layer
-		&& isActive()
-		&& !_main->session().updates().isIdle();
+		&& (AutoScrollInactiveChat.value()
+			|| (isActive() && !_main->session().updates().isIdle()));
 }
 
 void MainWindow::checkActivation() {
@@ -636,11 +645,8 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 		e->accept();
 		Core::Quit();
 		return;
-	} else if (!isPrimary()) {
+	} else if (Core::App().closeNonLastAsync(&controller())) {
 		e->accept();
-		crl::on_main(this, [=] {
-			Core::App().closeWindow(&controller());
-		});
 		return;
 	}
 	e->ignore();

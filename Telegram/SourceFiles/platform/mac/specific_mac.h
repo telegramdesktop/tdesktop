@@ -33,7 +33,13 @@ inline bool SkipTaskbarSupported() {
 	return false;
 }
 
-inline void InstallLauncher(bool force) {
+void ActivateThisProcess();
+
+inline uint64 ActivationWindowId(not_null<QWidget*> window) {
+	return 1;
+}
+
+inline void ActivateOtherProcess(uint64 processId, uint64 windowId) {
 }
 
 namespace ThirdParty {
@@ -54,7 +60,6 @@ inline void psCheckLocalSocket(const QString &serverName) {
 	}
 }
 
-void psActivateProcess(uint64 pid = 0);
 QString psAppDataPath();
 void psSendToMenu(bool send, bool silent = false);
 

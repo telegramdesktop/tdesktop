@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "emoji.h"
 
 enum class RectPart;
+struct LanguageId;
 
 namespace Ui {
 enum class InputSubmitSettings;
@@ -51,6 +52,16 @@ struct WindowPosition {
 	int y = 0;
 	int w = 0;
 	int h = 0;
+};
+
+struct WindowTitleContent {
+	bool hideChatName : 1 = false;
+	bool hideAccountName : 1 = false;
+	bool hideTotalUnread : 1 = false;
+
+	friend inline constexpr auto operator<=>(
+		WindowTitleContent,
+		WindowTitleContent) = default;
 };
 
 constexpr auto kRecentEmojiLimit = 42;
@@ -99,6 +110,7 @@ public:
 	static constexpr auto kDefaultVolume = 0.9;
 
 	Settings();
+	~Settings();
 
 	[[nodiscard]] rpl::producer<> saveDelayedRequests() const {
 		return _saveDelayed.events();
@@ -596,6 +608,15 @@ public:
 	[[nodiscard]] rpl::producer<bool> systemDarkModeEnabledChanges() const {
 		return _systemDarkModeEnabled.changes();
 	}
+	[[nodiscard]] WindowTitleContent windowTitleContent() const {
+		return _windowTitleContent.current();
+	}
+	[[nodiscard]] rpl::producer<WindowTitleContent> windowTitleContentChanges() const {
+		return _windowTitleContent.changes();
+	}
+	void setWindowTitleContent(WindowTitleContent content) {
+		_windowTitleContent = content;
+	}
 	[[nodiscard]] const WindowPosition &windowPosition() const {
 		return _windowPosition;
 	}
@@ -724,8 +745,16 @@ public:
 
 	void setTranslateButtonEnabled(bool value);
 	[[nodiscard]] bool translateButtonEnabled() const;
-	void setSkipTranslationForLanguages(std::vector<int> languages);
-	[[nodiscard]] std::vector<int> skipTranslationForLanguages() const;
+	void setTranslateChatEnabled(bool value);
+	[[nodiscard]] bool translateChatEnabled() const;
+	[[nodiscard]] rpl::producer<bool> translateChatEnabledValue() const;
+	void setTranslateTo(LanguageId id);
+	[[nodiscard]] LanguageId translateTo() const;
+	[[nodiscard]] rpl::producer<LanguageId> translateToValue() const;
+	void setSkipTranslationLanguages(std::vector<LanguageId> languages);
+	[[nodiscard]] std::vector<LanguageId> skipTranslationLanguages() const;
+	[[nodiscard]] auto skipTranslationLanguagesValue() const
+		-> rpl::producer<std::vector<LanguageId>>;
 
 	void setRememberedDeleteMessageOnlyForYou(bool value);
 	[[nodiscard]] bool rememberedDeleteMessageOnlyForYou() const;
@@ -827,6 +856,7 @@ private:
 	rpl::variable<bool> _nativeWindowFrame = false;
 	rpl::variable<std::optional<bool>> _systemDarkMode = std::nullopt;
 	rpl::variable<bool> _systemDarkModeEnabled = false;
+	rpl::variable<WindowTitleContent> _windowTitleContent;
 	WindowPosition _windowPosition; // per-window
 	bool _disableOpenGL = false;
 	rpl::variable<WorkMode> _workMode = WorkMode::WindowAndTray;
@@ -845,7 +875,10 @@ private:
 	HistoryView::DoubleClickQuickAction _chatQuickAction =
 		HistoryView::DoubleClickQuickAction();
 	bool _translateButtonEnabled = false;
-	std::vector<int> _skipTranslationForLanguages;
+	rpl::variable<bool> _translateChatEnabled = true;
+	rpl::variable<int> _translateToRaw = 0;
+	rpl::variable<std::vector<LanguageId>> _skipTranslationLanguages;
+	rpl::event_stream<> _skipTranslationLanguagesChanges;
 	bool _rememberedDeleteMessageOnlyForYou = false;
 
 	bool _tabbedReplacedWithInfo = false; // per-window

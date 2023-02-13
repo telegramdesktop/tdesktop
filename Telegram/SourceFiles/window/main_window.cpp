@@ -17,10 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "window/window_controller.h"
 #include "main/main_account.h" // Account::sessionValue.
+#include "main/main_domain.h"
 #include "core/application.h"
 #include "core/sandbox.h"
+#include "core/shortcuts.h"
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
+#include "data/data_forum_topic.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "base/options.h"
@@ -37,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tray.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
+#include "styles/style_dialogs.h" // ChildSkip().x() for new child windows.
 
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
@@ -49,15 +54,43 @@ namespace {
 
 constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
 
-base::options::toggle ShowChatNameInNewWindow({
-	.id = kOptionShowChatNameInNewWindow,
-	.name = "Chat name in window title",
-	.description = "Show chat name in the additional windows titles.",
-});
+using Core::WindowPosition;
+
+[[nodiscard]] WindowPosition AdjustToScale(WindowPosition position) {
+	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 "
+		"(scale %5%, maximized %6)")
+		.arg(position.x)
+		.arg(position.y)
+		.arg(position.w)
+		.arg(position.h)
+		.arg(position.scale)
+		.arg(Logs::b(position.maximized)));
+
+	if (!position.scale) {
+		return position;
+	}
+	const auto scaleFactor = cScale() / float64(position.scale);
+	if (scaleFactor != 1.) {
+		// Change scale while keeping the position center in place.
+		position.x += position.w / 2;
+		position.y += position.h / 2;
+		position.w *= scaleFactor;
+		position.h *= scaleFactor;
+		position.x -= position.w / 2;
+		position.y -= position.h / 2;
+	}
+	return position;
+}
+
+[[nodiscard]] QPoint ChildSkip() {
+	const auto skipx = st::defaultDialogRow.padding.left()
+		+ st::defaultDialogRow.photoSize
+		+ st::defaultDialogRow.padding.left();
+	const auto skipy = st::windowTitleHeight;
+	return { skipx, skipy };
+}
 
 } // namespace
-
-const char kOptionShowChatNameInNewWindow[] = "show-chat-name-in-new-window";
 
 const QImage &Logo() {
 	static const auto result = QImage(u":/gui/art/logo_256.png"_q);
@@ -329,7 +362,9 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 
 	Core::App().unreadBadgeChanges(
 	) | rpl::start_with_next([=] {
-		updateUnreadCounter();
+		updateTitle();
+		unreadCounterChangedHook();
+		Core::App().tray().updateIconCounters();
 	}, lifetime());
 
 	Core::App().settings().workModeChanges(
@@ -357,6 +392,8 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 			updateControlsGeometry();
 		}, _outdated->lifetime());
 	}
+
+	Shortcuts::Listen(this);
 }
 
 Main::Account &MainWindow::account() const {
@@ -421,18 +458,6 @@ bool MainWindow::computeIsActive() const {
 	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
 }
 
-void MainWindow::updateWindowIcon() {
-	const auto session = sessionController()
-		? &sessionController()->session()
-		: nullptr;
-	const auto supportIcon = session && session->supportMode();
-	if (supportIcon != _usingSupportIcon || _icon.isNull()) {
-		_icon = CreateIcon(session);
-		_usingSupportIcon = supportIcon;
-	}
-	setWindowIcon(_icon);
-}
-
 QRect MainWindow::desktopRect() const {
 	const auto now = crl::now();
 	if (!_monitorLastGot || now >= _monitorLastGot + crl::time(1000)) {
@@ -446,7 +471,6 @@ void MainWindow::init() {
 	createWinId();
 
 	initHook();
-	updateWindowIcon();
 
 	// Non-queued activeChanged handlers must use QtSignalProducer.
 	connect(
@@ -478,7 +502,8 @@ void MainWindow::init() {
 	refreshTitleWidget();
 
 	initGeometry();
-	updateUnreadCounter();
+	updateTitle();
+	updateWindowIcon();
 }
 
 void MainWindow::handleStateChanged(Qt::WindowState state) {
@@ -522,7 +547,8 @@ void MainWindow::showFromTray() {
 		updateGlobalMenu();
 	});
 	activate();
-	updateUnreadCounter();
+	unreadCounterChangedHook();
+	Core::App().tray().updateIconCounters();
 }
 
 void MainWindow::quitFromTray() {
@@ -533,7 +559,7 @@ void MainWindow::activate() {
 	bool wasHidden = !isVisible();
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
-	psActivateProcess();
+	Platform::ActivateThisProcess();
 	raise();
 	activateWindow();
 	controller().updateIsActiveFocus();
@@ -600,34 +626,43 @@ void MainWindow::recountGeometryConstraints() {
 	fixOrder();
 }
 
-Core::WindowPosition MainWindow::positionFromSettings() const {
-	auto position = Core::App().settings().windowPosition();
-	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 "
-		"(scale %5%, maximized %6)")
-		.arg(position.x)
-		.arg(position.y)
-		.arg(position.w)
-		.arg(position.h)
-		.arg(position.scale)
-		.arg(Logs::b(position.maximized)));
-
-	if (!position.scale) {
-		return position;
-	}
-	const auto scaleFactor = cScale() / float64(position.scale);
-	if (scaleFactor != 1.) {
-		// Change scale while keeping the position center in place.
-		position.x += position.w / 2;
-		position.y += position.h / 2;
-		position.w *= scaleFactor;
-		position.h *= scaleFactor;
-		position.x -= position.w / 2;
-		position.y -= position.h / 2;
-	}
-	return position;
+WindowPosition MainWindow::initialPosition() const {
+	const auto active = Core::App().activeWindow();
+	return (!active || active == &controller())
+		? AdjustToScale(Core::App().settings().windowPosition())
+		: active->widget()->nextInitialChildPosition(isPrimary());
 }
 
-QRect MainWindow::countInitialGeometry(Core::WindowPosition position) {
+WindowPosition MainWindow::nextInitialChildPosition(bool primary) {
+	const auto rect = geometry().marginsRemoved(frameMargins());
+	const auto position = rect.topLeft();
+	const auto adjust = [&](int value) {
+		return primary ? value : (value * 3 / 4);
+	};
+	const auto width = adjust(st::windowDefaultWidth);
+	const auto height = adjust(st::windowDefaultHeight);
+	const auto skip = ChildSkip();
+	const auto delta = _lastChildIndex
+		? (_lastMyChildCreatePosition - position)
+		: skip;
+	if (qAbs(delta.x()) >= skip.x() || qAbs(delta.y()) >= skip.y()) {
+		_lastChildIndex = 1;
+	} else {
+		++_lastChildIndex;
+	}
+
+	_lastMyChildCreatePosition = position;
+	const auto use = position + (skip * _lastChildIndex);
+	return withScreenInPosition({
+		.scale = cScale(),
+		.x = use.x(),
+		.y = use.y(),
+		.w = width,
+		.h = height,
+	});
+}
+
+QRect MainWindow::countInitialGeometry(WindowPosition position) {
 	const auto primaryScreen = QGuiApplication::primaryScreen();
 	const auto primaryAvailable = primaryScreen
 		? primaryScreen->availableGeometry()
@@ -748,9 +783,7 @@ void MainWindow::initGeometry() {
 	if (initGeometryFromSystem()) {
 		return;
 	}
-	const auto geometry = countInitialGeometry(isPrimary()
-		? positionFromSettings()
-		: SecondaryInitPosition());
+	const auto geometry = countInitialGeometry(initialPosition());
 	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4"
 		).arg(geometry.x()
 		).arg(geometry.y()
@@ -801,30 +834,48 @@ void MainWindow::updateControlsGeometry() {
 	_body->setGeometry(bodyLeft, bodyTop, bodyWidth, inner.height() - (bodyTop - inner.y()));
 }
 
-void MainWindow::updateUnreadCounter() {
+void MainWindow::updateTitle() {
 	if (Core::Quitting()) {
 		return;
 	}
 
-	if (ShowChatNameInNewWindow.value() && singlePeer()) {
-		const auto peer = singlePeer();
-		const auto history = peer->owner().history(peer);
-		const auto name = peer->isSelf()
-			? tr::lng_saved_messages(tr::now)
-			: peer->name();
-		const auto counter = history->unreadCount();
-		setTitle((counter > 0)
-			? u"(%1) %2 \u2013 Telegram"_q.arg(QString::number(counter), name)
-			: u"%1 \u2013 Telegram"_q.arg(name));
-	} else {
-		const auto counter = Core::App().unreadBadge();
-		setTitle((counter > 0)
-			? u"Telegram (%1)"_q.arg(counter)
-			: u"Telegram"_q);
+	const auto settings = Core::App().settings().windowTitleContent();
+	const auto locked = Core::App().passcodeLocked();
+	const auto counter = settings.hideTotalUnread
+		? 0
+		: Core::App().unreadBadge();
+	const auto added = (counter > 0) ? u" (%1)"_q.arg(counter) : QString();
+	const auto session = locked ? nullptr : _controller->sessionController();
+	const auto user = (session
+		&& !settings.hideAccountName
+		&& Core::App().domain().accountsAuthedCount() > 1)
+		? session->authedName()
+		: QString();
+	const auto key = (session && !settings.hideChatName)
+		? session->activeChatCurrent()
+		: Dialogs::Key();
+	const auto thread = key ? key.thread() : nullptr;
+	if (!thread) {
+		setTitle((user.isEmpty() ? u"Telegram"_q : user) + added);
+		return;
 	}
-
-	Core::App().tray().updateIconCounters();
-	unreadCounterChangedHook();
+	const auto history = thread->owningHistory();
+	const auto topic = thread->asTopic();
+	const auto name = topic
+		? topic->title()
+		: history->peer->isSelf()
+		? tr::lng_saved_messages(tr::now)
+		: history->peer->name();
+	const auto threadCounter = thread->chatListBadgesState().unreadCounter;
+	const auto primary = (threadCounter > 0)
+		? u"(%1) %2"_q.arg(threadCounter).arg(name)
+		: name;
+	const auto middle = !user.isEmpty()
+		? (u" @ "_q + user)
+		: !added.isEmpty()
+		? u" \u2013"_q
+		: QString();
+	setTitle(primary + middle + added);
 }
 
 QRect MainWindow::computeDesktopRect() const {
@@ -838,7 +889,7 @@ void MainWindow::savePosition(Qt::WindowState state) {
 
 	if (state == Qt::WindowMinimized
 		|| !isVisible()
-		|| !isPrimary() // #TODO windows
+		|| !Core::App().savingPositionFor(&controller())
 		|| !positionInited()) {
 		return;
 	}
@@ -883,49 +934,36 @@ void MainWindow::savePosition(Qt::WindowState state) {
 	}
 }
 
-Core::WindowPosition MainWindow::withScreenInPosition(
-		Core::WindowPosition position) const {
-	auto centerX = position.x + position.w / 2;
-	auto centerY = position.y + position.h / 2;
-	int minDelta = 0;
-	QScreen *chosen = nullptr;
-	const auto screens = QGuiApplication::screens();
-	for (auto screen : screens) {
-		auto delta = (screen->geometry().center() - QPoint(centerX, centerY)).manhattanLength();
-		if (!chosen || delta < minDelta) {
-			minDelta = delta;
-			chosen = screen;
-		}
-	}
+WindowPosition MainWindow::withScreenInPosition(
+		WindowPosition position) const {
+	const auto my = screen();
+	const auto chosen = my ? my : QGuiApplication::primaryScreen();
 	if (!chosen) {
 		return position;
 	}
-	auto screenGeometry = chosen->geometry();
+	const auto available = chosen->availableGeometry();
+	if (available.width() < st::windowMinWidth
+		|| available.height() < st::windowMinHeight) {
+		return position;
+	}
+	accumulate_min(position.w, available.width());
+	accumulate_min(position.h, available.height());
+	if (position.x + position.w > available.x() + available.width()) {
+		position.x = available.x() + available.width() - position.w;
+	}
+	if (position.y + position.h > available.y() + available.height()) {
+		position.y = available.y() + available.height() - position.h;
+	}
+	const auto geometry = chosen->geometry();
 	DEBUG_LOG(("Window Pos: Screen found, geometry: %1, %2, %3, %4"
-		).arg(screenGeometry.x()
-		).arg(screenGeometry.y()
-		).arg(screenGeometry.width()
-		).arg(screenGeometry.height()));
-	position.x -= screenGeometry.x();
-	position.y -= screenGeometry.y();
+		).arg(geometry.x()
+		).arg(geometry.y()
+		).arg(geometry.width()
+		).arg(geometry.height()));
+	position.x -= geometry.x();
+	position.y -= geometry.y();
 	position.moncrc = screenNameChecksum(chosen->name());
 	return position;
-}
-
-Core::WindowPosition MainWindow::SecondaryInitPosition() {
-	const auto active = Core::App().activeWindow();
-	if (!active) {
-		return {};
-	}
-	const auto geometry = active->widget()->geometry();
-	const auto skip = st::windowMinWidth / 6;
-	return active->widget()->withScreenInPosition({
-		.scale = cScale(),
-		.x = geometry.x() + skip,
-		.y = geometry.y() + skip,
-		.w = st::windowMinWidth,
-		.h = st::windowDefaultHeight,
-	});
 }
 
 bool MainWindow::minimizeToTray() {

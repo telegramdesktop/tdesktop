@@ -50,7 +50,7 @@ constexpr auto kDocumentUploadPartSize4 = 512 * 1024;
 constexpr auto kUploadRequestInterval = crl::time(500);
 
 // How much time without upload causes additional session kill.
-constexpr auto kKillSessionTimeout = 15 * crl::time(000);
+constexpr auto kKillSessionTimeout = 15 * crl::time(1000);
 
 [[nodiscard]] const char *ThumbnailFormat(const QString &mime) {
 	return Core::IsMimeSticker(mime) ? "WEBP" : "JPG";

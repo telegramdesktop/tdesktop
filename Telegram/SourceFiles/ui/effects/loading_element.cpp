@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/loading_element.h"
 
-#include "ui/effects/glare.h"
-
 #include "base/object_ptr.h"
 #include "base/random.h"
 #include "styles/palette.h"
+#include "ui/effects/glare.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "styles/style_basic.h"
 #include "styles/style_widgets.h"
@@ -99,14 +99,18 @@ public:
 			h1 / 2,
 			h1 / 2);
 
-		const auto h2 = st::defaultTextStyle.font->ascent;
-		p.drawRoundedRect(
-			_st.statusPosition.x(),
-			_st.statusPosition.y() + offset,
-			kStatusWidth,
-			h2,
-			h2 / 2,
-			h2 / 2);
+		{
+			const auto h2 = st::defaultTextStyle.font->ascent;
+			const auto radius = h2 / 2;
+			const auto rect = QRect(
+				_st.statusPosition.x(),
+				_st.statusPosition.y() + offset,
+				kStatusWidth,
+				h2);
+			if (rect::bottom(rect) < height()) {
+				p.drawRoundedRect(rect, radius, radius);
+			}
+		}
 	}
 
 private:

@@ -20,7 +20,6 @@ class ChatData;
 class ChannelData;
 
 enum class ChatRestriction;
-enum class UserRestriction;
 
 namespace Ui {
 class EmptyUserpic;
@@ -205,7 +204,6 @@ public:
 		return _notify;
 	}
 
-	[[nodiscard]] bool canWrite(bool checkForForum = true) const;
 	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
 		ChatRestriction right) const;
@@ -214,7 +212,6 @@ public:
 	[[nodiscard]] bool slowmodeApplied() const;
 	[[nodiscard]] rpl::producer<bool> slowmodeAppliedValue() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
-	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool canManageGroupCall() const;
 
 	[[nodiscard]] UserData *asUser();
@@ -320,6 +317,7 @@ public:
 
 	[[nodiscard]] bool canPinMessages() const;
 	[[nodiscard]] bool canEditMessagesIndefinitely() const;
+	[[nodiscard]] bool canCreatePolls() const;
 	[[nodiscard]] bool canCreateTopics() const;
 	[[nodiscard]] bool canManageTopics() const;
 	[[nodiscard]] bool canExportChatHistory() const;
@@ -351,6 +349,15 @@ public:
 	[[nodiscard]] TimeId requestChatDate() const {
 		return _requestChatDate;
 	}
+
+	enum class TranslationFlag : uchar {
+		Unknown,
+		Disabled,
+		Enabled,
+	};
+	void setTranslationDisabled(bool disabled);
+	[[nodiscard]] TranslationFlag translationFlag() const;
+	void saveTranslationDisabled(bool disabled);
 
 	void setSettings(const MTPPeerSettings &data);
 
@@ -442,6 +449,7 @@ private:
 	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
+	TranslationFlag _translationFlag = TranslationFlag::Unknown;
 	bool _userpicHasVideo = false;
 
 	QString _requestChatTitle;
@@ -453,14 +461,6 @@ private:
 };
 
 namespace Data {
-
-std::optional<QString> RestrictionError(
-	not_null<PeerData*> peer,
-	ChatRestriction restriction);
-
-std::optional<QString> RestrictionError(
-	not_null<PeerData*> peer,
-	UserRestriction restriction);
 
 void SetTopPinnedMessageId(
 	not_null<PeerData*> peer,

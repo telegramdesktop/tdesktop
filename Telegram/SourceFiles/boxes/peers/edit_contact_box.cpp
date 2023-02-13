@@ -215,7 +215,7 @@ void Controller::initNameFields(
 				} else {
 					user->session().api().peerPhoto().upload(
 						user,
-						base::duplicate(*personal));
+						{ base::duplicate(*personal) });
 				}
 			}
 		};

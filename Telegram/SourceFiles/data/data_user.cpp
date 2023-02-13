@@ -293,11 +293,6 @@ bool UserData::isInaccessible() const {
 	return flags() & UserDataFlag::Deleted;
 }
 
-bool UserData::canWrite() const {
-	// Duplicated in Data::CanWriteValue().
-	return !isInaccessible() && !isRepliesChat();
-}
-
 bool UserData::applyMinPhoto() const {
 	return !(flags() & UserDataFlag::DiscardMinPhoto);
 }
@@ -312,10 +307,6 @@ bool UserData::canAddContact() const {
 
 bool UserData::canReceiveGifts() const {
 	return flags() & UserDataFlag::CanReceiveGifts;
-}
-
-bool UserData::canReceiveVoices() const {
-	return !(flags() & UserDataFlag::VoiceMessagesForbidden);
 }
 
 bool UserData::canShareThisContactFast() const {
@@ -432,6 +423,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->setCommonChatsCount(update.vcommon_chats_count().v);
 	user->checkFolder(update.vfolder_id().value_or_empty());
 	user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+	user->setTranslationDisabled(update.is_translations_disabled());
 
 	if (const auto info = user->botInfo.get()) {
 		const auto group = update.vbot_group_admin_rights()

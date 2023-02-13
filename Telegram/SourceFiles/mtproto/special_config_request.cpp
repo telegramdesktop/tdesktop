@@ -188,6 +188,7 @@ SpecialConfigRequest::SpecialConfigRequest(
 		int port,
 		bytes::const_span secret)> callback,
 	Fn<void()> timeDoneCallback,
+	bool isTestMode,
 	const QString &domainString,
 	const QString &phone)
 : _callback(std::move(callback))
@@ -198,16 +199,7 @@ SpecialConfigRequest::SpecialConfigRequest(
 
 	_manager.setProxy(QNetworkProxy::NoProxy);
 
-	auto domains = DnsDomains();
-	const auto domainsCount = domains.size();
-
 	std::random_device rd;
-	ranges::shuffle(domains, std::mt19937(rd()));
-	const auto takeDomain = [&] {
-		const auto result = domains.back();
-		domains.pop_back();
-		return result;
-	};
 	const auto shuffle = [&](int from, int till) {
 		Expects(till > from);
 
@@ -219,14 +211,9 @@ SpecialConfigRequest::SpecialConfigRequest(
 
 	_attempts = {};
 	_attempts.push_back({ Type::Google, "dns.google.com" });
-	_attempts.push_back({ Type::Google, takeDomain(), "dns" });
 	_attempts.push_back({ Type::Mozilla, "mozilla.cloudflare-dns.com" });
 	_attempts.push_back({ Type::RemoteConfig, "firebaseremoteconfig" });
-	while (!domains.empty()) {
-		_attempts.push_back({ Type::Google, takeDomain(), "dns" });
-	}
 	if (!_timeDoneCallback) {
-		_attempts.push_back({ Type::Realtime, "firebaseio.com" });
 		_attempts.push_back({ Type::FireStore, "firestore" });
 		for (const auto &domain : DnsDomains()) {
 			_attempts.push_back({ Type::FireStore, domain, "firestore" });
@@ -234,12 +221,15 @@ SpecialConfigRequest::SpecialConfigRequest(
 	}
 
 	shuffle(0, 2);
-	shuffle(2, 4);
 	if (!_timeDoneCallback) {
-		shuffle(
-			_attempts.size() - (2 + domainsCount),
-			_attempts.size() - domainsCount);
-		shuffle(_attempts.size() - domainsCount, _attempts.size());
+		shuffle(_attempts.size() - (int(DnsDomains().size()) + 1), _attempts.size());
+	}
+	if (isTestMode) {
+		_attempts.erase(ranges::remove_if(_attempts, [](
+				const Attempt &attempt) {
+			return (attempt.type != Type::Google)
+				&& (attempt.type != Type::Mozilla);
+		}), _attempts.end());
 	}
 	ranges::reverse(_attempts); // We go from last to first.
 
@@ -252,17 +242,25 @@ SpecialConfigRequest::SpecialConfigRequest(
 		const std::string &ip,
 		int port,
 		bytes::const_span secret)> callback,
+	bool isTestMode,
 	const QString &domainString,
 	const QString &phone)
-: SpecialConfigRequest(std::move(callback), nullptr, domainString, phone) {
+: SpecialConfigRequest(
+	std::move(callback),
+	nullptr,
+	isTestMode,
+	domainString,
+	phone) {
 }
 
 SpecialConfigRequest::SpecialConfigRequest(
 	Fn<void()> timeDoneCallback,
+	bool isTestMode,
 	const QString &domainString)
 : SpecialConfigRequest(
 	nullptr,
 	std::move(timeDoneCallback),
+	isTestMode,
 	domainString,
 	QString()) {
 }

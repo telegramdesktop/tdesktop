@@ -13,8 +13,6 @@ using "info/info.style";
 using "chat_helpers/chat_helpers.style";
 
 passportPasswordPadding: margins(20px, 30px, 20px, 40px);
-passportPasswordForgotSkip: 5px;
-passportPasswordAboutSkip: 15px;
 passportPasswordLabel: FlatLabel(boxLabel) {
 	minWidth: 275px;
 	align: align(top);
@@ -119,7 +117,6 @@ passportRowEmptyIcon: icon {{ "passport_empty", menuIconFgOver }};
 passportRowTitleFg: windowFg;
 passportRowDescriptionFg: windowSubTextFg;
 
-passportScansHeaderPadding: margins(22px, 10px, 22px, 10px);
 passportUploadButton: SettingsButton(defaultSettingsButton) {
 	textFg: windowActiveTextFg;
 	textFgOver: windowActiveTextFg;

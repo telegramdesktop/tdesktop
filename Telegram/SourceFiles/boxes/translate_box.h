@@ -7,19 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
+
+class History;
 class PeerData;
+struct LanguageId;
 
 namespace Ui {
-namespace Translate {
-[[nodiscard]] std::vector<QLocale> LocalesFromSettings();
-} // namespace Translate
 
+class BoxContent;
 class GenericBox;
 
-[[nodiscard]] QString LanguageName(const QLocale &locale);
-
 void TranslateBox(
-	not_null<Ui::GenericBox*> box,
+	not_null<GenericBox*> box,
 	not_null<PeerData*> peer,
 	MsgId msgId,
 	TextWithEntities text,
@@ -27,9 +27,20 @@ void TranslateBox(
 
 [[nodiscard]] bool SkipTranslate(TextWithEntities textWithEntities);
 
-void ChooseLanguageBox(
-	not_null<Ui::GenericBox*> box,
-	Fn<void(std::vector<QLocale>)> callback,
-	std::vector<QLocale> toggled);
+[[nodiscard]] object_ptr<BoxContent> EditSkipTranslationLanguages();
+[[nodiscard]] object_ptr<BoxContent> ChooseTranslateToBox(
+	LanguageId bringUp,
+	Fn<void(LanguageId)> callback);
+
+[[nodiscard]] LanguageId ChooseTranslateTo(not_null<History*> history);
+[[nodiscard]] LanguageId ChooseTranslateTo(LanguageId offeredFrom);
+[[nodiscard]] LanguageId ChooseTranslateTo(
+	not_null<History*> history,
+	LanguageId savedTo,
+	const std::vector<LanguageId> &skip);
+[[nodiscard]] LanguageId ChooseTranslateTo(
+	LanguageId offeredFrom,
+	LanguageId savedTo,
+	const std::vector<LanguageId> &skip);
 
 } // namespace Ui

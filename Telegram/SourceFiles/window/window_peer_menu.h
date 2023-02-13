@@ -164,4 +164,6 @@ void UnpinAllMessages(
 [[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread);
 void MarkAsReadThread(not_null<Data::Thread*> thread);
 
+void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction);
+
 } // namespace Window

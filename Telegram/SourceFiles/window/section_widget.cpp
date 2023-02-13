@@ -187,20 +187,43 @@ void SectionWidget::PaintBackground(
 		not_null<Ui::ChatTheme*> theme,
 		not_null<QWidget*> widget,
 		QRect clip) {
-	auto p = QPainter(widget);
+	PaintBackground(
+		theme,
+		widget,
+		controller->content()->height(),
+		controller->content()->backgroundFromY(),
+		clip);
+}
 
+void SectionWidget::PaintBackground(
+		not_null<Ui::ChatTheme*> theme,
+		not_null<QWidget*> widget,
+		int fillHeight,
+		int fromy,
+		QRect clip) {
+	auto p = QPainter(widget);
+	if (fromy) {
+		p.translate(0, fromy);
+		clip = clip.translated(0, -fromy);
+	}
+	PaintBackground(p, theme, QSize(widget->width(), fillHeight), clip);
+}
+
+void SectionWidget::PaintBackground(
+		QPainter &p,
+		not_null<Ui::ChatTheme*> theme,
+		QSize fill,
+		QRect clip) {
 	const auto &background = theme->background();
 	if (background.colorForFill) {
 		p.fillRect(clip, *background.colorForFill);
 		return;
 	}
 	const auto &gradient = background.gradientForFill;
-	const auto fill = QSize(widget->width(), controller->content()->height());
-	auto fromy = controller->content()->backgroundFromY();
 	auto state = theme->backgroundState(fill);
 	const auto paintCache = [&](const Ui::CachedBackground &cache) {
 		const auto to = QRect(
-			QPoint(cache.x, fromy + cache.y),
+			QPoint(cache.x, cache.y),
 			cache.pixmap.size() / cIntRetinaFactor());
 		if (cache.waitingForNegativePattern) {
 			// While we wait for pattern being loaded we paint just gradient.
@@ -229,11 +252,15 @@ void SectionWidget::PaintBackground(
 	const auto goodNow = hasNow && (state.now.area == fill);
 	const auto useCache = goodNow || !gradient.isNull();
 	if (useCache) {
-		if (state.shown < 1. && !gradient.isNull()) {
+		const auto fade = (state.shown < 1. && !gradient.isNull());
+		if (fade) {
 			paintCache(state.was);
 			p.setOpacity(state.shown);
 		}
 		paintCache(state.now);
+		if (fade) {
+			p.setOpacity(1.);
+		}
 		return;
 	}
 	const auto &prepared = background.prepared;
@@ -259,12 +286,12 @@ void SectionWidget::PaintBackground(
 		const auto w = tiled.width() / cRetinaFactor();
 		const auto h = tiled.height() / cRetinaFactor();
 		const auto sx = qFloor(left / w);
-		const auto sy = qFloor((top - fromy) / h);
+		const auto sy = qFloor(top / h);
 		const auto cx = qCeil(right / w);
-		const auto cy = qCeil((bottom - fromy) / h);
+		const auto cy = qCeil(bottom / h);
 		for (auto i = sx; i < cx; ++i) {
 			for (auto j = sy; j < cy; ++j) {
-				p.drawImage(QPointF(i * w, fromy + j * h), tiled);
+				p.drawImage(QPointF(i * w, j * h), tiled);
 			}
 		}
 	} else {
@@ -272,9 +299,7 @@ void SectionWidget::PaintBackground(
 		const auto rects = Ui::ComputeChatBackgroundRects(
 			fill,
 			prepared.size());
-		auto to = rects.to;
-		to.moveTop(to.top() + fromy);
-		p.drawImage(to, prepared, rects.from);
+		p.drawImage(rects.to, prepared, rects.from);
 	}
 }
 

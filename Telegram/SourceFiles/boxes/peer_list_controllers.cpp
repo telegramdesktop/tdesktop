@@ -534,9 +534,8 @@ auto ChooseRecipientBoxController::createRow(
 	const auto peer = history->peer;
 	const auto skip = _filter
 		? !_filter(history)
-		: ((peer->isBroadcast() && !peer->canWrite())
-			|| (peer->isUser() && !peer->canWrite())
-			|| peer->isRepliesChat());
+		: ((peer->isBroadcast() && !Data::CanSendAnything(peer))
+			|| (peer->isUser() && !Data::CanSendAnything(peer)));
 	return skip ? nullptr : std::make_unique<Row>(history);
 }
 
@@ -590,11 +589,10 @@ void ChooseTopicSearchController::searchOnServer() {
 			}
 			delegate()->peerListSearchAddRow(topic->rootId().bare);
 		});
-		if (_offsetTopicId != savedTopicId) {
-			delegate()->peerListSearchRefreshRows();
-		} else {
+		if (_offsetTopicId == savedTopicId) {
 			_allLoaded = true;
 		}
+		delegate()->peerListSearchRefreshRows();
 	}).fail([=] {
 		_allLoaded = true;
 	}).send();
@@ -633,10 +631,13 @@ auto ChooseTopicBoxController::Row::generatePaintUserpicCallback(
 			int y,
 			int outerWidth,
 			int size) {
+		const auto &st = st::forumTopicRow;
+		x -= st.padding.left();
+		y -= st.padding.top();
 		auto view = Ui::PeerUserpicView();
 		p.translate(x, y);
 		_topic->paintUserpic(p, view, {
-			.st = &st::forumTopicRow,
+			.st = &st,
 			.currentBg = st::windowBg,
 			.now = crl::now(),
 			.width = outerWidth,
@@ -696,7 +697,7 @@ void ChooseTopicBoxController::rowClicked(not_null<PeerListRow*> row) {
 
 void ChooseTopicBoxController::prepare() {
 	delegate()->peerListSetTitle(tr::lng_forward_choose());
-	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
+	setSearchNoResultsText(tr::lng_topics_not_found(tr::now));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	refreshRows(true);
 
@@ -750,6 +751,6 @@ std::unique_ptr<PeerListRow> ChooseTopicBoxController::createSearchRow(
 
 auto ChooseTopicBoxController::createRow(not_null<Data::ForumTopic*> topic)
 -> std::unique_ptr<Row> {
-	const auto skip = _filter ? !_filter(topic) : !topic->canWrite();
+	const auto skip = _filter && !_filter(topic);
 	return skip ? nullptr : std::make_unique<Row>(topic);
 };

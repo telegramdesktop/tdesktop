@@ -183,9 +183,15 @@ struct PreparedFileThumbnail {
 	if (!bytes.isEmpty()
 		&& (bytes.size()
 			<= full.width() * full.height() * kRecompressAfterBpp / 8)
-		&& (format == u"jpeg"_q)
-		&& Images::IsProgressiveJpeg(bytes)) {
-		return bytes;
+		&& (format == u"jpeg"_q)) {
+		if (!Images::IsProgressiveJpeg(bytes)) {
+			if (const auto result = Images::MakeProgressiveJpeg(bytes)
+				; !result.isEmpty()) {
+				return result;
+			}
+		} else {
+			return bytes;
+		}
 	}
 
 	auto result = QByteArray();

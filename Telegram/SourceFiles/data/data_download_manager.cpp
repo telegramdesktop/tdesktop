@@ -508,9 +508,13 @@ HistoryItem *DownloadManager::lookupLoadingItem(
 void DownloadManager::loadingStopWithConfirmation(
 		Fn<void()> callback,
 		Main::Session *onlyInSession) {
-	const auto window = Core::App().primaryWindow();
 	const auto item = lookupLoadingItem(onlyInSession);
-	if (!window || !item) {
+	if (!item) {
+		return;
+	}
+	const auto window = Core::App().windowFor(
+		&item->history()->session().account());
+	if (!window) {
 		return;
 	}
 	const auto weak = base::make_weak(&item->history()->session());

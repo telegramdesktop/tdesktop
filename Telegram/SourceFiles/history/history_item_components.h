@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_cloud_file.h"
 #include "history/history_item.h"
+#include "spellcheck/spellcheck_types.h" // LanguageId.
 #include "ui/empty_userpic.h"
 #include "ui/effects/animations.h"
 #include "ui/chat/message_bubble.h"
@@ -195,6 +196,8 @@ struct HistoryMessageReply
 		Expects(replyToVia == nullptr);
 	}
 
+	static constexpr auto kBarAlpha = 230. / 255.;
+
 	bool updateData(not_null<HistoryItem*> holder, bool force = false);
 
 	// Must be called before destructor.
@@ -254,6 +257,15 @@ struct HistoryMessageReply
 	int toWidth = 0;
 	bool topicPost = false;
 
+};
+
+struct HistoryMessageTranslation
+	: public RuntimeComponent<HistoryMessageTranslation, HistoryItem> {
+	TextWithEntities text;
+	LanguageId to;
+	bool requested = false;
+	bool failed = false;
+	bool used = false;
 };
 
 struct HistoryMessageReplyMarkup

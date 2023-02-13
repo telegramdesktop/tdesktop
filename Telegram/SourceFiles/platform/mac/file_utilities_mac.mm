@@ -11,9 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_window.h"
 
-#include <QtWidgets/QApplication>
-#include <QtGui/QScreen>
-
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 
@@ -68,7 +65,7 @@ QString strNeedToRefresh2() {
 }
 
 - (id) init:(NSString *)file;
-- (BOOL) popupAtX:(int)x andY:(int)y;
+- (BOOL) popupAt:(NSPoint)point;
 - (void) itemChosen:(id)sender;
 - (void) dealloc;
 
@@ -174,7 +171,7 @@ QString strNeedToRefresh2() {
 	return self;
 }
 
-- (BOOL) popupAtX:(int)x andY:(int)y {
+- (BOOL) popupAt:(NSPoint)point {
 	if (![apps count] && !defName) return NO;
 	menu = [[NSMenu alloc] initWithTitle:@"Open With"];
 
@@ -197,7 +194,7 @@ QString strNeedToRefresh2() {
 	NSMenuItem *item = [menu insertItemWithTitle:Q2NSString(tr::lng_mac_choose_program_menu(tr::now)) action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
 	[item setTarget:self];
 
-	[menu popUpMenuPositioningItem:nil atLocation:CGPointMake(x, y) inView:nil];
+	[menu popUpMenuPositioningItem:nil atLocation:point inView:nil];
 
 	return YES;
 }
@@ -392,20 +389,13 @@ QString UrlToLocal(const QUrl &url) {
 	return result;
 }
 
-bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
+bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 	@autoreleasepool {
 
 	NSString *file = Q2NSString(filepath);
 	@try {
 		OpenFileWithInterface *menu = [[[OpenFileWithInterface alloc] init:file] autorelease];
-		const auto screen = QGuiApplication::screenAt(menuPosition);
-		if (!screen) {
-			return false;
-		}
-		const auto r = screen->geometry();
-		auto x = menuPosition.x();
-		auto y = r.y() + r.height() - menuPosition.y();
-		return !![menu popupAtX:x andY:y];
+		return !![menu popupAt:[NSEvent mouseLocation]];
 	}
 	@catch (NSException *exception) {
 	}

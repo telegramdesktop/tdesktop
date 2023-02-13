@@ -40,12 +40,10 @@ countriesScroll: ScrollArea(boxScroll) {
 	deltab: 3px;
 }
 
-boxPhotoTitleFont: font(16px semibold);
 boxPhotoTitlePosition: point(28px, 20px);
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
-boxPhotoTextFg: windowSubTextFg;
 
 defaultChangeUserpicIcon: icon {{ "new_chat_photo", activeButtonFg }};
 defaultUploadUserpicIcon: icon {{ "upload_chat_photo", msgDateImgFg }};
@@ -122,16 +120,9 @@ confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
 confirmPhoneCodeField: InputField(defaultInputField) {
 }
 
-revokePublicLinkStatusPalette: TextPalette(defaultTextPalette) {
-	linkFg: contactsStatusFgOnline;
-}
 aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
 	minWidth: 320px;
-}
-editBioCountdownLabel: FlatLabel(defaultFlatLabel) {
-	style: boxTextStyle;
-	textFg: windowSubTextFg;
 }
 
 contactUserIcon: icon {{ "settings/settings_name", menuIconFg }};
@@ -153,11 +144,6 @@ contactsNameStyle: TextStyle(defaultTextStyle) {
 contactsStatusTop: 23px;
 contactsStatusFont: font(fsize);
 contactsCheckPosition: point(8px, 16px);
-contactsAllAdminsTop: 15px;
-contactsAboutBg: windowBgOver;
-contactsAboutFg: windowSubTextFgOver;
-contactsAboutTop: 60px;
-contactsAboutBottom: 19px;
 
 contactsSortButton: IconButton(defaultIconButton) {
 	width: 48px;
@@ -174,8 +160,6 @@ contactsSortButton: IconButton(defaultIconButton) {
 contactsSortOnlineIcon: icon{{ "contacts_online", boxTitleCloseFg }};
 contactsSortOnlineIconOver: icon{{ "contacts_online", boxTitleCloseFgOver }};
 
-contactsMarginTop: 4px;
-contactsMarginBottom: 4px;
 membersMarginTop: 10px;
 membersMarginBottom: 10px;
 
@@ -334,8 +318,6 @@ setupChannelLink: InputField(defaultInputField) {
 	heightMin: 32px;
 }
 
-newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
-
 themeWarningWidth: boxWideWidth;
 themeWarningHeight: 150px;
 themeWarningTextTop: 60px;
@@ -356,8 +338,6 @@ aboutLabel: FlatLabel(defaultFlatLabel) {
 	}
 }
 
-autoDownloadTopDelta: 10px;
-autoDownloadTitlePosition: point(22px, 18px);
 autoDownloadTitleFont: font(15px semibold);
 autoDownloadLimitSlider: MediaSlider(defaultContinuousSlider) {
 	seekSize: size(15px, 15px);
@@ -368,11 +348,8 @@ confirmCaptionArea: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 31px, 4px);
 	heightMax: 158px;
 }
-confirmEditCaptionAreaHeightMax: 78px;
 confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
-confirmMaxHeightSkip: 25px;
-confirmCompressedSkip: 10px;
 
 supportInfoField: InputField(defaultInputField) {
 	heightMax: 256px;
@@ -415,9 +392,6 @@ sendMediaPreviewHeightMax: 1280;
 sendMediaRowSkip: 10px;
 
 editMediaButtonSize: 32px;
-editMediaButtonSkip: 5px;
-editMediaButtonFileSkipRight: 1px;
-editMediaButtonFileSkipTop: 7px;
 
 editMediaButtonIconFile: icon {{ "send_media/send_media_replace", menuIconFg }};
 editMediaButton: IconButton(defaultIconButton) {
@@ -546,12 +520,8 @@ passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
 
-defaultBoxLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 272px;
-}
 usernamePadding: margins(24px, 2px, 24px, 10px);
 usernameSkip: 44px;
-usernameTextStyle: defaultTextStyle;
 usernameDefaultFg: windowSubTextFg;
 
 editMediaLabelMargins: margins(0px, 11px, 0px, 0px);
@@ -619,7 +589,6 @@ adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
 	margin: margins(8px, 6px, 8px, 6px);
 	checkPosition: point(8px, 6px);
 }
-
 rightsCheckbox: Checkbox(defaultCheckbox) {
 	textPosition: point(10px, 1px);
 	rippleBg: attentionButtonBgOver;
@@ -634,9 +603,17 @@ rightsToggle: Toggle(defaultToggle) {
 	stroke: 2px;
 	duration: 120;
 }
-rightsDividerHeight: boxDividerHeight;
+
+rightsButton: SettingsButton(defaultSettingsButton) {
+	padding: margins(22px, 8px, 22px, 8px);
+
+	toggle: rightsToggle;
+	toggleOver: rightsToggle;
+	toggleSkip: 20px;
+}
+rightsButtonToggleWidth: 70px;
 rightsDividerMargin: margins(0px, 0px, 0px, 20px);
-rightsHeaderMargin: margins(22px, 0px, 22px, 8px);
+rightsHeaderMargin: margins(22px, 13px, 22px, 7px);
 rightsToggleMargin: margins(22px, 8px, 22px, 8px);
 rightsAboutMargin: margins(22px, 8px, 22px, 8px);
 rightsPhotoButton: UserpicButton(defaultUserpicButton) {
@@ -662,19 +639,6 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 rightsUntilMargin: margins(0px, 8px, 0px, 20px);
 rightsRankMargin: margins(0px, 7px, 0px, 20px);
 
-mutePhotoButton: UserpicButton(defaultUserpicButton) {
-	size: size(40px, 40px);
-	photoSize: 40px;
-}
-muteChatTitle: FlatLabel(boxLabel) {
-	minWidth: 235px;
-	maxHeight: 20px;  // block word wrap
-	style: TextStyle(boxTextStyle) {
-		font: font(boxFontSize semibold);
-	}
-}
-muteChatTitleLeft: 50px;
-
 groupStickersRemove: defaultMultiSelectSearchCancel;
 groupStickersRemovePosition: point(6px, 6px);
 groupStickersFieldPadding: margins(8px, 6px, 8px, 6px);
@@ -696,7 +660,6 @@ proxyRowSkip: 2px;
 proxyRowRipple: RippleAnimation(defaultRippleAnimation) {
 	color: windowBgOver;
 }
-proxyRowSelectedIcon: icon {{ "passport_ready", windowActiveTextFg }};
 proxyRowTitleFg: windowFg;
 proxyRowTitlePalette: TextPalette(defaultTextPalette) {
 	linkFg: windowSubTextFg;
@@ -710,20 +673,6 @@ proxyRowStatusFg: windowSubTextFg;
 proxyRowStatusFgOnline: windowActiveTextFg;
 proxyRowStatusFgOffline: boxTextFgError;
 proxyRowStatusFgAvailable: boxTextFgGood;
-proxyRowEdit: IconButton(defaultIconButton) {
-	width: 40px;
-	height: 40px;
-
-	icon: icon {{ "settings/settings_edit_name", menuIconFg }};
-	iconOver: icon {{ "settings/settings_edit_name", menuIconFgOver }};
-	iconPosition: point(12px, 13px);
-
-	rippleAreaSize: 40px;
-	rippleAreaPosition: point(0px, 0px);
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
 
 proxyEditTitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -763,7 +712,6 @@ termsPadding: margins(22px, 4px, 16px, 16px);
 termsAgePadding: margins(22px, 16px, 16px, 0px);
 
 themesSmallSkip: 10px;
-themesBackgroundSize: 120px;
 themesMenuToggle: IconButton(defaultIconButton) {
 	width: 44px;
 	height: 44px;
@@ -809,10 +757,6 @@ createPollSolutionField: InputField(createPollField) {
 	border: 1px;
 	borderActive: 2px;
 }
-createPollLimitLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 274px;
-	align: align(topleft);
-}
 createPollLimitPadding: margins(22px, 10px, 22px, 16px);
 createPollOptionRemove: CrossButton {
 	width: 22px;
@@ -845,19 +789,6 @@ createPollWarningPosition: point(16px, 6px);
 createPollCheckboxMargin: margins(22px, 10px, 22px, 10px);
 createPollFieldTitlePadding: margins(22px, 7px, 10px, 6px);
 
-callSettingsButton: IconButton {
-	width: 50px;
-	height: boxTitleHeight;
-	icon: icon {{ "menu_settings", boxTitleCloseFg }};
-	iconOver: icon {{ "menu_settings", boxTitleCloseFgOver }};
-	iconPosition: point(8px, -1px);
-	rippleAreaSize: 44px;
-	rippleAreaPosition: point(0px, 6px);
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
-
 backgroundCheckbox: Checkbox(defaultCheckbox) {
 	textFg: msgServiceFg;
 	textFgActive: msgServiceFg;
@@ -887,9 +818,6 @@ backgroundCheck: ServiceCheck {
 urlAuthCheckbox: Checkbox(defaultBoxCheckbox) {
 	width: 240px;
 }
-
-linkedChatAbout: membersAbout;
-linkedChatAboutPadding: margins(20px, 20px, 20px, 20px);
 
 addContactFieldMargin: margins(19px, 0px, 19px, 10px);
 addContactWarningMargin: margins(19px, 10px, 19px, 5px);

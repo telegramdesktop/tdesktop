@@ -166,7 +166,10 @@ public:
 	[[nodiscard]] rpl::producer<Seeking> seekingChanges(
 		AudioMsgId::Type type) const;
 
-	[[nodiscard]] bool pauseGifByRoundVideo() const;
+	[[nodiscard]] rpl::producer<> closePlayerRequests() const {
+		return _closePlayerRequests.events();
+	}
+	void stopAndClose();
 
 private:
 	using SharedMediaType = Storage::SharedMediaType;
@@ -312,6 +315,7 @@ private:
 	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;
 	rpl::event_stream<TrackState> _updatedNotifier;
 	rpl::event_stream<SeekingChanges> _seekingChanges;
+	rpl::event_stream<> _closePlayerRequests;
 	rpl::lifetime _lifetime;
 
 };

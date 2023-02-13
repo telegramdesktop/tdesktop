@@ -138,8 +138,6 @@ void PlayButtonLayout::paintPlayToPause(QPainter &p, const QBrush &brush, float6
 }
 
 void PlayButtonLayout::paintPlayToCancel(QPainter &p, const QBrush &brush, float64 progress) {
-	static const auto sqrt2 = sqrt(2.);
-
 	auto playLeft = 0. + _st.playPosition.x();
 	auto playTop = 0. + _st.playPosition.y();
 	auto playWidth = _st.playOuter.width() - 2 * playLeft;
@@ -149,7 +147,7 @@ void PlayButtonLayout::paintPlayToCancel(QPainter &p, const QBrush &brush, float
 	auto cancelTop = 0. + _st.cancelPosition.y();
 	auto cancelWidth = _st.cancelOuter.width() - 2 * cancelLeft;
 	auto cancelHeight = _st.cancelOuter.height() - 2 * cancelTop;
-	auto cancelStroke = (0. + _st.cancelStroke) / sqrt2;
+	auto cancelStroke = (0. + _st.cancelStroke) / M_SQRT2;
 
 	p.setPen(Qt::NoPen);
 	PainterHighQualityEnabler hq(p);
@@ -186,8 +184,6 @@ void PlayButtonLayout::paintPlayToCancel(QPainter &p, const QBrush &brush, float
 }
 
 void PlayButtonLayout::paintPauseToCancel(QPainter &p, const QBrush &brush, float64 progress) {
-	static const auto sqrt2 = sqrt(2.);
-
 	auto pauseLeft = 0. + _st.pausePosition.x();
 	auto pauseTop = 0. + _st.pausePosition.y();
 	auto pauseWidth = _st.pauseOuter.width() - 2 * pauseLeft;
@@ -198,7 +194,7 @@ void PlayButtonLayout::paintPauseToCancel(QPainter &p, const QBrush &brush, floa
 	auto cancelTop = 0. + _st.cancelPosition.y();
 	auto cancelWidth = _st.cancelOuter.width() - 2 * cancelLeft;
 	auto cancelHeight = _st.cancelOuter.height() - 2 * cancelTop;
-	auto cancelStroke = (0. + _st.cancelStroke) / sqrt2;
+	auto cancelStroke = (0. + _st.cancelStroke) / M_SQRT2;
 
 	p.setPen(Qt::NoPen);
 	PainterHighQualityEnabler hq(p);

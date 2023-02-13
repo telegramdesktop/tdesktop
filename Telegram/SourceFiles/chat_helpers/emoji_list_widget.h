@@ -31,6 +31,7 @@ struct phrase;
 
 namespace Ui {
 class RippleAnimation;
+class TabbedSearch;
 } // namespace Ui
 
 namespace Ui::Emoji {
@@ -67,6 +68,7 @@ enum class EmojiListMode {
 	EmojiStatus,
 	FullReactions,
 	RecentReactions,
+	UserpicBuilder,
 };
 
 struct EmojiListDescriptor {
@@ -101,6 +103,9 @@ public:
 	void clearSelection() override;
 	object_ptr<TabbedSelector::InnerFooter> createFooter() override;
 
+	void afterShown() override;
+	void beforeHiding() override;
+
 	void showSet(uint64 setId);
 	[[nodiscard]] uint64 currentSet(int yOffset) const;
 	void setAllowWithoutPremium(bool allow);
@@ -118,6 +123,7 @@ public:
 
 	void provideRecent(const std::vector<DocumentId> &customRecentList);
 
+	void prepareExpanding();
 	void paintExpanding(
 		QPainter &p,
 		QRect clip,
@@ -162,6 +168,7 @@ private:
 	struct CustomOne {
 		not_null<Ui::Text::CustomEmoji*> custom;
 		not_null<DocumentData*> document;
+		EmojiPtr emoji = nullptr;
 	};
 	struct CustomSet {
 		uint64 id = 0;
@@ -243,6 +250,9 @@ private:
 	void unloadAllCustom();
 	void unloadCustomIn(const SectionInfo &info);
 
+	void setupSearch();
+	[[nodiscard]] std::vector<EmojiPtr> collectPlainSearchResults();
+	void appendPremiumSearchResults();
 	void ensureLoaded(int section);
 	void updateSelected();
 	void setSelected(OverState newSelected);
@@ -267,7 +277,7 @@ private:
 		QPainter &p,
 		const ExpandingContext &context,
 		QPoint position,
-		int index);
+		const RecentOne &recent);
 	void drawEmoji(
 		QPainter &p,
 		const ExpandingContext &context,
@@ -307,7 +317,6 @@ private:
 	void displaySet(uint64 setId);
 	void removeSet(uint64 setId);
 
-	void refreshColoredStatuses();
 	void initButton(RightButton &button, const QString &text, bool gradient);
 	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
 		int section);
@@ -328,8 +337,11 @@ private:
 		DocumentId documentId,
 		uint64 setId);
 
+	void applyNextSearchQuery();
+
 	Window::SessionController *_controller = nullptr;
 	Mode _mode = Mode::Full;
+	std::unique_ptr<Ui::TabbedSearch> _search;
 	const int _staticCount = 0;
 	StickersListFooter *_footer = nullptr;
 	std::unique_ptr<GradientPremiumStar> _premiumIcon;
@@ -354,7 +366,17 @@ private:
 	int _customSingleSize = 0;
 	bool _allowWithoutPremium = false;
 	Ui::RoundRect _overBg;
+	QImage _searchExpandCache;
 
+	std::vector<QString> _nextSearchQuery;
+	std::vector<QString> _searchQuery;
+	base::flat_set<EmojiPtr> _searchEmoji;
+	base::flat_set<EmojiPtr> _searchEmojiPrevious;
+	base::flat_set<DocumentId> _searchCustomIds;
+	std::vector<RecentOne> _searchResults;
+	bool _searchMode = false;
+
+	int _rowsTop = 0;
 	int _rowsLeft = 0;
 	int _columnCount = 1;
 	QSize _singleSize;

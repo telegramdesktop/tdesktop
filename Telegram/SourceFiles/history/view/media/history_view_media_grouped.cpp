@@ -759,7 +759,10 @@ void GroupedMedia::unloadHeavyPart() {
 }
 
 void GroupedMedia::parentTextUpdated() {
-	history()->owner().requestViewResize(_parent);
+	if (_parent->media() == this) {
+		refreshCaption();
+		history()->owner().requestViewResize(_parent);
+	}
 }
 
 bool GroupedMedia::needsBubble() const {

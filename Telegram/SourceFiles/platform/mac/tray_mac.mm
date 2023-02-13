@@ -222,11 +222,6 @@ void UpdateIcon(const NSStatusItem *status) {
 	status.button.imageScaling = NSImageScaleProportionallyDown;
 }
 
-[[nodiscard]] QWidget *Parent() {
-	Expects(Core::App().primaryWindow() != nullptr);
-	return Core::App().primaryWindow()->widget();
-}
-
 } // namespace
 
 class NativeIcon final {
@@ -365,7 +360,7 @@ void Tray::updateIcon() {
 
 void Tray::createMenu() {
 	if (!_menu) {
-		_menu = base::make_unique_q<QMenu>(Parent());
+		_menu = base::make_unique_q<QMenu>(nullptr);
 	}
 }
 

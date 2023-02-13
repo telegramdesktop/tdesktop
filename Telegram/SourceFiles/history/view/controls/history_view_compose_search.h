@@ -24,11 +24,13 @@ public:
 	ComposeSearch(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> window,
-		not_null<History*> history);
+		not_null<History*> history,
+		const QString &query = QString());
 	~ComposeSearch();
 
 	void hideAnimated();
 	void setInnerFocus();
+	void setQuery(const QString &query);
 
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
 

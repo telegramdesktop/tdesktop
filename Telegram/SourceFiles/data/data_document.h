@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_location.h"
 #include "ui/image/image.h"
 
+enum class ChatRestriction;
 class mtpFileLoader;
 
 namespace Images {
@@ -125,6 +126,8 @@ public:
 	[[nodiscard]] bool uploading() const;
 	[[nodiscard]] bool loadedInMediaCache() const;
 	void setLoadedInMediaCache(bool loaded);
+
+	[[nodiscard]] ChatRestriction requiredSendRight() const;
 
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;

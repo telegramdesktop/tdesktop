@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "mainwidget.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "inline_bots/bot_attach_web_view.h"
@@ -112,9 +113,9 @@ bool ShowTheme(
 	return true;
 }
 
-void ShowLanguagesBox() {
+void ShowLanguagesBox(Window::SessionController *controller) {
 	static auto Guard = base::binary_guard();
-	Guard = LanguageBox::Show();
+	Guard = LanguageBox::Show(controller);
 }
 
 bool SetLanguage(
@@ -122,7 +123,7 @@ bool SetLanguage(
 		const Match &match,
 		const QVariant &context) {
 	if (match->capturedView(1).isEmpty()) {
-		ShowLanguagesBox();
+		ShowLanguagesBox(controller);
 	} else {
 		const auto languageId = match->captured(2);
 		Lang::CurrentCloudManager().switchWithWarning(languageId);
@@ -467,18 +468,12 @@ bool ResolveSettings(
 		Window::SessionController *controller,
 		const Match &match,
 		const QVariant &context) {
-	if (!controller) {
-		return false;
-	}
-	controller->window().activate();
 	const auto section = match->captured(1).mid(1).toLower();
-
 	const auto type = [&]() -> std::optional<::Settings::Type> {
 		if (section == u"language"_q) {
-			ShowLanguagesBox();
+			ShowLanguagesBox(controller);
 			return {};
 		} else if (section == u"devices"_q) {
-			controller->session().api().authorizations().reload();
 			return ::Settings::Sessions::Id();
 		} else if (section == u"folders"_q) {
 			return ::Settings::Folders::Id();
@@ -497,6 +492,11 @@ bool ResolveSettings(
 	}();
 
 	if (type.has_value()) {
+		if (!controller) {
+			return false;
+		} else if (*type == ::Settings::Sessions::Id()) {
+			controller->session().api().authorizations().reload();
+		}
 		controller->showSettings(*type);
 		controller->window().activate();
 	}
@@ -798,12 +798,13 @@ bool ResolveLoginCode(
 		const Match &match,
 		const QVariant &context) {
 	const auto loginCode = match->captured(2);
-	if (loginCode.isEmpty()) {
+	const auto &domain = Core::App().domain();
+	if (loginCode.isEmpty() || (!controller && !domain.started())) {
 		return false;
 	};
 	(controller
 		? controller->session().account()
-		: Core::App().activeAccount()).handleLoginCode(loginCode);
+		: domain.active()).handleLoginCode(loginCode);
 	if (controller) {
 		controller->window().activate();
 	} else if (const auto window = Core::App().activeWindow()) {

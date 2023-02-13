@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
+#include "history/history.h"
 #include "history/history_item_reply_markup.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
@@ -367,7 +368,7 @@ bool Result::hasThumbDisplay() const {
 };
 
 void Result::addToHistory(
-		History *history,
+		not_null<History*> history,
 		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
@@ -394,8 +395,13 @@ void Result::addToHistory(
 		std::move(markup));
 }
 
-QString Result::getErrorOnSend(History *history) const {
-	return sendData->getErrorOnSend(this, history);
+QString Result::getErrorOnSend(not_null<History*> history) const {
+	const auto specific = sendData->getErrorOnSend(this, history);
+	return !specific.isEmpty()
+		? specific
+		: Data::RestrictionError(
+			history->peer,
+			ChatRestriction::SendInline).value_or(QString());
 }
 
 std::optional<Data::LocationPoint> Result::getLocationPoint() const {

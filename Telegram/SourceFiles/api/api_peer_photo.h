@@ -28,21 +28,36 @@ public:
 	using UserPhotoId = PhotoId;
 	explicit PeerPhoto(not_null<ApiWrap*> api);
 
+	enum class EmojiListType {
+		Profile,
+		Group,
+	};
+
+	struct UserPhoto {
+		QImage image;
+		DocumentId markupDocumentId = 0;
+		std::vector<QColor> markupColors;
+	};
+
 	void upload(
 		not_null<PeerData*> peer,
-		QImage &&image,
+		UserPhoto &&photo,
 		Fn<void()> done = nullptr);
-	void uploadFallback(not_null<PeerData*> peer, QImage &&image);
+	void uploadFallback(not_null<PeerData*> peer, UserPhoto &&photo);
 	void updateSelf(
 		not_null<PhotoData*> photo,
 		Data::FileOrigin origin,
 		Fn<void()> done = nullptr);
-	void suggest(not_null<PeerData*> peer, QImage &&image);
+	void suggest(not_null<PeerData*> peer, UserPhoto &&photo);
 	void clear(not_null<PhotoData*> photo);
 	void clearPersonal(not_null<UserData*> user);
 	void set(not_null<PeerData*> peer, not_null<PhotoData*> photo);
 
 	void requestUserPhotos(not_null<UserData*> user, UserPhotoId afterId);
+
+	void requestEmojiList(EmojiListType type);
+	using EmojiList = std::vector<DocumentId>;
+	[[nodiscard]] rpl::producer<EmojiList> emojiListValue(EmojiListType type);
 
 	// Non-personal photo in case a personal photo is set.
 	void registerNonPersonalPhoto(
@@ -59,10 +74,13 @@ private:
 		Fallback,
 	};
 
-	void ready(const FullMsgId &msgId, const MTPInputFile &file);
+	void ready(
+		const FullMsgId &msgId,
+		std::optional<MTPInputFile> file,
+		std::optional<MTPVideoSize> videoSize);
 	void upload(
 		not_null<PeerData*> peer,
-		QImage &&image,
+		UserPhoto &&photo,
 		UploadType type,
 		Fn<void()> done);
 
@@ -82,6 +100,10 @@ private:
 	base::flat_map<
 		not_null<UserData*>,
 		not_null<PhotoData*>> _nonPersonalPhotos;
+
+	mtpRequestId _requestIdEmojiList = 0;
+	rpl::variable<EmojiList> _profileEmojiList;
+	rpl::variable<EmojiList> _groupEmojiList;
 
 };
 

@@ -13,9 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 namespace Ui {
-namespace {
-
-} // namespace
 
 EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st)
 : RippleButton(parent, st.ripple)

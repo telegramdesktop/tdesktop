@@ -460,10 +460,6 @@ bool Media::forceForwardedInfo() const {
 	return false;
 }
 
-QString Media::errorTextForForward(not_null<PeerData*> peer) const {
-	return QString();
-}
-
 bool Media::hasSpoiler() const {
 	return false;
 }
@@ -659,6 +655,8 @@ ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
 	const auto type = tr::lng_in_dlg_photo(tr::now);
 	const auto caption = options.hideCaption
 		? TextWithEntities()
+		: options.translated
+		? parent()->translatedText()
 		: parent()->originalText();
 	const auto hasMiniImages = !images.empty();
 	return {
@@ -684,13 +682,6 @@ bool MediaPhoto::allowsEditCaption() const {
 
 bool MediaPhoto::allowsEditMedia() const {
 	return true;
-}
-
-QString MediaPhoto::errorTextForForward(not_null<PeerData*> peer) const {
-	return Data::RestrictionError(
-		peer,
-		ChatRestriction::SendMedia
-	).value_or(QString());
 }
 
 bool MediaPhoto::hasSpoiler() const {
@@ -910,6 +901,8 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	}();
 	const auto caption = options.hideCaption
 		? TextWithEntities()
+		: options.translated
+		? parent()->translatedText()
 		: parent()->originalText();
 	const auto hasMiniImages = !images.empty();
 	return {
@@ -1038,46 +1031,6 @@ bool MediaFile::forwardedBecomesUnread() const {
 
 bool MediaFile::dropForwardedInfo() const {
 	return _document->isSong();
-}
-
-QString MediaFile::errorTextForForward(not_null<PeerData*> peer) const {
-	if (const auto sticker = _document->sticker()) {
-		if (const auto error = Data::RestrictionError(
-				peer,
-				ChatRestriction::SendStickers)) {
-			return *error;
-		}
-	} else if (_document->isAnimation()) {
-		if (_document->isVideoMessage()) {
-			if (const auto error = Data::RestrictionError(
-					peer,
-					ChatRestriction::SendMedia)) {
-				return *error;
-			}
-			if (const auto error = Data::RestrictionError(
-					peer,
-					UserRestriction::SendVideoMessages)) {
-				return *error;
-			}
-		} else {
-			if (const auto error = Data::RestrictionError(
-					peer,
-					ChatRestriction::SendGifs)) {
-				return *error;
-			}
-		}
-	} else if (const auto error = Data::RestrictionError(
-			peer,
-			ChatRestriction::SendMedia)) {
-		return *error;
-	} else if (_document->isVoiceMessage()) {
-		if (const auto error = Data::RestrictionError(
-				peer,
-				UserRestriction::SendVoiceMessages)) {
-			return *error;
-		}
-	}
-	return QString();
 }
 
 bool MediaFile::hasSpoiler() const {
@@ -1301,7 +1254,7 @@ ItemPreview MediaLocation::toPreview(ToPreviewOptions options) const {
 TextWithEntities MediaLocation::notificationText() const {
 	return WithCaptionNotificationText(
 		tr::lng_maps_point(tr::now),
-		{ .text = _title});
+		{ .text = _title });
 }
 
 QString MediaLocation::pinnedTextSubstring() const {
@@ -1323,7 +1276,7 @@ TextForMimeData MediaLocation::clipboardText() const {
 	if (!descriptionResult.text.isEmpty()) {
 		result.append(std::move(descriptionResult));
 	}
-	result.append(LocationClickHandler(_point).dragText());
+	result.append(LocationClickHandler(_point).url());
 	return result;
 }
 
@@ -1489,7 +1442,10 @@ bool MediaWebPage::replyPreviewLoaded() const {
 }
 
 ItemPreview MediaWebPage::toPreview(ToPreviewOptions options) const {
-	return { .text = notificationText() };
+	return { .text = options.translated
+		? parent()->translatedText()
+		: parent()->originalText()
+	};
 }
 
 TextWithEntities MediaWebPage::notificationText() const {
@@ -1587,13 +1543,6 @@ QString MediaGame::pinnedTextSubstring() const {
 
 TextForMimeData MediaGame::clipboardText() const {
 	return TextForMimeData();
-}
-
-QString MediaGame::errorTextForForward(not_null<PeerData*> peer) const {
-	return Data::RestrictionError(
-		peer,
-		ChatRestriction::SendGames
-	).value_or(QString());
 }
 
 bool MediaGame::dropForwardedInfo() const {
@@ -1773,16 +1722,6 @@ TextForMimeData MediaPoll::clipboardText() const {
 	return TextForMimeData::Simple(text);
 }
 
-QString MediaPoll::errorTextForForward(not_null<PeerData*> peer) const {
-	if (_poll->publicVotes() && peer->isChannel() && !peer->isMegagroup()) {
-		return tr::lng_restricted_send_public_polls(tr::now);
-	}
-	return Data::RestrictionError(
-		peer,
-		ChatRestriction::SendPolls
-	).value_or(QString());
-}
-
 bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -1888,7 +1827,7 @@ ClickHandlerPtr MediaDice::MakeHandler(
 			.durationMs = Ui::Toast::kDefaultDuration * 2,
 			.multiline = true,
 		};
-		if (history->peer->canWrite()) {
+		if (Data::CanSend(history->peer, ChatRestriction::SendOther)) {
 			auto link = Ui::Text::Link(
 				tr::lng_about_random_send(tr::now).toUpper());
 			link.entities.push_back(

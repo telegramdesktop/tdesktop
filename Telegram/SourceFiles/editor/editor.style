@@ -54,14 +54,12 @@ photoEditorRotateButton: IconButton(defaultIconButton) {
 	width: photoEditorButtonBarHeight;
 	height: photoEditorButtonBarHeight;
 
-	icon: icon {{ "photo_editor/rotate", photoEditorButtonIconFg }};
-	iconOver: icon {{ "photo_editor/rotate", photoEditorButtonIconFgOver }};
+	icon: icon {{ "photo_editor/rotate-flip_horizontal", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/rotate-flip_horizontal", photoEditorButtonIconFgOver }};
 
 	rippleAreaPosition: point(4px, 4px);
 	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: shadowFg;
-	}
+	ripple: universalRippleAnimation;
 }
 photoEditorFlipButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/flip", photoEditorButtonIconFg }};

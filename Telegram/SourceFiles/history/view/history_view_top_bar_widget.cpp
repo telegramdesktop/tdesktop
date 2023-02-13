@@ -1038,8 +1038,8 @@ void TopBarWidget::updateControlsVisibility() {
     const auto& domain = Core::App().domain().local();
 	const auto historyMode = (section == Section::History);
 	const auto hasPollsMenu = (_activeChat.key.peer()
-    		&& _activeChat.key.peer()->canSendPolls())
-		|| (topic && topic->canSendPolls());
+    		&& _activeChat.key.peer()->canCreatePolls())
+		|| (topic && Data::CanSend(topic, ChatRestriction::SendPolls));
 	const auto hasFakeMenu = !domain.IsFake() && domain.hasLocalPasscode();
 	const auto hasTopicMenu = [&] {
 		if (!topic || section != Section::Replies) {
@@ -1322,6 +1322,10 @@ bool TopBarWidget::searchSetFocus() {
 	}
 	_searchField->setFocus();
 	return true;
+}
+
+bool TopBarWidget::searchMode() const {
+	return _searchMode;
 }
 
 bool TopBarWidget::searchHasFocus() const {

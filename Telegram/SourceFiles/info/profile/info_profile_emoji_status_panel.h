@@ -41,7 +41,6 @@ public:
 	~EmojiStatusPanel();
 
 	void setChooseFilter(Fn<bool(DocumentId)> filter);
-	void setChooseCallback(Fn<void(DocumentId)> callback);
 
 	void show(
 		not_null<Window::SessionController*> controller,
@@ -64,7 +63,6 @@ private:
 
 	base::unique_qptr<ChatHelpers::TabbedPanel> _panel;
 	Fn<bool(DocumentId)> _chooseFilter;
-	Fn<void(DocumentId)> _chooseCallback;
 	QPointer<QWidget> _panelButton;
 	std::unique_ptr<Ui::EmojiFlyAnimation> _animation;
 	Data::CustomEmojiSizeTag _animationSizeTag = {};

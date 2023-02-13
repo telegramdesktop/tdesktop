@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/random.h"
 #include "base/unixtime.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
@@ -32,7 +34,7 @@ namespace {
 
 constexpr auto kSharedMediaLimit = 100;
 
-SendMediaReady PreparePeerPhoto(
+[[nodiscard]] SendMediaReady PreparePeerPhoto(
 		MTP::DcId dcId,
 		PeerId peerId,
 		QImage &&image) {
@@ -99,6 +101,57 @@ SendMediaReady PreparePeerPhoto(
 		0);
 }
 
+[[nodiscard]] std::optional<MTPVideoSize> PrepareMtpMarkup(
+		not_null<Main::Session*> session,
+		const PeerPhoto::UserPhoto &d) {
+	const auto &documentId = d.markupDocumentId;
+	const auto &colors = d.markupColors;
+	if (!documentId || colors.empty()) {
+		return std::nullopt;
+	}
+	const auto document = session->data().document(documentId);
+	if (const auto sticker = document->sticker()) {
+		if (sticker->isStatic()) {
+			return std::nullopt;
+		}
+		const auto serializeColor = [](const QColor &color) {
+			return (quint32(std::clamp(color.red(), 0, 255)) << 16)
+				| (quint32(std::clamp(color.green(), 0, 255)) << 8)
+				| quint32(std::clamp(color.blue(), 0, 255));
+        };
+
+		auto mtpColors = QVector<MTPint>();
+		mtpColors.reserve(colors.size());
+		ranges::transform(
+			colors,
+			ranges::back_inserter(mtpColors),
+			[&](const QColor &c) { return MTP_int(serializeColor(c)); });
+		if (sticker->setType == Data::StickersType::Emoji) {
+			return MTP_videoSizeEmojiMarkup(
+				MTP_long(document->id),
+				MTP_vector(mtpColors));
+		} else if (sticker->set.id && sticker->set.accessHash) {
+			return MTP_videoSizeStickerMarkup(
+				MTP_inputStickerSetID(
+					MTP_long(sticker->set.id),
+					MTP_long(sticker->set.accessHash)),
+				MTP_long(document->id),
+				MTP_vector(mtpColors));
+		} else if (!sticker->set.shortName.isEmpty()) {
+			return MTP_videoSizeStickerMarkup(
+				MTP_inputStickerSetShortName(
+					MTP_string(sticker->set.shortName)),
+				MTP_long(document->id),
+				MTP_vector(mtpColors));
+		} else {
+			return MTP_videoSizeEmojiMarkup(
+				MTP_long(document->id),
+				MTP_vector(mtpColors));
+		}
+	}
+	return std::nullopt;
+}
+
 } // namespace
 
 PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
@@ -109,20 +162,20 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 		// only queued, because it is not constructed yet.
 		_session->uploader().photoReady(
 		) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
-			ready(data.fullId, data.info.file);
+			ready(data.fullId, data.info.file, std::nullopt);
 		}, _session->lifetime());
 	});
 }
 
 void PeerPhoto::upload(
 		not_null<PeerData*> peer,
-		QImage &&image,
+		UserPhoto &&photo,
 		Fn<void()> done) {
-	upload(peer, std::move(image), UploadType::Default, std::move(done));
+	upload(peer, std::move(photo), UploadType::Default, std::move(done));
 }
 
-void PeerPhoto::uploadFallback(not_null<PeerData*> peer, QImage &&image) {
-	upload(peer, std::move(image), UploadType::Fallback, nullptr);
+void PeerPhoto::uploadFallback(not_null<PeerData*> peer, UserPhoto &&photo) {
+	upload(peer, std::move(photo), UploadType::Fallback, nullptr);
 }
 
 void PeerPhoto::updateSelf(
@@ -159,14 +212,11 @@ void PeerPhoto::updateSelf(
 
 void PeerPhoto::upload(
 		not_null<PeerData*> peer,
-		QImage &&image,
+		UserPhoto &&photo,
 		UploadType type,
 		Fn<void()> done) {
 	peer = peer->migrateToOrMe();
-	const auto ready = PreparePeerPhoto(
-		_api.instance().mainDcId(),
-		peer->id,
-		std::move(image));
+	const auto mtpMarkup = PrepareMtpMarkup(_session, photo);
 
 	const auto fakeId = FullMsgId(
 		peer->id,
@@ -182,11 +232,19 @@ void PeerPhoto::upload(
 	_uploads.emplace(
 		fakeId,
 		UploadValue{ peer, type, std::move(done) });
-	_session->uploader().uploadMedia(fakeId, ready);
+	if (mtpMarkup) {
+		ready(fakeId, std::nullopt, mtpMarkup);
+	} else {
+		const auto ready = PreparePeerPhoto(
+			_api.instance().mainDcId(),
+			peer->id,
+			base::take(photo.image));
+		_session->uploader().uploadMedia(fakeId, ready);
+	}
 }
 
-void PeerPhoto::suggest(not_null<PeerData*> peer, QImage &&image) {
-	upload(peer, std::move(image), UploadType::Suggestion, nullptr);
+void PeerPhoto::suggest(not_null<PeerData*> peer, UserPhoto &&photo) {
+	upload(peer, std::move(photo), UploadType::Suggestion, nullptr);
 }
 
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
@@ -240,7 +298,8 @@ void PeerPhoto::clearPersonal(not_null<UserData*> user) {
 		user->inputUser,
 		MTPInputFile(),
 		MTPInputFile(), // video
-		MTPdouble() // video_start_ts
+		MTPdouble(), // video_start_ts
+		MTPVideoSize() // video_emoji_markup
 	)).done([=](const MTPphotos_Photo &result) {
 		result.match([&](const MTPDphotos_photo &data) {
 			_session->data().processPhoto(data.vphoto());
@@ -287,7 +346,10 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 	}
 }
 
-void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
+void PeerPhoto::ready(
+		const FullMsgId &msgId,
+		std::optional<MTPInputFile> file,
+		std::optional<MTPVideoSize> videoSize) {
 	const auto maybeUploadValue = _uploads.take(msgId);
 	if (!maybeUploadValue) {
 		return;
@@ -302,14 +364,16 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 		}
 	};
 	if (peer->isSelf()) {
+		using Flag = MTPphotos_UploadProfilePhoto::Flag;
+		const auto none = MTPphotos_UploadProfilePhoto::Flags(0);
 		_api.request(MTPphotos_UploadProfilePhoto(
-			MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file
-				| ((type == UploadType::Fallback)
-					? MTPphotos_UploadProfilePhoto::Flag::f_fallback
-					: MTPphotos_UploadProfilePhoto::Flags(0))),
-			file,
+			MTP_flags((file ? Flag::f_file : none)
+				| (videoSize ? Flag::f_video_emoji_markup : none)
+				| ((type == UploadType::Fallback) ? Flag::f_fallback : none)),
+			file ? (*file) : MTPInputFile(),
 			MTPInputFile(), // video
-			MTPdouble() // video_start_ts
+			MTPdouble(), // video_start_ts
+			videoSize ? (*videoSize) : MTPVideoSize() // video_emoji_markup
 		)).done([=](const MTPphotos_Photo &result) {
 			const auto photoId = _session->data().processPhoto(
 				result.data().vphoto())->id;
@@ -325,35 +389,46 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 		}).send();
 	} else if (const auto chat = peer->asChat()) {
 		const auto history = _session->data().history(chat);
+		using Flag = MTPDinputChatUploadedPhoto::Flag;
+		const auto none = MTPDinputChatUploadedPhoto::Flags(0);
 		history->sendRequestId = _api.request(MTPmessages_EditChatPhoto(
 			chat->inputChat,
 			MTP_inputChatUploadedPhoto(
-				MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
-				file,
+				MTP_flags((file ? Flag::f_file : none)
+					| (videoSize ? Flag::f_video_emoji_markup : none)),
+				file ? (*file) : MTPInputFile(),
 				MTPInputFile(), // video
-				MTPdouble()) // video_start_ts
+				MTPdouble(), // video_start_ts
+				videoSize ? (*videoSize) : MTPVideoSize()) // video_emoji_markup
 		)).done(applier).afterRequest(history->sendRequestId).send();
 	} else if (const auto channel = peer->asChannel()) {
+		using Flag = MTPDinputChatUploadedPhoto::Flag;
+		const auto none = MTPDinputChatUploadedPhoto::Flags(0);
 		const auto history = _session->data().history(channel);
 		history->sendRequestId = _api.request(MTPchannels_EditPhoto(
 			channel->inputChannel,
 			MTP_inputChatUploadedPhoto(
-				MTP_flags(MTPDinputChatUploadedPhoto::Flag::f_file),
-				file,
+				MTP_flags((file ? Flag::f_file : none)
+					| (videoSize ? Flag::f_video_emoji_markup : none)),
+				file ? (*file) : MTPInputFile(),
 				MTPInputFile(), // video
-				MTPdouble()) // video_start_ts
+				MTPdouble(), // video_start_ts
+				videoSize ? (*videoSize) : MTPVideoSize()) // video_emoji_markup
 		)).done(applier).afterRequest(history->sendRequestId).send();
 	} else if (const auto user = peer->asUser()) {
 		using Flag = MTPphotos_UploadContactProfilePhoto::Flag;
+		const auto none = MTPphotos_UploadContactProfilePhoto::Flags(0);
 		_api.request(MTPphotos_UploadContactProfilePhoto(
-			MTP_flags(Flag::f_file
+			MTP_flags((file ? Flag::f_file : none)
+				| (videoSize ? Flag::f_video_emoji_markup : none)
 				| ((type == UploadType::Suggestion)
 					? Flag::f_suggest
 					: Flag::f_save)),
 			user->inputUser,
-			file,
+			file ? (*file) : MTPInputFile(),
 			MTPInputFile(), // video
-			MTPdouble() // video_start_ts
+			MTPdouble(), // video_start_ts
+			videoSize ? (*videoSize) : MTPVideoSize() // video_emoji_markup
 		)).done([=](const MTPphotos_Photo &result) {
 			result.match([&](const MTPDphotos_photo &data) {
 				_session->data().processPhoto(data.vphoto());
@@ -422,6 +497,42 @@ void PeerPhoto::requestUserPhotos(
 		_userPhotosRequests.remove(user);
 	}).send();
 	_userPhotosRequests.emplace(user, requestId);
+}
+
+void PeerPhoto::requestEmojiList(EmojiListType type) {
+	if (_requestIdEmojiList) {
+		return;
+	}
+	const auto isGroup = (type == EmojiListType::Group);
+	const auto d = [=](const MTPEmojiList &result) {
+		_requestIdEmojiList = 0;
+		result.match([](const MTPDemojiListNotModified &data) {
+		}, [&](const MTPDemojiList &data) {
+			auto &list = isGroup ? _profileEmojiList : _groupEmojiList;
+			list = ranges::views::all(
+				data.vdocument_id().v
+			) | ranges::views::transform(&MTPlong::v) | ranges::to_vector;
+		});
+	};
+	const auto f = [=] { _requestIdEmojiList = 0; };
+	_requestIdEmojiList = isGroup
+		? _api.request(
+			MTPaccount_GetDefaultGroupPhotoEmojis()
+		).done(d).fail(f).send()
+		: _api.request(
+			MTPaccount_GetDefaultProfilePhotoEmojis()
+		).done(d).fail(f).send();
+}
+
+rpl::producer<PeerPhoto::EmojiList> PeerPhoto::emojiListValue(
+		EmojiListType type) {
+	auto &list = (type == EmojiListType::Group)
+		? _profileEmojiList
+		: _groupEmojiList;
+	if (list.current().empty() && !_requestIdEmojiList) {
+		requestEmojiList(type);
+	}
+	return list.value();
 }
 
 // Non-personal photo in case a personal photo is set.

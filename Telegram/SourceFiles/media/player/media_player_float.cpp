@@ -261,8 +261,8 @@ void Float::paintEvent(QPaintEvent *e) {
 		p.setPen(pen);
 		p.setOpacity(_opacity * st::historyVideoMessageProgressOpacity);
 
-		auto from = QuarterArcLength;
-		auto len = -qRound(FullArcLength * progress);
+		auto from = arc::kQuarterLength;
+		auto len = -qRound(arc::kFullLength * progress);
 		auto stepInside = st::radialLine / 2;
 		{
 			PainterHighQualityEnabler hq(p);

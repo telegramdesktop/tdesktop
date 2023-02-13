@@ -21,11 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h" // HistoryView::SelectedItem.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "mainwindow.h"
 #include "storage/storage_account.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 
@@ -76,7 +78,12 @@ void AddAction(
 		: &st::menuIconDownload;
 	const auto showToast = documents.empty();
 
+	const auto weak = base::make_weak(controller);
 	const auto saveImages = [=](const QString &folderPath) {
+		const auto controller = weak.get();
+		if (!controller) {
+			return;
+		}
 		const auto session = &controller->session();
 		const auto downloadPath = folderPath.isEmpty()
 			? Core::App().settings().downloadPath()
@@ -141,6 +148,10 @@ void AddAction(
 			saveDocuments(folderPath);
 			callback();
 		};
+		const auto controller = weak.get();
+		if (!controller) {
+			return;
+		}
 		if (Core::App().settings().askDownloadPath()) {
 			const auto initialPath = [] {
 				const auto path = Core::App().settings().downloadPath();
@@ -159,7 +170,7 @@ void AddAction(
 				}
 			};
 			FileDialog::GetFolder(
-				nullptr,
+				controller->window().widget().get(),
 				tr::lng_download_path_choose(tr::now),
 				initialPath,
 				handleFolder);

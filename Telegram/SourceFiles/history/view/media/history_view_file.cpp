@@ -117,13 +117,16 @@ void File::checkAnimationFinished() const {
 }
 void File::setDocumentLinks(
 		not_null<DocumentData*> document,
-		not_null<HistoryItem*> realParent) {
+		not_null<HistoryItem*> realParent,
+		Fn<bool()> openHook) {
 	const auto context = realParent->fullId();
 	setLinks(
 		std::make_shared<DocumentOpenClickHandler>(
 			document,
 			crl::guard(this, [=](FullMsgId id) {
-				_parent->delegate()->elementOpenDocument(document, id);
+				if (!openHook || !openHook()) {
+					_parent->delegate()->elementOpenDocument(document, id);
+				}
 			}),
 			context),
 		std::make_shared<DocumentSaveClickHandler>(document, context),

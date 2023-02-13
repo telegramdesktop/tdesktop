@@ -255,8 +255,17 @@ QString GeneratePermissionsChangeText(
 
 	static auto phraseMap = std::map<Flags, tr::phrase<>>{
 		{ Flag::ViewMessages, tr::lng_admin_log_banned_view_messages },
-		{ Flag::SendMessages, tr::lng_admin_log_banned_send_messages },
-		{ Flag::SendMedia, tr::lng_admin_log_banned_send_media },
+		{ Flag::SendOther, tr::lng_admin_log_banned_send_messages },
+		{ Flag::SendPhotos, tr::lng_admin_log_banned_send_photos },
+		{ Flag::SendVideos, tr::lng_admin_log_banned_send_videos },
+		{ Flag::SendMusic, tr::lng_admin_log_banned_send_music },
+		{ Flag::SendFiles, tr::lng_admin_log_banned_send_files },
+		{
+			Flag::SendVoiceMessages,
+			tr::lng_admin_log_banned_send_voice_messages },
+		{
+			Flag::SendVideoMessages,
+			tr::lng_admin_log_banned_send_video_messages },
 		{ Flag::SendStickers
 			| Flag::SendGifs
 			| Flag::SendInline

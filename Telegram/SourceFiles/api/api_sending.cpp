@@ -473,11 +473,11 @@ void SendConfirmedFile(
 		auto edition = HistoryMessageEdition();
 		edition.isEditHide = (flags & MessageFlag::HideEdited);
 		edition.editDate = 0;
-		edition.views = 0;
-		edition.forwards = 0;
 		edition.ttl = 0;
 		edition.mtpMedia = &media;
 		edition.textWithEntities = caption;
+		edition.useSameViews = true;
+		edition.useSameForwards = true;
 		edition.useSameMarkup = true;
 		edition.useSameReplies = true;
 		edition.useSameReactions = true;

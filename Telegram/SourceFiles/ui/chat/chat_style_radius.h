@@ -17,4 +17,4 @@ namespace Ui {
 
 extern const char kOptionUseSmallMsgBubbleRadius[];
 
-}
+} // namespace Ui

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_user.h"
 #include "data/data_chat.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "data/data_photo.h"
@@ -462,7 +463,7 @@ QString PeerData::computeUnavailableReason() const {
 // This is duplicated in CanPinMessagesValue().
 bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
-		return user->flags() & UserDataFlag::CanPinMessages;
+		return !user->amRestricted(ChatRestriction::PinMessages);
 	} else if (const auto chat = asChat()) {
 		return chat->amIn()
 			&& !chat->amRestricted(ChatRestriction::PinMessages);
@@ -473,6 +474,13 @@ bool PeerData::canPinMessages() const {
 				|| channel->adminRights() & ChatAdminRight::EditMessages));
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
+}
+
+bool PeerData::canCreatePolls() const {
+	if (const auto user = asUser()) {
+		return user->isBot() && !user->isSupport();
+	}
+	return Data::CanSend(this, ChatRestriction::SendPolls);
 }
 
 bool PeerData::canCreateTopics() const {
@@ -544,6 +552,32 @@ void PeerData::checkFolder(FolderId folderId) {
 			owner().histories().requestDialogEntry(history);
 		}
 	}
+}
+
+void PeerData::setTranslationDisabled(bool disabled) {
+	const auto flag = disabled
+		? TranslationFlag::Disabled
+		: TranslationFlag::Enabled;
+	if (_translationFlag != flag) {
+		_translationFlag = flag;
+		session().changes().peerUpdated(
+			this,
+			UpdateFlag::TranslationDisabled);
+	}
+}
+
+PeerData::TranslationFlag PeerData::translationFlag() const {
+	return _translationFlag;
+}
+
+void PeerData::saveTranslationDisabled(bool disabled) {
+	setTranslationDisabled(disabled);
+
+	using Flag = MTPmessages_TogglePeerTranslations::Flag;
+	session().api().request(MTPmessages_TogglePeerTranslations(
+		MTP_flags(disabled ? Flag::f_disabled : Flag()),
+		input
+	)).send();
 }
 
 void PeerData::setSettings(const MTPPeerSettings &data) {
@@ -881,18 +915,6 @@ Data::ForumTopic *PeerData::forumTopicFor(MsgId rootId) const {
 	return nullptr;
 }
 
-
-bool PeerData::canWrite(bool checkForForum) const {
-	if (const auto user = asUser()) {
-		return user->canWrite();
-	} else if (const auto channel = asChannel()) {
-		return channel->canWrite(checkForForum);
-	} else if (const auto chat = asChat()) {
-		return chat->canWrite();
-	}
-	return false;
-}
-
 bool PeerData::allowsForwarding() const {
 	if (const auto user = asUser()) {
 		return true;
@@ -920,10 +942,22 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 			return chat->hasAdminRights();
 		}
 	};
-	if (const auto channel = asChannel()) {
+	if (const auto user = asUser()) {
+		return (right == ChatRestriction::SendVoiceMessages
+			|| right == ChatRestriction::SendVideoMessages)
+			? ((user->flags() & UserDataFlag::VoiceMessagesForbidden)
+				? Result::Explicit()
+				: Result::Allowed())
+			: (right == ChatRestriction::PinMessages)
+			? ((user->flags() & UserDataFlag::CanPinMessages)
+				? Result::Allowed()
+				: Result::Explicit())
+			: Result::Allowed();
+	} else if (const auto channel = asChannel()) {
 		const auto defaultRestrictions = channel->defaultRestrictions()
 			| (channel->isPublic()
-				? (ChatRestriction::PinMessages | ChatRestriction::ChangeInfo)
+				? (ChatRestriction::PinMessages
+					| ChatRestriction::ChangeInfo)
 				: ChatRestrictions(0));
 		return (channel->amCreator() || allowByAdminRights(right, channel))
 			? Result::Allowed()
@@ -1008,19 +1042,6 @@ int PeerData::slowmodeSecondsLeft() const {
 		}
 	}
 	return 0;
-}
-
-bool PeerData::canSendPolls() const {
-	if (const auto user = asUser()) {
-		return user->isBot()
-			&& !user->isRepliesChat()
-			&& !user->isSupport();
-	} else if (const auto chat = asChat()) {
-		return chat->canSendPolls();
-	} else if (const auto channel = asChannel()) {
-		return channel->canSendPolls();
-	}
-	return false;
 }
 
 bool PeerData::canManageGroupCall() const {
@@ -1108,95 +1129,6 @@ void PeerData::setMessagesTTL(TimeId period) {
 }
 
 namespace Data {
-
-std::optional<QString> RestrictionError(
-		not_null<PeerData*> peer,
-		ChatRestriction restriction) {
-	using Flag = ChatRestriction;
-	if (const auto restricted = peer->amRestricted(restriction)) {
-		const auto all = restricted.isWithEveryone();
-		const auto channel = peer->asChannel();
-		if (!all && channel) {
-			auto restrictedUntil = channel->restrictedUntil();
-			if (restrictedUntil > 0 && !ChannelData::IsRestrictedForever(restrictedUntil)) {
-				auto restrictedUntilDateTime = base::unixtime::parse(channel->restrictedUntil());
-				auto date = QLocale().toString(restrictedUntilDateTime.date(), QLocale::ShortFormat);
-				auto time = QLocale().toString(restrictedUntilDateTime.time(), QLocale::ShortFormat);
-
-				switch (restriction) {
-				case Flag::SendPolls:
-					return tr::lng_restricted_send_polls_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendMessages:
-					return tr::lng_restricted_send_message_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendMedia:
-					return tr::lng_restricted_send_media_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendStickers:
-					return tr::lng_restricted_send_stickers_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendGifs:
-					return tr::lng_restricted_send_gifs_until(
-						tr::now, lt_date, date, lt_time, time);
-				case Flag::SendInline:
-				case Flag::SendGames:
-					return tr::lng_restricted_send_inline_until(
-						tr::now, lt_date, date, lt_time, time);
-				}
-				Unexpected("Restriction in Data::RestrictionErrorKey.");
-			}
-		}
-		switch (restriction) {
-		case Flag::SendPolls:
-			return all
-				? tr::lng_restricted_send_polls_all(tr::now)
-				: tr::lng_restricted_send_polls(tr::now);
-		case Flag::SendMessages:
-			return all
-				? tr::lng_restricted_send_message_all(tr::now)
-				: tr::lng_restricted_send_message(tr::now);
-		case Flag::SendMedia:
-			return all
-				? tr::lng_restricted_send_media_all(tr::now)
-				: tr::lng_restricted_send_media(tr::now);
-		case Flag::SendStickers:
-			return all
-				? tr::lng_restricted_send_stickers_all(tr::now)
-				: tr::lng_restricted_send_stickers(tr::now);
-		case Flag::SendGifs:
-			return all
-				? tr::lng_restricted_send_gifs_all(tr::now)
-				: tr::lng_restricted_send_gifs(tr::now);
-		case Flag::SendInline:
-		case Flag::SendGames:
-			return all
-				? tr::lng_restricted_send_inline_all(tr::now)
-				: tr::lng_restricted_send_inline(tr::now);
-		}
-		Unexpected("Restriction in Data::RestrictionErrorKey.");
-	}
-	return std::nullopt;
-}
-
-std::optional<QString> RestrictionError(
-		not_null<PeerData*> peer,
-		UserRestriction restriction) {
-	const auto user = peer->asUser();
-	if (user && !user->canReceiveVoices()) {
-		const auto voice = restriction == UserRestriction::SendVoiceMessages;
-		if (voice
-			|| (restriction == UserRestriction::SendVideoMessages)) {
-			return (voice
-				? tr::lng_restricted_send_voice_messages
-				: tr::lng_restricted_send_video_messages)(
-					tr::now,
-					lt_user,
-					user->name());
-		}
-	}
-	return std::nullopt;
-}
 
 void SetTopPinnedMessageId(
 		not_null<PeerData*> peer,

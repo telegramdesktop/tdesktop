@@ -79,7 +79,7 @@ private:
 	void codeSubmitFail(const MTP::Error &error);
 
 	void showCodeError(rpl::producer<QString> text);
-	void callDone(const MTPauth_SentCode &v);
+	void callDone(const MTPauth_SentCode &result);
 	void gotPassword(const MTPaccount_Password &result);
 
 	void noTelegramCodeDone(const MTPauth_SentCode &result);

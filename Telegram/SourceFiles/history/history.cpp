@@ -9,12 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
+#include "history/view/history_view_translate_tracker.h"
+#include "dialogs/dialogs_indexed_list.h"
+#include "history/history_inner_widget.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
-#include "history/history_inner_widget.h"
+#include "history/history_translation.h"
 #include "history/history_unread_things.h"
-#include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
@@ -44,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "calls/calls_instance.h"
+#include "spellcheck/spellcheck_types.h"
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
@@ -845,18 +848,17 @@ not_null<HistoryItem*> History::addNewToBack(
 	addItemToBlock(item);
 
 	if (!unread && item->isRegular()) {
-		if (const auto sharedMediaTypes = item->sharedMediaTypes()) {
+		if (const auto types = item->sharedMediaTypes()) {
 			auto from = loadedAtTop() ? 0 : minMsgId();
 			auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
 			auto &storage = session().storage();
 			storage.add(Storage::SharedMediaAddExisting(
 				peer->id,
 				MsgId(0), // topicRootId
-				sharedMediaTypes,
+				types,
 				item->id,
 				{ from, till }));
-			const auto pinned = sharedMediaTypes.test(
-				Storage::SharedMediaType::Pinned);
+			const auto pinned = types.test(Storage::SharedMediaType::Pinned);
 			if (pinned) {
 				setHasPinnedMessages(true);
 			}
@@ -864,7 +866,7 @@ not_null<HistoryItem*> History::addNewToBack(
 				storage.add(Storage::SharedMediaAddExisting(
 					peer->id,
 					topic->rootId(),
-					sharedMediaTypes,
+					types,
 					item->id,
 					{ item->id, item->id}));
 				if (pinned) {
@@ -948,13 +950,13 @@ not_null<HistoryItem*> History::addNewToBack(
 					if (peer->isChat()) {
 						botNotInChat = item->from()->isUser()
 							&& (!peer->asChat()->participants.empty()
-								|| !peer->canWrite())
+								|| !Data::CanSendAnything(peer))
 							&& !peer->asChat()->participants.contains(
 								item->from()->asUser());
 					} else if (peer->isMegagroup()) {
 						botNotInChat = item->from()->isUser()
 							&& (peer->asChannel()->mgInfo->botStatus != 0
-								|| !peer->canWrite())
+								|| !Data::CanSendAnything(peer))
 							&& !peer->asChannel()->mgInfo->bots.contains(
 								item->from()->asUser());
 					}
@@ -1502,9 +1504,15 @@ void History::addItemsToLists(
 							if (!lastKeyboardInited) {
 								bool botNotInChat = false;
 								if (peer->isChat()) {
-									botNotInChat = (!peer->canWrite() || !peer->asChat()->participants.empty()) && item->author()->isUser() && !peer->asChat()->participants.contains(item->author()->asUser());
+									botNotInChat = (!Data::CanSendAnything(peer)
+										|| !peer->asChat()->participants.empty())
+										&& item->author()->isUser()
+										&& !peer->asChat()->participants.contains(item->author()->asUser());
 								} else if (peer->isMegagroup()) {
-									botNotInChat = (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && item->author()->isUser() && !peer->asChannel()->mgInfo->bots.contains(item->author()->asUser());
+									botNotInChat = (!Data::CanSendAnything(peer)
+										|| peer->asChannel()->mgInfo->botStatus != 0)
+										&& item->author()->isUser()
+										&& !peer->asChannel()->mgInfo->bots.contains(item->author()->asUser());
 								}
 								if (wasKeyboardHide || botNotInChat) {
 									clearLastKeyboard();
@@ -3449,6 +3457,46 @@ void History::cacheTopPromoted(bool promoted) {
 
 bool History::isTopPromoted() const {
 	return (_flags & Flag::IsTopPromoted);
+}
+
+void History::translateOfferFrom(LanguageId id) {
+	if (!id) {
+		if (translatedTo()) {
+			_translation->offerFrom(id);
+		} else if (_translation) {
+			_translation = nullptr;
+			session().changes().historyUpdated(
+				this,
+				UpdateFlag::TranslateFrom);
+		}
+	} else if (!_translation) {
+		_translation = std::make_unique<HistoryTranslation>(this, id);
+	} else {
+		_translation->offerFrom(id);
+	}
+}
+
+LanguageId History::translateOfferedFrom() const {
+	return _translation ? _translation->offeredFrom() : LanguageId();
+}
+
+void History::translateTo(LanguageId id) {
+	if (!_translation) {
+		return;
+	} else if (!id && !translateOfferedFrom()) {
+		_translation = nullptr;
+		session().changes().historyUpdated(this, UpdateFlag::TranslatedTo);
+	} else {
+		_translation->translateTo(id);
+	}
+}
+
+LanguageId History::translatedTo() const {
+	return _translation ? _translation->translatedTo() : LanguageId();
+}
+
+HistoryTranslation *History::translation() const {
+	return _translation.get();
 }
 
 HistoryBlock::HistoryBlock(not_null<History*> history)

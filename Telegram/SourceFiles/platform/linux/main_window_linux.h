@@ -21,8 +21,9 @@ namespace Platform {
 class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
-
 	~MainWindow();
+
+	void updateWindowIcon() override;
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
@@ -35,6 +36,9 @@ protected:
 	void createGlobalMenu() override;
 
 private:
+	void updateUnityCounter();
+	void handleNativeSurfaceChanged(bool exist);
+
 	QMenuBar *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;
@@ -56,8 +60,8 @@ private:
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
 
-	void updateIconCounters();
-	void handleNativeSurfaceChanged(bool exist);
+	QIcon _icon;
+	bool _usingSupportIcon = false;
 
 };
 

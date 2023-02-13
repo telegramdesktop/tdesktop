@@ -100,6 +100,7 @@ private:
 	void createMainButton();
 	void scheduleCloseWithConfirmation();
 	void closeWithConfirmation();
+	void sendViewport();
 
 	using EventData = std::variant<QString, QJsonObject>;
 	void postEvent(const QString &event);

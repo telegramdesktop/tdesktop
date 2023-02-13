@@ -99,6 +99,7 @@ menuIconSpoilerOff: icon {{ "menu/spoiler_off", menuIconColor }};
 menuIconDisable: icon {{ "menu/disable", menuIconColor }};
 menuIconPhotoSet: icon {{ "menu/photo_set", menuIconColor }};
 menuIconPhotoSuggest: icon {{ "menu/photo_suggest", menuIconColor }};
+menuIconNewWindow: icon {{ "menu/new_window", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
