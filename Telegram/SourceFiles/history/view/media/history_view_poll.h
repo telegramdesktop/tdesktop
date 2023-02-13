@@ -21,7 +21,7 @@ namespace HistoryView {
 
 class Message;
 
-class Poll : public Media, public base::has_weak_ptr {
+class Poll final : public Media {
 public:
 	Poll(
 		not_null<Element*> parent,

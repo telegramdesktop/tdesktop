@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stripe/stripe_card.h"
 #include <vector>
 
+class QDate;
+
 namespace Stripe {
 
 enum class ValidationState {
@@ -32,11 +34,13 @@ struct ExpireDateValidationResult {
 };
 
 [[nodiscard]] ExpireDateValidationResult ValidateExpireDate(
-	const QString &date);
+	const QString &date,
+	const std::optional<QDate> &overrideExpireDateThreshold);
 
 [[nodiscard]] ValidationState ValidateParsedExpireDate(
 	quint32 month,
-	quint32 year);
+	quint32 year,
+	const std::optional<QDate> &overrideExpireDateThreshold);
 
 struct CvcValidationResult {
 	ValidationState state = ValidationState::Invalid;

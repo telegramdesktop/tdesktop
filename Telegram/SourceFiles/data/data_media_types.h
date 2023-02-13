@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 class History;
 class HistoryItem;
-class HistoryMessage;
 
 namespace base {
 template <typename Enum>
@@ -129,7 +128,7 @@ public:
 	virtual bool forwardedBecomesUnread() const;
 	virtual bool dropForwardedInfo() const;
 	virtual bool forceForwardedInfo() const;
-	virtual QString errorTextForForward(not_null<PeerData*> peer) const;
+	[[nodiscard]] virtual bool hasSpoiler() const;
 
 	[[nodiscard]] virtual bool consumeMessageText(
 		const TextWithEntities &text);
@@ -140,7 +139,7 @@ public:
 	virtual bool updateInlineResultMedia(const MTPMessageMedia &media) = 0;
 	virtual bool updateSentMedia(const MTPMessageMedia &media) = 0;
 	virtual bool updateExtendedMedia(
-			not_null<HistoryMessage*> item,
+			not_null<HistoryItem*> item,
 			const MTPMessageExtendedMedia &media) {
 		return false;
 	}
@@ -166,7 +165,8 @@ class MediaPhoto final : public Media {
 public:
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
-		not_null<PhotoData*> photo);
+		not_null<PhotoData*> photo,
+		bool spoiler);
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> chat,
@@ -189,7 +189,7 @@ public:
 	TextForMimeData clipboardText() const override;
 	bool allowsEditCaption() const override;
 	bool allowsEditMedia() const override;
-	QString errorTextForForward(not_null<PeerData*> peer) const override;
+	bool hasSpoiler() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -201,6 +201,7 @@ public:
 private:
 	not_null<PhotoData*> _photo;
 	PeerData *_chat = nullptr;
+	bool _spoiler = false;
 
 };
 
@@ -209,7 +210,8 @@ public:
 	MediaFile(
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> document,
-		bool skipPremiumEffect);
+		bool skipPremiumEffect,
+		bool spoiler);
 	~MediaFile();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -230,7 +232,7 @@ public:
 	bool allowsEditMedia() const override;
 	bool forwardedBecomesUnread() const override;
 	bool dropForwardedInfo() const override;
-	QString errorTextForForward(not_null<PeerData*> peer) const override;
+	bool hasSpoiler() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -243,6 +245,7 @@ private:
 	not_null<DocumentData*> _document;
 	QString _emoji;
 	bool _skipPremiumEffect = false;
+	bool _spoiler = false;
 
 };
 
@@ -389,7 +392,6 @@ public:
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
-	QString errorTextForForward(not_null<PeerData*> peer) const override;
 	bool dropForwardedInfo() const override;
 
 	bool consumeMessageText(const TextWithEntities &text) override;
@@ -428,7 +430,7 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	bool updateExtendedMedia(
-		not_null<HistoryMessage*> item,
+		not_null<HistoryItem*> item,
 		const MTPMessageExtendedMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
@@ -454,7 +456,6 @@ public:
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
-	QString errorTextForForward(not_null<PeerData*> peer) const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -541,7 +542,7 @@ private:
 	TextForMimeData &&caption);
 
 [[nodiscard]] Invoice ComputeInvoiceData(
-	not_null<HistoryMessage*> item,
+	not_null<HistoryItem*> item,
 	const MTPDmessageMediaInvoice &data);
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);

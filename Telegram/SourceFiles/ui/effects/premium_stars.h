@@ -39,9 +39,10 @@ private:
 	};
 
 	void createStar(crl::time now);
-	[[nodiscard]] int angle() const;
 	[[nodiscard]] crl::time timeNow() const;
-	[[nodiscard]] int randomInterval(const Interval &interval) const;
+	[[nodiscard]] int randomInterval(
+		const Interval &interval,
+		const gsl::byte &random) const;
 
 	const std::vector<Interval> _availableAngles;
 	const Interval _lifeLength;

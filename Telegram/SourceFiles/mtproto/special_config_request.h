@@ -25,10 +25,12 @@ public:
 			const std::string &ip,
 			int port,
 			bytes::const_span secret)> callback,
+		bool isTestMode,
 		const QString &domainString,
 		const QString &phone);
 	SpecialConfigRequest(
 		Fn<void()> timeDoneCallback,
+		bool isTestMode,
 		const QString &domainString);
 
 private:
@@ -52,6 +54,7 @@ private:
 			int port,
 			bytes::const_span secret)> callback,
 		Fn<void()> timeDoneCallback,
+		bool isTestMode,
 		const QString &domainString,
 		const QString &phone);
 

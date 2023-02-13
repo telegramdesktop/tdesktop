@@ -142,6 +142,7 @@ public:
 
 	void start();
 	void reInitConnection();
+	void setConnectionNotInited();
 
 	void restart();
 	void refreshOptions();

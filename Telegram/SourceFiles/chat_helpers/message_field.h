@@ -122,3 +122,7 @@ private:
 	base::qt_connection _connection;
 
 };
+
+[[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
+	QWidget *parent,
+	not_null<PeerData*> peer);

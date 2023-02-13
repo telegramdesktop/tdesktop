@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
 #include "history/history.h"
 
 #include <QtWidgets/QDesktopWidget>
@@ -46,7 +47,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <Windowsx.h>
 #include <VersionHelpers.h>
 
+// Taken from qtbase/src/gui/image/qpixmap_win.cpp
 HICON qt_pixmapToWinHICON(const QPixmap &);
+HBITMAP qt_imageToWinHBITMAP(const QImage &, int hbitmapFormat);
 
 namespace ViewManagement = ABI::Windows::UI::ViewManagement;
 
@@ -59,6 +62,15 @@ namespace {
 // if the application was deactivated less than 0.5s ago, then the tray
 // icon click (both left or right button) was made from the active app.
 constexpr auto kKeepActiveForTrayIcon = crl::time(500);
+
+using namespace Microsoft::WRL;
+
+// Taken from qtbase/src/gui/image/qpixmap_win.cpp
+enum HBitmapFormat {
+	HBitmapNoAlpha,
+	HBitmapPremultipliedAlpha,
+	HBitmapAlpha
+};
 
 class EventFilter final : public QAbstractNativeEventFilter {
 public:
@@ -81,9 +93,6 @@ private:
 
 };
 
-using namespace Microsoft::WRL;
-
-bool handleSessionNotification = false;
 
 [[nodiscard]] HICON NativeIcon(const QIcon &icon, QSize size) {
 	if (!icon.isNull()) {
@@ -93,6 +102,67 @@ bool handleSessionNotification = false;
 		}
 	}
 	return nullptr;
+}
+
+struct RealSize {
+	QSize value;
+	bool maximized = false;
+};
+[[nodiscard]] RealSize DetectRealSize(HWND hwnd) {
+	auto result = RECT();
+	auto placement = WINDOWPLACEMENT();
+	if (!GetWindowPlacement(hwnd, &placement)) {
+		return {};
+	} else if (placement.flags & WPF_RESTORETOMAXIMIZED) {
+		const auto monitor = MonitorFromRect(
+			&placement.rcNormalPosition,
+			MONITOR_DEFAULTTONULL);
+		if (!monitor) {
+			return {};
+		}
+		auto info = MONITORINFO{ .cbSize = sizeof(MONITORINFO) };
+		if (!GetMonitorInfo(monitor, &info)) {
+			return {};
+		}
+		result = info.rcWork;
+	} else {
+		CopyRect(&result, &placement.rcNormalPosition);
+	}
+	return {
+		{ int(result.right - result.left), int(result.bottom - result.top) },
+		((placement.flags & WPF_RESTORETOMAXIMIZED) != 0)
+	};
+}
+
+[[nodiscard]] QImage PrepareLogoPreview(
+		QSize size,
+		QImage::Format format,
+		int radius = 0) {
+	auto result = QImage(size, QImage::Format_RGB32);
+	result.fill(st::windowBg->c);
+
+	const auto logo = Window::Logo();
+	const auto width = size.width();
+	const auto height = size.height();
+	const auto side = logo.width();
+	const auto skip = width / 8;
+	const auto use = std::min({ width - skip, height - skip, side });
+	auto p = QPainter(&result);
+	if (use == side) {
+		p.drawImage((width - side) / 2, (height - side) / 2, logo);
+	} else {
+		const auto scaled = logo.scaled(
+			use,
+			use,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+		p.drawImage((width - use) / 2, (height - use) / 2, scaled);
+	}
+	p.end();
+
+	return radius
+		? Images::Round(std::move(result), Images::CornersMask(radius))
+		: result;
 }
 
 EventFilter::EventFilter(not_null<MainWindow*> window) : _window(window) {
@@ -149,6 +219,23 @@ bool EventFilter::mainWindowEvent(
 		_window->positionUpdated();
 	} return false;
 
+	case WM_DWMSENDICONICTHUMBNAIL: {
+		if (!Core::App().passcodeLocked()) {
+			return false;
+		}
+		const auto size = QSize(int(HIWORD(lParam)), int(LOWORD(lParam)));
+		return _window->setDwmThumbnail(size);
+	}
+
+	case WM_DWMSENDICONICLIVEPREVIEWBITMAP: {
+		if (!Core::App().passcodeLocked()) {
+			return false;
+		}
+		const auto size = DetectRealSize(hWnd);
+		const auto radius = size.maximized ? 0 : style::ConvertScale(8);
+		return _window->setDwmPreview(size.value, radius);
+	}
+
 	}
 	return false;
 }
@@ -163,6 +250,46 @@ struct MainWindow::Private {
 	ComPtr<ViewManagement::IUIViewSettings> viewSettings;
 };
 
+MainWindow::BitmapPointer::BitmapPointer(HBITMAP value) : _value(value) {
+}
+
+MainWindow::BitmapPointer::BitmapPointer(BitmapPointer &&other)
+: _value(base::take(other._value)) {
+}
+
+MainWindow::BitmapPointer &MainWindow::BitmapPointer::operator=(
+		BitmapPointer &&other) {
+	if (_value != other._value) {
+		reset();
+		_value = base::take(other._value);
+	}
+	return *this;
+}
+
+MainWindow::BitmapPointer::~BitmapPointer() {
+	reset();
+}
+
+HBITMAP MainWindow::BitmapPointer::get() const {
+	return _value;
+}
+
+MainWindow::BitmapPointer::operator bool() const {
+	return _value != nullptr;
+}
+
+void MainWindow::BitmapPointer::release() {
+	_value = nullptr;
+}
+
+void MainWindow::BitmapPointer::reset(HBITMAP value) {
+	if (_value != value) {
+		if (const auto old = std::exchange(_value, value)) {
+			DeleteObject(old);
+		}
+	}
+}
+
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
 , _private(std::make_unique<Private>(this))
@@ -171,11 +298,34 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 	setupNativeWindowFrame();
 
+	SetWindowPriority(this, controller->isPrimary() ? 2 : 1);
+
 	using namespace rpl::mappers;
 	Core::App().appDeactivatedValue(
 	) | rpl::distinct_until_changed(
 	) | rpl::filter(_1) | rpl::start_with_next([=] {
 		_lastDeactivateTime = crl::now();
+	}, lifetime());
+
+	setupPreviewPasscodeLock();
+}
+
+void MainWindow::setupPreviewPasscodeLock() {
+	Core::App().passcodeLockValue(
+	) | rpl::start_with_next([=](bool locked) {
+		// Use iconic bitmap instead of the window content if passcoded.
+		BOOL fForceIconic = locked ? TRUE : FALSE;
+		BOOL fHasIconicBitmap = fForceIconic;
+		DwmSetWindowAttribute(
+			_hWnd,
+			DWMWA_FORCE_ICONIC_REPRESENTATION,
+			&fForceIconic,
+			sizeof(fForceIconic));
+		DwmSetWindowAttribute(
+			_hWnd,
+			DWMWA_HAS_ICONIC_BITMAP,
+			&fHasIconicBitmap,
+			sizeof(fHasIconicBitmap));
 	}, lifetime());
 }
 
@@ -203,13 +353,63 @@ void MainWindow::shadowsDeactivate() {
 }
 
 void MainWindow::destroyedFromSystem() {
-	if (isPrimary()) {
+	if (!Core::App().closeNonLastAsync(&controller())) {
 		Core::Quit();
-	} else {
-		crl::on_main(this, [=] {
-			Core::App().closeWindow(&controller());
-		});
 	}
+}
+
+bool MainWindow::setDwmThumbnail(QSize size) {
+	validateDwmPreviewColors();
+	if (size.isEmpty()) {
+		return false;
+	} else if (!_dwmThumbnail || _dwmThumbnailSize != size) {
+		const auto result = PrepareLogoPreview(size, QImage::Format_RGB32);
+		const auto bitmap = qt_imageToWinHBITMAP(result, HBitmapNoAlpha);
+		if (!bitmap) {
+			return false;
+		}
+		_dwmThumbnail.reset(bitmap);
+		_dwmThumbnailSize = size;
+	}
+	DwmSetIconicThumbnail(_hWnd, _dwmThumbnail.get(), NULL);
+	return true;
+}
+
+bool MainWindow::setDwmPreview(QSize size, int radius) {
+	Expects(radius >= 0);
+
+	validateDwmPreviewColors();
+	if (size.isEmpty()) {
+		return false;
+	} else if (!_dwmPreview
+		|| _dwmPreviewSize != size
+		|| _dwmPreviewRadius != radius) {
+		const auto format = (radius > 0)
+			? QImage::Format_ARGB32_Premultiplied
+			: QImage::Format_RGB32;
+		const auto result = PrepareLogoPreview(size, format, radius);
+		const auto bitmap = qt_imageToWinHBITMAP(
+			result,
+			(radius > 0) ? HBitmapPremultipliedAlpha : HBitmapNoAlpha);
+		if (!bitmap) {
+			return false;
+		}
+		_dwmPreview.reset(bitmap);
+		_dwmPreviewRadius = radius;
+		_dwmPreviewSize = size;
+	}
+	const auto flags = 0;
+	DwmSetIconicLivePreviewBitmap(_hWnd, _dwmPreview.get(), NULL, flags);
+	return true;
+}
+
+void MainWindow::validateDwmPreviewColors() {
+	if (_dwmBackground == st::windowBg->c) {
+		return;
+	}
+	_dwmBackground = st::windowBg->c;
+	_dwmThumbnail.reset();
+	_dwmPreview.reset();
 }
 
 int32 MainWindow::screenNameChecksum(const QString &name) const {
@@ -225,16 +425,19 @@ int32 MainWindow::screenNameChecksum(const QString &name) const {
 
 void MainWindow::forceIconRefresh() {
 	const auto refresher = std::make_unique<QWidget>(this);
-	refresher->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
+	refresher->setWindowFlags(
+		static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
 	refresher->setGeometry(x() + 1, y() + 1, 1, 1);
 	auto palette = refresher->palette();
-	palette.setColor(QPalette::Window, (isActiveWindow() ? st::titleBgActive : st::titleBg)->c);
+	palette.setColor(
+		QPalette::Window,
+		(isActiveWindow() ? st::titleBgActive : st::titleBg)->c);
 	refresher->setPalette(palette);
 	refresher->show();
 	refresher->raise();
 	refresher->activateWindow();
 
-	updateIconCounters();
+	updateTaskbarAndIconCounters();
 }
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
@@ -290,23 +493,8 @@ bool MainWindow::initGeometryFromSystem() {
 	return true;
 }
 
-QRect MainWindow::computeDesktopRect() const {
-	const auto flags = MONITOR_DEFAULTTONEAREST;
-	if (const auto monitor = MonitorFromWindow(psHwnd(), flags)) {
-		MONITORINFOEX info;
-		info.cbSize = sizeof(info);
-		GetMonitorInfo(monitor, &info);
-		return QRect(
-			info.rcWork.left,
-			info.rcWork.top,
-			info.rcWork.right - info.rcWork.left,
-			info.rcWork.bottom - info.rcWork.top);
-	}
-	return Window::MainWindow::computeDesktopRect();
-}
-
 void MainWindow::updateWindowIcon() {
-	updateIconCounters();
+	updateTaskbarAndIconCounters();
 }
 
 bool MainWindow::isActiveForTrayMenu() {
@@ -315,10 +503,10 @@ bool MainWindow::isActiveForTrayMenu() {
 }
 
 void MainWindow::unreadCounterChangedHook() {
-	updateIconCounters();
+	updateTaskbarAndIconCounters();
 }
 
-void MainWindow::updateIconCounters() {
+void MainWindow::updateTaskbarAndIconCounters() {
 	const auto counter = Core::App().unreadBadge();
 	const auto muted = Core::App().unreadBadgeMuted();
 	const auto controller = sessionController();

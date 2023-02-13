@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_widget.h"
 #include "chat_helpers/gifs_list_widget.h"
 #include "menu/menu_send.h"
+#include "ui/controls/tabbed_search.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "storage/localstorage.h"
 #include "data/data_channel.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
@@ -288,22 +290,48 @@ void TabbedSelector::Tab::saveScrollTop() {
 	_scrollTop = widget()->getVisibleTop();
 }
 
+std::unique_ptr<Ui::TabbedSearch> MakeSearch(
+		not_null<Ui::RpWidget*> parent,
+		const style::EmojiPan &st,
+		Fn<void(std::vector<QString>&&)> callback,
+		not_null<Main::Session*> session,
+		bool statusCategories,
+		bool profilePhotoCategories) {
+	using Descriptor = Ui::SearchDescriptor;
+	const auto owner = &session->data();
+	auto result = std::make_unique<Ui::TabbedSearch>(parent, st, Descriptor{
+		.st = st.search,
+		.groups = (profilePhotoCategories
+			? owner->emojiStatuses().profilePhotoGroupsValue()
+			: statusCategories
+			? owner->emojiStatuses().statusGroupsValue()
+			: owner->emojiStatuses().emojiGroupsValue()),
+		.customEmojiFactory = owner->customEmojiManager().factory(
+			Data::CustomEmojiManager::SizeTag::SetIcon,
+			Ui::SearchWithGroups::IconSizeOverride())
+	});
+
+	result->queryValue(
+	) | rpl::skip(1) | rpl::start_with_next(
+		std::move(callback),
+		parent->lifetime());
+
+	return result;
+}
+
 TabbedSelector::TabbedSelector(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	Window::GifPauseReason level,
 	Mode mode)
 : RpWidget(parent)
-, _st(st::defaultEmojiPan)
+, _st((mode == Mode::EmojiStatus) ? st::statusEmojiPan : st::defaultEmojiPan)
 , _controller(controller)
 , _level(level)
 , _mode(mode)
-, _panelRounding(Ui::PrepareCornerPixmaps(
-	ImageRoundRadius::Small,
-	st::emojiPanBg))
-, _categoriesRounding(Ui::PrepareCornerPixmaps(
-	ImageRoundRadius::Small,
-	st::emojiPanCategories))
+, _panelRounding(Ui::PrepareCornerPixmaps(st::emojiPanRadius, _st.bg))
+, _categoriesRounding(
+	Ui::PrepareCornerPixmaps(st::emojiPanRadius, _st.categoriesBg))
 , _topShadow(full() ? object_ptr<Ui::PlainShadow>(this) : nullptr)
 , _bottomShadow(this)
 , _scroll(this, st::emojiScroll)
@@ -345,12 +373,6 @@ TabbedSelector::TabbedSelector(
 	}
 	setWidgetToScrollArea();
 
-	_bottomShadow->setGeometry(
-		0,
-		_scroll->y() + _scroll->height() - st::lineWidth,
-		width(),
-		st::lineWidth);
-
 	for (auto &tab : _tabs) {
 		const auto widget = tab.widget();
 
@@ -388,7 +410,9 @@ TabbedSelector::TabbedSelector(
 		_tabsSlider->raise();
 	}
 
-	if (hasStickersTab() || hasGifsTab()) {
+	if (hasStickersTab()
+		|| hasGifsTab()
+		|| (hasEmojiTab() && _mode == Mode::Full)) {
 		session().changes().peerUpdates(
 			Data::PeerUpdate::Flag::Rights
 		) | rpl::filter([=](const Data::PeerUpdate &update) {
@@ -419,10 +443,10 @@ TabbedSelector::TabbedSelector(
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_panelRounding = Ui::PrepareCornerPixmaps(
-			ImageRoundRadius::Small,
+			st::emojiPanRadius,
 			st::emojiPanBg);
 		_categoriesRounding = Ui::PrepareCornerPixmaps(
-			ImageRoundRadius::Small,
+			st::emojiPanRadius,
 			st::emojiPanCategories);
 	}, lifetime());
 
@@ -457,13 +481,16 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 		switch (type) {
 		case SelectorTab::Emoji:
 			using EmojiMode = EmojiListWidget::Mode;
-			return object_ptr<EmojiListWidget>(
-				this,
-				_controller,
-				_level,
-				(_mode == Mode::EmojiStatus
+			using Descriptor = EmojiListDescriptor;
+			return object_ptr<EmojiListWidget>(this, Descriptor{
+				.session = &_controller->session(),
+				.mode = (_mode == Mode::EmojiStatus
 					? EmojiMode::EmojiStatus
-					: EmojiMode::Full));
+					: EmojiMode::Full),
+				.controller = _controller,
+				.paused = Window::PausedIn(_controller, _level),
+				.st = &_st,
+			});
 		case SelectorTab::Stickers:
 			return object_ptr<StickersListWidget>(this, _controller, _level);
 		case SelectorTab::Gifs:
@@ -584,13 +611,13 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 }
 
 void TabbedSelector::updateScrollGeometry(QSize oldSize) {
-	auto scrollWidth = width() - st::roundRadiusSmall;
+	auto scrollWidth = width() - st::emojiPanRadius;
 	auto scrollHeight = height() - scrollTop() - scrollBottom();
 	auto inner = currentTab()->widget();
 	auto innerWidth = scrollWidth - st::emojiScroll.width;
 	auto setScrollGeometry = [&] {
 		_scroll->setGeometryToLeft(
-			st::roundRadiusSmall,
+			st::emojiPanRadius,
 			scrollTop(),
 			scrollWidth,
 			scrollHeight);
@@ -610,7 +637,7 @@ void TabbedSelector::updateScrollGeometry(QSize oldSize) {
 	}
 	_bottomShadow->setGeometry(
 		0,
-		_scroll->y() + _scroll->height() - st::lineWidth,
+		_scroll->y() + (_dropDown ? 0 : (_scroll->height() - st::lineWidth)),
 		width(),
 		st::lineWidth);
 }
@@ -678,9 +705,7 @@ void TabbedSelector::paintBgRoundedPart(QPainter &p) {
 }
 
 void TabbedSelector::paintContent(QPainter &p) {
-	auto &footerBg = hasSectionIcons()
-		? st::emojiPanCategories
-		: st::emojiPanBg;
+	const auto &footerBg = hasSectionIcons() ? _st.categoriesBg : _st.bg;
 	if (_roundRadius > 0) {
 		paintBgRoundedPart(p);
 
@@ -702,7 +727,7 @@ void TabbedSelector::paintContent(QPainter &p) {
 		});
 	} else {
 		if (_tabsSlider) {
-			p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
+			p.fillRect(0, 0, width(), _tabsSlider->height(), _st.bg);
 		}
 		p.fillRect(0, _footerTop, width(), _st.footer, footerBg);
 	}
@@ -720,7 +745,7 @@ void TabbedSelector::paintContent(QPainter &p) {
 				sidesHeight),
 			st::emojiPanBg);
 		p.fillRect(
-			myrtlrect(0, sidesTop, st::roundRadiusSmall, sidesHeight),
+			myrtlrect(0, sidesTop, st::emojiPanRadius, sidesHeight),
 			st::emojiPanBg);
 	}
 }
@@ -892,6 +917,14 @@ void TabbedSelector::checkRestrictedPeer() {
 			? Data::RestrictionError(
 				_currentPeer,
 				ChatRestriction::SendGifs)
+			: (_currentTabType == SelectorTab::Emoji && _mode == Mode::Full)
+			? ((true || Data::RestrictionError(
+				_currentPeer, // We don't allow input if texts are forbidden.
+				ChatRestriction::SendInline))
+				? Data::RestrictionError(
+					_currentPeer,
+					ChatRestriction::SendOther)
+				: std::nullopt)
 			: std::nullopt;
 		if (error) {
 			if (!_restrictedLabel) {
@@ -914,7 +947,7 @@ void TabbedSelector::checkRestrictedPeer() {
 		if (!_a_slide.animating()) {
 			currentTab()->footer()->show();
 			_scroll->show();
-			_bottomShadow->setVisible(_currentTabType == SelectorTab::Gifs);
+			_bottomShadow->setVisible(_mode == Mode::EmojiStatus);
 			update();
 		}
 	}
@@ -931,7 +964,7 @@ void TabbedSelector::showAll() {
 	} else {
 		currentTab()->footer()->show();
 		_scroll->show();
-		_bottomShadow->setVisible(_currentTabType == SelectorTab::Gifs);
+		_bottomShadow->setVisible(_mode == Mode::EmojiStatus);
 	}
 	if (_topShadow) {
 		_topShadow->show();
@@ -1010,13 +1043,13 @@ void TabbedSelector::fillTabsSliderSections() {
 				return tr::lng_switch_masks;
 			}
 			Unexpected("SelectorTab value in fillTabsSliderSections.");
-		}()(tr::now).toUpper();
+		}()(tr::now);
 	}) | ranges::to_vector;
 	_tabsSlider->setSections(sections);
 }
 
 bool TabbedSelector::hasSectionIcons() const {
-	return (_currentTabType != SelectorTab::Gifs) && !_restrictedLabel;
+	return !_restrictedLabel;
 }
 
 void TabbedSelector::switchTab() {
@@ -1073,7 +1106,7 @@ void TabbedSelector::switchTab() {
 		slidingRect,
 		wasSectionIcons);
 	_slideAnimation->setCornerMasks(
-		Images::CornersMask(ImageRoundRadius::Small));
+		Images::CornersMask(st::emojiPanRadius));
 	_slideAnimation->start();
 
 	hideForSliding();

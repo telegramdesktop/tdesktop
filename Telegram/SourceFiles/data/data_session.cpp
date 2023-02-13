@@ -201,6 +201,10 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 	const auto area = [](const MTPVideoSize &size) {
 		return size.match([](const MTPDvideoSize &data) {
 			return (data.vw().v * data.vh().v);
+		}, [](const MTPDvideoSizeEmojiMarkup &) {
+			return 0;
+		}, [](const MTPDvideoSizeStickerMarkup &) {
+			return 0;
 		});
 	};
 	const auto thumbs = data.vvideo_thumbs();
@@ -805,6 +809,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		const auto canViewMembers = channel->canViewMembers();
 		const auto canAddMembers = channel->canAddMembers();
 
+		const auto wasCallNotEmpty = Data::ChannelHasActiveCall(channel);
+
 		if (const auto count = data.vparticipants_count()) {
 			channel->setMembersCount(count->v);
 		}
@@ -911,6 +917,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			|| canViewMembers != channel->canViewMembers()
 			|| canAddMembers != channel->canAddMembers()) {
 			flags |= UpdateFlag::Rights;
+		}
+		if (wasCallNotEmpty != Data::ChannelHasActiveCall(channel)) {
+			flags |= UpdateFlag::GroupCall;
 		}
 	}, [&](const MTPDchannelForbidden &data) {
 		const auto channel = result->asChannel();
@@ -1176,6 +1185,7 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 			setChatPinned(history, FilterId(), false);
 		}
 		removeChatListEntry(history);
+		history->clearFolder();
 		history->clear(peer->isChannel()
 			? History::ClearType::Unload
 			: History::ClearType::DeleteChat);
@@ -1694,27 +1704,10 @@ void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
 	}
 }
 
-void Session::requestAnimationPlayInline(not_null<HistoryItem*> item) {
-	_animationPlayInlineRequest.fire_copy(item);
-
-	if (const auto media = item->media()) {
-		if (const auto data = media->document()) {
-			if (data && data->isVideoMessage()) {
-				const auto msgId = item->fullId();
-				::Media::Player::instance()->playPause({ data, msgId });
-			}
-		}
-	}
-}
-
 void Session::requestUnreadReactionsAnimation(not_null<HistoryItem*> item) {
 	enumerateItemViews(item, [&](not_null<ViewElement*> view) {
 		view->animateUnreadReactions();
 	});
-}
-
-rpl::producer<not_null<HistoryItem*>> Session::animationPlayInlineRequest() const {
-	return _animationPlayInlineRequest.events();
 }
 
 rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved() const {
@@ -2340,14 +2333,20 @@ void Session::processNonChannelMessagesDeleted(const QVector<MTPint> &data) {
 
 void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 	const auto i = _dependentMessages.find(item);
-	if (i == end(_dependentMessages)) {
-		return;
-	}
-	const auto items = std::move(i->second);
-	_dependentMessages.erase(i);
+	if (i != end(_dependentMessages)) {
+		const auto items = std::move(i->second);
+		_dependentMessages.erase(i);
 
-	for (const auto &dependent : items) {
-		dependent->dependencyItemRemoved(item);
+		for (const auto &dependent : items) {
+			dependent->dependencyItemRemoved(item);
+		}
+	}
+	if (item->groupId()) {
+		if (const auto group = groups().find(item)) {
+			for (const auto &groupedItem : group->items) {
+				updateDependentMessages(groupedItem);
+			}
+		}
 	}
 }
 
@@ -2819,6 +2818,10 @@ void Session::photoApplyFields(
 		const auto area = [](const MTPVideoSize &size) {
 			return size.match([](const MTPDvideoSize &data) {
 				return data.vsize().v ? (data.vw().v * data.vh().v) : 0;
+			}, [](const MTPDvideoSizeEmojiMarkup &) {
+				return 0;
+			}, [](const MTPDvideoSizeStickerMarkup &) {
+				return 0;
 			});
 		};
 		const auto type = [](const MTPVideoSize &size) {
@@ -2826,6 +2829,8 @@ void Session::photoApplyFields(
 				return data.vtype().v.isEmpty()
 					? char(0)
 					: data.vtype().v.front();
+			}, [](const auto &) {
+				return char(0);
 			});
 		};
 		const auto result = (size == PhotoSize::Small)
@@ -2865,8 +2870,10 @@ void Session::photoApplyFields(
 				? Images::FromVideoSize(_session, data, *videoLarge)
 				: ImageWithLocation()),
 			(videoLarge
-				? VideoStartTime(*videoLarge->match(
-					[](const auto &data) { return &data; }))
+				? videoLarge->match([](const MTPDvideoSize &data) {
+					return VideoStartTime(data);
+				}, [](const MTPDvideoSizeEmojiMarkup &) { return 0;
+				}, [](const MTPDvideoSizeStickerMarkup &) { return 0; })
 				: 0));
 	}
 }

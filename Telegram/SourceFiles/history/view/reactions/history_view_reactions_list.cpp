@@ -158,7 +158,7 @@ void Row::rightActionPaint(
 	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
 	const auto skip = (size - Ui::Text::AdjustCustomEmojiSize(size)) / 2;
 	_custom->paint(p, {
-		.preview = st::windowBgRipple->c,
+		.textColor = st::windowFg->c,
 		.now = crl::now(),
 		.position = { x + skip, y + skip },
 		.paused = _paused(),

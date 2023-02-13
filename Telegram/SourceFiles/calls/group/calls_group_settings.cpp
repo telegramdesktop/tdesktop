@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/share_box.h"
 #include "history/view/history_view_schedule_box.h"
-#include "history/history_message.h" // GetErrorTextForSending.
+#include "history/history_item_helpers.h" // GetErrorTextForSending.
 #include "history/history.h"
 #include "data/data_histories.h"
 #include "data/data_session.h"
@@ -194,7 +194,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		showToast(tr::lng_share_done(tr::now));
 	};
 	auto filterCallback = [](not_null<Data::Thread*> thread) {
-		return thread->canWrite();
+		return Data::CanSend(thread, ChatRestriction::SendOther);
 	};
 
 	const auto scheduleStyle = [&] {

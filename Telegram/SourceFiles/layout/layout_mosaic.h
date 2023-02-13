@@ -32,7 +32,7 @@ public:
 	[[nodiscard]] QRect findRect(int index) const;
 
 	void setRightSkip(int rightSkip);
-	void setOffset(int left, int top);
+	void setPadding(QMargins padding);
 	void setFullWidth(int w);
 
 	[[nodiscard]] bool empty() const;
@@ -73,7 +73,7 @@ private:
 	int _bigWidth;
 	int _width = 0;
 	int _rightSkip = 0;
-	QPoint _offset;
+	QMargins _padding;
 	std::vector<Row> _rows;
 
 };

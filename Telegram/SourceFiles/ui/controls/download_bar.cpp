@@ -18,8 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-constexpr auto kFullArcLength = 360 * 16;
-
 [[nodiscard]] QImage Make(const QImage &image, int size) {
 	if (image.isNull()) {
 		return QImage();
@@ -209,7 +207,7 @@ void DownloadBar::paint(Painter &p, QRect clip) {
 			p.setBrush(Qt::NoBrush);
 			const auto m = added / 2.;
 			auto rect = QRectF(full).marginsRemoved({ m, m, m, m });
-			if (loading.arcLength < kFullArcLength) {
+			if (loading.arcLength < arc::kFullLength) {
 				p.drawArc(rect, loading.arcFrom, loading.arcLength);
 			} else {
 				p.drawEllipse(rect);

@@ -158,6 +158,7 @@ private:
 	[[nodiscard]] auto floatPlayerSectionDelegate()
 		-> not_null<Media::Player::FloatSectionDelegate*>;
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
+	void floatPlayerToggleGifsPaused(bool paused) override;
 	not_null<Media::Player::FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) override;
 	void floatPlayerEnumerateSections(Fn<void(
@@ -185,6 +186,8 @@ private:
 	Ui::Animations::Simple _coverShownAnimation;
 	int _nextTopFrom = 0;
 	int _controlsTopFrom = 0;
+
+	const style::RoundButton *_nextStyle = nullptr;
 
 	object_ptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _update = { nullptr };

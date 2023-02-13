@@ -16,6 +16,7 @@ namespace Ui {
 struct PreparedFile;
 struct GroupMediaLayout;
 class AlbumThumbnail;
+class PopupMenu;
 
 class AlbumPreview final : public RpWidget {
 public:
@@ -26,7 +27,11 @@ public:
 	~AlbumPreview();
 
 	void setSendWay(SendFilesWay way);
-	std::vector<int> takeOrder();
+
+	[[nodiscard]] base::flat_set<int> collectSpoileredIndices();
+	[[nodiscard]] bool canHaveSpoiler(int index) const;
+	void toggleSpoilers(bool enabled);
+	[[nodiscard]] std::vector<int> takeOrder();
 
 	[[nodiscard]] rpl::producer<int> thumbDeleted() const {
 		return _thumbDeleted.events();
@@ -79,6 +84,8 @@ private:
 	void cancelDrag();
 	void finishDrag();
 
+	void showContextMenu(not_null<AlbumThumbnail*> thumb, QPoint position);
+
 	SendFilesWay _sendWay;
 	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;
@@ -102,6 +109,8 @@ private:
 	rpl::event_stream<int> _thumbDeleted;
 	rpl::event_stream<int> _thumbChanged;
 	rpl::event_stream<int> _thumbModified;
+
+	base::unique_qptr<PopupMenu> _menu;
 
 	mutable Animations::Simple _thumbsHeightAnimation;
 	mutable Animations::Simple _shrinkAnimation;

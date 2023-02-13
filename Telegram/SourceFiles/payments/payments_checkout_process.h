@@ -151,6 +151,8 @@ private:
 
 	QString panelWebviewDataPath() override;
 
+	std::optional<QDate> panelOverrideExpireDateThreshold() override;
+
 	const not_null<Main::Session*> _session;
 	const std::unique_ptr<Form> _form;
 	const std::unique_ptr<Ui::Panel> _panel;

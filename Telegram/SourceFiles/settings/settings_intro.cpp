@@ -63,7 +63,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 
 	AddDivider(result);
 	AddSkip(result);
-	SetupLanguageButton(result, false);
+	SetupLanguageButton(window, result, false);
 	SetupConnectionType(window, &window->account(), result);
 	AddSkip(result);
 	if (HasUpdate()) {
@@ -75,6 +75,9 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	{
 		auto wrap = object_ptr<Ui::VerticalLayout>(result);
 		SetupSystemIntegrationContent(
+			window->sessionController(),
+			wrap.data());
+		SetupWindowTitleContent(
 			window->sessionController(),
 			wrap.data());
 		if (wrap->count() > 0) {

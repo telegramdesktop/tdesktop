@@ -80,7 +80,6 @@ ReactionFlyAnimation::ReactionFlyAnimation(
 			document,
 			callback(),
 			customSizeTag);
-		_colored = std::make_unique<Text::CustomEmojiColored>();
 		_customSize = esize;
 		_centerSizeMultiplier = _customSize / float64(size);
 		aroundAnimation = owner->chooseGenericAnimation(document);
@@ -203,10 +202,8 @@ void ReactionFlyAnimation::paintCenterFrame(
 		p.drawImage(rect, _center->frame());
 	} else {
 		const auto scaled = (size.width() != _customSize);
-		_colored->color = colored;
 		_custom->paint(p, {
-			.preview = QColor(0, 0, 0, 0),
-			.colored = _colored.get(),
+			.textColor = colored,
 			.size = { _customSize, _customSize },
 			.now = now,
 			.scale = (scaled ? (size.width() / float64(_customSize)) : 1.),
@@ -230,17 +227,14 @@ void ReactionFlyAnimation::paintMiniCopies(
 	}
 	auto hq = PainterHighQualityEnabler(p);
 	const auto size = QSize(_customSize, _customSize);
-	const auto preview = QColor(0, 0, 0, 0);
 	const auto progress = _minis.value(1.);
 	const auto middle = center - QPoint(_customSize / 2, _customSize / 2);
 	const auto scaleIn = kMiniCopiesScaleInDuration
 		/ float64(kMiniCopiesDurationMax);
 	const auto scaleOut = kMiniCopiesScaleOutDuration
 		/ float64(kMiniCopiesDurationMax);
-	_colored->color = colored;
 	auto context = Text::CustomEmoji::Context{
-		.preview = preview,
-		.colored = _colored.get(),
+		.textColor = colored,
 		.size = size,
 		.now = now,
 		.scaled = true,

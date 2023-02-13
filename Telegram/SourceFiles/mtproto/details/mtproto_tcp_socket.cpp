@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/details/mtproto_tcp_socket.h"
 
 #include "base/invoke_queued.h"
-#include "base/qt/qt_common_adapters.h"
 
 namespace MTP::details {
 
@@ -47,7 +46,7 @@ TcpSocket::TcpSocket(
 		wrap([=] { _readyRead.fire({}); }));
 	connect(
 		&_socket,
-		base::QTcpSocket_error,
+		&QAbstractSocket::errorOccurred,
 		wrap([=](Error e) { handleError(e); }));
 }
 

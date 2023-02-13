@@ -26,10 +26,6 @@ mediaPlayerButton: MediaPlayerButton {
 		color: lightButtonBgOver;
 	}
 }
-mediaPlayerButtonSize: size(25px, 30px);
-
-mediaPlayerButtonPosition: point(5px, 10px);
-
 mediaPlayerWideWidth: 460px;
 mediaPlayerHeight: 35px;
 mediaPlayerPadding: 8px;
@@ -69,12 +65,6 @@ mediaPlayerRepeatDisabledIconOver: icon {
 };
 mediaPlayerRepeatOneIcon: icon {
 	{ "player/player_repeat_single", mediaPlayerActiveFg }
-};
-mediaPlayerRepeatOneDisabledIcon: icon {
-	{ "player/player_repeat_single", menuIconFg }
-};
-mediaPlayerRepeatOneDisabledIconOver: icon {
-	{ "player/player_repeat_single", menuIconFgOver }
 };
 mediaPlayerReverseIcon: icon {
 	{ "player/player_order", mediaPlayerActiveFg }
@@ -223,52 +213,19 @@ mediaPlayerPlayback: FilledSlider {
 
 mediaPlayerButtonTransformDuration: 200;
 
-mediaPlayerPanelButton: MediaPlayerButton {
-	playPosition: point(3px, 0px);
-	playOuter: size(22px, 18px);
-	pausePosition: point(1px, 1px);
-	pauseOuter: size(16px, 18px);
-	pauseStroke: 5px;
-	cancelPosition: point(0px, 1px);
-	cancelOuter: size(16px, 18px);
-	cancelStroke: 3px;
-}
-mediaPlayerPanelButtonSize: size(32px, 32px);
-mediaPlayerPanelButtonPosition: point(8px, 7px);
-
 mediaPlayerPanelMarginLeft: 10px;
 mediaPlayerPanelMarginBottom: 10px;
 mediaPlayerPanelWidth: 344px;
-mediaPlayerCoverHeight: 102px;
 
 mediaPlayerPanelNextButton: IconButton(mediaPlayerRepeatButton) {
 	width: 37px;
 	icon: icon {{ "player/player_forward", mediaPlayerActiveFg, point(6px, 4px) }};
 }
-mediaPlayerPanelNextDisabledIcon: icon {
-	{ "player/player_forward", mediaPlayerInactiveFg, point(6px, 4px) },
-};
-mediaPlayerPanelPreviousButton: IconButton(mediaPlayerPanelNextButton) {
-	icon: icon {{ "player/player_backward", mediaPlayerActiveFg, point(6px, 4px) }};
-}
-mediaPlayerPanelPreviousDisabledIcon: icon {
-	{ "player/player_backward", mediaPlayerInactiveFg, point(6px, 4px) },
-};
 
-mediaPlayerPanelPadding: 16px;
-mediaPlayerPanelNameTop: 24px;
-mediaPlayerPanelPlayLeft: 9px;
-mediaPlayerPanelPlaySkip: 7px;
-mediaPlayerPanelPlayTop: 58px;
-mediaPlayerPanelPlaybackTop: 32px;
 mediaPlayerPanelPlaybackPadding: 8px;
 mediaPlayerPanelPlayback: defaultContinuousSlider;
 
-mediaPlayerPanelVolumeTop: 65px;
-mediaPlayerPanelVolumeSkip: 3px;
 mediaPlayerPanelVolumeWidth: 64px;
-mediaPlayerPanelVolumeToggleSkip: 0px;
-mediaPlayerPanelVolumeToggleTop: 57px;
 
 mediaPlayerScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 10px;
@@ -276,12 +233,7 @@ mediaPlayerScroll: ScrollArea(defaultSolidScroll) {
 }
 mediaPlayerListHeightMax: 280px;
 mediaPlayerListMarginBottom: 10px;
-mediaPlayerScrollShadow: Shadow {
-	bottom: icon {{ "player/playlist_shadow", windowShadowFg }};
-	extend: margins(2px, 2px, 2px, 2px);
-}
 
-mediaPlayerListMarginTop: 8px;
 mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
 	maxWidth: 344px;
 	songIconBg: mediaPlayerActiveFg;

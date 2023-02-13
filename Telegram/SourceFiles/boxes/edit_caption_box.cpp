@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "editor/editor_layer_widget.h"
+#include "editor/photo_editor.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
@@ -76,14 +78,11 @@ auto ListFromMimeData(not_null<const QMimeData*> data, bool premium) {
 		: Ui::PreparedList(Error::EmptyFile, QString());
 	if (result.error == Error::None) {
 		return result;
-	} else if (data->hasImage()) {
-		auto image = qvariant_cast<QImage>(data->imageData());
-		if (!image.isNull()) {
-			return Storage::PrepareMediaFromImage(
-				std::move(image),
-				QByteArray(),
-				st::sendMediaPreviewSize);
-		}
+	} else if (auto read = Core::ReadMimeImage(data)) {
+		return Storage::PrepareMediaFromImage(
+			std::move(read.image),
+			std::move(read.content),
+			st::sendMediaPreviewSize);
 	}
 	return result;
 }
@@ -175,12 +174,15 @@ void EditCaptionBox::rebuildPreview() {
 			Window::GifPauseReason::Layer);
 	};
 
+	applyChanges();
+
+	_previewHasSpoiler = nullptr;
 	if (_preparedList.files.empty()) {
 		const auto media = _historyItem->media();
 		const auto photo = media->photo();
 		const auto document = media->document();
+		_isPhoto = (photo != nullptr);
 		if (photo || document->isVideoFile() || document->isAnimation()) {
-			_isPhoto = (photo != nullptr);
 			const auto media = Ui::CreateChild<Ui::ItemSingleMediaPreview>(
 				this,
 				gifPaused,
@@ -189,7 +191,6 @@ void EditCaptionBox::rebuildPreview() {
 			_photoMedia = media->sharedPhotoMedia();
 			_content.reset(media);
 		} else {
-			_isPhoto = false;
 			_content.reset(Ui::CreateChild<Ui::ItemSingleFilePreview>(
 				this,
 				_historyItem,
@@ -203,11 +204,12 @@ void EditCaptionBox::rebuildPreview() {
 			gifPaused,
 			file,
 			Ui::AttachControls::Type::EditOnly);
-		if (media) {
-			_isPhoto = media->isPhoto();
+		_isPhoto = (media && media->isPhoto());
+		const auto withCheckbox = _isPhoto && CanBeCompressed(_albumType);
+		if (media && (!withCheckbox || !_asFile)) {
+			_previewHasSpoiler = [media] { return media->hasSpoiler(); };
 			_content.reset(media);
 		} else {
-			_isPhoto = false;
 			_content.reset(Ui::CreateChild<Ui::SingleFilePreview>(
 				this,
 				file,
@@ -299,7 +301,7 @@ void EditCaptionBox::setupControls() {
 		{}
 	) | rpl::map([=] {
 		return _controller->session().settings().photoEditorHintShown()
-			? _isPhoto
+			? (_isPhoto && !_asFile)
 			: false;
 	});
 
@@ -316,7 +318,7 @@ void EditCaptionBox::setupControls() {
 		this,
 		object_ptr<Ui::Checkbox>(
 			this,
-			tr::lng_send_compressed(tr::now),
+			tr::lng_send_compressed_one(tr::now),
 			true,
 			st::defaultBoxCheckbox),
 		st::editMediaCheckboxMargins)
@@ -329,7 +331,9 @@ void EditCaptionBox::setupControls() {
 		anim::type::instant
 	)->entity()->checkedChanges(
 	) | rpl::start_with_next([&](bool checked) {
+		applyChanges();
 		_asFile = !checked;
+		rebuildPreview();
 	}, _controls->lifetime());
 
 	_controls->resizeToWidth(st::sendMediaPreviewSize);
@@ -430,6 +434,8 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 					return;
 				}
 				auto copy = large->original();
+				const auto wasSpoiler = hasSpoiler();
+
 				_preparedList = Storage::PrepareMediaFromImage(
 					std::move(copy),
 					QByteArray(),
@@ -437,21 +443,28 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 
 				using ImageInfo = Ui::PreparedFileInformation::Image;
 				auto &file = _preparedList.files.front();
+				file.spoiler = wasSpoiler;
 				const auto image = std::get_if<ImageInfo>(
 					&file.information->media);
 
 				image->modifications = mods;
-				Storage::UpdateImageDetails(file, previewWidth);
+				const auto sideLimit = PhotoSideLimit();
+				Storage::UpdateImageDetails(file, previewWidth, sideLimit);
 				rebuildPreview();
 			};
 			const auto fileImage = std::make_shared<Image>(*large);
+			auto editor = base::make_unique_q<Editor::PhotoEditor>(
+				this,
+				&controller->window(),
+				fileImage,
+				Editor::PhotoModifications());
+			const auto raw = editor.get();
+			auto layer = std::make_unique<Editor::LayerWidget>(
+				this,
+				std::move(editor));
+			Editor::InitEditorLayer(layer.get(), raw, std::move(callback));
 			controller->showLayer(
-				std::make_unique<Editor::LayerWidget>(
-					this,
-					&controller->window(),
-					fileImage,
-					Editor::PhotoModifications(),
-					std::move(callback)),
+				std::move(layer),
 				Ui::LayerOption::KeepOther);
 		}
 	}, lifetime());
@@ -581,9 +594,18 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 			tr::lng_edit_media_album_error(tr::now));
 		return false;
 	}
+	const auto wasSpoiler = hasSpoiler();
 	_preparedList = std::move(list);
+	_preparedList.files.front().spoiler = wasSpoiler;
 	rebuildPreview();
 	return true;
+}
+
+bool EditCaptionBox::hasSpoiler() const {
+	return _preparedList.files.empty()
+		? (_historyItem->media()
+			&& _historyItem->media()->hasSpoiler())
+		: _preparedList.files.front().spoiler;
 }
 
 void EditCaptionBox::captionResized() {
@@ -690,6 +712,12 @@ bool EditCaptionBox::validateLength(const QString &text) const {
 	return false;
 }
 
+void EditCaptionBox::applyChanges() {
+	if (!_preparedList.files.empty() && _previewHasSpoiler) {
+		_preparedList.files.front().spoiler = _previewHasSpoiler();
+	}
+}
+
 void EditCaptionBox::save() {
 	if (_saveRequestId) {
 		return;
@@ -727,10 +755,14 @@ void EditCaptionBox::save() {
 		action.replaceMediaOf = item->fullId().msg;
 
 		Storage::ApplyModifications(_preparedList);
+		if (!_preparedList.files.empty()) {
+			_preparedList.files.front().spoiler = false;
+			applyChanges();
+		}
 
 		_controller->session().api().editMedia(
 			std::move(_preparedList),
-			(!_asFile && _isPhoto && CanBeCompressed(_albumType))
+			(_isPhoto && !_asFile && CanBeCompressed(_albumType))
 				? SendMediaType::Photo
 				: SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),

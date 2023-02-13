@@ -56,6 +56,7 @@ enum class UserDataFlag {
 	Premium = (1 << 14),
 	CanReceiveGifts = (1 << 15),
 	VoiceMessagesForbidden = (1 << 16),
+	PersonalPhoto = (1 << 17),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -111,14 +112,13 @@ public:
 	[[nodiscard]] bool isBot() const;
 	[[nodiscard]] bool isSupport() const;
 	[[nodiscard]] bool isInaccessible() const;
-	[[nodiscard]] bool canWrite() const;
 	[[nodiscard]] bool applyMinPhoto() const;
+	[[nodiscard]] bool hasPersonalPhoto() const;
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
 
 	[[nodiscard]] bool canReceiveGifts() const;
-	[[nodiscard]] bool canReceiveVoices() const;
 
 	// In Data::Session::processUsers() we check only that.
 	// When actually trying to share contact we perform

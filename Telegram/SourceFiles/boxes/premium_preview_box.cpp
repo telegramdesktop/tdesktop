@@ -52,7 +52,6 @@ namespace {
 constexpr auto kPremiumShift = 21. / 240;
 constexpr auto kReactionsPerRow = 5;
 constexpr auto kDisabledOpacity = 0.5;
-constexpr auto kPreviewsCount = int(PremiumPreview::kCount);
 constexpr auto kToggleStickerTimeout = 2 * crl::time(1000);
 constexpr auto kStarOpacityOff = 0.1;
 constexpr auto kStarOpacityOn = 1.;
@@ -115,6 +114,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_profile_badge();
 	case PremiumPreview::AnimatedUserpics:
 		return tr::lng_premium_summary_subtitle_animated_userpics();
+	case PremiumPreview::RealTimeTranslation:
+		return tr::lng_premium_summary_subtitle_translation();
 	}
 	Unexpected("PremiumPreview in SectionTitle.");
 }
@@ -143,6 +144,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_profile_badge();
 	case PremiumPreview::AnimatedUserpics:
 		return tr::lng_premium_summary_about_animated_userpics();
+	case PremiumPreview::RealTimeTranslation:
+		return tr::lng_premium_summary_about_translation();
 	}
 	Unexpected("PremiumPreview in SectionTitle.");
 }
@@ -454,6 +457,7 @@ struct VideoPreviewDocument {
 		case PremiumPreview::InfiniteReactions: return "infinite_reactions";
 		case PremiumPreview::ProfileBadge: return "profile_badge";
 		case PremiumPreview::AnimatedUserpics: return "animated_userpics";
+		case PremiumPreview::RealTimeTranslation: return "translations";
 		}
 		return "";
 	}();
@@ -744,19 +748,21 @@ struct VideoPreviewDocument {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateSwitch(
 		not_null<Ui::RpWidget*> parent,
-		not_null<rpl::variable<PremiumPreview>*> selected) {
+		not_null<rpl::variable<PremiumPreview>*> selected,
+		std::vector<PremiumPreview> order) {
 	const auto padding = st::premiumDotPadding;
 	const auto width = padding.left() + st::premiumDot + padding.right();
 	const auto height = padding.top() + st::premiumDot + padding.bottom();
 	const auto stops = Ui::Premium::ButtonGradientStops();
 	auto result = object_ptr<Ui::FixedHeightWidget>(parent.get(), height);
 	const auto raw = result.data();
-	for (auto i = 0; i != kPreviewsCount; ++i) {
-		const auto section = PremiumPreview(i);
+	const auto count = order.size();
+	for (auto i = 0; i != count; ++i) {
+		const auto section = order[i];
 		const auto button = Ui::CreateChild<Ui::AbstractButton>(raw);
 		parent->widthValue(
 		) | rpl::start_with_next([=](int outer) {
-			const auto full = width * kPreviewsCount;
+			const auto full = width * count;
 			const auto left = (outer - full) / 2 + (i * width);
 			button->setGeometry(left, 0, width, height);
 		}, button->lifetime());
@@ -770,7 +776,7 @@ struct VideoPreviewDocument {
 			p.setBrush((selected->current() == section)
 				? anim::gradient_color_at(
 					stops,
-					float64(i) / (kPreviewsCount - 1))
+					float64(i) / (count - 1))
 				: st::windowBgRipple->c);
 			p.setPen(Qt::NoPen);
 			p.drawEllipse(
@@ -815,15 +821,23 @@ void PreviewBox(
 		Fn<void()> preload;
 		std::vector<Hiding> hiding;
 		rpl::variable<PremiumPreview> selected;
+		std::vector<PremiumPreview> order;
 	};
 	const auto state = outer->lifetime().make_state<State>();
 	state->selected = descriptor.section;
+	state->order = Settings::PremiumPreviewOrder(&controller->session());
+
+	const auto index = [=](PremiumPreview section) {
+		const auto it = ranges::find(state->order, section);
+		return (it == end(state->order))
+			? 0
+			: std::distance(begin(state->order), it);
+	};
 
 	const auto move = [=](int delta) {
-		using Type = PremiumPreview;
-		const auto count = int(Type::kCount);
+		const auto count = int(state->order.size());
 		const auto now = state->selected.current();
-		state->selected = Type((int(now) + count + delta) % count);
+		state->selected = state->order[(index(now) + count + delta) % count];
 	};
 
 	const auto buttonsParent = box->verticalLayout().get();
@@ -912,7 +926,7 @@ void PreviewBox(
 			}
 		};
 		animationCallback();
-		const auto toLeft = int(now) > int(was);
+		const auto toLeft = index(now) > index(was);
 		auto start = state->content->x() + (toLeft ? single : -single);
 		for (const auto &hiding : state->hiding) {
 			const auto left = hiding.widget->x();
@@ -955,14 +969,10 @@ void PreviewBox(
 	}, outer->lifetime());
 
 	auto title = state->selected.value(
-	) | rpl::map([=](PremiumPreview section) {
-		return SectionTitle(section);
-	}) | rpl::flatten_latest();
+	) | rpl::map(SectionTitle) | rpl::flatten_latest();
 
 	auto text = state->selected.value(
-	) | rpl::map([=](PremiumPreview section) {
-		return SectionAbout(section);
-	}) | rpl::flatten_latest();
+	) | rpl::map(SectionAbout) | rpl::flatten_latest();
 
 	const auto padding = st::premiumPreviewAboutPadding;
 	const auto available = size.width() - padding.left() - padding.right();
@@ -985,7 +995,7 @@ void PreviewBox(
 		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(textLabel)),
 		padding);
 	box->addRow(
-		CreateSwitch(box->verticalLayout(), &state->selected),
+		CreateSwitch(box->verticalLayout(), &state->selected, state->order),
 		st::premiumDotsMargin);
 	const auto showFinished = [=] {
 		state->showFinished = true;

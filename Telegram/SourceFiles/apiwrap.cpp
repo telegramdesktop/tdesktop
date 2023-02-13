@@ -67,8 +67,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_account.h"
@@ -125,22 +126,18 @@ using UpdatedFileReferences = Data::UpdatedFileReferences;
 
 [[nodiscard]] std::shared_ptr<Window::Show> ShowForPeer(
 		not_null<PeerData*> peer) {
-	const auto separate = Core::App().separateWindowForPeer(peer);
-	const auto window = separate ? separate : Core::App().primaryWindow();
-	return std::make_shared<Window::Show>(window);
+	return std::make_shared<Window::Show>(Core::App().windowFor(peer));
 }
 
 void ShowChannelsLimitBox(not_null<PeerData*> peer) {
-	const auto primary = Core::App().primaryWindow();
-	if (!primary) {
-		return;
+	if (const auto window = Core::App().windowFor(peer)) {
+		window->invokeForSessionController(
+			&peer->session().account(),
+			peer,
+			[&](not_null<Window::SessionController*> controller) {
+				controller->show(Box(ChannelsLimitBox, &peer->session()));
+			});
 	}
-	primary->invokeForSessionController(
-		&peer->session().account(),
-		peer,
-		[&](not_null<Window::SessionController*> controller) {
-			controller->show(Box(ChannelsLimitBox, &peer->session()));
-		});
 }
 
 } // namespace
@@ -694,7 +691,11 @@ QString ApiWrap::exportDirectMessageLink(
 		auto linkThreadId = MsgId();
 		auto linkThreadIsTopic = false;
 		if (inRepliesContext) {
-			if (const auto rootId = item->replyToTop()) {
+			linkThreadIsTopic = item->history()->isForum();
+			const auto rootId = linkThreadIsTopic
+				? item->topicRootId()
+				: item->replyToTop();
+			if (rootId) {
 				const auto root = item->history()->owner().message(
 					channel->id,
 					rootId);
@@ -714,7 +715,6 @@ QString ApiWrap::exportDirectMessageLink(
 				} else {
 					// Reply in a thread, maybe comment in a private channel.
 					linkThreadId = rootId;
-					linkThreadIsTopic = (item->topicRootId() == rootId);
 				}
 			}
 		}
@@ -1732,6 +1732,29 @@ void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 }
 
 void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
+	const auto bad = peer.match([](const MTPDinputNotifyUsers &) {
+		return false;
+	}, [](const MTPDinputNotifyChats &) {
+		return false;
+	}, [](const MTPDinputNotifyBroadcasts &) {
+		return false;
+	}, [&](const MTPDinputNotifyPeer &data) {
+		if (data.vpeer().type() == mtpc_inputPeerEmpty) {
+			LOG(("Api Error: Requesting settings for empty peer."));
+			return true;
+		}
+		return false;
+	}, [&](const MTPDinputNotifyForumTopic &data) {
+		if (data.vpeer().type() == mtpc_inputPeerEmpty) {
+			LOG(("Api Error: Requesting settings for empty peer topic."));
+			return true;
+		}
+		return false;
+	});
+	if (bad) {
+		return;
+	}
+
 	const auto peerFromInput = [&](const MTPInputPeer &inputPeer) {
 		return inputPeer.match([&](const MTPDinputPeerSelf &) {
 			return _session->userPeerId();
@@ -2139,7 +2162,6 @@ void ApiWrap::saveDraftsToCloud() {
 			if (const auto cloudDraft = history->cloudDraft(topicRootId)) {
 				if (cloudDraft->saveRequestId == requestId) {
 					history->clearCloudDraft(topicRootId);
-					history->applyCloudDraft(topicRootId);
 				}
 			}
 			const auto i = _draftsSaveRequestIds.find(weak);
@@ -2421,6 +2443,12 @@ void ApiWrap::refreshFileReference(
 		} else {
 			fail();
 		}
+	}, [&](Data::FileOriginFullUser data) {
+		if (const auto user = _session->data().user(data.userId)) {
+			request(MTPusers_GetFullUser(user->inputUser));
+		} else {
+			fail();
+		}
 	}, [&](Data::FileOriginPeerPhoto data) {
 		fail();
 	}, [&](Data::FileOriginStickerSet data) {
@@ -2544,8 +2572,8 @@ void ApiWrap::setGroupStickerSet(
 }
 
 std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
-		not_null<EmojiPtr> emoji) {
-	const auto it = _stickersByEmoji.find(emoji);
+		const QString &key) {
+	const auto it = _stickersByEmoji.find(key);
 	const auto sendRequest = [&] {
 		if (it == _stickersByEmoji.end()) {
 			return true;
@@ -2560,7 +2588,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			? it->second.hash
 			: uint64(0);
 		request(MTPmessages_GetStickers(
-			MTP_string(emoji->text()),
+			MTP_string(key),
 			MTP_long(hash)
 		)).done([=](const MTPmessages_Stickers &result) {
 			if (result.type() == mtpc_messages_stickersNotModified) {
@@ -2568,7 +2596,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			}
 			Assert(result.type() == mtpc_messages_stickers);
 			const auto &data = result.c_messages_stickers();
-			auto &entry = _stickersByEmoji[emoji];
+			auto &entry = _stickersByEmoji[key];
 			entry.list.clear();
 			entry.list.reserve(data.vstickers().v.size());
 			for (const auto &sticker : data.vstickers().v) {
@@ -2585,7 +2613,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 		}).send();
 	}
 	if (it == _stickersByEmoji.end()) {
-		_stickersByEmoji.emplace(emoji, StickersByEmoji());
+		_stickersByEmoji.emplace(key, StickersByEmoji());
 	} else if (it->second.received > 0) {
 		return &it->second.list;
 	}
@@ -3153,7 +3181,11 @@ void ApiWrap::forwardMessages(
 	if (sendAs) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_send_as;
 	}
-	if (action.topicRootId) {
+	const auto kGeneralId = Data::ForumTopic::kGeneralId;
+	const auto topMsgId = (action.topicRootId == kGeneralId)
+		? MsgId(0)
+		: action.topicRootId;
+	if (topMsgId) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_top_msg_id;
 	}
 
@@ -3175,7 +3207,7 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPint>(ids),
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
-				MTP_int(action.topicRootId),
+				MTP_int(topMsgId),
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 			)).done([=](const MTPUpdates &result) {
@@ -3228,7 +3260,7 @@ void ApiWrap::forwardMessages(
 				messageFromId,
 				messagePostAuthor,
 				item,
-				action.topicRootId);
+				topMsgId);
 			_session->data().registerMessageRandomId(randomId, newId);
 			if (!localIds) {
 				localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();
@@ -3371,7 +3403,8 @@ void ApiWrap::editMedia(
 		std::move(file.information),
 		type,
 		to,
-		caption));
+		caption,
+		file.spoiler));
 }
 
 void ApiWrap::sendFiles(
@@ -3412,6 +3445,7 @@ void ApiWrap::sendFiles(
 			uploadWithType,
 			to,
 			caption,
+			file.spoiler,
 			album));
 		caption = TextWithTags();
 	}
@@ -3431,14 +3465,17 @@ void ApiWrap::sendFile(
 		const SendAction &action) {
 	const auto to = fileLoadTaskOptions(action);
 	auto caption = TextWithTags();
+	const auto spoiler = false;
+	const auto information = nullptr;
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
 		&session(),
 		QString(),
 		fileContent,
-		nullptr,
+		information,
 		type,
 		to,
-		caption));
+		caption,
+		spoiler));
 }
 
 void ApiWrap::sendUploadedPhoto(
@@ -3446,7 +3483,7 @@ void ApiWrap::sendUploadedPhoto(
 		Api::RemoteFileInfo info,
 		Api::SendOptions options) {
 	if (const auto item = _session->data().message(localId)) {
-		const auto media = Api::PrepareUploadedPhoto(std::move(info));
+		const auto media = Api::PrepareUploadedPhoto(item, std::move(info));
 		if (const auto groupId = item->groupId()) {
 			uploadAlbumMedia(item, groupId, media);
 		} else {
@@ -3502,7 +3539,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		? action.topicRootId
 		: Data::ForumTopic::kGeneralId;
 	const auto topic = peer->forumTopicFor(topicRootId);
-	if (!(topic ? topic->canWrite() : peer->canWrite())
+	if (!(topic ? Data::CanSendTexts(topic) : Data::CanSendTexts(peer))
 		|| Api::SendDice(message)) {
 		return;
 	}
@@ -3799,7 +3836,9 @@ void ApiWrap::uploadAlbumMedia(
 			failed();
 			return;
 		}
+		auto spoiler = false;
 		if (const auto media = item->media()) {
+			spoiler = media->hasSpoiler();
 			if (const auto photo = media->photo()) {
 				photo->setWaitingForAlbum();
 			} else if (const auto document = media->document()) {
@@ -3816,10 +3855,10 @@ void ApiWrap::uploadAlbumMedia(
 				return;
 			}
 			const auto &fields = photo->c_photo();
-			const auto flags = MTPDinputMediaPhoto::Flags(0)
-				| (data.vttl_seconds()
-					? MTPDinputMediaPhoto::Flag::f_ttl_seconds
-					: MTPDinputMediaPhoto::Flag(0));
+			using Flag = MTPDinputMediaPhoto::Flag;
+			const auto flags = Flag()
+				| (data.vttl_seconds() ? Flag::f_ttl_seconds : Flag())
+				| (spoiler ? Flag::f_spoiler : Flag());
 			const auto media = MTP_inputMediaPhoto(
 				MTP_flags(flags),
 				MTP_inputPhoto(
@@ -3838,10 +3877,10 @@ void ApiWrap::uploadAlbumMedia(
 				return;
 			}
 			const auto &fields = document->c_document();
-			const auto flags = MTPDinputMediaDocument::Flags(0)
-				| (data.vttl_seconds()
-					? MTPDinputMediaDocument::Flag::f_ttl_seconds
-					: MTPDinputMediaDocument::Flag(0));
+			using Flag = MTPDinputMediaDocument::Flag;
+			const auto flags = Flag()
+				| (data.vttl_seconds() ? Flag::f_ttl_seconds : Flag())
+				| (spoiler ? Flag::f_spoiler : Flag());
 			const auto media = MTP_inputMediaDocument(
 				MTP_flags(flags),
 				MTP_inputDocument(
@@ -4082,6 +4121,50 @@ void ApiWrap::saveContactSignupSilent(bool silent) {
 		_contactSignupSilentRequestId = 0;
 	}).send();
 	_contactSignupSilentRequestId = requestId;
+}
+
+auto ApiWrap::botCommonGroups(not_null<UserData*> bot) const
+-> std::optional<std::vector<not_null<PeerData*>>> {
+	const auto i = _botCommonGroups.find(bot);
+	return (i != end(_botCommonGroups))
+		? i->second
+		: std::optional<std::vector<not_null<PeerData*>>>();
+}
+
+void ApiWrap::requestBotCommonGroups(
+		not_null<UserData*> bot,
+		Fn<void()> done) {
+	if (_botCommonGroupsRequests.contains(bot)) {
+		return;
+	}
+	_botCommonGroupsRequests.emplace(bot, done);
+	const auto finish = [=](std::vector<not_null<PeerData*>> list) {
+		_botCommonGroups.emplace(bot, std::move(list));
+		if (const auto callback = _botCommonGroupsRequests.take(bot)) {
+			(*callback)();
+		}
+	};
+	const auto limit = 100;
+	request(MTPmessages_GetCommonChats(
+		bot->inputUser,
+		MTP_long(0), // max_id
+		MTP_int(limit)
+	)).done([=](const MTPmessages_Chats &result) {
+		const auto chats = result.match([](const auto &data) {
+			return &data.vchats().v;
+		});
+		auto &owner = session().data();
+		auto list = std::vector<not_null<PeerData*>>();
+		list.reserve(chats->size());
+		for (const auto &chat : *chats) {
+			if (const auto peer = owner.processChat(chat)) {
+				list.push_back(peer);
+			}
+		}
+		finish(std::move(list));
+	}).fail([=] {
+		finish({});
+	}).send();
 }
 
 void ApiWrap::saveSelfBio(const QString &text) {

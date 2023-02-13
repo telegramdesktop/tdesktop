@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "export/export_settings.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 
 #include "fakepasscode/log/fake_log.h"
@@ -77,7 +78,7 @@ Storage::StartResult Domain::start(const QByteArray &passcode) {
 
 void Domain::finish() {
 	_accountToActivate = -1;
-	_active = nullptr;
+	_active.reset(nullptr);
 	base::take(_accounts);
 }
 
@@ -177,6 +178,16 @@ Account *Domain::maybeLastOrSomeAuthedAccount() {
 			return account.get();
 		} else if (!result) {
 			result = account.get();
+		}
+	}
+	return result;
+}
+
+int Domain::accountsAuthedCount() const {
+	auto result = 0;
+	for (const auto &[index, account] : _accounts) {
+		if (account->sessionExists()) {
+			++result;
 		}
 	}
 	return result;
@@ -306,14 +317,24 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	return account;
 }
 
-void Domain::addActivated(MTP::Environment environment) {
+void Domain::addActivated(MTP::Environment environment, bool newWindow) {
+	const auto added = [&](not_null<Main::Account*> account) {
+		if (newWindow) {
+			Core::App().ensureSeparateWindowForAccount(account);
+		} else if (const auto window = Core::App().separateWindowForAccount(
+				account)) {
+			window->activate();
+		} else {
+			activate(account);
+		}
+	};
 	if (accounts().size() < maxAccounts()) {
-		activate(add(environment));
+		added(add(environment));
 	} else {
 		for (auto &[index, account] : accounts()) {
 			if (!account->sessionExists()
 				&& account->mtp().environment() == environment) {
-				activate(account.get());
+				added(account.get());
 				break;
 			}
 		}
@@ -344,10 +365,8 @@ void Domain::watchSession(not_null<Account*> account) {
         FAKE_LOG(qsl("Found logouted sessions, clear!"));
 		scheduleUpdateUnreadBadge();
         FAKE_LOG(qsl("Scheduled UpdateUnreadBadge!"));
-		if (account == _active.current()) {
-            FAKE_LOG(qsl("Try to activate authed account"));
-			activateAuthedAccount();
-		}
+        FAKE_LOG(qsl("Try to activate authed account"));
+        closeAccountWindows();
         FAKE_LOG(qsl("Schedule removing redundant accounts!"));
 		crl::on_main(&Core::App(), [=] {
 			removeRedundantAccounts();
@@ -355,18 +374,25 @@ void Domain::watchSession(not_null<Account*> account) {
 	}, account->lifetime());
 }
 
-void Domain::activateAuthedAccount() {
-	Expects(started());
-
-	if (_active.current()->sessionExists()) {
-        FAKE_LOG(qsl("Session exists in activateAuthedAccount"));
-		return;
-	}
+void Domain::closeAccountWindows(not_null<Main::Account*> account) {
+	auto another = (Main::Account*)nullptr;
+    FAKE_LOG(qsl("Session exists in activateAuthedAccount"));
 	for (auto i = _accounts.begin(); i != _accounts.end(); ++i) {
-		if (i->account->sessionExists()) {
-			activate(i->account.get());
-			return;
+		const auto other = i->account.get();
+		if (other == account) {
+			continue;
+		} else if (Core::App().separateWindowForAccount(other)) {
+			const auto that = Core::App().separateWindowForAccount(account);
+			if (that) {
+				that->close();
+			}
+		} else if (!another
+			|| (other->sessionExists() && !another->sessionExists())) {
+			another = other;
 		}
+	}
+	if (another) {
+		activate(another);
 	}
 }
 
@@ -391,11 +417,8 @@ void Domain::removeRedundantAccounts() {
 	Expects(started());
 
 	const auto was = _accounts.size();
-    FAKE_LOG(qsl("removeRedundantAccounts: previous size: %1").arg(was));
-	activateAuthedAccount();
-    FAKE_LOG(qsl("removeRedundantAccounts: activateAuthedAccount"));
 	for (auto i = _accounts.begin(); i != _accounts.end();) {
-		if (i->account.get() == _active.current()
+		if (Core::App().separateWindowForAccount(i->account.get())
 			|| i->account->sessionExists()) {
             FAKE_LOG(qsl("removeRedundantAccounts: account %1 already good, skip").arg(i->index));
 			++i;
@@ -431,12 +454,19 @@ void Domain::checkForLastProductionConfig(
 }
 
 void Domain::maybeActivate(not_null<Main::Account*> account) {
-	Core::App().preventOrInvoke(crl::guard(account, [=] {
+	if (Core::App().separateWindowForAccount(account)) {
 		activate(account);
-	}));
+	} else {
+		Core::App().preventOrInvoke(crl::guard(account, [=] {
+			activate(account);
+		}));
+	}
 }
 
 void Domain::activate(not_null<Main::Account*> account) {
+	if (const auto window = Core::App().separateWindowForAccount(account)) {
+		window->activate();
+	}
 	if (_active.current() == account.get()) {
 		return;
 	}

@@ -25,12 +25,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_media_types.h"
 #include "data/data_file_origin.h"
-#include "window/window_session_controller.h"
-#include "window/window_controller.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
-#include "main/main_domain.h" // Domain::activeSessionValue.
+#include "core/core_settings.h"
+#include "window/window_controller.h"
 #include "mainwindow.h"
+#include "main/main_domain.h" // Domain::activeSessionValue.
 #include "main/main_session.h"
 #include "main/main_account.h" // session->account().sessionChanges().
 #include "main/main_session_settings.h"
@@ -308,12 +308,7 @@ void Instance::clearStreamed(not_null<Data*> data, bool savePosition) {
 	data->streamed = nullptr;
 
 	_roundPlaying = false;
-	if (const auto window = Core::App().primaryWindow()) {
-		if (const auto controller = window->sessionController()) {
-			controller->disableGifPauseReason(
-				Window::GifPauseReason::RoundPlaying);
-		}
-	}
+	Core::App().floatPlayerToggleGifsPaused(false);
 }
 
 void Instance::refreshPlaylist(not_null<Data*> data) {
@@ -764,6 +759,7 @@ auto Media::Player::Instance::seekingChanges(AudioMsgId::Type type) const
 
 not_null<Instance*> instance() {
 	Expects(SingleInstance != nullptr);
+
 	return SingleInstance;
 }
 
@@ -1275,8 +1271,13 @@ void Instance::setupShortcuts() {
 	}, _lifetime);
 }
 
-bool Instance::pauseGifByRoundVideo() const {
-	return _roundPlaying;
+void Instance::stopAndClose() {
+	_closePlayerRequests.fire({});
+
+	stop(AudioMsgId::Type::Voice);
+	stop(AudioMsgId::Type::Song);
+
+	Shortcuts::ToggleMediaShortcuts(false);
 }
 
 void Instance::handleStreamingUpdate(
@@ -1292,12 +1293,7 @@ void Instance::handleStreamingUpdate(
 				requestRoundVideoRepaint();
 			});
 			_roundPlaying = true;
-			if (const auto window = Core::App().primaryWindow()) {
-				if (const auto controller = window->sessionController()) {
-					controller->enableGifPauseReason(
-						Window::GifPauseReason::RoundPlaying);
-				}
-			}
+			Core::App().floatPlayerToggleGifsPaused(true);
 			requestRoundVideoResize();
 		}
 		emitUpdate(data->type);

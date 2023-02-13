@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_spoiler_click_handler.h"
 #include "history/view/media/history_view_sticker.h"
+#include "history/view/media/history_view_media_spoiler.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -120,7 +121,9 @@ TextWithEntities AddTimestampLinks(
 		return text;
 	}
 	static const auto expression = QRegularExpression(
-		"(?<![^\\s\\(\\)\"\\,\\.\\-])(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)(?![^\\s\\(\\)\",\\.\\-])");
+		"(?<![^\\s\\(\\)\"\\,\\.\\-])"
+		"(?:(?:(\\d{1,2}):)?(\\d))?(\\d):(\\d\\d)"
+		"(?![^\\s\\(\\)\",\\.\\-\\+])");
 	const auto &string = text.text;
 	auto offset = 0;
 	while (true) {
@@ -174,6 +177,10 @@ TextWithEntities AddTimestampLinks(
 
 Storage::SharedMediaTypesMask Media::sharedMediaTypes() const {
 	return {};
+}
+
+not_null<Element*> Media::parent() const {
+	return _parent;
 }
 
 not_null<History*> Media::history() const {
@@ -242,6 +249,46 @@ void Media::fillImageOverlay(
 	Ui::FillComplexOverlayRect(p, rect, st->msgSelectOverlay(), corners);
 }
 
+void Media::fillImageSpoiler(
+		QPainter &p,
+		not_null<MediaSpoiler*> spoiler,
+		QRect rect,
+		const PaintContext &context) const {
+	if (!spoiler->animation) {
+		spoiler->animation = std::make_unique<Ui::SpoilerAnimation>([=] {
+			_parent->customEmojiRepaint();
+		});
+		history()->owner().registerHeavyViewPart(_parent);
+	}
+	_parent->clearCustomEmojiRepaint();
+	Ui::FillSpoilerRect(
+		p,
+		rect,
+		MediaRoundingMask(spoiler->backgroundRounding),
+		Ui::DefaultImageSpoiler().frame(
+			spoiler->animation->index(context.now, context.paused)),
+		spoiler->cornerCache);
+}
+
+void Media::createSpoilerLink(not_null<MediaSpoiler*> spoiler) {
+	const auto weak = base::make_weak(this);
+	spoiler->link = std::make_shared<LambdaClickHandler>([=](
+			const ClickContext &context) {
+		const auto button = context.button;
+		const auto media = weak.get();
+		if (button != Qt::LeftButton || !media || spoiler->revealed) {
+			return;
+		}
+		const auto view = media->parent();
+		spoiler->revealed = true;
+		spoiler->revealAnimation.start([=] {
+			media->history()->owner().requestViewRepaint(view);
+		}, 0., 1., st::fadeWrapDuration);
+		media->history()->owner().requestViewRepaint(view);
+		media->history()->owner().registerShownSpoiler(view);
+	});
+}
+
 void Media::repaint() const {
 	history()->owner().requestViewRepaint(_parent);
 }
@@ -260,7 +307,7 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 	};
 	result.setMarkedText(
 		st::messageTextStyle,
-		item->originalTextWithLocalEntities(),
+		item->translatedTextWithLocalEntities(),
 		Ui::ItemTextOptions(item),
 		context);
 	FillTextWithAnimatedSpoilers(_parent, result);

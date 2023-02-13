@@ -34,6 +34,9 @@ enum class Command {
 	ChatPinned3,
 	ChatPinned4,
 	ChatPinned5,
+	ChatPinned6,
+	ChatPinned7,
+	ChatPinned8,
 
 	ShowAllChats,
 	ShowFolder1,
@@ -97,8 +100,10 @@ rpl::producer<not_null<Request*>> Requests();
 void Start();
 void Finish();
 
+void Listen(not_null<QWidget*> widget);
+
 bool Launch(Command command);
-bool HandleEvent(not_null<QShortcutEvent*> event);
+bool HandleEvent(not_null<QObject*> object, not_null<QShortcutEvent*> event);
 
 const QStringList &Errors();
 

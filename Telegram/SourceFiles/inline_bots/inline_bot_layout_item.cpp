@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_bot_layout_item.h"
 
+#include "base/never_freed_pointer.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
@@ -24,7 +25,7 @@ namespace InlineBots {
 namespace Layout {
 namespace {
 
-NeverFreedPointer<DocumentItems> documentItemsMap;
+base::NeverFreedPointer<DocumentItems> documentItemsMap;
 
 } // namespace
 

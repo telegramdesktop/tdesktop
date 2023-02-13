@@ -257,8 +257,12 @@ void Session::refreshOptions() {
 }
 
 void Session::reInitConnection() {
-	_dc->setConnectionInited(false);
+	setConnectionNotInited();
 	restart();
+}
+
+void Session::setConnectionNotInited() {
+	_dc->setConnectionInited(false);
 }
 
 void Session::stop() {

@@ -87,6 +87,9 @@ public:
 	[[nodiscard]] int animationsVersion() const {
 		return _animationsVersion;
 	}
+	[[nodiscard]] rpl::producer<> refreshed() const {
+		return _refreshed.events();
+	}
 
 	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> effectPlayer(
 		not_null<DocumentData*> document,
@@ -134,6 +137,8 @@ private:
 	base::flat_map<
 		not_null<DocumentData*>,
 		std::weak_ptr<Lottie::FrameProvider>> _sharedProviders;
+
+	rpl::event_stream<> _refreshed;
 
 	rpl::lifetime _lifetime;
 

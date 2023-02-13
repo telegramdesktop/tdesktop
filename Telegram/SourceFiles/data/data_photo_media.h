@@ -48,6 +48,7 @@ public:
 	void collectLocalData(not_null<PhotoMedia*> local);
 
 	bool saveToFile(const QString &path);
+	bool setToClipboard();
 
 private:
 	struct PhotoImage {

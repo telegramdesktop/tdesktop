@@ -71,6 +71,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
@@ -728,7 +730,7 @@ SessionController::SessionController(
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
 , _chatStyle(std::make_unique<Ui::ChatStyle>())
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
-, _giftPremiumValidator(GiftPremiumValidator(this)) {
+, _giftPremiumValidator(this) {
 	init();
 
 	_chatStyleTheme = _defaultChatTheme;
@@ -743,14 +745,23 @@ SessionController::SessionController(
 		}
 	}, _lifetime);
 
-	if (Media::Player::instance()->pauseGifByRoundVideo()) {
-		enableGifPauseReason(GifPauseReason::RoundPlaying);
-	}
-
+	_authedName = session->user()->name();
 	session->changes().peerUpdates(
 		Data::PeerUpdate::Flag::FullInfo
+		| Data::PeerUpdate::Flag::Name
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
-		return (update.peer == _showEditPeer);
+		if (update.flags & Data::PeerUpdate::Flag::Name) {
+			const auto user = session->user();
+			if (update.peer == user) {
+				_authedName = user->name();
+				const auto &settings = Core::App().settings();
+				if (!settings.windowTitleContent().hideAccountName) {
+					widget()->updateTitle();
+				}
+			}
+		}
+		return (update.flags & Data::PeerUpdate::Flag::FullInfo)
+			&& (update.peer == _showEditPeer);
 	}) | rpl::start_with_next([=] {
 		show(Box<EditPeerInfoBox>(this, base::take(_showEditPeer)));
 	}, lifetime());
@@ -977,9 +988,10 @@ void SessionController::showForum(
 		not_null<Data::Forum*> forum,
 		const SectionShow &params) {
 	if (!isPrimary()) {
-		const auto primary = Core::App().primaryWindow();
+		auto primary = Core::App().windowFor(&session().account());
 		if (&primary->account() != &session().account()) {
-			primary->showAccount(&session().account());
+			Core::App().domain().activate(&session().account());
+			primary = Core::App().windowFor(&session().account());
 		}
 		if (&primary->account() == &session().account()) {
 			primary->sessionController()->showForum(forum, params);
@@ -1002,10 +1014,16 @@ void SessionController::showForum(
 	}
 	forum->destroyed(
 	) | rpl::start_with_next([=, history = forum->history()] {
+		const auto now = activeChatCurrent().owningHistory();
+		const auto showHistory = !now || (now == history);
 		closeForum();
-		showPeerHistory(
-			history,
-			{ anim::type::normal, anim::activation::background });
+		if (showHistory) {
+			showPeerHistory(history, {
+				SectionShow::Way::Backward,
+				anim::type::normal,
+				anim::activation::background,
+			});
+		}
 	}, _shownForumLifetime);
 	content()->showForum(forum, params);
 }
@@ -1442,7 +1460,7 @@ void SessionController::closeThirdSection() {
 
 bool SessionController::canShowSeparateWindow(
 		not_null<PeerData*> peer) const {
-	return peer->computeUnavailableReason().isEmpty();
+	return !peer->isForum() && peer->computeUnavailableReason().isEmpty();
 }
 
 void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
@@ -1672,6 +1690,33 @@ void SessionController::clearChooseReportMessages() {
 	content()->clearChooseReportMessages();
 }
 
+void SessionController::showInNewWindow(
+		not_null<PeerData*> peer,
+		MsgId msgId) {
+	if (!canShowSeparateWindow(peer)) {
+		showThread(
+			peer->owner().history(peer),
+			msgId,
+			Window::SectionShow::Way::ClearStack);
+		return;
+	}
+	const auto active = activeChatCurrent();
+	const auto fromActive = active.history()
+		? (active.history()->peer == peer)
+		: false;
+	const auto toSeparate = [=] {
+		Core::App().ensureSeparateWindowForPeer(peer, msgId);
+	};
+	if (fromActive) {
+		window().preventOrInvoke([=] {
+			clearSectionStack();
+			toSeparate();
+		});
+	} else {
+		toSeparate();
+	}
+}
+
 void SessionController::toggleChooseChatTheme(not_null<PeerData*> peer) {
 	content()->toggleChooseChatTheme(peer);
 }
@@ -1684,7 +1729,7 @@ void SessionController::showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId msgId) {
-	content()->showPeerHistory(peerId, params, msgId);
+	content()->showHistory(peerId, params, msgId);
 }
 
 void SessionController::showMessage(
@@ -1701,6 +1746,9 @@ void SessionController::showMessage(
 					params);
 			} else {
 				controller->content()->showMessage(item, params);
+			}
+			if (params.activation != anim::activation::background) {
+				controller->window().activate();
 			}
 		});
 }
@@ -1749,7 +1797,15 @@ void SessionController::showSection(
 }
 
 void SessionController::showBackFromStack(const SectionShow &params) {
-	content()->showBackFromStack(params);
+	const auto bad = [&] {
+		// If we show a currently-being-destroyed topic, then
+		// skip it and show back one more.
+		const auto topic = _activeChatEntry.current().key.topic();
+		return topic && topic->forum()->topicDeleted(topic->rootId());
+	};
+	do {
+		content()->showBackFromStack(params);
+	} while (bad());
 }
 
 void SessionController::showSpecialLayer(
@@ -1853,6 +1909,13 @@ QPointer<Ui::BoxContent> SessionController::show(
 
 void SessionController::hideLayer(anim::type animated) {
 	_window->hideLayer(animated);
+}
+
+void SessionController::showToast(TextWithEntities &&text) {
+	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(this).toastParent(),
+		.text = std::move(text),
+	});
 }
 
 void SessionController::openPhoto(

@@ -68,6 +68,7 @@ private:
 		const base::weak_ptr<GroupCall> &groupCall);
 
 	void initControls();
+	void setupInitialBrush();
 	void updateInfoLabels();
 	void setInfoLabels();
 	void updateDurationText();
@@ -101,6 +102,7 @@ private:
 	QBrush _groupBrush;
 	anim::linear_gradients<BarState> _gradients;
 	Ui::Animations::Simple _switchStateAnimation;
+	Fn<void(float64)> _switchStateCallback;
 
 	base::Timer _updateDurationTimer;
 

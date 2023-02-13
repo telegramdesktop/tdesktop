@@ -13,6 +13,10 @@ struct ItemPreviewImage {
 	QImage data;
 	uint64 cacheKey = 0;
 
+	[[nodiscard]] bool hasSpoiler() const {
+		return (cacheKey & 1);
+	}
+
 	explicit operator bool() const {
 		return !data.isNull();
 	}
@@ -33,6 +37,7 @@ struct ToPreviewOptions {
 	bool generateImages = true;
 	bool ignoreGroup = false;
 	bool ignoreTopic = true;
+	bool translated = false;
 };
 
 } // namespace HistoryView

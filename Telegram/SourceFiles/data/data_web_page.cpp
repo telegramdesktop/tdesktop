@@ -144,6 +144,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::Video;
 	} else if (type == u"photo"_q) {
 		return WebPageType::Photo;
+	} else if (type == u"document"_q) {
+		return WebPageType::Document;
 	} else if (type == u"profile"_q) {
 		return WebPageType::Profile;
 	} else if (type == u"telegram_background"_q) {

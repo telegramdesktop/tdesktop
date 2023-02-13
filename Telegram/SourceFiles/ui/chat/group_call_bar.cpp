@@ -308,7 +308,7 @@ void GroupCallBar::paintTitleAndStatus(Painter &p) {
 		const auto date = parsed.date();
 		const auto time = QLocale().toString(
 			parsed.time(),
-			Ui::Integration::Instance().timeFormat());
+			QLocale::ShortFormat);
 		const auto today = QDate::currentDate();
 		if (date == today) {
 			return tr::lng_group_call_starts_today(tr::now, lt_time, time);

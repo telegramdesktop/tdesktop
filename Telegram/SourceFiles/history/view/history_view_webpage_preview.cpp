@@ -71,8 +71,8 @@ bool DrawWebPageDataPreview(
 	}
 
 	const auto preview = photo
-		? photo->getReplyPreview(Data::FileOrigin(), context)
-		: document->getReplyPreview(Data::FileOrigin(), context);
+		? photo->getReplyPreview(Data::FileOrigin(), context, false)
+		: document->getReplyPreview(Data::FileOrigin(), context, false);
 	if (preview) {
 		const auto w = preview->width();
 		const auto h = preview->height();

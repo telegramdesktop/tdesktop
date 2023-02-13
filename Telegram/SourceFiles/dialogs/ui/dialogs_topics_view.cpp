@@ -187,6 +187,10 @@ void TopicsView::stopLastRipple() {
 	}
 }
 
+void TopicsView::clearRipple() {
+	_ripple = nullptr;
+}
+
 void TopicsView::paintRipple(
 		QPainter &p,
 		int x,

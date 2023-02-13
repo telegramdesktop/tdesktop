@@ -34,9 +34,7 @@ void SentCodeField::setChangedCallback(Fn<void()> changedCallback) {
 QString SentCodeField::getDigitsOnly() const {
 	return QString(
 		getLastText()
-	).remove(
-		QRegularExpression("[^\\d]")
-	);
+	).remove(TextUtilities::RegExpDigitsExclude());
 }
 
 void SentCodeField::fix() {

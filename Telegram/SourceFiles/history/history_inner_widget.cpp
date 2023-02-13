@@ -11,7 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/click_handler_types.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_quick_action.h"
 #include "history/view/history_view_emoji_interactions.h"
+#include "history/view/history_view_pinned_bar.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
 #include "ui/chat/chat_style.h"
@@ -56,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "history/history_widget.h"
+#include "history/view/history_view_translate_tracker.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -144,22 +147,6 @@ public:
 
 	HistoryView::Context elementContext() override {
 		return HistoryView::Context::History;
-	}
-	std::unique_ptr<Element> elementCreate(
-			not_null<HistoryMessage*> message,
-			Element *replacing = nullptr) override {
-		return std::make_unique<HistoryView::Message>(
-			this,
-			message,
-			replacing);
-	}
-	std::unique_ptr<HistoryView::Element> elementCreate(
-			not_null<HistoryService*> message,
-			Element *replacing = nullptr) override {
-		return std::make_unique<HistoryView::Service>(
-			this,
-			message,
-			replacing);
 	}
 	bool elementUnderCursor(
 			not_null<const Element*> view) override {
@@ -339,6 +326,7 @@ HistoryInner::HistoryInner(
 	&controller->session(),
 	[=](not_null<const Element*> view) { return itemTop(view); }))
 , _migrated(history->migrateFrom())
+, _translateTracker(std::make_unique<HistoryView::TranslateTracker>(history))
 , _pathGradient(
 	HistoryView::MakePathShiftGradient(
 		controller->chatStyle(),
@@ -355,6 +343,7 @@ HistoryInner::HistoryInner(
 	_history->delegateMixin()->setCurrent(this);
 	if (_migrated) {
 		_migrated->delegateMixin()->setCurrent(this);
+		_migrated->translateTo(_history->translatedTo());
 	}
 
 	Window::ChatThemeValueFromPeer(
@@ -446,7 +435,8 @@ HistoryInner::HistoryInner(
 
 	session().changes().historyUpdates(
 		_history,
-		Data::HistoryUpdate::Flag::OutboxRead
+		(Data::HistoryUpdate::Flag::OutboxRead
+			| Data::HistoryUpdate::Flag::TranslatedTo)
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
@@ -565,6 +555,9 @@ void HistoryInner::messagesReceived(
 		const QVector<MTPMessage> &messages) {
 	if (_history->peer == peer) {
 		_history->addOlderSlice(messages);
+		if (!messages.isEmpty()) {
+			_translateTracker->addBunchFromBlocks();
+		}
 	} else if (_migrated && _migrated->peer == peer) {
 		const auto newLoaded = _migrated
 			&& _migrated->isEmpty()
@@ -973,9 +966,14 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	_translateTracker->startBunch();
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
+		if (_pinnedItem) {
+			_translateTracker->add(_pinnedItem);
+		}
+		_translateTracker->finishBunch();
 		if (readTill && _widget->markingMessagesRead()) {
 			session().data().histories().readInboxTill(readTill);
 		}
@@ -989,6 +987,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			not_null<Element*> view,
 			int top,
 			int height) {
+		_translateTracker->add(view);
 		const auto item = view->data();
 		const auto isSponsored = item->isSponsored();
 		const auto isUnread = !item->out()
@@ -1761,6 +1760,9 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 		return;
 	}
 
+	if (_pinnedItem == item) {
+		_pinnedItem = nullptr;
+	}
 	if (_reactionsItem.current() == item) {
 		_reactionsItem = nullptr;
 	}
@@ -2085,7 +2087,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto canReply = [&] {
 			const auto peer = item->history()->peer;
 			const auto topic = item->topic();
-			return topic ? topic->canWrite() : peer->canWrite();
+			return topic
+				? Data::CanSendAnything(topic)
+				: Data::CanSendAnything(peer);
 		}();
 		if (canReply) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
@@ -2419,28 +2423,35 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						Settings::ShowPremium(_controller, "no_ads");
 					}, &st::menuIconBlock);
 				}
-				if (!item->isService()
-					&& view
-					&& actionText.isEmpty()
-					&& !hasCopyRestriction(item)
-					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
-					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
-						copyContextText(itemId);
-					}, &st::menuIconCopy);
-				}
-				if (!item->isService()
-					&& view
-					&& actionText.isEmpty()
-					&& (view->hasVisibleText() || mediaHasTextForCopy)
-					&& !Ui::SkipTranslate(item->originalText())) {
-					_menu->addAction(tr::lng_context_translate(tr::now), [=] {
-						_controller->show(Box(
-							Ui::TranslateBox,
-							item->history()->peer,
-							item->fullId().msg,
-							item->originalText(),
-							hasCopyRestriction(item)));
-					}, &st::menuIconTranslate);
+				if (!item->isService() && view && actionText.isEmpty()) {
+					if (!hasCopyRestriction(item)
+						&& (view->hasVisibleText() || mediaHasTextForCopy)) {
+						_menu->addAction(
+							tr::lng_context_copy_text(tr::now),
+							[=] { copyContextText(itemId); },
+							&st::menuIconCopy);
+					}
+					if ((!item->translation() || !_history->translatedTo())
+						&& (view->hasVisibleText() || mediaHasTextForCopy)) {
+						const auto translate = mediaHasTextForCopy
+							? (HistoryView::TransribedText(item)
+								.append('\n')
+								.append(item->originalText()))
+							: item->originalText();
+						if (!translate.text.isEmpty()
+							&& !Ui::SkipTranslate(translate)) {
+							_menu->addAction(tr::lng_context_translate(tr::now), [=] {
+								_controller->show(Box(
+									Ui::TranslateBox,
+									item->history()->peer,
+									mediaHasTextForCopy
+										? MsgId()
+										: item->fullId().msg,
+									translate,
+									hasCopyRestriction(item)));
+							}, &st::menuIconTranslate);
+						}
+					}
 				}
 			}
 		}
@@ -2647,8 +2658,7 @@ void HistoryInner::copyContextImage(
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	} else if (!showCopyMediaRestriction(item)) {
-		const auto image = media->image(Data::PhotoSize::Large)->original();
-		QGuiApplication::clipboard()->setImage(image);
+		media->setToClipboard();
 	}
 }
 
@@ -2742,9 +2752,6 @@ TextForMimeData HistoryInner::getSelectedText() const {
 		TextForMimeData unwrapped;
 	};
 
-	const auto timeFormat = QString(", [%1 %2]\n")
-		.arg(cDateFormat())
-		.arg(cTimeFormat());
 	auto groups = base::flat_set<not_null<const Data::Group*>>();
 	auto fullSize = 0;
 	auto texts = base::flat_map<Data::MessagePosition, Part>();
@@ -2754,7 +2761,8 @@ TextForMimeData HistoryInner::getSelectedText() const {
 			TextForMimeData &&unwrapped) {
 		const auto i = texts.emplace(item->position(), Part{
 			.name = item->author()->name(),
-			.time = QLocale().toString(ItemDateTime(item), timeFormat),
+			.time = QString(", [%1]\n").arg(
+				QLocale().toString(ItemDateTime(item), QLocale::ShortFormat)),
 			.unwrapped = std::move(unwrapped),
 		}).first;
 		fullSize += i->second.name.size()
@@ -3163,6 +3171,10 @@ void HistoryInner::updateSize() {
 	} else {
 		update();
 	}
+}
+
+void HistoryInner::setShownPinned(HistoryItem *item) {
+	_pinnedItem = item;
 }
 
 void HistoryInner::enterEventHook(QEnterEvent *e) {
@@ -3935,6 +3947,7 @@ void HistoryInner::notifyIsBotChanged() {
 
 void HistoryInner::notifyMigrateUpdated() {
 	_migrated = _history->migrateFrom();
+	_migrated->translateTo(_history->translatedTo());
 }
 
 void HistoryInner::applyDragSelection() {

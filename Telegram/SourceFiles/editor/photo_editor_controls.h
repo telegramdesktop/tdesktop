@@ -15,6 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class IconButton;
+class FlatLabel;
+template <typename Widget>
+class FadeWrap;
 } // namespace Ui
 
 namespace Editor {
@@ -22,6 +25,7 @@ namespace Editor {
 class EdgeButton;
 class ButtonBar;
 struct Controllers;
+struct EditorData;
 
 class PhotoEditorControls final : public Ui::RpWidget {
 public:
@@ -29,7 +33,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<Controllers> controllers,
 		const PhotoModifications modifications,
-		bool doneControls = true);
+		const EditorData &data);
 
 	[[nodiscard]] rpl::producer<int> rotateRequests() const;
 	[[nodiscard]] rpl::producer<> flipRequests() const;
@@ -58,9 +62,11 @@ private:
 	const base::unique_qptr<ButtonBar> _paintTopButtons;
 	const base::unique_qptr<ButtonBar> _paintBottomButtons;
 
+	const base::unique_qptr<Ui::FadeWrap<Ui::FlatLabel>> _about;
+
 	const base::unique_qptr<EdgeButton> _transformCancel;
-	const base::unique_qptr<Ui::IconButton> _rotateButton;
 	const base::unique_qptr<Ui::IconButton> _flipButton;
+	const base::unique_qptr<Ui::IconButton> _rotateButton;
 	const base::unique_qptr<Ui::IconButton> _paintModeButton;
 	const base::unique_qptr<EdgeButton> _transformDone;
 

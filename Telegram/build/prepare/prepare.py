@@ -12,8 +12,15 @@ def error(text):
     print('[ERROR] ' + text)
     finish(1)
 
+def nativeToolsError():
+    error('Make sure to run from Native Tools Command Prompt.')
+
 win = (sys.platform == 'win32')
 mac = (sys.platform == 'darwin')
+
+if win and not 'Platform' in os.environ:
+    nativeToolsError()
+
 win32 = win and (os.environ['Platform'] == 'x86')
 win64 = win and (os.environ['Platform'] == 'x64')
 
@@ -21,7 +28,7 @@ if win and not 'COMSPEC' in os.environ:
     error('COMSPEC environment variable is not set.')
 
 if win and not win32 and not win64:
-    error('Make sure to run from Native Tools Command Prompt.')
+    nativeToolsError()
 
 os.chdir(scriptPath + '/../../../..')
 
@@ -397,7 +404,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b842feb5f8
+    git checkout c00002819c
 """)
 
 stage('msys64', """
@@ -411,11 +418,12 @@ win:
     del msys64.exe
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
     pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
+
     SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
 
 stage('python', """
-version: """ + (subprocess.run(['python', '-V'], capture_output=True, env=modifiedEnv).stdout.decode().strip().split()[-1] if win else '0') + """
+version: """ + (subprocess.run(['python', '-V'], capture_output=True, text=True, env=modifiedEnv).stdout.strip().split()[-1] if win else '0') + """
 win:
     python -m venv python
     python\\Scripts\\activate.bat
@@ -1040,7 +1048,7 @@ release:
 mac:
     git clone https://github.com/kcat/openal-soft.git
     cd openal-soft
-    git checkout 1.22.2
+    git checkout 716f5373cb
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
         -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\
         -D ALSOFT_EXAMPLES=OFF \\
@@ -1173,28 +1181,28 @@ win:
 """)
 
 if buildQt5:
-    stage('qt_5_15_7', """
-    git clone https://code.qt.io/qt/qt5.git qt_5_15_7
-    cd qt_5_15_7
+    stage('qt_5_15_8', """
+    git clone https://github.com/qt/qt5.git qt_5_15_8
+    cd qt_5_15_8
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-    git checkout v5.15.7-lts-lgpl
+    git checkout v5.15.8-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
-depends:patches/qtbase_5_15_7/*.patch
+depends:patches/qtbase_5_15_8/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5_15_7\\*) do git apply %%i
+    for /r %%i in (..\\..\\patches\\qtbase_5_15_8\\*) do git apply %%i
     cd ..
 
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.7\"") + """
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.8\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.7" ^
+    configure -prefix "%LIBS_DIR%\\Qt-5.15.8" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1230,12 +1238,12 @@ win:
     del /S *.obj
     cd ..
 mac:
-    find ../../patches/qtbase_5_15_7 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5_15_8 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.7" \
+    ./configure -prefix "$USED_PREFIX/Qt-5.15.8" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1387,4 +1395,10 @@ win:
 #         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
 #     cmake --build . $MAKE_THREADS_CNT
 
-runStages()
+if win:
+    currentCodePage = subprocess.run('chcp', capture_output=True, shell=True, text=True, env=modifiedEnv).stdout.strip().split()[-1]
+    subprocess.run('chcp 65001 > nul', shell=True, env=modifiedEnv)
+    runStages()
+    subprocess.run('chcp ' + currentCodePage + ' > nul', shell=True, env=modifiedEnv)
+else:
+    runStages()

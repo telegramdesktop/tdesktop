@@ -275,6 +275,14 @@ TopBar::TopBar(
 , _updateDurationTimer([=] { updateDurationText(); }) {
 	initControls();
 	resize(width(), st::callBarHeight);
+	setupInitialBrush();
+}
+
+void TopBar::setupInitialBrush() {
+	Expects(_switchStateCallback != nullptr);
+
+	_switchStateAnimation.stop();
+	_switchStateCallback(1.);
 }
 
 void TopBar::initControls() {
@@ -316,14 +324,16 @@ void TopBar::initControls() {
 				| MapPushToTalkToActive()
 				| rpl::distinct_until_changed()
 				| rpl::type_erased()),
-			_groupCall->instanceStateValue(),
+			rpl::single(
+				_groupCall->instanceState()
+			) | rpl::then(_groupCall->instanceStateValue() | rpl::filter(
+				_1 != GroupCall::InstanceState::TransitionToRtc)),
 			rpl::single(
 				_groupCall->scheduleDate()
 			) | rpl::then(_groupCall->real(
 			) | rpl::map([](not_null<Data::GroupCall*> call) {
 				return call->scheduleDateValue();
-			}) | rpl::flatten_latest())
-		) | rpl::filter(_2 != GroupCall::InstanceState::TransitionToRtc);
+			}) | rpl::flatten_latest()));
 	std::move(
 		muted
 	) | rpl::map(
@@ -350,7 +360,7 @@ void TopBar::initControls() {
 		const auto crossFrom = (fromMuted != BarState::Active) ? 1. : 0.;
 		const auto crossTo = (toMuted != BarState::Active) ? 1. : 0.;
 
-		auto animationCallback = [=](float64 value) {
+		_switchStateCallback = [=](float64 value) {
 			if (_groupCall) {
 				_groupBrush = QBrush(
 					_gradients.gradient(fromMuted, toMuted, value));
@@ -366,7 +376,7 @@ void TopBar::initControls() {
 		_switchStateAnimation.stop();
 		const auto duration = (to - from) * kSwitchStateDuration;
 		_switchStateAnimation.start(
-			std::move(animationCallback),
+			_switchStateCallback,
 			from,
 			to,
 			duration);
@@ -748,6 +758,9 @@ void TopBar::updateControlsGeometry() {
 	_gradients.set_points(
 		QPointF(0, st::callBarHeight / 2),
 		QPointF(width(), st::callBarHeight / 2));
+	if (!_switchStateAnimation.animating()) {
+		_switchStateCallback(1.);
+	}
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {

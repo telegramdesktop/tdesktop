@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/call_delayed.h"
 #include "apiwrap.h"
+#include "ui/controls/tabbed_search.h"
 
 namespace Data {
 namespace {
@@ -124,6 +125,83 @@ void EmojiStatuses::registerAutomaticClear(
 			}
 		}
 	}
+}
+
+auto EmojiStatuses::emojiGroupsValue() const -> rpl::producer<Groups> {
+	const_cast<EmojiStatuses*>(this)->requestEmojiGroups();
+	return _emojiGroups.data.value();
+}
+
+auto EmojiStatuses::statusGroupsValue() const -> rpl::producer<Groups> {
+	const_cast<EmojiStatuses*>(this)->requestStatusGroups();
+	return _statusGroups.data.value();
+}
+
+auto EmojiStatuses::profilePhotoGroupsValue() const
+-> rpl::producer<Groups> {
+	const_cast<EmojiStatuses*>(this)->requestProfilePhotoGroups();
+	return _profilePhotoGroups.data.value();
+}
+
+void EmojiStatuses::requestEmojiGroups() {
+	requestGroups(
+		&_emojiGroups,
+		MTPmessages_GetEmojiGroups(MTP_int(_emojiGroups.hash)));
+
+}
+
+void EmojiStatuses::requestStatusGroups() {
+	requestGroups(
+		&_statusGroups,
+		MTPmessages_GetEmojiStatusGroups(MTP_int(_statusGroups.hash)));
+}
+
+void EmojiStatuses::requestProfilePhotoGroups() {
+	requestGroups(
+		&_profilePhotoGroups,
+		MTPmessages_GetEmojiProfilePhotoGroups(
+			MTP_int(_profilePhotoGroups.hash)));
+}
+
+[[nodiscard]] std::vector<Ui::EmojiGroup> GroupsFromTL(
+		const MTPDmessages_emojiGroups &data) {
+	const auto &list = data.vgroups().v;
+	auto result = std::vector<Ui::EmojiGroup>();
+	result.reserve(list.size());
+	for (const auto &group : list) {
+		const auto &data = group.data();
+		auto emoticons = ranges::views::all(
+			data.vemoticons().v
+		) | ranges::view::transform([](const MTPstring &emoticon) {
+			return qs(emoticon);
+		}) | ranges::to_vector;
+		result.push_back({
+			.iconId = QString::number(data.vicon_emoji_id().v),
+			.emoticons = std::move(emoticons),
+		});
+	}
+	return result;
+}
+
+template <typename Request>
+void EmojiStatuses::requestGroups(
+		not_null<GroupsType*> type,
+		Request &&request) {
+	if (type->requestId) {
+		return;
+	}
+	type->requestId = _owner->session().api().request(
+		std::forward<Request>(request)
+	).done([=](const MTPmessages_EmojiGroups &result) {
+		type->requestId = 0;
+		result.match([&](const MTPDmessages_emojiGroups &data) {
+			type->hash = data.vhash().v;
+			type->data = GroupsFromTL(data);
+		}, [](const MTPDmessages_emojiGroupsNotModified&) {
+		});
+	}).fail([=] {
+		type->requestId = 0;
+	}).send();
 }
 
 void EmojiStatuses::processClearing() {

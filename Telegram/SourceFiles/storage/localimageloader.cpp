@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "base/options.h"
 #include "base/unixtime.h"
 #include "base/random.h"
 #include "editor/scene/scene_item_sticker.h"
@@ -39,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageWriter>
-#include <QtGui/QColorSpace>
 
 namespace {
 
@@ -49,6 +49,13 @@ constexpr auto kPhotoUploadPartSize = 32 * 1024;
 constexpr auto kRecompressAfterBpp = 4;
 
 using Ui::ValidateThumbDimensions;
+
+base::options::toggle SendLargePhotos({
+	.id = kOptionSendLargePhotos,
+	.name = "Send large photos",
+	.description = "Increase the side limit on compressed images to 2560px.",
+});
+std::atomic<bool> SendLargePhotosAtomic/* = false*/;
 
 struct PreparedFileThumbnail {
 	uint64 id = 0;
@@ -176,15 +183,17 @@ struct PreparedFileThumbnail {
 	if (!bytes.isEmpty()
 		&& (bytes.size()
 			<= full.width() * full.height() * kRecompressAfterBpp / 8)
-		&& (format == u"jpeg"_q)
-		&& Images::IsProgressiveJpeg(bytes)) {
-		return bytes;
+		&& (format == u"jpeg"_q)) {
+		if (!Images::IsProgressiveJpeg(bytes)) {
+			if (const auto result = Images::MakeProgressiveJpeg(bytes)
+				; !result.isEmpty()) {
+				return result;
+			}
+		} else {
+			return bytes;
+		}
 	}
 
-	// We have an example of dark .png image that when being sent without
-	// removing its color space is displayed fine on tdesktop, but with
-	// a light gray background on mobile apps.
-	full.setColorSpace(QColorSpace());
 	auto result = QByteArray();
 	QBuffer buffer(&result);
 	QImageWriter writer(&buffer, "JPEG");
@@ -196,7 +205,21 @@ struct PreparedFileThumbnail {
 	return result;
 }
 
+[[nodiscard]] int PhotoSideLimit(bool large) {
+	return large ? 2560 : 1280;
+}
+
+[[nodiscard]] int PhotoSideLimitAtomic() {
+	return PhotoSideLimit(SendLargePhotosAtomic.load());
+}
+
 } // namespace
+
+const char kOptionSendLargePhotos[] = "send-large-photos";
+
+int PhotoSideLimit() {
+	return PhotoSideLimit(SendLargePhotos.value());
+}
 
 SendMediaPrepare::SendMediaPrepare(
 	const QString &file,
@@ -488,12 +511,14 @@ FileLoadResult::FileLoadResult(
 	uint64 id,
 	const FileLoadTo &to,
 	const TextWithTags &caption,
+	bool spoiler,
 	std::shared_ptr<SendingAlbum> album)
 : taskId(taskId)
 , id(id)
 , to(to)
 , album(std::move(album))
-, caption(caption) {
+, caption(caption)
+, spoiler(spoiler) {
 }
 
 void FileLoadResult::setFileData(const QByteArray &filedata) {
@@ -521,7 +546,6 @@ void FileLoadResult::setThumbData(const QByteArray &thumbdata) {
 	}
 }
 
-
 FileLoadTask::FileLoadTask(
 	not_null<Main::Session*> session,
 	const QString &filepath,
@@ -530,6 +554,7 @@ FileLoadTask::FileLoadTask(
 	SendMediaType type,
 	const FileLoadTo &to,
 	const TextWithTags &caption,
+	bool spoiler,
 	std::shared_ptr<SendingAlbum> album)
 : _id(base::RandomValue<uint64>())
 , _session(session)
@@ -540,10 +565,13 @@ FileLoadTask::FileLoadTask(
 , _content(content)
 , _information(std::move(information))
 , _type(type)
-, _caption(caption) {
+, _caption(caption)
+, _spoiler(spoiler) {
 	Expects(to.options.scheduled
 		|| !to.replaceMediaOf
 		|| IsServerMsgId(to.replaceMediaOf));
+
+	SendLargePhotosAtomic = SendLargePhotos.value();
 }
 
 FileLoadTask::FileLoadTask(
@@ -736,6 +764,7 @@ void FileLoadTask::process(Args &&args) {
 		_id,
 		_to,
 		_caption,
+		_spoiler,
 		_album);
 
 	QString filename, filemime;
@@ -942,8 +971,9 @@ void FileLoadTask::process(Args &&args) {
 				}
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 
-				const auto downscaled = (w > 1280 || h > 1280);
-				auto full = downscaled ? fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
+				const auto limit = PhotoSideLimitAtomic();
+				const auto downscaled = (w > limit || h > limit);
+				auto full = downscaled ? fullimage.scaled(limit, limit, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				if (downscaled) {
 					fullimagebytes = fullimageformat = QByteArray();
 				}

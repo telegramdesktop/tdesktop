@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 
 #include "core/utils.h"
+#include "ui/image/image_prepare.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtCore/QMimeData>
@@ -164,10 +165,31 @@ std::shared_ptr<QMimeData> ShareMimeMediaData(
 	if (original->hasImage()) {
 		result->setImageData(original->imageData());
 	}
+	if (original->hasFormat(u"application/x-td-use-jpeg"_q)
+		&& original->hasFormat(u"image/jpeg"_q)) {
+		result->setData(u"application/x-td-use-jpeg"_q, "1");
+		result->setData(u"image/jpeg"_q, original->data(u"image/jpeg"_q));
+	}
 	if (auto list = base::GetMimeUrls(original); !list.isEmpty()) {
 		result->setUrls(std::move(list));
 	}
 	return result;
+}
+
+MimeImageData ReadMimeImage(not_null<const QMimeData*> data) {
+	if (data->hasFormat(u"application/x-td-use-jpeg"_q)) {
+		auto bytes = data->data(u"image/jpeg"_q);
+		auto read = Images::Read({ .content = bytes });
+		if (read.format == "jpeg" && !read.image.isNull()) {
+			return {
+				.image = std::move(read.image),
+				.content = std::move(bytes),
+			};
+		}
+	} else if (data->hasImage()) {
+		return { .image = qvariant_cast<QImage>(data->imageData()) };
+	}
+	return {};
 }
 
 } // namespace Core

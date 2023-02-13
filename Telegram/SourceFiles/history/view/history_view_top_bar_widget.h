@@ -82,12 +82,14 @@ public:
 	void searchEnableJumpToDate(bool enable);
 	void searchEnableChooseFromUser(bool enable, bool visible);
 	bool searchSetFocus();
+	[[nodiscard]] bool searchMode() const;
 	[[nodiscard]] bool searchHasFocus() const;
 	[[nodiscard]] rpl::producer<> searchCancelled() const;
 	[[nodiscard]] rpl::producer<> searchSubmitted() const;
 	[[nodiscard]] rpl::producer<QString> searchQuery() const;
 	[[nodiscard]] QString searchQueryCurrent() const;
 	void searchClear();
+	void searchSetText(const QString &query);
 
 	[[nodiscard]] rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();

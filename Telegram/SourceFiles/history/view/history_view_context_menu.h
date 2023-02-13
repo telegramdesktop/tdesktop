@@ -102,4 +102,6 @@ void AddEmojiPacksAction(
 	EmojiPacksSource source,
 	not_null<Window::SessionController*> controller);
 
+[[nodiscard]] TextWithEntities TransribedText(not_null<HistoryItem*> item);
+
 } // namespace HistoryView

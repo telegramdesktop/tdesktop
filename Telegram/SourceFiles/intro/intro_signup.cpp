@@ -11,10 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
-#include "ui/special_buttons.h"
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
 
@@ -29,12 +29,13 @@ SignupWidget::SignupWidget(
 , _photo(
 	this,
 	data->controller,
-	tr::lng_settings_crop_profile(tr::now),
-	Ui::UserpicButton::Role::ChangePhoto,
+	Ui::UserpicButton::Role::ChoosePhoto,
 	st::defaultUserpicButton)
 , _first(this, st::introName, tr::lng_signup_firstname())
 , _last(this, st::introName, tr::lng_signup_lastname())
 , _invertOrder(langFirstNameGoesSecond()) {
+	_photo->showCustomOnChosen();
+
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();
@@ -109,12 +110,7 @@ void SignupWidget::cancelled() {
 }
 
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
-	auto &d = result.c_auth_authorization();
-	if (d.vuser().type() != mtpc_user || !d.vuser().c_user().is_self()) { // wtf?
-		showError(rpl::single(Lang::Hard::ServerError()));
-		return;
-	}
-	finish(d.vuser(), _photo->takeResultImage());
+	finish(result);
 }
 
 void SignupWidget::nameSubmitFail(const MTP::Error &error) {

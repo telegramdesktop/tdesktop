@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui::Text {
 class CustomEmoji;
-struct CustomEmojiColored;
 } // namespace Ui::Text
 
 namespace Data {
@@ -95,7 +94,6 @@ private:
 	Fn<void()> _repaint;
 	QImage _flyIcon;
 	std::unique_ptr<Text::CustomEmoji> _custom;
-	std::unique_ptr<Text::CustomEmojiColored> _colored;
 	std::unique_ptr<AnimatedIcon> _center;
 	std::unique_ptr<AnimatedIcon> _effect;
 	std::vector<MiniCopy> _miniCopies;

@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_abstract_structure.h"
 
+#include "base/never_freed_pointer.h"
+
 namespace Data {
 namespace {
 
 using DataStructures = OrderedSet<AbstractStructure**>;
-NeverFreedPointer<DataStructures> structures;
+base::NeverFreedPointer<DataStructures> structures;
 
 } // namespace
 

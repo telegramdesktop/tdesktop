@@ -365,6 +365,7 @@ void ChatParticipants::requestForAdd(
 
 void ChatParticipants::requestLast(not_null<ChannelData*> channel) {
 	if (!channel->isMegagroup()
+		|| !channel->canViewMembers()
 		|| _participantsRequests.contains(channel)) {
 		return;
 	}
@@ -532,6 +533,7 @@ ChatParticipants::Parsed ChatParticipants::ParseRecent(
 		const TLMembers &data) {
 	const auto result = Parse(channel, data);
 	const auto applyLast = channel->isMegagroup()
+		&& channel->canViewMembers()
 		&& (channel->mgInfo->lastParticipants.size() <= result.list.size());
 	if (applyLast) {
 		ApplyLastList(channel, result.availableCount, result.list);

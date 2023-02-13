@@ -35,6 +35,22 @@ bool PreparedFile::canBeInAlbumType(AlbumType album) const {
 	return CanBeInAlbumType(type, album);
 }
 
+bool PreparedFile::isSticker() const {
+	Expects(information != nullptr);
+
+	return (type == PreparedFile::Type::Photo)
+		&& Core::IsMimeSticker(information->filemime);
+}
+
+bool PreparedFile::isGifv() const {
+	Expects(information != nullptr);
+
+	using Video = Ui::PreparedFileInformation::Video;
+	return (type == PreparedFile::Type::Video)
+		&& v::is<Video>(information->media)
+		&& v::get<Video>(information->media).isGifv;
+}
+
 AlbumType PreparedFile::albumType(bool sendImagesAsPhotos) const {
 	switch (type) {
 	case Type::Photo:
@@ -207,13 +223,7 @@ bool PreparedList::canHaveEditorHintLabel() const {
 }
 
 bool PreparedList::hasSticker() const {
-	for (const auto &file : files) {
-		if ((file.type == PreparedFile::Type::Photo)
-			&& Core::IsMimeSticker(file.information->filemime)) {
-			return true;
-		}
-	}
-	return false;
+	return ranges::any_of(files, &PreparedFile::isSticker);
 }
 
 int MaxAlbumItems() {
@@ -293,6 +303,27 @@ QPixmap PrepareSongCoverForThumbnail(QImage image, int size) {
 			.options = Option::RoundCircle,
 			.outer = { size, size },
 		}));
+}
+
+QPixmap BlurredPreviewFromPixmap(QPixmap pixmap, RectParts corners) {
+	const auto image = pixmap.toImage();
+	const auto skip = st::roundRadiusLarge * image.devicePixelRatio();
+	auto small = image.copy(
+		skip,
+		skip,
+		image.width() - 2 * skip,
+		image.height() - 2 * skip
+	).scaled(
+		40,
+		40,
+		Qt::KeepAspectRatioByExpanding,
+		Qt::SmoothTransformation);
+
+	using namespace Images;
+	return PixmapFromImage(Prepare(
+		Blur(std::move(small), true),
+		image.size(),
+		{ .options = RoundOptions(ImageRoundRadius::Large, corners) }));
 }
 
 } // namespace Ui

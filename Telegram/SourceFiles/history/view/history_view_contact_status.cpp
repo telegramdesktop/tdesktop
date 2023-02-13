@@ -480,6 +480,7 @@ SlidingBar::SlidingBar(
 , _shadow(parent) {
 	setup(parent);
 	_wrapped.hide(anim::type::instant);
+	_shadow.hide();
 }
 
 void SlidingBar::setup(not_null<Ui::RpWidget*> parent) {
@@ -497,10 +498,13 @@ void SlidingBar::setup(not_null<Ui::RpWidget*> parent) {
 			st::lineWidth);
 	}, _shadow.lifetime());
 
-	_wrapped.shownValue(
-	) | rpl::start_with_next([=](bool shown) {
-		_shadow.setVisible(shown);
-	}, _shadow.lifetime());
+	_shadow.showOn(rpl::combine(
+		_wrapped.shownValue(),
+		_wrapped.heightValue(),
+		rpl::mappers::_1 && rpl::mappers::_2 > 0
+	) | rpl::filter([=](bool shown) {
+		return (shown == _shadow.isHidden());
+	}));
 }
 
 void SlidingBar::toggleContent(bool visible) {
@@ -516,14 +520,13 @@ void SlidingBar::raise() {
 }
 
 void SlidingBar::setVisible(bool visible) {
-	if (_shown == visible) {
-		return;
-	}
 	_shown = visible;
 	if (!_shown) {
 		_wrapped.hide(anim::type::instant);
 	} else if (_contentShown) {
 		_wrapped.show(anim::type::instant);
+	} else if (!_wrapped.isHidden() && !_wrapped.animating()) {
+		_wrapped.hide(anim::type::instant);
 	}
 }
 

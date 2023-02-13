@@ -103,7 +103,6 @@ void ItemSingleFilePreview::preparePreview(not_null<DocumentData*> document) {
 
 		data.name = Text::FormatSongName(filename, songTitle, songPerformer)
 			.string();
-		data.statusText = FormatSizeText(document->size);
 	} else {
 		data.name = document->filename();
 	}

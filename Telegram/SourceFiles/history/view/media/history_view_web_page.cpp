@@ -60,16 +60,19 @@ std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
 	auto result = std::vector<std::unique_ptr<Data::Media>>();
 	result.reserve(data.items.size());
 	for (const auto &item : data.items) {
+		const auto spoiler = false;
 		if (const auto document = std::get_if<DocumentData*>(&item)) {
 			const auto skipPremiumEffect = false;
 			result.push_back(std::make_unique<Data::MediaFile>(
 				parent,
 				*document,
-				skipPremiumEffect));
+				skipPremiumEffect,
+				spoiler));
 		} else if (const auto photo = std::get_if<PhotoData*>(&item)) {
 			result.push_back(std::make_unique<Data::MediaPhoto>(
 				parent,
-				*photo));
+				*photo,
+				spoiler));
 		} else {
 			return {};
 		}
@@ -163,6 +166,7 @@ QSize WebPage::countOptimalSize() {
 	} else if (!_data->document
 		&& _data->photo
 		&& _data->type != WebPageType::Photo
+		&& _data->type != WebPageType::Document
 		&& _data->type != WebPageType::Video) {
 		if (_data->type == WebPageType::Profile) {
 			_asArticle = true;
@@ -752,6 +756,7 @@ ClickHandlerPtr WebPage::replaceAttachLink(
 			|| _data->type == WebPageType::Video) {
 			return _openl;
 		} else if (_data->type == WebPageType::Photo
+			|| _data->type == WebPageType::Document
 			|| _data->siteName == u"Twitter"_q
 			|| _data->siteName == u"Facebook"_q) {
 			// leave photo link

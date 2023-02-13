@@ -89,8 +89,8 @@ public:
 		int y,
 		int outerWidth,
 		const QColor *colorOverride) const;
-	void clearRipple();
 	void stopLastRipple();
+	void clearRipple();
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;

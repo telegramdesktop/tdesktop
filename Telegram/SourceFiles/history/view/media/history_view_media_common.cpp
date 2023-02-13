@@ -62,6 +62,7 @@ std::unique_ptr<Media> CreateAttach(
 	if (!collage.empty()) {
 		return std::make_unique<GroupedMedia>(parent, collage);
 	} else if (document) {
+		const auto spoiler = false;
 		if (document->sticker()) {
 			const auto skipPremiumEffect = true;
 			return std::make_unique<UnwrappedMedia>(
@@ -71,7 +72,11 @@ std::unique_ptr<Media> CreateAttach(
 					document,
 					skipPremiumEffect));
 		} else if (document->isAnimation() || document->isVideoFile()) {
-			return std::make_unique<Gif>(parent, parent->data(), document);
+			return std::make_unique<Gif>(
+				parent,
+				parent->data(),
+				document,
+				spoiler);
 		} else if (document->isWallPaper() || document->isTheme()) {
 			return std::make_unique<ThemeDocument>(
 				parent,
@@ -80,10 +85,12 @@ std::unique_ptr<Media> CreateAttach(
 		}
 		return std::make_unique<Document>(parent, parent->data(), document);
 	} else if (photo) {
+		const auto spoiler = false;
 		return std::make_unique<Photo>(
 			parent,
 			parent->data(),
-			photo);
+			photo,
+			spoiler);
 	} else if (const auto params = ThemeDocument::ParamsFromUrl(webpageUrl)) {
 		return std::make_unique<ThemeDocument>(parent, nullptr, params);
 	}

@@ -85,7 +85,7 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 
 	const auto updateLocked = [=] {
 		const auto min = EnableAntiSpamMinMembers(channel);
-		const auto locked = (channel->membersCount() <= min);
+		const auto locked = (channel->membersCount() < min);
 		state->locked = locked;
 		button->setToggleLocked(locked);
 	};

@@ -32,7 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "boxes/share_box.h"
 #include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
-#include "history/history_message.h" // GetErrorTextForSending.
+#include "history/history_item_helpers.h" // GetErrorTextForSending.
 #include "history/history.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
@@ -1200,11 +1200,14 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 			(*box)->closeBox();
 		}
 	};
+	auto filterCallback = [](not_null<Data::Thread*> thread) {
+		return Data::CanSendTexts(thread);
+	};
 	auto object = Box<ShareBox>(ShareBox::Descriptor{
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
 		.submitCallback = std::move(submitCallback),
-		.filterCallback = [](auto thread) { return thread->canWrite(); },
+		.filterCallback = std::move(filterCallback),
 	});
 	*box = Ui::MakeWeak(object.data());
 	return object;
@@ -1374,7 +1377,7 @@ QString PrepareRequestedRowStatus(TimeId date) {
 	const auto now = QDateTime::currentDateTime();
 	const auto parsed = base::unixtime::parse(date);
 	const auto parsedDate = parsed.date();
-	const auto time = QLocale().toString(parsed.time(), cTimeFormat());
+	const auto time = QLocale().toString(parsed.time(), QLocale::ShortFormat);
 	const auto generic = [&] {
 		return tr::lng_group_requests_status_date_time(
 			tr::now,

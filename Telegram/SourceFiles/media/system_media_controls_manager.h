@@ -30,7 +30,7 @@ namespace Media {
 
 class SystemMediaControlsManager {
 public:
-	SystemMediaControlsManager(not_null<Window::Controller*> controller);
+	SystemMediaControlsManager();
 	~SystemMediaControlsManager();
 
 	static bool Supported();

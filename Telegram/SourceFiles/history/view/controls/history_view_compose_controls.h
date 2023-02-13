@@ -150,6 +150,7 @@ public:
 
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] bool readyToForward() const;
+	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] FullMsgId replyingToMessage() const;
 
 	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;
@@ -210,7 +211,7 @@ private:
 	void initField();
 	void initTabbedSelector();
 	void initSendButton();
-	void initSendAsButton();
+	void initSendAsButton(not_null<PeerData*> peer);
 	void initWebpageProcess();
 	void initForwardProcess();
 	void initWriteRestriction();

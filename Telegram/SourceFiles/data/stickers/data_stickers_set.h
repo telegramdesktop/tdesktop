@@ -22,7 +22,6 @@ class Session;
 using StickersSetsOrder = QList<uint64>;
 using SavedGifs = QVector<DocumentData*>;
 using StickersPack = QVector<DocumentData*>;
-using StickersByEmojiMap = QMap<EmojiPtr, StickersPack>;
 
 enum class StickersType : uchar;
 
@@ -77,6 +76,7 @@ public:
 		int count,
 		StickersSetFlags flags,
 		TimeId installDate);
+	~StickersSet();
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -111,7 +111,7 @@ public:
 	StickersPack covers;
 	StickersPack stickers;
 	std::vector<TimeId> dates;
-	StickersByEmojiMap emoji;
+	base::flat_map<EmojiPtr, StickersPack> emoji;
 
 private:
 	const not_null<Data::Session*> _owner;

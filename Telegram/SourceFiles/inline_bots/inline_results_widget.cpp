@@ -285,7 +285,6 @@ void Widget::hideFinished() {
 	_a_show.stop();
 	_showAnimation.reset();
 	_cache = QPixmap();
-	_horizontal = false;
 	_hiding = false;
 
 	_scroll->scrollToY(0);

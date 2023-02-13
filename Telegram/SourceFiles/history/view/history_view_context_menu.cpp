@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_polls.h"
 #include "api/api_report.h"
 #include "api/api_ringtones.h"
+#include "api/api_transcribes.h"
 #include "api/api_who_reacted.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
 #include "base/unixtime.h"
@@ -19,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_message.h"
 #include "history/history_item_text.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/media/history_view_media.h"
@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "spellcheck/spellcheck_types.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -124,9 +125,7 @@ void CopyImage(not_null<PhotoData*> photo) {
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	}
-
-	const auto image = media->image(Data::PhotoSize::Large)->original();
-	QGuiApplication::clipboard()->setImage(image);
+	media->setToClipboard();
 }
 
 void ShowStickerPackInfo(
@@ -590,7 +589,9 @@ bool AddReplyToMessageAction(
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
 		|| !item->isRegular()
-		|| (topic ? !topic->canWrite() : !peer->canWrite())
+		|| !(topic
+			? Data::CanSendAnything(topic)
+			: Data::CanSendAnything(peer))
 		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}
@@ -1035,37 +1036,45 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		if (const auto document = media ? media->getDocument() : nullptr) {
 			AddDocumentActions(result, document, view->data(), list);
 		}
-		if (!link
-			&& (view->hasVisibleText() || mediaHasTextForCopy)
-			&& !list->hasCopyRestriction(view->data())) {
-			const auto asGroup = (request.pointState != PointState::GroupPart);
-			result->addAction(tr::lng_context_copy_text(tr::now), [=] {
-				if (const auto item = owner->message(itemId)) {
-					if (!list->showCopyRestriction(item)) {
-						if (asGroup) {
-							if (const auto group = owner->groups().find(item)) {
-								TextUtilities::SetClipboardText(HistoryGroupText(group));
-								return;
+		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
+			if (!list->hasCopyRestriction(view->data())) {
+				const auto asGroup = (request.pointState != PointState::GroupPart);
+				result->addAction(tr::lng_context_copy_text(tr::now), [=] {
+					if (const auto item = owner->message(itemId)) {
+						if (!list->showCopyRestriction(item)) {
+							if (asGroup) {
+								if (const auto group = owner->groups().find(item)) {
+									TextUtilities::SetClipboardText(HistoryGroupText(group));
+									return;
+								}
 							}
+							TextUtilities::SetClipboardText(HistoryItemText(item));
 						}
-						TextUtilities::SetClipboardText(HistoryItemText(item));
 					}
-				}
-			}, &st::menuIconCopy);
-		}
-		if (!link
-			&& (view->hasVisibleText() || mediaHasTextForCopy)
-			&& !Ui::SkipTranslate(item->originalText())) {
-			result->addAction(tr::lng_context_translate(tr::now), [=] {
-				if (const auto item = owner->message(itemId)) {
-					list->controller()->show(Box(
-						Ui::TranslateBox,
-						item->history()->peer,
-						item->fullId().msg,
-						item->originalText(),
-						list->hasCopyRestriction(view->data())));
-				}
-			}, &st::menuIconTranslate);
+				}, &st::menuIconCopy);
+			}
+
+			const auto translate = mediaHasTextForCopy
+				? (HistoryView::TransribedText(item)
+					.append('\n')
+					.append(item->originalText()))
+				: item->originalText();
+			if ((!item->translation() || !item->history()->translatedTo())
+				&& !translate.text.isEmpty()
+				&& !Ui::SkipTranslate(translate)) {
+				result->addAction(tr::lng_context_translate(tr::now), [=] {
+					if (const auto item = owner->message(itemId)) {
+						list->controller()->show(Box(
+							Ui::TranslateBox,
+							item->history()->peer,
+							mediaHasTextForCopy
+								? MsgId()
+								: item->fullId().msg,
+							translate,
+							list->hasCopyRestriction(view->data())));
+					}
+				}, &st::menuIconTranslate);
+			}
 		}
 	}
 
@@ -1538,6 +1547,24 @@ void AddEmojiPacksAction(
 		CollectEmojiPacks(item, source),
 		source,
 		controller);
+}
+
+TextWithEntities TransribedText(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto document = media ? media->document() : nullptr;
+	if (!document || !document->isVoiceMessage()) {
+		return {};
+	}
+	const auto &entry = document->session().api().transcribes().entry(item);
+	if (!entry.requestId
+		&& entry.shown
+		&& !entry.toolong
+		&& !entry.failed
+		&& !entry.pending
+		&& !entry.result.isEmpty()) {
+		return { entry.result };
+	}
+	return {};
 }
 
 } // namespace HistoryView

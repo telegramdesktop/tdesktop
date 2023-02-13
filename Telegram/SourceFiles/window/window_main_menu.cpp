@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/effects/snowflakes.h"
+#include "ui/effects/toggle_arrow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
@@ -24,9 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
-#include "ui/special_buttons.h"
 #include "ui/empty_userpic.h"
-#include "dialogs/ui/dialogs_layout.h"
+#include "ui/unread_badge_paint.h"
 #include "base/call_delayed.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -78,20 +80,75 @@ namespace {
 
 constexpr auto kPlayStatusLimit = 2;
 
+[[nodiscard]] bool CanCheckSpecialEvent() {
+	static const auto result = [] {
+		const auto now = QDate::currentDate();
+		return (now.month() == 12) || (now.month() == 1 && now.day() == 1);
+	}();
+	return result;
+}
+
+[[nodiscard]] bool CheckSpecialEvent() {
+	const auto now = QDate::currentDate();
+	return (now.month() == 12 && now.day() >= 24)
+		|| (now.month() == 1 && now.day() == 1);
+}
+
 void ShowCallsBox(not_null<Window::SessionController*> window) {
-	auto controller = std::make_unique<Calls::BoxController>(window);
-	const auto initBox = [
-		window,
-		controller = controller.get()
-	](not_null<PeerListBox*> box) {
+	struct State {
+		State(not_null<Window::SessionController*> window)
+		: callsController(window)
+		, groupCallsController(window) {
+		}
+		Calls::BoxController callsController;
+		PeerListContentDelegateSimple callsDelegate;
+
+		Calls::GroupCalls::ListController groupCallsController;
+		PeerListContentDelegateSimple groupCallsDelegate;
+
+		base::unique_qptr<Ui::PopupMenu> menu;
+	};
+
+	window->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto state = box->lifetime().make_state<State>(window);
+
+		const auto groupCalls = box->addRow(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				box,
+				object_ptr<Ui::VerticalLayout>(box)),
+			{});
+		groupCalls->hide(anim::type::instant);
+		groupCalls->toggleOn(state->groupCallsController.shownValue());
+
+		Settings::AddSubsectionTitle(
+			groupCalls->entity(),
+			tr::lng_call_box_groupcalls_subtitle());
+		state->groupCallsDelegate.setContent(groupCalls->entity()->add(
+			object_ptr<PeerListContent>(box, &state->groupCallsController),
+			{}));
+		state->groupCallsController.setDelegate(&state->groupCallsDelegate);
+		Settings::AddSkip(groupCalls->entity());
+		Settings::AddDivider(groupCalls->entity());
+		Settings::AddSkip(groupCalls->entity());
+
+		const auto content = box->addRow(
+			object_ptr<PeerListContent>(box, &state->callsController),
+			{});
+		state->callsDelegate.setContent(content);
+		state->callsController.setDelegate(&state->callsDelegate);
+
+		box->setWidth(state->callsController.contentWidth());
+		state->callsController.boxHeightValue(
+		) | rpl::start_with_next([=](int height) {
+			box->setMinHeight(height);
+		}, box->lifetime());
+		box->setTitle(tr::lng_call_box_title());
 		box->addButton(tr::lng_close(), [=] {
 			box->closeBox();
 		});
-		using MenuPointer = base::unique_qptr<Ui::PopupMenu>;
-		const auto menu = std::make_shared<MenuPointer>();
 		const auto menuButton = box->addTopButton(st::infoTopBarMenu);
 		menuButton->setClickedCallback([=] {
-			*menu = base::make_unique_q<Ui::PopupMenu>(
+			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				menuButton,
 				st::popupMenuWithIcons);
 			const auto showSettings = [=] {
@@ -100,23 +157,22 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 					Window::SectionShow(anim::type::instant));
 			};
 			const auto clearAll = crl::guard(box, [=] {
-				box->getDelegate()->show(Box(Calls::ClearCallsBox, window));
+				Ui::BoxShow(box).showBox(Box(Calls::ClearCallsBox, window));
 			});
-			(*menu)->addAction(
+			state->menu->addAction(
 				tr::lng_settings_section_call_settings(tr::now),
 				showSettings,
 				&st::menuIconSettings);
-			if (controller->delegate()->peerListFullRowsCount() > 0) {
-				(*menu)->addAction(
+			if (state->callsDelegate.peerListFullRowsCount() > 0) {
+				state->menu->addAction(
 					tr::lng_call_box_clear_all(tr::now),
 					clearAll,
 					&st::menuIconDelete);
 			}
-			(*menu)->popup(QCursor::pos());
+			state->menu->popup(QCursor::pos());
 			return true;
 		});
-	};
-	window->show(Box<PeerListBox>(std::move(controller), initBox));
+	}));
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> SetStatusLabel(
@@ -212,40 +268,12 @@ MainMenu::ToggleAccountsButton::ToggleAccountsButton(QWidget *parent)
 void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 
-	const auto toggled = _toggledAnimation.value(_toggled ? 1. : 0.);
-	const auto x = 0. + width() - st::mainMenuTogglePosition.x();
-	const auto y = 0. + height() - st::mainMenuTogglePosition.y();
-	const auto size = st::mainMenuToggleSize;
-	const auto size2 = size / 2.;
-	const auto sqrt2 = sqrt(2.);
-	const auto stroke = (st::mainMenuToggleFourStrokes / 4.) / sqrt2;
-	const auto left = x - size;
-	const auto right = x + size;
-	const auto bottom = y + size2;
-	constexpr auto kPointCount = 6;
-	std::array<QPointF, kPointCount> points = { {
-		{ left - stroke, bottom - stroke },
-		{ x, bottom - stroke - size - stroke },
-		{ right + stroke, bottom - stroke },
-		{ right - stroke, bottom + stroke },
-		{ x, bottom + stroke - size + stroke },
-		{ left + stroke, bottom + stroke }
-	} };
-	const auto alpha = (toggled - 1.) * M_PI;
-	const auto cosalpha = cos(alpha);
-	const auto sinalpha = sin(alpha);
-	for (auto &point : points) {
-		auto px = point.x() - x;
-		auto py = point.y() - y;
-		point.setX(x + px * cosalpha - py * sinalpha);
-		point.setY(y + py * cosalpha + px * sinalpha);
-	}
-	QPainterPath path;
-	path.moveTo(points[0]);
-	for (int i = 1; i != kPointCount; ++i) {
-		path.lineTo(points[i]);
-	}
-	path.lineTo(points[0]);
+	const auto path = Ui::ToggleUpDownArrowPath(
+		0. + width() - st::mainMenuTogglePosition.x(),
+		0. + height() - st::mainMenuTogglePosition.y(),
+		st::mainMenuToggleSize,
+		st::mainMenuToggleFourStrokes,
+		_toggledAnimation.value(_toggled ? 1. : 0.));
 
 	auto hq = PainterHighQualityEnabler(p);
 	p.fillPath(path, st::windowSubTextFg);
@@ -271,7 +299,7 @@ void MainMenu::ToggleAccountsButton::paintUnreadBadge(Painter &p) {
 		- st::mainMenuTogglePosition.y()
 		- st::mainMenuBadgeSize / 2;
 	p.setOpacity(progress);
-	Dialogs::Ui::PaintUnreadBadge(p, _unreadBadge, right, top, st);
+	Ui::PaintUnreadBadge(p, _unreadBadge, right, top, st);
 }
 
 void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
@@ -289,7 +317,7 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 	if (!_unreadBadge.isEmpty()) {
 		const auto st = Settings::Badge::Style();
 		skip += 2 * st::mainMenuToggleSize
-			+ Dialogs::Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
+			+ Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
 	}
 	_rightSkip = skip;
 }
@@ -354,9 +382,7 @@ MainMenu::MainMenu(
 , _controller(controller)
 , _userpicButton(
 	this,
-	_controller,
 	_controller->session().user(),
-	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
 , _setEmojiStatus(this, SetStatusLabel(&controller->session()))
@@ -471,6 +497,42 @@ MainMenu::MainMenu(
 	}, lifetime());
 
 	initResetScaleButton();
+
+	if (CanCheckSpecialEvent() && CheckSpecialEvent()) {
+		const auto snowLifetime = lifetime().make_state<rpl::lifetime>();
+		const auto rebuild = [=] {
+			const auto snowRaw = Ui::CreateChild<Ui::RpWidget>(this);
+			const auto snow = snowLifetime->make_state<Ui::Snowflakes>(
+				[=](const QRect &r) { snowRaw->update(r); });
+			snow->setBrush(QColor(230, 230, 230));
+			_showFinished.value(
+			) | rpl::start_with_next([=](bool shown) {
+				snow->setPaused(!shown);
+			}, snowRaw->lifetime());
+			snowRaw->paintRequest(
+			) | rpl::start_with_next([=](const QRect &r) {
+				auto p = Painter(snowRaw);
+				p.fillRect(r, st::mainMenuBg);
+				drawName(p);
+				snow->paint(p, snowRaw->rect());
+			}, snowRaw->lifetime());
+			widthValue(
+			) | rpl::start_with_next([=](int width) {
+				snowRaw->setGeometry(0, 0, width, st::mainMenuCoverHeight);
+			}, snowRaw->lifetime());
+			snowRaw->show();
+			snowRaw->lower();
+			snowRaw->setAttribute(Qt::WA_TransparentForMouseEvents);
+			snowLifetime->add([=] { base::unique_qptr{ snowRaw }; });
+		};
+		Window::Theme::IsNightModeValue(
+		) | rpl::start_with_next([=](bool isNightMode) {
+			snowLifetime->destroy();
+			if (isNightMode) {
+				rebuild();
+			}
+		}, lifetime());
+	}
 }
 
 MainMenu::~MainMenu() = default;
@@ -649,6 +711,10 @@ void MainMenu::parentResized() {
 	resize(st::mainMenuWidth, parentWidget()->height());
 }
 
+void MainMenu::showFinished() {
+	_showFinished = true;
+}
+
 void MainMenu::setupMenu() {
 	using namespace Settings;
 
@@ -814,37 +880,41 @@ void MainMenu::chooseEmojiStatus() {
 }
 
 void MainMenu::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = Painter(this);
 	const auto clip = e->rect();
 	const auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight);
 
 	p.fillRect(clip, st::mainMenuBg);
 	if (cover.intersects(clip)) {
-		const auto widthText = width()
-			- st::mainMenuCoverNameLeft
-			- _toggleAccounts->rightSkip();
-
-		const auto user = _controller->session().user();
-		if (_nameVersion < user->nameVersion()) {
-			_nameVersion = user->nameVersion();
-			_name.setText(
-				st::semiboldTextStyle,
-				user->name(),
-				Ui::NameTextOptions());
-			moveBadge();
-		}
-		p.setFont(st::semiboldFont);
-		p.setPen(st::windowBoldFg);
-		_name.drawLeftElided(
-			p,
-			st::mainMenuCoverNameLeft,
-			st::mainMenuCoverNameTop,
-			(widthText
-				- (_badge->widget()
-					? (st::semiboldFont->spacew + _badge->widget()->width())
-					: 0)),
-			width());
+		drawName(p);
 	}
+}
+
+void MainMenu::drawName(Painter &p) {
+	const auto widthText = width()
+		- st::mainMenuCoverNameLeft
+		- _toggleAccounts->rightSkip();
+
+	const auto user = _controller->session().user();
+	if (_nameVersion < user->nameVersion()) {
+		_nameVersion = user->nameVersion();
+		_name.setText(
+			st::semiboldTextStyle,
+			user->name(),
+			Ui::NameTextOptions());
+		moveBadge();
+	}
+	p.setFont(st::semiboldFont);
+	p.setPen(st::windowBoldFg);
+	_name.drawLeftElided(
+		p,
+		st::mainMenuCoverNameLeft,
+		st::mainMenuCoverNameTop,
+		(widthText
+			- (_badge->widget()
+				? (st::semiboldFont->spacew + _badge->widget()->width())
+				: 0)),
+		width());
 }
 
 void MainMenu::initResetScaleButton() {
@@ -886,21 +956,22 @@ void MainMenu::initResetScaleButton() {
 }
 
 OthersUnreadState OtherAccountsUnreadStateCurrent() {
-	auto &app = Core::App();
-	const auto active = &app.activeAccount();
+	auto &domain = Core::App().domain();
+	const auto active = &domain.active();
+	auto counter = 0;
 	auto allMuted = true;
-	for (const auto &[index, account] : app.domain().accounts()) {
+	for (const auto &[index, account] : domain.accounts()) {
 		if (account.get() == active) {
 			continue;
 		} else if (const auto session = account->maybeSession()) {
+			counter += session->data().unreadBadge();
 			if (!session->data().unreadBadgeMuted()) {
 				allMuted = false;
-				break;
 			}
 		}
 	}
 	return {
-		.count = (app.unreadBadge() - active->session().data().unreadBadge()),
+		.count = counter,
 		.allMuted = allMuted,
 	};
 }

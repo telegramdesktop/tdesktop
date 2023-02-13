@@ -263,8 +263,11 @@ bool ChannelData::linkedChatKnown() const {
 
 void ChannelData::setMembersCount(int newMembersCount) {
 	if (_membersCount != newMembersCount) {
-		if (isMegagroup() && !mgInfo->lastParticipants.empty()) {
-			mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+		if (isMegagroup()
+			&& canViewMembers()
+			&& !mgInfo->lastParticipants.empty()) {
+			mgInfo->lastParticipantsStatus
+				|= MegagroupInfo::LastParticipantsCountOutdated;
 			mgInfo->lastParticipantsCount = membersCount();
 		}
 		_membersCount = newMembersCount;
@@ -318,13 +321,18 @@ ChatRestrictionsInfo ChannelData::KickedRestrictedRights(
 		not_null<PeerData*> participant) {
 	using Flag = ChatRestriction;
 	const auto flags = Flag::ViewMessages
-		| Flag::SendMessages
-		| Flag::SendMedia
-		| Flag::EmbedLinks
 		| Flag::SendStickers
 		| Flag::SendGifs
 		| Flag::SendGames
-		| Flag::SendInline;
+		| Flag::SendInline
+		| Flag::SendPhotos
+		| Flag::SendVideos
+		| Flag::SendVideoMessages
+		| Flag::SendMusic
+		| Flag::SendVoiceMessages
+		| Flag::SendFiles
+		| Flag::SendOther
+		| Flag::EmbedLinks;
 	return ChatRestrictionsInfo(
 		(participant->isUser() ? flags : Flag::ViewMessages),
 		std::numeric_limits<int32>::max());
@@ -485,7 +493,7 @@ bool ChannelData::isGroupAdmin(not_null<UserData*> user) const {
 }
 
 bool ChannelData::lastParticipantsRequestNeeded() const {
-	if (!mgInfo) {
+	if (!mgInfo || !canViewMembers()) {
 		return false;
 	} else if (mgInfo->lastParticipantsCount == membersCount()) {
 		mgInfo->lastParticipantsStatus
@@ -546,10 +554,6 @@ bool ChannelData::canAddMembers() const {
 		: ((adminRights() & AdminRight::InviteByLinkOrAdd) || amCreator());
 }
 
-bool ChannelData::canSendPolls() const {
-	return canWrite() && !amRestricted(ChatRestriction::SendPolls);
-}
-
 bool ChannelData::canAddAdmins() const {
 	return amCreator()
 		|| (adminRights() & AdminRight::AddAdmins);
@@ -560,24 +564,15 @@ bool ChannelData::canPublish() const {
 		|| (adminRights() & AdminRight::PostMessages);
 }
 
-bool ChannelData::canWrite(bool checkForForum) const {
-	// Duplicated in Data::CanWriteValue().
-	const auto allowed = amIn()
-		|| ((flags() & Flag::HasLink) && !(flags() & Flag::JoinToWrite));
-	const auto forumRestriction = checkForForum && isForum();
-	return allowed
-		&& !forumRestriction
-		&& (canPublish()
-			|| (!isBroadcast()
-				&& !amRestricted(Restriction::SendMessages)));
-}
-
 bool ChannelData::allowsForwarding() const {
 	return !(flags() & Flag::NoForwards);
 }
 
 bool ChannelData::canViewMembers() const {
-	return flags() & Flag::CanViewParticipants;
+	return (flags() & Flag::CanViewParticipants)
+		&& (!(flags() & Flag::ParticipantsHidden)
+			|| amCreator()
+			|| hasAdminRights());
 }
 
 bool ChannelData::canViewAdmins() const {
@@ -944,14 +939,20 @@ void ApplyChannelUpdate(
 		| Flag::CanSetStickers
 		| Flag::PreHistoryHidden
 		| Flag::AntiSpam
-		| Flag::Location;
+		| Flag::Location
+		| Flag::ParticipantsHidden;
 	channel->setFlags((channel->flags() & ~mask)
 		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
-		| (update.is_can_view_participants() ? Flag::CanViewParticipants : Flag())
+		| (update.is_can_view_participants()
+			? Flag::CanViewParticipants
+			: Flag())
 		| (update.is_can_set_stickers() ? Flag::CanSetStickers : Flag())
 		| (update.is_hidden_prehistory() ? Flag::PreHistoryHidden : Flag())
 		| (update.is_antispam() ? Flag::AntiSpam : Flag())
-		| (update.vlocation() ? Flag::Location : Flag()));
+		| (update.vlocation() ? Flag::Location : Flag())
+		| (update.is_participants_hidden()
+			? Flag::ParticipantsHidden
+			: Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {
 		channel->addFlags(Flag::Megagroup);
@@ -1039,6 +1040,7 @@ void ApplyChannelUpdate(
 		}
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+	channel->setTranslationDisabled(update.is_translations_disabled());
 	if (const auto allowed = update.vavailable_reactions()) {
 		channel->setAllowedReactions(Data::Parse(*allowed));
 	} else {

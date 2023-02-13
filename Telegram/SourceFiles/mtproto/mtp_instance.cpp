@@ -546,7 +546,7 @@ void Instance::Private::syncHttpUnixtime() {
 		InvokeQueued(_instance, [=] {
 			_httpUnixtimeLoader = nullptr;
 		});
-	}, configValues().txtDomainString);
+	}, isTestMode(), configValues().txtDomainString);
 }
 
 void Instance::Private::restartedByTimeout(ShiftedDcId shiftedDcId) {
@@ -1541,6 +1541,7 @@ bool Instance::Private::onErrorDefault(
 
 		const auto session = getSession(qAbs(dcWithShift));
 		request->needsLayer = true;
+		session->setConnectionNotInited();
 		session->sendPrepared(request);
 		return true;
 	} else if (type == u"CONNECTION_LANG_CODE_INVALID"_q) {

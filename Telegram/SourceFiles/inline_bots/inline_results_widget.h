@@ -129,7 +129,6 @@ private:
 
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
-	bool _horizontal = false;
 
 	int _width = 0;
 	int _height = 0;

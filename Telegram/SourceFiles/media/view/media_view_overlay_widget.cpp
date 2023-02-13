@@ -46,7 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_player.h"
 #include "media/player/media_player_instance.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -253,6 +254,7 @@ struct OverlayWidget::PipWrap {
 
 	PipDelegate delegate;
 	Pip wrapped;
+	rpl::lifetime lifetime;
 };
 
 OverlayWidget::Streamed::Streamed(
@@ -840,7 +842,7 @@ void OverlayWidget::updateControls() {
 		}
 		return dNow;
 	}();
-	_dateText = Ui::FormatDateTime(d, cDateFormat(), cTimeFormat());
+	_dateText = Ui::FormatDateTime(d);
 	if (!_fromName.isEmpty()) {
 		_fromNameLabel.setText(st::mediaviewTextStyle, _fromName, Ui::NameTextOptions());
 		_nameNav = QRect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromNameLabel.maxWidth(), width() / 3), st::mediaviewFont->height);
@@ -1034,13 +1036,18 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 		}, &st::mediaMenuIconProfile);
 	}();
 	[&] { // Report userpic.
-		if (!_peer || !_photo ) {
+		if (!_peer || !_photo) {
 			return;
 		}
 		using Type = SharedMediaType;
 		if (userPhotosKey()) {
 			if (_peer->isSelf() || _peer->isNotificationsUser()) {
 				return;
+			} else if (const auto user = _peer->asUser()) {
+				if (user->hasPersonalPhoto()
+					&& user->userpicPhotoId() == _photo->id) {
+					return;
+				}
 			}
 		} else if ((sharedMediaType().value_or(Type::File) == Type::ChatPhoto)
 			|| (_peer->userpicPhotoId() == _photo->id)) {
@@ -1522,10 +1529,7 @@ void OverlayWidget::hideControls(bool force) {
 		if (!_dropdown->isHidden()
 			|| (_streamed && _streamed->controls.hasMenu())
 			|| _menu
-			|| _mousePressed
-			|| (_fullScreenVideo
-				&& !videoIsGifOrUserpic()
-				&& _streamed->controls.geometry().contains(_lastMouseMovePos))) {
+			|| _mousePressed) {
 			return;
 		}
 	}
@@ -1944,11 +1948,21 @@ void OverlayWidget::copyMedia() {
 	}
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_document) {
-		QGuiApplication::clipboard()->setImage(transformedShownContent());
+		const auto filepath = _document->filepath(true);
+		auto image = transformedShownContent();
+		if (!image.isNull() || !filepath.isEmpty()) {
+			auto mime = std::make_unique<QMimeData>();
+			if (!image.isNull()) {
+				mime->setImageData(std::move(image));
+			}
+			if (!filepath.isEmpty() && !videoShown()) {
+				mime->setUrls({ QUrl::fromLocalFile(filepath) });
+				KUrlMimeData::exportUrlsToPortal(mime.get());
+			}
+			QGuiApplication::clipboard()->setMimeData(mime.release());
+		}
 	} else if (_photo && _photoMedia->loaded()) {
-		const auto image = _photoMedia->image(
-			Data::PhotoSize::Large)->original();
-		QGuiApplication::clipboard()->setImage(image);
+		_photoMedia->setToClipboard();
 	}
 }
 
@@ -2286,7 +2300,7 @@ void OverlayWidget::refreshCaption() {
 			return;
 		}
 	}
-	const auto caption = _message->originalText();
+	const auto caption = _message->translatedText();
 	if (caption.text.isEmpty()) {
 		return;
 	}
@@ -3143,18 +3157,22 @@ void OverlayWidget::refreshClipControllerGeometry() {
 
 void OverlayWidget::playbackControlsPlay() {
 	playbackPauseResume();
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsPause() {
 	playbackPauseResume();
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsToFullScreen() {
 	playbackToggleFullScreen();
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsFromFullScreen() {
 	playbackToggleFullScreen();
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsToPictureInPicture() {
@@ -3273,7 +3291,7 @@ void OverlayWidget::playbackControlsSeekProgress(crl::time position) {
 	if (!_streamed->instance.player().paused()
 		&& !_streamed->instance.player().finished()) {
 		_streamed->pausedBySeek = true;
-		playbackControlsPause();
+		playbackPauseResume();
 	}
 }
 
@@ -3283,6 +3301,7 @@ void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 	_streamingStartPaused = !_streamed->pausedBySeek
 		&& !_streamed->instance.player().finished();
 	restartAtSeekPosition(position);
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
@@ -3300,6 +3319,7 @@ float64 OverlayWidget::playbackControlsCurrentVolume() {
 void OverlayWidget::playbackControlsVolumeToggled() {
 	const auto volume = Core::App().settings().videoVolume();
 	playbackControlsVolumeChanged(volume ? 0. : _lastPositiveVolume);
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsVolumeChangeFinished() {
@@ -3307,6 +3327,7 @@ void OverlayWidget::playbackControlsVolumeChangeFinished() {
 	if (volume > 0.) {
 		_lastPositiveVolume = volume;
 	}
+	activateControls();
 }
 
 void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
@@ -3333,14 +3354,14 @@ void OverlayWidget::switchToPip() {
 	Expects(_document != nullptr);
 
 	const auto document = _document;
-	const auto message = _message;
+	const auto messageId = _message ? _message->fullId() : FullMsgId();
 	const auto topicRootId = _topicRootId;
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
 		show(OpenRequest(
 			findWindow(false),
 			document,
-			message,
+			document->owner().message(messageId),
 			topicRootId,
 			true));
 	};
@@ -3351,6 +3372,16 @@ void OverlayWidget::switchToPip() {
 		_streamed->instance.shared(),
 		closeAndContinue,
 		[=] { _pip = nullptr; });
+
+	if (const auto raw = _message) {
+		raw->history()->owner().itemRemoved(
+		) | rpl::filter([=](not_null<const HistoryItem*> item) {
+			return (raw == item);
+		}) | rpl::start_with_next([=] {
+			_pip = nullptr;
+		}, _pip->lifetime);
+	}
+
 	if (isHidden()) {
 		clearBeforeHide();
 		clearAfterHide();
@@ -4528,7 +4559,7 @@ void OverlayWidget::handleMouseRelease(
 	updateOver(position);
 
 	if (const auto activated = ClickHandler::unpressed()) {
-		if (activated->dragText() == u"internal:show_saved_message"_q) {
+		if (activated->url() == u"internal:show_saved_message"_q) {
 			showSaveMsgFile();
 			return;
 		}
@@ -4804,7 +4835,14 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 
 	if (switchTo) {
 		auto controllerPtr = (Window::SessionController*)nullptr;
-		const auto anyWindow = window ? window : Core::App().primaryWindow();
+		const auto account = &_session->account();
+		const auto sessionWindow = Core::App().windowFor(account);
+		const auto anyWindow = (sessionWindow
+			&& &sessionWindow->account() == account)
+			? sessionWindow
+			: window
+			? window
+			: sessionWindow;
 		if (anyWindow) {
 			anyWindow->invokeForSessionController(
 				&_session->account(),
@@ -4929,16 +4967,29 @@ void OverlayWidget::updateHeader() {
 				lt_amount,
 				QString::number(count));
 		} else {
-			_headerText = tr::lng_mediaview_n_of_amount(
-				tr::now,
-				lt_n,
-				QString::number(index + 1),
-				lt_amount,
-				QString::number(count));
+			if (_user
+				&& (index == count - 1)
+				&& SyncUserFallbackPhotoViewer(_user)) {
+				_headerText = tr::lng_mediaview_profile_public_photo(tr::now);
+			} else if (_user
+				&& _user->hasPersonalPhoto()
+				&& _photo
+				&& (_photo->id == _user->userpicPhotoId())) {
+				_headerText = tr::lng_mediaview_profile_photo_by_you(tr::now);
+			} else {
+				_headerText = tr::lng_mediaview_n_of_amount(
+					tr::now,
+					lt_n,
+					QString::number(index + 1),
+					lt_amount,
+					QString::number(count));
+			}
 		}
 	} else {
 		if (_document) {
-			_headerText = _document->filename().isEmpty() ? tr::lng_mediaview_doc_image(tr::now) : _document->filename();
+			_headerText = _document->filename().isEmpty()
+				? tr::lng_mediaview_doc_image(tr::now)
+				: _document->filename();
 		} else if (_message) {
 			_headerText = tr::lng_mediaview_single_photo(tr::now);
 		} else if (_user) {

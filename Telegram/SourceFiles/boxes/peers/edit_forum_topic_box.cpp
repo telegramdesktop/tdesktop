@@ -177,7 +177,7 @@ bool DefaultIconEmoji::readyInDefaultState() {
 		return !paintIconFrame(result);
 	}) | rpl::start_with_next([=](QRect clip) {
 		auto args = Ui::Text::CustomEmoji::Context{
-			.preview = st::windowBgOver->c,
+			.textColor = st::windowFg->c,
 			.now = crl::now(),
 			.paused = controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Layer),
@@ -267,7 +267,6 @@ struct IconSelector {
 
 	const auto icons = &controller->session().data().forumIcons();
 	const auto body = box->verticalLayout();
-	Settings::AddSkip(body);
 	const auto recent = [=] {
 		auto list = icons->list();
 		list.insert(begin(list), kDefaultIconId);

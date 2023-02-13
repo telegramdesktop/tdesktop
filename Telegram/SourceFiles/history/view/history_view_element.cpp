@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_message.h"
-#include "history/history_item_components.h"
-#include "history/history_item.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_sticker.h"
@@ -22,7 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_spoiler_click_handler.h"
 #include "history/history.h"
-#include "history/history_service.h"
+#include "history/history_item.h"
+#include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -117,18 +117,6 @@ SimpleElementDelegate::SimpleElementDelegate(
 }
 
 SimpleElementDelegate::~SimpleElementDelegate() = default;
-
-std::unique_ptr<HistoryView::Element> SimpleElementDelegate::elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing) {
-	return std::make_unique<HistoryView::Message>(this, message, replacing);
-}
-
-std::unique_ptr<HistoryView::Element> SimpleElementDelegate::elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing) {
-	return std::make_unique<HistoryView::Service>(this, message, replacing);
-}
 
 bool SimpleElementDelegate::elementUnderCursor(
 		not_null<const Element*> view) {
@@ -443,6 +431,9 @@ void Element::hideSpoilers() {
 	if (_text.hasSpoilers()) {
 		_text.setSpoilerRevealed(false, anim::type::instant);
 	}
+	if (_media) {
+		_media->hideSpoilers();
+	}
 }
 
 void Element::customEmojiRepaint() {
@@ -661,6 +652,20 @@ const Ui::Text::String &Element::text() const {
 	return _text;
 }
 
+OnlyEmojiAndSpaces Element::isOnlyEmojiAndSpaces() const {
+	if (data()->Has<HistoryMessageTranslation>()) {
+		return OnlyEmojiAndSpaces::No;
+	} else if (!_text.isEmpty()) {
+		return _text.hasNotEmojiAndSpaces()
+			? OnlyEmojiAndSpaces::No
+			: OnlyEmojiAndSpaces::Yes;
+	} else if (data()->originalText().empty()) {
+		return OnlyEmojiAndSpaces::Yes;
+	} else {
+		return OnlyEmojiAndSpaces::Unknown;
+	}
+}
+
 int Element::textHeightFor(int textWidth) {
 	validateText();
 	if (_textWidth != textWidth) {
@@ -846,7 +851,7 @@ void Element::validateText() {
 		};
 		_text.setMarkedText(
 			st::messageTextStyle,
-			item->originalTextWithLocalEntities(),
+			item->translatedTextWithLocalEntities(),
 			Ui::ItemTextOptions(item),
 			context);
 		if (!text.empty() && _text.isEmpty()) {

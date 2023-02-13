@@ -53,6 +53,7 @@ namespace HistoryView {
 struct TextState;
 struct StateRequest;
 class EmojiInteractions;
+class TranslateTracker;
 enum class CursorState : char;
 enum class PointState : char;
 enum class Context : char;
@@ -142,6 +143,9 @@ public:
 		Painter &p,
 		const Ui::ChatPaintContext &context) = 0;
 	virtual QString listElementAuthorRank(not_null<const Element*> view) = 0;
+	virtual History *listTranslateHistory() = 0;
+	virtual void listAddTranslatedItems(
+		not_null<TranslateTracker*> tracker) = 0;
 };
 
 struct SelectionData {
@@ -286,12 +290,6 @@ public:
 
 	// ElementDelegate interface.
 	Context elementContext() override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing = nullptr) override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
 	[[nodiscard]] float64 elementHighlightOpacity(
 		not_null<const HistoryItem*> item) const override;
@@ -618,6 +616,7 @@ private:
 
 	Data::MessagePosition _aroundPosition;
 	Data::MessagePosition _shownAtPosition;
+	Data::MessagePosition _initialAroundPosition;
 	Context _context;
 	int _aroundIndex = -1;
 	int _idsLimit = kMinimalIdsLimit;
@@ -648,6 +647,8 @@ private:
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 	rpl::variable<HistoryItem*> _reactionsItem;
 	bool _useCornerReaction = false;
+
+	std::unique_ptr<TranslateTracker> _translateTracker;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;

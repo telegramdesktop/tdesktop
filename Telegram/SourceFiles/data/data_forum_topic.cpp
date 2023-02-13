@@ -168,7 +168,7 @@ TextWithEntities ForumTopicIconWithTitle(
 	return (rootId == ForumTopic::kGeneralId)
 		? TextWithEntities{ u"# "_q + title }
 		: iconId
-		? Data::SingleCustomEmoji(iconId).append(title)
+		? Data::SingleCustomEmoji(iconId).append(' ').append(title)
 		: TextWithEntities{ title };
 }
 
@@ -247,18 +247,6 @@ not_null<HistoryView::ListMemento*> ForumTopic::listMemento() {
 
 bool ForumTopic::my() const {
 	return (_flags & Flag::My);
-}
-
-bool ForumTopic::canWrite() const {
-	const auto channel = this->channel();
-	return channel->amIn()
-		&& !channel->amRestricted(ChatRestriction::SendMessages)
-		&& (!closed() || canToggleClosed());
-}
-
-bool ForumTopic::canSendPolls() const {
-	return canWrite()
-		&& !channel()->amRestricted(ChatRestriction::SendPolls);
 }
 
 bool ForumTopic::canEdit() const {
@@ -582,7 +570,11 @@ void ForumTopic::paintUserpic(
 				(st->height - size) / 2);
 		}
 		_icon->paint(p, {
-			.preview = st::windowBgOver->c,
+			.textColor = (context.active
+				? st::dialogsNameFgActive
+				: context.selected
+				? st::dialogsNameFgOver
+				: st::dialogsNameFg)->c,
 			.now = context.now,
 			.position = position,
 			.paused = context.paused,

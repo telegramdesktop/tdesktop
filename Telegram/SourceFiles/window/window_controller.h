@@ -20,11 +20,16 @@ namespace Media::View {
 struct OpenRequest;
 } // namespace Media::View
 
+namespace Media::Player {
+class FloatDelegate;
+} // namespace Media::Player
+
 namespace Window {
 
 class Controller final : public base::has_weak_ptr {
 public:
 	Controller();
+	explicit Controller(not_null<Main::Account*> account);
 	Controller(
 		not_null<PeerData*> singlePeer,
 		MsgId showAtMsgId);
@@ -54,6 +59,10 @@ public:
 	[[nodiscard]] SessionController *sessionController() const {
 		return _sessionController.get();
 	}
+	[[nodiscard]] auto sessionControllerValue() const
+		-> rpl::producer<SessionController*>;
+	[[nodiscard]] auto sessionControllerChanges() const
+		-> rpl::producer<SessionController*>;
 	[[nodiscard]] bool locked() const;
 
 	[[nodiscard]] Adaptive &adaptive() const;
@@ -109,9 +118,20 @@ public:
 	[[nodiscard]] auto openInMediaViewRequests() const
 	-> rpl::producer<Media::View::OpenRequest>;
 
-	QPoint getPointForCallPanelCenter() const;
+	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
 
-	rpl::lifetime &lifetime();
+	using FloatDelegate = Media::Player::FloatDelegate;
+	void setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate);
+	void replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	void restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement);
+	[[nodiscard]] FloatDelegate *floatPlayerDelegate() const;
+	[[nodiscard]] auto floatPlayerDelegateValue() const
+		-> rpl::producer<FloatDelegate*>;
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	struct CreateArgs {
@@ -127,7 +147,6 @@ private:
 		MsgId singlePeerShowAtMsgId);
 	void setupSideBar();
 	void sideBarChanged();
-	void logoutWithChecks(Main::Account *account);
 
 	void showBox(
 		object_ptr<Ui::BoxContent> content,
@@ -144,9 +163,14 @@ private:
 	::MainWindow _widget;
 	const std::unique_ptr<Adaptive> _adaptive;
 	std::unique_ptr<SessionController> _sessionController;
+	rpl::variable<SessionController*> _sessionControllerValue;
 	QPointer<Ui::BoxContent> _termsBox;
 
 	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;
+
+	FloatDelegate *_defaultFloatPlayerDelegate = nullptr;
+	FloatDelegate *_replacementFloatPlayerDelegate = nullptr;
+	rpl::variable<FloatDelegate*> _floatPlayerDelegate = nullptr;
 
 	rpl::lifetime _accountLifetime;
 	rpl::lifetime _lifetime;

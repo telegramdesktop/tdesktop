@@ -95,7 +95,9 @@ private:
 	void singleInstanceChecked();
 	void launchApplication();
 	void setupScreenScale();
-	void execExternal(const QString &cmd);
+
+	// Return window id for activation.
+	uint64 execExternal(const QString &cmd);
 
 	// Single instance application
 	void socketConnected();

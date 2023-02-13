@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_grouped.h"
 
 #include "history/history_item_components.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
@@ -694,6 +694,13 @@ TextWithEntities GroupedMedia::getCaption() const {
 	return main()->getCaption();
 }
 
+void GroupedMedia::hideSpoilers() {
+	_caption.setSpoilerRevealed(false, anim::type::instant);
+	for (const auto &part : _parts) {
+		part.content->hideSpoilers();
+	}
+}
+
 Storage::SharedMediaTypesMask GroupedMedia::sharedMediaTypes() const {
 	return main()->sharedMediaTypes();
 }
@@ -752,7 +759,10 @@ void GroupedMedia::unloadHeavyPart() {
 }
 
 void GroupedMedia::parentTextUpdated() {
-	history()->owner().requestViewResize(_parent);
+	if (_parent->media() == this) {
+		refreshCaption();
+		history()->owner().requestViewResize(_parent);
+	}
 }
 
 bool GroupedMedia::needsBubble() const {

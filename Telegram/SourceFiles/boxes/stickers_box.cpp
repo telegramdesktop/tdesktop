@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "apiwrap.h"
 #include "storage/storage_account.h"
-#include "dialogs/ui/dialogs_layout.h"
 #include "lottie/lottie_single_player.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/buttons.h"
@@ -35,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+#include "ui/unread_badge_paint.h"
 #include "window/window_session_controller.h"
 #include "media/clip/media_clip_reader.h"
 #include "main/main_session.h"
@@ -66,7 +66,7 @@ private:
 	void setCounter(int counter);
 
 	QString _text;
-	Dialogs::Ui::UnreadBadgeStyle _st;
+	Ui::UnreadBadgeStyle _st;
 
 };
 
@@ -335,7 +335,7 @@ void StickersBox::CounterWidget::setCounter(int counter) {
 	auto dummy = QImage(1, 1, QImage::Format_ARGB32_Premultiplied);
 	auto p = QPainter(&dummy);
 
-	const auto badge = Dialogs::Ui::PaintUnreadBadge(p, _text, 0, 0, _st);
+	const auto badge = Ui::PaintUnreadBadge(p, _text, 0, 0, _st);
 
 	resize(badge.width(), st::stickersFeaturedBadgeSize);
 }
@@ -346,7 +346,7 @@ void StickersBox::CounterWidget::paintEvent(QPaintEvent *e) {
 	if (!_text.isEmpty()) {
 		const auto unreadRight = rtl() ? 0 : width();
 		const auto unreadTop = 0;
-		Dialogs::Ui::PaintUnreadBadge(p, _text, unreadRight, unreadTop, _st);
+		Ui::PaintUnreadBadge(p, _text, unreadRight, unreadTop, _st);
 	}
 }
 

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/url_auth_box.h"
+#include "boxes/peers/choose_peer_box.h"
 #include "lang/lang_keys.h"
 #include "core/core_cloud_password.h"
 #include "core/click_handler_types.h"
@@ -402,6 +403,32 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			topicRootId,
 			chosen,
 			disabled);
+	} break;
+
+	case ButtonType::RequestPeer: {
+		HideSingleUseKeyboard(controller, item);
+
+		auto query = RequestPeerQuery();
+		Assert(button->data.size() == sizeof(query));
+		memcpy(&query, button->data.data(), sizeof(query));
+		const auto peer = item->history()->peer;
+		const auto itemId = item->id;
+		const auto id = int32(button->buttonId);
+		const auto chosen = [=](not_null<PeerData*> result) {
+			peer->session().api().request(MTPmessages_SendBotRequestedPeer(
+				peer->input,
+				MTP_int(itemId),
+				MTP_int(id),
+				result->input
+			)).done([=](const MTPUpdates &result) {
+				peer->session().api().applyUpdates(result);
+			}).send();
+		};
+		if (const auto bot = item->getMessageBot()) {
+			ShowChoosePeerBox(controller, bot, query, chosen);
+		} else {
+			LOG(("API Error: Bot not found for RequestPeer button."));
+		}
 	} break;
 
 	case ButtonType::SwitchInlineSame:

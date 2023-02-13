@@ -56,6 +56,8 @@ public:
 	virtual QVariant panelClickHandlerContext() = 0;
 
 	virtual QString panelWebviewDataPath() = 0;
+
+	virtual std::optional<QDate> panelOverrideExpireDateThreshold() = 0;
 };
 
 } // namespace Payments::Ui

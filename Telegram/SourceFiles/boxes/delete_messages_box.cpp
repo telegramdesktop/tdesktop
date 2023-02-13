@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_messages_search.h"
 #include "base/unixtime.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_histories.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -229,11 +231,32 @@ void DeleteMessagesBox::prepare() {
 			auto count = int(_ids.size());
 			if (hasScheduledMessages()) {
 			} else if (auto revoke = revokeText(peer)) {
+				const auto &settings = Core::App().settings();
+				const auto revokeByDefault =
+					!settings.rememberedDeleteMessageOnlyForYou();
 				_revoke.create(
 					this,
 					revoke->checkbox,
-					true,
+					revokeByDefault,
 					st::defaultBoxCheckbox);
+				_revokeRemember.create(
+					this,
+					object_ptr<Ui::Checkbox>(
+						this,
+						tr::lng_remember(),
+						false,
+						st::defaultBoxCheckbox));
+				_revokeRemember->hide(anim::type::instant);
+				_revoke->checkedValue(
+				) | rpl::start_with_next([=](bool checked) {
+					_revokeRemember->toggle(
+						checked != revokeByDefault,
+						anim::type::normal);
+				}, _revokeRemember->lifetime());
+				_revokeRemember->heightValue(
+				) | rpl::start_with_next([=](int h) {
+					setDimensions(st::boxWidth, _fullHeight + h);
+				}, lifetime());
 				appendDetails(std::move(revoke->description));
 			} else if (peer->isChannel()) {
 				if (peer->isMegagroup()) {
@@ -309,6 +332,7 @@ void DeleteMessagesBox::prepare() {
 			+ st::boxLittleSkip;
 	}
 	setDimensions(st::boxWidth, fullHeight);
+	_fullHeight = fullHeight;
 }
 
 bool DeleteMessagesBox::hasScheduledMessages() const {
@@ -450,6 +474,11 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 		_revoke->resizeToNaturalWidth(availableWidth);
 		_revoke->moveToLeft(padding.left(), top);
 		top += _revoke->heightNoMargins() + st::boxLittleSkip;
+		if (_revokeRemember) {
+			_revokeRemember->resizeToNaturalWidth(availableWidth);
+			_revokeRemember->moveToLeft(padding.left(),top);
+			top += _revokeRemember->heightNoMargins();
+		}
 	}
 	if (_autoDeleteSettings) {
 		top += st::boxMediumSkip - st::boxLittleSkip;
@@ -469,6 +498,14 @@ void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void DeleteMessagesBox::deleteAndClear() {
+	if (_revoke
+		&& _revokeRemember
+		&& _revokeRemember->toggled()
+		&& _revokeRemember->entity()->checked()) {
+		Core::App().settings().setRememberedDeleteMessageOnlyForYou(
+			!_revoke->checked());
+		Core::App().saveSettingsDelayed();
+	}
 	const auto revoke = _revoke ? _revoke->checked() : _revokeForBot;
 	const auto session = _session;
 	const auto invokeCallbackAndClose = [&] {
