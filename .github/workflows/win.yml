@@ -44,6 +44,7 @@ jobs:
       ONLY_CACHE: "false"
       PREPARE_PATH: "Telegram/build/prepare/prepare.py"
       PreferredToolArchitecture: "x64"
+      ARTIFACT_NAME: "PTelegram_Win"
 
     defaults:
       run:
