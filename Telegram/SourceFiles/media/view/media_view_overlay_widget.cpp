@@ -81,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "layout/layout_document_generic_preview.h"
+#include "platform/platform_overlay_widget.h"
 #include "storage/file_download.h"
 #include "storage/storage_account.h"
 #include "calls/calls_instance.h"
@@ -298,15 +299,12 @@ OverlayWidget::PipWrap::PipWrap(
 }
 
 OverlayWidget::OverlayWidget()
-: _supportWindowMode(!Platform::IsMac())
+: _supportWindowMode(true)
 , _wrap(std::make_unique<Ui::GL::Window>())
 , _window(_wrap->window())
-#ifndef Q_OS_MAC
-, _controls(Ui::Platform::SetupSeparateTitleControls(
-	_window.get(),
-	st::callTitle,
-	[=](bool maximized) { toggleFullScreen(maximized); }))
-#endif
+, _helper(Platform::CreateOverlayWidgetHelper(_window.get(), [=](bool maximized) {
+	toggleFullScreen(maximized);
+}))
 , _body(_wrap->widget())
 , _surface(
 	Ui::GL::CreateSurface(_body, chooseRenderer(_wrap->backend())))
@@ -489,22 +487,17 @@ OverlayWidget::OverlayWidget()
 }
 
 void OverlayWidget::orderWidgets() {
-#ifndef Q_OS_MAC
-	_controls->wrap.raise();
-#endif // !Q_OS_MAC
+	_helper->orderWidgets();
 }
 
 void OverlayWidget::setupWindow() {
 	_window->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
-		if (!_windowed || !_widget->rect().contains(widgetPoint)) {
+		if (!_windowed
+			|| !_widget->rect().contains(widgetPoint)
+			|| _helper->skipTitleHitTest(widgetPoint)) {
 			return Flag::None | Flag(0);
 		}
-#ifndef Q_OS_MAC
-		if (_controls->controls.geometry().contains(widgetPoint)) {
-			return Flag::None | Flag(0);
-		}
-#endif // !Q_OS_MAC
 		const auto inControls = (_over != OverNone) && (_over != OverVideo);
 		if (inControls) {
 			return Flag::None | Flag(0);
@@ -514,7 +507,7 @@ void OverlayWidget::setupWindow() {
 
 	if (_supportWindowMode) {
 		const auto callback = [=](Qt::WindowState state) {
-			if (state == Qt::WindowMinimized) {
+			if (state == Qt::WindowMinimized || Platform::IsMac()) {
 				return;
 			} else if (state == Qt::WindowFullScreen) {
 				_fullscreen = true;
@@ -1600,7 +1593,15 @@ void OverlayWidget::close() {
 }
 
 void OverlayWidget::toggleFullScreen(bool fullscreen) {
-	if (fullscreen) {
+	if constexpr (Platform::IsMac()) {
+		_fullscreen = fullscreen;
+		_windowed = !fullscreen;
+		_helper->beforeShow(_fullscreen);
+		if (_fullscreen) {
+			moveToScreen();
+		}
+		_helper->afterShow(_fullscreen);
+	} else if (fullscreen) {
 		_window->showFullScreen();
 	} else {
 		_window->showNormal();
@@ -1697,14 +1698,7 @@ void OverlayWidget::toMessage() {
 }
 
 void OverlayWidget::notifyFileDialogShown(bool shown) {
-	if (!_fullscreen || (shown && isHidden())) {
-		return;
-	}
-	if (shown) {
-		Ui::Platform::BringToBack(_window);
-	} else {
-		Ui::Platform::ShowOverAll(_window);
-	}
+	_helper->notifyFileDialogShown(shown);
 }
 
 void OverlayWidget::saveAs() {
@@ -2871,6 +2865,7 @@ void OverlayWidget::updateThemePreviewGeometry() {
 void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
+		_helper->beforeShow(_fullscreen);
 		moveToScreen();
 		//setAttribute(Qt::WA_DontShowOnScreen);
 		//OverlayParent::setVisibleHook(true);
@@ -2887,18 +2882,14 @@ void OverlayWidget::displayFinished() {
 
 void OverlayWidget::showAndActivate() {
 	_body->show();
-	if constexpr (Platform::IsMac()) {
-		_window->show();
-	} else if (_windowed) {
+	if (_windowed || Platform::IsMac()) {
 		_window->showNormal();
 	} else if (_fullscreen) {
 		_window->showFullScreen();
 	} else {
 		_window->showMaximized();
 	}
-	if (_fullscreen) {
-		Ui::Platform::ShowOverAll(_window);
-	}
+	_helper->afterShow(_fullscreen);
 	activate();
 }
 
@@ -4732,7 +4723,8 @@ void OverlayWidget::handleMouseRelease(
 	} else if (_over == OverMore && _down == OverMore) {
 		InvokeQueued(_widget, [=] { showDropdown(); });
 	} else if (_over == OverClose && _down == OverClose) {
-		close();
+		//close();
+		toggleFullScreen(!_fullscreen);
 	} else if (_over == OverVideo && _down == OverVideo) {
 		if (_streamed) {
 			playbackPauseResume();

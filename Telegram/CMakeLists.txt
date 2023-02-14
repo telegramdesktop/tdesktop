@@ -1083,6 +1083,7 @@ PRIVATE
     platform/linux/notifications_manager_linux_dummy.cpp
     platform/linux/notifications_manager_linux.cpp
     platform/linux/notifications_manager_linux.h
+    platform/linux/overlay_widget_linux.h
     platform/linux/specific_linux.cpp
     platform/linux/specific_linux.h
     platform/linux/tray_linux.cpp
@@ -1098,6 +1099,8 @@ PRIVATE
     platform/mac/main_window_mac.h
     platform/mac/notifications_manager_mac.mm
     platform/mac/notifications_manager_mac.h
+    platform/mac/overlay_widget_mac.h
+    platform/mac/overlay_widget_mac.mm
     platform/mac/specific_mac.mm
     platform/mac/specific_mac.h
     platform/mac/specific_mac_p.mm
@@ -1135,6 +1138,7 @@ PRIVATE
     platform/win/main_window_win.h
     platform/win/notifications_manager_win.cpp
     platform/win/notifications_manager_win.h
+    platform/win/overlay_widget_win.h
     platform/win/specific_win.cpp
     platform/win/specific_win.h
     platform/win/tray_win.cpp
@@ -1154,6 +1158,8 @@ PRIVATE
     platform/platform_integration.h
     platform/platform_main_window.h
     platform/platform_notifications_manager.h
+    platform/platform_overlay_widget.cpp
+    platform/platform_overlay_widget.h
     platform/platform_specific.h
     platform/platform_tray.h
     platform/platform_window_title.h

@@ -40,9 +40,9 @@ struct ChosenRenderer;
 enum class Backend;
 } // namespace Ui::GL
 
-namespace Ui::Platform {
-struct SeparateTitleControls;
-} // namespace Ui::Platform
+namespace Platform {
+class OverlayWidgetHelper;
+} // namespace Platform
 
 namespace Window {
 namespace Theme {
@@ -455,9 +455,7 @@ private:
 	bool _opengl = false;
 	const std::unique_ptr<Ui::GL::Window> _wrap;
 	const not_null<Ui::RpWindow*> _window;
-#ifndef Q_OS_MAC
-	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
-#endif
+	const std::unique_ptr<Platform::OverlayWidgetHelper> _helper;
 	const not_null<Ui::RpWidget*> _body;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
