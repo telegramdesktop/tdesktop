@@ -710,9 +710,8 @@ release:
 
 stage('libde265', """
 win:
-    git clone https://github.com/strukturag/libde265.git
+    git clone --depth 1 -b v1.0.11 https://github.com/strukturag/libde265.git
     cd libde265
-    git checkout c96962cf6a0259f1678e9a0e1566eb9b5516093a
     cmake . ^
         -A %WIN32X64% ^
         -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
@@ -735,7 +734,7 @@ release:
 
 stage('libheif', """
 win:
-    git clone --depth 1 -b v1.14.0 https://github.com/strukturag/libheif.git
+    git clone --depth 1 -b v1.14.2 https://github.com/strukturag/libheif.git
     cd libheif
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -761,7 +760,7 @@ release:
 
 stage('libjxl', """
 win:
-    git clone -b v0.7.0 --depth 1 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.8.1 --depth 1 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
     cd libjxl
     cmake . ^
         -A %WIN32X64% ^
@@ -781,6 +780,7 @@ win:
         -DJPEGXL_ENABLE_MANPAGES=OFF ^
         -DJPEGXL_ENABLE_EXAMPLES=OFF ^
         -DJPEGXL_ENABLE_JNI=OFF ^
+        -DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF ^
         -DJPEGXL_ENABLE_SJPEG=OFF ^
         -DJPEGXL_ENABLE_OPENEXR=OFF ^
         -DJPEGXL_ENABLE_SKCMS=ON ^
