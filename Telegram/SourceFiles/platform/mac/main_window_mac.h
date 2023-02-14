@@ -30,8 +30,6 @@ public:
 
 	void updateWindowIcon() override;
 
-	bool preventsQuit(Core::QuitReason reason) override;
-
 	class Private;
 
 protected:

@@ -983,10 +983,11 @@ bool Application::preventsQuit(QuitReason reason) {
 		|| uploadPreventsQuit()
 		|| downloadPreventsQuit()) {
 		return true;
-	} else if (const auto window = activeWindow()) {
-		if (window->widget()->isActive()) {
-			return window->widget()->preventsQuit(reason);
-		}
+	} else if ((!_mediaView
+		|| _mediaView->isHidden()
+		|| !_mediaView->isFullScreen())
+		&& Platform::PreventsQuit(reason)) {
+		return true;
 	}
 	return false;
 }

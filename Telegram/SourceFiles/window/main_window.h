@@ -134,10 +134,6 @@ public:
 		updateGlobalMenuHook();
 	}
 
-	[[nodiscard]] virtual bool preventsQuit(Core::QuitReason reason) {
-		return false;
-	}
-
 protected:
 	void leaveEventHook(QEvent *e) override;
 

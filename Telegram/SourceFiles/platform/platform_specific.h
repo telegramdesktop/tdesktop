@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Core {
+enum class QuitReason;
+} // namespace Core
+
 namespace Platform {
 
 void start();
@@ -42,6 +46,8 @@ bool TrayIconSupported();
 bool SkipTaskbarSupported();
 void WriteCrashDumpDetails();
 void NewVersionLaunched(int oldVersion);
+
+[[nodiscard]] bool PreventsQuit(Core::QuitReason reason);
 
 [[nodiscard]] std::optional<bool> IsDarkMode();
 [[nodiscard]] inline bool IsDarkModeSupported() {
