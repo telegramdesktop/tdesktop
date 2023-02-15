@@ -194,7 +194,6 @@ void MainWindow::setupPasscodeLock() {
 	_passcodeLock.create(bodyWidget(), &controller());
 	updateControlsGeometry();
 
-	Core::App().hideMediaView();
 	ui_hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->hide();

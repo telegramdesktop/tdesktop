@@ -3380,6 +3380,13 @@ void OverlayWidget::switchToPip() {
 		}) | rpl::start_with_next([=] {
 			_pip = nullptr;
 		}, _pip->lifetime);
+
+		Core::App().passcodeLockChanges(
+		) | rpl::filter(
+			rpl::mappers::_1
+		) | rpl::start_with_next([=] {
+			_pip = nullptr;
+		}, _pip->lifetime);
 	}
 
 	if (isHidden()) {
