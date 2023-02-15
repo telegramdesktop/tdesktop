@@ -2616,9 +2616,18 @@ void RepliesWidget::clearSelected() {
 }
 
 void RepliesWidget::setupDragArea() {
+	const auto filter = [=](const auto &d) {
+		if (!_history || _composeControls->isRecording()) {
+			return false;
+		}
+		const auto peer = _history->peer;
+		return _topic
+			? Data::CanSendAnyOf(_topic, Data::FilesSendRestrictions())
+			: Data::CanSendAnyOf(peer, Data::FilesSendRestrictions());
+	};
 	const auto areas = DragArea::SetupDragAreaToContainer(
 		this,
-		[=](auto d) { return _history && !_composeControls->isRecording(); },
+		filter,
 		nullptr,
 		[=] { updateControlsGeometry(); });
 
