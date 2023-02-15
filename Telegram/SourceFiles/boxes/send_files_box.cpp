@@ -396,21 +396,7 @@ void SendFilesBox::enqueueNextPrepare() {
 }
 
 void SendFilesBox::prepare() {
-//	_send = addButton(
-//		(_sendType == Api::SendType::Normal
-//			? tr::lng_send_button()
-//			: tr::lng_create_group_next()),
-//		[=] { send({}); });
-//	if (_sendType == Api::SendType::Normal) {
-//		SendMenu::SetupMenuAndShortcuts(
-//			_send,
-//			[=] { return _sendMenuType; },
-//			[=] { sendSilent(); },
-//			[=] { sendScheduled(); },
-//			[=] { sendAutoDelete(); });
-//	}
-//	addButton(tr::lng_cancel(), [=] { closeBox(); });
-	initSendWay();
+    initSendWay();
 	setupCaption();
 	setupSendWayControls();
 	preparePreview();
