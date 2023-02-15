@@ -79,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/download_path_box.h"
 #include "boxes/connection_box.h"
 #include "storage/storage_account.h"
+#include "main/main_domain.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_panel.h"
 #include "media/player/media_player_widget.h"
@@ -1265,6 +1266,8 @@ bool MainWidget::showHistoryInDifferentWindow(
 		const SectionShow &params,
 		MsgId showAtMsgId) {
 	const auto peer = session().data().peer(peerId);
+	const auto account = &session().account();
+	auto primary = Core::App().separateWindowForAccount(account);
 	if (const auto separate = Core::App().separateWindowForPeer(peer)) {
 		if (separate == &_controller->window()) {
 			return false;
@@ -1276,8 +1279,6 @@ bool MainWidget::showHistoryInDifferentWindow(
 		separate->activate();
 		return true;
 	} else if (isPrimary()) {
-		const auto primary = Core::App().separateWindowForAccount(
-			&peer->account());
 		if (primary && primary != &_controller->window()) {
 			primary->sessionController()->showPeerHistory(
 				peerId,
@@ -1291,18 +1292,17 @@ bool MainWidget::showHistoryInDifferentWindow(
 		return true;
 	} else if (singlePeer()->id == peerId) {
 		return false;
+	} else if (!primary) {
+		Core::App().domain().activate(account);
+		primary = Core::App().separateWindowForAccount(account);
 	}
-	const auto primary = Core::App().activePrimaryWindow();
-	if (&primary->account() != &session().account()) {
-		primary->showAccount(&session().account());
-	}
-	if (&primary->account() == &session().account()) {
+	if (primary && &primary->account() == account) {
 		primary->sessionController()->showPeerHistory(
 			peerId,
 			params,
 			showAtMsgId);
+		primary->activate();
 	}
-	primary->activate();
 	return true;
 }
 
