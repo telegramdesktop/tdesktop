@@ -362,12 +362,8 @@ void Domain::watchSession(not_null<Account*> account) {
 	) | rpl::filter([=](Session *session) {
 		return !session;
 	}) | rpl::start_with_next([=] {
-        FAKE_LOG(qsl("Found logouted sessions, clear!"));
 		scheduleUpdateUnreadBadge();
-        FAKE_LOG(qsl("Scheduled UpdateUnreadBadge!"));
-        FAKE_LOG(qsl("Try to activate authed account"));
-        closeAccountWindows();
-        FAKE_LOG(qsl("Schedule removing redundant accounts!"));
+		closeAccountWindows(account);
 		crl::on_main(&Core::App(), [=] {
 			removeRedundantAccounts();
 		});
@@ -376,7 +372,6 @@ void Domain::watchSession(not_null<Account*> account) {
 
 void Domain::closeAccountWindows(not_null<Main::Account*> account) {
 	auto another = (Main::Account*)nullptr;
-    FAKE_LOG(qsl("Session exists in activateAuthedAccount"));
 	for (auto i = _accounts.begin(); i != _accounts.end(); ++i) {
 		const auto other = i->account.get();
 		if (other == account) {
@@ -420,19 +415,14 @@ void Domain::removeRedundantAccounts() {
 	for (auto i = _accounts.begin(); i != _accounts.end();) {
 		if (Core::App().separateWindowForAccount(i->account.get())
 			|| i->account->sessionExists()) {
-            FAKE_LOG(qsl("removeRedundantAccounts: account %1 already good, skip").arg(i->index));
 			++i;
 			continue;
 		}
-        FAKE_LOG(qsl("removeRedundantAccounts: account %1 seems logouted, checkForLastProductionConfig").arg(i->index));
 		checkForLastProductionConfig(i->account.get());
 		i = _accounts.erase(i);
-        FAKE_LOG(qsl("removeRedundantAccounts: _accounts.erase"));
 	}
 
-    FAKE_LOG(qsl("removeRedundantAccounts: After cleaning we have %1 accounts").arg(_accounts.size()));
 	if (!removePasscodeIfEmpty() && _accounts.size() != was) {
-        FAKE_LOG(qsl("removeRedundantAccounts: scheduleWriteAccounts"));
 		scheduleWriteAccounts();
 		_accountsChanges.fire({});
 	}
@@ -501,14 +491,11 @@ void Domain::activate(not_null<Main::Account*> account) {
 
 void Domain::scheduleWriteAccounts() {
 	if (_writeAccountsScheduled) {
-        FAKE_LOG(qsl("scheduleWriteAccounts: already scheduled!"));
 		return;
 	}
 	_writeAccountsScheduled = true;
-    FAKE_LOG(qsl("scheduleWriteAccounts: schedule writing!"));
 	crl::on_main(&Core::App(), [=] {
 		_writeAccountsScheduled = false;
-        FAKE_LOG(qsl("scheduleWriteAccounts: write accounts!"));
 		_local->writeAccounts();
 	});
 }

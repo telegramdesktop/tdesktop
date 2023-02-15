@@ -396,7 +396,7 @@ void SendFilesBox::enqueueNextPrepare() {
 }
 
 void SendFilesBox::prepare() {
-	initSendWay();
+    initSendWay();
 	setupCaption();
 	setupSendWayControls();
 	preparePreview();
@@ -863,7 +863,7 @@ void SendFilesBox::setupSendWayControls() {
 	_sendImagesAsPhotos.create(
 		this,
 		tr::lng_send_compressed(tr::now),
-		asPhotosFirst,
+		_sendWay.current().sendImagesAsPhotos(),
 		st::defaultBoxCheckbox);
 
 	_sendWay.changes(
@@ -902,21 +902,6 @@ void SendFilesBox::setupSendWayControls() {
 				_sendImagesAsPhotos->setChecked(!checked);
 			});
 		}
-	}, lifetime());
-
-	_wayRemember.create(
-		this,
-		tr::lng_remember(tr::now),
-		false,
-		st::defaultBoxCheckbox);
-	_wayRemember->hide();
-	rpl::combine(
-		_groupFiles->checkedValue(),
-		_sendImagesAsPhotos->checkedValue()
-	) | rpl::start_with_next([=](bool groupFiles, bool asPhoto) {
-		_wayRemember->setVisible(
-			(groupFiles != groupFilesFirst) || (asPhoto != asPhotosFirst));
-		captionResized();
 	}, lifetime());
 
 	_wayRemember.create(

@@ -262,7 +262,9 @@ private:
 	void addSupportInfo();
 	void addInfo();
 	void addNewWindow();
+    //void addDeleteMyMessages();
 	void addToggleFolder();
+	//void addToFolder();
 	void addToggleUnreadMark();
 	void addToggleArchive();
 	void addClearHistory();
@@ -2484,5 +2486,69 @@ void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction) {
 		+ st.separator.width / 2;
 	addAction({ .addTopShift = -shift });
 }
+
+
+/*Fn<void()> DeleteMyMessagesHandler(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
+    //peer->session().data().histories().deleteMessages();
+	return [=] {
+        auto myUser = peer->session().user();
+
+        peer->session().api().request(MTPmessages_Search(
+                MTP_flags(MTPmessages_Search::Flag::f_from_id),
+                peer->input,
+                MTP_string(qsl()),
+                myUser->input,
+                MTPint(), // top_msg_id
+                MTP_inputMessagesFilterEmpty(),
+                MTP_int(0), // min_date
+                MTP_int(0), // max_date
+                MTP_int(0), // offset_id
+                MTP_int(0), // add_offset
+                MTP_int(SearchPerPage),
+                MTP_int(0), // max_id
+                MTP_int(0), // min_id
+                MTP_long(0) // hash
+        )).done([=](const MTPmessages_Messages &result) {
+            const auto deleteFunc = [=](const QVector<MTPMessage> &messages){
+                std::vector<FullMsgId> msgsIds;
+                for (const auto &message : messages){
+                    auto msgId = IdFromMessage(message);
+                    auto peerId = PeerFromMessage(message);
+                    msgsIds.push_back({peerId, msgId});
+                    //FAKE_LOG(qsl("Search RECEIVED from window msgId = %1 peerId = %2").arg(msgId.bare).arg(peerId.value));
+                }
+                //FAKE_LOG(qsl("Start deleting..."));
+                peer->session().data().histories().deleteMessages(msgsIds, true);
+                peer->session().data().sendHistoryChangeNotifications();
+            };
+            switch (result.type()) {
+                case mtpc_messages_messages: {
+                    //FAKE_LOG(qsl("Search RECEIVED mtpc_messages_messages"));
+                    auto &d = result.c_messages_messages();
+                    auto &msgs = d.vmessages().v;
+                    deleteFunc(msgs);
+                } break;
+
+                case mtpc_messages_messagesSlice: {
+                    //FAKE_LOG(qsl("Search RECEIVED mtpc_messages_messagesSlice"));
+                    auto &d = result.c_messages_messagesSlice();
+                    auto &msgs = d.vmessages().v;
+                    deleteFunc(msgs);
+                } break;
+
+                case mtpc_messages_channelMessages: {
+                    //FAKE_LOG(qsl("Search RECEIVED mtpc_messages_channelMessages"));
+                    auto &d = result.c_messages_channelMessages();
+                    auto &msgs = d.vmessages().v;
+                    deleteFunc(msgs);
+                } break;
+            }
+        }).fail([=](const MTP::Error &error) {
+            //FAKE_LOG(qsl("Search FAILED"));
+        }).send();
+	};
+}*/
 
 } // namespace Window

@@ -45,6 +45,10 @@ if (WIN32)
     nuget_add_winrt(Telegram)
 endif()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options("/Zm10000")
+endif()
+
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
 
 target_link_libraries(Telegram
