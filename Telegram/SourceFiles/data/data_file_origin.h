@@ -29,6 +29,18 @@ struct FileOriginUserPhoto {
 	}
 };
 
+struct FileOriginFullUser {
+	FileOriginFullUser(UserId userId)
+	: userId(userId) {
+	}
+
+	UserId userId = 0;
+
+	inline bool operator<(const FileOriginFullUser &other) const {
+		return userId < other.userId;
+	}
+};
+
 struct FileOriginPeerPhoto {
 	explicit FileOriginPeerPhoto(PeerId peerId) : peerId(peerId) {
 	}
@@ -113,6 +125,7 @@ struct FileOrigin {
 		v::null_t,
 		FileOriginMessage,
 		FileOriginUserPhoto,
+		FileOriginFullUser,
 		FileOriginPeerPhoto,
 		FileOriginStickerSet,
 		FileOriginSavedGifs,
@@ -125,6 +138,8 @@ struct FileOrigin {
 	FileOrigin(FileOriginMessage data) : data(data) {
 	}
 	FileOrigin(FileOriginUserPhoto data) : data(data) {
+	}
+	FileOrigin(FileOriginFullUser data) : data(data) {
 	}
 	FileOrigin(FileOriginPeerPhoto data) : data(data) {
 	}
@@ -177,6 +192,7 @@ struct UpdatedFileReferences {
 
 UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data);
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data);
+UpdatedFileReferences GetFileReferences(const MTPusers_UserFull &data);
 UpdatedFileReferences GetFileReferences(
 	const MTPmessages_RecentStickers &data);
 UpdatedFileReferences GetFileReferences(

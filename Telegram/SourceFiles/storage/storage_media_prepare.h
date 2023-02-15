@@ -51,8 +51,11 @@ enum class MimeDataState {
 	QImage &&image,
 	QByteArray &&content,
 	int previewWidth);
-void PrepareDetails(Ui::PreparedFile &file, int previewWidth);
-void UpdateImageDetails(Ui::PreparedFile &file, int previewWidth);
+void PrepareDetails(Ui::PreparedFile &file, int previewWidth, int sideLimit);
+void UpdateImageDetails(
+	Ui::PreparedFile &file,
+	int previewWidth,
+	int sideLimit);
 
 bool ApplyModifications(Ui::PreparedList &list);
 

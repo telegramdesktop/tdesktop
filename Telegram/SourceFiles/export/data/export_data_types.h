@@ -508,6 +508,18 @@ struct ActionTopicEdit {
 	std::optional<uint64> iconEmojiId = 0;
 };
 
+struct ActionSuggestProfilePhoto {
+	Photo photo;
+};
+
+struct ActionAttachMenuBotAllowed {
+};
+
+struct ActionRequestedPeer {
+	PeerId peerId = 0;
+	int buttonId = 0;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -542,7 +554,10 @@ struct ServiceAction {
 		ActionWebViewDataSent,
 		ActionGiftPremium,
 		ActionTopicCreate,
-		ActionTopicEdit> content;
+		ActionTopicEdit,
+		ActionSuggestProfilePhoto,
+		ActionAttachMenuBotAllowed,
+		ActionRequestedPeer> content;
 };
 
 ServiceAction ParseServiceAction(

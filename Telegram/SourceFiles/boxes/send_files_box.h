@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/variable.h>
+#include "base/flags.h"
 #include "boxes/abstract_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/widgets/popup_menu.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 
@@ -36,6 +37,7 @@ class EmojiButton;
 class AlbumPreview;
 class VerticalLayout;
 class FlatLabel;
+class PopupMenu;
 } // namespace Ui
 
 namespace Window {
@@ -45,6 +47,30 @@ class SessionController;
 namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
+
+enum class SendFilesAllow {
+	OnlyOne = (1 << 0),
+	Photos = (1 << 1),
+	Videos = (1 << 2),
+	Music = (1 << 3),
+	Files = (1 << 4),
+	Stickers = (1 << 5),
+	Gifs = (1 << 6),
+	EmojiWithoutPremium = (1 << 7),
+	Texts = (1 << 8),
+};
+inline constexpr bool is_flag_type(SendFilesAllow) { return true; }
+using SendFilesLimits = base::flags<SendFilesAllow>;
+
+using SendFilesCheck = Fn<bool(
+	const Ui::PreparedFile &file,
+	bool compress,
+	bool silent)>;
+
+[[nodiscard]] SendFilesLimits DefaultLimitsForPeer(not_null<PeerData*> peer);
+[[nodiscard]] SendFilesCheck DefaultCheckForPeer(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer);
 
 class SendFilesBox : public Ui::BoxContent {
 public:
@@ -57,7 +83,8 @@ public:
 		not_null<Window::SessionController*> controller,
 		Ui::PreparedList &&list,
 		const TextWithTags &caption,
-		not_null<PeerData*> peer,
+		SendFilesLimits limits,
+		SendFilesCheck check,
 		Api::SendType sendType,
 		SendMenu::Type sendMenuType);
 
@@ -106,7 +133,8 @@ private:
 		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
 
 		void setSendWay(Ui::SendFilesWay way);
-		void applyAlbumOrder();
+		void toggleSpoilers(bool enabled);
+		void applyChanges();
 
 	private:
 		base::unique_qptr<Ui::RpWidget> _preview;
@@ -117,16 +145,31 @@ private:
 		bool _isSingleMedia = false;
 
 	};
+
 	void initSendWay();
 	void initPreview();
+	[[nodiscard]] bool hasSendMenu() const;
+	[[nodiscard]] bool hasSpoilerMenu() const;
+	[[nodiscard]] bool allWithSpoilers();
+	[[nodiscard]] bool checkWithWay(
+		Ui::SendFilesWay way,
+		bool silent = false) const;
+	[[nodiscard]] bool checkWith(
+		const Ui::PreparedList &added,
+		Ui::SendFilesWay way,
+		bool silent = false) const;
+	void addMenuButton();
+	void applyBlockChanges();
+	void toggleSpoilers(bool enabled);
 
 	bool validateLength(const QString &text) const;
-	void refreshControls();
+	void refreshButtons();
+	void refreshControls(bool initial = false);
 	void setupSendWayControls();
 	void setupCaption();
 
 	void setupEmojiPanel();
-	void updateSendWayControlsVisibility();
+	void updateSendWayControls();
 	void updateEmojiPanelGeometry();
 	void emojiFilterForGeometry(not_null<QEvent*> event);
 
@@ -153,7 +196,7 @@ private:
 	void pushBlock(int from, int till);
 
 	void openDialogToAddFileToAlbum();
-	void refreshAllAfterChanges(int fromItem);
+	void refreshAllAfterChanges(int fromItem, Fn<void()> perform = nullptr);
 
 	void enqueueNextPrepare();
 	void addPreparedAsyncFile(Ui::PreparedFile &&file);
@@ -167,10 +210,10 @@ private:
 	Ui::PreparedList _list;
 	std::optional<int> _removingIndex;
 
-	SendLimit _sendLimit = SendLimit::Many;
+	SendFilesLimits _limits = {};
 	SendMenu::Type _sendMenuType = SendMenu::Type();
-	bool _allowEmojiWithoutPremium = false;
 
+	SendFilesCheck _check;
 	Fn<void(
 		Ui::PreparedList &&list,
 		Ui::SendFilesWay way,
@@ -188,6 +231,7 @@ private:
 
 	object_ptr<Ui::Checkbox> _groupFiles = { nullptr };
 	object_ptr<Ui::Checkbox> _sendImagesAsPhotos = { nullptr };
+	object_ptr<Ui::Checkbox> _wayRemember = { nullptr };
 	object_ptr<Ui::FlatLabel> _hintLabel = { nullptr };
 	rpl::variable<Ui::SendFilesWay> _sendWay = Ui::SendFilesWay();
 
@@ -199,6 +243,8 @@ private:
 	std::vector<Block> _blocks;
 	Fn<void()> _whenReadySend;
 	bool _preparing = false;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	QPointer<Ui::RoundButton> _send;
 	QPointer<Ui::RoundButton> _addFile;

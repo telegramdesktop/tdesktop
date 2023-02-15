@@ -190,7 +190,7 @@ void Paint::handleMimeData(const QMimeData *data) {
 			return;
 		}
 		if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
-			_controllers->showBox(
+			_controllers->show->showBox(
 				Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
 			return;
 		}

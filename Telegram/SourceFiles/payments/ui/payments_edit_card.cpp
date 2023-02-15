@@ -165,10 +165,11 @@ template <
 		PostprocessCardValidateResult);
 }
 
-[[nodiscard]] auto ExpireDateValidator() {
-	return ComplexNumberValidator(
-		Stripe::ValidateExpireDate,
-		PostprocessExpireDateValidateResult);
+[[nodiscard]] auto ExpireDateValidator(
+		const std::optional<QDate> &overrideExpireDateThreshold) {
+	return ComplexNumberValidator([=](const QString &date) {
+		return Stripe::ValidateExpireDate(date, overrideExpireDateThreshold);
+	}, PostprocessExpireDateValidateResult);
 }
 
 [[nodiscard]] auto CvcValidator(Fn<QString()> number) {
@@ -306,7 +307,8 @@ not_null<RpWidget*> EditCard::setupContent() {
 	_expire = make(container, {
 		.type = FieldType::CardExpireDate,
 		.placeholder = tr::lng_payments_card_expire_date(),
-		.validator = ExpireDateValidator(),
+		.validator = ExpireDateValidator(
+			_delegate->panelOverrideExpireDateThreshold()),
 	});
 	_cvc = make(container, {
 		.type = FieldType::CardCVC,

@@ -68,6 +68,10 @@ protected:
 	void paintAdditionalPlaceholder(QPainter &p) override;
 
 private:
+	void updatePattern(QVector<int> &&pattern);
+
+	QString _code;
+	QString _lastDigits;
 	QVector<int> _pattern;
 	QString _additionalPlaceholder;
 	rpl::event_stream<not_null<QKeyEvent*>> _frontBackspaceEvent;

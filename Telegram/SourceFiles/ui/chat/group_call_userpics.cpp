@@ -262,7 +262,7 @@ void GroupCallUserpics::validateCache(Userpic &userpic) {
 	{
 		auto p = QPainter(&userpic.cache);
 		const auto skip = (kWideScale - 1) / 2 * size;
-		p.drawImage(skip, skip, userpic.data.userpic);
+		p.drawImage(QRect(skip, skip, size, size), userpic.data.userpic);
 
 		if (userpic.cacheMasked) {
 			auto hq = PainterHighQualityEnabler(p);

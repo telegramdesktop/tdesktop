@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "ui/unread_badge.h"
 
+class ParticipantsBoxController;
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
@@ -43,7 +45,7 @@ private:
 
 };
 
-std::unique_ptr<PeerListController> CreateMembersController(
+std::unique_ptr<ParticipantsBoxController> CreateMembersController(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer);
 

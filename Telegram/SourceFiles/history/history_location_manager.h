@@ -24,6 +24,10 @@ public:
 		return QString();
 	}
 
+	QString url() const override {
+		return _text;
+	}
+
 	QString dragText() const override {
 		return _text;
 	}

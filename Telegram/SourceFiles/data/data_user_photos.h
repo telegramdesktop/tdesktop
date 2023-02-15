@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_user_photos.h"
 #include "base/weak_ptr.h"
 
+class UserData;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -48,3 +50,6 @@ rpl::producer<UserPhotosSlice> UserPhotosReversedViewer(
 	UserPhotosSlice::Key key,
 	int limitBefore,
 	int limitAfter);
+
+[[nodiscard]] std::optional<PhotoId> SyncUserFallbackPhotoViewer(
+	not_null<UserData*> user);

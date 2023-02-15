@@ -112,8 +112,6 @@ public:
 
 	rpl::producer<int> desiredHeightValue() const override;
 
-	void updateInternalState(not_null<Memento*> memento);
-
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;

@@ -19,20 +19,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h" // SerializeCustomEmojiId.
-#include "data/stickers/data_stickers.h"
 #include "history/view/media/history_view_sticker.h" // EmojiSize.
 #include "history/view/media/history_view_sticker_player.h"
-#include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/profile/info_profile_values.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
-#include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
-#include "settings/settings_premium.h"
-#include "ui/abstract_button.h"
-#include "ui/basic_click_handlers.h"
 #include "ui/color_contrast.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/premium_graphics.h"
@@ -40,24 +34,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
-#include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h" // Ui::RadiobuttonGroup.
 #include "ui/widgets/gradient_round_button.h"
-#include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "window/window_controller.h"
-#include "window/window_session_controller.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "api/api_premium.h"
-#include "styles/style_boxes.h"
 #include "styles/style_premium.h"
 #include "styles/style_info.h"
-#include "styles/style_intro.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
@@ -221,6 +208,7 @@ using Order = std::vector<QString>;
 		u"advanced_chat_management"_q,
 		u"profile_badge"_q,
 		u"animated_userpics"_q,
+		u"translations"_q,
 	};
 }
 
@@ -333,6 +321,15 @@ using Order = std::vector<QString>;
 				PremiumPreview::AnimatedUserpics,
 			},
 		},
+		{
+			u"translations"_q,
+			Entry{
+				&st::settingsPremiumIconTranslations,
+				tr::lng_premium_summary_subtitle_translation(),
+				tr::lng_premium_summary_about_translation(),
+				PremiumPreview::RealTimeTranslation,
+			},
+		},
 	};
 }
 
@@ -396,6 +393,8 @@ public:
 
 	virtual void setPaused(bool paused) = 0;
 	virtual void setTextPosition(int x, int y) = 0;
+
+	[[nodiscard]] virtual rpl::producer<int> additionalHeight() const = 0;
 
 protected:
 	void paintEdges(QPainter &p, const QBrush &brush) const;
@@ -477,16 +476,10 @@ public:
 	void paint(QPainter &p);
 
 private:
-	[[nodiscard]] QPixmap paintedPixmap(const QSize &size) const;
-
-	void resolveIsColored();
-
 	QRectF _rect;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
 	bool _paused = false;
-	bool _isColored = false;
-	bool _isColoredResolved = false;
 	rpl::lifetime _lifetime;
 
 };
@@ -521,6 +514,11 @@ EmojiStatusTopBar::EmojiStatusTopBar(
 				_media->owner()->location(),
 				_media->bytes(),
 				size.toSize());
+		} else if (sticker) {
+			_player = std::make_unique<HistoryView::StaticStickerPlayer>(
+				_media->owner()->location(),
+				_media->bytes(),
+				size.toSize());
 		}
 		if (_player) {
 			_player->setRepaintCallback([=] { callback(_rect.toRect()); });
@@ -540,53 +538,21 @@ void EmojiStatusTopBar::setPaused(bool paused) {
 	_paused = paused;
 }
 
-QPixmap EmojiStatusTopBar::paintedPixmap(const QSize &size) const {
-	const auto good = _media->goodThumbnail();
-	if (const auto image = _media->getStickerLarge()) {
-		return image->pix(size);
-	} else if (good) {
-		return good->pix(size);
-	} else if (const auto thumbnail = _media->thumbnail()) {
-		return thumbnail->pix(size, { .options = Images::Option::Blur });
-	}
-	return QPixmap();
-}
-
-void EmojiStatusTopBar::resolveIsColored() {
-	if (_isColoredResolved) {
-		return;
-	}
-	const auto document = _media->owner();
-	const auto manager = &document->owner().customEmojiManager();
-	const auto coloredSetId = manager->coloredSetId();
-	if (!coloredSetId) {
-		return;
-	}
-	_isColoredResolved = true;
-	const auto sticker = document->sticker();
-	_isColored = sticker && (sticker->set.id == coloredSetId);
-}
-
 void EmojiStatusTopBar::paint(QPainter &p) {
-	if (_player) {
-		if (_player->ready()) {
-			resolveIsColored();
-			const auto frame = _player->frame(
-				_rect.size().toSize(),
-				(_isColored
-					? st::profileVerifiedCheckBg->c
-					: QColor(0, 0, 0, 0)),
-				false,
-				crl::now(),
-				_paused);
+	if (_player && _player->ready()) {
+		const auto frame = _player->frame(
+			_rect.size().toSize(),
+			(_media->owner()->emojiUsesTextColor()
+				? st::profileVerifiedCheckBg->c
+				: QColor(0, 0, 0, 0)),
+			false,
+			crl::now(),
+			_paused);
 
-			p.drawImage(_rect.toRect(), frame.image);
-			if (!_paused) {
-				_player->markFrameShown();
-			}
+		p.drawImage(_rect.toRect(), frame.image);
+		if (!_paused) {
+			_player->markFrameShown();
 		}
-	} else if (_media) {
-		p.drawPixmap(_rect.topLeft(), paintedPixmap(_rect.size().toSize()));
 	}
 }
 
@@ -600,6 +566,8 @@ public:
 
 	void setPaused(bool paused) override;
 	void setTextPosition(int x, int y) override;
+
+	rpl::producer<int> additionalHeight() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -912,6 +880,10 @@ void TopBarUser::setTextPosition(int x, int y) {
 	_smallTop.position = { x, y };
 }
 
+rpl::producer<int> TopBarUser::additionalHeight() const {
+	return rpl::never<int>();
+}
+
 void TopBarUser::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
@@ -938,6 +910,8 @@ public:
 
 	void setPaused(bool paused) override;
 	void setTextPosition(int x, int y) override;
+
+	rpl::producer<int> additionalHeight() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -1018,6 +992,13 @@ void TopBar::setPaused(bool paused) {
 
 void TopBar::setTextPosition(int x, int y) {
 	_titlePosition = { x, y };
+}
+
+rpl::producer<int> TopBar::additionalHeight() const {
+	return _about->heightValue(
+	) | rpl::map([l = st::settingsPremiumAbout.style.lineHeight](int height) {
+		return std::max(height - l * 2, 0);
+	});
 }
 
 void TopBar::resizeEvent(QResizeEvent *e) {
@@ -1342,6 +1323,9 @@ void Premium::setupContent() {
 					box->closeBox();
 				}, box->lifetime());
 
+				box->boxClosing(
+				) | rpl::start_with_next(hidden, box->lifetime());
+
 				if (controller->session().premium()) {
 					box->addButton(tr::lng_close(), [=] {
 						box->closeBox();
@@ -1352,9 +1336,6 @@ void Premium::setupContent() {
 						box,
 						[] { return u"double_limits"_q; }
 					});
-
-					box->boxClosing(
-					) | rpl::start_with_next(hidden, box->lifetime());
 
 					box->setShowFinishedCallback([=] {
 						button->startGlareAnimation();
@@ -1530,12 +1511,25 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		content->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, content->lifetime());
 
-	content->setMaximumHeight(isEmojiStatus
-		? st::settingsPremiumUserHeight + TopTransitionSkip()
-		: st::settingsPremiumTopHeight);
+	const auto calculateMaximumHeight = [=] {
+		return isEmojiStatus
+			? st::settingsPremiumUserHeight + TopTransitionSkip()
+			: st::settingsPremiumTopHeight;
+	};
+
+	content->setMaximumHeight(calculateMaximumHeight());
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
 
 	content->resize(content->width(), content->maximumHeight());
+	content->additionalHeight(
+	) | rpl::start_with_next([=](int additionalHeight) {
+		const auto wasMax = (content->height() == content->maximumHeight());
+		content->setMaximumHeight(calculateMaximumHeight()
+			+ additionalHeight);
+		if (wasMax) {
+			content->resize(content->width(), content->maximumHeight());
+		}
+	}, content->lifetime());
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
@@ -1838,6 +1832,45 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	}, label->lifetime());
 
 	return result;
+}
+
+[[nodiscard]] std::vector<PremiumPreview> PremiumPreviewOrder(
+		not_null<Main::Session*> session) {
+	const auto mtpOrder = session->account().appConfig().get<Order>(
+		"premium_promo_order",
+		FallbackOrder());
+	return ranges::views::all(
+		mtpOrder
+	) | ranges::views::transform([](const QString &s) {
+		if (s == u"more_upload"_q) {
+			return PremiumPreview::MoreUpload;
+		} else if (s == u"faster_download"_q) {
+			return PremiumPreview::FasterDownload;
+		} else if (s == u"voice_to_text"_q) {
+			return PremiumPreview::VoiceToText;
+		} else if (s == u"no_ads"_q) {
+			return PremiumPreview::NoAds;
+		} else if (s == u"emoji_status"_q) {
+			return PremiumPreview::EmojiStatus;
+		} else if (s == u"infinite_reactions"_q) {
+			return PremiumPreview::InfiniteReactions;
+		} else if (s == u"premium_stickers"_q) {
+			return PremiumPreview::Stickers;
+		} else if (s == u"animated_emoji"_q) {
+			return PremiumPreview::AnimatedEmoji;
+		} else if (s == u"advanced_chat_management"_q) {
+			return PremiumPreview::AdvancedChatManagement;
+		} else if (s == u"profile_badge"_q) {
+			return PremiumPreview::ProfileBadge;
+		} else if (s == u"animated_userpics"_q) {
+			return PremiumPreview::AnimatedUserpics;
+		} else if (s == u"translations"_q) {
+			return PremiumPreview::RealTimeTranslation;
+		}
+		return PremiumPreview::kCount;
+	}) | ranges::views::filter([](PremiumPreview type) {
+		return (type != PremiumPreview::kCount);
+	}) | ranges::to_vector;
 }
 
 } // namespace Settings

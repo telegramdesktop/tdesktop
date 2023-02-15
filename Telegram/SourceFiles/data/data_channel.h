@@ -58,6 +58,7 @@ enum class ChannelDataFlag {
 	RequestToJoin = (1 << 22),
 	Forum = (1 << 23),
 	AntiSpam = (1 << 24),
+	ParticipantsHidden = (1 << 25),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -317,7 +318,6 @@ public:
 	void setDefaultRestrictions(ChatRestrictions rights);
 
 	// Like in ChatData.
-	[[nodiscard]] bool canWrite(bool checkForForum = true) const;
 	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditPermissions() const;
@@ -326,7 +326,6 @@ public:
 	[[nodiscard]] bool canAddMembers() const;
 	[[nodiscard]] bool canAddAdmins() const;
 	[[nodiscard]] bool canBanMembers() const;
-	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool anyoneCanAddMembers() const;
 
 	[[nodiscard]] bool canEditMessages() const;

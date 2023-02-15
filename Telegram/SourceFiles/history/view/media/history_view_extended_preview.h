@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media.h"
+#include "history/view/media/history_view_media_spoiler.h"
 
 enum class ImageRoundRadius;
 
@@ -55,6 +56,7 @@ public:
 	TextWithEntities getCaption() const override {
 		return _caption.toTextWithEntities();
 	}
+	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
@@ -87,23 +89,13 @@ private:
 		QRect outer,
 		const PaintContext &context) const;
 
-	void fillSpoilerMess(
-		QPainter &p,
-		QRect rect,
-		std::optional<Ui::BubbleRounding> rounding,
-		const PaintContext &context) const;
-
 	const not_null<Data::Invoice*> _invoice;
-	ClickHandlerPtr _link;
 	Ui::Text::String _caption;
-	mutable std::unique_ptr<Ui::SpoilerAnimation> _animation;
+	mutable MediaSpoiler _spoiler;
 	mutable QImage _inlineThumbnail;
-	mutable QImage _imageCache;
-	mutable QImage _cornerCache;
 	mutable QImage _buttonBackground;
 	mutable QColor _buttonBackgroundOverlay;
 	mutable Ui::Text::String _buttonText;
-	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
 	mutable bool _imageCacheInvalid = false;
 
 };

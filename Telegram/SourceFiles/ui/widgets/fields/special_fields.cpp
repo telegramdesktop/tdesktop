@@ -134,6 +134,12 @@ void PhonePartInput::correctValue(
 		int wasCursor,
 		QString &now,
 		int &nowCursor) {
+	if (!now.isEmpty() && (_lastDigits != now)) {
+		_lastDigits = now;
+		_lastDigits.replace(TextUtilities::RegExpDigitsExclude(), QString());
+		updatePattern(_groupsCallback(_code + _lastDigits));
+	}
+
 	QString newText;
 	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = 0;
 	for (int i = 0; i < oldLen; ++i) {
@@ -212,21 +218,8 @@ void PhonePartInput::addedToNumber(const QString &added) {
 }
 
 void PhonePartInput::chooseCode(const QString &code) {
-	_pattern = _groupsCallback(code);
-	if (!_pattern.isEmpty() && _pattern.at(0) == code.size()) {
-		_pattern.pop_front();
-	} else {
-		_pattern.clear();
-	}
-	_additionalPlaceholder = QString();
-	if (!_pattern.isEmpty()) {
-		_additionalPlaceholder.reserve(20);
-		for (const auto part : std::as_const(_pattern)) {
-			_additionalPlaceholder.append(' ');
-			_additionalPlaceholder.append(QString(part, QChar(0x2212)));
-		}
-	}
-	setPlaceholderHidden(!_additionalPlaceholder.isEmpty());
+	_code = code;
+	updatePattern(_groupsCallback(_code));
 
 	auto wasText = getLastText();
 	auto wasCursor = cursorPosition();
@@ -237,6 +230,27 @@ void PhonePartInput::chooseCode(const QString &code) {
 	startPlaceholderAnimation();
 
 	update();
+}
+
+void PhonePartInput::updatePattern(QVector<int> &&pattern) {
+	if (_pattern == pattern) {
+		return;
+	}
+	_pattern = std::move(pattern);
+	if (!_pattern.isEmpty() && _pattern.at(0) == _code.size()) {
+		_pattern.pop_front();
+	} else {
+		_pattern.clear();
+	}
+	_additionalPlaceholder = QString();
+	if (!_pattern.isEmpty()) {
+		_additionalPlaceholder.reserve(20);
+		for (const auto &part : _pattern) {
+			_additionalPlaceholder.append(' ');
+			_additionalPlaceholder.append(QString(part, QChar(0x2212)));
+		}
+	}
+	setPlaceholderHidden(!_additionalPlaceholder.isEmpty());
 }
 
 UsernameInput::UsernameInput(
@@ -345,7 +359,7 @@ void PhoneInput::correctValue(
 		QString &now,
 		int &nowCursor) {
 	auto digits = now;
-	digits.replace(QRegularExpression("[^\\d]"), QString());
+	digits.replace(TextUtilities::RegExpDigitsExclude(), QString());
 	_pattern = _groupsCallback(digits);
 
 	QString newPlaceholder;

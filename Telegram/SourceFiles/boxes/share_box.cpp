@@ -30,7 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_check_item.h"
 #include "menu/menu_send.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_element.h" // HistoryView::Context.
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
 #include "history/view/history_view_schedule_box.h"
@@ -1130,10 +1131,14 @@ void ShareBox::Inner::chooseForumTopic(not_null<Data::Forum*> forum) {
 			box->closeBox();
 		}, box->lifetime());
 	};
+	auto filter = [=](not_null<Data::ForumTopic*> topic) {
+		return guard && _descriptor.filterCallback(topic);
+	};
 	auto box = Box<PeerListBox>(
 		std::make_unique<ChooseTopicBoxController>(
 			forum,
-			std::move(chosen)),
+			std::move(chosen),
+			std::move(filter)),
 		std::move(initBox));
 	*weak = box.data();
 	_show->showBox(std::move(box));
@@ -1414,11 +1419,16 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				api.sendMessage(std::move(message));
 			}
 			const auto topicRootId = thread->topicRootId();
+			const auto kGeneralId = Data::ForumTopic::kGeneralId;
+			const auto topMsgId = (topicRootId == kGeneralId)
+				? MsgId(0)
+				: topicRootId;
 			const auto peer = thread->peer();
-			histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+			histories.sendRequest(history, requestType, [=](
+					Fn<void()> finish) {
 				auto &api = history->session().api();
 				const auto sendFlags = commonSendFlags
-					| (topicRootId ? Flag::f_top_msg_id : Flag(0))
+					| (topMsgId ? Flag::f_top_msg_id : Flag(0))
 					| (ShouldSendSilent(peer, options)
 						? Flag::f_silent
 						: Flag(0));
@@ -1429,7 +1439,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
                         MTP_vector<MTPint>(mtpMsgIds),
                         MTP_vector<MTPlong>(generateRandom(peer->id)),
 						peer->input,
-						MTP_int(topicRootId),
+						MTP_int(topMsgId),
 						MTP_int(options.scheduled),
 						MTP_inputPeerEmpty() // send_as
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
@@ -1513,8 +1523,12 @@ void FastShareMessage(
 		}
 	};
 
-	auto filterCallback = [isGame](not_null<Data::Thread*> thread) {
-		return thread->canWrite()
+	const auto requiredRight = item->requiredSendRight();
+	const auto requiresInline = item->requiresSendInlineRight();
+	auto filterCallback = [=](not_null<Data::Thread*> thread) {
+		return Data::CanSend(thread, requiredRight)
+			&& (!requiresInline
+				|| Data::CanSend(thread, ChatRestriction::SendInline))
 			&& (!isGame || !thread->peer()->isBroadcast());
 	};
 	auto copyLinkCallback = canCopyLink

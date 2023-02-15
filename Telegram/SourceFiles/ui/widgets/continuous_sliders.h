@@ -144,15 +144,15 @@ public:
 	template <
 		typename Value,
 		typename Convert,
-		typename Callback,
+		typename Progress,
 		typename = std::enable_if_t<
-			rpl::details::is_callable_plain_v<Callback, Value>
+			rpl::details::is_callable_plain_v<Progress, Value>
 			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
 	void setPseudoDiscrete(
 			int valuesCount,
 			Convert &&convert,
 			Value current,
-			Callback &&callback) {
+			Progress &&progress) {
 		Expects(valuesCount > 1);
 
 		setAlwaysDisplayMarker(true);
@@ -169,15 +169,39 @@ public:
 		setAdjustCallback([=](float64 value) {
 			return base::SafeRound(value * sectionsCount) / sectionsCount;
 		});
-		setChangeProgressCallback([
-			=,
-			convert = std::forward<Convert>(convert),
-			callback = std::forward<Callback>(callback)
-		](float64 value) {
+		setChangeProgressCallback([=](float64 value) {
 			const auto index = int(base::SafeRound(value * sectionsCount));
-			callback(convert(index));
+			progress(convert(index));
 		});
 	}
+
+	template <
+		typename Value,
+		typename Convert,
+		typename Progress,
+		typename Finished,
+		typename = std::enable_if_t<
+			rpl::details::is_callable_plain_v<Progress, Value>
+			&& rpl::details::is_callable_plain_v<Finished, Value>
+			&& std::is_same_v<Value, decltype(std::declval<Convert>()(1))>>>
+	void setPseudoDiscrete(
+			int valuesCount,
+			Convert &&convert,
+			Value current,
+			Progress &&progress,
+			Finished &&finished) {
+		setPseudoDiscrete(
+			valuesCount,
+			std::forward<Convert>(convert),
+			current,
+			std::forward<Progress>(progress));
+		setChangeFinishedCallback([=](float64 value) {
+			const auto sectionsCount = (valuesCount - 1);
+			const auto index = int(base::SafeRound(value * sectionsCount));
+			finished(convert(index));
+		});
+	}
+
 	void setActiveFgOverride(std::optional<QColor> color);
 	void addDivider(float64 atValue, const QSize &size);
 

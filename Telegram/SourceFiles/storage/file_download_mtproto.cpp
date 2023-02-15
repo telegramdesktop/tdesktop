@@ -164,7 +164,7 @@ bool mtpFileLoader::feedPart(int64 offset, const QByteArray &bytes) {
 }
 
 void mtpFileLoader::cancelOnFail() {
-	cancel(true);
+	cancel(FailureReason::OtherFailure);
 }
 
 bool mtpFileLoader::setWebFileSizeHook(int64 size) {
@@ -176,7 +176,7 @@ bool mtpFileLoader::setWebFileSizeHook(int64 size) {
 		"Bad size provided by bot for webDocument: %1, real: %2"
 		).arg(_fullSize
 		).arg(size));
-	cancel(true);
+	cancel(FailureReason::OtherFailure);
 	return false;
 }
 

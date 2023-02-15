@@ -15,7 +15,7 @@ class FileClickHandler;
 
 namespace HistoryView {
 
-class File : public Media, public base::has_weak_ptr {
+class File : public Media {
 public:
 	File(
 		not_null<Element*> parent,
@@ -52,7 +52,8 @@ protected:
 		FileClickHandlerPtr &&cancell);
 	void setDocumentLinks(
 		not_null<DocumentData*> document,
-		not_null<HistoryItem*> realParent);
+		not_null<HistoryItem*> realParent,
+		Fn<bool()> openHook = nullptr);
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
 	// < 0 will contain played string, _statusSize = -(seconds + 1) played

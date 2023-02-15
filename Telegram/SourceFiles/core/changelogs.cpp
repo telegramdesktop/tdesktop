@@ -23,59 +23,58 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		4000003,
-		"- Animated emoji for messages.\n"
+		4004002,
+		"- Send photos and video files hidden by a spoiler effect.\n"
 
-		"- Premium: Privacy settings for voice messages.\n"
+		"- Set a public photo for those who are restricted to see "
+		"your profile photo in the Privacy Settings.\n"
 
-		"- Premium: Gifting Telegram Premium "
-		"to any user from their profile page.\n"
+		"- Bug fixes and other minor improvements.\n"
 	},
 	{
-		4000004,
-		"- Allow sending animated emoji to Saved Messages "
-		"even without Telegram Premium.\n"
+		4004003,
+		"- Support for anonymous numbers from the Fragment.com platform.\n"
 
-		"- Premium: Suggest animated emoji by regular emoji "
-		"(can be disabled in Settings).\n"
+		"- Fix a crash in own profile photo updating.\n"
 
-		"- Premium: Show all suggested premium stickers "
-		"in a special section of the stickers panel.\n"
-
-		"- Premium: Allow hiding premium stickers special section "
-		"of the stickers panel.\n"
-
-		"- Fix a memory leak in RTMP livestreams.\n"
-
-		"- Fix some bot webview bugs on macOS.\n"
-
-		"- Fix forwarding of voice messages.\n"
+		"- Bug fixes and other minor improvements.\n"
 	},
 	{
-		4001002,
-		"- New reaction selector above the right click menu.\n"
+		4005004,
+		"- Allow wide range of interface scale options.\n"
 
-		"- Premium: Set any custom emoji reactions in private chats.\n"
+		"- Show opened chat name in the window title.\n"
 
-		"- Premium: Set any custom emoji as your profile status.\n"
+		"- Bug fixes and other minor improvements.\n"
 
-		"- Insert or copy custom emoji from pack preview.\n"
+		"- Fix updating on macOS older than 10.14.\n"
 	},
 	{
-		4002001,
-		"- Improve scaling / cropping for photos / video files.\n"
+		4005006,
+		"- Try enabling non-fractional scale "
+		"High DPI support on Windows and Linux.\n"
 
-		"- Improve touch support in channel comments.\n"
+		"- Experimental setting for fractional scale "
+		"High DPI support on Windows and Linux.\n"
 
-		"- Nice animation for spoilers.\n"
+		"- Fix navigation to bottom problems in groups you didn't join.\n"
+
+		"- Fix a crash in chat export settings changes.\n"
+
+		"- Fix a crash in sending some of JPEG images.\n"
+
+		"- Fix CJK fonts on Windows.\n"
 	},
 	{
-		4002002,
-		"- Fix crash in spoiler revealing in media captions.\n"
+		4005007,
+		"- Fix glitches after moving window to another screen.\n",
+	},
+	{
+		4005008,
+		"- Allow opening another account in a new window "
+		"(see Settings > Advanced > Experimental Settings).\n"
 
-		"- Fix spoiler revealing in media viewer captions.\n"
-		
-		"- Fix crash in folder editing on Linux.\n"
+		"- A lot of bugfixes for working with more than one window.\n"
 	}
 	};
 };

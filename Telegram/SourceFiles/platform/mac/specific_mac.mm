@@ -35,13 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mach-o/dyld.h>
 #include <AVFoundation/AVFoundation.h>
 
-void psActivateProcess(uint64 pid) {
-	if (!pid) {
-		const auto window = Core::App().activeWindow();
-		objc_activateProgram(window ? window->widget()->winId() : 0);
-	}
-}
-
 QString psAppDataPath() {
 	return objc_appDataPath();
 }
@@ -192,6 +185,11 @@ bool AutostartSkip() {
 }
 
 void NewVersionLaunched(int oldVersion) {
+}
+
+void ActivateThisProcess() {
+	const auto window = Core::App().activeWindow();
+	objc_activateProgram(window ? window->widget()->winId() : 0);
 }
 
 } // namespace Platform

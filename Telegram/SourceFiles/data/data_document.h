@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_location.h"
 #include "ui/image/image.h"
 
+enum class ChatRestriction;
 class mtpFileLoader;
 
 namespace Images {
@@ -126,6 +127,8 @@ public:
 	[[nodiscard]] bool loadedInMediaCache() const;
 	void setLoadedInMediaCache(bool loaded);
 
+	[[nodiscard]] ChatRestriction requiredSendRight() const;
+
 	void setWaitingForAlbum();
 	[[nodiscard]] bool waitingForAlbum() const;
 
@@ -142,9 +145,10 @@ public:
 
 	[[nodiscard]] Image *getReplyPreview(
 		Data::FileOrigin origin,
-		not_null<PeerData*> context);
+		not_null<PeerData*> context,
+		bool spoiler);
 	[[nodiscard]] Image *getReplyPreview(not_null<HistoryItem*> item);
-	[[nodiscard]] bool replyPreviewLoaded() const;
+	[[nodiscard]] bool replyPreviewLoaded(bool spoiler) const;
 
 	[[nodiscard]] StickerData *sticker() const;
 	[[nodiscard]] Data::FileOrigin stickerSetOrigin() const;
@@ -181,6 +185,7 @@ public:
 	[[nodiscard]] bool isPatternWallPaperSVG() const;
 	[[nodiscard]] bool isPremiumSticker() const;
 	[[nodiscard]] bool isPremiumEmoji() const;
+	[[nodiscard]] bool emojiUsesTextColor() const;
 
 	[[nodiscard]] bool hasThumbnail() const;
 	[[nodiscard]] bool thumbnailLoading() const;
@@ -290,6 +295,7 @@ private:
 		ForceToCache = 0x100,
 		PremiumSticker = 0x200,
 		PossibleCoverThumbnail = 0x400,
+		UseTextColor = 0x800,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

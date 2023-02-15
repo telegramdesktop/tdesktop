@@ -25,6 +25,7 @@ class VerticalLayout;
 class FlatLabel;
 class SettingsButton;
 class AbstractButton;
+class MediaSlider;
 } // namespace Ui
 
 namespace Ui::Menu {
@@ -38,6 +39,7 @@ class SessionController;
 namespace style {
 struct FlatLabel;
 struct SettingsButton;
+struct MediaSlider;
 } // namespace style
 
 namespace Lottie {
@@ -215,6 +217,11 @@ not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	rpl::producer<QString> text,
 	style::margins addPadding = {},
 	const style::FlatLabel *st = nullptr);
+void AddDividerTextWithLottie(
+	not_null<Ui::VerticalLayout*> parent,
+	rpl::producer<> showFinished,
+	rpl::producer<TextWithEntities> text,
+	const QString &lottie);
 
 struct LottieIcon {
 	object_ptr<Ui::RpWidget> widget;
@@ -230,5 +237,17 @@ void FillMenu(
 	Type type,
 	Fn<void(Type)> showOther,
 	Ui::Menu::MenuCallback addAction);
+
+struct SliderWithLabel {
+	object_ptr<Ui::RpWidget> widget;
+	not_null<Ui::MediaSlider*> slider;
+	not_null<Ui::FlatLabel*> label;
+};
+[[nodiscard]] SliderWithLabel MakeSliderWithLabel(
+	QWidget *parent,
+	const style::MediaSlider &sliderSt,
+	const style::FlatLabel &labelSt,
+	int skip,
+	int minLabelWidth = 0);
 
 } // namespace Settings

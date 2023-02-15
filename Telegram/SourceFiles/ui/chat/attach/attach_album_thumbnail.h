@@ -18,6 +18,7 @@ namespace Ui {
 
 struct PreparedFile;
 class IconButton;
+class SpoilerAnimation;
 
 class AlbumThumbnail final {
 public:
@@ -25,12 +26,16 @@ public:
 		const PreparedFile &file,
 		const GroupMediaLayout &layout,
 		QWidget *parent,
+		Fn<void()> repaint,
 		Fn<void()> editCallback,
 		Fn<void()> deleteCallback);
 
 	void moveToLayout(const GroupMediaLayout &layout);
 	void animateLayoutToInitial();
 	void resetLayoutAnimation();
+
+	void setSpoiler(bool spoiler);
+	[[nodiscard]] bool hasSpoiler() const;
 
 	int photoHeight() const;
 	int fileHeight() const;
@@ -71,6 +76,7 @@ private:
 		QPoint point,
 		int outerWidth,
 		float64 shrinkProgress);
+	void paintPlayVideo(QPainter &p, QRect geometry);
 
 	GroupMediaLayout _layout;
 	std::optional<QRect> _animateFromGeometry;
@@ -79,10 +85,12 @@ private:
 	const bool _isPhoto;
 	const bool _isVideo;
 	QPixmap _albumImage;
+	QPixmap _albumImageBlurred;
 	QImage _albumCache;
 	QPoint _albumPosition;
 	RectParts _albumCorners = RectPart::None;
 	QPixmap _photo;
+	QPixmap _photoBlurred;
 	QPixmap _fileThumb;
 	QString _name;
 	QString _status;
@@ -94,6 +102,9 @@ private:
 	AttachControls _buttons;
 
 	bool _isCompressedSticker = false;
+	std::unique_ptr<SpoilerAnimation> _spoiler;
+	QImage _cornerCache;
+	Fn<void()> _repaint;
 
 	QRect _lastRectOfModify;
 	QRect _lastRectOfButtons;

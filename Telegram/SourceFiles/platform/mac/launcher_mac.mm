@@ -24,10 +24,12 @@ Launcher::Launcher(int argc, char *argv[])
 }
 
 void Launcher::initHook() {
-	// macOS Retina display support is working fine, others are not.
-	QCoreApplication::setAttribute(Qt::AA_DisableHighDpiScaling, false);
-
 	base::RegisterBundledResources(u"Telegram.rcc"_q);
+}
+
+void Launcher::initHighDpi() {
+	// macOS Retina display support is working fine.
+	QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling, true);
 }
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {

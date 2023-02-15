@@ -124,7 +124,7 @@ QString UiIntegration::angleBackendFilePath() {
 }
 
 void UiIntegration::textActionsUpdated() {
-	if (const auto window = Core::App().primaryWindow()) {
+	if (const auto window = Core::App().activeWindow()) {
 		window->widget()->updateGlobalMenu();
 	}
 }
@@ -135,10 +135,6 @@ void UiIntegration::activationFromTopPanel() {
 
 bool UiIntegration::screenIsLocked() {
 	return Core::App().screenIsLocked();
-}
-
-QString UiIntegration::timeFormat() {
-	return cTimeFormat();
 }
 
 std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(

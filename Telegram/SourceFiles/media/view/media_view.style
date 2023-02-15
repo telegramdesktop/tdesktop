@@ -192,7 +192,7 @@ mediaviewControlsMenu: Menu(defaultMenu) {
 		fg: mediaviewPlaybackIconRipple;
 	}
 
-	arrow: icon {{ "dropdown_submenu_arrow", mediaviewPlaybackProgressFg }};
+	arrow: icon {{ "menu/submenu_arrow", mediaviewPlaybackProgressFg }};
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: mediaviewPlaybackIconRipple;
@@ -210,7 +210,6 @@ mediaviewControlsPopupMenu: PopupMenu(defaultPopupMenu) {
 	menu: mediaviewControlsMenu;
 	animation: mediaviewControlsPanelAnimation;
 }
-mediaviewMenuCheck: icon {{ "player/player_check", mediaviewPlaybackProgressFg }};
 
 mediaviewSaveMsgCheck: icon {{ "mediaview_save_check", mediaviewSaveMsgFg }};
 mediaviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
@@ -238,12 +237,9 @@ mediaviewTextLeft: 16px;
 mediaviewTextSkip: 10px;
 mediaviewHeaderTop: 48px;
 mediaviewTextTop: 24px;
-mediaviewTextOpacity: 0.5;
-mediaviewTextOverOpacity: 1;
 
 mediaviewIconOpacity: 0.45;
 mediaviewIconOverOpacity: 1.;
-mediaviewControlBgOpacity: 0.3;
 mediaviewControlMargin: 0px;
 mediaviewControlSize: 90px;
 mediaviewIconSize: size(60px, 56px);

@@ -13,6 +13,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+struct EmojiGroup;
+} // namespace Ui
+
 namespace Data {
 
 class DocumentMedia;
@@ -49,7 +53,21 @@ public:
 
 	void registerAutomaticClear(not_null<UserData*> user, TimeId until);
 
+	using Groups = std::vector<Ui::EmojiGroup>;
+	[[nodiscard]] rpl::producer<Groups> emojiGroupsValue() const;
+	[[nodiscard]] rpl::producer<Groups> statusGroupsValue() const;
+	[[nodiscard]] rpl::producer<Groups> profilePhotoGroupsValue() const;
+	void requestEmojiGroups();
+	void requestStatusGroups();
+	void requestProfilePhotoGroups();
+
 private:
+	struct GroupsType {
+		rpl::variable<Groups> data;
+		mtpRequestId requestId = 0;
+		int32 hash = 0;
+	};
+
 	void requestRecent();
 	void requestDefault();
 	void requestColored();
@@ -60,6 +78,9 @@ private:
 
 	void processClearingIn(TimeId wait);
 	void processClearing();
+
+	template <typename Request>
+	void requestGroups(not_null<GroupsType*> type, Request &&request);
 
 	const not_null<Session*> _owner;
 
@@ -83,6 +104,10 @@ private:
 
 	base::flat_map<not_null<UserData*>, TimeId> _clearing;
 	base::Timer _clearingTimer;
+
+	GroupsType _emojiGroups;
+	GroupsType _statusGroups;
+	GroupsType _profilePhotoGroups;
 
 	rpl::lifetime _lifetime;
 

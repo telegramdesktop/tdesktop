@@ -152,7 +152,7 @@ void DocumentOpenWithClickHandler::Open(
 	data->saveFromDataSilent();
 	const auto path = data->filepath(true);
 	if (!path.isEmpty()) {
-		File::OpenWith(path, QCursor::pos());
+		File::OpenWith(path);
 	} else {
 		DocumentSaveClickHandler::Save(
 			origin,

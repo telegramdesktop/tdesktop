@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "editor/photo_editor_common.h"
+#include "ui/rect_part.h"
 
 #include <QtCore/QSemaphore>
 #include <deque>
@@ -72,6 +73,8 @@ struct PreparedFile {
 
 	[[nodiscard]] bool canBeInAlbumType(AlbumType album) const;
 	[[nodiscard]] AlbumType albumType(bool sendImagesAsPhotos) const;
+	[[nodiscard]] bool isSticker() const;
+	[[nodiscard]] bool isGifv() const;
 
 	QString path;
 	QByteArray content;
@@ -79,7 +82,9 @@ struct PreparedFile {
 	std::unique_ptr<Ui::PreparedFileInformation> information;
 	QImage preview;
 	QSize shownDimensions;
+	QSize originalDimensions;
 	Type type = Type::File;
+	bool spoiler = false;
 };
 
 [[nodiscard]] bool CanBeInAlbumType(PreparedFile::Type type, AlbumType album);
@@ -142,5 +147,9 @@ struct PreparedGroup {
 [[nodiscard]] bool ValidateThumbDimensions(int width, int height);
 
 [[nodiscard]] QPixmap PrepareSongCoverForThumbnail(QImage image, int size);
+
+[[nodiscard]] QPixmap BlurredPreviewFromPixmap(
+	QPixmap pixmap,
+	RectParts corners);
 
 } // namespace Ui

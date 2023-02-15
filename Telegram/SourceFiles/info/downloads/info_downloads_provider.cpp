@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/history.h"
 #include "core/application.h"
 #include "storage/storage_shared_media.h"

@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_filters.h"
 #include "base/qt/qt_common_adapters.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 #include "styles/style_menu_icons.h"
@@ -69,13 +70,6 @@ namespace {
 
 constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
-
-base::options::toggle TabbedPanelShowOnClick({
-	.id = kOptionCtrlClickChatNewWindow,
-	.name = "New chat window by Ctrl+Click",
-	.description = "Open chat in a new window by Ctrl+Click "
-	"(Cmd+Click on macOS).",
-});
 
 int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
 	auto result = 0;
@@ -104,8 +98,6 @@ int PinnedDialogsCount(
 }
 
 } // namespace
-
-const char kOptionCtrlClickChatNewWindow[] = "ctrl-click-chat-new-window";
 
 struct InnerWidget::CollapsedRow {
 	CollapsedRow(Data::Folder *folder) : folder(folder) {
@@ -1016,11 +1008,6 @@ void InnerWidget::paintPeerSearchResult(
 				: context.selected
 				? &st::dialogsVerifiedIconBgOver
 				: &st::dialogsVerifiedIconBg),
-			.preview = (context.active
-				? st::dialogsScamFgActive
-				: context.selected
-				? st::windowBgRipple
-				: st::windowBgOver)->c,
 			.customEmojiRepaint = [=] { updateSearchResult(peer); },
 			.now = context.now,
 			.paused = context.paused,
@@ -1779,18 +1766,24 @@ void InnerWidget::moveCancelSearchButtons() {
 void InnerWidget::dialogRowReplaced(
 		Row *oldRow,
 		Row *newRow) {
+	auto found = false;
 	if (_state == WidgetState::Filtered) {
+		auto top = 0;
 		for (auto i = _filterResults.begin(); i != _filterResults.end();) {
 			if (i->row == oldRow) { // this row is shown in filtered and maybe is in contacts!
-				if (newRow) {
-					i->row = newRow;
-					++i;
-				} else {
+				found = true;
+				top = i->top;
+				if (!newRow) {
 					i = _filterResults.erase(i);
+					continue;
 				}
-			} else {
-				++i;
+				i->row = newRow;
 			}
+			if (found) {
+				i->top = top;
+				top += i->row->height();
+			}
+			++i;
 		}
 	}
 	if (_selected == oldRow) {
@@ -1805,6 +1798,9 @@ void InnerWidget::dialogRowReplaced(
 		} else {
 			stopReorderPinned();
 		}
+	}
+	if (found) {
+		refresh();
 	}
 }
 
@@ -2202,7 +2198,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		row.fullId ? st::defaultPopupMenu : st::popupMenuWithIcons);
+		row.fullId ? st::defaultPopupMenu : st::popupMenuExpandedSeparator);
 	if (row.fullId) {
 		if (session().supportMode()) {
 			fillSupportSearchMenu(_menu.get());
@@ -2847,7 +2843,6 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 	_searchInChat = key;
 	_searchFromPeer = from;
 	if (_searchInChat) {
-		_controller->closeFolder();
 		onHashtagFilterUpdate(QStringView());
 		_cancelSearchInChat->show();
 	} else {
@@ -3307,9 +3302,7 @@ bool InnerWidget::chooseRow(
 	const auto modifyChosenRow = [](
 			ChosenRow row,
 			Qt::KeyboardModifiers modifiers) {
-		if (TabbedPanelShowOnClick.value()) {
-			row.newWindow = (modifiers & Qt::ControlModifier);
-		}
+		row.newWindow = (modifiers & Qt::ControlModifier);
 		return row;
 	};
 	auto chosen = modifyChosenRow(computeChosenRow(), modifiers);
@@ -3699,8 +3692,11 @@ void InnerWidget::setupShortcuts() {
 			const auto folder = session().data().folderLoaded(
 				Data::Folder::kId);
 			if (folder && !folder->chatsList()->empty()) {
-				_controller->openFolder(folder);
-				_controller->window().hideSettingsAndLayer();
+				const auto controller = _controller;
+				controller->openFolder(folder);
+
+				// Calling openFolder() could've destroyed this widget.
+				controller->window().hideSettingsAndLayer();
 				return true;
 			}
 			return false;
@@ -3732,6 +3728,9 @@ void InnerWidget::setupShortcuts() {
 			Command::ChatPinned3,
 			Command::ChatPinned4,
 			Command::ChatPinned5,
+			Command::ChatPinned6,
+			Command::ChatPinned7,
+			Command::ChatPinned8,
 		};
 		auto &&pinned = ranges::views::zip(
 			kPinned,
@@ -3784,14 +3783,14 @@ void InnerWidget::setupShortcuts() {
 		});
 
 		request->check(Command::ReadChat) && request->handle([=] {
-			const auto history = _selected ? _selected->history() : nullptr;
-			if (history) {
-				if (history->chatListBadgesState().unread) {
-					session().data().histories().readInbox(history);
-				}
-				return true;
+			const auto thread = _selected ? _selected->thread() : nullptr;
+			if (!thread) {
+				return false;
 			}
-			return (history != nullptr);
+			if (Window::IsUnreadThread(thread)) {
+				Window::MarkAsReadThread(thread);
+			}
+			return true;
 		});
 
 		request->check(Command::ShowContacts) && request->handle([=] {

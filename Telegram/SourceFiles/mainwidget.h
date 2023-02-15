@@ -220,7 +220,7 @@ public:
 
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
 
-	void showPeerHistory(
+	void showHistory(
 		PeerId peer,
 		const SectionShow &params,
 		MsgId msgId);
@@ -233,7 +233,6 @@ public:
 
 	using FloatDelegate::floatPlayerAreaUpdated;
 
-	void closeBothPlayers();
 	void stopAndClosePlayer();
 
 	bool preventsCloseSection(Fn<void()> callback) const;
@@ -302,9 +301,12 @@ private:
 	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
 	void clearHider(not_null<Window::HistoryHider*> instance);
 
+	void closeBothPlayers();
+
 	[[nodiscard]] auto floatPlayerDelegate()
 		-> not_null<Media::Player::FloatDelegate*>;
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
+	void floatPlayerToggleGifsPaused(bool paused) override;
 	not_null<Media::Player::FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) override;
 	void floatPlayerEnumerateSections(Fn<void(

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 
 class ChannelData;
+enum class ChatRestriction;
 
 namespace style {
 struct ForumTopicIcon;
@@ -80,8 +81,6 @@ public:
 	[[nodiscard]] not_null<HistoryView::ListMemento*> listMemento();
 
 	[[nodiscard]] bool my() const;
-	[[nodiscard]] bool canWrite() const;
-	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool canEdit() const;
 	[[nodiscard]] bool canToggleClosed() const;
 	[[nodiscard]] bool canTogglePinned() const;

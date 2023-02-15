@@ -77,6 +77,8 @@ StickersSet::StickersSet(
 , _owner(owner) {
 }
 
+StickersSet::~StickersSet() = default;
+
 Data::Session &StickersSet::owner() const {
 	return *_owner;
 }

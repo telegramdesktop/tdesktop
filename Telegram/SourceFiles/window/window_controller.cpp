@@ -43,6 +43,11 @@ namespace Window {
 Controller::Controller() : Controller(CreateArgs{}) {
 }
 
+Controller::Controller(not_null<Main::Account*> account)
+: Controller(CreateArgs{}) {
+	showAccount(account);
+}
+
 Controller::Controller(
 	not_null<PeerData*> singlePeer,
 	MsgId showAtMsgId)
@@ -62,6 +67,9 @@ Controller::~Controller() {
 	// We want to delete all widgets before the _sessionController.
 	_widget.ui_hideSettingsAndLayer(anim::type::instant);
 	_widget.clearWidgets();
+	_accountLifetime.destroy();
+	_sessionControllerValue = nullptr;
+	_sessionController = nullptr;
 }
 
 void Controller::showAccount(not_null<Main::Account*> account) {
@@ -78,6 +86,7 @@ void Controller::showAccount(
 		: 0;
 	_accountLifetime.destroy();
 	_account = account;
+	Core::App().checkWindowAccount(this);
 
 	const auto updateOnlineOfPrevSesssion = crl::guard(_account, [=] {
 		if (!prevSessionUniqueId) {
@@ -103,6 +112,8 @@ void Controller::showAccount(
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;
+		_sessionControllerValue = _sessionController.get();
+
 		auto oldContentCache = _widget.grabForSlideAnimation();
 		_widget.updateWindowIcon();
 		if (session) {
@@ -123,6 +134,12 @@ void Controller::showAccount(
 			}, _sessionController->lifetime());
 
 			widget()->setInnerFocus();
+
+			_sessionController->activeChatChanges(
+			) | rpl::start_with_next([=] {
+				_widget.updateTitle();
+			}, _sessionController->lifetime());
+			_widget.updateTitle();
 
 			session->updates().updateOnline(crl::now());
 		} else {
@@ -252,6 +269,16 @@ void Controller::finishFirstShow() {
 
 Main::Session *Controller::maybeSession() const {
 	return _account ? _account->maybeSession() : nullptr;
+}
+
+auto Controller::sessionControllerValue() const
+-> rpl::producer<SessionController*> {
+	return _sessionControllerValue.value();
+}
+
+auto Controller::sessionControllerChanges() const
+-> rpl::producer<SessionController*> {
+	return _sessionControllerValue.changes();
 }
 
 bool Controller::locked() const {
@@ -452,6 +479,40 @@ void Controller::openInMediaView(Media::View::OpenRequest &&request) {
 auto Controller::openInMediaViewRequests() const
 -> rpl::producer<Media::View::OpenRequest> {
 	return _openInMediaViewRequests.events();
+}
+
+void Controller::setDefaultFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> delegate) {
+	_defaultFloatPlayerDelegate = delegate;
+	_replacementFloatPlayerDelegate = nullptr;
+	_floatPlayerDelegate = delegate;
+}
+
+void Controller::replaceFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_defaultFloatPlayerDelegate != nullptr);
+
+	_replacementFloatPlayerDelegate = replacement;
+	_floatPlayerDelegate = replacement;
+}
+
+void Controller::restoreFloatPlayerDelegate(
+		not_null<Media::Player::FloatDelegate*> replacement) {
+	Expects(_defaultFloatPlayerDelegate != nullptr);
+
+	if (_replacementFloatPlayerDelegate == replacement) {
+		_replacementFloatPlayerDelegate = nullptr;
+		_floatPlayerDelegate = _defaultFloatPlayerDelegate;
+	}
+}
+
+auto Controller::floatPlayerDelegate() const -> FloatDelegate* {
+	return _floatPlayerDelegate.current();
+}
+
+auto Controller::floatPlayerDelegateValue() const
+-> rpl::producer<FloatDelegate*> {
+	return _floatPlayerDelegate.value();
 }
 
 rpl::lifetime &Controller::lifetime() {

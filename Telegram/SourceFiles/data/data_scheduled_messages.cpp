@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-#include "history/history_message.h"
+#include "history/history_item_helpers.h"
 #include "apiwrap.h"
 
 namespace Data {
@@ -392,7 +392,7 @@ Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
 
 void ScheduledMessages::request(not_null<History*> history) {
 	const auto peer = history->peer;
-	if (peer->isBroadcast() && !peer->canWrite()) {
+	if (peer->isBroadcast() && !Data::CanSendAnything(peer)) {
 		return;
 	}
 	auto &request = _requests[history];

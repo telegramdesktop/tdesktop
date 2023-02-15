@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "main/main_session.h"
-#include "dialogs/ui/dialogs_layout.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
+#include "ui/unread_badge_paint.h"
 #include "styles/style_dialogs.h"
 
 namespace Ui {
@@ -46,11 +46,11 @@ void UnreadBadge::paintEvent(QPaintEvent *e) {
 
 	auto p = QPainter(this);
 
-	Dialogs::Ui::UnreadBadgeStyle unreadSt;
+	UnreadBadgeStyle unreadSt;
 	unreadSt.muted = !_active;
 	auto unreadRight = width();
 	auto unreadTop = 0;
-	Dialogs::Ui::PaintUnreadBadge(
+	PaintUnreadBadge(
 		p,
 		_text,
 		unreadRight,
@@ -178,9 +178,6 @@ int PeerBadge::drawGetWidth(
 			const auto size = st::emojiSize;
 			const auto emoji = Ui::Text::AdjustCustomEmojiSize(size);
 			_emojiStatus->skip = (size - emoji) / 2;
-			_emojiStatus->colored = std::make_unique<
-				Ui::Text::CustomEmojiColored
-			>();
 		}
 		if (_emojiStatus->id != id) {
 			using namespace Ui::Text;
@@ -192,10 +189,8 @@ int PeerBadge::drawGetWidth(
 					descriptor.customEmojiRepaint),
 				kPlayStatusLimit);
 		}
-		_emojiStatus->colored->color = (*descriptor.premiumFg)->c;
 		_emojiStatus->emoji->paint(p, {
-			.preview = descriptor.preview,
-			.colored = _emojiStatus->colored.get(),
+			.textColor = (*descriptor.premiumFg)->c,
 			.now = descriptor.now,
 			.position = QPoint(
 				iconx - 2 * _emojiStatus->skip,

@@ -7,26 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/translate_box.h"
 
+#include "api/api_text_entities.h" // Api::EntitiesToMTP / EntitiesFromMTP.
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/ui_integration.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
+#include "history/history.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
-#ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "spellcheck/platform/platform_language.h"
-#endif
+#include "ui/boxes/choose_language_box.h"
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toasts/common_toasts.h"
+#include "ui/painter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/multi_select.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_info.h" // inviteLinkListItem.
 #include "styles/style_layers.h"
 #include "styles/style_settings.h" // settingsSubsectionTitlePadding.
 
@@ -35,52 +42,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-[[nodiscard]] std::vector<QLocale::Language> Languages() {
-	return std::vector<QLocale::Language>{
-		QLocale::English,
-		QLocale::Albanian,
-		QLocale::Armenian,
-		QLocale::Bulgarian,
-		QLocale::Catalan,
-		QLocale::Chinese,
-		QLocale::Croatian,
-		QLocale::Czech,
-		QLocale::Danish,
-		QLocale::Dutch,
-		QLocale::Esperanto,
-		QLocale::Estonian,
-		QLocale::French,
-		QLocale::German,
-		QLocale::Greek,
-		QLocale::Hebrew,
-		QLocale::Hindi,
-		QLocale::Hungarian,
-		QLocale::Indonesian,
-		QLocale::Italian,
-		QLocale::Japanese,
-		QLocale::Korean,
-		QLocale::Latvian,
-		QLocale::Lithuanian,
-		QLocale::Persian,
-		QLocale::Polish,
-		QLocale::Portuguese,
-		QLocale::Romanian,
-		QLocale::Russian,
-		QLocale::Serbian,
-		QLocale::Slovak,
-		QLocale::Slovenian,
-		QLocale::Spanish,
-		QLocale::Swedish,
-		QLocale::Tajik,
-		QLocale::Tamil,
-		QLocale::Turkish,
-		QLocale::Ukrainian,
-		QLocale::Vietnamese,
-		QLocale::Welsh,
-	};
-}
+constexpr auto kSkipAtLeastOneDuration = 3 * crl::time(1000);
 
-class ShowButton : public RpWidget {
+class ShowButton final : public RpWidget {
 public:
 	ShowButton(not_null<Ui::RpWidget*> parent);
 
@@ -129,17 +93,6 @@ rpl::producer<Qt::MouseButton> ShowButton::clicks() const {
 
 } // namespace
 
-QString LanguageName(const QLocale &locale) {
-	if (locale.language() == QLocale::English
-			&& (locale.country() == QLocale::UnitedStates
-				|| locale.country() == QLocale::AnyCountry)) {
-		return u"English"_q;
-	} else {
-		const auto name = locale.nativeLanguageName();
-		return name.left(1).toUpper() + name.mid(1);
-	}
-}
-
 void TranslateBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer,
@@ -149,34 +102,24 @@ void TranslateBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
-	const auto settingsLang =
-		Core::App().settings().skipTranslationForLanguage();
-	const auto defaultId = (settingsLang == QLocale::English)
-		? Lang::LanguageIdOrDefault(Lang::Id())
-		: (settingsLang == QLocale::C)
-		? u"en"_q
-		: QLocale(settingsLang).name().mid(0, 2);
 
-	const auto api = box->lifetime().make_state<MTP::Sender>(
-		&peer->session().mtp());
 	struct State {
-		rpl::event_stream<QLocale> locale;
-	};
-	const auto state = box->lifetime().make_state<State>();
+		State(not_null<Main::Session*> session) : api(&session->mtp()) {
+		}
 
-	text.entities = ranges::views::all(
-		text.entities
-	) | ranges::views::filter([](const EntityInText &e) {
-		return e.type() != EntityType::Spoiler;
-	}) | ranges::to<EntitiesInText>();
+		MTP::Sender api;
+		rpl::variable<LanguageId> to;
+	};
+	const auto state = box->lifetime().make_state<State>(&peer->session());
+	state->to = ChooseTranslateTo(peer->owner().history(peer));
 
 	if (!IsServerMsgId(msgId)) {
 		msgId = 0;
 	}
 
-	using Flag = MTPmessages_translateText::Flag;
+	using Flag = MTPmessages_TranslateText::Flag;
 	const auto flags = msgId
-		? (Flag::f_peer | Flag::f_msg_id)
+		? (Flag::f_peer | Flag::f_id)
 		: !text.text.isEmpty()
 		? Flag::f_text
 		: Flag(0);
@@ -238,11 +181,10 @@ void TranslateBox(
 		const auto padding = st::settingsSubsectionTitlePadding;
 		const auto subtitle = Settings::AddSubsectionTitle(
 			container,
-			state->locale.events() | rpl::map(LanguageName));
+			state->to.value() | rpl::map(LanguageName));
 
 		// Workaround.
-		state->locale.events(
-		) | rpl::start_with_next([=] {
+		state->to.value() | rpl::start_with_next([=] {
 			subtitle->resizeToWidth(container->width()
 				- padding.left()
 				- padding.right());
@@ -253,7 +195,6 @@ void TranslateBox(
 		box,
 		object_ptr<FlatLabel>(box, stLabel)));
 	translated->entity()->setSelectable(!hasCopyRestriction);
-	translated->hide(anim::type::instant);
 
 	constexpr auto kMaxLines = 3;
 	container->resizeToWidth(box->width());
@@ -263,70 +204,69 @@ void TranslateBox(
 			box,
 			st::aboutLabel,
 			std::min(original->entity()->height() / lineHeight, kMaxLines),
-			state->locale.events() | rpl::map([=](const QLocale &locale) {
-				return locale.textDirection() == Qt::RightToLeft;
+			state->to.value() | rpl::map([=](LanguageId id) {
+				return id.locale().textDirection() == Qt::RightToLeft;
 			}))));
-	loading->show(anim::type::instant);
 
-	const auto showText = [=](const QString &text) {
-		translated->entity()->setText(text);
+	const auto showText = [=](TextWithEntities text) {
+		const auto label = translated->entity();
+		label->setMarkedText(
+			text,
+			Core::MarkedTextContext{
+				.session = &peer->session(),
+				.customEmojiRepaint = [=] { label->update(); },
+			});
 		translated->show(anim::type::instant);
 		loading->hide(anim::type::instant);
 	};
 
-	const auto send = [=](const QString &toLang) {
-		api->request(MTPmessages_TranslateText(
+	const auto send = [=](LanguageId to) {
+		loading->show(anim::type::instant);
+		translated->hide(anim::type::instant);
+		state->api.request(MTPmessages_TranslateText(
 			MTP_flags(flags),
 			msgId ? peer->input : MTP_inputPeerEmpty(),
-			MTP_int(msgId),
-			MTP_string(text.text),
-			MTPstring(),
-			MTP_string(toLang)
+			(msgId
+				? MTP_vector<MTPint>(1, MTP_int(msgId))
+				: MTPVector<MTPint>()),
+			(msgId
+				? MTPVector<MTPTextWithEntities>()
+				: MTP_vector<MTPTextWithEntities>(1, MTP_textWithEntities(
+					MTP_string(text.text),
+					Api::EntitiesToMTP(
+						&peer->session(),
+						text.entities,
+						Api::ConvertOption::SkipLocal)))),
+			MTP_string(to.twoLetterCode())
 		)).done([=](const MTPmessages_TranslatedText &result) {
-			const auto text = result.match([](
-					const MTPDmessages_translateNoResult &data) {
-				return tr::lng_translate_box_error(tr::now);
-			}, [](const MTPDmessages_translateResultText &data) {
-				return qs(data.vtext());
-			});
-			showText(text);
+			const auto &data = result.data();
+			const auto &list = data.vresult().v;
+			if (list.isEmpty()) {
+				showText(
+					Ui::Text::Italic(tr::lng_translate_box_error(tr::now)));
+			} else {
+				showText(TextWithEntities{
+					.text = qs(list.front().data().vtext()),
+					.entities = Api::EntitiesFromMTP(
+						&peer->session(),
+						list.front().data().ventities().v),
+				});
+			}
 		}).fail([=](const MTP::Error &error) {
-			showText(tr::lng_translate_box_error(tr::now));
+			showText(
+				Ui::Text::Italic(tr::lng_translate_box_error(tr::now)));
 		}).send();
 	};
-	send(defaultId);
-	state->locale.fire(QLocale(defaultId));
+	state->to.value() | rpl::start_with_next(send, box->lifetime());
 
 	box->addLeftButton(tr::lng_settings_language(), [=] {
 		if (loading->toggled()) {
 			return;
 		}
-		Ui::BoxShow(box).showBox(Box(ChooseLanguageBox, [=](QLocale locale) {
-			state->locale.fire_copy(locale);
-			loading->show(anim::type::instant);
-			translated->hide(anim::type::instant);
-			send(locale.name().mid(0, 2));
-		}));
+		Ui::BoxShow(box).showBox(ChooseTranslateToBox(
+			state->to.current(),
+			crl::guard(box, [=](LanguageId id) { state->to = id; })));
 	});
-
-}
-
-void ChooseLanguageBox(
-		not_null<Ui::GenericBox*> box,
-		Fn<void(QLocale)> callback) {
-	box->setTitle(tr::lng_languages());
-	for (const auto &lang : Languages()) {
-		const auto locale = QLocale(lang);
-		const auto button = Settings::AddButton(
-			box->verticalLayout(),
-			rpl::single(LanguageName(locale)),
-			st::defaultSettingsButton);
-		button->setClickedCallback([=] {
-			callback(locale);
-			box->closeBox();
-		});
-	}
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 bool SkipTranslate(TextWithEntities textWithEntities) {
@@ -353,20 +293,97 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 	}
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto result = Platform::Language::Recognize(text);
-	if (result.unknown) {
-		return false;
-	}
-	const auto settingsLang =
-		Core::App().settings().skipTranslationForLanguage();
-	const auto skip = (settingsLang == QLocale::English)
-		? QLocale(Lang::LanguageIdOrDefault(Lang::Id())).language()
-		: (settingsLang == QLocale::C)
-		? QLocale::English
-		: settingsLang;
-	return (result.locale.language() == skip);
+	const auto skip = Core::App().settings().skipTranslationLanguages();
+	return result.known() && ranges::contains(skip, result);
 #else
     return false;
 #endif
+}
+
+object_ptr<BoxContent> EditSkipTranslationLanguages() {
+	auto title = tr::lng_translate_settings_choose();
+	const auto selected = std::make_shared<std::vector<LanguageId>>(
+		Core::App().settings().skipTranslationLanguages());
+	const auto weak = std::make_shared<QPointer<BoxContent>>();
+	const auto check = [=](LanguageId id) {
+		const auto already = ranges::contains(*selected, id);
+		if (already) {
+			selected->erase(ranges::remove(*selected, id), selected->end());
+		} else {
+			selected->push_back(id);
+		}
+		if (already && selected->empty()) {
+			if (const auto strong = weak->data()) {
+				Ui::ShowMultilineToast({
+					.parentOverride = BoxShow(strong).toastParent(),
+					.text = { tr::lng_translate_settings_one(tr::now) },
+					.duration = kSkipAtLeastOneDuration,
+				});
+			}
+			return false;
+		}
+		return true;
+	};
+	auto result = Box(ChooseLanguageBox, std::move(title), [=](
+			std::vector<LanguageId> &&list) {
+		Core::App().settings().setSkipTranslationLanguages(
+			std::move(list));
+		Core::App().saveSettingsDelayed();
+	}, *selected, true, check);
+	*weak = result.data();
+	return result;
+}
+
+object_ptr<BoxContent> ChooseTranslateToBox(
+		LanguageId bringUp,
+		Fn<void(LanguageId)> callback) {
+	auto &settings = Core::App().settings();
+	auto selected = std::vector<LanguageId>{
+		settings.translateTo(),
+	};
+	for (const auto &id : settings.skipTranslationLanguages()) {
+		if (id != selected.front()) {
+			selected.push_back(id);
+		}
+	}
+	if (bringUp && ranges::contains(selected, bringUp)) {
+		selected.push_back(bringUp);
+	}
+	return Box(ChooseLanguageBox, tr::lng_languages(), [=](
+			const std::vector<LanguageId> &ids) {
+		Expects(!ids.empty());
+
+		const auto id = ids.front();
+		Core::App().settings().setTranslateTo(id);
+		Core::App().saveSettingsDelayed();
+		callback(id);
+	}, selected, false, nullptr);
+}
+
+LanguageId ChooseTranslateTo(not_null<History*> history) {
+	return ChooseTranslateTo(history->translateOfferedFrom());
+}
+
+LanguageId ChooseTranslateTo(LanguageId offeredFrom) {
+	auto &settings = Core::App().settings();
+	return ChooseTranslateTo(
+		offeredFrom,
+		settings.translateTo(),
+		settings.skipTranslationLanguages());
+}
+
+LanguageId ChooseTranslateTo(
+		not_null<History*> history,
+		LanguageId savedTo,
+		const std::vector<LanguageId> &skip) {
+	return ChooseTranslateTo(history->translateOfferedFrom(), savedTo, skip);
+}
+
+LanguageId ChooseTranslateTo(
+		LanguageId offeredFrom,
+		LanguageId savedTo,
+		const std::vector<LanguageId> &skip) {
+	return (offeredFrom != savedTo) ? savedTo : skip.front();
 }
 
 } // namespace Ui

@@ -148,6 +148,7 @@ void EditMessageWithUploadedMedia(
 		MTPInputMedia media) {
 	const auto done = [=](Fn<void()> applyUpdates) {
 		if (item) {
+			item->removeFromSharedMediaIndex();
 			item->clearSavedMedia();
 			item->setIsLocalUpdateMedia(true);
 			applyUpdates();
@@ -206,7 +207,7 @@ void EditMessageWithUploadedPhoto(
 	EditMessageWithUploadedMedia(
 		item,
 		options,
-		PrepareUploadedPhoto(std::move(info)));
+		PrepareUploadedPhoto(item, std::move(info)));
 }
 
 mtpRequestId EditCaption(

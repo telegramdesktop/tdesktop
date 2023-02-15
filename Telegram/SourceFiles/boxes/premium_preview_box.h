@@ -49,6 +49,7 @@ enum class PremiumPreview {
 	AdvancedChatManagement,
 	ProfileBadge,
 	AnimatedUserpics,
+	RealTimeTranslation,
 
 	kCount,
 };
@@ -61,7 +62,7 @@ void ShowPremiumPreviewBox(
 void ShowPremiumPreviewToBuy(
 	not_null<Window::SessionController*> controller,
 	PremiumPreview section,
-	Fn<void()> hiddenCallback);
+	Fn<void()> hiddenCallback = nullptr);
 
 void PremiumUnavailableBox(not_null<Ui::GenericBox*> box);
 

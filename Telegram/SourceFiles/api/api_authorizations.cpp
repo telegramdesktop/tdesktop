@@ -79,12 +79,16 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 		const auto nowDate = now.date();
 		const auto lastDate = lastTime.date();
 		if (lastDate == nowDate) {
-			result.active = QLocale().toString(lastTime, cTimeFormat());
+			result.active = QLocale().toString(
+				lastTime.time(),
+				QLocale::ShortFormat);
 		} else if (lastDate.year() == nowDate.year()
 			&& lastDate.weekNumber() == nowDate.weekNumber()) {
 			result.active = langDayOfWeek(lastDate);
 		} else {
-			result.active = QLocale().toString(lastDate, cDateFormat());
+			result.active = QLocale().toString(
+				lastDate,
+				QLocale::ShortFormat);
 		}
 	}
 	result.location = country;

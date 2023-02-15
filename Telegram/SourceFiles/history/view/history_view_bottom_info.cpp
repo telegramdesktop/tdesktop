@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "history/history_item_components.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
@@ -466,7 +466,9 @@ void BottomInfo::layoutDateText() {
 		: QString();
 	const auto author = _data.author;
 	const auto prefix = !author.isEmpty() ? u", "_q : QString();
-	const auto date = edited + QLocale().toString(_data.date, cTimeFormat());
+	const auto date = edited + QLocale().toString(
+		_data.date.time(),
+		QLocale::ShortFormat);
 	const auto afterAuthor = prefix + date;
 	const auto afterAuthorWidth = st::msgDateFont->width(afterAuthor);
 	const auto authorWidth = st::msgDateFont->width(author);
@@ -629,7 +631,7 @@ void BottomInfo::continueReactionAnimations(base::flat_map<
 
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	using Flag = BottomInfo::Data::Flag;
-	const auto item = message->message();
+	const auto item = message->data();
 
 	auto result = BottomInfo::Data();
 	result.date = message->dateTime();

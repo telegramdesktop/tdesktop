@@ -141,7 +141,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 			userpic.peer->loadUserpic();
 			auto image = userpic.peer->generateUserpicImage(
 				userpic.view,
-				userpicSize);
+				userpicSize * style::DevicePixelRatio());
 			userpic.uniqueKey = userpic.peer->userpicUniqueKey(userpic.view);
 			state->current.users.push_back({
 				.userpic = std::move(image),

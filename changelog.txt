@@ -1,3 +1,97 @@
+4.6.2 (07.02.23)
+
+- One more attempt to fix fonts on Windows.
+- Fix polls forwarding to private chats.
+- Improve translations bar appearance.
+- Improve userpic editor presets.
+
+4.6.1 (06.02.23)
+
+- Fix fonts fallback on Windows.
+- Fix crash in userpic editor.
+- Fix some crashes on 32 bit Window build.
+- Bug fixes and other minor improvements.
+
+4.6 (03.02.23)
+
+- Emoji Profile Pictures. Quickly create group and profile pictures from animated emoji and stickers with the new "Use an Emoji" option.
+- Emoji Categories. Filter stickers and emoji by categories like "love", "cheers" or "sleeping" in the sticker and emoji tabs.
+- Chat Translation. As a Premium user, translate entire chats in real time as you scroll them or receive new messages.
+- Media Permissions in Groups. Control whether members of your groups can send 9 distinct media types – like Photos, Voice or Video Messages.
+- Select Chats for Bots. Bot developers can now let users quickly select groups, channels or contacts that meet predefined criteria (more in @BotNews).
+- Open in New Window. Open chats or additional accounts in separate windows.
+
+4.5.9 beta (02.02.23)
+
+- Hide taskbar window preview when Telegram is locked by a passcode (Windows only).
+- More improvements for working with multiple windows.
+- Bug fixes and other minor improvements.
+
+4.5.8 beta (21.01.23)
+
+- Allow opening another account in a new window (see Settings > Advanced > Experimental Settings).
+- A lot of bugfixes for working with more than one window.
+
+4.5.7 beta (13.01.23)
+
+- Fix glitches after moving window to another screen (Windows only).
+
+4.5.6 beta (12.01.23)
+
+- Try enabling non-fractional scale High DPI support on Windows and Linux.
+- Experimental setting for fractional scale High DPI support on Windows and Linux.
+- Fix navigation to bottom problems in groups you didn't join.
+- Fix a crash in chat export settings changes.
+- Fix a crash in sending some of JPEG images.
+- Fix CJK fonts on Windows.
+
+4.5.5 beta (10.01.23)
+
+- Fix crash in Settings.
+
+4.5.4 beta (10.01.23)
+
+- Allow wide range of interface scale options.
+- Show opened chat name in the window title.
+- Bug fixes and other minor improvements.
+- Fix updating on macOS older than 10.14.
+
+4.5.3 (06.01.23)
+
+- Attempt to fix incoming video in calls from mobile apps.
+
+4.5.2 (03.01.23)
+
+- Fix unread reactions button in private chats.
+- Fix tile background saving after an app update.
+- Allow Ctrl+6,7,8 to activate extra pinned chats.
+
+4.5.1 (02.01.23)
+
+- Fix crash in profile photo privacy edition.
+- Allow sending photos larger than 1280px (in Experimental Settings).
+
+4.5 (30.12.22)
+
+- Media with spoiler effects. You can wrap photos and videos you send in a fuzzy cover by selecting media in the attachment menu and tapping (...) > Hide With Spoiler.
+- Setting pictures for your contacts. You can choose your own picture for a contact – only you will see it on their profile.
+- Suggested profile pictures. When editing your contacts, you can suggest a photo for their profile. It will take them just two clicks to add the picture you suggested.
+- Public profile pictures. If you only allow certain users to see your profile photos, you can set a public picture for everyone else. 
+- Ultimate profile picture privacy. You can set 'Who can see my profile photos' to 'Nobody' and add some users or groups as exceptions.
+- Member list privacy. Owners of large groups can hide the list of members.
+
+4.4.3 beta (29.12.22)
+
+- Support for anonymous numbers from the Fragment.com platform.
+- Fix a crash in own profile photo updating.
+- Bug fixes and other minor improvements.
+
+4.4.2 beta (28.12.22)
+
+- Send photos and video files hidden by a spoiler effect.
+- Set a public photo for those who are restricted to see your profile photo in the Privacy Settings.
+- Bug fixes and other minor improvements.
+
 4.4.1 (07.12.22)
 
 - Bug fixes and other minor improvements.

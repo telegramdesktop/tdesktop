@@ -45,3 +45,7 @@ struct PreparedShortInfoUserpic {
 [[nodiscard]] PreparedShortInfoUserpic PrepareShortInfoUserpic(
 	not_null<PeerData*> peer,
 	const style::ShortInfoCover &st);
+
+[[nodiscard]] PreparedShortInfoUserpic PrepareShortInfoFallbackUserpic(
+	not_null<PeerData*> peer,
+	const style::ShortInfoCover &st);

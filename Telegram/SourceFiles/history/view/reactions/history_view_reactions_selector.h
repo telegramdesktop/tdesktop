@@ -60,6 +60,7 @@ public:
 	[[nodiscard]] int minimalHeight() const;
 	void setSpecialExpandTopSkip(int skip);
 	void initGeometry(int innerTop);
+	void beforeDestroy();
 
 	[[nodiscard]] rpl::producer<ChosenReaction> chosen() const {
 		return _chosen.events();

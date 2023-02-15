@@ -213,49 +213,13 @@ auto SuggestionsWidget::getRowsByQuery(const QString &text) const
 		return ranges::none_of(text, [](QChar ch) { return ch.isLower(); });
 	}();
 	const auto exact = !middle || simple;
-	const auto list = Core::App().emojiKeywords().query(real, exact);
-	if (list.empty()) {
-		return {};
-	}
+	const auto list = Core::App().emojiKeywords().queryMine(real, exact);
 	using Entry = ChatHelpers::EmojiKeywords::Result;
-	auto result = ranges::views::all(
+	return ranges::views::all(
 		list
 	) | ranges::views::transform([](const Entry &result) {
 		return Row(result.emoji, result.replacement);
 	}) | ranges::to_vector;
-
-	auto lastRecent = begin(result);
-	const auto &recent = Core::App().settings().recentEmoji();
-	for (const auto &item : recent) {
-		const auto emoji = std::get_if<EmojiPtr>(&item.id.data);
-		if (!emoji) {
-			continue;
-		}
-		const auto original = (*emoji)->original()
-			? (*emoji)->original()
-			: (*emoji);
-		const auto it = ranges::find(result, original, [](const Row &row) {
-			return row.emoji.get();
-		});
-		if (it > lastRecent && it != end(result)) {
-			std::rotate(lastRecent, it, it + 1);
-			++lastRecent;
-		}
-	}
-
-	for (auto &item : result) {
-		item.emoji = [&] {
-			const auto result = item.emoji;
-			const auto &variants = Core::App().settings().emojiVariants();
-			const auto i = result->hasVariants()
-				? variants.find(result->nonColoredId())
-				: end(variants);
-			return (i != end(variants))
-				? result->variant(i->second)
-				: result.get();
-		}();
-	}
-	return result;
 }
 
 void SuggestionsWidget::resizeToRows() {
@@ -341,8 +305,10 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 			Ui::StickerHoverCorners);
 	}
 
-	const auto now = crl::now();
-	const auto preview = st::windowBgOver->c;
+	auto context = Ui::CustomEmoji::Context{
+		.textColor = st::windowFg->c,
+		.now = crl::now(),
+	};
 	for (auto i = from; i != till; ++i) {
 		const auto &row = _rows[i];
 		const auto emoji = row.emoji;
@@ -351,11 +317,8 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 		const auto x = i * _oneWidth + (_oneWidth - size) / 2;
 		const auto y = (_oneWidth - size) / 2;
 		if (row.custom) {
-			row.custom->paint(p, {
-				.preview = preview,
-				.now = now,
-				.position = { x, y },
-			});
+			context.position = { x, y };
+			row.custom->paint(p, context);
 		} else {
 			Ui::Emoji::Draw(p, emoji, esize, x, y);
 		}

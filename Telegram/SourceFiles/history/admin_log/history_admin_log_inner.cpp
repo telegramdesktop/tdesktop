@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
 #include "history/admin_log/history_admin_log_section.h"
@@ -294,14 +294,6 @@ InnerWidget::InnerWidget(
 			view->itemDataChanged();
 		}
 	}, lifetime());
-	session().data().animationPlayInlineRequest(
-	) | rpl::start_with_next([=](auto item) {
-		if (const auto view = viewForItem(item)) {
-			if (const auto media = view->media()) {
-				media->playAnimation();
-			}
-		}
-	}, lifetime());
 	session().data().itemVisibilityQueries(
 	) | rpl::filter([=](
 			const Data::Session::ItemVisibilityQuery &query) {
@@ -580,18 +572,6 @@ bool InnerWidget::tooltipWindowActive() const {
 
 HistoryView::Context InnerWidget::elementContext() {
 	return HistoryView::Context::AdminLog;
-}
-
-std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing) {
-	return std::make_unique<HistoryView::Message>(this, message, replacing);
-}
-
-std::unique_ptr<HistoryView::Element> InnerWidget::elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing) {
-	return std::make_unique<HistoryView::Service>(this, message, replacing);
 }
 
 bool InnerWidget::elementUnderCursor(
@@ -1294,7 +1274,6 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 		_antiSpamValidator.addAction(_menu, itemId);
 
-		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
 			_menu->addAction(
 				tr::lng_context_copy_selected(tr::now),
@@ -1311,7 +1290,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						}), &st::menuIconDownload);
 					}
 				}
-				if (msg
+				if (!item->isService()
 					&& !link
 					&& (view->hasVisibleText()
 						|| mediaHasTextForCopy
@@ -1375,9 +1354,7 @@ void InnerWidget::copyContextImage(not_null<PhotoData*> photo) {
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
 	}
-
-	const auto image = media->image(Data::PhotoSize::Large)->original();
-	QGuiApplication::clipboard()->setImage(image);
+	media->setToClipboard();
 }
 
 void InnerWidget::copySelectedText() {

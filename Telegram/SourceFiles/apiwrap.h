@@ -238,8 +238,8 @@ public:
 	void setGroupStickerSet(
 		not_null<ChannelData*> megagroup,
 		const StickerSetIdentifier &set);
-	std::vector<not_null<DocumentData*>> *stickersByEmoji(
-		not_null<EmojiPtr> emoji);
+	[[nodiscard]] std::vector<not_null<DocumentData*>> *stickersByEmoji(
+		const QString &key);
 
 	void joinChannel(not_null<ChannelData*> channel);
 	void leaveChannel(not_null<ChannelData*> channel);
@@ -351,6 +351,10 @@ public:
 	rpl::producer<bool> contactSignupSilent() const;
 	std::optional<bool> contactSignupSilentCurrent() const;
 	void saveContactSignupSilent(bool silent);
+
+	[[nodiscard]] auto botCommonGroups(not_null<UserData*> bot) const
+		-> std::optional<std::vector<not_null<PeerData*>>>;
+	void requestBotCommonGroups(not_null<UserData*> bot, Fn<void()> done);
 
 	void saveSelfBio(const QString &text);
 
@@ -596,7 +600,7 @@ private:
 	base::Timer _featuredSetsReadTimer;
 	base::flat_set<uint64> _featuredSetsRead;
 
-	base::flat_map<not_null<EmojiPtr>, StickersByEmoji> _stickersByEmoji;
+	base::flat_map<QString, StickersByEmoji> _stickersByEmoji;
 
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
@@ -691,6 +695,11 @@ private:
 	mtpRequestId _contactSignupSilentRequestId = 0;
 	std::optional<bool> _contactSignupSilent;
 	rpl::event_stream<bool> _contactSignupSilentChanges;
+
+	base::flat_map<
+		not_null<UserData*>,
+		std::vector<not_null<PeerData*>>> _botCommonGroups;
+	base::flat_map<not_null<UserData*>, Fn<void()>> _botCommonGroupsRequests;
 
 	base::flat_map<FullMsgId, QString> _unlikelyMessageLinks;
 

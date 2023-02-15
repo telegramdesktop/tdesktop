@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/cached_round_corners.h"
 #include "window/section_widget.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/main_window.h"
 #include "main/main_session.h"
@@ -31,7 +32,7 @@ LayerWidget::LayerWidget(
 : _controller(controller)
 , _content(this, controller, Wrap::Layer, memento) {
 	setupHeightConsumers();
-	Core::App().replaceFloatPlayerDelegate(floatPlayerDelegate());
+	controller->window().replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
 
 LayerWidget::LayerWidget(
@@ -40,7 +41,7 @@ LayerWidget::LayerWidget(
 : _controller(controller)
 , _content(memento->takeContent(this, Wrap::Layer)) {
 	setupHeightConsumers();
-	Core::App().replaceFloatPlayerDelegate(floatPlayerDelegate());
+	controller->window().replaceFloatPlayerDelegate(floatPlayerDelegate());
 }
 
 auto LayerWidget::floatPlayerDelegate()
@@ -50,6 +51,15 @@ auto LayerWidget::floatPlayerDelegate()
 
 not_null<Ui::RpWidget*> LayerWidget::floatPlayerWidget() {
 	return this;
+}
+
+void LayerWidget::floatPlayerToggleGifsPaused(bool paused) {
+	constexpr auto kReason = Window::GifPauseReason::RoundPlaying;
+	if (paused) {
+		_controller->enableGifPauseReason(kReason);
+	} else {
+		_controller->disableGifPauseReason(kReason);
+	}
 }
 
 auto LayerWidget::floatPlayerGetSection(Window::Column column)
@@ -357,7 +367,8 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 void LayerWidget::restoreFloatPlayerDelegate() {
 	if (!_floatPlayerDelegateRestored) {
 		_floatPlayerDelegateRestored = true;
-		Core::App().restoreFloatPlayerDelegate(floatPlayerDelegate());
+		_controller->window().restoreFloatPlayerDelegate(
+			floatPlayerDelegate());
 	}
 }
 

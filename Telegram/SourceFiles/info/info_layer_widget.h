@@ -58,6 +58,7 @@ private:
 	void restoreFloatPlayerDelegate();
 	not_null<::Media::Player::FloatDelegate*> floatPlayerDelegate();
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
+	void floatPlayerToggleGifsPaused(bool paused) override;
 	not_null<::Media::Player::FloatSectionDelegate*> floatPlayerGetSection(
 		Window::Column column) override;
 	void floatPlayerEnumerateSections(Fn<void(

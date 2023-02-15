@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -35,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
-#include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
 #include "ui/ui_utility.h"
 #include "window/window_adaptive.h"
@@ -566,7 +566,6 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				.premium = &st::dialogsPremiumIcon,
 				.scam = &st::attentionButtonFg,
 				.premiumFg = &st::dialogsVerifiedIconBg,
-				.preview = st::windowBgOver->c,
 				.customEmojiRepaint = [=] { update(); },
 				.now = now,
 				.paused = _controller->isGifPausedAtLeastFor(
@@ -846,9 +845,7 @@ void TopBarWidget::refreshInfoButton() {
 	} else if (const auto peer = _activeChat.key.peer()) {
 		auto info = object_ptr<Ui::UserpicButton>(
 			this,
-			_controller,
 			peer,
-			Ui::UserpicButton::Role::Custom,
 			st::topBarInfoButton);
 		info->showSavedMessagesOnSelf(true);
 		_info.destroy();
@@ -1041,8 +1038,8 @@ void TopBarWidget::updateControlsVisibility() {
     const auto& domain = Core::App().domain().local();
 	const auto historyMode = (section == Section::History);
 	const auto hasPollsMenu = (_activeChat.key.peer()
-    		&& _activeChat.key.peer()->canSendPolls())
-		|| (topic && topic->canSendPolls());
+    		&& _activeChat.key.peer()->canCreatePolls())
+		|| (topic && Data::CanSend(topic, ChatRestriction::SendPolls));
 	const auto hasFakeMenu = !domain.IsFake() && domain.hasLocalPasscode();
 	const auto hasTopicMenu = [&] {
 		if (!topic || section != Section::Replies) {
@@ -1327,6 +1324,10 @@ bool TopBarWidget::searchSetFocus() {
 	return true;
 }
 
+bool TopBarWidget::searchMode() const {
+	return _searchMode;
+}
+
 bool TopBarWidget::searchHasFocus() const {
 	return _searchMode && _searchField->hasFocus();
 }
@@ -1350,6 +1351,12 @@ QString TopBarWidget::searchQueryCurrent() const {
 void TopBarWidget::searchClear() {
 	if (_searchMode) {
 		_searchField->clear();
+	}
+}
+
+void TopBarWidget::searchSetText(const QString &query) {
+	if (_searchMode) {
+		_searchField->setText(query);
 	}
 }
 
@@ -1507,9 +1514,10 @@ bool TopBarWidget::trackOnlineOf(not_null<PeerData*> user) const {
 	} else if (const auto chat = peer->asChat()) {
 		return chat->participants.contains(user->asUser());
 	} else if (const auto channel = peer->asMegagroup()) {
-		return ranges::contains(
-			channel->mgInfo->lastParticipants,
-			not_null{ user->asUser() });
+		return channel->canViewMembers()
+			&& ranges::contains(
+				channel->mgInfo->lastParticipants,
+				not_null{ user->asUser() });
 	}
 	return false;
 }
@@ -1565,6 +1573,7 @@ void TopBarWidget::updateOnlineDisplay() {
 		}
 	} else if (const auto channel = peer->asChannel()) {
 		if (channel->isMegagroup()
+			&& channel->canViewMembers()
 			&& (channel->membersCount() > 0)
 			&& (channel->membersCount()
 				<= channel->session().serverConfig().chatSizeMax)) {

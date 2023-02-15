@@ -5,16 +5,14 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_executable(Telegram WIN32 MACOSX_BUNDLE)
-init_non_host_target(Telegram ltcg)
+init_non_host_target(Telegram)
 
 add_subdirectory(lib_rpl)
 add_subdirectory(lib_crl)
 add_subdirectory(lib_base)
 add_subdirectory(lib_ui)
 add_subdirectory(lib_tl)
-if (NOT DESKTOP_APP_DISABLE_SPELLCHECK)
-    add_subdirectory(lib_spellcheck)
-endif()
+add_subdirectory(lib_spellcheck)
 add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
 add_subdirectory(lib_qr)
@@ -47,6 +45,10 @@ if (WIN32)
     nuget_add_winrt(Telegram)
 endif()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options("/Zm10000")
+endif()
+
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
 
 target_link_libraries(Telegram
@@ -72,6 +74,7 @@ PRIVATE
     desktop-app::lib_crl
     desktop-app::lib_ui
     desktop-app::lib_tl
+    desktop-app::lib_spellcheck
     desktop-app::lib_storage
     desktop-app::lib_lottie
     desktop-app::lib_qr
@@ -178,12 +181,16 @@ PRIVATE
     boxes/peers/add_bot_to_chat_box.h
     boxes/peers/add_participants_box.cpp
     boxes/peers/add_participants_box.h
+    boxes/peers/choose_peer_box.cpp
+    boxes/peers/choose_peer_box.h
     boxes/peers/edit_contact_box.cpp
     boxes/peers/edit_contact_box.h
     boxes/peers/edit_forum_topic_box.cpp
     boxes/peers/edit_forum_topic_box.h
     boxes/peers/edit_linked_chat_box.cpp
     boxes/peers/edit_linked_chat_box.h
+    boxes/peers/edit_members_visible.cpp
+    boxes/peers/edit_members_visible.h
     boxes/peers/edit_participant_box.cpp
     boxes/peers/edit_participant_box.h
     boxes/peers/edit_participants_box.cpp
@@ -241,8 +248,6 @@ PRIVATE
     boxes/download_path_box.h
     boxes/edit_caption_box.cpp
     boxes/edit_caption_box.h
-    boxes/edit_color_box.cpp
-    boxes/edit_color_box.h
     boxes/edit_privacy_box.cpp
     boxes/edit_privacy_box.h
     boxes/gift_premium_box.cpp
@@ -703,14 +708,18 @@ PRIVATE
     history/view/media/history_view_media_common.h
     history/view/media/history_view_media_grouped.cpp
     history/view/media/history_view_media_grouped.h
+    history/view/media/history_view_media_spoiler.cpp
+    history/view/media/history_view_media_spoiler.h
     history/view/media/history_view_media_unwrapped.cpp
     history/view/media/history_view_media_unwrapped.h
     history/view/media/history_view_photo.cpp
     history/view/media/history_view_photo.h
     history/view/media/history_view_poll.cpp
     history/view/media/history_view_poll.h
-    history/view/media/history_view_service_media_gift.cpp
-    history/view/media/history_view_service_media_gift.h
+    history/view/media/history_view_premium_gift.cpp
+    history/view/media/history_view_premium_gift.h
+    history/view/media/history_view_service_box.cpp
+    history/view/media/history_view_service_box.h
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_slot_machine.h
     history/view/media/history_view_sticker.cpp
@@ -720,6 +729,8 @@ PRIVATE
     history/view/media/history_view_sticker_player_abstract.h
     history/view/media/history_view_theme_document.cpp
     history/view/media/history_view_theme_document.h
+    history/view/media/history_view_userpic_suggestion.cpp
+    history/view/media/history_view_userpic_suggestion.h
     history/view/media/history_view_web_page.cpp
     history/view/media/history_view_web_page.h
     history/view/reactions/history_view_reactions.cpp
@@ -784,6 +795,10 @@ PRIVATE
     history/view/history_view_sticker_toast.h
     history/view/history_view_transcribe_button.cpp
     history/view/history_view_transcribe_button.h
+    history/view/history_view_translate_bar.cpp
+    history/view/history_view_translate_bar.h
+    history/view/history_view_translate_tracker.cpp
+    history/view/history_view_translate_tracker.h
     history/view/history_view_top_bar_widget.cpp
     history/view/history_view_top_bar_widget.h
     history/view/history_view_view_button.cpp
@@ -800,6 +815,8 @@ PRIVATE
     history/history_item_components.h
     history/history_item_edition.cpp
     history/history_item_edition.h
+    history/history_item_helpers.cpp
+    history/history_item_helpers.h
     history/history_item_reply_markup.cpp
     history/history_item_reply_markup.h
     history/history_item_text.cpp
@@ -808,10 +825,8 @@ PRIVATE
     history/history_inner_widget.h
     history/history_location_manager.cpp
     history/history_location_manager.h
-    history/history_message.cpp
-    history/history_message.h
-    history/history_service.cpp
-    history/history_service.h
+    history/history_translation.cpp
+    history/history_translation.h
     history/history_unread_things.cpp
     history/history_unread_things.h
     history/history_view_highlight_manager.cpp
@@ -871,14 +886,14 @@ PRIVATE
     info/profile/info_profile_cover.h
     info/profile/info_profile_emoji_status_panel.cpp
     info/profile/info_profile_emoji_status_panel.h
-    info/profile/info_profile_icon.cpp
-    info/profile/info_profile_icon.h
     info/profile/info_profile_inner_widget.cpp
     info/profile/info_profile_inner_widget.h
     info/profile/info_profile_members.cpp
     info/profile/info_profile_members.h
     info/profile/info_profile_members_controllers.cpp
     info/profile/info_profile_members_controllers.h
+    info/profile/info_profile_phone_menu.cpp
+    info/profile/info_profile_phone_menu.h
     info/profile/info_profile_text.cpp
     info/profile/info_profile_text.h
     info/profile/info_profile_values.cpp
@@ -887,6 +902,18 @@ PRIVATE
     info/profile/info_profile_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
+    info/userpic/info_userpic_colors_editor.cpp
+    info/userpic/info_userpic_colors_editor.h
+    info/userpic/info_userpic_emoji_builder.cpp
+    info/userpic/info_userpic_emoji_builder.h
+    info/userpic/info_userpic_emoji_builder_common.cpp
+    info/userpic/info_userpic_emoji_builder_common.h
+    info/userpic/info_userpic_emoji_builder_menu_item.cpp
+    info/userpic/info_userpic_emoji_builder_menu_item.h
+    info/userpic/info_userpic_emoji_builder_preview.cpp
+    info/userpic/info_userpic_emoji_builder_preview.h
+    info/userpic/info_userpic_emoji_builder_widget.cpp
+    info/userpic/info_userpic_emoji_builder_widget.h
     inline_bots/bot_attach_web_view.cpp
     inline_bots/bot_attach_web_view.h
     inline_bots/inline_bot_layout_internal.cpp
@@ -1167,7 +1194,6 @@ PRIVATE
     platform/platform_integration.h
     platform/platform_main_window.h
     platform/platform_notifications_manager.h
-    platform/platform_specific.cpp
     platform/platform_specific.h
     platform/platform_tray.h
     platform/platform_window_title.h
@@ -1229,6 +1255,8 @@ PRIVATE
     settings/settings_privacy_controllers.h
     settings/settings_privacy_security.cpp
     settings/settings_privacy_security.h
+    settings/settings_scale_preview.cpp
+    settings/settings_scale_preview.h
     settings/settings_type.h
     storage/details/storage_file_utilities.cpp
     storage/details/storage_file_utilities.h
@@ -1290,6 +1318,10 @@ PRIVATE
     ui/chat/choose_send_as.h
     ui/chat/choose_theme_controller.cpp
     ui/chat/choose_theme_controller.h
+    ui/controls/silent_toggle.cpp
+    ui/controls/silent_toggle.h
+    ui/controls/userpic_button.cpp
+    ui/controls/userpic_button.h
     ui/effects/emoji_fly_animation.cpp
     ui/effects/emoji_fly_animation.h
     ui/effects/message_sending_animation_common.h
@@ -1318,8 +1350,6 @@ PRIVATE
     ui/resize_area.h
     ui/search_field_controller.cpp
     ui/search_field_controller.h
-    ui/special_buttons.cpp
-    ui/special_buttons.h
     ui/text/format_song_document_name.cpp
     ui/text/format_song_document_name.h
     ui/unread_badge.cpp

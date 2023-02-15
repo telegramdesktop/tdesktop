@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_peer_values.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
@@ -61,8 +62,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
 #include "ui/controls/send_as_button.h"
+#include "ui/controls/silent_toggle.h"
 #include "ui/chat/choose_send_as.h"
-#include "ui/special_buttons.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
@@ -353,6 +354,7 @@ public:
 	[[nodiscard]] bool isDisplayed() const;
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] bool readyToForward() const;
+	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] FullMsgId replyingToMessage() const;
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgId() const;
 	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
@@ -838,6 +840,10 @@ bool FieldHeader::readyToForward() const {
 	return !_forwardPanel->empty();
 }
 
+const HistoryItemsList &FieldHeader::forwardItems() const {
+	return _forwardPanel->items();
+}
+
 FullMsgId FieldHeader::replyingToMessage() const {
 	return _replyToId.current();
 }
@@ -987,12 +993,12 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	updateControlsGeometry(_wrap->size());
 	updateControlsVisibility();
 	updateFieldPlaceholder();
-	updateSendAsButton();
 	updateAttachBotsMenu();
 	//if (!_history) {
 	//	return;
 	//}
 	const auto peer = _history->peer;
+	initSendAsButton(peer);
 	if (peer->isChat() && peer->asChat()->noParticipantInfo()) {
 		session().api().requestFullPeer(peer);
 	} else if (const auto channel = peer->asMegagroup()) {
@@ -1054,6 +1060,10 @@ int ComposeControls::heightCurrent() const {
 	return _writeRestriction.current()
 		? _writeRestricted->height()
 		: _wrap->height();
+}
+
+const HistoryItemsList &ComposeControls::forwardItems() const {
+	return _header->forwardItems();
 }
 
 bool ComposeControls::focus() {
@@ -1342,7 +1352,6 @@ void ComposeControls::init() {
 	initField();
 	initTabbedSelector();
 	initSendButton();
-	initSendAsButton();
 	initWriteRestriction();
 	initVoiceRecordBar();
 	initKeyHandler();
@@ -2059,17 +2068,24 @@ void ComposeControls::initSendButton() {
 		SendMenu::DefaultAutoDeleteCallback(_wrap.get(), send));
 }
 
-void ComposeControls::initSendAsButton() {
-	session().sendAsPeers().updated(
-	) | rpl::filter([=](not_null<PeerData*> peer) {
-		return _history && (peer == _history->peer);
-	}) | rpl::start_with_next([=] {
+void ComposeControls::initSendAsButton(not_null<PeerData*> peer) {
+	using namespace rpl::mappers;
+
+	// SendAsPeers::shouldChoose checks Data::CanSendAnything(PeerData*).
+	rpl::combine(
+		rpl::single(peer) | rpl::then(
+			session().sendAsPeers().updated() | rpl::filter(_1 == peer)
+		),
+		Data::CanSendAnythingValue(peer, false)
+	) | rpl::skip(1) | rpl::start_with_next([=] {
 		if (updateSendAsButton()) {
 			updateControlsVisibility();
 			updateControlsGeometry(_wrap->size());
 			orderControls();
 		}
 	}, _wrap->lifetime());
+
+	updateSendAsButton();
 }
 
 void ComposeControls::cancelInlineBot() {
@@ -2141,12 +2157,7 @@ void ComposeControls::initVoiceRecordBar() {
 			if (!peer) {
 				if (const auto error = Data::RestrictionError(
 						peer,
-						ChatRestriction::SendMedia)) {
-					return error;
-				}
-				if (const auto error = Data::RestrictionError(
-						peer,
-						UserRestriction::SendVoiceMessages)) {
+						ChatRestriction::SendVoiceMessages)) {
 					return error;
 				}
 			}
@@ -2768,9 +2779,8 @@ bool ComposeControls::hasSilentBroadcastToggle() const {
 	}
 	const auto &peer = _history->peer;
 	return peer
-		&& peer->isChannel()
-		&& !peer->isMegagroup()
-		&& peer->canWrite()
+		&& peer->isBroadcast()
+		&& Data::CanSendAnything(peer)
 		&& !session().data().notifySettings().silentPostsUnknown(peer);
 }
 

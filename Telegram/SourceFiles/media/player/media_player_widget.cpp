@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "storage/storage_account.h"
 #include "main/main_session.h"
 
@@ -1020,7 +1021,7 @@ void Widget::handleSongChange() {
 			const auto date = [item] {
 				const auto parsed = ItemDateTime(item);
 				const auto date = parsed.date();
-				const auto time = QLocale().toString(parsed.time(), cTimeFormat());
+				const auto time = QLocale().toString(parsed.time(), QLocale::ShortFormat);
 				const auto today = QDateTime::currentDateTime().date();
 				if (date == today) {
 					return tr::lng_player_message_today(

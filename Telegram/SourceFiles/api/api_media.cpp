@@ -75,10 +75,14 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 
 } // namespace
 
-MTPInputMedia PrepareUploadedPhoto(RemoteFileInfo info) {
-	const auto flags = info.attachedStickers.empty()
-		? MTPDinputMediaUploadedPhoto::Flags(0)
-		: MTPDinputMediaUploadedPhoto::Flag::f_stickers;
+MTPInputMedia PrepareUploadedPhoto(
+		not_null<HistoryItem*> item,
+		RemoteFileInfo info) {
+	using Flag = MTPDinputMediaUploadedPhoto::Flag;
+	const auto spoiler = item->media()
+		&& item->media()->hasSpoiler();
+	const auto flags = (spoiler ? Flag::f_spoiler : Flag())
+		| (info.attachedStickers.empty() ? Flag() : Flag::f_stickers);
 	return MTP_inputMediaUploadedPhoto(
 		MTP_flags(flags),
 		info.file,
@@ -93,12 +97,13 @@ MTPInputMedia PrepareUploadedDocument(
 	if (!item || !item->media() || !item->media()->document()) {
 		return MTP_inputMediaEmpty();
 	}
-	const auto emptyFlag = MTPDinputMediaUploadedDocument::Flags(0);
-	using DocFlags = MTPDinputMediaUploadedDocument::Flag;
-	const auto flags = emptyFlag
-		| (info.thumb ? DocFlags::f_thumb : emptyFlag)
-		| (item->groupId() ? DocFlags::f_nosound_video : emptyFlag)
-		| (info.attachedStickers.empty() ? DocFlags::f_stickers : emptyFlag);
+	using Flag = MTPDinputMediaUploadedDocument::Flag;
+	const auto spoiler = item->media()
+		&& item->media()->hasSpoiler();
+	const auto flags = (spoiler ? Flag::f_spoiler : Flag())
+		| (info.thumb ? Flag::f_thumb : Flag())
+		| (item->groupId() ? Flag::f_nosound_video : Flag())
+		| (info.attachedStickers.empty() ? Flag::f_stickers : Flag());
 	const auto document = item->media()->document();
 	return MTP_inputMediaUploadedDocument(
 		MTP_flags(flags),

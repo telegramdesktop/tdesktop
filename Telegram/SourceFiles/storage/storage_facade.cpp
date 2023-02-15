@@ -29,6 +29,7 @@ public:
 	rpl::producer<SharedMediaRemoveAll> sharedMediaAllRemoved() const;
 	rpl::producer<SharedMediaInvalidateBottom> sharedMediaBottomInvalidated() const;
 
+	void add(UserPhotosSetBack &&query);
 	void add(UserPhotosAddNew &&query);
 	void add(UserPhotosAddSlice &&query);
 	void remove(UserPhotosRemoveOne &&query);
@@ -96,6 +97,10 @@ rpl::producer<SharedMediaRemoveAll> Facade::Impl::sharedMediaAllRemoved() const 
 
 rpl::producer<SharedMediaInvalidateBottom> Facade::Impl::sharedMediaBottomInvalidated() const {
 	return _sharedMedia.bottomInvalidated();
+}
+
+void Facade::Impl::add(UserPhotosSetBack &&query) {
+	return _userPhotos.add(std::move(query));
 }
 
 void Facade::Impl::add(UserPhotosAddNew &&query) {
@@ -179,6 +184,10 @@ rpl::producer<SharedMediaRemoveAll> Facade::sharedMediaAllRemoved() const {
 
 rpl::producer<SharedMediaInvalidateBottom> Facade::sharedMediaBottomInvalidated() const {
 	return _impl->sharedMediaBottomInvalidated();
+}
+
+void Facade::add(UserPhotosSetBack &&query) {
+	return _impl->add(std::move(query));
 }
 
 void Facade::add(UserPhotosAddNew &&query) {

@@ -327,6 +327,7 @@ void DocumentData::setattributes(
 		const QVector<MTPDocumentAttribute> &attributes) {
 	_flags &= ~(Flag::ImageType
 		| Flag::HasAttachedStickers
+		| Flag::UseTextColor
 		| kStreamingSupportedMask);
 	_flags |= kStreamingSupportedUnknown;
 
@@ -374,6 +375,9 @@ void DocumentData::setattributes(
 					_flags &= ~Flag::PremiumSticker;
 				} else {
 					_flags |= Flag::PremiumSticker;
+				}
+				if (data.is_text_color()) {
+					_flags |= Flag::UseTextColor;
 				}
 				UpdateStickerSetIdentifier(info->set, data.vstickerset());
 			}
@@ -553,6 +557,10 @@ bool DocumentData::isPremiumEmoji() const {
 	}
 	const auto info = sticker();
 	return info && info->setType == Data::StickersType::Emoji;
+}
+
+bool DocumentData::emojiUsesTextColor() const {
+	return (_flags & Flag::UseTextColor);
 }
 
 bool DocumentData::hasThumbnail() const {
@@ -833,6 +841,22 @@ void DocumentData::setLoadedInMediaCache(bool loaded) {
 	}
 }
 
+ChatRestriction DocumentData::requiredSendRight() const {
+	return isVideoFile()
+		? ChatRestriction::SendVideos
+		: isSong()
+		? ChatRestriction::SendMusic
+		: isVoiceMessage()
+		? ChatRestriction::SendVoiceMessages
+		: isVideoMessage()
+		? ChatRestriction::SendVideoMessages
+		: sticker()
+		? ChatRestriction::SendStickers
+		: isAnimation()
+		? ChatRestriction::SendGifs
+		: ChatRestriction::SendFiles;
+}
+
 void DocumentData::setFileName(const QString &remoteFileName) {
 	_filename = remoteFileName;
 
@@ -980,8 +1004,9 @@ void DocumentData::handleLoaderUpdates() {
 	_loader->updates(
 	) | rpl::start_with_next_error_done([=] {
 		_owner->documentLoadProgress(this);
-	}, [=](bool started) {
-		if (started && _loader) {
+	}, [=](FileLoader::Error error) {
+		using FailureReason = FileLoader::FailureReason;
+		if (error.started && _loader) {
 			const auto origin = _loader->fileOrigin();
 			const auto failedFileName = _loader->fileName();
 			const auto retry = [=] {
@@ -992,23 +1017,21 @@ void DocumentData::handleLoaderUpdates() {
 				tr::lng_download_finish_failed(),
 				crl::guard(&session(), retry)
 			}));
-		} else {
-			// Sometimes we have LOCATION_INVALID error in documents / stickers.
-			// Sometimes FILE_REFERENCE_EXPIRED could not be handled.
-			//
-			//const auto openSettings = [=] {
-			//	Core::App().settings().etDownloadPathBookmark(QByteArray());
-			//	Core::App().settings().setDownloadPath(QString());
-			//	Ui::show(Box<DownloadPathBox>());
-			//};
-			//Ui::show(Box<Ui::ConfirmBox>(
-			//	tr::lng_download_path_failed(tr::now),
-			//	tr::lng_download_path_settings(tr::now),
-			//	crl::guard(&session(), openSettings)));
+		} else if (error.failureReason == FailureReason::FileWriteFailure) {
+			if (!Core::App().settings().downloadPath().isEmpty()) {
+				Core::App().settings().setDownloadPathBookmark(QByteArray());
+				Core::App().settings().setDownloadPath(QString());
+				Core::App().saveSettingsDelayed();
+				InvokeQueued(qApp, [] {
+					Ui::show(
+						Ui::MakeInformBox(
+							tr::lng_download_path_failed(tr::now)));
+				});
+			}
 		}
 		finishLoad();
 		status = FileDownloadFailed;
-		_owner->documentLoadFail(this, started);
+		_owner->documentLoadFail(this, error.started);
 	}, [=] {
 		finishLoad();
 		_owner->documentLoadDone(this);
@@ -1190,26 +1213,29 @@ bool DocumentData::isStickerSetInstalled() const {
 
 Image *DocumentData::getReplyPreview(
 		Data::FileOrigin origin,
-		not_null<PeerData*> context) {
+		not_null<PeerData*> context,
+		bool spoiler) {
 	if (!hasThumbnail()) {
 		return nullptr;
 	} else if (!_replyPreview) {
 		_replyPreview = std::make_unique<Data::ReplyPreview>(this);
 	}
-	return _replyPreview->image(origin, context);
+	return _replyPreview->image(origin, context, spoiler);
 }
 
 Image *DocumentData::getReplyPreview(not_null<HistoryItem*> item) {
-	return getReplyPreview(item->fullId(), item->history()->peer);
+	const auto media = item->media();
+	const auto spoiler = media && media->hasSpoiler();
+	return getReplyPreview(item->fullId(), item->history()->peer, spoiler);
 }
 
-bool DocumentData::replyPreviewLoaded() const {
+bool DocumentData::replyPreviewLoaded(bool spoiler) const {
 	if (!hasThumbnail()) {
 		return true;
 	} else if (!_replyPreview) {
 		return false;
 	}
-	return _replyPreview->loaded();
+	return _replyPreview->loaded(spoiler);
 }
 
 StickerData *DocumentData::sticker() const {

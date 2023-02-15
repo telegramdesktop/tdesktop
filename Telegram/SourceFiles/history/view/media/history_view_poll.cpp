@@ -971,8 +971,8 @@ void Poll::paintCloseByTimer(
 		auto hq = PainterHighQualityEnabler(p);
 		const auto part = std::max(
 			left / float64(radial),
-			1. / FullArcLength);
-		const auto length = int(base::SafeRound(FullArcLength * part));
+			1. / arc::kFullLength);
+		const auto length = int(base::SafeRound(arc::kFullLength * part));
 		auto pen = regular->p;
 		pen.setWidth(st::historyPollRadio.thickness);
 		pen.setCapStyle(Qt::RoundCap);
@@ -980,7 +980,7 @@ void Poll::paintCloseByTimer(
 		const auto size = icon.width() / 2;
 		const auto left = (x + (icon.width() - size) / 2);
 		const auto top = (y + (icon.height() - size) / 2) + st::lineWidth;
-		p.drawArc(left, top, size, size, (FullArcLength / 4), length);
+		p.drawArc(left, top, size, size, (arc::kFullLength / 4), length);
 	} else {
 		icon.paint(p, x, y, width());
 	}

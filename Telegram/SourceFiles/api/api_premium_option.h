@@ -21,6 +21,9 @@ namespace Api {
 template<typename Option>
 [[nodiscard]] Data::SubscriptionOptions SubscriptionOptionsFromTL(
 		const QVector<Option> &tlOptions) {
+	if (tlOptions.isEmpty()) {
+		return {};
+	}
 	auto result = Data::SubscriptionOptions();
 	const auto monthlyAmount = [&] {
 		const auto &min = ranges::min_element(

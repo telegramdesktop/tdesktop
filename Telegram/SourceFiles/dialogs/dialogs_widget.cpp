@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/controls/download_bar.h"
+#include "ui/controls/jump_down_button.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
@@ -187,7 +188,12 @@ Widget::Widget(
 	+ st::defaultDialogRow.photoSize
 	+ st::defaultDialogRow.padding.left())
 , _searchControls(this)
-, _mainMenuToggle(_searchControls, st::dialogsMenuToggle)
+, _mainMenu({
+	.toggle = object_ptr<Ui::IconButton>(
+		_searchControls,
+		st::dialogsMenuToggle),
+	.under = object_ptr<Ui::AbstractButton>(_searchControls),
+})
 , _searchForNarrowFilters(_searchControls, st::dialogsSearchForNarrowFilters)
 , _filter(_searchControls, st::dialogsFilter, tr::lng_dlg_filter())
 , _chooseFromUser(
@@ -426,6 +432,14 @@ Widget::Widget(
 			updateControlsGeometry();
 		}, lifetime());
 
+		_childListShown.changes(
+		) | rpl::filter((rpl::mappers::_1 == 0.) || (rpl::mappers::_1 == 1.)
+		) | rpl::start_with_next([=](float64 shown) {
+			const auto color = (shown > 0.) ? &st::dialogsRippleBg : nullptr;
+			_mainMenu.toggle->setRippleColorOverride(color);
+			_searchForNarrowFilters->setRippleColorOverride(color);
+		}, lifetime());
+
 		setupDownloadBar();
 	}
 }
@@ -470,24 +484,8 @@ void Widget::chosenRow(const ChosenRow &row) {
 		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
 			? ShowAtUnreadMsgId
 			: row.message.fullId.msg;
-		if (row.newWindow && controller()->canShowSeparateWindow(peer)) {
-			const auto active = controller()->activeChatCurrent();
-			const auto fromActive = active.history()
-				? (active.history()->peer == peer)
-				: false;
-			const auto toSeparate = [=] {
-				Core::App().ensureSeparateWindowForPeer(
-					peer,
-					showAtMsgId);
-			};
-			if (fromActive) {
-				controller()->window().preventOrInvoke([=] {
-					controller()->clearSectionStack();
-					toSeparate();
-				});
-			} else {
-				toSeparate();
-			}
+		if (row.newWindow) {
+			controller()->showInNewWindow(peer, showAtMsgId);
 		} else {
 			controller()->showThread(
 				history,
@@ -661,13 +659,18 @@ void Widget::setupSupportMode() {
 }
 
 void Widget::setupMainMenuToggle() {
-	_mainMenuToggle->setClickedCallback([=] { showMainMenu(); });
+	_mainMenu.under->setClickedCallback([=] {
+        _mainMenu.toggle->clicked({}, Qt::LeftButton);
+	});
+	_mainMenu.under->stackUnder(_mainMenu.toggle);
+	_mainMenu.toggle->setClickedCallback([=] { showMainMenu(); });
 
 	rpl::single(rpl::empty) | rpl::then(
 		controller()->filtersMenuChanged()
 	) | rpl::start_with_next([=] {
 		const auto filtersHidden = !controller()->filtersWidth();
-		_mainMenuToggle->setVisible(filtersHidden);
+		_mainMenu.toggle->setVisible(filtersHidden);
+		_mainMenu.under->setVisible(filtersHidden);
 		_searchForNarrowFilters->setVisible(!filtersHidden);
 		updateControlsGeometry();
 	}, lifetime());
@@ -679,8 +682,8 @@ void Widget::setupMainMenuToggle() {
 			: !state.allMuted
 			? &st::dialogsMenuToggleUnread
 			: &st::dialogsMenuToggleUnreadMuted;
-		_mainMenuToggle->setIconOverride(icon, icon);
-	}, _mainMenuToggle->lifetime());
+		_mainMenu.toggle->setIconOverride(icon, icon);
+	}, _mainMenu.toggle->lifetime());
 }
 
 void Widget::setupShortcuts() {
@@ -1462,31 +1465,48 @@ void Widget::showMainMenu() {
 	controller()->widget()->showMainMenu();
 }
 
-void Widget::searchMessages(
-		const QString &query,
-		Key inChat) {
+void Widget::searchMessages(const QString &query, Key inChat) {
+	if (_childList) {
+		const auto forum = controller()->shownForum().current();
+		const auto topic = inChat.topic();
+		if ((forum && forum->channel() == inChat.peer())
+			|| (topic && topic->forum() == forum)) {
+			_childList->searchMessages(query, inChat);
+			return;
+		}
+		hideChildList();
+	}
+	if (_openedFolder) {
+		controller()->closeFolder();
+	}
+
 	const auto inChatChanged = [&] {
 		const auto inPeer = inChat.peer();
 		const auto inTopic = inChat.topic();
-		if (!inTopic && _openedForum && inPeer == _openedForum->channel()) {
+		if (!inTopic
+			&& _openedForum
+			&& inPeer == _openedForum->channel()
+			&& _subsectionTopBar
+			&& _subsectionTopBar->searchMode()) {
 			return false;
 		} else if ((inTopic || (inPeer && !inPeer->isForum()))
 			&& (inChat == _searchInChat)) {
 			return false;
 		} else if (const auto inPeer = inChat.peer()) {
-			if (inPeer->migrateTo() == _searchInChat.peer()
-				&& !_searchInChat.topic()) {
-				return false;
+			if (const auto to = inPeer->migrateTo()) {
+				if (to == _searchInChat.peer() && !_searchInChat.topic()) {
+					return false;
+				}
 			}
 		}
 		return true;
 	}();
-	if ((_filter->getLastText() != query) || inChatChanged) {
+	if ((currentSearchQuery() != query) || inChatChanged) {
 		if (inChat) {
 			cancelSearch();
 			setSearchInChat(inChat);
 		}
-		_filter->setText(query);
+		setSearchQuery(query);
 		applyFilterUpdate(true);
 		_searchTimer.cancel();
 		searchMessages();
@@ -2101,18 +2121,7 @@ void Widget::closeChildList(anim::type animated) {
 }
 
 void Widget::searchInChat(Key chat) {
-	if (_openedForum && !chat.peer()->forum()) {
-		controller()->closeForum();
-	}
-	if (_openedFolder) {
-		if (_childList && _childList->setSearchInChat(chat)) {
-			return;
-		}
-		controller()->closeFolder();
-	}
-	cancelSearch();
-	setSearchInChat(chat);
-	applyFilterUpdate(true);
+	searchMessages(QString(), chat);
 }
 
 bool Widget::setSearchInChat(Key chat, PeerData *from) {
@@ -2149,13 +2158,13 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 		}
 	}
 	_searchInMigrated = nullptr;
-	if (peer) {
-		if (const auto migrateTo = peer->migrateTo()) {
+	if (peer && !forum) {
+		if (_layout != Layout::Main) {
+			return false;
+		} else if (const auto migrateTo = peer->migrateTo()) {
 			return setSearchInChat(peer->owner().history(migrateTo), from);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
-			if (!forum) {
-				_searchInMigrated = peer->owner().history(migrateFrom);
-			}
+			_searchInMigrated = peer->owner().history(migrateFrom);
 		}
 	}
 	if (searchInPeerUpdated) {
@@ -2166,6 +2175,9 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 	if (searchFromUpdated) {
 		updateSearchFromVisibility();
 		clearSearchCache();
+	}
+	if (_searchInChat && _layout == Layout::Main) {
+		controller()->closeFolder();
 	}
 	_inner->searchInChat(_searchInChat, _searchFromAuthor);
 	if (_subsectionTopBar) {
@@ -2355,7 +2367,7 @@ void Widget::updateControlsGeometry() {
 
 	auto filterLeft = (controller()->filtersWidth()
 		? st::dialogsFilterSkip
-		: (st::dialogsFilterPadding.x() + _mainMenuToggle->width()))
+		: (st::dialogsFilterPadding.x() + _mainMenu.toggle->width()))
 		+ st::dialogsFilterPadding.x();
 	auto filterRight = (session().domain().local().hasLocalPasscode()
 		? (st::dialogsFilterPadding.x() + _lockUnlock->width())
@@ -2375,9 +2387,16 @@ void Widget::updateControlsGeometry() {
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
 	auto mainMenuLeft = anim::interpolate(
 		st::dialogsFilterPadding.x(),
-		(_narrowWidth - _mainMenuToggle->width()) / 2,
+		(_narrowWidth - _mainMenu.toggle->width()) / 2,
 		narrowRatio);
-	_mainMenuToggle->moveToLeft(mainMenuLeft, st::dialogsFilterPadding.y());
+	_mainMenu.toggle->moveToLeft(mainMenuLeft, st::dialogsFilterPadding.y());
+	_mainMenu.under->setGeometry(
+		0,
+		0,
+		filterLeft,
+		_mainMenu.toggle->y()
+			+ _mainMenu.toggle->height()
+			+ st::dialogsFilterPadding.y());
 	const auto searchLeft = anim::interpolate(
 		-_searchForNarrowFilters->width(),
 		(_narrowWidth - _searchForNarrowFilters->width()) / 2,
@@ -2566,6 +2585,14 @@ void Widget::clearSearchField() {
 		_subsectionTopBar->searchClear();
 	} else {
 		_filter->clear();
+	}
+}
+
+void Widget::setSearchQuery(const QString &query) {
+	if (_subsectionTopBar) {
+		_subsectionTopBar->searchSetText(query);
+	} else {
+		_filter->setText(query);
 	}
 }
 

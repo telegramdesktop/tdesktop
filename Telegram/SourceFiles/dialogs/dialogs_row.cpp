@@ -91,19 +91,19 @@ constexpr auto kNoneLayer = 0;
 		style::al_center);
 
 	constexpr auto kPenWidth = 1.5;
-	constexpr auto kAngleStart = 90 * 16;
-	constexpr auto kAngleSpan = 180 * 16;
 
+	const auto penWidth = style::ConvertScaleExact(kPenWidth);
 	auto pen = QPen(st::premiumButtonFg);
 	pen.setJoinStyle(Qt::RoundJoin);
 	pen.setCapStyle(Qt::RoundCap);
-	pen.setWidthF(style::ConvertScaleExact(kPenWidth));
+	pen.setWidthF(penWidth);
 
 	q.setPen(pen);
 	q.setBrush(Qt::NoBrush);
-	q.drawArc(innerRect, kAngleStart, kAngleSpan);
+	q.drawArc(innerRect, arc::kQuarterLength, arc::kHalfLength);
 
-	q.setClipRect(innerRect - QMargins(innerRect.width() / 2, 0, 0, 0));
+	q.setClipRect(innerRect
+		- QMargins(innerRect.width() / 2, 0, -penWidth, -penWidth));
 	pen.setStyle(Qt::DotLine);
 	q.setPen(pen);
 	q.drawEllipse(innerRect);
@@ -250,6 +250,10 @@ Row::Row(Key key, int index, int top) : _id(key), _top(top), _index(index) {
 	if (const auto history = key.history()) {
 		updateCornerBadgeShown(history->peer);
 	}
+}
+
+Row::~Row() {
+	clearTopicJumpRipple();
 }
 
 void Row::recountHeight(float64 narrowRatio) {
@@ -487,6 +491,11 @@ void Row::stopLastRipple() {
 	}
 }
 
+void Row::clearRipple() {
+	BasicRow::clearRipple();
+	clearTopicJumpRipple();
+}
+
 void Row::addTopicJumpRipple(
 		QPoint origin,
 		not_null<Ui::TopicJumpCache*> topicJumpCache,
@@ -503,10 +512,15 @@ void Row::addTopicJumpRipple(
 }
 
 void Row::clearTopicJumpRipple() {
-	if (_topicJumpRipple) {
-		clearRipple();
-		_topicJumpRipple = 0;
+	if (!_topicJumpRipple) {
+		return;
 	}
+	const auto history = this->history();
+	const auto view = history ? &history->lastItemDialogsView() : nullptr;
+	if (view) {
+		view->clearRipple();
+	}
+	_topicJumpRipple = 0;
 }
 
 bool Row::topicJumpRipple() const {

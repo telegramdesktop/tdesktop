@@ -18,6 +18,7 @@ struct DialogRow;
 } // namespace style
 
 namespace Ui {
+class SpoilerAnimation;
 } // namespace Ui
 
 namespace Data {
@@ -72,6 +73,7 @@ public:
 		not_null<TopicJumpCache*> topicJumpCache,
 		Fn<void()> updateCallback);
 	void stopLastRipple();
+	void clearRipple();
 
 private:
 	struct LoadingContext;
@@ -88,6 +90,7 @@ private:
 	mutable std::unique_ptr<TopicsView> _topics;
 	mutable Text::String _textCache;
 	mutable std::vector<ItemPreviewImage> _imagesCache;
+	mutable std::unique_ptr<SpoilerAnimation> _spoiler;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 
 };

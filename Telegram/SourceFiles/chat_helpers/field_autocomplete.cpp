@@ -365,10 +365,8 @@ inline int indexOfInFirstN(const T &v, const U &elem, int last) {
 }
 
 FieldAutocomplete::StickerRows FieldAutocomplete::getStickerSuggestions() {
-	const auto list = _controller->session().data().stickers().getListByEmoji(
-		_emoji,
-		_stickersSeed
-	);
+	const auto data = &_controller->session().data().stickers();
+	const auto list = data->getListByEmoji({ _emoji }, _stickersSeed);
 	auto result = ranges::views::all(
 		list
 	) | ranges::views::transform([](not_null<DocumentData*> sticker) {
@@ -472,7 +470,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				--i;
 				mrows.push_back({ i->second });
 			}
-		} else if (_channel && _channel->isMegagroup()) {
+		} else if (_channel
+			&& _channel->isMegagroup()
+			&& _channel->canViewMembers()) {
 			if (_channel->lastParticipantsRequestNeeded()) {
 				_channel->session().api().chatParticipants().requestLast(
 					_channel);

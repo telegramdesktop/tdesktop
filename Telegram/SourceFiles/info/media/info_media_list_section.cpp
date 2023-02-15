@@ -65,7 +65,12 @@ bool ListSection::addItem(not_null<BaseLayout*> item) {
 
 void ListSection::finishSection() {
 	if (_type == Type::GIF) {
-		_mosaic.setOffset(st::infoMediaSkip, headerHeight());
+		_mosaic.setPadding({
+			st::infoMediaSkip,
+			headerHeight(),
+			st::infoMediaSkip,
+			st::stickerPanPadding,
+		});
 		_mosaic.setRightSkip(st::infoMediaSkip);
 		_mosaic.addItems(_items);
 	}
@@ -390,7 +395,7 @@ int ListSection::recountHeight() {
 	} break;
 
 	case Type::GIF: {
-		return _mosaic.countDesiredHeight(0) + result;
+		return _mosaic.countDesiredHeight(0);
 	} break;
 
 	case Type::RoundVoiceFile:

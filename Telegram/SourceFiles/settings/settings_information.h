@@ -9,10 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
-namespace Dialogs::Ui {
-using namespace ::Ui;
+namespace Ui {
 struct UnreadBadgeStyle;
-} // namespace Dialogs::Ui
+} // namespace Ui
 
 namespace Main {
 class Account;
@@ -40,9 +39,11 @@ AccountsEvents SetupAccounts(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller);
 
+void UpdatePhotoLocally(not_null<UserData*> user, const QImage &image);
+
 namespace Badge {
 
-[[nodiscard]] Dialogs::Ui::UnreadBadgeStyle Style();
+[[nodiscard]] Ui::UnreadBadgeStyle Style();
 
 struct UnreadBadge {
 	int count = 0;

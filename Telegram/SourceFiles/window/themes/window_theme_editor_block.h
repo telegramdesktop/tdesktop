@@ -9,7 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-class EditColorBox;
+namespace Ui {
+class BoxContent;
+} // namespace Ui;
+
+class ColorEditor;
 
 namespace Window {
 namespace Theme {
@@ -21,7 +25,10 @@ public:
 		New,
 	};
 	struct Context {
-		QPointer<EditColorBox> box;
+		struct {
+			QPointer<Ui::BoxContent> box;
+			QPointer<ColorEditor> editor;
+		} colorEditor;
 		QString name;
 		QString possibleCopyOf;
 

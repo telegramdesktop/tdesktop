@@ -34,5 +34,7 @@ namespace Lang {
 [[nodiscard]] QString Id();
 [[nodiscard]] rpl::producer<> Updated();
 [[nodiscard]] QString GetNonDefaultValue(const QByteArray &key);
+[[nodiscard]] QString DefaultLanguageId();
+[[nodiscard]] QString LanguageIdOrDefault(const QString &id);
 
 } // namespace Lang

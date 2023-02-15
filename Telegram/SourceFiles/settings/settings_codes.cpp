@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_codes.h"
 
-#include "platform/platform_specific.h"
 #include "ui/toast/toast.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -179,10 +178,6 @@ auto GenerateCodes() {
 	codes.emplace(u"registertg"_q, [](SessionController *window) {
 		Core::Application::RegisterUrlScheme();
 		Ui::Toast::Show("Forced custom scheme register.");
-	});
-	codes.emplace(u"installlauncher"_q, [](SessionController *window) {
-		Platform::InstallLauncher(true);
-		Ui::Toast::Show("Forced launcher installation.");
 	});
 
 #if defined Q_OS_WIN || defined Q_OS_MAC

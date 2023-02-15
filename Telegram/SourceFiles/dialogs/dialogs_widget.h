@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/special_buttons.h"
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
@@ -34,6 +33,7 @@ class ContactStatus;
 } // namespace HistoryView
 
 namespace Ui {
+class AbstractButton;
 class IconButton;
 class PopupMenu;
 class DropdownMenu;
@@ -44,6 +44,7 @@ class PlainShadow;
 class DownloadBar;
 class GroupCallBar;
 class RequestsBar;
+class JumpDownButton;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
@@ -166,6 +167,7 @@ private:
 	void showSearchFrom();
 	void showMainMenu();
 	void clearSearchCache();
+	void setSearchQuery(const QString &query);
 	void updateControlsVisibility(bool fast = false);
 	void updateLockUnlockVisibility();
 	void updateLoadMoreChatsVisibility();
@@ -221,7 +223,10 @@ private:
 	int _narrowWidth = 0;
 	object_ptr<Ui::RpWidget> _searchControls;
 	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr } ;
-	object_ptr<Ui::IconButton> _mainMenuToggle;
+	struct {
+		object_ptr<Ui::IconButton> toggle;
+		object_ptr<Ui::AbstractButton> under;
+	} _mainMenu;
 	object_ptr<Ui::IconButton> _searchForNarrowFilters;
 	object_ptr<Ui::InputField> _filter;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
@@ -247,7 +252,7 @@ private:
 	rpl::variable<float64> _shownProgressValue;
 
 	Ui::Animations::Simple _scrollToTopShown;
-	object_ptr<Ui::HistoryDownButton> _scrollToTop;
+	object_ptr<Ui::JumpDownButton> _scrollToTop;
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
 

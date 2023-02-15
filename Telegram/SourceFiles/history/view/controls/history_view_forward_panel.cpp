@@ -8,7 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_forward_panel.h"
 
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_item_preview.h"
 #include "data/data_session.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "main/main_session.h"
 #include "ui/chat/forward_options_box.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
@@ -305,33 +307,35 @@ void ForwardPanel::paint(
 		return;
 	}
 	const_cast<ForwardPanel*>(this)->checkTexts();
+	const auto now = crl::now();
+	const auto paused = p.inactive();
 	const auto firstItem = _data.items.front();
 	const auto firstMedia = firstItem->media();
 	const auto hasPreview = (_data.items.size() < 2)
 		&& firstMedia
 		&& firstMedia->hasReplyPreview();
 	const auto preview = hasPreview ? firstMedia->replyPreview() : nullptr;
+	const auto spoiler = preview && firstMedia->hasSpoiler();
+	if (!spoiler) {
+		_spoiler = nullptr;
+	} else if (!_spoiler) {
+		_spoiler = std::make_unique<Ui::SpoilerAnimation>(_repaint);
+	}
 	if (preview) {
 		auto to = QRect(
 			x,
 			y + st::msgReplyPadding.top(),
 			st::msgReplyBarSize.height(),
 			st::msgReplyBarSize.height());
-		if (preview->width() == preview->height()) {
-			p.drawPixmap(to.x(), to.y(), preview->pix());
-		} else {
-			auto from = (preview->width() > preview->height())
-				? QRect(
-					(preview->width() - preview->height()) / 2,
-					0,
-					preview->height(),
-					preview->height())
-				: QRect(
-					0,
-					(preview->height() - preview->width()) / 2,
-					preview->width(),
-					preview->width());
-			p.drawPixmap(to, preview->pix(), from);
+		p.drawPixmap(to.x(), to.y(), preview->pixSingle(
+			preview->size() / style::DevicePixelRatio(),
+			{
+				.options = Images::Option::RoundSmall,
+				.outer = to.size(),
+			}));
+		if (_spoiler) {
+			Ui::FillSpoilerRect(p, to, Ui::DefaultImageSpoiler().frame(
+				_spoiler->index(now, paused)));
 		}
 		const auto skip = st::msgReplyBarSize.height()
 			+ st::msgReplyBarSkip
@@ -354,8 +358,8 @@ void ForwardPanel::paint(
 		.availableWidth = available,
 		.palette = &st::historyComposeAreaPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
-		.now = crl::now(),
-		.paused = p.inactive(),
+		.now = now,
+		.paused = paused,
 		.elisionLines = 1,
 	});
 }

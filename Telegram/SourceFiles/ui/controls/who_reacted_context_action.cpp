@@ -327,7 +327,7 @@ void Action::paint(Painter &p) {
 			+ (st::whoReadChecks.width() - adjusted) / 2;
 		const auto y = (_height - adjusted) / 2;
 		_custom->paint(p, {
-			.preview = _st.ripple.color->c,
+			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = { x, y },
 		});
@@ -588,7 +588,7 @@ void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
 		const auto size = Emoji::GetSizeNormal() / ratio;
 		const auto skip = (size - _customSize) / 2;
 		_custom->paint(p, {
-			.preview = _st.ripple.color->c,
+			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = QPoint(
 				width() - _st.itemPadding.right() - (size / ratio) + skip,

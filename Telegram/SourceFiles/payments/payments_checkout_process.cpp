@@ -611,6 +611,10 @@ void CheckoutProcess::panelWebviewMessage(
 	});
 }
 
+std::optional<QDate> CheckoutProcess::panelOverrideExpireDateThreshold() {
+	return _form->overrideExpireDateThreshold();
+}
+
 bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 	if (Core::TryConvertUrlToLocal(uri) == uri) {
 		return true;

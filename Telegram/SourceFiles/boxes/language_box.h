@@ -11,19 +11,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/binary_guard.h"
 
+struct LanguageId;
+
 namespace Ui {
 class MultiSelect;
 struct ScrollToRequest;
+class VerticalLayout;
 } // namespace Ui
+
+namespace Window {
+class SessionController;
+} // namespace Window
 
 class LanguageBox : public Ui::BoxContent {
 public:
-	LanguageBox(QWidget*) {
-	}
+	LanguageBox(QWidget*, Window::SessionController *controller);
 
 	void setInnerFocus() override;
 
-	static base::binary_guard Show();
+	static base::binary_guard Show(Window::SessionController *controller);
 
 protected:
 	void prepare() override;
@@ -33,8 +39,11 @@ protected:
 private:
 	using Languages = Lang::CloudManager::Languages;
 
-	int rowsInPage() const;
+	void setupTop(not_null<Ui::VerticalLayout*> container);
+	[[nodiscard]] int rowsInPage() const;
 
+	Window::SessionController *_controller = nullptr;
+	rpl::event_stream<bool> _translateChatTurnOff;
 	Fn<void()> _setInnerFocus;
 	Fn<Ui::ScrollToRequest(int rows)> _jump;
 

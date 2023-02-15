@@ -70,7 +70,6 @@ constexpr auto kGrayLockOpacity = 0.3;
 
 using Data::StickersSet;
 using Data::StickersPack;
-using Data::StickersByEmojiMap;
 using SetFlag = Data::StickersSetFlag;
 
 [[nodiscard]] std::optional<QColor> ComputeImageColor(const QImage &frame) {
@@ -331,14 +330,13 @@ private:
 	std::vector<Element> _elements;
 	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
 
-	mutable Ui::Text::CustomEmojiColored _colored;
 	base::flat_map<
 		not_null<DocumentData*>,
 		std::unique_ptr<Ui::Text::CustomEmoji>> _customEmoji;
 	bool _repaintScheduled = false;
 
 	StickersPack _pack;
-	StickersByEmojiMap _emoji;
+	base::flat_map<EmojiPtr, StickersPack> _emoji;
 	bool _loaded = false;
 	uint64 _setId = 0;
 	uint64 _setAccessHash = 0;
@@ -730,7 +728,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 
 						p.push_back(doc);
 					}
-					_emoji.insert(original, p);
+					_emoji[original] = std::move(p);
 				}
 			});
 		}
@@ -1336,10 +1334,8 @@ void StickerSetBox::Inner::paintSticker(
 		(_singleSize.height() - size.height()) / 2);
 	auto lottieFrame = QImage();
 	if (element.emoji) {
-		_colored.color = st::profileVerifiedCheckBg->c;
 		element.emoji->paint(p, {
-			.preview = st::windowBgOver->c,
-			.colored = &_colored,
+			.textColor = st::windowFg->c,
 			.now = now,
 			.position = ppos,
 			.paused = paused,

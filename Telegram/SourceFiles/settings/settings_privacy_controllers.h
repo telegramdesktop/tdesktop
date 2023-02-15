@@ -153,7 +153,7 @@ public:
 
 	object_ptr<Ui::RpWidget> setupBelowWidget(
 		not_null<Window::SessionController*> controller,
-		not_null<QWidget*> parent) const override;
+		not_null<QWidget*> parent) override;
 
 };
 
@@ -220,13 +220,32 @@ public:
 	Key key() const override;
 
 	rpl::producer<QString> title() const override;
-	bool hasOption(Option option) const override;
 	rpl::producer<QString> optionsTitleKey() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) const override;
 	rpl::producer<QString> exceptionBoxTitle(
 		Exception exception) const override;
 	rpl::producer<QString> exceptionsDescription() const override;
+
+	void handleExceptionsChange(
+		Exception exception,
+		rpl::producer<int> value) override;
+
+	object_ptr<Ui::RpWidget> setupAboveWidget(
+		not_null<QWidget*> parent,
+		rpl::producer<Option> optionValue,
+		not_null<QWidget*> outerContainer) override;
+
+	object_ptr<Ui::RpWidget> setupBelowWidget(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> parent) override;
+
+	void saveAdditional() override;
+
+private:
+	Fn<void()> _saveAdditional;
+	rpl::variable<Option> _option;
+	rpl::variable<int> _exceptionsNever;
 
 };
 

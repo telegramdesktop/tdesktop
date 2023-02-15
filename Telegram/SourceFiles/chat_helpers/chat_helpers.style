@@ -8,7 +8,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 
 using "boxes/boxes.style";
+using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
+
+TabbedSearch {
+	outer: color;
+	bg: color;
+	fg: color;
+	fgActive: color;
+	fadeLeft: icon;
+	fadeRight: icon;
+	field: InputField;
+	search: IconButton;
+	back: IconButton;
+	cancel: CrossButton;
+	defaultFieldWidth: pixels;
+	groupWidth: pixels;
+	groupSkip: pixels;
+	height: pixels;
+}
 
 EmojiPan {
 	margin: margins;
@@ -26,8 +44,12 @@ EmojiPan {
 	iconArea: pixels;
 	bg: color;
 	overBg: color;
+	categoriesBg: color;
+	categoriesBgOver: color;
 	fadeLeft: icon;
 	fadeRight: icon;
+	search: TabbedSearch;
+	searchMargin: margins;
 }
 
 switchPmButton: RoundButton(defaultBoxButton) {
@@ -52,7 +74,7 @@ stickersTrendingSubheaderFg: windowSubTextFg;
 stickersTrendingSubheaderTop: 31px;
 
 emojiPanButtonRight: 7px;
-emojiPanButtonTop: 10px;
+emojiPanButtonTop: 8px;
 emojiPanButton: RoundButton(defaultActiveButton) {
 	width: -24px;
 	height: 23px;
@@ -103,7 +125,6 @@ stickersFeaturedBadgeTextTop: -1px;
 stickersFeaturedBadgePadding: 4px;
 stickersFeaturedBadgeSkip: 4px;
 stickersFeaturedBadgeTop: 9px;
-stickersFeaturedPen: lightButtonFg;
 stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
@@ -120,8 +141,6 @@ stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;
 }
-stickersReorderPadding: margins(0px, 12px, 0px, 12px);
-stickersReorderFg: windowSubTextFg;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
@@ -131,12 +150,7 @@ stickersTrendingUnread: icon {
 	{ "emoji/stickers_add_unread", emojiIconFg },
 	{ "emoji/stickers_add_dot", dialogsUnreadBg }
 };
-stickersRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
-stickersSearch: icon {{ "emoji/stickers_search", emojiIconFg }};
-stickersPremium: icon {{ "emoji/stickers_premium", emojiIconFg }};
-
-stickersSettingsUnreadSize: 6px;
-stickersSettingsUnreadPosition: point(6px, 10px);
+emojiStatusDefault: icon {{ "emoji/stickers_premium", emojiIconFg }};
 
 filtersRemove: IconButton(stickersRemove) {
 	ripple: defaultRippleAnimation;
@@ -145,33 +159,32 @@ filtersRemove: IconButton(stickersRemove) {
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
 emojiTabs: SettingsSlider(defaultTabsSlider) {
-	height: 55px;
-	barTop: 52px;
-	labelTop: 19px;
+	height: 43px;
+	barTop: 40px;
+	labelTop: 12px;
 }
-emojiScroll: defaultSolidScroll;
 emojiRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
 emojiRecentActive: icon {{ "emoji/emoji_recent", emojiSubIconFgActive }};
-emojiPeople: icon {{ "emoji/emoji_people", emojiIconFg }};
-emojiPeopleActive: icon {{ "emoji/emoji_people", emojiSubIconFgActive }};
+emojiPeople: icon {{ "emoji/emoji_smile", emojiIconFg }};
+emojiPeopleActive: icon {{ "emoji/emoji_smile", emojiSubIconFgActive }};
 emojiNature: icon {{ "emoji/emoji_nature", emojiIconFg }};
 emojiNatureActive: icon {{ "emoji/emoji_nature", emojiSubIconFgActive }};
 emojiFood: icon {{ "emoji/emoji_food", emojiIconFg }};
 emojiFoodActive: icon {{ "emoji/emoji_food", emojiSubIconFgActive }};
-emojiActivity: icon {{ "emoji/emoji_activity", emojiIconFg }};
-emojiActivityActive: icon {{ "emoji/emoji_activity", emojiSubIconFgActive }};
+emojiActivity: icon {{ "emoji/emoji_activities", emojiIconFg }};
+emojiActivityActive: icon {{ "emoji/emoji_activities", emojiSubIconFgActive }};
 emojiTravel: icon {{ "emoji/emoji_travel", emojiIconFg }};
 emojiTravelActive: icon {{ "emoji/emoji_travel", emojiSubIconFgActive }};
 emojiObjects: icon {{ "emoji/emoji_objects", emojiIconFg }};
 emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiSubIconFgActive }};
-emojiSymbols: icon {{ "emoji/emoji_symbols", emojiIconFg }};
-emojiSymbolsActive: icon {{ "emoji/emoji_symbols", emojiSubIconFgActive }};
+emojiSymbols: icon {{ "emoji/emoji_love", emojiIconFg }};
+emojiSymbolsActive: icon {{ "emoji/emoji_love", emojiSubIconFgActive }};
 
 emojiCategoryIconTop: 6px;
 emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
 	fadeBg: emojiPanBg;
+	shadow: boxRoundShadow;
 }
-emojiPanPadding: 12px;
 emojiPanWidth: 345px;
 emojiPanMinHeight: 278px;
 emojiPanMaxHeight: 640px;
@@ -181,28 +194,85 @@ emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
 emojiPanArea: size(34px, 32px);
-emojiPanLeft: 13px;
-emojiPanRight: 17px;
 emojiPanRadius: 8px;
 
+defaultTabbedSearch: TabbedSearch {
+	outer: emojiPanBg;
+	bg: emojiPanHover;
+	fg: emojiIconFg;
+	fgActive: emojiSubIconFgActive;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanHover }};
+	fadeRight: icon {{ "fade_horizontal", emojiPanHover }};
+	field: InputField(defaultMultiSelectSearchField) {
+		textMargins: margins(2px, 7px, 2px, 0px);
+	}
+	search: IconButton(defaultIconButton) {
+		width: 33px;
+		height: 33px;
+		icon: icon{{ "emoji/emoji_search_input", emojiIconFg }};
+		iconOver: icon{{ "emoji/emoji_search_input", emojiIconFg }};
+		iconPosition: point(7px, -1px);
+		ripple: emptyRippleAnimation;
+	}
+	back: IconButton(defaultIconButton) {
+		width: 33px;
+		height: 33px;
+		icon: icon{{ "emoji/emoji_back", menuIconFg }};
+		iconOver: icon{{ "emoji/emoji_back", menuIconFg }};
+		iconPosition: point(7px, -1px);
+		ripple: emptyRippleAnimation;
+	}
+	cancel: CrossButton {
+		width: 33px;
+		height: 33px;
+
+		cross: CrossAnimation {
+			size: 27px;
+			skip: 8px;
+			stroke: 1.;
+			minScale: 0.3;
+		}
+		crossFg: menuIconFg;
+		crossFgOver: menuIconFg;
+		crossPosition: point(1px, 3px);
+
+		duration: 150;
+		loadingPeriod: 1000;
+		ripple: emptyRippleAnimation;
+	}
+	defaultFieldWidth: 103px;
+	groupWidth: 30px;
+	groupSkip: 2px;
+	height: 33px;
+}
 defaultEmojiPan: EmojiPan {
-	margin: margins(roundRadiusSmall, 0px, 14px, 0px);
-	padding: margins(13px, 12px, 17px, 12px);
-	desiredSize: 39px;
-	verticalSizeSub: 2px;
-	header: 40px;
-	headerLeft: 23px;
-	headerLockLeft: 17px;
-	headerLockedLeft: 36px;
-	headerTop: 12px;
-	footer: 46px;
-	iconSkip: 4px;
-	iconWidth: 35px;
-	iconArea: 32px;
+	margin: margins(7px, 0px, 7px, 0px);
+	padding: margins(7px, 0px, 4px, 7px);
+	desiredSize: 37px;
+	verticalSizeSub: 1px;
+	header: 33px;
+	headerLeft: 14px;
+	headerLockLeft: 7px;
+	headerLockedLeft: 26px;
+	headerTop: 10px;
+	footer: 36px;
+	iconSkip: 3px;
+	iconWidth: 30px;
+	iconArea: 28px;
 	bg: emojiPanBg;
 	overBg: emojiPanHover;
+	categoriesBg: emojiPanCategories;
+	categoriesBgOver: windowBgRipple;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
+	search: defaultTabbedSearch;
+	searchMargin: margins(1px, 11px, 2px, 5px);
+}
+statusEmojiPan: EmojiPan(defaultEmojiPan) {
+	categoriesBg: windowBg;
+	categoriesBgOver: windowBgOver;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
+	fadeRight: icon {{ "fade_horizontal", windowBg }};
 }
 
 inlineResultsMinHeight: 278px;
@@ -210,18 +280,12 @@ inlineResultsMaxHeight: 640px;
 
 emojiPanHeaderFont: semiboldFont;
 emojiPanRemoveSkip: 10px;
+emojiPanRemoveTop: 10px;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
 emojiColorsSepColor: shadowFg;
 
-emojiSwitchSkip: 27px;
-emojiSwitchImgSkip: 21px;
-emojiSwitchColor: windowActiveTextFg;
-emojiSwitchStickers: icon {{ "emoji/emoji_switch", emojiSwitchColor }};
-emojiSwitchEmoji: icon {{ "emoji/emoji_switch-flip_horizontal", emojiSwitchColor }};
-
-emojiIconPadding: 7px;
 emojiIconSelectSkip: 3px;
 emojiPremiumRequired: icon{{ "emoji/premium_lock", windowSubTextFg }};
 
@@ -249,12 +313,12 @@ stickerPanDeleteOpacityBg: 0.3;
 stickerPanDeleteOpacityBgOver: 0.5;
 stickerPanDeleteOpacityFg: 0.8;
 stickerPanDeleteOpacityFgOver: 1.;
-stickerPanRemoveSet: hashtagClose;
-stickerIconWidth: 42px;
-stickerIconPadding: 5px;
-stickerIconOpacity: 0.7;
-stickerIconSel: 2px;
-stickerIconSelColor: emojiIconFgActive;
+stickerPanRemoveSet: IconButton(hashtagClose) {
+	width: 20px;
+	height: 20px;
+	iconPosition: point(-1px, -1px);
+	rippleAreaPosition: point(0px, 0px);
+}
 stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
@@ -277,12 +341,7 @@ inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltab: stickerPanPadding;
 }
 
-gifsSearchField: defaultMultiSelectSearchField;
-gifsSearchFieldPosition: point(42px, 7px);
-gifsSearchCancel: defaultMultiSelectSearchCancel;
-gifsSearchCancelPosition: point(1px, 1px);
-gifsSearchIcon: boxFieldSearchIcon;
-gifsSearchIconPosition: point(6px, 7px);
+gifsPadding: margins(9px, 5px, 3px, 9px);
 
 emojiSuggestionsDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, emojiColorsPadding, 0px, emojiColorsPadding);
@@ -337,31 +396,32 @@ reactStripBubble: icon{
 	{ "chat/reactions_bubble", windowBg },
 };
 reactStripBubbleRight: 20px;
-reactPanelEmojiPan: EmojiPan(defaultEmojiPan) {
+reactPanelEmojiPan: EmojiPan(statusEmojiPan) {
 	margin: margins(reactStripSkip, 0px, reactStripSkip, 0px);
 	padding: margins(reactStripSkip, 0px, reactStripSkip, reactStripSkip);
 	desiredSize: reactStripSize;
 	verticalSizeSub: 0px;
-	headerLeft: 13px;
-	headerLockLeft: 7px;
-	headerLockedLeft: 26px;
-	footer: 42px;
-	iconSkip: 6px;
-	iconWidth: 33px;
-	iconArea: 30px;
 	overBg: transparent;
-	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
-	fadeRight: icon {{ "fade_horizontal", windowBg }};
+	search: TabbedSearch(defaultTabbedSearch) {
+		defaultFieldWidth: 88px;
+	}
+	searchMargin: margins(1px, 10px, 2px, 6px);
 }
-reactPanelScroll: ScrollArea(defaultSolidScroll) {
+emojiScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 3px;
 	deltab: 3px;
-	round: 1px;
+	round: -1px;
 	width: 7px;
 	deltax: 2px;
 	hiding: 0;
+}
+reactPanelScroll: ScrollArea(emojiScroll) {
+	deltab: 7px;
 }
 
 emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
 emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};
 
+choosePeerGroupIcon: icon {{ "info/edit/create_group", lightButtonFg }};
+choosePeerChannelIcon: icon {{ "info/edit/create_channel", lightButtonFg }};
+choosePeerCreateIconLeft: 25px;

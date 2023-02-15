@@ -837,7 +837,7 @@ void RecordLock::drawProgress(Painter &p) {
 				arcWidth,
 				arcHeight * 2,
 				0,
-				180 * 16);
+				arc::kHalfLength);
 
 			const auto lockProgress = 1. - _lockToStopProgress;
 			if (progress == 1. && lockProgress < 1.) {

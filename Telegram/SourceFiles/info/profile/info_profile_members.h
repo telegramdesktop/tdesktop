@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "boxes/peer_list_box.h"
 
+class ParticipantsBoxController;
+
 namespace Ui {
 class InputField;
 class CrossButton;
@@ -50,8 +52,9 @@ public:
 	std::unique_ptr<MembersState> saveState();
 	void restoreState(std::unique_ptr<MembersState> state);
 
-	int desiredHeight() const;
-	rpl::producer<int> onlineCountValue() const;
+	[[nodiscard]] int desiredHeight() const;
+	[[nodiscard]] rpl::producer<int> onlineCountValue() const;
+	[[nodiscard]] rpl::producer<int> fullCountValue() const;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -116,7 +119,7 @@ private:
 	//Wrap _wrap;
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
-	std::unique_ptr<PeerListController> _listController;
+	std::unique_ptr<ParticipantsBoxController> _listController;
 	object_ptr<Ui::RpWidget> _header = { nullptr };
 	object_ptr<ListWidget> _list = { nullptr };
 

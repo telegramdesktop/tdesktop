@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
-#include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "core/core_settings.h"
@@ -80,7 +79,8 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 			try {
 				return ranges::contains(
 					base::Platform::DBus::ListActivatableNames(connection),
-					Glib::ustring(std::string(kService)));
+					std::string(kService),
+					&Glib::ustring::raw);
 			} catch (...) {
 				// avoid service restart loop in sandboxed environments
 				return true;
@@ -129,9 +129,11 @@ void StartServiceAsync(Fn<void()> callback) {
 						};
 
 						const auto errorName =
-							Gio::DBus::ErrorUtils::get_remote_error(e);
+							Gio::DBus::ErrorUtils::get_remote_error(e).raw();
 
-						if (!ranges::contains(NotSupportedErrors, errorName)) {
+						if (!ranges::contains(
+								NotSupportedErrors,
+								errorName)) {
 							throw e;
 						}
 					}
@@ -166,7 +168,8 @@ bool GetServiceRegistered() {
 			try {
 				return ranges::contains(
 					DBus::ListActivatableNames(connection),
-					Glib::ustring(std::string(kService)));
+					std::string(kService),
+					&Glib::ustring::raw);
 			} catch (...) {
 				return false;
 			}
@@ -315,6 +318,18 @@ Glib::ustring GetImageKey(const QVersionNumber &specificationVersion) {
 	return "icon_data";
 }
 
+bool UseGNotification() {
+	if (!Gio::Application::get_default()) {
+		return false;
+	}
+
+	if (Window::Notifications::OptionGNotification.value()) {
+		return true;
+	}
+
+	return KSandbox::isFlatpak() && !ServiceRegistered;
+}
+
 class NotificationData final : public base::has_weak_ptr {
 public:
 	using NotificationId = Window::Notifications::Manager::NotificationId;
@@ -374,7 +389,9 @@ NotificationData::NotificationData(
 	NotificationId id)
 : _manager(manager)
 , _id(id)
-, _application(Gio::Application::get_default()) {
+, _application(UseGNotification()
+		? Gio::Application::get_default()
+		: nullptr) {
 }
 
 bool NotificationData::init(
@@ -383,12 +400,12 @@ bool NotificationData::init(
 		const QString &msg,
 		Window::Notifications::Manager::DisplayOptions options) {
 	if (_application) {
-		_notification = Gio::Notification::create(title.toStdString());
-
-		_notification->set_body(
+		_notification = Gio::Notification::create(
 			subtitle.isEmpty()
-				? msg.toStdString()
-				: u"%1\n%2"_q.arg(subtitle, msg).toStdString());
+				? title.toStdString()
+				: subtitle.toStdString() + " (" + title.toStdString() + ')');
+
+		_notification->set_body(msg.toStdString());
 
 		_notification->set_icon(
 			Gio::ThemedIcon::create(base::IconName().toStdString()));
@@ -498,19 +515,22 @@ bool NotificationData::init(
 		});
 	};
 
-	_title = title.toStdString();
 	_imageKey = GetImageKey(CurrentServerInformationValue().specVersion);
 
 	if (capabilities.contains(u"body-markup"_q)) {
+		_title = title.toStdString();
+
 		_body = subtitle.isEmpty()
 			? msg.toHtmlEscaped().toStdString()
 			: u"<b>%1</b>\n%2"_q.arg(
 				subtitle.toHtmlEscaped(),
 				msg.toHtmlEscaped()).toStdString();
 	} else {
-		_body = subtitle.isEmpty()
-			? msg.toStdString()
-			: u"%1\n%2"_q.arg(subtitle, msg).toStdString();
+		_title = subtitle.isEmpty()
+			? title.toStdString()
+			: subtitle.toStdString() + " (" + title.toStdString() + ')';
+
+		_body = msg.toStdString();
 	}
 
 	if (capabilities.contains("actions")) {
@@ -529,12 +549,13 @@ bool NotificationData::init(
 				_actions.push_back(
 					tr::lng_notification_reply(tr::now).toStdString());
 
-				_notificationRepliedSignalId = _dbusConnection->signal_subscribe(
-					signalEmitted,
-					std::string(kService),
-					std::string(kInterface),
-					"NotificationReplied",
-					std::string(kObjectPath));
+				_notificationRepliedSignalId =
+					_dbusConnection->signal_subscribe(
+						signalEmitted,
+						std::string(kService),
+						std::string(kInterface),
+						"NotificationReplied",
+						std::string(kObjectPath));
 			} else {
 				// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
 				_actions.push_back("mail-reply-sender");
@@ -803,23 +824,26 @@ bool WaitForInputForCustom() {
 }
 
 bool Supported() {
-	return ServiceRegistered || Gio::Application::get_default();
+	return ServiceRegistered || UseGNotification();
 }
 
 bool Enforced() {
 	// Wayland doesn't support positioning
 	// and custom notifications don't work here
-	return IsWayland() || OptionGApplication.value();
+	return IsWayland() || Window::Notifications::OptionGNotification.value();
 }
 
 bool ByDefault() {
+	// The capabilities are static, equivalent to 'body' and 'actions' only
+	if (UseGNotification()) {
+		return false;
+	}
+
 	// A list of capabilities that offer feature parity
 	// with custom notifications
 	static const auto NeededCapabilities = {
 		// To show message content
 		u"body"_q,
-		// To make the sender name bold
-		u"body-markup"_q,
 		// To have buttons on notifications
 		u"actions"_q,
 		// To have quick reply
@@ -835,7 +859,7 @@ bool ByDefault() {
 }
 
 void Create(Window::Notifications::System *system) {
-	static auto ServiceWatcher = CreateServiceWatcher();
+	static const auto ServiceWatcher = CreateServiceWatcher();
 
 	const auto managerSetter = [=] {
 		using ManagerType = Window::Notifications::ManagerType;
@@ -854,35 +878,15 @@ void Create(Window::Notifications::System *system) {
 		}
 	};
 
-	if (Gio::Application::get_default()) {
-		ServiceWatcher = nullptr;
-		ServiceRegistered = false;
-		CurrentServerInformation = std::nullopt;
-		CurrentCapabilities = QStringList{};
-		managerSetter();
-		return;
-	}
-
 	const auto counter = std::make_shared<int>(2);
 	const auto oneReady = [=] {
 		if (!--*counter) {
-			// GApplication may be created while the reply is received
-			if (Gio::Application::get_default()) {
-				Core::App().notifications().createManager();
-				return;
-			}
 			managerSetter();
 		}
 	};
 
 	// snap doesn't allow access when the daemon is not running :(
 	StartServiceAsync([=] {
-		// GApplication may be created while the reply is received
-		if (Gio::Application::get_default()) {
-			Core::App().notifications().createManager();
-			return;
-		}
-
 		ServiceRegistered = GetServiceRegistered();
 
 		if (!ServiceRegistered) {
@@ -892,7 +896,8 @@ void Create(Window::Notifications::System *system) {
 			return;
 		}
 
-		GetServerInformation([=](const std::optional<ServerInformation> &result) {
+		GetServerInformation([=](
+				const std::optional<ServerInformation> &result) {
 			CurrentServerInformation = result;
 			oneReady();
 		});

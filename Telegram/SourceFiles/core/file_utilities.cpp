@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "platform/platform_file_utilities.h"
@@ -23,8 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QCoreApplication>
 #include <QtCore/QStandardPaths>
 #include <QtGui/QDesktopServices>
-
-#include <ksandbox.h>
 
 bool filedialogGetSaveFile(
 		QPointer<QWidget> parent,
@@ -77,7 +76,7 @@ QString filedialogDefaultName(
 	QString base;
 	if (fileTime) {
 		const auto date = base::unixtime::parse(fileTime);
-		base = prefix + QLocale().toString(date, "_yyyy-MM-dd_HH-mm-ss");
+		base = prefix + date.toString("_yyyy-MM-dd_HH-mm-ss");
 	} else {
 		struct tm tm;
 		time_t t = time(NULL);
@@ -139,9 +138,9 @@ void OpenEmailLink(const QString &email) {
 	});
 }
 
-void OpenWith(const QString &filepath, QPoint menuPosition) {
+void OpenWith(const QString &filepath) {
 	InvokeQueued(QCoreApplication::instance(), [=] {
-		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath, menuPosition)) {
+		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath)) {
 			Ui::PreventDelayedActivation();
 			if (!Platform::File::UnsafeShowOpenWith(filepath)) {
 				Platform::File::UnsafeLaunch(filepath);
@@ -173,34 +172,14 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
-	const auto standardLocation = QStandardPaths::writableLocation(
-		QStandardPaths::DownloadLocation);
-	const auto realDefaultPath = standardLocation
+	if (!Core::App().canReadDefaultDownloadPath()) {
+		return session->local().tempDirectory();
+	}
+	return QStandardPaths::writableLocation(
+		QStandardPaths::DownloadLocation)
 		+ '/'
 		+ DefaultDownloadPathFolder(session)
 		+ '/';
-	if (KSandbox::isInside()
-		&& Core::App().settings().downloadPath().isEmpty()
-		&& !base::CanReadDirectory(standardLocation)) {
-		QStringList files;
-		QByteArray remoteContent;
-		const auto success = Platform::FileDialog::Get(
-			nullptr,
-			files,
-			remoteContent,
-			tr::lng_download_path_choose(tr::now),
-			QString(),
-			FileDialog::internal::Type::ReadFolder,
-			realDefaultPath);
-		if (success && !files.isEmpty() && !files[0].isEmpty()) {
-			const auto result = files[0].endsWith('/') ? files[0] : (files[0] + '/');
-			Core::App().settings().setDownloadPath(result);
-			Core::App().saveSettings();
-			return result;
-		}
-		return QString();
-	}
-	return realDefaultPath;
 }
 
 namespace internal {

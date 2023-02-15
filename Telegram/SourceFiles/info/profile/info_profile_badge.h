@@ -65,7 +65,6 @@ private:
 	const int _customStatusLoopsLimit = 0;
 	DocumentId _emojiStatusId = 0;
 	std::unique_ptr<Ui::Text::CustomEmoji> _emojiStatus;
-	std::unique_ptr<Ui::Text::CustomEmojiColored> _emojiStatusColored;
 	base::flags<BadgeType> _allowed;
 	BadgeType _badge = BadgeType();
 	Fn<void()> _premiumClickCallback;

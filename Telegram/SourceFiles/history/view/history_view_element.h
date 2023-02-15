@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class HistoryBlock;
 class HistoryItem;
-class HistoryMessage;
-class HistoryService;
 struct HistoryMessageReply;
 
 namespace Data {
@@ -60,16 +58,16 @@ enum class Context : char {
 	ContactPreview
 };
 
+enum class OnlyEmojiAndSpaces : char {
+	Unknown,
+	Yes,
+	No,
+};
+
 class Element;
 class ElementDelegate {
 public:
 	virtual Context elementContext() = 0;
-	virtual std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing = nullptr) = 0;
-	virtual std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing = nullptr) = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
 	[[nodiscard]] virtual float64 elementHighlightOpacity(
 		not_null<const HistoryItem*> item) const = 0;
@@ -126,12 +124,6 @@ public:
 		Fn<void()> update);
 	~SimpleElementDelegate();
 
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing = nullptr) override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
 	[[nodiscard]] float64 elementHighlightOpacity(
 		not_null<const HistoryItem*> item) const override;
@@ -322,6 +314,8 @@ public:
 
 	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const;
 	[[nodiscard]] Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
+
+	[[nodiscard]] OnlyEmojiAndSpaces isOnlyEmojiAndSpaces() const;
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
 	void setAttachToPrevious(bool attachToNext, Element *previous = nullptr);

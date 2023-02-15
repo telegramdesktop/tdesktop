@@ -62,10 +62,6 @@ void EmojiStatusPanel::setChooseFilter(Fn<bool(DocumentId)> filter) {
 	_chooseFilter = std::move(filter);
 }
 
-void EmojiStatusPanel::setChooseCallback(Fn<void(DocumentId)> callback) {
-	_chooseCallback = std::move(callback);
-}
-
 void EmojiStatusPanel::show(
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> button,
@@ -173,16 +169,16 @@ void EmojiStatusPanel::create(
 		return Chosen{ .animation = data.messageSendingFrom };
 	});
 
+	const auto weak = Ui::MakeWeak(_panel.get());
 	const auto accept = [=](Chosen chosen) {
 		Expects(chosen.until != Selector::kPickCustomTimeId);
 
+		// From PickUntilBox is called after EmojiStatusPanel is destroyed!
 		const auto owner = &controller->session().data();
-		startAnimation(owner, body, chosen.id, chosen.animation);
-		if (_chooseCallback) {
-			_chooseCallback(chosen.id);
-		} else {
-			owner->emojiStatuses().set(chosen.id, chosen.until);
+		if (weak) {
+			startAnimation(owner, body, chosen.id, chosen.animation);
 		}
+		owner->emojiStatuses().set(chosen.id, chosen.until);
 	};
 
 	rpl::merge(

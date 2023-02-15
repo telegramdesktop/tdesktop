@@ -16,12 +16,10 @@ windowDefaultWidth: 800px;
 windowDefaultHeight: 600px;
 windowBigDefaultWidth: 1024px;
 windowBigDefaultHeight: 768px;
-windowResizeArea: 4px;
 
 columnMinimalWidthLeft: 260px;
 columnMaximalWidthLeft: 540px;
 columnMinimalWidthMain: 380px;
-columnDesiredWidthMain: 512px;
 columnMinimalWidthThird: 292px;
 columnMaximalWidthThird: 392px;
 
@@ -116,7 +114,6 @@ mainMenuCoverNameLeft: 26px;
 mainMenuCoverNameTop: 84px;
 mainMenuCoverStatusLeft: mainMenuCoverNameLeft;
 mainMenuCoverStatusTop: 103px;
-mainMenuPhoneFont: font(12px);
 mainMenuSkip: 6px;
 mainMenuFooterHeightMin: 80px;
 mainMenu: Menu(defaultMenu) {
@@ -143,7 +140,6 @@ mainMenuAddAccountButton: SettingsButton(mainMenuButton) {
 	iconLeft: 23px;
 }
 
-mainMenuShadow: icon {{ "menu_shadow", windowShadowFg }};
 mainMenuAccountSize: 26px;
 mainMenuAccountLine: 2px;
 mainMenuBadgeFont: font(11px bold);
@@ -178,13 +174,6 @@ themeEditorDescriptionSkip: 10px;
 themeEditorNameFont: font(15px semibold);
 themeEditorCopyNameFont: font(fsize semibold);
 
-windowEmojiSuggestionsPopup: PopupMenu(defaultPopupMenu) {
-	menu: Menu(defaultMenu) {
-		itemPadding: margins(48px, 8px, 17px, 7px);
-		widthMax: 512px;
-	}
-}
-
 connectingLeftShadow: icon {{ "connecting_left_shadow", windowShadowFg }};
 connectingLeft: icon {{ "connecting_left", windowBg }};
 connectingRightShadow: icon {{ "connecting_right_shadow", windowShadowFg }};
@@ -193,7 +182,6 @@ connectingBodyShadow: icon {{ "connecting_body_shadow", windowShadowFg }};
 connectingBody: icon {{ "connecting_body", windowBg }};
 connectingMargin: margins(2px, 2px, 2px, 2px);
 connectingTextPadding: margins(18px, 11px, 18px, 0px);
-connectingRadialSkip: 6px;
 connectingRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	color: menuIconFg;
 	thickness: 2px;

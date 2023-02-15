@@ -573,6 +573,18 @@ QByteArray SerializeMessage(
 		if (data.iconEmojiId) {
 			push("new_icon_emoji_id", *data.iconEmojiId);
 		}
+	}, [&](const ActionSuggestProfilePhoto &data) {
+		pushActor();
+		pushAction("suggest_profile_photo");
+		pushPhoto(data.photo.image);
+	}, [&](const ActionAttachMenuBotAllowed &data) {
+		pushActor();
+		pushAction("attach_menu_bot_allowed");
+	}, [&](const ActionRequestedPeer &data) {
+		pushActor();
+		pushAction("requested_peer");
+		push("button_id", data.buttonId);
+		push("peer_id", data.peerId.value);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

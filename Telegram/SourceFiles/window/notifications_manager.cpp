@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/notifications_manager.h"
 
+#include "base/options.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager_default.h"
 #include "media/audio/media_audio_track.h"
@@ -76,6 +77,17 @@ QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
 }
 
 } // namespace
+
+const char kOptionGNotification[] = "gnotification";
+
+base::options::toggle OptionGNotification({
+	.id = kOptionGNotification,
+	.name = "GNotification",
+	.description = "Force enable GLib's GNotification."
+		" When disabled, autodetect is used.",
+	.scope = base::options::linux,
+	.restartRequired = true,
+});
 
 struct System::Waiter {
 	NotificationInHistoryKey key;
@@ -553,7 +565,8 @@ void System::showNext() {
 	const auto &settings = Core::App().settings();
 	if (alertThread) {
 		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
-			if (const auto window = Core::App().primaryWindow()) {
+			const auto peer = alertThread->peer();
+			if (const auto window = Core::App().windowFor(peer)) {
 				if (const auto handle = window->widget()->windowHandle()) {
 					handle->alert(kSystemAlertDuration);
 					// (handle, SLOT(_q_clearAlert())); in the future.
@@ -823,7 +836,8 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 		|| !item
 		|| ((item->out() || peer->isSelf()) && item->isFromScheduled());
 	result.hideReplyButton = result.hideMarkAsRead
-		|| (!peer->canWrite() && (!topic || !topic->canWrite()))
+		|| (!Data::CanSendTexts(peer)
+			&& (!topic || !Data::CanSendTexts(topic)))
 		|| peer->isBroadcast()
 		|| (peer->slowmodeSecondsLeft() > 0);
 	return result;

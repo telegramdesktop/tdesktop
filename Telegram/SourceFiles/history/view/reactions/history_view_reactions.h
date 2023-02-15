@@ -110,7 +110,7 @@ private:
 		not_null<Ui::Text::CustomEmoji*> emoji,
 		QPoint innerTopLeft,
 		crl::time now,
-		const QColor &preview) const;
+		const QColor &textColor) const;
 
 	QSize countOptimalSize() override;
 

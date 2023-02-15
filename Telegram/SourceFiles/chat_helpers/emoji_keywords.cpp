@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -637,6 +639,52 @@ std::vector<Result> EmojiKeywords::query(
 		AppendLegacySuggestions(result, query);
 	}
 	return result;
+}
+
+std::vector<Result> EmojiKeywords::queryMine(
+		const QString &query,
+		bool exact) const {
+	return ApplyVariants(PrioritizeRecent(this->query(query, exact)));
+}
+
+std::vector<Result> EmojiKeywords::PrioritizeRecent(
+		std::vector<Result> list) {
+	using Entry = Result;
+	auto lastRecent = begin(list);
+	const auto &recent = Core::App().settings().recentEmoji();
+	for (const auto &item : recent) {
+		const auto emoji = std::get_if<EmojiPtr>(&item.id.data);
+		if (!emoji) {
+			continue;
+		}
+		const auto original = (*emoji)->original()
+			? (*emoji)->original()
+			: (*emoji);
+		const auto it = ranges::find(list, original, [](const Entry &entry) {
+			return entry.emoji;
+		});
+		if (it > lastRecent && it != end(list)) {
+			std::rotate(lastRecent, it, it + 1);
+			++lastRecent;
+		}
+	}
+	return list;
+}
+
+std::vector<Result> EmojiKeywords::ApplyVariants(std::vector<Result> list) {
+	for (auto &item : list) {
+		item.emoji = [&] {
+			const auto result = item.emoji;
+			const auto &variants = Core::App().settings().emojiVariants();
+			const auto i = result->hasVariants()
+				? variants.find(result->nonColoredId())
+				: end(variants);
+			return (i != end(variants))
+				? result->variant(i->second)
+				: result;
+		}();
+	}
+	return list;
 }
 
 int EmojiKeywords::maxQueryLength() const {

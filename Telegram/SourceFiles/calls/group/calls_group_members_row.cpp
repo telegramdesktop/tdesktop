@@ -656,7 +656,7 @@ void MembersRow::paintComplexStatusText(
 		(_mutedByMe
 			? tr::lng_group_call_muted_by_me_status(tr::now)
 			: !about.isEmpty()
-			? font->m.elidedText(about, Qt::ElideRight, availableWidth)
+			? font->elided(about, availableWidth)
 			: _delegate->rowIsMe(peer())
 			? tr::lng_status_connecting(tr::now)
 			: tr::lng_group_call_invited_status(tr::now)));

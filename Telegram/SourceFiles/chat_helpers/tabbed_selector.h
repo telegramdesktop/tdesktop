@@ -31,6 +31,7 @@ class ScrollArea;
 class SettingsSlider;
 class FlatLabel;
 class BoxContent;
+class TabbedSearch;
 } // namespace Ui
 
 namespace Window {
@@ -76,6 +77,14 @@ struct EmojiChosen {
 };
 
 using InlineChosen = InlineBots::ResultSelected;
+
+[[nodiscard]] std::unique_ptr<Ui::TabbedSearch> MakeSearch(
+	not_null<Ui::RpWidget*> parent,
+	const style::EmojiPan &st,
+	Fn<void(std::vector<QString>&&)> callback,
+	not_null<Main::Session*> session,
+	bool statusCategories = false,
+	bool profilePhotoCategories = false);
 
 class TabbedSelector : public Ui::RpWidget {
 public:

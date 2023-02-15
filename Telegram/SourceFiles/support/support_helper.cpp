@@ -452,9 +452,7 @@ rpl::producer<QString> Helper::infoLabelValue(
 		user
 	) | rpl::map([](const Support::UserInfo &info) {
 		const auto time = Ui::FormatDateTime(
-			base::unixtime::parse(info.date),
-			cDateFormat(),
-			cTimeFormat());
+			base::unixtime::parse(info.date));
 		return info.author + ", " + time;
 	});
 }
