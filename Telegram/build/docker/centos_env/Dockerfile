@@ -157,7 +157,7 @@ RUN git clone -b v1.0.9 --depth=1 {{ GIT }}/google/brotli.git \
 	&& rm -rf brotli
 
 FROM builder AS highway
-RUN git clone -b 1.0.2 --depth=1 {{ GIT }}/google/highway.git \
+RUN git clone -b 1.0.3 --depth=1 {{ GIT }}/google/highway.git \
 	&& cd highway \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -208,11 +208,12 @@ RUN git clone -b 1.0.0 --depth=1 {{ GIT }}/videolan/dav1d.git \
 	&& rm -rf dav1d
 
 FROM builder AS libde265
-RUN git clone -b v1.0.9 --depth=1 {{ GIT }}/strukturag/libde265.git \
+RUN git clone -b v1.0.11 --depth=1 {{ GIT }}/strukturag/libde265.git \
 	&& cd libde265 \
 	&& cmake -GNinja . \
 		-DCMAKE_BUILD_TYPE=None \
 		-DBUILD_SHARED_LIBS=OFF \
+		-DENABLE_DECODER=OFF \
 		-DENABLE_SDL=OFF \
 	&& cmake --build . --parallel \
 	&& DESTDIR="{{ LibrariesPath }}/libde265-cache" cmake --install . \
@@ -252,14 +253,19 @@ RUN git clone -b v0.11.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
 FROM builder AS libheif
 COPY --link --from=libde265 {{ LibrariesPath }}/libde265-cache /
 
-RUN git clone -b v1.14.0 --depth=1 {{ GIT }}/strukturag/libheif.git \
+RUN git clone -b v1.15.1 --depth=1 {{ GIT }}/strukturag/libheif.git \
 	&& cd libheif \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
 		-DBUILD_SHARED_LIBS=OFF \
+		-DENABLE_PLUGIN_LOADING=OFF \
 		-DWITH_X265=OFF \
-		-DWITH_AOM=OFF \
+		-DWITH_AOM_DECODER=OFF \
+		-DWITH_AOM_ENCODER=OFF \
 		-DWITH_RAV1E=OFF \
+		-DWITH_RAV1E_PLUGIN=OFF \
+		-DWITH_SvtEnc=OFF \
+		-DWITH_SvtEnc_PLUGIN=OFF \
 		-DWITH_DAV1D=OFF \
 		-DWITH_EXAMPLES=OFF \
 	&& cmake --build build --parallel \
@@ -272,7 +278,7 @@ COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
 
-RUN git clone -b v0.7.0 --depth=1 {{ GIT }}/libjxl/libjxl.git \
+RUN git clone -b v0.8.1 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 	&& cd libjxl \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -280,6 +286,7 @@ RUN git clone -b v0.7.0 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 		-DBUILD_TESTING=OFF \
 		-DJPEGXL_ENABLE_DEVTOOLS=OFF \
 		-DJPEGXL_ENABLE_TOOLS=OFF \
+		-DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF \
 		-DJPEGXL_ENABLE_DOXYGEN=OFF \
 		-DJPEGXL_ENABLE_MANPAGES=OFF \
 		-DJPEGXL_ENABLE_BENCHMARK=OFF \
