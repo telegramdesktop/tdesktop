@@ -241,8 +241,12 @@ private:
 	void assignMediaPointer(not_null<PhotoData*> photo);
 
 	void updateOver(QPoint mpos);
+	void initFullScreen();
+	void initNormalGeometry();
+	void savePosition();
 	void moveToScreen(bool inMove = false);
 	void updateGeometry(bool inMove = false);
+	void updateGeometryToScreen(bool inMove = false);
 	bool moveToNext(int delta);
 	void preloadData(int delta);
 
@@ -454,7 +458,6 @@ private:
 
 	Window::SessionController *findWindow(bool switchTo = true) const;
 
-	const bool _supportWindowMode = false;
 	bool _opengl = false;
 	const std::unique_ptr<Ui::GL::Window> _wrap;
 	const not_null<Ui::RpWindow*> _window;
@@ -462,6 +465,10 @@ private:
 	const not_null<Ui::RpWidget*> _body;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
+	QRect _normalGeometry;
+	bool _wasWindowedMode = false;
+	bool _fullscreenInited = false;
+	bool _normalGeometryInited = false;
 	bool _fullscreen = true;
 	bool _windowed = false;
 

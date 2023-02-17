@@ -88,7 +88,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_window.h" // windowDefaultWidth / windowDefaultHeight
 #include "styles/style_calls.h"
 
 #ifdef Q_OS_MAC
@@ -136,6 +135,26 @@ private:
 	not_null<Main::Session*> _session;
 
 };
+
+[[nodiscard]] Core::WindowPosition DefaultPosition() {
+	const auto moncrc = [&] {
+		if (const auto active = Core::App().activeWindow()) {
+			const auto widget = active->widget();
+			if (const auto screen = widget->screen()) {
+				return Platform::ScreenNameChecksum(screen->name());
+			}
+		}
+		return Core::App().settings().windowPosition().moncrc;
+	}();
+	return {
+		.moncrc = moncrc,
+		.scale = cScale(),
+		.x = st::mediaviewDefaultLeft,
+		.y = st::mediaviewDefaultTop,
+		.w = st::mediaviewDefaultWidth,
+		.h = st::mediaviewDefaultHeight,
+	};
+}
 
 PipDelegate::PipDelegate(QWidget *parent, not_null<Main::Session*> session)
 : _parent(parent)
@@ -299,8 +318,7 @@ OverlayWidget::PipWrap::PipWrap(
 }
 
 OverlayWidget::OverlayWidget()
-: _supportWindowMode(true)
-, _wrap(std::make_unique<Ui::GL::Window>())
+: _wrap(std::make_unique<Ui::GL::Window>())
 , _window(_wrap->window())
 , _helper(Platform::CreateOverlayWidgetHelper(_window.get(), [=](bool maximized) {
 	toggleFullScreen(maximized);
@@ -309,7 +327,8 @@ OverlayWidget::OverlayWidget()
 , _surface(
 	Ui::GL::CreateSurface(_body, chooseRenderer(_wrap->backend())))
 , _widget(_surface->rpWidget())
-, _fullscreen(true || !_supportWindowMode)
+, _fullscreen(Core::App().settings().mediaViewPosition().maximized == 2)
+, _windowed(Core::App().settings().mediaViewPosition().maximized == 0)
 , _docDownload(_body, tr::lng_media_download(tr::now), st::mediaviewFileLink)
 , _docSaveAs(_body, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
 , _docCancel(_body, tr::lng_cancel(tr::now), st::mediaviewFileLink)
@@ -365,6 +384,15 @@ OverlayWidget::OverlayWidget()
 				.arg(position.x())
 				.arg(position.y()));
 			moveToScreen(true);
+			if (_windowed) {
+				savePosition();
+			} else {
+				moveToScreen(true);
+			}
+		} else if (type == QEvent::Resize) {
+			if (_windowed) {
+				savePosition();
+			}
 		} else if (type == QEvent::Close
 			&& !Core::Sandbox::Instance().isSavingSession()
 			&& !Core::Quitting()) {
@@ -505,31 +533,34 @@ void OverlayWidget::setupWindow() {
 		return Flag::Move | Flag(0);
 	});
 
-	if (_supportWindowMode) {
-		const auto callback = [=](Qt::WindowState state) {
-			if (state == Qt::WindowMinimized || Platform::IsMac()) {
-				return;
-			} else if (state == Qt::WindowFullScreen) {
-				_fullscreen = true;
-				_windowed = false;
-			} else if (state == Qt::WindowMaximized) {
+	const auto callback = [=](Qt::WindowState state) {
+		if (state == Qt::WindowMinimized || Platform::IsMac()) {
+			return;
+		} else if (state == Qt::WindowMaximized) {
+			if (_fullscreen || _windowed) {
 				_fullscreen = _windowed = false;
-			} else {
-				_fullscreen = false;
-				_windowed = true;
+				savePosition();
 			}
-		};
-		QObject::connect(
-			_window->windowHandle(),
-			&QWindow::windowStateChanged,
-			callback);
-	}
+		} else if (_fullscreen || _windowed) {
+			return;
+		} else if (state == Qt::WindowFullScreen) {
+			_fullscreen = true;
+			savePosition();
+		} else {
+			_windowed = true;
+			savePosition();
+		}
+	};
+	QObject::connect(
+		_window->windowHandle(),
+		&QWindow::windowStateChanged,
+		callback);
 
 	_window->setAttribute(Qt::WA_NoSystemBackground, true);
 	_window->setAttribute(Qt::WA_TranslucentBackground, true);
 
 	_window->setMinimumSize(
-		{ st::windowMinHeight, st::windowMinWidth });
+		{ st::mediaviewMinWidth, st::mediaviewMinHeight });
 
 	_window->shownValue(
 	) | rpl::start_with_next([=](bool shown) {
@@ -555,7 +586,7 @@ void OverlayWidget::refreshLang() {
 }
 
 void OverlayWidget::moveToScreen(bool inMove) {
-	if (!_fullscreen) {
+	if (!_fullscreen || _wasWindowedMode) {
 		return;
 	}
 	const auto widgetScreen = [&](auto &&widget) -> QScreen* {
@@ -587,10 +618,111 @@ void OverlayWidget::moveToScreen(bool inMove) {
 	updateGeometry(inMove);
 }
 
-void OverlayWidget::updateGeometry(bool inMove) {
-	if (Platform::IsWayland() || Platform::IsWindows() || !_fullscreen) {
+void OverlayWidget::initFullScreen() {
+	if (_fullscreenInited) {
 		return;
 	}
+	_fullscreenInited = true;
+	switch (Core::App().settings().mediaViewPosition().maximized) {
+	case 2:
+		_fullscreen = true;
+		_windowed = false;
+		break;
+	case 1:
+		_fullscreen = Platform::IsMac();
+		_windowed = false;
+		break;
+	}
+}
+
+void OverlayWidget::initNormalGeometry() {
+	if (_normalGeometryInited) {
+		return;
+	}
+	_normalGeometryInited = true;
+	const auto saved = Core::App().settings().mediaViewPosition();
+	const auto adjusted = Core::AdjustToScale(saved, u"Viewer"_q);
+	const auto initial = DefaultPosition();
+	_normalGeometry = initial.rect();
+	if (const auto active = Core::App().activeWindow()) {
+		_normalGeometry = active->widget()->countInitialGeometry(
+			adjusted,
+			initial,
+			{ st::mediaviewMinWidth, st::mediaviewMinHeight });
+	}
+}
+
+void OverlayWidget::savePosition() {
+	if (isHidden() || isMinimized() || !_normalGeometryInited) {
+		return;
+	}
+	const auto &savedPosition = Core::App().settings().mediaViewPosition();
+	auto realPosition = savedPosition;
+	if (_fullscreen) {
+		realPosition.maximized = 2;
+		realPosition.moncrc = 0;
+		DEBUG_LOG(("Viewer Pos: Saving fullscreen position."));
+	} else if (!_windowed) {
+		realPosition.maximized = 1;
+		realPosition.moncrc = 0;
+		DEBUG_LOG(("Viewer Pos: Saving maximized position."));
+	} else {
+		auto r = _window->geometry();
+		realPosition.x = r.x();
+		realPosition.y = r.y();
+		realPosition.w = r.width();
+		realPosition.h = r.height();
+		realPosition.scale = cScale();
+		realPosition.maximized = 0;
+		realPosition.moncrc = 0;
+		DEBUG_LOG(("Viewer Pos: "
+			"Saving non-maximized position: %1, %2, %3, %4"
+			).arg(realPosition.x
+			).arg(realPosition.y
+			).arg(realPosition.w
+			).arg(realPosition.h));
+	}
+	realPosition = Window::PositionWithScreen(
+		realPosition,
+		_window,
+		{ st::mediaviewMinWidth, st::mediaviewMinHeight });
+	if (realPosition.w >= st::mediaviewMinWidth
+		&& realPosition.h >= st::mediaviewMinHeight
+		&& realPosition != savedPosition) {
+		DEBUG_LOG(("Viewer Pos: "
+			"Writing: %1, %2, %3, %4 (scale %5%, maximized %6)")
+			.arg(realPosition.x)
+			.arg(realPosition.y)
+			.arg(realPosition.w)
+			.arg(realPosition.h)
+			.arg(realPosition.scale)
+			.arg(Logs::b(realPosition.maximized)));
+		Core::App().settings().setMediaViewPosition(realPosition);
+		Core::App().saveSettingsDelayed();
+	}
+}
+
+void OverlayWidget::updateGeometry(bool inMove) {
+	initFullScreen();
+	if (_fullscreen) {
+		updateGeometryToScreen(inMove);
+	} else if (_windowed && _normalGeometryInited) {
+		_window->setGeometry(_normalGeometry);
+	}
+	if constexpr (!Platform::IsMac()) {
+		if (_fullscreen) {
+			if (!isHidden() && !isMinimized()) {
+				_window->showFullScreen();
+			}
+		} else if (!_windowed) {
+			if (!isHidden() && !isMinimized()) {
+				_window->showMaximized();
+			}
+		}
+	}
+}
+
+void OverlayWidget::updateGeometryToScreen(bool inMove) {
 	const auto available = _window->screen()->geometry();
 	const auto openglWidget = _opengl
 		? static_cast<QOpenGLWidget*>(_widget.get())
@@ -624,9 +756,7 @@ void OverlayWidget::updateGeometry(bool inMove) {
 }
 
 void OverlayWidget::updateControlsGeometry() {
-	const auto navSkip = _supportWindowMode
-		? st::mediaviewHeaderTop
-		: st::mediaviewControlSize;
+	const auto navSkip = st::mediaviewHeaderTop;
 	_closeNav = QRect(width() - st::mediaviewControlSize, 0, st::mediaviewControlSize, st::mediaviewControlSize);
 	_closeNavIcon = style::centerrect(_closeNav, st::mediaviewClose);
 	_leftNav = QRect(0, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
@@ -1617,19 +1747,22 @@ void OverlayWidget::minimize() {
 }
 
 void OverlayWidget::toggleFullScreen(bool fullscreen) {
+	_fullscreen = fullscreen;
+	_windowed = !fullscreen;
+	initNormalGeometry();
 	if constexpr (Platform::IsMac()) {
-		_fullscreen = fullscreen;
-		_windowed = !fullscreen;
 		_helper->beforeShow(_fullscreen);
-		if (_fullscreen) {
-			moveToScreen();
-		}
+		updateGeometry();
 		_helper->afterShow(_fullscreen);
-	} else if (fullscreen) {
+	} else if (_fullscreen) {
+		updateGeometry();
 		_window->showFullScreen();
 	} else {
 		_window->showNormal();
+		updateGeometry();
+		_wasWindowedMode = true;
 	}
+	savePosition();
 }
 
 void OverlayWidget::activateControls() {
@@ -1707,7 +1840,9 @@ void OverlayWidget::subscribeToScreenGeometry() {
 	base::qt_signal_producer(
 		screen,
 		&QScreen::geometryChanged
-	) | rpl::start_with_next([=] {
+	) | rpl::filter([=] {
+		return !isHidden() && !isMinimized() && _fullscreen;
+	}) | rpl::start_with_next([=] {
 		updateGeometry();
 	}, _screenGeometryLifetime);
 }
@@ -2573,7 +2708,7 @@ void OverlayWidget::update(const QRegion &region) {
 }
 
 bool OverlayWidget::isActive() const {
-	return !isHidden() && !isMinimized() && Ui::InFocusChain(_window);
+	return !isHidden() && !isMinimized() && _window->isActiveWindow();
 }
 
 bool OverlayWidget::isHidden() const {
@@ -2910,8 +3045,11 @@ void OverlayWidget::displayFinished() {
 
 void OverlayWidget::showAndActivate() {
 	_body->show();
+	initNormalGeometry();
+	updateGeometry();
 	if (_windowed || Platform::IsMac()) {
 		_window->showNormal();
+		_wasWindowedMode = true;
 	} else if (_fullscreen) {
 		_window->showFullScreen();
 	} else {
@@ -3995,7 +4133,7 @@ void OverlayWidget::paintControls(
 			st::mediaviewRight },
 		{
 			OverClose,
-			!_supportWindowMode,
+			false,
 			_closeNav,
 			_closeNavIcon,
 			st::mediaviewClose },
@@ -4702,8 +4840,10 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverIcon);
 	} else if (_moreNav.contains(pos)) {
 		updateOverState(OverMore);
-	} else if (!_supportWindowMode && _closeNav.contains(pos)) {
+#if 0 // close
+	} else if (_closeNav.contains(pos)) {
 		updateOverState(OverClose);
+#endif
 	} else if (documentContentShown() && finalContentRect().contains(pos)) {
 		if ((_document->isVideoFile() || _document->isVideoMessage()) && _streamed) {
 			updateOverState(OverVideo);

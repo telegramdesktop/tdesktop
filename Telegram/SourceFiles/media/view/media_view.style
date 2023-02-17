@@ -262,6 +262,13 @@ mediaviewGroupWidthMax: 160px;
 mediaviewGroupSkip: 3px;
 mediaviewGroupSkipCurrent: 12px;
 
+mediaviewMinWidth: 480px;
+mediaviewMinHeight: 360px;
+mediaviewDefaultLeft: 160px;
+mediaviewDefaultTop: 120px;
+mediaviewDefaultWidth: 800px;
+mediaviewDefaultHeight: 600px;
+
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;
 themePreviewOverlayOpacity: 0.8;

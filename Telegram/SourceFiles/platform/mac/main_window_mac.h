@@ -85,4 +85,8 @@ private:
 
 };
 
+[[nodiscard]] int32 ScreenNameChecksum(const QString &name) {
+	return Window::DefaultScreenNameChecksum(name);
+}
+
 } // namespace Platform

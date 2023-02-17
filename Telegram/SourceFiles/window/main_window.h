@@ -134,6 +134,11 @@ public:
 		updateGlobalMenuHook();
 	}
 
+	[[nodiscard]] QRect countInitialGeometry(
+		Core::WindowPosition position,
+		Core::WindowPosition initial,
+		QSize minSize) const;
+
 protected:
 	void leaveEventHook(QEvent *e) override;
 
@@ -173,9 +178,6 @@ protected:
 	virtual bool initGeometryFromSystem() {
 		return false;
 	}
-
-	// This one is overriden in Windows for historical reasons.
-	virtual int32 screenNameChecksum(const QString &name) const;
 
 	void setPositionInited();
 
@@ -217,5 +219,16 @@ private:
 	mutable crl::time _monitorLastGot = 0;
 
 };
+
+[[nodiscard]] int32 DefaultScreenNameChecksum(const QString &name);
+
+[[nodiscard]] Core::WindowPosition PositionWithScreen(
+	Core::WindowPosition position,
+	const QScreen *chosen,
+	QSize minimal);
+[[nodiscard]] Core::WindowPosition PositionWithScreen(
+	Core::WindowPosition position,
+	not_null<const QWidget*> widget,
+	QSize minimal);
 
 } // namespace Window
