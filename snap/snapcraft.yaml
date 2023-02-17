@@ -271,7 +271,7 @@ parts:
   libjxl:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v0.7.0
+    source-tag: v0.8.1
     plugin: cmake
     build-environment:
       - LDFLAGS: -s
@@ -282,6 +282,7 @@ parts:
       - -DBUILD_TESTING=OFF
       - -DJPEGXL_ENABLE_DEVTOOLS=OFF
       - -DJPEGXL_ENABLE_TOOLS=OFF
+      - -DJPEGXL_ENABLE_JPEGLI_LIBJPEG=OFF
       - -DJPEGXL_ENABLE_DOXYGEN=OFF
       - -DJPEGXL_ENABLE_MANPAGES=OFF
       - -DJPEGXL_ENABLE_BENCHMARK=OFF
