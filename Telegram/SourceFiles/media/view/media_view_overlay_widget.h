@@ -315,6 +315,7 @@ private:
 
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
+	void recountSkipTop();
 
 	void displayPhoto(not_null<PhotoData*> photo);
 	void displayDocument(
@@ -509,6 +510,8 @@ private:
 
 	int _width = 0;
 	int _height = 0;
+	int _skipTop = 0;
+	int _availableHeight = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
 	int _xStart = 0, _yStart = 0;
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in

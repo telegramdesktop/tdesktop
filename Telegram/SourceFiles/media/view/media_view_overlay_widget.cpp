@@ -529,7 +529,7 @@ void OverlayWidget::setupWindow() {
 	_window->setAttribute(Qt::WA_TranslucentBackground, true);
 
 	_window->setMinimumSize(
-		{ st::windowDefaultWidth, st::windowDefaultHeight });
+		{ st::windowMinHeight, st::windowMinWidth });
 
 	_window->shownValue(
 	) | rpl::start_with_next([=](bool shown) {
@@ -1305,15 +1305,29 @@ void OverlayWidget::contentSizeChanged() {
 	resizeContentByScreenSize();
 }
 
-void OverlayWidget::resizeContentByScreenSize() {
+void OverlayWidget::recountSkipTop() {
 	const auto bottom = (!_streamed || videoIsGifOrUserpic())
 		? height()
-		: (_streamed->controls.y()
-			- st::mediaviewCaptionPadding.bottom()
-			- st::mediaviewCaptionMargin.height());
-	const auto skipHeight = (height() - bottom);
+		: (_streamed->controls.y() - st::mediaviewCaptionPadding.bottom());
+	const auto skipHeightBottom = (height() - bottom);
+	_skipTop = std::min(
+		std::max(
+			st::mediaviewCaptionMargin.height(),
+			height() - _height - skipHeightBottom),
+		skipHeightBottom);
+	_availableHeight = height() - skipHeightBottom - _skipTop;
+	if (_fullScreenVideo && skipHeightBottom > 0 && _width > 0) {
+		const auto h = width() * _height / _width;
+		const auto topAllFit = height() - skipHeightBottom - h;
+		if (_skipTop > topAllFit) {
+			_skipTop = std::max(topAllFit, 0);
+		}
+	}
+}
+
+void OverlayWidget::resizeContentByScreenSize() {
+	recountSkipTop();
 	const auto availableWidth = width();
-	const auto availableHeight = height() - 2 * skipHeight;
 	const auto countZoomFor = [&](int outerw, int outerh) {
 		auto result = float64(outerw) / _width;
 		if (_height * result > outerh) {
@@ -1327,13 +1341,13 @@ void OverlayWidget::resizeContentByScreenSize() {
 		return result;
 	};
 	if (_width > 0 && _height > 0) {
-		_zoomToDefault = countZoomFor(availableWidth, availableHeight);
+		_zoomToDefault = countZoomFor(availableWidth, _availableHeight);
 		_zoomToScreen = countZoomFor(width(), height());
 	} else {
 		_zoomToDefault = _zoomToScreen = 0;
 	}
 	const auto usew = _fullScreenVideo ? width() : availableWidth;
-	const auto useh = _fullScreenVideo ? height() : availableHeight;
+	const auto useh = _fullScreenVideo ? height() : _availableHeight;
 	if ((_width > usew) || (_height > useh) || _fullScreenVideo) {
 		const auto use = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 		_zoom = kZoomToScreenLevel;
@@ -1350,7 +1364,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 		_h = _height;
 	}
 	_x = (width() - _w) / 2;
-	_y = (height() - _h) / 2;
+	_y = _skipTop + (_availableHeight - _h) / 2;
 	_geometryAnimation.stop();
 }
 
@@ -1482,7 +1496,7 @@ void OverlayWidget::zoomReset() {
 		newZoom = 0;
 	}
 	_x = -_width / 2;
-	_y = -_height / 2;
+	_y = _skipTop - (_height / 2);
 	float64 z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
 	if (z >= 0) {
 		_x = qRound(_x * (z + 1));
@@ -1492,7 +1506,7 @@ void OverlayWidget::zoomReset() {
 		_y = qRound(_y / (-z + 1));
 	}
 	_x += width() / 2;
-	_y += height() / 2;
+	_y += _availableHeight / 2;
 	update();
 	zoomUpdate(newZoom);
 }
@@ -3283,13 +3297,19 @@ void OverlayWidget::refreshClipControllerGeometry() {
 		_groupThumbs = nullptr;
 		_groupThumbsRect = QRect();
 	}
-	const auto controllerBottom = _groupThumbs
+	const auto controllerBottom = (_groupThumbs && !_fullScreenVideo)
 		? _groupThumbsTop
 		: height();
-	_streamed->controls.resize(st::mediaviewControllerSize);
+	const auto skip = st::mediaviewCaptionPadding.bottom();
+	const auto controllerWidth = std::min(
+		st::mediaviewControllerSize.width(),
+		width() - 2 * skip);
+	_streamed->controls.resize(
+		controllerWidth,
+		st::mediaviewControllerSize.height());
 	_streamed->controls.move(
-		(width() - _streamed->controls.width()) / 2,
-		controllerBottom - _streamed->controls.height() - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height());
+		(width() - controllerWidth) / 2,
+		controllerBottom - _streamed->controls.height() - st::mediaviewCaptionPadding.bottom());
 	Ui::SendPendingMoveResizeEvents(&_streamed->controls);
 }
 
@@ -3547,12 +3567,15 @@ void OverlayWidget::playbackToggleFullScreen() {
 	_fullScreenVideo = !_fullScreenVideo;
 	if (_fullScreenVideo) {
 		_fullScreenZoomCache = _zoom;
-		setZoomLevel(kZoomToScreenLevel, true);
-	} else {
-		setZoomLevel(_fullScreenZoomCache, true);
+	}
+	resizeCenteredControls();
+	recountSkipTop();
+	setZoomLevel(
+		_fullScreenVideo ? kZoomToScreenLevel : _fullScreenZoomCache,
+		true);
+	if (!_fullScreenVideo) {
 		_streamed->controls.showAnimated();
 	}
-
 	_streamed->controls.setInFullScreen(_fullScreenVideo);
 	_touchbarFullscreenToggled.fire_copy(_fullScreenVideo);
 	updateControls();
@@ -4233,10 +4256,10 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 	_h = contentSize.height();
 	if (z >= 0) {
 		nx = (_x - width() / 2.) / (z + 1);
-		ny = (_y - height() / 2.) / (z + 1);
+		ny = (_y - _availableHeight / 2.) / (z + 1);
 	} else {
 		nx = (_x - width() / 2.) * (-z + 1);
-		ny = (_y - height() / 2.) * (-z + 1);
+		ny = (_y - _availableHeight / 2.) * (-z + 1);
 	}
 	_zoom = newZoom;
 	z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
@@ -4244,12 +4267,12 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 		_w = qRound(_w * (z + 1));
 		_h = qRound(_h * (z + 1));
 		_x = qRound(nx * (z + 1) + width() / 2.);
-		_y = qRound(ny * (z + 1) + height() / 2.);
+		_y = qRound(ny * (z + 1) + _availableHeight / 2.);
 	} else {
 		_w = qRound(_w / (-z + 1));
 		_h = qRound(_h / (-z + 1));
 		_x = qRound(nx / (-z + 1) + width() / 2.);
-		_y = qRound(ny / (-z + 1) + height() / 2.);
+		_y = qRound(ny / (-z + 1) + _availableHeight / 2.);
 	}
 	snapXY();
 	if (_opengl) {
@@ -4531,16 +4554,16 @@ bool OverlayWidget::handleDoubleClick(
 }
 
 void OverlayWidget::snapXY() {
-	int32 xmin = width() - _w, xmax = 0;
-	int32 ymin = height() - _h, ymax = 0;
-	if (xmin > (width() - _w) / 2) xmin = (width() - _w) / 2;
-	if (xmax < (width() - _w) / 2) xmax = (width() - _w) / 2;
-	if (ymin > (height() - _h) / 2) ymin = (height() - _h) / 2;
-	if (ymax < (height() - _h) / 2) ymax = (height() - _h) / 2;
-	if (_x < xmin) _x = xmin;
-	if (_x > xmax) _x = xmax;
-	if (_y < ymin) _y = ymin;
-	if (_y > ymax) _y = ymax;
+	auto xmin = width() - _w, xmax = 0;
+	auto ymin = height() - _h, ymax = 0;
+	accumulate_min(xmin, (width() - _w) / 2);
+	accumulate_max(xmax, (width() - _w) / 2);
+	accumulate_min(ymin, _skipTop + (_availableHeight - _h) / 2);
+	accumulate_max(ymax, _skipTop + (_availableHeight - _h) / 2);
+	accumulate_max(_x, xmin);
+	accumulate_min(_x, xmax);
+	accumulate_max(_y, ymin);
+	accumulate_min(_y, ymax);
 }
 
 void OverlayWidget::handleMouseMove(QPoint position) {
