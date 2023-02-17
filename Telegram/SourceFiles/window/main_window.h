@@ -83,7 +83,7 @@ public:
 	void updateIsActive();
 
 	[[nodiscard]] bool isActive() const {
-		return _isActive;
+		return !isHidden() && _isActive;
 	}
 	[[nodiscard]] virtual bool isActiveForTrayMenu() {
 		updateIsActive();

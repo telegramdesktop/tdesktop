@@ -32,6 +32,7 @@ public:
 	}
 	virtual void notifyFileDialogShown(bool shown) {
 	}
+	virtual void minimize(not_null<Ui::RpWindow*> window);
 };
 
 [[nodiscard]] std::unique_ptr<OverlayWidgetHelper> CreateOverlayWidgetHelper(
@@ -44,10 +45,10 @@ public:
 		not_null<Ui::RpWindow*> window,
 		Fn<void(bool)> maximize);
 	~DefaultOverlayWidgetHelper();
-		
+
 	void orderWidgets() override;
 	bool skipTitleHitTest(QPoint position) override;
-	
+
 private:
 	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
 

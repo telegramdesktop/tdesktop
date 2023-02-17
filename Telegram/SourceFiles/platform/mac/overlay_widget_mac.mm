@@ -67,7 +67,7 @@ namespace {
 	const auto full = [window frame];
 	const auto inner = [window contentRectForFrameRect:full].size.height;
 	const auto height = std::max(full.size.height - inner, 0.);
-	
+
 	result[int(NSWindowToolbarButton)] = { CGPoint(), CGSize{ full.size.width, height }};
 	return result;
 }
@@ -154,7 +154,7 @@ void MacOverlayWidgetHelper::updateStyles(bool fullscreen) {
 
 void MacOverlayWidgetHelper::refreshButtons(bool fullscreen) {
 	Expects(_data->native != nullptr);
-	
+
 	const auto window = _data->native;
 	auto next = CGPoint();
 	const auto added = [&](NSRect frame) {
@@ -247,6 +247,13 @@ void MacOverlayWidgetHelper::notifyFileDialogShown(bool shown) {
 				: NSPopUpMenuWindowLevel;
 			[_data->native setLevel:level];
 		}
+	}
+}
+
+void MacOverlayWidgetHelper::minimize(not_null<Ui::RpWindow*> window) {
+	resolveNative();
+	if (_data->native) {
+		[_data->native miniaturize:_data->handler];
 	}
 }
 

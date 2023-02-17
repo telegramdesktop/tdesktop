@@ -8,9 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_overlay_widget.h"
 
 #include "ui/platform/ui_platform_window_title.h"
+#include "ui/widgets/rp_window.h"
 #include "styles/style_calls.h"
 
 namespace Platform {
+
+void OverlayWidgetHelper::minimize(not_null<Ui::RpWindow*> window) {
+	window->setWindowState(window->windowState() | Qt::WindowMinimized);
+}
 
 DefaultOverlayWidgetHelper::DefaultOverlayWidgetHelper(
 	not_null<Ui::RpWindow*> window,

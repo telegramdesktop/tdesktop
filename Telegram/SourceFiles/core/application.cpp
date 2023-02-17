@@ -1499,13 +1499,12 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 }
 
 bool Application::closeActiveWindow() {
-	if (hideMediaView()) {
+	if (_mediaView && _mediaView->isActive()) {
+		_mediaView->close();
 		return true;
-	}
-	if (!calls().closeCurrentActiveCall()) {
+	} else if (!calls().closeCurrentActiveCall()) {
 		if (const auto window = activeWindow()) {
-			if (window->widget()->isVisible()
-				&& window->widget()->isActive()) {
+			if (window->widget()->isActive()) {
 				window->close();
 				return true;
 			}
@@ -1515,8 +1514,10 @@ bool Application::closeActiveWindow() {
 }
 
 bool Application::minimizeActiveWindow() {
-	hideMediaView();
-	if (!calls().minimizeCurrentActiveCall()) {
+	if (_mediaView && _mediaView->isActive()) {
+		_mediaView->minimize();
+		return true;
+	} else if (!calls().minimizeCurrentActiveCall()) {
 		if (const auto window = activeWindow()) {
 			window->minimize();
 			return true;

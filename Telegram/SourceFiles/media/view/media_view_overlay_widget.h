@@ -80,6 +80,7 @@ public:
 		None,
 	};
 
+	[[nodiscard]] bool isActive() const;
 	[[nodiscard]] bool isHidden() const;
 	[[nodiscard]] bool isMinimized() const;
 	[[nodiscard]] bool isFullScreen() const;
@@ -102,6 +103,7 @@ public:
 
 	void activateControls();
 	void close();
+	void minimize();
 	void toggleFullScreen(bool fullscreen);
 
 	void notifyFileDialogShown(bool shown);

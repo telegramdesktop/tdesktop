@@ -1533,6 +1533,9 @@ void OverlayWidget::clearSession() {
 
 OverlayWidget::~OverlayWidget() {
 	clearSession();
+
+	// Otherwise dropdownHidden() may be called from the destructor.
+	_dropdown.destroy();
 }
 
 void OverlayWidget::assignMediaPointer(DocumentData *document) {
@@ -1590,6 +1593,13 @@ void OverlayWidget::close() {
 	if (const auto window = Core::App().activeWindow()) {
 		window->reActivate();
 	}
+}
+
+void OverlayWidget::minimize() {
+	if (isHidden()) {
+		return;
+	}
+	_helper->minimize(_window);
 }
 
 void OverlayWidget::toggleFullScreen(bool fullscreen) {
@@ -2546,6 +2556,10 @@ void OverlayWidget::update() {
 
 void OverlayWidget::update(const QRegion &region) {
 	_widget->update(region);
+}
+
+bool OverlayWidget::isActive() const {
+	return !isHidden() && !isMinimized() && Ui::InFocusChain(_window);
 }
 
 bool OverlayWidget::isHidden() const {
