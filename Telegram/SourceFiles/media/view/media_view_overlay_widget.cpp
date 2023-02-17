@@ -3692,6 +3692,9 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		}
 	}
 	checkGroupThumbsAnimation();
+	if (const auto radius = _window->manualRoundingRadius()) {
+		renderer->paintRoundedCorners(radius);
+	}
 }
 
 void OverlayWidget::checkGroupThumbsAnimation() {
