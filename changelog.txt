@@ -1,3 +1,7 @@
+4.6.4 beta (18.02.23)
+
+- Allow media viewer to exit fullscreen and become a normal window.
+
 4.6.3 (15.02.23)
 
 - Optimize chats list initial loading.
