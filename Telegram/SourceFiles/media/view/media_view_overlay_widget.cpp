@@ -667,7 +667,7 @@ void OverlayWidget::savePosition() {
 		realPosition.moncrc = 0;
 		DEBUG_LOG(("Viewer Pos: Saving maximized position."));
 	} else {
-		auto r = _window->geometry();
+		auto r = _normalGeometry = _window->geometry();
 		realPosition.x = r.x();
 		realPosition.y = r.y();
 		realPosition.w = r.width();

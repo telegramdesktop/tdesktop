@@ -462,8 +462,8 @@ void OverlayWidget::RendererGL::paintRadialLoading(
 
 void OverlayWidget::RendererGL::paintThemePreview(QRect outer) {
 	paintUsingRaster(_themePreviewImage, outer, [&](Painter &&p) {
-		const auto newOuter = QRect(QPoint(), outer.size());
-		_owner->paintThemePreviewContent(p, newOuter, newOuter);
+		p.translate(-outer.topLeft());
+		_owner->paintThemePreviewContent(p, outer, outer);
 	}, kThemePreviewOffset);
 }
 
