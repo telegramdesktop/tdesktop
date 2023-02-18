@@ -2741,6 +2741,13 @@ void OverlayWidget::setFocus() {
 	_widget->setFocus();
 }
 
+bool OverlayWidget::takeFocusFrom(not_null<QWidget*> window) const {
+	return _fullscreen
+		&& !isHidden()
+		&& !isMinimized()
+		&& (_window->screen() == window->screen());
+}
+
 void OverlayWidget::activate() {
 	_window->raise();
 	_window->activateWindow();

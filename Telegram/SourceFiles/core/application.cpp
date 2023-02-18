@@ -1490,10 +1490,7 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 			nowSession->updates().updateOnline();
 		}
 	}
-	if (_mediaView
-		&& !_mediaView->isHidden()
-		&& !_mediaView->isMinimized()
-		&& _mediaView->isFullScreen()) {
+	if (_mediaView && _mediaView->takeFocusFrom(now->widget())) {
 		_mediaView->activate();
 	}
 }

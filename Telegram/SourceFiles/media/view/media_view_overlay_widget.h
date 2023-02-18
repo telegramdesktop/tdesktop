@@ -88,6 +88,7 @@ public:
 	void hide();
 	void setCursor(style::cursor cursor);
 	void setFocus();
+	[[nodiscard]] bool takeFocusFrom(not_null<QWidget*> window) const;
 	void activate();
 
 	void show(OpenRequest request);
