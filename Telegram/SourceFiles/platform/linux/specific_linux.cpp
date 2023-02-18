@@ -245,22 +245,6 @@ void LaunchGApplication() {
 			.chopped(8)
 			.toStdString();
 
-		const auto owned = [&] {
-			if (!Gio::Application::id_is_valid(appId)) {
-				return false;
-			}
-
-			try {
-				return base::Platform::DBus::NameHasOwner(
-					Gio::DBus::Connection::get_sync(
-						Gio::DBus::BusType::SESSION),
-					appId);
-			} catch (...) {
-			}
-
-			return false;
-		}();
-
 		const auto app = Glib::wrap(
 			G_APPLICATION(
 				g_object_new(
@@ -270,8 +254,7 @@ void LaunchGApplication() {
 						? appId.c_str()
 						: nullptr,
 					"flags",
-					G_APPLICATION_HANDLES_OPEN
-						| (owned ? G_APPLICATION_NON_UNIQUE : 0),
+					G_APPLICATION_HANDLES_OPEN,
 					nullptr)));
 
 		app->signal_startup().connect([=] {
@@ -388,7 +371,6 @@ void LaunchGApplication() {
 				});
 			});
 
-		app->hold();
 		app->run(0, nullptr);
 	});
 }
