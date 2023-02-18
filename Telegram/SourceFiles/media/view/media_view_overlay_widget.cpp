@@ -383,7 +383,6 @@ OverlayWidget::OverlayWidget()
 			DEBUG_LOG(("Viewer Pos: Moved to %1, %2")
 				.arg(position.x())
 				.arg(position.y()));
-			moveToScreen(true);
 			if (_windowed) {
 				savePosition();
 			} else {
@@ -666,6 +665,8 @@ void OverlayWidget::savePosition() {
 		realPosition.maximized = 1;
 		realPosition.moncrc = 0;
 		DEBUG_LOG(("Viewer Pos: Saving maximized position."));
+	} else if (!_wasWindowedMode && !Platform::IsMac()) {
+		return;
 	} else {
 		auto r = _normalGeometry = _window->geometry();
 		realPosition.x = r.x();
@@ -1758,6 +1759,7 @@ void OverlayWidget::toggleFullScreen(bool fullscreen) {
 		updateGeometry();
 		_window->showFullScreen();
 	} else {
+		_wasWindowedMode = false;
 		_window->showNormal();
 		updateGeometry();
 		_wasWindowedMode = true;
@@ -3053,6 +3055,9 @@ void OverlayWidget::displayFinished() {
 void OverlayWidget::showAndActivate() {
 	_body->show();
 	initNormalGeometry();
+	if (_windowed || Platform::IsMac()) {
+		_wasWindowedMode = false;
+	}
 	updateGeometry();
 	if (_windowed || Platform::IsMac()) {
 		_window->showNormal();
