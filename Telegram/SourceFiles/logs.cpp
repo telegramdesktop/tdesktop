@@ -407,8 +407,6 @@ void start(not_null<Core::Launcher*> launcher) {
 		}
 	}
 
-	cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
-
 // WinRT build requires the working dir to stay the same for plugin loading.
 #ifndef Q_OS_WINRT
 	QDir().setCurrent(cWorkingDir());

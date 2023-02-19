@@ -547,13 +547,9 @@ void Launcher::processArguments() {
 	gStartInTray = parseResult.contains("-startintray");
 	gQuit = parseResult.contains("-quit");
 	gSendPaths = parseResult.value("-sendpath", {});
-	gWorkingDir = parseResult.value("-workdir", {}).join(QString());
+	cForceWorkingDir(parseResult.value("-workdir", {}).join(QString()));
 	if (!gWorkingDir.isEmpty()) {
-		if (QDir().exists(gWorkingDir)) {
-			_customWorkingDir = true;
-		} else {
-			gWorkingDir = QString();
-		}
+		_customWorkingDir = true;
 	}
 	gStartUrl = parseResult.value("--", {}).join(QString());
 
