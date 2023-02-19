@@ -830,9 +830,7 @@ bool Supported() {
 bool Enforced() {
 	// Wayland doesn't support positioning
 	// and custom notifications don't work here
-	return IsWayland()
-		|| (Gio::Application::get_default()
-			&& Window::Notifications::OptionGNotification.value());
+	return IsWayland() || Window::Notifications::OptionGNotification.value();
 }
 
 bool ByDefault() {
