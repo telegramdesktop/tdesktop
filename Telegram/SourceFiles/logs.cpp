@@ -364,14 +364,13 @@ void start(not_null<Core::Launcher*> launcher) {
 			// This value must come from TelegramForcePortable
 			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
+			workingDirChosen = true;
 		} else {
-#if defined _DEBUG && !defined OS_MAC_STORE
-			cForceWorkingDir(cExeDir());
-#else // _DEBUG
+#if !defined _DEBUG || defined OS_MAC_STORE
 			cForceWorkingDir(psAppDataPath());
-#endif // !_DEBUG
+			workingDirChosen = true;
+#endif // !_DEBUG || OS_MAC_STORE
 		}
-		workingDirChosen = true;
 
 #if !defined Q_OS_MAC && !defined _DEBUG // fix first version
 		moveOldDataFrom = initialWorkingDir;
