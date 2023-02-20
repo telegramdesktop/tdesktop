@@ -13,9 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media {
 
+#if !DA_FFMPEG_NEW_CHANNEL_LAYOUT
 uint64_t AbstractFFMpegLoader::ComputeChannelLayout(
-	uint64_t channel_layout,
-	int channels) {
+		uint64_t channel_layout,
+		int channels) {
 	if (channel_layout) {
 		if (av_get_channel_layout_nb_channels(channel_layout) == channels) {
 			return channel_layout;
@@ -23,6 +24,7 @@ uint64_t AbstractFFMpegLoader::ComputeChannelLayout(
 	}
 	return av_get_default_channel_layout(channels);
 }
+#endif // !DA_FFMPEG_NEW_CHANNEL_LAYOUT
 
 int64 AbstractFFMpegLoader::Mul(int64 value, AVRational rational) {
 	return value * rational.num / rational.den;
@@ -205,6 +207,20 @@ bool AbstractAudioFFMpegLoader::initUsingContext(
 		not_null<AVCodecContext*> context,
 		int64 initialCount,
 		int initialFrequency) {
+	_swrSrcSampleFormat = context->sample_fmt;
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	const AVChannelLayout mono = AV_CHANNEL_LAYOUT_MONO;
+	const AVChannelLayout stereo = AV_CHANNEL_LAYOUT_STEREO;
+	const auto useMono = !av_channel_layout_compare(
+		&context->ch_layout,
+		&mono);
+	const auto useStereo = !av_channel_layout_compare(
+		&context->ch_layout,
+		&stereo);
+	const auto copyDstChannelLayout = [&] {
+		av_channel_layout_copy(&_swrDstChannelLayout, &context->ch_layout);
+	};
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	const auto layout = ComputeChannelLayout(
 		context->channel_layout,
 		context->channels);
@@ -215,15 +231,18 @@ bool AbstractAudioFFMpegLoader::initUsingContext(
 			));
 		return false;
 	}
-
-	_swrSrcSampleFormat = context->sample_fmt;
-	switch (layout) {
-	case AV_CH_LAYOUT_MONO:
+	const auto useMono = (layout == AV_CH_LAYOUT_MONO);
+	const auto useStereo = (layout == AV_CH_LAYOUT_STEREO);
+	const auto copyDstChannelLayout = [&] {
+		_swrDstChannelLayout = layout;
+	};
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	if (useMono) {
 		switch (_swrSrcSampleFormat) {
 		case AV_SAMPLE_FMT_U8:
 		case AV_SAMPLE_FMT_U8P:
 			_swrDstSampleFormat = _swrSrcSampleFormat;
-			_swrDstChannelLayout = layout;
+			copyDstChannelLayout();
 			_outputChannels = 1;
 			_outputSampleSize = 1;
 			_outputFormat = AL_FORMAT_MONO8;
@@ -231,31 +250,29 @@ bool AbstractAudioFFMpegLoader::initUsingContext(
 		case AV_SAMPLE_FMT_S16:
 		case AV_SAMPLE_FMT_S16P:
 			_swrDstSampleFormat = _swrSrcSampleFormat;
-			_swrDstChannelLayout = layout;
+			copyDstChannelLayout();
 			_outputChannels = 1;
 			_outputSampleSize = sizeof(uint16);
 			_outputFormat = AL_FORMAT_MONO16;
 			break;
 		}
-		break;
-	case AV_CH_LAYOUT_STEREO:
+	} else if (useStereo) {
 		switch (_swrSrcSampleFormat) {
 		case AV_SAMPLE_FMT_U8:
 			_swrDstSampleFormat = _swrSrcSampleFormat;
-			_swrDstChannelLayout = layout;
+			copyDstChannelLayout();
 			_outputChannels = 2;
 			_outputSampleSize = 2;
 			_outputFormat = AL_FORMAT_STEREO8;
 			break;
 		case AV_SAMPLE_FMT_S16:
 			_swrDstSampleFormat = _swrSrcSampleFormat;
-			_swrDstChannelLayout = layout;
+			copyDstChannelLayout();
 			_outputChannels = 2;
 			_outputSampleSize = 2 * sizeof(uint16);
 			_outputFormat = AL_FORMAT_STEREO16;
 			break;
 		}
-		break;
 	}
 
 	if (_swrDstRate == initialFrequency) {
@@ -307,27 +324,39 @@ auto AbstractAudioFFMpegLoader::readFromReadyContext(
 }
 
 bool AbstractAudioFFMpegLoader::frameHasDesiredFormat() const {
-	const auto frameChannelLayout = ComputeChannelLayout(
-		_frame->channel_layout,
-		_frame->channels);
+	const auto sameChannelLayout = [&] {
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+		return !av_channel_layout_compare(
+			&_frame->ch_layout,
+			&_swrDstChannelLayout);
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+		const auto frameChannelLayout = ComputeChannelLayout(
+			_frame->channel_layout,
+			_frame->channels);
+		return (frameChannelLayout == _swrDstChannelLayout);
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	};
 	return true
 		&& (_frame->format == _swrDstSampleFormat)
-		&& (frameChannelLayout == _swrDstChannelLayout)
-		&& (_frame->sample_rate == _swrDstRate);
+		&& (_frame->sample_rate == _swrDstRate)
+		&& sameChannelLayout();
 }
 
 bool AbstractAudioFFMpegLoader::initResampleForFrame() {
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	const auto bad = !_frame->ch_layout.nb_channels;
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	const auto frameChannelLayout = ComputeChannelLayout(
 		_frame->channel_layout,
 		_frame->channels);
-	if (!frameChannelLayout) {
+	const auto bad = !frameChannelLayout;
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	if (bad) {
 		LOG(("Audio Error: "
-			"Unable to compute channel layout for frame in file '%1', "
-			"data size '%2', channel_layout %3, channels %4"
+			"Unknown channel layout for frame in file '%1', "
+			"data size '%2'"
 			).arg(_file.name()
 			).arg(_data.size()
-			).arg(_frame->channel_layout
-			).arg(_frame->channels
 			));
 		return false;
 	} else if (_frame->format == -1) {
@@ -338,24 +367,48 @@ bool AbstractAudioFFMpegLoader::initResampleForFrame() {
 			));
 		return false;
 	} else if (_swrContext) {
+		const auto sameChannelLayout = [&] {
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+			return !av_channel_layout_compare(
+				&_frame->ch_layout,
+				&_swrSrcChannelLayout);
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+			return (frameChannelLayout == _swrSrcChannelLayout);
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+		};
 		if (true
 			&& (_frame->format == _swrSrcSampleFormat)
-			&& (frameChannelLayout == _swrSrcChannelLayout)
-			&& (_frame->sample_rate == _swrSrcRate)) {
+			&& (_frame->sample_rate == _swrSrcRate)
+			&& sameChannelLayout()) {
 			return true;
 		}
 		swr_close(_swrContext);
 	}
 
 	_swrSrcSampleFormat = static_cast<AVSampleFormat>(_frame->format);
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	av_channel_layout_copy(&_swrSrcChannelLayout, &_frame->ch_layout);
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	_swrSrcChannelLayout = frameChannelLayout;
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	_swrSrcRate = _frame->sample_rate;
 	return initResampleUsingFormat();
 }
 
 bool AbstractAudioFFMpegLoader::initResampleUsingFormat() {
 	int res = 0;
-
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	res = swr_alloc_set_opts2(
+		&_swrContext,
+		&_swrDstChannelLayout,
+		_swrDstSampleFormat,
+		_swrDstRate,
+		&_swrSrcChannelLayout,
+		_swrSrcSampleFormat,
+		_swrSrcRate,
+		0,
+		nullptr);
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	_swrContext = swr_alloc_set_opts(
 		_swrContext,
 		_swrDstChannelLayout,
@@ -366,11 +419,17 @@ bool AbstractAudioFFMpegLoader::initResampleUsingFormat() {
 		_swrSrcRate,
 		0,
 		nullptr);
-	if (!_swrContext) {
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	if (res < 0 || !_swrContext) {
+		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 		LOG(("Audio Error: "
-			"Unable to swr_alloc for file '%1', data size '%2'"
+			"Unable to swr_alloc_set_opts2 for file '%1', data size '%2', "
+			"error %3, %4"
 			).arg(_file.name()
-			).arg(_data.size()));
+			).arg(_data.size()
+			).arg(res
+			).arg(av_make_error_string(err, sizeof(err), res)
+			));
 		return false;
 	} else if ((res = swr_init(_swrContext)) < 0) {
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
