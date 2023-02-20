@@ -48,13 +48,6 @@ jobs:
       matrix:
         defines: [""]
         experimental: [false]
-        include:
-          - defines: "DESKTOP_APP_DISABLE_DBUS_INTEGRATION"
-            experimental: true
-          - defines: "DESKTOP_APP_DISABLE_X11_INTEGRATION"
-            experimental: true
-          - defines: "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
-            experimental: true
 
     env:
       UPLOAD_ARTIFACT: "true"
