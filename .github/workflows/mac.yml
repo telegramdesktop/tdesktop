@@ -64,7 +64,7 @@ jobs:
       - name: First set up.
         run: |
           sudo chown -R `whoami`:admin /usr/local/share
-          brew install automake ninja
+          brew install automake ninja pkg-config
 
           # Disable spotlight.
           sudo mdutil -a -i off
