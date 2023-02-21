@@ -24,6 +24,10 @@ namespace Data {
 class StickersSet;
 } // namespace Data
 
+namespace PowerSaving {
+enum Flag : uint32;
+} // namespace PowerSaving
+
 namespace tr {
 template <typename ...Tags>
 struct phrase;
@@ -322,6 +326,7 @@ private:
 	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
 		int section);
 	[[nodiscard]] QPoint buttonRippleTopLeft(int section) const;
+	[[nodiscard]] PowerSaving::Flag powerSavingFlag() const;
 
 	void repaintCustom(uint64 setId);
 

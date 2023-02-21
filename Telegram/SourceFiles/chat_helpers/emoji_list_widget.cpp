@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "boxes/sticker_set_box.h"
@@ -709,9 +710,13 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	Expects(_footer == nullptr);
 
 	using FooterDescriptor = StickersListFooter::Descriptor;
+	const auto flag = powerSavingFlag();
+	const auto footerPaused = [method = pausedMethod(), flag]() {
+		return On(flag) || method();
+	};
 	auto result = object_ptr<StickersListFooter>(FooterDescriptor{
 		.session = &session(),
-		.paused = pausedMethod(),
+		.paused = footerPaused,
 		.parent = this,
 		.st = &st(),
 	});
@@ -1006,7 +1011,7 @@ void EmojiListWidget::validateEmojiPaintContext(
 		.size = QSize(_customSingleSize, _customSingleSize),
 		.now = crl::now(),
 		.scale = context.progress,
-		.paused = paused(),
+		.paused = On(powerSavingFlag()) || paused(),
 		.scaled = context.expanding,
 	};
 	if (!_emojiPaintContext) {
@@ -2177,6 +2182,14 @@ QPoint EmojiListWidget::buttonRippleTopLeft(int section) const {
 		+ (hasRemoveButton(section)
 			? st::stickerPanRemoveSet.rippleAreaPosition
 			: QPoint());
+}
+
+PowerSaving::Flag EmojiListWidget::powerSavingFlag() const {
+	const auto reactions = (_mode == Mode::FullReactions)
+		|| (_mode == Mode::RecentReactions);
+	return reactions
+		? PowerSaving::kEmojiReactions
+		: PowerSaving::kEmojiPanel;
 }
 
 void EmojiListWidget::refreshEmoji() {

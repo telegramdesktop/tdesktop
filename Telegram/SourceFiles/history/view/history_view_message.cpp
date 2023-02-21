@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
 #include "ui/cached_round_corners.h"
+#include "ui/power_saving.h"
 #include "base/unixtime.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -1472,7 +1473,8 @@ void Message::paintText(
 		.palette = &stm->textPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = context.now,
-		.paused = context.paused,
+		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 		.selection = context.selection,
 	});
 }

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "data/data_media_types.h"
 #include "styles/style_chat.h"
 
@@ -237,7 +238,8 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 			.availableWidth = paintw,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = toDescriptionSelection(context.selection),
 		});
 		tshift += _descriptionHeight;

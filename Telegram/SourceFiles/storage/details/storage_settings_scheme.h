@@ -154,7 +154,7 @@ enum {
 	dbiThemeKey = 0x54,
 	dbiTileBackground = 0x55,
 	dbiCacheSettingsOld = 0x56,
-	dbiAnimationsDisabled = 0x57,
+	dbiPowerSaving = 0x57,
 	dbiScalePercent = 0x58,
 	dbiPlaybackSpeedOld = 0x59,
 	dbiLanguagesKey = 0x5a,

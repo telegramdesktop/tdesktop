@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "mainwidget.h"
 #include "menu/menu_ttl_validator.h"
@@ -554,7 +555,8 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 			.palette = &st->serviceTextPalette(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = context.selection,
 			.fullWidthSelection = false,
 		});

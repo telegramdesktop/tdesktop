@@ -13,9 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "mtproto/mtproto_config.h"
-#include "ui/effects/animation_value.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/power_saving.h"
 #include "window/themes/window_theme.h"
 #include "core/update_checker.h"
 #include "platform/platform_specific.h"
@@ -232,14 +232,14 @@ bool ReadSetting(
 		context.cacheBigFileTotalTimeLimit = NoTimeLimit(timeBig) ? 0 : timeBig;
 	} break;
 
-	case dbiAnimationsDisabled: {
-		qint32 disabled;
-		stream >> disabled;
+	case dbiPowerSaving: {
+		qint32 settings;
+		stream >> settings;
 		if (!CheckStreamStatus(stream)) {
 			return false;
 		}
 
-		anim::SetDisabled(disabled == 1);
+		PowerSaving::Set(PowerSaving::Flags::from_raw(settings));
 	} break;
 
 	case dbiSoundFlashBounceNotifyOld: {

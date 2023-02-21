@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_experimental.h"
+#include "settings/settings_power_saving.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
@@ -658,20 +659,16 @@ void SetupWindowTitleOptions(
 		SetupWindowTitleContent);
 }
 
-void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
+void SetupAnimations(
+		not_null<Window::Controller*> window,
+		not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
-		tr::lng_settings_enable_animations(),
+		tr::lng_settings_power_title(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
-		rpl::single(!anim::Disabled())
-	)->toggledValue(
-	) | rpl::filter([](bool enabled) {
-		return (enabled == anim::Disabled());
-	}) | rpl::start_with_next([](bool enabled) {
-		anim::SetDisabled(!enabled);
-		Local::writeSettings();
-	}, container->lifetime());
+	)->setClickedCallback([=] {
+		window->show(Box(PowerSavingBox));
+	});
 }
 
 void SetupHardwareAcceleration(not_null<Ui::VerticalLayout*> container) {
@@ -804,7 +801,7 @@ void SetupOpenGL(
 void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	SetupAnimations(container);
+	SetupAnimations(&controller->window(), container);
 	SetupHardwareAcceleration(container);
 #ifdef Q_OS_WIN
 	SetupANGLE(controller, container);

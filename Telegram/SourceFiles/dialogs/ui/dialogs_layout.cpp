@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "ui/unread_badge_paint.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
@@ -262,7 +263,8 @@ void PaintFolderEntryText(
 			: st::dialogsTextPaletteArchive),
 		.spoiler = Text::DefaultSpoilerCache(),
 		.now = context.now,
-		.paused = context.paused,
+		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 		.elisionLines = rect.height() / st::dialogsTextFont->height,
 	});
 }
@@ -420,7 +422,8 @@ void PaintRow(
 			.availableWidth = availableWidth,
 			.spoiler = Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.elisionLines = 1,
 		});
 	} else if (draft
@@ -514,7 +517,8 @@ void PaintRow(
 						: st::dialogsTextPaletteDraft)),
 				.spoiler = Text::DefaultSpoilerCache(),
 				.now = context.now,
-				.paused = context.paused,
+				.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+				.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 				.elisionLines = 1,
 			});
 		}

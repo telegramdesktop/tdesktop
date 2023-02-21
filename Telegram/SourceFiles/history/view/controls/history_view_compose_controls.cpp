@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
@@ -800,7 +801,8 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 		.palette = &st::historyComposeAreaPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = crl::now(),
-		.paused = p.inactive(),
+		.pausedEmoji = p.inactive() || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = p.inactive() || On(PowerSaving::kChatSpoiler),
 		.elisionLines = 1,
 	});
 }

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 
 #include "ui/image/image_prepare.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
@@ -519,7 +520,7 @@ void ChatTheme::clearBackgroundState() {
 bool ChatTheme::readyForBackgroundRotation() const {
 	Expects(_cacheBackgroundTimer.has_value());
 
-	return !anim::Disabled()
+	return !On(PowerSaving::kChatBackground)
 		&& !_backgroundFade.animating()
 		&& !_cacheBackgroundTimer->isActive()
 		&& !_backgroundState.now.pixmap.isNull();
@@ -528,10 +529,8 @@ bool ChatTheme::readyForBackgroundRotation() const {
 void ChatTheme::generateNextBackgroundRotation() {
 	if (_backgroundCachingRequest
 		|| !_backgroundNext.image.isNull()
-		|| !readyForBackgroundRotation()) {
-		return;
-	}
-	if (background().colors.size() < 3) {
+		|| !readyForBackgroundRotation()
+		|| background().colors.size() < 3) {
 		return;
 	}
 	constexpr auto kAddRotationDoubled = (720 - 45);

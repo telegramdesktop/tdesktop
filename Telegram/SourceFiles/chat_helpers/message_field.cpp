@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -325,6 +326,9 @@ void InitMessageFieldHandlers(
 		const style::InputField *fieldStyle) {
 	field->setTagMimeProcessor(
 		FieldTagMimeProcessor(session, allowPremiumEmoji));
+	const auto paused = [customEmojiPaused] {
+		return On(PowerSaving::kEmojiChat) || customEmojiPaused();
+	};
 	field->setCustomEmojiFactory(
 		session->data().customEmojiManager().factory(),
 		std::move(customEmojiPaused));

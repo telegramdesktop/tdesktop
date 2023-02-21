@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
+#include "ui/power_saving.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/spoiler_mess.h"
 #include "data/data_session.h"
@@ -681,7 +682,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			.palette = &stm->textPalette,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = context.selection,
 		});
 	} else if (!inWebPage && !skipDrawingSurrounding) {

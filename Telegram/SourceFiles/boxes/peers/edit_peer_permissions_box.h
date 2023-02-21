@@ -16,6 +16,11 @@ class RpWidget;
 class VerticalLayout;
 } // namespace Ui
 
+namespace PowerSaving {
+enum Flag : uint32;
+using Flags = base::flags<Flag>;
+} // namespace PowerSaving
+
 template <typename Object>
 class object_ptr;
 
@@ -82,3 +87,8 @@ struct EditFlagsControl {
 	ChatRestrictions restrictions);
 [[nodiscard]] ChatAdminRights AdminRightsForOwnershipTransfer(
 	Data::AdminRightsSetOptions options);
+
+[[nodiscard]] auto CreateEditPowerSaving(
+	QWidget *parent,
+	PowerSaving::Flags flags
+) -> EditFlagsControl<PowerSaving::Flags, Ui::RpWidget>;

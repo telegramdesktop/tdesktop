@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/cached_round_corners.h"
@@ -1125,8 +1126,8 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	_pathGradient->startFrame(0, width(), width() / 2);
 
 	const auto now = crl::now();
-	const auto paused = _controller->isGifPausedAtLeastFor(
-		Window::GifPauseReason::Layer);
+	const auto paused = On(PowerSaving::kStickersPanel)
+		|| _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
 	for (int32 i = from; i < to; ++i) {
 		for (int32 j = 0; j < _perRow; ++j) {
 			int32 index = i * _perRow + j;

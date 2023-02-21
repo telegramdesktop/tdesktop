@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "settings/settings_power_saving.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "main/main_session.h"
@@ -41,6 +42,11 @@ namespace {
 
 constexpr auto kSlowmodeValues = 7;
 constexpr auto kSuggestGigagroupThreshold = 199000;
+
+[[nodiscard]] auto Dependencies(PowerSaving::Flags)
+-> std::vector<std::pair<PowerSaving::Flag, PowerSaving::Flag>> {
+	return {};
+}
 
 struct NestedRestrictionLabels {
 	std::optional<rpl::producer<QString>> nestedLabel;
@@ -193,7 +199,6 @@ auto Dependencies(ChatRestrictions)
 		{ Flag::SendOther, Flag::ViewMessages },
 	};
 }
-
 
 ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 	using Flag = ChatRestriction;
@@ -473,13 +478,14 @@ template <
 		ApplyDependencies(state->checkViews, dependencies, view);
 	};
 
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			std::move(header),
-			st::rightsHeaderLabel),
-		st::rightsHeaderMargin);
-
+	if (header) {
+		container->add(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				std::move(header),
+				st::rightsHeaderLabel),
+			st::rightsHeaderMargin);
+	}
 	const auto addCheckbox = [&](
 			not_null<Ui::VerticalLayout*> verticalLayout,
 			bool isInner,
@@ -1129,5 +1135,20 @@ ChatAdminRights AdminRightsForOwnershipTransfer(
 			result |= flag;
 		}
 	}
+	return result;
+}
+
+EditFlagsControl<PowerSaving::Flags, Ui::RpWidget> CreateEditPowerSaving(
+		QWidget *parent,
+		PowerSaving::Flags flags) {
+	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	auto result = CreateEditFlags(
+		widget.data(),
+		nullptr,
+		flags,
+		std::map<PowerSaving::Flags, QString>{},
+		Settings::PowerSavingLabelsList());
+	result.widget = std::move(widget);
+
 	return result;
 }

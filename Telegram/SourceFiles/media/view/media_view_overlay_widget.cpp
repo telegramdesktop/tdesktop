@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "ui/gl/gl_surface.h"
@@ -4279,6 +4280,8 @@ void OverlayWidget::paintCaptionContent(
 			.availableWidth = inner.width(),
 			.palette = &st::mediaviewTextPalette,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.pausedEmoji = On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = On(PowerSaving::kChatSpoiler),
 			.elisionLines = inner.height() / st::mediaviewCaptionStyle.font->height,
 		});
 	}

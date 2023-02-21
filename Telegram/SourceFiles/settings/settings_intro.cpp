@@ -98,7 +98,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	if (anim::Disabled()) {
 		AddDivider(result);
 		AddSkip(result);
-		SetupAnimations(result);
+		SetupAnimations(window, result);
 		AddSkip(result);
 	}
 

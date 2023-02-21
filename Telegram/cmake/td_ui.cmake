@@ -303,6 +303,8 @@ PRIVATE
     ui/empty_userpic.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
+    ui/power_saving.cpp
+    ui/power_saving.h
     ui/unread_badge_paint.cpp
     ui/unread_badge_paint.h
     ui/userpic_view.cpp

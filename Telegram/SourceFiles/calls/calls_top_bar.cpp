@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/format_values.h"
 #include "ui/toast/toast.h"
+#include "ui/power_saving.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "calls/calls_call.h"
@@ -496,18 +497,12 @@ void TopBar::initBlobsUnder(
 		}
 	}, lifetime());
 
+	using namespace rpl::mappers;
 	auto hideBlobs = rpl::combine(
-		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
+		PowerSaving::Value(PowerSaving::kCalls),
 		Core::App().appDeactivatedValue(),
 		group->instanceStateValue()
-	) | rpl::map([](
-			bool animDisabled,
-			bool hide,
-			GroupCall::InstanceState instanceState) {
-		return (instanceState == GroupCall::InstanceState::Disconnected)
-			|| animDisabled
-			|| hide;
-	});
+	) | rpl::map(_1 || _2 || _3 == GroupCall::InstanceState::Disconnected);
 
 	std::move(
 		hideBlobs

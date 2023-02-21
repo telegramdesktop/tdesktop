@@ -1215,6 +1215,8 @@ PRIVATE
     settings/settings_main.h
     settings/settings_notifications.cpp
     settings/settings_notifications.h
+    settings/settings_power_saving.cpp
+    settings/settings_power_saving.h
     settings/settings_premium.cpp
     settings/settings_premium.h
     settings/settings_privacy_controllers.cpp

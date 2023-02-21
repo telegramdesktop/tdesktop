@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/choose_send_as.h"
 #include "ui/image/image.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
 #include "ui/controls/send_as_button.h"
@@ -1826,7 +1827,7 @@ void HistoryWidget::setupShortcuts() {
 			&& Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
 			&& !controller()->isLayerShown()
-			&& (Core::App().activeWindow() == &controller()->window());
+			&& window()->isActiveWindow();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::Search, 1) && request->handle([=] {
@@ -2996,7 +2997,15 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 		}
 	}
 	const auto view = item->mainView();
-	if (anim::Disabled() || !view) {
+	if (!view) {
+		return;
+	} else if (anim::Disabled()) {
+		if (!On(PowerSaving::kChatBackground)) {
+			// Strange case of disabled animations, but enabled bg rotation.
+			if (item->out() || _history->peer->isSelf()) {
+				_list->theme()->rotateComplexGradientBackground();
+			}
+		}
 		return;
 	}
 	_itemRevealPending.emplace(item);
@@ -7690,6 +7699,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
 		const auto now = crl::now();
 		const auto paused = p.inactive();
+		const auto pausedSpoiler = paused || On(PowerSaving::kChatSpoiler);
 		auto replyLeft = st::historyReplySkip;
 		(_editMsgId ? st::historyEditIcon : st::historyReplyIcon).paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
 		if (!drawWebPagePreview) {
@@ -7708,7 +7718,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 								p,
 								to,
 								Ui::DefaultImageSpoiler().frame(
-									_replySpoiler->index(now, paused)));
+									_replySpoiler->index(now, pausedSpoiler)));
 						}
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
@@ -7728,7 +7738,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					.palette = &st::historyComposeAreaPalette,
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
 					.now = now,
-					.paused = paused,
+					.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
+					.pausedSpoiler = pausedSpoiler,
 					.elisionLines = 1,
 				});
 			} else {

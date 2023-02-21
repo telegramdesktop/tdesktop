@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/custom_emoji_instance.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
@@ -247,13 +248,17 @@ void Sticker::paintAnimationFrame(
 		: (context.selected() && !_nextLastDiceFrame)
 		? context.st->msgStickerOverlay()->c
 		: QColor(0, 0, 0, 0);
+	const auto powerSavingFlag = (isEmojiSticker() || _diceIndex >= 0)
+		? PowerSaving::kEmojiChat
+		: PowerSaving::kStickersChat;
+	const auto paused = context.paused || On(powerSavingFlag);
 	const auto frame = _player
 		? _player->frame(
 			_size,
 			colored,
 			mirrorHorizontal(),
 			context.now,
-			context.paused)
+			paused)
 		: StickerPlayer::FrameInfo();
 	if (_nextLastDiceFrame) {
 		_nextLastDiceFrame = false;
@@ -282,7 +287,7 @@ void Sticker::paintAnimationFrame(
 	const auto count = _player->framesCount();
 	_frameIndex = frame.index;
 	_framesCount = count;
-	_nextLastDiceFrame = !context.paused
+	_nextLastDiceFrame = !paused
 		&& (_diceIndex > 0)
 		&& (_frameIndex + 2 == count);
 	const auto playOnce = (_diceIndex > 0)
@@ -294,7 +299,7 @@ void Sticker::paintAnimationFrame(
 	const auto lastDiceFrame = (_diceIndex > 0) && atTheEnd();
 	const auto switchToNext = !playOnce
 		|| (!lastDiceFrame && (_frameIndex != 0 || !_oncePlayed));
-	if (!context.paused
+	if (!paused
 		&& switchToNext
 		&& _player->markFrameShown()
 		&& playOnce

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "styles/style_chat.h"
 #include "styles/palette.h"
 
@@ -378,6 +379,7 @@ void MessageBar::paint(Painter &p) {
 		: (shiftTo + shiftFull);
 	const auto now = crl::now();
 	const auto paused = p.inactive();
+	const auto pausedSpoiler = paused || On(PowerSaving::kChatSpoiler);
 
 	paintLeftBar(p);
 
@@ -389,7 +391,7 @@ void MessageBar::paint(Painter &p) {
 				_image,
 				_spoiler.get(),
 				now,
-				paused);
+				pausedSpoiler);
 		}
 	} else if (!_animation->imageTo.isNull()
 		|| (!_animation->imageFrom.isNull()
@@ -413,7 +415,7 @@ void MessageBar::paint(Painter &p) {
 				_animation->imageFrom,
 				_animation->spoilerFrom.get(),
 				now,
-				paused);
+				pausedSpoiler);
 			p.setOpacity(progress);
 			paintImageWithSpoiler(
 				p,
@@ -421,7 +423,7 @@ void MessageBar::paint(Painter &p) {
 				_animation->imageTo,
 				_spoiler.get(),
 				now,
-				paused);
+				pausedSpoiler);
 			p.setOpacity(1.);
 		} else {
 			paintImageWithSpoiler(
@@ -430,7 +432,7 @@ void MessageBar::paint(Painter &p) {
 				_image,
 				_spoiler.get(),
 				now,
-				paused);
+				pausedSpoiler);
 		}
 	}
 	if (!_animation || _animation->bodyAnimation == BodyAnimation::None) {
@@ -452,7 +454,8 @@ void MessageBar::paint(Painter &p) {
 				.palette = &_st.textPalette,
 				.spoiler = Ui::Text::DefaultSpoilerCache(),
 				.now = now,
-				.paused = paused,
+				.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
+				.pausedSpoiler = pausedSpoiler,
 				.elisionLines = 1,
 			});
 		}

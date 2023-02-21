@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
@@ -825,6 +826,8 @@ void Notification::paintTitle(Painter &p) {
 		.availableWidth = _titleRect.width(),
 		.palette = &st::dialogsTextPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.pausedEmoji = On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = On(PowerSaving::kChatSpoiler),
 		.elisionLines = 1,
 	});
 }
@@ -837,6 +840,8 @@ void Notification::paintText(Painter &p) {
 		.availableWidth = _textRect.width(),
 		.palette = &st::dialogsTextPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.pausedEmoji = On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = On(PowerSaving::kChatSpoiler),
 		.elisionLines = _textRect.height() / st::dialogsTextFont->height,
 	});
 }

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/spoiler_mess.h"
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "base/call_delayed.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
@@ -243,11 +244,12 @@ void AlbumThumbnail::paintInAlbum(
 				_albumCorners);
 		}
 		p.drawPixmap(paintedTo, _albumImageBlurred);
+		const auto paused = On(PowerSaving::kChatSpoiler);
 		FillSpoilerRect(
 			p,
 			paintedTo,
 			corners,
-			DefaultImageSpoiler().frame(_spoiler->index(crl::now(), false)),
+			DefaultImageSpoiler().frame(_spoiler->index(crl::now(), paused)),
 			_cornerCache);
 		p.setOpacity(1.);
 	}
@@ -439,12 +441,13 @@ void AlbumThumbnail::paintPhoto(Painter &p, int left, int top, int outerWidth) {
 		outerWidth,
 		pixmap);
 	if (_spoiler) {
+		const auto paused = On(PowerSaving::kChatSpoiler);
 		FillSpoilerRect(
 			p,
 			rect,
 			Images::CornersMaskRef(
 				Images::CornersMask(ImageRoundRadius::Large)),
-			DefaultImageSpoiler().frame(_spoiler->index(crl::now(), false)),
+			DefaultImageSpoiler().frame(_spoiler->index(crl::now(), paused)),
 			_cornerCache);
 	} else if (_isVideo) {
 		paintPlayVideo(p, rect);

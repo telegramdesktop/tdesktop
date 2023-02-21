@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 
 namespace Overview {
@@ -363,11 +364,12 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	}
 
 	if (_spoiler) {
+		const auto paused = context->paused || On(PowerSaving::kChatSpoiler);
 		Ui::FillSpoilerRect(
 			p,
 			QRect(0, 0, _width, _height),
 			Ui::DefaultImageSpoiler().frame(
-				_spoiler->index(context->ms, context->paused)));
+				_spoiler->index(context->ms, paused)));
 	}
 
 	if (selected) {
@@ -517,11 +519,12 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	}
 
 	if (_spoiler) {
+		const auto paused = context->paused || On(PowerSaving::kChatSpoiler);
 		Ui::FillSpoilerRect(
 			p,
 			QRect(0, 0, _width, _height),
 			Ui::DefaultImageSpoiler().frame(
-				_spoiler->index(context->ms, context->paused)));
+				_spoiler->index(context->ms, paused)));
 	}
 
 	if (selected) {

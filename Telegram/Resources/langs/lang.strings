@@ -593,7 +593,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_version_info" = "Version and updates";
 "lng_settings_system_integration" = "System integration";
 "lng_settings_performance" = "Performance";
-"lng_settings_enable_animations" = "Enable animations";
 "lng_settings_enable_hwaccel" = "Hardware accelerated video decoding";
 "lng_settings_enable_opengl" = "Enable OpenGL rendering for media";
 "lng_settings_angle_backend" = "ANGLE graphics backend";
@@ -608,6 +607,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 "lng_settings_security_bots" = "Bots and websites";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
+
+"lng_settings_power_title" = "Power efficiency";
+"lng_settings_power_stickers" = "Animated Stickers";
+"lng_settings_power_stickers_panel" = "Autoplay in panel";
+"lng_settings_power_stickers_chat" = "Autoplay in chat";
+"lng_settings_power_emoji" = "Animated Emoji";
+"lng_settings_power_emoji_panel" = "Autoplay in panel";
+"lng_settings_power_emoji_reactions" = "Autoplay in reactions menu";
+"lng_settings_power_emoji_chat" = "Autoplay in messages";
+"lng_settings_power_chat" = "Animations in Chats";
+"lng_settings_power_chat_background" = "Background rotation";
+"lng_settings_power_chat_spoiler" = "Animated spoiler effect";
+"lng_settings_power_calls" = "Animations in Calls";
+"lng_settings_power_ui" = "Interface animations";
 
 "lng_settings_cloud_password_on" = "On";
 "lng_settings_cloud_password_off" = "Off";

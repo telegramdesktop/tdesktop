@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "window/window_peer_menu.h"
@@ -309,6 +310,7 @@ void ForwardPanel::paint(
 	const_cast<ForwardPanel*>(this)->checkTexts();
 	const auto now = crl::now();
 	const auto paused = p.inactive();
+	const auto pausedSpoiler = paused || On(PowerSaving::kChatSpoiler);
 	const auto firstItem = _data.items.front();
 	const auto firstMedia = firstItem->media();
 	const auto hasPreview = (_data.items.size() < 2)
@@ -335,7 +337,7 @@ void ForwardPanel::paint(
 			}));
 		if (_spoiler) {
 			Ui::FillSpoilerRect(p, to, Ui::DefaultImageSpoiler().frame(
-				_spoiler->index(now, paused)));
+				_spoiler->index(now, pausedSpoiler)));
 		}
 		const auto skip = st::msgReplyBarSize.height()
 			+ st::msgReplyBarSkip
@@ -359,7 +361,8 @@ void ForwardPanel::paint(
 		.palette = &st::historyComposeAreaPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = now,
-		.paused = paused,
+		.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = pausedSpoiler,
 		.elisionLines = 1,
 	});
 }

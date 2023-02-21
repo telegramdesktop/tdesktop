@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/image/image_prepare.h"
+#include "ui/power_saving.h"
 #include "core/ui_integration.h"
 #include "styles/style_chat.h"
 
@@ -261,12 +262,14 @@ void Media::fillImageSpoiler(
 		history()->owner().registerHeavyViewPart(_parent);
 	}
 	_parent->clearCustomEmojiRepaint();
+	const auto pausedSpoiler = context.paused
+		|| On(PowerSaving::kChatSpoiler);
 	Ui::FillSpoilerRect(
 		p,
 		rect,
 		MediaRoundingMask(spoiler->backgroundRounding),
 		Ui::DefaultImageSpoiler().frame(
-			spoiler->animation->index(context.now, context.paused)),
+			spoiler->animation->index(context.now, pausedSpoiler)),
 		spoiler->cornerCache);
 }
 

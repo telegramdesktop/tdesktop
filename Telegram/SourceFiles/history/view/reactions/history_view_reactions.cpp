@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Reactions {
@@ -417,7 +418,7 @@ void InlineList::paint(
 					p,
 					custom,
 					inner.topLeft(),
-					context.now,
+					context,
 					textFg.color());
 			} else if (!button.image.isNull()) {
 				p.drawImage(image.topLeft(), button.image);
@@ -546,7 +547,7 @@ void InlineList::paintCustomFrame(
 		Painter &p,
 		not_null<Ui::Text::CustomEmoji*> emoji,
 		QPoint innerTopLeft,
-		crl::time now,
+		const PaintContext &context,
 		const QColor &textColor) const {
 	if (_customCache.isNull()) {
 		using namespace Ui::Text;
@@ -563,8 +564,8 @@ void InlineList::paintCustomFrame(
 	auto q = QPainter(&_customCache);
 	emoji->paint(q, {
 		.textColor = textColor,
-		.now = now,
-		.paused = p.inactive(),
+		.now = context.now,
+		.paused = context.paused || On(PowerSaving::kEmojiChat),
 	});
 	q.end();
 	_customCache = Images::Round(

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
@@ -469,6 +470,8 @@ void HistoryMessageReply::paint(
 		p.setOpacity(opacity);
 	}
 
+	const auto pausedSpoiler = context.paused
+		|| On(PowerSaving::kChatSpoiler);
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
 			const auto media = replyToMsg->media();
@@ -499,7 +502,7 @@ void HistoryMessageReply::paint(
 							Ui::DefaultImageSpoiler().frame(
 								spoiler->index(
 									context.now,
-									context.paused)));
+									pausedSpoiler)));
 					}
 				}
 			}
@@ -529,7 +532,9 @@ void HistoryMessageReply::paint(
 						: st->imgReplyTextPalette()),
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
 					.now = context.now,
-					.paused = context.paused,
+					.pausedEmoji = (context.paused
+						|| On(PowerSaving::kEmojiChat)),
+					.pausedSpoiler = pausedSpoiler,
 					.elisionLines = 1,
 				});
 				p.setTextPalette(stm->textPalette);

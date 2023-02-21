@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/spoiler_mess.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
@@ -200,11 +201,12 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 		const auto position = QPoint(_previewLeft, _previewTop);
 		p.drawPixmap(position, pixmap);
 		if (_spoiler) {
+			const auto paused = On(PowerSaving::kChatSpoiler);
 			FillSpoilerRect(
 				p,
 				QRect(position, pixmap.size() / pixmap.devicePixelRatio()),
 				DefaultImageSpoiler().frame(
-					_spoiler->index(crl::now(), false)));
+					_spoiler->index(crl::now(), paused)));
 		}
 	}
 	if (_animated && !isAnimatedPreviewReady() && !_spoiler) {

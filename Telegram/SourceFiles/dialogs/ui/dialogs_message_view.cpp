@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_text_entity.h"
@@ -296,6 +297,8 @@ void MessageView::paint(
 		finalRight -= st::forumDialogJumpArrowSkip;
 	}
 	const auto lines = rect.height() / st::dialogsTextFont->height;
+	const auto pausedSpoiler = context.paused
+		|| On(PowerSaving::kChatSpoiler);
 	if (!_senderCache.isEmpty()) {
 		_senderCache.draw(p, {
 			.position = rect.topLeft(),
@@ -323,7 +326,7 @@ void MessageView::paint(
 			p.drawImage(mini, image.data);
 			if (image.hasSpoiler()) {
 				const auto frame = DefaultImageSpoiler().frame(
-					_spoiler->index(context.now, context.paused));
+					_spoiler->index(context.now, pausedSpoiler));
 				FillSpoilerRect(p, mini, frame);
 			}
 		}
@@ -341,7 +344,8 @@ void MessageView::paint(
 			.palette = palette,
 			.spoiler = Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = pausedSpoiler,
 			.elisionLines = lines,
 		});
 		rect.setLeft(rect.x() + _textCache.maxWidth());

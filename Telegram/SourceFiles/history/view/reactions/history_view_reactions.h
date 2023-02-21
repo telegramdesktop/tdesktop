@@ -109,7 +109,7 @@ private:
 		Painter &p,
 		not_null<Ui::Text::CustomEmoji*> emoji,
 		QPoint innerTopLeft,
-		crl::time now,
+		const PaintContext &context,
 		const QColor &textColor) const;
 
 	QSize countOptimalSize() override;
