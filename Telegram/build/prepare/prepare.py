@@ -404,7 +404,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout d0fc458228
+    git checkout f9542e5334
 """)
 
 stage('msys64', """
