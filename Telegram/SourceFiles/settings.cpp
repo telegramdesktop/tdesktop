@@ -30,7 +30,6 @@ bool gStartInTray = false;
 bool gAutoStart = false;
 bool gSendToMenu = false;
 bool gUseExternalVideoPlayer = false;
-bool gUseFreeType = false;
 bool gAutoUpdate = true;
 LaunchMode gLaunchMode = LaunchModeNormal;
 bool gSeenTrayTooltip = false;
