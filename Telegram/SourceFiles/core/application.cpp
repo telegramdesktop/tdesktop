@@ -910,21 +910,6 @@ void Application::switchDebugMode() {
 	}
 }
 
-void Application::switchFreeType() {
-	if (cUseFreeType()) {
-		QFile(cWorkingDir() + u"tdata/withfreetype"_q).remove();
-		cSetUseFreeType(false);
-	} else {
-		QFile f(cWorkingDir() + u"tdata/withfreetype"_q);
-		if (f.open(QIODevice::WriteOnly)) {
-			f.write("1");
-			f.close();
-		}
-		cSetUseFreeType(true);
-	}
-	Restart();
-}
-
 void Application::writeInstallBetaVersionsSetting() {
 	_launcher->writeInstallBetaVersionsSetting();
 }

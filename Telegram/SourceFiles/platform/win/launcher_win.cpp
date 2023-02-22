@@ -67,9 +67,6 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cStartInTray()) {
 		pushArgument(u"-startintray"_q);
 	}
-	if (cUseFreeType()) {
-		pushArgument(u"-freetype"_q);
-	}
 	if (customWorkingDir()) {
 		pushArgument(u"-workdir"_q);
 		pushArgument('"' + cWorkingDir() + '"');
