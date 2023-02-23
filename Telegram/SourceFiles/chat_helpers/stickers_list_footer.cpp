@@ -417,6 +417,16 @@ void StickersListFooter::enumerateSubicons(
 }
 
 auto StickersListFooter::iconInfo(int index) const -> IconInfo {
+	if (index < 0) {
+		const auto iconsX = int(base::SafeRound(_iconState.x.current()));
+		return {
+			.index = -1,
+			.left = -_singleWidth - _iconsLeft,
+			.adjustedLeft = -_singleWidth - _iconsLeft - iconsX,
+			.width = _singleWidth,
+			.visible = false,
+		};
+	}
 	auto result = IconInfo();
 	enumerateIcons([&](const IconInfo &info) {
 		if (info.index == index) {
@@ -473,7 +483,8 @@ void StickersListFooter::validateSelectedIcon(
 				&& setId == Data::Stickers::RecentSetId)) {
 			newSelected = i;
 			break;
-		} else if (_icons[i].setId == Data::Stickers::FavedSetId) {
+		} else if (_icons[i].setId == Data::Stickers::FavedSetId
+			&& setId != SearchEmojiSectionSetId()) {
 			favedIconIndex = i;
 		} else if (isEmojiSection && _icons[i].setId == allEmojiSetId) {
 			newSelected = i;
@@ -483,7 +494,9 @@ void StickersListFooter::validateSelectedIcon(
 	setSelectedIcon(
 		(newSelected >= 0
 			? newSelected
-			: (favedIconIndex >= 0) ? favedIconIndex : 0),
+			: (favedIconIndex >= 0)
+			? favedIconIndex
+			: -1),
 		animations);
 	setSelectedSubicon(
 		(newSubSelected >= 0 ? newSubSelected : 0),
@@ -521,6 +534,9 @@ void StickersListFooter::setSelectedIcon(
 		ValidateIconAnimations animations) {
 	if (_iconState.selected == newSelected) {
 		return;
+	}
+	if ((_iconState.selected < 0) != (newSelected < 0)) {
+		animations = ValidateIconAnimations::None;
 	}
 	_iconState.selected = newSelected;
 	updateEmojiSectionWidth();
@@ -1113,7 +1129,7 @@ void StickersListFooter::refreshIconsGeometry(
 		(st().footer - st().iconArea) / 2);
 	refreshScrollableDimensions();
 	refreshSubiconsGeometry();
-	_iconState.selected = _subiconState.selected = -1;
+	_iconState.selected = _subiconState.selected = -2;
 	validateSelectedIcon(activeSetId, animations);
 	update();
 }

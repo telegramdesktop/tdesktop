@@ -98,7 +98,7 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 		AddSubsectionTitle(
 			subtitle->entity(),
 			rpl::duplicate(subtitleText),
-			st::blockedUsersListSubtitleAddPadding);
+			st::settingsBlockedListSubtitleAddPadding);
 		subtitle->toggleOn(
 			rpl::merge(
 				_emptinessChanges.events() | rpl::map(!rpl::mappers::_1),
@@ -134,6 +134,7 @@ void Blocked::setupContent() {
 		};
 
 		auto controller = std::make_unique<BlockedBoxController>(_controller);
+		controller->setStyleOverrides(&st::settingsBlockedList);
 		const auto content = listWrap->entity()->add(
 			object_ptr<PeerListContent>(this, controller.get()));
 
@@ -171,7 +172,7 @@ void Blocked::setupContent() {
 					st::changePhoneIconSize,
 				},
 			},
-			st::blockedUsersListIconPadding);
+			st::settingsBlockedListIconPadding);
 		content->add(std::move(icon.widget));
 
 		_showFinished.events(
@@ -197,7 +198,7 @@ void Blocked::setupContent() {
 					st::changePhoneDescription)),
 			st::changePhoneDescriptionPadding);
 
-		AddSkip(content, st::blockedUsersListIconPadding.top());
+		AddSkip(content, st::settingsBlockedListIconPadding.top());
 	}
 
 	Ui::ResizeFitChild(this, _container);

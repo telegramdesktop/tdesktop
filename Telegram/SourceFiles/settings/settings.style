@@ -513,6 +513,12 @@ settingsPremiumUserAbout: FlatLabel(boxDividerLabel) {
 settingsPremiumLock: icon{{ "emoji/premium_lock", windowActiveTextFg, point(0px, 1px) }};
 settingsPremiumLockSkip: 3px;
 
+settingsBlockedListSubtitleAddPadding: margins(0px, 1px, 0px, -4px);
+settingsBlockedListIconPadding: margins(0px, 34px, 0px, 5px);
+settingsBlockedList: PeerList(peerListBox) {
+	padding: margins(0px, 0px, 0px, membersMarginBottom);
+}
+
 requestPeerRestriction: FlatLabel(defaultFlatLabel) {
 	minWidth: 240px;
 	textFg: membersAboutLimitFg;

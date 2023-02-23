@@ -689,7 +689,7 @@ void SetupAccountsWrap(
 
 		if (!locked) {
 			addAction(tr::lng_menu_activate(tr::now), [=] {
-				Core::App().domain().activate(&session->account());
+				callback({});
 			}, &st::menuIconProfile);
 		}
 

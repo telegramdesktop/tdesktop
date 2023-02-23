@@ -148,18 +148,19 @@ auto ProcessAlternativeName(Info &&info) {
 Manager::Manager(not_null<Main::Domain*> domain)
 : _path(cWorkingDir() + "tdata/countries") {
 	read();
+
+	const auto mtpLifetime = _lifetime.make_state<rpl::lifetime>();
 	domain->activeValue(
-	) | rpl::map([=](Main::Account *account) {
-		if (!account) {
-			_api.reset();
-		}
-		return account
-				? account->mtpMainSessionValue()
-				: rpl::never<not_null<MTP::Instance*>>();
-	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
-		_api.emplace(instance);
-		request();
+	) | rpl::filter([=](Main::Account *account) {
+		return (account != nullptr);
+	}) | rpl::start_with_next_done([=](Main::Account *account) {
+		*mtpLifetime = account->mtpMainSessionValue(
+		) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+			_api.emplace(instance);
+			request();
+		});
+	}, [=] {
+		_api.reset();
 	}, _lifetime);
 }
 

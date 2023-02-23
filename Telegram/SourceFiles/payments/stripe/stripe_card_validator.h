@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "stripe/stripe_card.h"
 #include <vector>
+#include <optional>
 
 class QDate;
 

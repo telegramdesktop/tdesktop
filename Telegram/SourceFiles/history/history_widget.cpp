@@ -492,7 +492,13 @@ HistoryWidget::HistoryWidget(
 	_botCommandStart->hide();
 
 	session().attachWebView().requestBots();
-	session().attachWebView().attachBotsUpdates(
+	rpl::merge(
+		session().attachWebView().attachBotsUpdates(),
+		session().changes().peerUpdates(
+			Data::PeerUpdate::Flag::Rights
+		) | rpl::filter([=](const Data::PeerUpdate &update) {
+			return update.peer == _peer;
+		}) | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		refreshAttachBotsMenu();
 	}, lifetime());
@@ -506,7 +512,16 @@ HistoryWidget::HistoryWidget(
 	_attachDragAreas = DragArea::SetupDragAreaToContainer(
 		this,
 		crl::guard(this, [=](not_null<const QMimeData*> d) {
-			return _history && _canSendMessages && !isRecording();
+			if (!_peer || isRecording()) {
+				return false;
+			}
+			const auto replyTo = (_replyToId && !_editMsgId)
+				? _replyEditMsg
+				: 0;
+			const auto topic = replyTo ? replyTo->topic() : nullptr;
+			return topic
+				? Data::CanSendAnyOf(topic, Data::FilesSendRestrictions())
+				: Data::CanSendAnyOf(_peer, Data::FilesSendRestrictions());
 		}),
 		crl::guard(this, [=](bool f) { _field->setAcceptDrops(f); }),
 		crl::guard(this, [=] { updateControlsGeometry(); }));

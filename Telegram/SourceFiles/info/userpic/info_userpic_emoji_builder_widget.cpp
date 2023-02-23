@@ -250,7 +250,7 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 		.customRecentFactory = [=](DocumentId id, Fn<void()> repaint) {
 			return manager->create(id, std::move(repaint), tag);
 		},
-		.st = &st::reactPanelEmojiPan,
+		.st = &st::userpicBuilderEmojiPan,
 	};
 	const auto list = scroll->setOwnedWidget(
 		object_ptr<ChatHelpers::EmojiListWidget>(scroll, std::move(args)));
@@ -274,7 +274,8 @@ EmojiSelector::Selector EmojiSelector::createStickersList(
 		object_ptr<ChatHelpers::StickersListWidget>(
 			scroll,
 			_controller,
-			Window::GifPauseReason::Any));
+			Window::GifPauseReason::Any,
+			ChatHelpers::StickersListMode::UserpicBuilder));
 	const auto footer = list->createFooter().data();
 	list->refreshRecent();
 	list->chosen(
@@ -418,7 +419,8 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 				data.isForum)),
 		st::userpicBuilderEmojiPreviewPadding)->entity();
 	if (const auto id = data.documentId) {
-		if (const auto document = controller->session().data().document(id)) {
+		const auto document = controller->session().data().document(id);
+		if (document && document->sticker()) {
 			preview->setDocument(document);
 		}
 	}
@@ -434,8 +436,13 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 
 	const auto paletteBg = Ui::AddBubbleWrap(
 		container,
-		st::userpicBuilderEmojiBubblePaletteSize);
-	const auto palette = Ui::CreateChild<Ui::RpWidget>(paletteBg.get());
+		QSize(
+			st::userpicBuilderEmojiBubblePaletteWidth,
+			std::abs(Ui::BubbleWrapInnerRect(QRect(0, 0, 0, 0)).height())
+				+ st::userpicBuilderEmojiAccentColorSize
+				+ rect::m::sum::v(
+					st::userpicBuilderEmojiBubblePalettePadding)));
+	const auto palette = Ui::CreateChild<Ui::VerticalLayout>(paletteBg.get());
 	{
 		constexpr auto kColorsCount = int(7);
 		const auto checkIsSpecial = [=](int i) {
@@ -522,7 +529,7 @@ not_null<Ui::VerticalLayout*> CreateUserpicBuilder(
 	const auto selectorBg = Ui::AddBubbleWrap(
 		container,
 		QSize(
-			st::userpicBuilderEmojiBubblePaletteSize.width(),
+			st::userpicBuilderEmojiBubblePaletteWidth,
 			st::userpicBuilderEmojiSelectorMinHeight));
 	const auto selector = Ui::CreateChild<EmojiSelector>(
 		selectorBg.get(),

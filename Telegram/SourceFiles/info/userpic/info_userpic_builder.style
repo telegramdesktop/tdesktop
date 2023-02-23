@@ -18,7 +18,7 @@ userpicBuilderEmojiSubtitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 userpicBuilderEmojiSubtitlePadding: margins(0px, 9px, 0px, 2px);
-userpicBuilderEmojiBubblePaletteSize: size(356px, 56px);
+userpicBuilderEmojiBubblePaletteWidth: 356px;
 userpicBuilderEmojiBubblePalettePadding: margins(12px, 8px, 12px, 8px);
 
 userpicBuilderEmojiSelectorLeft: 5px;

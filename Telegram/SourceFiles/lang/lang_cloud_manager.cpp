@@ -158,18 +158,18 @@ Language ParseLanguage(const MTPLangPackLanguage &data) {
 
 CloudManager::CloudManager(Instance &langpack)
 : _langpack(langpack) {
+	const auto mtpLifetime = _lifetime.make_state<rpl::lifetime>();
 	Core::App().domain().activeValue(
-	) | rpl::map([=](Main::Account *account) {
-		if (!account) {
-			_api.reset();
-		}
-		return account
-			? account->mtpMainSessionValue()
-			: rpl::never<not_null<MTP::Instance*>>();
-	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
-		_api.emplace(instance);
-		resendRequests();
+	) | rpl::filter([=](Main::Account *account) {
+		return (account != nullptr);
+	}) | rpl::start_with_next_done([=](Main::Account *account) {
+		*mtpLifetime = account->mtpMainSessionValue(
+		) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
+			_api.emplace(instance);
+			resendRequests();
+		});
+	}, [=] {
+		_api.reset();
 	}, _lifetime);
 }
 

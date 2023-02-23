@@ -266,7 +266,10 @@ void SetApplicationIcon(const QIcon &icon) {
 void objc_debugShowAlert(const QString &str) {
 	@autoreleasepool {
 
-	[[NSAlert alertWithMessageText:@"Debug Message" defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:@"%@", Q2NSString(str)] runModal];
+	NSAlert *alert = [[NSAlert alloc] init];
+	alert.messageText = @"Debug Message";
+	alert.informativeText = Q2NSString(str);
+	[alert runModal];
 
 	}
 }

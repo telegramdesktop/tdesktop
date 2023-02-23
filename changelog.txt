@@ -1,3 +1,8 @@
+4.6.3 (15.02.23)
+
+- Optimize chats list initial loading.
+- Various crash fixes.
+
 4.6.2 (07.02.23)
 
 - One more attempt to fix fonts on Windows.

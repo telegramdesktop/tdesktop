@@ -111,9 +111,9 @@ void InlineList::layoutButtons() {
 		_buttons.clear();
 		return;
 	}
-	auto sorted = ranges::view::all(
+	auto sorted = ranges::views::all(
 		_data.reactions
-	) | ranges::view::transform([](const MessageReaction &reaction) {
+	) | ranges::views::transform([](const MessageReaction &reaction) {
 		return not_null{ &reaction };
 	}) | ranges::to_vector;
 	const auto &list = _owner->list(::Data::Reactions::Type::All);
@@ -643,7 +643,7 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 			result.recent.reserve(recent.size());
 			for (const auto &[id, list] : recent) {
 				result.recent.emplace(id).first->second = list
-					| ranges::view::transform(&Data::RecentReaction::peer)
+					| ranges::views::transform(&Data::RecentReaction::peer)
 					| ranges::to_vector;
 			}
 		}
