@@ -324,6 +324,7 @@ OverlayWidget::OverlayWidget()
 	toggleFullScreen(maximized);
 }))
 , _body(_wrap->widget())
+, _titleBugWorkaround(std::make_unique<Ui::RpWidget>(_body))
 , _surface(
 	Ui::GL::CreateSurface(_body, chooseRenderer(_wrap->backend())))
 , _widget(_surface->rpWidget())
@@ -407,6 +408,25 @@ OverlayWidget::OverlayWidget()
 			DEBUG_LOG(("Viewer Pos: Resized to %1, %2")
 				.arg(size.width())
 				.arg(size.height()));
+
+			// Somehow Windows 11 knows the geometry of first widget below
+			// the semi-native title control widgets and it uses
+			// it's geometry to show the snap grid popup around it when
+			// you put the mouse over the Maximize button. In the 4.6.4 beta
+			// the first widget was `_widget`, so the popup was shown
+			// either above the window or, if not enough space above, below
+			// the whole window, you couldn't even put the mouse on it.
+			//
+			// So now here is this weird workaround that places our
+			// `_titleBugWorkaround` widget as the first one under the title
+			// controls and the system shows the popup around its geometry,
+			// so we set it's height to the title controls height
+			// and everything works as expected.
+			//
+			// This doesn't make sense. But it works. :shrug:
+			_titleBugWorkaround->setGeometry(
+				{ 0, 0, size.width(), st::callTitleButton.height });
+
 			_widget->setGeometry({ QPoint(), size });
 			updateControlsGeometry();
 		} else if (type == QEvent::KeyPress) {

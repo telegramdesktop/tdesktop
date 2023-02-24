@@ -464,6 +464,7 @@ private:
 	const not_null<Ui::RpWindow*> _window;
 	const std::unique_ptr<Platform::OverlayWidgetHelper> _helper;
 	const not_null<Ui::RpWidget*> _body;
+	const std::unique_ptr<Ui::RpWidget> _titleBugWorkaround;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
 	QRect _normalGeometry;
