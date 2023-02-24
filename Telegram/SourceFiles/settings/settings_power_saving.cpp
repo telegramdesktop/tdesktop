@@ -24,8 +24,8 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 
 	box->addRow(std::move(checkboxes), {});
 
-	box->addButton(tr::lng_settings_save(), [=] {
-		Set(PowerSaving::kAll & ~getResult());
+	box->addButton(tr::lng_settings_save(), [=, collect = getResult] {
+		Set(PowerSaving::kAll & ~collect());
 		Core::App().saveSettingsDelayed();
 		box->closeBox();
 	});

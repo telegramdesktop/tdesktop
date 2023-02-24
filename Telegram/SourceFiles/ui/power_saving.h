@@ -29,7 +29,7 @@ using Flags = base::flags<Flag>;
 [[nodiscard]] rpl::producer<Flags> Changes();
 [[nodiscard]] rpl::producer<Flags> Value();
 [[nodiscard]] rpl::producer<bool> Value(Flag flag);
-[[nodiscard]] void Set(Flags flags);
+void Set(Flags flags);
 
 [[nodiscard]] inline bool On(Flag flag) {
 	return Current() & flag;
