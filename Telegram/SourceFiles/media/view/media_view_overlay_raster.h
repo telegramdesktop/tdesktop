@@ -32,6 +32,7 @@ private:
 		const QImage &image,
 		QRect rect,
 		int rotation);
+	void paintControlsFade(QRect geometry, float64 opacity);
 	void paintRadialLoading(
 		QRect inner,
 		bool radial,

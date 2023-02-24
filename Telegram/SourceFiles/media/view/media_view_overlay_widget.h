@@ -154,6 +154,7 @@ private:
 	struct ContentGeometry {
 		QRectF rect;
 		qreal rotation = 0.;
+		qreal controlsOpacity = 0.;
 	};
 	struct StartStreaming {
 		StartStreaming() : continueStreaming(false), startTime(0) {
@@ -417,6 +418,9 @@ private:
 		QRect clip,
 		float64 opacity);
 
+	[[nodiscard]] float64 controlOpacity(
+		float64 progress,
+		bool nonbright = false) const;
 	[[nodiscard]] bool isSaveMsgShown() const;
 
 	void updateOverRect(OverState state);
@@ -551,6 +555,9 @@ private:
 	object_ptr<Ui::LinkButton> _docDownload;
 	object_ptr<Ui::LinkButton> _docSaveAs;
 	object_ptr<Ui::LinkButton> _docCancel;
+
+	QRect _bottomShadowRect;
+	QRect _topShadowRect;
 
 	QRect _photoRadialRect;
 	Ui::RadialAnimation _radial;

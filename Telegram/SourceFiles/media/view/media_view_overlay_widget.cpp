@@ -790,6 +790,11 @@ void OverlayWidget::updateControlsGeometry() {
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
 
+	const auto bottom = st::mediaviewShadowBottom.height();
+	const auto top = st::mediaviewShadowTop.size();
+	_bottomShadowRect = QRect(0, height() - bottom, width(), bottom);
+	_topShadowRect = QRect(QPoint(width() - top.width(), 0), top);
+
 	updateControls();
 	resizeContentByScreenSize();
 	update();
@@ -1367,6 +1372,7 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 		_controlsOpacity.update(dt, anim::linear);
 	}
 	_helper->setControlsOpacity(_controlsOpacity.current());
+	const auto content = finalContentRect();
 	const auto toUpdate = QRegion()
 		+ (_over == OverLeftNav ? _leftNav : _leftNavIcon)
 		+ (_over == OverRightNav ? _rightNav : _rightNavIcon)
@@ -1377,7 +1383,9 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 		+ _nameNav
 		+ _dateNav
 		+ _captionRect.marginsAdded(st::mediaviewCaptionPadding)
-		+ _groupThumbsRect;
+		+ _groupThumbsRect
+		+ content.intersected(_bottomShadowRect)
+		+ content.intersected(_topShadowRect);
 	update(toUpdate);
 	return (dt < 1);
 }
@@ -1407,6 +1415,7 @@ QRect OverlayWidget::finalContentRect() const {
 }
 
 OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
+	const auto controlsOpacity = _controlsOpacity.current();
 	const auto toRotation = qreal(finalContentRotation());
 	const auto toRectRotated = QRectF(finalContentRect());
 	const auto toRectCenter = toRectRotated.center();
@@ -1418,7 +1427,7 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 			toRectRotated.width())
 		: toRectRotated;
 	if (!_geometryAnimation.animating()) {
-		return { toRect, toRotation };
+		return { toRect, toRotation, controlsOpacity };
 	}
 	const auto fromRect = _oldGeometry.rect;
 	const auto fromRotation = _oldGeometry.rotation;
@@ -1441,7 +1450,7 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 		fromRect.width() + (toRect.width() - fromRect.width()) * progress,
 		fromRect.height() + (toRect.height() - fromRect.height()) * progress
 	);
-	return { useRect, useRotation };
+	return { useRect, useRotation, controlsOpacity };
 }
 
 void OverlayWidget::updateContentRect() {
@@ -4152,6 +4161,7 @@ void OverlayWidget::paintControls(
 		const QRect &outer;
 		const QRect &inner;
 		const style::icon &icon;
+		bool nonbright = false;
 	};
 	const QRect kEmpty;
 	// When adding / removing controls please update RendererGL.
@@ -4161,13 +4171,15 @@ void OverlayWidget::paintControls(
 			_leftNavVisible,
 			_leftNav,
 			_leftNavIcon,
-			st::mediaviewLeft },
+			st::mediaviewLeft,
+			true },
 		{
 			OverRightNav,
 			_rightNavVisible,
 			_rightNav,
 			_rightNavIcon,
-			st::mediaviewRight },
+			st::mediaviewRight,
+			true },
 		{
 			OverSave,
 			_saveVisible,
@@ -4193,9 +4205,9 @@ void OverlayWidget::paintControls(
 		if (!control.visible) {
 			continue;
 		}
-		const auto bg = overLevel(control.state);
-		const auto icon = bg * st::mediaviewIconOverOpacity
-			+ (1 - bg) * st::mediaviewIconOpacity;
+		const auto progress = overLevel(control.state);
+		const auto bg = progress;
+		const auto icon = controlOpacity(progress, control.nonbright);
 		renderer->paintControl(
 			control.state,
 			control.outer,
@@ -4204,6 +4216,15 @@ void OverlayWidget::paintControls(
 			icon * opacity,
 			control.icon);
 	}
+}
+
+float64 OverlayWidget::controlOpacity(
+		float64 progress,
+		bool nonbright) const {
+	const auto normal = _windowed
+		? kNormalIconOpacity
+		: kMaximizedIconOpacity;
+	return progress + (1. - progress) * normal;
 }
 
 void OverlayWidget::paintFooterContent(
@@ -4221,7 +4242,7 @@ void OverlayWidget::paintFooterContent(
 	const auto date = _dateNav.translated(shift);
 	if (header.intersects(clip)) {
 		auto o = _headerHasLink ? overLevel(OverHeader) : 0;
-		p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * opacity);
+		p.setOpacity(controlOpacity(o) * opacity);
 		p.drawText(header.left(), header.top() + st::mediaviewThickFont->ascent, _headerText);
 
 		if (o > 0) {
@@ -4235,7 +4256,7 @@ void OverlayWidget::paintFooterContent(
 	// name
 	if (_nameNav.isValid() && name.intersects(clip)) {
 		float64 o = _from ? overLevel(OverName) : 0.;
-		p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * opacity);
+		p.setOpacity(controlOpacity(o) * opacity);
 		_fromNameLabel.drawElided(p, name.left(), name.top(), name.width());
 
 		if (o > 0) {
@@ -4247,7 +4268,7 @@ void OverlayWidget::paintFooterContent(
 	// date
 	if (date.intersects(clip)) {
 		float64 o = overLevel(OverDate);
-		p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * opacity);
+		p.setOpacity(controlOpacity(o) * opacity);
 		p.drawText(date.left(), date.top() + st::mediaviewFont->ascent, _dateText);
 
 		if (o > 0) {
@@ -4323,6 +4344,7 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 		} else if (_fullScreenVideo) {
 			if (key == Qt::Key_Escape) {
 				playbackToggleFullScreen();
+			} else if (ctrl) {
 			} else if (key == Qt::Key_0) {
 				activateControls();
 				restartAtSeekPosition(0);
@@ -4337,7 +4359,6 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 				activateControls();
 				seekRelativeTime(kSeekTimeMs);
 			}
-
 			return;
 		}
 	}
@@ -4379,8 +4400,6 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 			zoomIn();
 		} else if (key == Qt::Key_Minus || key == Qt::Key_Underscore) {
 			zoomOut();
-		} else if (key == Qt::Key_0) {
-			zoomReset();
 		} else if (key == Qt::Key_I) {
 			update();
 		}
@@ -5090,10 +5109,13 @@ bool OverlayWidget::filterApplicationEvent(
 		not_null<QEvent*> e) {
 	const auto type = e->type();
 	if (type == QEvent::ShortcutOverride) {
-		const auto keyEvent = static_cast<QKeyEvent*>(e.get());
-		const auto ctrl = keyEvent->modifiers().testFlag(Qt::ControlModifier);
-		if (keyEvent->key() == Qt::Key_F && ctrl && _streamed) {
+		const auto event = static_cast<QKeyEvent*>(e.get());
+		const auto key = event->key();
+		const auto ctrl = event->modifiers().testFlag(Qt::ControlModifier);
+		if (key == Qt::Key_F && ctrl && _streamed) {
 			playbackToggleFullScreen();
+		} else if (key == Qt::Key_0 && ctrl) {
+			zoomReset();
 		}
 		return true;
 	} else if (type == QEvent::MouseMove

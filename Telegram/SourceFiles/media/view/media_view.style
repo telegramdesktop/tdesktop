@@ -101,11 +101,17 @@ mediaviewVolumeToggle: IconButton(mediaviewControlsButton) {
 }
 mediaviewVolumeSkip: 4px;
 
-mediaviewLeft: icon {{ "mediaview/next-flip_horizontal", mediaviewControlFg }};
-mediaviewRight: icon {{ "mediaview/next", mediaviewControlFg }};
+mediaviewLeft: icon {
+	{ "mediaview/next_shadow-flip_horizontal", windowShadowFg }
+	{ "mediaview/next-flip_horizontal", mediaviewControlFg }
+};
+mediaviewRight: icon {
+	{ "mediaview/next_shadow", windowShadowFg }
+	{ "mediaview/next", mediaviewControlFg }
+};
 mediaviewSave: icon {{ "mediaview/download", mediaviewControlFg }};
 mediaviewRotate: icon {{ "mediaview/rotate", mediaviewControlFg }};
-mediaviewMore: icon {{ "mediaview/more", mediaviewControlFg }};
+mediaviewMore: icon {{ "title_menu_dots", mediaviewControlFg }};
 
 mediaviewFileRed: icon {
 	{ size(25px, 25px), mediaviewFileBg },
@@ -232,15 +238,13 @@ mediaviewThickFont: semiboldFont;
 mediaviewFont: normalFont;
 mediaviewTextStyle: defaultTextStyle;
 
-mediaviewTextLeft: 16px;
+mediaviewTextLeft: 14px;
 mediaviewTextSkip: 10px;
-mediaviewHeaderTop: 48px;
-mediaviewTextTop: 24px;
+mediaviewHeaderTop: 47px;
+mediaviewTextTop: 26px;
 
-mediaviewIconOpacity: 0.45;
-mediaviewIconOverOpacity: 1.;
 mediaviewControlSize: 90px;
-mediaviewIconSize: size(60px, 56px);
+mediaviewIconSize: size(46px, 54px);
 
 mediaviewWaitHide: 2000;
 mediaviewHideDuration: 1000;
@@ -250,9 +254,9 @@ mediaviewFadeDuration: 150;
 mediaviewDeltaFromLastAction: 5px;
 mediaviewSwipeDistance: 80px;
 
-mediaviewCaptionPadding: margins(18px, 10px, 18px, 10px);
+mediaviewCaptionPadding: margins(11px, 6px, 11px, 6px);
 mediaviewCaptionMargin: size(11px, 11px);
-mediaviewCaptionRadius: 2px;
+mediaviewCaptionRadius: 6px;
 
 mediaviewGroupPadding: margins(0px, 14px, 0px, 14px);
 mediaviewGroupHeight: 80px;
@@ -317,6 +321,8 @@ mediaviewTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActive: mediaviewTitleClose;
 	closeIconActiveOver: mediaviewTitleClose;
 }
+mediaviewShadowTop: icon{{ "mediaview/shadow_top", windowShadowFg }};
+mediaviewShadowBottom: icon{{ "mediaview/shadow_bottom", windowShadowFg }};
 
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;

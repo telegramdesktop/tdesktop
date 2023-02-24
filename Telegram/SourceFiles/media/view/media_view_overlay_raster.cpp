@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/painter.h"
 #include "media/view/media_view_pip.h"
+#include "styles/style_media_view.h"
 
 namespace Media::View {
 
@@ -73,6 +74,7 @@ void OverlayWidget::RendererSW::paintTransformedVideoFrame(
 		return;
 	}
 	paintTransformedImage(_owner->videoFrame(), rect, rotation);
+	paintControlsFade(rect, geometry.controlsOpacity);
 }
 
 void OverlayWidget::RendererSW::paintTransformedStaticContent(
@@ -89,10 +91,34 @@ void OverlayWidget::RendererSW::paintTransformedStaticContent(
 	if (fillTransparentBackground) {
 		_p->fillRect(rect, _transparentBrush);
 	}
-	if (image.isNull()) {
-		return;
+	if (!image.isNull()) {
+		paintTransformedImage(image, rect, rotation);
 	}
-	paintTransformedImage(image, rect, rotation);
+	paintControlsFade(rect, geometry.controlsOpacity);
+}
+
+void OverlayWidget::RendererSW::paintControlsFade(
+		QRect geometry,
+		float64 opacity) {
+	_p->setOpacity(opacity);
+	_p->setClipRect(geometry);
+	const auto width = _owner->width();
+	const auto &top = st::mediaviewShadowTop;
+	const auto topShadow = QRect(
+		QPoint(width - top.width(), 0),
+		top.size());
+	if (topShadow.intersected(geometry).intersects(_clipOuter)) {
+		top.paint(*_p, topShadow.topLeft(), width);
+	}
+	const auto &bottom = st::mediaviewShadowBottom;
+	const auto bottomShadow = QRect(
+		QPoint(0, _owner->height() - bottom.height()),
+		QSize(width, bottom.height()));
+	if (bottomShadow.intersected(geometry).intersects(_clipOuter)) {
+		bottom.fill(*_p, bottomShadow);
+	}
+	_p->setClipping(false);
+	_p->setOpacity(1.);
 }
 
 void OverlayWidget::RendererSW::paintTransformedImage(
