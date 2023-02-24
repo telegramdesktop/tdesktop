@@ -89,7 +89,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_calls.h"
 
 #ifdef Q_OS_MAC
 #include "platform/mac/touchbar/mac_touchbar_media_view.h"
@@ -426,7 +425,7 @@ OverlayWidget::OverlayWidget()
 			//
 			// This doesn't make sense. But it works. :shrug:
 			_titleBugWorkaround->setGeometry(
-				{ 0, 0, size.width(), st::callTitleButton.height });
+				{ 0, 0, size.width(), st::mediaviewTitleButton.height });
 
 			_widget->setGeometry({ QPoint(), size });
 			updateControlsGeometry();
@@ -476,7 +475,7 @@ OverlayWidget::OverlayWidget()
 	});
 
 	_window->setTitle(u"Media viewer"_q);
-	_window->setTitleStyle(st::callTitle);
+	_window->setTitleStyle(st::mediaviewTitle);
 
 	if constexpr (Platform::IsMac()) {
 		// Without Qt::Tool starting with Qt 5.15.1 this widget
@@ -523,6 +522,10 @@ OverlayWidget::OverlayWidget()
 	_touchTimer.setCallback([=] { handleTouchTimer(); });
 
 	_controlsHideTimer.setCallback([=] { hideControls(); });
+	_helper->controlsActivations(
+	) | rpl::start_with_next([=] {
+		activateControls();
+	}, lifetime());
 
 	_docDownload->addClickHandler([=] { downloadMedia(); });
 	_docSaveAs->addClickHandler([=] { saveAs(); });
@@ -779,8 +782,6 @@ void OverlayWidget::updateGeometryToScreen(bool inMove) {
 
 void OverlayWidget::updateControlsGeometry() {
 	const auto navSkip = st::mediaviewHeaderTop;
-	_closeNav = QRect(width() - st::mediaviewControlSize, 0, st::mediaviewControlSize, st::mediaviewControlSize);
-	_closeNavIcon = style::centerrect(_closeNav, st::mediaviewClose);
 	_leftNav = QRect(0, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
 	_leftNavIcon = style::centerrect(_leftNav, st::mediaviewLeft);
 	_rightNav = QRect(width() - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
@@ -1365,10 +1366,10 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 	} else {
 		_controlsOpacity.update(dt, anim::linear);
 	}
+	_helper->setControlsOpacity(_controlsOpacity.current());
 	const auto toUpdate = QRegion()
 		+ (_over == OverLeftNav ? _leftNav : _leftNavIcon)
 		+ (_over == OverRightNav ? _rightNav : _rightNavIcon)
-		+ (_over == OverClose ? _closeNav : _closeNavIcon)
 		+ _saveNavIcon
 		+ _rotateNavIcon
 		+ _moreNavIcon
@@ -1759,6 +1760,7 @@ void OverlayWidget::close() {
 	if (const auto window = Core::App().activeWindow()) {
 		window->reActivate();
 	}
+	_helper->clearState();
 }
 
 void OverlayWidget::minimize() {
@@ -1769,6 +1771,7 @@ void OverlayWidget::minimize() {
 }
 
 void OverlayWidget::toggleFullScreen(bool fullscreen) {
+	_helper->clearState();
 	_fullscreen = fullscreen;
 	_windowed = !fullscreen;
 	initNormalGeometry();
@@ -1786,6 +1789,7 @@ void OverlayWidget::toggleFullScreen(bool fullscreen) {
 		_wasWindowedMode = true;
 	}
 	savePosition();
+	_helper->clearState();
 }
 
 void OverlayWidget::activateControls() {
@@ -4165,12 +4169,6 @@ void OverlayWidget::paintControls(
 			_rightNavIcon,
 			st::mediaviewRight },
 		{
-			OverClose,
-			false,
-			_closeNav,
-			_closeNavIcon,
-			st::mediaviewClose },
-		{
 			OverSave,
 			_saveVisible,
 			kEmpty,
@@ -4695,7 +4693,6 @@ void OverlayWidget::handleMousePress(
 				|| _over == OverRotate
 				|| _over == OverIcon
 				|| _over == OverMore
-				|| _over == OverClose
 				|| _over == OverVideo) {
 				_down = _over;
 			} else if (!_saveMsg.contains(position) || !isSaveMsgShown()) {
@@ -4778,7 +4775,6 @@ void OverlayWidget::updateOverRect(OverState state) {
 	case OverRotate: update(_rotateNavIcon); break;
 	case OverIcon: update(_docIconRect); break;
 	case OverHeader: update(_headerNav); break;
-	case OverClose: update(_closeNav); break;
 	case OverMore: update(_moreNavIcon); break;
 	}
 }
@@ -4875,10 +4871,6 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverIcon);
 	} else if (_moreNav.contains(pos)) {
 		updateOverState(OverMore);
-#if 0 // close
-	} else if (_closeNav.contains(pos)) {
-		updateOverState(OverClose);
-#endif
 	} else if (documentContentShown() && finalContentRect().contains(pos)) {
 		if ((_document->isVideoFile() || _document->isVideoMessage()) && _streamed) {
 			updateOverState(OverVideo);
@@ -4937,9 +4929,6 @@ void OverlayWidget::handleMouseRelease(
 		handleDocumentClick();
 	} else if (_over == OverMore && _down == OverMore) {
 		InvokeQueued(_widget, [=] { showDropdown(); });
-	} else if (_over == OverClose && _down == OverClose) {
-		//close();
-		toggleFullScreen(!_fullscreen);
 	} else if (_over == OverVideo && _down == OverVideo) {
 		if (_streamed) {
 			playbackPauseResume();
@@ -5220,6 +5209,7 @@ void OverlayWidget::clearBeforeHide() {
 	_controlsHideTimer.cancel();
 	_controlsState = ControlsShown;
 	_controlsOpacity = anim::value(1);
+	_helper->setControlsOpacity(1.);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
 	_body->hide();

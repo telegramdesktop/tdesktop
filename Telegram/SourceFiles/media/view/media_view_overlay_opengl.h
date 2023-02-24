@@ -130,7 +130,7 @@ private:
 	Ui::GL::Image _groupThumbsImage;
 	Ui::GL::Image _controlsImage;
 
-	static constexpr auto kControlsCount = 6;
+	static constexpr auto kControlsCount = 5;
 	[[nodiscard]] static Control ControlMeta(OverState control);
 	std::array<QRect, kControlsCount> _controlsTextures;
 

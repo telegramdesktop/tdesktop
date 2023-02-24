@@ -101,28 +101,27 @@ mediaviewVolumeToggle: IconButton(mediaviewControlsButton) {
 }
 mediaviewVolumeSkip: 4px;
 
-mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", mediaviewControlFg }};
-mediaviewRight: icon {{ "mediaview_next", mediaviewControlFg }};
-mediaviewClose: icon {{ "mediaview_close", mediaviewControlFg }};
-mediaviewSave: icon {{ "mediaview_download", mediaviewControlFg }};
-mediaviewRotate: icon {{ "mediaview_rotate", mediaviewControlFg }};
-mediaviewMore: icon {{ "mediaview_more", mediaviewControlFg }};
+mediaviewLeft: icon {{ "mediaview/next-flip_horizontal", mediaviewControlFg }};
+mediaviewRight: icon {{ "mediaview/next", mediaviewControlFg }};
+mediaviewSave: icon {{ "mediaview/download", mediaviewControlFg }};
+mediaviewRotate: icon {{ "mediaview/rotate", mediaviewControlFg }};
+mediaviewMore: icon {{ "mediaview/more", mediaviewControlFg }};
 
 mediaviewFileRed: icon {
 	{ size(25px, 25px), mediaviewFileBg },
-	{ "mediaview_file_corner", mediaviewFileRedCornerFg },
+	{ "mediaview/file_corner", mediaviewFileRedCornerFg },
 };
 mediaviewFileYellow: icon {
 	{ size(25px, 25px), mediaviewFileBg },
-	{ "mediaview_file_corner", mediaviewFileYellowCornerFg },
+	{ "mediaview/file_corner", mediaviewFileYellowCornerFg },
 };
 mediaviewFileGreen: icon {
 	{ size(25px, 25px), mediaviewFileBg },
-	{ "mediaview_file_corner", mediaviewFileGreenCornerFg },
+	{ "mediaview/file_corner", mediaviewFileGreenCornerFg },
 };
 mediaviewFileBlue: icon {
 	{ size(25px, 25px), mediaviewFileBg },
-	{ "mediaview_file_corner", mediaviewFileBlueCornerFg },
+	{ "mediaview/file_corner", mediaviewFileBlueCornerFg },
 };
 
 mediaviewFilePadding: 18px;
@@ -211,7 +210,7 @@ mediaviewControlsPopupMenu: PopupMenu(defaultPopupMenu) {
 	animation: mediaviewControlsPanelAnimation;
 }
 
-mediaviewSaveMsgCheck: icon {{ "mediaview_save_check", mediaviewSaveMsgFg }};
+mediaviewSaveMsgCheck: icon {{ "mediaview/save_check", mediaviewSaveMsgFg }};
 mediaviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
 mediaviewSaveMsgCheckPos: point(23px, 21px);
 mediaviewSaveMsgShowing: 200;
@@ -268,6 +267,56 @@ mediaviewDefaultLeft: 160px;
 mediaviewDefaultTop: 120px;
 mediaviewDefaultWidth: 800px;
 mediaviewDefaultHeight: 600px;
+
+mediaviewTitleMinimize: icon{
+	{ "mediaview/title_viewer_shadow_minimize", windowShadowFg },
+	{ "mediaview/title_viewer_button_minimize", mediaviewControlFg },
+};
+mediaviewTitleMaximize: icon{
+	{ "mediaview/title_viewer_shadow_maximize", windowShadowFg },
+	{ "mediaview/title_viewer_button_maximize", mediaviewControlFg },
+};
+mediaviewTitleRestore: icon{
+	{ "mediaview/title_viewer_shadow_restore", windowShadowFg },
+	{ "mediaview/title_viewer_button_restore", mediaviewControlFg },
+};
+mediaviewTitleClose: icon{
+	{ "mediaview/title_viewer_shadow_close", windowShadowFg },
+	{ "mediaview/title_viewer_button_close", mediaviewControlFg },
+};
+mediaviewTitleButton: IconButton(windowTitleButton) {
+	width: 44px;
+	height: 32px;
+}
+mediaviewTitle: WindowTitle(defaultWindowTitle) {
+	height: 0px;
+	bg: mediaviewBg;
+	bgActive: mediaviewBg;
+	fg: transparent;
+	fgActive: transparent;
+	minimize: IconButton(mediaviewTitleButton) {
+		icon: mediaviewTitleMinimize;
+		iconOver: mediaviewTitleMinimize;
+	}
+	minimizeIconActive: mediaviewTitleMinimize;
+	minimizeIconActiveOver: mediaviewTitleMinimize;
+	maximize: IconButton(mediaviewTitleButton) {
+		icon: mediaviewTitleMaximize;
+		iconOver: mediaviewTitleMaximize;
+	}
+	maximizeIconActive: mediaviewTitleMaximize;
+	maximizeIconActiveOver: mediaviewTitleMaximize;
+	restoreIcon: mediaviewTitleRestore;
+	restoreIconOver: mediaviewTitleRestore;
+	restoreIconActive: mediaviewTitleRestore;
+	restoreIconActiveOver: mediaviewTitleRestore;
+	close: IconButton(mediaviewTitleButton) {
+		icon: mediaviewTitleClose;
+		iconOver: mediaviewTitleClose;
+	}
+	closeIconActive: mediaviewTitleClose;
+	closeIconActiveOver: mediaviewTitleClose;
+}
 
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;

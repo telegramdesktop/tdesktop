@@ -320,10 +320,10 @@ historyFileOutPlay: icon {{ "history_file_play", historyFileOutIconFg }};
 historyFileOutPlaySelected: icon {{ "history_file_play", historyFileOutIconFgSelected }};
 historyFileInPlay: icon {{ "history_file_play", historyFileInIconFg }};
 historyFileInPlaySelected: icon {{ "history_file_play", historyFileInIconFgSelected }};
-historyFileOutWaiting: icon {{ "mediaview_save_check", historyFileOutIconFg }};
-historyFileOutWaitingSelected: icon {{ "mediaview_save_check", historyFileOutIconFgSelected }};
-historyFileInWaiting: icon {{ "mediaview_save_check", historyFileInIconFg }};
-historyFileInWaitingSelected: icon {{ "mediaview_save_check", historyFileInIconFgSelected }};
+historyFileOutWaiting: icon {{ "mediaview/save_check", historyFileOutIconFg }};
+historyFileOutWaitingSelected: icon {{ "mediaview/save_check", historyFileOutIconFgSelected }};
+historyFileInWaiting: icon {{ "mediaview/save_check", historyFileInIconFg }};
+historyFileInWaitingSelected: icon {{ "mediaview/save_check", historyFileInIconFgSelected }};
 
 historyFileThumbPause: icon {{ "history_file_pause", historyFileThumbIconFg }};
 historyFileThumbPauseSelected: icon {{ "history_file_pause", historyFileThumbIconFgSelected }};
@@ -333,8 +333,8 @@ historyFileThumbCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }}
 historyFileThumbCancelSelected: icon {{ "history_file_cancel", historyFileThumbIconFgSelected }};
 historyFileThumbPlay: icon {{ "history_file_play", historyFileThumbIconFg }};
 historyFileThumbPlaySelected: icon {{ "history_file_play", historyFileThumbIconFgSelected }};
-historyFileThumbWaiting: icon {{ "mediaview_save_check", historyFileThumbIconFg }};
-historyFileThumbWaitingSelected: icon {{ "mediaview_save_check", historyFileThumbIconFgSelected }};
+historyFileThumbWaiting: icon {{ "mediaview/save_check", historyFileThumbIconFg }};
+historyFileThumbWaitingSelected: icon {{ "mediaview/save_check", historyFileThumbIconFgSelected }};
 
 historySendStateSpace: 24px;
 historySendStatePosition: point(-17px, -19px);

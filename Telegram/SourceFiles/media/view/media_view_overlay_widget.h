@@ -129,7 +129,6 @@ private:
 		OverNone,
 		OverLeftNav,
 		OverRightNav,
-		OverClose,
 		OverHeader,
 		OverName,
 		OverDate,
@@ -492,7 +491,6 @@ private:
 	std::unique_ptr<Collage> _collage;
 	std::optional<WebPageCollage> _collageData;
 
-	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
 	QRect _headerNav, _nameNav, _dateNav;
 	QRect _rotateNav, _rotateNavIcon, _saveNav, _saveNavIcon, _moreNav, _moreNavIcon;

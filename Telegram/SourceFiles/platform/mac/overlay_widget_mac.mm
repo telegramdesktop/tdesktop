@@ -118,9 +118,6 @@ void MacOverlayWidgetHelper::activate(int button) {
 void MacOverlayWidgetHelper::beforeShow(bool fullscreen) {
 	_data->window->setAttribute(Qt::WA_MacAlwaysShowToolWindow, !fullscreen);
 	_data->window->windowHandle()->setFlag(Qt::FramelessWindowHint, fullscreen);
-	if (!fullscreen) {
-		_data->window->setGeometry({ 100, 100, 800, 600 });
-	}
 	updateStyles(fullscreen);
 }
 

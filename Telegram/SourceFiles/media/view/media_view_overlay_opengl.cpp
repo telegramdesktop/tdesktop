@@ -558,10 +558,9 @@ auto OverlayWidget::RendererGL::ControlMeta(OverState control)
 	switch (control) {
 	case OverLeftNav: return { 0, &st::mediaviewLeft };
 	case OverRightNav: return { 1, &st::mediaviewRight };
-	case OverClose: return { 2, &st::mediaviewClose };
-	case OverSave: return { 3, &st::mediaviewSave };
-	case OverRotate: return { 4, &st::mediaviewRotate };
-	case OverMore: return { 5, &st::mediaviewMore };
+	case OverSave: return { 2, &st::mediaviewSave };
+	case OverRotate: return { 3, &st::mediaviewRotate };
+	case OverMore: return { 4, &st::mediaviewMore };
 	}
 	Unexpected("Control value in OverlayWidget::RendererGL::ControlIndex.");
 }
@@ -573,7 +572,6 @@ void OverlayWidget::RendererGL::validateControls() {
 	const auto metas = {
 		ControlMeta(OverLeftNav),
 		ControlMeta(OverRightNav),
-		ControlMeta(OverClose),
 		ControlMeta(OverSave),
 		ControlMeta(OverRotate),
 		ControlMeta(OverMore),

@@ -15,6 +15,14 @@ namespace Ui::Platform {
 struct SeparateTitleControls;
 } // namespace Ui::Platform
 
+namespace Media::View {
+
+inline constexpr auto kMaximizedIconOpacity = 0.6;
+inline constexpr auto kNormalIconOpacity = 0.9;
+inline constexpr auto kOverBackgroundOpacity = 0.15;
+
+} // namespace Media::View
+
 namespace Platform {
 
 class OverlayWidgetHelper {
@@ -26,6 +34,9 @@ public:
 	[[nodiscard]] virtual bool skipTitleHitTest(QPoint position) {
 		return false;
 	}
+	[[nodiscard]] virtual rpl::producer<> controlsActivations() {
+		return rpl::never<>();
+	}
 	virtual void beforeShow(bool fullscreen) {
 	}
 	virtual void afterShow(bool fullscreen) {
@@ -33,6 +44,10 @@ public:
 	virtual void notifyFileDialogShown(bool shown) {
 	}
 	virtual void minimize(not_null<Ui::RpWindow*> window);
+	virtual void clearState() {
+	}
+	virtual void setControlsOpacity(float64 opacity) {
+	}
 };
 
 [[nodiscard]] std::unique_ptr<OverlayWidgetHelper> CreateOverlayWidgetHelper(
@@ -48,8 +63,15 @@ public:
 
 	void orderWidgets() override;
 	bool skipTitleHitTest(QPoint position) override;
+	rpl::producer<> controlsActivations() override;
+	void beforeShow(bool fullscreen) override;
+	void clearState() override;
+	void setControlsOpacity(float64 opacity) override;
 
 private:
+	class Buttons;
+
+	const not_null<Buttons*> _buttons;
 	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
 
 };
