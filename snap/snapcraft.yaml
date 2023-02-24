@@ -427,6 +427,7 @@ parts:
       - libx11-dev
       - libx11-xcb-dev
       - libxcb1-dev
+      - libxcb-cursor-dev
       - libxcb-glx0-dev
       - libxcb-icccm4-dev
       - libxcb-image0-dev
@@ -440,7 +441,6 @@ parts:
       - libxcb-util-dev
       - libxcb-xfixes0-dev
       - libxcb-xkb-dev
-      - libxcursor-dev
       - libxkbcommon-dev
       - libxkbcommon-x11-dev
       - zlib1g-dev
@@ -468,6 +468,7 @@ parts:
       - libx11-6
       - libx11-xcb1
       - libxcb1
+      - libxcb-cursor0
       - libxcb-glx0
       - libxcb-icccm4
       - libxcb-image0
@@ -481,14 +482,13 @@ parts:
       - libxcb-util1
       - libxcb-xfixes0
       - libxcb-xkb1
-      - libxcursor1
       - libxkbcommon0
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6.4.2
+      QT=6.5.0
 
-      git clone -b v${QT} --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v${QT}-beta3 --depth=1 git://code.qt.io/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools
 
       cd qtbase
