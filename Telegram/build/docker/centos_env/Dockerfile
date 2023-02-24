@@ -835,6 +835,8 @@ COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/
 
 WORKDIR ../tdesktop
 ENV QT {{ QT }}
+ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
+
 VOLUME [ "/usr/src/tdesktop" ]
 ENTRYPOINT [ "scl", "enable", "rh-python38", "--", "scl", "enable", "llvm-toolset-7.0", "--", "scl", "enable", "devtoolset-10", "--" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]
