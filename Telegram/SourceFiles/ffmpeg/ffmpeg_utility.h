@@ -22,7 +22,7 @@ extern "C" {
 #include <libavutil/version.h>
 } // extern "C"
 
-#define DA_FFMPEG_NEW_CHANNEL_LAYOUT (LIBAVUTIL_VERSION_MAJOR >= 59)
+#define DA_FFMPEG_NEW_CHANNEL_LAYOUT (LIBAVUTIL_VERSION_MAJOR >= 57)
 
 class QImage;
 
