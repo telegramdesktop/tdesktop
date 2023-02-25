@@ -860,7 +860,6 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 	}
 
 	EncryptedDescriptor data(size);
-	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit) << qint64(_cacheBigFileTotalSizeLimit) << qint32(_cacheBigFileTotalTimeLimit);
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiSessionSettings) << userData;

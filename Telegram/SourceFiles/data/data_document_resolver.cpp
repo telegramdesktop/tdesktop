@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_document_resolver.h"
 
+#include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/boxes/confirm_box.h"
 #include "core/application.h"
@@ -35,6 +36,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 namespace {
+
+base::options::toggle OptionExternalVideoPlayer({
+	.id = kOptionExternalVideoPlayer,
+	.name = "External video player",
+});
 
 void ConfirmDontWarnBox(
 		not_null<Ui::GenericBox*> box,
@@ -116,6 +122,8 @@ void LaunchWithWarning(
 }
 
 } // namespace
+
+const char kOptionExternalVideoPlayer[] = "external-video-player";
 
 QString FileExtension(const QString &filepath) {
 	const auto reversed = ranges::views::reverse(filepath);
@@ -241,7 +249,7 @@ void ResolveDocument(
 	const auto msgId = item ? item->fullId() : FullMsgId();
 
 	const auto showDocument = [&] {
-		if (cUseExternalVideoPlayer()
+		if (OptionExternalVideoPlayer.value()
 			&& document->isVideoFile()
 			&& !document->filepath().isEmpty()) {
 			File::Launch(document->location(false).fname);

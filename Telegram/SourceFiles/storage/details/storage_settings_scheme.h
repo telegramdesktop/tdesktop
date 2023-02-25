@@ -140,7 +140,7 @@ enum {
 	dbiNotificationsCornerOld = 0x46,
 	dbiThemeKeyOld = 0x47,
 	dbiDialogsWidthRatioOld = 0x48,
-	dbiUseExternalVideoPlayer = 0x49,
+	dbiUseExternalVideoPlayerOld = 0x49,
 	dbiDcOptionsOld = 0x4a,
 	dbiMtpAuthorization = 0x4b,
 	dbiLastSeenWarningSeenOld = 0x4c,

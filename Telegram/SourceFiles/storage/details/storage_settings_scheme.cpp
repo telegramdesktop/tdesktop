@@ -192,12 +192,10 @@ bool ReadSetting(
 		cSetSendToMenu(v == 1);
 	} break;
 
-	case dbiUseExternalVideoPlayer: {
+	case dbiUseExternalVideoPlayerOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
-
-		cSetUseExternalVideoPlayer(v == 1);
 	} break;
 
 	case dbiCacheSettingsOld: {
