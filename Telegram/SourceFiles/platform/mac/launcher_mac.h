@@ -17,7 +17,6 @@ public:
 
 private:
 	void initHook() override;
-	void initHighDpi() override;
 
 	bool launchUpdater(UpdaterLaunch action) override;
 

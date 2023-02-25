@@ -26,7 +26,9 @@ void openLog() {
 		return;
 	}
 
-	NSDateFormatter *fmt = [[NSDateFormatter alloc] initWithDateFormat:@"DebugLogs/%Y%m%d_%H%M%S_upd.txt" allowNaturalLanguage:NO];
+	NSDateFormatter *fmt = [[NSDateFormatter alloc] init];
+	[fmt setLocale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
+	[fmt setDateFormat:@"'DebugLogs/'yyyyMMdd'_'HHmmss'_update.txt'"];
 	NSString *logPath = [workDir stringByAppendingString:[fmt stringFromDate:[NSDate date]]];
 	[[NSFileManager defaultManager] createFileAtPath:logPath contents:nil attributes:nil];
 	_logFile = [NSFileHandle fileHandleForWritingAtPath:logPath];

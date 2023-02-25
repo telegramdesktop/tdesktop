@@ -165,17 +165,18 @@ StickersListWidget::StickersListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	Window::GifPauseReason level,
-	bool masks)
+	Mode mode)
 : Inner(
 	parent,
 	st::defaultEmojiPan,
 	&controller->session(),
 	Window::PausedIn(controller, level))
+, _mode(mode)
 , _controller(controller)
 , _api(&session().mtp())
 , _localSetsManager(std::make_unique<LocalStickersManager>(&session()))
 , _section(Section::Stickers)
-, _isMasks(masks)
+, _isMasks(mode == Mode::Masks)
 , _updateItemsTimer([=] { updateItems(); })
 , _updateSetsTimer([=] { updateSets(); })
 , _trendingAddBgOver(
@@ -1079,20 +1080,10 @@ void StickersListWidget::pauseInvisibleLottieIn(const SectionInfo &info) {
 }
 
 void StickersListWidget::paintEmptySearchResults(Painter &p) {
-	const auto iconLeft = (width() - st::stickersEmpty.width()) / 2;
-	const auto iconTop = (height() / 3) - (st::stickersEmpty.height() / 2);
-	st::stickersEmpty.paint(p, iconLeft, iconTop, width());
-
-	const auto text = tr::lng_stickers_nothing_found(tr::now);
-	const auto textWidth = st::normalFont->width(text);
-	p.setFont(st::normalFont);
-	p.setPen(st::windowSubTextFg);
-	p.drawTextLeft(
-		(width() - textWidth) / 2,
-		iconTop + st::stickersEmpty.height() - st::normalFont->height,
-		width(),
-		text,
-		textWidth);
+	Inner::paintEmptySearchResults(
+		p,
+		st::stickersEmpty,
+		tr::lng_stickers_nothing_found(tr::now));
 }
 
 int StickersListWidget::megagroupSetInfoLeft() const {
@@ -2463,7 +2454,18 @@ auto StickersListWidget::getLottieRenderer()
 }
 
 void StickersListWidget::showStickerSet(uint64 setId) {
+	if (_showingSetById) {
+		return;
+	}
+	_showingSetById = true;
+	const auto guard = gsl::finally([&] { _showingSetById = false; });
+
 	clearSelection();
+	if (_search
+		&& (!_searchQuery.isEmpty() || !_searchNextQuery.isEmpty())) {
+		_search->cancel();
+		cancelSetsSearch();
+	}
 
 	if (setId == Data::Stickers::FeaturedSetId) {
 		if (_section != Section::Featured) {
@@ -2566,7 +2568,7 @@ void StickersListWidget::setupSearch() {
 			return a.isEmpty() ? b : (a + ' ' + b);
 		});
 		searchForSets(std::move(text), SearchEmoji(query, set));
-	}, session);
+	}, session, false, (_mode == Mode::UserpicBuilder));
 }
 
 void StickersListWidget::displaySet(uint64 setId) {

@@ -220,9 +220,9 @@ void Controller::showReaction(const ReactionId &reaction) {
 			appendRow(peer, reaction);
 		}
 	} else {
-		_filtered = _all | ranges::view::filter([&](const AllEntry &entry) {
+		_filtered = _all | ranges::views::filter([&](const AllEntry &entry) {
 			return (entry.second == reaction);
-		}) | ranges::view::transform(
+		}) | ranges::views::transform(
 			&AllEntry::first
 		) | ranges::to_vector;
 		for (const auto peer : _filtered) {

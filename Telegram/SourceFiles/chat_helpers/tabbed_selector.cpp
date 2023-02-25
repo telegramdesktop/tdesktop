@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/box_content.h"
 #include "ui/image/image_prepare.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -500,7 +501,7 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 				this,
 				_controller,
 				_level,
-				true);
+				StickersListWidget::Mode::Masks);
 		}
 		Unexpected("Type in TabbedSelector::createTab.");
 	};
@@ -1281,6 +1282,30 @@ void TabbedSelector::Inner::checkHideWithBox(QPointer<Ui::BoxContent> box) {
 		_preventHideWithBox = false;
 		_checkForHide.fire({});
 	});
+}
+
+void TabbedSelector::Inner::paintEmptySearchResults(
+		Painter &p,
+		const style::icon &icon,
+		const QString &text) const {
+	const auto iconLeft = (width() - icon.width()) / 2;
+	const auto iconTop = std::max(
+		(height() / 3) - (icon.height() / 2),
+		st::normalFont->height);
+	icon.paint(p, iconLeft, iconTop, width());
+
+	const auto textWidth = st::normalFont->width(text);
+	const auto textTop = std::min(
+		iconTop + icon.height() - st::normalFont->height,
+		height() - 2 * st::normalFont->height);
+	p.setFont(st::normalFont);
+	p.setPen(st::windowSubTextFg);
+	p.drawTextLeft(
+		(width() - textWidth) / 2,
+		textTop,
+		width(),
+		text,
+		textWidth);
 }
 
 void TabbedSelector::Inner::visibleTopBottomUpdated(

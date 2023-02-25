@@ -193,9 +193,6 @@ void WriteReportInfo(int signum, const char *name) {
 	} else {
 		dump() << "Caught signal " << signum << " in thread " << uint64(thread) << "\n";
 	}
-
-	dump() << "\nBacktrace omitted.\n";
-	dump() << "\n";
 }
 
 const int HandledSignals[] = {

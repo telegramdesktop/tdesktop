@@ -1161,16 +1161,17 @@ void Application::updateWindowTitles() {
 }
 
 void Application::lockByPasscode() {
-	bool cleanup = _domain->local().IsCacheCleanedUpOnLock();
+    bool cleanup = _domain->local().IsCacheCleanedUpOnLock();
+    _passcodeLock = true;
 	enumerateWindows([&](not_null<Window::Controller*> w) {
-		_passcodeLock = true;
-		if (cleanup) {
-			cleanup = false;
-			FakePasscode::FileUtils::ClearCaches(false);
-			Ui::Emoji::ClearIrrelevantCache();
-		}
-		w->setupPasscodeLock();
+        if (cleanup) {
+            cleanup = false;
+            FakePasscode::FileUtils::ClearCaches(false);
+            Ui::Emoji::ClearIrrelevantCache();
+        }
+        w->setupPasscodeLock();
 	});
+	hideMediaView();
 }
 
 void Application::maybeLockByPasscode() {

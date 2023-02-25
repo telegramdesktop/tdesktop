@@ -295,10 +295,11 @@ void AddParticipantsBoxController::Start(
 		not_null<ChatData*> chat) {
 	auto controller = std::make_unique<AddParticipantsBoxController>(chat);
 	const auto weak = controller.get();
+	const auto parent = navigation->parentController();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_participant_invite(), [=] {
 			weak->inviteSelectedUsers(box, [=] {
-				navigation->parentController()->showPeerHistory(
+				parent->showPeerHistory(
 					chat,
 					Window::SectionShow::Way::ClearStack,
 					ShowAtTheEndMsgId);
@@ -320,11 +321,12 @@ void AddParticipantsBoxController::Start(
 		channel,
 		std::move(alreadyIn));
 	const auto weak = controller.get();
+	const auto parent = navigation->parentController();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_participant_invite(), [=] {
 			weak->inviteSelectedUsers(box, [=] {
 				if (channel->isMegagroup()) {
-					navigation->parentController()->showPeerHistory(
+					parent->showPeerHistory(
 						channel,
 						Window::SectionShow::Way::ClearStack,
 						ShowAtTheEndMsgId);
@@ -337,13 +339,16 @@ void AddParticipantsBoxController::Start(
 			justCreated ? tr::lng_create_group_skip() : tr::lng_cancel(),
 			[=] { box->closeBox(); });
 		if (justCreated) {
+			const auto weak = base::make_weak(parent);
 			box->boxClosing() | rpl::start_with_next([=] {
 				auto params = Window::SectionShow();
 				params.activation = anim::activation::background;
-				navigation->parentController()->showPeerHistory(
-					channel,
-					params,
-					ShowAtTheEndMsgId);
+				if (const auto strong = weak.get()) {
+					strong->showPeerHistory(
+						channel,
+						params,
+						ShowAtTheEndMsgId);
+				}
 			}, box->lifetime());
 		}
 	};

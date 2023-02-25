@@ -111,7 +111,6 @@ public:
 	Element *findLastNonEmpty() const;
 	Element *findLastDisplayed() const;
 	bool hasOrphanMediaGroupPart() const;
-	bool removeOrphanMediaGroupPart();
 	[[nodiscard]] std::vector<MsgId> collectMessagesFromParticipantToDelete(
 		not_null<PeerData*> participant) const;
 
@@ -387,7 +386,7 @@ public:
 	const QString &chatListNameSortKey() const override;
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
-	void loadUserpic() override;
+	void chatListPreloadData() override;
 	void paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,
@@ -467,6 +466,7 @@ private:
 		IsForum = (1 << 3),
 		FakeUnreadWhileOpened = (1 << 4),
 		HasPinnedMessages = (1 << 5),
+		ResolveChatListMessage = (1 << 6),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
@@ -553,6 +553,8 @@ private:
 	void setChatListMessageFromLast();
 	void setChatListMessageUnknown();
 	void setFakeChatListMessage();
+	void allowChatListMessageResolve();
+	void resolveChatListMessageGroup();
 
 	// Add all items to the unread mentions if we were not loaded at bottom and now are.
 	void checkAddAllToUnreadMentions();

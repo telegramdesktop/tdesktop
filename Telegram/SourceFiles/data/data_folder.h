@@ -54,7 +54,7 @@ public:
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
 
-	void loadUserpic() override;
+	void chatListPreloadData() override;
 	void paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,

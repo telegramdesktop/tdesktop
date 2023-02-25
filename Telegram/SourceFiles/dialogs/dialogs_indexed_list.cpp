@@ -205,6 +205,7 @@ void IndexedList::remove(Key key, Row *replacedBy) {
 }
 
 void IndexedList::clear() {
+	_list.clear();
 	_index.clear();
 }
 

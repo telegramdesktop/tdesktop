@@ -355,6 +355,11 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	using ScrollTopState = ListMemento::ScrollTopState;
+	using PointState = HistoryView::PointState;
+	using CursorState = HistoryView::CursorState;
+	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
+
 	struct MouseState {
 		MouseState();
 		MouseState(
@@ -405,10 +410,6 @@ private:
 		Selecting,
 		Deselecting,
 	};
-	using ScrollTopState = ListMemento::ScrollTopState;
-	using PointState = HistoryView::PointState;
-	using CursorState = HistoryView::CursorState;
-	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 
 	void onTouchSelect();
 	void onTouchScrollTimer();

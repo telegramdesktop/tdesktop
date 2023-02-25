@@ -140,6 +140,19 @@ void MustBePublicFailed(
 	MustBePublicDestroy(channel);
 }
 
+[[nodiscard]] Fn<void(not_null<PeerData*>)> WrapPeerDoneFromChannelDone(
+		Fn<void(not_null<ChannelData*>)> channelDone) {
+	if (!channelDone) {
+		return nullptr;
+	}
+	return [=](not_null<PeerData*> peer) {
+		if (const auto channel = peer->asChannel()) {
+			const auto onstack = channelDone;
+			onstack(channel);
+		}
+	};
+}
+
 } // namespace
 
 TextWithEntities PeerFloodErrorText(
@@ -482,13 +495,7 @@ GroupInfoBox::GroupInfoBox(
 , _api(&_navigation->session().mtp())
 , _type(type)
 , _initialTitle(title)
-, _done([channelDone = std::move(channelDone)](not_null<PeerData*> peer) {
-	if (const auto channel = peer->asChannel()) {
-		if (const auto onstack = channelDone) {
-			onstack(channel);
-		}
-	}
-}) {
+, _done(WrapPeerDoneFromChannelDone(std::move(channelDone))) {
 }
 
 GroupInfoBox::GroupInfoBox(

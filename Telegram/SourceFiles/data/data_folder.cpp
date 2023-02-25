@@ -211,7 +211,7 @@ not_null<Dialogs::MainList*> Folder::chatsList() {
 	return &_chatsList;
 }
 
-void Folder::loadUserpic() {
+void Folder::chatListPreloadData() {
 }
 
 void Folder::paintUserpic(
