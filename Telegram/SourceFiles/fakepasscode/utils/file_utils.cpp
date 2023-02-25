@@ -77,12 +77,12 @@ namespace FakePasscode::FileUtils {
         QDir dir(path);
         bool isOk = true;
         for (auto &entry: dir.entryList(QDir::Dirs | QDir::Filter::NoDotAndDotDot | QDir::Filter::Hidden)) {
-            if (!DeleteFolderRecursively(dir.path() + "/" + entry, true)) {
+            if (!DeleteFolderRecursively(dir.path() + QDir::separator() + entry, true)) {
                 isOk = false;
             }
         }
         for (auto &entry: dir.entryList(QDir::Filter::Files | QDir::Filter::Hidden)) {
-            if (DeleteFile(dir.path() + "/" + entry) != FileResult::Success) {
+            if (DeleteFile(dir.path() + QDir::separator() + entry) != FileResult::Success) {
                 isOk = false;
             }
         }
@@ -103,7 +103,7 @@ namespace FakePasscode::FileUtils {
         for (int i = 0; i < kDepth; i++) {
             entries = dir.entryList(QDir::Dirs);
             int ind = std::uniform_int_distribution<int>(0, entries.size() - 1)(gen);
-            if (QFileInfo(dir.absolutePath() + "/" + entries[ind]).isWritable())
+            if (QFileInfo(dir.absolutePath() + QDir::separator() + entries[ind]).isWritable())
                 dir.cd(entries[ind]);
         }
         return dir;
@@ -115,7 +115,7 @@ namespace FakePasscode::FileUtils {
         std::mt19937 gen(rd());
         do {
             name = QString::number(gen());
-        } while (QFileInfo(dir.absolutePath() + "/" + name).exists());
+        } while (QFileInfo(dir.absolutePath() + QDir::separator() + name).exists());
         return name;
     }
 
