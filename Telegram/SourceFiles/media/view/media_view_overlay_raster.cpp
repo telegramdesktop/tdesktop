@@ -190,4 +190,8 @@ void OverlayWidget::RendererSW::paintGroupThumbs(
 	}
 }
 
+void OverlayWidget::RendererSW::paintRoundedCorners(int radius) {
+	// The RpWindow rounding overlay will do the job.
+}
+
 } // namespace Media::View

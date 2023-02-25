@@ -38,6 +38,18 @@ namespace {
 	return result;
 }
 
+void LogPosition(const WindowPosition &position, const QString &name) {
+	DEBUG_LOG(("%1 Pos: Writing to storage %2, %3, %4, %5"
+		" (scale %6%, maximized %7)")
+		.arg(name)
+		.arg(position.x)
+		.arg(position.y)
+		.arg(position.w)
+		.arg(position.h)
+		.arg(position.scale)
+		.arg(position.maximized));
+}
+
 [[nodiscard]] QByteArray Serialize(const WindowPosition &position) {
 	auto result = QByteArray();
 	const auto size = 7 * sizeof(qint32);
@@ -54,14 +66,6 @@ namespace {
 			<< qint32(position.maximized)
 			<< qint32(position.scale);
 	}
-	DEBUG_LOG(("Window Pos: Writing to storage %1, %2, %3, %4"
-		" (scale %5%, maximized %6)")
-		.arg(position.x)
-		.arg(position.y)
-		.arg(position.w)
-		.arg(position.h)
-		.arg(position.scale)
-		.arg(Logs::b(position.maximized)));
 	return result;
 }
 
@@ -85,6 +89,35 @@ namespace {
 
 } // namespace
 
+[[nodiscard]] WindowPosition AdjustToScale(
+		WindowPosition position,
+		const QString &name) {
+	DEBUG_LOG(("%1 Pos: Initializing first %2, %3, %4, %5 "
+		"(scale %6%, maximized %7)")
+		.arg(name)
+		.arg(position.x)
+		.arg(position.y)
+		.arg(position.w)
+		.arg(position.h)
+		.arg(position.scale)
+		.arg(position.maximized));
+
+	if (!position.scale) {
+		return position;
+	}
+	const auto scaleFactor = cScale() / float64(position.scale);
+	if (scaleFactor != 1.) {
+		// Change scale while keeping the position center in place.
+		position.x += position.w / 2;
+		position.y += position.h / 2;
+		position.w *= scaleFactor;
+		position.h *= scaleFactor;
+		position.x -= position.w / 2;
+		position.y -= position.h / 2;
+	}
+	return position;
+}
+
 Settings::Settings()
 : _sendSubmitWay(Ui::InputSubmitSettings::Enter)
 , _floatPlayerColumn(Window::Column::Second)
@@ -97,6 +130,9 @@ Settings::~Settings() = default;
 QByteArray Settings::serialize() const {
 	const auto themesAccentColors = _themesAccentColors.serialize();
 	const auto windowPosition = Serialize(_windowPosition);
+	LogPosition(_windowPosition, u"Window"_q);
+	const auto mediaViewPosition = Serialize(_mediaViewPosition);
+	LogPosition(_mediaViewPosition, u"Viewer"_q);
 	const auto proxy = _proxy.serialize();
 	const auto skipLanguages = _skipTranslationLanguages.current();
 
@@ -160,7 +196,8 @@ QByteArray Settings::serialize() const {
 		+ (skipLanguages.size() * sizeof(quint64))
 		+ sizeof(qint32)
 		+ sizeof(quint64)
-		+ sizeof(qint32) * 3;
+		+ sizeof(qint32) * 3
+		+ Serialize::bytearraySize(mediaViewPosition);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -291,7 +328,8 @@ QByteArray Settings::serialize() const {
 			<< quint64(QLocale::Language(_translateToRaw.current()))
 			<< qint32(_windowTitleContent.current().hideChatName ? 1 : 0)
 			<< qint32(_windowTitleContent.current().hideAccountName ? 1 : 0)
-			<< qint32(_windowTitleContent.current().hideTotalUnread ? 1 : 0);
+			<< qint32(_windowTitleContent.current().hideTotalUnread ? 1 : 0)
+			<< mediaViewPosition;
 	}
 	return result;
 }
@@ -394,6 +432,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 hideChatName = _windowTitleContent.current().hideChatName ? 1 : 0;
 	qint32 hideAccountName = _windowTitleContent.current().hideAccountName ? 1 : 0;
 	qint32 hideTotalUnread = _windowTitleContent.current().hideTotalUnread ? 1 : 0;
+	QByteArray mediaViewPosition;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -619,6 +658,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> hideAccountName
 			>> hideTotalUnread;
 	}
+	if (!stream.atEnd()) {
+		stream >> mediaViewPosition;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -809,6 +851,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		.hideAccountName = (hideAccountName == 1),
 		.hideTotalUnread = (hideTotalUnread == 1),
 	};
+	if (!mediaViewPosition.isEmpty()) {
+		_mediaViewPosition = Deserialize(mediaViewPosition);
+		if (!_mediaViewPosition.w && !_mediaViewPosition.maximized) {
+			_mediaViewPosition = { .maximized = 2 };
+		}
+	}
 }
 
 QString Settings::getSoundPath(const QString &key) const {

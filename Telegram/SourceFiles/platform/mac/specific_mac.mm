@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
+#include "base/platform/mac/base_confirm_quit.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/platform/base_platform_info.h"
 
@@ -185,6 +186,19 @@ bool AutostartSkip() {
 }
 
 void NewVersionLaunched(int oldVersion) {
+}
+
+bool PreventsQuit(Core::QuitReason reason) {
+	// Thanks Chromium, see
+	// chromium.org/developers/design-documents/confirm-to-quit-experiment
+	return (reason == Core::QuitReason::QtQuitEvent)
+		&& Core::App().settings().macWarnBeforeQuit()
+		&& ([[NSApp currentEvent] type] == NSEventTypeKeyDown)
+		&& !ConfirmQuit::RunModal(
+			tr::lng_mac_hold_to_quit(
+				tr::now,
+				lt_text,
+				ConfirmQuit::QuitKeysString()));
 }
 
 void ActivateThisProcess() {

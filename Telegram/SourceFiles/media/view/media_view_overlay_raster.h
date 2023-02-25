@@ -50,6 +50,7 @@ private:
 	void paintFooter(QRect outer, float64 opacity) override;
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
+	void paintRoundedCorners(int radius) override;
 
 	[[nodiscard]] static QRect TransformRect(QRectF geometry, int rotation);
 

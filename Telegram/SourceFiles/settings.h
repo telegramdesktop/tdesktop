@@ -39,7 +39,6 @@ DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
 DeclareSetting(bool, UseExternalVideoPlayer);
-DeclareSetting(bool, UseFreeType);
 enum LaunchMode {
 	LaunchModeNormal = 0,
 	LaunchModeAutoStart,
@@ -51,6 +50,7 @@ DeclareSetting(QString, WorkingDir);
 inline void cForceWorkingDir(const QString &newDir) {
 	cSetWorkingDir(newDir);
 	if (!gWorkingDir.isEmpty()) {
+		cSetWorkingDir(QDir(gWorkingDir).absolutePath() + '/');
 		QDir().mkpath(gWorkingDir);
 		QFile::setPermissions(gWorkingDir,
 			QFileDevice::ReadUser | QFileDevice::WriteUser | QFileDevice::ExeUser);

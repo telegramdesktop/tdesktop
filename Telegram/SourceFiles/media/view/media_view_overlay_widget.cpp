@@ -18,11 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "core/ui_integration.h"
 #include "core/crash_reports.h"
+#include "core/sandbox.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/text/format_values.h"
@@ -31,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "ui/gl/gl_surface.h"
+#include "ui/gl/gl_window.h"
 #include "ui/boxes/confirm_box.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
@@ -78,12 +81,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "layout/layout_document_generic_preview.h"
+#include "platform/platform_overlay_widget.h"
 #include "storage/file_download.h"
 #include "storage/storage_account.h"
 #include "calls/calls_instance.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_calls.h"
 
 #ifdef Q_OS_MAC
 #include "platform/mac/touchbar/mac_touchbar_media_view.h"
@@ -130,6 +135,26 @@ private:
 	not_null<Main::Session*> _session;
 
 };
+
+[[nodiscard]] Core::WindowPosition DefaultPosition() {
+	const auto moncrc = [&] {
+		if (const auto active = Core::App().activeWindow()) {
+			const auto widget = active->widget();
+			if (const auto screen = widget->screen()) {
+				return Platform::ScreenNameChecksum(screen->name());
+			}
+		}
+		return Core::App().settings().windowPosition().moncrc;
+	}();
+	return {
+		.moncrc = moncrc,
+		.scale = cScale(),
+		.x = st::mediaviewDefaultLeft,
+		.y = st::mediaviewDefaultTop,
+		.w = st::mediaviewDefaultWidth,
+		.h = st::mediaviewDefaultHeight,
+	};
+}
 
 PipDelegate::PipDelegate(QWidget *parent, not_null<Main::Session*> session)
 : _parent(parent)
@@ -293,18 +318,25 @@ OverlayWidget::PipWrap::PipWrap(
 }
 
 OverlayWidget::OverlayWidget()
-: _surface(Ui::GL::CreateSurface(
-	[=](Ui::GL::Capabilities capabilities) {
-		return chooseRenderer(capabilities);
-	}))
+: _wrap(std::make_unique<Ui::GL::Window>())
+, _window(_wrap->window())
+, _helper(Platform::CreateOverlayWidgetHelper(_window.get(), [=](bool maximized) {
+	toggleFullScreen(maximized);
+}))
+, _body(_wrap->widget())
+, _titleBugWorkaround(std::make_unique<Ui::RpWidget>(_body))
+, _surface(
+	Ui::GL::CreateSurface(_body, chooseRenderer(_wrap->backend())))
 , _widget(_surface->rpWidget())
-, _docDownload(_widget, tr::lng_media_download(tr::now), st::mediaviewFileLink)
-, _docSaveAs(_widget, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
-, _docCancel(_widget, tr::lng_cancel(tr::now), st::mediaviewFileLink)
+, _fullscreen(Core::App().settings().mediaViewPosition().maximized == 2)
+, _windowed(Core::App().settings().mediaViewPosition().maximized == 0)
+, _docDownload(_body, tr::lng_media_download(tr::now), st::mediaviewFileLink)
+, _docSaveAs(_body, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
+, _docCancel(_body, tr::lng_cancel(tr::now), st::mediaviewFileLink)
 , _radial([=](crl::time now) { return radialAnimationCallback(now); })
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
-, _dropdown(_widget, st::mediaviewDropdownMenu) {
+, _dropdown(_body, st::mediaviewDropdownMenu) {
 	CrashReports::SetAnnotation("OpenGL Renderer", "[not-initialized]");
 
 	Lang::Updated(
@@ -315,8 +347,6 @@ OverlayWidget::OverlayWidget()
 	_lastPositiveVolume = (Core::App().settings().videoVolume() > 0.)
 		? Core::App().settings().videoVolume()
 		: Core::Settings::kDefaultVolume;
-
-	_widget->setWindowTitle(u"Media viewer"_q);
 
 	const auto text = tr::lng_mediaview_saved_to(
 		tr::now,
@@ -339,23 +369,7 @@ OverlayWidget::OverlayWidget()
 		QImage::Format_ARGB32_Premultiplied);
 	_docRectImage.setDevicePixelRatio(cIntRetinaFactor());
 
-	_surface->shownValue(
-	) | rpl::start_with_next([=](bool shown) {
-		toggleApplicationEventFilter(shown);
-		if (shown) {
-			const auto geometry = _widget->geometry();
-			const auto screenList = QGuiApplication::screens();
-			DEBUG_LOG(("Viewer Pos: Shown, geometry: %1, %2, %3, %4, screen number: %5")
-				.arg(geometry.x())
-				.arg(geometry.y())
-				.arg(geometry.width())
-				.arg(geometry.height())
-				.arg(screenList.indexOf(_widget->screen())));
-			moveToScreen();
-		} else {
-			clearAfterHide();
-		}
-	}, lifetime());
+	setupWindow();
 
 	const auto mousePosition = [](not_null<QEvent*> e) {
 		return static_cast<QMouseEvent*>(e.get())->pos();
@@ -363,28 +377,75 @@ OverlayWidget::OverlayWidget()
 	const auto mouseButton = [](not_null<QEvent*> e) {
 		return static_cast<QMouseEvent*>(e.get())->button();
 	};
-	base::install_event_filter(_widget, [=](not_null<QEvent*> e) {
+	base::install_event_filter(_window, [=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::Move) {
 			const auto position = static_cast<QMoveEvent*>(e.get())->pos();
 			DEBUG_LOG(("Viewer Pos: Moved to %1, %2")
 				.arg(position.x())
 				.arg(position.y()));
-			moveToScreen(true);
+			if (_windowed) {
+				savePosition();
+			} else {
+				moveToScreen(true);
+			}
 		} else if (type == QEvent::Resize) {
+			if (_windowed) {
+				savePosition();
+			}
+		} else if (type == QEvent::Close
+			&& !Core::Sandbox::Instance().isSavingSession()
+			&& !Core::Quitting()) {
+			close();
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+	base::install_event_filter(_body, [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Resize) {
 			const auto size = static_cast<QResizeEvent*>(e.get())->size();
 			DEBUG_LOG(("Viewer Pos: Resized to %1, %2")
 				.arg(size.width())
 				.arg(size.height()));
+
+			// Somehow Windows 11 knows the geometry of first widget below
+			// the semi-native title control widgets and it uses
+			// it's geometry to show the snap grid popup around it when
+			// you put the mouse over the Maximize button. In the 4.6.4 beta
+			// the first widget was `_widget`, so the popup was shown
+			// either above the window or, if not enough space above, below
+			// the whole window, you couldn't even put the mouse on it.
+			//
+			// So now here is this weird workaround that places our
+			// `_titleBugWorkaround` widget as the first one under the title
+			// controls and the system shows the popup around its geometry,
+			// so we set it's height to the title controls height
+			// and everything works as expected.
+			//
+			// This doesn't make sense. But it works. :shrug:
+			_titleBugWorkaround->setGeometry(
+				{ 0, 0, size.width(), st::callTitleButton.height });
+
+			_widget->setGeometry({ QPoint(), size });
 			updateControlsGeometry();
+		} else if (type == QEvent::KeyPress) {
+			handleKeyPress(static_cast<QKeyEvent*>(e.get()));
+		}
+		return base::EventFilterResult::Continue;
+	});
+	base::install_event_filter(_widget, [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Leave) {
+			if (_over != OverNone) {
+				updateOverState(OverNone);
+			}
 		} else if (type == QEvent::MouseButtonPress) {
 			handleMousePress(mousePosition(e), mouseButton(e));
 		} else if (type == QEvent::MouseButtonRelease) {
 			handleMouseRelease(mousePosition(e), mouseButton(e));
 		} else if (type == QEvent::MouseMove) {
 			handleMouseMove(mousePosition(e));
-		} else if (type == QEvent::KeyPress) {
-			handleKeyPress(static_cast<QKeyEvent*>(e.get()));
 		} else if (type == QEvent::ContextMenu) {
 			const auto event = static_cast<QContextMenuEvent*>(e.get());
 			const auto mouse = (event->reason() == QContextMenuEvent::Mouse);
@@ -413,21 +474,17 @@ OverlayWidget::OverlayWidget()
 		return base::EventFilterResult::Continue;
 	});
 
-	if constexpr (Platform::IsWindows()) {
-		_widget->setWindowFlags(Qt::FramelessWindowHint);
-	} else if constexpr (Platform::IsMac()) {
+	_window->setTitle(u"Media viewer"_q);
+	_window->setTitleStyle(st::callTitle);
+
+	if constexpr (Platform::IsMac()) {
 		// Without Qt::Tool starting with Qt 5.15.1 this widget
 		// when being opened from a fullscreen main window was
 		// opening not as overlay over the main window, but as
 		// a separate fullscreen window with a separate space.
-		_widget->setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
+		_window->setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
 	}
-	_widget->setAttribute(Qt::WA_NoSystemBackground, true);
-	_widget->setAttribute(Qt::WA_TranslucentBackground, true);
 	_widget->setMouseTracking(true);
-
-	hide();
-	_widget->createWinId();
 
 	QObject::connect(
 		window(),
@@ -439,7 +496,7 @@ OverlayWidget::OverlayWidget()
 
 #ifdef Q_OS_MAC
 	TouchBar::SetupMediaViewTouchBar(
-		_widget->winId(),
+		_window->winId(),
 		static_cast<PlaybackControls::Delegate*>(this),
 		_touchbarTrackState.events(),
 		_touchbarDisplay.events(),
@@ -472,6 +529,75 @@ OverlayWidget::OverlayWidget()
 
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
 	_dropdownShowTimer.setCallback([=] { showDropdown(); });
+
+	orderWidgets();
+}
+
+void OverlayWidget::orderWidgets() {
+	_helper->orderWidgets();
+}
+
+void OverlayWidget::setupWindow() {
+	_window->setBodyTitleArea([=](QPoint widgetPoint) {
+		using Flag = Ui::WindowTitleHitTestFlag;
+		if (!_windowed
+			|| !_widget->rect().contains(widgetPoint)
+			|| _helper->skipTitleHitTest(widgetPoint)) {
+			return Flag::None | Flag(0);
+		}
+		const auto inControls = (_over != OverNone) && (_over != OverVideo);
+		if (inControls) {
+			return Flag::None | Flag(0);
+		}
+		return Flag::Move | Flag(0);
+	});
+
+	const auto callback = [=](Qt::WindowState state) {
+		if (state == Qt::WindowMinimized || Platform::IsMac()) {
+			return;
+		} else if (state == Qt::WindowMaximized) {
+			if (_fullscreen || _windowed) {
+				_fullscreen = _windowed = false;
+				savePosition();
+			}
+		} else if (_fullscreen || _windowed) {
+			return;
+		} else if (state == Qt::WindowFullScreen) {
+			_fullscreen = true;
+			savePosition();
+		} else {
+			_windowed = true;
+			savePosition();
+		}
+	};
+	QObject::connect(
+		_window->windowHandle(),
+		&QWindow::windowStateChanged,
+		callback);
+
+	_window->setAttribute(Qt::WA_NoSystemBackground, true);
+	_window->setAttribute(Qt::WA_TranslucentBackground, true);
+
+	_window->setMinimumSize(
+		{ st::mediaviewMinWidth, st::mediaviewMinHeight });
+
+	_window->shownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		toggleApplicationEventFilter(shown);
+		if (!shown) {
+			clearAfterHide();
+		} else {
+			const auto geometry = _window->geometry();
+			const auto screenList = QGuiApplication::screens();
+			DEBUG_LOG(("Viewer Pos: Shown, geometry: %1, %2, %3, %4, screen number: %5")
+				.arg(geometry.x())
+				.arg(geometry.y())
+				.arg(geometry.width())
+				.arg(geometry.height())
+				.arg(screenList.indexOf(_window->screen())));
+			moveToScreen();
+		}
+	}, lifetime());
 }
 
 void OverlayWidget::refreshLang() {
@@ -479,6 +605,9 @@ void OverlayWidget::refreshLang() {
 }
 
 void OverlayWidget::moveToScreen(bool inMove) {
+	if (!_fullscreen || _wasWindowedMode) {
+		return;
+	}
 	const auto widgetScreen = [&](auto &&widget) -> QScreen* {
 		if (!widget) {
 			return nullptr;
@@ -495,7 +624,7 @@ void OverlayWidget::moveToScreen(bool inMove) {
 		? Core::App().activeWindow()->widget().get()
 		: nullptr;
 	const auto activeWindowScreen = widgetScreen(applicationWindow);
-	const auto myScreen = widgetScreen(_widget);
+	const auto myScreen = widgetScreen(_window);
 	if (activeWindowScreen && myScreen != activeWindowScreen) {
 		const auto screenList = QGuiApplication::screens();
 		DEBUG_LOG(("Viewer Pos: Currently on screen %1, moving to screen %2")
@@ -503,16 +632,119 @@ void OverlayWidget::moveToScreen(bool inMove) {
 			.arg(screenList.indexOf(activeWindowScreen)));
 		window()->setScreen(activeWindowScreen);
 		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
-			.arg(screenList.indexOf(_widget->screen())));
+			.arg(screenList.indexOf(_window->screen())));
 	}
 	updateGeometry(inMove);
 }
 
-void OverlayWidget::updateGeometry(bool inMove) {
-	if (Platform::IsWayland()) {
+void OverlayWidget::initFullScreen() {
+	if (_fullscreenInited) {
 		return;
 	}
-	const auto available = _widget->screen()->geometry();
+	_fullscreenInited = true;
+	switch (Core::App().settings().mediaViewPosition().maximized) {
+	case 2:
+		_fullscreen = true;
+		_windowed = false;
+		break;
+	case 1:
+		_fullscreen = Platform::IsMac();
+		_windowed = false;
+		break;
+	}
+}
+
+void OverlayWidget::initNormalGeometry() {
+	if (_normalGeometryInited) {
+		return;
+	}
+	_normalGeometryInited = true;
+	const auto saved = Core::App().settings().mediaViewPosition();
+	const auto adjusted = Core::AdjustToScale(saved, u"Viewer"_q);
+	const auto initial = DefaultPosition();
+	_normalGeometry = initial.rect();
+	if (const auto active = Core::App().activeWindow()) {
+		_normalGeometry = active->widget()->countInitialGeometry(
+			adjusted,
+			initial,
+			{ st::mediaviewMinWidth, st::mediaviewMinHeight });
+	}
+}
+
+void OverlayWidget::savePosition() {
+	if (isHidden() || isMinimized() || !_normalGeometryInited) {
+		return;
+	}
+	const auto &savedPosition = Core::App().settings().mediaViewPosition();
+	auto realPosition = savedPosition;
+	if (_fullscreen) {
+		realPosition.maximized = 2;
+		realPosition.moncrc = 0;
+		DEBUG_LOG(("Viewer Pos: Saving fullscreen position."));
+	} else if (!_windowed) {
+		realPosition.maximized = 1;
+		realPosition.moncrc = 0;
+		DEBUG_LOG(("Viewer Pos: Saving maximized position."));
+	} else if (!_wasWindowedMode && !Platform::IsMac()) {
+		return;
+	} else {
+		auto r = _normalGeometry = _window->geometry();
+		realPosition.x = r.x();
+		realPosition.y = r.y();
+		realPosition.w = r.width();
+		realPosition.h = r.height();
+		realPosition.scale = cScale();
+		realPosition.maximized = 0;
+		realPosition.moncrc = 0;
+		DEBUG_LOG(("Viewer Pos: "
+			"Saving non-maximized position: %1, %2, %3, %4"
+			).arg(realPosition.x
+			).arg(realPosition.y
+			).arg(realPosition.w
+			).arg(realPosition.h));
+	}
+	realPosition = Window::PositionWithScreen(
+		realPosition,
+		_window,
+		{ st::mediaviewMinWidth, st::mediaviewMinHeight });
+	if (realPosition.w >= st::mediaviewMinWidth
+		&& realPosition.h >= st::mediaviewMinHeight
+		&& realPosition != savedPosition) {
+		DEBUG_LOG(("Viewer Pos: "
+			"Writing: %1, %2, %3, %4 (scale %5%, maximized %6)")
+			.arg(realPosition.x)
+			.arg(realPosition.y)
+			.arg(realPosition.w)
+			.arg(realPosition.h)
+			.arg(realPosition.scale)
+			.arg(Logs::b(realPosition.maximized)));
+		Core::App().settings().setMediaViewPosition(realPosition);
+		Core::App().saveSettingsDelayed();
+	}
+}
+
+void OverlayWidget::updateGeometry(bool inMove) {
+	initFullScreen();
+	if (_fullscreen) {
+		updateGeometryToScreen(inMove);
+	} else if (_windowed && _normalGeometryInited) {
+		_window->setGeometry(_normalGeometry);
+	}
+	if constexpr (!Platform::IsMac()) {
+		if (_fullscreen) {
+			if (!isHidden() && !isMinimized()) {
+				_window->showFullScreen();
+			}
+		} else if (!_windowed) {
+			if (!isHidden() && !isMinimized()) {
+				_window->showMaximized();
+			}
+		}
+	}
+}
+
+void OverlayWidget::updateGeometryToScreen(bool inMove) {
+	const auto available = _window->screen()->geometry();
 	const auto openglWidget = _opengl
 		? static_cast<QOpenGLWidget*>(_widget.get())
 		: nullptr;
@@ -526,11 +758,11 @@ void OverlayWidget::updateGeometry(bool inMove) {
 	const auto mask = useSizeHack
 		? QRegion(QRect(QPoint(), available.size()))
 		: QRegion();
-	if (inMove && use.contains(_widget->geometry())) {
+	if (inMove && use.contains(_window->geometry())) {
 		return;
 	}
-	if ((_widget->geometry() == use)
-		&& (!possibleSizeHack || _widget->mask() == mask)) {
+	if ((_window->geometry() == use)
+		&& (!possibleSizeHack || _window->mask() == mask)) {
 		return;
 	}
 	DEBUG_LOG(("Viewer Pos: Setting %1, %2, %3, %4")
@@ -538,19 +770,19 @@ void OverlayWidget::updateGeometry(bool inMove) {
 		.arg(use.y())
 		.arg(use.width())
 		.arg(use.height()));
-	_widget->setGeometry(use);
+	_window->setGeometry(use);
 	if (possibleSizeHack) {
-		_widget->setMask(mask);
+		_window->setMask(mask);
 	}
 }
 
 void OverlayWidget::updateControlsGeometry() {
-	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
-	_closeNav = QRect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
+	const auto navSkip = st::mediaviewHeaderTop;
+	_closeNav = QRect(width() - st::mediaviewControlSize, 0, st::mediaviewControlSize, st::mediaviewControlSize);
 	_closeNavIcon = style::centerrect(_closeNav, st::mediaviewClose);
-	_leftNav = QRect(st::mediaviewControlMargin, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
+	_leftNav = QRect(0, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
 	_leftNavIcon = style::centerrect(_leftNav, st::mediaviewLeft);
-	_rightNav = QRect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
+	_rightNav = QRect(width() - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
 	_rightNavIcon = style::centerrect(_rightNav, st::mediaviewRight);
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
@@ -1224,15 +1456,29 @@ void OverlayWidget::contentSizeChanged() {
 	resizeContentByScreenSize();
 }
 
-void OverlayWidget::resizeContentByScreenSize() {
+void OverlayWidget::recountSkipTop() {
 	const auto bottom = (!_streamed || videoIsGifOrUserpic())
 		? height()
-		: (_streamed->controls.y()
-			- st::mediaviewCaptionPadding.bottom()
-			- st::mediaviewCaptionMargin.height());
-	const auto skipHeight = (height() - bottom);
+		: (_streamed->controls.y() - st::mediaviewCaptionPadding.bottom());
+	const auto skipHeightBottom = (height() - bottom);
+	_skipTop = std::min(
+		std::max(
+			st::mediaviewCaptionMargin.height(),
+			height() - _height - skipHeightBottom),
+		skipHeightBottom);
+	_availableHeight = height() - skipHeightBottom - _skipTop;
+	if (_fullScreenVideo && skipHeightBottom > 0 && _width > 0) {
+		const auto h = width() * _height / _width;
+		const auto topAllFit = height() - skipHeightBottom - h;
+		if (_skipTop > topAllFit) {
+			_skipTop = std::max(topAllFit, 0);
+		}
+	}
+}
+
+void OverlayWidget::resizeContentByScreenSize() {
+	recountSkipTop();
 	const auto availableWidth = width();
-	const auto availableHeight = height() - 2 * skipHeight;
 	const auto countZoomFor = [&](int outerw, int outerh) {
 		auto result = float64(outerw) / _width;
 		if (_height * result > outerh) {
@@ -1246,13 +1492,13 @@ void OverlayWidget::resizeContentByScreenSize() {
 		return result;
 	};
 	if (_width > 0 && _height > 0) {
-		_zoomToDefault = countZoomFor(availableWidth, availableHeight);
+		_zoomToDefault = countZoomFor(availableWidth, _availableHeight);
 		_zoomToScreen = countZoomFor(width(), height());
 	} else {
 		_zoomToDefault = _zoomToScreen = 0;
 	}
 	const auto usew = _fullScreenVideo ? width() : availableWidth;
-	const auto useh = _fullScreenVideo ? height() : availableHeight;
+	const auto useh = _fullScreenVideo ? height() : _availableHeight;
 	if ((_width > usew) || (_height > useh) || _fullScreenVideo) {
 		const auto use = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 		_zoom = kZoomToScreenLevel;
@@ -1269,7 +1515,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 		_h = _height;
 	}
 	_x = (width() - _w) / 2;
-	_y = (height() - _h) / 2;
+	_y = _skipTop + (_availableHeight - _h) / 2;
 	_geometryAnimation.stop();
 }
 
@@ -1401,7 +1647,7 @@ void OverlayWidget::zoomReset() {
 		newZoom = 0;
 	}
 	_x = -_width / 2;
-	_y = -_height / 2;
+	_y = _skipTop - (_height / 2);
 	float64 z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
 	if (z >= 0) {
 		_x = qRound(_x * (z + 1));
@@ -1411,7 +1657,7 @@ void OverlayWidget::zoomReset() {
 		_y = qRound(_y / (-z + 1));
 	}
 	_x += width() / 2;
-	_y += height() / 2;
+	_y += _availableHeight / 2;
 	update();
 	zoomUpdate(newZoom);
 }
@@ -1452,6 +1698,9 @@ void OverlayWidget::clearSession() {
 
 OverlayWidget::~OverlayWidget() {
 	clearSession();
+
+	// Otherwise dropdownHidden() may be called from the destructor.
+	_dropdown.destroy();
 }
 
 void OverlayWidget::assignMediaPointer(DocumentData *document) {
@@ -1502,7 +1751,40 @@ void OverlayWidget::showSaveMsgFile() {
 }
 
 void OverlayWidget::close() {
-	Core::App().hideMediaView();
+	if (isHidden()) {
+		return;
+	}
+	hide();
+	if (const auto window = Core::App().activeWindow()) {
+		window->reActivate();
+	}
+}
+
+void OverlayWidget::minimize() {
+	if (isHidden()) {
+		return;
+	}
+	_helper->minimize(_window);
+}
+
+void OverlayWidget::toggleFullScreen(bool fullscreen) {
+	_fullscreen = fullscreen;
+	_windowed = !fullscreen;
+	initNormalGeometry();
+	if constexpr (Platform::IsMac()) {
+		_helper->beforeShow(_fullscreen);
+		updateGeometry();
+		_helper->afterShow(_fullscreen);
+	} else if (_fullscreen) {
+		updateGeometry();
+		_window->showFullScreen();
+	} else {
+		_wasWindowedMode = false;
+		_window->showNormal();
+		updateGeometry();
+		_wasWindowedMode = true;
+	}
+	savePosition();
 }
 
 void OverlayWidget::activateControls() {
@@ -1573,14 +1855,16 @@ void OverlayWidget::handleScreenChanged(QScreen *screen) {
 
 void OverlayWidget::subscribeToScreenGeometry() {
 	_screenGeometryLifetime.destroy();
-	const auto screen = _widget->screen();
+	const auto screen = _window->screen();
 	if (!screen) {
 		return;
 	}
 	base::qt_signal_producer(
 		screen,
 		&QScreen::geometryChanged
-	) | rpl::start_with_next([=] {
+	) | rpl::filter([=] {
+		return !isHidden() && !isMinimized() && _fullscreen;
+	}) | rpl::start_with_next([=] {
 		updateGeometry();
 	}, _screenGeometryLifetime);
 }
@@ -1595,14 +1879,7 @@ void OverlayWidget::toMessage() {
 }
 
 void OverlayWidget::notifyFileDialogShown(bool shown) {
-	if (shown && isHidden()) {
-		return;
-	}
-	if (shown) {
-		Ui::Platform::BringToBack(_widget);
-	} else {
-		Ui::Platform::ShowOverAll(_widget);
-	}
+	_helper->notifyFileDialogShown(shown);
 }
 
 void OverlayWidget::saveAs() {
@@ -1673,7 +1950,7 @@ void OverlayWidget::saveAs() {
 			const auto photo = _photo;
 			auto filter = u"Video Files (*.mp4);;"_q + FileDialog::AllFilesFilter();
 			FileDialog::GetWritePath(
-				_widget.get(),
+				_window.get(),
 				tr::lng_save_video(tr::now),
 				filter,
 				filedialogDefaultName(
@@ -1682,7 +1959,7 @@ void OverlayWidget::saveAs() {
 					QString(),
 					false,
 					_photo->date),
-				crl::guard(_widget, [=](const QString &result) {
+				crl::guard(_window, [=](const QString &result) {
 					QFile f(result);
 					if (!result.isEmpty()
 						&& _photo == photo
@@ -1704,7 +1981,7 @@ void OverlayWidget::saveAs() {
 		const auto filter = u"JPEG Image (*.jpg);;"_q
 			+ FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
-			_widget.get(),
+			_window.get(),
 			tr::lng_save_photo(tr::now),
 			filter,
 			filedialogDefaultName(
@@ -1713,7 +1990,7 @@ void OverlayWidget::saveAs() {
 				QString(),
 				false,
 				_photo->date),
-			crl::guard(_widget, [=](const QString &result) {
+			crl::guard(_window, [=](const QString &result) {
 				if (!result.isEmpty() && _photo == photo) {
 					media->saveToFile(result);
 				}
@@ -1851,7 +2128,9 @@ void OverlayWidget::showInFolder() {
 	auto filepath = _document->filepath(true);
 	if (!filepath.isEmpty()) {
 		File::ShowInFolder(filepath);
-		close();
+		if (!_windowed) {
+			close();
+		}
 	}
 }
 
@@ -1867,7 +2146,9 @@ void OverlayWidget::forwardMedia() {
 		? _message->fullId()
 		: FullMsgId();
 	if (id) {
-		close();
+		if (!_windowed) {
+			close();
+		}
 		Window::ShowForwardMessagesBox(active.front(), { 1, id });
 	}
 }
@@ -1921,7 +2202,9 @@ void OverlayWidget::showMediaOverview() {
 	}
 	update();
 	if (const auto overviewType = computeOverviewType()) {
-		close();
+		if (!_windowed) {
+			close();
+		}
 		if (SharedMediaOverviewType(*overviewType)) {
 			if (const auto window = findWindow()) {
 				const auto topic = _topicRootId
@@ -1983,7 +2266,9 @@ void OverlayWidget::showAttachedStickers() {
 	} else {
 		return;
 	}
-	close();
+	if (!_windowed) {
+		close();
+	}
 }
 
 auto OverlayWidget::sharedMediaType() const
@@ -2425,7 +2710,7 @@ void OverlayWidget::clearControlsState() {
 }
 
 not_null<QWindow*> OverlayWidget::window() const {
-	return _widget->windowHandle();
+	return _window->windowHandle();
 }
 
 int OverlayWidget::width() const {
@@ -2444,8 +2729,20 @@ void OverlayWidget::update(const QRegion &region) {
 	_widget->update(region);
 }
 
+bool OverlayWidget::isActive() const {
+	return !isHidden() && !isMinimized() && _window->isActiveWindow();
+}
+
 bool OverlayWidget::isHidden() const {
-	return _widget->isHidden();
+	return _window->isHidden();
+}
+
+bool OverlayWidget::isMinimized() const {
+	return _window->windowHandle()->windowState() == Qt::WindowMinimized;
+}
+
+bool OverlayWidget::isFullScreen() const {
+	return _fullscreen;
 }
 
 not_null<QWidget*> OverlayWidget::widget() const {
@@ -2455,7 +2752,7 @@ not_null<QWidget*> OverlayWidget::widget() const {
 void OverlayWidget::hide() {
 	clearBeforeHide();
 	applyHideWindowWorkaround();
-	_widget->hide();
+	_window->hide();
 }
 
 void OverlayWidget::setCursor(style::cursor cursor) {
@@ -2466,10 +2763,17 @@ void OverlayWidget::setFocus() {
 	_widget->setFocus();
 }
 
+bool OverlayWidget::takeFocusFrom(not_null<QWidget*> window) const {
+	return _fullscreen
+		&& !isHidden()
+		&& !isMinimized()
+		&& (_window->screen() == window->screen());
+}
+
 void OverlayWidget::activate() {
-	_widget->raise();
-	_widget->activateWindow();
-	QApplication::setActiveWindow(_widget);
+	_window->raise();
+	_window->activateWindow();
+	QApplication::setActiveWindow(_window);
 	setFocus();
 }
 
@@ -2524,7 +2828,7 @@ void OverlayWidget::show(OpenRequest request) {
 		}
 	}
 	if (const auto controller = request.controller()) {
-		_window = base::make_weak(&controller->window());
+		_openedFrom = base::make_weak(&controller->window());
 	}
 }
 
@@ -2753,20 +3057,38 @@ void OverlayWidget::updateThemePreviewGeometry() {
 void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
+		_helper->beforeShow(_fullscreen);
 		moveToScreen();
 		//setAttribute(Qt::WA_DontShowOnScreen);
 		//OverlayParent::setVisibleHook(true);
 		//OverlayParent::setVisibleHook(false);
 		//setAttribute(Qt::WA_DontShowOnScreen, false);
-		Ui::Platform::UpdateOverlayed(_widget);
-		if constexpr (!Platform::IsMac()) {
-			_widget->showFullScreen();
-		} else {
-			_widget->show();
-		}
-		Ui::Platform::ShowOverAll(_widget);
+		//Ui::Platform::UpdateOverlayed(_window);
+		showAndActivate();
+	} else if (isMinimized()) {
+		showAndActivate();
+	} else {
 		activate();
 	}
+}
+
+void OverlayWidget::showAndActivate() {
+	_body->show();
+	initNormalGeometry();
+	if (_windowed || Platform::IsMac()) {
+		_wasWindowedMode = false;
+	}
+	updateGeometry();
+	if (_windowed || Platform::IsMac()) {
+		_window->showNormal();
+		_wasWindowedMode = true;
+	} else if (_fullscreen) {
+		_window->showFullScreen();
+	} else {
+		_window->showMaximized();
+	}
+	_helper->afterShow(_fullscreen);
+	activate();
 }
 
 bool OverlayWidget::canInitStreaming() const {
@@ -2920,14 +3242,14 @@ bool OverlayWidget::createStreamingObjects() {
 		_streamed = std::make_unique<Streamed>(
 			_document,
 			fileOrigin(),
-			_widget,
+			_body,
 			static_cast<PlaybackControls::Delegate*>(this),
 			[=] { waitingAnimationCallback(); });
 	} else {
 		_streamed = std::make_unique<Streamed>(
 			_photo,
 			fileOrigin(),
-			_widget,
+			_body,
 			static_cast<PlaybackControls::Delegate*>(this),
 			[=] { waitingAnimationCallback(); });
 	}
@@ -3091,7 +3413,7 @@ void OverlayWidget::initThemePreview() {
 			_themePreview = std::move(result);
 			if (_themePreview) {
 				_themeApply.create(
-					_widget,
+					_body,
 					tr::lng_theme_preview_apply(),
 					st::themePreviewApplyButton);
 				_themeApply->show();
@@ -3107,14 +3429,14 @@ void OverlayWidget::initThemePreview() {
 					}
 				});
 				_themeCancel.create(
-					_widget,
+					_body,
 					tr::lng_cancel(),
 					st::themePreviewCancelButton);
 				_themeCancel->show();
 				_themeCancel->setClickedCallback([this] { close(); });
 				if (const auto slug = _themeCloudData.slug; !slug.isEmpty()) {
 					_themeShare.create(
-						_widget,
+						_body,
 						tr::lng_theme_share(),
 						st::themePreviewCancelButton);
 					_themeShare->show();
@@ -3122,7 +3444,7 @@ void OverlayWidget::initThemePreview() {
 						QGuiApplication::clipboard()->setText(
 							session->createInternalLinkFull("addtheme/" + slug));
 						Ui::Toast::Show(
-							_widget,
+							_body,
 							tr::lng_background_link_copied(tr::now));
 					});
 				} else {
@@ -3145,13 +3467,19 @@ void OverlayWidget::refreshClipControllerGeometry() {
 		_groupThumbs = nullptr;
 		_groupThumbsRect = QRect();
 	}
-	const auto controllerBottom = _groupThumbs
+	const auto controllerBottom = (_groupThumbs && !_fullScreenVideo)
 		? _groupThumbsTop
 		: height();
-	_streamed->controls.resize(st::mediaviewControllerSize);
+	const auto skip = st::mediaviewCaptionPadding.bottom();
+	const auto controllerWidth = std::min(
+		st::mediaviewControllerSize.width(),
+		width() - 2 * skip);
+	_streamed->controls.resize(
+		controllerWidth,
+		st::mediaviewControllerSize.height());
 	_streamed->controls.move(
-		(width() - _streamed->controls.width()) / 2,
-		controllerBottom - _streamed->controls.height() - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height());
+		(width() - controllerWidth) / 2,
+		controllerBottom - _streamed->controls.height() - st::mediaviewCaptionPadding.bottom());
 	Ui::SendPendingMoveResizeEvents(&_streamed->controls);
 }
 
@@ -3367,7 +3695,7 @@ void OverlayWidget::switchToPip() {
 	};
 	_showAsPip = true;
 	_pip = std::make_unique<PipWrap>(
-		_widget,
+		_window,
 		document,
 		_streamed->instance.shared(),
 		closeAndContinue,
@@ -3409,12 +3737,15 @@ void OverlayWidget::playbackToggleFullScreen() {
 	_fullScreenVideo = !_fullScreenVideo;
 	if (_fullScreenVideo) {
 		_fullScreenZoomCache = _zoom;
-		setZoomLevel(kZoomToScreenLevel, true);
-	} else {
-		setZoomLevel(_fullScreenZoomCache, true);
+	}
+	resizeCenteredControls();
+	recountSkipTop();
+	setZoomLevel(
+		_fullScreenVideo ? kZoomToScreenLevel : _fullScreenZoomCache,
+		true);
+	if (!_fullScreenVideo) {
 		_streamed->controls.showAnimated();
 	}
-
 	_streamed->controls.setInFullScreen(_fullScreenVideo);
 	_touchbarFullscreenToggled.fire_copy(_fullScreenVideo);
 	updateControls();
@@ -3508,21 +3839,14 @@ void OverlayWidget::validatePhotoCurrentImage() {
 }
 
 Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
-		Ui::GL::Capabilities capabilities) {
-	const auto use = Platform::IsMac()
-		? true
-		: capabilities.transparency;
-	LOG(("OpenGL: %1 (OverlayWidget)").arg(Logs::b(use)));
-	if (use) {
-		_opengl = true;
-		return {
-			.renderer = std::make_unique<RendererGL>(this),
-			.backend = Ui::GL::Backend::OpenGL,
-		};
-	}
+		Ui::GL::Backend backend) {
+	_opengl = (backend == Ui::GL::Backend::OpenGL);
 	return {
-		.renderer = std::make_unique<RendererSW>(this),
-		.backend = Ui::GL::Backend::Raster,
+		.renderer = (_opengl
+			? std::unique_ptr<Ui::GL::Renderer>(
+				std::make_unique<RendererGL>(this))
+			: std::make_unique<RendererSW>(this)),
+		.backend = backend,
 	};
 }
 
@@ -3575,6 +3899,9 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		}
 	}
 	checkGroupThumbsAnimation();
+	if (const auto radius = _window->manualRoundingRadius()) {
+		renderer->paintRoundedCorners(radius);
+	}
 }
 
 void OverlayWidget::checkGroupThumbsAnimation() {
@@ -3838,7 +4165,7 @@ void OverlayWidget::paintControls(
 			st::mediaviewRight },
 		{
 			OverClose,
-			true,
+			false,
 			_closeNav,
 			_closeNavIcon,
 			st::mediaviewClose },
@@ -4099,10 +4426,10 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 	_h = contentSize.height();
 	if (z >= 0) {
 		nx = (_x - width() / 2.) / (z + 1);
-		ny = (_y - height() / 2.) / (z + 1);
+		ny = (_y - _availableHeight / 2.) / (z + 1);
 	} else {
 		nx = (_x - width() / 2.) * (-z + 1);
-		ny = (_y - height() / 2.) * (-z + 1);
+		ny = (_y - _availableHeight / 2.) * (-z + 1);
 	}
 	_zoom = newZoom;
 	z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
@@ -4110,12 +4437,12 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 		_w = qRound(_w * (z + 1));
 		_h = qRound(_h * (z + 1));
 		_x = qRound(nx * (z + 1) + width() / 2.);
-		_y = qRound(ny * (z + 1) + height() / 2.);
+		_y = qRound(ny * (z + 1) + _availableHeight / 2.);
 	} else {
 		_w = qRound(_w / (-z + 1));
 		_h = qRound(_h / (-z + 1));
 		_x = qRound(nx / (-z + 1) + width() / 2.);
-		_y = qRound(ny / (-z + 1) + height() / 2.);
+		_y = qRound(ny / (-z + 1) + _availableHeight / 2.);
 	}
 	snapXY();
 	if (_opengl) {
@@ -4243,7 +4570,7 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 
 	clearSession();
 	_session = session;
-	_widget->setWindowIcon(Window::CreateIcon(session));
+	_window->setWindowIcon(Window::CreateIcon(session));
 
 	session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
@@ -4397,16 +4724,16 @@ bool OverlayWidget::handleDoubleClick(
 }
 
 void OverlayWidget::snapXY() {
-	int32 xmin = width() - _w, xmax = 0;
-	int32 ymin = height() - _h, ymax = 0;
-	if (xmin > (width() - _w) / 2) xmin = (width() - _w) / 2;
-	if (xmax < (width() - _w) / 2) xmax = (width() - _w) / 2;
-	if (ymin > (height() - _h) / 2) ymin = (height() - _h) / 2;
-	if (ymax < (height() - _h) / 2) ymax = (height() - _h) / 2;
-	if (_x < xmin) _x = xmin;
-	if (_x > xmax) _x = xmax;
-	if (_y < ymin) _y = ymin;
-	if (_y > ymax) _y = ymax;
+	auto xmin = width() - _w, xmax = 0;
+	auto ymin = height() - _h, ymax = 0;
+	accumulate_min(xmin, (width() - _w) / 2);
+	accumulate_max(xmax, (width() - _w) / 2);
+	accumulate_min(ymin, _skipTop + (_availableHeight - _h) / 2);
+	accumulate_max(ymax, _skipTop + (_availableHeight - _h) / 2);
+	accumulate_max(_x, xmin);
+	accumulate_min(_x, xmax);
+	accumulate_max(_y, ymin);
+	accumulate_min(_y, ymax);
 }
 
 void OverlayWidget::handleMouseMove(QPoint position) {
@@ -4545,8 +4872,10 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverIcon);
 	} else if (_moreNav.contains(pos)) {
 		updateOverState(OverMore);
+#if 0 // close
 	} else if (_closeNav.contains(pos)) {
 		updateOverState(OverClose);
+#endif
 	} else if (documentContentShown() && finalContentRect().contains(pos)) {
 		if ((_document->isVideoFile() || _document->isVideoMessage()) && _streamed) {
 			updateOverState(OverVideo);
@@ -4585,9 +4914,12 @@ void OverlayWidget::handleMouseRelease(
 
 	if (_over == OverName && _down == OverName) {
 		if (_from) {
-			close();
+			if (!_windowed) {
+				close();
+			}
 			if (const auto window = findWindow(true)) {
 				window->showPeerInfo(_from);
+				window->window().activate();
 			}
 		}
 	} else if (_over == OverDate && _down == OverDate) {
@@ -4603,7 +4935,8 @@ void OverlayWidget::handleMouseRelease(
 	} else if (_over == OverMore && _down == OverMore) {
 		InvokeQueued(_widget, [=] { showDropdown(); });
 	} else if (_over == OverClose && _down == OverClose) {
-		close();
+		//close();
+		toggleFullScreen(!_fullscreen);
 	} else if (_over == OverVideo && _down == OverVideo) {
 		if (_streamed) {
 			playbackPauseResume();
@@ -4618,8 +4951,9 @@ void OverlayWidget::handleMouseRelease(
 			}
 			_dragging = 0;
 			setCursor(style::cur_default);
-		} else if ((position - _lastAction).manhattanLength()
-			>= st::mediaviewDeltaFromLastAction) {
+		} else if (!_windowed
+			&& (position - _lastAction).manhattanLength()
+				>= st::mediaviewDeltaFromLastAction) {
 			if (_themePreviewShown) {
 				if (!_themePreviewRect.contains(position)) {
 					close();
@@ -4644,7 +4978,7 @@ bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
 		return false;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
-		_widget,
+		_window,
 		st::mediaviewPopupMenu);
 	fillContextMenuActions([&](
 			const QString &text,
@@ -4671,8 +5005,8 @@ bool OverlayWidget::handleTouchEvent(not_null<QTouchEvent*> e) {
 		return false;
 	} else if (e->type() == QEvent::TouchBegin
 		&& !e->touchPoints().isEmpty()
-		&& _widget->childAt(
-			_widget->mapFromGlobal(
+		&& _body->childAt(
+			_body->mapFromGlobal(
 				e->touchPoints().cbegin()->screenPos().toPoint()))) {
 		return false;
 	}
@@ -4774,9 +5108,9 @@ bool OverlayWidget::filterApplicationEvent(
 		|| type == QEvent::MouseButtonPress
 		|| type == QEvent::MouseButtonRelease) {
 		if (object->isWidgetType()
-			&& _widget->isAncestorOf(static_cast<QWidget*>(object.get()))) {
+			&& static_cast<QWidget*>(object.get())->window() == _window) {
 			const auto mouseEvent = static_cast<QMouseEvent*>(e.get());
-			const auto mousePosition = _widget->mapFromGlobal(
+			const auto mousePosition = _body->mapFromGlobal(
 				mouseEvent->globalPos());
 			const auto delta = (mousePosition - _lastMouseMovePos);
 			auto activate = delta.manhattanLength()
@@ -4803,10 +5137,10 @@ void OverlayWidget::applyHideWindowWorkaround() {
 	// QOpenGLWidget can't properly destroy a child widget if it is hidden
 	// exactly after that, the child is cached in the backing store.
 	// So on next paint we force full backing store repaint.
-	if (_opengl && !isHidden() && !_hideWorkaround) {
-		_hideWorkaround = std::make_unique<Ui::RpWidget>(_widget);
+	if (!isHidden() && !_hideWorkaround) {
+		_hideWorkaround = std::make_unique<Ui::RpWidget>(_window);
 		const auto raw = _hideWorkaround.get();
-		raw->setGeometry(_widget->rect());
+		raw->setGeometry(_window->rect());
 		raw->show();
 		raw->paintRequest(
 		) | rpl::start_with_next([=] {
@@ -4821,7 +5155,7 @@ void OverlayWidget::applyHideWindowWorkaround() {
 		raw->update();
 
 		if (Platform::IsWindows()) {
-			Ui::Platform::UpdateOverlayed(_widget);
+			Ui::Platform::UpdateOverlayed(_window);
 		}
 	}
 }
@@ -4831,7 +5165,7 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 		return nullptr;
 	}
 
-	const auto window = _window.get();
+	const auto window = _openedFrom.get();
 	if (window) {
 		if (const auto controller = window->sessionController()) {
 			if (&controller->session() == _session) {
@@ -4882,14 +5216,10 @@ void OverlayWidget::clearBeforeHide() {
 	}
 	_controlsHideTimer.cancel();
 	_controlsState = ControlsShown;
-	_controlsOpacity = anim::value(1, 1);
+	_controlsOpacity = anim::value(1);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
-	for (const auto child : _widget->children()) {
-		if (child->isWidgetType() && _hideWorkaround.get() != child) {
-			static_cast<QWidget*>(child)->hide();
-		}
-	}
+	_body->hide();
 }
 
 void OverlayWidget::clearAfterHide() {

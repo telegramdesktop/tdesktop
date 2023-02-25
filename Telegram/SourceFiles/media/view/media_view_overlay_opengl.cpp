@@ -46,6 +46,31 @@ uniform float transparentSize;
 	};
 }
 
+[[nodiscard]] ShaderPart FragmentRoundedCorners() {
+	return {
+		.header = R"(
+uniform vec4 roundRect;
+uniform float roundRadius;
+
+float roundedCorner() {
+	vec2 rectHalf = roundRect.zw / 2.;
+	vec2 rectCenter = roundRect.xy + rectHalf;
+	vec2 fromRectCenter = abs(gl_FragCoord.xy - rectCenter);
+	vec2 vectorRadius = vec2(roundRadius + 0.5, roundRadius + 0.5);
+	vec2 fromCenterWithRadius = fromRectCenter + vectorRadius;
+	vec2 fromRoundingCenter = max(fromCenterWithRadius, rectHalf)
+		- rectHalf;
+	float rounded = length(fromRoundingCenter) - roundRadius;
+
+	return 1. - smoothstep(0., 1., rounded);
+}
+)",
+		.body = R"(
+	result = vec4(roundedCorner());
+)",
+	};
+}
+
 } // namespace
 
 OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
@@ -69,7 +94,10 @@ void OverlayWidget::RendererGL::init(
 	constexpr auto kQuadVertices = kQuads * 4;
 	constexpr auto kQuadValues = kQuadVertices * 4;
 	constexpr auto kControlsValues = kControlsCount * kControlValues;
-	constexpr auto kValues = kQuadValues + kControlsValues;
+	constexpr auto kRoundingQuads = 4;
+	constexpr auto kRoundingVertices = kRoundingQuads * 6;
+	constexpr auto kRoundingValues = kRoundingVertices * 2;
+	constexpr auto kValues = kQuadValues + kControlsValues + kRoundingValues;
 
 	_contentBuffer.emplace();
 	_contentBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
@@ -129,6 +157,12 @@ void OverlayWidget::RendererGL::init(
 			FragmentSampleARGB32Texture(),
 			FragmentGlobalOpacity(),
 		}));
+
+	_roundedCornersProgram.emplace();
+	LinkProgram(
+		&*_roundedCornersProgram,
+		VertexShader({ VertexViewportTransform() }),
+		FragmentShader({ FragmentRoundedCorners() }));
 
 	const auto renderer = reinterpret_cast<const char*>(
 		f.glGetString(GL_RENDERER));
@@ -428,8 +462,8 @@ void OverlayWidget::RendererGL::paintRadialLoading(
 
 void OverlayWidget::RendererGL::paintThemePreview(QRect outer) {
 	paintUsingRaster(_themePreviewImage, outer, [&](Painter &&p) {
-		const auto newOuter = QRect(QPoint(), outer.size());
-		_owner->paintThemePreviewContent(p, newOuter, newOuter);
+		p.translate(-outer.topLeft());
+		_owner->paintThemePreviewContent(p, outer, outer);
 	}, kThemePreviewOffset);
 }
 
@@ -596,6 +630,76 @@ void OverlayWidget::RendererGL::paintGroupThumbs(
 		const auto newOuter = QRect(QPoint(), outer.size());
 		_owner->paintGroupThumbsContent(p, newOuter, newOuter, opacity);
 	}, kGroupThumbsOffset, true);
+}
+
+void OverlayWidget::RendererGL::paintRoundedCorners(int radius) {
+	const auto topLeft = transformRect(QRect(0, 0, radius, radius));
+	const auto topRight = transformRect(
+		QRect(_viewport.width() - radius, 0, radius, radius));
+	const auto bottomRight = transformRect(QRect(
+		_viewport.width() - radius,
+		_viewport.height() - radius,
+		radius,
+		radius));
+	const auto bottomLeft = transformRect(
+		QRect(0, _viewport.height() - radius, radius, radius));
+	const GLfloat coords[] = {
+		topLeft.left(), topLeft.top(),
+		topLeft.right(), topLeft.top(),
+		topLeft.right(), topLeft.bottom(),
+		topLeft.right(), topLeft.bottom(),
+		topLeft.left(), topLeft.bottom(),
+		topLeft.left(), topLeft.top(),
+
+		topRight.left(), topRight.top(),
+		topRight.right(), topRight.top(),
+		topRight.right(), topRight.bottom(),
+		topRight.right(), topRight.bottom(),
+		topRight.left(), topRight.bottom(),
+		topRight.left(), topRight.top(),
+
+		bottomRight.left(), bottomRight.top(),
+		bottomRight.right(), bottomRight.top(),
+		bottomRight.right(), bottomRight.bottom(),
+		bottomRight.right(), bottomRight.bottom(),
+		bottomRight.left(), bottomRight.bottom(),
+		bottomRight.left(), bottomRight.top(),
+
+		bottomLeft.left(), bottomLeft.top(),
+		bottomLeft.right(), bottomLeft.top(),
+		bottomLeft.right(), bottomLeft.bottom(),
+		bottomLeft.right(), bottomLeft.bottom(),
+		bottomLeft.left(), bottomLeft.bottom(),
+		bottomLeft.left(), bottomLeft.top(),
+	};
+	const auto offset = kControlsOffset
+		+ (kControlsCount * kControlValues) / 4;
+	const auto byteOffset = offset * 4 * sizeof(GLfloat);
+	_contentBuffer->write(byteOffset, coords, sizeof(coords));
+	_roundedCornersProgram->bind();
+	_roundedCornersProgram->setUniformValue("viewport", _uniformViewport);
+	const auto roundRect = transformRect(QRect(QPoint(), _viewport));
+	_roundedCornersProgram->setUniformValue("roundRect", Uniform(roundRect));
+	_roundedCornersProgram->setUniformValue(
+		"roundRadius",
+		GLfloat(radius * _factor));
+
+	_f->glEnable(GL_BLEND);
+	_f->glBlendFunc(GL_ZERO, GL_SRC_ALPHA);
+
+	GLint position = _roundedCornersProgram->attributeLocation("position");
+	_f->glVertexAttribPointer(
+		position,
+		2,
+		GL_FLOAT,
+		GL_FALSE,
+		2 * sizeof(GLfloat),
+		reinterpret_cast<const void*>(byteOffset));
+	_f->glEnableVertexAttribArray(position);
+
+	_f->glDrawArrays(GL_TRIANGLES, 0, base::array_size(coords) / 2);
+
+	_f->glDisableVertexAttribArray(position);
 }
 
 void OverlayWidget::RendererGL::invalidate() {

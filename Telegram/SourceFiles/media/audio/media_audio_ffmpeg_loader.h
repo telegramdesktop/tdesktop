@@ -45,9 +45,11 @@ public:
 		return _samplesFrequency;
 	}
 
+#if !DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	static uint64_t ComputeChannelLayout(
 		uint64_t channel_layout,
 		int channels);
+#endif // !DA_FFMPEG_NEW_CHANNEL_LAYOUT
 
 	~AbstractFFMpegLoader();
 
@@ -144,11 +146,17 @@ private:
 
 	int _swrSrcRate = 0;
 	AVSampleFormat _swrSrcSampleFormat = AV_SAMPLE_FMT_NONE;
-	uint64_t _swrSrcChannelLayout = 0;
 
 	const int _swrDstRate = Media::Player::kDefaultFrequency;
 	AVSampleFormat _swrDstSampleFormat = AV_SAMPLE_FMT_S16;
+
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	AVChannelLayout _swrSrcChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
+	AVChannelLayout _swrDstChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	uint64_t _swrSrcChannelLayout = 0;
 	uint64_t _swrDstChannelLayout = AV_CH_LAYOUT_STEREO;
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	uint8_t **_swrDstData = nullptr;
 	int _swrDstDataCapacity = 0;
 

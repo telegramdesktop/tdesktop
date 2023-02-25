@@ -412,17 +412,6 @@ void MainWindow::validateDwmPreviewColors() {
 	_dwmPreview.reset();
 }
 
-int32 MainWindow::screenNameChecksum(const QString &name) const {
-	constexpr int DeviceNameSize = base::array_size(MONITORINFOEX().szDevice);
-	wchar_t buffer[DeviceNameSize] = { 0 };
-	if (name.size() < DeviceNameSize) {
-		name.toWCharArray(buffer);
-	} else {
-		memcpy(buffer, name.toStdWString().data(), sizeof(buffer));
-	}
-	return base::crc32(buffer, sizeof(buffer));
-}
-
 void MainWindow::forceIconRefresh() {
 	const auto refresher = std::make_unique<QWidget>(this);
 	refresher->setWindowFlags(
@@ -483,10 +472,7 @@ bool MainWindow::hasTabletView() const {
 }
 
 bool MainWindow::initGeometryFromSystem() {
-	if (!hasTabletView()) {
-		return false;
-	}
-	if (!screen()) {
+	if (!hasTabletView() || !screen()) {
 		return false;
 	}
 	Ui::RpWidget::setGeometry(screen()->availableGeometry());
@@ -706,6 +692,17 @@ MainWindow::~MainWindow() {
 	WTSUnRegisterSessionNotification(_hWnd);
 	_private->viewSettings.Reset();
 	destroyCachedIcons();
+}
+
+int32 ScreenNameChecksum(const QString &name) {
+	constexpr int DeviceNameSize = base::array_size(MONITORINFOEX().szDevice);
+	wchar_t buffer[DeviceNameSize] = { 0 };
+	if (name.size() < DeviceNameSize) {
+		name.toWCharArray(buffer);
+	} else {
+		memcpy(buffer, name.toStdWString().data(), sizeof(buffer));
+	}
+	return base::crc32(buffer, sizeof(buffer));
 }
 
 } // namespace Platform

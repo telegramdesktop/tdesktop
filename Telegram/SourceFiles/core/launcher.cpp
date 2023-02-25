@@ -26,6 +26,14 @@ namespace {
 
 uint64 InstallationTag = 0;
 
+base::options::toggle OptionFreeType({
+	.id = kOptionFreeType,
+	.name = "FreeType font engine",
+	.description = "Use the font engine from Linux instead of the system one.",
+	.scope = base::options::windows | base::options::macos,
+	.restartRequired = true,
+});
+
 class FilteredCommandLineArguments {
 public:
 	FilteredCommandLineArguments(int argc, char **argv);
@@ -53,7 +61,7 @@ FilteredCommandLineArguments::FilteredCommandLineArguments(
 	}
 
 #if defined Q_OS_WIN || defined Q_OS_MAC
-	if (cUseFreeType()) {
+	if (OptionFreeType.value()) {
 		pushArgument("-platform");
 #ifdef Q_OS_WIN
 		pushArgument("windows:fontengine=freetype");
@@ -126,12 +134,6 @@ void ComputeExternalUpdater() {
 				return;
 			}
 		}
-	}
-}
-
-void ComputeFreeType() {
-	if (QFile::exists(cWorkingDir() + u"tdata/withfreetype"_q)) {
-		cSetUseFreeType(true);
 	}
 }
 
@@ -284,6 +286,7 @@ base::options::toggle OptionFractionalScalingEnabled({
 } // namespace
 
 const char kOptionFractionalScalingEnabled[] = "fractional-scaling-enabled";
+const char kOptionFreeType[] = "freetype";
 
 std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
@@ -398,7 +401,6 @@ void Launcher::workingFolderReady() {
 
 	ComputeDebugMode();
 	ComputeExternalUpdater();
-	ComputeFreeType();
 	ComputeInstallBetaVersions();
 	ComputeInstallationTag();
 }
@@ -497,7 +499,6 @@ void Launcher::processArguments() {
 	};
 	auto parseMap = std::map<QByteArray, KeyFormat> {
 		{ "-debug"          , KeyFormat::NoValues },
-		{ "-freetype"       , KeyFormat::NoValues },
 		{ "-key"            , KeyFormat::OneValue },
 		{ "-autostart"      , KeyFormat::NoValues },
 		{ "-fixprevious"    , KeyFormat::NoValues },
@@ -534,7 +535,6 @@ void Launcher::processArguments() {
 		}
 	}
 
-	gUseFreeType = parseResult.contains("-freetype");
 	gDebugMode = parseResult.contains("-debug");
 	gKeyFile = parseResult.value("-key", {}).join(QString()).toLower();
 	gKeyFile = gKeyFile.replace(QRegularExpression("[^a-z0-9\\-_]"), {});
@@ -547,13 +547,9 @@ void Launcher::processArguments() {
 	gStartInTray = parseResult.contains("-startintray");
 	gQuit = parseResult.contains("-quit");
 	gSendPaths = parseResult.value("-sendpath", {});
-	gWorkingDir = parseResult.value("-workdir", {}).join(QString());
+	cForceWorkingDir(parseResult.value("-workdir", {}).join(QString()));
 	if (!gWorkingDir.isEmpty()) {
-		if (QDir().exists(gWorkingDir)) {
-			_customWorkingDir = true;
-		} else {
-			gWorkingDir = QString();
-		}
+		_customWorkingDir = true;
 	}
 	gStartUrl = parseResult.value("--", {}).join(QString());
 
