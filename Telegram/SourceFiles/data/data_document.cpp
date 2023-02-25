@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_file_utilities.h"
 #include "base/platform/base_platform_info.h"
+#include "base/options.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_gif.h"
@@ -1312,10 +1313,12 @@ bool DocumentData::useStreamingLoader() const {
 bool DocumentData::canBeStreamed(HistoryItem *item) const {
 	// Streaming couldn't be used with external player
 	// Maybe someone brave will implement this once upon a time...
+	static const auto &ExternalVideoPlayer = base::options::lookup<bool>(
+		Data::kOptionExternalVideoPlayer);
 	return hasRemoteLocation()
 		&& supportsStreaming()
 		&& (!isVideoFile()
-			|| !cUseExternalVideoPlayer()
+			|| !ExternalVideoPlayer.value()
 			|| (item && !item->allowsForward()));
 }
 
