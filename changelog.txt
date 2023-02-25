@@ -1,3 +1,8 @@
+4.6.5 (25.02.23)
+
+- Fix payment card input field validation.
+- Fix video playback with hardware acceleration on macOS.
+
 4.6.4 beta (18.02.23)
 
 - Allow media viewer to exit fullscreen and become a normal window.
