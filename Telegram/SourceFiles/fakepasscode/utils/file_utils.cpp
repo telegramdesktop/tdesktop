@@ -59,8 +59,7 @@ namespace FakePasscode::FileUtils {
             }
             file.close();
 
-            QDir newDir = GetRandomDir();
-            QString newName = GetRandomName(newDir);
+            QString newName = GetRandomName(QFileInfo(path).dir());
 
             result |= (file.rename(newName) ?
                        FileResult::Success : FileResult::NotRenamed);
@@ -88,16 +87,8 @@ namespace FakePasscode::FileUtils {
             }
         }
         if (deleteRoot) {
-            if (Core::App().domain().local().IsErasingEnabled()) {
-                QDir newDir = GetRandomDir();
-                QString newName = GetRandomName(newDir);
-                if (!(dir.rename(dir.absolutePath(), newDir.absolutePath() + "/" + newName) && newDir.rmdir(newName))) {
-                    isOk = false;
-                }
-            } else {
-                if (!dir.rmdir(path)) {
-                    isOk = false;
-                }
+            if (!dir.rmdir(path)) {
+                isOk = false;
             }
         }
         return isOk;
