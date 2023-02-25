@@ -297,7 +297,7 @@ void EditAdminBox::prepare() {
 			& (filterByMyRights ? channel->adminRights() : ~Flag(0)));
 
 	const auto disabledMessages = [&] {
-		auto result = std::map<Flags, QString>();
+		auto result = base::flat_map<Flags, QString>();
 		if (!canSave()) {
 			result.emplace(
 				~Flags(0),
@@ -725,7 +725,7 @@ void EditRestrictedBox::prepare() {
 			? (Flag::ChangeInfo | Flag::PinMessages)
 			: Flags(0)));
 	const auto disabledMessages = [&] {
-		auto result = std::map<Flags, QString>();
+		auto result = base::flat_map<Flags, QString>();
 		if (!canSave()) {
 			result.emplace(
 				~Flags(0),

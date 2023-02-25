@@ -664,7 +664,7 @@ void SetupAnimations(
 		not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
-		tr::lng_settings_power_title(),
+		tr::lng_settings_power_menu(),
 		st::settingsButtonNoIcon
 	)->setClickedCallback([=] {
 		window->show(Box(PowerSavingBox));

@@ -141,6 +141,7 @@ inline constexpr auto kIconGray = 9;
 enum class IconType {
 	Rounded,
 	Round,
+	Simple,
 };
 
 struct IconDescriptor {

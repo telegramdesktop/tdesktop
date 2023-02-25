@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_advanced.h"
 #include "settings/settings_folders.h"
 #include "settings/settings_calls.h"
+#include "settings/settings_power_saving.h"
 #include "settings/settings_premium.h"
 #include "settings/settings_scale_preview.h"
 #include "boxes/language_box.h"
@@ -257,6 +258,19 @@ void Cover::refreshUsernameGeometry(int newWidth) {
 
 } // namespace
 
+void SetupPowerSavingButton(
+		not_null<Window::Controller*> window,
+		not_null<Ui::VerticalLayout*> container) {
+	const auto button = AddButton(
+		container,
+		tr::lng_settings_power_menu(),
+		st::settingsButton,
+		{ &st::settingsIconBattery, kIconDarkOrange });
+	button->setClickedCallback([=] {
+		window->show(Box(PowerSavingBox));
+	});
+}
+
 void SetupLanguageButton(
 		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container,
@@ -270,7 +284,7 @@ void SetupLanguageButton(
 			Lang::GetInstance().idChanges()
 		) | rpl::map([] { return Lang::GetInstance().nativeName(); }),
 		icon ? st::settingsButton : st::settingsButtonNoIcon,
-		{ icon ? &st::settingsIconLanguage : nullptr, kIconDarkOrange });
+		{ icon ? &st::settingsIconLanguage : nullptr, kIconLightBlue });
 	const auto guard = Ui::CreateChild<base::binary_guard>(button.get());
 	button->addClickHandler([=] {
 		const auto m = button->clickModifiers();
@@ -381,6 +395,7 @@ void SetupSections(
 		Calls::Id(),
 		{ &st::settingsIconCalls, kIconGreen });
 
+	SetupPowerSavingButton(&controller->window(), container);
 	SetupLanguageButton(&controller->window(), container);
 
 	if (controller->session().premiumPossible()) {

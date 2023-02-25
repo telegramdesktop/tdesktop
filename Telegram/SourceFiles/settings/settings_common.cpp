@@ -60,11 +60,12 @@ base::options::toggle OptionMonoSettingsIcons({
 const char kOptionMonoSettingsIcons[] = "mono-settings-icons";
 
 Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
-	const auto background = [&] {
-		if (OptionMonoSettingsIcons.value()) {
+	const auto background = [&]() -> const style::color* {
+		if (descriptor.type == IconType::Simple) {
+			return nullptr;
+		} else if (OptionMonoSettingsIcons.value()) {
 			return &st::transparent;
-		}
-		if (descriptor.color > 0) {
+		} else if (descriptor.color > 0) {
 			const auto list = std::array{
 				&st::settingsIconBg1,
 				&st::settingsIconBg2,

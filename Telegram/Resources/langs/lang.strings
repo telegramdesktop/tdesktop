@@ -608,7 +608,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_security_bots" = "Bots and websites";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
 
-"lng_settings_power_title" = "Power efficiency";
+"lng_settings_power_menu" = "Battery and animations";
+"lng_settings_power_title" = "Power Usage";
+"lng_settings_power_subtitle" = "Power saving options";
 "lng_settings_power_stickers" = "Animated Stickers";
 "lng_settings_power_stickers_panel" = "Autoplay in panel";
 "lng_settings_power_stickers_chat" = "Autoplay in chat";
@@ -621,6 +623,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_power_chat_spoiler" = "Animated spoiler effect";
 "lng_settings_power_calls" = "Animations in Calls";
 "lng_settings_power_ui" = "Interface animations";
+"lng_settings_power_auto" = "Save Power on Low Battery";
+"lng_settings_power_auto_about" = "Automatically disable all animations when your laptop is in a battery saving mode.";
 
 "lng_settings_cloud_password_on" = "On";
 "lng_settings_cloud_password_off" = "Off";

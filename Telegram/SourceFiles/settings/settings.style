@@ -81,6 +81,7 @@ settingsIconFolders: icon {{ "settings/folders", settingsIconFg }};
 settingsIconGeneral: icon {{ "settings/advanced", settingsIconFg }};
 settingsIconLock: icon {{ "settings/lock", settingsIconFg }};
 settingsIconLanguage: icon {{ "settings/language", settingsIconFg }};
+settingsIconBattery: icon {{ "settings/battery", settingsIconFg }};
 settingsIconInterfaceScale: icon {{ "settings/interface_scale", settingsIconFg }};
 settingsIconFaq: icon {{ "settings/faq", settingsIconFg }};
 settingsIconCalls: icon {{ "settings/calls", settingsIconFg }};
@@ -526,3 +527,13 @@ requestPeerRestriction: FlatLabel(defaultFlatLabel) {
 		lineHeight: 22px;
 	}
 }
+
+powerSavingButton: SettingsButton(settingsButton) {
+	style: boxTextStyle;
+	padding: margins(57px, 8px, 22px, 8px);
+	iconLeft: 20px;
+}
+powerSavingButtonNoIcon: SettingsButton(powerSavingButton) {
+	padding: margins(22px, 8px, 22px, 8px);
+}
+powerSavingSubtitlePadding: margins(0px, 4px, 0px, -2px);
