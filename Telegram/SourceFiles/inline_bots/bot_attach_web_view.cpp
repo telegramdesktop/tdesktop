@@ -1044,17 +1044,32 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		not_null<PeerData*> peer,
 		Fn<Api::SendAction()> actionFactory,
 		Fn<void(bool)> attach) {
+	if (!Data::CanSend(peer, ChatRestriction::SendInline)) {
+		return nullptr;
+	}
 	auto result = std::make_unique<Ui::DropdownMenu>(
 		parent,
 		st::dropdownMenuWithIcons);
 	const auto bots = &peer->session().attachWebView();
 	const auto raw = result.get();
-	raw->addAction(tr::lng_attach_photo_or_video(tr::now), [=] {
-		attach(true);
-	}, &st::menuIconPhoto);
-	raw->addAction(tr::lng_attach_document(tr::now), [=] {
-		attach(false);
-	}, &st::menuIconFile);
+	auto minimal = 0;
+	if (Data::CanSend(peer, ChatRestriction::SendPhotos, false)) {
+		++minimal;
+		raw->addAction(tr::lng_attach_photo_or_video(tr::now), [=] {
+			attach(true);
+		}, &st::menuIconPhoto);
+	}
+	const auto fileTypes = ChatRestriction::SendVideos
+		| ChatRestriction::SendGifs
+		| ChatRestriction::SendStickers
+		| ChatRestriction::SendMusic
+		| ChatRestriction::SendFiles;
+	if (Data::CanSendAnyOf(peer, fileTypes)) {
+		++minimal;
+		raw->addAction(tr::lng_attach_document(tr::now), [=] {
+			attach(false);
+		}, &st::menuIconFile);
+	}
 	for (const auto &bot : bots->attachBots()) {
 		if (!PeerMatchesTypes(peer, bot.user, bot.types)) {
 			continue;
@@ -1082,7 +1097,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		}, action->lifetime());
 		raw->addAction(std::move(action));
 	}
-	if (raw->actions().size() < 3) {
+	if (raw->actions().size() <= minimal) {
 		return nullptr;
 	}
 	return result;

@@ -376,6 +376,11 @@ protected:
 
 	void checkHideWithBox(QPointer<Ui::BoxContent> box);
 
+	void paintEmptySearchResults(
+		Painter &p,
+		const style::icon &icon,
+		const QString &text) const;
+
 private:
 	const style::EmojiPan &_st;
 	const not_null<Main::Session*> _session;

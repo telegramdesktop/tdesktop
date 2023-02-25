@@ -1053,7 +1053,7 @@ void FileLoadTask::process(Args &&args) {
 			if (image->modifications.paint) {
 				const auto documents = ExtractStickersFromScene(image);
 				_result->attachedStickers = documents
-					| ranges::view::transform(&DocumentData::mtpInput)
+					| ranges::views::transform(&DocumentData::mtpInput)
 					| ranges::to_vector;
 			}
 		}

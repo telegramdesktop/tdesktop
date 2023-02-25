@@ -230,7 +230,7 @@ public:
 		return nullptr;
 	}
 
-	virtual void loadUserpic() = 0;
+	virtual void chatListPreloadData() = 0;
 	virtual void paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,

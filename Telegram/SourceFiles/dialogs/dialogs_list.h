@@ -23,6 +23,10 @@ public:
 	List &operator=(List &&other) = default;
 	~List() = default;
 
+	void clear() {
+		_rows.clear();
+		_rowByKey.clear();
+	}
 	[[nodiscard]] int size() const {
 		return _rows.size();
 	}

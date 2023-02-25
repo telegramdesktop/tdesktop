@@ -131,7 +131,7 @@ void SelectChatsContent::setupContent() {
                 continue; // Archive, skip
             }
 
-            chat->entry()->loadUserpic();
+            chat->entry()->chatListPreloadData();
             auto button = Settings::AddButton(content, rpl::single(chat->entry()->chatListName()), st::settingsButton);
             Settings::AddDialogImageToButton(button, st::settingsButton, chat);
             auto dialog_id = chat->key().peer()->id.value;

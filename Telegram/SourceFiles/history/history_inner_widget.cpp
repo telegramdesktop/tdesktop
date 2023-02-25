@@ -3946,8 +3946,17 @@ void HistoryInner::notifyIsBotChanged() {
 }
 
 void HistoryInner::notifyMigrateUpdated() {
-	_migrated = _history->migrateFrom();
-	_migrated->translateTo(_history->translatedTo());
+	const auto migrated = _history->migrateFrom();
+	if (_migrated != migrated) {
+		if (_migrated) {
+			_migrated->delegateMixin()->setCurrent(nullptr);
+		}
+		_migrated = migrated;
+		if (_migrated) {
+			_migrated->delegateMixin()->setCurrent(this);
+			_migrated->translateTo(_history->translatedTo());
+		}
+	}
 }
 
 void HistoryInner::applyDragSelection() {

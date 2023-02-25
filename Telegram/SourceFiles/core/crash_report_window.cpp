@@ -426,7 +426,7 @@ LastCrashedWindow::LastCrashedWindow(
 	}
 
 	_pleaseSendReport.setText(u"Please send us a crash report."_q);
-	_yourReportName.setText(u"Your Report Tag: %1\nYour User Tag: %2"_q.arg(QString(_minidumpName).replace(".dmp", "")).arg(launcher->installationTag(), 0, 16));
+	_yourReportName.setText(u"Crash ID: %1"_q.arg(QString(_minidumpName).replace(".dmp", "")));
 	_yourReportName.setCursor(style::cur_text);
 	_yourReportName.setTextInteractionFlags(Qt::TextSelectableByMouse);
 
