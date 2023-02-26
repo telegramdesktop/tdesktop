@@ -52,7 +52,19 @@ struct WindowPosition {
 	int y = 0;
 	int w = 0;
 	int h = 0;
+
+	friend inline constexpr auto operator<=>(
+		WindowPosition,
+		WindowPosition) = default;
+
+	[[nodiscard]] QRect rect() const {
+		return QRect(x, y, w, h);
+	}
 };
+
+[[nodiscard]] WindowPosition AdjustToScale(
+	WindowPosition position,
+	const QString &name);
 
 struct WindowTitleContent {
 	bool hideChatName : 1 = false;
@@ -759,6 +771,13 @@ public:
 	void setRememberedDeleteMessageOnlyForYou(bool value);
 	[[nodiscard]] bool rememberedDeleteMessageOnlyForYou() const;
 
+	[[nodiscard]] const WindowPosition &mediaViewPosition() const {
+		return _mediaViewPosition;
+	}
+	void setMediaViewPosition(const WindowPosition &position) {
+		_mediaViewPosition = position;
+	}
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
@@ -880,6 +899,7 @@ private:
 	rpl::variable<std::vector<LanguageId>> _skipTranslationLanguages;
 	rpl::event_stream<> _skipTranslationLanguagesChanges;
 	bool _rememberedDeleteMessageOnlyForYou = false;
+	WindowPosition _mediaViewPosition = { .maximized = 2 };
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

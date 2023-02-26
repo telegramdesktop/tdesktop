@@ -180,22 +180,6 @@ auto GenerateCodes() {
 		Ui::Toast::Show("Forced custom scheme register.");
 	});
 
-#if defined Q_OS_WIN || defined Q_OS_MAC
-	codes.emplace(u"freetype"_q, [](SessionController *window) {
-		auto text = cUseFreeType()
-#ifdef Q_OS_WIN
-			? u"Switch font engine to GDI?"_q
-#else // Q_OS_WIN
-			? u"Switch font engine to Cocoa?"_q
-#endif // !Q_OS_WIN
-			: u"Switch font engine to FreeType?"_q;
-
-		Ui::show(Ui::MakeConfirmBox({ text, [] {
-			Core::App().switchFreeType();
-		} }));
-	});
-#endif // Q_OS_WIN || Q_OS_MAC
-
 	auto audioFilters = u"Audio files (*.wav *.mp3);;"_q + FileDialog::AllFilesFilter();
 	auto audioKeys = {
 		u"msg_incoming"_q,

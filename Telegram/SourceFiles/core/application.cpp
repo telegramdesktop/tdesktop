@@ -604,11 +604,11 @@ bool Application::isActiveForTrayMenu() const {
 }
 
 bool Application::hideMediaView() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->hide();
-		if (const auto window = activeWindow()) {
-			window->reActivate();
-		}
+	if (_mediaView
+		&& _mediaView->isFullScreen()
+		&& !_mediaView->isMinimized()
+		&& !_mediaView->isHidden()) {
+		_mediaView->close();
 		return true;
 	}
 	return false;
@@ -953,21 +953,6 @@ void Application::switchDebugMode() {
 	}
 }
 
-void Application::switchFreeType() {
-	if (cUseFreeType()) {
-		QFile(cWorkingDir() + u"tdata/withfreetype"_q).remove();
-		cSetUseFreeType(false);
-	} else {
-		QFile f(cWorkingDir() + u"tdata/withfreetype"_q);
-		if (f.open(QIODevice::WriteOnly)) {
-			f.write("1");
-			f.close();
-		}
-		cSetUseFreeType(true);
-	}
-	Restart();
-}
-
 void Application::writeInstallBetaVersionsSetting() {
 	_launcher->writeInstallBetaVersionsSetting();
 }
@@ -1026,10 +1011,11 @@ bool Application::preventsQuit(QuitReason reason) {
 		|| uploadPreventsQuit()
 		|| downloadPreventsQuit()) {
 		return true;
-	} else if (const auto window = activeWindow()) {
-		if (window->widget()->isActive()) {
-			return window->widget()->preventsQuit(reason);
-		}
+	} else if ((!_mediaView
+		|| _mediaView->isHidden()
+		|| !_mediaView->isFullScreen())
+		&& Platform::PreventsQuit(reason)) {
+		return true;
 	}
 	return false;
 }
@@ -1545,19 +1531,18 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 			nowSession->updates().updateOnline();
 		}
 	}
-	if (_mediaView && !_mediaView->isHidden()) {
+	if (_mediaView && _mediaView->takeFocusFrom(now->widget())) {
 		_mediaView->activate();
 	}
 }
 
 bool Application::closeActiveWindow() {
-	if (hideMediaView()) {
+	if (_mediaView && _mediaView->isActive()) {
+		_mediaView->close();
 		return true;
-	}
-	if (!calls().closeCurrentActiveCall()) {
+	} else if (!calls().closeCurrentActiveCall()) {
 		if (const auto window = activeWindow()) {
-			if (window->widget()->isVisible()
-				&& window->widget()->isActive()) {
+			if (window->widget()->isActive()) {
 				window->close();
 				return true;
 			}
@@ -1567,8 +1552,10 @@ bool Application::closeActiveWindow() {
 }
 
 bool Application::minimizeActiveWindow() {
-	hideMediaView();
-	if (!calls().minimizeCurrentActiveCall()) {
+	if (_mediaView && _mediaView->isActive()) {
+		_mediaView->minimize();
+		return true;
+	} else if (!calls().minimizeCurrentActiveCall()) {
 		if (const auto window = activeWindow()) {
 			window->minimize();
 			return true;

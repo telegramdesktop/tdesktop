@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 
 extern const char kOptionFractionalScalingEnabled[];
+extern const char kOptionFreeType[];
 
 class Launcher {
 public:

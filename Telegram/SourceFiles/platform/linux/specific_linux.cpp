@@ -371,7 +371,6 @@ void LaunchGApplication() {
 				});
 			});
 
-		app->hold();
 		app->run(0, nullptr);
 	});
 }

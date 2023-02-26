@@ -41,7 +41,6 @@ public:
 
 protected:
 	void initHook() override;
-	int32 screenNameChecksum(const QString &name) const override;
 	void unreadCounterChangedHook() override;
 
 	void workmodeUpdated(Core::Settings::WorkMode mode) override;
@@ -99,5 +98,7 @@ private:
 	bool _hasActiveFrame = false;
 
 };
+
+[[nodiscard]] int32 ScreenNameChecksum(const QString &name);
 
 } // namespace Platform

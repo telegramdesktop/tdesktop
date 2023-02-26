@@ -30,8 +30,6 @@ public:
 
 	void updateWindowIcon() override;
 
-	bool preventsQuit(Core::QuitReason reason) override;
-
 	class Private;
 
 protected:
@@ -86,5 +84,9 @@ private:
 	int _customTitleHeight = 0;
 
 };
+
+[[nodiscard]] inline int32 ScreenNameChecksum(const QString &name) {
+	return Window::DefaultScreenNameChecksum(name);
+}
 
 } // namespace Platform

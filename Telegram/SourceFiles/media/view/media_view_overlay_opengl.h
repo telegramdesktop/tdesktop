@@ -68,6 +68,7 @@ private:
 	void paintFooter(QRect outer, float64 opacity) override;
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
+	void paintRoundedCorners(int radius) override;
 
 	void invalidate();
 
@@ -110,6 +111,7 @@ private:
 	std::optional<QOpenGLShaderProgram> _nv12Program;
 	std::optional<QOpenGLShaderProgram> _fillProgram;
 	std::optional<QOpenGLShaderProgram> _controlsProgram;
+	std::optional<QOpenGLShaderProgram> _roundedCornersProgram;
 	Ui::GL::Textures<4> _textures;
 	QSize _rgbaSize;
 	QSize _lumaSize;

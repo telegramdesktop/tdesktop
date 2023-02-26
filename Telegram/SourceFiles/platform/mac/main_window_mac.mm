@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/mac/base_confirm_quit.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
@@ -259,19 +258,6 @@ void MainWindow::updateWindowIcon() {
 
 void MainWindow::hideAndDeactivate() {
 	hide();
-}
-
-bool MainWindow::preventsQuit(Core::QuitReason reason) {
-	// Thanks Chromium, see
-	// chromium.org/developers/design-documents/confirm-to-quit-experiment
-	return (reason == Core::QuitReason::QtQuitEvent)
-		&& Core::App().settings().macWarnBeforeQuit()
-		&& ([[NSApp currentEvent] type] == NSEventTypeKeyDown)
-		&& !Platform::ConfirmQuit::RunModal(
-			tr::lng_mac_hold_to_quit(
-				tr::now,
-				lt_text,
-				Platform::ConfirmQuit::QuitKeysString()));
 }
 
 void MainWindow::unreadCounterChangedHook() {

@@ -23,23 +23,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		4004002,
-		"- Send photos and video files hidden by a spoiler effect.\n"
-
-		"- Set a public photo for those who are restricted to see "
-		"your profile photo in the Privacy Settings.\n"
-
-		"- Bug fixes and other minor improvements.\n"
-	},
-	{
-		4004003,
-		"- Support for anonymous numbers from the Fragment.com platform.\n"
-
-		"- Fix a crash in own profile photo updating.\n"
-
-		"- Bug fixes and other minor improvements.\n"
-	},
-	{
 		4005004,
 		"- Allow wide range of interface scale options.\n"
 
@@ -75,6 +58,10 @@ std::map<int, const char*> BetaLogs() {
 		"(see Settings > Advanced > Experimental Settings).\n"
 
 		"- A lot of bugfixes for working with more than one window.\n"
+	},
+	{
+		4006004,
+		"- Allow media viewer to exit fullscreen and become a normal window."
 	}
 	};
 };

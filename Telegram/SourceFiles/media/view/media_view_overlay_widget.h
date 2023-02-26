@@ -31,11 +31,18 @@ namespace Ui {
 class PopupMenu;
 class LinkButton;
 class RoundButton;
-namespace GL {
-struct ChosenRenderer;
-struct Capabilities;
-} // namespace GL
+class RpWindow;
 } // namespace Ui
+
+namespace Ui::GL {
+class Window;
+struct ChosenRenderer;
+enum class Backend;
+} // namespace Ui::GL
+
+namespace Platform {
+class OverlayWidgetHelper;
+} // namespace Platform
 
 namespace Window {
 namespace Theme {
@@ -73,11 +80,15 @@ public:
 		None,
 	};
 
+	[[nodiscard]] bool isActive() const;
 	[[nodiscard]] bool isHidden() const;
+	[[nodiscard]] bool isMinimized() const;
+	[[nodiscard]] bool isFullScreen() const;
 	[[nodiscard]] not_null<QWidget*> widget() const;
 	void hide();
 	void setCursor(style::cursor cursor);
 	void setFocus();
+	[[nodiscard]] bool takeFocusFrom(not_null<QWidget*> window) const;
 	void activate();
 
 	void show(OpenRequest request);
@@ -93,6 +104,8 @@ public:
 
 	void activateControls();
 	void close();
+	void minimize();
+	void toggleFullScreen(bool fullscreen);
 
 	void notifyFileDialogShown(bool shown);
 
@@ -161,9 +174,12 @@ private:
 	void update(const QRegion &region);
 
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
-		Ui::GL::Capabilities capabilities);
+		Ui::GL::Backend backend);
 	void paint(not_null<Renderer*> renderer);
 
+	void setupWindow();
+	void orderWidgets();
+	void showAndActivate();
 	void handleMousePress(QPoint position, Qt::MouseButton button);
 	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleMouseMove(QPoint position);
@@ -226,8 +242,12 @@ private:
 	void assignMediaPointer(not_null<PhotoData*> photo);
 
 	void updateOver(QPoint mpos);
+	void initFullScreen();
+	void initNormalGeometry();
+	void savePosition();
 	void moveToScreen(bool inMove = false);
 	void updateGeometry(bool inMove = false);
+	void updateGeometryToScreen(bool inMove = false);
 	bool moveToNext(int delta);
 	void preloadData(int delta);
 
@@ -300,6 +320,7 @@ private:
 
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
+	void recountSkipTop();
 
 	void displayPhoto(not_null<PhotoData*> photo);
 	void displayDocument(
@@ -439,10 +460,21 @@ private:
 	Window::SessionController *findWindow(bool switchTo = true) const;
 
 	bool _opengl = false;
+	const std::unique_ptr<Ui::GL::Window> _wrap;
+	const not_null<Ui::RpWindow*> _window;
+	const std::unique_ptr<Platform::OverlayWidgetHelper> _helper;
+	const not_null<Ui::RpWidget*> _body;
+	const std::unique_ptr<Ui::RpWidget> _titleBugWorkaround;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
+	QRect _normalGeometry;
+	bool _wasWindowedMode = false;
+	bool _fullscreenInited = false;
+	bool _normalGeometryInited = false;
+	bool _fullscreen = true;
+	bool _windowed = false;
 
-	base::weak_ptr<Window::Controller> _window;
+	base::weak_ptr<Window::Controller> _openedFrom;
 	Main::Session *_session = nullptr;
 	rpl::lifetime _sessionLifetime;
 	PhotoData *_photo = nullptr;
@@ -487,6 +519,8 @@ private:
 
 	int _width = 0;
 	int _height = 0;
+	int _skipTop = 0;
+	int _availableHeight = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
 	int _xStart = 0, _yStart = 0;
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in
@@ -562,7 +596,7 @@ private:
 	ControlsState _controlsState = ControlsShown;
 	crl::time _controlsAnimStarted = 0;
 	base::Timer _controlsHideTimer;
-	anim::value _controlsOpacity;
+	anim::value _controlsOpacity = { 1. };
 	bool _mousePressed = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
