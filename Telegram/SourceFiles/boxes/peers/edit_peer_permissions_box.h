@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_chat_participant_status.h"
+#include "base/object_ptr.h"
 
 namespace style {
 struct SettingsButton;

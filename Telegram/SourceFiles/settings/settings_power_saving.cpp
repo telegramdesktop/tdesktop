@@ -88,7 +88,7 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 		disabler->setClickedCallback([=] {
 			Ui::ShowMultilineToast({
 				.parentOverride = container,
-				.text = tr::lng_settings_power_turn_off(tr::now),
+				.text = { tr::lng_settings_power_turn_off(tr::now) },
 				.duration = kForceDisableTooltipDuration,
 			});
 		});

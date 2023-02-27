@@ -563,7 +563,10 @@ template <typename Flags>
 					{ entry.icon });
 				const auto toggle = Ui::CreateChild<Ui::RpWidget>(
 					button.get());
-				auto &lifetime = toggle->lifetime();
+
+				// Looks like a bug in Clang, fails to compile with 'auto&' below.
+				rpl::lifetime &lifetime = toggle->lifetime();
+
 				const auto checkView = lifetime.make_state<Ui::ToggleView>(
 					st.toggle,
 					toggled,
