@@ -550,7 +550,7 @@ void OverlayWidget::setupWindow() {
 			return Flag::None | Flag(0);
 		}
 		const auto inControls = (_over != OverNone) && (_over != OverVideo);
-		if (inControls) {
+		if (inControls || (_streamed && _streamed->controls.dragging())) {
 			return Flag::None | Flag(0);
 		}
 		return Flag::Move | Flag(0);
@@ -2810,7 +2810,6 @@ void OverlayWidget::show(OpenRequest request) {
 	const auto contextTopicRootId = request.topicRootId();
 	if (!request.continueStreaming() && !request.startTime()) {
 		if (_message && (_message == contextItem)) {
-			_message = nullptr;
 			return close();
 		} else if (_user && (_user == contextPeer)) {
 			if ((_photo && (_photo == photo))
@@ -5237,6 +5236,7 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 
 // #TODO unite and check
 void OverlayWidget::clearBeforeHide() {
+	_message = nullptr;
 	_sharedMedia = nullptr;
 	_sharedMediaData = std::nullopt;
 	_sharedMediaDataKey = std::nullopt;

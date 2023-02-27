@@ -590,6 +590,16 @@ bool PlaybackControls::hasMenu() const {
 	return _menu != nullptr;
 }
 
+bool PlaybackControls::dragging() const {
+	return _volumeController->isChanging()
+		|| _playbackSlider->isChanging()
+		|| _playPauseResume->isOver()
+		|| _volumeToggle->isOver()
+		|| _menuToggle->isOver()
+		|| _fullScreenToggle->isOver()
+		|| _pictureInPicture->isOver();
+}
+
 PlaybackControls::~PlaybackControls() = default;
 
 } // namespace View

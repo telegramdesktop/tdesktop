@@ -58,6 +58,7 @@ public:
 	void setLoadingProgress(int64 ready, int64 total);
 	void setInFullScreen(bool inFullScreen);
 	[[nodiscard]] bool hasMenu() const;
+	[[nodiscard]] bool dragging() const;
 
 	~PlaybackControls();
 
