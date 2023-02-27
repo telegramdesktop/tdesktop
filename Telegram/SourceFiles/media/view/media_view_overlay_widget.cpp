@@ -2808,6 +2808,17 @@ void OverlayWidget::show(OpenRequest request) {
 	const auto contextItem = request.item();
 	const auto contextPeer = request.peer();
 	const auto contextTopicRootId = request.topicRootId();
+	if (!request.continueStreaming() && !request.startTime()) {
+		if (_message && (_message == contextItem)) {
+			_message = nullptr;
+			return close();
+		} else if (_user && (_user == contextPeer)) {
+			if ((_photo && (_photo == photo))
+				|| (_document && (_document == document))) {
+				return close();
+			}
+		}
+	}
 	if (photo) {
 		if (contextItem && contextPeer) {
 			return;
