@@ -25,14 +25,21 @@ enum Flag : uint32 {
 inline constexpr bool is_flag_type(Flag) { return true; }
 using Flags = base::flags<Flag>;
 
-[[nodiscard]] Flags Current();
-[[nodiscard]] rpl::producer<Flags> Changes();
-[[nodiscard]] rpl::producer<Flags> Value();
-[[nodiscard]] rpl::producer<bool> Value(Flag flag);
 void Set(Flags flags);
+[[nodiscard]] Flags Current();
+
+void SetForceAll(bool force);
+[[nodiscard]] bool ForceAll();
+
+[[nodiscard]] rpl::producer<> Changes();
 
 [[nodiscard]] inline bool On(Flag flag) {
-	return Current() & flag;
+	return ForceAll() || (Current() & flag);
+}
+[[nodiscard]] inline rpl::producer<bool> OnValue(Flag flag) {
+	return rpl::single(On(flag)) | rpl::then(Changes() | rpl::map([=] {
+		return On(flag);
+	})) | rpl::distinct_until_changed();
 }
 
 } // namespace PowerSaving

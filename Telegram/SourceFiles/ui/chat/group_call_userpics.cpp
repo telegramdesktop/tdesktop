@@ -117,7 +117,7 @@ GroupCallUserpics::GroupCallUserpics(
 	});
 
 	rpl::combine(
-		PowerSaving::Value(PowerSaving::kCalls),
+		PowerSaving::OnValue(PowerSaving::kCalls),
 		std::move(hideBlobs)
 	) | rpl::start_with_next([=](bool disabled, bool deactivated) {
 		const auto hide = disabled || deactivated;

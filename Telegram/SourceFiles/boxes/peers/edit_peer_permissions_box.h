@@ -74,6 +74,7 @@ struct EditFlagsDescriptor {
 	std::vector<NestedEditFlagsLabels<Flags>> labels;
 	base::flat_map<Flags, QString> disabledMessages;
 	const style::SettingsButton *st = nullptr;
+	rpl::producer<QString> forceDisabledMessage;
 };
 
 using RestrictionLabel = EditFlagsLabel<ChatRestrictions>;
@@ -109,5 +110,6 @@ using AdminRightLabel = EditFlagsLabel<ChatAdminRights>;
 
 [[nodiscard]] auto CreateEditPowerSaving(
 	QWidget *parent,
-	PowerSaving::Flags flags
+	PowerSaving::Flags flags,
+	rpl::producer<QString> forceDisabledMessage
 ) -> EditFlagsControl<PowerSaving::Flags>;

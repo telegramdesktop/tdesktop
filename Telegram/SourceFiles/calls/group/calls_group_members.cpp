@@ -235,7 +235,7 @@ Members::Controller::Controller(
 	}, _lifetime);
 
 	rpl::combine(
-		PowerSaving::Value(PowerSaving::kCalls),
+		PowerSaving::OnValue(PowerSaving::kCalls),
 		Core::App().appDeactivatedValue()
 	) | rpl::start_with_next([=](bool disabled, bool deactivated) {
 		const auto hide = disabled || deactivated;

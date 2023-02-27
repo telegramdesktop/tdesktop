@@ -12,16 +12,32 @@ namespace {
 
 Flags Data/* = {}*/;
 rpl::event_stream<> Events;
+bool AllForced/* = false*/;
 
 } // namespace
+
+void Set(Flags flags) {
+	if (const auto diff = Data ^ flags) {
+		Data = flags;
+		if (!AllForced) {
+			if (diff & kAnimations) {
+				anim::SetDisabled(On(kAnimations));
+			}
+			Events.fire({});
+		}
+	}
+}
 
 Flags Current() {
 	return Data;
 }
 
-void Set(Flags flags) {
-	if (const auto diff = Data ^ flags) {
-		Data = flags;
+void SetForceAll(bool force) {
+	if (AllForced == force) {
+		return;
+	}
+	AllForced = force;
+	if (const auto diff = Data ^ kAll) {
 		if (diff & kAnimations) {
 			anim::SetDisabled(On(kAnimations));
 		}
@@ -29,18 +45,12 @@ void Set(Flags flags) {
 	}
 }
 
-rpl::producer<Flags> Changes() {
-	return Events.events() | rpl::map(Current);
+bool ForceAll() {
+	return AllForced;
 }
 
-rpl::producer<Flags> Value() {
-	return rpl::single(Current()) | rpl::then(Changes());
-}
-
-rpl::producer<bool> Value(Flag flag) {
-	return Value() | rpl::map([=](Flags flags) {
-		return (flags & flag) != 0;
-	}) | rpl::distinct_until_changed();
+rpl::producer<> Changes() {
+	return Events.events();
 }
 
 } // namespace PowerSaving

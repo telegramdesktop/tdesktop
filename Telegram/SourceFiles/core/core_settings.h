@@ -777,6 +777,15 @@ public:
 	void setMediaViewPosition(const WindowPosition &position) {
 		_mediaViewPosition = position;
 	}
+	[[nodiscard]] bool ignoreBatterySaving() const {
+		return _ignoreBatterySaving.current();
+	}
+	[[nodiscard]] rpl::producer<bool> ignoreBatterySavingValue() const {
+		return _ignoreBatterySaving.value();
+	}
+	void setIgnoreBatterySavingValue(bool value) {
+		_ignoreBatterySaving = value;
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
@@ -900,6 +909,7 @@ private:
 	rpl::event_stream<> _skipTranslationLanguagesChanges;
 	bool _rememberedDeleteMessageOnlyForYou = false;
 	WindowPosition _mediaViewPosition = { .maximized = 2 };
+	rpl::variable<bool> _ignoreBatterySaving = false;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

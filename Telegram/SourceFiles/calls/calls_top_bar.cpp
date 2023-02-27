@@ -499,7 +499,7 @@ void TopBar::initBlobsUnder(
 
 	using namespace rpl::mappers;
 	auto hideBlobs = rpl::combine(
-		PowerSaving::Value(PowerSaving::kCalls),
+		PowerSaving::OnValue(PowerSaving::kCalls),
 		Core::App().appDeactivatedValue(),
 		group->instanceStateValue()
 	) | rpl::map(_1 || _2 || _3 == GroupCall::InstanceState::Disconnected);

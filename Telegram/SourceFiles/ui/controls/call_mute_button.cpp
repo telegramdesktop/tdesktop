@@ -517,7 +517,7 @@ CallMuteButton::CallMuteButton(
 	parent,
 	_st->active.bgSize,
 	rpl::combine(
-		PowerSaving::Value(PowerSaving::kCalls),
+		PowerSaving::OnValue(PowerSaving::kCalls),
 		std::move(hideBlobs),
 		_state.value(
 		) | rpl::map([](const CallMuteButtonState &state) {

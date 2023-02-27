@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_power_saving.h"
 
+#include "base/battery_saving.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/power_saving.h"
 #include "styles/style_menu_icons.h"
@@ -19,6 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace Settings {
+namespace {
+
+constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
+
+} // namespace
 
 void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 	box->setStyle(st::layerBox);
@@ -26,40 +34,90 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 	box->setWidth(st::boxWideWidth);
 
 	const auto container = box->verticalLayout();
+	const auto ignore = Core::App().settings().ignoreBatterySaving();
+	const auto batterySaving = Core::App().batterySaving().enabled();
 
 	// Force top shadow visibility.
 	box->setPinnedToTopContent(
 		object_ptr<Ui::FixedHeightWidget>(box, st::lineWidth));
 
-	AddSubsectionTitle(
+	const auto subtitle = AddSubsectionTitle(
 		container,
 		tr::lng_settings_power_subtitle(),
 		st::powerSavingSubtitlePadding);
 
+	struct State {
+		rpl::variable<QString> forceDisabledMessage;
+	};
+	const auto state = container->lifetime().make_state<State>();
+	state->forceDisabledMessage = (batterySaving.value_or(false) && !ignore)
+		? tr::lng_settings_power_turn_off(tr::now)
+		: QString();
+
 	auto [checkboxes, getResult, changes] = CreateEditPowerSaving(
 		box,
-		PowerSaving::kAll & ~PowerSaving::Current());
+		PowerSaving::kAll & ~PowerSaving::Current(),
+		state->forceDisabledMessage.value());
 
+	const auto controlsRaw = checkboxes.data();
 	box->addRow(std::move(checkboxes), {});
 
 	auto automatic = (Ui::SettingsButton*)nullptr;
-	const auto hasBattery = true;
-	const auto automaticEnabled = true;
-	if (hasBattery) {
+	if (batterySaving.has_value()) {
 		AddSkip(container);
 		AddDivider(container);
 		AddSkip(container);
-		AddButton(
+		automatic = AddButton(
 			container,
 			tr::lng_settings_power_auto(),
 			st::powerSavingButtonNoIcon
-		)->toggleOn(rpl::single(automaticEnabled));
+		)->toggleOn(rpl::single(!ignore));
 		AddSkip(container);
 		AddDividerText(container, tr::lng_settings_power_auto_about());
+
+		state->forceDisabledMessage = rpl::combine(
+			automatic->toggledValue(),
+			Core::App().batterySaving().value()
+		) | rpl::map([=](bool dontIgnore, bool saving) {
+			return (saving && dontIgnore)
+				? tr::lng_settings_power_turn_off()
+				: rpl::single(QString());
+		}) | rpl::flatten_latest();
+
+		const auto disabler = Ui::CreateChild<Ui::AbstractButton>(container.get());
+		disabler->setClickedCallback([=] {
+			Ui::ShowMultilineToast({
+				.parentOverride = container,
+				.text = tr::lng_settings_power_turn_off(tr::now),
+				.duration = kForceDisableTooltipDuration,
+			});
+		});
+		disabler->paintRequest() | rpl::start_with_next([=](QRect clip) {
+			auto color = st::boxBg->c;
+			color.setAlpha(96);
+			QPainter(disabler).fillRect(clip, color);
+		}, disabler->lifetime());
+		rpl::combine(
+			subtitle->geometryValue(),
+			controlsRaw->geometryValue()
+		) | rpl::start_with_next([=](QRect subtitle, QRect controls) {
+			disabler->setGeometry(subtitle.united(controls));
+		}, disabler->lifetime());
+		disabler->showOn(state->forceDisabledMessage.value(
+		) | rpl::map([=](const QString &value) {
+			return !value.isEmpty();
+		}));
 	}
 
 	box->addButton(tr::lng_settings_save(), [=, collect = getResult] {
-		Set(PowerSaving::kAll & ~collect());
+		const auto ignore = automatic
+			? !automatic->toggled()
+			: Core::App().settings().ignoreBatterySaving();
+		const auto batterySaving = Core::App().batterySaving().enabled();
+		if (ignore || !batterySaving.value_or(false)) {
+			Set(PowerSaving::kAll & ~collect());
+		}
+		Core::App().settings().setIgnoreBatterySavingValue(ignore);
 		Core::App().saveSettingsDelayed();
 		box->closeBox();
 	});

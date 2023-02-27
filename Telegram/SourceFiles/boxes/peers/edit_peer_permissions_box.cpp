@@ -42,6 +42,7 @@ namespace {
 
 constexpr auto kSlowmodeValues = 7;
 constexpr auto kSuggestGigagroupThreshold = 199000;
+constexpr auto kForceDisableTooltipDuration = 3 * crl::time(1000);
 
 [[nodiscard]] auto Dependencies(PowerSaving::Flags)
 -> std::vector<std::pair<PowerSaving::Flag, PowerSaving::Flag>> {
@@ -453,8 +454,38 @@ template <typename Flags>
 	struct State final {
 		std::map<Flags, not_null<Ui::AbstractCheckView*>> checkViews;
 		rpl::event_stream<> anyChanges;
+		rpl::variable<QString> forceDisabledMessage;
+		rpl::variable<bool> forceDisabled;
+		base::flat_map<Flags, bool> realCheckedValues;
+		base::weak_ptr<Ui::Toast::Instance> toast;
 	};
 	const auto state = container->lifetime().make_state<State>();
+	if (descriptor.forceDisabledMessage) {
+		state->forceDisabledMessage = std::move(
+			descriptor.forceDisabledMessage);
+		state->forceDisabled = state->forceDisabledMessage.value(
+		) | rpl::map([=](const QString &message) {
+			return !message.isEmpty();
+		});
+
+		state->forceDisabled.value(
+		) | rpl::start_with_next([=](bool disabled) {
+			if (disabled) {
+				for (const auto &[flags, checkView] : state->checkViews) {
+					checkView->setChecked(false, anim::type::normal);
+				}
+			} else {
+				for (const auto &[flags, checkView] : state->checkViews) {
+					if (const auto i = state->realCheckedValues.find(flags)
+						; i != state->realCheckedValues.end()) {
+						checkView->setChecked(
+							i->second,
+							anim::type::normal);
+					}
+				}
+			}
+		}, container->lifetime());
+	}
 
 	const auto &st = descriptor.st ? *descriptor.st : st::rightsButton;
 	const auto value = [=] {
@@ -492,7 +523,9 @@ template <typename Flags>
 		const auto locked = (lockedIt != end(descriptor.disabledMessages))
 			? std::make_optional(lockedIt->second)
 			: std::nullopt;
-		const auto toggled = ((checked & flags) != 0);
+		const auto realChecked = (checked & flags) != 0;
+		state->realCheckedValues.emplace(flags, realChecked);
+		const auto toggled = realChecked && !state->forceDisabled.current();
 
 		const auto checkView = [&]() -> not_null<Ui::AbstractCheckView*> {
 			if (isInner) {
@@ -559,15 +592,30 @@ template <typename Flags>
 		state->checkViews.emplace(flags, checkView);
 		checkView->checkedChanges(
 		) | rpl::start_with_next([=](bool checked) {
-			if (locked.has_value()) {
-				if (checked != toggled) {
-					Ui::ShowMultilineToast({
+			if (checked && state->forceDisabled.current()) {
+				if (!state->toast) {
+					state->toast = Ui::ShowMultilineToast({
 						.parentOverride = container,
-						.text = { *locked },
+						.text = { state->forceDisabledMessage.current() },
+						.duration = kForceDisableTooltipDuration,
 					});
+				}
+				checkView->setChecked(false, anim::type::instant);
+			} else if (locked.has_value()) {
+				if (checked != toggled) {
+					if (!state->toast) {
+						state->toast = Ui::ShowMultilineToast({
+							.parentOverride = container,
+							.text = { *locked },
+							.duration = kForceDisableTooltipDuration,
+						});
+					}
 					checkView->setChecked(toggled, anim::type::instant);
 				}
 			} else {
+				if (!state->forceDisabled.current()) {
+					state->realCheckedValues[flags] = checked;
+				}
 				InvokeQueued(container, [=] {
 					applyDependencies(checkView);
 					state->anyChanges.fire({});
@@ -1141,12 +1189,15 @@ ChatAdminRights AdminRightsForOwnershipTransfer(
 
 EditFlagsControl<PowerSaving::Flags> CreateEditPowerSaving(
 		QWidget *parent,
-		PowerSaving::Flags flags) {
+		PowerSaving::Flags flags,
+		rpl::producer<QString> forceDisabledMessage) {
 	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	auto descriptor = Settings::PowerSavingLabels();
+	descriptor.forceDisabledMessage = std::move(forceDisabledMessage);
 	auto result = CreateEditFlags(
 		widget.data(),
 		flags,
-		Settings::PowerSavingLabels());
+		std::move(descriptor));
 	result.widget = std::move(widget);
 
 	return result;
