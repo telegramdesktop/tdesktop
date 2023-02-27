@@ -220,7 +220,7 @@ Call::Call(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video))) {
 	if (_type == Type::Outgoing) {
-		setState(State::Requesting);
+		setState(State::WaitingUserConfirmation);
 	} else {
 		const auto &config = _user->session().serverConfig();
 		_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
@@ -342,6 +342,12 @@ void Call::startIncoming() {
 	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
+}
+
+void Call::applyUserConfirmation() {
+	if (_state.current() == State::WaitingUserConfirmation) {
+		setState(State::Requesting);
+	}
 }
 
 void Call::answer() {

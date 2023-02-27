@@ -77,6 +77,8 @@ public:
 		bool withAudio) override;
 	void chooseSourceStop() override;
 
+	[[nodiscard]] rpl::producer<bool> startOutgoingRequests() const;
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
@@ -87,6 +89,7 @@ private:
 		Answer,
 		Hangup,
 		Redial,
+		StartCall,
 	};
 
 	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
@@ -147,9 +150,10 @@ private:
 	bool _outgoingPreviewInBody = false;
 	std::optional<AnswerHangupRedialState> _answerHangupRedialState;
 	Ui::Animations::Simple _hangupShownProgress;
-	object_ptr<Ui::CallButton> _screencast;
+	object_ptr<Ui::FadeWrap<Ui::CallButton>> _screencast;
 	object_ptr<Ui::CallButton> _camera;
-	object_ptr<Ui::CallButton> _mute;
+	object_ptr<Ui::FadeWrap<Ui::CallButton>> _startVideo;
+	object_ptr<Ui::FadeWrap<Ui::CallButton>> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
 	object_ptr<Ui::RpWidget> _fingerprint = { nullptr };

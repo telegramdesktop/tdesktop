@@ -2572,6 +2572,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_status_failed" = "failed to connect";
 "lng_call_status_ringing" = "ringing...";
 "lng_call_status_busy" = "line busy";
+"lng_call_status_sure" = "Click on the Camera icon if you want to start a video call.";
 "lng_call_fingerprint_tooltip" = "If emoji on {user}'s screen are the same, this call is 100% secure";
 
 "lng_call_error_not_available" = "Sorry, {user} doesn't accept calls.";
@@ -2612,6 +2613,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_rate_label" = "Please rate the quality of your call";
 "lng_call_rate_comment" = "Comment (optional)";
 
+"lng_call_start" = "Start Call";
 "lng_call_start_video" = "Start Video";
 "lng_call_stop_video" = "Stop Video";
 "lng_call_screencast" = "Screencast";

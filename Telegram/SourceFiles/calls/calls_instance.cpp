@@ -341,9 +341,14 @@ void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video)
 		_currentCallPanel = std::make_unique<Panel>(raw);
 		_currentCall = std::move(call);
 	}
+	_currentCallPanel->startOutgoingRequests(
+	) | rpl::start_with_next([=](bool video) {
+		raw->applyUserConfirmation();
+		raw->toggleCameraSharing(video);
+		refreshServerConfig(&user->session());
+		refreshDhConfig();
+	}, raw->lifetime());
 	_currentCallChanges.fire_copy(raw);
-	refreshServerConfig(&user->session());
-	refreshDhConfig();
 }
 
 void Instance::destroyGroupCall(not_null<GroupCall*> call) {

@@ -117,6 +117,14 @@ callAnswer: CallButton {
 	outerBg: callAnswerBgOuter;
 	label: callButtonLabel;
 }
+callStartVideo: CallButton(callAnswer) {
+	button: IconButton(callButton) {
+		icon: icon {{ "calls/call_camera_active", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callAnswerRipple;
+		}
+	}
+}
 callHangup: CallButton(callAnswer) {
 	button: IconButton(callButton) {
 		icon: icon {{ "calls/call_discard", callIconFg }};
@@ -292,7 +300,7 @@ callName: FlatLabel(defaultFlatLabel) {
 }
 callStatus: FlatLabel(defaultFlatLabel) {
 	minWidth: 260px;
-	maxHeight: 20px;
+	maxHeight: 60px;
 	textFg: callStatusFg;
 	align: align(top);
 	style: TextStyle(defaultTextStyle) {

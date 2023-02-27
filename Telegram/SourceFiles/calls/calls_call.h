@@ -126,6 +126,7 @@ public:
 		WaitingIncoming,
 		Ringing,
 		Busy,
+		WaitingUserConfirmation,
 	};
 	[[nodiscard]] State state() const {
 		return _state.current();
@@ -179,6 +180,7 @@ public:
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
 
+	void applyUserConfirmation();
 	void answer();
 	void hangup();
 	void redial();
@@ -257,7 +259,7 @@ private:
 	const not_null<UserData*> _user;
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
-	rpl::variable<State> _state = State::Starting;
+	rpl::variable<State> _state = State::WaitingUserConfirmation;
 	rpl::variable<RemoteAudioState> _remoteAudioState =
 		RemoteAudioState::Active;
 	rpl::variable<Webrtc::VideoState> _remoteVideoState;

@@ -73,9 +73,22 @@ Panel::Panel(not_null<Call*> call)
 , _answerHangupRedial(widget(), st::callAnswer, &st::callHangup)
 , _decline(widget(), object_ptr<Ui::CallButton>(widget(), st::callHangup))
 , _cancel(widget(), object_ptr<Ui::CallButton>(widget(), st::callCancel))
-, _screencast(widget(), st::callScreencastOn, &st::callScreencastOff)
+, _screencast(
+	widget(),
+	object_ptr<Ui::CallButton>(
+		widget(),
+		st::callScreencastOn,
+		&st::callScreencastOff))
 , _camera(widget(), st::callCameraMute, &st::callCameraUnmute)
-, _mute(widget(), st::callMicrophoneMute, &st::callMicrophoneUnmute)
+, _startVideo(
+	widget(),
+	object_ptr<Ui::CallButton>(widget(), st::callStartVideo))
+, _mute(
+	widget(),
+	object_ptr<Ui::CallButton>(
+		widget(),
+		st::callMicrophoneMute,
+		&st::callMicrophoneUnmute))
 , _name(widget(), st::callName)
 , _status(widget(), st::callStatus) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
@@ -214,12 +227,12 @@ void Panel::initWidget() {
 
 void Panel::initControls() {
 	_hangupShown = (_call->type() == Type::Outgoing);
-	_mute->setClickedCallback([=] {
+	_mute->entity()->setClickedCallback([=] {
 		if (_call) {
 			_call->setMuted(!_call->muted());
 		}
 	});
-	_screencast->setClickedCallback([=] {
+	_screencast->entity()->setClickedCallback([=] {
 		if (!_call) {
 			return;
 		} else if (!Webrtc::DesktopCaptureAllowed()) {
@@ -267,6 +280,7 @@ void Panel::initControls() {
 			_call->redial();
 		} else if (_call->isIncomingWaiting()) {
 			_call->answer();
+		} else if (state == State::WaitingUserConfirmation) {
 		} else {
 			_call->hangup();
 		}
@@ -278,6 +292,7 @@ void Panel::initControls() {
 	};
 	_decline->entity()->setClickedCallback(hangupCallback);
 	_cancel->entity()->setClickedCallback(hangupCallback);
+	_startVideo->entity()->setText(tr::lng_call_start_video());
 
 	reinitWithCall(_call);
 
@@ -316,6 +331,17 @@ bool Panel::chooseSourceWithAudioSupported() {
 
 rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
 	return lifetime();
+}
+
+rpl::producer<bool> Panel::startOutgoingRequests() const {
+	const auto filter = [=] {
+		return _call && (_call->state() == State::WaitingUserConfirmation);
+	};
+	return rpl::merge(
+		_startVideo->entity()->clicks(
+		) | rpl::filter(filter) | rpl::map_to(true),
+		_answerHangupRedial->clicks(
+		) | rpl::filter(filter) | rpl::map_to(false));
 }
 
 void Panel::chooseSourceAccepted(
@@ -388,8 +414,8 @@ void Panel::reinitWithCall(Call *call) {
 
 	_call->mutedValue(
 	) | rpl::start_with_next([=](bool mute) {
-		_mute->setProgress(mute ? 1. : 0.);
-		_mute->setText(mute
+		_mute->entity()->setProgress(mute ? 1. : 0.);
+		_mute->entity()->setText(mute
 			? tr::lng_call_unmute_audio()
 			: tr::lng_call_mute_audio());
 	}, _callLifetime);
@@ -405,8 +431,8 @@ void Panel::reinitWithCall(Call *call) {
 		}
 		{
 			const auto active = _call->isSharingScreen();
-			_screencast->setProgress(active ? 0. : 1.);
-			_screencast->setText(tr::lng_call_screencast());
+			_screencast->entity()->setProgress(active ? 0. : 1.);
+			_screencast->entity()->setText(tr::lng_call_screencast());
 			_outgoingVideoBubble->setMirrored(!active);
 		}
 	}, _callLifetime);
@@ -497,6 +523,7 @@ void Panel::reinitWithCall(Call *call) {
 	_decline->raise();
 	_cancel->raise();
 	_camera->raise();
+	_startVideo->raise();
 	_mute->raise();
 
 	_powerSaveBlocker = std::make_unique<base::PowerSaveBlocker>(
@@ -755,7 +782,10 @@ void Panel::updateHangupGeometry() {
 	auto threeWidth = twoWidth + st::callCancel.button.width;
 	auto rightFrom = (widget()->width() - threeWidth) / 2;
 	auto rightTo = (widget()->width() - twoWidth) / 2;
-	auto hangupProgress = _hangupShownProgress.value(_hangupShown ? 1. : 0.);
+	auto hangupProgress = (_call
+			&& _call->state() == State::WaitingUserConfirmation)
+		? 0.
+		: _hangupShownProgress.value(_hangupShown ? 1. : 0.);
 	auto hangupRight = anim::interpolate(rightFrom, rightTo, hangupProgress);
 	_answerHangupRedial->moveToRight(hangupRight, _buttonsTop);
 	_answerHangupRedial->setProgress(hangupProgress);
@@ -764,6 +794,9 @@ void Panel::updateHangupGeometry() {
 	_camera->moveToLeft(
 		hangupRight - _mute->width() + _screencast->width(),
 		_buttonsTop);
+	if (_startVideo->toggled()) {
+		_startVideo->moveToLeft(_camera->x(), _camera->y());
+	}
 }
 
 void Panel::updateStatusGeometry() {
@@ -811,33 +844,50 @@ void Panel::stateChanged(State state) {
 		&& (state != State::EndedByOtherDevice)
 		&& (state != State::FailedHangingUp)
 		&& (state != State::Failed)) {
-		if (state == State::Busy) {
+		const auto isBusy = (state == State::Busy);
+		const auto isWaitingUser = (state == State::WaitingUserConfirmation);
+		if (isBusy) {
 			_powerSaveBlocker = nullptr;
 		}
+		if (_startVideo->toggled() && !isWaitingUser) {
+			_startVideo->toggle(false, anim::type::instant);
+		} else if (!_startVideo->toggled() && isWaitingUser) {
+			_startVideo->toggle(true, anim::type::instant);
+		}
+		_camera->setVisible(!_startVideo->toggled());
 
-		auto toggleButton = [&](auto &&button, bool visible) {
+		const auto toggleButton = [&](auto &&button, bool visible) {
 			button->toggle(
 				visible,
 				window()->isHidden()
 				? anim::type::instant
 				: anim::type::normal);
 		};
-		auto incomingWaiting = _call->isIncomingWaiting();
+		const auto incomingWaiting = _call->isIncomingWaiting();
 		if (incomingWaiting) {
 			_updateOuterRippleTimer.callEach(Call::kSoundSampleMs);
 		}
 		toggleButton(_decline, incomingWaiting);
-		toggleButton(_cancel, (state == State::Busy));
-		auto hangupShown = !_decline->toggled()
+		toggleButton(_cancel, (isBusy || isWaitingUser));
+		toggleButton(_mute, !isWaitingUser);
+		toggleButton(_screencast, !isWaitingUser);
+		const auto hangupShown = !_decline->toggled()
 			&& !_cancel->toggled();
 		if (_hangupShown != hangupShown) {
 			_hangupShown = hangupShown;
-			_hangupShownProgress.start([this] { updateHangupGeometry(); }, _hangupShown ? 0. : 1., _hangupShown ? 1. : 0., st::callPanelDuration, anim::sineInOut);
+			_hangupShownProgress.start(
+				[this] { updateHangupGeometry(); },
+				_hangupShown ? 0. : 1.,
+				_hangupShown ? 1. : 0.,
+				st::callPanelDuration,
+				anim::sineInOut);
 		}
 		const auto answerHangupRedialState = incomingWaiting
 			? AnswerHangupRedialState::Answer
-			: (state == State::Busy)
+			: isBusy
 			? AnswerHangupRedialState::Redial
+			: isWaitingUser
+			? AnswerHangupRedialState::StartCall
 			: AnswerHangupRedialState::Hangup;
 		if (_answerHangupRedialState != answerHangupRedialState) {
 			_answerHangupRedialState = answerHangupRedialState;
@@ -860,6 +910,7 @@ void Panel::refreshAnswerHangupRedialLabel() {
 		case AnswerHangupRedialState::Answer: return tr::lng_call_accept();
 		case AnswerHangupRedialState::Hangup: return tr::lng_call_end_call();
 		case AnswerHangupRedialState::Redial: return tr::lng_call_redial();
+		case AnswerHangupRedialState::StartCall: return tr::lng_call_start();
 		}
 		Unexpected("AnswerHangupRedialState value.");
 	}());
@@ -891,6 +942,7 @@ void Panel::updateStatusText(State state) {
 		case State::WaitingIncoming: return tr::lng_call_status_incoming(tr::now);
 		case State::Ringing: return tr::lng_call_status_ringing(tr::now);
 		case State::Busy: return tr::lng_call_status_busy(tr::now);
+		case State::WaitingUserConfirmation: return tr::lng_call_status_sure(tr::now);
 		}
 		Unexpected("State in stateChanged()");
 	};
