@@ -3080,6 +3080,7 @@ void OverlayWidget::displayFinished() {
 		//Ui::Platform::UpdateOverlayed(_window);
 		showAndActivate();
 	} else if (isMinimized()) {
+		_helper->beforeShow(_fullscreen);
 		showAndActivate();
 	} else {
 		activate();

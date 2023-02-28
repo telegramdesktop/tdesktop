@@ -9,6 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_overlay_widget.h"
 
+template <typename Object>
+class object_ptr;
+
+namespace Ui {
+class AbstractButton;
+} // namespace Ui
+
+namespace Ui::Platform {
+enum class TitleControl;
+} // namespace Ui::Platform
+
 namespace Platform {
 
 class MacOverlayWidgetHelper final : public OverlayWidgetHelper {
@@ -22,14 +33,21 @@ public:
 	void afterShow(bool fullscreen) override;
 	void notifyFileDialogShown(bool shown) override;
 	void minimize(not_null<Ui::RpWindow*> window) override;
+	void clearState() override;
+	void setControlsOpacity(float64 opacity) override;
 
 private:
+	using Control = Ui::Platform::TitleControl;
 	struct Data;
 
-	void activate(int button); // NSWindowButton
+	void activate(Control control);
 	void resolveNative();
 	void updateStyles(bool fullscreen);
 	void refreshButtons(bool fullscreen);
+
+	object_ptr<Ui::AbstractButton> create(
+		not_null<QWidget*> parent,
+		Control control);
 
 	std::unique_ptr<Data> _data;
 

@@ -321,6 +321,19 @@ mediaviewTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActive: mediaviewTitleClose;
 	closeIconActiveOver: mediaviewTitleClose;
 }
+
+mediaviewTitleButtonMac: icon{
+	{ "mediaview/title_button_shadow_mac", windowShadowFg },
+	{ "mediaview/title_button_mac", mediaviewControlFg },
+};
+mediaviewTitleMinimizeMac: icon {{ "mediaview/title_button_minimize_mac", mediaviewBg }};
+mediaviewTitleMaximizeMac: icon {{ "mediaview/title_button_maximize_mac", mediaviewBg }};
+mediaviewTitleRestoreMac: icon {{ "mediaview/title_button_shrink_mac", mediaviewBg }};
+mediaviewTitleCloseMac: icon {{ "mediaview/title_button_close_mac", mediaviewBg }};
+mediaviewTitleCloseMacPadding: margins(8px, 4px, 0px, 4px);
+mediaviewTitleMinimizeMacPadding: margins(0px, 4px, 0px, 4px);
+mediaviewTitleMaximizeMacPadding: margins(0px, 4px, 8px, 4px);
+
 mediaviewShadowTop: icon{{ "mediaview/shadow_top", windowShadowFg }};
 mediaviewShadowBottom: icon{{ "mediaview/shadow_bottom", windowShadowFg }};
 
