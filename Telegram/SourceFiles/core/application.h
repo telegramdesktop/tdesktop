@@ -304,6 +304,7 @@ public:
 	// Sandbox interface.
 	void postponeCall(FnMut<void()> &&callable);
 	void refreshGlobalProxy();
+	void refreshApplicationIcon();
 
 	void quitPreventFinished();
 
@@ -349,6 +350,7 @@ private:
 	void enumerateWindows(
 		Fn<void(not_null<Window::Controller*>)> callback) const;
 	void processCreatedWindow(not_null<Window::Controller*> window);
+	void refreshApplicationIcon(Main::Session *session);
 
 	friend void QuitAttempt();
 	void quitDelayed();

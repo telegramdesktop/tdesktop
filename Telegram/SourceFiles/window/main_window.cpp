@@ -64,6 +64,11 @@ using Core::WindowPosition;
 	return { skipx, skipy };
 }
 
+[[nodiscard]] QImage &OverridenIcon() {
+	static auto result = QImage();
+	return result;
+}
+
 } // namespace
 
 const QImage &Logo() {
@@ -123,12 +128,19 @@ void ConvertIconToBlack(QImage &image) {
 	}
 }
 
+void OverrideApplicationIcon(QImage image) {
+	OverridenIcon() = std::move(image);
+}
+
 QIcon CreateOfficialIcon(Main::Session *session) {
 	const auto support = (session && session->supportMode());
 	if (!support) {
 		return QIcon();
 	}
-	auto image = Logo();
+	auto overriden = OverridenIcon();
+	auto image = overriden.isNull()
+		? Platform::DefaultApplicationIcon()
+		: overriden;
 	ConvertIconToBlack(image);
 	return QIcon(Ui::PixmapFromImage(std::move(image)));
 }

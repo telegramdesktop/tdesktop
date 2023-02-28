@@ -1653,16 +1653,27 @@ void Application::quitDelayed() {
 	}
 }
 
+void Application::refreshApplicationIcon() {
+	const auto session = (domain().started() && domain().active().sessionExists())
+		? &domain().active().session()
+		: nullptr;
+	refreshApplicationIcon(session);
+}
+
+void Application::refreshApplicationIcon(Main::Session *session) {
+	const auto support = session && session->supportMode();
+	Shortcuts::ToggleSupportShortcuts(support);
+	Platform::SetApplicationIcon(Window::CreateIcon(
+		session,
+		Platform::IsMac()));
+}
+
 void Application::startShortcuts() {
 	Shortcuts::Start();
 
 	_domain->activeSessionChanges(
 	) | rpl::start_with_next([=](Main::Session *session) {
-		const auto support = session && session->supportMode();
-		Shortcuts::ToggleSupportShortcuts(support);
-		Platform::SetApplicationIcon(Window::CreateIcon(
-			session,
-			Platform::IsMac()));
+		refreshApplicationIcon(session);
 	}, _lifetime);
 
 	Shortcuts::Requests(

@@ -1448,6 +1448,13 @@ PRIVATE
     numbers.txt
 )
 
+if (APPLE AND NOT build_macstore)
+    nice_target_sources(Telegram ${res_loc}
+    PRIVATE
+        qrc/telegram/mac_icons.qrc
+    )
+endif()
+
 if (WIN32)
     # message(${CMAKE_GENERATOR})
     # mt.exe -manifest "${res_loc}/winrc/Telegram.manifest" "-inputresource:\"$<TARGET_FILE:Telegram>\";#1" "-outputresource:\"$<TARGET_FILE:Telegram>\";#1" >NUL

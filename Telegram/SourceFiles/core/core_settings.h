@@ -786,6 +786,12 @@ public:
 	void setIgnoreBatterySavingValue(bool value) {
 		_ignoreBatterySaving = value;
 	}
+	void setMacRoundIconDigest(std::optional<uint64> value) {
+		_macRoundIconDigest = value;
+	}
+	[[nodiscard]] std::optional<uint64> macRoundIconDigest() const {
+		return _macRoundIconDigest;
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
@@ -910,6 +916,7 @@ private:
 	bool _rememberedDeleteMessageOnlyForYou = false;
 	WindowPosition _mediaViewPosition = { .maximized = 2 };
 	rpl::variable<bool> _ignoreBatterySaving = false;
+	std::optional<uint64> _macRoundIconDigest;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

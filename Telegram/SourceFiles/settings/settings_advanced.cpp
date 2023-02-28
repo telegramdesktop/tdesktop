@@ -20,11 +20,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/format_values.h"
 #include "ui/boxes/single_choice_box.h"
+#include "ui/painter.h"
 #include "boxes/connection_box.h"
 #include "boxes/about_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "platform/platform_specific.h"
 #include "ui/platform/ui_platform_window.h"
+#include "base/platform/base_platform_custom_app_icon.h"
 #include "base/platform/base_platform_info.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -52,6 +54,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
 
 namespace Settings {
+namespace {
+
+[[nodiscard]] const QImage &IconMacRound() {
+	static const auto result = QImage(u":/gui/art/icon_round512@2x.png"_q);
+	return result;
+}
+
+} // namespace
 
 void SetupConnectionType(
 		not_null<Window::Controller*> controller,
@@ -528,6 +538,32 @@ void SetupSystemIntegrationContent(
 		Core::App().settings().setMacWarnBeforeQuit(checked);
 		Core::App().saveSettingsDelayed();
 	}, warnBeforeQuit->lifetime());
+
+#ifndef OS_MAC_STORE
+	const auto enabled = [] {
+		const auto digest = base::Platform::CurrentCustomAppIconDigest();
+		return digest && (Core::App().settings().macRoundIconDigest() == digest);
+	};
+	const auto roundIcon = addCheckbox(
+		tr::lng_settings_mac_round_icon(),
+		enabled());
+	roundIcon->checkedChanges(
+	) | rpl::filter([=](bool checked) {
+		return (checked != enabled());
+	}) | rpl::start_with_next([=](bool checked) {
+		const auto digest = checked
+			? base::Platform::SetCustomAppIcon(IconMacRound())
+			: std::optional<uint64>();
+		if (!checked) {
+			base::Platform::ClearCustomAppIcon();
+		}
+		Window::OverrideApplicationIcon(checked ? IconMacRound() : QImage());
+		Core::App().refreshApplicationIcon();
+		Core::App().settings().setMacRoundIconDigest(digest);
+		Core::App().saveSettings();
+	}, roundIcon->lifetime());
+#endif // OS_MAC_STORE
+
 #else // Q_OS_MAC
 	const auto closeToTaskbar = addSlidingCheckbox(
 		tr::lng_settings_close_to_taskbar(),

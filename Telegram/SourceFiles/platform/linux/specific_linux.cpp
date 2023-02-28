@@ -852,6 +852,10 @@ void NewVersionLaunched(int oldVersion) {
 	}
 }
 
+QImage DefaultApplicationIcon() {
+	return Window::Logo();
+}
+
 namespace ThirdParty {
 
 void start() {

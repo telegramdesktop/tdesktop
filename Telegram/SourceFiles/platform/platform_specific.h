@@ -47,6 +47,8 @@ bool SkipTaskbarSupported();
 void WriteCrashDumpDetails();
 void NewVersionLaunched(int oldVersion);
 
+[[nodiscard]] QImage DefaultApplicationIcon();
+
 [[nodiscard]] bool PreventsQuit(Core::QuitReason reason);
 
 [[nodiscard]] std::optional<bool> IsDarkMode();

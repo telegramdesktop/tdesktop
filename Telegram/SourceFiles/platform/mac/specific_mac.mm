@@ -36,6 +36,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mach-o/dyld.h>
 #include <AVFoundation/AVFoundation.h>
 
+namespace {
+
+[[nodiscard]] QImage ImageFromNS(NSImage *icon) {
+	CGImageRef image = [icon CGImageForProposedRect:NULL context:nil hints:nil];
+
+    const int width = CGImageGetWidth(image);
+    const int height = CGImageGetHeight(image);
+    auto result = QImage(width, height, QImage::Format_ARGB32_Premultiplied);
+    result.fill(Qt::transparent);
+
+	CGColorSpaceRef space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+	CGBitmapInfo info = CGBitmapInfo(kCGImageAlphaPremultipliedFirst) | kCGBitmapByteOrder32Host;
+    CGContextRef context = CGBitmapContextCreate(
+		result.bits(),
+		width,
+		height,
+		8,
+        result.bytesPerLine(),
+        space,
+        info);
+
+    CGRect rect = CGRectMake(0, 0, width, height);
+    CGContextDrawImage(context, rect, image);
+
+    CFRelease(space);
+    CFRelease(context);
+
+    return result;
+}
+
+[[nodiscard]] QImage ResolveBundleIconDefault() {
+	NSString *path = [[NSBundle mainBundle] bundlePath];
+	NSString *icon = [path stringByAppendingString:@"/Contents/Resources/Icon.icns"];
+	NSImage *image = [[NSImage alloc] initWithContentsOfFile:icon];
+	if (!image) {
+		return Window::Logo();
+	}
+
+	auto result = ImageFromNS(image);
+	[image release];
+	return result;
+}
+
+} // namespace
+
 QString psAppDataPath() {
 	return objc_appDataPath();
 }
@@ -186,6 +231,11 @@ bool AutostartSkip() {
 }
 
 void NewVersionLaunched(int oldVersion) {
+}
+
+QImage DefaultApplicationIcon() {
+	static auto result = ResolveBundleIconDefault();
+	return result;
 }
 
 bool PreventsQuit(Core::QuitReason reason) {

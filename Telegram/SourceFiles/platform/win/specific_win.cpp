@@ -651,6 +651,10 @@ void NewVersionLaunched(int oldVersion) {
 	}
 }
 
+QImage DefaultApplicationIcon() {
+	return Window::Logo();
+}
+
 } // namespace Platform
 
 void psSendToMenu(bool send, bool silent) {
