@@ -37,7 +37,7 @@ jobs:
 
     strategy:
       matrix:
-        arch: [x64]
+        arch: [Win32, x64]
 
     env:
       UPLOAD_ARTIFACT: "true"
