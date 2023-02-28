@@ -552,6 +552,10 @@ void OverlayWidget::setupWindow() {
 		const auto inControls = (_over != OverNone) && (_over != OverVideo);
 		if (inControls || (_streamed && _streamed->controls.dragging())) {
 			return Flag::None | Flag(0);
+		} else if ((_w > _widget->width() || _h > _widget->height())
+				&& (widgetPoint.y() > st::mediaviewHeaderTop)
+				&& QRect(_x, _y, _w, _h).contains(widgetPoint)) {
+			return Flag::None | Flag(0);
 		}
 		return Flag::Move | Flag(0);
 	});
@@ -2089,7 +2093,7 @@ void OverlayWidget::downloadMedia() {
 				updateControls();
 			} else {
 				_saveVisible = contentCanBeSaved();
-				update(_saveNav);
+				update(_saveNavOver);
 			}
 			updateOver(_lastMouseMovePos);
 		}
@@ -2109,7 +2113,7 @@ void OverlayWidget::downloadMedia() {
 	} else {
 		if (!_photo || !_photoMedia->loaded()) {
 			_saveVisible = contentCanBeSaved();
-			update(_saveNav);
+			update(_saveNavOver);
 		} else {
 			if (!QDir().exists(path)) {
 				QDir().mkpath(path);
@@ -4808,15 +4812,15 @@ void OverlayWidget::handleMouseMove(QPoint position) {
 
 void OverlayWidget::updateOverRect(OverState state) {
 	switch (state) {
-	case OverLeftNav: update(_leftNav); break;
-	case OverRightNav: update(_rightNav); break;
+	case OverLeftNav: update(_leftNavOver); break;
+	case OverRightNav: update(_rightNavOver); break;
 	case OverName: update(_nameNav); break;
 	case OverDate: update(_dateNav); break;
-	case OverSave: update(_saveNavIcon); break;
-	case OverRotate: update(_rotateNavIcon); break;
+	case OverSave: update(_saveNavOver); break;
+	case OverRotate: update(_rotateNavOver); break;
 	case OverIcon: update(_docIconRect); break;
 	case OverHeader: update(_headerNav); break;
-	case OverMore: update(_moreNavIcon); break;
+	case OverMore: update(_moreNavOver); break;
 	}
 }
 
