@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/painter.h"
 #include "media/view/media_view_pip.h"
+#include "platform/platform_overlay_widget.h"
 #include "styles/style_media_view.h"
 
 namespace Media::View {
@@ -173,22 +174,20 @@ void OverlayWidget::RendererSW::paintControlsStart() {
 
 void OverlayWidget::RendererSW::paintControl(
 		OverState control,
-		QRect outer,
-		float64 outerOpacity,
+		QRect over,
+		float64 overOpacity,
 		QRect inner,
 		float64 innerOpacity,
 		const style::icon &icon) {
-	if (!outer.isEmpty() && !outer.intersects(_clipOuter)) {
+	if (!over.isEmpty() && !over.intersects(_clipOuter)) {
 		return;
 	}
-	if (!outer.isEmpty() && outerOpacity > 0) {
-		_p->setOpacity(outerOpacity);
-		for (const auto &rect : *_clip) {
-			const auto fill = outer.intersected(rect);
-			if (!fill.isEmpty()) {
-				_p->fillRect(fill, st::mediaviewControlBg);
-			}
+	if (!over.isEmpty() && overOpacity > 0) {
+		if (_overControlImage.isNull()) {
+			validateOverControlImage();
 		}
+		_p->setOpacity(overOpacity);
+		_p->drawImage(over.topLeft(), _overControlImage);
 	}
 	if (inner.intersects(_clipOuter)) {
 		_p->setOpacity(innerOpacity);
@@ -218,6 +217,24 @@ void OverlayWidget::RendererSW::paintGroupThumbs(
 
 void OverlayWidget::RendererSW::paintRoundedCorners(int radius) {
 	// The RpWindow rounding overlay will do the job.
+}
+
+void OverlayWidget::RendererSW::validateOverControlImage() {
+	const auto size = QSize(st::mediaviewIconOver, st::mediaviewIconOver);
+	const auto alpha = base::SafeRound(kOverBackgroundOpacity * 255);
+	_overControlImage = QImage(
+		size * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	_overControlImage.setDevicePixelRatio(style::DevicePixelRatio());
+	_overControlImage.fill(Qt::transparent);
+
+	Painter p(&_overControlImage);
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	auto color = OverBackgroundColor();
+	color.setAlpha(alpha);
+	p.setBrush(color);
+	p.drawEllipse(QRect(QPoint(), size));
 }
 
 } // namespace Media::View

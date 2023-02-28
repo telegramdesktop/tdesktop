@@ -245,6 +245,7 @@ mediaviewTextTop: 26px;
 
 mediaviewControlSize: 90px;
 mediaviewIconSize: size(46px, 54px);
+mediaviewIconOver: 36px;
 
 mediaviewWaitHide: 2000;
 mediaviewHideDuration: 1000;

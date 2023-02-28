@@ -13,6 +13,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/abstract_button.h"
 #include "styles/style_media_view.h"
 
+namespace Media::View {
+
+QColor OverBackgroundColor() {
+	auto c1 = st::mediaviewBg->c;
+	auto c2 = QColor(255, 255, 255);
+	const auto mix = [&](int a, int b) {
+		constexpr auto k1 = 0.15 * 0.85 / (1. - 0.85 * 0.85);
+		constexpr auto k2 = 0.15 / (1. - 0.85 * 0.85);
+		return int(a * k1 + b * k2);
+	};
+	return QColor(
+		mix(c1.red(), c2.red()),
+		mix(c1.green(), c2.green()),
+		mix(c1.blue(), c2.blue()));
+}
+
+} // namespace Media::View
+
 namespace Platform {
 namespace {
 
@@ -120,8 +138,9 @@ object_ptr<Ui::AbstractButton> DefaultOverlayWidgetHelper::Buttons::create(
 			current = maximized ? &st::mediaviewTitleRestore : icon;
 		}
 		const auto alpha = progress * kOverBackgroundOpacity;
-		const auto ialpha = anim::interpolate(0, 255, alpha);
-		state->frame.fill(QColor(255, 255, 255, ialpha));
+		auto color = OverBackgroundColor();
+		color.setAlpha(anim::interpolate(0, 255, alpha));
+		state->frame.fill(color);
 
 		auto q = QPainter(&state->frame);
 		const auto normal = maximized

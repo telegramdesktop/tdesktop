@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_shader.h"
 #include "ui/painter.h"
 #include "media/streaming/media_streaming_common.h"
+#include "platform/platform_overlay_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "core/crash_reports.h"
 #include "styles/style_media_view.h"
@@ -27,7 +28,7 @@ constexpr auto kFooterOffset = kSaveMsgOffset + 4;
 constexpr auto kCaptionOffset = kFooterOffset + 4;
 constexpr auto kGroupThumbsOffset = kCaptionOffset + 4;
 constexpr auto kControlsOffset = kGroupThumbsOffset + 4;
-constexpr auto kControlValues = 2 * 4 + 4 * 4;
+constexpr auto kControlValues = 4 * 4 + 4 * 4; // over + icon
 
 [[nodiscard]] ShaderPart FragmentApplyControlsFade() {
 	return {
@@ -557,28 +558,37 @@ void OverlayWidget::RendererGL::paintControlsStart() {
 
 void OverlayWidget::RendererGL::paintControl(
 		OverState control,
-		QRect outer,
-		float64 outerOpacity,
+		QRect over,
+		float64 overOpacity,
 		QRect inner,
 		float64 innerOpacity,
 		const style::icon &icon) {
 	const auto meta = ControlMeta(control);
 	Assert(meta.icon == &icon);
 
-	const auto &bg = st::mediaviewControlBg->c;
-	const auto bgAlpha = int(base::SafeRound(bg.alpha() * outerOpacity));
+	const auto overAlpha = overOpacity * kOverBackgroundOpacity;
 	const auto offset = kControlsOffset + (meta.index * kControlValues) / 4;
-	const auto fgOffset = offset + 2;
-	const auto bgRect = transformRect(outer);
+	const auto fgOffset = offset + 4;
+	const auto overRect = _controlsImage.texturedRect(
+		over,
+		_controlsTextures[kControlsCount]);
+	const auto overGeometry = transformRect(over);
 	const auto iconRect = _controlsImage.texturedRect(
 		inner,
 		_controlsTextures[meta.index]);
 	const auto iconGeometry = transformRect(iconRect.geometry);
 	const GLfloat coords[] = {
-		bgRect.left(), bgRect.top(),
-		bgRect.right(), bgRect.top(),
-		bgRect.right(), bgRect.bottom(),
-		bgRect.left(), bgRect.bottom(),
+		overGeometry.left(), overGeometry.top(),
+		overRect.texture.left(), overRect.texture.bottom(),
+
+		overGeometry.right(), overGeometry.top(),
+		overRect.texture.right(), overRect.texture.bottom(),
+
+		overGeometry.right(), overGeometry.bottom(),
+		overRect.texture.right(), overRect.texture.top(),
+
+		overGeometry.left(), overGeometry.bottom(),
+		overRect.texture.left(), overRect.texture.top(),
 
 		iconGeometry.left(), iconGeometry.top(),
 		iconRect.texture.left(), iconRect.texture.bottom(),
@@ -592,27 +602,22 @@ void OverlayWidget::RendererGL::paintControl(
 		iconGeometry.left(), iconGeometry.bottom(),
 		iconRect.texture.left(), iconRect.texture.top(),
 	};
-	if (!outer.isEmpty() && bgAlpha > 0) {
+	_controlsProgram->bind();
+	_controlsProgram->setUniformValue("viewport", _uniformViewport);
+	if (!over.isEmpty() && overOpacity > 0) {
 		_contentBuffer->write(
 			offset * 4 * sizeof(GLfloat),
 			coords,
 			sizeof(coords));
-		_fillProgram->bind();
-		_fillProgram->setUniformValue("viewport", _uniformViewport);
-		FillRectangle(
-			*_f,
-			&*_fillProgram,
-			offset,
-			QColor(bg.red(), bg.green(), bg.blue(), bgAlpha));
+		_controlsProgram->setUniformValue("g_opacity", GLfloat(overAlpha));
+		FillTexturedRectangle(*_f, &*_controlsProgram, offset);
 	} else {
 		_contentBuffer->write(
 			fgOffset * 4 * sizeof(GLfloat),
 			coords + (fgOffset - offset) * 4,
 			sizeof(coords) - (fgOffset - offset) * 4 * sizeof(GLfloat));
 	}
-	_controlsProgram->bind();
 	_controlsProgram->setUniformValue("g_opacity", GLfloat(innerOpacity));
-	_controlsProgram->setUniformValue("viewport", _uniformViewport);
 	FillTexturedRectangle(*_f, &*_controlsProgram, fgOffset);
 }
 
@@ -645,6 +650,8 @@ void OverlayWidget::RendererGL::validateControls() {
 		maxWidth = std::max(meta.icon->width(), maxWidth);
 		fullHeight += meta.icon->height();
 	}
+	maxWidth = std::max(st::mediaviewIconOver, maxWidth);
+	fullHeight += st::mediaviewIconOver;
 	auto image = QImage(
 		QSize(maxWidth, fullHeight) * _factor,
 		QImage::Format_ARGB32_Premultiplied);
@@ -661,6 +668,15 @@ void OverlayWidget::RendererGL::validateControls() {
 				meta.icon->size() * _factor);
 			height += meta.icon->height();
 		}
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(OverBackgroundColor());
+		p.drawEllipse(
+			QRect(0, height, st::mediaviewIconOver, st::mediaviewIconOver));
+		_controlsTextures[index++] = QRect(
+			QPoint(0, height) * _factor,
+			QSize(st::mediaviewIconOver, st::mediaviewIconOver) * _factor);
+		height += st::mediaviewIconOver;
 	}
 	_controlsImage.setImage(std::move(image));
 }

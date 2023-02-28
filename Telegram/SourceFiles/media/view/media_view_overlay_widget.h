@@ -495,9 +495,12 @@ private:
 	std::unique_ptr<Collage> _collage;
 	std::optional<WebPageCollage> _collageData;
 
-	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
+	QRect _leftNav, _leftNavOver, _leftNavIcon;
+	QRect _rightNav, _rightNavOver, _rightNavIcon;
 	QRect _headerNav, _nameNav, _dateNav;
-	QRect _rotateNav, _rotateNavIcon, _saveNav, _saveNavIcon, _moreNav, _moreNavIcon;
+	QRect _rotateNav, _rotateNavOver, _rotateNavIcon;
+	QRect _saveNav, _saveNavOver, _saveNavIcon;
+	QRect _moreNav, _moreNavOver, _moreNavIcon;
 	bool _leftNavVisible = false;
 	bool _rightNavVisible = false;
 	bool _saveVisible = false;

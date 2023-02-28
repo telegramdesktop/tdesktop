@@ -30,8 +30,8 @@ public:
 	virtual void paintControlsStart() = 0;
 	virtual void paintControl(
 		OverState control,
-		QRect outer,
-		float64 outerOpacity,
+		QRect over,
+		float64 overOpacity,
 		QRect inner,
 		float64 innerOpacity,
 		const style::icon &icon) = 0;

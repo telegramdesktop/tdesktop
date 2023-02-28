@@ -781,10 +781,15 @@ void OverlayWidget::updateGeometryToScreen(bool inMove) {
 }
 
 void OverlayWidget::updateControlsGeometry() {
+	const auto overRect = QRect(
+		QPoint(),
+		QSize(st::mediaviewIconOver, st::mediaviewIconOver));
 	const auto navSkip = st::mediaviewHeaderTop;
 	_leftNav = QRect(0, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
+	_leftNavOver = style::centerrect(_leftNav, overRect);
 	_leftNavIcon = style::centerrect(_leftNav, st::mediaviewLeft);
 	_rightNav = QRect(width() - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
+	_rightNavOver = style::centerrect(_rightNav, overRect);
 	_rightNavIcon = style::centerrect(_rightNav, st::mediaviewRight);
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
@@ -1055,6 +1060,9 @@ void OverlayWidget::updateControls() {
 
 	updateThemePreviewGeometry();
 
+	const auto overRect = QRect(
+		QPoint(),
+		QSize(st::mediaviewIconOver, st::mediaviewIconOver));
 	_saveVisible = contentCanBeSaved();
 	_rotateVisible = !_themePreviewShown;
 	const auto navRect = [&](int i) {
@@ -1064,10 +1072,13 @@ void OverlayWidget::updateControls() {
 			st::mediaviewIconSize.height());
 	};
 	_saveNav = navRect(_rotateVisible ? 3 : 2);
+	_saveNavOver = style::centerrect(_saveNav, overRect);
 	_saveNavIcon = style::centerrect(_saveNav, st::mediaviewSave);
 	_rotateNav = navRect(2);
+	_rotateNavOver = style::centerrect(_rotateNav, overRect);
 	_rotateNavIcon = style::centerrect(_rotateNav, st::mediaviewRotate);
 	_moreNav = navRect(1);
+	_moreNavOver = style::centerrect(_moreNav, overRect);
 	_moreNavIcon = style::centerrect(_moreNav, st::mediaviewMore);
 
 	const auto dNow = QDateTime::currentDateTime();
@@ -1374,11 +1385,11 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 	_helper->setControlsOpacity(_controlsOpacity.current());
 	const auto content = finalContentRect();
 	const auto toUpdate = QRegion()
-		+ (_over == OverLeftNav ? _leftNav : _leftNavIcon)
-		+ (_over == OverRightNav ? _rightNav : _rightNavIcon)
-		+ _saveNavIcon
-		+ _rotateNavIcon
-		+ _moreNavIcon
+		+ (_over == OverLeftNav ? _leftNavOver : _leftNavIcon)
+		+ (_over == OverRightNav ? _rightNavOver : _rightNavIcon)
+		+ (_over == OverSave ? _saveNavOver : _saveNavIcon)
+		+ (_over == OverRotate ? _rotateNavOver : _rotateNavIcon)
+		+ (_over == OverMore ? _moreNavOver : _moreNavIcon)
 		+ _headerNav
 		+ _nameNav
 		+ _dateNav
@@ -4159,7 +4170,7 @@ void OverlayWidget::paintControls(
 	struct Control {
 		OverState state = OverNone;
 		bool visible = false;
-		const QRect &outer;
+		const QRect &over;
 		const QRect &inner;
 		const style::icon &icon;
 		bool nonbright = false;
@@ -4170,33 +4181,33 @@ void OverlayWidget::paintControls(
 		{
 			OverLeftNav,
 			_leftNavVisible,
-			_leftNav,
+			_leftNavOver,
 			_leftNavIcon,
 			st::mediaviewLeft,
 			true },
 		{
 			OverRightNav,
 			_rightNavVisible,
-			_rightNav,
+			_rightNavOver,
 			_rightNavIcon,
 			st::mediaviewRight,
 			true },
 		{
 			OverSave,
 			_saveVisible,
-			kEmpty,
+			_saveNavOver,
 			_saveNavIcon,
 			st::mediaviewSave },
 		{
 			OverRotate,
 			_rotateVisible,
-			kEmpty,
+			_rotateNavOver,
 			_rotateNavIcon,
 			st::mediaviewRotate },
 		{
 			OverMore,
 			true,
-			kEmpty,
+			_moreNavOver,
 			_moreNavIcon,
 			st::mediaviewMore },
 	};
@@ -4211,7 +4222,7 @@ void OverlayWidget::paintControls(
 		const auto icon = controlOpacity(progress, control.nonbright);
 		renderer->paintControl(
 			control.state,
-			control.outer,
+			control.over,
 			bg * opacity,
 			control.inner,
 			icon * opacity,

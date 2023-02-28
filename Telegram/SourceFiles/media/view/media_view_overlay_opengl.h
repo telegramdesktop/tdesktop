@@ -60,8 +60,8 @@ private:
 	void paintControlsStart() override;
 	void paintControl(
 		OverState control,
-		QRect outer,
-		float64 outerOpacity,
+		QRect over,
+		float64 overOpacity,
 		QRect inner,
 		float64 innerOpacity,
 		const style::icon &icon) override;
@@ -135,7 +135,9 @@ private:
 
 	static constexpr auto kControlsCount = 5;
 	[[nodiscard]] static Control ControlMeta(OverState control);
-	std::array<QRect, kControlsCount> _controlsTextures;
+
+	// Last one is for the over circle image.
+	std::array<QRect, kControlsCount + 1> _controlsTextures;
 
 	QRect _shadowTopTexture;
 	QRect _shadowBottomTexture;
