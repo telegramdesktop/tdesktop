@@ -48,6 +48,9 @@ Calls::Calls(
 	not_null<Window::SessionController*> controller)
 : Section(parent)
 , _controller(controller) {
+	// Request valid value of calls disabled flag.
+	controller->session().api().authorizations().reload();
+
 	setupContent();
 	requestPermissionAndStartTestingMicrophone();
 }
