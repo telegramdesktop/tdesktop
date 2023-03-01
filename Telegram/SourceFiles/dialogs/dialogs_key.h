@@ -110,6 +110,9 @@ struct EntryState {
 	FilterId filterId = 0;
 	MsgId rootId = 0;
 	MsgId currentReplyToId = 0;
+
+	friend inline constexpr auto operator<=>(EntryState, EntryState) noexcept
+		= default;
 };
 
 } // namespace Dialogs

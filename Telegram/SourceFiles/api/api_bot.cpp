@@ -289,10 +289,11 @@ bool SwitchInlineBotButtonReceived(
 }
 
 void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
-	const auto controller = context.sessionWindow.get();
-	if (!controller) {
+	const auto strong = context.sessionWindow.get();
+	if (!strong) {
 		return;
 	}
+	const auto controller = not_null{ strong };
 	const auto item = controller->session().data().message(context.itemId);
 	if (!item) {
 		return;

@@ -434,6 +434,7 @@ void SessionNavigation::showPeerByLinkResolved(
 				const auto history = peer->owner().history(peer);
 				showPeerHistory(history, params, msgId);
 				peer->session().attachWebView().request(
+					parentController(),
 					Api::SendAction(history),
 					attachBotUsername,
 					info.attachBotToggleCommand.value_or(QString()));
@@ -448,13 +449,13 @@ void SessionNavigation::showPeerByLinkResolved(
 				? contextPeer->asUser()
 				: nullptr;
 			bot->session().attachWebView().requestAddToMenu(
+				bot,
+				*info.attachBotToggleCommand,
+				parentController(),
 				(contextUser
 					? Api::SendAction(
 						contextUser->owner().history(contextUser))
 					: std::optional<Api::SendAction>()),
-				bot,
-				*info.attachBotToggleCommand,
-				parentController(),
 				info.attachBotChooseTypes);
 		} else {
 			crl::on_main(this, [=] {
@@ -1148,6 +1149,54 @@ bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 		return true;
 	}
 	return false;
+}
+
+void SessionController::setCurrentDialogsEntryState(
+		Dialogs::EntryState state) {
+	_currentDialogsEntryState = state;
+}
+
+Dialogs::EntryState SessionController::currentDialogsEntryState() const {
+	return _currentDialogsEntryState;
+}
+
+void SessionController::switchInlineQuery(
+		Dialogs::EntryState to,
+		not_null<UserData*> bot,
+		const QString &query) {
+	Expects(to.key.owningHistory() != nullptr);
+
+	using Section = Dialogs::EntryState::Section;
+
+	const auto history = to.key.owningHistory();
+	const auto textWithTags = TextWithTags{
+		'@' + bot->username() + ' ' + query,
+		TextWithTags::Tags(),
+	};
+	MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
+	auto draft = std::make_unique<Data::Draft>(
+		textWithTags,
+		to.currentReplyToId,
+		to.rootId,
+		cursor,
+		Data::PreviewState::Allowed);
+
+	auto params = Window::SectionShow();
+	params.reapplyLocalDraft = true;
+	if (to.section == Section::Scheduled) {
+		history->setDraft(Data::DraftKey::Scheduled(), std::move(draft));
+		showSection(
+			std::make_shared<HistoryView::ScheduledMemento>(history),
+			params);
+	} else {
+		history->setLocalDraft(std::move(draft));
+		if (to.section == Section::Replies) {
+			const auto commentId = MsgId();
+			showRepliesForMessage(history, to.rootId, commentId, params);
+		} else {
+			showPeerHistory(history->peer, params);
+		}
+	}
 }
 
 Dialogs::RowDescriptor SessionController::resolveChatNext(

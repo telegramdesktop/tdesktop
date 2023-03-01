@@ -1341,7 +1341,9 @@ void MainWidget::showHistory(
 		_controller->window().activate();
 	}
 
-	if (!(_history->peer() && _history->peer()->id == peerId)
+	const auto alreadyThatPeer = _history->peer()
+		&& (_history->peer()->id == peerId);
+	if (!alreadyThatPeer
 		&& preventsCloseSection(
 			[=] { showHistory(peerId, params, showAtMsgId); },
 			params)) {
@@ -1424,17 +1426,24 @@ void MainWidget::showHistory(
 		return false;
 	};
 
-	auto animationParams = animatedShow() ? prepareHistoryAnimation(peerId) : Window::SectionSlideParams();
+	auto animationParams = animatedShow()
+		? prepareHistoryAnimation(peerId)
+		: Window::SectionSlideParams();
 
 	if (!back && (way != Way::ClearStack)) {
 		// This may modify the current section, for example remove its contents.
 		saveSectionInStack();
 	}
 
-	if (_history->peer() && _history->peer()->id != peerId && way != Way::Forward) {
+	if (_history->peer()
+		&& _history->peer()->id != peerId
+		&& way != Way::Forward) {
 		clearBotStartToken(_history->peer());
 	}
 	_history->showHistory(peerId, showAtMsgId);
+	if (alreadyThatPeer && params.reapplyLocalDraft) {
+		_history->applyDraft(HistoryWidget::FieldHistoryAction::NewEntry);
+	}
 
 	auto noPeer = !_history->peer();
 	auto onlyDialogs = noPeer && isOneColumn();

@@ -263,10 +263,6 @@ void Widget::setSendMenuType(Fn<SendMenu::Type()> &&callback) {
 	_inner->setSendMenuType(std::move(callback));
 }
 
-void Widget::setCurrentDialogsEntryState(Dialogs::EntryState state) {
-	_inner->setCurrentDialogsEntryState(state);
-}
-
 void Widget::hideAnimated() {
 	if (isHidden()) return;
 	if (_hiding) return;
@@ -384,13 +380,16 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 		auto entry = it->second.get();
 		entry->nextOffset = qs(d.vnext_offset().value_or_empty());
 		if (const auto switchPm = d.vswitch_pm()) {
-			switchPm->match([&](const MTPDinlineBotSwitchPM &data) {
-				entry->switchPmText = qs(data.vtext());
-				entry->switchPmStartToken = qs(data.vstart_param());
-			});
+			entry->switchPmText = qs(switchPm->data().vtext());
+			entry->switchPmStartToken = qs(switchPm->data().vstart_param());
+			entry->switchPmUrl = QByteArray();
+		} else if (const auto switchWebView = d.vswitch_webview()) {
+			entry->switchPmText = qs(switchWebView->data().vtext());
+			entry->switchPmStartToken = QString();
+			entry->switchPmUrl = switchWebView->data().vurl().v;
 		}
 
-		if (auto count = v.size()) {
+		if (const auto count = v.size()) {
 			entry->results.reserve(entry->results.size() + count);
 		}
 		auto added = 0;

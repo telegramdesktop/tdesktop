@@ -171,6 +171,7 @@ struct SectionShow {
 	anim::activation activation = anim::activation::normal;
 	bool thirdColumn = false;
 	bool childColumn = false;
+	bool reapplyLocalDraft = false;
 	Origin origin;
 
 };
@@ -372,6 +373,13 @@ public:
 	rpl::producer<Dialogs::RowDescriptor> activeChatEntryValue() const;
 	rpl::producer<Dialogs::Key> activeChatValue() const;
 	bool jumpToChatListEntry(Dialogs::RowDescriptor row);
+
+	void setCurrentDialogsEntryState(Dialogs::EntryState state);
+	[[nodiscard]] Dialogs::EntryState currentDialogsEntryState() const;
+	void switchInlineQuery(
+		Dialogs::EntryState to,
+		not_null<UserData*> bot,
+		const QString &query);
 
 	[[nodiscard]] Dialogs::RowDescriptor resolveChatNext(
 		Dialogs::RowDescriptor from = {}) const;
@@ -634,6 +642,8 @@ private:
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 	bool _filtersActivated = false;
+
+	Dialogs::EntryState _currentDialogsEntryState;
 
 	base::Timer _invitePeekTimer;
 

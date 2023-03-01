@@ -134,6 +134,7 @@ ScheduledWidget::ScheduledWidget(
 	};
 	_topBar->setActiveChat(state, nullptr);
 	_composeControls->setCurrentDialogsEntryState(state);
+	controller->setCurrentDialogsEntryState(state);
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
@@ -924,6 +925,10 @@ bool ScheduledWidget::showInternal(
 	if (auto logMemento = dynamic_cast<ScheduledMemento*>(memento.get())) {
 		if (logMemento->getHistory() == history()) {
 			restoreState(logMemento);
+			if (params.reapplyLocalDraft) {
+				_composeControls->applyDraft(
+					ComposeControls::FieldHistoryAction::NewEntry);
+			}
 			return true;
 		}
 	}

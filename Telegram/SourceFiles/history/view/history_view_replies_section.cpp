@@ -1461,6 +1461,7 @@ void RepliesWidget::refreshTopBarActiveChat() {
 	};
 	_topBar->setActiveChat(state, _sendAction.get());
 	_composeControls->setCurrentDialogsEntryState(state);
+	controller()->setCurrentDialogsEntryState(state);
 }
 
 MsgId RepliesWidget::replyToId() const {
@@ -1960,6 +1961,10 @@ bool RepliesWidget::showInternal(
 			restoreState(logMemento);
 			if (!logMemento->getHighlightId()) {
 				showAtPosition(Data::UnreadMessagePosition);
+			}
+			if (params.reapplyLocalDraft) {
+				_composeControls->applyDraft(
+					ComposeControls::FieldHistoryAction::NewEntry);
 			}
 			return true;
 		}

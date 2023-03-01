@@ -924,8 +924,8 @@ void HistoryWidget::refreshJoinChannelText() {
 void HistoryWidget::refreshTopBarActiveChat() {
 	const auto state = computeDialogsEntryState();
 	_topBar->setActiveChat(state, _history->sendActionPainter());
-	if (_inlineResults) {
-		_inlineResults->setCurrentDialogsEntryState(state);
+	if (state.key) {
+		controller()->setCurrentDialogsEntryState(state);
 	}
 }
 
@@ -1477,8 +1477,6 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 					sendInlineResult(result);
 				}
 			});
-			_inlineResults->setCurrentDialogsEntryState(
-				computeDialogsEntryState());
 			_inlineResults->setSendMenuType([=] { return sendMenuType(); });
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {
@@ -1761,14 +1759,21 @@ void HistoryWidget::setInnerFocus() {
 	}
 }
 
-bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
+bool HistoryWidget::notify_switchInlineBotButtonReceived(
+		const QString &query,
+		UserData *samePeerBot,
+		MsgId samePeerReplyTo) {
 	if (samePeerBot) {
 		if (_history) {
 			const auto textWithTags = TextWithTags{
 				'@' + samePeerBot->username() + ' ' + query,
 				TextWithTags::Tags(),
 			};
-			MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
+			MessageCursor cursor = {
+				int(textWithTags.text.size()),
+				int(textWithTags.text.size()),
+				QFIXED_MAX,
+			};
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				textWithTags,
 				0, // replyTo
@@ -1782,39 +1787,11 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		const auto to = bot->isBot()
 			? bot->botInfo->inlineReturnTo
 			: Dialogs::EntryState();
-		const auto history = to.key.owningHistory();
-		if (!history) {
+		if (!to.key.owningHistory()) {
 			return false;
 		}
 		bot->botInfo->inlineReturnTo = Dialogs::EntryState();
-		using Section = Dialogs::EntryState::Section;
-
-		const auto textWithTags = TextWithTags{
-			'@' + bot->username() + ' ' + query,
-			TextWithTags::Tags(),
-		};
-		MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
-		auto draft = std::make_unique<Data::Draft>(
-			textWithTags,
-			to.currentReplyToId,
-			to.rootId,
-			cursor,
-			Data::PreviewState::Allowed);
-
-		if (to.section == Section::Scheduled) {
-			history->setDraft(Data::DraftKey::Scheduled(), std::move(draft));
-			controller()->showSection(
-				std::make_shared<HistoryView::ScheduledMemento>(history));
-		} else {
-			history->setLocalDraft(std::move(draft));
-			if (to.section == Section::Replies) {
-				controller()->showRepliesForMessage(history, to.rootId);
-			} else if (history == _history) {
-				applyDraft();
-			} else {
-				controller()->showPeerHistory(history->peer);
-			}
-		}
+		controller()->switchInlineQuery(to, bot, query);
 		return true;
 	}
 	return false;
@@ -2417,6 +2394,7 @@ void HistoryWidget::refreshAttachBotsMenu() {
 	}
 	_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
 		this,
+		controller(),
 		_history->peer,
 		[=] { return prepareSendAction({}); },
 		[=](bool compress) { chooseAttach(compress); });
