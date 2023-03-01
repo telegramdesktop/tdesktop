@@ -1,3 +1,12 @@
+4.6.6 beta (01.03.23)
+
+- Confirmation window before starting a call.
+- New "Battery and Animations" settings section.
+- "Save Power on Low Battery" option for laptops.
+- Improved windowed mode support for media viewer.
+- Hardware accelerated video playback fix on macOS.
+- New application icon on macOS following the system guidelines.
+
 4.6.5 (25.02.23)
 
 - Fix payment card input field validation.

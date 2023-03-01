@@ -609,7 +609,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_security_bots" = "Bots and websites";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
 
-"lng_settings_power_menu" = "Battery and animations";
+"lng_settings_power_menu" = "Battery and Animations";
 "lng_settings_power_title" = "Power Usage";
 "lng_settings_power_subtitle" = "Power saving options";
 "lng_settings_power_stickers" = "Animated Stickers";
