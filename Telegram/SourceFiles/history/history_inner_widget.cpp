@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
 #include "ui/chat/chat_style.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/toasts/common_toasts.h"
@@ -128,6 +130,72 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 		}
 	}
 	return start;
+}
+
+void FillSponsoredMessagesMenu(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		not_null<Ui::PopupMenu*> menu) {
+	const auto &data = controller->session().data().sponsoredMessages();
+	const auto info = data.lookupDetails(itemId).info;
+	const auto toastParent = Window::Show(controller).toastParent();
+	if (!info.empty()) {
+		auto fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
+			const auto allText = ranges::accumulate(
+				info,
+				TextWithEntities(),
+				[](TextWithEntities a, TextWithEntities b) {
+					return a.text.isEmpty() ? b : a.append('\n').append(b);
+				}).text;
+			const auto callback = [=] {
+				QGuiApplication::clipboard()->setText(allText);
+				Ui::ShowMultilineToast({
+					.parentOverride = toastParent,
+					.text = { tr::lng_text_copied(tr::now) },
+				});
+			};
+			for (const auto &i : info) {
+				auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
+					menu,
+					st::defaultMenu,
+					st::historyHasCustomEmoji,
+					st::historyHasCustomEmojiPosition,
+					base::duplicate(i));
+				item->clicks(
+				) | rpl::start_with_next(callback, menu->lifetime());
+				menu->addAction(std::move(item));
+				if (i != info.back()) {
+					menu->addSeparator();
+				}
+			}
+		};
+		using namespace Ui::Menu;
+		CreateAddActionCallback(menu)(MenuCallback::Args{
+			.text = tr::lng_sponsored_info_menu(tr::now),
+			.handler = nullptr,
+			.icon = nullptr,
+			.fillSubmenu = std::move(fillSubmenu),
+		});
+		menu->addSeparator();
+	}
+	{
+		auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
+			menu,
+			st::menuWithIcons,
+			st::historyHasCustomEmoji,
+			st::historySponsoredAboutMenuLabelPosition,
+			TextWithEntities{ tr::lng_sponsored_title(tr::now) },
+			&st::menuIconInfo);
+		item->clicks(
+		) | rpl::start_with_next([=] {
+			controller->show(Box(Ui::AboutSponsoredBox));
+		}, item->lifetime());
+		menu->addAction(std::move(item));
+	}
+	menu->addSeparator();
+	menu->addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
+		Settings::ShowPremium(controller, "no_ads");
+	}, &st::menuIconBlock);
 }
 
 } // namespace
@@ -2415,13 +2483,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 				if (item->isSponsored()) {
-					_menu->addAction(tr::lng_sponsored_title({}), [=] {
-						_controller->show(Box(Ui::AboutSponsoredBox));
-					}, &st::menuIconInfo);
-					_menu->addSeparator();
-					_menu->addAction(tr::lng_sponsored_hide_ads({}), [=] {
-						Settings::ShowPremium(_controller, "no_ads");
-					}, &st::menuIconBlock);
+					const auto itemId = item->fullId();
+					FillSponsoredMessagesMenu(controller, itemId, _menu);
 				}
 				if (!item->isService() && view && actionText.isEmpty()) {
 					if (!hasCopyRestriction(item)

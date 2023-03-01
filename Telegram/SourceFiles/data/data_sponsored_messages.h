@@ -42,6 +42,8 @@ struct SponsoredMessage {
 	History *history = nullptr;
 	MsgId msgId;
 	QString chatInviteHash;
+	TextWithEntities sponsorInfo;
+	TextWithEntities additionalInfo;
 };
 
 class SponsoredMessages final {
@@ -55,6 +57,7 @@ public:
 		std::optional<QString> hash;
 		PeerData *peer = nullptr;
 		MsgId msgId;
+		std::vector<TextWithEntities> info;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);

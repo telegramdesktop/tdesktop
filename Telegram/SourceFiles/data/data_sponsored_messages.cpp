@@ -17,8 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/image/image_location_factory.h"
+#include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
 
 namespace Data {
 namespace {
@@ -313,6 +315,15 @@ void SponsoredMessages::append(
 			return makeFrom(chat);
 		});
 	}();
+	auto sponsorInfo = data.vsponsor_info()
+		? tr::lng_sponsored_info_submenu(
+			tr::now,
+			lt_text,
+			{ .text = qs(*data.vsponsor_info()) },
+			Ui::Text::RichLangValue)
+		: TextWithEntities();
+	auto additionalInfo = TextWithEntities::Simple(
+		data.vadditional_info() ? qs(*data.vadditional_info()) : QString());
 	auto sharedMessage = SponsoredMessage{
 		.randomId = randomId,
 		.from = from,
@@ -325,6 +336,8 @@ void SponsoredMessages::append(
 		.history = history,
 		.msgId = data.vchannel_post().value_or_empty(),
 		.chatInviteHash = hash,
+		.sponsorInfo = std::move(sponsorInfo),
+		.additionalInfo = std::move(additionalInfo),
 	};
 	list.entries.push_back({ nullptr, std::move(sharedMessage) });
 }
@@ -393,11 +406,23 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 	if (!entryPtr) {
 		return {};
 	}
-	const auto &hash = entryPtr->sponsored.chatInviteHash;
+	const auto &data = entryPtr->sponsored;
+	const auto &hash = data.chatInviteHash;
+
+	using InfoList = std::vector<TextWithEntities>;
+	const auto info = (!data.sponsorInfo.text.isEmpty()
+			&& !data.additionalInfo.text.isEmpty())
+		? InfoList{ data.sponsorInfo, data.additionalInfo }
+		: !data.sponsorInfo.text.isEmpty()
+		? InfoList{ data.sponsorInfo }
+		: !data.additionalInfo.text.isEmpty()
+		? InfoList{ data.additionalInfo }
+		: InfoList{};
 	return {
 		.hash = hash.isEmpty() ? std::nullopt : std::make_optional(hash),
-		.peer = entryPtr->sponsored.from.peer,
-		.msgId = entryPtr->sponsored.msgId,
+		.peer = data.from.peer,
+		.msgId = data.msgId,
+		.info = std::move(info),
 	};
 }
 

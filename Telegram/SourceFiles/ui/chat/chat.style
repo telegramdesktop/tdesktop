@@ -1251,6 +1251,8 @@ historyTranslateSettings: IconButton(defaultIconButton) {
 }
 historyTranslateMenuPosition: point(-6px, 30px);
 
+historySponsoredAboutMenuLabelPosition: point(54px, 4px);
+
 historySendDisabled: FlatLabel(defaultFlatLabel) {
 	minWidth: 10px;
 	maxHeight: 20px;
