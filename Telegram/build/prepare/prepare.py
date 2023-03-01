@@ -1257,6 +1257,7 @@ win:
         LIBJPEG_LIBS_DEBUG="%MOZJPEG_DIR%\Debug\jpeg-static.lib" ^
         LIBJPEG_LIBS_RELEASE="%MOZJPEG_DIR%\Release\jpeg-static.lib" ^
         -mp ^
+        -no-feature-netlistmgr ^
         -nomake examples ^
         -nomake tests ^
         -platform win32-msvc
