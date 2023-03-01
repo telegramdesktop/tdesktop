@@ -1219,7 +1219,7 @@ if buildQt5:
 depends:patches/qtbase_5.15.8/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5_15_8\\*) do git apply %%i
+    for /r %%i in (..\\..\\patches\\qtbase_5.15.8\\*) do git apply %%i
     cd ..
 
     SET CONFIGURATIONS=-debug
