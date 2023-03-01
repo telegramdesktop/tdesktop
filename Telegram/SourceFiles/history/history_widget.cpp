@@ -1782,7 +1782,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		const auto to = bot->isBot()
 			? bot->botInfo->inlineReturnTo
 			: Dialogs::EntryState();
-		const auto history = to.key.history();
+		const auto history = to.key.owningHistory();
 		if (!history) {
 			return false;
 		}
