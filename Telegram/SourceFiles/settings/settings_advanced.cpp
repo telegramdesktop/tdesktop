@@ -56,10 +56,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
+#if defined Q_OS_MAC && !defined OS_MAC_STORE
 [[nodiscard]] const QImage &IconMacRound() {
 	static const auto result = QImage(u":/gui/art/icon_round512@2x.png"_q);
 	return result;
 }
+#endif // Q_OS_MAC && !OS_MAC_STORE
 
 } // namespace
 
