@@ -1039,14 +1039,15 @@ bool Call::checkCallFields(const MTPDphoneCallAccepted &call) {
 }
 
 void Call::setState(State state) {
-	if (_state.current() == State::Failed) {
+	const auto was = _state.current();
+	if (was == State::Failed) {
 		return;
 	}
-	if (_state.current() == State::FailedHangingUp
+	if (was == State::FailedHangingUp
 		&& state != State::Failed) {
 		return;
 	}
-	if (_state.current() != state) {
+	if (was != state) {
 		_state = state;
 
 		if (true
@@ -1074,7 +1075,9 @@ void Call::setState(State state) {
 			_delegate->callPlaySound(Delegate::CallSound::Connecting);
 			break;
 		case State::Ended:
-			_delegate->callPlaySound(Delegate::CallSound::Ended);
+			if (was != State::WaitingUserConfirmation) {
+				_delegate->callPlaySound(Delegate::CallSound::Ended);
+			}
 			[[fallthrough]];
 		case State::EndedByOtherDevice:
 			_delegate->callFinished(this);
