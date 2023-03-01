@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions_list.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/menu/menu_item_base.h"
+#include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
@@ -1392,80 +1392,6 @@ void AddEmojiPacksAction(
 		return;
 	}
 
-	class Item final : public Ui::Menu::ItemBase {
-	public:
-		Item(
-			not_null<RpWidget*> parent,
-			const style::Menu &st,
-			TextWithEntities &&about)
-		: Ui::Menu::ItemBase(parent, st)
-		, _st(st)
-		, _text(base::make_unique_q<Ui::FlatLabel>(
-			this,
-			rpl::single(std::move(about)),
-			st::historyHasCustomEmoji))
-		, _dummyAction(new QAction(parent)) {
-			enableMouseSelecting();
-			_text->setAttribute(Qt::WA_TransparentForMouseEvents);
-			updateMinWidth();
-			parent->widthValue() | rpl::start_with_next([=](int width) {
-				const auto top = st::historyHasCustomEmojiPosition.y();
-				const auto skip = st::historyHasCustomEmojiPosition.x();
-				_text->resizeToWidth(width - 2 * skip);
-				_text->moveToLeft(skip, top);
-				resize(width, contentHeight());
-			}, lifetime());
-		}
-
-		not_null<QAction*> action() const override {
-			return _dummyAction;
-		}
-
-		bool isEnabled() const override {
-			return true;
-		}
-
-	private:
-		int contentHeight() const override {
-			const auto skip = st::historyHasCustomEmojiPosition.y();
-			return skip + _text->height() + skip;
-		}
-
-		void paintEvent(QPaintEvent *e) override {
-			auto p = QPainter(this);
-			const auto selected = isSelected();
-			p.fillRect(rect(), selected ? _st.itemBgOver : _st.itemBg);
-			RippleButton::paintRipple(p, 0, 0);
-		}
-
-		void updateMinWidth() {
-			const auto skip = st::historyHasCustomEmojiPosition.x();
-			auto min = _text->naturalWidth() / 2;
-			auto max = _text->naturalWidth() - skip;
-			_text->resizeToWidth(max);
-			const auto height = _text->height();
-			_text->resizeToWidth(min);
-			const auto heightMax = _text->height();
-			if (heightMax > height) {
-				while (min + 1 < max) {
-					const auto middle = (max + min) / 2;
-					_text->resizeToWidth(middle);
-					if (_text->height() > height) {
-						min = middle;
-					} else {
-						max = middle;
-					}
-				}
-			}
-			setMinWidth(skip * 2 + max);
-		}
-
-		const style::Menu &_st;
-		const base::unique_qptr<Ui::FlatLabel> _text;
-		const not_null<QAction*> _dummyAction;
-
-	};
-
 	const auto count = int(packIds.size());
 	const auto manager = &controller->session().data().customEmojiManager();
 	const auto name = (count == 1)
@@ -1512,9 +1438,11 @@ void AddEmojiPacksAction(
 		}
 		Unexpected("Source in AddEmojiPacksAction.");
 	}();
-	auto button = base::make_unique_q<Item>(
+	auto button = base::make_unique_q<Ui::Menu::MultilineAction>(
 		menu->menu(),
 		menu->st().menu,
+		st::historyHasCustomEmoji,
+		st::historyHasCustomEmojiPosition,
 		std::move(text));
 	const auto weak = base::make_weak(controller);
 	button->setClickedCallback([=] {
