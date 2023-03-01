@@ -228,13 +228,13 @@ struct State {
 					item->history()->peer->input,
 					MTP_int(item->id)
 				)
-			).done([=](const MTPVector<MTPlong> &result) {
+			).done([=](const MTPVector<MTPReadParticipantDate> &result) {
 				auto &entry = context->cacheRead(item);
 				entry.requestId = 0;
 				auto parsed = Peers();
 				parsed.list.reserve(result.v.size());
 				for (const auto &id : result.v) {
-					parsed.list.push_back(UserId(id));
+					parsed.list.push_back(UserId(id.data().vuser_id()));
 				}
 				entry.data = std::move(parsed);
 			}).fail([=] {

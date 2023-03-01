@@ -475,8 +475,12 @@ QByteArray SerializeMessage(
 		pushActor();
 		push("information_text", data.message);
 	}, [&](const ActionBotAllowed &data) {
-		pushAction("allow_sending_messages");
-		push("reason_domain", data.domain);
+		if (data.attachMenu) {
+			pushAction("attach_menu_bot_allowed");
+		} else {
+			pushAction("allow_sending_messages");
+			push("reason_domain", data.domain);
+		}
 	}, [&](const ActionSecureValuesSent &data) {
 		pushAction("send_passport_values");
 		auto list = std::vector<QByteArray>();
@@ -577,9 +581,6 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("suggest_profile_photo");
 		pushPhoto(data.photo.image);
-	}, [&](const ActionAttachMenuBotAllowed &data) {
-		pushActor();
-		pushAction("attach_menu_bot_allowed");
 	}, [&](const ActionRequestedPeer &data) {
 		pushActor();
 		pushAction("requested_peer");

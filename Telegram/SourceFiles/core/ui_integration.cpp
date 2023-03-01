@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
+#include "mtproto/mtproto_config.h"
 #include "window/window_controller.h"
 #include "mainwindow.h"
 
@@ -48,9 +49,9 @@ const auto kBadPrefix = u"http://"_q;
 		const QString &url,
 		QUrl parsed,
 		const QString &domain) {
-	const auto &config = Core::App().activeAccount().appConfig();
-	const auto token = config.get<QString>("autologin_token", {});
-	const auto domains = config.get<std::vector<QString>>(
+	const auto &active = Core::App().activeAccount();
+	const auto token = active.mtp().configValues().autologinToken;
+	const auto domains = active.appConfig().get<std::vector<QString>>(
 		"autologin_domains",
 		{});
 	if (token.isEmpty()

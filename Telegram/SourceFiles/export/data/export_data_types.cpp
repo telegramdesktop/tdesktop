@@ -1059,7 +1059,10 @@ ServiceAction ParseServiceAction(
 		result.content = content;
 	}, [&](const MTPDmessageActionBotAllowed &data) {
 		auto content = ActionBotAllowed();
-		content.domain = ParseString(data.vdomain());
+		if (const auto domain = data.vdomain()) {
+			content.domain = ParseString(*domain);
+		}
+		content.attachMenu = data.is_attach_menu();
 		result.content = content;
 	}, [&](const MTPDmessageActionSecureValuesSentMe &data) {
 		// Should not be in user inbox.
@@ -1173,8 +1176,6 @@ ServiceAction ParseServiceAction(
 			+ "photos/"
 			+ PreparePhotoFileName(++context.photos, date));
 		result.content = content;
-	}, [&](const MTPDmessageActionAttachMenuBotAllowed &data) {
-		result.content = ActionAttachMenuBotAllowed();
 	}, [&](const MTPDmessageActionRequestedPeer &data) {
 		auto content = ActionRequestedPeer();
 		content.peerId = ParsePeerId(data.vpeer());

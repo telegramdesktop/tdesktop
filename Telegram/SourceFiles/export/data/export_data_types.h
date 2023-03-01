@@ -432,6 +432,7 @@ struct ActionCustomAction {
 
 struct ActionBotAllowed {
 	Utf8String domain;
+	bool attachMenu = false;
 };
 
 struct ActionSecureValuesSent {
@@ -512,9 +513,6 @@ struct ActionSuggestProfilePhoto {
 	Photo photo;
 };
 
-struct ActionAttachMenuBotAllowed {
-};
-
 struct ActionRequestedPeer {
 	PeerId peerId = 0;
 	int buttonId = 0;
@@ -556,7 +554,6 @@ struct ServiceAction {
 		ActionTopicCreate,
 		ActionTopicEdit,
 		ActionSuggestProfilePhoto,
-		ActionAttachMenuBotAllowed,
 		ActionRequestedPeer> content;
 };
 

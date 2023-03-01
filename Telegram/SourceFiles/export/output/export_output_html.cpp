@@ -1030,8 +1030,11 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionCustomAction &data) {
 		return data.message;
 	}, [&](const ActionBotAllowed &data) {
-		return "You allowed this bot to message you when you logged in on "
-			+ SerializeString(data.domain);
+		return data.attachMenu
+			? "You allowed this bot to message you "
+			"when you added it in the attachment menu."_q
+			: ("You allowed this bot to message you when you logged in on "
+				+ SerializeString(data.domain));
 	}, [&](const ActionSecureValuesSent &data) {
 		auto list = std::vector<QByteArray>();
 		for (const auto type : data.types) {
@@ -1165,9 +1168,6 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom + " changed topic " + parts.join(',');
 	}, [&](const ActionSuggestProfilePhoto &data) {
 		return serviceFrom + " suggests to use this photo";
-	}, [&](const ActionAttachMenuBotAllowed &data) {
-		return "You allowed this bot to message you "
-			"when you added it in the attachment menu."_q;
 	}, [&](const ActionRequestedPeer &data) {
 		return "requested: "_q/* + data.peerId*/;
 	}, [](v::null_t) { return QByteArray(); });

@@ -3685,12 +3685,18 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareBotAllowed = [&](const MTPDmessageActionBotAllowed &action) {
 		auto result = PreparedServiceText();
-		const auto domain = qs(action.vdomain());
-		result.text = tr::lng_action_bot_allowed_from_domain(
-			tr::now,
-			lt_domain,
-			Ui::Text::Link(domain, u"http://"_q + domain),
-			Ui::Text::WithEntities);
+		if (action.is_attach_menu()) {
+			result.text = {
+				tr::lng_action_attach_menu_bot_allowed(tr::now)
+			};
+		} else {
+			const auto domain = qs(action.vdomain().value_or_empty());
+			result.text = tr::lng_action_bot_allowed_from_domain(
+				tr::now,
+				lt_domain,
+				Ui::Text::Link(domain, u"http://"_q + domain),
+				Ui::Text::WithEntities);
+		}
 		return result;
 	};
 
@@ -4118,13 +4124,6 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareAttachMenuBotAllowed = [](
-			const MTPDmessageActionAttachMenuBotAllowed &action) {
-		return PreparedServiceText{ {
-			tr::lng_action_attach_menu_bot_allowed(tr::now)
-		} };
-	};
-
 	auto prepareRequestedPeer = [&](
 			const MTPDmessageActionRequestedPeer &action) {
 		const auto peerId = peerFromMTP(action.vpeer());
@@ -4216,8 +4215,6 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
 		return prepareSuggestProfilePhoto(data);
-	}, [&](const MTPDmessageActionAttachMenuBotAllowed &data) {
-		return prepareAttachMenuBotAllowed(data);
 	}, [&](const MTPDmessageActionRequestedPeer &data) {
 		return prepareRequestedPeer(data);
 	}, [](const MTPDmessageActionEmpty &) {

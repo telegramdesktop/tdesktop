@@ -1180,17 +1180,9 @@ void ApplyReadFallbackConfig(ReadSettingsContext &context) {
 		if (context.fallbackConfigLegacyChatSizeMax > 0) {
 			config.setChatSizeMax(context.fallbackConfigLegacyChatSizeMax);
 		}
-		if (context.fallbackConfigLegacySavedGifsLimit > 0) {
-			config.setSavedGifsLimit(
-				context.fallbackConfigLegacySavedGifsLimit);
-		}
 		if (context.fallbackConfigLegacyStickersRecentLimit > 0) {
 			config.setStickersRecentLimit(
 				context.fallbackConfigLegacyStickersRecentLimit);
-		}
-		if (context.fallbackConfigLegacyStickersFavedLimit > 0) {
-			config.setStickersFavedLimit(
-				context.fallbackConfigLegacyStickersFavedLimit);
 		}
 		if (context.fallbackConfigLegacyMegagroupSizeMax > 0) {
 			config.setMegagroupSizeMax(

@@ -76,6 +76,7 @@ private:
 	const not_null<Account*> _account;
 	std::optional<MTP::Sender> _api;
 	mtpRequestId _requestId = 0;
+	int32 _hash = 0;
 	base::flat_map<QString, MTPJSONValue> _data;
 	rpl::event_stream<> _refreshed;
 	base::flat_set<QString> _dismissedSuggestions;
