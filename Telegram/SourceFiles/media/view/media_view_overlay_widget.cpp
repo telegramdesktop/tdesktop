@@ -396,6 +396,7 @@ OverlayWidget::OverlayWidget()
 		} else if (type == QEvent::Close
 			&& !Core::Sandbox::Instance().isSavingSession()
 			&& !Core::Quitting()) {
+			e->ignore();
 			close();
 			return base::EventFilterResult::Cancel;
 		}
