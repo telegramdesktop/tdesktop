@@ -107,9 +107,9 @@ int32 *hashSha1(const void *data, uint32 len, void *dest) {
 	for (end = block + 64; block + 64 <= len; end = block + 64) {
 		for (uint32 i = 0; block < end; block += 4) {
 			temp[i++] = (uint32) buf[block + 3]
-			        | (((uint32) buf[block + 2]) << 8)
-			        | (((uint32) buf[block + 1]) << 16)
-			        | (((uint32) buf[block]) << 24);
+					| (((uint32) buf[block + 2]) << 8)
+					| (((uint32) buf[block + 1]) << 16)
+					| (((uint32) buf[block]) << 24);
 		}
 		sha1PartHash(sha, temp);
 	}

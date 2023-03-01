@@ -118,7 +118,7 @@ constexpr auto kSharedMediaLimit = 100;
 			return (quint32(std::clamp(color.red(), 0, 255)) << 16)
 				| (quint32(std::clamp(color.green(), 0, 255)) << 8)
 				| quint32(std::clamp(color.blue(), 0, 255));
-        };
+		};
 
 		auto mtpColors = QVector<MTPint>();
 		mtpColors.reserve(colors.size());

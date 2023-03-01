@@ -660,7 +660,7 @@ void Widget::setupSupportMode() {
 
 void Widget::setupMainMenuToggle() {
 	_mainMenu.under->setClickedCallback([=] {
-        _mainMenu.toggle->clicked({}, Qt::LeftButton);
+		_mainMenu.toggle->clicked({}, Qt::LeftButton);
 	});
 	_mainMenu.under->stackUnder(_mainMenu.toggle);
 	_mainMenu.toggle->setClickedCallback([=] { showMainMenu(); });
