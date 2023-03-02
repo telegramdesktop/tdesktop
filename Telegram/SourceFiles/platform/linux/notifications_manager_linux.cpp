@@ -439,20 +439,13 @@ bool NotificationData::init(
 		const auto idTuple = _id.toTuple();
 
 		_notification->set_default_action(
-			"app.notification-reply",
+			"app.notification-activate",
 			idTuple);
 
 		if (!options.hideMarkAsRead) {
 			_notification->add_button(
 				tr::lng_context_mark_read(tr::now).toStdString(),
 				"app.notification-mark-as-read",
-				idTuple);
-		}
-
-		if (!options.hideReplyButton) {
-			_notification->add_button(
-				tr::lng_notification_reply(tr::now).toStdString(),
-				"app.notification-reply",
 				idTuple);
 		}
 
@@ -535,33 +528,28 @@ bool NotificationData::init(
 
 	if (capabilities.contains("actions")) {
 		_actions.push_back("default");
-		_actions.push_back({});
+		_actions.push_back(tr::lng_open_link(tr::now).toStdString());
 
 		if (!options.hideMarkAsRead) {
+			// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
 			_actions.push_back("mail-mark-read");
 			_actions.push_back(
 				tr::lng_context_mark_read(tr::now).toStdString());
 		}
 
-		if (!options.hideReplyButton) {
-			if (capabilities.contains("inline-reply")) {
-				_actions.push_back("inline-reply");
-				_actions.push_back(
-					tr::lng_notification_reply(tr::now).toStdString());
+		if (capabilities.contains("inline-reply")
+			&& !options.hideReplyButton) {
+			_actions.push_back("inline-reply");
+			_actions.push_back(
+				tr::lng_notification_reply(tr::now).toStdString());
 
-				_notificationRepliedSignalId =
-					_dbusConnection->signal_subscribe(
-						signalEmitted,
-						std::string(kService),
-						std::string(kInterface),
-						"NotificationReplied",
-						std::string(kObjectPath));
-			} else {
-				// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
-				_actions.push_back("mail-reply-sender");
-				_actions.push_back(
-					tr::lng_notification_reply(tr::now).toStdString());
-			}
+			_notificationRepliedSignalId =
+				_dbusConnection->signal_subscribe(
+					signalEmitted,
+					std::string(kService),
+					std::string(kInterface),
+					"NotificationReplied",
+					std::string(kObjectPath));
 		}
 
 		_actionInvokedSignalId = _dbusConnection->signal_subscribe(
@@ -781,8 +769,7 @@ void NotificationData::actionInvoked(
 		return;
 	}
 
-	if (actionName == "default"
-		|| actionName == "mail-reply-sender") {
+	if (actionName == "default") {
 		_manager->notificationActivated(_id);
 	} else if (actionName == "mail-mark-read") {
 		_manager->notificationReplied(_id, {});
