@@ -69,13 +69,19 @@ std::map<int, const char*> BetaLogs() {
 
 		"- New \"Battery and Animations\" settings section.\n"
 
-		"- \n""Save Power on Low Battery\n"" option for laptops.\n"
+		"- \"Save Power on Low Battery\" option for laptops.\n"
 
 		"- Improved windowed mode support for media viewer.\n"
 
 		"- Hardware accelerated video playback fix on macOS.\n"
 		
 		"- New application icon on macOS following the system guidelines.\n"
+	},
+	{
+		4006007,
+		"- Fix crash when accepting incoming calls.\n"
+
+		"- Remove sound when cancelling an unconfirmed call.\n"
 	}
 	};
 };

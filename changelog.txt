@@ -1,3 +1,8 @@
+4.6.7 beta (02.03.23)
+
+- Fix crash when accepting incoming calls.
+- Remove sound when cancelling an unconfirmed call.
+
 4.6.6 beta (01.03.23)
 
 - Confirmation window before starting a call.
