@@ -259,7 +259,7 @@ private:
 	const not_null<UserData*> _user;
 	MTP::Sender _api;
 	Type _type = Type::Outgoing;
-	rpl::variable<State> _state = State::WaitingUserConfirmation;
+	rpl::variable<State> _state = State::Starting;
 	rpl::variable<RemoteAudioState> _remoteAudioState =
 		RemoteAudioState::Active;
 	rpl::variable<Webrtc::VideoState> _remoteVideoState;

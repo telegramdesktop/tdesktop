@@ -80,9 +80,6 @@ Panel::Panel(not_null<Call*> call)
 		st::callScreencastOn,
 		&st::callScreencastOff))
 , _camera(widget(), st::callCameraMute, &st::callCameraUnmute)
-, _startVideo(
-	widget(),
-	object_ptr<Ui::CallButton>(widget(), st::callStartVideo))
 , _mute(
 	widget(),
 	object_ptr<Ui::CallButton>(
@@ -281,6 +278,7 @@ void Panel::initControls() {
 		} else if (_call->isIncomingWaiting()) {
 			_call->answer();
 		} else if (state == State::WaitingUserConfirmation) {
+			_startOutgoingRequests.fire(false);
 		} else {
 			_call->hangup();
 		}
@@ -292,7 +290,6 @@ void Panel::initControls() {
 	};
 	_decline->entity()->setClickedCallback(hangupCallback);
 	_cancel->entity()->setClickedCallback(hangupCallback);
-	_startVideo->entity()->setText(tr::lng_call_start_video());
 
 	reinitWithCall(_call);
 
@@ -334,14 +331,10 @@ rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
 }
 
 rpl::producer<bool> Panel::startOutgoingRequests() const {
-	const auto filter = [=] {
+	return _startOutgoingRequests.events(
+	) | rpl::filter([=] {
 		return _call && (_call->state() == State::WaitingUserConfirmation);
-	};
-	return rpl::merge(
-		_startVideo->entity()->clicks(
-		) | rpl::filter(filter) | rpl::map_to(true),
-		_answerHangupRedial->clicks(
-		) | rpl::filter(filter) | rpl::map_to(false));
+	});
 }
 
 void Panel::chooseSourceAccepted(
@@ -478,7 +471,9 @@ void Panel::reinitWithCall(Call *call) {
 
 	rpl::combine(
 		_call->stateValue(),
-		_call->videoOutgoing()->renderNextFrame()
+		rpl::single(
+			rpl::empty_value()
+		) | rpl::then(_call->videoOutgoing()->renderNextFrame())
 	) | rpl::start_with_next([=](State state, auto) {
 		if (state != State::Ended
 			&& state != State::EndedByOtherDevice
@@ -523,7 +518,9 @@ void Panel::reinitWithCall(Call *call) {
 	_decline->raise();
 	_cancel->raise();
 	_camera->raise();
-	_startVideo->raise();
+	if (_startVideo) {
+		_startVideo->raise();
+	}
 	_mute->raise();
 
 	_powerSaveBlocker = std::make_unique<base::PowerSaveBlocker>(
@@ -794,7 +791,7 @@ void Panel::updateHangupGeometry() {
 	_camera->moveToLeft(
 		hangupRight - _mute->width() + _screencast->width(),
 		_buttonsTop);
-	if (_startVideo->toggled()) {
+	if (_startVideo) {
 		_startVideo->moveToLeft(_camera->x(), _camera->y());
 	}
 }
@@ -849,12 +846,18 @@ void Panel::stateChanged(State state) {
 		if (isBusy) {
 			_powerSaveBlocker = nullptr;
 		}
-		if (_startVideo->toggled() && !isWaitingUser) {
-			_startVideo->toggle(false, anim::type::instant);
-		} else if (!_startVideo->toggled() && isWaitingUser) {
-			_startVideo->toggle(true, anim::type::instant);
+		if (_startVideo && !isWaitingUser) {
+			_startVideo = nullptr;
+		} else if (!_startVideo && isWaitingUser) {
+			_startVideo = base::make_unique_q<Ui::CallButton>(
+				widget(),
+				st::callStartVideo);
+			_startVideo->setText(tr::lng_call_start_video());
+			_startVideo->clicks() | rpl::map_to(true) | rpl::start_to_stream(
+				_startOutgoingRequests,
+				_startVideo->lifetime());
 		}
-		_camera->setVisible(!_startVideo->toggled());
+		_camera->setVisible(!_startVideo);
 
 		const auto toggleButton = [&](auto &&button, bool visible) {
 			button->toggle(

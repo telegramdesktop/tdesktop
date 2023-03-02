@@ -324,31 +324,52 @@ void Instance::destroyCall(not_null<Call*> call) {
 	}
 }
 
-void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video) {
-	auto call = std::make_unique<Call>(_delegate.get(), user, type, video);
-	const auto raw = call.get();
+void Instance::createCall(
+		not_null<UserData*> user,
+		Call::Type type,
+		bool isVideo) {
+	struct Performer final {
+		explicit Performer(Fn<void(bool, bool, const Performer &)> callback)
+		: callback(std::move(callback)) {
+		}
+		Fn<void(bool, bool, const Performer &)> callback;
+	};
+	const auto performer = Performer([=](
+			bool video,
+			bool isConfirmed,
+			const Performer &repeater) {
+		const auto delegate = _delegate.get();
+		auto call = std::make_unique<Call>(delegate, user, type, video);
+		if (isConfirmed) {
+			call->applyUserConfirmation();
+		}
+		const auto raw = call.get();
 
-	user->session().account().sessionChanges(
-	) | rpl::start_with_next([=] {
-		destroyCall(raw);
-	}, raw->lifetime());
+		user->session().account().sessionChanges(
+		) | rpl::start_with_next([=] {
+			destroyCall(raw);
+		}, raw->lifetime());
 
-	if (_currentCall) {
-		_currentCallPanel->replaceCall(raw);
-		std::swap(_currentCall, call);
-		call->hangup();
-	} else {
-		_currentCallPanel = std::make_unique<Panel>(raw);
-		_currentCall = std::move(call);
-	}
-	_currentCallPanel->startOutgoingRequests(
-	) | rpl::start_with_next([=](bool video) {
-		raw->applyUserConfirmation();
-		raw->toggleCameraSharing(video);
-		refreshServerConfig(&user->session());
-		refreshDhConfig();
-	}, raw->lifetime());
-	_currentCallChanges.fire_copy(raw);
+		if (_currentCall) {
+			_currentCallPanel->replaceCall(raw);
+			std::swap(_currentCall, call);
+			call->hangup();
+		} else {
+			_currentCallPanel = std::make_unique<Panel>(raw);
+			_currentCall = std::move(call);
+		}
+		if (raw->state() == Call::State::WaitingUserConfirmation) {
+			_currentCallPanel->startOutgoingRequests(
+			) | rpl::start_with_next([=](bool video) {
+				repeater.callback(video, true, repeater);
+			}, raw->lifetime());
+		} else {
+			refreshServerConfig(&user->session());
+			refreshDhConfig();
+		}
+		_currentCallChanges.fire_copy(raw);
+	});
+	performer.callback(isVideo, false, performer);
 }
 
 void Instance::destroyGroupCall(not_null<GroupCall*> call) {
