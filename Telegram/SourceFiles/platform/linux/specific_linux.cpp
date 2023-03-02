@@ -337,7 +337,7 @@ void LaunchGApplication() {
 		}();
 
 		app->add_action_with_parameter(
-			"notification-reply",
+			"notification-activate",
 			notificationIdVariantType,
 			[](const Glib::VariantBase &parameter) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
