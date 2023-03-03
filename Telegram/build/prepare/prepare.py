@@ -734,7 +734,7 @@ release:
 
 stage('libheif', """
 win:
-    git clone --depth 1 -b v1.14.2 https://github.com/strukturag/libheif.git
+    git clone --depth 1 -b v1.15.1 https://github.com/strukturag/libheif.git
     cd libheif
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -749,7 +749,9 @@ win:
         -DENABLE_PLUGIN_LOADING=OFF ^
         -DWITH_LIBDE265=ON ^
         -DWITH_SvtEnc=OFF ^
+        -DWITH_SvtEnc_PLUGIN=OFF ^
         -DWITH_RAV1E=OFF ^
+        -DWITH_RAV1E_PLUGIN=OFF ^
         -DWITH_EXAMPLES=OFF
     cmake --build . --config Debug
     cmake --install . --config Debug
