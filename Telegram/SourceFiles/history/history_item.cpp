@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/data_bot_app.h"
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -3689,6 +3690,21 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			result.text = {
 				tr::lng_action_attach_menu_bot_allowed(tr::now)
 			};
+		} else if (const auto app = action.vapp()) {
+			const auto bot = history()->peer->asUser();
+			const auto botId = bot ? bot->id : PeerId();
+			const auto info = history()->owner().processBotApp(botId, *app);
+			const auto url = (bot && info)
+				? history()->session().createInternalLinkFull(
+					bot->username() + '/' + info->shortName)
+				: QString();
+			result.text = tr::lng_action_bot_allowed_from_app(
+				tr::now,
+				lt_app,
+				(url.isEmpty()
+					? TextWithEntities{ u"App"_q }
+					: Ui::Text::Link(info->title, url)),
+				Ui::Text::WithEntities);
 		} else {
 			const auto domain = qs(action.vdomain().value_or_empty());
 			result.text = tr::lng_action_bot_allowed_from_domain(

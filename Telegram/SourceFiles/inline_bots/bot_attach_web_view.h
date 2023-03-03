@@ -93,6 +93,13 @@ public:
 	void requestMenu(
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> bot);
+	void requestApp(
+		not_null<Window::SessionController*> controller,
+		const Api::SendAction &action,
+		not_null<UserData*> bot,
+		const QString &appName,
+		const QString &startParam,
+		bool forceConfirmation);
 
 	void cancel();
 
@@ -162,14 +169,22 @@ private:
 	void confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback = nullptr);
+	void confirmAppOpen(bool requestWriteAccess);
+	void requestAppView(bool allowWrite);
 	void started(uint64 queryId);
+
+	void showToast(
+		const QString &text,
+		Window::SessionController *controller = nullptr);
 
 	const not_null<Main::Session*> _session;
 
 	std::unique_ptr<Context> _context;
 	UserData *_bot = nullptr;
 	QString _botUsername;
+	QString _botAppName;
 	QString _startCommand;
+	BotAppData *_app = nullptr;
 	QPointer<Ui::GenericBox> _confirmAddBox;
 
 	mtpRequestId _requestId = 0;

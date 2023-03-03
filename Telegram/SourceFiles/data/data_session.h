@@ -570,6 +570,12 @@ public:
 		not_null<GameData*> original,
 		const MTPGame &data);
 
+	[[nodiscard]] not_null<BotAppData*> botApp(BotAppId id);
+	BotAppData *findBotApp(PeerId botId, const QString &appName) const;
+	BotAppData *processBotApp(
+		PeerId botId,
+		const MTPBotApp &data);
+
 	[[nodiscard]] not_null<PollData*> poll(PollId id);
 	not_null<PollData*> processPoll(const MTPPoll &data);
 	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
@@ -922,6 +928,9 @@ private:
 	std::unordered_map<
 		GameId,
 		std::unique_ptr<GameData>> _games;
+	std::unordered_map<
+		BotAppId,
+		std::unique_ptr<BotAppData>> _botApps;
 	std::unordered_map<
 		not_null<const GameData*>,
 		base::flat_set<not_null<ViewElement*>>> _gameViews;

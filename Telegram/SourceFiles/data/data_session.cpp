@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
 #include "data/stickers/data_stickers.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/data_bot_app.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_media_types.h"
@@ -3448,6 +3449,45 @@ void Session::gameApplyFields(
 	game->photo = photo;
 	game->document = document;
 	notifyGameUpdateDelayed(game);
+}
+
+not_null<BotAppData*> Session::botApp(BotAppId id) {
+	const auto i = _botApps.find(id);
+	return (i != end(_botApps))
+		? i->second.get()
+		: _botApps.emplace(
+			id,
+			std::make_unique<BotAppData>(this, id)).first->second.get();
+}
+
+BotAppData *Session::findBotApp(PeerId botId, const QString &appName) const {
+	for (const auto &[id, app] : _botApps) {
+		if (app->botId == botId && app->shortName == appName) {
+			return app.get();
+		}
+	}
+	return nullptr;
+}
+
+BotAppData *Session::processBotApp(
+		PeerId botId,
+		const MTPBotApp &data) {
+	return data.match([&](const MTPDbotApp &data) {
+		const auto result = botApp(data.vid().v);
+		result->botId = botId;
+		result->shortName = qs(data.vshort_name());
+		result->title = qs(data.vtitle());
+		result->description = qs(data.vdescription());
+		result->photo = processPhoto(data.vphoto());
+		result->document = data.vdocument()
+			? processDocument(*data.vdocument()).get()
+			: nullptr;
+		result->accessHash = data.vaccess_hash().v;
+		result->hash = data.vhash().v;
+		return result.get();
+	}, [](const MTPDbotAppNotModified &) {
+		return (BotAppData*)nullptr;
+	});
 }
 
 not_null<PollData*> Session::poll(PollId id) {

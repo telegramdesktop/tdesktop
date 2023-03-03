@@ -97,6 +97,7 @@ inline constexpr bool is_flag_type(GifPauseReason) { return true; };
 
 enum class ResolveType {
 	Default,
+	BotApp,
 	BotStart,
 	AddToGroup,
 	AddToChannel,
@@ -208,6 +209,8 @@ public:
 		QString startToken;
 		ChatAdminRights startAdminRights;
 		bool startAutoSubmit = false;
+		QString botAppName;
+		bool botAppForceConfirmation = false;
 		QString attachBotUsername;
 		std::optional<QString> attachBotToggleCommand;
 		InlineBots::PeerTypes attachBotChooseTypes;

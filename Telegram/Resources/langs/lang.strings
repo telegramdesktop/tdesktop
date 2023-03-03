@@ -396,6 +396,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
 "lng_username_by_phone_not_found" = "User {phone} not found.";
+"lng_username_app_not_found" = "Bot application not found.";
 "lng_username_link" = "This link opens a chat with you:";
 "lng_username_copied" = "Link copied to clipboard.";
 
@@ -1463,6 +1464,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_took_screenshot" = "{from} took a screenshot!";
 "lng_action_you_took_screenshot" = "You took a screenshot!";
 "lng_action_bot_allowed_from_domain" = "You allowed this bot to message you when you logged in on {domain}.";
+"lng_action_bot_allowed_from_app" = "You allowed this bot to message you when you opened {app}.";
 "lng_action_secure_values_sent" = "{user} received the following documents: {documents}";
 "lng_action_secure_personal_details" = "personal details";
 "lng_action_secure_proof_of_identity" = "proof of identity";

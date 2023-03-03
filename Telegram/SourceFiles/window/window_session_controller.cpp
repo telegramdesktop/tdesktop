@@ -357,6 +357,15 @@ void SessionNavigation::showPeerByLinkResolved(
 	using Scope = AddBotToGroupBoxController::Scope;
 	const auto user = peer->asUser();
 	const auto bot = (user && user->isBot()) ? user : nullptr;
+
+	// t.me/username/012345 - we thought it was a channel post link, but
+	// after resolving the username we found out it is a bot.
+	const auto resolveType = (bot
+		&& !info.botAppName.isEmpty()
+		&& info.resolveType == ResolveType::Default)
+		? ResolveType::BotApp
+		: info.resolveType;
+
 	const auto &replies = info.repliesInfo;
 	if (const auto threadId = std::get_if<ThreadId>(&replies)) {
 		showRepliesForMessage(
@@ -389,14 +398,29 @@ void SessionNavigation::showPeerByLinkResolved(
 				info.messageId,
 				callback);
 		}
-	} else if (bot && info.resolveType == ResolveType::ShareGame) {
+	} else if (bot && resolveType == ResolveType::BotApp) {
+		const auto itemId = info.clickFromMessageId;
+		const auto item = _session->data().message(itemId);
+		const auto contextPeer = item
+			? item->history()->peer
+			: bot;
+		crl::on_main(this, [=] {
+			bot->session().attachWebView().requestApp(
+				parentController(),
+				Api::SendAction(bot->owner().history(contextPeer)),
+				bot,
+				info.botAppName,
+				info.startToken,
+				info.botAppForceConfirmation);
+		});
+	} else if (bot && resolveType == ResolveType::ShareGame) {
 		Window::ShowShareGameBox(parentController(), bot, info.startToken);
 	} else if (bot
-		&& (info.resolveType == ResolveType::AddToGroup
-			|| info.resolveType == ResolveType::AddToChannel)) {
-		const auto scope = (info.resolveType == ResolveType::AddToGroup)
+		&& (resolveType == ResolveType::AddToGroup
+			|| resolveType == ResolveType::AddToChannel)) {
+		const auto scope = (resolveType == ResolveType::AddToGroup)
 			? (info.startAdminRights ? Scope::GroupAdmin : Scope::All)
-			: (info.resolveType == ResolveType::AddToChannel)
+			: (resolveType == ResolveType::AddToChannel)
 			? Scope::ChannelAdmin
 			: Scope::None;
 		Assert(scope != Scope::None);
@@ -407,7 +431,7 @@ void SessionNavigation::showPeerByLinkResolved(
 			scope,
 			info.startToken,
 			info.startAdminRights);
-	} else if (info.resolveType == ResolveType::Mention) {
+	} else if (resolveType == ResolveType::Mention) {
 		if (bot || peer->isChannel()) {
 			crl::on_main(this, [=] {
 				showPeerHistory(peer, params);

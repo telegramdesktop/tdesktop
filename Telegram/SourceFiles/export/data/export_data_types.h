@@ -431,6 +431,8 @@ struct ActionCustomAction {
 };
 
 struct ActionBotAllowed {
+	uint64 appId = 0;
+	Utf8String app;
 	Utf8String domain;
 	bool attachMenu = false;
 };

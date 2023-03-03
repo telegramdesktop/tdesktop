@@ -10,15 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
-struct GameData {
-	GameData(not_null<Data::Session*> owner, const GameId &id);
+struct BotAppData {
+	BotAppData(not_null<Data::Session*> owner, const BotAppId &id);
 
 	const not_null<Data::Session*> owner;
-	GameId id = 0;
-	uint64 accessHash = 0;
+	BotAppId id = 0;
+	PeerId botId = 0;
 	QString shortName;
 	QString title;
 	QString description;
 	PhotoData *photo = nullptr;
 	DocumentData *document = nullptr;
+
+	uint64 accessHash = 0;
+	uint64 hash = 0;
 };

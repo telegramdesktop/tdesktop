@@ -42,6 +42,7 @@ struct ClickHandlerContext {
 	Fn<HistoryView::ElementDelegate*()> elementDelegate;
 	base::weak_ptr<Window::SessionController> sessionWindow;
 	std::shared_ptr<Ui::Show> show;
+	bool mayShowConfirmation = false;
 	bool skipBotAutoLogin = false;
 	bool botStartAutoSubmit = false;
 	// Is filled from peer info.

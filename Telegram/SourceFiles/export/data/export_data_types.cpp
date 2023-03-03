@@ -1059,6 +1059,12 @@ ServiceAction ParseServiceAction(
 		result.content = content;
 	}, [&](const MTPDmessageActionBotAllowed &data) {
 		auto content = ActionBotAllowed();
+		if (const auto app = data.vapp()) {
+			app->match([&](const MTPDbotApp &data) {
+				content.appId = data.vid().v;
+				content.app = ParseString(data.vtitle());
+			}, [](const MTPDbotAppNotModified &) {});
+		}
 		if (const auto domain = data.vdomain()) {
 			content.domain = ParseString(*domain);
 		}

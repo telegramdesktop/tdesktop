@@ -447,7 +447,7 @@ void Inner::refreshMosaicOffset() {
 	const auto top = _switchPmButton
 		? (_switchPmButton->height() + st::inlineResultsSkip)
 		: 0;
-	_mosaic.setPadding(st::gifsPadding + QMargins(0, top, 0, 0));
+	_mosaic.setPadding(st::emojiPanMargins + QMargins(0, top, 0, 0));
 }
 
 void Inner::refreshSwitchPmButton(const CacheEntry *entry) {

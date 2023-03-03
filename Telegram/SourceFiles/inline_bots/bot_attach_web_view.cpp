@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/bot_attach_web_view.h"
 
 #include "api/api_common.h"
+#include "data/data_bot_app.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
@@ -424,6 +425,7 @@ struct AttachWebView::Context {
 	Dialogs::EntryState dialogsEntryState;
 	Api::SendAction action;
 	bool fromSwitch = false;
+	bool fromBotApp = false;
 };
 
 AttachWebView::AttachWebView(not_null<Main::Session*> session)
@@ -551,13 +553,12 @@ void AttachWebView::request(const WebViewButton &button) {
 			: MTP_inputPeerEmpty())
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
-		result.match([&](const MTPDwebViewResultUrl &data) {
-			show(
-				data.vquery_id().v,
-				qs(data.vurl()),
-				button.text,
-				button.fromMenu || button.url.isEmpty());
-		});
+		const auto &data = result.data();
+		show(
+			data.vquery_id().v,
+			qs(data.vurl()),
+			button.text,
+			button.fromMenu || button.url.isEmpty());
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		if (error.type() == u"BOT_INVALID"_q) {
@@ -573,7 +574,9 @@ void AttachWebView::cancel() {
 	_panel = nullptr;
 	_context = nullptr;
 	_bot = nullptr;
+	_app = nullptr;
 	_botUsername = QString();
+	_botAppName = QString();
 	_startCommand = QString();
 }
 
@@ -624,9 +627,7 @@ void AttachWebView::requestAddToMenu(
 	Expects(controller != nullptr || _context != nullptr);
 
 	if (!bot->isBot() || !bot->botInfo->supportsAttachMenu) {
-		Ui::ShowMultilineToast({
-			.text = { tr::lng_bot_menu_not_supported(tr::now) },
-		});
+		showToast(tr::lng_bot_menu_not_supported(tr::now), controller);
 		return;
 	}
 	const auto wasController = (controller != nullptr);
@@ -694,10 +695,8 @@ void AttachWebView::requestAddToMenu(
 					} else {
 						requestBots();
 						if (!open(types)) {
-							Ui::ShowMultilineToast({
-								.text = {
-									tr::lng_bot_menu_already_added(tr::now) },
-							});
+							showToast(
+								tr::lng_bot_menu_already_added(tr::now));
 						}
 					}
 				}
@@ -708,17 +707,13 @@ void AttachWebView::requestAddToMenu(
 		_addToMenuBot = nullptr;
 		_addToMenuContext = nullptr;
 		_addToMenuStartCommand = QString();
-		Ui::ShowMultilineToast({
-			.text = { tr::lng_bot_menu_not_supported(tr::now) },
-		});
+		showToast(tr::lng_bot_menu_not_supported(tr::now));
 	}).send();
 }
 
 void AttachWebView::removeFromMenu(not_null<UserData*> bot) {
 	toggleInMenu(bot, ToggledState::Removed, [=] {
-		Ui::ShowMultilineToast({
-			.text = { tr::lng_bot_remove_from_menu_done(tr::now) },
-		});
+		showToast(tr::lng_bot_remove_from_menu_done(tr::now));
 	});
 }
 
@@ -729,9 +724,7 @@ void AttachWebView::resolve() {
 		}
 		_bot = bot->asUser();
 		if (!_bot) {
-			Ui::ShowMultilineToast({
-				.text = { tr::lng_bot_menu_not_supported(tr::now) }
-			});
+			showToast(tr::lng_bot_menu_not_supported(tr::now));
 			return;
 		}
 		requestAddToMenu(_bot, _startCommand);
@@ -760,11 +753,8 @@ void AttachWebView::resolveUsername(
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		if (error.code() == 400) {
-			Ui::ShowMultilineToast({
-				.text = {
-					tr::lng_username_not_found(tr::now, lt_user, username),
-				},
-			});
+			showToast(
+				tr::lng_username_not_found(tr::now, lt_user, username));
 		}
 	}).send();
 }
@@ -838,9 +828,8 @@ void AttachWebView::requestMenu(
 				: MTP_inputPeerEmpty())
 		)).done([=](const MTPWebViewResult &result) {
 			_requestId = 0;
-			result.match([&](const MTPDwebViewResultUrl &data) {
-				show(data.vquery_id().v, qs(data.vurl()), text);
-			});
+			const auto &data = result.data();
+			show(data.vquery_id().v, qs(data.vurl()), text);
 		}).fail([=](const MTP::Error &error) {
 			_requestId = 0;
 			if (error.type() == u"BOT_INVALID"_q) {
@@ -848,6 +837,129 @@ void AttachWebView::requestMenu(
 			}
 		}).send();
 	});
+}
+
+void AttachWebView::requestApp(
+		not_null<Window::SessionController*> controller,
+		const Api::SendAction &action,
+		not_null<UserData*> bot,
+		const QString &appName,
+		const QString &startParam,
+		bool forceConfirmation) {
+	const auto context = LookupContext(controller, action);
+	if (_requestId
+		&& _bot == bot
+		&& _startCommand == startParam
+		&& _botAppName == appName
+		&& IsSame(_context, context)) {
+		return;
+	}
+	cancel();
+	_bot = bot;
+	_startCommand = startParam;
+	_botAppName = appName;
+	_context = std::make_unique<Context>(context);
+	_context->fromBotApp = true;
+	const auto already = _session->data().findBotApp(_bot->id, appName);
+	_requestId = _session->api().request(MTPmessages_GetBotApp(
+		MTP_inputBotAppShortName(
+			bot->inputUser,
+			MTP_string(appName)),
+		MTP_long(already ? already->hash : 0)
+	)).done([=](const MTPmessages_BotApp &result) {
+		_requestId = 0;
+		if (!_bot || !_context) {
+			return;
+		}
+		const auto &data = result.data();
+		const auto firstTime = data.is_inactive();
+		const auto received = _session->data().processBotApp(
+			_bot->id,
+			data.vapp());
+		_app = received ? received : already;
+		if (!_app) {
+			cancel();
+			showToast(tr::lng_username_app_not_found(tr::now));
+			return;
+		}
+		const auto confirm = firstTime || forceConfirmation;
+		if (confirm) {
+			confirmAppOpen(result.data().is_request_write_access());
+		} else {
+			requestAppView(false);
+		}
+	}).fail([=] {
+		cancel();
+		showToast(tr::lng_username_app_not_found(tr::now));
+	}).send();
+}
+
+void AttachWebView::confirmAppOpen(bool requestWriteAccess) {
+	const auto controller = _context ? _context->controller.get() : nullptr;
+	if (!controller || !_bot) {
+		return;
+	}
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto allowed = std::make_shared<Ui::Checkbox*>();
+		const auto done = [=](Fn<void()> close) {
+			requestAppView((*allowed) && (*allowed)->checked());
+			close();
+		};
+		Ui::ConfirmBox(box, {
+			tr::lng_allow_bot_webview(
+				tr::now,
+				lt_bot_name,
+				Ui::Text::Bold(_bot->name()),
+				Ui::Text::RichLangValue),
+			done,
+		});
+		if (requestWriteAccess) {
+			(*allowed) = box->addRow(
+				object_ptr<Ui::Checkbox>(
+					box,
+					tr::lng_url_auth_allow_messages(
+						tr::now,
+						lt_bot,
+						Ui::Text::Bold(_bot->name()),
+						Ui::Text::WithEntities),
+					true,
+					st::urlAuthCheckbox),
+				style::margins(
+					st::boxRowPadding.left(),
+					st::boxPhotoCaptionSkip,
+					st::boxRowPadding.right(),
+					st::boxPhotoCaptionSkip));
+			(*allowed)->setAllowTextLines();
+		}
+	}));
+}
+
+void AttachWebView::requestAppView(bool allowWrite) {
+	if (!_context || !_app) {
+		return;
+	}
+	using Flag = MTPmessages_RequestAppWebView::Flag;
+	const auto flags = Flag::f_theme_params
+		| (_startCommand.isEmpty() ? Flag(0) : Flag::f_start_param)
+		| (allowWrite ? Flag::f_write_allowed : Flag(0));
+	_requestId = _session->api().request(MTPmessages_RequestAppWebView(
+		MTP_flags(flags),
+		_context->action.history->peer->input,
+		MTP_inputBotAppID(MTP_long(_app->id), MTP_long(_app->accessHash)),
+		MTP_string(_startCommand),
+		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
+		MTP_string("tdesktop")
+	)).done([=](const MTPAppWebViewResult &result) {
+		_requestId = 0;
+		const auto &data = result.data();
+		const auto queryId = uint64();
+		show(queryId, qs(data.vurl()));
+	}).fail([=](const MTP::Error &error) {
+		_requestId = 0;
+		if (error.type() == u"BOT_INVALID"_q) {
+			requestBots();
+		}
+	}).send();
 }
 
 void AttachWebView::confirmOpen(
@@ -895,6 +1007,7 @@ void AttachWebView::show(
 	const auto sendData = crl::guard(this, [=](QByteArray data) {
 		if (!_context
 			|| _context->fromSwitch
+			|| _context->fromBotApp
 			|| _context->action.history->peer != _bot
 			|| queryId) {
 			return;
@@ -1061,7 +1174,7 @@ void AttachWebView::show(
 void AttachWebView::started(uint64 queryId) {
 	Expects(_bot != nullptr && _context != nullptr);
 
-	if (_context->fromSwitch) {
+	if (_context->fromSwitch || !queryId) {
 		return;
 	}
 
@@ -1098,6 +1211,24 @@ void AttachWebView::started(uint64 queryId) {
 	}, _panel->lifetime());
 }
 
+void AttachWebView::showToast(
+		const QString &text,
+		Window::SessionController *controller) {
+	const auto strong = controller
+		? controller
+		: _context
+		? _context->controller.get()
+		: _addToMenuContext
+		? _addToMenuContext->controller.get()
+		: nullptr;
+	Ui::ShowMultilineToast({
+		.parentOverride = (strong
+			? Window::Show(strong).toastParent().get()
+			: nullptr),
+		.text = { text },
+	});
+}
+
 void AttachWebView::confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback) {
@@ -1115,9 +1246,7 @@ void AttachWebView::confirmAddToMenu(
 				if (callback) {
 					callback();
 				}
-				Ui::ShowMultilineToast({
-					.text = { tr::lng_bot_add_to_menu_done(tr::now) },
-				});
+				showToast(tr::lng_bot_add_to_menu_done(tr::now));
 			});
 			close();
 		};
