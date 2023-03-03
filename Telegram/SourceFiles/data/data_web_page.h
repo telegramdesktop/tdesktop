@@ -31,6 +31,7 @@ enum class WebPageType {
 	User,
 	Bot,
 	Profile,
+	BotApp,
 
 	WallPaper,
 	Theme,

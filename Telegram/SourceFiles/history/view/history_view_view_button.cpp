@@ -71,18 +71,29 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 		? tr::lng_view_button_bot(tr::now)
 		: (type == WebPageType::User)
 		? tr::lng_view_button_user(tr::now)
+		: (type == WebPageType::BotApp)
+		? tr::lng_view_button_bot_app(tr::now)
 		: QString());
 }
 
-[[nodiscard]] ClickHandlerPtr MakeWebPageClickHandler(
+[[nodiscard]] ClickHandlerPtr MakeWebPageButtonClickHandler(
 		not_null<Data::Media*> media) {
 	Expects(media->webpage() != nullptr);
 
 	const auto url = media->webpage()->url;
+	const auto type = media->webpage()->type;
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			HiddenUrlClickHandler::Open(url, context.other);
+			if (type == WebPageType::BotApp) {
+				// Bot Web Apps always show confirmation on hidden urls.
+				//
+				// But from the dedicated "Open App" button we don't want
+				// to request users confirmation on non-first app opening.
+				UrlClickHandler::Open(url, context.other);
+			} else {
+				HiddenUrlClickHandler::Open(url, context.other);
+			}
 		}
 	});
 }
@@ -124,6 +135,7 @@ bool ViewButton::MediaHasViewButton(
 		|| (type == WebPageType::User)
 		|| (type == WebPageType::VoiceChat)
 		|| (type == WebPageType::Livestream)
+		|| (type == WebPageType::BotApp)
 		|| ((type == WebPageType::Theme)
 			&& webpage->document
 			&& webpage->document->isTheme())
@@ -160,7 +172,7 @@ ViewButton::Inner::Inner(
 	not_null<Data::Media*> media,
 	Fn<void()> updateCallback)
 : margins(st::historyViewButtonMargins)
-, link(MakeWebPageClickHandler(media))
+, link(MakeWebPageButtonClickHandler(media))
 , updateCallback(std::move(updateCallback))
 , belowInfo(false)
 , text(st::historyViewButtonTextStyle, WebPageToPhrase(media->webpage())) {

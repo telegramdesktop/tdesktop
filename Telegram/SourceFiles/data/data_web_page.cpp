@@ -162,16 +162,18 @@ WebPageType ParseWebPageType(
 	} else if (type == u"telegram_megagroup_request"_q
 		|| type == u"telegram_chat_request"_q) {
 		return WebPageType::GroupWithRequest;
-	}  else if (type == u"telegram_message"_q) {
+	} else if (type == u"telegram_message"_q) {
 		return WebPageType::Message;
-	}  else if (type == u"telegram_bot"_q) {
+	} else if (type == u"telegram_bot"_q) {
 		return WebPageType::Bot;
-	}  else if (type == u"telegram_voicechat"_q) {
+	} else if (type == u"telegram_voicechat"_q) {
 		return WebPageType::VoiceChat;
-	}  else if (type == u"telegram_livestream"_q) {
+	} else if (type == u"telegram_livestream"_q) {
 		return WebPageType::Livestream;
-	}  else if (type == u"telegram_user"_q) {
+	} else if (type == u"telegram_user"_q) {
 		return WebPageType::User;
+	} else if (type == u"telegram_botapp"_q) {
+		return WebPageType::BotApp;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {

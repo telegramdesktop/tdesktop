@@ -3543,6 +3543,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_bot" = "View bot";
 "lng_view_button_group" = "View group";
 "lng_view_button_channel" = "View channel";
+"lng_view_button_bot_app" = "Open app";
 "lng_view_button_background" = "View background";
 "lng_view_button_theme" = "View theme";
 "lng_view_button_message" = "View message";
