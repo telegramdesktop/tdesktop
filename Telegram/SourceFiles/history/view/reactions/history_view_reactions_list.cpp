@@ -250,8 +250,8 @@ uint64 Controller::id(
 void Controller::fillWhoRead() {
 	if (_whoReadIds && !_whoReadIds->list.empty() && _whoRead.empty()) {
 		auto &owner = _window->session().data();
-		for (const auto &peerId : _whoReadIds->list) {
-			if (const auto peer = owner.peerLoaded(peerId)) {
+		for (const auto &peerWithDate : _whoReadIds->list) {
+			if (const auto peer = owner.peerLoaded(peerWithDate.peer)) {
 				_whoRead.push_back(peer);
 			}
 		}
