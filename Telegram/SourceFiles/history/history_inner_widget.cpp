@@ -158,7 +158,7 @@ void FillSponsoredMessagesMenu(
 				auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
 					menu,
 					st::defaultMenu,
-					st::historyHasCustomEmoji,
+					st::historySponsorInfoItem,
 					st::historyHasCustomEmojiPosition,
 					base::duplicate(i));
 				item->clicks(
@@ -173,29 +173,14 @@ void FillSponsoredMessagesMenu(
 		CreateAddActionCallback(menu)(MenuCallback::Args{
 			.text = tr::lng_sponsored_info_menu(tr::now),
 			.handler = nullptr,
-			.icon = nullptr,
+			.icon = &st::menuIconChannel,
 			.fillSubmenu = std::move(fillSubmenu),
 		});
-		menu->addSeparator();
+		menu->addSeparator(&st::expandedMenuSeparator);
 	}
-	{
-		auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
-			menu,
-			st::menuWithIcons,
-			st::historyHasCustomEmoji,
-			st::historySponsoredAboutMenuLabelPosition,
-			TextWithEntities{ tr::lng_sponsored_title(tr::now) },
-			&st::menuIconInfo);
-		item->clicks(
-		) | rpl::start_with_next([=] {
-			controller->show(Box(Ui::AboutSponsoredBox));
-		}, item->lifetime());
-		menu->addAction(std::move(item));
-	}
-	menu->addSeparator();
 	menu->addAction(tr::lng_sponsored_hide_ads(tr::now), [=] {
 		Settings::ShowPremium(controller, "no_ads");
-	}, &st::menuIconBlock);
+	}, &st::menuIconCancel);
 }
 
 } // namespace
@@ -2529,6 +2514,21 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(item->history()->peer->isMegagroup() ? tr::lng_context_copy_message_link(tr::now) : tr::lng_context_copy_post_link(tr::now), [=] {
 				HistoryView::CopyPostLink(controller, itemId, HistoryView::Context::History);
 			}, &st::menuIconLink);
+		}
+		if (item && item->isSponsored()) {
+			_menu->addSeparator(&st::expandedMenuSeparator);
+			auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
+				_menu,
+				st::menuWithIcons,
+				st::historyHasCustomEmoji,
+				st::historySponsoredAboutMenuLabelPosition,
+				TextWithEntities{ tr::lng_sponsored_title(tr::now) },
+				&st::menuIconInfo);
+			item->clicks(
+			) | rpl::start_with_next([=] {
+				controller->show(Box(Ui::AboutSponsoredBox));
+			}, item->lifetime());
+			_menu->addAction(std::move(item));
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
