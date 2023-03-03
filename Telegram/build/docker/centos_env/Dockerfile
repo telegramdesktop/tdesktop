@@ -22,10 +22,10 @@ RUN dnf -y install epel-release \
 		python3.11-pip python3.11-devel gperf flex bison clang lld yasm \
 		file which perl-open perl-XML-Parser perl-IPC-Cmd xorg-x11-util-macros \
 		gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils \
-		libffi-devel fontconfig-devel freetype-devel libX11-devel \
-		alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
-		mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel libvdpau-devel \
-		glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
+		gcc-toolset-12-libasan-devel libffi-devel fontconfig-devel freetype-devel \
+		libX11-devel alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel \
+		mesa-libEGL-devel mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel \
+		libvdpau-devel glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
 	&& dnf clean all
 
 SHELL [ "bash", "-c", ". /opt/rh/gcc-toolset-12/enable; exec bash -c \"$@\"", "-s"]
