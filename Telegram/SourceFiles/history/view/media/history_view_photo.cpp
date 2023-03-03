@@ -187,6 +187,10 @@ QSize Photo::countOptimalSize() {
 		minHeight = adjustHeightForLessCrop(
 			dimensions,
 			{ maxWidth, minHeight });
+		if (const auto botTop = _parent->Get<FakeBotAboutTop>()) {
+			accumulate_max(maxWidth, botTop->maxWidth);
+			minHeight += botTop->height;
+		}
 		minHeight += st::mediaCaptionSkip + _caption.minHeight();
 		if (isBubbleBottom()) {
 			minHeight += st::msgPadding.bottom();
@@ -214,11 +218,14 @@ QSize Photo::countCurrentSize(int newWidth) {
 	newWidth = qMax(pix.width(), minWidth);
 	auto newHeight = qMax(pix.height(), st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
-		const auto maxWithCaption = qMin(
-			st::msgMaxWidth,
-			(st::msgPadding.left()
-				+ _caption.maxWidth()
-				+ st::msgPadding.right()));
+		auto captionMaxWidth = st::msgPadding.left()
+			+ _caption.maxWidth()
+			+ st::msgPadding.right();
+		const auto botTop = _parent->Get<FakeBotAboutTop>();
+		if (botTop) {
+			accumulate_max(captionMaxWidth, botTop->maxWidth);
+		}
+		const auto maxWithCaption = qMin(st::msgMaxWidth, captionMaxWidth);
 		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
 		newHeight = adjustHeightForLessCrop(
 			dimensions,
@@ -226,6 +233,9 @@ QSize Photo::countCurrentSize(int newWidth) {
 		const auto captionw = newWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
+		if (botTop) {
+			newHeight += botTop->height;
+		}
 		newHeight += st::mediaCaptionSkip + _caption.countHeight(captionw);
 		if (isBubbleBottom()) {
 			newHeight += st::msgPadding.bottom();
@@ -268,6 +278,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 	const auto radial = isRadialAnimation();
+	const auto botTop = _parent->Get<FakeBotAboutTop>();
 
 	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 	if (_serviceWidth > 0) {
@@ -279,6 +290,9 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		if (bubble) {
 			if (!_caption.isEmpty()) {
 				painth -= st::mediaCaptionSkip + _caption.countHeight(captionw);
+				if (botTop) {
+					painth -= botTop->height;
+				}
 				if (isBubbleBottom()) {
 					painth -= st::msgPadding.bottom();
 				}
@@ -348,10 +362,18 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	if (!_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, _caption);
-		_caption.draw(p, {
-			.position = QPoint(
+		auto top = painty + painth + st::mediaCaptionSkip;
+		if (botTop) {
+			botTop->text.drawLeftElided(
+				p,
 				st::msgPadding.left(),
-				painty + painth + st::mediaCaptionSkip),
+				top,
+				captionw,
+				_parent->width());
+			top += botTop->height;
+		}
+		_caption.draw(p, {
+			.position = QPoint(st::msgPadding.left(), top),
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
@@ -591,6 +613,9 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 				captionw,
 				request.forText()));
 			return result;
+		}
+		if (const auto botTop = _parent->Get<FakeBotAboutTop>()) {
+			painth -= botTop->height;
 		}
 		painth -= st::mediaCaptionSkip;
 	}

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/click_handler_types.h"
 #include "history/history.h"
+#include "history/admin_log/history_admin_log_item.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
@@ -326,41 +327,100 @@ public:
 
 };
 
-class HistoryInner::BotAbout : public ClickHandlerHost {
+class HistoryInner::BotAbout final : public ClickHandlerHost {
 public:
-	BotAbout(not_null<HistoryInner*> parent, not_null<BotInfo*> info);
+	BotAbout(
+		not_null<History*> history,
+		not_null<HistoryView::ElementDelegate*> delegate);
 
-	// ClickHandlerHost interface
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+	[[nodiscard]] not_null<History*> history() const;
+	[[nodiscard]] HistoryView::Element *view() const;
+	[[nodiscard]] HistoryItem *item() const;
 
-	not_null<BotInfo*> info;
-	int width = 0;
+	bool refresh();
+
+	int top = 0;
 	int height = 0;
-	QRect rect;
 
 private:
-	not_null<HistoryInner*>  _parent;
+	const not_null<History*> _history;
+	const not_null<HistoryView::ElementDelegate*> _delegate;
+	AdminLog::OwnedItem _item;
+	int _version = 0;
 
 };
 
 HistoryInner::BotAbout::BotAbout(
-	not_null<HistoryInner*> parent,
-	not_null<BotInfo*> info)
-: info(info)
-, _parent(parent) {
+	not_null<History*> history,
+	not_null<HistoryView::ElementDelegate*> delegate)
+: _history(history)
+, _delegate(delegate) {
 }
 
-void HistoryInner::BotAbout::clickHandlerActiveChanged(
-		const ClickHandlerPtr &p,
-		bool active) {
-	_parent->update(rect);
+not_null<History*> HistoryInner::BotAbout::history() const {
+	return _history;
 }
 
-void HistoryInner::BotAbout::clickHandlerPressedChanged(
-		const ClickHandlerPtr &p,
-		bool pressed) {
-	_parent->update(rect);
+HistoryView::Element *HistoryInner::BotAbout::view() const {
+	return _item.get();
+}
+
+HistoryItem *HistoryInner::BotAbout::item() const {
+	if (const auto element = view()) {
+		return element->data();
+	}
+	return nullptr;
+}
+
+bool HistoryInner::BotAbout::refresh() {
+	const auto bot = _history->peer->asUser();
+	const auto info = bot ? bot->botInfo.get() : nullptr;
+	if (!info) {
+		if (_item) {
+			_item = {};
+			return true;
+		}
+		_version = 0;
+		return false;
+	}
+	const auto version = info->descriptionVersion;
+	if (_version == version) {
+		return false;
+	}
+	_version = version;
+
+	const auto flags = MessageFlag::FakeBotAbout
+		| MessageFlag::FakeHistoryItem
+		| MessageFlag::Local;
+	const auto postAuthor = QString();
+	const auto date = TimeId(0);
+	const auto replyTo = MsgId(0);
+	const auto viaBotId = UserId(0);
+	const auto groupedId = uint64(0);
+	const auto textWithEntities = TextUtilities::ParseEntities(
+		info->description,
+		Ui::ItemTextBotNoMonoOptions().flags);
+	const auto make = [&](auto &&a, auto &&b, auto &&...other) {
+		return _history->makeMessage(
+			_history->nextNonHistoryEntryId(),
+			flags,
+			replyTo,
+			viaBotId,
+			date,
+			bot->id,
+			postAuthor,
+			std::forward<decltype(a)>(a),
+			std::forward<decltype(b)>(b),
+			HistoryMessageMarkupData(),
+			std::forward<decltype(other)>(other)...);
+	};
+	const auto item = info->document
+		? make(info->document, textWithEntities)
+		: info->photo
+		? make(info->photo, textWithEntities)
+		: make(textWithEntities, MTP_messageMediaEmpty(), groupedId);
+	_item = AdminLog::OwnedItem(_delegate, item);
+	return true;
 }
 
 HistoryInner::HistoryInner(
@@ -971,41 +1031,10 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 	const auto historyDisplayedEmpty = _history->isDisplayedEmpty()
 		&& (!_migrated || _migrated->isDisplayedEmpty());
-	if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
-		const auto st = context.st;
-		const auto stm = &st->messageStyle(false, false);
-		if (clip.y() < _botAbout->rect.y() + _botAbout->rect.height() && clip.y() + clip.height() > _botAbout->rect.y()) {
-			p.setTextPalette(stm->textPalette);
-			using Corner = Ui::BubbleCornerRounding;
-			const auto rounding = Ui::BubbleRounding{
-				Corner::Large,
-				Corner::Large,
-				Corner::Large,
-				Corner::Large,
-			};
-			Ui::PaintBubble(p, Ui::SimpleBubble{
-				.st = st,
-				.geometry = _botAbout->rect,
-				.pattern = context.bubblesPattern,
-				.patternViewport = context.viewport,
-				.outerWidth = width(),
-				.selected = false,
-				.outbg = false,
-				.rounding = rounding,
-			});
-
-			auto top = _botAbout->rect.top() + st::msgPadding.top();
-			if (!_history->peer->isRepliesChat()) {
-				p.setFont(st::msgNameFont);
-				p.setPen(st->dialogsNameFg());
-				p.drawText(_botAbout->rect.left() + st::msgPadding.left(), top + st::msgNameFont->ascent, tr::lng_bot_description(tr::now));
-				top += +st::msgNameFont->height + st::botDescSkip;
-			}
-
-			p.setPen(stm->historyTextFg);
-			_botAbout->info->text.draw(p, _botAbout->rect.left() + st::msgPadding.left(), top, _botAbout->width);
-
-			p.restoreTextPalette();
+	if (const auto view = _botAbout ? _botAbout->view() : nullptr) {
+		if (clip.y() < _botAbout->top + _botAbout->height
+			&& clip.y() + clip.height() > _botAbout->top) {
+			view->draw(p, context);
 		}
 	} else if (historyDisplayedEmpty) {
 		paintEmpty(p, context.st, width(), height());
@@ -2939,9 +2968,11 @@ void HistoryInner::recountHistoryGeometry() {
 	}
 
 	const auto visibleHeight = _scroll->height();
-	int oldHistoryPaddingTop = qMax(visibleHeight - historyHeight() - st::historyPaddingBottom, 0);
-	if (_botAbout && !_botAbout->info->text.isEmpty()) {
-		accumulate_max(oldHistoryPaddingTop, st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height);
+	auto oldHistoryPaddingTop = qMax(
+		visibleHeight - historyHeight() - st::historyPaddingBottom,
+		0);
+	if (_botAbout) {
+		accumulate_max(oldHistoryPaddingTop, _botAbout->height);
 	}
 
 	_history->resizeToWidth(_contentWidth);
@@ -2968,39 +2999,20 @@ void HistoryInner::recountHistoryGeometry() {
 	}
 
 	updateBotInfo(false);
-	if (_botAbout && !_botAbout->info->text.isEmpty()) {
-		int32 tw = _scroll->width() - st::msgMargin.left() - st::msgMargin.right();
-		if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
-		tw -= st::msgPadding.left() + st::msgPadding.right();
-		const auto descriptionWidth = _history->peer->isRepliesChat()
-			? 0
-			: st::msgNameFont->width(tr::lng_bot_description(tr::now));
-		int32 mw = qMax(_botAbout->info->text.maxWidth(), descriptionWidth);
-		if (tw > mw) tw = mw;
-
-		_botAbout->width = tw;
-		_botAbout->height = _botAbout->info->text.countHeight(_botAbout->width);
-
-		const auto descriptionHeight = _history->peer->isRepliesChat()
-			? 0
-			: (st::msgNameFont->height + st::botDescSkip);
-		int32 descH = st::msgMargin.top() + st::msgPadding.top() + descriptionHeight + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
-		int32 descMaxWidth = _scroll->width();
-		if (_isChatWide) {
-			descMaxWidth = qMin(descMaxWidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-		}
-		int32 descAtX = (descMaxWidth - _botAbout->width) / 2 - st::msgPadding.left();
-		int32 descAtY = qMin(_historyPaddingTop - descH, qMax(0, (_scroll->height() - descH) / 2)) + st::msgMargin.top();
-
-		_botAbout->rect = QRect(descAtX, descAtY, _botAbout->width + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
+	if (const auto view = _botAbout ? _botAbout->view() : nullptr) {
+		_botAbout->height = view->resizeGetHeight(_contentWidth);
+		_botAbout->top = qMin(
+			_historyPaddingTop - _botAbout->height,
+			qMax(0, (_scroll->height() - _botAbout->height) / 2));
 	} else if (_botAbout) {
-		_botAbout->width = _botAbout->height = 0;
-		_botAbout->rect = QRect();
+		_botAbout->top = _botAbout->height = 0;
 	}
 
-	int newHistoryPaddingTop = qMax(visibleHeight - historyHeight() - st::historyPaddingBottom, 0);
-	if (_botAbout && !_botAbout->info->text.isEmpty()) {
-		accumulate_max(newHistoryPaddingTop, st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height);
+	auto newHistoryPaddingTop = qMax(
+		visibleHeight - historyHeight() - st::historyPaddingBottom,
+		0);
+	if (_botAbout) {
+		accumulate_max(newHistoryPaddingTop, _botAbout->height);
 	}
 
 	auto historyPaddingTopDelta = (newHistoryPaddingTop - oldHistoryPaddingTop);
@@ -3014,47 +3026,14 @@ void HistoryInner::recountHistoryGeometry() {
 }
 
 void HistoryInner::updateBotInfo(bool recount) {
-	int newh = 0;
-	if (_botAbout && !_botAbout->info->description.isEmpty()) {
-		if (_botAbout->info->text.isEmpty()) {
-			_botAbout->info->text.setText(
-				st::messageTextStyle,
-				_botAbout->info->description,
-				Ui::ItemTextBotNoMonoOptions());
-			if (recount) {
-				int32 tw = _scroll->width() - st::msgMargin.left() - st::msgMargin.right();
-				if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
-				tw -= st::msgPadding.left() + st::msgPadding.right();
-				const auto descriptionWidth = _history->peer->isRepliesChat()
-					? 0
-					: st::msgNameFont->width(tr::lng_bot_description(tr::now));
-				int32 mw = qMax(_botAbout->info->text.maxWidth(), descriptionWidth);
-				if (tw > mw) tw = mw;
-
-				_botAbout->width = tw;
-				newh = _botAbout->info->text.countHeight(_botAbout->width);
-			}
-		} else if (recount) {
-			newh = _botAbout->height;
-		}
-	}
-	if (recount && _botAbout) {
-		if (_botAbout->height != newh) {
-			_botAbout->height = newh;
+	if (!_botAbout) {
+		return;
+	} else if (_botAbout->refresh() && recount && _contentWidth > 0) {
+		const auto view = _botAbout->view();
+		const auto now = view ? view->resizeGetHeight(_contentWidth) : 0;
+		if (_botAbout->height != now) {
+			_botAbout->height = now;
 			updateSize();
-		}
-		if (_botAbout->height > 0) {
-			const auto descriptionHeight = _history->peer->isRepliesChat()
-				? 0
-				: (st::msgNameFont->height + st::botDescSkip);
-			int32 descH = st::msgMargin.top() + st::msgPadding.top() + descriptionHeight + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
-			int32 descAtX = (_scroll->width() - _botAbout->width) / 2 - st::msgPadding.left();
-			int32 descAtY = qMin(_historyPaddingTop - descH, (_scroll->height() - descH) / 2) + st::msgMargin.top();
-
-			_botAbout->rect = QRect(descAtX, descAtY, _botAbout->width + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
-		} else {
-			_botAbout->width = 0;
-			_botAbout->rect = QRect();
 		}
 	}
 }
@@ -3200,24 +3179,15 @@ void HistoryInner::changeItemsRevealHeight(int revealHeight) {
 void HistoryInner::updateSize() {
 	const auto visibleHeight = _scroll->height();
 	const auto itemsHeight = historyHeight() - _revealHeight;
-	int newHistoryPaddingTop = qMax(visibleHeight - itemsHeight - st::historyPaddingBottom, 0);
-	if (_botAbout && !_botAbout->info->text.isEmpty()) {
-		accumulate_max(newHistoryPaddingTop, st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + _botAbout->height);
+	auto newHistoryPaddingTop = qMax(visibleHeight - itemsHeight - st::historyPaddingBottom, 0);
+	if (_botAbout) {
+		accumulate_max(newHistoryPaddingTop, _botAbout->height);
 	}
 
 	if (_botAbout && _botAbout->height > 0) {
-		const auto descriptionHeight = _history->peer->isRepliesChat()
-			? 0
-			: (st::msgNameFont->height + st::botDescSkip);
-		int32 descH = st::msgMargin.top() + st::msgPadding.top() + descriptionHeight + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
-		int32 descMaxWidth = _scroll->width();
-		if (_isChatWide) {
-			descMaxWidth = qMin(descMaxWidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-		}
-		int32 descAtX = (descMaxWidth - _botAbout->width) / 2 - st::msgPadding.left();
-		int32 descAtY = qMin(newHistoryPaddingTop - descH, qMax(0, (_scroll->height() - descH) / 2)) + st::msgMargin.top();
-
-		_botAbout->rect = QRect(descAtX, descAtY, _botAbout->width + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
+		_botAbout->top = qMin(
+			newHistoryPaddingTop - _botAbout->height,
+			qMax(0, (_scroll->height() - _botAbout->height) / 2));
 	}
 
 	if (_historyPaddingTop != newHistoryPaddingTop) {
@@ -3261,6 +3231,7 @@ void HistoryInner::leaveEventHook(QEvent *e) {
 }
 
 HistoryInner::~HistoryInner() {
+	_botAbout = nullptr;
 	for (const auto &item : _animatedStickersPlayed) {
 		if (const auto view = item->mainView()) {
 			if (const auto media = view->media()) {
@@ -3632,12 +3603,15 @@ void HistoryInner::mouseActionUpdate() {
 		dragState = reactionState;
 		lnkhost = reactionView;
 	} else if (point.y() < _historyPaddingTop) {
-		if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
-			dragState = TextState(nullptr, _botAbout->info->text.getState(
-				point - _botAbout->rect.topLeft() - QPoint(st::msgPadding.left(), st::msgPadding.top() + st::botDescSkip + st::msgNameFont->height),
-				_botAbout->width));
+		if (const auto view = _botAbout ? _botAbout->view() : nullptr) {
+			StateRequest request;
+			if (base::IsAltPressed()) {
+				request.flags &= ~Ui::Text::StateRequest::Flag::LookupLink;
+			}
+			const auto relative = point - QPoint(0, _botAbout->top);
+			dragState = view->textState(relative, request);
 			_dragStateItem = session().data().message(dragState.itemId);
-			lnkhost = _botAbout.get();
+			lnkhost = view;
 		}
 	} else if (item) {
 		if (item != _mouseActionItem || (m - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
@@ -3947,16 +3921,22 @@ void HistoryInner::setCanHaveFromUserpicsSponsored(bool value) {
 int HistoryInner::itemTop(const HistoryItem *item) const {
 	if (!item) {
 		return -2;
+	} else if (_botAbout && item == _botAbout->item()) {
+		return _botAbout->top;
 	}
 	return itemTop(item->mainView());
 }
 
 int HistoryInner::itemTop(const Element *view) const {
-	if (!view || view->data()->mainView() != view) {
+	if (!view) {
+		return -1;
+	} else if (_botAbout && view == _botAbout->view()) {
+		return _botAbout->top;
+	} else if (view->data()->mainView() != view) {
 		return -1;
 	}
 
-	auto top = (view->history() == _history)
+	const auto top = (view->history() == _history)
 		? historyTop()
 		: (view->history() == _migrated
 			? migratedTop()
@@ -3990,21 +3970,17 @@ auto HistoryInner::findViewForPinnedTracking(int top) const
 }
 
 void HistoryInner::notifyIsBotChanged() {
-	const auto newinfo = _peer->isUser()
-		? _peer->asUser()->botInfo.get()
-		: nullptr;
-	if ((!newinfo && !_botAbout)
-		|| (newinfo && _botAbout && _botAbout->info == newinfo)) {
-		return;
-	}
-
-	if (newinfo) {
-		_botAbout = std::make_unique<BotAbout>(this, newinfo);
-		if (newinfo && !newinfo->inited) {
-			session().api().requestFullPeer(_peer);
+	if (const auto user = _peer->asUser()) {
+		if (const auto info = user->botInfo.get()) {
+			if (!_botAbout) {
+				_botAbout = std::make_unique<BotAbout>(
+					_history,
+					_history->delegateMixin()->delegate());
+			}
+			if (!info->inited) {
+				session().api().requestFullPeer(_peer);
+			}
 		}
-	} else {
-		_botAbout = nullptr;
 	}
 }
 

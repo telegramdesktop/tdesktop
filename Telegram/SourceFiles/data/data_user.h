@@ -24,9 +24,13 @@ struct BotInfo {
 	bool cantJoinGroups = false;
 	bool supportsAttachMenu = false;
 	int version = 0;
-	QString description, inlinePlaceholder;
+	int descriptionVersion = 0;
+	QString description;
+	QString inlinePlaceholder;
 	std::vector<Data::BotCommand> commands;
-	Ui::Text::String text;
+
+	PhotoData *photo = nullptr;
+	DocumentData *document = nullptr;
 
 	QString botMenuButtonText;
 	QString botMenuButtonUrl;

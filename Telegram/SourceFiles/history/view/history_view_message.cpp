@@ -530,6 +530,12 @@ QSize Message::performCountOptimalSize() {
 	refreshInfoSkipBlock();
 
 	const auto media = this->media();
+	const auto botTop = item->isFakeBotAbout()
+		? Get<FakeBotAboutTop>()
+		: nullptr;
+	if (botTop) {
+		botTop->init();
+	}
 
 	auto maxWidth = 0;
 	auto minHeight = 0;
@@ -560,13 +566,14 @@ QSize Message::performCountOptimalSize() {
 		}
 
 		// Entry page is always a bubble bottom.
+		const auto withVisibleText = hasVisibleText();
 		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 		maxWidth = plainMaxWidth();
 		if (context() == Context::Replies && item->isDiscussionPost()) {
 			maxWidth = std::max(maxWidth, st::msgMaxWidth);
 		}
-		minHeight = hasVisibleText() ? text().minHeight() : 0;
+		minHeight = withVisibleText ? text().minHeight() : 0;
 		if (reactionsInBubble) {
 			const auto reactionsMaxWidth = st::msgPadding.left()
 				+ _reactions->maxWidth()
@@ -604,9 +611,14 @@ QSize Message::performCountOptimalSize() {
 				const auto innerWidth = maxWidth
 					- st::msgPadding.left()
 					- st::msgPadding.right();
-				if (hasVisibleText() && maxWidth < plainMaxWidth()) {
-					minHeight -= text().minHeight();
-					minHeight += text().countHeight(innerWidth);
+				if (withVisibleText) {
+					if (botTop) {
+						minHeight += botTop->height;
+					}
+					if (maxWidth < plainMaxWidth()) {
+						minHeight -= text().minHeight();
+						minHeight += text().countHeight(innerWidth);
+					}
 				}
 				if (reactionsInBubble) {
 					minHeight -= _reactions->minHeight();
@@ -677,6 +689,10 @@ QSize Message::performCountOptimalSize() {
 			if (entry) {
 				accumulate_max(maxWidth, entry->maxWidth());
 				minHeight += entry->minHeight();
+			}
+			if (withVisibleText && botTop) {
+				accumulate_max(maxWidth, botTop->maxWidth);
+				minHeight += botTop->height;
 			}
 		}
 		accumulate_max(maxWidth, minWidthForMedia());
@@ -1467,6 +1483,15 @@ void Message::paintText(
 	p.setPen(stm->historyTextFg);
 	p.setFont(st::msgFont);
 	prepareCustomEmojiPaint(p, context, text());
+	if (const auto botTop = Get<FakeBotAboutTop>()) {
+		botTop->text.drawLeftElided(
+			p,
+			trect.x(),
+			trect.y(),
+			trect.width(),
+			width());
+		trect.setY(trect.y() + botTop->height);
+	}
 	text().draw(p, {
 		.position = trect.topLeft(),
 		.availableWidth = trect.width(),
@@ -2281,6 +2306,8 @@ bool Message::getStateText(
 		StateRequest request) const {
 	if (!hasVisibleText()) {
 		return false;
+	} else if (const auto botTop = Get<FakeBotAboutTop>()) {
+		trect.setY(trect.y() + botTop->height);
 	}
 	const auto item = data();
 	if (base::in_range(point.y(), trect.y(), trect.y() + trect.height())) {
@@ -2886,7 +2913,7 @@ bool Message::drawBubble() const {
 	const auto item = data();
 	if (isHidden()) {
 		return false;
-	} else if (logEntryOriginal()) {
+	} else if (logEntryOriginal() || item->isFakeBotAbout()) {
 		return true;
 	}
 	const auto media = this->media();
@@ -3376,8 +3403,9 @@ QRect Message::innerGeometry() const {
 }
 
 QRect Message::countGeometry() const {
-	const auto commentsRoot = (context() == Context::Replies)
-		&& data()->isDiscussionPost();
+	const auto item = data();
+	const auto centeredView = item->isFakeBotAbout()
+		|| (context() == Context::Replies && item->isDiscussionPost());
 	const auto media = this->media();
 	const auto mediaWidth = (media && media->isDisplayed())
 		? media->width()
@@ -3385,7 +3413,7 @@ QRect Message::countGeometry() const {
 	const auto outbg = hasOutLayout();
 	const auto availableWidth = width()
 		- st::msgMargin.left()
-		- (commentsRoot ? st::msgMargin.left() : st::msgMargin.right());
+		- (centeredView ? st::msgMargin.left() : st::msgMargin.right());
 	auto contentLeft = (outbg && !delegate()->elementIsChatWide())
 		? st::msgMargin.right()
 		: st::msgMargin.left();
@@ -3412,10 +3440,10 @@ QRect Message::countGeometry() const {
 	if (contentWidth < availableWidth && !delegate()->elementIsChatWide()) {
 		if (outbg) {
 			contentLeft += availableWidth - contentWidth;
-		} else if (commentsRoot) {
+		} else if (centeredView) {
 			contentLeft += (availableWidth - contentWidth) / 2;
 		}
-	} else if (contentWidth < availableWidth && commentsRoot) {
+	} else if (contentWidth < availableWidth && centeredView) {
 		contentLeft += std::max(
 			((st::msgMaxWidth + 2 * st::msgPhotoSkip) - contentWidth) / 2,
 			0);
@@ -3433,11 +3461,13 @@ Ui::BubbleRounding Message::countMessageRounding() const {
 	const auto smallTop = isBubbleAttachedToPrevious();
 	const auto smallBottom = isBubbleAttachedToNext();
 	const auto media = smallBottom ? nullptr : this->media();
-	const auto keyboard = data()->inlineReplyKeyboard();
+	const auto item = data();
+	const auto keyboard = item->inlineReplyKeyboard();
 	const auto skipTail = smallBottom
 		|| (media && media->skipBubbleTail())
 		|| (keyboard != nullptr)
-		|| (context() == Context::Replies && data()->isDiscussionPost());
+		|| item->isFakeBotAbout()
+		|| (context() == Context::Replies && item->isDiscussionPost());
 	const auto right = !delegate()->elementIsChatWide() && hasOutLayout();
 	using Corner = Ui::BubbleCornerRounding;
 	return Ui::BubbleRounding{
@@ -3480,16 +3510,19 @@ int Message::resizeContentGetHeight(int newWidth) {
 	auto newHeight = minHeight();
 
 	const auto item = data();
+	const auto botTop = item->isFakeBotAbout()
+		? Get<FakeBotAboutTop>()
+		: nullptr;
 	const auto media = this->media();
 	const auto mediaDisplayed = media ? media->isDisplayed() : false;
 	const auto bubble = drawBubble();
 
 	// This code duplicates countGeometry() but also resizes media.
-	const auto commentsRoot = (context() == Context::Replies)
-		&& data()->isDiscussionPost();
+	const auto centeredView = item->isFakeBotAbout()
+		|| (context() == Context::Replies && item->isDiscussionPost());
 	auto contentWidth = newWidth
 		- st::msgMargin.left()
-		- (commentsRoot ? st::msgMargin.left() : st::msgMargin.right());
+		- (centeredView ? st::msgMargin.left() : st::msgMargin.right());
 	if (hasFromPhoto()) {
 		if (const auto size = rightActionSize()) {
 			contentWidth -= size->width() + (st::msgPhotoSkip - st::historyFastShareSize);
@@ -3540,7 +3573,14 @@ int Message::resizeContentGetHeight(int newWidth) {
 				entry->resizeGetHeight(contentWidth);
 			}
 		} else {
-			newHeight = hasVisibleText() ? textHeightFor(textWidth) : 0;
+			const auto withVisibleText = hasVisibleText();
+			newHeight = 0;
+			if (withVisibleText) {
+				if (botTop) {
+					newHeight += botTop->height;
+				}
+				newHeight += textHeightFor(textWidth);
+			}
 			if (!mediaOnBottom && (!_viewButton || !reactionsInBubble)) {
 				newHeight += st::msgPadding.bottom();
 				if (mediaDisplayed) {

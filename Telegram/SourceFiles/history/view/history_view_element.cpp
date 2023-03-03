@@ -354,6 +354,20 @@ void DateBadge::paint(
 	ServiceMessagePainter::PaintDate(p, st, text, width, y, w, chatWide);
 }
 
+void FakeBotAboutTop::init() {
+	if (!text.isEmpty()) {
+		return;
+	}
+	text.setText(
+		st::msgNameStyle,
+		tr::lng_bot_description(tr::now),
+		Ui::NameTextOptions());
+	maxWidth = st::msgPadding.left()
+		+ text.maxWidth()
+		+ st::msgPadding.right();
+	height = st::msgNameStyle.font->height + st::botDescSkip;
+}
+
 Element::Element(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryItem*> data,
@@ -375,6 +389,9 @@ Element::Element(
 	refreshMedia(replacing);
 	if (_context == Context::History) {
 		history()->setHasPendingResizedItems();
+	}
+	if (data->isFakeBotAbout() && !data->history()->peer->isRepliesChat()) {
+		AddComponents(FakeBotAboutTop::Bit());
 	}
 }
 

@@ -32,8 +32,7 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
-BotInfo::BotInfo() : text(st::msgMinWidth) {
-}
+BotInfo::BotInfo() = default;
 
 UserData::UserData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
@@ -188,10 +187,30 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			return;
 		}
 
-		QString desc = qs(d.vdescription().value_or_empty());
-		if (botInfo->description != desc) {
-			botInfo->description = desc;
-			botInfo->text = Ui::Text::String(st::msgMinWidth);
+		const auto description = qs(d.vdescription().value_or_empty());
+		if (botInfo->description != description) {
+			botInfo->description = description;
+			++botInfo->descriptionVersion;
+		}
+		if (const auto photo = d.vdescription_photo()) {
+			const auto parsed = owner().processPhoto(*photo);
+			if (botInfo->photo != parsed) {
+				botInfo->photo = parsed;
+				++botInfo->descriptionVersion;
+			}
+		} else if (botInfo->photo) {
+			botInfo->photo = nullptr;
+			++botInfo->descriptionVersion;
+		}
+		if (const auto document = d.vdescription_document()) {
+			const auto parsed = owner().processDocument(*document);
+			if (botInfo->document != parsed) {
+				botInfo->document = parsed;
+				++botInfo->descriptionVersion;
+			}
+		} else if (botInfo->document) {
+			botInfo->document = nullptr;
+			++botInfo->descriptionVersion;
 		}
 
 		auto commands = d.vcommands()

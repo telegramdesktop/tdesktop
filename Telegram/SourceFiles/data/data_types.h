@@ -293,6 +293,9 @@ enum class MessageFlag : uint64 {
 
 	OnlyEmojiAndSpaces    = (1ULL << 34),
 	OnlyEmojiAndSpacesSet = (1ULL << 35),
+
+	// Fake message with bot cover and information.
+	FakeBotAbout          = (1ULL << 36),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;
