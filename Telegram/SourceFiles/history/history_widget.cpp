@@ -2065,6 +2065,7 @@ void HistoryWidget::showHistory(
 			}
 			return;
 		} else {
+			_sponsoredMessagesStateKnown = false;
 			session().data().sponsoredMessages().clearItems(_history);
 			session().data().hideShownSpoilers();
 			_composeSearch = nullptr;
@@ -2299,6 +2300,7 @@ void HistoryWidget::showHistory(
 				auto &sponsored = session().data().sponsoredMessages();
 				using State = Data::SponsoredMessages::State;
 				const auto state = sponsored.state(_history);
+				_sponsoredMessagesStateKnown = (state != State::None);
 				if (state == State::AppendToEnd) {
 					_scroll->setTrackingContent(
 						sponsored.canHaveFor(_history));
@@ -3074,7 +3076,7 @@ void HistoryWidget::messagesReceived(
 		int requestId) {
 	Expects(_history != nullptr);
 
-	bool toMigrated = (peer == _peer->migrateFrom());
+	const auto toMigrated = (peer == _peer->migrateFrom());
 	if (peer != _peer && !toMigrated) {
 		if (_preloadRequest == requestId) {
 			_preloadRequest = 0;
@@ -3148,6 +3150,7 @@ void HistoryWidget::messagesReceived(
 		}
 
 		historyLoaded();
+		injectSponsoredMessages();
 	} else if (_delayedShowAtRequest == requestId) {
 		if (toMigrated) {
 			_history->clear(History::ClearType::Unload);
@@ -3352,7 +3355,7 @@ void HistoryWidget::loadMessagesDown() {
 
 	auto loadMigrated = _migrated && !(_migrated->isEmpty() || _migrated->loadedAtBottom() || (!_history->isEmpty() && !_history->loadedAtTop()));
 	auto from = loadMigrated ? _migrated : _history;
-	if (from->loadedAtBottom()) {
+	if (from->loadedAtBottom() && _sponsoredMessagesStateKnown) {
 		session().data().sponsoredMessages().request(_history, nullptr);
 		return;
 	}

@@ -793,6 +793,8 @@ private:
 		ItemRevealAnimation> _itemRevealAnimations;
 	int _itemsRevealHeight = 0;
 
+	bool _sponsoredMessagesStateKnown = false;
+
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;
 
