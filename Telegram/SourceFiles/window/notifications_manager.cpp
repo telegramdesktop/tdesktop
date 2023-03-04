@@ -40,6 +40,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QWindow>
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include <giomm.h>
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
 namespace Window {
 namespace Notifications {
 namespace {
@@ -85,7 +89,13 @@ base::options::toggle OptionGNotification({
 	.name = "GNotification",
 	.description = "Force enable GLib's GNotification."
 		" When disabled, autodetect is used.",
-	.scope = base::options::linux,
+	.scope = [] {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+		return bool(Gio::Application::get_default());
+#else // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+		return false;
+#endif // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	},
 	.restartRequired = true,
 });
 
