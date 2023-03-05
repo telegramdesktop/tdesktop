@@ -243,14 +243,12 @@ bool ShowPassportForm(
 	const auto nonce = params.value(
 		Passport::NonceNameByScope(scope),
 		QString());
-	const auto errors = params.value("errors", QString());
 	controller->showPassportForm(Passport::FormRequest(
 		botId,
 		scope,
 		callback,
 		publicKey,
-		nonce,
-		errors));
+		nonce));
 	return true;
 }
 

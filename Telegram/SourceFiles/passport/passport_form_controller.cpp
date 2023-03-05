@@ -315,14 +315,12 @@ FormRequest::FormRequest(
 	const QString &scope,
 	const QString &callbackUrl,
 	const QString &publicKey,
-	const QString &nonce,
-	const QString &errors)
+	const QString &nonce)
 : botId(botId)
 , scope(scope)
 , callbackUrl(ValidateUrl(callbackUrl))
 , publicKey(publicKey)
-, nonce(nonce)
-, errors(errors) {
+, nonce(nonce) {
 }
 
 EditFile::EditFile(
