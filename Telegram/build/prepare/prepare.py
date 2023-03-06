@@ -875,8 +875,8 @@ win:
 stage('ffmpeg', """
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
+    git checkout 7268323193
 win:
-    git checkout cc33e73618
     SET PATH_BACKUP_=%PATH%
     SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
 
@@ -888,7 +888,6 @@ depends:patches/build_ffmpeg_win.sh
 
     SET PATH=%PATH_BACKUP_%
 mac:
-    git checkout 7268323193
     export PKG_CONFIG_PATH=$USED_PREFIX/lib/pkgconfig
 depends:yasm/yasm
 
