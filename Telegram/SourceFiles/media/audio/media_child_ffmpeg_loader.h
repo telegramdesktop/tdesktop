@@ -35,7 +35,7 @@ public:
 		return true;
 	}
 
-	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
+	ReadResult readMore() override;
 	void enqueuePackets(std::deque<FFmpeg::Packet> &&packets) override;
 	void setForceToBuffer(bool force) override;
 	bool forceToBuffer() const override;
@@ -50,9 +50,7 @@ private:
 	// Streaming player reads first frame by itself and provides it together
 	// with the codec context. So we first read data from this frame and
 	// only after that we try to read next packets.
-	ReadResult readFromInitialFrame(
-		QByteArray &result,
-		int64 &samplesAdded);
+	ReadResult readFromInitialFrame();
 
 	std::unique_ptr<ExternalSoundData> _parentData;
 	std::deque<FFmpeg::Packet> _queue;

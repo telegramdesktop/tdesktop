@@ -29,38 +29,27 @@ bool ChildFFMpegLoader::open(crl::time positionMs) {
 		_parentData->frequency);
 }
 
-AudioPlayerLoader::ReadResult ChildFFMpegLoader::readFromInitialFrame(
-		QByteArray &result,
-		int64 &samplesAdded) {
+AudioPlayerLoader::ReadResult ChildFFMpegLoader::readFromInitialFrame() {
 	if (!_parentData->frame) {
-		return ReadResult::Wait;
+		return ReadError::Wait;
 	}
-	return replaceFrameAndRead(
-		base::take(_parentData->frame),
-		result,
-		samplesAdded);
+	return replaceFrameAndRead(base::take(_parentData->frame));
 }
 
-AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(
-	QByteArray & result,
-	int64 & samplesAdded) {
-	const auto initialFrameResult = readFromInitialFrame(
-		result,
-		samplesAdded);
-	if (initialFrameResult != ReadResult::Wait) {
+auto ChildFFMpegLoader::readMore() -> ReadResult {
+	const auto initialFrameResult = readFromInitialFrame();
+	if (initialFrameResult != ReadError::Wait) {
 		return initialFrameResult;
 	}
 
 	const auto readResult = readFromReadyContext(
-		_parentData->codec.get(),
-		result,
-		samplesAdded);
-	if (readResult != ReadResult::Wait) {
+		_parentData->codec.get());
+	if (readResult != ReadError::Wait) {
 		return readResult;
 	}
 
 	if (_queue.empty()) {
-		return _eofReached ? ReadResult::EndOfFile : ReadResult::Wait;
+		return _eofReached ? ReadError::EndOfFile : ReadError::Wait;
 	}
 
 	auto packet = std::move(_queue.front());
@@ -69,7 +58,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(
 	_eofReached = packet.empty();
 	if (_eofReached) {
 		avcodec_send_packet(_parentData->codec.get(), nullptr); // drain
-		return ReadResult::Ok;
+		return bytes::const_span();
 	}
 
 	auto res = avcodec_send_packet(
@@ -86,11 +75,11 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(
 		// There is a sample voice message where skipping such packet
 		// results in a crash (read_access to nullptr) in swr_convert().
 		if (res == AVERROR_INVALIDDATA) {
-			return ReadResult::NotYet; // try to skip bad packet
+			return ReadError::NotYet; // try to skip bad packet
 		}
-		return ReadResult::Error;
+		return ReadError::Other;
 	}
-	return ReadResult::Ok;
+	return bytes::const_span();
 }
 
 void ChildFFMpegLoader::enqueuePackets(

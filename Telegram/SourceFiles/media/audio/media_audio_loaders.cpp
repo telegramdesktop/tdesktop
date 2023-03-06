@@ -166,15 +166,25 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 	auto waiting = false;
 	auto errAtStart = started;
 
-	QByteArray samples;
-	int64 samplesCount = 0;
+	auto accumulated = QByteArray();
+	auto accumulatedCount = 0;
 	if (l->holdsSavedDecodedSamples()) {
-		l->takeSavedDecodedSamples(&samples, &samplesCount);
+		l->takeSavedDecodedSamples(&accumulated);
+		accumulatedCount = accumulated.size() / l->sampleSize();
 	}
-	while (samples.size() < kPlaybackBufferSize) {
-		auto res = l->readMore(samples, samplesCount);
-		using Result = AudioPlayerLoader::ReadResult;
-		if (res == Result::Error) {
+	while (accumulated.size() < kPlaybackBufferSize) {
+		const auto result = l->readMore();
+		const auto sampleBytes = v::is<bytes::const_span>(result)
+			? v::get<bytes::const_span>(result)
+			: bytes::const_span();
+		if (!sampleBytes.empty()) {
+			accumulated.append(
+				reinterpret_cast<const char*>(sampleBytes.data()),
+				sampleBytes.size());
+			accumulatedCount += sampleBytes.size() / l->sampleSize();
+		}
+		using Error = AudioPlayerLoader::ReadError;
+		if (result == Error::Other) {
 			if (errAtStart) {
 				{
 					QMutexLocker lock(internal::audioPlayerMutex());
@@ -187,18 +197,18 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 			}
 			finished = true;
 			break;
-		} else if (res == Result::EndOfFile) {
+		} else if (result == Error::EndOfFile) {
 			finished = true;
 			break;
-		} else if (res == Result::Ok) {
-			errAtStart = false;
-		} else if (res == Result::Wait) {
-			waiting = (samples.size() < kPlaybackBufferSize)
-				&& (!samplesCount || !l->forceToBuffer());
+		} else if (result == Error::Wait) {
+			waiting = (accumulated.size() < kPlaybackBufferSize)
+				&& (accumulated.isEmpty() || !l->forceToBuffer());
 			if (waiting) {
-				l->saveDecodedSamples(&samples, &samplesCount);
+				l->saveDecodedSamples(&accumulated);
 			}
 			break;
+		} else if (v::is<bytes::const_span>(result)) {
+			errAtStart = false;
 		}
 
 		QMutexLocker lock(internal::audioPlayerMutex());
@@ -215,7 +225,7 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		return;
 	}
 
-	if (started || samplesCount) {
+	if (started || !accumulated.isEmpty()) {
 		Audio::AttachToDevice();
 	}
 	if (started) {
@@ -234,7 +244,7 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		track->state.position = position;
 		track->fadeStartPosition = position;
 	}
-	if (samplesCount) {
+	if (!accumulated.isEmpty()) {
 		track->ensureStreamCreated(type);
 
 		auto bufferIndex = track->getNotQueuedBufferIndex();
@@ -246,18 +256,26 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		}
 
 		if (bufferIndex < 0) { // No free buffers, wait.
-			l->saveDecodedSamples(&samples, &samplesCount);
+			l->saveDecodedSamples(&accumulated);
 			return;
 		} else if (l->forceToBuffer()) {
 			l->setForceToBuffer(false);
 		}
 
-		track->bufferSamples[bufferIndex] = samples;
-		track->samplesCount[bufferIndex] = samplesCount;
-		track->bufferedLength += samplesCount;
-		alBufferData(track->stream.buffers[bufferIndex], track->format, samples.constData(), samples.size(), track->frequency);
+		track->bufferSamples[bufferIndex] = accumulated;
+		track->samplesCount[bufferIndex] = accumulatedCount;
+		track->bufferedLength += accumulatedCount;
+		alBufferData(
+			track->stream.buffers[bufferIndex],
+			track->format,
+			accumulated.constData(),
+			accumulated.size(),
+			track->frequency);
 
-		alSourceQueueBuffers(track->stream.source, 1, track->stream.buffers + bufferIndex);
+		alSourceQueueBuffers(
+			track->stream.source,
+			1,
+			track->stream.buffers + bufferIndex);
 
 		if (!internal::audioCheckError()) {
 			setStoppedState(track, State::StoppedAtError);

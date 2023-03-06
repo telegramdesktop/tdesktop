@@ -96,6 +96,10 @@ public:
 		return _swrDstRate;
 	}
 
+	int sampleSize() override {
+		return _outputSampleSize;
+	}
+
 	int format() override {
 		return _outputFormat;
 	}
@@ -107,34 +111,19 @@ protected:
 		not_null<AVCodecContext *> context,
 		int64 initialCount,
 		int initialFrequency);
-	ReadResult readFromReadyContext(
-		not_null<AVCodecContext *> context,
-		QByteArray &result,
-		int64 &samplesAdded);
+	[[nodiscard]] ReadResult readFromReadyContext(
+		not_null<AVCodecContext*> context);
 
 	// Streaming player provides the first frame to the ChildFFMpegLoader
 	// so we replace our allocated frame with the one provided.
-	ReadResult replaceFrameAndRead(
-		FFmpeg::FramePointer frame,
-		QByteArray &result,
-		int64 &samplesAdded);
-
-	int sampleSize() const {
-		return _outputSampleSize;
-	}
+	[[nodiscard]] ReadResult replaceFrameAndRead(FFmpeg::FramePointer frame);
 
 private:
-	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
+	[[nodiscard]] ReadResult readFromReadyFrame();
 	bool frameHasDesiredFormat() const;
 	bool initResampleForFrame();
 	bool initResampleUsingFormat();
 	bool ensureResampleSpaceAvailable(int samples);
-
-	void appendSamples(
-		QByteArray &result,
-		int64 &samplesAdded,
-		uint8_t **data,
-		int count) const;
 
 	FFmpeg::FramePointer _frame;
 	int _outputFormat = AL_FORMAT_STEREO16;
@@ -171,7 +160,7 @@ public:
 
 	bool open(crl::time positionMs) override;
 
-	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
+	ReadResult readMore() override;
 
 	~FFMpegLoader();
 

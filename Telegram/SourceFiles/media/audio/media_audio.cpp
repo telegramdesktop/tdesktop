@@ -1677,6 +1677,10 @@ public:
 		//}
 	}
 
+	int sampleSize() override {
+		Unexpected("We shouldn't try to read sample size here.");
+	}
+
 	int format() override {
 		return 0;
 	}
@@ -1701,9 +1705,9 @@ public:
 		return _coverFormat;
 	}
 
-	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override {
+	ReadResult readMore() override {
 		DEBUG_LOG(("Audio Read Error: should not call this"));
-		return ReadResult::Error;
+		return ReadError::Other;
 	}
 
 	~FFMpegAttributesReader() {
@@ -1770,24 +1774,23 @@ public:
 			}
 		};
 		while (processed < countbytes) {
-			buffer.resize(0);
-
-			int64 samples = 0;
-			auto res = readMore(buffer, samples);
-			if (res == ReadResult::Error || res == ReadResult::EndOfFile) {
+			const auto result = readMore();
+			const auto sampleBytes = v::is<bytes::const_span>(result)
+				? v::get<bytes::const_span>(result)
+				: bytes::const_span();
+			if (result == ReadError::Other
+				|| result == ReadError::EndOfFile) {
 				break;
-			}
-			if (buffer.isEmpty()) {
+			} else if (sampleBytes.empty()) {
 				continue;
 			}
 
-			auto sampleBytes = bytes::make_span(buffer);
 			if (fmt == AL_FORMAT_MONO8 || fmt == AL_FORMAT_STEREO8) {
 				Media::Audio::IterateSamples<uchar>(sampleBytes, callback);
 			} else if (fmt == AL_FORMAT_MONO16 || fmt == AL_FORMAT_STEREO16) {
 				Media::Audio::IterateSamples<int16>(sampleBytes, callback);
 			}
-			processed += sampleSize() * samples;
+			processed += sampleBytes.size();
 		}
 		if (sumbytes > 0 && peaks.size() < Media::Player::kWaveformSamplesCount) {
 			peaks.push_back(peak);

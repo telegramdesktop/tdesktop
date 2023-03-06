@@ -26,18 +26,18 @@ public:
 	virtual bool open(crl::time positionMs) = 0;
 	virtual int64 samplesCount() = 0;
 	virtual int samplesFrequency() = 0;
+	virtual int sampleSize() = 0;
 	virtual int format() = 0;
 
-	enum class ReadResult {
-		Error,
+	enum class ReadError {
+		Other,
 		NotYet,
-		Ok,
 		Wait,
 		EndOfFile,
 	};
-	virtual ReadResult readMore(
-		QByteArray &samples,
-		int64 &samplesCount) = 0;
+	using ReadResult = std::variant<bytes::const_span, ReadError>;
+	[[nodiscard]] virtual ReadResult readMore() = 0;
+
 	virtual void enqueuePackets(std::deque<FFmpeg::Packet> &&packets) {
 		Unexpected("enqueuePackets() call on not ChildFFMpegLoader.");
 	}
@@ -48,12 +48,8 @@ public:
 		return false;
 	}
 
-	void saveDecodedSamples(
-		not_null<QByteArray*> samples,
-		not_null<int64*> samplesCount);
-	void takeSavedDecodedSamples(
-		not_null<QByteArray*> samples,
-		not_null<int64*> samplesCount);
+	void saveDecodedSamples(not_null<QByteArray*> samples);
+	void takeSavedDecodedSamples(not_null<QByteArray*> samples);
 	bool holdsSavedDecodedSamples() const;
 
 protected:
@@ -69,7 +65,6 @@ protected:
 
 private:
 	QByteArray _savedSamples;
-	int64 _savedSamplesCount = 0;
 	bool _holdsSavedSamples = false;
 
 };

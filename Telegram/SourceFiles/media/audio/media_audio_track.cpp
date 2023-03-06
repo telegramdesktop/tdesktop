@@ -77,12 +77,13 @@ void Track::fillFromData(bytes::vector &&data) {
 		}
 	};
 	do {
-		auto buffer = QByteArray();
-		auto samplesAdded = int64(0);
-		auto result = loader.readMore(buffer, samplesAdded);
-		if (samplesAdded > 0) {
-			auto sampleBytes = bytes::make_span(buffer);
-			_samplesCount += samplesAdded;
+		using Error = AudioPlayerLoader::ReadError;
+		const auto result = loader.readMore();
+		const auto sampleBytes = v::is<bytes::const_span>(result)
+			? v::get<bytes::const_span>(result)
+			: bytes::const_span();
+		if (!sampleBytes.empty()) {
+			_samplesCount += sampleBytes.size() / loader.sampleSize();
 			_samples.insert(_samples.end(), sampleBytes.data(), sampleBytes.data() + sampleBytes.size());
 			if (peaksCount) {
 				if (format == AL_FORMAT_MONO8 || format == AL_FORMAT_STEREO8) {
@@ -91,17 +92,12 @@ void Track::fillFromData(bytes::vector &&data) {
 					Media::Audio::IterateSamples<int16>(sampleBytes, peakCallback);
 				}
 			}
-		}
-
-		using Result = AudioPlayerLoader::ReadResult;
-		switch (result) {
-		case Result::Error:
-		case Result::NotYet:
-		case Result::Wait: {
+		} else if (result == Error::Other
+			|| result == Error::NotYet
+			|| result == Error::Wait) {
 			_failed = true;
-		} break;
 		}
-		if (result != Result::Ok) {
+		if (!v::is<bytes::const_span>(result)) {
 			break;
 		}
 	} while (true);

@@ -288,26 +288,22 @@ bool AbstractAudioFFMpegLoader::initUsingContext(
 }
 
 auto AbstractAudioFFMpegLoader::replaceFrameAndRead(
-	FFmpeg::FramePointer frame,
-	QByteArray &result,
-	int64 &samplesAdded)
+	FFmpeg::FramePointer frame)
 -> ReadResult {
 	_frame = std::move(frame);
-	return readFromReadyFrame(result, samplesAdded);
+	return readFromReadyFrame();
 }
 
 auto AbstractAudioFFMpegLoader::readFromReadyContext(
-	not_null<AVCodecContext *> context,
-	QByteArray &result,
-	int64 &samplesAdded)
+	not_null<AVCodecContext*> context)
 -> ReadResult {
 	const auto res = avcodec_receive_frame(context, _frame.get());
 	if (res >= 0) {
-		return readFromReadyFrame(result, samplesAdded);
+		return readFromReadyFrame();
 	}
 
 	if (res == AVERROR_EOF) {
-		return ReadResult::EndOfFile;
+		return ReadError::EndOfFile;
 	} else if (res != AVERROR(EAGAIN)) {
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 		LOG(("Audio Error: "
@@ -318,9 +314,9 @@ auto AbstractAudioFFMpegLoader::readFromReadyContext(
 			).arg(res
 			).arg(av_make_error_string(err, sizeof(err), res)
 			));
-		return ReadResult::Error;
+		return ReadError::Other;
 	}
-	return ReadResult::Wait;
+	return ReadError::Wait;
 }
 
 bool AbstractAudioFFMpegLoader::frameHasDesiredFormat() const {
@@ -494,29 +490,13 @@ bool AbstractAudioFFMpegLoader::ensureResampleSpaceAvailable(int samples) {
 	return true;
 }
 
-void AbstractAudioFFMpegLoader::appendSamples(
-	QByteArray & result,
-	int64 & samplesAdded,
-	uint8_t * *data,
-	int count) const {
-	result.append(
-		reinterpret_cast<const char *>(data[0]),
-		count * _outputSampleSize);
-	samplesAdded += count;
-}
-
-AudioPlayerLoader::ReadResult AbstractAudioFFMpegLoader::readFromReadyFrame(
-	QByteArray & result,
-	int64 & samplesAdded) {
+auto AbstractAudioFFMpegLoader::readFromReadyFrame() -> ReadResult {
 	if (frameHasDesiredFormat()) {
-		appendSamples(
-			result,
-			samplesAdded,
-			_frame->extended_data,
-			_frame->nb_samples);
-		return ReadResult::Ok;
+		return bytes::const_span(
+			reinterpret_cast<const bytes::type*>(_frame->extended_data[0]),
+			_frame->nb_samples * _outputSampleSize);
 	} else if (!initResampleForFrame()) {
-		return ReadResult::Error;
+		return ReadError::Other;
 	}
 
 	const auto maxSamples = av_rescale_rnd(
@@ -525,7 +505,7 @@ AudioPlayerLoader::ReadResult AbstractAudioFFMpegLoader::readFromReadyFrame(
 		_swrSrcRate,
 		AV_ROUND_UP);
 	if (!ensureResampleSpaceAvailable(maxSamples)) {
-		return ReadResult::Error;
+		return ReadError::Other;
 	}
 	const auto samples = swr_convert(
 		_swrContext,
@@ -543,15 +523,11 @@ AudioPlayerLoader::ReadResult AbstractAudioFFMpegLoader::readFromReadyFrame(
 			).arg(samples
 			).arg(av_make_error_string(err, sizeof(err), samples)
 			));
-		return ReadResult::Error;
+		return ReadError::Other;
 	}
-
-	appendSamples(
-		result,
-		samplesAdded,
-		_swrDstData,
-		samples);
-	return ReadResult::Ok;
+	return bytes::const_span(
+		reinterpret_cast<const bytes::type*>(_swrDstData[0]),
+		samples * _outputSampleSize);
 }
 
 AbstractAudioFFMpegLoader::~AbstractAudioFFMpegLoader() {
@@ -648,14 +624,9 @@ bool FFMpegLoader::seekTo(crl::time positionMs) {
 	return true;
 }
 
-AudioPlayerLoader::ReadResult FFMpegLoader::readMore(
-		QByteArray &result,
-		int64 &samplesAdded) {
-	const auto readResult = readFromReadyContext(
-		_codecContext,
-		result,
-		samplesAdded);
-	if (readResult != ReadResult::Wait) {
+FFMpegLoader::ReadResult FFMpegLoader::readMore() {
+	const auto readResult = readFromReadyContext(_codecContext);
+	if (readResult != ReadError::Wait) {
 		return readResult;
 	}
 
@@ -671,10 +642,10 @@ AudioPlayerLoader::ReadResult FFMpegLoader::readMore(
 				).arg(res
 				).arg(av_make_error_string(err, sizeof(err), res)
 				));
-			return ReadResult::Error;
+			return ReadError::Other;
 		}
 		avcodec_send_packet(_codecContext, nullptr); // drain
-		return ReadResult::Ok;
+		return bytes::const_span();
 	}
 
 	if (_packet.stream_index == streamId) {
@@ -696,11 +667,11 @@ AudioPlayerLoader::ReadResult FFMpegLoader::readMore(
 			//if (res == AVERROR_INVALIDDATA) {
 			//	return ReadResult::NotYet; // try to skip bad packet
 			//}
-			return ReadResult::Error;
+			return ReadError::Other;
 		}
 	}
 	av_packet_unref(&_packet);
-	return ReadResult::Ok;
+	return bytes::const_span();
 }
 
 FFMpegLoader::~FFMpegLoader() {
