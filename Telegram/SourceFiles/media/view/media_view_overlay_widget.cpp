@@ -900,7 +900,7 @@ void OverlayWidget::savePosition() {
 
 void OverlayWidget::updateGeometry(bool inMove) {
 	initFullScreen();
-	if (_fullscreen) {
+	if (_fullscreen && (!Platform::IsWindows11OrGreater() || !isHidden())) {
 		updateGeometryToScreen(inMove);
 	} else if (_windowed && _normalGeometryInited) {
 		_window->setGeometry(_normalGeometry);
@@ -3535,6 +3535,9 @@ void OverlayWidget::showAndActivate() {
 		_wasWindowedMode = true;
 	} else if (_fullscreen) {
 		_window->showFullScreen();
+		if (Platform::IsWindows11OrGreater()) {
+			updateGeometry();
+		}
 	} else {
 		_window->showMaximized();
 	}
