@@ -916,7 +916,16 @@ void DocumentData::save(
 				const auto &alreadyName = l.name();
 				if (alreadyName != toFile) {
 					QFile(toFile).remove();
-					QFile(alreadyName).copy(toFile);
+					try {
+						// this is a hot path and QFile::copy calls fdatasync
+						// that can lead up to system-wide slowdown
+						// on systems with slow storage
+						// https://bugreports.qt.io/browse/QTBUG-91751
+						std::filesystem::copy(
+							alreadyName.toStdWString(),
+							toFile.toStdWString());
+					} catch (...) {
+					}
 				}
 				l.accessDisable();
 			}
