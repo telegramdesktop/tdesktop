@@ -225,6 +225,7 @@ void AddParticipantsBoxController::addInviteLinkButton() {
 		delegate()->peerListMouseLeftGeometry();
 	}, button->lifetime());
 	delegate()->peerListSetAboveWidget(std::move(button));
+	delegate()->peerListRefreshRows();
 }
 
 void AddParticipantsBoxController::inviteSelectedUsers(
