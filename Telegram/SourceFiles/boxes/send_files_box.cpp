@@ -1091,13 +1091,13 @@ void SendFilesBox::captionResized() {
 }
 
 bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
-	return CanAddUrls(base::GetMimeUrls(data)) || data->hasImage();
+	return data->hasImage() || CanAddUrls(Core::ReadMimeUrls(data));
 }
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 	const auto premium = _controller->session().premium();
 	auto list = [&] {
-		const auto urls = base::GetMimeUrls(data);
+		const auto urls = Core::ReadMimeUrls(data);
 		auto result = CanAddUrls(urls)
 			? Storage::PrepareMediaList(
 				urls,

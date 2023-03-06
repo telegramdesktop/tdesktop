@@ -74,7 +74,7 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 } // namespace
 
 bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
-	const auto urls = base::GetMimeUrls(data);
+	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.size() > 1) {
 		return false;
 	} else if (data->hasImage()) {
@@ -98,7 +98,7 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 bool ValidateEditMediaDragData(
 		not_null<const QMimeData*> data,
 		Ui::AlbumType albumType) {
-	const auto urls = base::GetMimeUrls(data);
+	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.size() > 1) {
 		return false;
 	} else if (data->hasImage()) {
@@ -126,7 +126,7 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		return MimeDataState::Image;
 	}
 
-	const auto urls = base::GetMimeUrls(data);
+	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.isEmpty()) {
 		return MimeDataState::None;
 	}

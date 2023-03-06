@@ -14,6 +14,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeData>
 
 namespace Core {
+namespace {
+
+[[nodiscard]] bool IsImageFromFirefox(not_null<const QMimeData*> data) {
+	// See https://bugs.telegram.org/c/6765/public
+	// See https://github.com/telegramdesktop/tdesktop/issues/10564
+	//
+	// Usually we prefer pasting from URLs list instead of pasting from
+	// image data, because sometimes a file is copied together with an
+	// image data of its File Explorer thumbnail or smth like that. In
+	// that case you end up sending this thumbnail instead of the file.
+	//
+	// But in case of "Copy Image" from Firefox on Windows we get both
+	// URLs list with a file path to some Temp folder in the list and
+	// the image data that was copied. The file is read slower + it may
+	// have incorrect content in case the URL can't be accessed without
+	// authorization. So in that case we want only image data and we
+	// check for a special Firefox mime type to check for that case.
+	return data->hasFormat(u"application/x-moz-nativeimage"_q)
+		&& data->hasImage();
+}
+
+} // namespace
 
 MimeType::MimeType(const QMimeType &type) : _typeStruct(type) {
 }
@@ -170,9 +192,10 @@ std::shared_ptr<QMimeData> ShareMimeMediaData(
 		result->setData(u"application/x-td-use-jpeg"_q, "1");
 		result->setData(u"image/jpeg"_q, original->data(u"image/jpeg"_q));
 	}
-	if (auto list = base::GetMimeUrls(original); !list.isEmpty()) {
+	if (auto list = Core::ReadMimeUrls(original); !list.isEmpty()) {
 		result->setUrls(std::move(list));
 	}
+	result->setText(Core::ReadMimeText(original));
 	return result;
 }
 
@@ -190,6 +213,18 @@ MimeImageData ReadMimeImage(not_null<const QMimeData*> data) {
 		return { .image = qvariant_cast<QImage>(data->imageData()) };
 	}
 	return {};
+}
+
+QString ReadMimeText(not_null<const QMimeData*> data) {
+	return IsImageFromFirefox(data) ? QString() : data->text();
+}
+
+QList<QUrl> ReadMimeUrls(not_null<const QMimeData*> data) {
+	return (data->hasUrls() && !IsImageFromFirefox(data))
+		? KUrlMimeData::urlsFromMimeData(
+			data,
+			KUrlMimeData::PreferLocalUrls)
+		: QList<QUrl>();
 }
 
 } // namespace Core

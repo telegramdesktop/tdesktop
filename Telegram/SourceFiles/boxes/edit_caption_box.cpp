@@ -69,10 +69,10 @@ namespace {
 
 auto ListFromMimeData(not_null<const QMimeData*> data, bool premium) {
 	using Error = Ui::PreparedList::Error;
-	auto result = data->hasUrls()
+	const auto list = Core::ReadMimeUrls(data);
+	auto result = !list.isEmpty()
 		? Storage::PrepareMediaList(
-			// When we edit media, we need only 1 file.
-			base::GetMimeUrls(data).mid(0, 1),
+			list.mid(0, 1), // When we edit media, we need only 1 file.
 			st::sendMediaPreviewSize,
 			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());

@@ -38,18 +38,6 @@ inline bool in_range(Value &&value, From &&from, Till &&till) {
 	return (value >= from) && (value < till);
 }
 
-#if __has_include(<kurlmimedata.h>)
-inline QList<QUrl> GetMimeUrls(const QMimeData *data) {
-	if (!data->hasUrls()) {
-		return {};
-	}
-
-	return KUrlMimeData::urlsFromMimeData(
-		data,
-		KUrlMimeData::PreferLocalUrls);
-}
-#endif
-
 #if __has_include(<ksandbox.h>)
 inline QString IconName() {
 	static const auto Result = KSandbox::isFlatpak()
