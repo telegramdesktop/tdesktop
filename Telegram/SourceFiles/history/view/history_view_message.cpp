@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
-#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
 #include "ui/cached_round_corners.h"
@@ -2036,9 +2036,11 @@ ClickHandlerPtr Message::createGoToCommentsLink() const {
 			const auto history = item->history();
 			if (const auto channel = history->peer->asChannel()) {
 				if (channel->invitePeekExpires()) {
-					Ui::Toast::Show(
-						Window::Show(controller).toastParent(),
-						tr::lng_channel_invite_private(tr::now));
+					const auto show = Window::Show(controller);
+					Ui::ShowMultilineToast({
+						.parentOverride = show.toastParent(),
+						.text = { tr::lng_channel_invite_private(tr::now) },
+					});
 					return;
 				}
 			}
