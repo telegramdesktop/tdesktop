@@ -37,7 +37,31 @@ public Q_SLOTS:
 	void onCancel(const AudioMsgId &audio);
 
 private:
+	struct SetupLoaderResult {
+		AudioPlayerLoader *loader = nullptr;
+		float64 oldSpeed = 0.;
+		float64 newSpeed = 0.;
+		int64 fadeStartPosition = 0;
+		int64 position = 0;
+		int64 normalLength = 0;
+		int frequency = 0;
+		bool errorAtStart = false;
+		bool justStarted = false;
+	};
+
 	void videoSoundAdded();
+	[[nodiscard]] Mixer::Track::WithSpeed rebufferOnSpeedChange(
+		const SetupLoaderResult &setup);
+
+	void emitError(AudioMsgId::Type type);
+	AudioMsgId clear(AudioMsgId::Type type);
+	void setStoppedState(Mixer::Track *m, State state = State::Stopped);
+
+	void loadData(AudioMsgId audio, crl::time positionMs = 0);
+	[[nodiscard]] SetupLoaderResult setupLoader(
+		const AudioMsgId &audio,
+		crl::time positionMs);
+	Mixer::Track *checkLoader(AudioMsgId::Type type);
 
 	AudioMsgId _audio, _song, _video;
 	std::unique_ptr<AudioPlayerLoader> _audioLoader;
@@ -50,23 +74,6 @@ private:
 		std::deque<FFmpeg::Packet>> _fromExternalQueues;
 	base::flat_set<AudioMsgId> _fromExternalForceToBuffer;
 	SingleQueuedInvokation _fromExternalNotify;
-
-	void emitError(AudioMsgId::Type type);
-	AudioMsgId clear(AudioMsgId::Type type);
-	void setStoppedState(Mixer::Track *m, State state = State::Stopped);
-
-	enum SetupError {
-		SetupErrorAtStart = 0,
-		SetupErrorNotPlaying = 1,
-		SetupErrorLoadedFull = 2,
-		SetupNoErrorStarted = 3,
-	};
-	void loadData(AudioMsgId audio, crl::time positionMs = 0);
-	AudioPlayerLoader *setupLoader(
-		const AudioMsgId &audio,
-		SetupError &err,
-		crl::time positionMs);
-	Mixer::Track *checkLoader(AudioMsgId::Type type);
 
 };
 

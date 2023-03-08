@@ -321,6 +321,12 @@ FramePointer MakeFramePointer() {
 	return FramePointer(av_frame_alloc());
 }
 
+FramePointer DuplicateFramePointer(AVFrame *frame) {
+	return frame
+		? FramePointer(av_frame_clone(frame))
+		: FramePointer();
+}
+
 bool FrameHasData(AVFrame *frame) {
 	return (frame && frame->data[0] != nullptr);
 }

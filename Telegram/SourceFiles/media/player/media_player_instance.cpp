@@ -53,7 +53,10 @@ constexpr auto kRememberShuffledOrderItems = 16;
 constexpr auto kMinLengthForSavePosition = 20 * TimeId(60); // 20 minutes.
 
 auto VoicePlaybackSpeed() {
-	return std::clamp(Core::App().settings().voicePlaybackSpeed(), 0.6, 1.7);
+	return std::clamp(
+		Core::App().settings().voicePlaybackSpeed(),
+		Media::Audio::kSpeedMin,
+		Media::Audio::kSpeedMax);
 }
 
 base::options::toggle OptionDisableAutoplayNext({

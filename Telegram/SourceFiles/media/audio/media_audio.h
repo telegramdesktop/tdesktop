@@ -35,6 +35,9 @@ namespace Audio {
 
 class Instance;
 
+inline constexpr auto kSpeedMin = 0.5;
+inline constexpr auto kSpeedMax = 2.5;
+
 // Thread: Main.
 void Start(not_null<Instance*> instance);
 void Finish(not_null<Instance*> instance);
@@ -180,6 +183,8 @@ public:
 	void setVideoVolume(float64 volume);
 	float64 getVideoVolume() const;
 
+	void scheduleFaderCallback();
+
 	~Mixer();
 
 private Q_SLOTS:
@@ -194,21 +199,11 @@ Q_SIGNALS:
 	void loaderOnStart(const AudioMsgId &audio, qint64 positionMs);
 	void loaderOnCancel(const AudioMsgId &audio);
 
-	void faderOnTimer();
-
 	void suppressSong();
 	void unsuppressSong();
 	void suppressAll(qint64 duration);
 
 private:
-	struct SpeedEffect {
-		uint32 effect = 0;
-		uint32 effectSlot = 0;
-		uint32 filter = 0;
-		int coarseTune = 0;
-		float64 speed = 1.;
-	};
-
 	class Track {
 	public:
 		static constexpr int kBuffersCount = 3;
@@ -229,7 +224,16 @@ private:
 
 		// Thread: Main. Must be locked: AudioMutex.
 		void setExternalData(std::unique_ptr<ExternalSoundData> data);
-		void changeSpeedEffect(float64 speed);
+
+		void updateStatePosition();
+		void updateWithSpeedPosition();
+
+		[[nodiscard]] static int64 SpeedIndependentPosition(
+			int64 position,
+			float64 speed);
+		[[nodiscard]] static int64 SpeedDependentPosition(
+			int64 position,
+			float64 speed);
 
 		~Track();
 
@@ -237,25 +241,35 @@ private:
 
 		Core::FileLocation file;
 		QByteArray data;
-		int64 bufferedPosition = 0;
-		int64 bufferedLength = 0;
+
+		int format = 0;
 		bool loading = false;
 		bool loaded = false;
-		int64 fadeStartPosition = 0;
+		bool waitingForBuffer = false;
 
-		int32 format = 0;
-		int32 frequency = kDefaultFrequency;
-		int samplesCount[kBuffersCount] = { 0 };
-		QByteArray bufferSamples[kBuffersCount];
+		// Speed dependent values.
+		float64 speed = 1.;
+		float64 nextSpeed = 1.;
+		struct WithSpeed {
+			int64 fineTunedPosition = 0;
+			int64 position = 0;
+			int64 length = 0;
+			int64 bufferedPosition = 0;
+			int64 bufferedLength = 0;
+			int64 fadeStartPosition = 0;
+			int samples[kBuffersCount] = { 0 };
+			QByteArray buffered[kBuffersCount];
+		};
+		WithSpeed withSpeed;
 
 		struct Stream {
 			uint32 source = 0;
 			uint32 buffers[kBuffersCount] = { 0 };
 		};
 		Stream stream;
+
 		std::unique_ptr<ExternalSoundData> externalData;
 
-		std::unique_ptr<SpeedEffect> speedEffect;
 		crl::time lastUpdateWhen = 0;
 		crl::time lastUpdatePosition = 0;
 
@@ -263,9 +277,6 @@ private:
 		void createStream(AudioMsgId::Type type);
 		void destroyStream();
 		void resetStream();
-		void resetSpeedEffect();
-		void applySourceSpeedEffect();
-		void removeSourceSpeedEffect();
 
 	};
 
@@ -283,17 +294,6 @@ private:
 	int *currentIndex(AudioMsgId::Type type);
 	const int *currentIndex(AudioMsgId::Type type) const;
 
-	// Thread: Any. Must be locked: AudioMutex.
-	void scheduleEffectDestruction(const SpeedEffect &effect);
-	void scheduleEffectsDestruction();
-
-	// Thread: Main. Must be locked: AudioMutex.
-	void destroyStaleEffects();
-	void destroyEffectsOnClose();
-
-	// Thread: Main. Locks: AudioMutex.
-	void destroyStaleEffectsSafe();
-
 	const not_null<Audio::Instance*> _instance;
 
 	int _audioCurrent = 0;
@@ -303,9 +303,6 @@ private:
 	Track _songTracks[kTogetherLimit];
 
 	Track _videoTrack;
-
-	std::vector<std::pair<crl::time, SpeedEffect>> _effectsForDestruction;
-	base::Timer _effectsDestructionTimer;
 
 	QAtomicInt _volumeVideo;
 	QAtomicInt _volumeSong;
@@ -329,6 +326,9 @@ class Fader : public QObject {
 public:
 	Fader(QThread *thread);
 
+	void songVolumeChanged();
+	void videoVolumeChanged();
+
 Q_SIGNALS:
 	void error(const AudioMsgId &audio);
 	void playPositionUpdated(const AudioMsgId &audio);
@@ -342,8 +342,6 @@ public Q_SLOTS:
 	void onSuppressSong();
 	void onUnsuppressSong();
 	void onSuppressAll(qint64 duration);
-	void onSongVolumeChanged();
-	void onVideoVolumeChanged();
 
 private:
 	enum {

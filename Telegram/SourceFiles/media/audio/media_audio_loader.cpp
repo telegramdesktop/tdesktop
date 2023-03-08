@@ -52,6 +52,18 @@ bool AudioPlayerLoader::holdsSavedDecodedSamples() const {
 	return _holdsSavedSamples;
 }
 
+void AudioPlayerLoader::dropDecodedSamples() {
+	_savedSamples = {};
+	_holdsSavedSamples = false;
+}
+
+int AudioPlayerLoader::bytesPerBuffer() {
+	if (!_bytesPerBuffer) {
+		_bytesPerBuffer = samplesFrequency() * sampleSize();
+	}
+	return _bytesPerBuffer;
+}
+
 bool AudioPlayerLoader::openFile() {
 	if (_data.isEmpty() && _bytes.empty()) {
 		if (_f.isOpen()) _f.close();

@@ -141,6 +141,7 @@ struct FrameDeleter {
 };
 using FramePointer = std::unique_ptr<AVFrame, FrameDeleter>;
 [[nodiscard]] FramePointer MakeFramePointer();
+[[nodiscard]] FramePointer DuplicateFramePointer(AVFrame *frame);
 [[nodiscard]] bool FrameHasData(AVFrame *frame);
 void ClearFrameMemory(AVFrame *frame);
 

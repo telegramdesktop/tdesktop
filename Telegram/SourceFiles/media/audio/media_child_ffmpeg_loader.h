@@ -15,8 +15,7 @@ namespace Media {
 struct ExternalSoundData {
 	FFmpeg::CodecPointer codec;
 	FFmpeg::FramePointer frame;
-	int32 frequency = Media::Player::kDefaultFrequency;
-	int64 length = 0;
+	crl::time duration = 0;
 	float64 speed = 1.; // 0.5 <= speed <= 2.
 };
 
@@ -29,7 +28,7 @@ class ChildFFMpegLoader : public AbstractAudioFFMpegLoader {
 public:
 	ChildFFMpegLoader(std::unique_ptr<ExternalSoundData> &&data);
 
-	bool open(crl::time positionMs) override;
+	bool open(crl::time positionMs, float64 speed = 1.) override;
 
 	bool check(const Core::FileLocation &file, const QByteArray &data) override {
 		return true;

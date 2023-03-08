@@ -21,17 +21,29 @@ public:
 		bytes::vector &&buffer);
 	virtual ~AudioPlayerLoader();
 
-	virtual bool check(const Core::FileLocation &file, const QByteArray &data);
+	virtual bool check(
+		const Core::FileLocation &file,
+		const QByteArray &data);
 
-	virtual bool open(crl::time positionMs) = 0;
-	virtual int64 samplesCount() = 0;
+	virtual bool open(crl::time positionMs, float64 speed = 1.) = 0;
+	virtual crl::time duration() = 0;
 	virtual int samplesFrequency() = 0;
 	virtual int sampleSize() = 0;
 	virtual int format() = 0;
 
+	virtual void dropFramesTill(int64 samples) {
+	}
+	[[nodiscard]] virtual int64 startReadingQueuedFrames(float64 newSpeed) {
+		Unexpected(
+			"startReadingQueuedFrames() on not AbstractAudioFFMpegLoader");
+	}
+
+	[[nodiscard]] int bytesPerBuffer();
+
 	enum class ReadError {
 		Other,
-		NotYet,
+		Retry,
+		RetryNotQueued,
 		Wait,
 		EndOfFile,
 	};
@@ -51,6 +63,7 @@ public:
 	void saveDecodedSamples(not_null<QByteArray*> samples);
 	void takeSavedDecodedSamples(not_null<QByteArray*> samples);
 	bool holdsSavedDecodedSamples() const;
+	void dropDecodedSamples();
 
 protected:
 	Core::FileLocation _file;
@@ -66,6 +79,8 @@ protected:
 private:
 	QByteArray _savedSamples;
 	bool _holdsSavedSamples = false;
+
+	int _bytesPerBuffer = 0;
 
 };
 

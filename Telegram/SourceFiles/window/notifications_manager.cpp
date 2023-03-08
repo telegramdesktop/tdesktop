@@ -589,7 +589,7 @@ void System::showNext() {
 				alertThread->owner().notifySettings().sound(alertThread).id);
 			track->playOnce();
 			Media::Player::mixer()->suppressAll(track->getLengthMs());
-			Media::Player::mixer()->faderOnTimer();
+			Media::Player::mixer()->scheduleFaderCallback();
 		}
 	}
 
