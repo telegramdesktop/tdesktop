@@ -204,8 +204,7 @@ object_ptr<Ui::BoxContent> MakeConfirmBox(
 		not_null<PeerData*> peer,
 		RequestPeerQuery query,
 		Fn<void()> confirmed) {
-	const auto user = peer->asUser();
-	const auto name = user ? user->firstName : peer->name();
+	const auto name = peer->name();
 	const auto botName = bot->name();
 	auto text = tr::lng_request_peer_confirm(
 		tr::now,
@@ -214,7 +213,7 @@ object_ptr<Ui::BoxContent> MakeConfirmBox(
 		lt_bot,
 		Ui::Text::Bold(botName),
 		Ui::Text::WithEntities);
-	if (!user) {
+	if (!peer->isUser()) {
 		const auto rights = peer->isBroadcast()
 			? BroadcastRightsText(query.botRights)
 			: GroupRightsText(query.botRights);
@@ -431,7 +430,12 @@ void ChoosePeerBoxController::rowClicked(not_null<PeerListRow*> row) {
 		const auto onstack = callback;
 		onstack(peer);
 	};
-	delegate()->peerListShowBox(MakeConfirmBox(_bot, peer, _query, done));
+	if (const auto user = peer->asUser()) {
+		done();
+	} else {
+		delegate()->peerListShowBox(
+			MakeConfirmBox(_bot, peer, _query, done));
+	}
 }
 
 auto ChoosePeerBoxController::createRow(not_null<History*> history)
