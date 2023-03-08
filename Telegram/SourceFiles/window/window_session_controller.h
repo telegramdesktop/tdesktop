@@ -379,8 +379,12 @@ public:
 
 	void setCurrentDialogsEntryState(Dialogs::EntryState state);
 	[[nodiscard]] Dialogs::EntryState currentDialogsEntryState() const;
-	void switchInlineQuery(
+	bool switchInlineQuery(
 		Dialogs::EntryState to,
+		not_null<UserData*> bot,
+		const QString &query);
+	bool switchInlineQuery(
+		not_null<Data::Thread*> thread,
 		not_null<UserData*> bot,
 		const QString &query);
 

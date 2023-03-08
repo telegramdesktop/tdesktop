@@ -1184,13 +1184,19 @@ Dialogs::EntryState SessionController::currentDialogsEntryState() const {
 	return _currentDialogsEntryState;
 }
 
-void SessionController::switchInlineQuery(
+bool SessionController::switchInlineQuery(
 		Dialogs::EntryState to,
 		not_null<UserData*> bot,
 		const QString &query) {
 	Expects(to.key.owningHistory() != nullptr);
 
 	using Section = Dialogs::EntryState::Section;
+
+	const auto thread = to.key.thread();
+	if (!thread || !Data::CanSend(thread, ChatRestriction::SendInline)) {
+		show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
+		return false;
+	}
 
 	const auto history = to.key.owningHistory();
 	const auto textWithTags = TextWithTags{
@@ -1214,6 +1220,7 @@ void SessionController::switchInlineQuery(
 			params);
 	} else {
 		history->setLocalDraft(std::move(draft));
+		history->clearLocalEditDraft(to.rootId);
 		if (to.section == Section::Replies) {
 			const auto commentId = MsgId();
 			showRepliesForMessage(history, to.rootId, commentId, params);
@@ -1221,6 +1228,21 @@ void SessionController::switchInlineQuery(
 			showPeerHistory(history->peer, params);
 		}
 	}
+	return true;
+}
+
+bool SessionController::switchInlineQuery(
+		not_null<Data::Thread*> thread,
+		not_null<UserData*> bot,
+		const QString &query) {
+	const auto entryState = Dialogs::EntryState{
+		.key = thread,
+		.section = (thread->asTopic()
+			? Dialogs::EntryState::Section::Replies
+			: Dialogs::EntryState::Section::History),
+		.rootId = thread->topicRootId(),
+	};
+	return switchInlineQuery(entryState, bot, query);
 }
 
 Dialogs::RowDescriptor SessionController::resolveChatNext(

@@ -354,7 +354,12 @@ MainWidget::MainWidget(
 	session().changes().entryUpdates(
 		Data::EntryUpdate::Flag::LocalDraftSet
 	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
-		controller->showThread(update.entry->asThread(), ShowAtUnreadMsgId);
+		auto params = Window::SectionShow();
+		params.reapplyLocalDraft = true;
+		controller->showThread(
+			update.entry->asThread(),
+			ShowAtUnreadMsgId,
+			params);
 		controller->hideLayer();
 	}, lifetime());
 
@@ -604,37 +609,6 @@ bool MainWidget::shareUrl(
 		Data::PreviewState::Allowed));
 	history->clearLocalEditDraft(topicRootId);
 	history->session().changes().entryUpdated(
-		thread,
-		Data::EntryUpdate::Flag::LocalDraftSet);
-	return true;
-}
-
-bool MainWidget::inlineSwitchChosen(
-		not_null<Data::Thread*> thread,
-		const QString &botAndQuery) const {
-	if (!Data::CanSend(thread, ChatRestriction::SendInline)) {
-		_controller->show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
-		return false;
-	}
-	const auto textWithTags = TextWithTags{
-		botAndQuery,
-		TextWithTags::Tags(),
-	};
-	const auto cursor = MessageCursor{
-		int(botAndQuery.size()),
-		int(botAndQuery.size()),
-		QFIXED_MAX
-	};
-	const auto history = thread->owningHistory();
-	const auto topicRootId = thread->topicRootId();
-	history->setLocalDraft(std::make_unique<Data::Draft>(
-		textWithTags,
-		0, // replyTo
-		topicRootId,
-		cursor,
-		Data::PreviewState::Allowed));
-	history->clearLocalEditDraft(topicRootId);
-	thread->session().changes().entryUpdated(
 		thread,
 		Data::EntryUpdate::Flag::LocalDraftSet);
 	return true;

@@ -456,14 +456,12 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				return false;
 			}();
 			if (!fastSwitchDone) {
-				const auto botAndQuery = '@'
-					+ bot->username()
-					+ ' '
-					+ QString::fromUtf8(button->data);
+				const auto query = QString::fromUtf8(button->data);
 				const auto chosen = [=](not_null<Data::Thread*> thread) {
-					return controller->content()->inlineSwitchChosen(
+					return controller->switchInlineQuery(
 						thread,
-						botAndQuery);
+						bot,
+						query);
 				};
 				Window::ShowChooseRecipientBox(
 					controller,

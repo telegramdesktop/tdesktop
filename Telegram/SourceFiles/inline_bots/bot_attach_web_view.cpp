@@ -1043,14 +1043,9 @@ void AttachWebView::show(
 					query);
 			}
 		} else {
-			const auto botAndQuery = '@'
-				+ _bot->username()
-				+ ' '
-				+ query;
+			const auto bot = _bot;
 			const auto done = [=](not_null<Data::Thread*> thread) {
-				return controller->content()->inlineSwitchChosen(
-					thread,
-					botAndQuery);
+				controller->switchInlineQuery(thread, bot, query);
 			};
 			ShowChooseBox(
 				controller,

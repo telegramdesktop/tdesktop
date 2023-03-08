@@ -186,9 +186,6 @@ public:
 	bool filesOrForwardDrop(
 		not_null<Data::Thread*> thread,
 		not_null<const QMimeData*> data);
-	bool inlineSwitchChosen(
-		not_null<Data::Thread*> thread,
-		const QString &botAndQuery) const;
 
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
