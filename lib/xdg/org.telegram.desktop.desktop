@@ -10,12 +10,12 @@ Type=Application
 Categories=Chat;Network;InstantMessaging;Qt;
 MimeType=x-scheme-handler/tg;
 Keywords=tg;chat;im;messaging;messenger;sms;tdesktop;
-Actions=Quit;
+Actions=quit;
 SingleMainWindow=true
 X-GNOME-UsesNotifications=true
 X-GNOME-SingleWindow=true
 
-[Desktop Action Quit]
+[Desktop Action quit]
 Exec=@CMAKE_INSTALL_FULL_BINDIR@/telegram-desktop -quit
 Name=Quit Telegram
 Icon=application-exit
