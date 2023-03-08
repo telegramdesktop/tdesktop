@@ -314,7 +314,7 @@ void LaunchGApplication() {
 			});
 		}, true);
 
-		app->add_action("Quit", [] {
+		app->add_action("quit", [] {
 			Core::Sandbox::Instance().customEnterFromEventLoop([] {
 				Core::Quit();
 			});
