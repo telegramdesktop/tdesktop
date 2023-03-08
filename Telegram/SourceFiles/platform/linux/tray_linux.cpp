@@ -91,7 +91,7 @@ QIcon IconGraphic::systemIcon(
 		int counter,
 		bool muted) const {
 	if (iconThemeName == _themeName
-		&& counterSlice(counter) == _count
+		&& (counter > 0) == (_count > 0)
 		&& muted == _muted) {
 		return _systemIcon;
 	}
