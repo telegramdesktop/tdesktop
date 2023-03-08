@@ -111,6 +111,7 @@ struct Context {
 struct Userpic {
 	not_null<PeerData*> peer;
 	TimeId date = 0;
+	bool dateReacted = false;
 	QString customEntityData;
 	mutable Ui::PeerUserpicView view;
 	mutable InMemoryKey uniqueKey;
@@ -301,14 +302,15 @@ struct State {
 					};
 					parsed.list.reserve(data.vreactions().v.size());
 					for (const auto &vote : data.vreactions().v) {
-						vote.match([&](const auto &data) {
-							parsed.list.push_back(PeerWithReaction{
-								.peerWithDate = {
-									.peer = peerFromMTP(data.vpeer_id()),
-								},
-								.reaction = Data::ReactionFromMTP(
-									data.vreaction()),
-							});
+						const auto &data = vote.data();
+						parsed.list.push_back(PeerWithReaction{
+							.peerWithDate = {
+								.peer = peerFromMTP(data.vpeer_id()),
+								.date = data.vdate().v,
+								.dateReacted = true,
+							},
+							.reaction = Data::ReactionFromMTP(
+								data.vreaction()),
 						});
 					}
 					entry.data = std::move(parsed);
@@ -343,10 +345,11 @@ struct State {
 				peerWithDate.peer,
 				[](const PeerWithReaction &p) {
 					return p.peerWithDate.peer; });
-			if (i != end(list)) {
-				i->peerWithDate.date = peerWithDate.date;
-			} else {
+			if (i == end(list)) {
 				list.push_back({ .peerWithDate = peerWithDate });
+			} else if (!i->peerWithDate.date) {
+				i->peerWithDate.date = peerWithDate.date;
+				i->peerWithDate.dateReacted = peerWithDate.dateReacted;
 			}
 		}
 		reacted.read = std::move(read.list);
@@ -394,6 +397,7 @@ bool UpdateUserpics(
 	struct ResolvedPeer {
 		PeerData *peer = nullptr;
 		TimeId date = 0;
+		bool dateReacted = false;
 		ReactionId reaction;
 	};
 	const auto peers = ranges::views::all(
@@ -402,6 +406,7 @@ bool UpdateUserpics(
 		return ResolvedPeer{
 			.peer = owner.peerLoaded(id.peerWithDate.peer),
 			.date = id.peerWithDate.date,
+			.dateReacted = id.peerWithDate.dateReacted,
 			.reaction = id.reaction,
 		};
 	}) | ranges::views::filter([](ResolvedPeer resolved) {
@@ -425,6 +430,7 @@ bool UpdateUserpics(
 		const auto i = ranges::find(was, peer, &Userpic::peer);
 		if (i != end(was) && i->view.cloud) {
 			i->date = resolved.date;
+			i->dateReacted = resolved.dateReacted;
 			now.push_back(std::move(*i));
 			now.back().customEntityData = data;
 			continue;
@@ -432,6 +438,7 @@ bool UpdateUserpics(
 		now.push_back(Userpic{
 			.peer = peer,
 			.date = resolved.date,
+			.dateReacted = resolved.dateReacted,
 			.customEntityData = data,
 		});
 		auto &userpic = now.back();
@@ -479,12 +486,14 @@ void RegenerateParticipants(not_null<State*> state, int small, int large) {
 		if (was != end(old)) {
 			was->name = peer->name();
 			was->date = FormatReadDate(date, currentDate);
+			was->dateReacted = userpic.dateReacted;
 			now.push_back(std::move(*was));
 			continue;
 		}
 		now.push_back({
 			.name = peer->name(),
 			.date = FormatReadDate(date, currentDate),
+			.dateReacted = userpic.dateReacted,
 			.customEntityData = userpic.customEntityData,
 			.userpicLarge = GenerateUserpic(userpic, large),
 			.userpicKey = userpic.uniqueKey,

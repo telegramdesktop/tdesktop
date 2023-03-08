@@ -37,6 +37,7 @@ enum class WhoReactedList {
 struct WhoReadPeer {
 	PeerId peer = 0;
 	TimeId date = 0;
+	bool dateReacted = false;
 
 	friend inline bool operator==(
 		const WhoReadPeer &a,

@@ -1100,6 +1100,8 @@ whoReadDateTop: 20px;
 whoReadDateSkip: 15px;
 whoReadDateChecks: icon{{ "menu/read_ticks_s", windowSubTextFg }};
 whoReadDateChecksOver: icon{{ "menu/read_ticks_s", windowSubTextFgOver }};
+whoLikedDateHeart: icon{{ "menu/read_react_s", windowSubTextFg }};
+whoLikedDateHeartOver: icon{{ "menu/read_react_s", windowSubTextFgOver }};
 whoReadDateChecksPosition: point(-7px, -4px);
 whoReadDateStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
