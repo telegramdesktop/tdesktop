@@ -526,9 +526,13 @@ bool AbstractAudioFFMpegLoader::ensureResampleSpaceAvailable(int samples) {
 		AV_ROUND_UP)));
 	_resampledFrame->sample_rate = _swrDstRate;
 	_resampledFrame->format = _swrDstSampleFormat;
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	av_channel_layout_copy(
 		&_resampledFrame->ch_layout,
 		&_swrDstChannelLayout);
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	_resampledFrame->channel_layout = _swrDstChannelLayout;
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	_resampledFrame->nb_samples = allocate;
 	if (AvErrorWrap error = av_frame_get_buffer(_resampledFrame.get(), 0)) {
 		LogError(u"av_frame_get_buffer"_q, error);
@@ -587,10 +591,19 @@ void AbstractAudioFFMpegLoader::createSpeedFilter(float64 speed) {
 	}
 
 	char layout[64] = { 0 };
+#if DA_FFMPEG_NEW_CHANNEL_LAYOUT
 	av_channel_layout_describe(
 		&_swrDstChannelLayout,
 		layout,
 		sizeof(layout));
+#else // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+	av_get_channel_layout_string(
+		layout,
+		sizeof(layout),
+		0,
+		_swrDstChannelLayout);
+#endif // DA_FFMPEG_NEW_CHANNEL_LAYOUT
+
 	av_opt_set(
 		_filterSrc,
 		"channel_layout",
