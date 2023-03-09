@@ -474,6 +474,25 @@ OverlayWidget::OverlayWidget()
 		}
 		return base::EventFilterResult::Continue;
 	});
+	_helper->mouseEvents(
+	) | rpl::start_with_next([=](not_null<QMouseEvent*> e) {
+		const auto type = e->type();
+		const auto position = e->pos();
+		if (_helper->skipTitleHitTest(position)) {
+			return;
+		}
+		if (type == QEvent::MouseButtonPress) {
+			handleMousePress(position, e->button());
+		} else if (type == QEvent::MouseButtonRelease) {
+			handleMouseRelease(position, e->button());
+		} else if (type == QEvent::MouseMove) {
+			handleMouseMove(position);
+		} else if (type == QEvent::MouseButtonDblClick) {
+			if (!handleDoubleClick(position, e->button())) {
+				handleMousePress(position, e->button());
+			}
+		}
+	}, lifetime());
 
 	_window->setTitle(u"Media viewer"_q);
 	_window->setTitleStyle(st::mediaviewTitle);

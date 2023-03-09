@@ -49,6 +49,10 @@ public:
 	}
 	virtual void setControlsOpacity(float64 opacity) {
 	}
+	[[nodiscard]] virtual auto mouseEvents() const
+	-> rpl::producer<not_null<QMouseEvent*>> {
+		return rpl::never<not_null<QMouseEvent*>>();
+	}
 };
 
 [[nodiscard]] std::unique_ptr<OverlayWidgetHelper> CreateOverlayWidgetHelper(
@@ -68,6 +72,7 @@ public:
 	void beforeShow(bool fullscreen) override;
 	void clearState() override;
 	void setControlsOpacity(float64 opacity) override;
+	rpl::producer<not_null<QMouseEvent*>> mouseEvents() const override;
 
 private:
 	class Buttons;

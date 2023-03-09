@@ -234,4 +234,18 @@ void DefaultOverlayWidgetHelper::setControlsOpacity(float64 opacity) {
 	_buttons->setMasterOpacity(opacity);
 }
 
+auto DefaultOverlayWidgetHelper::mouseEvents() const
+-> rpl::producer<not_null<QMouseEvent*>> {
+	return _controls->wrap.events(
+	) | rpl::filter([](not_null<QEvent*> e) {
+		const auto type = e->type();
+		return (type == QEvent::MouseButtonPress)
+			|| (type == QEvent::MouseButtonRelease)
+			|| (type == QEvent::MouseMove)
+			|| (type == QEvent::MouseButtonDblClick);
+	}) | rpl::map([](not_null<QEvent*> e) {
+		return not_null{ static_cast<QMouseEvent*>(e.get()) };
+	});
+}
+
 } // namespace Platform
