@@ -396,7 +396,6 @@ Loaders::SetupLoaderResult Loaders::setupLoader(
 	}
 
 	auto SpeedDependentPosition = Mixer::Track::SpeedDependentPosition;
-	auto SpeedIndependentPosition = Mixer::Track::SpeedIndependentPosition;
 	if (!l) {
 		std::unique_ptr<AudioPlayerLoader> *loader = nullptr;
 		switch (audio.type()) {

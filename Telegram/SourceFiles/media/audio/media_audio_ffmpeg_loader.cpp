@@ -776,9 +776,6 @@ bool FFMpegLoader::open(crl::time positionMs, float64 speed) {
 }
 
 bool FFMpegLoader::openCodecContext() {
-	int res = 0;
-	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-
 	_codecContext = avcodec_alloc_context3(nullptr);
 	if (!_codecContext) {
 		LOG(("Audio Error: "
