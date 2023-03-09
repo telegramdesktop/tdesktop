@@ -211,6 +211,10 @@ not_null<Dialogs::MainList*> Folder::chatsList() {
 	return &_chatsList;
 }
 
+void Folder::clearChatsList() {
+	_chatsList.clear();
+}
+
 void Folder::chatListPreloadData() {
 }
 

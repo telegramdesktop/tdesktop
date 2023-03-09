@@ -35,6 +35,7 @@ public:
 	void unregisterOne(not_null<History*> history);
 	void oneListMessageChanged(HistoryItem *from, HistoryItem *to);
 
+	void clearChatsList();
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList();
 
 	void applyDialog(const MTPDdialogFolder &data);

@@ -385,6 +385,9 @@ void Session::clear() {
 	_contactsNoChatsList.clear();
 	_contactsList.clear();
 	_chatsList.clear();
+	for (const auto &[id, folder] : _folders) {
+		folder->clearChatsList();
+	}
 	_histories->clearAll();
 	_webpages.clear();
 	_locations.clear();
