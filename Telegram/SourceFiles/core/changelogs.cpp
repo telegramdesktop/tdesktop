@@ -82,6 +82,16 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix crash when accepting incoming calls.\n"
 
 		"- Remove sound when cancelling an unconfirmed call.\n"
+	},
+	{
+		4006008,
+		"- Improve quality of voice messages with changed playback speed.\n"
+
+		"- Show when your message was read in small groups.\n"
+
+		"- Fix pasting images from Firefox on Windows.\n"
+		
+		"- Improve memory usage for custom emoji.\n"
 	}
 	};
 };

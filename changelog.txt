@@ -1,3 +1,10 @@
+4.6.8 beta (09.03.23)
+
+- Improve quality of voice messages with changed playback speed.
+- Show when your message was read in small groups.
+- Fix pasting images from Firefox on Windows.
+- Improve memory usage for custom emoji.
+
 4.6.7 beta (02.03.23)
 
 - Fix crash when accepting incoming calls.
