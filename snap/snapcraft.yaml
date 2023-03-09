@@ -208,7 +208,7 @@ parts:
       - shared-mime-info
       - xdg-user-dirs
     override-prime: |
-      snapcraftctl prime
+      craftctl default
       update-mime-database usr/share/mime
       glib-compile-schemas usr/share/glib-2.0/schemas
       for theme in usr/share/icons/*; do
