@@ -1,3 +1,8 @@
+4.6.9 beta (10.03.23)
+
+- Fix audio speed change filter in Windows x64 build.
+- Fix build scripts.
+
 4.6.8 beta (09.03.23)
 
 - Improve quality of voice messages with changed playback speed.
