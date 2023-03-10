@@ -57,7 +57,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 73f5d4762f \
+	&& git checkout 4b35c02c5e \
 	&& rm -rf .git
 
 FROM builder AS nasm
@@ -490,7 +490,7 @@ COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 RUN git init ffmpeg \
 	&& cd ffmpeg \
 	&& git remote add origin {{ GIT }}/FFmpeg/FFmpeg.git \
-	&& git fetch --depth=1 origin cc33e73618a981de7fd96385ecb34719de031f16 \
+	&& git fetch --depth=1 origin 7268323193d55365f914de39fadd5dbdb1f68976 \
 	&& git reset --hard FETCH_HEAD \
 	&& ./configure \
 		--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
