@@ -983,6 +983,7 @@ depends:yasm/yasm
         --enable-decoder=wmav2 \
         --enable-decoder=wmavoice \
         --enable-encoder=libopus \
+        --enable-filter=atempo \
         --enable-parser=aac \
         --enable-parser=aac_latm \
         --enable-parser=flac \
