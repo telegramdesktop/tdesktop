@@ -3358,8 +3358,10 @@ void HistoryWidget::loadMessagesDown() {
 
 	auto loadMigrated = _migrated && !(_migrated->isEmpty() || _migrated->loadedAtBottom() || (!_history->isEmpty() && !_history->loadedAtTop()));
 	auto from = loadMigrated ? _migrated : _history;
-	if (from->loadedAtBottom() && _sponsoredMessagesStateKnown) {
-		session().data().sponsoredMessages().request(_history, nullptr);
+	if (from->loadedAtBottom()) {
+		if (_sponsoredMessagesStateKnown) {
+			session().data().sponsoredMessages().request(_history, nullptr);
+		}
 		return;
 	}
 
