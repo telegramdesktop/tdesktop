@@ -272,7 +272,12 @@ void StopDetachIfNotUsedSafe() {
 }
 
 bool SupportsSpeedControl() {
-	return true;
+	static const auto result = [] {
+		return avfilter_get_by_name("abuffer")
+			&& avfilter_get_by_name("abuffersink")
+			&& avfilter_get_by_name("atempo");
+	}();
+	return result;
 }
 
 } // namespace Audio
