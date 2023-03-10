@@ -1110,6 +1110,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_copy_phone" = "Copy Phone Number";
 "lng_profile_copy_fullname" = "Copy Name";
 
+"lng_via_link_group_one" = "**{user}** restricts adding them to groups.\nYou can send them an invite link as message instead.";
+"lng_via_link_group_many#one" = "**{count} user** restricts adding them to groups.\nYou can send them an invite link as message instead.";
+"lng_via_link_group_many#other" = "**{count} users** restrict adding them to groups.\nYou can send them an invite link as message instead.";
+"lng_via_link_channel_one" = "**{user}** restricts adding them to channels.\nYou can send them an invite link as message instead.";
+"lng_via_link_channel_many#one" = "**{count} user** restricts adding them to channels.\nYou can send them an invite link as message instead.";
+"lng_via_link_channel_many#other" = "**{count} users** restrict adding them to channels.\nYou can send them an invite link as message instead.";
+"lng_via_link_send" = "Send Invite Link";
+"lng_via_link_cant" = "You can't create a link";
+"lng_via_link_cant_one" = "**{user}** can only by invited via link, but you don't have permission to share invite links to this group.";
+"lng_via_link_cant_many#one" = "**{count} user** can only by invited via link, but you don't have permission to share invite links to this group.";
+"lng_via_link_cant_many#other" = "**{count} users** can only by invited via link, but you don't have permission to share invite links to this group.";
+"lng_via_link_shared_one" = "Link shared with **{user}**.";
+"lng_via_link_shared_many#one" = "Link shared with **{count} user**.";
+"lng_via_link_shared_many#other" = "Link shared with **{count} users**.";
+
 "lng_info_mobile_label" = "Mobile";
 "lng_info_mobile_context_menu_fragment_about" = "This number is not tied to a SIM card and was acquired on {link}.";
 "lng_info_mobile_context_menu_fragment_about_link" = "Fragment";

@@ -3709,7 +3709,8 @@ void ApiWrap::sendBotStart(
 		applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
 		if (chat) {
-			ShowAddParticipantsError(error.type(), chat, { 1, bot });
+			const auto type = error.type();
+			ShowAddParticipantsError(type, chat, { 1, bot });
 		}
 	}).send();
 }

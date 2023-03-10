@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_participants_box.h"
 
 #include "api/api_chat_participants.h"
+#include "api/api_invite_links.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/edit_peer_type_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
@@ -33,11 +35,47 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_settings.h"
 
 namespace {
 
 constexpr auto kParticipantsFirstPageCount = 16;
 constexpr auto kParticipantsPerPage = 200;
+
+class InviteForbiddenController final : public PeerListController {
+public:
+	InviteForbiddenController(
+		not_null<PeerData*> peer,
+		std::vector<not_null<UserData*>> users);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	[[nodiscard]] bool canInvite() const {
+		return _can;
+	}
+	[[nodiscard]] rpl::producer<int> selectedValue() const {
+		return _selected.value();
+	}
+
+	void send(
+		std::vector<not_null<PeerData*>> list,
+		Ui::ShowPtr show,
+		Fn<void()> close);
+
+private:
+	void appendRow(not_null<UserData*> user);
+	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
+		not_null<UserData*> user) const;
+
+	const not_null<PeerData*> _peer;
+	const std::vector<not_null<UserData*>> _users;
+	const bool _can = false;
+	rpl::variable<int> _selected;
+	bool _sending = false;
+
+};
 
 base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 	if (!peer) {
@@ -52,6 +90,148 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 		}
 	}
 	return {};
+}
+
+InviteForbiddenController::InviteForbiddenController(
+	not_null<PeerData*> peer,
+	std::vector<not_null<UserData*>> users)
+: _peer(peer)
+, _users(std::move(users))
+, _can(peer->isChat()
+	? peer->asChat()->canHaveInviteLink()
+	: peer->asChannel()->canHaveInviteLink())
+, _selected(_can ? int(_users.size()) : 0) {
+}
+
+Main::Session &InviteForbiddenController::session() const {
+	return _peer->session();
+}
+
+void InviteForbiddenController::prepare() {
+	const auto broadcast = _peer->isBroadcast();
+	const auto count = int(_users.size());
+	const auto phraseCounted = !_can
+		? tr::lng_via_link_cant_many
+		: broadcast
+		? tr::lng_via_link_channel_many
+		: tr::lng_via_link_group_many;
+	const auto phraseNamed = !_can
+		? tr::lng_via_link_cant_one
+		: broadcast
+		? tr::lng_via_link_channel_one
+		: tr::lng_via_link_group_one;
+	auto text = (count != 1)
+		? phraseCounted(
+			lt_count,
+			rpl::single<float64>(count),
+			Ui::Text::RichLangValue)
+		: phraseNamed(
+			lt_user,
+			rpl::single(TextWithEntities{ _users.front()->name() }),
+			Ui::Text::RichLangValue);
+	delegate()->peerListSetAboveWidget(object_ptr<Ui::PaddingWrap<>>(
+		(QWidget*)nullptr,
+		object_ptr<Ui::FlatLabel>(
+			(QWidget*)nullptr,
+			std::move(text),
+			st::requestPeerRestriction),
+		st::boxRowPadding));
+	delegate()->peerListSetTitle(
+		_can ? tr::lng_profile_add_via_link() : tr::lng_via_link_cant());
+
+	for (const auto &user : _users) {
+		appendRow(user);
+	}
+	delegate()->peerListRefreshRows();
+}
+
+void InviteForbiddenController::rowClicked(not_null<PeerListRow*> row) {
+	if (!_can) {
+		return;
+	}
+	const auto checked = row->checked();
+	delegate()->peerListSetRowChecked(row, !checked);
+	_selected = _selected.current() + (checked ? -1 : 1);
+}
+
+void InviteForbiddenController::appendRow(not_null<UserData*> user) {
+	if (!delegate()->peerListFindRow(user->id.value)) {
+		auto row = createRow(user);
+		const auto raw = row.get();
+		delegate()->peerListAppendRow(std::move(row));
+		if (_can) {
+			delegate()->peerListSetRowChecked(raw, true);
+		}
+	}
+}
+
+void InviteForbiddenController::send(
+		std::vector<not_null<PeerData*>> list,
+		Ui::ShowPtr show,
+		Fn<void()> close) {
+	if (_sending || list.empty()) {
+		return;
+	}
+	_sending = true;
+	const auto chat = _peer->asChat();
+	const auto channel = _peer->asChannel();
+	const auto sendLink = [=] {
+		const auto link = chat ? chat->inviteLink() : channel->inviteLink();
+		if (link.isEmpty()) {
+			return false;
+		}
+		auto &api = _peer->session().api();
+		auto options = Api::SendOptions();
+		for (const auto &to : list) {
+			const auto history = to->owner().history(to);
+			auto message = Api::MessageToSend(
+				Api::SendAction(history, options));
+			message.textWithTags = { link };
+			message.action.clearDraft = false;
+			api.sendMessage(std::move(message));
+		}
+		auto text = (list.size() == 1)
+			? tr::lng_via_link_shared_one(
+				tr::now,
+				lt_user,
+				TextWithEntities{ list.front()->name() },
+				Ui::Text::RichLangValue)
+			: tr::lng_via_link_shared_many(
+				tr::now,
+				lt_count,
+				int(list.size()),
+				Ui::Text::RichLangValue);
+		close();
+		Ui::Toast::Show(
+			show->toastParent(),
+			{ .text = std::move(text), .st = &st::defaultToast });
+		return true;
+	};
+	const auto sendForFull = [=] {
+		if (!sendLink()) {
+			_peer->session().api().inviteLinks().create(_peer, [=](auto) {
+				if (!sendLink()) {
+					close();
+				}
+			});
+		}
+	};
+	if (_peer->isFullLoaded()) {
+		sendForFull();
+	} else if (!sendLink()) {
+		_peer->session().api().requestFullPeer(_peer);
+		_peer->session().changes().peerUpdates(
+			_peer,
+			Data::PeerUpdate::Flag::FullInfo
+		) | rpl::start_with_next([=] {
+			sendForFull();
+		}, lifetime());
+	}
+}
+
+std::unique_ptr<PeerListRow> InviteForbiddenController::createRow(
+		not_null<UserData*> user) const {
+	return std::make_unique<PeerListRow>(user);
 }
 
 } // namespace
@@ -245,14 +425,19 @@ void AddParticipantsBoxController::inviteSelectedUsers(
 	if (users.empty()) {
 		return;
 	}
+	const auto show = std::make_shared<Ui::BoxShow>(box);
 	const auto request = [=](bool checked) {
-		_peer->session().api().chatParticipants().add(_peer, users, checked);
+		_peer->session().api().chatParticipants().add(
+			_peer,
+			users,
+			show,
+			checked);
 	};
 	if (_peer->isChannel()) {
 		request(false);
 		return done();
 	}
-	Ui::BoxShow(box).showBox(Box([=](not_null<Ui::GenericBox*> box) {
+	show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		auto checkbox = object_ptr<Ui::Checkbox>(
 			box.get(),
 			tr::lng_participant_invite_history(),
@@ -369,6 +554,81 @@ void AddParticipantsBoxController::Start(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel) {
 	Start(navigation, channel, {}, true);
+}
+
+std::vector<not_null<UserData*>> CollectForbiddenUsers(
+		not_null<Main::Session*> session,
+		const MTPUpdates &updates) {
+	const auto owner = &session->data();
+	auto result = std::vector<not_null<UserData*>>();
+	const auto add = [&](const MTPUpdate &update) {
+		if (update.type() == mtpc_updateGroupInvitePrivacyForbidden) {
+			const auto user = owner->userLoaded(UserId(
+				update.c_updateGroupInvitePrivacyForbidden().vuser_id()));
+			if (user) {
+				result.push_back(user);
+			}
+		}
+	};
+	const auto collect = [&](const MTPVector<MTPUpdate> &updates) {
+		for (const auto &update : updates.v) {
+			add(update);
+		}
+	};
+	updates.match([&](const MTPDupdates &data) {
+		collect(data.vupdates());
+	}, [&](const MTPDupdatesCombined &data) {
+		collect(data.vupdates());
+	}, [&](const MTPDupdateShort &data) {
+		add(data.vupdate());
+	}, [](const auto &other) {
+		LOG(("Api Error: CollectForbiddenUsers for wrong updates type."));
+	});
+	return result;
+}
+
+bool ChatInviteForbidden(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer,
+		std::vector<not_null<UserData*>> forbidden) {
+	if (forbidden.empty() || !show || !show->valid()) {
+		return false;
+	}
+	auto controller = std::make_unique<InviteForbiddenController>(
+		peer,
+		std::move(forbidden));
+	const auto weak = controller.get();
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		const auto can = weak->canInvite();
+		if (!can) {
+			box->addButton(tr::lng_close(), [=] {
+				box->closeBox();
+			});
+			return;
+		}
+		weak->selectedValue(
+		) | rpl::map(
+			rpl::mappers::_1 > 0
+		) | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](bool has) {
+			box->clearButtons();
+			if (has) {
+				box->addButton(tr::lng_via_link_send(), [=] {
+					weak->send(
+						box->collectSelectedRows(),
+						std::make_shared<Ui::BoxShow>(box),
+						crl::guard(box, [=] { box->closeBox(); }));
+				});
+			}
+			box->addButton(tr::lng_create_group_skip(), [=] {
+				box->closeBox();
+			});
+		}, box->lifetime());
+	};
+	show->showBox(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)),
+		Ui::LayerOption::KeepOther);
+	return true;
 }
 
 AddSpecialBoxController::AddSpecialBoxController(

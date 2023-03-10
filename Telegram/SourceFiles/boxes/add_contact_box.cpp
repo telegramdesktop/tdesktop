@@ -112,7 +112,12 @@ void ChatCreateDone(
 			if (done) {
 				done(chat);
 			} else {
+				const auto show = std::make_shared<Window::Show>(navigation);
 				navigation->showPeerHistory(chat);
+				ChatInviteForbidden(
+					show,
+					chat,
+					CollectForbiddenUsers(&chat->session(), updates));
 			}
 		};
 	if (!success) {
@@ -173,7 +178,8 @@ TextWithEntities PeerFloodErrorText(
 void ShowAddParticipantsError(
 		const QString &error,
 		not_null<PeerData*> chat,
-		const std::vector<not_null<UserData*>> &users) {
+		const std::vector<not_null<UserData*>> &users,
+		std::shared_ptr<Ui::Show> show) {
 	if (error == u"USER_BOT"_q) {
 		const auto channel = chat->asChannel();
 		if ((users.size() == 1)
@@ -219,6 +225,9 @@ void ShowAddParticipantsError(
 			: PeerFloodType::InviteChannel;
 		const auto text = PeerFloodErrorText(&chat->session(), type);
 		Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
+		return;
+	} else if (error == u"USER_PRIVACY_RESTRICTED"_q && show) {
+		ChatInviteForbidden(show, chat, users);
 		return;
 	}
 	const auto text = [&] {
@@ -689,9 +698,6 @@ void GroupInfoBox::createGroup(
 			inputs.push_back(user->inputUser);
 		}
 	}
-	if (inputs.empty()) {
-		return;
-	}
 	_creationRequestId = _api.request(MTPmessages_CreateChat(
 		MTP_flags(_ttlPeriod
 			? MTPmessages_CreateChat::Flag::f_ttl_period
@@ -703,6 +709,7 @@ void GroupInfoBox::createGroup(
 		auto image = _photo->takeResultImage();
 		const auto period = _ttlPeriod;
 		const auto navigation = _navigation;
+		const auto controller = navigation->parentController();
 		const auto done = _done;
 
 		getDelegate()->hideLayer(); // Destroys 'this'.
@@ -763,13 +770,10 @@ void GroupInfoBox::submit() {
 				not_null<PeerListBox*> box) {
 			auto create = [box, title, weak] {
 				if (const auto strong = weak.data()) {
-					auto rows = box->collectSelectedRows();
-					if (!rows.empty()) {
-						strong->createGroup(
-							box.get(),
-							title,
-							std::move(rows));
-					}
+					strong->createGroup(
+						box.get(),
+						title,
+						box->collectSelectedRows());
 				}
 			};
 			box->addButton(tr::lng_create_group_create(), std::move(create));

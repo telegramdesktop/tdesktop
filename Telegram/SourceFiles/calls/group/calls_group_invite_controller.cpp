@@ -219,12 +219,14 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		}
 	};
 	const auto inviteWithAdd = [=](
+			std::shared_ptr<Ui::Show> show,
 			const std::vector<not_null<UserData*>> &users,
 			const std::vector<not_null<UserData*>> &nonMembers,
 			Fn<void()> finish) {
 		peer->session().api().chatParticipants().add(
 			peer,
 			nonMembers,
+			show,
 			true,
 			[=](bool) { invite(users); finish(); });
 	};
@@ -257,7 +259,10 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			finish();
 		};
 		const auto done = [=] {
-			inviteWithAdd(users, nonMembers, finishWithConfirm);
+			const auto show = (*shared)
+				? std::make_shared<Ui::BoxShow>(*shared)
+				: nullptr;
+			inviteWithAdd(show, users, nonMembers, finishWithConfirm);
 		};
 		auto box = ConfirmBox({
 			.text = text,
