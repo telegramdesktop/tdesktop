@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 

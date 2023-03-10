@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/unixtime.h"
