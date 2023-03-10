@@ -819,10 +819,6 @@ Streaming::TimePoint Mixer::getExternalSyncTimePoint(
 	if (track && track->state.id == audio && track->lastUpdateWhen > 0) {
 		result.trackTime = track->lastUpdatePosition;
 		result.worldTime = track->lastUpdateWhen;
-		LOG(("Sync: Track Time %1, World Time: %2, Speed: %3"
-			).arg(result.trackTime / 1000.
-			).arg(result.worldTime / 1000.
-			).arg(track->speed));
 	}
 	return result;
 }

@@ -394,9 +394,6 @@ auto AbstractAudioFFMpegLoader::fillFrameFromQueued()
 	if (!queued.frame) {
 		return ReadError::EndOfFile;
 	}
-	LOG(("Returning At %1 Data: %2"
-		).arg(queued.position
-		).arg(quintptr(queued.frame->extended_data[0])));
 	return &queued;
 }
 
@@ -674,9 +671,6 @@ void AbstractAudioFFMpegLoader::enqueueNormalFrame(
 		.samples = samples,
 		.frame = FFmpeg::DuplicateFramePointer(frame),
 	});
-	LOG(("Added At %1 Data: %2"
-		).arg(_framesQueued.back().position
-		).arg(quintptr(_framesQueued.back().frame->extended_data[0])));
 	_framesQueuedSamples += samples;
 }
 
