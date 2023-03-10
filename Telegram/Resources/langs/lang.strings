@@ -620,6 +620,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_power_emoji_panel" = "Autoplay in panel";
 "lng_settings_power_emoji_reactions" = "Autoplay in reactions menu";
 "lng_settings_power_emoji_chat" = "Autoplay in messages";
+"lng_settings_power_emoji_status" = "Autoplay in premium status";
 "lng_settings_power_chat" = "Animations in Chats";
 "lng_settings_power_chat_background" = "Background rotation";
 "lng_settings_power_chat_spoiler" = "Animated spoiler effect";

@@ -560,7 +560,7 @@ void EmojiStatusTopBar::paint(QPainter &p) {
 				: QColor(0, 0, 0, 0)),
 			false,
 			crl::now(),
-			_paused);
+			_paused || On(PowerSaving::kEmojiStatus));
 
 		p.drawImage(_rect.toRect(), frame.image);
 		if (!_paused) {

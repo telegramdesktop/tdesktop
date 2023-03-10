@@ -19,6 +19,7 @@ enum Flag : uint32 {
 	kChatBackground = (1U << 6),
 	kChatSpoiler = (1U << 7),
 	kCalls = (1U << 8),
+	kEmojiStatus = (1U << 9),
 
 	kAll = (1U << 9) - 1,
 };

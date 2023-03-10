@@ -1272,7 +1272,7 @@ void Message::paintFromName(
 				.position = QPoint(
 					x - 2 * _fromNameStatus->skip,
 					y + _fromNameStatus->skip),
-				.paused = context.paused,
+				.paused = context.paused || On(PowerSaving::kEmojiStatus),
 			});
 		} else {
 			st::dialogsPremiumIcon.paint(p, x, y, width(), color);

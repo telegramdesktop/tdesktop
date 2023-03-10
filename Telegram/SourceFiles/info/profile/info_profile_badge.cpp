@@ -96,7 +96,8 @@ void Badge::setBadge(BadgeType badge, DocumentId emojiStatusId) {
 				auto args = Ui::Text::CustomEmoji::Context{
 					.textColor = _st.premiumFg->c,
 					.now = crl::now(),
-					.paused = _animationPaused && _animationPaused(),
+					.paused = ((_animationPaused && _animationPaused())
+						|| On(PowerSaving::kEmojiStatus)),
 				};
 				if (!_emojiStatusPanel
 					|| !_emojiStatusPanel->paintBadgeFrame(check)) {

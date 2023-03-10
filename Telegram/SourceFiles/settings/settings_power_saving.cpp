@@ -144,6 +144,7 @@ EditFlagsDescriptor<PowerSaving::Flags> PowerSavingLabels() {
 		},
 		{ kEmojiReactions, tr::lng_settings_power_emoji_reactions(tr::now) },
 		{ kEmojiChat, tr::lng_settings_power_emoji_chat(tr::now) },
+		{ kEmojiStatus, tr::lng_settings_power_emoji_status(tr::now) },
 	};
 	auto chat = std::vector<Label>{
 		{
