@@ -709,7 +709,6 @@ void GroupInfoBox::createGroup(
 		auto image = _photo->takeResultImage();
 		const auto period = _ttlPeriod;
 		const auto navigation = _navigation;
-		const auto controller = navigation->parentController();
 		const auto done = _done;
 
 		getDelegate()->hideLayer(); // Destroys 'this'.
