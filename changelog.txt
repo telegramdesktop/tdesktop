@@ -1,3 +1,10 @@
+4.6.10 beta (12.03.23)
+
+- Suggest sending an invite link if user forbids inviting him to groups.
+- Show when a reaction was left on your message in small groups.
+- Fix a crash in video chats on Windows.
+- Fix a crash in audio speed change.
+
 4.6.9 beta (10.03.23)
 
 - Fix audio speed change filter in Windows x64 build.

@@ -92,6 +92,17 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix pasting images from Firefox on Windows.\n"
 
 		"- Improve memory usage for custom emoji.\n"
+	},
+	{
+		4006010,
+		"- Suggest sending an invite link if user forbids "
+		"inviting him to groups.\n"
+
+		"- Show when a reaction was left on your message in small groups.\n"
+
+		"- Fix a crash in video chats on Windows.\n"
+
+		"- Fix a crash in audio speed change.\n"
 	}
 	};
 };
