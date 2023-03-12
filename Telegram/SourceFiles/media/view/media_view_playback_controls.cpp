@@ -362,7 +362,7 @@ void PlaybackControls::showMenu() {
 
 	_menu.emplace(this, _menuStyle);
 
-	{
+	if (Media::Audio::SupportsSpeedControl()) {
 		auto speedItem = base::make_unique_q<MenuSpeedItem>(
 			_menu,
 			_menuStyle.menu,
@@ -372,9 +372,8 @@ void PlaybackControls::showMenu() {
 			updatePlaybackSpeed(speed);
 		}, speedItem->lifetime());
 		_menu->addAction(std::move(speedItem));
+		_menu->addSeparator();
 	}
-
-	_menu->addSeparator();
 
 	_menu->addAction(tr::lng_mediaview_rotate_video(tr::now), [=] {
 		_delegate->playbackControlsRotate();
