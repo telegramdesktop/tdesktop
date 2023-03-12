@@ -41,6 +41,9 @@ auto ChildFFMpegLoader::readFromInitialFrame() -> ReadResult {
 }
 
 auto ChildFFMpegLoader::readMore() -> ReadResult {
+	if (_readTillEnd) {
+		return ReadError::EndOfFile;
+	}
 	const auto initialFrameResult = readFromInitialFrame();
 	if (initialFrameResult != ReadError::Wait) {
 		return initialFrameResult;
@@ -53,7 +56,11 @@ auto ChildFFMpegLoader::readMore() -> ReadResult {
 	}
 
 	if (_queue.empty()) {
-		return _eofReached ? ReadError::EndOfFile : ReadError::Wait;
+		if (!_eofReached) {
+			return ReadError::Wait;
+		}
+		_readTillEnd = true;
+		return ReadError::EndOfFile;
 	}
 
 	auto packet = std::move(_queue.front());

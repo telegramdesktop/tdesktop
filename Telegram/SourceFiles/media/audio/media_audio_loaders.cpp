@@ -512,7 +512,8 @@ Mixer::Track::WithSpeed Loaders::rebufferOnSpeedChange(
 			} else if (result == AudioPlayerLoader::ReadError::Retry) {
 				continue;
 			}
-			Assert(result == AudioPlayerLoader::ReadError::RetryNotQueued);
+			Assert(result == AudioPlayerLoader::ReadError::RetryNotQueued
+				|| result == AudioPlayerLoader::ReadError::EndOfFile);
 			finished = true;
 			break;
 		}

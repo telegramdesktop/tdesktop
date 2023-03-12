@@ -816,8 +816,14 @@ bool FFMpegLoader::seekTo(crl::time positionMs) {
 }
 
 FFMpegLoader::ReadResult FFMpegLoader::readMore() {
+	if (_readTillEnd) {
+		return ReadError::EndOfFile;
+	}
 	const auto readResult = readFromReadyContext(_codecContext);
 	if (readResult != ReadError::Wait) {
+		if (readResult == ReadError::EndOfFile) {
+			_readTillEnd = true;
+		}
 		return readResult;
 	}
 

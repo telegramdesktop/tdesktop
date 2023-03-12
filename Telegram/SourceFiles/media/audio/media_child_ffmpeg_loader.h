@@ -55,6 +55,7 @@ private:
 	std::deque<FFmpeg::Packet> _queue;
 	bool _forceToBuffer = false;
 	bool _eofReached = false;
+	bool _readTillEnd = false;
 
 };
 

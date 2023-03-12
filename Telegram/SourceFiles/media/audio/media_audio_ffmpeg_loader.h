@@ -205,6 +205,7 @@ private:
 
 	AVCodecContext *_codecContext = nullptr;
 	AVPacket _packet;
+	bool _readTillEnd = false;
 
 };
 
