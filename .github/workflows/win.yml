@@ -37,7 +37,7 @@ jobs:
 
     strategy:
       matrix:
-        arch: [x64]
+        arch: [Win32, x64]
 
     env:
       UPLOAD_ARTIFACT: "true"
@@ -87,6 +87,7 @@ jobs:
         if: env.ONLY_CACHE == 'false'
         run: |
           cd %TBUILD%\tdesktop\Telegram
+          SET CXXFLAGS="-bigobj"
           call configure.bat ^
           ${{ matrix.arch }} ^
           -D TDESKTOP_API_TEST=OFF ^
