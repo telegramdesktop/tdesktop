@@ -105,11 +105,22 @@ void OverlayWidget::RendererSW::paintControlsFade(
 	_p->setClipRect(geometry);
 	const auto width = _owner->width();
 	const auto &top = st::mediaviewShadowTop;
+	const auto flip = !_owner->topShadowOnTheRight();
 	const auto topShadow = QRect(
-		QPoint(width - top.width(), 0),
+		QPoint(flip ? 0 : (width - top.width()), 0),
 		top.size());
 	if (topShadow.intersected(geometry).intersects(_clipOuter)) {
-		top.paint(*_p, topShadow.topLeft(), width);
+		if (flip) {
+			if (_topShadowCache.isNull()
+				|| _topShadowColor != st::windowShadowFg->c) {
+				_topShadowColor = st::windowShadowFg->c;
+				_topShadowCache = top.instance(
+					_topShadowColor).mirrored(true, false);
+			}
+			_p->drawImage(0, 0, _topShadowCache);
+		} else {
+			top.paint(*_p, topShadow.topLeft(), width);
+		}
 	}
 	const auto &bottom = st::mediaviewShadowBottom;
 	const auto bottomShadow = QRect(

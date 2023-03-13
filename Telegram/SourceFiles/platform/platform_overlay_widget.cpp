@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "ui/platform/ui_platform_window_title.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/rp_window.h"
 #include "ui/abstract_button.h"
 #include "styles/style_media_view.h"
@@ -220,6 +221,13 @@ bool DefaultOverlayWidgetHelper::skipTitleHitTest(QPoint position) {
 
 rpl::producer<> DefaultOverlayWidgetHelper::controlsActivations() {
 	return _buttons->activations();
+}
+
+rpl::producer<bool> DefaultOverlayWidgetHelper::controlsSideRightValue() {
+	return Ui::Platform::TitleControlsLayoutValue() | rpl::map([=] {
+		return _controls->controls.geometry().center().x()
+			> _controls->wrap.geometry().center().x();
+	}) | rpl::distinct_until_changed();
 }
 
 void DefaultOverlayWidgetHelper::beforeShow(bool fullscreen) {

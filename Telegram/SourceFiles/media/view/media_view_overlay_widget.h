@@ -458,6 +458,7 @@ private:
 	void clearStreaming(bool savePosition = true);
 	bool canInitStreaming() const;
 
+	[[nodiscard]] bool topShadowOnTheRight() const;
 	void applyHideWindowWorkaround();
 
 	Window::SessionController *findWindow(bool switchTo = true) const;
@@ -561,6 +562,7 @@ private:
 
 	QRect _bottomShadowRect;
 	QRect _topShadowRect;
+	rpl::variable<bool> _topShadowRight = false;
 
 	QRect _photoRadialRect;
 	Ui::RadialAnimation _radial;

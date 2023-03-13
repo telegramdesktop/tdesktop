@@ -66,6 +66,9 @@ private:
 
 	QImage _overControlImage;
 
+	QImage _topShadowCache;
+	QColor _topShadowColor;
+
 };
 
 } // namespace Media::View

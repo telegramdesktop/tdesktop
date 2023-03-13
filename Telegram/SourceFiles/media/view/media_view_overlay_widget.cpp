@@ -493,6 +493,12 @@ OverlayWidget::OverlayWidget()
 			}
 		}
 	}, lifetime());
+	_topShadowRight = _helper->controlsSideRightValue();
+	_topShadowRight.changes(
+	) | rpl::start_with_next([=] {
+		updateControlsGeometry();
+		update();
+	}, lifetime());
 
 	_window->setTitle(u"Media viewer"_q);
 	_window->setTitleStyle(st::mediaviewTitle);
@@ -822,11 +828,17 @@ void OverlayWidget::updateControlsGeometry() {
 	const auto bottom = st::mediaviewShadowBottom.height();
 	const auto top = st::mediaviewShadowTop.size();
 	_bottomShadowRect = QRect(0, height() - bottom, width(), bottom);
-	_topShadowRect = QRect(QPoint(width() - top.width(), 0), top);
+	_topShadowRect = QRect(
+		QPoint(topShadowOnTheRight() ? (width() - top.width()) : 0, 0),
+		top);
 
 	updateControls();
 	resizeContentByScreenSize();
 	update();
+}
+
+bool OverlayWidget::topShadowOnTheRight() const {
+	return _topShadowRight.current();
 }
 
 QSize OverlayWidget::flipSizeByRotation(QSize size) const {

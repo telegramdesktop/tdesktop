@@ -234,7 +234,12 @@ void OverlayWidget::RendererGL::paint(
 	if (_factor != factor) {
 		_factor = factor;
 		_controlsImage.invalidate();
-		_controlsFadeImage.invalidate();
+
+		// We use the fact that fade texture atlas
+		// takes exactly full texture size. In case we
+		// just invalidate it we may get larger image
+		// in case of moving from greater _factor to lesser.
+		_controlsFadeImage.destroy(&f);
 	}
 	_blendingEnabled = false;
 	_viewport = widget->size();
@@ -468,10 +473,10 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 
 	program->setUniformValue("viewport", _uniformViewport);
 	const auto &top = st::mediaviewShadowTop.size();
+	const auto point = QPoint(_shadowTopFlip ? 0 : (_viewport.width() - top.width()), 0);
 	program->setUniformValue(
 		"shadowTopRect",
-		Uniform(transformRect(
-			QRect(QPoint(_viewport.width() - top.width(), 0), top))));
+		Uniform(transformRect(QRect(point, top))));
 	const auto &bottom = st::mediaviewShadowBottom;
 	program->setUniformValue(
 		"shadowBottomAndOpacity",
@@ -687,9 +692,12 @@ void OverlayWidget::RendererGL::invalidateControls() {
 }
 
 void OverlayWidget::RendererGL::validateControlsFade() {
-	if (!_controlsFadeImage.image().isNull()) {
+	const auto flip = !_owner->topShadowOnTheRight();
+	if (!_controlsFadeImage.image().isNull()
+		&& _shadowTopFlip == flip) {
 		return;
 	}
+	_shadowTopFlip = flip;
 	const auto width = st::mediaviewShadowTop.width();
 	const auto bottomTop = st::mediaviewShadowTop.height();
 	const auto height = bottomTop + st::mediaviewShadowBottom.height();
@@ -706,6 +714,10 @@ void OverlayWidget::RendererGL::validateControlsFade() {
 		p,
 		QRect(0, bottomTop, width, st::mediaviewShadowBottom.height()));
 	p.end();
+
+	if (flip) {
+		image = std::move(image).mirrored(true, false);
+	}
 
 	_controlsFadeImage.setImage(std::move(image));
 	_shadowTopTexture = QRect(

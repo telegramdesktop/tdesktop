@@ -142,6 +142,7 @@ private:
 	QRect _shadowTopTexture;
 	QRect _shadowBottomTexture;
 
+	bool _shadowTopFlip;
 	bool _blendingEnabled = false;
 
 	rpl::lifetime _lifetime;

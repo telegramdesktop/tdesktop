@@ -35,6 +35,7 @@ public:
 	void minimize(not_null<Ui::RpWindow*> window) override;
 	void clearState() override;
 	void setControlsOpacity(float64 opacity) override;
+	rpl::producer<bool> controlsSideRightValue() override;
 
 private:
 	using Control = Ui::Platform::TitleControl;

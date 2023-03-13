@@ -148,6 +148,10 @@ void MacOverlayWidgetHelper::setControlsOpacity(float64 opacity) {
 	_data->masterOpacity = opacity;
 }
 
+rpl::producer<bool> MacOverlayWidgetHelper::controlsSideRightValue() {
+	return rpl::single(false);
+}
+
 object_ptr<Ui::AbstractButton> MacOverlayWidgetHelper::create(
 		not_null<QWidget*> parent,
 		Control control) {
