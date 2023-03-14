@@ -82,8 +82,8 @@ public:
 private:
 	void paintEvent(QPaintEvent *e) override;
 
-	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
 
 	SpeedButtonLayout _layout;
 	QPoint _layoutPosition;
@@ -241,9 +241,10 @@ void Widget::SpeedButton::setSpeed(float64 speed, anim::type animated) {
 void Widget::SpeedButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
+	const auto innerHeight = st::mediaSpeedButton.icon.height();
 	paintRipple(
 		p,
-		QPoint(),
+		QPoint(0, height() - innerHeight),
 		_isDefault ? &st::mediaPlayerSpeedDisabledRippleBg->c : nullptr);
 
 	const auto &color = !_isDefault
@@ -253,6 +254,23 @@ void Widget::SpeedButton::paintEvent(QPaintEvent *e) {
 		: st::menuIconFg;
 	p.translate(_layoutPosition);
 	_layout.paint(p, color->c);
+}
+
+QPoint Widget::SpeedButton::prepareRippleStartPosition() const {
+	const auto innerHeight = st::mediaSpeedButton.icon.height();
+	const auto result = mapFromGlobal(QCursor::pos())
+		- QPoint(0, height() - innerHeight);
+	const auto rect = QRect(0, 0, width(), innerHeight);
+	return rect.contains(result)
+		? result
+		: DisabledRippleStartPosition();
+}
+
+QImage Widget::SpeedButton::prepareRippleMask() const {
+	const auto innerHeight = st::mediaSpeedButton.icon.height();
+	return Ui::RippleAnimation::RoundRectMask(
+		{ width(), innerHeight },
+		st::mediaPlayerSpeedRadius);
 }
 
 Widget::OrderController::OrderController(
