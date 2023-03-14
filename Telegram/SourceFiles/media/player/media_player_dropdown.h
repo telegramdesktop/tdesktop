@@ -11,6 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "base/timer.h"
 
+namespace style {
+struct MediaSpeedMenu;
+} // namespace style
+
+namespace Ui::Menu {
+class Menu;
+} // namespace Ui::Menu
+
 namespace Media::Player {
 
 class Dropdown final : public Ui::RpWidget {
@@ -48,5 +56,11 @@ private:
 	base::Timer _showTimer;
 
 };
+
+void FillSpeedMenu(
+	not_null<Ui::Menu::Menu*> menu,
+	const style::MediaSpeedMenu &st,
+	rpl::producer<float64> value,
+	Fn<void(float64)> callback);
 
 } // namespace Media::Player

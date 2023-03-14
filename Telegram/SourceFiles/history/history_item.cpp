@@ -3193,6 +3193,9 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 				}
 			}
 			const auto id = data.vreply_to_msg_id().v;
+			if (data.is_reply_to_scheduled()) {
+				int a = 0;
+			}
 			config.replyTo = data.is_reply_to_scheduled()
 				? _history->owner().scheduledMessages().localMessageId(id)
 				: id;

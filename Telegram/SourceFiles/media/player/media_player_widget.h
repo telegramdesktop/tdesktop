@@ -23,21 +23,16 @@ template <typename Widget>
 class FadeWrap;
 } // namespace Ui
 
-namespace Media {
-namespace View {
+namespace Media::View {
 class PlaybackProgress;
-} // namespace Clip
-} // namespace Media
+} // namespace Media::View
 
 namespace Window {
 class SessionController;
 } // namespace Window
 
-namespace Media {
-namespace Player {
+namespace Media::Player {
 
-class PlayButton;
-class SpeedButton;
 class Dropdown;
 struct TrackState;
 
@@ -47,6 +42,7 @@ public:
 		QWidget *parent,
 		not_null<Ui::RpWidget*> dropdownsParent,
 		not_null<Window::SessionController*> controller);
+	~Widget();
 
 	void setCloseCallback(Fn<void()> callback);
 	void setShowItemCallback(Fn<void(not_null<const HistoryItem*>)> callback);
@@ -60,8 +56,6 @@ public:
 	[[nodiscard]] rpl::producer<bool> togglePlaylistRequests() const {
 		return _togglePlaylistRequests.events();
 	}
-
-	~Widget();
 
 private:
 	void resizeEvent(QResizeEvent *e) override;
@@ -134,7 +128,7 @@ private:
 	bool _wontBeOver = false;
 	bool _volumeHidden = false;
 
-	class PlayButton;
+	class SpeedButton;
 	class OrderController;
 	class SpeedController;
 	object_ptr<Ui::FlatLabel> _nameLabel;
@@ -146,7 +140,7 @@ private:
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::IconButton> _repeatToggle;
 	object_ptr<Ui::IconButton> _orderToggle;
-	object_ptr<Ui::IconButton> _speedToggle;
+	object_ptr<SpeedButton> _speedToggle;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
 	object_ptr<Ui::FilledSlider> _playbackSlider;
@@ -159,5 +153,4 @@ private:
 
 };
 
-} // namespace Player
-} // namespace Media
+} // namespace Media::Player

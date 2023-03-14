@@ -120,6 +120,8 @@ PRIVATE
     media/clip/media_clip_reader.cpp
     media/clip/media_clip_reader.h
 
+    media/player/media_player_button.cpp
+    media/player/media_player_button.h
     media/player/media_player_dropdown.cpp
     media/player/media_player_dropdown.h
 

@@ -1093,9 +1093,6 @@ void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
 }
 
 void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
-	Expects(1 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	const auto weak = Ui::MakeWeak(_panel.widget());
 	const auto guard = gsl::finally([&] {
 		if (weak) {
@@ -1107,21 +1104,11 @@ void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 	}
 	seekUpdate(position);
 
-	Assert(2 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	volumeControllerUpdate(position);
-
-	Assert(3 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
 
 	const auto pressed = base::take(_pressed);
 	if (pressed && *pressed == OverState::Playback) {
 		_panel.setDragDisabled(false);
-
-		Assert(4 && _delegate->pipPlaybackSpeed() >= 0.5
-			&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 		seekFinish(_playbackProgress->value());
 	} else if (pressed && *pressed == OverState::VolumeController) {
 		_panel.setDragDisabled(false);
@@ -1182,9 +1169,6 @@ void Pip::seekProgress(float64 value) {
 }
 
 void Pip::seekFinish(float64 value) {
-	Expects(5 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	if (!_lastDurationMs) {
 		return;
 	}
@@ -1671,30 +1655,17 @@ void Pip::playbackPauseResume() {
 }
 
 void Pip::restartAtSeekPosition(crl::time position) {
-	Expects(6 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	if (!_instance.info().video.cover.isNull()) {
 		_preparedCoverStorage = QImage();
 		_preparedCoverState = ThumbState::Empty;
 		_instance.saveFrameToCover();
 	}
 
-	Assert(7 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
 	options.hwAllowed = Core::App().settings().hardwareAcceleratedVideo();
 	options.audioId = _instance.player().prepareLegacyState().id;
-
-	Assert(8 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	options.speed = _delegate->pipPlaybackSpeed();
-
-	Assert(9 && options.speed >= 0.5
-		&& options.speed <= 2.); // Debugging strange crash.
 
 	_instance.play(options);
 	if (_startPaused) {

@@ -946,8 +946,6 @@ PRIVATE
     media/audio/media_audio_track.h
     media/audio/media_child_ffmpeg_loader.cpp
     media/audio/media_child_ffmpeg_loader.h
-    media/player/media_player_button.cpp
-    media/player/media_player_button.h
     media/player/media_player_float.cpp
     media/player/media_player_float.h
     media/player/media_player_instance.cpp

@@ -8,18 +8,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_button.h"
 
 #include "ui/painter.h"
-#include "styles/style_widgets.h"
+#include "styles/style_media_player.h"
 
-namespace Media {
-namespace Player {
+#include <QtCore/QtMath>
 
-PlayButtonLayout::PlayButtonLayout(const style::MediaPlayerButton &st, Fn<void()> callback)
+namespace Media::Player {
+namespace {
+
+[[nodiscard]] QString SpeedText(float64 speed) {
+	return QString::number(base::SafeRound(speed * 10) / 10.) + 'X';
+}
+
+} // namespace
+
+PlayButtonLayout::PlayButtonLayout(
+	const style::MediaPlayerButton &st,
+	Fn<void()> callback)
 : _st(st)
 , _callback(std::move(callback)) {
 }
 
 void PlayButtonLayout::setState(State state) {
-	if (_nextState == state) return;
+	if (_nextState == state) {
+		return;
+	}
 
 	_nextState = state;
 	if (!_transformProgress.animating()) {
@@ -238,8 +250,95 @@ void PlayButtonLayout::animationCallback() {
 }
 
 void PlayButtonLayout::startTransform(float64 from, float64 to) {
-	_transformProgress.start([this] { animationCallback(); }, from, to, st::mediaPlayerButtonTransformDuration);
+	_transformProgress.start(
+		[=] { animationCallback(); },
+		from,
+		to,
+		_st.duration);
 }
 
-} // namespace Player
-} // namespace Media
+SpeedButtonLayout::SpeedButtonLayout(
+	const style::MediaSpeedButton &st,
+	Fn<void()> callback,
+	float64 speed)
+: _st(st)
+, _speed(speed)
+, _oldSpeed(speed)
+, _nextSpeed(speed)
+, _metrics(_st.font->f)
+, _text(SpeedText(speed))
+, _textWidth(_metrics.horizontalAdvance(_text))
+, _oldText(_text)
+, _oldTextWidth(_textWidth)
+, _callback(std::move(callback)) {
+}
+
+void SpeedButtonLayout::setSpeed(float64 speed) {
+	speed = base::SafeRound(speed * 10.) / 10.;
+	if (_nextSpeed == speed) {
+		return;
+	}
+
+	_nextSpeed = speed;
+	if (!_transformProgress.animating()) {
+		_oldSpeed = _speed;
+		_oldColor = _lastPaintColor;
+		_oldText = _text;
+		_oldTextWidth = _textWidth;
+		_speed = _nextSpeed;
+		_text = SpeedText(_speed);
+		_textWidth = _metrics.horizontalAdvance(_text);
+		_transformBackward = false;
+		if (_speed != _speed) {
+			startTransform(0., 1.);
+			if (_callback) _callback();
+		}
+	} else if (_oldSpeed == _nextSpeed) {
+		std::swap(_oldSpeed, _speed);
+		std::swap(_oldColor, _lastPaintColor);
+		std::swap(_oldText, _text);
+		std::swap(_oldTextWidth, _textWidth);
+		startTransform(
+			_transformBackward ? 0. : 1.,
+			_transformBackward ? 1. : 0.);
+		_transformBackward = !_transformBackward;
+	}
+}
+
+void SpeedButtonLayout::finishTransform() {
+	_transformProgress.stop();
+	_transformBackward = false;
+	if (_callback) _callback();
+}
+
+void SpeedButtonLayout::paint(QPainter &p, const QColor &color) {
+	_lastPaintColor = color;
+
+	_st.icon.paint(p, 0, 0, _st.width, color);
+
+	p.setPen(color);
+	p.setFont(_st.font);
+
+	p.drawText(
+		QPointF(
+			(_st.width - _textWidth) / 2.,
+			(_st.height - _metrics.height()) / 2. + _metrics.ascent()),
+		_text);
+}
+
+void SpeedButtonLayout::animationCallback() {
+	if (!_transformProgress.animating()) {
+		const auto finalSpeed = _nextSpeed;
+		_nextSpeed = _speed;
+		setSpeed(finalSpeed);
+	}
+	_callback();
+}
+
+void SpeedButtonLayout::startTransform(float64 from, float64 to) {
+	// No animation for now.
+	_transformProgress.stop();
+	animationCallback();
+}
+
+} // namespace Media::Player

@@ -3552,8 +3552,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_voice_speed_slow" = "Slow";
 "lng_voice_speed_normal" = "Normal";
+"lng_voice_speed_medium" = "Medium";
 "lng_voice_speed_fast" = "Fast";
 "lng_voice_speed_very_fast" = "Very fast";
+"lng_voice_speed_super_fast" = "Super fast";
 
 "lng_view_button_user" = "View user";
 "lng_view_button_bot" = "View bot";

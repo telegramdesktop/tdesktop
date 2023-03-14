@@ -528,7 +528,8 @@ void Player::fail(Error error) {
 }
 
 void Player::play(const PlaybackOptions &options) {
-	Expects(options.speed >= 0.5 && options.speed <= 2.);
+	Expects(options.speed >= Audio::kSpeedMin
+		&& options.speed <= Audio::kSpeedMax);
 
 	// Looping video with audio is not supported for now.
 	Expects(!options.loop || (options.mode != Mode::Both));
@@ -828,7 +829,7 @@ float64 Player::speed() const {
 }
 
 void Player::setSpeed(float64 speed) {
-	Expects(speed >= 0.5 && speed <= 2.);
+	Expects(speed >= Audio::kSpeedMin && speed <= Audio::kSpeedMax);
 
 	if (!Media::Audio::SupportsSpeedControl()) {
 		speed = 1.;

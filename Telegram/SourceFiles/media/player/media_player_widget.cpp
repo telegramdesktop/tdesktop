@@ -31,12 +31,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/player/media_player_dropdown.h"
 #include "media/player/media_player_volume_controller.h"
-#include "styles/style_media_player.h"
-#include "styles/style_media_view.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "storage/storage_account.h"
 #include "main/main_session.h"
+#include "styles/style_media_player.h"
+#include "styles/style_media_view.h"
+#include "styles/style_chat.h" // expandedMenuSeparator.
 
 namespace Media {
 namespace Player {
@@ -44,12 +45,12 @@ namespace Player {
 class WithDropdownController {
 public:
 	WithDropdownController(
-		not_null<Ui::IconButton*> button,
+		not_null<Ui::AbstractButton*> button,
 		not_null<Ui::RpWidget*> menuParent,
 		Fn<void(bool)> menuOverCallback);
 	virtual ~WithDropdownController() = default;
 
-	[[nodiscard]] not_null<Ui::IconButton*> button() const;
+	[[nodiscard]] not_null<Ui::AbstractButton*> button() const;
 	Ui::DropdownMenu *menu() const;
 
 	void updateDropdownGeometry();
@@ -63,12 +64,30 @@ protected:
 private:
 	virtual void fillMenu(not_null<Ui::DropdownMenu*> menu) = 0;
 
-	const not_null<Ui::IconButton*> _button;
+	const not_null<Ui::AbstractButton*> _button;
 	const not_null<Ui::RpWidget*> _menuParent;
 	const Fn<void(bool)> _menuOverCallback;
 	base::unique_qptr<Ui::DropdownMenu> _menu;
 	bool _temporarilyHidden = false;
 	bool _overButton = false;
+
+};
+
+class Widget::SpeedButton final : public Ui::RippleButton {
+public:
+	SpeedButton(QWidget *parent);
+
+	void setSpeed(float64 speed, anim::type animated = anim::type::normal);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+	SpeedButtonLayout _layout;
+	QPoint _layoutPosition;
+	bool _isDefault = false;
 
 };
 
@@ -83,12 +102,14 @@ private:
 	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;
 	void updateIcon();
 
+	const not_null<Ui::IconButton*> _button;
+
 };
 
 class Widget::SpeedController final : public WithDropdownController {
 public:
 	SpeedController(
-		not_null<Ui::IconButton*> button,
+		not_null<SpeedButton*> button,
 		not_null<Ui::RpWidget*> menuParent,
 		Fn<void(bool)> menuOverCallback);
 
@@ -96,7 +117,6 @@ public:
 
 private:
 	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;
-	void updateIcon();
 
 	[[nodiscard]] float64 speed() const;
 	[[nodiscard]] bool isDefault() const;
@@ -105,7 +125,7 @@ private:
 	void setSpeed(float64 newSpeed);
 	void save();
 
-	float64 _speed = 2.;
+	float64 _speed = 1.7;
 	bool _isDefault = true;
 	rpl::event_stream<float64> _speedChanged;
 	rpl::event_stream<> _saved;
@@ -113,7 +133,7 @@ private:
 };
 
 WithDropdownController::WithDropdownController(
-	not_null<Ui::IconButton*> button,
+	not_null<Ui::AbstractButton*> button,
 	not_null<Ui::RpWidget*> menuParent,
 	Fn<void(bool)> menuOverCallback)
 : _button(button)
@@ -135,7 +155,7 @@ WithDropdownController::WithDropdownController(
 	}, button->lifetime());
 }
 
-not_null<Ui::IconButton*> WithDropdownController::button() const {
+not_null<Ui::AbstractButton*> WithDropdownController::button() const {
 	return _button;
 }
 
@@ -199,11 +219,48 @@ void WithDropdownController::showMenu() {
 	_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 }
 
+Widget::SpeedButton::SpeedButton(QWidget *parent)
+: RippleButton(parent, st::mediaPlayerSpeedRipple)
+, _layout(st::mediaSpeedButton, [=] { update(); }, 2.)
+, _isDefault(true) {
+	resize(st::mediaPlayerSpeedSize);
+	_layoutPosition = QPoint(
+		(st::mediaPlayerSpeedSize.width() - st::mediaSpeedButton.width) / 2,
+		st::mediaPlayerSpeedSize.height() - st::mediaSpeedButton.height);
+}
+
+void Widget::SpeedButton::setSpeed(float64 speed, anim::type animated) {
+	_isDefault = (speed == 1.);
+	_layout.setSpeed(speed);
+	if (animated == anim::type::instant) {
+		_layout.finishTransform();
+	}
+	update();
+}
+
+void Widget::SpeedButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	paintRipple(
+		p,
+		QPoint(),
+		_isDefault ? &st::mediaPlayerSpeedDisabledRippleBg->c : nullptr);
+
+	const auto &color = !_isDefault
+		? st::mediaPlayerActiveFg
+		: isOver()
+		? st::menuIconFgOver
+		: st::menuIconFg;
+	p.translate(_layoutPosition);
+	_layout.paint(p, color->c);
+}
+
 Widget::OrderController::OrderController(
 	not_null<Ui::IconButton*> button,
 	not_null<Ui::RpWidget*> menuParent,
 	Fn<void(bool)> menuOverCallback)
-: WithDropdownController(button, menuParent, std::move(menuOverCallback)) {
+: WithDropdownController(button, menuParent, std::move(menuOverCallback))
+, _button(button) {
 	button->setClickedCallback([=] {
 		showMenu();
 	});
@@ -260,25 +317,25 @@ void Widget::OrderController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
 void Widget::OrderController::updateIcon() {
 	switch (Core::App().settings().playerOrderMode()) {
 	case OrderMode::Default:
-		button()->setIconOverride(
+		_button->setIconOverride(
 			&st::mediaPlayerReverseDisabledIcon,
 			&st::mediaPlayerReverseDisabledIconOver);
-		button()->setRippleColorOverride(
+		_button->setRippleColorOverride(
 			&st::mediaPlayerRepeatDisabledRippleBg);
 		break;
 	case OrderMode::Reverse:
-		button()->setIconOverride(&st::mediaPlayerReverseIcon);
-		button()->setRippleColorOverride(nullptr);
+		_button->setIconOverride(&st::mediaPlayerReverseIcon);
+		_button->setRippleColorOverride(nullptr);
 		break;
 	case OrderMode::Shuffle:
-		button()->setIconOverride(&st::mediaPlayerShuffleIcon);
-		button()->setRippleColorOverride(nullptr);
+		_button->setIconOverride(&st::mediaPlayerShuffleIcon);
+		_button->setRippleColorOverride(nullptr);
 		break;
 	}
 }
 
 Widget::SpeedController::SpeedController(
-	not_null<Ui::IconButton*> button,
+	not_null<SpeedButton*> button,
 	not_null<Ui::RpWidget*> menuParent,
 	Fn<void(bool)> menuOverCallback)
 : WithDropdownController(button, menuParent, std::move(menuOverCallback)) {
@@ -293,43 +350,13 @@ Widget::SpeedController::SpeedController(
 	setSpeed(Core::App().settings().voicePlaybackSpeed());
 	_speed = Core::App().settings().voicePlaybackSpeed(true);
 
+	button->setSpeed(_speed, anim::type::instant);
+
 	_speedChanged.events_starting_with(
 		speed()
-	) | rpl::start_with_next([=] {
-		updateIcon();
+	) | rpl::start_with_next([=](float64 speed) {
+		button->setSpeed(speed);
 	}, button->lifetime());
-}
-
-void Widget::SpeedController::updateIcon() {
-	const auto isDefaultSpeed = isDefault();
-	const auto nonDefaultSpeed = lastNonDefaultSpeed();
-
-	if (nonDefaultSpeed == .5) {
-		button()->setIconOverride(
-			(isDefaultSpeed
-				? &st::mediaPlayerSpeedSlowDisabledIcon
-				: &st::mediaPlayerSpeedSlowIcon),
-			(isDefaultSpeed
-				? &st::mediaPlayerSpeedSlowDisabledIconOver
-				: &st::mediaPlayerSpeedSlowIcon));
-	} else if (nonDefaultSpeed == 1.5) {
-		button()->setIconOverride(
-			(isDefaultSpeed
-				? &st::mediaPlayerSpeedFastDisabledIcon
-				: &st::mediaPlayerSpeedFastIcon),
-			(isDefaultSpeed
-				? &st::mediaPlayerSpeedFastDisabledIconOver
-				: &st::mediaPlayerSpeedFastIcon));
-	} else {
-		button()->setIconOverride(
-			isDefaultSpeed ? &st::mediaPlayerSpeedDisabledIcon : nullptr,
-			(isDefaultSpeed
-				? &st::mediaPlayerSpeedDisabledIconOver
-				: nullptr));
-	}
-	button()->setRippleColorOverride(isDefaultSpeed
-		? &st::mediaPlayerSpeedDisabledRippleBg
-		: nullptr);
 }
 
 rpl::producer<> Widget::SpeedController::saved() const {
@@ -367,35 +394,11 @@ void Widget::SpeedController::save() {
 }
 
 void Widget::SpeedController::fillMenu(not_null<Ui::DropdownMenu*> menu) {
-	const auto currentSpeed = speed();
-	const auto addSpeedAction = [&](float64 speed, QString text) {
-		const auto callback = [=] {
-			setSpeed(speed);
-			save();
-		};
-		const auto icon = (speed == currentSpeed)
-			? &st::mediaPlayerMenuCheck
-			: nullptr;
-		auto action = base::make_unique_q<Ui::Menu::Action>(
-			menu,
-			st::mediaPlayerSpeedMenu,
-			Ui::Menu::CreateAction(menu, text, callback),
-			icon,
-			icon);
-		const auto raw = action.get();
-		_speedChanged.events(
-		) | rpl::start_with_next([=](float64 updatedSpeed) {
-			const auto icon = (speed == updatedSpeed)
-				? &st::mediaPlayerMenuCheck
-				: nullptr;
-			raw->setIcon(icon, icon);
-		}, raw->lifetime());
-		menu->addAction(std::move(action));
-	};
-	addSpeedAction(0.5, tr::lng_voice_speed_slow(tr::now));
-	addSpeedAction(1., tr::lng_voice_speed_normal(tr::now));
-	addSpeedAction(1.5, tr::lng_voice_speed_fast(tr::now));
-	addSpeedAction(2., tr::lng_voice_speed_very_fast(tr::now));
+	FillSpeedMenu(
+		menu->menu(),
+		st::mediaSpeedMenu,
+		_speedChanged.events_starting_with(speed()),
+		[=](float64 speed) { setSpeed(speed); save(); });
 }
 
 Widget::Widget(
@@ -412,7 +415,7 @@ Widget::Widget(
 , _volumeToggle(rightControls(), st::mediaPlayerVolumeToggle)
 , _repeatToggle(rightControls(), st::mediaPlayerRepeatButton)
 , _orderToggle(rightControls(), st::mediaPlayerRepeatButton)
-, _speedToggle(rightControls(), st::mediaPlayerSpeedButton)
+, _speedToggle(rightControls())
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
 , _playbackSlider(this, st::mediaPlayerPlayback)
