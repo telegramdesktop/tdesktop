@@ -500,7 +500,7 @@ OverlayWidget::OverlayWidget()
 		update();
 	}, lifetime());
 
-	_window->setTitle(u"Media viewer"_q);
+	_window->setTitle(tr::lng_mediaview_title(tr::now));
 	_window->setTitleStyle(st::mediaviewTitle);
 
 	if constexpr (Platform::IsMac()) {
