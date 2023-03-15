@@ -485,23 +485,37 @@ public:
 		return _autoDownloadDictionaries.changes();
 	}
 
-	[[nodiscard]] float64 videoPlaybackSpeed() const {
-		return _videoPlaybackSpeed.current();
+	[[nodiscard]] float64 videoPlaybackSpeed(
+			bool lastNonDefault = false) const {
+		return (_videoPlaybackSpeed.enabled || lastNonDefault)
+			? _videoPlaybackSpeed.value
+			: 1.;
 	}
 	void setVideoPlaybackSpeed(float64 speed) {
-		_videoPlaybackSpeed = speed;
+		if ((_videoPlaybackSpeed.enabled = (speed != 1.))) {
+			_videoPlaybackSpeed.value = speed;
+		}
 	}
 	[[nodiscard]] float64 voicePlaybackSpeed(
 			bool lastNonDefault = false) const {
-		return (_nonDefaultVoicePlaybackSpeed || lastNonDefault)
-			? _voicePlaybackSpeed
-			: 1.0;
+		return (_voicePlaybackSpeed.enabled || lastNonDefault)
+			? _voicePlaybackSpeed.value
+			: 1.;
 	}
 	void setVoicePlaybackSpeed(float64 speed) {
-		if ((_nonDefaultVoicePlaybackSpeed = (speed != 1.0))) {
-			_voicePlaybackSpeed = speed;
+		if ((_voicePlaybackSpeed.enabled = (speed != 1.0))) {
+			_voicePlaybackSpeed.value = speed;
 		}
 	}
+
+	// For legacy values read-write outside of Settings.
+	[[nodiscard]] qint32 videoPlaybackSpeedSerialized() const {
+		return SerializePlaybackSpeed(_videoPlaybackSpeed);
+	}
+	void setVideoPlaybackSpeedSerialized(qint32 value) {
+		_videoPlaybackSpeed = DeserializePlaybackSpeed(value);
+	}
+
 	[[nodiscard]] QByteArray videoPipGeometry() const {
 		return _videoPipGeometry;
 	}
@@ -795,17 +809,16 @@ public:
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
-	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
-		return int(base::SafeRound(std::clamp(speed, 0.5, 2.0) * 100));
-	}
-	[[nodiscard]] static float64 DeserializePlaybackSpeed(qint32 speed) {
-		if (speed < 10) {
-			// The old values in settings.
-			return (std::clamp(speed, 0, 6) + 2) / 4.;
-		} else {
-			return std::clamp(speed, 50, 200) / 100.;
-		}
-	}
+
+	struct PlaybackSpeed {
+		[[nodiscard]] static float64 Default();
+
+		float64 value = Default();
+		bool enabled = false;
+	};
+	[[nodiscard]] static qint32 SerializePlaybackSpeed(PlaybackSpeed speed);
+	[[nodiscard]] static PlaybackSpeed DeserializePlaybackSpeed(
+		qint32 speed);
 
 	void resetOnLastLogout();
 
@@ -867,9 +880,8 @@ private:
 	bool _suggestAnimatedEmoji = true;
 	rpl::variable<bool> _cornerReaction = true;
 	rpl::variable<bool> _spellcheckerEnabled = true;
-	rpl::variable<float64> _videoPlaybackSpeed = 1.;
-	float64 _voicePlaybackSpeed = 2.;
-	bool _nonDefaultVoicePlaybackSpeed = false;
+	PlaybackSpeed _videoPlaybackSpeed;
+	PlaybackSpeed _voicePlaybackSpeed;
 	QByteArray _videoPipGeometry;
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;

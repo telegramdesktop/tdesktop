@@ -37,6 +37,7 @@ class Instance;
 
 inline constexpr auto kSpeedMin = 0.5;
 inline constexpr auto kSpeedMax = 2.5;
+inline constexpr auto kSpedUpDefault = 1.7;
 
 // Thread: Main.
 void Start(not_null<Instance*> instance);

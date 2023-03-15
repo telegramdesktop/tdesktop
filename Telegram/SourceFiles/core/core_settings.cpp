@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "media/player/media_player_instance.h"
+#include "media/audio/media_audio.h"
 #include "ui/gl/gl_detection.h"
 #include "calls/group/calls_group_common.h"
 #include "spellcheck/spellcheck_types.h"
@@ -118,6 +119,10 @@ void LogPosition(const WindowPosition &position, const QString &name) {
 	return position;
 }
 
+float64 Settings::PlaybackSpeed::Default() {
+	return Media::Audio::kSpedUpDefault;
+}
+
 Settings::Settings()
 : _sendSubmitWay(Ui::InputSubmitSettings::Enter)
 , _floatPlayerColumn(Window::Column::Second)
@@ -215,7 +220,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(_askDownloadPath ? 1 : 0)
 			<< _downloadPath.current()
 			<< _downloadPathBookmark
-			<< qint32(_nonDefaultVoicePlaybackSpeed ? 1 : 0)
+			<< qint32(1)
 			<< qint32(_soundNotify ? 1 : 0)
 			<< qint32(_desktopNotify ? 1 : 0)
 			<< qint32(_flashBounceNotify ? 1 : 0)
@@ -247,7 +252,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(_suggestEmoji ? 1 : 0)
 			<< qint32(_suggestStickersByEmoji ? 1 : 0)
 			<< qint32(_spellcheckerEnabled.current() ? 1 : 0)
-			<< qint32(SerializePlaybackSpeed(_videoPlaybackSpeed.current()))
+			<< qint32(SerializePlaybackSpeed(_videoPlaybackSpeed))
 			<< _videoPipGeometry
 			<< qint32(_dictionariesEnabled.current().size());
 		for (const auto i : _dictionariesEnabled.current()) {
@@ -295,7 +300,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(_disableOpenGL ? 1 : 0)
 			<< _photoEditorBrush
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
-			<< qint32(_voicePlaybackSpeed * 100)
+			<< qint32(SerializePlaybackSpeed(_voicePlaybackSpeed))
 			<< qint32(_closeToTaskbar.current() ? 1 : 0)
 			<< _customDeviceModel.current()
 			<< qint32(_playerRepeatMode.current())
@@ -354,7 +359,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 askDownloadPath = _askDownloadPath ? 1 : 0;
 	QString downloadPath = _downloadPath.current();
 	QByteArray downloadPathBookmark = _downloadPathBookmark;
-	qint32 nonDefaultVoicePlaybackSpeed = _nonDefaultVoicePlaybackSpeed ? 1 : 0;
+	qint32 nonDefaultVoicePlaybackSpeed = 1;
 	qint32 soundNotify = _soundNotify ? 1 : 0;
 	qint32 desktopNotify = _desktopNotify ? 1 : 0;
 	qint32 flashBounceNotify = _flashBounceNotify ? 1 : 0;
@@ -384,8 +389,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 suggestEmoji = _suggestEmoji ? 1 : 0;
 	qint32 suggestStickersByEmoji = _suggestStickersByEmoji ? 1 : 0;
 	qint32 spellcheckerEnabled = _spellcheckerEnabled.current() ? 1 : 0;
-	qint32 videoPlaybackSpeed = Core::Settings::SerializePlaybackSpeed(_videoPlaybackSpeed.current());
-	qint32 voicePlaybackSpeed = _voicePlaybackSpeed * 100;
+	qint32 videoPlaybackSpeed = SerializePlaybackSpeed(_videoPlaybackSpeed);
+	qint32 voicePlaybackSpeed = SerializePlaybackSpeed(_voicePlaybackSpeed);
 	QByteArray videoPipGeometry = _videoPipGeometry;
 	qint32 dictionariesEnabledCount = 0;
 	std::vector<int> dictionariesEnabled;
@@ -742,16 +747,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_suggestStickersByEmoji = (suggestStickersByEmoji == 1);
 	_spellcheckerEnabled = (spellcheckerEnabled == 1);
 	_videoPlaybackSpeed = DeserializePlaybackSpeed(videoPlaybackSpeed);
-	{
-		// Restore settings from 3.0.1 version.
-		if (voicePlaybackSpeed == 100) {
-			_nonDefaultVoicePlaybackSpeed = false;
-			_voicePlaybackSpeed = 2.0;
-		} else {
-			_nonDefaultVoicePlaybackSpeed =
-				(nonDefaultVoicePlaybackSpeed == 1);
-			_voicePlaybackSpeed = voicePlaybackSpeed / 100.;
-		}
+	_voicePlaybackSpeed = DeserializePlaybackSpeed(voicePlaybackSpeed);
+	if (nonDefaultVoicePlaybackSpeed != 1) {
+		_voicePlaybackSpeed.enabled = false;
 	}
 	_videoPipGeometry = (videoPipGeometry);
 	_dictionariesEnabled = std::move(dictionariesEnabled);
@@ -1101,7 +1099,6 @@ void Settings::resetOnLastLogout() {
 	_downloadPath = QString();
 	_downloadPathBookmark = QByteArray();
 
-	_nonDefaultVoicePlaybackSpeed = false;
 	_soundNotify = true;
 	_desktopNotify = true;
 	_flashBounceNotify = true;
@@ -1145,8 +1142,8 @@ void Settings::resetOnLastLogout() {
 	_suggestStickersByEmoji = true;
 	_suggestAnimatedEmoji = true;
 	_spellcheckerEnabled = true;
-	_videoPlaybackSpeed = 1.;
-	_voicePlaybackSpeed = 1.;
+	_videoPlaybackSpeed = PlaybackSpeed();
+	_voicePlaybackSpeed = PlaybackSpeed();
 	//_videoPipGeometry = QByteArray();
 	_dictionariesEnabled = std::vector<int>();
 	_autoDownloadDictionaries = true;
@@ -1178,6 +1175,34 @@ float64 Settings::DefaultDialogsWidthRatio() {
 	return ThirdColumnByDefault()
 		? kDefaultBigDialogsWidthRatio
 		: kDefaultDialogsWidthRatio;
+}
+
+qint32 Settings::SerializePlaybackSpeed(PlaybackSpeed speed) {
+	using namespace Media::Audio;
+
+	const auto value = int(base::SafeRound(
+		std::clamp(speed.value, kSpeedMin, kSpeedMax) * 100));
+	return speed.enabled ? value : -value;
+}
+
+auto Settings::DeserializePlaybackSpeed(qint32 speed) -> PlaybackSpeed {
+	using namespace Media::Audio;
+
+	auto enabled = true;
+	const auto validate = [&](float64 result) {
+		return PlaybackSpeed{
+			.value = (result == 1.) ? kSpedUpDefault : result,
+			.enabled = enabled && (result != 1.),
+		};
+	};
+	if (speed >= 0 && speed < 10) {
+		// The old values in settings.
+		return validate((std::clamp(speed, 0, 6) + 2) / 4.);
+	} else if (speed < 0) {
+		speed = -speed;
+		enabled = false;
+	}
+	return validate(std::clamp(speed / 100., kSpeedMin, kSpeedMax));
 }
 
 void Settings::setTranslateButtonEnabled(bool value) {
