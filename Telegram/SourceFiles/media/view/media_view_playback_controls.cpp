@@ -34,18 +34,21 @@ PlaybackControls::PlaybackControls(
 , _playbackProgress(std::make_unique<PlaybackProgress>())
 , _volumeToggle(this, st::mediaviewVolumeToggle)
 , _volumeController(this, st::mediaviewPlayback)
-, _speedToggle(this, st::mediaviewSpeedButton)
+, _speedToggle(Media::Audio::SupportsSpeedControl()
+	? object_ptr<Player::SpeedButton>(this, st::mediaviewSpeedButton)
+	: nullptr)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _pictureInPicture(this, st::mediaviewPipButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
-, _speedController(
-	std::make_unique<Player::SpeedController>(
+, _speedController(_speedToggle
+	? std::make_unique<Player::SpeedController>(
 		_speedToggle.data(),
 		parent,
 		[=](bool) {},
 		[=](bool lastNonDefault) { return speedLookup(lastNonDefault); },
-		[=](float64 speed) { saveSpeed(speed); }))
+		[=](float64 speed) { saveSpeed(speed); })
+	: nullptr)
 , _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
 	_fadeAnimation->setFinishedCallback([=] {
@@ -343,8 +346,10 @@ void PlaybackControls::resizeEvent(QResizeEvent *e) {
 		st::mediaviewPlayButtonTop);
 
 	auto right = st::mediaviewButtonsRight;
-	_speedToggle->moveToRight(right, st::mediaviewButtonsTop);
-	right += _speedToggle->width() + st::mediaviewPipButtonSkip;
+	if (_speedToggle) {
+		_speedToggle->moveToRight(right, st::mediaviewButtonsTop);
+		right += _speedToggle->width() + st::mediaviewPipButtonSkip;
+	}
 	_pictureInPicture->moveToRight(right, st::mediaviewButtonsTop);
 	right += _pictureInPicture->width() + st::mediaviewFullScreenButtonSkip;
 	_fullScreenToggle->moveToRight(right, st::mediaviewButtonsTop);
@@ -392,7 +397,7 @@ void PlaybackControls::mousePressEvent(QMouseEvent *e) {
 }
 
 bool PlaybackControls::hasMenu() const {
-	return _speedController->menu() != nullptr;
+	return _speedController && _speedController->menu();
 }
 
 bool PlaybackControls::dragging() const {
@@ -400,7 +405,7 @@ bool PlaybackControls::dragging() const {
 		|| _playbackSlider->isChanging()
 		|| _playPauseResume->isOver()
 		|| _volumeToggle->isOver()
-		|| _speedToggle->isOver()
+		|| (_speedToggle && _speedToggle->isOver())
 		|| _fullScreenToggle->isOver()
 		|| _pictureInPicture->isOver();
 }
