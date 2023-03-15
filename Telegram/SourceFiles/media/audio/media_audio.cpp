@@ -491,7 +491,7 @@ void Mixer::Track::updateWithSpeedPosition() {
 int64 Mixer::Track::SpeedIndependentPosition(
 		int64 position,
 		float64 speed) {
-	Expects(speed <= Audio::kSpeedMax);
+	Expects(speed <= kSpeedMax);
 
 	return int64(base::SafeRound(position * speed));
 }
@@ -499,7 +499,7 @@ int64 Mixer::Track::SpeedIndependentPosition(
 int64 Mixer::Track::SpeedDependentPosition(
 		int64 position,
 		float64 speed) {
-	Expects(speed >= Audio::kSpeedMin);
+	Expects(speed >= kSpeedMin);
 
 	return int64(base::SafeRound(position / speed));
 }

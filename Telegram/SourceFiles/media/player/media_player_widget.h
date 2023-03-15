@@ -23,6 +23,10 @@ template <typename Widget>
 class FadeWrap;
 } // namespace Ui
 
+namespace Media {
+enum class OrderMode;
+} // namespace Media
+
 namespace Media::View {
 class PlaybackProgress;
 } // namespace Media::View
@@ -34,6 +38,9 @@ class SessionController;
 namespace Media::Player {
 
 class Dropdown;
+class SpeedButton;
+class OrderController;
+class SpeedController;
 struct TrackState;
 
 class Widget final : public Ui::RpWidget {
@@ -103,6 +110,10 @@ private:
 	void updateTimeLabel();
 	void markOver(bool over);
 
+	void saveOrder(OrderMode mode);
+	[[nodiscard]] float64 speedLookup(bool lastNonDefault) const;
+	void saveSpeed(float64 speed);
+
 	const not_null<Window::SessionController*> _controller;
 	const not_null<Ui::RpWidget*> _orderMenuParent;
 
@@ -128,9 +139,6 @@ private:
 	bool _wontBeOver = false;
 	bool _volumeHidden = false;
 
-	class SpeedButton;
-	class OrderController;
-	class SpeedController;
 	object_ptr<Ui::FlatLabel> _nameLabel;
 	object_ptr<Ui::FadeWrap<Ui::RpWidget>> _rightControls;
 	object_ptr<Ui::LabelSimple> _timeLabel;

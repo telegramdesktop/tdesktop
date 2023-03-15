@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_audio_track.h"
 #include "media/streaming/media_streaming_video_track.h"
 #include "media/audio/media_audio.h" // for SupportsSpeedControl()
+#include "media/media_common.h"
 #include "data/data_document.h" // for DocumentData::duration()
 
 namespace Media {
@@ -528,8 +529,7 @@ void Player::fail(Error error) {
 }
 
 void Player::play(const PlaybackOptions &options) {
-	Expects(options.speed >= Audio::kSpeedMin
-		&& options.speed <= Audio::kSpeedMax);
+	Expects(options.speed >= kSpeedMin && options.speed <= kSpeedMax);
 
 	// Looping video with audio is not supported for now.
 	Expects(!options.loop || (options.mode != Mode::Both));
@@ -829,7 +829,7 @@ float64 Player::speed() const {
 }
 
 void Player::setSpeed(float64 speed) {
-	Expects(speed >= Audio::kSpeedMin && speed <= Audio::kSpeedMax);
+	Expects(speed >= kSpeedMin && speed <= kSpeedMax);
 
 	if (!Media::Audio::SupportsSpeedControl()) {
 		speed = 1.;

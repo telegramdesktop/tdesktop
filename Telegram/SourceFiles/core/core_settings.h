@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/core_settings_proxy.h"
+#include "media/media_common.h"
 #include "window/themes/window_themes_embedded.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "platform/platform_notifications_manager.h"
@@ -36,11 +37,6 @@ enum class Backend;
 namespace Calls::Group {
 enum class StickedTooltip;
 } // namespace Calls::Group
-
-namespace Media::Player {
-enum class RepeatMode;
-enum class OrderMode;
-} // namespace Media::Player
 
 namespace Core {
 
@@ -718,28 +714,28 @@ public:
 	[[nodiscard]] rpl::producer<QString> deviceModelChanges() const;
 	[[nodiscard]] rpl::producer<QString> deviceModelValue() const;
 
-	void setPlayerRepeatMode(Media::Player::RepeatMode mode) {
+	void setPlayerRepeatMode(Media::RepeatMode mode) {
 		_playerRepeatMode = mode;
 	}
-	[[nodiscard]] Media::Player::RepeatMode playerRepeatMode() const {
+	[[nodiscard]] Media::RepeatMode playerRepeatMode() const {
 		return _playerRepeatMode.current();
 	}
-	[[nodiscard]] rpl::producer<Media::Player::RepeatMode> playerRepeatModeValue() const {
+	[[nodiscard]] rpl::producer<Media::RepeatMode> playerRepeatModeValue() const {
 		return _playerRepeatMode.value();
 	}
-	[[nodiscard]] rpl::producer<Media::Player::RepeatMode> playerRepeatModeChanges() const {
+	[[nodiscard]] rpl::producer<Media::RepeatMode> playerRepeatModeChanges() const {
 		return _playerRepeatMode.changes();
 	}
-	void setPlayerOrderMode(Media::Player::OrderMode mode) {
+	void setPlayerOrderMode(Media::OrderMode mode) {
 		_playerOrderMode = mode;
 	}
-	[[nodiscard]] Media::Player::OrderMode playerOrderMode() const {
+	[[nodiscard]] Media::OrderMode playerOrderMode() const {
 		return _playerOrderMode.current();
 	}
-	[[nodiscard]] rpl::producer<Media::Player::OrderMode> playerOrderModeValue() const {
+	[[nodiscard]] rpl::producer<Media::OrderMode> playerOrderModeValue() const {
 		return _playerOrderMode.value();
 	}
-	[[nodiscard]] rpl::producer<Media::Player::OrderMode> playerOrderModeChanges() const {
+	[[nodiscard]] rpl::producer<Media::OrderMode> playerOrderModeChanges() const {
 		return _playerOrderMode.changes();
 	}
 	[[nodiscard]] std::vector<uint64> accountsOrder() const {
@@ -811,9 +807,7 @@ public:
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 
 	struct PlaybackSpeed {
-		[[nodiscard]] static float64 Default();
-
-		float64 value = Default();
+		float64 value = Media::kSpedUpDefault;
 		bool enabled = false;
 	};
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(PlaybackSpeed speed);
@@ -909,8 +903,8 @@ private:
 	base::flags<Calls::Group::StickedTooltip> _hiddenGroupCallTooltips;
 	rpl::variable<bool> _closeToTaskbar = false;
 	rpl::variable<QString> _customDeviceModel;
-	rpl::variable<Media::Player::RepeatMode> _playerRepeatMode;
-	rpl::variable<Media::Player::OrderMode> _playerOrderMode;
+	rpl::variable<Media::RepeatMode> _playerRepeatMode;
+	rpl::variable<Media::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;
 	std::vector<uint64> _accountsOrder;
 #ifdef Q_OS_MAC

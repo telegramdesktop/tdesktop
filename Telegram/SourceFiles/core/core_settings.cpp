@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "media/player/media_player_instance.h"
-#include "media/audio/media_audio.h"
+#include "media/media_common.h"
 #include "ui/gl/gl_detection.h"
 #include "calls/group/calls_group_common.h"
 #include "spellcheck/spellcheck_types.h"
@@ -117,10 +117,6 @@ void LogPosition(const WindowPosition &position, const QString &name) {
 		position.y -= position.h / 2;
 	}
 	return position;
-}
-
-float64 Settings::PlaybackSpeed::Default() {
-	return Media::Audio::kSpedUpDefault;
 }
 
 Settings::Settings()
@@ -814,17 +810,17 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_closeToTaskbar = (closeToTaskbar == 1);
 	_customDeviceModel = customDeviceModel;
 	_accountsOrder = accountsOrder;
-	const auto uncheckedPlayerRepeatMode = static_cast<Media::Player::RepeatMode>(playerRepeatMode);
+	const auto uncheckedPlayerRepeatMode = static_cast<Media::RepeatMode>(playerRepeatMode);
 	switch (uncheckedPlayerRepeatMode) {
-	case Media::Player::RepeatMode::None:
-	case Media::Player::RepeatMode::One:
-	case Media::Player::RepeatMode::All: _playerRepeatMode = uncheckedPlayerRepeatMode; break;
+	case Media::RepeatMode::None:
+	case Media::RepeatMode::One:
+	case Media::RepeatMode::All: _playerRepeatMode = uncheckedPlayerRepeatMode; break;
 	}
-	const auto uncheckedPlayerOrderMode = static_cast<Media::Player::OrderMode>(playerOrderMode);
+	const auto uncheckedPlayerOrderMode = static_cast<Media::OrderMode>(playerOrderMode);
 	switch (uncheckedPlayerOrderMode) {
-	case Media::Player::OrderMode::Default:
-	case Media::Player::OrderMode::Reverse:
-	case Media::Player::OrderMode::Shuffle: _playerOrderMode = uncheckedPlayerOrderMode; break;
+	case Media::OrderMode::Default:
+	case Media::OrderMode::Reverse:
+	case Media::OrderMode::Shuffle: _playerOrderMode = uncheckedPlayerOrderMode; break;
 	}
 	_macWarnBeforeQuit = (macWarnBeforeQuit == 1);
 	_hardwareAcceleratedVideo = (hardwareAcceleratedVideo == 1);
@@ -1178,7 +1174,7 @@ float64 Settings::DefaultDialogsWidthRatio() {
 }
 
 qint32 Settings::SerializePlaybackSpeed(PlaybackSpeed speed) {
-	using namespace Media::Audio;
+	using namespace Media;
 
 	const auto value = int(base::SafeRound(
 		std::clamp(speed.value, kSpeedMin, kSpeedMax) * 100));
@@ -1186,7 +1182,7 @@ qint32 Settings::SerializePlaybackSpeed(PlaybackSpeed speed) {
 }
 
 auto Settings::DeserializePlaybackSpeed(qint32 speed) -> PlaybackSpeed {
-	using namespace Media::Audio;
+	using namespace Media;
 
 	auto enabled = true;
 	const auto validate = [&](float64 result) {

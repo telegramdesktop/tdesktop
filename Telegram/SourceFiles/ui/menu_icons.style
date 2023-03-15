@@ -131,3 +131,29 @@ menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};
 menuIconReportAttention: icon {{ "menu/report", menuIconAttentionColor }};
 
 menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};
+
+playerSpeedSlow: icon {{ "player/speed/audiospeed_menu_0.5", menuIconColor }};
+playerSpeedSlowActive: icon {{ "player/speed/audiospeed_menu_0.5", mediaPlayerActiveFg }};
+playerSpeedNormal: icon {{ "player/speed/audiospeed_menu_1.0", menuIconColor }};
+playerSpeedNormalActive: icon {{ "player/speed/audiospeed_menu_1.0", mediaPlayerActiveFg }};
+playerSpeedMedium: icon {{ "player/speed/audiospeed_menu_1.2", menuIconColor }};
+playerSpeedMediumActive: icon {{ "player/speed/audiospeed_menu_1.2", mediaPlayerActiveFg }};
+playerSpeedFast: icon {{ "player/speed/audiospeed_menu_1.5", menuIconColor }};
+playerSpeedFastActive: icon {{ "player/speed/audiospeed_menu_1.5", mediaPlayerActiveFg }};
+playerSpeedVeryFast: icon {{ "player/speed/audiospeed_menu_1.7", menuIconColor }};
+playerSpeedVeryFastActive: icon {{ "player/speed/audiospeed_menu_1.7", mediaPlayerActiveFg }};
+playerSpeedSuperFast: icon {{ "player/speed/audiospeed_menu_2.0", menuIconColor }};
+playerSpeedSuperFastActive: icon {{ "player/speed/audiospeed_menu_2.0", mediaPlayerActiveFg }};
+
+mediaSpeedSlow: icon {{ "player/speed/audiospeed_menu_0.5", mediaviewMenuFg }};
+mediaSpeedSlowActive: icon {{ "player/speed/audiospeed_menu_0.5", mediaviewTextLinkFg }};
+mediaSpeedNormal: icon {{ "player/speed/audiospeed_menu_1.0", mediaviewMenuFg }};
+mediaSpeedNormalActive: icon {{ "player/speed/audiospeed_menu_1.0", mediaviewTextLinkFg }};
+mediaSpeedMedium: icon {{ "player/speed/audiospeed_menu_1.2", mediaviewMenuFg }};
+mediaSpeedMediumActive: icon {{ "player/speed/audiospeed_menu_1.2", mediaviewTextLinkFg }};
+mediaSpeedFast: icon {{ "player/speed/audiospeed_menu_1.5", mediaviewMenuFg }};
+mediaSpeedFastActive: icon {{ "player/speed/audiospeed_menu_1.5", mediaviewTextLinkFg }};
+mediaSpeedVeryFast: icon {{ "player/speed/audiospeed_menu_1.7", mediaviewMenuFg }};
+mediaSpeedVeryFastActive: icon {{ "player/speed/audiospeed_menu_1.7", mediaviewTextLinkFg }};
+mediaSpeedSuperFast: icon {{ "player/speed/audiospeed_menu_2.0", mediaviewMenuFg }};
+mediaSpeedSuperFastActive: icon {{ "player/speed/audiospeed_menu_2.0", mediaviewTextLinkFg }};

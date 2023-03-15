@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "ui/widgets/buttons.h"
 
 #include <QtGui/QFontMetrics>
 
@@ -60,31 +61,41 @@ public:
 		float64 speed);
 
 	void setSpeed(float64 speed);
-	void finishTransform();
-	void paint(QPainter &p, const QColor &color);
+	void paint(QPainter &p, bool over, bool active);
 
 private:
-	void animationCallback();
-	void startTransform(float64 from, float64 to);
-
 	const style::MediaSpeedButton &_st;
 
 	float64 _speed = 1.;
-	float64 _oldSpeed = 1.;
-	float64 _nextSpeed = 1.;
-	std::optional<QColor> _lastPaintColor;
-	std::optional<QColor> _oldColor;
-	Ui::Animations::Simple _transformProgress;
-	bool _transformBackward = false;
 
 	QFontMetricsF _metrics;
 
 	QString _text;
 	float64 _textWidth = 0;
-	QString _oldText;
-	float64 _oldTextWidth = 0;
 
 	Fn<void()> _callback;
+
+};
+
+class SpeedButton final : public Ui::RippleButton {
+public:
+	SpeedButton(QWidget *parent, const style::MediaSpeedButton &st);
+
+	[[nodiscard]] const style::MediaSpeedButton &st() const {
+		return _st;
+	}
+
+	void setSpeed(float64 speed, anim::type animated = anim::type::normal);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	const style::MediaSpeedButton &_st;
+	SpeedButtonLayout _layout;
+	bool _isDefault = false;
 
 };
 

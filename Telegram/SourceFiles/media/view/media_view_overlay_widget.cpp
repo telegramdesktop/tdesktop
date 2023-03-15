@@ -3743,10 +3743,8 @@ void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
 	}
 }
 
-float64 OverlayWidget::playbackControlsCurrentSpeed() {
-	const auto result = Core::App().settings().videoPlaybackSpeed();
-	DEBUG_LOG(("Media playback speed: now %1.").arg(result));
-	return result;
+float64 OverlayWidget::playbackControlsCurrentSpeed(bool lastNonDefault) {
+	return Core::App().settings().videoPlaybackSpeed(lastNonDefault);
 }
 
 void OverlayWidget::switchToPip() {

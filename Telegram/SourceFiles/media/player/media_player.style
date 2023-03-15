@@ -27,31 +27,42 @@ MediaPlayerButton {
 	duration: int;
 }
 
-MediaSpeedButton {
-	width: pixels;
-	height: pixels;
-	font: font;
-	icon: icon;
-}
-
 MediaSpeedMenu {
-	menu: Menu;
-	iconFg: color;
-	iconFgActive: color;
-	textFgActive: color;
+	dropdown: DropdownMenu;
 	activeCheck: icon;
 	activeCheckSkip: pixels;
 	sliderStyle: TextStyle;
 	sliderPadding: margins;
 	sliderWidth: pixels;
 	slider: MediaSlider;
+
+	slow: icon;
+	slowActive: icon;
+	normal: icon;
+	normalActive: icon;
+	medium: icon;
+	mediumActive: icon;
+	fast: icon;
+	fastActive: icon;
+	veryFast: icon;
+	veryFastActive: icon;
+	superFast: icon;
+	superFastActive: icon;
 }
 
-mediaSpeedButton: MediaSpeedButton {
-	width: 24px;
-	height: 24px;
-	font: font(11px semibold);
-	icon: icon{{ "player/player_speed", menuIconFg }};
+MediaSpeedButton {
+	size: size;
+	padding: margins;
+	font: font;
+	fg: color;
+	overFg: color;
+	activeFg: color;
+	icon: icon;
+	ripple: RippleAnimation;
+	rippleActiveColor: color;
+	rippleRadius: pixels;
+	menu: MediaSpeedMenu;
+	menuAlign: align;
 }
 
 mediaPlayerButton: MediaPlayerButton {
@@ -142,13 +153,6 @@ mediaPlayerCancelIcon: icon{
 	{ "player/panel_close", mediaPlayerActiveFg }
 };
 
-mediaPlayerSpeedSize: size(30px, 30px);
-mediaPlayerSpeedRadius: 4px;
-mediaPlayerSpeedRipple: RippleAnimation(defaultRippleAnimation) {
-	color: lightButtonBgOver;
-}
-mediaPlayerSpeedDisabledRippleBg: windowBgOver;
-
 mediaPlayerMenu: DropdownMenu(defaultDropdownMenu) {
 	wrap: InnerDropdown(defaultInnerDropdown) {
 		scrollPadding: margins(0px, 4px, 0px, 4px);
@@ -157,18 +161,17 @@ mediaPlayerMenu: DropdownMenu(defaultDropdownMenu) {
 }
 mediaPlayerMenuCheck: icon {{ "player/player_check", mediaPlayerActiveFg }};
 
-mediaSpeedMenu: MediaSpeedMenu {
-	menu: Menu(menuWithIcons) {
-		separator: MenuSeparator(defaultMenuSeparator) {
-			padding: margins(0px, 4px, 0px, 4px);
-			width: 6px;
+mediaPlayerSpeedMenu: MediaSpeedMenu {
+	dropdown: DropdownMenu(mediaPlayerMenu) {
+		menu: Menu(menuWithIcons) {
+			separator: MenuSeparator(defaultMenuSeparator) {
+				padding: margins(0px, 4px, 0px, 4px);
+				width: 6px;
+			}
+			itemPadding: margins(54px, 7px, 54px, 9px);
+			itemFgDisabled: mediaPlayerActiveFg;
 		}
-		itemPadding: margins(54px, 7px, 54px, 9px);
-		itemFgDisabled: mediaPlayerActiveFg;
 	}
-	iconFg: menuIconColor;
-	iconFgActive: mediaPlayerActiveFg;
-	textFgActive: mediaPlayerActiveFg;
 	activeCheck: mediaPlayerMenuCheck;
 	activeCheckSkip: 8px;
 	sliderStyle: TextStyle(defaultTextStyle) {
@@ -186,19 +189,37 @@ mediaSpeedMenu: MediaSpeedMenu {
 		width: 6px;
 		seekSize: size(6px, 6px);
 	}
+
+	slow: playerSpeedSlow;
+	slowActive: playerSpeedSlowActive;
+	normal: playerSpeedNormal;
+	normalActive: playerSpeedNormalActive;
+	medium: playerSpeedMedium;
+	mediumActive: playerSpeedMediumActive;
+	fast: playerSpeedFast;
+	fastActive: playerSpeedFastActive;
+	veryFast: playerSpeedVeryFast;
+	veryFastActive: playerSpeedVeryFastActive;
+	superFast: playerSpeedSuperFast;
+	superFastActive: playerSpeedSuperFastActive;
 }
-mediaSpeedSlow: icon {{ "player/speed/audiospeed_menu_0.5", menuIconColor }};
-mediaSpeedSlowActive: icon {{ "player/speed/audiospeed_menu_0.5", mediaPlayerActiveFg }};
-mediaSpeedNormal: icon {{ "player/speed/audiospeed_menu_1.0", menuIconColor }};
-mediaSpeedNormalActive: icon {{ "player/speed/audiospeed_menu_1.0", mediaPlayerActiveFg }};
-mediaSpeedMedium: icon {{ "player/speed/audiospeed_menu_1.2", menuIconColor }};
-mediaSpeedMediumActive: icon {{ "player/speed/audiospeed_menu_1.2", mediaPlayerActiveFg }};
-mediaSpeedFast: icon {{ "player/speed/audiospeed_menu_1.5", menuIconColor }};
-mediaSpeedFastActive: icon {{ "player/speed/audiospeed_menu_1.5", mediaPlayerActiveFg }};
-mediaSpeedVeryFast: icon {{ "player/speed/audiospeed_menu_1.7", menuIconColor }};
-mediaSpeedVeryFastActive: icon {{ "player/speed/audiospeed_menu_1.7", mediaPlayerActiveFg }};
-mediaSpeedSuperFast: icon {{ "player/speed/audiospeed_menu_2.0", menuIconColor }};
-mediaSpeedSuperFastActive: icon {{ "player/speed/audiospeed_menu_2.0", mediaPlayerActiveFg }};
+
+mediaPlayerSpeedButton: MediaSpeedButton {
+	size: size(30px, 30px);
+	padding: margins(0px, 6px, 0px, 0px);
+	font: font(11px bold);
+	fg: menuIconFg;
+	overFg: menuIconFgOver;
+	activeFg: mediaPlayerActiveFg;
+	icon: icon{{ "player/player_speed", menuIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+	rippleActiveColor: lightButtonBgOver;
+	rippleRadius: 4px;
+	menu: mediaPlayerSpeedMenu;
+	menuAlign: align(topright);
+}
 
 mediaPlayerVolumeIcon0: icon {
 	{ "player/player_mini_off", mediaPlayerActiveFg },
@@ -292,7 +313,7 @@ mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
 mediaPlayerFloatSize: 128px;
 mediaPlayerFloatMargin: 12px;
 
-mediaPlayerMenuPosition: point(-2px, -2px);
+mediaPlayerMenuPosition: point(-2px, -1px);
 mediaPlayerOrderMenu: Menu(defaultMenu) {
 	itemIconPosition: point(13px, 8px);
 	itemPadding: margins(49px, 9px, 17px, 11px);

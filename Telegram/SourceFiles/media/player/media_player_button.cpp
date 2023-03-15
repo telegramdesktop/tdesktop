@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_button.h"
 
+#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "styles/style_media_player.h"
 
@@ -263,82 +264,73 @@ SpeedButtonLayout::SpeedButtonLayout(
 	float64 speed)
 : _st(st)
 , _speed(speed)
-, _oldSpeed(speed)
-, _nextSpeed(speed)
 , _metrics(_st.font->f)
 , _text(SpeedText(speed))
 , _textWidth(_metrics.horizontalAdvance(_text))
-, _oldText(_text)
-, _oldTextWidth(_textWidth)
 , _callback(std::move(callback)) {
 }
 
 void SpeedButtonLayout::setSpeed(float64 speed) {
 	speed = base::SafeRound(speed * 10.) / 10.;
-	if (_nextSpeed == speed) {
-		return;
-	}
-
-	_nextSpeed = speed;
-	if (!_transformProgress.animating()) {
-		_oldSpeed = _speed;
-		_oldColor = _lastPaintColor;
-		_oldText = _text;
-		_oldTextWidth = _textWidth;
-		_speed = _nextSpeed;
+	if (_speed != speed) {
+		_speed = speed;
 		_text = SpeedText(_speed);
 		_textWidth = _metrics.horizontalAdvance(_text);
-		_transformBackward = false;
-		if (_speed != _speed) {
-			startTransform(0., 1.);
-			if (_callback) _callback();
-		}
-	} else if (_oldSpeed == _nextSpeed) {
-		std::swap(_oldSpeed, _speed);
-		std::swap(_oldColor, _lastPaintColor);
-		std::swap(_oldText, _text);
-		std::swap(_oldTextWidth, _textWidth);
-		startTransform(
-			_transformBackward ? 0. : 1.,
-			_transformBackward ? 1. : 0.);
-		_transformBackward = !_transformBackward;
+		if (_callback) _callback();
 	}
 }
 
-void SpeedButtonLayout::finishTransform() {
-	_transformProgress.stop();
-	_transformBackward = false;
-	if (_callback) _callback();
-}
-
-void SpeedButtonLayout::paint(QPainter &p, const QColor &color) {
-	_lastPaintColor = color;
-
-	_st.icon.paint(p, 0, 0, _st.width, color);
+void SpeedButtonLayout::paint(QPainter &p, bool over, bool active) {
+	const auto &color = active ? _st.activeFg : over ? _st.overFg : _st.fg;
+	const auto inner = QRect(QPoint(), _st.size).marginsRemoved(_st.padding);
+	_st.icon.paintInCenter(p, inner, color->c);
 
 	p.setPen(color);
 	p.setFont(_st.font);
 
 	p.drawText(
-		QPointF(
-			(_st.width - _textWidth) / 2.,
-			(_st.height - _metrics.height()) / 2. + _metrics.ascent()),
+		QPointF(inner.topLeft()) + QPointF(
+			(inner.width() - _textWidth) / 2.,
+			(inner.height() - _metrics.height()) / 2. + _metrics.ascent()),
 		_text);
 }
 
-void SpeedButtonLayout::animationCallback() {
-	if (!_transformProgress.animating()) {
-		const auto finalSpeed = _nextSpeed;
-		_nextSpeed = _speed;
-		setSpeed(finalSpeed);
-	}
-	_callback();
+SpeedButton::SpeedButton(QWidget *parent, const style::MediaSpeedButton &st)
+: RippleButton(parent, st.ripple)
+, _st(st)
+, _layout(st, [=] { update(); }, 2.)
+, _isDefault(true) {
+	resize(_st.size);
 }
 
-void SpeedButtonLayout::startTransform(float64 from, float64 to) {
-	// No animation for now.
-	_transformProgress.stop();
-	animationCallback();
+void SpeedButton::setSpeed(float64 speed, anim::type animated) {
+	_isDefault = (speed == 1.);
+	_layout.setSpeed(speed);
+	update();
+}
+
+void SpeedButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	paintRipple(
+		p,
+		QPoint(_st.padding.left(), _st.padding.top()),
+		_isDefault ? nullptr : &_st.rippleActiveColor->c);
+	_layout.paint(p, isOver(), !_isDefault);
+}
+
+QPoint SpeedButton::prepareRippleStartPosition() const {
+	const auto inner = rect().marginsRemoved(_st.padding);
+	const auto result = mapFromGlobal(QCursor::pos()) - inner.topLeft();
+	return inner.contains(result)
+		? result
+		: DisabledRippleStartPosition();
+}
+
+QImage SpeedButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::RoundRectMask(
+		rect().marginsRemoved(_st.padding).size(),
+		_st.rippleRadius);
 }
 
 } // namespace Media::Player

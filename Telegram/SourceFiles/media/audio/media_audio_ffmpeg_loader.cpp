@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/audio/media_audio_ffmpeg_loader.h"
 
+#include "base/bytes.h"
 #include "core/file_location.h"
 #include "ffmpeg/ffmpeg_utility.h"
-#include "base/bytes.h"
+#include "media/media_common.h"
 
 extern "C" {
 #include <libavfilter/buffersink.h>
@@ -540,7 +541,7 @@ bool AbstractAudioFFMpegLoader::ensureResampleSpaceAvailable(int samples) {
 }
 
 bool AbstractAudioFFMpegLoader::changeSpeedFilter(float64 speed) {
-	speed = std::clamp(speed, Audio::kSpeedMin, Audio::kSpeedMax);
+	speed = std::clamp(speed, kSpeedMin, kSpeedMax);
 	if (_filterSpeed == speed) {
 		return false;
 	}

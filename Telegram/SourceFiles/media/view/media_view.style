@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 using "ui/widgets/widgets.style";
 using "ui/menu_icons.style";
+using "media/player/media_player.style";
 
 mediaviewOverDuration: 150;
 
@@ -24,7 +25,8 @@ mediaviewPlayback: MediaSlider {
 	seekSize: size(12px, 12px);
 	duration: mediaviewOverDuration;
 }
-mediaviewPlaybackTop: 52px;
+mediaviewPlaybackTop: 49px;
+mediaviewPlayProgressTop: 46px;
 
 mediaviewControlsButton: IconButton {
 	ripple: RippleAnimation(defaultRippleAnimation) {
@@ -34,46 +36,41 @@ mediaviewControlsButton: IconButton {
 	duration: mediaviewOverDuration;
 }
 
-mediaviewControllerSize: size(481px, 75px);
+mediaviewControllerSize: size(480px, 72px);
 mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
-	font: semiboldFont;
+	font: font(12px semibold);
 	textFg: mediaviewPlaybackProgressFg;
 }
-mediaviewPlayProgressSkip: 8px;
-mediaviewPlayProgressLeft: 8px;
-mediaviewPlayButtonTop: 5px;
+mediaviewPlayProgressSkip: 10px;
+mediaviewPlayProgressLeft: 4px;
+mediaviewPlayButtonTop: 2px;
 mediaviewPlayButton: IconButton(mediaviewControlsButton) {
-	width: 42px;
-	height: 42px;
-	rippleAreaSize: 42px;
+	width: 40px;
+	height: 40px;
+	rippleAreaSize: 40px;
 
 	icon: icon {{ "player/player_play", mediaviewPlaybackIconFg }};
 	iconOver: icon {{ "player/player_play", mediaviewPlaybackIconFgOver }};
-	iconPosition: point(9px, 9px);
+	iconPosition: point(8px, 8px);
 }
 mediaviewPauseIcon: icon {{ "player/player_pause", mediaviewPlaybackIconFg }};
 mediaviewPauseIconOver: icon {{ "player/player_pause", mediaviewPlaybackIconFgOver }};
 
-mediaviewButtonsTop: 7px;
+mediaviewButtonsTop: 6px;
+mediaviewButtonsRight: 8px;
 
-mediaviewMenuToggleSkip: 4px;
-mediaviewMenuToggle: IconButton(mediaviewControlsButton) {
-	width: 34px;
-	height: 34px;
-	rippleAreaSize: 34px;
-	icon: icon {{ "player/player_more", mediaviewPlaybackIconFg }};
-	iconOver: icon {{ "player/player_more", mediaviewPlaybackIconFgOver }};
-	iconPosition: point(5px, 5px);
-}
-
-mediaviewPipButtonSkip: 5px;
-mediaviewPipButton: IconButton(mediaviewMenuToggle) {
+mediaviewPipButtonSkip: 4px;
+mediaviewPipButton: IconButton(mediaviewControlsButton) {
+	width: 32px;
+	height: 32px;
+	rippleAreaSize: 32px;
 	icon: icon {{ "player/player_pip", mediaviewPlaybackIconFg }};
 	iconOver: icon {{ "player/player_pip", mediaviewPlaybackIconFgOver }};
+	iconPosition: point(4px, 4px);
 }
 
-mediaviewFullScreenButtonSkip: 8px;
-mediaviewFullScreenButton: IconButton(mediaviewMenuToggle) {
+mediaviewFullScreenButtonSkip: 4px;
+mediaviewFullScreenButton: IconButton(mediaviewPipButton) {
 	icon: icon {{ "player/player_fullscreen", mediaviewPlaybackIconFg }};
 	iconOver: icon {{ "player/player_fullscreen", mediaviewPlaybackIconFgOver }};
 }
@@ -89,17 +86,17 @@ mediaviewVolumeIcon1: icon {{ "player/player_volume_small", mediaviewPlaybackIco
 mediaviewVolumeIcon1Over: icon {{ "player/player_volume_small", mediaviewPlaybackIconFgOver }};
 mediaviewVolumeIcon2: icon {{ "player/player_volume_on", mediaviewPlaybackIconFg }};
 mediaviewVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPlaybackIconFgOver }};
-mediaviewVolumeTop: 10px;
-mediaviewVolumeToggleSkip: 11px;
+mediaviewVolumeTop: 6px;
+mediaviewVolumeToggleLeft: 6px;
 mediaviewVolumeToggle: IconButton(mediaviewControlsButton) {
-	width: 30px;
-	height: 30px;
-	rippleAreaSize: 30px;
+	width: 32px;
+	height: 32px;
+	rippleAreaSize: 32px;
 	icon: mediaviewVolumeIcon0;
 	iconOver: mediaviewVolumeIcon0Over;
-	iconPosition: point(3px, 3px);
+	iconPosition: point(4px, 4px);
 }
-mediaviewVolumeSkip: 4px;
+mediaviewVolumeSkip: 3px;
 
 mediaviewLeft: icon {
 	{ "mediaview/next_shadow-flip_horizontal", windowShadowFg }
@@ -143,6 +140,9 @@ mediaviewFileIconSize: 80px;
 
 mediaviewFileLink: defaultLinkButton;
 
+mediaviewMenuSeparator: MenuSeparator(defaultMenuSeparator) {
+	fg: mediaviewMenuFg;
+}
 mediaviewMenu: Menu(menuWithIcons) {
 	itemBg: mediaviewMenuBg;
 	itemBgOver: mediaviewMenuBgOver;
@@ -153,9 +153,7 @@ mediaviewMenu: Menu(menuWithIcons) {
 	itemFgShortcutOver: mediaviewMenuFg;
 	itemFgShortcutDisabled: mediaviewMenuFg;
 
-	separator: MenuSeparator(defaultMenuSeparator) {
-		fg: mediaviewMenuFg;
-	}
+	separator: mediaviewMenuSeparator;
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: mediaviewMenuBgRipple;
@@ -181,39 +179,6 @@ mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 		scrollPadding: margins(0px, 8px, 0px, 8px);
 		shadow: mediaviewMenuShadow;
 	}
-}
-
-mediaviewControlsMenu: Menu(defaultMenu) {
-	itemBg: mediaviewSaveMsgBg;
-	itemBgOver: mediaviewPlaybackIconRipple;
-	itemFg: mediaviewPlaybackProgressFg;
-	itemFgOver: mediaviewPlaybackProgressFg;
-	itemFgDisabled: mediaviewPlaybackProgressFg;
-	itemFgShortcut: mediaviewPlaybackProgressFg;
-	itemFgShortcutOver: mediaviewPlaybackProgressFg;
-	itemFgShortcutDisabled: mediaviewPlaybackProgressFg;
-
-	separator: MenuSeparator(defaultMenuSeparator) {
-		fg: mediaviewPlaybackIconRipple;
-	}
-
-	arrow: icon {{ "menu/submenu_arrow", mediaviewPlaybackProgressFg }};
-
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: mediaviewPlaybackIconRipple;
-	}
-}
-mediaviewControlsMenuShadow: Shadow(defaultEmptyShadow) {
-	fallback: mediaviewSaveMsgBg;
-}
-mediaviewControlsPanelAnimation: PanelAnimation(defaultPanelAnimation) {
-	fadeBg: mediaviewSaveMsgBg;
-	shadow: mediaviewControlsMenuShadow;
-}
-mediaviewControlsPopupMenu: PopupMenu(defaultPopupMenu) {
-	shadow: mediaviewControlsMenuShadow;
-	menu: mediaviewControlsMenu;
-	animation: mediaviewControlsPanelAnimation;
 }
 
 mediaviewSaveMsgCheck: icon {{ "mediaview/save_check", mediaviewSaveMsgFg }};
@@ -337,6 +302,59 @@ mediaviewTitleMaximizeMacPadding: margins(0px, 4px, 8px, 4px);
 
 mediaviewShadowTop: icon{{ "mediaview/shadow_top", windowShadowFg }};
 mediaviewShadowBottom: icon{{ "mediaview/shadow_bottom", windowShadowFg }};
+
+mediaviewSpeedMenu: MediaSpeedMenu(mediaPlayerSpeedMenu) {
+	dropdown: DropdownMenu(mediaviewDropdownMenu) {
+		menu: Menu(mediaviewMenu) {
+			separator: MenuSeparator(mediaviewMenuSeparator) {
+				fg: mediaviewMenuBgOver;
+				padding: margins(0px, 4px, 0px, 4px);
+				width: 6px;
+			}
+			itemPadding: margins(54px, 7px, 54px, 9px);
+			itemFgDisabled: mediaviewTextLinkFg;
+		}
+	}
+	activeCheck: icon {{ "player/player_check", mediaviewTextLinkFg }};
+	slider: MediaSlider(defaultContinuousSlider) {
+		activeFg: mediaviewTextLinkFg;
+		inactiveFg: mediaviewMenuBgOver;
+		activeFgOver: mediaviewTextLinkFg;
+		inactiveFgOver: mediaviewMenuBgOver;
+		activeFgDisabled: mediaviewMenuBgOver;
+		receivedTillFg: mediaviewMenuBgOver;
+		width: 6px;
+		seekSize: size(6px, 6px);
+	}
+
+	slow: mediaSpeedSlow;
+	slowActive: mediaSpeedSlowActive;
+	normal: mediaSpeedNormal;
+	normalActive: mediaSpeedNormalActive;
+	medium: mediaSpeedMedium;
+	mediumActive: mediaSpeedMediumActive;
+	fast: mediaSpeedFast;
+	fastActive: mediaSpeedFastActive;
+	veryFast: mediaSpeedVeryFast;
+	veryFastActive: mediaSpeedVeryFastActive;
+	superFast: mediaSpeedSuperFast;
+	superFastActive: mediaSpeedSuperFastActive;
+}
+mediaviewSpeedButton: MediaSpeedButton(mediaPlayerSpeedButton) {
+	size: size(32px, 32px);
+	padding: margins(0px, 0px, 0px, 0px);
+	fg: mediaviewPlaybackIconFg;
+	overFg: mediaviewPlaybackIconFgOver;
+	activeFg: mediaviewTextLinkFg;
+	icon: icon{{ "player/player_speed", mediaviewPlaybackIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: mediaviewPlaybackIconRipple;
+	}
+	rippleActiveColor: mediaviewPlaybackIconRipple;
+	rippleRadius: 16px;
+	menu: mediaviewSpeedMenu;
+	menuAlign: align(bottomright);
+}
 
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;

@@ -26,8 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace {
 
-[[nodiscard]] auto RepeatModeToLoopStatus(Media::Player::RepeatMode mode) {
-	using Mode = Media::Player::RepeatMode;
+[[nodiscard]] auto RepeatModeToLoopStatus(Media::RepeatMode mode) {
+	using Mode = Media::RepeatMode;
 	using Status = base::Platform::SystemMediaControls::LoopStatus;
 	switch (mode) {
 	case Mode::None: return Status::None;
@@ -199,8 +199,8 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(type));
 	}, _lifetime);
 
-	using Media::Player::RepeatMode;
-	using Media::Player::OrderMode;
+	using Media::RepeatMode;
+	using Media::OrderMode;
 
 	Core::App().settings().playerRepeatModeValue(
 	) | rpl::start_with_next([=](RepeatMode mode) {

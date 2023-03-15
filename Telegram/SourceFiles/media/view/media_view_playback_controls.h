@@ -23,6 +23,8 @@ class PopupMenu;
 namespace Media {
 namespace Player {
 struct TrackState;
+class SpeedButton;
+class SpeedController;
 } // namespace Player
 
 namespace View {
@@ -42,7 +44,8 @@ public:
 		virtual void playbackControlsVolumeToggled() = 0;
 		virtual void playbackControlsVolumeChangeFinished() = 0;
 		virtual void playbackControlsSpeedChanged(float64 speed) = 0;
-		[[nodiscard]] virtual float64 playbackControlsCurrentSpeed() = 0;
+		[[nodiscard]] virtual float64 playbackControlsCurrentSpeed(
+			bool lastNonDefault) = 0;
 		virtual void playbackControlsToFullScreen() = 0;
 		virtual void playbackControlsFromFullScreen() = 0;
 		virtual void playbackControlsToPictureInPicture() = 0;
@@ -50,6 +53,7 @@ public:
 	};
 
 	PlaybackControls(QWidget *parent, not_null<Delegate*> delegate);
+	~PlaybackControls();
 
 	void showAnimated();
 	void hideAnimated();
@@ -59,8 +63,6 @@ public:
 	void setInFullScreen(bool inFullScreen);
 	[[nodiscard]] bool hasMenu() const;
 	[[nodiscard]] bool dragging() const;
-
-	~PlaybackControls();
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -86,9 +88,11 @@ private:
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void updateTimeTexts(const Player::TrackState &state);
 	void refreshTimeTexts();
-	void showMenu();
 
-	not_null<Delegate*> _delegate;
+	[[nodiscard]] float64 speedLookup(bool lastNonDefault) const;
+	void saveSpeed(float64 speed);
+
+	const not_null<Delegate*> _delegate;
 
 	bool _inFullScreen = false;
 	bool _showPause = false;
@@ -106,15 +110,13 @@ private:
 	std::unique_ptr<PlaybackProgress> _receivedTillProgress;
 	object_ptr<Ui::IconButton> _volumeToggle;
 	object_ptr<Ui::MediaSlider> _volumeController;
-	object_ptr<Ui::IconButton> _menuToggle;
+	object_ptr<Player::SpeedButton> _speedToggle;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::IconButton> _pictureInPicture;
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
 	object_ptr<Ui::LabelSimple> _downloadProgress = { nullptr };
-
-	const style::PopupMenu &_menuStyle;
-	base::unique_qptr<Ui::PopupMenu> _menu;
+	std::unique_ptr<Player::SpeedController> _speedController;
 	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 
 };
