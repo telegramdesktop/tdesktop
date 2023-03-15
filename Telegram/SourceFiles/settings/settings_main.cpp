@@ -447,7 +447,7 @@ void SetupInterfaceScale(
 
 	const auto ratio = style::DevicePixelRatio();
 	const auto scaleMin = style::kScaleMin;
-	const auto scaleMax = style::kScaleMax / ratio;
+	const auto scaleMax = style::MaxScaleForRatio(ratio);
 	const auto scaleConfig = cConfigScale();
 	const auto step = 5;
 	Assert(!((scaleMax - scaleMin) % step));
