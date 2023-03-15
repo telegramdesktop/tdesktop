@@ -70,6 +70,7 @@ void MacOverlayWidgetHelper::beforeShow(bool fullscreen) {
 void MacOverlayWidgetHelper::afterShow(bool fullscreen) {
 	updateStyles(fullscreen);
 	refreshButtons(fullscreen);
+	_data->window->activateWindow();
 }
 
 void MacOverlayWidgetHelper::resolveNative() {
