@@ -49,12 +49,12 @@ mediaviewPlayButton: IconButton(mediaviewControlsButton) {
 	height: 40px;
 	rippleAreaSize: 40px;
 
-	icon: icon {{ "player/player_play", mediaviewPlaybackIconFg }};
-	iconOver: icon {{ "player/player_play", mediaviewPlaybackIconFgOver }};
+	icon: icon {{ "player/player_play_big", mediaviewPlaybackIconFg }};
+	iconOver: icon {{ "player/player_play_big", mediaviewPlaybackIconFgOver }};
 	iconPosition: point(8px, 8px);
 }
-mediaviewPauseIcon: icon {{ "player/player_pause", mediaviewPlaybackIconFg }};
-mediaviewPauseIconOver: icon {{ "player/player_pause", mediaviewPlaybackIconFgOver }};
+mediaviewPauseIcon: icon {{ "player/player_pause_big", mediaviewPlaybackIconFg }};
+mediaviewPauseIconOver: icon {{ "player/player_pause_big", mediaviewPlaybackIconFgOver }};
 
 mediaviewButtonsTop: 6px;
 mediaviewButtonsRight: 8px;

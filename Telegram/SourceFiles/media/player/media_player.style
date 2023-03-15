@@ -101,15 +101,15 @@ mediaPlayerTime: LabelSimple(defaultLabelSimple) {
 
 mediaPlayerRepeatButton: IconButton {
 	width: 30px;
-	height: 34px;
+	height: 30px;
 
 	icon: icon {
 		{ "player/player_repeat", mediaPlayerActiveFg }
 	};
 	iconPosition: point(3px, 6px);
 
-	rippleAreaPosition: point(2px, 5px);
-	rippleAreaSize: 26px;
+	rippleAreaPosition: point(2px, 6px);
+	rippleAreaSize: 24px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: lightButtonBgOver;
 	}
