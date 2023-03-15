@@ -249,7 +249,6 @@ void FillSpeedMenu(
 			&point.icon);
 		const auto raw = action.get();
 		const auto check = Ui::CreateChild<Ui::RpWidget>(raw);
-		const auto skip = st.activeCheckSkip;
 		check->resize(st.activeCheck.size());
 		check->paintRequest(
 		) | rpl::start_with_next([check, icon = &st.activeCheck] {
