@@ -27,17 +27,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-static constexpr auto kQuerySettingsEachMs = 1000;
-auto DoNotDisturbEnabled = false;
-auto LastSettingsQueryMs = 0;
+constexpr auto kQuerySettingsEachMs = crl::time(1000);
+
+crl::time LastSettingsQueryMs/* = 0*/;
+bool DoNotDisturbEnabled/* = false*/;
+
+[[nodiscard]] bool ShouldQuerySettings() {
+	const auto now = crl::now();
+	if (LastSettingsQueryMs > 0 && now <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+		return false;
+	}
+	LastSettingsQueryMs = now;
+	return true;
+}
+
+[[nodiscard]] QString LibraryPath() {
+	static const auto result = [] {
+		NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSLibraryDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:NO error:nil];
+		return url
+			? QString::fromUtf8([[url path] fileSystemRepresentation])
+			: QString();
+	}();
+	return result;
+}
 
 void queryDoNotDisturbState() {
-	auto ms = crl::now();
-	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+	if (!ShouldQuerySettings()) {
 		return;
 	}
-	LastSettingsQueryMs = ms;
-
 	Boolean isKeyValid;
 	const auto doNotDisturb = CFPreferencesGetAppBooleanValue(
 		CFSTR("doNotDisturb"),
@@ -151,16 +168,16 @@ using Manager = Platform::Notifications::Manager;
 namespace Platform {
 namespace Notifications {
 
-bool SkipAudioForCustom() {
-	return false;
-}
-
 bool SkipToastForCustom() {
 	return false;
 }
 
-bool SkipFlashBounceForCustom() {
-	return false;
+void MaybePlaySoundForCustom(Fn<void()> playSound) {
+	playSound();
+}
+
+void MaybeFlashBounceForCustom(Fn<void()> flashBounce) {
+	flashBounce();
 }
 
 bool WaitForInputForCustom() {
@@ -207,6 +224,8 @@ public:
 	void clearFromSession(not_null<Main::Session*> session);
 	void updateDelegate();
 
+	void invokeIfNotFocused(Fn<void()> callback);
+
 	~Private();
 
 private:
@@ -214,6 +233,7 @@ private:
 	void putClearTask(Task task);
 
 	void clearingThreadLoop();
+	void checkFocusState();
 
 	const uint64 _managerId = 0;
 	QString _managerIdString;
@@ -248,6 +268,14 @@ private:
 		ClearAll,
 		ClearFinish>;
 	std::vector<ClearTask> _clearingTasks;
+
+	QProcess _dnd;
+	QProcess _focus;
+	std::vector<Fn<void()>> _focusedCallbacks;
+	bool _waitingDnd = false;
+	bool _waitingFocus = false;
+	bool _focused = false;
+	bool _processesInited = false;
 
 	rpl::lifetime _lifetime;
 
@@ -457,6 +485,70 @@ void Manager::Private::updateDelegate() {
 	[center setDelegate:_delegate];
 }
 
+void Manager::Private::invokeIfNotFocused(Fn<void()> callback) {
+	if (!Platform::IsMac11_0OrGreater()) {
+		queryDoNotDisturbState();
+		if (!DoNotDisturbEnabled) {
+			callback();
+		}
+	} else if (Platform::IsMacStoreBuild() || LibraryPath().isEmpty()) {
+		callback();
+	} else if (!_focusedCallbacks.empty()) {
+		_focusedCallbacks.push_back(std::move(callback));
+	} else if (!ShouldQuerySettings()) {
+		if (!_focused) {
+			callback();
+		}
+	} else {
+		if (!_processesInited) {
+			_processesInited = true;
+			QObject::connect(&_dnd, &QProcess::finished, [=] {
+				_waitingDnd = false;
+				checkFocusState();
+			});
+			QObject::connect(&_focus, &QProcess::finished, [=] {
+				_waitingFocus = false;
+				checkFocusState();
+			});
+		}
+		const auto start = [](QProcess &process, QString keys) {
+			auto arguments = QStringList()
+				<< "-extract"
+				<< keys
+				<< "raw"
+				<< "-o"
+				<< "-"
+				<< "--"
+				<< (LibraryPath() + "/Preferences/com.apple.controlcenter.plist");
+			DEBUG_LOG(("Focus Check: Started %1.").arg(u"plutil"_q + arguments.join(' ')));
+			process.start(u"plutil"_q, arguments);
+		};
+		_focusedCallbacks.push_back(std::move(callback));
+		_waitingFocus = _waitingDnd = true;
+		start(_focus, u"NSStatusItem Visible FocusModes"_q);
+		start(_dnd, u"NSStatusItem Visible DoNotDisturb"_q);
+	}
+}
+
+void Manager::Private::checkFocusState() {
+	if (_waitingFocus || _waitingDnd) {
+		return;
+	}
+	const auto istrue = [](QProcess &process) {
+		const auto output = process.readAllStandardOutput();
+		DEBUG_LOG(("Focus Check: %1").arg(output));
+		const auto result = (output.trimmed() == u"true"_q);
+		return result;
+	};
+	_focused = istrue(_focus) || istrue(_dnd);
+	auto callbacks = base::take(_focusedCallbacks);
+	if (!_focused) {
+		for (const auto &callback : callbacks) {
+			callback();
+		}
+	}
+}
+
 Manager::Private::~Private() {
 	if (_clearingThread.joinable()) {
 		putClearTask(ClearFinish());
@@ -517,17 +609,16 @@ QString Manager::accountNameSeparator() {
 	return QString::fromUtf8(" \xE2\x86\x92 ");
 }
 
-bool Manager::doSkipAudio() const {
-	queryDoNotDisturbState();
-	return DoNotDisturbEnabled;
-}
-
 bool Manager::doSkipToast() const {
 	return false;
 }
 
-bool Manager::doSkipFlashBounce() const {
-	return doSkipAudio();
+void Manager::doMaybePlaySound(Fn<void()> playSound) {
+	_private->invokeIfNotFocused(std::move(playSound));
+}
+
+void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
+	_private->invokeIfNotFocused(std::move(flashBounce));
 }
 
 } // namespace Notifications

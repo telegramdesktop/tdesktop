@@ -794,16 +794,16 @@ void NotificationData::notificationReplied(
 
 } // namespace
 
-bool SkipAudioForCustom() {
-	return false;
-}
-
 bool SkipToastForCustom() {
 	return false;
 }
 
-bool SkipFlashBounceForCustom() {
-	return false;
+void MaybePlaySoundForCustom(Fn<void()> playSound) {
+	playSound();
+}
+
+void MaybeFlashBounceForCustom(Fn<void()> flashBounce) {
+	flashBounce();
 }
 
 bool WaitForInputForCustom() {
@@ -917,10 +917,7 @@ public:
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearNotification(NotificationId id);
-
-	[[nodiscard]] bool inhibited() const {
-		return _inhibited;
-	}
+	void invokeIfNotInhibited(Fn<void()> callback);
 
 	~Private();
 
@@ -1154,6 +1151,12 @@ void Manager::Private::clearNotification(NotificationId id) {
 	}
 }
 
+void Manager::Private::invokeIfNotInhibited(Fn<void()> callback) {
+	if (!_inhibited) {
+		callback();
+	}
+}
+
 Manager::Private::~Private() {
 	clearAll();
 
@@ -1215,16 +1218,16 @@ void Manager::doClearFromSession(not_null<Main::Session*> session) {
 	_private->clearFromSession(session);
 }
 
-bool Manager::doSkipAudio() const {
-	return _private->inhibited();
-}
-
 bool Manager::doSkipToast() const {
 	return false;
 }
 
-bool Manager::doSkipFlashBounce() const {
-	return _private->inhibited();
+void Manager::doMaybePlaySound(Fn<void()> playSound) {
+	_private->invokeIfNotInhibited(std::move(playSound));
+}
+
+void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
+	_private->invokeIfNotInhibited(std::move(flashBounce));
 }
 
 } // namespace Notifications

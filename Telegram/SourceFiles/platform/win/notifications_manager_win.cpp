@@ -53,6 +53,19 @@ namespace Notifications {
 #ifndef __MINGW32__
 namespace {
 
+constexpr auto kQuerySettingsEachMs = 1000;
+
+crl::time LastSettingsQueryMs/* = 0*/;
+
+[[nodiscard]] bool ShouldQuerySettings() {
+	const auto now = crl::now();
+	if (LastSettingsQueryMs > 0 && now <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+		return false;
+	}
+	LastSettingsQueryMs = now;
+	return true;
+}
+
 [[nodiscard]] std::wstring NotificationTemplate(
 		QString id,
 		Window::Notifications::Manager::DisplayOptions options) {
@@ -333,29 +346,34 @@ void QueryUserNotificationState() {
 	}
 }
 
-static constexpr auto kQuerySettingsEachMs = 1000;
-crl::time LastSettingsQueryMs = 0;
-
 void QuerySystemNotificationSettings() {
-	auto ms = crl::now();
-	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+	if (!ShouldQuerySettings()) {
 		return;
 	}
-	LastSettingsQueryMs = ms;
 	QueryQuietHours();
 	QueryFocusAssist();
 	QueryUserNotificationState();
 }
 
-} // namespace
-#endif // !__MINGW32__
-
-bool SkipAudioForCustom() {
+bool SkipSoundForCustom() {
 	QuerySystemNotificationSettings();
 
 	return (UserNotificationState == QUNS_NOT_PRESENT)
 		|| (UserNotificationState == QUNS_PRESENTATION_MODE)
 		|| Core::App().screenIsLocked();
+}
+
+bool SkipFlashBounceForCustom() {
+	return SkipToastForCustom();
+}
+
+} // namespace
+#endif // !__MINGW32__
+
+void MaybePlaySoundForCustom(Fn<void()> playSound) {
+	if (!SkipSoundForCustom()) {
+		playSound();
+	}
 }
 
 bool SkipToastForCustom() {
@@ -365,8 +383,10 @@ bool SkipToastForCustom() {
 		|| (UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN);
 }
 
-bool SkipFlashBounceForCustom() {
-	return SkipToastForCustom();
+void MaybeFlashBounceForCustom(Fn<void()> flashBounce) {
+	if (!SkipFlashBounceForCustom()) {
+		flashBounce();
+	}
 }
 
 bool WaitForInputForCustom() {
@@ -942,20 +962,26 @@ void Manager::onAfterNotificationActivated(
 	_private->afterNotificationActivated(id, window);
 }
 
-bool Manager::doSkipAudio() const {
-	return SkipAudioForCustom()
-		|| QuietHoursEnabled
-		|| FocusAssistBlocks;
-}
-
 bool Manager::doSkipToast() const {
 	return false;
 }
 
-bool Manager::doSkipFlashBounce() const {
-	return SkipFlashBounceForCustom()
+void Manager::doMaybePlaySound(Fn<void()> playSound) {
+	const auto skip = SkipSoundForCustom()
 		|| QuietHoursEnabled
 		|| FocusAssistBlocks;
+	if (!skip) {
+		playSound();
+	}
+}
+
+void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
+	const auto skip = SkipFlashBounceForCustom()
+		|| QuietHoursEnabled
+		|| FocusAssistBlocks;
+	if (!skip) {
+		flashBounce();
+	}
 }
 #endif // !__MINGW32__
 

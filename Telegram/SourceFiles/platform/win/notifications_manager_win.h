@@ -45,9 +45,9 @@ protected:
 	void onAfterNotificationActivated(
 		NotificationId id,
 		not_null<Window::SessionController*> window) override;
-	bool doSkipAudio() const override;
 	bool doSkipToast() const override;
-	bool doSkipFlashBounce() const override;
+	void doMaybePlaySound(Fn<void()> playSound) override;
+	void doMaybeFlashBounce(Fn<void()> flashBounce) override;
 
 private:
 	class Private;

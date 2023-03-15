@@ -574,22 +574,28 @@ void System::showNext() {
 	}
 	const auto &settings = Core::App().settings();
 	if (alertThread) {
-		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
+		if (settings.flashBounceNotify()) {
 			const auto peer = alertThread->peer();
 			if (const auto window = Core::App().windowFor(peer)) {
-				if (const auto handle = window->widget()->windowHandle()) {
-					handle->alert(kSystemAlertDuration);
-					// (handle, SLOT(_q_clearAlert())); in the future.
+				if (const auto controller = window->sessionController()) {
+					_manager->maybeFlashBounce(crl::guard(controller, [=] {
+						if (const auto handle = window->widget()->windowHandle()) {
+							handle->alert(kSystemAlertDuration);
+							// (handle, SLOT(_q_clearAlert())); in the future.
+						}
+					}));
 				}
 			}
 		}
-		if (settings.soundNotify() && !_manager->skipAudio()) {
-			const auto track = lookupSound(
-				&alertThread->owner(),
-				alertThread->owner().notifySettings().sound(alertThread).id);
-			track->playOnce();
-			Media::Player::mixer()->suppressAll(track->getLengthMs());
-			Media::Player::mixer()->scheduleFaderCallback();
+		if (settings.soundNotify()) {
+			const auto owner = &alertThread->owner();
+			const auto id = owner->notifySettings().sound(alertThread).id;
+			_manager->maybePlaySound(crl::guard(&owner->session(), [=] {
+				const auto track = lookupSound(owner, id);
+				track->playOnce();
+				Media::Player::mixer()->suppressAll(track->getLengthMs());
+				Media::Player::mixer()->scheduleFaderCallback();
+			}));
 		}
 	}
 

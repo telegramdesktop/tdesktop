@@ -445,16 +445,16 @@ void Manager::doClearFromItem(not_null<HistoryItem*> item) {
 	}
 }
 
-bool Manager::doSkipAudio() const {
-	return Platform::Notifications::SkipAudioForCustom();
-}
-
 bool Manager::doSkipToast() const {
 	return Platform::Notifications::SkipToastForCustom();
 }
 
-bool Manager::doSkipFlashBounce() const {
-	return Platform::Notifications::SkipFlashBounceForCustom();
+void Manager::doMaybePlaySound(Fn<void()> playSound) {
+	Platform::Notifications::MaybePlaySoundForCustom(std::move(playSound));
+}
+
+void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
+	Platform::Notifications::MaybeFlashBounceForCustom(std::move(flashBounce));
 }
 
 void Manager::doUpdateAll() {

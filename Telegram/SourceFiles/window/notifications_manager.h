@@ -337,14 +337,14 @@ public:
 
 	[[nodiscard]] virtual ManagerType type() const = 0;
 
-	[[nodiscard]] bool skipAudio() const {
-		return doSkipAudio();
-	}
 	[[nodiscard]] bool skipToast() const {
 		return doSkipToast();
 	}
-	[[nodiscard]] bool skipFlashBounce() const {
-		return doSkipFlashBounce();
+	void maybePlaySound(Fn<void()> playSound) {
+		doMaybePlaySound(std::move(playSound));
+	}
+	void maybeFlashBounce(Fn<void()> flashBounce) {
+		doMaybeFlashBounce(std::move(flashBounce));
 	}
 
 	virtual ~Manager() = default;
@@ -362,9 +362,9 @@ protected:
 	virtual void doClearFromTopic(not_null<Data::ForumTopic*> topic) = 0;
 	virtual void doClearFromHistory(not_null<History*> history) = 0;
 	virtual void doClearFromSession(not_null<Main::Session*> session) = 0;
-	virtual bool doSkipAudio() const = 0;
-	virtual bool doSkipToast() const = 0;
-	virtual bool doSkipFlashBounce() const = 0;
+	[[nodiscard]] virtual bool doSkipToast() const = 0;
+	virtual void doMaybePlaySound(Fn<void()> playSound) = 0;
+	virtual void doMaybeFlashBounce(Fn<void()> flashBounce) = 0;
 	[[nodiscard]] virtual bool forceHideDetails() const {
 		return false;
 	}
@@ -445,14 +445,14 @@ protected:
 	}
 	void doClearFromSession(not_null<Main::Session*> session) override {
 	}
-	bool doSkipAudio() const override {
-		return false;
-	}
 	bool doSkipToast() const override {
 		return false;
 	}
-	bool doSkipFlashBounce() const override {
-		return false;
+	void doMaybePlaySound(Fn<void()> playSound) override {
+		playSound();
+	}
+	void doMaybeFlashBounce(Fn<void()> flashBounce) override {
+		flashBounce();
 	}
 
 };

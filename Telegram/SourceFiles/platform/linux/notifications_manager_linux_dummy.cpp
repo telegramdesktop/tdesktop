@@ -13,16 +13,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Notifications {
 
-bool SkipAudioForCustom() {
-	return false;
-}
-
 bool SkipToastForCustom() {
 	return false;
 }
 
-bool SkipFlashBounceForCustom() {
-	return false;
+void MaybePlaySoundForCustom(Fn<void()> playSound) {
+	playSound();
+}
+
+void MaybeFlashBounceForCustom(Fn<void()> flashBounce) {
+	flashBounce();
 }
 
 bool WaitForInputForCustom() {
