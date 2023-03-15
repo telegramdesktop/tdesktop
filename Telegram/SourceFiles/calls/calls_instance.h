@@ -93,6 +93,7 @@ public:
 		not_null<Main::Session*> session) const;
 	bool activateCurrentCall(const QString &joinHash = QString());
 	bool minimizeCurrentActiveCall();
+	bool toggleFullScreenCurrentActiveCall();
 	bool closeCurrentActiveCall();
 	[[nodiscard]] auto getVideoCapture(
 		std::optional<QString> deviceId = std::nullopt,

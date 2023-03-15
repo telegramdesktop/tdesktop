@@ -734,6 +734,17 @@ bool Instance::minimizeCurrentActiveCall() {
 	return false;
 }
 
+bool Instance::toggleFullScreenCurrentActiveCall() {
+	if (inCall() && _currentCallPanel->isActive()) {
+		_currentCallPanel->toggleFullScreen();
+		return true;
+	} else if (inGroupCall() && _currentGroupCallPanel->isActive()) {
+		_currentGroupCallPanel->toggleFullScreen();
+		return true;
+	}
+	return false;
+}
+
 bool Instance::closeCurrentActiveCall() {
 	if (inGroupCall() && _currentGroupCallPanel->isActive()) {
 		_currentGroupCallPanel->close();

@@ -487,7 +487,7 @@ void Panel::initControls() {
 }
 
 void Panel::toggleFullScreen() {
-	if (_fullScreenOrMaximized.current()) {
+	if (_fullScreenOrMaximized.current() || window()->isFullScreen()) {
 		window()->showNormal();
 	} else {
 		window()->showFullScreen();

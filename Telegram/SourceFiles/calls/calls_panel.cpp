@@ -128,6 +128,10 @@ void Panel::minimize() {
 	window()->setWindowState(window()->windowState() | Qt::WindowMinimized);
 }
 
+void Panel::toggleFullScreen() {
+	toggleFullScreen(!window()->isFullScreen());
+}
+
 void Panel::replaceCall(not_null<Call*> call) {
 	reinitWithCall(call);
 	updateControlsGeometry();

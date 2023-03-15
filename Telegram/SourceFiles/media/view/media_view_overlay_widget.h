@@ -105,6 +105,7 @@ public:
 	void activateControls();
 	void close();
 	void minimize();
+	void toggleFullScreen();
 	void toggleFullScreen(bool fullscreen);
 
 	void notifyFileDialogShown(bool shown);

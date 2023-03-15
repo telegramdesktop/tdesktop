@@ -182,6 +182,7 @@ public:
 	void windowActivated(not_null<Window::Controller*> window);
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
+	bool toggleActiveWindowFullScreen();
 	[[nodiscard]] QWidget *getFileDialogParent();
 	void notifyFileDialogShown(bool shown);
 	void checkSystemDarkMode();

@@ -1826,6 +1826,10 @@ void OverlayWidget::minimize() {
 	_helper->minimize(_window);
 }
 
+void OverlayWidget::toggleFullScreen() {
+	toggleFullScreen(!_fullscreen);
+}
+
 void OverlayWidget::toggleFullScreen(bool fullscreen) {
 	_helper->clearState();
 	_fullscreen = fullscreen;
@@ -5170,10 +5174,12 @@ bool OverlayWidget::filterApplicationEvent(
 		const auto ctrl = event->modifiers().testFlag(Qt::ControlModifier);
 		if (key == Qt::Key_F && ctrl && _streamed) {
 			playbackToggleFullScreen();
+			return true;
 		} else if (key == Qt::Key_0 && ctrl) {
 			zoomReset();
+			return true;
 		}
-		return true;
+		return false;
 	} else if (type == QEvent::MouseMove
 		|| type == QEvent::MouseButtonPress
 		|| type == QEvent::MouseButtonRelease) {

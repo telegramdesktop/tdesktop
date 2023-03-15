@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
 #include "base/qt/qt_common_adapters.h"
+#include "base/platform/base_platform_global_shortcuts.h"
 #include "base/platform/base_platform_url_scheme.h"
 #include "base/platform/base_platform_last_input.h"
 #include "base/platform/base_platform_info.h"
@@ -618,7 +619,14 @@ bool Application::hideMediaView() {
 
 bool Application::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
-	case QEvent::KeyPress:
+	case QEvent::KeyPress: {
+		updateNonIdle();
+		const auto event = static_cast<QKeyEvent*>(e);
+		if (base::Platform::GlobalShortcuts::IsToggleFullScreenKey(event)
+			&& toggleActiveWindowFullScreen()) {
+			return true;
+		}
+	} break;
 	case QEvent::MouseButtonPress:
 	case QEvent::TouchBegin:
 	case QEvent::Wheel: {
@@ -1513,9 +1521,30 @@ bool Application::minimizeActiveWindow() {
 	if (_mediaView && _mediaView->isActive()) {
 		_mediaView->minimize();
 		return true;
-	} else if (!calls().minimizeCurrentActiveCall()) {
+	} else if (calls().minimizeCurrentActiveCall()) {
+		return true;
+	} else {
 		if (const auto window = activeWindow()) {
 			window->minimize();
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Application::toggleActiveWindowFullScreen() {
+	if (_mediaView && _mediaView->isActive()) {
+		_mediaView->toggleFullScreen();
+		return true;
+	} else if (calls().toggleFullScreenCurrentActiveCall()) {
+		return true;
+	} else if (const auto window = activeWindow()) {
+		if constexpr (Platform::IsMac()) {
+			if (window->widget()->isFullScreen()) {
+				window->widget()->showNormal();
+			} else {
+				window->widget()->showFullScreen();
+			}
 			return true;
 		}
 	}
