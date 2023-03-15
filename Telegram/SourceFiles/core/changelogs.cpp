@@ -103,6 +103,22 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix a crash in video chats on Windows.\n"
 
 		"- Fix a crash in audio speed change.\n"
+	},
+	{
+		4006011,
+		"- Allow larger interface scale values on high-dpi screens.\n"
+
+		"- Implement new voice and video speed change interface (up to 2.5x).\n"
+
+		"- Support global Fn+F shortcut to toggle fullscreen on macOS.\n"
+
+		"- Silent notification sound in Focus Mode on macOS.\n"
+
+		"- Fix media viewer on macOS with several screens.\n"
+		
+		"- Fix a crash in connection type box.\n"
+
+		"- Fix possible crash on quit.\n"
 	}
 	};
 };

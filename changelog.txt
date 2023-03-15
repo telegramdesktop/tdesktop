@@ -1,3 +1,13 @@
+4.6.11 beta (15.03.23)
+
+- Allow larger interface scale values on high-dpi screens.
+- Implement new voice and video speed change interface (up to 2.5x).
+- Support global Fn+F shortcut to toggle fullscreen on macOS.
+- Silent notification sound in Focus Mode on macOS.
+- Fix media viewer on macOS with several screens.
+- Fix a crash in connection type box.
+- Fix possible crash on quit.
+
 4.6.10 beta (12.03.23)
 
 - Suggest sending an invite link if user forbids inviting him to groups.
