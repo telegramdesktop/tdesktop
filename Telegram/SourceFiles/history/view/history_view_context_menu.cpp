@@ -1233,10 +1233,13 @@ void AddWhoReactedAction(
 		not_null<HistoryItem*> item,
 		not_null<Window::SessionController*> controller) {
 	const auto whoReadIds = std::make_shared<Api::WhoReadList>();
+	const auto weak = Ui::MakeWeak(menu.get());
 	const auto participantChosen = [=](uint64 id) {
+		if (const auto strong = weak.data()) {
+			strong->hideMenu();
+		}
 		controller->showPeerInfo(PeerId(id));
 	};
-	const auto weak = Ui::MakeWeak(menu.get());
 	const auto showAllChosen = [=, itemId = item->fullId()]{
 		// Pressing on an item that has a submenu doesn't hide it :(
 		if (const auto strong = weak.data()) {
