@@ -1239,7 +1239,7 @@ historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 		font: font(12px);
 	}
 	minWidth: 136px;
-	maxHeight: 40px;
+	maxHeight: 120px;
 }
 historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
