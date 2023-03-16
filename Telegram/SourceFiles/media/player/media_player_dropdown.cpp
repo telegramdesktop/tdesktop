@@ -98,6 +98,7 @@ SpeedSliderItem::SpeedSliderItem(
 	enableMouseSelecting();
 	enableMouseSelecting(_slider.get());
 
+	setPointerCursor(false);
 	setMinWidth(st.sliderPadding.left()
 		+ st.sliderWidth
 		+ st.sliderPadding.right());
