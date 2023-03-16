@@ -52,7 +52,8 @@ Q_DECLARE_METATYPE(MsgId);
 }
 
 constexpr auto StartClientMsgId = MsgId(0x01 - (1LL << 58));
-constexpr auto EndClientMsgId = MsgId(-(1LL << 57));
+constexpr auto ClientMsgIds = (1LL << 31);
+constexpr auto EndClientMsgId = MsgId(StartClientMsgId.bare + ClientMsgIds);
 constexpr auto ServerMaxMsgId = MsgId(1LL << 56);
 constexpr auto ScheduledMsgIdsRange = (1LL << 32);
 constexpr auto ShowAtUnreadMsgId = MsgId(0);
@@ -68,6 +69,16 @@ static_assert(-(SpecialMsgIdShift + 0xFF) > ServerMaxMsgId);
 
 [[nodiscard]] constexpr inline bool IsClientMsgId(MsgId id) noexcept {
 	return (id >= StartClientMsgId && id < EndClientMsgId);
+}
+[[nodiscard]] constexpr inline int32 ClientMsgIndex(MsgId id) noexcept {
+	Expects(IsClientMsgId(id));
+
+	return int(id.bare - StartClientMsgId.bare);
+}
+[[nodiscard]] constexpr inline MsgId ClientMsgByIndex(int32 index) noexcept {
+	Expects(index >= 0);
+
+	return MsgId(StartClientMsgId.bare + index);
 }
 
 [[nodiscard]] constexpr inline bool IsServerMsgId(MsgId id) noexcept {
