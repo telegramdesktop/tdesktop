@@ -1,3 +1,8 @@
+4.6.12 beta (17.03.23)
+
+- Fix several possible crashes.
+- Deprecate macOS 10.12, Ubuntu 18.04 and CentOS 7 in July.
+
 4.6.11 beta (15.03.23)
 
 - Allow larger interface scale values on high-dpi screens.
