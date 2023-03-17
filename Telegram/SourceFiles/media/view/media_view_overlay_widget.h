@@ -539,6 +539,7 @@ private:
 	QImage _staticContent;
 	bool _staticContentTransparent = false;
 	bool _blurred = true;
+	bool _reShow = false;
 
 	ContentGeometry _oldGeometry;
 	Ui::Animations::Simple _geometryAnimation;
