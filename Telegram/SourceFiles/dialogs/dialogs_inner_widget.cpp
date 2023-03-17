@@ -657,7 +657,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				p.translate(0, top - skippedTop);
 				for (auto e = list.cend(); i != e; ++i) {
 					auto row = (*i);
-					if (top - skippedTop >= dialogsClip.top() - skip + dialogsClip.height()) {
+					if (top >= dialogsClip.top() - skip + dialogsClip.height()) {
 						break;
 					}
 
