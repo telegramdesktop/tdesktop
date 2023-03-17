@@ -95,6 +95,7 @@ private:
 
 	mtpRequestId _saveRequestId = 0;
 
+	base::Timer _checkChangedTimer;
 	bool _isPhoto = false;
 	bool _asFile = false;
 
