@@ -1656,7 +1656,11 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,
 		Data::ForwardDraft &&draft,
 		Fn<void()> &&successCallback) {
-	const auto msgIds = draft.ids;
+	const auto owner = &navigation->session().data();
+	const auto msgIds = owner->itemsToIds(owner->idsToItems(draft.ids));
+	if (msgIds.empty()) {
+		return nullptr;
+	}
 
 	class ListBox final : public PeerListBox {
 	public:

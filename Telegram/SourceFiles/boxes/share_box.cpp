@@ -1343,8 +1343,9 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 		if (!state->requests.empty()) {
 			return; // Share clicked already.
 		}
-		auto items = history->owner().idsToItems(msgIds);
-		if (items.empty() || result.empty()) {
+		const auto items = history->owner().idsToItems(msgIds);
+		const auto existingIds = history->owner().itemsToIds(items);
+		if (existingIds.empty() || result.empty()) {
 			return;
 		}
 
@@ -1384,12 +1385,12 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				? Flag::f_drop_media_captions
 				: Flag(0));
 		auto mtpMsgIds = QVector<MTPint>();
-		mtpMsgIds.reserve(msgIds.size());
-		for (const auto &fullId : msgIds) {
+		mtpMsgIds.reserve(existingIds.size());
+		for (const auto &fullId : existingIds) {
 			mtpMsgIds.push_back(MTP_int(fullId.msg));
 		}
 		const auto generateRandom = [&] {
-			auto result = QVector<MTPlong>(msgIds.size());
+			auto result = QVector<MTPlong>(existingIds.size());
 			for (auto &value : result) {
 				value = base::RandomValue<MTPlong>();
 			}
