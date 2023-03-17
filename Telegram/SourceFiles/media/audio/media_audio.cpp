@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_child_ffmpeg_loader.h"
 #include "media/audio/media_audio_loaders.h"
 #include "media/audio/media_audio_track.h"
+#include "media/media_common.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "data/data_document.h"
@@ -800,7 +801,7 @@ void Mixer::setSpeedFromExternal(const AudioMsgId &audioId, float64 speed) {
 	const auto track = trackForType(audioId.type());
 	if (track->state.id == audioId) {
 		track->nextSpeed = speed;
-		if (track->speed != track->nextSpeed
+		if (!EqualSpeeds(track->speed, track->nextSpeed)
 			&& !IsStoppedOrStopping(track->state.state)) {
 			track->loading = true;
 			track->loaded = false;

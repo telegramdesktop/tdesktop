@@ -130,7 +130,7 @@ SpeedSliderItem::SpeedSliderItem(
 
 	_slider->setChangeProgressCallback([=](float64 value) {
 		const auto speed = SliderValueToSpeed(value);
-		if (current() != speed) {
+		if (!EqualSpeeds(current(), speed)) {
 			_last = speed;
 			_changing.fire_copy(speed);
 			_debounceTimer.callOnce(kSpeedDebounceTimeout);
@@ -266,7 +266,7 @@ void FillSpeedMenu(
 		check->setAttribute(Qt::WA_TransparentForMouseEvents);
 		state->realtime.value(
 		) | rpl::start_with_next([=](float64 now) {
-			const auto chosen = (speed == now);
+			const auto chosen = EqualSpeeds(speed, now);
 			const auto overriden = chosen ? iconActive : icon;
 			raw->setIcon(overriden, overriden);
 			raw->action()->setEnabled(!chosen);
@@ -744,7 +744,7 @@ void SpeedController::toggleDefault() {
 }
 
 void SpeedController::setSpeed(float64 newSpeed) {
-	if (!(_isDefault = (newSpeed == 1.))) {
+	if (!(_isDefault = EqualSpeeds(newSpeed, 1.))) {
 		_speed = newSpeed;
 	}
 	_speedChanged.fire(speed());

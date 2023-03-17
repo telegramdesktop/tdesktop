@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_button.h"
 
+#include "media/media_common.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "styles/style_media_player.h"
@@ -272,7 +273,7 @@ SpeedButtonLayout::SpeedButtonLayout(
 
 void SpeedButtonLayout::setSpeed(float64 speed) {
 	speed = base::SafeRound(speed * 10.) / 10.;
-	if (_speed != speed) {
+	if (!EqualSpeeds(_speed, speed)) {
 		_speed = speed;
 		_text = SpeedText(_speed);
 		_textWidth = _metrics.horizontalAdvance(_text);
@@ -304,7 +305,7 @@ SpeedButton::SpeedButton(QWidget *parent, const style::MediaSpeedButton &st)
 }
 
 void SpeedButton::setSpeed(float64 speed, anim::type animated) {
-	_isDefault = (speed == 1.);
+	_isDefault = EqualSpeeds(speed, 1.);
 	_layout.setSpeed(speed);
 	update();
 }

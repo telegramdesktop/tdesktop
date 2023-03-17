@@ -834,7 +834,7 @@ void Player::setSpeed(float64 speed) {
 	if (!Media::Audio::SupportsSpeedControl()) {
 		speed = 1.;
 	}
-	if (_options.speed != speed) {
+	if (!EqualSpeeds(_options.speed, speed)) {
 		_options.speed = speed;
 		if (active()) {
 			if (_audio) {

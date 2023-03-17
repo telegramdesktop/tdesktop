@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_ffmpeg_loader.h"
 #include "media/audio/media_child_ffmpeg_loader.h"
+#include "media/media_common.h"
 
 namespace Media {
 namespace Player {
@@ -157,7 +158,7 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 	}
 
 	const auto sampleSize = l->sampleSize();
-	const auto speedChanged = (setup.newSpeed != setup.oldSpeed);
+	const auto speedChanged = !EqualSpeeds(setup.newSpeed, setup.oldSpeed);
 	auto updatedWithSpeed = speedChanged
 		? rebufferOnSpeedChange(setup)
 		: std::optional<Mixer::Track::WithSpeed>();
@@ -438,7 +439,7 @@ Loaders::SetupLoaderResult Loaders::setupLoader(
 			track->state.length,
 			track->speed);
 		return { .loader = l, .justStarted = true };
-	} else if (track->nextSpeed != track->speed) {
+	} else if (!EqualSpeeds(track->nextSpeed, track->speed)) {
 		return {
 			.loader = l,
 			.oldSpeed = track->speed,

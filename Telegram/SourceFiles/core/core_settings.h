@@ -488,7 +488,7 @@ public:
 			: 1.;
 	}
 	void setVideoPlaybackSpeed(float64 speed) {
-		if ((_videoPlaybackSpeed.enabled = (speed != 1.))) {
+		if ((_videoPlaybackSpeed.enabled = !Media::EqualSpeeds(speed, 1.))) {
 			_videoPlaybackSpeed.value = speed;
 		}
 	}
@@ -499,7 +499,7 @@ public:
 			: 1.;
 	}
 	void setVoicePlaybackSpeed(float64 speed) {
-		if ((_voicePlaybackSpeed.enabled = (speed != 1.0))) {
+		if ((_voicePlaybackSpeed.enabled = !Media::EqualSpeeds(speed, 1.0))) {
 			_voicePlaybackSpeed.value = speed;
 		}
 	}

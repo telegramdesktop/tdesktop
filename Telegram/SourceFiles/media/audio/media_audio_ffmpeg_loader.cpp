@@ -542,7 +542,7 @@ bool AbstractAudioFFMpegLoader::ensureResampleSpaceAvailable(int samples) {
 
 bool AbstractAudioFFMpegLoader::changeSpeedFilter(float64 speed) {
 	speed = std::clamp(speed, kSpeedMin, kSpeedMax);
-	if (_filterSpeed == speed) {
+	if (EqualSpeeds(_filterSpeed, speed)) {
 		return false;
 	}
 	avfilter_graph_free(&_filterGraph);
@@ -559,7 +559,7 @@ bool AbstractAudioFFMpegLoader::changeSpeedFilter(float64 speed) {
 void AbstractAudioFFMpegLoader::createSpeedFilter(float64 speed) {
 	Expects(!_filterGraph);
 
-	if (speed == 1.) {
+	if (EqualSpeeds(speed, 1.)) {
 		return;
 	}
 	const auto abuffer = avfilter_get_by_name("abuffer");
