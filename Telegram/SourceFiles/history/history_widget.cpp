@@ -6832,6 +6832,9 @@ void HistoryWidget::replyToMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
+	if (isJoinChannel()) {
+		return;
+	}
 	_processingReplyId = item->id;
 	_processingReplyItem = item;
 	processReply();
