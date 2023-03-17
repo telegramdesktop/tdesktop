@@ -49,6 +49,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QScreen>
 #include <QtGui/QDrag>
 
+#include <kurlmimedata.h>
+
 namespace Window {
 namespace {
 

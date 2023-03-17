@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeDatabase>
 #include <QtCore/QMimeData>
 
+#include <kurlmimedata.h>
+
 namespace Core {
 namespace {
 
