@@ -21,10 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <set>
 #include <filesystem>
 
-#if __has_include(<kurlmimedata.h>)
-#include <kurlmimedata.h>
-#endif
-
 #if __has_include(<ksandbox.h>)
 #include <ksandbox.h>
 #endif

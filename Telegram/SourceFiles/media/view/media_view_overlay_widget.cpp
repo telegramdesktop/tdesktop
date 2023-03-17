@@ -101,6 +101,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 
+#include <kurlmimedata.h>
+
 namespace Media {
 namespace View {
 namespace {
