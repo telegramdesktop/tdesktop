@@ -832,6 +832,10 @@ void OverlayWidget::updateControlsGeometry() {
 		QPoint(topShadowOnTheRight() ? (width() - top.width()) : 0, 0),
 		top);
 
+	if (_dropdown && !_dropdown->isHidden()) {
+		_dropdown->moveToRight(0, height() - _dropdown->height());
+	}
+
 	updateControls();
 	resizeContentByScreenSize();
 	update();
