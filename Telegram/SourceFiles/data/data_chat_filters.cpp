@@ -246,6 +246,11 @@ not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 	return pointer.get();
 }
 
+void ChatFilters::clear() {
+	_chatsLists.clear();
+	_list.clear();
+}
+
 void ChatFilters::setPreloaded(const QVector<MTPDialogFilter> &result) {
 	_loadRequestId = -1;
 	received(result);

@@ -113,6 +113,7 @@ public:
 	void refreshHistory(not_null<History*> history);
 
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(FilterId filterId);
+	void clear();
 
 	const ChatFilter &applyUpdatedPinned(
 		FilterId id,
