@@ -711,12 +711,11 @@ void NotificationData::setImage(const QImage &image) {
 			return ba;
 		}();
 
-		const auto imageBytes = Glib::Bytes::create(
-			imageData.constData(),
-			imageData.size());
-
 		_notification->set_icon(
-			Glib::wrap(g_bytes_icon_new(imageBytes->gobj())));
+			Gio::BytesIcon::create(
+				Glib::Bytes::create(
+					imageData.constData(),
+					imageData.size())));
 
 		return;
 	}

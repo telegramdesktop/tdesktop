@@ -678,7 +678,7 @@ RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 FROM patches AS glibmm
 COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 
-RUN git clone -b 2.74.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
+RUN git clone -b 2.76.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd glibmm \
 	&& git apply ../patches/glibmm.patch \
 	&& CFLAGS="$CFLAGS {{ CFLAGS_LTO }}" CXXFLAGS="$CXXFLAGS {{ CFLAGS_LTO }}" meson build \
