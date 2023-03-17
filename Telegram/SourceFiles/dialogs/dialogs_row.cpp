@@ -431,15 +431,19 @@ void Row::paintUserpic(
 	auto key = peer->userpicUniqueKey(userpicView());
 	key.first += peer->messagesTTL();
 	const auto frameIndex = videoUserpic ? videoUserpic->frameIndex() : -1;
-	if (_cornerBadgeUserpic->key != key) {
+	const auto paletteVersion = style::PaletteVersion();
+	const auto keyChanged = (_cornerBadgeUserpic->key != key)
+		|| (_cornerBadgeUserpic->paletteVersion != paletteVersion);
+	if (keyChanged) {
 		_cornerBadgeUserpic->cacheTTL = QImage();
 	}
-	if (!_cornerBadgeUserpic->layersManager.isFinished()
-		|| _cornerBadgeUserpic->key != key
+	if (keyChanged
+		|| !_cornerBadgeUserpic->layersManager.isFinished()
 		|| _cornerBadgeUserpic->active != context.active
 		|| _cornerBadgeUserpic->frameIndex != frameIndex
 		|| videoUserpic) {
 		_cornerBadgeUserpic->key = key;
+		_cornerBadgeUserpic->paletteVersion = paletteVersion;
 		_cornerBadgeUserpic->active = context.active;
 		_cornerBadgeUserpic->frameIndex = frameIndex;
 		_cornerBadgeUserpic->layersManager.markFrameShown();

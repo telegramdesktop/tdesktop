@@ -167,6 +167,7 @@ private:
 	struct CornerBadgeUserpic {
 		InMemoryKey key;
 		CornerLayersManager layersManager;
+		int paletteVersion = 0;
 		int frameIndex = -1;
 		bool active = false;
 		QImage frame;
