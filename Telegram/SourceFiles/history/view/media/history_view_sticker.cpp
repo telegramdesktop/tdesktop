@@ -85,11 +85,7 @@ Sticker::Sticker(
 , _data(data)
 , _replacements(replacements)
 , _cachingTag(ChatHelpers::StickerLottieSize::MessageHistory)
-, _oncePlayed(false)
-, _premiumEffectPlayed(false)
-, _nextLastDiceFrame(false)
-, _skipPremiumEffect(skipPremiumEffect)
-, _giftBoxSticker(false) {
+, _skipPremiumEffect(skipPremiumEffect) {
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
 	} else {
@@ -103,7 +99,14 @@ Sticker::Sticker(
 		if (_player) {
 			if (hasPremiumEffect() && !_premiumEffectPlayed) {
 				_premiumEffectPlayed = true;
-				_parent->delegate()->elementStartPremium(_parent, replacing);
+				if (On(PowerSaving::kStickersChat)
+					&& !_premiumEffectSkipped) {
+					_premiumEffectSkipped = true;
+				} else {
+					_parent->delegate()->elementStartPremium(
+						_parent,
+						replacing);
+				}
 			}
 			playerCreated();
 		}
@@ -237,6 +240,7 @@ DocumentData *Sticker::document() {
 void Sticker::stickerClearLoopPlayed() {
 	_oncePlayed = false;
 	_premiumEffectPlayed = false;
+	_premiumEffectSkipped = false;
 }
 
 void Sticker::paintAnimationFrame(
@@ -463,6 +467,10 @@ void Sticker::emojiStickerClicked() {
 
 void Sticker::premiumStickerClicked() {
 	_premiumEffectPlayed = false;
+
+	// Remove when we start playing sticker itself on click.
+	_premiumEffectSkipped = false;
+
 	_parent->history()->owner().requestViewRepaint(_parent);
 }
 
@@ -528,7 +536,12 @@ void Sticker::setupPlayer() {
 void Sticker::checkPremiumEffectStart() {
 	if (!_premiumEffectPlayed && hasPremiumEffect()) {
 		_premiumEffectPlayed = true;
-		_parent->delegate()->elementStartPremium(_parent, nullptr);
+		if (On(PowerSaving::kStickersChat)
+			&& !_premiumEffectSkipped) {
+			_premiumEffectSkipped = true;
+		} else {
+			_parent->delegate()->elementStartPremium(_parent, nullptr);
+		}
 	}
 }
 
