@@ -172,7 +172,7 @@ std::optional<QString> RestrictionError(
 					tr::now,
 					lt_user,
 					user->name())
-				: (restriction == Flag::SendVoiceMessages)
+				: (restriction == Flag::SendVideoMessages)
 				? tr::lng_restricted_send_video_messages(
 					tr::now,
 					lt_user,
