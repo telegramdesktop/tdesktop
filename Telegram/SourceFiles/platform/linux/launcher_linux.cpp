@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
-#include "webview/platform/linux/webview_linux_webkit2gtk.h"
+#include "webview/platform/linux/webview_linux_webkitgtk.h"
 
 #include <QtWidgets/QApplication>
 
@@ -64,8 +64,8 @@ Launcher &Launcher::Instance() {
 int Launcher::exec() {
 	for (auto i = begin(_arguments), e = end(_arguments); i != e; ++i) {
 		if (*i == "-webviewhelper" && std::distance(i, e) > 1) {
-			Webview::WebKit2Gtk::SetSocketPath(*(i + 1));
-			return Webview::WebKit2Gtk::Exec();
+			Webview::WebKitGTK::SetSocketPath(*(i + 1));
+			return Webview::WebKitGTK::Exec();
 		}
 	}
 
