@@ -77,8 +77,8 @@ struct ProcessingState {
 	uint64 bytesRandomId = 0;
 	FileType bytesType = FileType::None;
 	QString bytesName;
-	int bytesLoaded = 0;
-	int bytesCount = 0;
+	int64 bytesLoaded = 0;
+	int64 bytesCount = 0;
 };
 
 struct ApiErrorState {
