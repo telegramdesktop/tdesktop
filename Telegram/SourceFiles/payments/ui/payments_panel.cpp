@@ -914,7 +914,7 @@ void Panel::showWebviewError(
 				"https://go.microsoft.com/fwlink/p/?LinkId=2124703"))
 			.append(parts.value(1));
 	} break;
-	case Error::NoGtkOrWebkit2Gtk:
+	case Error::NoWebKitGTK:
 		rich.append(tr::lng_payments_webview_install_webkit(tr::now));
 		break;
 	case Error::OldWindows:
