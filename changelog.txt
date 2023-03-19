@@ -1,3 +1,19 @@
+4.7 (19.03.23)
+
+- You can disable all resource-intensive animations and animated stickers and emoji.
+- Power saving mode turns on automatically based on system battery saving settings.
+- Fully flexible playback speed settings for videos, voice and video messages.
+- Click the "1X" button to quickly switch between normal and adjusted speed – or hold it to set any speed between 0.5-2.5x.
+- Improved sound quality for adjusted speed playback.
+- Read receipts in groups under 100 members now show reaction timestamps and when your messages were read.
+- When inviting people to groups, you can quickly send invite links to anyone who doesn't allow adding them directly.
+- Invite links now show previews in chats.
+- Fully translatable bots. Bot descriptions and ”What can this bot do?" sections can now be translated.
+- Starting a call now shows a confirmation window. 
+- Fixed pasting images from Firefox on Windows.
+- Global Fn+F shortcut to switch active window to full screen mode on macOS.
+- Silent notification sound in Focus Mode on macOS.
+
 4.6.12 beta (17.03.23)
 
 - Fix several possible crashes.
