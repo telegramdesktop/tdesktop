@@ -69,14 +69,7 @@ FilteredCommandLineArguments::FilteredCommandLineArguments(
 		pushArgument("cocoa:fontengine=freetype");
 #endif // !Q_OS_WIN
 	}
-#elif defined Q_OS_UNIX
-	if (QFile::exists(cWorkingDir() + u"tdata/nowayland"_q)
-		&& qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) {
-		LOG(("Wayland: Disable on old installations"));
-		pushArgument("-platform");
-		pushArgument("xcb;wayland");
-	}
-#endif // Q_OS_WIN || Q_OS_MAC || Q_OS_UNIX
+#endif // Q_OS_WIN || Q_OS_MAC
 
 	pushArgument(nullptr);
 }

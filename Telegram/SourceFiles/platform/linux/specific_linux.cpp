@@ -858,18 +858,6 @@ bool OpenSystemSettings(SystemSettingsType type) {
 }
 
 void NewVersionLaunched(int oldVersion) {
-	if (oldVersion > 0
-		&& oldVersion <= 4000002
-		&& qEnvironmentVariableIsSet("WAYLAND_DISPLAY")
-		&& DesktopEnvironment::IsGnome()
-		&& !QFile::exists(cWorkingDir() + u"tdata/nowayland"_q)) {
-		QFile f(cWorkingDir() + u"tdata/nowayland"_q);
-		if (f.open(QIODevice::WriteOnly)) {
-			f.write("1");
-			f.close();
-			Core::Restart(); // restart with X backend
-		}
-	}
 	if (oldVersion <= 4001001 && cAutoStart()) {
 		AutostartToggle(true);
 	}
