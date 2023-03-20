@@ -22,15 +22,18 @@ class Session;
 
 class ChatFilter final {
 public:
-	enum class Flag : uchar {
-		Contacts    = 0x01,
-		NonContacts = 0x02,
-		Groups      = 0x04,
-		Channels    = 0x08,
-		Bots        = 0x10,
-		NoMuted     = 0x20,
-		NoRead      = 0x40,
-		NoArchived  = 0x80,
+	enum class Flag : ushort {
+		Contacts    = (1 << 0),
+		NonContacts = (1 << 1),
+		Groups      = (1 << 2),
+		Channels    = (1 << 3),
+		Bots        = (1 << 4),
+		NoMuted     = (1 << 5),
+		NoRead      = (1 << 6),
+		NoArchived  = (1 << 7),
+
+		Community   = (1 << 8),
+		Admin       = (1 << 9),
 	};
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
@@ -54,6 +57,7 @@ public:
 	[[nodiscard]] QString title() const;
 	[[nodiscard]] QString iconEmoji() const;
 	[[nodiscard]] Flags flags() const;
+	[[nodiscard]] bool admin() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &always() const;
 	[[nodiscard]] const std::vector<not_null<History*>> &pinned() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &never() const;

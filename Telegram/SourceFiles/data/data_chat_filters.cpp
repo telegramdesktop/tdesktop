@@ -109,22 +109,54 @@ ChatFilter ChatFilter::FromTL(
 			{ never.begin(), never.end() });
 	}, [](const MTPDdialogFilterDefault &d) {
 		return ChatFilter();
+	}, [&](const MTPDdialogFilterCommunity &data) {
+		auto &&to_histories = ranges::views::transform([&](
+				const MTPInputPeer &data) {
+			const auto peer = data.match([&](const MTPDinputPeerUser &data) {
+				const auto user = owner->user(data.vuser_id().v);
+				user->setAccessHash(data.vaccess_hash().v);
+				return (PeerData*)user;
+			}, [&](const MTPDinputPeerChat &data) {
+				return (PeerData*)owner->chat(data.vchat_id().v);
+			}, [&](const MTPDinputPeerChannel &data) {
+				const auto channel = owner->channel(data.vchannel_id().v);
+				channel->setAccessHash(data.vaccess_hash().v);
+				return (PeerData*)channel;
+			}, [&](const MTPDinputPeerSelf &data) {
+				return (PeerData*)owner->session().user();
+			}, [&](const auto &data) {
+				return (PeerData*)nullptr;
+			});
+			return peer ? owner->history(peer).get() : nullptr;
+		}) | ranges::views::filter([](History *history) {
+			return history != nullptr;
+		}) | ranges::views::transform([](History *history) {
+			return not_null<History*>(history);
+		});
+		auto &&always = ranges::views::concat(
+			data.vinclude_peers().v
+		) | to_histories;
+		auto pinned = ranges::views::all(
+			data.vpinned_peers().v
+		) | to_histories | ranges::to_vector;
+		auto &&all = ranges::views::concat(always, pinned);
+		auto list = base::flat_set<not_null<History*>>{
+			all.begin(),
+			all.end()
+		};
+		return ChatFilter(
+			data.vid().v,
+			qs(data.vtitle()),
+			qs(data.vemoticon().value_or_empty()),
+			(Flag::Community
+				| (data.is_community_can_admin() ? Flag::Admin : Flag())),
+			std::move(list),
+			std::move(pinned),
+			{});
 	});
 }
 
 MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
-	using TLFlag = MTPDdialogFilter::Flag;
-	const auto flags = TLFlag(0)
-		| ((_flags & Flag::Contacts) ? TLFlag::f_contacts : TLFlag(0))
-		| ((_flags & Flag::NonContacts) ? TLFlag::f_non_contacts : TLFlag(0))
-		| ((_flags & Flag::Groups) ? TLFlag::f_groups : TLFlag(0))
-		| ((_flags & Flag::Channels) ? TLFlag::f_broadcasts : TLFlag(0))
-		| ((_flags & Flag::Bots) ? TLFlag::f_bots : TLFlag(0))
-		| ((_flags & Flag::NoMuted) ? TLFlag::f_exclude_muted : TLFlag(0))
-		| ((_flags & Flag::NoRead) ? TLFlag::f_exclude_read : TLFlag(0))
-		| ((_flags & Flag::NoArchived)
-			? TLFlag::f_exclude_archived
-			: TLFlag(0));
 	auto always = _always;
 	auto pinned = QVector<MTPInputPeer>();
 	pinned.reserve(_pinned.size());
@@ -137,13 +169,39 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	for (const auto &history : always) {
 		include.push_back(history->peer->input);
 	}
+	if (_flags & Flag::Community) {
+		using TLFlag = MTPDdialogFilterCommunity::Flag;
+		const auto flags = TLFlag::f_emoticon
+			| ((_flags & Flag::Admin)
+				? TLFlag::f_community_can_admin
+				: TLFlag(0));
+		return MTP_dialogFilterCommunity(
+			MTP_flags(flags),
+			MTP_int(replaceId ? replaceId : _id),
+			MTP_string(_title),
+			MTP_string(_iconEmoji),
+			MTP_vector<MTPInputPeer>(pinned),
+			MTP_vector<MTPInputPeer>(include));
+	}
+	using TLFlag = MTPDdialogFilter::Flag;
+	const auto flags = TLFlag::f_emoticon
+		| ((_flags & Flag::Contacts) ? TLFlag::f_contacts : TLFlag(0))
+		| ((_flags & Flag::NonContacts) ? TLFlag::f_non_contacts : TLFlag(0))
+		| ((_flags & Flag::Groups) ? TLFlag::f_groups : TLFlag(0))
+		| ((_flags & Flag::Channels) ? TLFlag::f_broadcasts : TLFlag(0))
+		| ((_flags & Flag::Bots) ? TLFlag::f_bots : TLFlag(0))
+		| ((_flags & Flag::NoMuted) ? TLFlag::f_exclude_muted : TLFlag(0))
+		| ((_flags & Flag::NoRead) ? TLFlag::f_exclude_read : TLFlag(0))
+		| ((_flags & Flag::NoArchived)
+			? TLFlag::f_exclude_archived
+			: TLFlag(0));
 	auto never = QVector<MTPInputPeer>();
 	never.reserve(_never.size());
 	for (const auto &history : _never) {
 		never.push_back(history->peer->input);
 	}
 	return MTP_dialogFilter(
-		MTP_flags(flags | TLFlag::f_emoticon),
+		MTP_flags(flags),
 		MTP_int(replaceId ? replaceId : _id),
 		MTP_string(_title),
 		MTP_string(_iconEmoji),
