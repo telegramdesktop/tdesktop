@@ -1,7 +1,7 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set QT = "6.5.0" -%}
-{%- set QT_TAG = "v" ~ QT ~ "-beta3" -%}
+{%- set QT_TAG = "v" ~ QT -%}
 {%- set QT_PREFIX = "/usr/local/desktop-app/Qt-" ~ QT -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
@@ -724,8 +724,6 @@ RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} 
 	&& sed -i '/add_subdirectory(quickcontrols)/d' src/CMakeLists.txt \
 	&& sed -i '/add_subdirectory(quickdialogs)/d' src/CMakeLists.txt \
 	&& sed -i '/add_subdirectory(quicknativestyle)/d' src/CMakeLists.txt \
-	&& cd ../qtwayland \
-	&& sed -i '/| MFD_ALLOW_SEALING/{n;N;d}' src/client/qwaylandshmbackingstore.cpp \
 	&& cd .. \
 	&& ./configure -prefix "{{ QT_PREFIX }}" \
 		CMAKE_BUILD_TYPE=None \

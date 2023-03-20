@@ -488,7 +488,7 @@ parts:
     override-pull: |
       QT=6.5.0
 
-      git clone -b v${QT}-beta3 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v${QT} --depth=1 git://code.qt.io/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools
 
       cd qtbase
