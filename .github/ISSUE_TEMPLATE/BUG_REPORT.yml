@@ -60,6 +60,14 @@ body:
         - Other (unofficial) source
     validations:
       required: true
+  - type: input
+    attributes:
+      label: Crash ID
+      description: >
+        If you're reporting a crash, please enter the crash ID from the crash reporter
+        opening on the next launch after crash. **You have to enable beta versions
+        installation in Settings -> Advanced for the reporter to appear.**
+        You don't have to wait for a beta version to arrive.
   - type: textarea
     attributes:
       label: Logs
