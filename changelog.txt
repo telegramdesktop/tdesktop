@@ -1,3 +1,8 @@
+4.7.1 (21.03.23)
+
+- Fix media viewer with some system scale settings on Windows.
+- Fix calls on Linux.
+
 4.7 (19.03.23)
 
 - You can disable all resource-intensive animations and animated stickers and emoji.
