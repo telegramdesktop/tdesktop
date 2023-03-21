@@ -148,12 +148,17 @@ ChatFilter ChatFilter::FromTL(
 			data.vid().v,
 			qs(data.vtitle()),
 			qs(data.vemoticon().value_or_empty()),
-			(Flag::Community
-				| (data.is_community_can_admin() ? Flag::Admin : Flag())),
+			Flag::Community,
 			std::move(list),
 			std::move(pinned),
 			{});
 	});
+}
+
+ChatFilter ChatFilter::withId(FilterId id) const {
+	auto result = *this;
+	result._id = id;
+	return result;
 }
 
 MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
@@ -171,10 +176,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	}
 	if (_flags & Flag::Community) {
 		using TLFlag = MTPDdialogFilterCommunity::Flag;
-		const auto flags = TLFlag::f_emoticon
-			| ((_flags & Flag::Admin)
-				? TLFlag::f_community_can_admin
-				: TLFlag(0));
+		const auto flags = TLFlag::f_emoticon;
 		return MTP_dialogFilterCommunity(
 			MTP_flags(flags),
 			MTP_int(replaceId ? replaceId : _id),
@@ -224,6 +226,10 @@ QString ChatFilter::iconEmoji() const {
 
 ChatFilter::Flags ChatFilter::flags() const {
 	return _flags;
+}
+
+bool ChatFilter::community() const {
+	return _flags & Flag::Community;
 }
 
 const base::flat_set<not_null<History*>> &ChatFilter::always() const {
@@ -390,6 +396,93 @@ void ChatFilters::apply(const MTPUpdate &update) {
 	}, [](auto&&) {
 		Unexpected("Update in ChatFilters::apply.");
 	});
+}
+
+ChatFilterLink ChatFilters::add(
+		FilterId id,
+		const MTPExportedCommunityInvite &update) {
+	const auto i = ranges::find(_list, id, &ChatFilter::id);
+	if (i == end(_list) || !i->community()) {
+		LOG(("Api Error: "
+			"Attempt to add community link to a non-community filter: %1"
+			).arg(id));
+		return {};
+	}
+	auto &links = _communityLinks[id];
+	const auto &data = update.data();
+	const auto url = qs(data.vurl());
+	const auto title = qs(data.vtitle());
+	auto chats = data.vpeers().v | ranges::views::transform([&](
+			const MTPPeer &peer) {
+		return _owner->history(peerFromMTP(peer));
+	}) | ranges::to_vector;
+	const auto j = ranges::find(links, url, &ChatFilterLink::url);
+	if (j != end(links)) {
+		if (j->title != title || j->chats != chats) {
+			j->title = title;
+			j->chats = std::move(chats);
+			_communityLinksUpdated.fire_copy(id);
+		}
+		return *j;
+	}
+	links.push_back({
+		.id = id,
+		.url = url,
+		.title = title,
+		.chats = std::move(chats),
+	});
+	_communityLinksUpdated.fire_copy(id);
+	return links.back();
+}
+
+void ChatFilters::edit(
+		FilterId id,
+		const QString &url,
+		const QString &title) {
+	auto &links = _communityLinks[id];
+	const auto i = ranges::find(links, url, &ChatFilterLink::url);
+	if (i != end(links)) {
+		i->title = title;
+		_communityLinksUpdated.fire_copy(id);
+	}
+}
+
+void ChatFilters::remove(FilterId id, const QString &url) {
+	auto &links = _communityLinks[id];
+	const auto i = ranges::find(links, url, &ChatFilterLink::url);
+	if (i != end(links)) {
+		links.erase(i);
+		_communityLinksUpdated.fire_copy(id);
+	}
+}
+
+rpl::producer<std::vector<ChatFilterLink>> ChatFilters::communityLinks(
+		FilterId id) const {
+	return _communityLinksUpdated.events_starting_with_copy(
+		id
+	) | rpl::filter(rpl::mappers::_1 == id) | rpl::map([=] {
+		const auto i = _communityLinks.find(id);
+		return (i != end(_communityLinks))
+			? i->second
+			: std::vector<ChatFilterLink>();
+	});
+}
+
+void ChatFilters::reloadCommunityLinks(FilterId id) {
+	const auto api = &_owner->session().api();
+	api->request(_linksRequestId).cancel();
+	_linksRequestId = api->request(MTPcommunities_GetExportedInvites(
+		MTP_inputCommunityDialogFilter(MTP_int(id))
+	)).done([=](const MTPcommunities_ExportedInvites &result) {
+		const auto &data = result.data();
+		_owner->processUsers(data.vusers());
+		_owner->processChats(data.vchats());
+		_communityLinks[id].clear();
+		for (const auto &link : data.vinvites().v) {
+			add(id, link);
+		}
+		_communityLinksUpdated.fire_copy(id);
+	}).send();
 }
 
 void ChatFilters::set(ChatFilter filter) {

@@ -33,7 +33,6 @@ public:
 		NoArchived  = (1 << 7),
 
 		Community   = (1 << 8),
-		Admin       = (1 << 9),
 	};
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
@@ -48,6 +47,8 @@ public:
 		std::vector<not_null<History*>> pinned,
 		base::flat_set<not_null<History*>> never);
 
+	[[nodiscard]] ChatFilter withId(FilterId id) const;
+
 	[[nodiscard]] static ChatFilter FromTL(
 		const MTPDialogFilter &data,
 		not_null<Session*> owner);
@@ -57,7 +58,7 @@ public:
 	[[nodiscard]] QString title() const;
 	[[nodiscard]] QString iconEmoji() const;
 	[[nodiscard]] Flags flags() const;
-	[[nodiscard]] bool admin() const;
+	[[nodiscard]] bool community() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &always() const;
 	[[nodiscard]] const std::vector<not_null<History*>> &pinned() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &never() const;
@@ -86,6 +87,17 @@ inline bool operator==(const ChatFilter &a, const ChatFilter &b) {
 inline bool operator!=(const ChatFilter &a, const ChatFilter &b) {
 	return !(a == b);
 }
+
+struct ChatFilterLink {
+	FilterId id = 0;
+	QString url;
+	QString title;
+	std::vector<not_null<History*>> chats;
+
+	friend inline bool operator==(
+		const ChatFilterLink &a,
+		const ChatFilterLink &b) = default;
+};
 
 struct SuggestedFilter {
 	ChatFilter filter;
@@ -134,6 +146,18 @@ public:
 		-> const std::vector<SuggestedFilter> &;
 	[[nodiscard]] rpl::producer<> suggestedUpdated() const;
 
+	ChatFilterLink add(
+		FilterId id,
+		const MTPExportedCommunityInvite &update);
+	void edit(
+		FilterId id,
+		const QString &url,
+		const QString &title);
+	void remove(FilterId id, const QString &url);
+	rpl::producer<std::vector<ChatFilterLink>> communityLinks(
+		FilterId id) const;
+	void reloadCommunityLinks(FilterId id);
+
 private:
 	void load(bool force);
 	void received(const QVector<MTPDialogFilter> &list);
@@ -159,6 +183,10 @@ private:
 
 	std::deque<FilterId> _exceptionsToLoad;
 	mtpRequestId _exceptionsLoadRequestId = 0;
+
+	base::flat_map<FilterId, std::vector<ChatFilterLink>> _communityLinks;
+	rpl::event_stream<FilterId> _communityLinksUpdated;
+	mtpRequestId _linksRequestId = 0;
 
 };
 

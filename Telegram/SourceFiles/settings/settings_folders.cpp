@@ -334,16 +334,24 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	AddSkip(container, st::settingsSectionSkip);
 	AddSubsectionTitle(container, tr::lng_filters_subtitle());
 
-	const auto rows = lifetime.make_state<std::vector<FilterRow>>();
-	const auto rowsCount = lifetime.make_state<rpl::variable<int>>();
+	struct State {
+		std::vector<FilterRow> rows;
+		rpl::variable<int> count;
+		rpl::variable<int> suggested;
+		Fn<void(const FilterRowButton*, Fn<void(Data::ChatFilter)>)> save;
+	};
+
+	const auto state = lifetime.make_state<State>();
 	const auto find = [=](not_null<FilterRowButton*> button) {
-		const auto i = ranges::find(*rows, button, &FilterRow::button);
-		Assert(i != end(*rows));
+		const auto i = ranges::find(state->rows, button, &FilterRow::button);
+		Assert(i != end(state->rows));
 		return &*i;
 	};
 	const auto showLimitReached = [=] {
-		const auto removed = ranges::count_if(*rows, &FilterRow::removed);
-		if (rows->size() < limit() + removed) {
+		const auto removed = ranges::count_if(
+			state->rows,
+			&FilterRow::removed);
+		if (state->rows.size() < limit() + removed) {
 			return false;
 		}
 		controller->show(Box(FiltersLimitBox, session));
@@ -376,14 +384,23 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				find(button)->filter = result;
 				button->updateData(result);
 			};
+			const auto saveAnd = [=](
+					const Data::ChatFilter &data,
+					Fn<void(Data::ChatFilter)> next) {
+				const auto found = find(button);
+				found->filter = data;
+				button->updateData(data);
+				state->save(button, next);
+			};
 			controller->window().show(Box(
 				EditFilterBox,
 				controller,
 				found->filter,
-				crl::guard(button, doneCallback)));
+				crl::guard(button, doneCallback),
+				crl::guard(button, saveAnd)));
 		});
-		rows->push_back({ button, filter });
-		*rowsCount = rows->size();
+		state->rows.push_back({ button, filter });
+		state->count = state->rows.size();
 
 		const auto filters = &controller->session().data().chatsFilters();
 		const auto id = filter.id();
@@ -418,6 +435,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		}
 
 		wrap->resizeToWidth(container->width());
+
+		return button;
 	};
 	const auto &list = session->data().chatsFilters().list();
 	for (const auto &filter : list) {
@@ -438,11 +457,17 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto doneCallback = [=](const Data::ChatFilter &result) {
 			addFilter(result);
 		};
+		const auto saveAnd = [=](
+				const Data::ChatFilter &data,
+				Fn<void(Data::ChatFilter)> next) {
+			state->save(addFilter(data), next);
+		};
 		controller->window().show(Box(
 			EditFilterBox,
 			controller,
 			Data::ChatFilter(),
-			crl::guard(container, doneCallback)));
+			crl::guard(container, doneCallback),
+			crl::guard(container, saveAnd)));
 	});
 	AddSkip(container);
 	const auto nonEmptyAbout = container->add(
@@ -455,7 +480,6 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	AddSkip(aboutRows);
 	AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
 
-	const auto suggested = lifetime.make_state<rpl::variable<int>>();
 	rpl::single(rpl::empty) | rpl::then(
 		session->data().chatsFilters().suggestedUpdated()
 	) | rpl::map([=] {
@@ -468,10 +492,10 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			const std::vector<Data::SuggestedFilter> &suggestions) {
 		for (const auto &suggestion : suggestions) {
 			const auto &filter = suggestion.filter;
-			if (ranges::contains(*rows, filter, &FilterRow::filter)) {
+			if (ranges::contains(state->rows, filter, &FilterRow::filter)) {
 				continue;
 			}
-			*suggested = suggested->current() + 1;
+			state->suggested = state->suggested.current() + 1;
 			const auto button = aboutRows->add(object_ptr<FilterRowButton>(
 				aboutRows,
 				filter,
@@ -482,7 +506,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 					return;
 				}
 				addFilter(filter);
-				*suggested = suggested->current() - 1;
+				state->suggested = state->suggested.current() - 1;
 				delete button;
 			}, button->lifetime());
 		}
@@ -491,8 +515,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	}, aboutRows->lifetime());
 
 	auto showSuggestions = rpl::combine(
-		suggested->value(),
-		rowsCount->value(),
+		state->suggested.value(),
+		state->count.value(),
 		Data::AmPremiumValue(session)
 	) | rpl::map([limit](int suggested, int count, bool) {
 		return suggested > 0 && count < limit();
@@ -511,7 +535,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			return localId;
 		};
 		auto result = base::flat_map<not_null<FilterRowButton*>, FilterId>();
-		for (auto &row : *rows) {
+		for (auto &row : state->rows) {
 			const auto id = row.filter.id();
 			if (row.removed) {
 				continue;
@@ -523,8 +547,12 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		return result;
 	};
 
-	return [=] {
+	state->save = [=](
+			const FilterRowButton *single,
+			Fn<void(Data::ChatFilter)> next) {
 		auto ids = prepareGoodIdsForNewFilters();
+
+		auto updated = Data::ChatFilter();
 
 		auto order = std::vector<FilterId>();
 		auto updates = std::vector<MTPUpdate>();
@@ -533,8 +561,11 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 		auto &realFilters = session->data().chatsFilters();
 		const auto &list = realFilters.list();
-		order.reserve(rows->size());
-		for (const auto &row : *rows) {
+		order.reserve(state->rows.size());
+		for (auto &row : state->rows) {
+			if (row.button.get() == single) {
+				updated = row.filter;
+			}
 			const auto id = row.filter.id();
 			const auto removed = row.removed;
 			const auto i = ranges::find(list, id, &Data::ChatFilter::id);
@@ -545,6 +576,13 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				continue;
 			}
 			const auto newId = ids.take(row.button).value_or(id);
+			if (newId != id) {
+				row.filter = row.filter.withId(newId);
+				row.button->updateData(row.filter);
+				if (row.button.get() == single) {
+					updated = row.filter;
+				}
+			}
 			const auto tl = removed
 				? MTPDialogFilter()
 				: row.filter.tl(newId);
@@ -582,6 +620,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		}
 		crl::on_main(session, [
 			session,
+			next,
+			updated,
 			order = std::move(order),
 			updates = std::move(updates),
 			addRequests = std::move(addRequests),
@@ -604,7 +644,14 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			if (!order.empty() && !addRequests.empty()) {
 				filters->saveOrder(order, previousId);
 			}
+			if (next) {
+				Assert(updated.id() != 0);
+				next(updated);
+			}
 		});
+	};
+	return [copy = state->save] {
+		copy(nullptr, nullptr);
 	};
 }
 

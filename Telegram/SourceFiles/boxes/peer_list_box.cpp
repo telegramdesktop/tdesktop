@@ -143,6 +143,10 @@ void PeerListBox::setAddedTopScrollSkip(int skip) {
 	updateScrollSkips();
 }
 
+void PeerListBox::showFinished() {
+	_controller->showFinished();
+}
+
 int PeerListBox::getTopScrollSkip() const {
 	auto result = _addedTopScrollSkip;
 	if (_select && !_select->isHidden()) {

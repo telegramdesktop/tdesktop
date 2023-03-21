@@ -343,9 +343,10 @@ EditFilterChatsListController::EditFilterChatsListController(
 , _session(session)
 , _title(std::move(title))
 , _peers(peers)
-, _options(options)
+, _options(options & ~Flag::Community)
 , _selected(selected)
-, _limit(Limit(session)) {
+, _limit(Limit(session))
+, _community(options & Flag::Community) {
 }
 
 Main::Session &EditFilterChatsListController::session() const {
@@ -353,8 +354,11 @@ Main::Session &EditFilterChatsListController::session() const {
 }
 
 int EditFilterChatsListController::selectedTypesCount() const {
-	Expects(_typesDelegate != nullptr);
+	Expects(_community || _typesDelegate != nullptr);
 
+	if (_community) {
+		return 0;
+	}
 	auto result = 0;
 	for (auto i = 0; i != _typesDelegate->peerListFullRowsCount(); ++i) {
 		if (_typesDelegate->peerListRowAt(i)->checked()) {
@@ -396,7 +400,9 @@ bool EditFilterChatsListController::handleDeselectForeignRow(
 
 void EditFilterChatsListController::prepareViewHook() {
 	delegate()->peerListSetTitle(std::move(_title));
-	delegate()->peerListSetAboveWidget(prepareTypesList());
+	if (!_community) {
+		delegate()->peerListSetAboveWidget(prepareTypesList());
+	}
 
 	const auto count = int(_peers.size());
 	const auto rows = std::make_unique<std::optional<ExceptionRow>[]>(count);

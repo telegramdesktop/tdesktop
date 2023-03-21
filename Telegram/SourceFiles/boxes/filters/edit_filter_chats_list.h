@@ -75,6 +75,7 @@ private:
 	Flags _options;
 	Flags _selected;
 	int _limit = 0;
+	bool _community = false;
 
 	Fn<void(PeerListRowId)> _deselectOption;
 

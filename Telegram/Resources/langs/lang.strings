@@ -3541,6 +3541,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_toast_add" = "{chat} added to {folder} folder";
 "lng_filters_toast_remove" = "{chat} removed from {folder} folder";
 
+"lng_filters_link" = "Invite Link";
+"lng_filters_link_create" = "Share Folder";
+"lng_filters_link_add" = "Add Link";
+"lng_filters_link_cant" = "You can only share folders that have several explicit chats selected, no general chat types and no exclusions.";
+"lng_filters_link_about" = "Share access to some of this folder's groups and channels with others.";
+"lng_filters_link_title" = "Share Folder";
+"lng_filters_link_select" = "Select the chats you want to share with the link.";
+"lng_filters_by_link_title" = "Add Folder";
+"lng_filters_by_link_sure" = "Do you want to add a new chat folder {folder} and join its groups and channels?";
+"lng_filters_by_link_join#one" = "{count} chat to join";
+"lng_filters_by_link_join#other" = "{count} chats to join";
+"lng_filters_by_link_add" = "Add {folder}";
+"lng_filters_by_link_more" = "Add Chats to Folder";
+"lng_filters_by_link_more_sure" = "Do you want to join chats and add them to your folder {folder}?";
+"lng_filters_by_link_about" = "You can deselect the chats you don't want to join.";
+"lng_filters_by_link_join_button" = "Join Chats";
+"lng_filters_by_link_remove" = "Remove Folder";
+"lng_filters_by_link_remove_sure" = "Do you want to quit the chats you joined when added the folder {folder}?";
+"lng_filters_by_link_quit#one" = "{count} chat to quit";
+"lng_filters_by_link_quit#other" = "{count} chats to quit";
+"lng_filters_by_link_select" = "Select All";
+"lng_filters_by_link_deselect" = "Deselect All";
+"lng_filters_by_link_remove_button" = "Remove Folder";
+"lng_filters_by_link_quit_button" = "Remove Folder and Chats";
+
 "lng_chat_theme_change" = "Change colors";
 "lng_chat_theme_none" = "No\nTheme";
 "lng_chat_theme_apply" = "Apply Theme";

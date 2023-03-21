@@ -1128,6 +1128,12 @@ void CopyInviteLink(not_null<QWidget*> toastParent, const QString &link) {
 object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		not_null<PeerData*> peer,
 		const QString &link) {
+	return ShareInviteLinkBox(&peer->session(), link);
+}
+
+object_ptr<Ui::BoxContent> ShareInviteLinkBox(
+		not_null<Main::Session*> session,
+		const QString &link) {
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
@@ -1187,7 +1193,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		} else {
 			comment.text = link;
 		}
-		auto &api = peer->session().api();
+		auto &api = session->api();
 		for (const auto thread : result) {
 			auto message = Api::MessageToSend(
 				Api::SendAction(thread, options));
@@ -1204,7 +1210,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		return Data::CanSendTexts(thread);
 	};
 	auto object = Box<ShareBox>(ShareBox::Descriptor{
-		.session = &peer->session(),
+		.session = session,
 		.copyCallback = std::move(copyCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),

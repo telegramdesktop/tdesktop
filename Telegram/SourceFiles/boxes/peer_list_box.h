@@ -447,6 +447,9 @@ public:
 
 	virtual void prepare() = 0;
 
+	virtual void showFinished() {
+	}
+
 	virtual void rowClicked(not_null<PeerListRow*> row) = 0;
 	virtual void rowRightActionClicked(not_null<PeerListRow*> row) {
 	}
@@ -1049,6 +1052,8 @@ public:
 	not_null<QWidget*> peerListToastParent() override;
 
 	void setAddedTopScrollSkip(int skip);
+
+	void showFinished() override;
 
 protected:
 	void prepare() override;

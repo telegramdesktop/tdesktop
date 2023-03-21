@@ -8,20 +8,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/filters/edit_filter_box.h"
 
 #include "boxes/filters/edit_filter_chats_list.h"
+#include "boxes/filters/edit_filter_links.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/effects/panel_animation.h"
 #include "ui/filter_icons.h"
 #include "ui/filter_icon_panel.h"
 #include "ui/painter.h"
+#include "data/data_channel.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "settings/settings_common.h"
@@ -37,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -499,6 +505,24 @@ void CreateIconSelector(
 	return QString();
 }
 
+not_null<Ui::SettingsButton*> AddToggledButton(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<bool> shown,
+		rpl::producer<QString> text,
+		const style::SettingsButton &st,
+		IconDescriptor &&descriptor) {
+	const auto toggled = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			CreateButton(
+				container,
+				std::move(text),
+				st,
+				std::move(descriptor)))
+	)->toggleOn(std::move(shown), anim::type::instant)->setDuration(0);
+	return toggled->entity();
+}
+
 [[nodiscard]] QString TrimDefaultTitle(const QString &title) {
 	return (title.size() <= kMaxFilterTitleLength) ? title : QString();
 }
@@ -509,7 +533,12 @@ void EditFilterBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> window,
 		const Data::ChatFilter &filter,
-		Fn<void(const Data::ChatFilter &)> doneCallback) {
+		Fn<void(const Data::ChatFilter &)> doneCallback,
+		Fn<void(
+			const Data::ChatFilter &data,
+			Fn<void(Data::ChatFilter)> next)> saveAnd) {
+	using namespace rpl::mappers;
+
 	const auto creating = filter.title().isEmpty();
 	box->setWidth(st::boxWideWidth);
 	box->setTitle(creating ? tr::lng_filters_new() : tr::lng_filters_edit());
@@ -521,8 +550,27 @@ void EditFilterBox(
 		box->closeBox();
 	}, box->lifetime());
 
-	using State = rpl::variable<Data::ChatFilter>;
-	const auto data = box->lifetime().make_state<State>(filter);
+	struct State {
+		rpl::variable<Data::ChatFilter> rules;
+		rpl::variable<std::vector<Data::ChatFilterLink>> links;
+		rpl::variable<bool> hasLinks;
+		rpl::variable<bool> community;
+	};
+	const auto owner = &window->session().data();
+	const auto state = box->lifetime().make_state<State>(State{
+		.rules = filter,
+		.community = filter.community(),
+	});
+	state->links = owner->chatsFilters().communityLinks(filter.id()),
+	state->hasLinks = state->links.value() | rpl::map([=](const auto &v) {
+		return !v.empty();
+	});
+	if (!state->community.current()) {
+		state->community = state->hasLinks.value() | rpl::filter(
+			_1
+		) | rpl::take(1);
+	}
+	const auto data = &state->rules;
 
 	const auto content = box->verticalLayout();
 	const auto name = content->add(
@@ -604,24 +652,123 @@ void EditFilterBox(
 	AddDividerText(content, tr::lng_filters_include_about());
 	AddSkip(content);
 
-	AddSubsectionTitle(content, tr::lng_filters_exclude());
+	auto excludeWrap = content->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			content,
+			object_ptr<Ui::VerticalLayout>(content))
+	)->setDuration(0);
+	excludeWrap->toggleOn(state->community.value() | rpl::map(!_1));
+	const auto excludeInner = excludeWrap->entity();
+
+	AddSubsectionTitle(excludeInner, tr::lng_filters_exclude());
 
 	const auto excludeAdd = AddButton(
-		content,
+		excludeInner,
 		tr::lng_filters_remove_chats(),
 		st::settingsButtonActive,
 		{ &st::settingsIconRemove, 0, IconType::Round, &st::windowBgActive });
 
 	const auto exclude = SetupChatsPreview(
-		content,
+		excludeInner,
 		data,
 		updateDefaultTitle,
 		kExcludeTypes,
 		&Data::ChatFilter::never);
 
-	AddSkip(content);
-	AddDividerText(content, tr::lng_filters_exclude_about());
+	AddSkip(excludeInner);
+	AddDividerText(excludeInner, tr::lng_filters_exclude_about());
+	AddSkip(excludeInner);
 
+	const auto collect = [=]() -> std::optional<Data::ChatFilter> {
+		const auto title = name->getLastText().trimmed();
+		const auto rules = data->current();
+		const auto result = Data::ChatFilter(
+			rules.id(),
+			title,
+			rules.iconEmoji(),
+			rules.flags(),
+			rules.always(),
+			rules.pinned(),
+			rules.never());
+		if (title.isEmpty()) {
+			name->showError();
+			return {};
+		} else if (!(rules.flags() & kTypes) && rules.always().empty()) {
+			window->window().showToast(tr::lng_filters_empty(tr::now));
+			return {};
+		} else if ((rules.flags() == (kTypes | Flag::NoArchived))
+			&& rules.always().empty()
+			&& rules.never().empty()) {
+			window->window().showToast(tr::lng_filters_default(tr::now));
+			return {};
+		}
+		return result;
+	};
+
+	AddSubsectionTitle(content, tr::lng_filters_link());
+
+	if (filter.community()) {
+		window->session().data().chatsFilters().reloadCommunityLinks(
+			filter.id());
+	}
+
+	const auto createLink = AddToggledButton(
+		content,
+		state->hasLinks.value() | rpl::map(!rpl::mappers::_1),
+		tr::lng_filters_link_create(),
+		st::settingsButtonActive,
+		{ &st::settingsFolderShareIcon, 0, IconType::Simple });
+	const auto addLink = AddToggledButton(
+		content,
+		state->hasLinks.value(),
+		tr::lng_group_invite_add(),
+		st::settingsButtonActive,
+		{ &st::settingsIconAdd, 0, IconType::Round, &st::windowBgActive });
+
+	SetupFilterLinks(
+		content,
+		window,
+		state->links.value(),
+		[=] { return collect().value_or(Data::ChatFilter()); });
+
+	rpl::merge(
+		createLink->clicks(),
+		addLink->clicks()
+	) | rpl::filter(
+		(rpl::mappers::_1 == Qt::LeftButton)
+	) | rpl::start_with_next([=](Qt::MouseButton button) {
+		const auto result = collect();
+		if (!result || !GoodForExportFilterLink(window, *result)) {
+			return;
+		}
+		const auto shared = CollectFilterLinkChats(*result);
+		if (shared.empty()) {
+			// langs
+			Ui::ShowMultilineToast({
+				.parentOverride = Window::Show(window).toastParent(),
+				.text = { tr::lng_filters_link_cant(tr::now) },
+			});
+			return;
+		}
+		saveAnd(*result, crl::guard(box, [=](Data::ChatFilter updated) {
+			box->setTitle(tr::lng_filters_edit());
+			nameEditing->custom = true;
+
+			*data = updated;
+			const auto id = updated.id();
+			state->links = owner->chatsFilters().communityLinks(id);
+			ExportFilterLink(id, shared, [=](Data::ChatFilterLink link) {
+				Expects(link.id == id);
+
+				window->show(ShowLinkBox(window, updated, link));
+			});
+		}));
+	}, createLink->lifetime());
+
+	AddSkip(content);
+	AddDividerText(content, tr::lng_filters_link_about());
+
+	const auto show = std::make_shared<Ui::BoxShow>(box);
 	const auto refreshPreviews = [=] {
 		include->updateData(
 			data->current().flags() & kTypes,
@@ -634,7 +781,7 @@ void EditFilterBox(
 		EditExceptions(
 			window,
 			box,
-			kTypes,
+			kTypes | (state->community.current() ? Flag::Community : Flag()),
 			data,
 			updateDefaultTitle,
 			refreshPreviews);
@@ -650,32 +797,12 @@ void EditFilterBox(
 	});
 
 	const auto save = [=] {
-		const auto title = name->getLastText().trimmed();
-		const auto rules = data->current();
-		const auto result = Data::ChatFilter(
-			rules.id(),
-			title,
-			rules.iconEmoji(),
-			rules.flags(),
-			rules.always(),
-			rules.pinned(),
-			rules.never());
-		if (title.isEmpty()) {
-			name->showError();
-			return;
-		} else if (!(rules.flags() & kTypes) && rules.always().empty()) {
-			window->window().showToast(tr::lng_filters_empty(tr::now));
-			return;
-		} else if ((rules.flags() == (kTypes | Flag::NoArchived))
-			&& rules.always().empty()
-			&& rules.never().empty()) {
-			window->window().showToast(tr::lng_filters_default(tr::now));
-			return;
+		if (const auto result = collect()) {
+			box->closeBox();
+			doneCallback(*result);
 		}
-		box->closeBox();
-
-		doneCallback(result);
 	};
+
 	box->addButton(
 		creating ? tr::lng_filters_create_button() : tr::lng_settings_save(),
 		save);
@@ -707,9 +834,16 @@ void EditExistingFilter(
 			tl
 		)).send();
 	};
+	const auto saveAnd = [=](
+			const Data::ChatFilter &data,
+			Fn<void(Data::ChatFilter)> next) {
+		doneCallback(data);
+		next(data);
+	};
 	window->window().show(Box(
 		EditFilterBox,
 		window,
 		*i,
-		crl::guard(session, doneCallback)));
+		crl::guard(session, doneCallback),
+		crl::guard(session, saveAnd)));
 }
