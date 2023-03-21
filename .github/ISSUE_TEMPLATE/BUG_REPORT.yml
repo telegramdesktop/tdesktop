@@ -63,5 +63,8 @@ body:
   - type: textarea
     attributes:
       label: Logs
+      description: >
+        You can find log.txt using the `viewlogs`
+        [cheat code](https://github.com/telegramdesktop/tdesktop/wiki/Cheat-Codes).
       placeholder: Insert log.txt here (if necessary)
       render: shell
