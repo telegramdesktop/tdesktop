@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/main_window.h"
 
+#include "api/api_updates.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "ui/platform/ui_platform_window.h"
@@ -512,8 +513,12 @@ void MainWindow::handleStateChanged(Qt::WindowState state) {
 }
 
 void MainWindow::handleActiveChanged() {
+	checkActivation();
 	if (isActiveWindow()) {
 		Core::App().windowActivated(&controller());
+	}
+	if (const auto controller = sessionController()) {
+		controller->session().updates().updateOnline();
 	}
 }
 

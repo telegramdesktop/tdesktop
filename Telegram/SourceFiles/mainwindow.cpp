@@ -115,16 +115,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 void MainWindow::initHook() {
 	Platform::MainWindow::initHook();
-
 	QCoreApplication::instance()->installEventFilter(this);
-
-	// Non-queued activeChanged handlers must use QtSignalProducer.
-	connect(
-		windowHandle(),
-		&QWindow::activeChanged,
-		this,
-		[=] { checkActivation(); },
-		Qt::QueuedConnection);
 }
 
 void MainWindow::applyInitialWorkMode() {

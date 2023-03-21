@@ -148,6 +148,8 @@ protected:
 	void handleActiveChanged();
 	void handleVisibleChanged(bool visible);
 
+	virtual void checkActivation() {
+	}
 	virtual void initHook() {
 	}
 
