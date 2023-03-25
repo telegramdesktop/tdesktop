@@ -24,6 +24,10 @@ if (APPLE)
     set(project_langs C CXX OBJC OBJCXX)
 endif()
 
+if (WIN32)
+	set(CMAKE_SYSTEM_VERSION 10.0.22000.0)
+endif()
+
 project(Telegram
     LANGUAGES ${project_langs}
     VERSION ${desktop_app_version_cmake}
