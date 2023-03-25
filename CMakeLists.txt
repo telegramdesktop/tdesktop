@@ -25,10 +25,6 @@ if (APPLE)
 endif()
 
 if (WIN32)
-	set(CMAKE_SYSTEM_VERSION 10.0.22000.0)
-endif()
-
-if (WIN32)
 	if(NOT ${CMAKE_GENERATOR} STREQUAL "Visual Studio 17 2022")
 		message(SEND_ERROR "It will not be possible to build codegen_emoji and therefore lib_ui on ${CMAKE_GENERATOR} (Please use Visual Studio 17 2022)")
 	endif()
