@@ -629,6 +629,15 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		] {
 			const auto api = &session->api();
 			const auto filters = &session->data().chatsFilters();
+			const auto ids = std::make_shared<
+				base::flat_set<mtpRequestId>
+			>();
+			const auto checkFinished = [=] {
+				if (ids->empty() && next) {
+					Assert(updated.id() != 0);
+					next(updated);
+				}
+			};
 			for (const auto &update : updates) {
 				filters->apply(update);
 			}
@@ -639,15 +648,16 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			for (auto &request : requests) {
 				previousId = api->request(
 					std::move(request)
-				).afterRequest(previousId).send();
+				).done([=](const auto &, mtpRequestId id) {
+					ids->remove(id);
+					checkFinished();
+				}).afterRequest(previousId).send();
+				ids->emplace(previousId);
 			}
 			if (!order.empty() && !addRequests.empty()) {
 				filters->saveOrder(order, previousId);
 			}
-			if (next) {
-				Assert(updated.id() != 0);
-				next(updated);
-			}
+			checkFinished();
 		});
 	};
 	return [copy = state->save] {

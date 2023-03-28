@@ -87,6 +87,7 @@ void ShowEmptyLinkError(not_null<Window::SessionController*> window) {
 
 void ChatFilterLinkBox(
 		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
 		Data::ChatFilterLink data) {
 	using namespace rpl::mappers;
 
@@ -139,10 +140,20 @@ void ChatFilterLinkBox(
 	labelField->setMaxLength(kMaxLinkTitleLength);
 	Settings::AddDivider(container);
 
+	box->setFocusCallback([=] {
+		labelField->setFocusFast();
+	});
+
 	const auto &saveLabel = link.isEmpty()
 		? tr::lng_formatting_link_create
 		: tr::lng_settings_save;
-	box->addButton(saveLabel(), [=] {});
+	box->addButton(saveLabel(), [=] {
+		session->data().chatsFilters().edit(
+			data.id,
+			data.url,
+			labelField->getLastText().trimmed());
+		box->closeBox();
+	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
@@ -420,6 +431,19 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 	}, divider->lifetime());
 }
 
+object_ptr<Ui::BoxContent> DeleteLinkBox(
+		not_null<Window::SessionController*> window,
+		const InviteLinkData &link) {
+	const auto sure = [=](Fn<void()> &&close) {
+		window->session().data().chatsFilters().destroy(link.id, link.url);
+		close();
+	};
+	return Ui::MakeConfirmBox({
+		u"Are you sure you want to delete this link?"_q, // langs
+		sure,
+	});
+}
+
 void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 	using namespace Settings;
 
@@ -439,14 +463,14 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 			Ui::LayerOption::KeepOther);
 	});
 	const auto editLink = crl::guard(weak, [=] {
-		//delegate()->peerListShowBox(
-		//	EditLinkBox(_window, _data.current()),
-		//	Ui::LayerOption::KeepOther);
+		delegate()->peerListShowBox(
+			Box(ChatFilterLinkBox, &_window->session(), _data),
+			Ui::LayerOption::KeepOther);
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
-		//delegate()->peerListShowBox(
-		//	DeleteLinkBox(_window, _data.current()),
-		//	Ui::LayerOption::KeepOther);
+		delegate()->peerListShowBox(
+			DeleteLinkBox(_window, _data),
+			Ui::LayerOption::KeepOther);
 	});
 
 	const auto createMenu = [=] {
@@ -466,7 +490,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 			getLinkQr,
 			&st::menuIconQrCode);
 		result->addAction(
-			tr::lng_group_invite_context_edit(tr::now),
+			u"Name Link"_q, // langs
 			editLink,
 			&st::menuIconEdit);
 		result->addAction(
@@ -502,6 +526,8 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 }
 
 void LinkController::prepare() {
+	Expects(!_data.url.isEmpty() || _data.chats.empty());
+
 	setupAboveWidget();
 	for (const auto &history : _data.chats) {
 		const auto peer = history->peer;
@@ -522,7 +548,7 @@ void LinkController::prepare() {
 		delegate()->peerListAppendRow(std::move(row));
 		if (const auto error = ErrorForSharing(history)) {
 			raw->setCustomStatus(*error);
-		} else {
+		} else if (!_data.url.isEmpty()) {
 			_allowed.emplace(peer);
 		}
 	}
@@ -663,32 +689,52 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 	const auto real = static_cast<Row*>(row.get());
 	const auto data = real->data();
 	const auto link = data.url;
+	const auto copyLink = [=] {
+		CopyInviteLink(delegate()->peerListToastParent(), link);
+	};
+	const auto shareLink = [=] {
+		delegate()->peerListShowBox(
+			ShareInviteLinkBox(&_window->session(), link),
+			Ui::LayerOption::KeepOther);
+	};
+	const auto getLinkQr = [=] {
+		delegate()->peerListShowBox(
+			InviteLinkQrBox(link),
+			Ui::LayerOption::KeepOther);
+	};
+	const auto editLink = [=] {
+		delegate()->peerListShowBox(
+			Box(ChatFilterLinkBox, &_window->session(), data),
+			Ui::LayerOption::KeepOther);
+	};
+	const auto deleteLink = [=] {
+		delegate()->peerListShowBox(
+			DeleteLinkBox(_window, data),
+			Ui::LayerOption::KeepOther);
+	};
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::popupMenuWithIcons);
-	result->addAction(tr::lng_group_invite_context_copy(tr::now), [=] {
-		//CopyInviteLink(delegate()->peerListToastParent(), link);
-	}, &st::menuIconCopy);
-	result->addAction(tr::lng_group_invite_context_share(tr::now), [=] {
-		//delegate()->peerListShowBox(
-		//	ShareInviteLinkBox(_peer, link),
-		//	Ui::LayerOption::KeepOther);
-	}, &st::menuIconShare);
-	result->addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
-		//delegate()->peerListShowBox(
-		//	InviteLinkQrBox(link),
-		//	Ui::LayerOption::KeepOther);
-	}, &st::menuIconQrCode);
-	result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {
-		//delegate()->peerListShowBox(
-		//	EditLinkBox(_peer, data),
-		//	Ui::LayerOption::KeepOther);
-	}, &st::menuIconEdit);
-	result->addAction(tr::lng_group_invite_context_delete(tr::now), [=] {
-		//delegate()->peerListShowBox(
-		//	DeleteLinkBox(_peer, _admin, link),
-		//	Ui::LayerOption::KeepOther);
-	}, &st::menuIconDelete);
+	result->addAction(
+		tr::lng_group_invite_context_copy(tr::now),
+		copyLink,
+		&st::menuIconCopy);
+	result->addAction(
+		tr::lng_group_invite_context_share(tr::now),
+		shareLink,
+		&st::menuIconShare);
+	result->addAction(
+		tr::lng_group_invite_context_qr(tr::now),
+		getLinkQr,
+		&st::menuIconQrCode);
+	result->addAction(
+		u"Name Link"_q, // langs
+		editLink,
+		&st::menuIconEdit);
+	result->addAction(
+		tr::lng_group_invite_context_delete(tr::now),
+		deleteLink,
+		&st::menuIconDelete);
 	return result;
 }
 

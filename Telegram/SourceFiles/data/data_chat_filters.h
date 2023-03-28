@@ -154,7 +154,7 @@ public:
 		FilterId id,
 		const QString &url,
 		const QString &title);
-	void remove(FilterId id, const QString &url);
+	void destroy(FilterId id, const QString &url);
 	rpl::producer<std::vector<ChatFilterLink>> communityLinks(
 		FilterId id) const;
 	void reloadCommunityLinks(FilterId id);

@@ -692,6 +692,7 @@ void EditFilterBox(
 			rules.never());
 		if (title.isEmpty()) {
 			name->showError();
+			box->scrollToY(0);
 			return {};
 		} else if (!(rules.flags() & kTypes) && rules.always().empty()) {
 			window->window().showToast(tr::lng_filters_empty(tr::now));

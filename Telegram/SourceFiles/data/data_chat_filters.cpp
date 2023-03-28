@@ -454,15 +454,36 @@ void ChatFilters::edit(
 	if (i != end(links)) {
 		i->title = title;
 		_communityLinksUpdated.fire_copy(id);
+
+		_owner->session().api().request(MTPcommunities_EditExportedInvite(
+			MTP_flags(MTPcommunities_EditExportedInvite::Flag::f_title),
+			MTP_inputCommunityDialogFilter(MTP_int(id)),
+			MTP_string(url),
+			MTP_string(title),
+			MTPVector<MTPInputPeer>() // peers
+		)).done([=](const MTPExportedCommunityInvite &result) {
+			//const auto &data = result.data();
+			//const auto link = _owner->chatsFilters().add(id, result);
+			//done(link);
+		}).fail([=](const MTP::Error &error) {
+			//done({ .id = id });
+		}).send();
 	}
 }
 
-void ChatFilters::remove(FilterId id, const QString &url) {
+void ChatFilters::destroy(FilterId id, const QString &url) {
 	auto &links = _communityLinks[id];
 	const auto i = ranges::find(links, url, &ChatFilterLink::url);
 	if (i != end(links)) {
 		links.erase(i);
 		_communityLinksUpdated.fire_copy(id);
+
+		const auto api = &_owner->session().api();
+		api->request(_linksRequestId).cancel();
+		_linksRequestId = api->request(MTPcommunities_DeleteExportedInvite(
+			MTP_inputCommunityDialogFilter(MTP_int(id)),
+			MTP_string(url)
+		)).send();
 	}
 }
 
