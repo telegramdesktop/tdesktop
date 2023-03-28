@@ -329,6 +329,11 @@ void ChatFilters::load() {
 	load(false);
 }
 
+void ChatFilters::reload() {
+	_reloading = true;
+	load();
+}
+
 void ChatFilters::load(bool force) {
 	if (_loadRequestId && !force) {
 		return;
@@ -341,6 +346,10 @@ void ChatFilters::load(bool force) {
 		_loadRequestId = 0;
 	}).fail([=] {
 		_loadRequestId = 0;
+		if (_reloading) {
+			_reloading = false;
+			_listChanged.fire({});
+		}
 	}).send();
 }
 
@@ -372,8 +381,9 @@ void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
 	if (!ranges::contains(begin(_list), end(_list), 0, &ChatFilter::id)) {
 		_list.insert(begin(_list), ChatFilter());
 	}
-	if (changed || !_loaded) {
+	if (changed || !_loaded || _reloading) {
 		_loaded = true;
+		_reloading = false;
 		_listChanged.fire({});
 	}
 }

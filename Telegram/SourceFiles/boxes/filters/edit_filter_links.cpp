@@ -77,6 +77,14 @@ struct InviteLinkAction {
 	}
 }
 
+void ShowEmptyLinkError(not_null<Window::SessionController*> window) {
+	// langs
+	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(window).toastParent(),
+		.text = { u"Link should have at least one chat shared."_q },
+	});
+}
+
 void ChatFilterLinkBox(
 		not_null<Ui::GenericBox*> box,
 		Data::ChatFilterLink data) {
@@ -336,6 +344,7 @@ public:
 	void showFinished() override;
 
 	[[nodiscard]] rpl::producer<bool> hasChangesValue() const;
+	[[nodiscard]] base::flat_set<not_null<PeerData*>> selected() const;
 
 private:
 	void setupAboveWidget();
@@ -347,14 +356,13 @@ private:
 
 	base::flat_set<not_null<History*>> _filterChats;
 	base::flat_set<not_null<PeerData*>> _allowed;
-	rpl::variable<int> _selected = 0;
+	rpl::variable<base::flat_set<not_null<PeerData*>>> _selected;
+	base::flat_set<not_null<PeerData*>> _initial;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	QString _link;
 
-	Ui::RpWidget *_headerWidget = nullptr;
-	rpl::variable<int> _addedHeight;
 	rpl::variable<bool> _hasChanges = false;
 
 	rpl::event_stream<> _showFinished;
@@ -495,7 +503,6 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 
 void LinkController::prepare() {
 	setupAboveWidget();
-	auto selected = 0;
 	for (const auto &history : _data.chats) {
 		const auto peer = history->peer;
 		_allowed.emplace(peer);
@@ -503,7 +510,7 @@ void LinkController::prepare() {
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
 		delegate()->peerListSetRowChecked(raw, true);
-		++selected;
+		_initial.emplace(peer);
 	}
 	for (const auto &history : _filterChats) {
 		if (delegate()->peerListFindRow(history->peer->id.value)) {
@@ -520,14 +527,23 @@ void LinkController::prepare() {
 		}
 	}
 	delegate()->peerListRefreshRows();
-	_selected = selected;
+	_selected = _initial;
 }
 
 void LinkController::rowClicked(not_null<PeerListRow*> row) {
 	if (_allowed.contains(row->peer())) {
+		const auto peer = row->peer();
 		const auto checked = row->checked();
+		auto selected = _selected.current();
 		delegate()->peerListSetRowChecked(row, !checked);
-		_selected = _selected.current() + (checked ? -1 : 1);
+		if (checked) {
+			selected.remove(peer);
+		} else {
+			selected.emplace(peer);
+		}
+		const auto has = (_initial != selected);
+		_selected = std::move(selected);
+		_hasChanges = has;
 	}
 }
 
@@ -546,9 +562,16 @@ void LinkController::setupAboveWidget() {
 		addLinkBlock(container);
 	}
 
+	// langs
+	auto subtitle = _selected.value(
+	) | rpl::map([](const base::flat_set<not_null<PeerData*>> &selected) {
+		return selected.empty()
+			? u"No chats selected"_q
+			: (QString::number(selected.size()) + u" chats selected"_q);
+	});
 	Settings::AddSubsectionTitle(
 		container,
-		rpl::single(u"3 chats selected"_q));
+		std::move(subtitle));
 
 	delegate()->peerListSetAboveWidget(std::move(wrap));
 }
@@ -559,6 +582,10 @@ Main::Session &LinkController::session() const {
 
 rpl::producer<bool> LinkController::hasChangesValue() const {
 	return _hasChanges.value();
+}
+
+base::flat_set<not_null<PeerData*>> LinkController::selected() const {
+	return _selected.current();
 }
 
 LinksController::LinksController(
@@ -804,7 +831,7 @@ void ExportFilterLink(
 	) | ranges::to<QVector>();
 	session->api().request(MTPcommunities_ExportCommunityInvite(
 		MTP_inputCommunityDialogFilter(MTP_int(id)),
-		MTP_string(),
+		MTP_string(), // title
 		MTP_vector<MTPInputPeer>(std::move(mtpPeers))
 	)).done([=](const MTPcommunities_ExportedCommunityInvite &result) {
 		const auto &data = result.data();
@@ -818,6 +845,34 @@ void ExportFilterLink(
 		done(link);
 	}).fail([=](const MTP::Error &error) {
 		done({ .id = id });
+	}).send();
+}
+
+void EditLinkChats(
+		const Data::ChatFilterLink &link,
+		base::flat_set<not_null<PeerData*>> peers) {
+	Expects(!peers.empty());
+	Expects(link.id != 0);
+	Expects(!link.url.isEmpty());
+
+	const auto id = link.id;
+	const auto front = peers.front();
+	const auto session = &front->session();
+	auto mtpPeers = peers | ranges::views::transform(
+		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
+	) | ranges::to<QVector>();
+	session->api().request(MTPcommunities_EditExportedInvite(
+		MTP_flags(MTPcommunities_EditExportedInvite::Flag::f_peers),
+		MTP_inputCommunityDialogFilter(MTP_int(link.id)),
+		MTP_string(link.url),
+		MTPstring(), // title
+		MTP_vector<MTPInputPeer>(std::move(mtpPeers))
+	)).done([=](const MTPExportedCommunityInvite &result) {
+		const auto &data = result.data();
+		const auto link = session->data().chatsFilters().add(id, result);
+		//done(link);
+	}).fail([=](const MTP::Error &error) {
+		//done({ .id = id });
 	}).send();
 }
 
@@ -837,7 +892,12 @@ object_ptr<Ui::BoxContent> ShowLinkBox(
 			box->clearButtons();
 			if (has) {
 				box->addButton(tr::lng_settings_save(), [=] {
-
+					const auto chosen = raw->selected();
+					if (chosen.empty()) {
+						ShowEmptyLinkError(window);
+					} else {
+						EditLinkChats(link, chosen);
+					}
 				});
 				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 			} else {

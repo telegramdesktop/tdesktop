@@ -112,6 +112,7 @@ public:
 	void setPreloaded(const QVector<MTPDialogFilter> &result);
 
 	void load();
+	void reload();
 	void apply(const MTPUpdate &update);
 	void set(ChatFilter filter);
 	void remove(FilterId id);
@@ -175,6 +176,7 @@ private:
 	mtpRequestId _saveOrderRequestId = 0;
 	mtpRequestId _saveOrderAfterId = 0;
 	bool _loaded = false;
+	bool _reloading = false;
 
 	mtpRequestId _suggestedRequestId = 0;
 	std::vector<SuggestedFilter> _suggested;

@@ -202,6 +202,10 @@ public:
 		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
+	void checkFilterInvite(
+		const QString &slug,
+		FnMut<void(const MTPcommunities_CommunityInvite &)> done,
+		Fn<void(const MTP::Error &)> fail);
 
 	void processFullPeer(
 		not_null<PeerData*> peer,
@@ -653,6 +657,7 @@ private:
 	mtpRequestId _termsUpdateRequestId = 0;
 
 	mtpRequestId _checkInviteRequestId = 0;
+	mtpRequestId _checkFilterInviteRequestId = 0;
 
 	struct MigrateCallbacks {
 		FnMut<void(not_null<ChannelData*>)> done;

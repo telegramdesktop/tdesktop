@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_authorizations.h"
 #include "api/api_confirm_phone.h"
 #include "api/api_text_entities.h"
+#include "api/api_chat_filters.h"
 #include "api/api_chat_invite.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
@@ -74,6 +75,18 @@ bool JoinGroupByHash(
 		return false;
 	}
 	Api::CheckChatInvite(controller, match->captured(1));
+	controller->window().activate();
+	return true;
+}
+
+bool JoinFilterBySlug(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	Api::CheckFilterInvite(controller, match->captured(1));
 	controller->window().activate();
 	return true;
 }
@@ -830,6 +843,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			JoinGroupByHash
 		},
 		{
+			u"^list/?\\?slug=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
+			JoinFilterBySlug
+		},
+		{
 			u"^(addstickers|addemoji)/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"_q,
 			ShowStickerSet
 		},
@@ -953,6 +970,8 @@ QString TryConvertUrlToLocal(QString url) {
 			return u"tg://resolve?phone="_q + phoneMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (const auto joinChatMatch = regex_match(u"^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
 			return u"tg://join?invite="_q + url_encode(joinChatMatch->captured(2));
+		} else if (const auto joinFilterMatch = regex_match(u"^(list/)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
+			return u"tg://list?slug="_q + url_encode(joinFilterMatch->captured(2));
 		} else if (const auto stickerSetMatch = regex_match(u"^(addstickers|addemoji)/([a-zA-Z0-9\\.\\_]+)(\\?|$)"_q, query, matchOptions)) {
 			return u"tg://"_q + stickerSetMatch->captured(1) + "?set=" + url_encode(stickerSetMatch->captured(2));
 		} else if (const auto themeMatch = regex_match(u"^addtheme/([a-zA-Z0-9\\.\\_]+)(\\?|$)"_q, query, matchOptions)) {

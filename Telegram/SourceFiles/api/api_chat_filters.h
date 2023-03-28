@@ -11,10 +11,18 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Api {
 
 void SaveNewFilterPinned(
 	not_null<Main::Session*> session,
 	FilterId filterId);
+
+void CheckFilterInvite(
+	not_null<Window::SessionController*> controller,
+	const QString &slug);
 
 } // namespace Api

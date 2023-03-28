@@ -538,3 +538,13 @@ powerSavingButtonNoIcon: SettingsButton(powerSavingButton) {
 	padding: margins(22px, 8px, 22px, 8px);
 }
 powerSavingSubtitlePadding: margins(0px, 4px, 0px, -2px);
+
+filterInviteBox: Box(defaultBox) {
+	buttonPadding: margins(12px, 12px, 12px, 12px);
+	buttonHeight: 44px;
+	button: RoundButton(defaultActiveButton) {
+		height: 44px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+}
