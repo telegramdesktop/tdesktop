@@ -140,6 +140,7 @@ void PeerListBox::createMultiSelect() {
 
 void PeerListBox::setAddedTopScrollSkip(int skip) {
 	_addedTopScrollSkip = skip;
+	_scrollBottomFixed = false;
 	updateScrollSkips();
 }
 

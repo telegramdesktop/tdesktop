@@ -236,6 +236,8 @@ PRIVATE
     ui/controls/download_bar.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
+    ui/controls/filter_link_header.cpp
+    ui/controls/filter_link_header.h
     ui/controls/jump_down_button.cpp
     ui/controls/jump_down_button.h
     ui/controls/invite_link_buttons.cpp

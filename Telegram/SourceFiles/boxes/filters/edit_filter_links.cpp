@@ -531,7 +531,10 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 			&st::menuIconDelete);
 		return result;
 	};
-	AddSubsectionTitle(container, tr::lng_filters_link_subtitle());
+	AddSubsectionTitle(
+		container,
+		tr::lng_filters_link_subtitle(),
+		st::filterLinkSubsectionTitlePadding);
 
 	const auto prefix = u"https://"_q;
 	const auto label = container->lifetime().make_state<Ui::InviteLinkLabel>(
@@ -640,7 +643,8 @@ void LinkController::setupAboveWidget() {
 	});
 	Settings::AddSubsectionTitle(
 		container,
-		std::move(subtitle));
+		std::move(subtitle),
+		st::filterLinkSubsectionTitlePadding);
 
 	delegate()->peerListSetAboveWidget(std::move(wrap));
 }

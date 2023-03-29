@@ -224,9 +224,20 @@ rpl::producer<> DefaultOverlayWidgetHelper::controlsActivations() {
 }
 
 rpl::producer<bool> DefaultOverlayWidgetHelper::controlsSideRightValue() {
-	return Ui::Platform::TitleControlsLayoutValue() | rpl::map([=] {
-		return _controls->controls.geometry().center().x()
-			> _controls->wrap.geometry().center().x();
+	using namespace Ui::Platform;
+
+	return TitleControlsLayoutValue(
+	) | rpl::map([=](const TitleControls::Layout &layout) {
+		// See TitleControls::updateControlsPosition.
+		if (ranges::contains(layout.left, TitleControl::Close)) {
+			return false;
+		} else if (ranges::contains(layout.right, TitleControl::Close)) {
+			return true;
+		} else if (layout.left.size() > layout.right.size()) {
+			return false;
+		} else {
+			return true;
+		}
 	}) | rpl::distinct_until_changed();
 }
 

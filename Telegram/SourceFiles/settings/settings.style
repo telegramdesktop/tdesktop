@@ -540,11 +540,53 @@ powerSavingButtonNoIcon: SettingsButton(powerSavingButton) {
 powerSavingSubtitlePadding: margins(0px, 4px, 0px, -2px);
 
 filterInviteBox: Box(defaultBox) {
-	buttonPadding: margins(12px, 12px, 12px, 12px);
-	buttonHeight: 44px;
+	buttonPadding: margins(10px, 9px, 10px, 9px);
+	buttonHeight: 42px;
 	button: RoundButton(defaultActiveButton) {
-		height: 44px;
+		height: 42px;
 		textTop: 12px;
 		font: font(13px semibold);
 	}
+}
+filterInviteButtonStyle: TextStyle(defaultTextStyle) {
+	font: font(13px semibold);
+	linkFont: font(13px underline);
+	linkFontOver: font(13px underline);
+}
+filterInviteButtonBadgeStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+	linkFont: font(12px underline);
+	linkFontOver: font(12px underline);
+}
+filterInviteButtonBadgePadding: margins(5px, 0px, 5px, 2px);
+filterInviteButtonBadgeSkip: 5px;
+filterLinkTitlePadding: margins(0px, 15px, 0px, 17px);
+filterLinkAboutTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkFont: font(12px underline);
+	linkFontOver: font(12px underline);
+	lineHeight: 17px;
+}
+filterLinkAbout: FlatLabel(defaultFlatLabel) {
+	style: filterLinkAboutTextStyle;
+	align: align(top);
+	minWidth: 190px;
+}
+filterLinkAboutTop: 170px;
+filterLinkAboutBottom: 15px;
+filterLinkPreview: 96px;
+filterLinkPreviewRadius: 13px;
+filterLinkPreviewTop: 30px;
+filterLinkPreviewColumn: 65px;
+filterLinkPreviewAllBottom: 18px;
+filterLinkPreviewAllTop: 17px;
+filterLinkPreviewMyBottom: 74px;
+filterLinkPreviewMyTop: 73px;
+filterLinkPreviewChatSize: 36px;
+filterLinkPreviewChatSkip: 10px;
+filterLinkPreviewBadgeLeft: 40px;
+filterLinkPreviewBadgeTop: 38px;
+filterLinkSubsectionTitlePadding: margins(0px, 5px, 0px, -4px);
+filterLinkChatsList: PeerList(peerListBox) {
+	padding: margins(0px, 0px, 0px, membersMarginBottom);
 }
