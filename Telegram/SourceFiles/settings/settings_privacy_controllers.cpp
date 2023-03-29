@@ -686,10 +686,6 @@ rpl::producer<QString> GroupsInvitePrivacyController::title() const {
 	return tr::lng_edit_privacy_groups_title();
 }
 
-bool GroupsInvitePrivacyController::hasOption(Option option) const {
-	return (option != Option::Nobody);
-}
-
 rpl::producer<QString> GroupsInvitePrivacyController::optionsTitleKey(
 		) const {
 	return tr::lng_edit_privacy_groups_header();
