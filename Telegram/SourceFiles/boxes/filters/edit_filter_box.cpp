@@ -744,11 +744,7 @@ void EditFilterBox(
 		}
 		const auto shared = CollectFilterLinkChats(*result);
 		if (shared.empty()) {
-			// langs
-			Ui::ShowMultilineToast({
-				.parentOverride = Window::Show(window).toastParent(),
-				.text = { tr::lng_filters_link_cant(tr::now) },
-			});
+			window->show(ShowLinkBox(window, *result, {}));
 			return;
 		}
 		saveAnd(*result, crl::guard(box, [=](Data::ChatFilter updated) {
@@ -767,7 +763,12 @@ void EditFilterBox(
 	}, createLink->lifetime());
 
 	AddSkip(content);
-	AddDividerText(content, tr::lng_filters_link_about());
+	AddDividerText(
+		content,
+		rpl::conditional(
+			state->hasLinks.value(),
+			tr::lng_filters_link_about_many(),
+			tr::lng_filters_link_about()));
 
 	const auto show = std::make_shared<Ui::BoxShow>(box);
 	const auto refreshPreviews = [=] {

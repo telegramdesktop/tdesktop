@@ -232,6 +232,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_file_size_limit1" = "The document can't be sent, because it is larger than {size}.";
 "lng_file_size_limit2" = "You can double this limit to {size} per document by subscribing to **Telegram Premium**.";
 
+"lng_filter_links_limit_title" = "Limit Reached";
+"lng_filter_links_limit1#one" = "Sorry, you can't create more than **{count}** invite link.";
+"lng_filter_links_limit1#other" = "Sorry, you can't create more than **{count}** invite links.";
+"lng_filter_links_limit2#one" = "You can increase the limit to **{count}** link by subscribing to **Telegram Premium**.";
+"lng_filter_links_limit2#other" = "You can increase the limit to **{count}** links by subscribing to **Telegram Premium**.";
+
+"lng_filter_shared_limit_title" = "Limit Reached";
+"lng_filter_shared_limit1#one" = "Sorry, you can't add more than **{count}** shareable folders.";
+"lng_filter_shared_limit1#other" = "Sorry, you can't add more than **{count}** shareable folders.";
+"lng_filter_shared_limit2#one" = "You can increase the limit up to **{count}** folder by subscribing to **Telegram Premium**.";
+"lng_filter_shared_limit2#other" = "You can increase the limit up to **{count}** folders by subscribing to **Telegram Premium**.";
+
 "lng_limits_increase" = "Increase Limit";
 
 "lng_sticker_premium_text" = "This pack contains premium stickers like this one.";
@@ -3541,22 +3553,46 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_toast_add" = "{chat} added to {folder} folder";
 "lng_filters_toast_remove" = "{chat} removed from {folder} folder";
 
-"lng_filters_link" = "Invite Link";
+"lng_filters_link" = "Invite links";
+"lng_filters_link_badge" = "New";
 "lng_filters_link_create" = "Share Folder";
-"lng_filters_link_add" = "Add Link";
-"lng_filters_link_cant" = "You can only share folders that have several explicit chats selected, no general chat types and no exclusions.";
+"lng_filters_link_cant" = "No way to share folders with chat types or excluded chats.";
 "lng_filters_link_about" = "Share access to some of this folder's groups and channels with others.";
+"lng_filters_link_about_many" = "Create more links to set up different access levels for different people.";
 "lng_filters_link_title" = "Share Folder";
-"lng_filters_link_select" = "Select the chats you want to share with the link.";
+"lng_filters_link_share_about" = "Anyone with this link can add the {folder} folder and the chats selected below.";
+"lng_filters_link_subtitle" = "Invite link";
+"lng_filters_link_chats_none" = "No chats selected";
+"lng_filters_link_chats#one" = "{count} chat selected";
+"lng_filters_link_chats#other" = "{count} chats selected";
+"lng_filters_link_bot_status" = "you can't share chats with bots";
+"lng_filters_link_bot_error" = "Chat's with bots can't be shared You can't share chats with bots";
+"lng_filters_link_private_status" = "you can't share private chats";
+"lng_filters_link_private_error" = "You can't share private chats";
+"lng_filters_link_noadmin_status" = "you can't invite others here";
+"lng_filters_link_noadmin_group_error" = "You don't have the admin rights to share invite links to this group chat.";
+"lng_filters_link_noadmin_channel_error" = "You don't have the admin rights to share invite links to this channel.";
+"lng_filters_link_chats_about" = "Select groups and channels that you want everyone who adds the folder via invite link to join.";
+"lng_filters_link_no_about" = "There are no chats in this folder that you can share with others.";
+"lng_filters_link_chats_no" = "These chats cannot be shared";
+"lng_filters_link_chats_no_about" = "You can only share groups and channels in which you are allowed to create invite links.";
+"lng_filters_link_name_it" = "Name Link";
+"lng_filters_link_delete_sure" = "Are you sure you want to delete this link?";
 "lng_filters_by_link_title" = "Add Folder";
 "lng_filters_by_link_sure" = "Do you want to add a new chat folder {folder} and join its groups and channels?";
 "lng_filters_by_link_join#one" = "{count} chat to join";
 "lng_filters_by_link_join#other" = "{count} chats to join";
-"lng_filters_by_link_add" = "Add {folder}";
+"lng_filters_by_link_add_button" = "Add {folder}";
+"lng_filters_by_link_add_no" = "Do not add this folder";
 "lng_filters_by_link_more" = "Add Chats to Folder";
 "lng_filters_by_link_more_sure" = "Do you want to join chats and add them to your folder {folder}?";
 "lng_filters_by_link_about" = "You can deselect the chats you don't want to join.";
 "lng_filters_by_link_join_button" = "Join Chats";
+"lng_filters_by_link_join_no" = "Do not join any chats";
+"lng_filters_by_link_already" = "Folder already added";
+"lng_filters_by_link_already_about" = "You have already added the folder {folder} and all its chats.";
+"lng_filters_by_link_in#one" = "{count} chat in this folder";
+"lng_filters_by_link_in#other" = "{count} chats in this folder";
 "lng_filters_by_link_remove" = "Remove Folder";
 "lng_filters_by_link_remove_sure" = "Do you want to quit the chats you joined when added the folder {folder}?";
 "lng_filters_by_link_quit#one" = "{count} chat to quit";
@@ -3565,6 +3601,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_by_link_deselect" = "Deselect All";
 "lng_filters_by_link_remove_button" = "Remove Folder";
 "lng_filters_by_link_quit_button" = "Remove Folder and Chats";
+"lng_filters_bar_you_can#one" = "You can join {count} new chat";
+"lng_filters_bar_you_can#other" = "You can join {count} new chats";
+"lng_filters_bar_view" = "Click here to view them";
 
 "lng_chat_theme_change" = "Change colors";
 "lng_chat_theme_none" = "No\nTheme";

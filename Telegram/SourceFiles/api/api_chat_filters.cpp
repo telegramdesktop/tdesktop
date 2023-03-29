@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "window/window_session_controller.h"
@@ -64,6 +65,7 @@ public:
 
 private:
 	void setupAboveWidget();
+	void setupBelowWidget();
 
 	const not_null<Window::SessionController*> _window;
 
@@ -81,16 +83,15 @@ private:
 };
 
 [[nodiscard]] rpl::producer<QString> TitleText(HeaderType type) {
-	// langs
 	switch (type) {
 	case HeaderType::AddingFilter:
-		return rpl::single(u"Add Folder"_q);
+		return tr::lng_filters_by_link_title();
 	case HeaderType::AddingChats:
-		return rpl::single(u"Add Chats to Folder"_q);
+		return tr::lng_filters_by_link_more();
 	case HeaderType::AllAdded:
-		return rpl::single(u"Folder Already Added"_q);
+		return tr::lng_filters_by_link_already();
 	case HeaderType::Removing:
-		return rpl::single(u"Remove Folder"_q);
+		return tr::lng_filters_by_link_remove();
 	}
 	Unexpected("HeaderType in TitleText.");
 }
@@ -98,27 +99,44 @@ private:
 void FillHeader(
 		not_null<Ui::VerticalLayout*> container,
 		HeaderDescriptor descriptor) {
-	// langs
-	const auto description = (descriptor.type == HeaderType::AddingFilter)
-		? (u"Do you want to add a new chat folder "_q
-			+ descriptor.title
-			+ u" and join its groups and channels?"_q)
+	const auto phrase = (descriptor.type == HeaderType::AddingFilter)
+		? tr::lng_filters_by_link_sure
 		: (descriptor.type == HeaderType::AddingChats)
-		? (u"Do you want to join "_q
-			+ QString::number(descriptor.badge)
-			+ u" chats and add them to your folder "_q
-			+ descriptor.title + '?')
+		? tr::lng_filters_by_link_more_sure
 		: (descriptor.type == HeaderType::AllAdded)
-		? (u"You have already added the folder "_q
-			+ descriptor.title
-			+ u" and all its chats."_q)
-		: (u"Do you want to quit the chats you joined "
-			"when adding the folder "_q
-			+ descriptor.title + '?');
+		? tr::lng_filters_by_link_already_about
+		: tr::lng_filters_by_link_remove_sure;
+	auto boldTitle = Ui::Text::Bold(descriptor.title);
+	auto description = (descriptor.type == HeaderType::AddingFilter)
+		? tr::lng_filters_by_link_sure(
+			tr::now,
+			lt_folder,
+			std::move(boldTitle),
+			Ui::Text::WithEntities)
+		: (descriptor.type == HeaderType::AddingChats)
+		? tr::lng_filters_by_link_more_sure(
+			tr::now,
+			lt_folder,
+			std::move(boldTitle),
+			Ui::Text::WithEntities)
+		: (descriptor.type == HeaderType::AllAdded)
+		? tr::lng_filters_by_link_already_about(
+			tr::now,
+			lt_folder,
+			std::move(boldTitle),
+			Ui::Text::WithEntities)
+		: tr::lng_filters_by_link_remove_sure(
+			tr::now,
+			lt_folder,
+			std::move(boldTitle),
+			Ui::Text::WithEntities);
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
-			description,
+			phrase(
+				lt_folder,
+				rpl::single(Ui::Text::Bold(descriptor.title)),
+				Ui::Text::WithEntities),
 			st::boxDividerLabel),
 		st::boxRowPadding);
 }
@@ -152,12 +170,12 @@ void ImportInvite(
 }
 
 ToggleChatsController::ToggleChatsController(
-		not_null<Window::SessionController*> window,
-		ToggleAction action,
-		const QString &slug,
-		FilterId filterId,
-		const QString &title,
-		std::vector<not_null<PeerData*>> chats)
+	not_null<Window::SessionController*> window,
+	ToggleAction action,
+	const QString &slug,
+	FilterId filterId,
+	const QString &title,
+	std::vector<not_null<PeerData*>> chats)
 : _window(window)
 , _action(action)
 , _slug(slug)
@@ -168,6 +186,7 @@ ToggleChatsController::ToggleChatsController(
 
 void ToggleChatsController::prepare() {
 	setupAboveWidget();
+	setupBelowWidget();
 	auto selected = base::flat_set<not_null<PeerData*>>();
 	for (const auto &peer : _chats) {
 		auto row = std::make_unique<PeerListRow>(peer);
@@ -211,7 +230,20 @@ void ToggleChatsController::setupAboveWidget() {
 		.badge = (type == HeaderType::AddingChats) ? int(_chats.size()) : 0,
 	});
 
+	// lng_filters_by_link_join; // langs
+
 	delegate()->peerListSetAboveWidget(std::move(wrap));
+}
+
+void ToggleChatsController::setupBelowWidget() {
+	delegate()->peerListSetBelowWidget(
+		object_ptr<Ui::DividerLabel>(
+			(QWidget*)nullptr,
+			object_ptr<Ui::FlatLabel>(
+				(QWidget*)nullptr,
+				tr::lng_filters_by_link_about(),
+				st::boxDividerLabel),
+			st::settingsDividerLabelPadding));
 }
 
 Main::Session &ToggleChatsController::session() const {
@@ -226,7 +258,6 @@ auto ToggleChatsController::selectedValue() const
 [[nodiscard]] void AlreadyFilterBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &title) {
-	// langs
 	box->setTitle(TitleText(HeaderType::AllAdded));
 
 	FillHeader(box->verticalLayout(), {

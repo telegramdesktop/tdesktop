@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_invite_link.h" // InviteLinkQrBox.
 #include "boxes/peer_list_box.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_chat_filters.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/invite_link_buttons.h"
 #include "ui/controls/invite_link_label.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
@@ -60,28 +62,49 @@ struct InviteLinkAction {
 	Type type = Type::Copy;
 };
 
-[[nodiscard]] std::optional<QString> ErrorForSharing(
+struct Errors {
+	QString status;
+	QString toast;
+};
+
+[[nodiscard]] std::optional<Errors> ErrorForSharing(
 		not_null<History*> history) {
+	const auto result = [](const QString &status, const QString &toast) {
+		return Errors{ status, toast };
+	};
 	const auto peer = history->peer;
-	if (const auto user = peer->asUser()) { // langs
+	if (const auto user = peer->asUser()) {
 		return user->isBot()
-			? u"you can't share chats with bots"_q
-			: u"you can't share private chats"_q;
-	} else if (const auto channel = history->peer->asChannel()) {
-		if (!channel->canHaveInviteLink()) {
-			return u"you can't invite others here"_q;
+			? result(
+				tr::lng_filters_link_bot_status(tr::now),
+				tr::lng_filters_link_bot_error(tr::now))
+			: result(
+				tr::lng_filters_link_private_status(tr::now),
+				tr::lng_filters_link_private_error(tr::now));
+	} else if (const auto chat = history->peer->asChat()) {
+		if (!chat->canHaveInviteLink()) {
+			return result(
+				tr::lng_filters_link_noadmin_status(tr::now),
+				tr::lng_filters_link_noadmin_group_error(tr::now));
 		}
 		return std::nullopt;
-	} else {
-		return u"you can't share this :("_q;
+	} else if (const auto channel = history->peer->asChannel()) {
+		if (!channel->canHaveInviteLink()) {
+			return result(
+				tr::lng_filters_link_noadmin_status(tr::now),
+				(channel->isMegagroup()
+					? tr::lng_filters_link_noadmin_group_error(tr::now)
+					: tr::lng_filters_link_noadmin_channel_error(tr::now)));
+		}
+		return std::nullopt;
 	}
+	Unexpected("Peer type in ErrorForSharing.");
 }
 
 void ShowEmptyLinkError(not_null<Window::SessionController*> window) {
-	// langs
 	Ui::ShowMultilineToast({
 		.parentOverride = Window::Show(window).toastParent(),
-		.text = { u"Link should have at least one chat shared."_q },
+		.text = { tr::lng_filters_empty(tr::now) },
 	});
 }
 
@@ -359,14 +382,16 @@ public:
 
 private:
 	void setupAboveWidget();
+	void setupBelowWidget();
 	void addHeader(not_null<Ui::VerticalLayout*> container);
 	void addLinkBlock(not_null<Ui::VerticalLayout*> container);
 
 	const not_null<Window::SessionController*> _window;
 	InviteLinkData _data;
 
+	QString _filterTitle;
 	base::flat_set<not_null<History*>> _filterChats;
-	base::flat_set<not_null<PeerData*>> _allowed;
+	base::flat_map<not_null<PeerData*>, QString> _denied;
 	rpl::variable<base::flat_set<not_null<PeerData*>>> _selected;
 	base::flat_set<not_null<PeerData*>> _initial;
 
@@ -387,6 +412,7 @@ LinkController::LinkController(
 	const Data::ChatFilter &filter,
 	InviteLinkData data)
 : _window(window)
+, _filterTitle(filter.title())
 , _filterChats(filter.always()) {
 	_data = std::move(data);
 	_link = _data.url;
@@ -421,7 +447,12 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 			verticalLayout,
 			object_ptr<Ui::FlatLabel>(
 				verticalLayout,
-				tr::lng_filters_about(), // langs
+				(_data.url.isEmpty()
+					? tr::lng_filters_link_no_about(Ui::Text::WithEntities)
+					: tr::lng_filters_link_share_about(
+						lt_folder,
+						rpl::single(Ui::Text::Bold(_filterTitle)),
+						Ui::Text::WithEntities)),
 				st::settingsFilterDividerLabel)),
 		st::settingsFilterDividerLabelPadding);
 
@@ -439,8 +470,9 @@ object_ptr<Ui::BoxContent> DeleteLinkBox(
 		close();
 	};
 	return Ui::MakeConfirmBox({
-		u"Are you sure you want to delete this link?"_q, // langs
-		sure,
+		.text = tr::lng_filters_link_delete_sure(tr::now),
+		.confirmed = sure,
+		.confirmText = tr::lng_box_delete(tr::now),
 	});
 }
 
@@ -490,7 +522,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 			getLinkQr,
 			&st::menuIconQrCode);
 		result->addAction(
-			u"Name Link"_q, // langs
+			tr::lng_filters_link_name_it(tr::now),
 			editLink,
 			&st::menuIconEdit);
 		result->addAction(
@@ -499,8 +531,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 			&st::menuIconDelete);
 		return result;
 	};
-
-	AddSubsectionTitle(container, tr::lng_manage_peer_link_invite());
+	AddSubsectionTitle(container, tr::lng_filters_link_subtitle());
 
 	const auto prefix = u"https://"_q;
 	const auto label = container->lifetime().make_state<Ui::InviteLinkLabel>(
@@ -529,9 +560,9 @@ void LinkController::prepare() {
 	Expects(!_data.url.isEmpty() || _data.chats.empty());
 
 	setupAboveWidget();
+	setupBelowWidget();
 	for (const auto &history : _data.chats) {
 		const auto peer = history->peer;
-		_allowed.emplace(peer);
 		auto row = std::make_unique<PeerListRow>(peer);
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
@@ -547,9 +578,10 @@ void LinkController::prepare() {
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
 		if (const auto error = ErrorForSharing(history)) {
-			raw->setCustomStatus(*error);
-		} else if (!_data.url.isEmpty()) {
-			_allowed.emplace(peer);
+			raw->setCustomStatus(error->status);
+			_denied.emplace(peer, error->toast);
+		} else if (_data.url.isEmpty()) {
+			_denied.emplace(peer);
 		}
 	}
 	delegate()->peerListRefreshRows();
@@ -557,8 +589,15 @@ void LinkController::prepare() {
 }
 
 void LinkController::rowClicked(not_null<PeerListRow*> row) {
-	if (_allowed.contains(row->peer())) {
-		const auto peer = row->peer();
+	const auto peer = row->peer();
+	if (const auto i = _denied.find(peer); i != end(_denied)) {
+		if (!i->second.isEmpty()) {
+			Ui::ShowMultilineToast({
+				.parentOverride = delegate()->peerListToastParent(),
+				.text = { i->second },
+			});
+		}
+	} else {
 		const auto checked = row->checked();
 		auto selected = _selected.current();
 		delegate()->peerListSetRowChecked(row, !checked);
@@ -588,18 +627,35 @@ void LinkController::setupAboveWidget() {
 		addLinkBlock(container);
 	}
 
-	// langs
 	auto subtitle = _selected.value(
-	) | rpl::map([](const base::flat_set<not_null<PeerData*>> &selected) {
-		return selected.empty()
-			? u"No chats selected"_q
-			: (QString::number(selected.size()) + u" chats selected"_q);
+	) | rpl::map([=](const base::flat_set<not_null<PeerData*>> &selected) {
+		return _data.url.isEmpty()
+			? tr::lng_filters_link_chats_no(tr::now)
+			: selected.empty()
+			? tr::lng_filters_link_chats_none(tr::now)
+			: tr::lng_filters_link_chats(
+				tr::now,
+				lt_count,
+				float64(selected.size()));
 	});
 	Settings::AddSubsectionTitle(
 		container,
 		std::move(subtitle));
 
 	delegate()->peerListSetAboveWidget(std::move(wrap));
+}
+
+void LinkController::setupBelowWidget() {
+	delegate()->peerListSetBelowWidget(
+		object_ptr<Ui::DividerLabel>(
+			(QWidget*)nullptr,
+			object_ptr<Ui::FlatLabel>(
+				(QWidget*)nullptr,
+				(_data.url.isEmpty()
+					? tr::lng_filters_link_chats_no_about()
+					: tr::lng_filters_link_chats_about()),
+				st::boxDividerLabel),
+			st::settingsDividerLabelPadding));
 }
 
 Main::Session &LinkController::session() const {
@@ -728,7 +784,7 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		getLinkQr,
 		&st::menuIconQrCode);
 	result->addAction(
-		u"Name Link"_q, // langs
+		tr::lng_filters_link_name_it(tr::now),
 		editLink,
 		&st::menuIconEdit);
 	result->addAction(
@@ -931,7 +987,7 @@ object_ptr<Ui::BoxContent> ShowLinkBox(
 	auto initBox = [=](not_null<Ui::BoxContent*> box) {
 		box->setTitle(!link.title.isEmpty()
 			? rpl::single(link.title)
-			: tr::lng_manage_peer_link_invite());
+			: tr::lng_filters_link_title());
 
 		raw->hasChangesValue(
 		) | rpl::start_with_next([=](bool has) {
