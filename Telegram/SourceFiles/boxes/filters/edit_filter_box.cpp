@@ -751,13 +751,20 @@ void EditFilterBox(
 			box->setTitle(tr::lng_filters_edit());
 			nameEditing->custom = true;
 
-			*data = updated;
+			// Comparison of ChatFilter-s don't take id into account!
+			data->force_assign(updated);
 			const auto id = updated.id();
 			state->links = owner->chatsFilters().communityLinks(id);
 			ExportFilterLink(id, shared, [=](Data::ChatFilterLink link) {
 				Expects(link.id == id);
 
 				window->show(ShowLinkBox(window, updated, link));
+			}, [=](QString error) {
+				if (error == "COMMUNITIES_TOO_MUCH") {
+					// #TODO filters
+				} else {
+					window->show(ShowLinkBox(window, updated, { .id = id }));
+				}
 			});
 		}));
 	}, createLink->lifetime());

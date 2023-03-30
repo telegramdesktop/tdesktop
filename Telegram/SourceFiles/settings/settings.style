@@ -560,6 +560,7 @@ filterInviteButtonBadgeStyle: TextStyle(defaultTextStyle) {
 }
 filterInviteButtonBadgePadding: margins(5px, 0px, 5px, 2px);
 filterInviteButtonBadgeSkip: 5px;
+filterLinkDividerLabelPadding: margins(0px, 10px, 0px, 17px);
 filterLinkTitlePadding: margins(0px, 15px, 0px, 17px);
 filterLinkAboutTextStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);

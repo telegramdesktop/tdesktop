@@ -33,7 +33,8 @@ class SessionController;
 void ExportFilterLink(
 	FilterId id,
 	const std::vector<not_null<PeerData*>> &peers,
-	Fn<void(Data::ChatFilterLink)> done);
+	Fn<void(Data::ChatFilterLink)> done,
+	Fn<void(QString)> fail);
 
 object_ptr<Ui::BoxContent> ShowLinkBox(
 	not_null<Window::SessionController*> window,

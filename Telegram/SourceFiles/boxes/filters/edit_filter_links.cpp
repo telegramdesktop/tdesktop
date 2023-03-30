@@ -43,7 +43,7 @@ namespace {
 constexpr auto kMaxLinkTitleLength = 32;
 
 using InviteLinkData = Data::ChatFilterLink;
-class Row;
+class LinkRow;
 
 enum class Color {
 	Permanent,
@@ -89,7 +89,7 @@ struct Errors {
 		}
 		return std::nullopt;
 	} else if (const auto channel = history->peer->asChannel()) {
-		if (!channel->canHaveInviteLink()) {
+		if (!channel->canHaveInviteLink() && !channel->hasUsername()) {
 			return result(
 				tr::lng_filters_link_noadmin_status(tr::now),
 				(channel->isMegagroup()
@@ -180,9 +180,9 @@ void ChatFilterLinkBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
-class RowDelegate {
+class LinkRowDelegate {
 public:
-	virtual void rowUpdateRow(not_null<Row*> row) = 0;
+	virtual void rowUpdateRow(not_null<LinkRow*> row) = 0;
 	virtual void rowPaintIcon(
 		QPainter &p,
 		int x,
@@ -191,9 +191,9 @@ public:
 		Color color) = 0;
 };
 
-class Row final : public PeerListRow {
+class LinkRow final : public PeerListRow {
 public:
-	Row(not_null<RowDelegate*> delegate, const InviteLinkData &data);
+	LinkRow(not_null<LinkRowDelegate*> delegate, const InviteLinkData &data);
 
 	void update(const InviteLinkData &data);
 
@@ -215,10 +215,25 @@ public:
 		bool actionSelected) override;
 
 private:
-	const not_null<RowDelegate*> _delegate;
+	const not_null<LinkRowDelegate*> _delegate;
 	InviteLinkData _data;
 	QString _status;
 	Color _color = Color::Permanent;
+
+};
+
+class ChatRow final : public PeerListRow {
+public:
+	ChatRow(not_null<PeerData*> peer, const QString &status, bool disabled);
+
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
+
+private:
+	const bool _disabled = false;
+	QImage _disabledFrame;
+	InMemoryKey _userpicKey;
+	int _paletteVersion = 0;
 
 };
 
@@ -238,7 +253,9 @@ private:
 	return tr::lng_filters_chats_count(tr::now, lt_count, link.chats.size());
 }
 
-Row::Row(not_null<RowDelegate*> delegate, const InviteLinkData &data)
+LinkRow::LinkRow(
+	not_null<LinkRowDelegate*> delegate,
+	const InviteLinkData &data)
 : PeerListRow(ComputeRowId(data))
 , _delegate(delegate)
 , _data(data)
@@ -246,7 +263,7 @@ Row::Row(not_null<RowDelegate*> delegate, const InviteLinkData &data)
 	setCustomStatus(ComputeStatus(data));
 }
 
-void Row::update(const InviteLinkData &data) {
+void LinkRow::update(const InviteLinkData &data) {
 	_data = data;
 	_color = ComputeColor(data);
 	setCustomStatus(ComputeStatus(data));
@@ -254,11 +271,11 @@ void Row::update(const InviteLinkData &data) {
 	_delegate->rowUpdateRow(this);
 }
 
-InviteLinkData Row::data() const {
+InviteLinkData LinkRow::data() const {
 	return _data;
 }
 
-QString Row::generateName() {
+QString LinkRow::generateName() {
 	if (!_data.title.isEmpty()) {
 		return _data.title;
 	}
@@ -275,11 +292,12 @@ QString Row::generateName() {
 	);
 }
 
-QString Row::generateShortName() {
+QString LinkRow::generateShortName() {
 	return generateName();
 }
 
-PaintRoundImageCallback Row::generatePaintUserpicCallback(bool forceRound) {
+PaintRoundImageCallback LinkRow::generatePaintUserpicCallback(
+		bool forceRound) {
 	return [=](
 			QPainter &p,
 			int x,
@@ -290,13 +308,13 @@ PaintRoundImageCallback Row::generatePaintUserpicCallback(bool forceRound) {
 	};
 }
 
-QSize Row::rightActionSize() const {
+QSize LinkRow::rightActionSize() const {
 	return QSize(
 		st::inviteLinkThreeDotsIcon.width(),
 		st::inviteLinkThreeDotsIcon.height());
 }
 
-QMargins Row::rightActionMargins() const {
+QMargins LinkRow::rightActionMargins() const {
 	return QMargins(
 		0,
 		(st::inviteLinkList.item.height - rightActionSize().height()) / 2,
@@ -304,7 +322,7 @@ QMargins Row::rightActionMargins() const {
 		0);
 }
 
-void Row::rightActionPaint(
+void LinkRow::rightActionPaint(
 		Painter &p,
 		int x,
 		int y,
@@ -316,9 +334,106 @@ void Row::rightActionPaint(
 		: st::inviteLinkThreeDotsIcon).paint(p, x, y, outerWidth);
 }
 
+ChatRow::ChatRow(
+	not_null<PeerData*> peer,
+	const QString &status,
+	bool disabled)
+: PeerListRow(peer)
+, _disabled(disabled) {
+	if (!status.isEmpty()) {
+		setCustomStatus(status);
+	}
+}
+
+PaintRoundImageCallback ChatRow::generatePaintUserpicCallback(
+		bool forceRound) {
+	const auto peer = this->peer();
+	const auto saved = peer->isSelf();
+	const auto replies = peer->isRepliesChat();
+	auto userpic = (saved || replies)
+		? Ui::PeerUserpicView()
+		: ensureUserpicView();
+	auto paint = [=](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) mutable {
+		if (forceRound && peer->isForum()) {
+			ForceRoundUserpicCallback(peer)(p, x, y, outerWidth, size);
+		} else if (saved) {
+			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+		} else if (replies) {
+			Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
+		} else {
+			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
+		}
+	};
+	return [=](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) mutable {
+		if (!_disabled) {
+			paint(p, x, y, outerWidth, size);
+			return;
+		}
+		const auto wide = size + style::ConvertScale(3);
+		const auto full = QSize(wide, wide) * style::DevicePixelRatio();
+		auto repaint = false;
+		if (_disabledFrame.size() != full) {
+			repaint = true;
+			_disabledFrame = QImage(
+				full,
+				QImage::Format_ARGB32_Premultiplied);
+			_disabledFrame.setDevicePixelRatio(style::DevicePixelRatio());
+		} else {
+			repaint = (_paletteVersion != style::PaletteVersion())
+				|| (!saved
+					&& !replies
+					&& (_userpicKey != peer->userpicUniqueKey(userpic)));
+		}
+		if (repaint) {
+			_paletteVersion = style::PaletteVersion();
+			_userpicKey = peer->userpicUniqueKey(userpic);
+
+			_disabledFrame.fill(Qt::transparent);
+			auto p = Painter(&_disabledFrame);
+			paint(p, 0, 0, wide, size);
+
+			auto hq = PainterHighQualityEnabler(p);
+			p.setBrush(st::boxBg);
+			p.setPen(Qt::NoPen);
+			const auto two = style::ConvertScaleExact(2.5);
+			const auto half = size / 2.;
+			const auto rect = QRectF(half, half, half, half).translated(
+				{ two, two });
+			p.drawEllipse(rect);
+
+			auto pen = st::windowSubTextFg->p;
+			const auto width = style::ConvertScaleExact(1.5);
+			const auto dash = 0.55;
+			const auto dashWithCaps = dash + 1.;
+			pen.setWidthF(width);
+			// 11 parts = M_PI * half / ((dashWithCaps + space) * width)
+			// 11 = M_PI * half / ((dashWithCaps + space) * width)
+			// space = (M_PI * half / (11 * width)) - dashWithCaps
+			const auto space = M_PI * half / (11 * width) - dashWithCaps;
+			pen.setDashPattern(QVector<qreal>{ dash, space });
+			pen.setDashOffset(1.);
+			pen.setCapStyle(Qt::RoundCap);
+			p.setBrush(Qt::NoBrush);
+			p.setPen(pen);
+			p.drawEllipse(rect.marginsRemoved({ two, two, two, two }));
+		}
+		p.drawImage(x, y, _disabledFrame);
+	};
+}
+
 class LinksController final
 	: public PeerListController
-	, public RowDelegate
+	, public LinkRowDelegate
 	, public base::has_weak_ptr {
 public:
 	LinksController(
@@ -334,7 +449,7 @@ public:
 		not_null<PeerListRow*> row) override;
 	Main::Session &session() const override;
 
-	void rowUpdateRow(not_null<Row*> row) override;
+	void rowUpdateRow(not_null<LinkRow*> row) override;
 	void rowPaintIcon(
 		QPainter &p,
 		int x,
@@ -454,7 +569,7 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 						rpl::single(Ui::Text::Bold(_filterTitle)),
 						Ui::Text::WithEntities)),
 				st::settingsFilterDividerLabel)),
-		st::settingsFilterDividerLabelPadding);
+		st::filterLinkDividerLabelPadding);
 
 	verticalLayout->geometryValue(
 	) | rpl::start_with_next([=](const QRect &r) {
@@ -564,9 +679,26 @@ void LinkController::prepare() {
 
 	setupAboveWidget();
 	setupBelowWidget();
+	const auto countStatus = [&](not_null<PeerData*> peer) {
+		if (const auto chat = peer->asChat()) {
+			if (const auto count = chat->count; count > 0) {
+				return tr::lng_chat_status_members(tr::now, lt_count, count);
+			}
+		} else if (const auto channel = peer->asChannel()) {
+			if (channel->membersCountKnown()) {
+				return (channel->isBroadcast()
+					? tr::lng_chat_status_subscribers
+					: tr::lng_chat_status_members)(
+						tr::now,
+						lt_count,
+						channel->membersCount());
+			}
+		}
+		return QString();
+	};
 	for (const auto &history : _data.chats) {
 		const auto peer = history->peer;
-		auto row = std::make_unique<PeerListRow>(peer);
+		auto row = std::make_unique<ChatRow>(peer, countStatus(peer), false);
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
 		delegate()->peerListSetRowChecked(raw, true);
@@ -577,11 +709,14 @@ void LinkController::prepare() {
 			continue;
 		}
 		const auto peer = history->peer;
-		auto row = std::make_unique<PeerListRow>(peer);
+		const auto error = ErrorForSharing(history);
+		auto row = std::make_unique<ChatRow>(
+			peer,
+			error ? error->status : countStatus(peer),
+			error.has_value());
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
-		if (const auto error = ErrorForSharing(history)) {
-			raw->setCustomStatus(error->status);
+		if (error) {
 			_denied.emplace(peer, error->toast);
 		} else if (_data.url.isEmpty()) {
 			_denied.emplace(peer);
@@ -646,6 +781,11 @@ void LinkController::setupAboveWidget() {
 		std::move(subtitle),
 		st::filterLinkSubsectionTitlePadding);
 
+	// Fix label cutting on text change from smaller to longer.
+	_selected.changes() | rpl::start_with_next([=] {
+		container->resizeToWidth(container->widthNoMargins());
+	}, container->lifetime());
+
 	delegate()->peerListSetAboveWidget(std::move(wrap));
 }
 
@@ -702,7 +842,7 @@ void LinksController::rebuild(const std::vector<InviteLinkData> &rows) {
 	while (i < rows.size()) {
 		if (i < count) {
 			const auto row = delegate()->peerListRowAt(i);
-			static_cast<Row*>(row.get())->update(rows[i]);
+			static_cast<LinkRow*>(row.get())->update(rows[i]);
 		} else {
 			appendRow(rows[i]);
 		}
@@ -716,7 +856,7 @@ void LinksController::rebuild(const std::vector<InviteLinkData> &rows) {
 }
 
 void LinksController::rowClicked(not_null<PeerListRow*> row) {
-	const auto link = static_cast<Row*>(row.get())->data();
+	const auto link = static_cast<LinkRow*>(row.get())->data();
 	delegate()->peerListShowBox(
 		ShowLinkBox(_window, _currentFilter(), link),
 		Ui::LayerOption::KeepOther);
@@ -746,7 +886,7 @@ base::unique_qptr<Ui::PopupMenu> LinksController::rowContextMenu(
 base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
-	const auto real = static_cast<Row*>(row.get());
+	const auto real = static_cast<LinkRow*>(row.get());
 	const auto data = real->data();
 	const auto link = data.url;
 	const auto copyLink = [=] {
@@ -803,7 +943,7 @@ Main::Session &LinksController::session() const {
 }
 
 void LinksController::appendRow(const InviteLinkData &data) {
-	delegate()->peerListAppendRow(std::make_unique<Row>(this, data));
+	delegate()->peerListAppendRow(std::make_unique<LinkRow>(this, data));
 }
 
 bool LinksController::removeRow(const QString &link) {
@@ -814,7 +954,7 @@ bool LinksController::removeRow(const QString &link) {
 	return false;
 }
 
-void LinksController::rowUpdateRow(not_null<Row*> row) {
+void LinksController::rowUpdateRow(not_null<LinkRow*> row) {
 	delegate()->peerListUpdateRow(row);
 }
 
@@ -927,7 +1067,8 @@ bool GoodForExportFilterLink(
 void ExportFilterLink(
 		FilterId id,
 		const std::vector<not_null<PeerData*>> &peers,
-		Fn<void(Data::ChatFilterLink)> done) {
+		Fn<void(Data::ChatFilterLink)> done,
+		Fn<void(QString)> fail) {
 	Expects(!peers.empty());
 
 	const auto front = peers.front();
@@ -950,7 +1091,7 @@ void ExportFilterLink(
 			data.vinvite());
 		done(link);
 	}).fail([=](const MTP::Error &error) {
-		done({ .id = id });
+		fail(error.type());
 	}).send();
 }
 
@@ -987,6 +1128,7 @@ object_ptr<Ui::BoxContent> ShowLinkBox(
 		const Data::ChatFilter &filter,
 		const Data::ChatFilterLink &link) {
 	auto controller = std::make_unique<LinkController>(window, filter, link);
+	controller->setStyleOverrides(&st::inviteLinkChatList);
 	const auto raw = controller.get();
 	auto initBox = [=](not_null<Ui::BoxContent*> box) {
 		box->setTitle(!link.title.isEmpty()
@@ -995,6 +1137,8 @@ object_ptr<Ui::BoxContent> ShowLinkBox(
 
 		raw->hasChangesValue(
 		) | rpl::start_with_next([=](bool has) {
+			box->setCloseByOutsideClick(!has);
+			box->setCloseByEscape(!has);
 			box->clearButtons();
 			if (has) {
 				box->addButton(tr::lng_settings_save(), [=] {

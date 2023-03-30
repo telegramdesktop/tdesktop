@@ -150,9 +150,12 @@ struct FilterRow {
 		const Data::ChatFilter &filter,
 		bool check = false) {
 	const auto count = ComputeCount(session, filter, check);
-	return count
+	const auto result = count
 		? tr::lng_filters_chats_count(tr::now, lt_count_short, count)
 		: tr::lng_filters_no_chats(tr::now);
+	return filter.community()
+		? result + QString::fromUtf8(" \xE2\x80\xA2 shareable folder")
+		: result;
 }
 
 FilterRowButton::FilterRowButton(
@@ -327,6 +330,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		not_null<Ui::VerticalLayout*> container) {
 	auto &lifetime = container->lifetime();
 
+	const auto weak = Ui::MakeWeak(container);
 	const auto session = &controller->session();
 	const auto limit = [=] {
 		return Data::PremiumLimits(session).dialogFiltersCurrent();

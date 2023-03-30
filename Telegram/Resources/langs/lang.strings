@@ -3566,9 +3566,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_link_chats#one" = "{count} chat selected";
 "lng_filters_link_chats#other" = "{count} chats selected";
 "lng_filters_link_bot_status" = "you can't share chats with bots";
-"lng_filters_link_bot_error" = "Chat's with bots can't be shared You can't share chats with bots";
+"lng_filters_link_bot_error" = "Chats with bots can't be shared.";
 "lng_filters_link_private_status" = "you can't share private chats";
-"lng_filters_link_private_error" = "You can't share private chats";
+"lng_filters_link_private_error" = "Private chats can't be shared.";
 "lng_filters_link_noadmin_status" = "you can't invite others here";
 "lng_filters_link_noadmin_group_error" = "You don't have the admin rights to share invite links to this group chat.";
 "lng_filters_link_noadmin_channel_error" = "You don't have the admin rights to share invite links to this channel.";
