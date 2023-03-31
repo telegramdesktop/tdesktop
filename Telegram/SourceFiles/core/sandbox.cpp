@@ -122,6 +122,10 @@ int Sandbox::start() {
 		}
 	}
 
+#ifdef Q_OS_LINUX
+	_localServer.setSocketOptions(QLocalServer::AbstractNamespaceOption);
+#endif
+
 	connect(
 		&_localSocket,
 		&QLocalSocket::connected,

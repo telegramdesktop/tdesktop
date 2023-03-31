@@ -557,7 +557,14 @@ void SetApplicationIcon(const QIcon &icon) {
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
+#ifdef Q_OS_LINUX
+	if (KSandbox::isSnap()) {
+		return u"snap.telegram-desktop."_q + hash;
+	}
+	return hash + '-' + cGUIDStr();
+#else // Q_OS_LINUX
 	return QDir::tempPath() + '/' + hash + '-' + cGUIDStr();
+#endif // !Q_OS_LINUX
 }
 
 std::optional<bool> IsDarkMode() {
