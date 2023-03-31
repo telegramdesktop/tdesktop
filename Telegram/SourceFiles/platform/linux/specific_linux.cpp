@@ -54,11 +54,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <unistd.h>
 #include <dirent.h>
 #include <pwd.h>
+#include <dlfcn.h>
 
 #include <iostream>
 
 using namespace Platform;
 using Platform::internal::WaylandIntegration;
+
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
+typedef struct _XDisplay Display;
+struct XErrorEvent;
+typedef int (*XErrorHandler)(Display*, XErrorEvent*);
+typedef XErrorHandler (*LPXSETERRORHANDLER)(XErrorHandler);
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 typedef GApplication TDesktopApplication;
@@ -876,6 +884,20 @@ namespace ThirdParty {
 void start() {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
+
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
+	// tdesktop doesn't use xlib by itself,
+	// but some libraries it depends on may do
+	const auto XSetErrorHandler = reinterpret_cast<LPXSETERRORHANDLER>(
+		dlsym(RTLD_DEFAULT, "XSetErrorHandler"));
+
+	// Reset errors if any
+	(void) dlerror();
+
+	if (XSetErrorHandler) {
+		XSetErrorHandler([](Display *dpy, XErrorEvent *err) { return 0; });
+	}
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	InstallLauncher();
