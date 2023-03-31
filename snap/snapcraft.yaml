@@ -185,7 +185,7 @@ parts:
     override-pull: |
       craftctl default
       cp -r . "$CRAFT_STAGE/patches"
-    override-stage: |
+    override-prime: |
       rm -rf patches
     stage: [-./*]
 
