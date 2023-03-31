@@ -25,4 +25,12 @@ void CheckFilterInvite(
 	not_null<Window::SessionController*> controller,
 	const QString &slug);
 
+void ProcessFilterRemove(
+	base::weak_ptr<Window::SessionController> weak,
+	const QString &title,
+	const QString &iconEmoji,
+	std::vector<not_null<PeerData*>> all,
+	std::vector<not_null<PeerData*>> suggest,
+	Fn<void(std::vector<not_null<PeerData*>>)> done);
+
 } // namespace Api

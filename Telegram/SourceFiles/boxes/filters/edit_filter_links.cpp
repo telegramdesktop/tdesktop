@@ -679,26 +679,12 @@ void LinkController::prepare() {
 
 	setupAboveWidget();
 	setupBelowWidget();
-	const auto countStatus = [&](not_null<PeerData*> peer) {
-		if (const auto chat = peer->asChat()) {
-			if (const auto count = chat->count; count > 0) {
-				return tr::lng_chat_status_members(tr::now, lt_count, count);
-			}
-		} else if (const auto channel = peer->asChannel()) {
-			if (channel->membersCountKnown()) {
-				return (channel->isBroadcast()
-					? tr::lng_chat_status_subscribers
-					: tr::lng_chat_status_members)(
-						tr::now,
-						lt_count,
-						channel->membersCount());
-			}
-		}
-		return QString();
-	};
 	for (const auto &history : _data.chats) {
 		const auto peer = history->peer;
-		auto row = std::make_unique<ChatRow>(peer, countStatus(peer), false);
+		auto row = std::make_unique<ChatRow>(
+			peer,
+			FilterChatStatusText(peer),
+			false);
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
 		delegate()->peerListSetRowChecked(raw, true);
@@ -712,7 +698,7 @@ void LinkController::prepare() {
 		const auto error = ErrorForSharing(history);
 		auto row = std::make_unique<ChatRow>(
 			peer,
-			error ? error->status : countStatus(peer),
+			error ? error->status : FilterChatStatusText(peer),
 			error.has_value());
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
@@ -1158,6 +1144,24 @@ object_ptr<Ui::BoxContent> ShowLinkBox(
 		}, box->lifetime());
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(initBox));
+}
+
+QString FilterChatStatusText(not_null<PeerData*> peer) {
+	if (const auto chat = peer->asChat()) {
+		if (const auto count = chat->count; count > 0) {
+			return tr::lng_chat_status_members(tr::now, lt_count, count);
+		}
+	} else if (const auto channel = peer->asChannel()) {
+		if (channel->membersCountKnown()) {
+			return (channel->isBroadcast()
+				? tr::lng_chat_status_subscribers
+				: tr::lng_chat_status_members)(
+					tr::now,
+					lt_count,
+					channel->membersCount());
+		}
+	}
+	return QString();
 }
 
 void SetupFilterLinks(

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_folders.h"
 
 #include "apiwrap.h"
+#include "api/api_chat_filters.h" // ProcessFilterRemove.
 #include "boxes/premium_limits_box.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "core/application.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/filter_icons.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
@@ -102,6 +104,10 @@ struct FilterRow {
 	not_null<FilterRowButton*> button;
 	Data::ChatFilter filter;
 	bool removed = false;
+	bool removeHasLinks = false;
+	mtpRequestId removePeersRequestId = 0;
+	std::vector<not_null<PeerData*>> suggestRemovePeers;
+	std::vector<not_null<PeerData*>> removePeers;
 	bool added = false;
 	bool postponedCountUpdate = false;
 };
@@ -361,6 +367,81 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		controller->show(Box(FiltersLimitBox, session));
 		return true;
 	};
+	const auto markForRemovalSure = [=](not_null<FilterRowButton*> button) {
+		const auto row = find(button);
+		if (row->removed || row->removePeersRequestId > 0) {
+			return;
+		} else if (row->filter.community()
+			&& !row->filter.always().empty()) {
+			const auto chosen = crl::guard(button, [=](
+					std::vector<not_null<PeerData*>> peers) {
+				const auto row = find(button);
+				row->removePeers = std::move(peers);
+				row->removed = true;
+				button->setRemoved(true);
+			});
+			Api::ProcessFilterRemove(
+				controller,
+				row->filter.title(),
+				row->filter.iconEmoji(),
+				row->filter.always() | ranges::views::transform(
+					&History::peer
+				) | ranges::to_vector,
+				row->suggestRemovePeers,
+				chosen);
+		} else {
+			row->removePeers = {};
+			row->removed = true;
+			button->setRemoved(true);
+		}
+	};
+	const auto markForRemoval = [=](not_null<FilterRowButton*> button) {
+		const auto row = find(button);
+		if (row->removed || row->removePeersRequestId > 0) {
+			return;
+		} else if (row->filter.community() && row->removeHasLinks) {
+			controller->show(Ui::MakeConfirmBox({
+				.text = { tr::lng_filters_delete_sure(tr::now) },
+				.confirmed = crl::guard(button, [=](Fn<void()> close) {
+					markForRemovalSure(button);
+					close();
+				}),
+				.confirmText = tr::lng_box_delete(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
+		} else {
+			markForRemovalSure(button);
+		}
+	};
+	const auto remove = [=](not_null<FilterRowButton*> button) {
+		const auto row = find(button);
+		if (row->removed || row->removePeersRequestId > 0) {
+			return;
+		} else if (row->filter.community() && !row->removePeersRequestId) {
+			row->removePeersRequestId = session->api().request(
+				MTPcommunities_GetLeaveCommunitySuggestions(
+					MTP_inputCommunityDialogFilter(
+						MTP_int(row->filter.id())))
+			).done(crl::guard(button, [=](const MTPVector<MTPPeer> &result) {
+				const auto row = find(button);
+				row->removePeersRequestId = -1;
+				row->suggestRemovePeers = ranges::views::all(
+					result.v
+				) | ranges::views::transform([=](const MTPPeer &peer) {
+					return session->data().peer(peerFromMTP(peer));
+				}) | ranges::to_vector;
+				row->removeHasLinks = true; // #TODO filters
+				markForRemoval(button);
+			})).fail(crl::guard(button, [=] {
+				const auto row = find(button);
+				row->removePeersRequestId = -1;
+				row->removeHasLinks = false;
+				markForRemoval(button);
+			})).send();
+		} else {
+			markForRemoval(button);
+		}
+	};
 	const auto wrap = container->add(object_ptr<Ui::VerticalLayout>(
 		container));
 	const auto addFilter = [=](const Data::ChatFilter &filter) {
@@ -368,8 +449,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			object_ptr<FilterRowButton>(wrap, session, filter));
 		button->removeRequests(
 		) | rpl::start_with_next([=] {
-			button->setRemoved(true);
-			find(button)->removed = true;
+			remove(button);
 		}, button->lifetime());
 		button->restoreRequests(
 		) | rpl::start_with_next([=] {
@@ -562,6 +642,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		auto updates = std::vector<MTPUpdate>();
 		auto addRequests = std::vector<MTPmessages_UpdateDialogFilter>();
 		auto removeRequests = std::vector<MTPmessages_UpdateDialogFilter>();
+		auto removeCommunityRequests = std::vector<MTPcommunities_LeaveCommunity>();
 
 		auto &realFilters = session->data().chatsFilters();
 		const auto &list = realFilters.list();
@@ -590,17 +671,32 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			const auto tl = removed
 				? MTPDialogFilter()
 				: row.filter.tl(newId);
-			const auto request = MTPmessages_UpdateDialogFilter(
-				MTP_flags(removed
-					? MTPmessages_UpdateDialogFilter::Flag(0)
-					: MTPmessages_UpdateDialogFilter::Flag::f_filter),
-				MTP_int(newId),
-				tl);
-			if (removed) {
-				removeRequests.push_back(request);
+			const auto removeCommunityWithChats = removed
+				&& row.filter.community()
+				&& !row.removePeers.empty();
+			if (removeCommunityWithChats) {
+				auto inputs = ranges::views::all(
+					row.removePeers
+				) | ranges::views::transform([](not_null<PeerData*> peer) {
+					return MTPInputPeer(peer->input);
+				}) | ranges::to<QVector>();
+				removeCommunityRequests.push_back(
+					MTPcommunities_LeaveCommunity(
+						MTP_inputCommunityDialogFilter(MTP_int(newId)),
+						MTP_vector<MTPInputPeer>(std::move(inputs))));
 			} else {
-				addRequests.push_back(request);
-				order.push_back(newId);
+				const auto request = MTPmessages_UpdateDialogFilter(
+					MTP_flags(removed
+						? MTPmessages_UpdateDialogFilter::Flag(0)
+						: MTPmessages_UpdateDialogFilter::Flag::f_filter),
+					MTP_int(newId),
+					tl);
+				if (removed) {
+					removeRequests.push_back(request);
+				} else {
+					addRequests.push_back(request);
+					order.push_back(newId);
+				}
 			}
 			updates.push_back(MTP_updateDialogFilter(
 				MTP_flags(removed
@@ -629,7 +725,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			order = std::move(order),
 			updates = std::move(updates),
 			addRequests = std::move(addRequests),
-			removeRequests = std::move(removeRequests)
+			removeRequests = std::move(removeRequests),
+			removeCommunityRequests = std::move(removeCommunityRequests)
 		] {
 			const auto api = &session->api();
 			const auto filters = &session->data().chatsFilters();
@@ -646,18 +743,25 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				filters->apply(update);
 			}
 			auto previousId = mtpRequestId(0);
-			auto &&requests = ranges::views::concat(
-				removeRequests,
-				addRequests);
-			for (auto &request : requests) {
-				previousId = api->request(
-					std::move(request)
-				).done([=](const auto &, mtpRequestId id) {
-					ids->remove(id);
-					checkFinished();
-				}).afterRequest(previousId).send();
-				ids->emplace(previousId);
-			}
+			const auto sendRequests = [&](const auto &requests) {
+				for (auto &request : requests) {
+					previousId = api->request(
+						std::move(request)
+					).done([=](const auto &result, mtpRequestId id) {
+						if constexpr (std::is_same_v<
+								std::decay_t<decltype(result)>,
+								MTPUpdates>) {
+							session->api().applyUpdates(result);
+						}
+						ids->remove(id);
+						checkFinished();
+					}).afterRequest(previousId).send();
+					ids->emplace(previousId);
+				}
+			};
+			sendRequests(removeRequests);
+			sendRequests(removeCommunityRequests);
+			sendRequests(addRequests);
 			if (!order.empty() && !addRequests.empty()) {
 				filters->saveOrder(order, previousId);
 			}

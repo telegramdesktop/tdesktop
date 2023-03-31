@@ -1354,6 +1354,9 @@ void Session::setupChannelLeavingViewer() {
 				history->removeJoinedMessage();
 				history->updateChatListExistence();
 				history->updateChatListSortPosition();
+				if (!history->inChatList()) {
+					history->clearFolder();
+				}
 			}
 		}
 	}, _lifetime);

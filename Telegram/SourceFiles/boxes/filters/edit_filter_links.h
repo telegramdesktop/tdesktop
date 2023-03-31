@@ -36,10 +36,11 @@ void ExportFilterLink(
 	Fn<void(Data::ChatFilterLink)> done,
 	Fn<void(QString)> fail);
 
-object_ptr<Ui::BoxContent> ShowLinkBox(
+[[nodiscard]] object_ptr<Ui::BoxContent> ShowLinkBox(
 	not_null<Window::SessionController*> window,
 	const Data::ChatFilter &filter,
 	const Data::ChatFilterLink &link);
+[[nodiscard]] QString FilterChatStatusText(not_null<PeerData*> peer);
 
 void SetupFilterLinks(
 	not_null<Ui::VerticalLayout*> container,

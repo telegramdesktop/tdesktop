@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
 #include "core/application.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
+#include "ui/filter_icons.h"
 #include "window/window_session_controller.h"
 #include "styles/style_filter_icons.h"
 #include "styles/style_layers.h"
@@ -41,10 +43,9 @@ public:
 	ToggleChatsController(
 		not_null<Window::SessionController*> window,
 		ToggleAction action,
-		const QString &slug,
-		FilterId filterId,
 		const QString &title,
-		std::vector<not_null<PeerData*>> chats);
+		std::vector<not_null<PeerData*>> chats,
+		std::vector<not_null<PeerData*>> additional);
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -63,10 +64,9 @@ private:
 	Ui::RpWidget *_addedTopWidget = nullptr;
 
 	ToggleAction _action = ToggleAction::Adding;
-	QString _slug;
-	FilterId _filterId = 0;
 	QString _filterTitle;
 	std::vector<not_null<PeerData*>> _chats;
+	std::vector<not_null<PeerData*>> _additional;
 	rpl::variable<base::flat_set<not_null<PeerData*>>> _selected;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -128,13 +128,18 @@ void InitFilterLinkHeader(
 		Fn<void(int)> setAddedTopHeight,
 		Ui::FilterLinkHeaderType type,
 		const QString &title,
+		const QString &iconEmoji,
 		rpl::producer<int> count) {
+	const auto icon = Ui::LookupFilterIcon(
+		Ui::LookupFilterIconByEmoji(
+			iconEmoji
+		).value_or(Ui::FilterIcon::Custom)).active;
 	auto header = Ui::MakeFilterLinkHeader(box, {
 		.type = type,
 		.title = TitleText(type)(tr::now),
 		.about = AboutText(type, title),
 		.folderTitle = title,
-		.folderIcon = &st::foldersCustomActive,
+		.folderIcon = icon,
 		.badge = (type == Ui::FilterLinkHeaderType::AddingChats
 			? std::move(count)
 			: rpl::single(0)),
@@ -220,16 +225,14 @@ void ImportInvite(
 ToggleChatsController::ToggleChatsController(
 	not_null<Window::SessionController*> window,
 	ToggleAction action,
-	const QString &slug,
-	FilterId filterId,
 	const QString &title,
-	std::vector<not_null<PeerData*>> chats)
+	std::vector<not_null<PeerData*>> chats,
+	std::vector<not_null<PeerData*>> additional)
 : _window(window)
 , _action(action)
-, _slug(slug)
-, _filterId(filterId)
 , _filterTitle(title)
-, _chats(std::move(chats)) {
+, _chats(std::move(chats))
+, _additional(std::move(additional)) {
 	setStyleOverrides(&st::filterLinkChatsList);
 }
 
@@ -237,12 +240,34 @@ void ToggleChatsController::prepare() {
 	setupAboveWidget();
 	setupBelowWidget();
 	auto selected = base::flat_set<not_null<PeerData*>>();
-	for (const auto &peer : _chats) {
+	const auto add = [&](not_null<PeerData*> peer, bool additional = false) {
 		auto row = std::make_unique<PeerListRow>(peer);
+		if (delegate()->peerListFindRow(peer->id.value)) {
+			return;
+		}
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
-		delegate()->peerListSetRowChecked(raw, true);
-		selected.emplace(peer);
+		if (!additional || _action == ToggleAction::Removing) {
+			if (const auto status = FilterChatStatusText(peer)
+				; !status.isEmpty()) {
+				raw->setCustomStatus(status);
+			}
+		}
+		if (!additional) {
+			delegate()->peerListSetRowChecked(raw, true);
+			selected.emplace(peer);
+		} else if (_action == ToggleAction::Adding) {
+			raw->setDisabledState(PeerListRow::State::DisabledChecked);
+			raw->setCustomStatus(peer->isBroadcast()
+				? tr::lng_filters_link_already_channel(tr::now)
+				: tr::lng_filters_link_already_group(tr::now));
+		}
+	};
+	for (const auto &peer : _chats) {
+		add(peer);
+	}
+	for (const auto &peer : _additional) {
+		add(peer, true);
 	}
 	delegate()->peerListRefreshRows();
 	_selected = std::move(selected);
@@ -269,23 +294,51 @@ void ToggleChatsController::setupAboveWidget() {
 
 	_addedTopWidget = container->add(object_ptr<Ui::RpWidget>(container));
 	AddDivider(container);
+	const auto totalCount = [&] {
+		if (_chats.empty()) {
+			return _additional.size();
+		} else if (_additional.empty()) {
+			return _chats.size();
+		}
+		auto result = _chats.size();
+		for (const auto &peer : _additional) {
+			if (!ranges::contains(_chats, peer)) {
+				++result;
+			}
+		}
+		return result;
+	};
+	const auto count = (_action == ToggleAction::Removing)
+		? totalCount()
+		: _chats.empty()
+		? _additional.size()
+		: _chats.size();
 	AddSubsectionTitle(
 		container,
-		tr::lng_filters_by_link_join(
-			lt_count,
-			rpl::single(float64(_chats.size()))),
+		(_action == ToggleAction::Removing
+			? tr::lng_filters_by_link_quit
+			: _chats.empty()
+			? tr::lng_filters_by_link_in
+			: tr::lng_filters_by_link_join)(
+				lt_count,
+				rpl::single(float64(count))),
 		st::filterLinkSubsectionTitlePadding);
 
 	delegate()->peerListSetAboveWidget(std::move(wrap));
 }
 
 void ToggleChatsController::setupBelowWidget() {
+	if (_chats.empty()) {
+		return;
+	}
 	delegate()->peerListSetBelowWidget(
 		object_ptr<Ui::DividerLabel>(
 			(QWidget*)nullptr,
 			object_ptr<Ui::FlatLabel>(
 				(QWidget*)nullptr,
-				tr::lng_filters_by_link_about(tr::now),
+				(_action == ToggleAction::Removing
+					? tr::lng_filters_by_link_about_quit
+					: tr::lng_filters_by_link_about)(tr::now),
 				st::boxDividerLabel),
 			st::settingsDividerLabelPadding));
 }
@@ -305,12 +358,40 @@ void ToggleChatsController::setAddedTopHeight(int addedTopHeight) {
 	_addedTopWidget->resize(_addedTopWidget->width(), addedTopHeight);
 }
 
+void ShowImportToast(
+		base::weak_ptr<Window::SessionController> weak,
+		const QString &title,
+		Ui::FilterLinkHeaderType type,
+		int added) {
+	const auto strong = weak.get();
+	if (!strong) {
+		return;
+	}
+	const auto created = (type == Ui::FilterLinkHeaderType::AddingFilter);
+	const auto phrase = created
+		? tr::lng_filters_added_title
+		: tr::lng_filters_updated_title;
+	auto text = Ui::Text::Bold(phrase(tr::now, lt_folder, title));
+	if (added > 0) {
+		const auto phrase = created
+			? tr::lng_filters_added_also
+			: tr::lng_filters_updated_also;
+		text.append('\n').append(phrase(tr::now, lt_count, added));
+	}
+	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(strong).toastParent(),
+		.text = { std::move(text) },
+	});
+}
+
 void ProcessFilterInvite(
 		base::weak_ptr<Window::SessionController> weak,
 		const QString &slug,
 		FilterId filterId,
 		const QString &title,
-		std::vector<not_null<PeerData*>> peers) {
+		const QString &iconEmoji,
+		std::vector<not_null<PeerData*>> peers,
+		std::vector<not_null<PeerData*>> already) {
 	const auto strong = weak.get();
 	if (!strong) {
 		return;
@@ -323,19 +404,21 @@ void ProcessFilterInvite(
 		});
 		return;
 	}
+	const auto fullyAdded = (peers.empty() && filterId);
 	auto controller = std::make_unique<ToggleChatsController>(
 		strong,
 		ToggleAction::Adding,
-		slug,
-		filterId,
 		title,
-		std::move(peers));
+		std::move(peers),
+		std::move(already));
 	const auto raw = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setStyle(st::filterInviteBox);
 
 		using Type = Ui::FilterLinkHeaderType;
-		const auto type = !filterId
+		const auto type = fullyAdded
+			? Type::AllAdded
+			: !filterId
 			? Type::AddingFilter
 			: Type::AddingChats;
 		auto badge = raw->selectedValue(
@@ -344,7 +427,7 @@ void ProcessFilterInvite(
 		});
 		InitFilterLinkHeader(box, [=](int addedTopHeight) {
 			raw->setAddedTopHeight(addedTopHeight);
-		}, type, title, rpl::duplicate(badge));
+		}, type, title, iconEmoji, rpl::duplicate(badge));
 
 		auto owned = Ui::FilterLinkProcessButton(
 			box,
@@ -380,6 +463,7 @@ void ProcessFilterInvite(
 				} else if (!state->importing) {
 					state->importing = true;
 					ImportInvite(weak, slug, peers, crl::guard(box, [=] {
+						ShowImportToast(weak, title, type, peers.size());
 						box->closeBox();
 					}), crl::guard(box, [=] {
 						state->importing = false;
@@ -396,7 +480,8 @@ void ProcessFilterInvite(
 		base::weak_ptr<Window::SessionController> weak,
 		const QString &slug,
 		FilterId filterId,
-		std::vector<not_null<PeerData*>> peers) {
+		std::vector<not_null<PeerData*>> peers,
+		std::vector<not_null<PeerData*>> already) {
 	const auto strong = weak.get();
 	if (!strong) {
 		return;
@@ -411,7 +496,14 @@ void ProcessFilterInvite(
 		});
 		return;
 	}
-	ProcessFilterInvite(weak, slug, filterId, it->title(), std::move(peers));
+	ProcessFilterInvite(
+		weak,
+		slug,
+		filterId,
+		it->title(),
+		it->iconEmoji(),
+		std::move(peers),
+		std::move(already));
 }
 
 } // namespace
@@ -441,6 +533,7 @@ void CheckFilterInvite(
 			return;
 		}
 		auto title = QString();
+		auto iconEmoji = QString();
 		auto filterId = FilterId();
 		auto peers = std::vector<not_null<PeerData*>>();
 		auto already = std::vector<not_null<PeerData*>>();
@@ -459,6 +552,7 @@ void CheckFilterInvite(
 		};
 		result.match([&](const MTPDcommunities_communityInvite &data) {
 			title = qs(data.vtitle());
+			iconEmoji = data.vemoticon().value_or_empty();
 			peers = parseList(data.vpeers());
 		}, [&](const MTPDcommunities_communityInviteAlready &data) {
 			filterId = data.vfilter_id().v;
@@ -477,20 +571,103 @@ void CheckFilterInvite(
 			owner.chatsFilters().changed(
 			) | rpl::start_with_next([=] {
 				lifetime->destroy();
-				ProcessFilterInvite(weak, slug, filterId, std::move(peers));
+				ProcessFilterInvite(
+					weak,
+					slug,
+					filterId,
+					std::move(peers),
+					std::move(already));
 			}, *lifetime);
 			owner.chatsFilters().reload();
 		} else if (filterId) {
-			ProcessFilterInvite(weak, slug, filterId, std::move(peers));
+			ProcessFilterInvite(
+				weak,
+				slug,
+				filterId,
+				std::move(peers),
+				std::move(already));
 		} else {
-			ProcessFilterInvite(weak, slug, filterId, title, std::move(peers));
+			ProcessFilterInvite(
+				weak,
+				slug,
+				filterId,
+				title,
+				iconEmoji,
+				std::move(peers),
+				std::move(already));
 		}
 	}, [=](const MTP::Error &error) {
 		if (error.code() != 400) {
 			return;
 		}
-		ProcessFilterInvite(weak, slug, FilterId(), QString(), {});
+		ProcessFilterInvite(weak, slug, {}, {}, {}, {}, {});
 	});
+}
+
+void ProcessFilterRemove(
+		base::weak_ptr<Window::SessionController> weak,
+		const QString &title,
+		const QString &iconEmoji,
+		std::vector<not_null<PeerData*>> all,
+		std::vector<not_null<PeerData*>> suggest,
+		Fn<void(std::vector<not_null<PeerData*>>)> done) {
+	const auto strong = weak.get();
+	if (!strong) {
+		return;
+	}
+	Core::App().hideMediaView();
+	if (all.empty() && suggest.empty()) {
+		done({});
+		return;
+	}
+	auto controller = std::make_unique<ToggleChatsController>(
+		strong,
+		ToggleAction::Removing,
+		title,
+		std::move(suggest),
+		std::move(all));
+	const auto raw = controller.get();
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->setStyle(st::filterInviteBox);
+
+		const auto type = Ui::FilterLinkHeaderType::Removing;
+		auto badge = raw->selectedValue(
+		) | rpl::map([=](const base::flat_set<not_null<PeerData*>> &peers) {
+			return int(peers.size());
+		});
+		InitFilterLinkHeader(box, [=](int addedTopHeight) {
+			raw->setAddedTopHeight(addedTopHeight);
+		}, type, title, iconEmoji, rpl::single(0));
+
+		auto owned = Ui::FilterLinkProcessButton(
+			box,
+			type,
+			title,
+			std::move(badge));
+
+		const auto button = owned.data();
+		box->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			const auto &padding = st::filterInviteBox.buttonPadding;
+			button->resizeToWidth(width
+				- padding.left()
+				- padding.right());
+			button->moveToLeft(padding.left(), padding.top());
+		}, button->lifetime());
+
+		box->addButton(std::move(owned));
+
+		raw->selectedValue(
+		) | rpl::start_with_next([=](
+				base::flat_set<not_null<PeerData*>> &&peers) {
+			button->setClickedCallback([=] {
+				done(peers | ranges::to_vector);
+				box->closeBox();
+			});
+		}, box->lifetime());
+	};
+	strong->show(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)));
 }
 
 } // namespace Api

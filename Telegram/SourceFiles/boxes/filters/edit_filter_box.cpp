@@ -706,7 +706,16 @@ void EditFilterBox(
 		return result;
 	};
 
-	AddSubsectionTitle(content, tr::lng_filters_link());
+	AddSubsectionTitle(
+		content,
+		rpl::conditional(
+			state->hasLinks.value(),
+			tr::lng_filters_link_has(),
+			tr::lng_filters_link()));
+
+	state->hasLinks.changes() | rpl::start_with_next([=] {
+		content->resizeToWidth(content->widthNoMargins());
+	}, content->lifetime());
 
 	if (filter.community()) {
 		window->session().data().chatsFilters().reloadCommunityLinks(
