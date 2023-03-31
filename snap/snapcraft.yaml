@@ -299,9 +299,6 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
-    override-pull: |
-      craftctl default
-      sed -i 's/NOT JPEGXL_ENABLE_SKCMS/0/' lib/jxl.cmake
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/libbrotli*
     prime:
