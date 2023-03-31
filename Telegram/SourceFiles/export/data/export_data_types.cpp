@@ -1182,6 +1182,10 @@ ServiceAction ParseServiceAction(
 			+ "photos/"
 			+ PreparePhotoFileName(++context.photos, date));
 		result.content = content;
+	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
+		auto content = ActionSetChatWallPaper();
+		// #TODO wallpapers
+		result.content = content;
 	}, [&](const MTPDmessageActionRequestedPeer &data) {
 		auto content = ActionRequestedPeer();
 		content.peerId = ParsePeerId(data.vpeer());
@@ -1198,6 +1202,9 @@ File &Message::file() {
 	} else if (const auto photo = std::get_if<ActionSuggestProfilePhoto>(
 			content)) {
 		return photo->photo.image.file;
+	} else if (const auto wallpaper = std::get_if<ActionSetChatWallPaper>(
+			content)) {
+		// #TODO wallpapers
 	}
 	return media.file();
 }
@@ -1209,6 +1216,9 @@ const File &Message::file() const {
 	} else if (const auto photo = std::get_if<ActionSuggestProfilePhoto>(
 			content)) {
 		return photo->photo.image.file;
+	} else if (const auto wallpaper = std::get_if<ActionSetChatWallPaper>(
+			content)) {
+		// #TODO wallpapers
 	}
 	return media.file();
 }

@@ -34,6 +34,7 @@ struct PeerInviteLinks {
 struct JoinedByLinkUser {
 	not_null<UserData*> user;
 	TimeId date = 0;
+	bool viaFilterLink = false;
 };
 
 struct JoinedByLinkSlice {

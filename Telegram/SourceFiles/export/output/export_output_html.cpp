@@ -1173,6 +1173,8 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom + " suggests to use this photo";
 	}, [&](const ActionRequestedPeer &data) {
 		return "requested: "_q/* + data.peerId*/;
+	}, [&](const ActionSetChatWallPaper &data) {
+		return serviceFrom + " set a new background for this chat";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

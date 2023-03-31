@@ -731,9 +731,14 @@ void Controller::loadMoreRows() {
 void Controller::appendSlice(const Api::JoinedByLinkSlice &slice) {
 	for (const auto &user : slice.users) {
 		_lastUser = user;
-		delegate()->peerListAppendRow((_role == Role::Requested)
+		auto row = (_role == Role::Requested)
 			? std::make_unique<RequestedRow>(user.user, user.date)
-			: std::make_unique<PeerListRow>(user.user));
+			: std::make_unique<PeerListRow>(user.user);
+		if (_role != Role::Requested && user.viaFilterLink) {
+			row->setCustomStatus(
+				tr::lng_group_invite_joined_via_filter(tr::now));
+		}
+		delegate()->peerListAppendRow(std::move(row));
 	}
 	delegate()->peerListRefreshRows();
 	if (delegate()->peerListFullRowsCount() > 0) {

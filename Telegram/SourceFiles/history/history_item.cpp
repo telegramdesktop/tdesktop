@@ -4157,6 +4157,26 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareSetChatWallPaper = [&](
+			const MTPDmessageActionSetChatWallPaper &action) {
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto peer = isSelf ? history()->peer : _from;
+		const auto user = peer->asUser();
+		const auto name = (user && !user->firstName.isEmpty())
+			? user->firstName
+			: peer->name();
+		auto result = PreparedServiceText{};
+		result.links.push_back(peer->createOpenLink());
+		result.text = isSelf
+			? tr::lng_action_set_wallpaper(
+				tr::now,
+				lt_user,
+				Ui::Text::Link(name, 1), // Link 1.
+				Ui::Text::WithEntities)
+			: tr::lng_action_set_wallpaper_me(tr::now, Ui::Text::WithEntities);
+		return result;
+	};
+
 	setServiceText(action.match([&](
 			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -4233,6 +4253,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return prepareSuggestProfilePhoto(data);
 	}, [&](const MTPDmessageActionRequestedPeer &data) {
 		return prepareRequestedPeer(data);
+	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
+		return prepareSetChatWallPaper(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}));
@@ -4296,6 +4318,8 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 				history()->owner().processPhoto(photo));
 		}, [](const MTPDphotoEmpty &) {
 		});
+	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
+		//_media = std::make_unique.. #TODO wallpapers
 	}, [](const auto &) {
 	});
 }

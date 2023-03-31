@@ -1521,6 +1521,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_suggested_video" = "{user} suggests you to use this profile video.";
 "lng_action_suggested_video_button" = "View Video";
 "lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
+"lng_action_set_wallpaper_me" = "You set a new background for this chat.";
+"lng_action_set_wallpaper" = "{user} set a new background for this chat.";
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";
@@ -1580,6 +1582,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_no_joined" = "No one joined yet";
 "lng_group_invite_joined#one" = "{count} joined";
 "lng_group_invite_joined#other" = "{count} joined";
+"lng_group_invite_joined_via_filter" = "joined via a folder invite link";
 "lng_group_invite_remaining#one" = "{count} remaining";
 "lng_group_invite_remaining#other" = "{count} remaining";
 "lng_group_invite_requested#one" = "{count} requested";
@@ -3095,6 +3098,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_participant_joined_channel" = "{from} joined the channel";
 "lng_admin_log_participant_joined_by_link" = "{from} joined the group via {link}";
 "lng_admin_log_participant_joined_by_link_channel" = "{from} joined the channel via {link}";
+"lng_admin_log_participant_joined_by_filter_link" = "{from} joined the group via {link} from a folder";
+"lng_admin_log_participant_joined_by_filter_link_channel" = "{from} joined the channel via {link} from a folder";
 "lng_admin_log_participant_approved_by_link" = "{from} was approved to join the group via {link} by {user}";
 "lng_admin_log_participant_approved_by_link_channel" = "{from} was approved to join the channel via {link} by {user}";
 "lng_admin_log_participant_approved_by_request" = "{from} joined to the group via public request, approved by {user}";

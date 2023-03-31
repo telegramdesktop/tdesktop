@@ -97,6 +97,8 @@ struct FileReferenceAccumulator {
 				push(data.vphoto());
 			}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
 				push(data.vphoto());
+			}, [&](const MTPDmessageActionSetChatWallPaper &data) {
+				push(data.vwallpaper());
 			}, [](const auto &data) {
 			});
 		}, [](const MTPDmessageEmpty &data) {
