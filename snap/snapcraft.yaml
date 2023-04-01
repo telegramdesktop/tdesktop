@@ -330,7 +330,7 @@ parts:
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
-    source-tag: 1.22.2
+    source-tag: 1.23.0
     plugin: cmake
     build-environment:
       - LDFLAGS: -s
