@@ -422,7 +422,11 @@ bool GenerateDesktopFile(
 				target->set_string(
 					group,
 					"TryExec",
-					KShell::joinArgs({ cExeDir() + cExeName() }).replace(
+					KShell::joinArgs({
+						!Core::UpdaterDisabled()
+							? (cExeDir() + cExeName())
+							: cExeName()
+					}).replace(
 						'\\',
 						qstr("\\\\")).toStdString());
 			}
@@ -430,7 +434,9 @@ bool GenerateDesktopFile(
 			if (target->has_key(group, "Exec")) {
 				if (group == "Desktop Entry" && !args.isEmpty()) {
 					QStringList exec;
-					exec.append(cExeDir() + cExeName());
+					exec.append(!Core::UpdaterDisabled()
+						? (cExeDir() + cExeName())
+						: cExeName());
 					if (Core::Sandbox::Instance().customWorkingDir()) {
 						exec.append(u"-workdir"_q);
 						exec.append(cWorkingDir());
@@ -451,7 +457,9 @@ bool GenerateDesktopFile(
 							qstr("\\")));
 
 					if (!exec.isEmpty()) {
-						exec[0] = cExeDir() + cExeName();
+						exec[0] = !Core::UpdaterDisabled()
+							? (cExeDir() + cExeName())
+							: cExeName();
 						if (Core::Sandbox::Instance().customWorkingDir()) {
 							exec.insert(1, u"-workdir"_q);
 							exec.insert(2, cWorkingDir());

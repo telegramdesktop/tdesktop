@@ -1,8 +1,8 @@
 [Desktop Entry]
 Name=Telegram Desktop
 Comment=Official desktop version of Telegram messaging app
-TryExec=@CMAKE_INSTALL_FULL_BINDIR@/telegram-desktop
-Exec=@CMAKE_INSTALL_FULL_BINDIR@/telegram-desktop -- %u
+TryExec=telegram-desktop
+Exec=telegram-desktop -- %u
 Icon=telegram
 Terminal=false
 StartupWMClass=TelegramDesktop
@@ -16,6 +16,6 @@ X-GNOME-UsesNotifications=true
 X-GNOME-SingleWindow=true
 
 [Desktop Action quit]
-Exec=@CMAKE_INSTALL_FULL_BINDIR@/telegram-desktop -quit
+Exec=telegram-desktop -quit
 Name=Quit Telegram
 Icon=application-exit
