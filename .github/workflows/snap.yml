@@ -40,7 +40,7 @@ jobs:
 
   snap:
     name: Ubuntu
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     env:
       UPLOAD_ARTIFACT: "false"
