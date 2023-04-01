@@ -629,7 +629,7 @@ RUN git clone -b 0.3.25 --depth=1 {{ GIT }}/PipeWire/pipewire.git \
 FROM builder AS openal
 COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 
-RUN git clone -b 1.22.2 --depth=1 {{ GIT }}/kcat/openal-soft.git \
+RUN git clone -b 1.23.0 --depth=1 {{ GIT }}/kcat/openal-soft.git \
 	&& cd openal-soft \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
