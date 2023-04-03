@@ -594,7 +594,7 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		}, &st::menuIconShare);
 		result->addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
 			delegate()->peerListShowBox(
-				InviteLinkQrBox(link),
+				InviteLinkQrBox(link, tr::lng_group_invite_qr_about()),
 				Ui::LayerOption::KeepOther);
 		}, &st::menuIconQrCode);
 		result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {

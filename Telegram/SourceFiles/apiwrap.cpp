@@ -382,11 +382,11 @@ void ApiWrap::checkChatInvite(
 
 void ApiWrap::checkFilterInvite(
 		const QString &slug,
-		FnMut<void(const MTPcommunities_CommunityInvite &)> done,
+		FnMut<void(const MTPchatlists_ChatlistInvite &)> done,
 		Fn<void(const MTP::Error &)> fail) {
 	request(base::take(_checkFilterInviteRequestId)).cancel();
 	_checkFilterInviteRequestId = request(
-		MTPcommunities_CheckCommunityInvite(MTP_string(slug))
+		MTPchatlists_CheckChatlistInvite(MTP_string(slug))
 	).done(std::move(done)).fail(std::move(fail)).send();
 }
 

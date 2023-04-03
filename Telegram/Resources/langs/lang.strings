@@ -1523,6 +1523,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
 "lng_action_set_wallpaper_me" = "You set a new background for this chat.";
 "lng_action_set_wallpaper" = "{user} set a new background for this chat.";
+"lng_action_set_same_wallpaper_me" = "You set {background} for this chat.";
+"lng_action_set_same_wallpaper" = "{user} set {background} for this chat.";
+"lng_action_set_same_background" = "the same background";
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";
@@ -3577,8 +3580,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_link_private_status" = "you can't share private chats";
 "lng_filters_link_private_error" = "Private chats can't be shared.";
 "lng_filters_link_noadmin_status" = "you can't invite others here";
-"lng_filters_link_noadmin_group_error" = "You don't have the admin rights to share invite links to this group chat.";
-"lng_filters_link_noadmin_channel_error" = "You don't have the admin rights to share invite links to this channel.";
+"lng_filters_link_noadmin_group_error" = "You don't have the admin rights to share invite links to this private group chat.";
+"lng_filters_link_noadmin_channel_error" = "You don't have the admin rights to share invite links to this private channel.";
 "lng_filters_link_already_group" = "you are already a member";
 "lng_filters_link_already_channel" = "you are already subscribed";
 "lng_filters_link_chats_about" = "Select groups and channels that you want everyone who adds the folder via invite link to join.";
@@ -3587,6 +3590,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_link_chats_no_about" = "You can only share groups and channels in which you are allowed to create invite links.";
 "lng_filters_link_name_it" = "Name Link";
 "lng_filters_link_delete_sure" = "Are you sure you want to delete this link?";
+"lng_filters_link_qr_about" = "Everyone on Telegram can scan this code to add this folder and join the chats included in this invite link.";
 "lng_filters_by_link_title" = "Add Folder";
 "lng_filters_by_link_sure" = "Do you want to add a new chat folder {folder} and join its groups and channels?";
 "lng_filters_by_link_join#one" = "{count} chat to join";
@@ -3603,7 +3607,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_by_link_in#one" = "{count} chat in this folder";
 "lng_filters_by_link_in#other" = "{count} chats in this folder";
 "lng_filters_by_link_remove" = "Remove Folder";
-"lng_filters_by_link_remove_sure" = "Do you want to quit the chats you joined when added the folder {folder}?";
+"lng_filters_by_link_remove_sure" = "Do you also want to quit the chats included in the folder {folder}?";
 "lng_filters_by_link_quit#one" = "{count} chat to quit";
 "lng_filters_by_link_quit#other" = "{count} chats to quit";
 "lng_filters_by_link_select" = "Select All";
@@ -3619,7 +3623,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_updated_also#other" = "You have joined {count} new chats.";
 "lng_filters_bar_you_can#one" = "You can join {count} new chat";
 "lng_filters_bar_you_can#other" = "You can join {count} new chats";
-"lng_filters_bar_view" = "Click here to view them";
+"lng_filters_bar_view#one" = "Click here to view it";
+"lng_filters_bar_view#other" = "Click here to view them";
 
 "lng_chat_theme_change" = "Change colors";
 "lng_chat_theme_none" = "No\nTheme";

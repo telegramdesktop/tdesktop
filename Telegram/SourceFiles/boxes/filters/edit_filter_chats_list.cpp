@@ -343,10 +343,10 @@ EditFilterChatsListController::EditFilterChatsListController(
 , _session(session)
 , _title(std::move(title))
 , _peers(peers)
-, _options(options & ~Flag::Community)
+, _options(options & ~Flag::Chatlist)
 , _selected(selected)
 , _limit(Limit(session))
-, _community(options & Flag::Community) {
+, _chatlist(options & Flag::Chatlist) {
 }
 
 Main::Session &EditFilterChatsListController::session() const {
@@ -354,9 +354,9 @@ Main::Session &EditFilterChatsListController::session() const {
 }
 
 int EditFilterChatsListController::selectedTypesCount() const {
-	Expects(_community || _typesDelegate != nullptr);
+	Expects(_chatlist || _typesDelegate != nullptr);
 
-	if (_community) {
+	if (_chatlist) {
 		return 0;
 	}
 	auto result = 0;
@@ -400,7 +400,7 @@ bool EditFilterChatsListController::handleDeselectForeignRow(
 
 void EditFilterChatsListController::prepareViewHook() {
 	delegate()->peerListSetTitle(std::move(_title));
-	if (!_community) {
+	if (!_chatlist) {
 		delegate()->peerListSetAboveWidget(prepareTypesList());
 	}
 

@@ -109,7 +109,7 @@ ChatFilter ChatFilter::FromTL(
 			{ never.begin(), never.end() });
 	}, [](const MTPDdialogFilterDefault &d) {
 		return ChatFilter();
-	}, [&](const MTPDdialogFilterCommunity &data) {
+	}, [&](const MTPDdialogFilterChatlist &data) {
 		auto &&to_histories = ranges::views::transform([&](
 				const MTPInputPeer &data) {
 			const auto peer = data.match([&](const MTPDinputPeerUser &data) {
@@ -148,7 +148,7 @@ ChatFilter ChatFilter::FromTL(
 			data.vid().v,
 			qs(data.vtitle()),
 			qs(data.vemoticon().value_or_empty()),
-			Flag::Community,
+			Flag::Chatlist,
 			std::move(list),
 			std::move(pinned),
 			{});
@@ -174,10 +174,10 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	for (const auto &history : always) {
 		include.push_back(history->peer->input);
 	}
-	if (_flags & Flag::Community) {
-		using TLFlag = MTPDdialogFilterCommunity::Flag;
+	if (_flags & Flag::Chatlist) {
+		using TLFlag = MTPDdialogFilterChatlist::Flag;
 		const auto flags = TLFlag::f_emoticon;
-		return MTP_dialogFilterCommunity(
+		return MTP_dialogFilterChatlist(
 			MTP_flags(flags),
 			MTP_int(replaceId ? replaceId : _id),
 			MTP_string(_title),
@@ -228,8 +228,8 @@ ChatFilter::Flags ChatFilter::flags() const {
 	return _flags;
 }
 
-bool ChatFilter::community() const {
-	return _flags & Flag::Community;
+bool ChatFilter::chatlist() const {
+	return _flags & Flag::Chatlist;
 }
 
 const base::flat_set<not_null<History*>> &ChatFilter::always() const {
@@ -410,15 +410,15 @@ void ChatFilters::apply(const MTPUpdate &update) {
 
 ChatFilterLink ChatFilters::add(
 		FilterId id,
-		const MTPExportedCommunityInvite &update) {
+		const MTPExportedChatlistInvite &update) {
 	const auto i = ranges::find(_list, id, &ChatFilter::id);
-	if (i == end(_list) || !i->community()) {
+	if (i == end(_list) || !i->chatlist()) {
 		LOG(("Api Error: "
-			"Attempt to add community link to a non-community filter: %1"
+			"Attempt to add chatlist link to a non-chatlist filter: %1"
 			).arg(id));
 		return {};
 	}
-	auto &links = _communityLinks[id];
+	auto &links = _chatlistLinks[id];
 	const auto &data = update.data();
 	const auto url = qs(data.vurl());
 	const auto title = qs(data.vtitle());
@@ -431,7 +431,7 @@ ChatFilterLink ChatFilters::add(
 		if (j->title != title || j->chats != chats) {
 			j->title = title;
 			j->chats = std::move(chats);
-			_communityLinksUpdated.fire_copy(id);
+			_chatlistLinksUpdated.fire_copy(id);
 		}
 		return *j;
 	}
@@ -441,7 +441,7 @@ ChatFilterLink ChatFilters::add(
 		.title = title,
 		.chats = std::move(chats),
 	});
-	_communityLinksUpdated.fire_copy(id);
+	_chatlistLinksUpdated.fire_copy(id);
 	return links.back();
 }
 
@@ -449,19 +449,19 @@ void ChatFilters::edit(
 		FilterId id,
 		const QString &url,
 		const QString &title) {
-	auto &links = _communityLinks[id];
+	auto &links = _chatlistLinks[id];
 	const auto i = ranges::find(links, url, &ChatFilterLink::url);
 	if (i != end(links)) {
 		i->title = title;
-		_communityLinksUpdated.fire_copy(id);
+		_chatlistLinksUpdated.fire_copy(id);
 
-		_owner->session().api().request(MTPcommunities_EditExportedInvite(
-			MTP_flags(MTPcommunities_EditExportedInvite::Flag::f_title),
-			MTP_inputCommunityDialogFilter(MTP_int(id)),
+		_owner->session().api().request(MTPchatlists_EditExportedInvite(
+			MTP_flags(MTPchatlists_EditExportedInvite::Flag::f_title),
+			MTP_inputChatlistDialogFilter(MTP_int(id)),
 			MTP_string(url),
 			MTP_string(title),
 			MTPVector<MTPInputPeer>() // peers
-		)).done([=](const MTPExportedCommunityInvite &result) {
+		)).done([=](const MTPExportedChatlistInvite &result) {
 			//const auto &data = result.data();
 			//const auto link = _owner->chatsFilters().add(id, result);
 			//done(link);
@@ -472,47 +472,47 @@ void ChatFilters::edit(
 }
 
 void ChatFilters::destroy(FilterId id, const QString &url) {
-	auto &links = _communityLinks[id];
+	auto &links = _chatlistLinks[id];
 	const auto i = ranges::find(links, url, &ChatFilterLink::url);
 	if (i != end(links)) {
 		links.erase(i);
-		_communityLinksUpdated.fire_copy(id);
+		_chatlistLinksUpdated.fire_copy(id);
 
 		const auto api = &_owner->session().api();
 		api->request(_linksRequestId).cancel();
-		_linksRequestId = api->request(MTPcommunities_DeleteExportedInvite(
-			MTP_inputCommunityDialogFilter(MTP_int(id)),
+		_linksRequestId = api->request(MTPchatlists_DeleteExportedInvite(
+			MTP_inputChatlistDialogFilter(MTP_int(id)),
 			MTP_string(url)
 		)).send();
 	}
 }
 
-rpl::producer<std::vector<ChatFilterLink>> ChatFilters::communityLinks(
+rpl::producer<std::vector<ChatFilterLink>> ChatFilters::chatlistLinks(
 		FilterId id) const {
-	return _communityLinksUpdated.events_starting_with_copy(
+	return _chatlistLinksUpdated.events_starting_with_copy(
 		id
 	) | rpl::filter(rpl::mappers::_1 == id) | rpl::map([=] {
-		const auto i = _communityLinks.find(id);
-		return (i != end(_communityLinks))
+		const auto i = _chatlistLinks.find(id);
+		return (i != end(_chatlistLinks))
 			? i->second
 			: std::vector<ChatFilterLink>();
 	});
 }
 
-void ChatFilters::reloadCommunityLinks(FilterId id) {
+void ChatFilters::reloadChatlistLinks(FilterId id) {
 	const auto api = &_owner->session().api();
 	api->request(_linksRequestId).cancel();
-	_linksRequestId = api->request(MTPcommunities_GetExportedInvites(
-		MTP_inputCommunityDialogFilter(MTP_int(id))
-	)).done([=](const MTPcommunities_ExportedInvites &result) {
+	_linksRequestId = api->request(MTPchatlists_GetExportedInvites(
+		MTP_inputChatlistDialogFilter(MTP_int(id))
+	)).done([=](const MTPchatlists_ExportedInvites &result) {
 		const auto &data = result.data();
 		_owner->processUsers(data.vusers());
 		_owner->processChats(data.vchats());
-		_communityLinks[id].clear();
+		_chatlistLinks[id].clear();
 		for (const auto &link : data.vinvites().v) {
 			add(id, link);
 		}
-		_communityLinksUpdated.fire_copy(id);
+		_chatlistLinksUpdated.fire_copy(id);
 	}).send();
 }
 

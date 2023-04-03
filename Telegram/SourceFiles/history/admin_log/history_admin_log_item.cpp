@@ -1392,7 +1392,7 @@ void GenerateItems(
 
 	const auto createParticipantJoinByInvite = [&](
 			const LogJoinByInvite &data) {
-		const auto text = data.is_via_community()
+		const auto text = data.is_via_chatlist()
 			? (channel->isMegagroup()
 				? tr::lng_admin_log_participant_joined_by_filter_link
 				: tr::lng_admin_log_participant_joined_by_filter_link_channel)

@@ -519,6 +519,9 @@ struct ActionSetChatWallPaper {
 	// #TODO wallpapers
 };
 
+struct ActionSetSameChatWallPaper {
+};
+
 struct ActionRequestedPeer {
 	PeerId peerId = 0;
 	int buttonId = 0;
@@ -561,7 +564,8 @@ struct ServiceAction {
 		ActionTopicEdit,
 		ActionSuggestProfilePhoto,
 		ActionRequestedPeer,
-		ActionSetChatWallPaper> content;
+		ActionSetChatWallPaper,
+		ActionSetSameChatWallPaper> content;
 };
 
 ServiceAction ParseServiceAction(

@@ -530,6 +530,11 @@ struct HistoryServicePayment
 	bool recurringUsed = false;
 };
 
+struct HistoryServiceSameBackground
+: public RuntimeComponent<HistoryServiceSameBackground, HistoryItem>
+, public HistoryServiceDependentData {
+};
+
 enum class HistorySelfDestructType {
 	Photo,
 	Video,

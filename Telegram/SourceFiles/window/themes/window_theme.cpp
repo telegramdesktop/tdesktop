@@ -644,6 +644,7 @@ void ChatBackground::checkUploadWallPaper() {
 		_wallPaperUploadId = FullMsgId();
 		_wallPaperRequestId = _session->api().request(
 			MTPaccount_UploadWallPaper(
+				MTP_flags(0),
 				data.info.file,
 				MTP_string("image/jpeg"),
 				_paper.mtpSettings()

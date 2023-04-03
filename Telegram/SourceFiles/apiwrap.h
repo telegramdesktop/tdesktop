@@ -204,7 +204,7 @@ public:
 		Fn<void(const MTP::Error &)> fail);
 	void checkFilterInvite(
 		const QString &slug,
-		FnMut<void(const MTPcommunities_CommunityInvite &)> done,
+		FnMut<void(const MTPchatlists_ChatlistInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
 
 	void processFullPeer(

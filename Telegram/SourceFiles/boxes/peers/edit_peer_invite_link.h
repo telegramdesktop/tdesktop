@@ -45,7 +45,9 @@ void CopyInviteLink(not_null<QWidget*> toastParent, const QString &link);
 [[nodiscard]] object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	not_null<Main::Session*> session,
 	const QString &link);
-[[nodiscard]] object_ptr<Ui::BoxContent> InviteLinkQrBox(const QString &link);
+[[nodiscard]] object_ptr<Ui::BoxContent> InviteLinkQrBox(
+	const QString &link,
+	rpl::producer<QString> about);
 [[nodiscard]] object_ptr<Ui::BoxContent> RevokeLinkBox(
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,

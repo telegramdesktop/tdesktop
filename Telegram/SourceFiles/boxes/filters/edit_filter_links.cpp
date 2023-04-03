@@ -606,7 +606,7 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
-			InviteLinkQrBox(link),
+			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()),
 			Ui::LayerOption::KeepOther);
 	});
 	const auto editLink = crl::guard(weak, [=] {
@@ -885,7 +885,7 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 	};
 	const auto getLinkQr = [=] {
 		delegate()->peerListShowBox(
-			InviteLinkQrBox(link),
+			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()),
 			Ui::LayerOption::KeepOther);
 	};
 	const auto editLink = [=] {
@@ -1040,7 +1040,7 @@ bool GoodForExportFilterLink(
 		not_null<Window::SessionController*> window,
 		const Data::ChatFilter &filter) {
 	using Flag = Data::ChatFilter::Flag;
-	if (!filter.never().empty() || (filter.flags() & ~Flag::Community)) {
+	if (!filter.never().empty() || (filter.flags() & ~Flag::Chatlist)) {
 		Ui::ShowMultilineToast({
 			.parentOverride = Window::Show(window).toastParent(),
 			.text = { tr::lng_filters_link_cant(tr::now) },
@@ -1062,11 +1062,11 @@ void ExportFilterLink(
 	auto mtpPeers = peers | ranges::views::transform(
 		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
 	) | ranges::to<QVector>();
-	session->api().request(MTPcommunities_ExportCommunityInvite(
-		MTP_inputCommunityDialogFilter(MTP_int(id)),
+	session->api().request(MTPchatlists_ExportChatlistInvite(
+		MTP_inputChatlistDialogFilter(MTP_int(id)),
 		MTP_string(), // title
 		MTP_vector<MTPInputPeer>(std::move(mtpPeers))
-	)).done([=](const MTPcommunities_ExportedCommunityInvite &result) {
+	)).done([=](const MTPchatlists_ExportedChatlistInvite &result) {
 		const auto &data = result.data();
 		session->data().chatsFilters().apply(MTP_updateDialogFilter(
 			MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
@@ -1094,13 +1094,13 @@ void EditLinkChats(
 	auto mtpPeers = peers | ranges::views::transform(
 		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
 	) | ranges::to<QVector>();
-	session->api().request(MTPcommunities_EditExportedInvite(
-		MTP_flags(MTPcommunities_EditExportedInvite::Flag::f_peers),
-		MTP_inputCommunityDialogFilter(MTP_int(link.id)),
+	session->api().request(MTPchatlists_EditExportedInvite(
+		MTP_flags(MTPchatlists_EditExportedInvite::Flag::f_peers),
+		MTP_inputChatlistDialogFilter(MTP_int(link.id)),
 		MTP_string(link.url),
 		MTPstring(), // title
 		MTP_vector<MTPInputPeer>(std::move(mtpPeers))
-	)).done([=](const MTPExportedCommunityInvite &result) {
+	)).done([=](const MTPExportedChatlistInvite &result) {
 		const auto &data = result.data();
 		const auto link = session->data().chatsFilters().add(id, result);
 		//done(link);

@@ -274,6 +274,7 @@ QImage QrForShare(const QString &text) {
 void QrBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &link,
+		rpl::producer<QString> about,
 		Fn<void(QImage, std::shared_ptr<Ui::BoxShow>)> share) {
 	box->setTitle(tr::lng_group_invite_qr_title());
 
@@ -307,7 +308,7 @@ void QrBox(
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
-			tr::lng_group_invite_qr_about(),
+			std::move(about),
 			st::boxLabel),
 		st::inviteLinkQrValuePadding);
 
@@ -354,7 +355,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
-			InviteLinkQrBox(link),
+			InviteLinkQrBox(link, tr::lng_group_invite_qr_about()),
 			Ui::LayerOption::KeepOther);
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
@@ -973,7 +974,9 @@ void AddPermanentLinkBlock(
 	const auto getLinkQr = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
 			show->showBox(
-				InviteLinkQrBox(current.link),
+				InviteLinkQrBox(
+					current.link,
+					tr::lng_group_invite_qr_about()),
 				Ui::LayerOption::KeepOther);
 		}
 	});
@@ -1224,8 +1227,10 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	return object;
 }
 
-object_ptr<Ui::BoxContent> InviteLinkQrBox(const QString &link) {
-	return Box(QrBox, link, [=](
+object_ptr<Ui::BoxContent> InviteLinkQrBox(
+		const QString &link,
+		rpl::producer<QString> about) {
+	return Box(QrBox, link, std::move(about), [=](
 			const QImage &image,
 			std::shared_ptr<Ui::BoxShow> show) {
 		auto mime = std::make_unique<QMimeData>();

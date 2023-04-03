@@ -1186,6 +1186,8 @@ ServiceAction ParseServiceAction(
 		auto content = ActionSetChatWallPaper();
 		// #TODO wallpapers
 		result.content = content;
+	}, [&](const MTPDmessageActionSetSameChatWallPaper &data) {
+		result.content = ActionSetSameChatWallPaper();
 	}, [&](const MTPDmessageActionRequestedPeer &data) {
 		auto content = ActionRequestedPeer();
 		content.peerId = ParsePeerId(data.vpeer());

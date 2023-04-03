@@ -593,6 +593,10 @@ QByteArray SerializeMessage(
 	}, [&](const ActionSetChatWallPaper &data) {
 		pushActor();
 		pushAction("set_chat_wallpaper");
+	}, [&](const ActionSetSameChatWallPaper &data) {
+		pushActor();
+		pushAction("set_same_chat_wallpaper");
+		pushReplyToMsgId("message_id");
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

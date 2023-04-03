@@ -159,7 +159,7 @@ struct FilterRow {
 	const auto result = count
 		? tr::lng_filters_chats_count(tr::now, lt_count_short, count)
 		: tr::lng_filters_no_chats(tr::now);
-	return filter.community()
+	return filter.chatlist()
 		? result + QString::fromUtf8(" \xE2\x80\xA2 shareable folder")
 		: result;
 }
@@ -371,7 +371,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto row = find(button);
 		if (row->removed || row->removePeersRequestId > 0) {
 			return;
-		} else if (row->filter.community()
+		} else if (row->filter.chatlist()
 			&& !row->filter.always().empty()) {
 			const auto chosen = crl::guard(button, [=](
 					std::vector<not_null<PeerData*>> peers) {
@@ -399,7 +399,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto row = find(button);
 		if (row->removed || row->removePeersRequestId > 0) {
 			return;
-		} else if (row->filter.community() && row->removeHasLinks) {
+		} else if (row->filter.chatlist() && row->removeHasLinks) {
 			controller->show(Ui::MakeConfirmBox({
 				.text = { tr::lng_filters_delete_sure(tr::now) },
 				.confirmed = crl::guard(button, [=](Fn<void()> close) {
@@ -417,10 +417,10 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto row = find(button);
 		if (row->removed || row->removePeersRequestId > 0) {
 			return;
-		} else if (row->filter.community() && !row->removePeersRequestId) {
+		} else if (row->filter.chatlist() && !row->removePeersRequestId) {
 			row->removePeersRequestId = session->api().request(
-				MTPcommunities_GetLeaveCommunitySuggestions(
-					MTP_inputCommunityDialogFilter(
+				MTPchatlists_GetLeaveChatlistSuggestions(
+					MTP_inputChatlistDialogFilter(
 						MTP_int(row->filter.id())))
 			).done(crl::guard(button, [=](const MTPVector<MTPPeer> &result) {
 				const auto row = find(button);
@@ -642,7 +642,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		auto updates = std::vector<MTPUpdate>();
 		auto addRequests = std::vector<MTPmessages_UpdateDialogFilter>();
 		auto removeRequests = std::vector<MTPmessages_UpdateDialogFilter>();
-		auto removeCommunityRequests = std::vector<MTPcommunities_LeaveCommunity>();
+		auto removeChatlistRequests = std::vector<MTPchatlists_LeaveChatlist>();
 
 		auto &realFilters = session->data().chatsFilters();
 		const auto &list = realFilters.list();
@@ -671,18 +671,18 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			const auto tl = removed
 				? MTPDialogFilter()
 				: row.filter.tl(newId);
-			const auto removeCommunityWithChats = removed
-				&& row.filter.community()
+			const auto removeChatlistWithChats = removed
+				&& row.filter.chatlist()
 				&& !row.removePeers.empty();
-			if (removeCommunityWithChats) {
+			if (removeChatlistWithChats) {
 				auto inputs = ranges::views::all(
 					row.removePeers
 				) | ranges::views::transform([](not_null<PeerData*> peer) {
 					return MTPInputPeer(peer->input);
 				}) | ranges::to<QVector>();
-				removeCommunityRequests.push_back(
-					MTPcommunities_LeaveCommunity(
-						MTP_inputCommunityDialogFilter(MTP_int(newId)),
+				removeChatlistRequests.push_back(
+					MTPchatlists_LeaveChatlist(
+						MTP_inputChatlistDialogFilter(MTP_int(newId)),
 						MTP_vector<MTPInputPeer>(std::move(inputs))));
 			} else {
 				const auto request = MTPmessages_UpdateDialogFilter(
@@ -726,7 +726,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			updates = std::move(updates),
 			addRequests = std::move(addRequests),
 			removeRequests = std::move(removeRequests),
-			removeCommunityRequests = std::move(removeCommunityRequests)
+			removeChatlistRequests = std::move(removeChatlistRequests)
 		] {
 			const auto api = &session->api();
 			const auto filters = &session->data().chatsFilters();
@@ -760,7 +760,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				}
 			};
 			sendRequests(removeRequests);
-			sendRequests(removeCommunityRequests);
+			sendRequests(removeChatlistRequests);
 			sendRequests(addRequests);
 			if (!order.empty() && !addRequests.empty()) {
 				filters->saveOrder(order, previousId);

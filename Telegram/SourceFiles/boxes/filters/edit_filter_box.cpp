@@ -554,19 +554,19 @@ void EditFilterBox(
 		rpl::variable<Data::ChatFilter> rules;
 		rpl::variable<std::vector<Data::ChatFilterLink>> links;
 		rpl::variable<bool> hasLinks;
-		rpl::variable<bool> community;
+		rpl::variable<bool> chatlist;
 	};
 	const auto owner = &window->session().data();
 	const auto state = box->lifetime().make_state<State>(State{
 		.rules = filter,
-		.community = filter.community(),
+		.chatlist = filter.chatlist(),
 	});
-	state->links = owner->chatsFilters().communityLinks(filter.id()),
+	state->links = owner->chatsFilters().chatlistLinks(filter.id()),
 	state->hasLinks = state->links.value() | rpl::map([=](const auto &v) {
 		return !v.empty();
 	});
-	if (!state->community.current()) {
-		state->community = state->hasLinks.value() | rpl::filter(
+	if (!state->chatlist.current()) {
+		state->chatlist = state->hasLinks.value() | rpl::filter(
 			_1
 		) | rpl::take(1);
 	}
@@ -657,7 +657,7 @@ void EditFilterBox(
 			content,
 			object_ptr<Ui::VerticalLayout>(content))
 	)->setDuration(0);
-	excludeWrap->toggleOn(state->community.value() | rpl::map(!_1));
+	excludeWrap->toggleOn(state->chatlist.value() | rpl::map(!_1));
 	const auto excludeInner = excludeWrap->entity();
 
 	AddSubsectionTitle(excludeInner, tr::lng_filters_exclude());
@@ -717,8 +717,8 @@ void EditFilterBox(
 		content->resizeToWidth(content->widthNoMargins());
 	}, content->lifetime());
 
-	if (filter.community()) {
-		window->session().data().chatsFilters().reloadCommunityLinks(
+	if (filter.chatlist()) {
+		window->session().data().chatsFilters().reloadChatlistLinks(
 			filter.id());
 	}
 
@@ -763,13 +763,13 @@ void EditFilterBox(
 			// Comparison of ChatFilter-s don't take id into account!
 			data->force_assign(updated);
 			const auto id = updated.id();
-			state->links = owner->chatsFilters().communityLinks(id);
+			state->links = owner->chatsFilters().chatlistLinks(id);
 			ExportFilterLink(id, shared, [=](Data::ChatFilterLink link) {
 				Expects(link.id == id);
 
 				window->show(ShowLinkBox(window, updated, link));
 			}, [=](QString error) {
-				if (error == "COMMUNITIES_TOO_MUCH") {
+				if (error == "CHATLISTS_TOO_MUCH") {
 					// #TODO filters
 				} else {
 					window->show(ShowLinkBox(window, updated, { .id = id }));
@@ -799,7 +799,7 @@ void EditFilterBox(
 		EditExceptions(
 			window,
 			box,
-			kTypes | (state->community.current() ? Flag::Community : Flag()),
+			kTypes | (state->chatlist.current() ? Flag::Chatlist : Flag()),
 			data,
 			updateDefaultTitle,
 			refreshPreviews);

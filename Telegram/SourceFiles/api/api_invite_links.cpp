@@ -58,7 +58,7 @@ JoinedByLinkSlice ParseJoinedByLinkSlice(
 				result.users.push_back({
 					.user = owner.user(data.vuser_id()),
 					.date = data.vdate().v,
-					.viaFilterLink = data.is_via_community(),
+					.viaFilterLink = data.is_via_chatlist(),
 				});
 			});
 		}

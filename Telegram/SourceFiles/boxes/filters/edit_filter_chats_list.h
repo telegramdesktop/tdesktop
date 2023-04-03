@@ -75,7 +75,7 @@ private:
 	Flags _options;
 	Flags _selected;
 	int _limit = 0;
-	bool _community = false;
+	bool _chatlist = false;
 
 	Fn<void(PeerListRowId)> _deselectOption;
 

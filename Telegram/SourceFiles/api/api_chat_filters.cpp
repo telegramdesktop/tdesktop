@@ -216,7 +216,7 @@ void ImportInvite(
 	auto inputs = peers | ranges::views::transform([](auto peer) {
 		return MTPInputPeer(peer->input);
 	}) | ranges::to<QVector>();
-	api->request(MTPcommunities_JoinCommunityInvite(
+	api->request(MTPchatlists_JoinChatlistInvite(
 		MTP_string(slug),
 		MTP_vector<MTPInputPeer>(std::move(inputs))
 	)).done(callback).fail(error).send();
@@ -527,7 +527,7 @@ void CheckFilterInvite(
 	const auto session = &controller->session();
 	const auto weak = base::make_weak(controller);
 	session->api().checkFilterInvite(slug, [=](
-			const MTPcommunities_CommunityInvite &result) {
+			const MTPchatlists_ChatlistInvite &result) {
 		const auto strong = weak.get();
 		if (!strong) {
 			return;
@@ -550,11 +550,11 @@ void CheckFilterInvite(
 			}
 			return result;
 		};
-		result.match([&](const MTPDcommunities_communityInvite &data) {
+		result.match([&](const MTPDchatlists_chatlistInvite &data) {
 			title = qs(data.vtitle());
 			iconEmoji = data.vemoticon().value_or_empty();
 			peers = parseList(data.vpeers());
-		}, [&](const MTPDcommunities_communityInviteAlready &data) {
+		}, [&](const MTPDchatlists_chatlistInviteAlready &data) {
 			filterId = data.vfilter_id().v;
 			peers = parseList(data.vmissing_peers());
 			already = parseList(data.valready_peers());

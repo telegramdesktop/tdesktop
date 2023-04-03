@@ -672,6 +672,8 @@ HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 		return payment;
 	} else if (const auto info = Get<HistoryServiceTopicInfo>()) {
 		return info;
+	} else if (const auto same = Get<HistoryServiceSameBackground>()) {
+		return same;
 	}
 	return nullptr;
 }
@@ -3426,6 +3428,8 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 				}
 			}, call->lifetime);
 		}
+	} else if (type == mtpc_messageActionSetSameChatWallPaper) {
+		UpdateComponents(HistoryServiceSameBackground::Bit());
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -4177,6 +4181,37 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareSetSameChatWallPaper = [&](
+			const MTPDmessageActionSetSameChatWallPaper &action) {
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto peer = isSelf ? history()->peer : _from;
+		const auto user = peer->asUser();
+		const auto name = (user && !user->firstName.isEmpty())
+			? user->firstName
+			: peer->name();
+		auto result = PreparedServiceText{};
+		if (!isSelf) {
+			result.links.push_back(peer->createOpenLink());
+		}
+		if (const auto dependent = GetServiceDependentData()) {
+			result.links.push_back(dependent->lnk);
+		}
+		result.text = isSelf
+			? tr::lng_action_set_same_wallpaper(
+				tr::now,
+				lt_user,
+				Ui::Text::Link(name, 1), // Link 1.
+				lt_background,
+				Ui::Text::Link(tr::lng_action_set_same_background(tr::now), 2),
+				Ui::Text::WithEntities)
+			: tr::lng_action_set_same_wallpaper_me(
+				tr::now,
+				lt_background,
+				Ui::Text::Link(tr::lng_action_set_same_background(tr::now), 1),
+				Ui::Text::WithEntities);
+		return result;
+	};
+
 	setServiceText(action.match([&](
 			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -4255,6 +4290,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return prepareRequestedPeer(data);
 	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
 		return prepareSetChatWallPaper(data);
+	}, [&](const MTPDmessageActionSetSameChatWallPaper &data) {
+		return prepareSetSameChatWallPaper(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}));

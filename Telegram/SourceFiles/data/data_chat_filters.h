@@ -32,7 +32,7 @@ public:
 		NoRead      = (1 << 6),
 		NoArchived  = (1 << 7),
 
-		Community   = (1 << 8),
+		Chatlist   = (1 << 8),
 	};
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
@@ -58,7 +58,7 @@ public:
 	[[nodiscard]] QString title() const;
 	[[nodiscard]] QString iconEmoji() const;
 	[[nodiscard]] Flags flags() const;
-	[[nodiscard]] bool community() const;
+	[[nodiscard]] bool chatlist() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &always() const;
 	[[nodiscard]] const std::vector<not_null<History*>> &pinned() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &never() const;
@@ -149,15 +149,15 @@ public:
 
 	ChatFilterLink add(
 		FilterId id,
-		const MTPExportedCommunityInvite &update);
+		const MTPExportedChatlistInvite &update);
 	void edit(
 		FilterId id,
 		const QString &url,
 		const QString &title);
 	void destroy(FilterId id, const QString &url);
-	rpl::producer<std::vector<ChatFilterLink>> communityLinks(
+	rpl::producer<std::vector<ChatFilterLink>> chatlistLinks(
 		FilterId id) const;
-	void reloadCommunityLinks(FilterId id);
+	void reloadChatlistLinks(FilterId id);
 
 private:
 	void load(bool force);
@@ -186,8 +186,8 @@ private:
 	std::deque<FilterId> _exceptionsToLoad;
 	mtpRequestId _exceptionsLoadRequestId = 0;
 
-	base::flat_map<FilterId, std::vector<ChatFilterLink>> _communityLinks;
-	rpl::event_stream<FilterId> _communityLinksUpdated;
+	base::flat_map<FilterId, std::vector<ChatFilterLink>> _chatlistLinks;
+	rpl::event_stream<FilterId> _chatlistLinksUpdated;
 	mtpRequestId _linksRequestId = 0;
 
 };

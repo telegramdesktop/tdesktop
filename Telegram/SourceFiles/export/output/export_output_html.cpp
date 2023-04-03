@@ -1175,6 +1175,11 @@ auto HtmlWriter::Wrap::pushMessage(
 		return "requested: "_q/* + data.peerId*/;
 	}, [&](const ActionSetChatWallPaper &data) {
 		return serviceFrom + " set a new background for this chat";
+	}, [&](const ActionSetSameChatWallPaper &data) {
+		return serviceFrom
+			+ " set "
+			+ wrapReplyToLink("the same background")
+			+ " for this chat";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
