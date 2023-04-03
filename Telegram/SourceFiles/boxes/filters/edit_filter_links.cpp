@@ -89,7 +89,8 @@ struct Errors {
 		}
 		return std::nullopt;
 	} else if (const auto channel = history->peer->asChannel()) {
-		if (!channel->canHaveInviteLink() && !channel->hasUsername()) {
+		if (!channel->canHaveInviteLink()
+			&& (!channel->hasUsername() || channel->requestToJoin())) {
 			return result(
 				tr::lng_filters_link_noadmin_status(tr::now),
 				(channel->isMegagroup()
