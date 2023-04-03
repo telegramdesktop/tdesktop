@@ -191,35 +191,39 @@ void InitFilterLinkHeader(
 }
 
 void ImportInvite(
-		base::weak_ptr<Window::SessionController> weak,
 		const QString &slug,
+		FilterId filterId,
 		const base::flat_set<not_null<PeerData*>> &peers,
 		Fn<void()> done,
-		Fn<void()> fail) {
+		Fn<void(QString)> fail) {
 	Expects(!peers.empty());
 
 	const auto peer = peers.front();
 	const auto api = &peer->session().api();
 	const auto callback = [=](const MTPUpdates &result) {
 		api->applyUpdates(result);
+		if (slug.isEmpty()) {
+			peer->owner().chatsFilters().moreChatsHide(filterId, true);
+		}
 		done();
 	};
 	const auto error = [=](const MTP::Error &error) {
-		if (const auto strong = weak.get()) {
-			Ui::ShowMultilineToast({
-				.parentOverride = Window::Show(strong).toastParent(),
-				.text = { error.type() },
-			});
-		}
-		fail();
+		fail(error.type());
 	};
 	auto inputs = peers | ranges::views::transform([](auto peer) {
 		return MTPInputPeer(peer->input);
 	}) | ranges::to<QVector>();
-	api->request(MTPchatlists_JoinChatlistInvite(
-		MTP_string(slug),
-		MTP_vector<MTPInputPeer>(std::move(inputs))
-	)).done(callback).fail(error).send();
+	if (!slug.isEmpty()) {
+		api->request(MTPchatlists_JoinChatlistInvite(
+			MTP_string(slug),
+			MTP_vector<MTPInputPeer>(std::move(inputs))
+		)).done(callback).fail(error).send();
+	} else {
+		api->request(MTPchatlists_JoinChatlistUpdates(
+			MTP_inputChatlistDialogFilter(MTP_int(filterId)),
+			MTP_vector<MTPInputPeer>(std::move(inputs))
+		)).done(callback).fail(error).send();
+	}
 }
 
 ToggleChatsController::ToggleChatsController(
@@ -462,10 +466,17 @@ void ProcessFilterInvite(
 					// #TODO filters
 				} else if (!state->importing) {
 					state->importing = true;
-					ImportInvite(weak, slug, peers, crl::guard(box, [=] {
+					ImportInvite(slug, filterId, peers, crl::guard(box, [=] {
 						ShowImportToast(weak, title, type, peers.size());
 						box->closeBox();
-					}), crl::guard(box, [=] {
+					}), crl::guard(box, [=](QString text) {
+						if (const auto strong = weak.get()) {
+							Ui::ShowMultilineToast({
+								.parentOverride = Window::Show(
+									strong).toastParent(),
+								.text = { text },
+							});
+						}
 						state->importing = false;
 					}));
 				}
@@ -602,6 +613,17 @@ void CheckFilterInvite(
 		}
 		ProcessFilterInvite(weak, slug, {}, {}, {}, {}, {});
 	});
+}
+
+void ProcessFilterUpdate(
+		base::weak_ptr<Window::SessionController> weak,
+		FilterId filterId,
+		std::vector<not_null<PeerData*>> missing) {
+	if (const auto strong = missing.empty() ? weak.get() : nullptr) {
+		strong->session().data().chatsFilters().moreChatsHide(filterId);
+		return;
+	}
+	ProcessFilterInvite(weak, QString(), filterId, std::move(missing), {});
 }
 
 void ProcessFilterRemove(

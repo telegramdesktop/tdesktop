@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
+#include "ui/chat/more_chats_bar.h"
 #include "ui/controls/download_bar.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/painter.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "api/api_chat_filters.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "core/application.h"
@@ -440,6 +442,7 @@ Widget::Widget(
 			_searchForNarrowFilters->setRippleColorOverride(color);
 		}, lifetime());
 
+		setupMoreChatsBar();
 		setupDownloadBar();
 	}
 }
@@ -540,6 +543,49 @@ void Widget::setupScrollUpButton() {
 			: base::EventFilterResult::Continue;
 	});
 	updateScrollUpVisibility();
+}
+
+void Widget::setupMoreChatsBar() {
+	if (_layout == Layout::Child) {
+		return;
+	}
+	controller()->activeChatsFilter(
+	) | rpl::start_with_next([=](FilterId id) {
+		if (!id) {
+			_moreChatsBar = nullptr;
+			updateControlsGeometry();
+			return;
+		}
+		const auto filters = &session().data().chatsFilters();
+		_moreChatsBar = std::make_unique<Ui::MoreChatsBar>(
+			this,
+			filters->moreChatsContent(id));
+
+		_moreChatsBar->barClicks(
+		) | rpl::start_with_next([=] {
+			if (const auto missing = filters->moreChats(id)
+				; !missing.empty()) {
+				Api::ProcessFilterUpdate(controller(), id, missing);
+			}
+		}, _moreChatsBar->lifetime());
+
+		_moreChatsBar->closeClicks(
+		) | rpl::start_with_next([=] {
+			Api::ProcessFilterUpdate(controller(), id, {});
+		}, _moreChatsBar->lifetime());
+
+		if (_showAnimation) {
+			_moreChatsBar->hide();
+		} else {
+			_moreChatsBar->show();
+			_moreChatsBar->finishAnimating();
+		}
+
+		_moreChatsBar->heightValue(
+		) | rpl::start_with_next([=] {
+			updateControlsGeometry();
+		}, _moreChatsBar->lifetime());
+	}, lifetime());
 }
 
 void Widget::setupDownloadBar() {
@@ -735,6 +781,9 @@ void Widget::updateControlsVisibility(bool fast) {
 		_updateTelegram->show();
 	}
 	_searchControls->setVisible(!_openedFolder && !_openedForum);
+	if (_moreChatsBar) {
+		_moreChatsBar->show();
+	}
 	if (_openedFolder || _openedForum) {
 		_subsectionTopBar->show();
 		if (_forumTopShadow) {
@@ -1164,6 +1213,9 @@ void Widget::startSlideAnimation(
 	_searchControls->hide();
 	if (_subsectionTopBar) {
 		_subsectionTopBar->hide();
+	}
+	if (_moreChatsBar) {
+		_moreChatsBar->hide();
 	}
 	if (_forumTopShadow) {
 		_forumTopShadow->hide();
@@ -2417,7 +2469,13 @@ void Widget::updateControlsGeometry() {
 			barw,
 			st::lineWidth);
 	}
-	const auto forumGroupCallTop = filterAreaTop + filterAreaHeight;
+	const auto moreChatsBarTop = filterAreaTop + filterAreaHeight;
+	if (_moreChatsBar) {
+		_moreChatsBar->move(0, moreChatsBarTop);
+		_moreChatsBar->resizeToWidth(barw);
+	}
+	const auto forumGroupCallTop = moreChatsBarTop
+		+ (_moreChatsBar ? _moreChatsBar->height() : 0);
 	if (_forumGroupCallBar) {
 		_forumGroupCallBar->move(0, forumGroupCallTop);
 		_forumGroupCallBar->resizeToWidth(barw);

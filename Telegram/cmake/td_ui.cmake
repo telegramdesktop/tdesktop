@@ -222,6 +222,8 @@ PRIVATE
     ui/chat/message_bar.h
     ui/chat/message_bubble.cpp
     ui/chat/message_bubble.h
+    ui/chat/more_chats_bar.cpp
+    ui/chat/more_chats_bar.h
     ui/chat/pinned_bar.cpp
     ui/chat/pinned_bar.h
     ui/chat/requests_bar.cpp

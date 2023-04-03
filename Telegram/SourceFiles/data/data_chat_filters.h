@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
+#include "base/timer.h"
 
 class History;
 
@@ -15,6 +16,10 @@ namespace Dialogs {
 class MainList;
 class Key;
 } // namespace Dialogs
+
+namespace Ui {
+struct MoreChatsBarContent;
+} // namespace Ui
 
 namespace Data {
 
@@ -159,13 +164,29 @@ public:
 		FilterId id) const;
 	void reloadChatlistLinks(FilterId id);
 
+	[[nodiscard]] rpl::producer<Ui::MoreChatsBarContent> moreChatsContent(
+		FilterId id);
+	[[nodiscard]] const std::vector<not_null<PeerData*>> &moreChats(
+		FilterId id) const;
+	void moreChatsHide(FilterId id, bool localOnly = false);
+
 private:
+	struct MoreChatsData {
+		std::vector<not_null<PeerData*>> missing;
+		crl::time lastUpdate = 0;
+		mtpRequestId requestId = 0;
+		std::weak_ptr<bool> watching;
+	};
+
 	void load(bool force);
 	void received(const QVector<MTPDialogFilter> &list);
 	bool applyOrder(const QVector<MTPint> &order);
 	bool applyChange(ChatFilter &filter, ChatFilter &&updated);
 	void applyInsert(ChatFilter filter, int position);
 	void applyRemove(int position);
+
+	void checkLoadMoreChatsLists();
+	void loadMoreChatsList(FilterId id);
 
 	const not_null<Session*> _owner;
 
@@ -189,6 +210,10 @@ private:
 	base::flat_map<FilterId, std::vector<ChatFilterLink>> _chatlistLinks;
 	rpl::event_stream<FilterId> _chatlistLinksUpdated;
 	mtpRequestId _linksRequestId = 0;
+
+	base::flat_map<FilterId, MoreChatsData> _moreChatsData;
+	rpl::event_stream<FilterId> _moreChatsUpdated;
+	base::Timer _moreChatsTimer;
 
 };
 

@@ -44,6 +44,7 @@ class PlainShadow;
 class DownloadBar;
 class GroupCallBar;
 class RequestsBar;
+class MoreChatsBar;
 class JumpDownButton;
 template <typename Widget>
 class FadeWrapScaled;
@@ -158,6 +159,7 @@ private:
 	void setupSupportMode();
 	void setupConnectingWidget();
 	void setupMainMenuToggle();
+	void setupMoreChatsBar();
 	void setupDownloadBar();
 	void setupShortcuts();
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
@@ -233,6 +235,8 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;
+
+	std::unique_ptr<Ui::MoreChatsBar> _moreChatsBar;
 
 	std::unique_ptr<Ui::PlainShadow> _forumTopShadow;
 	std::unique_ptr<Ui::GroupCallBar> _forumGroupCallBar;

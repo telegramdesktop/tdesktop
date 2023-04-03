@@ -102,11 +102,17 @@ struct Errors {
 	Unexpected("Peer type in ErrorForSharing.");
 }
 
-void ShowEmptyLinkError(not_null<Window::SessionController*> window) {
+void ShowSaveError(
+		not_null<Window::SessionController*> window,
+		QString error) {
 	Ui::ShowMultilineToast({
 		.parentOverride = Window::Show(window).toastParent(),
-		.text = { tr::lng_filters_empty(tr::now) },
+		.text = { error },
 	});
+}
+
+void ShowEmptyLinkError(not_null<Window::SessionController*> window) {
+	ShowSaveError(window, tr::lng_filters_empty(tr::now));
 }
 
 void ChatFilterLinkBox(
@@ -545,7 +551,7 @@ void LinkController::addHeader(not_null<Ui::VerticalLayout*> container) {
 	auto icon = CreateLottieIcon(
 		verticalLayout,
 		{
-			.name = u"filters"_q,
+			.name = u"cloud_filters"_q,
 			.sizeOverride = {
 				st::settingsFilterIconSize,
 				st::settingsFilterIconSize,
@@ -1084,7 +1090,8 @@ void ExportFilterLink(
 
 void EditLinkChats(
 		const Data::ChatFilterLink &link,
-		base::flat_set<not_null<PeerData*>> peers) {
+		base::flat_set<not_null<PeerData*>> peers,
+		Fn<void(QString)> done) {
 	Expects(!peers.empty());
 	Expects(link.id != 0);
 	Expects(!link.url.isEmpty());
@@ -1104,9 +1111,9 @@ void EditLinkChats(
 	)).done([=](const MTPExportedChatlistInvite &result) {
 		const auto &data = result.data();
 		const auto link = session->data().chatsFilters().add(id, result);
-		//done(link);
+		done(QString());
 	}).fail([=](const MTP::Error &error) {
-		//done({ .id = id });
+		done(error.type());
 	}).send();
 }
 
@@ -1122,6 +1129,7 @@ object_ptr<Ui::BoxContent> ShowLinkBox(
 			? rpl::single(link.title)
 			: tr::lng_filters_link_title());
 
+		const auto saving = std::make_shared<bool>(false);
 		raw->hasChangesValue(
 		) | rpl::start_with_next([=](bool has) {
 			box->setCloseByOutsideClick(!has);
@@ -1129,11 +1137,23 @@ object_ptr<Ui::BoxContent> ShowLinkBox(
 			box->clearButtons();
 			if (has) {
 				box->addButton(tr::lng_settings_save(), [=] {
+					if (*saving) {
+						return;
+					}
 					const auto chosen = raw->selected();
 					if (chosen.empty()) {
 						ShowEmptyLinkError(window);
 					} else {
-						EditLinkChats(link, chosen);
+						*saving = true;
+						EditLinkChats(link, chosen, crl::guard(box, [=](
+								QString error) {
+							*saving = false;
+							if (error.isEmpty()) {
+								box->closeBox();
+							} else {
+								ShowSaveError(window, error);
+							}
+						}));
 					}
 				});
 				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });

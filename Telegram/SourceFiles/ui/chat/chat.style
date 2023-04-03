@@ -1281,3 +1281,21 @@ historySendDisabled: FlatLabel(defaultFlatLabel) {
 historySendDisabledIcon: icon {{ "emoji/premium_lock", placeholderFgActive }};
 historySendDisabledIconSkip: 20px;
 historySendDisabledPosition: point(0px, 0px);
+
+moreChatsBarHeight: 48px;
+moreChatsBarTextPosition: point(12px, 4px);
+moreChatsBarStatusPosition: point(12px, 24px);
+moreChatsBarClose: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 48px;
+
+	icon: boxTitleCloseIcon;
+	iconOver: boxTitleCloseIconOver;
+	iconPosition: point(12px, -1px);
+
+	rippleAreaPosition: point(0px, 4px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}

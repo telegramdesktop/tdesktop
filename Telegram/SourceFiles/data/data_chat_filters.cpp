@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_unread_things.h"
 #include "ui/ui_utility.h"
+#include "ui/chat/more_chats_bar.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
@@ -30,6 +31,12 @@ namespace {
 constexpr auto kRefreshSuggestedTimeout = 7200 * crl::time(1000);
 constexpr auto kLoadExceptionsAfter = 100;
 constexpr auto kLoadExceptionsPerRequest = 100;
+
+[[nodiscard]] crl::time RequestUpdatesEach(not_null<Session*> owner) {
+	const auto appConfig = &owner->session().account().appConfig();
+	return appConfig->get<int>(u"chatlist_update_period"_q, 3600)
+		* crl::time(1000);
+}
 
 } // namespace
 
@@ -287,7 +294,9 @@ bool ChatFilter::contains(not_null<History*> history) const {
 		|| _always.contains(history);
 }
 
-ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
+ChatFilters::ChatFilters(not_null<Session*> owner)
+: _owner(owner)
+, _moreChatsTimer([=] { checkLoadMoreChatsLists(); }) {
 	_list.emplace_back();
 	crl::on_main(&owner->session(), [=] { load(); });
 }
@@ -853,6 +862,121 @@ const std::vector<SuggestedFilter> &ChatFilters::suggestedFilters() const {
 
 rpl::producer<> ChatFilters::suggestedUpdated() const {
 	return _suggestedUpdated.events();
+}
+
+rpl::producer<Ui::MoreChatsBarContent> ChatFilters::moreChatsContent(
+		FilterId id) {
+	if (!id) {
+		return rpl::single(Ui::MoreChatsBarContent{ .count = 0 });
+	}
+	return [=](auto consumer) {
+		auto result = rpl::lifetime();
+
+		auto &entry = _moreChatsData[id];
+		auto watching = entry.watching.lock();
+		if (!watching) {
+			watching = std::make_shared<bool>(true);
+			entry.watching = watching;
+		}
+		result.add([watching] {});
+
+		_moreChatsUpdated.events_starting_with_copy(
+			id
+		) | rpl::start_with_next([=] {
+			consumer.put_next(Ui::MoreChatsBarContent{
+				.count = int(moreChats(id).size()),
+			});
+		}, result);
+		loadMoreChatsList(id);
+
+		return result;
+	};
+}
+
+const std::vector<not_null<PeerData*>> &ChatFilters::moreChats(
+		FilterId id) const {
+	static const auto kEmpty = std::vector<not_null<PeerData*>>();
+	if (!id) {
+		return kEmpty;
+	}
+	const auto i = _moreChatsData.find(id);
+	return (i != end(_moreChatsData)) ? i->second.missing : kEmpty;
+}
+
+void ChatFilters::moreChatsHide(FilterId id, bool localOnly) {
+	if (!localOnly) {
+		const auto api = &_owner->session().api();
+		api->request(MTPchatlists_HideChatlistUpdates(
+			MTP_inputChatlistDialogFilter(MTP_int(id))
+		)).send();
+	}
+
+	const auto i = _moreChatsData.find(id);
+	if (i != end(_moreChatsData)) {
+		if (const auto requestId = base::take(i->second.requestId)) {
+			_owner->session().api().request(requestId).cancel();
+		}
+		i->second.missing = {};
+		i->second.lastUpdate = crl::now();
+		_moreChatsUpdated.fire_copy(id);
+	}
+}
+
+void ChatFilters::loadMoreChatsList(FilterId id) {
+	Expects(id != 0);
+
+	const auto i = ranges::find(_list, id, &ChatFilter::id);
+	if (i == end(_list) || !i->chatlist()) {
+		return;
+	}
+
+	auto &entry = _moreChatsData[id];
+	const auto now = crl::now();
+	if (!entry.watching.lock() || entry.requestId) {
+		return;
+	}
+	const auto last = entry.lastUpdate;
+	const auto next = last ? (last + RequestUpdatesEach(_owner)) : 0;
+	if (next > now) {
+		if (!_moreChatsTimer.isActive()) {
+			_moreChatsTimer.callOnce(next - now);
+		}
+		return;
+	}
+	auto &api = _owner->session().api();
+	entry.requestId = api.request(MTPchatlists_GetChatlistUpdates(
+		MTP_inputChatlistDialogFilter(MTP_int(id))
+	)).done([=](const MTPchatlists_ChatlistUpdates &result) {
+		const auto &data = result.data();
+		_owner->processUsers(data.vusers());
+		_owner->processChats(data.vchats());
+		auto list = ranges::views::all(
+			data.vmissing_peers().v
+		) | ranges::views::transform([&](const MTPPeer &peer) {
+			return _owner->peer(peerFromMTP(peer));
+		}) | ranges::to_vector;
+
+		auto &entry = _moreChatsData[id];
+		entry.requestId = 0;
+		entry.lastUpdate = crl::now();
+		if (!_moreChatsTimer.isActive()) {
+			_moreChatsTimer.callOnce(RequestUpdatesEach(_owner));
+		}
+		if (entry.missing != list) {
+			entry.missing = std::move(list);
+			_moreChatsUpdated.fire_copy(id);
+		}
+	}).fail([=] {
+		auto &entry = _moreChatsData[id];
+		entry.requestId = 0;
+		entry.lastUpdate = crl::now();
+	}).send();
+}
+
+void ChatFilters::checkLoadMoreChatsLists() {
+	for (const auto &[id, entry] : _moreChatsData) {
+		loadMoreChatsList(id);
+	}
 }
 
 } // namespace Data

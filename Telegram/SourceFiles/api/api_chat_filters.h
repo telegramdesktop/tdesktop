@@ -25,6 +25,11 @@ void CheckFilterInvite(
 	not_null<Window::SessionController*> controller,
 	const QString &slug);
 
+void ProcessFilterUpdate(
+	base::weak_ptr<Window::SessionController> weak,
+	FilterId filterId,
+	std::vector<not_null<PeerData*>> missing);
+
 void ProcessFilterRemove(
 	base::weak_ptr<Window::SessionController> weak,
 	const QString &title,
