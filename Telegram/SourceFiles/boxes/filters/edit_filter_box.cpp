@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/filters/edit_filter_chats_list.h"
 #include "boxes/filters/edit_filter_links.h"
+#include "boxes/premium_limits_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -769,8 +770,12 @@ void EditFilterBox(
 
 				window->show(ShowLinkBox(window, updated, link));
 			}, [=](QString error) {
-				if (error == "CHATLISTS_TOO_MUCH") {
-					// #TODO filters
+				if (error == u"CHATLISTS_TOO_MUCH"_q) {
+					const auto session = &window->session();
+					window->show(Box(ShareableFiltersLimitBox, session));
+				} else if (error == u"INVITES_TOO_MUCH"_q) {
+					const auto session = &window->session();
+					window->show(Box(FilterLinksLimitBox, session));
 				} else {
 					window->show(ShowLinkBox(window, updated, { .id = id }));
 				}

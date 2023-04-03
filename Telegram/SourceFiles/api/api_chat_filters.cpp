@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/premium_limits_box.h"
 #include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
 #include "core/application.h"
 #include "data/data_chat_filters.h"
@@ -362,6 +363,30 @@ void ToggleChatsController::setAddedTopHeight(int addedTopHeight) {
 	_addedTopWidget->resize(_addedTopWidget->width(), addedTopHeight);
 }
 
+void ShowImportError(
+		not_null<Window::SessionController*> window,
+		FilterId id,
+		int added,
+		const QString &error) {
+	const auto session = &window->session();
+	const auto &list = session->data().chatsFilters().list();
+	const auto i = ranges::find(list, id, &Data::ChatFilter::id);
+	const auto count = added
+		+ ((i != end(list)) ? int(i->always().size()) : 0);
+	if (error == u"USER_CHANNELS_TOO_MUCH"_q) {
+		window->show(Box(ChannelsLimitBox, session));
+	} else if (error == u"FILTER_INCLUDE_TOO_MUCH"_q) {
+		window->show(Box(FilterChatsLimitBox, session, count));
+	} else if (error == u"CHATLISTS_TOO_MUCH"_q) {
+		window->show(Box(ShareableFiltersLimitBox, session));
+	} else {
+		Ui::ShowMultilineToast({
+			.parentOverride = Window::Show(window).toastParent(),
+			.text = { error },
+		});
+	}
+}
+
 void ShowImportToast(
 		base::weak_ptr<Window::SessionController> weak,
 		const QString &title,
@@ -462,20 +487,15 @@ void ProcessFilterInvite(
 			button->setClickedCallback([=] {
 				if (peers.empty()) {
 					box->closeBox();
-				//} else if (count + alreadyInFilter() >= ...) {
-					// #TODO filters
 				} else if (!state->importing) {
 					state->importing = true;
+					const auto added = int(peers.size());
 					ImportInvite(slug, filterId, peers, crl::guard(box, [=] {
 						ShowImportToast(weak, title, type, peers.size());
 						box->closeBox();
 					}), crl::guard(box, [=](QString text) {
 						if (const auto strong = weak.get()) {
-							Ui::ShowMultilineToast({
-								.parentOverride = Window::Show(
-									strong).toastParent(),
-								.text = { text },
-							});
+							ShowImportError(strong, filterId, added, text);
 						}
 						state->importing = false;
 					}));

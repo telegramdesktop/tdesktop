@@ -104,7 +104,6 @@ struct FilterRow {
 	not_null<FilterRowButton*> button;
 	Data::ChatFilter filter;
 	bool removed = false;
-	bool removeHasLinks = false;
 	mtpRequestId removePeersRequestId = 0;
 	std::vector<not_null<PeerData*>> suggestRemovePeers;
 	std::vector<not_null<PeerData*>> removePeers;
@@ -399,7 +398,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto row = find(button);
 		if (row->removed || row->removePeersRequestId > 0) {
 			return;
-		} else if (row->filter.chatlist() && row->removeHasLinks) {
+		} else if (row->filter.hasMyLinks()) {
 			controller->show(Ui::MakeConfirmBox({
 				.text = { tr::lng_filters_delete_sure(tr::now) },
 				.confirmed = crl::guard(button, [=](Fn<void()> close) {
@@ -430,12 +429,10 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				) | ranges::views::transform([=](const MTPPeer &peer) {
 					return session->data().peer(peerFromMTP(peer));
 				}) | ranges::to_vector;
-				row->removeHasLinks = true; // #TODO filters
 				markForRemoval(button);
 			})).fail(crl::guard(button, [=] {
 				const auto row = find(button);
 				row->removePeersRequestId = -1;
-				row->removeHasLinks = false;
 				markForRemoval(button);
 			})).send();
 		} else {

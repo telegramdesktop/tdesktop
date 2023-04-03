@@ -723,6 +723,44 @@ void FilterChatsLimitBox(
 		{ defaultLimit, current, premiumLimit, &st::premiumIconChats });
 }
 
+void FilterLinksLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
+
+	const auto limits = Data::PremiumLimits(session);
+	const auto defaultLimit = float64(limits.dialogFiltersLinksDefault());
+	const auto premiumLimit = float64(limits.dialogFiltersLinksPremium());
+	const auto current = (premium ? premiumLimit : defaultLimit);
+
+	auto text = rpl::combine(
+		tr::lng_filter_links_limit1(
+			lt_count,
+			rpl::single(premium ? premiumLimit : defaultLimit),
+			Ui::Text::RichLangValue),
+		((premium || !premiumPossible)
+			? rpl::single(TextWithEntities())
+			: tr::lng_filter_links_limit2(
+				lt_count,
+				rpl::single(premiumLimit),
+				Ui::Text::RichLangValue))
+	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
+		return b.text.isEmpty()
+			? a
+			: a.append(QChar(' ')).append(std::move(b));
+	});
+
+	SimpleLimitBox(
+		box,
+		session,
+		tr::lng_filter_links_limit_title(),
+		std::move(text),
+		"chatlist_invites",
+		{ defaultLimit, current, premiumLimit, &st::premiumIconChats });
+}
+
+
 void FiltersLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
@@ -758,6 +796,44 @@ void FiltersLimitBox(
 		tr::lng_filters_limit_title(),
 		std::move(text),
 		"dialog_filters",
+		{ defaultLimit, current, premiumLimit, &st::premiumIconFolders });
+}
+
+void ShareableFiltersLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
+
+	const auto limits = Data::PremiumLimits(session);
+	const auto defaultLimit = float64(limits.dialogShareableFiltersDefault());
+	const auto premiumLimit = float64(limits.dialogShareableFiltersPremium());
+	const auto current = float64(ranges::count_if(
+		session->data().chatsFilters().list(),
+		[](const Data::ChatFilter &f) { return f.chatlist(); }));
+
+	auto text = rpl::combine(
+		tr::lng_filter_shared_limit1(
+			lt_count,
+			rpl::single(premium ? premiumLimit : defaultLimit),
+			Ui::Text::RichLangValue),
+		((premium || !premiumPossible)
+			? rpl::single(TextWithEntities())
+			: tr::lng_filter_shared_limit2(
+				lt_count,
+				rpl::single(premiumLimit),
+				Ui::Text::RichLangValue))
+	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
+		return b.text.isEmpty()
+			? a
+			: a.append(QChar(' ')).append(std::move(b));
+	});
+	SimpleLimitBox(
+		box,
+		session,
+		tr::lng_filter_shared_limit_title(),
+		std::move(text),
+		"chatlists_joined",
 		{ defaultLimit, current, premiumLimit, &st::premiumIconFolders });
 }
 

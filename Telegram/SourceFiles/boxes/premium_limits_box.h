@@ -32,7 +32,13 @@ void FilterChatsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session,
 	int currentCount);
+void FilterLinksLimitBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
 void FiltersLimitBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
+void ShareableFiltersLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
 void FilterPinsLimitBox(

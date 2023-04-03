@@ -155,7 +155,8 @@ ChatFilter ChatFilter::FromTL(
 			data.vid().v,
 			qs(data.vtitle()),
 			qs(data.vemoticon().value_or_empty()),
-			Flag::Chatlist,
+			(Flag::Chatlist
+				| (data.is_has_my_invites() ? Flag::HasMyLinks : Flag())),
 			std::move(list),
 			std::move(pinned),
 			{});
@@ -237,6 +238,10 @@ ChatFilter::Flags ChatFilter::flags() const {
 
 bool ChatFilter::chatlist() const {
 	return _flags & Flag::Chatlist;
+}
+
+bool ChatFilter::hasMyLinks() const {
+	return _flags & Flag::HasMyLinks;
 }
 
 const base::flat_set<not_null<History*>> &ChatFilter::always() const {

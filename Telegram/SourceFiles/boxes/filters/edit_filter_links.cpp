@@ -1047,7 +1047,8 @@ bool GoodForExportFilterLink(
 		not_null<Window::SessionController*> window,
 		const Data::ChatFilter &filter) {
 	using Flag = Data::ChatFilter::Flag;
-	if (!filter.never().empty() || (filter.flags() & ~Flag::Chatlist)) {
+	const auto listflags = Flag::Chatlist | Flag::HasMyLinks;
+	if (!filter.never().empty() || (filter.flags() & ~listflags)) {
 		Ui::ShowMultilineToast({
 			.parentOverride = Window::Show(window).toastParent(),
 			.text = { tr::lng_filters_link_cant(tr::now) },

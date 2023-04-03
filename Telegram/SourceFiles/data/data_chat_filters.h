@@ -37,7 +37,8 @@ public:
 		NoRead      = (1 << 6),
 		NoArchived  = (1 << 7),
 
-		Chatlist   = (1 << 8),
+		Chatlist    = (1 << 8),
+		HasMyLinks  = (1 << 9),
 	};
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
@@ -64,6 +65,7 @@ public:
 	[[nodiscard]] QString iconEmoji() const;
 	[[nodiscard]] Flags flags() const;
 	[[nodiscard]] bool chatlist() const;
+	[[nodiscard]] bool hasMyLinks() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &always() const;
 	[[nodiscard]] const std::vector<not_null<History*>> &pinned() const;
 	[[nodiscard]] const base::flat_set<not_null<History*>> &never() const;
