@@ -1221,18 +1221,14 @@ void PeerListContent::setSearchNoResults(object_ptr<Ui::FlatLabel> noResults) {
 	}
 }
 
-void PeerListContent::setAboveWidget(object_ptr<TWidget> widget) {
+void PeerListContent::setAboveWidget(object_ptr<Ui::RpWidget> widget) {
 	_aboveWidget = std::move(widget);
-	if (_aboveWidget) {
-		_aboveWidget->setParent(this);
-	}
+	initDecorateWidget(_aboveWidget.data());
 }
 
-void PeerListContent::setAboveSearchWidget(object_ptr<TWidget> widget) {
+void PeerListContent::setAboveSearchWidget(object_ptr<Ui::RpWidget> widget) {
 	_aboveSearchWidget = std::move(widget);
-	if (_aboveSearchWidget) {
-		_aboveSearchWidget->setParent(this);
-	}
+	initDecorateWidget(_aboveSearchWidget.data());
 }
 
 void PeerListContent::setHideEmpty(bool hide) {
@@ -1240,10 +1236,20 @@ void PeerListContent::setHideEmpty(bool hide) {
 	resizeToWidth(width());
 }
 
-void PeerListContent::setBelowWidget(object_ptr<TWidget> widget) {
+void PeerListContent::setBelowWidget(object_ptr<Ui::RpWidget> widget) {
 	_belowWidget = std::move(widget);
-	if (_belowWidget) {
-		_belowWidget->setParent(this);
+	initDecorateWidget(_belowWidget.data());
+}
+
+void PeerListContent::initDecorateWidget(Ui::RpWidget *widget) {
+	if (widget) {
+		widget->setParent(this);
+		widget->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return (e->type() == QEvent::Enter) && widget->isVisible();
+		}) | rpl::start_with_next([=] {
+			mouseLeftGeometry();
+		}, widget->lifetime());
 	}
 }
 

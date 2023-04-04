@@ -298,9 +298,9 @@ public:
 	virtual void peerListSetHideEmpty(bool hide) = 0;
 	virtual void peerListSetDescription(object_ptr<Ui::FlatLabel> description) = 0;
 	virtual void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) = 0;
-	virtual void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) = 0;
-	virtual void peerListSetAboveSearchWidget(object_ptr<TWidget> aboveWidget) = 0;
-	virtual void peerListSetBelowWidget(object_ptr<TWidget> belowWidget) = 0;
+	virtual void peerListSetAboveWidget(object_ptr<Ui::RpWidget> aboveWidget) = 0;
+	virtual void peerListSetAboveSearchWidget(object_ptr<Ui::RpWidget> aboveWidget) = 0;
+	virtual void peerListSetBelowWidget(object_ptr<Ui::RpWidget> belowWidget) = 0;
 	virtual void peerListMouseLeftGeometry() = 0;
 	virtual void peerListSetSearchMode(PeerListSearchMode mode) = 0;
 	virtual void peerListAppendRow(std::unique_ptr<PeerListRow> row) = 0;
@@ -618,9 +618,9 @@ public:
 	void setDescription(object_ptr<Ui::FlatLabel> description);
 	void setSearchLoading(object_ptr<Ui::FlatLabel> loading);
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> noResults);
-	void setAboveWidget(object_ptr<TWidget> widget);
-	void setAboveSearchWidget(object_ptr<TWidget> widget);
-	void setBelowWidget(object_ptr<TWidget> width);
+	void setAboveWidget(object_ptr<Ui::RpWidget> widget);
+	void setAboveSearchWidget(object_ptr<Ui::RpWidget> widget);
+	void setBelowWidget(object_ptr<Ui::RpWidget> width);
 	void setHideEmpty(bool hide);
 	void refreshRows();
 
@@ -781,6 +781,7 @@ private:
 	void clearAllContent();
 	void handleMouseMove(QPoint globalPosition);
 	void mousePressReleased(Qt::MouseButton button);
+	void initDecorateWidget(Ui::RpWidget *widget);
 
 	const style::PeerList &_st;
 	not_null<PeerListController*> _controller;
@@ -815,9 +816,9 @@ private:
 	int _aboveHeight = 0;
 	int _belowHeight = 0;
 	bool _hideEmpty = false;
-	object_ptr<TWidget> _aboveWidget = { nullptr };
-	object_ptr<TWidget> _aboveSearchWidget = { nullptr };
-	object_ptr<TWidget> _belowWidget = { nullptr };
+	object_ptr<Ui::RpWidget> _aboveWidget = { nullptr };
+	object_ptr<Ui::RpWidget> _aboveSearchWidget = { nullptr };
+	object_ptr<Ui::RpWidget> _belowWidget = { nullptr };
 	object_ptr<Ui::FlatLabel> _description = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchLoading = { nullptr };
@@ -901,13 +902,13 @@ public:
 	void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) override {
 		_content->setSearchNoResults(std::move(noResults));
 	}
-	void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) override {
+	void peerListSetAboveWidget(object_ptr<Ui::RpWidget> aboveWidget) override {
 		_content->setAboveWidget(std::move(aboveWidget));
 	}
-	void peerListSetAboveSearchWidget(object_ptr<TWidget> aboveWidget) override {
+	void peerListSetAboveSearchWidget(object_ptr<Ui::RpWidget> aboveWidget) override {
 		_content->setAboveSearchWidget(std::move(aboveWidget));
 	}
-	void peerListSetBelowWidget(object_ptr<TWidget> belowWidget) override {
+	void peerListSetBelowWidget(object_ptr<Ui::RpWidget> belowWidget) override {
 		_content->setBelowWidget(std::move(belowWidget));
 	}
 	void peerListSetSearchMode(PeerListSearchMode mode) override {
