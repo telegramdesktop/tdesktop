@@ -55,20 +55,30 @@ public:
 	[[nodiscard]] auto selectedValue() const
 		-> rpl::producer<base::flat_set<not_null<PeerData*>>>;
 
-	void setAddedTopHeight(int addedTopHeight);
+	void adjust(int minHeight, int maxHeight, int addedTopHeight);
+	void setRealContentHeight(rpl::producer<int> value);
+	rpl::producer<int> boxHeightValue() const override;
 
 private:
 	void setupAboveWidget();
 	void setupBelowWidget();
+	void initDesiredHeightValue();
 
 	const not_null<Window::SessionController*> _window;
 	Ui::RpWidget *_addedTopWidget = nullptr;
+	Ui::RpWidget *_addedBottomWidget = nullptr;
 
 	ToggleAction _action = ToggleAction::Adding;
 	QString _filterTitle;
 	std::vector<not_null<PeerData*>> _chats;
 	std::vector<not_null<PeerData*>> _additional;
 	rpl::variable<base::flat_set<not_null<PeerData*>>> _selected;
+
+	int _minTopHeight = 0;
+	rpl::variable<int> _maxTopHeight;
+	rpl::variable<int> _aboveHeight;
+	rpl::variable<int> _belowHeight;
+	rpl::variable<int> _desiredHeight;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
@@ -126,7 +136,7 @@ private:
 
 void InitFilterLinkHeader(
 		not_null<PeerListBox*> box,
-		Fn<void(int)> setAddedTopHeight,
+		Fn<void(int minHeight, int maxHeight, int addedTopHeight)> adjust,
 		Ui::FilterLinkHeaderType type,
 		const QString &title,
 		const QString &iconEmoji,
@@ -159,6 +169,12 @@ void InitFilterLinkHeader(
 		box->sendScrollViewportEvent(e);
 	}, widget->lifetime());
 
+	std::move(
+		header.closeRequests
+	) | rpl::start_with_next([=] {
+		box->closeBox();
+	}, widget->lifetime());
+
 	struct State {
 		bool processing = false;
 		int addedTopHeight = 0;
@@ -178,17 +194,18 @@ void InitFilterLinkHeader(
 		const auto addedTopHeight = max - headerHeight;
 		widget->resize(widget->width(), headerHeight);
 		if (state->addedTopHeight < addedTopHeight) {
-			setAddedTopHeight(addedTopHeight);
+			adjust(min, max, addedTopHeight);
 			box->setAddedTopScrollSkip(headerHeight);
 		} else {
 			box->setAddedTopScrollSkip(headerHeight);
-			setAddedTopHeight(addedTopHeight);
+			adjust(min, max, addedTopHeight);
 		}
 		state->addedTopHeight = addedTopHeight;
 		box->peerListRefreshRows();
 	}, widget->lifetime());
 
 	box->setNoContentMargin(true);
+	adjust(min, max, 0);
 }
 
 void ImportInvite(
@@ -260,6 +277,7 @@ void ToggleChatsController::prepare() {
 		}
 		if (!additional) {
 			delegate()->peerListSetRowChecked(raw, true);
+			raw->finishCheckedAnimation();
 			selected.emplace(peer);
 		} else if (_action == ToggleAction::Adding) {
 			raw->setDisabledState(PeerListRow::State::DisabledChecked);
@@ -274,6 +292,7 @@ void ToggleChatsController::prepare() {
 	for (const auto &peer : _additional) {
 		add(peer, true);
 	}
+	initDesiredHeightValue();
 	delegate()->peerListRefreshRows();
 	_selected = std::move(selected);
 }
@@ -298,7 +317,9 @@ void ToggleChatsController::setupAboveWidget() {
 	const auto container = wrap.data();
 
 	_addedTopWidget = container->add(object_ptr<Ui::RpWidget>(container));
-	AddDivider(container);
+	const auto realAbove = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
+	AddDivider(realAbove);
 	const auto totalCount = [&] {
 		if (_chats.empty()) {
 			return _additional.size();
@@ -319,7 +340,7 @@ void ToggleChatsController::setupAboveWidget() {
 		? _additional.size()
 		: _chats.size();
 	AddSubsectionTitle(
-		container,
+		realAbove,
 		(_action == ToggleAction::Removing
 			? tr::lng_filters_by_link_quit
 			: _chats.empty()
@@ -329,23 +350,34 @@ void ToggleChatsController::setupAboveWidget() {
 				rpl::single(float64(count))),
 		st::filterLinkSubsectionTitlePadding);
 
+	_aboveHeight = realAbove->heightValue();
 	delegate()->peerListSetAboveWidget(std::move(wrap));
 }
 
 void ToggleChatsController::setupBelowWidget() {
 	if (_chats.empty()) {
+		auto widget = object_ptr<Ui::RpWidget>((QWidget*)nullptr);
+		_addedBottomWidget = widget.data();
+		delegate()->peerListSetBelowWidget(std::move(widget));
 		return;
 	}
-	delegate()->peerListSetBelowWidget(
-		object_ptr<Ui::DividerLabel>(
-			(QWidget*)nullptr,
-			object_ptr<Ui::FlatLabel>(
-				(QWidget*)nullptr,
-				(_action == ToggleAction::Removing
-					? tr::lng_filters_by_link_about_quit
-					: tr::lng_filters_by_link_about)(tr::now),
-				st::boxDividerLabel),
-			st::settingsDividerLabelPadding));
+	auto layout = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
+	const auto raw = layout.data();
+	auto widget = object_ptr<Ui::DividerLabel>(
+		(QWidget*)nullptr,
+		std::move(layout),
+		st::settingsDividerLabelPadding);
+	raw->add(object_ptr<Ui::FlatLabel>(
+		raw,
+		(_action == ToggleAction::Removing
+			? tr::lng_filters_by_link_about_quit
+			: tr::lng_filters_by_link_about)(tr::now),
+		st::boxDividerLabel));
+	_addedBottomWidget = raw->add(object_ptr<Ui::RpWidget>(raw));
+	_belowHeight = widget->heightValue() | rpl::map([=](int value) {
+		return value - _addedBottomWidget->height();
+	});
+	delegate()->peerListSetBelowWidget(std::move(widget));
 }
 
 Main::Session &ToggleChatsController::session() const {
@@ -357,10 +389,56 @@ auto ToggleChatsController::selectedValue() const
 	return _selected.value();
 }
 
-void ToggleChatsController::setAddedTopHeight(int addedTopHeight) {
+void ToggleChatsController::adjust(
+		int minHeight,
+		int maxHeight,
+		int addedTopHeight) {
 	Expects(addedTopHeight >= 0);
 
 	_addedTopWidget->resize(_addedTopWidget->width(), addedTopHeight);
+	_minTopHeight = minHeight;
+	_maxTopHeight = maxHeight;
+}
+
+void ToggleChatsController::setRealContentHeight(rpl::producer<int> value) {
+	std::move(
+		value
+	) | rpl::start_with_next([=](int height) {
+		const auto desired = _desiredHeight.current();
+		if (height <= computeListSt().item.height) {
+			return;
+		} else if (height >= desired) {
+			_addedBottomWidget->resize(_addedBottomWidget->width(), 0);
+		} else {
+			const auto available = desired - height;
+			const auto required = _maxTopHeight.current() - _minTopHeight;
+			const auto added = required - available;
+			_addedBottomWidget->resize(
+				_addedBottomWidget->width(),
+				std::max(added, 0));
+		}
+	}, _lifetime);
+}
+
+void ToggleChatsController::initDesiredHeightValue() {
+	using namespace rpl::mappers;
+
+	const auto &st = computeListSt();
+	const auto count = int(delegate()->peerListFullRowsCount());
+	const auto middle = st.padding.top()
+		+ (count * st.item.height)
+		+ st.padding.bottom();
+	_desiredHeight = rpl::combine(
+		_maxTopHeight.value(),
+		_aboveHeight.value(),
+		_belowHeight.value(),
+		_1 + _2 + middle + _3);
+}
+
+rpl::producer<int> ToggleChatsController::boxHeightValue() const {
+	return _desiredHeight.value() | rpl::map([=](int value) {
+		return std::min(value, st::boxMaxListHeight);
+	});
 }
 
 void ShowImportError(
@@ -454,9 +532,11 @@ void ProcessFilterInvite(
 		) | rpl::map([=](const base::flat_set<not_null<PeerData*>> &peers) {
 			return int(peers.size());
 		});
-		InitFilterLinkHeader(box, [=](int addedTopHeight) {
-			raw->setAddedTopHeight(addedTopHeight);
+		InitFilterLinkHeader(box, [=](int min, int max, int addedTop) {
+			raw->adjust(min, max, addedTop);
 		}, type, title, iconEmoji, rpl::duplicate(badge));
+
+		raw->setRealContentHeight(box->heightValue());
 
 		auto owned = Ui::FilterLinkProcessButton(
 			box,
@@ -677,8 +757,8 @@ void ProcessFilterRemove(
 		) | rpl::map([=](const base::flat_set<not_null<PeerData*>> &peers) {
 			return int(peers.size());
 		});
-		InitFilterLinkHeader(box, [=](int addedTopHeight) {
-			raw->setAddedTopHeight(addedTopHeight);
+		InitFilterLinkHeader(box, [=](int min, int max, int addedTop) {
+			raw->adjust(min, max, addedTop);
 		}, type, title, iconEmoji, rpl::single(0));
 
 		auto owned = Ui::FilterLinkProcessButton(

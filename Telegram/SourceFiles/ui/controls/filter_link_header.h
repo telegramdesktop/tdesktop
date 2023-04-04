@@ -34,6 +34,7 @@ struct FilterLinkHeaderDescriptor {
 struct FilterLinkHeader {
 	not_null<RpWidget*> widget;
 	rpl::producer<not_null<QWheelEvent*>> wheelEvents;
+	rpl::producer<> closeRequests;
 };
 
 [[nodiscard]] FilterLinkHeader MakeFilterLinkHeader(

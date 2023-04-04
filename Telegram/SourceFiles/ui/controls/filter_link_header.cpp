@@ -31,9 +31,9 @@ public:
 		FilterLinkHeaderDescriptor &&descriptor);
 
 	void setTitlePosition(int x, int y);
-	void updateDimensions(int newWidth);
 
 	[[nodiscard]] rpl::producer<not_null<QWheelEvent*>> wheelEvents() const;
+	[[nodiscard]] rpl::producer<> closeRequests() const;
 
 private:
 	void resizeEvent(QResizeEvent *e) override;
@@ -46,6 +46,7 @@ private:
 	void refreshTitleText();
 
 	const not_null<FlatLabel*> _about;
+	const not_null<IconButton*> _close;
 	QMargins _aboutPadding;
 
 	struct {
@@ -176,10 +177,11 @@ Widget::Widget(
 	not_null<QWidget*> parent,
 	FilterLinkHeaderDescriptor &&descriptor)
 : RpWidget(parent)
-, _about(CreateChild<Ui::FlatLabel>(
+, _about(CreateChild<FlatLabel>(
 	this,
 	rpl::single(descriptor.about.value()),
 	st::filterLinkAbout))
+, _close(CreateChild<IconButton>(this, st::boxTitleClose))
 , _aboutPadding(st::boxRowPadding)
 , _badge(std::move(descriptor.badge))
 , _titleText(descriptor.title)
@@ -214,6 +216,10 @@ void Widget::setTitlePosition(int x, int y) {
 
 rpl::producer<not_null<QWheelEvent*>> Widget::wheelEvents() const {
 	return _wheelEvents.events();
+}
+
+rpl::producer<> Widget::closeRequests() const {
+	return _close->clicks() | rpl::to_empty;
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -258,13 +264,15 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	_about->moveToLeft(_aboutPadding.left(), aboutTop);
 	_about->setOpacity(_progress.body);
 
+	_close->moveToRight(0, 0);
+
 	update();
 }
 
 QRectF Widget::previewRect(
 		float64 topProgress,
 		float64 sizeProgress) const {
-	const auto size = st::filterLinkPreview;
+	const auto size = st::filterLinkPreview * sizeProgress;
 	return QRectF(
 		(width() - size) / 2.,
 		st::filterLinkPreviewTop * topProgress,
@@ -276,9 +284,6 @@ void Widget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	p.setOpacity(_progress.body);
-	p.translate(_previewRect.center());
-	p.scale(_progress.body, _progress.body);
-	p.translate(-_previewRect.center());
 	if (_progress.top) {
 		auto hq = PainterHighQualityEnabler(p);
 		if (_preview.isNull()) {
@@ -327,7 +332,11 @@ void Widget::wheelEvent(QWheelEvent *e) {
 	const auto result = CreateChild<Widget>(
 		parent.get(),
 		std::move(descriptor));
-	return { .widget = result, .wheelEvents = result->wheelEvents() };
+	return {
+		.widget = result,
+		.wheelEvents = result->wheelEvents(),
+		.closeRequests = result->closeRequests(),
+	};
 }
 
 object_ptr<RoundButton> FilterLinkProcessButton(

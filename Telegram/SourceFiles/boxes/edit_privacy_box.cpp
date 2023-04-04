@@ -217,16 +217,18 @@ Ui::FlatLabel *EditPrivacyBox::addLabel(
 	if (!text) {
 		return nullptr;
 	}
-	return container->add(
+	auto label = object_ptr<Ui::FlatLabel>(
+		container,
+		rpl::duplicate(text),
+		st::boxDividerLabel);
+	const auto result = label.data();
+	container->add(
 		object_ptr<Ui::DividerLabel>(
 			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				rpl::duplicate(text),
-				st::boxDividerLabel),
+			std::move(label),
 			st::settingsDividerLabelPadding),
-		{ 0, topSkip, 0, 0 }
-	)->entity();
+		{ 0, topSkip, 0, 0 });
+	return result;
 }
 
 Ui::FlatLabel *EditPrivacyBox::addLabelOrDivider(

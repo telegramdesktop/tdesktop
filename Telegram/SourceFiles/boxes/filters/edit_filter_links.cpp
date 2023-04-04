@@ -695,6 +695,7 @@ void LinkController::prepare() {
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
 		delegate()->peerListSetRowChecked(raw, true);
+		raw->finishCheckedAnimation();
 		_initial.emplace(peer);
 	}
 	for (const auto &history : _filterChats) {
