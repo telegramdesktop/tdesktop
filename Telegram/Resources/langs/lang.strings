@@ -3598,7 +3598,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_by_link_add_button" = "Add {folder}";
 "lng_filters_by_link_add_no" = "Do not add this folder";
 "lng_filters_by_link_more" = "Add Chats to Folder";
-"lng_filters_by_link_more_sure" = "Do you want to join chats and add them to your folder {folder}?";
+"lng_filters_by_link_more_sure" = "Do you want to join chats and add them to the folder {folder}?";
 "lng_filters_by_link_about" = "You can deselect the chats you don't want to join.";
 "lng_filters_by_link_join_button" = "Join Chats";
 "lng_filters_by_link_join_no" = "Do not join any chats";

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/invite_link_label.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
@@ -507,6 +508,7 @@ private:
 	void setupBelowWidget();
 	void addHeader(not_null<Ui::VerticalLayout*> container);
 	void addLinkBlock(not_null<Ui::VerticalLayout*> container);
+	void toggleAllSelected(bool select);
 
 	const not_null<Window::SessionController*> _window;
 	InviteLinkData _data;
@@ -684,8 +686,6 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 void LinkController::prepare() {
 	Expects(!_data.url.isEmpty() || _data.chats.empty());
 
-	setupAboveWidget();
-	setupBelowWidget();
 	for (const auto &history : _data.chats) {
 		const auto peer = history->peer;
 		auto row = std::make_unique<ChatRow>(
@@ -716,6 +716,8 @@ void LinkController::prepare() {
 			_denied.emplace(peer);
 		}
 	}
+	setupAboveWidget();
+	setupBelowWidget();
 	delegate()->peerListRefreshRows();
 	_selected = _initial;
 }
@@ -744,6 +746,34 @@ void LinkController::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
+void LinkController::toggleAllSelected(bool select) {
+	auto selected = _selected.current();
+	if (!select) {
+		if (selected.empty()) {
+			return;
+		}
+		for (const auto &peer : selected) {
+			const auto row = delegate()->peerListFindRow(peer->id.value);
+			Assert(row != nullptr);
+			delegate()->peerListSetRowChecked(row, false);
+		}
+		selected = {};
+	} else {
+		const auto count = delegate()->peerListFullRowsCount();
+		for (auto i = 0; i != count; ++i) {
+			const auto row = delegate()->peerListRowAt(i);
+			const auto peer = row->peer();
+			if (!_denied.contains(peer)) {
+				delegate()->peerListSetRowChecked(row, true);
+				selected.emplace(peer);
+			}
+		}
+	}
+	const auto has = (_initial != selected);
+	_selected = std::move(selected);
+	_hasChanges = has;
+}
+
 void LinkController::showFinished() {
 	_showFinished.fire({});
 }
@@ -770,10 +800,18 @@ void LinkController::setupAboveWidget() {
 				lt_count,
 				float64(selected.size()));
 	});
-	Settings::AddSubsectionTitle(
+	const auto mayBeSelected = delegate()->peerListFullRowsCount()
+		- int(_denied.size());
+	auto selectedCount = _selected.value(
+	) | rpl::map([](const base::flat_set<not_null<PeerData*>> &selected) {
+		return int(selected.size());
+	});
+	AddFilterSubtitleWithToggles(
 		container,
 		std::move(subtitle),
-		st::filterLinkSubsectionTitlePadding);
+		mayBeSelected,
+		std::move(selectedCount),
+		[=](bool select) { toggleAllSelected(select); });
 
 	// Fix label cutting on text change from smaller to longer.
 	_selected.changes() | rpl::start_with_next([=] {
@@ -1205,4 +1243,52 @@ void SetupFilterLinks(
 		controller));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
+}
+
+void AddFilterSubtitleWithToggles(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text,
+		int selectableCount,
+		rpl::producer<int> selectedCount,
+		Fn<void(bool select)> toggle) {
+	using namespace rpl::mappers;
+
+	const auto selectable = (selectableCount > 0);
+	auto padding = st::filterLinkSubsectionTitlePadding;
+	if (selectable) {
+		const auto font = st::boxLinkButton.font;
+		padding.setRight(padding.right() + font->spacew + std::max(
+			font->width(tr::lng_filters_by_link_select(tr::now)),
+			font->width(tr::lng_filters_by_link_deselect(tr::now))));
+	}
+	const auto title = Settings::AddSubsectionTitle(
+		container,
+		std::move(text),
+		padding);
+	if (!selectable) {
+		return;
+	}
+	const auto link = Ui::CreateChild<Ui::LinkButton>(
+		container.get(),
+		tr::lng_filters_by_link_select(tr::now),
+		st::boxLinkButton);
+	const auto canSelect = link->lifetime().make_state<rpl::variable<bool>>(
+		std::move(selectedCount) | rpl::map(_1 < selectableCount));
+	canSelect->value(
+	) | rpl::start_with_next([=](bool can) {
+		link->setText(can
+			? tr::lng_filters_by_link_select(tr::now)
+			: tr::lng_filters_by_link_deselect(tr::now));
+	}, link->lifetime());
+	link->setClickedCallback([=] {
+		toggle(canSelect->current());
+	});
+
+	rpl::combine(
+		container->widthValue(),
+		title->topValue(),
+		link->widthValue()
+	) | rpl::start_with_next([=](int outer, int y, int width) {
+		link->move(outer - st::boxRowPadding.right() - width, y);
+	}, link->lifetime());
 }

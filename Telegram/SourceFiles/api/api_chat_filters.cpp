@@ -63,6 +63,7 @@ private:
 	void setupAboveWidget();
 	void setupBelowWidget();
 	void initDesiredHeightValue();
+	void toggleAllSelected(bool select);
 
 	const not_null<Window::SessionController*> _window;
 	Ui::RpWidget *_addedTopWidget = nullptr;
@@ -259,8 +260,6 @@ ToggleChatsController::ToggleChatsController(
 }
 
 void ToggleChatsController::prepare() {
-	setupAboveWidget();
-	setupBelowWidget();
 	auto selected = base::flat_set<not_null<PeerData*>>();
 	const auto add = [&](not_null<PeerData*> peer, bool additional = false) {
 		auto row = std::make_unique<PeerListRow>(peer);
@@ -292,6 +291,8 @@ void ToggleChatsController::prepare() {
 	for (const auto &peer : _additional) {
 		add(peer, true);
 	}
+	setupAboveWidget();
+	setupBelowWidget();
 	initDesiredHeightValue();
 	delegate()->peerListRefreshRows();
 	_selected = std::move(selected);
@@ -339,7 +340,13 @@ void ToggleChatsController::setupAboveWidget() {
 		: _chats.empty()
 		? _additional.size()
 		: _chats.size();
-	AddSubsectionTitle(
+	const auto selectableCount = delegate()->peerListFullRowsCount()
+		- (_action == ToggleAction::Adding ? int(_additional.size()) : 0);
+	auto selectedCount = _selected.value(
+	) | rpl::map([](const base::flat_set<not_null<PeerData*>> &selected) {
+		return int(selected.size());
+	});
+	AddFilterSubtitleWithToggles(
 		realAbove,
 		(_action == ToggleAction::Removing
 			? tr::lng_filters_by_link_quit
@@ -348,10 +355,39 @@ void ToggleChatsController::setupAboveWidget() {
 			: tr::lng_filters_by_link_join)(
 				lt_count,
 				rpl::single(float64(count))),
-		st::filterLinkSubsectionTitlePadding);
+		selectableCount,
+		std::move(selectedCount),
+		[=](bool select) { toggleAllSelected(select); });
 
 	_aboveHeight = realAbove->heightValue();
 	delegate()->peerListSetAboveWidget(std::move(wrap));
+}
+
+void ToggleChatsController::toggleAllSelected(bool select) {
+	auto selected = _selected.current();
+	if (!select) {
+		if (selected.empty()) {
+			return;
+		}
+		for (const auto &peer : selected) {
+			const auto row = delegate()->peerListFindRow(peer->id.value);
+			Assert(row != nullptr);
+			delegate()->peerListSetRowChecked(row, false);
+		}
+		selected = {};
+	} else {
+		const auto count = delegate()->peerListFullRowsCount();
+		for (auto i = 0; i != count; ++i) {
+			const auto row = delegate()->peerListRowAt(i);
+			const auto peer = row->peer();
+			if (_action != ToggleAction::Adding ||
+				!ranges::contains(_additional, peer)) {
+				delegate()->peerListSetRowChecked(row, true);
+				selected.emplace(peer);
+			}
+		}
+	}
+	_selected = std::move(selected);
 }
 
 void ToggleChatsController::setupBelowWidget() {

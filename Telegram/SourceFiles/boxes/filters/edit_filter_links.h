@@ -47,3 +47,10 @@ void SetupFilterLinks(
 	not_null<Window::SessionController*> window,
 	rpl::producer<std::vector<Data::ChatFilterLink>> value,
 	Fn<Data::ChatFilter()> currentFilter);
+
+void AddFilterSubtitleWithToggles(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> text,
+	int selectableCount,
+	rpl::producer<int> selectedCount,
+	Fn<void(bool select)> toggle);
