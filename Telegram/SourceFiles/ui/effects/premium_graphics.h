@@ -34,6 +34,8 @@ class VerticalLayout;
 
 namespace Premium {
 
+inline constexpr auto kLimitRowRatio = 0.5;
+
 void AddBubbleRow(
 	not_null<Ui::VerticalLayout*> parent,
 	rpl::producer<> showFinishes,
@@ -47,13 +49,15 @@ void AddBubbleRow(
 void AddLimitRow(
 	not_null<Ui::VerticalLayout*> parent,
 	QString max,
-	QString min = {});
+	QString min = {},
+	float64 ratio = kLimitRowRatio);
 
 void AddLimitRow(
 	not_null<Ui::VerticalLayout*> parent,
 	int max,
 	std::optional<tr::phrase<lngtag_count>> phrase,
-	int min = 0);
+	int min = 0,
+	float64 ratio = kLimitRowRatio);
 
 struct AccountsRowArgs final {
 	std::shared_ptr<Ui::RadiobuttonGroup> group;

@@ -559,8 +559,13 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		int max,
 		TextFactory textFactory,
-		int min);
-	Line(not_null<Ui::RpWidget*> parent, QString max, QString min);
+		int min,
+		float64 ratio);
+	Line(
+		not_null<Ui::RpWidget*> parent,
+		QString max,
+		QString min,
+		float64 ratio);
 
 	void setColorOverride(QBrush brush);
 
@@ -589,14 +594,20 @@ Line::Line(
 	not_null<Ui::RpWidget*> parent,
 	int max,
 	TextFactory textFactory,
-	int min)
+	int min,
+	float64 ratio)
 : Line(
 	parent,
 	max ? textFactory(max) : QString(),
-	min ? textFactory(min) : QString()) {
+	min ? textFactory(min) : QString(),
+	ratio) {
 }
 
-Line::Line(not_null<Ui::RpWidget*> parent, QString max, QString min)
+Line::Line(
+	not_null<Ui::RpWidget*> parent,
+	QString max,
+	QString min,
+	float64 ratio)
 : Ui::RpWidget(parent)
 , _leftText(st::semiboldTextStyle, tr::lng_premium_free(tr::now))
 , _rightText(st::semiboldTextStyle, tr::lng_premium(tr::now))
@@ -609,7 +620,7 @@ Line::Line(not_null<Ui::RpWidget*> parent, QString max, QString min)
 		if (s.isEmpty()) {
 			return;
 		}
-		_leftWidth = (s.width() / 2);
+		_leftWidth = int(base::SafeRound(s.width() * ratio));
 		_rightWidth = (s.width() - _leftWidth);
 		recache(s);
 		update();
@@ -635,76 +646,95 @@ void Line::paintEvent(QPaintEvent *event) {
 	const auto textPadding = st::premiumLineTextSkip;
 	const auto textTop = (height() - _leftText.minHeight()) / 2;
 
-	p.setPen(st::windowFg);
-	_leftLabel.drawRight(
-		p,
-		textPadding,
-		textTop,
-		_leftWidth - textPadding,
-		_leftWidth,
-		style::al_right);
-	_leftText.drawLeft(
-		p,
-		textPadding,
-		textTop,
-		_leftWidth - textPadding,
-		_leftWidth);
-
-	p.setPen(st::activeButtonFg);
-	_rightLabel.drawRight(
-		p,
-		textPadding,
-		textTop,
-		_rightWidth - textPadding,
-		width(),
-		style::al_right);
-	_rightText.drawLeftElided(
-		p,
-		_leftWidth + textPadding,
-		textTop,
-		_rightWidth - _rightLabel.countWidth(_rightWidth) - textPadding * 2,
-		_rightWidth);
+	const auto leftMinWidth = _leftLabel.maxWidth()
+		+ _leftText.maxWidth()
+		+ 3 * textPadding;
+	if (_leftWidth >= leftMinWidth) {
+		p.setPen(st::windowFg);
+		_leftLabel.drawRight(
+			p,
+			textPadding,
+			textTop,
+			_leftWidth - textPadding,
+			_leftWidth,
+			style::al_right);
+		_leftText.drawLeft(
+			p,
+			textPadding,
+			textTop,
+			_leftWidth - textPadding,
+			_leftWidth);
+	}
+	const auto rightMinWidth = 2 * _rightLabel.maxWidth()
+		+ 3 * textPadding;
+	if (_rightWidth >= rightMinWidth) {
+		p.setPen(st::activeButtonFg);
+		_rightLabel.drawRight(
+			p,
+			textPadding,
+			textTop,
+			_rightWidth - textPadding,
+			width(),
+			style::al_right);
+		_rightText.drawLeftElided(
+			p,
+			_leftWidth + textPadding,
+			textTop,
+			(_rightWidth
+				- _rightLabel.countWidth(_rightWidth)
+				- textPadding * 2),
+			_rightWidth);
+	}
 }
 
 void Line::recache(const QSize &s) {
-	const auto r = QRect(0, 0, _leftWidth, s.height());
-	auto pixmap = QPixmap(r.size() * style::DevicePixelRatio());
-	pixmap.setDevicePixelRatio(style::DevicePixelRatio());
-	pixmap.fill(Qt::transparent);
+	const auto r = [&](int width) {
+		return QRect(0, 0, width, s.height());
+	};
+	const auto pixmap = [&](int width) {
+		auto result = QPixmap(r(width).size() * style::DevicePixelRatio());
+		result.setDevicePixelRatio(style::DevicePixelRatio());
+		result.fill(Qt::transparent);
+		return result;
+	};
 
-	auto pathRound = QPainterPath();
-	pathRound.addRoundedRect(r, st::buttonRadius, st::buttonRadius);
-
+	const auto pathRound = [&](int width) {
+		auto result = QPainterPath();
+		result.addRoundedRect(r(width), st::buttonRadius, st::buttonRadius);
+		return result;
+	};
 	{
-		auto leftPixmap = pixmap;
+		auto leftPixmap = pixmap(_leftWidth);
 		auto p = QPainter(&leftPixmap);
 		PainterHighQualityEnabler hq(p);
 		auto pathRect = QPainterPath();
-		auto halfRect = r;
-		halfRect.setLeft(r.center().x());
+		auto halfRect = r(_leftWidth);
+		halfRect.setLeft(halfRect.center().x());
 		pathRect.addRect(halfRect);
 
-		p.fillPath(pathRound + pathRect, st::windowBgOver);
+		p.fillPath(pathRound(_leftWidth) + pathRect, st::windowBgOver);
 
 		_leftPixmap = std::move(leftPixmap);
 	}
 	{
-		auto rightPixmap = pixmap;
+		auto rightPixmap = pixmap(_rightWidth);
 		auto p = QPainter(&rightPixmap);
 		PainterHighQualityEnabler hq(p);
 		auto pathRect = QPainterPath();
-		auto halfRect = r;
-		halfRect.setRight(r.center().x());
+		auto halfRect = r(_rightWidth);
+		halfRect.setRight(halfRect.center().x());
 		pathRect.addRect(halfRect);
 
 		if (_overrideBrush) {
-			p.fillPath(pathRound + pathRect, *_overrideBrush);
+			p.fillPath(pathRound(_rightWidth) + pathRect, *_overrideBrush);
 		} else {
 			auto gradient = ComputeGradient(
 				this,
-				(_leftPixmap.width() / style::DevicePixelRatio()) + r.x(),
-				r.width());
-			p.fillPath(pathRound + pathRect, QBrush(std::move(gradient)));
+				_leftPixmap.width() / style::DevicePixelRatio(),
+				_rightWidth);
+			p.fillPath(
+				pathRound(_rightWidth) + pathRect,
+				QBrush(std::move(gradient)));
 		}
 
 		_rightPixmap = std::move(rightPixmap);
@@ -743,20 +773,25 @@ void AddBubbleRow(
 void AddLimitRow(
 		not_null<Ui::VerticalLayout*> parent,
 		QString max,
-		QString min) {
-	parent->add(object_ptr<Line>(parent, max, min), st::boxRowPadding);
+		QString min,
+		float64 ratio) {
+	parent->add(
+		object_ptr<Line>(parent, max, min, ratio),
+		st::boxRowPadding);
 }
 
 void AddLimitRow(
 		not_null<Ui::VerticalLayout*> parent,
 		int max,
 		std::optional<tr::phrase<lngtag_count>> phrase,
-		int min) {
+		int min,
+		float64 ratio) {
 	const auto factory = ProcessTextFactory(phrase);
 	AddLimitRow(
 		parent,
 		max ? factory(max) : QString(),
-		min ? factory(min) : QString());
+		min ? factory(min) : QString(),
+		ratio);
 }
 
 void AddAccountsRow(
@@ -971,7 +1006,8 @@ void ShowListBox(
 						return text(n);
 					}
 				}),
-				entry.leftNumber),
+				entry.leftNumber,
+				kLimitRowRatio),
 			st::settingsPremiumPreviewLinePadding);
 		lines.push_back(limitRow);
 	}

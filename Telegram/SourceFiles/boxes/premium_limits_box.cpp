@@ -46,6 +46,7 @@ struct InfographicDescriptor {
 	float64 premiumLimit = 0;
 	const style::icon *icon;
 	std::optional<tr::phrase<lngtag_count>> phrase;
+	bool complexRatio = false;
 };
 
 [[nodiscard]] rpl::producer<> BoxShowFinishes(not_null<Ui::GenericBox*> box) {
@@ -433,7 +434,11 @@ void SimpleLimitBox(
 		Ui::Premium::AddLimitRow(
 			top,
 			descriptor.premiumLimit,
-			descriptor.phrase);
+			descriptor.phrase,
+			0,
+			(descriptor.complexRatio
+				? (float64(descriptor.current) / descriptor.premiumLimit)
+				: Ui::Premium::kLimitRowRatio));
 		Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
 	}
 
@@ -757,7 +762,13 @@ void FilterLinksLimitBox(
 		tr::lng_filter_links_limit_title(),
 		std::move(text),
 		"chatlist_invites",
-		{ defaultLimit, current, premiumLimit, &st::premiumIconChats });
+		{
+			defaultLimit,
+			current,
+			premiumLimit,
+			&st::premiumIconChats,
+			std::nullopt,
+			true });
 }
 
 
@@ -834,7 +845,13 @@ void ShareableFiltersLimitBox(
 		tr::lng_filter_shared_limit_title(),
 		std::move(text),
 		"chatlists_joined",
-		{ defaultLimit, current, premiumLimit, &st::premiumIconFolders });
+		{
+			defaultLimit,
+			current,
+			premiumLimit,
+			&st::premiumIconFolders,
+			std::nullopt,
+			true });
 }
 
 void FilterPinsLimitBox(
