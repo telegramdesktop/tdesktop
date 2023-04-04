@@ -843,7 +843,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			JoinGroupByHash
 		},
 		{
-			u"^list/?\\?slug=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
+			u"^addlist/?\\?slug=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"_q,
 			JoinFilterBySlug
 		},
 		{
@@ -970,8 +970,8 @@ QString TryConvertUrlToLocal(QString url) {
 			return u"tg://resolve?phone="_q + phoneMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (const auto joinChatMatch = regex_match(u"^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
 			return u"tg://join?invite="_q + url_encode(joinChatMatch->captured(2));
-		} else if (const auto joinFilterMatch = regex_match(u"^(list/)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
-			return u"tg://list?slug="_q + url_encode(joinFilterMatch->captured(2));
+		} else if (const auto joinFilterMatch = regex_match(u"^(addlist/)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
+			return u"tg://addlist?slug="_q + url_encode(joinFilterMatch->captured(2));
 		} else if (const auto stickerSetMatch = regex_match(u"^(addstickers|addemoji)/([a-zA-Z0-9\\.\\_]+)(\\?|$)"_q, query, matchOptions)) {
 			return u"tg://"_q + stickerSetMatch->captured(1) + "?set=" + url_encode(stickerSetMatch->captured(2));
 		} else if (const auto themeMatch = regex_match(u"^addtheme/([a-zA-Z0-9\\.\\_]+)(\\?|$)"_q, query, matchOptions)) {
