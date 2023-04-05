@@ -48,10 +48,10 @@ struct CounterLayerArgs {
 	using required = base::required<T>;
 
 	required<int> size = 16;
+	double devicePixelRatio = 1.;
 	required<int> count = 1;
 	required<style::color> bg;
 	required<style::color> fg;
-	double devicePixelRatio = 1.;
 };
 
 [[nodiscard]] QImage GenerateCounterLayer(CounterLayerArgs &&args);
