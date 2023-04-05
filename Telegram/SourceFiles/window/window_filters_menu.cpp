@@ -235,11 +235,6 @@ void FiltersMenu::refresh() {
 	// After the filters are refreshed, the scroll is reset,
 	// so we have to restore it.
 	_scroll.scrollToY(oldTop);
-	const auto i = _filters.find(_activeFilterId);
-	const auto button = ((i != end(_filters)) ? i->second.get() : nullptr);
-	if (button) {
-		scrollToButton(button);
-	}
 }
 
 void FiltersMenu::setupList() {
