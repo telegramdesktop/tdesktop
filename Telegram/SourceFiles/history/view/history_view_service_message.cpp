@@ -652,6 +652,8 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				if (TTLMenu::TTLValidator(nullptr, history()->peer).can()) {
 					result.link = ttl->link;
 				}
+			} else if (const auto same = item->Get<HistoryServiceSameBackground>()) {
+				result.link = same->lnk;
 			}
 		}
 	} else if (media) {

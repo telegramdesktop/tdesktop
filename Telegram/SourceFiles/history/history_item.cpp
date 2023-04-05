@@ -4193,21 +4193,14 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		if (!isSelf) {
 			result.links.push_back(peer->createOpenLink());
 		}
-		if (const auto dependent = GetServiceDependentData()) {
-			result.links.push_back(dependent->lnk);
-		}
 		result.text = isSelf
 			? tr::lng_action_set_same_wallpaper(
 				tr::now,
 				lt_user,
 				Ui::Text::Link(name, 1), // Link 1.
-				lt_background,
-				Ui::Text::Link(tr::lng_action_set_same_background(tr::now), 2),
 				Ui::Text::WithEntities)
 			: tr::lng_action_set_same_wallpaper_me(
 				tr::now,
-				lt_background,
-				Ui::Text::Link(tr::lng_action_set_same_background(tr::now), 1),
 				Ui::Text::WithEntities);
 		return result;
 	};
