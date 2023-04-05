@@ -1292,3 +1292,10 @@ void AddFilterSubtitleWithToggles(
 		link->move(outer - st::boxRowPadding.right() - width, y);
 	}, link->lifetime());
 }
+
+std::unique_ptr<PeerListRow> MakeFilterChatRow(
+		not_null<PeerData*> peer,
+		const QString &status,
+		bool disabled) {
+	return std::make_unique<ChatRow>(peer, status, disabled);
+}

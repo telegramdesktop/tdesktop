@@ -3585,6 +3585,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_link_noadmin_channel_error" = "You don't have the admin rights to share invite links to this private channel.";
 "lng_filters_link_already_group" = "you are already a member";
 "lng_filters_link_already_channel" = "you are already subscribed";
+"lng_filters_link_inaccessible" = "chat is inaccessible";
 "lng_filters_link_chats_about" = "Select groups and channels that you want everyone who adds the folder via invite link to join.";
 "lng_filters_link_no_about" = "There are no chats in this folder that you can share with others.";
 "lng_filters_link_chats_no" = "These chats cannot be shared";

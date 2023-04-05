@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
 #include "core/application.h"
+#include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -72,6 +74,7 @@ private:
 
 	ToggleAction _action = ToggleAction::Adding;
 	QString _filterTitle;
+	base::flat_set<not_null<PeerData*>> _checkable;
 	std::vector<not_null<PeerData*>> _chats;
 	std::vector<not_null<PeerData*>> _additional;
 	rpl::variable<base::flat_set<not_null<PeerData*>>> _selected;
@@ -262,20 +265,36 @@ ToggleChatsController::ToggleChatsController(
 
 void ToggleChatsController::prepare() {
 	auto selected = base::flat_set<not_null<PeerData*>>();
+	const auto disabled = [](not_null<PeerData*> peer) {
+		return peer->isChat()
+			? peer->asChat()->isForbidden()
+			: peer->isChannel()
+			? peer->asChannel()->isForbidden()
+			: false;
+	};
 	const auto add = [&](not_null<PeerData*> peer, bool additional = false) {
-		auto row = std::make_unique<PeerListRow>(peer);
+		const auto disable = disabled(peer);
+		auto row = (additional || !disable)
+			? std::make_unique<PeerListRow>(peer)
+			: MakeFilterChatRow(
+				peer,
+				tr::lng_filters_link_inaccessible(tr::now),
+				true);
 		if (delegate()->peerListFindRow(peer->id.value)) {
 			return;
 		}
 		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
-		if (!additional || _action == ToggleAction::Removing) {
+		if (!disable
+			&& (!additional || _action == ToggleAction::Removing)) {
+			_checkable.emplace(peer);
 			if (const auto status = FilterChatStatusText(peer)
 				; !status.isEmpty()) {
 				raw->setCustomStatus(status);
 			}
 		}
-		if (!additional) {
+		if (disable) {
+		} else if (!additional) {
 			delegate()->peerListSetRowChecked(raw, true);
 			raw->finishCheckedAnimation();
 			selected.emplace(peer);
@@ -287,10 +306,17 @@ void ToggleChatsController::prepare() {
 		}
 	};
 	for (const auto &peer : _chats) {
-		add(peer);
+		if (!disabled(peer)) {
+			add(peer);
+		}
 	}
 	for (const auto &peer : _additional) {
 		add(peer, true);
+	}
+	for (const auto &peer : _chats) {
+		if (disabled(peer)) {
+			add(peer);
+		}
 	}
 	setupAboveWidget();
 	setupBelowWidget();
@@ -301,6 +327,9 @@ void ToggleChatsController::prepare() {
 
 void ToggleChatsController::rowClicked(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
+	if (!_checkable.contains(peer)) {
+		return;
+	}
 	const auto checked = row->checked();
 	auto selected = _selected.current();
 	delegate()->peerListSetRowChecked(row, !checked);
@@ -341,8 +370,7 @@ void ToggleChatsController::setupAboveWidget() {
 		: _chats.empty()
 		? _additional.size()
 		: _chats.size();
-	const auto selectableCount = delegate()->peerListFullRowsCount()
-		- (_action == ToggleAction::Adding ? int(_additional.size()) : 0);
+	const auto selectableCount = int(_checkable.size());
 	auto selectedCount = _selected.value(
 	) | rpl::map([](const base::flat_set<not_null<PeerData*>> &selected) {
 		return int(selected.size());

@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 
+class PeerListRow;
+
 namespace Ui {
 class Show;
 class BoxContent;
@@ -54,3 +56,8 @@ void AddFilterSubtitleWithToggles(
 	int selectableCount,
 	rpl::producer<int> selectedCount,
 	Fn<void(bool select)> toggle);
+
+[[nodiscard]] std::unique_ptr<PeerListRow> MakeFilterChatRow(
+	not_null<PeerData*> peer,
+	const QString &status,
+	bool disabled);
