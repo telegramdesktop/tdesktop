@@ -165,6 +165,14 @@ struct FilterRow {
 		: result;
 }
 
+[[nodiscard]] std::vector<not_null<PeerData*>> ExtractSuggestRemoving(
+		const base::flat_set<not_null<History*>> &histories) {
+	return histories | ranges::views::filter([](
+			not_null<History*> history) {
+		return history->peer->isChannel();
+	}) | ranges::views::transform(&History::peer) | ranges::to_vector;
+}
+
 FilterRowButton::FilterRowButton(
 	not_null<QWidget*> parent,
 	not_null<Main::Session*> session,
@@ -370,10 +378,12 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	};
 	const auto markForRemovalSure = [=](not_null<FilterRowButton*> button) {
 		const auto row = find(button);
+		auto suggestRemoving = row->filter.chatlist()
+			? ExtractSuggestRemoving(row->filter.always())
+			: std::vector<not_null<PeerData*>>();
 		if (row->removed || row->removePeersRequestId > 0) {
 			return;
-		} else if (row->filter.chatlist()
-			&& !row->filter.always().empty()) {
+		} else if (!suggestRemoving.empty()) {
 			const auto chosen = crl::guard(button, [=](
 					std::vector<not_null<PeerData*>> peers) {
 				const auto row = find(button);
@@ -385,9 +395,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				controller,
 				row->filter.title(),
 				row->filter.iconEmoji(),
-				row->filter.always() | ranges::views::transform(
-					&History::peer
-				) | ranges::to_vector,
+				std::move(suggestRemoving),
 				row->suggestRemovePeers,
 				chosen);
 		} else {

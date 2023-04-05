@@ -3614,7 +3614,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_by_link_select" = "Select All";
 "lng_filters_by_link_deselect" = "Deselect All";
 "lng_filters_by_link_about_quit" = "You can deselect the chats you don't want to quit.";
-"lng_filters_by_link_remove_button" = "Remove Folder";
+"lng_filters_by_link_remove_button" = "Remove Folder and Keep Chats";
 "lng_filters_by_link_quit_button" = "Remove Folder and Chats";
 "lng_filters_added_title" = "Folder {folder} Added";
 "lng_filters_added_also#one" = "You also joined {count} chat.";
