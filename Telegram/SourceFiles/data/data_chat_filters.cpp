@@ -169,6 +169,27 @@ ChatFilter ChatFilter::withId(FilterId id) const {
 	return result;
 }
 
+ChatFilter ChatFilter::withTitle(const QString &title) const {
+	auto result = *this;
+	result._title = title;
+	return result;
+}
+
+ChatFilter ChatFilter::withChatlist(bool chatlist, bool hasMyLinks) const {
+	auto result = *this;
+	if (chatlist) {
+		result._flags |= Flag::Chatlist;
+		if (hasMyLinks) {
+			result._flags |= Flag::HasMyLinks;
+		} else {
+			result._flags &= ~Flag::HasMyLinks;
+		}
+	} else {
+		result._flags &= ~(Flag::Chatlist | Flag::HasMyLinks);
+	}
+	return result;
+}
+
 MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	auto always = _always;
 	auto pinned = QVector<MTPInputPeer>();
@@ -582,16 +603,22 @@ void ChatFilters::applyRemove(int position) {
 bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	Expects(filter.id() == updated.id());
 
+	using Flag = ChatFilter::Flag;
+
 	const auto id = filter.id();
 	const auto exceptionsChanged = filter.always() != updated.always();
+	const auto rulesMask = ~(Flag::Chatlist | Flag::HasMyLinks);
 	const auto rulesChanged = exceptionsChanged
-		|| (filter.flags() != updated.flags())
+		|| ((filter.flags() & rulesMask) != (updated.flags() & rulesMask))
 		|| (filter.never() != updated.never());
 	const auto pinnedChanged = (filter.pinned() != updated.pinned());
-	if (!rulesChanged
-		&& !pinnedChanged
-		&& filter.title() == updated.title()
-		&& filter.iconEmoji() == updated.iconEmoji()) {
+	const auto chatlistChanged = (filter.chatlist() != updated.chatlist())
+		|| (filter.hasMyLinks() != updated.hasMyLinks());
+	const auto listUpdated = rulesChanged
+		|| pinnedChanged
+		|| (filter.title() != updated.title())
+		|| (filter.iconEmoji() != updated.iconEmoji());
+	if (!listUpdated && !chatlistChanged) {
 		return false;
 	}
 	if (rulesChanged) {
@@ -630,7 +657,10 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 		const auto filterList = _owner->chatsFilters().chatsList(id);
 		filterList->pinned()->applyList(filter.pinned());
 	}
-	return true;
+	if (chatlistChanged) {
+		_isChatlistChanged.fire_copy(id);
+	}
+	return listUpdated;
 }
 
 bool ChatFilters::applyOrder(const QVector<MTPint> &order) {
@@ -765,6 +795,10 @@ bool ChatFilters::has() const {
 
 rpl::producer<> ChatFilters::changed() const {
 	return _listChanged.events();
+}
+
+rpl::producer<FilterId> ChatFilters::isChatlistChanged() const {
+	return _isChatlistChanged.events();
 }
 
 bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {

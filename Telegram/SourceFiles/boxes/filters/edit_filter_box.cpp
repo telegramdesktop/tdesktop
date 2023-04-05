@@ -540,27 +540,18 @@ void EditFilterBox(
 			Fn<void(Data::ChatFilter)> next)> saveAnd) {
 	using namespace rpl::mappers;
 
-	const auto creating = filter.title().isEmpty();
-	box->setWidth(st::boxWideWidth);
-	box->setTitle(creating ? tr::lng_filters_new() : tr::lng_filters_edit());
-	box->setCloseByOutsideClick(false);
-
-	Data::AmPremiumValue(
-		&window->session()
-	) | rpl::start_with_next([=] {
-		box->closeBox();
-	}, box->lifetime());
-
 	struct State {
 		rpl::variable<Data::ChatFilter> rules;
 		rpl::variable<std::vector<Data::ChatFilterLink>> links;
 		rpl::variable<bool> hasLinks;
 		rpl::variable<bool> chatlist;
+		rpl::variable<bool> creating;
 	};
 	const auto owner = &window->session().data();
 	const auto state = box->lifetime().make_state<State>(State{
 		.rules = filter,
 		.chatlist = filter.chatlist(),
+		.creating = filter.title().isEmpty(),
 	});
 	state->links = owner->chatsFilters().chatlistLinks(filter.id()),
 	state->hasLinks = state->links.value() | rpl::map([=](const auto &v) {
@@ -572,6 +563,32 @@ void EditFilterBox(
 		) | rpl::take(1);
 	}
 	const auto data = &state->rules;
+
+	owner->chatsFilters().isChatlistChanged(
+	) | rpl::filter([=](FilterId id) {
+		return (id == data->current().id());
+	}) | rpl::start_with_next([=](FilterId id) {
+		const auto filters = &owner->chatsFilters();
+		const auto &list = filters->list();
+		const auto i = ranges::find(list, id, &Data::ChatFilter::id);
+		if (i == end(list)) {
+			return;
+		}
+		*data = data->current().withChatlist(i->chatlist(), i->hasMyLinks());
+	}, box->lifetime());
+
+	box->setWidth(st::boxWideWidth);
+	box->setTitle(rpl::conditional(
+		state->creating.value(),
+		tr::lng_filters_new(),
+		tr::lng_filters_edit()));
+	box->setCloseByOutsideClick(false);
+
+	Data::AmPremiumValue(
+		&window->session()
+	) | rpl::start_with_next([=] {
+		box->closeBox();
+	}, box->lifetime());
 
 	const auto content = box->verticalLayout();
 	const auto name = content->add(
@@ -592,7 +609,12 @@ void EditFilterBox(
 
 	const auto nameEditing = box->lifetime().make_state<NameEditing>(
 		NameEditing{ name });
-	nameEditing->custom = !creating;
+
+	state->creating.value(
+	) | rpl::filter(!_1) | rpl::start_with_next([=] {
+		nameEditing->custom = true;
+	}, box->lifetime());
+
 	QObject::connect(name, &Ui::InputField::changed, [=] {
 		if (!nameEditing->settingDefault) {
 			nameEditing->custom = true;
@@ -683,14 +705,6 @@ void EditFilterBox(
 	const auto collect = [=]() -> std::optional<Data::ChatFilter> {
 		const auto title = name->getLastText().trimmed();
 		const auto rules = data->current();
-		const auto result = Data::ChatFilter(
-			rules.id(),
-			title,
-			rules.iconEmoji(),
-			rules.flags(),
-			rules.always(),
-			rules.pinned(),
-			rules.never());
 		if (title.isEmpty()) {
 			name->showError();
 			box->scrollToY(0);
@@ -704,7 +718,7 @@ void EditFilterBox(
 			window->window().showToast(tr::lng_filters_default(tr::now));
 			return {};
 		}
-		return result;
+		return rules.withTitle(title);
 	};
 
 	AddSubsectionTitle(
@@ -758,8 +772,7 @@ void EditFilterBox(
 			return;
 		}
 		saveAnd(*result, crl::guard(box, [=](Data::ChatFilter updated) {
-			box->setTitle(tr::lng_filters_edit());
-			nameEditing->custom = true;
+			state->creating = false;
 
 			// Comparison of ChatFilter-s don't take id into account!
 			data->force_assign(updated);
@@ -768,6 +781,7 @@ void EditFilterBox(
 			ExportFilterLink(id, shared, [=](Data::ChatFilterLink link) {
 				Expects(link.id == id);
 
+				*data = data->current().withChatlist(true, true);
 				window->show(ShowLinkBox(window, updated, link));
 			}, [=](QString error) {
 				if (error == u"CHATLISTS_TOO_MUCH"_q) {
@@ -826,9 +840,11 @@ void EditFilterBox(
 		}
 	};
 
-	box->addButton(
-		creating ? tr::lng_filters_create_button() : tr::lng_settings_save(),
-		save);
+	box->addButton(rpl::conditional(
+		state->creating.value(),
+		tr::lng_filters_create_button(),
+		tr::lng_settings_save()
+	), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 

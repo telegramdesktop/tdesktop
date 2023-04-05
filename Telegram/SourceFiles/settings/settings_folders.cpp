@@ -159,7 +159,9 @@ struct FilterRow {
 		? tr::lng_filters_chats_count(tr::now, lt_count_short, count)
 		: tr::lng_filters_no_chats(tr::now);
 	return filter.chatlist()
-		? result + QString::fromUtf8(" \xE2\x80\xA2 shareable folder")
+		? (result
+			+ QString::fromUtf8(" \xE2\x80\xA2 ")
+			+ tr::lng_filters_shareable_status(tr::now))
 		: result;
 }
 
@@ -468,9 +470,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			const auto saveAnd = [=](
 					const Data::ChatFilter &data,
 					Fn<void(Data::ChatFilter)> next) {
-				const auto found = find(button);
-				found->filter = data;
-				button->updateData(data);
+				doneCallback(data);
 				state->save(button, next);
 			};
 			controller->window().show(Box(
@@ -526,6 +526,21 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		}
 	}
 
+	session->data().chatsFilters().isChatlistChanged(
+	) | rpl::start_with_next([=](FilterId id) {
+		const auto filters = &session->data().chatsFilters();
+		const auto &list = filters->list();
+		const auto i = ranges::find(list, id, &Data::ChatFilter::id);
+		const auto j = ranges::find(state->rows, id, [](const auto &row) {
+			return row.filter.id();
+		});
+		if (i == end(list) || j == end(state->rows)) {
+			return;
+		}
+		j->filter = j->filter.withChatlist(i->chatlist(), i->hasMyLinks());
+		j->button->updateCount(j->filter);
+	}, container->lifetime());
+
 	AddButton(
 		container,
 		tr::lng_filters_create(),
@@ -535,13 +550,20 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		if (showLimitReached()) {
 			return;
 		}
+		const auto created = std::make_shared<FilterRowButton*>(nullptr);
 		const auto doneCallback = [=](const Data::ChatFilter &result) {
-			addFilter(result);
+			if (const auto button = *created) {
+				find(button)->filter = result;
+				button->updateData(result);
+			} else {
+				*created = addFilter(result);
+			}
 		};
 		const auto saveAnd = [=](
 				const Data::ChatFilter &data,
 				Fn<void(Data::ChatFilter)> next) {
-			state->save(addFilter(data), next);
+			doneCallback(data);
+			state->save(*created, next);
 		};
 		controller->window().show(Box(
 			EditFilterBox,
@@ -714,6 +736,18 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				}
 			}
 			order.insert(order.begin() + position, FilterId(0));
+		}
+		if (next) {
+			// We're not closing the layer yet, so delete removed rows.
+			for (auto i = state->rows.begin(); i != state->rows.end();) {
+				if (i->removed) {
+					const auto button = i->button;
+					i = state->rows.erase(i);
+					delete button;
+				} else {
+					++i;
+				}
+			}
 		}
 		crl::on_main(session, [
 			session,

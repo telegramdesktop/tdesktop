@@ -54,6 +54,10 @@ public:
 		base::flat_set<not_null<History*>> never);
 
 	[[nodiscard]] ChatFilter withId(FilterId id) const;
+	[[nodiscard]] ChatFilter withTitle(const QString &title) const;
+	[[nodiscard]] ChatFilter withChatlist(
+		bool chatlist,
+		bool hasMyLinks) const;
 
 	[[nodiscard]] static ChatFilter FromTL(
 		const MTPDialogFilter &data,
@@ -126,6 +130,7 @@ public:
 	void moveAllToFront();
 	[[nodiscard]] const std::vector<ChatFilter> &list() const;
 	[[nodiscard]] rpl::producer<> changed() const;
+	[[nodiscard]] rpl::producer<FilterId> isChatlistChanged() const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool has() const;
 
@@ -195,6 +200,7 @@ private:
 	std::vector<ChatFilter> _list;
 	base::flat_map<FilterId, std::unique_ptr<Dialogs::MainList>> _chatsLists;
 	rpl::event_stream<> _listChanged;
+	rpl::event_stream<FilterId> _isChatlistChanged;
 	mtpRequestId _loadRequestId = 0;
 	mtpRequestId _saveOrderRequestId = 0;
 	mtpRequestId _saveOrderAfterId = 0;
