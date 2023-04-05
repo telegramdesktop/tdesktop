@@ -3592,6 +3592,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_link_name_it" = "Name Link";
 "lng_filters_link_delete_sure" = "Are you sure you want to delete this link?";
 "lng_filters_link_qr_about" = "Everyone on Telegram can scan this code to add this folder and join the chats included in this invite link.";
+"lng_filters_link_group_admin_error" = "One of the groups in this folder can’t be added because one of its admins has too many groups and channels.";
 "lng_filters_by_link_title" = "Add Folder";
 "lng_filters_by_link_sure" = "Do you want to add a new chat folder {folder} and join its groups and channels?";
 "lng_filters_by_link_join#one" = "{count} chat to join";

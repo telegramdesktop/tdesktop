@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/slide_wrap.h"
@@ -784,19 +783,22 @@ void EditFilterBox(
 				*data = data->current().withChatlist(true, true);
 				window->show(ShowLinkBox(window, updated, link));
 			}, [=](QString error) {
+				const auto session = &window->session();
 				if (error == u"CHATLISTS_TOO_MUCH"_q) {
-					const auto session = &window->session();
 					window->show(Box(ShareableFiltersLimitBox, session));
 				} else if (error == u"INVITES_TOO_MUCH"_q) {
-					const auto session = &window->session();
 					window->show(Box(FilterLinksLimitBox, session));
+				} else if (error == u"CHANNELS_TOO_MUCH"_q) {
+					window->show(Box(ChannelsLimitBox, session));
+				} else if (error == u"USER_CHANNELS_TOO_MUCH"_q) {
+					window->showToast(
+						{ tr::lng_filters_link_group_admin_error(tr::now) });
 				} else {
 					window->show(ShowLinkBox(window, updated, { .id = id }));
 				}
 			});
 		}));
 	}, createLink->lifetime());
-
 	AddSkip(content);
 	AddDividerText(
 		content,

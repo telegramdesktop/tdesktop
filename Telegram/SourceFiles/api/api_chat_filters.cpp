@@ -488,16 +488,19 @@ void ShowImportError(
 	const auto i = ranges::find(list, id, &Data::ChatFilter::id);
 	const auto count = added
 		+ ((i != end(list)) ? int(i->always().size()) : 0);
-	if (error == u"USER_CHANNELS_TOO_MUCH"_q) {
+	if (error == u"CHANNELS_TOO_MUCH"_q) {
 		window->show(Box(ChannelsLimitBox, session));
 	} else if (error == u"FILTER_INCLUDE_TOO_MUCH"_q) {
 		window->show(Box(FilterChatsLimitBox, session, count));
 	} else if (error == u"CHATLISTS_TOO_MUCH"_q) {
 		window->show(Box(ShareableFiltersLimitBox, session));
 	} else {
+		const auto text = (error == u"INVITE_SLUG_EXPIRED"_q)
+			? tr::lng_group_invite_bad_link(tr::now)
+			: error;
 		Ui::ShowMultilineToast({
 			.parentOverride = Window::Show(window).toastParent(),
-			.text = { error },
+			.text = { text },
 		});
 	}
 }
