@@ -250,9 +250,9 @@ QImage GenerateCounterLayer(CounterLayerArgs &&args) {
 	}();
 
 	auto result = QImage(
-		QSize(d.size, d.size) * d.devicePixelRatio,
+		QSize(d.size, d.size) * args.devicePixelRatio,
 		QImage::Format_ARGB32);
-	result.setDevicePixelRatio(d.devicePixelRatio);
+	result.setDevicePixelRatio(args.devicePixelRatio);
 	result.fill(Qt::transparent);
 
 	auto p = QPainter(&result);
