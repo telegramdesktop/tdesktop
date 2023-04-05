@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -826,6 +827,17 @@ void ProcessFilterRemove(
 	};
 	strong->show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)));
+}
+
+[[nodiscard]] std::vector<not_null<PeerData*>> ExtractSuggestRemoving(
+		const Data::ChatFilter &filter) {
+	if (!filter.chatlist()) {
+		return {};
+	}
+	return filter.always() | ranges::views::filter([](
+		not_null<History*> history) {
+		return history->peer->isChannel();
+	}) | ranges::views::transform(&History::peer) | ranges::to_vector;
 }
 
 } // namespace Api

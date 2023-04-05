@@ -15,6 +15,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Data {
+class ChatFilter;
+} // namespace Data
+
 namespace Api {
 
 void SaveNewFilterPinned(
@@ -37,5 +41,8 @@ void ProcessFilterRemove(
 	std::vector<not_null<PeerData*>> all,
 	std::vector<not_null<PeerData*>> suggest,
 	Fn<void(std::vector<not_null<PeerData*>>)> done);
+
+[[nodiscard]] std::vector<not_null<PeerData*>> ExtractSuggestRemoving(
+	const Data::ChatFilter &filter);
 
 } // namespace Api

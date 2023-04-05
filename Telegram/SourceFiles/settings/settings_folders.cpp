@@ -165,14 +165,6 @@ struct FilterRow {
 		: result;
 }
 
-[[nodiscard]] std::vector<not_null<PeerData*>> ExtractSuggestRemoving(
-		const base::flat_set<not_null<History*>> &histories) {
-	return histories | ranges::views::filter([](
-			not_null<History*> history) {
-		return history->peer->isChannel();
-	}) | ranges::views::transform(&History::peer) | ranges::to_vector;
-}
-
 FilterRowButton::FilterRowButton(
 	not_null<QWidget*> parent,
 	not_null<Main::Session*> session,
@@ -378,9 +370,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	};
 	const auto markForRemovalSure = [=](not_null<FilterRowButton*> button) {
 		const auto row = find(button);
-		auto suggestRemoving = row->filter.chatlist()
-			? ExtractSuggestRemoving(row->filter.always())
-			: std::vector<not_null<PeerData*>>();
+		auto suggestRemoving = Api::ExtractSuggestRemoving(row->filter);
 		if (row->removed || row->removePeersRequestId > 0) {
 			return;
 		} else if (!suggestRemoving.empty()) {
