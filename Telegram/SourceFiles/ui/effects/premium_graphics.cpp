@@ -198,6 +198,7 @@ public:
 
 	void setCounter(int value);
 	void setTailEdge(EdgeProgress edge);
+	void setFlipHorizontal(bool value);
 	void paintBubble(QPainter &p, const QRect &r, const QBrush &brush);
 
 	[[nodiscard]] rpl::producer<> widthChanges() const;
@@ -219,6 +220,7 @@ private:
 
 	int _counter = -1;
 	EdgeProgress _tailEdge = 0.;
+	bool _flipHorizontal = false;
 
 	rpl::event_stream<> _widthChanges;
 
@@ -291,6 +293,10 @@ void Bubble::setTailEdge(EdgeProgress edge) {
 	_tailEdge = std::clamp(edge, 0., 1.);
 }
 
+void Bubble::setFlipHorizontal(bool value) {
+	_flipHorizontal = value;
+}
+
 void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
 	if (_counter < 0) {
 		return;
@@ -346,7 +352,17 @@ void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
 			Qt::RoundCap,
 			Qt::RoundJoin));
 		p.setBrush(brush);
-		p.drawPath(pathTail + pathBubble);
+		if (_flipHorizontal) {
+			auto m = QTransform();
+			const auto center = bubbleRect.center();
+			m.translate(center.x(), center.y());
+			m.scale(-1., 1.);
+			m.translate(-center.x(), -center.y());
+			m.translate(-bubbleRect.left() + 1., 0);
+			p.drawPath(m.map(pathTail + pathBubble));
+		} else {
+			p.drawPath(pathTail + pathBubble);
+		}
 	}
 	p.setPen(st::activeButtonFg);
 	p.setFont(_font);
@@ -455,19 +471,40 @@ BubbleWidget::BubbleWidget(
 				- st::boxRowPadding.right()
 				- _maxBubbleWidth;
 		};
-		const auto checkBubbleEdges = [&]() -> Bubble::EdgeProgress {
+		struct LeftEdge final {
+			float64 goodPointRatio = 0.;
+			float64 bubbleLeftEdge = 0.;
+		};
+		const auto leftEdge = [&]() -> LeftEdge {
+			const auto finish = computeLeft(moveEndPoint, 1.);
+			const auto &padding = st::boxRowPadding;
+			if (finish <= padding.left()) {
+				const auto halfWidth = (_maxBubbleWidth / 2);
+				const auto goodPointRatio = float64(halfWidth)
+					/ (parent->width() - padding.left() - padding.right());
+				const auto bubbleLeftEdge = (padding.left() - finish)
+					/ (_maxBubbleWidth / 2.);
+				return { goodPointRatio, bubbleLeftEdge };
+			}
+			return {};
+		}();
+		const auto checkBubbleRightEdge = [&]() -> Bubble::EdgeProgress {
 			const auto finish = computeLeft(moveEndPoint, 1.);
 			const auto edge = computeEdge();
 			return (finish >= edge)
 				? (finish - edge) / (_maxBubbleWidth / 2.)
 				: 0.;
 		};
-		const auto bubbleEdge = checkBubbleEdges();
-		_ignoreDeflection = bubbleEdge;
+		const auto bubbleRightEdge = checkBubbleRightEdge();
+		_ignoreDeflection = bubbleRightEdge || leftEdge.goodPointRatio;
 		if (_ignoreDeflection) {
 			_stepBeforeDeflection = 1.;
 			_stepAfterDeflection = 1.;
 		}
+		const auto resultMoveEndPoint = leftEdge.goodPointRatio
+			? leftEdge.goodPointRatio
+			: moveEndPoint;
+		_bubble.setFlipHorizontal(leftEdge.bubbleLeftEdge);
 
 		_appearanceAnimation.start([=](float64 value) {
 			const auto moveProgress = std::clamp(
@@ -479,8 +516,8 @@ BubbleWidget::BubbleWidget(
 				0.,
 				1.);
 			moveToLeft(
-				computeLeft(moveEndPoint, moveProgress)
-					- (_maxBubbleWidth / 2.) * bubbleEdge,
+				computeLeft(resultMoveEndPoint, moveProgress)
+					- (_maxBubbleWidth / 2.) * bubbleRightEdge,
 				0);
 
 			const auto counter = int(0 + counterProgress * _currentCounter);
@@ -488,7 +525,9 @@ BubbleWidget::BubbleWidget(
 				_bubble.setCounter(counter);
 			// }
 
-			const auto edgeProgress = value * bubbleEdge;
+			const auto edgeProgress = (leftEdge.bubbleLeftEdge
+				? leftEdge.bubbleLeftEdge
+				: bubbleRightEdge) * value;
 			_bubble.setTailEdge(edgeProgress);
 			update();
 		},
