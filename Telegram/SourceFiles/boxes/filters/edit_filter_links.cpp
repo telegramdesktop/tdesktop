@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/peers/edit_peer_invite_link.h" // InviteLinkQrBox.
 #include "boxes/peer_list_box.h"
+#include "boxes/premium_limits_box.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_chat_filters.h"
@@ -106,10 +107,19 @@ struct Errors {
 void ShowSaveError(
 		not_null<Window::SessionController*> window,
 		QString error) {
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(window).toastParent(),
-		.text = { error },
-	});
+	const auto session = &window->session();
+	if (error == u"CHATLISTS_TOO_MUCH"_q) {
+		window->show(Box(ShareableFiltersLimitBox, session));
+	} else if (error == u"INVITES_TOO_MUCH"_q) {
+		window->show(Box(FilterLinksLimitBox, session));
+	} else if (error == u"CHANNELS_TOO_MUCH"_q) {
+		window->show(Box(ChannelsLimitBox, session));
+	} else if (error == u"USER_CHANNELS_TOO_MUCH"_q) {
+		window->showToast(
+			{ tr::lng_filters_link_group_admin_error(tr::now) });
+	} else {
+		window->showToast({ error });
+	}
 }
 
 void ShowEmptyLinkError(not_null<Window::SessionController*> window) {
