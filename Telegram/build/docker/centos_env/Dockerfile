@@ -715,7 +715,7 @@ COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 
 ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
 
-RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} \
+RUN git clone -b {{ QT_TAG }} --depth=1 https://code.qt.io/qt/qt5.git qt_{{ QT }} \
 	&& cd qt_{{ QT }} \
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools \
 	&& cd qtbase \
