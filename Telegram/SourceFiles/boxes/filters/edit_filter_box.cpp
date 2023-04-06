@@ -777,12 +777,13 @@ void EditFilterBox(
 			data->force_assign(updated);
 			const auto id = updated.id();
 			state->links = owner->chatsFilters().chatlistLinks(id);
-			ExportFilterLink(id, shared, [=](Data::ChatFilterLink link) {
+			ExportFilterLink(id, shared, crl::guard(box, [=](
+					Data::ChatFilterLink link) {
 				Expects(link.id == id);
 
 				*data = data->current().withChatlist(true, true);
 				window->show(ShowLinkBox(window, updated, link));
-			}, [=](QString error) {
+			}), crl::guard(box, [=](QString error) {
 				const auto session = &window->session();
 				if (error == u"CHATLISTS_TOO_MUCH"_q) {
 					window->show(Box(ShareableFiltersLimitBox, session));
@@ -796,7 +797,7 @@ void EditFilterBox(
 				} else {
 					window->show(ShowLinkBox(window, updated, { .id = id }));
 				}
-			});
+			}));
 		}));
 	}, createLink->lifetime());
 	AddSkip(content);
