@@ -1051,7 +1051,6 @@ public:
 
 private:
 	const not_null<Window::SessionController*> _controller;
-	const FilterId _id = 0;
 	InviteLinkData _data;
 
 };
@@ -1061,7 +1060,6 @@ LinkChatsController::LinkChatsController(
 	FilterId id,
 	const InviteLinkData &data)
 : _controller(controller)
-, _id(id)
 , _data(data) {
 }
 

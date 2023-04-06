@@ -3580,7 +3580,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_link_private_status" = "you can't share private chats";
 "lng_filters_link_private_error" = "Private chats can't be shared.";
 "lng_filters_link_noadmin_status" = "you can't invite others here";
-"lng_filters_link_noadmin_group_error" = "You don't have the admin rights to share invite links to this private group chat.";
+"lng_filters_link_noadmin_group_error" = "You don't have the admin rights to share invite links to this private group.";
 "lng_filters_link_noadmin_channel_error" = "You don't have the admin rights to share invite links to this private channel.";
 "lng_filters_link_already_group" = "you are already a member";
 "lng_filters_link_already_channel" = "you are already subscribed";
