@@ -136,37 +136,6 @@ void ChatFilterLinkBox(
 	box->setTitle(tr::lng_group_invite_edit_title());
 
 	const auto container = box->verticalLayout();
-	const auto addTitle = [&](
-			not_null<Ui::VerticalLayout*> container,
-			rpl::producer<QString> text) {
-		container->add(
-			object_ptr<Ui::FlatLabel>(
-				container,
-				std::move(text),
-				st::settingsSubsectionTitle),
-			(st::settingsSubsectionTitlePadding
-				+ style::margins(0, st::settingsSectionSkip, 0, 0)));
-	};
-	const auto addDivider = [&](
-			not_null<Ui::VerticalLayout*> container,
-			rpl::producer<QString> text,
-			style::margins margins = style::margins()) {
-		container->add(
-			object_ptr<Ui::DividerLabel>(
-				container,
-				object_ptr<Ui::FlatLabel>(
-					container,
-					std::move(text),
-					st::boxDividerLabel),
-				st::settingsDividerLabelPadding),
-			margins);
-	};
-
-	struct State {
-	};
-	const auto state = box->lifetime().make_state<State>(State{
-	});
-
 	const auto labelField = container->add(
 		object_ptr<Ui::InputField>(
 			container,
@@ -477,7 +446,6 @@ public:
 
 private:
 	void appendRow(const InviteLinkData &data);
-	bool removeRow(const QString &link);
 
 	void rebuild(const std::vector<InviteLinkData> &rows);
 
@@ -718,7 +686,6 @@ void LinkController::prepare() {
 			peer,
 			error ? error->status : FilterChatStatusText(peer),
 			error.has_value());
-		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
 		if (error) {
 			_denied.emplace(peer, error->toast);
@@ -988,14 +955,6 @@ void LinksController::appendRow(const InviteLinkData &data) {
 	delegate()->peerListAppendRow(std::make_unique<LinkRow>(this, data));
 }
 
-bool LinksController::removeRow(const QString &link) {
-	if (const auto row = delegate()->peerListFindRow(ComputeRowId(link))) {
-		delegate()->peerListRemoveRow(row);
-		return true;
-	}
-	return false;
-}
-
 void LinksController::rowUpdateRow(not_null<LinkRow*> row) {
 	delegate()->peerListUpdateRow(row);
 }
@@ -1014,7 +973,6 @@ void LinksController::rowPaintIcon(
 		}
 		Unexpected("Color in LinksController::rowPaintIcon.");
 	}();
-	const auto stroke = st::inviteLinkIconStroke;
 	auto &icon = _icons[int(color)];
 	if (icon.isNull()) {
 		icon = QImage(
@@ -1033,51 +991,6 @@ void LinksController::rowPaintIcon(
 		st::inviteLinkIcon.paintInCenter(p, { 0, 0, inner, inner });
 	}
 	p.drawImage(x + skip, y + skip, icon);
-}
-
-class LinkChatsController final
-	: public PeerListController
-	, public base::has_weak_ptr {
-public:
-	LinkChatsController(
-		not_null<Window::SessionController*> controller,
-		FilterId id,
-		const InviteLinkData &data);
-	~LinkChatsController();
-
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
-	Main::Session &session() const override;
-
-private:
-	const not_null<Window::SessionController*> _controller;
-	InviteLinkData _data;
-
-};
-
-LinkChatsController::LinkChatsController(
-	not_null<Window::SessionController*> controller,
-	FilterId id,
-	const InviteLinkData &data)
-: _controller(controller)
-, _data(data) {
-}
-
-LinkChatsController::~LinkChatsController() = default;
-
-void LinkChatsController::prepare() {
-	for (const auto &history : _data.chats) {
-		delegate()->peerListAppendRow(
-			std::make_unique<PeerListRow>(history->peer));
-	}
-	delegate()->peerListRefreshRows();
-}
-
-void LinkChatsController::rowClicked(not_null<PeerListRow*> row) {
-}
-
-Main::Session &LinkChatsController::session() const {
-	return _controller->session();
 }
 
 } // namespace
@@ -1157,7 +1070,6 @@ void EditLinkChats(
 		MTPstring(), // title
 		MTP_vector<MTPInputPeer>(std::move(mtpPeers))
 	)).done([=](const MTPExportedChatlistInvite &result) {
-		const auto &data = result.data();
 		const auto link = session->data().chatsFilters().add(id, result);
 		done(QString());
 	}).fail([=](const MTP::Error &error) {

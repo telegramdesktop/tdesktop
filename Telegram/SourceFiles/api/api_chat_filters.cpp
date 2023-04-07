@@ -106,13 +106,6 @@ private:
 		Ui::FilterLinkHeaderType type,
 		const QString &title) {
 	using Type = Ui::FilterLinkHeaderType;
-	const auto phrase = (type == Type::AddingFilter)
-		? tr::lng_filters_by_link_sure
-		: (type == Type::AddingChats)
-		? tr::lng_filters_by_link_more_sure
-		: (type == Type::AllAdded)
-		? tr::lng_filters_by_link_already_about
-		: tr::lng_filters_by_link_remove_sure;
 	auto boldTitle = Ui::Text::Bold(title);
 	return (type == Type::AddingFilter)
 		? tr::lng_filters_by_link_sure(
@@ -194,7 +187,6 @@ void InitFilterLinkHeader(
 		const auto guard = gsl::finally([&] { state->processing = false; });
 
 		const auto top = box->scrollTop();
-		const auto height = box->scrollHeight();
 		const auto headerHeight = std::max(max - top, min);
 		const auto addedTopHeight = max - headerHeight;
 		widget->resize(widget->width(), headerHeight);
@@ -739,7 +731,6 @@ void CheckFilterInvite(
 			already = parseList(data.valready_peers());
 		});
 
-		const auto &filters = owner.chatsFilters();
 		const auto notLoaded = filterId
 			&& !ranges::contains(
 				owner.chatsFilters().list(),
