@@ -356,16 +356,15 @@ PaintRoundImageCallback ChatRow::generatePaintUserpicCallback(
 			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}
 	};
+	if (!_disabled) {
+		return paint;
+	}
 	return [=](
 			Painter &p,
 			int x,
 			int y,
 			int outerWidth,
 			int size) mutable {
-		if (!_disabled) {
-			paint(p, x, y, outerWidth, size);
-			return;
-		}
 		const auto wide = size + style::ConvertScale(3);
 		const auto full = QSize(wide, wide) * style::DevicePixelRatio();
 		auto repaint = false;

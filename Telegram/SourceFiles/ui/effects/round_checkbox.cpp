@@ -429,6 +429,7 @@ void RoundImageCheckbox::setChecked(bool newChecked, anim::type animated) {
 	if (!changed) {
 		if (animated == anim::type::instant) {
 			_selection.stop();
+			_wideCache = QPixmap();
 		}
 		return;
 	}
@@ -451,6 +452,7 @@ void RoundImageCheckbox::setChecked(bool newChecked, anim::type animated) {
 			anim::bumpy(1.25));
 	} else {
 		_selection.stop();
+		_wideCache = QPixmap();
 	}
 }
 
