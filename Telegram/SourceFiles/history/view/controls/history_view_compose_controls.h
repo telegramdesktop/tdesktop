@@ -36,6 +36,7 @@ struct MessagePosition;
 struct Draft;
 class DraftKey;
 enum class PreviewState : char;
+class PhotoMedia;
 } // namespace Data
 
 namespace InlineBots {
@@ -227,6 +228,7 @@ private:
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
 	void updateControlsGeometry(QSize size);
+	bool updateReplaceMediaButton(FullMsgId id);
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QRect clip);
 
@@ -307,6 +309,7 @@ private:
 
 	const std::shared_ptr<Ui::SendButton> _send;
 	const not_null<Ui::IconButton*> _attachToggle;
+	std::unique_ptr<Ui::IconButton> _replaceMedia;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	const not_null<Ui::InputField*> _field;
 	const not_null<Ui::IconButton*> _botCommandStart;
@@ -354,6 +357,9 @@ private:
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
+
+	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
+	bool _canReplaceMedia = false;
 
 	std::unique_ptr<WebpageProcessor> _preview;
 

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
+#include "boxes/edit_caption_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "menu/menu_send.h"
@@ -29,8 +30,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
+#include "data/data_photo_media.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
@@ -1939,6 +1942,12 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_header->editMessage({ _history->peer->id, draft->msgId });
 		_header->replyToMessage({});
 	} else {
+		_canReplaceMedia = false;
+		_photoEditMedia = nullptr;
+		if (updateReplaceMediaButton(FullMsgId())) {
+			updateControlsVisibility();
+			updateControlsGeometry(_wrap->size());
+		}
 		_header->replyToMessage({ _history->peer->id, draft->msgId });
 		if (_header->replyingToMessage()) {
 			cancelForward();
@@ -2250,7 +2259,7 @@ void ComposeControls::finishAnimating() {
 }
 
 void ComposeControls::updateControlsGeometry(QSize size) {
-	// _attachToggle (_sendAs) -- _inlineResults ------ _tabbedPanel -- _fieldBarCancel
+	// (_attachToggle|_replaceMedia) (_sendAs) -- _inlineResults ------ _tabbedPanel -- _fieldBarCancel
 	// (_attachDocument|_attachPhoto) _field (_ttlInfo) (_silent|_botCommandStart) _tabbedSelectorToggle _send
 
 	const auto fieldWidth = size.width()
@@ -2275,6 +2284,9 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	const auto buttonsTop = size.height() - _attachToggle->height();
 
 	auto left = st::historySendRight;
+	if (_replaceMedia) {
+		_replaceMedia->moveToLeft(left, buttonsTop);
+	}
 	_attachToggle->moveToLeft(left, buttonsTop);
 	left += _attachToggle->width();
 	if (_sendAs) {
@@ -2320,6 +2332,12 @@ void ComposeControls::updateControlsVisibility() {
 	}
 	if (_sendAs) {
 		_sendAs->show();
+	}
+	if (_replaceMedia) {
+		_replaceMedia->show();
+		_attachToggle->hide();
+	} else {
+		_attachToggle->show();
 	}
 }
 
@@ -2556,9 +2574,45 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 			previewState));
 	applyDraft();
 
+	const auto media = item->media();
+	_canReplaceMedia = media && media->allowsEditMedia();
+	_photoEditMedia = (_canReplaceMedia
+		&& media->photo()
+		&& !media->photo()->isNull())
+		? media->photo()->createMediaView()
+		: nullptr;
+	if (_photoEditMedia) {
+		_photoEditMedia->wanted(Data::PhotoSize::Large, item->fullId());
+	}
+	if (updateReplaceMediaButton(item->fullId())) {
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	}
+
 	if (_autocomplete) {
 		InvokeQueued(_autocomplete.get(), [=] { checkAutocomplete(); });
 	}
+}
+
+bool ComposeControls::updateReplaceMediaButton(FullMsgId id) {
+	if (!_canReplaceMedia) {
+		const auto result = (_replaceMedia != nullptr);
+		_replaceMedia = nullptr;
+		return result;
+	} else if (_replaceMedia) {
+		return false;
+	}
+	_replaceMedia = std::make_unique<Ui::IconButton>(
+		_wrap.get(),
+		st::historyReplaceMedia);
+	_replaceMedia->setClickedCallback([=] {
+		EditCaptionBox::StartMediaReplace(
+			_window,
+			id,
+			_field->getTextWithTags(),
+			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
+	});
+	return true;
 }
 
 void ComposeControls::cancelEditMessage() {

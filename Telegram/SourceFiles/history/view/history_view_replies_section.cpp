@@ -321,11 +321,7 @@ RepliesWidget::RepliesWidget(
 	}) | rpl::start_with_next([=](auto fullId) {
 		if (const auto item = session().data().message(fullId)) {
 			const auto media = item->media();
-			if (media && !media->webpage()) {
-				if (media->allowsEditCaption()) {
-					controller->show(Box<EditCaptionBox>(controller, item));
-				}
-			} else {
+			if (!media || media->webpage() || media->allowsEditCaption()) {
 				_composeControls->editMessage(fullId);
 			}
 		}
@@ -1228,7 +1224,10 @@ void RepliesWidget::edit(
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
-	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)
+		&& (!item
+			|| !item->media()
+			|| !item->media()->allowsEditCaption())) {
 		if (item) {
 			controller()->show(Box<DeleteMessagesBox>(item, false));
 		} else {
