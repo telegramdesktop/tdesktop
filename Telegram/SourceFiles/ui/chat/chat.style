@@ -482,6 +482,15 @@ historyMessagesTTL: IconButtonWithText {
 
 	font: font(10px semibold);
 }
+historyReplaceMedia: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_replace", windowBgActive }};
+	iconOver: icon {{ "chat/input_replace", windowBgActive }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
+}
+historyEditMediaBg: videoPlayIconBg;
+historyEditMedia: icon{{ "chat/input_draw", videoPlayIconFg }};
 historyMessagesTTLPickerHeight: 200px;
 historyMessagesTTLPickerItemHeight: 40px;
 historyMessagesTTLLabel: FlatLabel(defaultFlatLabel) {

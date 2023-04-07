@@ -31,6 +31,7 @@ class Error;
 
 namespace Data {
 enum class PreviewState : char;
+class PhotoMedia;
 } // namespace Data
 
 namespace SendMenu {
@@ -145,6 +146,7 @@ public:
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
 
+	bool updateReplaceMediaButton();
 	void updateFieldPlaceholder();
 	bool updateStickersByEmoji();
 
@@ -634,6 +636,8 @@ private:
 	HistoryItem *_processingReplyItem = nullptr;
 
 	MsgId _editMsgId = 0;
+	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
+	bool _canReplaceMedia = false;
 
 	HistoryItem *_replyEditMsg = nullptr;
 	Ui::Text::String _replyEditMsgText;
@@ -732,6 +736,7 @@ private:
 	object_ptr<Ui::RoundButton> _botMenuButton = { nullptr };
 	QString _botMenuButtonText;
 	object_ptr<Ui::IconButton> _attachToggle;
+	object_ptr<Ui::IconButton> _replaceMedia = { nullptr };
 	object_ptr<Ui::SendAsButton> _sendAs = { nullptr };
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
@@ -746,7 +751,9 @@ private:
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
 	base::unique_qptr<Ui::RpWidget> _fieldDisabled;
+	Ui::Animations::Simple _inPhotoEditOver;
 	bool _inReplyEditForward = false;
+	bool _inPhotoEdit = false;
 	bool _inClickable = false;
 
 	bool _kbShown = false;

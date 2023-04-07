@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
+#include "data/data_photo_media.h"
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -2121,6 +2122,8 @@ void HistoryWidget::showHistory(
 	_saveEditMsgRequestId = 0;
 	_processingReplyItem = _replyEditMsg = nullptr;
 	_processingReplyId = _editMsgId = _replyToId = 0;
+	_photoEditMedia = nullptr;
+	updateReplaceMediaButton();
 	_previewData = nullptr;
 	_previewCache.clear();
 	_fieldBarCancel->hide();
@@ -2504,6 +2507,25 @@ void HistoryWidget::clearAllLoadRequests() {
 	}
 }
 
+bool HistoryWidget::updateReplaceMediaButton() {
+	if (!_canReplaceMedia) {
+		const auto result = (_replaceMedia != nullptr);
+		_replaceMedia.destroy();
+		return result;
+	} else if (_replaceMedia) {
+		return false;
+	}
+	_replaceMedia.create(this, st::historyReplaceMedia);
+	_replaceMedia->setClickedCallback([=] {
+		EditCaptionBox::StartMediaReplace(
+			controller(),
+			{ _history->peer->id, _editMsgId },
+			_field->getTextWithTags(),
+			crl::guard(_list, [=] { cancelEdit(); }));
+	});
+	return true;
+}
+
 void HistoryWidget::updateFieldSubmitSettings() {
 	const auto settings = _isInlineBot
 		? Ui::InputField::SubmitSettings::None
@@ -2731,6 +2753,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
 		_attachToggle->hide();
+		if (_replaceMedia) {
+			_replaceMedia->hide();
+		}
 		_tabbedSelectorToggle->hide();
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
@@ -2795,7 +2820,12 @@ void HistoryWidget::updateControlsVisibility() {
 				_botCommandStart->setVisible(_cmdStartShown);
 			}
 		}
-		_attachToggle->show();
+		if (_replaceMedia) {
+			_replaceMedia->show();
+			_attachToggle->hide();
+		} else {
+			_attachToggle->show();
+		}
 		if (_botMenuButton) {
 			_botMenuButton->show();
 		}
@@ -3685,7 +3715,8 @@ void HistoryWidget::saveEditMsg() {
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
-	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)
+		&& (!item->media() || !item->media()->allowsEditCaption())) {
 		const auto suggestModerateActions = false;
 		controller()->show(
 			Box<DeleteMessagesBox>(item, suggestModerateActions));
@@ -4239,9 +4270,34 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void HistoryWidget::updateOverStates(QPoint pos) {
-	auto inReplyEditForward = QRect(st::historyReplySkip, _field->y() - st::historySendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId() || readyToForward());
+	const auto replyEditForwardInfoRect = QRect(
+		st::historyReplySkip,
+		_field->y() - st::historySendPadding - st::historyReplyHeight,
+		width() - st::historyReplySkip - _fieldBarCancel->width(),
+		st::historyReplyHeight);
+	auto inReplyEditForward = (_editMsgId || replyToId() || readyToForward())
+		&& replyEditForwardInfoRect.contains(pos);
+	auto inPhotoEdit = inReplyEditForward
+		&& _photoEditMedia
+		&& QRect(
+			replyEditForwardInfoRect.x(),
+			replyEditForwardInfoRect.y() + st::msgReplyPadding.top(),
+			st::msgReplyBarSize.height(),
+			st::msgReplyBarSize.height()).contains(pos);
 	auto inClickable = inReplyEditForward;
-	_inReplyEditForward = inReplyEditForward;
+	if (_inPhotoEdit != inPhotoEdit) {
+		_inPhotoEdit = inPhotoEdit;
+		if (_photoEditMedia) {
+			_inPhotoEditOver.start(
+				[=] { updateField(); },
+				_inPhotoEdit ? 0. : 1.,
+				_inPhotoEdit ? 1. : 0.,
+				st::defaultMessageBar.duration);
+		} else {
+			_inPhotoEditOver.stop();
+		}
+	}
+	_inReplyEditForward = inReplyEditForward && !inPhotoEdit;
 	if (inClickable != _inClickable) {
 		_inClickable = inClickable;
 		setCursor(_inClickable ? style::cur_pointer : style::cur_default);
@@ -4862,7 +4918,7 @@ void HistoryWidget::moveFieldControls() {
 		_kbScroll->setGeometryToLeft(0, bottom, width(), keyboardHeight);
 	}
 
-// (_botMenuButton) _attachToggle (_sendAs) ---- _inlineResults ------------------------------ _tabbedPanel ------ _fieldBarCancel
+// (_botMenuButton) (_attachToggle|_replaceMedia) (_sendAs) ---- _inlineResults ------------------------------ _tabbedPanel ------ _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute|_reportMessages)
 
@@ -4871,6 +4927,9 @@ void HistoryWidget::moveFieldControls() {
 	if (_botMenuButton) {
 		const auto skip = st::historyBotMenuSkip;
 		_botMenuButton->moveToLeft(left + skip, buttonsBottom + skip); left += skip + _botMenuButton->width();
+	}
+	if (_replaceMedia) {
+		_replaceMedia->moveToLeft(left, buttonsBottom);
 	}
 	_attachToggle->moveToLeft(left, buttonsBottom); left += _attachToggle->width();
 	if (_sendAs) {
@@ -6038,6 +6097,13 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		st::historyReplyHeight).contains(e->pos());
 	if (_replyForwardPressed && !_fieldBarCancel->isHidden()) {
 		updateField();
+	} else if (_inPhotoEdit && _photoEditMedia) {
+		EditCaptionBox::StartPhotoEdit(
+			controller(),
+			_photoEditMedia,
+			{ _history->peer->id, _editMsgId },
+			_field->getTextWithTags(),
+			crl::guard(_list, [=] { cancelEdit(); }));
 	} else if (_inReplyEditForward) {
 		if (readyToForward()) {
 			_forwardPanel->editOptions(controller());
@@ -6957,12 +7023,7 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
-	if (const auto media = item->media()) {
-		if (media->allowsEditCaption()) {
-			controller()->show(Box<EditCaptionBox>(controller(), item));
-			return;
-		}
-	} else if (_chooseTheme) {
+	if (_chooseTheme) {
 		toggleChooseChatTheme(_peer);
 	} else if (_voiceRecordBar->isActive()) {
 		controller()->showToast({ tr::lng_edit_caption_voice(tr::now) });
@@ -7132,6 +7193,9 @@ void HistoryWidget::cancelEdit() {
 		return;
 	}
 
+	_canReplaceMedia = false;
+	_photoEditMedia = nullptr;
+	updateReplaceMediaButton();
 	_replyEditMsg = nullptr;
 	setEditMsgId(0);
 	_history->clearLocalEditDraft({});
@@ -7588,6 +7652,22 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 			_editMsgId ? _editMsgId : _replyToId);
 	}
 	if (_replyEditMsg) {
+		const auto media = _replyEditMsg->media();
+		_canReplaceMedia = media && media->allowsEditMedia();
+		_photoEditMedia = (_canReplaceMedia
+			&& media->photo()
+			&& !media->photo()->isNull())
+			? media->photo()->createMediaView()
+			: nullptr;
+		if (_photoEditMedia) {
+			_photoEditMedia->wanted(
+				Data::PhotoSize::Large,
+				_replyEditMsg->fullId());
+		}
+		if (updateReplaceMediaButton()) {
+			updateControlsVisibility();
+			updateControlsGeometry();
+		}
 		updateReplyEditText(_replyEditMsg);
 		updateBotKeyboard();
 		updateReplyToName();
@@ -7695,6 +7775,9 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			if (drawMsgText) {
 				if (hasPreview) {
 					if (preview) {
+						const auto overEdit = _photoEditMedia
+							? _inPhotoEditOver.value(_inPhotoEdit ? 1. : 0.)
+							: 0.;
 						auto to = QRect(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 						p.drawPixmap(to.x(), to.y(), preview->pixSingle(
 							preview->size() / style::DevicePixelRatio(),
@@ -7703,11 +7786,20 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 								.outer = to.size(),
 							}));
 						if (_replySpoiler) {
+							if (overEdit > 0.) {
+								p.setOpacity(1. - overEdit);
+							}
 							Ui::FillSpoilerRect(
 								p,
 								to,
 								Ui::DefaultImageSpoiler().frame(
 									_replySpoiler->index(now, pausedSpoiler)));
+						}
+						if (overEdit > 0.) {
+							p.setOpacity(overEdit);
+							p.fillRect(to, st::historyEditMediaBg);
+							st::historyEditMedia.paintInCenter(p, to);
+							p.setOpacity(1.);
 						}
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
