@@ -124,6 +124,7 @@ int Sandbox::start() {
 
 #if defined Q_OS_LINUX && QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
 	_localServer.setSocketOptions(QLocalServer::AbstractNamespaceOption);
+	_localSocket.setSocketOptions(QLocalSocket::AbstractNamespaceOption);
 #endif // Q_OS_LINUX && Qt >= 6.2.0
 
 	connect(
