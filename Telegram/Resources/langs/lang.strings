@@ -432,7 +432,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_usernames_description" = "Drag and drop links to change the order in which they will be displayed on the channel info page.";
 
 "lng_bot_username_title" = "Username";
-"lng_bot_username_description1" = "If you set a public link, other people will be able to find your bot.";
+"lng_bot_username_description1" = "This link cannot be edited. You can acquire additional usernames on {link}.";
+"lng_bot_username_description1_link" = "Fragment";
 "lng_bot_usernames_activate_description" = "Do you want to show this link on the bot info page?";
 "lng_bot_usernames_deactivate_description" = "Do you want to hide this link from the bot info page?";
 "lng_bot_usernames_description" = "Drag and drop links to change the order in which they will be displayed on the bot info page.";

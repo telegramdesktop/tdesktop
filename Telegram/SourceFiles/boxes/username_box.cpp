@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config_values.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
@@ -49,6 +50,7 @@ public:
 	UsernameEditor(not_null<Ui::RpWidget*>, not_null<PeerData*> peer);
 
 	void setInnerFocus();
+	void setEnabled(bool value);
 	[[nodiscard]] rpl::producer<> submitted() const;
 	[[nodiscard]] rpl::producer<> save();
 	[[nodiscard]] rpl::producer<UsernameCheckInfo> checkInfoChanged() const;
@@ -125,6 +127,10 @@ rpl::producer<> UsernameEditor::submitted() const {
 
 void UsernameEditor::setInnerFocus() {
 	_username->setFocusFast();
+}
+
+void UsernameEditor::setEnabled(bool value) {
+	_username->setEnabled(value);
 }
 
 void UsernameEditor::resizeEvent(QResizeEvent *e) {
@@ -329,18 +335,31 @@ void UsernamesBox(
 	const auto editor = box->addRow(
 		object_ptr<UsernameEditor>(box, peer),
 		{});
+	editor->setEnabled(!isBot);
 	box->setFocusCallback([=] { editor->setInnerFocus(); });
 
 	AddUsernameCheckLabel(container, editor->checkInfoChanged());
 
-	auto description = rpl::combine(
-		(isBot
-			? tr::lng_bot_username_description1
-			: tr::lng_username_description1)(Ui::Text::RichLangValue),
-		tr::lng_username_description2(Ui::Text::RichLangValue)
-	) | rpl::map([](TextWithEntities d1, TextWithEntities d2) {
-		return d1.append("\n\n").append(std::move(d2));
-	});
+	auto description = [&]() -> rpl::producer<TextWithEntities> {
+		if (!isBot) {
+			return rpl::combine(
+				tr::lng_username_description1(Ui::Text::RichLangValue),
+				tr::lng_username_description2(Ui::Text::RichLangValue)
+			) | rpl::map([](TextWithEntities d1, TextWithEntities d2) {
+				return d1.append("\n\n").append(std::move(d2));
+			});
+		}
+		if (const auto url = AppConfig::FragmentLink(&peer->session())) {
+			const auto link = Ui::Text::Link(
+				tr::lng_bot_username_description1_link(tr::now),
+				*url);
+			return tr::lng_bot_username_description1(
+				lt_link,
+				rpl::single(link),
+				Ui::Text::RichLangValue);
+		}
+		return rpl::single<TextWithEntities>({});
+	}();
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
 		object_ptr<Ui::FlatLabel>(
@@ -354,10 +373,9 @@ void UsernamesBox(
 			box,
 			peer,
 			std::make_shared<Ui::BoxShow>(box),
-			[=] {
-				box->scrollToY(0);
-				editor->setInnerFocus();
-			}),
+			!isBot
+				? [=] { box->scrollToY(0); editor->setInnerFocus(); }
+				: Fn<void()>(nullptr)),
 		{});
 
 	const auto finish = [=] {
