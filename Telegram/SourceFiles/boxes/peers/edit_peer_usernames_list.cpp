@@ -65,6 +65,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		const Data::Username &data,
 		std::shared_ptr<Ui::Show> show,
+		QString status,
 		QString link);
 
 	[[nodiscard]] const Data::Username &username() const;
@@ -91,15 +92,12 @@ UsernamesList::Row::Row(
 	not_null<Ui::RpWidget*> parent,
 	const Data::Username &data,
 	std::shared_ptr<Ui::Show> show,
+	QString status,
 	QString link)
 : Ui::SettingsButton(parent, rpl::never<QString>())
 , _st(st::inviteLinkListItem)
 , _data(data)
-, _status(data.editable
-	? tr::lng_usernames_edit(tr::now)
-	: data.active
-	? tr::lng_usernames_active(tr::now)
-	: tr::lng_usernames_non_active(tr::now))
+, _status(std::move(status))
 , _rightAction(Ui::CreateChild<RightAction>(this))
 , _iconRect(
 	_st.photoPosition.x() + st::inviteLinkIconSkip,
@@ -250,8 +248,13 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 	for (const auto &username : usernames) {
 		const auto link = _peer->session().createInternalLinkFull(
 			username.username);
+		const auto status = (username.editable && _focusCallback)
+			? tr::lng_usernames_edit(tr::now)
+			: username.active
+			? tr::lng_usernames_active(tr::now)
+			: tr::lng_usernames_non_active(tr::now);
 		const auto row = content->add(
-			object_ptr<Row>(content, username, _show, link));
+			object_ptr<Row>(content, username, _show, status, link));
 		_rows.push_back(row);
 		row->addClickHandler([=] {
 			if (_reordering
@@ -260,7 +263,9 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 			}
 
 			if (username.editable) {
-				_focusCallback();
+				if (_focusCallback) {
+					_focusCallback();
+				}
 				return;
 			}
 
