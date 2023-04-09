@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -197,6 +198,9 @@ UsernamesList::UsernamesList(
 : RpWidget(parent)
 , _show(show)
 , _peer(peer)
+, _isBot(peer->isUser()
+	&& peer->asUser()->botInfo
+	&& peer->asUser()->botInfo->canEditInformation)
 , _focusCallback(std::move(focusCallback)) {
 	{
 		auto &api = _peer->session().api();
@@ -250,7 +254,8 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 			object_ptr<Row>(content, username, _show, link));
 		_rows.push_back(row);
 		row->addClickHandler([=] {
-			if (_reordering || (!_peer->isSelf() && !_peer->isChannel())) {
+			if (_reordering
+				|| (!_peer->isSelf() && !_peer->isChannel() && !_isBot)) {
 				return;
 			}
 
@@ -263,6 +268,10 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 				? (username.active
 					? tr::lng_usernames_deactivate_description()
 					: tr::lng_usernames_activate_description())
+				: _isBot
+				? (username.active
+					? tr::lng_bot_usernames_deactivate_description()
+					: tr::lng_bot_usernames_activate_description())
 				: (username.active
 					? tr::lng_channel_usernames_deactivate_description()
 					: tr::lng_channel_usernames_activate_description());
@@ -359,6 +368,8 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 			_container,
 			_peer->isSelf()
 				? tr::lng_usernames_description()
+				: _isBot
+				? tr::lng_bot_usernames_description()
 				: tr::lng_channel_usernames_description());
 	}
 
