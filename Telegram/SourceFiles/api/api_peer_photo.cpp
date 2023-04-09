@@ -367,14 +367,21 @@ void PeerPhoto::ready(
 			done();
 		}
 	};
-	if (peer->isSelf()) {
+	const auto botUserInput = [&] {
+		const auto user = peer->asUser();
+		return (user && user->botInfo && user->botInfo->canEditInformation)
+			? std::make_optional<MTPInputUser>(user->inputUser)
+			: std::nullopt;
+	}();
+	if (peer->isSelf() || botUserInput) {
 		using Flag = MTPphotos_UploadProfilePhoto::Flag;
 		const auto none = MTPphotos_UploadProfilePhoto::Flags(0);
 		_api.request(MTPphotos_UploadProfilePhoto(
 			MTP_flags((file ? Flag::f_file : none)
+				| (botUserInput ? Flag::f_bot : none)
 				| (videoSize ? Flag::f_video_emoji_markup : none)
 				| ((type == UploadType::Fallback) ? Flag::f_fallback : none)),
-			MTPInputUser(), // bot
+			botUserInput ? (*botUserInput) : MTPInputUser(), // bot
 			file ? (*file) : MTPInputFile(),
 			MTPInputFile(), // video
 			MTPdouble(), // video_start_ts
