@@ -924,6 +924,8 @@ PRIVATE
     main/main_account.h
     main/main_app_config.cpp
     main/main_app_config.h
+    main/main_app_config_values.cpp
+    main/main_app_config_values.h
     main/main_domain.cpp
     main/main_domain.h
     main/main_session.cpp
