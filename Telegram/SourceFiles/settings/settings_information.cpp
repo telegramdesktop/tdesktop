@@ -419,7 +419,8 @@ void SetupRows(
 		std::move(value),
 		tr::lng_context_copy_mention(tr::now),
 		[=] {
-			const auto box = controller->show(Box(UsernamesBox, session));
+			const auto box = controller->show(
+				Box(UsernamesBox, session->user()));
 			box->boxClosing(
 			) | rpl::start_with_next([=] {
 				session->api().usernames().requestToCache(session->user());
