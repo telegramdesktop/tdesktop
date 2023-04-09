@@ -982,7 +982,9 @@ void Filler::addManageChat() {
 	}
 	const auto peer = _peer;
 	const auto navigation = _controller;
-	const auto text = (peer->isChat() || peer->isMegagroup())
+	const auto text = peer->isUser()
+		? tr::lng_manage_bot_title(tr::now)
+		: (peer->isChat() || peer->isMegagroup())
 		? tr::lng_manage_group_title(tr::now)
 		: tr::lng_manage_channel_title(tr::now);
 	_addAction(text, [=] {

@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_values.h"
+#include "data/data_user.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -2014,7 +2015,9 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 }
 
 bool EditPeerInfoBox::Available(not_null<PeerData*> peer) {
-	if (const auto chat = peer->asChat()) {
+	if (const auto bot = peer->asUser()) {
+		return bot->botInfo && bot->botInfo->canEditInformation;
+	} else if (const auto chat = peer->asChat()) {
 		return false
 			|| chat->canEditInformation()
 			|| chat->canEditPermissions();

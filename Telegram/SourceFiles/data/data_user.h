@@ -23,6 +23,7 @@ struct BotInfo {
 	bool readsAllHistory = false;
 	bool cantJoinGroups = false;
 	bool supportsAttachMenu = false;
+	bool canEditInformation = false;
 	int version = 0;
 	int descriptionVersion = 0;
 	QString description;
