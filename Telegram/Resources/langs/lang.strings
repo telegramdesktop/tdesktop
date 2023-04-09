@@ -385,6 +385,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dlg_filter" = "Search";
 "lng_dlg_new_group_name" = "Group name";
 "lng_dlg_new_channel_name" = "Channel name";
+"lng_dlg_new_bot_name" = "Bot name";
 "lng_no_chats" = "Your chats will be here";
 "lng_no_chats_filter" = "No chats currently belong to this folder.";
 "lng_contacts_loading" = "Loading...";
@@ -398,7 +399,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_save" = "Save";
 
 "lng_username_title" = "Username";
-"lng_username_description" = "You can choose a username on Telegram. If you do, other people will be able to find you by this username and contact you without knowing your phone number.\n\nYou can use **a-z**, **0-9** and **underscores**.\nMinimum length is **5 characters**.";
+"lng_username_description1" = "You can choose a username on Telegram. If you do, other people will be able to find you by this username and contact you without knowing your phone number.";
+"lng_username_description2" = "You can use **a-z**, **0-9** and **underscores**.\nMinimum length is **5 characters**.";
 "lng_username_choose" = "Choose your username.";
 "lng_username_invalid" = "This username is invalid.";
 "lng_username_occupied" = "This username is already occupied.";
@@ -428,6 +430,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_usernames_activate_description" = "Do you want to show this link on the channel info page?";
 "lng_channel_usernames_deactivate_description" = "Do you want to hide this link from the channel info page?";
 "lng_channel_usernames_description" = "Drag and drop links to change the order in which they will be displayed on the channel info page.";
+
+"lng_bot_username_title" = "Username";
+"lng_bot_username_description1" = "If you set a public link, other people will be able to find your bot.";
+"lng_bot_usernames_activate_description" = "Do you want to show this link on the bot info page?";
+"lng_bot_usernames_deactivate_description" = "Do you want to hide this link from the bot info page?";
+"lng_bot_usernames_description" = "Drag and drop links to change the order in which they will be displayed on the bot info page.";
 
 "lng_bio_placeholder" = "Bio";
 
@@ -1214,6 +1222,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_manage_group_title" = "Manage Group";
 "lng_manage_channel_title" = "Manage Channel";
+"lng_manage_bot_title" = "Manage Bot";
 "lng_manage_peer_recent_actions" = "Recent Actions";
 "lng_manage_peer_members" = "Members";
 "lng_manage_peer_subscribers" = "Subscribers";
@@ -1263,6 +1272,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_no_forwards" = "Restrict saving content";
 "lng_manage_peer_no_forwards_about" = "Members won't be able to forward messages from this group or save media files.";
 "lng_manage_peer_no_forwards_about_channel" = "Subscribers won't be able to forward messages from this channel or save media files.";
+
+"lng_manage_peer_bot_public_link" = "Public Link";
+"lng_manage_peer_bot_public_links" = "Public Links";
+"lng_manage_peer_bot_edit_intro" = "Edit Intro";
+"lng_manage_peer_bot_edit_commands" = "Edit Commands";
+"lng_manage_peer_bot_edit_settings" = "Change Bot Settings";
+"lng_manage_peer_bot_about" = "Use {bot} to manage this bot.";
+"lng_manage_peer_bot_delete" = "Delete Bot";
 
 "lng_manage_discussion_group" = "Discussion";
 "lng_manage_discussion_group_add" = "Add a group";
@@ -2357,6 +2374,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_contact_phone_will_be_shared" = "You can make your phone visible to {user}.";
 "lng_edit_contact_title" = "Edit contact name";
 "lng_edit_channel_title" = "Edit channel";
+"lng_edit_bot_title" = "Edit bot";
 "lng_edit_sign_messages" = "Sign messages";
 "lng_edit_group" = "Edit group";
 "lng_edit_self_title" = "Edit your name";

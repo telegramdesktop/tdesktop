@@ -314,11 +314,17 @@ void UsernamesBox(
 
 	AddUsernameCheckLabel(container, editor->checkInfoChanged());
 
+	auto description = rpl::combine(
+		tr::lng_username_description1(Ui::Text::RichLangValue),
+		tr::lng_username_description2(Ui::Text::RichLangValue)
+	) | rpl::map([](TextWithEntities d1, TextWithEntities d2) {
+		return d1.append("\n\n").append(std::move(d2));
+	});
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
 		object_ptr<Ui::FlatLabel>(
 			container,
-			tr::lng_username_description(Ui::Text::RichLangValue),
+			std::move(description),
 			st::boxDividerLabel),
 		st::settingsDividerLabelPadding));
 
