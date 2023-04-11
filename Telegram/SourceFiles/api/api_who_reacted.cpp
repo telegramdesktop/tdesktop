@@ -619,8 +619,11 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 		return false;
 	}
 	const auto type = DetectSeenType(item);
+	const auto thread = item->topic()
+		? (Data::Thread*)item->topic()
+		: item->history();
 	const auto unseen = (type == Ui::WhoReadType::Seen)
-		? item->unread(item->history())
+		? item->unread(thread)
 		: item->isUnreadMedia();
 	if (unseen) {
 		return false;
@@ -630,7 +633,6 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	const auto chat = peer->asChat();
 	const auto megagroup = peer->asMegagroup();
 	if ((!chat && !megagroup)
-		|| peer->isForum()
 		|| (megagroup
 			&& (megagroup->flags() & ChannelDataFlag::ParticipantsHidden))) {
 		return false;
