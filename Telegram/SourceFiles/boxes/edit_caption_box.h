@@ -50,6 +50,12 @@ public:
 		FullMsgId itemId,
 		TextWithTags text,
 		Fn<void()> saved);
+	static void StartMediaReplace(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		Ui::PreparedList &&list,
+		TextWithTags text,
+		Fn<void()> saved);
 	static void StartPhotoEdit(
 		not_null<Window::SessionController*> controller,
 		std::shared_ptr<Data::PhotoMedia> media,

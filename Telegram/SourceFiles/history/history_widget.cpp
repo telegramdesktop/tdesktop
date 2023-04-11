@@ -5182,6 +5182,15 @@ bool HistoryWidget::confirmSendingFiles(
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel) {
 	if (_editMsgId) {
+		if (_canReplaceMedia) {
+			EditCaptionBox::StartMediaReplace(
+				controller(),
+				{ _history->peer->id, _editMsgId },
+				std::move(list),
+				_field->getTextWithTags(),
+				crl::guard(_list, [=] { cancelEdit(); }));
+			return true;
+		}
 		controller()->showToast({ tr::lng_edit_caption_attach(tr::now) });
 		return false;
 	} else if (showSendingFilesError(list)) {

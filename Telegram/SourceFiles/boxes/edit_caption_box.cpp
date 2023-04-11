@@ -291,6 +291,49 @@ void EditCaptionBox::StartMediaReplace(
 		crl::guard(controller, show));
 }
 
+void EditCaptionBox::StartMediaReplace(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		Ui::PreparedList &&list,
+		TextWithTags text,
+		Fn<void()> saved) {
+	const auto session = &controller->session();
+	const auto item = session->data().message(itemId);
+	if (!item) {
+		return;
+	}
+	const auto type = ComputeAlbumType(item);
+	const auto showError = [=](tr::phrase<> t) {
+		controller->showToast({ t(tr::now) });
+	};
+	const auto checkResult = [=](const Ui::PreparedList &list) {
+		if (list.files.size() != 1) {
+			return false;
+		}
+		const auto &file = list.files.front();
+		const auto mime = file.information->filemime;
+		if (Core::IsMimeSticker(mime)) {
+			showError(tr::lng_edit_media_invalid_file);
+			return false;
+		} else if (type != Ui::AlbumType::None
+			&& !file.canBeInAlbumType(type)) {
+			showError(tr::lng_edit_media_album_error);
+			return false;
+		}
+		return true;
+	};
+	if (list.error != Ui::PreparedList::Error::None) {
+		showError(tr::lng_send_media_invalid_files);
+	} else if (checkResult(list)) {
+		controller->show(Box<EditCaptionBox>(
+			controller,
+			item,
+			std::move(text),
+			std::move(list),
+			std::move(saved)));
+	}
+}
+
 void EditCaptionBox::StartPhotoEdit(
 		not_null<Window::SessionController*> controller,
 		std::shared_ptr<Data::PhotoMedia> media,
