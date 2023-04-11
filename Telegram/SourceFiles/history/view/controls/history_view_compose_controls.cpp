@@ -1910,22 +1910,29 @@ void ComposeControls::applyCloudDraft() {
 void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	Expects(_history != nullptr);
 
-	InvokeQueued(_autocomplete.get(), [=] { updateStickersByEmoji(); });
-	const auto guard = gsl::finally([&] {
-		updateSendButtonType();
-		updateControlsVisibility();
-		updateControlsGeometry(_wrap->size());
-	});
-
 	const auto editDraft = _history->draft(draftKey(DraftType::Edit));
 	const auto draft = editDraft
 		? editDraft
 		: _history->draft(draftKey(DraftType::Normal));
+	const auto editingId = (draft == editDraft)
+		? FullMsgId{ _history->peer->id, draft ? draft->msgId : 0 }
+		: FullMsgId();
+
+	InvokeQueued(_autocomplete.get(), [=] { updateStickersByEmoji(); });
+	const auto guard = gsl::finally([&] {
+		updateSendButtonType();
+		updateReplaceMediaButton(editingId);
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	});
+
 	if (!draft) {
 		clearFieldText(0, fieldHistoryAction);
 		_field->setFocus();
 		_header->editMessage({});
 		_header->replyToMessage({});
+		_canReplaceMedia = false;
+		_photoEditMedia = nullptr;
 		return;
 	}
 
@@ -1939,15 +1946,11 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	}
 
 	if (draft == editDraft) {
-		_header->editMessage({ _history->peer->id, draft->msgId });
+		_header->editMessage(editingId);
 		_header->replyToMessage({});
 	} else {
 		_canReplaceMedia = false;
 		_photoEditMedia = nullptr;
-		if (updateReplaceMediaButton(FullMsgId())) {
-			updateControlsVisibility();
-			updateControlsGeometry(_wrap->size());
-		}
 		_header->replyToMessage({ _history->peer->id, draft->msgId });
 		if (_header->replyingToMessage()) {
 			cancelForward();
