@@ -1,35 +1,47 @@
-#define MyAppShortName "Telegram"
-#define MyAppName "Telegram Desktop"
-#define MyAppPublisher "Telegram FZ-LLC"
-#define MyAppURL "https://desktop.telegram.org"
-#define MyAppExeName "Telegram.exe"
-#define MyAppId "53F49750-6209-4FBF-9CA8-7A333C87D1ED"
-#define CurrentYear GetDateTimeString('yyyy','','')
+#define MyAppShortName         "Telegram"
+#define MyAppName              "Telegram Desktop"
+#define MyAppPublisher         "Telegram FZ-LLC"
+#define MyAppURL               "https://desktop.telegram.org"
+#define MyAppExeName           "Telegram.exe"
+#define MyAppId                "53F49750-6209-4FBF-9CA8-7A333C87D1ED"
+#define StartingCopyrightYear  "2014"
+#define CurrentYear            GetDateTimeString('yyyy','','')
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
+
 AppId={{{#MyAppId}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppCopyright={#MyAppPublisher} 2014-{#CurrentYear}
+
+AppCopyright={#MyAppPublisher} {#StartingCopyrightYear}-{#CurrentYear}
 AppPublisher={#MyAppPublisher}
+
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
+
+UninstallDisplayName={#MyAppName}
+UninstallDisplayIcon={app}\Telegram.exe
+
+VersionInfoDescription={#MyAppName} installer
+VersionInfoProductName={#MyAppName}
+VersionInfoVersion={#MyAppVersion}
+
+WizardStyle=Modern
+UsePreviousLanguage=no
+
 DefaultDirName={userappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir={#ReleasePath}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
-UninstallDisplayName={#MyAppName}
-UninstallDisplayIcon={app}\Telegram.exe
 Compression=lzma
 SolidCompression=yes
 DisableStartupPrompt=yes
 PrivilegesRequired=lowest
-VersionInfoVersion={#MyAppVersion}.0
 CloseApplications=force
 DisableDirPage=no
 DisableProgramGroupPage=no
