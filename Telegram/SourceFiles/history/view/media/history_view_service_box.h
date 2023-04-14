@@ -30,6 +30,8 @@ public:
 		const QRect &geometry) = 0;
 	[[nodiscard]] virtual ClickHandlerPtr createViewLink() = 0;
 
+	[[nodiscard]] virtual bool hideServiceText() = 0;
+
 	virtual void stickerClearLoopPlayed() = 0;
 	[[nodiscard]] virtual std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
@@ -68,6 +70,10 @@ public:
 
 	[[nodiscard]] bool needsBubble() const override;
 	[[nodiscard]] bool customInfoLayout() const override;
+
+	[[nodiscard]] bool hideServiceText() const override {
+		return _content->hideServiceText();
+	}
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;

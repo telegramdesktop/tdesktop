@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_file.h"
+#include "history/view/media/history_view_service_box.h"
 
 class Image;
 
@@ -24,7 +25,8 @@ public:
 	ThemeDocument(
 		not_null<Element*> parent,
 		DocumentData *document,
-		const std::optional<Data::WallPaper> &params);
+		const std::optional<Data::WallPaper> &params,
+		int serviceWidth = 0);
 	~ThemeDocument();
 
 	void draw(Painter &p, const PaintContext &context) const override;
@@ -71,6 +73,7 @@ private:
 	DocumentData *_data = nullptr;
 	int _pixw = 1;
 	int _pixh = 1;
+	const int _serviceWidth = 0;
 	mutable QPixmap _thumbnail;
 	mutable int _thumbnailGood = -1; // -1 inline, 0 thumbnail, 1 good
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
@@ -79,6 +82,42 @@ private:
 	std::vector<QColor> _background;
 	float64 _patternOpacity = 0.;
 	int _gradientRotation = 0;
+
+};
+
+class ThemeDocumentBox final : public ServiceBoxContent {
+public:
+	ThemeDocumentBox(
+		not_null<Element*> parent,
+		const Data::WallPaper &paper);
+	~ThemeDocumentBox();
+
+	int top() override;
+	QSize size() override;
+	QString title() override;
+	QString subtitle() override;
+	QString button() override;
+	void draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &geometry) override;
+	ClickHandlerPtr createViewLink() override;
+
+	bool hideServiceText() override {
+		return true;
+	}
+
+	void stickerClearLoopPlayed() override;
+	std::unique_ptr<StickerPlayer> stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) override;
+
+	bool hasHeavyPart() override;
+	void unloadHeavyPart() override;
+
+private:
+	const not_null<Element*> _parent;
+	ThemeDocument _preview;
 
 };
 

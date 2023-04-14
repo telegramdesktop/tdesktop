@@ -38,6 +38,10 @@ public:
 		const QRect &geometry) override;
 	ClickHandlerPtr createViewLink() override;
 
+	bool hideServiceText() override {
+		return true;
+	}
+
 	void stickerClearLoopPlayed() override;
 	std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,

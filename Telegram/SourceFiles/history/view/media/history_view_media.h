@@ -98,6 +98,9 @@ public:
 	[[nodiscard]] virtual bool hideMessageText() const {
 		return true;
 	}
+	[[nodiscard]] virtual bool hideServiceText() const {
+		return false;
+	}
 	[[nodiscard]] virtual bool allowsFastShare() const {
 		return false;
 	}

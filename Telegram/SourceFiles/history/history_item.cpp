@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "data/data_poll.h" // PollData::publicVotes.
 #include "data/data_sponsored_messages.h"
+#include "data/data_wall_paper.h"
 #include "data/data_web_page.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "payments/payments_checkout_process.h" // CheckoutProcess::Start.
@@ -4172,12 +4173,14 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		auto result = PreparedServiceText{};
 		result.links.push_back(peer->createOpenLink());
 		result.text = isSelf
-			? tr::lng_action_set_wallpaper(
+			? tr::lng_action_set_wallpaper_me(
+				tr::now,
+				Ui::Text::WithEntities)
+			: tr::lng_action_set_wallpaper(
 				tr::now,
 				lt_user,
 				Ui::Text::Link(name, 1), // Link 1.
-				Ui::Text::WithEntities)
-			: tr::lng_action_set_wallpaper_me(tr::now, Ui::Text::WithEntities);
+				Ui::Text::WithEntities);
 		return result;
 	};
 
@@ -4194,13 +4197,13 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			result.links.push_back(peer->createOpenLink());
 		}
 		result.text = isSelf
-			? tr::lng_action_set_same_wallpaper(
+			? tr::lng_action_set_same_wallpaper_me(
+				tr::now,
+				Ui::Text::WithEntities)
+			: tr::lng_action_set_same_wallpaper(
 				tr::now,
 				lt_user,
 				Ui::Text::Link(name, 1), // Link 1.
-				Ui::Text::WithEntities)
-			: tr::lng_action_set_same_wallpaper_me(
-				tr::now,
 				Ui::Text::WithEntities);
 		return result;
 	};
@@ -4349,7 +4352,11 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 		}, [](const MTPDphotoEmpty &) {
 		});
 	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
-		//_media = std::make_unique.. #TODO wallpapers
+		const auto session = &history()->session();
+		const auto &attached = data.vwallpaper();
+		if (const auto paper = Data::WallPaper::Create(session, attached)) {
+			_media = std::make_unique<Data::MediaWallPaper>(this, *paper);
+		}
 	}, [](const auto &) {
 	});
 }

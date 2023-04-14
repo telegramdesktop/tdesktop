@@ -749,6 +749,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_link_copied" = "Link copied to clipboard";
 "lng_background_blur" = "Blurred";
 "lng_background_sure_delete" = "Are you sure you want to delete this background?";
+"lng_background_other_info" = "{user} will be able to apply this wallpaper";
+"lng_background_apply1" = "Apply the wallpaper in this chat.";
+"lng_background_apply2" = "Enjoy the view.";
+"lng_background_apply_button" = "Apply For This Chat";
 
 "lng_download_path_ask" = "Ask download path for each file";
 "lng_download_path" = "Download path";
@@ -1539,10 +1543,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_suggested_video" = "{user} suggests you to use this profile video.";
 "lng_action_suggested_video_button" = "View Video";
 "lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
-"lng_action_set_wallpaper_me" = "You set a new background for this chat.";
-"lng_action_set_wallpaper" = "{user} set a new background for this chat.";
-"lng_action_set_same_wallpaper_me" = "You set the same background for this chat.";
-"lng_action_set_same_wallpaper" = "{user} set the same background for this chat.";
+"lng_action_set_wallpaper_me" = "You set a new wallpaper for this chat";
+"lng_action_set_wallpaper" = "{user} set a new wallpaper for this chat";
+"lng_action_set_wallpaper_button" = "View Wallpaper";
+"lng_action_set_same_wallpaper_me" = "You set the same wallpaper for this chat";
+"lng_action_set_same_wallpaper" = "{user} set the same wallpaper for this chat";
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";

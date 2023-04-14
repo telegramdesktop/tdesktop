@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_location.h"
+#include "data/data_wall_paper.h"
 
 class Image;
 class History;
@@ -35,6 +36,7 @@ struct ToPreviewOptions;
 namespace Data {
 
 class CloudImage;
+class WallPaper;
 
 enum class CallFinishReason : char {
 	Missed,
@@ -105,8 +107,9 @@ public:
 	virtual const Call *call() const;
 	virtual GameData *game() const;
 	virtual const Invoice *invoice() const;
-	virtual Data::CloudImage *location() const;
+	virtual CloudImage *location() const;
 	virtual PollData *poll() const;
+	virtual const WallPaper *paper() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -291,7 +294,7 @@ public:
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
-	Data::CloudImage *location() const override;
+	CloudImage *location() const override;
 	ItemPreview toPreview(ToPreviewOptions options) const override;
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -306,7 +309,7 @@ public:
 
 private:
 	LocationPoint _point;
-	not_null<Data::CloudImage*> _location;
+	not_null<CloudImage*> _location;
 	QString _title;
 	QString _description;
 
@@ -517,11 +520,9 @@ public:
 	[[nodiscard]] bool activated() const;
 	void setActivated(bool activated);
 
-	bool allowsRevoke(TimeId now) const override;
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
-	bool forceForwardedInfo() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -534,6 +535,31 @@ private:
 	not_null<PeerData*> _from;
 	int _months = 0;
 	bool _activated = false;
+
+};
+
+class MediaWallPaper final : public Media {
+public:
+	MediaWallPaper(not_null<HistoryItem*> parent, const WallPaper &paper);
+	~MediaWallPaper();
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	const WallPaper *paper() const override;
+
+	TextWithEntities notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
+
+private:
+	const WallPaper _paper;
 
 };
 
