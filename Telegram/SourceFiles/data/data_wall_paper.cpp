@@ -357,6 +357,8 @@ MTPWallPaperSettings WallPaper::mtpSettings() const {
 	};
 	return MTP_wallPaperSettings(
 		MTP_flags((_blurred ? Flag::f_blur : Flag(0))
+			| Flag::f_intensity
+			| Flag::f_rotation
 			| flagForIndex(0)
 			| flagForIndex(1)
 			| flagForIndex(2)
@@ -487,11 +489,11 @@ std::optional<WallPaper> WallPaper::Create(
 	if (const auto settings = data.vsettings()) {
 		settings->match([&](const MTPDwallPaperSettings &data) {
 			result._blurred = data.is_blur();
+			if (const auto intensity = data.vintensity()) {
+				result._intensity = intensity->v;
+			}
 			if (result.isPattern()) {
 				result._backgroundColors = ColorsFromMTP(data);
-				if (const auto intensity = data.vintensity()) {
-					result._intensity = intensity->v;
-				}
 				if (const auto rotation = data.vrotation()) {
 					result._rotation = rotation->v;
 				}

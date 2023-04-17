@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_message.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -57,6 +58,24 @@ constexpr auto kMaxWallPaperSlugLength = 255;
 			&& (ch < 'a' || ch > 'z')
 			&& (ch < 'A' || ch > 'Z');
 	});
+}
+
+[[nodiscard]] AdminLog::OwnedItem GenerateServiceItem(
+		not_null<HistoryView::ElementDelegate*> delegate,
+		not_null<History*> history,
+		const QString &text,
+		bool out) {
+	Expects(history->peer->isUser());
+
+	const auto flags = MessageFlag::FakeHistoryItem
+		| MessageFlag::HasFromId
+		| (out ? MessageFlag::Outgoing : MessageFlag(0));
+	const auto item = history->makeMessage(
+		history->owner().nextLocalMessageId(),
+		flags,
+		base::unixtime::now(),
+		PreparedServiceText{ { text } });
+	return AdminLog::OwnedItem(delegate, item);
 }
 
 [[nodiscard]] AdminLog::OwnedItem GenerateTextItem(
@@ -136,19 +155,35 @@ constexpr auto kMaxWallPaperSlugLength = 255;
 BackgroundPreviewBox::BackgroundPreviewBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	const Data::WallPaper &paper)
+	const Data::WallPaper &paper,
+	BackgroundPreviewArgs args)
 : SimpleElementDelegate(controller, [=] { update(); })
 , _controller(controller)
+, _forPeer(args.forPeer)
+, _fromMessageId(args.fromMessageId)
 , _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _serviceHistory(_controller->session().data().history(
+	PeerData::kServiceNotificationsId))
+, _service((_forPeer && !_fromMessageId)
+	? GenerateServiceItem(
+		delegate(),
+		_serviceHistory,
+		tr::lng_background_other_info(tr::now, lt_user, _forPeer->shortName()),
+		false)
+	: nullptr)
 , _text1(GenerateTextItem(
 	delegate(),
 	_controller->session().data().history(PeerData::kServiceNotificationsId),
-	tr::lng_background_text1(tr::now),
+	(_forPeer
+		? tr::lng_background_apply1(tr::now)
+		: tr::lng_background_text1(tr::now)),
 	false))
 , _text2(GenerateTextItem(
 	delegate(),
 	_controller->session().data().history(PeerData::kServiceNotificationsId),
-	tr::lng_background_text2(tr::now),
+	(_forPeer
+		? tr::lng_background_apply2(tr::now)
+		: tr::lng_background_text2(tr::now)),
 	true))
 , _paper(paper)
 , _media(_paper.document() ? _paper.document()->createMediaView() : nullptr)
@@ -187,9 +222,11 @@ not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
 void BackgroundPreviewBox::prepare() {
 	setTitle(tr::lng_background_header());
 
-	addButton(tr::lng_background_apply(), [=] { apply(); });
+	addButton(_forPeer
+		? tr::lng_background_apply_button()
+		: tr::lng_background_apply(), [=] { apply(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
-	if (_paper.hasShareUrl()) {
+	if (!_forPeer && _paper.hasShareUrl()) {
 		addLeftButton(tr::lng_background_share(), [=] { share(); });
 	}
 	updateServiceBg(_paper.backgroundColors());
@@ -207,7 +244,11 @@ void BackgroundPreviewBox::prepare() {
 	setScaledFromThumb();
 	checkLoadedDocument();
 
-	_text1->setDisplayDate(true);
+	if (_service) {
+		_service->initDimensions();
+		_service->resizeGetHeight(st::boxWideWidth);
+	}
+	_text1->setDisplayDate(!_service);
 	_text1->initDimensions();
 	_text1->resizeGetHeight(st::boxWideWidth);
 	_text2->initDimensions();
@@ -244,6 +285,35 @@ void BackgroundPreviewBox::createBlurCheckbox() {
 }
 
 void BackgroundPreviewBox::apply() {
+	if (_forPeer) {
+		applyForPeer();
+	} else {
+		applyForEveryone();
+	}
+	closeBox();
+}
+
+void BackgroundPreviewBox::applyForPeer() {
+	Expects(_forPeer != nullptr);
+
+	const auto api = &_controller->session().api();
+	using Flag = MTPmessages_SetChatWallPaper::Flag;
+	api->request(MTPmessages_SetChatWallPaper(
+		MTP_flags((_fromMessageId ? Flag::f_id : Flag())
+			| (_fromMessageId ? Flag() : Flag::f_wallpaper)
+			| Flag::f_settings),
+		_forPeer->input,
+		_paper.mtpInput(&_controller->session()),
+		_paper.mtpSettings(),
+		MTP_int(_fromMessageId.msg)
+	)).done([=](const MTPUpdates &result) {
+		api->applyUpdates(result);
+	}).send();
+
+	_forPeer->setWallPaper(_paper);
+}
+
+void BackgroundPreviewBox::applyForEveryone() {
 	const auto install = (_paper.id() != Window::Theme::Background()->id())
 		&& Data::IsCloudWallPaper(_paper);
 	_controller->content()->setChatBackground(_paper, std::move(_full));
@@ -253,7 +323,6 @@ void BackgroundPreviewBox::apply() {
 			_paper.mtpSettings()
 		)).send();
 	}
-	closeBox();
 }
 
 void BackgroundPreviewBox::share() {
@@ -339,6 +408,7 @@ int BackgroundPreviewBox::textsTop() const {
 	const auto bottom = _blur ? _blur->y() : height();
 	return bottom
 		- st::historyPaddingBottom
+		- (_service ? _service->height() : 0)
 		- _text1->height()
 		- _text2->height();
 }
@@ -353,6 +423,7 @@ QRect BackgroundPreviewBox::radialRect() const {
 }
 
 void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
+	const auto heights = _service ? _service->height() : 0;
 	const auto height1 = _text1->height();
 	const auto height2 = _text2->height();
 	auto context = _controller->defaultChatTheme()->preparePaintContext(
@@ -361,7 +432,12 @@ void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 		rect(),
 		_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer));
 	p.translate(0, textsTop());
-	paintDate(p);
+	if (_service) {
+		_service->draw(p, context);
+		p.translate(0, heights);
+	} else {
+		paintDate(p);
+	}
 
 	context.outbg = _text1->hasOutLayout();
 	_text1->draw(p, context);

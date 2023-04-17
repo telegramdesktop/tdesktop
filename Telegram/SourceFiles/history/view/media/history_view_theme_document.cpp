@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_theme_document.h"
 
+#include "boxes/background_preview_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
@@ -443,11 +444,22 @@ QString ThemeDocumentBox::button() {
 ClickHandlerPtr ThemeDocumentBox::createViewLink() {
 	const auto out = _parent->data()->out();
 	const auto to = _parent->history()->peer;
+	const auto media = _parent->data()->media();
+	const auto paper = media ? media->paper() : nullptr;
+	const auto maybe = paper ? *paper : std::optional<Data::WallPaper>();
+	const auto itemId = _parent->data()->fullId();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			if (out) {
 				controller->toggleChooseChatTheme(to);
+			} else if (maybe) {
+				controller->show(
+					Box<BackgroundPreviewBox>(
+						controller,
+						*maybe,
+						BackgroundPreviewArgs{ to, itemId }),
+					Ui::LayerOption::KeepOther);
 			}
 		}
 	});

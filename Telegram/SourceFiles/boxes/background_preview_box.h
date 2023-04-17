@@ -28,6 +28,11 @@ class Checkbox;
 class ChatStyle;
 } // namespace Ui
 
+struct BackgroundPreviewArgs {
+	PeerData *forPeer = nullptr;
+	FullMsgId fromMessageId;
+};
+
 class BackgroundPreviewBox
 	: public Ui::BoxContent
 	, private HistoryView::SimpleElementDelegate {
@@ -35,7 +40,8 @@ public:
 	BackgroundPreviewBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		const Data::WallPaper &paper);
+		const Data::WallPaper &paper,
+		BackgroundPreviewArgs args = {});
 
 	static bool Start(
 		not_null<Window::SessionController*> controller,
@@ -53,6 +59,8 @@ private:
 	HistoryView::Context elementContext() override;
 
 	void apply();
+	void applyForPeer();
+	void applyForEveryone();
 	void share();
 	void radialAnimationCallback(crl::time now);
 	QRect radialRect() const;
@@ -72,7 +80,11 @@ private:
 	void checkBlurAnimationStart();
 
 	const not_null<Window::SessionController*> _controller;
+	PeerData * const _forPeer = nullptr;
+	FullMsgId _fromMessageId;
 	std::unique_ptr<Ui::ChatStyle> _chatStyle;
+	const not_null<History*> _serviceHistory;
+	AdminLog::OwnedItem _service;
 	AdminLog::OwnedItem _text1;
 	AdminLog::OwnedItem _text2;
 	Data::WallPaper _paper;
