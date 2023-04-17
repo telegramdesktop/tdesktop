@@ -794,7 +794,7 @@ QString DocumentData::loadingFilePath() const {
 
 bool DocumentData::displayLoading() const {
 	return loading()
-		? (!_loader->loadingLocal() || !_loader->autoLoading())
+		? !_loader->loadingLocal()
 		: (uploading() && !waitingForAlbum());
 }
 

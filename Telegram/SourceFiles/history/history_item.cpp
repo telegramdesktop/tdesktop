@@ -2213,6 +2213,13 @@ bool HistoryItem::hasDirectLink() const {
 	return isRegular() && _history->peer->isChannel();
 }
 
+bool HistoryItem::changesWallPaper() const {
+	if (const auto media = _media.get()) {
+		return media->paper() != nullptr;
+	}
+	return Has<HistoryServiceSameBackground>();
+}
+
 FullMsgId HistoryItem::fullId() const {
 	return FullMsgId(_history->peer->id, id);
 }

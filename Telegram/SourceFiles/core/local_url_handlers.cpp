@@ -764,7 +764,10 @@ bool ResolveTestChatTheme(
 			}
 			const auto recache = [&](Data::CloudThemeType type) {
 				[[maybe_unused]] auto value = theme->settings.contains(type)
-					? controller->cachedChatThemeValue(*theme, type)
+					? controller->cachedChatThemeValue(
+						*theme,
+						Data::WallPaper(0),
+						type)
 					: nullptr;
 			};
 			recache(Data::CloudThemeType::Dark);

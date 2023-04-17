@@ -88,6 +88,7 @@ private:
 	struct Button {
 		void drawBg(QPainter &p) const;
 		void toggleRipple(bool pressed);
+		[[nodiscard]] bool empty() const;
 
 		Fn<void()> repaint;
 

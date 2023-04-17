@@ -433,6 +433,7 @@ public:
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 
 	[[nodiscard]] bool hasDirectLink() const;
+	[[nodiscard]] bool changesWallPaper() const;
 
 	[[nodiscard]] FullMsgId fullId() const;
 	[[nodiscard]] GlobalMsgId globalId() const;

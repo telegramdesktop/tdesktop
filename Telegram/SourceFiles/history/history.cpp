@@ -1264,6 +1264,9 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		if (!item->unread(this)) {
 			outboxRead(item);
 		}
+		if (item->changesWallPaper()) {
+			peer->updateFullForced();
+		}
 	} else {
 		if (item->unread(this)) {
 			if (unreadCountKnown()) {

@@ -163,7 +163,8 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 } // namespace
 
 bool operator==(const ChatThemeBackground &a, const ChatThemeBackground &b) {
-	return (a.prepared.cacheKey() == b.prepared.cacheKey())
+	return (a.key == b.key)
+		&& (a.prepared.cacheKey() == b.prepared.cacheKey())
 		&& (a.gradientForFill.cacheKey() == b.gradientForFill.cacheKey())
 		&& (a.tile == b.tile)
 		&& (a.patternOpacity == b.patternOpacity);
@@ -222,9 +223,14 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 	if (overrideOutBg) {
 		set(p.msgOutBg(), descriptor.bubblesData.colors.front());
 	}
-	const auto &background = descriptor.backgroundData.colors;
-	if (!background.empty()) {
-		const auto average = CountAverageColor(background);
+	const auto &data = descriptor.backgroundData;
+	const auto &background = data.colors;
+	const auto useImage = !data.isPattern
+		&& (!data.path.isEmpty() || !data.bytes.isEmpty());
+	if (useImage || !background.empty()) {
+		const auto average = useImage
+			? Ui::CountAverageColor(_mutableBackground.prepared)
+			: CountAverageColor(background);
 		adjust(p.msgServiceBg(), average);
 		adjust(p.msgServiceBgSelected(), average);
 		adjust(p.historyScrollBg(), average);
@@ -407,6 +413,7 @@ void ChatTheme::setBackground(ChatThemeBackground &&background) {
 }
 
 void ChatTheme::updateBackgroundImageFrom(ChatThemeBackground &&background) {
+	_mutableBackground.key = background.key;
 	_mutableBackground.prepared = std::move(background.prepared);
 	_mutableBackground.preparedForTiled = std::move(
 		background.preparedForTiled);
@@ -1028,6 +1035,16 @@ ChatThemeBackground PrepareBackgroundImage(
 	} else if (data.colors.empty()) {
 		prepared.setDevicePixelRatio(style::DevicePixelRatio());
 	}
+	if (!prepared.isNull()
+		&& !data.isPattern
+		&& data.forDarkMode
+		&& data.darkModeDimming > 0) {
+		const auto ratio = int(prepared.devicePixelRatio());
+		auto p = QPainter(&prepared);
+		p.fillRect(
+			QRect(0, 0, prepared.width() / ratio, prepared.height() / ratio),
+			QColor(0, 0, 0, 255 * data.darkModeDimming / 100));
+	}
 	const auto imageMonoColor = (data.colors.size() < 2)
 		? CalculateImageMonoColor(prepared)
 		: std::nullopt;
@@ -1038,6 +1055,7 @@ ChatThemeBackground PrepareBackgroundImage(
 		? Ui::GenerateDitheredGradient(data.colors, data.gradientRotation)
 		: QImage();
 	return ChatThemeBackground{
+		.key = data.key,
 		.prepared = prepared,
 		.preparedForTiled = PrepareImageForTiled(prepared),
 		.gradientForFill = std::move(gradientForFill),

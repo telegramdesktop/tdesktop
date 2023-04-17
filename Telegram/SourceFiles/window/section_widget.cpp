@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
@@ -45,6 +46,44 @@ namespace {
 	});
 }
 
+struct ResolvedPaper {
+	Data::WallPaper paper;
+	std::shared_ptr<Data::DocumentMedia> media;
+};
+
+[[nodiscard]] rpl::producer<std::optional<ResolvedPaper>> PeerWallPaperValue(
+		not_null<PeerData*> peer) {
+	return peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::ChatWallPaper
+	) | rpl::map([=]() -> rpl::producer<std::optional<ResolvedPaper>> {
+		const auto paper = peer->wallPaper();
+		const auto single = [](std::optional<ResolvedPaper> value) {
+			return rpl::single(std::move(value));
+		};
+		if (!paper) {
+			return single({});
+		}
+		const auto document = paper->document();
+		auto value = ResolvedPaper{
+			*paper,
+			document ? document->createMediaView() : nullptr,
+		};
+		if (!value.media || value.media->loaded(true)) {
+			return single(std::move(value));
+		}
+		paper->loadDocument();
+		return single(
+			value
+		) | rpl::then(document->session().downloaderTaskFinished(
+		) | rpl::filter([=] {
+			return value.media->loaded(true);
+		}) | rpl::take(1) | rpl::map_to(
+			std::optional<ResolvedPaper>(value)
+		));
+	}) | rpl::flatten_latest();
+}
+
 [[nodiscard]] auto MaybeChatThemeDataValueFromPeer(
 	not_null<PeerData*> peer)
 -> rpl::producer<std::optional<Data::CloudTheme>> {
@@ -58,6 +97,7 @@ namespace {
 
 struct ResolvedTheme {
 	std::optional<Data::CloudTheme> theme;
+	std::optional<ResolvedPaper> paper;
 	bool dark = false;
 };
 
@@ -66,9 +106,13 @@ struct ResolvedTheme {
 -> rpl::producer<ResolvedTheme> {
 	return rpl::combine(
 		MaybeChatThemeDataValueFromPeer(peer),
+		PeerWallPaperValue(peer),
 		Theme::IsThemeDarkValue() | rpl::distinct_until_changed()
-	) | rpl::map([](std::optional<Data::CloudTheme> theme, bool night) {
-		return ResolvedTheme{ std::move(theme), night };
+	) | rpl::map([](
+			std::optional<Data::CloudTheme> theme,
+			std::optional<ResolvedPaper> paper,
+			bool night) {
+		return ResolvedTheme{ std::move(theme), std::move(paper), night };
 	});
 }
 
@@ -338,13 +382,23 @@ auto ChatThemeValueFromPeer(
 		peer
 	) | rpl::map([=](ResolvedTheme resolved)
 	-> rpl::producer<std::shared_ptr<Ui::ChatTheme>> {
-		return resolved.theme
-			? controller->cachedChatThemeValue(
-				*resolved.theme,
-				(resolved.dark
-					? Data::CloudThemeType::Dark
-					: Data::CloudThemeType::Light))
-			: rpl::single(controller->defaultChatTheme());
+		if (!resolved.theme && !resolved.paper) {
+			return rpl::single(controller->defaultChatTheme());
+		}
+		const auto theme = resolved.theme.value_or(Data::CloudTheme());
+		const auto paper = resolved.paper
+			? resolved.paper->paper
+			: Data::WallPaper(0);
+		const auto type = resolved.dark
+			? Data::CloudThemeType::Dark
+			: Data::CloudThemeType::Light;
+		if (paper.document()
+			&& resolved.paper->media
+			&& !resolved.paper->media->loaded()
+			&& !controller->chatThemeAlreadyCached(theme, paper, type)) {
+			return rpl::single(controller->defaultChatTheme());
+		}
+		return controller->cachedChatThemeValue(theme, paper, type);
 	}) | rpl::flatten_latest(
 	) | rpl::distinct_until_changed();
 
@@ -354,7 +408,8 @@ auto ChatThemeValueFromPeer(
 	) | rpl::map([=](
 			std::shared_ptr<Ui::ChatTheme> &&cloud,
 			PeerThemeOverride &&overriden) {
-		return (overriden.peer == peer.get())
+		return (overriden.peer == peer.get()
+			&& Ui::Emoji::Find(peer->themeEmoji()) != overriden.emoji)
 			? std::move(overriden.theme)
 			: std::move(cloud);
 	});

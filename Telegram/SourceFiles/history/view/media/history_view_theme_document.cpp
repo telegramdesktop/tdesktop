@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_wall_paper.h"
 #include "base/qthelp_url.h"
+#include "core/click_handler_types.h"
 #include "core/local_url_handlers.h"
 #include "lang/lang_keys.h"
 #include "ui/text/format_values.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -433,15 +435,21 @@ QString ThemeDocumentBox::subtitle() {
 }
 
 QString ThemeDocumentBox::button() {
-	return tr::lng_sticker_premium_view(tr::now);
+	return _parent->data()->out()
+		? QString()
+		: tr::lng_action_set_wallpaper_button(tr::now);
 }
 
 ClickHandlerPtr ThemeDocumentBox::createViewLink() {
+	const auto out = _parent->data()->out();
 	const auto to = _parent->history()->peer;
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-		//const auto my = context.other.value<ClickHandlerContext>();
-		//if (const auto controller = my.sessionWindow.get()) {
-		//}
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (out) {
+				controller->toggleChooseChatTheme(to);
+			}
+		}
 	});
 }
 

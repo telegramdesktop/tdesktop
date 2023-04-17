@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_user_names.h"
+#include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
@@ -460,6 +461,13 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				user,
 				Data::PeerUpdate::Flag::Rights);
 		}
+	}
+
+	if (const auto paper = update.vwallpaper()) {
+		user->setWallPaper(
+			Data::WallPaper::Create(&user->session(), *paper));
+	} else {
+		user->setWallPaper({});
 	}
 
 	user->fullUpdated();

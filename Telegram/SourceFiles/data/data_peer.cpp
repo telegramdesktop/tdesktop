@@ -1093,6 +1093,22 @@ const QString &PeerData::themeEmoji() const {
 	return _themeEmoticon;
 }
 
+void PeerData::setWallPaper(std::optional<Data::WallPaper> paper) {
+	if (!paper && !_wallPaper) {
+		return;
+	} else if (paper && _wallPaper && _wallPaper->equals(*paper)) {
+		return;
+	}
+	_wallPaper = paper
+		? std::make_unique<Data::WallPaper>(std::move(*paper))
+		: nullptr;
+	session().changes().peerUpdated(this, UpdateFlag::ChatWallPaper);
+}
+
+const Data::WallPaper *PeerData::wallPaper() const {
+	return _wallPaper.get();
+}
+
 void PeerData::setIsBlocked(bool is) {
 	const auto status = is
 		? BlockStatus::Blocked

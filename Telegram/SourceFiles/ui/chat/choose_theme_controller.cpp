@@ -383,7 +383,10 @@ void ChooseThemeController::initList() {
 				_chosen = chosen;
 				entry->chosen = true;
 				if (entry->theme || !entry->key) {
-					_controller->overridePeerTheme(_peer, entry->theme);
+					_controller->overridePeerTheme(
+						_peer,
+						entry->theme,
+						entry->emoji);
 				}
 				_inner->update();
 			}
@@ -534,6 +537,7 @@ void ChooseThemeController::fill(
 			});
 			_controller->cachedChatThemeValue(
 				theme,
+				Data::WallPaper(0),
 				type
 			) | rpl::filter([=](const std::shared_ptr<ChatTheme> &data) {
 				return data && (data->key() == key);
@@ -549,7 +553,10 @@ void ChooseThemeController::fill(
 				i->theme = std::move(data);
 				i->preview = GeneratePreview(theme);
 				if (_chosen == i->emoji->text()) {
-					_controller->overridePeerTheme(_peer, i->theme);
+					_controller->overridePeerTheme(
+						_peer,
+						i->theme,
+						i->emoji);
 				}
 				_inner->update();
 

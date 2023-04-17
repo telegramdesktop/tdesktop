@@ -27,6 +27,12 @@ ServiceBox::ServiceBox(
 , _content(std::move(content))
 , _button([&] {
 	auto result = Button();
+	result.link = _content->createViewLink();
+
+	const auto text = _content->button();
+	if (text.isEmpty()) {
+		return result;
+	}
 	result.repaint = [=] { repaint(); };
 	result.text.setText(st::semiboldTextStyle, _content->button());
 
@@ -38,8 +44,6 @@ ServiceBox::ServiceBox(
 			+ padding.left()
 			+ padding.right(),
 		height);
-
-	result.link = _content->createViewLink();
 
 	return result;
 }())
@@ -67,8 +71,10 @@ ServiceBox::ServiceBox(
 			: (_title.countHeight(_maxWidth)
 				+ st::msgServiceGiftBoxTitlePadding.bottom()))
 		+ _subtitle.countHeight(_maxWidth)
-		+ st::msgServiceGiftBoxButtonMargins.top()
-		+ _button.size.height()
+		+ (_button.empty()
+			? 0
+			: (st::msgServiceGiftBoxButtonMargins.top()
+				+ _button.size.height()))
 		+ st::msgServiceGiftBoxButtonMargins.bottom()))
 , _innerSize(_size - QSize(0, st::msgServiceGiftBoxTopSkip)) {
 }
@@ -106,7 +112,7 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 		top += _subtitle.countHeight(_maxWidth) + padding.bottom();
 	}
 
-	{
+	if (!_button.empty()) {
 		const auto position = buttonRect().topLeft();
 		p.translate(position);
 
@@ -142,7 +148,11 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 
 TextState ServiceBox::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
-	{
+	if (_button.empty()) {
+		if (QRect(QPoint(), _innerSize).contains(point)) {
+			result.link = _button.link;
+		}
+	} else {
 		const auto rect = buttonRect();
 		if (rect.contains(point)) {
 			result.link = _button.link;
@@ -214,7 +224,9 @@ QRect ServiceBox::contentRect() const {
 }
 
 void ServiceBox::Button::toggleRipple(bool pressed) {
-	if (pressed) {
+	if (empty()) {
+		return;
+	} else if (pressed) {
 		const auto linkWidth = size.width();
 		const auto linkHeight = size.height();
 		if (!ripple) {
@@ -232,6 +244,10 @@ void ServiceBox::Button::toggleRipple(bool pressed) {
 	} else if (ripple) {
 		ripple->lastStop();
 	}
+}
+
+bool ServiceBox::Button::empty() const {
+	return text.isEmpty();
 }
 
 void ServiceBox::Button::drawBg(QPainter &p) const {
