@@ -21,13 +21,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "boxes/background_preview_box.h"
+#include "info/profile/info_profile_icon.h"
+#include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/widgets/buttons.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_overview.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_info.h"
 
 namespace {
 
@@ -156,9 +160,30 @@ void BackgroundBox::prepare() {
 
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
-	_inner = setInnerWidget(
-		object_ptr<Inner>(this, &_controller->session(), _forPeer),
-		st::backgroundScroll);
+	auto wrap = object_ptr<Ui::VerticalLayout>(this);
+	const auto container = wrap.data();
+
+	Settings::AddSkip(container);
+
+	const auto button = container->add(Settings::CreateButton(
+		container,
+		tr::lng_settings_bg_from_file(),
+		st::infoProfileButton));
+	object_ptr<Info::Profile::FloatingIcon>(
+		button,
+		st::infoIconMediaPhoto,
+		st::infoSharedMediaButtonIconPosition);
+
+	Settings::AddSkip(container);
+	Settings::AddDivider(container);
+
+	_inner = container->add(
+		object_ptr<Inner>(this, &_controller->session(), _forPeer));
+
+	container->resizeToWidth(st::boxWideWidth);
+
+	setInnerWidget(std::move(wrap), st::backgroundScroll);
+	setInnerTopSkip(st::lineWidth);
 
 	_inner->chooseEvents(
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
