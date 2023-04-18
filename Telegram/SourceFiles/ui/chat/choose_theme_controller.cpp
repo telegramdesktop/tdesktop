@@ -281,11 +281,25 @@ void ChooseThemeController::initButtons() {
 			const auto now = chosen->key ? _chosen.current() : QString();
 			if (was != now) {
 				_peer->setThemeEmoji(now);
+				const auto dropWallPaper = (_peer->wallPaper() != nullptr);
+				if (dropWallPaper) {
+					_peer->setWallPaper({});
+				}
+
 				if (chosen->theme) {
 					// Remember while changes propagate through event loop.
 					_controller->pushLastUsedChatTheme(chosen->theme);
 				}
 				const auto api = &_peer->session().api();
+				api->request(MTPmessages_SetChatWallPaper(
+					MTP_flags(0),
+					_peer->input,
+					MTPInputWallPaper(),
+					MTPWallPaperSettings(),
+					MTPint()
+				)).afterDelay(10).done([=](const MTPUpdates &result) {
+					api->applyUpdates(result);
+				}).send();
 				api->request(MTPmessages_SetChatTheme(
 					_peer->input,
 					MTP_string(now)
