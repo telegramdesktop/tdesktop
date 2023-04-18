@@ -498,7 +498,10 @@ public:
 		not_null<PeerData*> peer,
 		MsgId msgId = ShowAtUnreadMsgId);
 
-	void toggleChooseChatTheme(not_null<PeerData*> peer);
+	void toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show = std::nullopt);
+	void finishChatThemeEdit(not_null<PeerData*> peer);
 
 	[[nodiscard]] bool dialogsListFocused() const {
 		return _dialogsListFocused.current();

@@ -439,6 +439,12 @@ void ChatStyle::apply(not_null<ChatTheme*> theme) {
 	}
 }
 
+void ChatStyle::applyAdjustedServiceBg(QColor serviceBg) {
+	auto r = 0, g = 0, b = 0, a = 0;
+	serviceBg.getRgb(&r, &g, &b, &a);
+	msgServiceBg().set(uchar(r), uchar(g), uchar(b), uchar(a));
+}
+
 void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	*static_cast<style::palette*>(this) = *palette;
 	style::internal::resetIcons();

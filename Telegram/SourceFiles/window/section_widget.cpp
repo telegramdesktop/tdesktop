@@ -95,6 +95,33 @@ struct ResolvedPaper {
 	}) | rpl::flatten_latest();
 }
 
+[[nodiscard]] rpl::producer<> DebouncedPaletteValue() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		struct State {
+			base::has_weak_ptr guard;
+			bool scheduled = false;
+		};
+		const auto state = lifetime.make_state<State>();
+
+		consumer.put_next_copy(rpl::empty);
+		style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			if (state->scheduled) {
+				return;
+			}
+			state->scheduled = true;
+			Ui::PostponeCall(&state->guard, [=] {
+				state->scheduled = false;
+				consumer.put_next_copy(rpl::empty);
+			});
+		}, lifetime);
+
+		return lifetime;
+	};
+}
+
 struct ResolvedTheme {
 	std::optional<Data::CloudTheme> theme;
 	std::optional<ResolvedPaper> paper;
@@ -111,9 +138,22 @@ struct ResolvedTheme {
 	) | rpl::map([](
 			std::optional<Data::CloudTheme> theme,
 			std::optional<ResolvedPaper> paper,
-			bool night) {
-		return ResolvedTheme{ std::move(theme), std::move(paper), night };
-	});
+			bool night) -> rpl::producer<ResolvedTheme> {
+		if (theme || !paper) {
+			return rpl::single<ResolvedTheme>({
+				std::move(theme),
+				std::move(paper),
+				night,
+			});
+		}
+		return DebouncedPaletteValue(
+		) | rpl::map([=] {
+			return ResolvedTheme{
+				.paper = paper,
+				.dark = night,
+			};
+		});
+	}) | rpl::flatten_latest();
 }
 
 } // namespace

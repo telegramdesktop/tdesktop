@@ -341,6 +341,9 @@ void ThemeDocument::prepareThumbnailFrom(
 			_patternOpacity);
 		original.setDevicePixelRatio(ratio);
 	}
+	if (_serviceWidth) {
+		original = Images::Circle(std::move(original));
+	}
 	_thumbnail = Ui::PixmapFromImage(std::move(original));
 	_thumbnailGood = good;
 }

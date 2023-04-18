@@ -164,23 +164,17 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 , _chatStyle(std::make_unique<Ui::ChatStyle>())
 , _serviceHistory(_controller->session().data().history(
 	PeerData::kServiceNotificationsId))
-, _service((_forPeer && !_fromMessageId)
-	? GenerateServiceItem(
-		delegate(),
-		_serviceHistory,
-		tr::lng_background_other_info(tr::now, lt_user, _forPeer->shortName()),
-		false)
-	: nullptr)
+, _service(nullptr)
 , _text1(GenerateTextItem(
 	delegate(),
-	_controller->session().data().history(PeerData::kServiceNotificationsId),
+	_serviceHistory,
 	(_forPeer
 		? tr::lng_background_apply1(tr::now)
 		: tr::lng_background_text1(tr::now)),
 	false))
 , _text2(GenerateTextItem(
 	delegate(),
-	_controller->session().data().history(PeerData::kServiceNotificationsId),
+	_serviceHistory,
 	(_forPeer
 		? tr::lng_background_apply2(tr::now)
 		: tr::lng_background_text2(tr::now)),
@@ -244,11 +238,7 @@ void BackgroundPreviewBox::prepare() {
 	setScaledFromThumb();
 	checkLoadedDocument();
 
-	if (_service) {
-		_service->initDimensions();
-		_service->resizeGetHeight(st::boxWideWidth);
-	}
-	_text1->setDisplayDate(!_service);
+	_text1->setDisplayDate(false);
 	_text1->initDimensions();
 	_text1->resizeGetHeight(st::boxWideWidth);
 	_text2->initDimensions();
@@ -285,12 +275,15 @@ void BackgroundPreviewBox::createBlurCheckbox() {
 }
 
 void BackgroundPreviewBox::apply() {
+	const auto weak = Ui::MakeWeak(this);
 	if (_forPeer) {
 		applyForPeer();
 	} else {
 		applyForEveryone();
 	}
-	closeBox();
+	if (weak) {
+		closeBox();
+	}
 }
 
 void BackgroundPreviewBox::applyForPeer() {
@@ -311,6 +304,7 @@ void BackgroundPreviewBox::applyForPeer() {
 	}).send();
 
 	_forPeer->setWallPaper(_paper);
+	_controller->finishChatThemeEdit(_forPeer);
 }
 
 void BackgroundPreviewBox::applyForEveryone() {
@@ -435,8 +429,6 @@ void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 	if (_service) {
 		_service->draw(p, context);
 		p.translate(0, heights);
-	} else {
-		paintDate(p);
 	}
 
 	context.outbg = _text1->hasOutLayout();
@@ -446,27 +438,6 @@ void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 	context.outbg = _text2->hasOutLayout();
 	_text2->draw(p, context);
 	p.translate(0, height2);
-}
-
-void BackgroundPreviewBox::paintDate(Painter &p) {
-	const auto date = _text1->Get<HistoryView::DateBadge>();
-	if (!date || !_serviceBg) {
-		return;
-	}
-	auto hq = PainterHighQualityEnabler(p);
-	const auto text = date->text;
-	const auto bubbleHeight = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
-	const auto bubbleTop = st::msgServiceMargin.top();
-	const auto textWidth = st::msgServiceFont->width(text);
-	const auto bubbleWidth = st::msgServicePadding.left() + textWidth + st::msgServicePadding.right();
-	const auto bubbleLeft = (width() - bubbleWidth) / 2;
-	const auto radius = bubbleHeight / 2;
-	p.setPen(Qt::NoPen);
-	p.setBrush(*_serviceBg);
-	p.drawRoundedRect(bubbleLeft, bubbleTop, bubbleWidth, bubbleHeight, radius, radius);
-	p.setPen(st::msgServiceFg);
-	p.setFont(st::msgServiceFont);
-	p.drawText(bubbleLeft + st::msgServicePadding.left(), bubbleTop + st::msgServicePadding.top() + st::msgServiceFont->ascent, text);
 }
 
 void BackgroundPreviewBox::radialAnimationCallback(crl::time now) {
@@ -556,9 +527,29 @@ void BackgroundPreviewBox::updateServiceBg(const std::vector<QColor> &bg) {
 		green += color.green();
 		blue += color.blue();
 	}
-	_serviceBg = Ui::ThemeAdjustedColor(
-		st::msgServiceBg->c,
-		QColor(red / count, green / count, blue / count));
+	rpl::single(
+		rpl::empty
+	) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::start_with_next([=] {
+		_serviceBg = Ui::ThemeAdjustedColor(
+			st::msgServiceBg->c,
+			QColor(red / count, green / count, blue / count));
+		_chatStyle->applyAdjustedServiceBg(*_serviceBg);
+	}, lifetime());
+
+	_service = GenerateServiceItem(
+		delegate(),
+		_serviceHistory,
+		((_forPeer && !_fromMessageId)
+			? tr::lng_background_other_info(
+				tr::now,
+				lt_user,
+				_forPeer->shortName())
+			: ItemDateText(_text1->data(), false)),
+		false);
+	_service->initDimensions();
+	_service->resizeGetHeight(st::boxWideWidth);
 }
 
 void BackgroundPreviewBox::checkLoadedDocument() {

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "mtproto/sender.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
@@ -61,11 +62,15 @@ class BackgroundBox::Inner final : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,
-		not_null<Main::Session*> session);
+		not_null<Main::Session*> session,
+		PeerData *forPeer);
 	~Inner();
 
-	rpl::producer<Data::WallPaper> chooseEvents() const;
-	rpl::producer<Data::WallPaper> removeRequests() const;
+	[[nodiscard]] rpl::producer<Data::WallPaper> chooseEvents() const;
+	[[nodiscard]] rpl::producer<Data::WallPaper> removeRequests() const;
+
+	[[nodiscard]] auto resolveResetCustomPaper() const
+		->std::optional<Data::WallPaper>;
 
 	void removePaper(const Data::WallPaper &data);
 
@@ -109,6 +114,7 @@ private:
 	void resizeToContentAndPreload();
 	void updatePapers();
 	void requestPapers();
+	void pushResetCustomPaper();
 	void sortPapers();
 	void paintPaper(
 		QPainter &p,
@@ -118,9 +124,13 @@ private:
 	void validatePaperThumbnail(const Paper &paper) const;
 
 	const not_null<Main::Session*> _session;
+	PeerData * const _forPeer = nullptr;
+
 	MTP::Sender _api;
 
 	std::vector<Paper> _papers;
+	uint64 _currentId = 0;
+	uint64 _insertedResetId = 0;
 
 	Selection _over;
 	Selection _overDown;
@@ -133,8 +143,10 @@ private:
 
 BackgroundBox::BackgroundBox(
 	QWidget*,
-	not_null<Window::SessionController*> controller)
-: _controller(controller) {
+	not_null<Window::SessionController*> controller,
+	PeerData *forPeer)
+: _controller(controller)
+, _forPeer(forPeer) {
 }
 
 void BackgroundBox::prepare() {
@@ -145,20 +157,86 @@ void BackgroundBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	_inner = setInnerWidget(
-		object_ptr<Inner>(this, &_controller->session()),
+		object_ptr<Inner>(this, &_controller->session(), _forPeer),
 		st::backgroundScroll);
 
 	_inner->chooseEvents(
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
-		_controller->show(
-			Box<BackgroundPreviewBox>(_controller, paper),
-			Ui::LayerOption::KeepOther);
+		chosen(paper);
 	}, _inner->lifetime());
 
 	_inner->removeRequests(
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
 		removePaper(paper);
 	}, _inner->lifetime());
+}
+
+bool BackgroundBox::hasDefaultForPeer() const {
+	Expects(_forPeer != nullptr);
+
+	const auto paper = _forPeer->wallPaper();
+	if (!paper) {
+		return true;
+	}
+	const auto reset = _inner->resolveResetCustomPaper();
+	Assert(reset.has_value());
+	return (paper->id() == reset->id());
+}
+
+bool BackgroundBox::chosenDefaultForPeer(
+		const Data::WallPaper &paper) const {
+	if (!_forPeer) {
+		return false;
+	}
+
+	const auto reset = _inner->resolveResetCustomPaper();
+	Assert(reset.has_value());
+	return (paper.id() == reset->id());
+}
+
+void BackgroundBox::chosen(const Data::WallPaper &paper) {
+	if (chosenDefaultForPeer(paper)) {
+		if (!hasDefaultForPeer()) {
+			const auto reset = crl::guard(this, [=](Fn<void()> close) {
+				resetForPeer();
+				close();
+			});
+			_controller->show(Ui::MakeConfirmBox({
+				.text = u"Are you sure you want to reset the wallpaper?"_q,
+				.confirmed = reset,
+				.confirmText = u"Reset"_q,
+			}));
+		} else {
+			closeBox();
+		}
+		return;
+	}
+	_controller->show(
+		Box<BackgroundPreviewBox>(
+			_controller,
+			paper,
+			BackgroundPreviewArgs{ _forPeer }),
+		Ui::LayerOption::KeepOther);
+}
+
+void BackgroundBox::resetForPeer() {
+	const auto api = &_controller->session().api();
+	using Flag = MTPmessages_SetChatWallPaper::Flag;
+	api->request(MTPmessages_SetChatWallPaper(
+		MTP_flags(0),
+		_forPeer->input,
+		MTPInputWallPaper(),
+		MTPWallPaperSettings(),
+		MTPint()
+	)).done([=](const MTPUpdates &result) {
+		api->applyUpdates(result);
+	}).send();
+
+	const auto weak = Ui::MakeWeak(this);
+	_forPeer->setWallPaper(std::nullopt);
+	if (weak) {
+		_controller->finishChatThemeEdit(_forPeer);
+	}
 }
 
 void BackgroundBox::removePaper(const Data::WallPaper &paper) {
@@ -186,17 +264,19 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 
 BackgroundBox::Inner::Inner(
 	QWidget *parent,
-	not_null<Main::Session*> session)
+	not_null<Main::Session*> session,
+	PeerData *forPeer)
 : RpWidget(parent)
 , _session(session)
+, _forPeer(forPeer)
 , _api(&_session->mtp())
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, anim::type::instant);
-	if (_session->data().wallpapers().empty()) {
-		resize(st::boxWideWidth, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
-	} else {
+	resize(st::boxWideWidth, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
+	Window::Theme::IsNightModeValue(
+	) | rpl::start_with_next([=] {
 		updatePapers();
-	}
+	}, lifetime());
 	requestPapers();
 
 	_session->downloaderTaskFinished(
@@ -219,6 +299,7 @@ BackgroundBox::Inner::Inner(
 		}
 	}, lifetime());
 
+
 	setMouseTracking(true);
 }
 
@@ -232,27 +313,78 @@ void BackgroundBox::Inner::requestPapers() {
 	}).send();
 }
 
+auto BackgroundBox::Inner::resolveResetCustomPaper() const
+-> std::optional<Data::WallPaper> {
+	if (!_forPeer) {
+		return {};
+	}
+	const auto nonCustom = Window::Theme::Background()->paper();
+	const auto themeEmoji = _forPeer->themeEmoji();
+	if (themeEmoji.isEmpty()) {
+		return nonCustom;
+	}
+	const auto &themes = _forPeer->owner().cloudThemes();
+	const auto theme = themes.themeForEmoji(themeEmoji);
+	if (!theme) {
+		return nonCustom;
+	}
+	using Type = Data::CloudTheme::Type;
+	const auto dark = Window::Theme::IsNightMode();
+	const auto i = theme->settings.find(dark ? Type::Dark : Type::Light);
+	if (i != end(theme->settings) && i->second.paper) {
+		return *i->second.paper;
+	}
+	return nonCustom;
+}
+
+void BackgroundBox::Inner::pushResetCustomPaper() {
+	if (const auto reset = resolveResetCustomPaper()) {
+		_insertedResetId = reset->id();
+		const auto j = ranges::find(
+			_papers,
+			_insertedResetId,
+			[](const Paper &paper) { return paper.data.id(); });
+		if (j != end(_papers)) {
+			j->data = j->data.withParamsFrom(*reset);
+		} else {
+			_papers.insert(begin(_papers), Paper{ *reset });
+		}
+	}
+}
+
 void BackgroundBox::Inner::sortPapers() {
-	const auto current = Window::Theme::Background()->id();
-	const auto night = Window::Theme::IsNightMode();
+	const auto currentCustom = _forPeer ? _forPeer->wallPaper() : nullptr;
+	_currentId = currentCustom
+		? currentCustom->id()
+		: _insertedResetId
+		? _insertedResetId
+		: Window::Theme::Background()->id();
+	const auto dark = Window::Theme::IsNightMode();
 	ranges::stable_sort(_papers, std::greater<>(), [&](const Paper &paper) {
 		const auto &data = paper.data;
 		return std::make_tuple(
-			data.id() == current,
-			night ? data.isDark() : !data.isDark(),
+			_insertedResetId && (_insertedResetId == data.id()),
+			data.id() == _currentId,
+			dark ? data.isDark() : !data.isDark(),
 			Data::IsDefaultWallPaper(data),
 			!data.isDefault() && !Data::IsLegacy1DefaultWallPaper(data),
 			Data::IsLegacy3DefaultWallPaper(data),
 			Data::IsLegacy2DefaultWallPaper(data),
 			Data::IsLegacy1DefaultWallPaper(data));
 	});
-	if (!_papers.empty() && _papers.front().data.id() == current) {
+	if (!_papers.empty()
+		&& _papers.front().data.id() == _currentId
+		&& !currentCustom
+		&& !_insertedResetId) {
 		_papers.front().data = _papers.front().data.withParamsFrom(
 			Window::Theme::Background()->paper());
 	}
 }
 
 void BackgroundBox::Inner::updatePapers() {
+	if (_session->data().wallpapers().empty()) {
+		return;
+	}
 	_over = _overDown = Selection();
 
 	_papers = _session->data().wallpapers(
@@ -261,6 +393,7 @@ void BackgroundBox::Inner::updatePapers() {
 	}) | ranges::views::transform([](const Data::WallPaper &paper) {
 		return Paper{ paper };
 	}) | ranges::to_vector;
+	pushResetCustomPaper();
 	sortPapers();
 	resizeToContentAndPreload();
 }
@@ -373,7 +506,7 @@ void BackgroundBox::Inner::paintPaper(
 	}
 
 	const auto over = !v::is_null(_overDown) ? _overDown : _over;
-	if (paper.data.id() == Window::Theme::Background()->id()) {
+	if (paper.data.id() == _currentId) {
 		const auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
 		const auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
 		_check->paint(p, checkLeft, checkTop, width());
@@ -415,14 +548,13 @@ void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 			- st::stickerPanDeleteIconBg.width();
 		const auto deleteBottom = row * (height + skip) + skip
 			+ st::stickerPanDeleteIconBg.height();
-		const auto currentId = Window::Theme::Background()->id();
 		const auto inDelete = (x >= deleteLeft)
 			&& (y < deleteBottom)
 			&& Data::IsCloudWallPaper(data)
 			&& !Data::IsDefaultWallPaper(data)
 			&& !Data::IsLegacy2DefaultWallPaper(data)
 			&& !Data::IsLegacy3DefaultWallPaper(data)
-			&& (currentId != data.id());
+			&& (_currentId != data.id());
 		return (result >= _papers.size())
 			? Selection()
 			: inDelete

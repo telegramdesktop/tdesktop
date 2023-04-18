@@ -73,7 +73,6 @@ private:
 	void paintImage(Painter &p);
 	void paintRadial(Painter &p);
 	void paintTexts(Painter &p, crl::time ms);
-	void paintDate(Painter &p);
 	void createBlurCheckbox();
 	int textsTop() const;
 	void startFadeInFrom(QPixmap previous);

@@ -97,9 +97,10 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 constexpr auto kDayBaseFile = ":/gui/day-custom-base.tdesktop-theme"_cs;
 constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 
-[[nodiscard]] Fn<void(style::palette&)> PrepareDefaultPaletteCallback() {
-	return [=](style::palette &palette) {
-		palette.reset();
+[[nodiscard]] Fn<void(style::palette&)> PrepareCurrentCallback() {
+	const auto copy = std::make_shared<style::palette>();
+	return [=, data = style::main_palette::save()](style::palette &palette) {
+		palette.load(data);
 	};
 }
 
@@ -786,6 +787,14 @@ SessionController::SessionController(
 		if (update.type == Theme::BackgroundUpdate::Type::New
 			|| update.type == Theme::BackgroundUpdate::Type::Changed) {
 			pushDefaultChatBackground();
+		}
+	}, _lifetime);
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		for (auto &[key, value] : _customChatThemes) {
+			if (!key.theme.id) {
+				value.theme.reset();
+			}
 		}
 	}, _lifetime);
 
@@ -1831,8 +1840,22 @@ void SessionController::showInNewWindow(
 	}
 }
 
-void SessionController::toggleChooseChatTheme(not_null<PeerData*> peer) {
-	content()->toggleChooseChatTheme(peer);
+void SessionController::toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show) {
+	content()->toggleChooseChatTheme(peer, show);
+}
+
+void SessionController::finishChatThemeEdit(not_null<PeerData*> peer) {
+	toggleChooseChatTheme(peer, false);
+	const auto weak = base::make_weak(this);
+	const auto history = activeChatCurrent().history();
+	if (!history || history->peer != peer) {
+		showPeerHistory(peer);
+	}
+	if (weak) {
+		hideLayer();
+	}
 }
 
 void SessionController::updateColumnLayout() {
@@ -2082,7 +2105,7 @@ auto SessionController::cachedChatThemeValue(
 		return rpl::single(_defaultChatTheme);
 	}
 	const auto settings = data.settings.find(type);
-	if (!data.id && settings == end(data.settings)) {
+	if (data.id && settings == end(data.settings)) {
 		return rpl::single(_defaultChatTheme);
 	}
 	if (paper.isNull()
@@ -2242,7 +2265,7 @@ void SessionController::cacheChatTheme(
 		.key = key.theme,
 		.preparePalette = (data.id
 			? PreparePaletteCallback(dark, i->second.accentColor)
-			: PrepareDefaultPaletteCallback()),
+			: PrepareCurrentCallback()),
 		.backgroundData = backgroundData(theme),
 		.bubblesData = PrepareBubblesData(data, type),
 		.basedOnDark = dark,

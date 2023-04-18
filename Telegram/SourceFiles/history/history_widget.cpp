@@ -1558,7 +1558,9 @@ bool HistoryWidget::updateStickersByEmoji() {
 	return (emoji != nullptr);
 }
 
-void HistoryWidget::toggleChooseChatTheme(not_null<PeerData*> peer) {
+void HistoryWidget::toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show) {
 	const auto update = [=] {
 		updateInlineBotQuery();
 		updateControlsGeometry();
@@ -1567,13 +1569,15 @@ void HistoryWidget::toggleChooseChatTheme(not_null<PeerData*> peer) {
 	if (peer.get() != _peer) {
 		return;
 	} else if (_chooseTheme) {
-		if (isChoosingTheme()) {
+		if (isChoosingTheme() && !show.value_or(false)) {
 			const auto was = base::take(_chooseTheme);
 			if (Ui::InFocusChain(this)) {
 				setInnerFocus();
 			}
 			update();
 		}
+		return;
+	} else if (!show.value_or(true)) {
 		return;
 	} else if (_voiceRecordBar->isActive()) {
 		controller()->showToast({ tr::lng_chat_theme_cant_voice(tr::now) });

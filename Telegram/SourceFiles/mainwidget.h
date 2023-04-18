@@ -215,7 +215,9 @@ public:
 		Fn<void(MessageIdsList)> done);
 	void clearChooseReportMessages();
 
-	void toggleChooseChatTheme(not_null<PeerData*> peer);
+	void toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show);
 
 	void showHistory(
 		PeerId peer,

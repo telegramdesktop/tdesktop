@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/choose_theme_controller.h"
 
+#include "boxes/background_box.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
@@ -35,7 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-constexpr auto kDisableElement = "disable"_cs;
+const auto kDisableElement = [] { return u"disable"_q; };
 
 [[nodiscard]] QImage GeneratePreview(not_null<Ui::ChatTheme*> theme) {
 	const auto &background = theme->background();
@@ -164,6 +165,7 @@ ChooseThemeController::ChooseThemeController(
 , _topShadow(std::make_unique<PlainShadow>(parent))
 , _content(_wrap->add(object_ptr<RpWidget>(_wrap.get())))
 , _inner(CreateChild<RpWidget>(_content.get()))
+, _disabledEmoji(Ui::Emoji::Find(QString::fromUtf8("\xe2\x9d\x8c")))
 , _dark(Window::Theme::IsThemeDarkValue()) {
 	init(parent->sizeValue());
 }
@@ -239,29 +241,45 @@ void ChooseThemeController::initButtons() {
 		controls,
 		tr::lng_chat_theme_apply(),
 		st::defaultActiveButton);
+	const auto choose = CreateChild<RoundButton>(
+		controls,
+		rpl::single(u"Change Wallpaper"_q),
+		st::defaultActiveButton);
 	const auto skip = st::normalFont->spacew * 2;
 	controls->resize(
-		skip + cancel->width() + skip + apply->width() + skip,
+		skip + cancel->width() + skip + choose->width() + skip,
 		apply->height() + skip * 2);
 	rpl::combine(
 		controls->widthValue(),
 		cancel->widthValue(),
-		apply->widthValue()
+		apply->widthValue(),
+		choose->widthValue(),
+		_chosen.value()
 	) | rpl::start_with_next([=](
 			int outer,
 			int cancelWidth,
-			int applyWidth) {
-		const auto inner = skip + cancelWidth + skip + applyWidth + skip;
+			int applyWidth,
+			int chooseWidth,
+			QString chosen) {
+		const auto was = _peer->themeEmoji();
+		const auto now = (chosen == kDisableElement()) ? QString() : chosen;
+		const auto changed = (now != was);
+		apply->setVisible(changed);
+		choose->setVisible(!changed);
+		const auto shown = changed ? apply : choose;
+		const auto shownWidth = changed ? applyWidth : chooseWidth;
+		const auto inner = skip + cancelWidth + skip + shownWidth + skip;
 		const auto left = (outer - inner) / 2;
 		cancel->moveToLeft(left, 0);
-		apply->moveToRight(left, 0);
+		shown->moveToRight(left, 0);
 	}, controls->lifetime());
 
 	cancel->setClickedCallback([=] { close(); });
 	apply->setClickedCallback([=] {
 		if (const auto chosen = findChosen()) {
-			if (Ui::Emoji::Find(_peer->themeEmoji()) != chosen->emoji) {
-				const auto now = chosen->key ? _chosen : QString();
+			const auto was = _peer->themeEmoji();
+			const auto now = chosen->key ? _chosen.current() : QString();
+			if (was != now) {
 				_peer->setThemeEmoji(now);
 				if (chosen->theme) {
 					// Remember while changes propagate through event loop.
@@ -277,6 +295,9 @@ void ChooseThemeController::initButtons() {
 			}
 		}
 		_controller->toggleChooseChatTheme(_peer);
+	});
+	choose->setClickedCallback([=] {
+		_controller->show(Box<BackgroundBox>(_controller, _peer));
 	});
 }
 
@@ -338,7 +359,7 @@ void ChooseThemeController::initList() {
 		} else if (entry->key) {
 			return entry->emoji->text();
 		} else {
-			return kDisableElement.utf16();
+			return kDisableElement();
 		}
 	};
 	_inner->events(
@@ -375,7 +396,7 @@ void ChooseThemeController::initList() {
 			const auto mouse = static_cast<QMouseEvent*>(event.get());
 			const auto entry = byPoint(mouse->pos());
 			const auto chosen = chosenText(entry);
-			if (entry && chosen == _pressed && chosen != _chosen) {
+			if (entry && chosen == _pressed && chosen != _chosen.current()) {
 				clearCurrentBackgroundState();
 				if (const auto was = findChosen()) {
 					was->chosen = false;
@@ -465,13 +486,14 @@ void ChooseThemeController::clearCurrentBackgroundState() {
 }
 
 auto ChooseThemeController::findChosen() -> Entry* {
-	if (_chosen.isEmpty()) {
+	const auto chosen = _chosen.current();
+	if (chosen.isEmpty()) {
 		return nullptr;
 	}
 	for (auto &entry : _entries) {
-		if (!entry.key && _chosen == kDisableElement.utf16()) {
+		if (!entry.key && chosen == kDisableElement()) {
 			return &entry;
-		} else if (_chosen == entry.emoji->text()) {
+		} else if (chosen == entry.emoji->text()) {
 			return &entry;
 		}
 	}
@@ -494,11 +516,14 @@ void ChooseThemeController::fill(
 	_inner->resize(full, skip + single.height() + skip);
 
 	const auto initial = Ui::Emoji::Find(_peer->themeEmoji());
+	if (!initial) {
+		_chosen = kDisableElement();
+	}
 
 	_dark.value(
 	) | rpl::start_with_next([=](bool dark) {
 		clearCurrentBackgroundState();
-		if (_chosen.isEmpty() && initial) {
+		if (_chosen.current().isEmpty() && initial) {
 			_chosen = initial->text();
 		}
 
@@ -507,9 +532,9 @@ void ChooseThemeController::fill(
 		auto x = skip * 2;
 		_entries.push_back({
 			.preview = GenerateEmptyPreview(),
-			.emoji = Ui::Emoji::Find(QString::fromUtf8("\xe2\x9d\x8c")),
+			.emoji = _disabledEmoji,
 			.geometry = QRect(QPoint(x, skip), single),
-			.chosen = (_chosen == kDisableElement.utf16()),
+			.chosen = (_chosen.current() == kDisableElement()),
 		});
 		Assert(_entries.front().emoji != nullptr);
 		style::PaletteChanged(
@@ -528,7 +553,7 @@ void ChooseThemeController::fill(
 				continue;
 			}
 			const auto key = ChatThemeKey{ theme.id, dark };
-			const auto isChosen = (_chosen == emoji->text());
+			const auto isChosen = (_chosen.current() == emoji->text());
 			_entries.push_back({
 				.key = key,
 				.emoji = emoji,
@@ -552,7 +577,7 @@ void ChooseThemeController::fill(
 				const auto theme = data.get();
 				i->theme = std::move(data);
 				i->preview = GeneratePreview(theme);
-				if (_chosen == i->emoji->text()) {
+				if (_chosen.current() == i->emoji->text()) {
 					_controller->overridePeerTheme(
 						_peer,
 						i->theme,
