@@ -63,12 +63,12 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
-	void fillPatternFieldsFrom(const QString &url);
 	[[nodiscard]] bool checkGoodThumbnail() const;
 	void validateThumbnail() const;
 	void prepareThumbnailFrom(not_null<Image*> image, int good) const;
 	void generateThumbnail() const;
 	void ensureDataMediaCreated() const;
+	[[nodiscard]] QImage finishServiceThumbnail(QImage image) const;
 
 	DocumentData *_data = nullptr;
 	int _pixw = 1;
@@ -82,6 +82,10 @@ private:
 	std::vector<QColor> _background;
 	float64 _patternOpacity = 0.;
 	int _gradientRotation = 0;
+
+	mutable bool _isDark = false;
+	int _dimmingIntensity = 0;
+	bool _blurredWallPaper = false;
 
 };
 

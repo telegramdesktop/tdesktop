@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -54,6 +55,10 @@ ThemeDocument::ThemeDocument(
 		_background = params->backgroundColors();
 		_patternOpacity = params->patternOpacity();
 		_gradientRotation = params->gradientRotation();
+		_blurredWallPaper = params->isBlurred();
+		_dimmingIntensity = (params->isPattern() || !_serviceWidth)
+			? 0
+			: std::max(params->patternIntensity(), 0);
 	}
 	const auto fullId = _parent->data()->fullId();
 	if (_data) {
@@ -267,6 +272,11 @@ bool ThemeDocument::checkGoodThumbnail() const {
 }
 
 void ThemeDocument::validateThumbnail() const {
+	const auto isDark = Window::Theme::IsNightMode();
+	if (_isDark != isDark) {
+		_isDark = isDark;
+		_thumbnailGood = -1;
+	}
 	if (checkGoodThumbnail()) {
 		if (_thumbnailGood > 0) {
 			return;
@@ -294,16 +304,30 @@ void ThemeDocument::validateThumbnail() const {
 	}
 }
 
+QImage ThemeDocument::finishServiceThumbnail(QImage image) const {
+	if (!_serviceWidth) {
+		return image;
+	} else if (_isDark && _dimmingIntensity > 0) {
+		image.setDevicePixelRatio(cIntRetinaFactor());
+		auto p = QPainter(&image);
+		const auto alpha = 255 * _dimmingIntensity / 100;
+		p.fillRect(0, 0, _pixw, _pixh, QColor(0, 0, 0, alpha));
+	}
+	if (_blurredWallPaper) {
+		constexpr auto kRadius = 16;
+		image = Images::BlurLargeImage(std::move(image), kRadius);
+	}
+	return Images::Circle(std::move(image));
+}
+
 void ThemeDocument::generateThumbnail() const {
 	auto image = Ui::GenerateBackgroundImage(
 		QSize(_pixw, _pixh) * cIntRetinaFactor(),
 		_background,
 		_gradientRotation,
 		_patternOpacity);
-	if (_serviceWidth) {
-		image = Images::Circle(std::move(image));
-	}
-	_thumbnail = Ui::PixmapFromImage(std::move(image));
+	_thumbnail = Ui::PixmapFromImage(
+		finishServiceThumbnail(std::move(image)));
 	_thumbnail.setDevicePixelRatio(cRetinaFactor());
 	_thumbnailGood = 1;
 }
@@ -317,7 +341,6 @@ void ThemeDocument::prepareThumbnailFrom(
 	const auto isTheme = _data->isTheme();
 	const auto isPattern = _data->isPatternWallPaper();
 	auto options = (good >= 0 ? Images::Option(0) : Images::Option::Blur)
-		| (_serviceWidth ? Images::Option::RoundCircle : Images::Option(0))
 		| (isPattern
 			? Images::Option::TransparentBackground
 			: Images::Option(0));
@@ -344,10 +367,8 @@ void ThemeDocument::prepareThumbnailFrom(
 			_patternOpacity);
 		original.setDevicePixelRatio(ratio);
 	}
-	if (_serviceWidth) {
-		original = Images::Circle(std::move(original));
-	}
-	_thumbnail = Ui::PixmapFromImage(std::move(original));
+	_thumbnail = Ui::PixmapFromImage(
+		finishServiceThumbnail(std::move(original)));
 	_thumbnailGood = good;
 }
 
