@@ -120,7 +120,7 @@ private:
 	void resizeToContentAndPreload();
 	void updatePapers();
 	void requestPapers();
-	void pushResetCustomPaper();
+	void pushCustomPapers();
 	void sortPapers();
 	void paintPaper(
 		QPainter &p,
@@ -417,7 +417,20 @@ auto BackgroundBox::Inner::resolveResetCustomPaper() const
 	return nonCustom;
 }
 
-void BackgroundBox::Inner::pushResetCustomPaper() {
+void BackgroundBox::Inner::pushCustomPapers() {
+	auto customId = uint64();
+	if (const auto custom = _forPeer ? _forPeer->wallPaper() : nullptr) {
+		customId = custom->id();
+		const auto j = ranges::find(
+			_papers,
+			custom->id(),
+			[](const Paper &paper) { return paper.data.id(); });
+		if (j != end(_papers)) {
+			j->data = j->data.withParamsFrom(*custom);
+		} else {
+			_papers.insert(begin(_papers), Paper{ *custom });
+		}
+	}
 	if (const auto reset = resolveResetCustomPaper()) {
 		_insertedResetId = reset->id();
 		const auto j = ranges::find(
@@ -425,7 +438,9 @@ void BackgroundBox::Inner::pushResetCustomPaper() {
 			_insertedResetId,
 			[](const Paper &paper) { return paper.data.id(); });
 		if (j != end(_papers)) {
-			j->data = j->data.withParamsFrom(*reset);
+			if (_insertedResetId != customId) {
+				j->data = j->data.withParamsFrom(*reset);
+			}
 		} else {
 			_papers.insert(begin(_papers), Paper{ *reset });
 		}
@@ -468,12 +483,16 @@ void BackgroundBox::Inner::updatePapers() {
 	_over = _overDown = Selection();
 
 	_papers = _session->data().wallpapers(
-	) | ranges::views::filter([](const Data::WallPaper &paper) {
-		return !paper.isPattern() || !paper.backgroundColors().empty();
+	) | ranges::views::filter([&](const Data::WallPaper &paper) {
+		return (!paper.isPattern() || !paper.backgroundColors().empty())
+			&& (!_forPeer
+				|| (!Data::IsDefaultWallPaper(paper)
+					&& (Data::IsCloudWallPaper(paper)
+						|| Data::IsCustomWallPaper(paper))));
 	}) | ranges::views::transform([](const Data::WallPaper &paper) {
 		return Paper{ paper };
 	}) | ranges::to_vector;
-	pushResetCustomPaper();
+	pushCustomPapers();
 	sortPapers();
 	resizeToContentAndPreload();
 }
