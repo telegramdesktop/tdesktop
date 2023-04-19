@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
+#include "ui/chat/attach/attach_extensions.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "mtproto/sender.h"
+#include "core/file_utilities.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
@@ -174,6 +176,10 @@ void BackgroundBox::prepare() {
 		st::infoIconMediaPhoto,
 		st::infoSharedMediaButtonIconPosition);
 
+	button->setClickedCallback([=] {
+		chooseFromFile();
+	});
+
 	Settings::AddSkip(container);
 	Settings::AddDivider(container);
 
@@ -194,6 +200,55 @@ void BackgroundBox::prepare() {
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
 		removePaper(paper);
 	}, _inner->lifetime());
+}
+
+void BackgroundBox::chooseFromFile() {
+	const auto filterStart = _forPeer
+		? u"Image files (*"_q
+		: u"Theme files (*.tdesktop-theme *.tdesktop-palette *"_q;
+	auto filters = QStringList(
+		filterStart
+		+ Ui::ImageExtensions().join(u" *"_q)
+		+ u")"_q);
+	filters.push_back(FileDialog::AllFilesFilter());
+	const auto callback = [=](const FileDialog::OpenResult &result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
+
+		if (!_forPeer && !result.paths.isEmpty()) {
+			const auto filePath = result.paths.front();
+			const auto hasExtension = [&](QLatin1String extension) {
+				return filePath.endsWith(extension, Qt::CaseInsensitive);
+			};
+			if (hasExtension(qstr(".tdesktop-theme"))
+				|| hasExtension(qstr(".tdesktop-palette"))) {
+				Window::Theme::Apply(filePath);
+				return;
+			}
+		}
+
+		auto image = Images::Read({
+			.path = result.paths.isEmpty() ? QString() : result.paths.front(),
+			.content = result.remoteContent,
+			.forceOpaque = true,
+		}).image;
+		if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
+			return;
+		}
+		auto local = Data::CustomWallPaper();
+		local.setLocalImageAsThumbnail(std::make_shared<Image>(
+			std::move(image)));
+		_controller->show(Box<BackgroundPreviewBox>(
+			_controller,
+			local,
+			BackgroundPreviewArgs{ _forPeer }));
+	};
+	FileDialog::GetOpenPath(
+		this,
+		tr::lng_choose_image(tr::now),
+		filters.join(u";;"_q),
+		crl::guard(this, callback));
 }
 
 bool BackgroundBox::hasDefaultForPeer() const {

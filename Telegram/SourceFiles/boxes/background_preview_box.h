@@ -61,6 +61,8 @@ private:
 	void apply();
 	void applyForPeer();
 	void applyForEveryone();
+	void uploadForPeer();
+	void setExistingForPeer(const Data::WallPaper &paper);
 	void share();
 	void radialAnimationCallback(crl::time now);
 	QRect radialRect() const;
@@ -95,5 +97,9 @@ private:
 	base::binary_guard _generating;
 	std::optional<QColor> _serviceBg;
 	object_ptr<Ui::Checkbox> _blur = { nullptr };
+
+	FullMsgId _uploadId;
+	float64 _uploadProgress = 0.;
+	rpl::lifetime _uploadLifetime;
 
 };

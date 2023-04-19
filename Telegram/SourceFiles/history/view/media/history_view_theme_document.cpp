@@ -329,9 +329,12 @@ void ThemeDocument::prepareThumbnailFrom(
 		tw = th = 1;
 	}
 	const auto ratio = style::DevicePixelRatio();
+	const auto resizeTo = _serviceWidth
+		? QSize(tw, th).scaled(_pixw, _pixh, Qt::KeepAspectRatioByExpanding)
+		: QSize(_pixw, (_pixw * th) / tw);
 	original = Images::Prepare(
 		std::move(original),
-		QSize(_pixw, (_pixw * th) / tw) * ratio,
+		resizeTo * ratio,
 		{ .options = options, .outer = { _pixw, _pixh } });
 	if (isPattern) {
 		original = Ui::PreparePatternImage(

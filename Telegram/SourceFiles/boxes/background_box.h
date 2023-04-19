@@ -39,6 +39,8 @@ private:
 	void removePaper(const Data::WallPaper &paper);
 	void resetForPeer();
 
+	void chooseFromFile();
+
 	const not_null<Window::SessionController*> _controller;
 
 	QPointer<Inner> _inner;

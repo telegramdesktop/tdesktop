@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "window/window_session_controller.h"
 #include "settings/settings_common.h"
+#include "storage/file_upload.h"
+#include "storage/localimageloader.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -275,18 +277,82 @@ void BackgroundPreviewBox::createBlurCheckbox() {
 }
 
 void BackgroundPreviewBox::apply() {
-	const auto weak = Ui::MakeWeak(this);
 	if (_forPeer) {
 		applyForPeer();
 	} else {
 		applyForEveryone();
 	}
-	if (weak) {
-		closeBox();
-	}
 }
 
-void BackgroundPreviewBox::applyForPeer() {
+void BackgroundPreviewBox::uploadForPeer() {
+	Expects(_forPeer != nullptr);
+
+	if (_uploadId) {
+		return;
+	}
+
+	const auto session = &_controller->session();
+	const auto ready = Window::Theme::PrepareWallPaper(
+		session->mainDcId(),
+		_paper.localThumbnail()->original());
+	const auto documentId = ready.id;
+	_uploadId = FullMsgId(
+		session->userPeerId(),
+		session->data().nextLocalMessageId());
+	session->uploader().uploadMedia(_uploadId, ready);
+	if (_uploadLifetime) {
+		return;
+	}
+
+	const auto document = session->data().document(documentId);
+	document->uploadingData = std::make_unique<Data::UploadState>(
+		document->size);
+
+	session->uploader().documentProgress(
+	) | rpl::start_with_next([=](const FullMsgId &fullId) {
+		if (fullId != _uploadId) {
+			return;
+		}
+		_uploadProgress = document->uploading()
+			? ((document->uploadingData->offset * 100)
+				/ document->uploadingData->size)
+			: 0.;
+		update(radialRect());
+	}, _uploadLifetime);
+
+	session->uploader().documentReady(
+	) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
+		if (data.fullId != _uploadId) {
+			return;
+		}
+		_uploadProgress = 1.;
+		_uploadLifetime.destroy();
+		update(radialRect());
+		session->api().request(MTPaccount_UploadWallPaper(
+			MTP_flags(MTPaccount_UploadWallPaper::Flag::f_for_chat),
+			data.info.file,
+			MTP_string("image/jpeg"),
+			_paper.mtpSettings()
+		)).done([=](const MTPWallPaper &result) {
+			result.match([&](const MTPDwallPaper &data) {
+				session->data().documentConvert(
+					session->data().document(documentId),
+					data.vdocument());
+			}, [&](const MTPDwallPaperNoFile &data) {
+				LOG(("API Error: "
+					"Got wallPaperNoFile after account.UploadWallPaper."));
+			});
+			if (const auto paper = Data::WallPaper::Create(session, result)) {
+				setExistingForPeer(*paper);
+			}
+		}).send();
+	}, _uploadLifetime);
+
+	_uploadProgress = 0.;
+	_radial.start(_uploadProgress);
+}
+
+void BackgroundPreviewBox::setExistingForPeer(const Data::WallPaper &paper) {
 	Expects(_forPeer != nullptr);
 
 	const auto api = &_controller->session().api();
@@ -296,15 +362,25 @@ void BackgroundPreviewBox::applyForPeer() {
 			| (_fromMessageId ? Flag() : Flag::f_wallpaper)
 			| Flag::f_settings),
 		_forPeer->input,
-		_paper.mtpInput(&_controller->session()),
-		_paper.mtpSettings(),
+		paper.mtpInput(&_controller->session()),
+		paper.mtpSettings(),
 		MTP_int(_fromMessageId.msg)
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
 	}).send();
 
-	_forPeer->setWallPaper(_paper);
+	_forPeer->setWallPaper(paper);
 	_controller->finishChatThemeEdit(_forPeer);
+}
+
+void BackgroundPreviewBox::applyForPeer() {
+	Expects(_forPeer != nullptr);
+
+	if (Data::IsCustomWallPaper(_paper)) {
+		uploadForPeer();
+	} else {
+		setExistingForPeer(_paper);
+	}
 }
 
 void BackgroundPreviewBox::applyForEveryone() {
@@ -317,6 +393,7 @@ void BackgroundPreviewBox::applyForEveryone() {
 			_paper.mtpSettings()
 		)).send();
 	}
+	closeBox();
 }
 
 void BackgroundPreviewBox::share() {
@@ -441,14 +518,11 @@ void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 }
 
 void BackgroundPreviewBox::radialAnimationCallback(crl::time now) {
-	Expects(_paper.document() != nullptr);
-
 	const auto document = _paper.document();
 	const auto wasAnimating = _radial.animating();
-	const auto updated = _radial.update(
-		_media->progress(),
-		!document->loading(),
-		now);
+	const auto updated = _uploadId
+		? _radial.update(_uploadProgress, !_uploadLifetime, now)
+		: _radial.update(_media->progress(), !document->loading(), now);
 	if ((wasAnimating || _radial.animating())
 		&& (!anim::Disabled() || updated)) {
 		update(radialRect());
