@@ -1038,7 +1038,7 @@ void Filler::addThemeEdit() {
 	}
 	const auto controller = _controller;
 	_addAction(
-		tr::lng_chat_theme_change(tr::now),
+		tr::lng_chat_theme_wallpaper(tr::now),
 		[=] { controller->toggleChooseChatTheme(user); },
 		&st::menuIconChangeColors);
 }

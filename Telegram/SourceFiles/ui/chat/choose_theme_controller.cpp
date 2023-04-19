@@ -41,7 +41,7 @@ const auto kDisableElement = [] { return u"disable"_q; };
 [[nodiscard]] QImage GeneratePreview(not_null<Ui::ChatTheme*> theme) {
 	const auto &background = theme->background();
 	const auto &colors = background.colors;
-	const auto size = st::settingsThemePreviewSize;
+	const auto size = st::chatThemePreviewSize;
 	auto prepared = background.prepared;
 	const auto paintPattern = [&](QPainter &p, bool inverted) {
 		if (prepared.isNull()) {
@@ -91,16 +91,16 @@ const auto kDisableElement = [] { return u"disable"_q; };
 		const auto sent = QRect(
 			QPoint(
 				(size.width()
-					- st::settingsThemeBubbleSize.width()
-					- st::settingsThemeBubblePosition.x()),
-				st::settingsThemeBubblePosition.y()),
-			st::settingsThemeBubbleSize);
+					- st::chatThemeBubbleSize.width()
+					- st::chatThemeBubblePosition.x()),
+				st::chatThemeBubblePosition.y()),
+			st::chatThemeBubbleSize);
 		const auto received = QRect(
-			st::settingsThemeBubblePosition.x(),
-			sent.y() + sent.height() + st::settingsThemeBubbleSkip,
+			st::chatThemeBubblePosition.x(),
+			sent.y() + sent.height() + st::chatThemeBubbleSkip,
 			sent.width(),
 			sent.height());
-		const auto radius = st::settingsThemeBubbleRadius;
+		const auto radius = st::chatThemeBubbleRadius;
 
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
@@ -124,7 +124,7 @@ const auto kDisableElement = [] { return u"disable"_q; };
 
 [[nodiscard]] QImage GenerateEmptyPreview() {
 	auto result = QImage(
-		st::settingsThemePreviewSize * style::DevicePixelRatio(),
+		st::chatThemePreviewSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(st::settingsThemeNotSupportedBg->c);
 	result.setDevicePixelRatio(style::DevicePixelRatio());
@@ -132,9 +132,9 @@ const auto kDisableElement = [] { return u"disable"_q; };
 		auto p = QPainter(&result);
 		p.setPen(st::menuIconFg);
 		p.setFont(st::semiboldFont);
-		const auto top = st::normalFont->height / 2;
-		const auto width = st::settingsThemePreviewSize.width();
-		const auto height = st::settingsThemePreviewSize.height() - top;
+		const auto top = st::chatThemeEmptyPreviewTop;
+		const auto width = st::chatThemePreviewSize.width();
+		const auto height = st::chatThemePreviewSize.height() - top;
 		p.drawText(
 			QRect(0, top, width, height),
 			tr::lng_chat_theme_none(tr::now),
@@ -194,7 +194,8 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 		0,
 		object_ptr<FixedHeightWidget>(
 			_wrap.get(),
-			skip + st::boxTitle.style.font->height + skip));
+			st::boxTitle.style.font->height),
+		st::chatThemeTitlePadding);
 	auto title = CreateChild<FlatLabel>(
 		titleWrap,
 		tr::lng_chat_theme_title(),
@@ -204,12 +205,23 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 		QPainter(_wrap.get()).fillRect(clip, st::windowBg);
 	}, lifetime());
 
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		_wrap.get(),
+		st::boxTitleClose);
+	close->setClickedCallback([=] { this->close(); });
+	rpl::combine(
+		_wrap->widthValue(),
+		titleWrap->positionValue()
+	) | rpl::start_with_next([=](int width, QPoint position) {
+		close->moveToRight(0, 0, width);
+	}, close->lifetime());
+
 	initButtons();
 	initList();
 
 	_inner->positionValue(
 	) | rpl::start_with_next([=](QPoint position) {
-		title->move(std::max(position.x(), skip) + skip, skip);
+		title->move(std::max(position.x(), 0), 0);
 	}, title->lifetime());
 
 	std::move(
@@ -233,31 +245,28 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 
 void ChooseThemeController::initButtons() {
 	const auto controls = _wrap->add(object_ptr<RpWidget>(_wrap.get()));
-	const auto cancel = CreateChild<RoundButton>(
-		controls,
-		tr::lng_cancel(),
-		st::defaultLightButton);
 	const auto apply = CreateChild<RoundButton>(
 		controls,
 		tr::lng_chat_theme_apply(),
-		st::defaultActiveButton);
+		st::defaultLightButton);
+	apply->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	const auto choose = CreateChild<RoundButton>(
 		controls,
 		rpl::single(u"Change Wallpaper"_q),
-		st::defaultActiveButton);
-	const auto skip = st::normalFont->spacew * 2;
+		st::defaultLightButton);
+	choose->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+
+	const auto &margin = st::chatThemeButtonMargin;
 	controls->resize(
-		skip + cancel->width() + skip + choose->width() + skip,
-		apply->height() + skip * 2);
+		margin.left() + choose->width() + margin.right(),
+		margin.top() + choose->height() + margin.bottom());
 	rpl::combine(
 		controls->widthValue(),
-		cancel->widthValue(),
 		apply->widthValue(),
 		choose->widthValue(),
 		_chosen.value()
 	) | rpl::start_with_next([=](
 			int outer,
-			int cancelWidth,
 			int applyWidth,
 			int chooseWidth,
 			QString chosen) {
@@ -268,13 +277,11 @@ void ChooseThemeController::initButtons() {
 		choose->setVisible(!changed);
 		const auto shown = changed ? apply : choose;
 		const auto shownWidth = changed ? applyWidth : chooseWidth;
-		const auto inner = skip + cancelWidth + skip + shownWidth + skip;
+		const auto inner = margin.left() + shownWidth + margin.right();
 		const auto left = (outer - inner) / 2;
-		cancel->moveToLeft(left, 0);
-		shown->moveToRight(left, 0);
+		shown->moveToLeft(left, margin.top());
 	}, controls->lifetime());
 
-	cancel->setClickedCallback([=] { close(); });
 	apply->setClickedCallback([=] {
 		if (const auto chosen = findChosen()) {
 			const auto was = _peer->themeEmoji();
@@ -326,7 +333,7 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 	const auto emojiTop = geometry.y()
 		+ geometry.height()
 		- (size / factor)
-		- (st::normalFont->spacew * 2);
+		- st::chatThemeEmojiBottom;
 	Ui::Emoji::Draw(p, entry.emoji, size, emojiLeft, emojiTop);
 
 	if (entry.chosen) {
@@ -346,7 +353,9 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 void ChooseThemeController::initList() {
 	_content->resize(
 		_content->width(),
-		8 * st::normalFont->spacew + st::settingsThemePreviewSize.height());
+		(st::chatThemeEntryMargin.top()
+			+ st::chatThemePreviewSize.height()
+			+ st::chatThemeEntryMargin.bottom()));
 	_inner->setMouseTracking(true);
 
 	_inner->paintRequest(
@@ -524,10 +533,16 @@ void ChooseThemeController::fill(
 		return;
 	}
 	const auto count = int(themes.size()) + 1;
-	const auto single = st::settingsThemePreviewSize;
-	const auto skip = st::normalFont->spacew * 2;
-	const auto full = single.width() * count + skip * (count + 3);
-	_inner->resize(full, skip + single.height() + skip);
+	const auto single = st::chatThemePreviewSize;
+	const auto skip = st::chatThemeEntrySkip;
+	const auto &margin = st::chatThemeEntryMargin;
+	const auto full = margin.left()
+		+ single.width() * count
+		+ skip * (count - 1)
+		+ margin.right();
+	_inner->resize(
+		full,
+		margin.top() + single.height() + margin.bottom());
 
 	const auto initial = Ui::Emoji::Find(_peer->themeEmoji());
 	if (!initial) {
@@ -543,11 +558,11 @@ void ChooseThemeController::fill(
 
 		_cachingLifetime.destroy();
 		const auto old = base::take(_entries);
-		auto x = skip * 2;
+		auto x = margin.left();
 		_entries.push_back({
 			.preview = GenerateEmptyPreview(),
 			.emoji = _disabledEmoji,
-			.geometry = QRect(QPoint(x, skip), single),
+			.geometry = QRect(QPoint(x, margin.top()), single),
 			.chosen = (_chosen.current() == kDisableElement()),
 		});
 		Assert(_entries.front().emoji != nullptr);

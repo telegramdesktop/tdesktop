@@ -269,6 +269,18 @@ settingsThemeMinSkip: 4px;
 settingsThemeNotSupportedBg: windowBgOver;
 settingsThemeNotSupportedIcon: icon {{ "theme_preview", menuIconFg }};
 
+chatThemeTitlePadding: margins(22px, 13px, 22px, 9px);
+chatThemePreviewSize: size(80px, 108px);
+chatThemeBubbleSize: size(48px, 22px);
+chatThemeBubbleRadius: 10px;
+chatThemeBubblePosition: point(6px, 12px);
+chatThemeBubbleSkip: 6px;
+chatThemeEntrySkip: 10px;
+chatThemeEntryMargin: margins(16px, 10px, 16px, 8px);
+chatThemeEmptyPreviewTop: 16px;
+chatThemeEmojiBottom: 12px;
+chatThemeButtonMargin: margins(10px, 0px, 10px, 8px);
+
 autoDownloadLimitButton: SettingsButton(settingsButtonNoIcon) {
 	padding: margins(22px, 10px, 22px, 0px);
 }
