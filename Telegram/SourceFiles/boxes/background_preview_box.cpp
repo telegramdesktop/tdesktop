@@ -199,7 +199,9 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 , _appNightMode(Window::Theme::IsNightModeValue())
 , _boxDarkMode(_appNightMode.current())
 , _dimmingIntensity(std::clamp(paper.patternIntensity(), 0, 100))
-, _dimmed(_forPeer && paper.document() && !paper.isPattern()) {
+, _dimmed(_forPeer
+	&& (paper.document() || paper.localThumbnail())
+	&& !paper.isPattern()) {
 	if (_media) {
 		_media->thumbnailWanted(_paper.fileOrigin());
 	}
