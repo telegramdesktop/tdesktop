@@ -1308,3 +1308,18 @@ moreChatsBarClose: IconButton(defaultIconButton) {
 		color: windowBgOver;
 	}
 }
+
+backgroundSwitchToDark: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 48px;
+
+	icon: boxTitleCloseIcon;
+	iconOver: boxTitleCloseIconOver;
+
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+backgroundSwitchToLight: backgroundSwitchToDark;

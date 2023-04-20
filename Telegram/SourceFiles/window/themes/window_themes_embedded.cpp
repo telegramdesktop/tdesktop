@@ -18,6 +18,8 @@ namespace Theme {
 namespace {
 
 constexpr auto kMaxAccentColors = 3;
+constexpr auto kDayBaseFile = ":/gui/day-custom-base.tdesktop-theme"_cs;
+constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 
 const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("boxTextFgGood"),
@@ -309,6 +311,40 @@ std::vector<QColor> DefaultAccentColors(EmbeddedType type) {
 		};
 	}
 	Unexpected("Type in Window::Theme::AccentColors.");
+}
+
+Fn<void(style::palette&)> PreparePaletteCallback(
+		bool dark,
+		std::optional<QColor> accent) {
+	return [=](style::palette &palette) {
+		using namespace Theme;
+		const auto &embedded = EmbeddedThemes();
+		const auto i = ranges::find(
+			embedded,
+			dark ? EmbeddedType::Night : EmbeddedType::Default,
+			&EmbeddedScheme::type);
+		Assert(i != end(embedded));
+		const auto colorizer = accent
+			? ColorizerFrom(*i, *accent)
+			: style::colorizer();
+
+		auto instance = Instance();
+		const auto loaded = LoadFromFile(
+			(dark ? kNightBaseFile : kDayBaseFile).utf16(),
+			&instance,
+			nullptr,
+			nullptr,
+			colorizer);
+		Assert(loaded);
+		palette.finalize();
+		palette = instance.palette;
+	};
+}
+
+Fn<void(style::palette&)> PrepareCurrentPaletteCallback() {
+	return [=, data = style::main_palette::save()](style::palette &palette) {
+		palette.load(data);
+	};
 }
 
 QByteArray AccentColors::serialize() const {

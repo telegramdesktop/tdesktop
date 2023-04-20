@@ -94,47 +94,10 @@ namespace {
 
 constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
-constexpr auto kDayBaseFile = ":/gui/day-custom-base.tdesktop-theme"_cs;
-constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
-
-[[nodiscard]] Fn<void(style::palette&)> PrepareCurrentCallback() {
-	const auto copy = std::make_shared<style::palette>();
-	return [=, data = style::main_palette::save()](style::palette &palette) {
-		palette.load(data);
-	};
-}
-
-[[nodiscard]] Fn<void(style::palette&)> PreparePaletteCallback(
-		bool dark,
-		std::optional<QColor> accent) {
-	return [=](style::palette &palette) {
-		using namespace Theme;
-		const auto &embedded = EmbeddedThemes();
-		const auto i = ranges::find(
-			embedded,
-			dark ? EmbeddedType::Night : EmbeddedType::Default,
-			&EmbeddedScheme::type);
-		Assert(i != end(embedded));
-		const auto colorizer = accent
-			? ColorizerFrom(*i, *accent)
-			: style::colorizer();
-
-		auto instance = Instance();
-		const auto loaded = LoadFromFile(
-			(dark ? kNightBaseFile : kDayBaseFile).utf16(),
-			&instance,
-			nullptr,
-			nullptr,
-			colorizer);
-		Assert(loaded);
-		palette.finalize();
-		palette = instance.palette;
-	};
-}
 
 [[nodiscard]] Ui::ChatThemeBubblesData PrepareBubblesData(
-	const Data::CloudTheme &theme,
-	Data::CloudThemeType type) {
+		const Data::CloudTheme &theme,
+		Data::CloudThemeType type) {
 	const auto i = theme.settings.find(type);
 	return {
 		.colors = (i != end(theme.settings)
@@ -2264,8 +2227,8 @@ void SessionController::cacheChatTheme(
 	auto descriptor = Ui::ChatThemeDescriptor{
 		.key = key.theme,
 		.preparePalette = (data.id
-			? PreparePaletteCallback(dark, i->second.accentColor)
-			: PrepareCurrentCallback()),
+			? Theme::PreparePaletteCallback(dark, i->second.accentColor)
+			: Theme::PrepareCurrentPaletteCallback()),
 		.backgroundData = backgroundData(theme),
 		.bubblesData = PrepareBubblesData(data, type),
 		.basedOnDark = dark,

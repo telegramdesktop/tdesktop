@@ -425,11 +425,12 @@ ChatStyle::ChatStyle(not_null<const style::palette*> isolated)
 }
 
 void ChatStyle::apply(not_null<ChatTheme*> theme) {
-	const auto themePalette = theme->palette();
-	assignPalette(themePalette
-		? themePalette
-		: style::main_palette::get().get());
-	if (themePalette) {
+	applyCustomPalette(theme->palette());
+}
+
+void ChatStyle::applyCustomPalette(const style::palette *palette) {
+	assignPalette(palette ? palette : style::main_palette::get().get());
+	if (palette) {
 		_defaultPaletteChangeLifetime.destroy();
 	} else {
 		style::PaletteChanged(

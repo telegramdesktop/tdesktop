@@ -26,6 +26,9 @@ class SessionController;
 namespace Ui {
 class Checkbox;
 class ChatStyle;
+class MediaSlider;
+template <typename Widget>
+class SlideWrap;
 } // namespace Ui
 
 struct BackgroundPreviewArgs {
@@ -42,6 +45,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		const Data::WallPaper &paper,
 		BackgroundPreviewArgs args = {});
+	~BackgroundPreviewBox();
 
 	static bool Start(
 		not_null<Window::SessionController*> controller,
@@ -54,6 +58,8 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	struct OverridenStyle;
+
 	using Element = HistoryView::Element;
 	not_null<HistoryView::ElementDelegate*> delegate();
 	HistoryView::Context elementContext() override;
@@ -75,10 +81,19 @@ private:
 	void paintImage(Painter &p);
 	void paintRadial(Painter &p);
 	void paintTexts(Painter &p, crl::time ms);
-	void createBlurCheckbox();
+	void recreateBlurCheckbox();
 	int textsTop() const;
 	void startFadeInFrom(QPixmap previous);
 	void checkBlurAnimationStart();
+
+	[[nodiscard]] const style::Box &overridenStyle(bool dark);
+	void paletteReady();
+	void applyDarkMode(bool dark);
+	[[nodiscard]] OverridenStyle prepareOverridenStyle(bool dark);
+
+	void resetTitle();
+	void rebuildButtons(bool dark);
+	void createDimmingSlider(bool dark);
 
 	const not_null<Window::SessionController*> _controller;
 	PeerData * const _forPeer = nullptr;
@@ -98,8 +113,25 @@ private:
 	std::optional<QColor> _serviceBg;
 	object_ptr<Ui::Checkbox> _blur = { nullptr };
 
+	rpl::variable<bool> _appNightMode;
+	rpl::variable<bool> _boxDarkMode;
+	std::unique_ptr<OverridenStyle> _light, _dark;
+	std::unique_ptr<style::palette> _lightPalette, _darkPalette;
+	bool _waitingForPalette = false;
+
+	object_ptr<Ui::SlideWrap<Ui::RpWidget>> _dimmingWrap = { nullptr };
+	Ui::RpWidget *_dimmingContent = nullptr;
+	Ui::MediaSlider *_dimmingSlider = nullptr;
+	int _dimmingIntensity = 0;
+	rpl::variable<int> _dimmingHeight = 0;
+	bool _dimmed = false;
+	bool _dimmingToggleScheduled = false;
+
 	FullMsgId _uploadId;
 	float64 _uploadProgress = 0.;
 	rpl::lifetime _uploadLifetime;
+
+	rpl::variable<QColor> _paletteServiceBg;
+	rpl::lifetime _serviceBgLifetime;
 
 };

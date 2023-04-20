@@ -56,7 +56,9 @@ ThemeDocument::ThemeDocument(
 		_patternOpacity = params->patternOpacity();
 		_gradientRotation = params->gradientRotation();
 		_blurredWallPaper = params->isBlurred();
-		_dimmingIntensity = (params->isPattern() || !_serviceWidth)
+		_dimmingIntensity = (!params->document()
+			|| params->isPattern()
+			|| !_serviceWidth)
 			? 0
 			: std::max(params->patternIntensity(), 0);
 	}

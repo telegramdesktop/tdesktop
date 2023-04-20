@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/continuous_sliders.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "history/history.h"
@@ -34,12 +36,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/background_preview_box.h"
 #include "window/window_session_controller.h"
+#include "window/themes/window_themes_embedded.h"
 #include "settings/settings_common.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+#include "styles/style_settings.h"
 
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
@@ -47,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kMaxWallPaperSlugLength = 255;
+constexpr auto kDefaultDimming = 50;
 
 [[nodiscard]] bool IsValidWallPaperSlug(const QString &slug) {
 	if (slug.isEmpty() || slug.size() > kMaxWallPaperSlugLength) {
@@ -154,6 +159,13 @@ constexpr auto kMaxWallPaperSlugLength = 255;
 
 } // namespace
 
+struct BackgroundPreviewBox::OverridenStyle {
+	style::Box box;
+	style::IconButton toggle;
+	style::MediaSlider slider;
+	style::FlatLabel subtitle;
+};
+
 BackgroundPreviewBox::BackgroundPreviewBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
@@ -183,9 +195,11 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	true))
 , _paper(paper)
 , _media(_paper.document() ? _paper.document()->createMediaView() : nullptr)
-, _radial([=](crl::time now) { radialAnimationCallback(now); }) {
-	_chatStyle->apply(controller->defaultChatTheme().get());
-
+, _radial([=](crl::time now) { radialAnimationCallback(now); })
+, _appNightMode(Window::Theme::IsNightModeValue())
+, _boxDarkMode(_appNightMode.current())
+, _dimmingIntensity(std::clamp(paper.patternIntensity(), 0, 100))
+, _dimmed(_forPeer && paper.document() && !paper.isPattern()) {
 	if (_media) {
 		_media->thumbnailWanted(_paper.fileOrigin());
 	}
@@ -194,6 +208,201 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+
+	_appNightMode.changes(
+	) | rpl::start_with_next([=](bool night) {
+		_boxDarkMode = night;
+		update();
+	}, lifetime());
+
+	_boxDarkMode.changes(
+	) | rpl::start_with_next([=](bool dark) {
+		applyDarkMode(dark);
+	}, lifetime());
+
+	const auto prepare = [=](bool dark, auto pointer) {
+		const auto weak = Ui::MakeWeak(this);
+		crl::async([=] {
+			auto result = std::make_unique<style::palette>();
+			Window::Theme::PreparePaletteCallback(dark, {})(*result);
+			crl::on_main([=, result = std::move(result)]() mutable {
+				if (const auto strong = weak.data()) {
+					strong->*pointer = std::move(result);
+					strong->paletteReady();
+				}
+			});
+		});
+	};
+	prepare(false, &BackgroundPreviewBox::_lightPalette);
+	prepare(true, &BackgroundPreviewBox::_darkPalette);
+}
+
+BackgroundPreviewBox::~BackgroundPreviewBox() = default;
+
+void BackgroundPreviewBox::applyDarkMode(bool dark) {
+	const auto equals = (dark == Window::Theme::IsNightMode());
+	const auto &palette = (dark ? _darkPalette : _lightPalette);
+	if (!equals && !palette) {
+		_waitingForPalette = true;
+		return;
+	}
+	_waitingForPalette = false;
+	if (equals) {
+		setStyle(st::defaultBox);
+		_chatStyle->applyCustomPalette(nullptr);
+		_paletteServiceBg = rpl::single(
+			rpl::empty
+		) | rpl::then(
+			style::PaletteChanged()
+		) | rpl::map([=] {
+			return st::msgServiceBg->c;
+		});
+	} else {
+		setStyle(overridenStyle(dark));
+		_chatStyle->applyCustomPalette(palette.get());
+		_paletteServiceBg = palette->msgServiceBg()->c;
+	}
+	resetTitle();
+	rebuildButtons(dark);
+	update();
+	if (const auto parent = parentWidget()) {
+		parent->update();
+	}
+
+	if (_dimmed) {
+		createDimmingSlider(dark);
+	}
+}
+
+void BackgroundPreviewBox::createDimmingSlider(bool dark) {
+	const auto created = !_dimmingWrap;
+	if (created) {
+		_dimmingWrap.create(this, object_ptr<Ui::RpWidget>(this));
+		_dimmingContent = _dimmingWrap->entity();
+	}
+	_dimmingSlider = nullptr;
+	for (const auto &child : _dimmingContent->children()) {
+		if (child->isWidgetType()) {
+			static_cast<QWidget*>(child)->hide();
+			child->deleteLater();
+		}
+	}
+	const auto equals = (dark == Window::Theme::IsNightMode());
+	const auto inner = Ui::CreateChild<Ui::VerticalLayout>(_dimmingContent);
+	inner->show();
+	Settings::AddSubsectionTitle(
+		inner,
+		rpl::single(u"Background dimming"_q),
+		style::margins(0, st::settingsSectionSkip, 0, 0),
+		equals ? nullptr : dark ? &_dark->subtitle : &_light->subtitle);
+	_dimmingSlider = inner->add(
+		object_ptr<Ui::MediaSlider>(
+			inner,
+			(equals
+				? st::defaultContinuousSlider
+				: dark
+				? _dark->slider
+				: _light->slider)),
+		st::localStorageLimitMargin);
+	_dimmingSlider->setValue(_dimmingIntensity / 100.);
+	_dimmingSlider->setAlwaysDisplayMarker(true);
+	_dimmingSlider->resize(st::defaultContinuousSlider.seekSize);
+	const auto handle = [=](float64 value) {
+		const auto intensity = std::clamp(
+			int(base::SafeRound(value * 100)),
+			0,
+			100);
+		_paper = _paper.withPatternIntensity(intensity);
+		_dimmingIntensity = intensity;
+		update();
+	};
+	_dimmingSlider->setChangeProgressCallback(handle);
+	_dimmingSlider->setChangeFinishedCallback(handle);
+	inner->resizeToWidth(st::boxWideWidth);
+	Ui::SendPendingMoveResizeEvents(inner);
+	inner->move(0, 0);
+	_dimmingContent->resize(inner->size());
+
+	_dimmingContent->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(_dimmingContent);
+		const auto palette = (dark ? _darkPalette : _lightPalette).get();
+		p.fillRect(clip, equals ? st::boxBg : palette->boxBg());
+	}, _dimmingContent->lifetime());
+
+	_dimmingToggleScheduled = true;
+
+	if (created) {
+		rpl::combine(
+			heightValue(),
+			_dimmingWrap->heightValue(),
+			rpl::mappers::_1 - rpl::mappers::_2
+		) | rpl::start_with_next([=](int top) {
+			_dimmingWrap->move(0, top);
+		}, _dimmingWrap->lifetime());
+
+		_dimmingWrap->toggle(!dark, anim::type::instant);
+		_dimmingHeight = _dimmingWrap->heightValue();
+		_dimmingHeight.changes() | rpl::start_with_next([=] {
+			update();
+		}, _dimmingWrap->lifetime());
+	}
+}
+
+void BackgroundPreviewBox::paletteReady() {
+	if (_waitingForPalette) {
+		applyDarkMode(_boxDarkMode.current());
+	}
+}
+
+const style::Box &BackgroundPreviewBox::overridenStyle(bool dark) {
+	auto &st = dark ? _dark : _light;
+	if (!st) {
+		st = std::make_unique<OverridenStyle>(prepareOverridenStyle(dark));
+	}
+	return st->box;
+}
+
+auto BackgroundPreviewBox::prepareOverridenStyle(bool dark)
+-> OverridenStyle {
+	const auto p = (dark ? _darkPalette : _lightPalette).get();
+	Assert(p != nullptr);
+
+	const auto &toggle = dark
+		? st::backgroundSwitchToLight
+		: st::backgroundSwitchToDark;
+	auto result = OverridenStyle{
+		.box = st::defaultBox,
+		.toggle = toggle,
+		.slider = st::defaultContinuousSlider,
+		.subtitle = st::settingsSubsectionTitle,
+	};
+	result.box.button.textFg = p->lightButtonFg();
+	result.box.button.textFgOver = p->lightButtonFgOver();
+	result.box.button.numbersTextFg = p->lightButtonFg();
+	result.box.button.numbersTextFgOver = p->lightButtonFgOver();
+	result.box.button.textBg = p->lightButtonBg();
+	result.box.button.textBgOver = p->lightButtonBgOver();
+	result.box.button.ripple.color = p->lightButtonBgRipple();
+	result.box.title.textFg = p->boxTitleFg();
+	result.box.bg = p->boxBg();
+	result.box.titleAdditionalFg = p->boxTitleAdditionalFg();
+
+	result.toggle.ripple.color = p->windowBgOver();
+	result.toggle.icon = toggle.icon.withPalette(*p);
+	result.toggle.iconOver = toggle.iconOver.withPalette(*p);
+
+	result.slider.activeFg = p->mediaPlayerActiveFg();
+	result.slider.inactiveFg = p->mediaPlayerInactiveFg();
+	result.slider.activeFgOver = p->mediaPlayerActiveFg();
+	result.slider.inactiveFgOver = p->mediaPlayerInactiveFg();
+	result.slider.activeFgDisabled = p->mediaPlayerInactiveFg();
+	result.slider.inactiveFgDisabled = p->windowBg();
+	result.slider.receivedTillFg = p->mediaPlayerInactiveFg();
+
+	result.subtitle.textFg = p->windowActiveTextFg();
+
+	return result;
 }
 
 void BackgroundPreviewBox::generateBackground() {
@@ -215,9 +424,12 @@ not_null<HistoryView::ElementDelegate*> BackgroundPreviewBox::delegate() {
 	return static_cast<HistoryView::ElementDelegate*>(this);
 }
 
-void BackgroundPreviewBox::prepare() {
+void BackgroundPreviewBox::resetTitle() {
 	setTitle(tr::lng_background_header());
+}
 
+void BackgroundPreviewBox::rebuildButtons(bool dark) {
+	clearButtons();
 	addButton(_forPeer
 		? tr::lng_background_apply_button()
 		: tr::lng_background_apply(), [=] { apply(); });
@@ -225,18 +437,28 @@ void BackgroundPreviewBox::prepare() {
 	if (!_forPeer && _paper.hasShareUrl()) {
 		addLeftButton(tr::lng_background_share(), [=] { share(); });
 	}
-	updateServiceBg(_paper.backgroundColors());
+	const auto equals = (dark == Window::Theme::IsNightMode());
+	auto toggle = object_ptr<Ui::IconButton>(this, equals
+		? (dark ? st::backgroundSwitchToLight : st::backgroundSwitchToDark)
+		: dark ? _dark->toggle : _light->toggle);
+	toggle->setClickedCallback([=] {
+		_boxDarkMode = !_boxDarkMode.current();
+	});
+	addTopButton(std::move(toggle));
+}
+
+void BackgroundPreviewBox::prepare() {
+	applyDarkMode(Window::Theme::IsNightMode());
 
 	_paper.loadDocument();
-	const auto document = _paper.document();
-	if (document && document->loading()) {
-		_radial.start(_media->progress());
+	if (const auto document = _paper.document()) {
+		if (document->loading()) {
+			_radial.start(_media->progress());
+		}
 	}
-	if (!_paper.isPattern()
-		&& (_paper.localThumbnail()
-			|| (document && document->hasThumbnail()))) {
-		createBlurCheckbox();
-	}
+
+	updateServiceBg(_paper.backgroundColors());
+
 	setScaledFromThumb();
 	checkLoadedDocument();
 
@@ -249,31 +471,42 @@ void BackgroundPreviewBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxWideWidth);
 }
 
-void BackgroundPreviewBox::createBlurCheckbox() {
+void BackgroundPreviewBox::recreateBlurCheckbox() {
+	const auto document = _paper.document();
+	if (_paper.isPattern()
+		|| (!_paper.localThumbnail()
+			&& (!document || !document->hasThumbnail()))) {
+		return;
+	}
+
+	const auto blurred = _blur ? _blur->checked() : _paper.isBlurred();
 	_blur = Ui::MakeChatServiceCheckbox(
 		this,
 		tr::lng_background_blur(tr::now),
 		st::backgroundCheckbox,
 		st::backgroundCheck,
-		_paper.isBlurred(),
+		blurred,
 		[=] { return _serviceBg.value_or(QColor(255, 255, 255, 0)); });
+	_blur->show();
 
 	rpl::combine(
 		sizeValue(),
-		_blur->sizeValue()
-	) | rpl::start_with_next([=](QSize outer, QSize inner) {
+		_blur->sizeValue(),
+		_dimmingHeight.value()
+	) | rpl::start_with_next([=](QSize outer, QSize inner, int dimming) {
+		const auto bottom = st::historyPaddingBottom;
 		_blur->move(
 			(outer.width() - inner.width()) / 2,
-			outer.height() - st::historyPaddingBottom - inner.height());
+			outer.height() - dimming - bottom - inner.height());
 	}, _blur->lifetime());
 
 	_blur->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
 		checkBlurAnimationStart();
 		update();
-	}, lifetime());
+	}, _blur->lifetime());
 
-	_blur->setDisabled(true);
+	_blur->setDisabled(_paper.document() && _full.isNull());
 }
 
 void BackgroundPreviewBox::apply() {
@@ -418,6 +651,13 @@ void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
 	}
 	if (!_scaled.isNull()) {
 		paintImage(p);
+		const auto dimming = (_dimmed && _boxDarkMode.current())
+			? _dimmingIntensity
+			: 0;
+		if (dimming > 0) {
+			const auto alpha = 255 * dimming / 100;
+			p.fillRect(e->rect(), QColor(0, 0, 0, alpha));
+		}
 		paintRadial(p);
 	} else if (_generated.isNull()) {
 		p.fillRect(e->rect(), st::boxBg);
@@ -427,6 +667,15 @@ void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
 		paintRadial(p);
 	}
 	paintTexts(p, ms);
+	if (_dimmingToggleScheduled) {
+		crl::on_main(this, [=] {
+			if (!_dimmingToggleScheduled) {
+				return;
+			}
+			_dimmingToggleScheduled = false;
+			_dimmingWrap->toggle(_boxDarkMode.current(), anim::type::normal);
+		});
+	}
 }
 
 void BackgroundPreviewBox::paintImage(Painter &p) {
@@ -476,7 +725,9 @@ void BackgroundPreviewBox::paintRadial(Painter &p) {
 }
 
 int BackgroundPreviewBox::textsTop() const {
-	const auto bottom = _blur ? _blur->y() : height();
+	const auto bottom = _blur
+		? _blur->y()
+		: (height() - _dimmingHeight.current());
 	return bottom
 		- st::historyPaddingBottom
 		- (_service ? _service->height() : 0)
@@ -569,8 +820,8 @@ void BackgroundPreviewBox::setScaledFromImage(
 	}
 	_scaled = Ui::PixmapFromImage(std::move(image));
 	_blurred = Ui::PixmapFromImage(std::move(blurred));
-	if (_blur && (!_paper.document() || !_full.isNull())) {
-		_blur->setDisabled(false);
+	if (_blur) {
+		_blur->setDisabled(_paper.document() && _full.isNull());
 	}
 }
 
@@ -595,22 +846,21 @@ void BackgroundPreviewBox::updateServiceBg(const std::vector<QColor> &bg) {
 	if (!count) {
 		return;
 	}
-	auto red = 0, green = 0, blue = 0;
+	auto red = 0LL, green = 0LL, blue = 0LL;
 	for (const auto &color : bg) {
 		red += color.red();
 		green += color.green();
 		blue += color.blue();
 	}
-	rpl::single(
-		rpl::empty
-	) | rpl::then(
-		style::PaletteChanged()
-	) | rpl::start_with_next([=] {
+
+	_serviceBgLifetime = _paletteServiceBg.value(
+	) | rpl::start_with_next([=](QColor color) {
 		_serviceBg = Ui::ThemeAdjustedColor(
-			st::msgServiceBg->c,
+			color,
 			QColor(red / count, green / count, blue / count));
 		_chatStyle->applyAdjustedServiceBg(*_serviceBg);
-	}, lifetime());
+		recreateBlurCheckbox();
+	});
 
 	_service = GenerateServiceItem(
 		delegate(),
