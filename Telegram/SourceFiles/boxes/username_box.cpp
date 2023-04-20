@@ -126,11 +126,14 @@ rpl::producer<> UsernameEditor::submitted() const {
 }
 
 void UsernameEditor::setInnerFocus() {
-	_username->setFocusFast();
+	if (_username->isEnabled()) {
+		_username->setFocusFast();
+	}
 }
 
 void UsernameEditor::setEnabled(bool value) {
 	_username->setEnabled(value);
+	_username->setDisplayFocused(value);
 }
 
 void UsernameEditor::resizeEvent(QResizeEvent *e) {

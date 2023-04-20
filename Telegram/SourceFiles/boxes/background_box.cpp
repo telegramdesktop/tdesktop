@@ -301,7 +301,6 @@ void BackgroundBox::chosen(const Data::WallPaper &paper) {
 
 void BackgroundBox::resetForPeer() {
 	const auto api = &_controller->session().api();
-	using Flag = MTPmessages_SetChatWallPaper::Flag;
 	api->request(MTPmessages_SetChatWallPaper(
 		MTP_flags(0),
 		_forPeer->input,
