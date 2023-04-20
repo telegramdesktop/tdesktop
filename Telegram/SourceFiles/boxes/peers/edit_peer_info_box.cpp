@@ -1809,16 +1809,28 @@ void Controller::saveTitle() {
 		).fail(std::move(onFail)
 		).send();
 	} else if (_isBot) {
-		using Flag = MTPbots_SetBotInfo::Flag;
-		_api.request(MTPbots_SetBotInfo(
-			MTP_flags(Flag::f_bot | Flag::f_name),
+		_api.request(MTPbots_GetBotInfo(
+			MTP_flags(MTPbots_GetBotInfo::Flag::f_bot),
 			_peer->asUser()->inputUser,
-			MTPstring(), // Lang code.
-			MTP_string(*_savingData.title), // Name.
-			MTPstring(), // About.
-			MTPstring() // Description.
-		)).done([=] {
-			continueSave();
+			MTPstring() // Lang code.
+		)).done([=](const MTPbots_BotInfo &result) {
+			const auto was = qs(result.data().vname());
+			const auto now = *_savingData.title;
+			if (was == now) {
+				return continueSave();
+			}
+			using Flag = MTPbots_SetBotInfo::Flag;
+			_api.request(MTPbots_SetBotInfo(
+				MTP_flags(Flag::f_bot | Flag::f_name),
+				_peer->asUser()->inputUser,
+				MTPstring(), // Lang code.
+				MTP_string(now), // Name.
+				MTPstring(), // About.
+				MTPstring() // Description.
+			)).done([=] {
+				continueSave();
+			}).fail(std::move(onFail)
+			).send();
 		}).fail(std::move(onFail)
 		).send();
 	} else {
@@ -1836,19 +1848,32 @@ void Controller::saveDescription() {
 		continueSave();
 	};
 	if (_isBot) {
-		using Flag = MTPbots_SetBotInfo::Flag;
-		_api.request(MTPbots_SetBotInfo(
-			MTP_flags(Flag::f_bot | Flag::f_about),
+		_api.request(MTPbots_GetBotInfo(
+			MTP_flags(MTPbots_GetBotInfo::Flag::f_bot),
 			_peer->asUser()->inputUser,
-			MTPstring(), // Lang code.
-			MTPstring(), // Name.
-			MTP_string(*_savingData.description), // About.
-			MTPstring() // Description.
-		)).done([=] {
-			successCallback();
+			MTPstring() // Lang code.
+		)).done([=](const MTPbots_BotInfo &result) {
+			const auto was = qs(result.data().vabout());
+			const auto now = *_savingData.description;
+			if (was == now) {
+				return continueSave();
+			}
+			using Flag = MTPbots_SetBotInfo::Flag;
+			_api.request(MTPbots_SetBotInfo(
+				MTP_flags(Flag::f_bot | Flag::f_about),
+				_peer->asUser()->inputUser,
+				MTPstring(), // Lang code.
+				MTPstring(), // Name.
+				MTP_string(now), // About.
+				MTPstring() // Description.
+			)).done([=] {
+				successCallback();
+			}).fail([=] {
+				_controls.description->showError();
+				cancelSave();
+			}).send();
 		}).fail([=] {
-			_controls.description->showError();
-			cancelSave();
+			continueSave();
 		}).send();
 		return;
 	}
