@@ -407,7 +407,8 @@ bool PlaybackControls::dragging() const {
 		|| _volumeToggle->isOver()
 		|| (_speedToggle && _speedToggle->isOver())
 		|| _fullScreenToggle->isOver()
-		|| _pictureInPicture->isOver();
+		|| _pictureInPicture->isOver()
+		|| hasMenu();
 }
 
 PlaybackControls::~PlaybackControls() = default;
