@@ -753,6 +753,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_apply1" = "Apply the wallpaper in this chat.";
 "lng_background_apply2" = "Enjoy the view.";
 "lng_background_apply_button" = "Apply For This Chat";
+"lng_background_dimming" = "Background dimming";
 
 "lng_download_path_ask" = "Ask download path for each file";
 "lng_download_path" = "Download path";
@@ -3656,6 +3657,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_theme_wallpaper" = "Set Wallpaper";
 "lng_chat_theme_none" = "No\nTheme";
 "lng_chat_theme_apply" = "Apply Theme";
+"lng_chat_theme_change_wallpaper" = "Change Wallpaper";
 "lng_chat_theme_title" = "Choose theme";
 "lng_chat_theme_cant_voice" = "Sorry, you can't change the chat theme while you're having an unsent voice message.";
 

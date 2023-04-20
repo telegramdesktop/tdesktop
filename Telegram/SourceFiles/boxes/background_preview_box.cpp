@@ -292,7 +292,7 @@ void BackgroundPreviewBox::createDimmingSlider(bool dark) {
 	inner->show();
 	Settings::AddSubsectionTitle(
 		inner,
-		rpl::single(u"Background dimming"_q),
+		tr::lng_background_dimming(),
 		style::margins(0, st::settingsSectionSkip, 0, 0),
 		equals ? nullptr : dark ? &_dark->subtitle : &_light->subtitle);
 	_dimmingSlider = inner->add(

@@ -252,7 +252,7 @@ void ChooseThemeController::initButtons() {
 	apply->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	const auto choose = CreateChild<RoundButton>(
 		controls,
-		rpl::single(u"Change Wallpaper"_q),
+		tr::lng_chat_theme_change_wallpaper(),
 		st::defaultLightButton);
 	choose->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
