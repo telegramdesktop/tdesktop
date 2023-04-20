@@ -64,6 +64,13 @@ constexpr auto kMsInSecond = 1000;
 		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
 }
 
+[[nodiscard]] QSize MaxAllowedSizeForScreen(QSize screenSize) {
+	// Each side should be less than screen side - 3 * st::pipBorderSkip,
+	// That way it won't try to snap to both opposite sides of the screen.
+	const auto skip = 3 * st::pipBorderSkip;
+	return { screenSize.width() - skip, screenSize.height() - skip };
+}
+
 [[nodiscard]] QPoint ClampToEdges(QRect screen, QRect inner) {
 	const auto skip = st::pipBorderSkip;
 	const auto area = st::pipBorderSnapArea;
@@ -535,10 +542,10 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 		? QSize(max, max * _ratio.height() / _ratio.width())
 		: QSize(max * _ratio.width() / _ratio.height(), max);
 
-	// At least one side should not be greater than half of screen size.
-	const auto byWidth = (scaled.width() * screen.height())
-		> (scaled.height() * screen.width());
-	const auto fit = QSize(screen.width() / 2, screen.height() / 2);
+	// Apply maximum size.
+	const auto fit = MaxAllowedSizeForScreen(screen.size());
+	const auto byWidth = (scaled.width() * fit.height())
+		> (scaled.height() * fit.width());
 	const auto normalized = (byWidth && scaled.width() > fit.width())
 		? QSize(fit.width(), fit.width() * scaled.height() / scaled.width())
 		: (!byWidth && scaled.height() > fit.height())
@@ -642,8 +649,7 @@ void PipPanel::handleScreenChanged(QScreen *screen) {
 		st::pipMinimalSize,
 		Qt::KeepAspectRatioByExpanding);
 	const auto maximalSize = _ratio.scaled(
-		screenGeometry.width() / 2,
-		screenGeometry.height() / 2,
+		MaxAllowedSizeForScreen(screenGeometry.size()),
 		Qt::KeepAspectRatio);
 	widget()->setMinimumSize(minimalSize);
 	widget()->setMaximumSize(
@@ -781,8 +787,7 @@ void PipPanel::processDrag(QPoint point) {
 		st::pipMinimalSize,
 		Qt::KeepAspectRatioByExpanding);
 	const auto maximalSize = _ratio.scaled(
-		screen.width() / 2,
-		screen.height() / 2,
+		MaxAllowedSizeForScreen(screen.size()),
 		Qt::KeepAspectRatio);
 	const auto geometry = Transformed(
 		_dragStartGeometry,
@@ -1368,7 +1373,7 @@ void Pip::paint(not_null<Renderer*> renderer) const {
 		if (_preparedCoverState == ThumbState::Cover) {
 			geometry.rotation += base::take(geometry.videoRotation);
 		}
-		renderer->paintTransformedStaticContent(staticContent(), geometry);
+		renderer->paintTransformedStaticContent(content, geometry);
 	}
 	if (_instance.waitingShown()) {
 		renderer->paintRadialLoading(countRadialRect(), controlsShown);
