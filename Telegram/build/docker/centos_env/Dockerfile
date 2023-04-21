@@ -57,7 +57,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 24afddb3bf \
+	&& git checkout bf05b2a1cc \
 	&& rm -rf .git
 
 FROM builder AS nasm
