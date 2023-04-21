@@ -28,6 +28,8 @@ PRIVATE
     export/output/export_output_html.h
     export/output/export_output_json.cpp
     export/output/export_output_json.h
+    export/output/export_output_both.cpp
+    export/output/export_output_both.h
     export/output/export_output_result.h
     export/output/export_output_stats.cpp
     export/output/export_output_stats.h

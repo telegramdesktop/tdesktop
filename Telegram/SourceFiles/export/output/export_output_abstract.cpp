@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_html.h"
 #include "export/output/export_output_json.h"
+#include "export/output/export_output_both.h"
 #include "export/output/export_output_stats.h"
 #include "export/output/export_output_result.h"
 
@@ -50,6 +51,7 @@ std::unique_ptr<AbstractWriter> CreateWriter(Format format) {
 	switch (format) {
 	case Format::Html: return std::make_unique<HtmlWriter>();
 	case Format::Json: return std::make_unique<JsonWriter>();
+	case Format::Both: return std::make_unique<BothWriter>();
 	}
 	Unexpected("Format in Export::Output::CreateWriter.");
 }
