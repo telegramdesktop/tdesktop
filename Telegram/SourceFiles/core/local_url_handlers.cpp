@@ -1034,7 +1034,7 @@ QString TryConvertUrlToLocal(QString url) {
 			"("
 				"/?\\?|"
 				"/?$|"
-				"/[a-zA-Z0-9\\.\\_]+|"
+				"/[a-zA-Z0-9\\.\\_]+/?(\\?|$)|"
 				"/\\d+/?(\\?|$)|"
 				"/\\d+/\\d+/?(\\?|$)"
 			")"_q, query, matchOptions)) {
