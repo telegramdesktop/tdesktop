@@ -1008,9 +1008,7 @@ void Controller::fillManageSection() {
 	if (_isBot) {
 		const auto &container = _controls.buttonsLayout;
 
-		AddSkip(
-			container,
-			st::editPeerTopButtonsLayoutSkipCustomTop);
+		AddSkip(container, 0);
 		fillBotUsernamesButton();
 #if 0 // Enable after design improvements.
 		fillBotEditIntroButton();
