@@ -1,3 +1,11 @@
+4.8 (21.04.23)
+
+- Share folders that include dozens of chats with friends or colleagues.
+- Anyone you invite can add the folder and join all its chats in one tap.
+- You can create multiple invite links to give different people access to different chats in the folder.
+- Set a custom wallpaper for any 1-on-1 chat.
+- Your chat partner can apply the same wallpaper - or choose their own.
+
 4.7.1 (21.03.23)
 
 - Fix media viewer with some system scale settings on Windows.
