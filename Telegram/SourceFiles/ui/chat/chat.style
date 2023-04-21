@@ -1313,8 +1313,8 @@ backgroundSwitchToDark: IconButton(defaultIconButton) {
 	width: 48px;
 	height: 48px;
 
-	icon: boxTitleCloseIcon;
-	iconOver: boxTitleCloseIconOver;
+	icon: icon {{ "menu/header_mode_night", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/header_mode_night", boxTitleCloseFgOver }};
 
 	rippleAreaPosition: point(4px, 4px);
 	rippleAreaSize: 40px;
@@ -1322,4 +1322,7 @@ backgroundSwitchToDark: IconButton(defaultIconButton) {
 		color: windowBgOver;
 	}
 }
-backgroundSwitchToLight: backgroundSwitchToDark;
+backgroundSwitchToLight: IconButton(backgroundSwitchToDark) {
+	icon: icon {{ "menu/header_mode_day", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/header_mode_day", boxTitleCloseFgOver }};
+}
