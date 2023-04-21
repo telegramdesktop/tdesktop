@@ -2326,6 +2326,9 @@ void RepliesWidget::showAnimatedHook(
 void RepliesWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
 	if (_joinGroup) {
+		if (Ui::InFocusChain(this)) {
+			_inner->setFocus();
+		}
 		_composeControls->hide();
 	} else {
 		_composeControls->showFinished();
