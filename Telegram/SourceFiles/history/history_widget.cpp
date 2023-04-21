@@ -1747,9 +1747,7 @@ void HistoryWidget::activate() {
 }
 
 void HistoryWidget::setInnerFocus() {
-	if (_scroll->isHidden()) {
-		setFocus();
-	} else if (_list) {
+	if (_list) {
 		if (isSearching()) {
 			_composeSearch->setInnerFocus();
 		} else if (_chooseTheme && _chooseTheme->shouldBeShown()) {
@@ -1760,10 +1758,16 @@ void HistoryWidget::setInnerFocus() {
 			|| isBotStart()
 			|| isBlocked()
 			|| !_canSendTexts) {
-			_list->setFocus();
+			if (_scroll->isHidden()) {
+				setFocus();
+			} else {
+				_list->setFocus();
+			}
 		} else {
 			_field->setFocus();
 		}
+	} else if (_scroll->isHidden()) {
+		setFocus();
 	}
 }
 
@@ -2679,6 +2683,10 @@ void HistoryWidget::updateControlsVisibility() {
 	}
 
 	if (_firstLoadRequest && !_scroll->isHidden()) {
+		if (Ui::InFocusChain(_scroll.data())) {
+			// Don't loose focus back to chats list.
+			setFocus();
+		}
 		_scroll->hide();
 	} else if (!_firstLoadRequest && _scroll->isHidden()) {
 		_scroll->show();
@@ -6134,7 +6142,11 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 
 	const auto commonModifiers = e->modifiers() & kCommonModifiers;
 	if (e->key() == Qt::Key_Escape) {
-		e->ignore();
+		if (hasFocus()) {
+			escape();
+		} else {
+			e->ignore();
+		}
 	} else if (e->key() == Qt::Key_Back) {
 		_cancelRequests.fire({});
 	} else if (e->key() == Qt::Key_PageDown) {
