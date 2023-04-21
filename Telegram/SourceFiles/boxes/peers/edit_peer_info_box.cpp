@@ -310,9 +310,11 @@ private:
 	void fillPendingRequestsButton();
 
 	void fillBotUsernamesButton();
+#if 0 // Enable after design improvements.
 	void fillBotEditIntroButton();
 	void fillBotEditCommandsButton();
 	void fillBotEditSettingsButton();
+#endif
 
 	void submitTitle();
 	void submitDescription();
@@ -1010,9 +1012,11 @@ void Controller::fillManageSection() {
 			container,
 			st::editPeerTopButtonsLayoutSkipCustomTop);
 		fillBotUsernamesButton();
+#if 0 // Enable after design improvements.
 		fillBotEditIntroButton();
 		fillBotEditCommandsButton();
 		fillBotEditSettingsButton();
+#endif
 		Settings::AddSkip(
 			container,
 			st::editPeerTopButtonsLayoutSkipCustomBottom);
@@ -1410,6 +1414,7 @@ void Controller::fillBotUsernamesButton() {
 		{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange });
 }
 
+#if 0 // Enable after design improvements.
 void Controller::fillBotEditIntroButton() {
 	Expects(_isBot);
 
@@ -1445,6 +1450,7 @@ void Controller::fillBotEditSettingsButton() {
 		[=] { toggleBotManager(user->username()); },
 		{ &st::settingsIconChat, Settings::kIconLightBlue });
 }
+#endif
 
 void Controller::submitTitle() {
 	Expects(_controls.title != nullptr);
