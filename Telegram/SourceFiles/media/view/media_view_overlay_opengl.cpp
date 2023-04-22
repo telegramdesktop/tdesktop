@@ -850,6 +850,7 @@ void OverlayWidget::RendererGL::paintUsingRaster(
 	const auto size = rect.size() * _factor;
 	if (raster.width() < size.width() || raster.height() < size.height()) {
 		raster = QImage(size, QImage::Format_ARGB32_Premultiplied);
+		Assert(!raster.isNull());
 		raster.setDevicePixelRatio(_factor);
 		if (!transparent
 			&& (raster.width() > size.width()
