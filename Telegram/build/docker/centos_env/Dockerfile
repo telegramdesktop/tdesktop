@@ -22,11 +22,12 @@ ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/loc
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
 	&& yum -y install https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm \
 	&& yum -y install centos-release-scl \
-	&& yum -y install git rh-python38-python-pip autoconf automake libtool patch gperf \
+	&& yum -y install git rh-python38-python-pip rh-python38-python-devel \
+		autoconf automake libtool patch gperf flex \
 		fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
-		libdrm-devel vulkan-devel gtk3-devel \
-		perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
+		libdrm-devel vulkan-devel boost169-devel fmt-devel \
+		gtk3-devel perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
 		devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
 		devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
 		llvm-toolset-7.0-llvm-devel \
@@ -693,6 +694,18 @@ RUN git clone -b 2.76.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd .. \
 	&& rm -rf glibmm
 
+FROM patches AS gobject-introspection
+COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
+COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
+
+RUN git clone -b 1.76.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
+	&& cd gobject-introspection \
+	&& meson build --buildtype=plain \
+	&& meson compile -C build \
+	&& DESTDIR="{{ LibrariesPath }}/gobject-introspection-cache" meson install -C build \
+	&& cd .. \
+	&& rm -rf gobject-introspection
+
 FROM patches AS qt
 COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
@@ -839,6 +852,7 @@ COPY --link --from=openal {{ LibrariesPath }}/openal-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
+COPY --link --from=gobject-introspection {{ LibrariesPath }}/gobject-introspection-cache /
 COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
 COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
 COPY --link --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
@@ -851,6 +865,8 @@ COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/
 WORKDIR ../tdesktop
 ENV QT {{ QT }}
 ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
+ENV BOOST_INCLUDEDIR /usr/include/boost169
+ENV BOOST_LIBRARYDIR /usr/lib64/boost169
 
 VOLUME [ "/usr/src/tdesktop" ]
 ENTRYPOINT [ "scl", "enable", "rh-python38", "--", "scl", "enable", "llvm-toolset-7.0", "--", "scl", "enable", "devtoolset-10", "--" ]
