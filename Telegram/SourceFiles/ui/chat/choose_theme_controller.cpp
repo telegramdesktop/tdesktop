@@ -189,7 +189,6 @@ void ChooseThemeController::init(rpl::producer<QSize> outer) {
 		}, lifetime());
 	}
 
-	const auto skip = st::normalFont->spacew * 4;
 	const auto titleWrap = _wrap->insert(
 		0,
 		object_ptr<FixedHeightWidget>(
