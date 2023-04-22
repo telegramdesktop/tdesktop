@@ -759,9 +759,9 @@ bool WrapWidget::returnToFirstStackFrame(
 void WrapWidget::showNewContent(
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params) {
-	auto saveToStack = (_content != nullptr)
+	const auto saveToStack = (_content != nullptr)
 		&& (params.way == Window::SectionShow::Way::Forward);
-	auto needAnimation = (_content != nullptr)
+	const auto needAnimation = (_content != nullptr)
 		&& (params.animated != anim::type::instant);
 	auto animationParams = SectionSlideParams();
 	auto newController = createController(
@@ -771,8 +771,12 @@ void WrapWidget::showNewContent(
 		newController->takeStepData(_controller.get());
 	}
 	auto newContent = object_ptr<ContentWidget>(nullptr);
-	if (needAnimation) {
+	const auto enableBackButton = hasBackButton();
+	const auto createInAdvance = needAnimation || enableBackButton;
+	if (createInAdvance) {
 		newContent = createContent(memento, newController.get());
+	}
+	if (needAnimation) {
 		animationParams.withTopBarShadow = hasTopBarShadow()
 			&& newContent->hasTopBarShadow();
 		animationParams.oldContentCache = grabForShowAnimation(
@@ -783,7 +787,6 @@ void WrapWidget::showNewContent(
 
 		if (HasCustomTopBar(_controller.get())
 			|| HasCustomTopBar(newController.get())) {
-
 			const auto s = QSize(
 				newContent->width(),
 				animationParams.topSkip);
@@ -803,11 +806,10 @@ void WrapWidget::showNewContent(
 		_historyStack.clear();
 	}
 
-	{
-		if (hasBackButton()) {
-			newContent->enableBackButton();
-		}
+	if (enableBackButton) {
+		newContent->enableBackButton();
 	}
+
 	{
 		// Let old controller outlive old content widget.
 		const auto oldController = std::exchange(
