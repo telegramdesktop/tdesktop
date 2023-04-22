@@ -194,7 +194,8 @@ void ScheduledMessages::sendNowSimpleMessage(
 	auto action = Api::SendAction(history);
 	action.replyTo = local->replyToId();
 	const auto replyHeader = NewMessageReplyHeader(action);
-	const auto localFlags = NewMessageFlags(history->peer);
+	const auto localFlags = NewMessageFlags(history->peer)
+		& ~MessageFlag::BeingSent;
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
 		| (local->replyToId()
