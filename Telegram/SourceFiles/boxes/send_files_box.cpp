@@ -508,7 +508,8 @@ void SendFilesBox::refreshButtons() {
 			_send,
 			[=] { return _sendMenuType; },
 			[=] { sendSilent(); },
-			[=] { sendScheduled(); });
+			[=] { sendScheduled(); },
+			[=] { sendWhenOnline(); });
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	_addFile = addLeftButton(
@@ -584,7 +585,8 @@ void SendFilesBox::addMenuButton() {
 				_menu.get(),
 				_sendMenuType,
 				[=] { sendSilent(); },
-				[=] { sendScheduled(); });
+				[=] { sendScheduled(); },
+				[=] { sendWhenOnline(); });
 		}
 		_menu->popup(QCursor::pos());
 		return true;
@@ -1388,6 +1390,10 @@ void SendFilesBox::sendScheduled() {
 	_controller->show(
 		HistoryView::PrepareScheduleBox(this, type, callback),
 		Ui::LayerOption::KeepOther);
+}
+
+void SendFilesBox::sendWhenOnline() {
+	send(Api::DefaultSendWhenOnlineOptions());
 }
 
 SendFilesBox::~SendFilesBox() = default;

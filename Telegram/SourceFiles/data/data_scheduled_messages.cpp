@@ -40,7 +40,7 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 }
 
 [[nodiscard]] bool HasScheduledDate(not_null<HistoryItem*> item) {
-	return (item->date() != ScheduledMessages::kScheduledUntilOnlineTimestamp)
+	return (item->date() != Api::kScheduledUntilOnlineTimestamp)
 		&& (item->date() > base::unixtime::now());
 }
 

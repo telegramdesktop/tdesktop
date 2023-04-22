@@ -1608,7 +1608,8 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
 		menu,
 		type,
 		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(this, type, send));
+		SendMenu::DefaultScheduleCallback(this, type, send),
+		SendMenu::DefaultWhenOnlineCallback(send));
 
 	const auto window = _controller;
 	const auto toggleFavedSticker = [=] {

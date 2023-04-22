@@ -47,11 +47,16 @@ Fn<void()> DefaultScheduleCallback(
 	};
 }
 
+Fn<void()> DefaultWhenOnlineCallback(Fn<void(Api::SendOptions)> send) {
+	return [=] { send(Api::DefaultSendWhenOnlineOptions()); };
+}
+
 FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,
 		Type type,
 		Fn<void()> silent,
-		Fn<void()> schedule) {
+		Fn<void()> schedule,
+		Fn<void()> whenOnline) {
 	if (!silent && !schedule) {
 		return FillMenuResult::None;
 	}
@@ -75,6 +80,12 @@ FillMenuResult FillSendMenu(
 			schedule,
 			&st::menuIconSchedule);
 	}
+	if (whenOnline && now == Type::ScheduledToUser) {
+		menu->addAction(
+			tr::lng_scheduled_send_until_online(tr::now),
+			whenOnline,
+			&st::menuIconWhenOnline);
+	}
 	return FillMenuResult::Success;
 }
 
@@ -82,8 +93,9 @@ void SetupMenuAndShortcuts(
 		not_null<Ui::RpWidget*> button,
 		Fn<Type()> type,
 		Fn<void()> silent,
-		Fn<void()> schedule) {
-	if (!silent && !schedule) {
+		Fn<void()> schedule,
+		Fn<void()> whenOnline) {
+	if (!silent && !schedule && !whenOnline) {
 		return;
 	}
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
@@ -91,7 +103,7 @@ void SetupMenuAndShortcuts(
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
 			st::popupMenuWithIcons);
-		const auto result = FillSendMenu(*menu, type(), silent, schedule);
+		const auto result = FillSendMenu(*menu, type(), silent, schedule, whenOnline);
 		const auto success = (result == FillMenuResult::Success);
 		if (success) {
 			(*menu)->popup(QCursor::pos());

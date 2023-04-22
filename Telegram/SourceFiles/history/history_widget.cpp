@@ -305,7 +305,8 @@ HistoryWidget::HistoryWidget(
 		_send.get(),
 		[=] { return sendButtonMenuType(); },
 		[=] { sendSilent(); },
-		[=] { sendScheduled(); });
+		[=] { sendScheduled(); },
+		[=] { sendWhenOnline(); });
 
 	_unblock->addClickHandler([=] { unblockUser(); });
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
@@ -3932,6 +3933,10 @@ void HistoryWidget::sendScheduled() {
 	controller()->show(
 		HistoryView::PrepareScheduleBox(_list, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
+}
+
+void HistoryWidget::sendWhenOnline() {
+	send(Api::DefaultSendWhenOnlineOptions());
 }
 
 SendMenu::Type HistoryWidget::sendMenuType() const {

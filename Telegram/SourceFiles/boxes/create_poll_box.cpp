@@ -1102,6 +1102,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				send),
 			Ui::LayerOption::KeepOther);
 	};
+	const auto sendWhenOnline = [=] {
+		send(Api::DefaultSendWhenOnlineOptions());
+	};
 
 	options->scrollToWidget(
 	) | rpl::start_with_next([=](not_null<QWidget*> widget) {
@@ -1130,7 +1133,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		submit.data(),
 		sendMenuType,
 		sendSilent,
-		sendScheduled);
+		sendScheduled,
+		sendWhenOnline);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	return result;

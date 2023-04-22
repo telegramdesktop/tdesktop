@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_media_types.h"
 #include "data/data_message_reactions.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/history.h"
@@ -230,8 +229,7 @@ QString ItemDateText(not_null<const HistoryItem*> item, bool isUntilOnline) {
 
 bool IsItemScheduledUntilOnline(not_null<const HistoryItem*> item) {
 	return item->isScheduled()
-		&& (item->date() ==
-			Data::ScheduledMessages::kScheduledUntilOnlineTimestamp);
+		&& (item->date() == Api::kScheduledUntilOnlineTimestamp);
 }
 
 ClickHandlerPtr JumpToMessageClickHandler(

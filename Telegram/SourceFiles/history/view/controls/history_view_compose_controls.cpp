@@ -2075,7 +2075,8 @@ void ComposeControls::initSendButton() {
 		_send.get(),
 		[=] { return sendButtonMenuType(); },
 		SendMenu::DefaultSilentCallback(send),
-		SendMenu::DefaultScheduleCallback(_wrap.get(), sendMenuType(), send));
+		SendMenu::DefaultScheduleCallback(_wrap.get(), sendMenuType(), send),
+		SendMenu::DefaultWhenOnlineCallback(send));
 }
 
 void ComposeControls::initSendAsButton(not_null<PeerData*> peer) {
