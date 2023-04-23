@@ -682,6 +682,7 @@ bool FileLoadTask::CheckForVideo(
 	static const auto extensions = {
 		u".mp4"_q,
 		u".mov"_q,
+		u".m4v"_q,
 		u".webm"_q,
 	};
 	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
