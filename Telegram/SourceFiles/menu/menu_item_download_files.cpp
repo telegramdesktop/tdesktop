@@ -97,6 +97,7 @@ void AddAction(
 			return;
 		}
 
+		QDir().mkpath(path);
 		const auto fullPath = [&](int i) {
 			return filedialogDefaultName(
 				u"photo_"_q + QString::number(i),
