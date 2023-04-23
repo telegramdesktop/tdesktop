@@ -372,13 +372,17 @@ object_ptr<RoundButton> FilterLinkProcessButton(
 		case FilterLinkHeaderType::AddingChats:
 			return badge.isEmpty()
 				? tr::lng_filters_by_link_join_no() | with(QString())
-				: tr::lng_filters_by_link_join_button() | with(badge);
+				: tr::lng_filters_by_link_and_join_button(
+					lt_count,
+					rpl::single(float64(count))) | with(badge);
 		case FilterLinkHeaderType::AllAdded:
 			return tr::lng_box_ok() | with(QString());
 		case FilterLinkHeaderType::Removing:
 			return badge.isEmpty()
 				? tr::lng_filters_by_link_remove_button() | with(QString())
-				: tr::lng_filters_by_link_quit_button() | with(badge);
+				: tr::lng_filters_by_link_and_quit_button(
+					lt_count,
+					rpl::single(float64(count))) | with(badge);
 		}
 		Unexpected("Type in FilterLinkProcessButton.");
 	}) | rpl::flatten_latest();

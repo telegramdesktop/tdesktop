@@ -3627,7 +3627,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_by_link_more" = "Add Chats to Folder";
 "lng_filters_by_link_more_sure" = "Do you want to join chats and add them to the folder {folder}?";
 "lng_filters_by_link_about" = "You can deselect the chats you don't want to join.";
-"lng_filters_by_link_join_button" = "Join Chats";
+"lng_filters_by_link_and_join_button#one" = "Join Chat";
+"lng_filters_by_link_and_join_button#other" = "Join Chats";
 "lng_filters_by_link_join_no" = "Do not join any chats";
 "lng_filters_by_link_already" = "Folder already added";
 "lng_filters_by_link_already_about" = "You have already added the folder {folder} and all its chats.";
@@ -3641,7 +3642,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_by_link_deselect" = "Deselect All";
 "lng_filters_by_link_about_quit" = "You can deselect the chats you don't want to quit.";
 "lng_filters_by_link_remove_button" = "Remove Folder and Keep Chats";
-"lng_filters_by_link_quit_button" = "Remove Folder and Chats";
+"lng_filters_by_link_and_quit_button#one" = "Remove Folder and Chat";
+"lng_filters_by_link_and_quit_button#other" = "Remove Folder and Chats";
 "lng_filters_added_title" = "Folder {folder} Added";
 "lng_filters_added_also#one" = "You also joined {count} chat.";
 "lng_filters_added_also#other" = "You also joined {count} chats.";
