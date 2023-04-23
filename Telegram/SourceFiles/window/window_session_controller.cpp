@@ -1948,11 +1948,12 @@ FilterId SessionController::activeChatsFilterCurrent() const {
 void SessionController::setActiveChatsFilter(
 		FilterId id,
 		const SectionShow &params) {
-	if (activeChatsFilterCurrent() != id) {
+	const auto changed = (activeChatsFilterCurrent() != id);
+	if (changed) {
 		resetFakeUnreadWhileOpened();
 	}
 	_activeChatsFilter.force_assign(id);
-	if (id) {
+	if (id || !changed) {
 		closeForum();
 		closeFolder();
 	}
