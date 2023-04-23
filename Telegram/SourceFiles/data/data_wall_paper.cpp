@@ -298,7 +298,10 @@ QString WallPaper::key() const {
 			? QString::number(_id)
 			: StringFromColors(backgroundColors()))
 		: ("bg/" + _slug);
-	const auto params = collectShareParams();
+	auto params = collectShareParams();
+	if (_document && !isPattern()) {
+		params += u"&intensity="_q + QString::number(_intensity);
+	}
 	return params.isEmpty() ? base : (base + '?' + params.join('&'));
 }
 
