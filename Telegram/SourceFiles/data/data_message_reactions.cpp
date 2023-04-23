@@ -966,13 +966,16 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 		const auto removed = !--one.count;
 		const auto j = _recent.find(one.id);
 		if (j != end(_recent)) {
-			j->second.erase(
-				ranges::remove(j->second, self, &RecentReaction::peer),
-				end(j->second));
-			if (j->second.empty()) {
+			if (removed) {
+				j->second.clear();
 				_recent.erase(j);
 			} else {
-				Assert(!removed);
+				j->second.erase(
+					ranges::remove(j->second, self, &RecentReaction::peer),
+					end(j->second));
+				if (j->second.empty()) {
+					_recent.erase(j);
+				}
 			}
 		}
 		return removed;
