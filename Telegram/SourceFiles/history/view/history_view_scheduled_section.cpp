@@ -1174,6 +1174,9 @@ void ScheduledWidget::listSelectionChanged(SelectedItems &&items) {
 		}
 	}
 	_topBar->showSelected(state);
+	if (items.empty()) {
+		doSetInnerFocus();
+	}
 }
 
 void ScheduledWidget::listMarkReadTill(not_null<HistoryItem*> item) {
