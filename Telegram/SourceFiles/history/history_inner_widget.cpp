@@ -2042,7 +2042,8 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 		&& (_mouseCursorState == CursorState::None
 			|| _mouseCursorState == CursorState::Date)
 		&& !inSelectionMode()
-		&& !_emptyPainter) {
+		&& !_emptyPainter
+		&& e->button() == Qt::LeftButton) {
 		if (const auto view = Element::Moused()) {
 			mouseActionCancel();
 			switch (HistoryView::CurrentQuickAction()) {
