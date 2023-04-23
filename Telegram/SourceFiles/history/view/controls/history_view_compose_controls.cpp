@@ -1157,6 +1157,22 @@ void ComposeControls::setMimeDataHook(MimeDataHook hook) {
 	_field->setMimeDataHook(std::move(hook));
 }
 
+bool ComposeControls::confirmMediaEdit(Ui::PreparedList &list) {
+	if (!isEditingMessage()) {
+		return false;
+	} else if (_canReplaceMedia) {
+		EditCaptionBox::StartMediaReplace(
+			_window,
+			_editingId,
+			std::move(list),
+			_field->getTextWithTags(),
+			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
+	} else {
+		_window->showToast({ tr::lng_edit_caption_attach(tr::now) });
+	}
+	return true;
+}
+
 rpl::producer<FileChosen> ComposeControls::fileChosen() const {
 	return _fileChosen.events();
 }
@@ -1431,23 +1447,17 @@ void ComposeControls::init() {
 		_voiceRecordBar->requestToSendWithOptions(options);
 	}, _wrap->lifetime());
 
-	{
-		const auto lastMsgId = _wrap->lifetime().make_state<FullMsgId>();
+	_header->editMsgId(
+	) | rpl::start_with_next([=](const auto &id) {
+		_editingId = id;
+	}, _wrap->lifetime());
 
-		_header->editMsgId(
-		) | rpl::filter([=](const auto &id) {
-			return !!id;
-		}) | rpl::start_with_next([=](const auto &id) {
-			*lastMsgId = id;
-		}, _wrap->lifetime());
-
-		session().data().itemRemoved(
-		) | rpl::filter([=](not_null<const HistoryItem*> item) {
-			return item->id && ((*lastMsgId) == item->fullId());
-		}) | rpl::start_with_next([=] {
-			cancelEditMessage();
-		}, _wrap->lifetime());
-	}
+	session().data().itemRemoved(
+	) | rpl::filter([=](not_null<const HistoryItem*> item) {
+		return (_editingId == item->fullId());
+	}) | rpl::start_with_next([=] {
+		cancelEditMessage();
+	}, _wrap->lifetime());
 
 	_window->materializeLocalDraftsRequests(
 	) | rpl::start_with_next([=] {
@@ -1921,7 +1931,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	InvokeQueued(_autocomplete.get(), [=] { updateStickersByEmoji(); });
 	const auto guard = gsl::finally([&] {
 		updateSendButtonType();
-		updateReplaceMediaButton(editingId);
+		updateReplaceMediaButton();
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
 	});
@@ -2588,7 +2598,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	if (_photoEditMedia) {
 		_photoEditMedia->wanted(Data::PhotoSize::Large, item->fullId());
 	}
-	if (updateReplaceMediaButton(item->fullId())) {
+	if (updateReplaceMediaButton()) {
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
 	}
@@ -2598,7 +2608,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	}
 }
 
-bool ComposeControls::updateReplaceMediaButton(FullMsgId id) {
+bool ComposeControls::updateReplaceMediaButton() {
 	if (!_canReplaceMedia) {
 		const auto result = (_replaceMedia != nullptr);
 		_replaceMedia = nullptr;
@@ -2612,7 +2622,7 @@ bool ComposeControls::updateReplaceMediaButton(FullMsgId id) {
 	_replaceMedia->setClickedCallback([=] {
 		EditCaptionBox::StartMediaReplace(
 			_window,
-			id,
+			_editingId,
 			_field->getTextWithTags(),
 			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
 	});

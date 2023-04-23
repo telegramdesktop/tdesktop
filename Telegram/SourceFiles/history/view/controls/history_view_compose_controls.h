@@ -55,6 +55,7 @@ class EmojiButton;
 class SendAsButton;
 class SilentToggle;
 class DropdownMenu;
+struct PreparedList;
 } // namespace Ui
 
 namespace Main {
@@ -143,6 +144,7 @@ public:
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action)>;
 	void setMimeDataHook(MimeDataHook hook);
+	bool confirmMediaEdit(Ui::PreparedList &list);
 
 	bool pushTabbedSelectorToThirdSection(
 		not_null<Data::Thread*> thread,
@@ -228,7 +230,7 @@ private:
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
 	void updateControlsGeometry(QSize size);
-	bool updateReplaceMediaButton(FullMsgId id);
+	bool updateReplaceMediaButton();
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QRect clip);
 
@@ -236,8 +238,6 @@ private:
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
 
-	void sendSilent();
-	void sendScheduled();
 	[[nodiscard]] auto sendContentRequests(
 		SendRequestType requestType = SendRequestType::Text) const;
 
@@ -358,6 +358,7 @@ private:
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
 
+	FullMsgId _editingId;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
 	bool _canReplaceMedia = false;
 
