@@ -556,11 +556,12 @@ void EditFilterBox(
 	state->hasLinks = state->links.value() | rpl::map([=](const auto &v) {
 		return !v.empty();
 	});
-	if (!state->chatlist.current()) {
-		state->chatlist = state->hasLinks.value() | rpl::filter(
-			_1
-		) | rpl::take(1);
-	}
+	state->hasLinks.value() | rpl::filter(
+		_1
+	) | rpl::start_with_next([=] {
+		state->chatlist = true;
+	}, box->lifetime());
+
 	const auto data = &state->rules;
 
 	owner->chatsFilters().isChatlistChanged(
@@ -574,6 +575,9 @@ void EditFilterBox(
 			return;
 		}
 		*data = data->current().withChatlist(i->chatlist(), i->hasMyLinks());
+		if (!i->chatlist() && !state->hasLinks.current()) {
+			state->chatlist = false;
+		}
 	}, box->lifetime());
 
 	box->setWidth(st::boxWideWidth);
