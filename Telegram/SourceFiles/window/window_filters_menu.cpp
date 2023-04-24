@@ -494,7 +494,7 @@ void FiltersMenu::remove(
 				leave
 			) | ranges::views::transform([](not_null<PeerData*> peer) {
 				return MTPInputPeer(peer->input);
-			}) | ranges::to<QVector>())
+			}) | ranges::to<QVector<MTPInputPeer>>())
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result);
 		}).send();

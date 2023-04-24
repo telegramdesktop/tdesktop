@@ -1028,7 +1028,7 @@ void ExportFilterLink(
 	const auto session = &front->session();
 	auto mtpPeers = peers | ranges::views::transform(
 		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
-	) | ranges::to<QVector>();
+	) | ranges::to<QVector<MTPInputPeer>>();
 	session->api().request(MTPchatlists_ExportChatlistInvite(
 		MTP_inputChatlistDialogFilter(MTP_int(id)),
 		MTP_string(), // title
@@ -1061,7 +1061,7 @@ void EditLinkChats(
 	const auto session = &front->session();
 	auto mtpPeers = peers | ranges::views::transform(
 		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
-	) | ranges::to<QVector>();
+	) | ranges::to<QVector<MTPInputPeer>>();
 	session->api().request(MTPchatlists_EditExportedInvite(
 		MTP_flags(MTPchatlists_EditExportedInvite::Flag::f_peers),
 		MTP_inputChatlistDialogFilter(MTP_int(link.id)),
