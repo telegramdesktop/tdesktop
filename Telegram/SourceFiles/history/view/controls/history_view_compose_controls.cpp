@@ -1069,7 +1069,7 @@ const HistoryItemsList &ComposeControls::forwardItems() const {
 }
 
 bool ComposeControls::focus() {
-	if (isRecording()) {
+	if (_wrap->isHidden() || _field->isHidden() || isRecording()) {
 		return false;
 	}
 	_field->setFocus();
