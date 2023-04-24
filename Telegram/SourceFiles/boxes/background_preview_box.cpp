@@ -343,7 +343,7 @@ void BackgroundPreviewBox::createDimmingSlider(bool dark) {
 			_dimmingWrap->move(0, top);
 		}, _dimmingWrap->lifetime());
 
-		_dimmingWrap->toggle(!dark, anim::type::instant);
+		_dimmingWrap->toggle(dark, anim::type::instant);
 		_dimmingHeight = _dimmingWrap->heightValue();
 		_dimmingHeight.changes() | rpl::start_with_next([=] {
 			update();
