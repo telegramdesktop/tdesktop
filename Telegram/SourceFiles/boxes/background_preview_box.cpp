@@ -590,6 +590,12 @@ void BackgroundPreviewBox::uploadForPeer() {
 void BackgroundPreviewBox::setExistingForPeer(const Data::WallPaper &paper) {
 	Expects(_forPeer != nullptr);
 
+	if (const auto already = _forPeer->wallPaper()) {
+		if (already->equals(paper)) {
+			_controller->finishChatThemeEdit(_forPeer);
+			return;
+		}
+	}
 	const auto api = &_controller->session().api();
 	using Flag = MTPmessages_SetChatWallPaper::Flag;
 	api->request(MTPmessages_SetChatWallPaper(
