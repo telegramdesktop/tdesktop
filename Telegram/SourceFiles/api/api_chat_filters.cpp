@@ -227,7 +227,7 @@ void ImportInvite(
 	};
 	auto inputs = peers | ranges::views::transform([](auto peer) {
 		return MTPInputPeer(peer->input);
-	}) | ranges::to<QVector>();
+	}) | ranges::to<QVector<MTPInputPeer>>();
 	if (!slug.isEmpty()) {
 		api->request(MTPchatlists_JoinChatlistInvite(
 			MTP_string(slug),
