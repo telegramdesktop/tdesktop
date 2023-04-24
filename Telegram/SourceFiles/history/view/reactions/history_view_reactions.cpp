@@ -324,6 +324,7 @@ void InlineList::paint(
 		const QRect &clip) const {
 	struct SingleAnimation {
 		not_null<Ui::ReactionFlyAnimation*> animation;
+		QColor textColor;
 		QRect target;
 	};
 	std::vector<SingleAnimation> animations;
@@ -396,6 +397,7 @@ void InlineList::paint(
 				button.id,
 				::Data::Reactions::ImageSize::InlineList);
 		}
+
 		const auto textFg = !inbubble
 			? (chosen
 				? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
@@ -427,6 +429,7 @@ void InlineList::paint(
 		if (animating) {
 			animations.push_back({
 				.animation = button.animation.get(),
+				.textColor = textFg.color(),
 				.target = image,
 			});
 		}
@@ -465,7 +468,7 @@ void InlineList::paint(
 					p,
 					QPoint(),
 					single.target,
-					QColor(255, 255, 255, 0), // Colored, for emoji status.
+					single.textColor,
 					QRect(), // Clip, for emoji status.
 					now);
 				result = result.isEmpty() ? area : result.united(area);
