@@ -1,3 +1,23 @@
+4.8.1 (24.04.23)
+
+- Fix sending an album of ten scheduled messages.
+- Convert folder back to non-shareable on last link deletion.
+- Several fixes of focus control in discussions / channel comments.
+- Drop all formatting on paste in non-message input fields.
+- Clear search field on archive opening.
+- Show video upload / download progress over the spoiler.
+- Better support for text-colored emoji in reactions.
+- Close archive / topics group when clicking on currently active folder.
+- Allow replace media by paste in discussions / comments / scheduled messages.
+- Fix stuck Replace Media button after editing media in some chats.
+- Quick reply by double click only with the left mouse button.
+- Fix applying the same custom chat background with different dimming value.
+- Fix "who reacted" list display for media album parts.
+- Show full t.me/+ invite link prefix in Recent Actions.
+- Don't try to suggest userpic photos to bots.
+- Add "Send when online" to the send button context menu.
+- Fix crash in empty topics message sending.
+
 4.8 (21.04.23)
 
 - Share folders that include dozens of chats with friends or colleagues.
@@ -22,7 +42,7 @@
 - When inviting people to groups, you can quickly send invite links to anyone who doesn't allow adding them directly.
 - Invite links now show previews in chats.
 - Fully translatable bots. Bot descriptions and ”What can this bot do?" sections can now be translated.
-- Starting a call now shows a confirmation window. 
+- Starting a call now shows a confirmation window.
 - Fixed pasting images from Firefox on Windows.
 - Global Fn+F shortcut to switch active window to full screen mode on macOS.
 - Silent notification sound in Focus Mode on macOS.
