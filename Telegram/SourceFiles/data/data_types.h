@@ -63,13 +63,17 @@ struct FileOrigin;
 } // namespace Data
 
 struct MessageGroupId {
-	PeerId peer = 0;
+	uint64 peerAndScheduledFlag = 0;
 	uint64 value = 0;
 
 	MessageGroupId() = default;
-	static MessageGroupId FromRaw(PeerId peer, uint64 value) {
+	static MessageGroupId FromRaw(
+			PeerId peer,
+			uint64 value,
+			bool scheduled) {
 		auto result = MessageGroupId();
-		result.peer = peer;
+		result.peerAndScheduledFlag = peer.value
+			| (scheduled ? (1ULL << 55) : 0);
 		result.value = value;
 		return result;
 	}

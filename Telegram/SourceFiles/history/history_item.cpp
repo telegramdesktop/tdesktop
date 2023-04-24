@@ -317,7 +317,10 @@ HistoryItem::HistoryItem(
 		setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
 		if (const auto groupedId = data.vgrouped_id()) {
 			setGroupId(
-				MessageGroupId::FromRaw(history->peer->id, groupedId->v));
+				MessageGroupId::FromRaw(
+					history->peer->id,
+					groupedId->v,
+					_flags & MessageFlag::IsOrWasScheduled));
 		}
 		setReactions(data.vreactions());
 		applyTTL(data);
@@ -507,7 +510,10 @@ HistoryItem::HistoryItem(
 	setMedia(media);
 	setText(textWithEntities);
 	if (groupedId) {
-		setGroupId(MessageGroupId::FromRaw(history->peer->id, groupedId));
+		setGroupId(MessageGroupId::FromRaw(
+			history->peer->id,
+			groupedId,
+			flags & MessageFlag::IsOrWasScheduled));
 	}
 }
 
