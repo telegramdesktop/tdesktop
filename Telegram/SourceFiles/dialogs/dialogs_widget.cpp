@@ -870,6 +870,7 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 		return;
 	}
 	changeOpenedSubsection([&] {
+		cancelSearch();
 		closeChildList(anim::type::instant);
 		controller()->closeForum();
 		_openedFolder = folder;
