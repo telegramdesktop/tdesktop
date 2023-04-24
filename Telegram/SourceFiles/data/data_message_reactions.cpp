@@ -399,7 +399,8 @@ QImage Reactions::resolveImageFor(
 		const auto frameSize = set.fromSelectAnimation
 			? (size / 2)
 			: size;
-		image = set.icon->frame().scaled(
+		// Must not be colored to text.
+		image = set.icon->frame(QColor()).scaled(
 			frameSize * factor,
 			frameSize * factor,
 			Qt::IgnoreAspectRatio,
@@ -480,6 +481,7 @@ void Reactions::setAnimatedIcon(ImageSet &set) {
 	set.icon = Ui::MakeAnimatedIcon({
 		.generator = DocumentIconFrameGenerator(set.media),
 		.sizeOverride = QSize(size, size),
+		.colorized = set.media->owner()->emojiUsesTextColor(),
 	});
 	set.media = nullptr;
 }

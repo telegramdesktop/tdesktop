@@ -117,6 +117,7 @@ private:
 	[[nodiscard]] Fn<QRectF(const ReactionIcons&)> resolveCountTargetMethod(
 		float64 scale) const;
 
+	void invalidateMainReactionImage();
 	void resolveMainReactionIcon();
 	void setMainReactionIcon();
 
@@ -140,6 +141,8 @@ private:
 
 	QImage _emojiParts;
 	std::array<bool, kFramesCount> _validEmoji = { { false } };
+
+	rpl::lifetime _lifetime;
 
 };
 

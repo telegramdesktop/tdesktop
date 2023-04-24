@@ -384,7 +384,7 @@ void AddReactionAnimatedIcon(
 
 	const auto paintCallback = [=](not_null<QWidget*> widget, QPainter &p) {
 		const auto paintFrame = [&](not_null<Ui::AnimatedIcon*> animation) {
-			const auto frame = animation->frame();
+			const auto frame = animation->frame(st::windowFg->c);
 			p.drawImage(
 				QRect(
 					(widget->width() - iconSize) / 2,
@@ -404,7 +404,6 @@ void AddReactionAnimatedIcon(
 		} else if (const auto select = state->select.icon.get()) {
 			paintFrame(select);
 		}
-
 	};
 	const auto widget = AddReactionIconWrap(
 		parent,

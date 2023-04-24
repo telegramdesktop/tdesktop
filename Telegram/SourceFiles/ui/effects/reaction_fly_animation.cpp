@@ -106,6 +106,7 @@ ReactionFlyAnimation::ReactionFlyAnimation(
 		icon = MakeAnimatedIcon({
 			.generator = DocumentIconFrameGenerator(media),
 			.sizeOverride = QSize(size, size),
+			.colorized = media->owner()->emojiUsesTextColor(),
 		});
 		return true;
 	};
@@ -146,7 +147,8 @@ QRect ReactionFlyAnimation::paintGetArea(
 		if (clip.isEmpty() || area.intersects(clip)) {
 			paintCenterFrame(p, target, colored, now);
 			if (const auto effect = _effect.get()) {
-				p.drawImage(wide, effect->frame());
+				// Must not be colored to text.
+				p.drawImage(wide, effect->frame(QColor()));
 			}
 			paintMiniCopies(p, target.center(), colored, now);
 		}
@@ -199,7 +201,7 @@ void ReactionFlyAnimation::paintCenterFrame(
 			target.y() + (target.height() - size.height()) / 2,
 			size.width(),
 			size.height());
-		p.drawImage(rect, _center->frame());
+		p.drawImage(rect, _center->frame(st::windowFg->c));
 	} else {
 		const auto scaled = (size.width() != _customSize);
 		_custom->paint(p, {
