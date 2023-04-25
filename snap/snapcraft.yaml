@@ -488,6 +488,8 @@ parts:
 
       cd qtbase
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ../qtwayland
+      sed -i 's/qMin(version, 8)/qMin(version, 7)/' src/client/qwaylandinputdevice.cpp
       cd ..
     override-build: |
       ./configure \
