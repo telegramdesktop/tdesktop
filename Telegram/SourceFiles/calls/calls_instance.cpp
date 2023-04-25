@@ -556,6 +556,11 @@ FnMut<void()> Instance::addAsyncWaiter() {
 	};
 }
 
+bool Instance::isSharingScreen() const {
+	return (_currentCall && _currentCall->isSharingScreen())
+		|| (_currentGroupCall && _currentGroupCall->isSharingScreen());
+}
+
 bool Instance::isQuitPrevent() {
 	if (!_currentCall || _currentCall->isIncomingWaiting()) {
 		return false;

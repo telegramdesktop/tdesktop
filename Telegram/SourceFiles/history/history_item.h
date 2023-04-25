@@ -82,6 +82,7 @@ class Element;
 class Message;
 class Service;
 class ServiceMessagePainter;
+struct NotificationTextOptions;
 } // namespace HistoryView
 
 class HistoryItem final : public RuntimeComposer<HistoryItem> {
@@ -355,8 +356,12 @@ public:
 	void indexAsNewItem();
 	void removeFromSharedMediaIndex();
 
+	struct NotificationTextOptions {
+		bool spoilerLoginCode = false;
+	};
 	[[nodiscard]] QString notificationHeader() const;
-	[[nodiscard]] TextWithEntities notificationText() const;
+	[[nodiscard]] TextWithEntities notificationText(
+		NotificationTextOptions options = {}) const;
 
 	using ToPreviewOptions = HistoryView::ToPreviewOptions;
 	using ItemPreview = HistoryView::ItemPreview;

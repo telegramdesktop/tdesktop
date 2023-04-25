@@ -932,6 +932,7 @@ void Notification::updateNotifyDisplay() {
 				? _item->toPreview({
 					.hideSender = reminder,
 					.generateImages = false,
+					.spoilerLoginCode = options.spoilerLoginCode,
 				}).text
 				: ((!_author.isEmpty()
 						? Ui::Text::PlainLink(_author)

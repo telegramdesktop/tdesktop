@@ -195,6 +195,7 @@ public:
 	bool hideMediaView();
 
 	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
+	[[nodiscard]] bool isSharingScreen() const;
 
 	void startSettingsAndBackground();
 	[[nodiscard]] Settings &settings();
