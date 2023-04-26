@@ -85,6 +85,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "export/export_manager.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "statistics/statistics_box.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -999,12 +1000,17 @@ void Filler::addManageChat() {
 }
 
 void Filler::addViewStatistics() {
+#ifdef _DEBUG
 	if (const auto channel = _peer->asChannel()) {
 		if (channel->flags() & ChannelDataFlag::CanGetStatistics) {
+			const auto navigation = _controller;
+			const auto peer = _peer;
 			_addAction(tr::lng_stats_title(tr::now), [=] {
+				navigation->show(Box(StatisticsBox, peer));
 			}, nullptr);
 		}
 	}
+#endif
 }
 
 void Filler::addCreatePoll() {
