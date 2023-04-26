@@ -555,6 +555,8 @@ PRIVATE
     data/data_sparse_ids.h
     data/data_sponsored_messages.cpp
     data/data_sponsored_messages.h
+    data/data_statistics.cpp
+    data/data_statistics.h
     data/data_stories.cpp
     data/data_stories.h
     data/data_stories_ids.cpp
