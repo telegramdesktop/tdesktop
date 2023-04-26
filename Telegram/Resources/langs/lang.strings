@@ -4065,6 +4065,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_stories_link_invalid" = "This link is broken or has expired.";
 
+"lng_stats_title" = "Statistics";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

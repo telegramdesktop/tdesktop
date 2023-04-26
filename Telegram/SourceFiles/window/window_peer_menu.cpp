@@ -283,6 +283,7 @@ private:
 	void addSearchTopics();
 	void addDeleteTopic();
 	void addVideoChat();
+	void addViewStatistics();
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
@@ -997,6 +998,15 @@ void Filler::addManageChat() {
 	}, &st::menuIconManage);
 }
 
+void Filler::addViewStatistics() {
+	if (const auto channel = _peer->asChannel()) {
+		if (channel->flags() & ChannelDataFlag::CanGetStatistics) {
+			_addAction(tr::lng_stats_title(tr::now), [=] {
+			}, nullptr);
+		}
+	}
+}
+
 void Filler::addCreatePoll() {
 	const auto can = _topic
 		? Data::CanSend(_topic, ChatRestriction::SendPolls)
@@ -1237,6 +1247,7 @@ void Filler::fillProfileActions() {
 	addGiftPremium();
 	addBotToGroup();
 	addNewMembers();
+	addViewStatistics();
 	addStoryArchive();
 	addManageChat();
 	addTopicLink();
