@@ -24,7 +24,7 @@ Result BothWriter::start(
 		const Environment &environment,
 		Stats *stats) {
 	Expects(_html != nullptr);
-	Expects(_html != nullptr);
+	Expects(_json != nullptr);
 
 	Result res = _html->start(settings, environment, stats);
 	if(res.isError()) {
