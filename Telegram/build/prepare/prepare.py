@@ -1335,9 +1335,9 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 9b70d7679e
+    git checkout 9d12019533
     git submodule init
-    git submodule update src/third_party/libyuv src/third_party/crc32c/src src/third_party/abseil-cpp
+    git submodule update
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$USED_PREFIX/include/opus
