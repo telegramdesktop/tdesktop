@@ -82,7 +82,6 @@ class Element;
 class Message;
 class Service;
 class ServiceMessagePainter;
-struct NotificationTextOptions;
 } // namespace HistoryView
 
 class HistoryItem final : public RuntimeComposer<HistoryItem> {
@@ -361,7 +360,10 @@ public:
 	};
 	[[nodiscard]] QString notificationHeader() const;
 	[[nodiscard]] TextWithEntities notificationText(
-		NotificationTextOptions options = {}) const;
+		NotificationTextOptions options) const;
+	[[nodiscard]] TextWithEntities notificationText() const {
+		return notificationText({});
+	}
 
 	using ToPreviewOptions = HistoryView::ToPreviewOptions;
 	using ItemPreview = HistoryView::ItemPreview;

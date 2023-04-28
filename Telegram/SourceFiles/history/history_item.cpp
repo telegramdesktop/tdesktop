@@ -86,8 +86,8 @@ using ItemPreview = HistoryView::ItemPreview;
 	if (!m.hasMatch()) {
 		return text;
 	}
-	const auto codeStart = m.capturedStart(1);
-	const auto codeLength = m.capturedLength(1);
+	const auto codeStart = int(m.capturedStart(1));
+	const auto codeLength = int(m.capturedLength(1));
 	auto i = text.entities.begin();
 	const auto e = text.entities.end();
 	while (i != e && i->offset() < codeStart) {
