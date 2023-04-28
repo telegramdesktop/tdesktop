@@ -29,6 +29,7 @@ public:
 		Forwards,
 		ProfilePhoto,
 		Voices,
+		About,
 	};
 	enum class Option {
 		Everyone,

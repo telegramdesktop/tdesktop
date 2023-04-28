@@ -177,18 +177,13 @@ MTPInputPrivacyKey KeyToTL(UserPrivacy::Key key) {
 	case Key::Calls: return MTP_inputPrivacyKeyPhoneCall();
 	case Key::Invites: return MTP_inputPrivacyKeyChatInvite();
 	case Key::PhoneNumber: return MTP_inputPrivacyKeyPhoneNumber();
-	case Key::AddedByPhone:
-		return MTP_inputPrivacyKeyAddedByPhone();
-	case Key::LastSeen:
-		return MTP_inputPrivacyKeyStatusTimestamp();
-	case Key::CallsPeer2Peer:
-		return MTP_inputPrivacyKeyPhoneP2P();
-	case Key::Forwards:
-		return MTP_inputPrivacyKeyForwards();
-	case Key::ProfilePhoto:
-		return MTP_inputPrivacyKeyProfilePhoto();
-	case Key::Voices:
-		return MTP_inputPrivacyKeyVoiceMessages();
+	case Key::AddedByPhone: return MTP_inputPrivacyKeyAddedByPhone();
+	case Key::LastSeen: return MTP_inputPrivacyKeyStatusTimestamp();
+	case Key::CallsPeer2Peer: return MTP_inputPrivacyKeyPhoneP2P();
+	case Key::Forwards: return MTP_inputPrivacyKeyForwards();
+	case Key::ProfilePhoto: return MTP_inputPrivacyKeyProfilePhoto();
+	case Key::Voices: return MTP_inputPrivacyKeyVoiceMessages();
+	case Key::About: return MTP_inputPrivacyKeyAbout();
 	}
 	Unexpected("Key in Api::UserPrivacy::KetToTL.");
 }
@@ -214,6 +209,8 @@ std::optional<UserPrivacy::Key> TLToKey(mtpTypeId type) {
 	case mtpc_inputPrivacyKeyProfilePhoto: return Key::ProfilePhoto;
 	case mtpc_privacyKeyVoiceMessages:
 	case mtpc_inputPrivacyKeyVoiceMessages: return Key::Voices;
+	case mtpc_privacyKeyAbout:
+	case mtpc_inputPrivacyKeyAbout: return Key::About;
 	}
 	return std::nullopt;
 }

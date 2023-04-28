@@ -677,9 +677,11 @@ void Updates::getDifference() {
 	api().request(MTPupdates_GetDifference(
 		MTP_flags(0),
 		MTP_int(_ptsWaiter.current()),
-		MTPint(),
+		MTPint(), // pts_limit
+		MTPint(), // pts_total_limit
 		MTP_int(_updatesDate),
-		MTP_int(_updatesQts)
+		MTP_int(_updatesQts),
+		MTPint() // qts_limit
 	)).done([=](const MTPupdates_Difference &result) {
 		differenceDone(result);
 	}).fail([=](const MTP::Error &error) {

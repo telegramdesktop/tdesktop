@@ -143,12 +143,12 @@ private:
 		QString loadForOffset;
 		int leftToLoad = 0;
 		int fullCount = 0;
-		std::vector<not_null<UserData*>> preloaded;
+		std::vector<not_null<PeerData*>> preloaded;
 		bool wasLoading = false;
 	};
 
-	bool appendRow(not_null<UserData*> user);
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
+	bool appendRow(not_null<PeerData*> peer);
+	std::unique_ptr<PeerListRow> createRow(not_null<PeerData*> peer) const;
 	void addPreloaded();
 	bool addPreloadedPage();
 	void preloadedAdded();
@@ -163,7 +163,7 @@ private:
 	QString _offset;
 	mtpRequestId _loadRequestId = 0;
 	QString _loadForOffset;
-	std::vector<not_null<UserData*>> _preloaded;
+	std::vector<not_null<PeerData*>> _preloaded;
 	rpl::variable<int> _count = 0;
 	rpl::variable<int> _fullCount;
 	rpl::variable<int> _leftToLoad;
@@ -227,16 +227,17 @@ void ListController::loadMoreRows() {
 			_offset = data.vnext_offset().value_or_empty();
 			auto &owner = session().data();
 			owner.processUsers(data.vusers());
+			owner.processChats(data.vchats());
 			auto add = limit - kLeavePreloaded;
 			for (const auto &vote : data.vvotes().v) {
 				vote.match([&](const auto &data) {
-					const auto user = owner.user(data.vuser_id().v);
-					if (user->isMinimalLoaded()) {
+					const auto peer = owner.peer(peerFromMTP(data.vpeer()));
+					if (peer->isMinimalLoaded()) {
 						if (add) {
-							appendRow(user);
+							appendRow(peer);
 							--add;
 						} else {
-							_preloaded.push_back(user);
+							_preloaded.push_back(peer);
 						}
 					}
 				});
@@ -393,17 +394,17 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 	_showPeerInfoRequests.fire(row->peer());
 }
 
-bool ListController::appendRow(not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id.value)) {
+bool ListController::appendRow(not_null<PeerData*> peer) {
+	if (delegate()->peerListFindRow(peer->id.value)) {
 		return false;
 	}
-	delegate()->peerListAppendRow(createRow(user));
+	delegate()->peerListAppendRow(createRow(peer));
 	return true;
 }
 
 std::unique_ptr<PeerListRow> ListController::createRow(
-		not_null<UserData*> user) const {
-	auto row = std::make_unique<PeerListRow>(user);
+		not_null<PeerData*> peer) const {
+	auto row = std::make_unique<PeerListRow>(peer);
 	row->setCustomStatus(QString());
 	return row;
 }

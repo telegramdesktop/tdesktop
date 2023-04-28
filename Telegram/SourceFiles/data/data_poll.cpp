@@ -139,19 +139,19 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				recentVoters,
 				recent->v,
 				ranges::equal_to(),
-				bareProj,
-				&MTPlong::v);
+				&PeerData::id,
+				peerFromMTP);
 			if (recentChanged) {
 				changed = true;
 				recentVoters = ranges::views::all(
 					recent->v
-				) | ranges::views::transform([&](MTPlong userId) {
-					const auto user = _owner->user(userId.v);
-					return user->isMinimalLoaded() ? user.get() : nullptr;
-				}) | ranges::views::filter([](UserData *user) {
-					return user != nullptr;
-				}) | ranges::views::transform([](UserData *user) {
-					return not_null<UserData*>(user);
+				) | ranges::views::transform([&](MTPPeer peerId) {
+					const auto peer = _owner->peer(peerFromMTP(peerId));
+					return peer->isMinimalLoaded() ? peer.get() : nullptr;
+				}) | ranges::views::filter([](PeerData *peer) {
+					return peer != nullptr;
+				}) | ranges::views::transform([](PeerData *peer) {
+					return not_null(peer);
 				}) | ranges::to_vector;
 			}
 		}
