@@ -3199,7 +3199,7 @@ bool HistoryItem::changeReactions(const MTPMessageReactions *reactions) {
 		const auto &recent = data.vrecent_reactions().value_or_empty();
 		if (min && hasUnreadReaction()) {
 			// We can't update reactions from min if we have unread.
-			if (_reactions->checkIfChanged(list, recent)) {
+			if (_reactions->checkIfChanged(list, recent, min)) {
 				updateReactionsUnknown();
 			}
 			return false;
