@@ -252,6 +252,7 @@ struct ForwardedTooltip {
 		case Option::Everyone:
 			return tr::lng_edit_privacy_forwards_sample_everyone(tr::now);
 		case Option::Contacts:
+		case Option::CloseFriends:
 			return tr::lng_edit_privacy_forwards_sample_contacts(tr::now);
 		case Option::Nobody:
 			return tr::lng_edit_privacy_forwards_sample_nobody(tr::now);
@@ -783,15 +784,14 @@ rpl::producer<QString> CallsPeer2PeerPrivacyController::optionsTitleKey() const 
 QString CallsPeer2PeerPrivacyController::optionLabel(
 		EditPrivacyBox::Option option) const {
 	switch (option) {
-	case Option::Everyone: {
+	case Option::Everyone:
 		return tr::lng_edit_privacy_calls_p2p_everyone(tr::now);
-	};
-	case Option::Contacts: {
+	case Option::Contacts:
 		return tr::lng_edit_privacy_calls_p2p_contacts(tr::now);
-	};
-	case Option::Nobody: {
+	case Option::CloseFriends:
+		return tr::lng_edit_privacy_close_friends(tr::now); // unused
+	case Option::Nobody:
 		return tr::lng_edit_privacy_calls_p2p_nobody(tr::now);
-	};
 	}
 	Unexpected("Option value in optionsLabelKey.");
 }
@@ -1215,15 +1215,13 @@ auto ProfilePhotoPrivacyController::exceptionsDescription() const
 	return _option.value(
 	) | rpl::map([](Option option) {
 		switch (option) {
-		case Option::Everyone: {
+		case Option::Everyone:
 			return tr::lng_edit_privacy_forwards_exceptions_everyone();
-		};
-		case Option::Contacts: {
+		case Option::Contacts:
+		case Option::CloseFriends:
 			return tr::lng_edit_privacy_forwards_exceptions();
-		};
-		case Option::Nobody: {
+		case Option::Nobody:
 			return tr::lng_edit_privacy_forwards_exceptions_nobody();
-		};
 		}
 		Unexpected("Option value in exceptionsDescription.");
 	}) | rpl::flatten_latest();

@@ -34,6 +34,7 @@ public:
 	enum class Option {
 		Everyone,
 		Contacts,
+		CloseFriends,
 		Nobody,
 	};
 	struct Rule {

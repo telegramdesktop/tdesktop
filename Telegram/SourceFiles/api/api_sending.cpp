@@ -453,11 +453,13 @@ void SendConfirmedFile(
 				MTP_flags(Flag::f_document
 					| (file->spoiler ? Flag::f_spoiler : Flag())),
 				file->document,
+				MTPDocument(), // alt_document
 				MTPint());
 		} else if (file->type == SendMediaType::Audio) {
 			return MTP_messageMediaDocument(
 				MTP_flags(MTPDmessageMediaDocument::Flag::f_document),
 				file->document,
+				MTPDocument(), // alt_document
 				MTPint());
 		} else {
 			Unexpected("Type in sendFilesConfirmed.");

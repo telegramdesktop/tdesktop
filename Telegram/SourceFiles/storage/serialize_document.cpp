@@ -192,7 +192,12 @@ DocumentData *Document::readFromStreamHelper(
 			if (type == RoundVideoDocument) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
 			}
-			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(duration), MTP_int(width), MTP_int(height)));
+			attributes.push_back(MTP_documentAttributeVideo(
+				MTP_flags(flags),
+				MTP_int(duration),
+				MTP_int(width),
+				MTP_int(height),
+				MTPint())); // preload_prefix_size
 		} else {
 			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 		}

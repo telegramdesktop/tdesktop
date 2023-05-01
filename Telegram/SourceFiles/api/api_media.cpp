@@ -36,7 +36,8 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 				MTP_flags(flags),
 				MTP_int(duration),
 				MTP_int(dimensions.width()),
-				MTP_int(dimensions.height())));
+				MTP_int(dimensions.height()),
+				MTPint())); // preload_prefix_size
 		} else {
 			attributes.push_back(MTP_documentAttributeImageSize(
 				MTP_int(dimensions.width()),

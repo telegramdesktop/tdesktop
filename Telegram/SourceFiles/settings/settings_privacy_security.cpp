@@ -80,6 +80,8 @@ QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 			return tr::lng_edit_privacy_calls_p2p_everyone(tr::now);
 		case Option::Contacts:
 			return tr::lng_edit_privacy_calls_p2p_contacts(tr::now);
+		case Option::CloseFriends:
+			return tr::lng_edit_privacy_close_friends(tr::now); // unused
 		case Option::Nobody:
 			return tr::lng_edit_privacy_calls_p2p_nobody(tr::now);
 		}
@@ -88,6 +90,8 @@ QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 		switch (option) {
 		case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);
 		case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);
+		case Option::CloseFriends:
+			return tr::lng_edit_privacy_close_friends(tr::now);
 		case Option::Nobody: return tr::lng_edit_privacy_nobody(tr::now);
 		}
 		Unexpected("Value in Privacy::Option.");
