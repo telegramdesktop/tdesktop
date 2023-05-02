@@ -1282,6 +1282,8 @@ PRIVATE
     settings/settings_type.h
     settings/settings_websites.cpp
     settings/settings_websites.h
+    statistics/segment_tree.cpp
+    statistics/segment_tree.h
     statistics/statistics_box.cpp
     statistics/statistics_box.h
     storage/details/storage_file_utilities.cpp
