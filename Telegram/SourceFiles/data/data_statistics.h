@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "statistics/segment_tree.h"
+
 namespace Data {
 
 struct StatisticsMessageInteractionInfo final {
@@ -33,7 +35,54 @@ struct StatisticsInviterInfo final {
 	int addedMemberCount = 0;
 };
 
+struct StatisticalChart {
+	StatisticalChart() = default;
+
+	[[nodiscard]] bool empty() const {
+		return lines.empty();
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+
+	void measure();
+
+	[[nodiscard]] QString getDayString(int i) const;
+
+	[[nodiscard]] int findStartIndex(float v) const;
+	[[nodiscard]] int findEndIndex(int left, float v) const;
+	[[nodiscard]] int findIndex(int left, int right, float v) const;
+
+	struct Line final {
+		std::vector<int> y;
+
+		Statistic::SegmentTree segmentTree;
+		QString id;
+		QString name;
+		int maxValue = 0;
+		int minValue = std::numeric_limits<int>::max();
+		int colorKey = 0;
+		QColor color;
+		QColor colorDark;
+	};
+
+	std::vector<float64> x;
+	std::vector<float64> xPercentage;
+	std::vector<QString> daysLookup;
+
+	std::vector<Line> lines;
+
+	int maxValue = 0;
+	int minValue = std::numeric_limits<int>::max();
+
+	float64 oneDayPercentage = 0.;
+
+	float64 timeStep = 0.;
+
+};
+
 struct StatisticalGraph final {
+	StatisticalChart chart;
 };
 
 struct StatisticalValue final {
