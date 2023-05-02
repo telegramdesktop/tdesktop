@@ -146,7 +146,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 			if (my.show) {
 				my.show->showBox(std::move(box));
 			} else if (use) {
-				use->show(std::move(box), Ui::LayerOption::KeepOther);
+				use->show(std::move(box));
 			}
 		} else {
 			open();
@@ -335,16 +335,13 @@ void MonospaceClickHandler::onClick(ClickContext context) const {
 		const auto hasCopyRestriction = item
 			&& (!item->history()->peer->allowsForwarding()
 				|| item->forbidsForward());
-		const auto toastParent = Window::Show(controller).toastParent();
 		if (hasCopyRestriction) {
-			Ui::Toast::Show(
-				toastParent,
-				item->history()->peer->isBroadcast()
-					? tr::lng_error_nocopy_channel(tr::now)
-					: tr::lng_error_nocopy_group(tr::now));
+			controller->showToast(item->history()->peer->isBroadcast()
+				? tr::lng_error_nocopy_channel(tr::now)
+				: tr::lng_error_nocopy_group(tr::now));
 			return;
 		}
-		Ui::Toast::Show(toastParent, tr::lng_text_copied(tr::now));
+		controller->showToast(tr::lng_text_copied(tr::now));
 	}
 	TextUtilities::SetClipboardText(TextForMimeData::Simple(_text.trimmed()));
 }

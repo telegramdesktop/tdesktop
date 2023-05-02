@@ -1248,7 +1248,7 @@ void LanguageBox::setupTop(not_null<Ui::VerticalLayout*> container) {
 		st::settingsButtonNoIcon);
 
 	translateSkip->setClickedCallback([=] {
-		Ui::BoxShow(this).showBox(Ui::EditSkipTranslationLanguages());
+		uiShow()->showBox(Ui::EditSkipTranslationLanguages());
 	});
 	Settings::AddSkip(container);
 	Settings::AddDividerText(

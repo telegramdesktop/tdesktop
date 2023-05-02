@@ -47,21 +47,28 @@ namespace ChatHelpers {
 
 void AddGifAction(
 	Fn<void(QString, Fn<void()> &&, const style::icon*)> callback,
-	Window::SessionController *controller,
+	std::shared_ptr<Show> show,
 	not_null<DocumentData*> document);
 
 class StickersListFooter;
 struct StickerIcon;
 struct GifSection;
 
-class GifsListWidget
+struct GifsListDescriptor {
+	std::shared_ptr<Show> show;
+	Fn<bool()> paused;
+	const style::EmojiPan *st = nullptr;
+};
+
+class GifsListWidget final
 	: public TabbedSelector::Inner
 	, public InlineBots::Layout::Context {
 public:
 	GifsListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level);
+		PauseReason level);
+	GifsListWidget(QWidget *parent, GifsListDescriptor &&descriptor);
 
 	rpl::producer<FileChosen> fileChosen() const;
 	rpl::producer<PhotoChosen> photoChosen() const;
@@ -162,7 +169,7 @@ private:
 		Api::SendOptions options,
 		bool forceSend = false);
 
-	not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<Show> _show;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 
 	MTP::Sender _api;

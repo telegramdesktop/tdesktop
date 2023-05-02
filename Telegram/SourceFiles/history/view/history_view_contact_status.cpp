@@ -683,22 +683,17 @@ void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 	_inner->shareClicks(
 	) | rpl::start_with_next([=] {
-		const auto show = std::make_shared<Window::Show>(_controller);
+		const auto show = _controller->uiShow();
 		const auto share = [=](Fn<void()> &&close) {
 			user->setSettings(0);
 			user->session().api().request(MTPcontacts_AcceptContact(
 				user->inputUser
 			)).done([=](const MTPUpdates &result) {
 				user->session().api().applyUpdates(result);
-
-				if (show->valid()) {
-					Ui::Toast::Show(
-						show->toastParent(),
-						tr::lng_new_contact_share_done(
-							tr::now,
-							lt_user,
-							user->shortName()));
-				}
+				show->showToast(tr::lng_new_contact_share_done(
+					tr::now,
+					lt_user,
+					user->shortName()));
 			}).send();
 			close();
 		};
@@ -735,8 +730,8 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 	_inner->reportClicks(
 	) | rpl::start_with_next([=] {
 		Expects(!peer->isUser());
-		const auto show = std::make_shared<Window::Show>(_controller);
 
+		const auto show = _controller->uiShow();
 		const auto callback = crl::guard(_inner, [=](Fn<void()> &&close) {
 			close();
 
@@ -751,11 +746,7 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 				peer->session().api().deleteConversation(peer, false);
 			});
 
-			if (show->valid()) {
-				Ui::Toast::Show(
-					show->toastParent(),
-					tr::lng_report_spam_done(tr::now));
-			}
+			show->showToast(tr::lng_report_spam_done(tr::now));
 
 			// Destroys _bar.
 			_controller->showBackFromStack();

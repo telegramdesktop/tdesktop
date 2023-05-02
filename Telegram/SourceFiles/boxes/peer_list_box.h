@@ -24,6 +24,7 @@ struct MultiSelect;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Ui {
@@ -329,7 +330,7 @@ public:
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) = 0;
 	virtual void peerListHideLayer() = 0;
-	virtual not_null<QWidget*> peerListToastParent() = 0;
+	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedPeers(PeerDataRange &&range) {
@@ -999,22 +1000,24 @@ public:
 	void peerListHideLayer() override {
 		Unexpected("...DelegateSimple::peerListHideLayer");
 	}
-	not_null<QWidget*> peerListToastParent() override {
-		Unexpected("...DelegateSimple::peerListToastParent");
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override {
+		Unexpected("...DelegateSimple::peerListUiShow");
 	}
 
 };
 
 class PeerListContentDelegateShow : public PeerListContentDelegateSimple {
 public:
-	PeerListContentDelegateShow(std::shared_ptr<Ui::Show> show);
+	explicit PeerListContentDelegateShow(
+		std::shared_ptr<Main::SessionShow> show);
 	void peerListShowBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
 	void peerListHideLayer() override;
-	not_null<QWidget*> peerListToastParent() override;
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
+
 private:
-	std::shared_ptr<Ui::Show> _show;
+	std::shared_ptr<Main::SessionShow> _show;
 
 };
 
@@ -1050,7 +1053,7 @@ public:
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
 	void peerListHideLayer() override;
-	not_null<QWidget*> peerListToastParent() override;
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 
 	void setAddedTopScrollSkip(int skip);
 
@@ -1092,7 +1095,7 @@ private:
 
 	object_ptr<Ui::SlideWrap<Ui::MultiSelect>> _select = { nullptr };
 
-	const Ui::BoxShow _show;
+	const std::shared_ptr<Main::SessionShow> _show;
 	std::unique_ptr<PeerListController> _controller;
 	Fn<void(PeerListBox*)> _init;
 	bool _scrollBottomFixed = false;

@@ -25,8 +25,7 @@ void SettingsBox(
 
 [[nodiscard]] std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 	not_null<PeerData*> peer,
-	Fn<void(object_ptr<Ui::BoxContent>)> showBox,
-	Fn<void(QString)> showToast);
+	std::shared_ptr<Ui::Show> show);
 
 class MicLevelTester final {
 public:

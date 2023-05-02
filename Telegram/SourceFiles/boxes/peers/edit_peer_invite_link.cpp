@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/abstract_button.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/edit_invite_link.h"
 #include "ui/painter.h"
@@ -275,12 +274,12 @@ void QrBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &link,
 		rpl::producer<QString> about,
-		Fn<void(QImage, std::shared_ptr<Ui::BoxShow>)> share) {
+		Fn<void(QImage, std::shared_ptr<Ui::Show>)> share) {
 	box->setTitle(tr::lng_group_invite_qr_title());
 
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 
-	const auto copyCallback = [=, show = std::make_shared<Ui::BoxShow>(box)] {
+	const auto copyCallback = [=, show = box->uiShow()] {
 		share(QrForShare(link), show);
 	};
 
@@ -346,32 +345,23 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto admin = current.admin;
 	const auto weak = Ui::MakeWeak(container);
 	const auto copyLink = crl::guard(weak, [=] {
-		CopyInviteLink(delegate()->peerListToastParent(), link);
+		CopyInviteLink(delegate()->peerListUiShow(), link);
 	});
 	const auto shareLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
-			ShareInviteLinkBox(_peer, link),
-			Ui::LayerOption::KeepOther);
+		delegate()->peerListShowBox(ShareInviteLinkBox(_peer, link));
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
-			InviteLinkQrBox(link, tr::lng_group_invite_qr_about()),
-			Ui::LayerOption::KeepOther);
+			InviteLinkQrBox(link, tr::lng_group_invite_qr_about()));
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
-			RevokeLinkBox(_peer, admin, link),
-			Ui::LayerOption::KeepOther);
+		delegate()->peerListShowBox(RevokeLinkBox(_peer, admin, link));
 	});
 	const auto editLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
-			EditLinkBox(_peer, _data.current()),
-			Ui::LayerOption::KeepOther);
+		delegate()->peerListShowBox(EditLinkBox(_peer, _data.current()));
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
-			DeleteLinkBox(_peer, admin, link),
-			Ui::LayerOption::KeepOther);
+		delegate()->peerListShowBox(DeleteLinkBox(_peer, admin, link));
 	});
 
 	const auto createMenu = [=] {
@@ -809,16 +799,13 @@ void Controller::processRequest(
 			delegate()->peerListRefreshRows();
 		}
 		if (approved) {
-			Ui::ShowMultilineToast({
-				.parentOverride = delegate()->peerListToastParent(),
-				.text = (_peer->isBroadcast()
-					? tr::lng_group_requests_was_added_channel
-					: tr::lng_group_requests_was_added)(
-						tr::now,
-						lt_user,
-						Ui::Text::Bold(user->name()),
-						Ui::Text::WithEntities)
-			});
+			delegate()->peerListUiShow()->showToast((_peer->isBroadcast()
+				? tr::lng_group_requests_was_added_channel
+				: tr::lng_group_requests_was_added)(
+					tr::now,
+					lt_user,
+					Ui::Text::Bold(user->name()),
+					Ui::Text::WithEntities));
 		}
 	});
 	const auto fail = crl::guard(this, [=] {
@@ -961,30 +948,24 @@ void AddPermanentLinkBlock(
 	const auto weak = Ui::MakeWeak(container);
 	const auto copyLink = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			CopyInviteLink(show->toastParent(), current.link);
+			CopyInviteLink(show, current.link);
 		}
 	});
 	const auto shareLink = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			show->showBox(
-				ShareInviteLinkBox(peer, current.link),
-				Ui::LayerOption::KeepOther);
+			show->showBox(ShareInviteLinkBox(peer, current.link));
 		}
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			show->showBox(
-				InviteLinkQrBox(
-					current.link,
-					tr::lng_group_invite_qr_about()),
-				Ui::LayerOption::KeepOther);
+			show->showBox(InviteLinkQrBox(
+				current.link,
+				tr::lng_group_invite_qr_about()));
 		}
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
 		if (const auto current = value->current(); !current.link.isEmpty()) {
-			show->showBox(
-				RevokeLinkBox(peer, admin, current.link, true),
-				Ui::LayerOption::KeepOther);
+			show->showBox(RevokeLinkBox(peer, admin, current.link, true));
 		}
 	});
 
@@ -1111,9 +1092,7 @@ void AddPermanentLinkBlock(
 		st::inviteLinkJoinedRowPadding
 	)->setClickedCallback([=] {
 		if (!currentLinkFields->link.isEmpty()) {
-			show->showBox(
-				ShowInviteLinkBox(peer, *currentLinkFields),
-				Ui::LayerOption::KeepOther);
+			show->showBox(ShowInviteLinkBox(peer, *currentLinkFields));
 		}
 	});
 
@@ -1128,9 +1107,9 @@ void AddPermanentLinkBlock(
 	}));
 }
 
-void CopyInviteLink(not_null<QWidget*> toastParent, const QString &link) {
+void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link) {
 	QGuiApplication::clipboard()->setText(link);
-	Ui::Toast::Show(toastParent, tr::lng_group_invite_copied(tr::now));
+	show->showToast(tr::lng_group_invite_copied(tr::now));
 }
 
 object_ptr<Ui::BoxContent> ShareInviteLinkBox(
@@ -1147,7 +1126,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 
 	const auto showToast = [=](const QString &text) {
 		if (*box) {
-			Ui::Toast::Show(Ui::BoxShow(*box).toastParent(), text);
+			(*box)->showToast(text);
 		}
 	};
 
@@ -1184,9 +1163,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 			}
 			text.append(error.first);
 			if (*box) {
-				Ui::BoxShow(*box).showBox(
-					Ui::MakeInformBox(text),
-					Ui::LayerOption::KeepOther);
+				(*box)->uiShow()->showBox(Ui::MakeInformBox(text));
 			}
 			return;
 		}
@@ -1232,14 +1209,11 @@ object_ptr<Ui::BoxContent> InviteLinkQrBox(
 		rpl::producer<QString> about) {
 	return Box(QrBox, link, std::move(about), [=](
 			const QImage &image,
-			std::shared_ptr<Ui::BoxShow> show) {
+			std::shared_ptr<Ui::Show> show) {
 		auto mime = std::make_unique<QMimeData>();
 		mime->setImageData(image);
 		QGuiApplication::clipboard()->setMimeData(mime.release());
-
-		Ui::Toast::Show(
-			show->toastParent(),
-			tr::lng_group_invite_qr_copied(tr::now));
+		show->showToast(tr::lng_group_invite_qr_copied(tr::now));
 	});
 }
 

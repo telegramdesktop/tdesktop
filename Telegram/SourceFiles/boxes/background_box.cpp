@@ -291,12 +291,10 @@ void BackgroundBox::chosen(const Data::WallPaper &paper) {
 		}
 		return;
 	}
-	_controller->show(
-		Box<BackgroundPreviewBox>(
-			_controller,
-			paper,
-			BackgroundPreviewArgs{ _forPeer }),
-		Ui::LayerOption::KeepOther);
+	_controller->show(Box<BackgroundPreviewBox>(
+		_controller,
+		paper,
+		BackgroundPreviewArgs{ _forPeer }));
 }
 
 void BackgroundBox::resetForPeer() {
@@ -332,13 +330,11 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 			paper.mtpSettings()
 		)).send();
 	};
-	_controller->show(
-		Ui::MakeConfirmBox({
-			.text = tr::lng_background_sure_delete(),
-			.confirmed = remove,
-			.confirmText = tr::lng_selected_delete(),
-		}),
-		Ui::LayerOption::KeepOther);
+	_controller->show(Ui::MakeConfirmBox({
+		.text = tr::lng_background_sure_delete(),
+		.confirmed = remove,
+		.confirmText = tr::lng_selected_delete(),
+	}));
 }
 
 BackgroundBox::Inner::Inner(

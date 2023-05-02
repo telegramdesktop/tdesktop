@@ -21,9 +21,7 @@ namespace HistoryView::Controls {
 
 class VoiceRecordButton final : public Ui::AbstractButton {
 public:
-	VoiceRecordButton(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<> leaveWindowEventProducer);
+	explicit VoiceRecordButton(not_null<Ui::RpWidget*> parent);
 	~VoiceRecordButton();
 
 	enum class Type {
@@ -53,7 +51,6 @@ private:
 
 	rpl::variable<float64> _showProgress = 0.;
 	float64 _colorProgress = 0.;
-	rpl::variable<bool> _inCircle = false;
 	rpl::variable<Type> _state = Type::Record;
 
 	// This can animate for a very long time (like in music playing),

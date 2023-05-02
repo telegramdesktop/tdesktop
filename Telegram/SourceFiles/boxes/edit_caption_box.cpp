@@ -129,7 +129,7 @@ void ChooseReplacement(
 		}
 		const auto showError = [=](tr::phrase<> t) {
 			if (const auto strong = weak.get()) {
-				strong->showToast({ t(tr::now) });
+				strong->showToast(t(tr::now));
 			}
 		};
 
@@ -304,7 +304,7 @@ void EditCaptionBox::StartMediaReplace(
 	}
 	const auto type = ComputeAlbumType(item);
 	const auto showError = [=](tr::phrase<> t) {
-		controller->showToast({ t(tr::now) });
+		controller->showToast(t(tr::now));
 	};
 	const auto checkResult = [=](const Ui::PreparedList &list) {
 		if (list.files.size() != 1) {
@@ -647,7 +647,7 @@ void EditCaptionBox::setupEmojiPanel() {
 		_controller,
 		object_ptr<Selector>(
 			nullptr,
-			_controller,
+			_controller->uiShow(),
 			Window::GifPauseReason::Layer,
 			Selector::Mode::EmojiOnly));
 	_emojiPanel->setDesiredHeightValues(
@@ -728,9 +728,7 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 		}
 	}
 	if (invalidForAlbum) {
-		Ui::Toast::Show(
-			Ui::BoxShow(this).toastParent(),
-			tr::lng_edit_media_album_error(tr::now));
+		showToast(tr::lng_edit_media_album_error(tr::now));
 		return false;
 	}
 	const auto wasSpoiler = hasSpoiler();

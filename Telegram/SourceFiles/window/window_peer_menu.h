@@ -34,6 +34,10 @@ class MainList;
 struct EntryState;
 } // namespace Dialogs
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Window {
 
 class Controller;
@@ -119,6 +123,10 @@ QPointer<Ui::BoxContent> ShowChooseRecipientBox(
 	FnMut<bool(not_null<Data::Thread*>)> &&chosen,
 	rpl::producer<QString> titleOverride = nullptr,
 	FnMut<void()> &&successCallback = nullptr);
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+	std::shared_ptr<ChatHelpers::Show> show,
+	Data::ForwardDraft &&draft,
+	Fn<void()> &&successCallback = nullptr);
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	Data::ForwardDraft &&draft,

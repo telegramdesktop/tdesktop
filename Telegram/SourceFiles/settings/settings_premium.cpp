@@ -860,12 +860,10 @@ void TopBarUser::updateTitle(
 	auto link = std::make_shared<LambdaClickHandler>([=,
 			stickerSetIdentifier = stickerInfo->set] {
 		setPaused(true);
-		const auto box = controller->show(
-			Box<StickerSetBox>(
-				controller,
-				stickerSetIdentifier,
-				Data::StickersType::Emoji),
-			Ui::LayerOption::KeepOther);
+		const auto box = controller->show(Box<StickerSetBox>(
+			controller->uiShow(),
+			stickerSetIdentifier,
+			Data::StickersType::Emoji));
 
 		box->boxClosing(
 		) | rpl::start_with_next(crl::guard(this, [=] {

@@ -143,11 +143,10 @@ void ShowSetToast(
 	st->padding.setLeft(skip + size + skip);
 	st->palette.linkFg = st->palette.selectLinkFg = st::mediaviewTextLinkFg;
 
-	const auto parent = Window::Show(controller).toastParent();
-	const auto weak = Ui::Toast::Show(parent, {
+	const auto weak = controller->showToast({
 		.text = text,
 		.st = st.get(),
-		.durationMs = kToastDuration,
+		.duration = kToastDuration,
 		.multiline = true,
 		.dark = true,
 		.slideSide = RectPart::Bottom,

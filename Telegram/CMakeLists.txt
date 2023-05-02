@@ -350,6 +350,8 @@ PRIVATE
     calls/calls_video_bubble.h
     calls/calls_video_incoming.cpp
     calls/calls_video_incoming.h
+    chat_helpers/compose/compose_show.cpp
+    chat_helpers/compose/compose_show.h
     chat_helpers/bot_command.cpp
     chat_helpers/bot_command.h
     chat_helpers/bot_keyboard.cpp
@@ -934,6 +936,8 @@ PRIVATE
     main/main_session_settings.h
     main/session/send_as_peers.cpp
     main/session/send_as_peers.h
+    main/session/session_show.cpp
+    main/session/session_show.h
     media/system_media_controls_manager.h
     media/system_media_controls_manager.cpp
     media/audio/media_audio.cpp

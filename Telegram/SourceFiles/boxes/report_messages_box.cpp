@@ -39,13 +39,12 @@ namespace {
 		return Ui::ReportSource::Bot;
 	});
 	return Box([=](not_null<Ui::GenericBox*> box) {
+		const auto show = box->uiShow();
 		Ui::ReportReasonBox(box, source, [=](Ui::ReportReason reason) {
-			Ui::BoxShow(box).showBox(Box([=](not_null<Ui::GenericBox*> box) {
-				const auto show = Ui::BoxShow(box);
+			show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 				Ui::ReportDetailsBox(box, [=](const QString &text) {
-					const auto toastParent = show.toastParent();
-					Api::SendReport(toastParent, peer, reason, text, data);
-					show.hideLayer();
+					Api::SendReport(show, peer, reason, text, data);
+					show->hideLayer();
 				});
 			}));
 		});
@@ -79,7 +78,7 @@ void ShowReportPeerBox(
 		const auto send = [=](const QString &text) {
 			window->clearChooseReportMessages();
 			Api::SendReport(
-				Window::Show(window).toastParent(),
+				window->uiShow(),
 				peer,
 				reason,
 				text,

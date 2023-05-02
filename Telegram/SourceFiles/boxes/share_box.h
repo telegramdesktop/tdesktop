@@ -147,8 +147,6 @@ private:
 	Descriptor _descriptor;
 	MTP::Sender _api;
 
-	std::shared_ptr<Ui::BoxShow> _show;
-
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::SlideWrap<Ui::InputField>> _comment;
 	object_ptr<Ui::RpWidget> _bottomWidget;

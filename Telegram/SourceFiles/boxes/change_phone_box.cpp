@@ -280,15 +280,13 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 		}
 		return 0;
 	}();
-	_controller->show(
-		Box<EnterCode>(
-			_controller,
-			phoneNumber,
-			phoneCodeHash,
-			codeByFragmentUrl,
-			codeLength,
-			callTimeout),
-		Ui::LayerOption::KeepOther);
+	_controller->show(Box<EnterCode>(
+		_controller,
+		phoneNumber,
+		phoneCodeHash,
+		codeByFragmentUrl,
+		codeLength,
+		callTimeout));
 }
 
 void ChangePhone::EnterPhone::sendPhoneFail(
@@ -426,17 +424,13 @@ void ChangePhone::EnterCode::submit(const QString &code) {
 		MTP_string(_phone),
 		MTP_string(_hash),
 		MTP_string(code)
-	)).done([=, show = Window::Show(_controller)](const MTPUser &result) {
+	)).done([=, show = _controller->uiShow()](const MTPUser &result) {
 		_requestId = 0;
 		session->data().processUser(result);
-		if (show.valid()) {
-			if (weak) {
-				show.hideLayer();
-			}
-			Ui::Toast::Show(
-				show.toastParent(),
-				tr::lng_change_phone_success(tr::now));
+		if (weak) {
+			show->hideLayer();
 		}
+		show->showToast(tr::lng_change_phone_success(tr::now));
 	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		_requestId = 0;
 		sendCodeFail(error);

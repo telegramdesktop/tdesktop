@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/invite_link_buttons.h"
 #include "ui/controls/invite_link_label.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
@@ -118,7 +117,7 @@ void ShowSaveError(
 		window->showToast(
 			{ tr::lng_filters_link_group_admin_error(tr::now) });
 	} else {
-		window->showToast({ error });
+		window->showToast(error);
 	}
 }
 
@@ -583,27 +582,22 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto link = _data.url;
 	const auto weak = Ui::MakeWeak(container);
 	const auto copyLink = crl::guard(weak, [=] {
-		CopyInviteLink(delegate()->peerListToastParent(), link);
+		CopyInviteLink(delegate()->peerListUiShow(), link);
 	});
 	const auto shareLink = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
-			ShareInviteLinkBox(&_window->session(), link),
-			Ui::LayerOption::KeepOther);
+			ShareInviteLinkBox(&_window->session(), link));
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
-			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()),
-			Ui::LayerOption::KeepOther);
+			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()));
 	});
 	const auto editLink = crl::guard(weak, [=] {
 		delegate()->peerListShowBox(
-			Box(ChatFilterLinkBox, &_window->session(), _data),
-			Ui::LayerOption::KeepOther);
+			Box(ChatFilterLinkBox, &_window->session(), _data));
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
-			DeleteLinkBox(_window, _data),
-			Ui::LayerOption::KeepOther);
+		delegate()->peerListShowBox(DeleteLinkBox(_window, _data));
 	});
 
 	const auto createMenu = [=] {
@@ -702,10 +696,7 @@ void LinkController::rowClicked(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
 	if (const auto i = _denied.find(peer); i != end(_denied)) {
 		if (!i->second.isEmpty()) {
-			Ui::ShowMultilineToast({
-				.parentOverride = delegate()->peerListToastParent(),
-				.text = { i->second },
-			});
+			delegate()->peerListUiShow()->showToast(i->second);
 		}
 	} else {
 		const auto checked = row->checked();
@@ -866,8 +857,7 @@ void LinksController::rebuild(const std::vector<InviteLinkData> &rows) {
 void LinksController::rowClicked(not_null<PeerListRow*> row) {
 	const auto link = static_cast<LinkRow*>(row.get())->data();
 	delegate()->peerListShowBox(
-		ShowLinkBox(_window, _currentFilter(), link),
-		Ui::LayerOption::KeepOther);
+		ShowLinkBox(_window, _currentFilter(), link));
 }
 
 void LinksController::rowRightActionClicked(not_null<PeerListRow*> row) {
@@ -898,27 +888,22 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 	const auto data = real->data();
 	const auto link = data.url;
 	const auto copyLink = [=] {
-		CopyInviteLink(delegate()->peerListToastParent(), link);
+		CopyInviteLink(delegate()->peerListUiShow(), link);
 	};
 	const auto shareLink = [=] {
 		delegate()->peerListShowBox(
-			ShareInviteLinkBox(&_window->session(), link),
-			Ui::LayerOption::KeepOther);
+			ShareInviteLinkBox(&_window->session(), link));
 	};
 	const auto getLinkQr = [=] {
 		delegate()->peerListShowBox(
-			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()),
-			Ui::LayerOption::KeepOther);
+			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()));
 	};
 	const auto editLink = [=] {
 		delegate()->peerListShowBox(
-			Box(ChatFilterLinkBox, &_window->session(), data),
-			Ui::LayerOption::KeepOther);
+			Box(ChatFilterLinkBox, &_window->session(), data));
 	};
 	const auto deleteLink = [=] {
-		delegate()->peerListShowBox(
-			DeleteLinkBox(_window, data),
-			Ui::LayerOption::KeepOther);
+		delegate()->peerListShowBox(DeleteLinkBox(_window, data));
 	};
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
@@ -1008,10 +993,7 @@ bool GoodForExportFilterLink(
 	using Flag = Data::ChatFilter::Flag;
 	const auto listflags = Flag::Chatlist | Flag::HasMyLinks;
 	if (!filter.never().empty() || (filter.flags() & ~listflags)) {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(window).toastParent(),
-			.text = { tr::lng_filters_link_cant(tr::now) },
-		});
+		window->showToast(tr::lng_filters_link_cant(tr::now));
 		return false;
 	}
 	return true;
@@ -1151,7 +1133,7 @@ void SetupFilterLinks(
 		Fn<Data::ChatFilter()> currentFilter) {
 	auto &lifetime = container->lifetime();
 	const auto delegate = lifetime.make_state<PeerListContentDelegateShow>(
-		std::make_shared<Window::Show>(window));
+		window->uiShow());
 	const auto controller = lifetime.make_state<LinksController>(
 		window,
 		std::move(value),

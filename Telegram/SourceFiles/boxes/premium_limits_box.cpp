@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -133,7 +132,7 @@ public:
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
 	void peerListHideLayer() override;
-	not_null<QWidget*> peerListToastParent() override;
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 	void peerListSetRowChecked(
 		not_null<PeerListRow*> row,
 		bool checked) override;
@@ -205,8 +204,8 @@ void InactiveDelegate::peerListShowBox(
 void InactiveDelegate::peerListHideLayer() {
 }
 
-not_null<QWidget*> InactiveDelegate::peerListToastParent() {
-	Unexpected("...InactiveDelegate::peerListToastParent");
+std::shared_ptr<Main::SessionShow> InactiveDelegate::peerListUiShow() {
+	Unexpected("...InactiveDelegate::peerListUiShow");
 }
 
 rpl::producer<int> InactiveDelegate::selectedCountChanges() const {
@@ -385,8 +384,7 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 			.text = text,
 			.confirmed = std::move(callback),
 			.confirmText = confirmText,
-		}),
-		Ui::LayerOption::KeepOther);
+		}));
 }
 
 void PublicsController::appendRow(not_null<PeerData*> participant) {
@@ -602,10 +600,7 @@ void ChannelsLimitBox(
 					session->api().leaveChannel(channel);
 				}
 			}
-			Ui::ShowMultilineToast({
-				.parentOverride = Ui::BoxShow(box).toastParent(),
-				.text = { tr::lng_channels_leave_done(tr::now) },
-			});
+			box->showToast(tr::lng_channels_leave_done(tr::now));
 			box->closeBox();
 		};
 		box->clearButtons();

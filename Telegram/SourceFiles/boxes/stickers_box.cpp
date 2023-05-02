@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "storage/storage_account.h"
 #include "lottie/lottie_single_player.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -35,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/unread_badge_paint.h"
-#include "window/window_session_controller.h"
 #include "media/clip/media_clip_reader.h"
 #include "main/main_session.h"
 #include "styles/style_layers.h"
@@ -77,11 +77,11 @@ public:
 
 	Inner(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		Section section);
 	Inner(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<ChannelData*> megagroup);
 
 	[[nodiscard]] Main::Session &session() const;
@@ -250,7 +250,8 @@ private:
 	int countMaxNameWidth() const;
 	[[nodiscard]] bool skipPremium() const;
 
-	const not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
 	const Section _section;
@@ -380,35 +381,37 @@ void StickersBox::Tab::saveScrollTop() {
 
 StickersBox::StickersBox(
 	QWidget*,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	Section section,
 	bool masks)
-: _controller(controller)
-, _api(&controller->session().mtp())
+: _show(std::move(show))
+, _session(&_show->session())
+, _api(&_session->mtp())
 , _tabs(this, st::stickersTabs)
 , _unreadBadge(
 	this,
-	controller->session().data().stickers().featuredSetsUnreadCountValue())
+	_session->data().stickers().featuredSetsUnreadCountValue())
 , _section(section)
 , _isMasks(masks)
 , _isEmoji(false)
-, _installed(_isMasks ? Tab() : Tab(0, this, controller, Section::Installed))
-, _masks(_isMasks ? Tab(0, this, controller, Section::Masks) : Tab())
-, _featured(_isMasks ? Tab() : Tab(1, this, controller, Section::Featured))
-, _archived((_isMasks ? 1 : 2), this, controller, Section::Archived) {
+, _installed(_isMasks ? Tab() : Tab(0, this, _show, Section::Installed))
+, _masks(_isMasks ? Tab(0, this, _show, Section::Masks) : Tab())
+, _featured(_isMasks ? Tab() : Tab(1, this, _show, Section::Featured))
+, _archived((_isMasks ? 1 : 2), this, _show, Section::Archived) {
 	_tabs->setRippleTopRoundRadius(st::boxRadius);
 }
 
 StickersBox::StickersBox(
 	QWidget*,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<ChannelData*> megagroup)
-: _controller(controller)
-, _api(&controller->session().mtp())
+: _show(std::move(show))
+, _session(&_show->session())
+, _api(&_session->mtp())
 , _section(Section::Installed)
 , _isMasks(false)
 , _isEmoji(false)
-, _installed(0, this, controller, megagroup)
+, _installed(0, this, _show, megagroup)
 , _megagroupSet(megagroup) {
 	_installed.widget()->scrollsToY(
 	) | rpl::start_with_next([=](int y) {
@@ -418,34 +421,36 @@ StickersBox::StickersBox(
 
 StickersBox::StickersBox(
 	QWidget*,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	const QVector<MTPStickerSetCovered> &attachedSets)
-: _controller(controller)
-, _api(&controller->session().mtp())
+: _show(std::move(show))
+, _session(&_show->session())
+, _api(&_session->mtp())
 , _section(Section::Attached)
 , _isMasks(false)
 , _isEmoji(false)
-, _attached(0, this, controller, Section::Attached)
+, _attached(0, this, _show, Section::Attached)
 , _attachedType(Data::StickersType::Stickers)
 , _attachedSets(attachedSets) {
 }
 
 StickersBox::StickersBox(
 	QWidget*,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	const std::vector<StickerSetIdentifier> &emojiSets)
-: _controller(controller)
-, _api(&controller->session().mtp())
+: _show(std::move(show))
+, _session(&_show->session())
+, _api(&_session->mtp())
 , _section(Section::Attached)
 , _isMasks(false)
 , _isEmoji(true)
-, _attached(0, this, controller, Section::Attached)
+, _attached(0, this, _show, Section::Attached)
 , _attachedType(Data::StickersType::Emoji)
 , _emojiSets(emojiSets) {
 }
 
 Main::Session &StickersBox::session() const {
-	return _controller->session();
+	return *_session;
 }
 
 void StickersBox::showAttachedStickers() {
@@ -1121,11 +1126,12 @@ bool StickersBox::Inner::Row::isArchived() const {
 
 StickersBox::Inner::Inner(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	StickersBox::Section section)
 : RpWidget(parent)
-, _controller(controller)
-, _api(&_controller->session().mtp())
+, _show(std::move(show))
+, _session(&_show->session())
+, _api(&_session->mtp())
 , _section(section)
 , _isInstalled(_section == Section::Installed || _section == Section::Masks)
 , _buttonBgOver(
@@ -1152,11 +1158,12 @@ StickersBox::Inner::Inner(
 
 StickersBox::Inner::Inner(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<ChannelData*> megagroup)
 : RpWidget(parent)
-, _controller(controller)
-, _api(&_controller->session().mtp())
+, _show(std::move(show))
+, _session(&_show->session())
+, _api(&_session->mtp())
 , _section(StickersBox::Section::Installed)
 , _isInstalled(_section == Section::Installed || _section == Section::Masks)
 , _buttonBgOver(
@@ -1181,11 +1188,11 @@ StickersBox::Inner::Inner(
 	st::groupStickersField,
 	rpl::single(u"stickerset"_q),
 	QString(),
-	_controller->session().createInternalLink(QString()))
+	_session->createInternalLink(QString()))
 , _megagroupDivider(this)
 , _megagroupSubTitle(this, tr::lng_stickers_group_from_your(tr::now), st::boxTitle) {
 	_megagroupSetField->setLinkPlaceholder(
-		_controller->session().createInternalLink(u"addstickers/"_q));
+		_session->createInternalLink(u"addstickers/"_q));
 	_megagroupSetField->setPlaceholderHidden(false);
 	_megagroupSetAddressChangedTimer.setCallback([this] { handleMegagroupSetAddressChange(); });
 	connect(
@@ -1207,7 +1214,7 @@ StickersBox::Inner::Inner(
 }
 
 Main::Session &StickersBox::Inner::session() const {
-	return _controller->session();
+	return *_session;
 }
 
 void StickersBox::Inner::setup() {
@@ -1429,8 +1436,7 @@ void StickersBox::Inner::paintRowThumbnail(
 		: row->stickerMedia
 		? row->stickerMedia->thumbnail()
 		: nullptr;
-	const auto paused = _controller->isGifPausedAtLeastFor(
-		Window::GifPauseReason::Layer);
+	const auto paused = _show->paused(ChatHelpers::PauseReason::Layer);
 	const auto x = left + (st::contactsPhotoSize - row->pixw) / 2;
 	const auto y = st::contactsPadding.top() + (st::contactsPhotoSize - row->pixh) / 2;
 	if (row->lottie && row->lottie->ready()) {
@@ -1858,9 +1864,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		}();
 		const auto showSetByRow = [&](const Row &row) {
 			setSelected(SelectedRow());
-			_controller->show(
-				Box<StickerSetBox>(_controller, row.set),
-				Ui::LayerOption::KeepOther);
+			_show->showBox(Box<StickerSetBox>(_show, row.set));
 		};
 		if (selectedIndex >= 0 && !_inDragArea) {
 			const auto row = _rows[selectedIndex].get();
@@ -2252,7 +2256,7 @@ bool StickersBox::Inner::appendSet(not_null<StickersSet*> set) {
 }
 
 bool StickersBox::Inner::skipPremium() const {
-	return !_controller->session().premiumPossible();
+	return !_session->premiumPossible();
 }
 
 int StickersBox::Inner::countMaxNameWidth() const {

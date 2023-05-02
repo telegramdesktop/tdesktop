@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "ui/boxes/confirm_box.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -34,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "ui/painter.h"
-#include "window/window_session_controller.h"
 
 namespace HistoryView::Controls {
 
@@ -206,7 +206,7 @@ class ListenWrap final {
 public:
 	ListenWrap(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
 		::Media::Capture::Result &&data,
 		const style::font &font);
 
@@ -231,7 +231,7 @@ private:
 
 	not_null<Ui::RpWidget*> _parent;
 
-	const not_null<Window::SessionController*> _controller;
+	const not_null<Main::Session*> _session;
 	const not_null<DocumentData*> _document;
 	const std::unique_ptr<VoiceData> _voiceData;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
@@ -264,12 +264,12 @@ private:
 
 ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Window::SessionController*> controller,
+	not_null<Main::Session*> session,
 	::Media::Capture::Result &&data,
 	const style::font &font)
 : _parent(parent)
-, _controller(controller)
-, _document(DummyDocument(&_controller->session().data()))
+, _session(session)
+, _document(DummyDocument(&session->data()))
 , _voiceData(ProcessCaptureResult(data))
 , _mediaView(_document->createMediaView())
 , _data(std::make_unique<::Media::Capture::Result>(std::move(data)))
@@ -456,13 +456,6 @@ void ListenWrap::initPlayButton() {
 	) | rpl::start_with_next([=] {
 		*showPause = false;
 	}, _lifetime);
-
-	const auto weak = Ui::MakeWeak(_controller->content().get());
-	_lifetime.add([=] {
-		if (weak && isInPlayer()) {
-			weak->stopAndClosePlayer();
-		}
-	});
 }
 
 void ListenWrap::initPlayProgress() {
@@ -991,17 +984,15 @@ void CancelButton::requestPaintProgress(float64 progress) {
 VoiceRecordBar::VoiceRecordBar(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Ui::RpWidget*> sectionWidget,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Ui::SendButton> send,
 	int recorderHeight)
 : RpWidget(parent)
 , _sectionWidget(sectionWidget)
-, _controller(controller)
+, _show(std::move(show))
 , _send(send)
 , _lock(std::make_unique<RecordLock>(sectionWidget))
-, _level(std::make_unique<VoiceRecordButton>(
-	sectionWidget,
-	_controller->widget()->leaveEvents()))
+, _level(std::make_unique<VoiceRecordButton>(sectionWidget))
 , _cancel(std::make_unique<CancelButton>(this, recorderHeight))
 , _startTimer([=] { startRecording(); })
 , _message(
@@ -1016,10 +1007,10 @@ VoiceRecordBar::VoiceRecordBar(
 
 VoiceRecordBar::VoiceRecordBar(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Ui::SendButton> send,
 	int recorderHeight)
-: VoiceRecordBar(parent, parent, controller, send, recorderHeight) {
+: VoiceRecordBar(parent, parent, std::move(show), send, recorderHeight) {
 }
 
 VoiceRecordBar::~VoiceRecordBar() {
@@ -1325,7 +1316,6 @@ void VoiceRecordBar::startRecording() {
 		startRedCircleAnimation();
 
 		_recording = true;
-		_controller->widget()->setInnerFocus();
 		instance()->start();
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
@@ -1410,7 +1400,6 @@ void VoiceRecordBar::finish() {
 	_listen = nullptr;
 
 	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
-	_controller->widget()->setInnerFocus();
 }
 
 void VoiceRecordBar::hideFast() {
@@ -1434,14 +1423,15 @@ void VoiceRecordBar::stopRecording(StopType type) {
 			return;
 		}
 
-		Window::ActivateWindow(_controller);
+		window()->raise();
+		window()->activateWindow();
 		const auto duration = Duration(data.samples);
 		if (type == StopType::Send) {
 			_sendVoiceRequests.fire({ data.bytes, data.waveform, duration });
 		} else if (type == StopType::Listen) {
 			_listen = std::make_unique<ListenWrap>(
 				this,
-				_controller,
+				&_show->session(),
 				std::move(data),
 				_cancelFont);
 			_listenChanges.fire({});
@@ -1690,7 +1680,7 @@ void VoiceRecordBar::showDiscardBox(
 			callback();
 		}
 	};
-	_controller->show(Ui::MakeConfirmBox({
+	_show->showBox(Ui::MakeConfirmBox({
 		.text = (isListenState()
 			? tr::lng_record_listen_cancel_sure
 			: tr::lng_record_lock_cancel_sure)(),

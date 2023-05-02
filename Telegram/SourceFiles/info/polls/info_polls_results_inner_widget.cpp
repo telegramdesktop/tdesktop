@@ -55,7 +55,7 @@ public:
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
 	void peerListHideLayer() override;
-	not_null<QWidget*> peerListToastParent() override;
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 
 };
 
@@ -100,8 +100,8 @@ void ListDelegate::peerListShowBox(
 void ListDelegate::peerListHideLayer() {
 }
 
-not_null<QWidget*> ListDelegate::peerListToastParent() {
-	Unexpected("...ListDelegate::peerListToastParent");
+std::shared_ptr<Main::SessionShow> ListDelegate::peerListUiShow() {
+	Unexpected("...ListDelegate::peerListUiShow");
 }
 
 } // namespace

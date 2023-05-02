@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/peer_list_box.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/toasts/common_toasts.h"
 #include "boxes/add_contact_box.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
@@ -168,13 +167,11 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		const auto onstack = _callback;
 		onstack(chat);
 	};
-	delegate()->peerListShowBox(
-		Ui::MakeConfirmBox({
-			.text = text,
-			.confirmed = sure,
-			.confirmText = tr::lng_manage_discussion_group_link(tr::now),
-		}),
-		Ui::LayerOption::KeepOther);
+	delegate()->peerListShowBox(Ui::MakeConfirmBox({
+		.text = text,
+		.confirmed = sure,
+		.confirmText = tr::lng_manage_discussion_group_link(tr::now),
+	}));
 }
 
 void Controller::choose(not_null<ChatData*> chat) {
@@ -201,13 +198,11 @@ void Controller::choose(not_null<ChatData*> chat) {
 		};
 		chat->session().api().migrateChat(chat, crl::guard(this, done));
 	};
-	delegate()->peerListShowBox(
-		Ui::MakeConfirmBox({
-			.text = text,
-			.confirmed = sure,
-			.confirmText = tr::lng_manage_discussion_group_link(tr::now),
-		}),
-		Ui::LayerOption::KeepOther);
+	delegate()->peerListShowBox(Ui::MakeConfirmBox({
+		.text = text,
+		.confirmed = sure,
+		.confirmText = tr::lng_manage_discussion_group_link(tr::now),
+	}));
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> About(
@@ -279,13 +274,11 @@ void Controller::choose(not_null<ChatData*> chat) {
 				{ &st::settingsIconChat, Settings::kIconLightBlue }
 			)->addClickHandler([=, parent = above.data()] {
 				const auto guarded = crl::guard(parent, callback);
-				Window::Show(navigation).showBox(
-					Box<GroupInfoBox>(
-						navigation,
-						GroupInfoBox::Type::Megagroup,
-						channel->name() + " Chat",
-						guarded),
-					Ui::LayerOption::KeepOther);
+				navigation->uiShow()->showBox(Box<GroupInfoBox>(
+					navigation,
+					GroupInfoBox::Type::Megagroup,
+					channel->name() + " Chat",
+					guarded));
 			});
 		}
 		box->peerListSetAboveWidget(std::move(above));
@@ -363,10 +356,8 @@ object_ptr<Ui::BoxContent> EditLinkedChatBox(
 
 void ShowForumForDiscussionError(
 		not_null<Window::SessionNavigation*> navigation) {
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(navigation).toastParent(),
-		.text = tr::lng_forum_topics_no_discussion(
+	navigation->showToast(
+		tr::lng_forum_topics_no_discussion(
 			tr::now,
-			Ui::Text::RichLangValue),
-	});
+			Ui::Text::RichLangValue));
 }

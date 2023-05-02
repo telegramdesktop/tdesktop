@@ -16,6 +16,14 @@ class Account;
 class Session;
 } // namespace Main
 
+namespace Ui {
+class Show;
+} // namespace Ui
+
+namespace Ui::Toast {
+struct Config;
+} // namespace Ui::Toast
+
 namespace Media::View {
 struct OpenRequest;
 } // namespace Media::View
@@ -87,7 +95,11 @@ public:
 		showBox(std::move(content), options, animated);
 		return result;
 	}
-	void showToast(const QString &text);
+
+	void showToast(Ui::Toast::Config &&config);
+	void showToast(TextWithEntities &&text, crl::time duration = 0);
+	void showToast(const QString &text, crl::time duration = 0);
+
 	void showLayer(
 		std::unique_ptr<Ui::LayerWidget> &&layer,
 		Ui::LayerOptions options,
@@ -130,6 +142,8 @@ public:
 	[[nodiscard]] FloatDelegate *floatPlayerDelegate() const;
 	[[nodiscard]] auto floatPlayerDelegateValue() const
 		-> rpl::producer<FloatDelegate*>;
+
+	[[nodiscard]] std::shared_ptr<Ui::Show> uiShow();
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

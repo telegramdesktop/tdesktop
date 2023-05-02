@@ -357,7 +357,7 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 		};
 		ChatHelpers::AddGifAction(
 			std::move(callback),
-			_controller,
+			_controller->uiShow(),
 			previewDocument);
 	}
 

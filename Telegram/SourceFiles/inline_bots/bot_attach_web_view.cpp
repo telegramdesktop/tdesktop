@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/dropdown_menu.h"
@@ -182,7 +181,7 @@ void ShowChooseBox(
 			&controller->session(),
 			std::move(done),
 			std::move(filter)),
-		std::move(initBox)), Ui::LayerOption::KeepOther);
+		std::move(initBox)));
 }
 
 [[nodiscard]] base::flat_set<not_null<AttachWebView*>> &ActiveWebViews() {
@@ -1216,12 +1215,9 @@ void AttachWebView::showToast(
 		: _addToMenuContext
 		? _addToMenuContext->controller.get()
 		: nullptr;
-	Ui::ShowMultilineToast({
-		.parentOverride = (strong
-			? Window::Show(strong).toastParent().get()
-			: nullptr),
-		.text = { text },
-	});
+	if (strong) {
+		strong->showToast(text);
+	}
 }
 
 void AttachWebView::confirmAddToMenu(

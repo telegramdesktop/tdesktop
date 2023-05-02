@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/round_rect.h"
@@ -46,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
+#include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
@@ -74,6 +74,67 @@ constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
 constexpr auto kHideControlsTimeout = 5 * crl::time(1000);
+
+class Show final : public Main::SessionShow {
+public:
+	explicit Show(not_null<Panel*> panel);
+	~Show();
+
+	void showBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options
+			= Ui::LayerOption::KeepOther) const override;
+	void hideLayer() const override;
+	[[nodiscard]] not_null<QWidget*> toastParent() const override;
+	[[nodiscard]] bool valid() const override;
+	operator bool() const override;
+
+	[[nodiscard]] Main::Session &session() const override;
+
+private:
+	const base::weak_ptr<Panel> _panel;
+
+};
+
+Show::Show(not_null<Panel*> panel)
+: _panel(base::make_weak(panel)) {
+}
+
+Show::~Show() = default;
+
+void Show::showBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) const {
+	if (const auto panel = _panel.get()) {
+		panel->showBox(std::move(content), options);
+	}
+}
+
+void Show::hideLayer() const {
+	if (const auto panel = _panel.get()) {
+		panel->hideLayer();
+	}
+}
+
+not_null<QWidget*> Show::toastParent() const {
+	const auto panel = _panel.get();
+	Assert(panel != nullptr);
+	return panel->widget();
+}
+
+bool Show::valid() const {
+	return !_panel.empty();
+}
+
+Show::operator bool() const {
+	return valid();
+}
+
+Main::Session &Show::session() const {
+	const auto panel = _panel.get();
+	Assert(panel != nullptr);
+	return panel->call()->peer()->session();
+}
 
 } // namespace
 
@@ -176,15 +237,25 @@ bool Panel::isActive() const {
 		&& !(window()->windowState() & Qt::WindowMinimized);
 }
 
-void Panel::showToast(TextWithEntities &&text, crl::time duration) {
-	if (const auto strong = _lastToast.get()) {
-		strong->hideAnimated();
-	}
-	_lastToast = Ui::ShowMultilineToast({
-		.parentOverride = widget(),
-		.text = std::move(text),
-		.duration = duration,
-	});
+base::weak_ptr<Ui::Toast::Instance> Panel::showToast(
+		const QString &text,
+		crl::time duration) {
+	return Show(this).showToast(text, duration);
+}
+
+base::weak_ptr<Ui::Toast::Instance> Panel::showToast(
+		TextWithEntities &&text,
+		crl::time duration) {
+	return Show(this).showToast(std::move(text), duration);
+}
+
+base::weak_ptr<Ui::Toast::Instance> Panel::showToast(
+		Ui::Toast::Config &&config) {
+	return Show(this).showToast(std::move(config));
+}
+
+std::shared_ptr<Main::SessionShow> Panel::uiShow() {
+	return std::make_shared<Show>(this);
 }
 
 void Panel::minimize() {
@@ -634,16 +705,9 @@ void Panel::hideNiceTooltip() {
 }
 
 void Panel::initShareAction() {
-	const auto showBoxCallback = [=](object_ptr<Ui::BoxContent> next) {
-		showBox(std::move(next));
-	};
-	const auto showToastCallback = [=](QString text) {
-		showToast({ text });
-	};
 	auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
 		_peer,
-		showBoxCallback,
-		showToastCallback);
+		uiShow());
 	_callShareLinkCallback = [=, callback = std::move(shareLinkCallback)] {
 		if (_call->lookupReal()) {
 			callback();
@@ -1465,6 +1529,10 @@ void Panel::showBox(
 
 void Panel::hideLayer(anim::type animated) {
 	_layerBg->hideAll(animated);
+}
+
+bool Panel::isLayerShown() const {
+	return _layerBg->topShownLayer() != nullptr;
 }
 
 void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
@@ -2548,40 +2616,6 @@ not_null<Ui::RpWindow*> Panel::window() const {
 
 not_null<Ui::RpWidget*> Panel::widget() const {
 	return _window.widget();
-}
-
-Show::Show(not_null<Panel*> panel)
-: _panel(base::make_weak(panel)) {
-}
-
-Show::~Show() = default;
-
-void Show::showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) const {
-	if (const auto panel = _panel.get()) {
-		panel->showBox(std::move(content), options);
-	}
-}
-
-void Show::hideLayer() const {
-	if (const auto panel = _panel.get()) {
-		panel->hideLayer();
-	}
-}
-
-not_null<QWidget*> Show::toastParent() const {
-	const auto panel = _panel.get();
-	Assert(panel != nullptr);
-	return panel->widget();
-}
-
-bool Show::valid() const {
-	return !_panel.empty();
-}
-
-Show::operator bool() const {
-	return valid();
 }
 
 } // namespace Calls::Group

@@ -2286,7 +2286,7 @@ void Widget::showSearchFrom() {
 			}),
 			crl::guard(this, [=] { _filter->setFocus(); }));
 		if (box) {
-			Window::Show(controller()).showBox(std::move(box));
+			controller()->show(std::move(box));
 		}
 	}
 }

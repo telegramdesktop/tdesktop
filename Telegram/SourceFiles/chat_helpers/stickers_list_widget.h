@@ -65,6 +65,13 @@ enum class StickersListMode {
 	UserpicBuilder,
 };
 
+struct StickersListDescriptor {
+	std::shared_ptr<Show> show;
+	StickersListMode mode = StickersListMode::Full;
+	Fn<bool()> paused;
+	const style::EmojiPan *st = nullptr;
+};
+
 class StickersListWidget final : public TabbedSelector::Inner {
 public:
 	using Mode = StickersListMode;
@@ -72,8 +79,11 @@ public:
 	StickersListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level,
+		PauseReason level,
 		Mode mode = Mode::Full);
+	StickersListWidget(
+		QWidget *parent,
+		StickersListDescriptor &&descriptor);
 
 	rpl::producer<FileChosen> chosen() const;
 	rpl::producer<> scrollUpdated() const;
@@ -340,8 +350,7 @@ private:
 		not_null<DocumentData*> document);
 
 	const Mode _mode;
-
-	not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<Show> _show;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 	MTP::Sender _api;
 	std::unique_ptr<LocalStickersManager> _localSetsManager;

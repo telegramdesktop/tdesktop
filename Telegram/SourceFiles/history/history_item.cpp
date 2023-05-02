@@ -4836,7 +4836,7 @@ void HistoryItem::setupTTLChange() {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			const auto validator = TTLMenu::TTLValidator(
-				std::make_shared<Window::Show>(controller),
+				controller->uiShow(),
 				peer);
 			if (validator.can()) {
 				validator.showBox();

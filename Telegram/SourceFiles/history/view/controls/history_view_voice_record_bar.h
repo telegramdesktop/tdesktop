@@ -23,6 +23,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace HistoryView::Controls {
 
 class VoiceRecordButton;
@@ -38,12 +42,12 @@ public:
 	VoiceRecordBar(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Ui::RpWidget*> sectionWidget,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Ui::SendButton> send,
 		int recorderHeight);
 	VoiceRecordBar(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Ui::SendButton> send,
 		int recorderHeight);
 	~VoiceRecordBar();
@@ -122,7 +126,7 @@ private:
 	void computeAndSetLockProgress(QPoint globalPos);
 
 	const not_null<Ui::RpWidget*> _sectionWidget;
-	const not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
 	const std::unique_ptr<VoiceRecordButton> _level;

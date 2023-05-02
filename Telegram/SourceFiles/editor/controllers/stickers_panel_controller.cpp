@@ -24,7 +24,7 @@ StickersPanelController::StickersPanelController(
 		controller,
 		object_ptr<ChatHelpers::TabbedSelector>(
 			nullptr,
-			controller,
+			controller->uiShow(),
 			Window::GifPauseReason::Layer,
 			ChatHelpers::TabbedSelector::Mode::MediaEditor))) {
 	_stickersPanel->setDesiredHeightValues(

@@ -83,9 +83,9 @@ void FileDialogCallback(
 		Fn<bool(const Ui::PreparedList&)> checkResult,
 		Fn<void(Ui::PreparedList)> callback,
 		bool premium,
-		not_null<QWidget*> toastParent) {
+		std::shared_ptr<Ui::Show> show) {
 	auto showError = [=](tr::phrase<> text) {
-		Ui::Toast::Show(toastParent, text(tr::now));
+		show->showToast(text(tr::now));
 	};
 
 	auto list = Storage::PreparedFileFromFilesDialog(
@@ -143,7 +143,7 @@ SendFilesCheck DefaultCheckForPeer(
 			bool silent) {
 		const auto error = Data::FileRestrictionError(peer, file, compress);
 		if (error && !silent) {
-			controller->showToast({ *error });
+			controller->showToast(*error);
 		}
 		return !error.has_value();
 	};
@@ -468,12 +468,12 @@ void SendFilesBox::refreshAllAfterChanges(int fromItem, Fn<void()> perform) {
 }
 
 void SendFilesBox::openDialogToAddFileToAlbum() {
-	const auto toastParent = Ui::BoxShow(this).toastParent();
+	const auto show = uiShow();
 	const auto checkResult = [=](const Ui::PreparedList &list) {
 		if (!(_limits & SendFilesAllow::OnlyOne)) {
 			return true;
 		} else if (!_list.canBeSentInSlowmodeWith(list)) {
-			Ui::Toast::Show(toastParent, tr::lng_slowmode_no_many(tr::now));
+			showToast(tr::lng_slowmode_no_many(tr::now));
 			return false;
 		}
 		return true;
@@ -485,7 +485,7 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 			checkResult,
 			[=](Ui::PreparedList list) { addFiles(std::move(list)); },
 			premium,
-			toastParent);
+			show);
 	};
 
 	FileDialog::GetOpenPaths(
@@ -748,7 +748,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 		});
 	}, widget->lifetime());
 
-	const auto toastParent = Ui::BoxShow(this).toastParent();
+	const auto show = uiShow();
 	block.itemReplaceRequest(
 	) | rpl::start_with_next([=](int index) {
 		const auto replace = [=](Ui::PreparedList list) {
@@ -770,9 +770,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 			_list.files.push_back(std::move(removing));
 			std::swap(_list.files[index], _list.files.back());
 			if (!result) {
-				Ui::Toast::Show(
-					toastParent,
-					tr::lng_slowmode_no_many(tr::now));
+				show->showToast(tr::lng_slowmode_no_many(tr::now));
 				return false;
 			}
 			return true;
@@ -815,7 +813,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 				checkResult,
 				replace,
 				premium,
-				toastParent);
+				show);
 		};
 
 		FileDialog::GetOpenPath(
@@ -1024,7 +1022,7 @@ void SendFilesBox::setupEmojiPanel() {
 		_controller,
 		object_ptr<Selector>(
 			nullptr,
-			_controller,
+			_controller->uiShow(),
 			Window::GifPauseReason::Layer,
 			Selector::Mode::EmojiOnly));
 	_emojiPanel->setDesiredHeightValues(
@@ -1388,8 +1386,7 @@ void SendFilesBox::sendScheduled() {
 		: _sendMenuType;
 	const auto callback = [=](Api::SendOptions options) { send(options); };
 	_controller->show(
-		HistoryView::PrepareScheduleBox(this, type, callback),
-		Ui::LayerOption::KeepOther);
+		HistoryView::PrepareScheduleBox(this, type, callback));
 }
 
 void SendFilesBox::sendWhenOnline() {

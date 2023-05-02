@@ -135,9 +135,7 @@ ClickHandlerPtr HiddenSenderInfo::ForwardClickHandler() {
 		const auto my = context.other.value<ClickHandlerContext>();
 		const auto weak = my.sessionWindow;
 		if (const auto strong = weak.get()) {
-			Ui::Toast::Show(
-				Window::Show(strong).toastParent(),
-				tr::lng_forwarded_hidden(tr::now));
+			strong->showToast(tr::lng_forwarded_hidden(tr::now));
 		}
 	});
 	return hidden;

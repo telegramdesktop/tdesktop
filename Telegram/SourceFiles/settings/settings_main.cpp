@@ -213,9 +213,7 @@ void Cover::initViewers() {
 		} else {
 			QGuiApplication::clipboard()->setText(
 				_user->session().createInternalLinkFull(username));
-			Ui::Toast::Show(
-				Window::Show(_controller).toastParent(),
-				tr::lng_username_copied(tr::now));
+			_controller->showToast(tr::lng_username_copied(tr::now));
 		}
 	});
 }

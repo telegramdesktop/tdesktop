@@ -130,14 +130,14 @@ void CopyImage(not_null<PhotoData*> photo) {
 void ShowStickerPackInfo(
 		not_null<DocumentData*> document,
 		not_null<ListWidget*> list) {
-	StickerSetBox::Show(list->controller(), document);
+	StickerSetBox::Show(list->controller()->uiShow(), document);
 }
 
 void ToggleFavedSticker(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document,
 		FullMsgId contextId) {
-	Api::ToggleFavedSticker(controller, document, contextId);
+	Api::ToggleFavedSticker(controller->uiShow(), document, contextId);
 }
 
 void AddPhotoActions(
@@ -181,7 +181,7 @@ void SaveGif(
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				Api::ToggleSavedGif(
-					controller,
+					controller->uiShow(),
 					document,
 					item->fullId(),
 					true);
@@ -564,8 +564,7 @@ bool AddRescheduleAction(
 				&request.navigation->session(),
 				sendMenuType,
 				callback,
-				date),
-			Ui::LayerOption::KeepOther);
+				date));
 
 		owner->itemRemoved(
 		) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
@@ -1126,11 +1125,9 @@ void CopyPostLink(
 		return channel->hasUsername();
 	}();
 
-	Ui::Toast::Show(
-		Window::Show(controller).toastParent(),
-		isPublicLink
-			? tr::lng_channel_public_link_copied(tr::now)
-			: tr::lng_context_about_private_link(tr::now));
+	controller->showToast(isPublicLink
+		? tr::lng_channel_public_link_copied(tr::now)
+		: tr::lng_context_about_private_link(tr::now));
 }
 
 void AddPollActions(
@@ -1148,7 +1145,7 @@ void AddPollActions(
 		}
 		if (!Ui::SkipTranslate({ text })) {
 			menu->addAction(tr::lng_context_translate(tr::now), [=] {
-				Window::Show(controller).showBox(Box(
+				controller->show(Box(
 					Ui::TranslateBox,
 					item->history()->peer,
 					MsgId(),
@@ -1211,16 +1208,13 @@ void AddSaveSoundForNotifications(
 	} else {
 		return;
 	}
-	const auto toastParent = Window::Show(controller).toastParent();
+	const auto show = controller->uiShow();
 	menu->addAction(tr::lng_context_save_custom_sound(tr::now), [=] {
 		Api::ToggleSavedRingtone(
 			document,
 			item->fullId(),
-			crl::guard(toastParent, [=] {
-				Ui::Toast::Show(
-					toastParent,
-					tr::lng_ringtones_toast_added(tr::now));
-			}),
+			[=] { show->showToast(
+				tr::lng_ringtones_toast_added(tr::now)); },
 			true);
 	}, &st::menuIconSoundAdd);
 }
@@ -1451,17 +1445,14 @@ void AddEmojiPacksAction(
 		if (!strong) {
 			return;
 		} else if (packIds.size() > 1) {
-			strong->show(Box<StickersBox>(strong, packIds));
+			strong->show(Box<StickersBox>(strong->uiShow(), packIds));
 			return;
 		}
 		// Single used emoji pack.
-		strong->show(
-			Box<StickerSetBox>(
-				strong,
-				packIds.front(),
-				Data::StickersType::Emoji),
-			Ui::LayerOption::KeepOther);
-
+		strong->show(Box<StickerSetBox>(
+			strong->uiShow(),
+			packIds.front(),
+			Data::StickersType::Emoji));
 	});
 	menu->addAction(std::move(button));
 }

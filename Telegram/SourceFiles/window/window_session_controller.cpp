@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_resolver.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
+#include "data/data_file_origin.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -64,7 +65,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/style/style_palette_colorizer.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
 #include "calls/group/calls_group_call.h"
 #include "ui/boxes/calendar_box.h"
@@ -107,6 +107,137 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 			? i->second.outgoingAccentColor
 			: std::optional<QColor>()),
 	};
+}
+
+class MainWindowShow final : public ChatHelpers::Show {
+public:
+	explicit MainWindowShow(not_null<SessionNavigation*> navigation);
+
+	void showBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options
+			= Ui::LayerOption::KeepOther) const override;
+	void hideLayer() const override;
+	not_null<QWidget*> toastParent() const override;
+	bool valid() const override;
+	operator bool() const override;
+
+	Main::Session &session() const override;
+	bool paused(ChatHelpers::PauseReason reason) const override;
+	rpl::producer<> pauseChanged() const override;
+
+	rpl::producer<bool> adjustShadowLeft() const override;
+	SendMenu::Type sendMenuType() const override;
+
+	bool showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document) const override;
+	bool showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<PhotoData*> photo) const override;
+
+	void processChosenSticker(
+		ChatHelpers::FileChosen chosen) const override;
+
+private:
+	const base::weak_ptr<SessionController> _window;
+
+};
+
+MainWindowShow::MainWindowShow(
+	not_null<SessionNavigation*> navigation)
+: _window(base::make_weak(navigation->parentController())) {
+}
+
+void MainWindowShow::showBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) const {
+	if (const auto window = _window.get()) {
+		window->show(std::move(content), options);
+	}
+}
+
+void MainWindowShow::hideLayer() const {
+	if (const auto window = _window.get()) {
+		window->show(
+			object_ptr<Ui::BoxContent>{ nullptr },
+			Ui::LayerOption::CloseOther);
+	}
+}
+
+not_null<QWidget*> MainWindowShow::toastParent() const {
+	const auto window = _window.get();
+	Assert(window != nullptr);
+	return window->widget()->bodyWidget();
+}
+
+bool MainWindowShow::valid() const {
+	return !_window.empty();
+}
+
+MainWindowShow::operator bool() const {
+	return valid();
+}
+
+Main::Session &MainWindowShow::session() const {
+	const auto window = _window.get();
+	Assert(window != nullptr);
+	return window->session();
+}
+
+bool MainWindowShow::paused(ChatHelpers::PauseReason reason) const {
+	const auto window = _window.get();
+	return window && window->isGifPausedAtLeastFor(reason);
+}
+
+rpl::producer<> MainWindowShow::pauseChanged() const {
+	const auto window = _window.get();
+	if (!window) {
+		return rpl::never<>();
+	}
+	return window->gifPauseLevelChanged();
+}
+
+rpl::producer<bool> MainWindowShow::adjustShadowLeft() const {
+	const auto window = _window.get();
+	if (!window) {
+		return rpl::single(false);
+	}
+	return window->adaptive().value(
+	) | rpl::map([=] {
+		return !window->adaptive().isOneColumn();
+	});
+}
+
+SendMenu::Type MainWindowShow::sendMenuType() const {
+	const auto window = _window.get();
+	if (!window) {
+		return SendMenu::Type::Disabled;
+	}
+	return window->content()->sendMenuType();
+}
+
+bool MainWindowShow::showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<DocumentData*> document) const {
+	const auto window = _window.get();
+	return window && window->widget()->showMediaPreview(origin, document);
+}
+
+bool MainWindowShow::showMediaPreview(
+		Data::FileOrigin origin,
+		not_null<PhotoData*> photo) const {
+	const auto window = _window.get();
+	return window && window->widget()->showMediaPreview(origin, photo);
+}
+
+void MainWindowShow::processChosenSticker(
+		ChatHelpers::FileChosen chosen) const {
+	if (const auto window = _window.get()) {
+		Ui::PostponeCall(window, [=, chosen = std::move(chosen)]() mutable {
+			window->stickerOrEmojiChosen(std::move(chosen));
+		});
+	}
 }
 
 } // namespace
@@ -160,8 +291,8 @@ void DateClickHandler::onClick(ClickContext context) const {
 }
 
 SessionNavigation::SessionNavigation(not_null<Main::Session*> session)
-	: _session(session)
-	, _api(&_session->mtp()) {
+: _session(session)
+, _api(&_session->mtp()) {
 }
 
 SessionNavigation::~SessionNavigation() = default;
@@ -263,12 +394,10 @@ void SessionNavigation::resolveChannelById(
 		done(channel);
 		return;
 	}
-	const auto fail = [=] {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(this).toastParent(),
-			.text = { tr::lng_error_post_link_invalid(tr::now) }
-		});
-	};
+	const auto fail = crl::guard(this, [=] {
+		MainWindowShow(this).showToast(
+			tr::lng_error_post_link_invalid(tr::now));
+	});
 	_api.request(base::take(_resolveRequestId)).cancel();
 	_resolveRequestId = _api.request(MTPchannels_GetChannels(
 		MTP_vector<MTPInputChannel>(
@@ -464,12 +593,10 @@ void SessionNavigation::joinVoiceChatFromLink(
 		const PeerByLinkInfo &info) {
 	Expects(info.voicechatHash.has_value());
 
-	const auto bad = [=] {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(this).toastParent(),
-			.text = { tr::lng_group_invite_bad_link(tr::now) }
-		});
-	};
+	const auto bad = crl::guard(this, [=] {
+		MainWindowShow(this).showToast(
+			tr::lng_group_invite_bad_link(tr::now));
+	});
 	const auto hash = *info.voicechatHash;
 	_api.request(base::take(_resolveRequestId)).cancel();
 	_resolveRequestId = _api.request(
@@ -603,9 +730,7 @@ void SessionNavigation::showRepliesForMessage(
 		_showingRepliesRequestId = 0;
 		if (error.type() == u"CHANNEL_PRIVATE"_q
 			|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
-			Ui::Toast::Show(
-				Show(this).toastParent(),
-				tr::lng_group_not_accessible(tr::now));
+			showToast(tr::lng_group_not_accessible(tr::now));
 		}
 	}).send();
 }
@@ -697,6 +822,27 @@ void SessionNavigation::showPollResults(
 	showSection(std::make_shared<Info::Memento>(poll, contextId), params);
 }
 
+auto SessionNavigation::showToast(Ui::Toast::Config &&config)
+-> base::weak_ptr<Ui::Toast::Instance> {
+	return MainWindowShow(this).showToast(std::move(config));
+}
+
+auto SessionNavigation::showToast(const QString &text, crl::time duration)
+-> base::weak_ptr<Ui::Toast::Instance> {
+	return MainWindowShow(this).showToast(text);
+}
+
+auto SessionNavigation::showToast(
+	TextWithEntities &&text,
+	crl::time duration)
+-> base::weak_ptr<Ui::Toast::Instance> {
+	return MainWindowShow(this).showToast(std::move(text));
+}
+
+std::shared_ptr<ChatHelpers::Show> SessionNavigation::uiShow() {
+	return std::make_shared<MainWindowShow>(this);
+}
+
 struct SessionController::CachedThemeKey {
 	Ui::ChatThemeKey theme;
 	QString paper;
@@ -731,7 +877,7 @@ SessionController::SessionController(
 , _tabbedSelector(
 	std::make_unique<ChatHelpers::TabbedSelector>(
 		_window->widget(),
-		this,
+		uiShow(),
 		GifPauseReason::TabbedPanel))
 , _invitePeekTimer([=] { checkInvitePeek(); })
 , _activeChatsFilter(session->data().chatsFilters().defaultId())
@@ -1065,12 +1211,8 @@ void SessionController::setupPremiumToast() {
 		session().mtp().requestConfig();
 		return premium;
 	}) | rpl::start_with_next([=] {
-		Ui::Toast::Show(
-			Window::Show(this).toastParent(),
-			{
-				.text = { tr::lng_premium_success(tr::now) },
-				.st = &st::defaultToast,
-			});
+		MainWindowShow(this).showToast(
+			{ tr::lng_premium_success(tr::now) });
 	}, _lifetime);
 }
 
@@ -1327,14 +1469,6 @@ void SessionController::floatPlayerAreaUpdated() {
 	}
 }
 
-void SessionController::materializeLocalDrafts() {
-	_materializeLocalDraftsRequests.fire({});
-}
-
-rpl::producer<> SessionController::materializeLocalDraftsRequests() const {
-	return _materializeLocalDraftsRequests.events();
-}
-
 int SessionController::dialogsSmallColumnWidth() const {
 	return st::defaultDialogRow.padding.left()
 		+ st::defaultDialogRow.photoSize
@@ -1558,14 +1692,9 @@ void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
 			&& (!currentPeer->isChannel()
 				|| currentPeer->asChannel()->linkedChat()
 					!= clickedChannel)) {
-			Ui::ShowMultilineToast({
-				.parentOverride = Window::Show(this).toastParent(),
-				.text = {
-					.text = peer->isMegagroup()
-						? tr::lng_group_not_accessible(tr::now)
-						: tr::lng_channel_not_accessible(tr::now)
-				},
-			});
+			MainWindowShow(this).showToast(peer->isMegagroup()
+				? tr::lng_group_not_accessible(tr::now)
+				: tr::lng_channel_not_accessible(tr::now));
 		} else {
 			showPeerHistory(peer->id, SectionShow(), msgId);
 		}
@@ -1581,10 +1710,7 @@ void SessionController::startOrJoinGroupCall(not_null<PeerData*> peer) {
 void SessionController::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
 		Calls::StartGroupCallArgs args) {
-	Core::App().calls().startOrJoinGroupCall(
-		std::make_shared<Show>(this),
-		peer,
-		args);
+	Core::App().calls().startOrJoinGroupCall(uiShow(), peer, args);
 }
 
 void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {
@@ -1963,21 +2089,15 @@ void SessionController::setActiveChatsFilter(
 }
 
 void SessionController::showAddContact() {
-	_window->show(
-		Box<AddContactBox>(&session()),
-		Ui::LayerOption::KeepOther);
+	_window->show(Box<AddContactBox>(&session()));
 }
 
 void SessionController::showNewGroup() {
-	_window->show(
-		Box<GroupInfoBox>(this, GroupInfoBox::Type::Group),
-		Ui::LayerOption::KeepOther);
+	_window->show(Box<GroupInfoBox>(this, GroupInfoBox::Type::Group));
 }
 
 void SessionController::showNewChannel() {
-	_window->show(
-		Box<GroupInfoBox>(this, GroupInfoBox::Type::Channel),
-		Ui::LayerOption::KeepOther);
+	_window->show(Box<GroupInfoBox>(this, GroupInfoBox::Type::Channel));
 }
 
 Window::Adaptive &SessionController::adaptive() const {
@@ -2010,13 +2130,6 @@ QPointer<Ui::BoxContent> SessionController::show(
 
 void SessionController::hideLayer(anim::type animated) {
 	_window->hideLayer(animated);
-}
-
-void SessionController::showToast(TextWithEntities &&text) {
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(this).toastParent(),
-		.text = std::move(text),
-	});
 }
 
 void SessionController::openPhoto(
@@ -2374,46 +2487,6 @@ bool SessionController::contentOverlapped(QWidget *w, QPaintEvent *e) {
 
 SessionController::~SessionController() {
 	resetFakeUnreadWhileOpened();
-}
-
-Show::Show(not_null<SessionNavigation*> navigation)
-: Show(&navigation->parentController()->window()) {
-}
-
-Show::Show(Controller *window)
-: _window(base::make_weak(window)) {
-}
-
-Show::~Show() = default;
-
-void Show::showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) const {
-	if (const auto window = _window.get()) {
-		window->show(std::move(content), options);
-	}
-}
-
-void Show::hideLayer() const {
-	if (const auto window = _window.get()) {
-		window->show(
-			object_ptr<Ui::BoxContent>{ nullptr },
-			Ui::LayerOption::CloseOther);
-	}
-}
-
-not_null<QWidget*> Show::toastParent() const {
-	const auto window = _window.get();
-	Assert(window != nullptr);
-	return window->widget()->bodyWidget();
-}
-
-bool Show::valid() const {
-	return !_window.empty();
-}
-
-Show::operator bool() const {
-	return valid();
 }
 
 } // namespace Window

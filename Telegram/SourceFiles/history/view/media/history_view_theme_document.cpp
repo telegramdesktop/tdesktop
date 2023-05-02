@@ -483,12 +483,10 @@ ClickHandlerPtr ThemeDocumentBox::createViewLink() {
 			if (out) {
 				controller->toggleChooseChatTheme(to);
 			} else if (maybe) {
-				controller->show(
-					Box<BackgroundPreviewBox>(
-						controller,
-						*maybe,
-						BackgroundPreviewArgs{ to, itemId }),
-					Ui::LayerOption::KeepOther);
+				controller->show(Box<BackgroundPreviewBox>(
+					controller,
+					*maybe,
+					BackgroundPreviewArgs{ to, itemId }));
 			}
 		}
 	});

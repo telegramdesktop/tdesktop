@@ -20,16 +20,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Window {
 class SessionController;
-enum class GifPauseReason;
 } // namespace Window
+
+namespace ChatHelpers {
+enum class PauseReason;
+class Show;
+} // namespace ChatHelpers
 
 namespace Ui {
 class PopupMenu;
-class Show;
 } // namespace Ui
 
 QString PrepareMentionTag(not_null<UserData*> user);
@@ -40,13 +44,12 @@ Fn<bool(
 	QString text,
 	QString link,
 	Ui::InputField::EditLinkAction action)> DefaultEditLinkCallback(
-		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		const style::InputField *fieldStyle = nullptr);
 void InitMessageFieldHandlers(
 	not_null<Main::Session*> session,
-	std::shared_ptr<Ui::Show> show,
+	std::shared_ptr<Main::SessionShow> show, // may be null
 	not_null<Ui::InputField*> field,
 	Fn<bool()> customEmojiPaused,
 	Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji = nullptr,
@@ -54,16 +57,19 @@ void InitMessageFieldHandlers(
 void InitMessageFieldHandlers(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field,
-	Window::GifPauseReason pauseReasonLevel,
+	ChatHelpers::PauseReason pauseReasonLevel,
 	Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji = nullptr);
+void InitMessageField(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<Ui::InputField*> field,
+	Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji);
 void InitMessageField(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field,
 	Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji);
 
 void InitSpellchecker(
-	std::shared_ptr<Ui::Show> show,
-	not_null<Main::Session*> session,
+	std::shared_ptr<Main::SessionShow> show,
 	not_null<Ui::InputField*> field,
 	bool skipDictionariesManager = false);
 

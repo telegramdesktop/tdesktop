@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/filter_link_header.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/filter_icons.h"
 #include "window/window_session_controller.h"
@@ -515,13 +514,9 @@ void ShowImportError(
 	} else if (error == u"CHATLISTS_TOO_MUCH"_q) {
 		window->show(Box(ShareableFiltersLimitBox, session));
 	} else {
-		const auto text = (error == u"INVITE_SLUG_EXPIRED"_q)
+		window->showToast((error == u"INVITE_SLUG_EXPIRED"_q)
 			? tr::lng_group_invite_bad_link(tr::now)
-			: error;
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(window).toastParent(),
-			.text = { text },
-		});
+			: error);
 	}
 }
 
@@ -545,10 +540,7 @@ void ShowImportToast(
 			: tr::lng_filters_updated_also;
 		text.append('\n').append(phrase(tr::now, lt_count, added));
 	}
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(strong).toastParent(),
-		.text = { std::move(text) },
-	});
+	strong->showToast(std::move(text));
 }
 
 void ProcessFilterInvite(
@@ -565,10 +557,7 @@ void ProcessFilterInvite(
 	}
 	Core::App().hideMediaView();
 	if (peers.empty() && !filterId) {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(strong).toastParent(),
-			.text = { tr::lng_group_invite_bad_link(tr::now) },
-		});
+		strong->showToast(tr::lng_group_invite_bad_link(tr::now));
 		return;
 	}
 	const auto fullyAdded = (peers.empty() && filterId);
@@ -661,10 +650,7 @@ void ProcessFilterInvite(
 	const auto &list = strong->session().data().chatsFilters().list();
 	const auto it = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (it == end(list)) {
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(strong).toastParent(),
-			.text = { u"Filter not found :shrug:"_q },
-		});
+		strong->showToast(u"Filter not found :shrug:"_q);
 		return;
 	}
 	ProcessFilterInvite(

@@ -640,9 +640,7 @@ void BackgroundPreviewBox::applyForEveryone() {
 void BackgroundPreviewBox::share() {
 	QGuiApplication::clipboard()->setText(
 		_paper.shareUrl(&_controller->session()));
-	Ui::Toast::Show(
-		Ui::BoxShow(this).toastParent(),
-		tr::lng_background_link_copied(tr::now));
+	showToast(tr::lng_background_link_copied(tr::now));
 }
 
 void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {

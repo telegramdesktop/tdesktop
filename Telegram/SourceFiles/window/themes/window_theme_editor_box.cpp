@@ -892,12 +892,11 @@ void SaveThemeBox(
 			} else if (error == u"THEME_SLUG_INVALID"_q) {
 				type = SaveErrorType::Link;
 			} else if (error == u"THEME_SLUG_OCCUPIED"_q) {
-				Ui::Toast::Show(
-					Ui::BoxShow(box).toastParent(),
+				box->showToast(
 					tr::lng_create_channel_link_occupied(tr::now));
 				type = SaveErrorType::Link;
 			} else if (!error.isEmpty()) {
-				Ui::Toast::Show(Ui::BoxShow(box).toastParent(), error);
+				box->showToast(error);
 			}
 			if (type == SaveErrorType::Name) {
 				name->showError();

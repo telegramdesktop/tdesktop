@@ -917,6 +917,14 @@ rpl::producer<bool> Application::appDeactivatedValue() const {
 	});
 }
 
+void Application::materializeLocalDrafts() {
+	_materializeLocalDraftsRequests.fire({});
+}
+
+rpl::producer<> Application::materializeLocalDraftsRequests() const {
+	return _materializeLocalDraftsRequests.events();
+}
+
 void Application::switchDebugMode() {
 	if (Logs::DebugEnabled()) {
 		Logs::SetDebugEnabled(false);

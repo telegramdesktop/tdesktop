@@ -386,10 +386,7 @@ void EditExceptions(
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
 	window->window().show(
-		Box<PeerListBox>(
-			std::move(controller),
-			std::move(initBox)),
-		Ui::LayerOption::KeepOther);
+		Box<PeerListBox>(std::move(controller), std::move(initBox)));
 }
 
 void CreateIconSelector(
@@ -812,7 +809,7 @@ void EditFilterBox(
 			tr::lng_filters_link_about_many(),
 			tr::lng_filters_link_about()));
 
-	const auto show = std::make_shared<Ui::BoxShow>(box);
+	const auto show = box->uiShow();
 	const auto refreshPreviews = [=] {
 		include->updateData(
 			data->current().flags() & kTypes,

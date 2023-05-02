@@ -61,7 +61,7 @@ PhotoEditor::PhotoEditor(
 			controller->sessionController())
 		: nullptr,
 	std::make_unique<UndoController>(),
-	std::make_shared<Window::Show>(controller)))
+	controller->uiShow()))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,

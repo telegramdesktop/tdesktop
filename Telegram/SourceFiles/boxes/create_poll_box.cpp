@@ -775,7 +775,7 @@ void CreatePollBox::setInnerFocus() {
 }
 
 void CreatePollBox::submitFailed(const QString &error) {
-	Ui::Toast::Show(Ui::BoxShow(this).toastParent(), error);
+	showToast(error);
 }
 
 not_null<Ui::InputField*> CreatePollBox::setupQuestion(
@@ -850,10 +850,7 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 		Core::App().settings().replaceEmojiValue());
 	solution->setMarkdownReplacesEnabled(rpl::single(true));
 	solution->setEditLinkCallback(
-		DefaultEditLinkCallback(
-			std::make_shared<Window::Show>(_controller),
-			session,
-			solution));
+		DefaultEditLinkCallback(_controller->uiShow(), solution));
 	solution->customTab(true);
 
 	const auto warning = CreateWarningLabel(
@@ -988,12 +985,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			|| (_chosen & PollData::Flag::Quiz));
 		multiple->events(
 		) | rpl::filter([=](not_null<QEvent*> e) {
-			return (e->type() == QEvent::MouseButtonPress) && quiz->checked();
-		}) | rpl::start_with_next([
-				toastParent = Ui::BoxShow(this).toastParent()] {
-			Ui::Toast::Show(
-				toastParent,
-				tr::lng_polls_create_one_answer(tr::now));
+			return (e->type() == QEvent::MouseButtonPress)
+				&& quiz->checked();
+		}) | rpl::start_with_next([show = uiShow()] {
+			show->showToast(tr::lng_polls_create_one_answer(tr::now));
 		}, multiple->lifetime());
 	}
 
@@ -1070,10 +1065,9 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			*error &= ~Error::Solution;
 		}
 	};
-	const auto showError = [
-		toastParent = Ui::BoxShow(this).toastParent()](
+	const auto showError = [show = uiShow()](
 			tr::phrase<> text) {
-		Ui::Toast::Show(toastParent, text(tr::now));
+		show->showToast(text(tr::now));
 	};
 	const auto send = [=](Api::SendOptions sendOptions) {
 		collectError();
@@ -1099,8 +1093,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			HistoryView::PrepareScheduleBox(
 				this,
 				SendMenu::Type::Scheduled,
-				send),
-			Ui::LayerOption::KeepOther);
+				send));
 	};
 	const auto sendWhenOnline = [=] {
 		send(Api::DefaultSendWhenOnlineOptions());

@@ -88,10 +88,7 @@ EditInfoBox::EditInfoBox(
 		Core::App().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
 	_field->setEditLinkCallback(
-		DefaultEditLinkCallback(
-			std::make_shared<Window::Show>(controller),
-			&controller->session(),
-			_field));
+		DefaultEditLinkCallback(controller->uiShow(), _field));
 }
 
 void EditInfoBox::prepare() {
@@ -495,9 +492,7 @@ void Helper::showEditInfoBox(
 			TextUtilities::ConvertTextTagsToEntities(result.tags)
 		}, done);
 	};
-	controller->show(
-		Box<EditInfoBox>(controller, editData, save),
-		Ui::LayerOption::KeepOther);
+	controller->show(Box<EditInfoBox>(controller, editData, save));
 }
 
 void Helper::saveInfo(

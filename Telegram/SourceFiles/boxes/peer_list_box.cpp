@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_box.h"
 
+#include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "ui/widgets/multi_select.h"
@@ -74,7 +75,7 @@ PaintRoundImageCallback ForceRoundUserpicCallback(not_null<PeerData*> peer) {
 }
 
 PeerListContentDelegateShow::PeerListContentDelegateShow(
-	std::shared_ptr<Ui::Show> show)
+	std::shared_ptr<Main::SessionShow> show)
 : _show(show) {
 }
 
@@ -88,15 +89,16 @@ void PeerListContentDelegateShow::peerListHideLayer() {
 	_show->hideLayer();
 }
 
-not_null<QWidget*> PeerListContentDelegateShow::peerListToastParent() {
-	return _show->toastParent();
+auto PeerListContentDelegateShow::peerListUiShow()
+-> std::shared_ptr<Main::SessionShow>{
+	return _show;
 }
 
 PeerListBox::PeerListBox(
 	QWidget*,
 	std::unique_ptr<PeerListController> controller,
 	Fn<void(not_null<PeerListBox*>)> init)
-: _show(this)
+: _show(Main::MakeSessionShow(uiShow(), &controller->session()))
 , _controller(std::move(controller))
 , _init(std::move(init)) {
 	Expects(_controller != nullptr);
@@ -311,18 +313,20 @@ void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {
 void PeerListBox::peerListShowBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options) {
-	_show.showBox(std::move(content), options);
+	_show->showBox(std::move(content), options);
 }
 
 void PeerListBox::peerListHideLayer() {
-	_show.hideLayer();
+	_show->hideLayer();
 }
 
-not_null<QWidget*> PeerListBox::peerListToastParent() {
-	return _show.toastParent();
+std::shared_ptr<Main::SessionShow> PeerListBox::peerListUiShow() {
+	return _show;
 }
 
-PeerListController::PeerListController(std::unique_ptr<PeerListSearchController> searchController) : _searchController(std::move(searchController)) {
+PeerListController::PeerListController(
+	std::unique_ptr<PeerListSearchController> searchController)
+: _searchController(std::move(searchController)) {
 	if (_searchController) {
 		_searchController->setDelegate(this);
 	}

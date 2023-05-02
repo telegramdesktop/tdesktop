@@ -818,12 +818,12 @@ ComposeSearch::Inner::Inner(
 		auto box = Dialogs::SearchFromBox(
 			peer,
 			crl::guard(_bottomBar.get(), [=](not_null<PeerData*> from) {
-				Window::Show(_window).hideLayer();
+				_window->hideLayer();
 				_topBar->setFrom(from);
 			}),
 			crl::guard(_bottomBar.get(), [=] { setInnerFocus(); }));
 
-		Window::Show(_window).showBox(std::move(box));
+		_window->show(std::move(box));
 	}, _bottomBar->lifetime());
 
 	_bottomBar->showListRequests(

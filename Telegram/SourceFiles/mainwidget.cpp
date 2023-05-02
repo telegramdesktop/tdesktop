@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/image/image.h"
 #include "ui/focus_persister.h"
@@ -941,7 +940,7 @@ void MainWidget::setCurrentGroupCall(Calls::GroupCall *call) {
 void MainWidget::createCallTopBar() {
 	Expects(_currentCall != nullptr || _currentGroupCall != nullptr);
 
-	const auto show = std::make_shared<Window::Show>(controller());
+	const auto show = controller()->uiShow();
 	_callTopBar.create(
 		this,
 		(_currentCall
@@ -1221,10 +1220,7 @@ void MainWidget::showChooseReportMessages(
 		peer,
 		SectionShow::Way::Forward,
 		ShowForChooseMessagesMsgId);
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(controller()).toastParent(),
-		.text = { tr::lng_report_please_select_messages(tr::now) },
-	});
+	controller()->showToast(tr::lng_report_please_select_messages(tr::now));
 }
 
 void MainWidget::clearChooseReportMessages() {

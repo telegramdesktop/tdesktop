@@ -26,6 +26,12 @@ class TabbedSelector;
 
 extern const char kOptionTabbedPanelShowOnClick[];
 
+struct TabbedPanelDescriptor {
+	Window::SessionController *regularWindow = nullptr;
+	object_ptr<TabbedSelector> ownedSelector = { nullptr };
+	TabbedSelector *nonOwnedSelector = nullptr;
+};;
+
 class TabbedPanel : public Ui::RpWidget {
 public:
 	TabbedPanel(
@@ -36,9 +42,11 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		object_ptr<TabbedSelector> selector);
+	TabbedPanel(QWidget *parent, TabbedPanelDescriptor &&descriptor);
 
 	[[nodiscard]] bool isSelectorStolen() const;
 	[[nodiscard]] not_null<TabbedSelector*> selector() const;
+	[[nodiscard]] rpl::producer<bool> pauseAnimations() const;
 
 	void moveBottomRight(int bottom, int right);
 	void moveTopRight(int top, int right);
@@ -71,12 +79,6 @@ protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 private:
-	TabbedPanel(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		object_ptr<TabbedSelector> ownedSelector,
-		TabbedSelector *nonOwnedSelector);
-
 	void hideByTimerOrLeave();
 	void moveHorizontally();
 	void showFromSelector();
@@ -99,9 +101,10 @@ private:
 	bool preventAutoHide() const;
 	void updateContentHeight();
 
-	const not_null<Window::SessionController*> _controller;
+	Window::SessionController * const _regularWindow = nullptr;
 	const object_ptr<TabbedSelector> _ownedSelector = { nullptr };
 	const not_null<TabbedSelector*> _selector;
+	rpl::event_stream<bool> _pauseAnimations;
 
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;

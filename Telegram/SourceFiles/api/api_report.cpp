@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/report_box.h"
-#include "ui/toast/toast.h"
+#include "ui/layers/show.h"
 
 namespace Api {
 
@@ -39,15 +39,14 @@ MTPreportReason ReasonToTL(const Ui::ReportReason &reason) {
 } // namespace
 
 void SendReport(
-		not_null<QWidget*> toastParent,
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,
 		const QString &comment,
 		std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data) {
-	auto weak = Ui::MakeWeak(toastParent.get());
-	auto done = crl::guard(toastParent, [=] {
-		Ui::Toast::Show(toastParent, tr::lng_report_thanks(tr::now));
-	});
+	auto done = [=] {
+		show->showToast(tr::lng_report_thanks(tr::now));
+	};
 	v::match(data, [&](v::null_t) {
 		peer->session().api().request(MTPaccount_ReportPeer(
 			peer->input,

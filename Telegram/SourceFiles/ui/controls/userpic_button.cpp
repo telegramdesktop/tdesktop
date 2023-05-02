@@ -63,7 +63,7 @@ void CameraBox(
 	using namespace Webrtc;
 
 	const auto track = Settings::Calls::AddCameraSubsection(
-		std::make_shared<Ui::BoxShow>(box),
+		box->uiShow(),
 		box->verticalLayout(),
 		false);
 	if (!track) {

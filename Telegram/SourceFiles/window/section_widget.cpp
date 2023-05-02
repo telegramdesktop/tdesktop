@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "ui/ui_utility.h"
 #include "ui/chat/chat_theme.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/painter.h"
 #include "boxes/premium_preview_box.h"
 #include "data/data_peer.h"

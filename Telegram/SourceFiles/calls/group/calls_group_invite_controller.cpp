@@ -259,9 +259,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			finish();
 		};
 		const auto done = [=] {
-			const auto show = (*shared)
-				? std::make_shared<Ui::BoxShow>(*shared)
-				: nullptr;
+			const auto show = (*shared) ? (*shared)->uiShow() : nullptr;
 			inviteWithAdd(show, users, nonMembers, finishWithConfirm);
 		};
 		auto box = ConfirmBox({

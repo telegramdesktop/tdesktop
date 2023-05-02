@@ -37,25 +37,31 @@ TabbedPanel::TabbedPanel(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<TabbedSelector*> selector)
-: TabbedPanel(parent, controller, { nullptr }, selector) {
+: TabbedPanel(parent, {
+	.regularWindow = controller,
+	.nonOwnedSelector = selector,
+}) {
 }
 
 TabbedPanel::TabbedPanel(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	object_ptr<TabbedSelector> selector)
-: TabbedPanel(parent, controller, std::move(selector), nullptr) {
+: TabbedPanel(parent, {
+	.regularWindow = controller,
+	.ownedSelector = std::move(selector),
+}) {
 }
 
 TabbedPanel::TabbedPanel(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	object_ptr<TabbedSelector> ownedSelector,
-	TabbedSelector *nonOwnedSelector)
+	TabbedPanelDescriptor &&descriptor)
 : RpWidget(parent)
-, _controller(controller)
-, _ownedSelector(std::move(ownedSelector))
-, _selector(nonOwnedSelector ? nonOwnedSelector : _ownedSelector.data())
+, _regularWindow(descriptor.regularWindow)
+, _ownedSelector(std::move(descriptor.ownedSelector))
+, _selector(descriptor.nonOwnedSelector
+	? descriptor.nonOwnedSelector
+	: _ownedSelector.data())
 , _heightRatio(st::emojiPanHeightRatio)
 , _minContentHeight(st::emojiPanMinHeight)
 , _maxContentHeight(st::emojiPanMaxHeight) {
@@ -64,17 +70,25 @@ TabbedPanel::TabbedPanel(
 	_selector->setParent(this);
 	_selector->setRoundRadius(st::emojiPanRadius);
 	_selector->setAfterShownCallback([=](SelectorTab tab) {
-		_controller->enableGifPauseReason(_selector->level());
+		if (_regularWindow) {
+			_regularWindow->enableGifPauseReason(_selector->level());
+		}
+		_pauseAnimations.fire(true);
 	});
 	_selector->setBeforeHidingCallback([=](SelectorTab tab) {
-		_controller->disableGifPauseReason(_selector->level());
+		if (_regularWindow) {
+			_regularWindow->disableGifPauseReason(_selector->level());
+		}
+		_pauseAnimations.fire(false);
 	});
 	_selector->showRequests(
 	) | rpl::start_with_next([=] {
 		showFromSelector();
 	}, lifetime());
 
-	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
+	resize(
+		QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(
+			innerPadding()).size());
 
 	_contentMaxHeight = st::emojiPanMaxHeight;
 	_contentHeight = _contentMaxHeight;
@@ -120,6 +134,10 @@ TabbedPanel::TabbedPanel(
 
 not_null<TabbedSelector*> TabbedPanel::selector() const {
 	return _selector;
+}
+
+rpl::producer<bool> TabbedPanel::pauseAnimations() const {
+	return _pauseAnimations.events();
 }
 
 bool TabbedPanel::isSelectorStolen() const {
@@ -478,8 +496,8 @@ bool TabbedPanel::overlaps(const QRect &globalRect) const {
 
 TabbedPanel::~TabbedPanel() {
 	hideFast();
-	if (!_ownedSelector) {
-		_controller->takeTabbedSelectorOwnershipFrom(this);
+	if (!_ownedSelector && _regularWindow) {
+		_regularWindow->takeTabbedSelectorOwnershipFrom(this);
 	}
 }
 

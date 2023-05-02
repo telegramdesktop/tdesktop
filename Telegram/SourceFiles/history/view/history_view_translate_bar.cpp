@@ -524,7 +524,7 @@ void TranslateBar::showToast(
 	const auto weak = Ui::Toast::Show(_wrap.window(), Ui::Toast::Config{
 		.text = std::move(text),
 		.st = st.get(),
-		.durationMs = kToastDuration,
+		.duration = kToastDuration,
 		.multiline = true,
 		.dark = true,
 		.slideSide = RectPart::Bottom,

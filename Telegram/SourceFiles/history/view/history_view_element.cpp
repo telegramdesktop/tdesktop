@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/item_text_options.h"
@@ -1012,10 +1011,7 @@ ClickHandlerPtr Element::fromLink() const {
 				const auto my = context.other.value<ClickHandlerContext>();
 				const auto weak = my.sessionWindow;
 				if (const auto strong = weak.get()) {
-					Ui::ShowMultilineToast({
-						.parentOverride = Window::Show(strong).toastParent(),
-						.text = { tr::lng_forwarded_imported(tr::now) },
-					});
+					strong->showToast(tr::lng_forwarded_imported(tr::now));
 				}
 			});
 			return imported;

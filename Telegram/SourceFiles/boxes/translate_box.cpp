@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/painter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -263,7 +262,7 @@ void TranslateBox(
 		if (loading->toggled()) {
 			return;
 		}
-		Ui::BoxShow(box).showBox(ChooseTranslateToBox(
+		box->uiShow()->showBox(ChooseTranslateToBox(
 			state->to.current(),
 			crl::guard(box, [=](LanguageId id) { state->to = id; })));
 	});
@@ -314,11 +313,9 @@ object_ptr<BoxContent> EditSkipTranslationLanguages() {
 		}
 		if (already && selected->empty()) {
 			if (const auto strong = weak->data()) {
-				Ui::ShowMultilineToast({
-					.parentOverride = BoxShow(strong).toastParent(),
-					.text = { tr::lng_translate_settings_one(tr::now) },
-					.duration = kSkipAtLeastOneDuration,
-				});
+				strong->showToast(
+					tr::lng_translate_settings_one(tr::now),
+					kSkipAtLeastOneDuration);
 			}
 			return false;
 		}

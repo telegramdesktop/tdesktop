@@ -375,7 +375,7 @@ void UsernamesBox(
 		object_ptr<UsernamesList>(
 			box,
 			peer,
-			std::make_shared<Ui::BoxShow>(box),
+			box->uiShow(),
 			!isBot
 				? [=] { box->scrollToY(0); editor->setInnerFocus(); }
 				: Fn<void()>(nullptr)),

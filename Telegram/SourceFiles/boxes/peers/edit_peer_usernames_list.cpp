@@ -117,8 +117,7 @@ UsernamesList::Row::Row(
 			tr::lng_group_invite_context_copy(tr::now),
 			[=] {
 				QGuiApplication::clipboard()->setText(link);
-				Ui::Toast::Show(
-					show->toastParent(),
+				show->showToast(
 					tr::lng_create_channel_link_copied(tr::now));
 			},
 			&st::menuIconCopy);
@@ -307,8 +306,7 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 										tr::lng_usernames_activate_error(
 											lt_count,
 											rpl::single(kMaxUsernames),
-											Ui::Text::RichLangValue)),
-									Ui::LayerOption::KeepOther);
+											Ui::Text::RichLangValue)));
 							}
 							load();
 							_toggleLifetime.destroy();
@@ -321,9 +319,7 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 				}),
 				.confirmText = std::move(confirmText),
 			};
-			_show->showBox(
-				Ui::MakeConfirmBox(std::move(args)),
-				Ui::LayerOption::KeepOther);
+			_show->showBox(Ui::MakeConfirmBox(std::move(args)));
 		});
 	}
 

@@ -193,14 +193,14 @@ void AddPremiumPrivacyButton(
 			tr::lng_settings_privacy_premium_link(tr::now));
 		link.entities.push_back(
 			EntityInText(EntityType::Semibold, 0, link.text.size()));
-		const auto config = Ui::Toast::Config{
+		(*toast) = controller->showToast({
 			.text = tr::lng_settings_privacy_premium(
 				tr::now,
 				lt_link,
 				link,
 				Ui::Text::WithEntities),
 			.st = &st::defaultMultilineToast,
-			.durationMs = Ui::Toast::kDefaultDuration * 2,
+			.duration = Ui::Toast::kDefaultDuration * 2,
 			.multiline = true,
 			.filter = crl::guard(&controller->session(), [=](
 					const ClickHandlerPtr &,
@@ -215,10 +215,7 @@ void AddPremiumPrivacyButton(
 				}
 				return false;
 			}),
-		};
-		(*toast) = Ui::Toast::Show(
-			Window::Show(controller).toastParent(),
-			config);
+		});
 	};
 	button->addClickHandler([=] {
 		if (!session->premium()) {
@@ -232,9 +229,10 @@ void AddPremiumPrivacyButton(
 		) | rpl::take(
 			1
 		) | rpl::start_with_next([=](const Privacy::Rule &value) {
-			controller->show(
-				Box<EditPrivacyBox>(controller, controllerFactory(), value),
-				Ui::LayerOption::KeepOther);
+			controller->show(Box<EditPrivacyBox>(
+				controller,
+				controllerFactory(),
+				value));
 		});
 	});
 }
@@ -833,9 +831,10 @@ void AddPrivacyButton(
 		) | rpl::take(
 			1
 		) | rpl::start_with_next([=](const Privacy::Rule &value) {
-			controller->show(
-				Box<EditPrivacyBox>(controller, controllerFactory(), value),
-				Ui::LayerOption::KeepOther);
+			controller->show(Box<EditPrivacyBox>(
+				controller,
+				controllerFactory(),
+				value));
 		});
 	});
 }

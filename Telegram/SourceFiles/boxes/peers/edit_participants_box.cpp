@@ -1254,7 +1254,7 @@ void ParticipantsBoxController::rebuild() {
 QPointer<Ui::BoxContent> ParticipantsBoxController::showBox(
 		object_ptr<Ui::BoxContent> box) const {
 	const auto weak = Ui::MakeWeak(box.data());
-	delegate()->peerListShowBox(std::move(box), Ui::LayerOption::KeepOther);
+	delegate()->peerListShowBox(std::move(box));
 	return weak;
 }
 

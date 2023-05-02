@@ -134,7 +134,7 @@ void EmojiStatusPanel::create(
 		controller,
 		object_ptr<Selector>(
 			nullptr,
-			controller,
+			controller->uiShow(),
 			Window::GifPauseReason::Layer,
 			ChatHelpers::TabbedSelector::Mode::EmojiStatus));
 	_panel->setDropDown(true);

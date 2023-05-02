@@ -153,7 +153,7 @@ void ShowGradientEditor(
 		not_null<Window::SessionController*> controller,
 		StartData data,
 		Fn<void(std::vector<QColor>)> &&doneCallback) {
-	Window::Show(controller).showBox(Box([=](not_null<Ui::GenericBox*> box) {
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 		struct State {
 			rpl::event_stream<> saveRequests;
 		};
@@ -180,7 +180,6 @@ void ShowGradientEditor(
 			});
 		box->setWidth(content->width());
 		box->addRow(std::move(content), {});
-
 	}));
 }
 
@@ -242,9 +241,8 @@ EmojiSelector::Selector EmojiSelector::createEmojiList(
 	const auto manager = &session->data().customEmojiManager();
 	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
 	auto args = ChatHelpers::EmojiListDescriptor{
-		.session = session,
+		.show = _controller->uiShow(),
 		.mode = ChatHelpers::EmojiListMode::UserpicBuilder,
-		.controller = _controller,
 		.paused = [=] { return true; },
 		.customRecentList = _lastRecent,
 		.customRecentFactory = [=](DocumentId id, Fn<void()> repaint) {

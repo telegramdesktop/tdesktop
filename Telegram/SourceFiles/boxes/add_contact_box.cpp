@@ -112,7 +112,7 @@ void ChatCreateDone(
 			if (done) {
 				done(chat);
 			} else {
-				const auto show = std::make_shared<Window::Show>(navigation);
+				const auto show = navigation->uiShow();
 				navigation->showPeerHistory(chat);
 				ChatInviteForbidden(
 					show,
@@ -141,7 +141,7 @@ void MustBePublicFailed(
 	const auto text = channel->isMegagroup()
 		? "Can't create a public group :("
 		: "Can't create a public channel :(";
-	Ui::Toast::Show(Window::Show(navigation).toastParent(), text);
+	navigation->showToast(text);
 	MustBePublicDestroy(channel);
 }
 
@@ -607,7 +607,7 @@ void GroupInfoBox::prepare() {
 					: QString());
 			(*menu)->addAction(
 				text,
-				[=, show = std::make_shared<Ui::BoxShow>(this)] {
+				[=, show = uiShow()] {
 					show->showBox(Box(TTLMenu::TTLBox, TTLMenu::Args{
 						.show = show,
 						.startTtl = _ttlPeriod,
@@ -727,19 +727,14 @@ void GroupInfoBox::createGroup(
 			}
 		} else if (type == u"USERS_TOO_FEW"_q) {
 			controller->show(
-				Ui::MakeInformBox(tr::lng_cant_invite_privacy()),
-				Ui::LayerOption::KeepOther);
+				Ui::MakeInformBox(tr::lng_cant_invite_privacy()));
 		} else if (type == u"PEER_FLOOD"_q) {
-			controller->show(
-				Ui::MakeInformBox(
-					PeerFloodErrorText(
-						&_navigation->session(),
-						PeerFloodType::InviteGroup)),
-				Ui::LayerOption::KeepOther);
+			controller->show(Ui::MakeInformBox(
+				PeerFloodErrorText(
+					&_navigation->session(),
+					PeerFloodType::InviteGroup)));
 		} else if (type == u"USER_RESTRICTED"_q) {
-			controller->show(
-				Ui::MakeInformBox(tr::lng_cant_do_this()),
-				Ui::LayerOption::KeepOther);
+			controller->show(Ui::MakeInformBox(tr::lng_cant_do_this()));
 		}
 	}).send();
 }
@@ -1220,9 +1215,7 @@ void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 		return;
 	} else if (!_channel->inviteLink().isEmpty()) {
 		QGuiApplication::clipboard()->setText(_channel->inviteLink());
-		Ui::Toast::Show(
-			Ui::BoxShow(this).toastParent(),
-			tr::lng_create_channel_link_copied(tr::now));
+		showToast(tr::lng_create_channel_link_copied(tr::now));
 	} else if (_channel->isFullLoaded() && !_creatingInviteLink) {
 		_creatingInviteLink = true;
 		_channel->session().api().inviteLinks().create(_channel);
@@ -1456,12 +1449,10 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 	const auto callback = [=] {
 		*revoked = true;
 		navigation->parentController()->show(
-			Box<SetupChannelBox>(navigation, channel, mustBePublic, done),
-			Ui::LayerOption::KeepOther);
+			Box<SetupChannelBox>(navigation, channel, mustBePublic, done));
 	};
 	const auto revoker = navigation->parentController()->show(
-		Box(PublicLinksLimitBox, navigation, callback),
-		Ui::LayerOption::KeepOther);
+		Box(PublicLinksLimitBox, navigation, callback));
 	const auto session = &navigation->session();
 	revoker->boxClosing(
 	) | rpl::start_with_next(crl::guard(session, [=] {

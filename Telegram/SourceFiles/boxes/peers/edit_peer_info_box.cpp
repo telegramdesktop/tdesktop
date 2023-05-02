@@ -48,7 +48,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/rp_widget.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -241,9 +240,7 @@ void ShowEditPermissions(
 		};
 		ShowEditPeerPermissionsBox(box, navigation, peer, std::move(done));
 	};
-	navigation->parentController()->show(
-		Box(std::move(createBox)),
-		Ui::LayerOption::KeepOther);
+	navigation->parentController()->show(Box(std::move(createBox)));
 }
 
 } // namespace
@@ -606,8 +603,7 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		rpl::single(QString()), //Empty count.
 		[=, controller = _navigation->parentController()] {
 			controller->show(
-				Box<StickersBox>(controller, channel),
-				Ui::LayerOption::KeepOther);
+				Box<StickersBox>(controller->uiShow(), channel));
 		},
 		{ &st::settingsIconStickers, Settings::kIconLightOrange });
 
@@ -674,8 +670,7 @@ void Controller::showEditPeerTypeBox(
 			_channelHasLocationOriginalValue,
 			boxCallback,
 			_typeDataSavedValue,
-			error),
-		Ui::LayerOption::KeepOther);
+			error));
 	box->boxClosing(
 	) | rpl::start_with_next([peer = _peer] {
 		peer->session().api().usernames().requestToCache(peer);
@@ -709,14 +704,12 @@ void Controller::showEditLinkedChatBox() {
 				|| channel->canEditPreHistoryHidden()));
 
 	if (const auto chat = *_linkedChatSavedValue) {
-		*box = _navigation->parentController()->show(
-			EditLinkedChatBox(
-				_navigation,
-				channel,
-				chat,
-				canEdit,
-				callback),
-			Ui::LayerOption::KeepOther);
+		*box = _navigation->parentController()->show(EditLinkedChatBox(
+			_navigation,
+			channel,
+			chat,
+			canEdit,
+			callback));
 		return;
 	} else if (!canEdit || _linkedChatsRequestId) {
 		return;
@@ -743,13 +736,11 @@ void Controller::showEditLinkedChatBox() {
 		for (const auto &item : list) {
 			chats.emplace_back(_peer->owner().processChat(item));
 		}
-		*box = _navigation->parentController()->show(
-			EditLinkedChatBox(
-				_navigation,
-				channel,
-				std::move(chats),
-				callback),
-			Ui::LayerOption::KeepOther);
+		*box = _navigation->parentController()->show(EditLinkedChatBox(
+			_navigation,
+			channel,
+			std::move(chats),
+			callback));
 	}).fail([=] {
 		_linkedChatsRequestId = 0;
 	}).send();
@@ -887,14 +878,12 @@ void Controller::fillForumButton() {
 			if (_linkedChatSavedValue && *_linkedChatSavedValue) {
 				ShowForumForDiscussionError(_navigation);
 			} else {
-				Ui::ShowMultilineToast({
-					.parentOverride = Window::Show(_navigation).toastParent(),
-					.text = tr::lng_forum_topics_not_enough(
+				_navigation->showToast(
+					tr::lng_forum_topics_not_enough(
 						tr::now,
 						lt_count,
 						EnableForumMinMembers(_peer),
-						Ui::Text::RichLangValue),
-				});
+						Ui::Text::RichLangValue));
 			}
 		} else {
 			_forumSavedValue = toggled;
@@ -1231,14 +1220,12 @@ void Controller::fillManageSection() {
 			tr::lng_manage_peer_invite_links(),
 			rpl::duplicate(count) | ToPositiveNumberString(),
 			[=] {
-				_navigation->parentController()->show(
-					Box(
-						ManageInviteLinksBox,
-						_peer,
-						_peer->session().user(),
-						0,
-						0),
-					Ui::LayerOption::KeepOther);
+				_navigation->parentController()->show(Box(
+					ManageInviteLinksBox,
+					_peer,
+					_peer->session().user(),
+					0,
+					0));
 			},
 			{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange });
 		wrap->toggle(true, anim::type::instant);
@@ -1407,9 +1394,7 @@ void Controller::fillBotUsernamesButton() {
 		std::move(leftLabel),
 		std::move(rightLabel),
 		[=] {
-			Window::Show(_navigation).showBox(
-				Box(UsernamesBox, user),
-				Ui::LayerOption::KeepOther);
+			_navigation->uiShow()->showBox(Box(UsernamesBox, user));
 		},
 		{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange });
 }
@@ -2120,8 +2105,7 @@ void Controller::deleteWithConfirmation() {
 			.confirmed = deleteCallback,
 			.confirmText = tr::lng_box_delete(),
 			.confirmStyle = &st::attentionBoxButton,
-		}),
-		Ui::LayerOption::KeepOther);
+		}));
 }
 
 void Controller::deleteChannel() {

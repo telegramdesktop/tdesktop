@@ -203,7 +203,6 @@ EditAdminBox::EditAdminBox(
 	peer,
 	user,
 	(rights.flags != 0))
-, _show(this)
 , _oldRights(rights)
 , _oldRank(rank)
 , _addingBot(std::move(addingBot)) {
@@ -399,7 +398,7 @@ void EditAdminBox::prepare() {
 						Ui::Text::Bold(peer()->name()),
 						Ui::Text::WithEntities),
 					crl::guard(this, [=] { finishAddAdmin(); })
-				}), Ui::LayerOption::KeepOther);
+				}));
 			} else {
 				_finishSave();
 			}
@@ -623,16 +622,15 @@ void EditAdminBox::sendTransferRequestFrom(
 		if (!box && !weak) {
 			return;
 		}
-
-		Ui::Toast::Show(
-			(box ? Ui::BoxShow(box) : weak->_show).toastParent(),
+		const auto show = box ? box->uiShow() : weak->uiShow();
+		show->showToast(
 			(channel->isBroadcast()
 				? tr::lng_rights_transfer_done_channel
 				: tr::lng_rights_transfer_done_group)(
 					tr::now,
 					lt_user,
 					user->shortName()));
-		(box ? Ui::BoxShow(box) : weak->_show).hideLayer();
+		show->hideLayer();
 	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		if (weak) {
 			_transferRequestId = 0;
@@ -694,7 +692,6 @@ EditRestrictedBox::EditRestrictedBox(
 	bool hasAdminRights,
 	ChatRestrictionsInfo rights)
 : EditParticipantBox(nullptr, peer, user, hasAdminRights)
-, _show(this)
 , _oldRights(rights) {
 }
 
@@ -788,7 +785,7 @@ ChatRestrictionsInfo EditRestrictedBox::defaultRights() const {
 }
 
 void EditRestrictedBox::showRestrictUntil() {
-	_show.showBox(Box([=](not_null<Ui::GenericBox*> box) {
+	uiShow()->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto save = [=](TimeId result) {
 			if (!result) {
 				return;

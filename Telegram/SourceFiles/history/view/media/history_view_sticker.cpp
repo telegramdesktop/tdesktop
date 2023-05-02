@@ -412,7 +412,7 @@ ClickHandlerPtr Sticker::ShowSetHandler(not_null<DocumentData*> document) {
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto window = my.sessionWindow.get()) {
-			StickerSetBox::Show(window, document);
+			StickerSetBox::Show(window->uiShow(), document);
 		}
 	});
 }

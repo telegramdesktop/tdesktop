@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/text/format_values.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
@@ -860,12 +859,9 @@ bool OverlayWidget::showCopyMediaRestriction() {
 	if (!hasCopyMediaRestriction()) {
 		return false;
 	}
-	Ui::ShowMultilineToast({
-		.parentOverride = _widget,
-		.text = { _history->peer->isBroadcast()
-			? tr::lng_error_nocopy_channel(tr::now)
-			: tr::lng_error_nocopy_group(tr::now) },
-	});
+	Ui::Toast::Show(_widget, _history->peer->isBroadcast()
+		? tr::lng_error_nocopy_channel(tr::now)
+		: tr::lng_error_nocopy_group(tr::now));
 	return true;
 }
 

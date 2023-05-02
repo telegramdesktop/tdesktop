@@ -38,7 +38,7 @@ void AddPermanentLinkBlock(
 	not_null<UserData*> admin,
 	rpl::producer<Api::InviteLink> fromList);
 
-void CopyInviteLink(not_null<QWidget*> toastParent, const QString &link);
+void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link);
 [[nodiscard]] object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	not_null<PeerData*> peer,
 	const QString &link);

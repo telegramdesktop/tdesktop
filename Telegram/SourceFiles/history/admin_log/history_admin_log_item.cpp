@@ -1117,7 +1117,7 @@ void GenerateItems(
 				if (const auto controller = my.sessionWindow.get()) {
 					controller->show(
 						Box<StickerSetBox>(
-							controller,
+							controller->uiShow(),
 							Data::FromInputSet(set),
 							Data::StickersType::Stickers),
 						Ui::LayerOption::CloseOther);

@@ -352,8 +352,7 @@ void MainWindow::ensureLayerCreated() {
 	}
 	_layer = base::make_unique_q<Ui::LayerStackWidget>(
 		bodyWidget(),
-		crl::guard(this, [=] {
-			return std::make_shared<Window::Show>(&controller()); }));
+		crl::guard(this, [=] { return controller().uiShow(); }));
 
 	_layer->hideFinishEvents(
 	) | rpl::filter([=] {

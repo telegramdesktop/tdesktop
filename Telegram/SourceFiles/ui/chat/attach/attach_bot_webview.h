@@ -66,7 +66,7 @@ public:
 		rpl::producer<QString> bottomText);
 
 	void showBox(object_ptr<BoxContent> box);
-	void showToast(const TextWithEntities &text);
+	void showToast(TextWithEntities &&text);
 	void showCriticalError(const TextWithEntities &text);
 	void showWebviewError(
 		const QString &text,

@@ -332,7 +332,7 @@ void ScheduledWidget::setupComposeControls() {
 
 void ScheduledWidget::chooseAttach() {
 	if (const auto error = Data::AnyFileRestrictionError(_history->peer)) {
-		controller()->showToast({ *error });
+		controller()->showToast(*error);
 		return;
 	}
 
@@ -526,9 +526,7 @@ void ScheduledWidget::uploadFile(
 			type,
 			prepareSendAction(options));
 	};
-	controller()->show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
 }
 
 bool ScheduledWidget::showSendingFilesError(
@@ -565,7 +563,7 @@ bool ScheduledWidget::showSendingFilesError(
 		return true;
 	}
 
-	controller()->showToast({ text });
+	controller()->showToast(text);
 	return true;
 }
 
@@ -591,13 +589,11 @@ void ScheduledWidget::send() {
 			.ignoreSlowmodeCountdown = true,
 		});
 	if (!error.isEmpty()) {
-		controller()->showToast({ error });
+		controller()->showToast(error);
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	controller()->show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
 }
 
 void ScheduledWidget::send(Api::SendOptions options) {
@@ -627,9 +623,7 @@ void ScheduledWidget::sendVoice(
 	const auto callback = [=](Api::SendOptions options) {
 		sendVoice(bytes, waveform, duration, options);
 	};
-	controller()->show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
 }
 
 void ScheduledWidget::sendVoice(
@@ -674,9 +668,8 @@ void ScheduledWidget::edit(
 		return;
 	} else if (!left.text.isEmpty()) {
 		const auto remove = left.text.size();
-		controller()->showToast({
-			tr::lng_edit_limit_reached(tr::now, lt_count, remove)
-		});
+		controller()->showToast(
+			tr::lng_edit_limit_reached(tr::now, lt_count, remove));
 		return;
 	}
 
@@ -700,13 +693,13 @@ void ScheduledWidget::edit(
 		}
 
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, error)) {
-			controller()->showToast({ tr::lng_edit_error(tr::now) });
+			controller()->showToast(tr::lng_edit_error(tr::now));
 		} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
 			_composeControls->cancelEditMessage();
 		} else if (error == u"MESSAGE_EMPTY"_q) {
 			_composeControls->focus();
 		} else {
-			controller()->showToast({ tr::lng_edit_error(tr::now) });
+			controller()->showToast(tr::lng_edit_error(tr::now));
 		}
 		update();
 		return true;
@@ -728,9 +721,7 @@ void ScheduledWidget::sendExistingDocument(
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingDocument(document, options);
 	};
-	controller()->show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
 }
 
 bool ScheduledWidget::sendExistingDocument(
@@ -740,7 +731,7 @@ bool ScheduledWidget::sendExistingDocument(
 		_history->peer,
 		ChatRestriction::SendStickers);
 	if (error) {
-		controller()->showToast({ *error });
+		controller()->showToast(*error);
 		return false;
 	} else if (ShowSendPremiumError(controller(), document)) {
 		return false;
@@ -759,9 +750,7 @@ void ScheduledWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 	const auto callback = [=](Api::SendOptions options) {
 		sendExistingPhoto(photo, options);
 	};
-	controller()->show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
 }
 
 bool ScheduledWidget::sendExistingPhoto(
@@ -771,7 +760,7 @@ bool ScheduledWidget::sendExistingPhoto(
 		_history->peer,
 		ChatRestriction::SendPhotos);
 	if (error) {
-		controller()->showToast({ *error });
+		controller()->showToast(*error);
 		return false;
 	}
 
@@ -789,15 +778,13 @@ void ScheduledWidget::sendInlineResult(
 		not_null<UserData*> bot) {
 	const auto errorText = result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		controller()->showToast({ errorText });
+		controller()->showToast(errorText);
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) {
 		sendInlineResult(result, bot, options);
 	};
-	controller()->show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
 }
 
 void ScheduledWidget::sendInlineResult(
@@ -1264,9 +1251,7 @@ void ScheduledWidget::listSendBotCommand(
 		message.textWithTags = { text };
 		session().api().sendMessage(std::move(message));
 	};
-	controller()->show(
-		PrepareScheduleBox(this, sendMenuType(), callback),
-		Ui::LayerOption::KeepOther);
+	controller()->show(PrepareScheduleBox(this, sendMenuType(), callback));
 }
 
 void ScheduledWidget::listHandleViaClick(not_null<UserData*> bot) {

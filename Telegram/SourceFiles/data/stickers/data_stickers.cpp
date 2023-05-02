@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 
 #include "api/api_hash.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -29,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/image/image_location_factory.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -78,24 +78,24 @@ using SetFlag = StickersSetFlag;
 }
 
 void MaybeShowPremiumToast(
-		Window::SessionController *controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		TextWithEntities text,
 		const QString &ref) {
-	if (!controller) {
+	if (!show) {
 		return;
 	}
-	const auto session = &controller->session();
+	const auto session = &show->session();
 	if (session->user()->isPremium()) {
 		return;
 	}
-	const auto widget = QPointer<Ui::RpWidget>(
-		controller->window().widget()->bodyWidget());
 	const auto filter = [=](const auto ...) {
-		Settings::ShowPremium(controller, ref);
+		const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
+		if (const auto controller = show->resolveWindow(usage)) {
+			Settings::ShowPremium(controller, ref);
+		}
 		return false;
 	};
-	Ui::ShowMultilineToast({
-		.parentOverride = widget,
+	show->showToast({
 		.text = std::move(text),
 		.duration = kPremiumToastDuration,
 		.filter = filter,
@@ -313,7 +313,7 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 }
 
 void Stickers::addSavedGif(
-		Window::SessionController *controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document) {
 	const auto index = _savedGifs.indexOf(document);
 	if (!index) {
@@ -328,7 +328,7 @@ void Stickers::addSavedGif(
 	if (_savedGifs.size() > limits.gifsCurrent()) {
 		_savedGifs.pop_back();
 		MaybeShowPremiumToast(
-			controller,
+			show,
 			SavedGifsToast(limits),
 			LimitsPremiumRef("saved_gifs"));
 	}
@@ -518,7 +518,7 @@ bool Stickers::isFaved(not_null<const DocumentData*> document) {
 
 void Stickers::checkFavedLimit(
 		StickersSet &set,
-		Window::SessionController *controller) {
+		std::shared_ptr<ChatHelpers::Show> show) {
 	const auto session = &_owner->session();
 	const auto limits = Data::PremiumLimits(session);
 	if (set.stickers.size() <= limits.stickersFavedCurrent()) {
@@ -538,21 +538,21 @@ void Stickers::checkFavedLimit(
 		++i;
 	}
 	MaybeShowPremiumToast(
-		controller,
+		std::move(show),
 		FaveStickersToast(limits),
 		LimitsPremiumRef("stickers_faved"));
 }
 
 void Stickers::pushFavedToFront(
 		StickersSet &set,
-		Window::SessionController *controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document,
 		const std::vector<not_null<EmojiPtr>> &emojiList) {
 	set.stickers.push_front(document);
 	for (auto emoji : emojiList) {
 		set.emoji[emoji].push_front(document);
 	}
-	checkFavedLimit(set, controller);
+	checkFavedLimit(set, std::move(show));
 }
 
 void Stickers::moveFavedToFront(StickersSet &set, int index) {
@@ -575,7 +575,7 @@ void Stickers::moveFavedToFront(StickersSet &set, int index) {
 }
 
 void Stickers::setIsFaved(
-		Window::SessionController *controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document,
 		std::optional<std::vector<not_null<EmojiPtr>>> emojiList) {
 	auto &sets = setsRef();
@@ -600,11 +600,11 @@ void Stickers::setIsFaved(
 	if (index > 0) {
 		moveFavedToFront(*set, index);
 	} else if (emojiList) {
-		pushFavedToFront(*set, controller, document, *emojiList);
+		pushFavedToFront(*set, show, document, *emojiList);
 	} else if (auto list = getEmojiListFromSet(document)) {
-		pushFavedToFront(*set, controller, document, *list);
+		pushFavedToFront(*set, show, document, *list);
 	} else {
-		requestSetToPushFaved(controller, document);
+		requestSetToPushFaved(show, document);
 		return;
 	}
 	session().local().writeFavedStickers();
@@ -613,10 +613,8 @@ void Stickers::setIsFaved(
 }
 
 void Stickers::requestSetToPushFaved(
-		Window::SessionController *controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document) {
-	controller = nullptr;
-	const auto weak = base::make_weak(controller);
 	auto addAnyway = [=](std::vector<not_null<EmojiPtr>> list) {
 		if (list.empty()) {
 			if (auto sticker = document->sticker()) {
@@ -625,7 +623,7 @@ void Stickers::requestSetToPushFaved(
 				}
 			}
 		}
-		setIsFaved(weak.get(), document, std::move(list));
+		setIsFaved(nullptr, document, std::move(list));
 	};
 	session().api().request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(document->sticker()->set),
@@ -668,11 +666,11 @@ void Stickers::setIsNotFaved(not_null<DocumentData*> document) {
 }
 
 void Stickers::setFaved(
-		Window::SessionController *controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document,
 		bool faved) {
 	if (faved) {
-		setIsFaved(controller, document);
+		setIsFaved(std::move(show), document);
 	} else {
 		setIsNotFaved(document);
 	}

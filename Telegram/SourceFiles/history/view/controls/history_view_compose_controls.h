@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 
 class History;
+class DocumentData;
 class FieldAutocomplete;
 
 namespace SendMenu {
@@ -29,6 +30,7 @@ class TabbedPanel;
 class TabbedSelector;
 struct FileChosen;
 struct PhotoChosen;
+class Show;
 } // namespace ChatHelpers
 
 namespace Data {
@@ -63,8 +65,8 @@ class Session;
 } // namespace Main
 
 namespace Window {
-class SessionController;
 struct SectionShow;
+class SessionController;
 } // namespace Window
 
 namespace Api {
@@ -81,6 +83,20 @@ class TTLButton;
 class FieldHeader;
 class WebpageProcessor;
 
+enum class ComposeControlsMode {
+	Normal,
+	Scheduled,
+};
+
+struct ComposeControlsDescriptor {
+	std::shared_ptr<ChatHelpers::Show> show;
+	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted;
+	ComposeControlsMode mode = ComposeControlsMode::Normal;
+	SendMenu::Type sendMenuType = {};
+	Window::SessionController *regularWindow = nullptr;
+	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
+};
+
 class ComposeControls final {
 public:
 	using FileChosen = ChatHelpers::FileChosen;
@@ -93,18 +109,17 @@ public:
 	using SetHistoryArgs = Controls::SetHistoryArgs;
 	using ReplyNextRequest = Controls::ReplyNextRequest;
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
-
-	enum class Mode {
-		Normal,
-		Scheduled,
-	};
+	using Mode = ComposeControlsMode;
 
 	ComposeControls(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> window,
+		not_null<Window::SessionController*> controller,
 		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted,
 		Mode mode,
 		SendMenu::Type sendMenuType);
+	ComposeControls(
+		not_null<Ui::RpWidget*> parent,
+		ComposeControlsDescriptor descriptor);
 	~ComposeControls();
 
 	[[nodiscard]] Main::Session &session() const;
@@ -139,6 +154,7 @@ public:
 	-> rpl::producer<not_null<QKeyEvent*>>;
 	[[nodiscard]] auto replyNextRequests() const
 	-> rpl::producer<ReplyNextRequest>;
+	[[nodiscard]] rpl::producer<> focusRequests() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
@@ -292,9 +308,17 @@ private:
 
 	void unregisterDraftSources();
 	void registerDraftSource();
+	void changeFocusedControl();
 
 	const not_null<QWidget*> _parent;
-	const not_null<Window::SessionController*> _window;
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const not_null<Main::Session*> _session;
+
+	Window::SessionController * const _regularWindow = nullptr;
+	const std::unique_ptr<ChatHelpers::TabbedSelector> _ownedSelector;
+	const not_null<ChatHelpers::TabbedSelector*> _selector;
+	rpl::event_stream<ChatHelpers::FileChosen> _stickerOrEmojiChosen;
+
 	History *_history = nullptr;
 	Fn<bool()> _showSlowmodeError;
 	Fn<Api::SendAction()> _sendActionFactory;
@@ -340,6 +364,7 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
 	rpl::event_stream<std::optional<bool>> _attachRequests;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
+	rpl::event_stream<> _focusRequests;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
 		| TextUpdateEvent::SaveDraft

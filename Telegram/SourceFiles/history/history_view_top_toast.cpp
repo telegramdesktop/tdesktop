@@ -41,7 +41,7 @@ void InfoTooltip::show(
 	_topToast = Ui::Toast::Show(parent, Ui::Toast::Config{
 		.text = text,
 		.st = &st::historyInfoToast,
-		.durationMs = CountToastDuration(text),
+		.duration = CountToastDuration(text),
 		.multiline = true,
 		.dark = true,
 		.slideSide = RectPart::Top,

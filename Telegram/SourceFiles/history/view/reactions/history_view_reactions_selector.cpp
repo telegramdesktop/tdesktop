@@ -777,9 +777,8 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	}
 	_list = _scroll->setOwnedWidget(
 		object_ptr<EmojiListWidget>(_scroll, EmojiListDescriptor{
-			.session = &controller->session(),
+			.show = controller->uiShow(),
 			.mode = _listMode,
-			.controller = controller,
 			.paused = [] { return false; },
 			.customRecentList = std::move(recent),
 			.customRecentFactory = std::move(factory),

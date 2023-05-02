@@ -52,13 +52,20 @@ class ScrollArea;
 class GenericBox;
 class LayerManager;
 class GroupCallScheduledLeft;
-namespace Toast {
-class Instance;
-} // namespace Toast
-namespace Platform {
-struct SeparateTitleControls;
-} // namespace Platform
 } // namespace Ui
+
+namespace Ui::Toast {
+class Instance;
+struct Config;
+} // namespace Ui::Toast
+
+namespace Ui::Platform {
+struct SeparateTitleControls;
+} // namespace Ui::Platform
+
+namespace Main {
+class SessionShow;
+} // namespace Main
 
 namespace style {
 struct CallSignalBars;
@@ -85,19 +92,30 @@ public:
 	[[nodiscard]] not_null<GroupCall*> call() const;
 	[[nodiscard]] bool isActive() const;
 
-	void showToast(TextWithEntities &&text, crl::time duration = 0);
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		const QString &text,
+		crl::time duration = 0);
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		TextWithEntities &&text,
+		crl::time duration = 0);
+	base::weak_ptr<Ui::Toast::Instance> showToast(
+		Ui::Toast::Config &&config);
+
 	void showBox(object_ptr<Ui::BoxContent> box);
 	void showBox(
 		object_ptr<Ui::BoxContent> box,
 		Ui::LayerOptions options,
 		anim::type animated = anim::type::normal);
 	void hideLayer(anim::type animated = anim::type::normal);
+	[[nodiscard]] bool isLayerShown() const;
 
 	void minimize();
 	void toggleFullScreen();
 	void close();
 	void showAndActivate();
 	void closeBeforeDestroy();
+
+	[[nodiscard]] std::shared_ptr<Main::SessionShow> uiShow();
 
 	rpl::lifetime &lifetime();
 
@@ -260,7 +278,6 @@ private:
 	Fn<void()> _callShareLinkCallback;
 
 	const std::unique_ptr<Toasts> _toasts;
-	base::weak_ptr<Ui::Toast::Instance> _lastToast;
 
 	std::unique_ptr<MicLevelTester> _micLevelTester;
 
@@ -269,23 +286,6 @@ private:
 	rpl::lifetime _hideControlsTimerLifetime;
 
 	rpl::lifetime _peerLifetime;
-
-};
-
-class Show : public Ui::Show {
-public:
-	explicit Show(not_null<Panel*> panel);
-	~Show();
-	void showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) const override;
-	void hideLayer() const override;
-	[[nodiscard]] not_null<QWidget*> toastParent() const override;
-	[[nodiscard]] bool valid() const override;
-	operator bool() const override;
-
-private:
-	const base::weak_ptr<Panel> _panel;
 
 };
 

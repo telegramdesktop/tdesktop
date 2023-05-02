@@ -17,9 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/filter_icons.h"
 #include "ui/text/text_utilities.h" // Ui::Text::Bold
-#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_payments.h" // paymentsSectionButton
@@ -74,7 +74,7 @@ void ChangeFilterById(
 			// We can safely show toast there.
 			const auto account = &history->session().account();
 			if (const auto controller = Core::App().windowFor(account)) {
-				auto text = (add
+				controller->showToast((add
 					? tr::lng_filters_toast_add
 					: tr::lng_filters_toast_remove)(
 						tr::now,
@@ -82,10 +82,7 @@ void ChangeFilterById(
 						Ui::Text::Bold(chat),
 						lt_folder,
 						Ui::Text::Bold(name),
-						Ui::Text::WithEntities);
-				Ui::Toast::Show(
-					Window::Show(controller).toastParent(),
-					{ .text = std::move(text), .st = &st::defaultToast });
+						Ui::Text::WithEntities));
 			}
 		}).fail([=](const MTP::Error &error) {
 			// Revert filter on fail.
