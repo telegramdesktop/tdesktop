@@ -11,9 +11,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_peer.h"
 #include "main/main_session.h"
+#include "statistics/statistics_data_deserialize.h"
 
 namespace Api {
 namespace {
+
+[[nodiscard]] Data::StatisticalGraph StatisticalGraphFromTL(
+		const MTPStatsGraph &tl) {
+	return tl.match([&](const MTPDstatsGraph &d) {
+		using namespace Statistic;
+		return Data::StatisticalGraph{
+			StatisticalChartFromJSON(qs(d.vjson().data().vdata()).toUtf8()),
+		};
+	}, [&](const MTPDstatsGraphAsync &data) {
+		return Data::StatisticalGraph{ Data::StatisticalChart() };
+	}, [&](const MTPDstatsGraphError &data) {
+		return Data::StatisticalGraph{ Data::StatisticalChart() };
+	});
+}
 
 [[nodiscard]] Data::StatisticalValue StatisticalValueFromTL(
 		const MTPStatsAbsValueAndPrev &tl) {
@@ -47,6 +62,7 @@ namespace {
 			.forwardsCount = tl.data().vforwards().v,
 		};
 	}) | ranges::to_vector;
+
 	return {
 		.startDate = data.vperiod().data().vmin_date().v,
 		.endDate = data.vperiod().data().vmax_date().v,
@@ -56,6 +72,33 @@ namespace {
 		.meanShareCount = StatisticalValueFromTL(data.vshares_per_post()),
 
 		.enabledNotificationsPercentage = unmuted,
+
+		.memberCountGraph = StatisticalGraphFromTL(
+			data.vgrowth_graph()),
+
+		.joinGraph = StatisticalGraphFromTL(
+			data.vfollowers_graph()),
+
+		.muteGraph = StatisticalGraphFromTL(
+			data.vmute_graph()),
+
+		.viewCountByHourGraph = StatisticalGraphFromTL(
+			data.vtop_hours_graph()),
+
+		.viewCountBySourceGraph = StatisticalGraphFromTL(
+			data.vviews_by_source_graph()),
+
+		.joinBySourceGraph = StatisticalGraphFromTL(
+			data.vnew_followers_by_source_graph()),
+
+		.languageGraph = StatisticalGraphFromTL(
+			data.vlanguages_graph()),
+
+		.messageInteractionGraph = StatisticalGraphFromTL(
+			data.vinteractions_graph()),
+
+		.instantViewInteractionGraph = StatisticalGraphFromTL(
+			data.viv_interactions_graph()),
 
 		.recentMessageInteractions = std::move(recentMessages),
 	};
