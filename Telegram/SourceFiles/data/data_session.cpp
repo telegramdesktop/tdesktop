@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_emoji_statuses.h"
 #include "data/data_forum_icons.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_stories.h"
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
 #include "data/data_histories.h"
@@ -266,7 +267,8 @@ Session::Session(not_null<Main::Session*> session)
 , _emojiStatuses(std::make_unique<EmojiStatuses>(this))
 , _forumIcons(std::make_unique<ForumIcons>(this))
 , _notifySettings(std::make_unique<NotifySettings>(this))
-, _customEmojiManager(std::make_unique<CustomEmojiManager>(this)) {
+, _customEmojiManager(std::make_unique<CustomEmojiManager>(this))
+, _stories(std::make_unique<Stories>(this)) {
 	_cache->open(_session->local().cacheKey());
 	_bigFileCache->open(_session->local().cacheBigFileKey());
 
@@ -311,6 +313,8 @@ Session::Session(not_null<Main::Session*> session)
 				}
 			}
 		}, _lifetime);
+
+		_stories->loadMore();
 	});
 }
 

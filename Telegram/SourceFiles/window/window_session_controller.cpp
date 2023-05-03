@@ -140,7 +140,7 @@ public:
 		not_null<PhotoData*> photo) const override;
 
 	void processChosenSticker(
-		ChatHelpers::FileChosen chosen) const override;
+		ChatHelpers::FileChosen &&chosen) const override;
 
 private:
 	const base::weak_ptr<SessionController> _window;
@@ -233,7 +233,7 @@ bool MainWindowShow::showMediaPreview(
 }
 
 void MainWindowShow::processChosenSticker(
-		ChatHelpers::FileChosen chosen) const {
+		ChatHelpers::FileChosen &&chosen) const {
 	if (const auto window = _window.get()) {
 		Ui::PostponeCall(window, [=, chosen = std::move(chosen)]() mutable {
 			window->stickerOrEmojiChosen(std::move(chosen));

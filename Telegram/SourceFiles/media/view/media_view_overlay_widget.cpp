@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
+#include "ui/layers/layer_manager.h"
 #include "ui/text/text_utilities.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/platform/ui_platform_window_title.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_pip.h"
 #include "media/view/media_view_overlay_raster.h"
 #include "media/view/media_view_overlay_opengl.h"
+#include "media/stories/media_stories_view.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/player/media_player_instance.h"
@@ -54,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -331,6 +334,7 @@ OverlayWidget::OverlayWidget()
 , _widget(_surface->rpWidget())
 , _fullscreen(Core::App().settings().mediaViewPosition().maximized == 2)
 , _windowed(Core::App().settings().mediaViewPosition().maximized == 0)
+, _layerBg(std::make_unique<Ui::LayerManager>(_body))
 , _docDownload(_body, tr::lng_media_download(tr::now), st::mediaviewFileLink)
 , _docSaveAs(_body, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
 , _docCancel(_body, tr::lng_cancel(tr::now), st::mediaviewFileLink)
@@ -2870,6 +2874,14 @@ void OverlayWidget::show(OpenRequest request) {
 		}
 		setSession(&photo->session());
 
+		// #TODO stories testing
+		if (const auto storyId = (!contextPeer && contextItem)
+			? contextItem->history()->owner().stories().generate(
+				contextItem,
+				photo)
+			: StoryId()) {
+			setContext(StoriesContext{ contextItem->from()->asUser(), storyId });
+		} else
 		if (contextPeer) {
 			setContext(contextPeer);
 		} else if (contextItem) {
@@ -2888,6 +2900,14 @@ void OverlayWidget::show(OpenRequest request) {
 	} else if (document) {
 		setSession(&document->session());
 
+		// #TODO stories testing
+		if (const auto storyId = contextItem
+			? contextItem->history()->owner().stories().generate(
+				contextItem,
+				document)
+			: StoryId()) {
+			setContext(StoriesContext{ contextItem->from()->asUser(), storyId });
+		} else
 		if (contextItem) {
 			setContext(ItemContext{ contextItem, contextTopicRootId });
 		} else {
@@ -3808,6 +3828,91 @@ void OverlayWidget::switchToPip() {
 	}
 }
 
+not_null<Ui::RpWidget*> OverlayWidget::storiesWrap() {
+	return _body;
+}
+
+std::shared_ptr<ChatHelpers::Show> OverlayWidget::storiesShow() {
+	class Show final : public ChatHelpers::Show {
+	public:
+		explicit Show(not_null<OverlayWidget*> widget) : _widget(widget) {
+		}
+
+		void showBox(
+			object_ptr<Ui::BoxContent> content,
+			Ui::LayerOptions options
+				= Ui::LayerOption::KeepOther) const override {
+			_widget->_layerBg->showBox(
+				std::move(content),
+				options,
+				anim::type::normal);
+		}
+		void hideLayer() const override {
+			_widget->_layerBg->hideAll(anim::type::normal);
+		}
+		not_null<QWidget*> toastParent() const override {
+			return _widget->_body;
+		}
+		bool valid() const override {
+			return _widget->_storiesUser != nullptr;
+		}
+		operator bool() const override {
+			return valid();
+		}
+
+		Main::Session &session() const override {
+			return _widget->_storiesUser->session();
+		}
+		bool paused(ChatHelpers::PauseReason reason) const override {
+			if (_widget->isHidden()
+				|| (!_widget->_fullscreen
+					&& !_widget->_window->isActiveWindow())) {
+				return true;
+			} else if (reason < ChatHelpers::PauseReason::Layer
+				&& _widget->_layerBg->topShownLayer() != nullptr) {
+				return true;
+			}
+			return false;
+		}
+		rpl::producer<> pauseChanged() const override {
+			return rpl::never<>();
+		}
+
+		rpl::producer<bool> adjustShadowLeft() const override {
+			return rpl::single(false);
+		}
+		SendMenu::Type sendMenuType() const override {
+			return SendMenu::Type::SilentOnly;
+		}
+
+		bool showMediaPreview(
+				Data::FileOrigin origin,
+				not_null<DocumentData*> document) const override {
+			return false; // #TODO stories
+		}
+		bool showMediaPreview(
+				Data::FileOrigin origin,
+				not_null<PhotoData*> photo) const override {
+			return false; // #TODO stories
+		}
+
+		void processChosenSticker(
+				ChatHelpers::FileChosen &&chosen) const override {
+			_widget->_storiesStickerOrEmojiChosen.fire(std::move(chosen));
+		}
+
+	private:
+		not_null<OverlayWidget*> _widget;
+
+	};
+	return std::make_shared<Show>(this);
+}
+
+auto OverlayWidget::storiesStickerOrEmojiChosen()
+-> rpl::producer<ChatHelpers::FileChosen> {
+	return _storiesStickerOrEmojiChosen.events();
+}
+
 void OverlayWidget::playbackToggleFullScreen() {
 	Expects(_streamed != nullptr);
 
@@ -4619,22 +4724,49 @@ void OverlayWidget::setContext(
 	std::variant<
 		v::null_t,
 		ItemContext,
-		not_null<PeerData*>> context) {
+		not_null<PeerData*>,
+		StoriesContext> context) {
 	if (const auto item = std::get_if<ItemContext>(&context)) {
 		_message = item->item;
 		_history = _message->history();
 		_peer = _history->peer;
 		_topicRootId = _peer->isForum() ? item->topicRootId : MsgId();
+		_stories = nullptr;
+		_storiesUser = nullptr;
 	} else if (const auto peer = std::get_if<not_null<PeerData*>>(&context)) {
 		_peer = *peer;
 		_history = _peer->owner().history(_peer);
 		_message = nullptr;
 		_topicRootId = MsgId();
+		_stories = nullptr;
+		_storiesUser = nullptr;
+	} else if (const auto story = std::get_if<StoriesContext>(&context)) {
+		_message = nullptr;
+		_topicRootId = MsgId();
+		_history = nullptr;
+		_peer = nullptr;
+		const auto &all = story->user->owner().stories().all();
+		const auto i = ranges::find(
+			all,
+			story->user,
+			&Data::StoriesList::user);
+		Assert(i != end(all));
+		const auto j = ranges::find(
+			i->items,
+			story->id,
+			&Data::StoryItem::id);
+		_storiesUser = story->user;
+		if (!_stories) {
+			_stories = std::make_unique<Stories::View>(
+				static_cast<Stories::Delegate*>(this));
+		}
+		_stories->show(*i, j - begin(i->items));
 	} else {
 		_message = nullptr;
 		_topicRootId = MsgId();
 		_history = nullptr;
 		_peer = nullptr;
+		_stories = nullptr;
 	}
 	_migrated = nullptr;
 	if (_history) {
@@ -4704,6 +4836,14 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 	if (v::is_null(entity.data) && !entity.item) {
 		return false;
 	}
+	// #TODO stories testing
+	if (const auto storyId = entity.item
+		? entity.item->history()->owner().stories().generate(
+			entity.item,
+			entity.data)
+		: StoryId()) {
+		setContext(StoriesContext{ entity.item->from()->asUser(), storyId });
+	} else
 	if (const auto item = entity.item) {
 		setContext(ItemContext{ item, entity.topicRootId });
 	} else if (_peer) {

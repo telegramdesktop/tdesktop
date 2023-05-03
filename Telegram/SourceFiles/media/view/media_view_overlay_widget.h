@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h" // Data::CloudTheme.
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_open_common.h"
+#include "media/stories/media_stories_delegate.h"
 
 class History;
 
@@ -32,6 +33,7 @@ class PopupMenu;
 class LinkButton;
 class RoundButton;
 class RpWindow;
+class LayerManager;
 } // namespace Ui
 
 namespace Ui::GL {
@@ -50,17 +52,20 @@ struct Preview;
 } // namespace Theme
 } // namespace Window
 
-namespace Media {
-namespace Player {
+namespace Media::Player {
 struct TrackState;
-} // namespace Player
-namespace Streaming {
+} // namespace Media::Player
+
+namespace Media::Streaming {
 struct Information;
 struct Update;
 struct FrameWithInfo;
 enum class Error;
-} // namespace Streaming
-} // namespace Media
+} // namespace Media::Streaming
+
+namespace Media::Stories {
+class View;
+} // namespace Media::Stories
 
 namespace Media::View {
 
@@ -69,7 +74,8 @@ class Pip;
 
 class OverlayWidget final
 	: public ClickHandlerHost
-	, private PlaybackControls::Delegate {
+	, private PlaybackControls::Delegate
+	, private Stories::Delegate {
 public:
 	OverlayWidget();
 	~OverlayWidget();
@@ -217,6 +223,11 @@ private:
 	void playbackPauseMusic();
 	void switchToPip();
 
+	not_null<Ui::RpWidget*> storiesWrap() override;
+	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
+	auto storiesStickerOrEmojiChosen()
+		-> rpl::producer<ChatHelpers::FileChosen> override;
+
 	void hideControls(bool force = false);
 	void subscribeToScreenGeometry();
 
@@ -268,10 +279,15 @@ private:
 		not_null<HistoryItem*> item;
 		MsgId topicRootId = 0;
 	};
+	struct StoriesContext {
+		not_null<UserData*> user;
+		StoryId id = 0;
+	};
 	void setContext(std::variant<
 		v::null_t,
 		ItemContext,
-		not_null<PeerData*>> context);
+		not_null<PeerData*>,
+		StoriesContext> context);
 
 	void refreshLang();
 	void showSaveMsgFile();
@@ -550,6 +566,11 @@ private:
 	std::unique_ptr<PipWrap> _pip;
 	int _streamedCreated = 0;
 	bool _showAsPip = false;
+
+	std::unique_ptr<Stories::View> _stories;
+	UserData *_storiesUser = nullptr;
+	rpl::event_stream<ChatHelpers::FileChosen> _storiesStickerOrEmojiChosen;
+	std::unique_ptr<Ui::LayerManager> _layerBg;
 
 	const style::icon *_docIcon = nullptr;
 	style::color _docIconColor;

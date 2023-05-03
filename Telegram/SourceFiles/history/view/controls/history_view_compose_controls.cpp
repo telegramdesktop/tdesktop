@@ -2538,11 +2538,15 @@ bool ComposeControls::returnTabbedSelector() {
 }
 
 void ComposeControls::createTabbedPanel() {
-	auto descriptor = ChatHelpers::TabbedPanelDescriptor{
+	using namespace ChatHelpers;
+	auto descriptor = TabbedPanelDescriptor{
 		.regularWindow = _regularWindow,
-		.nonOwnedSelector = _selector,
+		.ownedSelector = (_ownedSelector
+			? object_ptr<TabbedSelector>::fromRaw(_ownedSelector.release())
+			: object_ptr<TabbedSelector>(nullptr)),
+		.nonOwnedSelector = _ownedSelector ? nullptr : _selector.get(),
 	};
-	setTabbedPanel(std::make_unique<ChatHelpers::TabbedPanel>(
+	setTabbedPanel(std::make_unique<TabbedPanel>(
 		_parent,
 		std::move(descriptor)));
 }

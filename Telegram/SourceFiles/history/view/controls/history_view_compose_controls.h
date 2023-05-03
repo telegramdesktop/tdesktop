@@ -315,7 +315,7 @@ private:
 	const not_null<Main::Session*> _session;
 
 	Window::SessionController * const _regularWindow = nullptr;
-	const std::unique_ptr<ChatHelpers::TabbedSelector> _ownedSelector;
+	std::unique_ptr<ChatHelpers::TabbedSelector> _ownedSelector;
 	const not_null<ChatHelpers::TabbedSelector*> _selector;
 	rpl::event_stream<ChatHelpers::FileChosen> _stickerOrEmojiChosen;
 

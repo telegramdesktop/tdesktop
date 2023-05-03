@@ -59,7 +59,7 @@ public:
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo) const = 0;
 
-	virtual void processChosenSticker(FileChosen chosen) const = 0;
+	virtual void processChosenSticker(FileChosen &&chosen) const = 0;
 
 	[[nodiscard]] virtual Window::SessionController *resolveWindow(
 		WindowUsage) const;

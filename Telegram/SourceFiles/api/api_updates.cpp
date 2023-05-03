@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
+#include "data/data_stories.h"
 #include "data/data_message_reactions.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -2517,7 +2518,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateTranscribedAudio: {
 		const auto &data = update.c_updateTranscribedAudio();
 		_session->api().transcribes().apply(data);
-	}
+	} break;
+
+	case mtpc_updateStories: {
+		_session->data().stories().apply(update.c_updateStories());
+	} break;
 
 	}
 }

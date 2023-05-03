@@ -548,6 +548,8 @@ PRIVATE
     data/data_sparse_ids.h
     data/data_sponsored_messages.cpp
     data/data_sponsored_messages.h
+    data/data_stories.cpp
+    data/data_stories.h
     data/data_streaming.cpp
     data/data_streaming.h
     data/data_thread.cpp
@@ -936,8 +938,6 @@ PRIVATE
     main/session/send_as_peers.h
     main/session/session_show.cpp
     main/session/session_show.h
-    media/system_media_controls_manager.h
-    media/system_media_controls_manager.cpp
     media/audio/media_audio.cpp
     media/audio/media_audio.h
     media/audio/media_audio_capture.cpp
@@ -962,6 +962,16 @@ PRIVATE
     media/player/media_player_volume_controller.h
     media/player/media_player_widget.cpp
     media/player/media_player_widget.h
+    media/stories/media_stories_delegate.cpp
+    media/stories/media_stories_delegate.h
+    media/stories/media_stories_header.cpp
+    media/stories/media_stories_header.h
+    media/stories/media_stories_reply.cpp
+    media/stories/media_stories_reply.h
+    media/stories/media_stories_slider.cpp
+    media/stories/media_stories_slider.h
+    media/stories/media_stories_view.cpp
+    media/stories/media_stories_view.h
     media/streaming/media_streaming_audio_track.cpp
     media/streaming/media_streaming_audio_track.h
     media/streaming/media_streaming_common.h
@@ -1007,6 +1017,8 @@ PRIVATE
     media/view/media_view_playback_progress.cpp
     media/view/media_view_playback_progress.h
     media/view/media_view_open_common.h
+    media/system_media_controls_manager.h
+    media/system_media_controls_manager.cpp
     menu/menu_antispam_validator.cpp
     menu/menu_antispam_validator.h
     menu/menu_item_download_files.cpp
