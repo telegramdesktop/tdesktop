@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/options.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/linux/base_linux_glibmm_helper.h"
+#include "base/platform/linux/base_linux_dbus_utilities.h"
+#include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "platform/platform_launcher.h"
@@ -24,12 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include "base/platform/linux/base_linux_glibmm_helper.h"
-#include "base/platform/linux/base_linux_dbus_utilities.h"
-#include "base/platform/linux/base_linux_xdp_utilities.h"
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -42,10 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <kshell.h>
 #include <ksandbox.h>
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
 #include <giomm.h>
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -68,7 +63,6 @@ typedef int (*XErrorHandler)(Display*, XErrorEvent*);
 typedef XErrorHandler (*LPXSETERRORHANDLER)(XErrorHandler);
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 typedef GApplication TDesktopApplication;
 typedef GApplicationClass TDesktopApplicationClass;
 
@@ -119,14 +113,12 @@ static void t_desktop_application_class_init(
 
 static void t_desktop_application_init(TDesktopApplication *application) {
 }
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
 namespace {
 
 constexpr auto kDesktopFile = ":/misc/org.telegram.desktop.desktop"_cs;
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 bool PortalAutostart(bool start, bool silent) {
 	if (cExeName().isEmpty()) {
 		return false;
@@ -564,7 +556,6 @@ void InstallLauncher() {
 		applicationsPath
 	});
 }
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 } // namespace
 
@@ -584,7 +575,6 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 }
 
 std::optional<bool> IsDarkMode() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	[[maybe_unused]] static const auto Inited = [] {
 		using XDPSettingWatcher = base::Platform::XDP::SettingWatcher;
 		static const XDPSettingWatcher Watcher(
@@ -619,21 +609,15 @@ std::optional<bool> IsDarkMode() {
 		}
 	} catch (...) {
 	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	return std::nullopt;
 }
 
 bool AutostartSupported() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	return true;
-#else // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	return false;
-#endif // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void AutostartToggle(bool enabled, Fn<void(bool)> done) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	const auto success = [&] {
 		const auto silent = !done;
 
@@ -660,7 +644,6 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 	if (done) {
 		done(enabled && success);
 	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 bool AutostartSkip() {
@@ -775,7 +758,6 @@ void start() {
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", base::IconName().toLatin1());
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	Glib::set_prgname(cExeName().toStdString());
 	Glib::set_application_name(AppName.data());
 
@@ -793,7 +775,6 @@ void start() {
 		"Application was built without embedded fonts, "
 		"this may lead to font issues.");
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),
@@ -887,10 +868,8 @@ void start() {
 	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	InstallLauncher();
 	LaunchGApplication();
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void finish() {
