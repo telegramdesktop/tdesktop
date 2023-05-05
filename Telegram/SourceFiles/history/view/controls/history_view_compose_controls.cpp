@@ -355,6 +355,7 @@ public:
 		rpl::producer<QString> title,
 		rpl::producer<QString> description,
 		rpl::producer<WebPageData*> page);
+	void previewUnregister();
 
 	[[nodiscard]] bool isDisplayed() const;
 	[[nodiscard]] bool isEditingMessage() const;
@@ -413,6 +414,7 @@ private:
 	rpl::event_stream<> _replyCancelled;
 	rpl::event_stream<> _forwardCancelled;
 	rpl::event_stream<> _previewCancelled;
+	rpl::lifetime _previewLifetime;
 
 	rpl::variable<FullMsgId> _editMsgId;
 	rpl::variable<FullMsgId> _replyToId;
@@ -677,17 +679,18 @@ void FieldHeader::resolveMessageData() {
 }
 
 void FieldHeader::previewRequested(
-	rpl::producer<QString> title,
-	rpl::producer<QString> description,
-	rpl::producer<WebPageData*> page) {
+		rpl::producer<QString> title,
+		rpl::producer<QString> description,
+		rpl::producer<WebPageData*> page) {
+	_previewLifetime.destroy();
 
 	std::move(
 		title
 	) | rpl::filter([=] {
 		return !_preview.cancelled;
-	}) | start_with_next([=](const QString &t) {
+	}) | rpl::start_with_next([=](const QString &t) {
 		_title = t;
-	}, lifetime());
+	}, _previewLifetime);
 
 	std::move(
 		description
@@ -695,7 +698,7 @@ void FieldHeader::previewRequested(
 		return !_preview.cancelled;
 	}) | rpl::start_with_next([=](const QString &d) {
 		_description = d;
-	}, lifetime());
+	}, _previewLifetime);
 
 	std::move(
 		page
@@ -704,8 +707,11 @@ void FieldHeader::previewRequested(
 	}) | rpl::start_with_next([=](WebPageData *p) {
 		_preview.data = p;
 		updateVisible();
-	}, lifetime());
+	}, _previewLifetime);
+}
 
+void FieldHeader::previewUnregister() {
+	_previewLifetime.destroy();
 }
 
 void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
@@ -996,10 +1002,6 @@ Main::Session &ComposeControls::session() const {
 }
 
 void ComposeControls::setHistory(SetHistoryArgs &&args) {
-	// Right now only single non-null set of history is supported.
-	// Otherwise initWebpageProcess should be updated / rewritten.
-	Expects(!_history && (*args.history));
-
 	_showSlowmodeError = std::move(args.showSlowmodeError);
 	_sendActionFactory = std::move(args.sendActionFactory);
 	_slowmodeSecondsLeft = rpl::single(0)
@@ -1014,6 +1016,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	}
 	unregisterDraftSources();
 	_history = history;
+	_historyLifetime.destroy();
 	_header->setHistory(args);
 	registerDraftSource();
 	_selector->setCurrentPeer(history ? history->peer.get() : nullptr);
@@ -1025,9 +1028,12 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	updateControlsVisibility();
 	updateFieldPlaceholder();
 	updateAttachBotsMenu();
-	//if (!_history) {
-	//	return;
-	//}
+
+	_sendAs = nullptr;
+	_silent = nullptr;
+	if (!_history) {
+		return;
+	}
 	const auto peer = _history->peer;
 	initSendAsButton(peer);
 	if (peer->isChat() && peer->asChat()->noParticipantInfo()) {
@@ -2134,7 +2140,7 @@ void ComposeControls::initSendAsButton(not_null<PeerData*> peer) {
 			updateControlsGeometry(_wrap->size());
 			orderControls();
 		}
-	}, _wrap->lifetime());
+	}, _historyLifetime);
 
 	updateSendAsButton();
 }
@@ -2218,7 +2224,7 @@ void ComposeControls::initVoiceRecordBar() {
 	_voiceRecordBar->setStartRecordingFilter([=] {
 		const auto error = [&]() -> std::optional<QString> {
 			const auto peer = _history ? _history->peer.get() : nullptr;
-			if (!peer) {
+			if (peer) {
 				if (const auto error = Data::RestrictionError(
 						peer,
 						ChatRestriction::SendVoiceMessages)) {
@@ -2448,10 +2454,9 @@ void ComposeControls::updateMessagesTTLShown() {
 }
 
 bool ComposeControls::updateSendAsButton() {
-	Expects(_history != nullptr);
-
-	const auto peer = _history->peer;
-	if (!_regularWindow
+	const auto peer = _history ? _history->peer.get() : nullptr;
+	if (!peer
+		|| !_regularWindow
 		|| isEditingMessage()
 		|| !session().sendAsPeers().shouldChoose(peer)) {
 		if (!_sendAs) {
@@ -2467,7 +2472,7 @@ bool ComposeControls::updateSendAsButton() {
 		st::sendAsButton);
 	Ui::SetupSendAsButton(
 		_sendAs.get(),
-		rpl::single(peer.get()),
+		rpl::single(peer),
 		_regularWindow);
 	return true;
 }
@@ -2781,15 +2786,18 @@ bool ComposeControls::handleCancelRequest() {
 }
 
 void ComposeControls::initWebpageProcess() {
-	Expects(_history);
+	if (!_history) {
+		_preview = nullptr;
+		_header->previewUnregister();
+		return;
+	}
 
-	auto &lifetime = _wrap->lifetime();
 	_preview = std::make_unique<WebpageProcessor>(_history, _field);
 
 	_preview->paintRequests(
 	) | rpl::start_with_next(crl::guard(_header.get(), [=] {
 		_header->update();
-	}), lifetime);
+	}), _historyLifetime);
 
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::Rights
@@ -2818,7 +2826,7 @@ void ComposeControls::initWebpageProcess() {
 				updateControlsGeometry(_wrap->size());
 			}
 		}
-	}, lifetime);
+	}, _historyLifetime);
 
 	_header->previewRequested(
 		_preview->titleChanges(),

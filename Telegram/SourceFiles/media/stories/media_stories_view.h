@@ -7,18 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_stories.h"
-
-namespace Ui {
-class RpWidget;
-} // namespace Ui
+namespace Data {
+struct StoriesList;
+} // namespace Data
 
 namespace Media::Stories {
 
-class Header;
-class Slider;
-class ReplyArea;
 class Delegate;
+class Controller;
 
 class View final {
 public:
@@ -26,14 +22,10 @@ public:
 	~View();
 
 	void show(const Data::StoriesList &list, int index);
+	[[nodiscard]] QRect contentGeometry() const;
 
 private:
-	const not_null<Delegate*> _delegate;
-	const not_null<Ui::RpWidget*> _wrap;
-
-	std::unique_ptr<Header> _header;
-	std::unique_ptr<Slider> _slider;
-	std::unique_ptr<ReplyArea> _replyArea;
+	const std::unique_ptr<Controller> _controller;
 
 };
 

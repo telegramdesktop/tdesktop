@@ -9,18 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "data/data_user.h"
-#include "media/stories/media_stories_delegate.h"
+#include "media/stories/media_stories_controller.h"
 #include "ui/controls/userpic_button.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
-#include "styles/style_boxes.h" // defaultUserpicButton.
+#include "styles/style_media_view.h"
 
 namespace Media::Stories {
 
-Header::Header(not_null<Delegate*> delegate)
-: _delegate(delegate) {
+Header::Header(not_null<Controller*> controller)
+: _controller(controller) {
 }
 
 Header::~Header() {
@@ -34,32 +34,37 @@ void Header::show(HeaderData data) {
 	_data = data;
 	if (userChanged) {
 		_date = nullptr;
-		const auto parent = _delegate->storiesWrap();
+		const auto parent = _controller->wrap();
 		auto widget = std::make_unique<Ui::RpWidget>(parent);
 		const auto raw = widget.get();
-		parent->sizeValue() | rpl::start_with_next([=](QSize size) {
-			raw->setGeometry(50, 50, 600, 100);
-		}, raw->lifetime());
 		raw->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 			raw,
 			data.user,
-			st::defaultUserpicButton);
-		userpic->move(0, 0);
+			st::storiesHeaderPhoto);
+		userpic->show();
+		userpic->move(
+			st::storiesHeaderMargin.left(),
+			st::storiesHeaderMargin.top());
 		const auto name = Ui::CreateChild<Ui::FlatLabel>(
 			raw,
 			data.user->firstName,
-			st::defaultFlatLabel);
-		name->move(100, 0);
+			st::storiesHeaderName);
+		name->move(st::storiesHeaderNamePosition);
 		raw->show();
 		_widget = std::move(widget);
+
+		_controller->layoutValue(
+		) | rpl::start_with_next([=](const Layout &layout) {
+			raw->setGeometry(layout.header);
+		}, raw->lifetime());
 	}
 	_date = std::make_unique<Ui::FlatLabel>(
 		_widget.get(),
 		Ui::FormatDateTime(base::unixtime::parse(data.date)),
-		st::defaultFlatLabel);
-	_date->move(100, 50);
+		st::storiesHeaderDate);
 	_date->show();
+	_date->move(st::storiesHeaderDatePosition);
 }
 
 } // namespace Media::Stories

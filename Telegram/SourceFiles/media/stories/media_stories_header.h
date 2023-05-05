@@ -16,24 +16,26 @@ class FlatLabel;
 
 namespace Media::Stories {
 
-class Delegate;
+class Controller;
 
 struct HeaderData {
 	not_null<UserData*> user;
 	TimeId date = 0;
 
 	friend inline auto operator<=>(HeaderData, HeaderData) = default;
+	friend inline bool operator==(HeaderData, HeaderData) = default;
 };
 
 class Header final {
 public:
-	explicit Header(not_null<Delegate*> delegate);
+	explicit Header(not_null<Controller*> controller);
 	~Header();
 
 	void show(HeaderData data);
 
 private:
-	const not_null<Delegate*> _delegate;
+	const not_null<Controller*> _controller;
+
 	std::unique_ptr<Ui::RpWidget> _widget;
 	std::unique_ptr<Ui::FlatLabel> _date;
 	std::optional<HeaderData> _data;

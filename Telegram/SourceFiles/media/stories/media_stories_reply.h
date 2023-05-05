@@ -7,30 +7,56 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
+
+namespace Api {
+struct SendOptions;
+} // namespace Api
+
 namespace HistoryView {
 class ComposeControls;
 } // namespace HistoryView
 
+namespace HistoryView::Controls {
+struct VoiceToSend;
+} // namespace HistoryView::Controls
+
 namespace Media::Stories {
 
-class Delegate;
+class Controller;
 
 struct ReplyAreaData {
-	not_null<UserData*> user;
+	UserData *user = nullptr;
+	StoryId id = 0;
 
 	friend inline auto operator<=>(ReplyAreaData, ReplyAreaData) = default;
+	friend inline bool operator==(ReplyAreaData, ReplyAreaData) = default;
 };
 
-class ReplyArea final {
+class ReplyArea final : public base::has_weak_ptr {
 public:
-	explicit ReplyArea(not_null<Delegate*> delegate);
+	explicit ReplyArea(not_null<Controller*> controller);
 	~ReplyArea();
 
+	void show(ReplyAreaData data);
+
 private:
+	using VoiceToSend = HistoryView::Controls::VoiceToSend;
+
+	void initGeometry();
+	void initActions();
+
+	void send(Api::SendOptions options);
+	void sendVoice(VoiceToSend &&data);
+	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
+
 	void showPremiumToast(not_null<DocumentData*> emoji);
 
-	const not_null<Delegate*> _delegate;
+	const not_null<Controller*> _controller;
 	const std::unique_ptr<HistoryView::ComposeControls> _controls;
+
+	ReplyAreaData _data;
+	bool _choosingAttach = false;
 
 	rpl::lifetime _lifetime;
 

@@ -389,9 +389,10 @@ private:
 
 	std::unique_ptr<WebpageProcessor> _preview;
 
-	rpl::lifetime _uploaderSubscriptions;
-
 	Fn<void()> _raiseEmojiSuggestions;
+
+	rpl::lifetime _historyLifetime;
+	rpl::lifetime _uploaderSubscriptions;
 
 };
 

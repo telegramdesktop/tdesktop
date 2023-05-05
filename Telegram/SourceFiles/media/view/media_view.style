@@ -10,6 +10,7 @@ using "ui/basic.style";
 using "ui/widgets/widgets.style";
 using "ui/menu_icons.style";
 using "media/player/media_player.style";
+using "boxes/boxes.style";
 
 mediaviewOverDuration: 150;
 
@@ -403,3 +404,41 @@ pipVolumeIcon2: icon {{ "player/player_volume_on", mediaviewPipControlsFg }};
 pipVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPipControlsFgOver }};
 
 speedSliderDividerSize: size(2px, 8px);
+
+storiesMaxSize: size(405px, 720px);
+storiesSlider: MediaSlider(mediaviewPlayback) {
+	width: 2px;
+	seekSize: size(2px, 2px);
+}
+storiesSliderMargin: margins(8px, 7px, 8px, 10px);
+storiesSliderSkip: 4px;
+storiesHeaderMargin: margins(12px, 3px, 12px, 8px);
+storiesHeaderPhoto: UserpicButton(defaultUserpicButton) {
+	size: size(28px, 28px);
+	photoSize: 28px;
+}
+storiesHeaderName: FlatLabel(defaultFlatLabel) {
+	textFg: mediaviewPipControlsFgOver; // #TODO stories
+	style: semiboldTextStyle;
+}
+storiesHeaderNamePosition: point(50px, 2px);
+storiesHeaderDate: FlatLabel(defaultFlatLabel) {
+	textFg: mediaviewPipControlsFg; // #TODO stories
+}
+storiesHeaderDatePosition: point(50px, 19px);
+storiesControlsMinWidth: 200px;
+storiesFieldMargin: margins(0px, 14px, 0px, 16px);
+storiesAttach: IconButton(defaultIconButton) {
+	width: 44px;
+	height: 46px;
+
+	icon: icon {{ "chat/input_attach", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_attach", historyComposeIconFgOver }};
+
+	rippleAreaPosition: point(2px, 3px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+storiesSideSkip: 145px;

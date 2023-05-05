@@ -962,6 +962,8 @@ PRIVATE
     media/player/media_player_volume_controller.h
     media/player/media_player_widget.cpp
     media/player/media_player_widget.h
+    media/stories/media_stories_controller.cpp
+    media/stories/media_stories_controller.h
     media/stories/media_stories_delegate.cpp
     media/stories/media_stories_delegate.h
     media/stories/media_stories_header.cpp

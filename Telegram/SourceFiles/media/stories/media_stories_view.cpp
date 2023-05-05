@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_view.h"
 
+#include "media/stories/media_stories_controller.h"
 #include "media/stories/media_stories_delegate.h"
 #include "media/stories/media_stories_header.h"
 #include "media/stories/media_stories_slider.h"
@@ -15,23 +16,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media::Stories {
 
 View::View(not_null<Delegate*> delegate)
-: _delegate(delegate)
-, _wrap(_delegate->storiesWrap())
-, _header(std::make_unique<Header>(_delegate))
-, _slider(std::make_unique<Slider>())
-, _replyArea(std::make_unique<ReplyArea>(_delegate)) {
+: _controller(std::make_unique<Controller>(delegate)) {
 }
 
 View::~View() = default;
 
 void View::show(const Data::StoriesList &list, int index) {
-	Expects(index < list.items.size());
+	_controller->show(list, index);
+}
 
-	const auto &item = list.items[index];
-	_header->show({
-		.user = list.user,
-		.date = item.date,
-	});
+QRect View::contentGeometry() const {
+	return _controller->layout().content;
 }
 
 } // namespace Media::Stories

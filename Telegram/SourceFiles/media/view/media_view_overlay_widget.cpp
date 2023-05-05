@@ -1543,6 +1543,14 @@ void OverlayWidget::recountSkipTop() {
 }
 
 void OverlayWidget::resizeContentByScreenSize() {
+	if (_stories) {
+		const auto content = _stories->contentGeometry();
+		_x = content.x();
+		_y = content.y();
+		_w = content.width();
+		_h = content.height();
+		return;
+	}
 	recountSkipTop();
 	const auto availableWidth = width();
 	const auto countZoomFor = [&](int outerw, int outerh) {
