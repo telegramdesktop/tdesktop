@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QSystemTrayIcon>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
+#include <QtCore/QAbstractEventDispatcher>
 
 #include <kshell.h>
 #include <ksandbox.h>
@@ -853,6 +854,12 @@ namespace ThirdParty {
 void start() {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
+
+	if (!QCoreApplication::eventDispatcher()->inherits(
+		"QEventDispatcherGlib")) {
+		g_warning("Qt is running without GLib event loop integration, "
+			"except various functionality to not to work.");
+	}
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	// tdesktop doesn't use xlib by itself,
