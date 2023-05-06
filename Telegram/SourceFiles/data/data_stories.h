@@ -15,10 +15,13 @@ namespace Data {
 class Session;
 
 struct StoryPrivacy {
+	friend inline bool operator==(StoryPrivacy, StoryPrivacy) = default;
 };
 
 struct StoryMedia {
 	std::variant<not_null<PhotoData*>, not_null<DocumentData*>> data;
+
+	friend inline bool operator==(StoryMedia, StoryMedia) = default;
 };
 
 struct StoryItem {
@@ -27,12 +30,27 @@ struct StoryItem {
 	TextWithEntities caption;
 	TimeId date = 0;
 	StoryPrivacy privacy;
+
+	friend inline bool operator==(StoryItem, StoryItem) = default;
 };
 
 struct StoriesList {
 	not_null<UserData*> user;
 	std::vector<StoryItem> items;
 	int total = 0;
+
+	friend inline bool operator==(StoriesList, StoriesList) = default;
+};
+
+struct FullStoryId {
+	UserData *user = nullptr;
+	StoryId id = 0;
+
+	explicit operator bool() const {
+		return user != nullptr && id != 0;
+	}
+	friend inline auto operator<=>(FullStoryId, FullStoryId) = default;
+	friend inline bool operator==(FullStoryId, FullStoryId) = default;
 };
 
 class Stories final {

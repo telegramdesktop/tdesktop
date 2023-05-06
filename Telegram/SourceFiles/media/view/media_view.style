@@ -406,11 +406,8 @@ pipVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPipControlsFgOve
 speedSliderDividerSize: size(2px, 8px);
 
 storiesMaxSize: size(405px, 720px);
-storiesSlider: MediaSlider(mediaviewPlayback) {
-	width: 2px;
-	seekSize: size(2px, 2px);
-}
-storiesSliderMargin: margins(8px, 7px, 8px, 10px);
+storiesSliderWidth: 2px;
+storiesSliderMargin: margins(8px, 7px, 8px, 11px);
 storiesSliderSkip: 4px;
 storiesHeaderMargin: margins(12px, 3px, 12px, 8px);
 storiesHeaderPhoto: UserpicButton(defaultUserpicButton) {
@@ -418,14 +415,14 @@ storiesHeaderPhoto: UserpicButton(defaultUserpicButton) {
 	photoSize: 28px;
 }
 storiesHeaderName: FlatLabel(defaultFlatLabel) {
-	textFg: mediaviewPipControlsFgOver; // #TODO stories
+	textFg: mediaviewControlFg;
 	style: semiboldTextStyle;
 }
-storiesHeaderNamePosition: point(50px, 2px);
+storiesHeaderNamePosition: point(50px, 0px);
 storiesHeaderDate: FlatLabel(defaultFlatLabel) {
-	textFg: mediaviewPipControlsFg; // #TODO stories
+	textFg: mediaviewControlFg;
 }
-storiesHeaderDatePosition: point(50px, 19px);
+storiesHeaderDatePosition: point(50px, 16px);
 storiesControlsMinWidth: 200px;
 storiesFieldMargin: margins(0px, 14px, 0px, 16px);
 storiesAttach: IconButton(defaultIconButton) {

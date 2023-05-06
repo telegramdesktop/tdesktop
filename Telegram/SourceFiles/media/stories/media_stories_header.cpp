@@ -18,6 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
+namespace {
+
+constexpr auto kNameOpacity = 1.;
+constexpr auto kDateOpacity = 0.6;
+
+} // namespace
 
 Header::Header(not_null<Controller*> controller)
 : _controller(controller) {
@@ -50,6 +56,7 @@ void Header::show(HeaderData data) {
 			raw,
 			data.user->firstName,
 			st::storiesHeaderName);
+		name->setOpacity(kNameOpacity);
 		name->move(st::storiesHeaderNamePosition);
 		raw->show();
 		_widget = std::move(widget);
@@ -63,6 +70,7 @@ void Header::show(HeaderData data) {
 		_widget.get(),
 		Ui::FormatDateTime(base::unixtime::parse(data.date)),
 		st::storiesHeaderDate);
+	_date->setOpacity(kDateOpacity);
 	_date->show();
 	_date->move(st::storiesHeaderDatePosition);
 }

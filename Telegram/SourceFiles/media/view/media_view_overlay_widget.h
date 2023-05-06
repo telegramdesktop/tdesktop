@@ -26,6 +26,7 @@ class History;
 namespace Data {
 class PhotoMedia;
 class DocumentMedia;
+struct FullStoryId;
 } // namespace Data
 
 namespace Ui {
@@ -227,6 +228,9 @@ private:
 	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
 	auto storiesStickerOrEmojiChosen()
 		-> rpl::producer<ChatHelpers::FileChosen> override;
+	void storiesJumpTo(Data::FullStoryId id) override;
+	bool storiesPaused() override;
+	void storiesTogglePaused(bool paused) override;
 
 	void hideControls(bool force = false);
 	void subscribeToScreenGeometry();
@@ -458,7 +462,7 @@ private:
 	void applyVideoSize();
 	[[nodiscard]] bool videoShown() const;
 	[[nodiscard]] QSize videoSize() const;
-	[[nodiscard]] bool videoIsGifOrUserpic() const;
+	[[nodiscard]] bool streamingRequiresControls() const;
 	[[nodiscard]] QImage videoFrame() const; // ARGB (changes prepare format)
 	[[nodiscard]] QImage currentVideoFrameImage() const; // RGB (may convert)
 	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const; // YUV

@@ -179,7 +179,6 @@ StoryId Stories::generate(
 		32,
 		32
 	)) | rpl::start_with_next([&](SharedMediaResult &&result) {
-		stories.total = result.count.value_or(1);
 		if (!result.messageIds.contains(itemId)) {
 			result.messageIds.emplace(itemId);
 		}
@@ -214,6 +213,9 @@ StoryId Stories::generate(
 				}
 			}
 		}
+		stories.total = std::max(
+			result.count.value_or(1),
+			int(result.messageIds.size()));
 		const auto i = ranges::find(_all, stories.user, &StoriesList::user);
 		if (i != end(_all)) {
 			*i = std::move(stories);

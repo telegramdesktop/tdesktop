@@ -251,18 +251,14 @@ struct OverlayWidget::Streamed {
 	Streamed(
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin,
-		not_null<QWidget*> controlsParent,
-		not_null<PlaybackControls::Delegate*> controlsDelegate,
 		Fn<void()> waitingCallback);
 	Streamed(
 		not_null<PhotoData*> photo,
 		Data::FileOrigin origin,
-		not_null<QWidget*> controlsParent,
-		not_null<PlaybackControls::Delegate*> controlsDelegate,
 		Fn<void()> waitingCallback);
 
 	Streaming::Instance instance;
-	PlaybackControls controls;
+	std::unique_ptr<PlaybackControls> controls;
 	std::unique_ptr<base::PowerSaveBlocker> powerSaveBlocker;
 
 	bool withSound = false;
@@ -289,21 +285,15 @@ struct OverlayWidget::PipWrap {
 OverlayWidget::Streamed::Streamed(
 	not_null<DocumentData*> document,
 	Data::FileOrigin origin,
-	not_null<QWidget*> controlsParent,
-	not_null<PlaybackControls::Delegate*> controlsDelegate,
 	Fn<void()> waitingCallback)
-: instance(document, origin, std::move(waitingCallback))
-, controls(controlsParent, controlsDelegate) {
+: instance(document, origin, std::move(waitingCallback)) {
 }
 
 OverlayWidget::Streamed::Streamed(
 	not_null<PhotoData*> photo,
 	Data::FileOrigin origin,
-	not_null<QWidget*> controlsParent,
-	not_null<PlaybackControls::Delegate*> controlsDelegate,
 	Fn<void()> waitingCallback)
-: instance(photo, origin, std::move(waitingCallback))
-, controls(controlsParent, controlsDelegate) {
+: instance(photo, origin, std::move(waitingCallback)) {
 }
 
 OverlayWidget::PipWrap::PipWrap(
@@ -542,7 +532,9 @@ OverlayWidget::OverlayWidget()
 		Core::App().calls().currentGroupCallValue(),
 		_1 || _2
 	) | rpl::start_with_next([=](bool call) {
-		if (!_streamed || videoIsGifOrUserpic()) {
+		if (!_streamed
+			|| !_document
+			|| (_document->isAnimation() && !_document->isVideoMessage())) {
 			return;
 		} else if (call) {
 			playbackPauseOnCall();
@@ -583,7 +575,10 @@ void OverlayWidget::setupWindow() {
 			return Flag::None | Flag(0);
 		}
 		const auto inControls = (_over != OverNone) && (_over != OverVideo);
-		if (inControls || (_streamed && _streamed->controls.dragging())) {
+		if (inControls
+			|| (_streamed
+				&& _streamed->controls
+				&& _streamed->controls->dragging())) {
 			return Flag::None | Flag(0);
 		} else if ((_w > _widget->width() || _h > _widget->height())
 				&& (widgetPoint.y() > st::mediaviewHeaderTop)
@@ -881,10 +876,10 @@ QSize OverlayWidget::videoSize() const {
 	return flipSizeByRotation(_streamed->instance.info().video.size);
 }
 
-bool OverlayWidget::videoIsGifOrUserpic() const {
-	return _streamed
-		&& (!_document
-			|| (_document->isAnimation() && !_document->isVideoMessage()));
+bool OverlayWidget::streamingRequiresControls() const {
+	return !_stories
+		&& _document
+		&& (!_document->isAnimation() || _document->isVideoMessage());
 }
 
 QImage OverlayWidget::videoFrame() const {
@@ -979,13 +974,13 @@ void OverlayWidget::documentUpdated(not_null<DocumentData*> document) {
 			updateDocSize();
 			_widget->update(_docRect);
 		}
-	} else if (_streamed) {
+	} else if (_streamed && _streamed->controls) {
 		const auto ready = _documentMedia->loaded()
 			? _document->size
 			: _document->loading()
 			? std::clamp(_document->loadOffset(), int64(), _document->size)
 			: 0;
-		_streamed->controls.setLoadingProgress(ready, _document->size);
+		_streamed->controls->setLoadingProgress(ready, _document->size);
 	}
 }
 
@@ -1013,7 +1008,10 @@ void OverlayWidget::updateDocSize() {
 }
 
 void OverlayWidget::refreshNavVisibility() {
-	if (_sharedMediaData) {
+	if (_stories) {
+		_leftNavVisible = _stories->jumpAvailable(-1);
+		_rightNavVisible = _stories->jumpAvailable(1);
+	} else if (_sharedMediaData) {
 		_leftNavVisible = _index && (*_index > 0);
 		_rightNavVisible = _index && (*_index + 1 < _sharedMediaData->size());
 	} else if (_userPhotosData) {
@@ -1029,7 +1027,7 @@ void OverlayWidget::refreshNavVisibility() {
 }
 
 bool OverlayWidget::contentCanBeSaved() const {
-	if (hasCopyMediaRestriction()) {
+	if (_stories || hasCopyMediaRestriction()) {
 		return false;
 	} else if (_photo) {
 		return _photo->hasVideo() || _photoMedia->loaded();
@@ -1108,7 +1106,7 @@ void OverlayWidget::updateControls() {
 		QPoint(),
 		QSize(st::mediaviewIconOver, st::mediaviewIconOver));
 	_saveVisible = contentCanBeSaved();
-	_rotateVisible = !_themePreviewShown;
+	_rotateVisible = !_themePreviewShown && !_stories;
 	const auto navRect = [&](int i) {
 		return QRect(width() - st::mediaviewIconSize.width() * i,
 			height() - st::mediaviewIconSize.height(),
@@ -1181,8 +1179,8 @@ void OverlayWidget::refreshCaptionGeometry() {
 		_groupThumbs = nullptr;
 		_groupThumbsRect = QRect();
 	}
-	const auto captionBottom = (_streamed && !videoIsGifOrUserpic())
-		? (_streamed->controls.y() - st::mediaviewCaptionMargin.height())
+	const auto captionBottom = (_streamed && _streamed->controls)
+		? (_streamed->controls->y() - st::mediaviewCaptionMargin.height())
 		: _groupThumbs
 		? _groupThumbsTop
 		: height() - st::mediaviewCaptionMargin.height();
@@ -1523,9 +1521,9 @@ void OverlayWidget::contentSizeChanged() {
 }
 
 void OverlayWidget::recountSkipTop() {
-	const auto bottom = (!_streamed || videoIsGifOrUserpic())
+	const auto bottom = (!_streamed || !_streamed->controls)
 		? height()
-		: (_streamed->controls.y() - st::mediaviewCaptionPadding.bottom());
+		: (_streamed->controls->y() - st::mediaviewCaptionPadding.bottom());
 	const auto skipHeightBottom = (height() - bottom);
 	_skipTop = std::min(
 		std::max(
@@ -1869,12 +1867,12 @@ void OverlayWidget::toggleFullScreen(bool fullscreen) {
 }
 
 void OverlayWidget::activateControls() {
-	if (!_menu && !_mousePressed) {
+	if (!_menu && !_mousePressed && !_stories) {
 		_controlsHideTimer.callOnce(st::mediaviewWaitHide);
 	}
 	if (_fullScreenVideo) {
-		if (_streamed) {
-			_streamed->controls.showAnimated();
+		if (_streamed && _streamed->controls) {
+			_streamed->controls->showAnimated();
 		}
 	}
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
@@ -1888,16 +1886,23 @@ void OverlayWidget::activateControls() {
 }
 
 void OverlayWidget::hideControls(bool force) {
-	if (!force) {
+	if (_stories) {
+		_controlsState = ControlsShown;
+		_controlsOpacity = anim::value(1);
+		_helper->setControlsOpacity(1.);
+		return;
+	} else if (!force) {
 		if (!_dropdown->isHidden()
-			|| (_streamed && _streamed->controls.hasMenu())
+			|| (_streamed
+				&& _streamed->controls
+				&& _streamed->controls->hasMenu())
 			|| _menu
 			|| _mousePressed) {
 			return;
 		}
 	}
-	if (_fullScreenVideo) {
-		_streamed->controls.hideAnimated();
+	if (_fullScreenVideo && _streamed && _streamed->controls) {
+		_streamed->controls->hideAnimated();
 	}
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
 
@@ -2959,7 +2964,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo) {
 	refreshMediaViewer();
 
 	_staticContent = QImage();
-	if (_photo->videoCanBePlayed()) {
+	if (!_stories && _photo->videoCanBePlayed()) {
 		initStreaming();
 	}
 
@@ -3133,7 +3138,7 @@ void OverlayWidget::displayDocument(
 	}
 	refreshFromLabel();
 	_blurred = false;
-	if (_showAsPip && _streamed && !videoIsGifOrUserpic()) {
+	if (_showAsPip && _streamed && _streamed->controls) {
 		switchToPip();
 	} else {
 		displayFinished();
@@ -3348,20 +3353,12 @@ void OverlayWidget::applyVideoSize() {
 bool OverlayWidget::createStreamingObjects() {
 	Expects(_photo || _document);
 
+	const auto origin = fileOrigin();
+	const auto callback = [=] { waitingAnimationCallback(); };
 	if (_document) {
-		_streamed = std::make_unique<Streamed>(
-			_document,
-			fileOrigin(),
-			_body,
-			static_cast<PlaybackControls::Delegate*>(this),
-			[=] { waitingAnimationCallback(); });
+		_streamed = std::make_unique<Streamed>(_document, origin, callback);
 	} else {
-		_streamed = std::make_unique<Streamed>(
-			_photo,
-			fileOrigin(),
-			_body,
-			static_cast<PlaybackControls::Delegate*>(this),
-			[=] { waitingAnimationCallback(); });
+		_streamed = std::make_unique<Streamed>(_photo, origin, callback);
 	}
 	if (!_streamed->instance.valid()) {
 		_streamed = nullptr;
@@ -3375,12 +3372,12 @@ bool OverlayWidget::createStreamingObjects() {
 			|| _document->isVideoFile()
 			|| _document->isVoiceMessage()
 			|| _document->isVideoMessage());
-
-	if (videoIsGifOrUserpic()) {
-		_streamed->controls.hide();
-	} else {
+	if (streamingRequiresControls()) {
+		_streamed->controls = std::make_unique<PlaybackControls>(
+			_body,
+			static_cast<PlaybackControls::Delegate*>(this));
+		_streamed->controls->show();
 		refreshClipControllerGeometry();
-		_streamed->controls.show();
 	}
 	return true;
 }
@@ -3569,7 +3566,7 @@ void OverlayWidget::initThemePreview() {
 }
 
 void OverlayWidget::refreshClipControllerGeometry() {
-	if (!_streamed || videoIsGifOrUserpic()) {
+	if (!_streamed || !_streamed->controls) {
 		return;
 	}
 
@@ -3584,13 +3581,15 @@ void OverlayWidget::refreshClipControllerGeometry() {
 	const auto controllerWidth = std::min(
 		st::mediaviewControllerSize.width(),
 		width() - 2 * skip);
-	_streamed->controls.resize(
+	_streamed->controls->resize(
 		controllerWidth,
 		st::mediaviewControllerSize.height());
-	_streamed->controls.move(
+	_streamed->controls->move(
 		(width() - controllerWidth) / 2,
-		controllerBottom - _streamed->controls.height() - st::mediaviewCaptionPadding.bottom());
-	Ui::SendPendingMoveResizeEvents(&_streamed->controls);
+		(controllerBottom
+			- _streamed->controls->height()
+			- st::mediaviewCaptionPadding.bottom()));
+	Ui::SendPendingMoveResizeEvents(_streamed->controls.get());
 }
 
 void OverlayWidget::playbackControlsPlay() {
@@ -3614,7 +3613,7 @@ void OverlayWidget::playbackControlsFromFullScreen() {
 }
 
 void OverlayWidget::playbackControlsToPictureInPicture() {
-	if (!videoIsGifOrUserpic()) {
+	if (_streamed && _streamed->controls) {
 		switchToPip();
 	}
 }
@@ -3775,7 +3774,7 @@ void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
 		Core::App().settings().setVideoPlaybackSpeed(speed);
 		Core::App().saveSettingsDelayed();
 	}
-	if (_streamed && !videoIsGifOrUserpic()) {
+	if (_streamed && _streamed->controls) {
 		DEBUG_LOG(("Media playback speed: %1 to _streamed.").arg(speed));
 		_streamed->instance.setSpeed(speed);
 	}
@@ -3921,10 +3920,66 @@ auto OverlayWidget::storiesStickerOrEmojiChosen()
 	return _storiesStickerOrEmojiChosen.events();
 }
 
+void OverlayWidget::storiesJumpTo(Data::FullStoryId id) {
+	Expects(_stories != nullptr);
+
+	if (!id) {
+		close();
+		return;
+	}
+	const auto &all = id.user->owner().stories().all();
+	const auto i = ranges::find(
+		all,
+		not_null(id.user),
+		&Data::StoriesList::user);
+	if (i == end(all)) {
+		close();
+		return;
+	}
+	const auto j = ranges::find(i->items, id.id, &Data::StoryItem::id);
+	if (j == end(i->items)) {
+		close();
+		return;
+	}
+	setContext(StoriesContext{ i->user, id.id });
+	clearStreaming();
+	_streamingStartPaused = false;
+	const auto &data = j->media.data;
+	if (const auto photo = std::get_if<not_null<PhotoData*>>(&data)) {
+		displayPhoto(*photo);
+	} else {
+		displayDocument(v::get<not_null<DocumentData*>>(data));
+	}
+}
+
+bool OverlayWidget::storiesPaused() {
+	return _streamed
+		&& !_streamed->instance.player().failed()
+		&& !_streamed->instance.player().finished()
+		&& _streamed->instance.player().active()
+		&& _streamed->instance.player().paused();
+}
+
+void OverlayWidget::storiesTogglePaused(bool paused) {
+	if (!_streamed
+		|| _streamed->instance.player().failed()
+		|| _streamed->instance.player().finished()
+		|| !_streamed->instance.player().active()) {
+		return;
+	} else if (_streamed->instance.player().paused()) {
+		_streamed->instance.resume();
+		updatePlaybackState();
+		playbackPauseMusic();
+	} else {
+		_streamed->instance.pause();
+		updatePlaybackState();
+	}
+}
+
 void OverlayWidget::playbackToggleFullScreen() {
 	Expects(_streamed != nullptr);
 
-	if (!videoShown() || (videoIsGifOrUserpic() && !_fullScreenVideo)) {
+	if (!videoShown() || (!_streamed->controls && !_fullScreenVideo)) {
 		return;
 	}
 	_fullScreenVideo = !_fullScreenVideo;
@@ -3936,10 +3991,12 @@ void OverlayWidget::playbackToggleFullScreen() {
 	setZoomLevel(
 		_fullScreenVideo ? kZoomToScreenLevel : _fullScreenZoomCache,
 		true);
-	if (!_fullScreenVideo) {
-		_streamed->controls.showAnimated();
+	if (_streamed->controls) {
+		if (!_fullScreenVideo) {
+			_streamed->controls->showAnimated();
+		}
+		_streamed->controls->setInFullScreen(_fullScreenVideo);
 	}
-	_streamed->controls.setInFullScreen(_fullScreenVideo);
 	_touchbarFullscreenToggled.fire_copy(_fullScreenVideo);
 	updateControls();
 	update();
@@ -3981,14 +4038,19 @@ void OverlayWidget::playbackPauseMusic() {
 void OverlayWidget::updatePlaybackState() {
 	Expects(_streamed != nullptr);
 
-	if (videoIsGifOrUserpic()) {
+	if (!_streamed->controls && !_stories) {
 		return;
 	}
 	const auto state = _streamed->instance.player().prepareLegacyState();
 	if (state.position != kTimeUnknown && state.length != kTimeUnknown) {
-		_streamed->controls.updatePlayback(state);
-		updatePowerSaveBlocker(state);
-		_touchbarTrackState.fire_copy(state);
+		if (_streamed->controls) {
+			_streamed->controls->updatePlayback(state);
+			_touchbarTrackState.fire_copy(state);
+			updatePowerSaveBlocker(state);
+		}
+		if (_stories) {
+			_stories->updatePlayback(state);
+		}
 	}
 }
 
@@ -4050,9 +4112,15 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 			renderer->paintTransformedVideoFrame(contentGeometry());
 			if (_streamed->instance.player().ready()) {
 				_streamed->instance.markFrameShown();
+				if (_stories) {
+					_stories->ready();
+				}
 			}
 		} else {
 			validatePhotoCurrentImage();
+			if (_stories && !_blurred) {
+				_stories->ready();
+			}
 			const auto fillTransparentBackground = (!_document
 				|| (!_document->sticker() && !_document->isVideoMessage()))
 				&& _staticContentTransparent;
@@ -4077,7 +4145,9 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 	const auto opacity = _fullScreenVideo ? 0. : _controlsOpacity.current();
 	if (opacity > 0) {
 		paintControls(renderer, opacity);
-		renderer->paintFooter(footerGeometry(), opacity);
+		if (!_stories) {
+			renderer->paintFooter(footerGeometry(), opacity);
+		}
 		if (!_caption.isEmpty()) {
 			renderer->paintCaption(captionGeometry(), opacity);
 		}
@@ -4510,6 +4580,10 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 	const auto key = e->key();
 	const auto modifiers = e->modifiers();
 	const auto ctrl = modifiers.testFlag(Qt::ControlModifier);
+	if (_stories && key == Qt::Key_Space && _down != OverVideo) {
+		_stories->togglePaused(!_stories->paused());
+		return;
+	}
 	if (_streamed) {
 		// Ctrl + F for full screen toggle is in eventFilter().
 		const auto toggleFull = (modifiers.testFlag(Qt::AltModifier) || ctrl)
@@ -4833,7 +4907,9 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 }
 
 bool OverlayWidget::moveToNext(int delta) {
-	if (!_index) {
+	if (_stories) {
+		return _stories->jumpFor(delta);
+	} else if (!_index) {
 		return false;
 	}
 	auto newIndex = *_index + delta;
@@ -4928,6 +5004,9 @@ void OverlayWidget::handleMousePress(
 				|| _over == OverMore
 				|| _over == OverVideo) {
 				_down = _over;
+				if (_over == OverVideo && _stories) {
+					_stories->togglePaused(true);
+				}
 			} else if (!_saveMsg.contains(position) || !isSaveMsgShown()) {
 				_pressed = true;
 				_dragging = 0;
@@ -4950,9 +5029,12 @@ bool OverlayWidget::handleDoubleClick(
 
 	if (_over != OverVideo || !_streamed || button != Qt::LeftButton) {
 		return false;
+	} else if (_stories) {
+		toggleFullScreen(_windowed);
+	} else {
+		playbackToggleFullScreen();
+		playbackPauseResume();
 	}
-	playbackToggleFullScreen();
-	playbackPauseResume();
 	return true;
 }
 
@@ -5090,11 +5172,11 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverLeftNav);
 	} else if (_rightNavVisible && _rightNav.contains(pos)) {
 		updateOverState(OverRightNav);
-	} else if (_from && _nameNav.contains(pos)) {
+	} else if (!_stories && _from && _nameNav.contains(pos)) {
 		updateOverState(OverName);
-	} else if (_message && _message->isRegular() && _dateNav.contains(pos)) {
+	} else if (!_stories && _message && _message->isRegular() && _dateNav.contains(pos)) {
 		updateOverState(OverDate);
-	} else if (_headerHasLink && _headerNav.contains(pos)) {
+	} else if (!_stories && _headerHasLink && _headerNav.contains(pos)) {
 		updateOverState(OverHeader);
 	} else if (_saveVisible && _saveNav.contains(pos)) {
 		updateOverState(OverSave);
@@ -5104,10 +5186,14 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverIcon);
 	} else if (_moreNav.contains(pos)) {
 		updateOverState(OverMore);
-	} else if (documentContentShown() && finalContentRect().contains(pos)) {
-		if ((_document->isVideoFile() || _document->isVideoMessage()) && _streamed) {
+	} else if (contentShown() && finalContentRect().contains(pos)) {
+		if (_stories) {
 			updateOverState(OverVideo);
-		} else if (!_streamed && !_documentMedia->loaded()) {
+		} else if (_streamed
+			&& _document
+			&& (_document->isVideoFile() || _document->isVideoMessage())) {
+			updateOverState(OverVideo);
+		} else if (!_streamed && _document && !_documentMedia->loaded()) {
 			updateOverState(OverIcon);
 		} else if (_over != OverNone) {
 			updateOverState(OverNone);
@@ -5163,7 +5249,9 @@ void OverlayWidget::handleMouseRelease(
 	} else if (_over == OverMore && _down == OverMore) {
 		InvokeQueued(_widget, [=] { showDropdown(); });
 	} else if (_over == OverVideo && _down == OverVideo) {
-		if (_streamed) {
+		if (_stories) {
+			_stories->togglePaused(false);
+		} else if (_streamed) {
 			playbackPauseResume();
 		}
 	} else if (_pressed) {

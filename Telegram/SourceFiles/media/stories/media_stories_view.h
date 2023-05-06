@@ -11,6 +11,10 @@ namespace Data {
 struct StoriesList;
 } // namespace Data
 
+namespace Media::Player {
+struct TrackState;
+} // namespace Media::Player
+
 namespace Media::Stories {
 
 class Delegate;
@@ -22,7 +26,17 @@ public:
 	~View();
 
 	void show(const Data::StoriesList &list, int index);
+	void ready();
+
 	[[nodiscard]] QRect contentGeometry() const;
+
+	void updatePlayback(const Player::TrackState &state);
+
+	[[nodiscard]] bool jumpAvailable(int delta) const;
+	[[nodiscard]] bool jumpFor(int delta) const;
+
+	[[nodiscard]] bool paused() const;
+	void togglePaused(bool paused);
 
 private:
 	const std::unique_ptr<Controller> _controller;

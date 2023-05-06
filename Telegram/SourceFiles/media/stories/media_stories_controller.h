@@ -7,6 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_stories.h"
+
+namespace base {
+class PowerSaveBlocker;
+} // namespace base
+
 namespace ChatHelpers {
 class Show;
 struct FileChosen;
@@ -20,23 +26,16 @@ namespace Ui {
 class RpWidget;
 } // namespace Ui
 
+namespace Media::Player {
+struct TrackState;
+} // namespace Media::Player
+
 namespace Media::Stories {
 
 class Header;
 class Slider;
 class ReplyArea;
 class Delegate;
-
-struct ShownId {
-	UserData *user = nullptr;
-	StoryId id = 0;
-
-	explicit operator bool() const {
-		return user != nullptr && id != 0;
-	}
-	friend inline auto operator<=>(ShownId, ShownId) = default;
-	friend inline bool operator==(ShownId, ShownId) = default;
-};
 
 enum class HeaderLayout {
 	Normal,
@@ -59,6 +58,7 @@ struct Layout {
 class Controller final {
 public:
 	explicit Controller(not_null<Delegate*> delegate);
+	~Controller();
 
 	[[nodiscard]] not_null<Ui::RpWidget*> wrap() const;
 	[[nodiscard]] Layout layout() const;
@@ -69,9 +69,22 @@ public:
 	-> rpl::producer<ChatHelpers::FileChosen>;
 
 	void show(const Data::StoriesList &list, int index);
+	void ready();
+
+	void updateVideoPlayback(const Player::TrackState &state);
+
+	[[nodiscard]] bool jumpAvailable(int delta) const;
+	[[nodiscard]] bool jumpFor(int delta);
+	[[nodiscard]] bool paused() const;
+	void togglePaused(bool paused);
 
 private:
+	class PhotoPlayback;
+
 	void initLayout();
+	void updatePhotoPlayback(const Player::TrackState &state);
+	void updatePlayback(const Player::TrackState &state);
+	void updatePowerSaveBlocker(const Player::TrackState &state);
 
 	const not_null<Delegate*> _delegate;
 
@@ -82,7 +95,12 @@ private:
 	const std::unique_ptr<Slider> _slider;
 	const std::unique_ptr<ReplyArea> _replyArea;
 
-	ShownId _shown;
+	Data::FullStoryId _shown;
+	std::optional<Data::StoriesList> _list;
+	int _index = 0;
+	std::unique_ptr<PhotoPlayback> _photoPlayback;
+
+	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
 
 	rpl::lifetime _lifetime;
 

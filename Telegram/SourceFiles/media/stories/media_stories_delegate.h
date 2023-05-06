@@ -12,11 +12,20 @@ class Show;
 struct FileChosen;
 } // namespace ChatHelpers
 
+namespace Data {
+struct FullStoryId;
+} // namespace Data
+
 namespace Ui {
 class RpWidget;
 } // namespace Ui
 
 namespace Media::Stories {
+
+enum class JumpReason {
+	Finished,
+	User,
+};
 
 class Delegate {
 public:
@@ -25,6 +34,9 @@ public:
 		-> std::shared_ptr<ChatHelpers::Show> = 0;
 	[[nodiscard]] virtual auto storiesStickerOrEmojiChosen()
 		-> rpl::producer<ChatHelpers::FileChosen> = 0;
+	virtual void storiesJumpTo(Data::FullStoryId id) = 0;
+	[[nodiscard]] virtual bool storiesPaused() = 0;
+	virtual void storiesTogglePaused(bool paused) = 0;
 };
 
 } // namespace Media::Stories
