@@ -1514,6 +1514,9 @@ else()
         desktop-app::external_glibmm
     )
 
+    include(${cmake_helpers_loc}/external/glib/generate_dbus.cmake)
+    generate_dbus(Telegram org.freedesktop.portal. XdpInhibit ${src_loc}/platform/linux/org.freedesktop.portal.Inhibit.xml)
+
     if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
         target_link_libraries(Telegram
         PRIVATE
