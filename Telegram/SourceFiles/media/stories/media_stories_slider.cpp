@@ -136,7 +136,9 @@ void Slider::paint(QRectF clip) {
 				radius,
 				radius);
 		} else {
-			p.setOpacity(kOpacityInactive);
+			p.setOpacity((i < _data.index)
+				? kOpacityActive
+				: kOpacityInactive);
 			p.drawRoundedRect(_rects[i], radius, radius);
 		}
 	}

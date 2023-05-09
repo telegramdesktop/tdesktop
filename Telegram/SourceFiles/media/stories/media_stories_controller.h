@@ -35,7 +35,9 @@ namespace Media::Stories {
 class Header;
 class Slider;
 class ReplyArea;
+class Sibling;
 class Delegate;
+struct SiblingView;
 
 enum class HeaderLayout {
 	Normal,
@@ -50,6 +52,8 @@ struct Layout {
 	QPoint controlsBottomPosition;
 	QRect autocompleteRect;
 	HeaderLayout headerLayout = HeaderLayout::Normal;
+	QRect siblingLeft;
+	QRect siblingRight;
 
 	friend inline auto operator<=>(Layout, Layout) = default;
 	friend inline bool operator==(Layout, Layout) = default;
@@ -68,15 +72,25 @@ public:
 	[[nodiscard]] auto stickerOrEmojiChosen() const
 	-> rpl::producer<ChatHelpers::FileChosen>;
 
-	void show(const Data::StoriesList &list, int index);
+	void show(
+		const std::vector<Data::StoriesList> &lists,
+		int index,
+		int subindex);
 	void ready();
 
 	void updateVideoPlayback(const Player::TrackState &state);
 
-	[[nodiscard]] bool jumpAvailable(int delta) const;
+	[[nodiscard]] bool subjumpAvailable(int delta) const;
+	[[nodiscard]] bool subjumpFor(int delta);
 	[[nodiscard]] bool jumpFor(int delta);
 	[[nodiscard]] bool paused() const;
 	void togglePaused(bool paused);
+
+	void repaintSibling(not_null<Sibling*> sibling);
+	[[nodiscard]] SiblingView siblingLeft() const;
+	[[nodiscard]] SiblingView siblingRight() const;
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	class PhotoPlayback;
@@ -86,6 +100,13 @@ private:
 	void updatePlayback(const Player::TrackState &state);
 	void updatePowerSaveBlocker(const Player::TrackState &state);
 
+	void showSiblings(
+		const std::vector<Data::StoriesList> &lists,
+		int index);
+	void showSibling(
+		std::unique_ptr<Sibling> &sibling,
+		const Data::StoriesList *list);
+
 	const not_null<Delegate*> _delegate;
 
 	rpl::variable<std::optional<Layout>> _layout;
@@ -94,11 +115,15 @@ private:
 	const std::unique_ptr<Header> _header;
 	const std::unique_ptr<Slider> _slider;
 	const std::unique_ptr<ReplyArea> _replyArea;
+	std::unique_ptr<PhotoPlayback> _photoPlayback;
 
 	Data::FullStoryId _shown;
 	std::optional<Data::StoriesList> _list;
 	int _index = 0;
-	std::unique_ptr<PhotoPlayback> _photoPlayback;
+	bool _started = false;
+
+	std::unique_ptr<Sibling> _siblingLeft;
+	std::unique_ptr<Sibling> _siblingRight;
 
 	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
 

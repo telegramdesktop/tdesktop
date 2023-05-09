@@ -137,6 +137,8 @@ private:
 		OverNone,
 		OverLeftNav,
 		OverRightNav,
+		OverLeftStories,
+		OverRightStories,
 		OverHeader,
 		OverName,
 		OverDate,
@@ -231,6 +233,7 @@ private:
 	void storiesJumpTo(Data::FullStoryId id) override;
 	bool storiesPaused() override;
 	void storiesTogglePaused(bool paused) override;
+	void storiesRepaint() override;
 
 	void hideControls(bool force = false);
 	void subscribeToScreenGeometry();
@@ -292,6 +295,7 @@ private:
 		ItemContext,
 		not_null<PeerData*>,
 		StoriesContext> context);
+	void setStoriesUser(UserData *user);
 
 	void refreshLang();
 	void showSaveMsgFile();
@@ -332,6 +336,7 @@ private:
 	void updateDocSize();
 	void updateControls();
 	void updateControlsGeometry();
+	void updateNavigationControlsGeometry();
 
 	using MenuCallback = Fn<void(
 		const QString &,
@@ -572,7 +577,8 @@ private:
 	bool _showAsPip = false;
 
 	std::unique_ptr<Stories::View> _stories;
-	UserData *_storiesUser = nullptr;
+	rpl::event_stream<> _storiesChanged;
+	Main::Session *_storiesSession = nullptr;
 	rpl::event_stream<ChatHelpers::FileChosen> _storiesStickerOrEmojiChosen;
 	std::unique_ptr<Ui::LayerManager> _layerBg;
 

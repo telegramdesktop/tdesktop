@@ -46,8 +46,11 @@ struct FullStoryId {
 	UserData *user = nullptr;
 	StoryId id = 0;
 
-	explicit operator bool() const {
+	[[nodiscard]] bool valid() const {
 		return user != nullptr && id != 0;
+	}
+	explicit operator bool() const {
+		return valid();
 	}
 	friend inline auto operator<=>(FullStoryId, FullStoryId) = default;
 	friend inline bool operator==(FullStoryId, FullStoryId) = default;

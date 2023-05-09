@@ -21,8 +21,11 @@ View::View(not_null<Delegate*> delegate)
 
 View::~View() = default;
 
-void View::show(const Data::StoriesList &list, int index) {
-	_controller->show(list, index);
+void View::show(
+		const std::vector<Data::StoriesList> &lists,
+		int index,
+		int subindex) {
+	_controller->show(lists, index, subindex);
 }
 
 void View::ready() {
@@ -33,12 +36,23 @@ QRect View::contentGeometry() const {
 	return _controller->layout().content;
 }
 
+rpl::producer<QRect> View::contentGeometryValue() const {
+	return _controller->layoutValue(
+		) | rpl::map([=](const Layout &layout) {
+			return layout.content;
+		}) | rpl::distinct_until_changed();
+}
+
 void View::updatePlayback(const Player::TrackState &state) {
 	_controller->updateVideoPlayback(state);
 }
 
-bool View::jumpAvailable(int delta) const {
-	return _controller->jumpAvailable(delta);
+bool View::subjumpAvailable(int delta) const {
+	return _controller->subjumpAvailable(delta);
+}
+
+bool View::subjumpFor(int delta) const {
+	return _controller->subjumpFor(delta);
 }
 
 bool View::jumpFor(int delta) const {
@@ -51,6 +65,18 @@ bool View::paused() const {
 
 void View::togglePaused(bool paused) {
 	_controller->togglePaused(paused);
+}
+
+SiblingView View::siblingLeft() const {
+	return _controller->siblingLeft();
+}
+
+SiblingView View::siblingRight() const {
+	return _controller->siblingRight();
+}
+
+rpl::lifetime &View::lifetime() {
+	return _controller->lifetime();
 }
 
 } // namespace Media::Stories

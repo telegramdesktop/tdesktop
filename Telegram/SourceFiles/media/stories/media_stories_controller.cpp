@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "media/stories/media_stories_delegate.h"
 #include "media/stories/media_stories_header.h"
+#include "media/stories/media_stories_sibling.h"
 #include "media/stories/media_stories_slider.h"
 #include "media/stories/media_stories_reply.h"
+#include "media/stories/media_stories_view.h"
 #include "media/audio/media_audio.h"
 #include "ui/rp_widget.h"
 #include "styles/style_media_view.h"
@@ -25,6 +27,7 @@ namespace {
 
 constexpr auto kPhotoProgressInterval = crl::time(100);
 constexpr auto kPhotoDuration = 5 * crl::time(1000);
+constexpr auto kSiblingMultiplier = 0.448;
 
 } // namespace
 
@@ -115,12 +118,15 @@ void Controller::initLayout() {
 	const auto sliderHeight = st::storiesSliderMargin.top()
 		+ st::storiesSliderWidth
 		+ st::storiesSliderMargin.bottom();
-	const auto outsideHeaderHeight = headerHeight + sliderHeight;
+	const auto outsideHeaderHeight = headerHeight
+		+ sliderHeight
+		+ st::storiesSliderOutsideSkip;
 	const auto fieldMinHeight = st::storiesFieldMargin.top()
 		+ st::storiesAttach.height
 		+ st::storiesFieldMargin.bottom();
-	const auto minHeightForOutsideHeader = st::storiesMaxSize.height()
+	const auto minHeightForOutsideHeader = st::storiesFieldMargin.bottom()
 		+ outsideHeaderHeight
+		+ st::storiesMaxSize.height()
 		+ fieldMinHeight;
 
 	_layout = _wrap->sizeValue(
@@ -134,9 +140,10 @@ void Controller::initLayout() {
 			? HeaderLayout::Outside
 			: HeaderLayout::Normal;
 
-		const auto topSkip = (layout.headerLayout == HeaderLayout::Outside)
-			? outsideHeaderHeight
-			: st::storiesFieldMargin.bottom();
+		const auto topSkip = st::storiesFieldMargin.bottom()
+			+ (layout.headerLayout == HeaderLayout::Outside
+				? outsideHeaderHeight
+				: 0);
 		const auto bottomSkip = fieldMinHeight;
 		const auto maxWidth = size.width() - 2 * st::storiesSideSkip;
 		const auto availableHeight = size.height() - topSkip - bottomSkip;
@@ -187,6 +194,16 @@ void Controller::initLayout() {
 			layout.controlsWidth,
 			layout.controlsBottomPosition.y());
 
+		const auto siblingSize = layout.content.size() * kSiblingMultiplier;
+		const auto siblingTop = layout.content.y()
+			+ (layout.content.height() - siblingSize.height()) / 2;
+		layout.siblingLeft = QRect(
+			{ -siblingSize.width() / 3, siblingTop },
+			siblingSize);
+		layout.siblingRight = QRect(
+			{ size.width() - (2 * siblingSize.width() / 3), siblingTop },
+			siblingSize);
+
 		return layout;
 	});
 }
@@ -214,11 +231,19 @@ auto Controller::stickerOrEmojiChosen() const
 	return _delegate->storiesStickerOrEmojiChosen();
 }
 
-void Controller::show(const Data::StoriesList &list, int index) {
-	Expects(index < list.items.size());
+void Controller::show(
+		const std::vector<Data::StoriesList> &lists,
+		int index,
+		int subindex) {
+	Expects(index >= 0 && index < lists.size());
+	Expects(subindex >= 0 && subindex < lists[index].items.size());
 
-	const auto &item = list.items[index];
+	showSiblings(lists, index);
+
+	const auto &list = lists[index];
+	const auto &item = list.items[subindex];
 	const auto guard = gsl::finally([&] {
+		_started = false;
 		if (v::is<not_null<PhotoData*>>(item.media.data)) {
 			_photoPlayback = std::make_unique<PhotoPlayback>(this);
 		} else {
@@ -228,7 +253,7 @@ void Controller::show(const Data::StoriesList &list, int index) {
 	if (_list != list) {
 		_list = list;
 	}
-	_index = index;
+	_index = subindex;
 
 	const auto id = Data::FullStoryId{
 		.user = list.user,
@@ -240,11 +265,34 @@ void Controller::show(const Data::StoriesList &list, int index) {
 	_shown = id;
 
 	_header->show({ .user = list.user, .date = item.date });
-	_slider->show({ .index = index, .total = int(list.items.size()) });
+	_slider->show({ .index = _index, .total = list.total });
 	_replyArea->show({ .user = list.user });
 }
 
+void Controller::showSiblings(
+		const std::vector<Data::StoriesList> &lists,
+		int index) {
+	showSibling(_siblingLeft, (index > 0) ? &lists[index - 1] : nullptr);
+	showSibling(
+		_siblingRight,
+		(index + 1 < lists.size()) ? &lists[index + 1] : nullptr);
+}
+
+void Controller::showSibling(
+		std::unique_ptr<Sibling> &sibling,
+		const Data::StoriesList *list) {
+	if (!list || list->items.empty()) {
+		sibling = nullptr;
+	} else if (!sibling || !sibling->shows(*list)) {
+		sibling = std::make_unique<Sibling>(this, *list);
+	}
+}
+
 void Controller::ready() {
+	if (_started) {
+		return;
+	}
+	_started = true;
 	if (_photoPlayback) {
 		_photoPlayback->togglePaused(false);
 	}
@@ -262,25 +310,28 @@ void Controller::updatePlayback(const Player::TrackState &state) {
 	_slider->updatePlayback(state);
 	updatePowerSaveBlocker(state);
 	if (Player::IsStoppedAtEnd(state.state)) {
-		if (!jumpFor(1)) {
+		if (!subjumpFor(1)) {
 			_delegate->storiesJumpTo({});
 		}
 	}
 }
 
-bool Controller::jumpAvailable(int delta) const {
-	if (delta == -1) {
-		// Always allow to jump back for one.
-		// In case of the first story just jump to the beginning.
-		return _list && !_list->items.empty();
-	}
+bool Controller::subjumpAvailable(int delta) const {
 	const auto index = _index + delta;
+	if (index < 0) {
+		return _siblingLeft && _siblingLeft->shownId().valid();
+	} else if (index >= _list->total) {
+		return _siblingRight && _siblingRight->shownId().valid();
+	}
 	return index >= 0 && index < _list->total;
 }
 
-bool Controller::jumpFor(int delta) {
-	if (!_index && delta == -1) {
-		if (!_list || _list->items.empty()) {
+bool Controller::subjumpFor(int delta) {
+	const auto index = _index + delta;
+	if (index < 0) {
+		if (_siblingLeft->shownId().valid()) {
+			return jumpFor(-1);
+		} else if (!_list || _list->items.empty()) {
 			return false;
 		}
 		_delegate->storiesJumpTo({
@@ -288,10 +339,8 @@ bool Controller::jumpFor(int delta) {
 			.id = _list->items.front().id
 		});
 		return true;
-	}
-	const auto index = _index + delta;
-	if (index < 0 || index >= _list->total) {
-		return false;
+	} else if (index >= _list->total) {
+		return _siblingRight->shownId().valid() && jumpFor(1);
 	} else if (index < _list->items.size()) {
 		// #TODO stories load more
 		_delegate->storiesJumpTo({
@@ -300,6 +349,22 @@ bool Controller::jumpFor(int delta) {
 		});
 	}
 	return true;
+}
+
+
+bool Controller::jumpFor(int delta) {
+	if (delta == -1) {
+		if (const auto left = _siblingLeft.get()) {
+			_delegate->storiesJumpTo(left->shownId());
+			return true;
+		}
+	} else if (delta == 1) {
+		if (const auto right = _siblingRight.get()) {
+			_delegate->storiesJumpTo(right->shownId());
+			return true;
+		}
+	}
+	return false;
 }
 
 bool Controller::paused() const {
@@ -314,6 +379,30 @@ void Controller::togglePaused(bool paused) {
 	} else {
 		_delegate->storiesTogglePaused(paused);
 	}
+}
+
+void Controller::repaintSibling(not_null<Sibling*> sibling) {
+	if (sibling == _siblingLeft.get() || sibling == _siblingRight.get()) {
+		_delegate->storiesRepaint();
+	}
+}
+
+SiblingView Controller::siblingLeft() const {
+	if (const auto value = _siblingLeft.get()) {
+		return { value->image(), _layout.current()->siblingLeft };
+	}
+	return {};
+}
+
+SiblingView Controller::siblingRight() const {
+	if (const auto value = _siblingRight.get()) {
+		return { value->image(), _layout.current()->siblingRight };
+	}
+	return {};
+}
+
+rpl::lifetime &Controller::lifetime() {
+	return _lifetime;
 }
 
 void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {

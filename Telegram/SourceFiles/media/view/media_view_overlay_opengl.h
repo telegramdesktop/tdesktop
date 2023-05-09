@@ -134,7 +134,9 @@ private:
 	Ui::GL::Image _controlsImage;
 
 	static constexpr auto kControlsCount = 5;
-	[[nodiscard]] static Control ControlMeta(OverState control);
+	[[nodiscard]] static Control ControlMeta(
+		OverState control,
+		bool stories);
 
 	// Last one is for the over circle image.
 	std::array<QRect, kControlsCount + 1> _controlsTextures;

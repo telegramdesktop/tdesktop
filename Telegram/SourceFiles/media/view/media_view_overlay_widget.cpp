@@ -813,16 +813,7 @@ void OverlayWidget::updateGeometryToScreen(bool inMove) {
 }
 
 void OverlayWidget::updateControlsGeometry() {
-	const auto overRect = QRect(
-		QPoint(),
-		QSize(st::mediaviewIconOver, st::mediaviewIconOver));
-	const auto navSkip = st::mediaviewHeaderTop;
-	_leftNav = QRect(0, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
-	_leftNavOver = style::centerrect(_leftNav, overRect);
-	_leftNavIcon = style::centerrect(_leftNav, st::mediaviewLeft);
-	_rightNav = QRect(width() - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
-	_rightNavOver = style::centerrect(_rightNav, overRect);
-	_rightNavIcon = style::centerrect(_rightNav, st::mediaviewRight);
+	updateNavigationControlsGeometry();
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
@@ -841,6 +832,32 @@ void OverlayWidget::updateControlsGeometry() {
 	updateControls();
 	resizeContentByScreenSize();
 	update();
+}
+
+void OverlayWidget::updateNavigationControlsGeometry() {
+	const auto overRect = QRect(
+		QPoint(),
+		QSize(st::mediaviewIconOver, st::mediaviewIconOver));
+	const auto navSize = _stories
+		? st::storiesControlSize
+		: st::mediaviewControlSize;
+	const auto navSkip = st::mediaviewHeaderTop;
+	const auto xLeft = _stories ? (_x - navSize) : 0;
+	const auto xRight = _stories ? (_x + _w) : (width() - navSize);
+	_leftNav = QRect(xLeft, navSkip, navSize, height() - 2 * navSkip);
+	_leftNavOver = _stories
+		? QRect()
+		: style::centerrect(_leftNav, overRect);
+	_leftNavIcon = style::centerrect(
+		_leftNav,
+		_stories ? st::storiesLeft : st::mediaviewLeft);
+	_rightNav = QRect(xRight, navSkip, navSize, height() - 2 * navSkip);
+	_rightNavOver = _stories
+		? QRect()
+		: style::centerrect(_rightNav, overRect);
+	_rightNavIcon = style::centerrect(
+		_rightNav,
+		_stories ? st::storiesRight : st::mediaviewRight);
 }
 
 bool OverlayWidget::topShadowOnTheRight() const {
@@ -1009,8 +1026,8 @@ void OverlayWidget::updateDocSize() {
 
 void OverlayWidget::refreshNavVisibility() {
 	if (_stories) {
-		_leftNavVisible = _stories->jumpAvailable(-1);
-		_rightNavVisible = _stories->jumpAvailable(1);
+		_leftNavVisible = _stories->subjumpAvailable(-1);
+		_rightNavVisible = _stories->subjumpAvailable(1);
 	} else if (_sharedMediaData) {
 		_leftNavVisible = _index && (*_index > 0);
 		_rightNavVisible = _index && (*_index + 1 < _sharedMediaData->size());
@@ -1432,6 +1449,12 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 		+ (_over == OverSave ? _saveNavOver : _saveNavIcon)
 		+ (_over == OverRotate ? _rotateNavOver : _rotateNavIcon)
 		+ (_over == OverMore ? _moreNavOver : _moreNavIcon)
+		+ ((_stories && _over == OverLeftStories)
+			? _stories->siblingLeft().geometry
+			: QRect())
+		+ ((_stories && _over == OverRightStories)
+			? _stories->siblingRight().geometry
+			: QRect())
 		+ _headerNav
 		+ _nameNav
 		+ _dateNav
@@ -1547,6 +1570,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 		_y = content.y();
 		_w = content.width();
 		_h = content.height();
+		updateNavigationControlsGeometry();
 		return;
 	}
 	recountSkipTop();
@@ -3861,14 +3885,16 @@ std::shared_ptr<ChatHelpers::Show> OverlayWidget::storiesShow() {
 			return _widget->_body;
 		}
 		bool valid() const override {
-			return _widget->_storiesUser != nullptr;
+			return _widget->_storiesSession != nullptr;
 		}
 		operator bool() const override {
 			return valid();
 		}
 
 		Main::Session &session() const override {
-			return _widget->_storiesUser->session();
+			Expects(_widget->_storiesSession != nullptr);
+
+			return *_widget->_storiesSession;
 		}
 		bool paused(ChatHelpers::PauseReason reason) const override {
 			if (_widget->isHidden()
@@ -3974,6 +4000,10 @@ void OverlayWidget::storiesTogglePaused(bool paused) {
 		_streamed->instance.pause();
 		updatePlaybackState();
 	}
+}
+
+void OverlayWidget::storiesRepaint() {
+	update();
 }
 
 void OverlayWidget::playbackToggleFullScreen() {
@@ -4131,6 +4161,22 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 				fillTransparentBackground);
 		}
 		paintRadialLoading(renderer);
+		if (_stories) {
+			if (const auto left = _stories->siblingLeft()) {
+				renderer->paintTransformedStaticContent(
+					left.image,
+					{ .rect = left.geometry },
+					false, // semi-transparent
+					false); // fill transparent background
+			}
+			if (const auto right = _stories->siblingRight()) {
+				renderer->paintTransformedStaticContent(
+					right.image,
+					{ .rect = right.geometry },
+					false, // semi-transparent
+					false); // fill transparent background
+			}
+		}
 	} else {
 		if (_themePreviewShown) {
 			renderer->paintThemePreview(_themePreviewRect);
@@ -4420,14 +4466,14 @@ void OverlayWidget::paintControls(
 			_leftNavVisible,
 			_leftNavOver,
 			_leftNavIcon,
-			st::mediaviewLeft,
+			_stories ? st::storiesLeft : st::mediaviewLeft,
 			true },
 		{
 			OverRightNav,
 			_rightNavVisible,
 			_rightNavOver,
 			_rightNavIcon,
-			st::mediaviewRight,
+			_stories ? st::storiesRight : st::mediaviewRight,
 			true },
 		{
 			OverSave,
@@ -4470,6 +4516,10 @@ void OverlayWidget::paintControls(
 float64 OverlayWidget::controlOpacity(
 		float64 progress,
 		bool nonbright) const {
+	if (nonbright && _stories) {
+		return progress * kStoriesNavOverOpacity
+			+ (1. - progress) * kStoriesNavOpacity;
+	}
 	const auto normal = _windowed
 		? kNormalIconOpacity
 		: kMaximizedIconOpacity;
@@ -4813,15 +4863,13 @@ void OverlayWidget::setContext(
 		_history = _message->history();
 		_peer = _history->peer;
 		_topicRootId = _peer->isForum() ? item->topicRootId : MsgId();
-		_stories = nullptr;
-		_storiesUser = nullptr;
+		setStoriesUser(nullptr);
 	} else if (const auto peer = std::get_if<not_null<PeerData*>>(&context)) {
 		_peer = *peer;
 		_history = _peer->owner().history(_peer);
 		_message = nullptr;
 		_topicRootId = MsgId();
-		_stories = nullptr;
-		_storiesUser = nullptr;
+		setStoriesUser(nullptr);
 	} else if (const auto story = std::get_if<StoriesContext>(&context)) {
 		_message = nullptr;
 		_topicRootId = MsgId();
@@ -4837,18 +4885,14 @@ void OverlayWidget::setContext(
 			i->items,
 			story->id,
 			&Data::StoryItem::id);
-		_storiesUser = story->user;
-		if (!_stories) {
-			_stories = std::make_unique<Stories::View>(
-				static_cast<Stories::Delegate*>(this));
-		}
-		_stories->show(*i, j - begin(i->items));
+		setStoriesUser(story->user);
+		_stories->show(all, (i - begin(all)), j - begin(i->items));
 	} else {
 		_message = nullptr;
 		_topicRootId = MsgId();
 		_history = nullptr;
 		_peer = nullptr;
-		_stories = nullptr;
+		setStoriesUser(nullptr);
 	}
 	_migrated = nullptr;
 	if (_history) {
@@ -4861,6 +4905,27 @@ void OverlayWidget::setContext(
 		}
 	}
 	_user = _peer ? _peer->asUser() : nullptr;
+}
+
+void OverlayWidget::setStoriesUser(UserData *user) {
+	const auto session = user ? &user->session() : nullptr;
+	if (!session && !_storiesSession) {
+		Assert(!_stories);
+	} else if (!user) {
+		_stories = nullptr;
+		_storiesSession = nullptr;
+		_storiesChanged.fire({});
+	} else if (_storiesSession != session) {
+		_stories = nullptr;
+		_storiesSession = session;
+		const auto delegate = static_cast<Stories::Delegate*>(this);
+		_stories = std::make_unique<Stories::View>(delegate);
+		_stories->contentGeometryValue(
+		) | rpl::skip(1) | rpl::start_with_next([=] {
+			updateControlsGeometry();
+		}, _stories->lifetime());
+		_storiesChanged.fire({});
+	}
 }
 
 void OverlayWidget::setSession(not_null<Main::Session*> session) {
@@ -4908,7 +4973,7 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 
 bool OverlayWidget::moveToNext(int delta) {
 	if (_stories) {
-		return _stories->jumpFor(delta);
+		return _stories->subjumpFor(delta);
 	} else if (!_index) {
 		return false;
 	}
@@ -4991,9 +5056,14 @@ void OverlayWidget::handleMousePress(
 	if (button == Qt::LeftButton) {
 		_down = OverNone;
 		if (!ClickHandler::getPressed()) {
-			if (_over == OverLeftNav && moveToNext(-1)) {
-				_lastAction = position;
-			} else if (_over == OverRightNav && moveToNext(1)) {
+			if ((_over == OverLeftNav && moveToNext(-1))
+				|| (_over == OverRightNav && moveToNext(1))
+				|| (_stories
+					&& _over == OverLeftStories
+					&& _stories->jumpFor(-1))
+				|| (_stories
+					&& _over == OverRightStories
+					&& _stories->jumpFor(1))) {
 				_lastAction = position;
 			} else if (_over == OverName
 				|| _over == OverDate
@@ -5082,8 +5152,18 @@ void OverlayWidget::handleMouseMove(QPoint position) {
 
 void OverlayWidget::updateOverRect(OverState state) {
 	switch (state) {
-	case OverLeftNav: update(_leftNavOver); break;
-	case OverRightNav: update(_rightNavOver); break;
+	case OverLeftNav:
+		update(_stories ? _leftNavIcon : _leftNavOver);
+		break;
+	case OverRightNav:
+		update(_stories ? _rightNavIcon : _rightNavOver);
+		break;
+	case OverLeftStories:
+		update(_stories ? _stories->siblingLeft().geometry : QRect());
+		break;
+	case OverRightStories:
+		update(_stories ? _stories->siblingRight().geometry : QRect());
+		break;
 	case OverName: update(_nameNav); break;
 	case OverDate: update(_dateNav); break;
 	case OverSave: update(_saveNavOver); break;
@@ -5170,6 +5250,10 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverVideo);
 	} else if (_leftNavVisible && _leftNav.contains(pos)) {
 		updateOverState(OverLeftNav);
+	} else if (_stories && _stories->siblingLeft().geometry.contains(pos)) {
+		updateOverState(OverLeftStories);
+	} else if (_stories && _stories->siblingRight().geometry.contains(pos)) {
+		updateOverState(OverRightStories);
 	} else if (_rightNavVisible && _rightNav.contains(pos)) {
 		updateOverState(OverRightNav);
 	} else if (!_stories && _from && _nameNav.contains(pos)) {
@@ -5527,6 +5611,7 @@ void OverlayWidget::clearBeforeHide() {
 	_collage = nullptr;
 	_collageData = std::nullopt;
 	clearStreaming();
+	setStoriesUser(nullptr);
 	assignMediaPointer(nullptr);
 	_preloadPhotos.clear();
 	_preloadDocuments.clear();

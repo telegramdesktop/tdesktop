@@ -112,6 +112,11 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 		_captionImage.invalidate();
 		invalidateControls();
 	}, _lifetime);
+
+	_owner->_storiesChanged.events(
+	) | rpl::start_with_next([=] {
+		invalidateControls();
+	}, _lifetime);
 }
 
 void OverlayWidget::RendererGL::init(
@@ -568,7 +573,8 @@ void OverlayWidget::RendererGL::paintControl(
 		QRect inner,
 		float64 innerOpacity,
 		const style::icon &icon) {
-	const auto meta = ControlMeta(control);
+	const auto stories = (_owner->_stories != nullptr);
+	const auto meta = ControlMeta(control, stories);
 	Assert(meta.icon == &icon);
 
 	const auto overAlpha = overOpacity * kOverBackgroundOpacity;
@@ -626,11 +632,17 @@ void OverlayWidget::RendererGL::paintControl(
 	FillTexturedRectangle(*_f, &*_controlsProgram, fgOffset);
 }
 
-auto OverlayWidget::RendererGL::ControlMeta(OverState control)
+auto OverlayWidget::RendererGL::ControlMeta(OverState control, bool stories)
 -> Control {
 	switch (control) {
-	case OverLeftNav: return { 0, &st::mediaviewLeft };
-	case OverRightNav: return { 1, &st::mediaviewRight };
+	case OverLeftNav: return {
+		0,
+		stories ? &st::storiesLeft : &st::mediaviewLeft
+	};
+	case OverRightNav: return {
+		1,
+		stories ? &st::storiesRight : &st::mediaviewRight
+	};
 	case OverSave: return { 2, &st::mediaviewSave };
 	case OverRotate: return { 3, &st::mediaviewRotate };
 	case OverMore: return { 4, &st::mediaviewMore };
@@ -642,12 +654,13 @@ void OverlayWidget::RendererGL::validateControls() {
 	if (!_controlsImage.image().isNull()) {
 		return;
 	}
+	const auto stories = (_owner->_stories != nullptr);
 	const auto metas = {
-		ControlMeta(OverLeftNav),
-		ControlMeta(OverRightNav),
-		ControlMeta(OverSave),
-		ControlMeta(OverRotate),
-		ControlMeta(OverMore),
+		ControlMeta(OverLeftNav, stories),
+		ControlMeta(OverRightNav, stories),
+		ControlMeta(OverSave, stories),
+		ControlMeta(OverRotate, stories),
+		ControlMeta(OverMore, stories),
 	};
 	auto maxWidth = 0;
 	auto fullHeight = 0;

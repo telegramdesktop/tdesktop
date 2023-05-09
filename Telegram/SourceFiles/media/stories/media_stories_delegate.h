@@ -37,6 +37,7 @@ public:
 	virtual void storiesJumpTo(Data::FullStoryId id) = 0;
 	[[nodiscard]] virtual bool storiesPaused() = 0;
 	virtual void storiesTogglePaused(bool paused) = 0;
+	virtual void storiesRepaint() = 0;
 };
 
 } // namespace Media::Stories

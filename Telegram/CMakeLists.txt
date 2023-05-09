@@ -970,6 +970,8 @@ PRIVATE
     media/stories/media_stories_header.h
     media/stories/media_stories_reply.cpp
     media/stories/media_stories_reply.h
+    media/stories/media_stories_sibling.cpp
+    media/stories/media_stories_sibling.h
     media/stories/media_stories_slider.cpp
     media/stories/media_stories_slider.h
     media/stories/media_stories_view.cpp

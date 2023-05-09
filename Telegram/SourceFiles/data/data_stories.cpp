@@ -173,7 +173,7 @@ StoryId Stories::generate(
 	const auto itemId = item->id;
 	const auto peer = item->history()->peer;
 	const auto session = &peer->session();
-	auto stories = StoriesList{ .user = item->from()->asUser() };
+	auto full = std::vector<StoriesList>();
 	const auto lifetime = session->storage().query(SharedMediaQuery(
 		SharedMediaKey(peer->id, MsgId(0), listType, itemId),
 		32,
@@ -182,21 +182,33 @@ StoryId Stories::generate(
 		if (!result.messageIds.contains(itemId)) {
 			result.messageIds.emplace(itemId);
 		}
-		stories.items.reserve(result.messageIds.size());
 		auto index = StoryId();
 		const auto owner = &peer->owner();
 		for (const auto id : result.messageIds) {
 			if (const auto item = owner->message(peer, id)) {
+				const auto user = item->from()->asUser();
+				if (!user) {
+					continue;
+				}
+				const auto i = ranges::find(
+					full,
+					not_null(user),
+					&StoriesList::user);
+				auto &stories = (i == end(full))
+					? full.emplace_back(StoriesList{ .user = user })
+					: *i;
 				if (id == itemId) {
 					resultId = ++index;
 					stories.items.push_back({
 						.id = resultId,
 						.media = (document
 							? StoryMedia{ not_null(document) }
-							: StoryMedia{ v::get<not_null<PhotoData*>>(media) }),
+							: StoryMedia{
+								v::get<not_null<PhotoData*>>(media) }),
 						.caption = item->originalText(),
 						.date = item->date(),
 					});
+					++stories.total;
 				} else if (const auto media = item->media()) {
 					const auto photo = media->photo();
 					const auto document = media->document();
@@ -209,18 +221,21 @@ StoryId Stories::generate(
 							.caption = item->originalText(),
 							.date = item->date(),
 						});
+						++stories.total;
 					}
 				}
 			}
 		}
-		stories.total = std::max(
-			result.count.value_or(1),
-			int(result.messageIds.size()));
-		const auto i = ranges::find(_all, stories.user, &StoriesList::user);
-		if (i != end(_all)) {
-			*i = std::move(stories);
-		} else {
-			_all.push_back(std::move(stories));
+		for (auto &stories : full) {
+			const auto i = ranges::find(
+				_all,
+				stories.user,
+				&StoriesList::user);
+			if (i != end(_all)) {
+				*i = std::move(stories);
+			} else {
+				_all.push_back(std::move(stories));
+			}
 		}
 	});
 	return resultId;
