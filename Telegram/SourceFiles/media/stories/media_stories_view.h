@@ -43,6 +43,7 @@ public:
 		int subindex);
 	void ready();
 
+	[[nodiscard]] bool canDownload() const;
 	[[nodiscard]] QRect contentGeometry() const;
 	[[nodiscard]] rpl::producer<QRect> contentGeometryValue() const;
 	[[nodiscard]] SiblingView siblingLeft() const;

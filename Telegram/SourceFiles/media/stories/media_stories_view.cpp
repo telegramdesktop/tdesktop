@@ -32,6 +32,10 @@ void View::ready() {
 	_controller->ready();
 }
 
+bool View::canDownload() const {
+	return _controller->canDownload();
+}
+
 QRect View::contentGeometry() const {
 	return _controller->layout().content;
 }

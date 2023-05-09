@@ -86,6 +86,8 @@ public:
 	[[nodiscard]] bool paused() const;
 	void togglePaused(bool paused);
 
+	[[nodiscard]] bool canDownload() const;
+
 	void repaintSibling(not_null<Sibling*> sibling);
 	[[nodiscard]] SiblingView siblingLeft() const;
 	[[nodiscard]] SiblingView siblingRight() const;

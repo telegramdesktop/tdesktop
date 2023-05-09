@@ -1044,7 +1044,8 @@ void OverlayWidget::refreshNavVisibility() {
 }
 
 bool OverlayWidget::contentCanBeSaved() const {
-	if (_stories || hasCopyMediaRestriction()) {
+	if ((_stories && !_stories->canDownload())
+		|| hasCopyMediaRestriction()) {
 		return false;
 	} else if (_photo) {
 		return _photo->hasVideo() || _photoMedia->loaded();

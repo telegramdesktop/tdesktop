@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/power_save_blocker.h"
 #include "data/data_stories.h"
+#include "data/data_user.h"
 #include "media/stories/media_stories_delegate.h"
 #include "media/stories/media_stories_header.h"
 #include "media/stories/media_stories_sibling.h"
@@ -379,6 +380,10 @@ void Controller::togglePaused(bool paused) {
 	} else {
 		_delegate->storiesTogglePaused(paused);
 	}
+}
+
+bool Controller::canDownload() const {
+	return _list && _list->user->isSelf();
 }
 
 void Controller::repaintSibling(not_null<Sibling*> sibling) {
