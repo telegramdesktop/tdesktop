@@ -112,6 +112,10 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 
 } // namespace
 
+bool EditPrivacyController::hasOption(Option option) const {
+	return (option != Option::CloseFriends);
+}
+
 QString EditPrivacyController::optionLabel(Option option) const {
 	switch (option) {
 	case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);

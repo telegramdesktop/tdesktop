@@ -41,9 +41,7 @@ public:
 	[[nodiscard]] virtual Key key() const = 0;
 
 	[[nodiscard]] virtual rpl::producer<QString> title() const = 0;
-	[[nodiscard]] virtual bool hasOption(Option option) const {
-		return true;
-	}
+	[[nodiscard]] virtual bool hasOption(Option option) const;
 	[[nodiscard]] virtual rpl::producer<QString> optionsTitleKey() const = 0;
 	[[nodiscard]] virtual QString optionLabel(Option option) const;
 	[[nodiscard]] virtual rpl::producer<TextWithEntities> warning() const {
