@@ -55,7 +55,6 @@ struct Layout {
 	QRect siblingLeft;
 	QRect siblingRight;
 
-	friend inline auto operator<=>(Layout, Layout) = default;
 	friend inline bool operator==(Layout, Layout) = default;
 };
 

@@ -108,7 +108,7 @@ std::optional<StoryItem> Stories::parse(const MTPDstoryItem &data) {
 	const auto date = data.vdate().v;
 	return StoryItem{
 		.id = data.vid().v,
-		.media = *media,
+		.media = { *media },
 		.caption = std::move(caption),
 		.date = date,
 		.privacy = privacy,
