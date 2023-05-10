@@ -40,6 +40,8 @@ public:
 
 	void show(ReplyAreaData data);
 
+	[[nodiscard]] rpl::producer<bool> focusedValue() const;
+
 private:
 	using VoiceToSend = HistoryView::Controls::VoiceToSend;
 

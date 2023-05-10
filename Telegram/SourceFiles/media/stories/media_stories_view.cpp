@@ -47,6 +47,10 @@ rpl::producer<QRect> View::contentGeometryValue() const {
 		}) | rpl::distinct_until_changed();
 }
 
+float64 View::contentFade() const {
+	return _controller->contentFade();
+}
+
 void View::updatePlayback(const Player::TrackState &state) {
 	_controller->updateVideoPlayback(state);
 }

@@ -136,6 +136,7 @@ public:
 	[[nodiscard]] int heightCurrent() const;
 
 	bool focus();
+	[[nodiscard]] rpl::producer<bool> focusedValue() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<Api::SendOptions> sendRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
@@ -390,6 +391,7 @@ private:
 	std::unique_ptr<WebpageProcessor> _preview;
 
 	Fn<void()> _raiseEmojiSuggestions;
+	rpl::event_stream<bool> _focusChanges;
 
 	rpl::lifetime _historyLifetime;
 	rpl::lifetime _uploaderSubscriptions;

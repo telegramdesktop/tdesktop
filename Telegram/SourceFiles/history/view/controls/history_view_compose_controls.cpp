@@ -1108,6 +1108,11 @@ bool ComposeControls::focus() {
 	return true;
 }
 
+rpl::producer<bool> ComposeControls::focusedValue() const {
+	return rpl::single(Ui::InFocusChain(_wrap.get()))
+		| rpl::then(_focusChanges.events());
+}
+
 rpl::producer<> ComposeControls::cancelRequests() const {
 	return _cancelRequests.events();
 }
@@ -1596,6 +1601,8 @@ void ComposeControls::initKeyHandler() {
 				});
 				return Result::Cancel;
 			}
+		} else if (k->key() == Qt::Key_Escape) {
+			return Result::Cancel;
 		}
 		return Result::Continue;
 	});
@@ -1608,7 +1615,12 @@ void ComposeControls::initField() {
 	Ui::Connect(_field, &Ui::InputField::cancelled, [=] { escape(); });
 	Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });
 	Ui::Connect(_field, &Ui::InputField::resized, [=] { updateHeight(); });
-	//Ui::Connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
+	Ui::Connect(_field, &Ui::InputField::focused, [=] {
+		_focusChanges.fire(true);
+	});
+	Ui::Connect(_field, &Ui::InputField::blurred, [=] {
+		_focusChanges.fire(false);
+	});
 	Ui::Connect(_field, &Ui::InputField::changed, [=] { fieldChanged(); });
 	InitMessageField(_show, _field, [=](not_null<DocumentData*> emoji) {
 		if (_history && Data::AllowEmojiWithoutPremium(_history->peer)) {

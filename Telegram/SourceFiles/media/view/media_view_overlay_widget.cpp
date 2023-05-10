@@ -1492,6 +1492,7 @@ QRect OverlayWidget::finalContentRect() const {
 }
 
 OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
+	const auto fade = _stories ? _stories->contentFade() : 0.;
 	const auto controlsOpacity = _controlsOpacity.current();
 	const auto toRotation = qreal(finalContentRotation());
 	const auto toRectRotated = QRectF(finalContentRect());
@@ -1504,7 +1505,7 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 			toRectRotated.width())
 		: toRectRotated;
 	if (!_geometryAnimation.animating()) {
-		return { toRect, toRotation, controlsOpacity };
+		return { toRect, toRotation, controlsOpacity, fade };
 	}
 	const auto fromRect = _oldGeometry.rect;
 	const auto fromRotation = _oldGeometry.rotation;
@@ -1527,7 +1528,7 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 		fromRect.width() + (toRect.width() - fromRect.width()) * progress,
 		fromRect.height() + (toRect.height() - fromRect.height()) * progress
 	);
-	return { useRect, useRotation, controlsOpacity };
+	return { useRect, useRotation, controlsOpacity, fade };
 }
 
 void OverlayWidget::updateContentRect() {

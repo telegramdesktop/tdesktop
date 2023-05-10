@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::View {
 
-class OverlayWidget::RendererGL final : public OverlayWidget::Renderer {
+class OverlayWidget::RendererGL final
+	: public OverlayWidget::Renderer
+	, public base::has_weak_ptr {
 public:
 	explicit RendererGL(not_null<OverlayWidget*> owner);
 

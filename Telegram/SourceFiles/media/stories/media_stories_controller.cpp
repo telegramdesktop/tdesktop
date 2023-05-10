@@ -29,6 +29,7 @@ namespace {
 constexpr auto kPhotoProgressInterval = crl::time(100);
 constexpr auto kPhotoDuration = 5 * crl::time(1000);
 constexpr auto kSiblingMultiplier = 0.448;
+constexpr auto kFullContentFade = 0.2;
 
 } // namespace
 
@@ -108,6 +109,19 @@ Controller::Controller(not_null<Delegate*> delegate)
 , _slider(std::make_unique<Slider>(this))
 , _replyArea(std::make_unique<ReplyArea>(this)) {
 	initLayout();
+
+	_replyArea->focusedValue(
+	) | rpl::start_with_next([=](bool focused) {
+		_contentFaded = focused;
+		_contentFadeAnimation.start(
+			[=] { _delegate->storiesRepaint(); },
+			focused ? 0. : 1.,
+			focused ? 1. : 0.,
+			st::fadeWrapDuration);
+		togglePaused(focused);
+	}, _lifetime);
+
+	_contentFadeAnimation.stop();
 }
 
 Controller::~Controller() = default;
@@ -221,6 +235,11 @@ Layout Controller::layout() const {
 
 rpl::producer<Layout> Controller::layoutValue() const {
 	return _layout.value() | rpl::filter_optional();
+}
+
+float64 Controller::contentFade() const {
+	return _contentFadeAnimation.value(_contentFaded ? 1. : 0.)
+		* kFullContentFade;
 }
 
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
@@ -404,6 +423,10 @@ SiblingView Controller::siblingRight() const {
 		return { value->image(), _layout.current()->siblingRight };
 	}
 	return {};
+}
+
+void Controller::unfocusReply() {
+	_wrap->setFocus();
 }
 
 rpl::lifetime &Controller::lifetime() {

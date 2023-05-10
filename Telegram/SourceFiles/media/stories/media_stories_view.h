@@ -46,6 +46,7 @@ public:
 	[[nodiscard]] bool canDownload() const;
 	[[nodiscard]] QRect contentGeometry() const;
 	[[nodiscard]] rpl::producer<QRect> contentGeometryValue() const;
+	[[nodiscard]] float64 contentFade() const;
 	[[nodiscard]] SiblingView siblingLeft() const;
 	[[nodiscard]] SiblingView siblingRight() const;
 

@@ -68,7 +68,7 @@ void ReplyArea::chooseAttach(std::optional<bool> overrideCompress) {
 void ReplyArea::initActions() {
 	_controls->cancelRequests(
 	) | rpl::start_with_next([=] {
-		// #TODO stories
+		_controller->unfocusReply();
 	}, _lifetime);
 
 	_controls->sendRequests(
@@ -155,6 +155,10 @@ void ReplyArea::show(ReplyAreaData data) {
 		.history = history,
 	});
 	_controls->clear();
+}
+
+rpl::producer<bool> ReplyArea::focusedValue() const {
+	return _controls->focusedValue();
 }
 
 void ReplyArea::showPremiumToast(not_null<DocumentData*> emoji) {

@@ -35,12 +35,13 @@ constexpr auto kControlValues = 4 * 4 + 4 * 4; // over + icon
 		.header = R"(
 uniform sampler2D f_texture;
 uniform vec4 shadowTopRect;
-uniform vec2 shadowBottomAndOpacity;
+uniform vec3 shadowBottomOpacityFullFade;
 )",
 		.body = R"(
 	float topHeight = shadowTopRect.w;
-	float bottomHeight = shadowBottomAndOpacity.x;
-	float opacity = shadowBottomAndOpacity.y;
+	float bottomHeight = shadowBottomOpacityFullFade.x;
+	float opacity = shadowBottomOpacityFullFade.y;
+	float fullFade = shadowBottomOpacityFullFade.z;
 	float viewportHeight = shadowTopRect.y + topHeight;
 	float fullHeight = topHeight + bottomHeight;
 	float topY = min(
@@ -50,7 +51,8 @@ uniform vec2 shadowBottomAndOpacity;
 	vec4 fadeTop = texture2D(f_texture, vec2(topX, topY)) * opacity;
 	float bottomY = max(fullHeight - gl_FragCoord.y, topHeight) / fullHeight;
 	vec4 fadeBottom = texture2D(f_texture, vec2(0.5, bottomY)) * opacity;
-	result.rgb = result.rgb * (1. - fadeTop.a) * (1. - fadeBottom.a);
+	float fade = min((1. - fadeTop.a) * (1. - fadeBottom.a), fullFade);
+	result.rgb = result.rgb * fade;
 )",
 	};
 }
@@ -113,10 +115,12 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 		invalidateControls();
 	}, _lifetime);
 
-	_owner->_storiesChanged.events(
-	) | rpl::start_with_next([=] {
-		invalidateControls();
-	}, _lifetime);
+	crl::on_main(this, [=] {
+		_owner->_storiesChanged.events(
+		) | rpl::start_with_next([=] {
+			invalidateControls();
+		}, _lifetime);
+	});
 }
 
 void OverlayWidget::RendererGL::init(
@@ -478,14 +482,17 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 
 	program->setUniformValue("viewport", _uniformViewport);
 	const auto &top = st::mediaviewShadowTop.size();
-	const auto point = QPoint(_shadowTopFlip ? 0 : (_viewport.width() - top.width()), 0);
+	const auto point = QPoint(
+		_shadowTopFlip ? 0 : (_viewport.width() - top.width()),
+		0);
 	program->setUniformValue(
 		"shadowTopRect",
 		Uniform(transformRect(QRect(point, top))));
 	const auto &bottom = st::mediaviewShadowBottom;
-	program->setUniformValue(
-		"shadowBottomAndOpacity",
-		QVector2D(bottom.height() * _factor, geometry.controlsOpacity));
+	program->setUniformValue("shadowBottomOpacityFullFade", QVector3D(
+		bottom.height() * _factor,
+		geometry.controlsOpacity,
+		1.f - float(geometry.fade)));
 
 	FillTexturedRectangle(*_f, &*program);
 }

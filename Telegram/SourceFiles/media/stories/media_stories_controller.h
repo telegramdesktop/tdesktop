@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_stories.h"
+#include "ui/effects/animations.h"
 
 namespace base {
 class PowerSaveBlocker;
@@ -66,6 +67,7 @@ public:
 	[[nodiscard]] not_null<Ui::RpWidget*> wrap() const;
 	[[nodiscard]] Layout layout() const;
 	[[nodiscard]] rpl::producer<Layout> layoutValue() const;
+	[[nodiscard]] float64 contentFade() const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
@@ -90,6 +92,8 @@ public:
 	void repaintSibling(not_null<Sibling*> sibling);
 	[[nodiscard]] SiblingView siblingLeft() const;
 	[[nodiscard]] SiblingView siblingRight() const;
+
+	void unfocusReply();
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -117,6 +121,9 @@ private:
 	const std::unique_ptr<Slider> _slider;
 	const std::unique_ptr<ReplyArea> _replyArea;
 	std::unique_ptr<PhotoPlayback> _photoPlayback;
+
+	Ui::Animations::Simple _contentFadeAnimation;
+	bool _contentFaded = false;
 
 	Data::FullStoryId _shown;
 	std::optional<Data::StoriesList> _list;
