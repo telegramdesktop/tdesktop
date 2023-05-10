@@ -166,6 +166,7 @@ private:
 		qreal rotation = 0.;
 		qreal controlsOpacity = 0.;
 		qreal fade = 0.;
+		qreal roundRadius = 0.;
 	};
 	struct StartStreaming {
 		StartStreaming() : continueStreaming(false), startTime(0) {

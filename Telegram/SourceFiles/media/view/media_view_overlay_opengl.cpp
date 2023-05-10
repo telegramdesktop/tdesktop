@@ -94,7 +94,7 @@ float roundedCorner() {
 }
 )",
 		.body = R"(
-	result = vec4(roundedCorner());
+	result *= roundedCorner();
 )",
 	};
 }
@@ -160,7 +160,8 @@ void OverlayWidget::RendererGL::init(
 		_texturedVertexShader,
 		FragmentShader({
 			FragmentSampleARGB32Texture(),
-			FragmentApplyControlsFade()
+			FragmentApplyControlsFade(),
+			FragmentRoundedCorners()
 		}));
 
 	_withTransparencyProgram.emplace();
@@ -179,7 +180,8 @@ void OverlayWidget::RendererGL::init(
 		_texturedVertexShader,
 		FragmentShader({
 			FragmentSampleYUV420Texture(),
-			FragmentApplyControlsFade()
+			FragmentApplyControlsFade(),
+			FragmentRoundedCorners()
 		}));
 
 	_nv12Program.emplace();
@@ -188,7 +190,8 @@ void OverlayWidget::RendererGL::init(
 		_texturedVertexShader,
 		FragmentShader({
 			FragmentSampleNV12Texture(),
-			FragmentApplyControlsFade()
+			FragmentApplyControlsFade(),
+			FragmentRoundedCorners()
 		}));
 
 	_fillProgram.emplace();
@@ -210,7 +213,10 @@ void OverlayWidget::RendererGL::init(
 	LinkProgram(
 		&*_roundedCornersProgram,
 		VertexShader({ VertexViewportTransform() }),
-		FragmentShader({ FragmentRoundedCorners() }));
+		FragmentShader({
+			{ .body = "result = vec4(1.);" },
+			FragmentRoundedCorners(),
+		}));
 
 	const auto renderer = reinterpret_cast<const char*>(
 		f.glGetString(GL_RENDERER));
@@ -369,8 +375,8 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	}
 	program->setUniformValue("f_texture", GLint(nv12 ? 2 : 3));
 
-	toggleBlending(false);
-	paintTransformedContent(program, geometry);
+	toggleBlending(geometry.roundRadius > 0.);
+	paintTransformedContent(program, geometry, false);
 }
 
 void OverlayWidget::RendererGL::paintTransformedStaticContent(
@@ -440,13 +446,15 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 	program->setUniformValue("s_texture", GLint(0));
 	program->setUniformValue("f_texture", GLint(1));
 
-	toggleBlending(semiTransparent && !fillTransparentBackground);
-	paintTransformedContent(&*program, geometry);
+	toggleBlending((geometry.roundRadius > 0.)
+		|| (semiTransparent && !fillTransparentBackground));
+	paintTransformedContent(&*program, geometry, fillTransparentBackground);
 }
 
 void OverlayWidget::RendererGL::paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
-		ContentGeometry geometry) {
+		ContentGeometry geometry,
+		bool fillTransparentBackground) {
 	const auto rect = transformRect(geometry.rect);
 	const auto centerx = rect.x() + rect.width() / 2;
 	const auto centery = rect.y() + rect.height() / 2;
@@ -493,7 +501,12 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 		bottom.height() * _factor,
 		geometry.controlsOpacity,
 		1.f - float(geometry.fade)));
-
+	if (!fillTransparentBackground) {
+		program->setUniformValue("roundRect", Uniform(rect));
+		program->setUniformValue(
+			"roundRadius",
+			GLfloat(geometry.roundRadius * _factor));
+	}
 	FillTexturedRectangle(*_f, &*program);
 }
 

@@ -1493,6 +1493,7 @@ QRect OverlayWidget::finalContentRect() const {
 
 OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 	const auto fade = _stories ? _stories->contentFade() : 0.;
+	const auto radius = _stories ? float64(st::storiesRadius) : 0.;
 	const auto controlsOpacity = _controlsOpacity.current();
 	const auto toRotation = qreal(finalContentRotation());
 	const auto toRectRotated = QRectF(finalContentRect());
@@ -1505,7 +1506,7 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 			toRectRotated.width())
 		: toRectRotated;
 	if (!_geometryAnimation.animating()) {
-		return { toRect, toRotation, controlsOpacity, fade };
+		return { toRect, toRotation, controlsOpacity, fade, radius };
 	}
 	const auto fromRect = _oldGeometry.rect;
 	const auto fromRotation = _oldGeometry.rotation;
@@ -1528,7 +1529,7 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 		fromRect.width() + (toRect.width() - fromRect.width()) * progress,
 		fromRect.height() + (toRect.height() - fromRect.height()) * progress
 	);
-	return { useRect, useRotation, controlsOpacity, fade };
+	return { useRect, useRotation, controlsOpacity, fade, radius };
 }
 
 void OverlayWidget::updateContentRect() {
@@ -4164,17 +4165,18 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		}
 		paintRadialLoading(renderer);
 		if (_stories) {
+			const auto radius = float64(st::storiesRadius);
 			if (const auto left = _stories->siblingLeft()) {
 				renderer->paintTransformedStaticContent(
 					left.image,
-					{ .rect = left.geometry },
+					{ .rect = left.geometry, .roundRadius = radius },
 					false, // semi-transparent
 					false); // fill transparent background
 			}
 			if (const auto right = _stories->siblingRight()) {
 				renderer->paintTransformedStaticContent(
 					right.image,
-					{ .rect = right.geometry },
+					{ .rect = right.geometry, .roundRadius = radius },
 					false, // semi-transparent
 					false); // fill transparent background
 			}

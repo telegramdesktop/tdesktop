@@ -406,6 +406,7 @@ pipVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPipControlsFgOve
 speedSliderDividerSize: size(2px, 8px);
 
 storiesMaxSize: size(405px, 720px);
+storiesRadius: 8px;
 storiesControlSize: 64px;
 storiesLeft: icon {{ "mediaview/stories_next-flip_horizontal", mediaviewControlFg }};
 storiesRight: icon {{ "mediaview/stories_next", mediaviewControlFg }};

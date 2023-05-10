@@ -51,7 +51,8 @@ private:
 		bool fillTransparentBackground) override;
 	void paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
-		ContentGeometry geometry);
+		ContentGeometry geometry,
+		bool fillTransparentBackground);
 	void paintRadialLoading(
 		QRect inner,
 		bool radial,
