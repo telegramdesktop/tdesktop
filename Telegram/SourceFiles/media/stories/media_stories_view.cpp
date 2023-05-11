@@ -36,19 +36,19 @@ bool View::canDownload() const {
 	return _controller->canDownload();
 }
 
-QRect View::contentGeometry() const {
+QRect View::finalShownGeometry() const {
 	return _controller->layout().content;
 }
 
-rpl::producer<QRect> View::contentGeometryValue() const {
+rpl::producer<QRect> View::finalShownGeometryValue() const {
 	return _controller->layoutValue(
 		) | rpl::map([=](const Layout &layout) {
 			return layout.content;
 		}) | rpl::distinct_until_changed();
 }
 
-float64 View::contentFade() const {
-	return _controller->contentFade();
+ContentLayout View::contentLayout() const {
+	return _controller->contentLayout();
 }
 
 void View::updatePlayback(const Player::TrackState &state) {
@@ -75,12 +75,8 @@ void View::togglePaused(bool paused) {
 	_controller->togglePaused(paused);
 }
 
-SiblingView View::siblingLeft() const {
-	return _controller->siblingLeft();
-}
-
-SiblingView View::siblingRight() const {
-	return _controller->siblingRight();
+SiblingView View::sibling(SiblingType type) const {
+	return _controller->sibling(type);
 }
 
 rpl::lifetime &View::lifetime() {

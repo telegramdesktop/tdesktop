@@ -125,6 +125,9 @@ constexpr auto kIdsLimit = 48;
 // Preload next messages if we went further from current than that.
 constexpr auto kIdsPreloadAfter = 28;
 
+constexpr auto kLeftSiblingTextureIndex = 1;
+constexpr auto kRightSiblingTextureIndex = 2;
+
 class PipDelegate final : public Pip::Delegate {
 public:
 	PipDelegate(QWidget *parent, not_null<Main::Session*> session);
@@ -1444,17 +1447,18 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 	}
 	_helper->setControlsOpacity(_controlsOpacity.current());
 	const auto content = finalContentRect();
+	const auto siblingType = (_over == OverLeftStories)
+		? Stories::SiblingType::Left
+		: Stories::SiblingType::Right;
 	const auto toUpdate = QRegion()
 		+ (_over == OverLeftNav ? _leftNavOver : _leftNavIcon)
 		+ (_over == OverRightNav ? _rightNavOver : _rightNavIcon)
 		+ (_over == OverSave ? _saveNavOver : _saveNavIcon)
 		+ (_over == OverRotate ? _rotateNavOver : _rotateNavIcon)
 		+ (_over == OverMore ? _moreNavOver : _moreNavIcon)
-		+ ((_stories && _over == OverLeftStories)
-			? _stories->siblingLeft().geometry
-			: QRect())
-		+ ((_stories && _over == OverRightStories)
-			? _stories->siblingRight().geometry
+		+ ((_stories
+			&& (_over == OverLeftStories && _over == OverRightStories))
+			? _stories->sibling(siblingType).layout.geometry
 			: QRect())
 		+ _headerNav
 		+ _nameNav
@@ -1492,8 +1496,9 @@ QRect OverlayWidget::finalContentRect() const {
 }
 
 OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
-	const auto fade = _stories ? _stories->contentFade() : 0.;
-	const auto radius = _stories ? float64(st::storiesRadius) : 0.;
+	if (_stories) {
+		return storiesContentGeometry(_stories->contentLayout());
+	}
 	const auto controlsOpacity = _controlsOpacity.current();
 	const auto toRotation = qreal(finalContentRotation());
 	const auto toRectRotated = QRectF(finalContentRect());
@@ -1506,7 +1511,7 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 			toRectRotated.width())
 		: toRectRotated;
 	if (!_geometryAnimation.animating()) {
-		return { toRect, toRotation, controlsOpacity, fade, radius };
+		return { toRect, toRotation, controlsOpacity };
 	}
 	const auto fromRect = _oldGeometry.rect;
 	const auto fromRotation = _oldGeometry.rotation;
@@ -1529,7 +1534,17 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 		fromRect.width() + (toRect.width() - fromRect.width()) * progress,
 		fromRect.height() + (toRect.height() - fromRect.height()) * progress
 	);
-	return { useRect, useRotation, controlsOpacity, fade, radius };
+	return { useRect, useRotation, controlsOpacity };
+}
+
+OverlayWidget::ContentGeometry OverlayWidget::storiesContentGeometry(
+		const Stories::ContentLayout &layout) const {
+	return {
+		.rect = QRectF(layout.geometry),
+		.controlsOpacity = 0., // #TODO stories ?..
+		.fade = layout.fade,
+		.roundRadius = layout.radius,
+	};
 }
 
 void OverlayWidget::updateContentRect() {
@@ -1568,7 +1583,7 @@ void OverlayWidget::recountSkipTop() {
 
 void OverlayWidget::resizeContentByScreenSize() {
 	if (_stories) {
-		const auto content = _stories->contentGeometry();
+		const auto content = _stories->finalShownGeometry();
 		_x = content.x();
 		_y = content.y();
 		_w = content.width();
@@ -4005,6 +4020,11 @@ void OverlayWidget::storiesTogglePaused(bool paused) {
 	}
 }
 
+float64 OverlayWidget::storiesSiblingOver(Stories::SiblingType type) {
+	return (type == Stories::SiblingType::Left)
+		? overLevel(OverLeftStories)
+		: overLevel(OverRightStories);
+}
 void OverlayWidget::storiesRepaint() {
 	update();
 }
@@ -4165,20 +4185,34 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		}
 		paintRadialLoading(renderer);
 		if (_stories) {
-			const auto radius = float64(st::storiesRadius);
-			if (const auto left = _stories->siblingLeft()) {
+			using namespace Stories;
+			const auto paint = [&](const SiblingView &view, int index) {
 				renderer->paintTransformedStaticContent(
-					left.image,
-					{ .rect = left.geometry, .roundRadius = radius },
+					view.image,
+					storiesContentGeometry(view.layout),
 					false, // semi-transparent
-					false); // fill transparent background
+					false, // fill transparent background
+					index);
+				const auto base = (index - 1) * 2;
+				const auto userpicSize = view.userpic.size()
+					/ view.userpic.devicePixelRatio();
+				renderer->paintStoriesSiblingPart(
+					base,
+					view.userpic,
+					QRect(view.userpicPosition, userpicSize));
+				const auto nameSize = view.name.size()
+					/ view.name.devicePixelRatio();
+				renderer->paintStoriesSiblingPart(
+					base + 1,
+					view.name,
+					QRect(view.namePosition, nameSize),
+					view.nameOpacity);
+			};
+			if (const auto left = _stories->sibling(SiblingType::Left)) {
+				paint(left, kLeftSiblingTextureIndex);
 			}
-			if (const auto right = _stories->siblingRight()) {
-				renderer->paintTransformedStaticContent(
-					right.image,
-					{ .rect = right.geometry, .roundRadius = radius },
-					false, // semi-transparent
-					false); // fill transparent background
+			if (const auto right = _stories->sibling(SiblingType::Right)) {
+				paint(right, kRightSiblingTextureIndex);
 			}
 		}
 	} else {
@@ -4924,7 +4958,7 @@ void OverlayWidget::setStoriesUser(UserData *user) {
 		_storiesSession = session;
 		const auto delegate = static_cast<Stories::Delegate*>(this);
 		_stories = std::make_unique<Stories::View>(delegate);
-		_stories->contentGeometryValue(
+		_stories->finalShownGeometryValue(
 		) | rpl::skip(1) | rpl::start_with_next([=] {
 			updateControlsGeometry();
 		}, _stories->lifetime());
@@ -5155,6 +5189,7 @@ void OverlayWidget::handleMouseMove(QPoint position) {
 }
 
 void OverlayWidget::updateOverRect(OverState state) {
+	using Type = Stories::SiblingType;
 	switch (state) {
 	case OverLeftNav:
 		update(_stories ? _leftNavIcon : _leftNavOver);
@@ -5163,10 +5198,14 @@ void OverlayWidget::updateOverRect(OverState state) {
 		update(_stories ? _rightNavIcon : _rightNavOver);
 		break;
 	case OverLeftStories:
-		update(_stories ? _stories->siblingLeft().geometry : QRect());
+		update(_stories
+			? _stories->sibling(Type::Left).layout.geometry :
+			QRect());
 		break;
 	case OverRightStories:
-		update(_stories ? _stories->siblingRight().geometry : QRect());
+		update(_stories
+			? _stories->sibling(Type::Right).layout.geometry
+			: QRect());
 		break;
 	case OverName: update(_nameNav); break;
 	case OverDate: update(_dateNav); break;
@@ -5250,19 +5289,27 @@ void OverlayWidget::updateOver(QPoint pos) {
 
 	if (_pressed || _dragging) return;
 
+	using SiblingType = Stories::SiblingType;
 	if (_fullScreenVideo) {
 		updateOverState(OverVideo);
 	} else if (_leftNavVisible && _leftNav.contains(pos)) {
 		updateOverState(OverLeftNav);
-	} else if (_stories && _stories->siblingLeft().geometry.contains(pos)) {
-		updateOverState(OverLeftStories);
-	} else if (_stories && _stories->siblingRight().geometry.contains(pos)) {
-		updateOverState(OverRightStories);
 	} else if (_rightNavVisible && _rightNav.contains(pos)) {
 		updateOverState(OverRightNav);
+	} else if (_stories
+		&& _stories->sibling(
+			SiblingType::Left).layout.geometry.contains(pos)) {
+		updateOverState(OverLeftStories);
+	} else if (_stories
+		&& _stories->sibling(
+			SiblingType::Right).layout.geometry.contains(pos)) {
+		updateOverState(OverRightStories);
 	} else if (!_stories && _from && _nameNav.contains(pos)) {
 		updateOverState(OverName);
-	} else if (!_stories && _message && _message->isRegular() && _dateNav.contains(pos)) {
+	} else if (!_stories
+		&& _message
+		&& _message->isRegular()
+		&& _dateNav.contains(pos)) {
 		updateOverState(OverDate);
 	} else if (!_stories && _headerHasLink && _headerNav.contains(pos)) {
 		updateOverState(OverHeader);
@@ -5270,7 +5317,9 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverSave);
 	} else if (_rotateVisible && _rotateNav.contains(pos)) {
 		updateOverState(OverRotate);
-	} else if (_document && documentBubbleShown() && _docIconRect.contains(pos)) {
+	} else if (_document
+		&& documentBubbleShown()
+		&& _docIconRect.contains(pos)) {
 		updateOverState(OverIcon);
 	} else if (_moreNav.contains(pos)) {
 		updateOverState(OverMore);

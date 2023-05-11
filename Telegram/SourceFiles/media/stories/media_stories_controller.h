@@ -39,10 +39,19 @@ class ReplyArea;
 class Sibling;
 class Delegate;
 struct SiblingView;
+enum class SiblingType;
+struct ContentLayout;
 
 enum class HeaderLayout {
 	Normal,
 	Outside,
+};
+
+struct SiblingLayout {
+	QRect geometry;
+	QRect userpic;
+	QRect nameBoundingRect;
+	int nameFontSize = 0;
 };
 
 struct Layout {
@@ -53,8 +62,8 @@ struct Layout {
 	QPoint controlsBottomPosition;
 	QRect autocompleteRect;
 	HeaderLayout headerLayout = HeaderLayout::Normal;
-	QRect siblingLeft;
-	QRect siblingRight;
+	SiblingLayout siblingLeft;
+	SiblingLayout siblingRight;
 
 	friend inline bool operator==(Layout, Layout) = default;
 };
@@ -67,7 +76,7 @@ public:
 	[[nodiscard]] not_null<Ui::RpWidget*> wrap() const;
 	[[nodiscard]] Layout layout() const;
 	[[nodiscard]] rpl::producer<Layout> layoutValue() const;
-	[[nodiscard]] float64 contentFade() const;
+	[[nodiscard]] ContentLayout contentLayout() const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
@@ -90,8 +99,7 @@ public:
 	[[nodiscard]] bool canDownload() const;
 
 	void repaintSibling(not_null<Sibling*> sibling);
-	[[nodiscard]] SiblingView siblingLeft() const;
-	[[nodiscard]] SiblingView siblingRight() const;
+	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 
 	void unfocusReply();
 

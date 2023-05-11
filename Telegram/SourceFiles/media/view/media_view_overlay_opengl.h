@@ -48,7 +48,8 @@ private:
 		const QImage &image,
 		ContentGeometry geometry,
 		bool semiTransparent,
-		bool fillTransparentBackground) override;
+		bool fillTransparentBackground,
+		int index = 0) override;
 	void paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
 		ContentGeometry geometry,
@@ -72,6 +73,11 @@ private:
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
 	void paintRoundedCorners(int radius) override;
+	void paintStoriesSiblingPart(
+		int index,
+		const QImage &image,
+		QRect rect,
+		float64 opacity = 1.) override;
 
 	//void invalidate();
 
@@ -117,11 +123,11 @@ private:
 	std::optional<QOpenGLShaderProgram> _fillProgram;
 	std::optional<QOpenGLShaderProgram> _controlsProgram;
 	std::optional<QOpenGLShaderProgram> _roundedCornersProgram;
-	Ui::GL::Textures<4> _textures;
+	Ui::GL::Textures<6> _textures; // image, sibling, right sibling, y, u, v
 	QSize _rgbaSize;
 	QSize _lumaSize;
 	QSize _chromaSize;
-	qint64 _cacheKey = 0;
+	qint64 _cacheKeys[3] = { 0 }; // image, sibling, right sibling
 	int _trackFrameIndex = 0;
 	int _streamedIndex = 0;
 	bool _chromaNV12 = false;
@@ -135,6 +141,9 @@ private:
 	Ui::GL::Image _captionImage;
 	Ui::GL::Image _groupThumbsImage;
 	Ui::GL::Image _controlsImage;
+
+	static constexpr auto kStoriesSiblingPartsCount = 4;
+	Ui::GL::Image _storiesSiblingParts[kStoriesSiblingPartsCount];
 
 	static constexpr auto kControlsCount = 5;
 	[[nodiscard]] static Control ControlMeta(

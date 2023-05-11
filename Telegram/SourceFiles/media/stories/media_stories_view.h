@@ -20,9 +20,22 @@ namespace Media::Stories {
 class Delegate;
 class Controller;
 
+struct ContentLayout {
+	QRect geometry;
+	float64 fade = 0.;
+	float64 radius = 0.;
+};
+
+enum class SiblingType;
+
 struct SiblingView {
 	QImage image;
-	QRect geometry;
+	ContentLayout layout;
+	QImage userpic;
+	QPoint userpicPosition;
+	QImage name;
+	QPoint namePosition;
+	float64 nameOpacity = 0.;
 
 	[[nodiscard]] bool valid() const {
 		return !image.isNull();
@@ -44,11 +57,10 @@ public:
 	void ready();
 
 	[[nodiscard]] bool canDownload() const;
-	[[nodiscard]] QRect contentGeometry() const;
-	[[nodiscard]] rpl::producer<QRect> contentGeometryValue() const;
-	[[nodiscard]] float64 contentFade() const;
-	[[nodiscard]] SiblingView siblingLeft() const;
-	[[nodiscard]] SiblingView siblingRight() const;
+	[[nodiscard]] QRect finalShownGeometry() const;
+	[[nodiscard]] rpl::producer<QRect> finalShownGeometryValue() const;
+	[[nodiscard]] ContentLayout contentLayout() const;
+	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 
 	void updatePlayback(const Player::TrackState &state);
 

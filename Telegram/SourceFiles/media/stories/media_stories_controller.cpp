@@ -28,8 +28,11 @@ namespace {
 
 constexpr auto kPhotoProgressInterval = crl::time(100);
 constexpr auto kPhotoDuration = 5 * crl::time(1000);
-constexpr auto kSiblingMultiplier = 0.448;
 constexpr auto kFullContentFade = 0.2;
+constexpr auto kSiblingMultiplier = 0.448;
+constexpr auto kSiblingOutsidePart = 0.24;
+constexpr auto kSiblingUserpicSize = 0.3;
+constexpr auto kInnerHeightMultiplier = 1.6;
 
 } // namespace
 
@@ -210,14 +213,49 @@ void Controller::initLayout() {
 			layout.controlsBottomPosition.y());
 
 		const auto siblingSize = layout.content.size() * kSiblingMultiplier;
-		const auto siblingTop = layout.content.y()
-			+ (layout.content.height() - siblingSize.height()) / 2;
-		layout.siblingLeft = QRect(
-			{ -siblingSize.width() / 3, siblingTop },
-			siblingSize);
-		layout.siblingRight = QRect(
-			{ size.width() - (2 * siblingSize.width() / 3), siblingTop },
-			siblingSize);
+		const auto siblingTop = (size.height() - siblingSize.height()) / 2;
+		const auto outside = int(base::SafeRound(
+			siblingSize.width() * kSiblingOutsidePart));
+		const auto xLeft = -outside;
+		const auto xRight = size.width() - siblingSize.width() + outside;
+		const auto userpicSize = int(base::SafeRound(
+			siblingSize.width() * kSiblingUserpicSize));
+		const auto innerHeight = userpicSize * kInnerHeightMultiplier;
+		const auto userpic = [&](QRect geometry) {
+			return QRect(
+				(geometry.width() - userpicSize) / 2,
+				(geometry.height() - innerHeight) / 2,
+				userpicSize,
+				userpicSize
+			).translated(geometry.topLeft());
+		};
+		const auto nameFontSize = st::storiesMaxNameFontSize * contentHeight
+			/ st::storiesMaxSize.height();
+		const auto nameBoundingRect = [&](QRect geometry, bool left) {
+			const auto skipSmall = nameFontSize;
+			const auto skipBig = skipSmall + outside;
+			const auto top = userpic(geometry).y() + innerHeight;
+			return QRect(
+				left ? skipBig : skipSmall,
+				(geometry.height() - innerHeight) / 2,
+				geometry.width() - skipSmall - skipBig,
+				innerHeight
+			).translated(geometry.topLeft());
+		};
+		const auto left = QRect({ xLeft, siblingTop }, siblingSize);
+		const auto right = QRect({ xRight, siblingTop }, siblingSize);
+		layout.siblingLeft = {
+			.geometry = left,
+			.userpic = userpic(left),
+			.nameBoundingRect = nameBoundingRect(left, true),
+			.nameFontSize = nameFontSize,
+		};
+		layout.siblingRight = {
+			.geometry = right,
+			.userpic = userpic(right),
+			.nameBoundingRect = nameBoundingRect(right, false),
+			.nameFontSize = nameFontSize,
+		};
 
 		return layout;
 	});
@@ -237,9 +275,13 @@ rpl::producer<Layout> Controller::layoutValue() const {
 	return _layout.value() | rpl::filter_optional();
 }
 
-float64 Controller::contentFade() const {
-	return _contentFadeAnimation.value(_contentFaded ? 1. : 0.)
-		* kFullContentFade;
+ContentLayout Controller::contentLayout() const {
+	return {
+		.geometry = _layout.current()->content,
+		.fade = (_contentFadeAnimation.value(_contentFaded ? 1. : 0.)
+			* kFullContentFade),
+		.radius = float64(st::storiesRadius),
+	};
 }
 
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
@@ -349,7 +391,7 @@ bool Controller::subjumpAvailable(int delta) const {
 bool Controller::subjumpFor(int delta) {
 	const auto index = _index + delta;
 	if (index < 0) {
-		if (_siblingLeft->shownId().valid()) {
+		if (_siblingLeft && _siblingLeft->shownId().valid()) {
 			return jumpFor(-1);
 		} else if (!_list || _list->items.empty()) {
 			return false;
@@ -360,7 +402,9 @@ bool Controller::subjumpFor(int delta) {
 		});
 		return true;
 	} else if (index >= _list->total) {
-		return _siblingRight->shownId().valid() && jumpFor(1);
+		return _siblingRight
+			&& _siblingRight->shownId().valid()
+			&& jumpFor(1);
 	} else if (index < _list->items.size()) {
 		// #TODO stories load more
 		_delegate->storiesJumpTo({
@@ -411,16 +455,16 @@ void Controller::repaintSibling(not_null<Sibling*> sibling) {
 	}
 }
 
-SiblingView Controller::siblingLeft() const {
-	if (const auto value = _siblingLeft.get()) {
-		return { value->image(), _layout.current()->siblingLeft };
-	}
-	return {};
-}
-
-SiblingView Controller::siblingRight() const {
-	if (const auto value = _siblingRight.get()) {
-		return { value->image(), _layout.current()->siblingRight };
+SiblingView Controller::sibling(SiblingType type) const {
+	const auto &pointer = (type == SiblingType::Left)
+		? _siblingLeft
+		: _siblingRight;
+	if (const auto value = pointer.get()) {
+		const auto over = _delegate->storiesSiblingOver(type);
+		const auto layout = (type == SiblingType::Left)
+			? _layout.current()->siblingLeft
+			: _layout.current()->siblingRight;
+		return value->view(layout, over);
 	}
 	return {};
 }

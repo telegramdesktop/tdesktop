@@ -27,7 +27,8 @@ private:
 		const QImage &image,
 		ContentGeometry geometry,
 		bool semiTransparent,
-		bool fillTransparentBackground) override;
+		bool fillTransparentBackground,
+		int index = 0) override;
 	void paintTransformedImage(
 		const QImage &image,
 		QRect rect,
@@ -52,6 +53,11 @@ private:
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
 	void paintRoundedCorners(int radius) override;
+	void paintStoriesSiblingPart(
+		int index,
+		const QImage &image,
+		QRect rect,
+		float64 opacity = 1.) override;
 
 	void validateOverControlImage();
 

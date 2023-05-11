@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/gl/gl_shader.h"
 #include "ui/painter.h"
+#include "media/stories/media_stories_view.h"
 #include "media/streaming/media_streaming_common.h"
 #include "platform/platform_overlay_widget.h"
 #include "base/platform/base_platform_info.h"
@@ -133,7 +134,11 @@ void OverlayWidget::RendererGL::init(
 	constexpr auto kRoundingQuads = 4;
 	constexpr auto kRoundingVertices = kRoundingQuads * 6;
 	constexpr auto kRoundingValues = kRoundingVertices * 2;
-	constexpr auto kValues = kQuadValues + kControlsValues + kRoundingValues;
+	constexpr auto kStoriesSiblingValues = kStoriesSiblingPartsCount * 16;
+	constexpr auto kValues = kQuadValues
+		+ kControlsValues
+		+ kRoundingValues
+		+ kStoriesSiblingValues;
 
 	_contentBuffer.emplace();
 	_contentBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
@@ -315,7 +320,7 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	_streamedIndex = _owner->streamedIndex();
 
 	_f->glActiveTexture(GL_TEXTURE0);
-	_textures.bind(*_f, 1);
+	_textures.bind(*_f, 3);
 	if (upload) {
 		_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		uploadTexture(
@@ -328,7 +333,7 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 		_lumaSize = yuv->size;
 	}
 	_f->glActiveTexture(GL_TEXTURE1);
-	_textures.bind(*_f, 2);
+	_textures.bind(*_f, 4);
 	if (upload) {
 		uploadTexture(
 			nv12 ? GL_RG : GL_ALPHA,
@@ -350,7 +355,7 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 		_controlsFadeImage.bind(*_f);
 	} else {
 		_f->glActiveTexture(GL_TEXTURE2);
-		_textures.bind(*_f, 3);
+		_textures.bind(*_f, 5);
 		if (upload) {
 			uploadTexture(
 				GL_ALPHA,
@@ -383,7 +388,9 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 		const QImage &image,
 		ContentGeometry geometry,
 		bool semiTransparent,
-		bool fillTransparentBackground) {
+		bool fillTransparentBackground,
+		int index) {
+	Expects(index >= 0 && index < 3);
 	Expects(image.isNull()
 		|| image.format() == QImage::Format_RGB32
 		|| image.format() == QImage::Format_ARGB32_Premultiplied);
@@ -409,11 +416,11 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 	}
 
 	_f->glActiveTexture(GL_TEXTURE0);
-	_textures.bind(*_f, 0);
+	_textures.bind(*_f, index);
 	const auto cacheKey = image.isNull() ? qint64(-1) : image.cacheKey();
-	const auto upload = (_cacheKey != cacheKey);
+	const auto upload = (_cacheKeys[index] != cacheKey);
 	if (upload) {
-		_cacheKey = cacheKey;
+		_cacheKeys[index] = cacheKey;
 		if (image.isNull()) {
 			// Upload transparent 2x2 texture.
 			const auto stride = 2;
@@ -853,6 +860,54 @@ void OverlayWidget::RendererGL::paintRoundedCorners(int radius) {
 
 	_f->glDisableVertexAttribArray(position);
 }
+
+void OverlayWidget::RendererGL::paintStoriesSiblingPart(
+		int index,
+		const QImage &image,
+		QRect rect,
+		float64 opacity) {
+	Expects(index >= 0 && index < kStoriesSiblingPartsCount);
+
+	_f->glActiveTexture(GL_TEXTURE0);
+
+	auto &part = _storiesSiblingParts[index];
+	part.setImage(image);
+	part.bind(*_f);
+
+	const auto textured = part.texturedRect(
+		rect,
+		QRect(QPoint(), image.size()));
+	const auto geometry = transformRect(textured.geometry);
+	const GLfloat coords[] = {
+		geometry.left(), geometry.top(),
+		textured.texture.left(), textured.texture.bottom(),
+
+		geometry.right(), geometry.top(),
+		textured.texture.right(), textured.texture.bottom(),
+
+		geometry.right(), geometry.bottom(),
+		textured.texture.right(), textured.texture.top(),
+
+		geometry.left(), geometry.bottom(),
+		textured.texture.left(), textured.texture.top(),
+	};
+	const auto offset = kControlsOffset
+		+ (kControlsCount * kControlValues) / 4
+		+ (6 * 2 * 4) / 4 // rounding
+		+ (index * 4);
+	const auto byteOffset = offset * 4 * sizeof(GLfloat);
+	_contentBuffer->write(byteOffset, coords, sizeof(coords));
+
+	_controlsProgram->bind();
+	_controlsProgram->setUniformValue("viewport", _uniformViewport);
+	_contentBuffer->write(
+		offset * 4 * sizeof(GLfloat),
+		coords,
+		sizeof(coords));
+	_controlsProgram->setUniformValue("g_opacity", GLfloat(opacity));
+	FillTexturedRectangle(*_f, &*_controlsProgram, offset);
+}
+
 //
 //void OverlayWidget::RendererGL::invalidate() {
 //	_trackFrameIndex = -1;

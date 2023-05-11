@@ -66,6 +66,7 @@ enum class Error;
 
 namespace Media::Stories {
 class View;
+struct ContentLayout;
 } // namespace Media::Stories
 
 namespace Media::View {
@@ -235,6 +236,7 @@ private:
 	void storiesJumpTo(Data::FullStoryId id) override;
 	bool storiesPaused() override;
 	void storiesTogglePaused(bool paused) override;
+	float64 storiesSiblingOver(Stories::SiblingType type) override;
 	void storiesRepaint() override;
 
 	void hideControls(bool force = false);
@@ -390,6 +392,8 @@ private:
 	[[nodiscard]] int finalContentRotation() const;
 	[[nodiscard]] QRect finalContentRect() const;
 	[[nodiscard]] ContentGeometry contentGeometry() const;
+	[[nodiscard]] ContentGeometry storiesContentGeometry(
+		const Stories::ContentLayout &layout) const;
 	void updateContentRect();
 	void contentSizeChanged();
 

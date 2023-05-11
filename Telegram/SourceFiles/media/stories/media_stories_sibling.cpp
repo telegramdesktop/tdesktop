@@ -14,15 +14,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
+#include "media/stories/media_stories_view.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
+#include "ui/painter.h"
+#include "styles/style_media_view.h"
 
 namespace Media::Stories {
 namespace {
 
 constexpr auto kGoodFadeDuration = crl::time(200);
+constexpr auto kSiblingFade = 0.5;
+constexpr auto kSiblingFadeOver = 0.4;
+constexpr auto kSiblingNameOpacity = 0.8;
+constexpr auto kSiblingNameOpacityOver = 1.;
 
 } // namespace
 
@@ -241,8 +249,107 @@ bool Sibling::shows(const Data::StoriesList &list) const {
 	return _id == Data::FullStoryId{ list.user, list.items.front().id };
 }
 
-QImage Sibling::image() const {
-	return _good.isNull() ? _blurred : _good;
+SiblingView Sibling::view(const SiblingLayout &layout, float64 over) {
+	const auto name = nameImage(layout);
+	return {
+		.image = _good.isNull() ? _blurred : _good,
+		.layout = {
+			.geometry = layout.geometry,
+			.fade = kSiblingFade * (1 - over) + kSiblingFadeOver * over,
+			.radius = float64(st::storiesRadius),
+		},
+		.userpic = userpicImage(layout),
+		.userpicPosition = layout.userpic.topLeft(),
+		.name = name,
+		.namePosition = namePosition(layout, name),
+		.nameOpacity = (kSiblingNameOpacity * (1 - over)
+			+ kSiblingNameOpacityOver * over),
+	};
+}
+
+QImage Sibling::userpicImage(const SiblingLayout &layout) {
+	Expects(_id.user != nullptr);
+
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = layout.userpic.width() * ratio;
+	const auto key = _id.user->userpicUniqueKey(_userpicView);
+	if (_userpicImage.width() != size || _userpicKey != key) {
+		_userpicKey = key;
+		_userpicImage = _id.user->generateUserpicImage(_userpicView, size);
+		_userpicImage.setDevicePixelRatio(ratio);
+	}
+	return _userpicImage;
+}
+
+QImage Sibling::nameImage(const SiblingLayout &layout) {
+	Expects(_id.user != nullptr);
+
+	if (_nameFontSize != layout.nameFontSize) {
+		_nameFontSize = layout.nameFontSize;
+
+		const auto family = 0; // Default font family.
+		const auto font = style::font(
+			_nameFontSize,
+			style::internal::FontSemibold,
+			family);
+		_name.reset();
+		_nameStyle = std::make_unique<style::TextStyle>(style::TextStyle{
+			.font = font,
+			.linkFont = font,
+			.linkFontOver = font,
+		});
+	};
+	const auto text = _id.user->shortName();
+	if (_nameText != text) {
+		_name.reset();
+		_nameText = text;
+	}
+	if (!_name) {
+		_nameAvailableWidth = 0;
+		_name.emplace(*_nameStyle, _nameText);
+	}
+	const auto available = layout.nameBoundingRect.width();
+	const auto wasCut = (_nameAvailableWidth < _name->maxWidth());
+	const auto nowCut = (available < _name->maxWidth());
+	if (_nameImage.isNull()
+		|| _nameAvailableWidth != layout.nameBoundingRect.width()) {
+		_nameAvailableWidth = layout.nameBoundingRect.width();
+		if (_nameImage.isNull() || nowCut || wasCut) {
+			const auto w = std::min(_nameAvailableWidth, _name->maxWidth());
+			const auto h = _nameStyle->font->height;
+			const auto ratio = style::DevicePixelRatio();
+			_nameImage = QImage(
+				QSize(w, h) * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			_nameImage.setDevicePixelRatio(ratio);
+			_nameImage.fill(Qt::transparent);
+			auto p = Painter(&_nameImage);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setFont(_nameStyle->font);
+			p.setPen(Qt::white);
+			_name->drawLeftElided(p, 0, 0, w, w);
+		}
+	}
+	return _nameImage;
+}
+
+QPoint Sibling::namePosition(
+		const SiblingLayout &layout,
+		const QImage &image) const {
+	const auto size = image.size() / image.devicePixelRatio();
+	const auto width = size.width();
+	const auto left = layout.geometry.x()
+		+ (layout.geometry.width() - width) / 2;
+	if (left < layout.nameBoundingRect.x()) {
+		return layout.nameBoundingRect.topLeft();
+	} else if (left + width > layout.nameBoundingRect.x() + layout.nameBoundingRect.width()) {
+		return layout.nameBoundingRect.topLeft()
+			+ QPoint(layout.nameBoundingRect.width() - width, 0);
+	}
+	const auto top = layout.nameBoundingRect.y()
+		+ layout.nameBoundingRect.height()
+		- size.height();
+	return QPoint(left, top);
 }
 
 void Sibling::check() {

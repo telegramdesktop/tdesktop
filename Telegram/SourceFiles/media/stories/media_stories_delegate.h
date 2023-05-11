@@ -27,6 +27,11 @@ enum class JumpReason {
 	User,
 };
 
+enum class SiblingType {
+	Left,
+	Right,
+};
+
 class Delegate {
 public:
 	[[nodiscard]] virtual not_null<Ui::RpWidget*> storiesWrap() = 0;
@@ -36,6 +41,7 @@ public:
 		-> rpl::producer<ChatHelpers::FileChosen> = 0;
 	virtual void storiesJumpTo(Data::FullStoryId id) = 0;
 	[[nodiscard]] virtual bool storiesPaused() = 0;
+	[[nodiscard]] virtual float64 storiesSiblingOver(SiblingType type) = 0;
 	virtual void storiesTogglePaused(bool paused) = 0;
 	virtual void storiesRepaint() = 0;
 };
