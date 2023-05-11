@@ -1302,7 +1302,7 @@ if buildQt6:
 mac:
     git clone -b v6.3.2 https://code.qt.io/qt/qt5.git qt_6_3_2
     cd qt_6_3_2
-    perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
+    perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
 depends:patches/qtbase_6.3.2/*.patch
     cd qtbase
 

@@ -459,7 +459,7 @@ parts:
       QT=6.5.0
 
       git clone -b v${QT} --depth=1 https://code.qt.io/qt/qt5.git .
-      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools
+      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 
       cd qtbase
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
