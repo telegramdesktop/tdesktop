@@ -28,7 +28,7 @@ namespace {
 
 constexpr auto kPhotoProgressInterval = crl::time(100);
 constexpr auto kPhotoDuration = 5 * crl::time(1000);
-constexpr auto kFullContentFade = 0.2;
+constexpr auto kFullContentFade = 0.35;
 constexpr auto kSiblingMultiplier = 0.448;
 constexpr auto kSiblingOutsidePart = 0.24;
 constexpr auto kSiblingUserpicSize = 0.3;
@@ -276,12 +276,20 @@ rpl::producer<Layout> Controller::layoutValue() const {
 }
 
 ContentLayout Controller::contentLayout() const {
+	const auto &current = _layout.current();
+	Assert(current.has_value());
+
 	return {
-		.geometry = _layout.current()->content,
+		.geometry = current->content,
 		.fade = (_contentFadeAnimation.value(_contentFaded ? 1. : 0.)
 			* kFullContentFade),
-		.radius = float64(st::storiesRadius),
+		.radius = st::storiesRadius,
+		.headerOutside = (current->headerLayout == HeaderLayout::Outside),
 	};
+}
+
+TextWithEntities Controller::captionText() const {
+	return _captionText;
 }
 
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
@@ -325,6 +333,7 @@ void Controller::show(
 		return;
 	}
 	_shown = id;
+	_captionText = item.caption;
 
 	_header->show({ .user = list.user, .date = item.date });
 	_slider->show({ .index = _index, .total = list.total });

@@ -21,7 +21,7 @@ namespace Media::Stories {
 namespace {
 
 constexpr auto kNameOpacity = 1.;
-constexpr auto kDateOpacity = 0.6;
+constexpr auto kDateOpacity = 0.8;
 
 } // namespace
 

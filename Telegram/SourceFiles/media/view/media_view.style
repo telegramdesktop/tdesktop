@@ -196,6 +196,7 @@ mediaviewSaveMsgStyle: TextStyle(defaultTextStyle) {
 mediaviewTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaviewTextLinkFg;
 	monoFg: mediaviewCaptionFg;
+	spoilerFg: mediaviewCaptionFg;
 }
 
 mediaviewCaptionStyle: defaultTextStyle;
@@ -429,6 +430,8 @@ storiesHeaderDate: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewControlFg;
 }
 storiesHeaderDatePosition: point(50px, 17px);
+storiesShadowTop: icon{{ "mediaview/shadow_bottom-flip_vertical", windowShadowFg }};
+storiesShadowBottom: mediaviewShadowBottom;
 storiesControlsMinWidth: 200px;
 storiesFieldMargin: margins(0px, 14px, 0px, 16px);
 storiesAttach: IconButton(defaultIconButton) {

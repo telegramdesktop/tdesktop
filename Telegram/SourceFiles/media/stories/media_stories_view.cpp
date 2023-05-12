@@ -79,6 +79,10 @@ SiblingView View::sibling(SiblingType type) const {
 	return _controller->sibling(type);
 }
 
+TextWithEntities View::captionText() const {
+	return _controller->captionText();
+}
+
 rpl::lifetime &View::lifetime() {
 	return _controller->lifetime();
 }

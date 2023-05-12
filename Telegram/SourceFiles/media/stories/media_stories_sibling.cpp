@@ -256,7 +256,7 @@ SiblingView Sibling::view(const SiblingLayout &layout, float64 over) {
 		.layout = {
 			.geometry = layout.geometry,
 			.fade = kSiblingFade * (1 - over) + kSiblingFadeOver * over,
-			.radius = float64(st::storiesRadius),
+			.radius = st::storiesRadius,
 		},
 		.userpic = userpicImage(layout),
 		.userpicPosition = layout.userpic.topLeft(),

@@ -153,10 +153,8 @@ private:
 	// Last one is for the over circle image.
 	std::array<QRect, kControlsCount + 1> _controlsTextures;
 
-	QRect _shadowTopTexture;
-	QRect _shadowBottomTexture;
-
-	bool _shadowTopFlip;
+	bool _shadowTopFlip = false;
+	bool _shadowsForStories = false;
 	bool _blendingEnabled = false;
 
 	rpl::lifetime _lifetime;

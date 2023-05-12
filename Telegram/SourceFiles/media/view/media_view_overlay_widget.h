@@ -166,8 +166,12 @@ private:
 		QRectF rect;
 		qreal rotation = 0.;
 		qreal controlsOpacity = 0.;
+
+		// Stories.
 		qreal fade = 0.;
-		qreal roundRadius = 0.;
+		int bottomShadowSkip = 0;
+		int roundRadius = 0;
+		bool topShadowShown = false;
 	};
 	struct StartStreaming {
 		StartStreaming() : continueStreaming(false), startTime(0) {

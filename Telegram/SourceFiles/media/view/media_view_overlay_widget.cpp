@@ -127,6 +127,7 @@ constexpr auto kIdsPreloadAfter = 28;
 
 constexpr auto kLeftSiblingTextureIndex = 1;
 constexpr auto kRightSiblingTextureIndex = 2;
+constexpr auto kStoriesControlsOpacity = 1.;
 
 class PipDelegate final : public Pip::Delegate {
 public:
@@ -1200,27 +1201,35 @@ void OverlayWidget::refreshCaptionGeometry() {
 		_groupThumbs = nullptr;
 		_groupThumbsRect = QRect();
 	}
-	const auto captionBottom = (_streamed && _streamed->controls)
+	const auto captionBottom = _stories
+		? (_y + _h)
+		: (_streamed && _streamed->controls)
 		? (_streamed->controls->y() - st::mediaviewCaptionMargin.height())
 		: _groupThumbs
 		? _groupThumbsTop
 		: height() - st::mediaviewCaptionMargin.height();
-	const auto captionWidth = std::min(
-		_groupThumbsAvailableWidth
-		- st::mediaviewCaptionPadding.left()
-		- st::mediaviewCaptionPadding.right(),
-		_caption.maxWidth());
-	const auto captionHeight = std::min(
-		_caption.countHeight(captionWidth),
-		height() / 4
+	const auto captionWidth = _stories
+		? (_w
+			- st::mediaviewCaptionPadding.left()
+			- st::mediaviewCaptionPadding.right())
+		: std::min(
+			(_groupThumbsAvailableWidth
+				- st::mediaviewCaptionPadding.left()
+				- st::mediaviewCaptionPadding.right()),
+			_caption.maxWidth());
+	const auto maxHeight = (_stories ? (_h / 3) : (height() / 4))
 		- st::mediaviewCaptionPadding.top()
 		- st::mediaviewCaptionPadding.bottom()
-		- 2 * st::mediaviewCaptionMargin.height());
+		- (_stories ? 0 : (2 * st::mediaviewCaptionMargin.height()));
+	const auto lineHeight = st::mediaviewCaptionStyle.font->height;
+	const auto captionHeight = std::min(
+		_caption.countHeight(captionWidth),
+		(maxHeight / lineHeight) * lineHeight);
 	_captionRect = QRect(
 		(width() - captionWidth) / 2,
-		captionBottom
-		- captionHeight
-		- st::mediaviewCaptionPadding.bottom(),
+		(captionBottom
+			- captionHeight
+			- st::mediaviewCaptionPadding.bottom()),
 		captionWidth,
 		captionHeight);
 }
@@ -1497,7 +1506,14 @@ QRect OverlayWidget::finalContentRect() const {
 
 OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 	if (_stories) {
-		return storiesContentGeometry(_stories->contentLayout());
+		auto result = storiesContentGeometry(_stories->contentLayout());
+		if (!_caption.isEmpty()) {
+			result.bottomShadowSkip = _widget->height()
+				- _captionRect.y()
+				+ st::mediaviewCaptionStyle.font->height
+				- st::storiesShadowBottom.height();
+		}
+		return result;
 	}
 	const auto controlsOpacity = _controlsOpacity.current();
 	const auto toRotation = qreal(finalContentRotation());
@@ -1541,9 +1557,10 @@ OverlayWidget::ContentGeometry OverlayWidget::storiesContentGeometry(
 		const Stories::ContentLayout &layout) const {
 	return {
 		.rect = QRectF(layout.geometry),
-		.controlsOpacity = 0., // #TODO stories ?..
+		.controlsOpacity = kStoriesControlsOpacity,
 		.fade = layout.fade,
 		.roundRadius = layout.radius,
+		.topShadowShown = !layout.headerOutside,
 	};
 }
 
@@ -2708,21 +2725,26 @@ void OverlayWidget::refreshFromLabel() {
 
 void OverlayWidget::refreshCaption() {
 	_caption = Ui::Text::String();
-	if (!_message) {
-		return;
-	} else if (const auto media = _message->media()) {
-		if (media->webpage()) {
-			return;
+	const auto caption = [&] {
+		if (_message) {
+			if (const auto media = _message->media()) {
+				if (media->webpage()) {
+					return TextWithEntities();
+				}
+			}
+			return _message->translatedText();
+		} else if (_stories) {
+			return _stories->captionText();
 		}
-	}
-	const auto caption = _message->translatedText();
+		return TextWithEntities();
+	}();
 	if (caption.text.isEmpty()) {
 		return;
 	}
 
 	using namespace HistoryView;
 	_caption = Ui::Text::String(st::msgMinWidth);
-	const auto duration = (_streamed && _document)
+	const auto duration = (_streamed && _document && _message)
 		? DurationForTimestampLinks(_document)
 		: 0;
 	const auto base = duration
@@ -2735,7 +2757,9 @@ void OverlayWidget::refreshCaption() {
 		update(captionGeometry());
 	};
 	const auto context = Core::MarkedTextContext{
-		.session = &_message->history()->session(),
+		.session = (_stories
+			? _storiesSession
+			: &_message->history()->session()),
 		.customEmojiRepaint = captionRepaint,
 	};
 	_caption.setMarkedText(
@@ -2743,7 +2767,9 @@ void OverlayWidget::refreshCaption() {
 		(base.isEmpty()
 			? caption
 			: AddTimestampLinks(caption, duration, base)),
-		Ui::ItemTextOptions(_message),
+		(_message
+			? Ui::ItemTextOptions(_message)
+			: Ui::ItemTextDefaultOptions()),
 		context);
 	if (_caption.hasSpoilers()) {
 		const auto weak = Ui::MakeWeak(widget());
@@ -4627,10 +4653,15 @@ void OverlayWidget::paintCaptionContent(
 		QRect clip,
 		float64 opacity) {
 	const auto inner = outer.marginsRemoved(st::mediaviewCaptionPadding);
-	p.setOpacity(opacity);
-	p.setBrush(st::mediaviewCaptionBg);
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(outer, st::mediaviewCaptionRadius, st::mediaviewCaptionRadius);
+	if (!_stories) {
+		p.setOpacity(opacity);
+		p.setBrush(st::mediaviewCaptionBg);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(
+			outer,
+			st::mediaviewCaptionRadius,
+			st::mediaviewCaptionRadius);
+	}
 	if (inner.intersects(clip)) {
 		p.setPen(st::mediaviewCaptionFg);
 		_caption.draw(p, {

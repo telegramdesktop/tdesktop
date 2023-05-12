@@ -36,13 +36,14 @@ constexpr auto kControlValues = 4 * 4 + 4 * 4; // over + icon
 		.header = R"(
 uniform sampler2D f_texture;
 uniform vec4 shadowTopRect;
-uniform vec3 shadowBottomOpacityFullFade;
+uniform vec4 shadowBottomSkipOpacityFullFade;
 )",
 		.body = R"(
 	float topHeight = shadowTopRect.w;
-	float bottomHeight = shadowBottomOpacityFullFade.x;
-	float opacity = shadowBottomOpacityFullFade.y;
-	float fullFade = shadowBottomOpacityFullFade.z;
+	float bottomHeight = shadowBottomSkipOpacityFullFade.x;
+	float bottomSkip = shadowBottomSkipOpacityFullFade.y;
+	float opacity = shadowBottomSkipOpacityFullFade.z;
+	float fullFade = shadowBottomSkipOpacityFullFade.w;
 	float viewportHeight = shadowTopRect.y + topHeight;
 	float fullHeight = topHeight + bottomHeight;
 	float topY = min(
@@ -50,7 +51,8 @@ uniform vec3 shadowBottomOpacityFullFade;
 		topHeight / fullHeight);
 	float topX = (gl_FragCoord.x - shadowTopRect.x) / shadowTopRect.z;
 	vec4 fadeTop = texture2D(f_texture, vec2(topX, topY)) * opacity;
-	float bottomY = max(fullHeight - gl_FragCoord.y, topHeight) / fullHeight;
+	float bottomY = max(bottomSkip + fullHeight - gl_FragCoord.y, topHeight)
+		/ fullHeight;
 	vec4 fadeBottom = texture2D(f_texture, vec2(0.5, bottomY)) * opacity;
 	float fade = min((1. - fadeTop.a) * (1. - fadeBottom.a), fullFade);
 	result.rgb = result.rgb * fade;
@@ -496,16 +498,30 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 	_contentBuffer->write(0, coords, sizeof(coords));
 
 	program->setUniformValue("viewport", _uniformViewport);
-	const auto &top = st::mediaviewShadowTop.size();
-	const auto point = QPoint(
-		_shadowTopFlip ? 0 : (_viewport.width() - top.width()),
-		0);
-	program->setUniformValue(
-		"shadowTopRect",
-		Uniform(transformRect(QRect(point, top))));
-	const auto &bottom = st::mediaviewShadowBottom;
-	program->setUniformValue("shadowBottomOpacityFullFade", QVector3D(
+	if (_owner->_stories) {
+		const auto &top = st::storiesShadowTop.size();
+		const auto shadowTop = geometry.topShadowShown
+			? geometry.rect.y()
+			: geometry.rect.y() - top.height();
+		program->setUniformValue(
+			"shadowTopRect",
+			Uniform(transformRect(
+				QRect(QPoint(geometry.rect.x(), shadowTop), top))));
+	} else {
+		const auto &top = st::mediaviewShadowTop.size();
+		const auto point = QPoint(
+			_shadowTopFlip ? 0 : (_viewport.width() - top.width()),
+			0);
+		program->setUniformValue(
+			"shadowTopRect",
+			Uniform(transformRect(QRect(point, top))));
+	}
+	const auto &bottom = _owner->_stories
+		? st::storiesShadowBottom
+		: st::mediaviewShadowBottom;
+	program->setUniformValue("shadowBottomSkipOpacityFullFade", QVector4D(
 		bottom.height() * _factor,
+		geometry.bottomShadowSkip * _factor,
 		geometry.controlsOpacity,
 		1.f - float(geometry.fade)));
 	if (!fillTransparentBackground) {
@@ -733,14 +749,23 @@ void OverlayWidget::RendererGL::invalidateControls() {
 
 void OverlayWidget::RendererGL::validateControlsFade() {
 	const auto flip = !_owner->topShadowOnTheRight();
+	const auto forStories = (_owner->_stories != nullptr);
 	if (!_controlsFadeImage.image().isNull()
-		&& _shadowTopFlip == flip) {
+		&& _shadowTopFlip == flip
+		&& _shadowsForStories == forStories) {
 		return;
 	}
 	_shadowTopFlip = flip;
-	const auto width = st::mediaviewShadowTop.width();
-	const auto bottomTop = st::mediaviewShadowTop.height();
-	const auto height = bottomTop + st::mediaviewShadowBottom.height();
+	_shadowsForStories = forStories;
+	const auto &top = _shadowsForStories
+		? st::storiesShadowTop
+		: st::mediaviewShadowTop;
+	const auto &bottom = _shadowsForStories
+		? st::storiesShadowBottom
+		: st::mediaviewShadowBottom;
+	const auto width = top.width();
+	const auto bottomTop = top.height();
+	const auto height = bottomTop + bottom.height();
 
 	auto image = QImage(
 		QSize(width, height) * _factor,
@@ -749,10 +774,10 @@ void OverlayWidget::RendererGL::validateControlsFade() {
 	image.setDevicePixelRatio(_factor);
 
 	auto p = QPainter(&image);
-	st::mediaviewShadowTop.paint(p, 0, 0, width);
-	st::mediaviewShadowBottom.fill(
+	top.paint(p, 0, 0, width);
+	bottom.fill(
 		p,
-		QRect(0, bottomTop, width, st::mediaviewShadowBottom.height()));
+		QRect(0, bottomTop, width, bottom.height()));
 	p.end();
 
 	if (flip) {
@@ -760,12 +785,6 @@ void OverlayWidget::RendererGL::validateControlsFade() {
 	}
 
 	_controlsFadeImage.setImage(std::move(image));
-	_shadowTopTexture = QRect(
-		QPoint(),
-		QSize(width, st::mediaviewShadowTop.height()) * _factor);
-	_shadowBottomTexture = QRect(
-		QPoint(0, bottomTop) * _factor,
-		QSize(width, st::mediaviewShadowBottom.height()) * _factor);
 }
 
 void OverlayWidget::RendererGL::paintFooter(QRect outer, float64 opacity) {

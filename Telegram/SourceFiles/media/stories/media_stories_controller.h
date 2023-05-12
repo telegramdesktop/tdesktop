@@ -77,6 +77,7 @@ public:
 	[[nodiscard]] Layout layout() const;
 	[[nodiscard]] rpl::producer<Layout> layoutValue() const;
 	[[nodiscard]] ContentLayout contentLayout() const;
+	[[nodiscard]] TextWithEntities captionText() const;
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
@@ -134,6 +135,7 @@ private:
 	bool _contentFaded = false;
 
 	Data::FullStoryId _shown;
+	TextWithEntities _captionText;
 	std::optional<Data::StoriesList> _list;
 	int _index = 0;
 	bool _started = false;

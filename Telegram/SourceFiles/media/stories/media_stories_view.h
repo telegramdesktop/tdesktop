@@ -23,7 +23,8 @@ class Controller;
 struct ContentLayout {
 	QRect geometry;
 	float64 fade = 0.;
-	float64 radius = 0.;
+	int radius = 0;
+	bool headerOutside = false;
 };
 
 enum class SiblingType;
@@ -61,6 +62,7 @@ public:
 	[[nodiscard]] rpl::producer<QRect> finalShownGeometryValue() const;
 	[[nodiscard]] ContentLayout contentLayout() const;
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
+	[[nodiscard]] TextWithEntities captionText() const;
 
 	void updatePlayback(const Player::TrackState &state);
 

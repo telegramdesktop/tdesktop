@@ -113,11 +113,16 @@ void OverlayWidget::RendererSW::paintControlsFade(
 	_p->setOpacity(opacity);
 	_p->setClipRect(geometry);
 	const auto width = _owner->width();
-	const auto &top = st::mediaviewShadowTop;
 	const auto flip = !_owner->topShadowOnTheRight();
-	const auto topShadow = QRect(
-		QPoint(flip ? 0 : (width - top.width()), 0),
-		top.size());
+	const auto stories = (_owner->_stories != nullptr);
+	const auto &top = stories
+		? st::storiesShadowTop
+		: st::mediaviewShadowTop;
+	const auto topShadow = stories
+		? QRect(geometry.topLeft(), QSize(geometry.width(), top.height()))
+		: QRect(
+			QPoint(flip ? 0 : (width - top.width()), 0),
+			top.size());
 	if (topShadow.intersected(geometry).intersects(_clipOuter)) {
 		if (flip) {
 			if (_topShadowCache.isNull()
@@ -131,7 +136,9 @@ void OverlayWidget::RendererSW::paintControlsFade(
 			top.paint(*_p, topShadow.topLeft(), width);
 		}
 	}
-	const auto &bottom = st::mediaviewShadowBottom;
+	const auto &bottom = stories
+		? st::storiesShadowBottom
+		: st::mediaviewShadowBottom;
 	const auto bottomShadow = QRect(
 		QPoint(0, _owner->height() - bottom.height()),
 		QSize(width, bottom.height()));
