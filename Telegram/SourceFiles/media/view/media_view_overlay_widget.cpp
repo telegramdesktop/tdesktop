@@ -4011,10 +4011,12 @@ void OverlayWidget::storiesTogglePaused(bool paused) {
 		|| !_streamed->instance.player().active()) {
 		return;
 	} else if (_streamed->instance.player().paused()) {
-		_streamed->instance.resume();
-		updatePlaybackState();
-		playbackPauseMusic();
-	} else {
+		if (!paused) {
+			_streamed->instance.resume();
+			updatePlaybackState();
+			playbackPauseMusic();
+		}
+	} else if (paused) {
 		_streamed->instance.pause();
 		updatePlaybackState();
 	}

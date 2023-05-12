@@ -16,14 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media::View {
 
 OverlayWidget::RendererSW::RendererSW(not_null<OverlayWidget*> owner)
-	: _owner(owner)
-	, _transparentBrush(style::TransparentPlaceholder()) {
+: _owner(owner)
+, _transparentBrush(style::TransparentPlaceholder()) {
 }
 
 void OverlayWidget::RendererSW::paintFallback(
-	Painter &&p,
-	const QRegion &clip,
-	Ui::GL::Backend backend) {
+		Painter &&p,
+		const QRegion &clip,
+		Ui::GL::Backend backend) {
 	_p = &p;
 	_clip = &clip;
 	_clipOuter = clip.boundingRect();
@@ -49,8 +49,8 @@ void OverlayWidget::RendererSW::paintBackground() {
 }
 
 QRect OverlayWidget::RendererSW::TransformRect(
-	QRectF geometry,
-	int rotation) {
+		QRectF geometry,
+		int rotation) {
 	const auto center = geometry.center();
 	const auto rect = ((rotation % 180) == 90)
 		? QRectF(
@@ -67,7 +67,7 @@ QRect OverlayWidget::RendererSW::TransformRect(
 }
 
 void OverlayWidget::RendererSW::paintTransformedVideoFrame(
-	ContentGeometry geometry) {
+		ContentGeometry geometry) {
 	Expects(_owner->_streamed != nullptr);
 
 	const auto rotation = int(geometry.rotation);
@@ -76,15 +76,15 @@ void OverlayWidget::RendererSW::paintTransformedVideoFrame(
 		return;
 	}
 	paintTransformedImage(_owner->videoFrame(), rect, rotation);
-	paintControlsFade(rect, geometry.controlsOpacity);
+	paintControlsFade(rect, geometry.controlsOpacity, geometry.fade);
 }
 
 void OverlayWidget::RendererSW::paintTransformedStaticContent(
-	const QImage &image,
-	ContentGeometry geometry,
-	bool semiTransparent,
-	bool fillTransparentBackground,
-	int index) {
+		const QImage &image,
+		ContentGeometry geometry,
+		bool semiTransparent,
+		bool fillTransparentBackground,
+		int index) {
 	const auto rotation = int(geometry.rotation);
 	const auto rect = TransformRect(geometry.rect, rotation);
 	if (!rect.intersects(_clipOuter)) {
@@ -97,12 +97,19 @@ void OverlayWidget::RendererSW::paintTransformedStaticContent(
 	if (!image.isNull()) {
 		paintTransformedImage(image, rect, rotation);
 	}
-	paintControlsFade(rect, geometry.controlsOpacity);
+	paintControlsFade(rect, geometry.controlsOpacity, geometry.fade);
 }
 
 void OverlayWidget::RendererSW::paintControlsFade(
-	QRect geometry,
-	float64 opacity) {
+		QRect geometry,
+		float64 opacity,
+		float64 fullFade) {
+	if (fullFade > 0.) {
+		_p->setOpacity(fullFade);
+		_p->fillRect(geometry, Qt::black);
+		opacity *= 1. - fullFade;
+	}
+
 	_p->setOpacity(opacity);
 	_p->setClipRect(geometry);
 	const auto width = _owner->width();
@@ -136,9 +143,9 @@ void OverlayWidget::RendererSW::paintControlsFade(
 }
 
 void OverlayWidget::RendererSW::paintTransformedImage(
-	const QImage &image,
-	QRect rect,
-	int rotation) {
+		const QImage &image,
+		QRect rect,
+		int rotation) {
 	PainterHighQualityEnabler hq(*_p);
 	if (UsePainterRotation(rotation)) {
 		if (rotation) {
@@ -155,9 +162,9 @@ void OverlayWidget::RendererSW::paintTransformedImage(
 }
 
 void OverlayWidget::RendererSW::paintRadialLoading(
-	QRect inner,
-	bool radial,
-	float64 radialOpacity) {
+		QRect inner,
+		bool radial,
+		float64 radialOpacity) {
 	_owner->paintRadialLoadingContent(*_p, inner, radial, radialOpacity);
 }
 
@@ -166,8 +173,8 @@ void OverlayWidget::RendererSW::paintThemePreview(QRect outer) {
 }
 
 void OverlayWidget::RendererSW::paintDocumentBubble(
-	QRect outer,
-	QRect icon) {
+		QRect outer,
+		QRect icon) {
 	if (outer.intersects(_clipOuter)) {
 		_owner->paintDocumentBubbleContent(*_p, outer, icon, _clipOuter);
 		if (icon.intersects(_clipOuter)) {
@@ -186,12 +193,12 @@ void OverlayWidget::RendererSW::paintControlsStart() {
 }
 
 void OverlayWidget::RendererSW::paintControl(
-	OverState control,
-	QRect over,
-	float64 overOpacity,
-	QRect inner,
-	float64 innerOpacity,
-	const style::icon &icon) {
+		OverState control,
+		QRect over,
+		float64 overOpacity,
+		QRect inner,
+		float64 innerOpacity,
+		const style::icon &icon) {
 	if (!over.isEmpty() && !over.intersects(_clipOuter)) {
 		return;
 	}
