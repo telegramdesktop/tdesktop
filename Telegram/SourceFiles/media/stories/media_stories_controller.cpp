@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/power_save_blocker.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
+#include "media/stories/media_stories_caption_full_view.h"
 #include "media/stories/media_stories_delegate.h"
 #include "media/stories/media_stories_header.h"
 #include "media/stories/media_stories_sibling.h"
@@ -115,6 +117,9 @@ Controller::Controller(not_null<Delegate*> delegate)
 
 	_replyArea->focusedValue(
 	) | rpl::start_with_next([=](bool focused) {
+		if (focused) {
+			_captionFullView = nullptr;
+		}
 		_contentFaded = focused;
 		_contentFadeAnimation.start(
 			[=] { _delegate->storiesRepaint(); },
@@ -292,6 +297,18 @@ TextWithEntities Controller::captionText() const {
 	return _captionText;
 }
 
+void Controller::showFullCaption() {
+	if (_captionText.empty()) {
+		return;
+	}
+	togglePaused(true);
+	_captionFullView = std::make_unique<CaptionFullView>(
+		wrap(),
+		&_delegate->storiesShow()->session(),
+		_captionText,
+		[=] { togglePaused(false); });
+}
+
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
 	return _delegate->storiesShow();
 }
@@ -334,10 +351,15 @@ void Controller::show(
 	}
 	_shown = id;
 	_captionText = item.caption;
+	_captionFullView = nullptr;
 
 	_header->show({ .user = list.user, .date = item.date });
 	_slider->show({ .index = _index, .total = list.total });
 	_replyArea->show({ .user = list.user });
+
+	if (_contentFaded) {
+		togglePaused(true);
+	}
 }
 
 void Controller::showSiblings(
@@ -447,6 +469,9 @@ bool Controller::paused() const {
 }
 
 void Controller::togglePaused(bool paused) {
+	if (!paused) {
+		_captionFullView = nullptr;
+	}
 	if (_photoPlayback) {
 		_photoPlayback->togglePaused(paused);
 	} else {

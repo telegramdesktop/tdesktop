@@ -83,6 +83,10 @@ TextWithEntities View::captionText() const {
 	return _controller->captionText();
 }
 
+void View::showFullCaption() {
+	_controller->showFullCaption();
+}
+
 rpl::lifetime &View::lifetime() {
 	return _controller->lifetime();
 }

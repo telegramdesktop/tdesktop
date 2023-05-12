@@ -1217,14 +1217,32 @@ void OverlayWidget::refreshCaptionGeometry() {
 				- st::mediaviewCaptionPadding.left()
 				- st::mediaviewCaptionPadding.right()),
 			_caption.maxWidth());
-	const auto maxHeight = (_stories ? (_h / 3) : (height() / 4))
+	const auto maxExpandedOuterHeight = (_stories
+		? (_h - st::storiesShadowTop.height())
+		: height());
+	const auto maxCollapsedOuterHeight = !_stories
+		? (height() / 4)
+		: (_h / 3);
+	const auto maxExpandedHeight = maxExpandedOuterHeight
 		- st::mediaviewCaptionPadding.top()
-		- st::mediaviewCaptionPadding.bottom()
-		- (_stories ? 0 : (2 * st::mediaviewCaptionMargin.height()));
+		- st::mediaviewCaptionPadding.bottom();
+	const auto maxCollapsedHeight = maxCollapsedOuterHeight
+		- st::mediaviewCaptionPadding.top()
+		- st::mediaviewCaptionPadding.bottom();
 	const auto lineHeight = st::mediaviewCaptionStyle.font->height;
+	const auto wantedHeight = _caption.countHeight(captionWidth);
+	const auto maxHeight = _captionExpanded
+		? maxExpandedHeight
+		: maxCollapsedHeight;
 	const auto captionHeight = std::min(
-		_caption.countHeight(captionWidth),
+		wantedHeight,
 		(maxHeight / lineHeight) * lineHeight);
+	_captionFitsIfExpanded = _stories
+		&& (wantedHeight <= maxExpandedHeight);
+	_captionShownFull = (wantedHeight <= maxCollapsedHeight);
+	if (_captionShownFull) {
+		_captionExpanded = false;
+	}
 	_captionRect = QRect(
 		(width() - captionWidth) / 2,
 		(captionBottom
@@ -3000,6 +3018,7 @@ void OverlayWidget::show(OpenRequest request) {
 		_streamingStartPaused = false;
 		displayDocument(
 			document,
+			anim::activation::normal,
 			request.cloudTheme()
 				? *request.cloudTheme()
 				: Data::CloudTheme(),
@@ -3014,9 +3033,11 @@ void OverlayWidget::show(OpenRequest request) {
 	}
 }
 
-void OverlayWidget::displayPhoto(not_null<PhotoData*> photo) {
+void OverlayWidget::displayPhoto(
+		not_null<PhotoData*> photo,
+		anim::activation activation) {
 	if (photo->isNull()) {
-		displayDocument(nullptr);
+		displayDocument(nullptr, activation);
 		return;
 	}
 	_touchbarDisplay.fire(TouchBarItemType::Photo);
@@ -3055,7 +3076,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo) {
 	}
 	contentSizeChanged();
 	refreshFromLabel();
-	displayFinished();
+	displayFinished(activation);
 }
 
 void OverlayWidget::destroyThemePreview() {
@@ -3071,15 +3092,16 @@ void OverlayWidget::redisplayContent() {
 	if (isHidden() || !_session) {
 		return;
 	} else if (_photo) {
-		displayPhoto(_photo);
+		displayPhoto(_photo, anim::activation::background);
 	} else {
-		displayDocument(_document);
+		displayDocument(_document, anim::activation::background);
 	}
 }
 
 // Empty messages shown as docs: doc can be nullptr.
 void OverlayWidget::displayDocument(
 		DocumentData *doc,
+		anim::activation activation,
 		const Data::CloudTheme &cloud,
 		const StartStreaming &startStreaming) {
 	_fullScreenVideo = false;
@@ -3209,7 +3231,7 @@ void OverlayWidget::displayDocument(
 	if (_showAsPip && _streamed && _streamed->controls) {
 		switchToPip();
 	} else {
-		displayFinished();
+		displayFinished(activation);
 	}
 }
 
@@ -3236,7 +3258,8 @@ void OverlayWidget::updateThemePreviewGeometry() {
 	}
 }
 
-void OverlayWidget::displayFinished() {
+void OverlayWidget::displayFinished(anim::activation activation) {
+	_captionExpanded = _captionFitsIfExpanded = _captionShownFull = false;
 	updateControls();
 	if (isHidden()) {
 		_helper->beforeShow(_fullscreen);
@@ -3247,6 +3270,8 @@ void OverlayWidget::displayFinished() {
 		//setAttribute(Qt::WA_DontShowOnScreen, false);
 		//Ui::Platform::UpdateOverlayed(_window);
 		showAndActivate();
+	} else if (activation == anim::activation::background) {
+		return;
 	} else if (isMinimized()) {
 		_helper->beforeShow(_fullscreen);
 		showAndActivate();
@@ -4015,10 +4040,11 @@ void OverlayWidget::storiesJumpTo(Data::FullStoryId id) {
 	clearStreaming();
 	_streamingStartPaused = false;
 	const auto &data = j->media.data;
+	const auto activation = anim::activation::background;
 	if (const auto photo = std::get_if<not_null<PhotoData*>>(&data)) {
-		displayPhoto(*photo);
+		displayPhoto(*photo, activation);
 	} else {
-		displayDocument(v::get<not_null<DocumentData*>>(data));
+		displayDocument(v::get<not_null<DocumentData*>>(data), activation);
 	}
 }
 
@@ -5302,6 +5328,9 @@ void OverlayWidget::updateOver(QPoint pos) {
 	} else if (_captionRect.contains(pos)) {
 		auto textState = _caption.getState(pos - _captionRect.topLeft(), _captionRect.width());
 		lnk = textState.link;
+		if (_stories && !_captionShownFull && !lnk) {
+			lnk = ensureCaptionExpandLink();
+		}
 		lnkhost = this;
 	} else if (_groupThumbs && _groupThumbsRect.contains(pos)) {
 		const auto point = pos - QPoint(_groupThumbsLeft, _groupThumbsTop);
@@ -5371,6 +5400,28 @@ void OverlayWidget::updateOver(QPoint pos) {
 	} else if (_over != OverNone) {
 		updateOverState(OverNone);
 	}
+}
+
+ClickHandlerPtr OverlayWidget::ensureCaptionExpandLink() {
+	if (!_captionExpandLink) {
+		const auto toggle = crl::guard(_widget, [=] {
+			if (!_stories) {
+				return;
+			} else if (_captionExpanded) {
+				_captionExpanded = false;
+				refreshCaptionGeometry();
+				update();
+			} else if (_captionFitsIfExpanded) {
+				_captionExpanded = true;
+				refreshCaptionGeometry();
+				update();
+			} else {
+				_stories->showFullCaption();
+			}
+		});
+		_captionExpandLink = std::make_shared<LambdaClickHandler>(toggle);
+	}
+	return _captionExpandLink;
 }
 
 void OverlayWidget::handleMouseRelease(

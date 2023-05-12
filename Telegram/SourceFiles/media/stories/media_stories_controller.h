@@ -41,6 +41,7 @@ class Delegate;
 struct SiblingView;
 enum class SiblingType;
 struct ContentLayout;
+class CaptionFullView;
 
 enum class HeaderLayout {
 	Normal,
@@ -78,6 +79,7 @@ public:
 	[[nodiscard]] rpl::producer<Layout> layoutValue() const;
 	[[nodiscard]] ContentLayout contentLayout() const;
 	[[nodiscard]] TextWithEntities captionText() const;
+	void showFullCaption();
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
@@ -130,6 +132,7 @@ private:
 	const std::unique_ptr<Slider> _slider;
 	const std::unique_ptr<ReplyArea> _replyArea;
 	std::unique_ptr<PhotoPlayback> _photoPlayback;
+	std::unique_ptr<CaptionFullView> _captionFullView;
 
 	Ui::Animations::Simple _contentFadeAnimation;
 	bool _contentFaded = false;

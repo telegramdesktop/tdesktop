@@ -63,6 +63,7 @@ public:
 	[[nodiscard]] ContentLayout contentLayout() const;
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 	[[nodiscard]] TextWithEntities captionText() const;
+	void showFullCaption();
 
 	void updatePlayback(const Player::TrackState &state);
 

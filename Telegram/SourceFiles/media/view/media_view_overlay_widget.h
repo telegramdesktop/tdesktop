@@ -23,6 +23,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace anim {
+enum class activation : uchar;
+} // namespace anim
+
 namespace Data {
 class PhotoMedia;
 class DocumentMedia;
@@ -148,6 +152,7 @@ private:
 		OverMore,
 		OverIcon,
 		OverVideo,
+		OverCaption,
 	};
 	struct Entity {
 		std::variant<
@@ -356,12 +361,15 @@ private:
 	void resizeContentByScreenSize();
 	void recountSkipTop();
 
-	void displayPhoto(not_null<PhotoData*> photo);
+	void displayPhoto(
+		not_null<PhotoData*> photo,
+		anim::activation activation = anim::activation::normal);
 	void displayDocument(
 		DocumentData *document,
+		anim::activation activation = anim::activation::normal,
 		const Data::CloudTheme &cloud = Data::CloudTheme(),
 		const StartStreaming &startStreaming = StartStreaming());
-	void displayFinished();
+	void displayFinished(anim::activation activation);
 	void redisplayContent();
 	void findCurrent();
 
@@ -496,6 +504,7 @@ private:
 
 	[[nodiscard]] bool topShadowOnTheRight() const;
 	void applyHideWindowWorkaround();
+	[[nodiscard]] ClickHandlerPtr ensureCaptionExpandLink();
 
 	Window::SessionController *findWindow(bool switchTo = true) const;
 
@@ -558,6 +567,10 @@ private:
 	int _groupThumbsTop = 0;
 	Ui::Text::String _caption;
 	QRect _captionRect;
+	ClickHandlerPtr _captionExpandLink;
+	bool _captionShownFull = false;
+	bool _captionFitsIfExpanded = false;
+	bool _captionExpanded = false;
 
 	int _width = 0;
 	int _height = 0;

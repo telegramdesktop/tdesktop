@@ -448,3 +448,8 @@ storiesAttach: IconButton(defaultIconButton) {
 	}
 }
 storiesSideSkip: 145px;
+storiesCaptionFull: FlatLabel(defaultFlatLabel) {
+	style: mediaviewCaptionStyle;
+	textFg: mediaviewCaptionFg;
+	minWidth: 360px;
+}
