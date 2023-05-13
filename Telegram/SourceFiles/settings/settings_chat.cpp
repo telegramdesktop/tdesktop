@@ -1533,7 +1533,7 @@ void SetupCloudThemes(
 void SetupAutoNightMode(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	if (!Platform::IsDarkModeSupported()) {
+	if (!Core::App().settings().systemDarkMode().has_value()) {
 		return;
 	}
 

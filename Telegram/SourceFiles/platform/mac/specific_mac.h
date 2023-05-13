@@ -16,8 +16,6 @@ class LocationPoint;
 
 namespace Platform {
 
-[[nodiscard]] bool IsDarkMenuBar();
-
 inline bool AutostartSupported() {
 	return false;
 }
@@ -69,12 +67,5 @@ int psFixPrevious();
 void psDownloadPathEnableAccess();
 QByteArray psDownloadPathBookmark(const QString &path);
 QByteArray psPathBookmark(const QString &path);
-
-QString strNotificationAboutThemeChange();
-QString strNotificationAboutScreenLocked();
-QString strNotificationAboutScreenUnlocked();
-QString strStyleOfInterface();
-QString strTitleWrapClass();
-QString strTitleClass();
 
 bool psLaunchMaps(const Data::LocationPoint &point);

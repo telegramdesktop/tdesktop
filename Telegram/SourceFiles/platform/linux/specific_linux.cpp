@@ -575,30 +575,8 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 #endif // !Q_OS_LINUX || Qt < 6.2.0
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 std::optional<bool> IsDarkMode() {
-	[[maybe_unused]] static const auto Inited = [] {
-		using XDPSettingWatcher = base::Platform::XDP::SettingWatcher;
-		static const XDPSettingWatcher Watcher(
-			[=](
-				const Glib::ustring &group,
-				const Glib::ustring &key,
-				const Glib::VariantBase &value) {
-				if (group == "org.freedesktop.appearance"
-					&& key == "color-scheme") {
-					try {
-						const auto ivalue = base::Platform::GlibVariantCast<uint>(value);
-
-						crl::on_main([=] {
-							Core::App().settings().setSystemDarkMode(ivalue == 1);
-						});
-					} catch (...) {
-					}
-				}
-			});
-
-		return true;
-	}();
-
 	try {
 		const auto result = base::Platform::XDP::ReadSetting(
 			"org.freedesktop.appearance",
@@ -613,6 +591,7 @@ std::optional<bool> IsDarkMode() {
 
 	return std::nullopt;
 }
+#endif // Qt < 6.5.0
 
 bool AutostartSupported() {
 	return true;

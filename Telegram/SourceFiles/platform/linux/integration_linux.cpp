@@ -8,11 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/integration_linux.h"
 
 #include "platform/platform_integration.h"
+#include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "base/random.h"
 
 #include <xdpinhibit/xdpinhibit.hpp>
+#include <glibmm.h>
 
 using namespace gi::repository;
 
@@ -31,6 +34,7 @@ private:
 	}
 
 	gi::result<XdpInhibit::InhibitProxy> _inhibitProxy;
+	base::Platform::XDP::SettingWatcher _darkModeWatcher;
 };
 
 LinuxIntegration::LinuxIntegration()
@@ -39,7 +43,23 @@ LinuxIntegration::LinuxIntegration()
 		Gio::BusType::SESSION_,
 		Gio::DBusProxyFlags::DO_NOT_AUTO_START_AT_CONSTRUCTION_,
 		std::string(base::Platform::XDP::kService),
-		std::string(base::Platform::XDP::kObjectPath))) {
+		std::string(base::Platform::XDP::kObjectPath)))
+, _darkModeWatcher([](
+	const Glib::ustring &group,
+	const Glib::ustring &key,
+	const Glib::VariantBase &value) {
+	if (group == "org.freedesktop.appearance"
+		&& key == "color-scheme") {
+		try {
+			const auto ivalue = base::Platform::GlibVariantCast<uint>(value);
+
+			crl::on_main([=] {
+				Core::App().settings().setSystemDarkMode(ivalue == 1);
+			});
+		} catch (...) {
+		}
+	}
+}) {
 }
 
 void LinuxIntegration::init() {
