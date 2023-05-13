@@ -14,8 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
-#include <qpa/qplatformnativeinterface.h>
+#include <qpa/qplatformwindow_p.h>
 #include <wayland-client.h>
+
+using namespace QNativeInterface;
+using namespace QNativeInterface::Private;
 
 namespace Platform {
 namespace internal {
@@ -101,14 +104,12 @@ org_kde_plasma_surface *WaylandIntegration::Private::plasmaSurface(
 		return nullptr;
 	}
 
-	const auto native = QGuiApplication::platformNativeInterface();
+	const auto native = window->nativeInterface<QWaylandWindow>();
 	if (!native) {
 		return nullptr;
 	}
 
-	const auto surface = reinterpret_cast<wl_surface*>(
-		native->nativeResourceForWindow(QByteArray("surface"), window));
-
+	const auto surface = native->surface();
 	if (!surface) {
 		return nullptr;
 	}
@@ -126,8 +127,8 @@ org_kde_plasma_surface *WaylandIntegration::Private::plasmaSurface(
 	plasmaSurfaces.emplace(surface, result);
 
 	base::qt_signal_producer(
-		window,
-		&QObject::destroyed
+		native,
+		&QWaylandWindow::surfaceDestroyed
 	) | rpl::start_with_next([=] {
 		auto it = plasmaSurfaces.find(surface);
 		if (it != plasmaSurfaces.cend()) {
@@ -140,14 +141,12 @@ org_kde_plasma_surface *WaylandIntegration::Private::plasmaSurface(
 
 WaylandIntegration::WaylandIntegration()
 : _private(std::make_unique<Private>()) {
-	const auto native = QGuiApplication::platformNativeInterface();
+	const auto native = qApp->nativeInterface<QWaylandApplication>();
 	if (!native) {
 		return;
 	}
 
-	const auto display = reinterpret_cast<wl_display*>(
-		native->nativeResourceForIntegration(QByteArray("wl_display")));
-
+	const auto display = native->display();
 	if (!display) {
 		return;
 	}
@@ -159,7 +158,7 @@ WaylandIntegration::WaylandIntegration()
 		_private.get());
 
 	base::qt_signal_producer(
-		native,
+		qApp,
 		&QObject::destroyed
 	) | rpl::start_with_next([=] {
 		// too late for standard destructors, just free
