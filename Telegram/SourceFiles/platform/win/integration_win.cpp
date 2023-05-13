@@ -78,9 +78,11 @@ bool WindowsIntegration::processEvent(
 		}
 		break;
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 	case WM_SETTINGCHANGE:
 		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
 		break;
+#endif // Qt < 6.5.0
 	}
 	return false;
 }

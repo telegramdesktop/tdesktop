@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/crc32hash.h"
 #include "base/never_freed_pointer.h"
+#include "base/qt_signal_producer.h"
 #include "data/data_session.h"
 #include "data/data_document_resolver.h"
 #include "main/main_account.h" // Account::local.
@@ -43,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QFileSystemWatcher>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QStyleHints>
 
 namespace Window {
 namespace Theme {
@@ -522,7 +525,24 @@ void ChatBackground::start() {
 		checkUploadWallPaper();
 	}, _lifetime);
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+	rpl::single(
+		QGuiApplication::styleHints()->colorScheme()
+	) | rpl::then(
+		base::qt_signal_producer(
+			QGuiApplication::styleHints(),
+			&QStyleHints::colorSchemeChanged
+		)
+	) | rpl::map([](Qt::ColorScheme colorScheme) {
+		return colorScheme == Qt::ColorScheme::Unknown
+			? std::nullopt
+			: std::make_optional(colorScheme == Qt::ColorScheme::Dark);
+	}) | rpl::start_with_next([](std::optional<bool> dark) {
+		Core::App().settings().setSystemDarkMode(dark);
+	}, _lifetime);
+#else // Qt >= 6.5.0
 	Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
+#endif // Qt < 6.5.0
 }
 
 void ChatBackground::refreshThemeWatcher() {
