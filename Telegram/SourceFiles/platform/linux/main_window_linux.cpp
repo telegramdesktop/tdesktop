@@ -172,14 +172,6 @@ void ForceDisabled(QAction *action, bool disabled) {
 	}
 }
 
-uint djbStringHash(const std::string &string) {
-	uint hash = 5381;
-	for (const auto &curChar : string) {
-		hash = (hash << 5) + hash + curChar;
-	}
-	return hash;
-}
-
 } // namespace
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
@@ -238,6 +230,17 @@ void MainWindow::updateWindowIcon() {
 }
 
 void MainWindow::updateUnityCounter() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+	qApp->setBadgeNumber(Core::App().unreadBadge());
+#else // Qt >= 6.6.0
+	static const auto djbStringHash = [](const std::string &string) {
+		uint hash = 5381;
+		for (const auto &curChar : string) {
+			hash = (hash << 5) + hash + curChar;
+		}
+		return hash;
+	};
+
 	const auto launcherUrl = Glib::ustring(
 		"application://"
 			+ QGuiApplication::desktopFileName().toStdString());
@@ -273,6 +276,7 @@ void MainWindow::updateUnityCounter() {
 			}));
 	} catch (...) {
 	}
+#endif // Qt < 6.6.0
 }
 
 void MainWindow::createGlobalMenu() {
