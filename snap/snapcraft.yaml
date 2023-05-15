@@ -97,9 +97,12 @@ parts:
       - LDFLAGS: -s
     build-packages:
       - clang
+      - gobject-introspection
       - python3
       - libasound2-dev
       - libavif-dev
+      - libboost-program-options-dev
+      - libfmt-dev
       - libheif-dev
       - libopus-dev
       - libpulse-dev
