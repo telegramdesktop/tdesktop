@@ -75,6 +75,21 @@ struct EmojiChosen {
 
 using InlineChosen = InlineBots::ResultSelected;
 
+enum class TabbedSelectorMode {
+	Full,
+	EmojiOnly,
+	MediaEditor,
+	EmojiStatus,
+};
+
+struct TabbedSelectorDescriptor {
+	std::shared_ptr<Show> show;
+	const style::EmojiPan &st;
+	PauseReason level = {};
+	TabbedSelectorMode mode = TabbedSelectorMode::Full;
+	bool stickersSettingsHidden = false;
+};
+
 [[nodiscard]] std::unique_ptr<Ui::TabbedSearch> MakeSearch(
 	not_null<Ui::RpWidget*> parent,
 	const style::EmojiPan &st,
@@ -86,12 +101,7 @@ using InlineChosen = InlineBots::ResultSelected;
 class TabbedSelector : public Ui::RpWidget {
 public:
 	static constexpr auto kPickCustomTimeId = -1;
-	enum class Mode {
-		Full,
-		EmojiOnly,
-		MediaEditor,
-		EmojiStatus,
-	};
+	using Mode = TabbedSelectorMode;
 	enum class Action {
 		Update,
 		Cancel,
@@ -102,6 +112,9 @@ public:
 		std::shared_ptr<Show> show,
 		PauseReason level,
 		Mode mode = Mode::Full);
+	TabbedSelector(
+		QWidget *parent,
+		TabbedSelectorDescriptor &&descriptor);
 	~TabbedSelector();
 
 	[[nodiscard]] Main::Session &session() const;
@@ -278,6 +291,7 @@ private:
 
 	const bool _hasEmojiTab;
 	const bool _hasStickersTab;
+	const bool _stickersSettingsHidden;
 	const bool _hasGifsTab;
 	const bool _hasMasksTab;
 	const bool _tabbed;

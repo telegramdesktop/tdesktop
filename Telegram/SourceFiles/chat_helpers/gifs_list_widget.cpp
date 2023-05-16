@@ -98,7 +98,7 @@ GifsListWidget::GifsListWidget(
 	GifsListDescriptor &&descriptor)
 : Inner(
 	parent,
-	st::defaultEmojiPan,
+	descriptor.st ? *descriptor.st : st::defaultEmojiPan,
 	descriptor.show,
 	descriptor.paused)
 , _show(std::move(descriptor.show))
@@ -332,7 +332,7 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 void GifsListWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	auto clip = e->rect();
-	p.fillRect(clip, st::emojiPanBg);
+	p.fillRect(clip, st().bg);
 
 	paintInlineItems(p, clip);
 }

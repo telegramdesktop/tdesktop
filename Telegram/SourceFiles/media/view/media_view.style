@@ -11,6 +11,7 @@ using "ui/widgets/widgets.style";
 using "ui/menu_icons.style";
 using "media/player/media_player.style";
 using "boxes/boxes.style";
+using "chat_helpers/chat_helpers.style";
 
 mediaviewOverDuration: 150;
 
@@ -434,22 +435,106 @@ storiesShadowTop: icon{{ "mediaview/shadow_bottom-flip_vertical", windowShadowFg
 storiesShadowBottom: mediaviewShadowBottom;
 storiesControlsMinWidth: 200px;
 storiesFieldMargin: margins(0px, 14px, 0px, 16px);
-storiesAttach: IconButton(defaultIconButton) {
-	width: 44px;
-	height: 46px;
-
-	icon: icon {{ "chat/input_attach", historyComposeIconFg }};
-	iconOver: icon {{ "chat/input_attach", historyComposeIconFgOver }};
-
-	rippleAreaPosition: point(2px, 3px);
-	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
 storiesSideSkip: 145px;
 storiesCaptionFull: FlatLabel(defaultFlatLabel) {
 	style: mediaviewCaptionStyle;
 	textFg: mediaviewCaptionFg;
 	minWidth: 360px;
+}
+storiesComposeBg: groupCallMembersBg;
+storiesComposeBgOver: groupCallMembersBgOver;
+storiesComposeBgRipple: groupCallMembersBgRipple;
+storiesComposeWhiteText: groupCallMembersFg;
+storiesComposeGrayText: groupCallMemberNotJoinedStatus;
+storiesComposeGrayIcon: groupCallMemberInactiveIcon;
+storiesComposeBlue: groupCallActiveFg;
+storiesComposeRipple: RippleAnimation(defaultRippleAnimation) {
+	color: groupCallMembersBgRipple;
+}
+storiesAttach: IconButton(historyAttach) {
+	icon: icon {{ "chat/input_attach", storiesComposeGrayIcon }};
+	iconOver: icon {{ "chat/input_attach", storiesComposeGrayIcon }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: storiesComposeBgOver;
+	}
+}
+storiesRecordVoice: icon {{ "chat/input_record", storiesComposeGrayIcon }};
+storiesRecordVoiceOver: icon {{ "chat/input_record", storiesComposeGrayIcon }};
+storiesComposeControls: ComposeControls(defaultComposeControls) {
+	bg: storiesComposeBg;
+	radius: storiesRadius;
+	field: InputField(historyComposeField) {
+		textFg: storiesComposeWhiteText;
+		textBg: storiesComposeBg;
+		placeholderFg: storiesComposeGrayText;
+		placeholderFgActive: storiesComposeGrayText;
+		placeholderFgError: storiesComposeGrayText;
+	}
+	send: SendButton(historySend) {
+		inner: IconButton(storiesAttach) {
+			icon: icon {{ "chat/input_send", storiesComposeBlue }};
+			iconOver: icon {{ "chat/input_send", storiesComposeBlue }};
+		}
+		record: storiesRecordVoice;
+		recordOver: storiesRecordVoiceOver;
+		sendDisabledFg: storiesComposeGrayText;
+	}
+	attach: storiesAttach;
+	emoji: EmojiButton(historyAttachEmoji) {
+		inner: IconButton(storiesAttach) {
+			icon: icon {{ "chat/input_smile_face", storiesComposeGrayIcon }};
+			iconOver: icon {{ "chat/input_smile_face", storiesComposeGrayIcon }};
+		}
+		bg: storiesComposeBg;
+		lineFg: storiesComposeGrayIcon;
+		lineFgOver: storiesComposeGrayIcon;
+	}
+	tabbed: EmojiPan(defaultEmojiPan) {
+		bg: storiesComposeBg;
+		overBg: storiesComposeBgOver;
+		expandBg: storiesComposeGrayText;
+		pathBg: storiesComposeBgRipple;
+		pathFg: storiesComposeBgOver;
+		textFg: storiesComposeWhiteText;
+		categoriesBg: storiesComposeBg;
+		categoriesBgOver: storiesComposeBgOver;
+		fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
+		fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
+		tabs: SettingsSlider(emojiTabs) {
+			barFgActive: storiesComposeBlue;
+			labelFg: storiesComposeGrayText;
+			labelFgActive: storiesComposeBlue;
+			rippleBg: storiesComposeBgOver;
+			rippleBgActive: storiesComposeBgOver;
+		}
+		search: TabbedSearch(defaultTabbedSearch) {
+			outer: storiesComposeBg;
+			bg: storiesComposeBgOver;
+			bgActive: storiesComposeBgRipple;
+			fg: storiesComposeGrayIcon;
+			fgActive: storiesComposeWhiteText;
+			fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBgOver }};
+			fadeRight: icon {{ "fade_horizontal", storiesComposeBgOver }};
+			field: InputField(defaultTabbedSearchField) {
+				placeholderFg: storiesComposeGrayText;
+				placeholderFgActive: storiesComposeGrayText;
+				placeholderFgError: storiesComposeGrayText;
+			}
+			search: IconButton(defaultTabbedSearchButton) {
+				icon: icon{{ "emoji/emoji_search_input", storiesComposeGrayIcon }};
+				iconOver: icon{{ "emoji/emoji_search_input", storiesComposeGrayIcon }};
+				ripple: storiesComposeRipple;
+			}
+			back: IconButton(defaultTabbedSearchBack) {
+				icon: icon{{ "emoji/emoji_back", storiesComposeGrayIcon }};
+				iconOver: icon{{ "emoji/emoji_back", storiesComposeGrayIcon }};
+				ripple: storiesComposeRipple;
+			}
+			cancel: CrossButton(defaultTabbedSearchCancel) {
+				crossFg: storiesComposeGrayIcon;
+				crossFgOver: storiesComposeGrayIcon;
+				ripple: emptyRippleAnimation;
+			}
+		}
+	}
 }

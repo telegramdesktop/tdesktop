@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
+#include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/input_fields.h"
@@ -20,6 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class DocumentData;
 class FieldAutocomplete;
+
+namespace style {
+struct ComposeControls;
+} // namespace style
 
 namespace SendMenu {
 enum class Type;
@@ -88,13 +93,25 @@ enum class ComposeControlsMode {
 	Scheduled,
 };
 
+struct ComposeControlsFeatures {
+	bool sendAs = true;
+	bool ttlInfo = true;
+	bool botCommandSend = true;
+	bool silentBroadcastToggle = true;
+	bool attachBotsMenu = true;
+	bool inlineBots = true;
+	bool stickersSettings = true;
+};
+
 struct ComposeControlsDescriptor {
+	const style::ComposeControls *stOverride = nullptr;
 	std::shared_ptr<ChatHelpers::Show> show;
 	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted;
 	ComposeControlsMode mode = ComposeControlsMode::Normal;
 	SendMenu::Type sendMenuType = {};
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
+	ComposeControlsFeatures features;
 };
 
 class ComposeControls final {
@@ -311,6 +328,8 @@ private:
 	void registerDraftSource();
 	void changeFocusedControl();
 
+	const style::ComposeControls &_st;
+	const ComposeControlsFeatures _features;
 	const not_null<QWidget*> _parent;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
@@ -332,12 +351,14 @@ private:
 	const std::unique_ptr<Ui::RpWidget> _wrap;
 	const std::unique_ptr<Ui::RpWidget> _writeRestricted;
 
+	std::optional<Ui::RoundRect> _backgroundRect;
+
 	const std::shared_ptr<Ui::SendButton> _send;
 	const not_null<Ui::IconButton*> _attachToggle;
 	std::unique_ptr<Ui::IconButton> _replaceMedia;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	const not_null<Ui::InputField*> _field;
-	const not_null<Ui::IconButton*> _botCommandStart;
+	Ui::IconButton * const _botCommandStart = nullptr;
 	std::unique_ptr<Ui::SendAsButton> _sendAs;
 	std::unique_ptr<Ui::SilentToggle> _silent;
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;

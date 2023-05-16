@@ -179,15 +179,17 @@ StickersListWidget::StickersListWidget(
 	StickersListDescriptor &&descriptor)
 : Inner(
 	parent,
-	st::defaultEmojiPan,
+	descriptor.st ? *descriptor.st : st::defaultEmojiPan,
 	descriptor.show,
 	descriptor.paused)
 , _mode(descriptor.mode)
 , _show(std::move(descriptor.show))
+, _overBg(st::roundRadiusSmall, st().overBg)
 , _api(&session().mtp())
 , _localSetsManager(std::make_unique<LocalStickersManager>(&session()))
 , _section(Section::Stickers)
 , _isMasks(_mode == Mode::Masks)
+, _settingsHidden(descriptor.settingsHidden)
 , _updateItemsTimer([=] { updateItems(); })
 , _updateSetsTimer([=] { updateSets(); })
 , _trendingAddBgOver(
@@ -201,8 +203,8 @@ StickersListWidget::StickersListWidget(
 	ImageRoundRadius::Small,
 	st::stickerGroupCategoryAdd.textBg)
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
-	st::windowBgRipple,
-	st::windowBgOver,
+	st().pathBg,
+	st().pathFg,
 	[=] { update(); }))
 , _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st().headerLeft)
 , _addText(tr::lng_stickers_featured_add(tr::now).toUpper())
@@ -284,7 +286,8 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 		.session = &session(),
 		.paused = footerPaused,
 		.parent = this,
-		.settingsButtonVisible = true,
+		.settingsButtonVisible = !_settingsHidden,
+		.st = &st(),
 	});
 	_footer = result;
 
@@ -844,7 +847,7 @@ QRect StickersListWidget::stickerRect(int section, int sel) {
 void StickersListWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	auto clip = e->rect();
-	p.fillRect(clip, st::emojiPanBg);
+	p.fillRect(clip, st().bg);
 
 	paintStickers(p, clip);
 }
@@ -1342,7 +1345,7 @@ void StickersListWidget::paintSticker(
 	if (selected) {
 		auto tl = pos;
 		if (rtl()) tl.setX(width() - tl.x() - _singleSize.width());
-		Ui::FillRoundRect(p, QRect(tl, _singleSize), st::emojiPanHover, Ui::StickerHoverCorners);
+		_overBg.paint(p, QRect(tl, _singleSize));
 	}
 
 	media->checkStickerSmall();

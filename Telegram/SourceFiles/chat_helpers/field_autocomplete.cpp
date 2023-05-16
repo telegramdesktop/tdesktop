@@ -69,6 +69,7 @@ public:
 
 	Inner(
 		std::shared_ptr<ChatHelpers::Show> show,
+		const style::EmojiPan &st,
 		not_null<FieldAutocomplete*> parent,
 		not_null<MentionRows*> mrows,
 		not_null<HashtagRows*> hrows,
@@ -126,11 +127,13 @@ private:
 
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
+	const style::EmojiPan &_st;
 	const not_null<FieldAutocomplete*> _parent;
 	const not_null<MentionRows*> _mrows;
 	const not_null<HashtagRows*> _hrows;
 	const not_null<BotCommandRows*> _brows;
 	const not_null<StickerRows*> _srows;
+	Ui::RoundRect _overBg;
 	rpl::lifetime _stickersLifetime;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -192,10 +195,12 @@ FieldAutocomplete::FieldAutocomplete(
 
 FieldAutocomplete::FieldAutocomplete(
 	QWidget *parent,
-	std::shared_ptr<ChatHelpers::Show> show)
+	std::shared_ptr<ChatHelpers::Show> show,
+	const style::EmojiPan *stOverride)
 : RpWidget(parent)
 , _show(std::move(show))
 , _session(&_show->session())
+, _st(stOverride ? *stOverride : st::defaultEmojiPan)
 , _scroll(this) {
 	hide();
 
@@ -204,6 +209,7 @@ FieldAutocomplete::FieldAutocomplete(
 	_inner = _scroll->setOwnedWidget(
 		object_ptr<Inner>(
 			_show,
+			_st,
 			this,
 			&_mrows,
 			&_hrows,
@@ -285,7 +291,7 @@ void FieldAutocomplete::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	p.fillRect(rect(), st::mentionBg);
+	p.fillRect(rect(), _st.bg);
 }
 
 void FieldAutocomplete::showFiltered(
@@ -817,6 +823,7 @@ bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 
 FieldAutocomplete::Inner::Inner(
 	std::shared_ptr<ChatHelpers::Show> show,
+	const style::EmojiPan &st,
 	not_null<FieldAutocomplete*> parent,
 	not_null<MentionRows*> mrows,
 	not_null<HashtagRows*> hrows,
@@ -824,14 +831,16 @@ FieldAutocomplete::Inner::Inner(
 	not_null<StickerRows*> srows)
 : _show(std::move(show))
 , _session(&_show->session())
+, _st(st)
 , _parent(parent)
 , _mrows(mrows)
 , _hrows(hrows)
 , _brows(brows)
 , _srows(srows)
+, _overBg(st::roundRadiusSmall, _st.overBg)
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
-	st::windowBgRipple,
-	st::windowBgOver,
+	_st.pathBg,
+	_st.pathFg,
 	[=] { update(); }))
 , _premiumMark(_session)
 , _previewTimer([=] { showPreview(); }) {
@@ -900,7 +909,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				if (_sel == index) {
 					QPoint tl(pos);
 					if (rtl()) tl.setX(width() - tl.x() - st::stickerPanSize.width());
-					Ui::FillRoundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, Ui::StickerHoverCorners);
+					_overBg.paint(p, QRect(tl, st::stickerPanSize));
 				}
 
 				media->checkStickerSmall();

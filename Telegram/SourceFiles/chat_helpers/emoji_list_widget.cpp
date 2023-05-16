@@ -56,7 +56,7 @@ using Core::RecentEmojiDocument;
 
 class EmojiColorPicker final : public Ui::RpWidget {
 public:
-	EmojiColorPicker(QWidget *parent);
+	EmojiColorPicker(QWidget *parent, const style::EmojiPan &st);
 
 	void showEmoji(EmojiPtr emoji);
 
@@ -86,6 +86,8 @@ private:
 
 	void updateSelected();
 	void setSelected(int newSelected);
+
+	const style::EmojiPan &_st;
 
 	bool _ignoreShow = false;
 
@@ -118,9 +120,12 @@ struct EmojiListWidget::RecentOne {
 	RecentEmojiId id;
 };
 
-EmojiColorPicker::EmojiColorPicker(QWidget *parent)
+EmojiColorPicker::EmojiColorPicker(
+	QWidget *parent,
+	const style::EmojiPan &st)
 : RpWidget(parent)
-, _overBg(st::emojiPanRadius, st::emojiPanHover) {
+, _st(st)
+, _overBg(st::emojiPanRadius, _st.overBg) {
 	setMouseTracking(true);
 }
 
@@ -398,7 +403,7 @@ EmojiListWidget::EmojiListWidget(
 , _customRecentFactory(std::move(descriptor.customRecentFactory))
 , _overBg(st::emojiPanRadius, st().overBg)
 , _collapsedBg(st::emojiPanExpand.height / 2, st::emojiPanHeaderFg)
-, _picker(this)
+, _picker(this, st())
 , _showPickerTimer([=] { showPicker(); }) {
 	setMouseTracking(true);
 	if (st().bg->c.alpha() > 0) {
@@ -1006,7 +1011,7 @@ void EmojiListWidget::validateEmojiPaintContext(
 				st::stickerPanPremium1,
 				st::stickerPanPremium2,
 				0.5)
-			: st::windowFg->c),
+			: st().textFg->c),
 		.size = QSize(_customSingleSize, _customSingleSize),
 		.now = crl::now(),
 		.scale = context.progress,
@@ -1178,7 +1183,7 @@ void EmojiListWidget::drawCollapsedBadge(
 	const auto buttonx = position.x() + (_singleSize.width() - buttonw) / 2;
 	const auto buttony = position.y() + (_singleSize.height() - buttonh) / 2;
 	_collapsedBg.paint(p, QRect(buttonx, buttony, buttonw, buttonh));
-	p.setPen(st::emojiPanBg);
+	p.setPen(this->st().bg);
 	p.setFont(st.font);
 	p.drawText(
 		buttonx + (buttonw - textWidth) / 2,

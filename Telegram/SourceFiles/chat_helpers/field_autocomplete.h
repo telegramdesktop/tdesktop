@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace Ui {
 class PopupMenu;
 class ScrollArea;
@@ -53,7 +57,8 @@ public:
 		not_null<Window::SessionController*> controller);
 	FieldAutocomplete(
 		QWidget *parent,
-		std::shared_ptr<ChatHelpers::Show> show);
+		std::shared_ptr<ChatHelpers::Show> show,
+		const style::EmojiPan *stOverride = nullptr);
 	~FieldAutocomplete();
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
@@ -153,6 +158,7 @@ private:
 
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
+	const style::EmojiPan &_st;
 	QPixmap _cache;
 	MentionRows _mrows;
 	HashtagRows _hrows;

@@ -58,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/session/send_as_peers.h"
 #include "media/audio/media_audio_capture.h"
 #include "media/audio/media_audio.h"
-#include "styles/style_chat.h"
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/input_fields.h"
@@ -72,6 +71,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
+#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
 namespace {
@@ -938,7 +939,11 @@ ComposeControls::ComposeControls(
 ComposeControls::ComposeControls(
 	not_null<Ui::RpWidget*> parent,
 	ComposeControlsDescriptor descriptor)
-: _parent(parent)
+: _st(descriptor.stOverride
+	? *descriptor.stOverride
+	: st::defaultComposeControls)
+, _features(descriptor.features)
+, _parent(parent)
 , _show(std::move(descriptor.show))
 , _session(&_show->session())
 , _regularWindow(descriptor.regularWindow)
@@ -946,30 +951,37 @@ ComposeControls::ComposeControls(
 	? nullptr
 	: std::make_unique<ChatHelpers::TabbedSelector>(
 		_parent,
-		_show,
-		Window::GifPauseReason::TabbedPanel))
+		ChatHelpers::TabbedSelectorDescriptor{
+			.show = _show,
+			.st = _st.tabbed,
+			.level = Window::GifPauseReason::TabbedPanel,
+			.mode = ChatHelpers::TabbedSelector::Mode::Full,
+			.stickersSettingsHidden = !_features.stickersSettings,
+		}))
 , _selector(_regularWindow
 	? _regularWindow->tabbedSelector()
 	: not_null(_ownedSelector.get()))
 , _mode(descriptor.mode)
 , _wrap(std::make_unique<Ui::RpWidget>(parent))
 , _writeRestricted(std::make_unique<Ui::RpWidget>(parent))
-, _send(std::make_shared<Ui::SendButton>(_wrap.get()))
+, _send(std::make_shared<Ui::SendButton>(_wrap.get(), _st.send))
 , _attachToggle(Ui::CreateChild<Ui::IconButton>(
 	_wrap.get(),
-	st::historyAttach))
+	_st.attach))
 , _tabbedSelectorToggle(Ui::CreateChild<Ui::EmojiButton>(
 	_wrap.get(),
-	st::historyAttachEmoji))
+	_st.emoji))
 , _field(
 	Ui::CreateChild<Ui::InputField>(
 		_wrap.get(),
-		st::historyComposeField,
+		_st.field,
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_message_ph()))
-, _botCommandStart(Ui::CreateChild<Ui::IconButton>(
-	_wrap.get(),
-	st::historyBotCommandStart))
+, _botCommandStart(_features.botCommandSend
+	? Ui::CreateChild<Ui::IconButton>(
+		_wrap.get(),
+		st::historyBotCommandStart)
+	: nullptr)
 , _autocomplete(std::make_unique<FieldAutocomplete>(parent, _show))
 , _header(std::make_unique<FieldHeader>(_wrap.get(), _show))
 , _voiceRecordBar(std::make_unique<VoiceRecordBar>(
@@ -982,6 +994,9 @@ ComposeControls::ComposeControls(
 , _unavailableEmojiPasted(std::move(descriptor.unavailableEmojiPasted))
 , _saveDraftTimer([=] { saveDraft(); })
 , _saveCloudDraftTimer([=] { saveCloudDraft(); }) {
+	if (_st.radius > 0) {
+		_backgroundRect.emplace(_st.radius, _st.bg);
+	}
 	if (descriptor.stickerOrEmojiChosen) {
 		std::move(
 			descriptor.stickerOrEmojiChosen
@@ -1421,7 +1436,9 @@ void ComposeControls::init() {
 		updateWrappingVisibility();
 	}, _wrap->lifetime());
 
-	_botCommandStart->setClickedCallback([=] { setText({ "/" }); });
+	if (_botCommandStart) {
+		_botCommandStart->setClickedCallback([=] { setText({ "/" }); });
+	}
 
 	_wrap->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -2382,9 +2399,11 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	right += _send->width();
 	_tabbedSelectorToggle->moveToRight(right, buttonsTop);
 	right += _tabbedSelectorToggle->width();
-	_botCommandStart->moveToRight(right, buttonsTop);
-	if (_botCommandShown) {
-		right += _botCommandStart->width();
+	if (_botCommandStart) {
+		_botCommandStart->moveToRight(right, buttonsTop);
+		if (_botCommandShown) {
+			right += _botCommandStart->width();
+		}
 	}
 	if (_silent) {
 		_silent->moveToRight(right, buttonsTop);
@@ -2401,7 +2420,9 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 }
 
 void ComposeControls::updateControlsVisibility() {
-	_botCommandStart->setVisible(_botCommandShown);
+	if (_botCommandStart) {
+		_botCommandStart->setVisible(_botCommandShown);
+	}
 	if (_ttlInfo) {
 		_ttlInfo->show();
 	}
@@ -2419,7 +2440,8 @@ void ComposeControls::updateControlsVisibility() {
 bool ComposeControls::updateBotCommandShown() {
 	auto shown = false;
 	const auto peer = _history ? _history->peer.get() : nullptr;
-	if (peer
+	if (_botCommandStart
+		&& peer
 		&& ((peer->isChat() && peer->asChat()->botStatus > 0)
 			|| (peer->isMegagroup() && peer->asChannel()->mgInfo->botStatus > 0)
 			|| (peer->isUser() && peer->asUser()->isBot()))) {
@@ -2449,7 +2471,9 @@ void ComposeControls::updateOuterGeometry(QRect rect) {
 
 void ComposeControls::updateMessagesTTLShown() {
 	const auto peer = _history ? _history->peer.get() : nullptr;
-	const auto shown = peer && (peer->messagesTTL() > 0);
+	const auto shown = _features.ttlInfo
+		&& peer
+		&& (peer->messagesTTL() > 0);
 	if (!shown && _ttlInfo) {
 		_ttlInfo = nullptr;
 		updateControlsVisibility();
@@ -2467,7 +2491,8 @@ void ComposeControls::updateMessagesTTLShown() {
 
 bool ComposeControls::updateSendAsButton() {
 	const auto peer = _history ? _history->peer.get() : nullptr;
-	if (!peer
+	if (!_features.sendAs
+		|| !peer
 		|| !_regularWindow
 		|| isEditingMessage()
 		|| !session().sendAsPeers().shouldChoose(peer)) {
@@ -2491,7 +2516,10 @@ bool ComposeControls::updateSendAsButton() {
 
 void ComposeControls::updateAttachBotsMenu() {
 	_attachBotsMenu = nullptr;
-	if (!_history || !_sendActionFactory || !_regularWindow) {
+	if (!_features.attachBotsMenu
+		|| !_history
+		|| !_sendActionFactory
+		|| !_regularWindow) {
 		return;
 	}
 	_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
@@ -2515,7 +2543,18 @@ void ComposeControls::updateAttachBotsMenu() {
 void ComposeControls::paintBackground(QRect clip) {
 	Painter p(_wrap.get());
 
-	p.fillRect(clip, st::historyComposeAreaBg);
+	if (_backgroundRect) {
+		//p.setCompositionMode(QPainter::CompositionMode_Source);
+		//p.fillRect(clip, Qt::transparent);
+		//p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		//_backgroundRect->paint(p, _wrap->rect());
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(_st.bg);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(_wrap->rect(), _st.radius, _st.radius);
+	} else {
+		p.fillRect(clip, _st.bg);
+	}
 }
 
 void ComposeControls::escape() {
@@ -2913,7 +2952,7 @@ bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {
 }
 
 bool ComposeControls::hasSilentBroadcastToggle() const {
-	if (!_history) {
+	if (!_features.silentBroadcastToggle || !_history) {
 		return false;
 	}
 	const auto &peer = _history->peer;

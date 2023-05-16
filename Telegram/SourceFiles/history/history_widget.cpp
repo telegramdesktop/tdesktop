@@ -229,7 +229,7 @@ HistoryWidget::HistoryWidget(
 , _supportAutocomplete(session().supportMode()
 	? object_ptr<Support::Autocomplete>(this, &session())
 	: nullptr)
-, _send(std::make_shared<Ui::SendButton>(this))
+, _send(std::make_shared<Ui::SendButton>(this, st::historySend))
 , _unblock(this, tr::lng_unblock_button(tr::now).toUpper(), st::historyUnblock)
 , _botStart(this, tr::lng_bot_start(tr::now).toUpper(), st::historyComposeButton)
 , _joinChannel(

@@ -70,6 +70,7 @@ struct StickersListDescriptor {
 	StickersListMode mode = StickersListMode::Full;
 	Fn<bool()> paused;
 	const style::EmojiPan *st = nullptr;
+	bool settingsHidden = false;
 };
 
 class StickersListWidget final : public TabbedSelector::Inner {
@@ -351,6 +352,7 @@ private:
 
 	const Mode _mode;
 	const std::shared_ptr<Show> _show;
+	Ui::RoundRect _overBg;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 	MTP::Sender _api;
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
@@ -373,6 +375,7 @@ private:
 
 	Section _section = Section::Stickers;
 	const bool _isMasks;
+	bool _settingsHidden = false;
 
 	base::Timer _updateItemsTimer;
 	base::Timer _updateSetsTimer;

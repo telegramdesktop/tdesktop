@@ -89,6 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "calls/calls_instance.h"
 #include "styles/style_media_view.h"
+#include "styles/style_calls.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
@@ -336,6 +337,8 @@ OverlayWidget::OverlayWidget()
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
 , _dropdown(_body, st::mediaviewDropdownMenu) {
+	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
+
 	CrashReports::SetAnnotation("OpenGL Renderer", "[not-initialized]");
 
 	Lang::Updated(

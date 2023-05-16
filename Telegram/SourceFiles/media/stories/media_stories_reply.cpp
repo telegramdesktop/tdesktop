@@ -26,6 +26,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 , _controls(std::make_unique<HistoryView::ComposeControls>(
 	_controller->wrap(),
 	HistoryView::ComposeControlsDescriptor{
+		.stOverride = &st::storiesComposeControls,
 		.show = _controller->uiShow(),
 		.unavailableEmojiPasted = [=](not_null<DocumentData*> emoji) {
 			showPremiumToast(emoji);
@@ -33,6 +34,14 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 		.mode = HistoryView::ComposeControlsMode::Normal,
 		.sendMenuType = SendMenu::Type::SilentOnly,
 		.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
+		.features = {
+			.sendAs = false,
+			.ttlInfo = false,
+			.botCommandSend = false,
+			.silentBroadcastToggle = false,
+			.attachBotsMenu = false,
+			.inlineBots = false,
+		},
 	}
 )) {
 	initGeometry();

@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/vertical_drum_picker.h"
-#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 
 namespace Ui {

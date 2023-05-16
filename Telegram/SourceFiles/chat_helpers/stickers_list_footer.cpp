@@ -1351,7 +1351,7 @@ void StickersListFooter::paintSetIconToCache(
 		const auto y = (st().footer - icon.pixh) / 2;
 		if (icon.custom) {
 			icon.custom->paint(p, Ui::Text::CustomEmoji::Context{
-				.textColor = st::windowFg->c,
+				.textColor = st().textFg->c,
 				.size = QSize(icon.pixw, icon.pixh),
 				.now = now,
 				.scale = context.progress,
