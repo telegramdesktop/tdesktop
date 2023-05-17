@@ -344,6 +344,7 @@ TabbedSelector::TabbedSelector(
 	TabbedSelectorDescriptor &&descriptor)
 : RpWidget(parent)
 , _st(descriptor.st)
+, _features(descriptor.features)
 , _show(std::move(descriptor.show))
 , _level(descriptor.level)
 , _mode(descriptor.mode)
@@ -377,7 +378,6 @@ TabbedSelector::TabbedSelector(
 		: SelectorTab::Emoji)
 , _hasEmojiTab(ranges::contains(_tabs, SelectorTab::Emoji, &Tab::type))
 , _hasStickersTab(ranges::contains(_tabs, SelectorTab::Stickers, &Tab::type))
-, _stickersSettingsHidden(descriptor.stickersSettingsHidden)
 , _hasGifsTab(ranges::contains(_tabs, SelectorTab::Gifs, &Tab::type))
 , _hasMasksTab(ranges::contains(_tabs, SelectorTab::Masks, &Tab::type))
 , _tabbed(_tabs.size() > 1) {
@@ -487,6 +487,10 @@ TabbedSelector::TabbedSelector(
 
 TabbedSelector::~TabbedSelector() = default;
 
+const style::EmojiPan &TabbedSelector::st() const {
+	return _st;
+}
+
 Main::Session &TabbedSelector::session() const {
 	return _show->session();
 }
@@ -511,6 +515,7 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 					: EmojiMode::Full),
 				.paused = paused,
 				.st = &_st,
+				.features = _features,
 			});
 		}
 		case SelectorTab::Stickers: {
@@ -521,7 +526,7 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 				.mode = StickersMode::Full,
 				.paused = paused,
 				.st = &_st,
-				.settingsHidden = _stickersSettingsHidden,
+				.features = _features,
 			});
 		}
 		case SelectorTab::Gifs: {
@@ -540,6 +545,7 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 				.mode = StickersMode::Masks,
 				.paused = paused,
 				.st = &_st,
+				.features = _features,
 			});
 		}
 		}

@@ -63,7 +63,7 @@ ShowButton::ShowButton(not_null<Ui::RpWidget*> parent)
 	_button.sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		resize(
-			s.width() + st::emojiSuggestionsFadeRight.width(),
+			s.width() + st::defaultEmojiSuggestions.fadeRight.width(),
 			s.height());
 		_button.moveToRight(0, 0);
 	}, lifetime());
@@ -74,7 +74,7 @@ void ShowButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	const auto clip = e->rect();
 
-	const auto &icon = st::emojiSuggestionsFadeRight;
+	const auto &icon = st::defaultEmojiSuggestions.fadeRight;
 	const auto fade = QRect(0, 0, icon.width(), height());
 	if (fade.intersects(clip)) {
 		icon.fill(p, fade);

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "chat_helpers/compose/compose_features.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_animation_common.h"
@@ -87,7 +88,7 @@ struct TabbedSelectorDescriptor {
 	const style::EmojiPan &st;
 	PauseReason level = {};
 	TabbedSelectorMode mode = TabbedSelectorMode::Full;
-	bool stickersSettingsHidden = false;
+	ComposeFeatures features;
 };
 
 [[nodiscard]] std::unique_ptr<Ui::TabbedSearch> MakeSearch(
@@ -117,6 +118,7 @@ public:
 		TabbedSelectorDescriptor &&descriptor);
 	~TabbedSelector();
 
+	[[nodiscard]] const style::EmojiPan &st() const;
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] PauseReason level() const;
 
@@ -267,6 +269,7 @@ private:
 	not_null<StickersListWidget*> masks() const;
 
 	const style::EmojiPan &_st;
+	const ComposeFeatures _features;
 	const std::shared_ptr<Show> _show;
 	const PauseReason _level = {};
 
@@ -291,7 +294,6 @@ private:
 
 	const bool _hasEmojiTab;
 	const bool _hasStickersTab;
-	const bool _stickersSettingsHidden;
 	const bool _hasGifsTab;
 	const bool _hasMasksTab;
 	const bool _tabbed;

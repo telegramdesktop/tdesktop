@@ -1388,7 +1388,7 @@ AutocompleteQuery HistoryWidget::parseMentionHashtagBotCommandQuery() const {
 	const auto result = (isChoosingTheme()
 		|| (_inlineBot && !_inlineLookingUpBot))
 		? AutocompleteQuery()
-		: ParseMentionHashtagBotCommandQuery(_field);
+		: ParseMentionHashtagBotCommandQuery(_field, {});
 	if (result.query.isEmpty()) {
 		return result;
 	} else if (result.query[0] == '#'

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "media/stories/media_stories_controller.h"
 #include "menu/menu_send.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
@@ -41,6 +42,12 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 			.silentBroadcastToggle = false,
 			.attachBotsMenu = false,
 			.inlineBots = false,
+			.megagroupSet = false,
+			.stickersSettings = false,
+			.openStickerSets = false,
+			.autocompleteHashtags = false,
+			.autocompleteMentions = false,
+			.autocompleteCommands = false,
 		},
 	}
 )) {
@@ -52,13 +59,27 @@ ReplyArea::~ReplyArea() {
 }
 
 void ReplyArea::initGeometry() {
-	_controller->layoutValue(
-	) | rpl::start_with_next([=](const Layout &layout) {
-		_controls->resizeToWidth(layout.content.width());
-		const auto position = layout.controlsBottomPosition
-			- QPoint(0, _controls->heightCurrent());
-		_controls->move(position.x(), position.y());
-		_controls->setAutocompleteBoundingRect(layout.autocompleteRect);
+	rpl::combine(
+		_controller->layoutValue(),
+		_controls->height()
+	) | rpl::start_with_next([=](const Layout &layout, int height) {
+		const auto content = layout.content;
+		_controls->resizeToWidth(content.width());
+		if (_controls->heightCurrent() == height) {
+			const auto position = layout.controlsBottomPosition
+				- QPoint(0, height);
+			_controls->move(position.x(), position.y());
+			const auto &tabbed = st::storiesComposeControls.tabbed;
+			const auto upper = QRect(
+				content.x(),
+				content.y(),
+				content.width(),
+				(position.y()
+					+ tabbed.autocompleteBottomSkip
+					- content.y()));
+			_controls->setAutocompleteBoundingRect(
+				layout.autocompleteRect.intersected(upper));
+		}
 	}, _lifetime);
 }
 

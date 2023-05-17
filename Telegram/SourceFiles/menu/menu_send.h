@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace style {
+struct ComposeIcons;
+} // namespace style
+
 namespace Api {
 struct SendOptions;
 } // namespace Api
@@ -47,7 +51,8 @@ FillMenuResult FillSendMenu(
 	Type type,
 	Fn<void()> silent,
 	Fn<void()> schedule,
-	Fn<void()> whenOnline);
+	Fn<void()> whenOnline,
+	const style::ComposeIcons *iconsOverride = nullptr);
 
 void SetupMenuAndShortcuts(
 	not_null<Ui::RpWidget*> button,

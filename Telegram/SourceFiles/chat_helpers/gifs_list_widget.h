@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QTimer>
 
+namespace style {
+struct ComposeIcons;
+} // namespace style
+
 namespace Api {
 struct SendOptions;
 } // namespace Api
@@ -48,7 +52,8 @@ namespace ChatHelpers {
 void AddGifAction(
 	Fn<void(QString, Fn<void()> &&, const style::icon*)> callback,
 	std::shared_ptr<Show> show,
-	not_null<DocumentData*> document);
+	not_null<DocumentData*> document,
+	const style::ComposeIcons *iconsOverride = nullptr);
 
 class StickersListFooter;
 struct StickerIcon;

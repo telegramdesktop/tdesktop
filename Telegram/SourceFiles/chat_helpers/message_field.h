@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "base/timer.h"
 #include "base/qt_connection.h"
+#include "chat_helpers/compose/compose_features.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "boxes/dictionaries_manager.h"
@@ -90,7 +91,8 @@ struct AutocompleteQuery {
 	bool fromStart = false;
 };
 AutocompleteQuery ParseMentionHashtagBotCommandQuery(
-	not_null<const Ui::InputField*> field);
+	not_null<const Ui::InputField*> field,
+	ChatHelpers::ComposeFeatures features);
 
 class MessageLinksParser : private QObject {
 public:

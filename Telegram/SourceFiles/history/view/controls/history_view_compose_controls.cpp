@@ -956,7 +956,7 @@ ComposeControls::ComposeControls(
 			.st = _st.tabbed,
 			.level = Window::GifPauseReason::TabbedPanel,
 			.mode = ChatHelpers::TabbedSelector::Mode::Full,
-			.stickersSettingsHidden = !_features.stickersSettings,
+			.features = _features,
 		}))
 , _selector(_regularWindow
 	? _regularWindow->tabbedSelector()
@@ -982,7 +982,10 @@ ComposeControls::ComposeControls(
 		_wrap.get(),
 		st::historyBotCommandStart)
 	: nullptr)
-, _autocomplete(std::make_unique<FieldAutocomplete>(parent, _show))
+, _autocomplete(std::make_unique<FieldAutocomplete>(
+	parent,
+	_show,
+	&_st.tabbed))
 , _header(std::make_unique<FieldHeader>(_wrap.get(), _show))
 , _voiceRecordBar(std::make_unique<VoiceRecordBar>(
 	_wrap.get(),
@@ -1389,7 +1392,7 @@ void ComposeControls::checkAutocomplete() {
 	const auto peer = _history->peer;
 	const auto autocomplete = _isInlineBot
 		? AutocompleteQuery()
-		: ParseMentionHashtagBotCommandQuery(_field);
+		: ParseMentionHashtagBotCommandQuery(_field, _features);
 	if (!autocomplete.query.isEmpty()) {
 		if (autocomplete.query[0] == '#'
 			&& cRecentWriteHashtags().isEmpty()
@@ -1656,7 +1659,11 @@ void ComposeControls::initField() {
 		_parent,
 		_field,
 		_session,
-		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
+		{
+			.suggestCustomEmoji = true,
+			.allowCustomWithoutPremium = allow,
+			.st = &_st.suggestions,
+		});
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
 
 	const auto rawTextEdit = _field->rawTextEdit().get();

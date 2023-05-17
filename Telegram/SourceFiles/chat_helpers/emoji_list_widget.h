@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/round_rect.h"
@@ -84,6 +85,7 @@ struct EmojiListDescriptor {
 		DocumentId,
 		Fn<void()>)> customRecentFactory;
 	const style::EmojiPan *st = nullptr;
+	ComposeFeatures features;
 };
 
 class EmojiListWidget final
@@ -345,6 +347,7 @@ private:
 	void applyNextSearchQuery();
 
 	const std::shared_ptr<Show> _show;
+	const ComposeFeatures _features;
 	Mode _mode = Mode::Full;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 	const int _staticCount = 0;

@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/clip/media_clip_reader.h"
+#include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "media/clip/media_clip_reader.h"
 #include "mtproto/sender.h"
 #include "ui/dpr/dpr_image.h"
 #include "ui/round_rect.h"
@@ -116,8 +117,8 @@ public:
 		not_null<Main::Session*> session;
 		Fn<bool()> paused;
 		not_null<RpWidget*> parent;
-		bool settingsButtonVisible = false;
 		const style::EmojiPan *st = nullptr;
+		ComposeFeatures features;
 	};
 	explicit StickersListFooter(Descriptor &&descriptor);
 
@@ -130,7 +131,6 @@ public:
 		uint64 activeSetId,
 		Fn<std::shared_ptr<Lottie::FrameRenderer>()> renderer,
 		ValidateIconAnimations animations);
-	[[nodiscard]] bool hasOnlyFeaturedSets() const;
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 
@@ -270,7 +270,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	const Fn<bool()> _paused;
-	const bool _settingsButtonVisible = false;
+	const ComposeFeatures _features;
 
 	static constexpr auto kVisibleIconsCount = 8;
 

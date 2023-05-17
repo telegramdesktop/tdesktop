@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/required.h"
 #include "api/api_common.h"
+#include "base/required.h"
 #include "base/unique_qptr.h"
 #include "base/timer.h"
+#include "chat_helpers/compose/compose_features.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "ui/round_rect.h"
@@ -93,16 +94,6 @@ enum class ComposeControlsMode {
 	Scheduled,
 };
 
-struct ComposeControlsFeatures {
-	bool sendAs = true;
-	bool ttlInfo = true;
-	bool botCommandSend = true;
-	bool silentBroadcastToggle = true;
-	bool attachBotsMenu = true;
-	bool inlineBots = true;
-	bool stickersSettings = true;
-};
-
 struct ComposeControlsDescriptor {
 	const style::ComposeControls *stOverride = nullptr;
 	std::shared_ptr<ChatHelpers::Show> show;
@@ -111,7 +102,7 @@ struct ComposeControlsDescriptor {
 	SendMenu::Type sendMenuType = {};
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
-	ComposeControlsFeatures features;
+	ChatHelpers::ComposeFeatures features;
 };
 
 class ComposeControls final {
@@ -329,7 +320,7 @@ private:
 	void changeFocusedControl();
 
 	const style::ComposeControls &_st;
-	const ComposeControlsFeatures _features;
+	const ChatHelpers::ComposeFeatures _features;
 	const not_null<QWidget*> _parent;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;

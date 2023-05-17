@@ -685,6 +685,7 @@ void FieldAutocomplete::recount(bool resetScroll) {
 	} else if (!_brows.empty()) {
 		h = _brows.size() * st::mentionHeight;
 	}
+	h += _st.autocompleteBottomSkip;
 
 	if (_inner->width() != _boundings.width() || _inner->height() != h) {
 		_inner->resize(_boundings.width(), h);
@@ -1375,8 +1376,10 @@ void FieldAutocomplete::Inner::setSel(int sel, bool scroll) {
 			int32 row = _sel / _stickersPerRow;
 			const auto padding = st::stickerPanPadding;
 			_scrollToRequested.fire({
-				padding + row * st::stickerPanSize.height(),
-				padding + (row + 1) * st::stickerPanSize.height() });
+				(row ? padding : 0) + row * st::stickerPanSize.height(),
+				(padding
+					+ (row + 1) * st::stickerPanSize.height()
+					+ _st.autocompleteBottomSkip) });
 		}
 	}
 }

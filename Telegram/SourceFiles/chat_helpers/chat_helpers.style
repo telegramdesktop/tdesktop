@@ -10,6 +10,7 @@ using "ui/basic.style";
 using "boxes/boxes.style";
 using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
+using "ui/menu_icons.style";
 
 GroupCallUserpics {
 	size: pixels;
@@ -36,9 +37,50 @@ TabbedSearch {
 	height: pixels;
 }
 
+ComposeIcons {
+	settings: icon;
+
+	recent: icon;
+	recentActive: icon;
+	people: icon;
+	peopleActive: icon;
+	nature: icon;
+	natureActive: icon;
+	food: icon;
+	foodActive: icon;
+	activity: icon;
+	activityActive: icon;
+	travel: icon;
+	travelActive: icon;
+	objects: icon;
+	objectsActive: icon;
+	symbols: icon;
+	symbolsActive: icon;
+
+	menuFave: icon;
+	menuUnfave: icon;
+	menuStickerSet: icon;
+	menuRecentRemove: icon;
+	menuGifAdd: icon;
+	menuGifRemove: icon;
+	menuMute: icon;
+	menuSchedule: icon;
+	menuWhenOnline: icon;
+}
+
+EmojiSuggestions {
+	dropdown: InnerDropdown;
+	bg: color;
+	overBg: color;
+	textFg: color;
+	fadeLeft: icon;
+	fadeRight: icon;
+}
+
 EmojiPan {
 	margin: margins;
 	padding: margins;
+	showAnimation: PanelAnimation;
 	desiredSize: pixels;
 	verticalSizeSub: pixels;
 	header: pixels;
@@ -51,8 +93,12 @@ EmojiPan {
 	iconWidth: pixels;
 	iconArea: pixels;
 	bg: color;
+	headerFg: color;
+	trendingHeaderFg: color;
+	trendingSubheaderFg: color;
+	trendingUnreadFg: color;
+	trendingInstalled: icon;
 	overBg: color;
-	expandBg: color;
 	pathBg: color;
 	pathFg: color;
 	textFg: color;
@@ -60,9 +106,14 @@ EmojiPan {
 	categoriesBgOver: color;
 	fadeLeft: icon;
 	fadeRight: icon;
+	menu: PopupMenu;
 	tabs: SettingsSlider;
 	search: TabbedSearch;
 	searchMargin: margins;
+	removeSet: IconButton;
+	boxLabel: FlatLabel;
+	icons: ComposeIcons;
+	autocompleteBottomSkip: pixels;
 }
 
 MessageBar {
@@ -96,6 +147,7 @@ ComposeControls {
 	send: SendButton;
 	attach: IconButton;
 	emoji: EmojiButton;
+	suggestions: EmojiSuggestions;
 	tabbed: EmojiPan;
 }
 
@@ -191,12 +243,6 @@ stickersScroll: ScrollArea(boxScroll) {
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
-stickersSettings: icon {{ "emoji/emoji_settings", emojiIconFg }};
-stickersTrending: icon {{ "emoji/stickers_add", emojiIconFg }};
-stickersTrendingUnread: icon {
-	{ "emoji/stickers_add_unread", emojiIconFg },
-	{ "emoji/stickers_add_dot", dialogsUnreadBg }
-};
 emojiStatusDefault: icon {{ "emoji/stickers_premium", emojiIconFg }};
 
 filtersRemove: IconButton(stickersRemove) {
@@ -210,22 +256,6 @@ emojiTabs: SettingsSlider(defaultTabsSlider) {
 	barTop: 40px;
 	labelTop: 12px;
 }
-emojiRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
-emojiRecentActive: icon {{ "emoji/emoji_recent", emojiSubIconFgActive }};
-emojiPeople: icon {{ "emoji/emoji_smile", emojiIconFg }};
-emojiPeopleActive: icon {{ "emoji/emoji_smile", emojiSubIconFgActive }};
-emojiNature: icon {{ "emoji/emoji_nature", emojiIconFg }};
-emojiNatureActive: icon {{ "emoji/emoji_nature", emojiSubIconFgActive }};
-emojiFood: icon {{ "emoji/emoji_food", emojiIconFg }};
-emojiFoodActive: icon {{ "emoji/emoji_food", emojiSubIconFgActive }};
-emojiActivity: icon {{ "emoji/emoji_activities", emojiIconFg }};
-emojiActivityActive: icon {{ "emoji/emoji_activities", emojiSubIconFgActive }};
-emojiTravel: icon {{ "emoji/emoji_travel", emojiIconFg }};
-emojiTravelActive: icon {{ "emoji/emoji_travel", emojiSubIconFgActive }};
-emojiObjects: icon {{ "emoji/emoji_objects", emojiIconFg }};
-emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiSubIconFgActive }};
-emojiSymbols: icon {{ "emoji/emoji_love", emojiIconFg }};
-emojiSymbolsActive: icon {{ "emoji/emoji_love", emojiSubIconFgActive }};
 
 emojiCategoryIconTop: 6px;
 emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
@@ -297,40 +327,6 @@ defaultTabbedSearch: TabbedSearch {
 	groupSkip: 2px;
 	height: 33px;
 }
-defaultEmojiPan: EmojiPan {
-	margin: margins(7px, 0px, 7px, 0px);
-	padding: margins(7px, 0px, 4px, 7px);
-	desiredSize: 37px;
-	verticalSizeSub: 1px;
-	header: 33px;
-	headerLeft: 14px;
-	headerLockLeft: 7px;
-	headerLockedLeft: 26px;
-	headerTop: 10px;
-	footer: 36px;
-	iconSkip: 3px;
-	iconWidth: 30px;
-	iconArea: 28px;
-	bg: emojiPanBg;
-	overBg: emojiPanHover;
-	expandBg: emojiPanHeaderFg;
-	pathBg: windowBgRipple;
-	pathFg: windowBgOver;
-	textFg: windowFg;
-	categoriesBg: emojiPanCategories;
-	categoriesBgOver: windowBgRipple;
-	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
-	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
-	tabs: emojiTabs;
-	search: defaultTabbedSearch;
-	searchMargin: margins(1px, 11px, 2px, 5px);
-}
-statusEmojiPan: EmojiPan(defaultEmojiPan) {
-	categoriesBg: windowBg;
-	categoriesBgOver: windowBgOver;
-	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
-	fadeRight: icon {{ "fade_horizontal", windowBg }};
-}
 
 inlineResultsMinHeight: 278px;
 inlineResultsMaxHeight: 640px;
@@ -394,6 +390,81 @@ stickersToast: Toast(defaultToast) {
 stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
 emojiEmpty: icon {{ "emoji_empty", windowSubTextFg }};
 
+defaultComposeIcons: ComposeIcons {
+	settings: icon {{ "emoji/emoji_settings", emojiIconFg }};
+
+	recent: icon {{ "emoji/emoji_recent", emojiIconFg }};
+	recentActive: icon {{ "emoji/emoji_recent", emojiSubIconFgActive }};
+	people: icon {{ "emoji/emoji_smile", emojiIconFg }};
+	peopleActive: icon {{ "emoji/emoji_smile", emojiSubIconFgActive }};
+	nature: icon {{ "emoji/emoji_nature", emojiIconFg }};
+	natureActive: icon {{ "emoji/emoji_nature", emojiSubIconFgActive }};
+	food: icon {{ "emoji/emoji_food", emojiIconFg }};
+	foodActive: icon {{ "emoji/emoji_food", emojiSubIconFgActive }};
+	activity: icon {{ "emoji/emoji_activities", emojiIconFg }};
+	activityActive: icon {{ "emoji/emoji_activities", emojiSubIconFgActive }};
+	travel: icon {{ "emoji/emoji_travel", emojiIconFg }};
+	travelActive: icon {{ "emoji/emoji_travel", emojiSubIconFgActive }};
+	objects: icon {{ "emoji/emoji_objects", emojiIconFg }};
+	objectsActive: icon {{ "emoji/emoji_objects", emojiSubIconFgActive }};
+	symbols: icon {{ "emoji/emoji_love", emojiIconFg }};
+	symbolsActive: icon {{ "emoji/emoji_love", emojiSubIconFgActive }};
+
+	menuFave: menuIconFave;
+	menuUnfave: menuIconUnfave;
+	menuStickerSet: menuIconStickers;
+	menuRecentRemove: menuIconDelete;
+	menuGifAdd: menuIconGif;
+	menuGifRemove: menuIconDelete;
+	menuMute: menuIconMute;
+	menuSchedule: menuIconSchedule;
+	menuWhenOnline: menuIconWhenOnline;
+}
+defaultEmojiPan: EmojiPan {
+	margin: margins(7px, 0px, 7px, 0px);
+	padding: margins(7px, 0px, 4px, 7px);
+	showAnimation: emojiPanAnimation;
+	desiredSize: 37px;
+	verticalSizeSub: 1px;
+	header: 33px;
+	headerLeft: 14px;
+	headerLockLeft: 7px;
+	headerLockedLeft: 26px;
+	headerTop: 10px;
+	footer: 36px;
+	iconSkip: 3px;
+	iconWidth: 30px;
+	iconArea: 28px;
+	bg: emojiPanBg;
+	headerFg: emojiPanHeaderFg;
+	trendingHeaderFg: stickersTrendingHeaderFg;
+	trendingSubheaderFg: stickersTrendingSubheaderFg;
+	trendingUnreadFg: stickersFeaturedUnreadBg;
+	trendingInstalled: stickersFeaturedInstalled;
+	overBg: emojiPanHover;
+	pathBg: windowBgRipple;
+	pathFg: windowBgOver;
+	textFg: windowFg;
+	categoriesBg: emojiPanCategories;
+	categoriesBgOver: windowBgRipple;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
+	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
+	menu: popupMenuWithIcons;
+	tabs: emojiTabs;
+	search: defaultTabbedSearch;
+	searchMargin: margins(1px, 11px, 2px, 5px);
+	removeSet: stickerPanRemoveSet;
+	boxLabel: boxLabel;
+	icons: defaultComposeIcons;
+	autocompleteBottomSkip: 0px;
+}
+statusEmojiPan: EmojiPan(defaultEmojiPan) {
+	categoriesBg: windowBg;
+	categoriesBgOver: windowBgOver;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
+	fadeRight: icon {{ "fade_horizontal", windowBg }};
+}
+
 inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltat: stickerPanPadding;
 	deltab: stickerPanPadding;
@@ -409,6 +480,15 @@ emojiSuggestionSize: 40px;
 emojiSuggestionsScrolledWidth: 240px;
 emojiSuggestionsPadding: margins(emojiColorsPadding, 0px, emojiColorsPadding, 0px);
 emojiSuggestionsFadeAfter: 20px;
+
+defaultEmojiSuggestions: EmojiSuggestions {
+	dropdown: emojiSuggestionsDropdown;
+	bg: menuBg;
+	overBg: emojiPanHover;
+	textFg: windowFg;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
+	fadeRight: icon {{ "fade_horizontal", boxBg }};
+}
 
 mentionHeight: 40px;
 mentionPadding: margins(8px, 5px, 8px, 5px);
@@ -478,9 +558,6 @@ emojiScroll: ScrollArea(defaultSolidScroll) {
 reactPanelScroll: ScrollArea(emojiScroll) {
 	deltab: 7px;
 }
-
-emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
-emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};
 
 choosePeerGroupIcon: icon {{ "info/edit/create_group", lightButtonFg }};
 choosePeerChannelIcon: icon {{ "info/edit/create_channel", lightButtonFg }};
@@ -857,5 +934,6 @@ defaultComposeControls: ComposeControls {
 	send: historySend;
 	attach: historyAttach;
 	emoji: historyAttachEmoji;
+	suggestions: defaultEmojiSuggestions;
 	tabbed: defaultEmojiPan;
 }

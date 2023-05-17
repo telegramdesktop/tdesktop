@@ -606,6 +606,7 @@ void StickerSetBox::updateButtons() {
 					const auto session = &_show->session();
 					auto box = ChatHelpers::MakeConfirmRemoveSetBox(
 						session,
+						st::boxLabel,
 						_inner->setId());
 					if (box) {
 						_show->showBox(std::move(box));

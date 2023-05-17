@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "data/stickers/data_stickers.h"
 #include "ui/round_rect.h"
@@ -50,6 +51,7 @@ enum class Notification;
 
 namespace style {
 struct EmojiPan;
+struct FlatLabel;
 } // namespace style
 
 namespace ChatHelpers {
@@ -70,7 +72,7 @@ struct StickersListDescriptor {
 	StickersListMode mode = StickersListMode::Full;
 	Fn<bool()> paused;
 	const style::EmojiPan *st = nullptr;
-	bool settingsHidden = false;
+	ComposeFeatures features;
 };
 
 class StickersListWidget final : public TabbedSelector::Inner {
@@ -352,6 +354,7 @@ private:
 
 	const Mode _mode;
 	const std::shared_ptr<Show> _show;
+	const ComposeFeatures _features;
 	Ui::RoundRect _overBg;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 	MTP::Sender _api;
@@ -375,7 +378,6 @@ private:
 
 	Section _section = Section::Stickers;
 	const bool _isMasks;
-	bool _settingsHidden = false;
 
 	base::Timer _updateItemsTimer;
 	base::Timer _updateSetsTimer;
@@ -426,6 +428,7 @@ private:
 
 [[nodiscard]] object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 	not_null<Main::Session*> session,
+	const style::FlatLabel &st,
 	uint64 setId);
 
 } // namespace ChatHelpers

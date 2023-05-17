@@ -498,7 +498,8 @@ InlineBotQuery ParseInlineBotQuery(
 }
 
 AutocompleteQuery ParseMentionHashtagBotCommandQuery(
-		not_null<const Ui::InputField*> field) {
+		not_null<const Ui::InputField*> field,
+		ChatHelpers::ComposeFeatures features) {
 	auto result = AutocompleteQuery();
 
 	const auto cursor = field->textCursor();
@@ -530,6 +531,9 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 		const auto text = fragment.text();
 		for (auto i = position - fragmentPosition; i != 0; --i) {
 			if (text[i - 1] == '@') {
+				if (!features.autocompleteMentions) {
+					return {};
+				}
 				if ((position - fragmentPosition - i < 1 || text[i].isLetter()) && (i < 2 || !(text[i - 2].isLetterOrNumber() || text[i - 2] == '_'))) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
@@ -540,12 +544,18 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 				}
 				return result;
 			} else if (text[i - 1] == '#') {
+				if (!features.autocompleteHashtags) {
+					return {};
+				}
 				if (i < 2 || !(text[i - 2].isLetterOrNumber() || text[i - 2] == '_')) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
 				}
 				return result;
 			} else if (text[i - 1] == '/') {
+				if (!features.autocompleteCommands) {
+					return {};
+				}
 				if (i < 2 && !fragmentPosition) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
