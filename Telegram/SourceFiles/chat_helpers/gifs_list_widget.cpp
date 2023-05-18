@@ -172,6 +172,7 @@ object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 		.paused = pausedMethod(),
 		.parent = this,
 		.st = &st(),
+		.features = { .stickersSettings = false },
 	});
 	_footer = result;
 	_chosenSetId = Data::Stickers::RecentSetId;

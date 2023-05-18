@@ -25,6 +25,7 @@ class ItemSingleFilePreview final : public AbstractSingleFilePreview {
 public:
 	ItemSingleFilePreview(
 		QWidget *parent,
+		const style::ComposeControls &st,
 		not_null<HistoryItem*> item,
 		AttachControls::Type type);
 

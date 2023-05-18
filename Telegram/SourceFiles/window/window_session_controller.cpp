@@ -113,6 +113,8 @@ class MainWindowShow final : public ChatHelpers::Show {
 public:
 	explicit MainWindowShow(not_null<SessionController*> controller);
 
+	void activate() override;
+
 	void showOrHideBoxOrLayer(
 		std::variant<
 			v::null_t,
@@ -149,6 +151,12 @@ private:
 
 MainWindowShow::MainWindowShow(not_null<SessionController*> controller)
 : _window(base::make_weak(controller)) {
+}
+
+void MainWindowShow::activate() {
+	if (const auto window = _window.get()) {
+		Window::ActivateWindow(window);
+	}
 }
 
 void MainWindowShow::showOrHideBoxOrLayer(
@@ -244,10 +252,7 @@ void MainWindowShow::processChosenSticker(
 } // namespace
 
 void ActivateWindow(not_null<SessionController*> controller) {
-	const auto window = controller->widget();
-	window->raise();
-	window->activateWindow();
-	Ui::ActivateWindowDelayed(window);
+	Ui::ActivateWindow(controller->widget());
 }
 
 bool IsPaused(

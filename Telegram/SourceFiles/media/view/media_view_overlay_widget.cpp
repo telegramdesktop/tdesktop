@@ -287,6 +287,87 @@ struct OverlayWidget::PipWrap {
 	rpl::lifetime lifetime;
 };
 
+class OverlayWidget::Show final : public ChatHelpers::Show {
+public:
+	explicit Show(not_null<OverlayWidget*> widget) : _widget(widget) {
+	}
+
+	void activate() override {
+		if (!_widget->isHidden()) {
+			_widget->activate();
+		}
+	}
+
+	void showOrHideBoxOrLayer(
+			std::variant<
+				v::null_t,
+				object_ptr<Ui::BoxContent>,
+				std::unique_ptr<Ui::LayerWidget>> &&layer,
+			Ui::LayerOptions options,
+			anim::type animated) const override {
+		_widget->_layerBg->uiShow()->showOrHideBoxOrLayer(
+			std::move(layer),
+			options,
+			anim::type::normal);
+	}
+	not_null<QWidget*> toastParent() const override {
+		return _widget->_body;
+	}
+	bool valid() const override {
+		return _widget->_storiesSession != nullptr;
+	}
+	operator bool() const override {
+		return valid();
+	}
+
+	Main::Session &session() const override {
+		Expects(_widget->_storiesSession != nullptr);
+
+		return *_widget->_storiesSession;
+	}
+	bool paused(ChatHelpers::PauseReason reason) const override {
+		if (_widget->isHidden()
+			|| (!_widget->_fullscreen
+				&& !_widget->_window->isActiveWindow())) {
+			return true;
+		} else if (reason < ChatHelpers::PauseReason::Layer
+			&& _widget->_layerBg->topShownLayer() != nullptr) {
+			return true;
+		}
+		return false;
+	}
+	rpl::producer<> pauseChanged() const override {
+		return rpl::never<>();
+	}
+
+	rpl::producer<bool> adjustShadowLeft() const override {
+		return rpl::single(false);
+	}
+	SendMenu::Type sendMenuType() const override {
+		return SendMenu::Type::SilentOnly;
+	}
+
+	bool showMediaPreview(
+			Data::FileOrigin origin,
+			not_null<DocumentData*> document) const override {
+		return false; // #TODO stories
+	}
+	bool showMediaPreview(
+			Data::FileOrigin origin,
+			not_null<PhotoData*> photo) const override {
+		return false; // #TODO stories
+	}
+
+	void processChosenSticker(
+			ChatHelpers::FileChosen &&chosen) const override {
+		_widget->_storiesStickerOrEmojiChosen.fire(std::move(chosen));
+	}
+
+private:
+	not_null<OverlayWidget*> _widget;
+
+};
+
 OverlayWidget::Streamed::Streamed(
 	not_null<DocumentData*> document,
 	Data::FileOrigin origin,
@@ -3936,81 +4017,10 @@ not_null<Ui::RpWidget*> OverlayWidget::storiesWrap() {
 }
 
 std::shared_ptr<ChatHelpers::Show> OverlayWidget::storiesShow() {
-	class Show final : public ChatHelpers::Show {
-	public:
-		explicit Show(not_null<OverlayWidget*> widget) : _widget(widget) {
-		}
-
-		void showBox(
-			object_ptr<Ui::BoxContent> content,
-			Ui::LayerOptions options
-				= Ui::LayerOption::KeepOther) const override {
-			_widget->_layerBg->showBox(
-				std::move(content),
-				options,
-				anim::type::normal);
-		}
-		void hideLayer() const override {
-			_widget->_layerBg->hideAll(anim::type::normal);
-		}
-		not_null<QWidget*> toastParent() const override {
-			return _widget->_body;
-		}
-		bool valid() const override {
-			return _widget->_storiesSession != nullptr;
-		}
-		operator bool() const override {
-			return valid();
-		}
-
-		Main::Session &session() const override {
-			Expects(_widget->_storiesSession != nullptr);
-
-			return *_widget->_storiesSession;
-		}
-		bool paused(ChatHelpers::PauseReason reason) const override {
-			if (_widget->isHidden()
-				|| (!_widget->_fullscreen
-					&& !_widget->_window->isActiveWindow())) {
-				return true;
-			} else if (reason < ChatHelpers::PauseReason::Layer
-				&& _widget->_layerBg->topShownLayer() != nullptr) {
-				return true;
-			}
-			return false;
-		}
-		rpl::producer<> pauseChanged() const override {
-			return rpl::never<>();
-		}
-
-		rpl::producer<bool> adjustShadowLeft() const override {
-			return rpl::single(false);
-		}
-		SendMenu::Type sendMenuType() const override {
-			return SendMenu::Type::SilentOnly;
-		}
-
-		bool showMediaPreview(
-				Data::FileOrigin origin,
-				not_null<DocumentData*> document) const override {
-			return false; // #TODO stories
-		}
-		bool showMediaPreview(
-				Data::FileOrigin origin,
-				not_null<PhotoData*> photo) const override {
-			return false; // #TODO stories
-		}
-
-		void processChosenSticker(
-				ChatHelpers::FileChosen &&chosen) const override {
-			_widget->_storiesStickerOrEmojiChosen.fire(std::move(chosen));
-		}
-
-	private:
-		not_null<OverlayWidget*> _widget;
-
-	};
-	return std::make_shared<Show>(this);
+	if (!_cachedShow) {
+		_cachedShow = std::make_shared<Show>(this);
+	}
+	return _cachedShow;
 }
 
 auto OverlayWidget::storiesStickerOrEmojiChosen()
@@ -5753,6 +5763,7 @@ void OverlayWidget::clearBeforeHide() {
 	_collageData = std::nullopt;
 	clearStreaming();
 	setStoriesUser(nullptr);
+	_layerBg->hideAll(anim::type::instant);
 	assignMediaPointer(nullptr);
 	_preloadPhotos.clear();
 	_preloadDocuments.clear();

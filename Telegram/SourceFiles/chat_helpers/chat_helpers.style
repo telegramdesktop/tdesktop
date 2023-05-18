@@ -11,6 +11,7 @@ using "boxes/boxes.style";
 using "ui/layers/layers.style";
 using "ui/widgets/widgets.style";
 using "ui/menu_icons.style";
+using "ui/effects/premium.style";
 
 GroupCallUserpics {
 	size: pixels;
@@ -66,6 +67,8 @@ ComposeIcons {
 	menuMute: icon;
 	menuSchedule: icon;
 	menuWhenOnline: icon;
+	menuSpoiler: icon;
+	menuSpoilerOff: icon;
 }
 
 EmojiSuggestions {
@@ -107,6 +110,7 @@ EmojiPan {
 	fadeLeft: icon;
 	fadeRight: icon;
 	menu: PopupMenu;
+	expandedSeparator: MenuSeparator;
 	tabs: SettingsSlider;
 	search: TabbedSearch;
 	searchMargin: margins;
@@ -162,6 +166,24 @@ RecordBar {
 	remove: IconButton;
 }
 
+ComposeFiles {
+	check: Check;
+	checkbox: Checkbox;
+	menu: IconButton;
+	caption: InputField;
+	emoji: EmojiButton;
+	confirmBg: color;
+	buttonFile: IconButton;
+	buttonFileEdit: icon;
+	buttonFileDelete: icon;
+	iconBg: color;
+	iconPlay: icon;
+	iconImage: icon;
+	iconDocument: icon;
+	nameFg: color;
+	statusFg: color;
+}
+
 ComposeControls {
 	bg: color;
 	radius: pixels;
@@ -175,6 +197,8 @@ ComposeControls {
 	tabbedHeightMin: pixels;
 	tabbedHeightMax: pixels;
 	record: RecordBar;
+	files: ComposeFiles;
+	premium: PremiumLimits;
 }
 
 switchPmButton: RoundButton(defaultBoxButton) {
@@ -416,6 +440,42 @@ stickersToast: Toast(defaultToast) {
 stickersEmpty: icon {{ "stickers_empty", windowSubTextFg }};
 emojiEmpty: icon {{ "emoji_empty", windowSubTextFg }};
 
+editMediaButtonSize: 32px;
+
+editMediaButtonIconFile: icon {{ "send_media/send_media_replace", menuIconFg }};
+editMediaButton: IconButton(defaultIconButton) {
+	width: editMediaButtonSize;
+	height: editMediaButtonSize;
+
+	icon: editMediaButtonIconFile;
+
+	rippleAreaSize: editMediaButtonSize;
+	ripple: defaultRippleAnimation;
+}
+
+sendBoxAlbumGroupEditInternalSkip: 8px;
+sendBoxAlbumGroupSkipRight: 5px;
+sendBoxAlbumGroupSkipTop: 5px;
+sendBoxAlbumGroupRadius: 4px;
+sendBoxAlbumGroupSize: size(62px, 25px);
+sendBoxAlbumSmallGroupSize: size(30px, 25px);
+
+sendBoxFileGroupSkipTop: 2px;
+sendBoxFileGroupSkipRight: 5px;
+sendBoxFileGroupEditInternalSkip: -1px;
+
+sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+sendBoxAlbumGroupEditButtonIconFile: editMediaButtonIconFile;
+sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "send_media/send_media_delete", menuIconFg }};
+
+sendBoxAlbumButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg }};
+sendBoxAlbumGroupButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg, point(4px, 1px) }};
+sendBoxAlbumGroupButtonMediaDelete: icon {{ "send_media/send_media_delete", roundedFg }};
+
 defaultComposeIcons: ComposeIcons {
 	settings: icon {{ "emoji/emoji_settings", emojiIconFg }};
 
@@ -445,6 +505,8 @@ defaultComposeIcons: ComposeIcons {
 	menuMute: menuIconMute;
 	menuSchedule: menuIconSchedule;
 	menuWhenOnline: menuIconWhenOnline;
+	menuSpoiler: menuIconSpoiler;
+	menuSpoilerOff: menuIconSpoilerOff;
 }
 defaultEmojiPan: EmojiPan {
 	margin: margins(7px, 0px, 7px, 0px);
@@ -476,6 +538,10 @@ defaultEmojiPan: EmojiPan {
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
 	menu: popupMenuWithIcons;
+	expandedSeparator: MenuSeparator(defaultMenuSeparator) {
+		padding: margins(0px, 4px, 0px, 4px);
+		width: 6px;
+	}
 	tabs: emojiTabs;
 	search: defaultTabbedSearch;
 	searchMargin: margins(1px, 11px, 2px, 5px);
@@ -974,6 +1040,41 @@ historySend: SendButton {
 	sendDisabledFg: historyComposeIconFg;
 }
 
+defaultComposeFilesMenu: IconButton(defaultIconButton) {
+	width: 48px;
+	height: 54px;
+
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+	iconPosition: point(18px, -1px);
+
+	rippleAreaPosition: point(1px, 6px);
+	rippleAreaSize: 42px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+defaultComposeFilesField: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 31px, 4px);
+	heightMax: 158px;
+}
+defaultComposeFiles: ComposeFiles {
+	check: defaultCheck;
+	checkbox: defaultBoxCheckbox;
+	menu: defaultComposeFilesMenu;
+	caption: defaultComposeFilesField;
+	emoji: boxAttachEmoji;
+	confirmBg: windowBgOver;
+	buttonFile: sendBoxAlbumGroupButtonFile;
+	buttonFileEdit: sendBoxAlbumGroupEditButtonIconFile;
+	buttonFileDelete: sendBoxAlbumGroupDeleteButtonIconFile;
+	iconBg: msgFileInBg;
+	iconPlay: icon {{ "history_file_play", historyFileInIconFg }};
+	iconImage: icon {{ "history_file_image", historyFileInIconFg }};
+	iconDocument: icon {{ "history_file_document", historyFileInIconFg }};
+	nameFg: historyFileNameInFg;
+	statusFg: mediaInFg;
+}
 defaultComposeControls: ComposeControls {
 	bg: historyComposeAreaBg;
 	radius: 0px;
@@ -987,4 +1088,6 @@ defaultComposeControls: ComposeControls {
 	tabbedHeightMin: emojiPanMinHeight;
 	tabbedHeightMax: emojiPanMaxHeight;
 	record: defaultRecordBar;
+	files: defaultComposeFiles;
+	premium: defaultPremiumLimits;
 }

@@ -726,6 +726,7 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 		.paused = footerPaused,
 		.parent = this,
 		.st = &st(),
+		.features = { .stickersSettings = false },
 	});
 	_footer = result;
 

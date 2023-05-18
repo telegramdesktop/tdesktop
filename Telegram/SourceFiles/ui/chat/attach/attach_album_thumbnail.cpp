@@ -26,13 +26,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 AlbumThumbnail::AlbumThumbnail(
+	const style::ComposeControls &st,
 	const PreparedFile &file,
 	const GroupMediaLayout &layout,
 	QWidget *parent,
 	Fn<void()> repaint,
 	Fn<void()> editCallback,
 	Fn<void()> deleteCallback)
-: _layout(layout)
+: _st(st)
+, _layout(layout)
 , _fullPreview(file.preview)
 , _shrinkSize(int(std::ceil(st::roundRadiusLarge / 1.4)))
 , _isPhoto(file.type == PreparedFile::Type::Photo)
@@ -60,8 +62,8 @@ AlbumThumbnail::AlbumThumbnail(
 			.outer = { imageWidth, imageHeight },
 		}));
 
-	const auto &st = st::attachPreviewThumbLayout;
-	const auto idealSize = st.thumbSize * style::DevicePixelRatio();
+	const auto &layoutSt = st::attachPreviewThumbLayout;
+	const auto idealSize = layoutSt.thumbSize * style::DevicePixelRatio();
 	const auto fileThumbSize = (previewWidth > previewHeight)
 		? QSize(previewWidth * idealSize / previewHeight, idealSize)
 		: QSize(idealSize, previewHeight * idealSize / previewWidth);
@@ -70,12 +72,12 @@ AlbumThumbnail::AlbumThumbnail(
 		fileThumbSize,
 		{
 			.options = Option::RoundSmall,
-			.outer = { st.thumbSize, st.thumbSize },
+			.outer = { layoutSt.thumbSize, layoutSt.thumbSize },
 		}));
 
 	const auto availableFileWidth = st::sendMediaPreviewSize
-		- st.thumbSize
-		- st.thumbSkip
+		- layoutSt.thumbSize
+		- layoutSt.thumbSkip
 		// Right buttons.
 		- st::sendBoxAlbumGroupButtonFile.width * 2
 		- st::sendBoxAlbumGroupEditInternalSkip * 2
@@ -99,8 +101,8 @@ AlbumThumbnail::AlbumThumbnail(
 	}
 	_statusWidth = st::normalFont->width(_status);
 
-	_editMedia.create(parent, st::sendBoxAlbumGroupButtonFile);
-	_deleteMedia.create(parent, st::sendBoxAlbumGroupButtonFile);
+	_editMedia.create(parent, _st.files.buttonFile);
+	_deleteMedia.create(parent, _st.files.buttonFile);
 
 	const auto duration = st::historyAttach.ripple.hideDuration;
 	_editMedia->setClickedCallback([=] {
@@ -108,8 +110,8 @@ AlbumThumbnail::AlbumThumbnail(
 	});
 	_deleteMedia->setClickedCallback(deleteCallback);
 
-	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
-	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
+	_editMedia->setIconOverride(&_st.files.buttonFileEdit);
+	_deleteMedia->setIconOverride(&_st.files.buttonFileDelete);
 
 	setSpoiler(file.spoiler);
 	setButtonVisible(false);
@@ -482,7 +484,7 @@ void AlbumThumbnail::paintFile(
 
 	p.drawPixmap(left, top, _fileThumb);
 	p.setFont(st::semiboldFont);
-	p.setPen(st::historyFileNameInFg);
+	p.setPen(_st.files.nameFg);
 	p.drawTextLeft(
 		textLeft,
 		top + st.nameTop,
@@ -490,7 +492,7 @@ void AlbumThumbnail::paintFile(
 		_name,
 		_nameWidth);
 	p.setFont(st::normalFont);
-	p.setPen(st::mediaInFg);
+	p.setPen(_st.files.statusFg);
 	p.drawTextLeft(
 		textLeft,
 		top + st.statusTop,

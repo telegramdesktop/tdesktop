@@ -1101,7 +1101,7 @@ void FileLoadTask::finish() {
 	} else if (_result->filesize > kFileSizePremiumLimit
 		|| (_result->filesize > kFileSizeLimit && !premium)) {
 		Ui::show(
-			Box(FileSizeLimitBox, session, _result->filesize),
+			Box(FileSizeLimitBox, session, _result->filesize, nullptr),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else {

@@ -131,6 +131,7 @@ public:
 	rpl::lifetime &lifetime();
 
 private:
+	class Show;
 	struct Streamed;
 	struct PipWrap;
 	class Renderer;
@@ -600,6 +601,7 @@ private:
 	bool _showAsPip = false;
 
 	std::unique_ptr<Stories::View> _stories;
+	std::shared_ptr<Show> _cachedShow;
 	rpl::event_stream<> _storiesChanged;
 	Main::Session *_storiesSession = nullptr;
 	rpl::event_stream<ChatHelpers::FileChosen> _storiesStickerOrEmojiChosen;

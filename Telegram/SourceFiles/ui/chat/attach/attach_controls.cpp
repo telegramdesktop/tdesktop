@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_controls.h"
 
-#include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Ui {
 

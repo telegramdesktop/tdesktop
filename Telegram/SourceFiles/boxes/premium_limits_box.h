@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/generic_box.h"
 
+namespace style {
+struct PremiumLimits;
+} // namespace style
+
 namespace Data {
 class Forum;
 } // namespace Data
@@ -57,15 +61,18 @@ void ForumPinsLimitBox(
 void CaptionLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session,
-	int remove);
+	int remove,
+	const style::PremiumLimits *stOverride = nullptr);
 void CaptionLimitReachedBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session,
-	int remove);
+	int remove,
+	const style::PremiumLimits *stOverride = nullptr);
 void FileSizeLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session,
-	uint64 fileSizeBytes);
+	uint64 fileSizeBytes,
+	const style::PremiumLimits *stOverride = nullptr);
 void AccountsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);

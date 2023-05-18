@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "base/object_ptr.h"
 
+namespace style {
+struct ComposeControls;
+} // namespace style
+
 namespace Ui {
 
 struct PreparedFile;
@@ -23,6 +27,7 @@ class SpoilerAnimation;
 class AlbumThumbnail final {
 public:
 	AlbumThumbnail(
+		const style::ComposeControls &st,
 		const PreparedFile &file,
 		const GroupMediaLayout &layout,
 		QWidget *parent,
@@ -78,6 +83,7 @@ private:
 		float64 shrinkProgress);
 	void paintPlayVideo(QPainter &p, QRect geometry);
 
+	const style::ComposeControls &_st;
 	GroupMediaLayout _layout;
 	std::optional<QRect> _animateFromGeometry;
 	const QImage _fullPreview;

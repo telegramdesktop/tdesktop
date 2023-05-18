@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/round_checkbox.h"
 
+namespace style {
+struct PremiumLimits;
+} // namespace style
+
 namespace tr {
 template <typename ...>
 struct phrase;
@@ -48,12 +52,14 @@ void AddBubbleRow(
 
 void AddLimitRow(
 	not_null<Ui::VerticalLayout*> parent,
+	const style::PremiumLimits &st,
 	QString max,
 	QString min = {},
 	float64 ratio = kLimitRowRatio);
 
 void AddLimitRow(
 	not_null<Ui::VerticalLayout*> parent,
+	const style::PremiumLimits &st,
 	int max,
 	std::optional<tr::phrase<lngtag_count>> phrase,
 	int min = 0,
@@ -90,6 +96,7 @@ struct ListEntry final {
 };
 void ShowListBox(
 	not_null<Ui::GenericBox*> box,
+	const style::PremiumLimits &st,
 	std::vector<ListEntry> entries);
 
 void AddGiftOptions(

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_list_widget.h"
 
+#include "core/application.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
@@ -221,9 +222,15 @@ StickersListWidget::StickersListWidget(
 	}
 
 	_settings->addClickHandler([=] {
-		using Section = StickersBox::Section;
-		_show->showBox(
-			Box<StickersBox>(_show, Section::Installed, _isMasks));
+		if (const auto window = _show->resolveWindow(
+				WindowUsage::PremiumPromo)) {
+			// While media viewer can't show StickersBox.
+			using Section = StickersBox::Section;
+			window->show(
+				Box<StickersBox>(_show, Section::Installed, _isMasks));
+			Core::App().hideMediaView();
+			Window::ActivateWindow(window);
+		}
 	});
 
 	session().downloaderTaskFinished(

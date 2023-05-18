@@ -46,6 +46,8 @@ enum class WindowUsage {
 
 class Show : public Main::SessionShow {
 public:
+	virtual void activate() = 0;
+
 	[[nodiscard]] virtual bool paused(PauseReason reason) const = 0;
 	[[nodiscard]] virtual rpl::producer<> pauseChanged() const = 0;
 

@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 
+namespace style {
+struct ComposeControls;
+} // namespace style
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -26,6 +30,7 @@ enum class SendType;
 
 namespace ChatHelpers {
 class TabbedPanel;
+class Show;
 } // namespace ChatHelpers
 
 namespace Ui {
@@ -71,6 +76,29 @@ using SendFilesCheck = Fn<bool(
 [[nodiscard]] SendFilesCheck DefaultCheckForPeer(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
+[[nodiscard]] SendFilesCheck DefaultCheckForPeer(
+	std::shared_ptr<Ui::Show> show,
+	not_null<PeerData*> peer);
+
+using SendFilesConfirmed = Fn<void(
+	Ui::PreparedList &&list,
+	Ui::SendFilesWay way,
+	TextWithTags &&caption,
+	Api::SendOptions options,
+	bool ctrlShiftEnter)>;
+
+struct SendFilesBoxDescriptor {
+	std::shared_ptr<ChatHelpers::Show> show;
+	Ui::PreparedList list;
+	TextWithTags caption;
+	SendFilesLimits limits = {};
+	SendFilesCheck check;
+	Api::SendType sendType = {};
+	SendMenu::Type sendMenuType = {};
+	const style::ComposeControls *stOverride = nullptr;
+	SendFilesConfirmed confirmed;
+	Fn<void()> cancelled;
+};
 
 class SendFilesBox : public Ui::BoxContent {
 public:
@@ -87,14 +115,9 @@ public:
 		SendFilesCheck check,
 		Api::SendType sendType,
 		SendMenu::Type sendMenuType);
+	SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor);
 
-	void setConfirmedCallback(
-		Fn<void(
-			Ui::PreparedList &&list,
-			Ui::SendFilesWay way,
-			TextWithTags &&caption,
-			Api::SendOptions options,
-			bool ctrlShiftEnter)> callback) {
+	void setConfirmedCallback(SendFilesConfirmed callback) {
 		_confirmedCallback = std::move(callback);
 	}
 	void setCancelledCallback(Fn<void()> callback) {
@@ -116,6 +139,7 @@ private:
 	public:
 		Block(
 			not_null<QWidget*> parent,
+			const style::ComposeControls &st,
 			not_null<std::vector<Ui::PreparedFile>*> items,
 			int from,
 			int till,
@@ -201,7 +225,8 @@ private:
 	void enqueueNextPrepare();
 	void addPreparedAsyncFile(Ui::PreparedFile &&file);
 
-	const not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const style::ComposeControls &_st;
 	const Api::SendType _sendType = Api::SendType();
 
 	QString _titleText;
@@ -211,15 +236,10 @@ private:
 	std::optional<int> _removingIndex;
 
 	SendFilesLimits _limits = {};
-	SendMenu::Type _sendMenuType = SendMenu::Type();
+	SendMenu::Type _sendMenuType = {};
 
 	SendFilesCheck _check;
-	Fn<void(
-		Ui::PreparedList &&list,
-		Ui::SendFilesWay way,
-		TextWithTags &&caption,
-		Api::SendOptions options,
-		bool ctrlShiftEnter)> _confirmedCallback;
+	SendFilesConfirmed _confirmedCallback;
 	Fn<void()> _cancelledCallback;
 	bool _confirmed = false;
 

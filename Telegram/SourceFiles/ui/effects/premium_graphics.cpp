@@ -596,12 +596,14 @@ class Line final : public Ui::RpWidget {
 public:
 	Line(
 		not_null<Ui::RpWidget*> parent,
+		const style::PremiumLimits &st,
 		int max,
 		TextFactory textFactory,
 		int min,
 		float64 ratio);
 	Line(
 		not_null<Ui::RpWidget*> parent,
+		const style::PremiumLimits &st,
 		QString max,
 		QString min,
 		float64 ratio);
@@ -613,6 +615,8 @@ protected:
 
 private:
 	void recache(const QSize &s);
+
+	const style::PremiumLimits &_st;
 
 	int _leftWidth = 0;
 	int _rightWidth = 0;
@@ -631,12 +635,14 @@ private:
 
 Line::Line(
 	not_null<Ui::RpWidget*> parent,
+	const style::PremiumLimits &st,
 	int max,
 	TextFactory textFactory,
 	int min,
 	float64 ratio)
 : Line(
 	parent,
+	st,
 	max ? textFactory(max) : QString(),
 	min ? textFactory(min) : QString(),
 	ratio) {
@@ -644,10 +650,12 @@ Line::Line(
 
 Line::Line(
 	not_null<Ui::RpWidget*> parent,
+	const style::PremiumLimits &st,
 	QString max,
 	QString min,
 	float64 ratio)
 : Ui::RpWidget(parent)
+, _st(st)
 , _leftText(st::semiboldTextStyle, tr::lng_premium_free(tr::now))
 , _rightText(st::semiboldTextStyle, tr::lng_premium(tr::now))
 , _rightLabel(st::semiboldTextStyle, max)
@@ -689,7 +697,7 @@ void Line::paintEvent(QPaintEvent *event) {
 		+ _leftText.maxWidth()
 		+ 3 * textPadding;
 	if (_leftWidth >= leftMinWidth) {
-		p.setPen(st::windowFg);
+		p.setPen(_st.nonPremiumFg);
 		_leftLabel.drawRight(
 			p,
 			textPadding,
@@ -751,7 +759,7 @@ void Line::recache(const QSize &s) {
 		halfRect.setLeft(halfRect.center().x());
 		pathRect.addRect(halfRect);
 
-		p.fillPath(pathRound(_leftWidth) + pathRect, st::windowBgOver);
+		p.fillPath(pathRound(_leftWidth) + pathRect, _st.nonPremiumBg);
 
 		_leftPixmap = std::move(leftPixmap);
 	}
@@ -811,16 +819,18 @@ void AddBubbleRow(
 
 void AddLimitRow(
 		not_null<Ui::VerticalLayout*> parent,
+		const style::PremiumLimits &st,
 		QString max,
 		QString min,
 		float64 ratio) {
 	parent->add(
-		object_ptr<Line>(parent, max, min, ratio),
+		object_ptr<Line>(parent, st, max, min, ratio),
 		st::boxRowPadding);
 }
 
 void AddLimitRow(
 		not_null<Ui::VerticalLayout*> parent,
+		const style::PremiumLimits &st,
 		int max,
 		std::optional<tr::phrase<lngtag_count>> phrase,
 		int min,
@@ -828,6 +838,7 @@ void AddLimitRow(
 	const auto factory = ProcessTextFactory(phrase);
 	AddLimitRow(
 		parent,
+		st,
 		max ? factory(max) : QString(),
 		min ? factory(min) : QString(),
 		ratio);
@@ -1009,6 +1020,7 @@ QGradientStops GiftGradientStops() {
 
 void ShowListBox(
 		not_null<Ui::GenericBox*> box,
+		const style::PremiumLimits &st,
 		std::vector<ListEntry> entries) {
 
 	const auto &stLabel = st::defaultFlatLabel;
@@ -1036,6 +1048,7 @@ void ShowListBox(
 		const auto limitRow = content->add(
 			object_ptr<Line>(
 				content,
+				st,
 				entry.rightNumber,
 				TextFactory([=, text = ProcessTextFactory(std::nullopt)](
 						int n) {
