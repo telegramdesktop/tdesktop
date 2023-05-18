@@ -65,16 +65,16 @@ void ReplyArea::initGeometry() {
 		_controls->height()
 	) | rpl::start_with_next([=](const Layout &layout, int height) {
 		const auto content = layout.content;
-		_controls->resizeToWidth(content.width());
+		_controls->resizeToWidth(layout.controlsWidth);
 		if (_controls->heightCurrent() == height) {
 			const auto position = layout.controlsBottomPosition
 				- QPoint(0, height);
 			_controls->move(position.x(), position.y());
 			const auto &tabbed = st::storiesComposeControls.tabbed;
 			const auto upper = QRect(
-				content.x(),
+				position.x(),
 				content.y(),
-				content.width(),
+				layout.controlsWidth,
 				(position.y()
 					+ tabbed.autocompleteBottomSkip
 					- content.y()));

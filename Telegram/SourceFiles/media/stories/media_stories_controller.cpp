@@ -31,7 +31,8 @@ namespace {
 constexpr auto kPhotoProgressInterval = crl::time(100);
 constexpr auto kPhotoDuration = 5 * crl::time(1000);
 constexpr auto kFullContentFade = 0.35;
-constexpr auto kSiblingMultiplier = 0.448;
+constexpr auto kSiblingMultiplierDefault = 0.448;
+constexpr auto kSiblingMultiplierMax = 0.72;
 constexpr auto kSiblingOutsidePart = 0.24;
 constexpr auto kSiblingUserpicSize = 0.3;
 constexpr auto kInnerHeightMultiplier = 1.6;
@@ -217,12 +218,30 @@ void Controller::initLayout() {
 			layout.controlsWidth,
 			layout.controlsBottomPosition.y());
 
-		const auto siblingSize = layout.content.size() * kSiblingMultiplier;
+		const auto sidesAvailable = size.width() - layout.content.width();
+		const auto widthForSiblings = sidesAvailable
+			- 2 * st::storiesFieldMargin.bottom();
+		const auto siblingWidthMax = widthForSiblings
+			/ (2 * (1. - kSiblingOutsidePart));
+		const auto siblingMultiplierMax = std::max(
+			kSiblingMultiplierDefault,
+			st::storiesSiblingWidthMin / float64(layout.content.width()));
+		const auto siblingMultiplier = std::min({
+			siblingMultiplierMax,
+			kSiblingMultiplierMax,
+			siblingWidthMax / layout.content.width(),
+		});
+		const auto siblingSize = layout.content.size() * siblingMultiplier;
 		const auto siblingTop = (size.height() - siblingSize.height()) / 2;
-		const auto outside = int(base::SafeRound(
+		const auto outsideMax = int(base::SafeRound(
 			siblingSize.width() * kSiblingOutsidePart));
-		const auto xLeft = -outside;
-		const auto xRight = size.width() - siblingSize.width() + outside;
+		const auto leftAvailable = layout.content.x() - siblingSize.width();
+		const auto xDesired = leftAvailable / 3;
+		const auto xPossible = std::min(
+			xDesired,
+			(leftAvailable - st::storiesControlSize));
+		const auto xLeft = std::max(xPossible, -outsideMax);
+		const auto xRight = size.width() - siblingSize.width() - xLeft;
 		const auto userpicSize = int(base::SafeRound(
 			siblingSize.width() * kSiblingUserpicSize));
 		const auto innerHeight = userpicSize * kInnerHeightMultiplier;
@@ -234,11 +253,13 @@ void Controller::initLayout() {
 				userpicSize
 			).translated(geometry.topLeft());
 		};
-		const auto nameFontSize = st::storiesMaxNameFontSize * contentHeight
-			/ st::storiesMaxSize.height();
+		const auto nameFontSize = std::max(
+			(st::storiesMaxNameFontSize * contentHeight
+				/ st::storiesMaxSize.height()),
+			st::fsize);
 		const auto nameBoundingRect = [&](QRect geometry, bool left) {
 			const auto skipSmall = nameFontSize;
-			const auto skipBig = skipSmall + outside;
+			const auto skipBig = skipSmall - std::min(xLeft, 0);
 			const auto top = userpic(geometry).y() + innerHeight;
 			return QRect(
 				left ? skipBig : skipSmall,

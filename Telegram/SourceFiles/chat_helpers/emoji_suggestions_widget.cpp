@@ -866,6 +866,7 @@ void SuggestionsController::showWithQuery(SuggestionsQuery query) {
 	const auto force = base::take(_keywordsRefreshed);
 	_lastShownQuery = query;
 	_suggestions->showWithQuery(_lastShownQuery, force);
+	_container->resizeToContent();
 }
 
 SuggestionsQuery SuggestionsController::getEmojiQuery() {

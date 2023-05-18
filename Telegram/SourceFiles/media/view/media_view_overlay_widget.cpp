@@ -5025,6 +5025,7 @@ void OverlayWidget::setStoriesUser(UserData *user) {
 			updateControlsGeometry();
 		}, _stories->lifetime());
 		_storiesChanged.fire({});
+		_dropdown->raise();
 	}
 }
 

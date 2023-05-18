@@ -172,6 +172,8 @@ ComposeControls {
 	emoji: EmojiButton;
 	suggestions: EmojiSuggestions;
 	tabbed: EmojiPan;
+	tabbedHeightMin: pixels;
+	tabbedHeightMax: pixels;
 	record: RecordBar;
 }
 
@@ -982,5 +984,7 @@ defaultComposeControls: ComposeControls {
 	emoji: historyAttachEmoji;
 	suggestions: defaultEmojiSuggestions;
 	tabbed: defaultEmojiPan;
+	tabbedHeightMin: emojiPanMinHeight;
+	tabbedHeightMax: emojiPanMaxHeight;
 	record: defaultRecordBar;
 }

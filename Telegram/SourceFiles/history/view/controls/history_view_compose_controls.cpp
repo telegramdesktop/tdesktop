@@ -2596,6 +2596,10 @@ void ComposeControls::createTabbedPanel() {
 	setTabbedPanel(std::make_unique<TabbedPanel>(
 		_parent,
 		std::move(descriptor)));
+	_tabbedPanel->setDesiredHeightValues(
+		st::emojiPanHeightRatio,
+		_st.tabbedHeightMin,
+		_st.tabbedHeightMax);
 }
 
 void ComposeControls::setTabbedPanel(

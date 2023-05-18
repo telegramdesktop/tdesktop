@@ -408,6 +408,7 @@ pipVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPipControlsFgOve
 speedSliderDividerSize: size(2px, 8px);
 
 storiesMaxSize: size(540px, 960px);
+storiesSiblingWidthMin: 200px; // Try making sibling not less than this.
 storiesMaxNameFontSize: 17px;
 storiesRadius: 8px;
 storiesControlSize: 64px;
@@ -433,7 +434,7 @@ storiesHeaderDate: FlatLabel(defaultFlatLabel) {
 storiesHeaderDatePosition: point(50px, 17px);
 storiesShadowTop: icon{{ "mediaview/shadow_bottom-flip_vertical", windowShadowFg }};
 storiesShadowBottom: mediaviewShadowBottom;
-storiesControlsMinWidth: 200px;
+storiesControlsMinWidth: 280px;
 storiesFieldMargin: margins(0px, 14px, 0px, 16px);
 storiesSideSkip: 145px;
 storiesCaptionFull: FlatLabel(defaultFlatLabel) {
@@ -640,6 +641,8 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 		}
 		autocompleteBottomSkip: 10px;
 	}
+	tabbedHeightMin: 220px;
+	tabbedHeightMax: 480px;
 	record: RecordBar(defaultRecordBar) {
 		bg: storiesComposeBg;
 		durationFg: storiesComposeWhiteText;

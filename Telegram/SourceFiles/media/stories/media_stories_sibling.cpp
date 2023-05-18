@@ -338,18 +338,16 @@ QPoint Sibling::namePosition(
 		const QImage &image) const {
 	const auto size = image.size() / image.devicePixelRatio();
 	const auto width = size.width();
+	const auto bounding = layout.nameBoundingRect;
 	const auto left = layout.geometry.x()
 		+ (layout.geometry.width() - width) / 2;
-	if (left < layout.nameBoundingRect.x()) {
-		return layout.nameBoundingRect.topLeft();
-	} else if (left + width > layout.nameBoundingRect.x() + layout.nameBoundingRect.width()) {
-		return layout.nameBoundingRect.topLeft()
-			+ QPoint(layout.nameBoundingRect.width() - width, 0);
+	const auto top = bounding.y() + bounding.height() - size.height();
+	if (left < bounding.x()) {
+		return { bounding.x(), top };
+	} else if (left + width > bounding.x() + bounding.width()) {
+		return { bounding.x() + bounding.width() - width, top };
 	}
-	const auto top = layout.nameBoundingRect.y()
-		+ layout.nameBoundingRect.height()
-		- size.height();
-	return QPoint(left, top);
+	return { left, top };
 }
 
 void Sibling::check() {
