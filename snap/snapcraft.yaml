@@ -94,7 +94,7 @@ parts:
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - clang
       - libtool-bin
@@ -274,7 +274,7 @@ parts:
     source-tag: v0.8.1
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -307,7 +307,7 @@ parts:
     source-tag: v4.0.3
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -328,7 +328,7 @@ parts:
     source-tag: 1.23.0
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - libasound2-dev
       - libdbus-1-dev
@@ -358,7 +358,7 @@ parts:
     source-tag: v21.9
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - zlib1g-dev
     stage-packages:
@@ -379,7 +379,7 @@ parts:
   qt:
     plugin: nil
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - libdbus-1-dev
       - libegl-dev
@@ -534,7 +534,7 @@ parts:
     source-commit: dcb5069ff76bd293e86928804208737e6cee2ccc
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - yasm
       - libdrm-dev
