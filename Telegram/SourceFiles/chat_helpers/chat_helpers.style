@@ -139,6 +139,29 @@ SendButton {
 	sendDisabledFg: color;
 }
 
+RecordBarLock {
+	ripple: RippleAnimation;
+	originTop: icon;
+	originBottom: icon;
+	originBody: icon;
+	shadowTop: icon;
+	shadowBottom: icon;
+	shadowBody: icon;
+	arrow: icon;
+	fg: color;
+}
+
+RecordBar {
+	radius: pixels;
+	bg: color;
+	durationFg: color;
+	cancel: color;
+	cancelActive: color;
+	cancelRipple: RippleAnimation;
+	lock: RecordBarLock;
+	remove: IconButton;
+}
+
 ComposeControls {
 	bg: color;
 	radius: pixels;
@@ -149,6 +172,7 @@ ComposeControls {
 	emoji: EmojiButton;
 	suggestions: EmojiSuggestions;
 	tabbed: EmojiPan;
+	record: RecordBar;
 }
 
 switchPmButton: RoundButton(defaultBoxButton) {
@@ -875,7 +899,6 @@ historyRecordTextRight: 25px;
 historyRecordLockShowDuration: historyToDownDuration;
 historyRecordLockSize: size(75px, 133px);
 
-historyRecordLockIconFg: historyToDownFg;
 historyRecordLockIconSize: size(14px, 17px);
 historyRecordLockIconBottomHeight: 9px;
 historyRecordLockIconLineHeight: 2px;
@@ -916,6 +939,29 @@ historySilentToggle: IconButton(historyBotKeyboardShow) {
 historySilentToggleOn: icon {{ "chat/input_silent_on", historyComposeIconFg }};
 historySilentToggleOnOver: icon {{ "chat/input_silent_on", historyComposeIconFgOver }};
 
+defaultRecordBarLock: RecordBarLock {
+	ripple: defaultRippleAnimation;
+	originTop: historyRecordLockTop;
+	originBottom: historyRecordLockBottom;
+	originBody: historyRecordLockBody;
+	shadowTop: historyRecordLockTopShadow;
+	shadowBottom: historyRecordLockBottomShadow;
+	shadowBody: historyRecordLockBodyShadow;
+	arrow: historyRecordLockArrow;
+	fg: historyToDownFg;
+}
+defaultRecordBar: RecordBar {
+	bg: historyComposeAreaBg;
+	durationFg: historyRecordDurationFg;
+	cancel: historyRecordCancel;
+	cancelActive: historyRecordCancelActive;
+	cancelRipple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+	lock: defaultRecordBarLock;
+	remove: historyRecordDelete;
+}
+
 historySend: SendButton {
 	inner: IconButton(historyAttach) {
 		icon: historySendIcon;
@@ -936,4 +982,5 @@ defaultComposeControls: ComposeControls {
 	emoji: historyAttachEmoji;
 	suggestions: defaultEmojiSuggestions;
 	tabbed: defaultEmojiPan;
+	record: defaultRecordBar;
 }

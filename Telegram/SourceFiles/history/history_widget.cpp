@@ -943,18 +943,6 @@ void HistoryWidget::refreshTabbedPanel() {
 }
 
 void HistoryWidget::initVoiceRecordBar() {
-	{
-		auto scrollHeight = rpl::combine(
-			_scroll->topValue(),
-			_scroll->heightValue()
-		) | rpl::map([](int top, int height) {
-			return top + height - st::historyRecordLockPosition.y();
-		});
-		_voiceRecordBar->setLockBottom(std::move(scrollHeight));
-	}
-
-	_voiceRecordBar->setSendButtonGeometryValue(_send->geometryValue());
-
 	_voiceRecordBar->setStartRecordingFilter([=] {
 		const auto error = [&]() -> std::optional<QString> {
 			if (_peer) {

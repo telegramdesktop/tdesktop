@@ -11,17 +11,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
-namespace Ui {
-namespace Paint {
+namespace style {
+struct RecordBar;
+} // namespace style
+
+namespace Ui::Paint {
 class Blobs;
-} // namespace Paint
-} // namespace Ui
+} // namespace Ui::Paint
 
 namespace HistoryView::Controls {
 
 class VoiceRecordButton final : public Ui::AbstractButton {
 public:
-	explicit VoiceRecordButton(not_null<Ui::RpWidget*> parent);
+	VoiceRecordButton(
+		not_null<Ui::RpWidget*> parent,
+		const style::RecordBar &st);
 	~VoiceRecordButton();
 
 	enum class Type {
@@ -43,6 +47,7 @@ public:
 private:
 	void init();
 
+	const style::RecordBar &_st;
 	std::unique_ptr<Ui::Paint::Blobs> _blobs;
 
 	crl::time _lastUpdateTime = 0;

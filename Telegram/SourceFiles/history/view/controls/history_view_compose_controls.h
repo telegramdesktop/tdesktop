@@ -102,6 +102,7 @@ struct ComposeControlsDescriptor {
 	SendMenu::Type sendMenuType = {};
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
+	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
 };
 

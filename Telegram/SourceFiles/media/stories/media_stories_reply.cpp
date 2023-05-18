@@ -35,6 +35,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 		.mode = HistoryView::ComposeControlsMode::Normal,
 		.sendMenuType = SendMenu::Type::SilentOnly,
 		.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
+		.voiceLockFromBottom = true,
 		.features = {
 			.sendAs = false,
 			.ttlInfo = false,

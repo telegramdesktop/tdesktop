@@ -989,10 +989,14 @@ ComposeControls::ComposeControls(
 , _header(std::make_unique<FieldHeader>(_wrap.get(), _show))
 , _voiceRecordBar(std::make_unique<VoiceRecordBar>(
 	_wrap.get(),
-	parent,
-	_show,
-	_send,
-	st::historySendSize.height()))
+	Controls::VoiceRecordBarDescriptor{
+		.outerContainer = parent,
+		.show = _show,
+		.send = _send,
+		.stOverride = &_st.record,
+		.recorderHeight = st::historySendSize.height(),
+		.lockFromBottom = descriptor.voiceLockFromBottom,
+	}))
 , _sendMenuType(descriptor.sendMenuType)
 , _unavailableEmojiPasted(std::move(descriptor.unavailableEmojiPasted))
 , _saveDraftTimer([=] { saveDraft(); })
@@ -2277,26 +2281,6 @@ void ComposeControls::initVoiceRecordBar() {
 		}
 		return false;
 	});
-
-	{
-		auto geometry = rpl::merge(
-			_wrap->geometryValue(),
-			_send->geometryValue()
-		) | rpl::map([=](QRect geometry) {
-			auto r = _send->geometry();
-			r.setY(r.y() + _wrap->y());
-			return r;
-		});
-		_voiceRecordBar->setSendButtonGeometryValue(std::move(geometry));
-	}
-
-	{
-		auto bottom = _wrap->geometryValue(
-		) | rpl::map([=](QRect geometry) {
-			return geometry.y() - st::historyRecordLockPosition.y();
-		});
-		_voiceRecordBar->setLockBottom(std::move(bottom));
-	}
 
 	_voiceRecordBar->updateSendButtonTypeRequests(
 	) | rpl::start_with_next([=] {

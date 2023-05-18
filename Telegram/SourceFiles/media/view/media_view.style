@@ -448,24 +448,23 @@ storiesComposeWhiteText: groupCallMembersFg;
 storiesComposeGrayText: groupCallMemberNotJoinedStatus;
 storiesComposeGrayIcon: groupCallMemberInactiveIcon;
 storiesComposeBlue: groupCallActiveFg;
+storiesComposeRippleLight: RippleAnimation(defaultRippleAnimation) {
+	color: storiesComposeBgOver;
+}
 storiesComposeRipple: RippleAnimation(defaultRippleAnimation) {
 	color: groupCallMembersBgRipple;
 }
 storiesAttach: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_attach", storiesComposeGrayIcon }};
 	iconOver: icon {{ "chat/input_attach", storiesComposeGrayIcon }};
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: storiesComposeBgOver;
-	}
+	ripple: storiesComposeRippleLight;
 }
 storiesRecordVoice: icon {{ "chat/input_record", storiesComposeGrayIcon }};
 storiesRecordVoiceOver: icon {{ "chat/input_record", storiesComposeGrayIcon }};
 storiesRemoveSet: IconButton(stickerPanRemoveSet) {
 	icon: icon {{ "simple_close", storiesComposeGrayIcon }};
 	iconOver: icon {{ "simple_close", storiesComposeGrayIcon }};
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: storiesComposeBgOver;
-	}
+	ripple: storiesComposeRippleLight;
 }
 storiesMenu: Menu(defaultMenu) {
 	itemBg: groupCallMenuBg;
@@ -640,5 +639,26 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 			menuWhenOnline: icon {{ "menu/send_when_online", storiesComposeWhiteText }};
 		}
 		autocompleteBottomSkip: 10px;
+	}
+	record: RecordBar(defaultRecordBar) {
+		bg: storiesComposeBg;
+		durationFg: storiesComposeWhiteText;
+		radius: storiesRadius;
+		cancel: storiesComposeGrayText;
+		cancelActive: storiesComposeBlue;
+		cancelRipple: storiesComposeRippleLight;
+		lock: RecordBarLock(defaultRecordBarLock) {
+			ripple: storiesComposeRipple;
+			originTop: icon {{ "voice_lock/record_lock_top", storiesComposeBg }};
+			originBottom: icon {{ "voice_lock/record_lock_bottom", storiesComposeBg }};
+			originBody: icon {{ "voice_lock/record_lock_body", storiesComposeBg }};
+			arrow: icon {{ "voice_lock/voice_arrow", storiesComposeGrayIcon }};
+			fg: storiesComposeGrayIcon;
+		}
+		remove: IconButton(storiesAttach) {
+			icon: icon {{ "info/info_media_delete", storiesComposeGrayIcon }};
+			iconOver: icon {{ "info/info_media_delete", storiesComposeGrayIcon }};
+			iconPosition: point(10px, 11px);
+		}
 	}
 }
