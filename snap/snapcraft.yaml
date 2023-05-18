@@ -97,6 +97,7 @@ parts:
       - LDFLAGS: -s
     build-packages:
       - clang
+      - libtool-bin
       - python3
       - libasound2-dev
       - libavif-dev
