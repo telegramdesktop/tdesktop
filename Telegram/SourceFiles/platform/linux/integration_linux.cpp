@@ -101,7 +101,7 @@ void LinuxIntegration::init() {
 		);
 	});
 
-	auto options = std::array{
+	const auto options = std::array{
 		GLib::Variant::new_dict_entry(
 			GLib::Variant::new_string("handle_token"),
 			GLib::Variant::new_variant(
