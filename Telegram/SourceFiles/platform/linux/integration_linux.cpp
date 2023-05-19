@@ -30,10 +30,10 @@ public:
 
 private:
 	[[nodiscard]] XdpInhibit::Inhibit inhibit() {
-		return *_inhibitProxy;
+		return _inhibitProxy;
 	}
 
-	gi::result<XdpInhibit::InhibitProxy> _inhibitProxy;
+	XdpInhibit::InhibitProxy _inhibitProxy;
 	base::Platform::XDP::SettingWatcher _darkModeWatcher;
 };
 
@@ -43,7 +43,8 @@ LinuxIntegration::LinuxIntegration()
 		Gio::BusType::SESSION_,
 		Gio::DBusProxyFlags::DO_NOT_AUTO_START_AT_CONSTRUCTION_,
 		std::string(base::Platform::XDP::kService),
-		std::string(base::Platform::XDP::kObjectPath)))
+		std::string(base::Platform::XDP::kObjectPath),
+		nullptr))
 , _darkModeWatcher([](
 	const Glib::ustring &group,
 	const Glib::ustring &key,
@@ -67,7 +68,7 @@ void LinuxIntegration::init() {
 		return;
 	}
 
-	auto uniqueName = _inhibitProxy->get_connection().get_unique_name();
+	auto uniqueName = _inhibitProxy.get_connection().get_unique_name();
 	uniqueName.erase(0, 1);
 	uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
 
