@@ -53,6 +53,8 @@ struct SiblingLayout {
 	QRect userpic;
 	QRect nameBoundingRect;
 	int nameFontSize = 0;
+
+	friend inline bool operator==(SiblingLayout, SiblingLayout) = default;
 };
 
 struct Layout {

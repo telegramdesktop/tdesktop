@@ -51,7 +51,6 @@ VoiceRecordButton::VoiceRecordButton(
 	not_null<Ui::RpWidget*> parent,
 	const style::RecordBar &st)
 : AbstractButton(parent)
-, _st(st)
 , _blobs(std::make_unique<Ui::Paint::Blobs>(
 	Blobs(),
 	kLevelDuration,

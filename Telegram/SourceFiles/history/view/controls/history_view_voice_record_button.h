@@ -47,7 +47,6 @@ public:
 private:
 	void init();
 
-	const style::RecordBar &_st;
 	std::unique_ptr<Ui::Paint::Blobs> _blobs;
 
 	crl::time _lastUpdateTime = 0;

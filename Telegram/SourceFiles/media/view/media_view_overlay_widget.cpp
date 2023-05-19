@@ -1568,7 +1568,7 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 		+ (_over == OverRotate ? _rotateNavOver : _rotateNavIcon)
 		+ (_over == OverMore ? _moreNavOver : _moreNavIcon)
 		+ ((_stories
-			&& (_over == OverLeftStories && _over == OverRightStories))
+			&& (_over == OverLeftStories || _over == OverRightStories))
 			? _stories->sibling(siblingType).layout.geometry
 			: QRect())
 		+ _headerNav
