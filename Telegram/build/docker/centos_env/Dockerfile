@@ -59,7 +59,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 523b061671d4dd2f29979c982a2d03c2cc8eaf4f \
+	&& git fetch --depth=1 origin edafe1a2484cd6ac9be357aa1e4cda61bf6a8b9a \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -675,7 +675,7 @@ RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 FROM patches AS glibmm
 COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 
-RUN git clone -b 2.76.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
+RUN git clone -b 2.77.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd glibmm \
 	&& git apply ../patches/glibmm.patch \
 	&& CFLAGS="$CFLAGS {{ CFLAGS_LTO }}" CXXFLAGS="$CXXFLAGS {{ CFLAGS_LTO }}" meson build \
