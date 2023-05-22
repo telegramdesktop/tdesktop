@@ -70,6 +70,9 @@ PRIVATE
 
     data/data_subscription_option.h
 
+    dialogs/ui/dialogs_stories_list.cpp
+    dialogs/ui/dialogs_stories_list.h
+
     editor/controllers/undo_controller.cpp
     editor/controllers/undo_controller.h
     editor/editor_crop.cpp

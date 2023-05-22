@@ -52,6 +52,10 @@ struct PaintContext;
 struct TopicJumpCache;
 } // namespace Dialogs::Ui
 
+namespace Dialogs::Stories {
+class List;
+} // namespace Dialogs::Stories
+
 namespace Dialogs {
 
 class Row;
@@ -219,6 +223,7 @@ private:
 
 	void dialogRowReplaced(Row *oldRow, Row *newRow);
 
+	void setState(WidgetState state);
 	void editOpenedFilter();
 	void repaintCollapsedFolderRow(not_null<Data::Folder*> folder);
 	void refreshWithCollapsedRows(bool toTop = false);
@@ -309,7 +314,9 @@ private:
 	void fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu);
 
 	void refreshShownList();
+	[[nodiscard]] bool storiesShown() const;
 	[[nodiscard]] int skipTopHeight() const;
+	[[nodiscard]] int collapsedRowsOffset() const;
 	[[nodiscard]] int dialogsOffset() const;
 	[[nodiscard]] int shownHeight(int till = -1) const;
 	[[nodiscard]] int fixedOnTopCount() const;
@@ -393,6 +400,8 @@ private:
 	void restoreChatsFilterScrollState(FilterId filterId);
 
 	const not_null<Window::SessionController*> _controller;
+
+	const std::unique_ptr<Stories::List> _stories;
 
 	not_null<IndexedList*> _shownList;
 	FilterId _filterId = 0;

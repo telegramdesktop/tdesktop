@@ -149,6 +149,10 @@ bool Stories::allLoaded() const {
 	return _allLoaded;
 }
 
+rpl::producer<> Stories::allChanged() const {
+	return _allChanged.events();
+}
+
 // #TODO stories testing
 StoryId Stories::generate(
 	not_null<HistoryItem*> item,
@@ -244,10 +248,14 @@ StoryId Stories::generate(
 void Stories::pushToBack(StoriesList &&list) {
 	const auto i = ranges::find(_all, list.user, &StoriesList::user);
 	if (i != end(_all)) {
+		if (*i == list) {
+			return;
+		}
 		*i = std::move(list);
 	} else {
 		_all.push_back(std::move(list));
 	}
+	_allChanged.fire({});
 }
 
 void Stories::pushToFront(StoriesList &&list) {

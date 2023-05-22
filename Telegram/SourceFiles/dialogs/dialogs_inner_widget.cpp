@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_inner_widget.h"
 
-#include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_list.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "history/history.h"
@@ -137,6 +139,10 @@ InnerWidget::InnerWidget(
 	rpl::producer<ChildListShown> childListShown)
 : RpWidget(parent)
 , _controller(controller)
+, _stories(std::make_unique<Stories::List>(
+	this,
+	Stories::ContentForSession(&controller->session()),
+	[=] { return st::dialogsStoriesFull.height - _visibleTop; }))
 , _shownList(controller->session().data().chatsList()->indexed())
 , _st(&st::defaultDialogRow)
 , _pinnedShiftAnimation([=](crl::time now) {
@@ -406,8 +412,19 @@ int InnerWidget::skipTopHeight() const {
 		: 0;
 }
 
+bool InnerWidget::storiesShown() const {
+	return (_state == WidgetState::Default)
+		&& !_openedFolder
+		&& !_openedForum;
+}
+
+int InnerWidget::collapsedRowsOffset() const {
+	return storiesShown() ? _stories->height() : 0;
+}
+
 int InnerWidget::dialogsOffset() const {
-	return _collapsedRows.size() * st::dialogsImportantBarHeight
+	return collapsedRowsOffset()
+		+ (_collapsedRows.size() * st::dialogsImportantBarHeight)
 		- skipTopHeight();
 }
 
@@ -493,6 +510,7 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	stopReorderPinned();
 	clearSelection();
 	_openedFolder = folder;
+	_stories->setVisible(storiesShown());
 	refreshShownList();
 	refreshWithCollapsedRows(true);
 	if (_loadMoreCallback) {
@@ -519,6 +537,7 @@ void InnerWidget::changeOpenedForum(Data::Forum *forum) {
 	}
 	_openedForum = forum;
 	_st = forum ? &st::forumTopicRow : &st::defaultDialogRow;
+	_stories->setVisible(storiesShown());
 	refreshShownList();
 
 	_openedForumLifetime.destroy();
@@ -596,7 +615,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), context);
 	};
 	if (_state == WidgetState::Default) {
-		paintCollapsedRows(p, r);
+		const auto collapsedSkip = collapsedRowsOffset();
+		p.translate(0, collapsedSkip);
+		paintCollapsedRows(p, r.translated(0, -collapsedSkip));
 
 		const auto &list = _shownList->all();
 		const auto shownBottom = _shownList->height() - skipTopHeight();
@@ -1748,6 +1769,7 @@ void InnerWidget::setSearchedPressed(int pressed) {
 }
 
 void InnerWidget::resizeEvent(QResizeEvent *e) {
+	_stories->resizeToWidth(width());
 	resizeEmptyLabel();
 	moveCancelSearchButtons();
 }
@@ -2255,7 +2277,7 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 		if (_filter.isEmpty() && !_searchFromPeer) {
 			clearFilter();
 		} else {
-			_state = WidgetState::Filtered;
+			setState(WidgetState::Filtered);
 			_waitingForSearch = true;
 			_filterResults.clear();
 			_filterResultsGlobal.clear();
@@ -2506,6 +2528,7 @@ void InnerWidget::visibleTopBottomUpdated(
 		int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
+	_stories->update();
 	preloadRowsData();
 	const auto loadTill = _visibleTop
 		+ PreloadHeightsCount * (_visibleBottom - _visibleTop);
@@ -2915,10 +2938,10 @@ void InnerWidget::repaintSearchResult(int index) {
 void InnerWidget::clearFilter() {
 	if (_state == WidgetState::Filtered || _searchInChat) {
 		if (_searchInChat) {
-			_state = WidgetState::Filtered;
+			setState(WidgetState::Filtered);
 			_waitingForSearch = true;
 		} else {
-			_state = WidgetState::Default;
+			setState(WidgetState::Default);
 		}
 		_hashtagResults.clear();
 		_filterResults.clear();
@@ -2927,6 +2950,13 @@ void InnerWidget::clearFilter() {
 		_searchResults.clear();
 		_filter = QString();
 		refresh(true);
+	}
+}
+
+void InnerWidget::setState(WidgetState state) {
+	if (_state != state) {
+		_state = state;
+		_stories->setVisible(storiesShown());
 	}
 }
 

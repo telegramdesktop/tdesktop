@@ -485,3 +485,44 @@ chooseTopicListItem: PeerListItem(defaultPeerListItem) {
 chooseTopicList: PeerList(defaultPeerList) {
 	item: chooseTopicListItem;
 }
+
+DialogsStories {
+	left: pixels;
+	height: pixels;
+	photo: pixels;
+	photoLeft: pixels;
+	photoTop: pixels;
+	shift: pixels;
+	lineTwice: pixels;
+	lineReadTwice: pixels;
+	nameTop: pixels;
+	nameStyle: TextStyle;
+}
+
+dialogsStories: DialogsStories {
+	left: 4px;
+	height: 35px;
+	photo: 24px;
+	photoLeft: 10px;
+	shift: 16px;
+	lineTwice: 3px;
+	lineReadTwice: 0px;
+	nameTop: 9px;
+	nameStyle: semiboldTextStyle;
+}
+
+dialogsStoriesFull: DialogsStories {
+	left: 4px;
+	height: 77px;
+	photo: 42px;
+	photoLeft: 10px;
+	photoTop: 9px;
+	lineTwice: 4px;
+	lineReadTwice: 2px;
+	nameTop: 58px;
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkFont: font(12px);
+		linkFontOver: font(12px);
+	}
+}

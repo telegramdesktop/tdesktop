@@ -30,6 +30,7 @@ struct StoryItem {
 	TextWithEntities caption;
 	TimeId date = 0;
 	StoryPrivacy privacy;
+	bool pinned = false;
 
 	friend inline bool operator==(StoryItem, StoryItem) = default;
 };
@@ -37,7 +38,10 @@ struct StoryItem {
 struct StoriesList {
 	not_null<UserData*> user;
 	std::vector<StoryItem> items;
+	StoryId readTill = 0;
 	int total = 0;
+
+	[[nodiscard]] bool unread() const;
 
 	friend inline bool operator==(StoriesList, StoriesList) = default;
 };
@@ -61,11 +65,14 @@ public:
 	explicit Stories(not_null<Session*> owner);
 	~Stories();
 
+	[[nodiscard]] Session &owner() const;
+
 	void loadMore();
 	void apply(const MTPDupdateStories &data);
 
 	[[nodiscard]] const std::vector<StoriesList> &all();
 	[[nodiscard]] bool allLoaded() const;
+	[[nodiscard]] rpl::producer<> allChanged() const;
 
 	// #TODO stories testing
 	[[nodiscard]] StoryId generate(
@@ -76,7 +83,7 @@ public:
 			not_null<DocumentData*>> media);
 
 private:
-	[[nodiscard]] StoriesList parse(const MTPUserStories &data);
+	[[nodiscard]] StoriesList parse(const MTPUserStories &stories);
 	[[nodiscard]] std::optional<StoryItem> parse(const MTPDstoryItem &data);
 
 	void pushToBack(StoriesList &&list);
@@ -85,6 +92,7 @@ private:
 	const not_null<Session*> _owner;
 
 	std::vector<StoriesList> _all;
+	rpl::event_stream<> _allChanged;
 	QString _state;
 	bool _allLoaded = false;
 
