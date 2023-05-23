@@ -55,6 +55,43 @@ private:
 		QColor nameCacheColor;
 		bool subscribed = false;
 	};
+	struct Summary {
+		QString string;
+		Ui::Text::String text;
+		int available = 0;
+		QImage cache;
+		QColor cacheColor;
+		int cacheForWidth = 0;
+
+		[[nodiscard]] bool empty() const {
+			return string.isEmpty();
+		}
+	};
+	struct Summaries {
+		Summary total;
+		Summary allNames;
+		Summary unreadNames;
+	};
+	struct Data {
+		std::vector<Item> items;
+		Summaries summaries;
+
+		[[nodiscard]] bool empty() const {
+			return items.empty();
+		}
+	};
+
+	[[nodiscard]] static Summaries ComposeSummaries(Data &data);
+	[[nodiscard]] static bool StringsEqual(
+		const Summaries &a,
+		const Summaries &b);
+	static void Populate(Summary &summary);
+	static void Populate(Summaries &summaries);
+	[[nodiscard]] static Summary &ChooseSummary(
+		Summaries &summaries,
+		int totalItems,
+		int fullWidth);
+	static void PrerenderSummary(Summary &summary);
 
 	void showContent(Content &&content);
 	void enterEventHook(QEnterEvent *e) override;
@@ -68,15 +105,21 @@ private:
 	void validateUserpic(not_null<Item*> item);
 	void validateName(not_null<Item*> item);
 	void updateScrollMax();
+	void updateSummary(Data &data);
 	void checkDragging();
 	bool finishDragging();
 
 	void updateHeight();
 	void toggleAnimated(bool shown);
+	void paintSummary(
+		QPainter &p,
+		Data &data,
+		float64 summaryTop,
+		float64 hidden);
 
 	Content _content;
-	std::vector<Item> _items;
-	std::vector<Item> _hidingItems;
+	Data _data;
+	Data _hidingData;
 	Fn<int()> _shownHeight = 0;
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<> _expandRequests;

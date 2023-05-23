@@ -495,6 +495,8 @@ DialogsStories {
 	shift: pixels;
 	lineTwice: pixels;
 	lineReadTwice: pixels;
+	nameLeft: pixels;
+	nameRight: pixels;
 	nameTop: pixels;
 	nameStyle: TextStyle;
 }
@@ -507,7 +509,9 @@ dialogsStories: DialogsStories {
 	shift: 16px;
 	lineTwice: 3px;
 	lineReadTwice: 0px;
-	nameTop: 9px;
+	nameLeft: 11px;
+	nameRight: 10px;
+	nameTop: 3px;
 	nameStyle: semiboldTextStyle;
 }
 
@@ -519,6 +523,8 @@ dialogsStoriesFull: DialogsStories {
 	photoTop: 9px;
 	lineTwice: 4px;
 	lineReadTwice: 2px;
+	nameLeft: 0px;
+	nameRight: 0px;
 	nameTop: 56px;
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(11px);
