@@ -46,30 +46,48 @@ public:
 
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] rpl::producer<> expandRequests() const;
+	[[nodiscard]] rpl::producer<> entered() const;
 
 private:
 	struct Item {
 		User user;
-		QImage frameSmall;
-		QImage frameFull;
 		QImage nameCache;
 		QColor nameCacheColor;
 		bool subscribed = false;
 	};
 
 	void showContent(Content &&content);
+	void enterEventHook(QEnterEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void wheelEvent(QWheelEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+
+	void updateScrollMax();
+	void checkDragging();
+	bool finishDragging();
+
+	void updateHeight();
+	void toggleAnimated(bool shown);
 
 	Content _content;
 	std::vector<Item> _items;
+	std::vector<Item> _hidingItems;
 	Fn<int()> _shownHeight = 0;
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<> _expandRequests;
+	rpl::event_stream<> _entered;
+
+	Ui::Animations::Simple _shownAnimation;
+
+	QPoint _lastMousePosition;
+	std::optional<QPoint> _mouseDownPosition;
+	int _startDraggingLeft = 0;
 	int _scrollLeft = 0;
+	int _scrollLeftMax = 0;
+	bool _dragging = false;
 
 };
 

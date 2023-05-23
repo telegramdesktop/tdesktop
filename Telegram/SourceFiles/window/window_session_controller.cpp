@@ -1141,7 +1141,9 @@ void SessionController::openFolder(not_null<Data::Folder*> folder) {
 	if (_openedFolder.current() != folder) {
 		resetFakeUnreadWhileOpened();
 	}
-	setActiveChatsFilter(0);
+	if (activeChatsFilterCurrent() != 0) {
+		setActiveChatsFilter(0);
+	}
 	closeForum();
 	_openedFolder = folder.get();
 }

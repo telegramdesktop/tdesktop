@@ -209,7 +209,8 @@ private:
 		mtpRequestId requestId);
 	void peopleFailed(const MTP::Error &error, mtpRequestId requestId);
 
-	void scrollToTop();
+	void scrollToDefault(bool verytop = false);
+	void scrollToDefaultChecked(bool verytop = false);
 	void setupScrollUpButton();
 	void updateScrollUpVisibility();
 	void startScrollUpButtonAnimation(bool shown);

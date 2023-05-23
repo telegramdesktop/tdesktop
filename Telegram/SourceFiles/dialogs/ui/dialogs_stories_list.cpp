@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
+#include <QtWidgets/QApplication>
+
 namespace Dialogs::Stories {
 namespace {
 
@@ -24,19 +26,31 @@ List::List(
 	Fn<int()> shownHeight)
 : RpWidget(parent)
 , _shownHeight(shownHeight) {
-	resize(0, st::dialogsStoriesFull.height);
+	setCursor(style::cur_default);
 
 	std::move(content) | rpl::start_with_next([=](Content &&content) {
 		showContent(std::move(content));
 	}, lifetime());
+
+	_shownAnimation.stop();
+	resize(0, _items.empty() ? 0 : st::dialogsStoriesFull.height);
 }
 
 void List::showContent(Content &&content) {
 	if (_content == content) {
 		return;
 	}
+	if (content.users.empty()) {
+		_hidingItems = base::take(_items);
+		if (!_hidingItems.empty()) {
+			toggleAnimated(false);
+		}
+		return;
+	}
+	const auto hidden = _content.users.empty();
 	_content = std::move(content);
-	auto items = base::take(_items);
+	auto items = base::take(_items.empty() ? _hidingItems : _items);
+	_hidingItems.clear();
 	_items.reserve(_content.users.size());
 	for (const auto &user : _content.users) {
 		const auto i = ranges::find(items, user.id, [](const Item &item) {
@@ -53,10 +67,39 @@ void List::showContent(Content &&content) {
 				item.user.name = user.name;
 				item.nameCache = QImage();
 			}
+			item.user.unread = user.unread;
 		} else {
 			_items.emplace_back(Item{ .user = user });
 		}
 	}
+	updateScrollMax();
+	update();
+	if (hidden) {
+		toggleAnimated(true);
+	}
+}
+
+void List::toggleAnimated(bool shown) {
+	_shownAnimation.start(
+		[=] { updateHeight(); },
+		shown ? 0. : 1.,
+		shown ? 1. : 0.,
+		st::slideWrapDuration);
+}
+
+void List::updateHeight() {
+	const auto shown = _shownAnimation.value(_items.empty() ? 0. : 1.);
+	resize(
+		width(),
+		anim::interpolate(0, st::dialogsStoriesFull.height, shown));
+}
+
+void List::updateScrollMax() {
+	const auto &full = st::dialogsStoriesFull;
+	const auto singleFull = full.photoLeft * 2 + full.photo;
+	const auto widthFull = full.left + int(_items.size()) * singleFull;
+	_scrollLeftMax = std::max(widthFull - width(), 0);
+	_scrollLeft = std::clamp(_scrollLeft, 0, _scrollLeftMax);
 	update();
 }
 
@@ -66,6 +109,18 @@ rpl::producer<uint64> List::clicks() const {
 
 rpl::producer<> List::expandRequests() const {
 	return _expandRequests.events();
+}
+
+rpl::producer<> List::entered() const {
+	return _entered.events();
+}
+
+void List::enterEventHook(QEnterEvent *e) {
+	_entered.fire({});
+}
+
+void List::resizeEvent(QResizeEvent *e) {
+	updateScrollMax();
 }
 
 void List::paintEvent(QPaintEvent *e) {
@@ -96,7 +151,7 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto startIndexFull = std::max(-leftFull, 0) / singleFull;
 	const auto cellLeftFull = leftFull + (startIndexFull * singleFull);
 	const auto endIndexFull = std::min(
-		(width() - cellLeftFull + singleFull - 1) / singleFull,
+		(width() - leftFull + singleFull - 1) / singleFull,
 		itemsCount);
 	const auto startIndexSmall = 0;
 	const auto endIndexSmall = std::min(kSmallUserpicsShown, itemsCount);
@@ -265,19 +320,92 @@ void List::paintEvent(QPaintEvent *e) {
 }
 
 void List::wheelEvent(QWheelEvent *e) {
+	const auto horizontal = (e->angleDelta().x() != 0);
+	if (!horizontal) {
+		e->ignore();
+		return;
+	}
+	auto delta = horizontal
+		? ((style::RightToLeft() ? -1 : 1) * (e->pixelDelta().x()
+			? e->pixelDelta().x()
+			: e->angleDelta().x()))
+		: (e->pixelDelta().y()
+			? e->pixelDelta().y()
+			: e->angleDelta().y());
 
-}
-
-void List::mouseMoveEvent(QMouseEvent *e) {
-
+	const auto now = _scrollLeft;
+	const auto used = now - delta;
+	const auto next = std::clamp(used, 0, _scrollLeftMax);
+	if (next != now) {
+		_expandRequests.fire({});
+		_scrollLeft = next;
+		//updateSelected();
+		update();
+	}
+	e->accept();
 }
 
 void List::mousePressEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton) {
+		return;
+	}
+	_mouseDownPosition = _lastMousePosition = e->globalPos();
+	//updateSelected();
+}
 
+void List::mouseMoveEvent(QMouseEvent *e) {
+	_lastMousePosition = e->globalPos();
+	//updateSelected();
+
+	if (!_dragging && _mouseDownPosition) {
+		if ((_lastMousePosition - *_mouseDownPosition).manhattanLength()
+			>= QApplication::startDragDistance()) {
+			if (_shownHeight() < st::dialogsStoriesFull.height) {
+				_expandRequests.fire({});
+			}
+			_dragging = true;
+			_startDraggingLeft = _scrollLeft;
+		}
+	}
+	checkDragging();
+}
+
+void List::checkDragging() {
+	if (_dragging) {
+		const auto sign = (style::RightToLeft() ? -1 : 1);
+		const auto newLeft = std::clamp(
+			(sign * (_mouseDownPosition->x() - _lastMousePosition.x())
+				+ _startDraggingLeft),
+			0,
+			_scrollLeftMax);
+		if (newLeft != _scrollLeft) {
+			_scrollLeft = newLeft;
+			update();
+		}
+	}
 }
 
 void List::mouseReleaseEvent(QMouseEvent *e) {
+	_lastMousePosition = e->globalPos();
+	const auto guard = gsl::finally([&] {
+		_mouseDownPosition = std::nullopt;
+	});
 
+	//const auto wasDown = std::exchange(_pressed, SpecialOver::None);
+	if (finishDragging()) {
+		return;
+	}
+	//updateSelected();
+}
+
+bool List::finishDragging() {
+	if (!_dragging) {
+		return false;
+	}
+	checkDragging();
+	_dragging = false;
+	//updateSelected();
+	return true;
 }
 
 } // namespace Dialogs::Stories

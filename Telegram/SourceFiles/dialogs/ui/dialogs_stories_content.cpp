@@ -173,10 +173,12 @@ rpl::producer<Content> ContentForSession(not_null<Main::Session*> session) {
 #if 0 // #TODO stories testing
 			stories->allChanged()
 #endif
-			session->data().chatsListChanges(
-			) | rpl::filter(
-				rpl::mappers::_1 == nullptr
-			) | rpl::to_empty
+			rpl::merge(
+				session->data().chatsListChanges(
+				) | rpl::filter(
+					rpl::mappers::_1 == nullptr
+				) | rpl::to_empty,
+				session->data().unreadBadgeChanges())
 		) | rpl::start_with_next([=] {
 			consumer.put_next(state->next());
 		}, result);

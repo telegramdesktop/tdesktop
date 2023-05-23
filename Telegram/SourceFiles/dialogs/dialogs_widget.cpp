@@ -260,6 +260,11 @@ Widget::Widget(
 		}
 	}, lifetime());
 
+	_inner->scrollToVeryTopRequests(
+	) | rpl::start_with_next([=] {
+		scrollToDefaultChecked(true);
+	}, lifetime());
+
 	_inner->mustScrollTo(
 	) | rpl::start_with_next([=](const Ui::ScrollToRequest &data) {
 		if (_scroll) {
@@ -527,13 +532,15 @@ void Widget::setGeometryWithTopMoved(
 	_topDelta = 0;
 }
 
+void Widget::scrollToDefaultChecked(bool verytop) {
+	if (_scrollToAnimation.animating()) {
+		return;
+	}
+	scrollToDefault(verytop);
+}
+
 void Widget::setupScrollUpButton() {
-	_scrollToTop->setClickedCallback([=] {
-		if (_scrollToAnimation.animating()) {
-			return;
-		}
-		scrollToTop();
-	});
+	_scrollToTop->setClickedCallback([=] { scrollToDefaultChecked(); });
 	base::install_event_filter(_scrollToTop, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::Wheel) {
 			return base::EventFilterResult::Continue;
@@ -1111,10 +1118,13 @@ void Widget::jumpToTop(bool belowPinned) {
 	}
 }
 
-void Widget::scrollToTop() {
+void Widget::scrollToDefault(bool verytop) {
 	_scrollToAnimation.stop();
 	auto scrollTop = _scroll->scrollTop();
-	const auto scrollTo = 0;
+	const auto scrollTo = verytop ? 0 : _inner->defaultScrollTop();
+	if (scrollTop <= scrollTo) {
+		return;
+	}
 	const auto maxAnimatedDelta = _scroll->height();
 	if (scrollTo + maxAnimatedDelta < scrollTop) {
 		scrollTop = scrollTo + maxAnimatedDelta;
@@ -2494,7 +2504,11 @@ void Widget::updateControlsGeometry() {
 	}
 	auto scrollTop = forumReportTop
 		+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
-	auto newScrollTop = _scroll->scrollTop() + _topDelta;
+	const auto wasScrollTop = _scroll->scrollTop();
+	const auto newScrollTop = (_topDelta < 0
+		&& wasScrollTop <= _inner->defaultScrollTop())
+		? wasScrollTop
+		: (wasScrollTop + _topDelta);
 	auto scrollHeight = height() - scrollTop;
 	const auto putBottomButton = [&](auto &button) {
 		if (button && !button->isHidden()) {
@@ -2518,13 +2532,22 @@ void Widget::updateControlsGeometry() {
 
 	const auto scrollw = _childList ? _narrowWidth : barw;
 	const auto wasScrollHeight = _scroll->height();
+	if (scrollHeight >= wasScrollHeight) {
+		_inner->setViewportHeight(scrollHeight);
+	}
 	_scroll->setGeometry(0, scrollTop, scrollw, scrollHeight);
+	if (scrollHeight < wasScrollHeight) {
+		_inner->setViewportHeight(scrollHeight);
+	}
 	_inner->resize(scrollw, _inner->height());
 	_inner->setNarrowRatio(narrowRatio);
 	if (scrollHeight != wasScrollHeight) {
 		controller()->floatPlayerAreaUpdated();
 	}
-	if (_topDelta) {
+	const auto startWithTop = _inner->defaultScrollTop();
+	if (wasScrollHeight < startWithTop && scrollHeight >= startWithTop) {
+		_scroll->scrollToY(startWithTop);
+	} else if (newScrollTop != wasScrollTop) {
 		_scroll->scrollToY(newScrollTop);
 	} else {
 		listScrollUpdated();

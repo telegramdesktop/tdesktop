@@ -104,6 +104,10 @@ public:
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
 
+	[[nodiscard]] rpl::producer<> scrollToVeryTopRequests() const;
+	[[nodiscard]] int defaultScrollTop() const;
+	void setViewportHeight(int viewportHeight);
+
 	[[nodiscard]] FilterId filterId() const;
 
 	void clearSelection();
@@ -279,6 +283,7 @@ private:
 
 	int defaultRowTop(not_null<Row*> row) const;
 	void setupOnlineStatusCheck();
+	void jumpToTop();
 
 	void updateRowCornerStatusShown(not_null<History*> history);
 	void repaintDialogRowCornerStatus(not_null<History*> history);
@@ -402,6 +407,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 
 	const std::unique_ptr<Stories::List> _stories;
+	int _viewportHeight = 0;
 
 	not_null<IndexedList*> _shownList;
 	FilterId _filterId = 0;

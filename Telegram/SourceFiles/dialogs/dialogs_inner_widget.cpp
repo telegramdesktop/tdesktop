@@ -142,7 +142,7 @@ InnerWidget::InnerWidget(
 , _stories(std::make_unique<Stories::List>(
 	this,
 	Stories::ContentForSession(&controller->session()),
-	[=] { return st::dialogsStoriesFull.height - _visibleTop; }))
+	[=] { return _stories->height() - _visibleTop; }))
 , _shownList(controller->session().data().chatsList()->indexed())
 , _st(&st::defaultDialogRow)
 , _pinnedShiftAnimation([=](crl::time now) {
@@ -323,6 +323,18 @@ InnerWidget::InnerWidget(
 		switchToFilter(filterId);
 	}, lifetime());
 
+	_stories->heightValue(
+	) | rpl::filter([=] {
+		return (_viewportHeight > 0) && (defaultScrollTop() > _visibleTop);
+	}) | rpl::start_with_next([=] {
+		jumpToTop();
+	}, lifetime());
+
+	_stories->entered(
+	) | rpl::start_with_next([=] {
+		clearSelection();
+	}, lifetime());
+
 	handleChatListEntryRefreshes();
 
 	refreshWithCollapsedRows(true);
@@ -426,6 +438,16 @@ int InnerWidget::dialogsOffset() const {
 	return collapsedRowsOffset()
 		+ (_collapsedRows.size() * st::dialogsImportantBarHeight)
 		- skipTopHeight();
+}
+
+rpl::producer<> InnerWidget::scrollToVeryTopRequests() const {
+	return _stories->expandRequests();
+}
+
+int InnerWidget::defaultScrollTop() const {
+	return storiesShown()
+		? std::max(_stories->height() - st::dialogsStories.height, 0)
+		: 0;
 }
 
 int InnerWidget::fixedOnTopCount() const {
@@ -1699,6 +1721,15 @@ void InnerWidget::mousePressReleased(
 	}
 }
 
+void InnerWidget::setViewportHeight(int viewportHeight) {
+	if (_viewportHeight != viewportHeight) {
+		_viewportHeight = viewportHeight;
+		if (height() < defaultScrollTop() + viewportHeight) {
+			refresh();
+		}
+	}
+}
+
 void InnerWidget::setCollapsedPressed(int pressed) {
 	if (_collapsedPressed != pressed) {
 		if (_collapsedPressed >= 0) {
@@ -2745,10 +2776,13 @@ void InnerWidget::refresh(bool toTop) {
 			h = searchedOffset() + (_searchResults.size() * _st->height);
 		}
 	}
+	if (const auto storiesSkip = defaultScrollTop()) {
+		accumulate_max(h, storiesSkip + _viewportHeight);
+	}
 	resize(width(), h);
 	if (toTop) {
 		stopReorderPinned();
-		_mustScrollTo.fire({ 0, 0 });
+		jumpToTop();
 		preloadRowsData();
 	}
 	_controller->setDialogsListDisplayForced(
@@ -3226,7 +3260,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		filterId = 0;
 	}
 	if (_filterId == filterId) {
-		_mustScrollTo.fire({ 0, 0 });
+		jumpToTop();
 		return;
 	}
 	saveChatsFilterScrollState(_filterId);
@@ -3249,6 +3283,11 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 			restoreChatsFilterScrollState(filterId);
 		}
 	}
+}
+
+void InnerWidget::jumpToTop() {
+	const auto to = defaultScrollTop();
+	_mustScrollTo.fire({ to, -1 });
 }
 
 void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
