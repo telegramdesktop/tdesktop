@@ -519,10 +519,10 @@ dialogsStoriesFull: DialogsStories {
 	photoTop: 9px;
 	lineTwice: 4px;
 	lineReadTwice: 2px;
-	nameTop: 58px;
+	nameTop: 56px;
 	nameStyle: TextStyle(defaultTextStyle) {
-		font: font(12px);
-		linkFont: font(12px);
-		linkFontOver: font(12px);
+		font: font(11px);
+		linkFont: font(11px);
+		linkFontOver: font(11px);
 	}
 }

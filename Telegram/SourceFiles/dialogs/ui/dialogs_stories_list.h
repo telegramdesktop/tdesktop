@@ -65,6 +65,8 @@ private:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
+	void validateUserpic(not_null<Item*> item);
+	void validateName(not_null<Item*> item);
 	void updateScrollMax();
 	void checkDragging();
 	bool finishDragging();

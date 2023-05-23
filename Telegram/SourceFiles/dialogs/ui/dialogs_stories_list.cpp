@@ -18,6 +18,13 @@ namespace {
 constexpr auto kSmallUserpicsShown = 3;
 constexpr auto kSmallReadOpacity = 0.6;
 
+[[nodiscard]] int AvailableNameWidth() {
+	const auto &full = st::dialogsStoriesFull;
+	const auto &font = full.nameStyle.font;
+	const auto skip = font->spacew;
+	return full.photoLeft * 2 + full.photo - 2 * skip;
+}
+
 } // namespace
 
 List::List(
@@ -137,8 +144,6 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto photoTop = lerp(photoTopSmall, full.photoTop);
 	const auto line = lerp(st.lineTwice, full.lineTwice) / 2.;
 	const auto lineRead = lerp(st.lineReadTwice, full.lineReadTwice) / 2.;
-	const auto nameTop = (photoTop + photo)
-		* (full.nameTop / float64(full.photoTop + full.photo));
 	const auto infoTop = st.nameTop
 		- (st.photoTop + (st.photo / 2.))
 		+ (photoTop + (photo / 2.));
@@ -161,6 +166,11 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto userpicLeft = lerp(userpicLeftSmall, userpicLeftFull);
 	const auto photoLeft = lerp(st.photoLeft, full.photoLeft);
 	const auto left = userpicLeft - photoLeft;
+	const auto nameScale = shownHeight / float64(full.height);
+	const auto nameTop = nameScale * full.nameTop;
+	const auto nameWidth = nameScale * AvailableNameWidth();
+	const auto nameHeight = nameScale * full.nameStyle.font->height;
+	const auto nameLeft = photoLeft + (photo - nameWidth) / 2.;
 	const auto readUserpicOpacity = lerp(kSmallReadOpacity, 1.);
 	const auto readUserpicAppearingOpacity = lerp(kSmallReadOpacity, 0.);
 
@@ -172,15 +182,6 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto drawFull = (ratio > 0.);
 	auto hq = PainterHighQualityEnabler(p);
 
-	const auto subscribe = [&](not_null<Item*> item) {
-		if (!item->subscribed) {
-			item->subscribed = true;
-			//const auto id = item.user.id;
-			item->user.userpic->subscribeToUpdates([=] {
-				update();
-			});
-		}
-	};
 	const auto count = std::max(
 		endIndexFull - startIndexFull,
 		endIndexSmall - startIndexSmall);
@@ -235,6 +236,15 @@ void List::paintEvent(QPaintEvent *e) {
 		}
 	};
 	enumerate([&](Single single) {
+		// Name.
+		if (const auto full = single.itemFull) {
+			p.setOpacity(ratio);
+			validateName(full);
+			p.drawImage(
+				QRectF(single.x + nameLeft, nameTop, nameWidth, nameHeight),
+				full->nameCache);
+		}
+
 		// Unread gradient.
 		const auto x = single.x;
 		const auto userpic = QRectF(x + photoLeft, photoTop, photo, photo);
@@ -277,7 +287,8 @@ void List::paintEvent(QPaintEvent *e) {
 		const auto fullUnread = itemFull && itemFull->user.unread;
 
 		// White circle with possible read gray line.
-		if (itemFull && !fullUnread) {
+		const auto hasReadLine = (itemFull && !fullUnread);
+		if (hasReadLine) {
 			auto color = st::dialogsUnreadBgMuted->c;
 			color.setAlphaF(color.alphaF() * ratio);
 			auto pen = QPen(color);
@@ -286,7 +297,7 @@ void List::paintEvent(QPaintEvent *e) {
 		} else {
 			p.setPen(Qt::NoPen);
 		}
-		const auto add = line + (itemFull ? (lineRead / 2.) : 0.);
+		const auto add = line + (hasReadLine ? (lineRead / 2.) : 0.);
 		const auto rect = userpic.marginsAdded({ add, add, add, add });
 		p.setBrush(st::dialogsBg);
 		p.drawEllipse(rect);
@@ -294,7 +305,7 @@ void List::paintEvent(QPaintEvent *e) {
 		// Userpic.
 		if (itemFull == small) {
 			p.setOpacity(smallUnread ? 1. : readUserpicOpacity);
-			subscribe(itemFull);
+			validateUserpic(itemFull);
 			const auto size = full.photo;
 			p.drawImage(userpic, itemFull->user.userpic->image(size));
 		} else {
@@ -304,19 +315,50 @@ void List::paintEvent(QPaintEvent *e) {
 					: (itemFull
 						? kSmallReadOpacity
 						: readUserpicAppearingOpacity));
-				subscribe(small);
+				validateUserpic(small);
 				const auto size = (ratio > 0.) ? full.photo : st.photo;
 				p.drawImage(userpic, small->user.userpic->image(size));
 			}
 			if (itemFull) {
 				p.setOpacity(ratio);
-				subscribe(itemFull);
+				validateUserpic(itemFull);
 				const auto size = full.photo;
 				p.drawImage(userpic, itemFull->user.userpic->image(size));
 			}
 		}
 		p.setOpacity(1.);
 	});
+}
+
+void List::validateUserpic(not_null<Item*> item) {
+	if (!item->subscribed) {
+		item->subscribed = true;
+		//const auto id = item.user.id;
+		item->user.userpic->subscribeToUpdates([=] {
+			update();
+		});
+	}
+}
+
+void List::validateName(not_null<Item*> item) {
+	const auto &color = st::dialogsNameFg;
+	if (!item->nameCache.isNull() && item->nameCacheColor == color->c) {
+		return;
+	}
+	const auto &full = st::dialogsStoriesFull;
+	const auto &font = full.nameStyle.font;
+	const auto available = AvailableNameWidth();
+	const auto text = Ui::Text::String(full.nameStyle, item->user.name);
+	const auto ratio = style::DevicePixelRatio();
+	item->nameCacheColor = color->c;
+	item->nameCache = QImage(
+		QSize(available, font->height) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	item->nameCache.setDevicePixelRatio(ratio);
+	item->nameCache.fill(Qt::transparent);
+	auto p = Painter(&item->nameCache);
+	p.setPen(color);
+	text.drawElided(p, 0, 0, available, 1, style::al_top);
 }
 
 void List::wheelEvent(QWheelEvent *e) {
