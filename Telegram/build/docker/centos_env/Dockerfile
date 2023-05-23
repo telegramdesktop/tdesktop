@@ -694,7 +694,7 @@ RUN git clone -b 2.76.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd .. \
 	&& rm -rf glibmm
 
-FROM patches AS gobject-introspection
+FROM builder AS gobject-introspection
 COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
 
