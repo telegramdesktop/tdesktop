@@ -295,7 +295,6 @@ private:
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
 	const std::unique_ptr<DateBadge> _dateBadge;
-	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;
@@ -304,6 +303,8 @@ private:
 
 	QPoint _trippleClickPoint;
 	crl::time _trippleClickStartTime = 0;
+
+	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
 
 };
 
