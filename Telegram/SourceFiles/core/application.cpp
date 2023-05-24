@@ -1138,7 +1138,7 @@ void Application::lockByPasscode() {
 	enumerateWindows([&](not_null<Window::Controller*> w) {
 		w->setupPasscodeLock();
 	});
-	hideMediaView();
+	_mediaView->close();
 }
 
 void Application::maybeLockByPasscode() {
