@@ -278,7 +278,7 @@ public:
 		const QString &text,
 		crl::time duration = 0);
 
-	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow();
+	[[nodiscard]] virtual std::shared_ptr<ChatHelpers::Show> uiShow();
 
 private:
 	void resolvePhone(
@@ -591,6 +591,8 @@ public:
 
 	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e);
 
+	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() override;
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -640,6 +642,8 @@ private:
 	const not_null<Controller*> _window;
 	const std::unique_ptr<ChatHelpers::EmojiInteractions> _emojiInteractions;
 	const bool _isPrimary = false;
+
+	mutable std::shared_ptr<ChatHelpers::Show> _cachedShow;
 
 	QString _authedName;
 

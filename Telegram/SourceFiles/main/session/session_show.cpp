@@ -16,11 +16,13 @@ public:
 		std::shared_ptr<Ui::Show> show,
 		not_null<Session*> session);
 
-	void showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options
-		= Ui::LayerOption::KeepOther) const override;
-	void hideLayer() const override;
+	void showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const override;
 	not_null<QWidget*> toastParent() const override;
 	bool valid() const override;
 	operator bool() const override;
@@ -40,14 +42,14 @@ SimpleSessionShow::SimpleSessionShow(
 , _session(session) {
 }
 
-void SimpleSessionShow::showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) const {
-	_show->showBox(std::move(content), options);
-}
-
-void SimpleSessionShow::hideLayer() const {
-	_show->hideLayer();
+void SimpleSessionShow::showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const {
+	_show->showOrHideBoxOrLayer(std::move(layer), options, animated);
 }
 
 not_null<QWidget*> SimpleSessionShow::toastParent() const {

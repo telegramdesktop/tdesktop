@@ -45,11 +45,13 @@ class Show final : public Ui::Show {
 public:
 	explicit Show(not_null<Controller*> window);
 
-	void showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options
-			= Ui::LayerOption::KeepOther) const override;
-	void hideLayer() const override;
+	void showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const override;
 	[[nodiscard]] not_null<QWidget*> toastParent() const override;
 	[[nodiscard]] bool valid() const override;
 	operator bool() const override;
@@ -63,19 +65,18 @@ Show::Show(not_null<Controller*> window)
 : _window(base::make_weak(window)) {
 }
 
-void Show::showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) const {
+void Show::showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const {
 	if (const auto window = _window.get()) {
-		window->show(std::move(content), options);
-	}
-}
-
-void Show::hideLayer() const {
-	if (const auto window = _window.get()) {
-		window->show(
-			object_ptr<Ui::BoxContent>{ nullptr },
-			Ui::LayerOption::CloseOther);
+		window->widget()->showOrHideBoxOrLayer(
+			std::move(layer),
+			options,
+			animated);
 	}
 }
 
@@ -408,14 +409,14 @@ void Controller::showLayer(
 		std::unique_ptr<Ui::LayerWidget> &&layer,
 		Ui::LayerOptions options,
 		anim::type animated) {
-	_widget.showLayer(std::move(layer), options, animated);
+	_widget.showOrHideBoxOrLayer(std::move(layer), options, animated);
 }
 
 void Controller::showBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options,
 		anim::type animated) {
-	_widget.ui_showBox(std::move(content), options, animated);
+	_widget.showOrHideBoxOrLayer(std::move(content), options, animated);
 }
 
 void Controller::showRightColumn(object_ptr<TWidget> widget) {
@@ -423,7 +424,7 @@ void Controller::showRightColumn(object_ptr<TWidget> widget) {
 }
 
 void Controller::hideLayer(anim::type animated) {
-	_widget.ui_showBox({ nullptr }, Ui::LayerOption::CloseOther, animated);
+	_widget.showOrHideBoxOrLayer(v::null, Ui::LayerOption::CloseOther, animated);
 }
 
 void Controller::hideSettingsAndLayer(anim::type animated) {

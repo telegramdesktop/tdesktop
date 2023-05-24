@@ -34,6 +34,7 @@ class GroupCall;
 
 namespace Ui {
 class BoxContent;
+class LayerWidget;
 enum class LayerOption;
 using LayerOptions = base::flags<LayerOption>;
 class AbstractButton;
@@ -104,6 +105,10 @@ public:
 	void showBox(object_ptr<Ui::BoxContent> box);
 	void showBox(
 		object_ptr<Ui::BoxContent> box,
+		Ui::LayerOptions options,
+		anim::type animated = anim::type::normal);
+	void showLayer(
+		std::unique_ptr<Ui::LayerWidget> layer,
 		Ui::LayerOptions options,
 		anim::type animated = anim::type::normal);
 	void hideLayer(anim::type animated = anim::type::normal);

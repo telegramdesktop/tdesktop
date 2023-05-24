@@ -487,7 +487,7 @@ bool Panel::showWebview(
 		return false;
 	}
 	showWebviewProgress();
-	_widget->destroyLayer();
+	_widget->hideLayer(anim::type::instant);
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
 	if (bottomText) {

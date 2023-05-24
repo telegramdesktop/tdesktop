@@ -111,13 +111,16 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 
 class MainWindowShow final : public ChatHelpers::Show {
 public:
-	explicit MainWindowShow(not_null<SessionNavigation*> navigation);
+	explicit MainWindowShow(not_null<SessionController*> controller);
 
-	void showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options
-			= Ui::LayerOption::KeepOther) const override;
-	void hideLayer() const override;
+	void showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const override;
+
 	not_null<QWidget*> toastParent() const override;
 	bool valid() const override;
 	operator bool() const override;
@@ -144,24 +147,22 @@ private:
 
 };
 
-MainWindowShow::MainWindowShow(
-	not_null<SessionNavigation*> navigation)
-: _window(base::make_weak(navigation->parentController())) {
+MainWindowShow::MainWindowShow(not_null<SessionController*> controller)
+: _window(base::make_weak(controller)) {
 }
 
-void MainWindowShow::showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) const {
+void MainWindowShow::showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const {
 	if (const auto window = _window.get()) {
-		window->show(std::move(content), options);
-	}
-}
-
-void MainWindowShow::hideLayer() const {
-	if (const auto window = _window.get()) {
-		window->show(
-			object_ptr<Ui::BoxContent>{ nullptr },
-			Ui::LayerOption::CloseOther);
+		window->window().widget()->showOrHideBoxOrLayer(
+			std::move(layer),
+			options,
+			animated);
 	}
 }
 
@@ -395,8 +396,7 @@ void SessionNavigation::resolveChannelById(
 		return;
 	}
 	const auto fail = crl::guard(this, [=] {
-		MainWindowShow(this).showToast(
-			tr::lng_error_post_link_invalid(tr::now));
+		uiShow()->showToast(tr::lng_error_post_link_invalid(tr::now));
 	});
 	_api.request(base::take(_resolveRequestId)).cancel();
 	_resolveRequestId = _api.request(MTPchannels_GetChannels(
@@ -594,8 +594,7 @@ void SessionNavigation::joinVoiceChatFromLink(
 	Expects(info.voicechatHash.has_value());
 
 	const auto bad = crl::guard(this, [=] {
-		MainWindowShow(this).showToast(
-			tr::lng_group_invite_bad_link(tr::now));
+		uiShow()->showToast(tr::lng_group_invite_bad_link(tr::now));
 	});
 	const auto hash = *info.voicechatHash;
 	_api.request(base::take(_resolveRequestId)).cancel();
@@ -824,23 +823,23 @@ void SessionNavigation::showPollResults(
 
 auto SessionNavigation::showToast(Ui::Toast::Config &&config)
 -> base::weak_ptr<Ui::Toast::Instance> {
-	return MainWindowShow(this).showToast(std::move(config));
+	return uiShow()->showToast(std::move(config));
 }
 
 auto SessionNavigation::showToast(const QString &text, crl::time duration)
 -> base::weak_ptr<Ui::Toast::Instance> {
-	return MainWindowShow(this).showToast(text);
+	return uiShow()->showToast(text);
 }
 
 auto SessionNavigation::showToast(
 	TextWithEntities &&text,
 	crl::time duration)
 -> base::weak_ptr<Ui::Toast::Instance> {
-	return MainWindowShow(this).showToast(std::move(text));
+	return uiShow()->showToast(std::move(text));
 }
 
 std::shared_ptr<ChatHelpers::Show> SessionNavigation::uiShow() {
-	return std::make_shared<MainWindowShow>(this);
+	return parentController()->uiShow();
 }
 
 struct SessionController::CachedThemeKey {
@@ -2483,6 +2482,13 @@ QString SessionController::premiumRef() const {
 
 bool SessionController::contentOverlapped(QWidget *w, QPaintEvent *e) {
 	return widget()->contentOverlapped(w, e);
+}
+
+std::shared_ptr<ChatHelpers::Show> SessionController::uiShow() {
+	if (!_cachedShow) {
+		_cachedShow = std::make_shared<MainWindowShow>(this);
+	}
+	return _cachedShow;
 }
 
 SessionController::~SessionController() {

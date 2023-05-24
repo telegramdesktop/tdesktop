@@ -510,7 +510,7 @@ bool Panel::showWebview(
 	}
 	const auto allowBack = false;
 	showWebviewProgress();
-	_widget->destroyLayer();
+	_widget->hideLayer(anim::type::instant);
 	updateThemeParams(params);
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);

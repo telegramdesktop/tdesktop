@@ -80,11 +80,13 @@ public:
 	explicit Show(not_null<Panel*> panel);
 	~Show();
 
-	void showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options
-			= Ui::LayerOption::KeepOther) const override;
-	void hideLayer() const override;
+	void showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const override;
 	[[nodiscard]] not_null<QWidget*> toastParent() const override;
 	[[nodiscard]] bool valid() const override;
 	operator bool() const override;
@@ -102,19 +104,27 @@ Show::Show(not_null<Panel*> panel)
 
 Show::~Show() = default;
 
-void Show::showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) const {
-	if (const auto panel = _panel.get()) {
-		panel->showBox(std::move(content), options);
+void Show::showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const {
+	using UniqueLayer = std::unique_ptr<Ui::LayerWidget>;
+	using ObjectBox = object_ptr<Ui::BoxContent>;
+	if (auto layerWidget = std::get_if<UniqueLayer>(&layer)) {
+		if (const auto panel = _panel.get()) {
+			panel->showLayer(std::move(*layerWidget), options, animated);
+		}
+	} else if (auto box = std::get_if<ObjectBox>(&layer)) {
+		if (const auto panel = _panel.get()) {
+			panel->showBox(std::move(*box), options, animated);
+		}
+	} else if (const auto panel = _panel.get()) {
+		panel->hideLayer(animated);
 	}
-}
-
-void Show::hideLayer() const {
-	if (const auto panel = _panel.get()) {
-		panel->hideLayer();
-	}
-}
+ }
 
 not_null<QWidget*> Show::toastParent() const {
 	const auto panel = _panel.get();
@@ -1525,6 +1535,20 @@ void Panel::showBox(
 			std::max(window()->height(), st::groupCallWidth));
 	}
 	_layerBg->showBox(std::move(box), options, animated);
+}
+
+void Panel::showLayer(
+		std::unique_ptr<Ui::LayerWidget> layer,
+		Ui::LayerOptions options,
+		anim::type animated) {
+	hideStickedTooltip(StickedTooltipHide::Unavailable);
+	if (window()->width() < st::groupCallWidth
+		|| window()->height() < st::groupCallWidth) {
+		window()->resize(
+			std::max(window()->width(), st::groupCallWidth),
+			std::max(window()->height(), st::groupCallWidth));
+	}
+	_layerBg->showLayer(std::move(layer), options, animated);
 }
 
 void Panel::hideLayer(anim::type animated) {

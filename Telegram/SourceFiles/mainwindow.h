@@ -83,8 +83,11 @@ public:
 
 	[[nodiscard]] QPixmap grabForSlideAnimation();
 
-	void showLayer(
-		std::unique_ptr<Ui::LayerWidget> &&layer,
+	void showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
 		Ui::LayerOptions options,
 		anim::type animated);
 	void showSpecialLayer(
@@ -93,10 +96,6 @@ public:
 	bool showSectionInExistingLayer(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params);
-	void ui_showBox(
-		object_ptr<Ui::BoxContent> box,
-		Ui::LayerOptions options,
-		anim::type animated);
 	void ui_hideSettingsAndLayer(anim::type animated);
 	void ui_removeLayerBlackout();
 	[[nodiscard]] bool ui_isLayerShown() const;
@@ -121,14 +120,6 @@ private:
 	void applyInitialWorkMode();
 	void ensureLayerCreated();
 	void destroyLayer();
-
-	void showBoxOrLayer(
-		std::variant<
-			v::null_t,
-			object_ptr<Ui::BoxContent>,
-			std::unique_ptr<Ui::LayerWidget>> &&layer,
-		Ui::LayerOptions options,
-		anim::type animated);
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
 
