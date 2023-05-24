@@ -1493,6 +1493,7 @@ auto Element::takeReactionAnimations()
 
 Element::~Element() {
 	// Delete media while owner still exists.
+	clearSpecialOnlyEmoji();
 	base::take(_media);
 	if (_heavyCustomEmoji) {
 		_heavyCustomEmoji = false;
