@@ -744,7 +744,6 @@ RUN git clone -b {{ QT_TAG }} --depth=1 https://code.qt.io/qt/qt5.git qt_{{ QT }
 		-qt-harfbuzz \
 		-qt-pcre \
 		-no-icu \
-		-no-feature-xcb-xlib \
 		-no-feature-xcb-sm \
 		-no-feature-egl-extension-platform-wayland \
 		-static \

@@ -50,19 +50,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <unistd.h>
 #include <dirent.h>
 #include <pwd.h>
-#include <dlfcn.h>
 
 #include <iostream>
 
 using namespace Platform;
 using Platform::internal::WaylandIntegration;
-
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-typedef struct _XDisplay Display;
-struct XErrorEvent;
-typedef int (*XErrorHandler)(Display*, XErrorEvent*);
-typedef XErrorHandler (*LPXSETERRORHANDLER)(XErrorHandler);
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 typedef GApplication TDesktopApplication;
 typedef GApplicationClass TDesktopApplicationClass;
@@ -839,20 +831,6 @@ void start() {
 		g_warning("Qt is running without GLib event loop integration, "
 			"except various functionality to not to work.");
 	}
-
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	// tdesktop doesn't use xlib by itself,
-	// but some libraries it depends on may do
-	const auto XSetErrorHandler = reinterpret_cast<LPXSETERRORHANDLER>(
-		dlsym(RTLD_DEFAULT, "XSetErrorHandler"));
-
-	// Reset errors if any
-	(void) dlerror();
-
-	if (XSetErrorHandler) {
-		XSetErrorHandler([](Display *dpy, XErrorEvent *err) { return 0; });
-	}
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 	InstallLauncher();
 	LaunchGApplication();
