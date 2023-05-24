@@ -1763,7 +1763,7 @@ void HistoryWidget::setInnerFocus() {
 			|| isRecording()
 			|| isBotStart()
 			|| isBlocked()
-			|| !_canSendTexts) {
+			|| (!_canSendTexts && !_editMsgId)) {
 			if (_scroll->isHidden()) {
 				setFocus();
 			} else {
@@ -1881,10 +1881,6 @@ void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
 bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	InvokeQueued(this, [=] { updateStickersByEmoji(); });
 
-	if (_voiceRecordBar->isActive() || !_canSendTexts) {
-		return false;
-	}
-
 	const auto editDraft = _history ? _history->localEditDraft({}) : nullptr;
 	const auto draft = editDraft
 		? editDraft
@@ -1892,7 +1888,15 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		? _history->localDraft({})
 		: nullptr;
 	auto fieldAvailable = canWriteMessage();
-	if (!draft || (!_history->localEditDraft({}) && !fieldAvailable)) {
+	const auto editMsgId = editDraft ? editDraft->msgId : 0;
+	if (_voiceRecordBar->isActive() || (!_canSendTexts && !editMsgId)) {
+		if (!_canSendTexts) {
+			clearFieldText(0, fieldHistoryAction);
+		}
+		return false;
+	}
+
+	if (!draft || (!editDraft && !fieldAvailable)) {
 		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, fieldHistoryAction);
 		setInnerFocus();
@@ -1922,11 +1926,7 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 
 	_processingReplyItem = _replyEditMsg = nullptr;
 	_processingReplyId = _replyToId = 0;
-	if (const auto editDraft = _history->localEditDraft({})) {
-		setEditMsgId(editDraft->msgId);
-	} else {
-		setEditMsgId(0);
-	}
+	setEditMsgId(editMsgId);
 	updateCmdStartShown();
 	updateControlsVisibility();
 	updateControlsGeometry();
@@ -2805,7 +2805,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_send->show();
 		updateSendButtonType();
 
-		if (_canSendTexts) {
+		if (_canSendTexts || _editMsgId) {
 			_field->show();
 		} else {
 			fieldDisabledRemoved = false;
@@ -4922,7 +4922,7 @@ void HistoryWidget::recountChatWidth() {
 }
 
 int HistoryWidget::fieldHeight() const {
-	return _canSendTexts
+	return (_canSendTexts || _editMsgId)
 		? _field->height()
 		: (st::historySendSize.height() - 2 * st::historySendPadding);
 }
@@ -7641,7 +7641,7 @@ void HistoryWidget::updateTopBarSelection() {
 			|| isRecording()
 			|| isBotStart()
 			|| isBlocked()
-			|| !_canSendTexts) {
+			|| (!_canSendTexts && !_editMsgId)) {
 			_list->setFocus();
 		} else {
 			_field->setFocus();
