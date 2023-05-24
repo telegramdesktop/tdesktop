@@ -38,6 +38,11 @@ namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
 
+namespace InlineBots {
+enum class PeerType : uint8;
+using PeerTypes = base::flags<PeerType>;
+} // namespace InlineBots
+
 namespace Window {
 
 class Controller;
@@ -122,7 +127,8 @@ QPointer<Ui::BoxContent> ShowChooseRecipientBox(
 	not_null<Window::SessionNavigation*> navigation,
 	FnMut<bool(not_null<Data::Thread*>)> &&chosen,
 	rpl::producer<QString> titleOverride = nullptr,
-	FnMut<void()> &&successCallback = nullptr);
+	FnMut<void()> &&successCallback = nullptr,
+	InlineBots::PeerTypes typesRestriction = 0);
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	Data::ForwardDraft &&draft,

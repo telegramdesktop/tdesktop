@@ -117,7 +117,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 						if (!windows.empty()) {
 							Api::SwitchInlineBotButtonReceived(
 								windows.front(),
-								QString::fromUtf8(button.data));
+								button.data);
 						}
 						return;
 					}

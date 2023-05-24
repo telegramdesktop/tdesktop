@@ -279,11 +279,11 @@ void SendBotCallbackDataWithPassword(
 
 bool SwitchInlineBotButtonReceived(
 		not_null<Window::SessionController*> controller,
-		const QString &query,
+		const QByteArray &queryWithPeerTypes,
 		UserData *samePeerBot,
 		MsgId samePeerReplyTo) {
 	return controller->content()->notify_switchInlineBotButtonReceived(
-		query,
+		QString::fromUtf8(queryWithPeerTypes),
 		samePeerBot,
 		samePeerReplyTo);
 }
@@ -441,14 +441,14 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				if (samePeer) {
 					SwitchInlineBotButtonReceived(
 						controller,
-						QString::fromUtf8(button->data),
+						button->data,
 						bot,
 						item->id);
 					return true;
 				} else if (bot->isBot() && bot->botInfo->inlineReturnTo.key) {
 					const auto switched = SwitchInlineBotButtonReceived(
 						controller,
-						QString::fromUtf8(button->data));
+						button->data);
 					if (switched) {
 						return true;
 					}
@@ -466,7 +466,9 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				Window::ShowChooseRecipientBox(
 					controller,
 					chosen,
-					tr::lng_inline_switch_choose());
+					tr::lng_inline_switch_choose(),
+					nullptr,
+					button->peerTypes);
 			}
 		}
 	} break;
