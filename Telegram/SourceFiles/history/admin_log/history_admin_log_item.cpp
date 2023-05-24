@@ -226,6 +226,7 @@ TextWithEntities GenerateAdminChangeText(
 		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
 		{ Flag::ManageCall, tr::lng_admin_log_admin_manage_calls },
 		{ Flag::AddAdmins, tr::lng_admin_log_admin_add_admins },
+		{ Flag::Anonymous, tr::lng_admin_log_admin_remain_anonymous },
 	};
 	phraseMap[Flag::InviteByLinkOrAdd] = invitePhrase;
 	phraseMap[Flag::ManageCall] = callPhrase;
@@ -559,10 +560,20 @@ auto GenerateParticipantChangeText(
 		switch (participant.type()) {
 		case Api::ChatParticipant::Type::Creator: {
 			// No valid string here :(
+			const auto user = GenerateParticipantString(
+				&channel->session(),
+				peerId);
+			if (peerId == channel->session().userPeerId()) {
+				return GenerateAdminChangeText(
+					channel,
+					user,
+					participant.rights(),
+					oldRights);
+			}
 			return tr::lng_admin_log_transferred(
 				tr::now,
 				lt_user,
-				GenerateParticipantString(&channel->session(), peerId),
+				user,
 				Ui::Text::WithEntities);
 		}
 		case Api::ChatParticipant::Type::Admin: {
