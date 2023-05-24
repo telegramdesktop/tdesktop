@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "boxes/sessions_box.h"
 #include "boxes/language_box.h"
-#include "boxes/change_phone_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/window_session_controller.h"
 #include "ui/toast/toast.h"
@@ -503,7 +502,9 @@ bool ResolveSettings(
 		} else if (section == u"themes"_q) {
 			return ::Settings::Chat::Id();
 		} else if (section == u"change_number"_q) {
-			return ::Settings::ChangePhone::Id();
+			controller->show(
+				Ui::MakeInformBox(tr::lng_change_phone_error()));
+			return {};
 		} else if (section == u"auto_delete"_q) {
 			return ::Settings::GlobalTTLId();
 		} else if (section == u"information"_q) {
