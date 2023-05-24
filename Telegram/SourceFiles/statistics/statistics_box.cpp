@@ -7,13 +7,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/statistics_box.h"
 
+#include "api/api_statistics.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "statistics/chart_widget.h"
 #include "ui/layers/generic_box.h"
 
 namespace {
 } // namespace
 
 void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
+	const auto chartWidget = box->addRow(
+		object_ptr<Statistic::ChartWidget>(box));
+	const auto api = chartWidget->lifetime().make_state<Api::Statistics>(
+		&peer->session().api());
+
+	api->request(
+		peer
+	) | rpl::start_with_done([=] {
+		if (const auto stats = api->channelStats()) {
+			chartWidget->setChartData(stats.memberCountGraph.chart);
+		}
+	}, chartWidget->lifetime());
 	box->setTitle(tr::lng_stats_title());
 }

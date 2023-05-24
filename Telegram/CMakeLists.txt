@@ -1284,6 +1284,10 @@ PRIVATE
     settings/settings_websites.h
     statistics/chart_horizontal_lines_data.cpp
     statistics/chart_horizontal_lines_data.h
+    statistics/chart_widget.cpp
+    statistics/chart_widget.h
+    statistics/linear_chart_view.cpp
+    statistics/linear_chart_view.h
     statistics/segment_tree.cpp
     statistics/segment_tree.h
     statistics/statistics_box.cpp
