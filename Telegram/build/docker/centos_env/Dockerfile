@@ -1,6 +1,6 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6.5.0" -%}
+{%- set QT = "6.5.1" -%}
 {%- set QT_TAG = "v" ~ QT -%}
 {%- set QT_PREFIX = "/usr/local/desktop-app/Qt-" ~ QT -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
@@ -58,7 +58,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 3fad86d684 \
+	&& git checkout 1d72fdb335 \
 	&& rm -rf .git
 
 FROM builder AS nasm
