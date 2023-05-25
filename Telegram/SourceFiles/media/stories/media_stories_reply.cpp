@@ -195,6 +195,7 @@ Api::SendAction ReplyArea::prepareSendAction(
 	const auto history = _data.user->owner().history(_data.user);
 	auto result = Api::SendAction(history, options);
 	result.options.sendAs = _controls->sendAsPeer();
+	result.replyTo.storyId = { .peer = _data.user->id, .story = _data.id };
 	return result;
 }
 

@@ -376,7 +376,7 @@ void Controller::show(
 
 	_header->show({ .user = list.user, .date = item.date });
 	_slider->show({ .index = _index, .total = list.total });
-	_replyArea->show({ .user = list.user });
+	_replyArea->show({ .user = list.user, .id = id.story });
 
 	if (_contentFaded) {
 		togglePaused(true);
