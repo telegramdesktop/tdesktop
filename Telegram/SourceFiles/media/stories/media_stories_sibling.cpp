@@ -217,7 +217,8 @@ Sibling::Sibling(
 	not_null<Controller*> controller,
 	const Data::StoriesList &list)
 : _controller(controller)
-, _id{ list.user, list.items.front().id } {
+, _id{ list.user->id, list.items.front().id }
+, _peer(list.user) {
 	const auto &item = list.items.front();
 	const auto &data = item.media.data;
 	const auto origin = Data::FileOrigin();
@@ -239,14 +240,18 @@ Sibling::Sibling(
 
 Sibling::~Sibling() = default;
 
-Data::FullStoryId Sibling::shownId() const {
+FullStoryId Sibling::shownId() const {
 	return _id;
+}
+
+not_null<PeerData*> Sibling::peer() const {
+	return _peer;
 }
 
 bool Sibling::shows(const Data::StoriesList &list) const {
 	Expects(!list.items.empty());
 
-	return _id == Data::FullStoryId{ list.user, list.items.front().id };
+	return _id == FullStoryId{ list.user->id, list.items.front().id };
 }
 
 SiblingView Sibling::view(const SiblingLayout &layout, float64 over) {
@@ -268,22 +273,18 @@ SiblingView Sibling::view(const SiblingLayout &layout, float64 over) {
 }
 
 QImage Sibling::userpicImage(const SiblingLayout &layout) {
-	Expects(_id.user != nullptr);
-
 	const auto ratio = style::DevicePixelRatio();
 	const auto size = layout.userpic.width() * ratio;
-	const auto key = _id.user->userpicUniqueKey(_userpicView);
+	const auto key = _peer->userpicUniqueKey(_userpicView);
 	if (_userpicImage.width() != size || _userpicKey != key) {
 		_userpicKey = key;
-		_userpicImage = _id.user->generateUserpicImage(_userpicView, size);
+		_userpicImage = _peer->generateUserpicImage(_userpicView, size);
 		_userpicImage.setDevicePixelRatio(ratio);
 	}
 	return _userpicImage;
 }
 
 QImage Sibling::nameImage(const SiblingLayout &layout) {
-	Expects(_id.user != nullptr);
-
 	if (_nameFontSize != layout.nameFontSize) {
 		_nameFontSize = layout.nameFontSize;
 
@@ -299,7 +300,7 @@ QImage Sibling::nameImage(const SiblingLayout &layout) {
 			.linkFontOver = font,
 		});
 	};
-	const auto text = _id.user->shortName();
+	const auto text = _peer->shortName();
 	if (_nameText != text) {
 		_name.reset();
 		_nameText = text;

@@ -30,7 +30,6 @@ enum class activation : uchar;
 namespace Data {
 class PhotoMedia;
 class DocumentMedia;
-struct FullStoryId;
 } // namespace Data
 
 namespace Ui {
@@ -243,7 +242,10 @@ private:
 	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
 	auto storiesStickerOrEmojiChosen()
 		-> rpl::producer<ChatHelpers::FileChosen> override;
-	void storiesJumpTo(Data::FullStoryId id) override;
+	void storiesJumpTo(
+		not_null<Main::Session*> session,
+		FullStoryId id) override;
+	void storiesClose() override;
 	bool storiesPaused() override;
 	void storiesTogglePaused(bool paused) override;
 	float64 storiesSiblingOver(Stories::SiblingType type) override;

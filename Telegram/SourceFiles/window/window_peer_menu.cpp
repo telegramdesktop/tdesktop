@@ -108,21 +108,16 @@ void ShareBotGame(
 	const auto topicRootId = replyTo;
 	auto flags = MTPmessages_SendMedia::Flags(0);
 	if (replyTo) {
-		flags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-		if (topicRootId) {
-			flags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
-		}
+		flags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
 	histories.sendPreparedMessage(
 		history,
-		replyTo,
-		topicRootId,
+		FullReplyTo{ .msgId = replyTo, .topicRootId = topicRootId },
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(flags),
 			history->peer->input,
 			Data::Histories::ReplyToPlaceholder(),
-			Data::Histories::TopicRootPlaceholder(),
 			MTP_inputMediaGame(
 				MTP_inputGameShortName(
 					bot->inputUser,
@@ -1447,8 +1442,7 @@ void PeerMenuCreatePoll(
 			peer->owner().history(peer),
 			result.options);
 		action.clearDraft = false;
-		action.replyTo = replyToId;
-		action.topicRootId = topicRootId;
+		action.replyTo = { .msgId = replyToId, .topicRootId = topicRootId };
 		if (const auto local = action.history->localDraft(topicRootId)) {
 			action.clearDraft = local->textWithTags.text.isEmpty();
 		}

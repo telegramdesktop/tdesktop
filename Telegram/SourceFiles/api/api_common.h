@@ -40,11 +40,12 @@ struct SendAction {
 
 	not_null<History*> history;
 	SendOptions options;
-	MsgId replyTo = 0;
-	MsgId topicRootId = 0;
+	FullReplyTo replyTo;
 	bool clearDraft = true;
 	bool generateLocal = true;
 	MsgId replaceMediaOf = 0;
+
+	[[nodiscard]] MTPInputReplyTo mtpReplyTo() const;
 };
 
 struct MessageToSend {

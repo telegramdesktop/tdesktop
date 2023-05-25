@@ -29,7 +29,8 @@ public:
 		const Data::StoriesList &list);
 	~Sibling();
 
-	[[nodiscard]] Data::FullStoryId shownId() const;
+	[[nodiscard]] FullStoryId shownId() const;
+	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] bool shows(const Data::StoriesList &list) const;
 
 	[[nodiscard]] SiblingView view(
@@ -51,7 +52,8 @@ private:
 
 	const not_null<Controller*> _controller;
 
-	Data::FullStoryId _id;
+	FullStoryId _id;
+	not_null<PeerData*> _peer;
 	QImage _blurred;
 	QImage _good;
 	Ui::Animations::Simple _goodShown;

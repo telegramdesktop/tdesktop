@@ -390,7 +390,7 @@ bool HistoryInner::BotAbout::refresh() {
 		| MessageFlag::Local;
 	const auto postAuthor = QString();
 	const auto date = TimeId(0);
-	const auto replyTo = MsgId(0);
+	const auto replyTo = FullReplyTo();
 	const auto viaBotId = UserId(0);
 	const auto groupedId = uint64(0);
 	const auto textWithEntities = TextUtilities::ParseEntities(

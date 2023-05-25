@@ -1260,6 +1260,8 @@ Message ParseMessage(
 					if (result.replyToPeerId == result.peerId) {
 						result.replyToPeerId = 0;
 					}
+				}, [&](const MTPDmessageReplyStoryHeader &data) {
+					// #TODO stories export
 				});
 			}
 		}
@@ -1307,6 +1309,8 @@ Message ParseMessage(
 				result.replyToPeerId = data.vreply_to_peer_id()
 					? ParsePeerId(*data.vreply_to_peer_id())
 					: PeerId(0);
+			}, [&](const MTPDmessageReplyStoryHeader &data) {
+				// #TODO stories export
 			});
 		}
 		if (const auto viaBotId = data.vvia_bot_id()) {

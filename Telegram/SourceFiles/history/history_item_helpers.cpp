@@ -309,8 +309,13 @@ MessageFlags FlagsFromMTP(
 }
 
 MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
-	if (const auto id = action.replyTo) {
-		const auto to = LookupReplyTo(action.history, id);
+	if (const auto replyTo = action.replyTo) {
+		if (replyTo.storyId) {
+			return MTP_messageReplyStoryHeader(
+				MTP_long(peerToUser(replyTo.storyId.peer).bare),
+				MTP_int(replyTo.storyId.story));
+		}
+		const auto to = LookupReplyTo(action.history, replyTo.msgId);
 		if (const auto replyToTop = LookupReplyToTop(to)) {
 			using Flag = MTPDmessageReplyHeader::Flag;
 			return MTP_messageReplyHeader(
@@ -318,13 +323,13 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 					| (LookupReplyIsTopicPost(to)
 						? Flag::f_forum_topic
 						: Flag(0))),
-				MTP_int(id),
+				MTP_int(replyTo.msgId),
 				MTPPeer(),
 				MTP_int(replyToTop));
 		}
 		return MTP_messageReplyHeader(
 			MTP_flags(0),
-			MTP_int(id),
+			MTP_int(replyTo.msgId),
 			MTPPeer(),
 			MTPint());
 	}

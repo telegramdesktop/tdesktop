@@ -131,6 +131,7 @@ struct HistoryItem::CreateConfig {
 	PeerId replyToPeer = 0;
 	MsgId replyTo = 0;
 	MsgId replyToTop = 0;
+	StoryId replyToStory = 0;
 	bool replyIsTopicPost = false;
 	UserId viaBotId = 0;
 	int viewsCount = -1;
@@ -506,7 +507,7 @@ HistoryItem::HistoryItem(
 	not_null<History*> history,
 	MsgId id,
 	MessageFlags flags,
-	MsgId replyTo,
+	FullReplyTo replyTo,
 	UserId viaBotId,
 	TimeId date,
 	PeerId from,
@@ -541,7 +542,7 @@ HistoryItem::HistoryItem(
 	not_null<History*> history,
 	MsgId id,
 	MessageFlags flags,
-	MsgId replyTo,
+	FullReplyTo replyTo,
 	UserId viaBotId,
 	TimeId date,
 	PeerId from,
@@ -576,7 +577,7 @@ HistoryItem::HistoryItem(
 	not_null<History*> history,
 	MsgId id,
 	MessageFlags flags,
-	MsgId replyTo,
+	FullReplyTo replyTo,
 	UserId viaBotId,
 	TimeId date,
 	PeerId from,
@@ -606,7 +607,7 @@ HistoryItem::HistoryItem(
 	not_null<History*> history,
 	MsgId id,
 	MessageFlags flags,
-	MsgId replyTo,
+	FullReplyTo replyTo,
 	UserId viaBotId,
 	TimeId date,
 	PeerId from,
@@ -648,7 +649,7 @@ HistoryItem::HistoryItem(
 		/*from.peer ? from.peer->id : */PeerId(0)) {
 	createComponentsHelper(
 		_flags,
-		MsgId(0), // replyTo
+		FullReplyTo(),
 		UserId(0), // viaBotId
 		QString(), // postAuthor
 		HistoryMessageMarkupData());
@@ -1542,6 +1543,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 				data.vreply_to_top_id().value_or(
 					data.vreply_to_msg_id().v),
 				data.is_forum_topic());
+		}, [](const MTPDmessageReplyStoryHeader &data) {
 		});
 	}
 	setPostAuthor(data.vpost_author().value_or_empty());
@@ -2742,6 +2744,26 @@ MsgId HistoryItem::topicRootId() const {
 	return Data::ForumTopic::kGeneralId;
 }
 
+FullStoryId HistoryItem::replyToStory() const {
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		if (reply->replyToStoryId) {
+			const auto peerId = reply->replyToPeerId
+				? reply->replyToPeerId
+				: _history->peer->id;
+			return { .peer = peerId, .story = reply->replyToStoryId };
+		}
+	}
+	return {};
+}
+
+FullReplyTo HistoryItem::replyTo() const {
+	return {
+		.msgId = replyToId(),
+		.topicRootId = topicRootId(),
+		.storyId = replyToStory(),
+	};
+}
+
 void HistoryItem::setText(const TextWithEntities &textWithEntities) {
 	for (const auto &entity : textWithEntities.entities) {
 		auto type = entity.type();
@@ -2903,7 +2925,7 @@ const std::vector<ClickHandlerPtr> &HistoryItem::customTextLinks() const {
 
 void HistoryItem::createComponents(CreateConfig &&config) {
 	uint64 mask = 0;
-	if (config.replyTo) {
+	if (config.replyTo || config.replyToStory) {
 		mask |= HistoryMessageReply::Bit();
 	}
 	if (config.viaBotId) {
@@ -3125,17 +3147,19 @@ void HistoryItem::setSponsoredFrom(const Data::SponsoredFrom &from) {
 
 void HistoryItem::createComponentsHelper(
 		MessageFlags flags,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		UserId viaBotId,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) {
 	auto config = CreateConfig();
 	config.viaBotId = viaBotId;
 	if (flags & MessageFlag::HasReplyInfo) {
-		config.replyTo = replyTo;
-		const auto to = LookupReplyTo(_history, replyTo);
+		config.replyTo = replyTo.msgId;
+		config.replyToStory = replyTo.storyId.story;
+		config.replyToPeer = replyTo.storyId ? replyTo.storyId.peer : 0;
+		const auto to = LookupReplyTo(_history, replyTo.msgId);
 		const auto replyToTop = LookupReplyToTop(to);
-		config.replyToTop = replyToTop ? replyToTop : replyTo;
+		config.replyToTop = replyToTop ? replyToTop : replyTo.msgId;
 		const auto forum = _history->asForum();
 		config.replyIsTopicPost = LookupReplyIsTopicPost(to)
 			|| (to && to->Has<HistoryServiceTopicInfo>())
@@ -3245,6 +3269,9 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 				: id;
 			config.replyToTop = data.vreply_to_top_id().value_or(id);
 			config.replyIsTopicPost = data.is_forum_topic();
+		}, [&](const MTPDmessageReplyStoryHeader &data) {
+			config.replyToPeer = peerFromUser(data.vuser_id());
+			config.replyToStory = data.vstory_id().v;
 		});
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
@@ -3499,6 +3526,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 						dependent->msgId);
 				}
 			}
+		}, [](const MTPDmessageReplyStoryHeader &data) {
 		});
 	}
 	setServiceMessageByAction(action);

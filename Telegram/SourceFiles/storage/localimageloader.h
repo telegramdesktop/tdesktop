@@ -36,41 +36,6 @@ enum class SendMediaType {
 	Secure,
 };
 
-struct SendMediaPrepare {
-	SendMediaPrepare(
-		const QString &file,
-		const PeerId &peer,
-		SendMediaType type,
-		MsgId replyTo);
-	SendMediaPrepare(
-		const QImage &img,
-		const PeerId &peer,
-		SendMediaType type,
-		MsgId replyTo);
-	SendMediaPrepare(
-		const QByteArray &data,
-		const PeerId &peer,
-		SendMediaType type,
-		MsgId replyTo);
-	SendMediaPrepare(
-		const QByteArray &data,
-		int duration,
-		const PeerId &peer,
-		SendMediaType type,
-		MsgId replyTo);
-
-	PhotoId id;
-	QString file;
-	QImage img;
-	QByteArray data;
-	PeerId peer;
-	SendMediaType type;
-	int duration = 0;
-	MsgId replyTo;
-
-};
-using SendMediaPrepareList = QList<SendMediaPrepare>;
-
 using UploadFileParts =  QMap<int, QByteArray>;
 struct SendMediaReady {
 	SendMediaReady() = default; // temp
@@ -87,10 +52,8 @@ struct SendMediaReady {
 		const MTPPhoto &photo,
 		const PreparedPhotoThumbs &photoThumbs,
 		const MTPDocument &document,
-		const QByteArray &jpeg,
-		MsgId replyTo);
+		const QByteArray &jpeg);
 
-	MsgId replyTo;
 	SendMediaType type;
 	QString file, filename;
 	int64 filesize = 0;
@@ -206,19 +169,16 @@ struct FileLoadTo {
 	FileLoadTo(
 		PeerId peer,
 		Api::SendOptions options,
-		MsgId replyTo,
-		MsgId topicRootId,
+		FullReplyTo replyTo,
 		MsgId replaceMediaOf)
 	: peer(peer)
 	, options(options)
 	, replyTo(replyTo)
-	, topicRootId(topicRootId)
 	, replaceMediaOf(replaceMediaOf) {
 	}
 	PeerId peer;
 	Api::SendOptions options;
-	MsgId replyTo;
-	MsgId topicRootId;
+	FullReplyTo replyTo;
 	MsgId replaceMediaOf;
 };
 

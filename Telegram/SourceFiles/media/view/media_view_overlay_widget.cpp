@@ -4028,28 +4028,27 @@ auto OverlayWidget::storiesStickerOrEmojiChosen()
 	return _storiesStickerOrEmojiChosen.events();
 }
 
-void OverlayWidget::storiesJumpTo(Data::FullStoryId id) {
+void OverlayWidget::storiesJumpTo(
+		not_null<Main::Session*> session,
+		FullStoryId id) {
 	Expects(_stories != nullptr);
+	Expects(id.valid());
 
-	if (!id) {
-		close();
-		return;
-	}
-	const auto &all = id.user->owner().stories().all();
+	const auto &all = session->data().stories().all();
 	const auto i = ranges::find(
 		all,
-		not_null(id.user),
-		&Data::StoriesList::user);
+		id.peer,
+		[](const Data::StoriesList &list) { return list.user->id; });
 	if (i == end(all)) {
 		close();
 		return;
 	}
-	const auto j = ranges::find(i->items, id.id, &Data::StoryItem::id);
+	const auto j = ranges::find(i->items, id.story, &Data::StoryItem::id);
 	if (j == end(i->items)) {
 		close();
 		return;
 	}
-	setContext(StoriesContext{ i->user, id.id });
+	setContext(StoriesContext{ i->user, id.story });
 	clearStreaming();
 	_streamingStartPaused = false;
 	const auto &data = j->media.data;
@@ -4059,6 +4058,10 @@ void OverlayWidget::storiesJumpTo(Data::FullStoryId id) {
 	} else {
 		displayDocument(v::get<not_null<DocumentData*>>(data), activation);
 	}
+}
+
+void OverlayWidget::storiesClose() {
+	close();
 }
 
 bool OverlayWidget::storiesPaused() {

@@ -139,7 +139,7 @@ private:
 	Ui::Animations::Simple _contentFadeAnimation;
 	bool _contentFaded = false;
 
-	Data::FullStoryId _shown;
+	FullStoryId _shown;
 	TextWithEntities _captionText;
 	std::optional<Data::StoriesList> _list;
 	int _index = 0;

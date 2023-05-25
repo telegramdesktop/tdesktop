@@ -1581,8 +1581,7 @@ SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 		MTP_photoEmpty(MTP_long(0)),
 		thumbnails,
 		document,
-		QByteArray(),
-		0);
+		QByteArray());
 }
 
 } // namespace Theme

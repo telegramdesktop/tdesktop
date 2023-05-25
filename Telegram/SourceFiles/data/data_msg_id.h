@@ -136,6 +136,37 @@ struct GlobalMsgId {
 	}
 };
 
+using StoryId = int32;
+
+struct FullStoryId {
+	PeerId peer = 0;
+	StoryId story = 0;
+
+	[[nodiscard]] bool valid() const {
+		return peer != 0 && story != 0;
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	friend inline auto operator<=>(FullStoryId, FullStoryId) = default;
+	friend inline bool operator==(FullStoryId, FullStoryId) = default;
+};
+
+struct FullReplyTo {
+	MsgId msgId = 0;
+	MsgId topicRootId = 0;
+	FullStoryId storyId;
+
+	[[nodiscard]] bool valid() const {
+		return msgId || storyId;
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	friend inline auto operator<=>(FullReplyTo, FullReplyTo) = default;
+	friend inline bool operator==(FullReplyTo, FullReplyTo) = default;
+};
+
 namespace std {
 
 template <>

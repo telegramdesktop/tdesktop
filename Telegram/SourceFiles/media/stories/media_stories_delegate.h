@@ -12,9 +12,9 @@ class Show;
 struct FileChosen;
 } // namespace ChatHelpers
 
-namespace Data {
-struct FullStoryId;
-} // namespace Data
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Ui {
 class RpWidget;
@@ -39,7 +39,10 @@ public:
 		-> std::shared_ptr<ChatHelpers::Show> = 0;
 	[[nodiscard]] virtual auto storiesStickerOrEmojiChosen()
 		-> rpl::producer<ChatHelpers::FileChosen> = 0;
-	virtual void storiesJumpTo(Data::FullStoryId id) = 0;
+	virtual void storiesJumpTo(
+		not_null<Main::Session*> session,
+		FullStoryId id) = 0;
+	virtual void storiesClose() = 0;
 	[[nodiscard]] virtual bool storiesPaused() = 0;
 	[[nodiscard]] virtual float64 storiesSiblingOver(SiblingType type) = 0;
 	virtual void storiesTogglePaused(bool paused) = 0;

@@ -363,9 +363,9 @@ void Controller::show(
 	}
 	_index = subindex;
 
-	const auto id = Data::FullStoryId{
-		.user = list.user,
-		.id = item.id,
+	const auto id = FullStoryId{
+		.peer = list.user->id,
+		.story = item.id,
 	};
 	if (_shown == id) {
 		return;
@@ -425,7 +425,7 @@ void Controller::updatePlayback(const Player::TrackState &state) {
 	updatePowerSaveBlocker(state);
 	if (Player::IsStoppedAtEnd(state.state)) {
 		if (!subjumpFor(1)) {
-			_delegate->storiesJumpTo({});
+			_delegate->storiesClose();
 		}
 	}
 }
@@ -448,9 +448,9 @@ bool Controller::subjumpFor(int delta) {
 		} else if (!_list || _list->items.empty()) {
 			return false;
 		}
-		_delegate->storiesJumpTo({
-			.user = _list->user,
-			.id = _list->items.front().id
+		_delegate->storiesJumpTo(&_list->user->session(), {
+			.peer = _list->user->id,
+			.story = _list->items.front().id
 		});
 		return true;
 	} else if (index >= _list->total) {
@@ -459,9 +459,9 @@ bool Controller::subjumpFor(int delta) {
 			&& jumpFor(1);
 	} else if (index < _list->items.size()) {
 		// #TODO stories load more
-		_delegate->storiesJumpTo({
-			.user = _list->user,
-			.id = _list->items[index].id
+		_delegate->storiesJumpTo(&_list->user->session(), {
+			.peer = _list->user->id,
+			.story = _list->items[index].id
 		});
 	}
 	return true;
@@ -471,12 +471,16 @@ bool Controller::subjumpFor(int delta) {
 bool Controller::jumpFor(int delta) {
 	if (delta == -1) {
 		if (const auto left = _siblingLeft.get()) {
-			_delegate->storiesJumpTo(left->shownId());
+			_delegate->storiesJumpTo(
+				&left->peer()->session(),
+				left->shownId());
 			return true;
 		}
 	} else if (delta == 1) {
 		if (const auto right = _siblingRight.get()) {
-			_delegate->storiesJumpTo(right->shownId());
+			_delegate->storiesJumpTo(
+				&right->peer()->session(),
+				right->shownId());
 			return true;
 		}
 	}

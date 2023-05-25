@@ -1012,7 +1012,7 @@ void RepliesWidget::sendingFilesConfirmed(
 			album,
 			action);
 	}
-	if (_composeControls->replyingToMessage().msg == action.replyTo) {
+	if (_composeControls->replyingToMessage().msg == action.replyTo.msgId) {
 		_composeControls->cancelReplyMessage();
 		refreshTopBarActiveChat();
 	}
@@ -1135,8 +1135,7 @@ bool RepliesWidget::showSendingFilesError(
 Api::SendAction RepliesWidget::prepareSendAction(
 		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
-	result.replyTo = replyToId();
-	result.topicRootId = _rootId;
+	result.replyTo = { .msgId = replyToId(), .topicRootId = _rootId };
 	result.options.sendAs = _composeControls->sendAsPeer();
 	return result;
 }

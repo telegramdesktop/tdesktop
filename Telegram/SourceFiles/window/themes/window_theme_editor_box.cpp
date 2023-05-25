@@ -451,8 +451,7 @@ SendMediaReady PrepareThemeMedia(
 		MTP_photoEmpty(MTP_long(0)),
 		thumbnails,
 		document,
-		thumbnailBytes,
-		0);
+		thumbnailBytes);
 }
 
 Fn<void()> SavePreparedTheme(

@@ -243,6 +243,7 @@ struct HistoryMessageReply
 	PeerId replyToPeerId = 0;
 	MsgId replyToMsgId = 0;
 	MsgId replyToMsgTop = 0;
+	StoryId replyToStoryId = 0;
 	using ColorKey = PeerId;
 	ColorKey replyToColorKey = 0;
 	DocumentId replyToDocumentId = 0;

@@ -60,8 +60,7 @@ SendMediaReady PrepareRingtoneDocument(
 		MTP_photoEmpty(MTP_long(0)),
 		PreparedPhotoThumbs(),
 		document,
-		QByteArray(),
-		0);
+		QByteArray());
 }
 
 } // namespace

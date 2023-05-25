@@ -1113,13 +1113,16 @@ void Manager::notificationReplied(
 
 	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
-	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser()
+	const auto replyToId = (id.msgId > 0 && !history->peer->isUser()
 		&& id.msgId != topicRootId)
 		? id.msgId
 		: history->peer->isForum()
 		? topicRootId
 		: MsgId(0);
-	message.action.topicRootId = topic ? topic->rootId() : 0;
+	message.action.replyTo = {
+		.msgId = replyToId,
+		.topicRootId = topic ? topic->rootId() : 0,
+	};
 	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
 

@@ -820,7 +820,7 @@ void GenerateItems(
 	const auto makeSimpleTextMessage = [&](TextWithEntities &&text) {
 		const auto bodyFlags = MessageFlag::HasFromId
 			| MessageFlag::AdminLogEntry;
-		const auto bodyReplyTo = MsgId();
+		const auto bodyReplyTo = FullReplyTo();
 		const auto bodyViaBotId = UserId();
 		const auto bodyGroupedId = uint64();
 		return history->makeMessage(

@@ -117,7 +117,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MessageFlags flags,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		UserId viaBotId,
 		TimeId date,
 		PeerId from,
@@ -147,7 +147,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MessageFlags flags,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		UserId viaBotId,
 		TimeId date,
 		PeerId from,
@@ -159,7 +159,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MessageFlags flags,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		UserId viaBotId,
 		TimeId date,
 		PeerId from,
@@ -171,7 +171,7 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		MessageFlags flags,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		UserId viaBotId,
 		TimeId date,
 		PeerId from,
@@ -458,6 +458,8 @@ public:
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] MsgId replyToTop() const;
 	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] FullStoryId replyToStory() const;
+	[[nodiscard]] FullReplyTo replyTo() const;
 	[[nodiscard]] bool inThread(MsgId rootId) const;
 
 	[[nodiscard]] not_null<PeerData*> author() const;
@@ -518,7 +520,7 @@ private:
 
 	void createComponentsHelper(
 		MessageFlags flags,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		UserId viaBotId,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup);

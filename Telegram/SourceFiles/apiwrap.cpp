@@ -3091,8 +3091,9 @@ void ApiWrap::sharedMediaDone(
 
 void ApiWrap::sendAction(const SendAction &action) {
 	if (!action.options.scheduled && !action.replaceMediaOf) {
-		const auto topic = action.topicRootId
-			? action.history->peer->forumTopicFor(action.topicRootId)
+		const auto topicRootId = action.replyTo.topicRootId;
+		const auto topic = topicRootId
+			? action.history->peer->forumTopicFor(topicRootId)
 			: nullptr;
 		if (topic) {
 			topic->readTillEnd();
@@ -3106,12 +3107,13 @@ void ApiWrap::sendAction(const SendAction &action) {
 
 void ApiWrap::finishForwarding(const SendAction &action) {
 	const auto history = action.history;
-	auto toForward = history->resolveForwardDraft(action.topicRootId);
+	const auto topicRootId = action.replyTo.topicRootId;
+	auto toForward = history->resolveForwardDraft(topicRootId);
 	if (!toForward.items.empty()) {
 		const auto error = GetErrorTextForSending(
 			history->peer,
 			{
-				.topicRootId = action.topicRootId,
+				.topicRootId = topicRootId,
 				.forward = &toForward.items,
 			});
 		if (!error.isEmpty()) {
@@ -3119,7 +3121,7 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 		}
 
 		forwardMessages(std::move(toForward), action);
-		history->setForwardDraft(action.topicRootId, {});
+		history->setForwardDraft(topicRootId, {});
 	}
 
 	_session->data().sendHistoryChangeNotifications();
@@ -3163,31 +3165,33 @@ void ApiWrap::forwardMessages(
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	const auto sendAs = action.options.sendAs;
 
+	using SendFlag = MTPmessages_ForwardMessages::Flag;
 	auto flags = MessageFlags();
-	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
+	auto sendFlags = SendFlag() | SendFlag();
 	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
-		sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
+		sendFlags |= SendFlag::f_silent;
 	}
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
-		sendFlags |= MTPmessages_ForwardMessages::Flag::f_schedule_date;
+		sendFlags |= SendFlag::f_schedule_date;
 	}
 	if (draft.options != Data::ForwardOptions::PreserveInfo) {
-		sendFlags |= MTPmessages_ForwardMessages::Flag::f_drop_author;
+		sendFlags |= SendFlag::f_drop_author;
 	}
 	if (draft.options == Data::ForwardOptions::NoNamesAndCaptions) {
-		sendFlags |= MTPmessages_ForwardMessages::Flag::f_drop_media_captions;
+		sendFlags |= SendFlag::f_drop_media_captions;
 	}
 	if (sendAs) {
-		sendFlags |= MTPmessages_ForwardMessages::Flag::f_send_as;
+		sendFlags |= SendFlag::f_send_as;
 	}
 	const auto kGeneralId = Data::ForumTopic::kGeneralId;
-	const auto topMsgId = (action.topicRootId == kGeneralId)
+	const auto topicRootId = action.replyTo.topicRootId;
+	const auto topMsgId = (topicRootId == kGeneralId)
 		? MsgId(0)
-		: action.topicRootId;
+		: topicRootId;
 	if (topMsgId) {
-		sendFlags |= MTPmessages_ForwardMessages::Flag::f_top_msg_id;
+		sendFlags |= SendFlag::f_top_msg_id;
 	}
 
 	auto forwardFrom = draft.items.front()->history()->peer;
@@ -3529,14 +3533,14 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	action.generateLocal = true;
 	sendAction(action);
 
-	const auto replyToId = action.replyTo;
+	const auto replyToId = action.replyTo.msgId;
 	const auto replyTo = replyToId
 		? peer->owner().message(peer, replyToId)
 		: nullptr;
 	const auto topicRootId = replyTo
 		? replyTo->topicRootId()
-		: action.topicRootId
-		? action.topicRootId
+		: action.replyTo.topicRootId
+		? action.replyTo.topicRootId
 		: Data::ForumTopic::kGeneralId;
 	const auto topic = peer->forumTopicFor(topicRootId);
 	if (!(topic ? Data::CanSendTexts(topic) : Data::CanSendTexts(peer))
@@ -3575,10 +3579,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
 		if (action.replyTo) {
 			flags |= MessageFlag::HasReplyInfo;
-			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to_msg_id;
-			if (action.topicRootId) {
-				sendFlags |= MTPmessages_SendMessage::Flag::f_top_msg_id;
-			}
+			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to;
 		}
 		const auto replyHeader = NewMessageReplyHeader(action);
 		MTPMessageMedia media = MTP_messageMediaEmpty();
@@ -3605,7 +3606,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 		}
 		const auto clearCloudDraft = action.clearDraft;
-		const auto topicRootId = action.topicRootId;
+		const auto topicRootId = action.replyTo.topicRootId;
 		if (clearCloudDraft) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
 			history->clearCloudDraft(topicRootId);
@@ -3642,13 +3643,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		histories.sendPreparedMessage(
 			history,
 			action.replyTo,
-			topicRootId,
 			randomId,
 			Data::Histories::PrepareMessage<MTPmessages_SendMessage>(
 				MTP_flags(sendFlags),
 				peer->input,
 				Data::Histories::ReplyToPlaceholder(),
-				Data::Histories::TopicRootPlaceholder(),
 				msgText,
 				MTP_long(randomId),
 				MTPReplyMarkup(),
@@ -3737,29 +3736,29 @@ void ApiWrap::sendInlineResult(
 			? (*localMessageId)
 			: _session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
-	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
+	const auto topicRootId = action.replyTo.msgId
+		? action.replyTo.topicRootId
+		: 0;
 
+	using SendFlag = MTPmessages_SendInlineBotResult::Flag;
 	auto flags = NewMessageFlags(peer);
-	auto sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft | 0;
+	auto sendFlags = SendFlag::f_clear_draft | SendFlag();
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
-		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
-		if (topicRootId) {
-			sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_top_msg_id;
-		}
+		sendFlags |= SendFlag::f_reply_to;
 	}
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
-		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
+		sendFlags |= SendFlag::f_silent;
 	}
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
-		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_schedule_date;
+		sendFlags |= SendFlag::f_schedule_date;
 	}
 	if (action.options.hideViaBot) {
-		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_hide_via;
+		sendFlags |= SendFlag::f_hide_via;
 	}
 
 	const auto sendAs = action.options.sendAs;
@@ -3793,13 +3792,11 @@ void ApiWrap::sendInlineResult(
 	histories.sendPreparedMessage(
 		history,
 		action.replyTo,
-		topicRootId,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendInlineBotResult>(
 			MTP_flags(sendFlags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
-			Data::Histories::TopicRootPlaceholder(),
 			MTP_long(randomId),
 			MTP_long(data->getQueryId()),
 			MTP_string(data->getId()),
@@ -3912,8 +3909,7 @@ void ApiWrap::sendMediaWithRandomId(
 		Api::SendOptions options,
 		uint64 randomId) {
 	const auto history = item->history();
-	const auto replyTo = item->replyToId();
-	const auto topicRootId = item->topicRootId();
+	const auto replyTo = item->replyTo();
 
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
@@ -3926,8 +3922,7 @@ void ApiWrap::sendMediaWithRandomId(
 
 	using Flag = MTPmessages_SendMedia::Flag;
 	const auto flags = Flag(0)
-		| (replyTo ? Flag::f_reply_to_msg_id : Flag(0))
-		| (topicRootId ? Flag::f_top_msg_id : Flag(0))
+		| (replyTo ? Flag::f_reply_to : Flag(0))
 		| (ShouldSendSilent(history->peer, options)
 			? Flag::f_silent
 			: Flag(0))
@@ -3941,13 +3936,11 @@ void ApiWrap::sendMediaWithRandomId(
 	histories.sendPreparedMessage(
 		history,
 		replyTo,
-		topicRootId,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(flags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
-			Data::Histories::TopicRootPlaceholder(),
 			media,
 			MTP_string(caption.text),
 			MTP_long(randomId),
@@ -4028,13 +4021,11 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		return;
 	}
 	const auto history = sample->history();
-	const auto replyTo = sample->replyToId();
-	const auto topicRootId = sample->topicRootId();
+	const auto replyTo = sample->replyTo();
 	const auto sendAs = album->options.sendAs;
 	using Flag = MTPmessages_SendMultiMedia::Flag;
 	const auto flags = Flag(0)
-		| (replyTo ? Flag::f_reply_to_msg_id : Flag(0))
-		| (topicRootId ? Flag::f_top_msg_id : Flag(0))
+		| (replyTo ? Flag::f_reply_to : Flag(0))
 		| (ShouldSendSilent(history->peer, album->options)
 			? Flag::f_silent
 			: Flag(0))
@@ -4045,13 +4036,11 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	histories.sendPreparedMessage(
 		history,
 		replyTo,
-		topicRootId,
 		uint64(0), // randomId
 		Data::Histories::PrepareMessage<MTPmessages_SendMultiMedia>(
 			MTP_flags(flags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
-			Data::Histories::TopicRootPlaceholder(),
 			MTP_vector<MTPInputSingleMedia>(medias),
 			MTP_int(album->options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
@@ -4074,7 +4063,6 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 		peer->id,
 		action.options,
 		action.replyTo,
-		action.topicRootId,
 		action.replaceMediaOf);
 }
 
