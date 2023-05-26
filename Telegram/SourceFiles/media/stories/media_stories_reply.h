@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 
+class History;
 enum class SendMediaType;
 
 namespace Api {
@@ -23,6 +24,10 @@ class ComposeControls;
 namespace HistoryView::Controls {
 struct VoiceToSend;
 } // namespace HistoryView::Controls
+
+namespace InlineBots {
+class Result;
+} // namespace InlineBots
 
 namespace Main {
 class Session;
@@ -58,6 +63,7 @@ private:
 	using VoiceToSend = HistoryView::Controls::VoiceToSend;
 
 	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<History*> history() const;
 
 	bool confirmSendingFiles(const QStringList &files);
 	bool confirmSendingFiles(not_null<const QMimeData*> data);
@@ -89,6 +95,24 @@ private:
 		Api::SendOptions options,
 		bool ctrlShiftEnter);
 	void finishSending();
+
+	void sendExistingDocument(not_null<DocumentData*> document);
+	bool sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options,
+		std::optional<MsgId> localId);
+	void sendExistingPhoto(not_null<PhotoData*> photo);
+	bool sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options);
+	void sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot);
+	void sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot,
+		Api::SendOptions options,
+		std::optional<MsgId> localMessageId);
 
 	void initGeometry();
 	void initActions();

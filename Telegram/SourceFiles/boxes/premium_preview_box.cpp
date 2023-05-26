@@ -1192,9 +1192,9 @@ void Show(
 } // namespace
 
 void ShowStickerPreviewBox(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document) {
-	Show(controller->uiShow(), Descriptor{
+	Show(std::move(show), Descriptor{
 		.section = PremiumPreview::Stickers,
 		.requestedSticker = document,
 	});

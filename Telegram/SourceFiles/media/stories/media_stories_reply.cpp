@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_reply.h"
 
 #include "api/api_common.h"
+#include "api/api_sending.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "boxes/premium_limits_box.h"
@@ -28,8 +29,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_controller.h"
 #include "menu/menu_send.h"
 #include "storage/localimageloader.h"
+#include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "window/section_widget.h"
 #include "styles/style_boxes.h" // sendMediaPreviewSize.
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_view.h"
@@ -134,6 +137,96 @@ void ReplyArea::sendVoice(VoiceToSend &&data) {
 	finishSending();
 }
 
+bool ReplyArea::sendExistingDocument(
+		not_null<DocumentData*> document,
+		Api::SendOptions options,
+		std::optional<MsgId> localId) {
+	Expects(_data.user != nullptr);
+
+	const auto show = _controller->uiShow();
+	const auto error = Data::RestrictionError(
+		_data.user,
+		ChatRestriction::SendStickers);
+	if (error) {
+		show->showToast(*error);
+		return false;
+	} else if (Window::ShowSendPremiumError(show, document)) {
+		return false;
+	}
+
+	Api::SendExistingDocument(
+		Api::MessageToSend(prepareSendAction(options)),
+		document,
+		localId);
+
+	_controls->cancelReplyMessage();
+	finishSending();
+	return true;
+}
+
+void ReplyArea::sendExistingPhoto(not_null<PhotoData*> photo) {
+	sendExistingPhoto(photo, {});
+}
+
+bool ReplyArea::sendExistingPhoto(
+		not_null<PhotoData*> photo,
+		Api::SendOptions options) {
+	Expects(_data.user != nullptr);
+
+	const auto show = _controller->uiShow();
+	const auto error = Data::RestrictionError(
+		_data.user,
+		ChatRestriction::SendPhotos);
+	if (error) {
+		show->showToast(*error);
+		return false;
+	}
+
+	Api::SendExistingPhoto(
+		Api::MessageToSend(prepareSendAction(options)),
+		photo);
+
+	_controls->cancelReplyMessage();
+	finishSending();
+	return true;
+}
+
+void ReplyArea::sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot) {
+	const auto errorText = result->getErrorOnSend(history());
+	if (!errorText.isEmpty()) {
+		_controller->uiShow()->showToast(errorText);
+		return;
+	}
+	sendInlineResult(result, bot, {}, std::nullopt);
+}
+
+void ReplyArea::sendInlineResult(
+		not_null<InlineBots::Result*> result,
+		not_null<UserData*> bot,
+		Api::SendOptions options,
+		std::optional<MsgId> localMessageId) {
+	auto action = prepareSendAction(options);
+	action.generateLocal = true;
+	session().api().sendInlineResult(bot, result, action, localMessageId);
+
+	_controls->clear();
+
+	auto &bots = cRefRecentInlineBots();
+	const auto index = bots.indexOf(bot);
+	if (index) {
+		if (index > 0) {
+			bots.removeAt(index);
+		} else if (bots.size() >= RecentInlineBotsLimit) {
+			bots.resize(RecentInlineBotsLimit - 1);
+		}
+		bots.push_front(bot);
+		bot->session().local().writeRecentHashtagsAndBots();
+	}
+	finishSending();
+}
+
 void ReplyArea::finishSending() {
 	_controls->hidePanelsAnimated();
 	_controller->wrap()->setFocus();
@@ -188,12 +281,17 @@ bool ReplyArea::showSendingFilesError(
 	return true;
 }
 
+not_null<History*> ReplyArea::history() const {
+	Expects(_data.user != nullptr);
+
+	return _data.user->owner().history(_data.user);
+}
+
 Api::SendAction ReplyArea::prepareSendAction(
 		Api::SendOptions options) const {
 	Expects(_data.user != nullptr);
 
-	const auto history = _data.user->owner().history(_data.user);
-	auto result = Api::SendAction(history, options);
+	auto result = Api::SendAction(history(), options);
 	result.options.sendAs = _controls->sendAsPeer();
 	result.replyTo.storyId = { .peer = _data.user->id, .story = _data.id };
 	return result;
@@ -402,23 +500,19 @@ void ReplyArea::initActions() {
 	_controls->fileChosen(
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 		_controller->uiShow()->hideLayer();
-		//controller()->sendingAnimation().appendSending(
-		//	data.messageSendingFrom);
-		//const auto localId = data.messageSendingFrom.localId;
-		//sendExistingDocument(data.document, data.options, localId);
+		const auto localId = data.messageSendingFrom.localId;
+		sendExistingDocument(data.document, data.options, localId);
 	}, _lifetime);
 
 	_controls->photoChosen(
 	) | rpl::start_with_next([=](ChatHelpers::PhotoChosen chosen) {
-		//sendExistingPhoto(chosen.photo, chosen.options);
+		sendExistingPhoto(chosen.photo, chosen.options);
 	}, _lifetime);
 
 	_controls->inlineResultChosen(
 	) | rpl::start_with_next([=](ChatHelpers::InlineChosen chosen) {
-		//controller()->sendingAnimation().appendSending(
-		//	chosen.messageSendingFrom);
-		//const auto localId = chosen.messageSendingFrom.localId;
-		//sendInlineResult(chosen.result, chosen.bot, chosen.options, localId);
+		const auto localId = chosen.messageSendingFrom.localId;
+		sendInlineResult(chosen.result, chosen.bot, chosen.options, localId);
 	}, _lifetime);
 
 	_controls->setMimeDataHook([=](

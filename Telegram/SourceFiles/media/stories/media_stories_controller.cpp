@@ -345,7 +345,7 @@ std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
 }
 
 auto Controller::stickerOrEmojiChosen() const
-->rpl::producer<ChatHelpers::FileChosen> {
+-> rpl::producer<ChatHelpers::FileChosen> {
 	return _delegate->storiesStickerOrEmojiChosen();
 }
 
