@@ -564,6 +564,8 @@ public:
 		return _peerThemeOverride.value();
 	}
 
+	void openPeerStories(PeerId peerId);
+
 	struct PaintContextArgs {
 		not_null<Ui::ChatTheme*> theme;
 		int visibleAreaTop = 0;

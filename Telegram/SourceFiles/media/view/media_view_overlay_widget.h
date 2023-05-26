@@ -303,7 +303,7 @@ private:
 		MsgId topicRootId = 0;
 	};
 	struct StoriesContext {
-		not_null<UserData*> user;
+		not_null<PeerData*> peer;
 		StoryId id = 0;
 	};
 	void setContext(std::variant<
@@ -311,7 +311,7 @@ private:
 		ItemContext,
 		not_null<PeerData*>,
 		StoriesContext> context);
-	void setStoriesUser(UserData *user);
+	void setStoriesPeer(PeerData *peer);
 
 	void refreshLang();
 	void showSaveMsgFile();

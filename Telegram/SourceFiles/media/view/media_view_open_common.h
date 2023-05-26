@@ -14,6 +14,10 @@ class PeerData;
 class PhotoData;
 class HistoryItem;
 
+namespace Data {
+class Story;
+} // namespace Data
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -67,6 +71,17 @@ public:
 	, _cloudTheme(cloudTheme) {
 	}
 
+	OpenRequest(
+		Window::SessionController *controller,
+		not_null<Data::Story*> story,
+		bool continueStreaming = false,
+		crl::time startTime = 0)
+	: _controller(controller)
+	, _story(story)
+	, _continueStreaming(continueStreaming)
+	, _startTime(startTime) {
+	}
+
 	[[nodiscard]] PeerData *peer() const {
 		return _peer;
 	}
@@ -85,6 +100,10 @@ public:
 
 	[[nodiscard]] DocumentData *document() const {
 		return _document;
+	}
+
+	[[nodiscard]] Data::Story *story() const {
+		return _story;
 	}
 
 	[[nodiscard]] std::optional<Data::CloudTheme> cloudTheme() const {
@@ -107,6 +126,7 @@ private:
 	Window::SessionController *_controller = nullptr;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
+	Data::Story *_story = nullptr;
 	PeerData *_peer = nullptr;
 	HistoryItem *_item = nullptr;
 	MsgId _topicRootId = 0;

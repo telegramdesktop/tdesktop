@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "data/data_stories.h"
-
 #include "ui/effects/animations.h"
 #include "ui/userpic_view.h"
 
@@ -22,7 +22,7 @@ class Controller;
 struct SiblingView;
 struct SiblingLayout;
 
-class Sibling final {
+class Sibling final : public base::has_weak_ptr {
 public:
 	Sibling(
 		not_null<Controller*> controller,
@@ -42,6 +42,7 @@ private:
 	class LoaderPhoto;
 	class LoaderVideo;
 
+	void checkStory();
 	void check();
 
 	[[nodiscard]] QImage userpicImage(const SiblingLayout &layout);

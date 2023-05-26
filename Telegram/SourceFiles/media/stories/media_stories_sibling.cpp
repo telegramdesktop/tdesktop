@@ -217,28 +217,46 @@ Sibling::Sibling(
 	not_null<Controller*> controller,
 	const Data::StoriesList &list)
 : _controller(controller)
-, _id{ list.user->id, list.items.front().id }
+, _id{ list.user->id, list.ids.front() }
 , _peer(list.user) {
-	const auto &item = list.items.front();
-	const auto &data = item.media.data;
-	const auto origin = Data::FileOrigin();
-	if (const auto video = std::get_if<not_null<DocumentData*>>(&data)) {
-		_loader = std::make_unique<LoaderVideo>((*video), origin, [=] {
-			check();
-		});
-	} else if (const auto photo = std::get_if<not_null<PhotoData*>>(&data)) {
-		_loader = std::make_unique<LoaderPhoto>((*photo), origin, [=] {
-			check();
-		});
-	} else {
-		Unexpected("Media type in stories list.");
-	}
-	_blurred = _loader->blurred();
-	check();
+	checkStory();
 	_goodShown.stop();
 }
 
 Sibling::~Sibling() = default;
+
+void Sibling::checkStory() {
+	const auto maybeStory = _peer->owner().stories().lookup(_id);
+	if (!maybeStory) {
+		if (_blurred.isNull()) {
+			_blurred = QImage(
+				st::storiesMaxSize,
+				QImage::Format_ARGB32_Premultiplied);
+			_blurred.fill(Qt::black);
+
+			if (maybeStory.error() == Data::NoStory::Unknown) {
+				_peer->owner().stories().resolve(_id, crl::guard(this, [=] {
+					checkStory();
+				}));
+			}
+		}
+		return;
+	}
+	const auto story = *maybeStory;
+	const auto &data = story->media().data;
+	const auto origin = Data::FileOrigin();
+	v::match(story->media().data, [&](not_null<PhotoData*> photo) {
+		_loader = std::make_unique<LoaderPhoto>(photo, origin, [=] {
+			check();
+		});
+	}, [&](not_null<DocumentData*> document) {
+		_loader = std::make_unique<LoaderVideo>(document, origin, [=] {
+			check();
+		});
+	});
+	_blurred = _loader->blurred();
+	check();
+}
 
 FullStoryId Sibling::shownId() const {
 	return _id;
@@ -249,9 +267,9 @@ not_null<PeerData*> Sibling::peer() const {
 }
 
 bool Sibling::shows(const Data::StoriesList &list) const {
-	Expects(!list.items.empty());
+	Expects(!list.ids.empty());
 
-	return _id == FullStoryId{ list.user->id, list.items.front().id };
+	return _id == FullStoryId{ list.user->id, list.ids.front() };
 }
 
 SiblingView Sibling::view(const SiblingLayout &layout, float64 over) {

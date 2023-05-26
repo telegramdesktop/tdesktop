@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/power_save_blocker.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
 #include "media/stories/media_stories_caption_full_view.h"
@@ -127,7 +128,9 @@ Controller::Controller(not_null<Delegate*> delegate)
 			focused ? 0. : 1.,
 			focused ? 1. : 0.,
 			st::fadeWrapDuration);
-		togglePaused(focused);
+		if (_started) {
+			togglePaused(focused);
+		}
 	}, _lifetime);
 
 	_contentFadeAnimation.stop();
@@ -344,15 +347,23 @@ void Controller::show(
 		int index,
 		int subindex) {
 	Expects(index >= 0 && index < lists.size());
-	Expects(subindex >= 0 && subindex < lists[index].items.size());
+	Expects(subindex >= 0 && subindex < lists[index].ids.size());
 
 	showSiblings(lists, index);
 
 	const auto &list = lists[index];
-	const auto &item = list.items[subindex];
+	const auto id = list.ids[subindex];
+	const auto maybeStory = list.user->owner().stories().lookup({
+		.peer = list.user->id,
+		.story = id,
+	});
+	if (!maybeStory) {
+		return;
+	}
+	const auto story = *maybeStory;
 	const auto guard = gsl::finally([&] {
 		_started = false;
-		if (v::is<not_null<PhotoData*>>(item.media.data)) {
+		if (story->photo()) {
 			_photoPlayback = std::make_unique<PhotoPlayback>(this);
 		} else {
 			_photoPlayback = nullptr;
@@ -363,20 +374,20 @@ void Controller::show(
 	}
 	_index = subindex;
 
-	const auto id = FullStoryId{
+	const auto storyId = FullStoryId{
 		.peer = list.user->id,
-		.story = item.id,
+		.story = id,
 	};
-	if (_shown == id) {
+	if (_shown == storyId) {
 		return;
 	}
-	_shown = id;
-	_captionText = item.caption;
+	_shown = storyId;
+	_captionText = story->caption();
 	_captionFullView = nullptr;
 
-	_header->show({ .user = list.user, .date = item.date });
+	_header->show({ .user = list.user, .date = story->date() });
 	_slider->show({ .index = _index, .total = list.total });
-	_replyArea->show({ .user = list.user, .id = id.story });
+	_replyArea->show({ .user = list.user, .id = id });
 
 	if (_contentFaded) {
 		togglePaused(true);
@@ -395,7 +406,7 @@ void Controller::showSiblings(
 void Controller::showSibling(
 		std::unique_ptr<Sibling> &sibling,
 		const Data::StoriesList *list) {
-	if (!list || list->items.empty()) {
+	if (!list || list->ids.empty()) {
 		sibling = nullptr;
 	} else if (!sibling || !sibling->shows(*list)) {
 		sibling = std::make_unique<Sibling>(this, *list);
@@ -407,7 +418,7 @@ void Controller::ready() {
 		return;
 	}
 	_started = true;
-	if (_photoPlayback) {
+	if (!_contentFaded && _photoPlayback) {
 		_photoPlayback->togglePaused(false);
 	}
 }
@@ -445,23 +456,23 @@ bool Controller::subjumpFor(int delta) {
 	if (index < 0) {
 		if (_siblingLeft && _siblingLeft->shownId().valid()) {
 			return jumpFor(-1);
-		} else if (!_list || _list->items.empty()) {
+		} else if (!_list || _list->ids.empty()) {
 			return false;
 		}
 		_delegate->storiesJumpTo(&_list->user->session(), {
 			.peer = _list->user->id,
-			.story = _list->items.front().id
+			.story = _list->ids.front()
 		});
 		return true;
 	} else if (index >= _list->total) {
 		return _siblingRight
 			&& _siblingRight->shownId().valid()
 			&& jumpFor(1);
-	} else if (index < _list->items.size()) {
+	} else if (index < _list->ids.size()) {
 		// #TODO stories load more
 		_delegate->storiesJumpTo(&_list->user->session(), {
 			.peer = _list->user->id,
-			.story = _list->items[index].id
+			.story = _list->ids[index]
 		});
 	}
 	return true;

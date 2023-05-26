@@ -49,6 +49,7 @@ public:
 	[[nodiscard]] rpl::producer<> entered() const;
 
 private:
+	struct Layout;
 	struct Item {
 		User user;
 		QImage nameCache;
@@ -106,6 +107,7 @@ private:
 	void validateName(not_null<Item*> item);
 	void updateScrollMax();
 	void updateSummary(Data &data);
+	void updateSelected();
 	void checkDragging();
 	bool finishDragging();
 
@@ -116,6 +118,8 @@ private:
 		Data &data,
 		float64 summaryTop,
 		float64 hidden);
+
+	[[nodiscard]] Layout computeLayout() const;
 
 	Content _content;
 	Data _data;
@@ -133,6 +137,9 @@ private:
 	int _scrollLeft = 0;
 	int _scrollLeftMax = 0;
 	bool _dragging = false;
+
+	int _selected = -1;
+	int _pressed = -1;
 
 };
 

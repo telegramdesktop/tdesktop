@@ -128,13 +128,13 @@ State::State(not_null<Data::Stories*> data)
 
 Content State::next() {
 	auto result = Content();
-#if 0 // #TODO stories testing
+#if 1 // #TODO stories testing
 	const auto &all = _data->all();
 	result.users.reserve(all.size());
 	for (const auto &list : all) {
 		auto userpic = std::shared_ptr<Userpic>();
 		const auto user = list.user;
-#endif
+#else
 	const auto list = _data->owner().chatsList();
 	const auto &all = list->indexed()->all();
 	result.users.reserve(all.size());
@@ -142,6 +142,7 @@ Content State::next() {
 		if (const auto history = entry->history()) {
 			if (const auto user = history->peer->asUser(); user && !user->isBot()) {
 				auto userpic = std::shared_ptr<Userpic>();
+#endif
 		if (const auto i = _userpics.find(user); i != end(_userpics)) {
 			userpic = i->second;
 		} else {
@@ -152,10 +153,14 @@ Content State::next() {
 			.id = uint64(user->id.value),
 			.name = user->shortName(),
 			.userpic = std::move(userpic),
-			.unread = history->chatListBadgesState().unread// list.unread(),
+#if 1 // #TODO stories testing
+			.unread = list.unread(),
+#else
+			.unread = history->chatListBadgesState().unread
 		});
 	}
-		}
+#endif
+		});
 	}
 	return result;
 }
@@ -170,15 +175,16 @@ rpl::producer<Content> ContentForSession(not_null<Main::Session*> session) {
 		rpl::single(
 			rpl::empty
 		) | rpl::then(
-#if 0 // #TODO stories testing
+#if 1 // #TODO stories testing
 			stories->allChanged()
-#endif
+#else
 			rpl::merge(
 				session->data().chatsListChanges(
 				) | rpl::filter(
 					rpl::mappers::_1 == nullptr
 				) | rpl::to_empty,
 				session->data().unreadBadgeChanges())
+#endif
 		) | rpl::start_with_next([=] {
 			consumer.put_next(state->next());
 		}, result);

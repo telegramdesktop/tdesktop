@@ -29,6 +29,20 @@ constexpr auto kSummaryExpandLeft = 1.5;
 
 } // namespace
 
+struct List::Layout {
+	int itemsCount = 0;
+	int shownHeight = 0;
+	float64 ratio = 0.;
+	float64 userpicLeft = 0.;
+	float64 photoLeft = 0.;
+	float64 left = 0.;
+	int startIndexSmall = 0;
+	int endIndexSmall = 0;
+	int startIndexFull = 0;
+	int endIndexFull = 0;
+	int singleFull = 0;
+};
+
 List::List(
 	not_null<QWidget*> parent,
 	rpl::producer<Content> content,
@@ -42,6 +56,7 @@ List::List(
 	}, lifetime());
 
 	_shownAnimation.stop();
+	setMouseTracking(true);
 	resize(0, _data.empty() ? 0 : st::dialogsStoriesFull.height);
 }
 
@@ -214,30 +229,29 @@ void List::resizeEvent(QResizeEvent *e) {
 	updateScrollMax();
 }
 
-void List::paintEvent(QPaintEvent *e) {
+List::Layout List::computeLayout() const {
 	const auto &st = st::dialogsStories;
 	const auto &full = st::dialogsStoriesFull;
 	const auto shownHeight = std::max(_shownHeight(), st.height);
 	const auto ratio = float64(shownHeight - st.height)
 		/ (full.height - st.height);
-	const auto lerp = [=](float64 a, float64 b) {
+	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * ratio;
 	};
 	auto &rendering = _data.empty() ? _hidingData : _data;
-	const auto photo = lerp(st.photo, full.photo);
-	const auto photoTopSmall = (st.height - st.photo) / 2.;
-	const auto photoTop = lerp(photoTopSmall, full.photoTop);
-	const auto line = lerp(st.lineTwice, full.lineTwice) / 2.;
-	const auto lineRead = lerp(st.lineReadTwice, full.lineReadTwice) / 2.;
-	const auto summaryTop = st.nameTop
-		- (st.photoTop + (st.photo / 2.))
-		+ (photoTop + (photo / 2.));
-	const auto singleSmall = st.shift;
 	const auto singleFull = full.photoLeft * 2 + full.photo;
-	const auto single = lerp(singleSmall, singleFull);
 	const auto itemsCount = int(rendering.items.size());
-	const auto leftSmall = st.left;
-	const auto leftFull = full.left - _scrollLeft;
+	const auto narrowWidth = st::defaultDialogRow.padding.left()
+		+ st::defaultDialogRow.photoSize
+		+ st::defaultDialogRow.padding.left();
+	const auto narrow = (width() <= narrowWidth);
+	const auto smallWidth = st.photo + (itemsCount - 1) * st.shift;
+	const auto leftSmall = narrow
+		? ((narrowWidth - smallWidth) / 2 - st.photoLeft)
+		: st.left;
+	const auto leftFull = (narrow
+		? ((narrowWidth - full.photo) / 2 - full.photoLeft)
+		: full.left) - _scrollLeft;
 	const auto startIndexFull = std::max(-leftFull, 0) / singleFull;
 	const auto cellLeftFull = leftFull + (startIndexFull * singleFull);
 	const auto endIndexFull = std::min(
@@ -250,18 +264,51 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto userpicLeftSmall = cellLeftSmall + st.photoLeft;
 	const auto userpicLeft = lerp(userpicLeftSmall, userpicLeftFull);
 	const auto photoLeft = lerp(st.photoLeft, full.photoLeft);
-	const auto left = userpicLeft - photoLeft;
-	const auto nameScale = shownHeight / float64(full.height);
+	return Layout{
+		.itemsCount = itemsCount,
+		.shownHeight = shownHeight,
+		.ratio = ratio,
+		.userpicLeft = userpicLeft,
+		.photoLeft = photoLeft,
+		.left = userpicLeft - photoLeft,
+		.startIndexSmall = startIndexSmall,
+		.endIndexSmall = endIndexSmall,
+		.startIndexFull = startIndexFull,
+		.endIndexFull = endIndexFull,
+		.singleFull = singleFull,
+	};
+}
+
+void List::paintEvent(QPaintEvent *e) {
+	const auto &st = st::dialogsStories;
+	const auto &full = st::dialogsStoriesFull;
+	const auto layout = computeLayout();
+	const auto ratio = layout.ratio;
+	const auto lerp = [&](float64 a, float64 b) {
+		return a + (b - a) * ratio;
+	};
+	auto &rendering = _data.empty() ? _hidingData : _data;
+	const auto line = lerp(st.lineTwice, full.lineTwice) / 2.;
+	const auto lineRead = lerp(st.lineReadTwice, full.lineReadTwice) / 2.;
+	const auto singleSmall = st.shift;
+	const auto single = lerp(singleSmall, layout.singleFull);
+	const auto photoTopSmall = (st.height - st.photo) / 2.;
+	const auto photoTop = lerp(photoTopSmall, full.photoTop);
+	const auto photo = lerp(st.photo, full.photo);
+	const auto summaryTop = st.nameTop
+		- (st.photoTop + (st.photo / 2.))
+		+ (photoTop + (photo / 2.));
+	const auto nameScale = layout.shownHeight / float64(full.height);
 	const auto nameTop = nameScale * full.nameTop;
 	const auto nameWidth = nameScale * AvailableNameWidth();
 	const auto nameHeight = nameScale * full.nameStyle.font->height;
-	const auto nameLeft = photoLeft + (photo - nameWidth) / 2.;
+	const auto nameLeft = layout.photoLeft + (photo - nameWidth) / 2.;
 	const auto readUserpicOpacity = lerp(kSmallReadOpacity, 1.);
 	const auto readUserpicAppearingOpacity = lerp(kSmallReadOpacity, 0.);
 
 	auto p = QPainter(this);
 	p.fillRect(e->rect(), st::dialogsBg);
-	p.translate(0, height() - shownHeight);
+	p.translate(0, height() - layout.shownHeight);
 
 	const auto drawSmall = (ratio < 1.);
 	const auto drawFull = (ratio > 0.);
@@ -270,8 +317,8 @@ void List::paintEvent(QPaintEvent *e) {
 	paintSummary(p, rendering, summaryTop, ratio);
 
 	const auto count = std::max(
-		endIndexFull - startIndexFull,
-		endIndexSmall - startIndexSmall);
+		layout.endIndexFull - layout.startIndexFull,
+		layout.endIndexSmall - layout.startIndexSmall);
 
 	struct Single {
 		float64 x = 0.;
@@ -285,15 +332,15 @@ void List::paintEvent(QPaintEvent *e) {
 		}
 	};
 	const auto lookup = [&](int index) {
-		const auto indexSmall = startIndexSmall + index;
-		const auto indexFull = startIndexFull + index;
-		const auto small = (drawSmall && indexSmall < endIndexSmall)
+		const auto indexSmall = layout.startIndexSmall + index;
+		const auto indexFull = layout.startIndexFull + index;
+		const auto small = (drawSmall && indexSmall < layout.endIndexSmall)
 			? &rendering.items[indexSmall]
 			: nullptr;
-		const auto full = (drawFull && indexFull < endIndexFull)
+		const auto full = (drawFull && indexFull < layout.endIndexFull)
 			? &rendering.items[indexFull]
 			: nullptr;
-		const auto x = left + single * index;
+		const auto x = layout.left + single * index;
 		return Single{ x, indexSmall, small, indexFull, full };
 	};
 	const auto hasUnread = [&](const Single &single) {
@@ -334,7 +381,7 @@ void List::paintEvent(QPaintEvent *e) {
 
 		// Unread gradient.
 		const auto x = single.x;
-		const auto userpic = QRectF(x + photoLeft, photoTop, photo, photo);
+		const auto userpic = QRectF(x + layout.photoLeft, photoTop, photo, photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
 		const auto smallUnread = small && small->user.unread;
@@ -367,7 +414,7 @@ void List::paintEvent(QPaintEvent *e) {
 		Expects(single.itemSmall || single.itemFull);
 
 		const auto x = single.x;
-		const auto userpic = QRectF(x + photoLeft, photoTop, photo, photo);
+		const auto userpic = QRectF(x + layout.photoLeft, photoTop, photo, photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
 		const auto smallUnread = small && small->user.unread;
@@ -549,7 +596,7 @@ void List::wheelEvent(QWheelEvent *e) {
 	if (next != now) {
 		_expandRequests.fire({});
 		_scrollLeft = next;
-		//updateSelected();
+		updateSelected();
 		update();
 	}
 	e->accept();
@@ -559,13 +606,16 @@ void List::mousePressEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
 		return;
 	}
-	_mouseDownPosition = _lastMousePosition = e->globalPos();
-	//updateSelected();
+	_lastMousePosition = e->globalPos();
+	updateSelected();
+
+	_mouseDownPosition = _lastMousePosition;
+	_pressed = _selected;
 }
 
 void List::mouseMoveEvent(QMouseEvent *e) {
 	_lastMousePosition = e->globalPos();
-	//updateSelected();
+	updateSelected();
 
 	if (!_dragging && _mouseDownPosition) {
 		if ((_lastMousePosition - *_mouseDownPosition).manhattanLength()
@@ -601,11 +651,18 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 		_mouseDownPosition = std::nullopt;
 	});
 
-	//const auto wasDown = std::exchange(_pressed, SpecialOver::None);
+	const auto pressed = std::exchange(_pressed, -1);
 	if (finishDragging()) {
 		return;
 	}
-	//updateSelected();
+	updateSelected();
+	if (_selected == pressed) {
+		if (_selected < 0) {
+			_expandRequests.fire({});
+		} else if (_selected < _data.items.size()) {
+			_clicks.fire_copy(_data.items[_selected].user.id);
+		}
+	}
 }
 
 bool List::finishDragging() {
@@ -614,8 +671,62 @@ bool List::finishDragging() {
 	}
 	checkDragging();
 	_dragging = false;
-	//updateSelected();
+	updateSelected();
 	return true;
+}
+
+void List::updateSelected() {
+	if (_pressed >= 0) {
+		return;
+	}
+	const auto &st = st::dialogsStories;
+	const auto &full = st::dialogsStoriesFull;
+	const auto p = mapFromGlobal(_lastMousePosition);
+	const auto layout = computeLayout();
+	const auto firstRightFull = full.left + layout.singleFull;
+	const auto firstRightSmall = st.left
+		+ st.photoLeft
+		+ st.photo;
+	const auto stepFull = layout.singleFull;
+	const auto stepSmall = st.shift;
+	const auto lastRightAddFull = 0;
+	const auto lastRightAddSmall = st.photoLeft;
+	const auto lerp = [&](float64 a, float64 b) {
+		return a + (b - a) * layout.ratio;
+	};
+	const auto firstRight = lerp(firstRightSmall, firstRightFull);
+	const auto step = lerp(stepSmall, stepFull);
+	const auto lastRightAdd = lerp(lastRightAddSmall, lastRightAddFull);
+	const auto activateFull = (layout.ratio >= 0.5);
+	const auto startIndex = activateFull
+		? layout.startIndexFull
+		: layout.startIndexSmall;
+	const auto endIndex = activateFull
+		? layout.endIndexFull
+		: layout.endIndexSmall;
+	const auto x = p.x();
+	const auto infiniteIndex = (x < firstRight)
+		? 0
+		: int(std::floor(((x - firstRight) / step) + 1));
+	const auto index = (endIndex == startIndex)
+		? -1
+		: (infiniteIndex == endIndex - startIndex
+			&& x < firstRight
+				+ (endIndex - startIndex - 1) * step
+				+ lastRightAdd)
+		? (infiniteIndex - 1) // Last small part should still be clickable.
+		: infiniteIndex;
+	const auto selected = (index < 0
+		|| startIndex + index >= layout.itemsCount)
+		? -1
+		: (startIndex + index);
+	if (_selected != selected) {
+		const auto over = (selected >= 0);
+		if (over != (_selected >= 0)) {
+			setCursor(over ? style::cur_pointer : style::cur_default);
+		}
+		_selected = selected;
+	}
 }
 
 } // namespace Dialogs::Stories

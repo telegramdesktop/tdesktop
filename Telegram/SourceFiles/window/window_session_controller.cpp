@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
+#include "data/data_stories.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -2461,6 +2462,22 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 		.generateGradient = generateGradient,
 		.gradientRotation = gradientRotation,
 	};
+}
+
+void SessionController::openPeerStories(PeerId peerId) {
+	using namespace Media::View;
+	using namespace Data;
+
+	auto &stories = session().data().stories();
+	const auto &all = stories.all();
+	const auto i = ranges::find(all, peerId, [](const StoriesList &list) {
+		return list.user->id;
+	});
+	if (i != end(all) && !i->ids.empty()) {
+		if (const auto from = stories.lookup({ peerId, i->ids.front() })) {
+			window().openInMediaView(OpenRequest(this, *from));
+		}
+	}
 }
 
 HistoryView::PaintContext SessionController::preparePaintContext(

@@ -7,16 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/expected.h"
+
 class PhotoData;
 class DocumentData;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Data {
 
 class Session;
-
-struct StoryPrivacy {
-	friend inline bool operator==(StoryPrivacy, StoryPrivacy) = default;
-};
 
 struct StoryMedia {
 	std::variant<not_null<PhotoData*>, not_null<DocumentData*>> data;
@@ -24,26 +26,56 @@ struct StoryMedia {
 	friend inline bool operator==(StoryMedia, StoryMedia) = default;
 };
 
-struct StoryItem {
-	StoryId id = 0;
-	StoryMedia media;
-	TextWithEntities caption;
-	TimeId date = 0;
-	StoryPrivacy privacy;
-	bool pinned = false;
+class Story {
+public:
+	Story(
+		StoryId id,
+		not_null<PeerData*> peer,
+		StoryMedia media,
+		TimeId date);
 
-	friend inline bool operator==(StoryItem, StoryItem) = default;
+	[[nodiscard]] Session &owner() const;
+	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] not_null<PeerData*> peer() const;
+
+	[[nodiscard]] StoryId id() const;
+	[[nodiscard]] TimeId date() const;
+	[[nodiscard]] const StoryMedia &media() const;
+	[[nodiscard]] PhotoData *photo() const;
+	[[nodiscard]] DocumentData *document() const;
+
+	void setPinned(bool pinned);
+	[[nodiscard]] bool pinned() const;
+
+	void setCaption(TextWithEntities &&caption);
+	[[nodiscard]] const TextWithEntities &caption() const;
+
+	void apply(const MTPDstoryItem &data);
+
+private:
+	const StoryId _id = 0;
+	const not_null<PeerData*> _peer;
+	const StoryMedia _media;
+	TextWithEntities _caption;
+	const TimeId _date = 0;
+	bool _pinned = false;
+
 };
 
 struct StoriesList {
 	not_null<UserData*> user;
-	std::vector<StoryItem> items;
+	std::vector<StoryId> ids;
 	StoryId readTill = 0;
 	int total = 0;
 
 	[[nodiscard]] bool unread() const;
 
 	friend inline bool operator==(StoriesList, StoriesList) = default;
+};
+
+enum class NoStory : uchar {
+	Unknown,
+	Deleted,
 };
 
 class Stories final {
@@ -60,22 +92,24 @@ public:
 	[[nodiscard]] bool allLoaded() const;
 	[[nodiscard]] rpl::producer<> allChanged() const;
 
-	// #TODO stories testing
-	[[nodiscard]] StoryId generate(
-		not_null<HistoryItem*> item,
-		std::variant<
-			v::null_t,
-			not_null<PhotoData*>,
-			not_null<DocumentData*>> media);
+	[[nodiscard]] base::expected<not_null<Story*>, NoStory> lookup(
+		FullStoryId id) const;
+	void resolve(FullStoryId id, Fn<void()> done);
 
 private:
 	[[nodiscard]] StoriesList parse(const MTPUserStories &stories);
-	[[nodiscard]] std::optional<StoryItem> parse(const MTPDstoryItem &data);
+	[[nodiscard]] Story *parse(
+		not_null<PeerData*> peer,
+		const MTPDstoryItem &data);
 
 	void pushToBack(StoriesList &&list);
 	void pushToFront(StoriesList &&list);
 
 	const not_null<Session*> _owner;
+	base::flat_map<
+		PeerId,
+		base::flat_map<StoryId, std::unique_ptr<Story>>> _stories;
+	base::flat_set<FullStoryId> _deleted;
 
 	std::vector<StoriesList> _all;
 	rpl::event_stream<> _allChanged;

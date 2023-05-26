@@ -3036,8 +3036,9 @@ void OverlayWidget::activate() {
 }
 
 void OverlayWidget::show(OpenRequest request) {
-	const auto document = request.document();
-	const auto photo = request.photo();
+	const auto story = request.story();
+	const auto document = story ? story->document() : request.document();
+	const auto photo = story ? story->photo() : request.photo();
 	const auto contextItem = request.item();
 	const auto contextPeer = request.peer();
 	const auto contextTopicRootId = request.topicRootId();
@@ -3057,15 +3058,9 @@ void OverlayWidget::show(OpenRequest request) {
 		}
 		setSession(&photo->session());
 
-		// #TODO stories testing
-		if (const auto storyId = (!contextPeer && contextItem)
-			? contextItem->history()->owner().stories().generate(
-				contextItem,
-				photo)
-			: StoryId()) {
-			setContext(StoriesContext{ contextItem->from()->asUser(), storyId });
-		} else
-		if (contextPeer) {
+		if (story) {
+			setContext(StoriesContext{ story->peer(), story->id() });
+		} else if (contextPeer) {
 			setContext(contextPeer);
 		} else if (contextItem) {
 			setContext(ItemContext{ contextItem, contextTopicRootId });
@@ -3083,15 +3078,9 @@ void OverlayWidget::show(OpenRequest request) {
 	} else if (document) {
 		setSession(&document->session());
 
-		// #TODO stories testing
-		if (const auto storyId = contextItem
-			? contextItem->history()->owner().stories().generate(
-				contextItem,
-				document)
-			: StoryId()) {
-			setContext(StoriesContext{ contextItem->from()->asUser(), storyId });
-		} else
-		if (contextItem) {
+		if (story) {
+			setContext(StoriesContext{ story->peer(), story->id() });
+		} else if (contextItem) {
 			setContext(ItemContext{ contextItem, contextTopicRootId });
 		} else {
 			setContext(v::null);
@@ -4034,30 +4023,20 @@ void OverlayWidget::storiesJumpTo(
 	Expects(_stories != nullptr);
 	Expects(id.valid());
 
-	const auto &all = session->data().stories().all();
-	const auto i = ranges::find(
-		all,
-		id.peer,
-		[](const Data::StoriesList &list) { return list.user->id; });
-	if (i == end(all)) {
+	const auto maybeStory = session->data().stories().lookup(id);
+	if (!maybeStory) {
 		close();
 		return;
 	}
-	const auto j = ranges::find(i->items, id.story, &Data::StoryItem::id);
-	if (j == end(i->items)) {
-		close();
-		return;
-	}
-	setContext(StoriesContext{ i->user, id.story });
+	const auto story = *maybeStory;
+	setContext(StoriesContext{ story->peer(), story->id() });
 	clearStreaming();
 	_streamingStartPaused = false;
-	const auto &data = j->media.data;
-	const auto activation = anim::activation::background;
-	if (const auto photo = std::get_if<not_null<PhotoData*>>(&data)) {
-		displayPhoto(*photo, activation);
-	} else {
-		displayDocument(v::get<not_null<DocumentData*>>(data), activation);
-	}
+	v::match(story->media().data, [&](not_null<PhotoData*> photo) {
+		displayPhoto(photo, anim::activation::background);
+	}, [&](not_null<DocumentData*> document) {
+		displayDocument(document, anim::activation::background);
+	});
 }
 
 void OverlayWidget::storiesClose() {
@@ -4976,36 +4955,33 @@ void OverlayWidget::setContext(
 		_history = _message->history();
 		_peer = _history->peer;
 		_topicRootId = _peer->isForum() ? item->topicRootId : MsgId();
-		setStoriesUser(nullptr);
+		setStoriesPeer(nullptr);
 	} else if (const auto peer = std::get_if<not_null<PeerData*>>(&context)) {
 		_peer = *peer;
 		_history = _peer->owner().history(_peer);
 		_message = nullptr;
 		_topicRootId = MsgId();
-		setStoriesUser(nullptr);
+		setStoriesPeer(nullptr);
 	} else if (const auto story = std::get_if<StoriesContext>(&context)) {
 		_message = nullptr;
 		_topicRootId = MsgId();
 		_history = nullptr;
 		_peer = nullptr;
-		const auto &all = story->user->owner().stories().all();
+		const auto &all = story->peer->owner().stories().all();
 		const auto i = ranges::find(
 			all,
-			story->user,
+			story->peer,
 			&Data::StoriesList::user);
 		Assert(i != end(all));
-		const auto j = ranges::find(
-			i->items,
-			story->id,
-			&Data::StoryItem::id);
-		setStoriesUser(story->user);
-		_stories->show(all, (i - begin(all)), j - begin(i->items));
+		const auto j = ranges::find(i->ids, story->id);
+		setStoriesPeer(story->peer);
+		_stories->show(all, (i - begin(all)), j - begin(i->ids));
 	} else {
 		_message = nullptr;
 		_topicRootId = MsgId();
 		_history = nullptr;
 		_peer = nullptr;
-		setStoriesUser(nullptr);
+		setStoriesPeer(nullptr);
 	}
 	_migrated = nullptr;
 	if (_history) {
@@ -5020,11 +4996,11 @@ void OverlayWidget::setContext(
 	_user = _peer ? _peer->asUser() : nullptr;
 }
 
-void OverlayWidget::setStoriesUser(UserData *user) {
-	const auto session = user ? &user->session() : nullptr;
+void OverlayWidget::setStoriesPeer(PeerData *peer) {
+	const auto session = peer ? &peer->session() : nullptr;
 	if (!session && !_storiesSession) {
 		Assert(!_stories);
-	} else if (!user) {
+	} else if (!peer) {
 		_stories = nullptr;
 		_storiesSession = nullptr;
 		_storiesChanged.fire({});
@@ -5099,14 +5075,6 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 	if (v::is_null(entity.data) && !entity.item) {
 		return false;
 	}
-	// #TODO stories testing
-	if (const auto storyId = entity.item
-		? entity.item->history()->owner().stories().generate(
-			entity.item,
-			entity.data)
-		: StoryId()) {
-		setContext(StoriesContext{ entity.item->from()->asUser(), storyId });
-	} else
 	if (const auto item = entity.item) {
 		setContext(ItemContext{ item, entity.topicRootId });
 	} else if (_peer) {
@@ -5765,7 +5733,7 @@ void OverlayWidget::clearBeforeHide() {
 	_collage = nullptr;
 	_collageData = std::nullopt;
 	clearStreaming();
-	setStoriesUser(nullptr);
+	setStoriesPeer(nullptr);
 	_layerBg->hideAll(anim::type::instant);
 	assignMediaPointer(nullptr);
 	_preloadPhotos.clear();

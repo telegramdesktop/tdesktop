@@ -26,7 +26,78 @@ namespace {
 } // namespace
 
 bool StoriesList::unread() const {
-	return !items.empty() && readTill < items.front().id;
+	return !ids.empty() && readTill < ids.front();
+}
+
+Story::Story(
+	StoryId id,
+	not_null<PeerData*> peer,
+	StoryMedia media,
+	TimeId date)
+: _id(id)
+, _peer(peer)
+, _media(std::move(media))
+, _date(date) {
+}
+
+Session &Story::owner() const {
+	return _peer->owner();
+}
+
+Main::Session &Story::session() const {
+	return _peer->session();
+}
+
+not_null<PeerData*> Story::peer() const {
+	return _peer;
+}
+
+StoryId Story::id() const {
+	return _id;
+}
+
+TimeId Story::date() const {
+	return _date;
+}
+
+const StoryMedia &Story::media() const {
+	return _media;
+}
+
+PhotoData *Story::photo() const {
+	const auto result = std::get_if<not_null<PhotoData*>>(&_media.data);
+	return result ? result->get() : nullptr;
+}
+
+DocumentData *Story::document() const {
+	const auto result = std::get_if<not_null<DocumentData*>>(&_media.data);
+	return result ? result->get() : nullptr;
+}
+
+void Story::setPinned(bool pinned) {
+	_pinned = pinned;
+}
+
+bool Story::pinned() const {
+	return _pinned;
+}
+
+void Story::setCaption(TextWithEntities &&caption) {
+	_caption = std::move(caption);
+}
+
+const TextWithEntities &Story::caption() const {
+	return _caption;
+}
+
+void Story::apply(const MTPDstoryItem &data) {
+	_pinned = data.is_pinned();
+	_caption = TextWithEntities{
+		data.vcaption().value_or_empty(),
+		Api::EntitiesFromMTP(
+			&owner().session(),
+			data.ventities().value_or_empty()),
+	};
 }
 
 Stories::Stories(not_null<Session*> owner) : _owner(owner) {
@@ -41,6 +112,7 @@ Session &Stories::owner() const {
 
 void Stories::apply(const MTPDupdateStories &data) {
 	pushToFront(parse(data.vstories()));
+	_allChanged.fire({});
 }
 
 StoriesList Stories::parse(const MTPUserStories &stories) {
@@ -54,25 +126,36 @@ StoriesList Stories::parse(const MTPUserStories &stories) {
 		.total = count,
 	};
 	const auto &list = data.vstories().v;
-	result.items.reserve(list.size());
+	result.ids.reserve(list.size());
 	for (const auto &story : list) {
 		story.match([&](const MTPDstoryItem &data) {
-			if (auto entry = parse(data)) {
-				result.items.push_back(std::move(*entry));
+			if (const auto story = parse(result.user, data)) {
+				result.ids.push_back(story->id());
 			} else {
 				--result.total;
 			}
-		}, [&](const MTPDstoryItemSkipped &) {
-		}, [&](const MTPDstoryItemDeleted &) {
+		}, [&](const MTPDstoryItemSkipped &data) {
+			result.ids.push_back(data.vid().v);
+		}, [&](const MTPDstoryItemDeleted &data) {
+			_deleted.emplace(FullStoryId{
+				.peer = peerFromUser(userId),
+				.story = data.vid().v,
+			});
 			--result.total;
 		});
 	}
-	result.total = std::min(result.total, int(result.items.size()));
+	result.total = std::max(result.total, int(result.ids.size()));
 	return result;
 }
 
-std::optional<StoryItem> Stories::parse(const MTPDstoryItem &data) {
+Story *Stories::parse(not_null<PeerData*> peer, const MTPDstoryItem &data) {
 	const auto id = data.vid().v;
+	auto &stories = _stories[peer->id];
+	const auto i = stories.find(id);
+	if (i != end(stories)) {
+		i->second->apply(data);
+		return i->second.get();
+	}
 	using MaybeMedia = std::optional<
 		std::variant<not_null<PhotoData*>, not_null<DocumentData*>>>;
 	const auto media = data.vmedia().match([&](
@@ -95,24 +178,15 @@ std::optional<StoryItem> Stories::parse(const MTPDstoryItem &data) {
 		return {};
 	}, [](const auto &) { return MaybeMedia(); });
 	if (!media) {
-		return {};
+		return nullptr;
 	}
-	auto caption = TextWithEntities{
-		data.vcaption().value_or_empty(),
-		Api::EntitiesFromMTP(
-			&_owner->session(),
-			data.ventities().value_or_empty()),
-	};
-	auto privacy = StoryPrivacy();
-
-	const auto date = data.vdate().v;
-	return StoryItem{
-		.id = data.vid().v,
-		.media = { *media },
-		.caption = std::move(caption),
-		.date = date,
-		.privacy = privacy,
-	};
+	const auto result = stories.emplace(id, std::make_unique<Story>(
+		id,
+		peer,
+		StoryMedia{ *media },
+		data.vdate().v)).first->second.get();
+	result->apply(data);
+	return result;
 }
 
 void Stories::loadMore() {
@@ -134,6 +208,7 @@ void Stories::loadMore() {
 			for (const auto &single : data.vuser_stories().v) {
 				pushToBack(parse(single));
 			}
+			_allChanged.fire({});
 		}, [](const MTPDstories_allStoriesNotModified &) {
 		});
 	}).fail([=] {
@@ -153,96 +228,20 @@ rpl::producer<> Stories::allChanged() const {
 	return _allChanged.events();
 }
 
-// #TODO stories testing
-StoryId Stories::generate(
-	not_null<HistoryItem*> item,
-	std::variant<
-		v::null_t,
-		not_null<PhotoData*>,
-		not_null<DocumentData*>> media) {
-	if (v::is_null(media)
-		|| !item->from()->isUser()
-		|| !item->isRegular()) {
-		return {};
+base::expected<not_null<Story*>, NoStory> Stories::lookup(
+		FullStoryId id) const {
+	const auto i = _stories.find(id.peer);
+	if (i != end(_stories)) {
+		const auto j = i->second.find(id.story);
+		if (j != end(i->second)) {
+			return j->second.get();
+		}
 	}
-	const auto document = v::is<not_null<DocumentData*>>(media)
-		? v::get<not_null<DocumentData*>>(media).get()
-		: nullptr;
-	if (document && !document->isVideoFile()) {
-		return {};
-	}
-	using namespace Storage;
-	auto resultId = StoryId();
-	const auto listType = SharedMediaType::PhotoVideo;
-	const auto itemId = item->id;
-	const auto peer = item->history()->peer;
-	const auto session = &peer->session();
-	auto full = std::vector<StoriesList>();
-	const auto lifetime = session->storage().query(SharedMediaQuery(
-		SharedMediaKey(peer->id, MsgId(0), listType, itemId),
-		32,
-		32
-	)) | rpl::start_with_next([&](SharedMediaResult &&result) {
-		if (!result.messageIds.contains(itemId)) {
-			result.messageIds.emplace(itemId);
-		}
-		auto index = StoryId();
-		const auto owner = &peer->owner();
-		for (const auto id : result.messageIds) {
-			if (const auto item = owner->message(peer, id)) {
-				const auto user = item->from()->asUser();
-				if (!user) {
-					continue;
-				}
-				const auto i = ranges::find(
-					full,
-					not_null(user),
-					&StoriesList::user);
-				auto &stories = (i == end(full))
-					? full.emplace_back(StoriesList{ .user = user })
-					: *i;
-				if (id == itemId) {
-					resultId = ++index;
-					stories.items.push_back({
-						.id = resultId,
-						.media = (document
-							? StoryMedia{ not_null(document) }
-							: StoryMedia{
-								v::get<not_null<PhotoData*>>(media) }),
-						.caption = item->originalText(),
-						.date = item->date(),
-					});
-					++stories.total;
-				} else if (const auto media = item->media()) {
-					const auto photo = media->photo();
-					const auto document = media->document();
-					if (photo || (document && document->isVideoFile())) {
-						stories.items.push_back({
-							.id = ++index,
-							.media = (document
-								? StoryMedia{ not_null(document) }
-								: StoryMedia{ not_null(photo) }),
-							.caption = item->originalText(),
-							.date = item->date(),
-						});
-						++stories.total;
-					}
-				}
-			}
-		}
-		for (auto &stories : full) {
-			const auto i = ranges::find(
-				_all,
-				stories.user,
-				&StoriesList::user);
-			if (i != end(_all)) {
-				*i = std::move(stories);
-			} else {
-				_all.push_back(std::move(stories));
-			}
-		}
-	});
-	return resultId;
+	return base::make_unexpected(
+		_deleted.contains(id) ? NoStory::Deleted : NoStory::Unknown);
+}
+
+void Stories::resolve(FullStoryId id, Fn<void()> done) {
 }
 
 void Stories::pushToBack(StoriesList &&list) {
@@ -255,7 +254,6 @@ void Stories::pushToBack(StoriesList &&list) {
 	} else {
 		_all.push_back(std::move(list));
 	}
-	_allChanged.fire({});
 }
 
 void Stories::pushToFront(StoriesList &&list) {

@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "data/data_stories.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_send_action.h"
 #include "base/unixtime.h"
@@ -335,6 +336,11 @@ InnerWidget::InnerWidget(
 		clearSelection();
 	}, lifetime());
 
+	_stories->clicks(
+	) | rpl::start_with_next([=](uint64 id) {
+		_controller->openPeerStories(PeerId(int64(id)));
+	}, lifetime());
+
 	handleChatListEntryRefreshes();
 
 	refreshWithCollapsedRows(true);
@@ -590,6 +596,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	if (_controller->contentOverlapped(this, e)) {
 		return;
 	}
+	const auto fillGuard = gsl::finally([&] {
+		// We translate painter down, but it'll be cropped below rect.
+		p.fillRect(rect(), st::dialogsBg);
+	});
+
 	const auto activeEntry = _controller->activeChatEntryCurrent();
 	const auto videoPaused = _controller->isGifPausedAtLeastFor(
 		Window::GifPauseReason::Any);
