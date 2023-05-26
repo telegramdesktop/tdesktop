@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "statistics/linear_chart_view.h"
 #include "ui/abstract_button.h"
+#include "ui/effects/animation_value_f.h"
 #include "ui/rect.h"
 #include "styles/style_boxes.h"
 
@@ -132,6 +133,10 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 					_start.leftLimit,
 					_start.rightLimit);
 				side->move(nextX, side->y());
+				_xPercentageLimitsChange.fire({
+					.min = _left->x() / float64(width()),
+					.max = rect::right(_right) / float64(width()),
+				});
 			} break;
 			case QEvent::MouseButtonPress: {
 				_start.x = pos.x();
@@ -181,25 +186,26 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
+				{},
 				limits,
+				1.,
 				_footer->rect());
 		}
 	}, _footer->lifetime());
-	_footer->xPercentageLimitsChange(
-	) | rpl::start_with_next([=](Limits xPercentageLimits) {
-		_xPercentageLimits = {
-			.min = *ranges::lower_bound(
-				_chartData.xPercentage,
-				xPercentageLimits.min),
-			.max = *ranges::lower_bound(
-				_chartData.xPercentage,
-				xPercentageLimits.max),
-		};
+
+	_xPercentage.animation.init([=] {
+		const auto progress = (crl::now() - _xPercentage.lastUserInteracted)
+			/ float64(400.);
+		_xPercentage.progress = progress;
+		if (progress > 1.) {
+			_xPercentage.animation.stop();
+			_xPercentage.was = _xPercentage.now;
+		}
 		const auto startXIndex = _chartData.findStartIndex(
-			_xPercentageLimits.min);
+			_xPercentage.now.min);
 		const auto endXIndex = _chartData.findEndIndex(
 			startXIndex,
-			_xPercentageLimits.max);
+			_xPercentage.now.max);
 		setHeightLimits(
 			{
 				float64(FindMinValue(_chartData, startXIndex, endXIndex)),
@@ -207,6 +213,41 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			},
 			false);
 		update();
+	});
+
+	_footer->xPercentageLimitsChange(
+	) | rpl::start_with_next([=](Limits xPercentageLimits) {
+		if (!_xPercentage.animation.animating()) {
+			_xPercentage.animation.start();
+			// _xPercentage.was = base::take(_xPercentage.now);
+		}
+		_xPercentage.now = xPercentageLimits;
+		_xPercentage.lastUserInteracted = crl::now();
+		// _xPercentage.animation.stop();
+		// const auto was = _xPercentageLimits;
+		// const auto now = xPercentageLimits;
+		// _xPercentage.animation.start([=](float64 value) {
+		// 	_xPercentageLimits = {
+		// 		.min = *ranges::lower_bound(
+		// 			_chartData.xPercentage,
+		// 			anim::interpolateF(was.min, now.min, value)),
+		// 		.max = *ranges::lower_bound(
+		// 			_chartData.xPercentage,
+		// 			anim::interpolateF(was.max, now.max, value)),
+		// 	};
+		// 	const auto startXIndex = _chartData.findStartIndex(
+		// 		_xPercentageLimits.min);
+		// 	const auto endXIndex = _chartData.findEndIndex(
+		// 		startXIndex,
+		// 		_xPercentageLimits.max);
+		// 	setHeightLimits(
+		// 		{
+		// 			float64(FindMinValue(_chartData, startXIndex, endXIndex)),
+		// 			float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
+		// 		},
+		// 		false);
+		// 	update();
+		// }, 0., 1., 400);
 	}, _footer->lifetime());
 	resize(width(), st::confirmMaxHeight + st::countryRowHeight * 2);
 }
@@ -216,6 +257,10 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 
 	{
 		_xPercentageLimits = {
+			.min = _chartData.xPercentage.front(),
+			.max = _chartData.xPercentage.back(),
+		};
+		_xPercentage.now = {
 			.min = _chartData.xPercentage.front(),
 			.max = _chartData.xPercentage.back(),
 		};
@@ -255,7 +300,9 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 		Statistic::PaintLinearChartView(
 			p,
 			_chartData,
-			_xPercentageLimits,
+			_xPercentage.was,
+			_xPercentage.now,
+			_xPercentage.progress,
 			chartRect);
 	}
 

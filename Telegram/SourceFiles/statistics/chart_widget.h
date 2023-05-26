@@ -41,6 +41,13 @@ private:
 	Limits _startFromH;
 
 	Limits _xPercentageLimits;
+	struct {
+		Limits was;
+		Limits now;
+		Ui::Animations::Basic animation;
+		crl::time lastUserInteracted = 0;
+		float64 progress = 0.;
+	} _xPercentage;
 
 	float64 _minMaxUpdateStep = 0.;
 
