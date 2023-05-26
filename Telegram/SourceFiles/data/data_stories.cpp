@@ -31,6 +31,31 @@ constexpr auto kMaxResolveTogether = 100;
 
 using UpdateFlag = StoryUpdate::Flag;
 
+std::optional<StoryMedia> ParseMedia(
+		not_null<Session*> owner,
+		const MTPMessageMedia &media) {
+	return media.match([&](const MTPDmessageMediaPhoto &data)
+	-> std::optional<StoryMedia> {
+		if (const auto photo = data.vphoto()) {
+			const auto result = owner->processPhoto(*photo);
+			if (!result->isNull()) {
+				return StoryMedia{ result };
+			}
+		}
+		return {};
+	}, [&](const MTPDmessageMediaDocument &data)
+	-> std::optional<StoryMedia> {
+		if (const auto document = data.vdocument()) {
+			const auto result = owner->processDocument(*document);
+			if (!result->isNull()
+				&& (result->isGifv() || result->isVideoFile())) {
+				return StoryMedia{ result };
+			}
+		}
+		return {};
+	}, [](const auto &) { return std::optional<StoryMedia>(); });
+}
+
 } // namespace
 
 bool StoriesList::unread() const {
@@ -109,7 +134,7 @@ Image *Story::replyPreview() const {
 }
 
 TextWithEntities Story::inReplyText() const {
-	const auto type = u"Story"_q;
+	const auto type = tr::lng_in_dlg_story(tr::now);
 	return _caption.text.isEmpty()
 		? Ui::Text::PlainLink(type)
 		: tr::lng_dialogs_text_media(
@@ -141,14 +166,24 @@ const TextWithEntities &Story::caption() const {
 	return _caption;
 }
 
-void Story::apply(const MTPDstoryItem &data) {
-	_pinned = data.is_pinned();
-	_caption = TextWithEntities{
+bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
+	const auto pinned = data.is_pinned();
+	auto caption = TextWithEntities{
 		data.vcaption().value_or_empty(),
 		Api::EntitiesFromMTP(
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
+	const auto changed = (_media != media)
+		|| (_pinned != pinned)
+		|| (_caption != caption);
+	if (!changed) {
+		return false;
+	}
+	_media = std::move(media);
+	_pinned = pinned;
+	_caption = std::move(caption);
+	return true;
 }
 
 Stories::Stories(not_null<Session*> owner) : _owner(owner) {
@@ -184,9 +219,10 @@ StoriesList Stories::parse(const MTPUserStories &stories) {
 	result.ids.reserve(list.size());
 	for (const auto &story : list) {
 		story.match([&](const MTPDstoryItem &data) {
-			if (const auto story = parse(result.user, data)) {
+			if (const auto story = parseAndApply(result.user, data)) {
 				result.ids.push_back(story->id());
 			} else {
+				applyDeleted({ peerFromUser(userId), data.vid().v });
 				--result.total;
 			}
 		}, [&](const MTPDstoryItemSkipped &data) {
@@ -200,44 +236,30 @@ StoriesList Stories::parse(const MTPUserStories &stories) {
 	return result;
 }
 
-Story *Stories::parse(not_null<PeerData*> peer, const MTPDstoryItem &data) {
+Story *Stories::parseAndApply(
+		not_null<PeerData*> peer,
+		const MTPDstoryItem &data) {
+	const auto media = ParseMedia(_owner, data.vmedia());
+	if (!media) {
+		return nullptr;
+	}
 	const auto id = data.vid().v;
 	auto &stories = _stories[peer->id];
 	const auto i = stories.find(id);
 	if (i != end(stories)) {
-		i->second->apply(data);
+		if (i->second->applyChanges(*media, data)) {
+			session().changes().storyUpdated(
+				i->second.get(),
+				UpdateFlag::Edited);
+		}
 		return i->second.get();
-	}
-	using MaybeMedia = std::optional<
-		std::variant<not_null<PhotoData*>, not_null<DocumentData*>>>;
-	const auto media = data.vmedia().match([&](
-			const MTPDmessageMediaPhoto &data) -> MaybeMedia {
-		if (const auto photo = data.vphoto()) {
-			const auto result = _owner->processPhoto(*photo);
-			if (!result->isNull()) {
-				return result;
-			}
-		}
-		return {};
-	}, [&](const MTPDmessageMediaDocument &data) -> MaybeMedia {
-		if (const auto document = data.vdocument()) {
-			const auto result = _owner->processDocument(*document);
-			if (!result->isNull()
-				&& (result->isGifv() || result->isVideoFile())) {
-				return result;
-			}
-		}
-		return {};
-	}, [](const auto &) { return MaybeMedia(); });
-	if (!media) {
-		return nullptr;
 	}
 	const auto result = stories.emplace(id, std::make_unique<Story>(
 		id,
 		peer,
 		StoryMedia{ *media },
 		data.vdate().v)).first->second.get();
-	result->apply(data);
+	result->applyChanges(*media, data);
 	return result;
 }
 
@@ -373,7 +395,9 @@ void Stories::processResolvedStories(
 		const QVector<MTPStoryItem> &list) {
 	for (const auto &item : list) {
 		item.match([&](const MTPDstoryItem &data) {
-			[[maybe_unused]] const auto story = parse(peer, data);
+			if (!parseAndApply(peer, data)) {
+				applyDeleted({ peer->id, data.vid().v });
+			}
 		}, [&](const MTPDstoryItemSkipped &data) {
 			LOG(("API Error: Unexpected storyItemSkipped in resolve."));
 		}, [&](const MTPDstoryItemDeleted &data) {

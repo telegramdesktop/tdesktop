@@ -1962,6 +1962,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
 "lng_in_dlg_poll" = "Poll";
+"lng_in_dlg_story" = "Story";
 "lng_in_dlg_media_count#one" = "{count} media";
 "lng_in_dlg_media_count#other" = "{count} media";
 "lng_in_dlg_photo_count#one" = "{count} photo";

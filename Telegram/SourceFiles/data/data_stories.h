@@ -56,7 +56,7 @@ public:
 	void setCaption(TextWithEntities &&caption);
 	[[nodiscard]] const TextWithEntities &caption() const;
 
-	void apply(const MTPDstoryItem &data);
+	bool applyChanges(StoryMedia media, const MTPDstoryItem &data);
 
 private:
 	const StoryId _id = 0;
@@ -113,7 +113,7 @@ public:
 
 private:
 	[[nodiscard]] StoriesList parse(const MTPUserStories &stories);
-	[[nodiscard]] Story *parse(
+	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPDstoryItem &data);
 	void processResolvedStories(
