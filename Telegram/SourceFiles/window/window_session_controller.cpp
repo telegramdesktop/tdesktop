@@ -2464,6 +2464,18 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 	};
 }
 
+void SessionController::openPeerStory(
+		not_null<PeerData*> peer,
+		StoryId storyId) {
+	using namespace Media::View;
+	using namespace Data;
+
+	auto &stories = session().data().stories();
+	if (const auto from = stories.lookup({ peer->id, storyId })) {
+		window().openInMediaView(OpenRequest(this, *from));
+	}
+}
+
 void SessionController::openPeerStories(PeerId peerId) {
 	using namespace Media::View;
 	using namespace Data;
@@ -2474,9 +2486,7 @@ void SessionController::openPeerStories(PeerId peerId) {
 		return list.user->id;
 	});
 	if (i != end(all) && !i->ids.empty()) {
-		if (const auto from = stories.lookup({ peerId, i->ids.front() })) {
-			window().openInMediaView(OpenRequest(this, *from));
-		}
+		openPeerStory(i->user, i->ids.front());
 	}
 }
 

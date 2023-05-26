@@ -2544,7 +2544,7 @@ void HistoryItem::setReplyFields(
 			&& !IsServerMsgId(reply->replyToMsgId)) {
 			reply->replyToMsgId = replyTo;
 			if (!reply->updateData(this)) {
-				RequestDependentMessageData(
+				RequestDependentMessageItem(
 					this,
 					reply->replyToPeerId,
 					reply->replyToMsgId);
@@ -2966,12 +2966,21 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 		reply->replyToPeerId = config.replyToPeer;
 		reply->replyToMsgId = config.replyTo;
 		reply->replyToMsgTop = isScheduled() ? 0 : config.replyToTop;
+		reply->replyToStoryId = config.replyToStory;
+		reply->storyReply = (config.replyToStory != 0);
 		reply->topicPost = config.replyIsTopicPost;
 		if (!reply->updateData(this)) {
-			RequestDependentMessageData(
-				this,
-				reply->replyToPeerId,
-				reply->replyToMsgId);
+			if (reply->replyToMsgId) {
+				RequestDependentMessageItem(
+					this,
+					reply->replyToPeerId,
+					reply->replyToMsgId);
+			} else if (reply->replyToStoryId) {
+				RequestDependentMessageStory(
+					this,
+					reply->replyToPeerId,
+					reply->replyToStoryId);
+			}
 		}
 	}
 	if (const auto via = Get<HistoryMessageVia>()) {
@@ -3518,7 +3527,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 				dependent->topicPost = data.is_forum_topic()
 					|| Has<HistoryServiceTopicInfo>();
 				if (!updateServiceDependent()) {
-					RequestDependentMessageData(
+					RequestDependentMessageItem(
 						this,
 						(dependent->peerId
 							? dependent->peerId

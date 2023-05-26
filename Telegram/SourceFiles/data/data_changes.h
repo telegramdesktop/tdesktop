@@ -38,6 +38,7 @@ inline constexpr int CountBit(Flag Last = Flag::LastUsedBit) {
 namespace Data {
 
 class ForumTopic;
+class Story;
 
 struct NameUpdate {
 	NameUpdate(
@@ -215,6 +216,24 @@ struct EntryUpdate {
 
 };
 
+struct StoryUpdate {
+	enum class Flag : uint32 {
+		None = 0,
+
+		Edited = (1U << 0),
+		Destroyed = (1U << 1),
+		NewAdded = (1U << 2),
+
+		LastUsedBit = (1U << 2),
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; }
+
+	not_null<Story*> story;
+	Flags flags = 0;
+
+};
+
 class Changes final {
 public:
 	explicit Changes(not_null<Main::Session*> session);
@@ -298,6 +317,20 @@ public:
 		EntryUpdate::Flag flag) const;
 	void entryRemoved(not_null<Dialogs::Entry*> entry);
 
+	void storyUpdated(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags);
+	[[nodiscard]] rpl::producer<StoryUpdate> storyUpdates(
+		StoryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<StoryUpdate> storyUpdates(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<StoryUpdate> storyFlagsValue(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<StoryUpdate> realtimeStoryUpdates(
+		StoryUpdate::Flag flag) const;
+
 	void sendNotifications();
 
 private:
@@ -348,6 +381,7 @@ private:
 	Manager<ForumTopic, TopicUpdate> _topicChanges;
 	Manager<HistoryItem, MessageUpdate> _messageChanges;
 	Manager<Dialogs::Entry, EntryUpdate> _entryChanges;
+	Manager<Story, StoryUpdate> _storyChanges;
 
 	bool _notify = false;
 

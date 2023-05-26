@@ -15,6 +15,7 @@ struct SendAction;
 } // namespace Api
 
 namespace Data {
+class Story;
 class Thread;
 } // namespace Data
 
@@ -69,10 +70,14 @@ void CheckReactionNotificationSchedule(
 	const TextWithEntities &text = TextWithEntities());
 [[nodiscard]] TextWithEntities UnsupportedMessageText();
 
-void RequestDependentMessageData(
+void RequestDependentMessageItem(
 	not_null<HistoryItem*> item,
 	PeerId peerId,
 	MsgId msgId);
+void RequestDependentMessageStory(
+	not_null<HistoryItem*> item,
+	PeerId peerId,
+	StoryId storyId);
 [[nodiscard]] MessageFlags NewMessageFlags(not_null<PeerData*> peer);
 [[nodiscard]] bool ShouldSendSilent(
 	not_null<PeerData*> peer,
@@ -115,6 +120,11 @@ struct SendingErrorRequest {
 [[nodiscard]] ClickHandlerPtr JumpToMessageClickHandler(
 	not_null<HistoryItem*> item,
 	FullMsgId returnToId = FullMsgId());
+[[nodiscard]] ClickHandlerPtr JumpToStoryClickHandler(
+	not_null<Data::Story*> story);
+ClickHandlerPtr JumpToStoryClickHandler(
+	not_null<PeerData*> peer,
+	StoryId storyId);
 
 [[nodiscard]] not_null<HistoryItem*> GenerateJoinedMessage(
 	not_null<History*> history,

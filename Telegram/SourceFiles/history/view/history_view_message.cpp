@@ -2268,7 +2268,8 @@ bool Message::getStateReplyInfo(
 	if (auto reply = displayedReply()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		if (point.y() >= trect.top() && point.y() < trect.top() + h) {
-			if (reply->replyToMsg && QRect(trect.x(), trect.y() + st::msgReplyPadding.top(), trect.width(), st::msgReplyBarSize.height()).contains(point)) {
+			if ((reply->replyToMsg || reply->replyToStory)
+				&& QRect(trect.x(), trect.y() + st::msgReplyPadding.top(), trect.width(), st::msgReplyBarSize.height()).contains(point)) {
 				outResult->link = reply->replyToLink();
 			}
 			return true;

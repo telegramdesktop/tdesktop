@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -132,7 +133,7 @@ QString GetErrorTextForSending(
 	return GetErrorTextForSending(thread->peer(), std::move(request));
 }
 
-void RequestDependentMessageData(
+void RequestDependentMessageItem(
 		not_null<HistoryItem*> item,
 		PeerId peerId,
 		MsgId msgId) {
@@ -150,6 +151,23 @@ void RequestDependentMessageData(
 	history->session().api().requestMessageData(
 		(peerId ? history->owner().peer(peerId) : history->peer),
 		msgId,
+		done);
+}
+
+void RequestDependentMessageStory(
+		not_null<HistoryItem*> item,
+		PeerId peerId,
+		StoryId storyId) {
+	const auto fullId = item->fullId();
+	const auto history = item->history();
+	const auto session = &history->session();
+	const auto done = [=] {
+		if (const auto item = session->data().message(fullId)) {
+			item->updateDependencyItem();
+		}
+	};
+	history->owner().stories().resolve(
+		{ peerId ? peerId : history->peer->id, storyId },
 		done);
 }
 
@@ -262,6 +280,24 @@ ClickHandlerPtr JumpToMessageClickHandler(
 			} else {
 				controller->showPeerHistory(peer, params, msgId);
 			}
+		}
+	});
+}
+
+ClickHandlerPtr JumpToStoryClickHandler(not_null<Data::Story*> story) {
+	return JumpToStoryClickHandler(story->peer(), story->id());
+}
+
+ClickHandlerPtr JumpToStoryClickHandler(
+		not_null<PeerData*> peer,
+		StoryId storyId) {
+	return std::make_shared<LambdaClickHandler>([=] {
+		const auto separate = Core::App().separateWindowForPeer(peer);
+		const auto controller = separate
+			? separate->sessionController()
+			: peer->session().tryResolveWindow();
+		if (controller) {
+			controller->openPeerStory(peer, storyId);
 		}
 	});
 }

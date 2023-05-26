@@ -10,10 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/power_save_blocker.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "data/data_changes.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
+#include "main/main_session.h"
 #include "media/stories/media_stories_caption_full_view.h"
 #include "media/stories/media_stories_delegate.h"
 #include "media/stories/media_stories_header.h"
@@ -393,6 +395,18 @@ void Controller::show(
 	_header->show({ .user = list.user, .date = story->date() });
 	_slider->show({ .index = _index, .total = list.total });
 	_replyArea->show({ .user = list.user, .id = id });
+
+	const auto session = &list.user->session();
+	if (_session != session) {
+		_session = session;
+		_sessionLifetime = session->changes().storyUpdates(
+			Data::StoryUpdate::Flag::Destroyed
+		) | rpl::start_with_next([=](Data::StoryUpdate update) {
+			if (update.story->fullId() == _shown) {
+				_delegate->storiesClose();
+			}
+		});
+	}
 
 	if (_contentFaded) {
 		togglePaused(true);

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/expected.h"
 
+class Image;
 class PhotoData;
 class DocumentData;
 
@@ -39,10 +40,15 @@ public:
 	[[nodiscard]] not_null<PeerData*> peer() const;
 
 	[[nodiscard]] StoryId id() const;
+	[[nodiscard]] FullStoryId fullId() const;
 	[[nodiscard]] TimeId date() const;
 	[[nodiscard]] const StoryMedia &media() const;
 	[[nodiscard]] PhotoData *photo() const;
 	[[nodiscard]] DocumentData *document() const;
+
+	[[nodiscard]] bool hasReplyPreview() const;
+	[[nodiscard]] Image *replyPreview() const;
+	[[nodiscard]] TextWithEntities inReplyText() const;
 
 	void setPinned(bool pinned);
 	[[nodiscard]] bool pinned() const;
@@ -55,7 +61,7 @@ public:
 private:
 	const StoryId _id = 0;
 	const not_null<PeerData*> _peer;
-	const StoryMedia _media;
+	StoryMedia _media;
 	TextWithEntities _caption;
 	const TimeId _date = 0;
 	bool _pinned = false;
@@ -84,6 +90,15 @@ public:
 	~Stories();
 
 	[[nodiscard]] Session &owner() const;
+	[[nodiscard]] Main::Session &session() const;
+
+	void updateDependentMessages(not_null<Data::Story*> story);
+	void registerDependentMessage(
+		not_null<HistoryItem*> dependent,
+		not_null<Data::Story*> dependency);
+	void unregisterDependentMessage(
+		not_null<HistoryItem*> dependent,
+		not_null<Data::Story*> dependency);
 
 	void loadMore();
 	void apply(const MTPDupdateStories &data);
@@ -101,15 +116,30 @@ private:
 	[[nodiscard]] Story *parse(
 		not_null<PeerData*> peer,
 		const MTPDstoryItem &data);
+	void processResolvedStories(
+		not_null<PeerData*> peer,
+		const QVector<MTPStoryItem> &list);
+	void sendResolveRequests();
+	void finalizeResolve(FullStoryId id);
 
 	void pushToBack(StoriesList &&list);
 	void pushToFront(StoriesList &&list);
+	void applyDeleted(FullStoryId id);
 
 	const not_null<Session*> _owner;
 	base::flat_map<
 		PeerId,
 		base::flat_map<StoryId, std::unique_ptr<Story>>> _stories;
 	base::flat_set<FullStoryId> _deleted;
+
+	base::flat_map<
+		PeerId,
+		base::flat_map<StoryId, std::vector<Fn<void()>>>> _resolves;
+	base::flat_map<mtpRequestId, std::vector<Fn<void()>>> _resolveRequests;
+
+	std::map<
+		not_null<Data::Story*>,
+		base::flat_set<not_null<HistoryItem*>>> _dependentMessages;
 
 	std::vector<StoriesList> _all;
 	rpl::event_stream<> _allChanged;

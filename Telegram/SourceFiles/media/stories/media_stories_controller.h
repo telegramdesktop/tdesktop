@@ -28,6 +28,10 @@ namespace Ui {
 class RpWidget;
 } // namespace Ui
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Media::Player {
 struct TrackState;
 } // namespace Media::Player
@@ -151,6 +155,9 @@ private:
 	std::unique_ptr<Sibling> _siblingRight;
 
 	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
+
+	Main::Session *_session = nullptr;
+	rpl::lifetime _sessionLifetime;
 
 	rpl::lifetime _lifetime;
 

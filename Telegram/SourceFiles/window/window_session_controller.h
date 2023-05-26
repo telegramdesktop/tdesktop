@@ -564,6 +564,7 @@ public:
 		return _peerThemeOverride.value();
 	}
 
+	void openPeerStory(not_null<PeerData*> peer, StoryId storyId);
 	void openPeerStories(PeerId peerId);
 
 	struct PaintContextArgs {
