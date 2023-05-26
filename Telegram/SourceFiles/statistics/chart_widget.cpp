@@ -73,9 +73,13 @@ class ChartWidget::Footer final : public Ui::AbstractButton {
 public:
 	Footer(not_null<Ui::RpWidget*> parent);
 
+	[[nodiscard]] rpl::producer<Limits> xPercentageLimitsChange() const;
+
 private:
 	not_null<Ui::AbstractButton*> _left;
 	not_null<Ui::AbstractButton*> _right;
+
+	rpl::event_stream<Limits> _xPercentageLimitsChange;
 
 	struct {
 		int x = 0;
@@ -135,6 +139,10 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 				_start.rightLimit = rightLimit();
 			} break;
 			case QEvent::MouseButtonRelease: {
+				_xPercentageLimitsChange.fire({
+					.min = _left->x() / float64(width()),
+					.max = rect::right(_right) / float64(width()),
+				});
 				_start = {};
 			} break;
 			}
@@ -150,6 +158,10 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 		[=] { return width() - _right->width(); });
 }
 
+rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
+	return _xPercentageLimitsChange.events();
+}
+
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 : Ui::RpWidget(parent)
 , _footer(std::make_unique<Footer>(this)) {
@@ -162,15 +174,39 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			st::countryRowHeight);
 	}, _footer->lifetime());
 	_footer->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=, limits = Limits{ 0., 1. }] {
 		auto p = QPainter(_footer.get());
 
 		if (_chartData) {
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
+				limits,
 				_footer->rect());
 		}
+	}, _footer->lifetime());
+	_footer->xPercentageLimitsChange(
+	) | rpl::start_with_next([=](Limits xPercentageLimits) {
+		_xPercentageLimits = {
+			.min = *ranges::lower_bound(
+				_chartData.xPercentage,
+				xPercentageLimits.min),
+			.max = *ranges::lower_bound(
+				_chartData.xPercentage,
+				xPercentageLimits.max),
+		};
+		const auto startXIndex = _chartData.findStartIndex(
+			_xPercentageLimits.min);
+		const auto endXIndex = _chartData.findEndIndex(
+			startXIndex,
+			_xPercentageLimits.max);
+		setHeightLimits(
+			{
+				float64(FindMinValue(_chartData, startXIndex, endXIndex)),
+				float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
+			},
+			false);
+		update();
 	}, _footer->lifetime());
 	resize(width(), st::confirmMaxHeight + st::countryRowHeight * 2);
 }
@@ -179,17 +215,21 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_chartData = chartData;
 
 	{
+		_xPercentageLimits = {
+			.min = _chartData.xPercentage.front(),
+			.max = _chartData.xPercentage.back(),
+		};
 		const auto startXIndex = _chartData.findStartIndex(
-			_chartData.xPercentage.front());
+			_xPercentageLimits.min);
 		const auto endXIndex = _chartData.findEndIndex(
 			startXIndex,
-			_chartData.xPercentage.back());
+			_xPercentageLimits.max);
 		setHeightLimits(
 			{
 				float64(FindMinValue(_chartData, startXIndex, endXIndex)),
 				float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
 			},
-			true);
+			false);
 		update();
 	}
 }
@@ -205,6 +245,8 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 	const auto chartRect = r
 		- QMargins{ 0, st::boxTextFont->height, 0, chartRectBottom };
 
+	p.fillRect(r, st::boxBg);
+
 	for (const auto &horizontalLine : _horizontalLines) {
 		PaintHorizontalLines(p, horizontalLine, chartRect);
 	}
@@ -213,6 +255,7 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 		Statistic::PaintLinearChartView(
 			p,
 			_chartData,
+			_xPercentageLimits,
 			chartRect);
 	}
 

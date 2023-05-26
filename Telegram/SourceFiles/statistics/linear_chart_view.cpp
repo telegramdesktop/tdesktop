@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/linear_chart_view.h"
 
 #include "data/data_statistics.h"
+#include "statistics/statistics_common.h"
 #include "styles/style_boxes.h"
 
 namespace Statistic {
@@ -15,6 +16,7 @@ namespace Statistic {
 void PaintLinearChartView(
 		QPainter &p,
 		const Data::StatisticalChart &chartData,
+		const Limits &xPercentageLimits,
 		const QRect &rect) {
 	const auto offset = 0;
 	const auto currentMinHeight = rect.y(); //
@@ -30,10 +32,10 @@ void PaintLinearChartView(
 		auto chartPath = QPainterPath();
 
 		const auto startXIndex = chartData.findStartIndex(
-			chartData.xPercentage.front());
+			xPercentageLimits.min);
 		const auto endXIndex = chartData.findEndIndex(
 			startXIndex,
-			chartData.xPercentage.back());
+			xPercentageLimits.max);
 
 		const auto localStart = std::max(0, startXIndex - additionalPoints);
 		const auto localEnd = std::min(

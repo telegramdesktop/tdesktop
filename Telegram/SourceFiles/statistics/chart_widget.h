@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_statistics.h"
 #include "statistics/chart_horizontal_lines_data.h"
+#include "statistics/statistics_common.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
@@ -17,11 +18,6 @@ namespace Statistic {
 class ChartWidget : public Ui::RpWidget {
 public:
 	ChartWidget(not_null<Ui::RpWidget*> parent);
-
-	struct Limits final {
-		float64 min = 0;
-		float64 max = 0;
-	};
 
 	void setChartData(Data::StatisticalChart chartData);
 	void setHeightLimits(Limits newHeight, bool animated);
@@ -43,6 +39,8 @@ private:
 	Limits _thresholdHeight = { -1, 0 };
 	Limits _startFrom;
 	Limits _startFromH;
+
+	Limits _xPercentageLimits;
 
 	float64 _minMaxUpdateStep = 0.;
 

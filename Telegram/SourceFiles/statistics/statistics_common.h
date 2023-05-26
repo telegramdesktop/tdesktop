@@ -7,18 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Data {
-struct StatisticalChart;
-} // namespace Data
-
 namespace Statistic {
 
-struct Limits;
-
-void PaintLinearChartView(
-	QPainter &p,
-	const Data::StatisticalChart &chartData,
-	const Limits &xPercentageLimits,
-	const QRect &rect);
+struct Limits final {
+	float64 min = 0;
+	float64 max = 0;
+};
 
 } // namespace Statistic
