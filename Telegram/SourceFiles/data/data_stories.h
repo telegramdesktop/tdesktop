@@ -123,8 +123,9 @@ private:
 	void finalizeResolve(FullStoryId id);
 
 	void pushToBack(StoriesList &&list);
-	void pushToFront(StoriesList &&list);
+	void applyChanges(StoriesList &&list);
 	void applyDeleted(FullStoryId id);
+	void removeDependencyStory(not_null<Story*> story);
 
 	const not_null<Session*> _owner;
 	base::flat_map<

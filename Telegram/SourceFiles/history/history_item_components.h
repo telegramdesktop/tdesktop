@@ -249,7 +249,12 @@ struct HistoryMessageReply
 	[[nodiscard]] bool isNameUpdated(not_null<HistoryItem*> holder) const;
 	void updateName(not_null<HistoryItem*> holder) const;
 	void resize(int width) const;
-	void itemRemoved(HistoryItem *holder, HistoryItem *removed);
+	void itemRemoved(
+		not_null<HistoryItem*> holder,
+		not_null<HistoryItem*> removed);
+	void storyRemoved(
+		not_null<HistoryItem*> holder,
+		not_null<Data::Story*> removed);
 
 	void paint(
 		Painter &p,

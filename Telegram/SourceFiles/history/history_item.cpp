@@ -725,6 +725,18 @@ void HistoryItem::dependencyItemRemoved(not_null<HistoryItem*> dependency) {
 	}
 }
 
+void HistoryItem::dependencyStoryRemoved(
+		not_null<Data::Story*> dependency) {
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		const auto documentId = reply->replyToDocumentId;
+		reply->storyRemoved(this, dependency);
+		if (documentId != reply->replyToDocumentId
+			&& generateLocalEntitiesByReply()) {
+			_history->owner().requestItemTextRefresh(this);
+		}
+	}
+}
+
 void HistoryItem::updateDependencyItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		const auto documentId = reply->replyToDocumentId;

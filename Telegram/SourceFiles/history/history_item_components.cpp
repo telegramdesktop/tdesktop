@@ -369,7 +369,14 @@ void HistoryMessageReply::clearData(not_null<HistoryItem*> holder) {
 			replyToMsg.get());
 		replyToMsg = nullptr;
 	}
+	if (replyToStory) {
+		holder->history()->owner().stories().unregisterDependentMessage(
+			holder,
+			replyToStory.get());
+		replyToStory = nullptr;
+	}
 	replyToMsgId = 0;
+	replyToStoryId = 0;
 	refreshReplyToMedia();
 }
 
@@ -466,9 +473,18 @@ void HistoryMessageReply::resize(int width) const {
 }
 
 void HistoryMessageReply::itemRemoved(
-		HistoryItem *holder,
-		HistoryItem *removed) {
+		not_null<HistoryItem*> holder,
+		not_null<HistoryItem*> removed) {
 	if (replyToMsg.get() == removed) {
+		clearData(holder);
+		holder->history()->owner().requestItemResize(holder);
+	}
+}
+
+void HistoryMessageReply::storyRemoved(
+		not_null<HistoryItem*> holder,
+		not_null<Data::Story*> removed) {
+	if (replyToStory.get() == removed) {
 		clearData(holder);
 		holder->history()->owner().requestItemResize(holder);
 	}

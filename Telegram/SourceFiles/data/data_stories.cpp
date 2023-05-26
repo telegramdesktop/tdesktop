@@ -166,7 +166,7 @@ Main::Session &Stories::session() const {
 }
 
 void Stories::apply(const MTPDupdateStories &data) {
-	pushToFront(parse(data.vstories()));
+	applyChanges(parse(data.vstories()));
 	_allChanged.fire({});
 }
 
@@ -402,12 +402,40 @@ void Stories::applyDeleted(FullStoryId id) {
 			session().changes().storyUpdated(
 				story.get(),
 				UpdateFlag::Destroyed);
+			removeDependencyStory(story.get());
 			if (i->second.empty()) {
 				_stories.erase(i);
 			}
 		}
 	}
+	const auto j = ranges::find(_all, id.peer, [](const StoriesList &list) {
+		return list.user->id;
+	});
+	if (j != end(_all)) {
+		const auto till = ranges::remove(j->ids, id.story);
+		const auto removed = int(std::distance(till, end(j->ids)));
+		if (till != end(j->ids)) {
+			j->ids.erase(till, end(j->ids));
+			j->total = std::max(j->total - removed, 0);
+			if (j->ids.empty()) {
+				_all.erase(j);
+			}
+			_allChanged.fire({});
+		}
+	}
 	_deleted.emplace(id);
+}
+
+void Stories::removeDependencyStory(not_null<Story*> story) {
+	const auto i = _dependentMessages.find(story);
+	if (i != end(_dependentMessages)) {
+		const auto items = std::move(i->second);
+		_dependentMessages.erase(i);
+
+		for (const auto &dependent : items) {
+			dependent->dependencyStoryRemoved(story);
+		}
+	}
 }
 
 const std::vector<StoriesList> &Stories::all() {
@@ -465,12 +493,21 @@ void Stories::pushToBack(StoriesList &&list) {
 	}
 }
 
-void Stories::pushToFront(StoriesList &&list) {
+void Stories::applyChanges(StoriesList &&list) {
 	const auto i = ranges::find(_all, list.user, &StoriesList::user);
 	if (i != end(_all)) {
-		*i = std::move(list);
-		ranges::rotate(begin(_all), i, i + 1);
-	} else {
+		auto added = false;
+		for (const auto id : list.ids) {
+			if (!ranges::contains(i->ids, id)) {
+				i->ids.insert(begin(i->ids), id);
+				++i->total;
+				added = true;
+			}
+		}
+		if (added) {
+			ranges::rotate(begin(_all), i, i + 1);
+		}
+	} else if (!list.ids.empty()) {
 		_all.insert(begin(_all), std::move(list));
 	}
 }

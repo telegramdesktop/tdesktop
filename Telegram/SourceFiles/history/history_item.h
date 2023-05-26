@@ -57,6 +57,7 @@ class MessageReactions;
 class ForumTopic;
 class Thread;
 struct SponsoredFrom;
+class Story;
 } // namespace Data
 
 namespace Main {
@@ -185,6 +186,7 @@ public:
 	};
 
 	void dependencyItemRemoved(not_null<HistoryItem*> dependency);
+	void dependencyStoryRemoved(not_null<Data::Story*> dependency);
 	void updateDependencyItem();
 	[[nodiscard]] MsgId dependencyMsgId() const;
 	[[nodiscard]] bool notificationReady() const;
