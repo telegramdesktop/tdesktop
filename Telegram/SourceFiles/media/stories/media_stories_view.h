@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 struct StoriesList;
+struct FileOrigin;
 } // namespace Data
 
 namespace Media::Player {
@@ -62,6 +63,7 @@ public:
 	[[nodiscard]] rpl::producer<QRect> finalShownGeometryValue() const;
 	[[nodiscard]] ContentLayout contentLayout() const;
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
+	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
 	void showFullCaption();
 

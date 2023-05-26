@@ -2584,7 +2584,9 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 }
 
 Data::FileOrigin OverlayWidget::fileOrigin() const {
-	if (_message) {
+	if (_stories) {
+		return _stories->fileOrigin();
+	} else if (_message) {
 		return _message->fullId();
 	} else if (_photo && _user) {
 		return Data::FileOriginUserPhoto(peerToUser(_user->id), _photo->id);
@@ -2828,15 +2830,15 @@ void OverlayWidget::refreshFromLabel() {
 void OverlayWidget::refreshCaption() {
 	_caption = Ui::Text::String();
 	const auto caption = [&] {
-		if (_message) {
+		if (_stories) {
+			return _stories->captionText();
+		} else if (_message) {
 			if (const auto media = _message->media()) {
 				if (media->webpage()) {
 					return TextWithEntities();
 				}
 			}
 			return _message->translatedText();
-		} else if (_stories) {
-			return _stories->captionText();
 		}
 		return TextWithEntities();
 	}();

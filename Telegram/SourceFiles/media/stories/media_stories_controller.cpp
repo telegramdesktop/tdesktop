@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/power_save_blocker.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -315,6 +316,10 @@ ContentLayout Controller::contentLayout() const {
 		.radius = st::storiesRadius,
 		.headerOutside = (current->headerLayout == HeaderLayout::Outside),
 	};
+}
+
+Data::FileOrigin Controller::fileOrigin() const {
+	return Data::FileOriginStory(_shown.peer, _shown.story);
 }
 
 TextWithEntities Controller::captionText() const {

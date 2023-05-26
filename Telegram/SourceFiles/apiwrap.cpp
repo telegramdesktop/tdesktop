@@ -2509,6 +2509,15 @@ void ApiWrap::refreshFileReference(
 		request(MTPaccount_GetSavedRingtones(MTP_long(0)));
 	}, [&](Data::FileOriginPremiumPreviews data) {
 		request(MTPhelp_GetPremiumPromo());
+	}, [&](Data::FileOriginStory data) {
+		const auto user = _session->data().peer(data.peerId)->asUser();
+		if (user) {
+			request(MTPstories_GetStoriesByID(
+				user->inputUser,
+				MTP_vector<MTPint>(1, MTP_int(data.storyId))));
+		} else {
+			fail();
+		}
 	}, [&](v::null_t) {
 		fail();
 	});

@@ -21,6 +21,7 @@ struct FileChosen;
 
 namespace Data {
 struct StoriesList;
+struct FileOrigin;
 } // namespace Data
 
 namespace Ui {
@@ -80,6 +81,7 @@ public:
 	[[nodiscard]] Layout layout() const;
 	[[nodiscard]] rpl::producer<Layout> layoutValue() const;
 	[[nodiscard]] ContentLayout contentLayout() const;
+	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
 	void showFullCaption();
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_view.h"
 
+#include "data/data_file_origin.h"
 #include "media/stories/media_stories_controller.h"
 #include "media/stories/media_stories_delegate.h"
 #include "media/stories/media_stories_header.h"
@@ -77,6 +78,10 @@ void View::togglePaused(bool paused) {
 
 SiblingView View::sibling(SiblingType type) const {
 	return _controller->sibling(type);
+}
+
+Data::FileOrigin View::fileOrigin() const {
+	return _controller->fileOrigin();
 }
 
 TextWithEntities View::captionText() const {
