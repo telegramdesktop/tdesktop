@@ -31,7 +31,9 @@ protected:
 
 private:
 	void measureHeightThreshold();
+	class Footer;
 
+	std::unique_ptr<Footer> _footer;
 	Data::StatisticalChart _chartData;
 
 	bool _useMinHeight = false;

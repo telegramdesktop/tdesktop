@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/chart_widget.h"
 
 #include "statistics/linear_chart_view.h"
+#include "ui/abstract_button.h"
 #include "ui/rect.h"
 #include "styles/style_boxes.h"
 
@@ -68,9 +69,110 @@ void PaintCaptionsToHorizontalLines(
 
 } // namespace
 
+class ChartWidget::Footer final : public Ui::AbstractButton {
+public:
+	Footer(not_null<Ui::RpWidget*> parent);
+
+private:
+	not_null<Ui::AbstractButton*> _left;
+	not_null<Ui::AbstractButton*> _right;
+
+	struct {
+		int x = 0;
+		int leftLimit = 0;
+		int rightLimit = 0;
+	} _start;
+
+};
+
+ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
+: Ui::AbstractButton(parent)
+, _left(Ui::CreateChild<Ui::AbstractButton>(this))
+, _right(Ui::CreateChild<Ui::AbstractButton>(this)) {
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		_left->resize(st::colorSliderWidth, s.height());
+		_right->resize(st::colorSliderWidth, s.height());
+	}, _left->lifetime());
+	_left->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_left);
+		p.setOpacity(0.3);
+		p.fillRect(_left->rect(), st::boxTextFg);
+	}, _left->lifetime());
+	_right->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_right);
+		p.setOpacity(0.3);
+		p.fillRect(_right->rect(), st::boxTextFg);
+	}, _right->lifetime());
+
+	_left->move(10, 0);
+	_right->move(50, 0);
+
+	const auto handleDrag = [&](
+			not_null<Ui::AbstractButton*> side,
+			Fn<int()> leftLimit,
+			Fn<int()> rightLimit) {
+		side->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return (e->type() == QEvent::MouseButtonPress)
+				|| (e->type() == QEvent::MouseButtonRelease)
+				|| ((e->type() == QEvent::MouseMove) && side->isDown());
+		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+			const auto pos = static_cast<QMouseEvent*>(e.get())->pos();
+			switch (e->type()) {
+			case QEvent::MouseMove: {
+				const auto nextX = std::clamp(
+					side->x() + (pos.x() - _start.x),
+					_start.leftLimit,
+					_start.rightLimit);
+				side->move(nextX, side->y());
+			} break;
+			case QEvent::MouseButtonPress: {
+				_start.x = pos.x();
+				_start.leftLimit = leftLimit();
+				_start.rightLimit = rightLimit();
+			} break;
+			case QEvent::MouseButtonRelease: {
+				_start = {};
+			} break;
+			}
+		}, side->lifetime());
+	};
+	handleDrag(
+		_left,
+		[=] { return 0; },
+		[=] { return _right->x() - _left->width(); });
+	handleDrag(
+		_right,
+		[=] { return rect::right(_left); },
+		[=] { return width() - _right->width(); });
+}
+
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
-: Ui::RpWidget(parent) {
-	resize(width(), st::confirmMaxHeight);
+: Ui::RpWidget(parent)
+, _footer(std::make_unique<Footer>(this)) {
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		_footer->setGeometry(
+			0,
+			s.height() - st::countryRowHeight,
+			s.width(),
+			st::countryRowHeight);
+	}, _footer->lifetime());
+	_footer->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_footer.get());
+
+		if (_chartData) {
+			Statistic::PaintLinearChartView(
+				p,
+				_chartData,
+				_footer->rect());
+		}
+	}, _footer->lifetime());
+	resize(width(), st::confirmMaxHeight + st::countryRowHeight * 2);
 }
 
 void ChartWidget::setChartData(Data::StatisticalChart chartData) {
@@ -97,8 +199,11 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 
 	const auto r = rect();
 	const auto captionRect = r;
+	const auto chartRectBottom = st::lineWidth
+		+ _footer->height()
+		+ st::countryRowHeight;
 	const auto chartRect = r
-		- QMargins{ 0, st::boxTextFont->height, 0, st::lineWidth };
+		- QMargins{ 0, st::boxTextFont->height, 0, chartRectBottom };
 
 	for (const auto &horizontalLine : _horizontalLines) {
 		PaintHorizontalLines(p, horizontalLine, chartRect);
