@@ -328,6 +328,7 @@ InnerWidget::InnerWidget(
 	) | rpl::filter([=] {
 		return (_viewportHeight > 0) && (defaultScrollTop() > _visibleTop);
 	}) | rpl::start_with_next([=] {
+		refreshForDefaultScroll();
 		jumpToTop();
 	}, lifetime());
 
@@ -1735,9 +1736,7 @@ void InnerWidget::mousePressReleased(
 void InnerWidget::setViewportHeight(int viewportHeight) {
 	if (_viewportHeight != viewportHeight) {
 		_viewportHeight = viewportHeight;
-		if (height() < defaultScrollTop() + viewportHeight) {
-			refresh();
-		}
+		refreshForDefaultScroll();
 	}
 }
 
@@ -2763,6 +2762,12 @@ bool InnerWidget::needCollapsedRowsRefresh() const {
 void InnerWidget::editOpenedFilter() {
 	if (_filterId > 0) {
 		EditExistingFilter(_controller, _filterId);
+	}
+}
+
+void InnerWidget::refreshForDefaultScroll() {
+	if (height() < defaultScrollTop() + _viewportHeight) {
+		refresh();
 	}
 }
 

@@ -122,6 +122,7 @@ public:
 
 	void clearFilter();
 	void refresh(bool toTop = false);
+	void refreshForDefaultScroll();
 	void refreshEmptyLabel();
 	void resizeEmptyLabel();
 
