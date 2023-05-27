@@ -179,6 +179,12 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 }
 
 void MainWindow::initHook() {
+	events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ThemeChange) {
+			updateWindowIcon();
+		}
+	}, lifetime());
+
 	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Expose) {
 			auto ee = static_cast<QExposeEvent*>(e.get());
@@ -221,12 +227,7 @@ void MainWindow::updateWindowIcon() {
 	const auto session = sessionController()
 		? &sessionController()->session()
 		: nullptr;
-	const auto supportIcon = session && session->supportMode();
-	if (supportIcon != _usingSupportIcon || _icon.isNull()) {
-		_icon = Window::CreateIcon(session);
-		_usingSupportIcon = supportIcon;
-	}
-	setWindowIcon(_icon);
+	setWindowIcon(Window::CreateIcon(session));
 }
 
 void MainWindow::updateUnityCounter() {

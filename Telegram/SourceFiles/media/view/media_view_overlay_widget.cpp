@@ -400,6 +400,8 @@ OverlayWidget::OverlayWidget()
 			e->ignore();
 			close();
 			return base::EventFilterResult::Cancel;
+		} else if (type == QEvent::ThemeChange && Platform::IsLinux()) {
+			_window->setWindowIcon(Window::CreateIcon(_session));
 		}
 		return base::EventFilterResult::Continue;
 	});

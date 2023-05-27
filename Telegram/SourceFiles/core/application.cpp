@@ -100,6 +100,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
+#include <QtGui/QWindow>
 
 namespace Core {
 namespace {
@@ -674,6 +675,13 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 				_filesToOpen.append(event->url().toString());
 				_fileOpenTimer.callOnce(kFileOpenTimeoutMs);
 			}
+		}
+	} break;
+
+	case QEvent::ThemeChange: {
+		if (Platform::IsLinux() && object == QGuiApplication::allWindows().first()) {
+			Core::App().refreshApplicationIcon();
+			Core::App().tray().updateIconCounters();
 		}
 	} break;
 	}
