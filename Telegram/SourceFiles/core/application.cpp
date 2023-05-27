@@ -100,6 +100,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
+#include <QtGui/QWindow>
 
 namespace Core {
 namespace {
@@ -665,6 +666,13 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 			if (_lastActivePrimaryWindow && StartUrlRequiresActivate(url)) {
 				_lastActivePrimaryWindow->activate();
 			}
+		}
+	} break;
+
+	case QEvent::ThemeChange: {
+		if (Platform::IsLinux() && object == QGuiApplication::allWindows().first()) {
+			Core::App().refreshApplicationIcon();
+			Core::App().tray().updateIconCounters();
 		}
 	} break;
 	}
