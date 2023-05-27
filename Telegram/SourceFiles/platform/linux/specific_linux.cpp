@@ -262,11 +262,8 @@ void LaunchGApplication() {
 
 		app->signal_activate().connect([] {
 			Core::Sandbox::Instance().customEnterFromEventLoop([] {
-				const auto window = Core::IsAppLaunched()
-					? Core::App().activePrimaryWindow()
-					: nullptr;
-				if (window) {
-					window->activate();
+				if (Core::IsAppLaunched()) {
+					Core::App().activate();
 				}
 			});
 		}, true);
@@ -276,33 +273,9 @@ void LaunchGApplication() {
 				const Glib::ustring &hint) {
 			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 				for (const auto &file : files) {
-					if (file->get_uri_scheme() == "file") {
-						gSendPaths.append(
-							QString::fromStdString(file->get_path()));
-						continue;
-					}
-					const auto url = QString::fromStdString(file->get_uri());
-					if (url.isEmpty()) {
-						continue;
-					}
-					if (url.startsWith(qstr("interpret://"))) {
-						gSendPaths.append(url);
-						continue;
-					}
-					if (Core::StartUrlRequiresActivate(url)) {
-						const auto window = Core::IsAppLaunched()
-							? Core::App().activePrimaryWindow()
-							: nullptr;
-						if (window) {
-							window->activate();
-						}
-					}
-					cSetStartUrl(url);
-					Core::App().checkStartUrl();
-				}
-
-				if (!cSendPaths().isEmpty()) {
-					Core::App().checkSendPaths();
+					QFileOpenEvent e(
+						QUrl(QString::fromStdString(file->get_uri())));
+					QGuiApplication::sendEvent(qApp, &e);
 				}
 			});
 		}, true);

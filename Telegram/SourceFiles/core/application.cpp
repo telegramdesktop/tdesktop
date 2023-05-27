@@ -107,6 +107,7 @@ namespace {
 constexpr auto kQuitPreventTimeoutMs = crl::time(1500);
 constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kClearEmojiImageSourceTimeout = 10 * crl::time(1000);
+constexpr auto kFileOpenTimeoutMs = crl::time(1000);
 
 LaunchState GlobalLaunchState/* = LaunchState::Running*/;
 
@@ -161,7 +162,8 @@ Application::Application(not_null<Launcher*> launcher)
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _tray(std::make_unique<Tray>())
-, _autoLockTimer([=] { checkAutoLock(); }) {
+, _autoLockTimer([=] { checkAutoLock(); })
+, _fileOpenTimer([=] { checkFileOpen(); }) {
 	Ui::Integration::Set(&_private->uiIntegration);
 
 	_platformIntegration->init();
@@ -656,14 +658,21 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 	case QEvent::FileOpen: {
 		if (object == QCoreApplication::instance()) {
 			const auto event = static_cast<QFileOpenEvent*>(e);
-			const auto url = QString::fromUtf8(
-				event->url().toEncoded().trimmed());
-			if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
+			if (const auto file = event->file(); !file.isEmpty()) {
+				_filesToOpen.append(file);
+				_fileOpenTimer.callOnce(kFileOpenTimeoutMs);
+			} else if (event->url().scheme() == u"tg"_q) {
+				const auto url = QString::fromUtf8(
+					event->url().toEncoded().trimmed());
 				cSetStartUrl(url.mid(0, 8192));
 				checkStartUrl();
-			}
-			if (_lastActivePrimaryWindow && StartUrlRequiresActivate(url)) {
-				_lastActivePrimaryWindow->activate();
+				if (_lastActivePrimaryWindow
+					&& StartUrlRequiresActivate(url)) {
+					_lastActivePrimaryWindow->activate();
+				}
+			} else if (event->url().scheme() == u"interpret"_q) {
+				_filesToOpen.append(event->url().toString());
+				_fileOpenTimer.callOnce(kFileOpenTimeoutMs);
 			}
 		}
 	} break;
@@ -1031,6 +1040,12 @@ bool Application::canApplyLangPackWithoutRestart() const {
 		}
 	}
 	return true;
+}
+
+void Application::checkFileOpen() {
+	cSetSendPaths(_filesToOpen);
+	_filesToOpen.clear();
+	checkSendPaths();
 }
 
 void Application::checkSendPaths() {
