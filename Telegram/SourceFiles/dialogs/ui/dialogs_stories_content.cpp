@@ -162,6 +162,9 @@ Content State::next() {
 #endif
 		});
 	}
+	ranges::stable_partition(result.users, [](const User &user) {
+		return user.unread;
+	});
 	return result;
 }
 
