@@ -361,10 +361,11 @@ void Controller::show(
 
 	const auto &list = lists[index];
 	const auto id = list.ids[subindex];
-	const auto maybeStory = list.user->owner().stories().lookup({
+	const auto storyId = FullStoryId{
 		.peer = list.user->id,
 		.story = id,
-	});
+	};
+	const auto maybeStory = list.user->owner().stories().lookup(storyId);
 	if (!maybeStory) {
 		return;
 	}
@@ -381,15 +382,8 @@ void Controller::show(
 		_list = list;
 	}
 	_index = subindex;
+	_waitingForId = {};
 
-	if (int(lists.size()) - index < kPreloadUsersCount) {
-		story->peer()->owner().stories().loadMore();
-	}
-
-	const auto storyId = FullStoryId{
-		.peer = list.user->id,
-		.story = id,
-	};
 	if (_shown == storyId) {
 		return;
 	}
@@ -411,7 +405,19 @@ void Controller::show(
 				_delegate->storiesClose();
 			}
 		});
+		session->data().stories().itemsChanged(
+		) | rpl::start_with_next([=](PeerId peerId) {
+			if (_waitingForId.peer == peerId) {
+				checkWaitingFor();
+			}
+		}, _sessionLifetime);
 	}
+
+	auto &stories = session->data().stories();
+	if (int(lists.size()) - index < kPreloadUsersCount) {
+		stories.loadMore();
+	}
+	stories.loadAround(storyId);
 
 	if (_contentFaded) {
 		togglePaused(true);
@@ -483,25 +489,61 @@ bool Controller::subjumpFor(int delta) {
 		} else if (!_list || _list->ids.empty()) {
 			return false;
 		}
-		_delegate->storiesJumpTo(&_list->user->session(), {
-			.peer = _list->user->id,
-			.story = _list->ids.front()
-		});
+		subjumpTo(0);
 		return true;
 	} else if (index >= _list->total) {
 		return _siblingRight
 			&& _siblingRight->shownId().valid()
 			&& jumpFor(1);
 	} else if (index < _list->ids.size()) {
-		// #TODO stories load more
-		_delegate->storiesJumpTo(&_list->user->session(), {
-			.peer = _list->user->id,
-			.story = _list->ids[index]
-		});
+		subjumpTo(index);
 	}
 	return true;
 }
 
+void Controller::subjumpTo(int index) {
+	Expects(_list.has_value());
+	Expects(index >= 0 && index < _list->ids.size());
+
+	const auto id = FullStoryId{
+		.peer = _list->user->id,
+		.story = _list->ids[index]
+	};
+	auto &stories = _list->user->owner().stories();
+	if (stories.lookup(id)) {
+		_delegate->storiesJumpTo(&_list->user->session(), id);
+	} else if (_waitingForId != id) {
+		_waitingForId = id;
+		stories.loadAround(id);
+	}
+}
+
+void Controller::checkWaitingFor() {
+	Expects(_waitingForId.valid());
+	Expects(_list.has_value());
+
+	auto &stories = _list->user->owner().stories();
+	const auto &all = stories.all();
+	const auto i = ranges::find_if(all, [&](const Data::StoriesList &data) {
+		return data.user->id == _waitingForId.peer;
+	});
+	if (i == end(all)) {
+		_waitingForId = {};
+		return;
+	}
+	const auto j = ranges::find(i->ids, _waitingForId.story);
+	if (j == end(i->ids)) {
+		_waitingForId = {};
+		return;
+	}
+	const auto maybe = stories.lookup(_waitingForId);
+	if (!maybe) {
+		return;
+	}
+	_delegate->storiesJumpTo(
+		&_list->user->session(),
+		base::take(_waitingForId));
+}
 
 bool Controller::jumpFor(int delta) {
 	if (delta == -1) {

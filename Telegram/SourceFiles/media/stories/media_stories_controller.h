@@ -131,6 +131,9 @@ private:
 		std::unique_ptr<Sibling> &sibling,
 		const Data::StoriesList *list);
 
+	void subjumpTo(int index);
+	void checkWaitingFor();
+
 	const not_null<Delegate*> _delegate;
 
 	rpl::variable<std::optional<Layout>> _layout;
@@ -148,6 +151,7 @@ private:
 	FullStoryId _shown;
 	TextWithEntities _captionText;
 	std::optional<Data::StoriesList> _list;
+	FullStoryId _waitingForId;
 	int _index = 0;
 	bool _started = false;
 

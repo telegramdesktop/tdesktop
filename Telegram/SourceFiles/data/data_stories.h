@@ -102,10 +102,12 @@ public:
 
 	void loadMore();
 	void apply(const MTPDupdateStories &data);
+	void loadAround(FullStoryId id);
 
 	[[nodiscard]] const std::vector<StoriesList> &all();
 	[[nodiscard]] bool allLoaded() const;
 	[[nodiscard]] rpl::producer<> allChanged() const;
+	[[nodiscard]] rpl::producer<PeerId> itemsChanged() const;
 
 	[[nodiscard]] base::expected<not_null<Story*>, NoStory> lookup(
 		FullStoryId id) const;
@@ -135,8 +137,10 @@ private:
 
 	base::flat_map<
 		PeerId,
-		base::flat_map<StoryId, std::vector<Fn<void()>>>> _resolves;
-	base::flat_map<mtpRequestId, std::vector<Fn<void()>>> _resolveRequests;
+		base::flat_map<StoryId, std::vector<Fn<void()>>>> _resolvePending;
+	base::flat_map<
+		PeerId,
+		base::flat_map<StoryId, std::vector<Fn<void()>>>> _resolveSent;
 
 	std::map<
 		not_null<Data::Story*>,
@@ -144,6 +148,7 @@ private:
 
 	std::vector<StoriesList> _all;
 	rpl::event_stream<> _allChanged;
+	rpl::event_stream<PeerId> _itemsChanged;
 	QString _state;
 	bool _allLoaded = false;
 

@@ -28,6 +28,8 @@ namespace Data {
 namespace {
 
 constexpr auto kMaxResolveTogether = 100;
+constexpr auto kIgnorePreloadAroundIfLoaded = 15;
+constexpr auto kPreloadAroundCount = 30;
 
 using UpdateFlag = StoryUpdate::Flag;
 
@@ -322,36 +324,31 @@ void Stories::loadMore() {
 }
 
 void Stories::sendResolveRequests() {
-	if (!_resolveRequests.empty()) {
+	if (!_resolveSent.empty()) {
 		return;
 	}
-	struct Prepared {
-		QVector<MTPint> ids;
-		std::vector<Fn<void()>> callbacks;
-	};
 	auto leftToSend = kMaxResolveTogether;
-	auto byPeer = base::flat_map<PeerId, Prepared>();
-	for (auto i = begin(_resolves); i != end(_resolves);) {
+	auto byPeer = base::flat_map<PeerId, QVector<MTPint>>();
+	for (auto i = begin(_resolvePending); i != end(_resolvePending);) {
 		auto &[peerId, ids] = *i;
-		auto &prepared = byPeer[peerId];
-		for (auto &[storyId, callbacks] : ids) {
-			prepared.ids.push_back(MTP_int(storyId));
-			prepared.callbacks.insert(
-				end(prepared.callbacks),
-				std::make_move_iterator(begin(callbacks)),
-				std::make_move_iterator(end(callbacks)));
-			if (!--leftToSend) {
-				break;
-			}
-		}
-		const auto sending = int(prepared.ids.size());
-		if (sending == ids.size()) {
-			i = _resolves.erase(i);
-			if (!leftToSend) {
-				break;
-			}
+		auto &sent = _resolveSent[peerId];
+		if (ids.size() <= leftToSend) {
+			sent = base::take(ids);
+			i = _resolvePending.erase(i);
+			leftToSend -= int(sent.size());
 		} else {
-			ids.erase(begin(ids), begin(ids) + sending);
+			sent = {
+				std::make_move_iterator(begin(ids)),
+				std::make_move_iterator(begin(ids) + leftToSend)
+			};
+			ids.erase(begin(ids), begin(ids) + leftToSend);
+			leftToSend = 0;
+		}
+		auto &prepared = byPeer[peerId];
+		for (auto &[storyId, callbacks] : sent) {
+			prepared.push_back(MTP_int(storyId));
+		}
+		if (!leftToSend) {
 			break;
 		}
 	}
@@ -359,36 +356,35 @@ void Stories::sendResolveRequests() {
 	for (auto &entry : byPeer) {
 		const auto peerId = entry.first;
 		auto &prepared = entry.second;
-		const auto finish = [=, ids = prepared.ids](mtpRequestId id) {
-			for (const auto &id : ids) {
-				finalizeResolve({ peerId, id.v });
-			}
-			if (auto callbacks = _resolveRequests.take(id)) {
-				for (const auto &callback : *callbacks) {
+		const auto finish = [=](PeerId peerId) {
+			const auto sent = _resolveSent.take(peerId);
+			Assert(sent.has_value());
+			for (const auto &[storyId, list] : *sent) {
+				finalizeResolve({ peerId, storyId });
+				for (const auto &callback : list) {
 					callback();
 				}
 			}
-			if (_resolveRequests.empty() && !_resolves.empty()) {
+			_itemsChanged.fire_copy(peerId);
+			if (_resolveSent.empty() && !_resolvePending.empty()) {
 				crl::on_main(&session(), [=] { sendResolveRequests(); });
 			}
 		};
 		const auto user = _owner->session().data().peer(peerId)->asUser();
 		if (!user) {
-			_resolveRequests[0] = std::move(prepared.callbacks);
-			finish(0);
+			finish(peerId);
 			continue;
 		}
 		const auto requestId = api->request(MTPstories_GetStoriesByID(
 			user->inputUser,
-			MTP_vector<MTPint>(std::move(prepared.ids))
-		)).done([=](const MTPstories_Stories &result, mtpRequestId id) {
+			MTP_vector<MTPint>(prepared)
+		)).done([=](const MTPstories_Stories &result) {
 			owner().processUsers(result.data().vusers());
 			processResolvedStories(user, result.data().vstories().v);
-			finish(id);
-		}).fail([=](const MTP::Error &error, mtpRequestId id) {
-			finish(id);
+			finish(user->id);
+		}).fail([=] {
+			finish(peerId);
 		}).send();
-		_resolveRequests.emplace(requestId, std::move(prepared.callbacks));
 	 }
 }
 
@@ -476,6 +472,10 @@ rpl::producer<> Stories::allChanged() const {
 	return _allChanged.events();
 }
 
+rpl::producer<PeerId> Stories::itemsChanged() const {
+	return _itemsChanged.events();
+}
+
 base::expected<not_null<Story*>, NoStory> Stories::lookup(
 		FullStoryId id) const {
 	const auto i = _stories.find(id.peer);
@@ -492,10 +492,20 @@ base::expected<not_null<Story*>, NoStory> Stories::lookup(
 void Stories::resolve(FullStoryId id, Fn<void()> done) {
 	const auto already = lookup(id);
 	if (already.has_value() || already.error() != NoStory::Unknown) {
-		done();
+		if (done) {
+			done();
+		}
 		return;
 	}
-	auto &ids = _resolves[id.peer];
+	if (const auto i = _resolveSent.find(id.peer); i != end(_resolveSent)) {
+		if (const auto j = i->second.find(id.story); j != end(i->second)) {
+			if (done) {
+				j->second.push_back(std::move(done));
+			}
+			return;
+		}
+	}
+	auto &ids = _resolvePending[id.peer];
 	if (ids.empty()) {
 		crl::on_main(&session(), [=] {
 			sendResolveRequests();
@@ -525,7 +535,7 @@ void Stories::applyChanges(StoriesList &&list) {
 		auto added = false;
 		for (const auto id : list.ids) {
 			if (!ranges::contains(i->ids, id)) {
-				i->ids.insert(begin(i->ids), id);
+				i->ids.push_back(id);
 				++i->total;
 				added = true;
 			}
@@ -535,6 +545,42 @@ void Stories::applyChanges(StoriesList &&list) {
 		}
 	} else if (!list.ids.empty()) {
 		_all.insert(begin(_all), std::move(list));
+	}
+}
+
+void Stories::loadAround(FullStoryId id) {
+	const auto i = ranges::find(_all, id.peer, [](const StoriesList &list) {
+		return list.user->id;
+	});
+	if (i == end(_all)) {
+		return;
+	}
+	const auto j = ranges::find(i->ids, id.story);
+	if (j == end(i->ids)) {
+		return;
+	}
+	const auto ignore = [&] {
+		const auto side = kIgnorePreloadAroundIfLoaded;
+		const auto left = ranges::min(j - begin(i->ids), side);
+		const auto right = ranges::min(end(i->ids) - j, side);
+		for (auto k = j - left; k != j + right; ++k) {
+			const auto maybeStory = lookup({ id.peer, *k });
+			if (!maybeStory && maybeStory.error() == NoStory::Unknown) {
+				return false;
+			}
+		}
+		return true;
+	}();
+	if (ignore) {
+		return;
+	}
+	const auto side = kPreloadAroundCount;
+	const auto left = ranges::min(j - begin(i->ids), side);
+	const auto right = ranges::min(end(i->ids) - j, side);
+	const auto from = j - left;
+	const auto till = j + right;
+	for (auto k = from; k != till; ++k) {
+		resolve({ id.peer, *k }, nullptr);
 	}
 }
 
