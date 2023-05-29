@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
+#include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -30,6 +31,7 @@ namespace {
 constexpr auto kMaxResolveTogether = 100;
 constexpr auto kIgnorePreloadAroundIfLoaded = 15;
 constexpr auto kPreloadAroundCount = 30;
+constexpr auto kMarkAsReadDelay = 3 * crl::time(1000);
 
 using UpdateFlag = StoryUpdate::Flag;
 
@@ -61,7 +63,7 @@ std::optional<StoryMedia> ParseMedia(
 } // namespace
 
 bool StoriesList::unread() const {
-	return !ids.empty() && readTill < ids.front();
+	return !ids.empty() && readTill < ids.back();
 }
 
 Story::Story(
@@ -188,7 +190,9 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	return true;
 }
 
-Stories::Stories(not_null<Session*> owner) : _owner(owner) {
+Stories::Stories(not_null<Session*> owner)
+: _owner(owner)
+, _markReadTimer([=] { sendMarkAsReadRequests(); }) {
 }
 
 Stories::~Stories() {
@@ -222,13 +226,13 @@ StoriesList Stories::parse(const MTPUserStories &stories) {
 	for (const auto &story : list) {
 		story.match([&](const MTPDstoryItem &data) {
 			if (const auto story = parseAndApply(result.user, data)) {
-				result.ids.push_back(story->id());
+				result.ids.emplace(story->id());
 			} else {
 				applyDeleted({ peerFromUser(userId), data.vid().v });
 				--result.total;
 			}
 		}, [&](const MTPDstoryItemSkipped &data) {
-			result.ids.push_back(data.vid().v);
+			result.ids.emplace(data.vid().v);
 		}, [&](const MTPDstoryItemDeleted &data) {
 			applyDeleted({ peerFromUser(userId), data.vid().v });
 			--result.total;
@@ -434,13 +438,13 @@ void Stories::applyDeleted(FullStoryId id) {
 		return list.user->id;
 	});
 	if (j != end(_all)) {
-		const auto till = ranges::remove(j->ids, id.story);
-		const auto removed = int(std::distance(till, end(j->ids)));
-		if (till != end(j->ids)) {
-			j->ids.erase(till, end(j->ids));
-			j->total = std::max(j->total - removed, 0);
+		const auto removed = j->ids.remove(id.story);
+		if (removed) {
 			if (j->ids.empty()) {
 				_all.erase(j);
+			} else {
+				Assert(j->total > 0);
+				--j->total;
 			}
 			_allChanged.fire({});
 		}
@@ -534,8 +538,8 @@ void Stories::applyChanges(StoriesList &&list) {
 	if (i != end(_all)) {
 		auto added = false;
 		for (const auto id : list.ids) {
-			if (!ranges::contains(i->ids, id)) {
-				i->ids.push_back(id);
+			if (!i->ids.contains(id)) {
+				i->ids.emplace(id);
 				++i->total;
 				added = true;
 			}
@@ -582,6 +586,80 @@ void Stories::loadAround(FullStoryId id) {
 	for (auto k = from; k != till; ++k) {
 		resolve({ id.peer, *k }, nullptr);
 	}
+}
+
+void Stories::markAsRead(FullStoryId id) {
+	const auto i = ranges::find(_all, id.peer, [](const StoriesList &list) {
+		return list.user->id;
+	});
+	Assert(i != end(_all));
+	if (i->readTill >= id.story) {
+		return;
+	} else if (!_markReadPending.contains(id.peer)) {
+		sendMarkAsReadRequests();
+	}
+	_markReadPending.emplace(id.peer);
+	i->readTill = id.story;
+	_markReadTimer.callOnce(kMarkAsReadDelay);
+	_allChanged.fire({});
+}
+
+void Stories::sendMarkAsReadRequest(
+		not_null<PeerData*> peer,
+		StoryId tillId) {
+	Expects(peer->isUser());
+
+	const auto peerId = peer->id;
+	_markReadRequests.emplace(peerId);
+	const auto finish = [=] {
+		_markReadRequests.remove(peerId);
+		if (!_markReadTimer.isActive()
+			&& _markReadPending.contains(peerId)) {
+			sendMarkAsReadRequests();
+		}
+		if (_markReadRequests.empty()) {
+			if (Core::Quitting()) {
+				LOG(("Stories doesn't prevent quit any more."));
+			}
+			Core::App().quitPreventFinished();
+		}
+	};
+
+	const auto api = &_owner->session().api();
+	api->request(MTPstories_ReadStories(
+		peer->asUser()->inputUser,
+		MTP_int(tillId)
+	)).done(finish).fail(finish).send();
+}
+
+void Stories::sendMarkAsReadRequests() {
+	_markReadTimer.cancel();
+	for (auto i = begin(_markReadPending); i != end(_markReadPending);) {
+		const auto peerId = *i;
+		if (_markReadRequests.contains(peerId)) {
+			++i;
+			continue;
+		}
+		const auto j = ranges::find(_all, peerId, [](
+				const StoriesList &list) {
+			return list.user->id;
+		});
+		if (j != end(_all)) {
+			sendMarkAsReadRequest(j->user, j->readTill);
+		}
+		i = _markReadPending.erase(i);
+	}
+}
+
+bool Stories::isQuitPrevent() {
+	if (!_markReadPending.empty()) {
+		sendMarkAsReadRequests();
+	}
+	if (_markReadRequests.empty()) {
+		return false;
+	}
+	LOG(("Stories prevents quit, marking as read..."));
+	return true;
 }
 
 } // namespace Data

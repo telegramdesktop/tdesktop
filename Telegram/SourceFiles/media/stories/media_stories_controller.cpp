@@ -41,6 +41,8 @@ constexpr auto kSiblingOutsidePart = 0.24;
 constexpr auto kSiblingUserpicSize = 0.3;
 constexpr auto kInnerHeightMultiplier = 1.6;
 constexpr auto kPreloadUsersCount = 3;
+constexpr auto kMarkAsReadAfterSeconds = 1;
+constexpr auto kMarkAsReadAfterProgress = 0.2;
 
 } // namespace
 
@@ -360,7 +362,7 @@ void Controller::show(
 	showSiblings(lists, index);
 
 	const auto &list = lists[index];
-	const auto id = list.ids[subindex];
+	const auto id = *(begin(list.ids) + subindex);
 	const auto storyId = FullStoryId{
 		.peer = list.user->id,
 		.story = id,
@@ -464,11 +466,32 @@ void Controller::updatePhotoPlayback(const Player::TrackState &state) {
 void Controller::updatePlayback(const Player::TrackState &state) {
 	_slider->updatePlayback(state);
 	updatePowerSaveBlocker(state);
+	maybeMarkAsRead(state);
 	if (Player::IsStoppedAtEnd(state.state)) {
 		if (!subjumpFor(1)) {
 			_delegate->storiesClose();
 		}
 	}
+}
+
+void Controller::maybeMarkAsRead(const Player::TrackState &state) {
+	const auto length = state.length;
+	const auto position = Player::IsStoppedAtEnd(state.state)
+		? state.length
+		: Player::IsStoppedOrStopping(state.state)
+		? 0
+		: state.position;
+	if (position > state.frequency * kMarkAsReadAfterSeconds) {
+		if (position > kMarkAsReadAfterProgress * length) {
+			markAsRead();
+		}
+	}
+}
+
+void Controller::markAsRead() {
+	Expects(_list.has_value());
+
+	_list->user->owner().stories().markAsRead(_shown);
 }
 
 bool Controller::subjumpAvailable(int delta) const {
@@ -482,6 +505,9 @@ bool Controller::subjumpAvailable(int delta) const {
 }
 
 bool Controller::subjumpFor(int delta) {
+	if (delta > 0) {
+		markAsRead();
+	}
 	const auto index = _index + delta;
 	if (index < 0) {
 		if (_siblingLeft && _siblingLeft->shownId().valid()) {
@@ -507,7 +533,7 @@ void Controller::subjumpTo(int index) {
 
 	const auto id = FullStoryId{
 		.peer = _list->user->id,
-		.story = _list->ids[index]
+		.story = *(begin(_list->ids) + index)
 	};
 	auto &stories = _list->user->owner().stories();
 	if (stories.lookup(id)) {
@@ -554,6 +580,9 @@ bool Controller::jumpFor(int delta) {
 			return true;
 		}
 	} else if (delta == 1) {
+		if (_list && _index + 1 >= _list->total) {
+			markAsRead();
+		}
 		if (const auto right = _siblingRight.get()) {
 			_delegate->storiesJumpTo(
 				&right->peer()->session(),

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/expected.h"
+#include "base/timer.h"
 
 class Image;
 class PhotoData;
@@ -70,7 +71,7 @@ private:
 
 struct StoriesList {
 	not_null<UserData*> user;
-	std::vector<StoryId> ids;
+	base::flat_set<StoryId> ids;
 	StoryId readTill = 0;
 	int total = 0;
 
@@ -113,6 +114,9 @@ public:
 		FullStoryId id) const;
 	void resolve(FullStoryId id, Fn<void()> done);
 
+	[[nodiscard]] bool isQuitPrevent();
+	void markAsRead(FullStoryId id);
+
 private:
 	[[nodiscard]] StoriesList parse(const MTPUserStories &stories);
 	[[nodiscard]] Story *parseAndApply(
@@ -128,6 +132,9 @@ private:
 	void applyChanges(StoriesList &&list);
 	void applyDeleted(FullStoryId id);
 	void removeDependencyStory(not_null<Story*> story);
+
+	void sendMarkAsReadRequests();
+	void sendMarkAsReadRequest(not_null<PeerData*> peer, StoryId tillId);
 
 	const not_null<Session*> _owner;
 	base::flat_map<
@@ -153,6 +160,10 @@ private:
 	bool _allLoaded = false;
 
 	mtpRequestId _loadMoreRequestId = 0;
+
+	base::flat_set<PeerId> _markReadPending;
+	base::Timer _markReadTimer;
+	base::flat_set<PeerId> _markReadRequests;
 
 };
 

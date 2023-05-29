@@ -123,6 +123,8 @@ private:
 	void updatePhotoPlayback(const Player::TrackState &state);
 	void updatePlayback(const Player::TrackState &state);
 	void updatePowerSaveBlocker(const Player::TrackState &state);
+	void maybeMarkAsRead(const Player::TrackState &state);
+	void markAsRead();
 
 	void showSiblings(
 		const std::vector<Data::StoriesList> &lists,

@@ -2486,7 +2486,8 @@ void SessionController::openPeerStories(PeerId peerId) {
 		return list.user->id;
 	});
 	if (i != end(all) && !i->ids.empty()) {
-		openPeerStory(i->user, i->ids.front());
+		const auto j = i->ids.lower_bound(i->readTill + 1);
+		openPeerStory(i->user, j != i->ids.end() ? *j : i->ids.front());
 	}
 }
 

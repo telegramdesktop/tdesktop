@@ -37,11 +37,15 @@ struct List::Layout {
 	float64 userpicLeft = 0.;
 	float64 photoLeft = 0.;
 	float64 left = 0.;
+	float64 single = 0.;
+	int leftFull = 0;
+	int leftSmall = 0;
+	int singleFull = 0;
+	int singleSmall = 0;
 	int startIndexSmall = 0;
 	int endIndexSmall = 0;
 	int startIndexFull = 0;
 	int endIndexFull = 0;
-	int singleFull = 0;
 };
 
 List::List(
@@ -277,11 +281,15 @@ List::Layout List::computeLayout() const {
 		.userpicLeft = userpicLeft,
 		.photoLeft = photoLeft,
 		.left = userpicLeft - photoLeft,
+		.single = lerp(st.shift, singleFull),
+		.leftFull = leftFull,
+		.leftSmall = leftSmall,
+		.singleFull = singleFull,
+		.singleSmall = st.shift,
 		.startIndexSmall = startIndexSmall,
 		.endIndexSmall = endIndexSmall,
 		.startIndexFull = startIndexFull,
 		.endIndexFull = endIndexFull,
-		.singleFull = singleFull,
 	};
 }
 
@@ -296,8 +304,6 @@ void List::paintEvent(QPaintEvent *e) {
 	auto &rendering = _data.empty() ? _hidingData : _data;
 	const auto line = lerp(st.lineTwice, full.lineTwice) / 2.;
 	const auto lineRead = lerp(st.lineReadTwice, full.lineReadTwice) / 2.;
-	const auto singleSmall = st.shift;
-	const auto single = lerp(singleSmall, layout.singleFull);
 	const auto photoTopSmall = (st.height - st.photo) / 2.;
 	const auto photoTop = lerp(photoTopSmall, full.photoTop);
 	const auto photo = lerp(st.photo, full.photo);
@@ -346,7 +352,7 @@ void List::paintEvent(QPaintEvent *e) {
 		const auto full = (drawFull && indexFull < layout.endIndexFull)
 			? &rendering.items[indexFull]
 			: nullptr;
-		const auto x = layout.left + single * index;
+		const auto x = layout.left + layout.single * index;
 		return Single{ x, indexSmall, small, indexFull, full };
 	};
 	const auto hasUnread = [&](const Single &single) {
@@ -697,19 +703,17 @@ void List::updateSelected() {
 	const auto &full = st::dialogsStoriesFull;
 	const auto p = mapFromGlobal(_lastMousePosition);
 	const auto layout = computeLayout();
-	const auto firstRightFull = full.left + layout.singleFull;
-	const auto firstRightSmall = st.left
+	const auto firstRightFull = layout.leftFull
+		+ (layout.startIndexFull + 1) * layout.singleFull;
+	const auto firstRightSmall = layout.leftSmall
 		+ st.photoLeft
 		+ st.photo;
-	const auto stepFull = layout.singleFull;
-	const auto stepSmall = st.shift;
 	const auto lastRightAddFull = 0;
 	const auto lastRightAddSmall = st.photoLeft;
 	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * layout.ratio;
 	};
 	const auto firstRight = lerp(firstRightSmall, firstRightFull);
-	const auto step = lerp(stepSmall, stepFull);
 	const auto lastRightAdd = lerp(lastRightAddSmall, lastRightAddFull);
 	const auto activateFull = (layout.ratio >= 0.5);
 	const auto startIndex = activateFull
@@ -721,14 +725,16 @@ void List::updateSelected() {
 	const auto x = p.x();
 	const auto infiniteIndex = (x < firstRight)
 		? 0
-		: int(std::floor(((x - firstRight) / step) + 1));
+		: int(std::floor(((x - firstRight) / layout.single) + 1));
 	const auto index = (endIndex == startIndex)
 		? -1
 		: (infiniteIndex == endIndex - startIndex
 			&& x < firstRight
-				+ (endIndex - startIndex - 1) * step
+				+ (endIndex - startIndex - 1) * layout.single
 				+ lastRightAdd)
 		? (infiniteIndex - 1) // Last small part should still be clickable.
+		: (startIndex + infiniteIndex >= endIndex)
+		? -1
 		: infiniteIndex;
 	const auto selected = (index < 0
 		|| startIndex + index >= layout.itemsCount)
