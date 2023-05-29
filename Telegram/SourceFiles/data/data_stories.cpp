@@ -299,7 +299,9 @@ void Stories::loadMore() {
 	const auto api = &_owner->session().api();
 	using Flag = MTPstories_GetAllStories::Flag;
 	_loadMoreRequestId = api->request(MTPstories_GetAllStories(
-		MTP_flags(_state.isEmpty() ? Flag(0) : Flag::f_next),
+		MTP_flags(_state.isEmpty()
+			? Flag(0)
+			: (Flag::f_next | Flag::f_state)),
 		MTP_string(_state)
 	)).done([=](const MTPstories_AllStories &result) {
 		_loadMoreRequestId = 0;

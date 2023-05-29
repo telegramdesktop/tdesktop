@@ -47,6 +47,7 @@ public:
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] rpl::producer<> expandRequests() const;
 	[[nodiscard]] rpl::producer<> entered() const;
+	[[nodiscard]] rpl::producer<> loadMoreRequests() const;
 
 private:
 	struct Layout;
@@ -110,6 +111,7 @@ private:
 	void updateSelected();
 	void checkDragging();
 	bool finishDragging();
+	void checkLoadMore();
 
 	void updateHeight();
 	void toggleAnimated(bool shown);
@@ -128,6 +130,7 @@ private:
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<> _expandRequests;
 	rpl::event_stream<> _entered;
+	rpl::event_stream<> _loadMoreRequests;
 
 	Ui::Animations::Simple _shownAnimation;
 

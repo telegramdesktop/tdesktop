@@ -19,6 +19,7 @@ namespace {
 constexpr auto kSmallUserpicsShown = 3;
 constexpr auto kSmallReadOpacity = 0.6;
 constexpr auto kSummaryExpandLeft = 1.5;
+constexpr auto kPreloadPages = 2;
 
 [[nodiscard]] int AvailableNameWidth() {
 	const auto &full = st::dialogsStoriesFull;
@@ -206,6 +207,7 @@ void List::updateScrollMax() {
 	const auto widthFull = full.left + int(_data.items.size()) * singleFull;
 	_scrollLeftMax = std::max(widthFull - width(), 0);
 	_scrollLeft = std::clamp(_scrollLeft, 0, _scrollLeftMax);
+	checkLoadMore();
 	update();
 }
 
@@ -219,6 +221,10 @@ rpl::producer<> List::expandRequests() const {
 
 rpl::producer<> List::entered() const {
 	return _entered.events();
+}
+
+rpl::producer<> List::loadMoreRequests() const {
+	return _loadMoreRequests.events();
 }
 
 void List::enterEventHook(QEnterEvent *e) {
@@ -597,6 +603,7 @@ void List::wheelEvent(QWheelEvent *e) {
 		_expandRequests.fire({});
 		_scrollLeft = next;
 		updateSelected();
+		checkLoadMore();
 		update();
 	}
 	e->accept();
@@ -640,8 +647,15 @@ void List::checkDragging() {
 			_scrollLeftMax);
 		if (newLeft != _scrollLeft) {
 			_scrollLeft = newLeft;
+			checkLoadMore();
 			update();
 		}
+	}
+}
+
+void List::checkLoadMore() {
+	if (_scrollLeftMax - _scrollLeft < width() * kPreloadPages) {
+		_loadMoreRequests.fire({});
 	}
 }
 

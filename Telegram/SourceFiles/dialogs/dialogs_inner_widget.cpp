@@ -342,6 +342,11 @@ InnerWidget::InnerWidget(
 		_controller->openPeerStories(PeerId(int64(id)));
 	}, lifetime());
 
+	_stories->loadMoreRequests(
+	) | rpl::start_with_next([=] {
+		session().data().stories().loadMore();
+	}, lifetime());
+
 	handleChatListEntryRefreshes();
 
 	refreshWithCollapsedRows(true);

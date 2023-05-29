@@ -40,6 +40,7 @@ constexpr auto kSiblingMultiplierMax = 0.72;
 constexpr auto kSiblingOutsidePart = 0.24;
 constexpr auto kSiblingUserpicSize = 0.3;
 constexpr auto kInnerHeightMultiplier = 1.6;
+constexpr auto kPreloadUsersCount = 3;
 
 } // namespace
 
@@ -380,6 +381,10 @@ void Controller::show(
 		_list = list;
 	}
 	_index = subindex;
+
+	if (int(lists.size()) - index < kPreloadUsersCount) {
+		story->peer()->owner().stories().loadMore();
+	}
 
 	const auto storyId = FullStoryId{
 		.peer = list.user->id,
