@@ -421,6 +421,8 @@ void Controller::show(
 	}
 	stories.loadAround(storyId);
 
+	list.user->updateFull();
+
 	if (_contentFaded) {
 		togglePaused(true);
 	}

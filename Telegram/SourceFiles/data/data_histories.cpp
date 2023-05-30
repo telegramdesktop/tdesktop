@@ -35,15 +35,7 @@ constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
 MTPInputReplyTo ReplyToForMTP(
 		not_null<Session*> owner,
 		FullReplyTo replyTo) {
-	if (replyTo.msgId || replyTo.topicRootId) {
-		using Flag = MTPDinputReplyToMessage::Flag;
-		return MTP_inputReplyToMessage(
-			(replyTo.topicRootId
-				? MTP_flags(Flag::f_top_msg_id)
-				: MTP_flags(0)),
-			MTP_int(replyTo.msgId ? replyTo.msgId : replyTo.topicRootId),
-			MTP_int(replyTo.topicRootId));
-	} else if (replyTo.storyId) {
+	if (replyTo.storyId) {
 		if (const auto peer = owner->peerLoaded(replyTo.storyId.peer)) {
 			if (const auto user = peer->asUser()) {
 				return MTP_inputReplyToStory(
@@ -51,6 +43,14 @@ MTPInputReplyTo ReplyToForMTP(
 					MTP_int(replyTo.storyId.story));
 			}
 		}
+	} else if (replyTo.msgId || replyTo.topicRootId) {
+		using Flag = MTPDinputReplyToMessage::Flag;
+		return MTP_inputReplyToMessage(
+			(replyTo.topicRootId
+				? MTP_flags(Flag::f_top_msg_id)
+				: MTP_flags(0)),
+			MTP_int(replyTo.msgId ? replyTo.msgId : replyTo.topicRootId),
+			MTP_int(replyTo.topicRootId));
 	}
 	return MTPInputReplyTo();
 }

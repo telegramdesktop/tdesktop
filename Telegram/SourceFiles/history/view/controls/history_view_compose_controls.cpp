@@ -2274,7 +2274,7 @@ void ComposeControls::initVoiceRecordBar() {
 			return std::nullopt;
 		}();
 		if (error) {
-			_show->showBox(Ui::MakeInformBox(*error));
+			_show->showToast(*error);
 			return true;
 		} else if (_showSlowmodeError && _showSlowmodeError()) {
 			return true;
