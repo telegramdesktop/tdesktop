@@ -26,16 +26,22 @@ using namespace base::Platform::Wayland;
 
 namespace Platform {
 namespace internal {
+namespace {
+
+class PlasmaShell : public Global<QtWayland::org_kde_plasma_shell> {
+public:
+	using Global::Global;
+
+	using Surface = AutoDestroyer<QtWayland::org_kde_plasma_surface>;
+	base::flat_map<wl_surface*, Surface> surfaces;
+};
+
+} // namespace
 
 struct WaylandIntegration::Private : public AutoDestroyer<QtWayland::wl_registry> {
 	QtWayland::org_kde_plasma_surface plasmaSurface(QWindow *window);
 
-	AutoDestroyer<QtWayland::org_kde_plasma_shell> plasmaShell;
-	uint32_t plasmaShellName = 0;
-	base::flat_map<
-		wl_surface*,
-		AutoDestroyer<QtWayland::org_kde_plasma_surface>
-	> plasmaSurfaces;
+	std::optional<PlasmaShell> plasmaShell;
 	rpl::lifetime lifetime;
 
 protected:
@@ -44,22 +50,20 @@ protected:
 			const QString &interface,
 			uint32_t version) override {
 		if (interface == qstr("org_kde_plasma_shell")) {
-			plasmaShell.init(object(), name, version);
-			plasmaShellName = name;
+			plasmaShell.emplace(object(), name, version);
 		}
 	}
 
 	void registry_global_remove(uint32_t name) override {
-		if (name == plasmaShellName) {
-			plasmaShell = {};
-			plasmaShellName = 0;
+		if (plasmaShell && name == plasmaShell->id()) {
+			plasmaShell = std::nullopt;
 		}
 	}
 };
 
 QtWayland::org_kde_plasma_surface WaylandIntegration::Private::plasmaSurface(
 		QWindow *window) {
-	if (!plasmaShell.isInitialized()) {
+	if (!plasmaShell) {
 		return {};
 	}
 
@@ -73,25 +77,25 @@ QtWayland::org_kde_plasma_surface WaylandIntegration::Private::plasmaSurface(
 		return {};
 	}
 
-	const auto it = plasmaSurfaces.find(surface);
-	if (it != plasmaSurfaces.cend()) {
+	const auto it = plasmaShell->surfaces.find(surface);
+	if (it != plasmaShell->surfaces.cend()) {
 		return it->second;
 	}
 
-	const auto plasmaSurface = plasmaShell.get_surface(surface);
+	const auto plasmaSurface = plasmaShell->get_surface(surface);
 	if (!plasmaSurface) {
 		return {};
 	}
 
-	const auto result = plasmaSurfaces.emplace(surface, plasmaSurface);
+	const auto result = plasmaShell->surfaces.emplace(surface, plasmaSurface);
 
 	base::qt_signal_producer(
 		native,
 		&QWaylandWindow::surfaceDestroyed
 	) | rpl::start_with_next([=] {
-		auto it = plasmaSurfaces.find(surface);
-		if (it != plasmaSurfaces.cend()) {
-			plasmaSurfaces.erase(it);
+		auto it = plasmaShell->surfaces.find(surface);
+		if (it != plasmaShell->surfaces.cend()) {
+			plasmaShell->surfaces.erase(it);
 		}
 	}, lifetime);
 
@@ -130,7 +134,7 @@ WaylandIntegration *WaylandIntegration::Instance() {
 }
 
 bool WaylandIntegration::skipTaskbarSupported() {
-	return _private->plasmaShell.isInitialized();
+	return _private->plasmaShell.has_value();
 }
 
 void WaylandIntegration::skipTaskbar(QWindow *window, bool skip) {
