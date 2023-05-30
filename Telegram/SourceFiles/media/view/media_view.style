@@ -729,3 +729,11 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 	}
 	premium: storiesComposePremium;
 }
+storiesRecentViewsUserpics: GroupCallUserpics {
+	size: 24px;
+	shift: 9px;
+	stroke: 4px;
+	align: align(left);
+}
+storiesRecentViewsSkip: 8px;
+

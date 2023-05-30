@@ -67,5 +67,6 @@ struct MimeImageData {
 [[nodiscard]] MimeImageData ReadMimeImage(not_null<const QMimeData*> data);
 [[nodiscard]] QString ReadMimeText(not_null<const QMimeData*> data);
 [[nodiscard]] QList<QUrl> ReadMimeUrls(not_null<const QMimeData*> data);
+[[nodiscard]] bool CanSendFiles(not_null<const QMimeData*> data);
 
 } // namespace Core

@@ -973,6 +973,8 @@ PRIVATE
     media/stories/media_stories_delegate.h
     media/stories/media_stories_header.cpp
     media/stories/media_stories_header.h
+    media/stories/media_stories_recent_views.cpp
+    media/stories/media_stories_recent_views.h
     media/stories/media_stories_reply.cpp
     media/stories/media_stories_reply.h
     media/stories/media_stories_sibling.cpp

@@ -229,4 +229,15 @@ QList<QUrl> ReadMimeUrls(not_null<const QMimeData*> data) {
 		: QList<QUrl>();
 }
 
+bool CanSendFiles(not_null<const QMimeData*> data) {
+	if (data->hasImage()) {
+		return true;
+	} else if (const auto urls = ReadMimeUrls(data); !urls.empty()) {
+		if (ranges::all_of(urls, &QUrl::isLocalFile)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace Core

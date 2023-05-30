@@ -97,17 +97,6 @@ namespace {
 
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 
-bool CanSendFiles(not_null<const QMimeData*> data) {
-	if (data->hasImage()) {
-		return true;
-	} else if (const auto urls = Core::ReadMimeUrls(data); !urls.empty()) {
-		if (ranges::all_of(urls, &QUrl::isLocalFile)) {
-			return true;
-		}
-	}
-	return false;
-}
-
 rpl::producer<Ui::MessageBarContent> RootViewContent(
 		not_null<History*> history,
 		MsgId rootId,
@@ -819,7 +808,7 @@ void RepliesWidget::setupComposeControls() {
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
 		if (action == Ui::InputField::MimeAction::Check) {
-			return CanSendFiles(data);
+			return Core::CanSendFiles(data);
 		} else if (action == Ui::InputField::MimeAction::Insert) {
 			return confirmSendingFiles(
 				data,

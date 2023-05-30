@@ -3793,6 +3793,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_row_count#other" = "{count} Stories";
 "lng_stories_row_unread_and_one" = "{accumulated}, {user}";
 "lng_stories_row_unread_and_last" = "{accumulated} and {user}";
+"lng_stories_views#one" = "{count} view";
+"lng_stories_views#other" = "{count} views";
+"lng_stories_no_views" = "No views";
 
 // Wnd specific
 

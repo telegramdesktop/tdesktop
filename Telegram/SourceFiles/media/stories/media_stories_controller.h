@@ -41,6 +41,7 @@ namespace Media::Stories {
 class Header;
 class Slider;
 class ReplyArea;
+class RecentViews;
 class Sibling;
 class Delegate;
 struct SiblingView;
@@ -68,6 +69,7 @@ struct Layout {
 	QRect slider;
 	int controlsWidth = 0;
 	QPoint controlsBottomPosition;
+	QRect views;
 	QRect autocompleteRect;
 	HeaderLayout headerLayout = HeaderLayout::Normal;
 	SiblingLayout siblingLeft;
@@ -148,6 +150,7 @@ private:
 	const std::unique_ptr<Header> _header;
 	const std::unique_ptr<Slider> _slider;
 	const std::unique_ptr<ReplyArea> _replyArea;
+	const std::unique_ptr<RecentViews> _recentViews;
 	std::unique_ptr<PhotoPlayback> _photoPlayback;
 	std::unique_ptr<CaptionFullView> _captionFullView;
 

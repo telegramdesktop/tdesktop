@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_header.h"
 #include "media/stories/media_stories_sibling.h"
 #include "media/stories/media_stories_slider.h"
+#include "media/stories/media_stories_recent_views.h"
 #include "media/stories/media_stories_reply.h"
 #include "media/stories/media_stories_view.h"
 #include "media/audio/media_audio.h"
@@ -123,7 +124,8 @@ Controller::Controller(not_null<Delegate*> delegate)
 , _wrap(_delegate->storiesWrap())
 , _header(std::make_unique<Header>(this))
 , _slider(std::make_unique<Slider>(this))
-, _replyArea(std::make_unique<ReplyArea>(this)) {
+, _replyArea(std::make_unique<ReplyArea>(this))
+, _recentViews(std::make_unique<RecentViews>(this)) {
 	initLayout();
 
 	_replyArea->activeValue(
@@ -249,6 +251,9 @@ void Controller::initLayout() {
 				+ layout.content.height()
 				+ fieldMinHeight
 				- st::storiesFieldMargin.bottom()));
+		layout.views = QRect(
+			layout.controlsBottomPosition - QPoint(0, fieldMinHeight),
+			QSize(layout.controlsWidth, fieldMinHeight));
 		layout.autocompleteRect = QRect(
 			layout.controlsBottomPosition.x(),
 			0,
@@ -422,9 +427,18 @@ void Controller::show(
 	_captionText = story->caption();
 	_captionFullView = nullptr;
 
+	if (_replyFocused) {
+		unfocusReply();
+	}
+
 	_header->show({ .user = list.user, .date = story->date() });
 	_slider->show({ .index = _index, .total = list.total });
 	_replyArea->show({ .user = list.user, .id = id });
+	_recentViews->show({
+		.list = story->recentViewers(),
+		.total = story->views(),
+		.valid = list.user->isSelf(),
+	});
 
 	const auto session = &list.user->session();
 	if (_session != session) {
@@ -450,11 +464,7 @@ void Controller::show(
 	}
 	stories.loadAround(storyId);
 
-	if (_replyFocused) {
-		unfocusReply();
-	}
 	updatePlayingAllowed();
-
 	list.user->updateFull();
 }
 

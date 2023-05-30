@@ -66,18 +66,12 @@ private:
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<History*> history() const;
 
-	bool confirmSendingFiles(const QStringList &files);
-	bool confirmSendingFiles(not_null<const QMimeData*> data);
-
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
 		QImage &&image,
 		QByteArray &&content,
 		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
-	bool confirmSendingFiles(
-		const QStringList &files,
-		const QString &insertTextOnCancel);
 	bool confirmSendingFiles(
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());

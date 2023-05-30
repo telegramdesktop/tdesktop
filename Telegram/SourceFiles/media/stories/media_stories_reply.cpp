@@ -524,12 +524,12 @@ void ReplyArea::initActions() {
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
 		if (action == Ui::InputField::MimeAction::Check) {
-			return false;// checkSendingFiles(data);
+			return Core::CanSendFiles(data);
 		} else if (action == Ui::InputField::MimeAction::Insert) {
-			return false;/* confirmSendingFiles(
+			return confirmSendingFiles(
 				data,
 				std::nullopt,
-				Core::ReadMimeText(data));*/
+				Core::ReadMimeText(data));
 		}
 		Unexpected("action in MimeData hook.");
 	});
@@ -562,6 +562,11 @@ void ReplyArea::show(ReplyAreaData data) {
 		.history = history,
 	});
 	_controls->clear();
+	if (!user || user->isSelf()) {
+		_controls->hide();
+	} else {
+		_controls->show();
+	}
 }
 
 Main::Session &ReplyArea::session() const {

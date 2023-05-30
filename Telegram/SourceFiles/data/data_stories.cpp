@@ -36,10 +36,10 @@ constexpr auto kMarkAsReadDelay = 3 * crl::time(1000);
 using UpdateFlag = StoryUpdate::Flag;
 
 std::optional<StoryMedia> ParseMedia(
-		not_null<Session*> owner,
-		const MTPMessageMedia &media) {
+	not_null<Session*> owner,
+	const MTPMessageMedia &media) {
 	return media.match([&](const MTPDmessageMediaPhoto &data)
-	-> std::optional<StoryMedia> {
+		-> std::optional<StoryMedia> {
 		if (const auto photo = data.vphoto()) {
 			const auto result = owner->processPhoto(*photo);
 			if (!result->isNull()) {
@@ -48,7 +48,7 @@ std::optional<StoryMedia> ParseMedia(
 		}
 		return {};
 	}, [&](const MTPDmessageMediaDocument &data)
-	-> std::optional<StoryMedia> {
+		-> std::optional<StoryMedia> {
 		if (const auto document = data.vdocument()) {
 			const auto result = owner->processDocument(*document);
 			if (!result->isNull()
@@ -71,10 +71,10 @@ Story::Story(
 	not_null<PeerData*> peer,
 	StoryMedia media,
 	TimeId date)
-: _id(id)
-, _peer(peer)
-, _media(std::move(media))
-, _date(date) {
+	: _id(id)
+	, _peer(peer)
+	, _media(std::move(media))
+	, _date(date) {
 }
 
 Session &Story::owner() const {
@@ -170,6 +170,21 @@ const TextWithEntities &Story::caption() const {
 	return _caption;
 }
 
+void Story::setViewsData(
+		std::vector<not_null<PeerData*>> recent,
+		int total) {
+	_recentViewers = std::move(recent);
+	_views = total;
+}
+
+const std::vector<not_null<PeerData*>> &Story::recentViewers() const {
+	return _recentViewers;
+}
+
+int Story::views() const {
+	return _views;
+}
+
 bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	const auto pinned = data.is_pinned();
 	auto caption = TextWithEntities{
@@ -178,15 +193,32 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
+	auto views = 0;
+	auto recent = std::vector<not_null<PeerData*>>();
+	if (const auto info = data.vviews()) {
+		views = info->data().vviews_count().v;
+		if (const auto list = info->data().vrecent_viewers()) {
+			recent.reserve(list->v.size());
+			auto &owner = _peer->owner();
+			for (const auto &id : list->v) {
+				recent.push_back(owner.peer(peerFromUser(id)));
+			}
+		}
+	}
+
 	const auto changed = (_media != media)
 		|| (_pinned != pinned)
-		|| (_caption != caption);
+		|| (_caption != caption)
+		|| (_views != views)
+		|| (_recentViewers != recent);
 	if (!changed) {
 		return false;
 	}
 	_media = std::move(media);
 	_pinned = pinned;
 	_caption = std::move(caption);
+	_views = views;
+	_recentViewers = std::move(recent);
 	return true;
 }
 

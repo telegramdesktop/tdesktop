@@ -57,6 +57,11 @@ public:
 	void setCaption(TextWithEntities &&caption);
 	[[nodiscard]] const TextWithEntities &caption() const;
 
+	void setViewsData(std::vector<not_null<PeerData*>> recent, int total);
+	[[nodiscard]] auto recentViewers() const
+		-> const std::vector<not_null<PeerData*>> &;
+	[[nodiscard]] int views() const;
+
 	bool applyChanges(StoryMedia media, const MTPDstoryItem &data);
 
 private:
@@ -64,6 +69,8 @@ private:
 	const not_null<PeerData*> _peer;
 	StoryMedia _media;
 	TextWithEntities _caption;
+	std::vector<not_null<PeerData*>> _recentViewers;
+	int _views = 0;
 	const TimeId _date = 0;
 	bool _pinned = false;
 
