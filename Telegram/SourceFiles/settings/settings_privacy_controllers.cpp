@@ -1284,4 +1284,39 @@ auto VoicesPrivacyController::exceptionsDescription() const
 	return tr::lng_edit_privacy_voices_exceptions();
 }
 
+UserPrivacy::Key AboutPrivacyController::key() const {
+	return Key::About;
+}
+
+rpl::producer<QString> AboutPrivacyController::title() const {
+	return tr::lng_edit_privacy_about_title();
+}
+
+rpl::producer<QString> AboutPrivacyController::optionsTitleKey() const {
+	return tr::lng_edit_privacy_about_header();
+}
+
+rpl::producer<QString> AboutPrivacyController::exceptionButtonTextKey(
+		Exception exception) const {
+	switch (exception) {
+	case Exception::Always: return tr::lng_edit_privacy_about_always_empty();
+	case Exception::Never: return tr::lng_edit_privacy_about_never_empty();
+	}
+	Unexpected("Invalid exception value.");
+}
+
+rpl::producer<QString> AboutPrivacyController::exceptionBoxTitle(
+		Exception exception) const {
+	switch (exception) {
+	case Exception::Always: return tr::lng_edit_privacy_about_always_title();
+	case Exception::Never: return tr::lng_edit_privacy_about_never_title();
+	}
+	Unexpected("Invalid exception value.");
+}
+
+auto AboutPrivacyController::exceptionsDescription() const
+-> rpl::producer<QString> {
+	return tr::lng_edit_privacy_about_exceptions();
+}
+
 } // namespace Settings

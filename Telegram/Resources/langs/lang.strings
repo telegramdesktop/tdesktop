@@ -584,6 +584,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
 "lng_settings_voices_privacy" = "Voice messages";
+"lng_settings_bio_privacy" = "Bio";
 "lng_settings_privacy_premium" = "Only subscribers of {link} can restrict receiving voice messages.";
 "lng_settings_privacy_premium_link" = "Telegram Premium";
 "lng_settings_passcode_disable" = "Disable Passcode";
@@ -998,6 +999,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_groups_exceptions" = "These users will or will not be able to add you to groups and channels regardless of the settings above.";
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
+
+"lng_edit_privacy_about_title" = "Bio privacy settings";
+"lng_edit_privacy_about_header" = "Who can see my bio";
+"lng_edit_privacy_about_always_empty" = "Always allow";
+"lng_edit_privacy_about_never_empty" = "Never allow";
+"lng_edit_privacy_about_exceptions" = "These users will or will not be able to see your profile bio regardless of the settings above.";
+"lng_edit_privacy_about_always_title" = "Always allow";
+"lng_edit_privacy_about_never_title" = "Never allow";
 
 "lng_edit_privacy_calls_title" = "Voice calls privacy";
 "lng_edit_privacy_calls_header" = "Who can call you";

@@ -310,6 +310,11 @@ void SetupPrivacy(
 		{ &st::settingsPremiumIconVoice, kIconRed },
 		Key::Voices,
 		[=] { return std::make_unique<VoicesPrivacyController>(session); });
+	add(
+		tr::lng_settings_bio_privacy(),
+		{ &st::settingsIconAccount, kIconDarkOrange },
+		Key::About,
+		[] { return std::make_unique<AboutPrivacyController>(); });
 
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
 
