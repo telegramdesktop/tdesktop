@@ -1529,6 +1529,7 @@ else()
     if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
         qt_generate_wayland_protocol_client_sources(Telegram
         FILES
+            ${third_party_loc}/wayland/protocol/wayland.xml
             ${third_party_loc}/plasma-wayland-protocols/src/protocols/plasma-shell.xml
         )
 

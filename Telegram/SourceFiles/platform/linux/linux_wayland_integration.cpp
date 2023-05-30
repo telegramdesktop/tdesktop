@@ -11,13 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/qt_signal_producer.h"
 #include "base/flat_map.h"
+
+#include "qwayland-wayland.h"
 #include "qwayland-plasma-shell.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 #include <qpa/qplatformnativeinterface.h>
 #include <qpa/qplatformwindow_p.h>
-#include <wayland-client.h>
 
 using namespace QNativeInterface;
 using namespace QNativeInterface::Private;
@@ -26,10 +27,9 @@ using namespace base::Platform::Wayland;
 namespace Platform {
 namespace internal {
 
-struct WaylandIntegration::Private {
+struct WaylandIntegration::Private : public AutoDestroyer<QtWayland::wl_registry> {
 	QtWayland::org_kde_plasma_surface plasmaSurface(QWindow *window);
 
-	std::unique_ptr<wl_registry, RegistryDeleter> registry;
 	AutoDestroyer<QtWayland::org_kde_plasma_shell> plasmaShell;
 	uint32_t plasmaShellName = 0;
 	base::flat_map<
@@ -38,30 +38,23 @@ struct WaylandIntegration::Private {
 	> plasmaSurfaces;
 	rpl::lifetime lifetime;
 
-	static const wl_registry_listener RegistryListener;
-};
-
-const wl_registry_listener WaylandIntegration::Private::RegistryListener = {
-	decltype(wl_registry_listener::global)(+[](
-			Private *data,
-			wl_registry *registry,
+protected:
+	void registry_global(
 			uint32_t name,
-			const char *interface,
-			uint32_t version) {
+			const QString &interface,
+			uint32_t version) override {
 		if (interface == qstr("org_kde_plasma_shell")) {
-			data->plasmaShell.init(registry, name, version);
-			data->plasmaShellName = name;
+			plasmaShell.init(object(), name, version);
+			plasmaShellName = name;
 		}
-	}),
-	decltype(wl_registry_listener::global_remove)(+[](
-			Private *data,
-			wl_registry *registry,
-			uint32_t name) {
-		if (name == data->plasmaShellName) {
-			data->plasmaShell = {};
-			data->plasmaShellName = 0;
+	}
+
+	void registry_global_remove(uint32_t name) override {
+		if (name == plasmaShellName) {
+			plasmaShell = {};
+			plasmaShellName = 0;
 		}
-	}),
+	}
 };
 
 QtWayland::org_kde_plasma_surface WaylandIntegration::Private::plasmaSurface(
@@ -117,12 +110,7 @@ WaylandIntegration::WaylandIntegration()
 		return;
 	}
 
-	_private->registry.reset(wl_display_get_registry(display));
-	wl_registry_add_listener(
-		_private->registry.get(),
-		&Private::RegistryListener,
-		_private.get());
-
+	_private->init(wl_display_get_registry(display));
 	wl_display_roundtrip(display);
 }
 
