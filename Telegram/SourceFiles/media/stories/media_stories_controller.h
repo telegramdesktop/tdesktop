@@ -126,6 +126,10 @@ private:
 	void maybeMarkAsRead(const Player::TrackState &state);
 	void markAsRead();
 
+	void updateContentFaded();
+	void updatePlayingAllowed();
+	void setPlayingAllowed(bool allowed);
+
 	void showSiblings(
 		const std::vector<Data::StoriesList> &lists,
 		int index);
@@ -149,6 +153,12 @@ private:
 
 	Ui::Animations::Simple _contentFadeAnimation;
 	bool _contentFaded = false;
+
+	bool _windowActive = false;
+	bool _replyFocused = false;
+	bool _replyActive = false;
+	bool _layerShown = false;
+	bool _paused = false;
 
 	FullStoryId _shown;
 	TextWithEntities _captionText;

@@ -431,9 +431,10 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 				Ui::GL::kFormatRGBA,
 				Ui::GL::kFormatRGBA,
 				QSize(2, 2),
-				_rgbaSize,
+				_rgbaSize[index],
 				stride,
 				data);
+			_rgbaSize[index] = QSize(2, 2);
 		} else {
 			const auto stride = image.bytesPerLine() / 4;
 			const auto data = image.constBits();
@@ -441,10 +442,10 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 				Ui::GL::kFormatRGBA,
 				Ui::GL::kFormatRGBA,
 				image.size(),
-				_rgbaSize,
+				_rgbaSize[index],
 				stride,
 				data);
-			_rgbaSize = image.size();
+			_rgbaSize[index] = image.size();
 		}
 	}
 

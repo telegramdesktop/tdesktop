@@ -4053,6 +4053,10 @@ bool OverlayWidget::storiesPaused() {
 		&& _streamed->instance.player().paused();
 }
 
+rpl::producer<bool> OverlayWidget::storiesLayerShown() {
+	return _layerBg->layerShownValue();
+}
+
 void OverlayWidget::storiesTogglePaused(bool paused) {
 	if (!_streamed
 		|| _streamed->instance.player().failed()

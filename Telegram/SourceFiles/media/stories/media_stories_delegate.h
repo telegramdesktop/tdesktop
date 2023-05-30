@@ -44,6 +44,7 @@ public:
 		FullStoryId id) = 0;
 	virtual void storiesClose() = 0;
 	[[nodiscard]] virtual bool storiesPaused() = 0;
+	[[nodiscard]] virtual rpl::producer<bool> storiesLayerShown() = 0;
 	[[nodiscard]] virtual float64 storiesSiblingOver(SiblingType type) = 0;
 	virtual void storiesTogglePaused(bool paused) = 0;
 	virtual void storiesRepaint() = 0;

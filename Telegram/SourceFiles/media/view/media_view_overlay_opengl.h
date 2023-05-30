@@ -124,7 +124,7 @@ private:
 	std::optional<QOpenGLShaderProgram> _controlsProgram;
 	std::optional<QOpenGLShaderProgram> _roundedCornersProgram;
 	Ui::GL::Textures<6> _textures; // image, sibling, right sibling, y, u, v
-	QSize _rgbaSize;
+	QSize _rgbaSize[3];
 	QSize _lumaSize;
 	QSize _chromaSize;
 	qint64 _cacheKeys[3] = { 0 }; // image, sibling, right sibling

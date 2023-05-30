@@ -1135,6 +1135,10 @@ rpl::producer<bool> ComposeControls::focusedValue() const {
 		| rpl::then(_focusChanges.events());
 }
 
+rpl::producer<bool> ComposeControls::tabbedPanelShownValue() const {
+	return _tabbedPanel ? _tabbedPanel->shownValue() : rpl::single(false);
+}
+
 rpl::producer<> ComposeControls::cancelRequests() const {
 	return _cancelRequests.events();
 }
@@ -2013,9 +2017,12 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		updateControlsGeometry(_wrap->size());
 	});
 
+	const auto hadFocus = Ui::InFocusChain(_field);
 	if (!draft) {
 		clearFieldText(0, fieldHistoryAction);
-		_field->setFocus();
+		if (hadFocus) {
+			_field->setFocus();
+		}
 		_header->editMessage({});
 		_header->replyToMessage({});
 		_canReplaceMedia = false;
@@ -2025,7 +2032,9 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 
 	_textUpdateEvents = 0;
 	setFieldText(draft->textWithTags, 0, fieldHistoryAction);
-	_field->setFocus();
+	if (hadFocus) {
+		_field->setFocus();
+	}
 	draft->cursor.applyTo(_field);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
 	if (_preview) {
@@ -2253,11 +2262,13 @@ void ComposeControls::initVoiceRecordBar() {
 	_voiceRecordBar->recordingStateChanges(
 	) | rpl::start_with_next([=](bool active) {
 		if (active) {
+			_recording = true;
 			changeFocusedControl();
 		}
 		_field->setVisible(!active);
 		if (!active) {
 			changeFocusedControl();
+			_recording = false;
 		}
 	}, _wrap->lifetime());
 
@@ -2936,6 +2947,10 @@ rpl::producer<not_null<QEvent*>> ComposeControls::viewportEvents() const {
 
 bool ComposeControls::isRecording() const {
 	return _voiceRecordBar->isRecording();
+}
+
+rpl::producer<bool> ComposeControls::recordingValue() const {
+	return _recording.value();
 }
 
 bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {

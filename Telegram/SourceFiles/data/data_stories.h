@@ -115,7 +115,7 @@ public:
 	void resolve(FullStoryId id, Fn<void()> done);
 
 	[[nodiscard]] bool isQuitPrevent();
-	void markAsRead(FullStoryId id);
+	void markAsRead(FullStoryId id, bool viewed);
 
 private:
 	[[nodiscard]] StoriesList parse(const MTPUserStories &stories);

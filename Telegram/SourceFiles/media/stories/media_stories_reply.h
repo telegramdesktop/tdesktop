@@ -58,6 +58,7 @@ public:
 	void show(ReplyAreaData data);
 
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
+	[[nodiscard]] rpl::producer<bool> activeValue() const;
 
 private:
 	using VoiceToSend = HistoryView::Controls::VoiceToSend;
@@ -130,7 +131,8 @@ private:
 
 	ReplyAreaData _data;
 	base::has_weak_ptr _shownUserGuard;
-	bool _choosingAttach = false;
+	bool _chooseAttachRequest = false;
+	rpl::variable<bool> _choosingAttach;
 
 	rpl::lifetime _lifetime;
 

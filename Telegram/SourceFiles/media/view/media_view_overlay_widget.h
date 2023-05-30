@@ -247,6 +247,7 @@ private:
 		FullStoryId id) override;
 	void storiesClose() override;
 	bool storiesPaused() override;
+	rpl::producer<bool> storiesLayerShown() override;
 	void storiesTogglePaused(bool paused) override;
 	float64 storiesSiblingOver(Stories::SiblingType type) override;
 	void storiesRepaint() override;

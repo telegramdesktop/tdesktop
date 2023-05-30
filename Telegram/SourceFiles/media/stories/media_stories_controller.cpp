@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/power_save_blocker.h"
+#include "base/qt_signal_producer.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_changes.h"
 #include "data/data_file_origin.h"
@@ -28,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 #include "styles/style_widgets.h"
 #include "styles/style_boxes.h" // UserpicButton
+
+#include <QtGui/QWindow>
 
 namespace Media::Stories {
 namespace {
@@ -123,26 +126,51 @@ Controller::Controller(not_null<Delegate*> delegate)
 , _replyArea(std::make_unique<ReplyArea>(this)) {
 	initLayout();
 
-	_replyArea->focusedValue(
-	) | rpl::start_with_next([=](bool focused) {
-		if (focused) {
+	_replyArea->activeValue(
+	) | rpl::start_with_next([=](bool active) {
+		if (active) {
 			_captionFullView = nullptr;
 		}
-		_contentFaded = focused;
-		_contentFadeAnimation.start(
-			[=] { _delegate->storiesRepaint(); },
-			focused ? 0. : 1.,
-			focused ? 1. : 0.,
-			st::fadeWrapDuration);
-		if (_started) {
-			togglePaused(focused);
-		}
+		_replyActive = active;
+		updateContentFaded();
 	}, _lifetime);
+
+	_replyArea->focusedValue(
+	) | rpl::start_with_next([=](bool focused) {
+		_replyFocused = focused;
+	}, _lifetime);
+
+	_delegate->storiesLayerShown(
+	) | rpl::start_with_next([=](bool shown) {
+		_layerShown = shown;
+		updatePlayingAllowed();
+	}, _lifetime);
+
+	const auto window = _wrap->window()->windowHandle();
+	Assert(window != nullptr);
+	base::qt_signal_producer(
+		window,
+		&QWindow::activeChanged
+	) | rpl::start_with_next([=] {
+		_windowActive = window->isActive();
+		updatePlayingAllowed();
+	}, _lifetime);
+	_windowActive = window->isActive();
 
 	_contentFadeAnimation.stop();
 }
 
 Controller::~Controller() = default;
+
+void Controller::updateContentFaded() {
+	_contentFaded = _replyActive;
+	_contentFadeAnimation.start(
+		[=] { _delegate->storiesRepaint(); },
+		_contentFaded ? 0. : 1.,
+		_contentFaded ? 1. : 0.,
+		st::fadeWrapDuration);
+	updatePlayingAllowed();
+}
 
 void Controller::initLayout() {
 	const auto headerHeight = st::storiesHeaderMargin.top()
@@ -373,6 +401,7 @@ void Controller::show(
 	}
 	const auto story = *maybeStory;
 	const auto guard = gsl::finally([&] {
+		_paused = false;
 		_started = false;
 		if (story->photo()) {
 			_photoPlayback = std::make_unique<PhotoPlayback>(this);
@@ -421,10 +450,33 @@ void Controller::show(
 	}
 	stories.loadAround(storyId);
 
-	list.user->updateFull();
+	if (_replyFocused) {
+		unfocusReply();
+	}
+	updatePlayingAllowed();
 
-	if (_contentFaded) {
-		togglePaused(true);
+	list.user->updateFull();
+}
+
+void Controller::updatePlayingAllowed() {
+	if (!_shown) {
+		return;
+	}
+	setPlayingAllowed(_started
+		&& _windowActive
+		&& !_paused
+		&& !_replyActive
+		&& !_layerShown);
+}
+
+void Controller::setPlayingAllowed(bool allowed) {
+	if (allowed) {
+		_captionFullView = nullptr;
+	}
+	if (_photoPlayback) {
+		_photoPlayback->togglePaused(!allowed);
+	} else {
+		_delegate->storiesTogglePaused(!allowed);
 	}
 }
 
@@ -452,9 +504,7 @@ void Controller::ready() {
 		return;
 	}
 	_started = true;
-	if (!_contentFaded && _photoPlayback) {
-		_photoPlayback->togglePaused(false);
-	}
+	updatePlayingAllowed();
 }
 
 void Controller::updateVideoPlayback(const Player::TrackState &state) {
@@ -493,7 +543,7 @@ void Controller::maybeMarkAsRead(const Player::TrackState &state) {
 void Controller::markAsRead() {
 	Expects(_list.has_value());
 
-	_list->user->owner().stories().markAsRead(_shown);
+	_list->user->owner().stories().markAsRead(_shown, _started);
 }
 
 bool Controller::subjumpAvailable(int delta) const {
@@ -551,21 +601,11 @@ void Controller::checkWaitingFor() {
 	Expects(_list.has_value());
 
 	auto &stories = _list->user->owner().stories();
-	const auto &all = stories.all();
-	const auto i = ranges::find_if(all, [&](const Data::StoriesList &data) {
-		return data.user->id == _waitingForId.peer;
-	});
-	if (i == end(all)) {
-		_waitingForId = {};
-		return;
-	}
-	const auto j = ranges::find(i->ids, _waitingForId.story);
-	if (j == end(i->ids)) {
-		_waitingForId = {};
-		return;
-	}
 	const auto maybe = stories.lookup(_waitingForId);
 	if (!maybe) {
+		if (maybe.error() == Data::NoStory::Deleted) {
+			_waitingForId = {};
+		}
 		return;
 	}
 	_delegate->storiesJumpTo(
@@ -596,19 +636,13 @@ bool Controller::jumpFor(int delta) {
 }
 
 bool Controller::paused() const {
-	return _photoPlayback
-		? _photoPlayback->paused()
-		: _delegate->storiesPaused();
+	return _paused;
 }
 
 void Controller::togglePaused(bool paused) {
-	if (!paused) {
-		_captionFullView = nullptr;
-	}
-	if (_photoPlayback) {
-		_photoPlayback->togglePaused(paused);
-	} else {
-		_delegate->storiesTogglePaused(paused);
+	if (_paused != paused) {
+		_paused = paused;
+		updatePlayingAllowed();
 	}
 }
 

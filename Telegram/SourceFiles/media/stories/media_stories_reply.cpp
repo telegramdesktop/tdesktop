@@ -299,11 +299,11 @@ Api::SendAction ReplyArea::prepareSendAction(
 
 void ReplyArea::chooseAttach(
 		std::optional<bool> overrideSendImagesAsPhotos) {
+	_chooseAttachRequest = false;
 	if (!_data.user) {
 		return;
 	}
 	const auto user = not_null(_data.user);
-	_choosingAttach = false;
 	if (const auto error = Data::AnyFileRestrictionError(user)) {
 		_controller->uiShow()->showToast(*error);
 		return;
@@ -312,15 +312,18 @@ void ReplyArea::chooseAttach(
 	const auto filter = (overrideSendImagesAsPhotos == true)
 		? FileDialog::ImagesOrAllFilter()
 		: FileDialog::AllOrImagesFilter();
+	const auto weak = make_weak(&_shownUserGuard);
 	const auto callback = [=](FileDialog::OpenResult &&result) {
-		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+		const auto guard = gsl::finally([&] {
+			_choosingAttach = false;
+		});
+		if (!weak
+			|| (result.paths.isEmpty() && result.remoteContent.isEmpty())) {
 			return;
-		}
-
-		if (!result.remoteContent.isEmpty()) {
+		} else if (!result.remoteContent.isEmpty()) {
 			auto read = Images::Read({
 				.content = result.remoteContent,
-				});
+			});
 			if (!read.image.isNull() && !read.animated) {
 				confirmSendingFiles(
 					std::move(read.image),
@@ -339,12 +342,14 @@ void ReplyArea::chooseAttach(
 			confirmSendingFiles(std::move(list));
 		}
 	};
+
+	_choosingAttach = true;
 	FileDialog::GetOpenPaths(
 		_controller->wrap().get(),
 		tr::lng_choose_files(tr::now),
 		filter,
-		crl::guard(&_shownUserGuard, callback),
-		nullptr);
+		crl::guard(this, callback),
+		crl::guard(this, [=] { _choosingAttach = false; }));
 }
 
 bool ReplyArea::confirmSendingFiles(
@@ -488,9 +493,9 @@ void ReplyArea::initActions() {
 
 	_controls->attachRequests(
 	) | rpl::filter([=] {
-		return !_choosingAttach;
+		return !_chooseAttachRequest;
 	}) | rpl::start_with_next([=](std::optional<bool> overrideCompress) {
-		_choosingAttach = true;
+		_chooseAttachRequest = true;
 		base::call_delayed(
 			st::storiesAttach.ripple.hideDuration,
 			this,
@@ -567,6 +572,17 @@ Main::Session &ReplyArea::session() const {
 
 rpl::producer<bool> ReplyArea::focusedValue() const {
 	return _controls->focusedValue();
+}
+
+rpl::producer<bool> ReplyArea::activeValue() const {
+	using namespace rpl::mappers;
+	return rpl::combine(
+		_controls->focusedValue(),
+		_controls->recordingValue(),
+		_controls->tabbedPanelShownValue(),
+		_choosingAttach.value(),
+		_1 || _2 || _3 || _4
+	) | rpl::distinct_until_changed();
 }
 
 void ReplyArea::showPremiumToast(not_null<DocumentData*> emoji) {

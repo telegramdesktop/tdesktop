@@ -146,6 +146,7 @@ public:
 
 	bool focus();
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
+	[[nodiscard]] rpl::producer<bool> tabbedPanelShownValue() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<Api::SendOptions> sendRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
@@ -213,6 +214,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
+	[[nodiscard]] rpl::producer<bool> recordingValue() const;
 
 	void applyCloudDraft();
 	void applyDraft(
@@ -379,6 +381,7 @@ private:
 	rpl::event_stream<std::optional<bool>> _attachRequests;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 	rpl::event_stream<> _focusRequests;
+	rpl::variable<bool> _recording;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
 		| TextUpdateEvent::SaveDraft

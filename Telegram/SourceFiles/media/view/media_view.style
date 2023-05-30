@@ -599,6 +599,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 			fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBgOver }};
 			fadeRight: icon {{ "fade_horizontal", storiesComposeBgOver }};
 			field: InputField(defaultTabbedSearchField) {
+				textFg: storiesComposeWhiteText;
 				placeholderFg: storiesComposeGrayText;
 				placeholderFgActive: storiesComposeGrayText;
 				placeholderFgError: storiesComposeGrayText;

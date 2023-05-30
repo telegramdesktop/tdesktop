@@ -588,7 +588,7 @@ void Stories::loadAround(FullStoryId id) {
 	}
 }
 
-void Stories::markAsRead(FullStoryId id) {
+void Stories::markAsRead(FullStoryId id, bool viewed) {
 	const auto i = ranges::find(_all, id.peer, [](const StoriesList &list) {
 		return list.user->id;
 	});
