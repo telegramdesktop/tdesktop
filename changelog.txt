@@ -1,3 +1,8 @@
+4.8.3 (31.05.23)
+
+- Fix main window focus from notifications with disabled animations.
+- Some minor fixes and improvements. 
+
 4.8.2 (16.05.23)
 
 - Apply hardening runtime for Mac App Store version.
