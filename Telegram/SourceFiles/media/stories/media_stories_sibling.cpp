@@ -75,6 +75,7 @@ public:
 private:
 	void waitForGoodThumbnail();
 	bool updateAfterGoodCheck();
+	void createStreamedPlayer();
 	void streamedFailed();
 
 	const not_null<DocumentData*> _video;
@@ -148,36 +149,47 @@ QImage Sibling::LoaderVideo::blurred() {
 QImage Sibling::LoaderVideo::good() {
 	if (const auto image = _media->goodThumbnail()) {
 		return image->original();
-	} else if (!_video->goodThumbnailChecked()) {
+	} else if (!_video->goodThumbnailChecked()
+		&& !_video->goodThumbnailNoData()) {
 		if (!_checkingGoodInCache) {
 			waitForGoodThumbnail();
 		}
 	} else if (_failed) {
 		return QImage();
 	} else if (!_streamed) {
-		_streamed = std::make_unique<Streaming::Instance>(
-			_video,
-			_origin,
-			[] {}); // waitingCallback
-		_streamed->lockPlayer();
-		_streamed->player().updates(
-		) | rpl::start_with_next_error([=](Streaming::Update &&update) {
-			v::match(update.data, [&](Streaming::Information &update) {
-				_update();
-			}, [](const auto &update) {
-			});
-		}, [=](Streaming::Error &&error) {
-			streamedFailed();
-		}, _streamed->lifetime());
-		if (_streamed->ready()) {
-			_update();
-		} else if (!_streamed->valid()) {
-			streamedFailed();
-		}
+		createStreamedPlayer();
 	} else if (_streamed->ready()) {
 		return _streamed->info().video.cover;
 	}
 	return QImage();
+}
+
+void Sibling::LoaderVideo::createStreamedPlayer() {
+	_streamed = std::make_unique<Streaming::Instance>(
+		_video,
+		_origin,
+		[] {}); // waitingCallback
+	_streamed->lockPlayer();
+	_streamed->player().updates(
+	) | rpl::start_with_next_error([=](Streaming::Update &&update) {
+		v::match(update.data, [&](Streaming::Information &update) {
+			_update();
+		}, [](const auto &update) {
+		});
+	}, [=](Streaming::Error &&error) {
+		streamedFailed();
+	}, _streamed->lifetime());
+	if (_streamed->ready()) {
+		_update();
+	} else if (!_streamed->valid()) {
+		streamedFailed();
+	} else if (!_streamed->player().active()
+		&& !_streamed->player().finished()) {
+		_streamed->play({
+			.mode = Streaming::Mode::Video,
+		});
+		_streamed->pause();
+	}
 }
 
 void Sibling::LoaderVideo::streamedFailed() {
@@ -204,7 +216,8 @@ void Sibling::LoaderVideo::waitForGoodThumbnail() {
 }
 
 bool Sibling::LoaderVideo::updateAfterGoodCheck() {
-	if (!_video->goodThumbnailChecked()) {
+	if (!_video->goodThumbnailChecked()
+		&& !_video->goodThumbnailNoData()) {
 		return false;
 	}
 	_checkingGoodInCache = false;
