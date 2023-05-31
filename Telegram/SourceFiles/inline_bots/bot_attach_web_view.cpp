@@ -1061,8 +1061,10 @@ void AttachWebView::show(
 		} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 			return false;
 		}
-		UrlClickHandler::Open(local, {});
 		close();
+		crl::on_main([=] {
+			UrlClickHandler::Open(local, {});
+		});
 		return true;
 	};
 	const auto panel = std::make_shared<
