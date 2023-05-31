@@ -597,8 +597,8 @@ void Stories::loadAround(FullStoryId id) {
 	}
 	const auto ignore = [&] {
 		const auto side = kIgnorePreloadAroundIfLoaded;
-		const auto left = ranges::min(j - begin(i->ids), side);
-		const auto right = ranges::min(end(i->ids) - j, side);
+		const auto left = ranges::min(int(j - begin(i->ids)), side);
+		const auto right = ranges::min(int(end(i->ids) - j), side);
 		for (auto k = j - left; k != j + right; ++k) {
 			const auto maybeStory = lookup({ id.peer, *k });
 			if (!maybeStory && maybeStory.error() == NoStory::Unknown) {
@@ -611,8 +611,8 @@ void Stories::loadAround(FullStoryId id) {
 		return;
 	}
 	const auto side = kPreloadAroundCount;
-	const auto left = ranges::min(j - begin(i->ids), side);
-	const auto right = ranges::min(end(i->ids) - j, side);
+	const auto left = ranges::min(int(j - begin(i->ids)), side);
+	const auto right = ranges::min(int(end(i->ids) - j), side);
 	const auto from = j - left;
 	const auto till = j + right;
 	for (auto k = from; k != till; ++k) {
