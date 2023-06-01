@@ -113,6 +113,7 @@ public:
 	[[nodiscard]] bool jumpFor(int delta);
 	[[nodiscard]] bool paused() const;
 	void togglePaused(bool paused);
+	void setMenuShown(bool shown);
 
 	[[nodiscard]] bool canDownload() const;
 
@@ -174,6 +175,7 @@ private:
 	bool _replyFocused = false;
 	bool _replyActive = false;
 	bool _layerShown = false;
+	bool _menuShown = false;
 	bool _paused = false;
 
 	FullStoryId _shown;

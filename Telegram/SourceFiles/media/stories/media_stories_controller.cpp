@@ -476,7 +476,8 @@ void Controller::updatePlayingAllowed() {
 		&& _windowActive
 		&& !_paused
 		&& !_replyActive
-		&& !_layerShown);
+		&& !_layerShown
+		&& !_menuShown);
 }
 
 void Controller::setPlayingAllowed(bool allowed) {
@@ -652,6 +653,13 @@ bool Controller::paused() const {
 void Controller::togglePaused(bool paused) {
 	if (_paused != paused) {
 		_paused = paused;
+		updatePlayingAllowed();
+	}
+}
+
+void Controller::setMenuShown(bool shown) {
+	if (_menuShown != shown) {
+		_menuShown = shown;
 		updatePlayingAllowed();
 	}
 }

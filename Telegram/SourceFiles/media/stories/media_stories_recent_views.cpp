@@ -286,7 +286,9 @@ void RecentViews::showMenu() {
 		rebuildMenuTail();
 	}, _menuShortLifetime);
 
+	_controller->setMenuShown(true);
 	_menu->setDestroyedCallback(crl::guard(_widget.get(), [=] {
+		_controller->setMenuShown(false);
 		_menuShortLifetime.destroy();
 		_menuEntries.clear();
 		_menuEntriesCount = 0;
