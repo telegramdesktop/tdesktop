@@ -118,9 +118,7 @@ void XCBSetDesktopFileName(QWindow *window) {
 		base::Platform::XCB::GetAtom(connection, "_KDE_NET_WM_DESKTOP_FILE"),
 	};
 
-	const auto filename = QGuiApplication::desktopFileName()
-		.chopped(8)
-		.toUtf8();
+	const auto filename = QGuiApplication::desktopFileName().toUtf8();
 
 	for (const auto atom : filenameAtoms) {
 		if (atom.has_value()) {
@@ -244,7 +242,8 @@ void MainWindow::updateUnityCounter() {
 
 	const auto launcherUrl = Glib::ustring(
 		"application://"
-			+ QGuiApplication::desktopFileName().toStdString());
+			+ QGuiApplication::desktopFileName().toStdString()
+			+ ".desktop");
 	const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
 	std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 

@@ -209,9 +209,7 @@ void LinuxIntegration::initInhibit() {
 }
 
 void LinuxIntegration::LaunchNativeApplication() {
-	const auto appId = QGuiApplication::desktopFileName()
-		.chopped(8)
-		.toStdString();
+	const auto appId = QGuiApplication::desktopFileName().toStdString();
 
 	const auto app = Glib::wrap(
 		G_APPLICATION(
