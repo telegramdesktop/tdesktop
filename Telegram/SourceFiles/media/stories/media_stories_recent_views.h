@@ -7,12 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
 #include "ui/text/text.h"
+#include "ui/userpic_view.h"
+
+namespace Data {
+struct StoryView;
+} // namespace Data
 
 namespace Ui {
 class RpWidget;
 class GroupCallUserpics;
+class PopupMenu;
+class WhoReactedEntryAction;
 } // namespace Ui
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Media::Stories {
 
@@ -39,6 +51,26 @@ public:
 	void show(RecentViewsData data);
 
 private:
+	struct MenuEntry {
+		not_null<Ui::WhoReactedEntryAction*> action;
+		PeerData *peer = nullptr;
+		QString date;
+		Ui::PeerUserpicView view;
+		InMemoryKey key;
+	};
+
+	void setupWidget();
+	void setupUserpics();
+	void updateUserpics();
+	void updateText();
+	void updatePartsGeometry();
+	void showMenu();
+
+	void addMenuRow(Data::StoryView entry, const QDateTime &now);
+	void addMenuRowPlaceholder();
+	void rebuildMenuTail();
+	void subscribeToMenuUserpicsLoading(not_null<Main::Session*> session);
+
 	const not_null<Controller*> _controller;
 
 	std::unique_ptr<Ui::RpWidget> _widget;
@@ -46,6 +78,20 @@ private:
 	Ui::Text::String _text;
 	RecentViewsData _data;
 	rpl::lifetime _userpicsLifetime;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	rpl::lifetime _menuShortLifetime;
+	std::vector<MenuEntry> _menuEntries;
+	rpl::variable<int> _menuEntriesCount = 0;
+	int _menuPlaceholderCount = 0;
+	base::flat_set<int> _waitingForUserpics;
+	rpl::variable<bool> _shortAnimationPlaying;
+	bool _waitingUserpicsCheck = false;
+	rpl::lifetime _waitingForUserpicsLifetime;
+
+	QRect _outer;
+	QPoint _userpicsPosition;
+	QPoint _textPosition;
 	int _userpicsWidth = 0;
 
 };

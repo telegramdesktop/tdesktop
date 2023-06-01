@@ -729,11 +729,21 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 	}
 	premium: storiesComposePremium;
 }
-storiesRecentViewsUserpics: GroupCallUserpics {
-	size: 24px;
-	shift: 9px;
-	stroke: 4px;
-	align: align(left);
+storiesViewsMenu: PopupMenu(storiesPopupMenuWithIcons) {
+	scrollPadding: margins(0px, 6px, 0px, 4px);
+	maxHeight: 320px;
+	menu: Menu(storiesMenuWithIcons) {
+		widthMin: 215px;
+		widthMax: 215px;
+	}
+	radius: 7px;
 }
 storiesRecentViewsSkip: 8px;
-
+storiesWhoViewed: WhoRead(defaultWhoRead) {
+	userpics: GroupCallUserpics {
+		size: 24px;
+		shift: 9px;
+		stroke: 4px;
+		align: align(left);
+	}
+}

@@ -7,11 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_recent_views.h"
 
+#include "api/api_who_reacted.h" // FormatReadDate.
 #include "data/data_peer.h"
+#include "data/data_stories.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/group_call_userpics.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/controls/who_reacted_context_action.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "ui/userpic_view.h"
@@ -20,6 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::Stories {
 namespace {
+
+constexpr auto kAddPerPage = 50;
+constexpr auto kLoadViewsPages = 2;
 
 [[nodiscard]] rpl::producer<std::vector<Ui::GroupCallUser>> ContentByUsers(
 		const std::vector<not_null<PeerData*>> &list) {
@@ -37,7 +44,7 @@ namespace {
 		bool scheduled = false;
 	};
 
-	static const auto size = st::storiesRecentViewsUserpics.size;
+	static const auto size = st::storiesWhoViewed.userpics.size;
 
 	static const auto GenerateUserpic = [](Userpic &userpic) {
 		auto result = userpic.peer->generateUserpicImage(
@@ -132,57 +139,302 @@ void RecentViews::show(RecentViewsData data) {
 		return;
 	}
 	if (!_widget) {
-		const auto parent = _controller->wrap();
-		auto widget = std::make_unique<Ui::RpWidget>(parent);
-		const auto raw = widget.get();
-		raw->show();
-
-		_controller->layoutValue(
-		) | rpl::start_with_next([=](const Layout &layout) {
-			raw->setGeometry(layout.views);
-		}, raw->lifetime());
-
-		raw->paintRequest(
-		) | rpl::start_with_next([=](QRect clip) {
-			auto p = Painter(raw);
-			const auto skip = st::storiesRecentViewsSkip;
-			const auto full = _userpicsWidth + skip + _text.maxWidth();
-			const auto use = std::min(full, raw->width());
-			const auto ux = (raw->width() - use) / 2;
-			const auto height = st::storiesRecentViewsUserpics.size;
-			const auto uy = (raw->height() - height) / 2;
-			const auto tx = ux + _userpicsWidth + skip;
-			const auto ty = (raw->height() - st::normalFont->height) / 2;
-			_userpics->paint(p, ux, uy, height);
-			p.setPen(st::storiesComposeWhiteText);
-			_text.drawElided(p, tx, ty, use - _userpicsWidth - skip);
-		}, raw->lifetime());
-
-		_widget = std::move(widget);
-	}
-	if (totalChanged) {
-		_text.setText(st::defaultTextStyle, data.total
-			? tr::lng_stories_views(tr::now, lt_count, data.total)
-			: tr::lng_stories_no_views(tr::now));
+		setupWidget();
 	}
 	if (!_userpics) {
-		_userpics = std::make_unique<Ui::GroupCallUserpics>(
-			st::storiesRecentViewsUserpics,
-			rpl::single(true),
-			[=] { _widget->update(); });
-
-		_userpics->widthValue() | rpl::start_with_next([=](int width) {
-			_userpicsWidth = width;
-		}, _widget->lifetime());
+		setupUserpics();
+	}
+	if (totalChanged) {
+		updateText();
 	}
 	if (usersChanged) {
-		_userpicsLifetime = ContentByUsers(
-			data.list
-		) | rpl::start_with_next([=](
-				const std::vector<Ui::GroupCallUser> &list) {
-			_userpics->update(list, true);
+		updateUserpics();
+	}
+}
+
+void RecentViews::updateUserpics() {
+	_userpicsLifetime = ContentByUsers(
+		_data.list
+	) | rpl::start_with_next([=](
+		const std::vector<Ui::GroupCallUser> &list) {
+		_userpics->update(list, true);
+	});
+}
+
+void RecentViews::setupUserpics() {
+	_userpics = std::make_unique<Ui::GroupCallUserpics>(
+		st::storiesWhoViewed.userpics,
+		rpl::single(true),
+		[=] { _widget->update(); });
+
+	_userpics->widthValue() | rpl::start_with_next([=](int width) {
+		if (_userpicsWidth != width) {
+			_userpicsWidth = width;
+			updatePartsGeometry();
+		}
+	}, _widget->lifetime());
+}
+
+void RecentViews::setupWidget() {
+	_widget = std::make_unique<Ui::RpWidget>(_controller->wrap());
+	const auto raw = _widget.get();
+	raw->show();
+
+	_controller->layoutValue(
+	) | rpl::start_with_next([=](const Layout &layout) {
+		_outer = layout.views;
+		updatePartsGeometry();
+	}, raw->lifetime());
+
+	raw->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = Painter(raw);
+		_userpics->paint(
+			p,
+			_userpicsPosition.x(),
+			_userpicsPosition.y(),
+			st::storiesWhoViewed.userpics.size);
+		p.setPen(st::storiesComposeWhiteText);
+		_text.drawElided(
+			p,
+			_textPosition.x(),
+			_textPosition.y(),
+			raw->width() - _userpicsWidth - st::storiesRecentViewsSkip);
+	}, raw->lifetime());
+
+	raw->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (_data.total > 0)
+			&& (e->type() == QEvent::MouseButtonPress)
+			&& (static_cast<QMouseEvent*>(e.get())->button()
+				== Qt::LeftButton);
+	}) | rpl::start_with_next([=] {
+		showMenu();
+	}, raw->lifetime());
+
+	raw->setCursor(style::cur_pointer);
+}
+
+void RecentViews::updatePartsGeometry() {
+	const auto skip = st::storiesRecentViewsSkip;
+	const auto full = _userpicsWidth + skip + _text.maxWidth();
+	const auto use = std::min(full, _outer.width());
+	const auto ux = _outer.x() + (_outer.width() - use) / 2;
+	const auto uheight = st::storiesWhoViewed.userpics.size;
+	const auto uy = _outer.y() + (_outer.height() - uheight) / 2;
+	const auto tx = ux + _userpicsWidth + skip;
+	const auto theight = st::normalFont->height;
+	const auto ty = _outer.y() + (_outer.height() - theight) / 2;
+	const auto my = std::min(uy, ty);
+	const auto mheight = std::max(uheight, theight);
+	const auto padding = skip;
+	_userpicsPosition = QPoint(padding, uy - my);
+	_textPosition = QPoint(tx - ux + padding, ty - my);
+	_widget->setGeometry(ux - padding, my, use + 2 * padding, mheight);
+	_widget->update();
+}
+
+void RecentViews::updateText() {
+	_text.setText(st::defaultTextStyle, _data.total
+		? tr::lng_stories_views(tr::now, lt_count, _data.total)
+		: tr::lng_stories_no_views(tr::now));
+	updatePartsGeometry();
+}
+
+void RecentViews::showMenu() {
+	if (_menu) {
+		return;
+	}
+
+	const auto views = _controller->views(PeerId());
+	if (views.list.empty() && !views.left) {
+		return;
+	}
+
+	using namespace Ui;
+	_menuShortLifetime.destroy();
+	_menu = base::make_unique_q<PopupMenu>(
+		_widget.get(),
+		st::storiesViewsMenu);
+	auto count = 0;
+	const auto added = std::min(int(views.list.size()), kAddPerPage);
+	const auto add = std::min(added + views.left, kAddPerPage);
+	const auto now = QDateTime::currentDateTime();
+	for (const auto &entry  : views.list) {
+		addMenuRow(entry, now);
+		if (++count >= add) {
+			break;
+		}
+	}
+	while (count++ < add) {
+		addMenuRowPlaceholder();
+	}
+	rpl::merge(
+		_controller->moreViewsLoaded(),
+		rpl::combine(
+			_menu->scrollTopValue(),
+			_menuEntriesCount.value()
+		) | rpl::filter([=](int scrollTop, int count) {
+			const auto fullHeight = count
+				* (st::defaultWhoRead.photoSkip * 2
+					+ st::defaultWhoRead.photoSize);
+			return fullHeight
+				< (scrollTop
+					+ st::storiesViewsMenu.maxHeight * kLoadViewsPages);
+		}) | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		rebuildMenuTail();
+	}, _menuShortLifetime);
+
+	_menu->setDestroyedCallback(crl::guard(_widget.get(), [=] {
+		_menuShortLifetime.destroy();
+		_menuEntries.clear();
+		_menuEntriesCount = 0;
+		_menuPlaceholderCount = 0;
+	}));
+
+	const auto size = _menu->size();
+	const auto geometry = _widget->mapToGlobal(_widget->rect());
+	_menu->setForcedVerticalOrigin(PopupMenu::VerticalOrigin::Bottom);
+	_menu->popup(QPoint(
+		geometry.x() + (_widget->width() - size.width()) / 2,
+		geometry.y() + _widget->height()));
+
+	_menuEntriesCount = _menuEntriesCount.current() + added;
+}
+
+void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
+	Expects(_menu != nullptr);
+
+	const auto peer = entry.peer;
+	const auto date = Api::FormatReadDate(entry.date, now);
+	const auto prepare = [&](Ui::PeerUserpicView &view) {
+		const auto size = st::storiesWhoViewed.photoSize;
+		auto userpic = peer->generateUserpicImage(
+			view,
+			size * style::DevicePixelRatio());
+		userpic.setDevicePixelRatio(style::DevicePixelRatio());
+		return Ui::WhoReactedEntryData{
+			.text = peer->name(),
+			.date = date,
+			.userpic = std::move(userpic),
+			.callback = [] {},
+		};
+	};
+	if (_menuPlaceholderCount > 0) {
+		const auto i = _menuEntries.end() - (_menuPlaceholderCount--);
+		i->peer = peer;
+		i->date = date;
+		i->action->setData(prepare(i->view));
+	} else {
+		auto view = Ui::PeerUserpicView();
+		auto action = base::make_unique_q<Ui::WhoReactedEntryAction>(
+			_menu->menu(),
+			nullptr,
+			_menu->menu()->st(),
+			prepare(view));
+		const auto raw = action.get();
+		_menu->addAction(std::move(action));
+		_menuEntries.push_back({
+			.action = raw,
+			.peer = peer,
+			.date = date,
+			.view = std::move(view),
 		});
 	}
+	const auto i = end(_menuEntries) - _menuPlaceholderCount - 1;
+	i->key = peer->userpicUniqueKey(i->view);
+	if (peer->hasUserpic() && peer->useEmptyUserpic(i->view)) {
+		if (_waitingForUserpics.emplace(i - begin(_menuEntries)).second
+			&& _waitingForUserpics.size() == 1) {
+			subscribeToMenuUserpicsLoading(&peer->session());
+		}
+	}
+}
+
+void RecentViews::addMenuRowPlaceholder() {
+	auto action = base::make_unique_q<Ui::WhoReactedEntryAction>(
+		_menu->menu(),
+		nullptr,
+		_menu->menu()->st(),
+		Ui::WhoReactedEntryData{ .preloader = true });
+	const auto raw = action.get();
+	_menu->addAction(std::move(action));
+	_menuEntries.push_back({ .action = raw });
+	++_menuPlaceholderCount;
+}
+
+void RecentViews::rebuildMenuTail() {
+	const auto offset = (_menuPlaceholderCount < _menuEntries.size())
+		? (end(_menuEntries) - _menuPlaceholderCount - 1)->peer->id
+		: PeerId();
+	const auto views = _controller->views(offset);
+	if (views.list.empty()) {
+		return;
+	}
+	const auto now = QDateTime::currentDateTime();
+	const auto added = std::min(
+		_menuPlaceholderCount + kAddPerPage,
+		int(views.list.size()));
+	auto add = added;
+	for (const auto &entry : views.list) {
+		addMenuRow(entry, now);
+		if (!--add) {
+			break;
+		}
+	}
+	_menuEntriesCount = _menuEntriesCount.current() + added;
+}
+
+void RecentViews::subscribeToMenuUserpicsLoading(
+		not_null<Main::Session*> session) {
+	_shortAnimationPlaying = style::ShortAnimationPlaying();
+	_waitingForUserpicsLifetime = rpl::merge(
+		_shortAnimationPlaying.changes() | rpl::filter([=](bool playing) {
+			return !playing && _waitingUserpicsCheck;
+		}) | rpl::to_empty,
+		session->downloaderTaskFinished(
+		) | rpl::filter([=] {
+			if (_shortAnimationPlaying.current()) {
+				_waitingUserpicsCheck = true;
+				return false;
+			}
+			return true;
+		})
+	) | rpl::start_with_next([=] {
+		_waitingUserpicsCheck = false;
+		for (auto i = begin(_waitingForUserpics)
+			; i != end(_waitingForUserpics)
+			;) {
+			auto &entry = _menuEntries[*i];
+			auto &view = entry.view;
+			const auto peer = entry.peer;
+			const auto key = peer->userpicUniqueKey(view);
+			const auto update = (entry.key != key);
+			if (update) {
+				const auto size = st::storiesWhoViewed.photoSize;
+				auto userpic = peer->generateUserpicImage(
+					view,
+					size * style::DevicePixelRatio());
+				userpic.setDevicePixelRatio(style::DevicePixelRatio());
+				entry.action->setData({
+					.text = peer->name(),
+					.date = entry.date,
+					.userpic = std::move(userpic),
+					.callback = [] {},
+				});
+				entry.key = key;
+				if (!peer->hasUserpic() || !peer->useEmptyUserpic(view)) {
+					i = _waitingForUserpics.erase(i);
+					continue;
+				}
+			}
+			++i;
+		}
+		if (_waitingForUserpics.empty()) {
+			_waitingForUserpicsLifetime.destroy();
+		}
+	});
 }
 
 } // namespace Media::Stories

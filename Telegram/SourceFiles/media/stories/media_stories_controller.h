@@ -78,6 +78,11 @@ struct Layout {
 	friend inline bool operator==(Layout, Layout) = default;
 };
 
+struct ViewsSlice {
+	std::vector<Data::StoryView> list;
+	int left = 0;
+};
+
 class Controller final {
 public:
 	explicit Controller(not_null<Delegate*> delegate);
@@ -114,6 +119,9 @@ public:
 	void repaintSibling(not_null<Sibling*> sibling);
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 
+	[[nodiscard]] ViewsSlice views(PeerId offset);
+	[[nodiscard]] rpl::producer<> moreViewsLoaded() const;
+
 	void unfocusReply();
 
 	[[nodiscard]] rpl::lifetime &lifetime();
@@ -142,6 +150,11 @@ private:
 	void subjumpTo(int index);
 	void checkWaitingFor();
 
+	void refreshViewsFromData();
+	bool sliceViewsTo(PeerId offset);
+	[[nodiscard]] auto viewsGotMoreCallback()
+		-> Fn<void(std::vector<Data::StoryView>)>;
+
 	const not_null<Delegate*> _delegate;
 
 	rpl::variable<std::optional<Layout>> _layout;
@@ -169,6 +182,10 @@ private:
 	FullStoryId _waitingForId;
 	int _index = 0;
 	bool _started = false;
+
+	ViewsSlice _viewsSlice;
+	rpl::event_stream<> _moreViewsLoaded;
+	base::has_weak_ptr _viewsLoadGuard;
 
 	std::unique_ptr<Sibling> _siblingLeft;
 	std::unique_ptr<Sibling> _siblingRight;

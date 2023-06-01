@@ -727,29 +727,6 @@ popupMenuExpandedSeparator: PopupMenu(popupMenuWithIcons) {
 	}
 }
 
-WhoRead {
-	userpics: GroupCallUserpics;
-	photoLeft: pixels;
-	photoSize: pixels;
-	photoSkip: pixels;
-	nameLeft: pixels;
-	iconPosition: point;
-	itemPadding: margins;
-}
-defaultWhoRead: WhoRead {
-	userpics: GroupCallUserpics {
-		size: 22px;
-		shift: 8px;
-		stroke: 4px;
-		align: align(right);
-	}
-	photoLeft: 13px;
-	photoSize: 30px;
-	photoSkip: 5px;
-	nameLeft: 57px;
-	iconPosition: point(15px, 7px);
-	itemPadding: margins(44px, 9px, 17px, 7px);
-}
 whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
@@ -933,24 +910,6 @@ historySendDisabled: FlatLabel(defaultFlatLabel) {
 historySendDisabledIcon: icon {{ "emoji/premium_lock", placeholderFgActive }};
 historySendDisabledIconSkip: 20px;
 historySendDisabledPosition: point(0px, 0px);
-
-moreChatsBarHeight: 48px;
-moreChatsBarTextPosition: point(12px, 4px);
-moreChatsBarStatusPosition: point(12px, 24px);
-moreChatsBarClose: IconButton(defaultIconButton) {
-	width: 48px;
-	height: 48px;
-
-	icon: boxTitleCloseIcon;
-	iconOver: boxTitleCloseIconOver;
-	iconPosition: point(12px, -1px);
-
-	rippleAreaPosition: point(0px, 4px);
-	rippleAreaSize: 40px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
 
 backgroundSwitchToDark: IconButton(defaultIconButton) {
 	width: 48px;

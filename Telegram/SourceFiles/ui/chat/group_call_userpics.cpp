@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "base/random.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Ui {
 namespace {

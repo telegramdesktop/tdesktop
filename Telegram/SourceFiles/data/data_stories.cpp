@@ -181,8 +181,46 @@ const std::vector<not_null<PeerData*>> &Story::recentViewers() const {
 	return _recentViewers;
 }
 
+const std::vector<StoryView> &Story::viewsList() const {
+	return _viewsList;
+}
+
 int Story::views() const {
 	return _views;
+}
+
+void Story::applyViewsSlice(
+		const std::optional<StoryView> &offset,
+		const std::vector<StoryView> &slice,
+		int total) {
+	_views = total;
+	if (!offset) {
+		const auto i = _viewsList.empty()
+			? end(slice)
+			: ranges::find(slice, _viewsList.front());
+		const auto merge = (i != end(slice))
+			&& !ranges::contains(slice, _viewsList.back());
+		if (merge) {
+			_viewsList.insert(begin(_viewsList), begin(slice), i);
+		} else {
+			_viewsList = slice;
+		}
+	} else if (!slice.empty()) {
+		const auto i = ranges::find(_viewsList, *offset);
+		const auto merge = (i != end(_viewsList))
+			&& !ranges::contains(_viewsList, slice.back());
+		if (merge) {
+			const auto after = i + 1;
+			if (after == end(_viewsList)) {
+				_viewsList.insert(after, begin(slice), end(slice));
+			} else {
+				const auto j = ranges::find(slice, _viewsList.back());
+				if (j != end(slice)) {
+					_viewsList.insert(end(_viewsList), j + 1, end(slice));
+				}
+			}
+		}
+	}
 }
 
 bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
@@ -681,6 +719,56 @@ void Stories::sendMarkAsReadRequests() {
 		}
 		i = _markReadPending.erase(i);
 	}
+}
+
+void Stories::loadViewsSlice(
+		StoryId id,
+		std::optional<StoryView> offset,
+		Fn<void(std::vector<StoryView>)> done) {
+	_viewsDone = std::move(done);
+	if (_viewsStoryId == id && _viewsOffset == offset) {
+		return;
+	}
+	_viewsStoryId = id;
+	_viewsOffset = offset;
+
+	const auto api = &_owner->session().api();
+	api->request(_viewsRequestId).cancel();
+	_viewsRequestId = api->request(MTPstories_GetStoryViewsList(
+		MTP_int(id),
+		MTP_int(offset ? offset->date : 0),
+		MTP_long(offset ? peerToUser(offset->peer->id).bare : 0),
+		MTP_int(2)
+	)).done([=](const MTPstories_StoryViewsList &result) {
+		_viewsRequestId = 0;
+
+		auto slice = std::vector<StoryView>();
+
+		const auto &data = result.data();
+		_owner->processUsers(data.vusers());
+		slice.reserve(data.vviews().v.size());
+		for (const auto &view : data.vviews().v) {
+			slice.push_back({
+				.peer = _owner->peer(peerFromUser(view.data().vuser_id())),
+				.date = view.data().vdate().v,
+			});
+		}
+		const auto fullId = FullStoryId{
+			.peer = _owner->session().userPeerId(),
+			.story = _viewsStoryId,
+		};
+		if (const auto story = lookup(fullId)) {
+			(*story)->applyViewsSlice(_viewsOffset, slice, data.vcount().v);
+		}
+		if (const auto done = base::take(_viewsDone)) {
+			done(std::move(slice));
+		}
+	}).fail([=] {
+		_viewsRequestId = 0;
+		if (const auto done = base::take(_viewsDone)) {
+			done({});
+		}
+	}).send();
 }
 
 bool Stories::isQuitPrevent() {

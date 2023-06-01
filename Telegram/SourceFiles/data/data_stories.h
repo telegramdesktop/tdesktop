@@ -28,6 +28,13 @@ struct StoryMedia {
 	friend inline bool operator==(StoryMedia, StoryMedia) = default;
 };
 
+struct StoryView {
+	not_null<PeerData*> peer;
+	TimeId date = 0;
+
+	friend inline bool operator==(StoryView, StoryView) = default;
+};
+
 class Story {
 public:
 	Story(
@@ -60,7 +67,12 @@ public:
 	void setViewsData(std::vector<not_null<PeerData*>> recent, int total);
 	[[nodiscard]] auto recentViewers() const
 		-> const std::vector<not_null<PeerData*>> &;
+	[[nodiscard]] const std::vector<StoryView> &viewsList() const;
 	[[nodiscard]] int views() const;
+	void applyViewsSlice(
+		const std::optional<StoryView> &offset,
+		const std::vector<StoryView> &slice,
+		int total);
 
 	bool applyChanges(StoryMedia media, const MTPDstoryItem &data);
 
@@ -70,6 +82,7 @@ private:
 	StoryMedia _media;
 	TextWithEntities _caption;
 	std::vector<not_null<PeerData*>> _recentViewers;
+	std::vector<StoryView> _viewsList;
 	int _views = 0;
 	const TimeId _date = 0;
 	bool _pinned = false;
@@ -124,6 +137,12 @@ public:
 	[[nodiscard]] bool isQuitPrevent();
 	void markAsRead(FullStoryId id, bool viewed);
 
+	static constexpr auto kViewsPerPage = 50;
+	void loadViewsSlice(
+		StoryId id,
+		std::optional<StoryView> offset,
+		Fn<void(std::vector<StoryView>)> done);
+
 private:
 	[[nodiscard]] StoriesList parse(const MTPUserStories &stories);
 	[[nodiscard]] Story *parseAndApply(
@@ -171,6 +190,11 @@ private:
 	base::flat_set<PeerId> _markReadPending;
 	base::Timer _markReadTimer;
 	base::flat_set<PeerId> _markReadRequests;
+
+	StoryId _viewsStoryId = 0;
+	std::optional<StoryView> _viewsOffset;
+	Fn<void(std::vector<StoryView>)> _viewsDone;
+	mtpRequestId _viewsRequestId = 0;
 
 };
 
