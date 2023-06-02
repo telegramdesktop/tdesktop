@@ -522,6 +522,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				? Flag::Contact
 				| Flag::MutualContact
 				| Flag::DiscardMinPhoto
+				| Flag::StoriesHidden
 				: Flag());
 		const auto flagsSet = (data.is_deleted() ? Flag::Deleted : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
@@ -534,6 +535,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				? (data.is_contact() ? Flag::Contact : Flag())
 				| (data.is_mutual_contact() ? Flag::MutualContact : Flag())
 				| (data.is_apply_min_photo() ? Flag() : Flag::DiscardMinPhoto)
+				| (data.is_stories_hidden() ? Flag::StoriesHidden : Flag())
 				: Flag());
 		result->setFlags((result->flags() & ~flagsMask) | flagsSet);
 		if (minimal) {

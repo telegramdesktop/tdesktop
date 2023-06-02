@@ -71,10 +71,10 @@ Story::Story(
 	not_null<PeerData*> peer,
 	StoryMedia media,
 	TimeId date)
-	: _id(id)
-	, _peer(peer)
-	, _media(std::move(media))
-	, _date(date) {
+: _id(id)
+, _peer(peer)
+, _media(std::move(media))
+, _date(date) {
 }
 
 Session &Story::owner() const {

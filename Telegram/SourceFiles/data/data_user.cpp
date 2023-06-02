@@ -321,6 +321,10 @@ bool UserData::hasPersonalPhoto() const {
 	return (flags() & UserDataFlag::PersonalPhoto);
 }
 
+bool UserData::hasStoriesHidden() const {
+	return (flags() & UserDataFlag::StoriesHidden);
+}
+
 bool UserData::canAddContact() const {
 	return canShareThisContact() && !isContact();
 }

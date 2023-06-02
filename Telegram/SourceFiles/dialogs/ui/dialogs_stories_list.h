@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QPainter;
 
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
+
 namespace Dialogs::Stories {
 
 class Userpic {
@@ -25,6 +29,7 @@ struct User {
 	QString name;
 	std::shared_ptr<Userpic> userpic;
 	bool unread = false;
+	bool hidden = false;
 
 	friend inline bool operator==(const User &a, const User &b) = default;
 };
@@ -37,6 +42,11 @@ struct Content {
 		const Content &b) = default;
 };
 
+struct ToggleShownRequest {
+	uint64 id = 0;
+	bool shown = false;
+};
+
 class List final : public Ui::RpWidget {
 public:
 	List(
@@ -45,6 +55,8 @@ public:
 		Fn<int()> shownHeight);
 
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
+	[[nodiscard]] rpl::producer<uint64> showProfileRequests() const;
+	[[nodiscard]] rpl::producer<ToggleShownRequest> toggleShown() const;
 	[[nodiscard]] rpl::producer<> expandRequests() const;
 	[[nodiscard]] rpl::producer<> entered() const;
 	[[nodiscard]] rpl::producer<> loadMoreRequests() const;
@@ -103,6 +115,7 @@ private:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void validateUserpic(not_null<Item*> item);
 	void validateName(not_null<Item*> item);
@@ -128,6 +141,8 @@ private:
 	Data _hidingData;
 	Fn<int()> _shownHeight = 0;
 	rpl::event_stream<uint64> _clicks;
+	rpl::event_stream<uint64> _showProfileRequests;
+	rpl::event_stream<ToggleShownRequest> _toggleShown;
 	rpl::event_stream<> _expandRequests;
 	rpl::event_stream<> _entered;
 	rpl::event_stream<> _loadMoreRequests;
@@ -143,6 +158,8 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 };
 

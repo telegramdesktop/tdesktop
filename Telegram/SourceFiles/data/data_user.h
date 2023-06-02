@@ -62,6 +62,7 @@ enum class UserDataFlag {
 	CanReceiveGifts = (1 << 15),
 	VoiceMessagesForbidden = (1 << 16),
 	PersonalPhoto = (1 << 17),
+	StoriesHidden = (1 << 18),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -119,6 +120,7 @@ public:
 	[[nodiscard]] bool isInaccessible() const;
 	[[nodiscard]] bool applyMinPhoto() const;
 	[[nodiscard]] bool hasPersonalPhoto() const;
+	[[nodiscard]] bool hasStoriesHidden() const;
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;

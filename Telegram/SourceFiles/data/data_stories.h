@@ -94,6 +94,7 @@ struct StoriesList {
 	base::flat_set<StoryId> ids;
 	StoryId readTill = 0;
 	int total = 0;
+	bool hidden = false;
 
 	[[nodiscard]] bool unread() const;
 

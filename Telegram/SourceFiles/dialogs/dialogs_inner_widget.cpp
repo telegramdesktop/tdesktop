@@ -342,6 +342,27 @@ InnerWidget::InnerWidget(
 		_controller->openPeerStories(PeerId(int64(id)));
 	}, lifetime());
 
+	_stories->showProfileRequests(
+	) | rpl::start_with_next([=](uint64 id) {
+		_controller->showPeerInfo(PeerId(int64(id)));
+	}, lifetime());
+
+	_stories->toggleShown(
+	) | rpl::start_with_next([=](Stories::ToggleShownRequest request) {
+		const auto peerId = PeerId(int64(request.id));
+		const auto user = session().data().peer(peerId)->asUser();
+		Assert(user != nullptr);
+		if (user->hasStoriesHidden() == request.shown) {
+			user->setFlags(request.shown
+				? (user->flags() & ~UserDataFlag::StoriesHidden)
+				: (user->flags() | UserDataFlag::StoriesHidden));
+			session().api().request(MTPcontacts_ToggleStoriesHidden(
+				user->inputUser,
+				MTP_bool(!request.shown)
+			)).send();
+		}
+	}, lifetime());
+
 	_stories->loadMoreRequests(
 	) | rpl::start_with_next([=] {
 		session().data().stories().loadMore();

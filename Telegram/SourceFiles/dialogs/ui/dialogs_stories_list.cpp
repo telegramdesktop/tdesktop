@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_stories_list.h"
 
 #include "lang/lang_keys.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
@@ -217,6 +218,14 @@ void List::updateScrollMax() {
 
 rpl::producer<uint64> List::clicks() const {
 	return _clicks.events();
+}
+
+rpl::producer<uint64> List::showProfileRequests() const {
+	return _showProfileRequests.events();
+}
+
+rpl::producer<ToggleShownRequest> List::toggleShown() const {
+	return _toggleShown.events();
 }
 
 rpl::producer<> List::expandRequests() const {
@@ -682,6 +691,43 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 		} else if (_selected < _data.items.size()) {
 			_clicks.fire_copy(_data.items[_selected].user.id);
 		}
+	}
+}
+
+void List::contextMenuEvent(QContextMenuEvent *e) {
+	_menu = nullptr;
+
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		_lastMousePosition = e->globalPos();
+		updateSelected();
+	}
+	if (_selected < 0 || _data.empty()) {
+		return;
+	}
+
+	auto &item = _data.items[_selected];
+	_menu = base::make_unique_q<Ui::PopupMenu>(this);
+
+	const auto id = item.user.id;
+	const auto hidden = item.user.hidden;
+	_menu->addAction(u"View Profile"_q, [=] {
+		_showProfileRequests.fire_copy(id);
+	});
+	_menu->addAction(hidden ? u"Show in Chats"_q : u"Hide"_q, [=] {
+		_toggleShown.fire({ .id = id, .shown = hidden });
+	});
+	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
+		const auto globalPosition = QCursor::pos();
+		if (rect().contains(mapFromGlobal(globalPosition))) {
+			_lastMousePosition = globalPosition;
+			updateSelected();
+		}
+	});
+	if (_menu->empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->popup(e->globalPos());
+		e->accept();
 	}
 }
 
