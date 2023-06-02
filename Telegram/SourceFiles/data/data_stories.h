@@ -122,7 +122,7 @@ public:
 		not_null<Data::Story*> dependency);
 
 	void loadMore();
-	void apply(const MTPDupdateStories &data);
+	void apply(const MTPDupdateStory &data);
 	void loadAround(FullStoryId id);
 
 	[[nodiscard]] const std::vector<StoriesList> &all();
@@ -148,6 +148,9 @@ private:
 	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPDstoryItem &data);
+	StoryId parseAndApply(
+		not_null<PeerData*> peer,
+		const MTPstoryItem &story);
 	void processResolvedStories(
 		not_null<PeerData*> peer,
 		const QVector<MTPStoryItem> &list);
@@ -155,7 +158,6 @@ private:
 	void finalizeResolve(FullStoryId id);
 
 	void pushToBack(StoriesList &&list);
-	void applyChanges(StoriesList &&list);
 	void applyDeleted(FullStoryId id);
 	void removeDependencyStory(not_null<Story*> story);
 

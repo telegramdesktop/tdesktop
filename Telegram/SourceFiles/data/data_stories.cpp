@@ -276,8 +276,29 @@ Main::Session &Stories::session() const {
 	return _owner->session();
 }
 
-void Stories::apply(const MTPDupdateStories &data) {
-	applyChanges(parse(data.vstories()));
+void Stories::apply(const MTPDupdateStory &data) {
+	const auto peerId = peerFromUser(data.vuser_id());
+	const auto peer = _owner->peer(peerId);
+	const auto i = ranges::find(_all, peer, &StoriesList::user);
+	const auto id = parseAndApply(peer, data.vstory());
+	if (i != end(_all)) {
+		auto added = false;
+		if (id && !i->ids.contains(id)) {
+			i->ids.emplace(id);
+			++i->total;
+			added = true;
+		}
+		if (added) {
+			ranges::rotate(begin(_all), i, i + 1);
+		}
+	} else if (id) {
+		_all.insert(begin(_all), StoriesList{
+			.user = peer->asUser(),
+			.ids = { id },
+			.readTill = 0,
+			.total = 1,
+		});
+	}
 	_allChanged.fire({});
 }
 
@@ -294,19 +315,11 @@ StoriesList Stories::parse(const MTPUserStories &stories) {
 	const auto &list = data.vstories().v;
 	result.ids.reserve(list.size());
 	for (const auto &story : list) {
-		story.match([&](const MTPDstoryItem &data) {
-			if (const auto story = parseAndApply(result.user, data)) {
-				result.ids.emplace(story->id());
-			} else {
-				applyDeleted({ peerFromUser(userId), data.vid().v });
-				--result.total;
-			}
-		}, [&](const MTPDstoryItemSkipped &data) {
-			result.ids.emplace(data.vid().v);
-		}, [&](const MTPDstoryItemDeleted &data) {
-			applyDeleted({ peerFromUser(userId), data.vid().v });
+		if (const auto id = parseAndApply(result.user, story)) {
+			result.ids.emplace(id);
+		} else {
 			--result.total;
-		});
+		}
 	}
 	result.total = std::max(result.total, int(result.ids.size()));
 	return result;
@@ -337,6 +350,23 @@ Story *Stories::parseAndApply(
 		data.vdate().v)).first->second.get();
 	result->applyChanges(*media, data);
 	return result;
+}
+
+StoryId Stories::parseAndApply(
+		not_null<PeerData*> peer,
+		const MTPstoryItem &story) {
+	return story.match([&](const MTPDstoryItem &data) {
+		if (const auto story = parseAndApply(peer, data)) {
+			return story->id();
+		}
+		applyDeleted({ peer->id, data.vid().v });
+		return StoryId();
+	}, [&](const MTPDstoryItemSkipped &data) {
+		return StoryId(data.vid().v);
+	}, [&](const MTPDstoryItemDeleted &data) {
+		applyDeleted({ peer->id, data.vid().v });
+		return StoryId();
+	});
 }
 
 void Stories::updateDependentMessages(not_null<Data::Story*> story) {
@@ -600,25 +630,6 @@ void Stories::pushToBack(StoriesList &&list) {
 		*i = std::move(list);
 	} else {
 		_all.push_back(std::move(list));
-	}
-}
-
-void Stories::applyChanges(StoriesList &&list) {
-	const auto i = ranges::find(_all, list.user, &StoriesList::user);
-	if (i != end(_all)) {
-		auto added = false;
-		for (const auto id : list.ids) {
-			if (!i->ids.contains(id)) {
-				i->ids.emplace(id);
-				++i->total;
-				added = true;
-			}
-		}
-		if (added) {
-			ranges::rotate(begin(_all), i, i + 1);
-		}
-	} else if (!list.ids.empty()) {
-		_all.insert(begin(_all), std::move(list));
 	}
 }
 

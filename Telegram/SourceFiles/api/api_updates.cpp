@@ -2520,8 +2520,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		_session->api().transcribes().apply(data);
 	} break;
 
-	case mtpc_updateStories: {
-		_session->data().stories().apply(update.c_updateStories());
+	case mtpc_updateStory: {
+		_session->data().stories().apply(update.c_updateStory());
 	} break;
 
 	}
