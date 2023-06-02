@@ -314,7 +314,7 @@ Session::Session(not_null<Main::Session*> session)
 			}
 		}, _lifetime);
 
-		_stories->loadMore();
+		_stories->loadMore(Data::StorySourcesList::NotHidden);
 	});
 }
 

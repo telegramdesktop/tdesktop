@@ -30,6 +30,7 @@ enum class activation : uchar;
 namespace Data {
 class PhotoMedia;
 class DocumentMedia;
+enum class StorySourcesList : uchar;
 } // namespace Data
 
 namespace Ui {
@@ -306,6 +307,7 @@ private:
 	struct StoriesContext {
 		not_null<PeerData*> peer;
 		StoryId id = 0;
+		Data::StorySourcesList list = {};
 	};
 	void setContext(std::variant<
 		v::null_t,

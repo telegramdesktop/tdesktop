@@ -2466,28 +2466,33 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 
 void SessionController::openPeerStory(
 		not_null<PeerData*> peer,
-		StoryId storyId) {
+		StoryId storyId,
+		Data::StorySourcesList list) {
 	using namespace Media::View;
 	using namespace Data;
 
 	auto &stories = session().data().stories();
 	if (const auto from = stories.lookup({ peer->id, storyId })) {
-		window().openInMediaView(OpenRequest(this, *from));
+		window().openInMediaView(OpenRequest(this, *from, list));
 	}
 }
 
-void SessionController::openPeerStories(PeerId peerId) {
+void SessionController::openPeerStories(
+		PeerId peerId,
+		Data::StorySourcesList list) {
 	using namespace Media::View;
 	using namespace Data;
 
 	auto &stories = session().data().stories();
 	const auto &all = stories.all();
-	const auto i = ranges::find(all, peerId, [](const StoriesList &list) {
-		return list.user->id;
-	});
-	if (i != end(all) && !i->ids.empty()) {
-		const auto j = i->ids.lower_bound(i->readTill + 1);
-		openPeerStory(i->user, j != i->ids.end() ? *j : i->ids.front());
+	const auto i = all.find(peerId);
+	if (i != end(all)) {
+		const auto j = i->second.ids.lower_bound(
+			StoryIdDate{ i->second.readTill + 1 });
+		openPeerStory(
+			i->second.user,
+			j != i->second.ids.end() ? j->id : i->second.ids.front().id,
+			list);
 	}
 }
 

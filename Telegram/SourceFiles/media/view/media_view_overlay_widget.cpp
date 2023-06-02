@@ -4973,15 +4973,13 @@ void OverlayWidget::setContext(
 		_topicRootId = MsgId();
 		_history = nullptr;
 		_peer = nullptr;
-		const auto &all = story->peer->owner().stories().all();
-		const auto i = ranges::find(
-			all,
-			story->peer,
-			&Data::StoriesList::user);
-		Assert(i != end(all));
-		const auto j = ranges::find(i->ids, story->id);
 		setStoriesPeer(story->peer);
-		_stories->show(all, (i - begin(all)), j - begin(i->ids));
+		auto &stories = story->peer->owner().stories();
+		const auto maybeStory = stories.lookup(
+			{ story->peer->id, story->id });
+		if (maybeStory) {
+			_stories->show(*maybeStory, story->list);
+		}
 	} else {
 		_message = nullptr;
 		_topicRootId = MsgId();

@@ -22,11 +22,8 @@ View::View(not_null<Delegate*> delegate)
 
 View::~View() = default;
 
-void View::show(
-		const std::vector<Data::StoriesList> &lists,
-		int index,
-		int subindex) {
-	_controller->show(lists, index, subindex);
+void View::show(not_null<Data::Story*> story, Data::StorySourcesList list) {
+	_controller->show(story, list);
 }
 
 void View::ready() {

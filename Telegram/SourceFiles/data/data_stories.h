@@ -22,6 +22,21 @@ namespace Data {
 
 class Session;
 
+struct StoryIdDate {
+	StoryId id = 0;
+	TimeId date = 0;
+
+	[[nodiscard]] bool valid() const {
+		return id != 0;
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+
+	friend inline auto operator<=>(StoryIdDate, StoryIdDate) = default;
+	friend inline bool operator==(StoryIdDate, StoryIdDate) = default;
+};
+
 struct StoryMedia {
 	std::variant<not_null<PhotoData*>, not_null<DocumentData*>> data;
 
@@ -35,7 +50,7 @@ struct StoryView {
 	friend inline bool operator==(StoryView, StoryView) = default;
 };
 
-class Story {
+class Story final {
 public:
 	Story(
 		StoryId id,
@@ -48,6 +63,7 @@ public:
 	[[nodiscard]] not_null<PeerData*> peer() const;
 
 	[[nodiscard]] StoryId id() const;
+	[[nodiscard]] StoryIdDate idDate() const;
 	[[nodiscard]] FullStoryId fullId() const;
 	[[nodiscard]] TimeId date() const;
 	[[nodiscard]] const StoryMedia &media() const;
@@ -89,22 +105,41 @@ private:
 
 };
 
-struct StoriesList {
-	not_null<UserData*> user;
-	base::flat_set<StoryId> ids;
-	StoryId readTill = 0;
-	int total = 0;
+struct StoriesSourceInfo {
+	PeerId id = 0;
+	TimeId last = 0;
+	bool unread = false;
+	bool premium = false;
 	bool hidden = false;
 
+	friend inline bool operator==(
+		StoriesSourceInfo,
+		StoriesSourceInfo) = default;
+};
+
+struct StoriesSource {
+	not_null<UserData*> user;
+	base::flat_set<StoryIdDate> ids;
+	StoryId readTill = 0;
+	bool hidden = false;
+
+	[[nodiscard]] StoriesSourceInfo info() const;
 	[[nodiscard]] bool unread() const;
 
-	friend inline bool operator==(StoriesList, StoriesList) = default;
+	friend inline bool operator==(StoriesSource, StoriesSource) = default;
 };
 
 enum class NoStory : uchar {
 	Unknown,
 	Deleted,
 };
+
+enum class StorySourcesList : uchar {
+	NotHidden,
+	All,
+};
+
+inline constexpr auto kStorySourcesListCount = 2;
 
 class Stories final {
 public:
@@ -122,13 +157,16 @@ public:
 		not_null<HistoryItem*> dependent,
 		not_null<Data::Story*> dependency);
 
-	void loadMore();
+	void loadMore(StorySourcesList list);
 	void apply(const MTPDupdateStory &data);
 	void loadAround(FullStoryId id);
 
-	[[nodiscard]] const std::vector<StoriesList> &all();
-	[[nodiscard]] bool allLoaded() const;
-	[[nodiscard]] rpl::producer<> allChanged() const;
+	[[nodiscard]] const base::flat_map<PeerId, StoriesSource> &all() const;
+	[[nodiscard]] const std::vector<StoriesSourceInfo> &sources(
+		StorySourcesList list) const;
+	[[nodiscard]] bool sourcesLoaded(StorySourcesList list) const;
+	[[nodiscard]] rpl::producer<> sourcesChanged(
+		StorySourcesList list) const;
 	[[nodiscard]] rpl::producer<PeerId> itemsChanged() const;
 
 	[[nodiscard]] base::expected<not_null<Story*>, NoStory> lookup(
@@ -145,11 +183,11 @@ public:
 		Fn<void(std::vector<StoryView>)> done);
 
 private:
-	[[nodiscard]] StoriesList parse(const MTPUserStories &stories);
+	void parseAndApply(const MTPUserStories &stories);
 	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPDstoryItem &data);
-	StoryId parseAndApply(
+	StoryIdDate parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPstoryItem &story);
 	void processResolvedStories(
@@ -158,12 +196,15 @@ private:
 	void sendResolveRequests();
 	void finalizeResolve(FullStoryId id);
 
-	void pushToBack(StoriesList &&list);
 	void applyDeleted(FullStoryId id);
+	void applyDeletedFromSources(PeerId id, StorySourcesList list);
 	void removeDependencyStory(not_null<Story*> story);
+	void sort(StorySourcesList list);
 
 	void sendMarkAsReadRequests();
 	void sendMarkAsReadRequest(not_null<PeerData*> peer, StoryId tillId);
+
+	void requestUserStories(not_null<UserData*> user);
 
 	const not_null<Session*> _owner;
 	base::flat_map<
@@ -182,17 +223,20 @@ private:
 		not_null<Data::Story*>,
 		base::flat_set<not_null<HistoryItem*>>> _dependentMessages;
 
-	std::vector<StoriesList> _all;
-	rpl::event_stream<> _allChanged;
-	rpl::event_stream<PeerId> _itemsChanged;
-	QString _state;
-	bool _allLoaded = false;
+	base::flat_map<PeerId, StoriesSource> _all;
+	std::vector<StoriesSourceInfo> _sources[kStorySourcesListCount];
+	rpl::event_stream<> _sourcesChanged[kStorySourcesListCount];
+	bool _sourcesLoaded[kStorySourcesListCount] = { false };
+	QString _sourcesStates[kStorySourcesListCount];
 
-	mtpRequestId _loadMoreRequestId = 0;
+	mtpRequestId _loadMoreRequestId[kStorySourcesListCount] = { 0 };
+
+	rpl::event_stream<PeerId> _itemsChanged;
 
 	base::flat_set<PeerId> _markReadPending;
 	base::Timer _markReadTimer;
 	base::flat_set<PeerId> _markReadRequests;
+	base::flat_set<not_null<UserData*>> _requestingUserStories;
 
 	StoryId _viewsStoryId = 0;
 	std::optional<StoryView> _viewsOffset;

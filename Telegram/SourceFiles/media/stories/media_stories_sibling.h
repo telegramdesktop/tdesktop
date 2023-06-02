@@ -26,12 +26,12 @@ class Sibling final : public base::has_weak_ptr {
 public:
 	Sibling(
 		not_null<Controller*> controller,
-		const Data::StoriesList &list);
+		const Data::StoriesSource &source);
 	~Sibling();
 
 	[[nodiscard]] FullStoryId shownId() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
-	[[nodiscard]] bool shows(const Data::StoriesList &list) const;
+	[[nodiscard]] bool shows(const Data::StoriesSource &source) const;
 
 	[[nodiscard]] SiblingView view(
 		const SiblingLayout &layout,

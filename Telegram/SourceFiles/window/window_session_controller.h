@@ -29,6 +29,10 @@ namespace Adaptive {
 enum class WindowLayout;
 } // namespace Adaptive
 
+namespace Data {
+enum class StorySourcesList : uchar;
+} // namespace Data
+
 namespace ChatHelpers {
 class TabbedSelector;
 class EmojiInteractions;
@@ -564,8 +568,11 @@ public:
 		return _peerThemeOverride.value();
 	}
 
-	void openPeerStory(not_null<PeerData*> peer, StoryId storyId);
-	void openPeerStories(PeerId peerId);
+	void openPeerStory(
+		not_null<PeerData*> peer,
+		StoryId storyId,
+		Data::StorySourcesList list);
+	void openPeerStories(PeerId peerId, Data::StorySourcesList list);
 
 	struct PaintContextArgs {
 		not_null<Ui::ChatTheme*> theme;

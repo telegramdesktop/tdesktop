@@ -142,7 +142,9 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _stories(std::make_unique<Stories::List>(
 	this,
-	Stories::ContentForSession(&controller->session()),
+	Stories::ContentForSession(
+		&controller->session(),
+		Data::StorySourcesList::NotHidden),
 	[=] { return _stories->height() - _visibleTop; }))
 , _shownList(controller->session().data().chatsList()->indexed())
 , _st(&st::defaultDialogRow)
@@ -339,7 +341,7 @@ InnerWidget::InnerWidget(
 
 	_stories->clicks(
 	) | rpl::start_with_next([=](uint64 id) {
-		_controller->openPeerStories(PeerId(int64(id)));
+		_controller->openPeerStories(PeerId(int64(id)), {});
 	}, lifetime());
 
 	_stories->showProfileRequests(
@@ -365,7 +367,8 @@ InnerWidget::InnerWidget(
 
 	_stories->loadMoreRequests(
 	) | rpl::start_with_next([=] {
-		session().data().stories().loadMore();
+		session().data().stories().loadMore(
+			Data::StorySourcesList::NotHidden);
 	}, lifetime());
 
 	handleChatListEntryRefreshes();

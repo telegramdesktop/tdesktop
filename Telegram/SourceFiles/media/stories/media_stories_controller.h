@@ -20,7 +20,6 @@ struct FileChosen;
 } // namespace ChatHelpers
 
 namespace Data {
-struct StoriesList;
 struct FileOrigin;
 } // namespace Data
 
@@ -100,10 +99,7 @@ public:
 	[[nodiscard]] auto stickerOrEmojiChosen() const
 	-> rpl::producer<ChatHelpers::FileChosen>;
 
-	void show(
-		const std::vector<Data::StoriesList> &lists,
-		int index,
-		int subindex);
+	void show(not_null<Data::Story*> story, Data::StorySourcesList list);
 	void ready();
 
 	void updateVideoPlayback(const Player::TrackState &state);
@@ -142,11 +138,13 @@ private:
 	void setPlayingAllowed(bool allowed);
 
 	void showSiblings(
-		const std::vector<Data::StoriesList> &lists,
+		not_null<Main::Session*> session,
+		const std::vector<Data::StoriesSourceInfo> &lists,
 		int index);
 	void showSibling(
 		std::unique_ptr<Sibling> &sibling,
-		const Data::StoriesList *list);
+		not_null<Main::Session*> session,
+		PeerId peerId);
 
 	void subjumpTo(int index);
 	void checkWaitingFor();
@@ -180,7 +178,7 @@ private:
 
 	FullStoryId _shown;
 	TextWithEntities _captionText;
-	std::optional<Data::StoriesList> _list;
+	std::optional<Data::StoriesSource> _source;
 	FullStoryId _waitingForId;
 	int _index = 0;
 	bool _started = false;

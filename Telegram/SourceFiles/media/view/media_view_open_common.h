@@ -16,6 +16,7 @@ class HistoryItem;
 
 namespace Data {
 class Story;
+enum class StorySourcesList : uchar;
 } // namespace Data
 
 namespace Window {
@@ -74,10 +75,12 @@ public:
 	OpenRequest(
 		Window::SessionController *controller,
 		not_null<Data::Story*> story,
+		Data::StorySourcesList list,
 		bool continueStreaming = false,
 		crl::time startTime = 0)
 	: _controller(controller)
 	, _story(story)
+	, _storiesList(list)
 	, _continueStreaming(continueStreaming)
 	, _startTime(startTime) {
 	}
@@ -105,6 +108,9 @@ public:
 	[[nodiscard]] Data::Story *story() const {
 		return _story;
 	}
+	[[nodiscard]] Data::StorySourcesList storiesList() const {
+		return _storiesList;
+	}
 
 	[[nodiscard]] std::optional<Data::CloudTheme> cloudTheme() const {
 		return _cloudTheme;
@@ -127,6 +133,7 @@ private:
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	Data::Story *_story = nullptr;
+	Data::StorySourcesList _storiesList = {};
 	PeerData *_peer = nullptr;
 	HistoryItem *_item = nullptr;
 	MsgId _topicRootId = 0;

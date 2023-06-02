@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Data {
+enum class StorySourcesList : uchar;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -16,6 +20,7 @@ namespace Dialogs::Stories {
 struct Content;
 
 [[nodiscard]] rpl::producer<Content> ContentForSession(
-	not_null<Main::Session*> session);
+	not_null<Main::Session*> session,
+	Data::StorySourcesList list);
 
 } // namespace Dialogs::Stories

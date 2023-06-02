@@ -228,10 +228,10 @@ bool Sibling::LoaderVideo::updateAfterGoodCheck() {
 
 Sibling::Sibling(
 	not_null<Controller*> controller,
-	const Data::StoriesList &list)
+	const Data::StoriesSource &source)
 : _controller(controller)
-, _id{ list.user->id, list.ids.front() }
-, _peer(list.user) {
+, _id{ source.user->id, source.ids.front().id }
+, _peer(source.user) {
 	checkStory();
 	_goodShown.stop();
 }
@@ -279,10 +279,10 @@ not_null<PeerData*> Sibling::peer() const {
 	return _peer;
 }
 
-bool Sibling::shows(const Data::StoriesList &list) const {
-	Expects(!list.ids.empty());
+bool Sibling::shows(const Data::StoriesSource &source) const {
+	Expects(!source.ids.empty());
 
-	return _id == FullStoryId{ list.user->id, list.ids.front() };
+	return _id == FullStoryId{ source.user->id, source.ids.front().id };
 }
 
 SiblingView Sibling::view(const SiblingLayout &layout, float64 over) {

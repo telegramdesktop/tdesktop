@@ -386,25 +386,30 @@ auto Controller::stickerOrEmojiChosen() const
 }
 
 void Controller::show(
-		const std::vector<Data::StoriesList> &lists,
-		int index,
-		int subindex) {
-	Expects(index >= 0 && index < lists.size());
-	Expects(subindex >= 0 && subindex < lists[index].ids.size());
-
-	showSiblings(lists, index);
-
-	const auto &list = lists[index];
-	const auto id = *(begin(list.ids) + subindex);
-	const auto storyId = FullStoryId{
-		.peer = list.user->id,
-		.story = id,
-	};
-	const auto maybeStory = list.user->owner().stories().lookup(storyId);
-	if (!maybeStory) {
+		not_null<Data::Story*> story,
+		Data::StorySourcesList list) {
+	auto &stories = story->owner().stories();
+	const auto &all = stories.all();
+	const auto &sources = stories.sources(list);
+	const auto storyId = story->fullId();
+	const auto id = storyId.story;
+	const auto i = ranges::find(
+		sources,
+		storyId.peer,
+		&Data::StoriesSourceInfo::id);
+	if (i == end(sources)) {
 		return;
 	}
-	const auto story = *maybeStory;
+	const auto j = all.find(storyId.peer);
+	if (j == end(all)) {
+		return;
+	}
+	const auto &source = j->second;
+	const auto k = source.ids.lower_bound(Data::StoryIdDate{ id });
+	if (k == end(source.ids) || k->id != id) {
+		return;
+	}
+	showSiblings(&story->session(), sources, (i - begin(sources)));
 	const auto guard = gsl::finally([&] {
 		_paused = false;
 		_started = false;
@@ -414,10 +419,10 @@ void Controller::show(
 			_photoPlayback = nullptr;
 		}
 	});
-	if (_list != list) {
-		_list = list;
+	if (_source != source) {
+		_source = source;
 	}
-	_index = subindex;
+	_index = (k - begin(source.ids));
 	_waitingForId = {};
 
 	if (_shown == storyId) {
@@ -431,16 +436,16 @@ void Controller::show(
 		unfocusReply();
 	}
 
-	_header->show({ .user = list.user, .date = story->date() });
-	_slider->show({ .index = _index, .total = list.total });
-	_replyArea->show({ .user = list.user, .id = id });
+	_header->show({ .user = source.user, .date = story->date() });
+	_slider->show({ .index = _index, .total = int(source.ids.size()) });
+	_replyArea->show({ .user = source.user, .id = id });
 	_recentViews->show({
 		.list = story->recentViewers(),
 		.total = story->views(),
-		.valid = list.user->isSelf(),
+		.valid = source.user->isSelf(),
 	});
 
-	const auto session = &list.user->session();
+	const auto session = &story->session();
 	if (_session != session) {
 		_session = session;
 		_sessionLifetime = session->changes().storyUpdates(
@@ -458,14 +463,13 @@ void Controller::show(
 		}, _sessionLifetime);
 	}
 
-	auto &stories = session->data().stories();
-	if (int(lists.size()) - index < kPreloadUsersCount) {
-		stories.loadMore();
+	if (int(sources.end() - i) < kPreloadUsersCount) {
+		stories.loadMore(list);
 	}
 	stories.loadAround(storyId);
 
 	updatePlayingAllowed();
-	list.user->updateFull();
+	source.user->updateFull();
 }
 
 void Controller::updatePlayingAllowed() {
@@ -492,21 +496,33 @@ void Controller::setPlayingAllowed(bool allowed) {
 }
 
 void Controller::showSiblings(
-		const std::vector<Data::StoriesList> &lists,
+		not_null<Main::Session*> session,
+		const std::vector<Data::StoriesSourceInfo> &sources,
 		int index) {
-	showSibling(_siblingLeft, (index > 0) ? &lists[index - 1] : nullptr);
+	showSibling(
+		_siblingLeft,
+		session,
+		(index > 0) ? sources[index - 1].id : PeerId());
 	showSibling(
 		_siblingRight,
-		(index + 1 < lists.size()) ? &lists[index + 1] : nullptr);
+		session,
+		(index + 1 < sources.size()) ? sources[index + 1].id : PeerId());
 }
 
 void Controller::showSibling(
 		std::unique_ptr<Sibling> &sibling,
-		const Data::StoriesList *list) {
-	if (!list || list->ids.empty()) {
+		not_null<Main::Session*> session,
+		PeerId peerId) {
+	if (!peerId) {
 		sibling = nullptr;
-	} else if (!sibling || !sibling->shows(*list)) {
-		sibling = std::make_unique<Sibling>(this, *list);
+		return;
+	}
+	const auto &all = session->data().stories().all();
+	const auto i = all.find(peerId);
+	if (i == end(all)) {
+		sibling = nullptr;
+	} else if (!sibling || !sibling->shows(i->second)) {
+		sibling = std::make_unique<Sibling>(this, i->second);
 	}
 }
 
@@ -552,19 +568,19 @@ void Controller::maybeMarkAsRead(const Player::TrackState &state) {
 }
 
 void Controller::markAsRead() {
-	Expects(_list.has_value());
+	Expects(_source.has_value());
 
-	_list->user->owner().stories().markAsRead(_shown, _started);
+	_source->user->owner().stories().markAsRead(_shown, _started);
 }
 
 bool Controller::subjumpAvailable(int delta) const {
 	const auto index = _index + delta;
 	if (index < 0) {
 		return _siblingLeft && _siblingLeft->shownId().valid();
-	} else if (index >= _list->total) {
+	} else if (index >= int(_source->ids.size())) {
 		return _siblingRight && _siblingRight->shownId().valid();
 	}
-	return index >= 0 && index < _list->total;
+	return index >= 0 && index < int(_source->ids.size());
 }
 
 bool Controller::subjumpFor(int delta) {
@@ -575,32 +591,32 @@ bool Controller::subjumpFor(int delta) {
 	if (index < 0) {
 		if (_siblingLeft && _siblingLeft->shownId().valid()) {
 			return jumpFor(-1);
-		} else if (!_list || _list->ids.empty()) {
+		} else if (!_source || _source->ids.empty()) {
 			return false;
 		}
 		subjumpTo(0);
 		return true;
-	} else if (index >= _list->total) {
+	} else if (index >= int(_source->ids.size())) {
 		return _siblingRight
 			&& _siblingRight->shownId().valid()
 			&& jumpFor(1);
-	} else if (index < _list->ids.size()) {
+	} else {
 		subjumpTo(index);
 	}
 	return true;
 }
 
 void Controller::subjumpTo(int index) {
-	Expects(_list.has_value());
-	Expects(index >= 0 && index < _list->ids.size());
+	Expects(_source.has_value());
+	Expects(index >= 0 && index < _source->ids.size());
 
 	const auto id = FullStoryId{
-		.peer = _list->user->id,
-		.story = *(begin(_list->ids) + index)
+		.peer = _source->user->id,
+		.story = (begin(_source->ids) + index)->id,
 	};
-	auto &stories = _list->user->owner().stories();
+	auto &stories = _source->user->owner().stories();
 	if (stories.lookup(id)) {
-		_delegate->storiesJumpTo(&_list->user->session(), id);
+		_delegate->storiesJumpTo(&_source->user->session(), id);
 	} else if (_waitingForId != id) {
 		_waitingForId = id;
 		stories.loadAround(id);
@@ -609,9 +625,9 @@ void Controller::subjumpTo(int index) {
 
 void Controller::checkWaitingFor() {
 	Expects(_waitingForId.valid());
-	Expects(_list.has_value());
+	Expects(_source.has_value());
 
-	auto &stories = _list->user->owner().stories();
+	auto &stories = _source->user->owner().stories();
 	const auto maybe = stories.lookup(_waitingForId);
 	if (!maybe) {
 		if (maybe.error() == Data::NoStory::Deleted) {
@@ -620,7 +636,7 @@ void Controller::checkWaitingFor() {
 		return;
 	}
 	_delegate->storiesJumpTo(
-		&_list->user->session(),
+		&_source->user->session(),
 		base::take(_waitingForId));
 }
 
@@ -633,7 +649,7 @@ bool Controller::jumpFor(int delta) {
 			return true;
 		}
 	} else if (delta == 1) {
-		if (_list && _index + 1 >= _list->total) {
+		if (_source && _index + 1 >= int(_source->ids.size())) {
 			markAsRead();
 		}
 		if (const auto right = _siblingRight.get()) {
@@ -665,7 +681,7 @@ void Controller::setMenuShown(bool shown) {
 }
 
 bool Controller::canDownload() const {
-	return _list && _list->user->isSelf();
+	return _source && _source->user->isSelf();
 }
 
 void Controller::repaintSibling(not_null<Sibling*> sibling) {
@@ -706,7 +722,7 @@ Fn<void(std::vector<Data::StoryView>)> Controller::viewsGotMoreCallback() {
 	return crl::guard(&_viewsLoadGuard, [=](
 			const std::vector<Data::StoryView> &result) {
 		if (_viewsSlice.list.empty()) {
-			auto &stories = _list->user->owner().stories();
+			auto &stories = _source->user->owner().stories();
 			if (const auto maybeStory = stories.lookup(_shown)) {
 				_viewsSlice = {
 					.list = result,
@@ -728,11 +744,11 @@ Fn<void(std::vector<Data::StoryView>)> Controller::viewsGotMoreCallback() {
 }
 
 void Controller::refreshViewsFromData() {
-	Expects(_list.has_value());
+	Expects(_source.has_value());
 
-	auto &stories = _list->user->owner().stories();
+	auto &stories = _source->user->owner().stories();
 	const auto maybeStory = stories.lookup(_shown);
-	if (!maybeStory || !_list->user->isSelf()) {
+	if (!maybeStory || !_source->user->isSelf()) {
 		_viewsSlice = {};
 		return;
 	}
@@ -750,11 +766,11 @@ void Controller::refreshViewsFromData() {
 }
 
 bool Controller::sliceViewsTo(PeerId offset) {
-	Expects(_list.has_value());
+	Expects(_source.has_value());
 
-	auto &stories = _list->user->owner().stories();
+	auto &stories = _source->user->owner().stories();
 	const auto maybeStory = stories.lookup(_shown);
-	if (!maybeStory || !_list->user->isSelf()) {
+	if (!maybeStory || !_source->user->isSelf()) {
 		_viewsSlice = {};
 		return true;
 	}

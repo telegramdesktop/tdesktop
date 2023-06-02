@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/painter.h"
 
-#include "history/history.h" // #TODO stories testing
-
 namespace Dialogs::Stories {
 namespace {
 
@@ -51,12 +49,13 @@ private:
 
 class State final {
 public:
-	explicit State(not_null<Data::Stories*> data);
+	State(not_null<Data::Stories*> data, Data::StorySourcesList list);
 
 	[[nodiscard]] Content next();
 
 private:
 	const not_null<Data::Stories*> _data;
+	const Data::StorySourcesList _list;
 	base::flat_map<not_null<UserData*>, std::shared_ptr<Userpic>> _userpics;
 
 };
@@ -122,27 +121,23 @@ void PeerUserpic::processNewPhoto() {
 	}, _subscribed->downloadLifetime);
 }
 
-State::State(not_null<Data::Stories*> data)
-: _data(data) {
+State::State(not_null<Data::Stories*> data, Data::StorySourcesList list)
+: _data(data)
+, _list(list) {
 }
 
 Content State::next() {
 	auto result = Content();
-#if 1 // #TODO stories testing
 	const auto &all = _data->all();
-	result.users.reserve(all.size());
-	for (const auto &list : all) {
+	const auto &sources = _data->sources(_list);
+	result.users.reserve(sources.size());
+	for (const auto &info : sources) {
+		const auto i = all.find(info.id);
+		Assert(i != end(all));
+		const auto &source = i->second;
+
 		auto userpic = std::shared_ptr<Userpic>();
-		const auto user = list.user;
-#else
-	const auto list = _data->owner().chatsList();
-	const auto &all = list->indexed()->all();
-	result.users.reserve(all.size());
-	for (const auto &entry : all) {
-		if (const auto history = entry->history()) {
-			if (const auto user = history->peer->asUser(); user && !user->isBot()) {
-				auto userpic = std::shared_ptr<Userpic>();
-#endif
+		const auto user = source.user;
 		if (const auto i = _userpics.find(user); i != end(_userpics)) {
 			userpic = i->second;
 		} else {
@@ -153,41 +148,25 @@ Content State::next() {
 			.id = uint64(user->id.value),
 			.name = user->shortName(),
 			.userpic = std::move(userpic),
-#if 1 // #TODO stories testing
-			.unread = list.unread(),
-#else
-			.unread = history->chatListBadgesState().unread
+			.unread = info.unread,
 		});
 	}
-#endif
-		});
-	}
-	ranges::stable_partition(result.users, [](const User &user) {
-		return user.unread;
-	});
 	return result;
 }
 
 } // namespace
 
-rpl::producer<Content> ContentForSession(not_null<Main::Session*> session) {
+rpl::producer<Content> ContentForSession(
+		not_null<Main::Session*> session,
+		Data::StorySourcesList list) {
 	return [=](auto consumer) {
 		auto result = rpl::lifetime();
 		const auto stories = &session->data().stories();
-		const auto state = result.make_state<State>(stories);
+		const auto state = result.make_state<State>(stories, list);
 		rpl::single(
 			rpl::empty
 		) | rpl::then(
-#if 1 // #TODO stories testing
-			stories->allChanged()
-#else
-			rpl::merge(
-				session->data().chatsListChanges(
-				) | rpl::filter(
-					rpl::mappers::_1 == nullptr
-				) | rpl::to_empty,
-				session->data().unreadBadgeChanges())
-#endif
+			stories->sourcesChanged(list)
 		) | rpl::start_with_next([=] {
 			consumer.put_next(state->next());
 		}, result);
