@@ -350,9 +350,11 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 	const auto peerId = peerFromUser(data.vuser_id());
 	const auto readTill = data.vmax_read_id().value_or_empty();
 	const auto count = int(data.vstories().v.size());
+	const auto user = _owner->peer(peerId)->asUser();
 	auto result = StoriesSource{
-		.user = _owner->peer(peerId)->asUser(),
+		.user = user,
 		.readTill = readTill,
+		.hidden = user->hasStoriesHidden(),
 	};
 	const auto &list = data.vstories().v;
 	result.ids.reserve(list.size());
@@ -804,6 +806,58 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 		refreshInList(StorySourcesList::NotHidden);
 	}
 	_markReadTimer.callOnce(kMarkAsReadDelay);
+}
+
+void Stories::toggleHidden(PeerId peerId, bool hidden) {
+	const auto user = _owner->peer(peerId)->asUser();
+	Assert(user != nullptr);
+	if (user->hasStoriesHidden() != hidden) {
+		user->setFlags(hidden
+			? (user->flags() | UserDataFlag::StoriesHidden)
+			: (user->flags() & ~UserDataFlag::StoriesHidden));
+		session().api().request(MTPcontacts_ToggleStoriesHidden(
+			user->inputUser,
+			MTP_bool(hidden)
+		)).send();
+	}
+
+	const auto i = _all.find(peerId);
+	if (i == end(_all)) {
+		return;
+	}
+	i->second.hidden = hidden;
+	const auto main = static_cast<int>(StorySourcesList::NotHidden);
+	const auto all = static_cast<int>(StorySourcesList::All);
+	if (hidden) {
+		const auto i = ranges::find(
+			_sources[main],
+			peerId,
+			&StoriesSourceInfo::id);
+		if (i != end(_sources[main])) {
+			_sources[main].erase(i);
+			_sourcesChanged[main].fire({});
+		}
+		const auto j = ranges::find(_sources[all], peerId, &StoriesSourceInfo::id);
+		if (j != end(_sources[all])) {
+			j->hidden = hidden;
+			_sourcesChanged[all].fire({});
+		}
+	} else {
+		const auto i = ranges::find(
+			_sources[all],
+			peerId,
+			&StoriesSourceInfo::id);
+		if (i != end(_sources[all])) {
+			i->hidden = hidden;
+			_sourcesChanged[all].fire({});
+
+			auto &sources = _sources[main];
+			if (!ranges::contains(sources, peerId, &StoriesSourceInfo::id)) {
+				sources.push_back(*i);
+				sort(StorySourcesList::NotHidden);
+			}
+		}
+	}
 }
 
 void Stories::sendMarkAsReadRequest(

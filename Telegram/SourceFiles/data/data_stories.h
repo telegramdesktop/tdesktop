@@ -176,6 +176,8 @@ public:
 	[[nodiscard]] bool isQuitPrevent();
 	void markAsRead(FullStoryId id, bool viewed);
 
+	void toggleHidden(PeerId peerId, bool hidden);
+
 	static constexpr auto kViewsPerPage = 50;
 	void loadViewsSlice(
 		StoryId id,

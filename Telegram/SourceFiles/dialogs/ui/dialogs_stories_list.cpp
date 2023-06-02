@@ -99,6 +99,7 @@ void List::showContent(Content &&content) {
 				item.nameCache = QImage();
 			}
 			item.user.unread = user.unread;
+			item.user.hidden = user.hidden;
 		} else {
 			_data.items.emplace_back(Item{ .user = user });
 		}
@@ -429,8 +430,8 @@ void List::paintEvent(QPaintEvent *e) {
 			});
 			p.setBrush(gradient);
 			p.drawEllipse(outer);
-			p.setOpacity(1.);
 		}
+		p.setOpacity(1.);
 	}, [&](Single single) {
 		Expects(single.itemSmall || single.itemFull);
 
@@ -710,19 +711,24 @@ void List::contextMenuEvent(QContextMenuEvent *e) {
 
 	const auto id = item.user.id;
 	const auto hidden = item.user.hidden;
-	_menu->addAction(u"View Profile"_q, [=] {
+	_menu->addAction(tr::lng_context_view_profile(tr::now), [=] {
 		_showProfileRequests.fire_copy(id);
 	});
-	_menu->addAction(hidden ? u"Show in Chats"_q : u"Hide"_q, [=] {
-		_toggleShown.fire({ .id = id, .shown = hidden });
-	});
-	QObject::connect(_menu.get(), &QObject::destroyed, [=] {
+	_menu->addAction(hidden
+		? tr::lng_stories_show_in_chats(tr::now)
+		: tr::lng_stories_hide_to_contacts(tr::now),
+		[=] { _toggleShown.fire({ .id = id, .shown = hidden }); });
+	const auto updateAfterMenuDestroyed = [=] {
 		const auto globalPosition = QCursor::pos();
 		if (rect().contains(mapFromGlobal(globalPosition))) {
 			_lastMousePosition = globalPosition;
 			updateSelected();
 		}
-	});
+	};
+	QObject::connect(
+		_menu.get(),
+		&QObject::destroyed,
+		crl::guard(&_menuGuard, updateAfterMenuDestroyed));
 	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {

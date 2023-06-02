@@ -37,6 +37,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_profile.h"
 #include "styles/style_dialogs.h"
 
+#include "data/data_stories.h"
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_list.h"
+
+
 namespace {
 
 constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
@@ -51,10 +56,14 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		&sessionController->session());
 	const auto raw = controller.get();
 	auto init = [=](not_null<PeerListBox*> box) {
+		using namespace Dialogs;
+
 		struct State {
-			QPointer<Ui::IconButton> toggleSort;
+			Stories::List *stories = nullptr;
+			QPointer<::Ui::IconButton> toggleSort;
 			Mode mode = ContactsBoxController::SortMode::Online;
 		};
+
 		const auto state = box->lifetime().make_state<State>();
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 		box->addLeftButton(
@@ -69,6 +78,43 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 				online ? &st::contactsSortOnlineIconOver : nullptr);
 		});
 		raw->setSortMode(Mode::Online);
+
+		auto stories = object_ptr<Stories::List>(
+			box,
+			Stories::ContentForSession(
+				&sessionController->session(),
+				Data::StorySourcesList::All),
+			[=] { return state->stories->height() - box->scrollTop(); });
+		const auto raw = state->stories = stories.data();
+		box->peerListSetAboveWidget(std::move(stories));
+
+		raw->entered(
+		) | rpl::start_with_next([=] {
+			//clearSelection();
+		}, raw->lifetime());
+
+		raw->clicks(
+		) | rpl::start_with_next([=](uint64 id) {
+			sessionController->openPeerStories(PeerId(int64(id)), {});
+		}, raw->lifetime());
+
+		raw->showProfileRequests(
+		) | rpl::start_with_next([=](uint64 id) {
+			sessionController->showPeerInfo(PeerId(int64(id)));
+		}, raw->lifetime());
+
+		raw->toggleShown(
+		) | rpl::start_with_next([=](Stories::ToggleShownRequest request) {
+			sessionController->session().data().stories().toggleHidden(
+				PeerId(int64(request.id)),
+				!request.shown);
+		}, raw->lifetime());
+
+		raw->loadMoreRequests(
+		) | rpl::start_with_next([=] {
+			sessionController->session().data().stories().loadMore(
+				Data::StorySourcesList::All);
+		}, raw->lifetime());
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(init));
 }

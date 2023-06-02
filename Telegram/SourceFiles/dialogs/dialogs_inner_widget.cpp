@@ -351,18 +351,9 @@ InnerWidget::InnerWidget(
 
 	_stories->toggleShown(
 	) | rpl::start_with_next([=](Stories::ToggleShownRequest request) {
-		const auto peerId = PeerId(int64(request.id));
-		const auto user = session().data().peer(peerId)->asUser();
-		Assert(user != nullptr);
-		if (user->hasStoriesHidden() == request.shown) {
-			user->setFlags(request.shown
-				? (user->flags() & ~UserDataFlag::StoriesHidden)
-				: (user->flags() | UserDataFlag::StoriesHidden));
-			session().api().request(MTPcontacts_ToggleStoriesHidden(
-				user->inputUser,
-				MTP_bool(!request.shown)
-			)).send();
-		}
+		session().data().stories().toggleHidden(
+			PeerId(int64(request.id)),
+			!request.shown);
 	}, lifetime());
 
 	_stories->loadMoreRequests(

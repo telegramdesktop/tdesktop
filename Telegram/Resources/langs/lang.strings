@@ -3789,6 +3789,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_userpic_builder_color_subtitle" = "Choose background";
 "lng_userpic_builder_emoji_subtitle" = "Choose sticker or emoji";
 
+"lng_stories_hide_to_contacts" = "Archive";
+"lng_stories_show_in_chats" = "Unarchive";
 "lng_stories_row_count#one" = "{count} Story";
 "lng_stories_row_count#other" = "{count} Stories";
 "lng_stories_row_unread_and_one" = "{accumulated}, {user}";

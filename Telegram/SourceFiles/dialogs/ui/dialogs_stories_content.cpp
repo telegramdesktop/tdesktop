@@ -149,6 +149,7 @@ Content State::next() {
 			.name = user->shortName(),
 			.userpic = std::move(userpic),
 			.unread = info.unread,
+			.hidden = info.hidden,
 		});
 	}
 	return result;

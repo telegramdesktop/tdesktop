@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/qt/qt_compare.h"
+#include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
 
 class QPainter;
@@ -160,6 +161,7 @@ private:
 	int _pressed = -1;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
+	base::has_weak_ptr _menuGuard;
 
 };
 

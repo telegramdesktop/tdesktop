@@ -3061,7 +3061,11 @@ void OverlayWidget::show(OpenRequest request) {
 		setSession(&photo->session());
 
 		if (story) {
-			setContext(StoriesContext{ story->peer(), story->id() });
+			setContext(StoriesContext{
+				story->peer(),
+				story->id(),
+				request.storiesList(),
+			});
 		} else if (contextPeer) {
 			setContext(contextPeer);
 		} else if (contextItem) {
