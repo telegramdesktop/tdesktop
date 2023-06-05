@@ -527,7 +527,7 @@ accountDaysTTL#b8d0afdf days:int = AccountDaysTTL;
 documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
 documentAttributeSticker#6319d612 flags:# mask:flags.1?true alt:string stickerset:InputStickerSet mask_coords:flags.0?MaskCoords = DocumentAttribute;
-documentAttributeVideo#e9407793 flags:# round_message:flags.0?true supports_streaming:flags.1?true duration:int w:int h:int preload_prefix_size:flags.2?int = DocumentAttribute;
+documentAttributeVideo#d38ff1c2 flags:# round_message:flags.0?true supports_streaming:flags.1?true duration:double w:int h:int preload_prefix_size:flags.2?int = DocumentAttribute;
 documentAttributeAudio#9852f9c6 flags:# voice:flags.10?true duration:int title:flags.0?string performer:flags.1?string waveform:flags.2?bytes = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
 documentAttributeHasStickers#9801d2f7 = DocumentAttribute;
@@ -1526,8 +1526,8 @@ sponsoredWebPage#3db8ec63 flags:# url:string site_name:string photo:flags.0?Phot
 storyViews#d36760cf flags:# views_count:int recent_viewers:flags.0?Vector<long> = StoryViews;
 
 storyItemDeleted#51e6ee4f id:int = StoryItem;
-storyItemSkipped#a1d8cf8f id:int date:int = StoryItem;
-storyItem#8fcd96ac flags:# pinned:flags.5?true expired:flags.6?true id:int date:int caption:flags.0?string entities:flags.1?Vector<MessageEntity> media:MessageMedia privacy:flags.2?Vector<PrivacyRule> views:flags.3?StoryViews = StoryItem;
+storyItemSkipped#693206a2 id:int date:int expire_date:int = StoryItem;
+storyItem#562aa637 flags:# pinned:flags.5?true public:flags.7?true close_friends:flags.8?true id:int date:int expire_date:int caption:flags.0?string entities:flags.1?Vector<MessageEntity> media:MessageMedia privacy:flags.2?Vector<PrivacyRule> views:flags.3?StoryViews = StoryItem;
 
 userStories#8611a200 flags:# user_id:long max_read_id:flags.0?int stories:Vector<StoryItem> = UserStories;
 
@@ -1546,6 +1546,8 @@ stories.storyViews#de9eed1d views:Vector<StoryViews> users:Vector<User> = storie
 
 inputReplyToMessage#9c5386e4 flags:# reply_to_msg_id:int top_msg_id:flags.0?int = InputReplyTo;
 inputReplyToStory#15b0f283 user_id:InputUser story_id:int = InputReplyTo;
+
+exportedStoryLink#3fc9053b link:string = ExportedStoryLink;
 
 ---functions---
 
@@ -2082,7 +2084,7 @@ chatlists.hideChatlistUpdates#66e486fb chatlist:InputChatlist = Bool;
 chatlists.getLeaveChatlistSuggestions#fdbcd714 chatlist:InputChatlist = Vector<Peer>;
 chatlists.leaveChatlist#74fae13a chatlist:InputChatlist peers:Vector<InputPeer> = Updates;
 
-stories.sendStory#8b5c6986 flags:# pinned:flags.2?true media:InputMedia caption:flags.0?string entities:flags.1?Vector<MessageEntity> privacy_rules:Vector<InputPrivacyRule> random_id:long = Updates;
+stories.sendStory#424cd47a flags:# pinned:flags.2?true media:InputMedia caption:flags.0?string entities:flags.1?Vector<MessageEntity> privacy_rules:Vector<InputPrivacyRule> random_id:long period:flags.3?int = Updates;
 stories.editStory#2aae7a41 flags:# id:int media:flags.0?InputMedia caption:flags.1?string entities:flags.1?Vector<MessageEntity> privacy_rules:flags.2?Vector<InputPrivacyRule> = Updates;
 stories.deleteStories#b5d501d7 id:Vector<int> = Vector<int>;
 stories.togglePinned#51602944 id:Vector<int> pinned:Bool = Vector<int>;
@@ -2095,3 +2097,4 @@ stories.readStories#edc5105b user_id:InputUser max_id:int = Vector<int>;
 stories.incrementStoryViews#22126127 user_id:InputUser id:Vector<int> = Bool;
 stories.getStoryViewsList#4b3b5e97 id:int offset_date:int offset_id:long limit:int = stories.StoryViewsList;
 stories.getStoriesViews#9a75d6a6 id:Vector<int> = stories.StoryViews;
+stories.exportStoryLink#16e443ce user_id:InputUser id:int = ExportedStoryLink;

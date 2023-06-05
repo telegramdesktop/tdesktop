@@ -79,14 +79,12 @@ struct StickerData : public DocumentAdditionalData {
 };
 
 struct SongData : public DocumentAdditionalData {
-	int32 duration = 0;
 	QString title, performer;
 };
 
 struct VoiceData : public DocumentAdditionalData {
 	~VoiceData();
 
-	int duration = 0;
 	VoiceWaveform waveform;
 	char wavemax = 0;
 };
@@ -172,7 +170,8 @@ public:
 	[[nodiscard]] bool isGifv() const;
 	[[nodiscard]] bool isTheme() const;
 	[[nodiscard]] bool isSharedMediaMusic() const;
-	[[nodiscard]] TimeId getDuration() const;
+	[[nodiscard]] crl::time duration() const;
+	[[nodiscard]] bool hasDuration() const;
 	[[nodiscard]] bool isImage() const;
 	void recountIsImage();
 	[[nodiscard]] bool supportsStreaming() const;
@@ -356,10 +355,10 @@ private:
 	std::unique_ptr<Data::ReplyPreview> _replyPreview;
 	std::weak_ptr<Data::DocumentMedia> _media;
 	PhotoData *_goodThumbnailPhoto = nullptr;
+	crl::time _duration = -1;
 
 	Core::FileLocation _location;
 	std::unique_ptr<DocumentAdditionalData> _additional;
-	int32 _duration = -1;
 	mutable Flags _flags = kStreamingSupportedUnknown;
 	GoodThumbnailState _goodThumbnailState = GoodThumbnailState();
 	std::unique_ptr<FileLoader> _loader;

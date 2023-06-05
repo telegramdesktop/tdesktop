@@ -1199,11 +1199,11 @@ void AddSaveSoundForNotifications(
 	} else if (int(ringtones.list().size()) >= ringtones.maxSavedCount()) {
 		return;
 	} else if (const auto song = document->song()) {
-		if (song->duration > ringtones.maxDuration()) {
+		if (document->duration() > ringtones.maxDuration()) {
 			return;
 		}
 	} else if (const auto voice = document->voice()) {
-		if (voice->duration > ringtones.maxDuration()) {
+		if (document->duration() > ringtones.maxDuration()) {
 			return;
 		}
 	} else {

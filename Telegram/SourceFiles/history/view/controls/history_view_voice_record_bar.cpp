@@ -90,7 +90,6 @@ enum class FilterType {
 [[nodiscard]] std::unique_ptr<VoiceData> ProcessCaptureResult(
 		const ::Media::Capture::Result &data) {
 	auto voiceData = std::make_unique<VoiceData>();
-	voiceData->duration = Duration(data.samples);
 	voiceData->waveform = data.waveform;
 	voiceData->wavemax = voiceData->waveform.empty()
 		? uchar(0)

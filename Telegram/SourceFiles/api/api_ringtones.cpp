@@ -202,8 +202,8 @@ int Ringtones::maxSavedCount() const {
 		100);
 }
 
-int Ringtones::maxDuration() const {
-	return _session->account().appConfig().get<int>(
+crl::time Ringtones::maxDuration() const {
+	return crl::time(1000) * _session->account().appConfig().get<int>(
 		"ringtone_duration_max",
 		5);
 }

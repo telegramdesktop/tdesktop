@@ -868,7 +868,7 @@ void FileLoadTask::process(Args &&args) {
 			}
 			attributes.push_back(MTP_documentAttributeVideo(
 				MTP_flags(flags),
-				MTP_int(video->duration),
+				MTP_double(video->duration / 1000.),
 				MTP_int(coverWidth),
 				MTP_int(coverHeight),
 				MTPint())); // preload_prefix_size

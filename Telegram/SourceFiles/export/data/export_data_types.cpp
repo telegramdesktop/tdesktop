@@ -295,7 +295,7 @@ void ParseAttributes(
 			}
 			result.width = data.vw().v;
 			result.height = data.vh().v;
-			result.duration = data.vduration().v;
+			result.duration = int(data.vduration().v);
 		}, [&](const MTPDdocumentAttributeAudio &data) {
 			if (data.is_voice()) {
 				result.isVoiceMessage = true;

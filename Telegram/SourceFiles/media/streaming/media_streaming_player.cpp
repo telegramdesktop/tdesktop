@@ -954,9 +954,9 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 
 	if (result.length == kTimeUnknown) {
 		const auto document = _options.audioId.audio();
-		const auto duration = document ? document->getDuration() : 0;
+		const auto duration = document ? document->duration() : 0;
 		if (duration > 0) {
-			result.length = duration * crl::time(1000);
+			result.length = duration;
 		} else {
 			result.length = std::max(crl::time(result.position), crl::time(0));
 		}

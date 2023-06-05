@@ -448,7 +448,7 @@ Video::Video(
 	bool spoiler)
 : RadialProgressItem(delegate, parent)
 , _data(video)
-, _duration(Ui::FormatDurationText(_data->getDuration()))
+, _duration(Ui::FormatDurationText(_data->duration() / 1000))
 , _spoiler(spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
 	delegate->repaintItem(this);
 }) : nullptr) {
@@ -693,7 +693,7 @@ Voice::Voice(
 			lt_date,
 			dateText,
 			lt_duration,
-			{ .text = Ui::FormatDurationText(duration()) },
+			{ .text = Ui::FormatDurationText(_data->duration() / 1000) },
 			Ui::Text::WithEntities));
 	_details.setLink(1, JumpToMessageClickHandler(parent));
 }
@@ -958,10 +958,6 @@ void Voice::updateName() {
 	_nameVersion = parent()->fromOriginal()->nameVersion();
 }
 
-int Voice::duration() const {
-	return std::max(_data->getDuration(), 0);
-}
-
 bool Voice::updateStatusText() {
 	auto showPause = false;
 	auto statusSize = int64();
@@ -983,7 +979,7 @@ bool Voice::updateStatusText() {
 	}
 
 	if (statusSize != _status.size()) {
-		_status.update(statusSize, _data->size, duration(), realDuration);
+		_status.update(statusSize, _data->size, _data->duration() / 1000, realDuration);
 	}
 	return showPause;
 }
@@ -1026,7 +1022,7 @@ Document::Document(
 	_status.update(
 		Ui::FileStatusSizeReady,
 		_data->size,
-		songLayout() ? _data->song()->duration : -1,
+		songLayout() ? (_data->duration() / 1000) : -1,
 		0);
 
 	if (withThumb()) {
@@ -1541,7 +1537,7 @@ bool Document::updateStatusText() {
 		_status.update(
 			statusSize,
 			_data->size,
-			isSong ? _data->song()->duration : -1,
+			isSong ? (_data->duration() / 1000) : -1,
 			realDuration);
 	}
 	return showPause;

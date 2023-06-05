@@ -3887,8 +3887,8 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		.position = position,
 		.durationOverride = ((_stories
 			&& _document
-			&& _document->getDuration() > 0)
-			? (_document->getDuration() * crl::time(1000) + crl::time(999))
+			&& _document->hasDuration())
+			? _document->duration()
 			: crl::time(0)),
 		.hwAllowed = Core::App().settings().hardwareAcceleratedVideo(),
 		.seekable = !_stories,

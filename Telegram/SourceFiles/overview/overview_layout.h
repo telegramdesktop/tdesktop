@@ -339,9 +339,8 @@ protected:
 
 private:
 	void ensureDataMediaCreated() const;
-	int duration() const;
 
-	not_null<DocumentData*> _data;
+	const not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	StatusText _status;
 	ClickHandlerPtr _namel;

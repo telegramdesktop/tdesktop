@@ -1600,12 +1600,12 @@ void Gif::setStatusSize(int64 newSize) const {
 		_statusText = Ui::FormatDurationText(-newSize - 1);
 	} else if (_data->isVideoMessage()) {
 		_statusSize = newSize;
-		_statusText = Ui::FormatDurationText(_data->getDuration());
+		_statusText = Ui::FormatDurationText(_data->duration() / 1000);
 	} else {
 		File::setStatusSize(
 			newSize,
 			_data->size,
-			_data->isVideoFile() ? _data->getDuration() : -2,
+			_data->isVideoFile() ? (_data->duration() / 1000) : -2,
 			0);
 	}
 }
@@ -1638,7 +1638,7 @@ void Gif::updateStatusText() const {
 			}
 			statusSize = -1 - int((state.length - position) / state.frequency + 1);
 		} else {
-			statusSize = -1 - _data->getDuration();
+			statusSize = -1 - (_data->duration() / 1000);
 		}
 	}
 	if (statusSize != _statusSize) {
