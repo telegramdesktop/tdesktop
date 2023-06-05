@@ -100,9 +100,9 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	}
 	if ([&] {
 		const auto list = std::array{
-			"libva-drm.so.1",
-			"libva-x11.so.1",
-			"libva.so.1",
+			"libva-drm.so.2",
+			"libva-x11.so.2",
+			"libva.so.2",
 			"libdrm.so.2",
 		};
 		for (const auto lib : list) {

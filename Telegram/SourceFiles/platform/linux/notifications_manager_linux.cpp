@@ -404,21 +404,11 @@ bool NotificationData::init(
 		_notification->set_icon(
 			Gio::ThemedIcon::create(base::IconName().toStdString()));
 
-		// glib 2.42+, we keep glib 2.40+ compatibility
-		static const auto set_priority = [] {
-			// reset dlerror after dlsym call
-			const auto guard = gsl::finally([] { dlerror(); });
-			return reinterpret_cast<decltype(&g_notification_set_priority)>(
-				dlsym(RTLD_DEFAULT, "g_notification_set_priority"));
-		}();
+		// for chat messages, according to
+		// https://docs.gtk.org/gio/enum.NotificationPriority.html
+		_notification->set_priority(Gio::Notification::Priority::HIGH);
 
-		if (set_priority) {
-			// for chat messages, according to
-			// https://docs.gtk.org/gio/enum.NotificationPriority.html
-			set_priority(_notification->gobj(), G_NOTIFICATION_PRIORITY_HIGH);
-		}
-
-		// glib 2.70+, we keep glib 2.40+ compatibility
+		// glib 2.70+, we keep glib 2.56+ compatibility
 		static const auto set_category = [] {
 			// reset dlerror after dlsym call
 			const auto guard = gsl::finally([] { dlerror(); });
