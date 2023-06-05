@@ -287,6 +287,17 @@ struct OverlayWidget::PipWrap {
 	rpl::lifetime lifetime;
 };
 
+struct OverlayWidget::ItemContext {
+	not_null<HistoryItem*> item;
+	MsgId topicRootId = 0;
+};
+
+struct OverlayWidget::StoriesContext {
+	not_null<PeerData*> peer;
+	StoryId id = 0;
+	Data::StoriesContext within;
+};
+
 class OverlayWidget::Show final : public ChatHelpers::Show {
 public:
 	explicit Show(not_null<OverlayWidget*> widget) : _widget(widget) {
@@ -3064,7 +3075,7 @@ void OverlayWidget::show(OpenRequest request) {
 			setContext(StoriesContext{
 				story->peer(),
 				story->id(),
-				request.storiesList(),
+				request.storiesContext(),
 			});
 		} else if (contextPeer) {
 			setContext(contextPeer);
@@ -3085,7 +3096,11 @@ void OverlayWidget::show(OpenRequest request) {
 		setSession(&document->session());
 
 		if (story) {
-			setContext(StoriesContext{ story->peer(), story->id() });
+			setContext(StoriesContext{
+				story->peer(),
+				story->id(),
+				request.storiesContext(),
+			});
 		} else if (contextItem) {
 			setContext(ItemContext{ contextItem, contextTopicRootId });
 		} else {
@@ -3868,9 +3883,16 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		_rotation = saved;
 		updateContentRect();
 	}
-	auto options = Streaming::PlaybackOptions();
-	options.position = position;
-	options.hwAllowed = Core::App().settings().hardwareAcceleratedVideo();
+	auto options = Streaming::PlaybackOptions{
+		.position = position,
+		.durationOverride = ((_stories
+			&& _document
+			&& _document->getDuration() > 0)
+			? (_document->getDuration() * crl::time(1000) + crl::time(999))
+			: crl::time(0)),
+		.hwAllowed = Core::App().settings().hardwareAcceleratedVideo(),
+		.seekable = !_stories,
+	};
 	if (!_streamed->withSound) {
 		options.mode = Streaming::Mode::Video;
 		options.loop = true;
@@ -4025,7 +4047,8 @@ auto OverlayWidget::storiesStickerOrEmojiChosen()
 
 void OverlayWidget::storiesJumpTo(
 		not_null<Main::Session*> session,
-		FullStoryId id) {
+		FullStoryId id,
+		Data::StoriesContext context) {
 	Expects(_stories != nullptr);
 	Expects(id.valid());
 
@@ -4035,7 +4058,11 @@ void OverlayWidget::storiesJumpTo(
 		return;
 	}
 	const auto story = *maybeStory;
-	setContext(StoriesContext{ story->peer(), story->id() });
+	setContext(StoriesContext{
+		story->peer(),
+		story->id(),
+		context,
+	});
 	clearStreaming();
 	_streamingStartPaused = false;
 	v::match(story->media().data, [&](not_null<PhotoData*> photo) {
@@ -4982,7 +5009,7 @@ void OverlayWidget::setContext(
 		const auto maybeStory = stories.lookup(
 			{ story->peer->id, story->id });
 		if (maybeStory) {
-			_stories->show(*maybeStory, story->list);
+			_stories->show(*maybeStory, story->within);
 		}
 	} else {
 		_message = nullptr;

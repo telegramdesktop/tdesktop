@@ -99,7 +99,7 @@ public:
 	[[nodiscard]] auto stickerOrEmojiChosen() const
 	-> rpl::producer<ChatHelpers::FileChosen>;
 
-	void show(not_null<Data::Story*> story, Data::StorySourcesList list);
+	void show(not_null<Data::Story*> story, Data::StoriesContext context);
 	void ready();
 
 	void updateVideoPlayback(const Player::TrackState &state);
@@ -137,6 +137,7 @@ private:
 	void updatePlayingAllowed();
 	void setPlayingAllowed(bool allowed);
 
+	void hideSiblings();
 	void showSiblings(
 		not_null<Main::Session*> session,
 		const std::vector<Data::StoriesSourceInfo> &lists,
@@ -178,6 +179,7 @@ private:
 
 	FullStoryId _shown;
 	TextWithEntities _captionText;
+	Data::StoriesContext _context;
 	std::optional<Data::StoriesSource> _source;
 	FullStoryId _waitingForId;
 	int _index = 0;

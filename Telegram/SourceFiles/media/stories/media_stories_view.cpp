@@ -22,8 +22,10 @@ View::View(not_null<Delegate*> delegate)
 
 View::~View() = default;
 
-void View::show(not_null<Data::Story*> story, Data::StorySourcesList list) {
-	_controller->show(story, list);
+void View::show(
+		not_null<Data::Story*> story,
+		Data::StoriesContext context) {
+	_controller->show(story, context);
 }
 
 void View::ready() {

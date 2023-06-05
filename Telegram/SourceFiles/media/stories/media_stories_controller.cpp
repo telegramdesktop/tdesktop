@@ -387,29 +387,54 @@ auto Controller::stickerOrEmojiChosen() const
 
 void Controller::show(
 		not_null<Data::Story*> story,
-		Data::StorySourcesList list) {
+		Data::StoriesContext context) {
+	using namespace Data;
+
 	auto &stories = story->owner().stories();
-	const auto &all = stories.all();
-	const auto &sources = stories.sources(list);
 	const auto storyId = story->fullId();
 	const auto id = storyId.story;
-	const auto i = ranges::find(
-		sources,
-		storyId.peer,
-		&Data::StoriesSourceInfo::id);
-	if (i == end(sources)) {
+	const auto &all = stories.all();
+	const auto inAll = all.find(storyId.peer);
+	auto source = (inAll != end(all)) ? &inAll->second : nullptr;
+	auto single = StoriesSource{ story->peer()->asUser() };
+	v::match(context.data, [&](StoriesContextSingle) {
+		source = &single;
+		hideSiblings();
+	}, [&](StoriesContextPeer) {
+		hideSiblings();
+	}, [&](StoriesContextSaved) {
+		hideSiblings();
+	}, [&](StoriesContextArchive) {
+		hideSiblings();
+	}, [&](StorySourcesList list) {
+		const auto &sources = stories.sources(list);
+		const auto i = ranges::find(
+			sources,
+			storyId.peer,
+			&StoriesSourceInfo::id);
+		if (i == end(sources)) {
+			source = nullptr;
+			return;
+		}
+		showSiblings(&story->session(), sources, (i - begin(sources)));
+
+		if (int(sources.end() - i) < kPreloadUsersCount) {
+			stories.loadMore(list);
+		}
+	});
+	const auto idDate = story->idDate();
+	if (!source) {
 		return;
+	} else if (source == &single) {
+		single.ids.emplace(idDate);
+		_index = 0;
+	} else {
+		const auto k = source->ids.find(idDate);
+		if (k == end(source->ids)) {
+			return;
+		}
+		_index = (k - begin(source->ids));
 	}
-	const auto j = all.find(storyId.peer);
-	if (j == end(all)) {
-		return;
-	}
-	const auto &source = j->second;
-	const auto k = source.ids.lower_bound(Data::StoryIdDate{ id });
-	if (k == end(source.ids) || k->id != id) {
-		return;
-	}
-	showSiblings(&story->session(), sources, (i - begin(sources)));
 	const auto guard = gsl::finally([&] {
 		_paused = false;
 		_started = false;
@@ -419,12 +444,11 @@ void Controller::show(
 			_photoPlayback = nullptr;
 		}
 	});
-	if (_source != source) {
-		_source = source;
+	if (_source != *source) {
+		_source = *source;
 	}
-	_index = (k - begin(source.ids));
+	_context = context;
 	_waitingForId = {};
-
 	if (_shown == storyId) {
 		return;
 	}
@@ -436,13 +460,13 @@ void Controller::show(
 		unfocusReply();
 	}
 
-	_header->show({ .user = source.user, .date = story->date() });
-	_slider->show({ .index = _index, .total = int(source.ids.size()) });
-	_replyArea->show({ .user = source.user, .id = id });
+	_header->show({ .user = source->user, .date = story->date() });
+	_slider->show({ .index = _index, .total = int(source->ids.size()) });
+	_replyArea->show({ .user = source->user, .id = id });
 	_recentViews->show({
 		.list = story->recentViewers(),
 		.total = story->views(),
-		.valid = source.user->isSelf(),
+		.valid = source->user->isSelf(),
 	});
 
 	const auto session = &story->session();
@@ -463,13 +487,10 @@ void Controller::show(
 		}, _sessionLifetime);
 	}
 
-	if (int(sources.end() - i) < kPreloadUsersCount) {
-		stories.loadMore(list);
-	}
-	stories.loadAround(storyId);
+	stories.loadAround(storyId, context);
 
 	updatePlayingAllowed();
-	source.user->updateFull();
+	source->user->updateFull();
 }
 
 void Controller::updatePlayingAllowed() {
@@ -507,6 +528,11 @@ void Controller::showSiblings(
 		_siblingRight,
 		session,
 		(index + 1 < sources.size()) ? sources[index + 1].id : PeerId());
+}
+
+void Controller::hideSiblings() {
+	_siblingLeft = nullptr;
+	_siblingRight = nullptr;
 }
 
 void Controller::showSibling(
@@ -616,10 +642,10 @@ void Controller::subjumpTo(int index) {
 	};
 	auto &stories = _source->user->owner().stories();
 	if (stories.lookup(id)) {
-		_delegate->storiesJumpTo(&_source->user->session(), id);
+		_delegate->storiesJumpTo(&_source->user->session(), id, _context);
 	} else if (_waitingForId != id) {
 		_waitingForId = id;
-		stories.loadAround(id);
+		stories.loadAround(id, _context);
 	}
 }
 
@@ -637,7 +663,8 @@ void Controller::checkWaitingFor() {
 	}
 	_delegate->storiesJumpTo(
 		&_source->user->session(),
-		base::take(_waitingForId));
+		base::take(_waitingForId),
+		_context);
 }
 
 bool Controller::jumpFor(int delta) {
@@ -645,7 +672,8 @@ bool Controller::jumpFor(int delta) {
 		if (const auto left = _siblingLeft.get()) {
 			_delegate->storiesJumpTo(
 				&left->peer()->session(),
-				left->shownId());
+				left->shownId(),
+				_context);
 			return true;
 		}
 	} else if (delta == 1) {
@@ -655,7 +683,8 @@ bool Controller::jumpFor(int delta) {
 		if (const auto right = _siblingRight.get()) {
 			_delegate->storiesJumpTo(
 				&right->peer()->session(),
-				right->shownId());
+				right->shownId(),
+				_context);
 			return true;
 		}
 	}

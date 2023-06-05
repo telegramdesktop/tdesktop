@@ -30,7 +30,7 @@ enum class activation : uchar;
 namespace Data {
 class PhotoMedia;
 class DocumentMedia;
-enum class StorySourcesList : uchar;
+struct StoriesContext;
 } // namespace Data
 
 namespace Ui {
@@ -134,6 +134,8 @@ private:
 	class Show;
 	struct Streamed;
 	struct PipWrap;
+	struct ItemContext;
+	struct StoriesContext;
 	class Renderer;
 	class RendererSW;
 	class RendererGL;
@@ -245,7 +247,8 @@ private:
 		-> rpl::producer<ChatHelpers::FileChosen> override;
 	void storiesJumpTo(
 		not_null<Main::Session*> session,
-		FullStoryId id) override;
+		FullStoryId id,
+		Data::StoriesContext context) override;
 	void storiesClose() override;
 	bool storiesPaused() override;
 	rpl::producer<bool> storiesLayerShown() override;
@@ -300,15 +303,6 @@ private:
 	Entity entityForItemId(const FullMsgId &itemId) const;
 	bool moveToEntity(const Entity &entity, int preloadDelta = 0);
 
-	struct ItemContext {
-		not_null<HistoryItem*> item;
-		MsgId topicRootId = 0;
-	};
-	struct StoriesContext {
-		not_null<PeerData*> peer;
-		StoryId id = 0;
-		Data::StorySourcesList list = {};
-	};
 	void setContext(std::variant<
 		v::null_t,
 		ItemContext,

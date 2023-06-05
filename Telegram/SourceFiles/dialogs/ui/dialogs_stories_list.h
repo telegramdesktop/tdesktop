@@ -37,6 +37,7 @@ struct User {
 
 struct Content {
 	std::vector<User> users;
+	bool full = false;
 
 	friend inline bool operator==(
 		const Content &a,

@@ -12,6 +12,10 @@ class Show;
 struct FileChosen;
 } // namespace ChatHelpers
 
+namespace Data {
+struct StoriesContext;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -41,7 +45,8 @@ public:
 		-> rpl::producer<ChatHelpers::FileChosen> = 0;
 	virtual void storiesJumpTo(
 		not_null<Main::Session*> session,
-		FullStoryId id) = 0;
+		FullStoryId id,
+		Data::StoriesContext context) = 0;
 	virtual void storiesClose() = 0;
 	[[nodiscard]] virtual bool storiesPaused() = 0;
 	[[nodiscard]] virtual rpl::producer<bool> storiesLayerShown() = 0;

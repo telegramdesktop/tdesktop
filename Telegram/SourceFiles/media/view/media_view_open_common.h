@@ -8,16 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_cloud_themes.h"
+#include "data/data_stories.h"
 
 class DocumentData;
 class PeerData;
 class PhotoData;
 class HistoryItem;
-
-namespace Data {
-class Story;
-enum class StorySourcesList : uchar;
-} // namespace Data
 
 namespace Window {
 class SessionController;
@@ -75,14 +71,10 @@ public:
 	OpenRequest(
 		Window::SessionController *controller,
 		not_null<Data::Story*> story,
-		Data::StorySourcesList list,
-		bool continueStreaming = false,
-		crl::time startTime = 0)
+		Data::StoriesContext context)
 	: _controller(controller)
 	, _story(story)
-	, _storiesList(list)
-	, _continueStreaming(continueStreaming)
-	, _startTime(startTime) {
+	, _storiesContext(context) {
 	}
 
 	[[nodiscard]] PeerData *peer() const {
@@ -108,8 +100,8 @@ public:
 	[[nodiscard]] Data::Story *story() const {
 		return _story;
 	}
-	[[nodiscard]] Data::StorySourcesList storiesList() const {
-		return _storiesList;
+	[[nodiscard]] Data::StoriesContext storiesContext() const {
+		return _storiesContext;
 	}
 
 	[[nodiscard]] std::optional<Data::CloudTheme> cloudTheme() const {
@@ -133,7 +125,7 @@ private:
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	Data::Story *_story = nullptr;
-	Data::StorySourcesList _storiesList = {};
+	Data::StoriesContext _storiesContext;
 	PeerData *_peer = nullptr;
 	HistoryItem *_item = nullptr;
 	MsgId _topicRootId = 0;

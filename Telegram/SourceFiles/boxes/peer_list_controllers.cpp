@@ -95,7 +95,9 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 
 		raw->clicks(
 		) | rpl::start_with_next([=](uint64 id) {
-			sessionController->openPeerStories(PeerId(int64(id)), {});
+			sessionController->openPeerStories(
+				PeerId(int64(id)),
+				Data::StorySourcesList::All);
 		}, raw->lifetime());
 
 		raw->showProfileRequests(

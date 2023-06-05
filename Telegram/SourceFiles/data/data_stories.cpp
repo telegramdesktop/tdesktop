@@ -744,7 +744,13 @@ void Stories::resolve(FullStoryId id, Fn<void()> done) {
 	}
 }
 
-void Stories::loadAround(FullStoryId id) {
+void Stories::loadAround(FullStoryId id, StoriesContext context) {
+	if (v::is<StoriesContextSingle>(context.data)) {
+		return;
+	} else if (v::is<StoriesContextSaved>(context.data)
+		|| v::is<StoriesContextArchive>(context.data)) {
+		return;
+	}
 	const auto i = _all.find(id.peer);
 	if (i == end(_all)) {
 		return;

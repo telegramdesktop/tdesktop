@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class Story;
-enum class StorySourcesList : uchar;
+struct StoriesContext;
 struct FileOrigin;
 } // namespace Data
 
@@ -53,7 +53,7 @@ public:
 	explicit View(not_null<Delegate*> delegate);
 	~View();
 
-	void show(not_null<Data::Story*> story, Data::StorySourcesList list);
+	void show(not_null<Data::Story*> story, Data::StoriesContext context);
 	void ready();
 
 	[[nodiscard]] bool canDownload() const;

@@ -139,6 +139,32 @@ enum class StorySourcesList : uchar {
 	All,
 };
 
+struct StoriesContextSingle {
+};
+
+struct StoriesContextPeer {
+};
+
+struct StoriesContextSaved {
+};
+
+struct StoriesContextArchive {
+};
+
+struct StoriesContext {
+	std::variant<
+		StoriesContextSingle,
+		StoriesContextPeer,
+		StoriesContextSaved,
+		StoriesContextArchive,
+		StorySourcesList> data;
+
+	friend inline auto operator<=>(
+		StoriesContext,
+		StoriesContext) = default;
+	friend inline bool operator==(StoriesContext, StoriesContext) = default;
+};
+
 inline constexpr auto kStorySourcesListCount = 2;
 
 class Stories final {
@@ -159,7 +185,7 @@ public:
 
 	void loadMore(StorySourcesList list);
 	void apply(const MTPDupdateStory &data);
-	void loadAround(FullStoryId id);
+	void loadAround(FullStoryId id, StoriesContext context);
 
 	[[nodiscard]] const base::flat_map<PeerId, StoriesSource> &all() const;
 	[[nodiscard]] const std::vector<StoriesSourceInfo> &sources(

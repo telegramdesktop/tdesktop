@@ -127,7 +127,7 @@ State::State(not_null<Data::Stories*> data, Data::StorySourcesList list)
 }
 
 Content State::next() {
-	auto result = Content();
+	auto result = Content{ .full = (_list == Data::StorySourcesList::All) };
 	const auto &all = _data->all();
 	const auto &sources = _data->sources(_list);
 	result.users.reserve(sources.size());

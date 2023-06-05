@@ -544,8 +544,16 @@ void Player::play(const PlaybackOptions &options) {
 	if (!Media::Audio::SupportsSpeedControl()) {
 		_options.speed = 1.;
 	}
+	if (!_options.seekable) {
+		_options.position = 0;
+	}
 	_stage = Stage::Initializing;
-	_file->start(delegate(), _options.position, _options.hwAllowed);
+	_file->start(delegate(), {
+		.position = _options.position,
+		.durationOverride = options.durationOverride,
+		.seekable = _options.seekable,
+		.hwAllow = _options.hwAllowed,
+	});
 }
 
 void Player::savePreviousReceivedTill(

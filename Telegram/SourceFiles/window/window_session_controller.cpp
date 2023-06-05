@@ -2467,13 +2467,13 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 void SessionController::openPeerStory(
 		not_null<PeerData*> peer,
 		StoryId storyId,
-		Data::StorySourcesList list) {
+		Data::StoriesContext context) {
 	using namespace Media::View;
 	using namespace Data;
 
 	auto &stories = session().data().stories();
 	if (const auto from = stories.lookup({ peer->id, storyId })) {
-		window().openInMediaView(OpenRequest(this, *from, list));
+		window().openInMediaView(OpenRequest(this, *from, context));
 	}
 }
 
@@ -2492,7 +2492,7 @@ void SessionController::openPeerStories(
 		openPeerStory(
 			i->second.user,
 			j != i->second.ids.end() ? j->id : i->second.ids.front().id,
-			list);
+			{ list });
 	}
 }
 

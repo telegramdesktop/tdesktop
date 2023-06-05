@@ -30,6 +30,7 @@ enum class WindowLayout;
 } // namespace Adaptive
 
 namespace Data {
+struct StoriesContext;
 enum class StorySourcesList : uchar;
 } // namespace Data
 
@@ -571,7 +572,7 @@ public:
 	void openPeerStory(
 		not_null<PeerData*> peer,
 		StoryId storyId,
-		Data::StorySourcesList list);
+		Data::StoriesContext context);
 	void openPeerStories(PeerId peerId, Data::StorySourcesList list);
 
 	struct PaintContextArgs {

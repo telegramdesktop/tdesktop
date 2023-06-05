@@ -265,7 +265,8 @@ List::Layout List::computeLayout() const {
 		+ st::defaultDialogRow.photoSize
 		+ st::defaultDialogRow.padding.left();
 	const auto narrow = (width() <= narrowWidth);
-	const auto smallWidth = st.photo + (itemsCount - 1) * st.shift;
+	const auto smallCount = std::min(kSmallUserpicsShown, itemsCount);
+	const auto smallWidth = st.photo + (smallCount - 1) * st.shift;
 	const auto leftSmall = narrow
 		? ((narrowWidth - smallWidth) / 2 - st.photoLeft)
 		: st.left;
@@ -278,7 +279,7 @@ List::Layout List::computeLayout() const {
 		(width() - leftFull + singleFull - 1) / singleFull,
 		itemsCount);
 	const auto startIndexSmall = 0;
-	const auto endIndexSmall = std::min(kSmallUserpicsShown, itemsCount);
+	const auto endIndexSmall = smallCount;
 	const auto cellLeftSmall = leftSmall;
 	const auto userpicLeftFull = cellLeftFull + full.photoLeft;
 	const auto userpicLeftSmall = cellLeftSmall + st.photoLeft;
@@ -714,10 +715,12 @@ void List::contextMenuEvent(QContextMenuEvent *e) {
 	_menu->addAction(tr::lng_context_view_profile(tr::now), [=] {
 		_showProfileRequests.fire_copy(id);
 	});
-	_menu->addAction(hidden
-		? tr::lng_stories_show_in_chats(tr::now)
-		: tr::lng_stories_hide_to_contacts(tr::now),
-		[=] { _toggleShown.fire({ .id = id, .shown = hidden }); });
+	if (!_content.full || hidden) {
+		_menu->addAction(hidden
+			? tr::lng_stories_show_in_chats(tr::now)
+			: tr::lng_stories_hide_to_contacts(tr::now),
+			[=] { _toggleShown.fire({ .id = id, .shown = hidden }); });
+	}
 	const auto updateAfterMenuDestroyed = [=] {
 		const auto globalPosition = QCursor::pos();
 		if (rect().contains(mapFromGlobal(globalPosition))) {
