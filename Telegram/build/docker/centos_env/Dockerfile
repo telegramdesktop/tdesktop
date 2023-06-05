@@ -56,9 +56,11 @@ ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}{{ CFLAGS_LTO }}{% endif 
 ENV CXXFLAGS $CFLAGS
 
 FROM builder AS patches
-RUN git clone {{ GIT }}/desktop-app/patches.git \
+RUN git init patches \
 	&& cd patches \
-	&& git checkout a1b912c90e \
+	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
+	&& git fetch --depth=1 origin a1b912c90eaab470ef283622a8f890ee6264dae7 \
+	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
 FROM builder AS nasm
@@ -92,7 +94,7 @@ RUN git clone -b v1.2.11 --depth=1 {{ GIT }}/madler/zlib.git \
 	&& rm -rf zlib
 
 FROM builder AS xz
-RUN git clone -b v5.2.5 https://git.tukaani.org/xz.git \
+RUN git clone -b v5.2.5 --depth=1 {{ GIT }}/tukaani-project/xz.git \
 	&& cd xz \
 	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
 	&& cmake --build build --parallel \
@@ -101,26 +103,23 @@ RUN git clone -b v5.2.5 https://git.tukaani.org/xz.git \
 	&& rm -rf xz
 
 FROM builder AS protobuf
-RUN git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf \
-    && cd protobuf \
-    && git clone https://github.com/abseil/abseil-cpp third_party/abseil-cpp \
-    && cd third_party/abseil-cpp \
-    && git checkout 273292d1cf \
-    && cd ../.. \
-    && mkdir build \
-    && cd build \
-    && cmake -GNinja .. \
-    	-DCMAKE_BUILD_TYPE=None \
-		-DCMAKE_C_FLAGS="$CFLAGS" \
-		-DCMAKE_CXX_FLAGS="$CXXFLAGS" \
-        -Dprotobuf_BUILD_TESTS=OFF \
-        -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
-        -Dprotobuf_BUILD_LIBPROTOC=ON \
-        -Dprotobuf_WITH_ZLIB_DEFAULT=OFF \
-        -Dprotobuf_DEBUG_POSTFIX="" \
-    && cmake --build . --parallel \
-    && cd .. \
-    && rm -rf .git
+RUN git clone -b v21.9 --depth=1 --recursive {{ GIT }}/protocolbuffers/protobuf.git \
+	&& cd protobuf \
+	&& git init third_party/abseil-cpp \
+	&& cd third_party/abseil-cpp \
+	&& git remote add origin {{ GIT }}/abseil/abseil-cpp.git \
+	&& git fetch --depth=1 origin 273292d1cfc0a94a65082ee350509af1d113344d \
+	&& git reset --hard FETCH_HEAD \
+	&& cd ../.. \
+	&& cmake -GNinja -B build . \
+		-DCMAKE_BUILD_TYPE=None \
+		-Dprotobuf_BUILD_TESTS=OFF \
+		-Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
+		-Dprotobuf_BUILD_LIBPROTOC=ON \
+		-Dprotobuf_WITH_ZLIB_DEFAULT=OFF \
+		-Dprotobuf_DEBUG_POSTFIX="" \
+	&& cmake --build build --parallel \
+	&& rm -rf .git
 
 FROM patches AS libproxy
 RUN git clone -b 0.4.17 --depth=1 {{ GIT }}/libproxy/libproxy.git \
@@ -303,7 +302,7 @@ RUN git clone -b v0.8.1 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 	&& rm -rf libjxl
 
 FROM builder AS rnnoise
-RUN git clone -b master --depth=1 {{ GIT }}/desktop-app/rnnoise \
+RUN git clone -b master --depth=1 {{ GIT }}/desktop-app/rnnoise.git \
 	&& cd rnnoise \
 	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
 	&& cmake --build build --parallel \
@@ -757,13 +756,17 @@ RUN git clone -b {{ QT_TAG }} --depth=1 https://code.qt.io/qt/qt5.git qt_{{ QT }
 	&& rm -rf qt_{{ QT }}
 
 FROM patches AS breakpad
-RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git \
+RUN git init breakpad \
 	&& cd breakpad \
-	&& git checkout dfcb7b6799 \
+	&& git remote add origin https://chromium.googlesource.com/breakpad/breakpad.git \
+	&& git fetch --depth=1 origin dfcb7b6799b7c1e2c8d65e857d8afede185471d8 \
+	&& git reset --hard FETCH_HEAD \
 	&& git apply ../patches/breakpad.diff \
-	&& git clone https://chromium.googlesource.com/linux-syscall-support.git src/third_party/lss \
+	&& git init src/third_party/lss \
 	&& cd src/third_party/lss \
-	&& git checkout e1e7b0ad8e \
+	&& git remote add origin https://chromium.googlesource.com/linux-syscall-support.git \
+	&& git fetch --depth=1 origin e1e7b0ad8ee99a875b272c8e33e308472e897660 \
+	&& git reset --hard FETCH_HEAD \
 	&& cd ../../.. \
 	&& env -u CFLAGS -u CXXFLAGS ./configure \
 	&& make -j$(nproc) \
