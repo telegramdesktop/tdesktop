@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_stories.h"
 #include "mainwidget.h"
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
@@ -758,6 +759,37 @@ void MainMenu::setupMenu() {
 			{ &st::settingsIconSavedMessages, kIconLightBlue }
 		)->setClickedCallback([=] {
 			controller->showPeerHistory(controller->session().user());
+		});
+
+		const auto wrap = _menu->add(
+			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+				_menu,
+				CreateButton(
+					_menu,
+					rpl::single(u"My Stories"_q),
+					st::mainMenuButton,
+					IconDescriptor{
+						&st::settingsIconSavedMessages,
+						kIconLightOrange
+					})));
+		const auto stories = &controller->session().data().stories();
+		const auto &all = stories->all();
+		const auto mine = all.find(controller->session().userPeerId());
+		if ((mine != end(all) && !mine->second.ids.empty())
+			|| stories->expiredMineCount() > 0) {
+			wrap->toggle(true, anim::type::instant);
+		} else {
+			wrap->toggle(false, anim::type::instant);
+			if (!stories->expiredMineCountKnown()) {
+				stories->expiredMineLoadMore();
+				wrap->toggleOn(stories->expiredMineChanged(
+				) | rpl::map([=] {
+					return stories->expiredMineCount() > 0;
+				}) | rpl::filter(rpl::mappers::_1) | rpl::take(1));
+			}
+		}
+		wrap->entity()->setClickedCallback([=] {
+			controller->showToast(u"My Stories"_q);
 		});
 	} else {
 		addAction(

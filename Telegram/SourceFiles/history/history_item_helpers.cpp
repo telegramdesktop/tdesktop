@@ -297,8 +297,10 @@ ClickHandlerPtr JumpToStoryClickHandler(
 			? separate->sessionController()
 			: peer->session().tryResolveWindow();
 		if (controller) {
-			// #TODO stories decide context
-			controller->openPeerStory(peer, storyId, {});
+			controller->openPeerStory(
+				peer,
+				storyId,
+				{ Data::StoriesContextSingle() });
 		}
 	});
 }

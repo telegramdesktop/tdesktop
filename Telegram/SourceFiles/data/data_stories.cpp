@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_stories.h"
 
+#include "base/unixtime.h"
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "core/application.h"
@@ -32,6 +33,8 @@ constexpr auto kMaxResolveTogether = 100;
 constexpr auto kIgnorePreloadAroundIfLoaded = 15;
 constexpr auto kPreloadAroundCount = 30;
 constexpr auto kMarkAsReadDelay = 3 * crl::time(1000);
+constexpr auto kExpiredMineFirstPerPage = 30;
+constexpr auto kExpiredMinePerPage = 100;
 
 using UpdateFlag = StoryUpdate::Flag;
 
@@ -80,11 +83,13 @@ Story::Story(
 	StoryId id,
 	not_null<PeerData*> peer,
 	StoryMedia media,
-	TimeId date)
+	TimeId date,
+	TimeId expires)
 : _id(id)
 , _peer(peer)
 , _media(std::move(media))
-, _date(date) {
+, _date(date)
+, _expires(expires) {
 }
 
 Session &Story::owner() const {
@@ -103,8 +108,12 @@ StoryId Story::id() const {
 	return _id;
 }
 
-StoryIdDate Story::idDate() const {
-	return { _id, _date };
+bool Story::mine() const {
+	return _peer->isSelf();
+}
+
+StoryIdDates Story::idDates() const {
+	return { _id, _date, _expires };
 }
 
 FullStoryId Story::fullId() const {
@@ -113,6 +122,14 @@ FullStoryId Story::fullId() const {
 
 TimeId Story::date() const {
 	return _date;
+}
+
+TimeId Story::expires() const {
+	return _expires;
+}
+
+bool Story::expired(TimeId now) const {
+	return _expires <= (now ? now : base::unixtime::now());
 }
 
 const StoryMedia &Story::media() const {
@@ -276,6 +293,7 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 
 Stories::Stories(not_null<Session*> owner)
 : _owner(owner)
+, _expireTimer([=] { processExpired(); })
 , _markReadTimer([=] { sendMarkAsReadRequests(); }) {
 }
 
@@ -293,21 +311,27 @@ Main::Session &Stories::session() const {
 void Stories::apply(const MTPDupdateStory &data) {
 	const auto peerId = peerFromUser(data.vuser_id());
 	const auto user = not_null(_owner->peer(peerId)->asUser());
-	const auto idDate = parseAndApply(user, data.vstory());
-	if (!idDate) {
+	const auto now = base::unixtime::now();
+	const auto idDates = parseAndApply(user, data.vstory(), now);
+	if (!idDates) {
+		return;
+	}
+	const auto expired = (idDates.expires <= now);
+	if (expired) {
+		applyExpired({ peerId, idDates.id });
 		return;
 	}
 	const auto i = _all.find(peerId);
 	if (i == end(_all)) {
 		requestUserStories(user);
 		return;
-	} else if (i->second.ids.contains(idDate)) {
+	} else if (i->second.ids.contains(idDates)) {
 		return;
 	}
-	const auto was = i->second.info();
-	i->second.ids.emplace(idDate);
-	const auto now = i->second.info();
-	if (was == now) {
+	const auto wasInfo = i->second.info();
+	i->second.ids.emplace(idDates);
+	const auto nowInfo = i->second.info();
+	if (wasInfo == nowInfo) {
 		return;
 	}
 	const auto refreshInList = [&](StorySourcesList list) {
@@ -317,7 +341,7 @@ void Stories::apply(const MTPDupdateStory &data) {
 			peerId,
 			&StoriesSourceInfo::id);
 		if (i != end(sources)) {
-			*i = now;
+			*i = nowInfo;
 			sort(list);
 		}
 	};
@@ -342,7 +366,61 @@ void Stories::requestUserStories(not_null<UserData*> user) {
 		_requestingUserStories.remove(user);
 		applyDeletedFromSources(user->id, StorySourcesList::All);
 	}).send();
+}
 
+void Stories::registerExpiring(TimeId expires, FullStoryId id) {
+	for (auto i = _expiring.findFirst(expires)
+		; (i != end(_expiring)) && (i->first == expires)
+		; ++i) {
+		if (i->second == id) {
+			return;
+		}
+	}
+	const auto reschedule = _expiring.empty()
+		|| (_expiring.front().first > expires);
+	_expiring.emplace(expires, id);
+	if (reschedule) {
+		scheduleExpireTimer();
+	}
+}
+
+void Stories::scheduleExpireTimer() {
+	if (_expireSchedulePosted) {
+		return;
+	}
+	_expireSchedulePosted = true;
+	crl::on_main(this, [=] {
+		if (!_expireSchedulePosted) {
+			return;
+		}
+		_expireSchedulePosted = false;
+		if (_expiring.empty()) {
+			_expireTimer.cancel();
+		} else {
+			const auto nearest = _expiring.front().first;
+			const auto now = base::unixtime::now();
+			const auto delay = (nearest > now)
+				? (nearest - now)
+				: 0;
+			_expireTimer.callOnce(delay * crl::time(1000));
+		}
+	});
+}
+
+void Stories::processExpired() {
+	const auto now = base::unixtime::now();
+	auto expired = base::flat_set<FullStoryId>();
+	auto i = begin(_expiring);
+	for (; i != end(_expiring) && i->first <= now; ++i) {
+		expired.emplace(i->second);
+	}
+	_expiring.erase(begin(_expiring), i);
+	for (const auto &id : expired) {
+		applyExpired(id);
+	}
+	if (!_expiring.empty()) {
+		scheduleExpireTimer();
+	}
 }
 
 void Stories::parseAndApply(const MTPUserStories &stories) {
@@ -357,9 +435,10 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 		.hidden = user->hasStoriesHidden(),
 	};
 	const auto &list = data.vstories().v;
+	const auto now = base::unixtime::now();
 	result.ids.reserve(list.size());
 	for (const auto &story : list) {
-		if (const auto id = parseAndApply(result.user, story)) {
+		if (const auto id = parseAndApply(result.user, story, now)) {
 			result.ids.emplace(id);
 		}
 	}
@@ -391,19 +470,29 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 		}
 		sort(list);
 	};
-	add(StorySourcesList::All);
-	if (result.user->hasStoriesHidden()) {
-		applyDeletedFromSources(peerId, StorySourcesList::NotHidden);
+	if (result.user->isContact()) {
+		add(StorySourcesList::All);
+		if (result.user->hasStoriesHidden()) {
+			applyDeletedFromSources(peerId, StorySourcesList::NotHidden);
+		} else {
+			add(StorySourcesList::NotHidden);
+		}
 	} else {
-		add(StorySourcesList::NotHidden);
+		applyDeletedFromSources(peerId, StorySourcesList::All);
 	}
 }
 
 Story *Stories::parseAndApply(
 		not_null<PeerData*> peer,
-		const MTPDstoryItem &data) {
+		const MTPDstoryItem &data,
+		TimeId now) {
 	const auto media = ParseMedia(_owner, data.vmedia());
 	if (!media) {
+		return nullptr;
+	}
+	const auto expires = data.vexpire_date().v;
+	const auto expired = (expires >= now);
+	if (expired && !data.is_pinned() && !peer->isSelf()) {
 		return nullptr;
 	}
 	const auto id = data.vid().v;
@@ -421,25 +510,51 @@ Story *Stories::parseAndApply(
 		id,
 		peer,
 		StoryMedia{ *media },
-		data.vdate().v)).first->second.get();
+		data.vdate().v,
+		data.vexpire_date().v)).first->second.get();
 	result->applyChanges(*media, data);
+
+	if (expired) {
+		_expiring.remove(expires, result->fullId());
+		applyExpired(result->fullId());
+	} else {
+		registerExpiring(expires, result->fullId());
+	}
+
 	return result;
 }
 
-StoryIdDate Stories::parseAndApply(
+StoryIdDates Stories::parseAndApply(
 		not_null<PeerData*> peer,
-		const MTPstoryItem &story) {
+		const MTPstoryItem &story,
+		TimeId now) {
 	return story.match([&](const MTPDstoryItem &data) {
-		if (const auto story = parseAndApply(peer, data)) {
-			return story->idDate();
+		if (const auto story = parseAndApply(peer, data, now)) {
+			return story->idDates();
 		}
 		applyDeleted({ peer->id, data.vid().v });
-		return StoryIdDate();
+		return StoryIdDates();
 	}, [&](const MTPDstoryItemSkipped &data) {
-		return StoryIdDate{ data.vid().v, data.vdate().v };
+		const auto expires = data.vexpire_date().v;
+		const auto expired = (expires >= now);
+		const auto fullId = FullStoryId{ peer->id, data.vid().v };
+		if (!expired) {
+			registerExpiring(expires, fullId);
+		} else if (!peer->isSelf()) {
+			applyDeleted(fullId);
+			return StoryIdDates();
+		} else {
+			_expiring.remove(expires, fullId);
+			applyExpired(fullId);
+		}
+		return StoryIdDates{
+			data.vid().v,
+			data.vdate().v,
+			data.vexpire_date().v,
+		};
 	}, [&](const MTPDstoryItemDeleted &data) {
 		applyDeleted({ peer->id, data.vid().v });
-		return StoryIdDate();
+		return StoryIdDates();
 	});
 }
 
@@ -571,9 +686,10 @@ void Stories::sendResolveRequests() {
 void Stories::processResolvedStories(
 		not_null<PeerData*> peer,
 		const QVector<MTPStoryItem> &list) {
+	const auto now = base::unixtime::now();
 	for (const auto &item : list) {
 		item.match([&](const MTPDstoryItem &data) {
-			if (!parseAndApply(peer, data)) {
+			if (!parseAndApply(peer, data, now)) {
 				applyDeleted({ peer->id, data.vid().v });
 			}
 		}, [&](const MTPDstoryItemSkipped &data) {
@@ -595,6 +711,48 @@ void Stories::finalizeResolve(FullStoryId id) {
 }
 
 void Stories::applyDeleted(FullStoryId id) {
+	applyRemovedFromActive(id);
+
+	_deleted.emplace(id);
+	const auto j = _stories.find(id.peer);
+	if (j != end(_stories)) {
+		const auto k = j->second.find(id.story);
+		if (k != end(j->second)) {
+			auto story = std::move(k->second);
+			_expiring.remove(story->expires(), story->fullId());
+			j->second.erase(k);
+			session().changes().storyUpdated(
+				story.get(),
+				UpdateFlag::Destroyed);
+			removeDependencyStory(story.get());
+			if (j->second.empty()) {
+				_stories.erase(j);
+			}
+		}
+	}
+}
+
+void Stories::applyExpired(FullStoryId id) {
+	if (const auto maybeStory = lookup(id)) {
+		const auto story = *maybeStory;
+		if (story->peer()->isSelf()) {
+			addToExpiredMine(story);
+		} else if (!story->pinned()) {
+			applyDeleted(id);
+			return;
+		}
+	}
+	applyRemovedFromActive(id);
+}
+
+void Stories::addToExpiredMine(not_null<Story*> story) {
+	const auto added = _expiredMine.emplace(story->id()).second;
+	if (added && _expiredMineTotal >= 0) {
+		++_expiredMineTotal;
+	}
+}
+
+void Stories::applyRemovedFromActive(FullStoryId id) {
 	const auto removeFromList = [&](StorySourcesList list) {
 		const auto index = static_cast<int>(list);
 		auto &sources = _sources[index];
@@ -609,29 +767,13 @@ void Stories::applyDeleted(FullStoryId id) {
 	};
 	const auto i = _all.find(id.peer);
 	if (i != end(_all)) {
-		const auto j = i->second.ids.lower_bound(StoryIdDate{ id.story });
+		const auto j = i->second.ids.lower_bound(StoryIdDates{ id.story });
 		if (j != end(i->second.ids) && j->id == id.story) {
 			i->second.ids.erase(j);
 			if (i->second.ids.empty()) {
 				_all.erase(i);
 				removeFromList(StorySourcesList::NotHidden);
 				removeFromList(StorySourcesList::All);
-			}
-		}
-	}
-	_deleted.emplace(id);
-	const auto j = _stories.find(id.peer);
-	if (j != end(_stories)) {
-		const auto k = j->second.find(id.story);
-		if (k != end(j->second)) {
-			auto story = std::move(k->second);
-			j->second.erase(k);
-			session().changes().storyUpdated(
-				story.get(),
-				UpdateFlag::Destroyed);
-			removeDependencyStory(story.get());
-			if (j->second.empty()) {
-				_stories.erase(j);
 			}
 		}
 	}
@@ -755,7 +897,7 @@ void Stories::loadAround(FullStoryId id, StoriesContext context) {
 	if (i == end(_all)) {
 		return;
 	}
-	const auto j = i->second.ids.lower_bound(StoryIdDate{ id.story });
+	const auto j = i->second.ids.lower_bound(StoryIdDates{ id.story });
 	if (j == end(i->second.ids) || j->id != id.story) {
 		return;
 	}
@@ -957,6 +1099,67 @@ void Stories::loadViewsSlice(
 		if (const auto done = base::take(_viewsDone)) {
 			done({});
 		}
+	}).send();
+}
+
+const base::flat_set<StoryId> &Stories::expiredMine() const {
+	return _expiredMine;
+}
+
+rpl::producer<> Stories::expiredMineChanged() const {
+	return _expiredMineChanged.events();
+}
+
+int Stories::expiredMineCount() const {
+	return std::max(_expiredMineTotal, 0);
+}
+
+bool Stories::expiredMineCountKnown() const {
+	return _expiredMineTotal >= 0;
+}
+
+bool Stories::expiredMineLoaded() const {
+	return _expiredMineLoaded;
+}
+
+void Stories::expiredMineLoadMore() {
+	if (_expiredMineRequestId) {
+		return;
+	}
+	const auto api = &_owner->session().api();
+	_expiredMineRequestId = api->request(MTPstories_GetExpiredStories(
+		MTP_int(_expiredMineLastId),
+		MTP_int(_expiredMineLastId
+			? kExpiredMinePerPage
+			: kExpiredMineFirstPerPage)
+	)).done([=](const MTPstories_Stories &result) {
+		_expiredMineRequestId = 0;
+
+		const auto &data = result.data();
+		_expiredMineTotal = std::max(
+			data.vcount().v,
+			int(_expiredMine.size()));
+		_expiredMineLoaded = data.vstories().v.empty();
+		const auto self = _owner->session().user();
+		const auto now = base::unixtime::now();
+		for (const auto &story : data.vstories().v) {
+			const auto id = story.match([&](const auto &id) {
+				return id.vid().v;
+			});
+			_expiredMine.emplace(id);
+			_expiredMineLastId = id;
+			if (!parseAndApply(self, story, now)) {
+				_expiredMine.remove(id);
+				if (_expiredMineTotal > 0) {
+					--_expiredMineTotal;
+				}
+			}
+		}
+		_expiredMineChanged.fire({});
+	}).fail([=] {
+		_expiredMineRequestId = 0;
+		_expiredMineLoaded = true;
+		_expiredMineTotal = int(_expiredMine.size());
 	}).send();
 }
 

@@ -422,14 +422,14 @@ void Controller::show(
 			stories.loadMore(list);
 		}
 	});
-	const auto idDate = story->idDate();
+	const auto idDates = story->idDates();
 	if (!source) {
 		return;
 	} else if (source == &single) {
-		single.ids.emplace(idDate);
+		single.ids.emplace(idDates);
 		_index = 0;
 	} else {
-		const auto k = source->ids.find(idDate);
+		const auto k = source->ids.find(idDates);
 		if (k == end(source->ids)) {
 			return;
 		}

@@ -2488,7 +2488,7 @@ void SessionController::openPeerStories(
 	const auto i = all.find(peerId);
 	if (i != end(all)) {
 		const auto j = i->second.ids.lower_bound(
-			StoryIdDate{ i->second.readTill + 1 });
+			StoryIdDates{ i->second.readTill + 1 });
 		openPeerStory(
 			i->second.user,
 			j != i->second.ids.end() ? j->id : i->second.ids.front().id,
