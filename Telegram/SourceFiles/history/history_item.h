@@ -179,6 +179,7 @@ public:
 		const QString &postAuthor,
 		not_null<GameData*> game,
 		HistoryMessageMarkupData &&markup);
+	HistoryItem(not_null<History*> history, not_null<Data::Story*> story);
 	~HistoryItem();
 
 	struct Destroyer {
@@ -332,6 +333,7 @@ public:
 
 	[[nodiscard]] bool isService() const;
 	void applyEdition(HistoryMessageEdition &&edition);
+	void applyChanges(not_null<Data::Story*> story);
 
 	void applyEdition(const MTPDmessageService &message);
 	void applyEdition(const MTPMessageExtendedMedia &media);
@@ -559,6 +561,7 @@ private:
 	bool updateServiceDependent(bool force = false);
 	void setServiceText(PreparedServiceText &&prepared);
 
+	void setStoryFields(not_null<Data::Story*> story);
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 

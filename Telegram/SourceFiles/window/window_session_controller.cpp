@@ -2143,6 +2143,9 @@ void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId contextId,
 		MsgId topicRootId) {
+	if (openStory(contextId)) {
+		return;
+	}
 	_window->openInMediaView(Media::View::OpenRequest(
 		this,
 		photo,
@@ -2161,7 +2164,9 @@ void SessionController::openDocument(
 		FullMsgId contextId,
 		MsgId topicRootId,
 		bool showInMediaView) {
-	if (showInMediaView) {
+	if (openStory(contextId)) {
+		return;
+	} else if (showInMediaView) {
 		_window->openInMediaView(Media::View::OpenRequest(
 			this,
 			document,
@@ -2174,6 +2179,31 @@ void SessionController::openDocument(
 		document,
 		session().data().message(contextId),
 		topicRootId);
+}
+
+bool SessionController::openStory(
+		FullMsgId fakeItemId,
+		bool forceArchiveContext) {
+	if (!peerIsUser(fakeItemId.peer)
+		|| !IsStoryMsgId(fakeItemId.msg)) {
+		return false;
+	}
+	const auto maybeStory = session().data().stories().lookup({
+		fakeItemId.peer,
+		StoryIdFromMsgId(fakeItemId.msg),
+	});
+	if (maybeStory) {
+		using namespace Data;
+		const auto story = *maybeStory;
+		const auto context = !story->expired()
+			? StoriesContext{ StoriesContextPeer() }
+			: (story->pinned() && !forceArchiveContext)
+			? StoriesContext{ StoriesContextSaved() }
+			: StoriesContext{ StoriesContextArchive() };
+		_window->openInMediaView(
+			::Media::View::OpenRequest(this, *maybeStory, context));
+	}
+	return true;
 }
 
 auto SessionController::cachedChatThemeValue(
@@ -2484,14 +2514,12 @@ void SessionController::openPeerStories(
 	using namespace Data;
 
 	auto &stories = session().data().stories();
-	const auto &all = stories.all();
-	const auto i = all.find(peerId);
-	if (i != end(all)) {
-		const auto j = i->second.ids.lower_bound(
-			StoryIdDates{ i->second.readTill + 1 });
+	if (const auto source = stories.source(peerId)) {
+		const auto j = source->ids.lower_bound(
+			StoryIdDates{ source->readTill + 1 });
 		openPeerStory(
-			i->second.user,
-			j != i->second.ids.end() ? j->id : i->second.ids.front().id,
+			source->user,
+			j != source->ids.end() ? j->id : source->ids.front().id,
 			{ list });
 	}
 }

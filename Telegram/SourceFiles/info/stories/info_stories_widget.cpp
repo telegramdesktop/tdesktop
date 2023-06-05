@@ -5,35 +5,30 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "info/downloads/info_downloads_widget.h"
+#include "info/stories/info_stories_widget.h"
 
-#include "info/downloads/info_downloads_inner_widget.h"
+#include "info/stories/info_stories_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
-#include "ui/search_field_controller.h"
 #include "ui/widgets/scroll_area.h"
-#include "data/data_download_manager.h"
-#include "data/data_user.h"
-#include "core/application.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
 
-namespace Info::Downloads {
+namespace Info::Stories {
 
 Memento::Memento(not_null<Controller*> controller)
-: ContentMemento(Tag{})
+: ContentMemento(Tag{ controller->storiesPeer(), controller->storiesTab() })
 , _media(controller) {
 }
 
-Memento::Memento(not_null<UserData*> self)
-: ContentMemento(Tag{})
-, _media(self, 0, Media::Type::File) {
+Memento::Memento(not_null<PeerData*> peer)
+: ContentMemento(Tag{ peer })
+, _media(peer, 0, Media::Type::PhotoVideo) {
 }
 
 Memento::~Memento() = default;
 
 Section Memento::section() const {
-	return Section(Section::Type::Downloads);
+	return Section(Section::Type::Stories);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
@@ -63,8 +58,8 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	if (!controller()->validateMementoPeer(memento)) {
 		return false;
 	}
-	if (auto downloadsMemento = dynamic_cast<Memento*>(memento.get())) {
-		restoreState(downloadsMemento);
+	if (auto storiesMemento = dynamic_cast<Memento*>(memento.get())) {
+		restoreState(storiesMemento);
 		return true;
 	}
 	return false;
@@ -73,7 +68,7 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 void Widget::setInternalState(
 		const QRect &geometry,
 		not_null<Memento*> memento) {
-	setGeometry(geometry);
+		setGeometry(geometry);
 	Ui::SendPendingMoveResizeEvents(this);
 	restoreState(memento);
 }
@@ -103,15 +98,15 @@ void Widget::selectionAction(SelectionAction action) {
 }
 
 rpl::producer<QString> Widget::title() {
-	return tr::lng_downloads_section();
+	return tr::lng_menu_my_stories(); // #TODO stories
 }
 
-std::shared_ptr<Info::Memento> Make(not_null<UserData*> self) {
+std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
-			std::make_shared<Memento>(self)));
+			std::make_shared<Memento>(peer)));
 }
 
-} // namespace Info::Downloads
+} // namespace Info::Stories
 

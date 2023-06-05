@@ -551,6 +551,8 @@ PRIVATE
     data/data_sponsored_messages.h
     data/data_stories.cpp
     data/data_stories.h
+    data/data_stories_ids.cpp
+    data/data_stories_ids.h
     data/data_streaming.cpp
     data/data_streaming.h
     data/data_thread.cpp
@@ -871,6 +873,12 @@ PRIVATE
     info/profile/info_profile_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
+    info/stories/info_stories_inner_widget.cpp
+    info/stories/info_stories_inner_widget.h
+    info/stories/info_stories_provider.cpp
+    info/stories/info_stories_provider.h
+    info/stories/info_stories_widget.cpp
+    info/stories/info_stories_widget.h
     info/userpic/info_userpic_colors_editor.cpp
     info/userpic/info_userpic_colors_editor.h
     info/userpic/info_userpic_emoji_builder.cpp

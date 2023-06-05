@@ -954,6 +954,8 @@ Media ParseMedia(
 		result.content = ParsePoll(data);
 	}, [](const MTPDmessageMediaDice &data) {
 		// #TODO dice
+	}, [](const MTPDmessageMediaStory &data) {
+		// #TODO stories export
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }

@@ -39,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_information.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
+#include "info/stories/info_stories_widget.h"
+#include "info/info_memento.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -766,16 +768,16 @@ void MainMenu::setupMenu() {
 				_menu,
 				CreateButton(
 					_menu,
-					rpl::single(u"My Stories"_q),
+					tr::lng_menu_my_stories(),
 					st::mainMenuButton,
 					IconDescriptor{
 						&st::settingsIconSavedMessages,
 						kIconLightOrange
 					})));
 		const auto stories = &controller->session().data().stories();
-		const auto &all = stories->all();
-		const auto mine = all.find(controller->session().userPeerId());
-		if ((mine != end(all) && !mine->second.ids.empty())
+		const auto mine = stories->source(
+			controller->session().userPeerId());
+		if ((mine && !mine->ids.empty())
 			|| stories->expiredMineCount() > 0) {
 			wrap->toggle(true, anim::type::instant);
 		} else {
@@ -789,7 +791,8 @@ void MainMenu::setupMenu() {
 			}
 		}
 		wrap->entity()->setClickedCallback([=] {
-			controller->showToast(u"My Stories"_q);
+			controller->showSection(
+				Info::Stories::Make(controller->session().user()));
 		});
 	} else {
 		addAction(

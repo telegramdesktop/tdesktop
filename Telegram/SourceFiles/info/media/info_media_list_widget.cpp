@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_provider.h"
 #include "info/media/info_media_list_section.h"
 #include "info/downloads/info_downloads_provider.h"
+#include "info/stories/info_stories_provider.h"
 #include "info/info_controller.h"
 #include "layout/layout_mosaic.h"
 #include "layout/layout_selection.h"
@@ -88,6 +89,8 @@ struct ListWidget::DateBadge {
 		not_null<AbstractController*> controller) {
 	if (controller->isDownloads()) {
 		return std::make_unique<Downloads::Provider>(controller);
+	} else if (controller->storiesPeer()) {
+		return std::make_unique<Stories::Provider>(controller);
 	}
 	return std::make_unique<Provider>(controller);
 }
@@ -126,6 +129,7 @@ ListWidget::DateBadge::DateBadge(
 , hideTimer(std::move(hideCallback))
 , goodType(type == Type::Photo
 	|| type == Type::Video
+	|| type == Type::PhotoVideo
 	|| type == Type::GIF) {
 }
 
@@ -171,6 +175,9 @@ void ListWidget::start() {
 		) | rpl::start_with_next([this](QString &&query) {
 			_provider->setSearchQuery(std::move(query));
 		}, lifetime());
+	} else if (_controller->storiesPeer()) {
+		trackSession(&session());
+		restart();
 	} else {
 		trackSession(&session());
 

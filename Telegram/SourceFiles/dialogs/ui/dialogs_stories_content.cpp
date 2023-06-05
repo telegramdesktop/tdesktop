@@ -128,16 +128,14 @@ State::State(not_null<Data::Stories*> data, Data::StorySourcesList list)
 
 Content State::next() {
 	auto result = Content{ .full = (_list == Data::StorySourcesList::All) };
-	const auto &all = _data->all();
 	const auto &sources = _data->sources(_list);
 	result.users.reserve(sources.size());
 	for (const auto &info : sources) {
-		const auto i = all.find(info.id);
-		Assert(i != end(all));
-		const auto &source = i->second;
+		const auto source = _data->source(info.id);
+		Assert(source != nullptr);
 
 		auto userpic = std::shared_ptr<Userpic>();
-		const auto user = source.user;
+		const auto user = source->user;
 		if (const auto i = _userpics.find(user); i != end(_userpics)) {
 			userpic = i->second;
 		} else {

@@ -332,6 +332,8 @@ Key ContentMemento::key() const {
 		return Key(poll, pollContextId());
 	} else if (const auto self = settingsSelf()) {
 		return Settings::Tag{ self };
+	} else if (const auto peer = storiesPeer()) {
+		return Stories::Tag{ peer, storiesTab() };
 	} else {
 		return Downloads::Tag();
 	}
@@ -361,6 +363,11 @@ ContentMemento::ContentMemento(Settings::Tag settings)
 }
 
 ContentMemento::ContentMemento(Downloads::Tag downloads) {
+}
+
+ContentMemento::ContentMemento(Stories::Tag stories)
+: _storiesPeer(stories.peer)
+, _storiesTab(stories.tab) {
 }
 
 } // namespace Info

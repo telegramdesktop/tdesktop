@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "data/data_poll.h" // PollData::publicVotes.
 #include "data/data_sponsored_messages.h"
+#include "data/data_stories.h"
 #include "data/data_wall_paper.h"
 #include "data/data_web_page.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -289,6 +290,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			item,
 			qs(media.vemoticon()),
 			media.vvalue().v);
+	}, [&](const MTPDmessageMediaStory &media) -> Result {
+		return nullptr; // #TODO stories
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {
@@ -671,6 +674,17 @@ HistoryItem::HistoryItem(
 	if (isHistoryEntry() && IsClientMsgId(id)) {
 		_history->registerClientSideMessage(this);
 	}
+}
+
+HistoryItem::HistoryItem(
+	not_null<History*> history,
+	not_null<Data::Story*> story)
+: id(StoryIdToMsgId(story->id()))
+, _history(history)
+, _from(history->peer)
+, _flags(MessageFlag::Local | MessageFlag::Outgoing | MessageFlag::FakeHistoryItem | MessageFlag::StoryItem)
+, _date(story->date()) {
+	setStoryFields(story);
 }
 
 HistoryItem::~HistoryItem() {
@@ -1489,6 +1503,31 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	applyTTL(edition.ttl);
 
 	finishEdition(keyboardTop);
+}
+
+void HistoryItem::applyChanges(not_null<Data::Story*> story) {
+	Expects(_flags & MessageFlag::StoryItem);
+	Expects(StoryIdFromMsgId(id) == story->id());
+
+	_media = nullptr;
+	setStoryFields(story);
+
+	finishEdition(-1);
+}
+
+void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
+	const auto spoiler = false;
+	if (const auto photo = story->photo()) {
+		_media = std::make_unique<Data::MediaPhoto>(this, photo, spoiler);
+	} else {
+		const auto document = story->document();
+		_media = std::make_unique<Data::MediaFile>(
+			this,
+			document,
+			/*skipPremiumEffect=*/false,
+			spoiler);
+	}
+	setText(story->caption());
 }
 
 void HistoryItem::applyEdition(const MTPDmessageService &message) {

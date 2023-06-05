@@ -443,6 +443,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaDice &) {
 		return Result::Good;
+	}, [](const MTPDmessageMediaStory &data) {
+		return Result::Good;
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;
 	});

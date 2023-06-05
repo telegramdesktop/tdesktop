@@ -393,12 +393,10 @@ void Controller::show(
 	auto &stories = story->owner().stories();
 	const auto storyId = story->fullId();
 	const auto id = storyId.story;
-	const auto &all = stories.all();
-	const auto inAll = all.find(storyId.peer);
-	auto source = (inAll != end(all)) ? &inAll->second : nullptr;
+	auto source = stories.source(storyId.peer);
 	auto single = StoriesSource{ story->peer()->asUser() };
 	v::match(context.data, [&](StoriesContextSingle) {
-		source = &single;
+		source = nullptr;
 		hideSiblings();
 	}, [&](StoriesContextPeer) {
 		hideSiblings();
@@ -423,17 +421,11 @@ void Controller::show(
 		}
 	});
 	const auto idDates = story->idDates();
-	if (!source) {
-		return;
-	} else if (source == &single) {
+	_index = source ? (source->ids.find(idDates) - begin(source->ids)) : 0;
+	if (!source || _index == source->ids.size()) {
+		source = &single;
 		single.ids.emplace(idDates);
 		_index = 0;
-	} else {
-		const auto k = source->ids.find(idDates);
-		if (k == end(source->ids)) {
-			return;
-		}
-		_index = (k - begin(source->ids));
 	}
 	const auto guard = gsl::finally([&] {
 		_paused = false;
@@ -543,12 +535,11 @@ void Controller::showSibling(
 		sibling = nullptr;
 		return;
 	}
-	const auto &all = session->data().stories().all();
-	const auto i = all.find(peerId);
-	if (i == end(all)) {
+	const auto source = session->data().stories().source(peerId);
+	if (!source) {
 		sibling = nullptr;
-	} else if (!sibling || !sibling->shows(i->second)) {
-		sibling = std::make_unique<Sibling>(this, i->second);
+	} else if (!sibling || !sibling->shows(*source)) {
+		sibling = std::make_unique<Sibling>(this, *source);
 	}
 }
 

@@ -24,14 +24,20 @@ template <typename Widget>
 class PaddingWrap;
 } // namespace Ui
 
-namespace Info {
-namespace Settings {
+namespace Info::Settings {
 struct Tag;
-} // namespace Settings
+} // namespace Info::Settings
 
-namespace Downloads {
+namespace Info::Downloads {
 struct Tag;
-} // namespace Downloads
+} // namespace Info::Downloads
+
+namespace Info::Stories {
+struct Tag;
+enum class Tab;
+} // namespace Info::Stories
+
+namespace Info {
 
 class ContentMemento;
 class Controller;
@@ -150,6 +156,7 @@ public:
 		PeerId migratedPeerId);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
+	explicit ContentMemento(Stories::Tag stories);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
 	, _pollContextId(contextId) {
@@ -171,6 +178,12 @@ public:
 	}
 	UserData *settingsSelf() const {
 		return _settingsSelf;
+	}
+	PeerData *storiesPeer() const {
+		return _storiesPeer;
+	}
+	Stories::Tab storiesTab() const {
+		return _storiesTab;
 	}
 	PollData *poll() const {
 		return _poll;
@@ -214,6 +227,8 @@ private:
 	const PeerId _migratedPeerId = 0;
 	Data::ForumTopic *_topic = nullptr;
 	UserData * const _settingsSelf = nullptr;
+	PeerData * const _storiesPeer = nullptr;
+	Stories::Tab _storiesTab = {};
 	PollData * const _poll = nullptr;
 	const FullMsgId _pollContextId;
 

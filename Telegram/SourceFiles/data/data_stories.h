@@ -39,6 +39,14 @@ struct StoryIdDates {
 	friend inline bool operator==(StoryIdDates, StoryIdDates) = default;
 };
 
+struct StoriesIds {
+	base::flat_set<StoryId, std::greater<>> list;
+
+	friend inline bool operator==(
+		const StoriesIds&,
+		const StoriesIds&) = default;
+};
+
 struct StoryMedia {
 	std::variant<not_null<PhotoData*>, not_null<DocumentData*>> data;
 
@@ -192,19 +200,24 @@ public:
 
 	void loadMore(StorySourcesList list);
 	void apply(const MTPDupdateStory &data);
+	void apply(not_null<PeerData*> peer, const MTPUserStories *data);
 	void loadAround(FullStoryId id, StoriesContext context);
 
-	[[nodiscard]] const base::flat_map<PeerId, StoriesSource> &all() const;
+	const StoriesSource *source(PeerId id) const;
 	[[nodiscard]] const std::vector<StoriesSourceInfo> &sources(
 		StorySourcesList list) const;
 	[[nodiscard]] bool sourcesLoaded(StorySourcesList list) const;
 	[[nodiscard]] rpl::producer<> sourcesChanged(
 		StorySourcesList list) const;
+	[[nodiscard]] rpl::producer<PeerId> sourceChanged() const;
 	[[nodiscard]] rpl::producer<PeerId> itemsChanged() const;
 
 	[[nodiscard]] base::expected<not_null<Story*>, NoStory> lookup(
 		FullStoryId id) const;
 	void resolve(FullStoryId id, Fn<void()> done);
+	[[nodiscard]] std::shared_ptr<HistoryItem> resolveItem(FullStoryId id);
+	[[nodiscard]] std::shared_ptr<HistoryItem> resolveItem(
+		not_null<Story*> story);
 
 	[[nodiscard]] bool isQuitPrevent();
 	void markAsRead(FullStoryId id, bool viewed);
@@ -217,14 +230,29 @@ public:
 		std::optional<StoryView> offset,
 		Fn<void(std::vector<StoryView>)> done);
 
-	[[nodiscard]] const base::flat_set<StoryId> &expiredMine() const;
+	[[nodiscard]] const StoriesIds &expiredMine() const;
 	[[nodiscard]] rpl::producer<> expiredMineChanged() const;
 	[[nodiscard]] int expiredMineCount() const;
 	[[nodiscard]] bool expiredMineCountKnown() const;
 	[[nodiscard]] bool expiredMineLoaded() const;
-	[[nodiscard]] void expiredMineLoadMore();
+	void expiredMineLoadMore();
+
+	[[nodiscard]] const StoriesIds *saved(PeerId peerId) const;
+	[[nodiscard]] rpl::producer<PeerId> savedChanged() const;
+	[[nodiscard]] int savedCount(PeerId peerId) const;
+	[[nodiscard]] bool savedCountKnown(PeerId peerId) const;
+	[[nodiscard]] bool savedLoaded(PeerId peerId) const;
+	void savedLoadMore(PeerId peerId);
 
 private:
+	struct Saved {
+		StoriesIds ids;
+		int total = -1;
+		StoryId lastId = 0;
+		bool loaded = false;
+		mtpRequestId requestId = 0;
+	};
+
 	void parseAndApply(const MTPUserStories &stories);
 	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,
@@ -247,20 +275,25 @@ private:
 	void removeDependencyStory(not_null<Story*> story);
 	void sort(StorySourcesList list);
 
-	void addToExpiredMine(not_null<Story*> story);
+	[[nodiscard]] std::shared_ptr<HistoryItem> lookupItem(
+		not_null<Story*> story);
 
 	void sendMarkAsReadRequests();
 	void sendMarkAsReadRequest(not_null<PeerData*> peer, StoryId tillId);
 
 	void requestUserStories(not_null<UserData*> user);
+	void addToExpiredMine(not_null<Story*> story);
 	void registerExpiring(TimeId expires, FullStoryId id);
 	void scheduleExpireTimer();
 	void processExpired();
 
 	const not_null<Session*> _owner;
-	base::flat_map<
+	std::unordered_map<
 		PeerId,
 		base::flat_map<StoryId, std::unique_ptr<Story>>> _stories;
+	std::unordered_map<
+		PeerId,
+		base::flat_map<StoryId, std::weak_ptr<HistoryItem>>> _items;
 	base::flat_multi_map<TimeId, FullStoryId> _expiring;
 	base::flat_set<FullStoryId> _deleted;
 	base::Timer _expireTimer;
@@ -273,11 +306,11 @@ private:
 		PeerId,
 		base::flat_map<StoryId, std::vector<Fn<void()>>>> _resolveSent;
 
-	std::map<
+	std::unordered_map<
 		not_null<Data::Story*>,
 		base::flat_set<not_null<HistoryItem*>>> _dependentMessages;
 
-	base::flat_map<PeerId, StoriesSource> _all;
+	std::unordered_map<PeerId, StoriesSource> _all;
 	std::vector<StoriesSourceInfo> _sources[kStorySourcesListCount];
 	rpl::event_stream<> _sourcesChanged[kStorySourcesListCount];
 	bool _sourcesLoaded[kStorySourcesListCount] = { false };
@@ -285,14 +318,18 @@ private:
 
 	mtpRequestId _loadMoreRequestId[kStorySourcesListCount] = { 0 };
 
+	rpl::event_stream<PeerId> _sourceChanged;
 	rpl::event_stream<PeerId> _itemsChanged;
 
-	base::flat_set<StoryId> _expiredMine;
+	StoriesIds _expiredMine;
 	int _expiredMineTotal = -1;
 	StoryId _expiredMineLastId = 0;
 	bool _expiredMineLoaded = false;
 	rpl::event_stream<> _expiredMineChanged;
 	mtpRequestId _expiredMineRequestId = 0;
+
+	std::unordered_map<PeerId, Saved> _saved;
+	rpl::event_stream<PeerId> _savedChanged;
 
 	base::flat_set<PeerId> _markReadPending;
 	base::Timer _markReadTimer;

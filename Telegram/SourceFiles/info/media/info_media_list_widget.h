@@ -169,7 +169,6 @@ private:
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
-	void refreshViewer();
 	void refreshRows();
 	void trackSession(not_null<Main::Session*> session);
 

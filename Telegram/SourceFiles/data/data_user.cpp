@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
 #include "data/data_photo.h"
+#include "data/data_stories.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_user_names.h"
 #include "data/data_wall_paper.h"
@@ -473,6 +474,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	} else {
 		user->setWallPaper({});
 	}
+
+	user->owner().stories().apply(user, update.vstories());
 
 	user->fullUpdated();
 }
