@@ -13,30 +13,25 @@
 
 # syntax=docker/dockerfile:1
 
-FROM centos:7 AS builder-base
-ENV LANG en_US.UTF-8
+FROM rockylinux:8 AS builder-base
+ENV LANG C.UTF-8
 ENV LIBRARY_PATH /usr/local/lib64:/usr/local/lib:/lib64:/lib:/usr/lib64:/usr/lib
 ENV LD_LIBRARY_PATH $LIBRARY_PATH
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 
-RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
-	&& yum -y install https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm \
-	&& yum -y install centos-release-scl \
-	&& yum -y install git rh-python38-python-pip rh-python38-python-devel \
-		autoconf automake libtool patch gperf flex \
-		fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
-		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
-		libdrm-devel vulkan-devel libva-devel libvdpau-devel boost169-devel fmt-devel \
-		gtk3-devel perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
-		devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
-		devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
-		llvm-toolset-7.0-llvm-devel \
-	&& yum clean all
+RUN dnf -y install epel-release \
+	&& dnf config-manager --set-enabled powertools \
+	&& dnf -y install autoconf automake libtool pkgconfig make patch git \
+		python3.11-pip python3.11-devel gperf flex bison clang lld yasm \
+		file which perl-open perl-XML-Parser xorg-x11-util-macros \
+		gcc-toolset-12-gcc gcc-toolset-12-gcc-c++ gcc-toolset-12-binutils \
+		libffi-devel fontconfig-devel freetype-devel libX11-devel \
+		alsa-lib-devel pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
+		mesa-libgbm-devel libdrm-devel vulkan-devel libva-devel libvdpau-devel \
+		glib2-devel at-spi2-core-devel gtk3-devel boost1.78-devel fmt-devel \
+	&& dnf clean all
 
-# Fix a bug with argument naming in CentOS 7 glibc
-RUN sed -i 's/char \*__block/char */' /usr/include/unistd.h
-
-SHELL [ "bash", "-c", ". /opt/rh/rh-python38/enable; . /opt/rh/devtoolset-10/enable; exec bash -c \"$@\"", "-s"]
+SHELL [ "bash", "-c", ". /opt/rh/gcc-toolset-12/enable; exec bash -c \"$@\"", "-s"]
 
 WORKDIR {{ LibrariesPath }}
 
@@ -52,14 +47,14 @@ FROM builder-base AS builder
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
 ENV NM gcc-nm
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}{{ CFLAGS_LTO }}{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -DNDEBUG -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS
+ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}{{ CFLAGS_LTO }}{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -DNDEBUG -D_FORTIFY_SOURCE=3 -D_GLIBCXX_ASSERTIONS
 ENV CXXFLAGS $CFLAGS
 
 FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 2cf975200b9baac520b9b298776e0a20b24e397a \
+	&& git fetch --depth=1 origin f10d5c38d59325a8bed55fa13bc9fa826f5d13cf \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -73,16 +68,6 @@ RUN git clone -b nasm-2.15.05 --depth=1 {{ GIT }}/netwide-assembler/nasm.git \
 	&& install -c nasm "{{ LibrariesPath }}/nasm-cache/usr/local/bin/nasm" \
 	&& cd .. \
 	&& rm -rf nasm
-
-FROM builder AS libffi
-RUN git clone -b v3.4.2 --depth=1 {{ GIT }}/libffi/libffi.git \
-	&& cd libffi \
-	&& ./autogen.sh \
-	&& ./configure --enable-static --disable-docs \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libffi-cache" install \
-	&& cd .. \
-	&& rm -rf libffi
 
 FROM builder AS zlib
 RUN git clone -b v1.2.11 --depth=1 {{ GIT }}/madler/zlib.git \
@@ -488,8 +473,6 @@ RUN git clone -b libXcomposite-0.4.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposi
 	&& rm -rf libxcomposite
 
 FROM builder AS wayland
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
-
 RUN git clone -b 1.19.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 	&& cd wayland \
 	&& sed -i "/subdir('tests')/d" meson.build \
@@ -720,8 +703,6 @@ RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 	&& rm -rf libxkbcommon
 
 FROM patches AS glibmm
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
-
 RUN git clone -b 2.77.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd glibmm \
 	&& git apply ../patches/glibmm.patch \
@@ -741,7 +722,6 @@ RUN git clone -b 2.77.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& rm -rf glibmm
 
 FROM builder AS gobject-introspection
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
 
 RUN git clone -b 1.76.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
@@ -753,7 +733,6 @@ RUN git clone -b 1.76.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
 	&& rm -rf gobject-introspection
 
 FROM patches AS qt
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
 COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
@@ -788,7 +767,6 @@ RUN git clone -b {{ QT_TAG }} --depth=1 https://code.qt.io/qt/qt5.git qt_{{ QT }
 		-qt-pcre \
 		-no-icu \
 		-no-feature-xcb-sm \
-		-no-feature-egl-extension-platform-wayland \
 		-static \
 		-dbus-runtime \
 		-openssl-linked \
@@ -862,7 +840,6 @@ RUN cmake --build out --config Debug --parallel \
 {%- endif %}
 
 FROM builder-base
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=xz {{ LibrariesPath }}/xz-cache /
 COPY --link --from=protobuf {{ LibrariesPath }}/protobuf protobuf
@@ -914,9 +891,9 @@ COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/
 WORKDIR ../tdesktop
 ENV QT {{ QT }}
 ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
-ENV BOOST_INCLUDEDIR /usr/include/boost169
-ENV BOOST_LIBRARYDIR /usr/lib64/boost169
+ENV BOOST_INCLUDEDIR /usr/include/boost1.78
+ENV BOOST_LIBRARYDIR /usr/lib64/boost1.78
 
 VOLUME [ "/usr/src/tdesktop" ]
-ENTRYPOINT [ "scl", "enable", "rh-python38", "--", "scl", "enable", "llvm-toolset-7.0", "--", "scl", "enable", "devtoolset-10", "--" ]
+ENTRYPOINT [ "scl", "enable", "gcc-toolset-12", "--" ]
 CMD [ "/usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh" ]
