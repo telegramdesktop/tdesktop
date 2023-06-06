@@ -7,7 +7,7 @@
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
 {%- set CMAKE_VER = "3.26.3" -%}
 {%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
-{%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -D_GLIBCXX_ASSERTIONS" -%}
+{%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
 {%- set CFLAGS_LTO = "-flto=auto -ffat-lto-objects" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
@@ -52,7 +52,7 @@ FROM builder-base AS builder
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
 ENV NM gcc-nm
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}{{ CFLAGS_LTO }}{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -DNDEBUG -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS
+ENV CFLAGS {% if DEBUG %}-g{% endif %} -O3 {% if LTO %}{{ CFLAGS_LTO }}{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -DNDEBUG -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS
 ENV CXXFLAGS $CFLAGS
 
 FROM builder AS patches
