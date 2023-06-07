@@ -33,8 +33,8 @@ constexpr auto kMaxResolveTogether = 100;
 constexpr auto kIgnorePreloadAroundIfLoaded = 15;
 constexpr auto kPreloadAroundCount = 30;
 constexpr auto kMarkAsReadDelay = 3 * crl::time(1000);
-constexpr auto kExpiredMineFirstPerPage = 30;
-constexpr auto kExpiredMinePerPage = 100;
+constexpr auto kArchiveFirstPerPage = 30;
+constexpr auto kArchivePerPage = 100;
 constexpr auto kSavedFirstPerPage = 30;
 constexpr auto kSavedPerPage = 100;
 
@@ -333,6 +333,9 @@ void Stories::apply(const MTPDupdateStory &data) {
 	const auto wasInfo = i->second.info();
 	i->second.ids.emplace(idDates);
 	const auto nowInfo = i->second.info();
+	if (user->isSelf() && i->second.readTill < idDates.id) {
+		i->second.readTill = idDates.id;
+	}
 	if (wasInfo == nowInfo) {
 		return;
 	}
@@ -361,14 +364,43 @@ void Stories::apply(not_null<PeerData*> peer, const MTPUserStories *data) {
 		if (i != end(_stories)) {
 			auto stories = base::take(i->second);
 			_stories.erase(i);
+
+			auto archiveChanged = false;
+			auto savedChanged = false;
+			if (peer->isSelf()) {
+				for (const auto &[id, story] : stories) {
+					if (_archive.list.remove(id)) {
+						archiveChanged = true;
+						if (_archiveTotal > 0) {
+							--_archiveTotal;
+						}
+					}
+				}
+			}
+			const auto j = _saved.find(peer->id);
+			const auto saved = (j != end(_saved)) ? &j->second : nullptr;
 			for (const auto &[id, story] : stories) {
 				// Duplicated in Stories::applyDeleted.
 				_deleted.emplace(FullStoryId{ peer->id, id });
 				_expiring.remove(story->expires(), story->fullId());
+				if (story->pinned() && saved) {
+					if (saved->ids.list.remove(id)) {
+						savedChanged = true;
+						if (saved->total > 0) {
+							--saved->total;
+						}
+					}
+				}
 				session().changes().storyUpdated(
 					story.get(),
 					UpdateFlag::Destroyed);
 				removeDependencyStory(story.get());
+			}
+			if (archiveChanged) {
+				_archiveChanged.fire({});
+			}
+			if (savedChanged) {
+				_savedChanged.fire_copy(peer->id);
 			}
 		}
 		_sourceChanged.fire_copy(peer->id);
@@ -471,6 +503,8 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 	if (result.ids.empty()) {
 		applyDeletedFromSources(peerId, StorySourcesList::All);
 		return;
+	} else if (user->isSelf()) {
+		result.readTill = result.ids.back().id;
 	}
 	const auto info = result.info();
 	const auto i = _all.find(peerId);
@@ -526,15 +560,20 @@ Story *Stories::parseAndApply(
 	auto &stories = _stories[peer->id];
 	const auto i = stories.find(id);
 	if (i != end(stories)) {
-		if (i->second->applyChanges(*media, data)) {
+		const auto result = i->second.get();
+		const auto pinned = result->pinned();
+		if (result->applyChanges(*media, data)) {
+			if (result->pinned() != pinned) {
+				savedStateUpdated(result);
+			}
 			session().changes().storyUpdated(
-				i->second.get(),
+				result,
 				UpdateFlag::Edited);
-			if (const auto item = lookupItem(i->second.get())) {
-				item->applyChanges(i->second.get());
+			if (const auto item = lookupItem(result)) {
+				item->applyChanges(result);
 			}
 		}
-		return i->second.get();
+		return result;
 	}
 	const auto result = stories.emplace(id, std::make_unique<Story>(
 		id,
@@ -543,6 +582,19 @@ Story *Stories::parseAndApply(
 		data.vdate().v,
 		data.vexpire_date().v)).first->second.get();
 	result->applyChanges(*media, data);
+	if (result->pinned()) {
+		savedStateUpdated(result);
+	}
+
+	if (peer->isSelf()) {
+		const auto added = _archive.list.emplace(id).second;
+		if (added) {
+			if (_archiveTotal >= 0 && id > _archiveLastId) {
+				++_archiveTotal;
+			}
+			_archiveChanged.fire({});
+		}
+	}
 
 	if (expired) {
 		_expiring.remove(expires, result->fullId());
@@ -613,6 +665,30 @@ void Stories::unregisterDependentMessage(
 	if (i != end(_dependentMessages)) {
 		if (i->second.remove(dependent) && i->second.empty()) {
 			_dependentMessages.erase(i);
+		}
+	}
+}
+
+void Stories::savedStateUpdated(not_null<Story*> story) {
+	const auto id = story->id();
+	const auto peer = story->peer()->id;
+	const auto pinned = story->pinned();
+	if (pinned) {
+		auto &saved = _saved[peer];
+		const auto added = saved.ids.list.emplace(id).second;
+		if (added) {
+			if (saved.total >= 0 && id > saved.lastId) {
+				++saved.total;
+			}
+			_savedChanged.fire_copy(peer);
+		}
+	} else if (const auto i = _saved.find(peer); i != end(_saved)) {
+		auto &saved = i->second;
+		if (saved.ids.list.remove(id)) {
+			if (saved.total > 0) {
+				--saved.total;
+			}
+			_savedChanged.fire_copy(peer);
 		}
 	}
 }
@@ -744,20 +820,38 @@ void Stories::applyDeleted(FullStoryId id) {
 	applyRemovedFromActive(id);
 
 	_deleted.emplace(id);
-	const auto j = _stories.find(id.peer);
-	if (j != end(_stories)) {
-		const auto k = j->second.find(id.story);
-		if (k != end(j->second)) {
+	const auto i = _stories.find(id.peer);
+	if (i != end(_stories)) {
+		const auto j = i->second.find(id.story);
+		if (j != end(i->second)) {
 			// Duplicated in Stories::apply(peer, const MTPUserStories*).
-			auto story = std::move(k->second);
+			auto story = std::move(j->second);
 			_expiring.remove(story->expires(), story->fullId());
-			j->second.erase(k);
+			i->second.erase(j);
 			session().changes().storyUpdated(
 				story.get(),
 				UpdateFlag::Destroyed);
 			removeDependencyStory(story.get());
-			if (j->second.empty()) {
-				_stories.erase(j);
+			if (id.peer == session().userPeerId()
+				&& _archive.list.remove(id.story)) {
+				if (_archiveTotal > 0) {
+					--_archiveTotal;
+				}
+				_archiveChanged.fire({});
+			}
+			if (story->pinned()) {
+				if (const auto k = _saved.find(id.peer); k != end(_saved)) {
+					const auto saved = &k->second;
+					if (saved->ids.list.remove(id.story)) {
+						if (saved->total > 0) {
+							--saved->total;
+						}
+						_savedChanged.fire_copy(id.peer);
+					}
+				}
+			}
+			if (i->second.empty()) {
+				_stories.erase(i);
 			}
 		}
 	}
@@ -766,21 +860,12 @@ void Stories::applyDeleted(FullStoryId id) {
 void Stories::applyExpired(FullStoryId id) {
 	if (const auto maybeStory = lookup(id)) {
 		const auto story = *maybeStory;
-		if (story->peer()->isSelf()) {
-			addToExpiredMine(story);
-		} else if (!story->pinned()) {
+		if (!story->peer()->isSelf() && !story->pinned()) {
 			applyDeleted(id);
 			return;
 		}
 	}
 	applyRemovedFromActive(id);
-}
-
-void Stories::addToExpiredMine(not_null<Story*> story) {
-	const auto added = _expiredMine.list.emplace(story->id()).second;
-	if (added && _expiredMineTotal >= 0) {
-		++_expiredMineTotal;
-	}
 }
 
 void Stories::applyRemovedFromActive(FullStoryId id) {
@@ -1172,24 +1257,24 @@ void Stories::loadViewsSlice(
 	}).send();
 }
 
-const StoriesIds &Stories::expiredMine() const {
-	return _expiredMine;
+const StoriesIds &Stories::archive() const {
+	return _archive;
 }
 
-rpl::producer<> Stories::expiredMineChanged() const {
-	return _expiredMineChanged.events();
+rpl::producer<> Stories::archiveChanged() const {
+	return _archiveChanged.events();
 }
 
-int Stories::expiredMineCount() const {
-	return std::max(_expiredMineTotal, 0);
+int Stories::archiveCount() const {
+	return std::max(_archiveTotal, 0);
 }
 
-bool Stories::expiredMineCountKnown() const {
-	return _expiredMineTotal >= 0;
+bool Stories::archiveCountKnown() const {
+	return _archiveTotal >= 0;
 }
 
-bool Stories::expiredMineLoaded() const {
-	return _expiredMineLoaded;
+bool Stories::archiveLoaded() const {
+	return _archiveLoaded;
 }
 
 const StoriesIds *Stories::saved(PeerId peerId) const {
@@ -1216,46 +1301,43 @@ bool Stories::savedLoaded(PeerId peerId) const {
 	return (i != end(_saved)) && i->second.loaded;
 }
 
-void Stories::expiredMineLoadMore() {
-	if (_expiredMineRequestId) {
+void Stories::archiveLoadMore() {
+	if (_archiveRequestId || _archiveLoaded) {
 		return;
 	}
 	const auto api = &_owner->session().api();
-	_expiredMineRequestId = api->request(MTPstories_GetExpiredStories(
-		MTP_int(_expiredMineLastId),
-		MTP_int(_expiredMineLastId
-			? kExpiredMinePerPage
-			: kExpiredMineFirstPerPage)
+	_archiveRequestId = api->request(MTPstories_GetStoriesArchive(
+		MTP_int(_archiveLastId),
+		MTP_int(_archiveLastId ? kArchivePerPage : kArchiveFirstPerPage)
 	)).done([=](const MTPstories_Stories &result) {
-		_expiredMineRequestId = 0;
+		_archiveRequestId = 0;
 
 		const auto &data = result.data();
 		const auto self = _owner->session().user();
 		const auto now = base::unixtime::now();
-		_expiredMineTotal = data.vcount().v;
+		_archiveTotal = data.vcount().v;
 		for (const auto &story : data.vstories().v) {
 			const auto id = story.match([&](const auto &id) {
 				return id.vid().v;
 			});
-			_expiredMine.list.emplace(id);
-			_expiredMineLastId = id;
+			_archive.list.emplace(id);
+			_archiveLastId = id;
 			if (!parseAndApply(self, story, now)) {
-				_expiredMine.list.remove(id);
-				if (_expiredMineTotal > 0) {
-					--_expiredMineTotal;
+				_archive.list.remove(id);
+				if (_archiveTotal > 0) {
+					--_archiveTotal;
 				}
 			}
 		}
-		_expiredMineTotal = std::max(
-			_expiredMineTotal,
-			int(_expiredMine.list.size()));
-		_expiredMineLoaded = data.vstories().v.empty();
-		_expiredMineChanged.fire({});
+		const auto ids = int(_archive.list.size());
+		_archiveLoaded = data.vstories().v.empty();
+		_archiveTotal = _archiveLoaded ? ids : std::max(_archiveTotal, ids);
+		_archiveChanged.fire({});
 	}).fail([=] {
-		_expiredMineRequestId = 0;
-		_expiredMineLoaded = true;
-		_expiredMineTotal = int(_expiredMine.list.size());
-		_expiredMineChanged.fire({});
+		_archiveRequestId = 0;
+		_archiveLoaded = true;
+		_archiveTotal = int(_archive.list.size());
+		_archiveChanged.fire({});
 	}).send();
 }
 
@@ -1263,7 +1345,7 @@ void Stories::savedLoadMore(PeerId peerId) {
 	Expects(peerIsUser(peerId));
 
 	auto &saved = _saved[peerId];
-	if (saved.requestId) {
+	if (saved.requestId || saved.loaded) {
 		return;
 	}
 	const auto api = &_owner->session().api();
@@ -1292,8 +1374,9 @@ void Stories::savedLoadMore(PeerId peerId) {
 				}
 			}
 		}
-		saved.total = std::max(saved.total, int(saved.ids.list.size()));
+		const auto ids = int(saved.ids.list.size());
 		saved.loaded = data.vstories().v.empty();
+		saved.total = saved.loaded ? ids : std::max(saved.total, ids);
 		_savedChanged.fire_copy(peerId);
 	}).fail([=] {
 		auto &saved = _saved[peerId];

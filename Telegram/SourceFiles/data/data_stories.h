@@ -230,12 +230,12 @@ public:
 		std::optional<StoryView> offset,
 		Fn<void(std::vector<StoryView>)> done);
 
-	[[nodiscard]] const StoriesIds &expiredMine() const;
-	[[nodiscard]] rpl::producer<> expiredMineChanged() const;
-	[[nodiscard]] int expiredMineCount() const;
-	[[nodiscard]] bool expiredMineCountKnown() const;
-	[[nodiscard]] bool expiredMineLoaded() const;
-	void expiredMineLoadMore();
+	[[nodiscard]] const StoriesIds &archive() const;
+	[[nodiscard]] rpl::producer<> archiveChanged() const;
+	[[nodiscard]] int archiveCount() const;
+	[[nodiscard]] bool archiveCountKnown() const;
+	[[nodiscard]] bool archiveLoaded() const;
+	void archiveLoadMore();
 
 	[[nodiscard]] const StoriesIds *saved(PeerId peerId) const;
 	[[nodiscard]] rpl::producer<PeerId> savedChanged() const;
@@ -273,6 +273,7 @@ private:
 	void applyRemovedFromActive(FullStoryId id);
 	void applyDeletedFromSources(PeerId id, StorySourcesList list);
 	void removeDependencyStory(not_null<Story*> story);
+	void savedStateUpdated(not_null<Story*> story);
 	void sort(StorySourcesList list);
 
 	[[nodiscard]] std::shared_ptr<HistoryItem> lookupItem(
@@ -282,7 +283,7 @@ private:
 	void sendMarkAsReadRequest(not_null<PeerData*> peer, StoryId tillId);
 
 	void requestUserStories(not_null<UserData*> user);
-	void addToExpiredMine(not_null<Story*> story);
+	void addToArchive(not_null<Story*> story);
 	void registerExpiring(TimeId expires, FullStoryId id);
 	void scheduleExpireTimer();
 	void processExpired();
@@ -321,12 +322,12 @@ private:
 	rpl::event_stream<PeerId> _sourceChanged;
 	rpl::event_stream<PeerId> _itemsChanged;
 
-	StoriesIds _expiredMine;
-	int _expiredMineTotal = -1;
-	StoryId _expiredMineLastId = 0;
-	bool _expiredMineLoaded = false;
-	rpl::event_stream<> _expiredMineChanged;
-	mtpRequestId _expiredMineRequestId = 0;
+	StoriesIds _archive;
+	int _archiveTotal = -1;
+	StoryId _archiveLastId = 0;
+	bool _archiveLoaded = false;
+	rpl::event_stream<> _archiveChanged;
+	mtpRequestId _archiveRequestId = 0;
 
 	std::unordered_map<PeerId, Saved> _saved;
 	rpl::event_stream<PeerId> _savedChanged;

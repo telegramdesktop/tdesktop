@@ -7,10 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/stories/info_stories_inner_widget.h"
 
-#include "info/stories/info_stories_widget.h"
+#include "data/data_peer.h"
 #include "info/media/info_media_list_widget.h"
+#include "info/profile/info_profile_icon.h"
+#include "info/stories/info_stories_widget.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
+#include "lang/lang_keys.h"
+#include "settings/settings_common.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/vertical_layout.h"
 #include "styles/style_info.h"
 
 namespace Info::Stories {
@@ -83,6 +90,49 @@ InnerWidget::InnerWidget(
 	_list = setupList();
 }
 
+void InnerWidget::setupArchive() {
+	const auto key = _controller->key();
+	const auto peer = key.storiesPeer();
+	if (peer
+		&& peer->isSelf()
+		&& key.storiesTab() == Stories::Tab::Saved
+		&& _isStackBottom) {
+		createArchiveButton();
+	} else {
+		_archive.destroy();
+		refreshHeight();
+	}
+}
+
+void InnerWidget::createArchiveButton() {
+	_archive.create(this);
+	_archive->show();
+
+	const auto button = ::Settings::AddButton(
+		_archive,
+		tr::lng_stories_archive_button(),
+		st::infoSharedMediaButton);
+	button->addClickHandler([=] {
+		_controller->showSection(Info::Stories::Make(
+			_controller->key().storiesPeer(),
+			Stories::Tab::Archive));
+	});
+	object_ptr<Profile::FloatingIcon>(
+		button,
+		st::infoIconMediaGroup,
+		st::infoSharedMediaButtonIconPosition)->show();
+	_archive->add(object_ptr<Ui::FixedHeightWidget>(
+		_archive,
+		st::infoProfileSkip));
+	_archive->add(object_ptr<Ui::BoxContentDivider>(_archive));
+
+	_archive->resizeToWidth(width());
+	_archive->heightValue(
+	) | rpl::start_with_next([=] {
+		refreshHeight();
+	}, _archive->lifetime());
+}
+
 void InnerWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
@@ -144,6 +194,9 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
 	auto guard = gsl::finally([this] { _inResize = false; });
 
+	if (_archive) {
+		_archive->resizeToWidth(newWidth);
+	}
 	_list->resizeToWidth(newWidth);
 	_empty->resizeToWidth(newWidth);
 	return recountHeight();
@@ -158,6 +211,10 @@ void InnerWidget::refreshHeight() {
 
 int InnerWidget::recountHeight() {
 	auto top = 0;
+	if (_archive) {
+		_archive->moveToLeft(0, top);
+		top += _archive->heightNoMargins() - st::lineWidth;
+	}
 	auto listHeight = 0;
 	if (_list) {
 		_list->moveToLeft(0, top);

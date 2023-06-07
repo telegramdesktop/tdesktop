@@ -13,11 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Stories {
 
 class InnerWidget;
+enum class Tab;
 
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
-	Memento(not_null<PeerData*> peer);
+	Memento(not_null<PeerData*> peer, Tab tab);
 	~Memento();
 
 	object_ptr<ContentWidget> createWidget(
@@ -43,6 +44,8 @@ class Widget final : public ContentWidget {
 public:
 	Widget(QWidget *parent, not_null<Controller*> controller);
 
+	void setIsStackBottom(bool isStackBottom) override;
+
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
 
@@ -65,6 +68,8 @@ private:
 
 };
 
-[[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer);
+[[nodiscard]] std::shared_ptr<Info::Memento> Make(
+	not_null<PeerData*> peer,
+	Tab tab = {});
 
 } // namespace Info::Stories

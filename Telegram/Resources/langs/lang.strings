@@ -3800,6 +3800,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_views#other" = "{count} views";
 "lng_stories_no_views" = "No views";
 
+"lng_stories_my_title" = "My Stories";
+"lng_stories_archive_button" = "Archive";
+"lng_stories_archive_title" = "Stories Archive";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

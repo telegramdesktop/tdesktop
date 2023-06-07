@@ -775,18 +775,15 @@ void MainMenu::setupMenu() {
 						kIconLightOrange
 					})));
 		const auto stories = &controller->session().data().stories();
-		const auto mine = stories->source(
-			controller->session().userPeerId());
-		if ((mine && !mine->ids.empty())
-			|| stories->expiredMineCount() > 0) {
+		if (stories->archiveCount() > 0) {
 			wrap->toggle(true, anim::type::instant);
 		} else {
 			wrap->toggle(false, anim::type::instant);
-			if (!stories->expiredMineCountKnown()) {
-				stories->expiredMineLoadMore();
-				wrap->toggleOn(stories->expiredMineChanged(
+			if (!stories->archiveCountKnown()) {
+				stories->archiveLoadMore();
+				wrap->toggleOn(stories->archiveChanged(
 				) | rpl::map([=] {
-					return stories->expiredMineCount() > 0;
+					return stories->archiveCount() > 0;
 				}) | rpl::filter(rpl::mappers::_1) | rpl::take(1));
 			}
 		}

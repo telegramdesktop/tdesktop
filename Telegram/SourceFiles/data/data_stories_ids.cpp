@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_stories_ids.h"
 
+#include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -23,62 +24,108 @@ rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 
 		struct State {
 			StoriesIdsSlice slice;
+			base::has_weak_ptr guard;
+			bool scheduled = false;
 		};
 		const auto state = lifetime.make_state<State>();
 
 		const auto push = [=] {
+			state->scheduled = false;
+
 			const auto stories = &peer->owner().stories();
 			if (!stories->savedCountKnown(peer->id)) {
 				return;
 			}
 
-			const auto source = stories->source(peer->id);
 			const auto saved = stories->saved(peer->id);
 			const auto count = stories->savedCount(peer->id);
+			const auto around = saved->list.lower_bound(aroundId);
 			Assert(saved != nullptr);
-			auto ids = base::flat_set<StoryId>();
-			ids.reserve(saved->list.size() + 1);
-			auto total = count;
-			if (source && !source->ids.empty()) {
-				++total;
-				const auto current = source->ids.front().id;
-				for (const auto id : ranges::views::reverse(saved->list)) {
-					const auto i = source->ids.lower_bound(
-						StoryIdDates{ id });
-					if (i != end(source->ids) && i->id == id) {
-						--total;
-					} else {
+			const auto source = stories->source(peer->id);
+			if (!source || source->ids.empty()) {
+				const auto hasBefore = int(around - begin(saved->list));
+				const auto hasAfter = int(end(saved->list) - around);
+				if (hasAfter < limit) {
+					stories->savedLoadMore(peer->id);
+				}
+				const auto takeBefore = std::min(hasBefore, limit);
+				const auto takeAfter = std::min(hasAfter, limit);
+				auto ids = base::flat_set<StoryId>{
+					std::make_reverse_iterator(around + takeAfter),
+					std::make_reverse_iterator(around - takeBefore)
+				};
+				const auto added = int(ids.size());
+				state->slice = StoriesIdsSlice(
+					std::move(ids),
+					count,
+					(hasBefore - takeBefore),
+					count - hasBefore - added);
+			} else {
+				auto ids = base::flat_set<StoryId>();
+				auto added = 0;
+				auto skipped = 0;
+				auto skippedBefore = (around - begin(saved->list));
+				auto skippedAfter = (end(saved->list) - around);
+				const auto &active = source->ids;
+				const auto process = [&](StoryId id) {
+					const auto i = active.lower_bound(StoryIdDates{ id });
+					if (i == end(active) || i->id != id) {
 						ids.emplace(id);
+						++added;
+					} else {
+						++skipped;
+					}
+					return (added < limit);
+				};
+				ids.reserve(2 * limit + 1);
+				for (auto i = around, b = begin(saved->list); i != b;) {
+					--skippedBefore;
+					if (!process(*--i)) {
+						break;
 					}
 				}
-				ids.emplace(current);
-			} else {
-				auto all = saved->list | ranges::views::reverse;
-				ids = { begin(all), end(all) };
+				if (ids.size() < limit) {
+					ids.emplace(active.back().id); // #TODO stories fake max story id
+				} else {
+					++skippedBefore;
+				}
+				added = 0;
+				for (auto i = around, e = end(saved->list); i != e; ++i) {
+					--skippedAfter;
+					if (!process(*i)) {
+						break;
+					}
+				}
+				state->slice = StoriesIdsSlice(
+					std::move(ids),
+					count - skipped + 1,
+					skippedBefore,
+					skippedAfter);
 			}
-			const auto added = int(ids.size());
-			state->slice = StoriesIdsSlice(
-				std::move(ids),
-				total,
-				0,
-				total - added);
 			consumer.put_next_copy(state->slice);
+		};
+		const auto schedule = [=] {
+			if (state->scheduled) {
+				return;
+			}
+			state->scheduled = true;
+			Ui::PostponeCall(&state->guard, [=] {
+				if (state->scheduled) {
+					push();
+				}
+			});
 		};
 
 		const auto stories = &peer->owner().stories();
 		stories->sourceChanged(
 		) | rpl::filter(
 			rpl::mappers::_1 == peer->id
-		) | rpl::start_with_next([=] {
-			push();
-		}, lifetime);
+		) | rpl::start_with_next(schedule, lifetime);
 
 		stories->savedChanged(
 		) | rpl::filter(
 			rpl::mappers::_1 == peer->id
-		) | rpl::start_with_next([=] {
-			push();
-		}, lifetime);
+		) | rpl::start_with_next(schedule, lifetime);
 
 		if (!stories->savedCountKnown(peer->id)) {
 			stories->savedLoadMore(peer->id);
@@ -99,38 +146,59 @@ rpl::producer<StoriesIdsSlice> ArchiveStoriesIds(
 
 		struct State {
 			StoriesIdsSlice slice;
+			base::has_weak_ptr guard;
+			bool scheduled = false;
 		};
 		const auto state = lifetime.make_state<State>();
 
 		const auto push = [=] {
+			state->scheduled = false;
+
 			const auto stories = &session->data().stories();
-			if (!stories->expiredMineCountKnown()) {
+			if (!stories->archiveCountKnown()) {
 				return;
 			}
 
-			const auto expired = stories->expiredMine();
-			const auto count = stories->expiredMineCount();
-			auto ids = base::flat_set<StoryId>();
-			ids.reserve(expired.list.size() + 1);
-			auto all = expired.list | ranges::views::reverse;
-			ids = { begin(all), end(all) };
+			const auto &archive = stories->archive();
+			const auto count = stories->archiveCount();
+			const auto i = archive.list.lower_bound(aroundId);
+			const auto hasBefore = int(i - begin(archive.list));
+			const auto hasAfter = int(end(archive.list) - i);
+			if (hasAfter < limit) {
+				stories->archiveLoadMore();
+			}
+			const auto takeBefore = std::min(hasBefore, limit);
+			const auto takeAfter = std::min(hasAfter, limit);
+			auto ids = base::flat_set<StoryId>{
+				std::make_reverse_iterator(i + takeAfter),
+				std::make_reverse_iterator(i - takeBefore)
+			};
 			const auto added = int(ids.size());
 			state->slice = StoriesIdsSlice(
 				std::move(ids),
 				count,
-				0,
-				count - added);
+				(hasBefore - takeBefore),
+				count - hasBefore - added);
 			consumer.put_next_copy(state->slice);
+		};
+		const auto schedule = [=] {
+			if (state->scheduled) {
+				return;
+			}
+			state->scheduled = true;
+			Ui::PostponeCall(&state->guard, [=] {
+				if (state->scheduled) {
+					push();
+				}
+			});
 		};
 
 		const auto stories = &session->data().stories();
-		stories->expiredMineChanged(
-		) | rpl::start_with_next([=] {
-			push();
-		}, lifetime);
+		stories->archiveChanged(
+		) | rpl::start_with_next(schedule, lifetime);
 
-		if (!stories->expiredMineCountKnown()) {
-			stories->expiredMineLoadMore();
+		if (!stories->archiveCountKnown()) {
+			stories->archiveLoadMore();
 		}
 
 		push();

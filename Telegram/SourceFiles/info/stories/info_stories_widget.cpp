@@ -20,8 +20,8 @@ Memento::Memento(not_null<Controller*> controller)
 , _media(controller) {
 }
 
-Memento::Memento(not_null<PeerData*> peer)
-: ContentMemento(Tag{ peer })
+Memento::Memento(not_null<PeerData*> peer, Tab tab)
+: ContentMemento(Tag{ peer, tab })
 , _media(peer, 0, Media::Type::PhotoVideo) {
 }
 
@@ -54,13 +54,21 @@ Widget::Widget(
 	}, _inner->lifetime());
 }
 
+void Widget::setIsStackBottom(bool isStackBottom) {
+	ContentWidget::setIsStackBottom(isStackBottom);
+	_inner->setIsStackBottom(isStackBottom);
+}
+
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	if (!controller()->validateMementoPeer(memento)) {
 		return false;
 	}
 	if (auto storiesMemento = dynamic_cast<Memento*>(memento.get())) {
-		restoreState(storiesMemento);
-		return true;
+		const auto tab = controller()->key().storiesTab();
+		if (storiesMemento->storiesTab() == tab) {
+			restoreState(storiesMemento);
+			return true;
+		}
 	}
 	return false;
 }
@@ -98,14 +106,16 @@ void Widget::selectionAction(SelectionAction action) {
 }
 
 rpl::producer<QString> Widget::title() {
-	return tr::lng_menu_my_stories(); // #TODO stories
+	return (controller()->key().storiesTab() == Tab::Archive)
+		? tr::lng_stories_archive_title()
+		: tr::lng_stories_my_title();
 }
 
-std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
+std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer, Tab tab) {
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
-			std::make_shared<Memento>(peer)));
+			std::make_shared<Memento>(peer, tab)));
 }
 
 } // namespace Info::Stories

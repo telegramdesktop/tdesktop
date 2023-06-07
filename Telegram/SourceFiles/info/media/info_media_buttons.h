@@ -131,13 +131,13 @@ inline auto AddStoriesButton(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<UserData*> user,
 		Ui::MultiSlideTracker &tracker) {
-	auto count = Data::SavedStoriesIds(
+	auto count = rpl::single(0) | rpl::then(Data::SavedStoriesIds(
 		user,
 		ServerMaxStoryId - 1,
 		0
 	) | rpl::map([](const Data::StoriesIdsSlice &slice) {
-		return slice.fullCount();
-	}) | rpl::filter_optional();
+		return slice.fullCount().value_or(0);
+	}));
 	auto result = AddCountedButton(
 		parent,
 		std::move(count),
