@@ -23,6 +23,10 @@ namespace Data {
 struct FileOrigin;
 } // namespace Data
 
+namespace HistoryView::Reactions {
+class CachedIconFactory;
+} // namespace HistoryView::Reactions
+
 namespace Ui {
 class RpWidget;
 } // namespace Ui
@@ -40,6 +44,7 @@ namespace Media::Stories {
 class Header;
 class Slider;
 class ReplyArea;
+class Reactions;
 class RecentViews;
 class Sibling;
 class Delegate;
@@ -66,6 +71,7 @@ struct Layout {
 	QRect content;
 	QRect header;
 	QRect slider;
+	QRect reactions;
 	int controlsWidth = 0;
 	QPoint controlsBottomPosition;
 	QRect views;
@@ -98,6 +104,8 @@ public:
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
 	-> rpl::producer<ChatHelpers::FileChosen>;
+	[[nodiscard]] auto cachedReactionIconFactory() const
+		-> HistoryView::Reactions::CachedIconFactory &;
 
 	void show(not_null<Data::Story*> story, Data::StoriesContext context);
 	void ready();
@@ -109,6 +117,7 @@ public:
 	[[nodiscard]] bool jumpFor(int delta);
 	[[nodiscard]] bool paused() const;
 	void togglePaused(bool paused);
+	void contentPressed(bool pressed);
 	void setMenuShown(bool shown);
 
 	[[nodiscard]] bool canDownload() const;
@@ -163,6 +172,7 @@ private:
 	const std::unique_ptr<Header> _header;
 	const std::unique_ptr<Slider> _slider;
 	const std::unique_ptr<ReplyArea> _replyArea;
+	const std::unique_ptr<Reactions> _reactions;
 	const std::unique_ptr<RecentViews> _recentViews;
 	std::unique_ptr<PhotoPlayback> _photoPlayback;
 	std::unique_ptr<CaptionFullView> _captionFullView;
@@ -173,6 +183,7 @@ private:
 	bool _windowActive = false;
 	bool _replyFocused = false;
 	bool _replyActive = false;
+	bool _hasSendText = false;
 	bool _layerShown = false;
 	bool _menuShown = false;
 	bool _paused = false;

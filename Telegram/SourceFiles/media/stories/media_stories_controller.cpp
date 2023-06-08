@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_header.h"
 #include "media/stories/media_stories_sibling.h"
 #include "media/stories/media_stories_slider.h"
+#include "media/stories/media_stories_reactions.h"
 #include "media/stories/media_stories_recent_views.h"
 #include "media/stories/media_stories_reply.h"
 #include "media/stories/media_stories_view.h"
@@ -125,10 +126,17 @@ Controller::Controller(not_null<Delegate*> delegate)
 , _header(std::make_unique<Header>(this))
 , _slider(std::make_unique<Slider>(this))
 , _replyArea(std::make_unique<ReplyArea>(this))
+, _reactions(std::make_unique<Reactions>(this))
 , _recentViews(std::make_unique<RecentViews>(this)) {
 	initLayout();
 
-	_replyArea->activeValue(
+	using namespace rpl::mappers;
+
+	rpl::combine(
+		_replyArea->activeValue(),
+		_reactions->expandedValue(),
+		_1 || _2
+	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool active) {
 		if (active) {
 			_captionFullView = nullptr;
@@ -140,6 +148,23 @@ Controller::Controller(not_null<Delegate*> delegate)
 	_replyArea->focusedValue(
 	) | rpl::start_with_next([=](bool focused) {
 		_replyFocused = focused;
+		if (!_replyFocused) {
+			_reactions->hideIfCollapsed();
+		} else if (!_hasSendText) {
+			_reactions->show();
+		}
+	}, _lifetime);
+
+	_replyArea->hasSendTextValue(
+	) | rpl::start_with_next([=](bool has) {
+		_hasSendText = has;
+		if (_replyFocused) {
+			if (_hasSendText) {
+				_reactions->hide();
+			} else {
+				_reactions->show();
+			}
+		}
 	}, _lifetime);
 
 	_delegate->storiesLayerShown(
@@ -165,6 +190,9 @@ Controller::Controller(not_null<Delegate*> delegate)
 Controller::~Controller() = default;
 
 void Controller::updateContentFaded() {
+	if (_contentFaded == _replyActive) {
+		return;
+	}
 	_contentFaded = _replyActive;
 	_contentFadeAnimation.start(
 		[=] { _delegate->storiesRepaint(); },
@@ -225,6 +253,13 @@ void Controller::initLayout() {
 			(size.width() - contentWidth) / 2,
 			addedTopSkip + topSkip,
 			contentWidth,
+			contentHeight);
+
+		const auto reactionsWidth = st::storiesReactionsWidth;
+		layout.reactions = QRect(
+			(size.width() - reactionsWidth) / 2,
+			layout.content.y(),
+			reactionsWidth,
 			contentHeight);
 
 		if (layout.headerLayout == HeaderLayout::Outside) {
@@ -385,6 +420,11 @@ auto Controller::stickerOrEmojiChosen() const
 	return _delegate->storiesStickerOrEmojiChosen();
 }
 
+auto Controller::cachedReactionIconFactory() const
+-> HistoryView::Reactions::CachedIconFactory & {
+	return _delegate->storiesCachedReactionIconFactory();
+}
+
 void Controller::show(
 		not_null<Data::Story*> story,
 		Data::StoriesContext context) {
@@ -448,6 +488,7 @@ void Controller::show(
 	_captionText = story->caption();
 	_captionFullView = nullptr;
 	invalidate_weak_ptrs(&_viewsLoadGuard);
+	_reactions->hide();
 	if (_replyFocused) {
 		unfocusReply();
 	}
@@ -690,6 +731,13 @@ void Controller::togglePaused(bool paused) {
 	if (_paused != paused) {
 		_paused = paused;
 		updatePlayingAllowed();
+	}
+}
+
+void Controller::contentPressed(bool pressed) {
+	togglePaused(pressed);
+	if (pressed) {
+		_reactions->collapse();
 	}
 }
 

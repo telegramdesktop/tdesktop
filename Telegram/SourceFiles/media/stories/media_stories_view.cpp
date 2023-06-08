@@ -75,6 +75,10 @@ void View::togglePaused(bool paused) {
 	_controller->togglePaused(paused);
 }
 
+void View::contentPressed(bool pressed) {
+	_controller->contentPressed(pressed);
+}
+
 SiblingView View::sibling(SiblingType type) const {
 	return _controller->sibling(type);
 }

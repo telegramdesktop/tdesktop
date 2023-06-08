@@ -579,6 +579,10 @@ rpl::producer<bool> ReplyArea::focusedValue() const {
 	return _controls->focusedValue();
 }
 
+rpl::producer<bool> ReplyArea::hasSendTextValue() const {
+	return _controls->hasSendTextValue();
+}
+
 rpl::producer<bool> ReplyArea::activeValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(

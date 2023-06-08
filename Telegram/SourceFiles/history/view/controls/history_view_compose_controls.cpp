@@ -1854,7 +1854,8 @@ void ComposeControls::fieldChanged() {
 		&& !_header->isEditingMessage()
 		&& (_textUpdateEvents & TextUpdateEvent::SendTyping));
 	updateSendButtonType();
-	if (!HasSendText(_field) && _preview) {
+	_hasSendText = HasSendText(_field);
+	if (!_hasSendText.current() && _preview) {
 		_preview->setState(Data::PreviewState::Allowed);
 	}
 	if (updateBotCommandShown()) {
@@ -2951,6 +2952,10 @@ bool ComposeControls::isRecording() const {
 
 rpl::producer<bool> ComposeControls::recordingValue() const {
 	return _recording.value();
+}
+
+rpl::producer<bool> ComposeControls::hasSendTextValue() const {
+	return _hasSendText.value();
 }
 
 bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/tabbed_search.h"
 
+#include "base/qt_signal_producer.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
@@ -517,6 +518,12 @@ void SearchWithGroups::ensureRounding(int size, float64 ratio) {
 	_rounding.setDevicePixelRatio(ratio);
 }
 
+rpl::producer<> SearchWithGroups::escapes() const {
+	return base::qt_signal_producer(
+		_field.get(),
+		&Ui::InputField::cancelled);
+}
+
 rpl::producer<std::vector<QString>> SearchWithGroups::queryValue() const {
 	return _query.value();
 }
@@ -657,6 +664,10 @@ void TabbedSearch::stealFocus() {
 
 void TabbedSearch::returnFocus() {
 	_search.returnFocus();
+}
+
+rpl::producer<> TabbedSearch::escapes() const {
+	return _search.escapes();
 }
 
 rpl::producer<std::vector<QString>> TabbedSearch::queryValue() const {

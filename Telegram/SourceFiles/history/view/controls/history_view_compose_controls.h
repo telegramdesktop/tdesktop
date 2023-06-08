@@ -215,6 +215,7 @@ public:
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] rpl::producer<bool> recordingValue() const;
+	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 
 	void applyCloudDraft();
 	void applyDraft(
@@ -382,6 +383,7 @@ private:
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 	rpl::event_stream<> _focusRequests;
 	rpl::variable<bool> _recording;
+	rpl::variable<bool> _hasSendText;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
 		| TextUpdateEvent::SaveDraft

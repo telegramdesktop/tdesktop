@@ -105,48 +105,53 @@ bool StripEmoji::readyInDefaultState() {
 
 Selector::Selector(
 	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> parentController,
+	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::PossibleItemReactionsRef &reactions,
 	IconFactory iconFactory,
-	Fn<void(bool fast)> close)
+	Fn<void(bool fast)> close,
+	bool child)
 : Selector(
 	parent,
-	parentController,
+	std::move(show),
 	reactions,
 	(reactions.customAllowed
 		? ChatHelpers::EmojiListMode::FullReactions
 		: ChatHelpers::EmojiListMode::RecentReactions),
 	{},
 	iconFactory,
-	close) {
+	close,
+	child) {
 }
 
 Selector::Selector(
 	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> parentController,
+	std::shared_ptr<ChatHelpers::Show> show,
 	ChatHelpers::EmojiListMode mode,
 	std::vector<DocumentId> recent,
-	Fn<void(bool fast)> close)
+	Fn<void(bool fast)> close,
+	bool child)
 : Selector(
 	parent,
-	parentController,
+	std::move(show),
 	{ .customAllowed = true },
 	mode,
 	std::move(recent),
 	nullptr,
-	close) {
+	close,
+	child) {
 }
 
 Selector::Selector(
 	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> parentController,
+	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::PossibleItemReactionsRef &reactions,
 	ChatHelpers::EmojiListMode mode,
 	std::vector<DocumentId> recent,
 	IconFactory iconFactory,
-	Fn<void(bool fast)> close)
+	Fn<void(bool fast)> close,
+	bool child)
 : RpWidget(parent)
-, _parentController(parentController.get())
+, _show(std::move(show))
 , _reactions(reactions)
 , _recent(std::move(recent))
 , _listMode(mode)
@@ -167,12 +172,7 @@ Selector::Selector(
 , _skipy((st::reactStripHeight - st::reactStripSize) / 2) {
 	setMouseTracking(true);
 
-	_useTransparency = Ui::Platform::TranslucentWindowsSupported();
-
-	parentController->content()->alive(
-	) | rpl::start_with_done([=] {
-		close(true);
-	}, lifetime());
+	_useTransparency = child || Ui::Platform::TranslucentWindowsSupported();
 }
 
 bool Selector::useTransparency() const {
@@ -286,6 +286,10 @@ void Selector::beforeDestroy() {
 	if (_list) {
 		_list->beforeHiding();
 	}
+}
+
+rpl::producer<> Selector::escapes() const {
+	return _escapes.events();
 }
 
 void Selector::updateShowState(
@@ -424,6 +428,7 @@ void Selector::paintExpanding(Painter &p, float64 progress) {
 		p,
 		rects.list.marginsRemoved(st::reactPanelEmojiPan.margin),
 		rects.finalBottom,
+		rects.expanding,
 		progress,
 		RectPart::TopRight);
 	paintFadingExpandIcon(p, progress);
@@ -479,6 +484,7 @@ auto Selector::paintExpandingBg(QPainter &p, float64 progress)
 		.categories = QRect(inner.x(), inner.y(), inner.width(), categories),
 		.list = inner.marginsRemoved({ 0, categories, 0, 0 }),
 		.radius = radius,
+		.expanding = expanding,
 		.finalBottom = height() - extents.bottom(),
 	};
 }
@@ -538,10 +544,7 @@ void Selector::finishExpand() {
 	}
 	_scroll->show();
 	_list->afterShown();
-
-	if (const auto controller = _parentController.get()) {
-		controller->session().api().updateCustomEmoji();
-	}
+	_show->session().api().updateCustomEmoji();
 }
 
 void Selector::paintBubble(QPainter &p, int innerWidth) {
@@ -662,6 +665,7 @@ void Selector::expand() {
 		return;
 	}
 	_expandScheduled = true;
+	_willExpand.fire({});
 	const auto parent = parentWidget()->geometry();
 	const auto extents = extentsForShadow();
 	const auto heightLimit = _reactions.customAllowed
@@ -672,15 +676,14 @@ void Selector::expand() {
 		extents.top() + heightLimit + extents.bottom());
 	const auto additionalBottom = willBeHeight - height();
 	const auto additional = _specialExpandTopSkip + additionalBottom;
-	const auto strong = _parentController.get();
-	if (additionalBottom < 0 || additional <= 0 || !strong) {
+	if (additionalBottom < 0 || additional <= 0) {
 		return;
 	} else if (additionalBottom > 0) {
 		resize(width(), height() + additionalBottom);
 		raise();
 	}
 
-	createList(strong);
+	createList();
 	cacheExpandIcon();
 
 	[[maybe_unused]] const auto grabbed = Ui::GrabWidget(_scroll);
@@ -705,7 +708,7 @@ void Selector::cacheExpandIcon() {
 	_strip->paintOne(q, _strip->count() - 1, { 0, 0 }, 1.);
 }
 
-void Selector::createList(not_null<Window::SessionController*> controller) {
+void Selector::createList() {
 	using namespace ChatHelpers;
 	auto recent = _recent;
 	auto defaultReactionIds = base::flat_map<DocumentId, QString>();
@@ -725,7 +728,7 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 			}
 		};
 	}
-	const auto manager = &controller->session().data().customEmojiManager();
+	const auto manager = &_show->session().data().customEmojiManager();
 	_stripPaintOneShift = [&] {
 		// See EmojiListWidget custom emoji position resolving.
 		const auto area = st::emojiPanArea;
@@ -777,7 +780,7 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	}
 	_list = _scroll->setOwnedWidget(
 		object_ptr<EmojiListWidget>(_scroll, EmojiListDescriptor{
-			.show = controller->uiShow(),
+			.show = _show,
 			.mode = _listMode,
 			.paused = [] { return false; },
 			.customRecentList = std::move(recent),
@@ -785,6 +788,8 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 			.st = st,
 		})
 	).data();
+
+	_list->escapes() | rpl::start_to_stream(_escapes, _list->lifetime());
 
 	_list->customChosen(
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
@@ -937,10 +942,11 @@ AttachSelectorResult MakeJustSelectorMenu(
 		Fn<void(ChosenReaction)> chosen) {
 	const auto selector = Ui::CreateChild<Selector>(
 		menu.get(),
-		controller,
+		controller->uiShow(),
 		mode,
 		std::move(recent),
-		[=](bool fast) { menu->hideMenu(fast); });
+		[=](bool fast) { menu->hideMenu(fast); },
+		false); // child
 	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
 		return AttachSelectorResult::Failed;
 	}
@@ -1011,10 +1017,11 @@ AttachSelectorResult AttachSelectorToMenu(
 	const auto withSearch = reactions.customAllowed;
 	const auto selector = Ui::CreateChild<Selector>(
 		menu.get(),
-		controller,
+		controller->uiShow(),
 		std::move(reactions),
 		std::move(iconFactory),
-		[=](bool fast) { menu->hideMenu(fast); });
+		[=](bool fast) { menu->hideMenu(fast); },
+		false); // child
 	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
 		return AttachSelectorResult::Failed;
 	}

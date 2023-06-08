@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
+#include "history/view/reactions/history_view_reactions_strip.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -421,6 +422,7 @@ OverlayWidget::OverlayWidget()
 , _widget(_surface->rpWidget())
 , _fullscreen(Core::App().settings().mediaViewPosition().maximized == 2)
 , _windowed(Core::App().settings().mediaViewPosition().maximized == 0)
+, _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _layerBg(std::make_unique<Ui::LayerManager>(_body))
 , _docDownload(_body, tr::lng_media_download(tr::now), st::mediaviewFileLink)
 , _docSaveAs(_body, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
@@ -1600,9 +1602,11 @@ void OverlayWidget::waitingAnimationCallback() {
 }
 
 void OverlayWidget::updateCursor() {
-	setCursor(_controlsState == ControlsHidden
+	setCursor((_controlsState == ControlsHidden)
 		? Qt::BlankCursor
-		: (_over == OverNone ? style::cur_default : style::cur_pointer));
+		: (_over == OverNone || (_over == OverVideo && _stories))
+		? style::cur_default
+		: style::cur_pointer);
 }
 
 int OverlayWidget::finalContentRotation() const {
@@ -4045,6 +4049,11 @@ auto OverlayWidget::storiesStickerOrEmojiChosen()
 	return _storiesStickerOrEmojiChosen.events();
 }
 
+auto OverlayWidget::storiesCachedReactionIconFactory()
+-> HistoryView::Reactions::CachedIconFactory & {
+	return *_cachedReactionIconFactory;
+}
+
 void OverlayWidget::storiesJumpTo(
 		not_null<Main::Session*> session,
 		FullStoryId id,
@@ -5192,7 +5201,7 @@ void OverlayWidget::handleMousePress(
 				|| _over == OverVideo) {
 				_down = _over;
 				if (_over == OverVideo && _stories) {
-					_stories->togglePaused(true);
+					_stories->contentPressed(true);
 				}
 			} else if (!_saveMsg.contains(position) || !isSaveMsgShown()) {
 				_pressed = true;
@@ -5491,7 +5500,7 @@ void OverlayWidget::handleMouseRelease(
 		InvokeQueued(_widget, [=] { showDropdown(); });
 	} else if (_over == OverVideo && _down == OverVideo) {
 		if (_stories) {
-			_stories->togglePaused(false);
+			_stories->contentPressed(false);
 		} else if (_streamed) {
 			playbackPauseResume();
 		}

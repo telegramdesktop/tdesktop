@@ -125,6 +125,7 @@ public:
 	[[nodiscard]] rpl::producer<EmojiChosen> chosen() const;
 	[[nodiscard]] rpl::producer<FileChosen> customChosen() const;
 	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
+	[[nodiscard]] rpl::producer<> escapes() const;
 
 	void provideRecent(const std::vector<DocumentId> &customRecentList);
 
@@ -133,7 +134,8 @@ public:
 		Painter &p,
 		QRect clip,
 		int finalBottom,
-		float64 progress,
+		float64 geometryProgress,
+		float64 fullProgress,
 		RectPart origin);
 
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(

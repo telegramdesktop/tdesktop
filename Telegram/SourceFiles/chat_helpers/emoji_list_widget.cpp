@@ -623,6 +623,10 @@ rpl::producer<> EmojiListWidget::jumpedToPremium() const {
 	return _jumpedToPremium.events();
 }
 
+rpl::producer<> EmojiListWidget::escapes() const {
+	return _search ? _search->escapes() : rpl::never<>();
+}
+
 void EmojiListWidget::prepareExpanding() {
 	if (_search) {
 		_searchExpandCache = _search->grab();
@@ -633,13 +637,14 @@ void EmojiListWidget::paintExpanding(
 		Painter &p,
 		QRect clip,
 		int finalBottom,
-		float64 progress,
+		float64 geometryProgress,
+		float64 fullProgress,
 		RectPart origin) {
 	const auto searchShift = _search
 		? anim::interpolate(
 			st().padding.top() - _search->height(),
 			0,
-			progress)
+			geometryProgress)
 		: 0;
 	const auto shift = clip.topLeft() + QPoint(0, searchShift);
 	const auto adjusted = clip.translated(-shift);
@@ -654,7 +659,7 @@ void EmojiListWidget::paintExpanding(
 	p.translate(shift);
 	p.setClipRect(adjusted);
 	paint(p, ExpandingContext{
-		.progress = progress,
+		.progress = fullProgress,
 		.finalHeight = finalHeight,
 		.expanding = true,
 	}, adjusted);

@@ -16,6 +16,10 @@ namespace Data {
 struct StoriesContext;
 } // namespace Data
 
+namespace HistoryView::Reactions {
+class CachedIconFactory;
+} // namespace HistoryView::Reactions
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -43,6 +47,8 @@ public:
 		-> std::shared_ptr<ChatHelpers::Show> = 0;
 	[[nodiscard]] virtual auto storiesStickerOrEmojiChosen()
 		-> rpl::producer<ChatHelpers::FileChosen> = 0;
+	[[nodiscard]] virtual auto storiesCachedReactionIconFactory()
+		-> HistoryView::Reactions::CachedIconFactory & = 0;
 	virtual void storiesJumpTo(
 		not_null<Main::Session*> session,
 		FullStoryId id,

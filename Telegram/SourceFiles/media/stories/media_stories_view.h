@@ -73,6 +73,7 @@ public:
 
 	[[nodiscard]] bool paused() const;
 	void togglePaused(bool paused);
+	void contentPressed(bool pressed);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

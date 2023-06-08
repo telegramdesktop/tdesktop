@@ -1224,7 +1224,7 @@ void Stories::loadViewsSlice(
 		MTP_int(id),
 		MTP_int(offset ? offset->date : 0),
 		MTP_long(offset ? peerToUser(offset->peer->id).bare : 0),
-		MTP_int(2)
+		MTP_int(kViewsPerPage)
 	)).done([=](const MTPstories_StoryViewsList &result) {
 		_viewsRequestId = 0;
 

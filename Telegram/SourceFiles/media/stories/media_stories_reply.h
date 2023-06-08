@@ -59,6 +59,7 @@ public:
 
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
 	[[nodiscard]] rpl::producer<bool> activeValue() const;
+	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 
 private:
 	using VoiceToSend = HistoryView::Controls::VoiceToSend;

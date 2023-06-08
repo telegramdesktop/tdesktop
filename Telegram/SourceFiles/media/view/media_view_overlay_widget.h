@@ -51,11 +51,13 @@ namespace Platform {
 class OverlayWidgetHelper;
 } // namespace Platform
 
-namespace Window {
-namespace Theme {
+namespace Window::Theme {
 struct Preview;
-} // namespace Theme
-} // namespace Window
+} // namespace Window::Theme
+
+namespace HistoryView::Reactions {
+class CachedIconFactory;
+} // namespace HistoryView::Reactions
 
 namespace Media::Player {
 struct TrackState;
@@ -245,6 +247,8 @@ private:
 	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
 	auto storiesStickerOrEmojiChosen()
 		-> rpl::producer<ChatHelpers::FileChosen> override;
+	auto storiesCachedReactionIconFactory()
+		-> HistoryView::Reactions::CachedIconFactory & override;
 	void storiesJumpTo(
 		not_null<Main::Session*> session,
 		FullStoryId id,
@@ -600,6 +604,8 @@ private:
 	bool _showAsPip = false;
 
 	std::unique_ptr<Stories::View> _stories;
+	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
+	std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
 	std::shared_ptr<Show> _cachedShow;
 	rpl::event_stream<> _storiesChanged;
 	Main::Session *_storiesSession = nullptr;

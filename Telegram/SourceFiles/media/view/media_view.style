@@ -747,3 +747,6 @@ storiesWhoViewed: WhoRead(defaultWhoRead) {
 		align: align(left);
 	}
 }
+storiesReactionsWidth: 210px;
+storiesReactionsBottomSkip: 29px;
+storiesReactionsAddedTop: 200px;
