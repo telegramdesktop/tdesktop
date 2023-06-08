@@ -183,23 +183,58 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		auto p = QPainter(_footer.get());
 
 		if (_chartData) {
+			const auto startXIndex2 = 0;
+			const auto endXIndex2 = int(_chartData.xPercentage.size() - 1);
+			const auto limitsY = Limits{
+				float64(FindMinValue(_chartData, startXIndex2, endXIndex2)),
+				float64(FindMaxValue(_chartData, startXIndex2, endXIndex2)),
+			};
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
 				{},
 				limits,
+				limitsY,
 				1.,
 				_footer->rect());
 		}
 	}, _footer->lifetime());
 
-	_xPercentage.animation.init([=] {
-		const auto progress = (crl::now() - _xPercentage.lastUserInteracted)
-			/ float64(400.);
+	_xPercentage.animation.init([=](crl::time now) {
+		const auto timeDiff = (now - _xPercentage.lastUserInteracted);
+		const auto dt = (now - _xPercentage.animation.started())
+			/ float64(200);
+
+		if (!_yAnimStarted && timeDiff >= 400) {
+			_yAnimStarted = _xPercentage.lastUserInteracted;
+		}
+		const auto dt2 = (now - _yAnimStarted - 400)
+			/ float64(2000);
+
+		const auto progress = timeDiff / float64(2000.);
 		_xPercentage.progress = progress;
-		if (progress > 1.) {
+		if ((_animValueXMin.to() == _animValueXMin.current())
+			&& (_animValueXMax.to() == _animValueXMax.current())
+			&& (_animValueYMin.to() == _animValueYMin.current())
+			&& (_animValueYMax.to() == _animValueYMax.current())) {
+		// if (progress > 1.) {
 			_xPercentage.animation.stop();
 			_xPercentage.was = _xPercentage.now;
+
+			_animValueXMin.finish();
+			_animValueXMax.finish();
+			_animValueYMin.finish();
+			_animValueYMax.finish();
+
+			_yAnimStarted = 0;
+		} else {
+			_animValueXMin.update(std::min(dt, 1.), anim::linear);
+			_animValueXMax.update(std::min(dt, 1.), anim::linear);
+
+			if (_yAnimStarted) {
+				_animValueYMin.update(std::min(dt2, 1.), anim::sineInOut);
+				_animValueYMax.update(std::min(dt2, 1.), anim::sineInOut);
+			}
 		}
 		const auto startXIndex = _chartData.findStartIndex(
 			_xPercentage.now.min);
@@ -221,8 +256,46 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			_xPercentage.animation.start();
 			// _xPercentage.was = base::take(_xPercentage.now);
 		}
+		_animValueXMin.start(xPercentageLimits.min);
+		_animValueXMax.start(xPercentageLimits.max);
 		_xPercentage.now = xPercentageLimits;
 		_xPercentage.lastUserInteracted = crl::now();
+
+		const auto &chartData = _chartData;
+		{
+			auto minY = std::numeric_limits<float64>::max();
+			auto maxY = 0.;
+			auto minYIndex = 0;
+			auto maxYIndex = 0;
+			const auto tempXPercentage = Limits{
+				.min = *ranges::lower_bound(
+					chartData.xPercentage,
+					xPercentageLimits.min),
+				.max = *ranges::lower_bound(
+					chartData.xPercentage,
+					xPercentageLimits.max),
+			};
+			for (auto i = 0; i < chartData.xPercentage.size(); i++) {
+				if (chartData.xPercentage[i] == tempXPercentage.min) {
+					minYIndex = i;
+				}
+				if (chartData.xPercentage[i] == tempXPercentage.max) {
+					maxYIndex = i;
+				}
+			}
+			for (const auto &line : chartData.lines) {
+				for (auto i = minYIndex; i < maxYIndex; i++) {
+					if (line.y[i] > maxY) {
+						maxY = line.y[i];
+					}
+					if (line.y[i] < minY) {
+						minY = line.y[i];
+					}
+				}
+			}
+			_animValueYMin.start(minY);
+			_animValueYMax.start(maxY);
+		}
 		// _xPercentage.animation.stop();
 		// const auto was = _xPercentageLimits;
 		// const auto now = xPercentageLimits;
@@ -301,7 +374,9 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 			p,
 			_chartData,
 			_xPercentage.was,
-			_xPercentage.now,
+			{ _animValueXMin.current(), _animValueXMax.current() },
+			{ _animValueYMin.current(), _animValueYMax.current() },
+			// _xPercentage.now,
 			_xPercentage.progress,
 			chartRect);
 	}

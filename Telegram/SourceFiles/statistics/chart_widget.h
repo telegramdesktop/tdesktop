@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics.h"
 #include "statistics/chart_horizontal_lines_data.h"
 #include "statistics/statistics_common.h"
+#include "ui/effects/animation_value.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
@@ -48,6 +49,12 @@ private:
 		crl::time lastUserInteracted = 0;
 		float64 progress = 0.;
 	} _xPercentage;
+	anim::value _animValueXMin;
+	anim::value _animValueXMax;
+	anim::value _animValueYMin;
+	anim::value _animValueYMax;
+
+	crl::time _yAnimStarted = 0;
 
 	float64 _minMaxUpdateStep = 0.;
 

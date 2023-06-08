@@ -19,6 +19,7 @@ void PaintLinearChartView(
 		const Data::StatisticalChart &chartData,
 		const Limits &xPercentageLimitsWas,
 		const Limits &xPercentageLimitsNow,
+		const Limits &xPercentageLimitsNowY,
 		float64 progress,
 		const QRect &rect) {
 	const auto offset = 0;
@@ -75,6 +76,9 @@ void PaintLinearChartView(
 				minY = line.y[i];
 			}
 		}
+
+		minY = xPercentageLimitsNowY.min;
+		maxY = xPercentageLimitsNowY.max;
 
 		for (auto i = localStart; i <= localEnd; i++) {
 			if (line.y[i] < 0) {
