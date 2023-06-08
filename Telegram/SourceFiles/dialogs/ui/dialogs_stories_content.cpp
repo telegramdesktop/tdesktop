@@ -148,6 +148,7 @@ Content State::next() {
 			.userpic = std::move(userpic),
 			.unread = info.unread,
 			.hidden = info.hidden,
+			.self = user->isSelf(),
 		});
 	}
 	return result;

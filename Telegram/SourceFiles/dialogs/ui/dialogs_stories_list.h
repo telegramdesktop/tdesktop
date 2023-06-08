@@ -31,6 +31,7 @@ struct User {
 	std::shared_ptr<Userpic> userpic;
 	bool unread = false;
 	bool hidden = false;
+	bool self = false;
 
 	friend inline bool operator==(const User &a, const User &b) = default;
 };
@@ -87,6 +88,7 @@ private:
 		Summary total;
 		Summary allNames;
 		Summary unreadNames;
+		bool skipSelf = false;
 	};
 	struct Data {
 		std::vector<Item> items;

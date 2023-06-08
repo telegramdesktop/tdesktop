@@ -39,6 +39,7 @@ struct List::Layout {
 	float64 photoLeft = 0.;
 	float64 left = 0.;
 	float64 single = 0.;
+	int smallSkip = 0;
 	int leftFull = 0;
 	int leftSmall = 0;
 	int singleFull = 0;
@@ -114,17 +115,18 @@ void List::showContent(Content &&content) {
 
 List::Summaries List::ComposeSummaries(Data &data) {
 	const auto total = int(data.items.size());
+	const auto skip = (total > 1 && data.items[0].user.self) ? 1 : 0;
 	auto unreadInFirst = 0;
 	auto unreadTotal = 0;
-	for (auto i = 0; i != total; ++i) {
+	for (auto i = skip; i != total; ++i) {
 		if (data.items[i].user.unread) {
 			++unreadTotal;
-			if (i < kSmallUserpicsShown) {
+			if (i < skip + kSmallUserpicsShown) {
 				++unreadInFirst;
 			}
 		}
 	}
-	auto result = Summaries();
+	auto result = Summaries{ .skipSelf = (skip > 0) };
 	result.total.string
 		= tr::lng_stories_row_count(tr::now, lt_count, total);
 	const auto append = [&](QString &to, int index, bool last) {
@@ -143,13 +145,13 @@ List::Summaries List::ComposeSummaries(Data &data) {
 	};
 	if (!total) {
 		return result;
-	} else if (total <= kSmallUserpicsShown) {
-		for (auto i = 0; i != total; ++i) {
+	} else if (total <= skip + kSmallUserpicsShown) {
+		for (auto i = skip; i != total; ++i) {
 			append(result.allNames.string, i, i == total - 1);
 		}
 	}
 	if (unreadInFirst > 0 && unreadInFirst == unreadTotal) {
-		for (auto i = 0; i != total; ++i) {
+		for (auto i = skip; i != total; ++i) {
 			if (data.items[i].user.unread) {
 				append(result.unreadNames.string, i, !--unreadTotal);
 			}
@@ -265,11 +267,16 @@ List::Layout List::computeLayout() const {
 		+ st::defaultDialogRow.photoSize
 		+ st::defaultDialogRow.padding.left();
 	const auto narrow = (width() <= narrowWidth);
-	const auto smallCount = std::min(kSmallUserpicsShown, itemsCount);
+	const auto smallSkip = (itemsCount > 1 && rendering.items[0].user.self)
+		? 1
+		: 0;
+	const auto smallCount = std::min(
+		kSmallUserpicsShown,
+		itemsCount - smallSkip);
 	const auto smallWidth = st.photo + (smallCount - 1) * st.shift;
-	const auto leftSmall = narrow
+	const auto leftSmall = (narrow
 		? ((narrowWidth - smallWidth) / 2 - st.photoLeft)
-		: st.left;
+		: st.left) - (smallSkip ? st.shift : 0);
 	const auto leftFull = (narrow
 		? ((narrowWidth - full.photo) / 2 - full.photoLeft)
 		: full.left) - _scrollLeft;
@@ -278,9 +285,9 @@ List::Layout List::computeLayout() const {
 	const auto endIndexFull = std::min(
 		(width() - leftFull + singleFull - 1) / singleFull,
 		itemsCount);
-	const auto startIndexSmall = 0;
-	const auto endIndexSmall = smallCount;
-	const auto cellLeftSmall = leftSmall;
+	const auto startIndexSmall = std::min(startIndexFull, smallSkip);
+	const auto endIndexSmall = smallSkip + smallCount;
+	const auto cellLeftSmall = leftSmall + (startIndexSmall * st.shift);
 	const auto userpicLeftFull = cellLeftFull + full.photoLeft;
 	const auto userpicLeftSmall = cellLeftSmall + st.photoLeft;
 	const auto userpicLeft = lerp(userpicLeftSmall, userpicLeftFull);
@@ -293,6 +300,7 @@ List::Layout List::computeLayout() const {
 		.photoLeft = photoLeft,
 		.left = userpicLeft - photoLeft,
 		.single = lerp(st.shift, singleFull),
+		.smallSkip = smallSkip,
 		.leftFull = leftFull,
 		.leftSmall = leftSmall,
 		.singleFull = singleFull,
@@ -355,7 +363,9 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto lookup = [&](int index) {
 		const auto indexSmall = layout.startIndexSmall + index;
 		const auto indexFull = layout.startIndexFull + index;
-		const auto small = (drawSmall && indexSmall < layout.endIndexSmall)
+		const auto small = (drawSmall
+			&& indexSmall < layout.endIndexSmall
+			&& indexSmall >= layout.smallSkip)
 			? &rendering.items[indexSmall]
 			: nullptr;
 		const auto full = (drawFull && indexFull < layout.endIndexFull)
@@ -370,20 +380,33 @@ void List::paintEvent(QPaintEvent *e) {
 	};
 	const auto enumerate = [&](auto &&paintGradient, auto &&paintOther) {
 		auto nextGradientPainted = false;
-		for (auto i = count; i != 0;) {
+		auto skippedPainted = false;
+		const auto first = layout.smallSkip - layout.startIndexSmall;
+		for (auto i = count; i != first;) {
 			--i;
+			const auto next = (i > 0) ? lookup(i - 1) : Single();
 			const auto gradientPainted = nextGradientPainted;
 			nextGradientPainted = false;
 			if (const auto current = lookup(i)) {
+				if (i == first && next && !skippedPainted) {
+					skippedPainted = true;
+					paintGradient(next);
+					paintOther(next);
+				}
 				if (!gradientPainted) {
 					paintGradient(current);
 				}
-				if (i > 0 && hasUnread(current)) {
-					if (const auto next = lookup(i - 1)) {
-						if (current.itemSmall || !next.itemSmall) {
-							nextGradientPainted = true;
-							paintGradient(next);
+				if (i > first && hasUnread(current) && next) {
+					if (current.itemSmall || !next.itemSmall) {
+						if (i - 1 == first && first > 0 && !skippedPainted) {
+							if (const auto skipped = lookup(i - 2)) {
+								skippedPainted = true;
+								paintGradient(skipped);
+								paintOther(skipped);
+							}
 						}
+						nextGradientPainted = true;
+						paintGradient(next);
 					}
 				}
 				paintOther(current);
@@ -523,7 +546,9 @@ List::Summary &List::ChooseSummary(
 		int totalItems,
 		int fullWidth) {
 	const auto &st = st::dialogsStories;
-	const auto used = std::min(totalItems, kSmallUserpicsShown);
+	const auto used = std::min(
+		totalItems - (summaries.skipSelf ? 1 : 0),
+		kSmallUserpicsShown);
 	const auto taken = st.left
 		+ st.photoLeft
 		+ st.photo
@@ -579,7 +604,9 @@ void List::paintSummary(
 	};
 	const auto &st = st::dialogsStories;
 	const auto &full = st::dialogsStoriesFull;
-	const auto used = std::min(total, kSmallUserpicsShown);
+	const auto used = std::min(
+		total - (data.summaries.skipSelf ? 1 : 0),
+		kSmallUserpicsShown);
 	const auto fullLeft = st.left
 		+ st.photoLeft
 		+ st.photo
@@ -760,15 +787,20 @@ void List::updateSelected() {
 	const auto layout = computeLayout();
 	const auto firstRightFull = layout.leftFull
 		+ (layout.startIndexFull + 1) * layout.singleFull;
+	const auto secondLeftFull = firstRightFull;
 	const auto firstRightSmall = layout.leftSmall
 		+ st.photoLeft
 		+ st.photo;
+	const auto secondLeftSmall = layout.smallSkip
+		? (layout.leftSmall + st.photoLeft + st.shift)
+		: firstRightSmall;
 	const auto lastRightAddFull = 0;
 	const auto lastRightAddSmall = st.photoLeft;
 	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * layout.ratio;
 	};
 	const auto firstRight = lerp(firstRightSmall, firstRightFull);
+	const auto secondLeft = lerp(secondLeftSmall, secondLeftFull);
 	const auto lastRightAdd = lerp(lastRightAddSmall, lastRightAddFull);
 	const auto activateFull = (layout.ratio >= 0.5);
 	const auto startIndex = activateFull
@@ -778,9 +810,10 @@ void List::updateSelected() {
 		? layout.endIndexFull
 		: layout.endIndexSmall;
 	const auto x = p.x();
-	const auto infiniteIndex = (x < firstRight)
+	const auto infiniteIndex = (x < secondLeft)
 		? 0
-		: int(std::floor(((x - firstRight) / layout.single) + 1));
+		: int(
+			std::floor((std::max(x - firstRight, 0.)) / layout.single) + 1);
 	const auto index = (endIndex == startIndex)
 		? -1
 		: (infiniteIndex == endIndex - startIndex
