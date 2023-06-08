@@ -337,8 +337,6 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto drawFull = (ratio > 0.);
 	auto hq = PainterHighQualityEnabler(p);
 
-	paintSummary(p, rendering, summaryTop, ratio);
-
 	const auto count = std::max(
 		layout.endIndexFull - layout.startIndexFull,
 		layout.endIndexSmall - layout.startIndexSmall);
@@ -485,6 +483,8 @@ void List::paintEvent(QPaintEvent *e) {
 		}
 		p.setOpacity(1.);
 	});
+
+	paintSummary(p, rendering, summaryTop, ratio);
 }
 
 void List::validateUserpic(not_null<Item*> item) {

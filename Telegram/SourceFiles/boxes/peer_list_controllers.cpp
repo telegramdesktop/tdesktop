@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
@@ -86,12 +87,10 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 				Data::StorySourcesList::All),
 			[=] { return state->stories->height() - box->scrollTop(); });
 		const auto raw = state->stories = stories.data();
-		box->peerListSetAboveWidget(std::move(stories));
-
-		raw->entered(
-		) | rpl::start_with_next([=] {
-			//clearSelection();
-		}, raw->lifetime());
+		box->peerListSetAboveWidget(object_ptr<::Ui::PaddingWrap<>>(
+			box,
+			std::move(stories),
+			style::margins(0, st::membersMarginTop, 0, 0)));
 
 		raw->clicks(
 		) | rpl::start_with_next([=](uint64 id) {

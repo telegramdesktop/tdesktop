@@ -552,7 +552,7 @@ Story *Stories::parseAndApply(
 		return nullptr;
 	}
 	const auto expires = data.vexpire_date().v;
-	const auto expired = (expires >= now);
+	const auto expired = (expires <= now);
 	if (expired && !data.is_pinned() && !peer->isSelf()) {
 		return nullptr;
 	}
@@ -618,7 +618,7 @@ StoryIdDates Stories::parseAndApply(
 		return StoryIdDates();
 	}, [&](const MTPDstoryItemSkipped &data) {
 		const auto expires = data.vexpire_date().v;
-		const auto expired = (expires >= now);
+		const auto expired = (expires <= now);
 		const auto fullId = FullStoryId{ peer->id, data.vid().v };
 		if (!expired) {
 			registerExpiring(expires, fullId);
