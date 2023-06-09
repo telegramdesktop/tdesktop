@@ -490,6 +490,7 @@ void Controller::show(
 		return;
 	}
 	_shown = storyId;
+	_viewed = false;
 	_captionText = story->caption();
 	_captionFullView = nullptr;
 	invalidate_weak_ptrs(&_viewsLoadGuard);
@@ -633,6 +634,10 @@ void Controller::maybeMarkAsRead(const Player::TrackState &state) {
 void Controller::markAsRead() {
 	Expects(_source.has_value());
 
+	if (_viewed) {
+		return;
+	}
+	_viewed = true;
 	_source->user->owner().stories().markAsRead(_shown, _started);
 }
 

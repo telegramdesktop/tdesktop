@@ -281,6 +281,8 @@ private:
 
 	void sendMarkAsReadRequests();
 	void sendMarkAsReadRequest(not_null<PeerData*> peer, StoryId tillId);
+	void sendIncrementViewsRequests();
+	void checkQuitPreventFinished();
 
 	void requestUserStories(not_null<UserData*> user);
 	void addToArchive(not_null<Story*> story);
@@ -336,6 +338,10 @@ private:
 	base::Timer _markReadTimer;
 	base::flat_set<PeerId> _markReadRequests;
 	base::flat_set<not_null<UserData*>> _requestingUserStories;
+
+	base::flat_map<PeerId, base::flat_set<StoryId>> _incrementViewsPending;
+	base::Timer _incrementViewsTimer;
+	base::flat_set<PeerId> _incrementViewsRequests;
 
 	StoryId _viewsStoryId = 0;
 	std::optional<StoryView> _viewsOffset;

@@ -195,6 +195,7 @@ private:
 	FullStoryId _waitingForId;
 	int _index = 0;
 	bool _started = false;
+	bool _viewed = false;
 
 	ViewsSlice _viewsSlice;
 	rpl::event_stream<> _moreViewsLoaded;

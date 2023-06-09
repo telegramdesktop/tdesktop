@@ -33,6 +33,7 @@ constexpr auto kMaxResolveTogether = 100;
 constexpr auto kIgnorePreloadAroundIfLoaded = 15;
 constexpr auto kPreloadAroundCount = 30;
 constexpr auto kMarkAsReadDelay = 3 * crl::time(1000);
+constexpr auto kIncrementViewsDelay = 5 * crl::time(1000);
 constexpr auto kArchiveFirstPerPage = 30;
 constexpr auto kArchivePerPage = 100;
 constexpr auto kSavedFirstPerPage = 30;
@@ -296,7 +297,8 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 Stories::Stories(not_null<Session*> owner)
 : _owner(owner)
 , _expireTimer([=] { processExpired(); })
-, _markReadTimer([=] { sendMarkAsReadRequests(); }) {
+, _markReadTimer([=] { sendMarkAsReadRequests(); })
+, _incrementViewsTimer([=] { sendIncrementViewsRequests(); }) {
 }
 
 Stories::~Stories() {
@@ -1082,6 +1084,20 @@ void Stories::loadAround(FullStoryId id, StoriesContext context) {
 }
 
 void Stories::markAsRead(FullStoryId id, bool viewed) {
+	if (id.peer == _owner->session().userPeerId()) {
+		return;
+	}
+	const auto maybeStory = lookup(id);
+	if (!maybeStory) {
+		return;
+	}
+	const auto story = *maybeStory;
+	if (story->expired() && story->pinned()) {
+		_incrementViewsPending[id.peer].emplace(id.story);
+		if (!_incrementViewsTimer.isActive()) {
+			_incrementViewsTimer.callOnce(kIncrementViewsDelay);
+		}
+	}
 	const auto i = _all.find(id.peer);
 	Assert(i != end(_all));
 	if (i->second.readTill >= id.story) {
@@ -1176,12 +1192,7 @@ void Stories::sendMarkAsReadRequest(
 			&& _markReadPending.contains(peerId)) {
 			sendMarkAsReadRequests();
 		}
-		if (_markReadRequests.empty()) {
-			if (Core::Quitting()) {
-				LOG(("Stories doesn't prevent quit any more."));
-			}
-			Core::App().quitPreventFinished();
-		}
+		checkQuitPreventFinished();
 	};
 
 	const auto api = &_owner->session().api();
@@ -1189,6 +1200,15 @@ void Stories::sendMarkAsReadRequest(
 		peer->asUser()->inputUser,
 		MTP_int(tillId)
 	)).done(finish).fail(finish).send();
+}
+
+void Stories::checkQuitPreventFinished() {
+	if (_markReadRequests.empty() && _incrementViewsRequests.empty()) {
+		if (Core::Quitting()) {
+			LOG(("Stories doesn't prevent quit any more."));
+		}
+		Core::App().quitPreventFinished();
+	}
 }
 
 void Stories::sendMarkAsReadRequests() {
@@ -1204,6 +1224,46 @@ void Stories::sendMarkAsReadRequests() {
 			sendMarkAsReadRequest(j->second.user, j->second.readTill);
 		}
 		i = _markReadPending.erase(i);
+	}
+}
+
+void Stories::sendIncrementViewsRequests() {
+	if (_incrementViewsPending.empty()) {
+		return;
+	}
+	auto ids = QVector<MTPint>();
+	auto peer = PeerId();
+	struct Prepared {
+		PeerId peer = 0;
+		QVector<MTPint> ids;
+	};
+	auto prepared = std::vector<Prepared>();
+	for (const auto &[peer, ids] : _incrementViewsPending) {
+		if (_incrementViewsRequests.contains(peer)) {
+			continue;
+		}
+		prepared.push_back({ .peer = peer });
+		for (const auto &id : ids) {
+			prepared.back().ids.push_back(MTP_int(id));
+		}
+	}
+
+	const auto api = &_owner->session().api();
+	for (auto &[peer, ids] : prepared) {
+		_incrementViewsRequests.emplace(peer);
+		const auto finish = [=] {
+			_incrementViewsRequests.remove(peer);
+			if (!_incrementViewsTimer.isActive()
+				&& _incrementViewsPending.contains(peer)) {
+				sendIncrementViewsRequests();
+			}
+			checkQuitPreventFinished();
+		};
+		api->request(MTPstories_IncrementStoryViews(
+			_owner->peer(peer)->asUser()->inputUser,
+			MTP_vector<MTPint>(std::move(ids))
+		)).done(finish).fail(finish).send();
+		_incrementViewsPending.remove(peer);
 	}
 }
 
@@ -1392,7 +1452,10 @@ bool Stories::isQuitPrevent() {
 	if (!_markReadPending.empty()) {
 		sendMarkAsReadRequests();
 	}
-	if (_markReadRequests.empty()) {
+	if (!_incrementViewsPending.empty()) {
+		sendIncrementViewsRequests();
+	}
+	if (_markReadRequests.empty() && _incrementViewsRequests.empty()) {
 		return false;
 	}
 	LOG(("Stories prevents quit, marking as read..."));
