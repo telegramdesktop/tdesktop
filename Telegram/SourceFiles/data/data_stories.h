@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/qt/qt_compare.h"
 #include "base/expected.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
@@ -155,15 +156,31 @@ enum class StorySourcesList : uchar {
 };
 
 struct StoriesContextSingle {
+	friend inline auto operator<=>(
+		StoriesContextSingle,
+		StoriesContextSingle) = default;
+	friend inline bool operator==(StoriesContextSingle, StoriesContextSingle) = default;
 };
 
 struct StoriesContextPeer {
+	friend inline auto operator<=>(
+		StoriesContextPeer,
+		StoriesContextPeer) = default;
+	friend inline bool operator==(StoriesContextPeer, StoriesContextPeer) = default;
 };
 
 struct StoriesContextSaved {
+	friend inline auto operator<=>(
+		StoriesContextSaved,
+		StoriesContextSaved) = default;
+	friend inline bool operator==(StoriesContextSaved, StoriesContextSaved) = default;
 };
 
 struct StoriesContextArchive {
+	friend inline auto operator<=>(
+		StoriesContextArchive,
+		StoriesContextArchive) = default;
+	friend inline bool operator==(StoriesContextArchive, StoriesContextArchive) = default;
 };
 
 struct StoriesContext {

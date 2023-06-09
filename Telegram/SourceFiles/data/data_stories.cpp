@@ -515,7 +515,7 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 			i->second = std::move(result);
 		}
 	} else {
-		_all.emplace(peerId, std::move(result)).first;
+		_all.emplace(peerId, std::move(result));
 	}
 	const auto add = [&](StorySourcesList list) {
 		auto &sources = _sources[static_cast<int>(list)];
@@ -1251,7 +1251,7 @@ void Stories::sendIncrementViewsRequests() {
 	const auto api = &_owner->session().api();
 	for (auto &[peer, ids] : prepared) {
 		_incrementViewsRequests.emplace(peer);
-		const auto finish = [=] {
+		const auto finish = [=, peer = peer] {
 			_incrementViewsRequests.remove(peer);
 			if (!_incrementViewsTimer.isActive()
 				&& _incrementViewsPending.contains(peer)) {

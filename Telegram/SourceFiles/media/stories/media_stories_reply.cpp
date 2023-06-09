@@ -117,7 +117,7 @@ void ReplyArea::sendReaction(const Data::ReactionId &id) {
 			const auto id = Data::SerializeCustomEmojiId(customId);
 			message.textWithTags = {
 				text,
-				{ { 0, text.size(), Ui::InputField::CustomEmojiLink(id) } }
+				{ { 0, int(text.size()), Ui::InputField::CustomEmojiLink(id) } }
 			};
 		}
 	}
