@@ -771,7 +771,7 @@ void MainMenu::setupMenu() {
 					tr::lng_menu_my_stories(),
 					st::mainMenuButton,
 					IconDescriptor{
-						&st::settingsIconSavedMessages,
+						&st::settingsIconStories,
 						kIconLightOrange
 					})));
 		const auto stories = &controller->session().data().stories();

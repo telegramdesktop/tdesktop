@@ -94,6 +94,7 @@ settingsIconGroup: icon {{ "settings/group", settingsIconFg }};
 settingsIconChannel: icon {{ "settings/channel", settingsIconFg }};
 settingsIconUser: icon {{ "settings/user", settingsIconFg }};
 settingsIconSavedMessages: icon {{ "settings/saved_messages", settingsIconFg }};
+settingsIconStories: icon {{ "settings/stories", settingsIconFg }};
 settingsIconKey: icon {{ "settings/key", settingsIconFg }};
 settingsIconReload: icon {{ "settings/reload", settingsIconFg }};
 settingsIconNight: icon {{ "settings/night", settingsIconFg }};
