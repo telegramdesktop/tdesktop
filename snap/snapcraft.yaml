@@ -31,6 +31,7 @@ apps:
       - hardware-observe
       - home
       - network
+      - network-bind
       - network-status
       - opengl
       - removable-media
