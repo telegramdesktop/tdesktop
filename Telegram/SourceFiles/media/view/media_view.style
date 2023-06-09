@@ -525,6 +525,122 @@ storiesComposePremium: PremiumLimits(defaultPremiumLimits) {
 	nonPremiumBg: storiesComposeBgOver;
 	nonPremiumFg: storiesComposeWhiteText;
 }
+storiesEmojiTabbedSearch: TabbedSearch(defaultTabbedSearch) {
+	outer: storiesComposeBg;
+	bg: storiesComposeBgOver;
+	bgActive: storiesComposeBgRipple;
+	fg: storiesComposeGrayIcon;
+	fgActive: storiesComposeWhiteText;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBgOver }};
+	fadeRight: icon {{ "fade_horizontal", storiesComposeBgOver }};
+	field: InputField(defaultTabbedSearchField) {
+		textFg: storiesComposeWhiteText;
+		placeholderFg: storiesComposeGrayText;
+		placeholderFgActive: storiesComposeGrayText;
+		placeholderFgError: storiesComposeGrayText;
+	}
+	search: IconButton(defaultTabbedSearchButton) {
+		icon: icon{{ "emoji/emoji_search_input", storiesComposeGrayIcon }};
+		iconOver: icon{{ "emoji/emoji_search_input", storiesComposeGrayIcon }};
+		ripple: storiesComposeRipple;
+	}
+	back: IconButton(defaultTabbedSearchBack) {
+		icon: icon{{ "emoji/emoji_back", storiesComposeGrayIcon }};
+		iconOver: icon{{ "emoji/emoji_back", storiesComposeGrayIcon }};
+		ripple: storiesComposeRipple;
+	}
+	cancel: CrossButton(defaultTabbedSearchCancel) {
+		crossFg: storiesComposeGrayIcon;
+		crossFgOver: storiesComposeGrayIcon;
+		ripple: emptyRippleAnimation;
+	}
+}
+storiesEmojiPan: EmojiPan(defaultEmojiPan) {
+	showAnimation: PanelAnimation(emojiPanAnimation) {
+		fadeBg: storiesComposeBg;
+	}
+	bg: storiesComposeBg;
+	headerFg: storiesComposeGrayText;
+	trendingHeaderFg: storiesComposeWhiteText;
+	trendingSubheaderFg: storiesComposeGrayText;
+	trendingUnreadFg: storiesComposeBlue;
+	trendingInstalled: icon {{ "chat/input_save", storiesComposeBlue }};
+	overBg: storiesComposeBgOver;
+	pathBg: storiesComposeBgRipple;
+	pathFg: storiesComposeBgOver;
+	textFg: storiesComposeWhiteText;
+	categoriesBg: storiesComposeBg;
+	categoriesBgOver: storiesComposeBgOver;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
+	fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
+	menu: storiesPopupMenuWithIcons;
+	expandedSeparator: MenuSeparator(storiesMenuSeparator) {
+		padding: margins(0px, 4px, 0px, 4px);
+		width: 6px;
+	}
+	tabs: SettingsSlider(emojiTabs) {
+		barFgActive: storiesComposeBlue;
+		labelFg: storiesComposeGrayText;
+		labelFgActive: storiesComposeBlue;
+		rippleBg: storiesComposeBgOver;
+		rippleBgActive: storiesComposeBgOver;
+	}
+	search: storiesEmojiTabbedSearch;
+	removeSet: storiesRemoveSet;
+	boxLabel: FlatLabel(boxLabel) {
+		textFg: groupCallMembersFg;
+	}
+	icons: ComposeIcons {
+		settings: icon {{ "emoji/emoji_settings", storiesComposeGrayIcon }};
+
+		recent: icon {{ "emoji/emoji_recent", storiesComposeGrayIcon }};
+		recentActive: icon {{ "emoji/emoji_recent", storiesComposeWhiteText }};
+		people: icon {{ "emoji/emoji_smile", storiesComposeGrayIcon }};
+		peopleActive: icon {{ "emoji/emoji_smile", storiesComposeWhiteText }};
+		nature: icon {{ "emoji/emoji_nature", storiesComposeGrayIcon }};
+		natureActive: icon {{ "emoji/emoji_nature", storiesComposeWhiteText }};
+		food: icon {{ "emoji/emoji_food", storiesComposeGrayIcon }};
+		foodActive: icon {{ "emoji/emoji_food", storiesComposeWhiteText }};
+		activity: icon {{ "emoji/emoji_activities", storiesComposeGrayIcon }};
+		activityActive: icon {{ "emoji/emoji_activities", storiesComposeWhiteText }};
+		travel: icon {{ "emoji/emoji_travel", storiesComposeGrayIcon }};
+		travelActive: icon {{ "emoji/emoji_travel", storiesComposeWhiteText }};
+		objects: icon {{ "emoji/emoji_objects", storiesComposeGrayIcon }};
+		objectsActive: icon {{ "emoji/emoji_objects", storiesComposeWhiteText }};
+		symbols: icon {{ "emoji/emoji_love", storiesComposeGrayIcon }};
+		symbolsActive: icon {{ "emoji/emoji_love", storiesComposeWhiteText }};
+
+		menuFave: icon {{ "menu/favorite", storiesComposeWhiteText }};
+		menuUnfave: icon {{ "menu/unfavorite", storiesComposeWhiteText }};
+		menuStickerSet: icon {{ "menu/stickers", storiesComposeWhiteText }};
+		menuRecentRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuGifAdd: icon {{ "menu/gif", storiesComposeWhiteText }};
+		menuGifRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuMute: icon {{ "menu/mute", storiesComposeWhiteText }};
+		menuSchedule: icon {{ "menu/calendar", storiesComposeWhiteText }};
+		menuWhenOnline: icon {{ "menu/send_when_online", storiesComposeWhiteText }};
+		menuSpoiler: icon {{ "menu/spoiler_on", storiesComposeWhiteText }};
+		menuSpoilerOff: icon {{ "menu/spoiler_off", storiesComposeWhiteText }};
+
+		stripBubble: icon{
+			{ "chat/reactions_bubble_shadow", windowShadowFg },
+			{ "chat/reactions_bubble", storiesComposeBg },
+		};
+		stripPremiumLocked: icon{
+			{ "chat/reactions_premium_bg", storiesComposeBgRipple },
+			{ "chat/reactions_premium_star", storiesComposeGrayIcon },
+		};
+		stripExpandPanel: icon{
+			{ "chat/reactions_round_big", storiesComposeBgRipple },
+			{ "chat/reactions_expand_panel", storiesComposeGrayIcon },
+		};
+		stripExpandDropdown: icon{
+			{ "chat/reactions_round_small", storiesComposeBgRipple },
+			{ "chat/reactions_expand_panel", storiesComposeGrayIcon },
+		};
+	}
+	autocompleteBottomSkip: 10px;
+}
 storiesComposeControls: ComposeControls(defaultComposeControls) {
 	bg: storiesComposeBg;
 	radius: storiesRadius;
@@ -560,104 +676,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 		fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
 		fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
 	}
-	tabbed: EmojiPan(defaultEmojiPan) {
-		showAnimation: PanelAnimation(emojiPanAnimation) {
-			fadeBg: storiesComposeBg;
-		}
-		bg: storiesComposeBg;
-		headerFg: storiesComposeGrayText;
-		trendingHeaderFg: storiesComposeWhiteText;
-		trendingSubheaderFg: storiesComposeGrayText;
-		trendingUnreadFg: storiesComposeBlue;
-		trendingInstalled: icon {{ "chat/input_save", storiesComposeBlue }};
-		overBg: storiesComposeBgOver;
-		pathBg: storiesComposeBgRipple;
-		pathFg: storiesComposeBgOver;
-		textFg: storiesComposeWhiteText;
-		categoriesBg: storiesComposeBg;
-		categoriesBgOver: storiesComposeBgOver;
-		fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
-		fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
-		menu: storiesPopupMenuWithIcons;
-		expandedSeparator: MenuSeparator(storiesMenuSeparator) {
-			padding: margins(0px, 4px, 0px, 4px);
-			width: 6px;
-		}
-		tabs: SettingsSlider(emojiTabs) {
-			barFgActive: storiesComposeBlue;
-			labelFg: storiesComposeGrayText;
-			labelFgActive: storiesComposeBlue;
-			rippleBg: storiesComposeBgOver;
-			rippleBgActive: storiesComposeBgOver;
-		}
-		search: TabbedSearch(defaultTabbedSearch) {
-			outer: storiesComposeBg;
-			bg: storiesComposeBgOver;
-			bgActive: storiesComposeBgRipple;
-			fg: storiesComposeGrayIcon;
-			fgActive: storiesComposeWhiteText;
-			fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBgOver }};
-			fadeRight: icon {{ "fade_horizontal", storiesComposeBgOver }};
-			field: InputField(defaultTabbedSearchField) {
-				textFg: storiesComposeWhiteText;
-				placeholderFg: storiesComposeGrayText;
-				placeholderFgActive: storiesComposeGrayText;
-				placeholderFgError: storiesComposeGrayText;
-			}
-			search: IconButton(defaultTabbedSearchButton) {
-				icon: icon{{ "emoji/emoji_search_input", storiesComposeGrayIcon }};
-				iconOver: icon{{ "emoji/emoji_search_input", storiesComposeGrayIcon }};
-				ripple: storiesComposeRipple;
-			}
-			back: IconButton(defaultTabbedSearchBack) {
-				icon: icon{{ "emoji/emoji_back", storiesComposeGrayIcon }};
-				iconOver: icon{{ "emoji/emoji_back", storiesComposeGrayIcon }};
-				ripple: storiesComposeRipple;
-			}
-			cancel: CrossButton(defaultTabbedSearchCancel) {
-				crossFg: storiesComposeGrayIcon;
-				crossFgOver: storiesComposeGrayIcon;
-				ripple: emptyRippleAnimation;
-			}
-		}
-		removeSet: storiesRemoveSet;
-		boxLabel: FlatLabel(boxLabel) {
-			textFg: groupCallMembersFg;
-		}
-		icons: ComposeIcons {
-			settings: icon {{ "emoji/emoji_settings", storiesComposeGrayIcon }};
-
-			recent: icon {{ "emoji/emoji_recent", storiesComposeGrayIcon }};
-			recentActive: icon {{ "emoji/emoji_recent", storiesComposeWhiteText }};
-			people: icon {{ "emoji/emoji_smile", storiesComposeGrayIcon }};
-			peopleActive: icon {{ "emoji/emoji_smile", storiesComposeWhiteText }};
-			nature: icon {{ "emoji/emoji_nature", storiesComposeGrayIcon }};
-			natureActive: icon {{ "emoji/emoji_nature", storiesComposeWhiteText }};
-			food: icon {{ "emoji/emoji_food", storiesComposeGrayIcon }};
-			foodActive: icon {{ "emoji/emoji_food", storiesComposeWhiteText }};
-			activity: icon {{ "emoji/emoji_activities", storiesComposeGrayIcon }};
-			activityActive: icon {{ "emoji/emoji_activities", storiesComposeWhiteText }};
-			travel: icon {{ "emoji/emoji_travel", storiesComposeGrayIcon }};
-			travelActive: icon {{ "emoji/emoji_travel", storiesComposeWhiteText }};
-			objects: icon {{ "emoji/emoji_objects", storiesComposeGrayIcon }};
-			objectsActive: icon {{ "emoji/emoji_objects", storiesComposeWhiteText }};
-			symbols: icon {{ "emoji/emoji_love", storiesComposeGrayIcon }};
-			symbolsActive: icon {{ "emoji/emoji_love", storiesComposeWhiteText }};
-
-			menuFave: icon {{ "menu/favorite", storiesComposeWhiteText }};
-			menuUnfave: icon {{ "menu/unfavorite", storiesComposeWhiteText }};
-			menuStickerSet: icon {{ "menu/stickers", storiesComposeWhiteText }};
-			menuRecentRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
-			menuGifAdd: icon {{ "menu/gif", storiesComposeWhiteText }};
-			menuGifRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
-			menuMute: icon {{ "menu/mute", storiesComposeWhiteText }};
-			menuSchedule: icon {{ "menu/calendar", storiesComposeWhiteText }};
-			menuWhenOnline: icon {{ "menu/send_when_online", storiesComposeWhiteText }};
-			menuSpoiler: icon {{ "menu/spoiler_on", storiesComposeWhiteText }};
-			menuSpoilerOff: icon {{ "menu/spoiler_off", storiesComposeWhiteText }};
-		}
-		autocompleteBottomSkip: 10px;
-	}
+	tabbed: storiesEmojiPan;
 	tabbedHeightMin: 220px;
 	tabbedHeightMax: 480px;
 	record: RecordBar(defaultRecordBar) {
@@ -747,6 +766,18 @@ storiesWhoViewed: WhoRead(defaultWhoRead) {
 		align: align(left);
 	}
 }
+storiesReactionsPan: EmojiPan(storiesEmojiPan) {
+	margin: margins(reactStripSkip, 0px, reactStripSkip, 0px);
+	padding: margins(reactStripSkip, 0px, reactStripSkip, reactStripSkip);
+	desiredSize: reactStripSize;
+	verticalSizeSub: 0px;
+	overBg: transparent;
+	search: TabbedSearch(storiesEmojiTabbedSearch) {
+		defaultFieldWidth: 88px;
+	}
+	searchMargin: margins(1px, 10px, 2px, 6px);
+}
+
 storiesReactionsWidth: 210px;
 storiesReactionsBottomSkip: 29px;
 storiesReactionsAddedTop: 200px;

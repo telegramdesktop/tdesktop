@@ -42,6 +42,7 @@ class Selector final : public Ui::RpWidget {
 public:
 	Selector(
 		not_null<QWidget*> parent,
+		const style::EmojiPan &st,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::PossibleItemReactionsRef &reactions,
 		IconFactory iconFactory,
@@ -49,6 +50,7 @@ public:
 		bool child = false);
 	Selector(
 		not_null<QWidget*> parent,
+		const style::EmojiPan &st,
 		std::shared_ptr<ChatHelpers::Show> show,
 		ChatHelpers::EmojiListMode mode,
 		std::vector<DocumentId> recent,
@@ -95,6 +97,7 @@ private:
 
 	Selector(
 		not_null<QWidget*> parent,
+		const style::EmojiPan &st,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::PossibleItemReactionsRef &reactions,
 		ChatHelpers::EmojiListMode mode,
@@ -129,6 +132,7 @@ private:
 	void finishExpand();
 	ChosenReaction lookupChosen(const Data::ReactionId &id) const;
 
+	const style::EmojiPan &_st;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const Data::PossibleItemReactions _reactions;
 	const std::vector<DocumentId> _recent;

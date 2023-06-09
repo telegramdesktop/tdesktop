@@ -69,6 +69,11 @@ ComposeIcons {
 	menuWhenOnline: icon;
 	menuSpoiler: icon;
 	menuSpoilerOff: icon;
+
+	stripBubble: icon;
+	stripPremiumLocked: icon;
+	stripExpandPanel: icon;
+	stripExpandDropdown: icon;
 }
 
 EmojiSuggestions {
@@ -532,6 +537,23 @@ defaultComposeIcons: ComposeIcons {
 	menuWhenOnline: menuIconWhenOnline;
 	menuSpoiler: menuIconSpoiler;
 	menuSpoilerOff: menuIconSpoilerOff;
+
+	stripBubble: icon{
+		{ "chat/reactions_bubble_shadow", windowShadowFg },
+		{ "chat/reactions_bubble", windowBg },
+	};
+	stripPremiumLocked: icon{
+		{ "chat/reactions_premium_bg", historyPeerArchiveUserpicBg },
+		{ "chat/reactions_premium_star", historyPeerUserpicFg },
+	};
+	stripExpandPanel: icon{
+		{ "chat/reactions_round_big", windowBgRipple },
+		{ "chat/reactions_expand_panel", windowSubTextFg },
+	};
+	stripExpandDropdown: icon{
+		{ "chat/reactions_round_small", windowBgRipple },
+		{ "chat/reactions_expand_panel", windowSubTextFg },
+	};
 }
 defaultEmojiPan: EmojiPan {
 	margin: margins(7px, 0px, 7px, 0px);
@@ -646,10 +668,6 @@ reactStripSize: 32px;
 reactStripMinWidth: 60px;
 reactStripImage: 26px;
 reactStripSkip: 7px;
-reactStripBubble: icon{
-	{ "chat/reactions_bubble_shadow", windowShadowFg },
-	{ "chat/reactions_bubble", windowBg },
-};
 reactStripBubbleRight: 20px;
 userpicBuilderEmojiPan: EmojiPan(statusEmojiPan) {
 	margin: margins(reactStripSkip, 0px, reactStripSkip, 0px);

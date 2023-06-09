@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_area_with_shadow.h"
 #include "data/data_message_reaction_id.h"
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 class HistoryItem;
 
 namespace Data {
@@ -44,7 +48,12 @@ class Strip final {
 public:
 	using ReactionId = Data::ReactionId;
 
-	Strip(QRect inner, int size, Fn<void()> update, IconFactory iconFactory);
+	Strip(
+		const style::EmojiPan &st,
+		QRect inner,
+		int size,
+		Fn<void()> update,
+		IconFactory iconFactory);
 
 	enum class AddedButton : uchar {
 		None,
@@ -121,6 +130,7 @@ private:
 	void resolveMainReactionIcon();
 	void setMainReactionIcon();
 
+	const style::EmojiPan &_st;
 	const IconFactory _iconFactory;
 	const QRect _inner;
 	const int _finalSize = 0;

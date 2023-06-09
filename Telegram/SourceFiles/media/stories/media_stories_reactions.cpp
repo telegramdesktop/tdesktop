@@ -134,6 +134,7 @@ void Reactions::create() {
 	const auto withSearch = reactions.customAllowed;
 	_selector = std::make_unique<HistoryView::Reactions::Selector>(
 		_parent.get(),
+		st::storiesReactionsPan,
 		_controller->uiShow(),
 		std::move(reactions),
 		_controller->cachedReactionIconFactory().createMethod(),

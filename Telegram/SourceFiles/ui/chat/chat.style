@@ -827,19 +827,6 @@ reactionMainAppearShift: 20px;
 reactionCollapseFadeThreshold: 40px;
 reactionFlyUp: 50px;
 
-reactionPremiumLocked: icon{
-	{ "chat/reactions_premium_bg", historyPeerArchiveUserpicBg },
-	{ "chat/reactions_premium_star", historyPeerUserpicFg },
-};
-reactionExpandPanel: icon{
-	{ "chat/reactions_round_big", windowBgRipple },
-	{ "chat/reactions_expand_panel", windowSubTextFg },
-};
-reactionsExpandDropdown: icon{
-	{ "chat/reactions_round_small", windowBgRipple },
-	{ "chat/reactions_expand_panel", windowSubTextFg },
-};
-
 searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {
 	maxWidth: 200px;
 }
