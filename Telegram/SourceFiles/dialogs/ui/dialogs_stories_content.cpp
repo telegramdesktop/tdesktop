@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "main/main_session.h"
+#include "lang/lang_keys.h"
 #include "ui/painter.h"
 
 namespace Dialogs::Stories {
@@ -144,7 +145,9 @@ Content State::next() {
 		}
 		result.users.push_back({
 			.id = uint64(user->id.value),
-			.name = user->shortName(),
+			.name = (user->isSelf()
+				? tr::lng_stories_my_name(tr::now)
+				: user->shortName()),
 			.userpic = std::move(userpic),
 			.unread = info.unread,
 			.hidden = info.hidden,
