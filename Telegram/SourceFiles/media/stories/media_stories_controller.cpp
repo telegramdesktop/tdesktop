@@ -167,6 +167,11 @@ Controller::Controller(not_null<Delegate*> delegate)
 		}
 	}, _lifetime);
 
+	_reactions->chosen(
+	) | rpl::start_with_next([=](const Data::ReactionId &id) {
+		_replyArea->sendReaction(id);
+	}, _lifetime);
+
 	_delegate->storiesLayerShown(
 	) | rpl::start_with_next([=](bool shown) {
 		_layerShown = shown;

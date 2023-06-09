@@ -17,6 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/data_document.h"
+#include "data/data_message_reaction_id.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/view/controls/compose_controls_common.h"
@@ -101,13 +104,39 @@ void ReplyArea::initGeometry() {
 	}, _lifetime);
 }
 
+void ReplyArea::sendReaction(const Data::ReactionId &id) {
+	Expects(_data.user != nullptr);
+
+	auto message = Api::MessageToSend(prepareSendAction({}));
+	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
+		message.textWithTags = { emoji };
+	} else if (const auto customId = id.custom()) {
+		const auto document = _data.user->owner().document(customId);
+		if (const auto sticker = document->sticker()) {
+			const auto text = sticker->alt;
+			const auto id = Data::SerializeCustomEmojiId(customId);
+			message.textWithTags = {
+				text,
+				{ { 0, text.size(), Ui::InputField::CustomEmojiLink(id) } }
+			};
+		}
+	}
+	if (!message.textWithTags.empty()) {
+		send(std::move(message), {});
+	}
+}
+
 void ReplyArea::send(Api::SendOptions options) {
 	const auto webPageId = _controls->webPageId();
 
-	auto message = ApiWrap::MessageToSend(prepareSendAction(options));
+	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _controls->getTextWithAppliedMarkdown();
 	message.webPageId = webPageId;
 
+	send(std::move(message), options);
+}
+
+void ReplyArea::send(Api::MessageToSend message, Api::SendOptions options) {
 	const auto error = GetErrorTextForSending(
 		_data.user,
 		{

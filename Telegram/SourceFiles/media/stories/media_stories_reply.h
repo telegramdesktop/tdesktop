@@ -15,7 +15,12 @@ enum class SendMediaType;
 namespace Api {
 struct SendAction;
 struct SendOptions;
+struct MessageToSend;
 } // namespace Api
+
+namespace Data {
+struct ReactionId;
+} // namespace Data
 
 namespace HistoryView {
 class ComposeControls;
@@ -56,6 +61,7 @@ public:
 	~ReplyArea();
 
 	void show(ReplyAreaData data);
+	void sendReaction(const Data::ReactionId &id);
 
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
 	[[nodiscard]] rpl::producer<bool> activeValue() const;
@@ -66,6 +72,8 @@ private:
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<History*> history() const;
+
+	void send(Api::MessageToSend message, Api::SendOptions options);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(

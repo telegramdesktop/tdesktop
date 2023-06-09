@@ -1166,7 +1166,7 @@ void RepliesWidget::send(Api::SendOptions options) {
 
 	const auto webPageId = _composeControls->webPageId();
 
-	auto message = ApiWrap::MessageToSend(prepareSendAction(options));
+	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();
 	message.webPageId = webPageId;
 
@@ -2507,8 +2507,7 @@ void RepliesWidget::listSendBotCommand(
 		_history->peer,
 		command,
 		context);
-	auto message = ApiWrap::MessageToSend(
-		prepareSendAction({}));
+	auto message = Api::MessageToSend(prepareSendAction({}));
 	message.textWithTags = { text };
 	session().api().sendMessage(std::move(message));
 	finishSending();

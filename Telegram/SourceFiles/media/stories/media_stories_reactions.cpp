@@ -143,9 +143,8 @@ void Reactions::create() {
 	_selector->chosen(
 	) | rpl::start_with_next([=](
 			HistoryView::Reactions::ChosenReaction reaction) {
+		_chosen.fire_copy(reaction.id);
 		hide();
-		//reaction.context = itemId;
-		//chosen(std::move(reaction));
 	}, _selector->lifetime());
 
 	_selector->premiumPromoChosen() | rpl::start_with_next([=] {

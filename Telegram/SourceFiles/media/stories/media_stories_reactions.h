@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace HistoryView::Reactions {
 class Selector;
 } // namespace HistoryView::Reactions
@@ -29,6 +33,9 @@ public:
 	[[nodiscard]] rpl::producer<bool> expandedValue() const {
 		return _expanded.value();
 	}
+	[[nodiscard]] rpl::producer<Data::ReactionId> chosen() const {
+		return _chosen.events();
+	}
 
 	void show();
 	void hide();
@@ -47,6 +54,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _parent;
 	std::unique_ptr<HistoryView::Reactions::Selector> _selector;
 	std::vector<std::unique_ptr<Hiding>> _hiding;
+	rpl::event_stream<Data::ReactionId> _chosen;
 	Ui::Animations::Simple _showing;
 	rpl::variable<float64> _shownValue;
 	rpl::variable<bool> _expanded;
