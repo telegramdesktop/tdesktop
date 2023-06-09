@@ -76,7 +76,7 @@ void OverlayWidget::RendererSW::paintTransformedVideoFrame(
 		return;
 	}
 	paintTransformedImage(_owner->videoFrame(), rect, rotation);
-	paintControlsFade(rect, geometry.controlsOpacity, geometry.fade);
+	paintControlsFade(rect, geometry);
 }
 
 void OverlayWidget::RendererSW::paintTransformedStaticContent(
@@ -97,56 +97,71 @@ void OverlayWidget::RendererSW::paintTransformedStaticContent(
 	if (!image.isNull()) {
 		paintTransformedImage(image, rect, rotation);
 	}
-	paintControlsFade(rect, geometry.controlsOpacity, geometry.fade);
+	paintControlsFade(rect, geometry);
 }
 
 void OverlayWidget::RendererSW::paintControlsFade(
-		QRect geometry,
-		float64 opacity,
-		float64 fullFade) {
-	if (fullFade > 0.) {
-		_p->setOpacity(fullFade);
-		_p->fillRect(geometry, Qt::black);
-		opacity *= 1. - fullFade;
+	QRect content,
+	const ContentGeometry &geometry) {
+	auto opacity = geometry.controlsOpacity;
+	if (geometry.fade > 0.) {
+		_p->setOpacity(geometry.fade);
+		_p->fillRect(content, Qt::black);
+		opacity *= 1. - geometry.fade;
 	}
 
 	_p->setOpacity(opacity);
-	_p->setClipRect(geometry);
+	_p->setClipRect(content);
 	const auto width = _owner->width();
-	const auto flip = !_owner->topShadowOnTheRight();
 	const auto stories = (_owner->_stories != nullptr);
-	const auto &top = stories
-		? st::storiesShadowTop
-		: st::mediaviewShadowTop;
-	const auto topShadow = stories
-		? QRect(geometry.topLeft(), QSize(geometry.width(), top.height()))
-		: QRect(
-			QPoint(flip ? 0 : (width - top.width()), 0),
-			top.size());
-	if (topShadow.intersected(geometry).intersects(_clipOuter)) {
-		if (flip) {
-			if (_topShadowCache.isNull()
-				|| _topShadowColor != st::windowShadowFg->c) {
-				_topShadowColor = st::windowShadowFg->c;
-				_topShadowCache = top.instance(
-					_topShadowColor).mirrored(true, false);
+	if (!stories || geometry.topShadowShown) {
+		const auto flip = !stories && !_owner->topShadowOnTheRight();
+		const auto &top = stories
+			? st::storiesShadowTop
+			: st::mediaviewShadowTop;
+		const auto topShadow = stories
+			? QRect(
+				content.topLeft(),
+				QSize(content.width(), top.height()))
+			: QRect(
+				QPoint(flip ? 0 : (width - top.width()), 0),
+				top.size());
+		if (topShadow.intersected(content).intersects(_clipOuter)) {
+			if (stories) {
+				top.fill(*_p, topShadow);
+			} else if (flip) {
+				if (_topShadowCache.isNull()
+					|| _topShadowColor != st::windowShadowFg->c) {
+					_topShadowColor = st::windowShadowFg->c;
+					_topShadowCache = top.instance(
+						_topShadowColor).mirrored(true, false);
+				}
+				_p->drawImage(0, 0, _topShadowCache);
+			} else {
+				top.paint(*_p, topShadow.topLeft(), width);
 			}
-			_p->drawImage(0, 0, _topShadowCache);
-		} else {
-			top.paint(*_p, topShadow.topLeft(), width);
 		}
 	}
 	const auto &bottom = stories
 		? st::storiesShadowBottom
 		: st::mediaviewShadowBottom;
+	const auto bottomStart = _owner->height() - geometry.bottomShadowSkip;
 	const auto bottomShadow = QRect(
-		QPoint(0, _owner->height() - bottom.height()),
+		QPoint(0, bottomStart - bottom.height()),
 		QSize(width, bottom.height()));
-	if (bottomShadow.intersected(geometry).intersects(_clipOuter)) {
+	if (bottomShadow.intersected(content).intersects(_clipOuter)) {
 		bottom.fill(*_p, bottomShadow);
 	}
 	_p->setClipping(false);
 	_p->setOpacity(1.);
+	if (bottomStart < content.y() + content.height()) {
+		_p->fillRect(
+			content.x(),
+			bottomStart,
+			content.width(),
+			content.y() + content.height() - bottomStart,
+			QColor(0, 0, 0, 88));
+	}
 }
 
 void OverlayWidget::RendererSW::paintTransformedImage(

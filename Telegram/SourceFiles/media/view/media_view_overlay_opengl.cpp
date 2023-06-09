@@ -749,8 +749,8 @@ void OverlayWidget::RendererGL::invalidateControls() {
 }
 
 void OverlayWidget::RendererGL::validateControlsFade() {
-	const auto flip = !_owner->topShadowOnTheRight();
 	const auto forStories = (_owner->_stories != nullptr);
+	const auto flip = !forStories && !_owner->topShadowOnTheRight();
 	if (!_controlsFadeImage.image().isNull()
 		&& _shadowTopFlip == flip
 		&& _shadowsForStories == forStories) {
