@@ -20,7 +20,6 @@ void PaintLinearChartView(
 		const Limits &xPercentageLimitsWas,
 		const Limits &xPercentageLimitsNow,
 		const Limits &xPercentageLimitsNowY,
-		float64 progress,
 		const QRect &rect) {
 	const auto offset = 0;
 	const auto currentMinHeight = rect.y(); //
@@ -50,33 +49,6 @@ void PaintLinearChartView(
 
 		auto minY = std::numeric_limits<float64>::max();
 		auto maxY = 0.;
-		auto minYIndex = 0;
-		auto maxYIndex = 0;
-		const auto tempXPercentage = Limits{
-			.min = *ranges::lower_bound(
-				chartData.xPercentage,
-				anim::interpolateF(xPercentageLimitsWas.min, xPercentageLimitsNow.min, progress)),
-			.max = *ranges::lower_bound(
-				chartData.xPercentage,
-				anim::interpolateF(xPercentageLimitsWas.max, xPercentageLimitsNow.max, progress)),
-		};
-		for (auto i = 0; i < chartData.xPercentage.size(); i++) {
-			if (chartData.xPercentage[i] == tempXPercentage.min) {
-				minYIndex = i;
-			}
-			if (chartData.xPercentage[i] == tempXPercentage.max) {
-				maxYIndex = i;
-			}
-		}
-		for (auto i = minYIndex; i < maxYIndex; i++) {
-			if (line.y[i] > maxY) {
-				maxY = line.y[i];
-			}
-			if (line.y[i] < minY) {
-				minY = line.y[i];
-			}
-		}
-
 		minY = xPercentageLimitsNowY.min;
 		maxY = xPercentageLimitsNowY.max;
 

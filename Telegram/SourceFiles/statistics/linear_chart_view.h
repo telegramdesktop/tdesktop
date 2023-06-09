@@ -21,7 +21,6 @@ void PaintLinearChartView(
 	const Limits &xPercentageLimitsWas,
 	const Limits &xPercentageLimitsNow,
 	const Limits &xPercentageLimitsNowY,
-	float64 progress,
 	const QRect &rect);
 
 } // namespace Statistic

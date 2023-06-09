@@ -46,15 +46,15 @@ private:
 		Limits was;
 		Limits now;
 		Ui::Animations::Basic animation;
-		crl::time lastUserInteracted = 0;
-		float64 progress = 0.;
-	} _xPercentage;
-	anim::value _animValueXMin;
-	anim::value _animValueXMax;
-	anim::value _animValueYMin;
-	anim::value _animValueYMax;
 
-	crl::time _yAnimStarted = 0;
+		crl::time lastUserInteracted = 0;
+		crl::time yAnimationStartedAt = 0;
+
+		anim::value animValueXMin;
+		anim::value animValueXMax;
+		anim::value animValueYMin;
+		anim::value animValueYMax;
+	} _xPercentage;
 
 	float64 _minMaxUpdateStep = 0.;
 

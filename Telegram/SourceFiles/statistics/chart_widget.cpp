@@ -19,6 +19,10 @@ namespace {
 
 constexpr auto kHeightLimitsUpdateTimeout = crl::time(320);
 
+[[nodiscard]] bool AnimFinished(const anim::value &anim) {
+	return anim.current() == anim.to();
+}
+
 [[nodiscard]] int FindMaxValue(
 		Data::StatisticalChart &chartData,
 		int startXIndex,
@@ -75,12 +79,14 @@ public:
 	Footer(not_null<Ui::RpWidget*> parent);
 
 	[[nodiscard]] rpl::producer<Limits> xPercentageLimitsChange() const;
+	[[nodiscard]] rpl::producer<> userInteractionFinished() const;
 
 private:
 	not_null<Ui::AbstractButton*> _left;
 	not_null<Ui::AbstractButton*> _right;
 
 	rpl::event_stream<Limits> _xPercentageLimitsChange;
+	rpl::event_stream<> _userInteractionFinished;
 
 	struct {
 		int x = 0;
@@ -148,6 +154,7 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 					.min = _left->x() / float64(width()),
 					.max = rect::right(_right) / float64(width()),
 				});
+				_userInteractionFinished.fire({});
 				_start = {};
 			} break;
 			}
@@ -165,6 +172,10 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 
 rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
 	return _xPercentageLimitsChange.events();
+}
+
+rpl::producer<> ChartWidget::Footer::userInteractionFinished() const {
+	return _userInteractionFinished.events();
 }
 
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
@@ -195,46 +206,51 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 				{},
 				limits,
 				limitsY,
-				1.,
 				_footer->rect());
 		}
 	}, _footer->lifetime());
 
+	constexpr auto kExpandingDelay = crl::time(400);
+	constexpr auto kXExpandingDuration = 200.;
+	constexpr auto kYExpandingDuration = 400.;
 	_xPercentage.animation.init([=](crl::time now) {
-		const auto timeDiff = (now - _xPercentage.lastUserInteracted);
-		const auto dt = (now - _xPercentage.animation.started())
-			/ float64(200);
-
-		if (!_yAnimStarted && timeDiff >= 400) {
-			_yAnimStarted = _xPercentage.lastUserInteracted;
+		if (!_xPercentage.yAnimationStartedAt
+			&& (now - _xPercentage.lastUserInteracted) >= kExpandingDelay) {
+			_xPercentage.yAnimationStartedAt = _xPercentage.lastUserInteracted
+				+ kExpandingDelay;
 		}
-		const auto dt2 = (now - _yAnimStarted - 400)
-			/ float64(2000);
+		const auto dtY = std::min(
+			(now - _xPercentage.yAnimationStartedAt) / kYExpandingDuration,
+			1.);
+		const auto dtX = std::min(
+			(now - _xPercentage.animation.started()) / kXExpandingDuration,
+			1.);
 
-		const auto progress = timeDiff / float64(2000.);
-		_xPercentage.progress = progress;
-		if ((_animValueXMin.to() == _animValueXMin.current())
-			&& (_animValueXMax.to() == _animValueXMax.current())
-			&& (_animValueYMin.to() == _animValueYMin.current())
-			&& (_animValueYMax.to() == _animValueYMax.current())) {
-		// if (progress > 1.) {
+		const auto xFinished = AnimFinished(_xPercentage.animValueXMin)
+			&& AnimFinished(_xPercentage.animValueXMax);
+		const auto yFinished = AnimFinished(_xPercentage.animValueYMin)
+			&& AnimFinished(_xPercentage.animValueYMax);
+		if (xFinished && yFinished) {
 			_xPercentage.animation.stop();
+		}
+		if (xFinished) {
+			_xPercentage.animValueXMin.finish();
+			_xPercentage.animValueXMax.finish();
+
 			_xPercentage.was = _xPercentage.now;
-
-			_animValueXMin.finish();
-			_animValueXMax.finish();
-			_animValueYMin.finish();
-			_animValueYMax.finish();
-
-			_yAnimStarted = 0;
 		} else {
-			_animValueXMin.update(std::min(dt, 1.), anim::linear);
-			_animValueXMax.update(std::min(dt, 1.), anim::linear);
+			_xPercentage.animValueXMin.update(dtX, anim::linear);
+			_xPercentage.animValueXMax.update(dtX, anim::linear);
+		}
+		if (yFinished) {
+			_xPercentage.animValueYMin.finish();
+			_xPercentage.animValueYMax.finish();
 
-			if (_yAnimStarted) {
-				_animValueYMin.update(std::min(dt2, 1.), anim::sineInOut);
-				_animValueYMax.update(std::min(dt2, 1.), anim::sineInOut);
-			}
+			_xPercentage.yAnimationStartedAt = 0;
+		}
+		if (_xPercentage.yAnimationStartedAt) {
+			_xPercentage.animValueYMin.update(dtY, anim::sineInOut);
+			_xPercentage.animValueYMax.update(dtY, anim::sineInOut);
 		}
 		const auto startXIndex = _chartData.findStartIndex(
 			_xPercentage.now.min);
@@ -250,14 +266,18 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		update();
 	});
 
+	_footer->userInteractionFinished(
+	) | rpl::start_with_next([=] {
+		_xPercentage.yAnimationStartedAt = crl::now();
+	}, _footer->lifetime());
+
 	_footer->xPercentageLimitsChange(
 	) | rpl::start_with_next([=](Limits xPercentageLimits) {
 		if (!_xPercentage.animation.animating()) {
 			_xPercentage.animation.start();
-			// _xPercentage.was = base::take(_xPercentage.now);
 		}
-		_animValueXMin.start(xPercentageLimits.min);
-		_animValueXMax.start(xPercentageLimits.max);
+		_xPercentage.animValueXMin.start(xPercentageLimits.min);
+		_xPercentage.animValueXMax.start(xPercentageLimits.max);
 		_xPercentage.now = xPercentageLimits;
 		_xPercentage.lastUserInteracted = crl::now();
 
@@ -293,8 +313,8 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 					}
 				}
 			}
-			_animValueYMin.start(minY);
-			_animValueYMax.start(maxY);
+			_xPercentage.animValueYMin.start(minY);
+			_xPercentage.animValueYMax.start(maxY);
 		}
 		// _xPercentage.animation.stop();
 		// const auto was = _xPercentageLimits;
@@ -374,10 +394,9 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 			p,
 			_chartData,
 			_xPercentage.was,
-			{ _animValueXMin.current(), _animValueXMax.current() },
-			{ _animValueYMin.current(), _animValueYMax.current() },
+			{ _xPercentage.animValueXMin.current(), _xPercentage.animValueXMax.current() },
+			{ _xPercentage.animValueYMin.current(), _xPercentage.animValueYMax.current() },
 			// _xPercentage.now,
-			_xPercentage.progress,
 			chartRect);
 	}
 
