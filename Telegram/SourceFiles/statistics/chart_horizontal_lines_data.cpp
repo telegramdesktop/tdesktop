@@ -82,11 +82,21 @@ ChartHorizontalLinesData::ChartHorizontalLinesData(
 			auto &line = lines[i];
 			const auto value = int(i * step);
 			line.absoluteValue = newMinHeight + value;
-			line.relativeValue = value / float64(diffAbsoluteValue);
+			line.relativeValue = 1. - value / float64(diffAbsoluteValue);
 			line.caption = (line.absoluteValue >= 10'000)
 				? Lang::FormatCountToShort(line.absoluteValue).string
 				: QString("%L1").arg(line.absoluteValue);
 		}
+	}
+}
+
+void ChartHorizontalLinesData::computeRelative(
+		int newMaxHeight,
+		int newMinHeight) {
+	for (auto &line : lines) {
+		line.relativeValue = 1.
+			- ((line.absoluteValue - newMinHeight)
+				/ (newMaxHeight - newMinHeight));
 	}
 }
 

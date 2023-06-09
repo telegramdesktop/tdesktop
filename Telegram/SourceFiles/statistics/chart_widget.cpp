@@ -51,6 +51,8 @@ void PaintHorizontalLines(
 		QPainter &p,
 		const ChartHorizontalLinesData &horizontalLine,
 		const QRect &r) {
+	const auto alpha = p.opacity();
+	p.setOpacity(horizontalLine.alpha);
 	for (const auto &line : horizontalLine.lines) {
 		const auto lineRect = QRect(
 			0,
@@ -59,17 +61,21 @@ void PaintHorizontalLines(
 			st::lineWidth);
 		p.fillRect(lineRect, st::boxTextFg);
 	}
+	p.setOpacity(alpha);
 }
 
 void PaintCaptionsToHorizontalLines(
 		QPainter &p,
 		const ChartHorizontalLinesData &horizontalLine,
 		const QRect &r) {
+	const auto alpha = p.opacity();
+	p.setOpacity(horizontalLine.alpha);
 	p.setFont(st::boxTextFont->f);
 	p.setPen(st::boxTextFg);
 	for (const auto &line : horizontalLine.lines) {
 		p.drawText(10, r.y() + r.height() * line.relativeValue, line.caption);
 	}
+	p.setOpacity(alpha);
 }
 
 } // namespace
@@ -200,6 +206,7 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 				float64(FindMinValue(_chartData, startXIndex2, endXIndex2)),
 				float64(FindMaxValue(_chartData, startXIndex2, endXIndex2)),
 			};
+			p.fillRect(_footer->rect(), st::boxBg);
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
@@ -251,6 +258,12 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		if (_xPercentage.yAnimationStartedAt) {
 			_xPercentage.animValueYMin.update(dtY, anim::sineInOut);
 			_xPercentage.animValueYMax.update(dtY, anim::sineInOut);
+
+			for (auto &horizontalLine : _horizontalLines) {
+				horizontalLine.computeRelative(
+					_xPercentage.animValueYMax.current(),
+					_xPercentage.animValueYMin.current());
+			}
 		}
 		const auto startXIndex = _chartData.findStartIndex(
 			_xPercentage.now.min);
@@ -262,7 +275,41 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 				float64(FindMinValue(_chartData, startXIndex, endXIndex)),
 				float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
 			},
-			false);
+			true);
+
+		if (_xPercentage.yAnimationStartedAt) {
+			const auto &animMin = _xPercentage.animValueYMin;
+			const auto &animMax = _xPercentage.animValueYMax;
+			const auto valueMin = AnimFinished(animMin)
+				? -1.
+				: (animMin.current() - animMin.from())
+					/ (animMin.to() - animMin.from());
+			const auto valueMax = AnimFinished(animMax)
+				? -1.
+				: (animMax.current() - animMax.from())
+					/ (animMax.to() - animMax.from());
+			const auto value = std::abs(std::max(valueMin, valueMax));
+			_horizontalLines.back().alpha = value;
+
+			const auto startIt = begin(_horizontalLines);
+			const auto endIt = end(_horizontalLines);
+			for (auto it = startIt; it != (endIt - 1); it++) {
+				const auto was = it->alpha;
+				it->alpha = it->fixedAlpha * (1. - (endIt - 1)->alpha);
+				const auto now = it->alpha;
+			}
+			if (value == 1.) {
+				while (_horizontalLines.size() > 2) {
+					const auto startIt = begin(_horizontalLines);
+					if (!startIt->alpha) {
+						_horizontalLines.erase(startIt);
+					} else {
+						break;
+					}
+				}
+			}
+		}
+
 		update();
 	});
 
@@ -367,7 +414,7 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 				float64(FindMinValue(_chartData, startXIndex, endXIndex)),
 				float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
 			},
-			false);
+			true);
 		update();
 	}
 }
@@ -385,7 +432,7 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(r, st::boxBg);
 
-	for (const auto &horizontalLine : _horizontalLines) {
+	for (auto &horizontalLine : _horizontalLines) {
 		PaintHorizontalLines(p, horizontalLine, chartRect);
 	}
 
@@ -400,7 +447,7 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 			chartRect);
 	}
 
-	for (const auto &horizontalLine : _horizontalLines) {
+	for (auto &horizontalLine : _horizontalLines) {
 		PaintCaptionsToHorizontalLines(p, horizontalLine, chartRect);
 	}
 }
@@ -475,19 +522,6 @@ void ChartWidget::setHeightLimits(Limits newHeight, bool animated) {
 		horizontalLine.fixedAlpha = horizontalLine.alpha;
 	}
 	_horizontalLines.push_back(newLinesData);
-
-	const auto callback = [=](float64 value) {
-		_horizontalLines.back().alpha = value;
-
-		const auto startIt = begin(_horizontalLines);
-		const auto endIt = end(_horizontalLines);
-		for (auto it = startIt; it != (endIt - 1); it++) {
-			it->alpha = it->fixedAlpha * (1. - (endIt - 1)->alpha);
-		}
-		update();
-	};
-	_heightLimitsAnimation.start(callback, 0., 1., st::slideDuration);
-
 }
 
 void ChartWidget::measureHeightThreshold() {

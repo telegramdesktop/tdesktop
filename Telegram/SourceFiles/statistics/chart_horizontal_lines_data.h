@@ -16,6 +16,10 @@ public:
 		int newMinHeight,
 		bool useMinHeight);
 
+	void computeRelative(
+		int newMaxHeight,
+		int newMinHeight);
+
 	[[nodiscard]] static int LookupHeight(int maxValue);
 
 	struct Line final {
