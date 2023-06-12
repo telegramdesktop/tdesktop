@@ -120,6 +120,7 @@ public:
 	void contentPressed(bool pressed);
 	void setMenuShown(bool shown);
 
+	[[nodiscard]] bool canShare() const;
 	[[nodiscard]] bool canDownload() const;
 
 	void repaintSibling(not_null<Sibling*> sibling);
@@ -129,6 +130,7 @@ public:
 	[[nodiscard]] rpl::producer<> moreViewsLoaded() const;
 
 	void unfocusReply();
+	void share();
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

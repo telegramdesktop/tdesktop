@@ -64,6 +64,11 @@ QString GetErrorTextForSending(
 	const auto thread = topic
 		? not_null<Data::Thread*>(topic)
 		: peer->owner().history(peer);
+	if (request.story) {
+		if (const auto error = request.story->errorTextForForward(thread)) {
+			return *error;
+		}
+	}
 	if (request.forward) {
 		for (const auto &item : *request.forward) {
 			if (const auto error = item->errorTextForForward(thread)) {
@@ -84,6 +89,7 @@ QString GetErrorTextForSending(
 	}
 	if (peer->slowmodeApplied()) {
 		const auto count = (hasText ? 1 : 0)
+			+ (request.story ? 1 : 0)
 			+ (request.forward ? int(request.forward->size()) : 0);
 		if (const auto history = peer->owner().historyLoaded(peer)) {
 			if (!request.ignoreSlowmodeCountdown
@@ -94,7 +100,7 @@ QString GetErrorTextForSending(
 		}
 		if (request.text && request.text->text.size() > MaxMessageSize) {
 			return tr::lng_slowmode_too_long(tr::now);
-		} else if (hasText && count > 1) {
+		} else if ((hasText || request.story) && count > 1) {
 			return tr::lng_slowmode_no_many(tr::now);
 		} else if (count > 1) {
 			const auto albumForward = [&] {

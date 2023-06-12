@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "data/data_channel_admins.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -763,11 +764,35 @@ QString ApiWrap::exportDirectMessageLink(
 		channel->inputChannel,
 		MTP_int(item->id)
 	)).done([=](const MTPExportedMessageLink &result) {
-		const auto link = result.match([&](const auto &data) {
-			return qs(data.vlink());
-		});
+		const auto link = qs(result.data().vlink());
 		if (current != link) {
 			_unlikelyMessageLinks.emplace_or_assign(itemId, link);
+		}
+	}).send();
+	return current;
+}
+
+QString ApiWrap::exportDirectStoryLink(not_null<Data::Story*> story) {
+	const auto storyId = story->fullId();
+	const auto user = story->peer()->asUser();
+	Assert(user != nullptr);
+	const auto fallback = [&] {
+		const auto base = user->username();
+		const auto story = QString::number(storyId.story);
+		const auto query = base + "?story=" + story;
+		return session().createInternalLinkFull(query);
+	};
+	const auto i = _unlikelyStoryLinks.find(storyId);
+	const auto current = (i != end(_unlikelyStoryLinks))
+		? i->second
+		: fallback();
+	request(MTPstories_ExportStoryLink(
+		story->peer()->asUser()->inputUser,
+		MTP_int(story->id())
+	)).done([=](const MTPExportedStoryLink &result) {
+		const auto link = qs(result.data().vlink());
+		if (current != link) {
+			_unlikelyStoryLinks.emplace_or_assign(storyId, link);
 		}
 	}).send();
 	return current;

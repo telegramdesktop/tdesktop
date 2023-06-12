@@ -91,6 +91,7 @@ void RequestDependentMessageStory(
 struct SendingErrorRequest {
 	MsgId topicRootId = 0;
 	const HistoryItemsList *forward = nullptr;
+	const Data::Story *story = nullptr;
 	const TextWithTags *text = nullptr;
 	bool ignoreSlowmodeCountdown = false;
 };

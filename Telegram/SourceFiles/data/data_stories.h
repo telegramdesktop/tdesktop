@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 class PhotoData;
 class DocumentData;
+enum class ChatRestriction;
 
 namespace Main {
 class Session;
@@ -23,6 +24,7 @@ class Session;
 namespace Data {
 
 class Session;
+class Thread;
 
 struct StoryIdDates {
 	StoryId id = 0;
@@ -91,6 +93,14 @@ public:
 
 	void setPinned(bool pinned);
 	[[nodiscard]] bool pinned() const;
+	void setIsPublic(bool isPublic);
+	[[nodiscard]] bool isPublic() const;
+	void setCloseFriends(bool closeFriends);
+	[[nodiscard]] bool closeFriends() const;
+
+	[[nodiscard]] bool hasDirectLink() const;
+	[[nodiscard]] std::optional<QString> errorTextForForward(
+		not_null<Thread*> to) const;
 
 	void setCaption(TextWithEntities &&caption);
 	[[nodiscard]] const TextWithEntities &caption() const;
@@ -117,7 +127,9 @@ private:
 	int _views = 0;
 	const TimeId _date = 0;
 	const TimeId _expires = 0;
-	bool _pinned = false;
+	bool _pinned : 1 = false;
+	bool _isPublic : 1 = false;
+	bool _closeFriends : 1 = false;
 
 };
 

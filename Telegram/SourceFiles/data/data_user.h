@@ -170,6 +170,10 @@ public:
 	int commonChatsCount() const;
 	void setCommonChatsCount(int count);
 
+	[[nodiscard]] bool hasPrivateForwardName() const;
+	[[nodiscard]] QString privateForwardName() const;
+	void setPrivateForwardName(const QString &name);
+
 private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;
@@ -180,6 +184,7 @@ private:
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
+	QString _privateForwardName;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;

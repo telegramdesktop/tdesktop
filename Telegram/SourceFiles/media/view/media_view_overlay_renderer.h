@@ -34,7 +34,7 @@ public:
 	virtual void paintSaveMsg(QRect outer) = 0;
 	virtual void paintControlsStart() = 0;
 	virtual void paintControl(
-		OverState control,
+		Over control,
 		QRect over,
 		float64 overOpacity,
 		QRect inner,

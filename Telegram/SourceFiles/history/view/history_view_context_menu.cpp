@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_groups.h"
 #include "data/data_channel.h"
 #include "data/data_file_click_handler.h"
@@ -1129,6 +1130,20 @@ void CopyPostLink(
 	controller->showToast(isPublicLink
 		? tr::lng_channel_public_link_copied(tr::now)
 		: tr::lng_context_about_private_link(tr::now));
+}
+
+void CopyStoryLink(
+		std::shared_ptr<Main::SessionShow> show,
+		FullStoryId storyId) {
+	const auto session = &show->session();
+	const auto maybeStory = session->data().stories().lookup(storyId);
+	if (!maybeStory) {
+		return;
+	}
+	const auto story = *maybeStory;
+	QGuiApplication::clipboard()->setText(
+		session->api().exportDirectStoryLink(story));
+	show->showToast(tr::lng_channel_public_link_copied(tr::now));
 }
 
 void AddPollActions(

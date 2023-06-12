@@ -611,7 +611,7 @@ void OverlayWidget::RendererGL::paintControlsStart() {
 }
 
 void OverlayWidget::RendererGL::paintControl(
-		OverState control,
+		Over control,
 		QRect over,
 		float64 overOpacity,
 		QRect inner,
@@ -676,20 +676,21 @@ void OverlayWidget::RendererGL::paintControl(
 	FillTexturedRectangle(*_f, &*_controlsProgram, fgOffset);
 }
 
-auto OverlayWidget::RendererGL::ControlMeta(OverState control, bool stories)
+auto OverlayWidget::RendererGL::ControlMeta(Over control, bool stories)
 -> Control {
 	switch (control) {
-	case OverLeftNav: return {
+	case Over::Left: return {
 		0,
 		stories ? &st::storiesLeft : &st::mediaviewLeft
 	};
-	case OverRightNav: return {
+	case Over::Right: return {
 		1,
 		stories ? &st::storiesRight : &st::mediaviewRight
 	};
-	case OverSave: return { 2, &st::mediaviewSave };
-	case OverRotate: return { 3, &st::mediaviewRotate };
-	case OverMore: return { 4, &st::mediaviewMore };
+	case Over::Save: return { 2, &st::mediaviewSave };
+	case Over::Share: return { 3, &st::mediaviewShare };
+	case Over::Rotate: return { 4, &st::mediaviewRotate };
+	case Over::More: return { 5, &st::mediaviewMore };
 	}
 	Unexpected("Control value in OverlayWidget::RendererGL::ControlIndex.");
 }
@@ -700,11 +701,12 @@ void OverlayWidget::RendererGL::validateControls() {
 	}
 	const auto stories = (_owner->_stories != nullptr);
 	const auto metas = {
-		ControlMeta(OverLeftNav, stories),
-		ControlMeta(OverRightNav, stories),
-		ControlMeta(OverSave, stories),
-		ControlMeta(OverRotate, stories),
-		ControlMeta(OverMore, stories),
+		ControlMeta(Over::Left, stories),
+		ControlMeta(Over::Right, stories),
+		ControlMeta(Over::Save, stories),
+		ControlMeta(Over::Share, stories),
+		ControlMeta(Over::Rotate, stories),
+		ControlMeta(Over::More, stories),
 	};
 	auto maxWidth = 0;
 	auto fullHeight = 0;

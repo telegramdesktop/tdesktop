@@ -25,9 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_reactions.h"
 #include "media/stories/media_stories_recent_views.h"
 #include "media/stories/media_stories_reply.h"
+#include "media/stories/media_stories_share.h"
 #include "media/stories/media_stories_view.h"
 #include "media/audio/media_audio.h"
 #include "ui/rp_widget.h"
+#include "ui/layers/box_content.h"
 #include "styles/style_media_view.h"
 #include "styles/style_widgets.h"
 #include "styles/style_boxes.h" // UserpicButton
@@ -758,8 +760,23 @@ void Controller::setMenuShown(bool shown) {
 	}
 }
 
+bool Controller::canShare() const {
+	if (const auto maybeStory = _session->data().stories().lookup(_shown)) {
+		const auto story = *maybeStory;
+		const auto user = story->peer()->asUser();
+		return story->isPublic()
+			&& (story->pinned() || !story->expired())
+			&& (!user->username().isEmpty()
+				|| !user->hasPrivateForwardName());
+	}
+	return false;
+}
+
 bool Controller::canDownload() const {
-	return _source && _source->user->isSelf();
+	if (const auto maybeStory = _session->data().stories().lookup(_shown)) {
+		return (*maybeStory)->peer()->isSelf();
+	}
+	return false;
 }
 
 void Controller::repaintSibling(not_null<Sibling*> sibling) {
@@ -874,6 +891,13 @@ bool Controller::sliceViewsTo(PeerId offset) {
 
 void Controller::unfocusReply() {
 	_wrap->setFocus();
+}
+
+void Controller::share() {
+	const auto show = _delegate->storiesShow();
+	if (auto box = PrepareShareBox(show, _shown)) {
+		show->show(std::move(box));
+	}
 }
 
 rpl::lifetime &Controller::lifetime() {

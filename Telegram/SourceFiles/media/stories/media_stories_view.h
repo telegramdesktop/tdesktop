@@ -56,6 +56,7 @@ public:
 	void show(not_null<Data::Story*> story, Data::StoriesContext context);
 	void ready();
 
+	[[nodiscard]] bool canShare() const;
 	[[nodiscard]] bool canDownload() const;
 	[[nodiscard]] QRect finalShownGeometry() const;
 	[[nodiscard]] rpl::producer<QRect> finalShownGeometryValue() const;
@@ -74,6 +75,7 @@ public:
 	[[nodiscard]] bool paused() const;
 	void togglePaused(bool paused);
 	void contentPressed(bool pressed);
+	void share();
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

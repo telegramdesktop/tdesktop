@@ -113,6 +113,18 @@ void UserData::setCommonChatsCount(int count) {
 	}
 }
 
+bool UserData::hasPrivateForwardName() const {
+	return !_privateForwardName.isEmpty();
+}
+
+QString UserData::privateForwardName() const {
+	return _privateForwardName;
+}
+
+void UserData::setPrivateForwardName(const QString &name) {
+	_privateForwardName = name;
+}
+
 void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
 	bool changeName = !newFirstName.isEmpty() || !newLastName.isEmpty();
 
@@ -449,6 +461,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->checkFolder(update.vfolder_id().value_or_empty());
 	user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	user->setTranslationDisabled(update.is_translations_disabled());
+	user->setPrivateForwardName(
+		update.vprivate_forward_name().value_or_empty());
 
 	if (const auto info = user->botInfo.get()) {
 		const auto group = update.vbot_group_admin_rights()

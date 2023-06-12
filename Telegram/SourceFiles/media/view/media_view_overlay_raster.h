@@ -43,7 +43,7 @@ private:
 	void paintSaveMsg(QRect outer) override;
 	void paintControlsStart() override;
 	void paintControl(
-		OverState control,
+		Over control,
 		QRect over,
 		float64 overOpacity,
 		QRect inner,

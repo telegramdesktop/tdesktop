@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "core/application.h"
 #include "data/data_changes.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo.h"
@@ -196,6 +197,51 @@ bool Story::pinned() const {
 	return _pinned;
 }
 
+void Story::setIsPublic(bool isPublic) {
+	_isPublic = isPublic;
+}
+
+bool Story::isPublic() const {
+	return _isPublic;
+}
+
+void Story::setCloseFriends(bool closeFriends) {
+	_closeFriends = closeFriends;
+}
+
+bool Story::closeFriends() const {
+	return _closeFriends;
+}
+
+bool Story::hasDirectLink() const {
+	if (!_isPublic || (!_pinned && expired())) {
+		return false;
+	}
+	const auto user = _peer->asUser();
+	return user && !user->username().isEmpty();
+}
+
+std::optional<QString> Story::errorTextForForward(
+		not_null<Thread*> to) const {
+	const auto peer = to->peer();
+	const auto holdsPhoto = v::is<not_null<PhotoData*>>(_media.data);
+	const auto first = holdsPhoto
+		? ChatRestriction::SendPhotos
+		: ChatRestriction::SendVideos;
+	const auto second = holdsPhoto
+		? ChatRestriction::SendVideos
+		: ChatRestriction::SendPhotos;
+	if (const auto error = Data::RestrictionError(peer, first)) {
+		return *error;
+	} else if (const auto error = Data::RestrictionError(peer, second)) {
+		return *error;
+	} else if (!Data::CanSend(to, first, false)
+		|| !Data::CanSend(to, second, false)) {
+		return tr::lng_forward_cant(tr::now);
+	}
+	return {};
+}
+
 void Story::setCaption(TextWithEntities &&caption) {
 	_caption = std::move(caption);
 }
@@ -259,6 +305,8 @@ void Story::applyViewsSlice(
 
 bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	const auto pinned = data.is_pinned();
+	const auto isPublic = data.is_public();
+	const auto closeFriends = data.is_close_friends();
 	auto caption = TextWithEntities{
 		data.vcaption().value_or_empty(),
 		Api::EntitiesFromMTP(
@@ -280,6 +328,8 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 
 	const auto changed = (_media != media)
 		|| (_pinned != pinned)
+		|| (_isPublic != isPublic)
+		|| (_closeFriends != closeFriends)
 		|| (_caption != caption)
 		|| (_views != views)
 		|| (_recentViewers != recent);
@@ -288,6 +338,8 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	}
 	_media = std::move(media);
 	_pinned = pinned;
+	_isPublic = isPublic;
+	_closeFriends = closeFriends;
 	_caption = std::move(caption);
 	_views = views;
 	_recentViewers = std::move(recent);

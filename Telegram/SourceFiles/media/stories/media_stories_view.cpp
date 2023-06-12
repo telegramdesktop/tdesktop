@@ -32,6 +32,10 @@ void View::ready() {
 	_controller->ready();
 }
 
+bool View::canShare() const {
+	return _controller->canShare();
+}
+
 bool View::canDownload() const {
 	return _controller->canDownload();
 }
@@ -77,6 +81,10 @@ void View::togglePaused(bool paused) {
 
 void View::contentPressed(bool pressed) {
 	_controller->contentPressed(pressed);
+}
+
+void View::share() {
+	_controller->share();
 }
 
 SiblingView View::sibling(SiblingType type) const {

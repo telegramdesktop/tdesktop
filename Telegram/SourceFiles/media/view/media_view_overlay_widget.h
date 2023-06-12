@@ -109,7 +109,7 @@ public:
 
 	//void leaveToChildEvent(QEvent *e, QWidget *child) override {
 	//	// e -- from enterEvent() of child TWidget
-	//	updateOverState(OverNone);
+	//	updateOverState(Over::None);
 	//}
 	//void enterFromChildEvent(QEvent *e, QWidget *child) override {
 	//	// e -- from leaveEvent() of child TWidget
@@ -143,21 +143,22 @@ private:
 	class RendererGL;
 
 	// If changing, see paintControls()!
-	enum OverState {
-		OverNone,
-		OverLeftNav,
-		OverRightNav,
-		OverLeftStories,
-		OverRightStories,
-		OverHeader,
-		OverName,
-		OverDate,
-		OverSave,
-		OverRotate,
-		OverMore,
-		OverIcon,
-		OverVideo,
-		OverCaption,
+	enum class Over {
+		None,
+		Left,
+		Right,
+		LeftStories,
+		RightStories,
+		Header,
+		Name,
+		Date,
+		Save,
+		Share,
+		Rotate,
+		More,
+		Icon,
+		Video,
+		Caption,
 	};
 	struct Entity {
 		std::variant<
@@ -471,9 +472,9 @@ private:
 		bool nonbright = false) const;
 	[[nodiscard]] bool isSaveMsgShown() const;
 
-	void updateOverRect(OverState state);
-	bool updateOverState(OverState newState);
-	float64 overLevel(OverState control) const;
+	void updateOverRect(Over state);
+	bool updateOverState(Over newState);
+	float64 overLevel(Over control) const;
 
 	void checkGroupThumbsAnimation();
 	void initGroupThumbs();
@@ -549,11 +550,13 @@ private:
 	QRect _rightNav, _rightNavOver, _rightNavIcon;
 	QRect _headerNav, _nameNav, _dateNav;
 	QRect _rotateNav, _rotateNavOver, _rotateNavIcon;
+	QRect _shareNav, _shareNavOver, _shareNavIcon;
 	QRect _saveNav, _saveNavOver, _saveNavIcon;
 	QRect _moreNav, _moreNavOver, _moreNavIcon;
 	bool _leftNavVisible = false;
 	bool _rightNavVisible = false;
 	bool _saveVisible = false;
+	bool _shareVisible = false;
 	bool _rotateVisible = false;
 	bool _headerHasLink = false;
 	QString _dateText;
@@ -653,8 +656,8 @@ private:
 
 	mtpRequestId _loadRequest = 0;
 
-	OverState _over = OverNone;
-	OverState _down = OverNone;
+	Over _over = Over::None;
+	Over _down = Over::None;
 	QPoint _lastAction, _lastMouseMovePos;
 	bool _ignoringDropdown = false;
 
@@ -693,8 +696,8 @@ private:
 	Ui::Animations::Simple _saveMsgAnimation;
 	base::Timer _saveMsgTimer;
 
-	base::flat_map<OverState, crl::time> _animations;
-	base::flat_map<OverState, anim::value> _animationOpacities;
+	base::flat_map<Over, crl::time> _animations;
+	base::flat_map<Over, anim::value> _animationOpacities;
 
 	rpl::event_stream<Media::Player::TrackState> _touchbarTrackState;
 	rpl::event_stream<TouchBarItemType> _touchbarDisplay;

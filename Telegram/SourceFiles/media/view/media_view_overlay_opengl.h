@@ -63,7 +63,7 @@ private:
 	void paintSaveMsg(QRect outer) override;
 	void paintControlsStart() override;
 	void paintControl(
-		OverState control,
+		Over control,
 		QRect over,
 		float64 overOpacity,
 		QRect inner,
@@ -145,10 +145,8 @@ private:
 	static constexpr auto kStoriesSiblingPartsCount = 4;
 	Ui::GL::Image _storiesSiblingParts[kStoriesSiblingPartsCount];
 
-	static constexpr auto kControlsCount = 5;
-	[[nodiscard]] static Control ControlMeta(
-		OverState control,
-		bool stories);
+	static constexpr auto kControlsCount = 6;
+	[[nodiscard]] static Control ControlMeta(Over control, bool stories);
 
 	// Last one is for the over circle image.
 	std::array<QRect, kControlsCount + 1> _controlsTextures;

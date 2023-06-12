@@ -215,7 +215,7 @@ void OverlayWidget::RendererSW::paintControlsStart() {
 }
 
 void OverlayWidget::RendererSW::paintControl(
-		OverState control,
+		Over control,
 		QRect over,
 		float64 overOpacity,
 		QRect inner,
