@@ -204,6 +204,7 @@ public:
 		std::variant<QString, ChannelId> usernameOrId;
 		QString phone;
 		MsgId messageId = ShowAtUnreadMsgId;
+		StoryId storyId = 0;
 		RepliesByLinkInfo repliesInfo;
 		ResolveType resolveType = ResolveType::Default;
 		QString startToken;

@@ -503,6 +503,18 @@ void SessionNavigation::showPeerByLinkResolved(
 				info.messageId,
 				callback);
 		}
+	} else if (peer->isUser() && info.storyId) {
+		const auto storyId = FullStoryId{ peer->id, info.storyId };
+		peer->owner().stories().resolve(storyId, crl::guard(this, [=] {
+			if (peer->owner().stories().lookup(storyId)) {
+				parentController()->openPeerStory(
+					peer,
+					storyId.story,
+					Data::StoriesContext{ Data::StoriesContextSingle() });
+			} else {
+				showToast(tr::lng_confirm_phone_link_invalid(tr::now));
+			}
+		}));
 	} else if (bot && resolveType == ResolveType::BotApp) {
 		const auto itemId = info.clickFromMessageId;
 		const auto item = _session->data().message(itemId);

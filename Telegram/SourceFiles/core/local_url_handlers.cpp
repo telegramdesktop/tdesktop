@@ -383,6 +383,7 @@ bool ResolveUsernameOrPhone(
 	if (const auto postId = postParam.toInt()) {
 		post = postId;
 	}
+	const auto storyId = params.value(u"story"_q).toInt();
 	const auto appname = params.value(u"appname"_q);
 	const auto appstart = params.value(u"startapp"_q);
 	const auto commentParam = params.value(u"comment"_q);
@@ -408,6 +409,7 @@ bool ResolveUsernameOrPhone(
 		.usernameOrId = domain,
 		.phone = phone,
 		.messageId = post,
+		.storyId = storyId,
 		.repliesInfo = commentId
 			? Navigation::RepliesByLinkInfo{
 				Navigation::CommentId{ commentId }
