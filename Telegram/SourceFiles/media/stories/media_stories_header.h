@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "ui/userpic_view.h"
 
 namespace Ui {
@@ -34,11 +35,14 @@ public:
 	void show(HeaderData data);
 
 private:
+	void updateDateText();
+
 	const not_null<Controller*> _controller;
 
 	std::unique_ptr<Ui::RpWidget> _widget;
 	std::unique_ptr<Ui::FlatLabel> _date;
 	std::optional<HeaderData> _data;
+	base::Timer _dateUpdateTimer;
 
 };
 

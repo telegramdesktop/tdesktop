@@ -2477,6 +2477,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_doc_image" = "File";
 "lng_mediaview_today" = "today at {time}";
 "lng_mediaview_yesterday" = "yesterday at {time}";
+"lng_mediaview_just_now" = "just now";
+"lng_mediaview_minutes_ago#one" = "{count} minute ago";
+"lng_mediaview_minutes_ago#other" = "{count} minutes ago";
+"lng_mediaview_hours_ago#one" = "{count} hour ago";
+"lng_mediaview_hours_ago#other" = "{count} hours ago";
 "lng_mediaview_date_time" = "{date} at {time}";
 "lng_mediaview_set_userpic" = "Set as Main";
 "lng_mediaview_report_profile_photo" = "Report";
