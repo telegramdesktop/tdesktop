@@ -219,8 +219,9 @@ private:
 	mutable QImage _thumbCache;
 	mutable QImage _roundingMask;
 	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;
-	mutable bool _thumbCacheBlurred = false;
-	mutable bool _thumbIsEllipse = false;
+	mutable bool _thumbCacheBlurred : 1 = false;
+	mutable bool _thumbIsEllipse : 1 = false;
+	mutable bool _story : 1 = false;
 
 };
 

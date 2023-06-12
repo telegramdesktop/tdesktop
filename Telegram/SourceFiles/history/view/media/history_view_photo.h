@@ -158,6 +158,8 @@ private:
 		const PaintContext &context,
 		QPoint photoPosition) const;
 
+	[[nodiscard]] QSize photoSize() const;
+
 	const not_null<PhotoData*> _data;
 	Ui::Text::String _caption;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
@@ -165,9 +167,10 @@ private:
 	const std::unique_ptr<MediaSpoiler> _spoiler;
 	mutable QImage _imageCache;
 	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
-	int _serviceWidth : 30 = 0;
+	int _serviceWidth : 29 = 0;
 	mutable int _imageCacheForum : 1 = 0;
 	mutable int _imageCacheBlurred : 1 = 0;
+	mutable int _story : 1 = 0;
 
 };
 

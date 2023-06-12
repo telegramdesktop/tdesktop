@@ -90,6 +90,11 @@ Gif::Gif(
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
+	if (const auto media = realParent->media()) {
+		if (media->storyId()) {
+			_story = true;
+		}
+	}
 	setDocumentLinks(_data, realParent, [=] {
 		if (!_data->createMediaView()->canBePlayed(realParent)
 			|| !_data->isAnimation()
@@ -1441,7 +1446,9 @@ void Gif::hideSpoilers() {
 }
 
 bool Gif::needsBubble() const {
-	if (_data->isVideoMessage()) {
+	if (_story) {
+		return true;
+	} else if (_data->isVideoMessage()) {
 		return false;
 	} else if (!_caption.isEmpty()) {
 		return true;

@@ -192,6 +192,7 @@ public:
 	[[nodiscard]] MsgId dependencyMsgId() const;
 	[[nodiscard]] bool notificationReady() const;
 	[[nodiscard]] PeerData *specialNotificationPeer() const;
+	void checkStoryForwardInfo();
 	void checkBuyButton();
 
 	void updateServiceText(PreparedServiceText &&text);

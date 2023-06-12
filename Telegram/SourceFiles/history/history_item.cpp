@@ -291,7 +291,10 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			qs(media.vemoticon()),
 			media.vvalue().v);
 	}, [&](const MTPDmessageMediaStory &media) -> Result {
-		return nullptr; // #TODO stories
+		return std::make_unique<Data::MediaStory>(item, FullStoryId{
+			peerFromUser(media.vuser_id()),
+			media.vid().v,
+		});
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {
@@ -3594,7 +3597,27 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 
 void HistoryItem::setMedia(const MTPMessageMedia &media) {
 	_media = CreateMedia(this, media);
+	checkStoryForwardInfo();
 	checkBuyButton();
+}
+
+void HistoryItem::checkStoryForwardInfo() {
+	if (const auto storyId = _media ? _media->storyId() : FullStoryId()) {
+		const auto adding = !Has<HistoryMessageForwarded>();
+		if (adding) {
+			AddComponents(HistoryMessageForwarded::Bit());
+		}
+		const auto forwarded = Get<HistoryMessageForwarded>();
+		if (forwarded->story || adding) {
+			const auto peer = history()->owner().peer(storyId.peer);
+			forwarded->story = true;
+			forwarded->originalSender = peer;
+		}
+	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		if (forwarded->story) {
+			RemoveComponents(HistoryMessageForwarded::Bit());
+		}
+	}
 }
 
 void HistoryItem::applyServiceDateEdition(const MTPDmessageService &data) {

@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
+#include "data/data_stories.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "core/application.h"
@@ -72,6 +73,7 @@ namespace {
 
 constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 constexpr auto kMaxPreviewImages = 3;
+constexpr auto kLoadingStoryPhotoId = PhotoId(0x7FFF'DEAD'FFFF'FFFFULL);
 
 using ItemPreview = HistoryView::ItemPreview;
 using ItemPreviewImage = HistoryView::ItemPreviewImage;
@@ -402,6 +404,10 @@ PollData *Media::poll() const {
 
 const WallPaper *Media::paper() const {
 	return nullptr;
+}
+
+FullStoryId Media::storyId() const {
+	return {};
 }
 
 bool Media::uploading() const {
@@ -1966,6 +1972,84 @@ std::unique_ptr<HistoryView::Media> MediaWallPaper::createView(
 	return std::make_unique<HistoryView::ServiceBox>(
 		message,
 		std::make_unique<HistoryView::ThemeDocumentBox>(message, _paper));
+}
+
+MediaStory::MediaStory(not_null<HistoryItem*> parent, FullStoryId storyId)
+: Media(parent)
+, _storyId(storyId) {
+	const auto stories = &parent->history()->owner().stories();
+	if (!stories->lookup(storyId)) {
+		stories->resolve(storyId, crl::guard(this, [=] {
+			if (stories->lookup(storyId)) {
+				parent->history()->owner().requestItemViewRefresh(parent);
+			}
+		}));
+	}
+}
+
+std::unique_ptr<Media> MediaStory::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaStory>(parent, _storyId);
+}
+
+FullStoryId MediaStory::storyId() const {
+	return _storyId;
+}
+
+TextWithEntities MediaStory::notificationText() const {
+	const auto stories = &parent()->history()->owner().stories();
+	const auto maybeStory = stories->lookup(_storyId);
+	return WithCaptionNotificationText(
+		tr::lng_in_dlg_story(tr::now),
+		(maybeStory
+			? (*maybeStory)->caption()
+			: TextWithEntities()));
+}
+
+QString MediaStory::pinnedTextSubstring() const {
+	return tr::lng_action_pinned_media_story(tr::now);
+}
+
+TextForMimeData MediaStory::clipboardText() const {
+	return WithCaptionClipboardText(
+		tr::lng_in_dlg_story(tr::now),
+		parent()->clipboardText());
+}
+
+bool MediaStory::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+bool MediaStory::updateSentMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+std::unique_ptr<HistoryView::Media> MediaStory::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
+	const auto spoiler = false;
+	const auto stories = &parent()->history()->owner().stories();
+	const auto maybeStory = stories->lookup(_storyId);
+	if (const auto story = maybeStory ? maybeStory->get() : nullptr) {
+		if (const auto photo = story->photo()) {
+			return std::make_unique<HistoryView::Photo>(
+				message,
+				realParent,
+				photo,
+				spoiler);
+		} else {
+			return std::make_unique<HistoryView::Gif>(
+				message,
+				realParent,
+				story->document(),
+				spoiler);
+		}
+	}
+	return std::make_unique<HistoryView::Photo>(
+		message,
+		realParent,
+		realParent->history()->owner().photo(kLoadingStoryPhotoId),
+		spoiler);
 }
 
 } // namespace Data

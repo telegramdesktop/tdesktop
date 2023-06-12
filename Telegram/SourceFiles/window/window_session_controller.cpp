@@ -512,7 +512,7 @@ void SessionNavigation::showPeerByLinkResolved(
 					storyId.story,
 					Data::StoriesContext{ Data::StoriesContextSingle() });
 			} else {
-				showToast(tr::lng_confirm_phone_link_invalid(tr::now));
+				showToast(tr::lng_stories_link_invalid(tr::now));
 			}
 		}));
 	} else if (bot && resolveType == ResolveType::BotApp) {
@@ -2155,14 +2155,12 @@ void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId contextId,
 		MsgId topicRootId) {
-	if (openStory(contextId)) {
+	const auto item = session().data().message(contextId);
+	if (openSharedStory(item) || openFakeItemStory(contextId)) {
 		return;
 	}
-	_window->openInMediaView(Media::View::OpenRequest(
-		this,
-		photo,
-		session().data().message(contextId),
-		topicRootId));
+	_window->openInMediaView(
+		Media::View::OpenRequest(this, photo, item, topicRootId));
 }
 
 void SessionController::openPhoto(
@@ -2176,24 +2174,34 @@ void SessionController::openDocument(
 		FullMsgId contextId,
 		MsgId topicRootId,
 		bool showInMediaView) {
-	if (openStory(contextId)) {
+	const auto item = session().data().message(contextId);
+	if (openSharedStory(item) || openFakeItemStory(contextId)) {
 		return;
 	} else if (showInMediaView) {
-		_window->openInMediaView(Media::View::OpenRequest(
-			this,
-			document,
-			session().data().message(contextId),
-			topicRootId));
+		_window->openInMediaView(
+			Media::View::OpenRequest(this, document, item, topicRootId));
 		return;
 	}
-	Data::ResolveDocument(
-		this,
-		document,
-		session().data().message(contextId),
-		topicRootId);
+	Data::ResolveDocument(this, document, item, topicRootId);
 }
 
-bool SessionController::openStory(
+bool SessionController::openSharedStory(HistoryItem *item) {
+	if (const auto media = item ? item->media() : nullptr) {
+		if (const auto storyId = media->storyId()) {
+			const auto story = session().data().stories().lookup(storyId);
+			if (story) {
+				_window->openInMediaView(::Media::View::OpenRequest(
+					this,
+					*story,
+					Data::StoriesContext{ Data::StoriesContextSingle() }));
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+bool SessionController::openFakeItemStory(
 		FullMsgId fakeItemId,
 		bool forceArchiveContext) {
 	if (!peerIsUser(fakeItemId.peer)

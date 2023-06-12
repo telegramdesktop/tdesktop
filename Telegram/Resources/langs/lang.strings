@@ -1503,6 +1503,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_pinned_media_sticker" = "a sticker";
 "lng_action_pinned_media_emoji_sticker" = "a {emoji} sticker";
 "lng_action_pinned_media_game" = "the game «{game}»";
+"lng_action_pinned_media_story" = "a story";
 "lng_action_game_score#one" = "{from} scored {count} in {game}";
 "lng_action_game_score#other" = "{from} scored {count} in {game}";
 "lng_action_game_you_scored#one" = "You scored {count} in {game}";
@@ -3809,6 +3810,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_my_title" = "My Stories";
 "lng_stories_archive_button" = "Archive";
 "lng_stories_archive_title" = "Stories Archive";
+
+"lng_stories_link_invalid" = "This link is broken or has expired.";
 
 // Wnd specific
 

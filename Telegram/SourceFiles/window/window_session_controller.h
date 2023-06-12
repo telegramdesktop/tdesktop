@@ -492,7 +492,10 @@ public:
 		FullMsgId contextId,
 		MsgId topicRootId,
 		bool showInMediaView = false);
-	bool openStory(FullMsgId fakeItemId, bool forceArchiveContext = false);
+	bool openSharedStory(HistoryItem *item);
+	bool openFakeItemStory(
+		FullMsgId fakeItemId,
+		bool forceArchiveContext = false);
 
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,

@@ -129,6 +129,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	PeerData *savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
 	bool imported = false;
+	bool story = false;
 };
 
 struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored, HistoryItem> {
