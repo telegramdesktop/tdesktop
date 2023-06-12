@@ -38,70 +38,26 @@ rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 			}
 
 			const auto saved = stories->saved(peer->id);
+			Assert(saved != nullptr);
 			const auto count = stories->savedCount(peer->id);
 			const auto around = saved->list.lower_bound(aroundId);
-			Assert(saved != nullptr);
-			const auto source = stories->source(peer->id);
-			if (!source || source->ids.empty()) {
-				const auto hasBefore = int(around - begin(saved->list));
-				const auto hasAfter = int(end(saved->list) - around);
-				if (hasAfter < limit) {
-					stories->savedLoadMore(peer->id);
-				}
-				const auto takeBefore = std::min(hasBefore, limit);
-				const auto takeAfter = std::min(hasAfter, limit);
-				auto ids = base::flat_set<StoryId>{
-					std::make_reverse_iterator(around + takeAfter),
-					std::make_reverse_iterator(around - takeBefore)
-				};
-				const auto added = int(ids.size());
-				state->slice = StoriesIdsSlice(
-					std::move(ids),
-					count,
-					(hasBefore - takeBefore),
-					count - hasBefore - added);
-			} else {
-				auto ids = base::flat_set<StoryId>();
-				auto added = 0;
-				auto skipped = 0;
-				auto skippedBefore = (around - begin(saved->list));
-				auto skippedAfter = (end(saved->list) - around);
-				const auto &active = source->ids;
-				const auto process = [&](StoryId id) {
-					const auto i = active.lower_bound(StoryIdDates{ id });
-					if (i == end(active) || i->id != id) {
-						ids.emplace(id);
-						++added;
-					} else {
-						++skipped;
-					}
-					return (added < limit);
-				};
-				ids.reserve(2 * limit + 1);
-				for (auto i = around, b = begin(saved->list); i != b;) {
-					--skippedBefore;
-					if (!process(*--i)) {
-						break;
-					}
-				}
-				if (ids.size() < limit) {
-					ids.emplace(active.back().id); // #TODO stories fake max story id
-				} else {
-					++skippedBefore;
-				}
-				added = 0;
-				for (auto i = around, e = end(saved->list); i != e; ++i) {
-					--skippedAfter;
-					if (!process(*i)) {
-						break;
-					}
-				}
-				state->slice = StoriesIdsSlice(
-					std::move(ids),
-					count - skipped + 1,
-					skippedBefore,
-					skippedAfter);
+			const auto hasBefore = int(around - begin(saved->list));
+			const auto hasAfter = int(end(saved->list) - around);
+			if (hasAfter < limit) {
+				stories->savedLoadMore(peer->id);
 			}
+			const auto takeBefore = std::min(hasBefore, limit);
+			const auto takeAfter = std::min(hasAfter, limit);
+			auto ids = base::flat_set<StoryId>{
+				std::make_reverse_iterator(around + takeAfter),
+				std::make_reverse_iterator(around - takeBefore)
+			};
+			const auto added = int(ids.size());
+			state->slice = StoriesIdsSlice(
+				std::move(ids),
+				count,
+				(hasBefore - takeBefore),
+				count - hasBefore - added);
 			consumer.put_next_copy(state->slice);
 		};
 		const auto schedule = [=] {
@@ -117,11 +73,6 @@ rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 		};
 
 		const auto stories = &peer->owner().stories();
-		stories->sourceChanged(
-		) | rpl::filter(
-			rpl::mappers::_1 == peer->id
-		) | rpl::start_with_next(schedule, lifetime);
-
 		stories->savedChanged(
 		) | rpl::filter(
 			rpl::mappers::_1 == peer->id

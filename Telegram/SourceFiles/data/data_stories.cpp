@@ -362,49 +362,6 @@ void Stories::apply(not_null<PeerData*> peer, const MTPUserStories *data) {
 	if (!data) {
 		applyDeletedFromSources(peer->id, StorySourcesList::All);
 		_all.erase(peer->id);
-		const auto i = _stories.find(peer->id);
-		if (i != end(_stories)) {
-			auto stories = base::take(i->second);
-			_stories.erase(i);
-
-			auto archiveChanged = false;
-			auto savedChanged = false;
-			if (peer->isSelf()) {
-				for (const auto &[id, story] : stories) {
-					if (_archive.list.remove(id)) {
-						archiveChanged = true;
-						if (_archiveTotal > 0) {
-							--_archiveTotal;
-						}
-					}
-				}
-			}
-			const auto j = _saved.find(peer->id);
-			const auto saved = (j != end(_saved)) ? &j->second : nullptr;
-			for (const auto &[id, story] : stories) {
-				// Duplicated in Stories::applyDeleted.
-				_deleted.emplace(FullStoryId{ peer->id, id });
-				_expiring.remove(story->expires(), story->fullId());
-				if (story->pinned() && saved) {
-					if (saved->ids.list.remove(id)) {
-						savedChanged = true;
-						if (saved->total > 0) {
-							--saved->total;
-						}
-					}
-				}
-				session().changes().storyUpdated(
-					story.get(),
-					UpdateFlag::Destroyed);
-				removeDependencyStory(story.get());
-			}
-			if (archiveChanged) {
-				_archiveChanged.fire({});
-			}
-			if (savedChanged) {
-				_savedChanged.fire_copy(peer->id);
-			}
-		}
 		_sourceChanged.fire_copy(peer->id);
 	} else {
 		parseAndApply(*data);
