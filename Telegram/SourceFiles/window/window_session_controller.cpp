@@ -2153,14 +2153,14 @@ void SessionController::hideLayer(anim::type animated) {
 
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
-		FullMsgId contextId,
-		MsgId topicRootId) {
-	const auto item = session().data().message(contextId);
-	if (openSharedStory(item) || openFakeItemStory(contextId)) {
+		MessageContext message,
+		const Data::StoriesContext *stories) {
+	const auto item = session().data().message(message.id);
+	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	}
 	_window->openInMediaView(
-		Media::View::OpenRequest(this, photo, item, topicRootId));
+		Media::View::OpenRequest(this, photo, item, message.topicRootId));
 }
 
 void SessionController::openPhoto(
@@ -2171,18 +2171,21 @@ void SessionController::openPhoto(
 
 void SessionController::openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId contextId,
-		MsgId topicRootId,
-		bool showInMediaView) {
-	const auto item = session().data().message(contextId);
-	if (openSharedStory(item) || openFakeItemStory(contextId)) {
+		bool showInMediaView,
+		MessageContext message,
+		const Data::StoriesContext *stories) {
+	const auto item = session().data().message(message.id);
+	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
-		_window->openInMediaView(
-			Media::View::OpenRequest(this, document, item, topicRootId));
+		_window->openInMediaView(Media::View::OpenRequest(
+			this,
+			document,
+			item,
+			message.topicRootId));
 		return;
 	}
-	Data::ResolveDocument(this, document, item, topicRootId);
+	Data::ResolveDocument(this, document, item, message.topicRootId);
 }
 
 bool SessionController::openSharedStory(HistoryItem *item) {
@@ -2203,7 +2206,7 @@ bool SessionController::openSharedStory(HistoryItem *item) {
 
 bool SessionController::openFakeItemStory(
 		FullMsgId fakeItemId,
-		bool forceArchiveContext) {
+		const Data::StoriesContext *stories) {
 	if (!peerIsUser(fakeItemId.peer)
 		|| !IsStoryMsgId(fakeItemId.msg)) {
 		return false;
@@ -2215,13 +2218,11 @@ bool SessionController::openFakeItemStory(
 	if (maybeStory) {
 		using namespace Data;
 		const auto story = *maybeStory;
-		const auto context = !story->expired()
-			? StoriesContext{ StoriesContextPeer() }
-			: (story->pinned() && !forceArchiveContext)
-			? StoriesContext{ StoriesContextSaved() }
-			: StoriesContext{ StoriesContextArchive() };
+		const auto context = stories
+			? *stories
+			: StoriesContext{ StoriesContextSingle() };
 		_window->openInMediaView(
-			::Media::View::OpenRequest(this, *maybeStory, context));
+			::Media::View::OpenRequest(this, story, context));
 	}
 	return true;
 }

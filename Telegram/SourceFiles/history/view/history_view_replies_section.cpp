@@ -2553,14 +2553,17 @@ void RepliesWidget::listShowPremiumToast(not_null<DocumentData*> document) {
 void RepliesWidget::listOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	controller()->openPhoto(photo, context, _rootId);
+	controller()->openPhoto(photo, { context, _rootId });
 }
 
 void RepliesWidget::listOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	controller()->openDocument(document, context, _rootId, showInMediaView);
+	controller()->openDocument(
+		document,
+		showInMediaView,
+		{ context, _rootId });
 }
 
 void RepliesWidget::listPaintEmpty(

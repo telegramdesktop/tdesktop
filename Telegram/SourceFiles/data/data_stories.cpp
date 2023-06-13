@@ -1109,8 +1109,7 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 		}
 	}
 	const auto i = _all.find(id.peer);
-	Assert(i != end(_all));
-	if (i->second.readTill >= id.story) {
+	if (i == end(_all) || i->second.readTill >= id.story) {
 		return;
 	} else if (!_markReadPending.contains(id.peer)) {
 		sendMarkAsReadRequests();

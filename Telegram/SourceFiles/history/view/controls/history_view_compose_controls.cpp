@@ -3059,9 +3059,9 @@ void ComposeControls::applyInlineBotQuery(
 				if (result.open) {
 					const auto request = result.result->openRequest();
 					if (const auto photo = request.photo()) {
-						_regularWindow->openPhoto(photo, {}, {});
+						_regularWindow->openPhoto(photo, {});
 					} else if (const auto document = request.document()) {
-						_regularWindow->openDocument(document, {}, {});
+						_regularWindow->openDocument(document, false, {});
 					}
 				} else {
 					_inlineResultChosen.fire_copy(result);

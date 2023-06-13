@@ -482,20 +482,24 @@ public:
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
 
+	struct MessageContext {
+		FullMsgId id;
+		MsgId topicRootId;
+	};
 	void openPhoto(
 		not_null<PhotoData*> photo,
-		FullMsgId contextId,
-		MsgId topicRootId);
+		MessageContext message,
+		const Data::StoriesContext *stories = nullptr);
 	void openPhoto(not_null<PhotoData*> photo, not_null<PeerData*> peer);
 	void openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId contextId,
-		MsgId topicRootId,
-		bool showInMediaView = false);
+		bool showInMediaView,
+		MessageContext message,
+		const Data::StoriesContext *stories = nullptr);
 	bool openSharedStory(HistoryItem *item);
 	bool openFakeItemStory(
 		FullMsgId fakeItemId,
-		bool forceArchiveContext = false);
+		const Data::StoriesContext *stories = nullptr);
 
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,

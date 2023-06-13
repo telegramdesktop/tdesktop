@@ -1290,14 +1290,14 @@ void ScheduledWidget::listShowPremiumToast(
 void ScheduledWidget::listOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	controller()->openPhoto(photo, context, MsgId());
+	controller()->openPhoto(photo, { context });
 }
 
 void ScheduledWidget::listOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	controller()->openDocument(document, context, MsgId(), showInMediaView);
+	controller()->openDocument(document, showInMediaView, { context });
 }
 
 void ScheduledWidget::listPaintEmpty(

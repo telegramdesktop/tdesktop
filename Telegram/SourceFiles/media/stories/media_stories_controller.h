@@ -135,6 +135,15 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	struct StoriesList {
+		not_null<UserData*> user;
+		Data::StoriesIds ids;
+		int total = 0;
+
+		friend inline bool operator==(
+			const StoriesList &,
+			const StoriesList &) = default;
+	};
 	class PhotoPlayback;
 
 	void initLayout();
@@ -166,6 +175,14 @@ private:
 	[[nodiscard]] auto viewsGotMoreCallback()
 		-> Fn<void(std::vector<Data::StoryView>)>;
 
+	[[nodiscard]] bool shown() const;
+	[[nodiscard]] UserData *shownUser() const;
+	[[nodiscard]] int shownCount() const;
+	[[nodiscard]] StoryId shownId(int index) const;
+	void rebuildFromContext(not_null<UserData*> user, FullStoryId storyId);
+	void checkMoveByDelta();
+	void loadMoreToList();
+
 	const not_null<Delegate*> _delegate;
 
 	rpl::variable<std::optional<Layout>> _layout;
@@ -194,7 +211,9 @@ private:
 	TextWithEntities _captionText;
 	Data::StoriesContext _context;
 	std::optional<Data::StoriesSource> _source;
+	std::optional<StoriesList> _list;
 	FullStoryId _waitingForId;
+	int _waitingForDelta = 0;
 	int _index = 0;
 	bool _started = false;
 	bool _viewed = false;
@@ -210,6 +229,8 @@ private:
 
 	Main::Session *_session = nullptr;
 	rpl::lifetime _sessionLifetime;
+
+	rpl::lifetime _contextLifetime;
 
 	rpl::lifetime _lifetime;
 

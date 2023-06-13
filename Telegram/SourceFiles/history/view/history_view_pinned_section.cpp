@@ -643,14 +643,14 @@ void PinnedWidget::listShowPremiumToast(not_null<DocumentData*> document) {
 void PinnedWidget::listOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	controller()->openPhoto(photo, context, MsgId());
+	controller()->openPhoto(photo, { context });
 }
 
 void PinnedWidget::listOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	controller()->openDocument(document, context, MsgId(), showInMediaView);
+	controller()->openDocument(document, showInMediaView, { context });
 }
 
 void PinnedWidget::listPaintEmpty(

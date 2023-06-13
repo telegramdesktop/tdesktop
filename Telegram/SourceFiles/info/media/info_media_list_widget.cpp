@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_download_manager.h"
@@ -476,18 +477,31 @@ bool ListWidget::tooltipWindowActive() const {
 }
 
 void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
-	_controller->parentController()->openPhoto(photo, id, topicRootId());
+	using namespace Data;
+
+	const auto tab = _controller->storiesTab();
+	const auto context = (tab == Stories::Tab::Archive)
+		? Data::StoriesContext{ Data::StoriesContextArchive() }
+		: Data::StoriesContext{ Data::StoriesContextSaved() };
+	_controller->parentController()->openPhoto(
+		photo,
+		{ id, topicRootId() },
+		_controller->storiesPeer() ? &context : nullptr);
 }
 
 void ListWidget::openDocument(
 		not_null<DocumentData*> document,
 		FullMsgId id,
 		bool showInMediaView) {
+	const auto tab = _controller->storiesTab();
+	const auto context = (tab == Stories::Tab::Archive)
+		? Data::StoriesContext{ Data::StoriesContextArchive() }
+		: Data::StoriesContext{ Data::StoriesContextSaved() };
 	_controller->parentController()->openDocument(
 		document,
-		id,
-		topicRootId(),
-		showInMediaView);
+		showInMediaView,
+		{ id, topicRootId() },
+		_controller->storiesPeer() ? &context : nullptr);
 }
 
 void ListWidget::trackSession(not_null<Main::Session*> session) {

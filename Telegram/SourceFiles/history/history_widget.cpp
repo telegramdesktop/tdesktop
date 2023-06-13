@@ -1467,9 +1467,9 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 				if (result.open) {
 					const auto request = result.result->openRequest();
 					if (const auto photo = request.photo()) {
-						controller()->openPhoto(photo, {}, {});
+						controller()->openPhoto(photo, {});
 					} else if (const auto document = request.document()) {
-						controller()->openDocument(document, {}, {});
+						controller()->openDocument(document, false, {});
 					}
 				} else {
 					sendInlineResult(result);
