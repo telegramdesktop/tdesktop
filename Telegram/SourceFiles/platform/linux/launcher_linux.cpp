@@ -46,14 +46,13 @@ private:
 } // namespace
 
 Launcher::Launcher(int argc, char *argv[])
-: Core::Launcher(argc, argv)
-, _arguments(argv, argv + argc) {
+: Core::Launcher(argc, argv) {
 }
 
 int Launcher::exec() {
-	for (auto i = begin(_arguments), e = end(_arguments); i != e; ++i) {
-		if (*i == "-webviewhelper" && std::distance(i, e) > 1) {
-			Webview::WebKitGTK::SetSocketPath(*(i + 1));
+	for (auto i = arguments().begin(), e = arguments().end(); i != e; ++i) {
+		if (*i == u"-webviewhelper"_q && std::distance(i, e) > 1) {
+			Webview::WebKitGTK::SetSocketPath((i + 1)->toStdString());
 			return Webview::WebKitGTK::Exec();
 		}
 	}

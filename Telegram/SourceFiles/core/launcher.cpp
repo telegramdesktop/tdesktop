@@ -290,6 +290,7 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 Launcher::Launcher(int argc, char *argv[])
 : _argc(argc)
 , _argv(argv)
+, _arguments(readArguments(_argc, _argv))
 , _baseIntegration(_argc, _argv) {
 	crl::toggle_fp_exceptions(true);
 
@@ -301,8 +302,6 @@ Launcher::~Launcher() {
 }
 
 void Launcher::init() {
-	_arguments = readArguments(_argc, _argv);
-
 	prepareSettings();
 	initQtMessageLogging();
 
@@ -431,8 +430,8 @@ QStringList Launcher::readArguments(int argc, char *argv[]) const {
 	return result;
 }
 
-QString Launcher::argumentsString() const {
-	return _arguments.join(' ');
+const QStringList &Launcher::arguments() const {
+	return _arguments;
 }
 
 bool Launcher::customWorkingDir() const {

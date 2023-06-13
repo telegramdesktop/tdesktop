@@ -21,8 +21,6 @@ private:
 	void initHook() override;
 	bool launchUpdater(UpdaterLaunch action) override;
 
-	std::vector<std::string> _arguments;
-
 };
 
 } // namespace Platform

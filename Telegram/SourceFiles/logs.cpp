@@ -430,7 +430,7 @@ void start(not_null<Core::Launcher*> launcher) {
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir(), cExeName()));
 	LOG(("Initial working dir: %1").arg(initialWorkingDir));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
-	LOG(("Command line: %1").arg(launcher->argumentsString()));
+	LOG(("Command line: %1").arg(launcher->arguments().join(' ')));
 
 	if (!LogsData) {
 		LOG(("FATAL: Could not open '%1' for writing log!"
