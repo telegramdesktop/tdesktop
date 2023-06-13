@@ -43,8 +43,8 @@ constexpr auto kSavedPerPage = 100;
 using UpdateFlag = StoryUpdate::Flag;
 
 [[nodiscard]] std::optional<StoryMedia> ParseMedia(
-	not_null<Session*> owner,
-	const MTPMessageMedia &media) {
+		not_null<Session*> owner,
+		const MTPMessageMedia &media) {
 	return media.match([&](const MTPDmessageMediaPhoto &data)
 		-> std::optional<StoryMedia> {
 		if (const auto photo = data.vphoto()) {

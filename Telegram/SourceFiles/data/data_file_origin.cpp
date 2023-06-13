@@ -53,7 +53,11 @@ struct FileReferenceAccumulator {
 		push(data.data().vdocument());
 	}
 	void push(const MTPWebPageAttribute &data) {
-		push(data.data().vdocuments());
+		data.match([&](const MTPDwebPageAttributeStory &data) {
+			push(data.vstory());
+		}, [&](const MTPDwebPageAttributeTheme &data) {
+			push(data.vdocuments());
+		});
 	}
 	void push(const MTPWebPage &data) {
 		data.match([&](const MTPDwebPage &data) {

@@ -3311,6 +3311,8 @@ void Session::webpageApplyFields(
 				const auto result = attribute.match([&](
 						const MTPDwebPageAttributeTheme &data) {
 					return lookupInAttribute(data);
+				}, [&](const MTPDwebPageAttributeStory &data) {
+					return (DocumentData*)nullptr;
 				});
 				if (result) {
 					return result;
