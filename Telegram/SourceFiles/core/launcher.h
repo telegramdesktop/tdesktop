@@ -28,7 +28,7 @@ public:
 
 	virtual int exec();
 
-	QString argumentsString() const;
+	const QStringList &arguments() const;
 	bool customWorkingDir() const;
 
 	uint64 installationTag() const;
