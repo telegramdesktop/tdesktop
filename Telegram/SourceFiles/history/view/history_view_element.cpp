@@ -839,14 +839,15 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 void Element::validateText() {
 	const auto item = data();
 	const auto &text = item->_text;
-	if (_text.isEmpty() == text.empty()) {
-		return;
-	}
-	const auto context = Core::MarkedTextContext{
-		.session = &history()->session(),
-		.customEmojiRepaint = [=] { customEmojiRepaint(); },
-	};
-	if (_flags & Flag::ServiceMessage) {
+	const auto media = item->media();
+	if (media && media->storyExpired()) {
+		_media = nullptr;
+		if (_text.isEmpty()) {
+			setTextWithLinks(
+				Ui::Text::Italic(u"This story has expired"_q));
+		}
+	} else if (_text.isEmpty() == text.empty()) {
+	} else if (_flags & Flag::ServiceMessage) {
 		const auto contextDependentText = contextDependentServiceText();
 		const auto &markedText = contextDependentText.text.empty()
 			? text
@@ -854,28 +855,33 @@ void Element::validateText() {
 		const auto &customLinks = contextDependentText.text.empty()
 			? item->customTextLinks()
 			: contextDependentText.links;
-		_text.setMarkedText(
-			st::serviceTextStyle,
-			markedText,
-			Ui::ItemTextServiceOptions(),
-			context);
+		setTextWithLinks(markedText, customLinks);
+	} else {
+		setTextWithLinks(item->translatedTextWithLocalEntities());
+	}
+}
+
+void Element::setTextWithLinks(
+		const TextWithEntities &text,
+		const std::vector<ClickHandlerPtr> &links) {
+	const auto context = Core::MarkedTextContext{
+		.session = &history()->session(),
+		.customEmojiRepaint = [=] { customEmojiRepaint(); },
+	};
+	if (_flags & Flag::ServiceMessage) {
+		const auto &options = Ui::ItemTextServiceOptions();
+		_text.setMarkedText(st::serviceTextStyle, text, options, context);
 		auto linkIndex = 0;
-		for (const auto &link : customLinks) {
+		for (const auto &link : links) {
 			// Link indices start with 1.
 			_text.setLink(++linkIndex, link);
 		}
 	} else {
+		const auto item = data();
+		const auto &options = Ui::ItemTextOptions(item);
 		clearSpecialOnlyEmoji();
-		const auto context = Core::MarkedTextContext{
-			.session = &history()->session(),
-			.customEmojiRepaint = [=] { customEmojiRepaint(); },
-		};
-		_text.setMarkedText(
-			st::messageTextStyle,
-			item->translatedTextWithLocalEntities(),
-			Ui::ItemTextOptions(item),
-			context);
-		if (!text.empty() && _text.isEmpty()) {
+		_text.setMarkedText(st::messageTextStyle, text, options, context);
+		if (!item->_text.empty() && _text.isEmpty()){
 			// If server has allowed some text that we've trim-ed entirely,
 			// just replace it with something so that UI won't look buggy.
 			_text.setMarkedText(

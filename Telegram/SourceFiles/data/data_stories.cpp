@@ -742,11 +742,12 @@ void Stories::sendResolveRequests() {
 	auto leftToSend = kMaxResolveTogether;
 	auto byPeer = base::flat_map<PeerId, QVector<MTPint>>();
 	for (auto i = begin(_resolvePending); i != end(_resolvePending);) {
-		auto &[peerId, ids] = *i;
+		const auto peerId = i->first;
+		auto &ids = i->second;
 		auto &sent = _resolveSent[peerId];
 		if (ids.size() <= leftToSend) {
 			sent = base::take(ids);
-			i = _resolvePending.erase(i);
+			i = _resolvePending.erase(i); // Invalidates `ids`.
 			leftToSend -= int(sent.size());
 		} else {
 			sent = {

@@ -536,6 +536,9 @@ private:
 	virtual QSize performCountCurrentSize(int newWidth) = 0;
 
 	void refreshMedia(Element *replacing);
+	void setTextWithLinks(
+		const TextWithEntities &text,
+		const std::vector<ClickHandlerPtr> &links = {});
 
 	struct TextWithLinks {
 		TextWithEntities text;

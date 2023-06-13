@@ -410,6 +410,10 @@ FullStoryId Media::storyId() const {
 	return {};
 }
 
+bool Media::storyExpired() const {
+	return false;
+}
+
 bool Media::uploading() const {
 	return false;
 }
@@ -1978,12 +1982,16 @@ MediaStory::MediaStory(not_null<HistoryItem*> parent, FullStoryId storyId)
 : Media(parent)
 , _storyId(storyId) {
 	const auto stories = &parent->history()->owner().stories();
-	if (!stories->lookup(storyId)) {
-		stories->resolve(storyId, crl::guard(this, [=] {
-			if (stories->lookup(storyId)) {
+	const auto maybeStory = stories->lookup(storyId);
+	if (!maybeStory) {
+		if (maybeStory.error() == NoStory::Unknown) {
+			stories->resolve(storyId, crl::guard(this, [=] {
+				_expired = !stories->lookup(storyId);
 				parent->history()->owner().requestItemViewRefresh(parent);
-			}
-		}));
+			}));
+		} else {
+			_expired = true;
+		}
 	}
 }
 
@@ -1993,6 +2001,10 @@ std::unique_ptr<Media> MediaStory::clone(not_null<HistoryItem*> parent) {
 
 FullStoryId MediaStory::storyId() const {
 	return _storyId;
+}
+
+bool MediaStory::storyExpired() const {
+	return _expired;
 }
 
 TextWithEntities MediaStory::notificationText() const {
@@ -2015,6 +2027,10 @@ TextForMimeData MediaStory::clipboardText() const {
 		parent()->clipboardText());
 }
 
+bool MediaStory::dropForwardedInfo() const {
+	return true;
+}
+
 bool MediaStory::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -2030,26 +2046,33 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 	const auto spoiler = false;
 	const auto stories = &parent()->history()->owner().stories();
 	const auto maybeStory = stories->lookup(_storyId);
-	if (const auto story = maybeStory ? maybeStory->get() : nullptr) {
-		if (const auto photo = story->photo()) {
-			return std::make_unique<HistoryView::Photo>(
-				message,
-				realParent,
-				photo,
-				spoiler);
-		} else {
-			return std::make_unique<HistoryView::Gif>(
-				message,
-				realParent,
-				story->document(),
-				spoiler);
+	if (!maybeStory) {
+		if (maybeStory.error() == Data::NoStory::Deleted) {
+			_expired = true;
+			return nullptr;
 		}
+		_expired = false;
+		return std::make_unique<HistoryView::Photo>(
+			message,
+			realParent,
+			realParent->history()->owner().photo(kLoadingStoryPhotoId),
+			spoiler);
 	}
-	return std::make_unique<HistoryView::Photo>(
-		message,
-		realParent,
-		realParent->history()->owner().photo(kLoadingStoryPhotoId),
-		spoiler);
+	_expired = false;
+	const auto story = *maybeStory;
+	if (const auto photo = story->photo()) {
+		return std::make_unique<HistoryView::Photo>(
+			message,
+			realParent,
+			photo,
+			spoiler);
+	} else {
+		return std::make_unique<HistoryView::Gif>(
+			message,
+			realParent,
+			story->document(),
+			spoiler);
+	}
 }
 
 } // namespace Data

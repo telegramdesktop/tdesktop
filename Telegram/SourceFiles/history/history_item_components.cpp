@@ -192,7 +192,13 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	} else {
 		phrase = name;
 	}
-	if (via && psaType.isEmpty()) {
+	if (story) {
+		phrase = tr::lng_forwarded_story(
+			tr::now,
+			lt_user,
+			Ui::Text::Link(phrase.text, QString()), // Link 1.
+			Ui::Text::WithEntities);
+	} else if (via && psaType.isEmpty()) {
 		if (fromChannel) {
 			phrase = tr::lng_forwarded_channel_via(
 				tr::now,

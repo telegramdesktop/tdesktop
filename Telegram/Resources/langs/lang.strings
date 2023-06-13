@@ -1699,6 +1699,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_about_private_link" = "This link will only work for members of this chat.";
 
 "lng_forwarded" = "Forwarded from {user}";
+"lng_forwarded_story" = "Story from {user}";
 "lng_forwarded_date" = "Original: {date}";
 "lng_forwarded_channel" = "Forwarded from {channel}";
 "lng_forwarded_psa_default" = "Forwarded from {channel}";

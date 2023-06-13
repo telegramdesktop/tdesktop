@@ -1777,9 +1777,8 @@ void Message::unloadHeavyPart() {
 bool Message::showForwardsFromSender(
 		not_null<HistoryMessageForwarded*> forwarded) const {
 	const auto peer = data()->history()->peer;
-	return peer->isSelf()
-		|| peer->isRepliesChat()
-		|| forwarded->imported;
+	return !forwarded->story
+		&& (peer->isSelf() || peer->isRepliesChat() || forwarded->imported);
 }
 
 bool Message::hasFromPhoto() const {
@@ -2877,7 +2876,9 @@ bool Message::displayFromName() const {
 bool Message::displayForwardedFrom() const {
 	const auto item = data();
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		if (showForwardsFromSender(forwarded)) {
+		if (forwarded->story) {
+			return true;
+		} else if (showForwardsFromSender(forwarded)) {
 			return false;
 		}
 		if (const auto sender = item->discussionPostOriginalSender()) {
@@ -3685,6 +3686,9 @@ bool Message::needInfoDisplay() const {
 
 bool Message::hasVisibleText() const {
 	if (data()->emptyText()) {
+		if (const auto media = data()->media()) {
+			return media->storyExpired();
+		}
 		return false;
 	}
 	const auto media = this->media();
@@ -3713,6 +3717,9 @@ void Message::refreshInfoSkipBlock() {
 	const auto media = this->media();
 	const auto hasTextSkipBlock = [&] {
 		if (item->_text.empty()) {
+			if (const auto media = data()->media()) {
+				return media->storyExpired();
+			}
 			return false;
 		} else if (item->Has<HistoryMessageLogEntryOriginal>()) {
 			return false;

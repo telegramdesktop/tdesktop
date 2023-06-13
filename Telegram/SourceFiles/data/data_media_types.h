@@ -112,6 +112,7 @@ public:
 	virtual PollData *poll() const;
 	virtual const WallPaper *paper() const;
 	virtual FullStoryId storyId() const;
+	virtual bool storyExpired() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -571,11 +572,13 @@ public:
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
-	[[nodiscard]] FullStoryId storyId() const override;
+	FullStoryId storyId() const override;
+	bool storyExpired() const override;
 
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
+	bool dropForwardedInfo() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -586,6 +589,7 @@ public:
 
 private:
 	const FullStoryId _storyId;
+	bool _expired = false;
 
 };
 

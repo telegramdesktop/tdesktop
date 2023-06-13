@@ -72,7 +72,7 @@ Photo::Photo(
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr) {
 	if (const auto media = realParent->media()) {
 		if (media->storyId()) {
-			_story = true;
+			_story = 1;
 		}
 	}
 	_caption = createCaption(realParent);
