@@ -103,7 +103,6 @@ class Instance;
 
 namespace Core {
 
-class Launcher;
 struct LocalUrlHandler;
 class Settings;
 class Tray;
@@ -126,16 +125,13 @@ public:
 		MTP::ProxyData now;
 	};
 
-	Application(not_null<Launcher*> launcher);
+	Application();
 	Application(const Application &other) = delete;
 	Application &operator=(const Application &other) = delete;
 	~Application();
 
 	void run();
 
-	[[nodiscard]] Launcher &launcher() const {
-		return *_launcher;
-	}
 	[[nodiscard]] Platform::Integration &platformIntegration() const {
 		return *_platformIntegration;
 	}
@@ -319,7 +315,6 @@ public:
 	[[nodiscard]] rpl::producer<> materializeLocalDraftsRequests() const;
 
 	void switchDebugMode();
-	void writeInstallBetaVersionsSetting();
 
 	void preventOrInvoke(Fn<void()> &&callback);
 
@@ -381,7 +376,6 @@ private:
 	};
 	InstanceSetter _setter = { this };
 
-	const not_null<Launcher*> _launcher;
 	rpl::event_stream<ProxyChange> _proxyChanges;
 
 	// Some fields are just moved from the declaration.

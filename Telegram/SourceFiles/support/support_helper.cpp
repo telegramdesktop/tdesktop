@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
-#include "core/sandbox.h"
+#include "core/launcher.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
@@ -138,7 +138,7 @@ void EditInfoBox::setInnerFocus() {
 }
 
 uint32 OccupationTag() {
-	return uint32(Core::Sandbox::Instance().installationTag() & 0xFFFFFFFF);
+	return uint32(Core::Launcher::Instance().installationTag() & 0xFFFFFFFF);
 }
 
 QString NormalizeName(QString name) {
@@ -268,7 +268,7 @@ Helper::Helper(not_null<Main::Session*> session)
 	}).fail([=] {
 		setSupportName(
 			u"[rand^"_q
-			+ QString::number(Core::Sandbox::Instance().installationTag())
+			+ QString::number(Core::Launcher::Instance().installationTag())
 			+ ']');
 	}).send();
 }

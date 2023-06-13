@@ -24,8 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace {
 
-Launcher *LauncherInstance = nullptr;
-
 class Arguments {
 public:
 	void push(QByteArray argument) {
@@ -50,15 +48,6 @@ private:
 Launcher::Launcher(int argc, char *argv[])
 : Core::Launcher(argc, argv)
 , _arguments(argv, argv + argc) {
-	Expects(LauncherInstance == nullptr);
-
-	LauncherInstance = this;
-}
-
-Launcher &Launcher::Instance() {
-	Expects(LauncherInstance != nullptr);
-
-	return *LauncherInstance;
 }
 
 int Launcher::exec() {
