@@ -19,7 +19,6 @@ class QLockFile;
 
 namespace Core {
 
-class Launcher;
 class UpdateChecker;
 class Application;
 
@@ -33,7 +32,7 @@ private:
 	}
 
 public:
-	Sandbox(not_null<Launcher*> launcher, int &argc, char **argv);
+	Sandbox(int &argc, char **argv);
 
 	Sandbox(const Sandbox &other) = delete;
 	Sandbox &operator=(const Sandbox &other) = delete;
@@ -41,8 +40,6 @@ public:
 	int start();
 
 	void refreshGlobalProxy();
-	bool customWorkingDir() const;
-	uint64 installationTag() const;
 
 	void postponeCall(FnMut<void()> &&callable);
 	bool notify(QObject *receiver, QEvent *e) override;
@@ -116,7 +113,6 @@ private:
 	std::vector<int> _previousLoopNestingLevels;
 	std::vector<PostponedCall> _postponedCalls;
 
-	not_null<Launcher*> _launcher;
 	std::unique_ptr<Application> _application;
 
 	QString _localServerName, _localSocketReadData;

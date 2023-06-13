@@ -281,6 +281,8 @@ base::options::toggle OptionFractionalScalingEnabled({
 const char kOptionFractionalScalingEnabled[] = "fractional-scaling-enabled";
 const char kOptionFreeType[] = "freetype";
 
+Launcher *Launcher::InstanceSetter::Instance = nullptr;
+
 std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
 }
@@ -292,6 +294,10 @@ Launcher::Launcher(int argc, char *argv[])
 	crl::toggle_fp_exceptions(true);
 
 	base::Integration::Set(&_baseIntegration);
+}
+
+Launcher::~Launcher() {
+	InstanceSetter::Instance = nullptr;
 }
 
 void Launcher::init() {
@@ -558,7 +564,7 @@ void Launcher::processArguments() {
 
 int Launcher::executeApplication() {
 	FilteredCommandLineArguments arguments(_argc, _argv);
-	Sandbox sandbox(this, arguments.count(), arguments.values());
+	Sandbox sandbox(arguments.count(), arguments.values());
 	Ui::MainQueueProcessor processor;
 	base::ConcurrentTimerEnvironment environment;
 	return sandbox.start();

@@ -15,10 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
-#include "platform/platform_launcher.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
+#include "core/launcher.h"
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "core/local_url_handlers.h"
@@ -138,7 +138,7 @@ bool PortalAutostart(bool start, bool silent) {
 
 		std::vector<Glib::ustring> commandline;
 		commandline.push_back(cExeName().toStdString());
-		if (Core::Sandbox::Instance().customWorkingDir()) {
+		if (Core::Launcher::Instance().customWorkingDir()) {
 			commandline.push_back("-workdir");
 			commandline.push_back(cWorkingDir().toStdString());
 		}
@@ -403,7 +403,7 @@ bool GenerateDesktopFile(
 					exec.append(!Core::UpdaterDisabled()
 						? (cExeDir() + cExeName())
 						: cExeName());
-					if (Core::Sandbox::Instance().customWorkingDir()) {
+					if (Core::Launcher::Instance().customWorkingDir()) {
 						exec.append(u"-workdir"_q);
 						exec.append(cWorkingDir());
 					}
@@ -426,7 +426,7 @@ bool GenerateDesktopFile(
 						exec[0] = !Core::UpdaterDisabled()
 							? (cExeDir() + cExeName())
 							: cExeName();
-						if (Core::Sandbox::Instance().customWorkingDir()) {
+						if (Core::Launcher::Instance().customWorkingDir()) {
 							exec.insert(1, u"-workdir"_q);
 							exec.insert(2, cWorkingDir());
 						}
@@ -479,7 +479,7 @@ bool GenerateDesktopFile(
 		const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
 		hashMd5Hex(d.constData(), d.size(), md5Hash);
 
-		if (!Core::Sandbox::Instance().customWorkingDir()) {
+		if (!Core::Launcher::Instance().customWorkingDir()) {
 			const auto exePath = QFile::encodeName(
 				cExeDir() + cExeName());
 			hashMd5Hex(exePath.constData(), exePath.size(), md5Hash);
@@ -676,7 +676,7 @@ void start() {
 
 		if (!Core::UpdaterDisabled()) {
 			QByteArray md5Hash(h);
-			if (!Launcher::Instance().customWorkingDir()) {
+			if (!Core::Launcher::Instance().customWorkingDir()) {
 				const auto exePath = QFile::encodeName(
 					cExeDir() + cExeName());
 
@@ -726,6 +726,8 @@ void start() {
 		h,
 		cGUIDStr(),
 		u"%1"_q).toStdString());
+
+	InstallLauncher();
 }
 
 void finish() {
@@ -805,7 +807,6 @@ void start() {
 			"except various functionality to not to work.");
 	}
 
-	InstallLauncher();
 	LaunchGApplication();
 }
 

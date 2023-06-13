@@ -94,10 +94,7 @@ private:
 class LastCrashedWindow : public PreLaunchWindow {
 
 public:
-	LastCrashedWindow(
-		not_null<Core::Launcher*> launcher,
-		const QByteArray &crashdump,
-		Fn<void()> launch);
+	LastCrashedWindow(const QByteArray &crashdump, Fn<void()> launch);
 
 	rpl::producer<MTP::ProxyData> proxyChanges() const;
 
