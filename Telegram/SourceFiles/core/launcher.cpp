@@ -441,17 +441,6 @@ bool Launcher::customWorkingDir() const {
 void Launcher::prepareSettings() {
 	auto path = base::Platform::CurrentExecutablePath(_argc, _argv);
 	LOG(("Executable path before check: %1").arg(path));
-	if (!path.isEmpty()) {
-		auto info = QFileInfo(path);
-		if (info.isSymLink()) {
-			info = QFileInfo(info.symLinkTarget());
-		}
-		if (info.exists()) {
-			const auto dir = info.absoluteDir().absolutePath();
-			gExeDir = (dir.endsWith('/') ? dir : (dir + '/'));
-			gExeName = info.fileName();
-		}
-	}
 	if (cExeName().isEmpty()) {
 		LOG(("WARNING: Could not compute executable path, some features will be disabled."));
 	}
