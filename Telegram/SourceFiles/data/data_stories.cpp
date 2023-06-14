@@ -313,15 +313,17 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
-	auto views = 0;
+	auto views = -1;
 	auto recent = std::vector<not_null<PeerData*>>();
-	if (const auto info = data.vviews()) {
-		views = info->data().vviews_count().v;
-		if (const auto list = info->data().vrecent_viewers()) {
-			recent.reserve(list->v.size());
-			auto &owner = _peer->owner();
-			for (const auto &id : list->v) {
-				recent.push_back(owner.peer(peerFromUser(id)));
+	if (!data.is_min()) {
+		if (const auto info = data.vviews()) {
+			views = info->data().vviews_count().v;
+			if (const auto list = info->data().vrecent_viewers()) {
+				recent.reserve(list->v.size());
+				auto &owner = _peer->owner();
+				for (const auto &id : list->v) {
+					recent.push_back(owner.peer(peerFromUser(id)));
+				}
 			}
 		}
 	}
@@ -331,7 +333,7 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 		|| (_isPublic != isPublic)
 		|| (_closeFriends != closeFriends)
 		|| (_caption != caption)
-		|| (_views != views)
+		|| (views >= 0 && _views != views)
 		|| (_recentViewers != recent);
 	if (!changed) {
 		return false;
@@ -341,7 +343,9 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	_isPublic = isPublic;
 	_closeFriends = closeFriends;
 	_caption = std::move(caption);
-	_views = views;
+	if (views >= 0) {
+		_views = views;
+	}
 	_recentViewers = std::move(recent);
 	return true;
 }

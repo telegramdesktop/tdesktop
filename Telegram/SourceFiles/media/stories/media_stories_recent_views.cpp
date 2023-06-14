@@ -150,15 +150,41 @@ void RecentViews::show(RecentViewsData data) {
 	if (usersChanged) {
 		updateUserpics();
 	}
+	refreshClickHandler();
+}
+
+void RecentViews::refreshClickHandler() {
+	const auto nowEmpty = _data.list.empty();
+	const auto wasEmpty = !_clickHandlerLifetime;
+	const auto raw = _widget.get();
+	if (wasEmpty == nowEmpty) {
+		return;
+	} else if (nowEmpty) {
+		_clickHandlerLifetime.destroy();
+	} else {
+		_clickHandlerLifetime = raw->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return (_data.total > 0)
+				&& (e->type() == QEvent::MouseButtonPress)
+				&& (static_cast<QMouseEvent*>(e.get())->button()
+					== Qt::LeftButton);
+		}) | rpl::start_with_next([=] {
+			showMenu();
+		});
+	}
+	raw->setCursor(_clickHandlerLifetime
+		? style::cur_pointer
+		: style::cur_default);
 }
 
 void RecentViews::updateUserpics() {
 	_userpicsLifetime = ContentByUsers(
 		_data.list
 	) | rpl::start_with_next([=](
-		const std::vector<Ui::GroupCallUser> &list) {
+			const std::vector<Ui::GroupCallUser> &list) {
 		_userpics->update(list, true);
 	});
+	_userpics->finishAnimating();
 }
 
 void RecentViews::setupUserpics() {
@@ -201,18 +227,6 @@ void RecentViews::setupWidget() {
 			_textPosition.y(),
 			raw->width() - _userpicsWidth - st::storiesRecentViewsSkip);
 	}, raw->lifetime());
-
-	raw->events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return (_data.total > 0)
-			&& (e->type() == QEvent::MouseButtonPress)
-			&& (static_cast<QMouseEvent*>(e.get())->button()
-				== Qt::LeftButton);
-	}) | rpl::start_with_next([=] {
-		showMenu();
-	}, raw->lifetime());
-
-	raw->setCursor(style::cur_pointer);
 }
 
 void RecentViews::updatePartsGeometry() {
@@ -242,7 +256,7 @@ void RecentViews::updateText() {
 }
 
 void RecentViews::showMenu() {
-	if (_menu) {
+	if (_menu || _data.list.empty()) {
 		return;
 	}
 

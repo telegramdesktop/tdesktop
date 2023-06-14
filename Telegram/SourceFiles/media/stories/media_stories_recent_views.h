@@ -70,6 +70,7 @@ private:
 	void addMenuRowPlaceholder();
 	void rebuildMenuTail();
 	void subscribeToMenuUserpicsLoading(not_null<Main::Session*> session);
+	void refreshClickHandler();
 
 	const not_null<Controller*> _controller;
 
@@ -88,6 +89,7 @@ private:
 	rpl::variable<bool> _shortAnimationPlaying;
 	bool _waitingUserpicsCheck = false;
 	rpl::lifetime _waitingForUserpicsLifetime;
+	rpl::lifetime _clickHandlerLifetime;
 
 	QRect _outer;
 	QPoint _userpicsPosition;

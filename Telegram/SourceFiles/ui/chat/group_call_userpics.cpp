@@ -348,11 +348,17 @@ void GroupCallUserpics::update(
 		_speakingAnimation.start();
 	}
 
-	if (!visible) {
-		for (auto &userpic : _list) {
-			userpic.shownAnimation.stop();
-			userpic.leftAnimation.stop();
-		}
+	if (visible) {
+		recountAndRepaint();
+	} else {
+		finishAnimating();
+	}
+}
+
+void GroupCallUserpics::finishAnimating() {
+	for (auto &userpic : _list) {
+		userpic.shownAnimation.stop();
+		userpic.leftAnimation.stop();
 	}
 	recountAndRepaint();
 }
