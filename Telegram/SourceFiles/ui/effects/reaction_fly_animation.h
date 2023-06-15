@@ -27,6 +27,7 @@ struct ReactionFlyAnimationArgs {
 	::Data::ReactionId id;
 	QImage flyIcon;
 	QRect flyFrom;
+	crl::time scaleOutDuration = 0;
 
 	[[nodiscard]] ReactionFlyAnimationArgs translated(QPoint point) const;
 };
@@ -102,6 +103,7 @@ private:
 	QRect _flyFrom;
 	float64 _centerSizeMultiplier = 0.;
 	int _customSize = 0;
+	crl::time _scaleOutDuration = 0;
 	bool _valid = false;
 
 	mutable Parabolic _cached;

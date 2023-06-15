@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "history/history_item.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "main/main_session.h"
@@ -667,12 +668,30 @@ ChosenReaction Selector::lookupChosen(const Data::ReactionId &id) const {
 	return result;
 }
 
+void Selector::preloadAllRecentsAnimations() {
+	const auto preload = [&](DocumentData *document) {
+		const auto view = document
+			? document->activeMediaView()
+			: nullptr;
+		if (view) {
+			view->checkStickerLarge();
+		}
+	};
+	for (const auto &reaction : _reactions.recent) {
+		if (!reaction.id.custom()) {
+			preload(reaction.centerIcon);
+		}
+		preload(reaction.aroundAnimation);
+	}
+}
+
 void Selector::expand() {
 	if (_expandScheduled) {
 		return;
 	}
 	_expandScheduled = true;
 	_willExpand.fire({});
+	preloadAllRecentsAnimations();
 	const auto parent = parentWidget()->geometry();
 	const auto extents = extentsForShadow();
 	const auto heightLimit = _reactions.customAllowed

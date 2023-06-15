@@ -143,7 +143,7 @@ void Reactions::create() {
 	_selector->chosen(
 	) | rpl::start_with_next([=](
 			HistoryView::Reactions::ChosenReaction reaction) {
-		_chosen.fire_copy(reaction.id);
+		_chosen.fire_copy(reaction);
 		hide();
 	}, _selector->lifetime());
 

@@ -21,6 +21,7 @@ struct FileChosen;
 
 namespace Data {
 struct FileOrigin;
+struct ReactionId;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -29,6 +30,8 @@ class CachedIconFactory;
 
 namespace Ui {
 class RpWidget;
+struct MessageSendingAnimationFrom;
+class EmojiFlyAnimation;
 } // namespace Ui
 
 namespace Main {
@@ -183,6 +186,10 @@ private:
 	void checkMoveByDelta();
 	void loadMoreToList();
 
+	void startReactionAnimation(
+		Data::ReactionId id,
+		Ui::MessageSendingAnimationFrom from);
+
 	const not_null<Delegate*> _delegate;
 
 	rpl::variable<std::optional<Layout>> _layout;
@@ -226,6 +233,7 @@ private:
 	std::unique_ptr<Sibling> _siblingRight;
 
 	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
+	std::unique_ptr<Ui::EmojiFlyAnimation> _reactionAnimation;
 
 	Main::Session *_session = nullptr;
 	rpl::lifetime _sessionLifetime;

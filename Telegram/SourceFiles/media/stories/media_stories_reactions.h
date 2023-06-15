@@ -15,6 +15,7 @@ struct ReactionId;
 
 namespace HistoryView::Reactions {
 class Selector;
+struct ChosenReaction;
 } // namespace HistoryView::Reactions
 
 namespace Ui {
@@ -30,10 +31,11 @@ public:
 	explicit Reactions(not_null<Controller*> controller);
 	~Reactions();
 
+	using Chosen = HistoryView::Reactions::ChosenReaction;
 	[[nodiscard]] rpl::producer<bool> expandedValue() const {
 		return _expanded.value();
 	}
-	[[nodiscard]] rpl::producer<Data::ReactionId> chosen() const {
+	[[nodiscard]] rpl::producer<Chosen> chosen() const {
 		return _chosen.events();
 	}
 
@@ -54,7 +56,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _parent;
 	std::unique_ptr<HistoryView::Reactions::Selector> _selector;
 	std::vector<std::unique_ptr<Hiding>> _hiding;
-	rpl::event_stream<Data::ReactionId> _chosen;
+	rpl::event_stream<Chosen> _chosen;
 	Ui::Animations::Simple _showing;
 	rpl::variable<float64> _shownValue;
 	rpl::variable<bool> _expanded;

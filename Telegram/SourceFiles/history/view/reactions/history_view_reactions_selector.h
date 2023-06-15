@@ -131,6 +131,7 @@ private:
 	void createList();
 	void finishExpand();
 	ChosenReaction lookupChosen(const Data::ReactionId &id) const;
+	void preloadAllRecentsAnimations();
 
 	const style::EmojiPan &_st;
 	const std::shared_ptr<ChatHelpers::Show> _show;

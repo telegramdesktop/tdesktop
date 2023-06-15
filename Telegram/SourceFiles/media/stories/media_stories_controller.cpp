@@ -11,11 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/power_save_blocker.h"
 #include "base/qt_signal_producer.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_file_origin.h"
+#include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
+#include "history/view/reactions/history_view_reactions_strip.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_caption_full_view.h"
 #include "media/stories/media_stories_delegate.h"
@@ -28,8 +31,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_share.h"
 #include "media/stories/media_stories_view.h"
 #include "media/audio/media_audio.h"
-#include "ui/rp_widget.h"
+#include "ui/effects/emoji_fly_animation.h"
+#include "ui/effects/message_sending_animation_common.h"
+#include "ui/effects/reaction_fly_animation.h"
 #include "ui/layers/box_content.h"
+#include "ui/rp_widget.h"
 #include "styles/style_media_view.h"
 #include "styles/style_widgets.h"
 #include "styles/style_boxes.h" // UserpicButton
@@ -171,8 +177,14 @@ Controller::Controller(not_null<Delegate*> delegate)
 	}, _lifetime);
 
 	_reactions->chosen(
-	) | rpl::start_with_next([=](const Data::ReactionId &id) {
-		_replyArea->sendReaction(id);
+	) | rpl::start_with_next([=](HistoryView::Reactions::ChosenReaction id) {
+		startReactionAnimation(id.id, {
+			.type = Ui::MessageSendingAnimationFrom::Type::Emoji,
+			.globalStartGeometry = id.globalGeometry,
+			.frame = id.icon,
+		});
+		_replyArea->sendReaction(id.id);
+		unfocusReply();
 	}, _lifetime);
 
 	_delegate->storiesLayerShown(
@@ -1060,6 +1072,34 @@ void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {
 		base::PowerSaveBlockType::PreventDisplaySleep,
 		[] { return u"Stories playback is active"_q; },
 		[=] { return _wrap->window()->windowHandle(); });
+}
+
+void Controller::startReactionAnimation(
+		Data::ReactionId id,
+		Ui::MessageSendingAnimationFrom from) {
+	Expects(shown());
+
+	auto args = Ui::ReactionFlyAnimationArgs{
+		.id = id,
+		.flyIcon = from.frame,
+		.flyFrom = _wrap->mapFromGlobal(from.globalStartGeometry),
+		.scaleOutDuration = st::fadeWrapDuration * 2,
+	};
+	_reactionAnimation = std::make_unique<Ui::EmojiFlyAnimation>(
+		_wrap,
+		&shownUser()->owner().reactions(),
+		std::move(args),
+		[=] { _reactionAnimation->repaint(); },
+		Data::CustomEmojiSizeTag::Isolated);
+	const auto layer = _reactionAnimation->layer();
+	_wrap->paintRequest() | rpl::start_with_next([=] {
+		if (!_reactionAnimation->paintBadgeFrame(_wrap.get())) {
+			InvokeQueued(layer, [=] {
+				_reactionAnimation = nullptr;
+				_wrap->update();
+			});
+		}
+	}, layer->lifetime());
 }
 
 } // namespace Media::Stories
