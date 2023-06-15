@@ -191,6 +191,7 @@ bool GenerateDesktopFile(
 
 	const auto sourceFile = kDesktopFile.utf16();
 	const auto targetFile = targetPath + QGuiApplication::desktopFileName();
+	const auto executable = ExecutablePathForShortcuts();
 
 	const auto sourceText = [&] {
 		QFile source(sourceFile);
@@ -224,11 +225,7 @@ bool GenerateDesktopFile(
 				target->set_string(
 					group,
 					"TryExec",
-					KShell::joinArgs({
-						!Core::UpdaterDisabled()
-							? (cExeDir() + cExeName())
-							: cExeName()
-					}).replace(
+					KShell::joinArgs({ executable }).replace(
 						'\\',
 						qstr("\\\\")).toStdString());
 			}
@@ -236,9 +233,7 @@ bool GenerateDesktopFile(
 			if (target->has_key(group, "Exec")) {
 				if (group == "Desktop Entry" && !args.isEmpty()) {
 					QStringList exec;
-					exec.append(!Core::UpdaterDisabled()
-						? (cExeDir() + cExeName())
-						: cExeName());
+					exec.append(executable);
 					if (Core::Launcher::Instance().customWorkingDir()) {
 						exec.append(u"-workdir"_q);
 						exec.append(cWorkingDir());
@@ -259,9 +254,7 @@ bool GenerateDesktopFile(
 							qstr("\\")));
 
 					if (!exec.isEmpty()) {
-						exec[0] = !Core::UpdaterDisabled()
-							? (cExeDir() + cExeName())
-							: cExeName();
+						exec[0] = executable;
 						if (Core::Launcher::Instance().customWorkingDir()) {
 							exec.insert(1, u"-workdir"_q);
 							exec.insert(2, cWorkingDir());
@@ -449,6 +442,20 @@ bool SkipTaskbarSupported() {
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 	return false;
+}
+
+QString ExecutablePathForShortcuts() {
+	if (Core::UpdaterDisabled()) {
+		const auto &arguments = Core::Launcher::Instance().arguments();
+		if (!arguments.isEmpty()) {
+			const auto result = QFileInfo(arguments.first()).fileName();
+			if (!result.isEmpty()) {
+				return result;
+			}
+		}
+		return cExeName();
+	}
+	return cExeDir() + cExeName();
 }
 
 } // namespace Platform
