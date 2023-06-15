@@ -69,17 +69,23 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		return false;
 	}
 
-	const auto binaryPath = (action == UpdaterLaunch::JustRelaunch)
-		? (cExeDir() + cExeName())
-		: (cWriteProtected()
+	const auto justRelaunch = action == UpdaterLaunch::JustRelaunch;
+	const auto writeProtectedUpdate = action == UpdaterLaunch::PerformUpdate
+		&& cWriteProtected();
+
+	const auto binaryPath = justRelaunch
+		? QFile::encodeName(cExeDir() + cExeName())
+		: QFile::encodeName(cWriteProtected()
 			? (cWorkingDir() + u"tupdates/temp/Updater"_q)
 			: (cExeDir() + u"Updater"_q));
 
 	auto argumentsList = Arguments();
-	if (action == UpdaterLaunch::PerformUpdate && cWriteProtected()) {
+	if (writeProtectedUpdate) {
 		argumentsList.push("pkexec");
 	}
-	argumentsList.push(QFile::encodeName(binaryPath));
+	argumentsList.push((justRelaunch && !arguments().isEmpty())
+		? QFile::encodeName(arguments().first())
+		: binaryPath);
 
 	if (cLaunchMode() == LaunchModeAutoStart) {
 		argumentsList.push("-autostart");
@@ -95,7 +101,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		argumentsList.push(QFile::encodeName(cDataFile()));
 	}
 
-	if (action == UpdaterLaunch::JustRelaunch) {
+	if (justRelaunch) {
 		argumentsList.push("-noupdate");
 		argumentsList.push("-tosettings");
 		if (customWorkingDir()) {
@@ -109,6 +115,10 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		argumentsList.push(QFile::encodeName(cExeName()));
 		argumentsList.push("-exepath");
 		argumentsList.push(QFile::encodeName(cExeDir()));
+		if (!arguments().isEmpty()) {
+			argumentsList.push("-argv0");
+			argumentsList.push(QFile::encodeName(arguments().first()));
+		}
 		if (customWorkingDir()) {
 			argumentsList.push("-workdir_custom");
 		}
@@ -125,11 +135,15 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	pid_t pid = fork();
 	switch (pid) {
 	case -1: return false;
-	case 0: execvp(args[0], args); return false;
+	case 0:
+		execvp(
+			writeProtectedUpdate ? args[0] : binaryPath.constData(),
+			args);
+		return false;
 	}
 
 	// pkexec needs an alive parent
-	if (action == UpdaterLaunch::PerformUpdate && cWriteProtected()) {
+	if (writeProtectedUpdate) {
 		waitpid(pid, nullptr, 0);
 		// launch new version in the same environment
 		return launchUpdater(UpdaterLaunch::JustRelaunch);
