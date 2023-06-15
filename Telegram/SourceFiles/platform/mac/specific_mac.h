@@ -40,6 +40,10 @@ inline uint64 ActivationWindowId(not_null<QWidget*> window) {
 inline void ActivateOtherProcess(uint64 processId, uint64 windowId) {
 }
 
+inline QString ExecutablePathForShortcuts() {
+	return cExeDir() + cExeName();
+}
+
 namespace ThirdParty {
 
 inline void start() {
