@@ -16,16 +16,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo.h"
-#include "data/data_session.h"
-#include "lang/lang_keys.h"
-#include "main/main_session.h"
-#include "ui/text/text_utilities.h"
-
-// #TODO stories testing
 #include "data/data_user.h"
+#include "data/data_session.h"
+#include "data/data_thread.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "storage/storage_shared_media.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/layers/show.h"
+#include "ui/text/text_utilities.h"
 
 namespace Data {
 namespace {
@@ -1140,7 +1139,10 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 	_markReadTimer.callOnce(kMarkAsReadDelay);
 }
 
-void Stories::toggleHidden(PeerId peerId, bool hidden) {
+void Stories::toggleHidden(
+		PeerId peerId,
+		bool hidden,
+		std::shared_ptr<Ui::Show> show) {
 	const auto user = _owner->peer(peerId)->asUser();
 	Assert(user != nullptr);
 	if (user->hasStoriesHidden() != hidden) {
@@ -1152,6 +1154,14 @@ void Stories::toggleHidden(PeerId peerId, bool hidden) {
 			MTP_bool(hidden)
 		)).send();
 	}
+
+	const auto guard = gsl::finally([&] {
+		if (show) {
+			show->showToast(hidden
+				? tr::lng_stories_hidden_to_contacts(tr::now)
+				: tr::lng_stories_shown_in_chats(tr::now));
+		}
+	});
 
 	const auto i = _all.find(peerId);
 	if (i == end(_all)) {

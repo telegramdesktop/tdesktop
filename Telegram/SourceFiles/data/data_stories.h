@@ -21,6 +21,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class Show;
+} // namespace Ui
+
 namespace Data {
 
 class Session;
@@ -251,7 +255,10 @@ public:
 	[[nodiscard]] bool isQuitPrevent();
 	void markAsRead(FullStoryId id, bool viewed);
 
-	void toggleHidden(PeerId peerId, bool hidden);
+	void toggleHidden(
+		PeerId peerId,
+		bool hidden,
+		std::shared_ptr<Ui::Show> show);
 
 	static constexpr auto kViewsPerPage = 50;
 	void loadViewsSlice(

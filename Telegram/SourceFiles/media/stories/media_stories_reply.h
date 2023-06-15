@@ -73,7 +73,10 @@ private:
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<History*> history() const;
 
-	void send(Api::MessageToSend message, Api::SendOptions options);
+	void send(
+		Api::MessageToSend message,
+		Api::SendOptions options,
+		bool skipToast = false);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
@@ -98,7 +101,7 @@ private:
 		TextWithTags &&caption,
 		Api::SendOptions options,
 		bool ctrlShiftEnter);
-	void finishSending();
+	void finishSending(bool skipToast = false);
 
 	void sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingDocument(

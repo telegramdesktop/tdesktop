@@ -122,7 +122,7 @@ void ReplyArea::sendReaction(const Data::ReactionId &id) {
 		}
 	}
 	if (!message.textWithTags.empty()) {
-		send(std::move(message), {});
+		send(std::move(message), {}, true);
 	}
 }
 
@@ -136,7 +136,10 @@ void ReplyArea::send(Api::SendOptions options) {
 	send(std::move(message), options);
 }
 
-void ReplyArea::send(Api::MessageToSend message, Api::SendOptions options) {
+void ReplyArea::send(
+		Api::MessageToSend message,
+		Api::SendOptions options,
+		bool skipToast) {
 	const auto error = GetErrorTextForSending(
 		_data.user,
 		{
@@ -151,7 +154,7 @@ void ReplyArea::send(Api::MessageToSend message, Api::SendOptions options) {
 	session().api().sendMessage(std::move(message));
 
 	_controls->clear();
-	finishSending();
+	finishSending(skipToast);
 }
 
 void ReplyArea::sendVoice(VoiceToSend &&data) {
@@ -256,9 +259,13 @@ void ReplyArea::sendInlineResult(
 	finishSending();
 }
 
-void ReplyArea::finishSending() {
+void ReplyArea::finishSending(bool skipToast) {
 	_controls->hidePanelsAnimated();
 	_controller->wrap()->setFocus();
+	if (!skipToast) {
+		_controller->uiShow()->showToast(
+			tr::lng_stories_reply_sent(tr::now));
+	}
 }
 
 void ReplyArea::uploadFile(

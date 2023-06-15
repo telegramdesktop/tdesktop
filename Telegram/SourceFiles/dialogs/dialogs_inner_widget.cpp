@@ -353,7 +353,8 @@ InnerWidget::InnerWidget(
 	) | rpl::start_with_next([=](Stories::ToggleShownRequest request) {
 		session().data().stories().toggleHidden(
 			PeerId(int64(request.id)),
-			!request.shown);
+			!request.shown,
+			_controller->uiShow());
 	}, lifetime());
 
 	_stories->loadMoreRequests(

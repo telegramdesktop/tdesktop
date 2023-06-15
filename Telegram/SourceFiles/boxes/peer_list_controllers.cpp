@@ -108,7 +108,8 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		) | rpl::start_with_next([=](Stories::ToggleShownRequest request) {
 			sessionController->session().data().stories().toggleHidden(
 				PeerId(int64(request.id)),
-				!request.shown);
+				!request.shown,
+				sessionController->uiShow());
 		}, raw->lifetime());
 
 		raw->loadMoreRequests(
