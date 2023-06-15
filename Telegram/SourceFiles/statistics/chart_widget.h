@@ -22,6 +22,7 @@ public:
 
 	void setChartData(Data::StatisticalChart chartData);
 	void setHeightLimits(Limits newHeight, bool animated);
+	void addHorizontalLine(Limits newHeight, bool animated);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -54,6 +55,8 @@ private:
 		anim::value animValueXMax;
 		anim::value animValueYMin;
 		anim::value animValueYMax;
+
+		anim::value animValueYAlpha;
 	} _xPercentage;
 
 	float64 _minMaxUpdateStep = 0.;

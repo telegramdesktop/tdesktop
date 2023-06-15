@@ -217,17 +217,34 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		}
 	}, _footer->lifetime());
 
-	constexpr auto kExpandingDelay = crl::time(400);
+	constexpr auto kExpandingDelay = crl::time(100);
 	constexpr auto kXExpandingDuration = 200.;
 	constexpr auto kYExpandingDuration = 400.;
+	constexpr auto kAlphaExpandingDuration = 120.;
 	_xPercentage.animation.init([=](crl::time now) {
-		if (!_xPercentage.yAnimationStartedAt
-			&& (now - _xPercentage.lastUserInteracted) >= kExpandingDelay) {
+		if ((now - _xPercentage.lastUserInteracted) >= kExpandingDelay) {
 			_xPercentage.yAnimationStartedAt = _xPercentage.lastUserInteracted
 				+ kExpandingDelay;
+			_xPercentage.animValueYAlpha = anim::value(0., 1.);
+			{
+				const auto startXIndex = _chartData.findStartIndex(
+					_xPercentage.now.min);
+				const auto endXIndex = _chartData.findEndIndex(
+					startXIndex,
+					_xPercentage.now.max);
+				addHorizontalLine(
+					{
+						float64(FindMinValue(_chartData, startXIndex, endXIndex)),
+						float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
+					},
+					true);
+			}
 		}
 		const auto dtY = std::min(
 			(now - _xPercentage.yAnimationStartedAt) / kYExpandingDuration,
+			1.);
+		const auto dtAlpha = std::min(
+			(now - _xPercentage.yAnimationStartedAt) / kAlphaExpandingDuration,
 			1.);
 		const auto dtX = std::min(
 			(now - _xPercentage.animation.started()) / kXExpandingDuration,
@@ -258,48 +275,31 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		if (_xPercentage.yAnimationStartedAt) {
 			_xPercentage.animValueYMin.update(dtY, anim::sineInOut);
 			_xPercentage.animValueYMax.update(dtY, anim::sineInOut);
+			_xPercentage.animValueYAlpha.update(dtY, anim::easeOutQuint);
 
-			for (auto &horizontalLine : _horizontalLines) {
+			auto &&subrange = ranges::make_subrange(
+				begin(_horizontalLines) + 1,
+				end(_horizontalLines));
+			for (auto &horizontalLine : std::move(subrange)) {
 				horizontalLine.computeRelative(
 					_xPercentage.animValueYMax.current(),
 					_xPercentage.animValueYMin.current());
 			}
 		}
-		const auto startXIndex = _chartData.findStartIndex(
-			_xPercentage.now.min);
-		const auto endXIndex = _chartData.findEndIndex(
-			startXIndex,
-			_xPercentage.now.max);
-		setHeightLimits(
-			{
-				float64(FindMinValue(_chartData, startXIndex, endXIndex)),
-				float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
-			},
-			true);
 
 		if (_xPercentage.yAnimationStartedAt) {
-			const auto &animMin = _xPercentage.animValueYMin;
-			const auto &animMax = _xPercentage.animValueYMax;
-			const auto valueMin = AnimFinished(animMin)
-				? -1.
-				: (animMin.current() - animMin.from())
-					/ (animMin.to() - animMin.from());
-			const auto valueMax = AnimFinished(animMax)
-				? -1.
-				: (animMax.current() - animMax.from())
-					/ (animMax.to() - animMax.from());
-			const auto value = std::abs(std::max(valueMin, valueMax));
+			const auto value = _xPercentage.animValueYAlpha.current();
 			_horizontalLines.back().alpha = value;
 
 			const auto startIt = begin(_horizontalLines);
 			const auto endIt = end(_horizontalLines);
 			for (auto it = startIt; it != (endIt - 1); it++) {
 				const auto was = it->alpha;
-				it->alpha = it->fixedAlpha * (1. - (endIt - 1)->alpha);
+				it->alpha = it->fixedAlpha * (1. - value);
 				const auto now = it->alpha;
 			}
 			if (value == 1.) {
-				while (_horizontalLines.size() > 2) {
+				while (_horizontalLines.size() > 1) {
 					const auto startIt = begin(_horizontalLines);
 					if (!startIt->alpha) {
 						_horizontalLines.erase(startIt);
@@ -316,6 +316,21 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 	_footer->userInteractionFinished(
 	) | rpl::start_with_next([=] {
 		_xPercentage.yAnimationStartedAt = crl::now();
+		_xPercentage.animValueYAlpha = anim::value(0., 1.);
+
+		{
+			const auto startXIndex = _chartData.findStartIndex(
+				_xPercentage.now.min);
+			const auto endXIndex = _chartData.findEndIndex(
+				startXIndex,
+				_xPercentage.now.max);
+			addHorizontalLine(
+				{
+					float64(FindMinValue(_chartData, startXIndex, endXIndex)),
+					float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
+				},
+				true);
+		}
 	}, _footer->lifetime());
 
 	_footer->xPercentageLimitsChange(
@@ -362,6 +377,8 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			}
 			_xPercentage.animValueYMin.start(minY);
 			_xPercentage.animValueYMax.start(maxY);
+
+			_horizontalLines.front().computeRelative(maxY, minY);
 		}
 		// _xPercentage.animation.stop();
 		// const auto was = _xPercentageLimits;
@@ -414,7 +431,7 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 				float64(FindMinValue(_chartData, startXIndex, endXIndex)),
 				float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
 			},
-			true);
+			false);
 		update();
 	}
 }
@@ -517,7 +534,17 @@ void ChartWidget::setHeightLimits(Limits newHeight, bool animated) {
 		_horizontalLines.back().alpha = 1.;
 		return;
 	}
+	for (auto &horizontalLine : _horizontalLines) {
+		horizontalLine.fixedAlpha = horizontalLine.alpha;
+	}
+	_horizontalLines.push_back(newLinesData);
+}
 
+void ChartWidget::addHorizontalLine(Limits newHeight, bool animated) {
+	const auto newLinesData = ChartHorizontalLinesData(
+		newHeight.max,
+		newHeight.min,
+		true);
 	for (auto &horizontalLine : _horizontalLines) {
 		horizontalLine.fixedAlpha = horizontalLine.alpha;
 	}
