@@ -20,10 +20,6 @@ namespace MTP {
 struct ProxyData;
 } // namespace MTP
 
-namespace Core {
-class Launcher;
-} // namespace Core
-
 class PreLaunchWindow : public QWidget {
 public:
 	PreLaunchWindow(QString title = QString());

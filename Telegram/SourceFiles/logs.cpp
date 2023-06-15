@@ -343,10 +343,10 @@ bool WritingEntry() {
 	return WritingEntryFlag;
 }
 
-void start(not_null<Core::Launcher*> launcher) {
+void start() {
 	Assert(LogsData == nullptr);
 
-	if (!launcher->checkPortableVersionFolder()) {
+	if (!Core::Launcher::Instance().checkPortableVersionFolder()) {
 		return;
 	}
 
@@ -414,8 +414,8 @@ void start(not_null<Core::Launcher*> launcher) {
 
 	QDir().mkpath(cWorkingDir() + u"tdata"_q);
 
-	launcher->workingFolderReady();
-	CrashReports::StartCatching(launcher);
+	Core::Launcher::Instance().workingFolderReady();
+	CrashReports::StartCatching();
 
 	if (!LogsData->openMain()) {
 		delete LogsData;
@@ -430,7 +430,7 @@ void start(not_null<Core::Launcher*> launcher) {
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir(), cExeName()));
 	LOG(("Initial working dir: %1").arg(initialWorkingDir));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
-	LOG(("Command line: %1").arg(launcher->arguments().join(' ')));
+	LOG(("Command line: %1").arg(Core::Launcher::Instance().arguments().join(' ')));
 
 	if (!LogsData) {
 		LOG(("FATAL: Could not open '%1' for writing log!"
