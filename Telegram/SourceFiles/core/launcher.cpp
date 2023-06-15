@@ -348,7 +348,7 @@ int Launcher::exec() {
 	}
 
 	// Must be started before Platform is started.
-	Logs::start(this);
+	Logs::start();
 	base::options::init(cWorkingDir() + "tdata/experimental_options.json");
 
 	// Must be called after options are inited.

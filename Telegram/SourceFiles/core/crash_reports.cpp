@@ -313,7 +313,7 @@ QString PlatformString() {
 	Unexpected("Platform in CrashReports::PlatformString.");
 }
 
-void StartCatching(not_null<Core::Launcher*> launcher) {
+void StartCatching() {
 #ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
 	ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
@@ -324,7 +324,7 @@ void StartCatching(not_null<Core::Launcher*> launcher) {
 			: u"%1"_q).arg(AppVersion)).toUtf8().constData();
 	ProcessAnnotations["Launched"] = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8().constData();
 	ProcessAnnotations["Platform"] = PlatformString().toUtf8().constData();
-	ProcessAnnotations["UserTag"] = QString::number(launcher->installationTag(), 16).toUtf8().constData();
+	ProcessAnnotations["UserTag"] = QString::number(Core::Launcher::Instance().installationTag(), 16).toUtf8().constData();
 
 	QString dumpspath = cWorkingDir() + u"tdata/dumps"_q;
 	QDir().mkpath(dumpspath);

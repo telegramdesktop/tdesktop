@@ -7,10 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Core {
-class Launcher;
-} // namespace Core
-
 namespace CrashReports {
 
 QString PlatformString();
@@ -53,7 +49,7 @@ inline void ClearAnnotationRef(const std::string &key) {
 	SetAnnotationRef(key, nullptr);
 }
 
-void StartCatching(not_null<Core::Launcher*> launcher);
+void StartCatching();
 void FinishCatching();
 
 } // namespace CrashReports
