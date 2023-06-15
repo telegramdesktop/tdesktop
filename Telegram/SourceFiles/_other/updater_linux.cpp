@@ -46,6 +46,7 @@ string updaterName;
 string workDir;
 string exeName;
 string exePath;
+string argv0;
 
 FILE *_logFile = 0;
 void openLog() {
@@ -388,6 +389,8 @@ int main(int argc, char *argv[]) {
 			exeName = argv[i];
 		} else if (equal(argv[i], "-exepath") && ++i < argc) {
 			exePath = argv[i];
+		} else if (equal(argv[i], "-argv0") && ++i < argc) {
+			argv0 = argv[i];
 		}
 	}
 	if (exeName.empty() || exeName.find('/') != string::npos) {
@@ -461,15 +464,14 @@ int main(int argc, char *argv[]) {
 		writeLog("Error: short exe name!");
 	}
 
-	auto fullBinaryPath = exePath + exeName;
-	const auto path = fullBinaryPath.c_str();
+	const auto fullBinaryPath = exePath + exeName;
 
 	auto values = vector<string>();
 	const auto push = [&](string arg) {
 		// Force null-terminated .data() call result.
 		values.push_back(arg + char(0));
 	};
-	push(path);
+	push(!argv0.empty() ? argv0 : fullBinaryPath);
 	push("-noupdate");
 	if (autostart) push("-autostart");
 	if (debug) push("-debug");
@@ -498,7 +500,7 @@ int main(int argc, char *argv[]) {
 			writeLog("fork() failed!");
 			return 1;
 		case 0:
-			execv(args[0], args.data());
+			execv(fullBinaryPath.c_str(), args.data());
 			return 1;
 		}
 	}
