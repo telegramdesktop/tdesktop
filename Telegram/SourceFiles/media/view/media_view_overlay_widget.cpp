@@ -3063,6 +3063,7 @@ bool OverlayWidget::takeFocusFrom(not_null<QWidget*> window) const {
 void OverlayWidget::activate() {
 	_window->raise();
 	_window->activateWindow();
+	setFocus();
 	QApplication::setActiveWindow(_window);
 	setFocus();
 }
