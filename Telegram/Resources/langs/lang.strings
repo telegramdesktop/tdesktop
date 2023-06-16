@@ -3409,6 +3409,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_info_about" = "Your chosen screen name, username, phone number and profile pictures.";
 "lng_export_option_contacts" = "Contacts list";
 "lng_export_option_contacts_about" = "If you allow access, contacts are continuously synced with Telegram. You can adjust this in Settings > Privacy & Security on mobile devices.";
+"lng_export_option_stories" = "Stories archive";
+"lng_export_option_stories_about" = "All stories you posted from Telegram mobile apps.";
 "lng_export_option_sessions" = "Active sessions";
 "lng_export_option_sessions_about" = "We store this to display your connected devices in Settings > Privacy & Security > Active Sessions.";
 "lng_export_header_other" = "Other";

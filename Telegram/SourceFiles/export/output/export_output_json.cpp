@@ -887,6 +887,77 @@ Result JsonWriter::writeUserpicsEnd() {
 	return _output->writeBlock(popNesting());
 }
 
+Result JsonWriter::writeStoriesStart(const Data::StoriesInfo &data) {
+	Expects(_output != nullptr);
+
+	auto block = prepareObjectItemStart("stories");
+	return _output->writeBlock(block + pushNesting(Context::kArray));
+}
+
+Result JsonWriter::writeStoriesSlice(const Data::StoriesSlice &data) {
+	Expects(_output != nullptr);
+
+	if (data.list.empty()) {
+		return Result::Success();
+	}
+
+	auto block = QByteArray();
+	for (const auto &story : data.list) {
+		using SkipReason = Data::File::SkipReason;
+		const auto &file = story.file();
+		Assert(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+		const auto path = [&]() -> Data::Utf8String {
+			switch (file.skipReason) {
+			case SkipReason::Unavailable:
+				return "(Photo unavailable, please try again later)";
+			case SkipReason::FileSize:
+				return "(Photo exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return "(Photo not included. "
+					"Change data exporting settings to download.)";
+			case SkipReason::None: return FormatFilePath(file);
+			}
+			Unexpected("Skip reason while writing story path.");
+		}();
+		block.append(prepareArrayItemStart());
+		block.append(SerializeObject(_context, {
+			{
+				"date",
+				story.date ? SerializeDate(story.date) : QByteArray()
+			},
+			{
+				"date_unixtime",
+				story.date ? SerializeDateRaw(story.date) : QByteArray()
+			},
+			{
+				"expires",
+				story.expires ? SerializeDate(story.expires) : QByteArray()
+			},
+			{
+				"expires_unixtime",
+				story.expires ? SerializeDateRaw(story.expires) : QByteArray()
+			},
+			{
+				"pinned",
+				story.pinned ? "true" : "false"
+			},
+			{
+				"media",
+				SerializeString(path)
+			},
+		}));
+	}
+	return _output->writeBlock(block);
+}
+
+Result JsonWriter::writeStoriesEnd() {
+	Expects(_output != nullptr);
+
+	return _output->writeBlock(popNesting());
+}
+
 Result JsonWriter::writeContactsList(const Data::ContactsList &data) {
 	Expects(_output != nullptr);
 

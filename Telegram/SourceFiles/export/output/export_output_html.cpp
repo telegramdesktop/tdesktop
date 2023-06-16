@@ -35,11 +35,23 @@ constexpr auto kStickerMaxWidth = 384;
 constexpr auto kStickerMaxHeight = 384;
 constexpr auto kStickerMinWidth = 80;
 constexpr auto kStickerMinHeight = 80;
+constexpr auto kStoryThumbWidth = 45;
+constexpr auto kStoryThumbHeight = 80;
+
+constexpr auto kChatsPriority = 0;
+constexpr auto kContactsPriority = 2;
+constexpr auto kFrequentContactsPriority = 3;
+constexpr auto kUserpicsPriority = 4;
+constexpr auto kStoriesPriority = 5;
+constexpr auto kSessionsPriority = 6;
+constexpr auto kWebSessionsPriority = 7;
+constexpr auto kOtherPriority = 8;
 
 const auto kLineBreak = QByteArrayLiteral("<br>");
 
 using Context = details::HtmlContext;
 using UserpicData = details::UserpicData;
+using StoryData = details::StoryData;
 using PeersMap = details::PeersMap;
 using MediaData = details::MediaData;
 
@@ -347,6 +359,11 @@ struct UserpicData {
 	QByteArray lastName;
 };
 
+struct StoryData {
+	QString imageLink;
+	QString largeLink;
+};
+
 class PeersMap {
 public:
 	using Peer = Data::Peer;
@@ -502,6 +519,14 @@ public:
 		const QByteArray &name,
 		const QByteArray &details,
 		const QByteArray &info,
+		const QString &link = QString());
+	[[nodiscard]] QByteArray pushStoriesListEntry(
+		const StoryData &story,
+		const QByteArray &name,
+		const QByteArrayList &details,
+		const QByteArray &info,
+		const std::vector<Data::TextPart> &caption,
+		const QString &internalLinksDomain,
 		const QString &link = QString());
 	[[nodiscard]] QByteArray pushSessionListEntry(
 		int apiId,
@@ -748,6 +773,75 @@ QByteArray HtmlWriter::Wrap::pushListEntry(
 		{},
 		{ details },
 		info);
+}
+
+QByteArray HtmlWriter::Wrap::pushStoriesListEntry(
+		const StoryData &story,
+		const QByteArray &name,
+		const QByteArrayList &details,
+		const QByteArray &info,
+		const std::vector<Data::TextPart> &caption,
+		const QString &internalLinksDomain,
+		const QString &link) {
+	auto result = pushDiv("entry clearfix");
+	if (!link.isEmpty()) {
+		result.append(pushTag("a", {
+			{ "class", "pull_left userpic_wrap" },
+			{ "href", relativePath(link).toUtf8() + "#allow_back" },
+		}));
+	} else {
+		result.append(pushDiv("pull_left userpic_wrap"));
+	}
+	if (!story.imageLink.isEmpty()) {
+		const auto sizeStyle = "width: "
+			+ Data::NumberToString(kStoryThumbWidth)
+			+ "px; height: "
+			+ Data::NumberToString(kStoryThumbHeight)
+			+ "px";
+		result.append(pushTag("img", {
+			{ "class", "story" },
+			{ "style", sizeStyle },
+			{ "src", relativePath(story.imageLink).toUtf8() },
+			{ "empty", "" }
+		}));
+	}
+	result.append(popTag());
+	result.append(pushDiv("body"));
+	if (!info.isEmpty()) {
+		result.append(pushDiv("pull_right info details"));
+		result.append(SerializeString(info));
+		result.append(popTag());
+	}
+	if (!name.isEmpty()) {
+		if (!link.isEmpty()) {
+			result.append(pushTag("a", {
+				{ "class", "block_link expanded" },
+				{ "href", relativePath(link).toUtf8() + "#allow_back" },
+			}));
+		}
+		result.append(pushDiv("name bold"));
+		result.append(SerializeString(name));
+		result.append(popTag());
+		if (!link.isEmpty()) {
+			result.append(popTag());
+		}
+	}
+	const auto text = caption.empty()
+		? QByteArray()
+		: FormatText(caption, internalLinksDomain, _base);
+	if (!text.isEmpty()) {
+		result.append(pushDiv("text"));
+		result.append(text);
+		result.append(popTag());
+	}
+	for (const auto &detail : details) {
+		result.append(pushDiv("details_entry details"));
+		result.append(SerializeString(detail));
+		result.append(popTag());
+	}
+	result.append(popTag());
+	result.append(popTag());
+	return result;
 }
 
 QByteArray HtmlWriter::Wrap::pushSessionListEntry(
@@ -1980,6 +2074,7 @@ Result HtmlWriter::start(
 		"images/section_other.png",
 		"images/section_photos.png",
 		"images/section_sessions.png",
+		"images/section_stories.png",
 		"images/section_web.png",
 		"js/script.js",
 	};
@@ -2176,11 +2271,112 @@ QString HtmlWriter::userpicsFilePath() const {
 
 void HtmlWriter::pushUserpicsSection() {
 	pushSection(
-		4,
+		kUserpicsPriority,
 		"Profile pictures",
 		"photos",
 		_userpicsCount,
 		userpicsFilePath());
+}
+
+Result HtmlWriter::writeStoriesStart(const Data::StoriesInfo &data) {
+	Expects(_summary != nullptr);
+	Expects(_stories == nullptr);
+
+	_storiesCount = data.count;
+	if (!_storiesCount) {
+		return Result::Success();
+	}
+	_stories = fileWithRelativePath(storiesFilePath());
+
+	auto block = _stories->pushHeader(
+		"Stories archive",
+		mainFileRelativePath());
+	block.append(_stories->pushDiv("page_body list_page"));
+	block.append(_stories->pushDiv("entry_list"));
+	if (const auto result = _stories->writeBlock(block); !result) {
+		return result;
+	}
+	return Result::Success();
+}
+
+Result HtmlWriter::writeStoriesSlice(const Data::StoriesSlice &data) {
+	Expects(_stories != nullptr);
+
+	_storiesCount -= data.skipped;
+	if (data.list.empty()) {
+		return Result::Success();
+	}
+	auto block = QByteArray();
+	for (const auto &story : data.list) {
+		auto data = StoryData{};
+		using SkipReason = Data::File::SkipReason;
+		const auto &file = story.file();
+		Assert(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+		auto status = QByteArrayList();
+		if (story.pinned) {
+			status.append("Saved to Profile");
+		}
+		if (story.expires > 0) {
+			status.append("Expiring: " + Data::FormatDateTime(story.expires));
+		}
+		status.append([&]() -> Data::Utf8String {
+			switch (file.skipReason) {
+			case SkipReason::Unavailable:
+				return "(Story unavailable, please try again later)";
+			case SkipReason::FileSize:
+				return "(Story exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return "(Story not included. "
+					"Change data exporting settings to download.)";
+			case SkipReason::None: return Data::FormatFileSize(file.size);
+			}
+			Unexpected("Skip reason while writing story path.");
+		}());
+		const auto &path = story.file().relativePath;
+		const auto &image = story.thumb().file.relativePath.isEmpty()
+			? story.file().relativePath
+			: story.thumb().file.relativePath;
+		data.imageLink = Data::WriteImageThumb(
+			_settings.path,
+			image,
+			kStoryThumbWidth * 2,
+			kStoryThumbHeight * 2);
+		const auto info = (story.date > 0)
+			? Data::FormatDateTime(story.date)
+			: QByteArray();
+		block.append(_stories->pushStoriesListEntry(
+			data,
+			(path.isEmpty() ? QString("Story unavailable") : path).toUtf8(),
+			status,
+			info,
+			story.caption,
+			_environment.internalLinksDomain,
+			path));
+	}
+	return _stories->writeBlock(block);
+}
+
+Result HtmlWriter::writeStoriesEnd() {
+	pushStoriesSection();
+	if (_stories) {
+		return base::take(_stories)->close();
+	}
+	return Result::Success();
+}
+
+QString HtmlWriter::storiesFilePath() const {
+	return "lists/stories.html";
+}
+
+void HtmlWriter::pushStoriesSection() {
+	pushSection(
+		kStoriesPriority,
+		"Stories archive",
+		"stories",
+		_storiesCount,
+		storiesFilePath());
 }
 
 Result HtmlWriter::writeContactsList(const Data::ContactsList &data) {
@@ -2228,7 +2424,7 @@ Result HtmlWriter::writeSavedContacts(const Data::ContactsList &data) {
 	}
 
 	pushSection(
-		2,
+		kContactsPriority,
 		"Contacts",
 		"contacts",
 		data.list.size(),
@@ -2294,7 +2490,7 @@ Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
 	}
 
 	pushSection(
-		3,
+		kFrequentContactsPriority,
 		"Frequent contacts",
 		"frequent",
 		size,
@@ -2360,7 +2556,7 @@ Result HtmlWriter::writeSessions(const Data::SessionsList &data) {
 	}
 
 	pushSection(
-		5,
+		kSessionsPriority,
 		"Sessions",
 		"sessions",
 		data.list.size(),
@@ -2406,7 +2602,7 @@ Result HtmlWriter::writeWebSessions(const Data::SessionsList &data) {
 	}
 
 	pushSection(
-		6,
+		kWebSessionsPriority,
 		"Web sessions",
 		"web",
 		data.webList.size(),
@@ -2418,7 +2614,7 @@ Result HtmlWriter::writeOtherData(const Data::File &data) {
 	Expects(_summary != nullptr);
 
 	pushSection(
-		7,
+		kOtherPriority,
 		"Other data",
 		"other",
 		1,
@@ -2447,7 +2643,7 @@ Result HtmlWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 	}
 
 	pushSection(
-		0,
+		kChatsPriority,
 		"Chats",
 		"chats",
 		data.chats.size() + data.left.size(),
