@@ -793,3 +793,21 @@ storiesUnsupportedLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 }
 storiesUnsupportedUpdate: themePreviewApplyButton;
+storiesShortInfoBox: ShortInfoBox(shortInfoBox) {
+	label: FlatLabel(infoLabel) {
+		textFg: storiesComposeGrayText;
+		palette: TextPalette(mediaviewTextPalette) {
+			linkFg: mediaviewTextLinkFg;
+			monoFg: storiesComposeGrayText;
+			spoilerFg: storiesComposeGrayText;
+		}
+	}
+	labeled: FlatLabel(infoLabeled) {
+		textFg: mediaviewCaptionFg;
+		palette: mediaviewTextPalette;
+	}
+	labeledOneLine: FlatLabel(infoLabeledOneLine) {
+		textFg: mediaviewCaptionFg;
+		palette: mediaviewTextPalette;
+	}
+}

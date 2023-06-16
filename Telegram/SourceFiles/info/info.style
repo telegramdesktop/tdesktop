@@ -389,22 +389,6 @@ infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoGroupMembersIconPosition: point(20px, 10px);
 infoChannelMembersIconPosition: point(20px, 19px);
-infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
-	maxHeight: 20px;
-	style: TextStyle(defaultTextStyle) {
-		lineHeight: 19px;
-	}
-	margin: margins(5px, 5px, 5px, 5px);
-}
-infoLabelSkip: 2px;
-infoLabeled: FlatLabel(infoLabeledOneLine) {
-	minWidth: 180px;
-	maxHeight: 0px;
-	margin: margins(5px, 5px, 5px, 5px);
-}
-infoLabel: FlatLabel(infoLabeled) {
-	textFg: windowSubTextFg;
-}
 
 infoBlockHeaderLabel: FlatLabel(infoProfileStatus) {
 	textFg: windowBoldFg;

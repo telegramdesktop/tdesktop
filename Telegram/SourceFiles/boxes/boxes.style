@@ -24,6 +24,11 @@ UserpicButton {
 	uploadIcon: icon;
 	uploadIconPosition: point;
 }
+ShortInfoBox {
+	label: FlatLabel;
+	labeled: FlatLabel;
+	labeledOneLine: FlatLabel;
+}
 
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
@@ -961,3 +966,26 @@ ringtonesBoxSkip: 7px;
 gradientButtonGlareDuration: 700;
 gradientButtonGlareTimeout: 2000;
 gradientButtonGlareWidth: 100px;
+
+infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 19px;
+	}
+	margin: margins(5px, 5px, 5px, 5px);
+}
+infoLabelSkip: 2px;
+infoLabeled: FlatLabel(infoLabeledOneLine) {
+	minWidth: 180px;
+	maxHeight: 0px;
+	margin: margins(5px, 5px, 5px, 5px);
+}
+infoLabel: FlatLabel(infoLabeled) {
+	textFg: windowSubTextFg;
+}
+
+shortInfoBox: ShortInfoBox {
+	label: infoLabel;
+	labeled: infoLabeled;
+	labeledOneLine: infoLabeledOneLine;
+}

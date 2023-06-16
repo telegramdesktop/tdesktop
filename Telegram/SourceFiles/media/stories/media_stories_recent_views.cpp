@@ -8,17 +8,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_recent_views.h"
 
 #include "api/api_who_reacted.h" // FormatReadDate.
+#include "boxes/peers/prepare_short_info_box.h"
+#include "core/application.h"
 #include "data/data_peer.h"
 #include "data/data_stories.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/group_call_userpics.h"
-#include "ui/widgets/popup_menu.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "ui/layers/box_content.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "ui/userpic_view.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_view.h"
 
@@ -324,8 +329,27 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 
 	const auto peer = entry.peer;
 	const auto date = Api::FormatReadDate(entry.date, now);
+	const auto show = _controller->uiShow();
 	const auto prepare = [&](Ui::PeerUserpicView &view) {
 		const auto size = st::storiesWhoViewed.photoSize;
+		auto callback = [=] {
+			const auto open = [=] {
+				if (const auto window = Core::App().windowFor(peer)) {
+					window->invokeForSessionController(
+						&peer->session().account(),
+						peer,
+						[&](not_null<Window::SessionController*> controller) {
+							Core::App().hideMediaView();
+							controller->showPeerHistory(peer);
+						});
+				}
+			};
+			show->show(PrepareShortInfoBox(
+				peer,
+				open,
+				[] { return false; },
+				&st::storiesShortInfoBox));
+		};
 		auto userpic = peer->generateUserpicImage(
 			view,
 			size * style::DevicePixelRatio());
@@ -334,7 +358,7 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 			.text = peer->name(),
 			.date = date,
 			.userpic = std::move(userpic),
-			.callback = [] {},
+			.callback = std::move(callback),
 		};
 	};
 	if (_menuPlaceholderCount > 0) {
