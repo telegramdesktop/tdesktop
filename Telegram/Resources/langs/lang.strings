@@ -1123,6 +1123,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
 "lng_profile_sure_remove_admin" = "Remove {user} from admins?";
 "lng_profile_loading" = "Loading...";
+"lng_profile_stories#one" = "{count} story";
+"lng_profile_stories#other" = "{count} stories";
 "lng_profile_photos#one" = "{count} photo";
 "lng_profile_photos#other" = "{count} photos";
 "lng_profile_gifs#one" = "{count} GIF";

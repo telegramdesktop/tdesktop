@@ -744,24 +744,6 @@ void MainMenu::setupMenu() {
 		)->setClickedCallback([=] {
 			controller->showNewChannel();
 		});
-		addAction(
-			tr::lng_menu_contacts(),
-			{ &st::settingsIconUser, kIconRed }
-		)->setClickedCallback([=] {
-			controller->show(PrepareContactsBox(controller));
-		});
-		addAction(
-			tr::lng_menu_calls(),
-			{ &st::settingsIconCalls, kIconGreen }
-		)->setClickedCallback([=] {
-			ShowCallsBox(controller);
-		});
-		addAction(
-			tr::lng_saved_messages(),
-			{ &st::settingsIconSavedMessages, kIconLightBlue }
-		)->setClickedCallback([=] {
-			controller->showPeerHistory(controller->session().user());
-		});
 
 		const auto wrap = _menu->add(
 			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -772,7 +754,7 @@ void MainMenu::setupMenu() {
 					st::mainMenuButton,
 					IconDescriptor{
 						&st::settingsIconStories,
-						kIconLightOrange
+						kIconDarkBlue
 					})));
 		const auto stories = &controller->session().data().stories();
 		if (stories->archiveCount() > 0) {
@@ -790,6 +772,25 @@ void MainMenu::setupMenu() {
 		wrap->entity()->setClickedCallback([=] {
 			controller->showSection(
 				Info::Stories::Make(controller->session().user()));
+		});
+
+		addAction(
+			tr::lng_menu_contacts(),
+			{ &st::settingsIconUser, kIconRed }
+		)->setClickedCallback([=] {
+			controller->show(PrepareContactsBox(controller));
+		});
+		addAction(
+			tr::lng_menu_calls(),
+			{ &st::settingsIconCalls, kIconGreen }
+		)->setClickedCallback([=] {
+			ShowCallsBox(controller);
+		});
+		addAction(
+			tr::lng_saved_messages(),
+			{ &st::settingsIconSavedMessages, kIconLightBlue }
+		)->setClickedCallback([=] {
+			controller->showPeerHistory(controller->session().user());
 		});
 	} else {
 		addAction(

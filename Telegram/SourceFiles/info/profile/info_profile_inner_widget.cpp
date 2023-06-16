@@ -201,7 +201,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	};
 
 	if (auto user = _peer->asUser()) {
-		addStoriesButton(user, st::infoIconMediaGroup);
+		addStoriesButton(user, st::infoIconMediaStories);
 	}
 	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);
 	addMediaButton(MediaType::Video, st::infoIconMediaVideo);

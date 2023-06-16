@@ -109,7 +109,7 @@ mediaviewRight: icon {
 	{ "mediaview/next", mediaviewControlFg }
 };
 mediaviewSave: icon {{ "mediaview/download", mediaviewControlFg }};
-mediaviewShare: icon {{ "mediaview/stories_next", mediaviewControlFg }};
+mediaviewShare: icon {{ "mediaview/viewer_share", mediaviewControlFg }};
 mediaviewRotate: icon {{ "mediaview/rotate", mediaviewControlFg }};
 mediaviewMore: icon {{ "title_menu_dots", mediaviewControlFg }};
 

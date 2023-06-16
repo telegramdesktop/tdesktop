@@ -142,7 +142,7 @@ inline auto AddStoriesButton(
 		parent,
 		std::move(count),
 		[](int count) {
-			return tr::lng_stories_row_count(tr::now, lt_count, count);
+			return tr::lng_profile_stories(tr::now, lt_count, count);
 		},
 		tracker)->entity();
 	result->addClickHandler([=] {
