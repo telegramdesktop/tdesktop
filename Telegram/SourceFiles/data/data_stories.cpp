@@ -59,6 +59,7 @@ using UpdateFlag = StoryUpdate::Flag;
 			const auto result = owner->processDocument(*document);
 			if (!result->isNull()
 				&& (result->isGifv() || result->isVideoFile())) {
+				result->setStoryMedia(true);
 				return StoryMedia{ result };
 			}
 		}

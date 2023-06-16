@@ -232,6 +232,9 @@ public:
 
 	[[nodiscard]] Storage::Cache::Key bigFileBaseCacheKey() const;
 
+	void setStoryMedia(bool value);
+	[[nodiscard]] bool storyMedia() const;
+
 	void setRemoteLocation(
 		int32 dc,
 		uint64 access,
@@ -283,18 +286,19 @@ public:
 
 private:
 	enum class Flag : ushort {
-		StreamingMaybeYes = 0x001,
-		StreamingMaybeNo = 0x002,
-		StreamingPlaybackFailed = 0x004,
-		ImageType = 0x008,
-		DownloadCancelled = 0x010,
-		LoadedInMediaCache = 0x020,
-		HasAttachedStickers = 0x040,
-		InlineThumbnailIsPath = 0x080,
-		ForceToCache = 0x100,
-		PremiumSticker = 0x200,
-		PossibleCoverThumbnail = 0x400,
-		UseTextColor = 0x800,
+		StreamingMaybeYes = 0x0001,
+		StreamingMaybeNo = 0x0002,
+		StreamingPlaybackFailed = 0x0004,
+		ImageType = 0x0008,
+		DownloadCancelled = 0x0010,
+		LoadedInMediaCache = 0x0020,
+		HasAttachedStickers = 0x0040,
+		InlineThumbnailIsPath = 0x0080,
+		ForceToCache = 0x0100,
+		PremiumSticker = 0x0200,
+		PossibleCoverThumbnail = 0x0400,
+		UseTextColor = 0x0800,
+		StoryDocument = 0x1000,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

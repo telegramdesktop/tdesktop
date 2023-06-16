@@ -443,7 +443,10 @@ void DocumentData::setattributes(
 		_additional = std::make_unique<StickerData>();
 		sticker()->type = StickerType::Webm;
 	}
-	if (isAudioFile() || isAnimation() || isVoiceMessage()) {
+	if (isAudioFile()
+		|| isAnimation()
+		|| isVoiceMessage()
+		|| storyMedia()) {
 		setMaybeSupportsStreaming(true);
 	}
 }
@@ -1586,6 +1589,19 @@ void DocumentData::setRemoteLocation(
 			}
 		}
 	}
+}
+
+void DocumentData::setStoryMedia(bool value) {
+	if (value) {
+		_flags |= Flag::StoryDocument;
+		setMaybeSupportsStreaming(true);
+	} else {
+		_flags &= ~Flag::StoryDocument;
+	}
+}
+
+bool DocumentData::storyMedia() const {
+	return (_flags & Flag::StoryDocument);
 }
 
 void DocumentData::setContentUrl(const QString &url) {
