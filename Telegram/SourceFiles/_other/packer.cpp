@@ -7,12 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "packer.h"
 
-#include <QtCore/QtPlugin>
-
-#ifdef Q_OS_MAC
-//Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
-#endif
-
 bool BetaChannel = false;
 quint64 AlphaVersion = 0;
 bool OnlyAlphaKey = false;
