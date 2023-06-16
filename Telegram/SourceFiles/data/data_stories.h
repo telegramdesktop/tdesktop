@@ -55,7 +55,10 @@ struct StoriesIds {
 };
 
 struct StoryMedia {
-	std::variant<not_null<PhotoData*>, not_null<DocumentData*>> data;
+	std::variant<
+		v::null_t,
+		not_null<PhotoData*>,
+		not_null<DocumentData*>> data;
 
 	friend inline bool operator==(StoryMedia, StoryMedia) = default;
 };
@@ -86,6 +89,7 @@ public:
 	[[nodiscard]] FullStoryId fullId() const;
 	[[nodiscard]] TimeId date() const;
 	[[nodiscard]] TimeId expires() const;
+	[[nodiscard]] bool unsupported() const;
 	[[nodiscard]] bool expired(TimeId now = 0) const;
 	[[nodiscard]] const StoryMedia &media() const;
 	[[nodiscard]] PhotoData *photo() const;

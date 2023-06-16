@@ -38,6 +38,7 @@ namespace Data {
 
 class CloudImage;
 class WallPaper;
+class Session;
 
 enum class CallFinishReason : char {
 	Missed,
@@ -59,6 +60,7 @@ struct Call {
 	int duration = 0;
 	FinishReason finishReason = FinishReason::Missed;
 	bool video = false;
+
 };
 
 struct ExtendedPreview {
@@ -586,6 +588,9 @@ public:
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing = nullptr) override;
+
+	[[nodiscard]] static not_null<PhotoData*> LoadingStoryPhoto(
+		not_null<Session*> owner);
 
 private:
 	const FullStoryId _storyId;

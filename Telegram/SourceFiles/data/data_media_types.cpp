@@ -2039,6 +2039,11 @@ bool MediaStory::updateSentMedia(const MTPMessageMedia &media) {
 	return false;
 }
 
+not_null<PhotoData*> MediaStory::LoadingStoryPhoto(
+		not_null<Session*> owner) {
+	return owner->photo(kLoadingStoryPhotoId);
+}
+
 std::unique_ptr<HistoryView::Media> MediaStory::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -2055,7 +2060,7 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 		return std::make_unique<HistoryView::Photo>(
 			message,
 			realParent,
-			realParent->history()->owner().photo(kLoadingStoryPhotoId),
+			LoadingStoryPhoto(&realParent->history()->owner()),
 			spoiler);
 	}
 	_expired = false;

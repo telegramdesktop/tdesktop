@@ -302,6 +302,12 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return std::make_unique<Photo>(delegate, item, photo, spoiler);
 	} else if (const auto file = getFile()) {
 		return std::make_unique<Video>(delegate, item, file, spoiler);
+	} else {
+		return std::make_unique<Photo>(
+			delegate,
+			item,
+			Data::MediaStory::LoadingStoryPhoto(&item->history()->owner()),
+			spoiler);
 	}
 	return nullptr;
 }

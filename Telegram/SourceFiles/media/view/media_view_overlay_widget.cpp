@@ -3111,8 +3111,8 @@ void OverlayWidget::show(OpenRequest request) {
 		displayPhoto(photo);
 		preloadData(0);
 		activateControls();
-	} else if (document) {
-		setSession(&document->session());
+	} else if (story || document) {
+		setSession(document ? &document->session() : &story->session());
 
 		if (story) {
 			setContext(StoriesContext{
@@ -4093,6 +4093,8 @@ void OverlayWidget::storiesJumpTo(
 		displayPhoto(photo, anim::activation::background);
 	}, [&](not_null<DocumentData*> document) {
 		displayDocument(document, anim::activation::background);
+	}, [&](v::null_t) {
+		displayDocument(nullptr, anim::activation::background);
 	});
 }
 
@@ -4325,12 +4327,12 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 				paint(right, kRightSiblingTextureIndex);
 			}
 		}
-	} else {
-		if (_themePreviewShown) {
-			renderer->paintThemePreview(_themePreviewRect);
-		} else if (documentBubbleShown() && !_docRect.isEmpty()) {
-			renderer->paintDocumentBubble(_docRect, _docIconRect);
-		}
+	} else if (_stories) {
+		// Unsupported story.
+	} else if (_themePreviewShown) {
+		renderer->paintThemePreview(_themePreviewRect);
+	} else if (documentBubbleShown() && !_docRect.isEmpty()) {
+		renderer->paintDocumentBubble(_docRect, _docIconRect);
 	}
 	if (isSaveMsgShown()) {
 		renderer->paintSaveMsg(_saveMsg);

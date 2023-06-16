@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/power_save_blocker.h"
 #include "base/qt_signal_producer.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/update_checker.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_file_origin.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "data/data_user.h"
 #include "history/view/reactions/history_view_reactions_strip.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_caption_full_view.h"
 #include "media/stories/media_stories_delegate.h"
@@ -35,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/message_sending_animation_common.h"
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/layers/box_content.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/rp_widget.h"
 #include "styles/style_media_view.h"
 #include "styles/style_widgets.h"
@@ -75,6 +79,19 @@ private:
 	base::Timer _timer;
 	crl::time _started = 0;
 	crl::time _paused = 0;
+
+};
+
+class Controller::Unsupported final {
+public:
+	explicit Unsupported(not_null<Controller*> controller);
+
+private:
+	void setup();
+
+	const not_null<Controller*> _controller;
+	std::unique_ptr<Ui::FlatLabel> _text;
+	std::unique_ptr<Ui::RoundButton> _button;
 
 };
 
@@ -126,6 +143,42 @@ void Controller::PhotoPlayback::callback() {
 		.receivedTill = kPhotoDuration,
 		.length = kPhotoDuration,
 		.frequency = 1000,
+	});
+}
+
+Controller::Unsupported::Unsupported(not_null<Controller*> controller)
+: _controller(controller) {
+	setup();
+}
+
+void Controller::Unsupported::setup() {
+	const auto wrap = _controller->wrap();
+
+	_text = std::make_unique<Ui::FlatLabel>(
+		wrap,
+		tr::lng_stories_unsupported(),
+		st::storiesUnsupportedLabel);
+	_text->show();
+
+	_button = std::make_unique<Ui::RoundButton>(
+		wrap,
+		tr::lng_update_telegram(),
+		st::storiesUnsupportedUpdate);
+	_button->show();
+
+	rpl::combine(
+		wrap->sizeValue(),
+		_text->sizeValue(),
+		_button->sizeValue()
+	) | rpl::start_with_next([=](QSize wrap, QSize text, QSize button) {
+		_text->move((wrap.width() - text.width()) / 2, wrap.height() / 3);
+		_button->move(
+			(wrap.width() - button.width()) / 2,
+			2 * wrap.height() / 3);
+	}, _button->lifetime());
+
+	_button->setClickedCallback([=] {
+		Core::UpdateApplication();
 	});
 }
 
@@ -584,12 +637,18 @@ void Controller::show(
 	const auto guard = gsl::finally([&] {
 		_paused = false;
 		_started = false;
-		if (story->photo()) {
+		if (!story->document()) {
 			_photoPlayback = std::make_unique<PhotoPlayback>(this);
 		} else {
 			_photoPlayback = nullptr;
 		}
 	});
+
+	if (!story->unsupported()) {
+		_unsupported = nullptr;
+	} else {
+		_unsupported = std::make_unique<Unsupported>(this);
+	}
 
 	if (_shown == storyId) {
 		return;

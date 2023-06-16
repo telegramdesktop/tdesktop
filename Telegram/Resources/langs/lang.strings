@@ -3807,6 +3807,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_views#one" = "{count} view";
 "lng_stories_views#other" = "{count} views";
 "lng_stories_no_views" = "No views";
+"lng_stories_unsupported" = "This story is not supported\nby your version of Telegram.";
 
 "lng_stories_my_title" = "My Stories";
 "lng_stories_archive_button" = "Archive";

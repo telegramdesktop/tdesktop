@@ -148,6 +148,7 @@ private:
 			const StoriesList &) = default;
 	};
 	class PhotoPlayback;
+	class Unsupported;
 
 	void initLayout();
 	void updatePhotoPlayback(const Player::TrackState &state);
@@ -200,6 +201,7 @@ private:
 	const std::unique_ptr<ReplyArea> _replyArea;
 	const std::unique_ptr<Reactions> _reactions;
 	const std::unique_ptr<RecentViews> _recentViews;
+	std::unique_ptr<Unsupported> _unsupported;
 	std::unique_ptr<PhotoPlayback> _photoPlayback;
 	std::unique_ptr<CaptionFullView> _captionFullView;
 

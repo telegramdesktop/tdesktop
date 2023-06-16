@@ -45,6 +45,7 @@ private:
 	void checkStory();
 	void check();
 
+	void setBlackThumbnail();
 	[[nodiscard]] QImage userpicImage(const SiblingLayout &layout);
 	[[nodiscard]] QImage nameImage(const SiblingLayout &layout);
 	[[nodiscard]] QPoint namePosition(

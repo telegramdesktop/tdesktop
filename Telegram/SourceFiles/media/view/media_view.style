@@ -782,3 +782,14 @@ storiesReactionsPan: EmojiPan(storiesEmojiPan) {
 storiesReactionsWidth: 210px;
 storiesReactionsBottomSkip: 29px;
 storiesReactionsAddedTop: 200px;
+
+storiesUnsupportedLabel: FlatLabel(defaultFlatLabel) {
+	textFg: mediaviewControlFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+		linkFont: font(15px semibold);
+		linkFontOver: font(15px semibold underline);
+	}
+	align: align(top);
+}
+storiesUnsupportedUpdate: themePreviewApplyButton;

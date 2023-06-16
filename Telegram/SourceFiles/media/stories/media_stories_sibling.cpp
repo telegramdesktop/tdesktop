@@ -242,11 +242,7 @@ void Sibling::checkStory() {
 	const auto maybeStory = _peer->owner().stories().lookup(_id);
 	if (!maybeStory) {
 		if (_blurred.isNull()) {
-			_blurred = QImage(
-				st::storiesMaxSize,
-				QImage::Format_ARGB32_Premultiplied);
-			_blurred.fill(Qt::black);
-
+			setBlackThumbnail();
 			if (maybeStory.error() == Data::NoStory::Unknown) {
 				_peer->owner().stories().resolve(_id, crl::guard(this, [=] {
 					checkStory();
@@ -266,9 +262,22 @@ void Sibling::checkStory() {
 		_loader = std::make_unique<LoaderVideo>(document, origin, [=] {
 			check();
 		});
+	}, [&](v::null_t) {
+		_loader = nullptr;
 	});
+	if (!_loader) {
+		setBlackThumbnail();
+		return;
+	}
 	_blurred = _loader->blurred();
 	check();
+}
+
+void Sibling::setBlackThumbnail() {
+	_blurred = QImage(
+		st::storiesMaxSize,
+		QImage::Format_ARGB32_Premultiplied);
+	_blurred.fill(Qt::black);
 }
 
 FullStoryId Sibling::shownId() const {

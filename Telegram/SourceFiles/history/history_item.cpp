@@ -685,7 +685,10 @@ HistoryItem::HistoryItem(
 : id(StoryIdToMsgId(story->id()))
 , _history(history)
 , _from(history->peer)
-, _flags(MessageFlag::Local | MessageFlag::Outgoing | MessageFlag::FakeHistoryItem | MessageFlag::StoryItem)
+, _flags(MessageFlag::Local
+	| MessageFlag::Outgoing
+	| MessageFlag::FakeHistoryItem
+	| MessageFlag::StoryItem)
 , _date(story->date()) {
 	setStoryFields(story);
 }
@@ -1522,8 +1525,7 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 	const auto spoiler = false;
 	if (const auto photo = story->photo()) {
 		_media = std::make_unique<Data::MediaPhoto>(this, photo, spoiler);
-	} else {
-		const auto document = story->document();
+	} else if (const auto document = story->document()) {
 		_media = std::make_unique<Data::MediaFile>(
 			this,
 			document,

@@ -63,6 +63,8 @@ using UpdateFlag = StoryUpdate::Flag;
 			}
 		}
 		return {};
+	}, [&](const MTPDmessageMediaUnsupported &data) {
+		return std::make_optional(StoryMedia{ v::null });
 	}, [](const auto &) { return std::optional<StoryMedia>(); });
 }
 
@@ -135,6 +137,10 @@ bool Story::expired(TimeId now) const {
 	return _expires <= (now ? now : base::unixtime::now());
 }
 
+bool Story::unsupported() const {
+	return v::is_null(_media.data);
+}
+
 const StoryMedia &Story::media() const {
 	return _media;
 }
@@ -154,6 +160,8 @@ bool Story::hasReplyPreview() const {
 		return !photo->isNull();
 	}, [](not_null<DocumentData*> document) {
 		return document->hasThumbnail();
+	}, [](v::null_t) {
+		return false;
 	});
 }
 
@@ -168,6 +176,8 @@ Image *Story::replyPreview() const {
 			Data::FileOriginStory(_peer->id, _id),
 			_peer,
 			false);
+	}, [](v::null_t) {
+		return (Image*)nullptr;
 	});
 }
 
@@ -246,7 +256,8 @@ void Story::setCaption(TextWithEntities &&caption) {
 }
 
 const TextWithEntities &Story::caption() const {
-	return _caption;
+	static const auto empty = TextWithEntities();
+	return unsupported() ? empty : _caption;
 }
 
 void Story::setViewsData(
