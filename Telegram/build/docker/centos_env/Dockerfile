@@ -729,10 +729,6 @@ RUN git clone -b {{ QT_TAG }} --depth=1 https://code.qt.io/qt/qt5.git qt_{{ QT }
 	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools \
 	&& cd qtbase \
 	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
-	&& cd ../qtdeclarative \
-	&& sed -i '/add_subdirectory(quickcontrols)/d' src/CMakeLists.txt \
-	&& sed -i '/add_subdirectory(quickdialogs)/d' src/CMakeLists.txt \
-	&& sed -i '/add_subdirectory(quicknativestyle)/d' src/CMakeLists.txt \
 	&& cd .. \
 	&& ./configure -prefix "{{ QT_PREFIX }}" \
 		CMAKE_BUILD_TYPE=None \

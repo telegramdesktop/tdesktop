@@ -25,7 +25,12 @@ jobs:
           submodules: recursive
 
       - name: First set up.
-        run: curl -sSL https://install.python-poetry.org | python3 -
+        run: |
+          sudo apt update
+          curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Free up some disk space.
+        uses: jlumbroso/free-disk-space@76866dbe54312617f00798d1762df7f43def6e5c
 
       - name: Docker image build.
         run: |
