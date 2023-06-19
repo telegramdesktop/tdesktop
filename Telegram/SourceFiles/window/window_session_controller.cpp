@@ -2530,7 +2530,7 @@ void SessionController::openPeerStory(
 
 void SessionController::openPeerStories(
 		PeerId peerId,
-		Data::StorySourcesList list) {
+		std::optional<Data::StorySourcesList> list) {
 	using namespace Media::View;
 	using namespace Data;
 
@@ -2541,7 +2541,9 @@ void SessionController::openPeerStories(
 		openPeerStory(
 			source->user,
 			j != source->ids.end() ? j->id : source->ids.front().id,
-			{ list });
+			(list
+				? StoriesContext{ *list }
+				: StoriesContext{ StoriesContextPeer() }));
 	}
 }
 

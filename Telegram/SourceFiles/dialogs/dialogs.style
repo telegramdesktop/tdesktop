@@ -500,6 +500,12 @@ DialogsStories {
 	nameTop: pixels;
 	nameStyle: TextStyle;
 }
+DialogsStoriesList {
+	small: DialogsStories;
+	full: DialogsStories;
+	bg: color;
+	readOpacity: double;
+}
 
 dialogsStories: DialogsStories {
 	left: 4px;
@@ -531,4 +537,17 @@ dialogsStoriesFull: DialogsStories {
 		linkFont: font(11px);
 		linkFontOver: font(11px);
 	}
+}
+
+dialogsStoriesList: DialogsStoriesList {
+	small: dialogsStories;
+	full: dialogsStoriesFull;
+	bg: dialogsBg;
+	readOpacity: 0.6;
+}
+dialogsStoriesListInfo: DialogsStoriesList(dialogsStoriesList) {
+	bg: transparent;
+}
+dialogsStoriesListMine: DialogsStoriesList(dialogsStoriesListInfo) {
+	readOpacity: 1.;
 }

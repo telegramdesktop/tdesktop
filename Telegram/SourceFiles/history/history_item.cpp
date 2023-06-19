@@ -1979,6 +1979,8 @@ bool HistoryItem::forbidsSaving() const {
 bool HistoryItem::canDelete() const {
 	if (isSponsored()) {
 		return false;
+	} else if (IsStoryMsgId(id)) {
+		return false && _history->peer->isSelf(); // #TODO stories
 	} else if (isService() && !isRegular()) {
 		return false;
 	} else if (topicRootId() == id) {

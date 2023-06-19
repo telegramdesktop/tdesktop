@@ -368,6 +368,8 @@ infoIconMediaLink: icon {{ "info/info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info/info_common_groups", infoIconFg }};
 infoIconMediaVoice: icon {{ "info/info_media_voice", infoIconFg }};
 infoIconMediaStories: icon {{ "info/info_media_stories", infoIconFg }};
+infoIconMediaStoriesArchive: icon {{ "info/info_stories_archive", infoIconFg }};
+infoIconMediaStoriesRecent: icon {{ "info/info_stories_recent", infoIconFg }};
 
 infoRoundedIconRequests: icon {{ "info/edit/group_manage_join_requests", settingsIconFg }};
 infoRoundedIconRecentActions: icon {{ "info/edit/group_manage_actions", settingsIconFg }};

@@ -1123,8 +1123,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
 "lng_profile_sure_remove_admin" = "Remove {user} from admins?";
 "lng_profile_loading" = "Loading...";
-"lng_profile_stories#one" = "{count} story";
-"lng_profile_stories#other" = "{count} stories";
+"lng_profile_saved_stories#one" = "{count} saved story";
+"lng_profile_saved_stories#other" = "{count} saved stories";
 "lng_profile_photos#one" = "{count} photo";
 "lng_profile_photos#other" = "{count} photos";
 "lng_profile_gifs#one" = "{count} GIF";
@@ -3812,9 +3812,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_views#other" = "{count} views";
 "lng_stories_no_views" = "No views";
 "lng_stories_unsupported" = "This story is not supported\nby your version of Telegram.";
+"lng_stories_cant_reply" = "You can't reply to this story.";
 
-"lng_stories_my_title" = "My Stories";
-"lng_stories_archive_button" = "Archive";
+"lng_stories_my_title" = "Saved Stories";
+"lng_stories_archive_button" = "Stories Archive";
+"lng_stories_recent_button" = "Recent Stories";
 "lng_stories_archive_title" = "Stories Archive";
 "lng_stories_reply_sent" = "Message Sent";
 "lng_stories_hidden_to_contacts" = "Those stories are now shown only in your Contacts list.";

@@ -17,13 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs::Stories {
 namespace {
 
-constexpr auto kSmallUserpicsShown = 3;
-constexpr auto kSmallReadOpacity = 0.6;
+constexpr auto kSmallThumbsShown = 3;
 constexpr auto kSummaryExpandLeft = 1.5;
 constexpr auto kPreloadPages = 2;
 
-[[nodiscard]] int AvailableNameWidth() {
-	const auto &full = st::dialogsStoriesFull;
+[[nodiscard]] int AvailableNameWidth(const style::DialogsStoriesList &st) {
+	const auto &full = st.full;
 	const auto &font = full.nameStyle.font;
 	const auto skip = font->spacew;
 	return full.photoLeft * 2 + full.photo - 2 * skip;
@@ -35,7 +34,7 @@ struct List::Layout {
 	int itemsCount = 0;
 	int shownHeight = 0;
 	float64 ratio = 0.;
-	float64 userpicLeft = 0.;
+	float64 thumbnailLeft = 0.;
 	float64 photoLeft = 0.;
 	float64 left = 0.;
 	float64 single = 0.;
@@ -52,9 +51,11 @@ struct List::Layout {
 
 List::List(
 	not_null<QWidget*> parent,
+	const style::DialogsStoriesList &st,
 	rpl::producer<Content> content,
 	Fn<int()> shownHeight)
 : RpWidget(parent)
+, _st(st)
 , _shownHeight(shownHeight) {
 	setCursor(style::cur_default);
 
@@ -64,45 +65,46 @@ List::List(
 
 	_shownAnimation.stop();
 	setMouseTracking(true);
-	resize(0, _data.empty() ? 0 : st::dialogsStoriesFull.height);
+	resize(0, _data.empty() ? 0 : st.full.height);
 }
 
 void List::showContent(Content &&content) {
 	if (_content == content) {
 		return;
 	}
-	if (content.users.empty()) {
+	if (content.elements.empty()) {
 		_hidingData = base::take(_data);
 		if (!_hidingData.empty()) {
 			toggleAnimated(false);
 		}
 		return;
 	}
-	const auto hidden = _content.users.empty();
+	const auto hidden = _content.elements.empty();
 	_content = std::move(content);
 	auto items = base::take(
 		_data.items.empty() ? _hidingData.items : _data.items);
 	_hidingData = {};
-	_data.items.reserve(_content.users.size());
-	for (const auto &user : _content.users) {
-		const auto i = ranges::find(items, user.id, [](const Item &item) {
-			return item.user.id;
+	_data.items.reserve(_content.elements.size());
+	for (const auto &element : _content.elements) {
+		const auto id = element.id;
+		const auto i = ranges::find(items, id, [](const Item &item) {
+			return item.element.id;
 		});
 		if (i != end(items)) {
 			_data.items.push_back(std::move(*i));
 			auto &item = _data.items.back();
-			if (item.user.userpic != user.userpic) {
-				item.user.userpic = user.userpic;
+			if (item.element.thumbnail != element.thumbnail) {
+				item.element.thumbnail = element.thumbnail;
 				item.subscribed = false;
 			}
-			if (item.user.name != user.name) {
-				item.user.name = user.name;
+			if (item.element.name != element.name) {
+				item.element.name = element.name;
 				item.nameCache = QImage();
 			}
-			item.user.unread = user.unread;
-			item.user.hidden = user.hidden;
+			item.element.unread = element.unread;
+			item.element.hidden = element.hidden;
 		} else {
-			_data.items.emplace_back(Item{ .user = user });
+			_data.items.emplace_back(Item{ .element = element });
 		}
 	}
 	updateScrollMax();
@@ -115,23 +117,25 @@ void List::showContent(Content &&content) {
 
 List::Summaries List::ComposeSummaries(Data &data) {
 	const auto total = int(data.items.size());
-	const auto skip = (total > 1 && data.items[0].user.self) ? 1 : 0;
+	const auto skip = (total > 1 && data.items[0].element.skipSmall)
+		? 1
+		: 0;
 	auto unreadInFirst = 0;
 	auto unreadTotal = 0;
 	for (auto i = skip; i != total; ++i) {
-		if (data.items[i].user.unread) {
+		if (data.items[i].element.unread) {
 			++unreadTotal;
-			if (i < skip + kSmallUserpicsShown) {
+			if (i < skip + kSmallThumbsShown) {
 				++unreadInFirst;
 			}
 		}
 	}
-	auto result = Summaries{ .skipSelf = (skip > 0) };
+	auto result = Summaries{ .skipOne = (skip > 0) };
 	result.total.string
 		= tr::lng_stories_row_count(tr::now, lt_count, total);
 	const auto append = [&](QString &to, int index, bool last) {
 		if (to.isEmpty()) {
-			to = data.items[index].user.name;
+			to = data.items[index].element.name;
 		} else {
 			to = (last
 				? tr::lng_stories_row_unread_and_last
@@ -140,19 +144,19 @@ List::Summaries List::ComposeSummaries(Data &data) {
 					lt_accumulated,
 					to,
 					lt_user,
-					data.items[index].user.name);
+					data.items[index].element.name);
 		}
 	};
 	if (!total) {
 		return result;
-	} else if (total <= skip + kSmallUserpicsShown) {
+	} else if (total <= skip + kSmallThumbsShown) {
 		for (auto i = skip; i != total; ++i) {
 			append(result.allNames.string, i, i == total - 1);
 		}
 	}
 	if (unreadInFirst > 0 && unreadInFirst == unreadTotal) {
 		for (auto i = skip; i != total; ++i) {
-			if (data.items[i].user.unread) {
+			if (data.items[i].element.unread) {
 				append(result.unreadNames.string, i, !--unreadTotal);
 			}
 		}
@@ -166,20 +170,22 @@ bool List::StringsEqual(const Summaries &a, const Summaries &b) {
 		&& (a.unreadNames.string == b.unreadNames.string);
 }
 
-void List::Populate(Summary &summary) {
+void List::Populate(
+		const style::DialogsStories &st,
+		Summary &summary) {
 	if (summary.empty()) {
 		return;
 	}
 	summary.cache = QImage();
-	summary.text = Ui::Text::String(
-		st::dialogsStories.nameStyle,
-		summary.string);
+	summary.text = Ui::Text::String(st.nameStyle, summary.string);
 }
 
-void List::Populate(Summaries &summaries) {
-	Populate(summaries.total);
-	Populate(summaries.allNames);
-	Populate(summaries.unreadNames);
+void List::Populate(
+		const style::DialogsStories &st,
+		Summaries &summaries) {
+	Populate(st, summaries.total);
+	Populate(st, summaries.allNames);
+	Populate(st, summaries.unreadNames);
 }
 
 void List::updateSummary(Data &data) {
@@ -188,7 +194,7 @@ void List::updateSummary(Data &data) {
 		return;
 	}
 	data.summaries = std::move(summaries);
-	Populate(data.summaries);
+	Populate(_st.small, data.summaries);
 }
 
 void List::toggleAnimated(bool shown) {
@@ -203,14 +209,14 @@ void List::updateHeight() {
 	const auto shown = _shownAnimation.value(_data.empty() ? 0. : 1.);
 	resize(
 		width(),
-		anim::interpolate(0, st::dialogsStoriesFull.height, shown));
+		anim::interpolate(0, _st.full.height, shown));
 	if (_data.empty() && shown == 0.) {
 		_hidingData = {};
 	}
 }
 
 void List::updateScrollMax() {
-	const auto &full = st::dialogsStoriesFull;
+	const auto &full = _st.full;
 	const auto singleFull = full.photoLeft * 2 + full.photo;
 	const auto widthFull = full.left + int(_data.items.size()) * singleFull;
 	_scrollLeftMax = std::max(widthFull - width(), 0);
@@ -252,8 +258,8 @@ void List::resizeEvent(QResizeEvent *e) {
 }
 
 List::Layout List::computeLayout() const {
-	const auto &st = st::dialogsStories;
-	const auto &full = st::dialogsStoriesFull;
+	const auto &st = _st.small;
+	const auto &full = _st.full;
 	const auto shownHeight = std::max(_shownHeight(), st.height);
 	const auto ratio = float64(shownHeight - st.height)
 		/ (full.height - st.height);
@@ -267,11 +273,12 @@ List::Layout List::computeLayout() const {
 		+ st::defaultDialogRow.photoSize
 		+ st::defaultDialogRow.padding.left();
 	const auto narrow = (width() <= narrowWidth);
-	const auto smallSkip = (itemsCount > 1 && rendering.items[0].user.self)
+	const auto smallSkip = (itemsCount > 1
+		&& rendering.items[0].element.skipSmall)
 		? 1
 		: 0;
 	const auto smallCount = std::min(
-		kSmallUserpicsShown,
+		kSmallThumbsShown,
 		itemsCount - smallSkip);
 	const auto smallWidth = st.photo + (smallCount - 1) * st.shift;
 	const auto leftSmall = (narrow
@@ -288,17 +295,17 @@ List::Layout List::computeLayout() const {
 	const auto startIndexSmall = std::min(startIndexFull, smallSkip);
 	const auto endIndexSmall = smallSkip + smallCount;
 	const auto cellLeftSmall = leftSmall + (startIndexSmall * st.shift);
-	const auto userpicLeftFull = cellLeftFull + full.photoLeft;
-	const auto userpicLeftSmall = cellLeftSmall + st.photoLeft;
-	const auto userpicLeft = lerp(userpicLeftSmall, userpicLeftFull);
+	const auto thumbnailLeftFull = cellLeftFull + full.photoLeft;
+	const auto thumbnailLeftSmall = cellLeftSmall + st.photoLeft;
+	const auto thumbnailLeft = lerp(thumbnailLeftSmall, thumbnailLeftFull);
 	const auto photoLeft = lerp(st.photoLeft, full.photoLeft);
 	return Layout{
 		.itemsCount = itemsCount,
 		.shownHeight = shownHeight,
 		.ratio = ratio,
-		.userpicLeft = userpicLeft,
+		.thumbnailLeft = thumbnailLeft,
 		.photoLeft = photoLeft,
-		.left = userpicLeft - photoLeft,
+		.left = thumbnailLeft - photoLeft,
 		.single = lerp(st.shift, singleFull),
 		.smallSkip = smallSkip,
 		.leftFull = leftFull,
@@ -313,8 +320,8 @@ List::Layout List::computeLayout() const {
 }
 
 void List::paintEvent(QPaintEvent *e) {
-	const auto &st = st::dialogsStories;
-	const auto &full = st::dialogsStoriesFull;
+	const auto &st = _st.small;
+	const auto &full = _st.full;
 	const auto layout = computeLayout();
 	const auto ratio = layout.ratio;
 	const auto lerp = [&](float64 a, float64 b) {
@@ -331,14 +338,14 @@ void List::paintEvent(QPaintEvent *e) {
 		+ (photoTop + (photo / 2.));
 	const auto nameScale = layout.shownHeight / float64(full.height);
 	const auto nameTop = nameScale * full.nameTop;
-	const auto nameWidth = nameScale * AvailableNameWidth();
+	const auto nameWidth = nameScale * AvailableNameWidth(_st);
 	const auto nameHeight = nameScale * full.nameStyle.font->height;
 	const auto nameLeft = layout.photoLeft + (photo - nameWidth) / 2.;
-	const auto readUserpicOpacity = lerp(kSmallReadOpacity, 1.);
-	const auto readUserpicAppearingOpacity = lerp(kSmallReadOpacity, 0.);
+	const auto readUserpicOpacity = lerp(_st.readOpacity, 1.);
+	const auto readUserpicAppearingOpacity = lerp(_st.readOpacity, 0.);
 
 	auto p = QPainter(this);
-	p.fillRect(e->rect(), st::dialogsBg);
+	p.fillRect(e->rect(), _st.bg);
 	p.translate(0, height() - layout.shownHeight);
 
 	const auto drawSmall = (ratio < 1.);
@@ -375,8 +382,8 @@ void List::paintEvent(QPaintEvent *e) {
 		return Single{ x, indexSmall, small, indexFull, full };
 	};
 	const auto hasUnread = [&](const Single &single) {
-		return (single.itemSmall && single.itemSmall->user.unread)
-			|| (single.itemFull && single.itemFull->user.unread);
+		return (single.itemSmall && single.itemSmall->element.unread)
+			|| (single.itemFull && single.itemFull->element.unread);
 	};
 	const auto enumerate = [&](auto &&paintGradient, auto &&paintOther) {
 		auto nextGradientPainted = false;
@@ -398,7 +405,9 @@ void List::paintEvent(QPaintEvent *e) {
 				}
 				if (i > first && hasUnread(current) && next) {
 					if (current.itemSmall || !next.itemSmall) {
-						if (i - 1 == first && first > 0 && !skippedPainted) {
+						if (i - 1 == first
+							&& first > 0
+							&& !skippedPainted) {
 							if (const auto skipped = lookup(i - 2)) {
 								skippedPainted = true;
 								paintGradient(skipped);
@@ -425,11 +434,15 @@ void List::paintEvent(QPaintEvent *e) {
 
 		// Unread gradient.
 		const auto x = single.x;
-		const auto userpic = QRectF(x + layout.photoLeft, photoTop, photo, photo);
+		const auto userpic = QRectF(
+			x + layout.photoLeft,
+			photoTop,
+			photo,
+			photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
-		const auto smallUnread = small && small->user.unread;
-		const auto fullUnread = itemFull && itemFull->user.unread;
+		const auto smallUnread = small && small->element.unread;
+		const auto fullUnread = itemFull && itemFull->element.unread;
 		const auto unreadOpacity = (smallUnread && fullUnread)
 			? 1.
 			: smallUnread
@@ -458,11 +471,15 @@ void List::paintEvent(QPaintEvent *e) {
 		Expects(single.itemSmall || single.itemFull);
 
 		const auto x = single.x;
-		const auto userpic = QRectF(x + layout.photoLeft, photoTop, photo, photo);
+		const auto userpic = QRectF(
+			x + layout.photoLeft,
+			photoTop,
+			photo,
+			photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
-		const auto smallUnread = small && small->user.unread;
-		const auto fullUnread = itemFull && itemFull->user.unread;
+		const auto smallUnread = small && small->element.unread;
+		const auto fullUnread = itemFull && itemFull->element.unread;
 
 		// White circle with possible read gray line.
 		const auto hasReadLine = (itemFull && !fullUnread);
@@ -483,25 +500,27 @@ void List::paintEvent(QPaintEvent *e) {
 		// Userpic.
 		if (itemFull == small) {
 			p.setOpacity(smallUnread ? 1. : readUserpicOpacity);
-			validateUserpic(itemFull);
+			validateThumbnail(itemFull);
 			const auto size = full.photo;
-			p.drawImage(userpic, itemFull->user.userpic->image(size));
+			p.drawImage(userpic, itemFull->element.thumbnail->image(size));
 		} else {
 			if (small) {
 				p.setOpacity(smallUnread
 					? (itemFull ? 1. : (1. - ratio))
 					: (itemFull
-						? kSmallReadOpacity
+						? _st.readOpacity
 						: readUserpicAppearingOpacity));
-				validateUserpic(small);
+				validateThumbnail(small);
 				const auto size = (ratio > 0.) ? full.photo : st.photo;
-				p.drawImage(userpic, small->user.userpic->image(size));
+				p.drawImage(userpic, small->element.thumbnail->image(size));
 			}
 			if (itemFull) {
 				p.setOpacity(ratio);
-				validateUserpic(itemFull);
+				validateThumbnail(itemFull);
 				const auto size = full.photo;
-				p.drawImage(userpic, itemFull->user.userpic->image(size));
+				p.drawImage(
+					userpic,
+					itemFull->element.thumbnail->image(size));
 			}
 		}
 		p.setOpacity(1.);
@@ -510,11 +529,11 @@ void List::paintEvent(QPaintEvent *e) {
 	paintSummary(p, rendering, summaryTop, ratio);
 }
 
-void List::validateUserpic(not_null<Item*> item) {
+void List::validateThumbnail(not_null<Item*> item) {
 	if (!item->subscribed) {
 		item->subscribed = true;
-		//const auto id = item.user.id;
-		item->user.userpic->subscribeToUpdates([=] {
+		//const auto id = item.element.id;
+		item->element.thumbnail->subscribeToUpdates([=] {
 			update();
 		});
 	}
@@ -525,10 +544,10 @@ void List::validateName(not_null<Item*> item) {
 	if (!item->nameCache.isNull() && item->nameCacheColor == color->c) {
 		return;
 	}
-	const auto &full = st::dialogsStoriesFull;
+	const auto &full = _st.full;
 	const auto &font = full.nameStyle.font;
-	const auto available = AvailableNameWidth();
-	const auto text = Ui::Text::String(full.nameStyle, item->user.name);
+	const auto available = AvailableNameWidth(_st);
+	const auto text = Ui::Text::String(full.nameStyle, item->element.name);
 	const auto ratio = style::DevicePixelRatio();
 	item->nameCacheColor = color->c;
 	item->nameCache = QImage(
@@ -542,13 +561,13 @@ void List::validateName(not_null<Item*> item) {
 }
 
 List::Summary &List::ChooseSummary(
+		const style::DialogsStories &st,
 		Summaries &summaries,
 		int totalItems,
 		int fullWidth) {
-	const auto &st = st::dialogsStories;
 	const auto used = std::min(
-		totalItems - (summaries.skipSelf ? 1 : 0),
-		kSmallUserpicsShown);
+		totalItems - (summaries.skipOne ? 1 : 0),
+		kSmallThumbsShown);
 	const auto taken = st.left
 		+ st.photoLeft
 		+ st.photo
@@ -572,13 +591,14 @@ List::Summary &List::ChooseSummary(
 	return summaries.total;
 }
 
-void List::PrerenderSummary(Summary &summary) {
+void List::PrerenderSummary(
+		const style::DialogsStories &st,
+		Summary &summary) {
 	if (!summary.cache.isNull()
 		&& summary.cacheForWidth == summary.available
 		&& summary.cacheColor == st::dialogsNameFg->c) {
 		return;
 	}
-	const auto &st = st::dialogsStories;
 	const auto use = std::min(summary.text.maxWidth(), summary.available);
 	const auto ratio = style::DevicePixelRatio();
 	summary.cache = QImage(
@@ -597,16 +617,20 @@ void List::paintSummary(
 		float64 summaryTop,
 		float64 hidden) {
 	const auto total = int(data.items.size());
-	auto &summary = ChooseSummary(data.summaries, total, width());
-	PrerenderSummary(summary);
+	auto &summary = ChooseSummary(
+		_st.small,
+		data.summaries,
+		total,
+		width());
+	PrerenderSummary(_st.small, summary);
 	const auto lerp = [&](float64 from, float64 to) {
 		return from + (to - from) * hidden;
 	};
-	const auto &st = st::dialogsStories;
-	const auto &full = st::dialogsStoriesFull;
+	const auto &st = _st.small;
+	const auto &full = _st.full;
 	const auto used = std::min(
-		total - (data.summaries.skipSelf ? 1 : 0),
-		kSmallUserpicsShown);
+		total - (data.summaries.skipOne ? 1 : 0),
+		kSmallThumbsShown);
 	const auto fullLeft = st.left
 		+ st.photoLeft
 		+ st.photo
@@ -671,7 +695,7 @@ void List::mouseMoveEvent(QMouseEvent *e) {
 	if (!_dragging && _mouseDownPosition) {
 		if ((_lastMousePosition - *_mouseDownPosition).manhattanLength()
 			>= QApplication::startDragDistance()) {
-			if (_shownHeight() < st::dialogsStoriesFull.height) {
+			if (_shownHeight() < _st.full.height) {
 				_expandRequests.fire({});
 			}
 			_dragging = true;
@@ -718,7 +742,7 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 		if (_selected < 0) {
 			_expandRequests.fire({});
 		} else if (_selected < _data.items.size()) {
-			_clicks.fire_copy(_data.items[_selected].user.id);
+			_clicks.fire_copy(_data.items[_selected].element.id);
 		}
 	}
 }
@@ -737,8 +761,8 @@ void List::contextMenuEvent(QContextMenuEvent *e) {
 	auto &item = _data.items[_selected];
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 
-	const auto id = item.user.id;
-	const auto hidden = item.user.hidden;
+	const auto id = item.element.id;
+	const auto hidden = item.element.hidden;
 	_menu->addAction(tr::lng_context_view_profile(tr::now), [=] {
 		_showProfileRequests.fire_copy(id);
 	});
@@ -781,8 +805,8 @@ void List::updateSelected() {
 	if (_pressed >= 0) {
 		return;
 	}
-	const auto &st = st::dialogsStories;
-	const auto &full = st::dialogsStoriesFull;
+	const auto &st = _st.small;
+	const auto &full = _st.full;
 	const auto p = mapFromGlobal(_lastMousePosition);
 	const auto layout = computeLayout();
 	const auto firstRightFull = layout.leftFull

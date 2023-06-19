@@ -65,12 +65,42 @@ TextParseOptions _documentNameOptions = {
 };
 
 constexpr auto kMaxInlineArea = 1280 * 720;
+constexpr auto kStoryRatio = 1.46;
 
 [[nodiscard]] bool CanPlayInline(not_null<DocumentData*> document) {
 	const auto dimensions = document->dimensions;
 	return dimensions.width() * dimensions.height() <= kMaxInlineArea;
 }
 
+[[nodiscard]] QImage CropMediaFrame(QImage image, int width, int height) {
+	const auto ratio = style::DevicePixelRatio();
+	width *= ratio;
+	height *= ratio;
+	const auto finalize = [&](QImage result) {
+		result = result.scaled(
+			width,
+			height,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		result.setDevicePixelRatio(ratio);
+		return result;
+	};
+	if (image.width() * height == image.height() * width) {
+		if (image.width() != width) {
+			return finalize(std::move(image));
+		}
+		image.setDevicePixelRatio(ratio);
+		return image;
+	} else if (image.width() * height > image.height() * width) {
+		const auto use = (image.height() * width) / height;
+		const auto skip = (image.width() - use) / 2;
+		return finalize(image.copy(skip, 0, use, image.height()));
+	} else {
+		const auto use = (image.width() * height) / width;
+		const auto skip = (image.height() - use) / 2;
+		return finalize(image.copy(0, skip, image.width(), use));
+	}
+}
 
 } // namespace
 
@@ -298,7 +328,7 @@ Photo::Photo(
 	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
 	not_null<PhotoData*> photo,
-	bool spoiler)
+	MediaOptions options)
 : ItemBase(delegate, parent)
 , _data(photo)
 , _link(std::make_shared<PhotoOpenClickHandler>(
@@ -308,9 +338,10 @@ Photo::Photo(
 		delegate->openPhoto(photo, id);
 	}),
 	parent->fullId()))
-, _spoiler(spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
+, _spoiler(options.spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
 	delegate->repaintItem(this);
-}) : nullptr) {
+}) : nullptr)
+, _story(options.story) {
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& (_data->hasExact(Data::PhotoSize::Small)
 			|| _data->hasExact(Data::PhotoSize::Thumbnail))) {
@@ -320,14 +351,14 @@ Photo::Photo(
 
 void Photo::initDimensions() {
 	_maxw = 2 * st::overviewPhotoMinSize;
-	_minh = _maxw;
+	_minh = _story ? qRound(_maxw * kStoryRatio) : _maxw;
 }
 
 int32 Photo::resizeGetHeight(int32 width) {
 	width = qMin(width, _maxw);
-	if (width != _width || width != _height) {
-		_width = qMin(width, _maxw);
-		_height = _width;
+	if (_width != width) {
+		_width = width;
+		_height = _story ? qRound(_width * kStoryRatio) : _width;
 	}
 	return _height;
 }
@@ -382,21 +413,14 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 }
 
 void Photo::setPixFrom(not_null<Image*> image) {
-	const auto size = _width * cIntRetinaFactor();
+	Expects(_width > 0 && _height > 0);
+
 	auto img = image->original();
 	if (!_goodLoaded) {
 		img = Images::Blur(std::move(img));
 	}
-	if (img.width() == img.height()) {
-		if (img.width() != size) {
-			img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-		}
-	} else if (img.width() > img.height()) {
-		img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-	} else {
-		img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-	}
-	img.setDevicePixelRatio(cRetinaFactor());
+	_pix = Ui::PixmapFromImage(
+		CropMediaFrame(std::move(img), _width, _height));
 
 	// In case we have inline thumbnail we can unload all images and we still
 	// won't get a blank image in the media viewer when the photo is opened.
@@ -404,8 +428,6 @@ void Photo::setPixFrom(not_null<Image*> image) {
 		_dataMedia = nullptr;
 		delegate()->unregisterHeavyItem(this);
 	}
-
-	_pix = Ui::PixmapFromImage(std::move(img));
 }
 
 void Photo::ensureDataMediaCreated() const {
@@ -445,13 +467,14 @@ Video::Video(
 	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> video,
-	bool spoiler)
+	MediaOptions options)
 : RadialProgressItem(delegate, parent)
 , _data(video)
 , _duration(Ui::FormatDurationText(_data->duration() / 1000))
-, _spoiler(spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
+, _spoiler(options.spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
 	delegate->repaintItem(this);
-}) : nullptr) {
+}) : nullptr)
+, _story(options.story) {
 	setDocumentLinks(_data);
 	_data->loadThumbnail(parent->fullId());
 }
@@ -460,12 +483,15 @@ Video::~Video() = default;
 
 void Video::initDimensions() {
 	_maxw = 2 * st::overviewPhotoMinSize;
-	_minh = _maxw;
+	_minh = _story ? qRound(_maxw * kStoryRatio) : _maxw;
 }
 
 int32 Video::resizeGetHeight(int32 width) {
-	_width = qMin(width, _maxw);
-	_height = _width;
+	width = qMin(width, _maxw);
+	if (_width != width) {
+		_width = width;
+		_height = _story ? qRound(_width * kStoryRatio) : _width;
+	}
 	return _height;
 }
 
@@ -497,18 +523,8 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			: thumbnail
 			? thumbnail->original()
 			: Images::Blur(blurred->original());
-		if (img.width() == img.height()) {
-			if (img.width() != size) {
-				img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-			}
-		} else if (img.width() > img.height()) {
-			img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-		} else {
-			img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-		}
-		img.setDevicePixelRatio(cRetinaFactor());
-
-		_pix = Ui::PixmapFromImage(std::move(img));
+		_pix = Ui::PixmapFromImage(
+			CropMediaFrame(std::move(img), _width, _height));
 		_pixBlurred = !(thumbnail || good);
 	}
 

@@ -183,13 +183,18 @@ struct Info : public RuntimeComponent<Info, LayoutItemBase> {
 	int top = 0;
 };
 
+struct MediaOptions {
+	bool spoiler = false;
+	bool story = false;
+};
+
 class Photo final : public ItemBase {
 public:
 	Photo(
 		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
 		not_null<PhotoData*> photo,
-		bool spoiler);
+		MediaOptions options);
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
@@ -212,6 +217,7 @@ private:
 
 	QPixmap _pix;
 	bool _goodLoaded = false;
+	bool _story = false;
 
 };
 
@@ -279,7 +285,7 @@ public:
 		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> video,
-		bool spoiler);
+		MediaOptions options);
 	~Video();
 
 	void initDimensions() override;
@@ -311,6 +317,7 @@ private:
 
 	QPixmap _pix;
 	bool _pixBlurred = true;
+	bool _story = false;
 
 };
 

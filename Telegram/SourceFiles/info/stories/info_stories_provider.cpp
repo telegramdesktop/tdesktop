@@ -61,7 +61,7 @@ Type Provider::type() {
 }
 
 bool Provider::hasSelectRestriction() {
-	return false;
+	return true; // #TODO stories
 }
 
 rpl::producer<bool> Provider::hasSelectRestrictionChanges() {
@@ -292,22 +292,18 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		}
 		return nullptr;
 	};
-	// #TODO stories
-	const auto maybeStory = item->history()->owner().stories().lookup(
-		{ item->history()->peer->id, StoryIdFromMsgId(item->id) });
-	const auto spoiler = maybeStory && !(*maybeStory)->expired();
-
 	using namespace Overview::Layout;
+	const auto options = MediaOptions{ .story = true };
 	if (const auto photo = getPhoto()) {
-		return std::make_unique<Photo>(delegate, item, photo, spoiler);
+		return std::make_unique<Photo>(delegate, item, photo, options);
 	} else if (const auto file = getFile()) {
-		return std::make_unique<Video>(delegate, item, file, spoiler);
+		return std::make_unique<Video>(delegate, item, file, options);
 	} else {
 		return std::make_unique<Photo>(
 			delegate,
 			item,
 			Data::MediaStory::LoadingStoryPhoto(&item->history()->owner()),
-			spoiler);
+			options);
 	}
 	return nullptr;
 }
@@ -316,9 +312,8 @@ ListItemSelectionData Provider::computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) {
 	auto result = ListItemSelectionData(selection);
-	result.canDelete = true;
-	result.canForward = item->allowsForward()
-		&& (&item->history()->session() == &_controller->session());
+	result.canDelete = item->canDelete();
+	result.canForward = item->allowsForward();
 	return result;
 }
 

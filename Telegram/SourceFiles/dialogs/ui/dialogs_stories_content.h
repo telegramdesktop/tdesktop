@@ -23,4 +23,6 @@ struct Content;
 	not_null<Main::Session*> session,
 	Data::StorySourcesList list);
 
+[[nodiscard]] rpl::producer<Content> LastForPeer(not_null<PeerData*> peer);
+
 } // namespace Dialogs::Stories

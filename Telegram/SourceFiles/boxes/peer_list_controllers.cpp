@@ -82,6 +82,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 
 		auto stories = object_ptr<Stories::List>(
 			box,
+			st::dialogsStoriesList,
 			Stories::ContentForSession(
 				&sessionController->session(),
 				Data::StorySourcesList::All),

@@ -534,6 +534,8 @@ Ui::StringWithNumbers TopBar::generateSelectedText() const {
 		case Type::MusicFile: return tr::lng_media_selected_song;
 		case Type::Link: return tr::lng_media_selected_link;
 		case Type::RoundVoiceFile: return tr::lng_media_selected_audio;
+			// #TODO stories
+		case Type::PhotoVideo: return tr::lng_media_selected_photo;
 		}
 		Unexpected("Type in TopBar::generateSelectedText()");
 	}();

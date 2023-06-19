@@ -347,7 +347,7 @@ void ListSection::resizeToWidth(int newWidth) {
 		_itemWidth = ((newWidth - _itemsLeft) / _itemsInRow)
 			- st::infoMediaSkip;
 		for (auto &item : _items) {
-			item->resizeGetHeight(_itemWidth);
+			_itemHeight = item->resizeGetHeight(_itemWidth);
 		}
 	} break;
 
@@ -378,7 +378,7 @@ int ListSection::recountHeight() {
 	case Type::Video:
 	case Type::PhotoVideo: // #TODO stories
 	case Type::RoundFile: {
-		auto itemHeight = _itemWidth + st::infoMediaSkip;
+		auto itemHeight = _itemHeight + st::infoMediaSkip;
 		auto index = 0;
 		result += _itemsTop;
 		for (auto &item : _items) {

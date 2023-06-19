@@ -8,17 +8,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/stories/info_stories_inner_widget.h"
 
 #include "data/data_peer.h"
+#include "data/data_session.h"
+#include "data/data_stories.h"
+#include "data/data_user.h"
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_list.h"
 #include "info/media/info_media_list_widget.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/stories/info_stories_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_info.h"
+#include "styles/style_settings.h"
 
 namespace Info::Stories {
 
@@ -99,38 +108,112 @@ void InnerWidget::setupArchive() {
 		&& _isStackBottom) {
 		createArchiveButton();
 	} else {
-		_archive.destroy();
+		_buttons.destroy();
 		refreshHeight();
 	}
 }
 
 void InnerWidget::createArchiveButton() {
-	_archive.create(this);
-	_archive->show();
+	_buttons.create(this);
+	_buttons->show();
 
-	const auto button = ::Settings::AddButton(
-		_archive,
+	const auto stories = &_controller->session().data().stories();
+	const auto self = _controller->session().user();
+	const auto archive = ::Settings::AddButton(
+		_buttons,
 		tr::lng_stories_archive_button(),
 		st::infoSharedMediaButton);
-	button->addClickHandler([=] {
+	archive->addClickHandler([=] {
 		_controller->showSection(Info::Stories::Make(
 			_controller->key().storiesPeer(),
 			Stories::Tab::Archive));
 	});
+	auto count = rpl::single(
+		rpl::empty
+	) | rpl::then(stories->archiveChanged()) | rpl::map([=] {
+		const auto value = stories->archiveCount();
+		return (value > 0) ? QString::number(value) : QString();
+	});
+	::Settings::CreateRightLabel(
+		archive,
+		std::move(count),
+		st::infoSharedMediaButton,
+		tr::lng_stories_archive_button());
 	object_ptr<Profile::FloatingIcon>(
-		button,
-		st::infoIconMediaGroup,
+		archive,
+		st::infoIconMediaStoriesArchive,
 		st::infoSharedMediaButtonIconPosition)->show();
-	_archive->add(object_ptr<Ui::FixedHeightWidget>(
-		_archive,
-		st::infoProfileSkip));
-	_archive->add(object_ptr<Ui::BoxContentDivider>(_archive));
 
-	_archive->resizeToWidth(width());
-	_archive->heightValue(
+	const auto recentWrap = _buttons->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			_buttons,
+			::Settings::CreateButton(
+				_buttons,
+				tr::lng_stories_recent_button(),
+				st::infoSharedMediaButton)));
+
+	using namespace Dialogs::Stories;
+	auto last = LastForPeer(
+		self
+	) | rpl::map([=](Content &&content) {
+		for (auto &element : content.elements) {
+			element.unread = false;
+		}
+		return std::move(content);
+	}) | rpl::start_spawning(recentWrap->lifetime());
+	const auto recent = recentWrap->entity();
+	const auto thumbs = Ui::CreateChild<List>(
+		recent,
+		st::dialogsStoriesListMine,
+		rpl::duplicate(last) | rpl::filter([](const Content &content) {
+			return !content.elements.empty();
+		}),
+		[] { return st::dialogsStories.height; });
+	rpl::combine(
+		recent->sizeValue(),
+		rpl::duplicate(last)
+	) | rpl::start_with_next([=](QSize size, const Content &content) {
+		if (content.elements.empty()) {
+			return;
+		}
+		const auto width = st::defaultDialogRow.padding.left()
+			+ st::defaultDialogRow.photoSize
+			+ st::defaultDialogRow.padding.left();
+		const auto &small = st::dialogsStories;
+		const auto count = int(content.elements.size());
+		const auto smallWidth = small.photo + (count - 1) * small.shift;
+		const auto real = smallWidth;
+		const auto top = st::dialogsStories.height
+			- st::dialogsStoriesFull.height
+			+ (size.height() - st::dialogsStories.height) / 2;
+		const auto right = st::settingsButtonRightSkip - (width - real) / 2;
+		thumbs->resizeToWidth(width);
+		thumbs->moveToRight(right, top);
+	}, thumbs->lifetime());
+	thumbs->setAttribute(Qt::WA_TransparentForMouseEvents);
+	recent->addClickHandler([=] {
+		_controller->parentController()->openPeerStories(self->id);
+	});
+	object_ptr<Profile::FloatingIcon>(
+		recent,
+		st::infoIconMediaStoriesRecent,
+		st::infoSharedMediaButtonIconPosition)->show();
+	recentWrap->toggleOn(rpl::duplicate(
+		last
+	) | rpl::map([](const Content &content) {
+		return !content.elements.empty();
+	}));
+
+	_buttons->add(object_ptr<Ui::FixedHeightWidget>(
+		_buttons,
+		st::infoProfileSkip));
+	_buttons->add(object_ptr<Ui::BoxContentDivider>(_buttons));
+
+	_buttons->resizeToWidth(width());
+	_buttons->heightValue(
 	) | rpl::start_with_next([=] {
 		refreshHeight();
-	}, _archive->lifetime());
+	}, _buttons->lifetime());
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -194,8 +277,8 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
 	auto guard = gsl::finally([this] { _inResize = false; });
 
-	if (_archive) {
-		_archive->resizeToWidth(newWidth);
+	if (_buttons) {
+		_buttons->resizeToWidth(newWidth);
 	}
 	_list->resizeToWidth(newWidth);
 	_empty->resizeToWidth(newWidth);
@@ -211,9 +294,9 @@ void InnerWidget::refreshHeight() {
 
 int InnerWidget::recountHeight() {
 	auto top = 0;
-	if (_archive) {
-		_archive->moveToLeft(0, top);
-		top += _archive->heightNoMargins() - st::lineWidth;
+	if (_buttons) {
+		_buttons->moveToLeft(0, top);
+		top += _buttons->heightNoMargins() - st::lineWidth;
 	}
 	auto listHeight = 0;
 	if (_list) {

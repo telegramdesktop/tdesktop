@@ -582,7 +582,9 @@ public:
 		not_null<PeerData*> peer,
 		StoryId storyId,
 		Data::StoriesContext context);
-	void openPeerStories(PeerId peerId, Data::StorySourcesList list);
+	void openPeerStories(
+		PeerId peerId,
+		std::optional<Data::StorySourcesList> list = std::nullopt);
 
 	struct PaintContextArgs {
 		not_null<Ui::ChatTheme*> theme;

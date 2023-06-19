@@ -13,31 +13,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QPainter;
 
+namespace style {
+struct DialogsStories;
+struct DialogsStoriesList;
+} // namespace style
+
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
 
 namespace Dialogs::Stories {
 
-class Userpic {
+class Thumbnail {
 public:
 	[[nodiscard]] virtual QImage image(int size) = 0;
 	virtual void subscribeToUpdates(Fn<void()> callback) = 0;
 };
 
-struct User {
+struct Element {
 	uint64 id = 0;
 	QString name;
-	std::shared_ptr<Userpic> userpic;
+	std::shared_ptr<Thumbnail> thumbnail;
 	bool unread = false;
 	bool hidden = false;
-	bool self = false;
+	bool skipSmall = false;
 
-	friend inline bool operator==(const User &a, const User &b) = default;
+	friend inline bool operator==(
+		const Element &a,
+		const Element &b) = default;
 };
 
 struct Content {
-	std::vector<User> users;
+	std::vector<Element> elements;
 	bool full = false;
 
 	friend inline bool operator==(
@@ -54,6 +61,7 @@ class List final : public Ui::RpWidget {
 public:
 	List(
 		not_null<QWidget*> parent,
+		const style::DialogsStoriesList &st,
 		rpl::producer<Content> content,
 		Fn<int()> shownHeight);
 
@@ -67,7 +75,7 @@ public:
 private:
 	struct Layout;
 	struct Item {
-		User user;
+		Element element;
 		QImage nameCache;
 		QColor nameCacheColor;
 		bool subscribed = false;
@@ -88,7 +96,7 @@ private:
 		Summary total;
 		Summary allNames;
 		Summary unreadNames;
-		bool skipSelf = false;
+		bool skipOne = false;
 	};
 	struct Data {
 		std::vector<Item> items;
@@ -103,13 +111,20 @@ private:
 	[[nodiscard]] static bool StringsEqual(
 		const Summaries &a,
 		const Summaries &b);
-	static void Populate(Summary &summary);
-	static void Populate(Summaries &summaries);
+	static void Populate(
+		const style::DialogsStories &st,
+		Summary &summary);
+	static void Populate(
+		const style::DialogsStories &st,
+		Summaries &summaries);
 	[[nodiscard]] static Summary &ChooseSummary(
+		const style::DialogsStories &st,
 		Summaries &summaries,
 		int totalItems,
 		int fullWidth);
-	static void PrerenderSummary(Summary &summary);
+	static void PrerenderSummary(
+		const style::DialogsStories &st,
+		Summary &summary);
 
 	void showContent(Content &&content);
 	void enterEventHook(QEnterEvent *e) override;
@@ -121,7 +136,7 @@ private:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
-	void validateUserpic(not_null<Item*> item);
+	void validateThumbnail(not_null<Item*> item);
 	void validateName(not_null<Item*> item);
 	void updateScrollMax();
 	void updateSummary(Data &data);
@@ -140,6 +155,7 @@ private:
 
 	[[nodiscard]] Layout computeLayout() const;
 
+	const style::DialogsStoriesList &_st;
 	Content _content;
 	Data _data;
 	Data _hidingData;

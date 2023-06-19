@@ -71,7 +71,7 @@ private:
 
 	const not_null<Controller*> _controller;
 
-	object_ptr<Ui::VerticalLayout> _archive = { nullptr };
+	object_ptr<Ui::VerticalLayout> _buttons = { nullptr };
 	object_ptr<Media::ListWidget> _list = { nullptr };
 	object_ptr<EmptyWidget> _empty;
 

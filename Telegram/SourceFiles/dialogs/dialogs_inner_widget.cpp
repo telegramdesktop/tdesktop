@@ -142,6 +142,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _stories(std::make_unique<Stories::List>(
 	this,
+	st::dialogsStoriesList,
 	Stories::ContentForSession(
 		&controller->session(),
 		Data::StorySourcesList::NotHidden),

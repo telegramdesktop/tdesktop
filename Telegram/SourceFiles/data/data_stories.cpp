@@ -423,6 +423,7 @@ void Stories::apply(const MTPDupdateStory &data) {
 	if (!user->hasStoriesHidden()) {
 		refreshInList(StorySourcesList::NotHidden);
 	}
+	_sourceChanged.fire_copy(peerId);
 }
 
 void Stories::apply(not_null<PeerData*> peer, const MTPUserStories *data) {
