@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "info/info_wrap_widget.h"
 
+namespace Dialogs::Stories {
+struct Content;
+} // namespace Dialogs::Stories
+
 namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
@@ -88,6 +92,8 @@ public:
 	}
 
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
+	[[nodiscard]] virtual auto titleStories()
+		-> rpl::producer<Dialogs::Stories::Content>;
 
 	virtual void saveChanges(FnMut<void()> done);
 

@@ -846,7 +846,7 @@ void List::updateSelected() {
 				+ lastRightAdd)
 		? (infiniteIndex - 1) // Last small part should still be clickable.
 		: (startIndex + infiniteIndex >= endIndex)
-		? -1
+		? (_st.fullClickable ? (endIndex - 1) : -1)
 		: infiniteIndex;
 	const auto selected = (index < 0
 		|| startIndex + index >= layout.itemsCount)

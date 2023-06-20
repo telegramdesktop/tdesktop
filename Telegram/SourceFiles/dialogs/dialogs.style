@@ -505,6 +505,7 @@ DialogsStoriesList {
 	full: DialogsStories;
 	bg: color;
 	readOpacity: double;
+	fullClickable: int;
 }
 
 dialogsStories: DialogsStories {
@@ -544,9 +545,11 @@ dialogsStoriesList: DialogsStoriesList {
 	full: dialogsStoriesFull;
 	bg: dialogsBg;
 	readOpacity: 0.6;
+	fullClickable: 0;
 }
 dialogsStoriesListInfo: DialogsStoriesList(dialogsStoriesList) {
 	bg: transparent;
+	fullClickable: 1;
 }
 dialogsStoriesListMine: DialogsStoriesList(dialogsStoriesListInfo) {
 	readOpacity: 1.;

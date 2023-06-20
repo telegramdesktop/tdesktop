@@ -273,6 +273,11 @@ void ContentWidget::setViewport(
 	}, _scroll->lifetime());
 }
 
+auto ContentWidget::titleStories()
+-> rpl::producer<Dialogs::Stories::Content> {
+	return nullptr;
+}
+
 void ContentWidget::saveChanges(FnMut<void()> done) {
 	done();
 }

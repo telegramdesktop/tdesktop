@@ -303,6 +303,11 @@ void WrapWidget::createTopBar() {
 			_controller->parentController()->closeThirdSection();
 		});
 	}
+	_topBar->storyClicks() | rpl::start_with_next([=] {
+		if (const auto peer = _controller->key().peer()) {
+			_controller->parentController()->openPeerStories(peer->id);
+		}
+	}, _topBar->lifetime());
 	if (wrapValue == Wrap::Layer) {
 		auto close = _topBar->addButton(
 			base::make_unique_q<Ui::IconButton>(
@@ -579,6 +584,7 @@ void WrapWidget::finishShowContent() {
 	_content->setIsStackBottom(!hasStackHistory());
 	if (_topBar) {
 		_topBar->setTitle(_content->title());
+		_topBar->setStories(_content->titleStories());
 	}
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());

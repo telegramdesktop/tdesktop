@@ -18,6 +18,11 @@ namespace style {
 struct InfoTopBar;
 } // namespace style
 
+namespace Dialogs::Stories {
+class List;
+struct Content;
+} // namespace Dialogs::Stories
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
@@ -43,11 +48,15 @@ public:
 		const style::InfoTopBar &st,
 		SelectedItems &&items);
 
-	auto backRequest() const {
+	[[nodiscard]] auto backRequest() const {
 		return _backClicks.events();
+	}
+	[[nodiscard]] auto storyClicks() const {
+		return _storyClicks.events();
 	}
 
 	void setTitle(rpl::producer<QString> &&title);
+	void setStories(rpl::producer<Dialogs::Stories::Content> content);
 	void enableBackButton();
 	void highlight();
 
@@ -95,6 +104,7 @@ private:
 	void updateControlsGeometry(int newWidth);
 	void updateDefaultControlsGeometry(int newWidth);
 	void updateSelectionControlsGeometry(int newWidth);
+	void updateStoriesGeometry(int newWidth);
 	Ui::FadeWrap<Ui::RpWidget> *pushButton(
 		base::unique_qptr<Ui::RpWidget> button);
 	void forceButtonVisibility(
@@ -104,9 +114,10 @@ private:
 	void startHighlightAnimation();
 	void updateControlsVisibility(anim::type animated);
 
-	bool selectionMode() const;
-	bool searchMode() const;
-	Ui::StringWithNumbers generateSelectedText() const;
+	[[nodiscard]] bool selectionMode() const;
+	[[nodiscard]] bool storiesTitle() const;
+	[[nodiscard]] bool searchMode() const;
+	[[nodiscard]] Ui::StringWithNumbers generateSelectedText() const;
 	[[nodiscard]] bool computeCanDelete() const;
 	[[nodiscard]] bool computeCanForward() const;
 	void updateSelectionState();
@@ -147,6 +158,7 @@ private:
 	QPointer<Ui::InputField> _searchField;
 
 	rpl::event_stream<> _backClicks;
+	rpl::event_stream<uint64> _storyClicks;
 
 	SelectedItems _selectedItems;
 	bool _canDelete = false;
@@ -156,6 +168,10 @@ private:
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _forward;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _delete;
 	rpl::event_stream<SelectionAction> _selectionActionRequests;
+
+	QPointer<Ui::FadeWrap<Dialogs::Stories::List>> _stories;
+	rpl::lifetime _storiesLifetime;
+	int _storiesCount = 0;
 
 	using UpdateCallback = Fn<bool(anim::type)>;
 	std::map<QObject*, UpdateCallback> _updateControlCallbacks;

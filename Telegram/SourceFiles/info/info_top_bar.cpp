@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/never.h>
 #include <rpl/merge.h>
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_list.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_numbers_animation.h"
 #include "info/info_wrap_widget.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_info.h"
 
 namespace Info {
@@ -88,9 +91,11 @@ void TopBar::setTitle(rpl::producer<QString> &&title) {
 		object_ptr<Ui::FlatLabel>(this, std::move(title), _st.title),
 		st::infoTopBarScale);
 	_title->setDuration(st::infoTopBarDuration);
-	_title->toggle(!selectionMode(), anim::type::instant);
+	_title->toggle(
+		!selectionMode() && !storiesTitle(),
+		anim::type::instant);
 	registerToggleControlCallback(_title.data(), [=] {
-		return !selectionMode() && !searchMode();
+		return !selectionMode() && !storiesTitle() && !searchMode();
 	});
 
 	if (_back) {
@@ -309,12 +314,15 @@ int TopBar::resizeGetHeight(int newWidth) {
 void TopBar::updateControlsGeometry(int newWidth) {
 	updateDefaultControlsGeometry(newWidth);
 	updateSelectionControlsGeometry(newWidth);
+	updateStoriesGeometry(newWidth);
 }
 
 void TopBar::updateDefaultControlsGeometry(int newWidth) {
 	auto right = 0;
 	for (auto &button : _buttons) {
-		if (!button) continue;
+		if (!button) {
+			continue;
+		}
 		button->moveToRight(right, 0, newWidth);
 		right += button->width();
 	}
@@ -360,6 +368,28 @@ void TopBar::updateSelectionControlsGeometry(int newWidth) {
 		left,
 		top,
 		newWidth);
+}
+
+void TopBar::updateStoriesGeometry(int newWidth) {
+	if (!_stories) {
+		return;
+	}
+
+	auto right = 0;
+	for (auto &button : _buttons) {
+		if (!button) {
+			continue;
+		}
+		button->moveToRight(right, 0, newWidth);
+		right += button->width();
+	}
+	const auto left = (_back ? _st.back.width : _st.titlePosition.x())
+		- st::dialogsStories.left - st::dialogsStories.photoLeft;
+	const auto top = st::dialogsStories.height
+		- st::dialogsStoriesFull.height
+		+ (_st.height - st::dialogsStories.height) / 2;
+	_stories->resizeToWidth(newWidth - left - right);
+	_stories->moveToLeft(left, top, newWidth);
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
@@ -410,6 +440,60 @@ void TopBar::updateControlsVisibility(anim::type animated) {
 			++i;
 		}
 	}
+}
+
+void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
+	_storiesLifetime.destroy();
+	if (content) {
+		using namespace Dialogs::Stories;
+
+		auto last = std::move(
+			content
+		) | rpl::start_spawning(_storiesLifetime);
+		delete _stories;
+
+		const auto stories = Ui::CreateChild<Ui::FadeWrap<List>>(
+			this,
+			object_ptr<List>(
+				this,
+				st::dialogsStoriesListInfo,
+				rpl::duplicate(
+					last
+				) | rpl::filter([](const Content &content) {
+					return !content.elements.empty();
+				}),
+				[] { return st::dialogsStories.height; }),
+				st::infoTopBarScale);
+		registerToggleControlCallback(
+			stories,
+			[this] { return _storiesCount > 0; });
+		stories->toggle(false, anim::type::instant);
+		stories->setDuration(st::infoTopBarDuration);
+		_stories = stories;
+		_stories->entity()->clicks(
+		) | rpl::start_to_stream(_storyClicks, _stories->lifetime());
+		if (_back) {
+			_back->raise();
+		}
+
+		rpl::duplicate(
+			last
+		) | rpl::start_with_next([=](const Content &content) {
+			const auto count = int(content.elements.size());
+			if (_storiesCount != count) {
+				const auto was = (_storiesCount > 0);
+				_storiesCount = count;
+				const auto now = (_storiesCount > 0);
+				if (was != now) {
+					updateControlsVisibility(anim::type::normal);
+				}
+				updateControlsGeometry(width());
+			}
+		}, _storiesLifetime);
+	} else {
+		_storiesCount = 0;
+	}
+	updateControlsVisibility(anim::type::instant);
 }
 
 void TopBar::setSelectedItems(SelectedItems &&items) {
@@ -548,6 +632,10 @@ Ui::StringWithNumbers TopBar::generateSelectedText() const {
 
 bool TopBar::selectionMode() const {
 	return !_selectedItems.list.empty();
+}
+
+bool TopBar::storiesTitle() const {
+	return _storiesCount > 0;
 }
 
 bool TopBar::searchMode() const {
