@@ -244,6 +244,12 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 		return Dialogs::RowDescriptor(
 			peer->owner().history(peer),
 			FullMsgId());
+	} else if (const auto storiesPeer = key().storiesPeer()) {
+		return (key().storiesTab() == Stories::Tab::Saved)
+			? Dialogs::RowDescriptor(
+				storiesPeer->owner().history(storiesPeer),
+				FullMsgId())
+			: Dialogs::RowDescriptor();
 	} else if (key().settingsSelf() || key().isDownloads() || key().poll()) {
 		return Dialogs::RowDescriptor();
 	}
