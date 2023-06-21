@@ -779,7 +779,7 @@ QString ApiWrap::exportDirectStoryLink(not_null<Data::Story*> story) {
 	const auto fallback = [&] {
 		const auto base = user->username();
 		const auto story = QString::number(storyId.story);
-		const auto query = base + "?story=" + story;
+		const auto query = base + "/s" + story;
 		return session().createInternalLinkFull(query);
 	};
 	const auto i = _unlikelyStoryLinks.find(storyId);

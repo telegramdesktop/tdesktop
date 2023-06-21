@@ -383,7 +383,8 @@ bool ResolveUsernameOrPhone(
 	if (const auto postId = postParam.toInt()) {
 		post = postId;
 	}
-	const auto storyId = params.value(u"story"_q).toInt();
+	const auto storyParam = params.value(u"story"_q);
+	const auto storyId = storyParam.toInt();
 	const auto appname = params.value(u"appname"_q);
 	const auto appstart = params.value(u"startapp"_q);
 	const auto commentParam = params.value(u"comment"_q);
@@ -423,7 +424,7 @@ bool ResolveUsernameOrPhone(
 		.startToken = startToken,
 		.startAdminRights = adminRights,
 		.startAutoSubmit = myContext.botStartAutoSubmit,
-		.botAppName = appname.isEmpty() ? postParam : appname,
+		.botAppName = (appname.isEmpty() ? postParam : appname),
 		.botAppForceConfirmation = myContext.mayShowConfirmation,
 		.attachBotUsername = params.value(u"attach"_q),
 		.attachBotToggleCommand = (params.contains(u"startattach"_q)
@@ -1029,6 +1030,7 @@ QString TryConvertUrlToLocal(QString url) {
 				"/?$|"
 				"/[a-zA-Z0-9\\.\\_]+/?(\\?|$)|"
 				"/\\d+/?(\\?|$)|"
+				"/s/\\d+/?(\\?|$)|"
 				"/\\d+/\\d+/?(\\?|$)"
 			")"_q, query, matchOptions)) {
 			const auto params = query.mid(usernameMatch->captured(0).size()).toString();
@@ -1038,6 +1040,8 @@ QString TryConvertUrlToLocal(QString url) {
 				added = u"&topic=%1&post=%2"_q.arg(threadPostMatch->captured(1)).arg(threadPostMatch->captured(2));
 			} else if (const auto postMatch = regex_match(u"^/(\\d+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
 				added = u"&post="_q + postMatch->captured(1);
+			} else if (const auto storyMatch = regex_match(u"^/s/(\\d+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
+				added = u"&story="_q + storyMatch->captured(1);
 			} else if (const auto appNameMatch = regex_match(u"^/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
 				added = u"&appname="_q + appNameMatch->captured(1);
 			}
