@@ -340,12 +340,15 @@ void ListSection::resizeToWidth(int newWidth) {
 	case Type::Video:
 	case Type::PhotoVideo: // #TODO stories
 	case Type::RoundFile: {
-		_itemsLeft = st::infoMediaSkip;
+		const auto skip = st::infoMediaSkip;
+		_itemsLeft = st::infoMediaLeft;
 		_itemsTop = st::infoMediaSkip;
-		_itemsInRow = (newWidth - _itemsLeft)
-			/ (st::infoMediaMinGridSize + st::infoMediaSkip);
-		_itemWidth = ((newWidth - _itemsLeft) / _itemsInRow)
+		_itemsInRow = (newWidth - _itemsLeft * 2 + skip)
+			/ (st::infoMediaMinGridSize + skip);
+		_itemWidth = ((newWidth - _itemsLeft * 2 + skip) / _itemsInRow)
 			- st::infoMediaSkip;
+		_itemsLeft = (newWidth - (_itemWidth + skip) * _itemsInRow + skip)
+			/ 2;
 		for (auto &item : _items) {
 			_itemHeight = item->resizeGetHeight(_itemWidth);
 		}

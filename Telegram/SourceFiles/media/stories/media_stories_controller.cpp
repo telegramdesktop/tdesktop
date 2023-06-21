@@ -39,7 +39,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/box_content.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/round_rect.h"
 #include "ui/rp_widget.h"
+#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_media_view.h"
 #include "styles/style_widgets.h"
 #include "styles/style_boxes.h" // UserpicButton
@@ -84,14 +87,17 @@ private:
 
 class Controller::Unsupported final {
 public:
-	explicit Unsupported(not_null<Controller*> controller);
+	Unsupported(not_null<Controller*> controller, not_null<UserData*> user);
 
 private:
-	void setup();
+	void setup(not_null<UserData*> user);
 
 	const not_null<Controller*> _controller;
+	std::unique_ptr<Ui::RpWidget> _bg;
+	std::unique_ptr<Ui::RpWidget> _reply;
 	std::unique_ptr<Ui::FlatLabel> _text;
 	std::unique_ptr<Ui::RoundButton> _button;
+	Ui::RoundRect _bgRound;
 
 };
 
@@ -146,13 +152,51 @@ void Controller::PhotoPlayback::callback() {
 	});
 }
 
-Controller::Unsupported::Unsupported(not_null<Controller*> controller)
-: _controller(controller) {
-	setup();
+Controller::Unsupported::Unsupported(
+	not_null<Controller*> controller,
+	not_null<UserData*> user)
+: _controller(controller)
+, _bgRound(st::storiesRadius, st::storiesComposeBg) {
+	setup(user);
 }
 
-void Controller::Unsupported::setup() {
+void Controller::Unsupported::setup(not_null<UserData*> user) {
 	const auto wrap = _controller->wrap();
+
+	_bg = std::make_unique<Ui::RpWidget>(wrap);
+	_bg->show();
+	_bg->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(_bg.get());
+		_bgRound.paint(p, _bg->rect());
+	}, _bg->lifetime());
+
+	if (!user->isSelf()) {
+		_reply = std::make_unique<Ui::RpWidget>(wrap);
+		_reply->show();
+		_reply->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(_reply.get());
+			_bgRound.paint(p, _reply->rect());
+
+			p.setPen(st::storiesComposeGrayText);
+			p.setFont(st::normalFont);
+			p.drawText(
+				_reply->rect(),
+				tr::lng_stories_cant_reply(tr::now),
+				style::al_center);
+		}, _reply->lifetime());
+	}
+
+	_controller->layoutValue(
+	) | rpl::start_with_next([=](const Layout &layout) {
+		_bg->setGeometry(layout.content);
+		if (_reply) {
+			const auto height = st::storiesComposeControls.attach.height;
+			const auto position = layout.controlsBottomPosition
+				- QPoint(0, height);
+			_reply->setGeometry(
+				{ position, QSize{ layout.controlsWidth, height } });
+		}
+	}, _bg->lifetime());
 
 	_text = std::make_unique<Ui::FlatLabel>(
 		wrap,
@@ -164,17 +208,29 @@ void Controller::Unsupported::setup() {
 		wrap,
 		tr::lng_update_telegram(),
 		st::storiesUnsupportedUpdate);
+	_button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_button->show();
 
 	rpl::combine(
-		wrap->sizeValue(),
+		_controller->layoutValue(),
 		_text->sizeValue(),
 		_button->sizeValue()
-	) | rpl::start_with_next([=](QSize wrap, QSize text, QSize button) {
-		_text->move((wrap.width() - text.width()) / 2, wrap.height() / 3);
+	) | rpl::start_with_next([=](
+			const Layout &layout,
+			QSize text,
+			QSize button) {
+		const auto wrap = layout.content;
+		const auto totalHeight = st::storiesUnsupportedTop
+			+ text.height()
+			+ st::storiesUnsupportedSkip
+			+ button.height();
+		const auto top = (wrap.height() - totalHeight) / 2;
+		_text->move(
+			wrap.x() + (wrap.width() - text.width()) / 2,
+			wrap.y() + top + st::storiesUnsupportedTop);
 		_button->move(
-			(wrap.width() - button.width()) / 2,
-			2 * wrap.height() / 3);
+			wrap.x() + (wrap.width() - button.width()) / 2,
+			wrap.y() + top + totalHeight - button.height());
 	}, _button->lifetime());
 
 	_button->setClickedCallback([=] {
@@ -644,10 +700,13 @@ void Controller::show(
 		}
 	});
 
-	if (!story->unsupported()) {
+	const auto unsupported = story->unsupported();
+	if (!unsupported) {
 		_unsupported = nullptr;
 	} else {
-		_unsupported = std::make_unique<Unsupported>(this);
+		_unsupported = std::make_unique<Unsupported>(this, user);
+		_header->raise();
+		_slider->raise();
 	}
 
 	if (_shown == storyId) {
@@ -664,7 +723,10 @@ void Controller::show(
 	}
 
 	_header->show({ .user = user, .date = story->date() });
-	_replyArea->show({ .user = user, .id = story->id() });
+	_replyArea->show({
+		.user = unsupported ? nullptr : user,
+		.id = story->id(),
+	});
 	_recentViews->show({
 		.list = story->recentViewers(),
 		.total = story->views(),

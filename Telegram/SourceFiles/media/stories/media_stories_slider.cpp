@@ -73,6 +73,12 @@ void Slider::show(SliderData data) {
 	}, raw->lifetime());
 }
 
+void Slider::raise() {
+	if (_widget) {
+		_widget->raise();
+	}
+}
+
 void Slider::updatePlayback(const Player::TrackState &state) {
 	_progress->updateState(state);
 }

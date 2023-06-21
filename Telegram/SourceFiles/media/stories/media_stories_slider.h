@@ -37,6 +37,7 @@ public:
 	~Slider();
 
 	void show(SliderData data);
+	void raise();
 
 	void updatePlayback(const Player::TrackState &state);
 

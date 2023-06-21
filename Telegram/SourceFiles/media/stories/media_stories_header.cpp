@@ -131,6 +131,12 @@ void Header::show(HeaderData data) {
 	}
 }
 
+void Header::raise() {
+	if (_widget) {
+		_widget->raise();
+	}
+}
+
 void Header::updateDateText() {
 	if (!_date || !_data || !_data->date) {
 		return;

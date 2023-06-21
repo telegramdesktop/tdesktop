@@ -2791,24 +2791,24 @@ void ComposeControls::replyToMessage(FullMsgId id) {
 }
 
 void ComposeControls::cancelReplyMessage() {
-	Expects(_history != nullptr);
-
 	const auto wasReply = replyingToMessage();
 	_header->replyToMessage({});
-	const auto key = draftKey(DraftType::Normal);
-	if (const auto localDraft = _history->draft(key)) {
-		if (localDraft->msgId) {
-			if (localDraft->textWithTags.text.isEmpty()) {
-				_history->clearDraft(key);
-			} else {
-				localDraft->msgId = 0;
+	if (_history) {
+		const auto key = draftKey(DraftType::Normal);
+		if (const auto localDraft = _history->draft(key)) {
+			if (localDraft->msgId) {
+				if (localDraft->textWithTags.text.isEmpty()) {
+					_history->clearDraft(key);
+				} else {
+					localDraft->msgId = 0;
+				}
 			}
 		}
-	}
-	if (wasReply) {
-		_saveDraftText = true;
-		_saveDraftStart = crl::now();
-		saveDraft();
+		if (wasReply) {
+			_saveDraftText = true;
+			_saveDraftStart = crl::now();
+			saveDraft();
+		}
 	}
 }
 

@@ -33,6 +33,7 @@ public:
 	~Header();
 
 	void show(HeaderData data);
+	void raise();
 
 private:
 	void updateDateText();

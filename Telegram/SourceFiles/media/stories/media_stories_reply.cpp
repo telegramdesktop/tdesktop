@@ -74,6 +74,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 )) {
 	initGeometry();
 	initActions();
+	_controls->hide();
 }
 
 ReplyArea::~ReplyArea() {

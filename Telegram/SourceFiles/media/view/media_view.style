@@ -786,13 +786,20 @@ storiesReactionsAddedTop: 200px;
 storiesUnsupportedLabel: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewControlFg;
 	style: TextStyle(defaultTextStyle) {
-		font: font(15px semibold);
-		linkFont: font(15px semibold);
-		linkFontOver: font(15px semibold underline);
+		font: font(14px);
+		linkFont: font(14px);
+		linkFontOver: font(14px underline);
+		lineHeight: 21px;
 	}
 	align: align(top);
 }
-storiesUnsupportedUpdate: themePreviewApplyButton;
+storiesUnsupportedUpdate: RoundButton(defaultActiveButton) {
+	width: -102px;
+	height: 42px;
+	textTop: 12px;
+}
+storiesUnsupportedTop: 24px;
+storiesUnsupportedSkip: 18px;
 storiesShortInfoBox: ShortInfoBox(shortInfoBox) {
 	label: FlatLabel(infoLabel) {
 		textFg: storiesComposeGrayText;

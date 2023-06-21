@@ -496,7 +496,8 @@ infoMediaHeaderStyle: TextStyle(semiboldTextStyle) {
 }
 infoMediaHeaderHeight: 28px;
 infoMediaHeaderPosition: point(14px, 6px);
-infoMediaSkip: 5px;
+infoMediaSkip: 2px;
+infoMediaLeft: 3px;
 infoMediaMargin: margins(0px, 6px, 0px, 2px);
 infoMediaMinGridSize: 90px;
 
@@ -591,7 +592,7 @@ infoStoriesAboutArchive: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	style: defaultTextStyle;
 }
-infoStoriesAboutArchivePadding: margins(22px, 8px, 22px, 16px);
+infoStoriesAboutArchivePadding: margins(22px, 12px, 22px, 12px);
 
 editPeerBottomButtonsLayoutMargins: margins(0px, 7px, 0px, 0px);
 
