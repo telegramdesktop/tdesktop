@@ -36,6 +36,7 @@ struct Element {
 	std::shared_ptr<Thumbnail> thumbnail;
 	bool unread = false;
 	bool hidden = false;
+	bool profile = false;
 	bool skipSmall = false;
 
 	friend inline bool operator==(

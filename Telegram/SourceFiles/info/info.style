@@ -576,6 +576,7 @@ infoEmptyAudio: icon {{ "info/info_media_audio_empty", infoEmptyFg }};
 infoEmptyFile: icon {{ "info/info_media_file_empty", infoEmptyFg }};
 infoEmptyVoice: icon {{ "info/info_media_voice_empty", infoEmptyFg }};
 infoEmptyLink: icon {{ "info/info_media_link_empty", infoEmptyFg }};
+infoEmptyStories: icon {{ "info/info_media_story_empty", infoEmptyFg }};
 infoEmptyIconTop: 120px;
 infoEmptyLabelTop: 40px;
 infoEmptyLabelSkip: 20px;
@@ -583,6 +584,14 @@ infoEmptyLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;
 	textFg: windowSubTextFg;
 }
+
+infoStoriesAboutArchive: FlatLabel(defaultFlatLabel) {
+	minWidth: 245px;
+	align: align(top);
+	textFg: windowSubTextFg;
+	style: defaultTextStyle;
+}
+infoStoriesAboutArchivePadding: margins(22px, 8px, 22px, 16px);
 
 editPeerBottomButtonsLayoutMargins: margins(0px, 7px, 0px, 0px);
 

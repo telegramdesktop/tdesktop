@@ -3818,6 +3818,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_archive_button" = "Stories Archive";
 "lng_stories_recent_button" = "Recent Stories";
 "lng_stories_archive_title" = "Stories Archive";
+"lng_stories_archive_about" = "Only you can see archived stories unless you choose to save them to your profile.";
 "lng_stories_reply_sent" = "Message Sent";
 "lng_stories_hidden_to_contacts" = "Those stories are now shown only in your Contacts list.";
 "lng_stories_shown_in_chats" = "Those stories are now shown in your Chats list.";

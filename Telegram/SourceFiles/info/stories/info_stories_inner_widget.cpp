@@ -59,7 +59,7 @@ void EmptyWidget::setFullHeight(rpl::producer<int> fullHeightValue) {
 	) | rpl::start_with_next([this](int fullHeight) {
 		// Make icon center be on 1/3 height.
 		auto iconCenter = fullHeight / 3;
-		auto iconHeight = st::infoEmptyFile.height();
+		auto iconHeight = st::infoEmptyStories.height();
 		auto iconTop = iconCenter - iconHeight / 2;
 		_height = iconTop + st::infoEmptyIconTop;
 		resizeToWidth(width());
@@ -81,9 +81,9 @@ int EmptyWidget::resizeGetHeight(int newWidth) {
 void EmptyWidget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	const auto iconLeft = (width() - st::infoEmptyFile.width()) / 2;
+	const auto iconLeft = (width() - st::infoEmptyStories.width()) / 2;
 	const auto iconTop = height() - st::infoEmptyIconTop;
-	st::infoEmptyFile.paint(p, iconLeft, iconTop, width());
+	st::infoEmptyStories.paint(p, iconLeft, iconTop, width());
 }
 
 InnerWidget::InnerWidget(
@@ -99,28 +99,31 @@ InnerWidget::InnerWidget(
 	_list = setupList();
 }
 
-void InnerWidget::setupArchive() {
+void InnerWidget::setupTop() {
 	const auto key = _controller->key();
 	const auto peer = key.storiesPeer();
 	if (peer
 		&& peer->isSelf()
 		&& key.storiesTab() == Stories::Tab::Saved
 		&& _isStackBottom) {
-		createArchiveButton();
+		createButtons();
+	} else if (key.storiesTab() == Stories::Tab::Archive) {
+		createAboutArchive();
 	} else {
-		_buttons.destroy();
+		_top.destroy();
 		refreshHeight();
 	}
 }
 
-void InnerWidget::createArchiveButton() {
-	_buttons.create(this);
-	_buttons->show();
+void InnerWidget::createButtons() {
+	_top.create(this);
+	_top->show();
+	_topHeight = _top->heightValue();
 
 	const auto stories = &_controller->session().data().stories();
 	const auto self = _controller->session().user();
 	const auto archive = ::Settings::AddButton(
-		_buttons,
+		_top,
 		tr::lng_stories_archive_button(),
 		st::infoSharedMediaButton);
 	archive->addClickHandler([=] {
@@ -144,11 +147,11 @@ void InnerWidget::createArchiveButton() {
 		st::infoIconMediaStoriesArchive,
 		st::infoSharedMediaButtonIconPosition)->show();
 
-	const auto recentWrap = _buttons->add(
+	const auto recentWrap = _top->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-			_buttons,
+			_top,
 			::Settings::CreateButton(
-				_buttons,
+				_top,
 				tr::lng_stories_recent_button(),
 				st::infoSharedMediaButton)));
 
@@ -204,16 +207,36 @@ void InnerWidget::createArchiveButton() {
 		return !content.elements.empty();
 	}));
 
-	_buttons->add(object_ptr<Ui::FixedHeightWidget>(
-		_buttons,
+	_top->add(object_ptr<Ui::FixedHeightWidget>(
+		_top,
 		st::infoProfileSkip));
-	_buttons->add(object_ptr<Ui::BoxContentDivider>(_buttons));
+	_top->add(object_ptr<Ui::BoxContentDivider>(_top));
 
-	_buttons->resizeToWidth(width());
-	_buttons->heightValue(
+	_top->resizeToWidth(width());
+	_top->heightValue(
 	) | rpl::start_with_next([=] {
 		refreshHeight();
-	}, _buttons->lifetime());
+	}, _top->lifetime());
+}
+
+void InnerWidget::createAboutArchive() {
+	_top.create(this);
+	_top->show();
+	_topHeight = _top->heightValue();
+
+	_top->add(object_ptr<Ui::DividerLabel>(
+		_top,
+		object_ptr<Ui::FlatLabel>(
+			_top,
+			tr::lng_stories_archive_about(),
+			st::infoStoriesAboutArchive),
+		st::infoStoriesAboutArchivePadding));
+
+	_top->resizeToWidth(width());
+	_top->heightValue(
+	) | rpl::start_with_next([=] {
+		refreshHeight();
+	}, _top->lifetime());
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -277,8 +300,8 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
 	auto guard = gsl::finally([this] { _inResize = false; });
 
-	if (_buttons) {
-		_buttons->resizeToWidth(newWidth);
+	if (_top) {
+		_top->resizeToWidth(newWidth);
 	}
 	_list->resizeToWidth(newWidth);
 	_empty->resizeToWidth(newWidth);
@@ -294,9 +317,9 @@ void InnerWidget::refreshHeight() {
 
 int InnerWidget::recountHeight() {
 	auto top = 0;
-	if (_buttons) {
-		_buttons->moveToLeft(0, top);
-		top += _buttons->heightNoMargins() - st::lineWidth;
+	if (_top) {
+		_top->moveToLeft(0, top);
+		top += _top->heightNoMargins() - st::lineWidth;
 	}
 	auto listHeight = 0;
 	if (_list) {
@@ -321,7 +344,8 @@ void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
 		_listTops.events_starting_with(
 			_list->topValue()
 		) | rpl::flatten_latest(),
-		_1 - _2));
+		_topHeight.value(),
+		_1 - _2 + _3));
 }
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {

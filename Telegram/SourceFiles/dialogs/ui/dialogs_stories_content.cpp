@@ -345,6 +345,7 @@ Content State::next() {
 			.thumbnail = std::move(userpic),
 			.unread = info.unread,
 			.hidden = info.hidden,
+			.profile = true,
 			.skipSmall = user->isSelf(),
 		});
 	}
@@ -419,7 +420,7 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 					return;
 				}
 				auto resolving = false;
-				auto result = Content();
+				auto result = Content{ .full = true };
 				for (const auto id : ids) {
 					const auto storyId = FullStoryId{ peerId, id };
 					const auto maybe = stories->lookup(storyId);

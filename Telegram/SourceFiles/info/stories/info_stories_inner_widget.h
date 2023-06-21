@@ -40,7 +40,7 @@ public:
 	bool showInternal(not_null<Memento*> memento);
 	void setIsStackBottom(bool isStackBottom) {
 		_isStackBottom = isStackBottom;
-		setupArchive();
+		setupTop();
 	}
 
 	void saveState(not_null<Memento*> memento);
@@ -64,14 +64,15 @@ private:
 	int recountHeight();
 	void refreshHeight();
 
-	void setupArchive();
-	void createArchiveButton();
+	void setupTop();
+	void createButtons();
+	void createAboutArchive();
 
 	object_ptr<Media::ListWidget> setupList();
 
 	const not_null<Controller*> _controller;
 
-	object_ptr<Ui::VerticalLayout> _buttons = { nullptr };
+	object_ptr<Ui::VerticalLayout> _top = { nullptr };
 	object_ptr<Media::ListWidget> _list = { nullptr };
 	object_ptr<EmptyWidget> _empty;
 
@@ -81,6 +82,7 @@ private:
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 	rpl::event_stream<rpl::producer<int>> _listTops;
+	rpl::variable<int> _topHeight;
 
 };
 

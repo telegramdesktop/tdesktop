@@ -763,9 +763,11 @@ void List::contextMenuEvent(QContextMenuEvent *e) {
 
 	const auto id = item.element.id;
 	const auto hidden = item.element.hidden;
-	_menu->addAction(tr::lng_context_view_profile(tr::now), [=] {
-		_showProfileRequests.fire_copy(id);
-	});
+	if (item.element.profile) {
+		_menu->addAction(tr::lng_context_view_profile(tr::now), [=] {
+			_showProfileRequests.fire_copy(id);
+		});
+	}
 	if (!_content.full || hidden) {
 		_menu->addAction(hidden
 			? tr::lng_stories_show_in_chats(tr::now)
