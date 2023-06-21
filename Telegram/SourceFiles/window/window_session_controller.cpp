@@ -2522,9 +2522,15 @@ void SessionController::openPeerStory(
 	using namespace Media::View;
 	using namespace Data;
 
+	invalidate_weak_ptrs(&_storyOpenGuard);
 	auto &stories = session().data().stories();
-	if (const auto from = stories.lookup({ peer->id, storyId })) {
+	const auto from = stories.lookup({ peer->id, storyId });
+	if (from) {
 		window().openInMediaView(OpenRequest(this, *from, context));
+	} else if (from.error() == Data::NoStory::Unknown) {
+		stories.resolve({ peer->id, storyId }, crl::guard(&_storyOpenGuard, [=] {
+			openPeerStory(peer, storyId, context);
+		}));
 	}
 }
 

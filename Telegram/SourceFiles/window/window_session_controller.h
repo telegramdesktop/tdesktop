@@ -717,6 +717,8 @@ private:
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
 
+	base::has_weak_ptr _storyOpenGuard;
+
 	GiftPremiumValidator _giftPremiumValidator;
 
 	QString _premiumRef;

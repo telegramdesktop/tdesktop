@@ -342,7 +342,9 @@ InnerWidget::InnerWidget(
 
 	_stories->clicks(
 	) | rpl::start_with_next([=](uint64 id) {
-		_controller->openPeerStories(PeerId(int64(id)), {});
+		_controller->openPeerStories(
+			PeerId(int64(id)),
+			Data::StorySourcesList::NotHidden);
 	}, lifetime());
 
 	_stories->showProfileRequests(
