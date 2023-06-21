@@ -162,10 +162,7 @@ private:
 	void setPlayingAllowed(bool allowed);
 
 	void hideSiblings();
-	void showSiblings(
-		not_null<Main::Session*> session,
-		const std::vector<Data::StoriesSourceInfo> &lists,
-		int index);
+	void showSiblings(not_null<Main::Session*> session);
 	void showSibling(
 		std::unique_ptr<Sibling> &sibling,
 		not_null<Main::Session*> session,
@@ -186,6 +183,9 @@ private:
 	void rebuildFromContext(not_null<UserData*> user, FullStoryId storyId);
 	void checkMoveByDelta();
 	void loadMoreToList();
+	void rebuildCachedSourcesList(
+		const std::vector<Data::StoriesSourceInfo> &lists,
+		int index);
 
 	void startReactionAnimation(
 		Data::ReactionId id,
@@ -226,6 +226,9 @@ private:
 	int _index = 0;
 	bool _started = false;
 	bool _viewed = false;
+
+	std::vector<PeerId> _cachedSourcesList;
+	int _cachedSourceIndex = -1;
 
 	ViewsSlice _viewsSlice;
 	rpl::event_stream<> _moreViewsLoaded;
