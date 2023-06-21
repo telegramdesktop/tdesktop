@@ -172,7 +172,7 @@ enum class NoStory : uchar {
 
 enum class StorySourcesList : uchar {
 	NotHidden,
-	All,
+	Hidden,
 };
 
 struct StoriesContextSingle {

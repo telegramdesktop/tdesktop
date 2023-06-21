@@ -419,8 +419,9 @@ void Stories::apply(const MTPDupdateStory &data) {
 			sort(list);
 		}
 	};
-	refreshInList(StorySourcesList::All);
-	if (!user->hasStoriesHidden()) {
+	if (user->hasStoriesHidden()) {
+		refreshInList(StorySourcesList::Hidden);
+	} else {
 		refreshInList(StorySourcesList::NotHidden);
 	}
 	_sourceChanged.fire_copy(peerId);
@@ -428,7 +429,8 @@ void Stories::apply(const MTPDupdateStory &data) {
 
 void Stories::apply(not_null<PeerData*> peer, const MTPUserStories *data) {
 	if (!data) {
-		applyDeletedFromSources(peer->id, StorySourcesList::All);
+		applyDeletedFromSources(peer->id, StorySourcesList::NotHidden);
+		applyDeletedFromSources(peer->id, StorySourcesList::Hidden);
 		_all.erase(peer->id);
 		_sourceChanged.fire_copy(peer->id);
 	} else {
@@ -449,7 +451,8 @@ void Stories::requestUserStories(not_null<UserData*> user) {
 		parseAndApply(data.vstories());
 	}).fail([=] {
 		_requestingUserStories.remove(user);
-		applyDeletedFromSources(user->id, StorySourcesList::All);
+		applyDeletedFromSources(user->id, StorySourcesList::NotHidden);
+		applyDeletedFromSources(user->id, StorySourcesList::Hidden);
 	}).send();
 }
 
@@ -528,7 +531,8 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 		}
 	}
 	if (result.ids.empty()) {
-		applyDeletedFromSources(peerId, StorySourcesList::All);
+		applyDeletedFromSources(peerId, StorySourcesList::NotHidden);
+		applyDeletedFromSources(peerId, StorySourcesList::Hidden);
 		return;
 	} else if (user->isSelf()) {
 		result.readTill = result.ids.back().id;
@@ -558,14 +562,15 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 		sort(list);
 	};
 	if (result.user->isContact()) {
-		add(StorySourcesList::All);
-		if (result.user->hasStoriesHidden()) {
-			applyDeletedFromSources(peerId, StorySourcesList::NotHidden);
-		} else {
-			add(StorySourcesList::NotHidden);
-		}
+		const auto hidden = result.user->hasStoriesHidden();
+		using List = StorySourcesList;
+		add(hidden ? List::Hidden : List::NotHidden);
+		applyDeletedFromSources(
+			peerId,
+			hidden ? List::NotHidden : List::Hidden);
 	} else {
-		applyDeletedFromSources(peerId, StorySourcesList::All);
+		applyDeletedFromSources(peerId, StorySourcesList::NotHidden);
+		applyDeletedFromSources(peerId, StorySourcesList::Hidden);
 	}
 	_sourceChanged.fire_copy(peerId);
 }
@@ -725,11 +730,11 @@ void Stories::loadMore(StorySourcesList list) {
 	if (_loadMoreRequestId[index] || _sourcesLoaded[index]) {
 		return;
 	}
-	const auto all = (list == StorySourcesList::All);
+	const auto hidden = (list == StorySourcesList::Hidden);
 	const auto api = &_owner->session().api();
 	using Flag = MTPstories_GetAllStories::Flag;
 	_loadMoreRequestId[index] = api->request(MTPstories_GetAllStories(
-		MTP_flags((all ? Flag::f_include_hidden : Flag())
+		MTP_flags((hidden ? Flag::f_hidden : Flag())
 			| (_sourcesStates[index].isEmpty()
 				? Flag(0)
 				: (Flag::f_next | Flag::f_state))),
@@ -917,7 +922,7 @@ void Stories::applyRemovedFromActive(FullStoryId id) {
 			if (i->second.ids.empty()) {
 				_all.erase(i);
 				removeFromList(StorySourcesList::NotHidden);
-				removeFromList(StorySourcesList::All);
+				removeFromList(StorySourcesList::Hidden);
 			}
 			_sourceChanged.fire_copy(id.peer);
 		}
@@ -925,21 +930,15 @@ void Stories::applyRemovedFromActive(FullStoryId id) {
 }
 
 void Stories::applyDeletedFromSources(PeerId id, StorySourcesList list) {
-	const auto removeFromList = [&](StorySourcesList from) {
-		auto &sources = _sources[static_cast<int>(from)];
-		const auto i = ranges::find(
-			sources,
-			id,
-			&StoriesSourceInfo::id);
-		if (i != end(sources)) {
-			sources.erase(i);
-		}
-		_sourcesChanged[static_cast<int>(from)].fire({});
-	};
-	removeFromList(StorySourcesList::NotHidden);
-	if (list == StorySourcesList::All) {
-		removeFromList(StorySourcesList::All);
+	auto &sources = _sources[static_cast<int>(list)];
+	const auto i = ranges::find(
+		sources,
+		id,
+		&StoriesSourceInfo::id);
+	if (i != end(sources)) {
+		sources.erase(i);
 	}
+	_sourcesChanged[static_cast<int>(list)].fire({});
 }
 
 void Stories::removeDependencyStory(not_null<Story*> story) {
@@ -1146,8 +1145,8 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 				sort(list);
 			}
 		};
-		refreshInList(StorySourcesList::All);
 		refreshInList(StorySourcesList::NotHidden);
+		refreshInList(StorySourcesList::Hidden);
 	}
 	_markReadTimer.callOnce(kMarkAsReadDelay);
 }
@@ -1181,37 +1180,36 @@ void Stories::toggleHidden(
 		return;
 	}
 	i->second.hidden = hidden;
+	const auto info = i->second.info();
 	const auto main = static_cast<int>(StorySourcesList::NotHidden);
-	const auto all = static_cast<int>(StorySourcesList::All);
+	const auto other = static_cast<int>(StorySourcesList::Hidden);
+	const auto proj = &StoriesSourceInfo::id;
 	if (hidden) {
-		const auto i = ranges::find(
-			_sources[main],
-			peerId,
-			&StoriesSourceInfo::id);
+		const auto i = ranges::find(_sources[main], peerId, proj);
 		if (i != end(_sources[main])) {
 			_sources[main].erase(i);
 			_sourcesChanged[main].fire({});
 		}
-		const auto j = ranges::find(_sources[all], peerId, &StoriesSourceInfo::id);
-		if (j != end(_sources[all])) {
-			j->hidden = hidden;
-			_sourcesChanged[all].fire({});
+		const auto j = ranges::find(_sources[other], peerId, proj);
+		if (j == end(_sources[other])) {
+			_sources[other].push_back(info);
+		} else {
+			*j = info;
 		}
+		sort(StorySourcesList::Hidden);
 	} else {
-		const auto i = ranges::find(
-			_sources[all],
-			peerId,
-			&StoriesSourceInfo::id);
-		if (i != end(_sources[all])) {
-			i->hidden = hidden;
-			_sourcesChanged[all].fire({});
-
-			auto &sources = _sources[main];
-			if (!ranges::contains(sources, peerId, &StoriesSourceInfo::id)) {
-				sources.push_back(*i);
-				sort(StorySourcesList::NotHidden);
-			}
+		const auto i = ranges::find(_sources[other], peerId, proj);
+		if (i != end(_sources[other])) {
+			_sources[other].erase(i);
+			_sourcesChanged[other].fire({});
 		}
+		const auto j = ranges::find(_sources[main], peerId, proj);
+		if (j == end(_sources[main])) {
+			_sources[main].push_back(info);
+		} else {
+			*j = info;
+		}
+		sort(StorySourcesList::NotHidden);
 	}
 }
 

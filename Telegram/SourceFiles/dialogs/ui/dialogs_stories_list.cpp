@@ -102,7 +102,9 @@ void List::showContent(Content &&content) {
 				item.nameCache = QImage();
 			}
 			item.element.unread = element.unread;
-			item.element.hidden = element.hidden;
+			item.element.suggestHide = element.suggestHide;
+			item.element.suggestUnhide = element.suggestUnhide;
+			item.element.profile = element.profile;
 		} else {
 			_data.items.emplace_back(Item{ .element = element });
 		}
@@ -762,17 +764,19 @@ void List::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 
 	const auto id = item.element.id;
-	const auto hidden = item.element.hidden;
 	if (item.element.profile) {
 		_menu->addAction(tr::lng_context_view_profile(tr::now), [=] {
 			_showProfileRequests.fire_copy(id);
 		});
 	}
-	if (!_content.full || hidden) {
-		_menu->addAction(hidden
-			? tr::lng_stories_show_in_chats(tr::now)
-			: tr::lng_stories_hide_to_contacts(tr::now),
-			[=] { _toggleShown.fire({ .id = id, .shown = hidden }); });
+	if (item.element.suggestHide) {
+		_menu->addAction(
+			tr::lng_stories_hide_to_contacts(tr::now),
+			[=] { _toggleShown.fire({ .id = id, .shown = false }); });
+	} else if (item.element.suggestUnhide) {
+		_menu->addAction(
+			tr::lng_stories_show_in_chats(tr::now),
+			[=] { _toggleShown.fire({ .id = id, .shown = true }); });
 	}
 	const auto updateAfterMenuDestroyed = [=] {
 		const auto globalPosition = QCursor::pos();

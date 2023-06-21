@@ -34,10 +34,11 @@ struct Element {
 	uint64 id = 0;
 	QString name;
 	std::shared_ptr<Thumbnail> thumbnail;
-	bool unread = false;
-	bool hidden = false;
-	bool profile = false;
-	bool skipSmall = false;
+	bool unread : 1 = false;
+	bool suggestHide : 1 = false;
+	bool suggestUnhide : 1 = false;
+	bool profile : 1 = false;
+	bool skipSmall : 1 = false;
 
 	friend inline bool operator==(
 		const Element &a,
@@ -46,7 +47,7 @@ struct Element {
 
 struct Content {
 	std::vector<Element> elements;
-	bool full = false;
+	bool hidden = false;
 
 	friend inline bool operator==(
 		const Content &a,

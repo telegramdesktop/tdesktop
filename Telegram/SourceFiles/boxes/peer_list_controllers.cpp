@@ -85,7 +85,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 			st::dialogsStoriesList,
 			Stories::ContentForSession(
 				&sessionController->session(),
-				Data::StorySourcesList::All),
+				Data::StorySourcesList::Hidden),
 			[=] { return state->stories->height() - box->scrollTop(); });
 		const auto raw = state->stories = stories.data();
 		box->peerListSetAboveWidget(object_ptr<::Ui::PaddingWrap<>>(
@@ -97,7 +97,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		) | rpl::start_with_next([=](uint64 id) {
 			sessionController->openPeerStories(
 				PeerId(int64(id)),
-				Data::StorySourcesList::All);
+				Data::StorySourcesList::Hidden);
 		}, raw->lifetime());
 
 		raw->showProfileRequests(
@@ -116,7 +116,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		raw->loadMoreRequests(
 		) | rpl::start_with_next([=] {
 			sessionController->session().data().stories().loadMore(
-				Data::StorySourcesList::All);
+				Data::StorySourcesList::Hidden);
 		}, raw->lifetime());
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(init));

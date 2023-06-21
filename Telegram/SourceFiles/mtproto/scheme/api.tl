@@ -129,7 +129,7 @@ messageMediaInvoice#f6a548d3 flags:# shipping_address_requested:flags.1?true tes
 messageMediaGeoLive#b940c666 flags:# geo:GeoPoint heading:flags.0?int period:int proximity_notification_radius:flags.1?int = MessageMedia;
 messageMediaPoll#4bd6e798 poll:Poll results:PollResults = MessageMedia;
 messageMediaDice#3f7ee58b value:int emoticon:string = MessageMedia;
-messageMediaStory#cbb20d88 flags:# user_id:long id:int story:flags.0?StoryItem = MessageMedia;
+messageMediaStory#cbb20d88 flags:# via_mention:flags.1?true user_id:long id:int story:flags.0?StoryItem = MessageMedia;
 
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#bd47cbad title:string users:Vector<long> = MessageAction;
@@ -2091,7 +2091,7 @@ stories.sendStory#424cd47a flags:# pinned:flags.2?true media:InputMedia caption:
 stories.editStory#2aae7a41 flags:# id:int media:flags.0?InputMedia caption:flags.1?string entities:flags.1?Vector<MessageEntity> privacy_rules:flags.2?Vector<InputPrivacyRule> = Updates;
 stories.deleteStories#b5d501d7 id:Vector<int> = Vector<int>;
 stories.togglePinned#51602944 id:Vector<int> pinned:Bool = Vector<int>;
-stories.getAllStories#eeb0d625 flags:# next:flags.1?true include_hidden:flags.2?true state:flags.0?string = stories.AllStories;
+stories.getAllStories#eeb0d625 flags:# next:flags.1?true hidden:flags.2?true state:flags.0?string = stories.AllStories;
 stories.getUserStories#96d528e0 user_id:InputUser = stories.UserStories;
 stories.getPinnedStories#b471137 user_id:InputUser offset_id:int limit:int = stories.Stories;
 stories.getStoriesArchive#1f5bc5d2 offset_id:int limit:int = stories.Stories;

@@ -322,7 +322,9 @@ State::State(not_null<Data::Stories*> data, Data::StorySourcesList list)
 }
 
 Content State::next() {
-	auto result = Content{ .full = (_list == Data::StorySourcesList::All) };
+	auto result = Content{
+		.hidden = (_list == Data::StorySourcesList::Hidden)
+	};
 	const auto &sources = _data->sources(_list);
 	result.elements.reserve(sources.size());
 	for (const auto &info : sources) {
@@ -344,7 +346,8 @@ Content State::next() {
 				: user->shortName()),
 			.thumbnail = std::move(userpic),
 			.unread = info.unread,
-			.hidden = info.hidden,
+			.suggestHide = !info.hidden,
+			.suggestUnhide = info.hidden,
 			.profile = true,
 			.skipSmall = user->isSelf(),
 		});
@@ -420,7 +423,7 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 					return;
 				}
 				auto resolving = false;
-				auto result = Content{ .full = true };
+				auto result = Content{};
 				for (const auto id : ids) {
 					const auto storyId = FullStoryId{ peerId, id };
 					const auto maybe = stories->lookup(storyId);
