@@ -970,7 +970,8 @@ QSize OverlayWidget::flipSizeByRotation(QSize size) const {
 }
 
 bool OverlayWidget::hasCopyMediaRestriction() const {
-	return (_stories && !_stories->canDownload())
+	const auto story = _stories ? _stories->story() : nullptr;
+	return (story && !story->canDownload())
 		|| (_history && !_history->peer->allowsForwarding())
 		|| (_message && _message->forbidsSaving());
 }
@@ -1223,12 +1224,13 @@ void OverlayWidget::updateControls() {
 
 	updateThemePreviewGeometry();
 
+	const auto story = _stories ? _stories->story() : nullptr;
 	const auto overRect = QRect(
 		QPoint(),
 		QSize(st::mediaviewIconOver, st::mediaviewIconOver));
 	_saveVisible = contentCanBeSaved();
-	_shareVisible = _stories && _stories->canShare();
-	_rotateVisible = !_themePreviewShown && !_stories;
+	_shareVisible = story && story->canShare();
+	_rotateVisible = !_themePreviewShown && !story;
 	const auto navRect = [&](int i) {
 		return QRect(width() - st::mediaviewIconSize.width() * i,
 			height() - st::mediaviewIconSize.height(),
@@ -1364,7 +1366,8 @@ void OverlayWidget::refreshCaptionGeometry() {
 }
 
 void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
-	if (_document && _document->loading()) {
+	const auto story = _stories ? _stories->story() : nullptr;
+	if (!story && _document && _document->loading()) {
 		addAction(
 			tr::lng_cancel(tr::now),
 			[=] { saveCancel(); },
@@ -1376,7 +1379,9 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			[=] { toMessage(); },
 			&st::mediaMenuIconShowInChat);
 	}
-	if (_document && !_document->filepath(true).isEmpty()) {
+	if ((!story || story->canDownload())
+		&& _document
+		&& !_document->filepath(true).isEmpty()) {
 		const auto text =  Platform::IsMac()
 			? tr::lng_context_show_in_finder(tr::now)
 			: tr::lng_context_show_in_folder(tr::now);
@@ -1406,8 +1411,15 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			[=] { forwardMedia(); },
 			&st::mediaMenuIconForward);
 	}
+	if (story && story->canShare()) {
+		addAction(tr::lng_mediaview_forward(tr::now), [=] {
+			_stories->shareRequested();
+		}, &st::mediaMenuIconForward);
+	}
 	const auto canDelete = [&] {
-		if (_message && _message->canDelete()) {
+		if (story && story->canDelete()) {
+			return true;
+		} else if (_message && _message->canDelete()) {
 			return true;
 		} else if (!_message
 			&& _photo
@@ -1527,6 +1539,11 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			}
 		}, &st::mediaMenuIconReport);
 	}();
+	if (story && story->canReport()) {
+		addAction(tr::lng_profile_report(tr::now), [=] {
+			_stories->reportRequested();
+		}, &st::mediaMenuIconReport);
+	}
 }
 
 auto OverlayWidget::computeOverviewType() const
@@ -2433,7 +2450,10 @@ void OverlayWidget::forwardMedia() {
 }
 
 void OverlayWidget::deleteMedia() {
-	if (!_session) {
+	if (_stories) {
+		_stories->deleteRequested();
+		return;
+	} else if (!_session) {
 		return;
 	}
 
@@ -5521,7 +5541,7 @@ void OverlayWidget::handleMouseRelease(
 	} else if (_over == Over::Save && _down == Over::Save) {
 		downloadMedia();
 	} else if (_over == Over::Share && _down == Over::Share && _stories) {
-		_stories->share();
+		_stories->shareRequested();
 	} else if (_over == Over::Rotate && _down == Over::Rotate) {
 		playbackControlsRotate();
 	} else if (_over == Over::Icon && _down == Over::Icon) {

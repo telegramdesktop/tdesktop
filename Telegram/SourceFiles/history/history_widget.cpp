@@ -4009,7 +4009,8 @@ void HistoryWidget::reportSelectedMessages() {
 	const auto reason = _chooseForReport->reason;
 	const auto weak = Ui::MakeWeak(_list.data());
 	controller()->window().show(Box([=](not_null<Ui::GenericBox*> box) {
-		Ui::ReportDetailsBox(box, [=](const QString &text) {
+		const auto &st = st::defaultReportBox;
+		Ui::ReportDetailsBox(box, st, [=](const QString &text) {
 			if (weak) {
 				clearSelected();
 				controller()->clearChooseReportMessages();

@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_share.h"
 #include "media/stories/media_stories_view.h"
 #include "media/audio/media_audio.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/boxes/report_box.h"
 #include "ui/effects/emoji_fly_animation.h"
 #include "ui/effects/message_sending_animation_common.h"
 #include "ui/effects/reaction_fly_animation.h"
@@ -491,6 +493,11 @@ void Controller::initLayout() {
 
 		return layout;
 	});
+}
+
+Data::Story *Controller::story() const {
+	const auto maybeStory = _session->data().stories().lookup(_shown);
+	return maybeStory ? maybeStory->get() : nullptr;
 }
 
 not_null<Ui::RpWidget*> Controller::wrap() const {
@@ -995,25 +1002,6 @@ void Controller::setMenuShown(bool shown) {
 	}
 }
 
-bool Controller::canShare() const {
-	if (const auto maybeStory = _session->data().stories().lookup(_shown)) {
-		const auto story = *maybeStory;
-		const auto user = story->peer()->asUser();
-		return story->isPublic()
-			&& (story->pinned() || !story->expired())
-			&& (!user->username().isEmpty()
-				|| !user->hasPrivateForwardName());
-	}
-	return false;
-}
-
-bool Controller::canDownload() const {
-	if (const auto maybeStory = _session->data().stories().lookup(_shown)) {
-		return (*maybeStory)->peer()->isSelf();
-	}
-	return false;
-}
-
 void Controller::repaintSibling(not_null<Sibling*> sibling) {
 	if (sibling == _siblingLeft.get() || sibling == _siblingRight.get()) {
 		_delegate->storiesRepaint();
@@ -1237,11 +1225,53 @@ void Controller::unfocusReply() {
 	_wrap->setFocus();
 }
 
-void Controller::share() {
+void Controller::shareRequested() {
 	const auto show = _delegate->storiesShow();
 	if (auto box = PrepareShareBox(show, _shown)) {
 		show->show(std::move(box));
 	}
+}
+
+void Controller::deleteRequested() {
+	const auto story = this->story();
+	if (!story) {
+		return;
+	}
+	const auto id = story->fullId();
+	const auto owner = &story->owner();
+	const auto confirmed = [=](Fn<void()> close) {
+		owner->stories().deleteList({ id });
+		close();
+	};
+	uiShow()->show(Ui::MakeConfirmBox({
+		.text = tr::lng_stories_delete_one_sure(),
+		.confirmed = confirmed,
+		.confirmText = tr::lng_selected_delete(),
+		.labelStyle = &st::storiesBoxLabel,
+	}));
+}
+
+void Controller::reportRequested() {
+	const auto story = this->story();
+	if (!story) {
+		return;
+	}
+	const auto id = story->fullId();
+	const auto owner = &story->owner();
+	const auto confirmed = [=](Fn<void()> close) {
+		owner->stories().deleteList({ id });
+		close();
+	};
+	const auto show = uiShow();
+	const auto st = &st::storiesReportBox;
+	show->show(Box(Ui::ReportReasonBox, *st, Ui::ReportSource::Story, [=](
+			Ui::ReportReason reason) {
+		const auto done = [=](const QString &text) {
+			owner->stories().report(show, id, reason, text);
+			show->hideLayer();
+		};
+		show->showBox(Box(Ui::ReportDetailsBox, *st, done));
+	}));
 }
 
 rpl::lifetime &Controller::lifetime() {

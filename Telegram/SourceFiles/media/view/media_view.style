@@ -509,6 +509,9 @@ storiesPopupMenuWithIcons: PopupMenu(storiesPopupMenu) {
 	menu: storiesMenuWithIcons;
 }
 
+storiesBoxLabel: FlatLabel(boxLabel) {
+	textFg: groupCallMembersFg;
+}
 storiesAttachEmojiInner: IconButton(storiesAttach) {
 	icon: icon {{ "chat/input_smile_face", storiesComposeGrayIcon }};
 	iconOver: icon {{ "chat/input_smile_face", storiesComposeGrayIcon }};
@@ -520,9 +523,7 @@ storiesAttachEmoji: EmojiButton(historyAttachEmoji) {
 	lineFgOver: storiesComposeGrayIcon;
 }
 storiesComposePremium: PremiumLimits(defaultPremiumLimits) {
-	boxLabel: FlatLabel(boxLabel) {
-		textFg: groupCallMembersFg;
-	}
+	boxLabel: storiesBoxLabel;
 	nonPremiumBg: storiesComposeBgOver;
 	nonPremiumFg: storiesComposeWhiteText;
 }
@@ -588,9 +589,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	}
 	search: storiesEmojiTabbedSearch;
 	removeSet: storiesRemoveSet;
-	boxLabel: FlatLabel(boxLabel) {
-		textFg: groupCallMembersFg;
-	}
+	boxLabel: storiesBoxLabel;
 	icons: ComposeIcons {
 		settings: icon {{ "emoji/emoji_settings", storiesComposeGrayIcon }};
 
@@ -641,6 +640,15 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		};
 	}
 	autocompleteBottomSkip: 10px;
+}
+storiesBoxInputField: InputField(defaultComposeFilesField) {
+	textFg: storiesComposeWhiteText;
+	textBg: storiesComposeBg;
+	placeholderFg: storiesComposeGrayText;
+	placeholderFgActive: storiesComposeBlue;
+	borderFg: storiesComposeGrayText;
+	borderFgActive: storiesComposeBlue;
+	menu: storiesPopupMenu;
 }
 storiesComposeControls: ComposeControls(defaultComposeControls) {
 	bg: storiesComposeBg;
@@ -718,15 +726,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 			iconOver: icon {{ "title_menu_dots", storiesComposeGrayIcon }};
 			ripple: storiesComposeRippleLight;
 		}
-		caption: InputField(defaultComposeFilesField) {
-			textFg: storiesComposeWhiteText;
-			textBg: storiesComposeBg;
-			placeholderFg: storiesComposeGrayText;
-			placeholderFgActive: storiesComposeBlue;
-			borderFg: storiesComposeGrayText;
-			borderFgActive: storiesComposeBlue;
-			menu: storiesPopupMenu;
-		}
+		caption: storiesBoxInputField;
 		emoji: EmojiButton(storiesAttachEmoji) {
 			inner: IconButton(storiesAttachEmojiInner) {
 				width: 30px;
@@ -817,4 +817,27 @@ storiesShortInfoBox: ShortInfoBox(shortInfoBox) {
 		textFg: mediaviewCaptionFg;
 		palette: mediaviewTextPalette;
 	}
+}
+storiesReportBox: ReportBox(defaultReportBox) {
+	button: SettingsButton(reportReasonButton) {
+		textFg: storiesComposeWhiteText;
+		textFgOver: storiesComposeWhiteText;
+		textBg: storiesComposeBg;
+		textBgOver: storiesComposeBgOver;
+		ripple: storiesComposeRipple;
+	}
+	label: storiesBoxLabel;
+	field: InputField(storiesBoxInputField) {
+		textMargins: margins(1px, 26px, 1px, 4px);
+		heightMax: 116px;
+	}
+	spam: icon {{ "menu/delete", storiesComposeWhiteText }};
+	fake: icon {{ "menu/fake", storiesComposeWhiteText }};
+	violence: icon {{ "menu/violence", storiesComposeWhiteText }};
+	children: icon {{ "menu/block", storiesComposeWhiteText }};
+	pornography: icon {{ "menu/porn", storiesComposeWhiteText }};
+	copyright: icon {{ "menu/copyright", storiesComposeWhiteText }};
+	drugs: icon {{ "menu/drugs", storiesComposeWhiteText }};
+	personal: icon {{ "menu/personal", storiesComposeWhiteText }};
+	other: icon {{ "menu/report", storiesComposeWhiteText }};
 }

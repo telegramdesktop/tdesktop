@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_stories.h"
 
+#include "api/api_report.h"
 #include "base/unixtime.h"
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
@@ -221,6 +222,22 @@ void Story::setCloseFriends(bool closeFriends) {
 
 bool Story::closeFriends() const {
 	return _closeFriends;
+}
+
+bool Story::canDownload() const {
+	return _peer->isSelf();
+}
+
+bool Story::canShare() const {
+	return isPublic() && (pinned() || !expired());
+}
+
+bool Story::canDelete() const {
+	return _peer->isSelf();
+}
+
+bool Story::canReport() const {
+	return !_peer->isSelf();
 }
 
 bool Story::hasDirectLink() const {
@@ -1479,7 +1496,38 @@ void Stories::savedLoadMore(PeerId peerId) {
 		saved.total = int(saved.ids.list.size());
 		_savedChanged.fire_copy(peerId);
 	}).send();
+}
 
+void Stories::deleteList(const std::vector<FullStoryId> &ids) {
+	auto list = QVector<MTPint>();
+	list.reserve(ids.size());
+	const auto selfId = session().userPeerId();
+	for (const auto &id : ids) {
+		if (id.peer == selfId) {
+			list.push_back(MTP_int(id.story));
+		}
+	}
+	if (!list.empty()) {
+		const auto api = &_owner->session().api();
+		api->request(MTPstories_DeleteStories(
+			MTP_vector<MTPint>(list)
+		)).done([=](const MTPVector<MTPint> &result) {
+			for (const auto &id : result.v) {
+				applyDeleted({ selfId, id.v });
+			}
+		}).send();
+	}
+}
+
+void Stories::report(
+		std::shared_ptr<Ui::Show> show,
+		FullStoryId id,
+		Ui::ReportReason reason,
+		QString text) {
+	if (const auto maybeStory = lookup(id)) {
+		const auto story = *maybeStory;
+		Api::SendReport(show, story->peer(), reason, text, story->id());
+	}
 }
 
 bool Stories::isQuitPrevent() {

@@ -96,6 +96,7 @@ public:
 	explicit Controller(not_null<Delegate*> delegate);
 	~Controller();
 
+	[[nodiscard]] Data::Story *story() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> wrap() const;
 	[[nodiscard]] Layout layout() const;
 	[[nodiscard]] rpl::producer<Layout> layoutValue() const;
@@ -123,9 +124,6 @@ public:
 	void contentPressed(bool pressed);
 	void setMenuShown(bool shown);
 
-	[[nodiscard]] bool canShare() const;
-	[[nodiscard]] bool canDownload() const;
-
 	void repaintSibling(not_null<Sibling*> sibling);
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 
@@ -133,7 +131,9 @@ public:
 	[[nodiscard]] rpl::producer<> moreViewsLoaded() const;
 
 	void unfocusReply();
-	void share();
+	void shareRequested();
+	void deleteRequested();
+	void reportRequested();
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

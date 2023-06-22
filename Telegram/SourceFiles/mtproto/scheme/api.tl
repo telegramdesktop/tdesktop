@@ -2102,3 +2102,4 @@ stories.incrementStoryViews#22126127 user_id:InputUser id:Vector<int> = Bool;
 stories.getStoryViewsList#4b3b5e97 id:int offset_date:int offset_id:long limit:int = stories.StoryViewsList;
 stories.getStoriesViews#9a75d6a6 id:Vector<int> = stories.StoryViews;
 stories.exportStoryLink#16e443ce user_id:InputUser id:int = ExportedStoryLink;
+stories.report#c95be06a user_id:InputUser id:Vector<int> reason:ReportReason message:string = Bool;

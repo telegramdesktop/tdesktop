@@ -23,6 +23,7 @@ class Session;
 
 namespace Ui {
 class Show;
+enum class ReportReason;
 } // namespace Ui
 
 namespace Data {
@@ -105,6 +106,11 @@ public:
 	[[nodiscard]] bool isPublic() const;
 	void setCloseFriends(bool closeFriends);
 	[[nodiscard]] bool closeFriends() const;
+
+	[[nodiscard]] bool canDownload() const;
+	[[nodiscard]] bool canShare() const;
+	[[nodiscard]] bool canDelete() const;
+	[[nodiscard]] bool canReport() const;
 
 	[[nodiscard]] bool hasDirectLink() const;
 	[[nodiscard]] std::optional<QString> errorTextForForward(
@@ -283,6 +289,13 @@ public:
 	[[nodiscard]] bool savedCountKnown(PeerId peerId) const;
 	[[nodiscard]] bool savedLoaded(PeerId peerId) const;
 	void savedLoadMore(PeerId peerId);
+
+	void deleteList(const std::vector<FullStoryId> &ids);
+	void report(
+		std::shared_ptr<Ui::Show> show,
+		FullStoryId id,
+		Ui::ReportReason reason,
+		QString text);
 
 private:
 	struct Saved {

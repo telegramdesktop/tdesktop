@@ -206,6 +206,21 @@ ComposeControls {
 	premium: PremiumLimits;
 }
 
+ReportBox {
+	button: SettingsButton;
+	label: FlatLabel;
+	field: InputField;
+	spam: icon;
+	fake: icon;
+	violence: icon;
+	children: icon;
+	pornography: icon;
+	copyright: icon;
+	drugs: icon;
+	personal: icon;
+	other: icon;
+}
+
 WhoRead {
 	userpics: GroupCallUserpics;
 	photoLeft: pixels;
@@ -1151,4 +1166,26 @@ moreChatsBarClose: IconButton(defaultIconButton) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}
+}
+
+reportReasonTopSkip: 8px;
+reportReasonButton: SettingsButton(defaultSettingsButton) {
+	style: boxTextStyle;
+	padding: margins(62px, 7px, 8px, 7px);
+	iconLeft: 22px;
+}
+
+defaultReportBox: ReportBox {
+	button: reportReasonButton;
+	label: boxLabel;
+	field: newGroupDescription;
+	spam: menuIconDelete;
+	fake: menuIconFake;
+	violence: menuIconViolence;
+	children: menuIconBlock;
+	pornography: menuIconPorn;
+	copyright: menuIconCopyright;
+	drugs: menuIconDrugs;
+	personal: menuIconPersonal;
+	other: menuIconReport;
 }

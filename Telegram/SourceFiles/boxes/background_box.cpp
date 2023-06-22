@@ -282,9 +282,9 @@ void BackgroundBox::chosen(const Data::WallPaper &paper) {
 				close();
 			});
 			_controller->show(Ui::MakeConfirmBox({
-				.text = u"Are you sure you want to reset the wallpaper?"_q,
+				.text = tr::lng_background_sure_reset_default(),
 				.confirmed = reset,
-				.confirmText = u"Reset"_q,
+				.confirmText = tr::lng_background_reset_default(),
 			}));
 		} else {
 			closeBox();

@@ -757,6 +757,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_apply2" = "Enjoy the view.";
 "lng_background_apply_button" = "Apply For This Chat";
 "lng_background_dimming" = "Background dimming";
+"lng_background_sure_reset_default" = "Are you sure you want to reset the wallpaper?";
+"lng_background_reset_default" = "Reset";
 
 "lng_download_path_ask" = "Ask download path for each file";
 "lng_download_path" = "Download path";
@@ -1348,6 +1350,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_group_video_title" = "Report group video";
 "lng_report_channel_photo_title" = "Report channel photo";
 "lng_report_channel_video_title" = "Report channel video";
+"lng_report_story" = "Report story";
 "lng_report_please_select_messages" = "Please select messages to report.";
 "lng_report_select_messages" = "Select messages";
 "lng_report_messages_none" = "Select Messages";
@@ -3822,6 +3825,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_reply_sent" = "Message Sent";
 "lng_stories_hidden_to_contacts" = "Those stories are now shown only in your Contacts list.";
 "lng_stories_shown_in_chats" = "Those stories are now shown in your Chats list.";
+"lng_stories_delete_one_sure" = "Are you sure you want to delete this story?";
+"lng_stories_delete_sure#one" = "Are you sure you want to delete {count} story?";
+"lng_stories_delete_sure#other" = "Are you sure you want to delete {count} stories?";
 
 "lng_stories_link_invalid" = "This link is broken or has expired.";
 

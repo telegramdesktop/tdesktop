@@ -14,12 +14,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
 #include "window/window_session_controller.h"
+#include "styles/style_chat_helpers.h"
 
 namespace {
 
 [[nodiscard]] object_ptr<Ui::BoxContent> Report(
 		not_null<PeerData*> peer,
-		std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data) {
+		std::variant<
+			v::null_t,
+			MessageIdsList,
+			not_null<PhotoData*>,
+			StoryId> data,
+		const style::ReportBox *stOverride) {
 	const auto source = v::match(data, [](const MessageIdsList &ids) {
 		return Ui::ReportSource::Message;
 	}, [&](not_null<PhotoData*> photo) {
@@ -34,15 +40,18 @@ namespace {
 			: (photo->hasVideo()
 				? Ui::ReportSource::ChannelVideo
 				: Ui::ReportSource::ChannelPhoto);
+	}, [&](StoryId id) {
+		return Ui::ReportSource::Story;
 	}, [](v::null_t) {
 		Unexpected("Bad source report.");
 		return Ui::ReportSource::Bot;
 	});
+	const auto st = stOverride ? stOverride : &st::defaultReportBox;
 	return Box([=](not_null<Ui::GenericBox*> box) {
 		const auto show = box->uiShow();
-		Ui::ReportReasonBox(box, source, [=](Ui::ReportReason reason) {
+		Ui::ReportReasonBox(box, *st, source, [=](Ui::ReportReason reason) {
 			show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-				Ui::ReportDetailsBox(box, [=](const QString &text) {
+				Ui::ReportDetailsBox(box, *st, [=](const QString &text) {
 					Api::SendReport(show, peer, reason, text, data);
 					show->hideLayer();
 				});
@@ -56,13 +65,13 @@ namespace {
 object_ptr<Ui::BoxContent> ReportItemsBox(
 		not_null<PeerData*> peer,
 		MessageIdsList ids) {
-	return Report(peer, ids);
+	return Report(peer, ids, nullptr);
 }
 
 object_ptr<Ui::BoxContent> ReportProfilePhotoBox(
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
-	return Report(peer, photo);
+	return Report(peer, photo, nullptr);
 }
 
 void ShowReportPeerBox(
@@ -93,17 +102,20 @@ void ShowReportPeerBox(
 		if (reason == Ui::ReportReason::Fake
 			|| reason == Ui::ReportReason::Other) {
 			state->ids = {};
-			state->detailsBox = window->show(Box(Ui::ReportDetailsBox, send));
+			state->detailsBox = window->show(
+				Box(Ui::ReportDetailsBox, st::defaultReportBox, send));
 			return;
 		}
 		window->showChooseReportMessages(peer, reason, [=](
 				MessageIdsList ids) {
 			state->ids = std::move(ids);
-			state->detailsBox = window->show(Box(Ui::ReportDetailsBox, send));
+			state->detailsBox = window->show(
+				Box(Ui::ReportDetailsBox, st::defaultReportBox, send));
 		});
 	};
 	state->reasonBox = window->show(Box(
 		Ui::ReportReasonBox,
+		st::defaultReportBox,
 		(peer->isBroadcast()
 			? Ui::ReportSource::Channel
 			: peer->isUser()

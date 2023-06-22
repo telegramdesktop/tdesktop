@@ -32,12 +32,8 @@ void View::ready() {
 	_controller->ready();
 }
 
-bool View::canShare() const {
-	return _controller->canShare();
-}
-
-bool View::canDownload() const {
-	return _controller->canDownload();
+Data::Story *View::story() const {
+	return _controller->story();
 }
 
 QRect View::finalShownGeometry() const {
@@ -83,8 +79,16 @@ void View::contentPressed(bool pressed) {
 	_controller->contentPressed(pressed);
 }
 
-void View::share() {
-	_controller->share();
+void View::shareRequested() {
+	_controller->shareRequested();
+}
+
+void View::deleteRequested() {
+	_controller->deleteRequested();
+}
+
+void View::reportRequested() {
+	_controller->reportRequested();
 }
 
 SiblingView View::sibling(SiblingType type) const {

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/report_box.h"
@@ -39,11 +40,15 @@ MTPreportReason ReasonToTL(const Ui::ReportReason &reason) {
 } // namespace
 
 void SendReport(
-		std::shared_ptr<Ui::Show> show,
-		not_null<PeerData*> peer,
-		Ui::ReportReason reason,
-		const QString &comment,
-		std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data) {
+	std::shared_ptr<Ui::Show> show,
+	not_null<PeerData*> peer,
+	Ui::ReportReason reason,
+	const QString &comment,
+	std::variant<
+		v::null_t,
+		MessageIdsList,
+		not_null<PhotoData*>,
+		StoryId> data) {
 	auto done = [=] {
 		show->showToast(tr::lng_report_thanks(tr::now));
 	};
@@ -69,6 +74,17 @@ void SendReport(
 		peer->session().api().request(MTPaccount_ReportProfilePhoto(
 			peer->input,
 			photo->mtpInput(),
+			ReasonToTL(reason),
+			MTP_string(comment)
+		)).done(std::move(done)).send();
+	}, [&](StoryId id) {
+		const auto user = peer->asUser();
+		if (!user) {
+			return;
+		}
+		peer->session().api().request(MTPstories_Report(
+			user->inputUser,
+			MTP_vector<MTPint>(1, MTP_int(id)),
 			ReasonToTL(reason),
 			MTP_string(comment)
 		)).done(std::move(done)).send();
