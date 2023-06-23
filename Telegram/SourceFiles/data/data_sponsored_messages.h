@@ -31,6 +31,7 @@ struct SponsoredFrom {
 	bool isBot = false;
 	bool isExactPost = false;
 	bool isRecommended = false;
+	bool isExternalLink = false;
 	ImageWithLocation userpic;
 	bool isForceUserpicDisplay = false;
 };
@@ -42,6 +43,7 @@ struct SponsoredMessage {
 	History *history = nullptr;
 	MsgId msgId;
 	QString chatInviteHash;
+	QString externalLink;
 	TextWithEntities sponsorInfo;
 	TextWithEntities additionalInfo;
 };
@@ -58,6 +60,7 @@ public:
 		PeerData *peer = nullptr;
 		MsgId msgId;
 		std::vector<TextWithEntities> info;
+		QString externalLink;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);

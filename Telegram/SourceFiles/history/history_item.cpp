@@ -3201,7 +3201,9 @@ void HistoryItem::setSponsoredFrom(const Data::SponsoredFrom &from) {
 	}
 
 	using Type = HistoryMessageSponsored::Type;
-	sponsored->type = from.isExactPost
+	sponsored->type = from.isExternalLink
+		? Type::ExternalLink
+		: from.isExactPost
 		? Type::Post
 		: from.isBot
 		? Type::Bot

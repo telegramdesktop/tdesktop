@@ -139,6 +139,7 @@ struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored
 		Broadcast,
 		Post,
 		Bot,
+		ExternalLink,
 	};
 	std::unique_ptr<HiddenSenderInfo> sender;
 	Type type = Type::User;
