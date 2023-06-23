@@ -244,6 +244,7 @@ public:
 	void loadMore(StorySourcesList list);
 	void apply(const MTPDupdateStory &data);
 	void apply(not_null<PeerData*> peer, const MTPUserStories *data);
+	Story *applyFromWebpage(PeerId peerId, const MTPstoryItem &story);
 	void loadAround(FullStoryId id, StoriesContext context);
 
 	const StoriesSource *source(PeerId id) const;

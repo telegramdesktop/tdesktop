@@ -3215,6 +3215,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
 		QString(),
 		QString(),
 		TextWithEntities(),
+		FullStoryId(),
 		nullptr,
 		nullptr,
 		WebPageCollage(),
@@ -3269,6 +3270,7 @@ not_null<WebPageData*> Session::webpage(
 		siteName,
 		title,
 		description,
+		FullStoryId(),
 		photo,
 		document,
 		std::move(collage),
@@ -3321,16 +3323,55 @@ void Session::webpageApplyFields(
 		}
 		return nullptr;
 	};
+	auto story = (Data::Story*)nullptr;
+	auto storyId = FullStoryId();
+	if (const auto attributes = data.vattributes()) {
+		for (const auto &attribute : attributes->v) {
+			attribute.match([&](const MTPDwebPageAttributeStory &data) {
+				storyId = FullStoryId{
+					peerFromUser(data.vuser_id()),
+					data.vid().v,
+				};
+				if (const auto embed = data.vstory()) {
+					story = stories().applyFromWebpage(
+						peerFromUser(data.vuser_id()),
+						*embed);
+				} else if (const auto maybe = stories().lookup(storyId)) {
+					story = *maybe;
+				} else if (maybe.error() == Data::NoStory::Unknown) {
+					stories().resolve(storyId, [=] {
+						if (const auto maybe = stories().lookup(storyId)) {
+							const auto story = *maybe;
+							page->document = story->document();
+							page->photo = story->photo();
+							page->description = story->caption();
+							page->type = WebPageType::Story;
+							notifyWebPageUpdateDelayed(page);
+						}
+					});
+				}
+			}, [](const auto &) {});
+		}
+	}
 	webpageApplyFields(
 		page,
-		ParseWebPageType(data),
+		(story ? WebPageType::Story : ParseWebPageType(data)),
 		qs(data.vurl()),
 		qs(data.vdisplay_url()),
 		siteName,
 		qs(data.vtitle().value_or_empty()),
-		description,
-		photo ? processPhoto(*photo).get() : nullptr,
-		document ? processDocument(*document).get() : lookupThemeDocument(),
+		(story ? story->caption() : description),
+		storyId,
+		(story
+			? story->photo()
+			: photo
+			? processPhoto(*photo).get()
+			: nullptr),
+		(story
+			? story->document()
+			: document
+			? processDocument(*document).get()
+			: lookupThemeDocument()),
 		WebPageCollage(this, data),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
@@ -3345,6 +3386,7 @@ void Session::webpageApplyFields(
 		const QString &siteName,
 		const QString &title,
 		const TextWithEntities &description,
+		FullStoryId storyId,
 		PhotoData *photo,
 		DocumentData *document,
 		WebPageCollage &&collage,
@@ -3359,6 +3401,7 @@ void Session::webpageApplyFields(
 		siteName,
 		title,
 		description,
+		storyId,
 		photo,
 		document,
 		std::move(collage),

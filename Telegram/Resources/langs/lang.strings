@@ -3702,6 +3702,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_background" = "View background";
 "lng_view_button_theme" = "View theme";
 "lng_view_button_message" = "View message";
+"lng_view_button_story" = "View story";
 "lng_view_button_voice_chat" = "Voice chat";
 "lng_view_button_voice_chat_channel" = "Live stream";
 "lng_view_button_request_join" = "Request to Join";

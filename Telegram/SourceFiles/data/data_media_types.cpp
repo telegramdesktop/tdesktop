@@ -1982,11 +1982,16 @@ MediaStory::MediaStory(not_null<HistoryItem*> parent, FullStoryId storyId)
 : Media(parent)
 , _storyId(storyId) {
 	const auto stories = &parent->history()->owner().stories();
-	const auto maybeStory = stories->lookup(storyId);
-	if (!maybeStory) {
+	if (const auto maybeStory = stories->lookup(storyId)) {
+		parent->setText((*maybeStory)->caption());
+	} else {
 		if (maybeStory.error() == NoStory::Unknown) {
 			stories->resolve(storyId, crl::guard(this, [=] {
-				_expired = !stories->lookup(storyId);
+				if (const auto maybeStory = stories->lookup(storyId)) {
+					parent->setText((*maybeStory)->caption());
+				} else {
+					_expired = true;
+				}
 				parent->history()->owner().requestItemViewRefresh(parent);
 			}));
 		} else {
@@ -2052,6 +2057,7 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 	const auto stories = &parent()->history()->owner().stories();
 	const auto maybeStory = stories->lookup(_storyId);
 	if (!maybeStory) {
+		realParent->setText(TextWithEntities());
 		if (maybeStory.error() == Data::NoStory::Deleted) {
 			_expired = true;
 			return nullptr;
@@ -2065,6 +2071,7 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 	}
 	_expired = false;
 	const auto story = *maybeStory;
+	realParent->setText(story->caption());
 	if (const auto photo = story->photo()) {
 		return std::make_unique<HistoryView::Photo>(
 			message,

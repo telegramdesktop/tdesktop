@@ -455,6 +455,17 @@ void Stories::apply(not_null<PeerData*> peer, const MTPUserStories *data) {
 	}
 }
 
+Story *Stories::applyFromWebpage(PeerId peerId, const MTPstoryItem &story) {
+	const auto idDates = parseAndApply(
+		_owner->peer(peerId),
+		story,
+		base::unixtime::now());
+	const auto value = idDates
+		? lookup({ peerId, idDates.id })
+		: base::make_unexpected(NoStory::Deleted);
+	return value ? value->get() : nullptr;
+}
+
 void Stories::requestUserStories(not_null<UserData*> user) {
 	if (!_requestingUserStories.emplace(user).second) {
 		return;

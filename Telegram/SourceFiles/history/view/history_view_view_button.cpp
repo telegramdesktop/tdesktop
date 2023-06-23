@@ -52,6 +52,8 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 	const auto type = webpage->type;
 	return Ui::Text::Upper((type == WebPageType::Theme)
 		? tr::lng_view_button_theme(tr::now)
+		: (type == WebPageType::Story)
+		? tr::lng_view_button_story(tr::now)
 		: (type == WebPageType::Message)
 		? tr::lng_view_button_message(tr::now)
 		: (type == WebPageType::Group)
@@ -139,6 +141,8 @@ bool ViewButton::MediaHasViewButton(
 		|| ((type == WebPageType::Theme)
 			&& webpage->document
 			&& webpage->document->isTheme())
+		|| ((type == WebPageType::Story)
+			&& (webpage->photo || webpage->document))
 		|| ((type == WebPageType::WallPaper)
 			&& webpage->document
 			&& webpage->document->isWallPaper());
