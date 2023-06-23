@@ -68,6 +68,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 
 private:
+	class Cant;
+
 	using VoiceToSend = HistoryView::Controls::VoiceToSend;
 
 	[[nodiscard]] Main::Session &session() const;
@@ -134,6 +136,7 @@ private:
 
 	const not_null<Controller*> _controller;
 	const std::unique_ptr<HistoryView::ComposeControls> _controls;
+	std::unique_ptr<Cant> _cant;
 
 	ReplyAreaData _data;
 	base::has_weak_ptr _shownUserGuard;

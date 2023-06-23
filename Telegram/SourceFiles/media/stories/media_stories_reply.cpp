@@ -35,12 +35,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/round_rect.h"
 #include "window/section_widget.h"
 #include "styles/style_boxes.h" // sendMediaPreviewSize.
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
+
+class ReplyArea::Cant final : public Ui::RpWidget {
+public:
+	explicit Cant(not_null<QWidget*> parent);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	Ui::RoundRect _bg;
+
+};
+
+ReplyArea::Cant::Cant(not_null<QWidget*> parent)
+: RpWidget(parent)
+, _bg(st::storiesRadius, st::storiesComposeBg) {
+	show();
+}
+
+void ReplyArea::Cant::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	_bg.paint(p, rect());
+
+	p.setPen(st::storiesComposeGrayText);
+	p.setFont(st::normalFont);
+	p.drawText(
+		rect(),
+		tr::lng_stories_cant_reply(tr::now),
+		style::al_center);
+}
 
 ReplyArea::ReplyArea(not_null<Controller*> controller)
 : _controller(controller)
@@ -599,10 +629,25 @@ void ReplyArea::show(ReplyAreaData data) {
 		.history = history,
 	});
 	_controls->clear();
-	if (!user || user->isSelf()) {
-		_controls->hide();
-	} else {
+	const auto hidden = user && user->isSelf();
+	const auto cant = !user || user->isServiceUser();
+	if (!hidden && !cant) {
 		_controls->show();
+	} else {
+		_controls->hide();
+		if (cant) {
+			_cant = std::make_unique<Cant>(_controller->wrap());
+			_controller->layoutValue(
+			) | rpl::start_with_next([=](const Layout &layout) {
+				const auto height = st::storiesComposeControls.attach.height;
+				const auto position = layout.controlsBottomPosition
+					- QPoint(0, height);
+				_cant->setGeometry(
+					{ position, QSize{ layout.controlsWidth, height } });
+			}, _cant->lifetime());
+		} else {
+			_cant = nullptr;
+		}
 	}
 }
 

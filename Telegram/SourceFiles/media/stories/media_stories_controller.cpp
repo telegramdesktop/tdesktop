@@ -96,7 +96,6 @@ private:
 
 	const not_null<Controller*> _controller;
 	std::unique_ptr<Ui::RpWidget> _bg;
-	std::unique_ptr<Ui::RpWidget> _reply;
 	std::unique_ptr<Ui::FlatLabel> _text;
 	std::unique_ptr<Ui::RoundButton> _button;
 	Ui::RoundRect _bgRound;
@@ -172,32 +171,9 @@ void Controller::Unsupported::setup(not_null<UserData*> user) {
 		_bgRound.paint(p, _bg->rect());
 	}, _bg->lifetime());
 
-	if (!user->isSelf()) {
-		_reply = std::make_unique<Ui::RpWidget>(wrap);
-		_reply->show();
-		_reply->paintRequest() | rpl::start_with_next([=] {
-			auto p = QPainter(_reply.get());
-			_bgRound.paint(p, _reply->rect());
-
-			p.setPen(st::storiesComposeGrayText);
-			p.setFont(st::normalFont);
-			p.drawText(
-				_reply->rect(),
-				tr::lng_stories_cant_reply(tr::now),
-				style::al_center);
-		}, _reply->lifetime());
-	}
-
 	_controller->layoutValue(
 	) | rpl::start_with_next([=](const Layout &layout) {
 		_bg->setGeometry(layout.content);
-		if (_reply) {
-			const auto height = st::storiesComposeControls.attach.height;
-			const auto position = layout.controlsBottomPosition
-				- QPoint(0, height);
-			_reply->setGeometry(
-				{ position, QSize{ layout.controlsWidth, height } });
-		}
 	}, _bg->lifetime());
 
 	_text = std::make_unique<Ui::FlatLabel>(
@@ -1141,7 +1117,6 @@ void Controller::rebuildCachedSourcesList(
 	} else {
 		// All that go before the current push to front.
 		for (auto before = index; before > 0;) {
-			--before;
 			const auto peerId = lists[--before].id;
 			if (!ranges::contains(_cachedSourcesList, peerId)) {
 				_cachedSourcesList.insert(
@@ -1160,12 +1135,8 @@ void Controller::rebuildCachedSourcesList(
 	}
 
 	Ensures(_cachedSourcesList.size() == lists.size());
-	Ensures(ranges::equal(
-		lists,
-		_cachedSourcesList,
-		ranges::equal_to(),
-		&Data::StoriesSourceInfo::id));
-	Ensures(_cachedSourceIndex >= 0 && _cachedSourceIndex < _cachedSourcesList.size());
+	Ensures(_cachedSourceIndex >= 0
+		&& _cachedSourceIndex < _cachedSourcesList.size());
 }
 
 void Controller::refreshViewsFromData() {
