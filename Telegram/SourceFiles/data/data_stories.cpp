@@ -1197,11 +1197,17 @@ void Stories::toggleHidden(
 		)).send();
 	}
 
+	const auto name = user->shortName();
 	const auto guard = gsl::finally([&] {
 		if (show) {
-			show->showToast(hidden
-				? tr::lng_stories_hidden_to_contacts(tr::now)
-				: tr::lng_stories_shown_in_chats(tr::now));
+			const auto phrase = hidden
+				? tr::lng_stories_hidden_to_contacts
+				: tr::lng_stories_shown_in_chats;
+			show->showToast(phrase(
+				tr::now,
+				lt_user,
+				Ui::Text::Bold(name),
+				Ui::Text::WithEntities));
 		}
 	});
 
