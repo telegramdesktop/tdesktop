@@ -973,10 +973,12 @@ void Stories::removeDependencyStory(not_null<Story*> story) {
 void Stories::sort(StorySourcesList list) {
 	const auto index = static_cast<int>(list);
 	auto &sources = _sources[index];
-	const auto self = _owner->session().user()->id;
+	const auto self = _owner->session().userPeerId();
+	const auto changelogSenderId = UserData::kServiceNotificationsId;
 	const auto proj = [&](const StoriesSourceInfo &info) {
 		const auto key = int64(info.last)
-			+ (info.premium ? (int64(1) << 48) : 0)
+			+ (info.premium ? (int64(1) << 47) : 0)
+			+ ((info.id == changelogSenderId) ? (int64(1) << 47) : 0)
 			+ (info.unread ? (int64(1) << 49) : 0)
 			+ ((info.id == self) ? (int64(1) << 50) : 0);
 		return std::make_pair(key, info.id);
