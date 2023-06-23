@@ -445,6 +445,20 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 	};
 }
 
+void SponsoredMessages::clicked(const FullMsgId &fullId) {
+	const auto entryPtr = find(fullId);
+	if (!entryPtr) {
+		return;
+	}
+	const auto randomId = entryPtr->sponsored.randomId;
+	const auto channel = entryPtr->item->history()->peer->asChannel();
+	Assert(channel != nullptr);
+	_session->api().request(MTPchannels_ClickSponsoredMessage(
+		channel->inputChannel,
+		MTP_bytes(randomId)
+	)).send();
+}
+
 SponsoredMessages::State SponsoredMessages::state(
 		not_null<History*> history) const {
 	const auto it = _data.find(history);

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
+#include "core/file_utilities.h"
 #include "core/ui_integration.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
@@ -992,7 +993,9 @@ ClickHandlerPtr Element::fromLink() const {
 				auto &sponsored = session->data().sponsoredMessages();
 				const auto itemId = my.itemId ? my.itemId : item->fullId();
 				const auto details = sponsored.lookupDetails(itemId);
-				if (const auto &hash = details.hash) {
+				if (!details.externalLink.isEmpty()) {
+					File::OpenUrl(details.externalLink);
+				} else if (const auto &hash = details.hash) {
 					Api::CheckChatInvite(window, *hash);
 				} else if (const auto peer = details.peer) {
 					window->showPeerInfo(peer);
