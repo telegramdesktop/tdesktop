@@ -2016,7 +2016,11 @@ TextWithEntities MediaStory::notificationText() const {
 	const auto stories = &parent()->history()->owner().stories();
 	const auto maybeStory = stories->lookup(_storyId);
 	return WithCaptionNotificationText(
-		tr::lng_in_dlg_story(tr::now),
+		((_expired
+			|| (!maybeStory
+				&& maybeStory.error() == Data::NoStory::Deleted))
+			? tr::lng_in_dlg_story_expired
+			: tr::lng_in_dlg_story)(tr::now),
 		(maybeStory
 			? (*maybeStory)->caption()
 			: TextWithEntities()));
@@ -2028,7 +2032,9 @@ QString MediaStory::pinnedTextSubstring() const {
 
 TextForMimeData MediaStory::clipboardText() const {
 	return WithCaptionClipboardText(
-		tr::lng_in_dlg_story(tr::now),
+		(_expired
+			? tr::lng_in_dlg_story_expired
+			: tr::lng_in_dlg_story)(tr::now),
 		parent()->clipboardText());
 }
 
