@@ -2915,6 +2915,9 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 			&& selectedState.canDeleteCount == selectedState.count) {
 			_widget->confirmDeleteSelected();
 		}
+	} else if (!(e->modifiers() & ~Qt::ShiftModifier)
+		&& e->key() != Qt::Key_Shift) {
+		_widget->tryProcessKeyInput(e);
 	} else {
 		e->ignore();
 	}

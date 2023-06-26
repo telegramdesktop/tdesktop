@@ -2383,6 +2383,10 @@ void RepliesWidget::listDeleteRequest() {
 	confirmDeleteSelected();
 }
 
+void RepliesWidget::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
+	_composeControls->tryProcessKeyInput(e);
+}
+
 rpl::producer<Data::MessagesSlice> RepliesWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,

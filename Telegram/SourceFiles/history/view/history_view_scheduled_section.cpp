@@ -1078,6 +1078,10 @@ void ScheduledWidget::listDeleteRequest() {
 	confirmDeleteSelected();
 }
 
+void ScheduledWidget::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
+	_composeControls->tryProcessKeyInput(e);
+}
+
 rpl::producer<Data::MessagesSlice> ScheduledWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,

@@ -1803,6 +1803,13 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(
 	return false;
 }
 
+void HistoryWidget::tryProcessKeyInput(not_null<QKeyEvent*> e) {
+	if (_canSendTexts && _field->isVisible()) {
+		_field->setFocusFast();
+		QCoreApplication::sendEvent(_field->rawTextEdit(), e);
+	}
+}
+
 void HistoryWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {

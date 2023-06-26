@@ -200,6 +200,7 @@ public:
 	void cancelForward();
 
 	bool handleCancelRequest();
+	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	[[nodiscard]] WebPageId webPageId() const;

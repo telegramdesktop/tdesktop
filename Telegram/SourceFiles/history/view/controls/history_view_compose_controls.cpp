@@ -2843,6 +2843,13 @@ bool ComposeControls::handleCancelRequest() {
 	return false;
 }
 
+void ComposeControls::tryProcessKeyInput(not_null<QKeyEvent*> e) {
+	if (_field->isVisible()) {
+		_field->setFocusFast();
+		QCoreApplication::sendEvent(_field->rawTextEdit(), e);
+	}
+}
+
 void ComposeControls::initWebpageProcess() {
 	if (!_history) {
 		_preview = nullptr;

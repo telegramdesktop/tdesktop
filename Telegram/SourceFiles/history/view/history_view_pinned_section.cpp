@@ -497,6 +497,9 @@ void PinnedWidget::listDeleteRequest() {
 	confirmDeleteSelected();
 }
 
+void PinnedWidget::listTryProcessKeyInput(not_null<QKeyEvent*> e) {
+}
+
 rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
