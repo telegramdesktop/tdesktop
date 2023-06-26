@@ -335,6 +335,7 @@ void DocumentData::setattributes(
 
 	validateLottieSticker();
 
+	_videoPreloadPrefix = 0;
 	for (const auto &attribute : attributes) {
 		attribute.match([&](const MTPDdocumentAttributeImageSize &data) {
 			dimensions = QSize(data.vw().v, data.vh().v);
@@ -390,6 +391,10 @@ void DocumentData::setattributes(
 					: VideoDocument;
 				if (data.is_round_message()) {
 					_additional = std::make_unique<RoundData>();
+				} else if (const auto size = data.vpreload_prefix_size()) {
+					if (size->v > 0) {
+						_videoPreloadPrefix = size->v;
+					}
 				}
 			} else if (const auto info = sticker()) {
 				info->type = StickerType::Webm;
@@ -1332,6 +1337,23 @@ void DocumentData::setInappPlaybackFailed() {
 
 bool DocumentData::inappPlaybackFailed() const {
 	return (_flags & Flag::StreamingPlaybackFailed);
+}
+
+int DocumentData::videoPreloadPrefix() const {
+	return _videoPreloadPrefix;
+}
+
+StorageFileLocation DocumentData::videoPreloadLocation() const {
+	return hasRemoteLocation()
+		? StorageFileLocation(
+			_dc,
+			session().userId(),
+			MTP_inputDocumentFileLocation(
+				MTP_long(id),
+				MTP_long(_access),
+				MTP_bytes(_fileReference),
+				MTP_string()))
+		: StorageFileLocation();
 }
 
 auto DocumentData::createStreamingLoader(

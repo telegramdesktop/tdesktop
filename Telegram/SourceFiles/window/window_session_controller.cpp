@@ -2542,14 +2542,14 @@ void SessionController::openPeerStories(
 
 	auto &stories = session().data().stories();
 	if (const auto source = stories.source(peerId)) {
-		const auto j = source->ids.lower_bound(
-			StoryIdDates{ source->readTill + 1 });
-		openPeerStory(
-			source->user,
-			j != source->ids.end() ? j->id : source->ids.front().id,
-			(list
-				? StoriesContext{ *list }
-				: StoriesContext{ StoriesContextPeer() }));
+		if (const auto idDates = source->toOpen()) {
+			openPeerStory(
+				source->user,
+				idDates.id,
+				(list
+					? StoriesContext{ *list }
+					: StoriesContext{ StoriesContextPeer() }));
+		}
 	}
 }
 

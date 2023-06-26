@@ -65,6 +65,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 			Mode mode = ContactsBoxController::SortMode::Online;
 		};
 
+		const auto stories = &sessionController->session().data().stories();
 		const auto state = box->lifetime().make_state<State>();
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 		box->addLeftButton(
@@ -80,17 +81,17 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		});
 		raw->setSortMode(Mode::Online);
 
-		auto stories = object_ptr<Stories::List>(
+		auto list = object_ptr<Stories::List>(
 			box,
 			st::dialogsStoriesList,
 			Stories::ContentForSession(
 				&sessionController->session(),
 				Data::StorySourcesList::Hidden),
 			[=] { return state->stories->height() - box->scrollTop(); });
-		const auto raw = state->stories = stories.data();
+		const auto raw = state->stories = list.data();
 		box->peerListSetAboveWidget(object_ptr<::Ui::PaddingWrap<>>(
 			box,
-			std::move(stories),
+			std::move(list),
 			style::margins(0, st::membersMarginTop, 0, 0)));
 
 		raw->clicks(
@@ -107,7 +108,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 
 		raw->toggleShown(
 		) | rpl::start_with_next([=](Stories::ToggleShownRequest request) {
-			sessionController->session().data().stories().toggleHidden(
+			stories->toggleHidden(
 				PeerId(int64(request.id)),
 				!request.shown,
 				sessionController->uiShow());
@@ -115,9 +116,13 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 
 		raw->loadMoreRequests(
 		) | rpl::start_with_next([=] {
-			sessionController->session().data().stories().loadMore(
-				Data::StorySourcesList::Hidden);
+			stories->loadMore(Data::StorySourcesList::Hidden);
 		}, raw->lifetime());
+
+		stories->incrementPreloadingHiddenSources();
+		raw->lifetime().add([=] {
+			stories->decrementPreloadingHiddenSources();
+		});
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(init));
 }

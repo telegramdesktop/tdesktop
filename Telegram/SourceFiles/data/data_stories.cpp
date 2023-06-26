@@ -9,17 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_report.h"
 #include "base/unixtime.h"
-#include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "core/application.h"
 #include "data/data_changes.h"
-#include "data/data_chat_participant_status.h"
 #include "data/data_document.h"
-#include "data/data_file_origin.h"
 #include "data/data_photo.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
-#include "data/data_thread.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -39,6 +35,8 @@ constexpr auto kArchiveFirstPerPage = 30;
 constexpr auto kArchivePerPage = 100;
 constexpr auto kSavedFirstPerPage = 30;
 constexpr auto kSavedPerPage = 100;
+constexpr auto kMaxPreloadSources = 10;
+constexpr auto kStillPreloadFromFirst = 3;
 
 using UpdateFlag = StoryUpdate::Flag;
 
@@ -86,296 +84,12 @@ bool StoriesSource::unread() const {
 	return !ids.empty() && readTill < ids.back().id;
 }
 
-Story::Story(
-	StoryId id,
-	not_null<PeerData*> peer,
-	StoryMedia media,
-	TimeId date,
-	TimeId expires)
-: _id(id)
-, _peer(peer)
-, _media(std::move(media))
-, _date(date)
-, _expires(expires) {
-}
-
-Session &Story::owner() const {
-	return _peer->owner();
-}
-
-Main::Session &Story::session() const {
-	return _peer->session();
-}
-
-not_null<PeerData*> Story::peer() const {
-	return _peer;
-}
-
-StoryId Story::id() const {
-	return _id;
-}
-
-bool Story::mine() const {
-	return _peer->isSelf();
-}
-
-StoryIdDates Story::idDates() const {
-	return { _id, _date, _expires };
-}
-
-FullStoryId Story::fullId() const {
-	return { _peer->id, _id };
-}
-
-TimeId Story::date() const {
-	return _date;
-}
-
-TimeId Story::expires() const {
-	return _expires;
-}
-
-bool Story::expired(TimeId now) const {
-	return _expires <= (now ? now : base::unixtime::now());
-}
-
-bool Story::unsupported() const {
-	return v::is_null(_media.data);
-}
-
-const StoryMedia &Story::media() const {
-	return _media;
-}
-
-PhotoData *Story::photo() const {
-	const auto result = std::get_if<not_null<PhotoData*>>(&_media.data);
-	return result ? result->get() : nullptr;
-}
-
-DocumentData *Story::document() const {
-	const auto result = std::get_if<not_null<DocumentData*>>(&_media.data);
-	return result ? result->get() : nullptr;
-}
-
-bool Story::hasReplyPreview() const {
-	return v::match(_media.data, [](not_null<PhotoData*> photo) {
-		return !photo->isNull();
-	}, [](not_null<DocumentData*> document) {
-		return document->hasThumbnail();
-	}, [](v::null_t) {
-		return false;
-	});
-}
-
-Image *Story::replyPreview() const {
-	return v::match(_media.data, [&](not_null<PhotoData*> photo) {
-		return photo->getReplyPreview(
-			Data::FileOriginStory(_peer->id, _id),
-			_peer,
-			false);
-	}, [&](not_null<DocumentData*> document) {
-		return document->getReplyPreview(
-			Data::FileOriginStory(_peer->id, _id),
-			_peer,
-			false);
-	}, [](v::null_t) {
-		return (Image*)nullptr;
-	});
-}
-
-TextWithEntities Story::inReplyText() const {
-	const auto type = tr::lng_in_dlg_story(tr::now);
-	return _caption.text.isEmpty()
-		? Ui::Text::PlainLink(type)
-		: tr::lng_dialogs_text_media(
-			tr::now,
-			lt_media_part,
-			tr::lng_dialogs_text_media_wrapped(
-				tr::now,
-				lt_media,
-				Ui::Text::PlainLink(type),
-				Ui::Text::WithEntities),
-			lt_caption,
-			_caption,
-			Ui::Text::WithEntities);
-}
-
-void Story::setPinned(bool pinned) {
-	_pinned = pinned;
-}
-
-bool Story::pinned() const {
-	return _pinned;
-}
-
-void Story::setIsPublic(bool isPublic) {
-	_isPublic = isPublic;
-}
-
-bool Story::isPublic() const {
-	return _isPublic;
-}
-
-void Story::setCloseFriends(bool closeFriends) {
-	_closeFriends = closeFriends;
-}
-
-bool Story::closeFriends() const {
-	return _closeFriends;
-}
-
-bool Story::canDownload() const {
-	return _peer->isSelf();
-}
-
-bool Story::canShare() const {
-	return isPublic() && (pinned() || !expired());
-}
-
-bool Story::canDelete() const {
-	return _peer->isSelf();
-}
-
-bool Story::canReport() const {
-	return !_peer->isSelf();
-}
-
-bool Story::hasDirectLink() const {
-	if (!_isPublic || (!_pinned && expired())) {
-		return false;
+StoryIdDates StoriesSource::toOpen() const {
+	if (ids.empty()) {
+		return {};
 	}
-	const auto user = _peer->asUser();
-	return user && !user->username().isEmpty();
-}
-
-std::optional<QString> Story::errorTextForForward(
-		not_null<Thread*> to) const {
-	const auto peer = to->peer();
-	const auto holdsPhoto = v::is<not_null<PhotoData*>>(_media.data);
-	const auto first = holdsPhoto
-		? ChatRestriction::SendPhotos
-		: ChatRestriction::SendVideos;
-	const auto second = holdsPhoto
-		? ChatRestriction::SendVideos
-		: ChatRestriction::SendPhotos;
-	if (const auto error = Data::RestrictionError(peer, first)) {
-		return *error;
-	} else if (const auto error = Data::RestrictionError(peer, second)) {
-		return *error;
-	} else if (!Data::CanSend(to, first, false)
-		|| !Data::CanSend(to, second, false)) {
-		return tr::lng_forward_cant(tr::now);
-	}
-	return {};
-}
-
-void Story::setCaption(TextWithEntities &&caption) {
-	_caption = std::move(caption);
-}
-
-const TextWithEntities &Story::caption() const {
-	static const auto empty = TextWithEntities();
-	return unsupported() ? empty : _caption;
-}
-
-void Story::setViewsData(
-		std::vector<not_null<PeerData*>> recent,
-		int total) {
-	_recentViewers = std::move(recent);
-	_views = total;
-}
-
-const std::vector<not_null<PeerData*>> &Story::recentViewers() const {
-	return _recentViewers;
-}
-
-const std::vector<StoryView> &Story::viewsList() const {
-	return _viewsList;
-}
-
-int Story::views() const {
-	return _views;
-}
-
-void Story::applyViewsSlice(
-		const std::optional<StoryView> &offset,
-		const std::vector<StoryView> &slice,
-		int total) {
-	_views = total;
-	if (!offset) {
-		const auto i = _viewsList.empty()
-			? end(slice)
-			: ranges::find(slice, _viewsList.front());
-		const auto merge = (i != end(slice))
-			&& !ranges::contains(slice, _viewsList.back());
-		if (merge) {
-			_viewsList.insert(begin(_viewsList), begin(slice), i);
-		} else {
-			_viewsList = slice;
-		}
-	} else if (!slice.empty()) {
-		const auto i = ranges::find(_viewsList, *offset);
-		const auto merge = (i != end(_viewsList))
-			&& !ranges::contains(_viewsList, slice.back());
-		if (merge) {
-			const auto after = i + 1;
-			if (after == end(_viewsList)) {
-				_viewsList.insert(after, begin(slice), end(slice));
-			} else {
-				const auto j = ranges::find(slice, _viewsList.back());
-				if (j != end(slice)) {
-					_viewsList.insert(end(_viewsList), j + 1, end(slice));
-				}
-			}
-		}
-	}
-}
-
-bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
-	const auto pinned = data.is_pinned();
-	const auto isPublic = data.is_public();
-	const auto closeFriends = data.is_close_friends();
-	auto caption = TextWithEntities{
-		data.vcaption().value_or_empty(),
-		Api::EntitiesFromMTP(
-			&owner().session(),
-			data.ventities().value_or_empty()),
-	};
-	auto views = -1;
-	auto recent = std::vector<not_null<PeerData*>>();
-	if (!data.is_min()) {
-		if (const auto info = data.vviews()) {
-			views = info->data().vviews_count().v;
-			if (const auto list = info->data().vrecent_viewers()) {
-				recent.reserve(list->v.size());
-				auto &owner = _peer->owner();
-				for (const auto &id : list->v) {
-					recent.push_back(owner.peer(peerFromUser(id)));
-				}
-			}
-		}
-	}
-
-	const auto changed = (_media != media)
-		|| (_pinned != pinned)
-		|| (_isPublic != isPublic)
-		|| (_closeFriends != closeFriends)
-		|| (_caption != caption)
-		|| (views >= 0 && _views != views)
-		|| (_recentViewers != recent);
-	if (!changed) {
-		return false;
-	}
-	_media = std::move(media);
-	_pinned = pinned;
-	_isPublic = isPublic;
-	_closeFriends = closeFriends;
-	_caption = std::move(caption);
-	if (views >= 0) {
-		_views = views;
-	}
-	_recentViewers = std::move(recent);
-	return true;
+	const auto i = ids.lower_bound(StoryIdDates{ readTill + 1 });
+	return (i != end(ids)) ? *i : ids.front();
 }
 
 Stories::Stories(not_null<Session*> owner)
@@ -622,6 +336,7 @@ Story *Stories::parseAndApply(
 	if (i != end(stories)) {
 		const auto result = i->second.get();
 		const auto pinned = result->pinned();
+		const auto mediaChanged = (result->media() != *media);
 		if (result->applyChanges(*media, data)) {
 			if (result->pinned() != pinned) {
 				savedStateUpdated(result);
@@ -631,6 +346,16 @@ Story *Stories::parseAndApply(
 				UpdateFlag::Edited);
 			if (const auto item = lookupItem(result)) {
 				item->applyChanges(result);
+			}
+		}
+		if (mediaChanged) {
+			const auto fullId = result->fullId();
+			_preloaded.remove(fullId);
+			if (_preloading && _preloading->id() == fullId) {
+				_preloading = nullptr;
+				rebuildPreloadSources(StorySourcesList::NotHidden);
+				rebuildPreloadSources(StorySourcesList::Hidden);
+				continuePreloading();
 			}
 		}
 		return result;
@@ -911,6 +636,9 @@ void Stories::applyDeleted(FullStoryId id) {
 					}
 				}
 			}
+			if (_preloading && _preloading->id() == id) {
+				preloadFinished();
+			}
 			if (i->second.empty()) {
 				_stories.erase(i);
 			}
@@ -996,6 +724,7 @@ void Stories::sort(StorySourcesList list) {
 	};
 	ranges::sort(sources, ranges::greater(), proj);
 	_sourcesChanged[index].fire({});
+	preloadSourcesChanged(list);
 }
 
 std::shared_ptr<HistoryItem> Stories::lookupItem(not_null<Story*> story) {
@@ -1225,6 +954,7 @@ void Stories::toggleHidden(
 		if (i != end(_sources[main])) {
 			_sources[main].erase(i);
 			_sourcesChanged[main].fire({});
+			preloadSourcesChanged(StorySourcesList::NotHidden);
 		}
 		const auto j = ranges::find(_sources[other], peerId, proj);
 		if (j == end(_sources[other])) {
@@ -1238,6 +968,7 @@ void Stories::toggleHidden(
 		if (i != end(_sources[other])) {
 			_sources[other].erase(i);
 			_sourcesChanged[other].fire({});
+			preloadSourcesChanged(StorySourcesList::Hidden);
 		}
 		const auto j = ranges::find(_sources[main], peerId, proj);
 		if (j == end(_sources[main])) {
@@ -1561,6 +1292,136 @@ bool Stories::isQuitPrevent() {
 	}
 	LOG(("Stories prevents quit, marking as read..."));
 	return true;
+}
+
+void Stories::incrementPreloadingHiddenSources() {
+	Expects(_preloadingHiddenSourcesCounter >= 0);
+
+	if (++_preloadingHiddenSourcesCounter == 1
+		&& rebuildPreloadSources(StorySourcesList::Hidden)) {
+		continuePreloading();
+	}
+}
+
+void Stories::decrementPreloadingHiddenSources() {
+	Expects(_preloadingHiddenSourcesCounter > 0);
+
+	if (!--_preloadingHiddenSourcesCounter
+		&& rebuildPreloadSources(StorySourcesList::Hidden)) {
+		continuePreloading();
+	}
+}
+
+void Stories::setPreloadingInViewer(std::vector<FullStoryId> ids) {
+	ids.erase(ranges::remove_if(ids, [&](FullStoryId id) {
+		return _preloaded.contains(id);
+	}), end(ids));
+	if (_toPreloadViewer != ids) {
+		_toPreloadViewer = std::move(ids);
+		continuePreloading();
+	}
+}
+
+void Stories::preloadSourcesChanged(StorySourcesList list) {
+	if (rebuildPreloadSources(list)) {
+		continuePreloading();
+	}
+}
+
+bool Stories::rebuildPreloadSources(StorySourcesList list) {
+	const auto index = static_cast<int>(list);
+	if (!_preloadingHiddenSourcesCounter
+		&& list == StorySourcesList::Hidden) {
+		return !base::take(_toPreloadSources[index]).empty();
+	}
+	auto now = std::vector<FullStoryId>();
+	auto processed = 0;
+	for (const auto &source : _sources[index]) {
+		const auto i = _all.find(source.id);
+		if (i != end(_all)) {
+			if (const auto id = i->second.toOpen().id) {
+				const auto fullId = FullStoryId{ source.id, id };
+				if (!_preloaded.contains(fullId)) {
+					now.push_back(fullId);
+				}
+			}
+		}
+		if (++processed >= kMaxPreloadSources) {
+			break;
+		}
+	}
+	if (now != _toPreloadSources[index]) {
+		_toPreloadSources[index] = std::move(now);
+		return true;
+	}
+	return false;
+}
+
+void Stories::continuePreloading() {
+	const auto now = _preloading ? _preloading->id() : FullStoryId();
+	if (now) {
+		if (shouldContinuePreload(now)) {
+			return;
+		}
+		_preloading = nullptr;
+	}
+	const auto id = nextPreloadId();
+	if (!id) {
+		return;
+	} else if (const auto maybeStory = lookup(id)) {
+		startPreloading(*maybeStory);
+	}
+}
+
+bool Stories::shouldContinuePreload(FullStoryId id) const {
+	const auto first = ranges::views::concat(
+		_toPreloadViewer,
+		_toPreloadSources[static_cast<int>(StorySourcesList::Hidden)],
+		_toPreloadSources[static_cast<int>(StorySourcesList::NotHidden)]
+	) | ranges::views::take(kStillPreloadFromFirst);
+	return ranges::contains(first, id);
+}
+
+FullStoryId Stories::nextPreloadId() const {
+	const auto hidden = static_cast<int>(StorySourcesList::Hidden);
+	const auto main = static_cast<int>(StorySourcesList::NotHidden);
+	const auto result = !_toPreloadViewer.empty()
+		? _toPreloadViewer.front()
+		: !_toPreloadSources[hidden].empty()
+		? _toPreloadSources[hidden].front()
+		: !_toPreloadSources[main].empty()
+		? _toPreloadSources[main].front()
+		: FullStoryId();
+
+	Ensures(!_preloaded.contains(result));
+	return result;
+}
+
+void Stories::startPreloading(not_null<Story*> story) {
+	Expects(!_preloaded.contains(story->fullId()));
+
+	const auto id = story->fullId();
+	_preloading = std::make_unique<StoryPreload>(story, [=] {
+		preloadFinished(true);
+	});
+}
+
+void Stories::preloadFinished(bool markAsPreloaded) {
+	Expects(_preloading != nullptr);
+
+	const auto id = base::take(_preloading)->id();
+	for (auto &sources : _toPreloadSources) {
+		sources.erase(ranges::remove(sources, id), end(sources));
+	}
+	_toPreloadViewer.erase(
+		ranges::remove(_toPreloadViewer, id),
+		end(_toPreloadViewer));
+	if (markAsPreloaded) {
+		_preloaded.emplace(id);
+	}
+	crl::on_main(this, [=] {
+		continuePreloading();
+	});
 }
 
 } // namespace Data

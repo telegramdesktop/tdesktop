@@ -553,6 +553,8 @@ PRIVATE
     data/data_stories.h
     data/data_stories_ids.cpp
     data/data_stories_ids.h
+    data/data_story.cpp
+    data/data_story.h
     data/data_streaming.cpp
     data/data_streaming.h
     data/data_thread.cpp

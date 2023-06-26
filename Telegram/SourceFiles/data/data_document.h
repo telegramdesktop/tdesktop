@@ -274,6 +274,8 @@ public:
 
 	void setInappPlaybackFailed();
 	[[nodiscard]] bool inappPlaybackFailed() const;
+	[[nodiscard]] int videoPreloadPrefix() const;
+	[[nodiscard]] StorageFileLocation videoPreloadLocation() const;
 
 	DocumentId id = 0;
 	int64 size = 0;
@@ -344,6 +346,7 @@ private:
 
 	const not_null<Data::Session*> _owner;
 
+	int _videoPreloadPrefix = 0;
 	// Two types of location: from MTProto by dc+access or from web by url
 	int32 _dc = 0;
 	uint64 _access = 0;

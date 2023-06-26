@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
 #include "data/data_stories.h"
+#include "data/data_story.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "core/application.h"

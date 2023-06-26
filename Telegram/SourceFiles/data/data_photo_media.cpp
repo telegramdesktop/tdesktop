@@ -166,14 +166,22 @@ bool PhotoMedia::autoLoadThumbnailAllowed(not_null<PeerData*> peer) const {
 }
 
 void PhotoMedia::automaticLoad(
-		Data::FileOrigin origin,
+		FileOrigin origin,
 		const HistoryItem *item) {
-	if (!item || loaded() || _owner->cancelled()) {
+	if (item) {
+		automaticLoad(origin, item->history()->peer);
+	}
+}
+
+void PhotoMedia::automaticLoad(
+		FileOrigin origin,
+		not_null<PeerData*> peer) {
+	if (loaded() || _owner->cancelled()) {
 		return;
 	}
 	const auto loadFromCloud = Data::AutoDownload::Should(
 		_owner->session().settings().autoDownload(),
-		item->history()->peer,
+		peer,
 		_owner);
 	_owner->load(
 		origin,
