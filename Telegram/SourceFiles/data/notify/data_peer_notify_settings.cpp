@@ -19,7 +19,9 @@ namespace {
 		MTPBool(),
 		MTPint(),
 		MTPNotificationSound(),
-		MTPBool());
+		MTPBool(),
+		MTPBool(),
+		MTPNotificationSound());
 }
 
 [[nodiscard]] NotifySound ParseSound(const MTPNotificationSound &sound) {
@@ -194,7 +196,9 @@ MTPinputPeerNotifySettings NotifyPeerSettingsValue::serialize() const {
 		MTP_bool(_silent.value_or(false)),
 		MTP_int(_mute.value_or(false)),
 		SerializeSound(_sound),
-		MTP_bool(_storiesMuted.value_or(false)));
+		MTP_bool(_storiesMuted.value_or(false)),
+		MTP_bool(false), // stories_hide_sender
+		SerializeSound(std::nullopt)); // stories_sound
 }
 
 PeerNotifySettings::PeerNotifySettings() = default;
@@ -245,7 +249,11 @@ bool PeerNotifySettings::change(
 		MTPNotificationSound(),
 		MTPNotificationSound(),
 		SerializeSound(sound),
-		storiesMuted ? MTP_bool(*storiesMuted) : MTPBool()));
+		storiesMuted ? MTP_bool(*storiesMuted) : MTPBool(),
+		MTPBool(), // stories_hide_sender
+		MTPNotificationSound(),
+		MTPNotificationSound(),
+		SerializeSound(std::nullopt))); // stories_sound
 }
 
 std::optional<TimeId> PeerNotifySettings::muteUntil() const {

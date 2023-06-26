@@ -195,7 +195,11 @@ void NotifySettings::resetToDefault(not_null<Data::Thread*> thread) {
 		MTPNotificationSound(),
 		MTPNotificationSound(),
 		MTPNotificationSound(),
-		MTPBool());
+		MTPBool(),
+		MTPBool(),
+		MTPNotificationSound(),
+		MTPNotificationSound(),
+		MTPNotificationSound());
 	if (thread->notify().change(empty)) {
 		updateLocal(thread);
 		thread->session().api().updateNotifySettingsDelayed(thread);
@@ -227,7 +231,11 @@ void NotifySettings::resetToDefault(not_null<PeerData*> peer) {
 		MTPNotificationSound(),
 		MTPNotificationSound(),
 		MTPNotificationSound(),
-		MTPBool());
+		MTPBool(),
+		MTPBool(),
+		MTPNotificationSound(),
+		MTPNotificationSound(),
+		MTPNotificationSound());
 	if (peer->notify().change(empty)) {
 		updateLocal(peer);
 		peer->session().api().updateNotifySettingsDelayed(peer);
