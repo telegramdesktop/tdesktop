@@ -137,6 +137,7 @@ private:
 	void filterCursorMoved();
 	void completeHashtag(QString tag);
 	bool customWheelProcess(not_null<QWheelEvent*> e);
+	bool customTouchProcess(not_null<QTouchEvent*> e);
 
 	[[nodiscard]] QString currentSearchQuery() const;
 	void clearSearchField();

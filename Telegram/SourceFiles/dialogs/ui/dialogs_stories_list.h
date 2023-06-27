@@ -69,6 +69,7 @@ public:
 		Fn<int()> shownHeight);
 
 	void setBgOverride(QBrush brush);
+	void setTouchScrollActive(bool active);
 
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] rpl::producer<uint64> showProfileRequests() const;
@@ -189,6 +190,7 @@ private:
 	float64 _lastRatio = 0.;
 	int _lastHeight = 0;
 	bool _expanded = false;
+	bool _touchScrollActive = false;
 
 	int _selected = -1;
 	int _pressed = -1;

@@ -327,6 +327,9 @@ Widget::Widget(
 	_scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		return customWheelProcess(e);
 	});
+	_scroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
+		return customTouchProcess(e);
+	});
 
 	session().data().chatsListChanges(
 	) | rpl::filter([=](Data::Folder *folder) {
@@ -856,6 +859,7 @@ void Widget::changeOpenedSubsection(
 		}
 		oldContentCache = grabForFolderSlideAnimation();
 	}
+	_scroll->verticalScrollBar()->setMinimum(0);
 	_showAnimation = nullptr;
 	destroyChildListCanvas();
 	change();
@@ -2390,6 +2394,27 @@ bool Widget::customWheelProcess(not_null<QWheelEvent*> e) {
 	} else {
 		bar->setMinimum(def);
 		_allowStoriesExpandTimer.callOnce(kWaitTillAllowStoriesExpand);
+	}
+	return false;
+}
+
+bool Widget::customTouchProcess(not_null<QTouchEvent*> e) {
+	const auto type = e->type();
+	const auto now = _scroll->scrollTop();
+	const auto def = _inner->defaultScrollTop();
+	const auto bar = _scroll->verticalScrollBar();
+	_allowStoriesExpandTimer.cancel();
+	if (type == QEvent::TouchBegin
+		|| type == QEvent::TouchUpdate) {
+		_inner->setTouchScrollActive(true);
+		bar->setMinimum(0);
+	} else if (type == QEvent::TouchEnd || type == QEvent::TouchCancel) {
+		_inner->setTouchScrollActive(false);
+		if (def > 0 && now >= def) {
+			bar->setMinimum(def);
+		} else {
+			bar->setMinimum(0);
+		}
 	}
 	return false;
 }

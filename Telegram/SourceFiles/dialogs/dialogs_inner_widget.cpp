@@ -479,6 +479,10 @@ rpl::producer<bool> InnerWidget::storiesExpandedRequests() const {
 		_storiesExpandedRequests.events());
 }
 
+void InnerWidget::setTouchScrollActive(bool active) {
+	_stories->setTouchScrollActive(active);
+}
+
 int InnerWidget::defaultScrollTop() const {
 	return storiesShown()
 		? std::max(_stories->height() - st::dialogsStories.height, 0)

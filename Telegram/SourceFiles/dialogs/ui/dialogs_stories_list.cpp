@@ -306,7 +306,7 @@ List::Layout List::computeLayout() {
 		_lastHeight = shownHeight;
 		if (_lastHeight == st.height || _lastHeight == full.height) {
 			_snapExpandedTimer.cancel();
-		} else {
+		} else if (!_touchScrollActive) {
 			_snapExpandedTimer.callOnce(kSnapExpandedTimeout);
 		}
 	}
@@ -829,6 +829,17 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 
 void List::setBgOverride(QBrush brush) {
 	_bgOverride = std::move(brush);
+}
+
+void List::setTouchScrollActive(bool active) {
+	if (_touchScrollActive != active) {
+		_touchScrollActive = active;
+		if (active) {
+			_snapExpandedTimer.cancel();
+		} else {
+			requestExpanded(_expanded);
+		}
+	}
 }
 
 void List::contextMenuEvent(QContextMenuEvent *e) {

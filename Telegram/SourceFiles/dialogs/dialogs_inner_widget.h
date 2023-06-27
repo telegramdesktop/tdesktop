@@ -104,6 +104,7 @@ public:
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
 
+	void setTouchScrollActive(bool active);
 	[[nodiscard]] rpl::producer<bool> storiesExpandedRequests() const;
 	[[nodiscard]] int defaultScrollTop() const;
 	void setViewportHeight(int viewportHeight);
