@@ -1137,7 +1137,16 @@ void Widget::scrollToDefault(bool verytop) {
 	startScrollUpButtonAnimation(false);
 
 	const auto scroll = [=] {
-		_scroll->scrollToY(qRound(_scrollToAnimation.value(scrollTo)));
+		const auto animated = qRound(_scrollToAnimation.value(scrollTo));
+		const auto animatedDelta = animated - scrollTo;
+		const auto realDelta = _scroll->scrollTop() - scrollTo;
+		if (realDelta * animatedDelta < 0) {
+			// We scrolled manually to the other side of target 'scrollTo'.
+			_scrollToAnimation.stop();
+		} else if (std::abs(realDelta) > std::abs(animatedDelta)) {
+			// We scroll by animation only if it gets us closer to target.
+			_scroll->scrollToY(animated);
+		}
 	};
 
 	_scrollToAnimation.start(
@@ -2019,7 +2028,6 @@ void Widget::dropEvent(QDropEvent *e) {
 
 void Widget::listScrollUpdated() {
 	const auto scrollTop = _scroll->scrollTop();
-	PROFILE_LOG(("SCROLLED: %1").arg(scrollTop));
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	updateScrollUpVisibility();
 

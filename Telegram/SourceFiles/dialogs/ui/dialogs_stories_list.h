@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/qt/qt_compare.h"
+#include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
 
@@ -148,7 +149,9 @@ private:
 	void checkDragging();
 	bool finishDragging();
 	void checkLoadMore();
+	void requestExpanded(bool expanded);
 
+	void updateExpanding(int minHeight, int shownHeight, int fullHeight);
 	void updateHeight();
 	void toggleAnimated(bool shown);
 	void paintSummary(
@@ -157,7 +160,7 @@ private:
 		float64 summaryTop,
 		float64 hidden);
 
-	[[nodiscard]] Layout computeLayout() const;
+	[[nodiscard]] Layout computeLayout();
 
 	const style::DialogsStoriesList &_st;
 	Content _content;
@@ -180,6 +183,12 @@ private:
 	int _scrollLeft = 0;
 	int _scrollLeftMax = 0;
 	bool _dragging = false;
+
+	Ui::Animations::Simple _expandedAnimation;
+	base::Timer _snapExpandedTimer;
+	float64 _lastRatio = 0.;
+	int _lastHeight = 0;
+	bool _expanded = false;
 
 	int _selected = -1;
 	int _pressed = -1;

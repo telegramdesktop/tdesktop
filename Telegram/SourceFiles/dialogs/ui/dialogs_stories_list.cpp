@@ -18,8 +18,12 @@ namespace Dialogs::Stories {
 namespace {
 
 constexpr auto kSmallThumbsShown = 3;
-constexpr auto kSummaryExpandLeft = 1.5;
+constexpr auto kSummaryExpandLeft = 1;
 constexpr auto kPreloadPages = 2;
+constexpr auto kExpandAfterRatio = 0.85;
+constexpr auto kCollapseAfterRatio = 0.72;
+constexpr auto kFrictionRatio = 0.15;
+constexpr auto kSnapExpandedTimeout = crl::time(200);
 
 [[nodiscard]] int AvailableNameWidth(const style::DialogsStoriesList &st) {
 	const auto &full = st.full;
@@ -33,6 +37,7 @@ constexpr auto kPreloadPages = 2;
 struct List::Layout {
 	int itemsCount = 0;
 	int shownHeight = 0;
+	float64 expandedRatio = 0.;
 	float64 ratio = 0.;
 	float64 thumbnailLeft = 0.;
 	float64 photoLeft = 0.;
@@ -56,7 +61,8 @@ List::List(
 	Fn<int()> shownHeight)
 : RpWidget(parent)
 , _st(st)
-, _shownHeight(shownHeight) {
+, _shownHeight(shownHeight)
+, _snapExpandedTimer([=] { requestExpanded(_expanded); }) {
 	setCursor(style::cur_default);
 
 	std::move(content) | rpl::start_with_next([=](Content &&content) {
@@ -251,6 +257,20 @@ rpl::producer<> List::loadMoreRequests() const {
 	return _loadMoreRequests.events();
 }
 
+void List::requestExpanded(bool expanded) {
+	_snapExpandedTimer.cancel();
+	if (_expanded != expanded) {
+		_expanded = expanded;
+		_expandedAnimation.start(
+			[=] { update(); },
+			_expanded ? 0. : 1.,
+			_expanded ? 1. : 0.,
+			st::slideWrapDuration,
+			anim::sineInOut);
+	}
+	_toggleExpandedRequests.fire_copy(_expanded);
+}
+
 void List::enterEventHook(QEnterEvent *e) {
 	_entered.fire({});
 }
@@ -259,12 +279,46 @@ void List::resizeEvent(QResizeEvent *e) {
 	updateScrollMax();
 }
 
-List::Layout List::computeLayout() const {
+void List::updateExpanding(int minHeight, int shownHeight, int fullHeight) {
+	Expects(shownHeight == minHeight || fullHeight > minHeight);
+
+	const auto ratio = (shownHeight == minHeight)
+		? 0.
+		: (float64(shownHeight - minHeight) / (fullHeight - minHeight));
+	if (_lastRatio == ratio) {
+		return;
+	}
+	const auto expanding = (ratio > _lastRatio);
+	_lastRatio = ratio;
+	const auto change = _expanded
+		? (!expanding && ratio < kCollapseAfterRatio)
+		: (expanding && ratio > kExpandAfterRatio);
+	if (change) {
+		requestExpanded(!_expanded);
+	}
+}
+
+List::Layout List::computeLayout() {
 	const auto &st = _st.small;
 	const auto &full = _st.full;
 	const auto shownHeight = std::max(_shownHeight(), st.height);
-	const auto ratio = float64(shownHeight - st.height)
+	if (_lastHeight != shownHeight) {
+		_lastHeight = shownHeight;
+		if (_lastHeight == st.height || _lastHeight == full.height) {
+			_snapExpandedTimer.cancel();
+		} else {
+			_snapExpandedTimer.callOnce(kSnapExpandedTimeout);
+		}
+	}
+	updateExpanding(st.height, shownHeight, full.height);
+
+	const auto expanded = _expandedAnimation.value(_expanded ? 1. : 0.);
+	const auto expandedRatio = float64(shownHeight - st.height)
 		/ (full.height - st.height);
+	const auto collapsedRatio = expandedRatio * kFrictionRatio;
+	const auto ratio = expandedRatio * expanded
+		+ collapsedRatio * (1. - expanded);
+
 	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * ratio;
 	};
@@ -304,6 +358,7 @@ List::Layout List::computeLayout() const {
 	return Layout{
 		.itemsCount = itemsCount,
 		.shownHeight = shownHeight,
+		.expandedRatio = expandedRatio,
 		.ratio = ratio,
 		.thumbnailLeft = thumbnailLeft,
 		.photoLeft = photoLeft,
@@ -326,14 +381,24 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto &full = _st.full;
 	const auto layout = computeLayout();
 	const auto ratio = layout.ratio;
+	const auto expandRatio = (ratio >= kCollapseAfterRatio)
+		? 1.
+		: (ratio <= kExpandAfterRatio * kFrictionRatio)
+		? 0.
+		: ((ratio - kExpandAfterRatio * kFrictionRatio)
+			/ (kCollapseAfterRatio - kExpandAfterRatio * kFrictionRatio));
 	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * ratio;
 	};
+	const auto elerp = [&](float64 a, float64 b) {
+		return a + (b - a) * expandRatio;
+	};
 	auto &rendering = _data.empty() ? _hidingData : _data;
-	const auto line = lerp(st.lineTwice, full.lineTwice) / 2.;
-	const auto lineRead = lerp(st.lineReadTwice, full.lineReadTwice) / 2.;
+	const auto line = elerp(st.lineTwice, full.lineTwice) / 2.;
+	const auto lineRead = elerp(st.lineReadTwice, full.lineReadTwice) / 2.;
 	const auto photoTopSmall = (st.height - st.photo) / 2.;
-	const auto photoTop = lerp(photoTopSmall, full.photoTop);
+	const auto photoTop = photoTopSmall
+		+ (full.photoTop - photoTopSmall) * layout.expandedRatio;
 	const auto photo = lerp(st.photo, full.photo);
 	const auto summaryTop = st.nameTop
 		- (st.photoTop + (st.photo / 2.))
@@ -343,15 +408,15 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto nameWidth = nameScale * AvailableNameWidth(_st);
 	const auto nameHeight = nameScale * full.nameStyle.font->height;
 	const auto nameLeft = layout.photoLeft + (photo - nameWidth) / 2.;
-	const auto readUserpicOpacity = lerp(_st.readOpacity, 1.);
-	const auto readUserpicAppearingOpacity = lerp(_st.readOpacity, 0.);
+	const auto readUserpicOpacity = elerp(_st.readOpacity, 1.);
+	const auto readUserpicAppearingOpacity = elerp(_st.readOpacity, 0.);
 
 	auto p = QPainter(this);
 	p.fillRect(e->rect(), _bgOverride.value_or(_st.bg));
 	p.translate(0, height() - layout.shownHeight);
 
-	const auto drawSmall = (ratio < 1.);
-	const auto drawFull = (ratio > 0.);
+	const auto drawSmall = (expandRatio < 1.);
+	const auto drawFull = (expandRatio > 0.);
 	auto hq = PainterHighQualityEnabler(p);
 
 	const auto count = std::max(
@@ -364,6 +429,7 @@ void List::paintEvent(QPaintEvent *e) {
 		Item *itemSmall = nullptr;
 		int indexFull = 0;
 		Item *itemFull = nullptr;
+		float64 photoTop = 0.;
 
 		explicit operator bool() const {
 			return itemSmall || itemFull;
@@ -372,6 +438,11 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto lookup = [&](int index) {
 		const auto indexSmall = layout.startIndexSmall + index;
 		const auto indexFull = layout.startIndexFull + index;
+		const auto ySmall = photoTopSmall
+			+ ((indexSmall - layout.smallSkip + 1)
+				* (photoTop - photoTopSmall) / 3.);
+		const auto y = elerp(ySmall, photoTop);
+
 		const auto small = (drawSmall
 			&& indexSmall < layout.endIndexSmall
 			&& indexSmall >= layout.smallSkip)
@@ -381,7 +452,7 @@ void List::paintEvent(QPaintEvent *e) {
 			? &rendering.items[indexFull]
 			: nullptr;
 		const auto x = layout.left + layout.single * index;
-		return Single{ x, indexSmall, small, indexFull, full };
+		return Single{ x, indexSmall, small, indexFull, full, y };
 	};
 	const auto hasUnread = [&](const Single &single) {
 		return (single.itemSmall && single.itemSmall->element.unread)
@@ -427,18 +498,23 @@ void List::paintEvent(QPaintEvent *e) {
 	enumerate([&](Single single) {
 		// Name.
 		if (const auto full = single.itemFull) {
-			p.setOpacity(ratio);
 			validateName(full);
-			p.drawImage(
-				QRectF(single.x + nameLeft, nameTop, nameWidth, nameHeight),
-				full->nameCache);
+			if (expandRatio > 0.) {
+				p.setOpacity(expandRatio);
+				p.drawImage(QRectF(
+					single.x + nameLeft,
+					nameTop,
+					nameWidth,
+					nameHeight
+				), full->nameCache);
+			}
 		}
 
 		// Unread gradient.
 		const auto x = single.x;
 		const auto userpic = QRectF(
 			x + layout.photoLeft,
-			photoTop,
+			single.photoTop,
 			photo,
 			photo);
 		const auto small = single.itemSmall;
@@ -448,9 +524,9 @@ void List::paintEvent(QPaintEvent *e) {
 		const auto unreadOpacity = (smallUnread && fullUnread)
 			? 1.
 			: smallUnread
-			? (1. - ratio)
+			? (1. - expandRatio)
 			: fullUnread
-			? ratio
+			? expandRatio
 			: 0.;
 		if (unreadOpacity > 0.) {
 			p.setOpacity(unreadOpacity);
@@ -475,7 +551,7 @@ void List::paintEvent(QPaintEvent *e) {
 		const auto x = single.x;
 		const auto userpic = QRectF(
 			x + layout.photoLeft,
-			photoTop,
+			single.photoTop,
 			photo,
 			photo);
 		const auto small = single.itemSmall;
@@ -487,7 +563,7 @@ void List::paintEvent(QPaintEvent *e) {
 		const auto hasReadLine = (itemFull && !fullUnread);
 		if (hasReadLine) {
 			auto color = st::dialogsUnreadBgMuted->c;
-			color.setAlphaF(color.alphaF() * ratio);
+			color.setAlphaF(color.alphaF() * expandRatio);
 			auto pen = QPen(color);
 			pen.setWidthF(lineRead);
 			p.setPen(pen);
@@ -508,16 +584,18 @@ void List::paintEvent(QPaintEvent *e) {
 		} else {
 			if (small) {
 				p.setOpacity(smallUnread
-					? (itemFull ? 1. : (1. - ratio))
+					? (itemFull ? 1. : (1. - expandRatio))
 					: (itemFull
 						? _st.readOpacity
 						: readUserpicAppearingOpacity));
 				validateThumbnail(small);
-				const auto size = (ratio > 0.) ? full.photo : st.photo;
+				const auto size = (expandRatio > 0.)
+					? full.photo
+					: st.photo;
 				p.drawImage(userpic, small->element.thumbnail->image(size));
 			}
 			if (itemFull) {
-				p.setOpacity(ratio);
+				p.setOpacity(expandRatio);
 				validateThumbnail(itemFull);
 				const auto size = full.photo;
 				p.drawImage(
@@ -670,7 +748,7 @@ void List::wheelEvent(QWheelEvent *e) {
 	const auto used = now - delta;
 	const auto next = std::clamp(used, 0, _scrollLeftMax);
 	if (next != now) {
-		_toggleExpandedRequests.fire(true);
+		requestExpanded(true);
 		_scrollLeft = next;
 		updateSelected();
 		checkLoadMore();
@@ -698,7 +776,7 @@ void List::mouseMoveEvent(QMouseEvent *e) {
 		if ((_lastMousePosition - *_mouseDownPosition).manhattanLength()
 			>= QApplication::startDragDistance()) {
 			if (_shownHeight() < _st.full.height) {
-				_toggleExpandedRequests.fire(true);
+				requestExpanded(true);
 			}
 			_dragging = true;
 			_startDraggingLeft = _scrollLeft;
@@ -742,7 +820,7 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 	if (_selected == pressed) {
 		if (_selected < 0) {
-			_toggleExpandedRequests.fire(true);
+			requestExpanded(true);
 		} else if (_selected < _data.items.size()) {
 			_clicks.fire_copy(_data.items[_selected].element.id);
 		}
