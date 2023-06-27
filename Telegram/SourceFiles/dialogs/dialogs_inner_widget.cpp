@@ -3342,7 +3342,8 @@ void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
 void InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
 	const auto it = _chatsFilterScrollStates.find(filterId);
 	if (it != end(_chatsFilterScrollStates)) {
-		_mustScrollTo.fire({ it->second, -1 });
+		const auto top = std::max(it->second, defaultScrollTop());
+		_mustScrollTo.fire({ top, -1 });
 	}
 }
 
