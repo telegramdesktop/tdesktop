@@ -261,9 +261,11 @@ Widget::Widget(
 		}
 	}, lifetime());
 
-	_inner->scrollToVeryTopRequests(
-	) | rpl::start_with_next([=] {
-		scrollToDefaultChecked(true);
+	_inner->storiesExpandedRequests(
+	) | rpl::start_with_next([=](bool expanded) {
+		if (expanded || _scroll->scrollTop() < _inner->defaultScrollTop()) {
+			scrollToDefaultChecked(expanded);
+		}
 	}, lifetime());
 
 	_inner->mustScrollTo(
@@ -1123,7 +1125,7 @@ void Widget::scrollToDefault(bool verytop) {
 	_scrollToAnimation.stop();
 	auto scrollTop = _scroll->scrollTop();
 	const auto scrollTo = verytop ? 0 : _inner->defaultScrollTop();
-	if (scrollTop <= scrollTo) {
+	if (scrollTop == scrollTo) {
 		return;
 	}
 	const auto maxAnimatedDelta = _scroll->height();
@@ -2017,6 +2019,7 @@ void Widget::dropEvent(QDropEvent *e) {
 
 void Widget::listScrollUpdated() {
 	const auto scrollTop = _scroll->scrollTop();
+	PROFILE_LOG(("SCROLLED: %1").arg(scrollTop));
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	updateScrollUpVisibility();
 

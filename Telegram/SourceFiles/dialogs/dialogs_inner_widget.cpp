@@ -473,8 +473,10 @@ int InnerWidget::dialogsOffset() const {
 		- skipTopHeight();
 }
 
-rpl::producer<> InnerWidget::scrollToVeryTopRequests() const {
-	return _stories->expandRequests();
+rpl::producer<bool> InnerWidget::storiesExpandedRequests() const {
+	return rpl::merge(
+		_stories->toggleExpandedRequests(),
+		_storiesExpandedRequests.events());
 }
 
 int InnerWidget::defaultScrollTop() const {
@@ -623,11 +625,6 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	if (_controller->contentOverlapped(this, e)) {
 		return;
 	}
-	const auto fillGuard = gsl::finally([&] {
-		// We translate painter down, but it'll be cropped below rect.
-		p.fillRect(rect(), st::dialogsBg);
-	});
-
 	const auto activeEntry = _controller->activeChatEntryCurrent();
 	const auto videoPaused = _controller->isGifPausedAtLeastFor(
 		Window::GifPauseReason::Any);
@@ -648,6 +645,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		.paused = videoPaused,
 		.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
 	};
+	_stories->setBgOverride(context.currentBg);
+	const auto fillGuard = gsl::finally([&] {
+		// We translate painter down, but it'll be cropped below rect.
+		p.fillRect(rect(), context.currentBg);
+	});
 	const auto paintRow = [&](
 			not_null<Row*> row,
 			bool selected,
@@ -3408,6 +3410,7 @@ ChosenRow InnerWidget::computeChosenRow() const {
 bool InnerWidget::chooseRow(
 		Qt::KeyboardModifiers modifiers,
 		MsgId pressedTopicRootId) {
+	_storiesExpandedRequests.fire(false);
 	if (chooseCollapsedRow()) {
 		return true;
 	} else if (chooseHashtag()) {

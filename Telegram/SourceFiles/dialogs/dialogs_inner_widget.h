@@ -104,7 +104,7 @@ public:
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
 
-	[[nodiscard]] rpl::producer<> scrollToVeryTopRequests() const;
+	[[nodiscard]] rpl::producer<bool> storiesExpandedRequests() const;
 	[[nodiscard]] int defaultScrollTop() const;
 	void setViewportHeight(int viewportHeight);
 
@@ -408,6 +408,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 
 	const std::unique_ptr<Stories::List> _stories;
+	rpl::event_stream<bool> _storiesExpandedRequests;
 	int _viewportHeight = 0;
 
 	not_null<IndexedList*> _shownList;

@@ -67,10 +67,12 @@ public:
 		rpl::producer<Content> content,
 		Fn<int()> shownHeight);
 
+	void setBgOverride(QBrush brush);
+
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] rpl::producer<uint64> showProfileRequests() const;
 	[[nodiscard]] rpl::producer<ToggleShownRequest> toggleShown() const;
-	[[nodiscard]] rpl::producer<> expandRequests() const;
+	[[nodiscard]] rpl::producer<bool> toggleExpandedRequests() const;
 	[[nodiscard]] rpl::producer<> entered() const;
 	[[nodiscard]] rpl::producer<> loadMoreRequests() const;
 
@@ -165,10 +167,11 @@ private:
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<uint64> _showProfileRequests;
 	rpl::event_stream<ToggleShownRequest> _toggleShown;
-	rpl::event_stream<> _expandRequests;
+	rpl::event_stream<bool> _toggleExpandedRequests;
 	rpl::event_stream<> _entered;
 	rpl::event_stream<> _loadMoreRequests;
 
+	std::optional<QBrush> _bgOverride;
 	Ui::Animations::Simple _shownAnimation;
 
 	QPoint _lastMousePosition;

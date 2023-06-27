@@ -239,8 +239,8 @@ rpl::producer<ToggleShownRequest> List::toggleShown() const {
 	return _toggleShown.events();
 }
 
-rpl::producer<> List::expandRequests() const {
-	return _expandRequests.events();
+rpl::producer<bool> List::toggleExpandedRequests() const {
+	return _toggleExpandedRequests.events();
 }
 
 rpl::producer<> List::entered() const {
@@ -347,7 +347,7 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto readUserpicAppearingOpacity = lerp(_st.readOpacity, 0.);
 
 	auto p = QPainter(this);
-	p.fillRect(e->rect(), _st.bg);
+	p.fillRect(e->rect(), _bgOverride.value_or(_st.bg));
 	p.translate(0, height() - layout.shownHeight);
 
 	const auto drawSmall = (ratio < 1.);
@@ -670,7 +670,7 @@ void List::wheelEvent(QWheelEvent *e) {
 	const auto used = now - delta;
 	const auto next = std::clamp(used, 0, _scrollLeftMax);
 	if (next != now) {
-		_expandRequests.fire({});
+		_toggleExpandedRequests.fire(true);
 		_scrollLeft = next;
 		updateSelected();
 		checkLoadMore();
@@ -698,7 +698,7 @@ void List::mouseMoveEvent(QMouseEvent *e) {
 		if ((_lastMousePosition - *_mouseDownPosition).manhattanLength()
 			>= QApplication::startDragDistance()) {
 			if (_shownHeight() < _st.full.height) {
-				_expandRequests.fire({});
+				_toggleExpandedRequests.fire(true);
 			}
 			_dragging = true;
 			_startDraggingLeft = _scrollLeft;
@@ -742,11 +742,15 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 	if (_selected == pressed) {
 		if (_selected < 0) {
-			_expandRequests.fire({});
+			_toggleExpandedRequests.fire(true);
 		} else if (_selected < _data.items.size()) {
 			_clicks.fire_copy(_data.items[_selected].element.id);
 		}
 	}
+}
+
+void List::setBgOverride(QBrush brush) {
+	_bgOverride = std::move(brush);
 }
 
 void List::contextMenuEvent(QContextMenuEvent *e) {
