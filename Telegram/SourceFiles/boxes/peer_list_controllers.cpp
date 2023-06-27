@@ -63,6 +63,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 			Stories::List *stories = nullptr;
 			QPointer<::Ui::IconButton> toggleSort;
 			Mode mode = ContactsBoxController::SortMode::Online;
+			::Ui::Animations::Simple scrollAnimation;
 		};
 
 		const auto stories = &sessionController->session().data().stories();
@@ -117,6 +118,66 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		raw->loadMoreRequests(
 		) | rpl::start_with_next([=] {
 			stories->loadMore(Data::StorySourcesList::Hidden);
+		}, raw->lifetime());
+
+		const auto defaultScrollTop = [=] {
+			return std::max(raw->height() - st::dialogsStories.height, 0);
+		};
+		const auto scrollToDefault = [=](bool verytop) {
+			if (state->scrollAnimation.animating()) {
+				return;
+			}
+			if (verytop) {
+				//_scroll->verticalScrollBar()->setMinimum(0);
+			}
+			state->scrollAnimation.stop();
+			auto scrollTop = box->scrollTop();
+			const auto scrollTo = verytop ? 0 : defaultScrollTop();
+			if (scrollTop == scrollTo) {
+				return;
+			}
+			const auto maxAnimatedDelta = box->height();
+			if (scrollTo + maxAnimatedDelta < scrollTop) {
+				scrollTop = scrollTo + maxAnimatedDelta;
+				box->scrollToY(scrollTop);
+			}
+
+			const auto scroll = [=] {
+				const auto animated = qRound(
+					state->scrollAnimation.value(scrollTo));
+				const auto animatedDelta = animated - scrollTo;
+				const auto realDelta = box->scrollTop() - scrollTo;
+				if (realDelta * animatedDelta < 0) {
+					// We scrolled manually to the other side of target 'scrollTo'.
+					state->scrollAnimation.stop();
+				} else if (std::abs(realDelta) > std::abs(animatedDelta)) {
+					// We scroll by animation only if it gets us closer to target.
+					box->scrollToY(animated);
+				}
+			};
+
+			state->scrollAnimation.start(
+				scroll,
+				scrollTop,
+				scrollTo,
+				st::slideDuration,
+				anim::sineInOut);
+		};
+		const auto top = box->scrollTop();
+		raw->toggleExpandedRequests(
+		) | rpl::start_with_next([=](bool expanded) {
+			if (expanded || box->scrollTop() < defaultScrollTop()) {
+				scrollToDefault(expanded);
+			}
+		}, raw->lifetime());
+
+		raw->heightValue(
+		) | rpl::filter([=] {
+			return (box->scrollHeight() > 0)
+				&& (defaultScrollTop() > box->scrollTop());
+		}) | rpl::start_with_next([=] {
+			//refreshForDefaultScroll();
+			box->scrollToY(defaultScrollTop());
 		}, raw->lifetime());
 
 		stories->incrementPreloadingHiddenSources();

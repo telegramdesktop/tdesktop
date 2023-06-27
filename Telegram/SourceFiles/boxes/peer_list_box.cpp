@@ -1254,6 +1254,9 @@ void PeerListContent::initDecorateWidget(Ui::RpWidget *widget) {
 		}) | rpl::start_with_next([=] {
 			mouseLeftGeometry();
 		}, widget->lifetime());
+		widget->heightValue() | rpl::skip(1) | rpl::start_with_next([=] {
+			resizeToWidth(width());
+		}, widget->lifetime());
 	}
 }
 
