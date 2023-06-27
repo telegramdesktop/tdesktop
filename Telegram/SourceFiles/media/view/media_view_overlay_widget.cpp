@@ -5576,7 +5576,9 @@ void OverlayWidget::handleMouseRelease(
 				|| documentContentShown()
 				|| !documentBubbleShown()
 				|| !_docRect.contains(position)) {
-				close();
+				if (!_stories || _stories->closeByClickAt(position)) {
+					close();
+				}
 			}
 		}
 		_pressed = false;

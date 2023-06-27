@@ -60,6 +60,7 @@ public:
 	[[nodiscard]] QRect finalShownGeometry() const;
 	[[nodiscard]] rpl::producer<QRect> finalShownGeometryValue() const;
 	[[nodiscard]] ContentLayout contentLayout() const;
+	[[nodiscard]] bool closeByClickAt(QPoint position) const;
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
