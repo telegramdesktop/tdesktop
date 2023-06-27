@@ -73,11 +73,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QMimeData>
+#include <QtWidgets/QScrollBar>
 
 namespace Dialogs {
 namespace {
 
 constexpr auto kSearchPerPage = 50;
+constexpr auto kWaitTillAllowStoriesExpand = crl::time(200);
 
 } // namespace
 
@@ -208,6 +210,9 @@ Widget::Widget(
 , _cancelSearch(_searchControls, st::dialogsCancelSearch)
 , _lockUnlock(_searchControls, st::dialogsLock)
 , _scroll(this)
+, _allowStoriesExpandTimer([=] {
+	_scroll->verticalScrollBar()->setMinimum(0);
+})
 , _scrollToTop(_scroll, st::dialogsToUp)
 , _searchTimer([=] { searchMessages(); })
 , _singleMessageSearch(&controller->session()) {
@@ -319,6 +324,9 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		listScrollUpdated();
 	}, lifetime());
+	_scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
+		return customWheelProcess(e);
+	});
 
 	session().data().chatsListChanges(
 	) | rpl::filter([=](Data::Folder *folder) {
@@ -1122,6 +1130,9 @@ void Widget::jumpToTop(bool belowPinned) {
 }
 
 void Widget::scrollToDefault(bool verytop) {
+	if (verytop) {
+		_scroll->verticalScrollBar()->setMinimum(0);
+	}
 	_scrollToAnimation.stop();
 	auto scrollTop = _scroll->scrollTop();
 	const auto scrollTo = verytop ? 0 : _inner->defaultScrollTop();
@@ -2363,6 +2374,23 @@ void Widget::completeHashtag(QString tag) {
 	_filter->setText(t.mid(0, cur) + '#' + tag + ' ' + t.mid(cur));
 	_filter->setCursorPosition(cur + 1 + tag.size() + 1);
 	applyFilterUpdate(true);
+}
+
+bool Widget::customWheelProcess(not_null<QWheelEvent*> e) {
+	const auto now = _scroll->scrollTop();
+	const auto def = _inner->defaultScrollTop();
+	const auto bar = _scroll->verticalScrollBar();
+	const auto allow = (def <= 0)
+		|| (now < def)
+		|| (now == def && !_allowStoriesExpandTimer.isActive());
+	if (allow) {
+		_scroll->verticalScrollBar()->setMinimum(0);
+		_allowStoriesExpandTimer.cancel();
+	} else {
+		bar->setMinimum(def);
+		_allowStoriesExpandTimer.callOnce(kWaitTillAllowStoriesExpand);
+	}
+	return false;
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {

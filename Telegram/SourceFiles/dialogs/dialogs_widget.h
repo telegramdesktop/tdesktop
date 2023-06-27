@@ -136,6 +136,7 @@ private:
 	void cancelSearchInChat();
 	void filterCursorMoved();
 	void completeHashtag(QString tag);
+	bool customWheelProcess(not_null<QWheelEvent*> e);
 
 	[[nodiscard]] QString currentSearchQuery() const;
 	void clearSearchField();
@@ -245,6 +246,7 @@ private:
 	std::unique_ptr<HistoryView::ContactStatus> _forumReportBar;
 
 	object_ptr<Ui::ScrollArea> _scroll;
+	base::Timer _allowStoriesExpandTimer;
 	QPointer<InnerWidget> _inner;
 	class BottomButton;
 	object_ptr<BottomButton> _updateTelegram = { nullptr };
