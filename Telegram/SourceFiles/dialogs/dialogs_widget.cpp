@@ -2024,7 +2024,8 @@ void Widget::dropEvent(QDropEvent *e) {
 	if (_scroll->geometry().contains(e->pos())) {
 		const auto point = mapToGlobal(e->pos());
 		if (const auto thread = _inner->updateFromParentDrag(point)) {
-			e->acceptProposedAction();
+			e->setDropAction(Qt::CopyAction);
+			e->accept();
 			controller()->content()->filesOrForwardDrop(
 				thread,
 				e->mimeData());
