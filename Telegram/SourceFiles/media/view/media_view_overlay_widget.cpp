@@ -5092,6 +5092,7 @@ void OverlayWidget::setStoriesPeer(PeerData *peer) {
 		_stories = nullptr;
 		_storiesSession = nullptr;
 		_storiesChanged.fire({});
+		updateNavigationControlsGeometry();
 	} else if (_storiesSession != session) {
 		_stories = nullptr;
 		_storiesSession = session;
