@@ -995,7 +995,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		list,
 		st::popupMenuWithIcons);
 
-	if (request.overSelection && !list->hasCopyRestrictionForSelected()) {
+	if (request.overSelection
+		&& !list->hasCopyRestrictionForSelected()
+		&& !list->getSelectedText().empty()) {
 		const auto text = request.selectedItems.empty()
 			? tr::lng_context_copy_selected(tr::now)
 			: tr::lng_context_copy_selected_items(tr::now);
