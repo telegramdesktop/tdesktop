@@ -366,6 +366,8 @@ InnerWidget::InnerWidget(
 			Data::StorySourcesList::NotHidden);
 	}, lifetime());
 
+	session().data().stories().incrementPreloadingMainSources();
+
 	handleChatListEntryRefreshes();
 
 	refreshWithCollapsedRows(true);
@@ -2426,6 +2428,7 @@ void InnerWidget::appendToFiltered(Key key) {
 }
 
 InnerWidget::~InnerWidget() {
+	session().data().stories().decrementPreloadingMainSources();
 	clearSearchResults();
 }
 

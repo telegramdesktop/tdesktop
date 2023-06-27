@@ -64,6 +64,8 @@ constexpr auto kSiblingUserpicSize = 0.3;
 constexpr auto kInnerHeightMultiplier = 1.6;
 constexpr auto kPreloadUsersCount = 3;
 constexpr auto kPreloadStoriesCount = 5;
+constexpr auto kPreloadNextMediaCount = 3;
+constexpr auto kPreloadPreviousMediaCount = 1;
 constexpr auto kMarkAsReadAfterSeconds = 1;
 constexpr auto kMarkAsReadAfterProgress = 0.2;
 
@@ -637,7 +639,26 @@ void Controller::rebuildFromContext(
 			}
 		}
 	}
+	preloadNext();
 	_slider->show({ .index = _index, .total = shownCount() });
+}
+
+void Controller::preloadNext() {
+	Expects(shown());
+
+	auto ids = std::vector<FullStoryId>();
+	ids.reserve(kPreloadPreviousMediaCount + kPreloadNextMediaCount);
+	const auto user = shownUser();
+	const auto count = shownCount();
+	const auto till = std::min(_index + kPreloadNextMediaCount, count);
+	for (auto i = _index + 1; i != till; ++i) {
+		ids.push_back({ .peer = user->id, .story = shownId(i) });
+	}
+	const auto from = std::max(_index - kPreloadPreviousMediaCount, 0);
+	for (auto i = _index; i != from;) {
+		ids.push_back({ .peer = user->id, .story = shownId(--i) });
+	}
+	user->owner().stories().setPreloadingInViewer(std::move(ids));
 }
 
 void Controller::checkMoveByDelta() {
@@ -659,7 +680,17 @@ void Controller::show(
 
 	rebuildFromContext(user, storyId);
 	_contextLifetime.destroy();
-	v::match(_context.data, [&](Data::StoriesContextSaved) {
+	const auto subscribeToSource = [&] {
+		stories.sourceChanged() | rpl::filter(
+			rpl::mappers::_1 == storyId.peer
+		) | rpl::start_with_next([=] {
+			rebuildFromContext(user, storyId);
+		}, _contextLifetime);
+	};
+	v::match(_context.data, [&](Data::StoriesContextSingle) {
+	}, [&](Data::StoriesContextPeer) {
+		subscribeToSource();
+	}, [&](Data::StoriesContextSaved) {
 		stories.savedChanged() | rpl::filter(
 			rpl::mappers::_1 == storyId.peer
 		) | rpl::start_with_next([=] {
@@ -672,7 +703,9 @@ void Controller::show(
 			rebuildFromContext(user, storyId);
 			checkMoveByDelta();
 		}, _contextLifetime);
-	}, [](const auto &) {});
+	}, [&](Data::StorySourcesList) {
+		subscribeToSource();
+	});
 
 	const auto guard = gsl::finally([&] {
 		_paused = false;
@@ -733,6 +766,9 @@ void Controller::show(
 				checkWaitingFor();
 			}
 		}, _sessionLifetime);
+		_sessionLifetime.add([=] {
+			session->data().stories().setPreloadingInViewer({});
+		});
 	}
 
 	stories.loadAround(storyId, context);

@@ -637,7 +637,7 @@ void Stories::applyDeleted(FullStoryId id) {
 				}
 			}
 			if (_preloading && _preloading->id() == id) {
-				preloadFinished();
+				preloadFinished(id);
 			}
 			if (i->second.empty()) {
 				_stories.erase(i);
@@ -1294,6 +1294,24 @@ bool Stories::isQuitPrevent() {
 	return true;
 }
 
+void Stories::incrementPreloadingMainSources() {
+	Expects(_preloadingMainSourcesCounter >= 0);
+
+	if (++_preloadingMainSourcesCounter == 1
+		&& rebuildPreloadSources(StorySourcesList::NotHidden)) {
+		continuePreloading();
+	}
+}
+
+void Stories::decrementPreloadingMainSources() {
+	Expects(_preloadingMainSourcesCounter > 0);
+
+	if (!--_preloadingMainSourcesCounter
+		&& rebuildPreloadSources(StorySourcesList::NotHidden)) {
+		continuePreloading();
+	}
+}
+
 void Stories::incrementPreloadingHiddenSources() {
 	Expects(_preloadingHiddenSourcesCounter >= 0);
 
@@ -1330,8 +1348,10 @@ void Stories::preloadSourcesChanged(StorySourcesList list) {
 
 bool Stories::rebuildPreloadSources(StorySourcesList list) {
 	const auto index = static_cast<int>(list);
-	if (!_preloadingHiddenSourcesCounter
-		&& list == StorySourcesList::Hidden) {
+	const auto &counter = (list == StorySourcesList::Hidden)
+		? _preloadingHiddenSourcesCounter
+		: _preloadingMainSourcesCounter;
+	if (!counter) {
 		return !base::take(_toPreloadSources[index]).empty();
 	}
 	auto now = std::vector<FullStoryId>();
@@ -1401,15 +1421,16 @@ void Stories::startPreloading(not_null<Story*> story) {
 	Expects(!_preloaded.contains(story->fullId()));
 
 	const auto id = story->fullId();
-	_preloading = std::make_unique<StoryPreload>(story, [=] {
-		preloadFinished(true);
+	auto preloading = std::make_unique<StoryPreload>(story, [=] {
+		_preloading = nullptr;
+		preloadFinished(id, true);
 	});
+	if (!_preloaded.contains(id)) {
+		_preloading = std::move(preloading);
+	}
 }
 
-void Stories::preloadFinished(bool markAsPreloaded) {
-	Expects(_preloading != nullptr);
-
-	const auto id = base::take(_preloading)->id();
+void Stories::preloadFinished(FullStoryId id, bool markAsPreloaded) {
 	for (auto &sources : _toPreloadSources) {
 		sources.erase(ranges::remove(sources, id), end(sources));
 	}

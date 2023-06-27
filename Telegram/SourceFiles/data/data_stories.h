@@ -190,6 +190,8 @@ public:
 		Ui::ReportReason reason,
 		QString text);
 
+	void incrementPreloadingMainSources();
+	void decrementPreloadingMainSources();
 	void incrementPreloadingHiddenSources();
 	void decrementPreloadingHiddenSources();
 	void setPreloadingInViewer(std::vector<FullStoryId> ids);
@@ -245,7 +247,7 @@ private:
 	[[nodiscard]] bool shouldContinuePreload(FullStoryId id) const;
 	[[nodiscard]] FullStoryId nextPreloadId() const;
 	void startPreloading(not_null<Story*> story);
-	void preloadFinished(bool markAsPreloaded = false);
+	void preloadFinished(FullStoryId id, bool markAsPreloaded = false);
 
 	const not_null<Session*> _owner;
 	std::unordered_map<
@@ -310,6 +312,7 @@ private:
 	std::vector<FullStoryId> _toPreloadViewer;
 	std::unique_ptr<StoryPreload> _preloading;
 	int _preloadingHiddenSourcesCounter = 0;
+	int _preloadingMainSourcesCounter = 0;
 
 };
 

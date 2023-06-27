@@ -183,6 +183,7 @@ private:
 	void rebuildFromContext(not_null<UserData*> user, FullStoryId storyId);
 	void checkMoveByDelta();
 	void loadMoreToList();
+	void preloadNext();
 	void rebuildCachedSourcesList(
 		const std::vector<Data::StoriesSourceInfo> &lists,
 		int index);
