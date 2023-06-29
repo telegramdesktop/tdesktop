@@ -278,7 +278,12 @@ private:
 	void showDropdown();
 	void handleTouchTimer();
 	void handleDocumentClick();
-	void updateImage();
+
+	void showSaveMsgToast(const QString &path, auto phrase);
+	void showSaveMsgToastWith(
+		const QString &path,
+		const TextWithEntities &text);
+	void updateSaveMsg();
 
 	void clearBeforeHide();
 	void clearAfterHide();
@@ -533,6 +538,7 @@ private:
 	rpl::lifetime _sessionLifetime;
 	PhotoData *_photo = nullptr;
 	DocumentData *_document = nullptr;
+	QString _documentLoadingTo;
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	base::flat_set<std::shared_ptr<Data::PhotoMedia>> _preloadPhotos;
@@ -689,7 +695,6 @@ private:
 
 	QString _saveMsgFilename;
 	QRect _saveMsg;
-	QImage _saveMsgImage;
 	Ui::Text::String _saveMsgText;
 	SavePhotoVideo _savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 	// _saveMsgAnimation -> _saveMsgTimer -> _saveMsgAnimation.

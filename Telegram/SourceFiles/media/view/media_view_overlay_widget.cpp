@@ -444,20 +444,8 @@ OverlayWidget::OverlayWidget()
 		? Core::App().settings().videoVolume()
 		: Core::Settings::kDefaultVolume;
 
-	const auto text = tr::lng_mediaview_saved_to(
-		tr::now,
-		lt_downloads,
-		Ui::Text::Link(
-			tr::lng_mediaview_downloads(tr::now),
-			"internal:show_saved_message"),
-		Ui::Text::WithEntities);
-	_saveMsgText.setMarkedText(st::mediaviewSaveMsgStyle, text);
-	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
-	_saveMsgImage = QImage(
-		_saveMsg.size() * cIntRetinaFactor(),
-		QImage::Format_ARGB32_Premultiplied);
 	_saveMsgTimer.setCallback([=, delay = st::mediaviewSaveMsgHiding] {
-		_saveMsgAnimation.start([=] { updateImage(); }, 1., 0., delay);
+		_saveMsgAnimation.start([=] { updateSaveMsg(); }, 1., 0., delay);
 	});
 
 	_docRectImage = QImage(
@@ -661,6 +649,40 @@ OverlayWidget::OverlayWidget()
 	_dropdownShowTimer.setCallback([=] { showDropdown(); });
 
 	orderWidgets();
+}
+
+void OverlayWidget::showSaveMsgToast(const QString &path, auto phrase) {
+	showSaveMsgToastWith(path, phrase(
+		tr::now,
+		lt_downloads,
+		Ui::Text::Link(
+			tr::lng_mediaview_downloads(tr::now),
+			"internal:show_saved_message"),
+		Ui::Text::WithEntities));
+}
+
+void OverlayWidget::showSaveMsgToastWith(
+		const QString &path,
+		const TextWithEntities &text) {
+	_saveMsgFilename = path;
+	_saveMsgText.setMarkedText(st::mediaviewSaveMsgStyle, text);
+	const auto w = _saveMsgText.maxWidth()
+		+ st::mediaviewSaveMsgPadding.left()
+		+ st::mediaviewSaveMsgPadding.right();
+	const auto h = st::mediaviewSaveMsgStyle.font->height
+		+ st::mediaviewSaveMsgPadding.top()
+		+ st::mediaviewSaveMsgPadding.bottom();
+	_saveMsg = QRect((width() - w) / 2, (height() - h) / 2, w, h);
+	const auto toIn = 1.;
+	const auto callback = [=](float64 value) {
+		updateSaveMsg();
+		if (!_saveMsgAnimation.animating()) {
+			_saveMsgTimer.callOnce(st::mediaviewSaveMsgShown);
+		}
+	};
+	const auto duration = st::mediaviewSaveMsgShowing;
+	_saveMsgAnimation.start(callback, 0., 1., duration);
+	updateSaveMsg();
 }
 
 void OverlayWidget::orderWidgets() {
@@ -1103,6 +1125,13 @@ void OverlayWidget::documentUpdated(not_null<DocumentData*> document) {
 			? std::clamp(_document->loadOffset(), int64(), _document->size)
 			: 0;
 		_streamed->controls->setLoadingProgress(ready, _document->size);
+	}
+	if (_stories
+		&& !_documentLoadingTo.isEmpty()
+		&& _document->location(true).isEmpty()) {
+		showSaveMsgToast(
+			base::take(_documentLoadingTo),
+			tr::lng_mediaview_video_saved_to);
 	}
 }
 
@@ -1995,6 +2024,7 @@ void OverlayWidget::assignMediaPointer(DocumentData *document) {
 		} else {
 			_documentMedia = nullptr;
 		}
+		_documentLoadingTo = QString();
 	}
 }
 
@@ -2002,6 +2032,7 @@ void OverlayWidget::assignMediaPointer(not_null<PhotoData*> photo) {
 	_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 	_document = nullptr;
 	_documentMedia = nullptr;
+	_documentLoadingTo = QString();
 	if (_photo != photo) {
 		_photo = photo;
 		_photoMedia = _photo->createMediaView();
@@ -2349,6 +2380,9 @@ void OverlayWidget::downloadMedia() {
 					}, toName, manager.computeNextStartDate());
 				}
 			}
+			if (_stories && !toName.isEmpty()) {
+				showSaveMsgToast(toName, tr::lng_mediaview_video_saved_to);
+			}
 			location.accessDisable();
 		} else {
 			if (_document->filepath(true).isEmpty()
@@ -2357,7 +2391,15 @@ void OverlayWidget::downloadMedia() {
 					_message ? _message->fullId() : FullMsgId(),
 					_document,
 					DocumentSaveClickHandler::Mode::ToFile);
-				updateControls();
+				_documentLoadingTo = _document->loadingFilePath();
+				if (_stories && _documentLoadingTo.isEmpty()) {
+					toName = _document->filepath(true);
+					if (!toName.isEmpty()) {
+						showSaveMsgToast(
+							toName,
+							tr::lng_mediaview_video_saved_to);
+					}
+				}
 			} else {
 				_saveVisible = contentCanBeSaved();
 				update(_saveNavOver);
@@ -2393,19 +2435,9 @@ void OverlayWidget::downloadMedia() {
 		}
 	}
 	if (!toName.isEmpty()) {
-		_saveMsgFilename = toName;
-		const auto toIn = 1.;
-		_saveMsgAnimation.start(
-			[=](float64 value) {
-				updateImage();
-				if (value == toIn) {
-					_saveMsgTimer.callOnce(st::mediaviewSaveMsgShown);
-				}
-			},
-			0.,
-			toIn,
-			st::mediaviewSaveMsgShowing);
-		updateImage();
+		showSaveMsgToast(toName, (_stories && _document)
+			? tr::lng_mediaview_video_saved_to
+			: tr::lng_mediaview_saved_to);
 	}
 }
 
@@ -5879,7 +5911,7 @@ void OverlayWidget::handleTouchTimer() {
 	_touchRightButton = true;
 }
 
-void OverlayWidget::updateImage() {
+void OverlayWidget::updateSaveMsg() {
 	update(_saveMsg);
 }
 
