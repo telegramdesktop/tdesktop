@@ -2382,40 +2382,51 @@ void Widget::completeHashtag(QString tag) {
 }
 
 bool Widget::customWheelProcess(not_null<QWheelEvent*> e) {
-	const auto now = _scroll->scrollTop();
-	const auto def = _inner->defaultScrollTop();
-	const auto bar = _scroll->verticalScrollBar();
-	const auto allow = (def <= 0)
-		|| (now < def)
-		|| (now == def && !_allowStoriesExpandTimer.isActive());
-	if (allow) {
-		_scroll->verticalScrollBar()->setMinimum(0);
-		_allowStoriesExpandTimer.cancel();
-	} else {
-		bar->setMinimum(def);
-		_allowStoriesExpandTimer.callOnce(kWaitTillAllowStoriesExpand);
-	}
+	customScrollProcess(e->phase());
 	return false;
 }
 
-bool Widget::customTouchProcess(not_null<QTouchEvent*> e) {
-	const auto type = e->type();
+void Widget::customScrollProcess(Qt::ScrollPhase phase) {
 	const auto now = _scroll->scrollTop();
 	const auto def = _inner->defaultScrollTop();
 	const auto bar = _scroll->verticalScrollBar();
-	_allowStoriesExpandTimer.cancel();
-	if (type == QEvent::TouchBegin
-		|| type == QEvent::TouchUpdate) {
+	if (phase == Qt::ScrollBegin || phase == Qt::ScrollUpdate) {
+		_allowStoriesExpandTimer.cancel();
 		_inner->setTouchScrollActive(true);
 		bar->setMinimum(0);
-	} else if (type == QEvent::TouchEnd || type == QEvent::TouchCancel) {
+	} else if (phase == Qt::ScrollEnd || phase == Qt::ScrollMomentum) {
+		_allowStoriesExpandTimer.cancel();
 		_inner->setTouchScrollActive(false);
 		if (def > 0 && now >= def) {
 			bar->setMinimum(def);
 		} else {
 			bar->setMinimum(0);
 		}
+	} else {
+		const auto allow = (def <= 0)
+			|| (now < def)
+			|| (now == def && !_allowStoriesExpandTimer.isActive());
+		if (allow) {
+			_scroll->verticalScrollBar()->setMinimum(0);
+			_allowStoriesExpandTimer.cancel();
+		} else {
+			bar->setMinimum(def);
+			_allowStoriesExpandTimer.callOnce(kWaitTillAllowStoriesExpand);
+		}
 	}
+}
+
+bool Widget::customTouchProcess(not_null<QTouchEvent*> e) {
+	const auto type = e->type();
+	customScrollProcess([&] {
+		switch (e->type()) {
+		case QEvent::TouchBegin: return Qt::ScrollBegin;
+		case QEvent::TouchUpdate: return Qt::ScrollUpdate;
+		case QEvent::TouchEnd:
+		case QEvent::TouchCancel: return Qt::ScrollEnd;
+		}
+		Unexpected("Touch event type in Widdget::customTouchProcess.");
+	}());
 	return false;
 }
 
