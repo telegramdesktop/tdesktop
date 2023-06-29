@@ -301,6 +301,7 @@ private:
 		PossibleCoverThumbnail = 0x0400,
 		UseTextColor = 0x0800,
 		StoryDocument = 0x1000,
+		SilentVideo = 0x2000,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

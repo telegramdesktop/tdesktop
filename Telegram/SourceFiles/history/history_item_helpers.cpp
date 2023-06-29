@@ -450,7 +450,9 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaDice &) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaStory &data) {
-		return Result::Good;
+		return data.is_via_mention()
+			? Result::HasStoryMention
+			: Result::Good;
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;
 	});

@@ -115,6 +115,7 @@ public:
 	virtual const WallPaper *paper() const;
 	virtual FullStoryId storyId() const;
 	virtual bool storyExpired() const;
+	virtual bool storyMention() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -570,12 +571,16 @@ private:
 
 class MediaStory final : public Media, public base::has_weak_ptr {
 public:
-	MediaStory(not_null<HistoryItem*> parent, FullStoryId storyId);
+	MediaStory(
+		not_null<HistoryItem*> parent,
+		FullStoryId storyId,
+		bool mention);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	FullStoryId storyId() const override;
 	bool storyExpired() const override;
+	bool storyMention() const override;
 
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -594,6 +599,7 @@ public:
 
 private:
 	const FullStoryId _storyId;
+	const bool _mention = false;
 	bool _expired = false;
 
 };

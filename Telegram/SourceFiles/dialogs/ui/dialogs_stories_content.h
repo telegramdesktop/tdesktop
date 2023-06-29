@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 enum class StorySourcesList : uchar;
+class Story;
 } // namespace Data
 
 namespace Main {
@@ -18,11 +19,17 @@ class Session;
 namespace Dialogs::Stories {
 
 struct Content;
+class Thumbnail;
 
 [[nodiscard]] rpl::producer<Content> ContentForSession(
 	not_null<Main::Session*> session,
 	Data::StorySourcesList list);
 
 [[nodiscard]] rpl::producer<Content> LastForPeer(not_null<PeerData*> peer);
+
+[[nodiscard]] std::shared_ptr<Thumbnail> MakeUserpicThumbnail(
+	not_null<PeerData*> peer);
+[[nodiscard]] std::shared_ptr<Thumbnail> MakeStoryThumbnail(
+	not_null<Data::Story*> story);
 
 } // namespace Dialogs::Stories

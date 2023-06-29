@@ -211,8 +211,8 @@ QString UserpicSuggestion::button() {
 		: tr::lng_action_suggested_photo_button(tr::now);
 }
 
-QString UserpicSuggestion::subtitle() {
-	return _photo.parent()->data()->notificationText().text;
+TextWithEntities UserpicSuggestion::subtitle() {
+	return _photo.parent()->data()->notificationText();
 }
 
 ClickHandlerPtr UserpicSuggestion::createViewLink() {

@@ -248,28 +248,24 @@ bool Story::pinned() const {
 	return _pinned;
 }
 
-void Story::setIsPublic(bool isPublic) {
-	_isPublic = isPublic;
-}
-
 bool Story::isPublic() const {
 	return _isPublic;
-}
-
-void Story::setCloseFriends(bool closeFriends) {
-	_closeFriends = closeFriends;
 }
 
 bool Story::closeFriends() const {
 	return _closeFriends;
 }
 
+bool Story::forbidsForward() const {
+	return _noForwards;
+}
+
 bool Story::canDownload() const {
-	return _peer->isSelf();
+	return !forbidsForward() || _peer->isSelf();
 }
 
 bool Story::canShare() const {
-	return isPublic() && (pinned() || !expired());
+	return isPublic() && !forbidsForward() && (pinned() || !expired());
 }
 
 bool Story::canDelete() const {
@@ -375,6 +371,7 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	const auto pinned = data.is_pinned();
 	const auto isPublic = data.is_public();
 	const auto closeFriends = data.is_close_friends();
+	const auto noForwards = data.is_noforwards();
 	auto caption = TextWithEntities{
 		data.vcaption().value_or_empty(),
 		Api::EntitiesFromMTP(
@@ -400,6 +397,7 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 		|| (_pinned != pinned)
 		|| (_isPublic != isPublic)
 		|| (_closeFriends != closeFriends)
+		|| (_noForwards != noForwards)
 		|| (_caption != caption)
 		|| (views >= 0 && _views != views)
 		|| (_recentViewers != recent);
@@ -410,6 +408,7 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	_pinned = pinned;
 	_isPublic = isPublic;
 	_closeFriends = closeFriends;
+	_noForwards = noForwards;
 	_caption = std::move(caption);
 	if (views >= 0) {
 		_views = views;

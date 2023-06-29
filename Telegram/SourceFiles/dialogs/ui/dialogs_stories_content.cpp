@@ -144,11 +144,12 @@ QImage PeerUserpic::image(int size) {
 	const auto good = (_frame.width() == size * _frame.devicePixelRatio());
 	const auto key = _peer->userpicUniqueKey(_subscribed->view);
 	if (!good || (_subscribed->key != key && !waitingUserpicLoad())) {
+		const auto ratio = style::DevicePixelRatio();
 		_subscribed->key = key;
 		_frame = QImage(
-			QSize(size, size) * style::DevicePixelRatio(),
+			QSize(size, size) * ratio,
 			QImage::Format_ARGB32_Premultiplied);
-		_frame.setDevicePixelRatio(style::DevicePixelRatio());
+		_frame.setDevicePixelRatio(ratio);
 		_frame.fill(Qt::transparent);
 
 		auto p = Painter(&_frame);
@@ -216,6 +217,7 @@ QImage StoryThumbnail::image(int size) {
 				Qt::SmoothTransformation);
 		}
 		_prepared = Images::Circle(std::move(_prepared));
+		_prepared.setDevicePixelRatio(ratio);
 	}
 	return _prepared;
 }
@@ -309,6 +311,7 @@ QImage EmptyThumbnail::image(int size) {
 			QSize(size, size) * ratio,
 			QImage::Format_ARGB32_Premultiplied);
 		_cached.fill(Qt::black);
+		_cached.setDevicePixelRatio(ratio);
 	}
 	return _cached;
 }
@@ -336,7 +339,7 @@ Content State::next() {
 		if (const auto i = _userpics.find(user); i != end(_userpics)) {
 			userpic = i->second;
 		} else {
-			userpic = std::make_shared<PeerUserpic>(user);
+			userpic = MakeUserpicThumbnail(user);
 			_userpics.emplace(user, userpic);
 		}
 		result.elements.push_back({
@@ -373,19 +376,6 @@ rpl::producer<Content> ContentForSession(
 		}, result);
 		return result;
 	};
-}
-
-[[nodiscard]] std::shared_ptr<Thumbnail> PrepareThumbnail(
-		not_null<Data::Story*> story) {
-	using Result = std::shared_ptr<Thumbnail>;
-	const auto id = story->fullId();
-	return v::match(story->media().data, [](v::null_t) -> Result {
-		return std::make_shared<EmptyThumbnail>();
-	}, [&](not_null<PhotoData*> photo) -> Result {
-		return std::make_shared<PhotoThumbnail>(photo, id);
-	}, [&](not_null<DocumentData*> video) -> Result {
-		return std::make_shared<VideoThumbnail>(video, id);
-	});
 }
 
 rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
@@ -432,7 +422,7 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 							result.elements.reserve(ids.size());
 							result.elements.push_back({
 								.id = uint64(id),
-								.thumbnail = PrepareThumbnail(*maybe),
+								.thumbnail = MakeStoryThumbnail(*maybe),
 								.unread = (id > readTill),
 							});
 						}
@@ -457,6 +447,23 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 			return lifetime;
 		});
 	}) | rpl::flatten_latest();
+}
+
+std::shared_ptr<Thumbnail> MakeUserpicThumbnail(not_null<PeerData*> peer) {
+	return std::make_shared<PeerUserpic>(peer);
+}
+
+std::shared_ptr<Thumbnail> MakeStoryThumbnail(
+		not_null<Data::Story*> story) {
+	using Result = std::shared_ptr<Thumbnail>;
+	const auto id = story->fullId();
+	return v::match(story->media().data, [](v::null_t) -> Result {
+		return std::make_shared<EmptyThumbnail>();
+	}, [&](not_null<PhotoData*> photo) -> Result {
+		return std::make_shared<PhotoThumbnail>(photo, id);
+	}, [&](not_null<DocumentData*> video) -> Result {
+		return std::make_shared<VideoThumbnail>(video, id);
+	});
 }
 
 } // namespace Dialogs::Stories

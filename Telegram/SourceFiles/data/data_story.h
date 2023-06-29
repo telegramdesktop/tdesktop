@@ -86,10 +86,9 @@ public:
 
 	void setPinned(bool pinned);
 	[[nodiscard]] bool pinned() const;
-	void setIsPublic(bool isPublic);
 	[[nodiscard]] bool isPublic() const;
-	void setCloseFriends(bool closeFriends);
 	[[nodiscard]] bool closeFriends() const;
+	[[nodiscard]] bool forbidsForward() const;
 
 	[[nodiscard]] bool canDownload() const;
 	[[nodiscard]] bool canShare() const;
@@ -128,6 +127,7 @@ private:
 	bool _pinned : 1 = false;
 	bool _isPublic : 1 = false;
 	bool _closeFriends : 1 = false;
+	bool _noForwards : 1 = false;
 
 };
 

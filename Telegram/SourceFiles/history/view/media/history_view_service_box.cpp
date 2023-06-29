@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "styles/style_chat.h"
 #include "styles/style_premium.h"
@@ -57,8 +58,15 @@ ServiceBox::ServiceBox(
 	_maxWidth)
 , _subtitle(
 	st::premiumPreviewAbout.style,
-	_content->subtitle(),
-	kDefaultTextOptions,
+	Ui::Text::Filtered(
+		_content->subtitle(),
+		{
+			EntityType::Bold,
+			EntityType::StrikeOut,
+			EntityType::Underline,
+			EntityType::Italic,
+		}),
+	kMarkupTextOptions,
 	_maxWidth)
 , _size(
 	st::msgServiceGiftBoxSize.width(),

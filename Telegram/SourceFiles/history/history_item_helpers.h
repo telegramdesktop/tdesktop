@@ -44,6 +44,7 @@ enum class MediaCheckResult {
 	Unsupported,
 	Empty,
 	HasTimeToLive,
+	HasStoryMention,
 };
 [[nodiscard]] MediaCheckResult CheckMessageMedia(
 	const MTPMessageMedia &media);

@@ -9,23 +9,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_media_unwrapped.h"
-#include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_service_box.h"
 
 namespace Data {
-class MediaGiftBox;
+class Story;
 } // namespace Data
+
+namespace Dialogs::Stories {
+class Thumbnail;
+} // namespace Dialogs::Stories
 
 namespace HistoryView {
 
-class UserpicSuggestion final : public ServiceBoxContent {
+class StoryMention final
+	: public ServiceBoxContent
+	, public base::has_weak_ptr {
 public:
-	UserpicSuggestion(
-		not_null<Element*> parent,
-		not_null<PeerData*> chat,
-		not_null<PhotoData*> photo,
-		int width);
-	~UserpicSuggestion();
+	StoryMention(not_null<Element*> parent, not_null<Data::Story*> story);
+	~StoryMention();
 
 	int top() override;
 	QSize size() override;
@@ -51,7 +52,13 @@ public:
 	void unloadHeavyPart() override;
 
 private:
-	Photo _photo;
+	using Thumbnail = Dialogs::Stories::Thumbnail;
+
+	const not_null<Element*> _parent;
+	const not_null<Data::Story*> _story;
+	std::shared_ptr<Thumbnail> _thumbnail;
+	bool _thumbnailFromStory = false;
+	bool _subscribed = false;
 
 };
 

@@ -841,13 +841,18 @@ void Element::validateText() {
 	const auto item = data();
 	const auto &text = item->_text;
 	const auto media = item->media();
+	const auto storyMention = media && media->storyMention();
 	if (media && media->storyExpired()) {
 		_media = nullptr;
-		if (_text.isEmpty()) {
-			setTextWithLinks(
-				Ui::Text::Italic(u"This story has expired"_q));
+		if (!storyMention) {
+			if (_text.isEmpty()) {
+				setTextWithLinks(
+					Ui::Text::Italic(u"This story has expired"_q));
+			}
+			return;
 		}
-	} else if (_text.isEmpty() == text.empty()) {
+	}
+	if (_text.isEmpty() == text.empty()) {
 	} else if (_flags & Flag::ServiceMessage) {
 		const auto contextDependentText = contextDependentServiceText();
 		const auto &markedText = contextDependentText.text.empty()

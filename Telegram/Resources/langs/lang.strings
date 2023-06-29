@@ -1574,6 +1574,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_topic_icon_changed" = "{from} changed the {link} icon to {emoji}";
 "lng_action_topic_icon_removed" = "{from} removed the {link} icon";
 "lng_action_shared_chat_with_bot" = "You shared {chat} with {bot}";
+"lng_action_story_mention_me" = "You mentioned {user} in a story";
+"lng_action_story_mention" = "{user} mentioned you in a story";
+"lng_action_story_mention_button" = "View Story";
+"lng_action_story_mention_me_unavailable" = "The story where you mentioned {user} is no longer available.";
+"lng_action_story_mention_unavailable" = "The story where {user} mentioned you is no longer available.";
 
 "lng_premium_gift_duration_months#one" = "for {count} month";
 "lng_premium_gift_duration_months#other" = "for {count} months";
