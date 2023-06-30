@@ -1278,26 +1278,7 @@ void Controller::deleteRequested() {
 }
 
 void Controller::reportRequested() {
-	const auto story = this->story();
-	if (!story) {
-		return;
-	}
-	const auto id = story->fullId();
-	const auto owner = &story->owner();
-	const auto confirmed = [=](Fn<void()> close) {
-		owner->stories().deleteList({ id });
-		close();
-	};
-	const auto show = uiShow();
-	const auto st = &st::storiesReportBox;
-	show->show(Box(Ui::ReportReasonBox, *st, Ui::ReportSource::Story, [=](
-			Ui::ReportReason reason) {
-		const auto done = [=](const QString &text) {
-			owner->stories().report(show, id, reason, text);
-			show->hideLayer();
-		};
-		show->showBox(Box(Ui::ReportDetailsBox, *st, done));
-	}));
+	ReportRequested(uiShow(), _shown, &st::storiesReportBox);
 }
 
 void Controller::togglePinnedRequested(bool pinned) {
@@ -1389,6 +1370,22 @@ Ui::Toast::Config PrepareTogglePinnedToast(int count, bool pinned) {
 			? Data::Stories::kPinnedToastDuration
 			: Ui::Toast::kDefaultDuration),
 	};
+}
+
+void ReportRequested(
+		std::shared_ptr<Main::SessionShow> show,
+		FullStoryId id,
+		const style::ReportBox *stOverride) {
+	const auto owner = &show->session().data();
+	const auto st = stOverride ? stOverride : &st::defaultReportBox;
+	show->show(Box(Ui::ReportReasonBox, *st, Ui::ReportSource::Story, [=](
+			Ui::ReportReason reason) {
+		const auto done = [=](const QString &text) {
+			owner->stories().report(show, id, reason, text);
+			show->hideLayer();
+		};
+		show->showBox(Box(Ui::ReportDetailsBox, *st, done));
+	}));
 }
 
 } // namespace Media::Stories

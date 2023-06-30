@@ -314,7 +314,21 @@ ListItemSelectionData Provider::computeSelectionData(
 	auto result = ListItemSelectionData(selection);
 	const auto peer = item->history()->peer;
 	result.canDelete = peer->isSelf();
-	result.canForward = peer->isSelf();
+	result.canForward = [&] {
+		if (!peer->isSelf()) {
+			return false;
+		}
+		const auto id = item->id;
+		if (!IsStoryMsgId(id)) {
+			return false;
+		}
+		const auto maybeStory = peer->owner().stories().lookup(
+			{ peer->id, StoryIdFromMsgId(id) });
+		if (!maybeStory) {
+			return false;
+		}
+		return (*maybeStory)->canShare();
+	}();
 	result.canToggleStoryPin = peer->isSelf();
 	return result;
 }

@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "ui/effects/animations.h"
 
+namespace style {
+struct ReportBox;
+} // namespace style
+
 namespace base {
 class PowerSaveBlocker;
 } // namespace base
@@ -40,6 +44,7 @@ struct Config;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Media::Player {
@@ -260,5 +265,9 @@ private:
 [[nodiscard]] Ui::Toast::Config PrepareTogglePinnedToast(
 	int count,
 	bool pinned);
+void ReportRequested(
+	std::shared_ptr<Main::SessionShow> show,
+	FullStoryId id,
+	const style::ReportBox *stOverride = nullptr);
 
 } // namespace Media::Stories

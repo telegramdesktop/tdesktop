@@ -192,6 +192,9 @@ private:
 	void toggleStoryPinSelected();
 	void deleteItem(GlobalMsgId globalId);
 	void deleteItems(SelectedItems &&items, Fn<void()> confirmed = nullptr);
+	void toggleStoryPin(
+		MessageIdsList &&items,
+		Fn<void()> confirmed = nullptr);
 	void applyItemSelection(
 		HistoryItem *item,
 		TextSelection selection);
