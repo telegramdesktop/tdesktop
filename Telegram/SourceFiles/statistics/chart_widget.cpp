@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/chart_widget.h"
 
+#include "base/qt/qt_key_modifiers.h"
 #include "statistics/linear_chart_view.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animation_value_f.h"
@@ -86,6 +87,7 @@ public:
 
 	[[nodiscard]] rpl::producer<Limits> xPercentageLimitsChange() const;
 	[[nodiscard]] rpl::producer<> userInteractionFinished() const;
+	[[nodiscard]] rpl::producer<> directionChanges() const;
 
 private:
 	not_null<Ui::AbstractButton*> _left;
@@ -93,11 +95,13 @@ private:
 
 	rpl::event_stream<Limits> _xPercentageLimitsChange;
 	rpl::event_stream<> _userInteractionFinished;
+	rpl::event_stream<> _directionChanges;
 
 	struct {
 		int x = 0;
 		int leftLimit = 0;
 		int rightLimit = 0;
+		int diffX = 0;
 	} _start;
 
 };
@@ -140,15 +144,27 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 			const auto pos = static_cast<QMouseEvent*>(e.get())->pos();
 			switch (e->type()) {
 			case QEvent::MouseMove: {
-				const auto nextX = std::clamp(
-					side->x() + (pos.x() - _start.x),
-					_start.leftLimit,
-					_start.rightLimit);
-				side->move(nextX, side->y());
+				const auto nowDiffXDirection = (pos.x() - _start.x) < 0;
+				const auto wasDiffXDirection = _start.diffX < 0;
+				if (base::IsCtrlPressed()) {
+					const auto diff = (pos.x() - _start.x);
+					_left->move(_left->x() + diff, side->y());
+					_right->move(_right->x() + diff, side->y());
+				} else {
+					_start.diffX = pos.x() - _start.x;
+					const auto nextX = std::clamp(
+						side->x() + (pos.x() - _start.x),
+						_start.leftLimit,
+						_start.rightLimit);
+					side->move(nextX, side->y());
+				}
 				_xPercentageLimitsChange.fire({
 					.min = _left->x() / float64(width()),
 					.max = rect::right(_right) / float64(width()),
 				});
+				if (nowDiffXDirection != wasDiffXDirection) {
+					_directionChanges.fire({});
+				}
 			} break;
 			case QEvent::MouseButtonPress: {
 				_start.x = pos.x();
@@ -156,11 +172,11 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 				_start.rightLimit = rightLimit();
 			} break;
 			case QEvent::MouseButtonRelease: {
+				_userInteractionFinished.fire({});
 				_xPercentageLimitsChange.fire({
 					.min = _left->x() / float64(width()),
 					.max = rect::right(_right) / float64(width()),
 				});
-				_userInteractionFinished.fire({});
 				_start = {};
 			} break;
 			}
@@ -182,6 +198,10 @@ rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
 
 rpl::producer<> ChartWidget::Footer::userInteractionFinished() const {
 	return _userInteractionFinished.events();
+}
+
+rpl::producer<> ChartWidget::Footer::directionChanges() const {
+	return _directionChanges.events();
 }
 
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
@@ -222,23 +242,30 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 	constexpr auto kYExpandingDuration = 400.;
 	constexpr auto kAlphaExpandingDuration = 120.;
 	_xPercentage.animation.init([=](crl::time now) {
-		if ((now - _xPercentage.lastUserInteracted) >= kExpandingDelay) {
+		// if ((_xPercentage.yAnimationStartedAt && (now - _xPercentage.lastUserInteracted) < kExpandingDelay)) {
+		// 	_xPercentage.yAnimationStartedAt = _xPercentage.lastUserInteracted;
+		// }
+		if (!_xPercentage.yAnimationStartedAt
+			&& ((now - _xPercentage.lastUserInteracted) >= kExpandingDelay)) {
+			// if (!_xPercentage.yAnimationStartedAt) {
+			// _xPercentage.animValueYAlpha = anim::value(0., 1.);
+			// {
+			// 	const auto startXIndex = _chartData.findStartIndex(
+			// 		_xPercentage.now.min);
+			// 	const auto endXIndex = _chartData.findEndIndex(
+			// 		startXIndex,
+			// 		_xPercentage.now.max);
+			// 	addHorizontalLine(
+			// 		{
+			// 			float64(FindMinValue(_chartData, startXIndex, endXIndex)),
+			// 			float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
+			// 		},
+			// 		true);
+			// }
+
+			// }
 			_xPercentage.yAnimationStartedAt = _xPercentage.lastUserInteracted
 				+ kExpandingDelay;
-			_xPercentage.animValueYAlpha = anim::value(0., 1.);
-			{
-				const auto startXIndex = _chartData.findStartIndex(
-					_xPercentage.now.min);
-				const auto endXIndex = _chartData.findEndIndex(
-					startXIndex,
-					_xPercentage.now.max);
-				addHorizontalLine(
-					{
-						float64(FindMinValue(_chartData, startXIndex, endXIndex)),
-						float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
-					},
-					true);
-			}
 		}
 		const auto dtY = std::min(
 			(now - _xPercentage.yAnimationStartedAt) / kYExpandingDuration,
@@ -266,19 +293,19 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			_xPercentage.animValueXMin.update(dtX, anim::linear);
 			_xPercentage.animValueXMax.update(dtX, anim::linear);
 		}
-		if (yFinished) {
-			_xPercentage.animValueYMin.finish();
-			_xPercentage.animValueYMax.finish();
+		// if (yFinished) {
+		// 	// _xPercentage.animValueYMin.finish();
+		// 	// _xPercentage.animValueYMax.finish();
 
-			_xPercentage.yAnimationStartedAt = 0;
-		}
+		// 	_xPercentage.yAnimationStartedAt = 0;
+		// }
 		if (_xPercentage.yAnimationStartedAt) {
 			_xPercentage.animValueYMin.update(dtY, anim::sineInOut);
 			_xPercentage.animValueYMax.update(dtY, anim::sineInOut);
-			_xPercentage.animValueYAlpha.update(dtY, anim::easeOutQuint);
+			_xPercentage.animValueYAlpha.update(dtY, anim::sineInOut);
 
 			auto &&subrange = ranges::make_subrange(
-				begin(_horizontalLines) + 1,
+				begin(_horizontalLines),// + 1,
 				end(_horizontalLines));
 			for (auto &horizontalLine : std::move(subrange)) {
 				horizontalLine.computeRelative(
@@ -287,6 +314,9 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			}
 		}
 
+		if (yFinished) {
+			_xPercentage.animValueYAlpha.finish();
+		}
 		if (_xPercentage.yAnimationStartedAt) {
 			const auto value = _xPercentage.animValueYAlpha.current();
 			_horizontalLines.back().alpha = value;
@@ -309,13 +339,20 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 				}
 			}
 		}
+		if (yFinished) {
+			// _xPercentage.animValueYMin.finish();
+			// _xPercentage.animValueYMax.finish();
+			_xPercentage.animValueYAlpha.finish();
+
+			_xPercentage.yAnimationStartedAt = 0;
+		}
 
 		update();
 	});
 
 	_footer->userInteractionFinished(
 	) | rpl::start_with_next([=] {
-		_xPercentage.yAnimationStartedAt = crl::now();
+		// _xPercentage.yAnimationStartedAt = crl::now();
 		_xPercentage.animValueYAlpha = anim::value(0., 1.);
 
 		{
@@ -333,8 +370,32 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		}
 	}, _footer->lifetime());
 
+	_footer->directionChanges(
+	) | rpl::start_with_next([=] {
+		// _xPercentage.yAnimationStartedAt = crl::now();
+		// _xPercentage.animValueYAlpha = anim::value(0., 1.);
+
+		// {
+		// 	const auto startXIndex = _chartData.findStartIndex(
+		// 		_xPercentage.now.min);
+		// 	const auto endXIndex = _chartData.findEndIndex(
+		// 		startXIndex,
+		// 		_xPercentage.now.max);
+		// 	addHorizontalLine(
+		// 		{
+		// 			float64(FindMinValue(_chartData, startXIndex, endXIndex)),
+		// 			float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
+		// 		},
+		// 		true);
+		// }
+	}, _footer->lifetime());
+
 	_footer->xPercentageLimitsChange(
 	) | rpl::start_with_next([=](Limits xPercentageLimits) {
+		if ((_xPercentage.now.min == xPercentageLimits.min)
+			&& (_xPercentage.now.max == xPercentageLimits.max)) {
+			return;
+		}
 		if (!_xPercentage.animation.animating()) {
 			_xPercentage.animation.start();
 		}
@@ -375,10 +436,40 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 					}
 				}
 			}
+			// if (_xPercentage.animValueYMin.from() == minY) {
+			// 	minY += 1;
+			// 	// _xPercentage.animValueYMin.finish();
+			// }
+			// if (_xPercentage.animValueYMax.from() == maxY) {
+			// 	// maxY -= 0.1;
+			// 	_xPercentage.animValueYMax.finish();
+			// }
 			_xPercentage.animValueYMin.start(minY);
 			_xPercentage.animValueYMax.start(maxY);
 
-			_horizontalLines.front().computeRelative(maxY, minY);
+			// _horizontalLines.front().computeRelative(maxY, minY);
+		}
+		{
+			const auto now = crl::now();
+			if ((now - _lastHeightLimitsChanged) < kHeightLimitsUpdateTimeout) {
+				return;
+			}
+			_lastHeightLimitsChanged = now;
+
+			_xPercentage.animValueYAlpha = anim::value(0., 1.);
+			{
+				const auto startXIndex = _chartData.findStartIndex(
+					_xPercentage.now.min);
+				const auto endXIndex = _chartData.findEndIndex(
+					startXIndex,
+					_xPercentage.now.max);
+				addHorizontalLine(
+					{
+						float64(FindMinValue(_chartData, startXIndex, endXIndex)),
+						float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
+					},
+					true);
+			}
 		}
 		// _xPercentage.animation.stop();
 		// const auto was = _xPercentageLimits;
