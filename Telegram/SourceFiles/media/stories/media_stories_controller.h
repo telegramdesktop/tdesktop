@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
 #include "data/data_stories.h"
 #include "ui/effects/animations.h"
 
@@ -36,6 +37,7 @@ namespace Ui {
 class RpWidget;
 struct MessageSendingAnimationFrom;
 class EmojiFlyAnimation;
+class BoxContent;
 } // namespace Ui
 
 namespace Ui::Toast {
@@ -269,5 +271,7 @@ void ReportRequested(
 	std::shared_ptr<Main::SessionShow> show,
 	FullStoryId id,
 	const style::ReportBox *stOverride = nullptr);
+[[nodiscard]] object_ptr<Ui::BoxContent> PrepareShortInfoBox(
+	not_null<PeerData*> peer);
 
 } // namespace Media::Stories

@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_header.h"
 
 #include "base/unixtime.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "data/data_user.h"
 #include "media/stories/media_stories_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/layers/box_content.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
@@ -92,13 +94,16 @@ void Header::show(HeaderData data) {
 	if (userChanged) {
 		_date = nullptr;
 		const auto parent = _controller->wrap();
-		auto widget = std::make_unique<Ui::RpWidget>(parent);
+		auto widget = std::make_unique<Ui::AbstractButton>(parent);
 		const auto raw = widget.get();
-		raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+		raw->setClickedCallback([=] {
+			_controller->uiShow()->show(PrepareShortInfoBox(_data->user));
+		});
 		const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 			raw,
 			data.user,
 			st::storiesHeaderPhoto);
+		userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 		userpic->show();
 		userpic->move(
 			st::storiesHeaderMargin.left(),
@@ -107,6 +112,7 @@ void Header::show(HeaderData data) {
 			raw,
 			data.user->firstName,
 			st::storiesHeaderName);
+		name->setAttribute(Qt::WA_TransparentForMouseEvents);
 		name->setOpacity(kNameOpacity);
 		name->move(st::storiesHeaderNamePosition);
 		raw->show();
@@ -122,6 +128,7 @@ void Header::show(HeaderData data) {
 		_widget.get(),
 		std::move(timestamp.text),
 		st::storiesHeaderDate);
+	_date->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_date->setOpacity(kDateOpacity);
 	_date->show();
 	_date->move(st::storiesHeaderDatePosition);

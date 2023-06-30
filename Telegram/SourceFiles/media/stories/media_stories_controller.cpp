@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/power_save_blocker.h"
 #include "base/qt_signal_producer.h"
+#include "boxes/peers/prepare_short_info_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/application.h"
 #include "core/update_checker.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
@@ -45,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/round_rect.h"
 #include "ui/rp_widget.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_view.h"
@@ -1386,6 +1390,25 @@ void ReportRequested(
 		};
 		show->showBox(Box(Ui::ReportDetailsBox, *st, done));
 	}));
+}
+
+object_ptr<Ui::BoxContent> PrepareShortInfoBox(not_null<PeerData*> peer) {
+	const auto open = [=] {
+		if (const auto window = Core::App().windowFor(peer)) {
+			window->invokeForSessionController(
+				&peer->session().account(),
+				peer,
+				[&](not_null<Window::SessionController*> controller) {
+					Core::App().hideMediaView();
+					controller->showPeerHistory(peer);
+				});
+		}
+	};
+	return ::PrepareShortInfoBox(
+		peer,
+		open,
+		[] { return false; },
+		&st::storiesShortInfoBox);
 }
 
 } // namespace Media::Stories
