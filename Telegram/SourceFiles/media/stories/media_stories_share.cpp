@@ -32,7 +32,8 @@ namespace Media::Stories {
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShareBox(
 		std::shared_ptr<ChatHelpers::Show> show,
-		FullStoryId id) {
+		FullStoryId id,
+		bool viewerStyle) {
 	const auto session = &show->session();
 	const auto resolve = [=] {
 		const auto maybeStory = session->data().stories().lookup(id);
@@ -170,7 +171,7 @@ namespace Media::Stories {
 		}
 	};
 
-	const auto scheduleStyle = [&] {
+	const auto viewerScheduleStyle = [&] {
 		auto date = Ui::ChooseDateTimeStyleArgs();
 		date.labelStyle = &st::groupCallBoxLabel;
 		date.dateFieldStyle = &st::groupCallScheduleDateField;
@@ -191,11 +192,13 @@ namespace Media::Stories {
 		.copyCallback = std::move(copyLinkCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
-		.stMultiSelect = &st::groupCallMultiSelect,
-		.stComment = &st::groupCallShareBoxComment,
-		.st = &st::groupCallShareBoxList,
-		.stLabel = &st::groupCallField,
-		.scheduleBoxStyle = scheduleStyle(),
+		.stMultiSelect = viewerStyle ? &st::groupCallMultiSelect : nullptr,
+		.stComment = viewerStyle ? &st::groupCallShareBoxComment : nullptr,
+		.st = viewerStyle ? &st::groupCallShareBoxList : nullptr,
+		.stLabel = viewerStyle ? &st::groupCallField : nullptr,
+		.scheduleBoxStyle = (viewerStyle
+			? viewerScheduleStyle()
+			: HistoryView::ScheduleBoxStyleArgs()),
 	});
 }
 

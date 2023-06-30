@@ -1245,7 +1245,7 @@ void Controller::unfocusReply() {
 
 void Controller::shareRequested() {
 	const auto show = _delegate->storiesShow();
-	if (auto box = PrepareShareBox(show, _shown)) {
+	if (auto box = PrepareShareBox(show, _shown, true)) {
 		show->show(std::move(box));
 	}
 }

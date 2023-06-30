@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_service_message.h"
 #include "media/stories/media_stories_controller.h" // ...TogglePinnedToast.
+#include "media/stories/media_stories_share.h" // PrepareShareBox.
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
@@ -1104,7 +1105,16 @@ void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void ListWidget::forwardSelected() {
-	if (auto items = collectSelectedIds(); !items.empty()) {
+	if (_controller->storiesPeer()) {
+		const auto ids = collectSelectedIds();
+		if (ids.size() == 1 && IsStoryMsgId(ids.front().msg)) {
+			const auto id = ids.front();
+			_controller->parentController()->show(
+				::Media::Stories::PrepareShareBox(
+					_controller->parentController()->uiShow(),
+					{ id.peer, StoryIdFromMsgId(id.msg) }));
+		}
+	} else if (auto items = collectSelectedIds(); !items.empty()) {
 		forwardItems(std::move(items));
 	}
 }

@@ -21,6 +21,7 @@ namespace Media::Stories {
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShareBox(
 	std::shared_ptr<ChatHelpers::Show> show,
-	FullStoryId id);
+	FullStoryId id,
+	bool viewerStyle = false);
 
 } // namespace Media::Stories
