@@ -3881,6 +3881,33 @@ void Session::destroyAllCallItems() {
 	}
 }
 
+void Session::registerStoryItem(
+		FullStoryId id,
+		not_null<HistoryItem*> item) {
+	_storyItems[id].emplace(item);
+}
+
+void Session::unregisterStoryItem(
+		FullStoryId id,
+		not_null<HistoryItem*> item) {
+	const auto i = _storyItems.find(id);
+	if (i != _storyItems.end()) {
+		auto &items = i->second;
+		if (items.remove(item) && items.empty()) {
+			_storyItems.erase(i);
+		}
+	}
+}
+
+void Session::refreshStoryItemViews(FullStoryId id) {
+	const auto i = _storyItems.find(id);
+	if (i != _storyItems.end()) {
+		for (const auto item : i->second) {
+			requestItemViewRefresh(item);
+		}
+	}
+}
+
 void Session::documentMessageRemoved(not_null<DocumentData*> document) {
 	if (_documentItems.find(document) != _documentItems.end()) {
 		return;

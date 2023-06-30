@@ -1991,7 +1991,10 @@ MediaStory::MediaStory(
 : Media(parent)
 , _storyId(storyId)
 , _mention(mention) {
-	const auto stories = &parent->history()->owner().stories();
+	const auto owner = &parent->history()->owner();
+	owner->registerStoryItem(storyId, parent);
+
+	const auto stories = &owner->stories();
 	if (const auto maybeStory = stories->lookup(storyId)) {
 		if (!_mention) {
 			parent->setText((*maybeStory)->caption());
@@ -2015,6 +2018,11 @@ MediaStory::MediaStory(
 			_expired = true;
 		}
 	}
+}
+
+MediaStory::~MediaStory() {
+	const auto owner = &parent()->history()->owner();
+	owner->unregisterStoryItem(_storyId, parent());
 }
 
 std::unique_ptr<Media> MediaStory::clone(not_null<HistoryItem*> parent) {

@@ -331,6 +331,7 @@ Story *Stories::parseAndApply(
 		return nullptr;
 	}
 	const auto id = data.vid().v;
+	const auto fullId = FullStoryId{ peer->id, id };
 	auto &stories = _stories[peer->id];
 	const auto i = stories.find(id);
 	if (i != end(stories)) {
@@ -349,7 +350,6 @@ Story *Stories::parseAndApply(
 			}
 		}
 		if (mediaChanged) {
-			const auto fullId = result->fullId();
 			_preloaded.remove(fullId);
 			if (_preloading && _preloading->id() == fullId) {
 				_preloading = nullptr;
@@ -357,9 +357,11 @@ Story *Stories::parseAndApply(
 				rebuildPreloadSources(StorySourcesList::Hidden);
 				continuePreloading();
 			}
+			_owner->refreshStoryItemViews(fullId);
 		}
 		return result;
 	}
+	const auto wasDeleted = _deleted.remove(fullId);
 	const auto result = stories.emplace(id, std::make_unique<Story>(
 		id,
 		peer,
@@ -382,10 +384,14 @@ Story *Stories::parseAndApply(
 	}
 
 	if (expired) {
-		_expiring.remove(expires, result->fullId());
-		applyExpired(result->fullId());
+		_expiring.remove(expires, fullId);
+		applyExpired(fullId);
 	} else {
-		registerExpiring(expires, result->fullId());
+		registerExpiring(expires, fullId);
+	}
+
+	if (wasDeleted) {
+		_owner->refreshStoryItemViews(fullId);
 	}
 
 	return result;
@@ -605,7 +611,7 @@ void Stories::finalizeResolve(FullStoryId id) {
 void Stories::applyDeleted(FullStoryId id) {
 	applyRemovedFromActive(id);
 
-	_deleted.emplace(id);
+	_deleted.emplace(id).second;
 	const auto i = _stories.find(id.peer);
 	if (i != end(_stories)) {
 		const auto j = i->second.find(id.story);
@@ -639,6 +645,7 @@ void Stories::applyDeleted(FullStoryId id) {
 			if (_preloading && _preloading->id() == id) {
 				preloadFinished(id);
 			}
+			_owner->refreshStoryItemViews(id);
 			if (i->second.empty()) {
 				_stories.erase(i);
 			}

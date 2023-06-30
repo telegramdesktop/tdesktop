@@ -575,6 +575,7 @@ public:
 		not_null<HistoryItem*> parent,
 		FullStoryId storyId,
 		bool mention);
+	~MediaStory();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 

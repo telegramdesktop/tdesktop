@@ -637,6 +637,9 @@ public:
 		not_null<HistoryItem*> item);
 	void registerCallItem(not_null<HistoryItem*> item);
 	void unregisterCallItem(not_null<HistoryItem*> item);
+	void registerStoryItem(FullStoryId id, not_null<HistoryItem*> item);
+	void unregisterStoryItem(FullStoryId id, not_null<HistoryItem*> item);
+	void refreshStoryItemViews(FullStoryId id);
 
 	void documentMessageRemoved(not_null<DocumentData*> document);
 
@@ -949,6 +952,9 @@ private:
 		UserId,
 		base::flat_set<not_null<ViewElement*>>> _contactViews;
 	std::unordered_set<not_null<HistoryItem*>> _callItems;
+	std::unordered_map<
+		FullStoryId,
+		base::flat_set<not_null<HistoryItem*>>> _storyItems;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
