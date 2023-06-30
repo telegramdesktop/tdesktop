@@ -293,7 +293,10 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			&& AnimFinished(_xPercentage.animValueYMax);
 		const auto alphaFinished = AnimFinished(_xPercentage.animValueYAlpha);
 		if (xFinished && yFinished && alphaFinished) {
-			_xPercentage.animation.stop();
+			if ((_horizontalLines.back().lines.front().absoluteValue == _xPercentage.animValueYMin.to())
+				&& (_horizontalLines.back().lines.back().absoluteValue == _xPercentage.animValueYMax.to())) {
+				_xPercentage.animation.stop();
+			}
 			_xPercentage.alphaAnimationStartedAt = 0;
 			_xPercentage.yAnimationStartedAt = 0;
 		}
