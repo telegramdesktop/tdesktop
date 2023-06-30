@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_compare.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/rp_widget.h"
 
 class QPainter;
@@ -36,9 +37,6 @@ struct Element {
 	QString name;
 	std::shared_ptr<Thumbnail> thumbnail;
 	bool unread : 1 = false;
-	bool suggestHide : 1 = false;
-	bool suggestUnhide : 1 = false;
-	bool profile : 1 = false;
 	bool skipSmall : 1 = false;
 
 	friend inline bool operator==(
@@ -48,16 +46,15 @@ struct Element {
 
 struct Content {
 	std::vector<Element> elements;
-	bool hidden = false;
 
 	friend inline bool operator==(
 		const Content &a,
 		const Content &b) = default;
 };
 
-struct ToggleShownRequest {
+struct ShowMenuRequest {
 	uint64 id = 0;
-	bool shown = false;
+	Ui::Menu::MenuCallback callback;
 };
 
 class List final : public Ui::RpWidget {
@@ -72,8 +69,7 @@ public:
 	void setTouchScrollActive(bool active);
 
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
-	[[nodiscard]] rpl::producer<uint64> showProfileRequests() const;
-	[[nodiscard]] rpl::producer<ToggleShownRequest> toggleShown() const;
+	[[nodiscard]] rpl::producer<ShowMenuRequest> showMenuRequests() const;
 	[[nodiscard]] rpl::producer<bool> toggleExpandedRequests() const;
 	[[nodiscard]] rpl::producer<> entered() const;
 	[[nodiscard]] rpl::producer<> loadMoreRequests() const;
@@ -169,8 +165,7 @@ private:
 	Data _hidingData;
 	Fn<int()> _shownHeight = 0;
 	rpl::event_stream<uint64> _clicks;
-	rpl::event_stream<uint64> _showProfileRequests;
-	rpl::event_stream<ToggleShownRequest> _toggleShown;
+	rpl::event_stream<ShowMenuRequest> _showMenuRequests;
 	rpl::event_stream<bool> _toggleExpandedRequests;
 	rpl::event_stream<> _entered;
 	rpl::event_stream<> _loadMoreRequests;

@@ -43,7 +43,6 @@ struct StoriesSourceInfo {
 	TimeId last = 0;
 	bool unread = false;
 	bool premium = false;
-	bool hidden = false;
 
 	friend inline bool operator==(
 		StoriesSourceInfo,

@@ -16,10 +16,15 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Dialogs::Stories {
 
 struct Content;
 class Thumbnail;
+struct ShowMenuRequest;
 
 [[nodiscard]] rpl::producer<Content> ContentForSession(
 	not_null<Main::Session*> session,
@@ -31,5 +36,9 @@ class Thumbnail;
 	not_null<PeerData*> peer);
 [[nodiscard]] std::shared_ptr<Thumbnail> MakeStoryThumbnail(
 	not_null<Data::Story*> story);
+
+void FillSourceMenu(
+	not_null<Window::SessionController*> controller,
+	const ShowMenuRequest &request);
 
 } // namespace Dialogs::Stories

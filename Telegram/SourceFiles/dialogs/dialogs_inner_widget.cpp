@@ -347,17 +347,9 @@ InnerWidget::InnerWidget(
 			Data::StorySourcesList::NotHidden);
 	}, lifetime());
 
-	_stories->showProfileRequests(
-	) | rpl::start_with_next([=](uint64 id) {
-		_controller->showPeerInfo(PeerId(int64(id)));
-	}, lifetime());
-
-	_stories->toggleShown(
-	) | rpl::start_with_next([=](Stories::ToggleShownRequest request) {
-		session().data().stories().toggleHidden(
-			PeerId(int64(request.id)),
-			!request.shown,
-			_controller->uiShow());
+	_stories->showMenuRequests(
+	) | rpl::start_with_next([=](const Stories::ShowMenuRequest &request) {
+		FillSourceMenu(_controller, request);
 	}, lifetime());
 
 	_stories->loadMoreRequests(

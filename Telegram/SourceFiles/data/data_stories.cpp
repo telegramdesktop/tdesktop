@@ -76,7 +76,6 @@ StoriesSourceInfo StoriesSource::info() const {
 		.last = ids.empty() ? 0 : ids.back().date,
 		.unread = unread(),
 		.premium = user->isPremium(),
-		.hidden = hidden,
 	};
 }
 
@@ -943,7 +942,7 @@ void Stories::toggleHidden(
 				tr::now,
 				lt_user,
 				Ui::Text::Bold(name),
-				Ui::Text::WithEntities));
+				Ui::Text::RichLangValue));
 		}
 	});
 

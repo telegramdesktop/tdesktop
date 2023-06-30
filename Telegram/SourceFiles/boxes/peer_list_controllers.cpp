@@ -57,10 +57,10 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		&sessionController->session());
 	const auto raw = controller.get();
 	auto init = [=](not_null<PeerListBox*> box) {
-		using namespace Dialogs;
+		using namespace Dialogs::Stories;
 
 		struct State {
-			Stories::List *stories = nullptr;
+			List *stories = nullptr;
 			QPointer<::Ui::IconButton> toggleSort;
 			Mode mode = ContactsBoxController::SortMode::Online;
 			::Ui::Animations::Simple scrollAnimation;
@@ -82,10 +82,10 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		});
 		raw->setSortMode(Mode::Online);
 
-		auto list = object_ptr<Stories::List>(
+		auto list = object_ptr<List>(
 			box,
 			st::dialogsStoriesList,
-			Stories::ContentForSession(
+			ContentForSession(
 				&sessionController->session(),
 				Data::StorySourcesList::Hidden),
 			[=] { return state->stories->height() - box->scrollTop(); });
@@ -102,17 +102,9 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 				Data::StorySourcesList::Hidden);
 		}, raw->lifetime());
 
-		raw->showProfileRequests(
-		) | rpl::start_with_next([=](uint64 id) {
-			sessionController->showPeerInfo(PeerId(int64(id)));
-		}, raw->lifetime());
-
-		raw->toggleShown(
-		) | rpl::start_with_next([=](Stories::ToggleShownRequest request) {
-			stories->toggleHidden(
-				PeerId(int64(request.id)),
-				!request.shown,
-				sessionController->uiShow());
+		raw->showMenuRequests(
+		) | rpl::start_with_next([=](const ShowMenuRequest &request) {
+			FillSourceMenu(sessionController, request);
 		}, raw->lifetime());
 
 		raw->loadMoreRequests(

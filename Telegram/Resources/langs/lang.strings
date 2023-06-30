@@ -3814,8 +3814,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_userpic_builder_emoji_subtitle" = "Choose sticker or emoji";
 
 "lng_stories_my_name" = "My Story";
-"lng_stories_hide_to_contacts" = "Archive";
-"lng_stories_show_in_chats" = "Unarchive";
+"lng_stories_hide_to_contacts" = "Hide";
+"lng_stories_show_in_chats" = "Show in Chats";
 "lng_stories_row_count#one" = "{count} Story";
 "lng_stories_row_count#other" = "{count} Stories";
 "lng_stories_row_unread_and_one" = "{accumulated}, {user}";
@@ -3832,8 +3832,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_archive_title" = "Stories Archive";
 "lng_stories_archive_about" = "Only you can see archived stories unless you choose to save them to your profile.";
 "lng_stories_reply_sent" = "Message Sent";
-"lng_stories_hidden_to_contacts" = "Stories from {user} will now be shown in Contacts, not Chats.";
-"lng_stories_shown_in_chats" = "Stories from {user} will now be shown in Chats, not Contacts.";
+"lng_stories_hidden_to_contacts" = "Stories of {user} were moved to **Contacts**.";
+"lng_stories_shown_in_chats" = "Stories of {user} were moved above the **Chats List**.";
 "lng_stories_delete_one_sure" = "Are you sure you want to delete this story?";
 "lng_stories_delete_sure#one" = "Are you sure you want to delete {count} story?";
 "lng_stories_delete_sure#other" = "Are you sure you want to delete {count} stories?";

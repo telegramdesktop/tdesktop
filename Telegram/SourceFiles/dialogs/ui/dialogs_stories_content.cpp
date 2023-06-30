@@ -17,9 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "data/data_user.h"
 #include "dialogs/ui/dialogs_stories_list.h"
+#include "info/stories/info_stories_widget.h"
+#include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
+#include "window/window_session_controller.h"
+#include "styles/style_menu_icons.h"
 
 namespace Dialogs::Stories {
 namespace {
@@ -325,9 +330,7 @@ State::State(not_null<Data::Stories*> data, Data::StorySourcesList list)
 }
 
 Content State::next() {
-	auto result = Content{
-		.hidden = (_list == Data::StorySourcesList::Hidden)
-	};
+	auto result = Content();
 	const auto &sources = _data->sources(_list);
 	result.elements.reserve(sources.size());
 	for (const auto &info : sources) {
@@ -349,9 +352,6 @@ Content State::next() {
 				: user->shortName()),
 			.thumbnail = std::move(userpic),
 			.unread = info.unread,
-			.suggestHide = !info.hidden,
-			.suggestUnhide = info.hidden,
-			.profile = true,
 			.skipSmall = user->isSelf(),
 		});
 	}
@@ -464,6 +464,53 @@ std::shared_ptr<Thumbnail> MakeStoryThumbnail(
 	}, [&](not_null<DocumentData*> video) -> Result {
 		return std::make_shared<VideoThumbnail>(video, id);
 	});
+}
+
+void FillSourceMenu(
+		not_null<Window::SessionController*> controller,
+		const ShowMenuRequest &request) {
+	const auto owner = &controller->session().data();
+	const auto peer = owner->peer(PeerId(request.id));
+	const auto &add = request.callback;
+	if (peer->isSelf()) {
+		add(tr::lng_stories_archive_button(tr::now), [=] {
+			controller->showSection(Info::Stories::Make(
+				peer,
+				Info::Stories::Tab::Archive));
+		}, &st::menuIconStoriesArchive);
+		add(tr::lng_stories_my_title(tr::now), [=] {
+			controller->showSection(Info::Stories::Make(peer));
+		}, &st::menuIconStoriesSaved);
+	} else {
+		add(tr::lng_profile_send_message(tr::now), [=] {
+			controller->showPeerHistory(peer);
+		}, &st::menuIconChatBubble);
+		add(tr::lng_context_view_profile(tr::now), [=] {
+			controller->showPeerInfo(peer);
+		}, &st::menuIconProfile);
+		const auto in = [&](Data::StorySourcesList list) {
+			return ranges::contains(
+				owner->stories().sources(list),
+				peer->id,
+				&Data::StoriesSourceInfo::id);
+		};
+		const auto toggle = [=](bool shown) {
+			owner->stories().toggleHidden(
+				peer->id,
+				!shown,
+				controller->uiShow());
+		};
+		if (in(Data::StorySourcesList::NotHidden)) {
+			add(tr::lng_stories_hide_to_contacts(tr::now), [=] {
+				toggle(false);
+			}, &st::menuIconCancel);
+		}
+		if (in(Data::StorySourcesList::Hidden)) {
+			add(tr::lng_stories_show_in_chats(tr::now), [=] {
+				toggle(true);
+			}, &st::menuIconAddToFolder);
+		}
+	}
 }
 
 } // namespace Dialogs::Stories

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_stories_list.h"
 
 #include "lang/lang_keys.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "styles/style_dialogs.h"
@@ -108,9 +109,6 @@ void List::showContent(Content &&content) {
 				item.nameCache = QImage();
 			}
 			item.element.unread = element.unread;
-			item.element.suggestHide = element.suggestHide;
-			item.element.suggestUnhide = element.suggestUnhide;
-			item.element.profile = element.profile;
 		} else {
 			_data.items.emplace_back(Item{ .element = element });
 		}
@@ -237,12 +235,8 @@ rpl::producer<uint64> List::clicks() const {
 	return _clicks.events();
 }
 
-rpl::producer<uint64> List::showProfileRequests() const {
-	return _showProfileRequests.events();
-}
-
-rpl::producer<ToggleShownRequest> List::toggleShown() const {
-	return _toggleShown.events();
+rpl::producer<ShowMenuRequest> List::showMenuRequests() const {
+	return _showMenuRequests.events();
 }
 
 rpl::producer<bool> List::toggleExpandedRequests() const {
@@ -852,24 +846,16 @@ void List::contextMenuEvent(QContextMenuEvent *e) {
 	if (_selected < 0 || _data.empty()) {
 		return;
 	}
-
-	auto &item = _data.items[_selected];
-	_menu = base::make_unique_q<Ui::PopupMenu>(this);
-
-	const auto id = item.element.id;
-	if (item.element.profile) {
-		_menu->addAction(tr::lng_context_view_profile(tr::now), [=] {
-			_showProfileRequests.fire_copy(id);
-		});
-	}
-	if (item.element.suggestHide) {
-		_menu->addAction(
-			tr::lng_stories_hide_to_contacts(tr::now),
-			[=] { _toggleShown.fire({ .id = id, .shown = false }); });
-	} else if (item.element.suggestUnhide) {
-		_menu->addAction(
-			tr::lng_stories_show_in_chats(tr::now),
-			[=] { _toggleShown.fire({ .id = id, .shown = true }); });
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	_showMenuRequests.fire({
+		_data.items[_selected].element.id,
+		Ui::Menu::CreateAddActionCallback(_menu),
+	});
+	if (_menu->empty()) {
+		_menu = nullptr;
+		return;
 	}
 	const auto updateAfterMenuDestroyed = [=] {
 		const auto globalPosition = QCursor::pos();
@@ -882,12 +868,8 @@ void List::contextMenuEvent(QContextMenuEvent *e) {
 		_menu.get(),
 		&QObject::destroyed,
 		crl::guard(&_menuGuard, updateAfterMenuDestroyed));
-	if (_menu->empty()) {
-		_menu = nullptr;
-	} else {
-		_menu->popup(e->globalPos());
-		e->accept();
-	}
+	_menu->popup(e->globalPos());
+	e->accept();
 }
 
 bool List::finishDragging() {
