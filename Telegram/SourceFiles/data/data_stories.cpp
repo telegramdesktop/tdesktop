@@ -1275,6 +1275,63 @@ void Stories::deleteList(const std::vector<FullStoryId> &ids) {
 	}
 }
 
+void Stories::togglePinnedList(
+		const std::vector<FullStoryId> &ids,
+		bool pinned) {
+	auto list = QVector<MTPint>();
+	list.reserve(ids.size());
+	const auto selfId = session().userPeerId();
+	for (const auto &id : ids) {
+		if (id.peer == selfId) {
+			list.push_back(MTP_int(id.story));
+		}
+	}
+	if (list.empty()) {
+		return;
+	}
+	const auto api = &_owner->session().api();
+	api->request(MTPstories_TogglePinned(
+		MTP_vector<MTPint>(list),
+		MTP_bool(pinned)
+	)).done([=](const MTPVector<MTPint> &result) {
+		auto &saved = _saved[selfId];
+		const auto loaded = saved.loaded;
+		const auto lastId = !saved.ids.list.empty()
+			? saved.ids.list.back()
+			: std::numeric_limits<StoryId>::max();
+		auto dirty = false;
+		for (const auto &id : result.v) {
+			if (const auto maybeStory = lookup({ selfId, id.v })) {
+				const auto story = *maybeStory;
+				story->setPinned(pinned);
+				if (pinned) {
+					const auto add = loaded || (id.v >= lastId);
+					if (!add) {
+						dirty = true;
+					} else if (saved.ids.list.emplace(id.v).second) {
+						if (saved.total >= 0) {
+							++saved.total;
+						}
+					}
+				} else if (saved.ids.list.remove(id.v)) {
+					if (saved.total > 0) {
+						--saved.total;
+					}
+				} else if (!loaded) {
+					dirty = true;
+				}
+			} else if (!loaded) {
+				dirty = true;
+			}
+		}
+		if (dirty) {
+			savedLoadMore(selfId);
+		} else {
+			_savedChanged.fire_copy(selfId);
+		}
+	}).send();
+}
+
 void Stories::report(
 		std::shared_ptr<Ui::Show> show,
 		FullStoryId id,

@@ -121,6 +121,8 @@ public:
 	explicit Stories(not_null<Session*> owner);
 	~Stories();
 
+	static constexpr auto kPinnedToastDuration = 4 * crl::time(1000);
+
 	[[nodiscard]] Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 
@@ -183,6 +185,7 @@ public:
 	void savedLoadMore(PeerId peerId);
 
 	void deleteList(const std::vector<FullStoryId> &ids);
+	void togglePinnedList(const std::vector<FullStoryId> &ids, bool pinned);
 	void report(
 		std::shared_ptr<Ui::Show> show,
 		FullStoryId id,

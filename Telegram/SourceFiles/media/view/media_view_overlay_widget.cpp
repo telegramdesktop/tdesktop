@@ -1408,6 +1408,19 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			[=] { toMessage(); },
 			&st::mediaMenuIconShowInChat);
 	}
+	if (story && story->peer()->isSelf()) {
+		const auto pinned = story->pinned();
+		const auto text = pinned
+			? tr::lng_mediaview_archive_story(tr::now)
+			: tr::lng_mediaview_save_to_profile(tr::now);
+		addAction(text, [=] {
+			if (_stories) {
+				_stories->togglePinnedRequested(!pinned);
+			}
+		}, pinned
+			? &st::mediaMenuIconArchiveStory
+			: &st::mediaMenuIconSaveStory);
+	}
 	if ((!story || story->canDownload())
 		&& _document
 		&& !_document->filepath(true).isEmpty()) {
@@ -2156,6 +2169,9 @@ void OverlayWidget::hideControls(bool force) {
 
 void OverlayWidget::dropdownHidden() {
 	setFocus();
+	if (_stories) {
+		_stories->menuShown(false);
+	}
 	_ignoringDropdown = true;
 	_lastMouseMovePos = _widget->mapFromGlobal(QCursor::pos());
 	updateOver(_lastMouseMovePos);
@@ -5387,7 +5403,7 @@ void OverlayWidget::updateOverRect(Over state) {
 bool OverlayWidget::updateOverState(Over newState) {
 	bool result = true;
 	if (_over != newState) {
-		if (newState == Over::More && !_ignoringDropdown) {
+		if (!_stories && newState == Over::More && !_ignoringDropdown) {
 			_dropdownShowTimer.callOnce(0);
 		} else {
 			_dropdownShowTimer.cancel();
@@ -5637,7 +5653,13 @@ bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
 	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
+		if (_stories) {
+			_stories->menuShown(true);
+		}
 		_menu->setDestroyedCallback(crl::guard(_widget, [=] {
+			if (_stories) {
+				_stories->menuShown(false);
+			}
 			activateControls();
 			_receiveMouse = false;
 			InvokeQueued(_widget, [=] { receiveMouse(); });
@@ -5905,6 +5927,9 @@ void OverlayWidget::showDropdown() {
 	_dropdown->moveToRight(0, height() - _dropdown->height());
 	_dropdown->showAnimated(Ui::PanelAnimation::Origin::BottomRight);
 	_dropdown->setFocus();
+	if (_stories) {
+		_stories->menuShown(true);
+	}
 }
 
 void OverlayWidget::handleTouchTimer() {

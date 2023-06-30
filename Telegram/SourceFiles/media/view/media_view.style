@@ -841,3 +841,6 @@ storiesReportBox: ReportBox(defaultReportBox) {
 	personal: icon {{ "menu/personal", storiesComposeWhiteText }};
 	other: icon {{ "menu/report", storiesComposeWhiteText }};
 }
+storiesActionToast: Toast(defaultToast) {
+	maxWidth: 320px;
+}

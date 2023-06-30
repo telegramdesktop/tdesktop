@@ -39,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/message_sending_animation_common.h"
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/layers/box_content.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/round_rect.h"
@@ -1254,8 +1256,16 @@ void Controller::deleteRequested() {
 		return;
 	}
 	const auto id = story->fullId();
+	const auto weak = base::make_weak(this);
 	const auto owner = &story->owner();
 	const auto confirmed = [=](Fn<void()> close) {
+		if (const auto strong = weak.get()) {
+			if (const auto story = strong->story()) {
+				if (story->fullId() == id) {
+					moveFromShown();
+				}
+			}
+		}
 		owner->stories().deleteList({ id });
 		close();
 	};
@@ -1288,6 +1298,38 @@ void Controller::reportRequested() {
 		};
 		show->showBox(Box(Ui::ReportDetailsBox, *st, done));
 	}));
+}
+
+void Controller::togglePinnedRequested(bool pinned) {
+	const auto story = this->story();
+	if (!story || !story->peer()->isSelf()) {
+		return;
+	}
+	if (!pinned && v::is<Data::StoriesContextSaved>(_context.data)) {
+		moveFromShown();
+	}
+	story->owner().stories().togglePinnedList({ story->fullId() }, pinned);
+	uiShow()->showToast({
+		.text = (pinned
+			? tr::lng_stories_save_done(
+				tr::now,
+				Ui::Text::Bold).append(
+					'\n').append(
+						tr::lng_stories_save_done_about(tr::now))
+			: tr::lng_stories_archive_done(
+				tr::now,
+				Ui::Text::WithEntities)),
+		.st = &st::storiesActionToast,
+		.duration = (pinned
+			? Data::Stories::kPinnedToastDuration
+			: Ui::Toast::kDefaultDuration),
+	});
+}
+
+void Controller::moveFromShown() {
+	if (!subjumpFor(1)) {
+		[[maybe_unused]] const auto jumped = subjumpFor(-1);
+	}
 }
 
 rpl::lifetime &Controller::lifetime() {

@@ -83,6 +83,10 @@ void View::contentPressed(bool pressed) {
 	_controller->contentPressed(pressed);
 }
 
+void View::menuShown(bool shown) {
+	_controller->setMenuShown(shown);
+}
+
 void View::shareRequested() {
 	_controller->shareRequested();
 }
@@ -93,6 +97,10 @@ void View::deleteRequested() {
 
 void View::reportRequested() {
 	_controller->reportRequested();
+}
+
+void View::togglePinnedRequested(bool pinned) {
+	_controller->togglePinnedRequested(pinned);
 }
 
 SiblingView View::sibling(SiblingType type) const {

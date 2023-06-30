@@ -91,7 +91,7 @@ struct ViewsSlice {
 	int left = 0;
 };
 
-class Controller final {
+class Controller final : public base::has_weak_ptr {
 public:
 	explicit Controller(not_null<Delegate*> delegate);
 	~Controller();
@@ -135,6 +135,7 @@ public:
 	void shareRequested();
 	void deleteRequested();
 	void reportRequested();
+	void togglePinnedRequested(bool pinned);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -171,6 +172,7 @@ private:
 
 	void subjumpTo(int index);
 	void checkWaitingFor();
+	void moveFromShown();
 
 	void refreshViewsFromData();
 	bool sliceViewsTo(PeerId offset);

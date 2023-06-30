@@ -2477,6 +2477,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_copy" = "Copy";
 "lng_mediaview_forward" = "Forward";
 "lng_mediaview_delete" = "Delete";
+"lng_mediaview_save_to_profile" = "Save to Profile";
+"lng_mediaview_archive_story" = "Archive Story";
 "lng_mediaview_photos_all" = "View all photos";
 "lng_mediaview_files_all" = "View all files";
 "lng_mediaview_single_photo" = "Single Photo";
@@ -3837,6 +3839,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_delete_one_sure" = "Are you sure you want to delete this story?";
 "lng_stories_delete_sure#one" = "Are you sure you want to delete {count} story?";
 "lng_stories_delete_sure#other" = "Are you sure you want to delete {count} stories?";
+"lng_stories_save_sure" = "Do you want to save this story to your profile?";
+"lng_stories_save_sure_many#one" = "Do you want to save {count} story to your profile?";
+"lng_stories_save_sure_many#other" = "Do you want to save {count} stories to your profile?";
+"lng_stories_save_done" = "This story is saved to your profile.";
+"lng_stories_save_done_many#one" = "{count} story is saved to your profile.";
+"lng_stories_save_done_many#other" = "{count} stories are saved to your profile.";
+"lng_stories_save_done_about" = "Saved stories can be viewed by others on your profile until you remove them.";
+"lng_stories_archive_sure" = "Do you want to hide this story from your profile?";
+"lng_stories_archive_sure_many#one" = "Do you want to hide {count} story from your profile?";
+"lng_stories_archive_sure_many#other" = "Do you want to hide {count} stories from your profile?";
+"lng_stories_archive_done" = "This story is hidden from your profile.";
+"lng_stories_archive_done_many#one" = "{count} story is hidden from your profile.";
+"lng_stories_archive_done_many#other" = "{count} stories are hidden from your profile.";
 
 "lng_stories_link_invalid" = "This link is broken or has expired.";
 

@@ -126,6 +126,8 @@ mediaMenuIconDelete: icon {{ "menu/delete", mediaviewMenuFg }};
 mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};
 mediaMenuIconProfile: icon {{ "menu/profile", mediaviewMenuFg }};
 mediaMenuIconReport: icon {{ "menu/report", mediaviewMenuFg }};
+mediaMenuIconSaveStory: icon {{ "menu/stories_saved", mediaviewMenuFg }};
+mediaMenuIconArchiveStory: icon {{ "menu/archive", mediaviewMenuFg }};
 
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};

@@ -28,6 +28,25 @@ InfoPeerBadge {
 	sizeTag: int;
 }
 
+InfoTopBar {
+	height: pixels;
+	back: IconButton;
+	title: FlatLabel;
+	titlePosition: point;
+	bg: color;
+	mediaCancel: IconButton;
+	mediaActionsSkip: pixels;
+	mediaForward: IconButton;
+	mediaDelete: IconButton;
+	storiesSave: IconButton;
+	storiesArchive: IconButton;
+	search: IconButton;
+	searchRow: SearchFieldRow;
+	highlightBg: color;
+	highlightDuration: int;
+	radius: pixels;
+}
+
 infoMediaHeaderFg: windowFg;
 
 infoToggle: InfoToggle {
@@ -156,6 +175,14 @@ infoTopBarDelete: IconButton(infoTopBarForward) {
 	icon: icon {{ "info/info_media_delete", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_media_delete", boxTitleCloseFgOver }};
 }
+infoTopBarSaveStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "menu/stories_saved", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/stories_saved", boxTitleCloseFgOver }};
+}
+infoTopBarArchiveStories: IconButton(infoTopBarForward) {
+	icon: icon {{ "menu/archive", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
+}
 infoTopBar: InfoTopBar {
 	height: infoTopBarHeight;
 	back: infoTopBarBack;
@@ -166,6 +193,8 @@ infoTopBar: InfoTopBar {
 	mediaActionsSkip: 4px;
 	mediaForward: infoTopBarForward;
 	mediaDelete: infoTopBarDelete;
+	storiesSave: infoTopBarSaveStories;
+	storiesArchive: infoTopBarArchiveStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 	highlightBg: windowBgOver;
@@ -221,6 +250,14 @@ infoLayerTopBarDelete: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "info/info_media_delete", boxTitleCloseFg }};
 	iconOver: icon {{ "info/info_media_delete", boxTitleCloseFgOver }};
 }
+infoLayerTopBarSaveStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "menu/stories_saved", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/stories_saved", boxTitleCloseFgOver }};
+}
+infoLayerTopBarArchiveStories: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "menu/archive", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
+}
 infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
@@ -231,6 +268,8 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	mediaActionsSkip: 6px;
 	mediaForward: infoLayerTopBarForward;
 	mediaDelete: infoLayerTopBarDelete;
+	storiesSave: infoLayerTopBarSaveStories;
+	storiesArchive: infoLayerTopBarArchiveStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 	radius: boxRadius;

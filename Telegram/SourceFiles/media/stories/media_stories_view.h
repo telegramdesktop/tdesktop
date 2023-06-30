@@ -75,10 +75,12 @@ public:
 	[[nodiscard]] bool paused() const;
 	void togglePaused(bool paused);
 	void contentPressed(bool pressed);
+	void menuShown(bool shown);
 
 	void shareRequested();
 	void deleteRequested();
 	void reportRequested();
+	void togglePinnedRequested(bool pinned);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
