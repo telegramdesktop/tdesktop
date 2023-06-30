@@ -44,7 +44,7 @@ rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 			const auto hasBefore = int(around - begin(saved->list));
 			const auto hasAfter = int(end(saved->list) - around);
 			if (hasAfter < limit) {
-				//stories->savedLoadMore(peer->id);
+				stories->savedLoadMore(peer->id);
 			}
 			const auto takeBefore = std::min(hasBefore, limit);
 			const auto takeAfter = std::min(hasAfter, limit);

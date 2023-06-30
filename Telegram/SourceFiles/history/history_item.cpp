@@ -1988,7 +1988,7 @@ bool HistoryItem::canDelete() const {
 	if (isSponsored()) {
 		return false;
 	} else if (IsStoryMsgId(id)) {
-		return false && _history->peer->isSelf(); // #TODO stories
+		return false;
 	} else if (isService() && !isRegular()) {
 		return false;
 	} else if (topicRootId() == id) {

@@ -352,6 +352,10 @@ void TopBar::updateSelectionControlsGeometry(int newWidth) {
 		_delete->moveToRight(right, 0, newWidth);
 		right += _delete->width();
 	}
+	if (_canToggleStoryPin) {
+		_toggleStoryPin->moveToRight(right, 0, newWidth);
+		right += _toggleStoryPin->width();
+	}
 	if (_canForward) {
 		_forward->moveToRight(right, 0, newWidth);
 		right += _forward->width();
@@ -496,6 +500,10 @@ void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 	updateControlsVisibility(anim::type::instant);
 }
 
+void TopBar::setStoriesArchive(bool archive) {
+	_storiesArchive = archive;
+}
+
 void TopBar::setSelectedItems(SelectedItems &&items) {
 	auto wasSelectionMode = selectionMode();
 	_selectedItems = std::move(items);
@@ -523,13 +531,14 @@ rpl::producer<SelectionAction> TopBar::selectionActionRequests() const {
 }
 
 void TopBar::updateSelectionState() {
-	Expects(_selectionText && _delete && _forward);
+	Expects(_selectionText && _delete && _forward && _toggleStoryPin);
 
 	_canDelete = computeCanDelete();
 	_canForward = computeCanForward();
 	_selectionText->entity()->setValue(generateSelectedText());
 	_delete->toggle(_canDelete, anim::type::instant);
 	_forward->toggle(_canForward, anim::type::instant);
+	_toggleStoryPin->toggle(_canToggleStoryPin, anim::type::instant);
 
 	updateSelectionControlsGeometry(width());
 }
@@ -544,6 +553,7 @@ void TopBar::createSelectionControls() {
 	};
 	_canDelete = computeCanDelete();
 	_canForward = computeCanForward();
+	_canToggleStoryPin = computeCanToggleStoryPin();
 	_cancelSelection = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
 		object_ptr<Ui::IconButton>(this, _st.mediaCancel),
@@ -595,6 +605,24 @@ void TopBar::createSelectionControls() {
 		_selectionActionRequests,
 		_cancelSelection->lifetime());
 	_delete->entity()->setVisible(_canDelete);
+	const auto archive =
+	_toggleStoryPin = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
+		this,
+		object_ptr<Ui::IconButton>(
+			this,
+			_storiesArchive ? _st.storiesSave : _st.storiesArchive),
+		st::infoTopBarScale));
+	registerToggleControlCallback(
+		_toggleStoryPin.data(),
+		[this] { return selectionMode() && _canToggleStoryPin; });
+	_toggleStoryPin->setDuration(st::infoTopBarDuration);
+	_toggleStoryPin->entity()->clicks(
+	) | rpl::map_to(
+		SelectionAction::ToggleStoryPin
+	) | rpl::start_to_stream(
+		_selectionActionRequests,
+		_cancelSelection->lifetime());
+	_toggleStoryPin->entity()->setVisible(_canToggleStoryPin);
 
 	updateControlsGeometry(width());
 }
@@ -605,6 +633,12 @@ bool TopBar::computeCanDelete() const {
 
 bool TopBar::computeCanForward() const {
 	return ranges::all_of(_selectedItems.list, &SelectedItem::canForward);
+}
+
+bool TopBar::computeCanToggleStoryPin() const {
+	return ranges::all_of(
+		_selectedItems.list,
+		&SelectedItem::canToggleStoryPin);
 }
 
 Ui::StringWithNumbers TopBar::generateSelectedText() const {
@@ -618,8 +652,7 @@ Ui::StringWithNumbers TopBar::generateSelectedText() const {
 		case Type::MusicFile: return tr::lng_media_selected_song;
 		case Type::Link: return tr::lng_media_selected_link;
 		case Type::RoundVoiceFile: return tr::lng_media_selected_audio;
-			// #TODO stories
-		case Type::PhotoVideo: return tr::lng_media_selected_photo;
+		case Type::PhotoVideo: return tr::lng_stories_row_count;
 		}
 		Unexpected("Type in TopBar::generateSelectedText()");
 	}();

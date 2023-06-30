@@ -338,7 +338,7 @@ void ListSection::resizeToWidth(int newWidth) {
 	switch (_type) {
 	case Type::Photo:
 	case Type::Video:
-	case Type::PhotoVideo: // #TODO stories
+	case Type::PhotoVideo:
 	case Type::RoundFile: {
 		const auto skip = st::infoMediaSkip;
 		_itemsLeft = st::infoMediaLeft;
@@ -379,7 +379,7 @@ int ListSection::recountHeight() {
 	switch (_type) {
 	case Type::Photo:
 	case Type::Video:
-	case Type::PhotoVideo: // #TODO stories
+	case Type::PhotoVideo:
 	case Type::RoundFile: {
 		auto itemHeight = _itemHeight + st::infoMediaSkip;
 		auto index = 0;

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_service_message.h"
+#include "media/stories/media_stories_controller.h" // ...TogglePinnedToast.
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
@@ -55,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
+#include "ui/toast/toast.h"
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -258,6 +260,7 @@ void ListWidget::selectionAction(SelectionAction action) {
 	case SelectionAction::Clear: clearSelected(); return;
 	case SelectionAction::Forward: forwardSelected(); return;
 	case SelectionAction::Delete: deleteSelected(); return;
+	case SelectionAction::ToggleStoryPin: toggleStoryPinSelected(); return;
 	}
 }
 
@@ -335,6 +338,7 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 		auto result = SelectedItem(item->globalId());
 		result.canDelete = selection.canDelete;
 		result.canForward = selection.canForward;
+		result.canToggleStoryPin = selection.canToggleStoryPin;
 		return result;
 	};
 	auto transformation = [&](const auto &item) {
@@ -348,6 +352,12 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 			_selected.end(),
 			std::back_inserter(items.list),
 			transformation);
+	}
+	if (_controller->storiesPeer() && items.list.size() > 1) {
+		// Don't allow forwarding more than one story.
+		for (auto &entry : items.list) {
+			entry.canForward = false;
+		}
 	}
 	return items;
 }
@@ -1126,6 +1136,43 @@ void ListWidget::deleteSelected() {
 	}));
 }
 
+void ListWidget::toggleStoryPinSelected() {
+	auto list = std::vector<FullStoryId>();
+	const auto confirmed = crl::guard(this, [=] {
+		clearSelected();
+	});
+	for (const auto &item : collectSelectedItems().list) {
+		const auto id = item.globalId.itemId;
+		if (IsStoryMsgId(id.msg)) {
+			list.push_back({ id.peer, StoryIdFromMsgId(id.msg) });
+		}
+	}
+	const auto count = int(list.size());
+	const auto pin = (_controller->storiesTab() == Stories::Tab::Archive);
+	const auto controller = _controller;
+	const auto sure = [=](Fn<void()> close) {
+		controller->session().data().stories().togglePinnedList(list, pin);
+		controller->showToast(
+			::Media::Stories::PrepareTogglePinnedToast(count, pin));
+		close();
+		confirmed();
+	};
+	const auto session = &_controller->session();
+	const auto onePhrase = pin
+		? tr::lng_stories_save_sure
+		: tr::lng_stories_archive_sure;
+	const auto manyPhrase = pin
+		? tr::lng_stories_save_sure_many
+		: tr::lng_stories_archive_sure_many;
+	_controller->parentController()->show(Ui::MakeConfirmBox({
+		.text = (count == 1
+			? onePhrase()
+			: manyPhrase(lt_count, rpl::single(count) | tr::to_count())),
+		.confirmed = sure,
+		.confirmText = tr::lng_box_ok(),
+	}));
+}
+
 void ListWidget::deleteItem(GlobalMsgId globalId) {
 	if (const auto item = MessageByGlobalId(globalId)) {
 		auto items = SelectedItems(_provider->type());
@@ -1134,7 +1181,6 @@ void ListWidget::deleteItem(GlobalMsgId globalId) {
 			item,
 			FullSelection);
 		items.list.back().canDelete = selectionData.canDelete;
-		items.list.back().canForward = selectionData.canForward;
 		deleteItems(std::move(items));
 	}
 }
@@ -1180,6 +1226,33 @@ void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
 			.confirmText = tr::lng_box_delete(tr::now),
 			.confirmStyle = &st::attentionBoxButton,
 		})));
+	} else if (_controller->storiesPeer()) {
+		auto list = std::vector<FullStoryId>();
+		for (const auto &item : items.list) {
+			const auto id = item.globalId.itemId;
+			if (IsStoryMsgId(id.msg)) {
+				list.push_back({ id.peer, StoryIdFromMsgId(id.msg) });
+			}
+		}
+		const auto session = &_controller->session();
+		const auto sure = [=](Fn<void()> close) {
+			session->data().stories().deleteList(list);
+			close();
+			if (confirmed) {
+				confirmed();
+			}
+		};
+		const auto count = int(list.size());
+		window->show(Ui::MakeConfirmBox({
+			.text = (count == 1
+				? tr::lng_stories_delete_one_sure()
+				: tr::lng_stories_delete_sure(
+					lt_count,
+					rpl::single(count) | tr::to_count())),
+			.confirmed = sure,
+			.confirmText = tr::lng_selected_delete(),
+			.confirmStyle = &st::attentionBoxButton,
+		}));
 	} else if (auto list = collectSelectedIds(items); !list.empty()) {
 		auto box = Box<DeleteMessagesBox>(
 			&_controller->session(),

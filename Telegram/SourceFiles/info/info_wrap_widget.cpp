@@ -585,6 +585,8 @@ void WrapWidget::finishShowContent() {
 	if (_topBar) {
 		_topBar->setTitle(_content->title());
 		_topBar->setStories(_content->titleStories());
+		_topBar->setStoriesArchive(
+			_controller->key().storiesTab() == Stories::Tab::Archive);
 	}
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());

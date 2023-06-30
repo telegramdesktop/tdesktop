@@ -61,7 +61,7 @@ Type Provider::type() {
 }
 
 bool Provider::hasSelectRestriction() {
-	return true; // #TODO stories
+	return !_peer->isSelf();
 }
 
 rpl::producer<bool> Provider::hasSelectRestrictionChanges() {
@@ -312,8 +312,10 @@ ListItemSelectionData Provider::computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) {
 	auto result = ListItemSelectionData(selection);
-	result.canDelete = item->canDelete();
-	result.canForward = item->allowsForward();
+	const auto peer = item->history()->peer;
+	result.canDelete = peer->isSelf();
+	result.canForward = peer->isSelf();
+	result.canToggleStoryPin = peer->isSelf();
 	return result;
 }
 
@@ -334,9 +336,10 @@ void Provider::applyDragSelection(
 		}
 	}
 	for (auto &layoutItem : _layouts) {
-		const auto id = StoryIdToMsgId(layoutItem.first);
+		const auto storyId = layoutItem.first;
+		const auto id = StoryIdToMsgId(storyId);
 		if (id <= fromId && id > tillId) {
-			const auto i = _items.find(id);
+			const auto i = _items.find(storyId);
 			Assert(i != end(_items));
 			const auto item = i->second.get();
 			ChangeItemSelection(

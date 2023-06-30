@@ -1309,21 +1309,7 @@ void Controller::togglePinnedRequested(bool pinned) {
 		moveFromShown();
 	}
 	story->owner().stories().togglePinnedList({ story->fullId() }, pinned);
-	uiShow()->showToast({
-		.text = (pinned
-			? tr::lng_stories_save_done(
-				tr::now,
-				Ui::Text::Bold).append(
-					'\n').append(
-						tr::lng_stories_save_done_about(tr::now))
-			: tr::lng_stories_archive_done(
-				tr::now,
-				Ui::Text::WithEntities)),
-		.st = &st::storiesActionToast,
-		.duration = (pinned
-			? Data::Stories::kPinnedToastDuration
-			: Ui::Toast::kDefaultDuration),
-	});
+	uiShow()->showToast(PrepareTogglePinnedToast(1, pinned));
 }
 
 void Controller::moveFromShown() {
@@ -1373,6 +1359,36 @@ void Controller::startReactionAnimation(
 			});
 		}
 	}, layer->lifetime());
+}
+
+Ui::Toast::Config PrepareTogglePinnedToast(int count, bool pinned) {
+	return {
+		.text = (pinned
+			? (count == 1
+				? tr::lng_stories_save_done(
+					tr::now,
+					Ui::Text::Bold)
+				: tr::lng_stories_save_done_many(
+					tr::now,
+					lt_count,
+					count,
+					Ui::Text::Bold)).append(
+						'\n').append(
+							tr::lng_stories_save_done_about(tr::now))
+			: (count == 1
+				? tr::lng_stories_archive_done(
+					tr::now,
+					Ui::Text::WithEntities)
+				: tr::lng_stories_archive_done_many(
+					tr::now,
+					lt_count,
+					count,
+					Ui::Text::WithEntities))),
+		.st = &st::storiesActionToast,
+		.duration = (pinned
+			? Data::Stories::kPinnedToastDuration
+			: Ui::Toast::kDefaultDuration),
+	};
 }
 
 } // namespace Media::Stories

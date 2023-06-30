@@ -1298,6 +1298,8 @@ void Stories::togglePinnedList(
 		const auto loaded = saved.loaded;
 		const auto lastId = !saved.ids.list.empty()
 			? saved.ids.list.back()
+			: saved.lastId
+			? saved.lastId
 			: std::numeric_limits<StoryId>::max();
 		auto dirty = false;
 		for (const auto &id : result.v) {

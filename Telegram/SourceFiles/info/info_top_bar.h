@@ -57,6 +57,7 @@ public:
 
 	void setTitle(rpl::producer<QString> &&title);
 	void setStories(rpl::producer<Dialogs::Stories::Content> content);
+	void setStoriesArchive(bool archive);
 	void enableBackButton();
 	void highlight();
 
@@ -120,11 +121,13 @@ private:
 	[[nodiscard]] Ui::StringWithNumbers generateSelectedText() const;
 	[[nodiscard]] bool computeCanDelete() const;
 	[[nodiscard]] bool computeCanForward() const;
+	[[nodiscard]] bool computeCanToggleStoryPin() const;
 	void updateSelectionState();
 	void createSelectionControls();
 
 	void performForward();
 	void performDelete();
+	void performToggleStoryPin();
 
 	void setSearchField(
 		base::unique_qptr<Ui::InputField> field,
@@ -163,10 +166,13 @@ private:
 	SelectedItems _selectedItems;
 	bool _canDelete = false;
 	bool _canForward = false;
+	bool _canToggleStoryPin = false;
+	bool _storiesArchive = false;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _cancelSelection;
 	QPointer<Ui::FadeWrap<Ui::LabelWithNumbers>> _selectionText;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _forward;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _delete;
+	QPointer<Ui::FadeWrap<Ui::IconButton>> _toggleStoryPin;
 	rpl::event_stream<SelectionAction> _selectionActionRequests;
 
 	QPointer<Ui::FadeWrap<Dialogs::Stories::List>> _stories;

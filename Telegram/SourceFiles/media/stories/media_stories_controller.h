@@ -34,6 +34,10 @@ struct MessageSendingAnimationFrom;
 class EmojiFlyAnimation;
 } // namespace Ui
 
+namespace Ui::Toast {
+struct Config;
+} // namespace Ui::Toast
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -252,5 +256,9 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] Ui::Toast::Config PrepareTogglePinnedToast(
+	int count,
+	bool pinned);
 
 } // namespace Media::Stories
