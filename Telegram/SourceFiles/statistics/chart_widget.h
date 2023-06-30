@@ -50,6 +50,7 @@ private:
 
 		crl::time lastUserInteracted = 0;
 		crl::time yAnimationStartedAt = 0;
+		crl::time alphaAnimationStartedAt = 0;
 
 		anim::value animValueXMin;
 		anim::value animValueXMax;
