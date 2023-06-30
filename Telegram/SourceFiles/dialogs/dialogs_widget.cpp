@@ -1111,7 +1111,7 @@ void Widget::jumpToTop(bool belowPinned) {
 		return;
 	}
 	if ((currentSearchQuery().trimmed().isEmpty() && !_searchInChat)) {
-		auto to = 0;
+		auto to = _inner->defaultScrollTop();
 		if (belowPinned) {
 			const auto list = _openedForum
 				? _openedForum->topicsList()
