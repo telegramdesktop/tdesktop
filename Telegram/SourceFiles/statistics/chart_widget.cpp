@@ -267,6 +267,12 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			_xPercentage.yAnimationStartedAt = _xPercentage.lastUserInteracted
 				+ kExpandingDelay;
 		}
+		_xPercentage.dtCurrent.min  = std::min(
+			_xPercentage.dtCurrent.min + _xPercentage.dtYSpeed,
+			1.);
+		_xPercentage.dtCurrent.max = std::min(
+			_xPercentage.dtCurrent.max + _xPercentage.dtYSpeed,
+			1.);
 		const auto dtY = std::min(
 			(now - _xPercentage.yAnimationStartedAt) / kYExpandingDuration,
 			1.);
@@ -444,8 +450,32 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			// 	// maxY -= 0.1;
 			// 	_xPercentage.animValueYMax.finish();
 			// }
-			_xPercentage.animValueYMin.start(minY);
-			_xPercentage.animValueYMax.start(maxY);
+			_xPercentage.animValueYMin = anim::value(
+				_xPercentage.animValueYMin.current(),
+				minY);
+			_xPercentage.animValueYMax = anim::value(
+				_xPercentage.animValueYMax.current(),
+				maxY);
+
+			{
+				auto k = (_xPercentage.animValueYMax.current() - _xPercentage.animValueYMin.current())
+					/ float64(maxY - minY);
+				if (k > 1.) {
+					k = 1. / k;
+				}
+				// constexpr auto kUpdateStep1 = 0.1;
+				constexpr auto kUpdateStep1 = 0.03;
+				constexpr auto kUpdateStep2 = 0.03;
+				constexpr auto kUpdateStep3 = 0.045;
+				constexpr auto kUpdateStepThreshold1 = 0.7;
+				constexpr auto kUpdateStepThreshold2 = 0.1;
+				_xPercentage.dtYSpeed = (k > kUpdateStepThreshold1)
+					? kUpdateStep1
+					: (k < kUpdateStepThreshold2)
+					? kUpdateStep2
+					: kUpdateStep3;
+				_xPercentage.dtCurrent = { 0., 0. };
+			}
 
 			// _horizontalLines.front().computeRelative(maxY, minY);
 		}

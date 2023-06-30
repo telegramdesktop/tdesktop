@@ -57,6 +57,9 @@ private:
 		anim::value animValueYMax;
 
 		anim::value animValueYAlpha;
+
+		float dtYSpeed = 0.;
+		Limits dtCurrent;
 	} _xPercentage;
 
 	float64 _minMaxUpdateStep = 0.;
