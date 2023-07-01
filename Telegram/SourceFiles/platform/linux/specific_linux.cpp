@@ -322,6 +322,55 @@ bool GenerateDesktopFile(
 	return true;
 }
 
+bool GenerateServiceFile(bool silent = false) {
+	const auto executable = ExecutablePathForShortcuts();
+	if (executable.isEmpty()) {
+		return false;
+	}
+
+	const auto targetPath = QStandardPaths::writableLocation(
+		QStandardPaths::GenericDataLocation) + u"/dbus-1/services/"_q;
+
+	const auto targetFile = targetPath
+		+ QGuiApplication::desktopFileName().chopped(8)
+		+ u".service"_q;
+
+	DEBUG_LOG(("App Info: placing .service file to %1").arg(targetPath));
+	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
+
+	const auto target = Glib::KeyFile::create();
+	constexpr auto group = "D-BUS Service";
+
+	target->set_string(
+		group,
+		"Name",
+		QGuiApplication::desktopFileName().chopped(8).toStdString());
+
+	target->set_string(
+		group,
+		"Exec",
+		KShell::joinArgs({ executable }).replace(
+			'\\',
+			qstr("\\\\")).toStdString());
+
+	try {
+		target->save_to_file(targetFile.toStdString());
+	} catch (const std::exception &e) {
+		if (!silent) {
+			LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
+		}
+		return false;
+	}
+
+	QProcess::execute(u"systemctl"_q, {
+		u"--user"_q,
+		u"reload"_q,
+		u"dbus"_q,
+	});
+
+	return true;
+}
+
 void InstallLauncher() {
 	static const auto DisabledByEnv = !qEnvironmentVariableIsEmpty(
 		"DESKTOPINTEGRATION");
@@ -335,6 +384,7 @@ void InstallLauncher() {
 		QStandardPaths::ApplicationsLocation) + '/';
 
 	GenerateDesktopFile(applicationsPath);
+	GenerateServiceFile();
 
 	const auto icons = QStandardPaths::writableLocation(
 		QStandardPaths::GenericDataLocation) + u"/icons/"_q;
