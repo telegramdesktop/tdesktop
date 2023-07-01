@@ -18,7 +18,6 @@ struct Limits;
 void PaintLinearChartView(
 	QPainter &p,
 	const Data::StatisticalChart &chartData,
-	const Limits &xPercentageLimitsWas,
 	const Limits &xPercentageLimitsNow,
 	const Limits &xPercentageLimitsNowY,
 	const QRect &rect);

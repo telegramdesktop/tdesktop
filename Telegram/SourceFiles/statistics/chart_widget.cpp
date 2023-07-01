@@ -230,7 +230,6 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
-				{},
 				limits,
 				limitsY,
 				_footer->rect());
@@ -303,8 +302,6 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		if (xFinished) {
 			_xPercentage.animValueXMin.finish();
 			_xPercentage.animValueXMax.finish();
-
-			_xPercentage.was = _xPercentage.now;
 		} else {
 			_xPercentage.animValueXMin.update(dtX, anim::linear);
 			_xPercentage.animValueXMax.update(dtX, anim::linear);
@@ -592,7 +589,6 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 		Statistic::PaintLinearChartView(
 			p,
 			_chartData,
-			_xPercentage.was,
 			{ _xPercentage.animValueXMin.current(), _xPercentage.animValueXMax.current() },
 			{ _xPercentage.animValueYMin.current(), _xPercentage.animValueYMax.current() },
 			// _xPercentage.now,
