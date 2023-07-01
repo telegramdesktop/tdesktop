@@ -102,6 +102,104 @@ private:
 
 };
 
+ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
+: Ui::AbstractButton(parent)
+, _left(Ui::CreateChild<Ui::AbstractButton>(this))
+, _right(Ui::CreateChild<Ui::AbstractButton>(this)) {
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		_left->resize(st::colorSliderWidth, s.height());
+		_right->resize(st::colorSliderWidth, s.height());
+	}, _left->lifetime());
+	_left->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_left);
+		p.setOpacity(0.3);
+		p.fillRect(_left->rect(), st::boxTextFg);
+	}, _left->lifetime());
+	_right->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_right);
+		p.setOpacity(0.3);
+		p.fillRect(_right->rect(), st::boxTextFg);
+	}, _right->lifetime());
+
+	_left->move(10, 0);
+	_right->move(50, 0);
+
+	const auto handleDrag = [&](
+			not_null<Ui::AbstractButton*> side,
+			Fn<int()> leftLimit,
+			Fn<int()> rightLimit) {
+		side->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return (e->type() == QEvent::MouseButtonPress)
+				|| (e->type() == QEvent::MouseButtonRelease)
+				|| ((e->type() == QEvent::MouseMove) && side->isDown());
+		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+			const auto pos = static_cast<QMouseEvent*>(e.get())->pos();
+			switch (e->type()) {
+			case QEvent::MouseMove: {
+				const auto nowDiffXDirection = (pos.x() - _start.x) < 0;
+				const auto wasDiffXDirection = _start.diffX < 0;
+				if (base::IsCtrlPressed()) {
+					const auto diff = (pos.x() - _start.x);
+					_left->move(_left->x() + diff, side->y());
+					_right->move(_right->x() + diff, side->y());
+				} else {
+					_start.diffX = pos.x() - _start.x;
+					const auto nextX = std::clamp(
+						side->x() + (pos.x() - _start.x),
+						_start.leftLimit,
+						_start.rightLimit);
+					side->move(nextX, side->y());
+				}
+				_xPercentageLimitsChange.fire({
+					.min = _left->x() / float64(width()),
+					.max = rect::right(_right) / float64(width()),
+				});
+				if (nowDiffXDirection != wasDiffXDirection) {
+					_directionChanges.fire({});
+				}
+			} break;
+			case QEvent::MouseButtonPress: {
+				_start.x = pos.x();
+				_start.leftLimit = leftLimit();
+				_start.rightLimit = rightLimit();
+			} break;
+			case QEvent::MouseButtonRelease: {
+				_userInteractionFinished.fire({});
+				_xPercentageLimitsChange.fire({
+					.min = _left->x() / float64(width()),
+					.max = rect::right(_right) / float64(width()),
+				});
+				_start = {};
+			} break;
+			}
+		}, side->lifetime());
+	};
+	handleDrag(
+		_left,
+		[=] { return 0; },
+		[=] { return _right->x() - _left->width(); });
+	handleDrag(
+		_right,
+		[=] { return rect::right(_left); },
+		[=] { return width() - _right->width(); });
+}
+
+rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
+	return _xPercentageLimitsChange.events();
+}
+
+rpl::producer<> ChartWidget::Footer::userInteractionFinished() const {
+	return _userInteractionFinished.events();
+}
+
+rpl::producer<> ChartWidget::Footer::directionChanges() const {
+	return _directionChanges.events();
+}
+
 ChartWidget::ChartAnimationController::ChartAnimationController(
 	Fn<void()> &&updateCallback)
 : _animation(std::move(updateCallback)) {
@@ -121,67 +219,6 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 	_lastUserInteracted = now;
 
 	{
-		auto minY = std::numeric_limits<float64>::max();
-		auto maxY = 0.;
-		auto minYIndex = 0;
-		auto maxYIndex = 0;
-		const auto tempXPercentage = Limits{
-			.min = *ranges::lower_bound(
-				chartData.xPercentage,
-				xPercentageLimits.min),
-			.max = *ranges::lower_bound(
-				chartData.xPercentage,
-				xPercentageLimits.max),
-		};
-		for (auto i = 0; i < chartData.xPercentage.size(); i++) {
-			if (chartData.xPercentage[i] == tempXPercentage.min) {
-				minYIndex = i;
-			}
-			if (chartData.xPercentage[i] == tempXPercentage.max) {
-				maxYIndex = i;
-			}
-		}
-		for (const auto &line : chartData.lines) {
-			for (auto i = minYIndex; i < maxYIndex; i++) {
-				if (line.y[i] > maxY) {
-					maxY = line.y[i];
-				}
-				if (line.y[i] < minY) {
-					minY = line.y[i];
-				}
-			}
-		}
-		_animValueYMin = anim::value(
-			_animValueYMin.current(),
-			minY);
-		_animValueYMax = anim::value(
-			_animValueYMax.current(),
-			maxY);
-
-		{
-			auto k = (_animValueYMax.current() - _animValueYMin.current())
-				/ float64(maxY - minY);
-			if (k > 1.) {
-				k = 1. / k;
-			}
-			constexpr auto kDtHeightSpeed1 = 0.03 / 2;
-			constexpr auto kDtHeightSpeed2 = 0.03 / 2;
-			constexpr auto kDtHeightSpeed3 = 0.045 / 2;
-			constexpr auto kDtHeightSpeedThreshold1 = 0.7;
-			constexpr auto kDtHeightSpeedThreshold2 = 0.1;
-			constexpr auto kDtHeightInstantThreshold = 0.97;
-			_dtYSpeed = (k > kDtHeightSpeedThreshold1)
-				? kDtHeightSpeed1
-				: (k < kDtHeightSpeedThreshold2)
-				? kDtHeightSpeed2
-				: kDtHeightSpeed3;
-			if (k < kDtHeightInstantThreshold) {
-				_dtCurrent = { 0., 0. };
-			}
-		}
-
-	}
-	{
 		const auto startXIndex = chartData.findStartIndex(
 			_animValueXMin.to());
 		const auto endXIndex = chartData.findEndIndex(
@@ -191,6 +228,34 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 			float64(FindMinValue(chartData, startXIndex, endXIndex)),
 			float64(FindMaxValue(chartData, startXIndex, endXIndex)),
 		};
+	}
+	_animValueYMin = anim::value(
+		_animValueYMin.current(),
+		_finalHeightLimits.min);
+	_animValueYMax = anim::value(
+		_animValueYMax.current(),
+		_finalHeightLimits.max);
+
+	{
+		auto k = (_animValueYMax.current() - _animValueYMin.current())
+			/ float64(_finalHeightLimits.max - _finalHeightLimits.min);
+		if (k > 1.) {
+			k = 1. / k;
+		}
+		constexpr auto kDtHeightSpeed1 = 0.03 / 2;
+		constexpr auto kDtHeightSpeed2 = 0.03 / 2;
+		constexpr auto kDtHeightSpeed3 = 0.045 / 2;
+		constexpr auto kDtHeightSpeedThreshold1 = 0.7;
+		constexpr auto kDtHeightSpeedThreshold2 = 0.1;
+		constexpr auto kDtHeightInstantThreshold = 0.97;
+		_dtYSpeed = (k > kDtHeightSpeedThreshold1)
+			? kDtHeightSpeed1
+			: (k < kDtHeightSpeedThreshold2)
+			? kDtHeightSpeed2
+			: kDtHeightSpeed3;
+		if (k < kDtHeightInstantThreshold) {
+			_dtCurrent = { 0., 0. };
+		}
 	}
 }
 
@@ -310,104 +375,6 @@ Limits ChartWidget::ChartAnimationController::finalHeightLimits() const {
 auto ChartWidget::ChartAnimationController::heightAnimationStarts() const
 -> rpl::producer<> {
 	return _heightAnimationStarts.events();
-}
-
-ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
-: Ui::AbstractButton(parent)
-, _left(Ui::CreateChild<Ui::AbstractButton>(this))
-, _right(Ui::CreateChild<Ui::AbstractButton>(this)) {
-	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		_left->resize(st::colorSliderWidth, s.height());
-		_right->resize(st::colorSliderWidth, s.height());
-	}, _left->lifetime());
-	_left->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(_left);
-		p.setOpacity(0.3);
-		p.fillRect(_left->rect(), st::boxTextFg);
-	}, _left->lifetime());
-	_right->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(_right);
-		p.setOpacity(0.3);
-		p.fillRect(_right->rect(), st::boxTextFg);
-	}, _right->lifetime());
-
-	_left->move(10, 0);
-	_right->move(50, 0);
-
-	const auto handleDrag = [&](
-			not_null<Ui::AbstractButton*> side,
-			Fn<int()> leftLimit,
-			Fn<int()> rightLimit) {
-		side->events(
-		) | rpl::filter([=](not_null<QEvent*> e) {
-			return (e->type() == QEvent::MouseButtonPress)
-				|| (e->type() == QEvent::MouseButtonRelease)
-				|| ((e->type() == QEvent::MouseMove) && side->isDown());
-		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
-			const auto pos = static_cast<QMouseEvent*>(e.get())->pos();
-			switch (e->type()) {
-			case QEvent::MouseMove: {
-				const auto nowDiffXDirection = (pos.x() - _start.x) < 0;
-				const auto wasDiffXDirection = _start.diffX < 0;
-				if (base::IsCtrlPressed()) {
-					const auto diff = (pos.x() - _start.x);
-					_left->move(_left->x() + diff, side->y());
-					_right->move(_right->x() + diff, side->y());
-				} else {
-					_start.diffX = pos.x() - _start.x;
-					const auto nextX = std::clamp(
-						side->x() + (pos.x() - _start.x),
-						_start.leftLimit,
-						_start.rightLimit);
-					side->move(nextX, side->y());
-				}
-				_xPercentageLimitsChange.fire({
-					.min = _left->x() / float64(width()),
-					.max = rect::right(_right) / float64(width()),
-				});
-				if (nowDiffXDirection != wasDiffXDirection) {
-					_directionChanges.fire({});
-				}
-			} break;
-			case QEvent::MouseButtonPress: {
-				_start.x = pos.x();
-				_start.leftLimit = leftLimit();
-				_start.rightLimit = rightLimit();
-			} break;
-			case QEvent::MouseButtonRelease: {
-				_userInteractionFinished.fire({});
-				_xPercentageLimitsChange.fire({
-					.min = _left->x() / float64(width()),
-					.max = rect::right(_right) / float64(width()),
-				});
-				_start = {};
-			} break;
-			}
-		}, side->lifetime());
-	};
-	handleDrag(
-		_left,
-		[=] { return 0; },
-		[=] { return _right->x() - _left->width(); });
-	handleDrag(
-		_right,
-		[=] { return rect::right(_left); },
-		[=] { return width() - _right->width(); });
-}
-
-rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
-	return _xPercentageLimitsChange.events();
-}
-
-rpl::producer<> ChartWidget::Footer::userInteractionFinished() const {
-	return _userInteractionFinished.events();
-}
-
-rpl::producer<> ChartWidget::Footer::directionChanges() const {
-	return _directionChanges.events();
 }
 
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
