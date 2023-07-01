@@ -54,8 +54,8 @@ private:
 		Ui::Animations::Basic _animation;
 
 		crl::time _lastUserInteracted = 0;
-		crl::time _yAnimationStartedAt = 0;
 		crl::time _alphaAnimationStartedAt = 0;
+		bool _heightAnimationStarted = false;
 
 		anim::value _animValueXMin;
 		anim::value _animValueXMax;

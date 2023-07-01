@@ -281,10 +281,10 @@ void ChartWidget::ChartAnimationController::tick(
 	constexpr auto kXExpandingDuration = 200.;
 	constexpr auto kAlphaExpandingDuration = 200.;
 
-	if (!_yAnimationStartedAt
+	if (!_heightAnimationStarted
 			&& ((now - _lastUserInteracted) >= kExpandingDelay)) {
 		_heightAnimationStarts.fire({});
-		_yAnimationStartedAt = _lastUserInteracted + kExpandingDelay;
+		_heightAnimationStarted = true;
 	}
 	if (!_alphaAnimationStartedAt) {
 		_alphaAnimationStartedAt = now;
@@ -324,7 +324,7 @@ void ChartWidget::ChartAnimationController::tick(
 		_animValueXMin.update(dtX, anim::linear);
 		_animValueXMax.update(dtX, anim::linear);
 	}
-	if (_yAnimationStartedAt) {
+	if (_heightAnimationStarted) {
 		_animValueYMin.update(_dtCurrent.min, anim::easeInCubic);
 		_animValueYMax.update(_dtCurrent.max, anim::easeInCubic);
 		_animValueYAlpha.update(dtAlpha, anim::easeInCubic);
@@ -357,7 +357,7 @@ void ChartWidget::ChartAnimationController::tick(
 
 	if (yFinished && alphaFinished) {
 		_alphaAnimationStartedAt = 0;
-		_yAnimationStartedAt = 0;
+		_heightAnimationStarted = false;
 	}
 }
 
