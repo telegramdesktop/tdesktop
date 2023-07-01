@@ -21,14 +21,12 @@ public:
 	ChartWidget(not_null<Ui::RpWidget*> parent);
 
 	void setChartData(Data::StatisticalChart chartData);
-	void setHeightLimits(Limits newHeight, bool animated);
 	void addHorizontalLine(Limits newHeight, bool animated);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void measureHeightThreshold();
 	class Footer;
 
 	class ChartAnimationController final {
@@ -40,6 +38,7 @@ private:
 			Limits xPercentageLimits,
 			crl::time now);
 		void start();
+		void finish();
 		void resetAlpha();
 		void tick(
 			crl::time now,

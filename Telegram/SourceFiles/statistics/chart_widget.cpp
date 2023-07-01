@@ -122,8 +122,11 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 		p.fillRect(_right->rect(), st::boxTextFg);
 	}, _right->lifetime());
 
-	_left->move(10, 0);
-	_right->move(50, 0);
+	sizeValue(
+	) | rpl::take(2) | rpl::start_with_next([=] {
+		_left->moveToLeft(0, 0);
+		_right->moveToRight(0, 0);
+	}, _left->lifetime());
 
 	const auto handleDrag = [&](
 			not_null<Ui::AbstractButton*> side,
@@ -252,6 +255,15 @@ void ChartWidget::ChartAnimationController::start() {
 	if (!_animation.animating()) {
 		_animation.start();
 	}
+}
+
+void ChartWidget::ChartAnimationController::finish() {
+	_animation.stop();
+	_animValueXMin.finish();
+	_animValueXMax.finish();
+	_animValueYMin.finish();
+	_animValueYMax.finish();
+	_animValueYAlpha.finish();
 }
 
 void ChartWidget::ChartAnimationController::resetAlpha() {
@@ -428,24 +440,13 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_chartData = chartData;
 
-	{
-		_xPercentageLimits = {
-			.min = _chartData.xPercentage.front(),
-			.max = _chartData.xPercentage.back(),
-		};
-		const auto startXIndex = _chartData.findStartIndex(
-			_xPercentageLimits.min);
-		const auto endXIndex = _chartData.findEndIndex(
-			startXIndex,
-			_xPercentageLimits.max);
-		setHeightLimits(
-			{
-				float64(FindMinValue(_chartData, startXIndex, endXIndex)),
-				float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
-			},
-			false);
-		update();
-	}
+	_animationController.setXPercentageLimits(
+		_chartData,
+		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() },
+		0);
+	_animationController.finish();
+	addHorizontalLine(_animationController.finalHeightLimits(), false);
+	update();
 }
 
 void ChartWidget::paintEvent(QPaintEvent *e) {
@@ -481,95 +482,21 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void ChartWidget::setHeightLimits(Limits newHeight, bool animated) {
-	{
-		const auto lineMaxHeight = ChartHorizontalLinesData::LookupHeight(
-			newHeight.max);
-		const auto diff = std::abs(lineMaxHeight - _animateToHeight.max);
-		const auto heightChanged = (!newHeight.max)
-			|| (diff < _thresholdHeight.max);
-		if (!heightChanged && (newHeight.max == _animateToHeight.min)) {
-			return;
-		}
-	}
-
-	const auto newLinesData = ChartHorizontalLinesData(
-		newHeight.max,
-		newHeight.min,
-		true);
-	newHeight = Limits{
-		.min = newLinesData.lines.front().absoluteValue,
-		.max = newLinesData.lines.back().absoluteValue,
-	};
-
-	{
-		auto k = (_currentHeight.max - _currentHeight.min)
-			/ float64(newHeight.max - newHeight.min);
-		if (k > 1.) {
-			k = 1. / k;
-		}
-		constexpr auto kUpdateStep1 = 0.1;
-		constexpr auto kUpdateStep2 = 0.03;
-		constexpr auto kUpdateStep3 = 0.045;
-		constexpr auto kUpdateStepThreshold1 = 0.7;
-		constexpr auto kUpdateStepThreshold2 = 0.1;
-		const auto s = (k > kUpdateStepThreshold1)
-			? kUpdateStep1
-			: (k < kUpdateStepThreshold2)
-			? kUpdateStep2
-			: kUpdateStep3;
-
-		const auto refresh = (newHeight.max != _animateToHeight.max)
-			|| (_useMinHeight && (newHeight.min != _animateToHeight.min));
-		if (refresh) {
-			_startFromH = _currentHeight;
-			_startFrom = {};
-			_minMaxUpdateStep = s;
-		}
-	}
-
-	_animateToHeight = newHeight;
-	measureHeightThreshold();
-
-	{
-		const auto now = crl::now();
-		if ((now - _lastHeightLimitsChanged) < kHeightLimitsUpdateTimeout) {
-			return;
-		}
-		_lastHeightLimitsChanged = now;
-	}
-
-	if (!animated) {
-		_currentHeight = newHeight;
-		_horizontalLines.clear();
-		_horizontalLines.push_back(newLinesData);
-		_horizontalLines.back().alpha = 1.;
-		return;
-	}
-	for (auto &horizontalLine : _horizontalLines) {
-		horizontalLine.fixedAlpha = horizontalLine.alpha;
-	}
-	_horizontalLines.push_back(newLinesData);
-}
-
 void ChartWidget::addHorizontalLine(Limits newHeight, bool animated) {
 	const auto newLinesData = ChartHorizontalLinesData(
 		newHeight.max,
 		newHeight.min,
 		true);
+	if (!animated) {
+		_horizontalLines.clear();
+	}
 	for (auto &horizontalLine : _horizontalLines) {
 		horizontalLine.fixedAlpha = horizontalLine.alpha;
 	}
 	_horizontalLines.push_back(newLinesData);
-}
-
-void ChartWidget::measureHeightThreshold() {
-	const auto chartHeight = height();
-	if (!_animateToHeight.max || !chartHeight) {
-		return;
+	if (!animated) {
+		_horizontalLines.back().alpha = 1.;
 	}
-	_thresholdHeight.max = (_animateToHeight.max / float64(chartHeight))
-		* st::boxTextFont->height;
 }
 
 } // namespace Statistic
