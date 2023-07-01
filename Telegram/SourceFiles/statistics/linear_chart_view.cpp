@@ -17,14 +17,11 @@ namespace Statistic {
 void PaintLinearChartView(
 		QPainter &p,
 		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimitsNow,
-		const Limits &xPercentageLimitsNowY,
+		const Limits &xPercentageLimits,
+		const Limits &heightLimits,
 		const QRect &rect) {
-	const auto offset = 0;
 	const auto currentMinHeight = rect.y(); //
 	const auto currentMaxHeight = rect.height() + rect.y(); //
-
-	const auto xPercentageLimits = xPercentageLimitsNow;
 
 	for (const auto &line : chartData.lines) {
 		const auto additionalP = (chartData.xPercentage.size() < 2)
@@ -46,19 +43,15 @@ void PaintLinearChartView(
 			int(chartData.xPercentage.size() - 1),
 			endXIndex + additionalPoints);
 
-		auto minY = std::numeric_limits<float64>::max();
-		auto maxY = 0.;
-		minY = xPercentageLimitsNowY.min;
-		maxY = xPercentageLimitsNowY.max;
-
 		for (auto i = localStart; i <= localEnd; i++) {
 			if (line.y[i] < 0) {
 				continue;
 			}
-			const auto xPoint = ((chartData.xPercentage[i] - xPercentageLimits.min) / (xPercentageLimits.max - xPercentageLimits.min)) * rect.width()
-				- offset;
-			const auto yPercentage = (line.y[i] - minY)
-				/ float64(maxY - minY);
+			const auto xPoint = rect.width()
+				* ((chartData.xPercentage[i] - xPercentageLimits.min)
+					/ (xPercentageLimits.max - xPercentageLimits.min));
+			const auto yPercentage = (line.y[i] - heightLimits.min)
+				/ float64(heightLimits.max - heightLimits.min);
 			const auto yPoint = rect.y() + (1. - yPercentage) * rect.height();
 			if (first) {
 				first = false;
