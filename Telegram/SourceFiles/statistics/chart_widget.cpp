@@ -83,7 +83,6 @@ public:
 
 	[[nodiscard]] rpl::producer<Limits> xPercentageLimitsChange() const;
 	[[nodiscard]] rpl::producer<> userInteractionFinished() const;
-	[[nodiscard]] rpl::producer<> directionChanges() const;
 
 private:
 	not_null<Ui::AbstractButton*> _left;
@@ -91,7 +90,6 @@ private:
 
 	rpl::event_stream<Limits> _xPercentageLimitsChange;
 	rpl::event_stream<> _userInteractionFinished;
-	rpl::event_stream<> _directionChanges;
 
 	struct {
 		int x = 0;
@@ -140,8 +138,6 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 			const auto pos = static_cast<QMouseEvent*>(e.get())->pos();
 			switch (e->type()) {
 			case QEvent::MouseMove: {
-				const auto nowDiffXDirection = (pos.x() - _start.x) < 0;
-				const auto wasDiffXDirection = _start.diffX < 0;
 				if (base::IsCtrlPressed()) {
 					const auto diff = (pos.x() - _start.x);
 					_left->move(_left->x() + diff, side->y());
@@ -158,9 +154,6 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 					.min = _left->x() / float64(width()),
 					.max = rect::right(_right) / float64(width()),
 				});
-				if (nowDiffXDirection != wasDiffXDirection) {
-					_directionChanges.fire({});
-				}
 			} break;
 			case QEvent::MouseButtonPress: {
 				_start.x = pos.x();
@@ -194,10 +187,6 @@ rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
 
 rpl::producer<> ChartWidget::Footer::userInteractionFinished() const {
 	return _userInteractionFinished.events();
-}
-
-rpl::producer<> ChartWidget::Footer::directionChanges() const {
-	return _directionChanges.events();
 }
 
 ChartWidget::ChartAnimationController::ChartAnimationController(
@@ -417,26 +406,6 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		_animationController.resetAlpha();
 		addHorizontalLine(_animationController.finalHeightLimits(), true);
 		_animationController.start();
-	}, _footer->lifetime());
-
-	_footer->directionChanges(
-	) | rpl::start_with_next([=] {
-		// _xPercentage.yAnimationStartedAt = crl::now();
-		// _xPercentage.animValueYAlpha = anim::value(0., 1.);
-
-		// {
-		// 	const auto startXIndex = _chartData.findStartIndex(
-		// 		_xPercentage.now.min);
-		// 	const auto endXIndex = _chartData.findEndIndex(
-		// 		startXIndex,
-		// 		_xPercentage.now.max);
-		// 	addHorizontalLine(
-		// 		{
-		// 			float64(FindMinValue(_chartData, startXIndex, endXIndex)),
-		// 			float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
-		// 		},
-		// 		true);
-		// }
 	}, _footer->lifetime());
 
 	_footer->xPercentageLimitsChange(
