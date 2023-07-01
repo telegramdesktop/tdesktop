@@ -182,7 +182,8 @@ bool GenerateDesktopFile(
 		const QStringList &args = {},
 		bool onlyMainGroup = false,
 		bool silent = false) {
-	if (targetPath.isEmpty() || cExeName().isEmpty()) {
+	const auto executable = ExecutablePathForShortcuts();
+	if (targetPath.isEmpty() || executable.isEmpty()) {
 		return false;
 	}
 
@@ -191,7 +192,6 @@ bool GenerateDesktopFile(
 
 	const auto sourceFile = kDesktopFile.utf16();
 	const auto targetFile = targetPath + QGuiApplication::desktopFileName();
-	const auto executable = ExecutablePathForShortcuts();
 
 	const auto sourceText = [&] {
 		QFile source(sourceFile);
