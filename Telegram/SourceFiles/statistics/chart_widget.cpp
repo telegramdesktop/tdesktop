@@ -20,10 +20,6 @@ namespace {
 
 constexpr auto kHeightLimitsUpdateTimeout = crl::time(320);
 
-[[nodiscard]] bool AnimFinished(const anim::value &anim) {
-	return anim.current() == anim.to();
-}
-
 [[nodiscard]] int FindMaxValue(
 		Data::StatisticalChart &chartData,
 		int startXIndex,
@@ -105,6 +101,216 @@ private:
 	} _start;
 
 };
+
+ChartWidget::ChartAnimationController::ChartAnimationController(
+	Fn<void()> &&updateCallback)
+: _animation(std::move(updateCallback)) {
+}
+
+void ChartWidget::ChartAnimationController::setXPercentageLimits(
+		Data::StatisticalChart &chartData,
+		Limits xPercentageLimits,
+		crl::time now) {
+	if ((_animValueXMin.to() == xPercentageLimits.min)
+		&& (_animValueXMax.to() == xPercentageLimits.max)) {
+		return;
+	}
+	start();
+	_animValueXMin.start(xPercentageLimits.min);
+	_animValueXMax.start(xPercentageLimits.max);
+	_lastUserInteracted = now;
+
+	{
+		auto minY = std::numeric_limits<float64>::max();
+		auto maxY = 0.;
+		auto minYIndex = 0;
+		auto maxYIndex = 0;
+		const auto tempXPercentage = Limits{
+			.min = *ranges::lower_bound(
+				chartData.xPercentage,
+				xPercentageLimits.min),
+			.max = *ranges::lower_bound(
+				chartData.xPercentage,
+				xPercentageLimits.max),
+		};
+		for (auto i = 0; i < chartData.xPercentage.size(); i++) {
+			if (chartData.xPercentage[i] == tempXPercentage.min) {
+				minYIndex = i;
+			}
+			if (chartData.xPercentage[i] == tempXPercentage.max) {
+				maxYIndex = i;
+			}
+		}
+		for (const auto &line : chartData.lines) {
+			for (auto i = minYIndex; i < maxYIndex; i++) {
+				if (line.y[i] > maxY) {
+					maxY = line.y[i];
+				}
+				if (line.y[i] < minY) {
+					minY = line.y[i];
+				}
+			}
+		}
+		_animValueYMin = anim::value(
+			_animValueYMin.current(),
+			minY);
+		_animValueYMax = anim::value(
+			_animValueYMax.current(),
+			maxY);
+
+		{
+			auto k = (_animValueYMax.current() - _animValueYMin.current())
+				/ float64(maxY - minY);
+			if (k > 1.) {
+				k = 1. / k;
+			}
+			constexpr auto kDtHeightSpeed1 = 0.03 / 2;
+			constexpr auto kDtHeightSpeed2 = 0.03 / 2;
+			constexpr auto kDtHeightSpeed3 = 0.045 / 2;
+			constexpr auto kDtHeightSpeedThreshold1 = 0.7;
+			constexpr auto kDtHeightSpeedThreshold2 = 0.1;
+			constexpr auto kDtHeightInstantThreshold = 0.97;
+			_dtYSpeed = (k > kDtHeightSpeedThreshold1)
+				? kDtHeightSpeed1
+				: (k < kDtHeightSpeedThreshold2)
+				? kDtHeightSpeed2
+				: kDtHeightSpeed3;
+			if (k < kDtHeightInstantThreshold) {
+				_dtCurrent = { 0., 0. };
+			}
+		}
+
+	}
+	{
+		const auto startXIndex = chartData.findStartIndex(
+			_animValueXMin.to());
+		const auto endXIndex = chartData.findEndIndex(
+			startXIndex,
+			_animValueXMax.to());
+		_finalHeightLimits = {
+			float64(FindMinValue(chartData, startXIndex, endXIndex)),
+			float64(FindMaxValue(chartData, startXIndex, endXIndex)),
+		};
+	}
+}
+
+void ChartWidget::ChartAnimationController::start() {
+	if (!_animation.animating()) {
+		_animation.start();
+	}
+}
+
+void ChartWidget::ChartAnimationController::resetAlpha() {
+	_alphaAnimationStartedAt = 0;
+	_animValueYAlpha = anim::value(0., 1.);
+}
+
+void ChartWidget::ChartAnimationController::tick(
+		crl::time now,
+		std::vector<ChartHorizontalLinesData> &horizontalLines) {
+	if (!_animation.animating()) {
+		return;
+	}
+	constexpr auto kExpandingDelay = crl::time(100);
+	constexpr auto kXExpandingDuration = 200.;
+	constexpr auto kAlphaExpandingDuration = 200.;
+
+	if (!_yAnimationStartedAt
+			&& ((now - _lastUserInteracted) >= kExpandingDelay)) {
+		_heightAnimationStarts.fire({});
+		_yAnimationStartedAt = _lastUserInteracted + kExpandingDelay;
+	}
+	if (!_alphaAnimationStartedAt) {
+		_alphaAnimationStartedAt = now;
+	}
+
+	_dtCurrent.min = std::min(_dtCurrent.min + _dtYSpeed, 1.);
+	_dtCurrent.max = std::min(_dtCurrent.max + _dtYSpeed, 1.);
+
+	const auto dtX = std::min(
+		(now - _animation.started()) / kXExpandingDuration,
+		1.);
+	const auto dtAlpha = std::min(
+		(now - _alphaAnimationStartedAt) / kAlphaExpandingDuration,
+		1.);
+
+	const auto isFinished = [](const anim::value &anim) {
+		return anim.current() == anim.to();
+	};
+
+	const auto xFinished = isFinished(_animValueXMin)
+		&& isFinished(_animValueXMax);
+	const auto yFinished = isFinished(_animValueYMin)
+		&& isFinished(_animValueYMax);
+	const auto alphaFinished = isFinished(_animValueYAlpha);
+
+	if (xFinished && yFinished && alphaFinished) {
+		const auto &lines = horizontalLines.back().lines;
+		if ((lines.front().absoluteValue == _animValueYMin.to())
+			&& (lines.back().absoluteValue == _animValueYMax.to())) {
+			_animation.stop();
+		}
+	}
+	if (xFinished) {
+		_animValueXMin.finish();
+		_animValueXMax.finish();
+	} else {
+		_animValueXMin.update(dtX, anim::linear);
+		_animValueXMax.update(dtX, anim::linear);
+	}
+	if (_yAnimationStartedAt) {
+		_animValueYMin.update(_dtCurrent.min, anim::easeInCubic);
+		_animValueYMax.update(_dtCurrent.max, anim::easeInCubic);
+		_animValueYAlpha.update(dtAlpha, anim::easeInCubic);
+
+		for (auto &horizontalLine : horizontalLines) {
+			horizontalLine.computeRelative(
+				_animValueYMax.current(),
+				_animValueYMin.current());
+		}
+	}
+
+	if (dtAlpha >= 0. && dtAlpha <= 1.) {
+		const auto value = _animValueYAlpha.current();
+
+		for (auto &horizontalLine : horizontalLines) {
+			horizontalLine.alpha = horizontalLine.fixedAlpha * (1. - value);
+		}
+		horizontalLines.back().alpha = value;
+		if (value == 1.) {
+			while (horizontalLines.size() > 1) {
+				const auto startIt = begin(horizontalLines);
+				if (!startIt->alpha) {
+					horizontalLines.erase(startIt);
+				} else {
+					break;
+				}
+			}
+		}
+	}
+
+	if (yFinished && alphaFinished) {
+		_alphaAnimationStartedAt = 0;
+		_yAnimationStartedAt = 0;
+	}
+}
+
+Limits ChartWidget::ChartAnimationController::currentXLimits() const {
+	return { _animValueXMin.current(), _animValueXMax.current() };
+}
+
+Limits ChartWidget::ChartAnimationController::currentHeightLimits() const {
+	return { _animValueYMin.current(), _animValueYMax.current() };
+}
+
+Limits ChartWidget::ChartAnimationController::finalHeightLimits() const {
+	return _finalHeightLimits;
+}
+
+auto ChartWidget::ChartAnimationController::heightAnimationStarts() const
+-> rpl::producer<> {
+	return _heightAnimationStarts.events();
+}
 
 ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 : Ui::AbstractButton(parent)
@@ -206,7 +412,8 @@ rpl::producer<> ChartWidget::Footer::directionChanges() const {
 
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 : Ui::RpWidget(parent)
-, _footer(std::make_unique<Footer>(this)) {
+, _footer(std::make_unique<Footer>(this))
+, _animationController([=] { update(); }) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_footer->setGeometry(
@@ -236,154 +443,13 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		}
 	}, _footer->lifetime());
 
-	constexpr auto kExpandingDelay = crl::time(100);
-	constexpr auto kXExpandingDuration = 200.;
-	constexpr auto kYExpandingDuration = 400.;
-	constexpr auto kAlphaExpandingDuration = 400.;
-	_xPercentage.animation.init([=](crl::time now) {
-		// if ((_xPercentage.yAnimationStartedAt && (now - _xPercentage.lastUserInteracted) < kExpandingDelay)) {
-		// 	_xPercentage.yAnimationStartedAt = _xPercentage.lastUserInteracted;
-		// }
-		if (!_xPercentage.yAnimationStartedAt
-			&& ((now - _xPercentage.lastUserInteracted) >= kExpandingDelay)) {
-			// if (!_xPercentage.yAnimationStartedAt) {
-			_xPercentage.alphaAnimationStartedAt = 0;
-			_xPercentage.animValueYAlpha = anim::value(0., 1.);
-			{
-				const auto startXIndex = _chartData.findStartIndex(
-					_xPercentage.animValueXMin.to());
-				const auto endXIndex = _chartData.findEndIndex(
-					startXIndex,
-					_xPercentage.animValueXMax.to());
-				addHorizontalLine(
-					{
-						float64(FindMinValue(_chartData, startXIndex, endXIndex)),
-						float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
-					},
-					true);
-			}
-
-			// }
-			_xPercentage.yAnimationStartedAt = _xPercentage.lastUserInteracted
-				+ kExpandingDelay;
-		}
-		if (!_xPercentage.alphaAnimationStartedAt) {
-			_xPercentage.alphaAnimationStartedAt = now;
-		}
-		_xPercentage.dtCurrent.min  = std::min(
-			_xPercentage.dtCurrent.min + _xPercentage.dtYSpeed,
-			1.);
-		_xPercentage.dtCurrent.max = std::min(
-			_xPercentage.dtCurrent.max + _xPercentage.dtYSpeed,
-			1.);
-		const auto dtY = std::min(
-			(now - _xPercentage.yAnimationStartedAt) / kYExpandingDuration,
-			1.);
-		const auto dtAlpha = std::min(
-			(now - _xPercentage.alphaAnimationStartedAt) / kAlphaExpandingDuration,
-			1.);
-		const auto dtX = std::min(
-			(now - _xPercentage.animation.started()) / kXExpandingDuration,
-			1.);
-
-		const auto xFinished = AnimFinished(_xPercentage.animValueXMin)
-			&& AnimFinished(_xPercentage.animValueXMax);
-		const auto yFinished = AnimFinished(_xPercentage.animValueYMin)
-			&& AnimFinished(_xPercentage.animValueYMax);
-		const auto alphaFinished = AnimFinished(_xPercentage.animValueYAlpha);
-		if (xFinished && yFinished && alphaFinished) {
-			if ((_horizontalLines.back().lines.front().absoluteValue == _xPercentage.animValueYMin.to())
-				&& (_horizontalLines.back().lines.back().absoluteValue == _xPercentage.animValueYMax.to())) {
-				_xPercentage.animation.stop();
-			}
-			_xPercentage.alphaAnimationStartedAt = 0;
-			_xPercentage.yAnimationStartedAt = 0;
-		}
-		if (xFinished) {
-			_xPercentage.animValueXMin.finish();
-			_xPercentage.animValueXMax.finish();
-		} else {
-			_xPercentage.animValueXMin.update(dtX, anim::linear);
-			_xPercentage.animValueXMax.update(dtX, anim::linear);
-		}
-		// if (yFinished) {
-		// 	// _xPercentage.animValueYMin.finish();
-		// 	// _xPercentage.animValueYMax.finish();
-
-		// 	_xPercentage.yAnimationStartedAt = 0;
-		// }
-		if (_xPercentage.yAnimationStartedAt) {
-			_xPercentage.animValueYMin.update(_xPercentage.dtCurrent.min, anim::easeInCubic);
-			_xPercentage.animValueYMax.update(_xPercentage.dtCurrent.max, anim::easeInCubic);
-			_xPercentage.animValueYAlpha.update(dtAlpha, anim::sineInOut);
-
-			auto &&subrange = ranges::make_subrange(
-				begin(_horizontalLines),// + 1,
-				end(_horizontalLines));
-			for (auto &horizontalLine : std::move(subrange)) {
-				horizontalLine.computeRelative(
-					_xPercentage.animValueYMax.current(),
-					_xPercentage.animValueYMin.current());
-			}
-		}
-
-		if (yFinished) {
-			// _xPercentage.animValueYAlpha.finish();
-		}
-		if (dtAlpha >= 0. && dtAlpha <= 1.) {
-			const auto value = _xPercentage.animValueYAlpha.current();
-
-			const auto startIt = begin(_horizontalLines);
-			const auto endIt = end(_horizontalLines);
-			for (auto it = startIt; it != (endIt - 1); it++) {
-				const auto was = it->alpha;
-				it->alpha = it->fixedAlpha * (1. - value);
-				const auto now = it->alpha;
-			}
-			(endIt - 1)->alpha = value;
-			if (value == 1.) {
-				while (_horizontalLines.size() > 1) {
-					const auto startIt = begin(_horizontalLines);
-					if (!startIt->alpha) {
-						_horizontalLines.erase(startIt);
-					} else {
-						break;
-					}
-				}
-			}
-		}
-		if (yFinished) {
-			// _xPercentage.animValueYMin.finish();
-			// _xPercentage.animValueYMax.finish();
-			// _xPercentage.animValueYAlpha.finish();
-
-			// _xPercentage.yAnimationStartedAt = 0;
-		}
-
-		update();
-	});
-
-	_footer->userInteractionFinished(
+	rpl::merge(
+		_animationController.heightAnimationStarts(),
+		_footer->userInteractionFinished()
 	) | rpl::start_with_next([=] {
-		_xPercentage.alphaAnimationStartedAt = 0;
-		_xPercentage.animValueYAlpha = anim::value(0., 1.);
-
-		{
-			const auto startXIndex = _chartData.findStartIndex(
-				_xPercentage.now.min);
-			const auto endXIndex = _chartData.findEndIndex(
-				startXIndex,
-				_xPercentage.now.max);
-			addHorizontalLine(
-				{
-					float64(FindMinValue(_chartData, startXIndex, endXIndex)),
-					float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
-				},
-				true);
-		}
-		if (!_xPercentage.animation.animating()) {
-			_xPercentage.animation.start();
-		}
+		_animationController.resetAlpha();
+		addHorizontalLine(_animationController.finalHeightLimits(), true);
+		_animationController.start();
 	}, _footer->lifetime());
 
 	_footer->directionChanges(
@@ -408,135 +474,17 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 
 	_footer->xPercentageLimitsChange(
 	) | rpl::start_with_next([=](Limits xPercentageLimits) {
-		if ((_xPercentage.now.min == xPercentageLimits.min)
-			&& (_xPercentage.now.max == xPercentageLimits.max)) {
+		const auto now = crl::now();
+		_animationController.setXPercentageLimits(
+			_chartData,
+			xPercentageLimits,
+			now);
+		if ((now - _lastHeightLimitsChanged) < kHeightLimitsUpdateTimeout) {
 			return;
 		}
-		if (!_xPercentage.animation.animating()) {
-			_xPercentage.animation.start();
-		}
-		_xPercentage.animValueXMin.start(xPercentageLimits.min);
-		_xPercentage.animValueXMax.start(xPercentageLimits.max);
-		_xPercentage.now = xPercentageLimits;
-		_xPercentage.lastUserInteracted = crl::now();
-
-		const auto &chartData = _chartData;
-		{
-			auto minY = std::numeric_limits<float64>::max();
-			auto maxY = 0.;
-			auto minYIndex = 0;
-			auto maxYIndex = 0;
-			const auto tempXPercentage = Limits{
-				.min = *ranges::lower_bound(
-					chartData.xPercentage,
-					xPercentageLimits.min),
-				.max = *ranges::lower_bound(
-					chartData.xPercentage,
-					xPercentageLimits.max),
-			};
-			for (auto i = 0; i < chartData.xPercentage.size(); i++) {
-				if (chartData.xPercentage[i] == tempXPercentage.min) {
-					minYIndex = i;
-				}
-				if (chartData.xPercentage[i] == tempXPercentage.max) {
-					maxYIndex = i;
-				}
-			}
-			for (const auto &line : chartData.lines) {
-				for (auto i = minYIndex; i < maxYIndex; i++) {
-					if (line.y[i] > maxY) {
-						maxY = line.y[i];
-					}
-					if (line.y[i] < minY) {
-						minY = line.y[i];
-					}
-				}
-			}
-			// if (_xPercentage.animValueYMin.from() == minY) {
-			// 	minY += 1;
-			// 	// _xPercentage.animValueYMin.finish();
-			// }
-			// if (_xPercentage.animValueYMax.from() == maxY) {
-			// 	// maxY -= 0.1;
-			// 	_xPercentage.animValueYMax.finish();
-			// }
-			_xPercentage.animValueYMin = anim::value(
-				_xPercentage.animValueYMin.current(),
-				minY);
-			_xPercentage.animValueYMax = anim::value(
-				_xPercentage.animValueYMax.current(),
-				maxY);
-
-			{
-				auto k = (_xPercentage.animValueYMax.current() - _xPercentage.animValueYMin.current())
-					/ float64(maxY - minY);
-				if (k > 1.) {
-					k = 1. / k;
-				}
-				// constexpr auto kUpdateStep1 = 0.1;
-				constexpr auto kUpdateStep1 = 0.03;
-				constexpr auto kUpdateStep2 = 0.03;
-				constexpr auto kUpdateStep3 = 0.045;
-				constexpr auto kUpdateStepThreshold1 = 0.7;
-				constexpr auto kUpdateStepThreshold2 = 0.1;
-				_xPercentage.dtYSpeed = (k > kUpdateStepThreshold1)
-					? kUpdateStep1
-					: (k < kUpdateStepThreshold2)
-					? kUpdateStep2
-					: kUpdateStep3;
-				_xPercentage.dtCurrent = { 0., 0. };
-			}
-
-			// _horizontalLines.front().computeRelative(maxY, minY);
-		}
-		{
-			const auto now = crl::now();
-			if ((now - _lastHeightLimitsChanged) < kHeightLimitsUpdateTimeout) {
-				return;
-			}
-			_lastHeightLimitsChanged = now;
-			_xPercentage.alphaAnimationStartedAt = 0;
-
-			_xPercentage.animValueYAlpha = anim::value(0., 1.);
-			{
-				const auto startXIndex = _chartData.findStartIndex(
-					_xPercentage.now.min);
-				const auto endXIndex = _chartData.findEndIndex(
-					startXIndex,
-					_xPercentage.now.max);
-				addHorizontalLine(
-					{
-						float64(FindMinValue(_chartData, startXIndex, endXIndex)),
-						float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
-					},
-					true);
-			}
-		}
-		// _xPercentage.animation.stop();
-		// const auto was = _xPercentageLimits;
-		// const auto now = xPercentageLimits;
-		// _xPercentage.animation.start([=](float64 value) {
-		// 	_xPercentageLimits = {
-		// 		.min = *ranges::lower_bound(
-		// 			_chartData.xPercentage,
-		// 			anim::interpolateF(was.min, now.min, value)),
-		// 		.max = *ranges::lower_bound(
-		// 			_chartData.xPercentage,
-		// 			anim::interpolateF(was.max, now.max, value)),
-		// 	};
-		// 	const auto startXIndex = _chartData.findStartIndex(
-		// 		_xPercentageLimits.min);
-		// 	const auto endXIndex = _chartData.findEndIndex(
-		// 		startXIndex,
-		// 		_xPercentageLimits.max);
-		// 	setHeightLimits(
-		// 		{
-		// 			float64(FindMinValue(_chartData, startXIndex, endXIndex)),
-		// 			float64(FindMaxValue(_chartData, startXIndex, endXIndex)),
-		// 		},
-		// 		false);
-		// 	update();
-		// }, 0., 1., 400);
+		_lastHeightLimitsChanged = now;
+		_animationController.resetAlpha();
+		addHorizontalLine(_animationController.finalHeightLimits(), true);
 	}, _footer->lifetime());
 	resize(width(), st::confirmMaxHeight + st::countryRowHeight * 2);
 }
@@ -546,10 +494,6 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 
 	{
 		_xPercentageLimits = {
-			.min = _chartData.xPercentage.front(),
-			.max = _chartData.xPercentage.back(),
-		};
-		_xPercentage.now = {
 			.min = _chartData.xPercentage.front(),
 			.max = _chartData.xPercentage.back(),
 		};
@@ -571,6 +515,8 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 void ChartWidget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
+	_animationController.tick(crl::now(), _horizontalLines);
+
 	const auto r = rect();
 	const auto captionRect = r;
 	const auto chartRectBottom = st::lineWidth
@@ -589,9 +535,8 @@ void ChartWidget::paintEvent(QPaintEvent *e) {
 		Statistic::PaintLinearChartView(
 			p,
 			_chartData,
-			{ _xPercentage.animValueXMin.current(), _xPercentage.animValueXMax.current() },
-			{ _xPercentage.animValueYMin.current(), _xPercentage.animValueYMax.current() },
-			// _xPercentage.now,
+			_animationController.currentXLimits(),
+			_animationController.currentHeightLimits(),
 			chartRect);
 	}
 
