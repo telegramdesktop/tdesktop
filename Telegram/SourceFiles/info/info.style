@@ -176,12 +176,12 @@ infoTopBarDelete: IconButton(infoTopBarForward) {
 	iconOver: icon {{ "info/info_media_delete", boxTitleCloseFgOver }};
 }
 infoTopBarSaveStories: IconButton(infoTopBarForward) {
-	icon: icon {{ "menu/stories_saved", boxTitleCloseFg }};
-	iconOver: icon {{ "menu/stories_saved", boxTitleCloseFgOver }};
+	icon: icon {{ "info/info_stories_to_profile", boxTitleCloseFg }};
+	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
 }
 infoTopBarArchiveStories: IconButton(infoTopBarForward) {
-	icon: icon {{ "menu/archive", boxTitleCloseFg }};
-	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
+	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
+	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
 }
 infoTopBar: InfoTopBar {
 	height: infoTopBarHeight;
@@ -251,12 +251,12 @@ infoLayerTopBarDelete: IconButton(infoLayerTopBarForward) {
 	iconOver: icon {{ "info/info_media_delete", boxTitleCloseFgOver }};
 }
 infoLayerTopBarSaveStories: IconButton(infoLayerTopBarForward) {
-	icon: icon {{ "menu/stories_saved", boxTitleCloseFg }};
-	iconOver: icon {{ "menu/stories_saved", boxTitleCloseFgOver }};
+	icon: icon {{ "info/info_stories_to_profile", boxTitleCloseFg }};
+	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
 }
 infoLayerTopBarArchiveStories: IconButton(infoLayerTopBarForward) {
-	icon: icon {{ "menu/archive", boxTitleCloseFg }};
-	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
+	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
+	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
 }
 infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;

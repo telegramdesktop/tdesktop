@@ -477,10 +477,10 @@ void FillSourceMenu(
 			controller->showSection(Info::Stories::Make(
 				peer,
 				Info::Stories::Tab::Archive));
-		}, &st::menuIconStoriesArchive);
+		}, &st::menuIconStoriesArchiveSection);
 		add(tr::lng_stories_my_title(tr::now), [=] {
 			controller->showSection(Info::Stories::Make(peer));
-		}, &st::menuIconStoriesSaved);
+		}, &st::menuIconStoriesSavedSection);
 	} else {
 		add(tr::lng_profile_send_message(tr::now), [=] {
 			controller->showPeerHistory(peer);
@@ -508,7 +508,7 @@ void FillSourceMenu(
 		if (in(Data::StorySourcesList::Hidden)) {
 			add(tr::lng_stories_show_in_chats(tr::now), [=] {
 				toggle(true);
-			}, &st::menuIconAddToFolder);
+			}, &st::menuIconStoriesToChats);
 		}
 	}
 }

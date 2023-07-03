@@ -1029,7 +1029,9 @@ void ListWidget::showContextMenu(
 					? tr::lng_mediaview_save_to_profile
 					: tr::lng_archived_add)(tr::now),
 				crl::guard(this, [this] { toggleStoryPinSelected(); }),
-				(pin ? &st::menuIconStoriesSaved : &st::menuIconArchive));
+				(pin
+					? &st::menuIconStoriesSave
+					: &st::menuIconStoriesArchive));
 		}
 		if (canForwardAll()) {
 			_contextMenu->addAction(
@@ -1070,7 +1072,9 @@ void ListWidget::showContextMenu(
 					crl::guard(this, [=] {
 						toggleStoryPin({ 1, globalId.itemId });
 					}),
-					(pin ? &st::menuIconStoriesSaved : &st::menuIconArchive));
+					(pin
+						? &st::menuIconStoriesSave
+						: &st::menuIconStoriesArchive));
 			}
 			if (selectionData.canForward) {
 				_contextMenu->addAction(
