@@ -942,6 +942,16 @@ requestsBoxList: PeerList(peerListBox) {
 	padding: margins(0px, 12px, 0px, 12px);
 	item: requestsBoxItem;
 }
+contactsWithStories: PeerList(peerListBox) {
+	item: PeerListItem(peerListBoxItem) {
+		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+			check: RoundCheckbox(defaultPeerListCheck) {
+				size: 0px;
+			}
+		}
+		nameFgChecked: contactsNameFg;
+	}
+}
 requestsAcceptButton: RoundButton(defaultActiveButton) {
 	width: -28px;
 	height: 30px;

@@ -37,6 +37,7 @@ constexpr auto kSavedFirstPerPage = 30;
 constexpr auto kSavedPerPage = 100;
 constexpr auto kMaxPreloadSources = 10;
 constexpr auto kStillPreloadFromFirst = 3;
+constexpr auto kMaxSegmentsCount = 180;
 
 using UpdateFlag = StoryUpdate::Flag;
 
@@ -74,13 +75,15 @@ StoriesSourceInfo StoriesSource::info() const {
 	return {
 		.id = user->id,
 		.last = ids.empty() ? 0 : ids.back().date,
-		.unread = unread(),
-		.premium = user->isPremium(),
+		.count = std::min(int(ids.size()), kMaxSegmentsCount),
+		.unreadCount = std::min(unreadCount(), kMaxSegmentsCount),
+		.premium = user->isPremium() ? 1 : 0,
 	};
 }
 
-bool StoriesSource::unread() const {
-	return !ids.empty() && readTill < ids.back().id;
+int StoriesSource::unreadCount() const {
+	const auto i = ids.lower_bound(StoryIdDates{ .id = readTill + 1 });
+	return int(end(ids) - i);
 }
 
 StoryIdDates StoriesSource::toOpen() const {
@@ -724,7 +727,7 @@ void Stories::sort(StorySourcesList list) {
 		const auto key = int64(info.last)
 			+ (info.premium ? (int64(1) << 47) : 0)
 			+ ((info.id == changelogSenderId) ? (int64(1) << 47) : 0)
-			+ (info.unread ? (int64(1) << 49) : 0)
+			+ ((info.unreadCount > 0) ? (int64(1) << 49) : 0)
 			+ ((info.id == self) ? (int64(1) << 50) : 0);
 		return std::make_pair(key, info.id);
 	};
@@ -895,10 +898,10 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 		sendMarkAsReadRequests();
 	}
 	_markReadPending.emplace(id.peer);
-	const auto wasUnread = i->second.unread();
+	const auto wasUnreadCount = i->second.unreadCount();
 	i->second.readTill = id.story;
-	const auto nowUnread = i->second.unread();
-	if (wasUnread != nowUnread) {
+	const auto nowUnreadCount = i->second.unreadCount();
+	if (wasUnreadCount != nowUnreadCount) {
 		const auto refreshInList = [&](StorySourcesList list) {
 			auto &sources = _sources[static_cast<int>(list)];
 			const auto i = ranges::find(
@@ -906,7 +909,7 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 				id.peer,
 				&StoriesSourceInfo::id);
 			if (i != end(sources)) {
-				i->unread = nowUnread;
+				i->unreadCount = nowUnreadCount;
 				sort(list);
 			}
 		};

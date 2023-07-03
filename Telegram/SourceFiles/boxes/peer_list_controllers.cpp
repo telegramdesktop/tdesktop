@@ -9,8 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_participants.h"
 #include "base/random.h"
+#include "boxes/filters/edit_filter_chats_list.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/effects/round_checkbox.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
@@ -32,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "dialogs/dialogs_main_list.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h" // showAddContact()
 #include "base/unixtime.h"
 #include "styles/style_boxes.h"
@@ -42,11 +47,301 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 
-
 namespace {
 
 constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
 constexpr auto kSearchPerPage = 50;
+
+class StoriesRow final : public PeerListRow {
+public:
+	StoriesRow(
+		not_null<Main::Session*> session,
+		const QBrush &unread,
+		const Dialogs::Stories::Element &element,
+		int position);
+
+	void applySegments(const Dialogs::Stories::Element &element);
+	void updateGradient(QBrush unread);
+
+	int position = 0;
+
+private:
+	void refreshSegments();
+
+	QBrush _unread;
+	int _count = 0;
+	int _unreadCount = 0;
+
+};
+
+class StoriesController final
+	: public PeerListController
+	, public base::has_weak_ptr {
+public:
+	using Content = Dialogs::Stories::Content;
+	using Row = StoriesRow;
+
+	StoriesController(
+		not_null<Window::SessionController*> window,
+		rpl::producer<Content> content,
+		Fn<void(uint64)> open,
+		Fn<void()> loadMore);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void loadMoreRows() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
+
+private:
+	void refresh(const Content &content);
+
+	const not_null<Window::SessionController*> _window;
+	QBrush _unread;
+	rpl::producer<Content> _content;
+	Fn<void(uint64)> _open;
+	Fn<void()> _loadMore;
+	bool _positionPositive = false;
+
+	rpl::lifetime _lifetime;
+
+};
+
+StoriesRow::StoriesRow(
+	not_null<Main::Session*> session,
+	const QBrush &unread,
+	const Dialogs::Stories::Element &element,
+	int position)
+: PeerListRow(session->data().peer(PeerId(element.id)))
+, position(position)
+, _unread(unread) {
+}
+
+void StoriesRow::applySegments(const Dialogs::Stories::Element &element) {
+	Expects(element.unreadCount <= element.count);
+
+	_count = std::max(element.count, 1);
+	_unreadCount = element.unreadCount;
+	refreshSegments();
+}
+
+void StoriesRow::updateGradient(QBrush unread) {
+	_unread = std::move(unread);
+	refreshSegments();
+}
+
+void StoriesRow::refreshSegments() {
+	Expects(_unreadCount <= _count);
+	Expects(_count > 0);
+
+	auto segments = std::vector<Ui::RoundImageCheckboxSegment>();
+	const auto add = [&](bool unread) {
+		segments.push_back({
+			.brush = unread ? _unread : st::dialogsUnreadBgMuted->b,
+			.width = (unread
+				? st::dialogsStoriesFull.lineTwice / 2.
+				: st::dialogsStoriesFull.lineReadTwice / 2.),
+		});
+	};
+	segments.reserve(_count);
+	for (auto i = 0, count = _count - _unreadCount; i != count; ++i) {
+		add(false);
+	}
+	for (auto i = 0; i != _unreadCount; ++i) {
+		add(true);
+	}
+	setCustomizedCheckSegments(std::move(segments));
+}
+
+StoriesController::StoriesController(
+	not_null<Window::SessionController*> window,
+	rpl::producer<Content> content,
+	Fn<void(uint64)> open,
+	Fn<void()> loadMore)
+: _window(window)
+, _content(std::move(content))
+, _open(std::move(open))
+, _loadMore(std::move(loadMore)) {
+	const auto createGradient = [=] {
+		auto gradient = QLinearGradient(
+			QPoint(10, 0),
+			QPoint(0, 10));
+		gradient.setStops({
+			{ 0., st::groupCallLive1->c },
+			{ 1., st::groupCallMuted1->c },
+		});
+		_unread = QBrush(gradient);
+	};
+	createGradient();
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		createGradient();
+		for (auto i = 0, count = int(delegate()->peerListFullRowsCount())
+			; i != count
+			; ++i) {
+			const auto row = delegate()->peerListRowAt(i).get();
+			static_cast<Row*>(row)->updateGradient(_unread);
+		}
+	}, _lifetime);
+}
+
+Main::Session &StoriesController::session() const {
+	return _window->session();
+}
+
+void StoriesController::prepare() {
+	if (_loadMore) {
+		_loadMore();
+	}
+	std::move(
+		_content
+	) | rpl::start_with_next([=](Content content) {
+		refresh(content);
+	}, _lifetime);
+}
+
+void StoriesController::loadMoreRows() {
+	if (_loadMore) {
+		_loadMore();
+	}
+}
+
+void StoriesController::rowClicked(not_null<PeerListRow*> row) {
+	if (_open) {
+		_open(row->id());
+	}
+}
+
+base::unique_qptr<Ui::PopupMenu> StoriesController::rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) {
+	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
+
+	Dialogs::Stories::FillSourceMenu(_window, {
+		.id = row->id(),
+		.callback = Ui::Menu::CreateAddActionCallback(result.get()),
+	});
+
+	if (result->empty()) {
+		return nullptr;
+	}
+	return result;
+}
+
+void StoriesController::refresh(const Content &content) {
+	const auto session = &_window->session();
+	const auto positive = _positionPositive = !_positionPositive;
+	auto position = positive ? 1 : -int(content.elements.size());
+	for (const auto &element : content.elements) {
+		if (const auto row = delegate()->peerListFindRow(element.id)) {
+			static_cast<Row*>(row)->position = position;
+			static_cast<Row*>(row)->applySegments(element);
+		} else {
+			auto added = std::make_unique<Row>(
+				session,
+				_unread,
+				element,
+				position);
+			const auto raw = added.get();
+			delegate()->peerListAppendRow(std::move(added));
+			delegate()->peerListSetRowChecked(raw, true);
+			raw->applySegments(element);
+		}
+		++position;
+	}
+	auto count = delegate()->peerListFullRowsCount();
+	for (auto i = 0; i != count;) {
+		const auto row = delegate()->peerListRowAt(i);
+		const auto position = static_cast<Row*>(row.get())->position;
+		if (positive ? (position > 0) : (position < 0)) {
+			++i;
+		} else {
+			delegate()->peerListRemoveRow(row);
+			--count;
+		}
+	}
+	delegate()->peerListSortRows([](
+			const PeerListRow &a,
+			const PeerListRow &b) {
+		return static_cast<const Row&>(a).position
+			< static_cast<const Row&>(b).position;
+	});
+	delegate()->peerListRefreshRows();
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> PrepareHiddenStoriesList(
+		not_null<PeerListBox*> box,
+		not_null<Window::SessionController*> sessionController,
+		rpl::producer<ContactsBoxController::SortMode> mode) {
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		box,
+		object_ptr<Ui::VerticalLayout>(box));
+	const auto container = result->entity();
+	const auto stories = &sessionController->session().data().stories();
+
+	container->add(CreatePeerListSectionSubtitle(
+		container,
+		tr::lng_contacts_hidden_stories()));
+
+	auto &lifetime = container->lifetime();
+	auto list = Dialogs::Stories::ContentForSession(
+		&sessionController->session(),
+		Data::StorySourcesList::Hidden
+	) | rpl::start_spawning(lifetime);
+	const auto delegate = lifetime.make_state<
+		PeerListContentDelegateSimple
+	>();
+	const auto open = [=](uint64 id) {
+		sessionController->openPeerStories(
+			PeerId(int64(id)),
+			Data::StorySourcesList::Hidden);
+	};
+	const auto loadMore = [=] {
+		stories->loadMore(Data::StorySourcesList::Hidden);
+	};
+	const auto controller = lifetime.make_state<StoriesController>(
+		sessionController,
+		rpl::duplicate(
+			list
+		) | rpl::filter([](const Dialogs::Stories::Content &list) {
+			return !list.elements.empty();
+		}),
+		open,
+		loadMore);
+	controller->setStyleOverrides(&st::contactsWithStories);
+	const auto content = container->add(object_ptr<PeerListContent>(
+		container,
+		controller));
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+
+	container->add(CreatePeerListSectionSubtitle(
+		container,
+		rpl::conditional(
+			std::move(
+				mode
+			) | rpl::map(
+				rpl::mappers::_1 == ContactsBoxController::SortMode::Online
+			),
+			tr::lng_contacts_by_online(),
+			tr::lng_contacts_by_name())));
+
+	stories->incrementPreloadingHiddenSources();
+	lifetime.add([=] {
+		stories->decrementPreloadingHiddenSources();
+	});
+
+	result->toggleOn(rpl::duplicate(
+		list
+	) | rpl::map([](const Dialogs::Stories::Content &list) {
+		return !list.elements.empty();
+	}));
+	result->finishAnimating();
+
+	return result;
+}
 
 } // namespace
 
@@ -55,14 +350,14 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 	using Mode = ContactsBoxController::SortMode;
 	auto controller = std::make_unique<ContactsBoxController>(
 		&sessionController->session());
+	controller->setStyleOverrides(&st::contactsWithStories);
 	const auto raw = controller.get();
 	auto init = [=](not_null<PeerListBox*> box) {
 		using namespace Dialogs::Stories;
 
 		struct State {
-			List *stories = nullptr;
 			QPointer<::Ui::IconButton> toggleSort;
-			Mode mode = ContactsBoxController::SortMode::Online;
+			rpl::variable<Mode> mode = Mode::Online;
 			::Ui::Animations::Simple scrollAnimation;
 		};
 
@@ -73,109 +368,20 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 			tr::lng_profile_add_contact(),
 			[=] { sessionController->showAddContact(); });
 		state->toggleSort = box->addTopButton(st::contactsSortButton, [=] {
-			const auto online = (state->mode == Mode::Online);
-			state->mode = online ? Mode::Alphabet : Mode::Online;
-			raw->setSortMode(state->mode);
+			const auto online = (state->mode.current() == Mode::Online);
+			const auto mode = online ? Mode::Alphabet : Mode::Online;
+			state->mode = mode;
+			raw->setSortMode(mode);
 			state->toggleSort->setIconOverride(
 				online ? &st::contactsSortOnlineIcon : nullptr,
 				online ? &st::contactsSortOnlineIconOver : nullptr);
 		});
 		raw->setSortMode(Mode::Online);
 
-		auto list = object_ptr<List>(
+		box->peerListSetAboveWidget(PrepareHiddenStoriesList(
 			box,
-			st::dialogsStoriesList,
-			ContentForSession(
-				&sessionController->session(),
-				Data::StorySourcesList::Hidden),
-			[=] { return state->stories->height() - box->scrollTop(); });
-		const auto raw = state->stories = list.data();
-		box->peerListSetAboveWidget(object_ptr<::Ui::PaddingWrap<>>(
-			box,
-			std::move(list),
-			style::margins(0, st::membersMarginTop, 0, 0)));
-
-		raw->clicks(
-		) | rpl::start_with_next([=](uint64 id) {
-			sessionController->openPeerStories(
-				PeerId(int64(id)),
-				Data::StorySourcesList::Hidden);
-		}, raw->lifetime());
-
-		raw->showMenuRequests(
-		) | rpl::start_with_next([=](const ShowMenuRequest &request) {
-			FillSourceMenu(sessionController, request);
-		}, raw->lifetime());
-
-		raw->loadMoreRequests(
-		) | rpl::start_with_next([=] {
-			stories->loadMore(Data::StorySourcesList::Hidden);
-		}, raw->lifetime());
-
-		const auto defaultScrollTop = [=] {
-			return std::max(raw->height() - st::dialogsStories.height, 0);
-		};
-		const auto scrollToDefault = [=](bool verytop) {
-			if (state->scrollAnimation.animating()) {
-				return;
-			}
-			if (verytop) {
-				//_scroll->verticalScrollBar()->setMinimum(0);
-			}
-			state->scrollAnimation.stop();
-			auto scrollTop = box->scrollTop();
-			const auto scrollTo = verytop ? 0 : defaultScrollTop();
-			if (scrollTop == scrollTo) {
-				return;
-			}
-			const auto maxAnimatedDelta = box->height();
-			if (scrollTo + maxAnimatedDelta < scrollTop) {
-				scrollTop = scrollTo + maxAnimatedDelta;
-				box->scrollToY(scrollTop);
-			}
-
-			const auto scroll = [=] {
-				const auto animated = qRound(
-					state->scrollAnimation.value(scrollTo));
-				const auto animatedDelta = animated - scrollTo;
-				const auto realDelta = box->scrollTop() - scrollTo;
-				if (realDelta * animatedDelta < 0) {
-					// We scrolled manually to the other side of target 'scrollTo'.
-					state->scrollAnimation.stop();
-				} else if (std::abs(realDelta) > std::abs(animatedDelta)) {
-					// We scroll by animation only if it gets us closer to target.
-					box->scrollToY(animated);
-				}
-			};
-
-			state->scrollAnimation.start(
-				scroll,
-				scrollTop,
-				scrollTo,
-				st::slideDuration,
-				anim::sineInOut);
-		};
-		const auto top = box->scrollTop();
-		raw->toggleExpandedRequests(
-		) | rpl::start_with_next([=](bool expanded) {
-			if (expanded || box->scrollTop() < defaultScrollTop()) {
-				scrollToDefault(expanded);
-			}
-		}, raw->lifetime());
-
-		raw->heightValue(
-		) | rpl::filter([=] {
-			return (box->scrollHeight() > 0)
-				&& (defaultScrollTop() > box->scrollTop());
-		}) | rpl::start_with_next([=] {
-			//refreshForDefaultScroll();
-			box->scrollToY(defaultScrollTop());
-		}, raw->lifetime());
-
-		stories->incrementPreloadingHiddenSources();
-		raw->lifetime().add([=] {
-			stories->decrementPreloadingHiddenSources();
-		});
+			sessionController,
+			state->mode.value()));
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(init));
 }

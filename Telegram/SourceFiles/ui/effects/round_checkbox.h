@@ -45,8 +45,14 @@ private:
 
 };
 
+struct RoundImageCheckboxSegment {
+	QBrush brush;
+	float64 width = 0.;
+};
+
 class RoundImageCheckbox {
 public:
+	using Segment = RoundImageCheckboxSegment;
 	using PaintRoundImage = Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
 	RoundImageCheckbox(
 		const style::RoundImageCheckbox &st,
@@ -58,6 +64,7 @@ public:
 	float64 checkedAnimationRatio() const;
 
 	void setColorOverride(std::optional<QBrush> fg);
+	void setCustomizedSegments(std::vector<Segment> segments);
 
 	bool checked() const {
 		return _check.checked();
@@ -83,7 +90,8 @@ private:
 
 	RoundCheckbox _check;
 
-	std::optional<QBrush> _fgOverride;
+	//std::optional<QBrush> _fgOverride;
+	std::vector<Segment> _segments;
 
 };
 

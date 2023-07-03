@@ -108,7 +108,8 @@ void List::showContent(Content &&content) {
 				item.element.name = element.name;
 				item.nameCache = QImage();
 			}
-			item.element.unread = element.unread;
+			item.element.count = element.count;
+			item.element.unreadCount = element.unreadCount;
 		} else {
 			_data.items.emplace_back(Item{ .element = element });
 		}
@@ -129,7 +130,7 @@ List::Summaries List::ComposeSummaries(Data &data) {
 	auto unreadInFirst = 0;
 	auto unreadTotal = 0;
 	for (auto i = skip; i != total; ++i) {
-		if (data.items[i].element.unread) {
+		if (data.items[i].element.unreadCount > 0) {
 			++unreadTotal;
 			if (i < skip + kSmallThumbsShown) {
 				++unreadInFirst;
@@ -162,7 +163,7 @@ List::Summaries List::ComposeSummaries(Data &data) {
 	}
 	if (unreadInFirst > 0 && unreadInFirst == unreadTotal) {
 		for (auto i = skip; i != total; ++i) {
-			if (data.items[i].element.unread) {
+			if (data.items[i].element.unreadCount > 0) {
 				append(result.unreadNames.string, i, !--unreadTotal);
 			}
 		}
@@ -449,8 +450,8 @@ void List::paintEvent(QPaintEvent *e) {
 		return Single{ x, indexSmall, small, indexFull, full, y };
 	};
 	const auto hasUnread = [&](const Single &single) {
-		return (single.itemSmall && single.itemSmall->element.unread)
-			|| (single.itemFull && single.itemFull->element.unread);
+		return (single.itemSmall && single.itemSmall->element.unreadCount)
+			|| (single.itemFull && single.itemFull->element.unreadCount);
 	};
 	const auto enumerate = [&](auto &&paintGradient, auto &&paintOther) {
 		auto nextGradientPainted = false;
@@ -513,8 +514,8 @@ void List::paintEvent(QPaintEvent *e) {
 			photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
-		const auto smallUnread = small && small->element.unread;
-		const auto fullUnread = itemFull && itemFull->element.unread;
+		const auto smallUnread = small && small->element.unreadCount;
+		const auto fullUnread = itemFull && itemFull->element.unreadCount;
 		const auto unreadOpacity = (smallUnread && fullUnread)
 			? 1.
 			: smallUnread
@@ -550,8 +551,8 @@ void List::paintEvent(QPaintEvent *e) {
 			photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
-		const auto smallUnread = small && small->element.unread;
-		const auto fullUnread = itemFull && itemFull->element.unread;
+		const auto smallUnread = small && small->element.unreadCount;
+		const auto fullUnread = itemFull && itemFull->element.unreadCount;
 
 		// White circle with possible read gray line.
 		const auto hasReadLine = (itemFull && !fullUnread);

@@ -41,8 +41,9 @@ struct StoriesIds {
 struct StoriesSourceInfo {
 	PeerId id = 0;
 	TimeId last = 0;
-	bool unread = false;
-	bool premium = false;
+	int count : 15 = 0;
+	int unreadCount : 15 = 0;
+	int premium : 1 = 0;
 
 	friend inline bool operator==(
 		StoriesSourceInfo,
@@ -56,7 +57,7 @@ struct StoriesSource {
 	bool hidden = false;
 
 	[[nodiscard]] StoriesSourceInfo info() const;
-	[[nodiscard]] bool unread() const;
+	[[nodiscard]] int unreadCount() const;
 	[[nodiscard]] StoryIdDates toOpen() const;
 
 	friend inline bool operator==(StoriesSource, StoriesSource) = default;

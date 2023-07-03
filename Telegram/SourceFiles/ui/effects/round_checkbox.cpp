@@ -389,26 +389,49 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 	}
 
 	if (selectionLevel > 0) {
-		const auto radius = _roundingRadius
-			? _roundingRadius(_st.imageRadius * 2)
-			: std::optional<int>();
 		PainterHighQualityEnabler hq(p);
 		p.setOpacity(std::clamp(selectionLevel, 0., 1.));
 		p.setBrush(Qt::NoBrush);
-		const auto pen = QPen(
-			_fgOverride ? (*_fgOverride) : _st.selectFg->b,
-			_st.selectWidth);
-		p.setPen(pen);
+		const auto segments = int(_segments.size());
 		const auto rect = style::rtlrect(
 			x,
 			y,
 			_st.imageRadius * 2,
 			_st.imageRadius * 2,
 			outerWidth);
-		if (!radius) {
-			p.drawEllipse(rect);
+		if (segments < 2) {
+			const auto radius = _roundingRadius
+				? _roundingRadius(_st.imageRadius * 2)
+				: std::optional<int>();
+			const auto pen = QPen(
+				segments ? _segments.front().brush : _st.selectFg->b,
+				segments ? _segments.front().width : _st.selectWidth);
+			p.setPen(pen);
+			if (!radius) {
+				p.drawEllipse(rect);
+			} else {
+				p.drawRoundedRect(rect, *radius, *radius);
+			}
 		} else {
-			p.drawRoundedRect(rect, *radius, *radius);
+			const auto small = 160;
+			const auto full = arc::kFullLength;
+			const auto separator = (full > 2 * small * segments)
+				? small
+				: full / (segments * 2);
+			const auto left = full - (separator * segments);
+			const auto length = left / float64(segments);
+			auto start = 0. + (arc::kQuarterLength + (separator / 2));
+			for (const auto &segment : ranges::views::reverse(_segments)) {
+				p.setPen(QPen(
+					segment.brush,
+					segment.width,
+					Qt::SolidLine,
+					Qt::RoundCap));
+				const auto from = int(base::SafeRound(start));
+				const auto till = int(base::SafeRound(start + length));
+				p.drawArc(rect, from, till - from);
+				start += length + separator;
+			}
 		}
 		p.setOpacity(1.);
 	}
@@ -474,7 +497,18 @@ void RoundImageCheckbox::prepareWideCache() {
 }
 
 void RoundImageCheckbox::setColorOverride(std::optional<QBrush> fg) {
-	_fgOverride = fg;
+	if (fg) {
+		setCustomizedSegments({
+			{ .brush = *fg, .width = float64(_st.selectWidth) }
+		});
+	} else {
+		setCustomizedSegments({});
+	}
+}
+
+void RoundImageCheckbox::setCustomizedSegments(
+		std::vector<Segment> segments) {
+	_segments = std::move(segments);
 }
 
 } // namespace Ui

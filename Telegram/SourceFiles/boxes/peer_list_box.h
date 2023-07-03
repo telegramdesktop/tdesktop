@@ -36,6 +36,7 @@ class SlideWrap;
 class FlatLabel;
 struct ScrollToRequest;
 class PopupMenu;
+struct RoundImageCheckboxSegment;
 } // namespace Ui
 
 using PaintRoundImageCallback = Fn<void(
@@ -202,6 +203,8 @@ public:
 		}
 		setCheckedInternal(checked, animated);
 	}
+	void setCustomizedCheckSegments(
+		std::vector<Ui::RoundImageCheckboxSegment> segments);
 	void setHidden(bool hidden) {
 		_hidden = hidden;
 	}

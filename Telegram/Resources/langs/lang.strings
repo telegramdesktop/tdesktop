@@ -2407,6 +2407,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_add_contact" = "Create";
 "lng_add_contact_button" = "New contact";
 "lng_contacts_header" = "Contacts";
+"lng_contacts_by_online" = "Sorted by last seen time";
+"lng_contacts_by_name" = "Sorted by name";
+"lng_contacts_hidden_stories" = "Hidden Stories";
 "lng_contact_not_joined" = "Unfortunately {name} has not joined Telegram yet, but you can send them an invitation.\n\nWe will notify you about any of your contacts who join Telegram.";
 "lng_try_other_contact" = "Try someone else";
 "lng_create_group_link" = "Link";

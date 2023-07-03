@@ -160,7 +160,7 @@ void InnerWidget::createButtons() {
 		self
 	) | rpl::map([=](Content &&content) {
 		for (auto &element : content.elements) {
-			element.unread = false;
+			element.unreadCount = 0;
 		}
 		return std::move(content);
 	}) | rpl::start_spawning(recentWrap->lifetime());

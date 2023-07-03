@@ -351,8 +351,9 @@ Content State::next() {
 				? tr::lng_stories_my_name(tr::now)
 				: user->shortName()),
 			.thumbnail = std::move(userpic),
-			.unread = info.unread,
-			.skipSmall = user->isSelf(),
+			.count = info.count,
+			.unreadCount = info.unreadCount,
+			.skipSmall = user->isSelf() ? 1 : 0,
 		});
 	}
 	return result;
@@ -423,7 +424,8 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 							result.elements.push_back({
 								.id = uint64(id),
 								.thumbnail = MakeStoryThumbnail(*maybe),
-								.unread = (id > readTill),
+								.count = 1,
+								.unreadCount = (id > readTill) ? 1 : 0,
 							});
 						}
 					} else if (maybe.error() == Data::NoStory::Unknown) {

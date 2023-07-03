@@ -33,8 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 
-#include <rpl/range.h>
-
 PaintRoundImageCallback PaintUserpicCallback(
 		not_null<PeerData*> peer,
 		bool respectSavedMessagesChat) {
@@ -885,6 +883,13 @@ void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
 	Expects(_checkbox != nullptr);
 
 	_checkbox->setChecked(checked, animated);
+}
+
+void PeerListRow::setCustomizedCheckSegments(
+		std::vector<Ui::RoundImageCheckboxSegment> segments) {
+	Expects(_checkbox != nullptr);
+
+	_checkbox->setCustomizedSegments(std::move(segments));
 }
 
 void PeerListRow::finishCheckedAnimation() {
