@@ -4258,7 +4258,8 @@ void Session::serviceNotification(
 			MTPstring(), // bot_inline_placeholder
 			MTPstring(), // lang_code
 			MTPEmojiStatus(),
-			MTPVector<MTPUsername>()));
+			MTPVector<MTPUsername>(),
+			MTPint())); // stories_max_id
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	if (!history->folderKnown()) {

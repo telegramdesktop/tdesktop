@@ -610,7 +610,7 @@ void Stories::finalizeResolve(FullStoryId id) {
 void Stories::applyDeleted(FullStoryId id) {
 	applyRemovedFromActive(id);
 
-	_deleted.emplace(id).second;
+	_deleted.emplace(id);
 	const auto i = _stories.find(id.peer);
 	if (i != end(_stories)) {
 		const auto j = i->second.find(id.story);
