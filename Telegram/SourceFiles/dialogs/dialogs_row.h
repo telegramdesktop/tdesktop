@@ -167,11 +167,13 @@ private:
 	struct CornerBadgeUserpic {
 		InMemoryKey key;
 		CornerLayersManager layersManager;
-		int paletteVersion = 0;
-		int frameIndex = -1;
-		bool active = false;
 		QImage frame;
 		QImage cacheTTL;
+		int frameIndex = -1;
+		int paletteVersion : 24 = 0;
+		int storiesShown : 1 = 0;
+		int storiesUnread : 1 = 0;
+		int active : 1 = 0;
 	};
 
 	void setCornerBadgeShown(
@@ -180,6 +182,7 @@ private:
 	void ensureCornerBadgeUserpic() const;
 	static void PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
+		int framePadding,
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,

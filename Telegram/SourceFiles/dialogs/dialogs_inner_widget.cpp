@@ -1294,6 +1294,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 	}
 	_mouseSelection = true;
 	_lastMousePosition = globalPosition;
+	_lastRowLocalMouseX = local.x();
 
 	const auto w = width();
 	const auto mouseY = local.y();
@@ -2209,6 +2210,7 @@ FilterId InnerWidget::filterId() const {
 void InnerWidget::clearSelection() {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
+	_lastRowLocalMouseX = -1;
 	if (isSelected()) {
 		updateSelectedRow();
 		_collapsedSelected = -1;
@@ -2907,6 +2909,7 @@ void InnerWidget::resizeEmptyLabel() {
 void InnerWidget::clearMouseSelection(bool clearSelection) {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
+	_lastRowLocalMouseX = -1;
 	if (clearSelection) {
 		if (_state == WidgetState::Default) {
 			_collapsedSelected = -1;
@@ -3375,29 +3378,30 @@ ChosenRow InnerWidget::computeChosenRow() const {
 	if (_state == WidgetState::Default) {
 		if (_selected) {
 			return {
-				_selected->key(),
-				Data::UnreadMessagePosition
+				.key = _selected->key(),
+				.message = Data::UnreadMessagePosition,
 			};
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
 			return {
-				_filterResults[_filteredSelected].key(),
-				Data::UnreadMessagePosition,
-				true
+				.key = _filterResults[_filteredSelected].key(),
+				.message = Data::UnreadMessagePosition,
+				.filteredRow = true,
 			};
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
+			const auto peer = _peerSearchResults[_peerSearchSelected]->peer;
 			return {
-				session().data().history(_peerSearchResults[_peerSearchSelected]->peer),
-				Data::UnreadMessagePosition
+				.key = session().data().history(peer),
+				.message = Data::UnreadMessagePosition
 			};
 		} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
 			const auto result = _searchResults[_searchedSelected].get();
 			const auto topic = result->topic();
 			const auto item = result->item();
 			return {
-				(topic ? (Entry*)topic : (Entry*)item->history()),
-				item->position()
+				.key = (topic ? (Entry*)topic : (Entry*)item->history()),
+				.message = item->position()
 			};
 		}
 	}
@@ -3413,10 +3417,12 @@ bool InnerWidget::chooseRow(
 	} else if (chooseHashtag()) {
 		return true;
 	}
-	const auto modifyChosenRow = [](
+	const auto modifyChosenRow = [&](
 			ChosenRow row,
 			Qt::KeyboardModifiers modifiers) {
 		row.newWindow = (modifiers & Qt::ControlModifier);
+		row.userpicClick = (_lastRowLocalMouseX >= 0)
+			&& (_lastRowLocalMouseX < _st->nameLeft);
 		return row;
 	};
 	auto chosen = modifyChosenRow(computeChosenRow(), modifiers);

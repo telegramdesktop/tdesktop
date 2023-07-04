@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_session.h"
 #include "data/data_peer_values.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -330,6 +331,7 @@ void Row::ensureCornerBadgeUserpic() const {
 
 void Row::PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
+		int framePadding,
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
@@ -337,6 +339,19 @@ void Row::PaintCornerBadgeFrame(
 	data->frame.fill(Qt::transparent);
 
 	Painter q(&data->frame);
+	q.translate(framePadding, framePadding);
+	auto hq = std::optional<PainterHighQualityEnabler>();
+	if (data->storiesShown) {
+		hq.emplace(q);
+		const auto line = st::dialogsStoriesFull.lineTwice / 2.;
+		const auto skip = line * 3 / 2.;
+		const auto scale = 1. - (2 * skip / context.st->photoSize);
+		const auto center = context.st->photoSize / 2.;
+		q.save();
+		q.translate(center, center);
+		q.scale(scale, scale);
+		q.translate(-center, -center);
+	}
 	PaintUserpic(
 		q,
 		peer,
@@ -347,9 +362,37 @@ void Row::PaintCornerBadgeFrame(
 		data->frame.width() / data->frame.devicePixelRatio(),
 		context.st->photoSize,
 		context.paused);
+	if (data->storiesShown) {
+		q.restore();
+
+		const auto st = context.st;
+		const auto storiesUnreadBrush = [&] {
+			const auto left = st->padding.left();
+			const auto top = st->padding.top();
+			auto gradient = QLinearGradient(
+				QPoint(left + st->photoSize, top),
+				QPoint(left, top + st->photoSize));
+			gradient.setStops({
+				{ 0., st::groupCallLive1->c },
+				{ 1., st::groupCallMuted1->c },
+			});
+			return QBrush(gradient);
+		};
+		const auto storiesBrush = data->storiesUnread
+			? storiesUnreadBrush()
+			: context.active
+			? st::dialogsUnreadBgMutedActive->b
+			: st::dialogsUnreadBgMuted->b;
+		const auto storiesLine = data->storiesUnread
+			? (st::dialogsStoriesFull.lineTwice / 2.)
+			: (st::dialogsStoriesFull.lineReadTwice / 2.);
+		const auto pen = QPen(storiesBrush, storiesLine);
+		q.setPen(pen);
+		q.drawEllipse(0, 0, st->photoSize, st->photoSize);
+	}
 
 	const auto &manager = data->layersManager;
-	if (const auto p = manager.progressForLayer(kBottomLayer); p) {
+	if (const auto p = manager.progressForLayer(kBottomLayer); p > 0.) {
 		const auto size = context.st->photoSize;
 		if (data->cacheTTL.isNull() && peer->messagesTTL()) {
 			data->cacheTTL = CornerBadgeTTL(peer, view, size);
@@ -364,7 +407,9 @@ void Row::PaintCornerBadgeFrame(
 		return;
 	}
 
-	PainterHighQualityEnabler hq(q);
+	if (!hq) {
+		hq.emplace(q);
+	}
 	q.setCompositionMode(QPainter::CompositionMode_Source);
 
 	const auto size = peer->isUser()
@@ -401,7 +446,14 @@ void Row::paintUserpic(
 	const auto cornerBadgeShown = !_cornerBadgeUserpic
 		? _cornerBadgeShown
 		: !_cornerBadgeUserpic->layersManager.isDisplayedNone();
-	if (!historyForCornerBadge || !cornerBadgeShown) {
+	const auto storiesUser = historyForCornerBadge
+		? historyForCornerBadge->peer->asUser()
+		: nullptr;
+	const auto storiesShown = (storiesUser
+		&& storiesUser->hasActiveStories()) ? 1 : 0;
+	const auto storiesUnread = (storiesShown
+		&& storiesUser->hasUnreadStories()) ? 1 : 0;
+	if (!historyForCornerBadge || (!cornerBadgeShown && !storiesShown)) {
 		BasicRow::paintUserpic(
 			p,
 			peer,
@@ -415,12 +467,12 @@ void Row::paintUserpic(
 	}
 	ensureCornerBadgeUserpic();
 	const auto ratio = style::DevicePixelRatio();
-	const auto added = std::max({
+	const auto framePadding = std::max({
 		-st::dialogsCallBadgeSkip.x(),
 		-st::dialogsCallBadgeSkip.y(),
-		0 });
-	const auto frameSide = (context.st->photoSize + added)
-		* style::DevicePixelRatio();
+		st::lineWidth * 2 });
+	const auto frameSide = (2 * framePadding + context.st->photoSize)
+		* ratio;
 	const auto frameSize = QSize(frameSide, frameSide);
 	if (_cornerBadgeUserpic->frame.size() != frameSize) {
 		_cornerBadgeUserpic->frame = QImage(
@@ -432,6 +484,7 @@ void Row::paintUserpic(
 	key.first += peer->messagesTTL();
 	const auto frameIndex = videoUserpic ? videoUserpic->frameIndex() : -1;
 	const auto paletteVersion = style::PaletteVersion();
+	const auto active = context.active ? 1 : 0;
 	const auto keyChanged = (_cornerBadgeUserpic->key != key)
 		|| (_cornerBadgeUserpic->paletteVersion != paletteVersion);
 	if (keyChanged) {
@@ -439,24 +492,29 @@ void Row::paintUserpic(
 	}
 	if (keyChanged
 		|| !_cornerBadgeUserpic->layersManager.isFinished()
-		|| _cornerBadgeUserpic->active != context.active
+		|| _cornerBadgeUserpic->active != active
 		|| _cornerBadgeUserpic->frameIndex != frameIndex
+		|| _cornerBadgeUserpic->storiesShown != storiesShown
+		|| _cornerBadgeUserpic->storiesUnread != storiesUnread
 		|| videoUserpic) {
 		_cornerBadgeUserpic->key = key;
 		_cornerBadgeUserpic->paletteVersion = paletteVersion;
-		_cornerBadgeUserpic->active = context.active;
+		_cornerBadgeUserpic->active = active;
+		_cornerBadgeUserpic->storiesShown = storiesShown;
+		_cornerBadgeUserpic->storiesUnread = storiesUnread;
 		_cornerBadgeUserpic->frameIndex = frameIndex;
 		_cornerBadgeUserpic->layersManager.markFrameShown();
 		PaintCornerBadgeFrame(
 			_cornerBadgeUserpic.get(),
+			framePadding,
 			peer,
 			videoUserpic,
 			userpicView(),
 			context);
 	}
 	p.drawImage(
-		context.st->padding.left(),
-		context.st->padding.top(),
+		context.st->padding.left() - framePadding,
+		context.st->padding.top() - framePadding,
 		_cornerBadgeUserpic->frame);
 	if (historyForCornerBadge->peer->isUser()) {
 		return;

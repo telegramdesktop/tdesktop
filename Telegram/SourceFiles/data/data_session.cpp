@@ -525,6 +525,13 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				| Flag::DiscardMinPhoto
 				| Flag::StoriesHidden
 				: Flag());
+		const auto storiesState = minimal
+			? std::optional<Data::Stories::PeerSourceState>()
+			: data.is_stories_unavailable()
+			? Data::Stories::PeerSourceState()
+			: !data.vstories_max_id()
+			? std::optional<Data::Stories::PeerSourceState>()
+			: stories().peerSourceState(result, data.vstories_max_id()->v);
 		const auto flagsSet = (data.is_deleted() ? Flag::Deleted : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
 			| (data.is_scam() ? Flag::Scam : Flag())
@@ -551,6 +558,13 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 					MTP_long(data.vaccess_hash().value_or_empty()));
 			}
 		} else {
+			if (storiesState) {
+				result->setStoriesState(!storiesState->maxId
+					? UserData::StoriesState::None
+					: (storiesState->maxId > storiesState->readTill)
+					? UserData::StoriesState::HasUnread
+					: UserData::StoriesState::HasRead);
+			}
 			if (data.is_self()) {
 				result->input = MTP_inputPeerSelf();
 				result->inputUser = MTP_inputUserSelf();

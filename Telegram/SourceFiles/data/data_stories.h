@@ -137,6 +137,7 @@ public:
 
 	void loadMore(StorySourcesList list);
 	void apply(const MTPDupdateStory &data);
+	void apply(const MTPDupdateReadStories &data);
 	void apply(not_null<PeerData*> peer, const MTPUserStories *data);
 	Story *applyFromWebpage(PeerId peerId, const MTPstoryItem &story);
 	void loadAround(FullStoryId id, StoriesContext context);
@@ -199,6 +200,14 @@ public:
 	void decrementPreloadingHiddenSources();
 	void setPreloadingInViewer(std::vector<FullStoryId> ids);
 
+	struct PeerSourceState {
+		StoryId maxId = 0;
+		StoryId readTill = 0;
+	};
+	[[nodiscard]] std::optional<PeerSourceState> peerSourceState(
+		not_null<PeerData*> peer,
+		StoryId storyMaxId);
+
 private:
 	struct Saved {
 		StoriesIds ids;
@@ -222,6 +231,7 @@ private:
 		const QVector<MTPStoryItem> &list);
 	void sendResolveRequests();
 	void finalizeResolve(FullStoryId id);
+	void updateUserStoriesState(not_null<PeerData*> peer);
 
 	void applyDeleted(FullStoryId id);
 	void applyExpired(FullStoryId id);
@@ -230,6 +240,7 @@ private:
 	void removeDependencyStory(not_null<Story*> story);
 	void savedStateUpdated(not_null<Story*> story);
 	void sort(StorySourcesList list);
+	bool bumpReadTill(PeerId peerId, StoryId maxReadTill);
 
 	[[nodiscard]] std::shared_ptr<HistoryItem> lookupItem(
 		not_null<Story*> story);
@@ -316,6 +327,11 @@ private:
 	std::unique_ptr<StoryPreload> _preloading;
 	int _preloadingHiddenSourcesCounter = 0;
 	int _preloadingMainSourcesCounter = 0;
+
+	base::flat_map<PeerId, StoryId> _readTill;
+	base::flat_map<not_null<PeerData*>, StoryId> _pendingUserStateMaxId;
+	mtpRequestId _readTillsRequestId = 0;
+	bool _readTillReceived = false;
 
 };
 

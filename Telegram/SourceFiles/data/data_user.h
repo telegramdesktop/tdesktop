@@ -63,6 +63,8 @@ enum class UserDataFlag {
 	VoiceMessagesForbidden = (1 << 16),
 	PersonalPhoto = (1 << 17),
 	StoriesHidden = (1 << 18),
+	HasActiveStories = (1 << 19),
+	HasUnreadStories = (1 << 20),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -173,6 +175,16 @@ public:
 	[[nodiscard]] bool hasPrivateForwardName() const;
 	[[nodiscard]] QString privateForwardName() const;
 	void setPrivateForwardName(const QString &name);
+
+	enum class StoriesState {
+		Unknown,
+		None,
+		HasRead,
+		HasUnread,
+	};
+	[[nodiscard]] bool hasActiveStories() const;
+	[[nodiscard]] bool hasUnreadStories() const;
+	void setStoriesState(StoriesState state);
 
 private:
 	auto unavailableReasons() const

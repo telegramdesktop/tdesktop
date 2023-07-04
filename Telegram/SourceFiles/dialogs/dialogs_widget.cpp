@@ -503,6 +503,14 @@ void Widget::chosenRow(const ChosenRow &row) {
 		return;
 	} else if (history) {
 		const auto peer = history->peer;
+		if (const auto user = history->peer->asUser()) {
+			if (row.message.fullId.msg == ShowAtUnreadMsgId) {
+				if (row.userpicClick && user->hasActiveStories()) {
+					controller()->openPeerStories(user->id);
+					return;
+				}
+			}
+		}
 		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
 			? ShowAtUnreadMsgId
 			: row.message.fullId.msg;

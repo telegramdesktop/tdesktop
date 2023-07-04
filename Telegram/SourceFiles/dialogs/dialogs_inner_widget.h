@@ -65,8 +65,9 @@ class IndexedList;
 struct ChosenRow {
 	Key key;
 	Data::MessagePosition message;
-	bool filteredRow = false;
-	bool newWindow = false;
+	bool userpicClick : 1 = false;
+	bool filteredRow : 1 = false;
+	bool newWindow : 1 = false;
 };
 
 enum class SearchRequestType {
@@ -416,6 +417,7 @@ private:
 	FilterId _filterId = 0;
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
+	int _lastRowLocalMouseX = -1;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	Data::Folder *_openedFolder = nullptr;

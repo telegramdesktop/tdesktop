@@ -2524,6 +2524,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		_session->data().stories().apply(update.c_updateStory());
 	} break;
 
+	case mtpc_updateReadStories: {
+		_session->data().stories().apply(update.c_updateReadStories());
+	} break;
+
 	}
 }
 

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user_names.h"
 #include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
+#include "history/history.h"
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "ui/text/text_options.h"
@@ -123,6 +124,38 @@ QString UserData::privateForwardName() const {
 
 void UserData::setPrivateForwardName(const QString &name) {
 	_privateForwardName = name;
+}
+
+bool UserData::hasActiveStories() const {
+	return flags() & UserDataFlag::HasActiveStories;
+}
+
+bool UserData::hasUnreadStories() const {
+	return flags() & UserDataFlag::HasUnreadStories;
+}
+
+void UserData::setStoriesState(StoriesState state) {
+	Expects(state != StoriesState::Unknown);
+
+	const auto was = flags();
+	using Flag = UserDataFlag;
+	switch (state) {
+	case StoriesState::None:
+		_flags.remove(Flag::HasActiveStories | Flag::HasUnreadStories);
+		break;
+	case StoriesState::HasRead:
+		_flags.set(
+			(flags() & ~Flag::HasUnreadStories) | Flag::HasActiveStories);
+		break;
+	case StoriesState::HasUnread:
+		_flags.add(Flag::HasActiveStories | Flag::HasUnreadStories);
+		break;
+	}
+	if (flags() != was) {
+		if (const auto history = owner().historyLoaded(this)) {
+			history->updateChatListEntryPostponed();
+		}
+	}
 }
 
 void UserData::setName(const QString &newFirstName, const QString &newLastName, const QString &newPhoneName, const QString &newUsername) {
