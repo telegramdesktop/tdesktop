@@ -261,15 +261,23 @@ void PeerListBox::peerListSetRowChecked(
 		not_null<PeerListRow*> row,
 		bool checked) {
 	if (checked) {
-		addSelectItem(row, anim::type::normal);
+		if (_controller->trackSelectedList()) {
+			addSelectItem(row, anim::type::normal);
+		}
 		PeerListContentDelegate::peerListSetRowChecked(row, checked);
 		peerListUpdateRow(row);
 
 		// This call deletes row from _searchRows.
-		_select->entity()->clearQuery();
+		if (_select) {
+			_select->entity()->clearQuery();
+		}
 	} else {
 		// The itemRemovedCallback will call changeCheckState() here.
-		_select->entity()->removeItem(row->id());
+		if (_select) {
+			_select->entity()->removeItem(row->id());
+		} else {
+			PeerListContentDelegate::peerListSetRowChecked(row, checked);
+		}
 		peerListUpdateRow(row);
 	}
 }
@@ -1129,6 +1137,24 @@ void PeerListContent::removeRowAtIndex(
 PeerListRow *PeerListContent::findRow(PeerListRowId id) {
 	auto it = _rowsById.find(id);
 	return (it == _rowsById.cend()) ? nullptr : it->second.get();
+}
+
+std::optional<QPoint> PeerListContent::lastRowMousePosition() const {
+	if (!_lastMousePosition) {
+		return std::nullopt;
+	}
+	const auto point = mapFromGlobal(*_lastMousePosition);
+	auto in = parentWidget()->rect().contains(
+		parentWidget()->mapFromGlobal(*_lastMousePosition));
+	auto rowsPointY = point.y() - rowsTop();
+	const auto index = (in
+		&& rowsPointY >= 0
+		&& rowsPointY < shownRowsCount() * _rowHeight)
+		? (rowsPointY / _rowHeight)
+		: -1;
+	return (index >= 0 && index == _selected.index.value)
+		? QPoint(point.x(), rowsPointY)
+		: std::optional<QPoint>();
 }
 
 void PeerListContent::removeRow(not_null<PeerListRow*> row) {
@@ -1998,10 +2024,12 @@ void PeerListContent::setSearchQuery(
 
 bool PeerListContent::submitted() {
 	if (const auto row = getRow(_selected.index)) {
+		_lastMousePosition = std::nullopt;
 		_controller->rowClicked(row);
 		return true;
 	} else if (showingSearch()) {
 		if (const auto row = getRow(RowIndex(0))) {
+			_lastMousePosition = std::nullopt;
 			_controller->rowClicked(row);
 			return true;
 		}

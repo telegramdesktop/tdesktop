@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -109,6 +110,46 @@ private:
 
 };
 
+[[nodiscard]] std::vector<Ui::RoundImageCheckboxSegment> PrepareSegments(
+		int count,
+		int unread,
+		const QBrush &unreadBrush) {
+	Expects(unread <= count);
+	Expects(count > 0);
+
+	auto result = std::vector<Ui::RoundImageCheckboxSegment>();
+	const auto add = [&](bool unread) {
+		result.push_back({
+			.brush = unread ? unreadBrush : st::dialogsUnreadBgMuted->b,
+			.width = (unread
+				? st::dialogsStoriesFull.lineTwice / 2.
+				: st::dialogsStoriesFull.lineReadTwice / 2.),
+		});
+	};
+	result.reserve(count);
+	for (auto i = 0, till = count - unread; i != till; ++i) {
+		add(false);
+	}
+	for (auto i = 0; i != unread; ++i) {
+		add(true);
+	}
+	return result;
+}
+
+[[nodiscard]] QBrush CreateStoriesGradient() {
+	const auto &st = st::contactsWithStories.item;
+	const auto left = st.photoPosition.x();
+	const auto top = st.photoPosition.y();
+	auto gradient = QLinearGradient(
+		QPoint(left + st.photoSize, top),
+		QPoint(left, top + st.photoSize));
+	gradient.setStops({
+		{ 0., st::groupCallLive1->c },
+		{ 1., st::groupCallMuted1->c },
+	});
+	return QBrush(gradient);
+}
+
 StoriesRow::StoriesRow(
 	not_null<Main::Session*> session,
 	const QBrush &unread,
@@ -133,26 +174,8 @@ void StoriesRow::updateGradient(QBrush unread) {
 }
 
 void StoriesRow::refreshSegments() {
-	Expects(_unreadCount <= _count);
-	Expects(_count > 0);
-
-	auto segments = std::vector<Ui::RoundImageCheckboxSegment>();
-	const auto add = [&](bool unread) {
-		segments.push_back({
-			.brush = unread ? _unread : st::dialogsUnreadBgMuted->b,
-			.width = (unread
-				? st::dialogsStoriesFull.lineTwice / 2.
-				: st::dialogsStoriesFull.lineReadTwice / 2.),
-		});
-	};
-	segments.reserve(_count);
-	for (auto i = 0, count = _count - _unreadCount; i != count; ++i) {
-		add(false);
-	}
-	for (auto i = 0; i != _unreadCount; ++i) {
-		add(true);
-	}
-	setCustomizedCheckSegments(std::move(segments));
+	setCustomizedCheckSegments(
+		PrepareSegments(_count, _unreadCount, _unread));
 }
 
 StoriesController::StoriesController(
@@ -164,20 +187,10 @@ StoriesController::StoriesController(
 , _content(std::move(content))
 , _open(std::move(open))
 , _loadMore(std::move(loadMore)) {
-	const auto createGradient = [=] {
-		auto gradient = QLinearGradient(
-			QPoint(10, 0),
-			QPoint(0, 10));
-		gradient.setStops({
-			{ 0., st::groupCallLive1->c },
-			{ 1., st::groupCallMuted1->c },
-		});
-		_unread = QBrush(gradient);
-	};
-	createGradient();
+	_unread = CreateStoriesGradient();
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
-		createGradient();
+		_unread = CreateStoriesGradient();
 		for (auto i = 0, count = int(delegate()->peerListFullRowsCount())
 			; i != count
 			; ++i) {
@@ -248,6 +261,7 @@ void StoriesController::refresh(const Content &content) {
 			delegate()->peerListAppendRow(std::move(added));
 			delegate()->peerListSetRowChecked(raw, true);
 			raw->applySegments(element);
+			raw->finishCheckedAnimation();
 		}
 		++position;
 	}
@@ -351,6 +365,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 	auto controller = std::make_unique<ContactsBoxController>(
 		&sessionController->session());
 	controller->setStyleOverrides(&st::contactsWithStories);
+	controller->setStoriesShown(true);
 	const auto raw = controller.get();
 	auto init = [=](not_null<PeerListBox*> box) {
 		using namespace Dialogs::Stories;
@@ -647,6 +662,33 @@ void ContactsBoxController::prepare() {
 
 	prepareViewHook();
 
+	if (_storiesShown) {
+		_storiesUnread = CreateStoriesGradient();
+		style::PaletteChanged() | rpl::start_with_next([=] {
+			_storiesUnread = CreateStoriesGradient();
+			for (auto &entry : _storiesCounts) {
+				entry.second.count = entry.second.unread = -1;
+			}
+			updateStories();
+		}, lifetime());
+
+		const auto stories = &session().data().stories();
+		rpl::merge(
+			rpl::single(rpl::empty),
+			stories->sourcesChanged(Data::StorySourcesList::NotHidden),
+			stories->sourcesChanged(Data::StorySourcesList::Hidden)
+		) | rpl::start_with_next([=] {
+			updateStories();
+		}, lifetime());
+		stories->sourceChanged() | rpl::start_with_next([=](PeerId id) {
+			const auto source = stories->source(id);
+			const auto info = source
+				? source->info()
+				: Data::StoriesSourceInfo();
+			updateStoriesFor(id.value, info.count, info.unreadCount);
+		}, lifetime());
+	}
+
 	session().data().contactsLoaded().value(
 	) | rpl::start_with_next([=] {
 		rebuildRows();
@@ -692,6 +734,14 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(
 void ContactsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
 	if (const auto window = peer->session().tryResolveWindow()) {
+		if (_storiesShown) {
+			const auto point = delegate()->peerListLastRowMousePosition();
+			const auto &st = st::contactsWithStories.item;
+			if (point && point->x() < st.photoPosition.x() + st.photoSize) {
+				window->openPeerStories(peer->id);
+				return;
+			}
+		}
 		window->showPeerHistory(row->peer());
 	}
 }
@@ -714,6 +764,55 @@ void ContactsBoxController::setSortMode(SortMode mode) {
 	} else {
 		_sortByOnlineTimer.cancel();
 		_sortByOnlineLifetime.destroy();
+	}
+}
+
+void ContactsBoxController::setStoriesShown(bool shown) {
+	_storiesShown = shown;
+}
+
+void ContactsBoxController::updateStories() {
+	const auto stories = &_session->data().stories();
+	const auto &a = stories->sources(Data::StorySourcesList::NotHidden);
+	const auto &b = stories->sources(Data::StorySourcesList::Hidden);
+	auto checked = base::flat_set<PeerListRowId>();
+	for (const auto &info : ranges::views::concat(a, b)) {
+		const auto id = info.id.value;
+		checked.emplace(id);
+		updateStoriesFor(id, info.count, info.unreadCount);
+	}
+	for (auto i = begin(_storiesCounts); i != end(_storiesCounts); ++i) {
+		if (i->second.count && !checked.contains(i->first)) {
+			updateStoriesFor(i->first, 0, 0);
+		}
+	}
+}
+
+void ContactsBoxController::updateStoriesFor(
+		uint64 id,
+		int count,
+		int unread) {
+	if (const auto row = delegate()->peerListFindRow(id)) {
+		applyRowStories(row, count, unread);
+		delegate()->peerListUpdateRow(row);
+	}
+}
+
+void ContactsBoxController::applyRowStories(
+		not_null<PeerListRow*> row,
+		int count,
+		int unread,
+		bool force) {
+	auto &counts = _storiesCounts[row->id()];
+	if (!force && counts.count == count && counts.unread == unread) {
+		return;
+	}
+	counts.count = count;
+	counts.unread = unread;
+	delegate()->peerListSetRowChecked(row, count > 0);
+	if (count > 0) {
+		row->setCustomizedCheckSegments(
+			PrepareSegments(count, unread, _storiesUnread));
 	}
 }
 
@@ -762,7 +861,15 @@ bool ContactsBoxController::appendRow(not_null<UserData*> user) {
 		return false;
 	}
 	if (auto row = createRow(user)) {
+		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
+		if (_storiesShown) {
+			const auto stories = &session().data().stories();
+			if (const auto source = stories->source(user->id)) {
+				const auto info = source->info();
+				applyRowStories(raw, info.count, info.unreadCount, true);
+			}
+		}
 		return true;
 	}
 	return false;

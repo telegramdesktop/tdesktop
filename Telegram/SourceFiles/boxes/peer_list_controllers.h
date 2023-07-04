@@ -128,12 +128,16 @@ public:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createSearchRow(
 		not_null<PeerData*> peer) override final;
 	void rowClicked(not_null<PeerListRow*> row) override;
+	bool trackSelectedList() override {
+		return !_storiesShown;
+	}
 
 	enum class SortMode {
 		Alphabet,
 		Online,
 	};
 	void setSortMode(SortMode mode);
+	void setStoriesShown(bool shown);
 
 protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
@@ -143,17 +147,32 @@ protected:
 	}
 
 private:
+	struct StoriesCount {
+		int count = 0;
+		int unread = 0;
+	};
 	void sort();
 	void sortByName();
 	void sortByOnline();
 	void rebuildRows();
+	void updateStories();
 	void checkForEmptyRows();
 	bool appendRow(not_null<UserData*> user);
+	void updateStoriesFor(uint64 id, int count, int unread);
+	void applyRowStories(
+		not_null<PeerListRow*> row,
+		int count,
+		int unread,
+		bool force = false);
 
 	const not_null<Main::Session*> _session;
 	SortMode _sortMode = SortMode::Alphabet;
 	base::Timer _sortByOnlineTimer;
 	rpl::lifetime _sortByOnlineLifetime;
+
+	QBrush _storiesUnread;
+	base::flat_map<uint64, StoriesCount> _storiesCounts;
+	bool _storiesShown = false;
 
 };
 
