@@ -55,6 +55,8 @@ public:
 private:
 	using Thumbnail = Dialogs::Stories::Thumbnail;
 
+	bool changeSubscribedTo(uint32 value);
+
 	const not_null<Element*> _parent;
 	const not_null<Data::Story*> _story;
 	std::shared_ptr<Thumbnail> _thumbnail;

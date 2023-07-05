@@ -208,6 +208,8 @@ private:
 		StateRequest request,
 		QPoint position) const;
 
+	void togglePollingStory(bool enabled) const;
+
 	const not_null<DocumentData*> _data;
 	Ui::Text::String _caption;
 	std::unique_ptr<Streamed> _streamed;
@@ -222,6 +224,7 @@ private:
 	mutable bool _thumbCacheBlurred : 1 = false;
 	mutable bool _thumbIsEllipse : 1 = false;
 	mutable bool _story : 1 = false;
+	mutable bool _pollingStory : 1 = false;
 
 };
 

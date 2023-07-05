@@ -52,7 +52,9 @@ StoryMention::StoryMention(
 , _unread(story->owner().stories().isUnread(story) ? 1 : 0) {
 }
 
-StoryMention::~StoryMention() = default;
+StoryMention::~StoryMention() {
+	changeSubscribedTo(0);
+}
 
 int StoryMention::top() {
 	return st::msgServiceGiftBoxButtonMargins.top();
@@ -105,13 +107,12 @@ void StoryMention::draw(
 				? history->session().user()
 				: history->peer);
 		_thumbnailFromStory = showStory;
-		_subscribed = 0;
+		changeSubscribedTo(0);
 	}
-	if (!_subscribed) {
+	if (changeSubscribedTo(1)) {
 		_thumbnail->subscribeToUpdates([=] {
 			_parent->data()->history()->owner().requestViewRepaint(_parent);
 		});
-		_subscribed = 1;
 	}
 
 	const auto padding = (geometry.width() - st::storyMentionSize) / 2;
@@ -164,10 +165,26 @@ bool StoryMention::hasHeavyPart() {
 }
 
 void StoryMention::unloadHeavyPart() {
-	if (_subscribed) {
-		_subscribed = 0;
+	if (changeSubscribedTo(0)) {
 		_thumbnail->subscribeToUpdates(nullptr);
 	}
+}
+
+bool StoryMention::changeSubscribedTo(uint32 value) {
+	Expects(value == 0 || value == 1);
+
+	if (_subscribed == value) {
+		return false;
+	}
+	_subscribed = value;
+	const auto stories = &_parent->history()->owner().stories();
+	if (value) {
+		_parent->history()->owner().registerHeavyViewPart(_parent);
+		stories->registerPolling(_story, Data::Stories::Polling::Chat);
+	} else {
+		stories->unregisterPolling(_story, Data::Stories::Polling::Chat);
+	}
+	return true;
 }
 
 } // namespace HistoryView

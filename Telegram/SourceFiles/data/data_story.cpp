@@ -371,7 +371,12 @@ void Story::applyViewsSlice(
 	}
 }
 
-bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
+bool Story::applyChanges(
+		StoryMedia media,
+		const MTPDstoryItem &data,
+		TimeId now) {
+	_lastUpdateTime = now;
+
 	const auto pinned = data.is_pinned();
 	const auto edited = data.is_edited();
 	const auto isPublic = data.is_public();
@@ -422,6 +427,10 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	}
 	_recentViewers = std::move(recent);
 	return true;
+}
+
+TimeId Story::lastUpdateTime() const {
+	return _lastUpdateTime;
 }
 
 StoryPreload::StoryPreload(not_null<Story*> story, Fn<void()> done)

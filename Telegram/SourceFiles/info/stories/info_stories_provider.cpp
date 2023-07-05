@@ -56,6 +56,10 @@ Provider::Provider(not_null<AbstractController*> controller)
 	}, _lifetime);
 }
 
+Provider::~Provider() {
+	clear();
+}
+
 Type Provider::type() {
 	return Type::PhotoVideo;
 }
@@ -90,11 +94,20 @@ std::optional<int> Provider::fullCount() {
 	return _slice.fullCount();
 }
 
-void Provider::restart() {
+void Provider::clear() {
+	for (const auto &[storyId, _] : _layouts) {
+		_peer->owner().stories().unregisterPolling(
+			{ _peer->id, storyId },
+			Data::Stories::Polling::Chat);
+	}
 	_layouts.clear();
 	_aroundId = kDefaultAroundId;
 	_idsLimit = kMinimalIdsLimit;
 	_slice = Data::StoriesIdsSlice();
+}
+
+void Provider::restart() {
+	clear();
 	refreshViewer();
 }
 
@@ -210,6 +223,9 @@ void Provider::markLayoutsStale() {
 void Provider::clearStaleLayouts() {
 	for (auto i = _layouts.begin(); i != _layouts.end();) {
 		if (i->second.stale) {
+			_peer->owner().stories().unregisterPolling(
+				{ _peer->id, i->first },
+				Data::Stories::Polling::Chat);
 			_layoutRemoved.fire(i->second.item.get());
 			const auto taken = _items.take(i->first);
 			i = _layouts.erase(i);
@@ -240,6 +256,9 @@ bool Provider::isAfter(
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {
 	const auto id = StoryIdFromMsgId(item->id);
 	if (const auto i = _layouts.find(id); i != end(_layouts)) {
+		_peer->owner().stories().unregisterPolling(
+			{ _peer->id, id },
+			Data::Stories::Polling::Chat);
 		_layoutRemoved.fire(i->second.item.get());
 		_layouts.erase(i);
 	}
@@ -253,6 +272,9 @@ BaseLayout *Provider::getLayout(
 		if (auto layout = createLayout(id, delegate)) {
 			layout->initDimensions();
 			it = _layouts.emplace(id, std::move(layout)).first;
+			_peer->owner().stories().registerPolling(
+				{ _peer->id, id },
+				Data::Stories::Polling::Chat);
 		} else {
 			return nullptr;
 		}

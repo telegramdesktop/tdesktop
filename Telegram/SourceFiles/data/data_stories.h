@@ -153,7 +153,7 @@ public:
 
 	[[nodiscard]] base::expected<not_null<Story*>, NoStory> lookup(
 		FullStoryId id) const;
-	void resolve(FullStoryId id, Fn<void()> done);
+	void resolve(FullStoryId id, Fn<void()> done, bool force = false);
 	[[nodiscard]] std::shared_ptr<HistoryItem> resolveItem(FullStoryId id);
 	[[nodiscard]] std::shared_ptr<HistoryItem> resolveItem(
 		not_null<Story*> story);
@@ -209,6 +209,16 @@ public:
 		StoryId storyMaxId);
 	[[nodiscard]] bool isUnread(not_null<Story*> story);
 
+	enum class Polling {
+		Chat,
+		Viewer,
+	};
+	void registerPolling(not_null<Story*> story, Polling polling);
+	void unregisterPolling(not_null<Story*> story, Polling polling);
+
+	bool registerPolling(FullStoryId id, Polling polling);
+	void unregisterPolling(FullStoryId id, Polling polling);
+
 private:
 	struct Saved {
 		StoriesIds ids;
@@ -216,6 +226,10 @@ private:
 		StoryId lastId = 0;
 		bool loaded = false;
 		mtpRequestId requestId = 0;
+	};
+	struct PollingSettings {
+		int chat = 0;
+		int viewer = 0;
 	};
 
 	void parseAndApply(const MTPUserStories &stories);
@@ -264,6 +278,14 @@ private:
 	[[nodiscard]] FullStoryId nextPreloadId() const;
 	void startPreloading(not_null<Story*> story);
 	void preloadFinished(FullStoryId id, bool markAsPreloaded = false);
+
+	[[nodiscard]] int pollingInterval(
+		const PollingSettings &settings) const;
+	void maybeSchedulePolling(
+		not_null<Story*> story,
+		const PollingSettings &settings,
+		TimeId now);
+	void sendPollingRequests();
 
 	const not_null<Session*> _owner;
 	std::unordered_map<
@@ -335,6 +357,9 @@ private:
 	base::flat_map<not_null<PeerData*>, StoryId> _pendingUserStateMaxId;
 	mtpRequestId _readTillsRequestId = 0;
 	bool _readTillReceived = false;
+
+	base::flat_map<not_null<Story*>, PollingSettings> _pollingSettings;
+	base::Timer _pollingTimer;
 
 };
 

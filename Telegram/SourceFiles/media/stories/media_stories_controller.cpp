@@ -302,7 +302,9 @@ Controller::Controller(not_null<Delegate*> delegate)
 	_contentFadeAnimation.stop();
 }
 
-Controller::~Controller() = default;
+Controller::~Controller() {
+	changeShown(nullptr);
+}
 
 void Controller::updateContentFaded() {
 	if (_contentFaded == _replyActive) {
@@ -480,6 +482,9 @@ void Controller::initLayout() {
 }
 
 Data::Story *Controller::story() const {
+	if (!_session) {
+		return nullptr;
+	}
 	const auto maybeStory = _session->data().stories().lookup(_shown);
 	return maybeStory ? maybeStory->get() : nullptr;
 }
@@ -748,10 +753,9 @@ void Controller::show(
 		.date = story->date(),
 		.edited = story->edited(),
 	});
-	if (_shown == storyId && _session == &story->session()) {
+	if (!changeShown(story)) {
 		return;
 	}
-	_shown = storyId;
 	_viewed = false;
 	invalidate_weak_ptrs(&_viewsLoadGuard);
 	_reactions->hide();
@@ -769,39 +773,70 @@ void Controller::show(
 		.valid = user->isSelf(),
 	});
 
-	const auto session = &story->session();
-	if (_session != session) {
-		_session = session;
-		_sessionLifetime = session->changes().storyUpdates(
-			Data::StoryUpdate::Flag::Destroyed
-		) | rpl::start_with_next([=](Data::StoryUpdate update) {
-			if (update.story->fullId() == _shown) {
-				_delegate->storiesClose();
-			}
-		});
-		session->data().stories().itemsChanged(
-		) | rpl::start_with_next([=](PeerId peerId) {
-			if (_waitingForId.peer == peerId) {
-				checkWaitingFor();
-			}
-		}, _sessionLifetime);
-		session->changes().storyUpdates(
-			Data::StoryUpdate::Flag::Edited
-		) | rpl::filter([=](const Data::StoryUpdate &update) {
-			return (update.story == this->story());
-		}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
-			show(update.story, _context);
-			_delegate->storiesRedisplay(update.story);
-		}, _sessionLifetime);
-		_sessionLifetime.add([=] {
-			session->data().stories().setPreloadingInViewer({});
-		});
-	}
-
 	stories.loadAround(storyId, context);
 
 	updatePlayingAllowed();
 	user->updateFull();
+}
+
+bool Controller::changeShown(Data::Story *story) {
+	const auto id = story ? story->fullId() : FullStoryId();
+	const auto session = story ? &story->session() : nullptr;
+	const auto sessionChanged = (_session != session);
+	if (_shown == id && !sessionChanged) {
+		return false;
+	}
+	if (const auto now = this->story()) {
+		now->owner().stories().unregisterPolling(
+			now,
+			Data::Stories::Polling::Viewer);
+	}
+	if (sessionChanged) {
+		_sessionLifetime.destroy();
+	}
+	_shown = id;
+	_session = session;
+	if (sessionChanged) {
+		subscribeToSession();
+	}
+	if (story) {
+		story->owner().stories().registerPolling(
+			story,
+			Data::Stories::Polling::Viewer);
+	}
+	return true;
+}
+
+void Controller::subscribeToSession() {
+	Expects(!_sessionLifetime);
+
+	if (!_session) {
+		return;
+	}
+	_session->changes().storyUpdates(
+		Data::StoryUpdate::Flag::Destroyed
+	) | rpl::start_with_next([=](Data::StoryUpdate update) {
+		if (update.story->fullId() == _shown) {
+			_delegate->storiesClose();
+		}
+	}, _sessionLifetime);
+	_session->data().stories().itemsChanged(
+	) | rpl::start_with_next([=](PeerId peerId) {
+		if (_waitingForId.peer == peerId) {
+			checkWaitingFor();
+		}
+	}, _sessionLifetime);
+	_session->changes().storyUpdates(
+		Data::StoryUpdate::Flag::Edited
+	) | rpl::filter([=](const Data::StoryUpdate &update) {
+		return (update.story == this->story());
+	}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
+		show(update.story, _context);
+		_delegate->storiesRedisplay(update.story);
+	}, _sessionLifetime);
+	_sessionLifetime.add([=] {
+		_session->data().stories().setPreloadingInViewer({});
+	});
 }
 
 void Controller::updatePlayingAllowed() {

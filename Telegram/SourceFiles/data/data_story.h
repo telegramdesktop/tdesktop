@@ -113,7 +113,11 @@ public:
 		const std::vector<StoryView> &slice,
 		int total);
 
-	bool applyChanges(StoryMedia media, const MTPDstoryItem &data);
+	bool applyChanges(
+		StoryMedia media,
+		const MTPDstoryItem &data,
+		TimeId now);
+	[[nodiscard]] TimeId lastUpdateTime() const;
 
 private:
 	const StoryId _id = 0;
@@ -125,6 +129,7 @@ private:
 	int _views = 0;
 	const TimeId _date = 0;
 	const TimeId _expires = 0;
+	TimeId _lastUpdateTime = 0;
 	bool _pinned : 1 = false;
 	bool _isPublic : 1 = false;
 	bool _closeFriends : 1 = false;

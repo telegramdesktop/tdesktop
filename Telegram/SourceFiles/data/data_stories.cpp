@@ -38,6 +38,8 @@ constexpr auto kSavedPerPage = 100;
 constexpr auto kMaxPreloadSources = 10;
 constexpr auto kStillPreloadFromFirst = 3;
 constexpr auto kMaxSegmentsCount = 180;
+constexpr auto kPollingIntervalChat = 5 * TimeId(60);
+constexpr auto kPollingIntervalViewer = 1 * TimeId(60);
 
 using UpdateFlag = StoryUpdate::Flag;
 
@@ -98,10 +100,12 @@ Stories::Stories(not_null<Session*> owner)
 : _owner(owner)
 , _expireTimer([=] { processExpired(); })
 , _markReadTimer([=] { sendMarkAsReadRequests(); })
-, _incrementViewsTimer([=] { sendIncrementViewsRequests(); }) {
+, _incrementViewsTimer([=] { sendIncrementViewsRequests(); })
+, _pollingTimer([=] { sendPollingRequests(); }) {
 }
 
 Stories::~Stories() {
+	Expects(_pollingSettings.empty());
 }
 
 Session &Stories::owner() const {
@@ -348,7 +352,7 @@ Story *Stories::parseAndApply(
 		const auto result = i->second.get();
 		const auto pinned = result->pinned();
 		const auto mediaChanged = (result->media() != *media);
-		if (result->applyChanges(*media, data)) {
+		if (result->applyChanges(*media, data, now)) {
 			if (result->pinned() != pinned) {
 				savedStateUpdated(result);
 			}
@@ -358,6 +362,11 @@ Story *Stories::parseAndApply(
 			if (const auto item = lookupItem(result)) {
 				item->applyChanges(result);
 			}
+			_owner->refreshStoryItemViews(fullId);
+		}
+		const auto j = _pollingSettings.find(result);
+		if (j != end(_pollingSettings)) {
+			maybeSchedulePolling(result, j->second, now);
 		}
 		if (mediaChanged) {
 			_preloaded.remove(fullId);
@@ -378,7 +387,7 @@ Story *Stories::parseAndApply(
 		StoryMedia{ *media },
 		data.vdate().v,
 		data.vexpire_date().v)).first->second.get();
-	result->applyChanges(*media, data);
+	result->applyChanges(*media, data, now);
 	if (result->pinned()) {
 		savedStateUpdated(result);
 	}
@@ -656,6 +665,7 @@ void Stories::applyDeleted(FullStoryId id) {
 				preloadFinished(id);
 			}
 			_owner->refreshStoryItemViews(id);
+			Assert(!_pollingSettings.contains(story.get()));
 			if (i->second.empty()) {
 				_stories.erase(i);
 			}
@@ -818,13 +828,15 @@ base::expected<not_null<Story*>, NoStory> Stories::lookup(
 		_deleted.contains(id) ? NoStory::Deleted : NoStory::Unknown);
 }
 
-void Stories::resolve(FullStoryId id, Fn<void()> done) {
-	const auto already = lookup(id);
-	if (already.has_value() || already.error() != NoStory::Unknown) {
-		if (done) {
-			done();
+void Stories::resolve(FullStoryId id, Fn<void()> done, bool force) {
+	if (!force) {
+		const auto already = lookup(id);
+		if (already.has_value() || already.error() != NoStory::Unknown) {
+			if (done) {
+				done();
+			}
+			return;
 		}
-		return;
 	}
 	if (const auto i = _resolveSent.find(id.peer); i != end(_resolveSent)) {
 		if (const auto j = i->second.find(id.story); j != end(i->second)) {
@@ -1491,6 +1503,84 @@ bool Stories::isUnread(not_null<Story*> story) {
 	}
 	const auto readTill = (till != end(_readTill)) ? till->second : 0;
 	return (story->id() > readTill);
+}
+
+void Stories::registerPolling(not_null<Story*> story, Polling polling) {
+	auto &settings = _pollingSettings[story];
+	switch (polling) {
+	case Polling::Chat: ++settings.chat; break;
+	case Polling::Viewer: ++settings.viewer; break;
+	}
+	maybeSchedulePolling(story, settings, base::unixtime::now());
+}
+
+void Stories::unregisterPolling(not_null<Story*> story, Polling polling) {
+	const auto i = _pollingSettings.find(story);
+	Assert(i != end(_pollingSettings));
+
+	switch (polling) {
+	case Polling::Chat:
+		Assert(i->second.chat > 0);
+		--i->second.chat;
+		break;
+	case Polling::Viewer:
+		Assert(i->second.viewer > 0);
+		--i->second.viewer;
+		break;
+	}
+	if (!i->second.chat && !i->second.viewer) {
+		_pollingSettings.erase(i);
+	}
+}
+
+bool Stories::registerPolling(FullStoryId id, Polling polling) {
+	if (const auto maybeStory = lookup(id)) {
+		registerPolling(*maybeStory, polling);
+		return true;
+	}
+	return false;
+}
+
+void Stories::unregisterPolling(FullStoryId id, Polling polling) {
+	const auto maybeStory = lookup(id);
+	Assert(maybeStory.has_value());
+	unregisterPolling(*maybeStory, polling);
+}
+
+int Stories::pollingInterval(const PollingSettings &settings) const {
+	return settings.viewer ? kPollingIntervalViewer : kPollingIntervalChat;
+}
+
+void Stories::maybeSchedulePolling(
+		not_null<Story*> story,
+		const PollingSettings &settings,
+		TimeId now) {
+	const auto last = story->lastUpdateTime();
+	const auto next = last + pollingInterval(settings);
+	const auto left = std::max(next - now, 0) * crl::time(1000) + 1;
+	if (!_pollingTimer.isActive() || _pollingTimer.remainingTime() > left) {
+		_pollingTimer.callOnce(left);
+	}
+}
+
+void Stories::sendPollingRequests() {
+	auto min = 0;
+	const auto now = base::unixtime::now();
+	for (const auto &[story, settings] : _pollingSettings) {
+		const auto last = story->lastUpdateTime();
+		const auto next = last + pollingInterval(settings);
+		if (now >= next) {
+			resolve(story->fullId(), nullptr, true);
+		} else {
+			const auto left = (next - now) * crl::time(1000) + 1;
+			if (!min || left < min) {
+				min = left;
+			}
+		}
+	}
+	if (min > 0) {
+		_pollingTimer.callOnce(min);
+	}
 }
 
 void Stories::updateUserStoriesState(not_null<PeerData*> peer) {

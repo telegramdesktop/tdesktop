@@ -160,6 +160,8 @@ private:
 
 	[[nodiscard]] QSize photoSize() const;
 
+	void togglePollingStory(bool enabled) const;
+
 	const not_null<PhotoData*> _data;
 	Ui::Text::String _caption;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
@@ -167,10 +169,11 @@ private:
 	const std::unique_ptr<MediaSpoiler> _spoiler;
 	mutable QImage _imageCache;
 	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
-	uint32 _serviceWidth : 29 = 0;
+	uint32 _serviceWidth : 28 = 0;
 	mutable uint32 _imageCacheForum : 1 = 0;
 	mutable uint32 _imageCacheBlurred : 1 = 0;
 	mutable uint32 _story : 1 = 0;
+	mutable uint32 _pollingStory : 1 = 0;
 
 };
 

@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_streaming.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
@@ -101,6 +102,7 @@ Photo::~Photo() {
 			_parent->checkHeavyPart();
 		}
 	}
+	togglePollingStory(false);
 }
 
 void Photo::create(FullMsgId contextId, PeerData *chat) {
@@ -145,6 +147,7 @@ void Photo::dataMediaCreated() const {
 		_dataMedia->wanted(PhotoSize::Small, _realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);
+	togglePollingStory(true);
 }
 
 bool Photo::hasHeavyPart() const {
@@ -160,6 +163,23 @@ void Photo::unloadHeavyPart() {
 	}
 	_imageCache = QImage();
 	_caption.unloadPersistentAnimation();
+	togglePollingStory(false);
+}
+
+void Photo::togglePollingStory(bool enabled) const {
+	const auto pollingStory = (enabled ? 1 : 0);
+	if (!_story || _pollingStory == pollingStory) {
+		return;
+	}
+	const auto polling = Data::Stories::Polling::Chat;
+	const auto media = _parent->data()->media();
+	const auto id = media ? media->storyId() : FullStoryId();
+	if (!enabled) {
+		_data->owner().stories().unregisterPolling(id, polling);
+	} else if (!_data->owner().stories().registerPolling(id, polling)) {
+		return;
+	}
+	_pollingStory = pollingStory;
 }
 
 QSize Photo::countOptimalSize() {
@@ -926,6 +946,7 @@ void Photo::setStreamed(std::unique_ptr<Streamed> value) {
 	_streamed = std::move(value);
 	if (set) {
 		history()->owner().registerHeavyViewPart(_parent);
+		togglePollingStory(true);
 	} else if (removed) {
 		_parent->checkHeavyPart();
 	}

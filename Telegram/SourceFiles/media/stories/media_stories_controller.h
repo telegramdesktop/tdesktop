@@ -164,6 +164,8 @@ private:
 	class Unsupported;
 
 	void initLayout();
+	bool changeShown(Data::Story *story);
+	void subscribeToSession();
 	void updatePhotoPlayback(const Player::TrackState &state);
 	void updatePlayback(const Player::TrackState &state);
 	void updatePowerSaveBlocker(const Player::TrackState &state);

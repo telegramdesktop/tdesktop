@@ -30,6 +30,7 @@ class Provider final
 	, public base::has_weak_ptr {
 public:
 	explicit Provider(not_null<AbstractController*> controller);
+	~Provider();
 
 	Media::Type type() override;
 	bool hasSelectRestriction() override;
@@ -99,6 +100,7 @@ private:
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void markLayoutsStale();
 	void clearStaleLayouts();
+	void clear();
 
 	[[nodiscard]] HistoryItem *ensureItem(StoryId id);
 	[[nodiscard]] Media::BaseLayout *getLayout(
