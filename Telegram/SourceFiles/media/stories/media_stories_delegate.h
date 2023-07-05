@@ -13,6 +13,7 @@ struct FileChosen;
 } // namespace ChatHelpers
 
 namespace Data {
+class Story;
 struct StoriesContext;
 } // namespace Data
 
@@ -49,6 +50,7 @@ public:
 		-> rpl::producer<ChatHelpers::FileChosen> = 0;
 	[[nodiscard]] virtual auto storiesCachedReactionIconFactory()
 		-> HistoryView::Reactions::CachedIconFactory & = 0;
+	virtual void storiesRedisplay(not_null<Data::Story*> story) = 0;
 	virtual void storiesJumpTo(
 		not_null<Main::Session*> session,
 		FullStoryId id,

@@ -75,6 +75,15 @@ struct Timestamp {
 	return { Ui::FormatDateTime(whenFull) };
 }
 
+[[nodiscard]] Timestamp ComposeDetails(HeaderData data, TimeId now) {
+	auto result = ComposeTimestamp(data.date, now);
+	if (data.edited) {
+		result.text.append(
+			QString::fromUtf8(" \xE2\x80\xA2 ") + tr::lng_edited(tr::now));
+	}
+	return result;
+}
+
 } // namespace
 
 Header::Header(not_null<Controller*> controller)
@@ -123,7 +132,7 @@ void Header::show(HeaderData data) {
 			raw->setGeometry(layout.header);
 		}, raw->lifetime());
 	}
-	auto timestamp = ComposeTimestamp(data.date, base::unixtime::now());
+	auto timestamp = ComposeDetails(data, base::unixtime::now());
 	_date = std::make_unique<Ui::FlatLabel>(
 		_widget.get(),
 		std::move(timestamp.text),
@@ -148,7 +157,7 @@ void Header::updateDateText() {
 	if (!_date || !_data || !_data->date) {
 		return;
 	}
-	auto timestamp = ComposeTimestamp(_data->date, base::unixtime::now());
+	auto timestamp = ComposeDetails(*_data, base::unixtime::now());
 	_date->setText(timestamp.text);
 	if (timestamp.changes > 0) {
 		_dateUpdateTimer.callOnce(timestamp.changes * crl::time(1000));

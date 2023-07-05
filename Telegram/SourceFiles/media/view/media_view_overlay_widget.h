@@ -250,6 +250,7 @@ private:
 		-> rpl::producer<ChatHelpers::FileChosen> override;
 	auto storiesCachedReactionIconFactory()
 		-> HistoryView::Reactions::CachedIconFactory & override;
+	void storiesRedisplay(not_null<Data::Story*> story) override;
 	void storiesJumpTo(
 		not_null<Main::Session*> session,
 		FullStoryId id,

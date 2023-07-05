@@ -260,6 +260,10 @@ bool Story::forbidsForward() const {
 	return _noForwards;
 }
 
+bool Story::edited() const {
+	return _edited;
+}
+
 bool Story::canDownload() const {
 	return !forbidsForward() || _peer->isSelf();
 }
@@ -369,6 +373,7 @@ void Story::applyViewsSlice(
 
 bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 	const auto pinned = data.is_pinned();
+	const auto edited = data.is_edited();
 	const auto isPublic = data.is_public();
 	const auto closeFriends = data.is_close_friends();
 	const auto noForwards = data.is_noforwards();
@@ -395,6 +400,7 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 
 	const auto changed = (_media != media)
 		|| (_pinned != pinned)
+		|| (_edited != edited)
 		|| (_isPublic != isPublic)
 		|| (_closeFriends != closeFriends)
 		|| (_noForwards != noForwards)
@@ -405,6 +411,7 @@ bool Story::applyChanges(StoryMedia media, const MTPDstoryItem &data) {
 		return false;
 	}
 	_media = std::move(media);
+	_edited = edited;
 	_pinned = pinned;
 	_isPublic = isPublic;
 	_closeFriends = closeFriends;

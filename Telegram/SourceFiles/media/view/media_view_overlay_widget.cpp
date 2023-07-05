@@ -4167,6 +4167,20 @@ void OverlayWidget::storiesJumpTo(
 	});
 }
 
+void OverlayWidget::storiesRedisplay(not_null<Data::Story*> story) {
+	Expects(_stories != nullptr);
+
+	clearStreaming();
+	_streamingStartPaused = false;
+	v::match(story->media().data, [&](not_null<PhotoData*> photo) {
+		displayPhoto(photo, anim::activation::background);
+	}, [&](not_null<DocumentData*> document) {
+		displayDocument(document, anim::activation::background);
+	}, [&](v::null_t) {
+		displayDocument(nullptr, anim::activation::background);
+	});
+}
+
 void OverlayWidget::storiesClose() {
 	close();
 }

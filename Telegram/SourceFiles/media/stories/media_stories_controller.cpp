@@ -741,20 +741,24 @@ void Controller::show(
 		_slider->raise();
 	}
 
-	if (_shown == storyId) {
+	_captionText = story->caption();
+	_captionFullView = nullptr;
+	_header->show({
+		.user = user,
+		.date = story->date(),
+		.edited = story->edited(),
+	});
+	if (_shown == storyId && _session == &story->session()) {
 		return;
 	}
 	_shown = storyId;
 	_viewed = false;
-	_captionText = story->caption();
-	_captionFullView = nullptr;
 	invalidate_weak_ptrs(&_viewsLoadGuard);
 	_reactions->hide();
 	if (_replyFocused) {
 		unfocusReply();
 	}
 
-	_header->show({ .user = user, .date = story->date() });
 	_replyArea->show({
 		.user = unsupported ? nullptr : user,
 		.id = story->id(),
@@ -780,6 +784,14 @@ void Controller::show(
 			if (_waitingForId.peer == peerId) {
 				checkWaitingFor();
 			}
+		}, _sessionLifetime);
+		session->changes().storyUpdates(
+			Data::StoryUpdate::Flag::Edited
+		) | rpl::filter([=](const Data::StoryUpdate &update) {
+			return (update.story == this->story());
+		}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
+			show(update.story, _context);
+			_delegate->storiesRedisplay(update.story);
 		}, _sessionLifetime);
 		_sessionLifetime.add([=] {
 			session->data().stories().setPreloadingInViewer({});

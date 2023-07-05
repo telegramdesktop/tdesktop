@@ -89,6 +89,7 @@ public:
 	[[nodiscard]] bool isPublic() const;
 	[[nodiscard]] bool closeFriends() const;
 	[[nodiscard]] bool forbidsForward() const;
+	[[nodiscard]] bool edited() const;
 
 	[[nodiscard]] bool canDownload() const;
 	[[nodiscard]] bool canShare() const;
@@ -128,6 +129,7 @@ private:
 	bool _isPublic : 1 = false;
 	bool _closeFriends : 1 = false;
 	bool _noForwards : 1 = false;
+	bool _edited : 1 = false;
 
 };
 
