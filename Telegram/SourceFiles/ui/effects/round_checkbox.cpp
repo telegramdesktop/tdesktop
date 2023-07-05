@@ -399,6 +399,9 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 			_st.imageRadius * 2,
 			_st.imageRadius * 2,
 			outerWidth);
+		const auto add = _st.selectExtendTwice / 2.;
+		const auto outline = QRectF(rect).marginsAdded({
+			add, add, add, add });
 		if (segments < 2) {
 			const auto radius = _roundingRadius
 				? _roundingRadius(_st.imageRadius * 2)
@@ -408,9 +411,9 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 				segments ? _segments.front().width : _st.selectWidth);
 			p.setPen(pen);
 			if (!radius) {
-				p.drawEllipse(rect);
+				p.drawEllipse(outline);
 			} else {
-				p.drawRoundedRect(rect, *radius, *radius);
+				p.drawRoundedRect(outline, *radius, *radius);
 			}
 		} else {
 			const auto small = 160;
@@ -429,7 +432,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 					Qt::RoundCap));
 				const auto from = int(base::SafeRound(start));
 				const auto till = int(base::SafeRound(start + length));
-				p.drawArc(rect, from, till - from);
+				p.drawArc(outline, from, till - from);
 				start += length + separator;
 			}
 		}

@@ -943,8 +943,17 @@ requestsBoxList: PeerList(peerListBox) {
 	item: requestsBoxItem;
 }
 contactsWithStories: PeerList(peerListBox) {
+	padding: margins(0px, 0px, 0px, 0px);
 	item: PeerListItem(peerListBoxItem) {
+		height: 52px;
+		photoPosition: point(18px, 5px);
+		namePosition: point(70px, 7px);
+		statusPosition: point(70px, 27px);
+
 		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+			selectExtendTwice: 1px;
+			imageRadius: 21px;
+			imageSmallRadius: 19px;
 			check: RoundCheckbox(defaultPeerListCheck) {
 				size: 0px;
 			}
@@ -952,6 +961,8 @@ contactsWithStories: PeerList(peerListBox) {
 		nameFgChecked: contactsNameFg;
 	}
 }
+storiesReadLineTwice: 2px;
+storiesUnreadLineTwice: 4px;
 requestsAcceptButton: RoundButton(defaultActiveButton) {
 	width: -28px;
 	height: 30px;

@@ -230,7 +230,9 @@ void StoriesController::rowClicked(not_null<PeerListRow*> row) {
 base::unique_qptr<Ui::PopupMenu> StoriesController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
-	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::popupMenuWithIcons);
 
 	Dialogs::Stories::FillSourceMenu(_window, {
 		.id = row->id(),
