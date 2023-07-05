@@ -170,10 +170,10 @@ private:
 		QImage frame;
 		QImage cacheTTL;
 		int frameIndex = -1;
-		int paletteVersion : 24 = 0;
-		int storiesShown : 1 = 0;
-		int storiesUnread : 1 = 0;
-		int active : 1 = 0;
+		uint32 paletteVersion : 24 = 0;
+		uint32 storiesShown : 1 = 0;
+		uint32 storiesUnread : 1 = 0;
+		uint32 active : 1 = 0;
 	};
 
 	void setCornerBadgeShown(
@@ -192,9 +192,9 @@ private:
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
 	int _top = 0;
 	int _height = 0;
-	int _index : 30 = 0;
-	int _cornerBadgeShown : 1 = 0;
-	int _topicJumpRipple : 1 = 0;
+	uint32 _index : 30 = 0;
+	uint32 _cornerBadgeShown : 1 = 0;
+	uint32 _topicJumpRipple : 1 = 0;
 
 };
 

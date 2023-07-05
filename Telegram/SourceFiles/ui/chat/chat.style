@@ -841,7 +841,7 @@ searchInChatPeerList: PeerList(defaultPeerList) {
 }
 
 msgServiceGiftBoxSize: size(206px, 231px); // Plus msgServiceGiftBoxTopSkip.
-msgServiceGiftBoxRadius: 12px;
+msgServiceGiftBoxRadius: 20px;
 msgServiceGiftBoxTopSkip: 4px;
 msgServiceGiftBoxButtonHeight: 32px;
 msgServiceGiftBoxButtonPadding: margins(2px, 0px, 2px, 0px);
@@ -915,3 +915,10 @@ backgroundSwitchToLight: IconButton(backgroundSwitchToDark) {
 	icon: icon {{ "menu/header_mode_day", boxTitleCloseFg }};
 	iconOver: icon {{ "menu/header_mode_day", boxTitleCloseFgOver }};
 }
+
+storyMentionSize: 80px;
+storyMentionUnreadSkipTwice: 8px;
+storyMentionUnreadStrokeTwice: 6px;
+storyMentionReadSkipTwice: 7px;
+storyMentionReadStrokeTwice: 3px;
+storyMentionButtonSkip: 5px;

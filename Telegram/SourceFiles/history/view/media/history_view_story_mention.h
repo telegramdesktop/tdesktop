@@ -32,6 +32,7 @@ public:
 	QSize size() override;
 	QString title() override;
 	TextWithEntities subtitle() override;
+	int buttonSkip() override;
 	QString button() override;
 	void draw(
 		Painter &p,
@@ -57,8 +58,11 @@ private:
 	const not_null<Element*> _parent;
 	const not_null<Data::Story*> _story;
 	std::shared_ptr<Thumbnail> _thumbnail;
-	bool _thumbnailFromStory = false;
-	bool _subscribed = false;
+	QBrush _unreadBrush;
+	uint32 _paletteVersion : 29 = 0;
+	uint32 _thumbnailFromStory : 1 = 0;
+	uint32 _subscribed : 1 = 0;
+	uint32 _unread : 1 = 0;
 
 };
 

@@ -167,10 +167,10 @@ private:
 	const std::unique_ptr<MediaSpoiler> _spoiler;
 	mutable QImage _imageCache;
 	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
-	int _serviceWidth : 29 = 0;
-	mutable int _imageCacheForum : 1 = 0;
-	mutable int _imageCacheBlurred : 1 = 0;
-	mutable int _story : 1 = 0;
+	uint32 _serviceWidth : 29 = 0;
+	mutable uint32 _imageCacheForum : 1 = 0;
+	mutable uint32 _imageCacheBlurred : 1 = 0;
+	mutable uint32 _story : 1 = 0;
 
 };
 

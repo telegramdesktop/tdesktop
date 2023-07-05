@@ -23,6 +23,9 @@ public:
 	[[nodiscard]] virtual QSize size() = 0;
 	[[nodiscard]] virtual QString title() = 0;
 	[[nodiscard]] virtual TextWithEntities subtitle() = 0;
+	[[nodiscard]] virtual int buttonSkip() {
+		return top();
+	}
 	[[nodiscard]] virtual QString button() = 0;
 	virtual void draw(
 		Painter &p,
@@ -84,6 +87,7 @@ private:
 
 	const not_null<Element*> _parent;
 	const std::unique_ptr<ServiceBoxContent> _content;
+	mutable ClickHandlerPtr _contentLink;
 
 	struct Button {
 		void drawBg(QPainter &p) const;

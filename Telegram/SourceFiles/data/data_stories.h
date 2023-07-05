@@ -41,9 +41,9 @@ struct StoriesIds {
 struct StoriesSourceInfo {
 	PeerId id = 0;
 	TimeId last = 0;
-	int count : 15 = 0;
-	int unreadCount : 15 = 0;
-	int premium : 1 = 0;
+	uint32 count : 15 = 0;
+	uint32 unreadCount : 15 = 0;
+	uint32 premium : 1 = 0;
 
 	friend inline bool operator==(
 		StoriesSourceInfo,
@@ -207,6 +207,7 @@ public:
 	[[nodiscard]] std::optional<PeerSourceState> peerSourceState(
 		not_null<PeerData*> peer,
 		StoryId storyMaxId);
+	[[nodiscard]] bool isUnread(not_null<Story*> story);
 
 private:
 	struct Saved {
@@ -241,6 +242,7 @@ private:
 	void savedStateUpdated(not_null<Story*> story);
 	void sort(StorySourcesList list);
 	bool bumpReadTill(PeerId peerId, StoryId maxReadTill);
+	void requestReadTills();
 
 	[[nodiscard]] std::shared_ptr<HistoryItem> lookupItem(
 		not_null<Story*> story);
@@ -329,6 +331,7 @@ private:
 	int _preloadingMainSourcesCounter = 0;
 
 	base::flat_map<PeerId, StoryId> _readTill;
+	base::flat_set<FullStoryId> _pendingReadTillItems;
 	base::flat_map<not_null<PeerData*>, StoryId> _pendingUserStateMaxId;
 	mtpRequestId _readTillsRequestId = 0;
 	bool _readTillReceived = false;

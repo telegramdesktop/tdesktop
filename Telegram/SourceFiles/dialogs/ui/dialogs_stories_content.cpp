@@ -353,7 +353,7 @@ Content State::next() {
 			.thumbnail = std::move(userpic),
 			.count = info.count,
 			.unreadCount = info.unreadCount,
-			.skipSmall = user->isSelf() ? 1 : 0,
+			.skipSmall = user->isSelf() ? 1U : 0U,
 		});
 	}
 	return result;
@@ -424,8 +424,8 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 							result.elements.push_back({
 								.id = uint64(id),
 								.thumbnail = MakeStoryThumbnail(*maybe),
-								.count = 1,
-								.unreadCount = (id > readTill) ? 1 : 0,
+								.count = 1U,
+								.unreadCount = (id > readTill) ? 1U : 0U,
 							});
 						}
 					} else if (maybe.error() == Data::NoStory::Unknown) {

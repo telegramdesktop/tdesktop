@@ -367,6 +367,9 @@ void Row::PaintCornerBadgeFrame(
 
 		const auto st = context.st;
 		const auto storiesUnreadBrush = [&] {
+			if (context.active) {
+				return st::dialogsUnreadBgActive->b;
+			}
 			const auto left = st->padding.left();
 			const auto top = st->padding.top();
 			auto gradient = QLinearGradient(

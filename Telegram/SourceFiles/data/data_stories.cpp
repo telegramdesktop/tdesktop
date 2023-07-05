@@ -75,9 +75,9 @@ StoriesSourceInfo StoriesSource::info() const {
 	return {
 		.id = user->id,
 		.last = ids.empty() ? 0 : ids.back().date,
-		.count = std::min(int(ids.size()), kMaxSegmentsCount),
-		.unreadCount = std::min(unreadCount(), kMaxSegmentsCount),
-		.premium = user->isPremium() ? 1 : 0,
+		.count = uint32(std::min(int(ids.size()), kMaxSegmentsCount)),
+		.unreadCount = uint32(std::min(unreadCount(), kMaxSegmentsCount)),
+		.premium = user->isPremium() ? 1U : 0U,
 	};
 }
 
@@ -913,9 +913,25 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 
 bool Stories::bumpReadTill(PeerId peerId, StoryId maxReadTill) {
 	auto &till = _readTill[peerId];
+	auto refreshItems = std::vector<StoryId>();
+	const auto guard = gsl::finally([&] {
+		for (const auto id : refreshItems) {
+			_owner->refreshStoryItemViews({ peerId, id });
+		}
+	});
 	if (till < maxReadTill) {
+		const auto from = till;
 		till = maxReadTill;
 		updateUserStoriesState(_owner->peer(peerId));
+		const auto i = _stories.find(peerId);
+		if (i != end(_stories)) {
+			refreshItems = ranges::make_subrange(
+				i->second.lower_bound(from + 1),
+				i->second.lower_bound(till + 1)
+			) | ranges::views::transform([](const auto &pair) {
+				return pair.first;
+			}) | ranges::to_vector;
+		}
 	}
 	const auto i = _all.find(peerId);
 	if (i == end(_all) || i->second.readTill >= maxReadTill) {
@@ -1443,19 +1459,38 @@ std::optional<Stories::PeerSourceState> Stories::peerSourceState(
 				(i != end(_readTill)) ? i->second : 0),
 		};
 	}
-	if (!_readTillsRequestId) {
-		const auto api = &_owner->session().api();
-		_readTillsRequestId = api->request(MTPstories_GetAllReadUserStories(
-		)).done([=](const MTPUpdates &result) {
-			_readTillReceived = true;
-			api->applyUpdates(result);
-			for (auto &[peer, maxId] : base::take(_pendingUserStateMaxId)) {
-				updateUserStoriesState(peer);
-			}
-		}).send();
-	}
+	requestReadTills();
 	_pendingUserStateMaxId[peer] = storyMaxId;
 	return std::nullopt;
+}
+
+void Stories::requestReadTills() {
+	if (_readTillReceived || _readTillsRequestId) {
+		return;
+	}
+	const auto api = &_owner->session().api();
+	_readTillsRequestId = api->request(MTPstories_GetAllReadUserStories(
+	)).done([=](const MTPUpdates &result) {
+		_readTillReceived = true;
+		api->applyUpdates(result);
+		for (auto &[peer, maxId] : base::take(_pendingUserStateMaxId)) {
+			updateUserStoriesState(peer);
+		}
+		for (const auto &storyId : base::take(_pendingReadTillItems)) {
+			_owner->refreshStoryItemViews(storyId);
+		}
+	}).send();
+}
+
+bool Stories::isUnread(not_null<Story*> story) {
+	const auto till = _readTill.find(story->peer()->id);
+	if (till == end(_readTill) && !_readTillReceived) {
+		requestReadTills();
+		_pendingReadTillItems.emplace(story->fullId());
+		return false;
+	}
+	const auto readTill = (till != end(_readTill)) ? till->second : 0;
+	return (story->id() > readTill);
 }
 
 void Stories::updateUserStoriesState(not_null<PeerData*> peer) {

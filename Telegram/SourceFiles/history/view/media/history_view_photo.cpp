@@ -164,7 +164,7 @@ void Photo::unloadHeavyPart() {
 
 QSize Photo::countOptimalSize() {
 	if (_serviceWidth > 0) {
-		return { _serviceWidth, _serviceWidth };
+		return { int(_serviceWidth), int(_serviceWidth) };
 	}
 
 	if (_parent->media() != this) {
@@ -209,7 +209,7 @@ QSize Photo::countOptimalSize() {
 
 QSize Photo::countCurrentSize(int newWidth) {
 	if (_serviceWidth) {
-		return { _serviceWidth, _serviceWidth };
+		return { int(_serviceWidth), int(_serviceWidth) };
 	}
 	const auto thumbMaxWidth = qMin(newWidth, st::maxMediaSize);
 	const auto minWidth = std::clamp(

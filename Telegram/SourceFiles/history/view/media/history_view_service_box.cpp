@@ -81,8 +81,7 @@ ServiceBox::ServiceBox(
 		+ _subtitle.countHeight(_maxWidth)
 		+ (_button.empty()
 			? 0
-			: (st::msgServiceGiftBoxButtonMargins.top()
-				+ _button.size.height()))
+			: (_content->buttonSkip() + _button.size.height()))
 		+ st::msgServiceGiftBoxButtonMargins.bottom()))
 , _innerSize(_size - QSize(0, st::msgServiceGiftBoxTopSkip)) {
 }
@@ -165,6 +164,11 @@ TextState ServiceBox::textState(QPoint point, StateRequest request) const {
 		if (rect.contains(point)) {
 			result.link = _button.link;
 			_button.lastPoint = point - rect.topLeft();
+		} else if (contentRect().contains(point)) {
+			if (!_contentLink) {
+				_contentLink = _content->createViewLink();
+			}
+			result.link = _contentLink;
 		}
 	}
 	return result;

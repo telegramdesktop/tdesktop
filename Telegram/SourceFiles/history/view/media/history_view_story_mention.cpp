@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/chat/chat_style.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/painter.h"
@@ -39,13 +40,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+constexpr auto kReadOutlineAlpha = 0.5;
+
 } // namespace
 
 StoryMention::StoryMention(
 	not_null<Element*> parent,
 	not_null<Data::Story*> story)
 : _parent(parent)
-, _story(story) {
+, _story(story)
+, _unread(story->owner().stories().isUnread(story) ? 1 : 0) {
 }
 
 StoryMention::~StoryMention() = default;
@@ -60,6 +64,10 @@ QSize StoryMention::size() {
 
 QString StoryMention::title() {
 	return QString();
+}
+
+int StoryMention::buttonSkip() {
+	return st::storyMentionButtonSkip;
 }
 
 QString StoryMention::button() {
@@ -86,7 +94,7 @@ void StoryMention::draw(
 		Painter &p,
 		const PaintContext &context,
 		const QRect &geometry) {
-	const auto showStory = !_story->forbidsForward();
+	const auto showStory = _story->forbidsForward() ? 0 : 1;
 	if (!_thumbnail || _thumbnailFromStory != showStory) {
 		using namespace Dialogs::Stories;
 		const auto item = _parent->data();
@@ -97,18 +105,49 @@ void StoryMention::draw(
 				? history->session().user()
 				: history->peer);
 		_thumbnailFromStory = showStory;
-		_subscribed = false;
+		_subscribed = 0;
 	}
 	if (!_subscribed) {
 		_thumbnail->subscribeToUpdates([=] {
 			_parent->data()->history()->owner().requestViewRepaint(_parent);
 		});
-		_subscribed = true;
+		_subscribed = 1;
 	}
 
+	const auto padding = (geometry.width() - st::storyMentionSize) / 2;
+	const auto size = geometry.width() - 2 * padding;
 	p.drawImage(
-		geometry.topLeft(),
-		_thumbnail->image(st::msgServicePhotoWidth));
+		geometry.topLeft() + QPoint(padding, padding),
+		_thumbnail->image(size));
+
+	const auto thumbnail = geometry.marginsRemoved(
+		QMargins(padding, padding, padding, padding));
+	const auto added = 0.5 * (_unread
+		? st::storyMentionUnreadSkipTwice
+		: st::storyMentionReadSkipTwice);
+	const auto outline = thumbnail.marginsAdded(
+		QMargins(added, added, added, added));
+	if (_unread && _paletteVersion != style::PaletteVersion()) {
+		_paletteVersion = style::PaletteVersion();
+		auto gradient = QLinearGradient(
+			outline.topRight(),
+			outline.bottomLeft());
+		gradient.setStops({
+			{ 0., st::groupCallLive1->c },
+			{ 1., st::groupCallMuted1->c },
+		});
+		_unreadBrush = QBrush(gradient);
+	}
+	auto readColor = context.st->msgServiceFg()->c;
+	readColor.setAlphaF(std::min(readColor.alphaF(), kReadOutlineAlpha));
+	p.setPen(QPen(
+		_unread ? _unreadBrush : QBrush(readColor),
+		0.5 * (_unread
+			? st::storyMentionUnreadStrokeTwice
+			: st::storyMentionReadStrokeTwice)));
+	p.setBrush(Qt::NoBrush);
+	auto hq = PainterHighQualityEnabler(p);
+	p.drawEllipse(outline);
 }
 
 void StoryMention::stickerClearLoopPlayed() {
@@ -121,12 +160,12 @@ std::unique_ptr<StickerPlayer> StoryMention::stickerTakePlayer(
 }
 
 bool StoryMention::hasHeavyPart() {
-	return _subscribed;
+	return _subscribed != 0;
 }
 
 void StoryMention::unloadHeavyPart() {
 	if (_subscribed) {
-		_subscribed = false;
+		_subscribed = 0;
 		_thumbnail->subscribeToUpdates(nullptr);
 	}
 }

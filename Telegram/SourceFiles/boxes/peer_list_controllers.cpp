@@ -163,7 +163,7 @@ StoriesRow::StoriesRow(
 void StoriesRow::applySegments(const Dialogs::Stories::Element &element) {
 	Expects(element.unreadCount <= element.count);
 
-	_count = std::max(element.count, 1);
+	_count = int(std::max(element.count, 1U));
 	_unreadCount = element.unreadCount;
 	refreshSegments();
 }

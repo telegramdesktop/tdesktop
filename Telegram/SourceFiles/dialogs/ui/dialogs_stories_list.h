@@ -36,9 +36,9 @@ struct Element {
 	uint64 id = 0;
 	QString name;
 	std::shared_ptr<Thumbnail> thumbnail;
-	int count : 15 = 0;
-	int unreadCount : 15 = 0;
-	int skipSmall : 1 = 0;
+	uint32 count : 15 = 0;
+	uint32 unreadCount : 15 = 0;
+	uint32 skipSmall : 1 = 0;
 
 	friend inline bool operator==(
 		const Element &a,
