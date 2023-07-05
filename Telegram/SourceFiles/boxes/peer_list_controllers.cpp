@@ -166,6 +166,12 @@ void StoriesRow::applySegments(const Dialogs::Stories::Element &element) {
 	_count = int(std::max(element.count, 1U));
 	_unreadCount = element.unreadCount;
 	refreshSegments();
+	setCustomStatus(_unreadCount
+		? tr::lng_contacts_stories_status_new(
+			tr::now,
+			lt_count,
+			_unreadCount)
+		: tr::lng_contacts_stories_status(tr::now, lt_count, _count));
 }
 
 void StoriesRow::updateGradient(QBrush unread) {
