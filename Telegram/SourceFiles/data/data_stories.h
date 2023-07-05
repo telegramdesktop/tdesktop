@@ -219,6 +219,10 @@ public:
 	bool registerPolling(FullStoryId id, Polling polling);
 	void unregisterPolling(FullStoryId id, Polling polling);
 
+	void savedStateChanged(not_null<Story*> story);
+	[[nodiscard]] std::shared_ptr<HistoryItem> lookupItem(
+		not_null<Story*> story);
+
 private:
 	struct Saved {
 		StoriesIds ids;
@@ -253,13 +257,9 @@ private:
 	void applyRemovedFromActive(FullStoryId id);
 	void applyDeletedFromSources(PeerId id, StorySourcesList list);
 	void removeDependencyStory(not_null<Story*> story);
-	void savedStateUpdated(not_null<Story*> story);
 	void sort(StorySourcesList list);
 	bool bumpReadTill(PeerId peerId, StoryId maxReadTill);
 	void requestReadTills();
-
-	[[nodiscard]] std::shared_ptr<HistoryItem> lookupItem(
-		not_null<Story*> story);
 
 	void sendMarkAsReadRequests();
 	void sendMarkAsReadRequest(not_null<PeerData*> peer, StoryId tillId);
@@ -286,6 +286,7 @@ private:
 		const PollingSettings &settings,
 		TimeId now);
 	void sendPollingRequests();
+	void sendPollingViewsRequests();
 
 	const not_null<Session*> _owner;
 	std::unordered_map<
@@ -359,7 +360,9 @@ private:
 	bool _readTillReceived = false;
 
 	base::flat_map<not_null<Story*>, PollingSettings> _pollingSettings;
+	base::flat_set<not_null<Story*>> _pollingViews;
 	base::Timer _pollingTimer;
+	base::Timer _pollingViewsTimer;
 
 };
 

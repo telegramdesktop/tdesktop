@@ -61,8 +61,10 @@ public:
 		StoryId id,
 		not_null<PeerData*> peer,
 		StoryMedia media,
-		TimeId date,
-		TimeId expires);
+		const MTPDstoryItem &data,
+		TimeId now);
+
+	static constexpr int kRecentViewersMax = 3;
 
 	[[nodiscard]] Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -103,7 +105,6 @@ public:
 	void setCaption(TextWithEntities &&caption);
 	[[nodiscard]] const TextWithEntities &caption() const;
 
-	void setViewsData(std::vector<not_null<PeerData*>> recent, int total);
 	[[nodiscard]] auto recentViewers() const
 		-> const std::vector<not_null<PeerData*>> &;
 	[[nodiscard]] const std::vector<StoryView> &viewsList() const;
@@ -113,13 +114,19 @@ public:
 		const std::vector<StoryView> &slice,
 		int total);
 
-	bool applyChanges(
+	void applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
 		TimeId now);
 	[[nodiscard]] TimeId lastUpdateTime() const;
 
 private:
+	void applyFields(
+		StoryMedia media,
+		const MTPDstoryItem &data,
+		TimeId now,
+		bool initial);
+
 	const StoryId _id = 0;
 	const not_null<PeerData*> _peer;
 	StoryMedia _media;

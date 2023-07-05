@@ -10,12 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "api/api_text_entities.h"
 #include "data/data_document.h"
+#include "data/data_changes.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_thread.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/streaming/media_streaming_reader.h"
@@ -23,6 +26,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 
 namespace Data {
+namespace {
+
+using UpdateFlag = StoryUpdate::Flag;
+
+} // namespace
 
 class StoryPreload::LoadTask final : private Storage::DownloadMtprotoTask {
 public:
@@ -103,7 +111,7 @@ bool StoryPreload::LoadTask::feedPart(
 		&& _requestedOffsets.empty()) {
 		_finished = true;
 		removeFromQueue();
-		auto result = Media::Streaming::SerializeComplexPartsMap(_parts);
+		auto result = ::Media::Streaming::SerializeComplexPartsMap(_parts);
 		if (result.size() == _full) {
 			// Make sure it is parsed as a complex map.
 			result.push_back(char(0));
@@ -130,13 +138,13 @@ Story::Story(
 	StoryId id,
 	not_null<PeerData*> peer,
 	StoryMedia media,
-	TimeId date,
-	TimeId expires)
+	const MTPDstoryItem &data,
+	TimeId now)
 : _id(id)
 , _peer(peer)
-, _media(std::move(media))
-, _date(date)
-, _expires(expires) {
+, _date(data.vdate().v)
+, _expires(data.vexpire_date().v) {
+	applyFields(std::move(media), data, now, true);
 }
 
 Session &Story::owner() const {
@@ -318,13 +326,6 @@ const TextWithEntities &Story::caption() const {
 	return unsupported() ? empty : _caption;
 }
 
-void Story::setViewsData(
-		std::vector<not_null<PeerData*>> recent,
-		int total) {
-	_recentViewers = std::move(recent);
-	_views = total;
-}
-
 const std::vector<not_null<PeerData*>> &Story::recentViewers() const {
 	return _recentViewers;
 }
@@ -341,6 +342,7 @@ void Story::applyViewsSlice(
 		const std::optional<StoryView> &offset,
 		const std::vector<StoryView> &slice,
 		int total) {
+	const auto changed = (_views != total);
 	_views = total;
 	if (!offset) {
 		const auto i = _viewsList.empty()
@@ -369,12 +371,42 @@ void Story::applyViewsSlice(
 			}
 		}
 	}
+	const auto known = int(_viewsList.size());
+	if (known >= _recentViewers.size()) {
+		const auto take = std::min(known, kRecentViewersMax);
+		auto viewers = _viewsList
+			| ranges::views::take(take)
+			| ranges::views::transform(&StoryView::peer)
+			| ranges::to_vector;
+		if (_recentViewers != viewers) {
+			_recentViewers = std::move(viewers);
+			if (!changed) {
+				// Count not changed, but list of recent viewers changed.
+				_peer->session().changes().storyUpdated(
+					this,
+					UpdateFlag::ViewsAdded);
+			}
+		}
+	}
+	if (changed) {
+		_peer->session().changes().storyUpdated(
+			this,
+			UpdateFlag::ViewsAdded);
+	}
 }
 
-bool Story::applyChanges(
+void Story::applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
 		TimeId now) {
+	applyFields(std::move(media), data, now, false);
+}
+
+void Story::applyFields(
+		StoryMedia media,
+		const MTPDstoryItem &data,
+		TimeId now,
+		bool initial) {
 	_lastUpdateTime = now;
 
 	const auto pinned = data.is_pinned();
@@ -388,45 +420,64 @@ bool Story::applyChanges(
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
-	auto views = -1;
-	auto recent = std::vector<not_null<PeerData*>>();
+	auto views = _views;
+	auto viewers = std::vector<not_null<PeerData*>>();
 	if (!data.is_min()) {
 		if (const auto info = data.vviews()) {
 			views = info->data().vviews_count().v;
 			if (const auto list = info->data().vrecent_viewers()) {
-				recent.reserve(list->v.size());
+				viewers.reserve(list->v.size());
 				auto &owner = _peer->owner();
-				for (const auto &id : list->v) {
-					recent.push_back(owner.peer(peerFromUser(id)));
+				auto &&cut = list->v
+					| ranges::views::take(kRecentViewersMax);
+				for (const auto &id : cut) {
+					viewers.push_back(owner.peer(peerFromUser(id)));
 				}
 			}
 		}
 	}
 
-	const auto changed = (_media != media)
-		|| (_pinned != pinned)
-		|| (_edited != edited)
-		|| (_isPublic != isPublic)
-		|| (_closeFriends != closeFriends)
-		|| (_noForwards != noForwards)
-		|| (_caption != caption)
-		|| (views >= 0 && _views != views)
-		|| (_recentViewers != recent);
-	if (!changed) {
-		return false;
-	}
-	_media = std::move(media);
+	const auto pinnedChanged = (_pinned != pinned);
+	const auto editedChanged = (_edited != edited);
+	const auto mediaChanged = (_media != media);
+	const auto captionChanged = (_caption != caption);
+	const auto viewsChanged = (_views != views)
+		|| (_recentViewers != viewers);
+
+	_isPublic = isPublic;
+	_closeFriends = closeFriends;
+	_noForwards = noForwards;
 	_edited = edited;
 	_pinned = pinned;
 	_isPublic = isPublic;
 	_closeFriends = closeFriends;
 	_noForwards = noForwards;
-	_caption = std::move(caption);
-	if (views >= 0) {
+	if (viewsChanged) {
 		_views = views;
+		_recentViewers = std::move(viewers);
 	}
-	_recentViewers = std::move(recent);
-	return true;
+	if (mediaChanged) {
+		_media = std::move(media);
+	}
+	if (captionChanged) {
+		_caption = std::move(caption);
+	}
+
+	const auto changed = (editedChanged || captionChanged || mediaChanged);
+	if (!initial && (changed || viewsChanged)) {
+		_peer->session().changes().storyUpdated(this, UpdateFlag()
+			| (changed ? UpdateFlag::Edited : UpdateFlag())
+			| (viewsChanged ? UpdateFlag::ViewsAdded : UpdateFlag()));
+	}
+	if (!initial && (captionChanged || mediaChanged)) {
+		if (const auto item = _peer->owner().stories().lookupItem(this)) {
+			item->applyChanges(this);
+		}
+		_peer->owner().refreshStoryItemViews(fullId());
+	}
+	if (pinnedChanged) {
+		_peer->owner().stories().savedStateChanged(this);
+	}
 }
 
 TimeId Story::lastUpdateTime() const {

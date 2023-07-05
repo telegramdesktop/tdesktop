@@ -828,11 +828,20 @@ void Controller::subscribeToSession() {
 	}, _sessionLifetime);
 	_session->changes().storyUpdates(
 		Data::StoryUpdate::Flag::Edited
+		| Data::StoryUpdate::Flag::ViewsAdded
 	) | rpl::filter([=](const Data::StoryUpdate &update) {
 		return (update.story == this->story());
 	}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
-		show(update.story, _context);
-		_delegate->storiesRedisplay(update.story);
+		if (update.flags & Data::StoryUpdate::Flag::Edited) {
+			show(update.story, _context);
+			_delegate->storiesRedisplay(update.story);
+		} else {
+			_recentViews->show({
+				.list = update.story->recentViewers(),
+				.total = update.story->views(),
+				.valid = update.story->peer()->isSelf(),
+			});
+		}
 	}, _sessionLifetime);
 	_sessionLifetime.add([=] {
 		_session->data().stories().setPreloadingInViewer({});

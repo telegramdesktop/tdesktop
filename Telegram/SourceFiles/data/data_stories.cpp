@@ -40,6 +40,8 @@ constexpr auto kStillPreloadFromFirst = 3;
 constexpr auto kMaxSegmentsCount = 180;
 constexpr auto kPollingIntervalChat = 5 * TimeId(60);
 constexpr auto kPollingIntervalViewer = 1 * TimeId(60);
+constexpr auto kPollViewsInterval = 10 * crl::time(1000);
+constexpr auto kPollingViewsPerPage = Story::kRecentViewersMax;
 
 using UpdateFlag = StoryUpdate::Flag;
 
@@ -101,11 +103,13 @@ Stories::Stories(not_null<Session*> owner)
 , _expireTimer([=] { processExpired(); })
 , _markReadTimer([=] { sendMarkAsReadRequests(); })
 , _incrementViewsTimer([=] { sendIncrementViewsRequests(); })
-, _pollingTimer([=] { sendPollingRequests(); }) {
+, _pollingTimer([=] { sendPollingRequests(); })
+, _pollingViewsTimer([=] { sendPollingViewsRequests(); }) {
 }
 
 Stories::~Stories() {
 	Expects(_pollingSettings.empty());
+	Expects(_pollingViews.empty());
 }
 
 Session &Stories::owner() const {
@@ -350,20 +354,9 @@ Story *Stories::parseAndApply(
 	const auto i = stories.find(id);
 	if (i != end(stories)) {
 		const auto result = i->second.get();
-		const auto pinned = result->pinned();
 		const auto mediaChanged = (result->media() != *media);
-		if (result->applyChanges(*media, data, now)) {
-			if (result->pinned() != pinned) {
-				savedStateUpdated(result);
-			}
-			session().changes().storyUpdated(
-				result,
-				UpdateFlag::Edited);
-			if (const auto item = lookupItem(result)) {
-				item->applyChanges(result);
-			}
-			_owner->refreshStoryItemViews(fullId);
-		}
+		const auto pinned = result->pinned();
+		result->applyChanges(*media, data, now);
 		const auto j = _pollingSettings.find(result);
 		if (j != end(_pollingSettings)) {
 			maybeSchedulePolling(result, j->second, now);
@@ -385,12 +378,9 @@ Story *Stories::parseAndApply(
 		id,
 		peer,
 		StoryMedia{ *media },
-		data.vdate().v,
-		data.vexpire_date().v)).first->second.get();
-	result->applyChanges(*media, data, now);
-	if (result->pinned()) {
-		savedStateUpdated(result);
-	}
+		data,
+		now
+	)).first->second.get();
 
 	if (peer->isSelf()) {
 		const auto added = _archive.list.emplace(id).second;
@@ -479,7 +469,7 @@ void Stories::unregisterDependentMessage(
 	}
 }
 
-void Stories::savedStateUpdated(not_null<Story*> story) {
+void Stories::savedStateChanged(not_null<Story*> story) {
 	const auto id = story->id();
 	const auto peer = story->peer()->id;
 	const auto pinned = story->pinned();
@@ -1132,14 +1122,20 @@ void Stories::loadViewsSlice(
 		StoryId id,
 		std::optional<StoryView> offset,
 		Fn<void(std::vector<StoryView>)> done) {
-	_viewsDone = std::move(done);
-	if (_viewsStoryId == id && _viewsOffset == offset) {
+	if (_viewsStoryId == id
+		&& _viewsOffset == offset
+		&& (offset || _viewsRequestId)) {
+		if (_viewsRequestId) {
+			_viewsDone = std::move(done);
+		}
 		return;
 	}
 	_viewsStoryId = id;
 	_viewsOffset = offset;
+	_viewsDone = std::move(done);
 
 	const auto api = &_owner->session().api();
+	const auto perPage = _viewsDone ? kViewsPerPage : kPollingViewsPerPage;
 	api->request(_viewsRequestId).cancel();
 	_viewsRequestId = api->request(MTPstories_GetStoryViewsList(
 		MTP_int(id),
@@ -1509,7 +1505,13 @@ void Stories::registerPolling(not_null<Story*> story, Polling polling) {
 	auto &settings = _pollingSettings[story];
 	switch (polling) {
 	case Polling::Chat: ++settings.chat; break;
-	case Polling::Viewer: ++settings.viewer; break;
+	case Polling::Viewer:
+		++settings.viewer;
+		if (story->peer()->isSelf()
+			&& _pollingViews.emplace(story).second) {
+			sendPollingViewsRequests();
+		}
+		break;
 	}
 	maybeSchedulePolling(story, settings, base::unixtime::now());
 }
@@ -1525,7 +1527,12 @@ void Stories::unregisterPolling(not_null<Story*> story, Polling polling) {
 		break;
 	case Polling::Viewer:
 		Assert(i->second.viewer > 0);
-		--i->second.viewer;
+		if (!--i->second.viewer) {
+			_pollingViews.remove(story);
+			if (_pollingViews.empty()) {
+				_pollingViewsTimer.cancel();
+			}
+		}
 		break;
 	}
 	if (!i->second.chat && !i->second.viewer) {
@@ -1581,6 +1588,17 @@ void Stories::sendPollingRequests() {
 	if (min > 0) {
 		_pollingTimer.callOnce(min);
 	}
+}
+
+void Stories::sendPollingViewsRequests() {
+	if (_pollingViews.empty()) {
+		return;
+	} else if (!_viewsRequestId) {
+		Assert(_viewsDone == nullptr);
+		const auto one = _pollingViews.front();
+		loadViewsSlice(_pollingViews.front()->id(), std::nullopt, nullptr);
+	}
+	_pollingViewsTimer.callOnce(kPollViewsInterval);
 }
 
 void Stories::updateUserStoriesState(not_null<PeerData*> peer) {
