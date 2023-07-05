@@ -140,7 +140,7 @@ void StoryMention::draw(
 		_unreadBrush = QBrush(gradient);
 	}
 	auto readColor = context.st->msgServiceFg()->c;
-	readColor.setAlphaF(std::min(readColor.alphaF(), kReadOutlineAlpha));
+	readColor.setAlphaF(std::min(1. * readColor.alphaF(), kReadOutlineAlpha));
 	p.setPen(QPen(
 		_unread ? _unreadBrush : QBrush(readColor),
 		0.5 * (_unread
