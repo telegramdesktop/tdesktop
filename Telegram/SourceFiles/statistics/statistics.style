@@ -1,0 +1,20 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+
+using "window/window.style";
+using "ui/widgets/widgets.style";
+
+statisticsDetailsPopupWidth: 135px;
+statisticsDetailsPopupMargins: margins(8px, 8px, 8px, 8px);
+statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);
+statisticsDetailsPopupMidLineSpace: 8px;
+
+statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+}

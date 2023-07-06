@@ -1288,6 +1288,8 @@ PRIVATE
     statistics/chart_widget.h
     statistics/linear_chart_view.cpp
     statistics/linear_chart_view.h
+    statistics/point_details_widget.cpp
+    statistics/point_details_widget.h
     statistics/segment_tree.cpp
     statistics/segment_tree.h
     statistics/statistics_box.cpp

@@ -34,6 +34,7 @@ set(style_files
     overview/overview.style
     window/window.style
     editor/editor.style
+    statistics/statistics.style
 )
 
 set(dependent_style_files
