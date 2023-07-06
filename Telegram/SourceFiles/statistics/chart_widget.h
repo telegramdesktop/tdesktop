@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 
+class RpMouseWidget;
+
 class ChartWidget : public Ui::RpWidget {
 public:
 	ChartWidget(not_null<Ui::RpWidget*> parent);

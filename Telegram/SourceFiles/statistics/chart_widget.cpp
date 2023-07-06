@@ -90,6 +90,54 @@ void PaintCaptionsToHorizontalLines(
 
 } // namespace
 
+class RpMouseWidget final : public Ui::AbstractButton {
+public:
+	using Ui::AbstractButton::AbstractButton;
+
+	struct State {
+		QPoint point;
+		QEvent::Type mouseState;
+	};
+
+	[[nodiscard]] const QPoint &start() const;
+	[[nodiscard]] rpl::producer<State> mouseStateChanged() const;
+
+protected:
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+
+private:
+	QPoint _start = QPoint(-1, -1);
+
+	rpl::event_stream<State> _mouseStateChanged;
+
+};
+
+const QPoint &RpMouseWidget::start() const {
+	return _start;
+}
+
+rpl::producer<RpMouseWidget::State> RpMouseWidget::mouseStateChanged() const {
+	return _mouseStateChanged.events();
+}
+
+void RpMouseWidget::mousePressEvent(QMouseEvent *e) {
+	_start = e->pos();
+	_mouseStateChanged.fire({ e->pos(), QEvent::MouseButtonPress });
+}
+
+void RpMouseWidget::mouseMoveEvent(QMouseEvent *e) {
+	if (_start.x() >= 0 || _start.y() >= 0) {
+		_mouseStateChanged.fire({ e->pos(), QEvent::MouseMove });
+	}
+}
+
+void RpMouseWidget::mouseReleaseEvent(QMouseEvent *e) {
+	_start = { -1, -1 };
+	_mouseStateChanged.fire({ e->pos(), QEvent::MouseButtonRelease });
+}
+
 class ChartWidget::Footer final : public Ui::AbstractButton {
 public:
 	Footer(not_null<Ui::RpWidget*> parent);
@@ -101,8 +149,8 @@ public:
 	[[nodiscard]] const Limits &fullHeightLimits() const;
 
 private:
-	not_null<Ui::AbstractButton*> _left;
-	not_null<Ui::AbstractButton*> _right;
+	not_null<RpMouseWidget*> _left;
+	not_null<RpMouseWidget*> _right;
 
 	rpl::event_stream<Limits> _xPercentageLimitsChange;
 	rpl::event_stream<> _userInteractionFinished;
@@ -110,18 +158,16 @@ private:
 	Limits _fullHeightLimits;
 
 	struct {
-		int x = 0;
-		int leftLimit = 0;
-		int rightLimit = 0;
-		int diffX = 0;
-	} _start;
+		int left = 0;
+		int right = 0;
+	} _limits;
 
 };
 
 ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 : Ui::AbstractButton(parent)
-, _left(Ui::CreateChild<Ui::AbstractButton>(this))
-, _right(Ui::CreateChild<Ui::AbstractButton>(this)) {
+, _left(Ui::CreateChild<RpMouseWidget>(this))
+, _right(Ui::CreateChild<RpMouseWidget>(this)) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_left->resize(st::colorSliderWidth, s.height());
@@ -147,28 +193,23 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 	}, _left->lifetime());
 
 	const auto handleDrag = [&](
-			not_null<Ui::AbstractButton*> side,
+			not_null<RpMouseWidget*> side,
 			Fn<int()> leftLimit,
 			Fn<int()> rightLimit) {
-		side->events(
-		) | rpl::filter([=](not_null<QEvent*> e) {
-			return (e->type() == QEvent::MouseButtonPress)
-				|| (e->type() == QEvent::MouseButtonRelease)
-				|| ((e->type() == QEvent::MouseMove) && side->isDown());
-		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
-			const auto pos = static_cast<QMouseEvent*>(e.get())->pos();
-			switch (e->type()) {
+		side->mouseStateChanged(
+		) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
+			const auto posX = state.point.x();
+			switch (state.mouseState) {
 			case QEvent::MouseMove: {
 				if (base::IsCtrlPressed()) {
-					const auto diff = (pos.x() - _start.x);
+					const auto diff = (posX - side->start().x());
 					_left->move(_left->x() + diff, side->y());
 					_right->move(_right->x() + diff, side->y());
 				} else {
-					_start.diffX = pos.x() - _start.x;
 					const auto nextX = std::clamp(
-						side->x() + (pos.x() - _start.x),
-						_start.leftLimit,
-						_start.rightLimit);
+						side->x() + (posX - side->start().x()),
+						_limits.left,
+						_limits.right);
 					side->move(nextX, side->y());
 				}
 				_xPercentageLimitsChange.fire({
@@ -177,9 +218,7 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 				});
 			} break;
 			case QEvent::MouseButtonPress: {
-				_start.x = pos.x();
-				_start.leftLimit = leftLimit();
-				_start.rightLimit = rightLimit();
+				_limits = { .left = leftLimit(), .right = rightLimit() };
 			} break;
 			case QEvent::MouseButtonRelease: {
 				_userInteractionFinished.fire({});
@@ -187,7 +226,7 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 					.min = _left->x() / float64(width()),
 					.max = rect::right(_right) / float64(width()),
 				});
-				_start = {};
+				_limits = {};
 			} break;
 			}
 		}, side->lifetime());
