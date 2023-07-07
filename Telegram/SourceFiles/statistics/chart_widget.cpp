@@ -442,8 +442,9 @@ auto ChartWidget::ChartAnimationController::heightAnimationStarts() const
 
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 : Ui::RpWidget(parent)
+, _chartArea(base::make_unique_q<Ui::RpWidget>(this))
 , _footer(std::make_unique<Footer>(this))
-, _animationController([=] { update(); }) {
+, _animationController([=] { _chartArea->update(); }) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_footer->setGeometry(
@@ -451,7 +452,42 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			s.height() - st::countryRowHeight,
 			s.width(),
 			st::countryRowHeight);
+		_chartArea->setGeometry(
+			0,
+			0,
+			s.width(),
+			s.height() - st::countryRowHeight * 2);
 	}, _footer->lifetime());
+
+	_chartArea->paintRequest(
+	) | rpl::start_with_next([=](const QRect &r) {
+		auto p = QPainter(_chartArea.get());
+
+		_animationController.tick(crl::now(), _horizontalLines);
+
+		const auto chartRect = _chartArea->rect()
+			- QMargins{ 0, st::boxTextFont->height, 0, st::lineWidth };
+
+		p.fillRect(r, st::boxBg);
+
+		for (auto &horizontalLine : _horizontalLines) {
+			PaintHorizontalLines(p, horizontalLine, chartRect);
+		}
+
+		if (_chartData) {
+			Statistic::PaintLinearChartView(
+				p,
+				_chartData,
+				_animationController.currentXLimits(),
+				_animationController.currentHeightLimits(),
+				chartRect);
+		}
+
+		for (auto &horizontalLine : _horizontalLines) {
+			PaintCaptionsToHorizontalLines(p, horizontalLine, chartRect);
+		}
+	}, _footer->lifetime());
+
 	_footer->paintRequest(
 	) | rpl::start_with_next([=, fullXLimits = Limits{ 0., 1. }] {
 		auto p = QPainter(_footer.get());
@@ -506,40 +542,7 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 		0);
 	_animationController.finish();
 	addHorizontalLine(_animationController.finalHeightLimits(), false);
-	update();
-}
-
-void ChartWidget::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
-
-	_animationController.tick(crl::now(), _horizontalLines);
-
-	const auto r = rect();
-	const auto captionRect = r;
-	const auto chartRectBottom = st::lineWidth
-		+ _footer->height()
-		+ st::countryRowHeight;
-	const auto chartRect = r
-		- QMargins{ 0, st::boxTextFont->height, 0, chartRectBottom };
-
-	p.fillRect(r, st::boxBg);
-
-	for (auto &horizontalLine : _horizontalLines) {
-		PaintHorizontalLines(p, horizontalLine, chartRect);
-	}
-
-	if (_chartData) {
-		Statistic::PaintLinearChartView(
-			p,
-			_chartData,
-			_animationController.currentXLimits(),
-			_animationController.currentHeightLimits(),
-			chartRect);
-	}
-
-	for (auto &horizontalLine : _horizontalLines) {
-		PaintCaptionsToHorizontalLines(p, horizontalLine, chartRect);
-	}
+	_chartArea->update();
 }
 
 void ChartWidget::addHorizontalLine(Limits newHeight, bool animated) {

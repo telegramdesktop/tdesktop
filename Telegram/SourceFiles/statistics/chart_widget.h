@@ -25,9 +25,6 @@ public:
 	void setChartData(Data::StatisticalChart chartData);
 	void addHorizontalLine(Limits newHeight, bool animated);
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
 private:
 	class Footer;
 
@@ -75,6 +72,7 @@ private:
 
 	};
 
+	const base::unique_qptr<Ui::RpWidget> _chartArea;
 	std::unique_ptr<Footer> _footer;
 	Data::StatisticalChart _chartData;
 
