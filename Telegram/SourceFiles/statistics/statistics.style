@@ -17,6 +17,9 @@ statisticsDetailsPopupMidLineSpace: 8px;
 statisticsDetailsDotRadius: 4px;
 statisticsChartLineWidth: 2px;
 
+statisticsChartBottomCaptionHeight: 30px;
+statisticsChartBottomCaptionSkip: 15px;
+
 statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }

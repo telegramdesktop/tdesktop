@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "styles/style_boxes.h"
+#include "styles/style_statistics.h"
 
 namespace Statistic {
 
@@ -93,6 +94,50 @@ void PaintCaptionsToHorizontalLines(
 		p.drawText(10, r.y() + r.height() * line.relativeValue, line.caption);
 	}
 	p.setOpacity(alpha);
+}
+
+void PaintBottomLine(
+		QPainter &p,
+		const std::vector<ChartWidget::BottomCaptionLineData> &dates,
+		Data::StatisticalChart &chartData,
+		const Limits &xPercentageLimits,
+		int fullWidth,
+		int y) {
+	p.setFont(st::statisticsDetailsPopupStyle.font);
+
+	const auto startXIndex = chartData.findStartIndex(
+		xPercentageLimits.min);
+	const auto endXIndex = chartData.findEndIndex(
+		startXIndex,
+		xPercentageLimits.max);
+
+	for (const auto &date : dates) {
+		const auto resultAlpha = date.alpha;
+		const auto step = std::max(date.step, 1);
+
+		auto start = startXIndex;
+		while (start % step != 0) {
+			start--;
+		}
+
+		auto end = endXIndex;
+		while ((end % step != 0) || end < (chartData.x.size() - 1)) {
+			end++;
+		}
+
+		const auto offset = fullWidth * xPercentageLimits.min;
+
+		for (auto i = start; i < end; i += step) {
+			if ((i < 0) || (i >= (chartData.x.size() - 1))) {
+				continue;
+			}
+			const auto xPercentage = (chartData.x[i] - chartData.x.front())
+				/ (chartData.x.back() - chartData.x.front());
+			const auto xPoint = xPercentage * fullWidth - offset;
+			p.setOpacity(resultAlpha);
+			p.drawText(xPoint, y, chartData.getDayString(i));
+		}
+	}
 }
 
 } // namespace
@@ -495,7 +540,7 @@ QRect ChartWidget::chartAreaRect() const {
 			st::lineWidth,
 			st::boxTextFont->height,
 			st::lineWidth,
-			st::lineWidth);
+			st::lineWidth + st::statisticsChartBottomCaptionHeight);
 }
 
 void ChartWidget::setupChartArea() {
@@ -552,7 +597,94 @@ void ChartWidget::setupChartArea() {
 		for (auto &horizontalLine : _horizontalLines) {
 			PaintCaptionsToHorizontalLines(p, horizontalLine, chartRect);
 		}
+
+		PaintBottomLine(
+			p,
+			_bottomLine.dates,
+			_chartData,
+			_animationController.finalXLimits(),
+			_bottomLine.chartFullWidth,
+			rect::bottom(chartRect) + st::statisticsChartBottomCaptionSkip);
 	}, _footer->lifetime());
+}
+
+void ChartWidget::updateBottomDates() {
+	if (!_chartData) {
+		return;
+	}
+	const auto d = _bottomLine.chartFullWidth * _chartData.oneDayPercentage;
+	const auto k = _chartArea->width() / d;
+	const auto tempStep = int(k / 6);
+
+	const auto isCurrentNull = (_bottomLine.current.stepMinFast == 0);
+	if (!isCurrentNull
+		&& (tempStep < _bottomLine.current.stepMax)
+		&& (tempStep > _bottomLine.current.stepMin)) {
+		return;
+	}
+	const auto highestOneBit = [](unsigned int v) {
+		if (!v) {
+			return 0;
+		}
+		auto r = unsigned(1);
+
+		while (v >>= 1) {
+			r *= 2;
+		}
+		return int(r);
+	};
+	const auto step = highestOneBit(tempStep) << 1;
+	if (!isCurrentNull && (_bottomLine.current.step == step)) {
+		return;
+	}
+
+	if (_bottomLine.animation.animating()) {
+		_bottomLine.animation.stop();
+	}
+
+	constexpr auto kStepRatio = 0.2;
+	const auto stepMax = int(step + step * kStepRatio);
+	const auto stepMin = int(step - step * kStepRatio);
+
+	auto data = BottomCaptionLineData{
+		.step = step,
+		.stepMax = stepMax,
+		.stepMin = stepMin,
+		.alpha = 1.,
+	};
+
+	if (isCurrentNull) {
+		_bottomLine.current = data;
+		_bottomLine.dates.push_back(data);
+		return;
+	}
+
+	_bottomLine.current = data;
+
+	for (auto &date : _bottomLine.dates) {
+		date.fixedAlpha = date.alpha;
+	}
+
+	_bottomLine.dates.push_back(data);
+	if (_bottomLine.dates.size() > 2) {
+		_bottomLine.dates.erase(begin(_bottomLine.dates));
+	}
+
+	_bottomLine.animation.start(
+		[=](float64 value) {
+			for (auto &date : _bottomLine.dates) {
+				date.alpha = (1. - value) * date.fixedAlpha;
+			}
+			_bottomLine.dates.back().alpha = value;
+			if (value >= 1.) {
+				_bottomLine.dates.clear();
+				_bottomLine.dates.push_back(data);
+			}
+			_chartArea->update();
+		},
+		0.,
+		1.,
+		200);
 }
 
 void ChartWidget::setupFooter() {
@@ -588,6 +720,12 @@ void ChartWidget::setupFooter() {
 			_chartData,
 			xPercentageLimits,
 			now);
+		{
+			const auto finalXLimits = _animationController.finalXLimits();
+			_bottomLine.chartFullWidth = _chartArea->width()
+				/ (finalXLimits.max - finalXLimits.min);
+		}
+		updateBottomDates();
 		if ((now - _lastHeightLimitsChanged) < kHeightLimitsUpdateTimeout) {
 			return;
 		}

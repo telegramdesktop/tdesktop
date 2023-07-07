@@ -26,6 +26,14 @@ public:
 	void setChartData(Data::StatisticalChart chartData);
 	void addHorizontalLine(Limits newHeight, bool animated);
 
+	struct BottomCaptionLineData final {
+		int step = 0;
+		int stepMax = 0;
+		int stepMin = 0;
+		float64 alpha = 0.;
+		float64 fixedAlpha = 0.;
+	};
+
 private:
 	class Footer;
 
@@ -82,6 +90,8 @@ private:
 	void setupFooter();
 	void setupDetails();
 
+	void updateBottomDates();
+
 	const base::unique_qptr<RpMouseWidget> _chartArea;
 	const std::unique_ptr<Footer> _footer;
 	Data::StatisticalChart _chartData;
@@ -90,6 +100,13 @@ private:
 		base::unique_qptr<PointDetailsWidget> widget;
 		float64 currentX = 0;
 	} _details;
+
+	struct {
+		BottomCaptionLineData current;
+		std::vector<BottomCaptionLineData> dates;
+		Ui::Animations::Simple animation;
+		int chartFullWidth = 0;
+	} _bottomLine;
 
 	bool _useMinHeight = false;
 
