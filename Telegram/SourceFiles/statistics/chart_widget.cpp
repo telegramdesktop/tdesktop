@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/qt/qt_key_modifiers.h"
 #include "statistics/linear_chart_view.h"
+#include "statistics/point_details_widget.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/rect.h"
@@ -19,6 +20,10 @@ namespace Statistic {
 namespace {
 
 constexpr auto kHeightLimitsUpdateTimeout = crl::time(320);
+
+inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
+	return (result - from) / (to - from);
+};
 
 [[nodiscard]] int FindMaxValue(
 		Data::StatisticalChart &chartData,
@@ -424,6 +429,10 @@ Limits ChartWidget::ChartAnimationController::currentXLimits() const {
 	return { _animationValueXMin.current(), _animationValueXMax.current() };
 }
 
+Limits ChartWidget::ChartAnimationController::finalXLimits() const {
+	return { _animationValueXMin.to(), _animationValueXMax.to() };
+}
+
 Limits ChartWidget::ChartAnimationController::currentHeightLimits() const {
 	return {
 		_animationValueHeightMin.current(),
@@ -442,7 +451,7 @@ auto ChartWidget::ChartAnimationController::heightAnimationStarts() const
 
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 : Ui::RpWidget(parent)
-, _chartArea(base::make_unique_q<Ui::RpWidget>(this))
+, _chartArea(base::make_unique_q<RpMouseWidget>(this))
 , _footer(std::make_unique<Footer>(this))
 , _animationController([=] { _chartArea->update(); }) {
 	sizeValue(
@@ -457,21 +466,46 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			0,
 			s.width(),
 			s.height() - st::countryRowHeight * 2);
-	}, _footer->lifetime());
+	}, lifetime());
 
+	setupChartArea();
+	setupFooter();
+
+	resize(width(), st::confirmMaxHeight + st::countryRowHeight * 2);
+}
+
+QRect ChartWidget::chartAreaRect() const {
+	return _chartArea->rect()
+		- QMargins(
+			st::lineWidth,
+			st::boxTextFont->height,
+			st::lineWidth,
+			st::lineWidth);
+}
+
+void ChartWidget::setupChartArea() {
 	_chartArea->paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
 		auto p = QPainter(_chartArea.get());
 
 		_animationController.tick(crl::now(), _horizontalLines);
 
-		const auto chartRect = _chartArea->rect()
-			- QMargins{ 0, st::boxTextFont->height, 0, st::lineWidth };
+		const auto chartRect = chartAreaRect();
 
 		p.fillRect(r, st::boxBg);
 
 		for (auto &horizontalLine : _horizontalLines) {
 			PaintHorizontalLines(p, horizontalLine, chartRect);
+		}
+
+		if (_details.currentX) {
+			const auto lineRect = QRectF(
+				_details.currentX - (st::lineWidth / 2.),
+				0,
+				st::lineWidth,
+				_chartArea->height());
+			p.setOpacity(1.);
+			p.fillRect(lineRect, st::windowSubTextFg);
 		}
 
 		if (_chartData) {
@@ -480,14 +514,17 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 				_chartData,
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
-				chartRect);
+				chartRect,
+				{ _details.widget ? _details.widget->xIndex() : -1, 1. });
 		}
 
 		for (auto &horizontalLine : _horizontalLines) {
 			PaintCaptionsToHorizontalLines(p, horizontalLine, chartRect);
 		}
 	}, _footer->lifetime());
+}
 
+void ChartWidget::setupFooter() {
 	_footer->paintRequest(
 	) | rpl::start_with_next([=, fullXLimits = Limits{ 0., 1. }] {
 		auto p = QPainter(_footer.get());
@@ -499,7 +536,8 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 				_chartData,
 				fullXLimits,
 				_footer->fullHeightLimits(),
-				_footer->rect());
+				_footer->rect(),
+				{});
 		}
 	}, _footer->lifetime());
 
@@ -526,11 +564,64 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		_animationController.resetAlpha();
 		addHorizontalLine(_animationController.finalHeightLimits(), true);
 	}, _footer->lifetime());
-	resize(width(), st::confirmMaxHeight + st::countryRowHeight * 2);
+}
+
+void ChartWidget::setupDetails() {
+	if (!_chartData) {
+		_details = {};
+		_chartArea->update();
+		return;
+	}
+	_details.widget = base::make_unique_q<PointDetailsWidget>(
+		this,
+		_chartData);
+
+	_chartArea->mouseStateChanged(
+	) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
+		switch (state.mouseState) {
+		case QEvent::MouseButtonPress:
+		case QEvent::MouseMove: {
+			const auto chartRect = chartAreaRect();
+			const auto pointerRatio = std::clamp(
+				state.point.x() / float64(chartRect.width()),
+				0.,
+				1.);
+			const auto currentXLimits = _animationController.finalXLimits();
+			const auto rawXPercentage = anim::interpolateF(
+				currentXLimits.min,
+				currentXLimits.max,
+				pointerRatio);
+			const auto nearestXPercentageIt = ranges::lower_bound(
+				_chartData.xPercentage,
+				rawXPercentage);
+			const auto nearestXIndex = std::distance(
+				begin(_chartData.xPercentage),
+				nearestXPercentageIt);
+			_details.currentX = 0
+				+ chartRect.width() * InterpolationRatio(
+					currentXLimits.min,
+					currentXLimits.max,
+					*nearestXPercentageIt);
+			const auto xLeft = _details.currentX
+				- _details.widget->width();
+			const auto x = (xLeft < 0)
+				? (_details.currentX)
+				: xLeft;
+			_details.widget->moveToLeft(x, _chartArea->y());
+			_details.widget->setXIndex(nearestXIndex);
+			_details.widget->show();
+			_chartArea->update();
+		} break;
+		case QEvent::MouseButtonRelease: {
+		} break;
+		}
+	}, _details.widget->lifetime());
 }
 
 void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_chartData = std::move(chartData);
+
+	setupDetails();
 
 	_footer->setFullHeightLimits(FindHeightLimitsBetweenXLimits(
 		_chartData,
@@ -543,6 +634,7 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_animationController.finish();
 	addHorizontalLine(_animationController.finalHeightLimits(), false);
 	_chartArea->update();
+	_footer->update();
 }
 
 void ChartWidget::addHorizontalLine(Limits newHeight, bool animated) {

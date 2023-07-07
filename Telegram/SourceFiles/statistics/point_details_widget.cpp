@@ -37,7 +37,12 @@ PointDetailsWidget::PointDetailsWidget(
 			+ st::statisticsDetailsPopupMargins.bottom());
 }
 
+int PointDetailsWidget::xIndex() const {
+	return _xIndex;
+}
+
 void PointDetailsWidget::setXIndex(int xIndex) {
+	_xIndex = xIndex;
 	_header.setText(_headerStyle, _chartData.getDayString(xIndex));
 
 	_lines.clear();

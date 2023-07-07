@@ -18,6 +18,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		const Data::StatisticalChart &chartData);
 
+	[[nodiscard]] int xIndex() const;
 	void setXIndex(int xIndex);
 
 protected:
@@ -39,6 +40,8 @@ private:
 
 	QRect _innerRect;
 	QRect _textRect;
+
+	int _xIndex = -1;
 
 	std::vector<Line> _lines;
 

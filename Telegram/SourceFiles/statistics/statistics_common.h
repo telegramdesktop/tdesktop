@@ -14,4 +14,10 @@ struct Limits final {
 	float64 max = 0;
 };
 
+// Dot on line charts.
+struct DetailsPaintContext final {
+	int xIndex = -1;
+	float64 progress = 0.;
+};
+
 } // namespace Statistic

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 
 class RpMouseWidget;
+class PointDetailsWidget;
 
 class ChartWidget : public Ui::RpWidget {
 public:
@@ -44,6 +45,7 @@ private:
 			std::vector<ChartHorizontalLinesData> &horizontalLines);
 
 		[[nodiscard]] Limits currentXLimits() const;
+		[[nodiscard]] Limits finalXLimits() const;
 		[[nodiscard]] Limits currentHeightLimits() const;
 		[[nodiscard]] Limits finalHeightLimits() const;
 
@@ -72,9 +74,20 @@ private:
 
 	};
 
-	const base::unique_qptr<Ui::RpWidget> _chartArea;
-	std::unique_ptr<Footer> _footer;
+	[[nodiscard]] QRect chartAreaRect() const;
+
+	void setupChartArea();
+	void setupFooter();
+	void setupDetails();
+
+	const base::unique_qptr<RpMouseWidget> _chartArea;
+	const std::unique_ptr<Footer> _footer;
 	Data::StatisticalChart _chartData;
+
+	struct {
+		base::unique_qptr<PointDetailsWidget> widget;
+		float64 currentX = 0;
+	} _details;
 
 	bool _useMinHeight = false;
 

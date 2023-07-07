@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value_f.h"
+#include "ui/painter.h"
 #include "styles/style_boxes.h"
+#include "styles/style_statistics.h"
 
 namespace Statistic {
 
@@ -19,9 +21,12 @@ void PaintLinearChartView(
 		const Data::StatisticalChart &chartData,
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
-		const QRect &rect) {
+		const QRect &rect,
+		const DetailsPaintContext &detailsPaintContext) {
 	const auto currentMinHeight = rect.y(); //
 	const auto currentMaxHeight = rect.height() + rect.y(); //
+
+	PainterHighQualityEnabler hq(p);
 
 	for (const auto &line : chartData.lines) {
 		const auto additionalP = (chartData.xPercentage.size() < 2)
@@ -31,6 +36,7 @@ void PaintLinearChartView(
 
 		auto first = true;
 		auto chartPath = QPainterPath();
+		auto detailsDotPoint = QPointF();
 
 		const auto startXIndex = chartData.findStartIndex(
 			xPercentageLimits.min);
@@ -53,15 +59,25 @@ void PaintLinearChartView(
 			const auto yPercentage = (line.y[i] - heightLimits.min)
 				/ float64(heightLimits.max - heightLimits.min);
 			const auto yPoint = rect.y() + (1. - yPercentage) * rect.height();
+			if ((i == detailsPaintContext.xIndex)
+				&& detailsPaintContext.progress > 0.) {
+				detailsDotPoint = QPointF(xPoint, yPoint);
+			}
 			if (first) {
 				first = false;
 				chartPath.moveTo(xPoint, yPoint);
 			}
 			chartPath.lineTo(xPoint, yPoint);
 		}
-		p.setPen(line.color);
+		p.setPen(QPen(line.color, st::statisticsChartLineWidth));
 		p.setBrush(Qt::NoBrush);
 		p.drawPath(chartPath);
+
+		if (!detailsDotPoint.isNull()) {
+			p.setBrush(st::boxBg);
+			const auto r = st::statisticsDetailsDotRadius;
+			p.drawEllipse(detailsDotPoint, r, r);
+		}
 	}
 	p.setPen(st::boxTextFg);
 }

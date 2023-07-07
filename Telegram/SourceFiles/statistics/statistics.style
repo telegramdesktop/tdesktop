@@ -14,6 +14,8 @@ statisticsDetailsPopupWidth: 135px;
 statisticsDetailsPopupMargins: margins(8px, 8px, 8px, 8px);
 statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);
 statisticsDetailsPopupMidLineSpace: 8px;
+statisticsDetailsDotRadius: 4px;
+statisticsChartLineWidth: 2px;
 
 statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);

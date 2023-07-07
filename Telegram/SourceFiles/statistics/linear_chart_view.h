@@ -14,12 +14,14 @@ struct StatisticalChart;
 namespace Statistic {
 
 struct Limits;
+struct DetailsPaintContext;
 
 void PaintLinearChartView(
 	QPainter &p,
 	const Data::StatisticalChart &chartData,
 	const Limits &xPercentageLimits,
 	const Limits &heightLimits,
-	const QRect &rect);
+	const QRect &rect,
+	const DetailsPaintContext &detailsPaintContext);
 
 } // namespace Statistic
