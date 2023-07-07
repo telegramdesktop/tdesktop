@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/point_details_widget.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animation_value_f.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
 #include "styles/style_boxes.h"
 
@@ -20,6 +21,7 @@ namespace Statistic {
 namespace {
 
 constexpr auto kHeightLimitsUpdateTimeout = crl::time(320);
+constexpr auto kExpandingDelay = crl::time(100);
 
 inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 	return (result - from) / (to - from);
@@ -341,7 +343,6 @@ void ChartWidget::ChartAnimationController::tick(
 	if (!_animation.animating()) {
 		return;
 	}
-	constexpr auto kExpandingDelay = crl::time(100);
 	constexpr auto kXExpandingDuration = 200.;
 	constexpr auto kAlphaExpandingDuration = 200.;
 
@@ -444,6 +445,20 @@ Limits ChartWidget::ChartAnimationController::finalHeightLimits() const {
 	return _finalHeightLimits;
 }
 
+float64 ChartWidget::ChartAnimationController::detailsProgress(
+		crl::time now) const {
+	return _animation.animating()
+		? std::clamp(
+			(now - _animation.started()) / float64(kExpandingDelay),
+			0.,
+			1.)
+		: 0.;
+}
+
+bool ChartWidget::ChartAnimationController::animating() const {
+	return _animation.animating();
+}
+
 auto ChartWidget::ChartAnimationController::heightAnimationStarts() const
 -> rpl::producer<> {
 	return _heightAnimationStarts.events();
@@ -488,7 +503,9 @@ void ChartWidget::setupChartArea() {
 	) | rpl::start_with_next([=](const QRect &r) {
 		auto p = QPainter(_chartArea.get());
 
-		_animationController.tick(crl::now(), _horizontalLines);
+		const auto now = crl::now();
+
+		_animationController.tick(now, _horizontalLines);
 
 		const auto chartRect = chartAreaRect();
 
@@ -498,14 +515,25 @@ void ChartWidget::setupChartArea() {
 			PaintHorizontalLines(p, horizontalLine, chartRect);
 		}
 
-		if (_details.currentX) {
-			const auto lineRect = QRectF(
-				_details.currentX - (st::lineWidth / 2.),
-				0,
-				st::lineWidth,
-				_chartArea->height());
-			p.setOpacity(1.);
-			p.fillRect(lineRect, st::windowSubTextFg);
+		const auto detailsAlpha = 1.
+			- _animationController.detailsProgress(now);
+
+		if (_details.widget) {
+			if (!detailsAlpha && _details.currentX) {
+				_details.widget->hide();
+				_details.widget->setXIndex(-1);
+				_details.currentX = 0;
+			}
+			if (_details.currentX) {
+				const auto lineRect = QRectF(
+					_details.currentX - (st::lineWidth / 2.),
+					0,
+					st::lineWidth,
+					_chartArea->height());
+				const auto opacity = ScopedPainterOpacity(p, detailsAlpha);
+				p.fillRect(lineRect, st::windowSubTextFg);
+				_details.widget->setAlpha(detailsAlpha);
+			}
 		}
 
 		if (_chartData) {
@@ -515,7 +543,10 @@ void ChartWidget::setupChartArea() {
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
 				chartRect,
-				{ _details.widget ? _details.widget->xIndex() : -1, 1. });
+				{
+					_details.widget ? _details.widget->xIndex() : -1,
+					detailsAlpha,
+				});
 		}
 
 		for (auto &horizontalLine : _horizontalLines) {
@@ -578,6 +609,9 @@ void ChartWidget::setupDetails() {
 
 	_chartArea->mouseStateChanged(
 	) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
+		if (_animationController.animating()) {
+			return;
+		}
 		switch (state.mouseState) {
 		case QEvent::MouseButtonPress:
 		case QEvent::MouseMove: {

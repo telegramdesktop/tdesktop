@@ -20,6 +20,7 @@ public:
 
 	[[nodiscard]] int xIndex() const;
 	void setXIndex(int xIndex);
+	void setAlpha(float64 alpha);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -42,6 +43,7 @@ private:
 	QRect _textRect;
 
 	int _xIndex = -1;
+	float64 _alpha = 1.;
 
 	std::vector<Line> _lines;
 

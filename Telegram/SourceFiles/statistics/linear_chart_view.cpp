@@ -74,6 +74,7 @@ void PaintLinearChartView(
 		p.drawPath(chartPath);
 
 		if (!detailsDotPoint.isNull()) {
+			ScopedPainterOpacity o(p, detailsPaintContext.progress);
 			p.setBrush(st::boxBg);
 			const auto r = st::statisticsDetailsDotRadius;
 			p.drawEllipse(detailsDotPoint, r, r);

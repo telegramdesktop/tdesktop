@@ -43,6 +43,9 @@ int PointDetailsWidget::xIndex() const {
 
 void PointDetailsWidget::setXIndex(int xIndex) {
 	_xIndex = xIndex;
+	if (xIndex < 0) {
+		return;
+	}
 	_header.setText(_headerStyle, _chartData.getDayString(xIndex));
 
 	_lines.clear();
@@ -58,6 +61,11 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 	}
 }
 
+void PointDetailsWidget::setAlpha(float64 alpha) {
+	_alpha = alpha;
+	update();
+}
+
 int PointDetailsWidget::lineYAt(int i) const {
 	return _textRect.y()
 		+ _headerStyle.font->height
@@ -68,6 +76,8 @@ int PointDetailsWidget::lineYAt(int i) const {
 
 void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
+
+	p.setOpacity(_alpha);
 
 	const auto fullRect = rect();
 
