@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_bar.h"
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
@@ -211,7 +212,7 @@ Widget::Widget(
 , _lockUnlock(_searchControls, st::dialogsLock)
 , _scroll(this)
 , _allowStoriesExpandTimer([=] {
-	_scroll->verticalScrollBar()->setMinimum(0);
+	//_scroll->verticalScrollBar()->setMinimum(0);
 })
 , _scrollToTop(_scroll, st::dialogsToUp)
 , _searchTimer([=] { searchMessages(); })
@@ -269,7 +270,9 @@ Widget::Widget(
 	_inner->storiesExpandedRequests(
 	) | rpl::start_with_next([=](bool expanded) {
 		if (expanded || _scroll->scrollTop() < _inner->defaultScrollTop()) {
-			scrollToDefaultChecked(expanded);
+			if (_scroll->scrollTop() > 0) {
+				scrollToDefaultChecked(expanded);
+			}
 		}
 	}, lifetime());
 
@@ -427,6 +430,7 @@ Widget::Widget(
 	setupSupportMode();
 	setupScrollUpButton();
 
+	_scroll->setOverscrollBg(st::dialogsBg->c);
 	if (_layout != Layout::Child) {
 		setupConnectingWidget();
 
@@ -449,7 +453,11 @@ Widget::Widget(
 		}, lifetime());
 
 		_childListShown.changes(
-		) | rpl::start_with_next([=] {
+		) | rpl::start_with_next([=](float64 value) {
+			_scroll->setOverscrollBg(anim::color(
+				st::dialogsBg,
+				st::dialogsBgOver,
+				value));
 			updateControlsGeometry();
 		}, lifetime());
 
@@ -867,7 +875,7 @@ void Widget::changeOpenedSubsection(
 		}
 		oldContentCache = grabForFolderSlideAnimation();
 	}
-	_scroll->verticalScrollBar()->setMinimum(0);
+	//_scroll->verticalScrollBar()->setMinimum(0);
 	_showAnimation = nullptr;
 	destroyChildListCanvas();
 	change();
@@ -1143,7 +1151,7 @@ void Widget::jumpToTop(bool belowPinned) {
 
 void Widget::scrollToDefault(bool verytop) {
 	if (verytop) {
-		_scroll->verticalScrollBar()->setMinimum(0);
+		//_scroll->verticalScrollBar()->setMinimum(0);
 	}
 	_scrollToAnimation.stop();
 	auto scrollTop = _scroll->scrollTop();
@@ -2397,28 +2405,28 @@ bool Widget::customWheelProcess(not_null<QWheelEvent*> e) {
 void Widget::customScrollProcess(Qt::ScrollPhase phase) {
 	const auto now = _scroll->scrollTop();
 	const auto def = _inner->defaultScrollTop();
-	const auto bar = _scroll->verticalScrollBar();
+	//const auto bar = _scroll->verticalScrollBar();
 	if (phase == Qt::ScrollBegin || phase == Qt::ScrollUpdate) {
 		_allowStoriesExpandTimer.cancel();
 		_inner->setTouchScrollActive(true);
-		bar->setMinimum(0);
+		//bar->setMinimum(0);
 	} else if (phase == Qt::ScrollEnd || phase == Qt::ScrollMomentum) {
 		_allowStoriesExpandTimer.cancel();
 		_inner->setTouchScrollActive(false);
 		if (def > 0 && now >= def) {
-			bar->setMinimum(def);
+			//bar->setMinimum(def);
 		} else {
-			bar->setMinimum(0);
+			//bar->setMinimum(0);
 		}
 	} else {
 		const auto allow = (def <= 0)
 			|| (now < def)
 			|| (now == def && !_allowStoriesExpandTimer.isActive());
 		if (allow) {
-			_scroll->verticalScrollBar()->setMinimum(0);
+			//_scroll->verticalScrollBar()->setMinimum(0);
 			_allowStoriesExpandTimer.cancel();
 		} else {
-			bar->setMinimum(def);
+			//bar->setMinimum(def);
 			_allowStoriesExpandTimer.callOnce(kWaitTillAllowStoriesExpand);
 		}
 	}

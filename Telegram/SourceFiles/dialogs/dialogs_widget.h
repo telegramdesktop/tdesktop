@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/scroll_area.h"
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
@@ -46,6 +45,7 @@ class GroupCallBar;
 class RequestsBar;
 class MoreChatsBar;
 class JumpDownButton;
+class ElasticScroll;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
@@ -247,7 +247,7 @@ private:
 	std::unique_ptr<Ui::RequestsBar> _forumRequestsBar;
 	std::unique_ptr<HistoryView::ContactStatus> _forumReportBar;
 
-	object_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::ElasticScroll> _scroll;
 	base::Timer _allowStoriesExpandTimer;
 	QPointer<InnerWidget> _inner;
 	class BottomButton;
