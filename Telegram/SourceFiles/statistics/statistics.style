@@ -20,6 +20,8 @@ statisticsChartLineWidth: 2px;
 statisticsChartBottomCaptionHeight: 30px;
 statisticsChartBottomCaptionSkip: 15px;
 
+statisticsChartBottomCaptionMaxWidth: 44px;
+
 statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }

@@ -113,6 +113,7 @@ private:
 		BottomCaptionLineData current;
 		std::vector<BottomCaptionLineData> dates;
 		int chartFullWidth = 0;
+		int captionIndicesOffset = 0;
 	} _bottomLine;
 
 	bool _useMinHeight = false;

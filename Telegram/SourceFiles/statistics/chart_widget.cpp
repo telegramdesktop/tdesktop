@@ -102,7 +102,9 @@ void PaintBottomLine(
 		Data::StatisticalChart &chartData,
 		const Limits &xPercentageLimits,
 		int fullWidth,
-		int y) {
+		int chartWidth,
+		int y,
+		int captionIndicesOffset) {
 	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
 
 	const auto startXIndex = chartData.findStartIndex(
@@ -111,21 +113,26 @@ void PaintBottomLine(
 		startXIndex,
 		xPercentageLimits.max);
 
+	const auto edgeAlphaSize = st::statisticsChartBottomCaptionMaxWidth / 4.;
+
 	for (auto k = 0; k < dates.size(); k++) {
 		const auto &date = dates[k];
 		const auto isLast = (k == dates.size() - 1);
 		const auto resultAlpha = date.alpha;
 		const auto step = std::max(date.step, 1);
 
-		auto start = startXIndex;
+		auto start = startXIndex - captionIndicesOffset;
 		while (start % step != 0) {
 			start--;
 		}
 
-		auto end = endXIndex;
+		auto end = endXIndex - captionIndicesOffset;
 		while ((end % step != 0) || end < (chartData.x.size() - 1)) {
 			end++;
 		}
+
+		start += captionIndicesOffset;
+		end += captionIndicesOffset;
 
 		const auto offset = fullWidth * xPercentageLimits.min;
 
@@ -141,10 +148,25 @@ void PaintBottomLine(
 				continue;
 			}
 			const auto xPercentage = (chartData.x[i] - chartData.x.front())
-				/ (chartData.x.back() - chartData.x.front());
+				/ float64(chartData.x.back() - chartData.x.front());
 			const auto xPoint = xPercentage * fullWidth - offset;
-			p.setOpacity(hasFastAlpha ? fastAlpha : resultAlpha);
-			p.drawText(xPoint, y, chartData.getDayString(i));
+			const auto r = QRectF(
+				xPoint - st::statisticsChartBottomCaptionMaxWidth / 2.,
+				y,
+				st::statisticsChartBottomCaptionMaxWidth,
+				st::statisticsChartBottomCaptionSkip);
+			const auto edgeAlpha = (r.x() < 0)
+				? std::max(
+					0.,
+					1. + (r.x() / edgeAlphaSize))
+				: (rect::right(r) > chartWidth)
+				? std::max(
+					0.,
+					1. + ((chartWidth - rect::right(r)) / edgeAlphaSize))
+				: 1.;
+			p.setOpacity(edgeAlpha
+				* (hasFastAlpha ? fastAlpha : resultAlpha));
+			p.drawText(r, chartData.getDayString(i), style::al_center);
 		}
 	}
 }
@@ -647,7 +669,9 @@ void ChartWidget::setupChartArea() {
 			_chartData,
 			_animationController.finalXLimits(),
 			_bottomLine.chartFullWidth,
-			rect::bottom(chartRect) + st::statisticsChartBottomCaptionSkip);
+			_chartArea->width(),
+			rect::bottom(chartRect),
+			_bottomLine.captionIndicesOffset);
 	}, _footer->lifetime());
 }
 
@@ -658,6 +682,10 @@ void ChartWidget::updateBottomDates() {
 	const auto d = _bottomLine.chartFullWidth * _chartData.oneDayPercentage;
 	const auto k = _chartArea->width() / d;
 	const auto stepRaw = int(k / 6);
+
+	_bottomLine.captionIndicesOffset = 0
+		+ st::statisticsChartBottomCaptionMaxWidth
+			/ int(_chartArea->width() / float64(_chartData.x.size()));
 
 	const auto isCurrentNull = (_bottomLine.current.stepMinFast == 0);
 	if (!isCurrentNull
@@ -832,6 +860,12 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 		_chartData,
 		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() },
 		0);
+	{
+		const auto finalXLimits = _animationController.finalXLimits();
+		_bottomLine.chartFullWidth = _chartArea->width()
+			/ (finalXLimits.max - finalXLimits.min);
+	}
+	updateBottomDates();
 	_animationController.finish();
 	addHorizontalLine(_animationController.finalHeightLimits(), false);
 	_chartArea->update();
