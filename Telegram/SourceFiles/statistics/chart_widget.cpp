@@ -77,7 +77,7 @@ void PaintHorizontalLines(
 			r.y() + r.height() * line.relativeValue,
 			r.x() + r.width(),
 			st::lineWidth);
-		p.fillRect(lineRect, st::boxTextFg);
+		p.fillRect(lineRect, st::windowSubTextFg);
 	}
 	p.setOpacity(alpha);
 }
@@ -88,10 +88,11 @@ void PaintCaptionsToHorizontalLines(
 		const QRect &r) {
 	const auto alpha = p.opacity();
 	p.setOpacity(horizontalLine.alpha);
-	p.setFont(st::boxTextFont->f);
-	p.setPen(st::boxTextFg);
+	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
+	p.setPen(st::windowSubTextFg);
+	const auto offset = r.y() - st::statisticsChartHorizontalLineCaptionSkip;
 	for (const auto &line : horizontalLine.lines) {
-		p.drawText(10, r.y() + r.height() * line.relativeValue, line.caption);
+		p.drawText(0, offset + r.height() * line.relativeValue, line.caption);
 	}
 	p.setOpacity(alpha);
 }
@@ -670,7 +671,7 @@ void ChartWidget::setupChartArea() {
 			p.fillRect(bottom, st::boxBg);
 			p.fillRect(
 				QRect(bottom.x(), bottom.y(), bottom.width(), st::lineWidth),
-				st::boxTextFg);
+				st::windowSubTextFg);
 		}
 		{
 			auto o = ScopedPainterOpacity(p, detailsAlpha);
@@ -683,7 +684,7 @@ void ChartWidget::setupChartArea() {
 			}
 		}
 
-		p.setPen(st::boxTextFg);
+		p.setPen(st::windowSubTextFg);
 		PaintBottomLine(
 			p,
 			_bottomLine.dates,
