@@ -17,7 +17,12 @@ struct Limits final {
 // Dot on line charts.
 struct DetailsPaintContext final {
 	int xIndex = -1;
-	float64 progress = 0.;
+
+	struct Dot {
+		QPointF point;
+		QColor color;
+	};
+	std::vector<Dot> dots;
 };
 
 } // namespace Statistic

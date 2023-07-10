@@ -22,7 +22,7 @@ void PaintLinearChartView(
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		const DetailsPaintContext &detailsPaintContext) {
+		DetailsPaintContext &detailsPaintContext) {
 	const auto currentMinHeight = rect.y(); //
 	const auto currentMaxHeight = rect.height() + rect.y(); //
 
@@ -36,7 +36,6 @@ void PaintLinearChartView(
 
 		auto first = true;
 		auto chartPath = QPainterPath();
-		auto detailsDotPoint = QPointF();
 
 		const auto startXIndex = chartData.findStartIndex(
 			xPercentageLimits.min);
@@ -59,9 +58,11 @@ void PaintLinearChartView(
 			const auto yPercentage = (line.y[i] - heightLimits.min)
 				/ float64(heightLimits.max - heightLimits.min);
 			const auto yPoint = rect.y() + (1. - yPercentage) * rect.height();
-			if ((i == detailsPaintContext.xIndex)
-				&& detailsPaintContext.progress > 0.) {
-				detailsDotPoint = QPointF(xPoint, yPoint);
+			if (i == detailsPaintContext.xIndex) {
+				detailsPaintContext.dots.push_back({
+					QPointF(xPoint, yPoint),
+					line.color,
+				});
 			}
 			if (first) {
 				first = false;
@@ -72,13 +73,6 @@ void PaintLinearChartView(
 		p.setPen(QPen(line.color, st::statisticsChartLineWidth));
 		p.setBrush(Qt::NoBrush);
 		p.drawPath(chartPath);
-
-		if (!detailsDotPoint.isNull()) {
-			ScopedPainterOpacity o(p, detailsPaintContext.progress);
-			p.setBrush(st::boxBg);
-			const auto r = st::statisticsDetailsDotRadius;
-			p.drawEllipse(detailsDotPoint, r, r);
-		}
 	}
 	p.setPen(st::boxTextFg);
 }

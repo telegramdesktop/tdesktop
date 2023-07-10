@@ -646,6 +646,11 @@ void ChartWidget::setupChartArea() {
 			}
 		}
 
+		auto detailsPaintContext = DetailsPaintContext{
+			.xIndex = (_details.widget && (detailsAlpha > 0.))
+				? _details.widget->xIndex()
+				: -1,
+		};
 		if (_chartData) {
 			Statistic::PaintLinearChartView(
 				p,
@@ -653,16 +658,25 @@ void ChartWidget::setupChartArea() {
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
 				chartRect,
-				{
-					_details.widget ? _details.widget->xIndex() : -1,
-					detailsAlpha,
-				});
+				detailsPaintContext);
 		}
 
 		for (auto &horizontalLine : _horizontalLines) {
 			PaintCaptionsToHorizontalLines(p, horizontalLine, chartRect);
 		}
 
+		{
+			auto o = ScopedPainterOpacity(p, detailsAlpha);
+			for (const auto &dot : detailsPaintContext.dots) {
+				p.setBrush(st::boxBg);
+				p.setPen(QPen(dot.color, st::statisticsChartLineWidth));
+				const auto r = st::statisticsDetailsDotRadius;
+				auto hq = PainterHighQualityEnabler(p);
+				p.drawEllipse(dot.point, r, r);
+			}
+		}
+
+		p.setPen(st::boxTextFg);
 		PaintBottomLine(
 			p,
 			_bottomLine.dates,
@@ -750,6 +764,7 @@ void ChartWidget::setupFooter() {
 		auto p = QPainter(_footer.get());
 
 		if (_chartData) {
+			auto detailsPaintContext = DetailsPaintContext{ .xIndex = -1 };
 			p.fillRect(_footer->rect(), st::boxBg);
 			Statistic::PaintLinearChartView(
 				p,
@@ -757,7 +772,7 @@ void ChartWidget::setupFooter() {
 				fullXLimits,
 				_footer->fullHeightLimits(),
 				_footer->rect(),
-				{});
+				detailsPaintContext);
 		}
 	}, _footer->lifetime());
 

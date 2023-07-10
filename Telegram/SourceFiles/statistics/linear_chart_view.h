@@ -22,6 +22,6 @@ void PaintLinearChartView(
 	const Limits &xPercentageLimits,
 	const Limits &heightLimits,
 	const QRect &rect,
-	const DetailsPaintContext &detailsPaintContext);
+	DetailsPaintContext &detailsPaintContext);
 
 } // namespace Statistic
