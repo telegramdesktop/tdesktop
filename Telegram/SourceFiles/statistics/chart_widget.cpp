@@ -664,7 +664,14 @@ void ChartWidget::setupChartArea() {
 		for (auto &horizontalLine : _horizontalLines) {
 			PaintCaptionsToHorizontalLines(p, horizontalLine, chartRect);
 		}
-
+		{
+			const auto bottom = r
+				- QMargins{ 0, rect::bottom(chartRect), 0, 0 };
+			p.fillRect(bottom, st::boxBg);
+			p.fillRect(
+				QRect(bottom.x(), bottom.y(), bottom.width(), st::lineWidth),
+				st::boxTextFg);
+		}
 		{
 			auto o = ScopedPainterOpacity(p, detailsAlpha);
 			for (const auto &dot : detailsPaintContext.dots) {
