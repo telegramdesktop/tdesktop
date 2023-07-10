@@ -382,9 +382,16 @@ void ChartWidget::ChartAnimationController::resetAlpha() {
 	_animValueYAlpha = anim::value(0., 1.);
 }
 
+void ChartWidget::ChartAnimationController::restartBottomLineAlpha() {
+	_bottomLineAlphaAnimationStartedAt = crl::now();
+	_animValueBottomLineAlpha = anim::value(0., 1.);
+	start();
+}
+
 void ChartWidget::ChartAnimationController::tick(
 		crl::time now,
-		std::vector<ChartHorizontalLinesData> &horizontalLines) {
+		std::vector<ChartHorizontalLinesData> &horizontalLines,
+		std::vector<BottomCaptionLineData> &dateLines) {
 	if (!_animation.animating()) {
 		return;
 	}
@@ -409,6 +416,9 @@ void ChartWidget::ChartAnimationController::tick(
 	const auto dtAlpha = std::min(
 		(now - _alphaAnimationStartedAt) / kAlphaExpandingDuration,
 		1.);
+	const auto dtBottomLineAlpha = std::min(
+		(now - _bottomLineAlphaAnimationStartedAt) / kAlphaExpandingDuration,
+		1.);
 
 	const auto isFinished = [](const anim::value &anim) {
 		return anim.current() == anim.to();
@@ -419,8 +429,10 @@ void ChartWidget::ChartAnimationController::tick(
 	const auto yFinished = isFinished(_animationValueHeightMin)
 		&& isFinished(_animationValueHeightMax);
 	const auto alphaFinished = isFinished(_animValueYAlpha);
+	const auto bottomLineAlphaFinished = isFinished(
+		_animValueBottomLineAlpha);
 
-	if (xFinished && yFinished && alphaFinished) {
+	if (xFinished && yFinished && alphaFinished && bottomLineAlphaFinished) {
 		const auto &lines = horizontalLines.back().lines;
 		if ((lines.front().absoluteValue == _animationValueHeightMin.to())
 			&& lines.back().absoluteValue == _animationValueHeightMax.to()) {
@@ -433,6 +445,14 @@ void ChartWidget::ChartAnimationController::tick(
 	} else {
 		_animationValueXMin.update(dtX, anim::linear);
 		_animationValueXMax.update(dtX, anim::linear);
+	}
+	if (bottomLineAlphaFinished) {
+		_animValueBottomLineAlpha.finish();
+		_bottomLineAlphaAnimationStartedAt = 0;
+	} else {
+		_animValueBottomLineAlpha.update(
+			dtBottomLineAlpha,
+			anim::easeInCubic);
 	}
 	if (_heightAnimationStarted) {
 		_animationValueHeightMin.update(_dtCurrent.min, anim::easeInCubic);
@@ -462,6 +482,20 @@ void ChartWidget::ChartAnimationController::tick(
 					break;
 				}
 			}
+		}
+	}
+
+	if (!bottomLineAlphaFinished) {
+		const auto value = _animValueBottomLineAlpha.current();
+		for (auto &date : dateLines) {
+			date.alpha = (1. - value) * date.fixedAlpha;
+		}
+		dateLines.back().alpha = value;
+	} else {
+		if (dateLines.size() > 1) {
+			const auto data = dateLines.back();
+			dateLines.clear();
+			dateLines.push_back(data);
 		}
 	}
 
@@ -550,7 +584,7 @@ void ChartWidget::setupChartArea() {
 
 		const auto now = crl::now();
 
-		_animationController.tick(now, _horizontalLines);
+		_animationController.tick(now, _horizontalLines, _bottomLine.dates);
 
 		const auto chartRect = chartAreaRect();
 
@@ -638,10 +672,6 @@ void ChartWidget::updateBottomDates() {
 		return;
 	}
 
-	if (_bottomLine.animation.animating()) {
-		_bottomLine.animation.stop();
-	}
-
 	constexpr auto kStepRatio = 0.2;
 	const auto stepMax = int(step + step * kStepRatio);
 	const auto stepMin = int(step - step * kStepRatio);
@@ -670,21 +700,7 @@ void ChartWidget::updateBottomDates() {
 		_bottomLine.dates.erase(begin(_bottomLine.dates));
 	}
 
-	_bottomLine.animation.start(
-		[=](float64 value) {
-			for (auto &date : _bottomLine.dates) {
-				date.alpha = (1. - value) * date.fixedAlpha;
-			}
-			_bottomLine.dates.back().alpha = value;
-			if (value >= 1.) {
-				_bottomLine.dates.clear();
-				_bottomLine.dates.push_back(data);
-			}
-			_chartArea->update();
-		},
-		0.,
-		1.,
-		200);
+	_animationController.restartBottomLineAlpha();
 }
 
 void ChartWidget::setupFooter() {

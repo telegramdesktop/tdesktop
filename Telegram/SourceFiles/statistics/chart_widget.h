@@ -48,9 +48,11 @@ private:
 		void start();
 		void finish();
 		void resetAlpha();
+		void restartBottomLineAlpha();
 		void tick(
 			crl::time now,
-			std::vector<ChartHorizontalLinesData> &horizontalLines);
+			std::vector<ChartHorizontalLinesData> &horizontalLines,
+			std::vector<BottomCaptionLineData> &dateLines);
 
 		[[nodiscard]] Limits currentXLimits() const;
 		[[nodiscard]] Limits finalXLimits() const;
@@ -66,6 +68,7 @@ private:
 
 		crl::time _lastUserInteracted = 0;
 		crl::time _alphaAnimationStartedAt = 0;
+		crl::time _bottomLineAlphaAnimationStartedAt = 0;
 		bool _heightAnimationStarted = false;
 
 		anim::value _animationValueXMin;
@@ -74,6 +77,8 @@ private:
 		anim::value _animationValueHeightMax;
 
 		anim::value _animValueYAlpha;
+
+		anim::value _animValueBottomLineAlpha;
 
 		Limits _finalHeightLimits;
 
@@ -104,7 +109,6 @@ private:
 	struct {
 		BottomCaptionLineData current;
 		std::vector<BottomCaptionLineData> dates;
-		Ui::Animations::Simple animation;
 		int chartFullWidth = 0;
 	} _bottomLine;
 
