@@ -227,6 +227,7 @@ Widget::Widget(
 			_childListPeerId.value(),
 			_childListShown.value(),
 			makeChildListShown)));
+	_scrollToTop->raise();
 
 	_inner->updated(
 	) | rpl::start_with_next([=] {
