@@ -23,3 +23,6 @@ statisticsChartBottomCaptionSkip: 15px;
 statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
+statisticsDetailsBottomCaptionStyle: TextStyle(defaultTextStyle) {
+	font: font(10px);
+}

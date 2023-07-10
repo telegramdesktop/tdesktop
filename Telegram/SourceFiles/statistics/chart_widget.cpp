@@ -103,7 +103,7 @@ void PaintBottomLine(
 		const Limits &xPercentageLimits,
 		int fullWidth,
 		int y) {
-	p.setFont(st::statisticsDetailsPopupStyle.font);
+	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
 
 	const auto startXIndex = chartData.findStartIndex(
 		xPercentageLimits.min);
@@ -111,7 +111,9 @@ void PaintBottomLine(
 		startXIndex,
 		xPercentageLimits.max);
 
-	for (const auto &date : dates) {
+	for (auto k = 0; k < dates.size(); k++) {
+		const auto &date = dates[k];
+		const auto isLast = (k == dates.size() - 1);
 		const auto resultAlpha = date.alpha;
 		const auto step = std::max(date.step, 1);
 
@@ -127,6 +129,13 @@ void PaintBottomLine(
 
 		const auto offset = fullWidth * xPercentageLimits.min;
 
+		// 30 ms / 200 ms = 0.15.
+		constexpr auto kFastAlphaSpeed = 0.85;
+		const auto hasFastAlpha = (date.stepRaw < dates.back().stepMinFast);
+		const auto fastAlpha = isLast
+			? 1.
+			: std::max(resultAlpha - kFastAlphaSpeed, 0.);
+
 		for (auto i = start; i < end; i += step) {
 			if ((i < 0) || (i >= (chartData.x.size() - 1))) {
 				continue;
@@ -134,7 +143,7 @@ void PaintBottomLine(
 			const auto xPercentage = (chartData.x[i] - chartData.x.front())
 				/ (chartData.x.back() - chartData.x.front());
 			const auto xPoint = xPercentage * fullWidth - offset;
-			p.setOpacity(resultAlpha);
+			p.setOpacity(hasFastAlpha ? fastAlpha : resultAlpha);
 			p.drawText(xPoint, y, chartData.getDayString(i));
 		}
 	}
@@ -648,12 +657,12 @@ void ChartWidget::updateBottomDates() {
 	}
 	const auto d = _bottomLine.chartFullWidth * _chartData.oneDayPercentage;
 	const auto k = _chartArea->width() / d;
-	const auto tempStep = int(k / 6);
+	const auto stepRaw = int(k / 6);
 
 	const auto isCurrentNull = (_bottomLine.current.stepMinFast == 0);
 	if (!isCurrentNull
-		&& (tempStep < _bottomLine.current.stepMax)
-		&& (tempStep > _bottomLine.current.stepMin)) {
+		&& (stepRaw < _bottomLine.current.stepMax)
+		&& (stepRaw > _bottomLine.current.stepMin)) {
 		return;
 	}
 	const auto highestOneBit = [](unsigned int v) {
@@ -667,19 +676,23 @@ void ChartWidget::updateBottomDates() {
 		}
 		return int(r);
 	};
-	const auto step = highestOneBit(tempStep) << 1;
+	const auto step = highestOneBit(stepRaw) << 1;
 	if (!isCurrentNull && (_bottomLine.current.step == step)) {
 		return;
 	}
 
-	constexpr auto kStepRatio = 0.2;
+	constexpr auto kStepRatio = 0.1;
+	constexpr auto kFastStepOffset = 4;
 	const auto stepMax = int(step + step * kStepRatio);
 	const auto stepMin = int(step - step * kStepRatio);
+	const auto stepMinFast = stepMin - kFastStepOffset;
 
 	auto data = BottomCaptionLineData{
 		.step = step,
 		.stepMax = stepMax,
 		.stepMin = stepMin,
+		.stepMinFast = stepMinFast,
+		.stepRaw = stepRaw,
 		.alpha = 1.,
 	};
 

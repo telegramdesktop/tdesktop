@@ -30,6 +30,9 @@ public:
 		int step = 0;
 		int stepMax = 0;
 		int stepMin = 0;
+		int stepMinFast = 0;
+		int stepRaw = 0;
+
 		float64 alpha = 0.;
 		float64 fixedAlpha = 0.;
 	};
