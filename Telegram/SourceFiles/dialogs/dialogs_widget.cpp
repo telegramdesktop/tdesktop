@@ -852,6 +852,10 @@ void Widget::setupStories() {
 				0);
 		}
 	}, lifetime());
+
+	_stories->emptyValue() | rpl::skip(1) | rpl::start_with_next([=] {
+		updateStoriesVisibility();
+	}, lifetime());
 }
 
 void Widget::storiesToggleExplicitExpand(bool expand) {
@@ -1363,7 +1367,8 @@ void Widget::updateStoriesVisibility() {
 		|| !_widthAnimationCache.isNull()
 		|| _childList
 		|| !_filter->getLastText().isEmpty()
-		|| _searchInChat;
+		|| _searchInChat
+		|| _stories->empty();
 	if (_stories->isHidden() != hidden) {
 		_stories->setVisible(!hidden);
 		using Type = Ui::ElasticScroll::OverscrollType;
