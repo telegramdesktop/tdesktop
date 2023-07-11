@@ -761,7 +761,6 @@ void List::updateSelected() {
 		return;
 	}
 	const auto &st = _st.small;
-	const auto &full = _st.full;
 	const auto p = mapFromGlobal(_lastMousePosition);
 	const auto layout = computeLayout();
 	const auto firstRightFull = layout.leftFull

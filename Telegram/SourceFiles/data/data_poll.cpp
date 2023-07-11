@@ -132,9 +132,6 @@ bool PollData::applyResults(const MTPPollResults &results) {
 			}
 		}
 		if (const auto recent = results.vrecent_voters()) {
-			const auto bareProj = [](not_null<UserData*> user) {
-				return peerToUser(user->id).bare;
-			};
 			const auto recentChanged = !ranges::equal(
 				recentVoters,
 				recent->v,

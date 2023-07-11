@@ -673,7 +673,6 @@ void OverlayWidget::showSaveMsgToastWith(
 		+ st::mediaviewSaveMsgPadding.top()
 		+ st::mediaviewSaveMsgPadding.bottom();
 	_saveMsg = QRect((width() - w) / 2, (height() - h) / 2, w, h);
-	const auto toIn = 1.;
 	const auto callback = [=](float64 value) {
 		updateSaveMsg();
 		if (!_saveMsgAnimation.animating()) {

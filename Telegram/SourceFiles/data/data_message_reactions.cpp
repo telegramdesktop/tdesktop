@@ -1194,7 +1194,6 @@ bool MessageReactions::change(
 			}
 		}
 	}
-	const auto selfId = owner.session().userPeerId();
 	auto parsed = base::flat_map<ReactionId, std::vector<RecentReaction>>();
 	for (const auto &reaction : recent) {
 		reaction.match([&](const MTPDmessagePeerReaction &data) {

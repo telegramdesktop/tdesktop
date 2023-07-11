@@ -623,7 +623,6 @@ StoriesSlice ParseStoriesSlice(
 		++result.skipped;
 		story.match([&](const MTPDstoryItem &data) {
 			const auto date = data.vdate().v;
-			const auto expires = data.vexpire_date().v;
 			auto media = Media();
 			data.vmedia().match([&](const MTPDmessageMediaPhoto &data) {
 				const auto suggestedPath = "stories/"

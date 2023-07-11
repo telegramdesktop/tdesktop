@@ -454,7 +454,6 @@ void Controller::initLayout() {
 		const auto nameBoundingRect = [&](QRect geometry, bool left) {
 			const auto skipSmall = nameFontSize;
 			const auto skipBig = skipSmall - std::min(xLeft, 0);
-			const auto top = userpic(geometry).y() + innerHeight;
 			return QRect(
 				left ? skipBig : skipSmall,
 				(geometry.height() - innerHeight) / 2,

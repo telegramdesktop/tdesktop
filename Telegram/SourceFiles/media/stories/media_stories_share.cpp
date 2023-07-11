@@ -105,12 +105,8 @@ namespace Media::Stories {
 			return;
 		}
 
-		const auto generateRandom = [&] {
-			return base::RandomValue<MTPlong>();
-		};
 		const auto api = &story->owner().session().api();
 		auto &histories = story->owner().histories();
-		const auto requestType = Data::Histories::RequestType::Send;
 		for (const auto thread : result) {
 			const auto action = Api::SendAction(thread, options);
 			if (!comment.text.isEmpty()) {
@@ -119,11 +115,6 @@ namespace Media::Stories {
 				message.action.clearDraft = false;
 				api->sendMessage(std::move(message));
 			}
-			const auto topicRootId = thread->topicRootId();
-			const auto kGeneralId = Data::ForumTopic::kGeneralId;
-			const auto topMsgId = (topicRootId == kGeneralId)
-				? MsgId(0)
-				: topicRootId;
 			const auto peer = thread->peer();
 			const auto threadHistory = thread->owningHistory();
 			const auto randomId = base::RandomValue<uint64>();
@@ -131,7 +122,6 @@ namespace Media::Stories {
 			if (action.replyTo) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 			}
-			const auto anonymousPost = peer->amAnonymous();
 			const auto silentPost = ShouldSendSilent(peer, action.options);
 			if (silentPost) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;

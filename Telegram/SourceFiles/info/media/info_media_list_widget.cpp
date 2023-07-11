@@ -1219,7 +1219,6 @@ void ListWidget::toggleStoryPin(
 			confirmed();
 		}
 	};
-	const auto session = &_controller->session();
 	const auto onePhrase = pin
 		? tr::lng_stories_save_sure
 		: tr::lng_stories_archive_sure;

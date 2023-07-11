@@ -273,7 +273,6 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 	const auto &data = stories.data();
 	const auto peerId = peerFromUser(data.vuser_id());
 	const auto readTill = data.vmax_read_id().value_or_empty();
-	const auto count = int(data.vstories().v.size());
 	const auto user = _owner->peer(peerId)->asUser();
 	auto result = StoriesSource{
 		.user = user,
@@ -355,7 +354,6 @@ Story *Stories::parseAndApply(
 	if (i != end(stories)) {
 		const auto result = i->second.get();
 		const auto mediaChanged = (result->media() != *media);
-		const auto pinned = result->pinned();
 		result->applyChanges(*media, data, now);
 		const auto j = _pollingSettings.find(result);
 		if (j != end(_pollingSettings)) {
@@ -577,7 +575,7 @@ void Stories::sendResolveRequests() {
 			finish(peerId);
 			continue;
 		}
-		const auto requestId = api->request(MTPstories_GetStoriesByID(
+		api->request(MTPstories_GetStoriesByID(
 			user->inputUser,
 			MTP_vector<MTPint>(prepared)
 		)).done([=](const MTPstories_Stories &result) {
@@ -1083,7 +1081,6 @@ void Stories::sendIncrementViewsRequests() {
 		return;
 	}
 	auto ids = QVector<MTPint>();
-	auto peer = PeerId();
 	struct Prepared {
 		PeerId peer = 0;
 		QVector<MTPint> ids;
@@ -1141,7 +1138,7 @@ void Stories::loadViewsSlice(
 		MTP_int(id),
 		MTP_int(offset ? offset->date : 0),
 		MTP_long(offset ? peerToUser(offset->peer->id).bare : 0),
-		MTP_int(kViewsPerPage)
+		MTP_int(perPage)
 	)).done([=](const MTPstories_StoryViewsList &result) {
 		_viewsRequestId = 0;
 
@@ -1595,7 +1592,6 @@ void Stories::sendPollingViewsRequests() {
 		return;
 	} else if (!_viewsRequestId) {
 		Assert(_viewsDone == nullptr);
-		const auto one = _pollingViews.front();
 		loadViewsSlice(_pollingViews.front()->id(), std::nullopt, nullptr);
 	}
 	_pollingViewsTimer.callOnce(kPollViewsInterval);

@@ -131,7 +131,6 @@ void Reactions::create() {
 		}
 	}, _parent->lifetime());
 
-	const auto withSearch = reactions.customAllowed;
 	_selector = std::make_unique<HistoryView::Reactions::Selector>(
 		_parent.get(),
 		st::storiesReactionsPan,

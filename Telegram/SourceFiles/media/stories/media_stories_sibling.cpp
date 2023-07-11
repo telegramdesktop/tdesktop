@@ -252,7 +252,6 @@ void Sibling::checkStory() {
 		return;
 	}
 	const auto story = *maybeStory;
-	const auto &data = story->media().data;
 	const auto origin = Data::FileOrigin();
 	v::match(story->media().data, [&](not_null<PhotoData*> photo) {
 		_loader = std::make_unique<LoaderPhoto>(photo, origin, [=] {

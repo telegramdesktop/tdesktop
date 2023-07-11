@@ -104,7 +104,6 @@ bool StoryPreload::LoadTask::feedPart(
 	Expects(bytes.size() <= Storage::kDownloadPartSize);
 
 	const auto part = Storage::kDownloadPartSize;
-	const auto index = offset / part;
 	_requestedOffsets.remove(int(offset));
 	_parts[offset] = bytes;
 	if ((_nextRequestOffset + part >= _parts.size() * part)

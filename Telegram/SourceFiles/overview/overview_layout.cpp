@@ -517,7 +517,6 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	if ((blurred || thumbnail || good)
 		&& ((_pix.width() != _width * cIntRetinaFactor())
 			|| (_pixBlurred && (thumbnail || good)))) {
-		auto size = _width * cIntRetinaFactor();
 		auto img = good
 			? good->original()
 			: thumbnail
