@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/round_rect.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/image/image_prepare.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_statistics.h"
 
@@ -232,6 +236,11 @@ public:
 	void setFullHeightLimits(Limits limits);
 	[[nodiscard]] const Limits &fullHeightLimits() const;
 
+	void setPaintChartCallback(Fn<void(QPainter &p)> paintChartCallback);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
 private:
 	not_null<RpMouseWidget*> _left;
 	not_null<RpMouseWidget*> _right;
@@ -246,16 +255,25 @@ private:
 		int right = 0;
 	} _limits;
 
+	Fn<void(QPainter &p)> _paintChartCallback;
+	const std::array<QImage, 4> _corners;
+
+	QImage _frame;
+	QImage _mask;
+
 };
 
 ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 : Ui::AbstractButton(parent)
 , _left(Ui::CreateChild<RpMouseWidget>(this))
-, _right(Ui::CreateChild<RpMouseWidget>(this)) {
+, _right(Ui::CreateChild<RpMouseWidget>(this))
+, _corners(Images::PrepareCorners(ImageRoundRadius::Small, st::boxBg)) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_left->resize(st::colorSliderWidth, s.height());
 		_right->resize(st::colorSliderWidth, s.height());
+		_mask = Ui::RippleAnimation::RoundRectMask(s, st::boxRadius);
+		_frame = _mask;
 	}, _left->lifetime());
 	_left->paintRequest(
 	) | rpl::start_with_next([=] {
@@ -313,6 +331,7 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 				_limits = {};
 			} break;
 			}
+			update();
 		}, side->lifetime());
 	};
 	handleDrag(
@@ -323,6 +342,38 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 		_right,
 		[=] { return rect::right(_left); },
 		[=] { return width() - _right->width(); });
+}
+
+void ChartWidget::Footer::setPaintChartCallback(
+		Fn<void(QPainter &p)> paintChartCallback) {
+	_paintChartCallback = std::move(paintChartCallback);
+}
+
+void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	const auto r = rect();
+	const auto inactiveLeftRect = Rect(QSize(_left->x(), r.height()));
+	const auto inactiveRightRect = r
+		- QMargins({ rect::right(_right), 0, 0, 0 });
+	const auto &inactiveColor = st::shadowFg;
+
+	_frame.fill(Qt::transparent);
+	{
+		auto p = QPainter(&_frame);
+
+		if (_paintChartCallback) {
+			_paintChartCallback(p);
+		}
+
+		p.fillRect(inactiveLeftRect, inactiveColor);
+		p.fillRect(inactiveRightRect, inactiveColor);
+
+		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		p.drawImage(0, 0, _mask);
+	}
+
+	p.drawImage(0, 0, _frame);
 }
 
 rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
@@ -767,10 +818,8 @@ void ChartWidget::updateBottomDates() {
 }
 
 void ChartWidget::setupFooter() {
-	_footer->paintRequest(
-	) | rpl::start_with_next([=, fullXLimits = Limits{ 0., 1. }] {
-		auto p = QPainter(_footer.get());
-
+	_footer->setPaintChartCallback([=, fullXLimits = Limits{ 0., 1. }](
+			QPainter &p) {
 		if (_chartData) {
 			auto detailsPaintContext = DetailsPaintContext{ .xIndex = -1 };
 			p.fillRect(_footer->rect(), st::boxBg);
@@ -782,7 +831,7 @@ void ChartWidget::setupFooter() {
 				_footer->rect(),
 				detailsPaintContext);
 		}
-	}, _footer->lifetime());
+	});
 
 	rpl::merge(
 		_animationController.heightAnimationStarts(),
