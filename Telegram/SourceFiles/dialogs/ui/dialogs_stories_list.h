@@ -93,51 +93,13 @@ private:
 		QColor nameCacheColor;
 		bool subscribed = false;
 	};
-	struct Summary {
-		QString string;
-		Ui::Text::String text;
-		int available = 0;
-		QImage cache;
-		QColor cacheColor;
-		int cacheForWidth = 0;
-
-		[[nodiscard]] bool empty() const {
-			return string.isEmpty();
-		}
-	};
-	struct Summaries {
-		Summary total;
-		Summary allNames;
-		Summary unreadNames;
-		bool skipOne = false;
-	};
 	struct Data {
 		std::vector<Item> items;
-		Summaries summaries;
 
 		[[nodiscard]] bool empty() const {
 			return items.empty();
 		}
 	};
-
-	[[nodiscard]] static Summaries ComposeSummaries(Data &data);
-	[[nodiscard]] static bool StringsEqual(
-		const Summaries &a,
-		const Summaries &b);
-	static void Populate(
-		const style::DialogsStories &st,
-		Summary &summary);
-	static void Populate(
-		const style::DialogsStories &st,
-		Summaries &summaries);
-	[[nodiscard]] static Summary &ChooseSummary(
-		const style::DialogsStories &st,
-		Summaries &summaries,
-		int totalItems,
-		int fullWidth);
-	static void PrerenderSummary(
-		const style::DialogsStories &st,
-		Summary &summary);
 
 	void showContent(Content &&content);
 	void enterEventHook(QEnterEvent *e) override;
@@ -152,7 +114,6 @@ private:
 	void validateThumbnail(not_null<Item*> item);
 	void validateName(not_null<Item*> item);
 	void updateScrollMax();
-	void updateSummary(Data &data);
 	void updateSelected();
 	void checkDragging();
 	bool finishDragging();
@@ -164,11 +125,6 @@ private:
 	void updateGeometry();
 	[[nodiscard]] QRect countSmallGeometry() const;
 	void updateExpanding(int expandingHeight, int expandedHeight);
-	void paintSummary(
-		QPainter &p,
-		Data &data,
-		float64 summaryTop,
-		float64 hidden);
 
 	[[nodiscard]] Layout computeLayout();
 

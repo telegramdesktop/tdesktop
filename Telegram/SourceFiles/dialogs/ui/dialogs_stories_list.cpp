@@ -109,93 +109,10 @@ void List::showContent(Content &&content) {
 		updateGeometry();
 	}
 	updateScrollMax();
-	updateSummary(_data);
 	update();
 	if (!wasCount) {
 		_empty = false;
 	}
-}
-
-List::Summaries List::ComposeSummaries(Data &data) {
-	const auto total = int(data.items.size());
-	const auto skip = (total > 1 && data.items[0].element.skipSmall)
-		? 1
-		: 0;
-	auto unreadInFirst = 0;
-	auto unreadTotal = 0;
-	for (auto i = skip; i != total; ++i) {
-		if (data.items[i].element.unreadCount > 0) {
-			++unreadTotal;
-			if (i < skip + kSmallThumbsShown) {
-				++unreadInFirst;
-			}
-		}
-	}
-	auto result = Summaries{ .skipOne = (skip > 0) };
-	result.total.string
-		= tr::lng_stories_row_count(tr::now, lt_count, total);
-	const auto append = [&](QString &to, int index, bool last) {
-		if (to.isEmpty()) {
-			to = data.items[index].element.name;
-		} else {
-			to = (last
-				? tr::lng_stories_row_unread_and_last
-				: tr::lng_stories_row_unread_and_one)(
-					tr::now,
-					lt_accumulated,
-					to,
-					lt_user,
-					data.items[index].element.name);
-		}
-	};
-	if (!total) {
-		return result;
-	} else if (total <= skip + kSmallThumbsShown) {
-		for (auto i = skip; i != total; ++i) {
-			append(result.allNames.string, i, i == total - 1);
-		}
-	}
-	if (unreadInFirst > 0 && unreadInFirst == unreadTotal) {
-		for (auto i = skip; i != total; ++i) {
-			if (data.items[i].element.unreadCount > 0) {
-				append(result.unreadNames.string, i, !--unreadTotal);
-			}
-		}
-	}
-	return result;
-}
-
-bool List::StringsEqual(const Summaries &a, const Summaries &b) {
-	return (a.total.string == b.total.string)
-		&& (a.allNames.string == b.allNames.string)
-		&& (a.unreadNames.string == b.unreadNames.string);
-}
-
-void List::Populate(
-		const style::DialogsStories &st,
-		Summary &summary) {
-	if (summary.empty()) {
-		return;
-	}
-	summary.cache = QImage();
-	summary.text = Ui::Text::String(st.nameStyle, summary.string);
-}
-
-void List::Populate(
-		const style::DialogsStories &st,
-		Summaries &summaries) {
-	Populate(st, summaries.total);
-	Populate(st, summaries.allNames);
-	Populate(st, summaries.unreadNames);
-}
-
-void List::updateSummary(Data &data) {
-	auto summaries = ComposeSummaries(data);
-	if (StringsEqual(summaries, data.summaries)) {
-		return;
-	}
-	data.summaries = std::move(summaries);
-	Populate(_st.small, data.summaries);
 }
 
 void List::updateScrollMax() {
@@ -583,8 +500,6 @@ void List::paintEvent(QPaintEvent *e) {
 		}
 		p.setOpacity(1.);
 	});
-
-	paintSummary(p, _data, summaryTop, ratio);
 }
 
 void List::validateThumbnail(not_null<Item*> item) {
@@ -616,98 +531,6 @@ void List::validateName(not_null<Item*> item) {
 	auto p = Painter(&item->nameCache);
 	p.setPen(color);
 	text.drawElided(p, 0, 0, available, 1, style::al_top);
-}
-
-List::Summary &List::ChooseSummary(
-		const style::DialogsStories &st,
-		Summaries &summaries,
-		int totalItems,
-		int fullWidth) {
-	const auto used = std::min(
-		totalItems - (summaries.skipOne ? 1 : 0),
-		kSmallThumbsShown);
-	const auto taken = st.left
-		+ st.photoLeft
-		+ st.photo
-		+ (used - 1) * st.shift
-		+ st.nameLeft
-		+ st.nameRight;
-	const auto available = fullWidth - taken;
-	const auto prepare = [&](Summary &summary) {
-		if (!summary.empty() && (summary.text.maxWidth() <= available)) {
-			summary.available = available;
-			return true;
-		}
-		return false;
-	};
-	if (prepare(summaries.unreadNames)) {
-		return summaries.unreadNames;
-	} else if (prepare(summaries.allNames)) {
-		return summaries.allNames;
-	}
-	prepare(summaries.total);
-	return summaries.total;
-}
-
-void List::PrerenderSummary(
-		const style::DialogsStories &st,
-		Summary &summary) {
-	if (!summary.cache.isNull()
-		&& summary.cacheForWidth == summary.available
-		&& summary.cacheColor == st::dialogsNameFg->c) {
-		return;
-	}
-	const auto use = std::min(summary.text.maxWidth(), summary.available);
-	const auto ratio = style::DevicePixelRatio();
-	summary.cache = QImage(
-		QSize(use, st.nameStyle.font->height) * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	summary.cache.setDevicePixelRatio(ratio);
-	summary.cache.fill(Qt::transparent);
-	auto p = Painter(&summary.cache);
-	p.setPen(st::dialogsNameFg);
-	summary.text.drawElided(p, 0, 0, summary.available);
-}
-
-void List::paintSummary(
-		QPainter &p,
-		Data &data,
-		float64 summaryTop,
-		float64 hidden) {
-#if 0 // #TODO stories to-remove
-	const auto total = int(data.items.size());
-	auto &summary = ChooseSummary(
-		_st.small,
-		data.summaries,
-		total,
-		width());
-	PrerenderSummary(_st.small, summary);
-	const auto lerp = [&](float64 from, float64 to) {
-		return from + (to - from) * hidden;
-	};
-	const auto &st = _st.small;
-	const auto &full = _st.full;
-	const auto used = std::min(
-		total - (data.summaries.skipOne ? 1 : 0),
-		kSmallThumbsShown);
-	const auto fullLeft = st.left
-		+ st.photoLeft
-		+ st.photo
-		+ (used - 1) * st.shift
-		+ st.nameLeft;
-	const auto leftFinal = std::min(
-		full.left + (full.photoLeft * 2 + full.photo) * total,
-		width()) * kSummaryExpandLeft;
-	const auto left = lerp(fullLeft, leftFinal);
-	const auto ratio = summary.cache.devicePixelRatio();
-	const auto summaryWidth = lerp(summary.cache.width() / ratio, 0.);
-	const auto summaryHeight = lerp(summary.cache.height() / ratio, 0.);
-	summaryTop += ((summary.cache.height() / ratio) - summaryHeight) / 2.;
-	p.setOpacity(1. - hidden);
-	p.drawImage(
-		QRectF(left, summaryTop, summaryWidth, summaryHeight),
-		summary.cache);
-#endif
 }
 
 void List::wheelEvent(QWheelEvent *e) {
