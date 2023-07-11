@@ -16,7 +16,8 @@ class PointDetailsWidget : public Ui::RpWidget {
 public:
 	PointDetailsWidget(
 		not_null<Ui::RpWidget*> parent,
-		const Data::StatisticalChart &chartData);
+		const Data::StatisticalChart &chartData,
+		float64 maxAbsoluteValue);
 
 	[[nodiscard]] int xIndex() const;
 	void setXIndex(int xIndex);

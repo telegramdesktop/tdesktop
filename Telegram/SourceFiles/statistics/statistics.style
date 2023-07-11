@@ -10,7 +10,6 @@ using "ui/basic.style";
 using "window/window.style";
 using "ui/widgets/widgets.style";
 
-statisticsDetailsPopupWidth: 135px;
 statisticsDetailsPopupMargins: margins(8px, 8px, 8px, 8px);
 statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);
 statisticsDetailsPopupMidLineSpace: 8px;

@@ -17,22 +17,53 @@ namespace Statistic {
 
 PointDetailsWidget::PointDetailsWidget(
 	not_null<Ui::RpWidget*> parent,
-	const Data::StatisticalChart &chartData)
+	const Data::StatisticalChart &chartData,
+	float64 maxAbsoluteValue)
 : Ui::RpWidget(parent)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
 , _headerStyle(st::semiboldTextStyle) {
+	const auto calculatedWidth = [&]{
+		const auto maxValueText = Ui::Text::String(
+			_textStyle,
+			QString("%L1").arg(maxAbsoluteValue));
+		const auto maxValueTextWidth = maxValueText.maxWidth();
+
+		auto maxNameTextWidth = 0;
+		for (const auto &dataLine : _chartData.lines) {
+			const auto maxNameText = Ui::Text::String(
+				_textStyle,
+				dataLine.name);
+			maxNameTextWidth = std::max(
+				maxNameText.maxWidth(),
+				maxNameTextWidth);
+		}
+		{
+			const auto maxHeaderText = Ui::Text::String(
+				_headerStyle,
+				_chartData.getDayString(0));
+			maxNameTextWidth = std::max(
+				maxHeaderText.maxWidth()
+					+ st::statisticsDetailsPopupPadding.left(),
+				maxNameTextWidth);
+		}
+		return maxValueTextWidth
+			+ rect::m::sum::h(st::statisticsDetailsPopupMargins)
+			+ rect::m::sum::h(st::statisticsDetailsPopupPadding)
+			+ st::statisticsDetailsPopupPadding.left() // Between strings.
+			+ maxNameTextWidth;
+	}();
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		const auto fullRect = s.isNull()
-			? Rect(Size(st::statisticsDetailsPopupWidth))
+			? Rect(Size(calculatedWidth))
 			: Rect(s);
 		_innerRect = fullRect - st::statisticsDetailsPopupPadding;
 		_textRect = _innerRect - st::statisticsDetailsPopupMargins;
 	}, lifetime());
 
 	resize(
-		st::statisticsDetailsPopupWidth,
+		calculatedWidth,
 		lineYAt(chartData.lines.size())
 			+ st::statisticsDetailsPopupMargins.bottom());
 }
@@ -55,7 +86,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		textLine.name.setText(_textStyle, dataLine.name);
 		textLine.value.setText(
 			_textStyle,
-			QString::number(dataLine.y[xIndex]));
+			QString("%L1").arg(dataLine.y[xIndex]));
 		textLine.valueColor = QColor(dataLine.color);
 		_lines.push_back(std::move(textLine));
 	}

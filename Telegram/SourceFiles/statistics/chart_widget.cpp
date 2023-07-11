@@ -823,7 +823,13 @@ void ChartWidget::setupDetails() {
 	}
 	_details.widget = base::make_unique_q<PointDetailsWidget>(
 		this,
-		_chartData);
+		_chartData,
+		FindHeightLimitsBetweenXLimits(
+			_chartData,
+			{
+				_chartData.xPercentage.front(),
+				_chartData.xPercentage.back(),
+			}).max);
 
 	_chartArea->mouseStateChanged(
 	) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
@@ -856,9 +862,13 @@ void ChartWidget::setupDetails() {
 					*nearestXPercentageIt);
 			const auto xLeft = _details.currentX
 				- _details.widget->width();
-			const auto x = (xLeft < 0)
-				? (_details.currentX)
-				: xLeft;
+			const auto x = (xLeft >= 0)
+				? xLeft
+				: ((_details.currentX
+					+ _details.widget->width()
+					- _chartArea->width()) > 0)
+				? 0
+				: _details.currentX;
 			_details.widget->moveToLeft(x, _chartArea->y());
 			_details.widget->setXIndex(nearestXIndex);
 			_details.widget->show();
