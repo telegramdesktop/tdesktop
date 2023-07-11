@@ -21,8 +21,8 @@ namespace {
 constexpr auto kSmallThumbsShown = 3;
 constexpr auto kSummaryExpandLeft = 1;
 constexpr auto kPreloadPages = 2;
-constexpr auto kExpandAfterRatio = 0.85;
-constexpr auto kCollapseAfterRatio = 0.72;
+constexpr auto kExpandAfterRatio = 0.72;
+constexpr auto kCollapseAfterRatio = 0.68;
 constexpr auto kFrictionRatio = 0.15;
 constexpr auto kExpandCatchUpDuration = crl::time(200);
 
@@ -66,7 +66,6 @@ List::List(
 		showContent(std::move(content));
 	}, lifetime());
 
-	_shownAnimation.stop();
 	setMouseTracking(true);
 	resize(0, _data.empty() ? 0 : st.full.height);
 }
@@ -76,18 +75,13 @@ void List::showContent(Content &&content) {
 		return;
 	}
 	if (content.elements.empty()) {
-		_hidingData = base::take(_data);
-		if (!_hidingData.empty()) {
-			toggleAnimated(false);
-		}
+		_data = {};
+		_empty = true;
 		return;
 	}
-	const auto hidden = _content.elements.empty();
-	const auto wasCount = int((hidden ? _hidingData : _data).items.size());
+	const auto wasCount = int(_data.items.size());
 	_content = std::move(content);
-	auto items = base::take(
-		_data.items.empty() ? _hidingData.items : _data.items);
-	_hidingData = {};
+	auto items = base::take(_data.items);
 	_data.items.reserve(_content.elements.size());
 	for (const auto &element : _content.elements) {
 		const auto id = element.id;
@@ -117,8 +111,8 @@ void List::showContent(Content &&content) {
 	updateScrollMax();
 	updateSummary(_data);
 	update();
-	if (hidden) {
-		toggleAnimated(true);
+	if (!wasCount) {
+		_empty = false;
 	}
 }
 
@@ -204,24 +198,6 @@ void List::updateSummary(Data &data) {
 	Populate(_st.small, data.summaries);
 }
 
-void List::toggleAnimated(bool shown) {
-	_shownAnimation.start(
-		[=] { updateHeight(); },
-		shown ? 0. : 1.,
-		shown ? 1. : 0.,
-		st::slideWrapDuration);
-}
-
-void List::updateHeight() {
-	const auto shown = _shownAnimation.value(_data.empty() ? 0. : 1.);
-	resize(
-		width(),
-		anim::interpolate(0, _st.full.height, shown));
-	if (_data.empty() && shown == 0.) {
-		_hidingData = {};
-	}
-}
-
 void List::updateScrollMax() {
 	const auto &full = _st.full;
 	const auto singleFull = full.photoLeft * 2 + full.photo;
@@ -256,7 +232,7 @@ void List::requestExpanded(bool expanded) {
 	if (_expanded != expanded) {
 		_expanded = expanded;
 		_expandedAnimation.start(
-			[=] { update(); },
+			[=] { checkForFullState(); update(); },
 			_expanded ? 0. : 1.,
 			_expanded ? 1. : 0.,
 			st::slideWrapDuration,
@@ -308,15 +284,14 @@ List::Layout List::computeLayout() {
 	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * ratio;
 	};
-	auto &rendering = _data.empty() ? _hidingData : _data;
 	const auto singleFull = full.photoLeft * 2 + full.photo;
-	const auto itemsCount = int(rendering.items.size());
+	const auto itemsCount = int(_data.items.size());
 	const auto narrowWidth = st::defaultDialogRow.padding.left()
 		+ st::defaultDialogRow.photoSize
 		+ st::defaultDialogRow.padding.left();
 	const auto narrow = false;// (width() <= narrowWidth);
 	const auto smallSkip = (itemsCount > 1
-		&& rendering.items[0].element.skipSmall)
+		&& _data.items[0].element.skipSmall)
 		? 1
 		: 0;
 	const auto smallCount = std::min(
@@ -378,7 +353,6 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto elerp = [&](float64 a, float64 b) {
 		return a + (b - a) * expandRatio;
 	};
-	auto &rendering = _data.empty() ? _hidingData : _data;
 	const auto line = elerp(st.lineTwice, full.lineTwice) / 2.;
 	const auto lineRead = elerp(st.lineReadTwice, full.lineReadTwice) / 2.;
 	const auto photoTopSmall = st.photoTop;
@@ -389,7 +363,8 @@ void List::paintEvent(QPaintEvent *e) {
 		- (st.photoTop + (st.photo / 2.))
 		+ (photoTop + (photo / 2.));
 	const auto nameScale = _lastRatio;
-	const auto nameTop = nameScale * full.nameTop;
+	const auto nameTop = full.nameTop
+		+ (photoTop + photo - full.photoTop - full.photo);
 	const auto nameWidth = nameScale * AvailableNameWidth(_st);
 	const auto nameHeight = nameScale * full.nameStyle.font->height;
 	const auto nameLeft = layout.photoLeft + (photo - nameWidth) / 2.;
@@ -402,11 +377,11 @@ void List::paintEvent(QPaintEvent *e) {
 		const auto left = anim::interpolate(
 			_changingGeometryFrom.x(),
 			_geometryFull.x(),
-			layout.expandedRatio);
+			layout.ratio);
 		const auto top = anim::interpolate(
 			_changingGeometryFrom.y(),
 			_geometryFull.y(),
-			layout.expandedRatio);
+			layout.ratio);
 		p.translate(QPoint(left, top) - pos());
 	}
 
@@ -433,18 +408,19 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto lookup = [&](int index) {
 		const auto indexSmall = layout.startIndexSmall + index;
 		const auto indexFull = layout.startIndexFull + index;
+		const auto k = (photoTop - photoTopSmall);
 		const auto ySmall = photoTopSmall
-			+ ((indexSmall - layout.smallSkip + 1)
-				* (photoTop - photoTopSmall) / 3.);
+			+ ((photoTop - photoTopSmall)
+				* (kSmallThumbsShown - indexSmall + layout.smallSkip) / 0.5);
 		const auto y = elerp(ySmall, photoTop);
 
 		const auto small = (drawSmall
 			&& indexSmall < layout.endIndexSmall
 			&& indexSmall >= layout.smallSkip)
-			? &rendering.items[indexSmall]
+			? &_data.items[indexSmall]
 			: nullptr;
 		const auto full = (drawFull && indexFull < layout.endIndexFull)
-			? &rendering.items[indexFull]
+			? &_data.items[indexFull]
 			: nullptr;
 		const auto x = layout.left + layout.single * index;
 		return Single{ x, indexSmall, small, indexFull, full, y };
@@ -556,9 +532,16 @@ void List::paintEvent(QPaintEvent *e) {
 
 		// White circle with possible read gray line.
 		const auto hasReadLine = (itemFull && !fullUnread);
+		p.setOpacity((small && itemFull)
+			? 1.
+			: small
+			? (1. - expandRatio)
+			: expandRatio);
 		if (hasReadLine) {
 			auto color = st::dialogsUnreadBgMuted->c;
-			color.setAlphaF(color.alphaF() * expandRatio);
+			if (small) {
+				color.setAlphaF(color.alphaF() * expandRatio);
+			}
 			auto pen = QPen(color);
 			pen.setWidthF(lineRead);
 			p.setPen(pen);
@@ -601,7 +584,7 @@ void List::paintEvent(QPaintEvent *e) {
 		p.setOpacity(1.);
 	});
 
-	paintSummary(p, rendering, summaryTop, ratio);
+	paintSummary(p, _data, summaryTop, ratio);
 }
 
 void List::validateThumbnail(not_null<Item*> item) {
@@ -729,7 +712,7 @@ void List::paintSummary(
 
 void List::wheelEvent(QWheelEvent *e) {
 	const auto horizontal = (e->angleDelta().x() != 0);
-	if (!horizontal) {
+	if (!horizontal || _state == State::Small) {
 		e->ignore();
 		return;
 	}
@@ -756,6 +739,10 @@ void List::wheelEvent(QWheelEvent *e) {
 
 void List::mousePressEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
+		return;
+	} else if (_state == State::Small) {
+		requestExpanded(true);
+	} else if (_state != State::Full) {
 		return;
 	}
 	_lastMousePosition = e->globalPos();
@@ -834,23 +821,26 @@ void List::setExpandedHeight(int height, bool momentum) {
 		_expandIgnored = false;
 		_expandCatchUpAnimation.start([=] {
 			update();
-			if (!_expandCatchUpAnimation.animating()
-				&& _lastExpandedHeight == _st.full.height) {
-				setState(State::Full);
-			}
+			checkForFullState();
 		}, 0., 1., kExpandCatchUpDuration);
 	} else if (!height && _expandCatchUpAnimation.animating()) {
 		_expandCatchUpAnimation.stop();
 	}
 	_lastExpandedHeight = height;
-	setState(!height
-		? State::Small
-		: (height < _st.full.height
-			|| _expandCatchUpAnimation.animating()
-			|| _expandedAnimation.animating())
-		? State::Changing
-		: State::Full);
+	if (!checkForFullState()) {
+		setState(!height ? State::Small : State::Changing);
+	}
 	update();
+}
+
+bool List::checkForFullState() {
+	if (_expandCatchUpAnimation.animating()
+		|| _expandedAnimation.animating()
+		|| _lastExpandedHeight < _st.full.height) {
+		return false;
+	}
+	setState(State::Full);
+	return true;
 }
 
 void List::setLayoutConstraints(QPoint topRightSmall, QRect geometryFull) {
@@ -875,7 +865,9 @@ void List::updateGeometry() {
 QRect List::countSmallGeometry() const {
 	const auto &st = _st.small;
 	const auto layout = const_cast<List*>(this)->computeLayout();
-	const auto count = layout.endIndexSmall - layout.startIndexSmall;
+	const auto count = layout.endIndexSmall
+		- layout.startIndexSmall
+		- layout.smallSkip;
 	const auto width = st.left
 		+ st.photoLeft
 		+ st.photo + (count - 1) * st.shift
@@ -893,9 +885,6 @@ void List::setState(State state) {
 		return;
 	}
 	_state = state;
-	setAttribute(
-		Qt::WA_TransparentForMouseEvents,
-		state == State::Changing);
 	updateGeometry();
 }
 

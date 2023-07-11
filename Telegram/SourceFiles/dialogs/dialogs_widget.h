@@ -58,6 +58,7 @@ struct SectionShow;
 
 namespace Dialogs::Stories {
 class List;
+struct Content;
 } // namespace Dialogs::Stories
 
 namespace Dialogs {
@@ -168,6 +169,7 @@ private:
 	void setupShortcuts();
 	void setupStories();
 	void storiesToggleExplicitExpand(bool expand);
+	void trackScroll(not_null<Ui::RpWidget*> widget);
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
 	bool setSearchInChat(Key chat, PeerData *from = nullptr);
@@ -179,6 +181,7 @@ private:
 	void updateControlsVisibility(bool fast = false);
 	void updateLockUnlockVisibility();
 	void updateLoadMoreChatsVisibility();
+	void updateStoriesVisibility();
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
@@ -268,6 +271,14 @@ private:
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
 
+	Data::Folder *_openedFolder = nullptr;
+	Data::Forum *_openedForum = nullptr;
+	Dialogs::Key _searchInChat;
+	History *_searchInMigrated = nullptr;
+	PeerData *_searchFromAuthor = nullptr;
+	QString _lastFilterText;
+
+	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
 	Fn<void()> _updateScrollGeometryCached;
 	std::unique_ptr<Stories::List> _stories;
 	Ui::Animations::Simple _storiesExplicitExpandAnimation;
@@ -275,13 +286,6 @@ private:
 	int _storiesExplicitExpandScrollTop = 0;
 	int _aboveScrollAdded = 0;
 	bool _storiesExplicitExpand = false;
-
-	Data::Folder *_openedFolder = nullptr;
-	Data::Forum *_openedForum = nullptr;
-	Dialogs::Key _searchInChat;
-	History *_searchInMigrated = nullptr;
-	PeerData *_searchFromAuthor = nullptr;
-	QString _lastFilterText;
 
 	base::Timer _searchTimer;
 

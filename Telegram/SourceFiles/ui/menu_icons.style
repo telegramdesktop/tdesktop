@@ -112,7 +112,6 @@ menuIconArchiveOpen: icon {{ "menu/archive_open", menuIconColor }};
 menuIconGroups: icon {{ "menu/groups", menuIconColor }};
 menuIconSavedMessages: icon {{ "menu/saved_messages", menuIconColor }};
 menuIconNightMode: icon {{ "menu/night_mode", menuIconColor }};
-menuIconStoriesToChats: icon {{ "menu/stories_to_chats", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

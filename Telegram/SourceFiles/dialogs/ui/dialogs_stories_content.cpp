@@ -503,14 +503,14 @@ void FillSourceMenu(
 				controller->uiShow());
 		};
 		if (in(Data::StorySourcesList::NotHidden)) {
-			add(tr::lng_stories_hide_to_contacts(tr::now), [=] {
+			add(tr::lng_stories_archive(tr::now), [=] {
 				toggle(false);
-			}, &st::menuIconCancel);
+			}, &st::menuIconArchive);
 		}
 		if (in(Data::StorySourcesList::Hidden)) {
-			add(tr::lng_stories_show_in_chats(tr::now), [=] {
+			add(tr::lng_stories_unarchive(tr::now), [=] {
 				toggle(true);
-			}, &st::menuIconStoriesToChats);
+			}, &st::menuIconUnarchive);
 		}
 	}
 }

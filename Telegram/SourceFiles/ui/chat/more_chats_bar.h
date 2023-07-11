@@ -31,6 +31,10 @@ public:
 		rpl::producer<MoreChatsBarContent> content);
 	~MoreChatsBar();
 
+	[[nodiscard]] not_null<RpWidget*> wrap() {
+		return &_wrap;
+	}
+
 	void show();
 	void hide();
 	void raise();

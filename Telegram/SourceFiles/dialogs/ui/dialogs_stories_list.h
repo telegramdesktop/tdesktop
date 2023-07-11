@@ -68,6 +68,12 @@ public:
 	void setExpandedHeight(int height, bool momentum = false);
 	void setLayoutConstraints(QPoint topRightSmall, QRect geometryFull);
 
+	[[nodiscard]] bool empty() const {
+		return _empty.current();
+	}
+	[[nodiscard]] rpl::producer<bool> emptyValue() const {
+		return _empty.value();
+	}
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] rpl::producer<ShowMenuRequest> showMenuRequests() const;
 	[[nodiscard]] rpl::producer<bool> toggleExpandedRequests() const;
@@ -153,12 +159,11 @@ private:
 	void checkLoadMore();
 	void requestExpanded(bool expanded);
 
+	bool checkForFullState();
 	void setState(State state);
 	void updateGeometry();
 	[[nodiscard]] QRect countSmallGeometry() const;
 	void updateExpanding(int expandingHeight, int expandedHeight);
-	void updateHeight();
-	void toggleAnimated(bool shown);
 	void paintSummary(
 		QPainter &p,
 		Data &data,
@@ -170,7 +175,6 @@ private:
 	const style::DialogsStoriesList &_st;
 	Content _content;
 	Data _data;
-	Data _hidingData;
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<ShowMenuRequest> _showMenuRequests;
 	rpl::event_stream<bool> _toggleExpandedRequests;
@@ -181,8 +185,7 @@ private:
 	QRect _geometryFull;
 	QRect _changingGeometryFrom;
 	State _state = State::Small;
-
-	Ui::Animations::Simple _shownAnimation;
+	rpl::variable<bool> _empty = true;
 
 	QPoint _lastMousePosition;
 	std::optional<QPoint> _mouseDownPosition;
