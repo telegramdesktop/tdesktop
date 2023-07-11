@@ -813,7 +813,7 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	updateSelected();
 	if (_selected == pressed) {
-		if (_selected < 0) {
+		if (!_expanded) {
 			requestExpanded(true);
 		} else if (_selected < _data.items.size()) {
 			_clicks.fire_copy(_data.items[_selected].element.id);
@@ -906,7 +906,7 @@ void List::contextMenuEvent(QContextMenuEvent *e) {
 		_lastMousePosition = e->globalPos();
 		updateSelected();
 	}
-	if (_selected < 0 || _data.empty()) {
+	if (_selected < 0 || _data.empty() || !_expanded) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(

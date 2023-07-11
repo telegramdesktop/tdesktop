@@ -905,6 +905,7 @@ rpl::producer<> ChatFilters::suggestedUpdated() const {
 
 rpl::producer<Ui::MoreChatsBarContent> ChatFilters::moreChatsContent(
 		FilterId id) {
+	return rpl::single(Ui::MoreChatsBarContent{ .count = 10 }); // #TODO stories testing
 	if (!id) {
 		return rpl::single(Ui::MoreChatsBarContent{ .count = 0 });
 	}

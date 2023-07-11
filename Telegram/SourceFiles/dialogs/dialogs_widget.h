@@ -167,6 +167,7 @@ private:
 	void setupDownloadBar();
 	void setupShortcuts();
 	void setupStories();
+	void storiesToggleExplicitExpand(bool expand);
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
 	bool setSearchInChat(Key chat, PeerData *from = nullptr);
@@ -267,8 +268,13 @@ private:
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
 
-	int _overscrollTop = 0;
+	Fn<void()> _updateScrollGeometryCached;
 	std::unique_ptr<Stories::List> _stories;
+	Ui::Animations::Simple _storiesExplicitExpandAnimation;
+	rpl::variable<int> _storiesExplicitExpandValue = 0;
+	int _storiesExplicitExpandScrollTop = 0;
+	int _aboveScrollAdded = 0;
+	bool _storiesExplicitExpand = false;
 
 	Data::Folder *_openedFolder = nullptr;
 	Data::Forum *_openedForum = nullptr;

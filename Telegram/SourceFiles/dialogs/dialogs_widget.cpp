@@ -83,7 +83,7 @@ namespace Dialogs {
 namespace {
 
 constexpr auto kSearchPerPage = 50;
-constexpr auto kWaitTillAllowStoriesExpand = crl::time(200);
+constexpr auto kStoriesExpandDuration = crl::time(200);
 
 } // namespace
 
@@ -239,19 +239,43 @@ Widget::Widget(
 	_scrollToTop->raise();
 	rpl::combine(
 		_scroll->positionValue(),
-		_scroll->movementValue()
+		_scroll->movementValue(),
+		_storiesExplicitExpandValue.value()
 	) | rpl::start_with_next([=](
 			Ui::ElasticScrollPosition position,
-			Ui::ElasticScrollMovement movement) {
+			Ui::ElasticScrollMovement movement,
+			int explicitlyExpanded) {
 		const auto overscrollTop = std::max(-position.overscroll, 0);
-		if (_overscrollTop != overscrollTop) {
-			_overscrollTop = overscrollTop;
-			updateControlsGeometry();
+		if (overscrollTop > 0 && _storiesExplicitExpand) {
+			_scroll->setOverscrollDefaults(
+				-st::dialogsStoriesFull.height,
+				0,
+				true);
+		}
+		if (explicitlyExpanded > 0 && explicitlyExpanded < overscrollTop) {
+			_storiesExplicitExpandAnimation.stop();
+			_storiesExplicitExpand = false;
+			_storiesExplicitExpandValue = 0;
+			return;
+		}
+		const auto above = std::max(explicitlyExpanded, overscrollTop);
+		if (_aboveScrollAdded != above) {
+			_aboveScrollAdded = above;
+			if (_updateScrollGeometryCached) {
+				_updateScrollGeometryCached();
+			}
 		}
 		using Phase = Ui::ElasticScrollMovement;
 		_stories->setExpandedHeight(
-			_overscrollTop,
-			(movement == Phase::Momentum || movement == Phase::Returning));
+			_aboveScrollAdded,
+			(movement == Phase::Momentum || movement == Phase::Returning)
+				&& (explicitlyExpanded < above));
+		if (position.overscroll > 0
+			|| (position.value
+				> (_storiesExplicitExpandScrollTop
+					+ st::dialogsRowHeight))) {
+			storiesToggleExplicitExpand(false);
+		}
 	}, lifetime());
 
 	_inner->updated(
@@ -487,6 +511,8 @@ Widget::Widget(
 }
 
 void Widget::chosenRow(const ChosenRow &row) {
+	storiesToggleExplicitExpand(false);
+
 	const auto history = row.key.history();
 	const auto topicJump = history
 		? history->peer->forumTopicFor(row.message.fullId.msg)
@@ -600,6 +626,8 @@ void Widget::setupMoreChatsBar() {
 	}
 	controller()->activeChatsFilter(
 	) | rpl::start_with_next([=](FilterId id) {
+		storiesToggleExplicitExpand(false);
+
 		if (!id && false) { // #TODO stories testing
 			_moreChatsBar = nullptr;
 			updateControlsGeometry();
@@ -802,15 +830,34 @@ void Widget::setupStories() {
 
 	_stories->toggleExpandedRequests(
 	) | rpl::start_with_next([=](bool expanded) {
-		if (expanded) {
-			if (!_scrollToAnimation.animating() || _scrollAnimationTo) {
-				scrollToDefault();
-			}
+		const auto position = _scroll->position();
+		if (!expanded) {
+			_scroll->setOverscrollDefaults(0, 0);
+		} else if (position.value > 0 || position.overscroll >= 0) {
+			storiesToggleExplicitExpand(true);
+			_scroll->setOverscrollDefaults(0, 0);
+		} else {
+			_scroll->setOverscrollDefaults(
+				-st::dialogsStoriesFull.height,
+				0);
 		}
-		_scroll->setOverscrollDefaults(
-			expanded ? -st::dialogsStoriesFull.height : 0,
-			0);
 	}, lifetime());
+}
+
+void Widget::storiesToggleExplicitExpand(bool expand) {
+	if (_storiesExplicitExpand == expand) {
+		return;
+	}
+	_storiesExplicitExpand = expand;
+	if (!expand) {
+		_scroll->setOverscrollDefaults(0, 0, true);
+	}
+	const auto height = st::dialogsStoriesFull.height;
+	const auto duration = kStoriesExpandDuration;
+	_storiesExplicitExpandScrollTop = _scroll->position().value;
+	_storiesExplicitExpandAnimation.start([=](float64 value) {
+		_storiesExplicitExpandValue = int(base::SafeRound(value));
+	}, expand ? 0 : height, expand ? height : 0, duration, anim::sineInOut);
 }
 
 void Widget::setupShortcuts() {
@@ -957,6 +1004,7 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 		controller()->closeForum();
 		_openedFolder = folder;
 		_inner->changeOpenedFolder(folder);
+		storiesToggleExplicitExpand(false);
 	}, (folder != nullptr), animated);
 }
 
@@ -970,6 +1018,7 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 		_openedForum = forum;
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		_inner->changeOpenedForum(forum);
+		storiesToggleExplicitExpand(false);
 	}, (forum != nullptr), animated);
 }
 
@@ -2575,42 +2624,15 @@ void Widget::updateControlsGeometry() {
 			barw,
 			st::lineWidth);
 	}
-	const auto moreChatsBarTop = expandedStoriesTop + _overscrollTop;
-	if (_moreChatsBar) {
-		_moreChatsBar->move(0, moreChatsBarTop);
-		_moreChatsBar->resizeToWidth(barw);
-	}
-	const auto forumGroupCallTop = moreChatsBarTop
-		+ (_moreChatsBar ? _moreChatsBar->height() : 0);
-	if (_forumGroupCallBar) {
-		_forumGroupCallBar->move(0, forumGroupCallTop);
-		_forumGroupCallBar->resizeToWidth(barw);
-	}
-	const auto forumRequestsTop = forumGroupCallTop
-		+ (_forumGroupCallBar ? _forumGroupCallBar->height() : 0);
-	if (_forumRequestsBar) {
-		_forumRequestsBar->move(0, forumRequestsTop);
-		_forumRequestsBar->resizeToWidth(barw);
-	}
-	const auto forumReportTop = forumRequestsTop
-		+ (_forumRequestsBar ? _forumRequestsBar->height() : 0);
-	if (_forumReportBar) {
-		_forumReportBar->bar().move(0, forumReportTop);
-	}
-	auto scrollTop = forumReportTop
-		+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
-	const auto wasScrollTop = _scroll->scrollTop();
-	const auto newScrollTop = (_topDelta < 0 && wasScrollTop <= 0)
-		? wasScrollTop
-		: (wasScrollTop + _topDelta);
-	auto scrollHeight = height() - scrollTop;
+
+	auto bottomSkip = 0;
 	const auto putBottomButton = [&](auto &button) {
 		if (button && !button->isHidden()) {
 			const auto buttonHeight = button->height();
-			scrollHeight -= buttonHeight;
+			bottomSkip += buttonHeight;
 			button->setGeometry(
 				0,
-				scrollTop + scrollHeight,
+				height() - bottomSkip,
 				barw,
 				buttonHeight);
 		}
@@ -2618,24 +2640,55 @@ void Widget::updateControlsGeometry() {
 	putBottomButton(_updateTelegram);
 	putBottomButton(_downloadBar);
 	putBottomButton(_loadMoreChats);
-	const auto bottomSkip = (height() - scrollTop) - scrollHeight;
 	if (_connecting) {
 		_connecting->setBottomSkip(bottomSkip);
 	}
 	controller()->setConnectingBottomSkip(bottomSkip);
 
+	const auto wasScrollTop = _scroll->scrollTop();
+	const auto newScrollTop = (_topDelta < 0 && wasScrollTop <= 0)
+		? wasScrollTop
+		: (wasScrollTop + _topDelta);
+
 	const auto scrollw = _childList ? _narrowWidth : barw;
-	const auto wasScrollHeight = _scroll->height();
-	_scroll->setGeometry(0, scrollTop, scrollw, scrollHeight);
+	_updateScrollGeometryCached = [=] {
+		const auto moreChatsBarTop = expandedStoriesTop + _aboveScrollAdded;
+		if (_moreChatsBar) {
+			_moreChatsBar->move(0, moreChatsBarTop);
+			_moreChatsBar->resizeToWidth(barw);
+		}
+		const auto forumGroupCallTop = moreChatsBarTop
+			+ (_moreChatsBar ? _moreChatsBar->height() : 0);
+		if (_forumGroupCallBar) {
+			_forumGroupCallBar->move(0, forumGroupCallTop);
+			_forumGroupCallBar->resizeToWidth(barw);
+		}
+		const auto forumRequestsTop = forumGroupCallTop
+			+ (_forumGroupCallBar ? _forumGroupCallBar->height() : 0);
+		if (_forumRequestsBar) {
+			_forumRequestsBar->move(0, forumRequestsTop);
+			_forumRequestsBar->resizeToWidth(barw);
+		}
+		const auto forumReportTop = forumRequestsTop
+			+ (_forumRequestsBar ? _forumRequestsBar->height() : 0);
+		if (_forumReportBar) {
+			_forumReportBar->bar().move(0, forumReportTop);
+		}
+		auto scrollTop = forumReportTop
+			+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
+		auto scrollHeight = height() - scrollTop;
+
+		const auto wasScrollHeight = _scroll->height();
+		_scroll->setGeometry(0, scrollTop, scrollw, scrollHeight);
+		if (scrollHeight != wasScrollHeight) {
+			controller()->floatPlayerAreaUpdated();
+		}
+	};
+	_updateScrollGeometryCached();
+
 	_inner->resize(scrollw, _inner->height());
 	_inner->setNarrowRatio(narrowRatio);
-	if (scrollHeight != wasScrollHeight) {
-		controller()->floatPlayerAreaUpdated();
-	}
-	const auto startWithTop = 0;
-	if (wasScrollHeight < startWithTop && scrollHeight >= startWithTop) {
-		_scroll->scrollToY(startWithTop);
-	} else if (newScrollTop != wasScrollTop) {
+	if (newScrollTop != wasScrollTop) {
 		_scroll->scrollToY(newScrollTop);
 	} else {
 		listScrollUpdated();
@@ -2646,7 +2699,7 @@ void Widget::updateControlsGeometry() {
 
 	if (_childList) {
 		const auto childw = std::max(_narrowWidth, width() - scrollw);
-		const auto childh = scrollTop + scrollHeight;
+		const auto childh = _scroll->y() + _scroll->height();
 		const auto childx = width() - childw;
 		_childList->setGeometryWithTopMoved(
 			{ childx, 0, childw, childh },
