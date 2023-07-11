@@ -170,8 +170,7 @@ void InnerWidget::createButtons() {
 		st::dialogsStoriesListMine,
 		rpl::duplicate(last) | rpl::filter([](const Content &content) {
 			return !content.elements.empty();
-		}),
-		[] { return st::dialogsStories.height; });
+		}));
 	thumbs->show();
 	rpl::combine(
 		recent->sizeValue(),

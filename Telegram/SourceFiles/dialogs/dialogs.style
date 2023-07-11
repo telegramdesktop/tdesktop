@@ -246,7 +246,7 @@ dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
 dialogsFilter: InputField(defaultInputField) {
 	textBg: filterInputInactiveBg;
 	textBgActive: filterInputActiveBg;
-	textMargins: margins(12px, 7px, 30px, 3px);
+	textMargins: margins(12px, 8px, 30px, 5px);
 
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
@@ -257,16 +257,16 @@ dialogsFilter: InputField(defaultInputField) {
 	placeholderFont: normalFont;
 
 	borderFg: filterInputInactiveBg;
-	borderFgActive: filterInputBorderFg;
+	borderFgActive: windowBgRipple;
 	borderFgError: activeLineFgError;
 
 	border: 2px;
 	borderActive: 2px;
-	borderRadius: roundRadiusSmall;
+	borderRadius: 18px;
 
 	font: normalFont;
 
-	heightMin: 32px;
+	heightMin: 35px;
 }
 dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
@@ -511,8 +511,9 @@ DialogsStoriesList {
 dialogsStories: DialogsStories {
 	left: 4px;
 	height: 35px;
-	photo: 24px;
-	photoLeft: 10px;
+	photo: 21px;
+	photoTop: 4px;
+	photoLeft: 4px;
 	shift: 16px;
 	lineTwice: 3px;
 	lineReadTwice: 0px;

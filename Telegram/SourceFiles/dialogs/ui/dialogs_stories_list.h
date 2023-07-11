@@ -63,11 +63,10 @@ public:
 	List(
 		not_null<QWidget*> parent,
 		const style::DialogsStoriesList &st,
-		rpl::producer<Content> content,
-		Fn<int()> shownHeight);
+		rpl::producer<Content> content);
 
-	void setBgOverride(QBrush brush);
-	void setTouchScrollActive(bool active);
+	void setExpandedHeight(int height, bool momentum = false);
+	void setLayoutConstraints(QPoint topRightSmall, QRect geometryFull);
 
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] rpl::producer<ShowMenuRequest> showMenuRequests() const;
@@ -77,6 +76,11 @@ public:
 
 private:
 	struct Layout;
+	enum class State {
+		Small,
+		Changing,
+		Full,
+	};
 	struct Item {
 		Element element;
 		QImage nameCache;
@@ -149,7 +153,10 @@ private:
 	void checkLoadMore();
 	void requestExpanded(bool expanded);
 
-	void updateExpanding(int minHeight, int shownHeight, int fullHeight);
+	void setState(State state);
+	void updateGeometry();
+	[[nodiscard]] QRect countSmallGeometry() const;
+	void updateExpanding(int expandingHeight, int expandedHeight);
 	void updateHeight();
 	void toggleAnimated(bool shown);
 	void paintSummary(
@@ -164,14 +171,17 @@ private:
 	Content _content;
 	Data _data;
 	Data _hidingData;
-	Fn<int()> _shownHeight = 0;
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<ShowMenuRequest> _showMenuRequests;
 	rpl::event_stream<bool> _toggleExpandedRequests;
 	rpl::event_stream<> _entered;
 	rpl::event_stream<> _loadMoreRequests;
 
-	std::optional<QBrush> _bgOverride;
+	QPoint _topRightSmall;
+	QRect _geometryFull;
+	QRect _changingGeometryFrom;
+	State _state = State::Small;
+
 	Ui::Animations::Simple _shownAnimation;
 
 	QPoint _lastMousePosition;
@@ -182,11 +192,11 @@ private:
 	bool _dragging = false;
 
 	Ui::Animations::Simple _expandedAnimation;
-	base::Timer _snapExpandedTimer;
+	Ui::Animations::Simple _expandCatchUpAnimation;
 	float64 _lastRatio = 0.;
-	int _lastHeight = 0;
-	bool _expanded = false;
-	bool _touchScrollActive = false;
+	int _lastExpandedHeight = 0;
+	bool _expandIgnored : 1 = false;
+	bool _expanded : 1 = false;
 
 	int _selected = -1;
 	int _pressed = -1;

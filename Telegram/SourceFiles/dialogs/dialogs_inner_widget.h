@@ -52,10 +52,6 @@ struct PaintContext;
 struct TopicJumpCache;
 } // namespace Dialogs::Ui
 
-namespace Dialogs::Stories {
-class List;
-} // namespace Dialogs::Stories
-
 namespace Dialogs {
 
 class Row;
@@ -105,11 +101,6 @@ public:
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
 
-	void setTouchScrollActive(bool active);
-	[[nodiscard]] rpl::producer<bool> storiesExpandedRequests() const;
-	[[nodiscard]] int defaultScrollTop() const;
-	void setViewportHeight(int viewportHeight);
-
 	[[nodiscard]] FilterId filterId() const;
 
 	void clearSelection();
@@ -124,7 +115,6 @@ public:
 
 	void clearFilter();
 	void refresh(bool toTop = false);
-	void refreshForDefaultScroll();
 	void refreshEmptyLabel();
 	void resizeEmptyLabel();
 
@@ -322,7 +312,6 @@ private:
 	void fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu);
 
 	void refreshShownList();
-	[[nodiscard]] bool storiesShown() const;
 	[[nodiscard]] int skipTopHeight() const;
 	[[nodiscard]] int collapsedRowsOffset() const;
 	[[nodiscard]] int dialogsOffset() const;
@@ -408,10 +397,6 @@ private:
 	void restoreChatsFilterScrollState(FilterId filterId);
 
 	const not_null<Window::SessionController*> _controller;
-
-	const std::unique_ptr<Stories::List> _stories;
-	rpl::event_stream<bool> _storiesExpandedRequests;
-	int _viewportHeight = 0;
 
 	not_null<IndexedList*> _shownList;
 	FilterId _filterId = 0;

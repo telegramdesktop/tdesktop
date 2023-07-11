@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_widget.h"
 
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_list.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "dialogs/dialogs_key.h"
@@ -64,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
 #include "data/data_chat_filters.h"
+#include "data/data_stories.h"
 #include "info/downloads/info_downloads_widget.h"
 #include "info/info_memento.h"
 #include "styles/style_dialogs.h"
@@ -211,15 +214,21 @@ Widget::Widget(
 , _cancelSearch(_searchControls, st::dialogsCancelSearch)
 , _lockUnlock(_searchControls, st::dialogsLock)
 , _scroll(this)
-, _allowStoriesExpandTimer([=] {
-	//_scroll->verticalScrollBar()->setMinimum(0);
-})
 , _scrollToTop(_scroll, st::dialogsToUp)
+, _stories(std::make_unique<Stories::List>(
+	this,
+	st::dialogsStoriesList,
+	Stories::ContentForSession(
+		&controller->session(),
+		Data::StorySourcesList::NotHidden)))
 , _searchTimer([=] { searchMessages(); })
 , _singleMessageSearch(&controller->session()) {
 	const auto makeChildListShown = [](PeerId peerId, float64 shown) {
 		return InnerWidget::ChildListShown{ peerId, shown };
 	};
+	_scroll->setOverscrollTypes(
+		Ui::ElasticScroll::OverscrollType::Virtual,
+		Ui::ElasticScroll::OverscrollType::Real);
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(
 		this,
 		controller,
@@ -228,6 +237,22 @@ Widget::Widget(
 			_childListShown.value(),
 			makeChildListShown)));
 	_scrollToTop->raise();
+	rpl::combine(
+		_scroll->positionValue(),
+		_scroll->movementValue()
+	) | rpl::start_with_next([=](
+			Ui::ElasticScrollPosition position,
+			Ui::ElasticScrollMovement movement) {
+		const auto overscrollTop = std::max(-position.overscroll, 0);
+		if (_overscrollTop != overscrollTop) {
+			_overscrollTop = overscrollTop;
+			updateControlsGeometry();
+		}
+		using Phase = Ui::ElasticScrollMovement;
+		_stories->setExpandedHeight(
+			_overscrollTop,
+			(movement == Phase::Momentum || movement == Phase::Returning));
+	}, lifetime());
 
 	_inner->updated(
 	) | rpl::start_with_next([=] {
@@ -265,15 +290,6 @@ Widget::Widget(
 	) | rpl::start_with_next([=](int delta) {
 		if (_scroll) {
 			_scroll->scrollToY(_scroll->scrollTop() + delta);
-		}
-	}, lifetime());
-
-	_inner->storiesExpandedRequests(
-	) | rpl::start_with_next([=](bool expanded) {
-		if (expanded || _scroll->scrollTop() < _inner->defaultScrollTop()) {
-			if (_scroll->scrollTop() > 0) {
-				scrollToDefaultChecked(expanded);
-			}
 		}
 	}, lifetime());
 
@@ -328,12 +344,6 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		listScrollUpdated();
 	}, lifetime());
-	_scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
-		return customWheelProcess(e);
-	});
-	_scroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
-		return customTouchProcess(e);
-	});
 
 	session().data().chatsListChanges(
 	) | rpl::filter([=](Data::Folder *folder) {
@@ -383,6 +393,7 @@ Widget::Widget(
 
 	setupMainMenuToggle();
 	setupShortcuts();
+	setupStories();
 
 	_searchForNarrowFilters->setClickedCallback([=] {
 		_filter->setFocusFast();
@@ -589,7 +600,7 @@ void Widget::setupMoreChatsBar() {
 	}
 	controller()->activeChatsFilter(
 	) | rpl::start_with_next([=](FilterId id) {
-		if (!id) {
+		if (!id && false) { // #TODO stories testing
 			_moreChatsBar = nullptr;
 			updateControlsGeometry();
 			return;
@@ -768,6 +779,38 @@ void Widget::setupMainMenuToggle() {
 			: &st::dialogsMenuToggleUnreadMuted;
 		_mainMenu.toggle->setIconOverride(icon, icon);
 	}, _mainMenu.toggle->lifetime());
+}
+
+void Widget::setupStories() {
+	_stories->clicks(
+	) | rpl::start_with_next([=](uint64 id) {
+		controller()->openPeerStories(
+			PeerId(int64(id)),
+			Data::StorySourcesList::NotHidden);
+	}, lifetime());
+
+	_stories->showMenuRequests(
+	) | rpl::start_with_next([=](const Stories::ShowMenuRequest &request) {
+		FillSourceMenu(controller(), request);
+	}, lifetime());
+
+	_stories->loadMoreRequests(
+	) | rpl::start_with_next([=] {
+		session().data().stories().loadMore(
+			Data::StorySourcesList::NotHidden);
+	}, lifetime());
+
+	_stories->toggleExpandedRequests(
+	) | rpl::start_with_next([=](bool expanded) {
+		if (expanded) {
+			if (!_scrollToAnimation.animating() || _scrollAnimationTo) {
+				scrollToDefault();
+			}
+		}
+		_scroll->setOverscrollDefaults(
+			expanded ? -st::dialogsStoriesFull.height : 0,
+			0);
+	}, lifetime());
 }
 
 void Widget::setupShortcuts() {
@@ -1128,7 +1171,7 @@ void Widget::jumpToTop(bool belowPinned) {
 		return;
 	}
 	if ((currentSearchQuery().trimmed().isEmpty() && !_searchInChat)) {
-		auto to = _inner->defaultScrollTop();
+		auto to = 0;
 		if (belowPinned) {
 			const auto list = _openedForum
 				? _openedForum->topicsList()
@@ -1156,7 +1199,7 @@ void Widget::scrollToDefault(bool verytop) {
 	}
 	_scrollToAnimation.stop();
 	auto scrollTop = _scroll->scrollTop();
-	const auto scrollTo = verytop ? 0 : _inner->defaultScrollTop();
+	const auto scrollTo = 0;
 	if (scrollTop == scrollTo) {
 		return;
 	}
@@ -1172,7 +1215,7 @@ void Widget::scrollToDefault(bool verytop) {
 		const auto animated = qRound(_scrollToAnimation.value(scrollTo));
 		const auto animatedDelta = animated - scrollTo;
 		const auto realDelta = _scroll->scrollTop() - scrollTo;
-		if (realDelta * animatedDelta < 0) {
+		if (base::OppositeSigns(realDelta, animatedDelta)) {
 			// We scrolled manually to the other side of target 'scrollTo'.
 			_scrollToAnimation.stop();
 		} else if (std::abs(realDelta) > std::abs(animatedDelta)) {
@@ -1181,6 +1224,7 @@ void Widget::scrollToDefault(bool verytop) {
 		}
 	};
 
+	_scrollAnimationTo = scrollTo;
 	_scrollToAnimation.start(
 		scroll,
 		scrollTop,
@@ -2398,55 +2442,6 @@ void Widget::completeHashtag(QString tag) {
 	applyFilterUpdate(true);
 }
 
-bool Widget::customWheelProcess(not_null<QWheelEvent*> e) {
-	customScrollProcess(e->phase());
-	return false;
-}
-
-void Widget::customScrollProcess(Qt::ScrollPhase phase) {
-	const auto now = _scroll->scrollTop();
-	const auto def = _inner->defaultScrollTop();
-	//const auto bar = _scroll->verticalScrollBar();
-	if (phase == Qt::ScrollBegin || phase == Qt::ScrollUpdate) {
-		_allowStoriesExpandTimer.cancel();
-		_inner->setTouchScrollActive(true);
-		//bar->setMinimum(0);
-	} else if (phase == Qt::ScrollEnd || phase == Qt::ScrollMomentum) {
-		_allowStoriesExpandTimer.cancel();
-		_inner->setTouchScrollActive(false);
-		if (def > 0 && now >= def) {
-			//bar->setMinimum(def);
-		} else {
-			//bar->setMinimum(0);
-		}
-	} else {
-		const auto allow = (def <= 0)
-			|| (now < def)
-			|| (now == def && !_allowStoriesExpandTimer.isActive());
-		if (allow) {
-			//_scroll->verticalScrollBar()->setMinimum(0);
-			_allowStoriesExpandTimer.cancel();
-		} else {
-			//bar->setMinimum(def);
-			_allowStoriesExpandTimer.callOnce(kWaitTillAllowStoriesExpand);
-		}
-	}
-}
-
-bool Widget::customTouchProcess(not_null<QTouchEvent*> e) {
-	const auto type = e->type();
-	customScrollProcess([&] {
-		switch (e->type()) {
-		case QEvent::TouchBegin: return Qt::ScrollBegin;
-		case QEvent::TouchUpdate: return Qt::ScrollUpdate;
-		case QEvent::TouchEnd:
-		case QEvent::TouchCancel: return Qt::ScrollEnd;
-		}
-		Unexpected("Touch event type in Widdget::customTouchProcess.");
-	}());
-	return false;
-}
-
 void Widget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
@@ -2526,11 +2521,9 @@ void Widget::updateControlsGeometry() {
 		? st::dialogsFilterSkip
 		: (st::dialogsFilterPadding.x() + _mainMenu.toggle->width()))
 		+ st::dialogsFilterPadding.x();
-	auto filterRight = (session().domain().local().hasLocalPasscode()
-		? (st::dialogsFilterPadding.x() + _lockUnlock->width())
-		: st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
-	auto filterWidth = qMax(ratiow, smallw) - filterLeft - filterRight;
-	auto filterAreaHeight = st::topBarHeight;
+	const auto filterRight = st::dialogsFilterSkip + st::dialogsFilterPadding.x();
+	const auto filterWidth = qMax(ratiow, smallw) - filterLeft - filterRight;
+	const auto filterAreaHeight = st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, ratiow, filterAreaHeight);
 	if (_subsectionTopBar) {
 		_subsectionTopBar->setGeometryWithNarrowRatio(
@@ -2542,6 +2535,7 @@ void Widget::updateControlsGeometry() {
 	auto filterTop = (filterAreaHeight - _filter->height()) / 2;
 	filterLeft = anim::interpolate(filterLeft, _narrowWidth, narrowRatio);
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
+
 	auto mainMenuLeft = anim::interpolate(
 		st::dialogsFilterPadding.x(),
 		(_narrowWidth - _mainMenu.toggle->width()) / 2,
@@ -2567,14 +2561,21 @@ void Widget::updateControlsGeometry() {
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
 
 	const auto barw = width();
+	const auto expandedStoriesTop = filterAreaTop + filterAreaHeight;
+	const auto storiesHeight = 2 * st::dialogsStories.photoTop
+		+ st::dialogsStories.photo;
+	const auto added = (st::dialogsFilter.heightMin - storiesHeight) / 2;
+	_stories->setLayoutConstraints(
+		{ filterLeft + filterWidth, filterTop + added },
+		{ 0, expandedStoriesTop, barw, st::dialogsStoriesFull.height });
 	if (_forumTopShadow) {
 		_forumTopShadow->setGeometry(
 			0,
-			filterAreaTop + filterAreaHeight,
+			expandedStoriesTop,
 			barw,
 			st::lineWidth);
 	}
-	const auto moreChatsBarTop = filterAreaTop + filterAreaHeight;
+	const auto moreChatsBarTop = expandedStoriesTop + _overscrollTop;
 	if (_moreChatsBar) {
 		_moreChatsBar->move(0, moreChatsBarTop);
 		_moreChatsBar->resizeToWidth(barw);
@@ -2599,8 +2600,7 @@ void Widget::updateControlsGeometry() {
 	auto scrollTop = forumReportTop
 		+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
 	const auto wasScrollTop = _scroll->scrollTop();
-	const auto newScrollTop = (_topDelta < 0
-		&& wasScrollTop <= _inner->defaultScrollTop())
+	const auto newScrollTop = (_topDelta < 0 && wasScrollTop <= 0)
 		? wasScrollTop
 		: (wasScrollTop + _topDelta);
 	auto scrollHeight = height() - scrollTop;
@@ -2626,19 +2626,13 @@ void Widget::updateControlsGeometry() {
 
 	const auto scrollw = _childList ? _narrowWidth : barw;
 	const auto wasScrollHeight = _scroll->height();
-	if (scrollHeight >= wasScrollHeight) {
-		_inner->setViewportHeight(scrollHeight);
-	}
 	_scroll->setGeometry(0, scrollTop, scrollw, scrollHeight);
-	if (scrollHeight < wasScrollHeight) {
-		_inner->setViewportHeight(scrollHeight);
-	}
 	_inner->resize(scrollw, _inner->height());
 	_inner->setNarrowRatio(narrowRatio);
 	if (scrollHeight != wasScrollHeight) {
 		controller()->floatPlayerAreaUpdated();
 	}
-	const auto startWithTop = _inner->defaultScrollTop();
+	const auto startWithTop = 0;
 	if (wasScrollHeight < startWithTop && scrollHeight >= startWithTop) {
 		_scroll->scrollToY(startWithTop);
 	} else if (newScrollTop != wasScrollTop) {
@@ -2718,7 +2712,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		p.fillRect(above.intersected(r), bg);
 	}
 
-	auto belowTop = _scroll->y() + qMin(_scroll->height(), _inner->height());
+	auto belowTop = _scroll->y() + _scroll->height();
 	if (!_widthAnimationCache.isNull()) {
 		p.drawPixmapLeft(0, _scroll->y(), width(), _widthAnimationCache);
 		belowTop = _scroll->y() + (_widthAnimationCache.height() / cIntRetinaFactor());

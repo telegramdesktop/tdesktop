@@ -465,8 +465,7 @@ void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 					last
 				) | rpl::filter([](const Content &content) {
 					return !content.elements.empty();
-				}),
-				[] { return st::dialogsStories.height; }),
+				})),
 				st::infoTopBarScale);
 		registerToggleControlCallback(
 			stories,

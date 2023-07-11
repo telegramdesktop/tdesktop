@@ -24,7 +24,7 @@ constexpr auto kPreloadPages = 2;
 constexpr auto kExpandAfterRatio = 0.85;
 constexpr auto kCollapseAfterRatio = 0.72;
 constexpr auto kFrictionRatio = 0.15;
-constexpr auto kSnapExpandedTimeout = crl::time(200);
+constexpr auto kExpandCatchUpDuration = crl::time(200);
 
 [[nodiscard]] int AvailableNameWidth(const style::DialogsStoriesList &st) {
 	const auto &full = st.full;
@@ -37,7 +37,6 @@ constexpr auto kSnapExpandedTimeout = crl::time(200);
 
 struct List::Layout {
 	int itemsCount = 0;
-	int shownHeight = 0;
 	float64 expandedRatio = 0.;
 	float64 ratio = 0.;
 	float64 thumbnailLeft = 0.;
@@ -58,12 +57,9 @@ struct List::Layout {
 List::List(
 	not_null<QWidget*> parent,
 	const style::DialogsStoriesList &st,
-	rpl::producer<Content> content,
-	Fn<int()> shownHeight)
+	rpl::producer<Content> content)
 : RpWidget(parent)
-, _st(st)
-, _shownHeight(shownHeight)
-, _snapExpandedTimer([=] { requestExpanded(_expanded); }) {
+, _st(st) {
 	setCursor(style::cur_default);
 
 	std::move(content) | rpl::start_with_next([=](Content &&content) {
@@ -87,6 +83,7 @@ void List::showContent(Content &&content) {
 		return;
 	}
 	const auto hidden = _content.elements.empty();
+	const auto wasCount = int((hidden ? _hidingData : _data).items.size());
 	_content = std::move(content);
 	auto items = base::take(
 		_data.items.empty() ? _hidingData.items : _data.items);
@@ -113,6 +110,9 @@ void List::showContent(Content &&content) {
 		} else {
 			_data.items.emplace_back(Item{ .element = element });
 		}
+	}
+	if (int(_data.items.size()) != wasCount) {
+		updateGeometry();
 	}
 	updateScrollMax();
 	updateSummary(_data);
@@ -253,7 +253,6 @@ rpl::producer<> List::loadMoreRequests() const {
 }
 
 void List::requestExpanded(bool expanded) {
-	_snapExpandedTimer.cancel();
 	if (_expanded != expanded) {
 		_expanded = expanded;
 		_expandedAnimation.start(
@@ -274,12 +273,12 @@ void List::resizeEvent(QResizeEvent *e) {
 	updateScrollMax();
 }
 
-void List::updateExpanding(int minHeight, int shownHeight, int fullHeight) {
-	Expects(shownHeight == minHeight || fullHeight > minHeight);
+void List::updateExpanding(int expandingHeight, int expandedHeight) {
+	Expects(!expandingHeight || expandedHeight > 0);
 
-	const auto ratio = (shownHeight == minHeight)
+	const auto ratio = !expandingHeight
 		? 0.
-		: (float64(shownHeight - minHeight) / (fullHeight - minHeight));
+		: (float64(expandingHeight) / expandedHeight);
 	if (_lastRatio == ratio) {
 		return;
 	}
@@ -296,20 +295,12 @@ void List::updateExpanding(int minHeight, int shownHeight, int fullHeight) {
 List::Layout List::computeLayout() {
 	const auto &st = _st.small;
 	const auto &full = _st.full;
-	const auto shownHeight = std::max(_shownHeight(), st.height);
-	if (_lastHeight != shownHeight) {
-		_lastHeight = shownHeight;
-		if (_lastHeight == st.height || _lastHeight == full.height) {
-			_snapExpandedTimer.cancel();
-		} else if (!_touchScrollActive) {
-			_snapExpandedTimer.callOnce(kSnapExpandedTimeout);
-		}
-	}
-	updateExpanding(st.height, shownHeight, full.height);
+	const auto use = _lastExpandedHeight
+		* _expandCatchUpAnimation.value(1.);
+	updateExpanding(use, full.height);
 
 	const auto expanded = _expandedAnimation.value(_expanded ? 1. : 0.);
-	const auto expandedRatio = float64(shownHeight - st.height)
-		/ (full.height - st.height);
+	const auto expandedRatio = _lastRatio;
 	const auto collapsedRatio = expandedRatio * kFrictionRatio;
 	const auto ratio = expandedRatio * expanded
 		+ collapsedRatio * (1. - expanded);
@@ -323,7 +314,7 @@ List::Layout List::computeLayout() {
 	const auto narrowWidth = st::defaultDialogRow.padding.left()
 		+ st::defaultDialogRow.photoSize
 		+ st::defaultDialogRow.padding.left();
-	const auto narrow = (width() <= narrowWidth);
+	const auto narrow = false;// (width() <= narrowWidth);
 	const auto smallSkip = (itemsCount > 1
 		&& rendering.items[0].element.skipSmall)
 		? 1
@@ -352,7 +343,6 @@ List::Layout List::computeLayout() {
 	const auto photoLeft = lerp(st.photoLeft, full.photoLeft);
 	return Layout{
 		.itemsCount = itemsCount,
-		.shownHeight = shownHeight,
 		.expandedRatio = expandedRatio,
 		.ratio = ratio,
 		.thumbnailLeft = thumbnailLeft,
@@ -391,14 +381,14 @@ void List::paintEvent(QPaintEvent *e) {
 	auto &rendering = _data.empty() ? _hidingData : _data;
 	const auto line = elerp(st.lineTwice, full.lineTwice) / 2.;
 	const auto lineRead = elerp(st.lineReadTwice, full.lineReadTwice) / 2.;
-	const auto photoTopSmall = (st.height - st.photo) / 2.;
+	const auto photoTopSmall = st.photoTop;
 	const auto photoTop = photoTopSmall
 		+ (full.photoTop - photoTopSmall) * layout.expandedRatio;
 	const auto photo = lerp(st.photo, full.photo);
 	const auto summaryTop = st.nameTop
 		- (st.photoTop + (st.photo / 2.))
 		+ (photoTop + (photo / 2.));
-	const auto nameScale = layout.shownHeight / float64(full.height);
+	const auto nameScale = _lastRatio;
 	const auto nameTop = nameScale * full.nameTop;
 	const auto nameWidth = nameScale * AvailableNameWidth(_st);
 	const auto nameHeight = nameScale * full.nameStyle.font->height;
@@ -407,8 +397,18 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto readUserpicAppearingOpacity = elerp(_st.readOpacity, 0.);
 
 	auto p = QPainter(this);
-	p.fillRect(e->rect(), _bgOverride.value_or(_st.bg));
-	p.translate(0, height() - layout.shownHeight);
+
+	if (_state == State::Changing) {
+		const auto left = anim::interpolate(
+			_changingGeometryFrom.x(),
+			_geometryFull.x(),
+			layout.expandedRatio);
+		const auto top = anim::interpolate(
+			_changingGeometryFrom.y(),
+			_geometryFull.y(),
+			layout.expandedRatio);
+		p.translate(QPoint(left, top) - pos());
+	}
 
 	const auto drawSmall = (expandRatio < 1.);
 	const auto drawFull = (expandRatio > 0.);
@@ -691,6 +691,7 @@ void List::paintSummary(
 		Data &data,
 		float64 summaryTop,
 		float64 hidden) {
+#if 0 // #TODO stories to-remove
 	const auto total = int(data.items.size());
 	auto &summary = ChooseSummary(
 		_st.small,
@@ -723,6 +724,7 @@ void List::paintSummary(
 	p.drawImage(
 		QRectF(left, summaryTop, summaryWidth, summaryHeight),
 		summary.cache);
+#endif
 }
 
 void List::wheelEvent(QWheelEvent *e) {
@@ -767,12 +769,9 @@ void List::mouseMoveEvent(QMouseEvent *e) {
 	_lastMousePosition = e->globalPos();
 	updateSelected();
 
-	if (!_dragging && _mouseDownPosition) {
+	if (!_dragging && _mouseDownPosition && _state == State::Full) {
 		if ((_lastMousePosition - *_mouseDownPosition).manhattanLength()
 			>= QApplication::startDragDistance()) {
-			if (_shownHeight() < _st.full.height) {
-				requestExpanded(true);
-			}
 			_dragging = true;
 			_startDraggingLeft = _scrollLeft;
 		}
@@ -822,19 +821,82 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void List::setBgOverride(QBrush brush) {
-	_bgOverride = std::move(brush);
+void List::setExpandedHeight(int height, bool momentum) {
+	height = std::clamp(height, 0, _st.full.height);
+	if (_lastExpandedHeight == height) {
+		return;
+	} else if (momentum && _expandIgnored) {
+		return;
+	} else if (momentum && height > 0 && !_lastExpandedHeight) {
+		_expandIgnored = true;
+		return;
+	} else if (!momentum && _expandIgnored && height > 0) {
+		_expandIgnored = false;
+		_expandCatchUpAnimation.start([=] {
+			update();
+			if (!_expandCatchUpAnimation.animating()
+				&& _lastExpandedHeight == _st.full.height) {
+				setState(State::Full);
+			}
+		}, 0., 1., kExpandCatchUpDuration);
+	} else if (!height && _expandCatchUpAnimation.animating()) {
+		_expandCatchUpAnimation.stop();
+	}
+	_lastExpandedHeight = height;
+	setState(!height
+		? State::Small
+		: (height < _st.full.height
+			|| _expandCatchUpAnimation.animating()
+			|| _expandedAnimation.animating())
+		? State::Changing
+		: State::Full);
+	update();
 }
 
-void List::setTouchScrollActive(bool active) {
-	if (_touchScrollActive != active) {
-		_touchScrollActive = active;
-		if (active) {
-			_snapExpandedTimer.cancel();
-		} else {
-			requestExpanded(_expanded);
-		}
+void List::setLayoutConstraints(QPoint topRightSmall, QRect geometryFull) {
+	_topRightSmall = topRightSmall;
+	_geometryFull = geometryFull;
+	updateGeometry();
+	update();
+}
+
+void List::updateGeometry() {
+	switch (_state) {
+	case State::Small: setGeometry(countSmallGeometry()); break;
+	case State::Changing: {
+		_changingGeometryFrom = countSmallGeometry();
+		setGeometry(_geometryFull.united(_changingGeometryFrom));
+	} break;
+	case State::Full: setGeometry(_geometryFull);
 	}
+	update();
+}
+
+QRect List::countSmallGeometry() const {
+	const auto &st = _st.small;
+	const auto layout = const_cast<List*>(this)->computeLayout();
+	const auto count = layout.endIndexSmall - layout.startIndexSmall;
+	const auto width = st.left
+		+ st.photoLeft
+		+ st.photo + (count - 1) * st.shift
+		+ st.photoLeft
+		+ st.left;
+	return QRect(
+		_topRightSmall.x() - width,
+		_topRightSmall.y(),
+		width,
+		st.photoTop + st.photo + st.photoTop);
+}
+
+void List::setState(State state) {
+	if (_state == state) {
+		return;
+	}
+	_state = state;
+	setAttribute(
+		Qt::WA_TransparentForMouseEvents,
+		state == State::Changing);
+	updateGeometry();
 }
 
 void List::contextMenuEvent(QContextMenuEvent *e) {

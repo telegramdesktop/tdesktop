@@ -56,6 +56,10 @@ class ConnectionState;
 struct SectionShow;
 } // namespace Window
 
+namespace Dialogs::Stories {
+class List;
+} // namespace Dialogs::Stories
+
 namespace Dialogs {
 
 struct RowDescriptor;
@@ -136,9 +140,6 @@ private:
 	void cancelSearchInChat();
 	void filterCursorMoved();
 	void completeHashtag(QString tag);
-	bool customWheelProcess(not_null<QWheelEvent*> e);
-	bool customTouchProcess(not_null<QTouchEvent*> e);
-	void customScrollProcess(Qt::ScrollPhase phase);
 
 	[[nodiscard]] QString currentSearchQuery() const;
 	void clearSearchField();
@@ -165,6 +166,7 @@ private:
 	void setupMoreChatsBar();
 	void setupDownloadBar();
 	void setupShortcuts();
+	void setupStories();
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
 	bool setSearchInChat(Key chat, PeerData *from = nullptr);
@@ -248,7 +250,6 @@ private:
 	std::unique_ptr<HistoryView::ContactStatus> _forumReportBar;
 
 	object_ptr<Ui::ElasticScroll> _scroll;
-	base::Timer _allowStoriesExpandTimer;
 	QPointer<InnerWidget> _inner;
 	class BottomButton;
 	object_ptr<BottomButton> _updateTelegram = { nullptr };
@@ -257,6 +258,7 @@ private:
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	Ui::Animations::Simple _scrollToAnimation;
+	int _scrollAnimationTo = 0;
 	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 	rpl::variable<float64> _shownProgressValue;
 
@@ -264,6 +266,9 @@ private:
 	object_ptr<Ui::JumpDownButton> _scrollToTop;
 	bool _scrollToTopIsShown = false;
 	bool _forumSearchRequested = false;
+
+	int _overscrollTop = 0;
+	std::unique_ptr<Stories::List> _stories;
 
 	Data::Folder *_openedFolder = nullptr;
 	Data::Forum *_openedForum = nullptr;

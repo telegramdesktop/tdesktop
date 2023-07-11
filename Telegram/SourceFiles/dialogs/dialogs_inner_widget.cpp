@@ -141,13 +141,6 @@ InnerWidget::InnerWidget(
 	rpl::producer<ChildListShown> childListShown)
 : RpWidget(parent)
 , _controller(controller)
-, _stories(std::make_unique<Stories::List>(
-	this,
-	st::dialogsStoriesList,
-	Stories::ContentForSession(
-		&controller->session(),
-		Data::StorySourcesList::NotHidden),
-	[=] { return _stories->height() - _visibleTop; }))
 , _shownList(controller->session().data().chatsList()->indexed())
 , _st(&st::defaultDialogRow)
 , _pinnedShiftAnimation([=](crl::time now) {
@@ -328,37 +321,6 @@ InnerWidget::InnerWidget(
 		switchToFilter(filterId);
 	}, lifetime());
 
-	_stories->heightValue(
-	) | rpl::filter([=] {
-		return (_viewportHeight > 0) && (defaultScrollTop() > _visibleTop);
-	}) | rpl::start_with_next([=] {
-		refreshForDefaultScroll();
-		jumpToTop();
-	}, lifetime());
-
-	_stories->entered(
-	) | rpl::start_with_next([=] {
-		clearSelection();
-	}, lifetime());
-
-	_stories->clicks(
-	) | rpl::start_with_next([=](uint64 id) {
-		_controller->openPeerStories(
-			PeerId(int64(id)),
-			Data::StorySourcesList::NotHidden);
-	}, lifetime());
-
-	_stories->showMenuRequests(
-	) | rpl::start_with_next([=](const Stories::ShowMenuRequest &request) {
-		FillSourceMenu(_controller, request);
-	}, lifetime());
-
-	_stories->loadMoreRequests(
-	) | rpl::start_with_next([=] {
-		session().data().stories().loadMore(
-			Data::StorySourcesList::NotHidden);
-	}, lifetime());
-
 	session().data().stories().incrementPreloadingMainSources();
 
 	handleChatListEntryRefreshes();
@@ -450,36 +412,14 @@ int InnerWidget::skipTopHeight() const {
 		: 0;
 }
 
-bool InnerWidget::storiesShown() const {
-	return (_state == WidgetState::Default)
-		&& !_openedFolder
-		&& !_openedForum;
-}
-
 int InnerWidget::collapsedRowsOffset() const {
-	return storiesShown() ? _stories->height() : 0;
+	return 0;
 }
 
 int InnerWidget::dialogsOffset() const {
 	return collapsedRowsOffset()
 		+ (_collapsedRows.size() * st::dialogsImportantBarHeight)
 		- skipTopHeight();
-}
-
-rpl::producer<bool> InnerWidget::storiesExpandedRequests() const {
-	return rpl::merge(
-		_stories->toggleExpandedRequests(),
-		_storiesExpandedRequests.events());
-}
-
-void InnerWidget::setTouchScrollActive(bool active) {
-	_stories->setTouchScrollActive(active);
-}
-
-int InnerWidget::defaultScrollTop() const {
-	return storiesShown()
-		? std::max(_stories->height() - st::dialogsStories.height, 0)
-		: 0;
 }
 
 int InnerWidget::fixedOnTopCount() const {
@@ -564,7 +504,6 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	stopReorderPinned();
 	clearSelection();
 	_openedFolder = folder;
-	_stories->setVisible(storiesShown());
 	refreshShownList();
 	refreshWithCollapsedRows(true);
 	if (_loadMoreCallback) {
@@ -591,7 +530,6 @@ void InnerWidget::changeOpenedForum(Data::Forum *forum) {
 	}
 	_openedForum = forum;
 	_st = forum ? &st::forumTopicRow : &st::defaultDialogRow;
-	_stories->setVisible(storiesShown());
 	refreshShownList();
 
 	_openedForumLifetime.destroy();
@@ -642,7 +580,6 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		.paused = videoPaused,
 		.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
 	};
-	_stories->setBgOverride(context.currentBg);
 	const auto fillGuard = gsl::finally([&] {
 		// We translate painter down, but it'll be cropped below rect.
 		p.fillRect(rect(), context.currentBg);
@@ -1759,13 +1696,6 @@ void InnerWidget::mousePressReleased(
 	}
 }
 
-void InnerWidget::setViewportHeight(int viewportHeight) {
-	if (_viewportHeight != viewportHeight) {
-		_viewportHeight = viewportHeight;
-		refreshForDefaultScroll();
-	}
-}
-
 void InnerWidget::setCollapsedPressed(int pressed) {
 	if (_collapsedPressed != pressed) {
 		if (_collapsedPressed >= 0) {
@@ -1836,7 +1766,6 @@ void InnerWidget::setSearchedPressed(int pressed) {
 }
 
 void InnerWidget::resizeEvent(QResizeEvent *e) {
-	_stories->resizeToWidth(width());
 	resizeEmptyLabel();
 	moveCancelSearchButtons();
 }
@@ -2597,7 +2526,6 @@ void InnerWidget::visibleTopBottomUpdated(
 		int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
-	_stories->update();
 	preloadRowsData();
 	const auto loadTill = _visibleTop
 		+ PreloadHeightsCount * (_visibleBottom - _visibleTop);
@@ -2793,12 +2721,6 @@ void InnerWidget::editOpenedFilter() {
 	}
 }
 
-void InnerWidget::refreshForDefaultScroll() {
-	if (height() < defaultScrollTop() + _viewportHeight) {
-		refresh();
-	}
-}
-
 void InnerWidget::refresh(bool toTop) {
 	if (!_geometryInited) {
 		return;
@@ -2819,9 +2741,6 @@ void InnerWidget::refresh(bool toTop) {
 		} else {
 			h = searchedOffset() + (_searchResults.size() * _st->height);
 		}
-	}
-	if (const auto storiesSkip = defaultScrollTop()) {
-		accumulate_max(h, storiesSkip + _viewportHeight);
 	}
 	resize(width(), h);
 	if (toTop) {
@@ -3033,10 +2952,7 @@ void InnerWidget::clearFilter() {
 }
 
 void InnerWidget::setState(WidgetState state) {
-	if (_state != state) {
-		_state = state;
-		_stories->setVisible(storiesShown());
-	}
+	_state = state;
 }
 
 void InnerWidget::selectSkip(int32 direction) {
@@ -3331,8 +3247,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 }
 
 void InnerWidget::jumpToTop() {
-	const auto to = defaultScrollTop();
-	_mustScrollTo.fire({ to, -1 });
+	_mustScrollTo.fire({ 0, -1 });
 }
 
 void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
@@ -3342,8 +3257,7 @@ void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
 void InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
 	const auto it = _chatsFilterScrollStates.find(filterId);
 	if (it != end(_chatsFilterScrollStates)) {
-		const auto top = std::max(it->second, defaultScrollTop());
-		_mustScrollTo.fire({ top, -1 });
+		_mustScrollTo.fire({ std::max(it->second, 0), -1 });
 	}
 }
 
@@ -3412,7 +3326,6 @@ ChosenRow InnerWidget::computeChosenRow() const {
 bool InnerWidget::chooseRow(
 		Qt::KeyboardModifiers modifiers,
 		MsgId pressedTopicRootId) {
-	_storiesExpandedRequests.fire(false);
 	if (chooseCollapsedRow()) {
 		return true;
 	} else if (chooseHashtag()) {
