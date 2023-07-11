@@ -689,8 +689,7 @@ QRect List::countSmallGeometry() const {
 	const auto &st = _st.small;
 	const auto layout = const_cast<List*>(this)->computeLayout();
 	const auto count = layout.endIndexSmall
-		- layout.startIndexSmall
-		- layout.smallSkip;
+		- std::max(layout.startIndexSmall, layout.smallSkip);
 	const auto width = st.left
 		+ st.photoLeft
 		+ st.photo + (count - 1) * st.shift
