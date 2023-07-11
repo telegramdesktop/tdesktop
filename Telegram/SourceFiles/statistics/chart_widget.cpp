@@ -250,6 +250,8 @@ private:
 
 	Limits _fullHeightLimits;
 
+	void prepareCache(int height);
+
 	struct {
 		int left = 0;
 		int right = 0;
@@ -261,6 +263,9 @@ private:
 	QImage _frame;
 	QImage _mask;
 
+	QImage _leftCache;
+	QImage _rightCache;
+
 };
 
 ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
@@ -270,22 +275,25 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 , _corners(Images::PrepareCorners(ImageRoundRadius::Small, st::boxBg)) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
-		_left->resize(st::colorSliderWidth, s.height());
-		_right->resize(st::colorSliderWidth, s.height());
+		_left->resize(st::statisticsChartFooterSideWidth, s.height());
+		_right->resize(st::statisticsChartFooterSideWidth, s.height());
 		_mask = Ui::RippleAnimation::RoundRectMask(s, st::boxRadius);
 		_frame = _mask;
+		prepareCache(s.height());
 	}, _left->lifetime());
 	_left->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(_left);
-		p.setOpacity(0.3);
-		p.fillRect(_left->rect(), st::boxTextFg);
+		// p.setOpacity(0.3);
+		// p.fillRect(_left->rect(), st::boxTextFg);
+		p.drawImage(0, 0, _leftCache);
 	}, _left->lifetime());
 	_right->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(_right);
-		p.setOpacity(0.3);
-		p.fillRect(_right->rect(), st::boxTextFg);
+		// p.setOpacity(0.3);
+		// p.fillRect(_right->rect(), st::boxTextFg);
+		p.drawImage(0, 0, _rightCache);
 	}, _right->lifetime());
 
 	sizeValue(
@@ -344,6 +352,42 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 		[=] { return width() - _right->width(); });
 }
 
+void ChartWidget::Footer::prepareCache(int height) {
+	const auto s = QSize(st::statisticsChartFooterSideWidth, height);
+
+	auto mask = Ui::RippleAnimation::RoundRectMask(s, st::boxRadius);
+	{
+		auto p = QPainter(&mask);
+		const auto halfWidth = s.width() / 2;
+		p.fillRect(QRect(halfWidth, 0, halfWidth, s.height()), Qt::white);
+	}
+	_leftCache = mask;
+	_leftCache.fill(Qt::transparent);
+	{
+		auto p = QPainter(&_leftCache);
+
+		p.fillRect(_leftCache.rect(), st::shadowFg);
+
+		auto path = QPainterPath();
+		const auto halfArrow = st::statisticsChartFooterArrowSize
+			/ style::DevicePixelRatio()
+			/ 2.;
+		const auto c = Rect(s).center();
+		path.moveTo(c.x() + halfArrow.width(), c.y() - halfArrow.height());
+		path.lineTo(c.x() - halfArrow.width(), c.y());
+		path.lineTo(c.x() + halfArrow.width(), c.y() + halfArrow.height());
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(QPen(st::windowSubTextFg, st::statisticsChartLineWidth));
+			p.drawPath(path);
+		}
+
+		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		p.drawImage(0, 0, mask);
+	}
+	_rightCache = _leftCache.mirrored(true, false);
+}
+
 void ChartWidget::Footer::setPaintChartCallback(
 		Fn<void(QPainter &p)> paintChartCallback) {
 	_paintChartCallback = std::move(paintChartCallback);
@@ -353,9 +397,8 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	const auto r = rect();
-	const auto inactiveLeftRect = Rect(QSize(_left->x(), r.height()));
-	const auto inactiveRightRect = r
-		- QMargins({ rect::right(_right), 0, 0, 0 });
+	const auto inactiveLeftRect = Rect(QSize(rect::right(_left), r.height()));
+	const auto inactiveRightRect = r - QMargins({ _right->x(), 0, 0, 0 });
 	const auto &inactiveColor = st::shadowFg;
 
 	_frame.fill(Qt::transparent);
