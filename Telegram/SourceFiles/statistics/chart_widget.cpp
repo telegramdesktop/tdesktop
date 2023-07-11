@@ -178,7 +178,7 @@ void PaintBottomLine(
 
 } // namespace
 
-class RpMouseWidget final : public Ui::AbstractButton {
+class RpMouseWidget : public Ui::AbstractButton {
 public:
 	using Ui::AbstractButton::AbstractButton;
 
@@ -226,8 +226,10 @@ void RpMouseWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_mouseStateChanged.fire({ e->pos(), QEvent::MouseButtonRelease });
 }
 
-class ChartWidget::Footer final : public Ui::AbstractButton {
+class ChartWidget::Footer final : public RpMouseWidget {
 public:
+	using PaintCallback = Fn<void(QPainter &, const QRect &)>;
+
 	Footer(not_null<Ui::RpWidget*> parent);
 
 	[[nodiscard]] rpl::producer<Limits> xPercentageLimitsChange() const;
@@ -236,15 +238,12 @@ public:
 	void setFullHeightLimits(Limits limits);
 	[[nodiscard]] const Limits &fullHeightLimits() const;
 
-	void setPaintChartCallback(Fn<void(QPainter &p)> paintChartCallback);
+	void setPaintChartCallback(PaintCallback paintChartCallback);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	not_null<RpMouseWidget*> _left;
-	not_null<RpMouseWidget*> _right;
-
 	rpl::event_stream<Limits> _xPercentageLimitsChange;
 	rpl::event_stream<> _userInteractionFinished;
 
@@ -252,13 +251,26 @@ private:
 
 	void prepareCache(int height);
 
-	struct {
-		int left = 0;
-		int right = 0;
-	} _limits;
+	void moveSide(bool left, float64 x);
+	void moveCenter(
+		bool isDirectionToLeft,
+		float64 x,
+		float64 diffBetweenStartAndLeft);
 
-	Fn<void(QPainter &p)> _paintChartCallback;
-	const std::array<QImage, 4> _corners;
+	void fire() const;
+
+	enum class DragArea {
+		None,
+		Middle,
+		Left,
+		Right,
+	};
+	DragArea _dragArea = DragArea::None;
+	float64 _diffBetweenStartAndSide = 0;
+	Ui::Animations::Simple _moveCenterAnimation;
+	bool _draggedAfterPress = false;
+
+	PaintCallback _paintChartCallback;
 
 	QImage _frame;
 	QImage _mask;
@@ -266,107 +278,149 @@ private:
 	QImage _leftCache;
 	QImage _rightCache;
 
+	Limits _leftSide;
+	Limits _rightSide;
+
 };
 
 ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
-: Ui::AbstractButton(parent)
-, _left(Ui::CreateChild<RpMouseWidget>(this))
-, _right(Ui::CreateChild<RpMouseWidget>(this))
-, _corners(Images::PrepareCorners(ImageRoundRadius::Small, st::boxBg)) {
+: RpMouseWidget(parent) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
-		_left->resize(st::statisticsChartFooterSideWidth, s.height());
-		_right->resize(st::statisticsChartFooterSideWidth, s.height());
-		_mask = Ui::RippleAnimation::RoundRectMask(s, st::boxRadius);
+		_mask = Ui::RippleAnimation::RoundRectMask(
+			s - QSize(0, st::statisticsChartLineWidth * 2),
+			st::boxRadius);
 		_frame = _mask;
 		prepareCache(s.height());
-	}, _left->lifetime());
-	_left->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(_left);
-		// p.setOpacity(0.3);
-		// p.fillRect(_left->rect(), st::boxTextFg);
-		p.drawImage(0, 0, _leftCache);
-	}, _left->lifetime());
-	_right->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(_right);
-		// p.setOpacity(0.3);
-		// p.fillRect(_right->rect(), st::boxTextFg);
-		p.drawImage(0, 0, _rightCache);
-	}, _right->lifetime());
+	}, lifetime());
 
 	sizeValue(
-	) | rpl::take(2) | rpl::start_with_next([=] {
-		_left->moveToLeft(0, 0);
-		_right->moveToRight(0, 0);
-	}, _left->lifetime());
+	) | rpl::take(2) | rpl::start_with_next([=](const QSize &s) {
+		moveSide(false, s.width());
+		moveSide(true, 0);
+		update();
+	}, lifetime());
 
-	const auto handleDrag = [&](
-			not_null<RpMouseWidget*> side,
-			Fn<int()> leftLimit,
-			Fn<int()> rightLimit) {
-		side->mouseStateChanged(
-		) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
-			const auto posX = state.point.x();
-			switch (state.mouseState) {
-			case QEvent::MouseMove: {
-				if (base::IsCtrlPressed()) {
-					const auto diff = (posX - side->start().x());
-					_left->move(_left->x() + diff, side->y());
-					_right->move(_right->x() + diff, side->y());
-				} else {
-					const auto nextX = std::clamp(
-						side->x() + (posX - side->start().x()),
-						_limits.left,
-						_limits.right);
-					side->move(nextX, side->y());
-				}
-				_xPercentageLimitsChange.fire({
-					.min = _left->x() / float64(width()),
-					.max = rect::right(_right) / float64(width()),
-				});
-			} break;
-			case QEvent::MouseButtonPress: {
-				_limits = { .left = leftLimit(), .right = rightLimit() };
-			} break;
-			case QEvent::MouseButtonRelease: {
-				_userInteractionFinished.fire({});
-				_xPercentageLimitsChange.fire({
-					.min = _left->x() / float64(width()),
-					.max = rect::right(_right) / float64(width()),
-				});
-				_limits = {};
-			} break;
+	mouseStateChanged(
+	) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
+		if (_moveCenterAnimation.animating()) {
+			return;
+		}
+
+		const auto posX = state.point.x();
+		const auto isLeftSide = (posX >= _leftSide.min)
+			&& (posX <= _leftSide.max);
+		const auto isRightSide = !isLeftSide
+			&& (posX >= _rightSide.min)
+			&& (posX <= _rightSide.max);
+		switch (state.mouseState) {
+		case QEvent::MouseMove: {
+			_draggedAfterPress = true;
+			if (_dragArea == DragArea::None) {
+				return;
 			}
-			update();
-		}, side->lifetime());
-	};
-	handleDrag(
-		_left,
-		[=] { return 0; },
-		[=] { return _right->x() - _left->width(); });
-	handleDrag(
-		_right,
-		[=] { return rect::right(_left); },
-		[=] { return width() - _right->width(); });
+			const auto resultX = posX - _diffBetweenStartAndSide;
+			if (_dragArea == DragArea::Right) {
+				moveSide(false, resultX);
+			} else if (_dragArea == DragArea::Left) {
+				moveSide(true, resultX);
+			} else if (_dragArea == DragArea::Middle) {
+				const auto toLeft = posX <= start().x();
+				moveCenter(toLeft, posX, _diffBetweenStartAndSide);
+			}
+			fire();
+		} break;
+		case QEvent::MouseButtonPress: {
+			_draggedAfterPress = false;
+			_dragArea = isLeftSide
+				? DragArea::Left
+				: isRightSide
+				? DragArea::Right
+				: ((posX < _leftSide.min) || (posX > _rightSide.max))
+				? DragArea::None
+				: DragArea::Middle;
+			_diffBetweenStartAndSide = isRightSide
+				? (start().x() - _rightSide.min)
+				: (start().x() - _leftSide.min);
+		} break;
+		case QEvent::MouseButtonRelease: {
+			const auto finish = [=] {
+				_dragArea = DragArea::None;
+				_userInteractionFinished.fire({});
+				fire();
+			};
+			if ((_dragArea == DragArea::None) && !_draggedAfterPress) {
+				const auto startX = _leftSide.min
+					+ (_rightSide.max - _leftSide.min) / 2;
+				const auto finishX = posX;
+				const auto toLeft = (finishX <= startX);
+				const auto diffBetweenStartAndLeft = startX - _leftSide.min;
+				_moveCenterAnimation.stop();
+				_moveCenterAnimation.start([=](float64 value) {
+					moveCenter(toLeft, value, diffBetweenStartAndLeft);
+					fire();
+					update();
+					if (value == finishX) {
+						finish();
+					}
+				},
+				startX,
+				finishX,
+				st::slideWrapDuration,
+				anim::sineInOut);
+			} else {
+				finish();
+			}
+		} break;
+		}
+		update();
+	}, lifetime());
+}
+
+void ChartWidget::Footer::fire() const {
+	_xPercentageLimitsChange.fire({
+		.min = _leftSide.min / float64(width()),
+		.max = _rightSide.max / float64(width()),
+	});
+}
+
+void ChartWidget::Footer::moveCenter(
+		bool isDirectionToLeft,
+		float64 x,
+		float64 diffBetweenStartAndLeft) {
+	const auto resultX = x - diffBetweenStartAndLeft;
+	const auto diffBetweenSides = _rightSide.min - _leftSide.min;
+	if (isDirectionToLeft) {
+		moveSide(true, resultX);
+		moveSide(false, _leftSide.min + diffBetweenSides);
+	} else {
+		moveSide(false, resultX + diffBetweenSides);
+		moveSide(true, _rightSide.min - diffBetweenSides);
+	}
+}
+
+void ChartWidget::Footer::moveSide(bool left, float64 x) {
+	const auto w = float64(st::statisticsChartFooterSideWidth);
+	if (left) {
+		const auto min = std::clamp(x, 0., _rightSide.min - w);
+		_leftSide = Limits{ .min = min, .max = min + w };
+	} else if (!left) {
+		const auto min = std::clamp(x, _leftSide.max, width() - w);
+		_rightSide = Limits{ .min = min, .max = min + w };
+	}
 }
 
 void ChartWidget::Footer::prepareCache(int height) {
 	const auto s = QSize(st::statisticsChartFooterSideWidth, height);
 
-	auto mask = Ui::RippleAnimation::RoundRectMask(s, st::boxRadius);
-	{
-		auto p = QPainter(&mask);
-		const auto halfWidth = s.width() / 2;
-		p.fillRect(QRect(halfWidth, 0, halfWidth, s.height()), Qt::white);
-	}
-	_leftCache = mask;
+	_leftCache = QImage(
+		s * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	_leftCache.setDevicePixelRatio(style::DevicePixelRatio());
+
 	_leftCache.fill(Qt::transparent);
 	{
 		auto p = QPainter(&_leftCache);
-
-		p.fillRect(_leftCache.rect(), st::shadowFg);
 
 		auto path = QPainterPath();
 		const auto halfArrow = st::statisticsChartFooterArrowSize
@@ -382,41 +436,72 @@ void ChartWidget::Footer::prepareCache(int height) {
 			p.drawPath(path);
 		}
 
-		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-		p.drawImage(0, 0, mask);
 	}
 	_rightCache = _leftCache.mirrored(true, false);
 }
 
 void ChartWidget::Footer::setPaintChartCallback(
-		Fn<void(QPainter &p)> paintChartCallback) {
+		PaintCallback paintChartCallback) {
 	_paintChartCallback = std::move(paintChartCallback);
 }
 
 void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
+	auto hq = PainterHighQualityEnabler(p);
+
+	const auto lineWidth = st::statisticsChartLineWidth;
+	const auto innerMargins = QMargins{ 0, lineWidth, 0, lineWidth };
 	const auto r = rect();
-	const auto inactiveLeftRect = Rect(QSize(rect::right(_left), r.height()));
-	const auto inactiveRightRect = r - QMargins({ _right->x(), 0, 0, 0 });
-	const auto &inactiveColor = st::shadowFg;
+	const auto innerRect = r - innerMargins;
+	const auto inactiveLeftRect = Rect(QSizeF(_leftSide.max, r.height()))
+		- innerMargins;
+	const auto inactiveRightRect = r
+		- QMarginsF{ _rightSide.min, 0, 0, 0 }
+		- innerMargins;
+	const auto &inactiveColor = st::statisticsChartInactive;
 
 	_frame.fill(Qt::transparent);
-	{
-		auto p = QPainter(&_frame);
+	if (_paintChartCallback) {
+		auto q = QPainter(&_frame);
 
-		if (_paintChartCallback) {
-			_paintChartCallback(p);
-		}
+		_paintChartCallback(q, Rect(innerRect.size()));
 
-		p.fillRect(inactiveLeftRect, inactiveColor);
-		p.fillRect(inactiveRightRect, inactiveColor);
-
-		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-		p.drawImage(0, 0, _mask);
+		q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		q.drawImage(0, 0, _mask);
 	}
 
-	p.drawImage(0, 0, _frame);
+	p.drawImage(0, lineWidth, _frame);
+
+	auto inactivePath = QPainterPath();
+	inactivePath.addRoundedRect(
+		innerRect,
+		st::boxRadius,
+		st::boxRadius);
+
+	auto sidesPath = QPainterPath();
+	sidesPath.addRoundedRect(
+		_leftSide.min,
+		0,
+		_rightSide.max - _leftSide.min,
+		r.height(),
+		st::boxRadius,
+		st::boxRadius);
+	inactivePath = inactivePath.subtracted(sidesPath);
+	sidesPath.addRect(
+		_leftSide.max,
+		lineWidth,
+		_rightSide.min - _leftSide.max,
+		r.height() - lineWidth * 2);
+
+	p.setBrush(st::statisticsChartActive);
+	p.setPen(Qt::NoPen);
+	p.drawPath(sidesPath);
+	p.setBrush(inactiveColor);
+	p.drawPath(inactivePath);
+
+	p.drawImage(_leftSide.min, 0, _leftCache);
+	p.drawImage(_rightSide.min, 0, _rightCache);
 }
 
 rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
@@ -678,20 +763,26 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 	) | rpl::start_with_next([=](const QSize &s) {
 		_footer->setGeometry(
 			0,
-			s.height() - st::countryRowHeight,
+			s.height() - st::statisticsChartFooterHeight,
 			s.width(),
-			st::countryRowHeight);
+			st::statisticsChartFooterHeight);
 		_chartArea->setGeometry(
 			0,
 			0,
 			s.width(),
-			s.height() - st::countryRowHeight * 2);
+			s.height()
+				- st::statisticsChartFooterHeight
+				- st::statisticsChartFooterSkip);
 	}, lifetime());
 
 	setupChartArea();
 	setupFooter();
 
-	resize(width(), st::confirmMaxHeight + st::countryRowHeight * 2);
+	resize(
+		width(),
+		st::confirmMaxHeight
+			+ st::statisticsChartFooterHeight
+			+ st::statisticsChartFooterSkip);
 }
 
 QRect ChartWidget::chartAreaRect() const {
@@ -862,16 +953,17 @@ void ChartWidget::updateBottomDates() {
 
 void ChartWidget::setupFooter() {
 	_footer->setPaintChartCallback([=, fullXLimits = Limits{ 0., 1. }](
-			QPainter &p) {
+			QPainter &p,
+			const QRect &r) {
 		if (_chartData) {
 			auto detailsPaintContext = DetailsPaintContext{ .xIndex = -1 };
-			p.fillRect(_footer->rect(), st::boxBg);
+			p.fillRect(r, st::boxBg);
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
 				fullXLimits,
 				_footer->fullHeightLimits(),
-				_footer->rect(),
+				r,
 				detailsPaintContext);
 		}
 	});

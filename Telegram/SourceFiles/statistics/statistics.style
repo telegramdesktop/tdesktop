@@ -26,6 +26,9 @@ statisticsChartBottomCaptionSkip: 15px;
 
 statisticsChartBottomCaptionMaxWidth: 44px;
 
+statisticsChartFooterSkip: 10px;
+statisticsChartFooterHeight: 52px;
+
 statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
