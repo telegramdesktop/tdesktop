@@ -19,6 +19,7 @@ namespace Statistic {
 void PaintLinearChartView(
 		QPainter &p,
 		const Data::StatisticalChart &chartData,
+		const Limits &xIndices,
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
@@ -32,21 +33,14 @@ void PaintLinearChartView(
 		const auto additionalP = (chartData.xPercentage.size() < 2)
 			? 0.
 			: (chartData.xPercentage.front() * rect.width());
-		const auto additionalPoints = 0;
 
 		auto first = true;
 		auto chartPath = QPainterPath();
 
-		const auto startXIndex = chartData.findStartIndex(
-			xPercentageLimits.min);
-		const auto endXIndex = chartData.findEndIndex(
-			startXIndex,
-			xPercentageLimits.max);
-
-		const auto localStart = std::max(0, startXIndex - additionalPoints);
+		const auto localStart = std::max(0, int(xIndices.min));
 		const auto localEnd = std::min(
 			int(chartData.xPercentage.size() - 1),
-			endXIndex + additionalPoints);
+			int(xIndices.max));
 
 		for (auto i = localStart; i <= localEnd; i++) {
 			if (line.y[i] < 0) {

@@ -538,9 +538,18 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 	_animationValueXMax.start(xPercentageLimits.max);
 	_lastUserInteracted = now;
 
-	_finalHeightLimits = FindHeightLimitsBetweenXLimits(
-		chartData,
-		{ _animationValueXMin.to(), _animationValueXMax.to() });
+	const auto startXIndex = chartData.findStartIndex(
+		_animationValueXMin.to());
+	const auto endXIndex = chartData.findEndIndex(
+		startXIndex,
+		_animationValueXMax.to());
+	_currentXIndices = { float64(startXIndex), float64(endXIndex) };
+
+	_finalHeightLimits = Limits{
+		float64(FindMinValue(chartData, startXIndex, endXIndex)),
+		float64(FindMaxValue(chartData, startXIndex, endXIndex)),
+	};
+
 	_animationValueHeightMin = anim::value(
 		_animationValueHeightMin.current(),
 		_finalHeightLimits.min);
@@ -720,6 +729,10 @@ Limits ChartWidget::ChartAnimationController::currentXLimits() const {
 	return { _animationValueXMin.current(), _animationValueXMax.current() };
 }
 
+Limits ChartWidget::ChartAnimationController::currentXIndices() const {
+	return _currentXIndices;
+}
+
 Limits ChartWidget::ChartAnimationController::finalXLimits() const {
 	return { _animationValueXMin.to(), _animationValueXMax.to() };
 }
@@ -841,6 +854,7 @@ void ChartWidget::setupChartArea() {
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
+				_animationController.currentXIndices(),
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
 				chartRect,
@@ -961,6 +975,7 @@ void ChartWidget::setupFooter() {
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
+				{ 0., float64(_chartData.x.size() - 1) },
 				fullXLimits,
 				_footer->fullHeightLimits(),
 				r,

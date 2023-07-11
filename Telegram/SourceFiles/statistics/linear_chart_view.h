@@ -19,6 +19,7 @@ struct DetailsPaintContext;
 void PaintLinearChartView(
 	QPainter &p,
 	const Data::StatisticalChart &chartData,
+	const Limits &xIndices,
 	const Limits &xPercentageLimits,
 	const Limits &heightLimits,
 	const QRect &rect,

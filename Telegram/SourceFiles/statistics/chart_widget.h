@@ -58,6 +58,7 @@ private:
 			std::vector<BottomCaptionLineData> &dateLines);
 
 		[[nodiscard]] Limits currentXLimits() const;
+		[[nodiscard]] Limits currentXIndices() const;
 		[[nodiscard]] Limits finalXLimits() const;
 		[[nodiscard]] Limits currentHeightLimits() const;
 		[[nodiscard]] Limits finalHeightLimits() const;
@@ -84,6 +85,7 @@ private:
 		anim::value _animValueBottomLineAlpha;
 
 		Limits _finalHeightLimits;
+		Limits _currentXIndices;
 
 		float _dtHeightSpeed = 0.;
 		Limits _dtCurrent;
