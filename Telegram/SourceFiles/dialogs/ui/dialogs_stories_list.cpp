@@ -19,7 +19,6 @@ namespace Dialogs::Stories {
 namespace {
 
 constexpr auto kSmallThumbsShown = 3;
-constexpr auto kSummaryExpandLeft = 1;
 constexpr auto kPreloadPages = 2;
 constexpr auto kExpandAfterRatio = 0.72;
 constexpr auto kCollapseAfterRatio = 0.68;
@@ -276,9 +275,6 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto photoTop = photoTopSmall
 		+ (full.photoTop - photoTopSmall) * layout.expandedRatio;
 	const auto photo = lerp(st.photo, full.photo);
-	const auto summaryTop = st.nameTop
-		- (st.photoTop + (st.photo / 2.))
-		+ (photoTop + (photo / 2.));
 	const auto nameScale = _lastRatio;
 	const auto nameTop = full.nameTop
 		+ (photoTop + photo - full.photoTop - full.photo);
@@ -325,7 +321,6 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto lookup = [&](int index) {
 		const auto indexSmall = layout.startIndexSmall + index;
 		const auto indexFull = layout.startIndexFull + index;
-		const auto k = (photoTop - photoTopSmall);
 		const auto ySmall = photoTopSmall
 			+ ((photoTop - photoTopSmall)
 				* (kSmallThumbsShown - indexSmall + layout.smallSkip) / 0.5);
