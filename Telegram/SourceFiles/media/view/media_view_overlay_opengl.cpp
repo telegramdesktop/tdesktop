@@ -526,7 +526,13 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 		geometry.controlsOpacity,
 		1.f - float(geometry.fade)));
 	if (!fillTransparentBackground) {
-		program->setUniformValue("roundRect", Uniform(rect));
+		program->setUniformValue(
+			"roundRect",
+			geometry.roundRadius ? Uniform(rect) : QVector4D(
+				0,
+				0,
+				_uniformViewport.x(),
+				_uniformViewport.y()));
 		program->setUniformValue(
 			"roundRadius",
 			GLfloat(geometry.roundRadius * _factor));
