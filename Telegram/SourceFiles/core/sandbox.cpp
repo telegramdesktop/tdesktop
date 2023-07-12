@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "ui/ui_utility.h"
 #include "ui/effects/animations.h"
+#include "ui/platform/ui_platform_utility.h"
 
 #include <QtCore/QLockFile>
 #include <QtGui/QSessionManager>
@@ -580,9 +581,18 @@ void Sandbox::registerEnterFromEventLoop() {
 }
 
 bool Sandbox::notifyOrInvoke(QObject *receiver, QEvent *e) {
-	if (e->type() == base::InvokeQueuedEvent::kType) {
+	const auto type = e->type();
+	if (type == base::InvokeQueuedEvent::kType) {
 		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
 		return true;
+	} else if (receiver == this) {
+		if (type == QEvent::ApplicationDeactivate) {
+			if (Ui::Platform::SkipApplicationDeactivateEvent()) {
+				return true;
+			}
+		} else if (type == QEvent::ApplicationActivate) {
+			Ui::Platform::GotApplicationActivateEvent();
+		}
 	}
 	return QApplication::notify(receiver, e);
 }
