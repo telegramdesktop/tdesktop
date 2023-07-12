@@ -53,7 +53,10 @@ StoryMention::StoryMention(
 }
 
 StoryMention::~StoryMention() {
-	changeSubscribedTo(0);
+	if (_subscribed) {
+		changeSubscribedTo(0);
+		_parent->checkHeavyPart();
+	}
 }
 
 int StoryMention::top() {
