@@ -102,6 +102,7 @@ struct ComposeControlsDescriptor {
 	SendMenu::Type sendMenuType = {};
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
+	rpl::producer<QString> customPlaceholder;
 	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
 };
@@ -353,6 +354,7 @@ private:
 	const not_null<Ui::IconButton*> _attachToggle;
 	std::unique_ptr<Ui::IconButton> _replaceMedia;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
+	rpl::producer<QString> _fieldCustomPlaceholder;
 	const not_null<Ui::InputField*> _field;
 	Ui::IconButton * const _botCommandStart = nullptr;
 	std::unique_ptr<Ui::SendAsButton> _sendAs;

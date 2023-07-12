@@ -971,12 +971,15 @@ ComposeControls::ComposeControls(
 , _tabbedSelectorToggle(Ui::CreateChild<Ui::EmojiButton>(
 	_wrap.get(),
 	_st.emoji))
+, _fieldCustomPlaceholder(std::move(descriptor.customPlaceholder))
 , _field(
 	Ui::CreateChild<Ui::InputField>(
 		_wrap.get(),
 		_st.field,
 		Ui::InputField::Mode::MultiLine,
-		tr::lng_message_ph()))
+		(_fieldCustomPlaceholder
+			? rpl::duplicate(_fieldCustomPlaceholder)
+			: tr::lng_message_ph())))
 , _botCommandStart(_features.botCommandSend
 	? Ui::CreateChild<Ui::IconButton>(
 		_wrap.get(),
@@ -1816,7 +1819,9 @@ void ComposeControls::updateFieldPlaceholder() {
 	}
 
 	_field->setPlaceholder([&] {
-		if (isEditingMessage()) {
+		if (_fieldCustomPlaceholder) {
+			return rpl::duplicate(_fieldCustomPlaceholder);
+		} else if (isEditingMessage()) {
 			return tr::lng_edit_message_text();
 		} else if (!_history) {
 			return tr::lng_message_ph();

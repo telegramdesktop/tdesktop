@@ -85,6 +85,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 		.mode = HistoryView::ComposeControlsMode::Normal,
 		.sendMenuType = SendMenu::Type::SilentOnly,
 		.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
+		.customPlaceholder = tr::lng_story_reply_ph(),
 		.voiceLockFromBottom = true,
 		.features = {
 			.sendAs = false,
