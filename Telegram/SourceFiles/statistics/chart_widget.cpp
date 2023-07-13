@@ -815,7 +815,7 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 
 	resize(
 		width(),
-		st::confirmMaxHeight
+		st::statisticsChartHeight
 			+ st::statisticsChartFooterHeight
 			+ st::statisticsChartFooterSkip);
 }
