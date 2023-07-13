@@ -226,9 +226,10 @@ Widget::Widget(
 	const auto makeChildListShown = [](PeerId peerId, float64 shown) {
 		return InnerWidget::ChildListShown{ peerId, shown };
 	};
+	using OverscrollType = Ui::ElasticScroll::OverscrollType;
 	_scroll->setOverscrollTypes(
-		Ui::ElasticScroll::OverscrollType::Virtual,
-		Ui::ElasticScroll::OverscrollType::Real);
+		_stories ? OverscrollType::Virtual : OverscrollType::Real,
+		OverscrollType::Real);
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(
 		this,
 		controller,
