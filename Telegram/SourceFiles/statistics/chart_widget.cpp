@@ -1056,6 +1056,13 @@ void ChartWidget::setupDetails() {
 				_chartData.xPercentage.back(),
 			}).max);
 
+	_details.widget->shownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		if (shown && _details.widget->xIndex() < 0) {
+			_details.widget->hide();
+		}
+	}, _details.widget->lifetime());
+
 	_chartArea->mouseStateChanged(
 	) | rpl::start_with_next([=](const RpMouseWidget::State &state) {
 		if (_animationController.animating()) {
