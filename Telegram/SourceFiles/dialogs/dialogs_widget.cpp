@@ -2697,6 +2697,7 @@ void Widget::updateControlsGeometry() {
 	if (_stories) {
 		_stories->setLayoutConstraints(
 			{ filterLeft + filterWidth, filterTop + added },
+			style::al_right,
 			{ 0, expandedStoriesTop, barw, st::dialogsStoriesFull.height });
 	}
 	if (_forumTopShadow) {

@@ -179,19 +179,17 @@ void InnerWidget::createButtons() {
 		if (content.elements.empty()) {
 			return;
 		}
-		const auto width = st::defaultDialogRow.padding.left()
-			+ st::defaultDialogRow.photoSize
-			+ st::defaultDialogRow.padding.left();
 		const auto &small = st::dialogsStories;
 		const auto count = int(content.elements.size());
 		const auto smallWidth = small.photo + (count - 1) * small.shift;
 		const auto real = smallWidth;
-		const auto top = st::dialogsStories.height
-			- st::dialogsStoriesFull.height
-			+ (size.height() - st::dialogsStories.height) / 2;
-		const auto right = st::settingsButtonRightSkip - (width - real) / 2;
-		thumbs->resizeToWidth(width);
-		thumbs->moveToRight(right, top);
+		const auto height = small.photo + 2 * small.photoTop;
+		const auto top = (size.height() - height) / 2;
+		const auto right = st::settingsButtonRightSkip
+			- small.left
+			- small.photoLeft;
+		const auto left = size.width() - right;
+		thumbs->setLayoutConstraints({ left, top }, style::al_right);
 	}, thumbs->lifetime());
 	thumbs->setAttribute(Qt::WA_TransparentForMouseEvents);
 	recent->addClickHandler([=] {

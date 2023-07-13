@@ -389,11 +389,10 @@ void TopBar::updateStoriesGeometry(int newWidth) {
 	}
 	const auto left = (_back ? _st.back.width : _st.titlePosition.x())
 		- st::dialogsStories.left - st::dialogsStories.photoLeft;
-	const auto top = st::dialogsStories.height
-		- st::dialogsStoriesFull.height
-		+ (_st.height - st::dialogsStories.height) / 2;
+	const auto top = (_st.height - st::dialogsStories.height) / 2;
 	_stories->resizeToWidth(newWidth - left - right);
 	_stories->moveToLeft(left, top, newWidth);
+	_stories->entity()->setLayoutConstraints({ 0, 0 }, style::al_left);
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {

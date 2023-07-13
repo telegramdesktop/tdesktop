@@ -104,8 +104,6 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 	controller->setStoriesShown(true);
 	const auto raw = controller.get();
 	auto init = [=](not_null<PeerListBox*> box) {
-		using namespace Dialogs::Stories;
-
 		struct State {
 			QPointer<::Ui::IconButton> toggleSort;
 			rpl::variable<Mode> mode = Mode::Online;

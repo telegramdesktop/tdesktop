@@ -661,8 +661,12 @@ bool List::checkForFullState() {
 	return true;
 }
 
-void List::setLayoutConstraints(QPoint topRightSmall, QRect geometryFull) {
-	_topRightSmall = topRightSmall;
+void List::setLayoutConstraints(
+		QPoint positionSmall,
+		style::align alignSmall,
+		QRect geometryFull) {
+	_positionSmall = positionSmall;
+	_alignSmall = alignSmall;
 	_geometryFull = geometryFull;
 	updateGeometry();
 	update();
@@ -690,9 +694,14 @@ QRect List::countSmallGeometry() const {
 		+ st.photo + (count - 1) * st.shift
 		+ st.photoLeft
 		+ st.left;
+	const auto left = ((_alignSmall & Qt::AlignRight) == Qt::AlignRight)
+		? (_positionSmall.x() - width)
+		: ((_alignSmall & Qt::AlignCenter) == Qt::AlignCenter)
+		? (_positionSmall.x() - (width / 2))
+		: _positionSmall.x();
 	return QRect(
-		_topRightSmall.x() - width,
-		_topRightSmall.y(),
+		left,
+		_positionSmall.y(),
 		width,
 		st.photoTop + st.photo + st.photoTop);
 }

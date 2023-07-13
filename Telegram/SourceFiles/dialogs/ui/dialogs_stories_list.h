@@ -66,7 +66,10 @@ public:
 		rpl::producer<Content> content);
 
 	void setExpandedHeight(int height, bool momentum = false);
-	void setLayoutConstraints(QPoint topRightSmall, QRect geometryFull);
+	void setLayoutConstraints(
+		QPoint positionSmall,
+		style::align alignSmall,
+		QRect geometryFull = QRect());
 
 	[[nodiscard]] bool empty() const {
 		return _empty.current();
@@ -137,7 +140,8 @@ private:
 	rpl::event_stream<> _entered;
 	rpl::event_stream<> _loadMoreRequests;
 
-	QPoint _topRightSmall;
+	QPoint _positionSmall;
+	style::align _alignSmall = {};
 	QRect _geometryFull;
 	QRect _changingGeometryFrom;
 	State _state = State::Small;
