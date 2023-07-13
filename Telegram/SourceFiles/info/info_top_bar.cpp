@@ -124,6 +124,9 @@ void TopBar::enableBackButton() {
 	if (_title) {
 		_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
+	if (_storiesWrap) {
+		_storiesWrap->raise();
+	}
 	updateControlsGeometry(width());
 }
 
@@ -387,12 +390,16 @@ void TopBar::updateStoriesGeometry(int newWidth) {
 		button->moveToRight(right, 0, newWidth);
 		right += button->width();
 	}
-	const auto left = (_back ? _st.back.width : _st.titlePosition.x())
-		- st::dialogsStories.left - st::dialogsStories.photoLeft;
-	const auto top = (_st.height - st::dialogsStories.height) / 2;
-	_stories->resizeToWidth(newWidth - left - right);
-	_stories->moveToLeft(left, top, newWidth);
-	_stories->entity()->setLayoutConstraints({ 0, 0 }, style::al_left);
+	const auto &small = st::dialogsStories;
+	const auto wrapLeft = (_back ? _st.back.width : 0);
+	const auto left = _back
+		? 0
+		: (_st.titlePosition.x() - small.left - small.photoLeft);
+	const auto height = small.photo + 2 * small.photoTop;
+	const auto top = _st.titlePosition.y()
+		+ (_st.title.style.font->height - height) / 2;
+	_stories->setLayoutConstraints({ left, top }, style::al_left);
+	_storiesWrap->move(wrapLeft, 0);
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
@@ -447,36 +454,61 @@ void TopBar::updateControlsVisibility(anim::type animated) {
 
 void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 	_storiesLifetime.destroy();
+	delete _storiesWrap.data();
 	if (content) {
 		using namespace Dialogs::Stories;
 
 		auto last = std::move(
 			content
 		) | rpl::start_spawning(_storiesLifetime);
-		delete _stories;
 
-		const auto stories = Ui::CreateChild<Ui::FadeWrap<List>>(
-			this,
-			object_ptr<List>(
-				this,
-				st::dialogsStoriesListInfo,
-				rpl::duplicate(
-					last
-				) | rpl::filter([](const Content &content) {
-					return !content.elements.empty();
-				})),
-				st::infoTopBarScale);
+		_storiesWrap = _storiesLifetime.make_state<
+			Ui::FadeWrap<Ui::AbstractButton>
+		>(this, object_ptr<Ui::AbstractButton>(this), st::infoTopBarScale);
 		registerToggleControlCallback(
-			stories,
+			_storiesWrap.data(),
 			[this] { return _storiesCount > 0; });
-		stories->toggle(false, anim::type::instant);
-		stories->setDuration(st::infoTopBarDuration);
+		_storiesWrap->toggle(false, anim::type::instant);
+		_storiesWrap->setDuration(st::infoTopBarDuration);
+
+		const auto button = _storiesWrap->entity();
+		const auto stories = Ui::CreateChild<List>(
+			button,
+			st::dialogsStoriesListInfo,
+			rpl::duplicate(
+				last
+			) | rpl::filter([](const Content &content) {
+				return !content.elements.empty();
+			}));
+		const auto label = Ui::CreateChild<Ui::FlatLabel>(
+			button,
+			QString(),
+			_st.title);
+		stories->setAttribute(Qt::WA_TransparentForMouseEvents);
+		label->setAttribute(Qt::WA_TransparentForMouseEvents);
+		stories->geometryValue(
+		) | rpl::start_with_next([=](QRect geometry) {
+			const auto skip = _st.title.style.font->spacew;
+			label->move(
+				geometry.x() + geometry.width() + skip,
+				_st.titlePosition.y());
+		}, label->lifetime());
+		rpl::combine(
+			_storiesWrap->positionValue(),
+			label->geometryValue()
+		) | rpl::start_with_next([=] {
+			button->resize(
+				label->x() + label->width() + _st.titlePosition.x(),
+				_st.height);
+		}, button->lifetime());
+
 		_stories = stories;
-		_stories->entity()->clicks(
+		_stories->clicks(
 		) | rpl::start_to_stream(_storyClicks, _stories->lifetime());
-		if (_back) {
-			_back->raise();
-		}
+
+		button->setClickedCallback([=] {
+			_storyClicks.fire({});
+		});
 
 		rpl::duplicate(
 			last
@@ -489,9 +521,20 @@ void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 				if (was != now) {
 					updateControlsVisibility(anim::type::normal);
 				}
+				if (now) {
+					label->setText(
+						tr::lng_contacts_stories_status(
+							tr::now,
+							lt_count,
+							_storiesCount));
+				}
 				updateControlsGeometry(width());
 			}
 		}, _storiesLifetime);
+
+		_storiesLifetime.add([weak = QPointer<QWidget>(label)] {
+			delete weak.data();
+		});
 	} else {
 		_storiesCount = 0;
 	}

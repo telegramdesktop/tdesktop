@@ -28,6 +28,7 @@ class SessionNavigation;
 } // namespace Window
 
 namespace Ui {
+class AbstractButton;
 class IconButton;
 class FlatLabel;
 class InputField;
@@ -175,7 +176,8 @@ private:
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _toggleStoryPin;
 	rpl::event_stream<SelectionAction> _selectionActionRequests;
 
-	QPointer<Ui::FadeWrap<Dialogs::Stories::List>> _stories;
+	QPointer<Ui::FadeWrap<Ui::AbstractButton>> _storiesWrap;
+	QPointer<Dialogs::Stories::List> _stories;
 	rpl::lifetime _storiesLifetime;
 	int _storiesCount = 0;
 
