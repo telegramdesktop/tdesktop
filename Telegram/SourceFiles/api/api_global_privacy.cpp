@@ -56,6 +56,15 @@ rpl::producer<bool> GlobalPrivacy::archiveAndMute() const {
 	return _archiveAndMute.value();
 }
 
+UnarchiveOnNewMessage GlobalPrivacy::unarchiveOnNewMessageCurrent() const {
+	return _unarchiveOnNewMessage.current();
+}
+
+auto GlobalPrivacy::unarchiveOnNewMessage() const
+-> rpl::producer<UnarchiveOnNewMessage> {
+	return _unarchiveOnNewMessage.value();
+}
+
 rpl::producer<bool> GlobalPrivacy::showArchiveAndMute() const {
 	using namespace rpl::mappers;
 
@@ -78,11 +87,20 @@ void GlobalPrivacy::dismissArchiveAndMuteSuggestion() {
 void GlobalPrivacy::update(bool archiveAndMute) {
 	using Flag = MTPDglobalPrivacySettings::Flag;
 
+	const auto unarchive = unarchiveOnNewMessageCurrent();
 	_api.request(_requestId).cancel();
+	const auto flags = Flag()
+		| (archiveAndMute
+			? Flag::f_archive_and_mute_new_noncontact_peers
+			: Flag())
+		| (unarchive == UnarchiveOnNewMessage::AnyUnmuted
+			? Flag::f_keep_archived_unmuted
+			: Flag())
+		| (unarchive != UnarchiveOnNewMessage::None
+			? Flag::f_keep_archived_folders
+			: Flag());
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
-		MTP_globalPrivacySettings(
-			MTP_flags(Flag::f_archive_and_mute_new_noncontact_peers),
-			MTP_bool(archiveAndMute))
+		MTP_globalPrivacySettings(MTP_flags(flags))
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
@@ -94,9 +112,12 @@ void GlobalPrivacy::update(bool archiveAndMute) {
 
 void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &data) {
 	data.match([&](const MTPDglobalPrivacySettings &data) {
-		_archiveAndMute = data.varchive_and_mute_new_noncontact_peers()
-			? mtpIsTrue(*data.varchive_and_mute_new_noncontact_peers())
-			: false;
+		_archiveAndMute = data.is_archive_and_mute_new_noncontact_peers();
+		_unarchiveOnNewMessage = data.is_keep_archived_unmuted()
+			? UnarchiveOnNewMessage::AnyUnmuted
+			: data.is_keep_archived_folders()
+			? UnarchiveOnNewMessage::NotInFoldersUnmuted
+			: UnarchiveOnNewMessage::None;
 	});
 }
 
