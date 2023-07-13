@@ -70,6 +70,12 @@ public:
 		QPoint positionSmall,
 		style::align alignSmall,
 		QRect geometryFull = QRect());
+	struct CollapsedGeometry {
+		QRect geometry;
+		float64 expanded = 0.;
+	};
+	[[nodiscard]] CollapsedGeometry collapsedGeometryCurrent() const;
+	[[nodiscard]] rpl::producer<> collapsedGeometryChanged() const;
 
 	[[nodiscard]] bool empty() const {
 		return _empty.current();
@@ -130,6 +136,7 @@ private:
 	void updateExpanding(int expandingHeight, int expandedHeight);
 
 	[[nodiscard]] Layout computeLayout();
+	[[nodiscard]] Layout computeLayout(float64 expanded) const;
 
 	const style::DialogsStoriesList &_st;
 	Content _content;
@@ -139,6 +146,7 @@ private:
 	rpl::event_stream<bool> _toggleExpandedRequests;
 	rpl::event_stream<> _entered;
 	rpl::event_stream<> _loadMoreRequests;
+	rpl::event_stream<> _collapsedGeometryChanged;
 
 	QPoint _positionSmall;
 	style::align _alignSmall = {};

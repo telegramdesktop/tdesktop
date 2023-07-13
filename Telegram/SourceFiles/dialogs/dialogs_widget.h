@@ -224,6 +224,7 @@ private:
 	void updateScrollUpVisibility();
 	void startScrollUpButtonAnimation(bool shown);
 	void updateScrollUpPosition();
+	void updateLockUnlockPosition();
 
 	MTP::Sender _api;
 

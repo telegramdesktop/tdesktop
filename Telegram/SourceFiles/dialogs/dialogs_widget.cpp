@@ -814,14 +814,20 @@ void Widget::setupStories() {
 		using Phase = Ui::ElasticScrollMovement;
 		_stories->setExpandedHeight(
 			_aboveScrollAdded,
-			(movement == Phase::Momentum || movement == Phase::Returning)
-				&& (explicitlyExpanded < above));
+			((movement == Phase::Momentum || movement == Phase::Returning)
+				&& (explicitlyExpanded < above)));
 		if (position.overscroll > 0
 			|| (position.value
 				> (_storiesExplicitExpandScrollTop
 					+ st::dialogsRowHeight))) {
 			storiesToggleExplicitExpand(false);
 		}
+		updateLockUnlockPosition();
+	}, lifetime());
+
+	_stories->collapsedGeometryChanged(
+	) | rpl::start_with_next([=] {
+		updateLockUnlockPosition();
 	}, lifetime());
 
 	_stories->clicks(
@@ -856,6 +862,10 @@ void Widget::setupStories() {
 
 	_stories->emptyValue() | rpl::skip(1) | rpl::start_with_next([=] {
 		updateStoriesVisibility();
+	}, lifetime());
+
+	_stories->widthValue() | rpl::start_with_next([=] {
+		updateLockUnlockPosition();
 	}, lifetime());
 }
 
@@ -977,6 +987,23 @@ void Widget::updateControlsVisibility(bool fast) {
 	if (_childList && _filter->hasFocus()) {
 		setInnerFocus();
 	}
+	updateLockUnlockPosition();
+}
+
+void Widget::updateLockUnlockPosition() {
+	if (_lockUnlock->isHidden()) {
+		return;
+	}
+	const auto stories = (_stories && !_stories->isHidden())
+		? _stories->collapsedGeometryCurrent()
+		: Stories::List::CollapsedGeometry();
+	const auto simple = _filter->x() + _filter->width();
+	const auto right = stories.geometry.isEmpty()
+		? simple
+		: anim::interpolate(stories.geometry.x(), simple, stories.expanded);
+	_lockUnlock->move(
+		right - _lockUnlock->width(),
+		st::dialogsFilterPadding.y());
 }
 
 void Widget::changeOpenedSubsection(
@@ -1388,6 +1415,8 @@ void Widget::updateStoriesVisibility() {
 		if (_aboveScrollAdded > 0 && _updateScrollGeometryCached) {
 			_updateScrollGeometryCached();
 		}
+		updateLockUnlockVisibility();
+		updateLockUnlockPosition();
 	}
 }
 
@@ -2253,6 +2282,7 @@ void Widget::applyFilterUpdate(bool force) {
 	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
 	updateLoadMoreChatsVisibility();
 	updateJumpToDateVisibility();
+	updateLockUnlockPosition();
 
 	if (filterText.isEmpty()) {
 		_peerSearchCache.clear();
@@ -2458,6 +2488,7 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 		updateSearchFromVisibility();
 		clearSearchCache();
 	}
+	updateLockUnlockPosition();
 	if (_searchInChat && _layout == Layout::Main) {
 		controller()->closeFolder();
 	}
@@ -2580,9 +2611,18 @@ void Widget::updateLockUnlockVisibility() {
 	if (_showAnimation) {
 		return;
 	}
-	const auto hidden = !session().domain().local().hasLocalPasscode();
+	const auto hidden = !session().domain().local().hasLocalPasscode()
+		|| (_showAnimation != nullptr)
+		|| _openedForum
+		|| !_widthAnimationCache.isNull()
+		|| _childList
+		|| !_filter->getLastText().isEmpty()
+		|| _searchInChat;
 	if (_lockUnlock->isHidden() != hidden) {
 		_lockUnlock->setVisible(!hidden);
+		if (!hidden) {
+			updateLockUnlockPosition();
+		}
 		updateControlsGeometry();
 	}
 }
@@ -2685,7 +2725,6 @@ void Widget::updateControlsGeometry() {
 	_searchForNarrowFilters->moveToLeft(searchLeft, st::dialogsFilterPadding.y());
 
 	auto right = filterLeft + filterWidth;
-	_lockUnlock->moveToLeft(right + st::dialogsFilterPadding.x(), st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(right - _cancelSearch->width(), _filter->y());
 	right -= _jumpToDate->width(); _jumpToDate->moveToLeft(right, _filter->y());
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
@@ -2708,6 +2747,8 @@ void Widget::updateControlsGeometry() {
 			barw,
 			st::lineWidth);
 	}
+
+	updateLockUnlockPosition();
 
 	auto bottomSkip = 0;
 	const auto putBottomButton = [&](auto &button) {

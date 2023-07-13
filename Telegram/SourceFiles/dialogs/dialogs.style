@@ -221,19 +221,20 @@ dialogsMenuToggleUnreadMuted: icon {
 dialogsLock: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFgOver }};
+	ripple: emptyRippleAnimation;
 }
 dialogsUnlockIcon: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFg }};
 dialogsUnlockIconOver: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFgOver }};
 dialogsCalendar: IconButton {
-	width: 29px;
-	height: 32px;
+	width: 32px;
+	height: 35px;
 
 	icon: icon {{ "dialogs/dialogs_calendar", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_calendar", dialogsMenuIconFgOver }};
-	iconPosition: point(0px, 5px);
+	iconPosition: point(1px, 6px);
 }
 dialogsSearchFrom: IconButton(dialogsCalendar) {
-	width: 26px;
+	width: 29px;
 	icon: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFgOver }};
 }
@@ -276,12 +277,12 @@ dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	rippleAreaSize: 34px;
 }
 dialogsCancelSearch: CrossButton {
-	width: 32px;
-	height: 32px;
+	width: 35px;
+	height: 35px;
 
 	cross: CrossAnimation {
-		size: 32px;
-		skip: 10px;
+		size: 35px;
+		skip: 12px;
 		stroke: 1.5;
 		minScale: 0.3;
 	}

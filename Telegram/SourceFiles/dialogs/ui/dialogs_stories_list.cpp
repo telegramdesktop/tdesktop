@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+#include "base/debug_log.h"
+
 namespace Dialogs::Stories {
 namespace {
 
@@ -36,6 +38,7 @@ constexpr auto kExpandCatchUpDuration = crl::time(200);
 
 struct List::Layout {
 	int itemsCount = 0;
+	QPointF geometryShift;
 	float64 expandedRatio = 0.;
 	float64 ratio = 0.;
 	float64 thumbnailLeft = 0.;
@@ -147,12 +150,13 @@ rpl::producer<> List::loadMoreRequests() const {
 void List::requestExpanded(bool expanded) {
 	if (_expanded != expanded) {
 		_expanded = expanded;
-		_expandedAnimation.start(
-			[=] { checkForFullState(); update(); },
-			_expanded ? 0. : 1.,
-			_expanded ? 1. : 0.,
-			st::slideWrapDuration,
-			anim::sineInOut);
+		const auto from = _expanded ? 0. : 1.;
+		const auto till = _expanded ? 1. : 0.;
+		_expandedAnimation.start([=] {
+			checkForFullState();
+			update();
+			_collapsedGeometryChanged.fire({});
+		}, from, till, st::slideWrapDuration, anim::sineInOut);
 	}
 	_toggleExpandedRequests.fire_copy(_expanded);
 }
@@ -185,13 +189,15 @@ void List::updateExpanding(int expandingHeight, int expandedHeight) {
 }
 
 List::Layout List::computeLayout() {
+	updateExpanding(
+		_lastExpandedHeight * _expandCatchUpAnimation.value(1.),
+		_st.full.height);
+	return computeLayout(_expandedAnimation.value(_expanded ? 1. : 0.));
+}
+
+List::Layout List::computeLayout(float64 expanded) const {
 	const auto &st = _st.small;
 	const auto &full = _st.full;
-	const auto use = _lastExpandedHeight
-		* _expandCatchUpAnimation.value(1.);
-	updateExpanding(use, full.height);
-
-	const auto expanded = _expandedAnimation.value(_expanded ? 1. : 0.);
 	const auto expandedRatio = _lastRatio;
 	const auto collapsedRatio = expandedRatio * kFrictionRatio;
 	const auto ratio = expandedRatio * expanded
@@ -234,6 +240,13 @@ List::Layout List::computeLayout() {
 	const auto photoLeft = lerp(st.photoLeft, full.photoLeft);
 	return Layout{
 		.itemsCount = itemsCount,
+		.geometryShift = QPointF(
+			(_state == State::Changing
+				? (lerp(_changingGeometryFrom.x(), _geometryFull.x()) - x())
+				: 0.),
+			(_state == State::Changing
+				? (lerp(_changingGeometryFrom.y(), _geometryFull.y()) - y())
+				: 0.)),
 		.expandedRatio = expandedRatio,
 		.ratio = ratio,
 		.thumbnailLeft = thumbnailLeft,
@@ -287,15 +300,7 @@ void List::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
 	if (_state == State::Changing) {
-		const auto left = anim::interpolate(
-			_changingGeometryFrom.x(),
-			_geometryFull.x(),
-			layout.ratio);
-		const auto top = anim::interpolate(
-			_changingGeometryFrom.y(),
-			_geometryFull.y(),
-			layout.ratio);
-		p.translate(QPoint(left, top) - pos());
+		p.translate(layout.geometryShift);
 	}
 
 	const auto drawSmall = (expandRatio < 1.);
@@ -672,6 +677,28 @@ void List::setLayoutConstraints(
 	update();
 }
 
+List::CollapsedGeometry List::collapsedGeometryCurrent() const {
+	const auto expanded = _expandedAnimation.value(_expanded ? 1. : 0.);
+	if (expanded == 1.) {
+		return { QRect(), 1. };
+	}
+	const auto layout = computeLayout(0.);
+	const auto small = countSmallGeometry();
+	const auto index = layout.smallSkip - layout.startIndexSmall;
+	const auto shift = x() + layout.geometryShift.x();
+	const auto left = int(base::SafeRound(
+		shift + layout.left + layout.single * index));
+	const auto width = small.x() + small.width() - left;
+	return {
+		QRect(left, small.y(), width, small.height()),
+		expanded,
+	};
+}
+
+rpl::producer<> List::collapsedGeometryChanged() const {
+	return _collapsedGeometryChanged.events();
+}
+
 void List::updateGeometry() {
 	switch (_state) {
 	case State::Small: setGeometry(countSmallGeometry()); break;
@@ -686,7 +713,7 @@ void List::updateGeometry() {
 
 QRect List::countSmallGeometry() const {
 	const auto &st = _st.small;
-	const auto layout = const_cast<List*>(this)->computeLayout();
+	const auto layout = computeLayout(0.);
 	const auto count = layout.endIndexSmall
 		- std::max(layout.startIndexSmall, layout.smallSkip);
 	const auto width = st.left
