@@ -385,7 +385,7 @@ const SponsoredMessages::Entry *SponsoredMessages::find(
 	}
 	auto &list = it->second;
 	const auto entryIt = ranges::find_if(list.entries, [&](const Entry &e) {
-		return e.item->fullId() == fullId;
+		return e.item && e.item->fullId() == fullId;
 	});
 	if (entryIt == end(list.entries)) {
 		return nullptr;
