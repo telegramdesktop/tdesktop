@@ -180,9 +180,6 @@ void InnerWidget::createButtons() {
 			return;
 		}
 		const auto &small = st::dialogsStories;
-		const auto count = int(content.elements.size());
-		const auto smallWidth = small.photo + (count - 1) * small.shift;
-		const auto real = smallWidth;
 		const auto height = small.photo + 2 * small.photoTop;
 		const auto top = (size.height() - height) / 2;
 		const auto right = st::settingsButtonRightSkip
