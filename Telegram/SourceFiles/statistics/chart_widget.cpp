@@ -595,6 +595,7 @@ void ChartWidget::ChartAnimationController::finish() {
 	_animationValueHeightMin.finish();
 	_animationValueHeightMax.finish();
 	_animValueYAlpha.finish();
+	_benchmark = {};
 }
 
 void ChartWidget::ChartAnimationController::resetAlpha() {
@@ -627,8 +628,24 @@ void ChartWidget::ChartAnimationController::tick(
 		_alphaAnimationStartedAt = now;
 	}
 
-	_dtCurrent.min = std::min(_dtCurrent.min + _dtHeightSpeed, 1.);
-	_dtCurrent.max = std::min(_dtCurrent.max + _dtHeightSpeed, 1.);
+	{
+		constexpr auto kIdealFPS = float64(60);
+		const auto currentFPS = _benchmark.lastTickedAt
+			? (1000. / (now - _benchmark.lastTickedAt))
+			: kIdealFPS;
+		if (!_benchmark.lastFPSSlow) {
+			constexpr auto kAcceptableFPS = int(30);
+			_benchmark.lastFPSSlow = (currentFPS < kAcceptableFPS);
+		}
+		_benchmark.lastTickedAt = now;
+
+
+		const auto k = (kIdealFPS / currentFPS)
+			// Speed up to reduce ugly frames count.
+			* (_benchmark.lastFPSSlow ? 2. : 1.);
+		_dtCurrent.min = std::min(_dtCurrent.min + _dtHeightSpeed * k, 1.);
+		_dtCurrent.max = std::min(_dtCurrent.max + _dtHeightSpeed * k, 1.);
+	}
 
 	const auto dtX = std::min(
 		(now - _animation.started()) / kXExpandingDuration,
@@ -657,6 +674,7 @@ void ChartWidget::ChartAnimationController::tick(
 		if ((lines.front().absoluteValue == _animationValueHeightMin.to())
 			&& lines.back().absoluteValue == _animationValueHeightMax.to()) {
 			_animation.stop();
+			_benchmark = {};
 		}
 	}
 	if (xFinished) {
@@ -762,6 +780,10 @@ bool ChartWidget::ChartAnimationController::animating() const {
 	return _animation.animating();
 }
 
+bool ChartWidget::ChartAnimationController::isFPSSlow() const {
+	return _benchmark.lastFPSSlow;
+}
+
 auto ChartWidget::ChartAnimationController::heightAnimationStarts() const
 -> rpl::producer<> {
 	return _heightAnimationStarts.events();
@@ -851,6 +873,10 @@ void ChartWidget::setupChartArea() {
 				: -1,
 		};
 		if (_chartData) {
+			p.setRenderHint(
+				QPainter::Antialiasing,
+				!_animationController.isFPSSlow()
+					|| !_animationController.animating());
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,

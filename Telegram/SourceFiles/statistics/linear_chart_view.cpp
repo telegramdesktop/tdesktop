@@ -27,8 +27,6 @@ void PaintLinearChartView(
 	const auto currentMinHeight = rect.y(); //
 	const auto currentMaxHeight = rect.height() + rect.y(); //
 
-	PainterHighQualityEnabler hq(p);
-
 	for (const auto &line : chartData.lines) {
 		const auto additionalP = (chartData.xPercentage.size() < 2)
 			? 0.

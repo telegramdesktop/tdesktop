@@ -64,6 +64,7 @@ private:
 		[[nodiscard]] Limits finalHeightLimits() const;
 		[[nodiscard]] float64 detailsProgress(crl::time now) const;
 		[[nodiscard]] bool animating() const;
+		[[nodiscard]] bool isFPSSlow() const;
 
 		[[nodiscard]] rpl::producer<> heightAnimationStarts() const;
 
@@ -89,6 +90,11 @@ private:
 
 		float _dtHeightSpeed = 0.;
 		Limits _dtCurrent;
+
+		struct {
+			crl::time lastTickedAt = 0;
+			bool lastFPSSlow = false;
+		} _benchmark;
 
 		rpl::event_stream<> _heightAnimationStarts;
 
