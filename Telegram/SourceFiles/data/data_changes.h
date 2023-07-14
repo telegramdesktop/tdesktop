@@ -148,19 +148,19 @@ struct TopicUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		UnreadView = (1U << 1),
-		UnreadMentions = (1U << 2),
+		UnreadView      = (1U << 1),
+		UnreadMentions  = (1U << 2),
 		UnreadReactions = (1U << 3),
-		Notifications = (1U << 4),
-		Title = (1U << 5),
-		IconId = (1U << 6),
-		ColorId = (1U << 7),
-		CloudDraft = (1U << 8),
-		Closed = (1U << 9),
-		Creator = (1U << 10),
-		Destroyed = (1U << 11),
+		Notifications   = (1U << 4),
+		Title           = (1U << 5),
+		IconId          = (1U << 6),
+		ColorId         = (1U << 7),
+		CloudDraft      = (1U << 8),
+		Closed          = (1U << 9),
+		Creator         = (1U << 10),
+		Destroyed       = (1U << 11),
 
-		LastUsedBit = (1U << 11),
+		LastUsedBit     = (1U << 11),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -199,14 +199,14 @@ struct EntryUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		Repaint = (1U << 0),
+		Repaint           = (1U << 0),
 		HasPinnedMessages = (1U << 1),
-		ForwardDraft = (1U << 2),
-		LocalDraftSet = (1U << 3),
-		Height = (1U << 4),
-		Destroyed = (1U << 5),
+		ForwardDraft      = (1U << 2),
+		LocalDraftSet     = (1U << 3),
+		Height            = (1U << 4),
+		Destroyed         = (1U << 5),
 
-		LastUsedBit = (1U << 5),
+		LastUsedBit       = (1U << 5),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -220,12 +220,13 @@ struct StoryUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		Edited = (1U << 0),
-		Destroyed = (1U << 1),
-		NewAdded = (1U << 2),
-		ViewsAdded = (1U << 3),
+		Edited      = (1U << 0),
+		Destroyed   = (1U << 1),
+		NewAdded    = (1U << 2),
+		ViewsAdded  = (1U << 3),
+		MarkRead    = (1U << 4),
 
-		LastUsedBit = (1U << 3),
+		LastUsedBit = (1U << 4),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

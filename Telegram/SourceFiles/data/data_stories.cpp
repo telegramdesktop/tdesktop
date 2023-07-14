@@ -928,7 +928,10 @@ bool Stories::bumpReadTill(PeerId peerId, StoryId maxReadTill) {
 			refreshItems = ranges::make_subrange(
 				i->second.lower_bound(from + 1),
 				i->second.lower_bound(till + 1)
-			) | ranges::views::transform([](const auto &pair) {
+			) | ranges::views::transform([=](const auto &pair) {
+				_owner->session().changes().storyUpdated(
+					pair.second.get(),
+					StoryUpdate::Flag::MarkRead);
 				return pair.first;
 			}) | ranges::to_vector;
 		}

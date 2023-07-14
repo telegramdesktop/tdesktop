@@ -402,17 +402,25 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 		}
 		return rpl::make_producer<Content>([=](auto consumer) {
 			auto lifetime = rpl::lifetime();
+			if (ids.empty()) {
+				consumer.put_next(Content());
+				consumer.put_done();
+				return lifetime;
+			}
 
 			struct State {
 				Fn<void()> check;
 				base::has_weak_ptr guard;
+				int readTill = StoryId();
 				bool pushed = false;
 			};
 			const auto state = lifetime.make_state<State>();
+			state->readTill = readTill;
 			state->check = [=] {
 				if (state->pushed) {
 					return;
 				}
+				auto done = true;
 				auto resolving = false;
 				auto result = Content{};
 				for (const auto id : ids) {
@@ -420,13 +428,17 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 					const auto maybe = stories->lookup(storyId);
 					if (maybe) {
 						if (!resolving) {
+							const auto unread = (id > state->readTill);
 							result.elements.reserve(ids.size());
 							result.elements.push_back({
 								.id = uint64(id),
 								.thumbnail = MakeStoryThumbnail(*maybe),
 								.count = 1U,
-								.unreadCount = (id > readTill) ? 1U : 0U,
+								.unreadCount = unread ? 1U : 0U,
 							});
+							if (unread) {
+								done = false;
+							}
 						}
 					} else if (maybe.error() == Data::NoStory::Unknown) {
 						resolving = true;
@@ -440,11 +452,29 @@ rpl::producer<Content> LastForPeer(not_null<PeerData*> peer) {
 				}
 				state->pushed = true;
 				consumer.put_next(std::move(result));
-				consumer.put_done();
+				if (done) {
+					consumer.put_done();
+				}
 			};
+
 			rpl::single(peerId) | rpl::then(
 				stories->itemsChanged() | rpl::filter(_1 == peerId)
 			) | rpl::start_with_next(state->check, lifetime);
+
+			stories->session().changes().storyUpdates(
+				Data::StoryUpdate::Flag::MarkRead
+			) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
+				if (update.story->peer()->id == peerId) {
+					if (update.story->id() > state->readTill) {
+						state->readTill = update.story->id();
+						if (ranges::contains(ids, state->readTill)
+							|| state->readTill > ids.front()) {
+							state->pushed = false;
+							state->check();
+						}
+					}
+				}
+			}, lifetime);
 
 			return lifetime;
 		});
