@@ -916,6 +916,11 @@ void ChartWidget::setupChartArea() {
 				const auto opacity = ScopedPainterOpacity(p, detailsAlpha);
 				p.fillRect(lineRect, st::windowSubTextFg);
 				_details.widget->setAlpha(detailsAlpha);
+				for (const auto &line : _chartData.lines) {
+					_details.widget->setLineAlpha(
+						line.id,
+						_animatedChartLines.alpha(line.id));
+				}
 			}
 		}
 

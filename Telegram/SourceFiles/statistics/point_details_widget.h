@@ -22,6 +22,7 @@ public:
 	[[nodiscard]] int xIndex() const;
 	void setXIndex(int xIndex);
 	void setAlpha(float64 alpha);
+	void setLineAlpha(int lineId, float64 alpha);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -32,12 +33,16 @@ private:
 	const style::TextStyle &_headerStyle;
 	Ui::Text::String _header;
 
-	[[nodiscard]] int lineYAt(int i) const;
+	[[nodiscard]] int lineYAt(int index) const;
+
+	void resizeHeight();
 
 	struct Line final {
+		int id = 0;
 		Ui::Text::String name;
 		Ui::Text::String value;
 		QColor valueColor;
+		float64 alpha = 1.;
 	};
 
 	QRect _innerRect;

@@ -62,9 +62,24 @@ PointDetailsWidget::PointDetailsWidget(
 		_textRect = _innerRect - st::statisticsDetailsPopupMargins;
 	}, lifetime());
 
+	resize(calculatedWidth, height());
+	resizeHeight();
+}
+
+void PointDetailsWidget::setLineAlpha(int lineId, float64 alpha) {
+	for (auto &line : _lines) {
+		if (line.id == lineId) {
+			line.alpha = alpha;
+		}
+	}
+	update();
+	resizeHeight();
+}
+
+void PointDetailsWidget::resizeHeight() {
 	resize(
-		calculatedWidth,
-		lineYAt(chartData.lines.size())
+		width(),
+		lineYAt(_chartData.lines.size())
 			+ st::statisticsDetailsPopupMargins.bottom());
 }
 
@@ -83,6 +98,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 	_lines.reserve(_chartData.lines.size());
 	for (const auto &dataLine : _chartData.lines) {
 		auto textLine = Line();
+		textLine.id = dataLine.id;
 		textLine.name.setText(_textStyle, dataLine.name);
 		textLine.value.setText(
 			_textStyle,
@@ -97,12 +113,19 @@ void PointDetailsWidget::setAlpha(float64 alpha) {
 	update();
 }
 
-int PointDetailsWidget::lineYAt(int i) const {
+int PointDetailsWidget::lineYAt(int index) const {
+	auto linesHeight = 0.;
+	for (auto i = 0; i < index; i++) {
+		const auto alpha = (i >= _lines.size()) ? 1. : _lines[i].alpha;
+		linesHeight += alpha
+			* (_textStyle.font->height
+				+ st::statisticsDetailsPopupMidLineSpace);
+	}
+
 	return _textRect.y()
 		+ _headerStyle.font->height
 		+ st::statisticsDetailsPopupMargins.bottom()
-		+ (_textStyle.font->height * i)
-		+ (st::statisticsDetailsPopupMidLineSpace * i);
+		+ std::ceil(linesHeight);
 }
 
 void PointDetailsWidget::paintEvent(QPaintEvent *e) {
@@ -133,6 +156,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 			.outerWidth = _textRect.width() - valueWidth,
 			.availableWidth = _textRect.width(),
 		};
+		p.setOpacity(line.alpha * line.alpha);
 		p.setPen(st::boxTextFg);
 		line.name.draw(p, nameContext);
 		p.setPen(line.valueColor);
