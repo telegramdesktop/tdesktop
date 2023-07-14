@@ -196,21 +196,34 @@ Story *Stories::applyFromWebpage(PeerId peerId, const MTPstoryItem &story) {
 	return value ? value->get() : nullptr;
 }
 
-void Stories::requestUserStories(not_null<UserData*> user) {
-	if (!_requestingUserStories.emplace(user).second) {
+void Stories::requestUserStories(
+		not_null<UserData*> user,
+		Fn<void()> done) {
+	const auto [i, ok] = _requestingUserStories.emplace(user);
+	if (done) {
+		i->second.push_back(std::move(done));
+	}
+	if (!ok) {
 		return;
 	}
+	const auto finish = [=] {
+		if (const auto callbacks = _requestingUserStories.take(user)) {
+			for (const auto &callback : *callbacks) {
+				callback();
+			}
+		}
+	};
 	_owner->session().api().request(MTPstories_GetUserStories(
 		user->inputUser
 	)).done([=](const MTPstories_UserStories &result) {
-		_requestingUserStories.remove(user);
 		const auto &data = result.data();
 		_owner->processUsers(data.vusers());
 		parseAndApply(data.vstories());
+		finish();
 	}).fail([=] {
-		_requestingUserStories.remove(user);
 		applyDeletedFromSources(user->id, StorySourcesList::NotHidden);
 		applyDeletedFromSources(user->id, StorySourcesList::Hidden);
+		finish();
 	}).send();
 }
 
@@ -290,6 +303,7 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 	if (result.ids.empty()) {
 		applyDeletedFromSources(peerId, StorySourcesList::NotHidden);
 		applyDeletedFromSources(peerId, StorySourcesList::Hidden);
+		user->setStoriesState(UserData::StoriesState::None);
 		return;
 	} else if (user->isSelf()) {
 		result.readTill = result.ids.back().id;

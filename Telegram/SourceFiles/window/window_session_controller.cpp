@@ -2528,9 +2528,10 @@ void SessionController::openPeerStory(
 	if (from) {
 		window().openInMediaView(OpenRequest(this, *from, context));
 	} else if (from.error() == Data::NoStory::Unknown) {
-		stories.resolve({ peer->id, storyId }, crl::guard(&_storyOpenGuard, [=] {
+		const auto done = crl::guard(&_storyOpenGuard, [=] {
 			openPeerStory(peer, storyId, context);
-		}));
+		});
+		stories.resolve({ peer->id, storyId }, done);
 	}
 }
 
@@ -2540,6 +2541,7 @@ void SessionController::openPeerStories(
 	using namespace Media::View;
 	using namespace Data;
 
+	invalidate_weak_ptrs(&_storyOpenGuard);
 	auto &stories = session().data().stories();
 	if (const auto source = stories.source(peerId)) {
 		if (const auto idDates = source->toOpen()) {
@@ -2549,6 +2551,13 @@ void SessionController::openPeerStories(
 				(list
 					? StoriesContext{ *list }
 					: StoriesContext{ StoriesContextPeer() }));
+		}
+	} else if (const auto userId = peerToUser(peerId)) {
+		if (const auto user = session().data().userLoaded(userId)) {
+			const auto done = crl::guard(&_storyOpenGuard, [=] {
+				openPeerStories(peerId, list);
+			});
+			stories.requestUserStories(user, done);
 		}
 	}
 }

@@ -218,6 +218,9 @@ public:
 
 	bool registerPolling(FullStoryId id, Polling polling);
 	void unregisterPolling(FullStoryId id, Polling polling);
+	void requestUserStories(
+		not_null<UserData*> user,
+		Fn<void()> done = nullptr);
 
 	void savedStateChanged(not_null<Story*> story);
 	[[nodiscard]] std::shared_ptr<HistoryItem> lookupItem(
@@ -266,7 +269,6 @@ private:
 	void sendIncrementViewsRequests();
 	void checkQuitPreventFinished();
 
-	void requestUserStories(not_null<UserData*> user);
 	void registerExpiring(TimeId expires, FullStoryId id);
 	void scheduleExpireTimer();
 	void processExpired();
@@ -335,7 +337,9 @@ private:
 	base::flat_set<PeerId> _markReadPending;
 	base::Timer _markReadTimer;
 	base::flat_set<PeerId> _markReadRequests;
-	base::flat_set<not_null<UserData*>> _requestingUserStories;
+	base::flat_map<
+		not_null<UserData*>,
+		std::vector<Fn<void()>>> _requestingUserStories;
 
 	base::flat_map<PeerId, base::flat_set<StoryId>> _incrementViewsPending;
 	base::Timer _incrementViewsTimer;
