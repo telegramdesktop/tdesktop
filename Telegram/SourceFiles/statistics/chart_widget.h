@@ -65,11 +65,13 @@ private:
 		[[nodiscard]] Limits currentXIndices() const;
 		[[nodiscard]] Limits finalXLimits() const;
 		[[nodiscard]] Limits currentHeightLimits() const;
+		[[nodiscard]] Limits currentFooterHeightLimits() const;
 		[[nodiscard]] Limits finalHeightLimits() const;
 		[[nodiscard]] float64 detailsProgress(
 			crl::time now,
 			const Limits &appearedOnXLimits) const;
 		[[nodiscard]] bool animating() const;
+		[[nodiscard]] bool footerAnimating() const;
 		[[nodiscard]] bool isFPSSlow() const;
 
 		[[nodiscard]] rpl::producer<> heightAnimationStarts() const;
@@ -86,6 +88,9 @@ private:
 		anim::value _animationValueXMax;
 		anim::value _animationValueHeightMin;
 		anim::value _animationValueHeightMax;
+
+		anim::value _animationValueFooterHeightMin;
+		anim::value _animationValueFooterHeightMax;
 
 		anim::value _animValueYAlpha;
 

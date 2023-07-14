@@ -33,43 +33,6 @@ inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 	return (result - from) / (to - from);
 };
 
-[[nodiscard]] int FindMaxValue(
-		Data::StatisticalChart &chartData,
-		int startXIndex,
-		int endXIndex) {
-	auto maxValue = 0;
-	for (auto &l : chartData.lines) {
-		const auto lineMax = l.segmentTree.rMaxQ(startXIndex, endXIndex);
-		maxValue = std::max(lineMax, maxValue);
-	}
-	return maxValue;
-}
-
-[[nodiscard]] int FindMinValue(
-		Data::StatisticalChart &chartData,
-		int startXIndex,
-		int endXIndex) {
-	auto minValue = std::numeric_limits<int>::max();
-	for (auto &l : chartData.lines) {
-		const auto lineMin = l.segmentTree.rMinQ(startXIndex, endXIndex);
-		minValue = std::min(lineMin, minValue);
-	}
-	return minValue;
-}
-
-[[nodiscard]] Limits FindHeightLimitsBetweenXLimits(
-		Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits) {
-	const auto startXIndex = chartData.findStartIndex(xPercentageLimits.min);
-	const auto endXIndex = chartData.findEndIndex(
-		startXIndex,
-		xPercentageLimits.max);
-	return Limits{
-		float64(FindMinValue(chartData, startXIndex, endXIndex)),
-		float64(FindMaxValue(chartData, startXIndex, endXIndex)),
-	};
-}
-
 void PaintHorizontalLines(
 		QPainter &p,
 		const ChartHorizontalLinesData &horizontalLine,
@@ -236,9 +199,6 @@ public:
 	[[nodiscard]] rpl::producer<Limits> xPercentageLimitsChange() const;
 	[[nodiscard]] rpl::producer<> userInteractionFinished() const;
 
-	void setFullHeightLimits(Limits limits);
-	[[nodiscard]] const Limits &fullHeightLimits() const;
-
 	void setPaintChartCallback(PaintCallback paintChartCallback);
 
 protected:
@@ -247,8 +207,6 @@ protected:
 private:
 	rpl::event_stream<Limits> _xPercentageLimitsChange;
 	rpl::event_stream<> _userInteractionFinished;
-
-	Limits _fullHeightLimits;
 
 	void prepareCache(int height);
 
@@ -513,14 +471,6 @@ rpl::producer<> ChartWidget::Footer::userInteractionFinished() const {
 	return _userInteractionFinished.events();
 }
 
-void ChartWidget::Footer::setFullHeightLimits(Limits limits) {
-	_fullHeightLimits = std::move(limits);
-}
-
-const Limits &ChartWidget::Footer::fullHeightLimits() const {
-	return _fullHeightLimits;
-}
-
 ChartWidget::ChartAnimationController::ChartAnimationController(
 	Fn<void()> &&updateCallback)
 : _animation(std::move(updateCallback)) {
@@ -548,14 +498,12 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		_animationValueXMax.to());
 	_currentXIndices = { float64(startXIndex), float64(endXIndex) };
 
-	_finalHeightLimits = Limits{
-		float64(FindMinValue(chartData, startXIndex, endXIndex)),
-		float64(FindMaxValue(chartData, startXIndex, endXIndex)),
-	};
-
 	{
 		auto minValue = std::numeric_limits<int>::max();
 		auto maxValue = 0;
+
+		auto minValueFull = std::numeric_limits<int>::max();
+		auto maxValueFull = 0;
 		for (auto &l : chartData.lines) {
 			if (!chartLinesViewContext.isEnabled(l.id)) {
 				continue;
@@ -564,8 +512,23 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 			const auto lineMin = l.segmentTree.rMinQ(startXIndex, endXIndex);
 			maxValue = std::max(lineMax, maxValue);
 			minValue = std::min(lineMin, minValue);
+
+			maxValueFull = std::max(l.maxValue, maxValueFull);
+			minValueFull = std::min(l.minValue, minValueFull);
 		}
 		_finalHeightLimits = { float64(minValue), float64(maxValue) };
+		if (!chartLinesViewContext.isFinished()) {
+			_animationValueFooterHeightMin = anim::value(
+				_animationValueFooterHeightMin.current(),
+				minValueFull);
+			_animationValueFooterHeightMax = anim::value(
+				_animationValueFooterHeightMax.current(),
+				maxValueFull);
+		} else if (!_animationValueFooterHeightMax.to()) {
+			// Will be finished in setChartData.
+			_animationValueFooterHeightMin = anim::value(0, minValueFull);
+			_animationValueFooterHeightMax = anim::value(0, maxValueFull);
+		}
 	}
 
 	_animationValueHeightMin = anim::value(
@@ -612,6 +575,8 @@ void ChartWidget::ChartAnimationController::finish() {
 	_animationValueXMax.finish();
 	_animationValueHeightMin.finish();
 	_animationValueHeightMax.finish();
+	_animationValueFooterHeightMin.finish();
+	_animationValueFooterHeightMax.finish();
 	_animValueYAlpha.finish();
 	_benchmark = {};
 }
@@ -721,6 +686,12 @@ void ChartWidget::ChartAnimationController::tick(
 		_animationValueHeightMin.update(_dtCurrent.min, anim::easeInCubic);
 		_animationValueHeightMax.update(_dtCurrent.max, anim::easeInCubic);
 		_animValueYAlpha.update(dtAlpha, anim::easeInCubic);
+		_animationValueFooterHeightMin.update(
+			_dtCurrent.min,
+			anim::easeInCubic);
+		_animationValueFooterHeightMax.update(
+			_dtCurrent.max,
+			anim::easeInCubic);
 
 		for (auto &horizontalLine : horizontalLines) {
 			horizontalLine.computeRelative(
@@ -787,6 +758,14 @@ Limits ChartWidget::ChartAnimationController::currentHeightLimits() const {
 	};
 }
 
+auto ChartWidget::ChartAnimationController::currentFooterHeightLimits() const
+-> Limits {
+	return {
+		_animationValueFooterHeightMin.current(),
+		_animationValueFooterHeightMax.current(),
+	};
+}
+
 Limits ChartWidget::ChartAnimationController::finalHeightLimits() const {
 	return _finalHeightLimits;
 }
@@ -809,6 +788,13 @@ bool ChartWidget::ChartAnimationController::animating() const {
 	return _animation.animating();
 }
 
+bool ChartWidget::ChartAnimationController::footerAnimating() const {
+	return (_animationValueFooterHeightMin.current()
+			!= _animationValueFooterHeightMin.to())
+		|| (_animationValueFooterHeightMax.current()
+			!= _animationValueFooterHeightMax.to());
+}
+
 bool ChartWidget::ChartAnimationController::isFPSSlow() const {
 	return _benchmark.lastFPSSlow;
 }
@@ -822,7 +808,13 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 : Ui::RpWidget(parent)
 , _chartArea(base::make_unique_q<RpMouseWidget>(this))
 , _footer(std::make_unique<Footer>(this))
-, _animationController([=] { _chartArea->update(); }) {
+, _animationController([=] {
+	_chartArea->update();
+	if (_animationController.footerAnimating()
+		|| !_animatedChartLines.isFinished()) {
+		_footer->update();
+	}
+}) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		const auto filtersHeight = _filterButtons
@@ -1054,12 +1046,16 @@ void ChartWidget::setupFooter() {
 		if (_chartData) {
 			auto detailsPaintContext = DetailsPaintContext{ .xIndex = -1 };
 			p.fillRect(r, st::boxBg);
+			p.setRenderHint(
+				QPainter::Antialiasing,
+				!_animationController.isFPSSlow()
+					|| !_animationController.animating());
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
 				{ 0., float64(_chartData.x.size() - 1) },
 				fullXLimits,
-				_footer->fullHeightLimits(),
+				_animationController.currentFooterHeightLimits(),
 				r,
 				_animatedChartLines,
 				detailsPaintContext);
@@ -1104,15 +1100,17 @@ void ChartWidget::setupDetails() {
 		_chartArea->update();
 		return;
 	}
+	const auto maxAbsoluteValue = [&] {
+		auto maxValue = 0;
+		for (const auto &l : _chartData.lines) {
+			maxValue = std::max(l.maxValue, maxValue);
+		}
+		return maxValue;
+	}();
 	_details.widget = base::make_unique_q<PointDetailsWidget>(
 		this,
 		_chartData,
-		FindHeightLimitsBetweenXLimits(
-			_chartData,
-			{
-				_chartData.xPercentage.front(),
-				_chartData.xPercentage.back(),
-			}).max);
+		maxAbsoluteValue);
 
 	_details.widget->shownValue(
 	) | rpl::start_with_next([=](bool shown) {
@@ -1217,10 +1215,6 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 
 	setupDetails();
 	setupFilterButtons();
-
-	_footer->setFullHeightLimits(FindHeightLimitsBetweenXLimits(
-		_chartData,
-		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() }));
 
 	_animationController.setXPercentageLimits(
 		_chartData,
