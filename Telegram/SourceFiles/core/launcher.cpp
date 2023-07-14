@@ -1,11 +1,12 @@
 /*
-This file is part of Telegram Desktop,
-the official desktop application for the Telegram messaging service.
+This file is part of exteraGram Desktop,
+the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "core/launcher.h"
+#include "extera/extera_settings.h"
 
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
@@ -305,7 +306,7 @@ void Launcher::init() {
 	prepareSettings();
 	initQtMessageLogging();
 
-	QApplication::setApplicationName(u"TelegramDesktop"_q);
+	QApplication::setApplicationName(u"exteraGramDesktop"_q);
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	// fallback session management is useless for tdesktop since it doesn't have
@@ -339,6 +340,7 @@ void Launcher::initHighDpi() {
 }
 
 int Launcher::exec() {
+	ExteraSettings::JsonSettings::Start();
 	init();
 
 	if (cLaunchMode() == LaunchModeFixPrevious) {

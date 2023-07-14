@@ -1,11 +1,12 @@
 /*
-This file is part of Telegram Desktop,
-the official desktop application for the Telegram messaging service.
+This file is part of exteraGram Desktop,
+the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "tray.h"
+#include "extera/extera_lang.h"
 
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -67,7 +68,7 @@ void Tray::rebuildMenu() {
 			_activeForTrayIconAction = Core::App().isActiveForTrayMenu();
 			return _activeForTrayIconAction
 				? tr::lng_minimize_to_tray(tr::now)
-				: tr::lng_open_from_tray(tr::now);
+				: ktr("etg_open_from_tray");
 		});
 
 		_tray.addAction(
@@ -88,7 +89,7 @@ void Tray::rebuildMenu() {
 			[=] { toggleSoundNotifications(); });
 	}
 
-	_tray.addAction(tr::lng_quit_from_tray(), [] { Core::Quit(); });
+	_tray.addAction(rktr("etg_quit_from_tray"), [] { Core::Quit(); });
 
 	updateMenuText();
 }

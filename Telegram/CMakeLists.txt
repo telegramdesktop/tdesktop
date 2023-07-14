@@ -621,6 +621,13 @@ PRIVATE
     export/view/export_view_settings.h
     export/view/export_view_top_bar.cpp
     export/view/export_view_top_bar.h
+    extera/extera_version.h
+    extera/extera_lang.cpp
+    extera/extera_lang.h
+    extera/extera_settings.cpp
+    extera/extera_settings.h
+    extera/extera_settings_menu.cpp
+    extera/extera_settings_menu.h
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

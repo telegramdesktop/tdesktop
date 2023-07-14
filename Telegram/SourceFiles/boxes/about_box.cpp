@@ -1,11 +1,12 @@
 /*
-This file is part of Telegram Desktop,
-the official desktop application for the Telegram messaging service.
+This file is part of exteraGram Desktop,
+the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "boxes/about_box.h"
+#include "extera/extera_lang.h"
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -28,11 +29,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 rpl::producer<TextWithEntities> Text1() {
-	return tr::lng_about_text1(
-		lt_api_link,
-		tr::lng_about_text1_api(
-		) | Ui::Text::ToLink("https://core.telegram.org/api"),
-		Ui::Text::WithEntities);
+	return rktre("etg_about_text1", {
+		"tdesktop_link",
+		Ui::Text::Link(ktr("etg_about_text1_tdesktop"), "https://desktop.telegram.org/")
+	});
 }
 
 rpl::producer<TextWithEntities> Text2() {
@@ -40,19 +40,22 @@ rpl::producer<TextWithEntities> Text2() {
 		lt_gpl_link,
 		rpl::single(Ui::Text::Link(
 			"GNU GPL",
-			"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE")),
+			"https://github.com/exteraGramDesktop/exteraGramDesktop/blob/master/LICENSE")),
 		lt_github_link,
 		rpl::single(Ui::Text::Link(
 			"GitHub",
-			"https://github.com/telegramdesktop/tdesktop")),
+			"https://github.com/exteraGramDesktop/exteraGramDesktop")),
 		Ui::Text::WithEntities);
 }
 
 rpl::producer<TextWithEntities> Text3() {
-	return tr::lng_about_text3(
-		lt_faq_link,
-		tr::lng_about_text3_faq() | Ui::Text::ToLink(telegramFaqLink()),
-		Ui::Text::WithEntities);
+	return rktre("etg_about_text3", {
+		"channel_link",
+		Ui::Text::Link(ktr("etg_about_text3_channel"), "https://t.me/exteraGramDesktop")
+	}, {
+		"faq_link",
+		Ui::Text::Link(tr::lng_about_text3_faq(tr::now), telegramFaqLink())
+	});
 }
 
 } // namespace
@@ -65,7 +68,7 @@ AboutBox::AboutBox(QWidget *parent)
 }
 
 void AboutBox::prepare() {
-	setTitle(rpl::single(u"Telegram Desktop"_q));
+	setTitle(rpl::single(u"exteraGram Desktop"_q));
 
 	addButton(tr::lng_close(), [this] { closeBox(); });
 

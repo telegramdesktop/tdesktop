@@ -1,11 +1,13 @@
 /*
-This file is part of Telegram Desktop,
-the official desktop application for the Telegram messaging service.
+This file is part of exteraGram Desktop,
+the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "settings/settings_main.h"
+#include "extera/extera_settings_menu.h"
+#include "extera/extera_lang.h"
 
 #include "settings/settings_common.h"
 #include "settings/settings_codes.h"
@@ -317,6 +319,10 @@ void SetupSections(
 			showOther(type);
 		});
 	};
+	addSection(
+		rktr("etg_settings_extera"),
+		Extera::Id(),
+		{ &st::settingsIconExtera, kIconRed });
 	if (controller->session().supportMode()) {
 		SetupSupport(controller, container);
 

@@ -1,11 +1,12 @@
 /*
-This file is part of Telegram Desktop,
-the official desktop application for the Telegram messaging service.
+This file is part of exteraGram Desktop,
+the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "intro/intro_widget.h"
+#include "extera/extera_lang.h"
 
 #include "intro/intro_start.h"
 #include "intro/intro_phone.h"
@@ -259,6 +260,9 @@ void Widget::createLanguageLink() {
 		_changeLanguage->hide(anim::type::instant);
 		_changeLanguage->entity()->setClickedCallback([=] {
 			Lang::CurrentCloudManager().switchToLanguage(languageId);
+			ExteraLang::Lang::Load(
+				Lang::GetInstance().baseId(), 
+				Lang::GetInstance().id());
 		});
 		_changeLanguage->toggle(
 			!_resetAccount && !_terms && _nextShown,

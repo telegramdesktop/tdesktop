@@ -1,9 +1,9 @@
 /*
-This file is part of Telegram Desktop,
-the official desktop application for the Telegram messaging service.
+This file is part of exteraGram Desktop,
+the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 using "ui/basic.style";
 using "ui/widgets/widgets.style";
@@ -74,6 +74,7 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButtonNoIcon) {
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 8px, 22px, 16px);
 
+settingsIconExtera: icon {{ "settings/extera", settingsIconFg }};
 settingsIconAccount: icon {{ "settings/account", settingsIconFg }};
 settingsIconNotifications: icon {{ "settings/notifications", settingsIconFg }};
 settingsIconChat: icon {{ "settings/chat", settingsIconFg }};
@@ -284,6 +285,15 @@ chatThemeButtonMargin: margins(10px, 0px, 10px, 8px);
 autoDownloadLimitButton: SettingsButton(settingsButtonNoIcon) {
 	padding: margins(22px, 10px, 22px, 0px);
 }
+settingsAudioVolumeSlider: MediaSlider(defaultContinuousSlider) {
+	seekSize: size(15px, 15px);
+}
+settingsAudioVolumeSliderPadding: margins(22px, 5px, 20px, 10px);
+settingsAudioVolumeLabel: LabelSimple(defaultLabelSimple) {
+	font: boxTextFont;
+	textFg: windowBoldFg;
+}
+settingsAudioVolumeLabelPadding: margins(22px, 11px, 22px, 11px);
 settingsLevelMeterPadding: margins(22px, 10px, 20px, 10px);
 
 settingsForwardPrivacyPadding: 10px;
