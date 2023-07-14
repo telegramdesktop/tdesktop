@@ -792,8 +792,12 @@ Limits ChartWidget::ChartAnimationController::finalHeightLimits() const {
 }
 
 float64 ChartWidget::ChartAnimationController::detailsProgress(
-		crl::time now) const {
-	return _animation.animating()
+		crl::time now,
+		const Limits &appearedOnXLimits) const {
+	const auto xLimitsChanged = false
+		|| (appearedOnXLimits.min != _animationValueXMin.to())
+		|| (appearedOnXLimits.max != _animationValueXMax.to());
+	return (_animation.animating() && xLimitsChanged)
 		? std::clamp(
 			(now - _animation.started()) / float64(kExpandingDelay),
 			0.,
@@ -892,13 +896,16 @@ void ChartWidget::setupChartArea() {
 		}
 
 		const auto detailsAlpha = 1.
-			- _animationController.detailsProgress(now);
+			- _animationController.detailsProgress(
+				now,
+				_details.appearedOnXLimits);
 
 		if (_details.widget) {
 			if (!detailsAlpha && _details.currentX) {
 				_details.widget->hide();
 				_details.widget->setXIndex(-1);
 				_details.currentX = 0;
+				_details.appearedOnXLimits = {};
 			}
 			if (_details.currentX) {
 				const auto lineRect = QRectF(
@@ -1140,6 +1147,7 @@ void ChartWidget::setupDetails() {
 					currentXLimits.min,
 					currentXLimits.max,
 					*nearestXPercentageIt);
+			_details.appearedOnXLimits = currentXLimits;
 			const auto xLeft = _details.currentX
 				- _details.widget->width();
 			const auto x = (xLeft >= 0)
