@@ -31,6 +31,9 @@ statisticsChartBottomCaptionMaxWidth: 44px;
 statisticsChartFooterSkip: 10px;
 statisticsChartFooterHeight: 52px;
 
+statisticsChartFlatCheckboxMargins: margins(6px, 4px, 6px, 4px);
+statisticsChartFlatCheckboxCheckWidth: 4px;
+
 statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }

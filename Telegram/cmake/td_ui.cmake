@@ -159,6 +159,9 @@ PRIVATE
     platform/mac/file_bookmark_mac.mm
     platform/platform_file_bookmark.h
 
+    statistics/chart_lines_filter_widget.cpp
+    statistics/chart_lines_filter_widget.h
+
     ui/boxes/auto_delete_settings.cpp
     ui/boxes/auto_delete_settings.h
     ui/boxes/boost_box.cpp
