@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/chart_widget.h"
 
 #include "base/qt/qt_key_modifiers.h"
+#include "statistics/chart_lines_filter_widget.h"
 #include "statistics/linear_chart_view.h"
 #include "statistics/point_details_widget.h"
 #include "ui/abstract_button.h"
@@ -532,7 +533,7 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		crl::time now) {
 	if ((_animationValueXMin.to() == xPercentageLimits.min)
 		&& (_animationValueXMax.to() == xPercentageLimits.max)) {
-		return;
+		// return;
 	}
 	start();
 	_animationValueXMin.start(xPercentageLimits.min);
@@ -840,63 +841,46 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 , _chartArea(base::make_unique_q<RpMouseWidget>(this))
 , _footer(std::make_unique<Footer>(this))
 , _animationController([=] { _chartArea->update(); }) {
-
-	const auto asd = Ui::CreateChild<Ui::AbstractButton>(this);
-	const auto oiu = std::make_shared<bool>(false);
-	asd->paintRequest(
-	) | rpl::start_with_next([=](const QRect &r) {
-		auto p = QPainter(asd);
-		p.setOpacity(0.3);
-		p.fillRect(r, Qt::darkRed);
-	}, asd->lifetime());
-	asd->setClickedCallback([=] {
-		*oiu = !(*oiu);
-		auto data = ChartLineViewContext{
-			.id = 1,
-			.enabled = (*oiu),
-			.startedAt = crl::now(),
-		};
-		_animatedChartLines.clear();
-		_animatedChartLines.push_back(data);
-
-		_animationController.setXPercentageLimits(
-			_chartData,
-			_animationController.currentXLimits(),
-			_animatedChartLines,
-			data.startedAt);
-	});
-
-
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
+		const auto filtersHeight = _filterButtons
+			? _filterButtons->height()
+			: 0;
 		_footer->setGeometry(
 			0,
-			s.height() - st::statisticsChartFooterHeight * 2,
+			s.height() - st::statisticsChartFooterHeight - filtersHeight,
 			s.width(),
 			st::statisticsChartFooterHeight);
-		asd->setGeometry(
-			0,
-			s.height() - st::statisticsChartFooterHeight,
-			s.width(),
-			st::statisticsChartFooterHeight);
+		if (_filterButtons) {
+			_filterButtons->setGeometry(
+				0,
+				s.height() - filtersHeight,
+				s.width(),
+				filtersHeight);
+		}
 		_chartArea->setGeometry(
 			0,
 			0,
 			s.width(),
 			s.height()
-				- st::statisticsChartFooterHeight * 2
+				- st::statisticsChartFooterHeight
+				- filtersHeight
 				- st::statisticsChartFooterSkip);
 	}, lifetime());
 
 	setupChartArea();
 	setupFooter();
 
+	resizeHeight();
+}
+
+void ChartWidget::resizeHeight() {
 	resize(
 		width(),
 		st::statisticsChartHeight
 			+ st::statisticsChartFooterHeight
 			+ st::statisticsChartFooterSkip
-			+ st::statisticsChartFooterHeight);
+			+ (_filterButtons ? _filterButtons->height() : 0));
 }
 
 QRect ChartWidget::chartAreaRect() const {
@@ -1198,10 +1182,58 @@ void ChartWidget::setupDetails() {
 	}, _details.widget->lifetime());
 }
 
+void ChartWidget::setupFilterButtons() {
+	if (!_chartData) {
+		_filterButtons = nullptr;
+		_chartArea->update();
+		return;
+	}
+	_filterButtons = base::make_unique_q<ChartLinesFilterWidget>(this);
+
+	sizeValue(
+	) | rpl::filter([=](const QSize &s) {
+		return s.width() > 0;
+	}) | rpl::take(1) | rpl::start_with_next([=](const QSize &s) {
+		auto texts = std::vector<QString>();
+		auto colors = std::vector<QColor>();
+		auto ids = std::vector<int>();
+		texts.reserve(_chartData.lines.size());
+		colors.reserve(_chartData.lines.size());
+		ids.reserve(_chartData.lines.size());
+		for (const auto &line : _chartData.lines) {
+			texts.push_back(line.name);
+			colors.push_back(line.color);
+			ids.push_back(line.id);
+		}
+
+		_filterButtons->fillButtons(texts, colors, ids, s.width());
+		resizeHeight();
+	}, _filterButtons->lifetime());
+
+	_filterButtons->buttonEnabledChanges(
+	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
+		auto data = ChartLineViewContext{
+			.id = e.id,
+			.enabled = e.enabled,
+			.startedAt = crl::now(),
+		};
+		_animatedChartLines.clear();
+		_animatedChartLines.push_back(data);
+
+		_animationController.setXPercentageLimits(
+			_chartData,
+			_animationController.currentXLimits(),
+			_animatedChartLines,
+			data.startedAt);
+
+	}, _filterButtons->lifetime());
+}
+
 void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_chartData = std::move(chartData);
 
 	setupDetails();
+	setupFilterButtons();
 
 	_footer->setFullHeightLimits(FindHeightLimitsBetweenXLimits(
 		_chartData,

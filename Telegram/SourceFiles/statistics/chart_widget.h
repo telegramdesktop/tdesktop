@@ -18,6 +18,7 @@ namespace Statistic {
 
 class RpMouseWidget;
 class PointDetailsWidget;
+class ChartLinesFilterWidget;
 
 class ChartWidget : public Ui::RpWidget {
 public:
@@ -107,11 +108,15 @@ private:
 	void setupChartArea();
 	void setupFooter();
 	void setupDetails();
+	void setupFilterButtons();
 
 	void updateBottomDates();
 
+	void resizeHeight();
+
 	const base::unique_qptr<RpMouseWidget> _chartArea;
 	const std::unique_ptr<Footer> _footer;
+	base::unique_qptr<ChartLinesFilterWidget> _filterButtons;
 	Data::StatisticalChart _chartData;
 
 	std::vector<ChartLineViewContext> _animatedChartLines;
