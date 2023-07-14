@@ -218,13 +218,18 @@ dialogsMenuToggleUnreadMuted: icon {
 	{ "dialogs/dialogs_menu_unread_dot", dialogsMenuIconFg },
 };
 
-dialogsLock: IconButton(dialogsMenuToggle) {
-	icon: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFgOver }};
+dialogsLock: IconButton {
+	width: 36px;
+	height: 38px;
+
+	icon: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+
 	ripple: emptyRippleAnimation;
 }
-dialogsUnlockIcon: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFg }};
-dialogsUnlockIconOver: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFgOver }};
+dialogsUnlockIcon: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFg }};
+dialogsUnlockIconOver: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFgOver }};
 dialogsCalendar: IconButton {
 	width: 32px;
 	height: 35px;
