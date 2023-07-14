@@ -27,7 +27,7 @@ namespace Statistic {
 namespace {
 
 constexpr auto kHeightLimitsUpdateTimeout = crl::time(320);
-constexpr auto kExpandingDelay = crl::time(100);
+constexpr auto kExpandingDelay = crl::time(1);
 
 inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 	return (result - from) / (to - from);
@@ -516,7 +516,11 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 			maxValueFull = std::max(l.maxValue, maxValueFull);
 			minValueFull = std::min(l.minValue, minValueFull);
 		}
+		_previousFullHeightLimits = _finalHeightLimits;
 		_finalHeightLimits = { float64(minValue), float64(maxValue) };
+		if (!_previousFullHeightLimits.max) {
+			_previousFullHeightLimits = _finalHeightLimits;
+		}
 		if (!chartLinesViewContext.isFinished()) {
 			_animationValueFooterHeightMin = anim::value(
 				_animationValueFooterHeightMin.current(),
@@ -539,28 +543,44 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		_finalHeightLimits.max);
 
 	{
-		const auto currentDelta = _animationValueHeightMax.current()
-			- _animationValueHeightMin.current();
-		auto k = currentDelta
+		const auto previousDelta = _previousFullHeightLimits.max
+			- _previousFullHeightLimits.min;
+		auto k = previousDelta
 			/ float64(_finalHeightLimits.max - _finalHeightLimits.min);
 		if (k > 1.) {
 			k = 1. / k;
 		}
-		constexpr auto kDtHeightSpeed1 = 0.03 / 2;
-		constexpr auto kDtHeightSpeed2 = 0.03 / 2;
-		constexpr auto kDtHeightSpeed3 = 0.045 / 2;
+		constexpr auto kDtHeightSpeed1 = 0.03 * 2;
+		constexpr auto kDtHeightSpeed2 = 0.03 * 2;
+		constexpr auto kDtHeightSpeed3 = 0.045 * 2;
+		constexpr auto kDtHeightSpeedFilter = kDtHeightSpeed1 / 1.2;
 		constexpr auto kDtHeightSpeedThreshold1 = 0.7;
 		constexpr auto kDtHeightSpeedThreshold2 = 0.1;
 		constexpr auto kDtHeightInstantThreshold = 0.97;
-		_dtHeightSpeed = (k > kDtHeightSpeedThreshold1)
+		if (k < 1.) {
+			auto &alpha = _animationValueHeightAlpha;
+			alpha = anim::value(
+				(alpha.current() == alpha.to()) ? 0. : alpha.current(),
+				1.);
+			_dtHeight.currentAlpha = 0.;
+			_addHorizontalLineRequests.fire({});
+		}
+		_dtHeight.speed = (!chartLinesViewContext.isFinished())
+			? kDtHeightSpeedFilter
+			: (k > kDtHeightSpeedThreshold1)
 			? kDtHeightSpeed1
 			: (k < kDtHeightSpeedThreshold2)
 			? kDtHeightSpeed2
 			: kDtHeightSpeed3;
 		if (k < kDtHeightInstantThreshold) {
-			_dtCurrent = { 0., 0. };
+			_dtHeight.current = { 0., 0. };
 		}
 	}
+}
+
+auto ChartWidget::ChartAnimationController::addHorizontalLineRequests() const
+-> rpl::producer<> {
+	return _addHorizontalLineRequests.events();
 }
 
 void ChartWidget::ChartAnimationController::start() {
@@ -577,13 +597,8 @@ void ChartWidget::ChartAnimationController::finish() {
 	_animationValueHeightMax.finish();
 	_animationValueFooterHeightMin.finish();
 	_animationValueFooterHeightMax.finish();
-	_animValueYAlpha.finish();
+	_animationValueHeightAlpha.finish();
 	_benchmark = {};
-}
-
-void ChartWidget::ChartAnimationController::resetAlpha() {
-	_alphaAnimationStartedAt = 0;
-	_animValueYAlpha = anim::value(0., 1.);
 }
 
 void ChartWidget::ChartAnimationController::restartBottomLineAlpha() {
@@ -603,15 +618,6 @@ void ChartWidget::ChartAnimationController::tick(
 	constexpr auto kXExpandingDuration = 200.;
 	constexpr auto kAlphaExpandingDuration = 200.;
 
-	if (!_heightAnimationStarted
-			&& ((now - _lastUserInteracted) >= kExpandingDelay)) {
-		_heightAnimationStarts.fire({});
-		_heightAnimationStarted = true;
-	}
-	if (!_alphaAnimationStartedAt) {
-		_alphaAnimationStartedAt = now;
-	}
-
 	{
 		constexpr auto kIdealFPS = float64(60);
 		const auto currentFPS = _benchmark.lastTickedAt
@@ -627,15 +633,14 @@ void ChartWidget::ChartAnimationController::tick(
 		const auto k = (kIdealFPS / currentFPS)
 			// Speed up to reduce ugly frames count.
 			* (_benchmark.lastFPSSlow ? 2. : 1.);
-		_dtCurrent.min = std::min(_dtCurrent.min + _dtHeightSpeed * k, 1.);
-		_dtCurrent.max = std::min(_dtCurrent.max + _dtHeightSpeed * k, 1.);
+		const auto speed = _dtHeight.speed * k;
+		_dtHeight.current.min = std::min(_dtHeight.current.min + speed, 1.);
+		_dtHeight.current.max = std::min(_dtHeight.current.max + speed, 1.);
+		_dtHeight.currentAlpha = std::min(_dtHeight.currentAlpha + speed, 1.);
 	}
 
 	const auto dtX = std::min(
 		(now - _animation.started()) / kXExpandingDuration,
-		1.);
-	const auto dtAlpha = std::min(
-		(now - _alphaAnimationStartedAt) / kAlphaExpandingDuration,
 		1.);
 	const auto dtBottomLineAlpha = std::min(
 		(now - _bottomLineAlphaAnimationStartedAt) / kAlphaExpandingDuration,
@@ -649,9 +654,13 @@ void ChartWidget::ChartAnimationController::tick(
 		&& isFinished(_animationValueXMax);
 	const auto yFinished = isFinished(_animationValueHeightMin)
 		&& isFinished(_animationValueHeightMax);
-	const auto alphaFinished = isFinished(_animValueYAlpha);
+	const auto alphaFinished = isFinished(_animationValueHeightAlpha)
+		&& isFinished(_animationValueHeightMax);
 	const auto bottomLineAlphaFinished = isFinished(
 		_animValueBottomLineAlpha);
+
+	const auto footerMinFinished = isFinished(_animationValueFooterHeightMin);
+	const auto footerMaxFinished = isFinished(_animationValueFooterHeightMax);
 
 	chartLinesViewContext.tick(now);
 
@@ -659,10 +668,12 @@ void ChartWidget::ChartAnimationController::tick(
 			&& yFinished
 			&& alphaFinished
 			&& bottomLineAlphaFinished
+			&& footerMinFinished
+			&& footerMaxFinished
 			&& chartLinesViewContext.isFinished()) {
 		const auto &lines = horizontalLines.back().lines;
-		if ((lines.front().absoluteValue == _animationValueHeightMin.to())
-			&& lines.back().absoluteValue == _animationValueHeightMax.to()) {
+		if ((_finalHeightLimits.min == _animationValueHeightMin.to())
+			&& _finalHeightLimits.max == _animationValueHeightMax.to()) {
 			_animation.stop();
 			_benchmark = {};
 		}
@@ -682,15 +693,12 @@ void ChartWidget::ChartAnimationController::tick(
 			dtBottomLineAlpha,
 			anim::easeInCubic);
 	}
-	if (_heightAnimationStarted) {
-		_animationValueHeightMin.update(_dtCurrent.min, anim::easeInCubic);
-		_animationValueHeightMax.update(_dtCurrent.max, anim::easeInCubic);
-		_animValueYAlpha.update(dtAlpha, anim::easeInCubic);
-		_animationValueFooterHeightMin.update(
-			_dtCurrent.min,
+	if (!yFinished) {
+		_animationValueHeightMin.update(
+			_dtHeight.current.min,
 			anim::easeInCubic);
-		_animationValueFooterHeightMax.update(
-			_dtCurrent.max,
+		_animationValueHeightMax.update(
+			_dtHeight.current.max,
 			anim::easeInCubic);
 
 		for (auto &horizontalLine : horizontalLines) {
@@ -699,9 +707,22 @@ void ChartWidget::ChartAnimationController::tick(
 				_animationValueHeightMin.current());
 		}
 	}
+	if (!footerMinFinished) {
+		_animationValueFooterHeightMin.update(
+			_dtHeight.current.min,
+			anim::sineInOut);
+	}
+	if (!footerMaxFinished) {
+		_animationValueFooterHeightMax.update(
+			_dtHeight.current.max,
+			anim::sineInOut);
+	}
 
-	if (dtAlpha >= 0. && dtAlpha <= 1.) {
-		const auto value = _animValueYAlpha.current();
+	if (!alphaFinished) {
+		_animationValueHeightAlpha.update(
+			_dtHeight.currentAlpha,
+			anim::easeInCubic);
+		const auto value = _animationValueHeightAlpha.current();
 
 		for (auto &horizontalLine : horizontalLines) {
 			horizontalLine.alpha = horizontalLine.fixedAlpha * (1. - value);
@@ -731,11 +752,6 @@ void ChartWidget::ChartAnimationController::tick(
 			dateLines.clear();
 			dateLines.push_back(data);
 		}
-	}
-
-	if (yFinished && alphaFinished) {
-		_alphaAnimationStartedAt = 0;
-		_heightAnimationStarted = false;
 	}
 }
 
@@ -797,11 +813,6 @@ bool ChartWidget::ChartAnimationController::footerAnimating() const {
 
 bool ChartWidget::ChartAnimationController::isFPSSlow() const {
 	return _benchmark.lastFPSSlow;
-}
-
-auto ChartWidget::ChartAnimationController::heightAnimationStarts() const
--> rpl::producer<> {
-	return _heightAnimationStarts.events();
 }
 
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
@@ -1074,11 +1085,8 @@ void ChartWidget::setupFooter() {
 		}
 	});
 
-	rpl::merge(
-		_animationController.heightAnimationStarts(),
-		_footer->userInteractionFinished()
+	_animationController.addHorizontalLineRequests(
 	) | rpl::start_with_next([=] {
-		_animationController.resetAlpha();
 		addHorizontalLine(_animationController.finalHeightLimits(), true);
 		_animationController.start();
 	}, _footer->lifetime());
@@ -1097,7 +1105,6 @@ void ChartWidget::setupFooter() {
 			return;
 		}
 		_lastHeightLimitsChanged = now;
-		_animationController.resetAlpha();
 		addHorizontalLine(_animationController.finalHeightLimits(), true);
 	}, _footer->lifetime());
 }

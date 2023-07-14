@@ -74,15 +74,13 @@ private:
 		[[nodiscard]] bool footerAnimating() const;
 		[[nodiscard]] bool isFPSSlow() const;
 
-		[[nodiscard]] rpl::producer<> heightAnimationStarts() const;
+		[[nodiscard]] rpl::producer<> addHorizontalLineRequests() const;
 
 	private:
 		Ui::Animations::Basic _animation;
 
 		crl::time _lastUserInteracted = 0;
-		crl::time _alphaAnimationStartedAt = 0;
 		crl::time _bottomLineAlphaAnimationStartedAt = 0;
-		bool _heightAnimationStarted = false;
 
 		anim::value _animationValueXMin;
 		anim::value _animationValueXMax;
@@ -92,22 +90,27 @@ private:
 		anim::value _animationValueFooterHeightMin;
 		anim::value _animationValueFooterHeightMax;
 
-		anim::value _animValueYAlpha;
+		anim::value _animationValueHeightAlpha;
 
 		anim::value _animValueBottomLineAlpha;
 
 		Limits _finalHeightLimits;
 		Limits _currentXIndices;
 
-		float _dtHeightSpeed = 0.;
-		Limits _dtCurrent;
+		struct {
+			float speed = 0.;
+			Limits current;
+
+			float64 currentAlpha = 0.;
+		} _dtHeight;
+		Limits _previousFullHeightLimits;
 
 		struct {
 			crl::time lastTickedAt = 0;
 			bool lastFPSSlow = false;
 		} _benchmark;
 
-		rpl::event_stream<> _heightAnimationStarts;
+		rpl::event_stream<> _addHorizontalLineRequests;
 
 	};
 
