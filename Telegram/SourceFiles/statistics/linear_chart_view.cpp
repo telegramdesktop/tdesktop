@@ -23,11 +23,22 @@ void PaintLinearChartView(
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
+		const std::vector<ChartLineViewContext> &linesContext,
 		DetailsPaintContext &detailsPaintContext) {
 	const auto currentMinHeight = rect.y(); //
 	const auto currentMaxHeight = rect.height() + rect.y(); //
 
 	for (const auto &line : chartData.lines) {
+		p.setOpacity(1.);
+		for (const auto &lineContext : linesContext) {
+			if (lineContext.id == line.id) {
+				p.setOpacity(lineContext.alpha);
+				break;
+			}
+		}
+		if (!p.opacity()) {
+			continue;
+		}
 		const auto additionalP = (chartData.xPercentage.size() < 2)
 			? 0.
 			: (chartData.xPercentage.front() * rect.width());

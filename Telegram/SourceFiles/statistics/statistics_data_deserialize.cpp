@@ -30,6 +30,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		return {};
 	}
 	auto result = Data::StatisticalChart();
+	auto columnIdCount = 0;
 	for (const auto &column : columns) {
 		const auto array = column.toArray();
 		if (array.empty()) {
@@ -46,7 +47,8 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		} else {
 			auto line = Data::StatisticalChart::Line();
 			const auto length = array.size() - 1;
-			line.id = columnId;
+			line.id = (++columnIdCount);
+			line.idString = columnId;
 			line.y.resize(length);
 			for (auto i = 0; i < length; i++) {
 				const auto value = array.at(i + 1).toInt();
@@ -73,7 +75,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 
 	const auto colorPattern = u"(.*)(#.*)"_q;
 	for (auto &line : result.lines) {
-		const auto colorIt = colors.constFind(line.id);
+		const auto colorIt = colors.constFind(line.idString);
 		if (colorIt != colors.constEnd() && (*colorIt).isString()) {
 			const auto match = QRegularExpression(colorPattern).match(
 				colorIt->toString());
@@ -82,7 +84,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 				line.color = QColor(match.captured(2));
 			}
 		}
-		const auto nameIt = names.constFind(line.id);
+		const auto nameIt = names.constFind(line.idString);
 		if (nameIt != names.constEnd() && (*nameIt).isString()) {
 			line.name = nameIt->toString().replace('-', QChar(8212));
 		}

@@ -47,6 +47,7 @@ private:
 		void setXPercentageLimits(
 			Data::StatisticalChart &chartData,
 			Limits xPercentageLimits,
+			std::vector<ChartLineViewContext> &chartLinesViewContext,
 			crl::time now);
 		void start();
 		void finish();
@@ -55,7 +56,8 @@ private:
 		void tick(
 			crl::time now,
 			std::vector<ChartHorizontalLinesData> &horizontalLines,
-			std::vector<BottomCaptionLineData> &dateLines);
+			std::vector<BottomCaptionLineData> &dateLines,
+			std::vector<ChartLineViewContext> &chartLinesViewContext);
 
 		[[nodiscard]] Limits currentXLimits() const;
 		[[nodiscard]] Limits currentXIndices() const;
@@ -111,6 +113,8 @@ private:
 	const base::unique_qptr<RpMouseWidget> _chartArea;
 	const std::unique_ptr<Footer> _footer;
 	Data::StatisticalChart _chartData;
+
+	std::vector<ChartLineViewContext> _animatedChartLines;
 
 	struct {
 		base::unique_qptr<PointDetailsWidget> widget;

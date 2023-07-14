@@ -57,7 +57,8 @@ struct StatisticalChart {
 		std::vector<int> y;
 
 		Statistic::SegmentTree segmentTree;
-		QString id;
+		int id = 0;
+		QString idString;
 		QString name;
 		int maxValue = 0;
 		int minValue = std::numeric_limits<int>::max();

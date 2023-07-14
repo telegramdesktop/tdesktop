@@ -15,6 +15,7 @@ namespace Statistic {
 
 struct Limits;
 struct DetailsPaintContext;
+struct ChartLineViewContext;
 
 void PaintLinearChartView(
 	QPainter &p,
@@ -23,6 +24,7 @@ void PaintLinearChartView(
 	const Limits &xPercentageLimits,
 	const Limits &heightLimits,
 	const QRect &rect,
+	const std::vector<ChartLineViewContext> &linesContext,
 	DetailsPaintContext &detailsPaintContext);
 
 } // namespace Statistic

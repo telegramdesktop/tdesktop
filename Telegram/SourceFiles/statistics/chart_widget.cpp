@@ -528,6 +528,7 @@ ChartWidget::ChartAnimationController::ChartAnimationController(
 void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		Data::StatisticalChart &chartData,
 		Limits xPercentageLimits,
+		std::vector<ChartLineViewContext> &chartLinesViewContext,
 		crl::time now) {
 	if ((_animationValueXMin.to() == xPercentageLimits.min)
 		&& (_animationValueXMax.to() == xPercentageLimits.max)) {
@@ -549,6 +550,24 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		float64(FindMinValue(chartData, startXIndex, endXIndex)),
 		float64(FindMaxValue(chartData, startXIndex, endXIndex)),
 	};
+
+	{
+		auto minValue = std::numeric_limits<int>::max();
+		auto maxValue = 0;
+		for (auto &l : chartData.lines) {
+			const auto it = ranges::find_if(chartLinesViewContext, [&](const auto &a) {
+				return a.id == l.id;
+			});
+			if (it != end(chartLinesViewContext) && !it->enabled) {
+				continue;
+			}
+			const auto lineMax = l.segmentTree.rMaxQ(startXIndex, endXIndex);
+			const auto lineMin = l.segmentTree.rMinQ(startXIndex, endXIndex);
+			maxValue = std::max(lineMax, maxValue);
+			minValue = std::min(lineMin, minValue);
+		}
+		_finalHeightLimits = { float64(minValue), float64(maxValue) };
+	}
 
 	_animationValueHeightMin = anim::value(
 		_animationValueHeightMin.current(),
@@ -612,7 +631,8 @@ void ChartWidget::ChartAnimationController::restartBottomLineAlpha() {
 void ChartWidget::ChartAnimationController::tick(
 		crl::time now,
 		std::vector<ChartHorizontalLinesData> &horizontalLines,
-		std::vector<BottomCaptionLineData> &dateLines) {
+		std::vector<BottomCaptionLineData> &dateLines,
+		std::vector<ChartLineViewContext> &chartLinesViewContext) {
 	if (!_animation.animating()) {
 		return;
 	}
@@ -669,7 +689,33 @@ void ChartWidget::ChartAnimationController::tick(
 	const auto bottomLineAlphaFinished = isFinished(
 		_animValueBottomLineAlpha);
 
-	if (xFinished && yFinished && alphaFinished && bottomLineAlphaFinished) {
+	auto chartLinesViewContextFinished = false;
+	{
+		auto finishedCount = 0;
+		for (auto &viewLine : chartLinesViewContext) {
+			if (!viewLine.startedAt) {
+				continue;
+			}
+			const auto progress = (now - viewLine.startedAt)
+				/ (kXExpandingDuration * 2);
+			viewLine.alpha = std::clamp(
+				viewLine.enabled ? progress : (1. - progress),
+				0.,
+				1.);
+			if (progress >= 1.) {
+				finishedCount++;
+			}
+		}
+		chartLinesViewContextFinished =
+			(finishedCount == chartLinesViewContext.size());
+	}
+
+
+	if (xFinished
+			&& yFinished
+			&& alphaFinished
+			&& bottomLineAlphaFinished
+			&& chartLinesViewContextFinished) {
 		const auto &lines = horizontalLines.back().lines;
 		if ((lines.front().absoluteValue == _animationValueHeightMin.to())
 			&& lines.back().absoluteValue == _animationValueHeightMax.to()) {
@@ -794,9 +840,41 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 , _chartArea(base::make_unique_q<RpMouseWidget>(this))
 , _footer(std::make_unique<Footer>(this))
 , _animationController([=] { _chartArea->update(); }) {
+
+	const auto asd = Ui::CreateChild<Ui::AbstractButton>(this);
+	const auto oiu = std::make_shared<bool>(false);
+	asd->paintRequest(
+	) | rpl::start_with_next([=](const QRect &r) {
+		auto p = QPainter(asd);
+		p.setOpacity(0.3);
+		p.fillRect(r, Qt::darkRed);
+	}, asd->lifetime());
+	asd->setClickedCallback([=] {
+		*oiu = !(*oiu);
+		auto data = ChartLineViewContext{
+			.id = 1,
+			.enabled = (*oiu),
+			.startedAt = crl::now(),
+		};
+		_animatedChartLines.clear();
+		_animatedChartLines.push_back(data);
+
+		_animationController.setXPercentageLimits(
+			_chartData,
+			_animationController.currentXLimits(),
+			_animatedChartLines,
+			data.startedAt);
+	});
+
+
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_footer->setGeometry(
+			0,
+			s.height() - st::statisticsChartFooterHeight * 2,
+			s.width(),
+			st::statisticsChartFooterHeight);
+		asd->setGeometry(
 			0,
 			s.height() - st::statisticsChartFooterHeight,
 			s.width(),
@@ -806,7 +884,7 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 			0,
 			s.width(),
 			s.height()
-				- st::statisticsChartFooterHeight
+				- st::statisticsChartFooterHeight * 2
 				- st::statisticsChartFooterSkip);
 	}, lifetime());
 
@@ -817,7 +895,8 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		width(),
 		st::statisticsChartHeight
 			+ st::statisticsChartFooterHeight
-			+ st::statisticsChartFooterSkip);
+			+ st::statisticsChartFooterSkip
+			+ st::statisticsChartFooterHeight);
 }
 
 QRect ChartWidget::chartAreaRect() const {
@@ -836,7 +915,11 @@ void ChartWidget::setupChartArea() {
 
 		const auto now = crl::now();
 
-		_animationController.tick(now, _horizontalLines, _bottomLine.dates);
+		_animationController.tick(
+			now,
+			_horizontalLines,
+			_bottomLine.dates,
+			_animatedChartLines);
 
 		const auto chartRect = chartAreaRect();
 
@@ -884,6 +967,7 @@ void ChartWidget::setupChartArea() {
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
 				chartRect,
+				_animatedChartLines,
 				detailsPaintContext);
 		}
 
@@ -1005,6 +1089,7 @@ void ChartWidget::setupFooter() {
 				fullXLimits,
 				_footer->fullHeightLimits(),
 				r,
+				_animatedChartLines,
 				detailsPaintContext);
 		}
 	});
@@ -1024,6 +1109,7 @@ void ChartWidget::setupFooter() {
 		_animationController.setXPercentageLimits(
 			_chartData,
 			xPercentageLimits,
+			_animatedChartLines,
 			now);
 		{
 			const auto finalXLimits = _animationController.finalXLimits();
@@ -1124,6 +1210,7 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_animationController.setXPercentageLimits(
 		_chartData,
 		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() },
+		_animatedChartLines,
 		0);
 	{
 		const auto finalXLimits = _animationController.finalXLimits();
