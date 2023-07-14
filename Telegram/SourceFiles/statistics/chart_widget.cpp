@@ -951,15 +951,13 @@ void ChartWidget::setupChartArea() {
 				QRect(bottom.x(), bottom.y(), bottom.width(), st::lineWidth),
 				st::windowSubTextFg);
 		}
-		{
-			auto o = ScopedPainterOpacity(p, detailsAlpha);
-			for (const auto &dot : detailsPaintContext.dots) {
-				p.setBrush(st::boxBg);
-				p.setPen(QPen(dot.color, st::statisticsChartLineWidth));
-				const auto r = st::statisticsDetailsDotRadius;
-				auto hq = PainterHighQualityEnabler(p);
-				p.drawEllipse(dot.point, r, r);
-			}
+		for (const auto &dot : detailsPaintContext.dots) {
+			p.setBrush(st::boxBg);
+			p.setPen(QPen(dot.color, st::statisticsChartLineWidth));
+			const auto r = st::statisticsDetailsDotRadius;
+			auto hq = PainterHighQualityEnabler(p);
+			auto o = ScopedPainterOpacity(p, dot.alpha * detailsAlpha);
+			p.drawEllipse(dot.point, r, r);
 		}
 
 		p.setPen(st::windowSubTextFg);

@@ -60,6 +60,7 @@ void PaintLinearChartView(
 				detailsPaintContext.dots.push_back({
 					QPointF(xPoint, yPoint),
 					line.color,
+					p.opacity(),
 				});
 			}
 			if (first) {

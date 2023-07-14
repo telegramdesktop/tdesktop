@@ -21,6 +21,7 @@ struct DetailsPaintContext final {
 	struct Dot {
 		QPointF point;
 		QColor color;
+		float64 alpha = 0.;
 	};
 	std::vector<Dot> dots;
 };
