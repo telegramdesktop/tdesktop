@@ -206,12 +206,18 @@ List::Layout List::computeLayout(float64 expanded) const {
 	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * ratio;
 	};
-	const auto singleFull = full.photoLeft * 2 + full.photo;
+	const auto widthFull = width();
 	const auto itemsCount = int(_data.items.size());
-	const auto narrowWidth = st::defaultDialogRow.padding.left()
-		+ st::defaultDialogRow.photoSize
-		+ st::defaultDialogRow.padding.left();
-	const auto narrow = false;// (width() <= narrowWidth);
+	const auto leftFullMin = full.left;
+	const auto singleFullMin = full.photoLeft * 2 + full.photo;
+	const auto totalFull = leftFullMin + singleFullMin * itemsCount;
+	const auto skipSide = (totalFull < widthFull)
+		? (widthFull - totalFull) / (itemsCount + 1)
+		: 0;
+	const auto skipBetween = (totalFull < widthFull && itemsCount > 1)
+		? (widthFull - totalFull - 2 * skipSide) / (itemsCount - 1)
+		: skipSide;
+	const auto singleFull = singleFullMin + skipBetween;
 	const auto smallSkip = (itemsCount > 1
 		&& _data.items[0].element.skipSmall)
 		? 1
@@ -220,12 +226,8 @@ List::Layout List::computeLayout(float64 expanded) const {
 		kSmallThumbsShown,
 		itemsCount - smallSkip);
 	const auto smallWidth = st.photo + (smallCount - 1) * st.shift;
-	const auto leftSmall = (narrow
-		? ((narrowWidth - smallWidth) / 2 - st.photoLeft)
-		: st.left) - (smallSkip ? st.shift : 0);
-	const auto leftFull = (narrow
-		? ((narrowWidth - full.photo) / 2 - full.photoLeft)
-		: full.left) - _scrollLeft;
+	const auto leftSmall = st.left - (smallSkip ? st.shift : 0);
+	const auto leftFull = full.left - _scrollLeft + skipSide;
 	const auto startIndexFull = std::max(-leftFull, 0) / singleFull;
 	const auto cellLeftFull = leftFull + (startIndexFull * singleFull);
 	const auto endIndexFull = std::min(
