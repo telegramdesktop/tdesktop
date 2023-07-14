@@ -778,6 +778,13 @@ SuggestionsController::SuggestionsController(
 
 	updateForceHidden();
 
+	_container->shownValue(
+	) | rpl::filter([=](bool shown) {
+		return shown && !_shown;
+	}) | rpl::start_with_next([=] {
+		_container->hide();
+	}, _container->lifetime());
+
 	handleTextChange();
 }
 
