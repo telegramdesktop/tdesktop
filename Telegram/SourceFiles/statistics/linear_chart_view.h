@@ -24,7 +24,7 @@ void PaintLinearChartView(
 	const Limits &xPercentageLimits,
 	const Limits &heightLimits,
 	const QRect &rect,
-	const std::vector<ChartLineViewContext> &linesContext,
+	const ChartLineViewContext &lineViewContext,
 	DetailsPaintContext &detailsPaintContext);
 
 } // namespace Statistic

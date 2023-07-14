@@ -529,11 +529,12 @@ ChartWidget::ChartAnimationController::ChartAnimationController(
 void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		Data::StatisticalChart &chartData,
 		Limits xPercentageLimits,
-		std::vector<ChartLineViewContext> &chartLinesViewContext,
+		const ChartLineViewContext &chartLinesViewContext,
 		crl::time now) {
 	if ((_animationValueXMin.to() == xPercentageLimits.min)
-		&& (_animationValueXMax.to() == xPercentageLimits.max)) {
-		// return;
+		&& (_animationValueXMax.to() == xPercentageLimits.max)
+		&& chartLinesViewContext.isFinished()) {
+		return;
 	}
 	start();
 	_animationValueXMin.start(xPercentageLimits.min);
@@ -556,10 +557,7 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		auto minValue = std::numeric_limits<int>::max();
 		auto maxValue = 0;
 		for (auto &l : chartData.lines) {
-			const auto it = ranges::find_if(chartLinesViewContext, [&](const auto &a) {
-				return a.id == l.id;
-			});
-			if (it != end(chartLinesViewContext) && !it->enabled) {
+			if (!chartLinesViewContext.isEnabled(l.id)) {
 				continue;
 			}
 			const auto lineMax = l.segmentTree.rMaxQ(startXIndex, endXIndex);
@@ -633,7 +631,7 @@ void ChartWidget::ChartAnimationController::tick(
 		crl::time now,
 		std::vector<ChartHorizontalLinesData> &horizontalLines,
 		std::vector<BottomCaptionLineData> &dateLines,
-		std::vector<ChartLineViewContext> &chartLinesViewContext) {
+		ChartLineViewContext &chartLinesViewContext) {
 	if (!_animation.animating()) {
 		return;
 	}
@@ -690,33 +688,13 @@ void ChartWidget::ChartAnimationController::tick(
 	const auto bottomLineAlphaFinished = isFinished(
 		_animValueBottomLineAlpha);
 
-	auto chartLinesViewContextFinished = false;
-	{
-		auto finishedCount = 0;
-		for (auto &viewLine : chartLinesViewContext) {
-			if (!viewLine.startedAt) {
-				continue;
-			}
-			const auto progress = (now - viewLine.startedAt)
-				/ (kXExpandingDuration * 2);
-			viewLine.alpha = std::clamp(
-				viewLine.enabled ? progress : (1. - progress),
-				0.,
-				1.);
-			if (progress >= 1.) {
-				finishedCount++;
-			}
-		}
-		chartLinesViewContextFinished =
-			(finishedCount == chartLinesViewContext.size());
-	}
-
+	chartLinesViewContext.tick(now);
 
 	if (xFinished
 			&& yFinished
 			&& alphaFinished
 			&& bottomLineAlphaFinished
-			&& chartLinesViewContextFinished) {
+			&& chartLinesViewContext.isFinished()) {
 		const auto &lines = horizontalLines.back().lines;
 		if ((lines.front().absoluteValue == _animationValueHeightMin.to())
 			&& lines.back().absoluteValue == _animationValueHeightMax.to()) {
@@ -1212,20 +1190,14 @@ void ChartWidget::setupFilterButtons() {
 
 	_filterButtons->buttonEnabledChanges(
 	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
-		auto data = ChartLineViewContext{
-			.id = e.id,
-			.enabled = e.enabled,
-			.startedAt = crl::now(),
-		};
-		_animatedChartLines.clear();
-		_animatedChartLines.push_back(data);
+		const auto now = crl::now();
+		_animatedChartLines.setEnabled(e.id, e.enabled, now);
 
 		_animationController.setXPercentageLimits(
 			_chartData,
 			_animationController.currentXLimits(),
 			_animatedChartLines,
-			data.startedAt);
-
+			now);
 	}, _filterButtons->lifetime());
 }
 

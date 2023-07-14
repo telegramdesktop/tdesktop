@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/linear_chart_view.h"
 
 #include "data/data_statistics.h"
+#include "statistics/chart_line_view_context.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
@@ -23,19 +24,13 @@ void PaintLinearChartView(
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		const std::vector<ChartLineViewContext> &linesContext,
+		const ChartLineViewContext &lineViewContext,
 		DetailsPaintContext &detailsPaintContext) {
 	const auto currentMinHeight = rect.y(); //
 	const auto currentMaxHeight = rect.height() + rect.y(); //
 
 	for (const auto &line : chartData.lines) {
-		p.setOpacity(1.);
-		for (const auto &lineContext : linesContext) {
-			if (lineContext.id == line.id) {
-				p.setOpacity(lineContext.alpha);
-				break;
-			}
-		}
+		p.setOpacity(lineViewContext.alpha(line.id));
 		if (!p.opacity()) {
 			continue;
 		}
@@ -78,6 +73,7 @@ void PaintLinearChartView(
 		p.drawPath(chartPath);
 	}
 	p.setPen(st::boxTextFg);
+	p.setOpacity(1.);
 }
 
 } // namespace Statistic

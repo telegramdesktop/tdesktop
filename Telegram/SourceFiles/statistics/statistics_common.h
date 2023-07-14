@@ -25,11 +25,4 @@ struct DetailsPaintContext final {
 	std::vector<Dot> dots;
 };
 
-struct ChartLineViewContext final {
-	int id = 0;
-	bool enabled = false;
-	crl::time startedAt = 0;
-	float64 alpha = 1.;
-};
-
 } // namespace Statistic
