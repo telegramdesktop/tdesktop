@@ -121,6 +121,7 @@ private:
 	void updateBottomDates();
 
 	void resizeHeight();
+	void updateChartFullWidth(int w);
 
 	const base::unique_qptr<RpMouseWidget> _chartArea;
 	const std::unique_ptr<Footer> _footer;

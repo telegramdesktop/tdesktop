@@ -816,7 +816,9 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 	}
 }) {
 	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
+	) | rpl::filter([](const QSize &s) {
+		return !s.isNull();
+	}) | rpl::start_with_next([=](const QSize &s) {
 		const auto filtersHeight = _filterButtons
 			? _filterButtons->height()
 			: 0;
@@ -840,6 +842,11 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 				- st::statisticsChartFooterHeight
 				- filtersHeight
 				- st::statisticsChartFooterSkip);
+
+		{
+			updateChartFullWidth(s.width());
+			updateBottomDates();
+		}
 	}, lifetime());
 
 	setupChartArea();
@@ -855,6 +862,11 @@ void ChartWidget::resizeHeight() {
 			+ st::statisticsChartFooterHeight
 			+ st::statisticsChartFooterSkip
 			+ (_filterButtons ? _filterButtons->height() : 0));
+}
+
+void ChartWidget::updateChartFullWidth(int w) {
+	const auto finalXLimits = _animationController.finalXLimits();
+	_bottomLine.chartFullWidth = w / (finalXLimits.max - finalXLimits.min);
 }
 
 QRect ChartWidget::chartAreaRect() const {
@@ -971,7 +983,7 @@ void ChartWidget::setupChartArea() {
 }
 
 void ChartWidget::updateBottomDates() {
-	if (!_chartData) {
+	if (!_chartData || !_bottomLine.chartFullWidth) {
 		return;
 	}
 	const auto d = _bottomLine.chartFullWidth * _chartData.oneDayPercentage;
@@ -1079,11 +1091,7 @@ void ChartWidget::setupFooter() {
 			xPercentageLimits,
 			_animatedChartLines,
 			now);
-		{
-			const auto finalXLimits = _animationController.finalXLimits();
-			_bottomLine.chartFullWidth = _chartArea->width()
-				/ (finalXLimits.max - finalXLimits.min);
-		}
+		updateChartFullWidth(_chartArea->width());
 		updateBottomDates();
 		if ((now - _lastHeightLimitsChanged) < kHeightLimitsUpdateTimeout) {
 			return;
@@ -1221,11 +1229,7 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() },
 		_animatedChartLines,
 		0);
-	{
-		const auto finalXLimits = _animationController.finalXLimits();
-		_bottomLine.chartFullWidth = _chartArea->width()
-			/ (finalXLimits.max - finalXLimits.min);
-	}
+	updateChartFullWidth(_chartArea->width());
 	updateBottomDates();
 	_animationController.finish();
 	addHorizontalLine(_animationController.finalHeightLimits(), false);
