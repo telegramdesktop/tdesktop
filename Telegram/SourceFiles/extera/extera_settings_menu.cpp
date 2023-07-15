@@ -31,6 +31,20 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "api/api_blocked_peers.h"
 #include "ui/widgets/continuous_sliders.h"
 
+#define SettingsMenuJsonSwitch(LangKey, Option) AddButton( \
+	container, \
+	rktr(#LangKey), \
+	st::settingsButton \
+)->toggleOn( \
+	rpl::single(::ExteraSettings::JsonSettings::GetBool(#Option)) \
+)->toggledValue( \
+) | rpl::filter([](bool enabled) { \
+	return (enabled != ::ExteraSettings::JsonSettings::GetBool(#Option)); \
+}) | rpl::start_with_next([](bool enabled) { \
+	::ExteraSettings::JsonSettings::Set(#Option, enabled); \
+	::ExteraSettings::JsonSettings::Write(); \
+}, container->lifetime());
+
 namespace Settings {
 
     rpl::producer<QString> Extera::title() {
@@ -91,9 +105,18 @@ namespace Settings {
 	        }, container->lifetime());
     }
 
+	void Extera::SetupOther(not_null<Ui::VerticalLayout *> container) {
+		AddSubsectionTitle(container, rktr("etg_settings_other"));
+
+		SettingsMenuJsonSwitch(etg_settings_show_phone_number, show_phone_in_settings);
+	}
+
     void Extera::SetupExteraSettings(not_null<Ui::VerticalLayout *> container, not_null<Window::SessionController *> controller) {
         AddSkip(container);
         SetupChats(container);
+
+		AddSkip(container);
+		SetupOther(container);
     }
 
     void Extera::setupContent(not_null<Window::SessionController *> controller) {

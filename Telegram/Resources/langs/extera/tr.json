@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "grup ID",
 	"etg_profile_supergroup_id": "süper-group ID",
 	"etg_profile_channel_id": "kanal ID",
-	"etg_settings_show_phone_number": "Çekmecede telefon numarasını göster",
+	"etg_settings_show_phone_number": "Çekmecede telefon",
 	"etg_settings_call_confirm": "aramadan önce onayla",
 	"etg_call_sure": "Bu kullaniciyi aramk istediğinden eminsin?",
 	"etg_call_button": "Ara",
@@ -259,5 +259,6 @@
 	"etg_settings_remember_compress_images": "Remember compress images",
 	"etg_settings_compress_images_default": "Compress images by default",
 	"etg_pip_not_supported": "Sorry, Picture-in-Picture mode is not supported here.",
+	"etg_phone_hidden": "Gizli",
 	"dummy_last_string": ""
 }

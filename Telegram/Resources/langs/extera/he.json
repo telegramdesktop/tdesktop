@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "ID של קבוצה",
 	"etg_profile_supergroup_id": "ID של סופר קבוצה",
 	"etg_profile_channel_id": "ID של ערוץ",
-	"etg_settings_show_phone_number": "הצג את מספר הטלפון בתפריט",
+	"etg_settings_show_phone_number": "הצג מספר טלפון",
 	"etg_settings_call_confirm": "אשר לפני חיוג",
 	"etg_call_sure": "האם אתה בטוח שברצונך להתקשר למשתמש זה?",
 	"etg_call_button": "שיחה",
@@ -259,5 +259,6 @@
 	"etg_settings_remember_compress_images": "Remember compress images",
 	"etg_settings_compress_images_default": "Compress images by default",
 	"etg_pip_not_supported": "Sorry, Picture-in-Picture mode is not supported here.",
+	"etg_phone_hidden": "מוסתר",
 	"dummy_last_string": ""
 }

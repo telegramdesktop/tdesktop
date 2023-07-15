@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "ID do grupo",
 	"etg_profile_supergroup_id": "ID do supegrupo",
 	"etg_profile_channel_id": "ID do canal",
-	"etg_settings_show_phone_number": "Mostrar telefone na gaveta",
+	"etg_settings_show_phone_number": "Mostrar telefone",
 	"etg_settings_call_confirm": "Confirmar antes de ligar",
 	"etg_call_sure": "Tem certeza de que deseja ligar para este usuário?",
 	"etg_call_button": "Ligar",
@@ -259,5 +259,6 @@
 	"etg_settings_remember_compress_images": "Lembrar imagens comprimidas",
 	"etg_settings_compress_images_default": "Comprimir imagens por padrão",
 	"etg_pip_not_supported": "Desculpe, o modo Picture-in-Picture não é suportado aqui.",
+	"etg_phone_hidden": "Oculto",
 	"dummy_last_string": ""
 }

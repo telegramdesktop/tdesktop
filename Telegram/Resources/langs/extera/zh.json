@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "群组 ID",
 	"etg_profile_supergroup_id": "超级群组 ID",
 	"etg_profile_channel_id": "频道 ID",
-	"etg_settings_show_phone_number": "在左侧面板中显示手机号码",
+	"etg_settings_show_phone_number": "显示手机号码",
 	"etg_settings_call_confirm": "呼叫前确认",
 	"etg_call_sure": "您确定要呼叫此成员吗？",
 	"etg_call_button": "呼叫",
@@ -260,5 +260,6 @@
 		"many": "days",
 		"other": "days"
 	},
+	"etg_phone_hidden": "隐藏",
 	"dummy_last_string": ""
 }

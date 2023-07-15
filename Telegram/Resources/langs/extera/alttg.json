@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "ID группы",
 	"etg_profile_supergroup_id": "ID супергруппы",
 	"etg_profile_channel_id": "ID канала",
-	"etg_settings_show_phone_number": "Номер телефона в боковом меню",
+	"etg_settings_show_phone_number": "Отображение номера телефона",
 	"etg_settings_call_confirm": "Подтверждение перед звонком",
 	"etg_call_sure": "Позвонить пользователю?",
 	"etg_call_button": "Позвонить",
@@ -259,5 +259,6 @@
 	"etg_settings_remember_compress_images": "Remember compress images",
 	"etg_settings_compress_images_default": "Compress images by default",
 	"etg_pip_not_supported": "Sorry, Picture-in-Picture mode is not supported here.",
+	"etg_phone_hidden": "Номер скрыт",
 	"dummy_last_string": ""
 }

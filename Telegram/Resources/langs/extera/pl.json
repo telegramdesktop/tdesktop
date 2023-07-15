@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "ID grupy",
 	"etg_profile_supergroup_id": "ID supergrupy",
 	"etg_profile_channel_id": "ID kanału",
-	"etg_settings_show_phone_number": "Wyświetl telefon w głównym menu",
+	"etg_settings_show_phone_number": "Wyświetl telefon",
 	"etg_settings_call_confirm": "Potwierdzenie przed zadzwonieniem",
 	"etg_call_sure": "Czy na pewno chcesz zadzwonić do tego użytkownika?",
 	"etg_call_button": "Zadzwoń",
@@ -259,5 +259,6 @@
 	"etg_settings_remember_compress_images": "Zapamiętaj kompresję obrazów",
 	"etg_settings_compress_images_default": "Domyślnie kompresuj obrazy",
 	"etg_pip_not_supported": "Tryb obraz-w-obrazie nie jest tutaj obsługiwany.",
+	"etg_phone_hidden": "Ukryte",
 	"dummy_last_string": ""
 }

@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "Gruppen-ID",
 	"etg_profile_supergroup_id": "Supergruppen-ID",
 	"etg_profile_channel_id": "Kanal-ID",
-	"etg_settings_show_phone_number": "Telefonnummer in Seitenmenü anzeigen",
+	"etg_settings_show_phone_number": "Telefonnummer anzeigen",
 	"etg_settings_call_confirm": "Vor dem Anrufen bestätigen",
 	"etg_call_sure": "Möchtest du diesen Benutzer wirklich anrufen?",
 	"etg_call_button": "Anrufen",
@@ -259,5 +259,6 @@
 	"etg_settings_remember_compress_images": "\"Bilder komprimieren\" merken",
 	"etg_settings_compress_images_default": "Bilder standardmäßig komprimieren",
 	"etg_pip_not_supported": "Bild-in-Bildmodus wird hier nicht unterstützt.",
+	"etg_phone_hidden": "Versteckt",
 	"dummy_last_string": ""
 }

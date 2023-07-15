@@ -6,6 +6,8 @@ For license and copyright information please follow this link:
 https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "info/profile/info_profile_values.h"
+#include "extera/extera_settings.h"
+#include "extera/extera_lang.h"
 
 #include "info/profile/info_profile_badge.h"
 #include "core/application.h"
@@ -122,7 +124,8 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 			user,
 			UpdateFlag::PhoneNumber) | rpl::to_empty
 	) | rpl::map([=] {
-		return Ui::FormatPhone(user->phone());
+		if (::ExteraSettings::JsonSettings::GetBool("show_phone_in_settings")) return Ui::FormatPhone(user->phone());
+		return ktr("etg_phone_hidden");
 	}) | Ui::Text::ToWithEntities();
 }
 

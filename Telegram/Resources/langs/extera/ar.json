@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "رقم تعريف المجموعة",
 	"etg_profile_supergroup_id": "معرّف المجموعة الخارقة",
 	"etg_profile_channel_id": "معرف القناة",
-	"etg_settings_show_phone_number": "إظهار رقم الهاتف في درج البيانات",
+	"etg_settings_show_phone_number": "أظهر رقم الهاتف",
 	"etg_settings_call_confirm": "التأكد قبل الاتصال",
 	"etg_call_sure": "هل أنت متأكد من رغبتك في الاتصال بهذا المستخدم ؟",
 	"etg_call_button": "اتصال",
@@ -259,5 +259,6 @@
 	"etg_settings_remember_compress_images": "Remember compress images",
 	"etg_settings_compress_images_default": "Compress images by default",
 	"etg_pip_not_supported": "Sorry, Picture-in-Picture mode is not supported here.",
+	"etg_phone_hidden": "مخفي",
 	"dummy_last_string": ""
 }

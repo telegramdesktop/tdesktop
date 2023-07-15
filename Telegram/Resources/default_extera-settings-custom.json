@@ -3,4 +3,6 @@
 
 {
     // "sticker_height": 170,
+    // "sticker_scale_both": true,
+    // "show_phone_in_settings": true,
 }

@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "ID группы",
 	"etg_profile_supergroup_id": "ID супергруппы",
 	"etg_profile_channel_id": "ID канала",
-	"etg_settings_show_phone_number": "Показывать телефон в боковом меню",
+	"etg_settings_show_phone_number": "Показывать телефон",
 	"etg_settings_call_confirm": "Подтверждение перед звонком",
 	"etg_call_sure": "Вы уверены, что хотите позвонить этому пользователю?",
 	"etg_call_button": "Позвонить",
@@ -274,5 +274,6 @@
 	"etg_settings_view_profile_on_top_about": "Эта настройка также включает \"Добавить \"Показать профиль\"\" из экспериментальных настроек TDesktop.",
 	"etg_settings_emoji_sidebar": "Боковая панель эмодзи",
 	"etg_settings_emoji_sidebar_right_click": "Открывать боковую панель эмодзи ПКМ",
+	"etg_phone_hidden": "Скрыто",
 	"dummy_last_string": ""
 }

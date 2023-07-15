@@ -75,7 +75,7 @@
 	"etg_profile_group_id": "ID گروه",
 	"etg_profile_supergroup_id": "ID سوپر گروه",
 	"etg_profile_channel_id": "ID کانال",
-	"etg_settings_show_phone_number": "نمایش تلفن در کشو",
+	"etg_settings_show_phone_number": "نمایش تلفن",
 	"etg_settings_call_confirm": "تایید قبل از تماس",
 	"etg_call_sure": "آیا مطمئنید که می خواهید با این کاربر تماس بگیرید؟",
 	"etg_call_button": "تماس",
@@ -259,5 +259,6 @@
 	"etg_settings_remember_compress_images": "بخاطر سپردن فشرده سازی تصاویر",
 	"etg_settings_compress_images_default": "فشرده سازی تصاویر به صورت پیش فرض",
 	"etg_pip_not_supported": "متأسفیم، حالت تصویر در تصویر در اینجا پشتیبانی نمی شود.",
+	"etg_phone_hidden": "مخفی",
 	"dummy_last_string": ""
 }

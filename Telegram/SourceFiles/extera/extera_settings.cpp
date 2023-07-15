@@ -239,6 +239,9 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 	{ "sticker_scale_both", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},
+	{ "show_phone_in_settings", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = true, }},
 };
 
 using OldOptionKey = QString;

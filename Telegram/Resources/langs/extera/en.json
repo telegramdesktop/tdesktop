@@ -74,7 +74,7 @@
 	"etg_profile_group_id": "Group ID",
 	"etg_profile_supergroup_id": "Supergroup ID",
 	"etg_profile_channel_id": "Channel ID",
-	"etg_settings_show_phone_number": "Show phone in drawer",
+	"etg_settings_show_phone_number": "Show phone number",
 	"etg_settings_call_confirm": "Confirm before calling",
 	"etg_call_sure": "Are you sure you want to call this user?",
 	"etg_call_button": "Call",
@@ -273,5 +273,6 @@
 	"etg_settings_view_profile_on_top_about": "This option also enables \"Add \"View Profile\"\" from TDesktop's experimental settings.",
 	"etg_settings_emoji_sidebar": "Enable emoji sidebar",
 	"etg_settings_emoji_sidebar_right_click": "Emoji sidebar on right click",
+	"etg_phone_hidden": "Hidden",
 	"dummy_last_string": ""
 }
