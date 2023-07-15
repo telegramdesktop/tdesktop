@@ -56,7 +56,6 @@ UnwrappedMedia::UnwrappedMedia(
 		history()->owner().requestItemViewRefresh(_parent->data());
 	}, _lifetime);
 }
-}
 
 QSize UnwrappedMedia::countOptimalSize() {
 	_content->refreshLink();

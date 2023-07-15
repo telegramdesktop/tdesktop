@@ -352,6 +352,7 @@ int Launcher::exec() {
 	// Must be started before Platform is started.
 	Logs::start();
 	base::options::init(cWorkingDir() + "tdata/experimental_options.json");
+	ExteraSettings::JsonSettings::Load();
 
 	// Must be called after options are inited.
 	initHighDpi();
@@ -391,6 +392,7 @@ int Launcher::exec() {
 
 	CrashReports::Finish();
 	Platform::finish();
+	ExteraSettings::JsonSettings::Finish();
 	Logs::finish();
 
 	return result;
