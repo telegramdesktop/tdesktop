@@ -1,0 +1,23 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#pragma once
+
+namespace Ui {
+
+struct OutlineSegment {
+	QBrush brush;
+	float64 width = 0.;
+};
+
+void PaintOutlineSegments(
+	QPainter &p,
+	QRectF ellipse,
+	const std::vector<OutlineSegment> &segments,
+	float64 fromFullProgress = 1.);
+
+} // namespace Ui

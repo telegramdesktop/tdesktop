@@ -15,6 +15,8 @@ enum class ImageRoundRadius;
 
 namespace Ui {
 
+struct OutlineSegment;
+
 class RoundCheckbox {
 public:
 	RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCallback);
@@ -45,26 +47,22 @@ private:
 
 };
 
-struct RoundImageCheckboxSegment {
-	QBrush brush;
-	float64 width = 0.;
-};
-
 class RoundImageCheckbox {
 public:
-	using Segment = RoundImageCheckboxSegment;
 	using PaintRoundImage = Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
 	RoundImageCheckbox(
 		const style::RoundImageCheckbox &st,
 		Fn<void()> updateCallback,
 		PaintRoundImage &&paintRoundImage,
 		Fn<std::optional<int>(int size)> roundingRadius = nullptr);
+	RoundImageCheckbox(RoundImageCheckbox&&);
+	~RoundImageCheckbox();
 
 	void paint(Painter &p, int x, int y, int outerWidth) const;
 	float64 checkedAnimationRatio() const;
 
 	void setColorOverride(std::optional<QBrush> fg);
-	void setCustomizedSegments(std::vector<Segment> segments);
+	void setCustomizedSegments(std::vector<OutlineSegment> segments);
 
 	bool checked() const {
 		return _check.checked();
@@ -91,7 +89,7 @@ private:
 	RoundCheckbox _check;
 
 	//std::optional<QBrush> _fgOverride;
-	std::vector<Segment> _segments;
+	std::vector<OutlineSegment> _segments;
 
 };
 

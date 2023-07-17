@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
+#include "ui/effects/outline_segments.h"
 #include "ui/image/image_prepare.h"
 
 #include <QtCore/QCoreApplication>
@@ -368,6 +369,10 @@ RoundImageCheckbox::RoundImageCheckbox(
 , _check(_st.check, _updateCallback) {
 }
 
+RoundImageCheckbox::RoundImageCheckbox(RoundImageCheckbox&&) = default;
+
+RoundImageCheckbox::~RoundImageCheckbox() = default;
+
 void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 	auto selectionLevel = _selection.value(checked() ? 1. : 0.);
 	if (_selection.animating()) {
@@ -416,26 +421,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 				p.drawRoundedRect(outline, *radius, *radius);
 			}
 		} else {
-			const auto small = 160;
-			const auto full = arc::kFullLength;
-			const auto separator = (full > 1.1 * small * segments)
-				? small
-				: full / (segments * 1.1);
-			const auto left = full - (separator * segments);
-			const auto length = left / float64(segments);
-
-			auto start = 0. + (arc::kQuarterLength + (separator / 2));
-			for (const auto &segment : ranges::views::reverse(_segments)) {
-				p.setPen(QPen(
-					segment.brush,
-					segment.width,
-					Qt::SolidLine,
-					Qt::RoundCap));
-				const auto from = int(base::SafeRound(start));
-				const auto till = int(base::SafeRound(start + length));
-				p.drawArc(outline, from, till - from);
-				start += length + separator;
-			}
+			PaintOutlineSegments(p, outline, _segments);
 		}
 		p.setOpacity(1.);
 	}
@@ -511,7 +497,7 @@ void RoundImageCheckbox::setColorOverride(std::optional<QBrush> fg) {
 }
 
 void RoundImageCheckbox::setCustomizedSegments(
-		std::vector<Segment> segments) {
+		std::vector<Ui::OutlineSegment> segments) {
 	_segments = std::move(segments);
 }
 

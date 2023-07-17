@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "dialogs/dialogs_main_list.h"
+#include "ui/effects/outline_segments.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h" // showAddContact()
 #include "base/unixtime.h"
@@ -53,14 +54,14 @@ namespace {
 constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
 constexpr auto kSearchPerPage = 50;
 
-[[nodiscard]] std::vector<Ui::RoundImageCheckboxSegment> PrepareSegments(
+[[nodiscard]] std::vector<Ui::OutlineSegment> PrepareSegments(
 		int count,
 		int unread,
 		const QBrush &unreadBrush) {
 	Expects(unread <= count);
 	Expects(count > 0);
 
-	auto result = std::vector<Ui::RoundImageCheckboxSegment>();
+	auto result = std::vector<Ui::OutlineSegment>();
 	const auto add = [&](bool unread) {
 		result.push_back({
 			.brush = unread ? unreadBrush : st::dialogsUnreadBgMuted->b,

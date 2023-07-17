@@ -22,6 +22,7 @@ struct DialogsStoriesList;
 
 namespace Ui {
 class PopupMenu;
+struct OutlineSegment;
 } // namespace Ui
 
 namespace Dialogs::Stories {
@@ -64,6 +65,7 @@ public:
 		not_null<QWidget*> parent,
 		const style::DialogsStoriesList &st,
 		rpl::producer<Content> content);
+	~List();
 
 	void setExpandedHeight(int height, bool momentum = false);
 	void setLayoutConstraints(
@@ -100,6 +102,7 @@ private:
 		Element element;
 		QImage nameCache;
 		QColor nameCacheColor;
+		std::vector<Ui::OutlineSegment> segments;
 		bool subscribed = false;
 	};
 	struct Data {
@@ -134,6 +137,11 @@ private:
 	void updateGeometry();
 	[[nodiscard]] QRect countSmallGeometry() const;
 	void updateExpanding(int expandingHeight, int expandedHeight);
+	void validateSegments(
+		not_null<Item*> item,
+		const QBrush &brush,
+		float64 line,
+		bool forUnread);
 
 	[[nodiscard]] Layout computeLayout();
 	[[nodiscard]] Layout computeLayout(float64 expanded) const;

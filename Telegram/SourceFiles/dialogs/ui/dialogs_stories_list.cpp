@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_stories_list.h"
 
 #include "lang/lang_keys.h"
+#include "ui/effects/outline_segments.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
@@ -41,6 +42,7 @@ struct List::Layout {
 	QPointF geometryShift;
 	float64 expandedRatio = 0.;
 	float64 ratio = 0.;
+	float64 segmentsSpinProgress = 0.;
 	float64 thumbnailLeft = 0.;
 	float64 photoLeft = 0.;
 	float64 left = 0.;
@@ -71,6 +73,8 @@ List::List(
 	setMouseTracking(true);
 	resize(0, _data.empty() ? 0 : st.full.height);
 }
+
+List::~List() = default;
 
 void List::showContent(Content &&content) {
 	if (_content == content) {
@@ -151,12 +155,13 @@ void List::requestExpanded(bool expanded) {
 	if (_expanded != expanded) {
 		_expanded = expanded;
 		const auto from = _expanded ? 0. : 1.;
-		const auto till = _expanded ? 1. : 0.;
+		const auto till = _expanded ? 2. : 0.;
+		const auto duration = (_expanded ? 2 : 1) * st::slideWrapDuration;
 		_expandedAnimation.start([=] {
 			checkForFullState();
 			update();
 			_collapsedGeometryChanged.fire({});
-		}, from, till, st::slideWrapDuration, anim::sineInOut);
+		}, from, till, duration, anim::sineInOut);
 	}
 	_toggleExpandedRequests.fire_copy(_expanded);
 }
@@ -192,10 +197,13 @@ List::Layout List::computeLayout() {
 	updateExpanding(
 		_lastExpandedHeight * _expandCatchUpAnimation.value(1.),
 		_st.full.height);
-	return computeLayout(_expandedAnimation.value(_expanded ? 1. : 0.));
+	return computeLayout(_expandedAnimation.value(_expanded ? 2. : 0.));
 }
 
 List::Layout List::computeLayout(float64 expanded) const {
+	const auto segmentsSpinProgress = expanded / 2.;
+	expanded = std::min(expanded, 1.);
+
 	const auto &st = _st.small;
 	const auto &full = _st.full;
 	const auto expandedRatio = _lastRatio;
@@ -251,6 +259,7 @@ List::Layout List::computeLayout(float64 expanded) const {
 				: 0.)),
 		.expandedRatio = expandedRatio,
 		.ratio = ratio,
+		.segmentsSpinProgress = segmentsSpinProgress,
 		.thumbnailLeft = thumbnailLeft,
 		.photoLeft = photoLeft,
 		.left = thumbnailLeft - photoLeft,
@@ -385,6 +394,11 @@ void List::paintEvent(QPaintEvent *e) {
 			}
 		}
 	};
+	auto gradient = QLinearGradient();
+	gradient.setStops({
+		{ 0., st::groupCallLive1->c },
+		{ 1., st::groupCallMuted1->c },
+	});
 	enumerate([&](Single single) {
 		// Name.
 		if (const auto full = single.itemFull) {
@@ -409,30 +423,35 @@ void List::paintEvent(QPaintEvent *e) {
 			photo);
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
-		const auto smallUnread = small && small->element.unreadCount;
-		const auto fullUnread = itemFull && itemFull->element.unreadCount;
-		const auto unreadOpacity = (smallUnread && fullUnread)
+		const auto smallUnread = (small && small->element.unreadCount);
+		const auto fullUnreadCount = itemFull
+			? itemFull->element.unreadCount
+			: 0;
+		const auto unreadOpacity = (smallUnread && fullUnreadCount)
 			? 1.
 			: smallUnread
 			? (1. - expandRatio)
-			: fullUnread
+			: fullUnreadCount
 			? expandRatio
 			: 0.;
 		if (unreadOpacity > 0.) {
 			p.setOpacity(unreadOpacity);
-			const auto outerAdd = 2 * line;
+			const auto outerAdd = 1.5 * line;
 			const auto outer = userpic.marginsAdded(
 				{ outerAdd, outerAdd, outerAdd, outerAdd });
-			p.setPen(Qt::NoPen);
-			auto gradient = QLinearGradient(
-				userpic.topRight(),
-				userpic.bottomLeft());
-			gradient.setStops({
-				{ 0., st::groupCallLive1->c },
-				{ 1., st::groupCallMuted1->c },
-			});
-			p.setBrush(gradient);
-			p.drawEllipse(outer);
+			gradient.setStart(userpic.topRight());
+			gradient.setFinalStop(userpic.bottomLeft());
+			if (!fullUnreadCount) {
+				p.setPen(QPen(gradient, line));
+				p.drawEllipse(outer);
+			} else {
+				validateSegments(itemFull, gradient, line, true);
+				Ui::PaintOutlineSegments(
+					p,
+					outer,
+					itemFull->segments,
+					layout.segmentsSpinProgress);
+			}
 		}
 		p.setOpacity(1.);
 	}, [&](Single single) {
@@ -447,30 +466,37 @@ void List::paintEvent(QPaintEvent *e) {
 		const auto small = single.itemSmall;
 		const auto itemFull = single.itemFull;
 		const auto smallUnread = small && small->element.unreadCount;
-		const auto fullUnread = itemFull && itemFull->element.unreadCount;
+		const auto fullUnreadCount = itemFull
+			? itemFull->element.unreadCount
+			: 0;
+		const auto fullCount = itemFull ? itemFull->element.count : 0;
 
 		// White circle with possible read gray line.
-		const auto hasReadLine = (itemFull && !fullUnread);
+		const auto hasReadLine = (itemFull && fullUnreadCount < fullCount);
 		p.setOpacity((small && itemFull)
 			? 1.
 			: small
 			? (1. - expandRatio)
 			: expandRatio);
-		if (hasReadLine) {
-			auto color = st::dialogsUnreadBgMuted->c;
-			if (small) {
-				color.setAlphaF(color.alphaF() * expandRatio);
-			}
-			auto pen = QPen(color);
-			pen.setWidthF(lineRead);
-			p.setPen(pen);
-		} else {
-			p.setPen(Qt::NoPen);
-		}
 		const auto add = line + (hasReadLine ? (lineRead / 2.) : 0.);
 		const auto rect = userpic.marginsAdded({ add, add, add, add });
+		p.setPen(Qt::NoPen);
 		p.setBrush(st::dialogsBg);
 		p.drawEllipse(rect);
+		if (hasReadLine) {
+			if (small && !small->element.unreadCount) {
+				p.setOpacity(expandRatio);
+			}
+			validateSegments(
+				itemFull,
+				st::dialogsUnreadBgMuted->b,
+				lineRead,
+				false);
+			Ui::PaintOutlineSegments(
+				p,
+				rect,
+				itemFull->segments);
+		}
 
 		// Userpic.
 		if (itemFull == small) {
@@ -511,6 +537,36 @@ void List::validateThumbnail(not_null<Item*> item) {
 		item->element.thumbnail->subscribeToUpdates([=] {
 			update();
 		});
+	}
+}
+
+void List::validateSegments(
+		not_null<Item*> item,
+		const QBrush &brush,
+		float64 line,
+		bool forUnread) {
+	const auto count = item->element.count;
+	const auto unread = item->element.unreadCount;
+	if (int(item->segments.size()) != count) {
+		item->segments.resize(count);
+	}
+	auto i = 0;
+	if (forUnread) {
+		for (; i != count - unread; ++i) {
+			item->segments[i].width = 0.;
+		}
+		for (; i != count; ++i) {
+			item->segments[i].brush = brush;
+			item->segments[i].width = line;
+		}
+	} else {
+		for (; i != count - unread; ++i) {
+			item->segments[i].brush = brush;
+			item->segments[i].width = line;
+		}
+		for (; i != count; ++i) {
+			item->segments[i].width = 0.;
+		}
 	}
 }
 
@@ -680,8 +736,8 @@ void List::setLayoutConstraints(
 }
 
 List::CollapsedGeometry List::collapsedGeometryCurrent() const {
-	const auto expanded = _expandedAnimation.value(_expanded ? 1. : 0.);
-	if (expanded == 1.) {
+	const auto expanded = _expandedAnimation.value(_expanded ? 2. : 0.);
+	if (expanded >= 1.) {
 		return { QRect(), 1. };
 	}
 	const auto layout = computeLayout(0.);

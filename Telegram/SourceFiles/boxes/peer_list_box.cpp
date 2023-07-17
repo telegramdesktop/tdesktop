@@ -10,13 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "ui/effects/loading_element.h"
+#include "ui/effects/outline_segments.h"
+#include "ui/effects/round_checkbox.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/effects/loading_element.h"
-#include "ui/effects/round_checkbox.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/empty_userpic.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
@@ -894,7 +895,7 @@ void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
 }
 
 void PeerListRow::setCustomizedCheckSegments(
-		std::vector<Ui::RoundImageCheckboxSegment> segments) {
+		std::vector<Ui::OutlineSegment> segments) {
 	Expects(_checkbox != nullptr);
 
 	_checkbox->setCustomizedSegments(std::move(segments));
