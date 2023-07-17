@@ -212,7 +212,9 @@ Widget::Widget(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(_searchControls, st::dialogsCancelSearch)
-, _lockUnlock(_searchControls, st::dialogsLock)
+, _lockUnlock(
+	_searchControls,
+	object_ptr<Ui::IconButton>(this, st::dialogsLock))
 , _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
 , _stories((_layout != Layout::Child)
@@ -370,10 +372,13 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		updateLockUnlockVisibility();
 	}, lifetime());
-	_lockUnlock->setClickedCallback([this] {
-		_lockUnlock->setIconOverride(&st::dialogsUnlockIcon, &st::dialogsUnlockIconOver);
+	const auto lockUnlock = _lockUnlock->entity();
+	lockUnlock->setClickedCallback([=] {
+		lockUnlock->setIconOverride(
+			&st::dialogsUnlockIcon,
+			&st::dialogsUnlockIconOver);
 		Core::App().maybeLockByPasscode();
-		_lockUnlock->setIconOverride(nullptr);
+		lockUnlock->setIconOverride(nullptr);
 	});
 
 	setupMainMenuToggle();
@@ -2273,6 +2278,7 @@ void Widget::applyFilterUpdate(bool force) {
 		return;
 	}
 
+	updateLockUnlockVisibility(anim::type::normal);
 	updateStoriesVisibility();
 	const auto filterText = currentSearchQuery();
 	_inner->applyFilterUpdate(filterText, force);
@@ -2607,7 +2613,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
-void Widget::updateLockUnlockVisibility() {
+void Widget::updateLockUnlockVisibility(anim::type animated) {
 	if (_showAnimation) {
 		return;
 	}
@@ -2618,8 +2624,11 @@ void Widget::updateLockUnlockVisibility() {
 		|| _childList
 		|| !_filter->getLastText().isEmpty()
 		|| _searchInChat;
-	if (_lockUnlock->isHidden() != hidden) {
-		_lockUnlock->setVisible(!hidden);
+	if (_lockUnlock->toggled() == hidden) {
+		const auto stories = _stories && !_stories->empty();
+		_lockUnlock->toggle(
+			!hidden,
+			stories ? anim::type::instant : animated);
 		if (!hidden) {
 			updateLockUnlockPosition();
 		}

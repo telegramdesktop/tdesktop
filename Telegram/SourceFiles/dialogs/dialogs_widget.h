@@ -179,7 +179,8 @@ private:
 	void clearSearchCache();
 	void setSearchQuery(const QString &query);
 	void updateControlsVisibility(bool fast = false);
-	void updateLockUnlockVisibility();
+	void updateLockUnlockVisibility(
+		anim::type animated = anim::type::instant);
 	void updateLoadMoreChatsVisibility();
 	void updateStoriesVisibility();
 	void updateJumpToDateVisibility(bool fast = false);
@@ -245,7 +246,7 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
-	object_ptr<Ui::IconButton> _lockUnlock;
+	object_ptr< Ui::FadeWrapScaled<Ui::IconButton>> _lockUnlock;
 
 	std::unique_ptr<Ui::MoreChatsBar> _moreChatsBar;
 
