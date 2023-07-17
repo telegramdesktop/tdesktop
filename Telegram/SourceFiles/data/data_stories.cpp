@@ -531,9 +531,35 @@ void Stories::loadMore(StorySourcesList list) {
 			}
 		}, [](const MTPDstories_allStoriesNotModified &) {
 		});
+
+		preloadListsMore();
 	}).fail([=] {
 		_loadMoreRequestId[index] = 0;
 	}).send();
+}
+
+void Stories::preloadListsMore() {
+	if (_loadMoreRequestId[static_cast<int>(StorySourcesList::NotHidden)]
+		|| _loadMoreRequestId[static_cast<int>(StorySourcesList::Hidden)]) {
+		return;
+	}
+	const auto loading = [&](StorySourcesList list) {
+		return _loadMoreRequestId[static_cast<int>(list)] != 0;
+	};
+	const auto countLoaded = [&](StorySourcesList list) {
+		const auto index = static_cast<int>(list);
+		return _sourcesLoaded[index] || !_sourcesStates[index].isEmpty();
+	};
+	if (loading(StorySourcesList::NotHidden)
+		|| loading(StorySourcesList::Hidden)) {
+		return;
+	} else if (!countLoaded(StorySourcesList::NotHidden)) {
+		loadMore(StorySourcesList::NotHidden);
+	} else if (!countLoaded(StorySourcesList::Hidden)) {
+		loadMore(StorySourcesList::Hidden);
+	} else if (!archiveCountKnown()) {
+		archiveLoadMore();
+	}
 }
 
 void Stories::sendResolveRequests() {

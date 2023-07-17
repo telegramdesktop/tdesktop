@@ -70,4 +70,13 @@ void PaintOutlineSegments(
 	}
 }
 
+QLinearGradient UnreadStoryOutlineGradient(QRectF rect) {
+	auto result = QLinearGradient(rect.topRight(), rect.bottomLeft());
+	result.setStops({
+		{ 0., st::groupCallLive1->c },
+		{ 1., st::groupCallMuted1->c },
+	});
+	return result;
+}
+
 } // namespace Ui

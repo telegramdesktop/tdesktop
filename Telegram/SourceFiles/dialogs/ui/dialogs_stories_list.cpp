@@ -394,11 +394,7 @@ void List::paintEvent(QPaintEvent *e) {
 			}
 		}
 	};
-	auto gradient = QLinearGradient();
-	gradient.setStops({
-		{ 0., st::groupCallLive1->c },
-		{ 1., st::groupCallMuted1->c },
-	});
+	auto gradient = Ui::UnreadStoryOutlineGradient();
 	enumerate([&](Single single) {
 		// Name.
 		if (const auto full = single.itemFull) {
@@ -495,7 +491,8 @@ void List::paintEvent(QPaintEvent *e) {
 			Ui::PaintOutlineSegments(
 				p,
 				rect,
-				itemFull->segments);
+				itemFull->segments,
+				layout.segmentsSpinProgress);
 		}
 
 		// Userpic.

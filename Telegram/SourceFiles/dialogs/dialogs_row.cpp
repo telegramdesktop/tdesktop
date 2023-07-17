@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/chat_theme.h" // CountAverageColor.
 #include "ui/color_contrast.h"
+#include "ui/effects/outline_segments.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image_prepare.h"
 #include "ui/text/format_values.h"
@@ -372,13 +373,11 @@ void Row::PaintCornerBadgeFrame(
 			}
 			const auto left = st->padding.left();
 			const auto top = st->padding.top();
-			auto gradient = QLinearGradient(
-				QPoint(left + st->photoSize, top),
-				QPoint(left, top + st->photoSize));
-			gradient.setStops({
-				{ 0., st::groupCallLive1->c },
-				{ 1., st::groupCallMuted1->c },
-			});
+			auto gradient = Ui::UnreadStoryOutlineGradient(QRectF(
+				st->padding.left(),
+				st->padding.top(),
+				st->photoSize,
+				st->photoSize));
 			return QBrush(gradient);
 		};
 		const auto storiesBrush = data->storiesUnread

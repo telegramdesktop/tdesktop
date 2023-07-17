@@ -20,4 +20,6 @@ void PaintOutlineSegments(
 	const std::vector<OutlineSegment> &segments,
 	float64 fromFullProgress = 1.);
 
+[[nodiscard]] QLinearGradient UnreadStoryOutlineGradient(QRectF rect = {});
+
 } // namespace Ui

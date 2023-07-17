@@ -84,14 +84,8 @@ constexpr auto kSearchPerPage = 50;
 	const auto &st = st::contactsWithStories.item;
 	const auto left = st.photoPosition.x();
 	const auto top = st.photoPosition.y();
-	auto gradient = QLinearGradient(
-		QPoint(left + st.photoSize, top),
-		QPoint(left, top + st.photoSize));
-	gradient.setStops({
-		{ 0., st::groupCallLive1->c },
-		{ 1., st::groupCallMuted1->c },
-	});
-	return QBrush(gradient);
+	const auto size = st.photoSize;
+	return Ui::UnreadStoryOutlineGradient(QRectF(left, top, size, size));
 }
 
 } // namespace

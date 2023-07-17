@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
+#include "ui/effects/outline_segments.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/painter.h"
@@ -124,23 +125,16 @@ void StoryMention::draw(
 		geometry.topLeft() + QPoint(padding, padding),
 		_thumbnail->image(size));
 
-	const auto thumbnail = geometry.marginsRemoved(
-		QMargins(padding, padding, padding, padding));
+	const auto thumbnail = QRectF(geometry.marginsRemoved(
+		QMargins(padding, padding, padding, padding)));
 	const auto added = 0.5 * (_unread
 		? st::storyMentionUnreadSkipTwice
 		: st::storyMentionReadSkipTwice);
 	const auto outline = thumbnail.marginsAdded(
-		QMargins(added, added, added, added));
+		QMarginsF(added, added, added, added));
 	if (_unread && _paletteVersion != style::PaletteVersion()) {
 		_paletteVersion = style::PaletteVersion();
-		auto gradient = QLinearGradient(
-			outline.topRight(),
-			outline.bottomLeft());
-		gradient.setStops({
-			{ 0., st::groupCallLive1->c },
-			{ 1., st::groupCallMuted1->c },
-		});
-		_unreadBrush = QBrush(gradient);
+		_unreadBrush = QBrush(Ui::UnreadStoryOutlineGradient(outline));
 	}
 	auto readColor = context.st->msgServiceFg()->c;
 	readColor.setAlphaF(std::min(1. * readColor.alphaF(), kReadOutlineAlpha));
