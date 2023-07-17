@@ -418,11 +418,12 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 		} else {
 			const auto small = 160;
 			const auto full = arc::kFullLength;
-			const auto separator = (full > 2 * small * segments)
+			const auto separator = (full > 1.1 * small * segments)
 				? small
-				: full / (segments * 2);
+				: full / (segments * 1.1);
 			const auto left = full - (separator * segments);
 			const auto length = left / float64(segments);
+
 			auto start = 0. + (arc::kQuarterLength + (separator / 2));
 			for (const auto &segment : ranges::views::reverse(_segments)) {
 				p.setPen(QPen(
