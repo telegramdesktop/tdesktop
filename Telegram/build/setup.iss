@@ -3,12 +3,12 @@
 #define MyAppPublisher "xmdnx"
 #define MyAppVersion "4.8.4"
 #define MyAppURL "https://t.me/exteraGramDesktop"
-#define ReleasePath "C:\Users\Administrator\source\repos\exteraGramDesktop\out\Release"
+#define ReleasePath "C:\Users\xmdnx\source\repos\exteraGramDesktop\out\Release"
 #define MyAppExeName "exteraGram.exe"
 #define MyAppId "4356CE01-4137-4C55-9F8B-FB4EEBB6EC0C"
 #define CurrentYear GetDateTimeString('yyyy','','')
 #define MyBuildTarget "win64"
-#define MyAppVersionFull "4.8.4-05072023" ; CHANGE DATE HERE BEFORE COMPILATION
+#define MyAppVersionFull "4.8.4-17072023" ; CHANGE DATE HERE BEFORE COMPILATION
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.

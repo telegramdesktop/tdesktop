@@ -124,8 +124,7 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 			user,
 			UpdateFlag::PhoneNumber) | rpl::to_empty
 	) | rpl::map([=] {
-		if (::ExteraSettings::JsonSettings::GetBool("show_phone_in_settings")) return Ui::FormatPhone(user->phone());
-		return ktr("etg_phone_hidden");
+		return Ui::FormatPhone(user->phone());
 	}) | Ui::Text::ToWithEntities();
 }
 

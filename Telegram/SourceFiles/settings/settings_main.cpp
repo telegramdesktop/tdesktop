@@ -7,6 +7,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "settings/settings_main.h"
 #include "extera/extera_settings_menu.h"
+#include "extera/extera_settings.h"
 #include "extera/extera_lang.h"
 
 #include "settings/settings_common.h"
@@ -195,7 +196,11 @@ void Cover::initViewers() {
 	Info::Profile::PhoneValue(
 		_user
 	) | rpl::start_with_next([=](const TextWithEntities &value) {
-		_phone->setText(value.text);
+		_phone->setText(
+			::ExteraSettings::JsonSettings::GetBool("show_phone_in_settings")
+			? value.text              // shown
+			: ktr("etg_phone_hidden") // hidden
+		);
 		refreshPhoneGeometry(width());
 	}, lifetime());
 

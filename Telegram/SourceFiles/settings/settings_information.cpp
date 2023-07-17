@@ -6,6 +6,8 @@ For license and copyright information please follow this link:
 https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "settings/settings_information.h"
+#include "extera/extera_settings.h"
+#include "extera/extera_lang.h"
 
 #include "editor/photo_editor_layer_widget.h"
 #include "settings/settings_common.h"
@@ -380,7 +382,9 @@ void SetupRows(
 	AddRow(
 		container,
 		tr::lng_settings_phone_label(),
-		Info::Profile::PhoneValue(self),
+		::ExteraSettings::JsonSettings::GetBool("show_phone_in_settings")
+		? Info::Profile::PhoneValue(self)
+		: rktre("etg_phone_hidden"),
 		tr::lng_profile_copy_phone(tr::now),
 		showChangePhone,
 		{ &st::settingsIconCalls, kIconGreen });
