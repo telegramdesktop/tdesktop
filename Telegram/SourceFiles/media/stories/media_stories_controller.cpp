@@ -72,8 +72,8 @@ constexpr auto kPreloadUsersCount = 3;
 constexpr auto kPreloadStoriesCount = 5;
 constexpr auto kPreloadNextMediaCount = 3;
 constexpr auto kPreloadPreviousMediaCount = 1;
-constexpr auto kMarkAsReadAfterSeconds = 1;
-constexpr auto kMarkAsReadAfterProgress = 0.2;
+constexpr auto kMarkAsReadAfterSeconds = 0.2;
+constexpr auto kMarkAsReadAfterProgress = 0.;
 
 } // namespace
 
