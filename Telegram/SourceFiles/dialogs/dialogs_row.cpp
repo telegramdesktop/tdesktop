@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_forum.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_peer_values.h"
 #include "data/data_user.h"
 #include "history/history.h"
@@ -342,12 +343,14 @@ void Row::PaintCornerBadgeFrame(
 	Painter q(&data->frame);
 	q.translate(framePadding, framePadding);
 	auto hq = std::optional<PainterHighQualityEnabler>();
-	if (data->storiesShown) {
+	const auto photoSize = context.st->photoSize;
+	const auto storiesCount = data->storiesCount;
+	if (storiesCount) {
 		hq.emplace(q);
 		const auto line = st::dialogsStoriesFull.lineTwice / 2.;
 		const auto skip = line * 3 / 2.;
-		const auto scale = 1. - (2 * skip / context.st->photoSize);
-		const auto center = context.st->photoSize / 2.;
+		const auto scale = 1. - (2 * skip / photoSize);
+		const auto center = photoSize / 2.;
 		q.save();
 		q.translate(center, center);
 		q.scale(scale, scale);
@@ -361,41 +364,43 @@ void Row::PaintCornerBadgeFrame(
 		0,
 		0,
 		data->frame.width() / data->frame.devicePixelRatio(),
-		context.st->photoSize,
+		photoSize,
 		context.paused);
-	if (data->storiesShown) {
+	if (storiesCount) {
 		q.restore();
 
 		const auto st = context.st;
+		const auto outline = QRectF(0, 0, photoSize, photoSize);
+		const auto storiesUnreadCount = data->storiesUnreadCount;
 		const auto storiesUnreadBrush = [&] {
-			if (context.active) {
+			if (context.active || !storiesUnreadCount) {
 				return st::dialogsUnreadBgMutedActive->b;
 			}
 			const auto left = st->padding.left();
 			const auto top = st->padding.top();
-			auto gradient = Ui::UnreadStoryOutlineGradient(QRectF(
-				st->padding.left(),
-				st->padding.top(),
-				st->photoSize,
-				st->photoSize));
+			auto gradient = Ui::UnreadStoryOutlineGradient(outline);
 			return QBrush(gradient);
-		};
-		const auto storiesBrush = data->storiesUnread
-			? storiesUnreadBrush()
-			: context.active
+		}();
+		const auto storiesBrush = context.active
 			? st::dialogsUnreadBgMutedActive->b
 			: st::dialogsUnreadBgMuted->b;
-		const auto storiesLine = data->storiesUnread
-			? (st::dialogsStoriesFull.lineTwice / 2.)
-			: (st::dialogsStoriesFull.lineReadTwice / 2.);
-		const auto pen = QPen(storiesBrush, storiesLine);
-		q.setPen(pen);
-		q.drawEllipse(0, 0, st->photoSize, st->photoSize);
+		const auto storiesUnread = st::dialogsStoriesFull.lineTwice / 2.;
+		const auto storiesLine = st::dialogsStoriesFull.lineReadTwice / 2.;
+		auto segments = std::vector<Ui::OutlineSegment>();
+		segments.reserve(storiesCount);
+		const auto storiesReadCount = storiesCount - storiesUnreadCount;
+		for (auto i = 0; i != storiesReadCount; ++i) {
+			segments.push_back({ storiesBrush, storiesLine });
+		}
+		for (auto i = 0; i != storiesUnreadCount; ++i) {
+			segments.push_back({ storiesUnreadBrush, storiesUnread });
+		}
+		Ui::PaintOutlineSegments(q, outline, segments);
 	}
 
 	const auto &manager = data->layersManager;
 	if (const auto p = manager.progressForLayer(kBottomLayer); p > 0.) {
-		const auto size = context.st->photoSize;
+		const auto size = photoSize;
 		if (data->cacheTTL.isNull() && peer->messagesTTL()) {
 			data->cacheTTL = CornerBadgeTTL(peer, view, size);
 		}
@@ -430,8 +435,8 @@ void Row::PaintCornerBadgeFrame(
 		? st::dialogsOnlineBadgeFgActive
 		: st::dialogsOnlineBadgeFg);
 	q.drawEllipse(QRectF(
-		context.st->photoSize - skip.x() - size,
-		context.st->photoSize - skip.y() - size,
+		photoSize - skip.x() - size,
+		photoSize - skip.y() - size,
 		size,
 		size
 	).marginsRemoved({ shrink, shrink, shrink, shrink }));
@@ -451,11 +456,8 @@ void Row::paintUserpic(
 	const auto storiesUser = historyForCornerBadge
 		? historyForCornerBadge->peer->asUser()
 		: nullptr;
-	const auto storiesShown = (storiesUser
-		&& storiesUser->hasActiveStories()) ? 1 : 0;
-	const auto storiesUnread = (storiesShown
-		&& storiesUser->hasUnreadStories()) ? 1 : 0;
-	if (!historyForCornerBadge || (!cornerBadgeShown && !storiesShown)) {
+	const auto storiesHas = storiesUser && storiesUser->hasActiveStories();
+	if (!historyForCornerBadge || (!cornerBadgeShown && !storiesHas)) {
 		BasicRow::paintUserpic(
 			p,
 			peer,
@@ -476,6 +478,22 @@ void Row::paintUserpic(
 	const auto frameSide = (2 * framePadding + context.st->photoSize)
 		* ratio;
 	const auto frameSize = QSize(frameSide, frameSide);
+	const auto storiesSource = storiesHas
+		? storiesUser->owner().stories().source(storiesUser->id)
+		: nullptr;
+	const auto storiesCountReal = storiesSource
+		? int(storiesSource->ids.size())
+		: storiesHas
+		? 1
+		: 0;
+	const auto storiesUnreadCountReal = storiesSource
+		? storiesSource->unreadCount()
+		: (storiesHas && storiesUser->hasUnreadStories())
+		? 1
+		: 0;
+	const auto limit = (1 << 7) - 1;
+	const auto storiesCount = std::min(storiesCountReal, limit);
+	const auto storiesUnreadCount = std::min(storiesUnreadCountReal, limit);
 	if (_cornerBadgeUserpic->frame.size() != frameSize) {
 		_cornerBadgeUserpic->frame = QImage(
 			frameSize,
@@ -485,7 +503,8 @@ void Row::paintUserpic(
 	auto key = peer->userpicUniqueKey(userpicView());
 	key.first += peer->messagesTTL();
 	const auto frameIndex = videoUserpic ? videoUserpic->frameIndex() : -1;
-	const auto paletteVersion = style::PaletteVersion();
+	const auto paletteVersionReal = style::PaletteVersion();
+	const auto paletteVersion = (paletteVersionReal & ((1 << 17) - 1));
 	const auto active = context.active ? 1 : 0;
 	const auto keyChanged = (_cornerBadgeUserpic->key != key)
 		|| (_cornerBadgeUserpic->paletteVersion != paletteVersion);
@@ -496,14 +515,14 @@ void Row::paintUserpic(
 		|| !_cornerBadgeUserpic->layersManager.isFinished()
 		|| _cornerBadgeUserpic->active != active
 		|| _cornerBadgeUserpic->frameIndex != frameIndex
-		|| _cornerBadgeUserpic->storiesShown != storiesShown
-		|| _cornerBadgeUserpic->storiesUnread != storiesUnread
+		|| _cornerBadgeUserpic->storiesCount != storiesCount
+		|| _cornerBadgeUserpic->storiesUnreadCount != storiesUnreadCount
 		|| videoUserpic) {
 		_cornerBadgeUserpic->key = key;
 		_cornerBadgeUserpic->paletteVersion = paletteVersion;
 		_cornerBadgeUserpic->active = active;
-		_cornerBadgeUserpic->storiesShown = storiesShown;
-		_cornerBadgeUserpic->storiesUnread = storiesUnread;
+		_cornerBadgeUserpic->storiesCount = storiesCount;
+		_cornerBadgeUserpic->storiesUnreadCount = storiesUnreadCount;
 		_cornerBadgeUserpic->frameIndex = frameIndex;
 		_cornerBadgeUserpic->layersManager.markFrameShown();
 		PaintCornerBadgeFrame(
