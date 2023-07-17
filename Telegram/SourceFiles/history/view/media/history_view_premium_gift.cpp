@@ -76,6 +76,10 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 	});
 }
 
+int PremiumGift::buttonSkip() {
+	return st::msgServiceGiftBoxButtonMargins.top();
+}
+
 void PremiumGift::draw(
 		Painter &p,
 		const PaintContext &context,

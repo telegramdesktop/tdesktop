@@ -28,6 +28,7 @@ public:
 	QString title() override;
 	TextWithEntities subtitle() override;
 	QString button() override;
+	int buttonSkip() override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,
