@@ -1823,7 +1823,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	const auto &st = st::premiumPreviewBox.button;
 	result->resize(args.parent->width(), st.height);
 
-	const auto premium = &args.controller->session().api().premium();
+	const auto premium = &args.show->session().api().premium();
 	premium->reload();
 	const auto computeCost = [=] {
 		const auto amount = premium->monthlyAmount();
