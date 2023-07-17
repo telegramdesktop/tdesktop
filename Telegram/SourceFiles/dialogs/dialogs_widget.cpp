@@ -434,7 +434,18 @@ Widget::Widget(
 	setupSupportMode();
 	setupScrollUpButton();
 
-	_scroll->setOverscrollBg(st::dialogsBg->c);
+	const auto overscrollBg = [=] {
+		return anim::color(
+			st::dialogsBg,
+			st::dialogsBgOver,
+			_childListShown.current());
+	};
+	_scroll->setOverscrollBg(overscrollBg());
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_scroll->setOverscrollBg(overscrollBg());
+	}, lifetime());
+
 	if (_layout != Layout::Child) {
 		setupConnectingWidget();
 
@@ -457,11 +468,8 @@ Widget::Widget(
 		}, lifetime());
 
 		_childListShown.changes(
-		) | rpl::start_with_next([=](float64 value) {
-			_scroll->setOverscrollBg(anim::color(
-				st::dialogsBg,
-				st::dialogsBgOver,
-				value));
+		) | rpl::start_with_next([=] {
+			_scroll->setOverscrollBg(overscrollBg());
 			updateControlsGeometry();
 		}, lifetime());
 
