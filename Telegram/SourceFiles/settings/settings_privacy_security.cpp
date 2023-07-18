@@ -282,6 +282,10 @@ void SetupPrivacy(
 		Key::ProfilePhoto,
 		[] { return std::make_unique<ProfilePhotoPrivacyController>(); });
 	add(
+		tr::lng_settings_bio_privacy(),
+		Key::About,
+		[] { return std::make_unique<AboutPrivacyController>(); });
+	add(
 		tr::lng_settings_forwards_privacy(),
 		Key::Forwards,
 		[=] { return std::make_unique<ForwardsPrivacyController>(
@@ -300,10 +304,6 @@ void SetupPrivacy(
 		tr::lng_settings_voices_privacy(),
 		Key::Voices,
 		[=] { return std::make_unique<VoicesPrivacyController>(session); });
-	add(
-		tr::lng_settings_bio_privacy(),
-		Key::About,
-		[] { return std::make_unique<AboutPrivacyController>(); });
 
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
 
