@@ -426,7 +426,7 @@ storiesHeaderPhoto: UserpicButton(defaultUserpicButton) {
 }
 storiesHeaderName: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewControlFg;
-	style: semiboldTextStyle;
+	style: defaultTextStyle;
 }
 storiesHeaderNamePosition: point(50px, 0px);
 storiesHeaderDate: FlatLabel(defaultFlatLabel) {

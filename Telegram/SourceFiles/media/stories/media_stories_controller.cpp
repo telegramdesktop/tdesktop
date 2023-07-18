@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/power_save_blocker.h"
 #include "base/qt_signal_producer.h"
+#include "base/unixtime.h"
 #include "boxes/peers/prepare_short_info_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
@@ -74,6 +75,42 @@ constexpr auto kPreloadNextMediaCount = 3;
 constexpr auto kPreloadPreviousMediaCount = 1;
 constexpr auto kMarkAsReadAfterSeconds = 0.2;
 constexpr auto kMarkAsReadAfterProgress = 0.;
+
+struct SameDayRange {
+	int from = 0;
+	int till = 0;
+};
+[[nodiscard]] SameDayRange ComputeSameDayRange(
+		not_null<Data::Story*> story,
+		const Data::StoriesIds &ids,
+		int index) {
+	Expects(index >= 0 && index < ids.list.size());
+
+	auto result = SameDayRange{ .from = index, .till = index };
+	const auto peerId = story->peer()->id;
+	const auto stories = &story->owner().stories();
+	const auto now = base::unixtime::parse(story->date());
+	const auto b = begin(ids.list);
+	for (auto i = b + index; i != b;) {
+		if (const auto maybeStory = stories->lookup({ peerId, *--i })) {
+			const auto day = base::unixtime::parse((*maybeStory)->date());
+			if (day.date() != now.date()) {
+				break;
+			}
+		}
+		--result.from;
+	}
+	for (auto i = b + index + 1, e = end(ids.list); i != e; ++i) {
+		if (const auto maybeStory = stories->lookup({ peerId, *i })) {
+			const auto day = base::unixtime::parse((*maybeStory)->date());
+			if (day.date() != now.date()) {
+				break;
+			}
+		}
+		++result.till;
+	}
+	return result;
+}
 
 } // namespace
 
@@ -629,10 +666,18 @@ void Controller::rebuildFromContext(
 			}
 		}
 	});
+	_sliderIndex = 0;
+	_sliderCount = 0;
 	if (list) {
 		_source = std::nullopt;
 		if (_list != list) {
 			_list = std::move(list);
+		}
+		if (const auto maybe = user->owner().stories().lookup(storyId)) {
+			const auto now = *maybe;
+			const auto range = ComputeSameDayRange(now, _list->ids, _index);
+			_sliderCount = range.till - range.from + 1;
+			_sliderIndex = _index - range.from;
 		}
 	} else {
 		if (source) {
@@ -659,7 +704,10 @@ void Controller::rebuildFromContext(
 		}
 	}
 	preloadNext();
-	_slider->show({ .index = _index, .total = shownCount() });
+	_slider->show({
+		.index = _sliderCount ? _sliderIndex : _index,
+		.total = _sliderCount ? _sliderCount : shownCount(),
+	});
 }
 
 void Controller::preloadNext() {
@@ -750,6 +798,8 @@ void Controller::show(
 	_header->show({
 		.user = user,
 		.date = story->date(),
+		.fullIndex = _sliderCount ? _index : 0,
+		.fullCount = _sliderCount ? shownCount() : 0,
 		.edited = story->edited(),
 	});
 	if (!changeShown(story)) {

@@ -241,6 +241,8 @@ private:
 	FullStoryId _waitingForId;
 	int _waitingForDelta = 0;
 	int _index = 0;
+	int _sliderIndex = 0;
+	int _sliderCount = 0;
 	bool _started = false;
 	bool _viewed = false;
 

@@ -22,6 +22,8 @@ class Controller;
 struct HeaderData {
 	not_null<UserData*> user;
 	TimeId date = 0;
+	int fullIndex = 0;
+	int fullCount = 0;
 	bool edited = false;
 
 	friend inline auto operator<=>(HeaderData, HeaderData) = default;

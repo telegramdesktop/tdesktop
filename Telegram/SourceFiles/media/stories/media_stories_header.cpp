@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/layers/box_content.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
@@ -75,6 +76,16 @@ struct Timestamp {
 	return { Ui::FormatDateTime(whenFull) };
 }
 
+[[nodiscard]] TextWithEntities ComposeName(HeaderData data) {
+	auto result = Ui::Text::Bold(data.user->shortName());
+	if (data.fullCount) {
+		result.append(QString::fromUtf8(" \xE2\x80\xA2 %1/%2"
+		).arg(data.fullIndex + 1
+		).arg(data.fullCount));
+	}
+	return result;
+}
+
 [[nodiscard]] Timestamp ComposeDetails(HeaderData data, TimeId now) {
 	auto result = ComposeTimestamp(data.date, now);
 	if (data.edited) {
@@ -98,9 +109,12 @@ void Header::show(HeaderData data) {
 	if (_data == data) {
 		return;
 	}
-	const auto userChanged = (!_data || _data->user != data.user);
+	const auto nameDataChanged = !_data
+		|| (_data->user != data.user)
+		|| (_data->fullCount != data.fullCount)
+		|| (data.fullCount && _data->fullIndex != data.fullIndex);
 	_data = data;
-	if (userChanged) {
+	if (nameDataChanged) {
 		_date = nullptr;
 		const auto parent = _controller->wrap();
 		auto widget = std::make_unique<Ui::AbstractButton>(parent);
@@ -119,7 +133,7 @@ void Header::show(HeaderData data) {
 			st::storiesHeaderMargin.top());
 		const auto name = Ui::CreateChild<Ui::FlatLabel>(
 			raw,
-			data.user->firstName,
+			rpl::single(ComposeName(data)),
 			st::storiesHeaderName);
 		name->setAttribute(Qt::WA_TransparentForMouseEvents);
 		name->setOpacity(kNameOpacity);
