@@ -488,6 +488,15 @@ infoMembersList: PeerList(defaultPeerList) {
 		photoPosition: point(18px, 6px);
 		namePosition: point(79px, 11px);
 		statusPosition: point(79px, 31px);
+		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+			selectExtendTwice: 1px;
+			imageRadius: 21px;
+			imageSmallRadius: 19px;
+			check: RoundCheckbox(defaultPeerListCheck) {
+				size: 0px;
+			}
+		}
+		nameFgChecked: contactsNameFg;
 	}
 }
 infoMembersButtonPosition: point(12px, 0px);

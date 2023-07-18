@@ -889,9 +889,11 @@ void PeerListRow::createCheckbox(
 }
 
 void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
-	Expects(_checkbox != nullptr);
+	Expects(!checked || _checkbox != nullptr);
 
-	_checkbox->setChecked(checked, animated);
+	if (_checkbox) {
+		_checkbox->setChecked(checked, animated);
+	}
 }
 
 void PeerListRow::setCustomizedCheckSegments(

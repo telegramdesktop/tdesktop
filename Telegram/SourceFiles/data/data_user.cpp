@@ -155,6 +155,7 @@ void UserData::setStoriesState(StoriesState state) {
 		if (const auto history = owner().historyLoaded(this)) {
 			history->updateChatListEntryPostponed();
 		}
+		session().changes().peerUpdated(this, UpdateFlag::StoriesState);
 	}
 }
 
