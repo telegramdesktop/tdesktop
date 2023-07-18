@@ -233,20 +233,11 @@ void BasicRow::paintRipple(
 
 void BasicRow::paintUserpic(
 		Painter &p,
-		not_null<PeerData*> peer,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		History *historyForCornerBadge,
 		const Ui::PaintContext &context) const {
-	PaintUserpic(
-		p,
-		peer,
-		videoUserpic,
-		_userpic,
-		context.st->padding.left(),
-		context.st->padding.top(),
-		context.width,
-		context.st->photoSize,
-		context.paused);
+	PaintUserpic(p, entry, peer, videoUserpic, _userpic, context);
 }
 
 Row::Row(Key key, int index, int top) : _id(key), _top(top), _index(index) {
@@ -334,7 +325,8 @@ void Row::ensureCornerBadgeUserpic() const {
 void Row::PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
 		int framePadding,
-		not_null<PeerData*> peer,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context) {
@@ -356,16 +348,15 @@ void Row::PaintCornerBadgeFrame(
 		q.scale(scale, scale);
 		q.translate(-center, -center);
 	}
+	q.translate(-context.st->padding.left(), -context.st->padding.top());
 	PaintUserpic(
 		q,
+		entry,
 		peer,
 		videoUserpic,
 		view,
-		0,
-		0,
-		data->frame.width() / data->frame.devicePixelRatio(),
-		photoSize,
-		context.paused);
+		context);
+	q.translate(context.st->padding.left(), context.st->padding.top());
 	if (storiesCount) {
 		q.restore();
 
@@ -401,7 +392,7 @@ void Row::PaintCornerBadgeFrame(
 	const auto &manager = data->layersManager;
 	if (const auto p = manager.progressForLayer(kBottomLayer); p > 0.) {
 		const auto size = photoSize;
-		if (data->cacheTTL.isNull() && peer->messagesTTL()) {
+		if (data->cacheTTL.isNull() && peer && peer->messagesTTL()) {
 			data->cacheTTL = CornerBadgeTTL(peer, view, size);
 		}
 		q.setOpacity(p);
@@ -419,11 +410,12 @@ void Row::PaintCornerBadgeFrame(
 	}
 	q.setCompositionMode(QPainter::CompositionMode_Source);
 
-	const auto size = peer->isUser()
+	const auto online = peer && peer->isUser();
+	const auto size = online
 		? st::dialogsOnlineBadgeSize
 		: st::dialogsCallBadgeSize;
 	const auto stroke = st::dialogsOnlineBadgeStroke;
-	const auto skip = peer->isUser()
+	const auto skip = online
 		? st::dialogsOnlineBadgeSkip
 		: st::dialogsCallBadgeSkip;
 	const auto shrink = (size / 2) * (1. - topLayerProgress);
@@ -444,27 +436,27 @@ void Row::PaintCornerBadgeFrame(
 
 void Row::paintUserpic(
 		Painter &p,
-		not_null<PeerData*> peer,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		History *historyForCornerBadge,
 		const Ui::PaintContext &context) const {
-	updateCornerBadgeShown(peer);
+	if (peer) {
+		updateCornerBadgeShown(peer);
+	}
 
 	const auto cornerBadgeShown = !_cornerBadgeUserpic
 		? _cornerBadgeShown
 		: !_cornerBadgeUserpic->layersManager.isDisplayedNone();
-	const auto storiesUser = historyForCornerBadge
-		? historyForCornerBadge->peer->asUser()
-		: nullptr;
-	const auto storiesHas = storiesUser && storiesUser->hasActiveStories();
-	if (!historyForCornerBadge || (!cornerBadgeShown && !storiesHas)) {
-		BasicRow::paintUserpic(
-			p,
-			peer,
-			videoUserpic,
-			historyForCornerBadge,
-			context);
-		if (!historyForCornerBadge || !_cornerBadgeShown) {
+	const auto storiesUser = peer ? peer->asUser() : nullptr;
+	const auto storiesFolder = peer ? nullptr : _id.folder();
+	const auto storiesHas = storiesUser
+		? storiesUser->hasActiveStories()
+		: storiesFolder
+		? storiesFolder->storiesCount()
+		: false;
+	if (!cornerBadgeShown && !storiesHas) {
+		BasicRow::paintUserpic(p, entry, peer, videoUserpic, context);
+		if (!peer || !_cornerBadgeShown) {
 			_cornerBadgeUserpic = nullptr;
 		}
 		return;
@@ -478,20 +470,24 @@ void Row::paintUserpic(
 	const auto frameSide = (2 * framePadding + context.st->photoSize)
 		* ratio;
 	const auto frameSize = QSize(frameSide, frameSide);
-	const auto storiesSource = storiesHas
+	const auto storiesSource = (storiesHas && storiesUser)
 		? storiesUser->owner().stories().source(storiesUser->id)
 		: nullptr;
 	const auto storiesCountReal = storiesSource
 		? int(storiesSource->ids.size())
+		: storiesFolder
+		? storiesFolder->storiesCount()
 		: storiesHas
 		? 1
 		: 0;
 	const auto storiesUnreadCountReal = storiesSource
 		? storiesSource->unreadCount()
-		: (storiesHas && storiesUser->hasUnreadStories())
+		: storiesFolder
+		? storiesFolder->storiesUnreadCount()
+		: (storiesUser && storiesUser->hasUnreadStories())
 		? 1
 		: 0;
-	const auto limit = (1 << 7) - 1;
+	const auto limit = Ui::kOutlineSegmentsMax;
 	const auto storiesCount = std::min(storiesCountReal, limit);
 	const auto storiesUnreadCount = std::min(storiesUnreadCountReal, limit);
 	if (_cornerBadgeUserpic->frame.size() != frameSize) {
@@ -500,8 +496,8 @@ void Row::paintUserpic(
 			QImage::Format_ARGB32_Premultiplied);
 		_cornerBadgeUserpic->frame.setDevicePixelRatio(ratio);
 	}
-	auto key = peer->userpicUniqueKey(userpicView());
-	key.first += peer->messagesTTL();
+	auto key = peer ? peer->userpicUniqueKey(userpicView()) : InMemoryKey();
+	key.first += peer ? peer->messagesTTL() : 0;
 	const auto frameIndex = videoUserpic ? videoUserpic->frameIndex() : -1;
 	const auto paletteVersionReal = style::PaletteVersion();
 	const auto paletteVersion = (paletteVersionReal & ((1 << 17) - 1));
@@ -528,6 +524,7 @@ void Row::paintUserpic(
 		PaintCornerBadgeFrame(
 			_cornerBadgeUserpic.get(),
 			framePadding,
+			_id.entry(),
 			peer,
 			videoUserpic,
 			userpicView(),
@@ -537,10 +534,11 @@ void Row::paintUserpic(
 		context.st->padding.left() - framePadding,
 		context.st->padding.top() - framePadding,
 		_cornerBadgeUserpic->frame);
-	if (historyForCornerBadge->peer->isUser()) {
+	const auto history = _id.history();
+	if (!history || history->peer->isUser()) {
 		return;
 	}
-	const auto actionPainter = historyForCornerBadge->sendActionPainter();
+	const auto actionPainter = history->sendActionPainter();
 	const auto bg = context.active
 		? st::dialogsBgActive
 		: st::dialogsBg;

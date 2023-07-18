@@ -24,6 +24,7 @@ enum class ReportReason;
 
 namespace Data {
 
+class Folder;
 class Session;
 struct StoryView;
 struct StoryIdDates;
@@ -282,6 +283,9 @@ private:
 	void preloadFinished(FullStoryId id, bool markAsPreloaded = false);
 	void preloadListsMore();
 
+	void notifySourcesChanged(StorySourcesList list);
+	void pushHiddenCountsToFolder();
+
 	[[nodiscard]] int pollingInterval(
 		const PollingSettings &settings) const;
 	void maybeSchedulePolling(
@@ -319,6 +323,7 @@ private:
 	rpl::event_stream<> _sourcesChanged[kStorySourcesListCount];
 	bool _sourcesLoaded[kStorySourcesListCount] = { false };
 	QString _sourcesStates[kStorySourcesListCount];
+	Folder *_folderForHidden = nullptr;
 
 	mtpRequestId _loadMoreRequestId[kStorySourcesListCount] = { 0 };
 

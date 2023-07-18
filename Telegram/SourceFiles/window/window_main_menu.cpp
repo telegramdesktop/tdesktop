@@ -572,7 +572,7 @@ void MainMenu::setupArchive() {
 	const auto checkArchive = [=] {
 		const auto f = folder();
 		return f
-			&& !f->chatsList()->empty()
+			&& (!f->chatsList()->empty() || f->storiesCount() > 0)
 			&& controller->session().settings().archiveInMainMenu();
 	};
 
@@ -650,10 +650,15 @@ void MainMenu::setupArchive() {
 		return Badge::UnreadBadge{ state.unreadCounter, true };
 	}));
 
-	controller->session().data().chatsListChanges(
-	) | rpl::filter([](Data::Folder *folder) {
-		return folder && (folder->id() == Data::Folder::kId);
-	}) | rpl::start_with_next([=] {
+	rpl::merge(
+		controller->session().data().chatsListChanges(
+		) | rpl::filter([](Data::Folder *folder) {
+			return folder && (folder->id() == Data::Folder::kId);
+		}) | rpl::to_empty,
+		controller->session().data().stories().sourcesChanged(
+			Data::StorySourcesList::Hidden
+		)
+	) | rpl::start_with_next([=] {
 		const auto isArchiveVisible = checkArchive();
 		wrap->toggle(isArchiveVisible, anim::type::normal);
 		if (!isArchiveVisible) {

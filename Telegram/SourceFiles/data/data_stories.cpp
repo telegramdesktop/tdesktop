@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
+#include "data/data_folder.h"
 #include "data/data_photo.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
@@ -562,6 +563,31 @@ void Stories::preloadListsMore() {
 	}
 }
 
+void Stories::notifySourcesChanged(StorySourcesList list) {
+	_sourcesChanged[static_cast<int>(list)].fire({});
+	if (list == StorySourcesList::Hidden) {
+		pushHiddenCountsToFolder();
+	}
+}
+
+void Stories::pushHiddenCountsToFolder() {
+	const auto &list = sources(StorySourcesList::Hidden);
+	if (list.empty()) {
+		if (_folderForHidden) {
+			_folderForHidden->updateStoriesCount(0, 0);
+		}
+		return;
+	}
+	if (!_folderForHidden) {
+		_folderForHidden = _owner->folder(Folder::kId);
+	}
+	const auto count = int(list.size());
+	const auto unread = ranges::count_if(
+		list,
+		[](const StoriesSourceInfo &info) { return info.unreadCount > 0; });
+	_folderForHidden->updateStoriesCount(count, unread);
+}
+
 void Stories::sendResolveRequests() {
 	if (!_resolveSent.empty()) {
 		return;
@@ -722,7 +748,7 @@ void Stories::applyRemovedFromActive(FullStoryId id) {
 			&StoriesSourceInfo::id);
 		if (i != end(sources)) {
 			sources.erase(i);
-			_sourcesChanged[index].fire({});
+			notifySourcesChanged(list);
 		}
 	};
 	const auto i = _all.find(id.peer);
@@ -751,7 +777,7 @@ void Stories::applyDeletedFromSources(PeerId id, StorySourcesList list) {
 	if (i != end(sources)) {
 		sources.erase(i);
 	}
-	_sourcesChanged[static_cast<int>(list)].fire({});
+	notifySourcesChanged(list);
 }
 
 void Stories::removeDependencyStory(not_null<Story*> story) {
@@ -780,7 +806,7 @@ void Stories::sort(StorySourcesList list) {
 		return std::make_pair(key, info.id);
 	};
 	ranges::sort(sources, ranges::greater(), proj);
-	_sourcesChanged[index].fire({});
+	notifySourcesChanged(list);
 	preloadSourcesChanged(list);
 }
 
@@ -1044,7 +1070,7 @@ void Stories::toggleHidden(
 		const auto i = ranges::find(_sources[main], peerId, proj);
 		if (i != end(_sources[main])) {
 			_sources[main].erase(i);
-			_sourcesChanged[main].fire({});
+			notifySourcesChanged(StorySourcesList::NotHidden);
 			preloadSourcesChanged(StorySourcesList::NotHidden);
 		}
 		const auto j = ranges::find(_sources[other], peerId, proj);
@@ -1058,7 +1084,7 @@ void Stories::toggleHidden(
 		const auto i = ranges::find(_sources[other], peerId, proj);
 		if (i != end(_sources[other])) {
 			_sources[other].erase(i);
-			_sourcesChanged[other].fire({});
+			notifySourcesChanged(StorySourcesList::Hidden);
 			preloadSourcesChanged(StorySourcesList::Hidden);
 		}
 		const auto j = ranges::find(_sources[main], peerId, proj);

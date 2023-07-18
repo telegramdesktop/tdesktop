@@ -257,7 +257,7 @@ dialogsFilter: InputField(defaultInputField) {
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
 	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderMargins: margins(5px, 0px, 2px, 0px);
 	placeholderScale: 0.;
 	placeholderShift: -50px;
 	placeholderFont: normalFont;

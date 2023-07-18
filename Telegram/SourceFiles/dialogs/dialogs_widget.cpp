@@ -1419,6 +1419,7 @@ void Widget::updateStoriesVisibility() {
 			if (_scroll->position().overscroll < 0) {
 				_scroll->scrollToY(0);
 			}
+			_scroll->update();
 		} else {
 			_scroll->setOverscrollDefaults(0, 0);
 			_scroll->setOverscrollTypes(Type::Virtual, Type::Real);

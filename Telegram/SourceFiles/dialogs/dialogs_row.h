@@ -35,6 +35,7 @@ struct TopicJumpCache;
 
 namespace Dialogs {
 
+class Entry;
 enum class SortMode;
 
 [[nodiscard]] QRect CornerBadgeTTLRect(int photoSize);
@@ -46,9 +47,9 @@ public:
 
 	virtual void paintUserpic(
 		Painter &p,
-		not_null<PeerData*> peer,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		History *historyForCornerBadge,
 		const Ui::PaintContext &context) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
@@ -99,9 +100,9 @@ public:
 		Fn<void()> updateCallback = nullptr) const;
 	void paintUserpic(
 		Painter &p,
-		not_null<PeerData*> peer,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		History *historyForCornerBadge,
 		const Ui::PaintContext &context) const final override;
 
 	[[nodiscard]] bool lookupIsInTopicJump(int x, int y) const;
@@ -183,7 +184,8 @@ private:
 	static void PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
 		int framePadding,
-		not_null<PeerData*> peer,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context);
