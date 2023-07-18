@@ -764,7 +764,8 @@ object_ptr<Ui::RpWidget> CallsPrivacyController::setupBelowWidget(
 		tr::lng_settings_calls_peer_to_peer_button(),
 		{ &st::settingsIconArrows, kIconLightBlue },
 		UserPrivacy::Key::CallsPeer2Peer,
-		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); });
+		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); },
+		&st::settingsButton);
 	AddSkip(content);
 
 	return result;

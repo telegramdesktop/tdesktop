@@ -814,14 +814,15 @@ void AddPrivacyButton(
 		rpl::producer<QString> label,
 		IconDescriptor &&descriptor,
 		Privacy::Key key,
-		Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory) {
+		Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory,
+		const style::SettingsButton *stOverride) {
 	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 	const auto session = &controller->session();
 	AddButtonWithLabel(
 		container,
 		std::move(label),
 		PrivacyString(session, key),
-		st::settingsButtonNoIcon,
+		stOverride ? *stOverride : st::settingsButtonNoIcon,
 		std::move(descriptor)
 	)->addClickHandler([=] {
 		*shower = session->api().userPrivacy().value(
