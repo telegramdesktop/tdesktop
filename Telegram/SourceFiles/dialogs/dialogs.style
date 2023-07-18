@@ -266,9 +266,10 @@ dialogsFilter: InputField(defaultInputField) {
 	borderFgActive: windowBgRipple;
 	borderFgError: activeLineFgError;
 
-	border: 2px;
+	border: 3px;
 	borderActive: 2px;
 	borderRadius: 18px;
+	borderDenominator: 2;
 
 	font: normalFont;
 
