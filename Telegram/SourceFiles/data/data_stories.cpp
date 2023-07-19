@@ -286,7 +286,10 @@ void Stories::processExpired() {
 void Stories::parseAndApply(const MTPUserStories &stories) {
 	const auto &data = stories.data();
 	const auto peerId = peerFromUser(data.vuser_id());
-	const auto readTill = data.vmax_read_id().value_or_empty();
+	const auto already = _readTill.find(peerId);
+	const auto readTill = std::max(
+		data.vmax_read_id().value_or_empty(),
+		(already != end(_readTill) ? already->second : 0));
 	const auto user = _owner->peer(peerId)->asUser();
 	auto result = StoriesSource{
 		.user = user,
