@@ -330,6 +330,7 @@ void DocumentData::setattributes(
 	_flags &= ~(Flag::ImageType
 		| Flag::HasAttachedStickers
 		| Flag::UseTextColor
+		| Flag::SilentVideo
 		| kStreamingSupportedMask);
 	_flags |= kStreamingSupportedUnknown;
 
@@ -402,6 +403,9 @@ void DocumentData::setattributes(
 			_duration = crl::time(
 				base::SafeRound(data.vduration().v * 1000));
 			setMaybeSupportsStreaming(data.is_supports_streaming());
+			if (data.is_nosound()) {
+				_flags |= Flag::SilentVideo;
+			}
 			dimensions = QSize(data.vw().v, data.vh().v);
 		}, [&](const MTPDdocumentAttributeAudio &data) {
 			if (type == FileDocument) {
@@ -1540,6 +1544,10 @@ bool DocumentData::isSharedMediaMusic() const {
 
 bool DocumentData::isVideoFile() const {
 	return (type == VideoDocument);
+}
+
+bool DocumentData::isSilentVideo() const {
+	return _flags & Flag::SilentVideo;
 }
 
 crl::time DocumentData::duration() const {

@@ -23,6 +23,14 @@ class Session;
 class Thread;
 class PhotoMedia;
 
+enum class StoryPrivacy : uchar {
+	Public,
+	CloseFriends,
+	Contacts,
+	SelectedContacts,
+	Other,
+};
+
 struct StoryIdDates {
 	StoryId id = 0;
 	TimeId date = 0;
@@ -88,8 +96,7 @@ public:
 
 	void setPinned(bool pinned);
 	[[nodiscard]] bool pinned() const;
-	[[nodiscard]] bool isPublic() const;
-	[[nodiscard]] bool closeFriends() const;
+	[[nodiscard]] StoryPrivacy privacy() const;
 	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] bool edited() const;
 
@@ -138,8 +145,10 @@ private:
 	const TimeId _expires = 0;
 	TimeId _lastUpdateTime = 0;
 	bool _pinned : 1 = false;
-	bool _isPublic : 1 = false;
-	bool _closeFriends : 1 = false;
+	bool _privacyPublic : 1 = false;
+	bool _privacyCloseFriends : 1 = false;
+	bool _privacyContacts : 1 = false;
+	bool _privacySelectedContacts : 1 = false;
 	bool _noForwards : 1 = false;
 	bool _edited : 1 = false;
 

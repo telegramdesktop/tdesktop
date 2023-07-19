@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "ui/userpic_view.h"
 
+namespace Data {
+enum class StoryPrivacy : uchar;
+} // namespace Data
+
 namespace Ui {
 class RpWidget;
 class FlatLabel;
@@ -24,7 +28,10 @@ struct HeaderData {
 	TimeId date = 0;
 	int fullIndex = 0;
 	int fullCount = 0;
+	Data::StoryPrivacy privacy = {};
 	bool edited = false;
+	bool video = false;
+	bool silent = false;
 
 	friend inline auto operator<=>(HeaderData, HeaderData) = default;
 	friend inline bool operator==(HeaderData, HeaderData) = default;

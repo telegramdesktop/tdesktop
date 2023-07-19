@@ -255,12 +255,16 @@ bool Story::pinned() const {
 	return _pinned;
 }
 
-bool Story::isPublic() const {
-	return _isPublic;
-}
-
-bool Story::closeFriends() const {
-	return _closeFriends;
+StoryPrivacy Story::privacy() const {
+	return _privacyPublic
+		? StoryPrivacy::Public
+		: _privacyCloseFriends
+		? StoryPrivacy::CloseFriends
+		: _privacyContacts
+		? StoryPrivacy::Contacts
+		: _privacySelectedContacts
+		? StoryPrivacy::SelectedContacts
+		: StoryPrivacy::Other;
 }
 
 bool Story::forbidsForward() const {
@@ -276,7 +280,7 @@ bool Story::canDownload() const {
 }
 
 bool Story::canShare() const {
-	return isPublic() && !forbidsForward() && (pinned() || !expired());
+	return _privacyPublic && !forbidsForward() && (pinned() || !expired());
 }
 
 bool Story::canDelete() const {
@@ -288,7 +292,7 @@ bool Story::canReport() const {
 }
 
 bool Story::hasDirectLink() const {
-	if (!_isPublic || (!_pinned && expired())) {
+	if (!_privacyPublic || (!_pinned && expired())) {
 		return false;
 	}
 	const auto user = _peer->asUser();
@@ -410,8 +414,15 @@ void Story::applyFields(
 
 	const auto pinned = data.is_pinned();
 	const auto edited = data.is_edited();
-	const auto isPublic = data.is_public();
-	const auto closeFriends = data.is_close_friends();
+	const auto privacy = data.is_public()
+		? StoryPrivacy::Public
+		: data.is_close_friends()
+		? StoryPrivacy::CloseFriends
+		: data.is_contacts()
+		? StoryPrivacy::Contacts
+		: data.is_selected_contacts()
+		? StoryPrivacy::SelectedContacts
+		: StoryPrivacy::Other;
 	const auto noForwards = data.is_noforwards();
 	auto caption = TextWithEntities{
 		data.vcaption().value_or_empty(),
@@ -443,13 +454,13 @@ void Story::applyFields(
 	const auto viewsChanged = (_views != views)
 		|| (_recentViewers != viewers);
 
-	_isPublic = isPublic;
-	_closeFriends = closeFriends;
+	_privacyPublic = (privacy == StoryPrivacy::Public);
+	_privacyCloseFriends = (privacy == StoryPrivacy::CloseFriends);
+	_privacyContacts = (privacy == StoryPrivacy::Contacts);
+	_privacySelectedContacts = (privacy == StoryPrivacy::SelectedContacts);
 	_noForwards = noForwards;
 	_edited = edited;
 	_pinned = pinned;
-	_isPublic = isPublic;
-	_closeFriends = closeFriends;
 	_noForwards = noForwards;
 	if (viewsChanged) {
 		_views = views;

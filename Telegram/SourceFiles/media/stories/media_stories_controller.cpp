@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
+#include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
@@ -795,12 +796,16 @@ void Controller::show(
 
 	_captionText = story->caption();
 	_captionFullView = nullptr;
+	const auto document = story->document();
 	_header->show({
 		.user = user,
 		.date = story->date(),
 		.fullIndex = _sliderCount ? _index : 0,
 		.fullCount = _sliderCount ? shownCount() : 0,
+		.privacy = story->privacy(),
 		.edited = story->edited(),
+		.video = (document != nullptr),
+		.silent = (document && document->isSilentVideo()),
 	});
 	if (!changeShown(story)) {
 		return;

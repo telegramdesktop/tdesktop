@@ -166,6 +166,7 @@ public:
 	[[nodiscard]] bool isSongWithCover() const;
 	[[nodiscard]] bool isAudioFile() const;
 	[[nodiscard]] bool isVideoFile() const;
+	[[nodiscard]] bool isSilentVideo() const;
 	[[nodiscard]] bool isAnimation() const;
 	[[nodiscard]] bool isGifv() const;
 	[[nodiscard]] bool isTheme() const;
