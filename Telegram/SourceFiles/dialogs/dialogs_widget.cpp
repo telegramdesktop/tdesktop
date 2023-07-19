@@ -240,6 +240,7 @@ Widget::Widget(
 			_childListShown.value(),
 			makeChildListShown)));
 	_scrollToTop->raise();
+	_lockUnlock->toggle(false, anim::type::instant);
 
 	_inner->updated(
 	) | rpl::start_with_next([=] {
