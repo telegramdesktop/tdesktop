@@ -72,6 +72,12 @@ enum class HeaderLayout {
 	Outside,
 };
 
+enum class PauseState {
+	Playing,
+	Paused,
+	Inactive,
+};
+
 struct SiblingLayout {
 	QRect geometry;
 	QRect userpic;
@@ -135,6 +141,8 @@ public:
 	void togglePaused(bool paused);
 	void contentPressed(bool pressed);
 	void setMenuShown(bool shown);
+
+	[[nodiscard]] PauseState pauseState() const;
 
 	void repaintSibling(not_null<Sibling*> sibling);
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;

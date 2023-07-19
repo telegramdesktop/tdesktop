@@ -851,3 +851,25 @@ storiesBadgeSelectedContacts: icon{{ "mediaview/mini_selected_contacts", history
 storiesBadgePadding: margins(1px, 1px, 1px, 1px);
 storiesBadgeOutline: 2px;
 storiesBadgeShift: point(5px, 4px);
+
+storiesPlayIcon: icon{{ "player/player_play", mediaviewPlaybackIconFgOver }};
+storiesPauseIcon: icon{{ "player/player_pause", mediaviewPlaybackIconFgOver }};
+storiesPlayButton: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+	icon: storiesPlayIcon;
+	iconOver: storiesPlayIcon;
+	iconPosition: point(8px, 8px);
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 32px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: mediaviewPlaybackIconRipple;
+	}
+}
+storiesPlayButtonPosition: point(54px, 0px);
+storiesVolumeButton: IconButton(storiesPlayButton) {
+	icon: mediaviewVolumeIcon2Over;
+	iconOver: mediaviewVolumeIcon2Over;
+	ripple: emptyRippleAnimation;
+}
+storiesVolumeButtonPosition: point(10px, 0px);

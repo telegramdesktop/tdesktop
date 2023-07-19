@@ -902,10 +902,24 @@ void Controller::subscribeToSession() {
 	});
 }
 
+PauseState Controller::pauseState() const {
+	const auto inactive = !_windowActive
+		|| _replyActive
+		|| _layerShown
+		|| _menuShown;
+	const auto playing = !inactive && !_paused;
+	return playing
+		? PauseState::Playing
+		: inactive
+		? PauseState::Inactive
+		: PauseState::Paused;
+}
+
 void Controller::updatePlayingAllowed() {
 	if (!_shown) {
 		return;
 	}
+	_header->updatePauseState();
 	setPlayingAllowed(_started
 		&& _windowActive
 		&& !_paused

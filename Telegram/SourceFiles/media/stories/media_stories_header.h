@@ -27,6 +27,7 @@ class FadeWrap;
 namespace Media::Stories {
 
 class Controller;
+enum class PauseState;
 
 struct HeaderData {
 	not_null<UserData*> user;
@@ -47,13 +48,18 @@ public:
 	explicit Header(not_null<Controller*> controller);
 	~Header();
 
+	void updatePauseState();
+
 	void show(HeaderData data);
 	void raise();
 
 private:
 	void updateDateText();
+	void applyPauseState();
 
 	const not_null<Controller*> _controller;
+
+	PauseState _pauseState = {};
 
 	std::unique_ptr<Ui::RpWidget> _widget;
 	std::unique_ptr<Ui::AbstractButton> _info;

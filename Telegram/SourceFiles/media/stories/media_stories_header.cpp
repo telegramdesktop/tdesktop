@@ -272,6 +272,8 @@ void Header::show(HeaderData data) {
 		_userpic = nullptr;
 		_info = nullptr;
 		_privacy = nullptr;
+		_playPause = nullptr;
+		_volumeToggle = nullptr;
 		const auto parent = _controller->wrap();
 		auto widget = std::make_unique<Ui::RpWidget>(parent);
 		const auto raw = widget.get();
@@ -336,9 +338,59 @@ void Header::show(HeaderData data) {
 
 	});
 
+	if (data.video) {
+		_playPause = std::make_unique<Ui::IconButton>(
+			_widget.get(),
+			st::storiesPlayButton);
+		_playPause->show();
+		_playPause->setClickedCallback([=] {
+			_controller->togglePaused(_pauseState != PauseState::Paused);
+		});
+
+		_volumeToggle = std::make_unique<Ui::IconButton>(
+			_widget.get(),
+			st::storiesVolumeButton);
+		_volumeToggle->show();
+
+		_widget->widthValue() | rpl::start_with_next([=](int width) {
+			const auto playPause = st::storiesPlayButtonPosition;
+			_playPause->moveToRight(playPause.x(), playPause.y(), width);
+			const auto volume = st::storiesVolumeButtonPosition;
+			_volumeToggle->moveToRight(volume.x(), volume.y(), width);
+		}, _playPause->lifetime());
+
+		_pauseState = _controller->pauseState();
+		applyPauseState();
+	} else {
+		_playPause = nullptr;
+		_volumeToggle = nullptr;
+	}
+
 	if (timestamp.changes > 0) {
 		_dateUpdateTimer.callOnce(timestamp.changes * crl::time(1000));
 	}
+}
+
+void Header::updatePauseState() {
+	if (!_playPause) {
+		return;
+	} else if (const auto s = _controller->pauseState(); _pauseState != s) {
+		_pauseState = s;
+		applyPauseState();
+	}
+}
+
+void Header::applyPauseState() {
+	Expects(_playPause != nullptr);
+
+	const auto paused = (_pauseState == PauseState::Paused);
+	const auto inactive = (_pauseState == PauseState::Inactive);
+	_playPause->setAttribute(Qt::WA_TransparentForMouseEvents, inactive);
+	if (inactive) {
+		_playPause->clearState();
+	}
+	const auto icon = paused ? nullptr : &st::storiesPauseIcon;
+	_playPause->setIconOverride(icon, icon);
 }
 
 void Header::raise() {
