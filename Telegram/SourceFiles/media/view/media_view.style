@@ -844,3 +844,10 @@ storiesReportBox: ReportBox(defaultReportBox) {
 storiesActionToast: Toast(defaultToast) {
 	maxWidth: 320px;
 }
+
+storiesBadgeCloseFriends: icon{{ "mediaview/mini_close_friends", historyPeerUserpicFg }};
+storiesBadgeContacts: icon{{ "mediaview/mini_contacts", historyPeerUserpicFg }};
+storiesBadgeSelectedContacts: icon{{ "mediaview/mini_selected_contacts", historyPeerUserpicFg }};
+storiesBadgePadding: margins(1px, 1px, 1px, 1px);
+storiesBadgeOutline: 2px;
+storiesBadgeShift: point(5px, 4px);
