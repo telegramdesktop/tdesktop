@@ -4219,8 +4219,21 @@ float64 OverlayWidget::storiesSiblingOver(Stories::SiblingType type) {
 		? overLevel(Over::LeftStories)
 		: overLevel(Over::RightStories);
 }
+
 void OverlayWidget::storiesRepaint() {
 	update();
+}
+
+void OverlayWidget::storiesVolumeToggle() {
+	playbackControlsVolumeToggled();
+}
+
+void OverlayWidget::storiesVolumeChanged(float64 volume) {
+	playbackControlsVolumeChanged(volume);
+}
+
+void OverlayWidget::storiesVolumeChangeFinished() {
+	playbackControlsVolumeChangeFinished();
 }
 
 void OverlayWidget::playbackToggleFullScreen() {

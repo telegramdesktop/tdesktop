@@ -61,6 +61,9 @@ public:
 	[[nodiscard]] virtual float64 storiesSiblingOver(SiblingType type) = 0;
 	virtual void storiesTogglePaused(bool paused) = 0;
 	virtual void storiesRepaint() = 0;
+	virtual void storiesVolumeToggle() = 0;
+	virtual void storiesVolumeChanged(float64 volume) = 0;
+	virtual void storiesVolumeChangeFinished() = 0;
 };
 
 } // namespace Media::Stories

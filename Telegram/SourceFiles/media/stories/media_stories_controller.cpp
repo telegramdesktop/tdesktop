@@ -915,6 +915,22 @@ PauseState Controller::pauseState() const {
 		: PauseState::Paused;
 }
 
+float64 Controller::currentVolume() const {
+	return Core::App().settings().videoVolume();
+}
+
+void Controller::toggleVolume() {
+	_delegate->storiesVolumeToggle();
+}
+
+void Controller::changeVolume(float64 volume) {
+	_delegate->storiesVolumeChanged(volume);
+}
+
+void Controller::volumeChangeFinished() {
+	_delegate->storiesVolumeChangeFinished();
+}
+
 void Controller::updatePlayingAllowed() {
 	if (!_shown) {
 		return;

@@ -17,17 +17,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "styles/style_media_view.h"
 
+#include <QtGui/QGuiApplication>
+
 namespace Media::Stories {
 namespace {
 
 constexpr auto kNameOpacity = 1.;
 constexpr auto kDateOpacity = 0.8;
+constexpr auto kControlOpacity = 0.6;
+constexpr auto kControlOpacityOver = 1.;
+constexpr auto kVolumeHideTimeoutShort = crl::time(20);
+constexpr auto kVolumeHideTimeoutLong = crl::time(200);
 
 struct Timestamp {
 	QString text;
@@ -267,6 +274,7 @@ void Header::show(HeaderData data) {
 		|| (data.fullCount && _data->fullIndex != data.fullIndex);
 	_data = data;
 	if (userChanged) {
+		_volume = nullptr;
 		_date = nullptr;
 		_name = nullptr;
 		_userpic = nullptr;
@@ -339,18 +347,8 @@ void Header::show(HeaderData data) {
 	});
 
 	if (data.video) {
-		_playPause = std::make_unique<Ui::IconButton>(
-			_widget.get(),
-			st::storiesPlayButton);
-		_playPause->show();
-		_playPause->setClickedCallback([=] {
-			_controller->togglePaused(_pauseState != PauseState::Paused);
-		});
-
-		_volumeToggle = std::make_unique<Ui::IconButton>(
-			_widget.get(),
-			st::storiesVolumeButton);
-		_volumeToggle->show();
+		createPlayPause();
+		createVolumeToggle();
 
 		_widget->widthValue() | rpl::start_with_next([=](int width) {
 			const auto playPause = st::storiesPlayButtonPosition;
@@ -362,6 +360,7 @@ void Header::show(HeaderData data) {
 		_pauseState = _controller->pauseState();
 		applyPauseState();
 	} else {
+		_volume = nullptr;
 		_playPause = nullptr;
 		_volumeToggle = nullptr;
 	}
@@ -369,6 +368,223 @@ void Header::show(HeaderData data) {
 	if (timestamp.changes > 0) {
 		_dateUpdateTimer.callOnce(timestamp.changes * crl::time(1000));
 	}
+}
+
+void Header::createPlayPause() {
+	struct PlayPauseState {
+		Ui::Animations::Simple overAnimation;
+		bool over = false;
+		bool down = false;
+	};
+	_playPause = std::make_unique<Ui::RpWidget>(_widget.get());
+	auto &lifetime = _playPause->lifetime();
+	const auto state = lifetime.make_state<PlayPauseState>();
+
+	_playPause->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter || type == QEvent::Leave) {
+			const auto over = (e->type() == QEvent::Enter);
+			if (state->over != over) {
+				state->over = over;
+				state->overAnimation.start(
+					[=] { _playPause->update(); },
+					over ? 0. : 1.,
+					over ? 1. : 0.,
+					st::mediaviewFadeDuration);
+			}
+		} else if (type == QEvent::MouseButtonPress && state->over) {
+			state->down = true;
+		} else if (type == QEvent::MouseButtonRelease) {
+			const auto down = base::take(state->down);
+			if (down && state->over) {
+				_controller->togglePaused(_pauseState != PauseState::Paused);
+			}
+		}
+	}, lifetime);
+
+	_playPause->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(_playPause.get());
+		const auto paused = (_pauseState == PauseState::Paused);
+		const auto icon = paused
+			? &st::storiesPlayIcon
+			: &st::storiesPauseIcon;
+		const auto over = state->overAnimation.value(
+			state->over ? 1. : 0.);
+		p.setOpacity(over * kControlOpacityOver
+			+ (1. - over) * kControlOpacity);
+		icon->paint(
+			p,
+			st::storiesPlayButton.iconPosition,
+			_playPause->width());
+	}, lifetime);
+
+	_playPause->resize(
+		st::storiesPlayButton.width,
+		st::storiesPlayButton.height);
+	_playPause->show();
+	_playPause->setCursor(style::cur_pointer);
+}
+
+void Header::createVolumeToggle() {
+	struct VolumeState {
+		base::Timer hideTimer;
+		bool over = false;
+		bool dropdownOver = false;
+	};
+	_volumeToggle = std::make_unique<Ui::RpWidget>(_widget.get());
+	auto &lifetime = _volumeToggle->lifetime();
+	const auto state = lifetime.make_state<VolumeState>();
+	state->hideTimer.setCallback([=] {
+		_volume->toggle(false, anim::type::normal);
+	});
+
+	_volumeToggle->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter || type == QEvent::Leave) {
+			const auto over = (e->type() == QEvent::Enter);
+			if (state->over != over) {
+				state->over = over;
+				if (over) {
+					state->hideTimer.cancel();
+					_volume->toggle(true, anim::type::normal);
+				} else if (!state->dropdownOver) {
+					state->hideTimer.callOnce(kVolumeHideTimeoutShort);
+				}
+			}
+		}
+	}, lifetime);
+
+	_volumeToggle->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(_volumeToggle.get());
+		p.setOpacity(kControlOpacity);
+		_volumeIcon.current()->paint(
+			p,
+			st::storiesVolumeButton.iconPosition,
+			_volumeToggle->width());
+	}, lifetime);
+	updateVolumeIcon();
+
+	_volume = std::make_unique<Ui::FadeWrap<Ui::RpWidget>>(
+		_widget->parentWidget(),
+		object_ptr<Ui::RpWidget>(_widget->parentWidget()));
+	_volume->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter || type == QEvent::Leave) {
+			const auto over = (e->type() == QEvent::Enter);
+			if (state->dropdownOver != over) {
+				state->dropdownOver = over;
+				if (over) {
+					state->hideTimer.cancel();
+					_volume->toggle(true, anim::type::normal);
+				} else if (!state->over) {
+					state->hideTimer.callOnce(kVolumeHideTimeoutLong);
+				}
+			}
+		}
+	}, lifetime);
+	_controller->layoutValue(
+	) | rpl::map([](const Layout &layout) {
+		return (layout.headerLayout == HeaderLayout::Outside);
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool horizontal) {
+		rebuildVolumeControls(_volume->entity(), horizontal);
+	}, lifetime);
+
+	rpl::combine(
+		_widget->positionValue(),
+		_volumeToggle->positionValue(),
+		rpl::mappers::_1 + rpl::mappers::_2
+	) | rpl::start_with_next([=](QPoint position) {
+		_volume->move(position);
+	}, _volume->lifetime());
+
+	_volumeToggle->resize(
+		st::storiesVolumeButton.width,
+		st::storiesVolumeButton.height);
+	_volumeToggle->show();
+	_volumeToggle->setCursor(style::cur_pointer);
+}
+
+void Header::rebuildVolumeControls(
+		not_null<Ui::RpWidget*> dropdown,
+		bool horizontal) {
+	auto removed = false;
+	do {
+		removed = false;
+		for (const auto &child : dropdown->children()) {
+			if (child->isWidgetType()) {
+				removed = true;
+				delete child;
+				break;
+			}
+		}
+	} while (removed);
+
+	const auto button = Ui::CreateChild<Ui::IconButton>(
+		dropdown.get(),
+		st::storiesVolumeButton);
+	_volumeIcon.value(
+	) | rpl::start_with_next([=](const style::icon *icon) {
+		button->setIconOverride(icon, icon);
+	}, button->lifetime());
+
+	const auto slider = Ui::CreateChild<Ui::MediaSlider>(
+		dropdown.get(),
+		st::storiesVolumeSlider);
+	slider->setMoveByWheel(true);
+	slider->setAlwaysDisplayMarker(true);
+	using Direction = Ui::MediaSlider::Direction;
+	slider->setDirection(horizontal
+		? Direction::Horizontal
+		: Direction::Vertical);
+
+	slider->setChangeProgressCallback([=](float64 value) {
+		_controller->changeVolume(value);
+		updateVolumeIcon();
+	});
+	slider->setChangeFinishedCallback([=](float64 value) {
+		_controller->volumeChangeFinished();
+	});
+	button->setClickedCallback([=] {
+		_controller->toggleVolume();
+		slider->setValue(_controller->currentVolume());
+		updateVolumeIcon();
+	});
+	slider->setValue(_controller->currentVolume());
+
+	const auto skip = button->width() / 2;
+	const auto size = button->width()
+		+ st::storiesVolumeSize
+		+ st::storiesVolumeBottom;
+	const auto seekSize = st::storiesVolumeSlider.seekSize;
+
+	button->move(0, 0);
+	if (horizontal) {
+		dropdown->resize(size, button->height());
+		slider->resize(st::storiesVolumeSize, seekSize.height());
+		slider->move(
+			button->width(),
+			(button->height() - slider->height()) / 2);
+	} else {
+		dropdown->resize(button->width(), size);
+		slider->resize(seekSize.width(), st::storiesVolumeSize);
+		slider->move(
+			(button->width() - slider->width()) / 2,
+			button->height());
+	}
+
+	dropdown->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(dropdown);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = button->width() / 2.;
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::mediaviewSaveMsgBg);
+		p.drawRoundedRect(dropdown->rect(), radius, radius);
+	}, button->lifetime());
 }
 
 void Header::updatePauseState() {
@@ -380,17 +596,25 @@ void Header::updatePauseState() {
 	}
 }
 
+void Header::updateVolumeIcon() {
+	const auto volume = _controller->currentVolume();
+	_volumeIcon = (volume <= 0.)
+		? &st::mediaviewVolumeIcon0Over
+		: (volume < 1 / 2.)
+		? &st::mediaviewVolumeIcon1Over
+		: &st::mediaviewVolumeIcon2Over;
+}
+
 void Header::applyPauseState() {
 	Expects(_playPause != nullptr);
 
-	const auto paused = (_pauseState == PauseState::Paused);
 	const auto inactive = (_pauseState == PauseState::Inactive);
 	_playPause->setAttribute(Qt::WA_TransparentForMouseEvents, inactive);
 	if (inactive) {
-		_playPause->clearState();
+		QEvent e(QEvent::Leave);
+		QGuiApplication::sendEvent(_playPause.get(), &e);
 	}
-	const auto icon = paused ? nullptr : &st::storiesPauseIcon;
-	_playPause->setIconOverride(icon, icon);
+	_playPause->update();
 }
 
 void Header::raise() {

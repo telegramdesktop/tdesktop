@@ -49,6 +49,7 @@ public:
 	~Header();
 
 	void updatePauseState();
+	void updateVolumeIcon();
 
 	void show(HeaderData data);
 	void raise();
@@ -56,6 +57,11 @@ public:
 private:
 	void updateDateText();
 	void applyPauseState();
+	void createPlayPause();
+	void createVolumeToggle();
+	void rebuildVolumeControls(
+		not_null<Ui::RpWidget*> dropdown, 
+		bool horizontal);
 
 	const not_null<Controller*> _controller;
 
@@ -66,9 +72,10 @@ private:
 	std::unique_ptr<Ui::UserpicButton> _userpic;
 	std::unique_ptr<Ui::FlatLabel> _name;
 	std::unique_ptr<Ui::FlatLabel> _date;
-	std::unique_ptr<Ui::IconButton> _playPause;
-	std::unique_ptr<Ui::IconButton> _volumeToggle;
+	std::unique_ptr<Ui::RpWidget> _playPause;
+	std::unique_ptr<Ui::RpWidget> _volumeToggle;
 	std::unique_ptr<Ui::FadeWrap<Ui::RpWidget>> _volume;
+	rpl::variable<const style::icon*> _volumeIcon;
 	std::unique_ptr<Ui::RpWidget> _privacy;
 	std::optional<HeaderData> _data;
 	base::Timer _dateUpdateTimer;

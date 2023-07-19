@@ -143,6 +143,10 @@ public:
 	void setMenuShown(bool shown);
 
 	[[nodiscard]] PauseState pauseState() const;
+	[[nodiscard]] float64 currentVolume() const;
+	void toggleVolume();
+	void changeVolume(float64 volume);
+	void volumeChangeFinished();
 
 	void repaintSibling(not_null<Sibling*> sibling);
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;

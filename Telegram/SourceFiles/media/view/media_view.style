@@ -868,8 +868,22 @@ storiesPlayButton: IconButton(defaultIconButton) {
 }
 storiesPlayButtonPosition: point(54px, 0px);
 storiesVolumeButton: IconButton(storiesPlayButton) {
-	icon: mediaviewVolumeIcon2Over;
-	iconOver: mediaviewVolumeIcon2Over;
+	icon: mediaviewVolumeIcon0Over;
+	iconOver: mediaviewVolumeIcon0Over;
 	ripple: emptyRippleAnimation;
 }
 storiesVolumeButtonPosition: point(10px, 0px);
+storiesVolumeSize: 75px;
+storiesVolumeBottom: 20px;
+storiesVolumeSlider: MediaSlider {
+	width: 3px;
+	activeFg: mediaviewPlaybackActiveOver;
+	inactiveFg: mediaviewPlaybackActive;
+	activeFgOver: mediaviewPlaybackActiveOver;
+	inactiveFgOver: mediaviewPlaybackActive;
+	activeFgDisabled: mediaviewPlaybackActiveOver;
+	inactiveFgDisabled: mediaviewPlaybackActive;
+	receivedTillFg: mediaviewPlaybackActive;
+	seekSize: size(12px, 12px);
+	duration: mediaviewOverDuration;
+}
