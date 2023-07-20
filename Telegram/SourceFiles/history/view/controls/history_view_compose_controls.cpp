@@ -2971,7 +2971,7 @@ bool ComposeControls::isRecordingPressed() const {
 }
 
 rpl::producer<bool> ComposeControls::recordingValue() const {
-	return _recording.value();
+	return _voiceRecordBar->shownValue();
 }
 
 rpl::producer<bool> ComposeControls::hasSendTextValue() const {

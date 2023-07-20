@@ -671,7 +671,7 @@ rpl::producer<bool> ReplyArea::activeValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
 		_controls->focusedValue(),
-		_controls->recordingValue(),
+		_controls->recordingActiveValue(),
 		_controls->tabbedPanelShownValue(),
 		_choosingAttach.value(),
 		_1 || _2 || _3 || _4

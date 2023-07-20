@@ -218,7 +218,7 @@ public:
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isRecordingPressed() const;
-	[[nodiscard]] rpl::producer<bool> recordingValue() const;
+	[[nodiscard]] rpl::producer<bool> recordingActiveValue() const;
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 
 	void applyCloudDraft();
