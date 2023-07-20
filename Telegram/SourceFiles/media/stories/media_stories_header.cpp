@@ -309,6 +309,16 @@ void Header::show(HeaderData data) {
 			raw->setGeometry(layout.header);
 		}, raw->lifetime());
 	}
+	const auto updateInfoGeometry = [=] {
+		if (_name && _date) {
+			const auto namex = st::storiesHeaderNamePosition.x();
+			const auto namer = namex + _name->width();
+			const auto datex = st::storiesHeaderDatePosition.x();
+			const auto dater = datex + _date->width();
+			const auto r = std::max(namer, dater);
+			_info->setGeometry({ 0, 0, r, _widget->height() });
+		}
+	};
 	if (nameDataChanged) {
 		_name = std::make_unique<Ui::FlatLabel>(
 			_widget.get(),
@@ -322,12 +332,7 @@ void Header::show(HeaderData data) {
 		rpl::combine(
 			_name->widthValue(),
 			_widget->heightValue()
-		) | rpl::start_with_next([=](int width, int height) {
-			if (_date) {
-				_info->setGeometry(
-					{ 0, 0, std::max(width, _date->width()), height });
-			}
-		}, _name->lifetime());
+		) | rpl::start_with_next(updateInfoGeometry, _name->lifetime());
 	}
 	auto timestamp = ComposeDetails(data, base::unixtime::now());
 	_date = std::make_unique<Ui::FlatLabel>(
@@ -340,10 +345,7 @@ void Header::show(HeaderData data) {
 	_date->move(st::storiesHeaderDatePosition);
 
 	_date->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		_info->setGeometry(
-			{ 0, 0, std::max(width, _name->width()), _widget->height() });
-	}, _name->lifetime());
+	) | rpl::start_with_next(updateInfoGeometry, _date->lifetime());
 
 	_privacy = MakePrivacyBadge(_userpic.get(), data.privacy, [=] {
 
