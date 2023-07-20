@@ -432,6 +432,7 @@ OverlayWidget::OverlayWidget()
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
 , _dropdown(_body, st::mediaviewDropdownMenu) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
+	_layerBg->setHideByBackgroundClick(true);
 
 	CrashReports::SetAnnotation("OpenGL Renderer", "[not-initialized]");
 

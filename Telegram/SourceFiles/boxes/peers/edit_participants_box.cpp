@@ -1341,11 +1341,13 @@ void ParticipantsBoxController::rebuildChatParticipants(
 		}
 	}
 	for (const auto &user : participants) {
-		if (auto row = createRow(user)) {
-			const auto raw = row.get();
-			delegate()->peerListAppendRow(std::move(row));
-			if (_stories) {
-				_stories->process(raw);
+		if (!delegate()->peerListFindRow(user->id.value)) {
+			if (auto row = createRow(user)) {
+				const auto raw = row.get();
+				delegate()->peerListAppendRow(std::move(row));
+				if (_stories) {
+					_stories->process(raw);
+				}
 			}
 		}
 	}
