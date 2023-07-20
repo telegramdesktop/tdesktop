@@ -945,10 +945,11 @@ void ChartWidget::setupChartArea() {
 				: -1,
 		};
 		if (_chartData) {
-			p.setRenderHint(
-				QPainter::Antialiasing,
-				!_animationController.isFPSSlow()
-					|| !_animationController.animating());
+			// p.setRenderHint(
+			// 	QPainter::Antialiasing,
+			// 	!_animationController.isFPSSlow()
+			// 		|| !_animationController.animating());
+			PainterHighQualityEnabler hp(p);
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
@@ -1069,10 +1070,12 @@ void ChartWidget::setupFooter() {
 		if (_chartData) {
 			auto detailsPaintContext = DetailsPaintContext{ .xIndex = -1 };
 			p.fillRect(r, st::boxBg);
-			p.setRenderHint(
-				QPainter::Antialiasing,
-				!_animationController.isFPSSlow()
-					|| !_animationController.animating());
+			// p.setRenderHint(
+			// 	QPainter::Antialiasing,
+			// 	!_animationController.isFPSSlow()
+			// 		|| !_animationController.animating());
+			PainterHighQualityEnabler hp(p);
+			_animatedChartLines.setCacheFooter(true);
 			Statistic::PaintLinearChartView(
 				p,
 				_chartData,
@@ -1082,6 +1085,7 @@ void ChartWidget::setupFooter() {
 				r,
 				_animatedChartLines,
 				detailsPaintContext);
+			_animatedChartLines.setCacheFooter(false);
 		}
 	});
 
@@ -1185,17 +1189,37 @@ void ChartWidget::setupDetails() {
 }
 
 void ChartWidget::setupFilterButtons() {
-	if (!_chartData) {
+	if (!_chartData || (_chartData.lines.size() <= 1)) {
 		_filterButtons = nullptr;
 		_chartArea->update();
 		return;
 	}
 	_filterButtons = base::make_unique_q<ChartLinesFilterWidget>(this);
 
+	const auto asd = Ui::CreateChild<Ui::AbstractButton>(_filterButtons.get());
+	asd->paintRequest(
+	) | rpl::start_with_next([=](QRect r) {
+		auto p = QPainter(asd);
+		p.setOpacity(0.3);
+		p.fillRect(r, Qt::darkRed);
+		p.setOpacity(1.0);
+		p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
+		p.setPen(st::boxTextFg);
+		p.drawText(asd->rect(), QString::number(_animatedChartLines.factor * 100) + "%", style::al_center);
+	}, asd->lifetime());
+	asd->setClickedCallback([=] {
+		_animatedChartLines.factor -= 0.1;
+		if (_animatedChartLines.factor <= 0) {
+			_animatedChartLines.factor = 1.0;
+		}
+		asd->update();
+	});
+	asd->resize(50, 50);
+
 	sizeValue(
-	) | rpl::filter([=](const QSize &s) {
+	) | rpl::filter([](const QSize &s) {
 		return s.width() > 0;
-	}) | rpl::take(1) | rpl::start_with_next([=](const QSize &s) {
+	}) | rpl::take(2) | rpl::start_with_next([=](const QSize &s) {
 		auto texts = std::vector<QString>();
 		auto colors = std::vector<QColor>();
 		auto ids = std::vector<int>();
@@ -1210,6 +1234,8 @@ void ChartWidget::setupFilterButtons() {
 
 		_filterButtons->fillButtons(texts, colors, ids, s.width());
 		resizeHeight();
+		asd->raise();
+		asd->moveToRight(0, 0);
 	}, _filterButtons->lifetime());
 
 	_filterButtons->buttonEnabledChanges(

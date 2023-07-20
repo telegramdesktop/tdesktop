@@ -24,10 +24,16 @@ void PaintLinearChartView(
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		const ChartLineViewContext &lineViewContext,
+		ChartLineViewContext &lineViewContext,
 		DetailsPaintContext &detailsPaintContext) {
 	const auto currentMinHeight = rect.y(); //
 	const auto currentMaxHeight = rect.height() + rect.y(); //
+
+	const auto cacheToken = ChartLineViewContext::CacheToken(
+		xIndices,
+		xPercentageLimits,
+		heightLimits,
+		rect.size());
 
 	for (const auto &line : chartData.lines) {
 		p.setOpacity(lineViewContext.alpha(line.id));
@@ -37,6 +43,32 @@ void PaintLinearChartView(
 		const auto additionalP = (chartData.xPercentage.size() < 2)
 			? 0.
 			: (chartData.xPercentage.front() * rect.width());
+
+		////
+		const auto &cache = lineViewContext.cache(line.id);
+
+		const auto isSameToken = (cache.lastToken == cacheToken);
+		if (isSameToken && cache.hq) {
+			p.drawImage(rect.topLeft(), cache.image);
+			continue;
+		}
+		const auto kRatio = lineViewContext.factor;//0.5;
+		lineViewContext.setCacheHQ(line.id, isSameToken);
+		auto image = QImage();
+		image = QImage(
+			rect.size() * style::DevicePixelRatio() * (isSameToken ? 1. : kRatio),
+			QImage::Format_ARGB32_Premultiplied);
+		image.setDevicePixelRatio(style::DevicePixelRatio());
+		image.fill(Qt::transparent);
+		// image.fill(Qt::darkRed);
+		auto imagePainter = QPainter(&image);
+		imagePainter.setRenderHint(QPainter::Antialiasing, true);
+		if (isSameToken) {
+			// PainterHighQualityEnabler hp(imagePainter);
+		} else {
+			imagePainter.scale(kRatio, kRatio);
+		}
+		////
 
 		auto first = true;
 		auto chartPath = QPainterPath();
@@ -69,9 +101,17 @@ void PaintLinearChartView(
 			}
 			chartPath.lineTo(xPoint, yPoint);
 		}
-		p.setPen(QPen(line.color, st::statisticsChartLineWidth));
-		p.setBrush(Qt::NoBrush);
-		p.drawPath(chartPath);
+		imagePainter.translate(-rect.topLeft());
+		imagePainter.setPen(QPen(line.color, st::statisticsChartLineWidth));
+		imagePainter.setBrush(Qt::NoBrush);
+		imagePainter.drawPath(chartPath);
+
+		if (!isSameToken) {
+			image = image.scaled(rect.size() * style::DevicePixelRatio(), Qt::IgnoreAspectRatio, Qt::FastTransformation);
+		}
+		p.drawImage(rect.topLeft(), image);
+		lineViewContext.setCacheImage(line.id, std::move(image));
+		lineViewContext.setCacheLastToken(line.id, cacheToken);
 	}
 	p.setPen(st::boxTextFg);
 	p.setOpacity(1.);

@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 namespace {
-constexpr auto kAlphaDuration = float64(200);
+constexpr auto kAlphaDuration = float64(350);
 } // namespace
 
 void ChartLineViewContext::setEnabled(int id, bool enabled, crl::time now) {
@@ -37,6 +37,23 @@ bool ChartLineViewContext::isEnabled(int id) const {
 float64 ChartLineViewContext::alpha(int id) const {
 	const auto it = _entries.find(id);
 	return (it == end(_entries)) ? 1. : it->second.alpha;
+}
+
+void ChartLineViewContext::setCacheImage(int id, QImage &&image) {
+	(_isFooter ? _cachesFooter : _caches)[id].image = std::move(image);
+}
+
+void ChartLineViewContext::setCacheLastToken(int id, CacheToken token) {
+	(_isFooter ? _cachesFooter : _caches)[id].lastToken = token;
+}
+
+void ChartLineViewContext::setCacheHQ(int id, bool value) {
+	(_isFooter ? _cachesFooter : _caches)[id].hq = value;
+}
+
+const ChartLineViewContext::Cache &ChartLineViewContext::cache(int id) {
+	[[maybe_unused]] auto unused = (_isFooter ? _cachesFooter : _caches)[id];
+	return (_isFooter ? _cachesFooter : _caches).find(id)->second;
 }
 
 void ChartLineViewContext::tick(crl::time now) {
