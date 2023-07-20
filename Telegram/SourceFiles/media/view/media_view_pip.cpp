@@ -49,14 +49,6 @@ namespace {
 constexpr auto kPipLoaderPriority = 2;
 constexpr auto kMsInSecond = 1000;
 
-[[nodiscard]] bool IsWindowControlsOnLeft() {
-	using Control = Ui::Platform::TitleControls::Control;
-	const auto controlsLayout = Ui::Platform::TitleControlsLayout();
-	return ranges::contains(controlsLayout.left, Control::Close)
-		|| (controlsLayout.left.size() > controlsLayout.right.size()
-			&& !ranges::contains(controlsLayout.right, Control::Close));
-}
-
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
 	const auto screen = QGuiApplication::screenAt(point);
 	const auto use = screen ? screen : QGuiApplication::primaryScreen();
@@ -1266,7 +1258,7 @@ void Pip::setupButtons() {
 			rect.y(),
 			volumeToggleWidth,
 			volumeToggleHeight);
-		if (!IsWindowControlsOnLeft()) {
+		if (!Ui::Platform::TitleControlsOnLeft()) {
 			_close.area.moveLeft(rect.x()
 				+ rect.width()
 				- (_close.area.x() - rect.x())
