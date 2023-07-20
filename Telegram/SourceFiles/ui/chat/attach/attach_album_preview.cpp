@@ -28,9 +28,11 @@ constexpr auto kDragDuration = crl::time(200);
 
 AlbumPreview::AlbumPreview(
 	QWidget *parent,
+	const style::ComposeControls &st,
 	gsl::span<Ui::PreparedFile> items,
 	SendFilesWay way)
 : RpWidget(parent)
+, _st(st)
 , _sendWay(way)
 , _dragTimer([=] { switchToDrag(); }) {
 	setMouseTracking(true);
@@ -135,6 +137,7 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 	_thumbs.reserve(count);
 	for (auto i = 0; i != count; ++i) {
 		_thumbs.push_back(std::make_unique<AlbumThumbnail>(
+			_st,
 			items[i],
 			layout[i],
 			this,

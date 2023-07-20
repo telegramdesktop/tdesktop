@@ -46,6 +46,8 @@ enum class WindowUsage {
 
 class Show : public Main::SessionShow {
 public:
+	virtual void activate() = 0;
+
 	[[nodiscard]] virtual bool paused(PauseReason reason) const = 0;
 	[[nodiscard]] virtual rpl::producer<> pauseChanged() const = 0;
 
@@ -59,7 +61,7 @@ public:
 		Data::FileOrigin origin,
 		not_null<PhotoData*> photo) const = 0;
 
-	virtual void processChosenSticker(FileChosen chosen) const = 0;
+	virtual void processChosenSticker(FileChosen &&chosen) const = 0;
 
 	[[nodiscard]] virtual Window::SessionController *resolveWindow(
 		WindowUsage) const;

@@ -56,7 +56,7 @@ TimeId DurationForTimestampLinks(not_null<DocumentData*> document) {
 		&& !document->isVoiceMessage()) {
 		return TimeId(0);
 	}
-	return std::max(document->getDuration(), TimeId(0));
+	return std::max(document->duration(), crl::time(0)) / 1000;
 }
 
 QString TimestampLinkBase(

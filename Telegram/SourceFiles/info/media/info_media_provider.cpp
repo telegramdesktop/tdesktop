@@ -421,19 +421,21 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		}
 		return nullptr;
 	};
-	const auto spoiler = [&] {
-		if (const auto media = item->media()) {
-			return media->hasSpoiler();
-		}
-		return false;
-	};
 
 	const auto &songSt = st::overviewFileLayout;
 	using namespace Overview::Layout;
+	const auto options = [&] {
+		const auto media = item->media();
+		return MediaOptions{ .spoiler = media && media->hasSpoiler() };
+	};
 	switch (type) {
 	case Type::Photo:
 		if (const auto photo = getPhoto()) {
-			return std::make_unique<Photo>(delegate, item, photo, spoiler());
+			return std::make_unique<Photo>(
+				delegate,
+				item,
+				photo,
+				options());
 		}
 		return nullptr;
 	case Type::GIF:
@@ -443,7 +445,7 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	case Type::Video:
 		if (const auto file = getFile()) {
-			return std::make_unique<Video>(delegate, item, file, spoiler());
+			return std::make_unique<Video>(delegate, item, file, options());
 		}
 		return nullptr;
 	case Type::File:

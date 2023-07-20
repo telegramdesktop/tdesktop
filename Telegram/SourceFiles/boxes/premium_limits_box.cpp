@@ -404,6 +404,7 @@ std::unique_ptr<PeerListRow> PublicsController::createRow(
 
 void SimpleLimitBox(
 		not_null<Ui::GenericBox*> box,
+		const style::PremiumLimits *stOverride,
 		not_null<Main::Session*> session,
 		bool premiumPossible,
 		rpl::producer<QString> title,
@@ -411,6 +412,8 @@ void SimpleLimitBox(
 		const QString &refAddition,
 		const InfographicDescriptor &descriptor,
 		bool fixed = false) {
+	const auto &st = stOverride ? *stOverride : st::defaultPremiumLimits;
+
 	box->setWidth(st::boxWideWidth);
 
 	const auto top = fixed
@@ -431,6 +434,7 @@ void SimpleLimitBox(
 	if (premiumPossible) {
 		Ui::Premium::AddLimitRow(
 			top,
+			st,
 			descriptor.premiumLimit,
 			descriptor.phrase,
 			0,
@@ -473,6 +477,7 @@ void SimpleLimitBox(
 
 void SimpleLimitBox(
 		not_null<Ui::GenericBox*> box,
+		const style::PremiumLimits *stOverride,
 		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> text,
@@ -481,6 +486,7 @@ void SimpleLimitBox(
 		bool fixed = false) {
 	SimpleLimitBox(
 		box,
+		stOverride,
 		session,
 		session->premiumPossible(),
 		std::move(title),
@@ -524,6 +530,7 @@ void SimplePinsLimitBox(
 	});
 	SimpleLimitBox(
 		box,
+		nullptr,
 		session,
 		tr::lng_filter_pin_limit_title(),
 		std::move(text),
@@ -561,6 +568,7 @@ void ChannelsLimitBox(
 
 	SimpleLimitBox(
 		box,
+		nullptr,
 		session,
 		tr::lng_channels_limit_title(),
 		std::move(text),
@@ -650,6 +658,7 @@ void PublicLinksLimitBox(
 
 	SimpleLimitBox(
 		box,
+		nullptr,
 		session,
 		tr::lng_links_limit_title(),
 		std::move(text),
@@ -716,6 +725,7 @@ void FilterChatsLimitBox(
 
 	SimpleLimitBox(
 		box,
+		nullptr,
 		session,
 		tr::lng_filter_chats_limit_title(),
 		std::move(text),
@@ -753,6 +763,7 @@ void FilterLinksLimitBox(
 
 	SimpleLimitBox(
 		box,
+		nullptr,
 		session,
 		tr::lng_filter_links_limit_title(),
 		std::move(text),
@@ -798,6 +809,7 @@ void FiltersLimitBox(
 	});
 	SimpleLimitBox(
 		box,
+		nullptr,
 		session,
 		tr::lng_filters_limit_title(),
 		std::move(text),
@@ -836,6 +848,7 @@ void ShareableFiltersLimitBox(
 	});
 	SimpleLimitBox(
 		box,
+		nullptr,
 		session,
 		tr::lng_filter_shared_limit_title(),
 		std::move(text),
@@ -900,6 +913,7 @@ void ForumPinsLimitBox(
 		Ui::Text::RichLangValue);
 	SimpleLimitBox(
 		box,
+		nullptr,
 		&forum->session(),
 		false,
 		tr::lng_filter_pin_limit_title(),
@@ -911,7 +925,8 @@ void ForumPinsLimitBox(
 void CaptionLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
-		int remove) {
+		int remove,
+		const style::PremiumLimits *stOverride) {
 	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
@@ -943,6 +958,7 @@ void CaptionLimitBox(
 
 	SimpleLimitBox(
 		box,
+		stOverride,
 		session,
 		tr::lng_caption_limit_title(),
 		std::move(text),
@@ -953,15 +969,17 @@ void CaptionLimitBox(
 void CaptionLimitReachedBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
-		int remove) {
+		int remove,
+		const style::PremiumLimits *stOverride) {
 	Ui::ConfirmBox(box, Ui::ConfirmBoxArgs{
 		.text = tr::lng_caption_limit_reached(tr::now, lt_count, remove),
+		.labelStyle = stOverride ? &stOverride->boxLabel : nullptr,
 		.inform = true,
 	});
 	if (!session->premium()) {
 		box->addLeftButton(tr::lng_limits_increase(), [=] {
 			box->getDelegate()->showBox(
-				Box(CaptionLimitBox, session, remove),
+				Box(CaptionLimitBox, session, remove, stOverride),
 				Ui::LayerOption::KeepOther,
 				anim::type::normal);
 			box->closeBox();
@@ -972,7 +990,8 @@ void CaptionLimitReachedBox(
 void FileSizeLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
-		uint64 fileSizeBytes) {
+		uint64 fileSizeBytes,
+		const style::PremiumLimits *stOverride) {
 	const auto limits = Data::PremiumLimits(session);
 	const auto defaultLimit = float64(limits.uploadMaxDefault());
 	const auto premiumLimit = float64(limits.uploadMaxPremium());
@@ -1011,6 +1030,7 @@ void FileSizeLimitBox(
 
 	SimpleLimitBox(
 		box,
+		stOverride,
 		session,
 		premiumPossible,
 		tr::lng_file_size_limit_title(),
@@ -1084,6 +1104,7 @@ void AccountsLimitBox(
 	if (premiumPossible) {
 		Ui::Premium::AddLimitRow(
 			top,
+			st::defaultPremiumLimits,
 			(QString::number(std::max(current, defaultLimit) + 1)
 				+ ((current + 1 == premiumLimit) ? "" : "+")),
 			QString::number(defaultLimit));

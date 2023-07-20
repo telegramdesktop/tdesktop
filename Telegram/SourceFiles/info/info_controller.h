@@ -36,6 +36,25 @@ struct Tag {
 
 } // namespace Info::Downloads
 
+namespace Info::Stories {
+
+enum class Tab {
+	Saved,
+	Archive,
+};
+
+struct Tag {
+	explicit Tag(not_null<PeerData*> peer, Tab tab = {})
+	: peer(peer)
+	, tab(tab) {
+	}
+
+	not_null<PeerData*> peer;
+	Tab tab = {};
+};
+
+} // namespace Info::Stories
+
 namespace Info {
 
 class Key {
@@ -44,12 +63,15 @@ public:
 	explicit Key(not_null<Data::ForumTopic*> topic);
 	Key(Settings::Tag settings);
 	Key(Downloads::Tag downloads);
+	Key(Stories::Tag stories);
 	Key(not_null<PollData*> poll, FullMsgId contextId);
 
 	PeerData *peer() const;
 	Data::ForumTopic *topic() const;
 	UserData *settingsSelf() const;
 	bool isDownloads() const;
+	PeerData *storiesPeer() const;
+	Stories::Tab storiesTab() const;
 	PollData *poll() const;
 	FullMsgId pollContextId() const;
 
@@ -63,6 +85,7 @@ private:
 		not_null<Data::ForumTopic*>,
 		Settings::Tag,
 		Downloads::Tag,
+		Stories::Tag,
 		PollKey> _value;
 
 };
@@ -81,6 +104,7 @@ public:
 		Members,
 		Settings,
 		Downloads,
+		Stories,
 		PollResults,
 	};
 	using SettingsType = ::Settings::Type;
@@ -123,23 +147,29 @@ class AbstractController : public Window::SessionNavigation {
 public:
 	AbstractController(not_null<Window::SessionController*> parent);
 
-	virtual Key key() const = 0;
-	virtual PeerData *migrated() const = 0;
-	virtual Section section() const = 0;
+	[[nodiscard]] virtual Key key() const = 0;
+	[[nodiscard]] virtual PeerData *migrated() const = 0;
+	[[nodiscard]] virtual Section section() const = 0;
 
-	PeerData *peer() const;
-	PeerId migratedPeerId() const;
-	Data::ForumTopic *topic() const {
+	[[nodiscard]] PeerData *peer() const;
+	[[nodiscard]] PeerId migratedPeerId() const;
+	[[nodiscard]] Data::ForumTopic *topic() const {
 		return key().topic();
 	}
-	UserData *settingsSelf() const {
+	[[nodiscard]] UserData *settingsSelf() const {
 		return key().settingsSelf();
 	}
-	bool isDownloads() const {
+	[[nodiscard]] bool isDownloads() const {
 		return key().isDownloads();
 	}
-	PollData *poll() const;
-	FullMsgId pollContextId() const {
+	[[nodiscard]] PeerData *storiesPeer() const {
+		return key().storiesPeer();
+	}
+	[[nodiscard]] Stories::Tab storiesTab() const {
+		return key().storiesTab();
+	}
+	[[nodiscard]] PollData *poll() const;
+	[[nodiscard]] FullMsgId pollContextId() const {
 		return key().pollContextId();
 	}
 

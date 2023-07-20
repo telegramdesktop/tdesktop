@@ -8,7 +8,6 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "platform/linux/linux_xdp_open_with_dialog.h"
 
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "base/platform/linux/base_linux_wayland_integration.h"
 #include "core/application.h"
@@ -34,20 +33,17 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
 
-		auto reply = connection->call_sync(
+		const auto version = connection->call_sync(
 			std::string(base::Platform::XDP::kObjectPath),
 			std::string(kPropertiesInterface),
 			"Get",
-			base::Platform::MakeGlibVariant(std::tuple{
+			Glib::create_variant(std::tuple{
 				Glib::ustring(
 					std::string(kXDPOpenURIInterface)),
 				Glib::ustring("version"),
 			}),
-			std::string(base::Platform::XDP::kService));
-
-		const auto version = base::Platform::GlibVariantCast<uint>(
-			base::Platform::GlibVariantCast<Glib::VariantBase>(
-				reply.get_child(0)));
+			std::string(base::Platform::XDP::kService)
+		).get_child(0).get_dynamic<Glib::Variant<uint>>().get();
 
 		if (version < 3) {
 			return false;
@@ -112,7 +108,7 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 				loop->quit();
 			},
 			std::string(base::Platform::XDP::kService),
-			"org.freedesktop.portal.Request",
+			std::string(base::Platform::XDP::kRequestInterface),
 			"Response",
 			requestPath);
 
@@ -128,26 +124,23 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 			std::string(base::Platform::XDP::kObjectPath),
 			std::string(kXDPOpenURIInterface),
 			"OpenFile",
-			Glib::VariantContainerBase::create_tuple({
-				Glib::Variant<Glib::ustring>::create(parentWindowId),
-				Glib::Variant<int>::create_handle(0),
-				Glib::Variant<std::map<
-					Glib::ustring,
-					Glib::VariantBase
-				>>::create({
+			Glib::create_variant(std::tuple{
+				parentWindowId,
+				Glib::DBusHandle(),
+				std::map<Glib::ustring, Glib::VariantBase>{
 					{
 						"handle_token",
-						Glib::Variant<Glib::ustring>::create(handleToken)
+						Glib::create_variant(handleToken)
 					},
 					{
 						"activation_token",
-						Glib::Variant<Glib::ustring>::create(activationToken)
+						Glib::create_variant(activationToken)
 					},
 					{
 						"ask",
-						Glib::Variant<bool>::create(true)
+						Glib::create_variant(true)
 					},
-				}),
+				},
 			}),
 			Gio::UnixFDList::create(std::vector<int>{ fd }),
 			outFdList,

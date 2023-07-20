@@ -9,7 +9,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 
 #include "base/const_string.h"
 
-#define TDESKTOP_REQUESTED_ALPHA_VERSION (0ULL)
+#define TDESKTOP_REQUESTED_ALPHA_VERSION (4008004005ULL)
 
 #ifdef TDESKTOP_ALLOW_CLOSED_ALPHA
 #define TDESKTOP_ALPHA_VERSION TDESKTOP_REQUESTED_ALPHA_VERSION

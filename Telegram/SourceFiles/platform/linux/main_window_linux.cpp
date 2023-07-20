@@ -26,7 +26,6 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/event_filter.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
@@ -118,9 +117,7 @@ void XCBSetDesktopFileName(QWindow *window) {
 		base::Platform::XCB::GetAtom(connection, "_KDE_NET_WM_DESKTOP_FILE"),
 	};
 
-	const auto filename = QGuiApplication::desktopFileName()
-		.chopped(8)
-		.toUtf8();
+	const auto filename = QGuiApplication::desktopFileName().toUtf8();
 
 	for (const auto atom : filenameAtoms) {
 		if (atom.has_value()) {
@@ -244,7 +241,8 @@ void MainWindow::updateUnityCounter() {
 
 	const auto launcherUrl = Glib::ustring(
 		"application://"
-			+ QGuiApplication::desktopFileName().toStdString());
+			+ QGuiApplication::desktopFileName().toStdString()
+			+ ".desktop");
 	const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
 	std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 
@@ -252,13 +250,11 @@ void MainWindow::updateUnityCounter() {
 		// According to the spec, it should be of 'x' D-Bus signature,
 		// which corresponds to signed 64-bit integer
 		// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
-		dbusUnityProperties["count"] = Glib::Variant<int64>::create(
-			counterSlice);
-		dbusUnityProperties["count-visible"] =
-			Glib::Variant<bool>::create(true);
+		dbusUnityProperties["count"] = Glib::create_variant(
+			int64(counterSlice));
+		dbusUnityProperties["count-visible"] = Glib::create_variant(true);
 	} else {
-		dbusUnityProperties["count-visible"] =
-			Glib::Variant<bool>::create(false);
+		dbusUnityProperties["count-visible"] = Glib::create_variant(false);
 	}
 
 	try {
@@ -271,7 +267,7 @@ void MainWindow::updateUnityCounter() {
 			"com.canonical.Unity.LauncherEntry",
 			"Update",
 			{},
-			base::Platform::MakeGlibVariant(std::tuple{
+			Glib::create_variant(std::tuple{
 				launcherUrl,
 				dbusUnityProperties,
 			}));

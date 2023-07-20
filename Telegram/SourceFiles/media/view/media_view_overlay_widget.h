@@ -19,12 +19,18 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "data/data_cloud_themes.h" // Data::CloudTheme.
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_open_common.h"
+#include "media/stories/media_stories_delegate.h"
 
 class History;
+
+namespace anim {
+enum class activation : uchar;
+} // namespace anim
 
 namespace Data {
 class PhotoMedia;
 class DocumentMedia;
+struct StoriesContext;
 } // namespace Data
 
 namespace Ui {
@@ -32,6 +38,7 @@ class PopupMenu;
 class LinkButton;
 class RoundButton;
 class RpWindow;
+class LayerManager;
 } // namespace Ui
 
 namespace Ui::GL {
@@ -44,23 +51,29 @@ namespace Platform {
 class OverlayWidgetHelper;
 } // namespace Platform
 
-namespace Window {
-namespace Theme {
+namespace Window::Theme {
 struct Preview;
-} // namespace Theme
-} // namespace Window
+} // namespace Window::Theme
 
-namespace Media {
-namespace Player {
+namespace HistoryView::Reactions {
+class CachedIconFactory;
+} // namespace HistoryView::Reactions
+
+namespace Media::Player {
 struct TrackState;
-} // namespace Player
-namespace Streaming {
+} // namespace Media::Player
+
+namespace Media::Streaming {
 struct Information;
 struct Update;
 struct FrameWithInfo;
 enum class Error;
-} // namespace Streaming
-} // namespace Media
+} // namespace Media::Streaming
+
+namespace Media::Stories {
+class View;
+struct ContentLayout;
+} // namespace Media::Stories
 
 namespace Media::View {
 
@@ -69,7 +82,8 @@ class Pip;
 
 class OverlayWidget final
 	: public ClickHandlerHost
-	, private PlaybackControls::Delegate {
+	, private PlaybackControls::Delegate
+	, private Stories::Delegate {
 public:
 	OverlayWidget();
 	~OverlayWidget();
@@ -95,7 +109,7 @@ public:
 
 	//void leaveToChildEvent(QEvent *e, QWidget *child) override {
 	//	// e -- from enterEvent() of child TWidget
-	//	updateOverState(OverNone);
+	//	updateOverState(Over::None);
 	//}
 	//void enterFromChildEvent(QEvent *e, QWidget *child) override {
 	//	// e -- from leaveEvent() of child TWidget
@@ -119,25 +133,32 @@ public:
 	rpl::lifetime &lifetime();
 
 private:
+	class Show;
 	struct Streamed;
 	struct PipWrap;
+	struct ItemContext;
+	struct StoriesContext;
 	class Renderer;
 	class RendererSW;
 	class RendererGL;
 
 	// If changing, see paintControls()!
-	enum OverState {
-		OverNone,
-		OverLeftNav,
-		OverRightNav,
-		OverHeader,
-		OverName,
-		OverDate,
-		OverSave,
-		OverRotate,
-		OverMore,
-		OverIcon,
-		OverVideo,
+	enum class Over {
+		None,
+		Left,
+		Right,
+		LeftStories,
+		RightStories,
+		Header,
+		Name,
+		Date,
+		Save,
+		Share,
+		Rotate,
+		More,
+		Icon,
+		Video,
+		Caption,
 	};
 	struct Entity {
 		std::variant<
@@ -156,6 +177,12 @@ private:
 		QRectF rect;
 		qreal rotation = 0.;
 		qreal controlsOpacity = 0.;
+
+		// Stories.
+		qreal fade = 0.;
+		int bottomShadowSkip = 0;
+		int roundRadius = 0;
+		bool topShadowShown = false;
 	};
 	struct StartStreaming {
 		StartStreaming() : continueStreaming(false), startTime(0) {
@@ -217,6 +244,27 @@ private:
 	void playbackPauseMusic();
 	void switchToPip();
 
+	not_null<Ui::RpWidget*> storiesWrap() override;
+	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
+	auto storiesStickerOrEmojiChosen()
+		-> rpl::producer<ChatHelpers::FileChosen> override;
+	auto storiesCachedReactionIconFactory()
+		-> HistoryView::Reactions::CachedIconFactory & override;
+	void storiesRedisplay(not_null<Data::Story*> story) override;
+	void storiesJumpTo(
+		not_null<Main::Session*> session,
+		FullStoryId id,
+		Data::StoriesContext context) override;
+	void storiesClose() override;
+	bool storiesPaused() override;
+	rpl::producer<bool> storiesLayerShown() override;
+	void storiesTogglePaused(bool paused) override;
+	float64 storiesSiblingOver(Stories::SiblingType type) override;
+	void storiesRepaint() override;
+	void storiesVolumeToggle() override;
+	void storiesVolumeChanged(float64 volume) override;
+	void storiesVolumeChangeFinished() override;
+
 	void hideControls(bool force = false);
 	void subscribeToScreenGeometry();
 
@@ -234,7 +282,12 @@ private:
 	void showDropdown();
 	void handleTouchTimer();
 	void handleDocumentClick();
-	void updateImage();
+
+	void showSaveMsgToast(const QString &path, auto phrase);
+	void showSaveMsgToastWith(
+		const QString &path,
+		const TextWithEntities &text);
+	void updateSaveMsg();
 
 	void clearBeforeHide();
 	void clearAfterHide();
@@ -264,14 +317,12 @@ private:
 	Entity entityForItemId(const FullMsgId &itemId) const;
 	bool moveToEntity(const Entity &entity, int preloadDelta = 0);
 
-	struct ItemContext {
-		not_null<HistoryItem*> item;
-		MsgId topicRootId = 0;
-	};
 	void setContext(std::variant<
 		v::null_t,
 		ItemContext,
-		not_null<PeerData*>> context);
+		not_null<PeerData*>,
+		StoriesContext> context);
+	void setStoriesPeer(PeerData *peer);
 
 	void refreshLang();
 	void showSaveMsgFile();
@@ -312,6 +363,7 @@ private:
 	void updateDocSize();
 	void updateControls();
 	void updateControlsGeometry();
+	void updateNavigationControlsGeometry();
 
 	using MenuCallback = Fn<void(
 		const QString &,
@@ -323,12 +375,15 @@ private:
 	void resizeContentByScreenSize();
 	void recountSkipTop();
 
-	void displayPhoto(not_null<PhotoData*> photo);
+	void displayPhoto(
+		not_null<PhotoData*> photo,
+		anim::activation activation = anim::activation::normal);
 	void displayDocument(
 		DocumentData *document,
+		anim::activation activation = anim::activation::normal,
 		const Data::CloudTheme &cloud = Data::CloudTheme(),
 		const StartStreaming &startStreaming = StartStreaming());
-	void displayFinished();
+	void displayFinished(anim::activation activation);
 	void redisplayContent();
 	void findCurrent();
 
@@ -363,6 +418,8 @@ private:
 	[[nodiscard]] int finalContentRotation() const;
 	[[nodiscard]] QRect finalContentRect() const;
 	[[nodiscard]] ContentGeometry contentGeometry() const;
+	[[nodiscard]] ContentGeometry storiesContentGeometry(
+		const Stories::ContentLayout &layout) const;
 	void updateContentRect();
 	void contentSizeChanged();
 
@@ -424,9 +481,9 @@ private:
 		bool nonbright = false) const;
 	[[nodiscard]] bool isSaveMsgShown() const;
 
-	void updateOverRect(OverState state);
-	bool updateOverState(OverState newState);
-	float64 overLevel(OverState control) const;
+	void updateOverRect(Over state);
+	bool updateOverState(Over newState);
+	float64 overLevel(Over control) const;
 
 	void checkGroupThumbsAnimation();
 	void initGroupThumbs();
@@ -442,7 +499,7 @@ private:
 	void applyVideoSize();
 	[[nodiscard]] bool videoShown() const;
 	[[nodiscard]] QSize videoSize() const;
-	[[nodiscard]] bool videoIsGifOrUserpic() const;
+	[[nodiscard]] bool streamingRequiresControls() const;
 	[[nodiscard]] QImage videoFrame() const; // ARGB (changes prepare format)
 	[[nodiscard]] QImage currentVideoFrameImage() const; // RGB (may convert)
 	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const; // YUV
@@ -461,6 +518,7 @@ private:
 
 	[[nodiscard]] bool topShadowOnTheRight() const;
 	void applyHideWindowWorkaround();
+	[[nodiscard]] ClickHandlerPtr ensureCaptionExpandLink();
 
 	Window::SessionController *findWindow(bool switchTo = true) const;
 
@@ -484,6 +542,7 @@ private:
 	rpl::lifetime _sessionLifetime;
 	PhotoData *_photo = nullptr;
 	DocumentData *_document = nullptr;
+	QString _documentLoadingTo;
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	base::flat_set<std::shared_ptr<Data::PhotoMedia>> _preloadPhotos;
@@ -501,11 +560,13 @@ private:
 	QRect _rightNav, _rightNavOver, _rightNavIcon;
 	QRect _headerNav, _nameNav, _dateNav;
 	QRect _rotateNav, _rotateNavOver, _rotateNavIcon;
+	QRect _shareNav, _shareNavOver, _shareNavIcon;
 	QRect _saveNav, _saveNavOver, _saveNavIcon;
 	QRect _moreNav, _moreNavOver, _moreNavIcon;
 	bool _leftNavVisible = false;
 	bool _rightNavVisible = false;
 	bool _saveVisible = false;
+	bool _shareVisible = false;
 	bool _rotateVisible = false;
 	bool _headerHasLink = false;
 	QString _dateText;
@@ -523,6 +584,10 @@ private:
 	int _groupThumbsTop = 0;
 	Ui::Text::String _caption;
 	QRect _captionRect;
+	ClickHandlerPtr _captionExpandLink;
+	bool _captionShownFull = false;
+	bool _captionFitsIfExpanded = false;
+	bool _captionExpanded = false;
 
 	int _width = 0;
 	int _height = 0;
@@ -550,6 +615,15 @@ private:
 	std::unique_ptr<PipWrap> _pip;
 	int _streamedCreated = 0;
 	bool _showAsPip = false;
+
+	std::unique_ptr<Stories::View> _stories;
+	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
+	std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
+	std::shared_ptr<Show> _cachedShow;
+	rpl::event_stream<> _storiesChanged;
+	Main::Session *_storiesSession = nullptr;
+	rpl::event_stream<ChatHelpers::FileChosen> _storiesStickerOrEmojiChosen;
+	std::unique_ptr<Ui::LayerManager> _layerBg;
 
 	const style::icon *_docIcon = nullptr;
 	style::color _docIconColor;
@@ -592,8 +666,8 @@ private:
 
 	mtpRequestId _loadRequest = 0;
 
-	OverState _over = OverNone;
-	OverState _down = OverNone;
+	Over _over = Over::None;
+	Over _down = Over::None;
 	QPoint _lastAction, _lastMouseMovePos;
 	bool _ignoringDropdown = false;
 
@@ -625,15 +699,14 @@ private:
 
 	QString _saveMsgFilename;
 	QRect _saveMsg;
-	QImage _saveMsgImage;
 	Ui::Text::String _saveMsgText;
 	SavePhotoVideo _savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 	// _saveMsgAnimation -> _saveMsgTimer -> _saveMsgAnimation.
 	Ui::Animations::Simple _saveMsgAnimation;
 	base::Timer _saveMsgTimer;
 
-	base::flat_map<OverState, crl::time> _animations;
-	base::flat_map<OverState, anim::value> _animationOpacities;
+	base::flat_map<Over, crl::time> _animations;
+	base::flat_map<Over, anim::value> _animationOpacities;
 
 	rpl::event_stream<Media::Player::TrackState> _touchbarTrackState;
 	rpl::event_stream<TouchBarItemType> _touchbarDisplay;

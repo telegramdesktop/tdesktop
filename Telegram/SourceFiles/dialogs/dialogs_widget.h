@@ -11,7 +11,6 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/scroll_area.h"
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
@@ -46,6 +45,7 @@ class GroupCallBar;
 class RequestsBar;
 class MoreChatsBar;
 class JumpDownButton;
+class ElasticScroll;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
@@ -55,6 +55,11 @@ class SessionController;
 class ConnectionState;
 struct SectionShow;
 } // namespace Window
+
+namespace Dialogs::Stories {
+class List;
+struct Content;
+} // namespace Dialogs::Stories
 
 namespace Dialogs {
 
@@ -162,6 +167,9 @@ private:
 	void setupMoreChatsBar();
 	void setupDownloadBar();
 	void setupShortcuts();
+	void setupStories();
+	void storiesToggleExplicitExpand(bool expand);
+	void trackScroll(not_null<Ui::RpWidget*> widget);
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
 	bool setSearchInChat(Key chat, PeerData *from = nullptr);
@@ -171,8 +179,10 @@ private:
 	void clearSearchCache();
 	void setSearchQuery(const QString &query);
 	void updateControlsVisibility(bool fast = false);
-	void updateLockUnlockVisibility();
+	void updateLockUnlockVisibility(
+		anim::type animated = anim::type::instant);
 	void updateLoadMoreChatsVisibility();
+	void updateStoriesVisibility();
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
@@ -209,11 +219,13 @@ private:
 		mtpRequestId requestId);
 	void peopleFailed(const MTP::Error &error, mtpRequestId requestId);
 
-	void scrollToTop();
+	void scrollToDefault(bool verytop = false);
+	void scrollToDefaultChecked(bool verytop = false);
 	void setupScrollUpButton();
 	void updateScrollUpVisibility();
 	void startScrollUpButtonAnimation(bool shown);
 	void updateScrollUpPosition();
+	void updateLockUnlockPosition();
 
 	MTP::Sender _api;
 
@@ -234,7 +246,7 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
-	object_ptr<Ui::IconButton> _lockUnlock;
+	object_ptr< Ui::FadeWrapScaled<Ui::IconButton>> _lockUnlock;
 
 	std::unique_ptr<Ui::MoreChatsBar> _moreChatsBar;
 
@@ -243,7 +255,7 @@ private:
 	std::unique_ptr<Ui::RequestsBar> _forumRequestsBar;
 	std::unique_ptr<HistoryView::ContactStatus> _forumReportBar;
 
-	object_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<InnerWidget> _inner;
 	class BottomButton;
 	object_ptr<BottomButton> _updateTelegram = { nullptr };
@@ -252,6 +264,7 @@ private:
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	Ui::Animations::Simple _scrollToAnimation;
+	int _scrollAnimationTo = 0;
 	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 	rpl::variable<float64> _shownProgressValue;
 
@@ -266,6 +279,15 @@ private:
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromAuthor = nullptr;
 	QString _lastFilterText;
+
+	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
+	Fn<void()> _updateScrollGeometryCached;
+	std::unique_ptr<Stories::List> _stories;
+	Ui::Animations::Simple _storiesExplicitExpandAnimation;
+	rpl::variable<int> _storiesExplicitExpandValue = 0;
+	int _storiesExplicitExpandScrollTop = 0;
+	int _aboveScrollAdded = 0;
+	bool _storiesExplicitExpand = false;
 
 	base::Timer _searchTimer;
 

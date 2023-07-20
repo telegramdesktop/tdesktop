@@ -35,6 +35,7 @@ struct TopicJumpCache;
 
 namespace Dialogs {
 
+class Entry;
 enum class SortMode;
 
 [[nodiscard]] QRect CornerBadgeTTLRect(int photoSize);
@@ -46,9 +47,9 @@ public:
 
 	virtual void paintUserpic(
 		Painter &p,
-		not_null<PeerData*> peer,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		History *historyForCornerBadge,
 		const Ui::PaintContext &context) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
@@ -99,9 +100,9 @@ public:
 		Fn<void()> updateCallback = nullptr) const;
 	void paintUserpic(
 		Painter &p,
-		not_null<PeerData*> peer,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
-		History *historyForCornerBadge,
 		const Ui::PaintContext &context) const final override;
 
 	[[nodiscard]] bool lookupIsInTopicJump(int x, int y) const;
@@ -167,11 +168,13 @@ private:
 	struct CornerBadgeUserpic {
 		InMemoryKey key;
 		CornerLayersManager layersManager;
-		int paletteVersion = 0;
-		int frameIndex = -1;
-		bool active = false;
 		QImage frame;
 		QImage cacheTTL;
+		int frameIndex = -1;
+		uint32 paletteVersion : 17 = 0;
+		uint32 storiesCount : 7 = 0;
+		uint32 storiesUnreadCount : 7 = 0;
+		uint32 active : 1 = 0;
 	};
 
 	void setCornerBadgeShown(
@@ -180,7 +183,9 @@ private:
 	void ensureCornerBadgeUserpic() const;
 	static void PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
-		not_null<PeerData*> peer,
+		int framePadding,
+		not_null<Entry*> entry,
+		PeerData *peer,
 		Ui::VideoUserpic *videoUserpic,
 		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context);
@@ -189,9 +194,9 @@ private:
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
 	int _top = 0;
 	int _height = 0;
-	int _index : 30 = 0;
-	int _cornerBadgeShown : 1 = 0;
-	int _topicJumpRipple : 1 = 0;
+	uint32 _index : 30 = 0;
+	uint32 _cornerBadgeShown : 1 = 0;
+	uint32 _topicJumpRipple : 1 = 0;
 
 };
 

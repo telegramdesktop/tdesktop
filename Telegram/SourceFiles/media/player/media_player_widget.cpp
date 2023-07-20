@@ -632,7 +632,7 @@ void Widget::updateTimeText(const TrackState &state) {
 	} else if (state.length) {
 		display = state.length;
 	} else if (const auto song = document->song()) {
-		display = (song->duration * frequency);
+		display = (document->duration() * frequency) / 1000;
 	}
 
 	_lastDurationMs = (state.length * 1000LL) / frequency;

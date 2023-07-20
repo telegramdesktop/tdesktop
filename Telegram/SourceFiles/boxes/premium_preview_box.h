@@ -11,6 +11,10 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 
 class DocumentData;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 struct ReactionId;
 } // namespace Data
@@ -30,7 +34,7 @@ class Session;
 } // namespace Main
 
 void ShowStickerPreviewBox(
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<DocumentData*> document);
 
 void DoubledLimitsPreviewBox(
@@ -56,6 +60,11 @@ enum class PremiumPreview {
 
 void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
+	PremiumPreview section,
+	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
+
+void ShowPremiumPreviewBox(
+	std::shared_ptr<ChatHelpers::Show> show,
 	PremiumPreview section,
 	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
 

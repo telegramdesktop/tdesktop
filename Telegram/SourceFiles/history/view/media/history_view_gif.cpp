@@ -42,6 +42,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/spoiler_mess.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_streaming.h"
 #include "data/data_document.h"
 #include "data/data_file_click_handler.h"
@@ -90,6 +91,11 @@ Gif::Gif(
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
+	if (const auto media = realParent->media()) {
+		if (media->storyId()) {
+			_story = true;
+		}
+	}
 	setDocumentLinks(_data, realParent, [=] {
 		if (!_data->createMediaView()->canBePlayed(realParent)
 			|| !_data->isAnimation()
@@ -129,6 +135,7 @@ Gif::~Gif() {
 			_parent->checkHeavyPart();
 		}
 	}
+	togglePollingStory(false);
 }
 
 bool Gif::CanPlayInline(not_null<DocumentData*> document) {
@@ -1427,6 +1434,22 @@ void Gif::dataMediaCreated() const {
 		_dataMedia->videoThumbnailWanted(_realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);
+	togglePollingStory(true);
+}
+
+void Gif::togglePollingStory(bool enabled) const {
+	if (!_story || _pollingStory == enabled) {
+		return;
+	}
+	const auto polling = Data::Stories::Polling::Chat;
+	const auto media = _parent->data()->media();
+	const auto id = media ? media->storyId() : FullStoryId();
+	if (!enabled) {
+		_data->owner().stories().unregisterPolling(id, polling);
+	} else if (!_data->owner().stories().registerPolling(id, polling)) {
+		return;
+	}
+	_pollingStory = enabled;
 }
 
 bool Gif::uploading() const {
@@ -1441,7 +1464,9 @@ void Gif::hideSpoilers() {
 }
 
 bool Gif::needsBubble() const {
-	if (_data->isVideoMessage()) {
+	if (_story) {
+		return true;
+	} else if (_data->isVideoMessage()) {
 		return false;
 	} else if (!_caption.isEmpty()) {
 		return true;
@@ -1600,12 +1625,12 @@ void Gif::setStatusSize(int64 newSize) const {
 		_statusText = Ui::FormatDurationText(-newSize - 1);
 	} else if (_data->isVideoMessage()) {
 		_statusSize = newSize;
-		_statusText = Ui::FormatDurationText(_data->getDuration());
+		_statusText = Ui::FormatDurationText(_data->duration() / 1000);
 	} else {
 		File::setStatusSize(
 			newSize,
 			_data->size,
-			_data->isVideoFile() ? _data->getDuration() : -2,
+			_data->isVideoFile() ? (_data->duration() / 1000) : -2,
 			0);
 	}
 }
@@ -1638,7 +1663,7 @@ void Gif::updateStatusText() const {
 			}
 			statusSize = -1 - int((state.length - position) / state.frequency + 1);
 		} else {
-			statusSize = -1 - _data->getDuration();
+			statusSize = -1 - (_data->duration() / 1000);
 		}
 	}
 	if (statusSize != _statusSize) {
@@ -1679,6 +1704,7 @@ void Gif::unloadHeavyPart() {
 	_thumbCache = QImage();
 	_videoThumbnailFrame = nullptr;
 	_caption.unloadPersistentAnimation();
+	togglePollingStory(false);
 }
 
 void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
@@ -1808,6 +1834,7 @@ void Gif::setStreamed(std::unique_ptr<Streamed> value) {
 	_streamed = std::move(value);
 	if (set) {
 		history()->owner().registerHeavyViewPart(_parent);
+		togglePollingStory(true);
 	} else if (removed) {
 		_parent->checkHeavyPart();
 	}

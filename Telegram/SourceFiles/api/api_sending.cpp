@@ -86,10 +86,7 @@ void SendExistingMedia(
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (message.action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-		if (message.action.topicRootId) {
-			sendFlags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
-		}
+		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, message.action.options);
@@ -150,13 +147,11 @@ void SendExistingMedia(
 		histories.sendPreparedMessage(
 			history,
 			message.action.replyTo,
-			message.action.topicRootId,
 			randomId,
 			Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 				MTP_flags(sendFlags),
 				peer->input,
 				Data::Histories::ReplyToPlaceholder(),
-				Data::Histories::TopicRootPlaceholder(),
 				inputMedia(),
 				MTP_string(captionText),
 				MTP_long(randomId),
@@ -273,10 +268,7 @@ bool SendDice(MessageToSend &message) {
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (message.action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-		if (message.action.topicRootId) {
-			sendFlags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
-		}
+		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
 	const auto replyHeader = NewMessageReplyHeader(message.action);
 	const auto anonymousPost = peer->amAnonymous();
@@ -320,13 +312,11 @@ bool SendDice(MessageToSend &message) {
 	histories.sendPreparedMessage(
 		history,
 		message.action.replyTo,
-		message.action.topicRootId,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
-			Data::Histories::TopicRootPlaceholder(),
 			MTP_inputMediaDice(MTP_string(emoji)),
 			MTP_string(),
 			MTP_long(randomId),
@@ -378,12 +368,12 @@ void SendConfirmedFile(
 
 	if (!isEditing) {
 		const auto histories = &session->data().histories();
-		file->to.replyTo = histories->convertTopicReplyTo(
+		file->to.replyTo.msgId = histories->convertTopicReplyToId(
 			history,
-			file->to.replyTo);
-		file->to.topicRootId = histories->convertTopicReplyTo(
+			file->to.replyTo.msgId);
+		file->to.replyTo.topicRootId = histories->convertTopicReplyToId(
 			history,
-			file->to.topicRootId);
+			file->to.replyTo.topicRootId);
 	}
 
 	session->uploader().upload(newId, file);
@@ -391,7 +381,6 @@ void SendConfirmedFile(
 	auto action = SendAction(history, file->to.options);
 	action.clearDraft = false;
 	action.replyTo = file->to.replyTo;
-	action.topicRootId = file->to.topicRootId;
 	action.generateLocal = true;
 	action.replaceMediaOf = file->to.replaceMediaOf;
 	session->api().sendAction(action);
@@ -453,11 +442,13 @@ void SendConfirmedFile(
 				MTP_flags(Flag::f_document
 					| (file->spoiler ? Flag::f_spoiler : Flag())),
 				file->document,
+				MTPDocument(), // alt_document
 				MTPint());
 		} else if (file->type == SendMediaType::Audio) {
 			return MTP_messageMediaDocument(
 				MTP_flags(MTPDmessageMediaDocument::Flag::f_document),
 				file->document,
+				MTPDocument(), // alt_document
 				MTPint());
 		} else {
 			Unexpected("Type in sendFilesConfirmed.");

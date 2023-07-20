@@ -82,6 +82,7 @@ public:
 	bool listScrollTo(int top, bool syntetic = true) override;
 	void listCancelRequest() override;
 	void listDeleteRequest() override;
+	void listTryProcessKeyInput(not_null<QKeyEvent*> e) override;
 	rpl::producer<Data::MessagesSlice> listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,

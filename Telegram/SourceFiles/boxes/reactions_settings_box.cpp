@@ -62,7 +62,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPstring(), // bot placeholder
 		MTPstring(), // lang code
 		MTPEmojiStatus(),
-		MTPVector<MTPUsername>()));
+		MTPVector<MTPUsername>(),
+		MTPint())); // stories_max_id
 	return peerId;
 }
 
@@ -76,11 +77,11 @@ AdminLog::OwnedItem GenerateItem(
 
 	const auto item = history->addNewLocalMessage(
 		history->nextNonHistoryEntryId(),
-		MessageFlag::FakeHistoryItem
+		(MessageFlag::FakeHistoryItem
 			| MessageFlag::HasFromId
-			| MessageFlag::HasReplyInfo,
+			| MessageFlag::HasReplyInfo),
 		UserId(), // via
-		replyTo,
+		FullReplyTo{ .msgId = replyTo },
 		base::unixtime::now(), // date
 		from,
 		QString(), // postAuthor

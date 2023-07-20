@@ -20,6 +20,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "calls/calls_instance.h"
 #include "core/application.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
 

@@ -420,7 +420,8 @@ bool ProcessCurrent(
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
 		Fn<void()> open,
-		Fn<bool()> videoPaused) {
+		Fn<bool()> videoPaused,
+		const style::ShortInfoBox *stOverride) {
 	const auto type = peer->isUser()
 		? PeerShortInfoType::User
 		: peer->isBroadcast()
@@ -432,7 +433,8 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		FieldsValue(peer),
 		StatusValue(peer),
 		std::move(userpic.value),
-		std::move(videoPaused));
+		std::move(videoPaused),
+		stOverride);
 
 	result->openRequests(
 	) | rpl::start_with_next(open, result->lifetime());
@@ -445,7 +447,8 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
-		not_null<Window::SessionNavigation*> navigation) {
+		not_null<Window::SessionNavigation*> navigation,
+		const style::ShortInfoBox *stOverride) {
 	const auto open = [=] { navigation->showPeerHistory(peer); };
 	const auto videoIsPaused = [=] {
 		return navigation->parentController()->isGifPausedAtLeastFor(
@@ -454,7 +457,8 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 	return PrepareShortInfoBox(
 		peer,
 		open,
-		videoIsPaused);
+		videoIsPaused,
+		stOverride);
 }
 
 rpl::producer<QString> PrepareShortInfoStatus(not_null<PeerData*> peer) {

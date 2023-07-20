@@ -112,10 +112,16 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 
 } // namespace
 
+bool EditPrivacyController::hasOption(Option option) const {
+	return (option != Option::CloseFriends);
+}
+
 QString EditPrivacyController::optionLabel(Option option) const {
 	switch (option) {
 	case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);
 	case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);
+	case Option::CloseFriends:
+		return tr::lng_edit_privacy_close_friends(tr::now);
 	case Option::Nobody: return tr::lng_edit_privacy_nobody(tr::now);
 	}
 	Unexpected("Option value in optionsLabelKey.");
@@ -182,10 +188,12 @@ bool EditPrivacyBox::showExceptionLink(Exception exception) const {
 	switch (exception) {
 	case Exception::Always:
 		return (_value.option == Option::Contacts)
+			|| (_value.option == Option::CloseFriends)
 			|| (_value.option == Option::Nobody);
 	case Exception::Never:
 		return (_value.option == Option::Everyone)
-			|| (_value.option == Option::Contacts);
+			|| (_value.option == Option::Contacts)
+			|| (_value.option == Option::CloseFriends);
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -326,6 +334,7 @@ void EditPrivacyBox::setupContent() {
 		{ 0, st::settingsPrivacySkipTop, 0, 0 });
 	addOptionRow(Option::Everyone);
 	addOptionRow(Option::Contacts);
+	addOptionRow(Option::CloseFriends);
 	addOptionRow(Option::Nobody);
 	const auto warning = addLabelOrDivider(
 		content,
