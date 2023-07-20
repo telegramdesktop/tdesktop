@@ -43,6 +43,7 @@ struct VoiceRecordBarDescriptor {
 	not_null<Ui::RpWidget*> outerContainer;
 	std::shared_ptr<ChatHelpers::Show> show;
 	std::shared_ptr<Ui::SendButton> send;
+	QString customCancelText;
 	const style::RecordBar *stOverride = nullptr;
 	int recorderHeight = 0;
 	bool lockFromBottom = false;

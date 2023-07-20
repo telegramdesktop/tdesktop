@@ -996,6 +996,7 @@ ComposeControls::ComposeControls(
 		.outerContainer = parent,
 		.show = _show,
 		.send = _send,
+		.customCancelText = descriptor.voiceCustomCancelText,
 		.stOverride = &_st.record,
 		.recorderHeight = st::historySendSize.height(),
 		.lockFromBottom = descriptor.voiceLockFromBottom,
@@ -2969,8 +2970,8 @@ bool ComposeControls::isRecordingPressed() const {
 				&& _send->isDown()));
 }
 
-rpl::producer<bool> ComposeControls::recordingValue() const {
-	return _recording.value();
+rpl::producer<bool> ComposeControls::recordingActiveValue() const {
+	return _voiceRecordBar->shownValue();
 }
 
 rpl::producer<bool> ComposeControls::hasSendTextValue() const {

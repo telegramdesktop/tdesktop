@@ -342,11 +342,15 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 	};
 	if (_menuPlaceholderCount > 0) {
 		const auto i = _menuEntries.end() - (_menuPlaceholderCount--);
+		auto data = prepare(i->view);
 		i->peer = peer;
 		i->date = date;
-		i->action->setData(prepare(i->view));
+		i->callback = data.callback;
+		i->action->setData(std::move(data));
 	} else {
 		auto view = Ui::PeerUserpicView();
+		auto data = prepare(view);
+		auto callback = data.callback;
 		auto action = base::make_unique_q<Ui::WhoReactedEntryAction>(
 			_menu->menu(),
 			nullptr,
@@ -358,6 +362,7 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 			.action = raw,
 			.peer = peer,
 			.date = date,
+			.callback = std::move(callback),
 			.view = std::move(view),
 		});
 	}
@@ -440,7 +445,7 @@ void RecentViews::subscribeToMenuUserpicsLoading(
 					.text = peer->name(),
 					.date = entry.date,
 					.userpic = std::move(userpic),
-					.callback = [] {},
+					.callback = entry.callback,
 				});
 				entry.key = key;
 				if (!peer->hasUserpic() || !peer->useEmptyUserpic(view)) {

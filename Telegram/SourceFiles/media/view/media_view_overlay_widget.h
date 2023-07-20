@@ -690,6 +690,7 @@ private:
 	base::Timer _dropdownShowTimer;
 
 	bool _receiveMouse = true;
+	bool _processingKeyPress = false;
 
 	bool _touchPress = false;
 	bool _touchMove = false;

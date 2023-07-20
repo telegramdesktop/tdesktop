@@ -86,6 +86,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 		.sendMenuType = SendMenu::Type::SilentOnly,
 		.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
 		.customPlaceholder = tr::lng_story_reply_ph(),
+		.voiceCustomCancelText = tr::lng_record_cancel_stories(tr::now),
 		.voiceLockFromBottom = true,
 		.features = {
 			.sendAs = false,
@@ -670,7 +671,7 @@ rpl::producer<bool> ReplyArea::activeValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
 		_controls->focusedValue(),
-		_controls->recordingValue(),
+		_controls->recordingActiveValue(),
 		_controls->tabbedPanelShownValue(),
 		_choosingAttach.value(),
 		_1 || _2 || _3 || _4
@@ -679,6 +680,10 @@ rpl::producer<bool> ReplyArea::activeValue() const {
 
 bool ReplyArea::ignoreWindowMove(QPoint position) const {
 	return _controls->isRecordingPressed();
+}
+
+void ReplyArea::tryProcessKeyInput(not_null<QKeyEvent*> e) {
+	_controls->tryProcessKeyInput(e);
 }
 
 void ReplyArea::showPremiumToast(not_null<DocumentData*> emoji) {

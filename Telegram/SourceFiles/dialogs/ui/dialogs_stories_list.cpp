@@ -233,7 +233,6 @@ List::Layout List::computeLayout(float64 expanded) const {
 	const auto smallCount = std::min(
 		kSmallThumbsShown,
 		itemsCount - smallSkip);
-	const auto smallWidth = st.photo + (smallCount - 1) * st.shift;
 	const auto leftSmall = st.left - (smallSkip ? st.shift : 0);
 	const auto leftFull = full.left - _scrollLeft + skipSide;
 	const auto startIndexFull = std::max(-leftFull, 0) / singleFull;
@@ -568,14 +567,17 @@ void List::validateSegments(
 }
 
 void List::validateName(not_null<Item*> item) {
-	const auto &color = st::dialogsNameFg;
+	const auto &element = item->element;
+	const auto &color = (element.unreadCount || element.skipSmall)
+		? st::dialogsNameFg
+		: st::windowSubTextFg;
 	if (!item->nameCache.isNull() && item->nameCacheColor == color->c) {
 		return;
 	}
 	const auto &full = _st.full;
 	const auto &font = full.nameStyle.font;
 	const auto available = AvailableNameWidth(_st);
-	const auto text = Ui::Text::String(full.nameStyle, item->element.name);
+	const auto text = Ui::Text::String(full.nameStyle, element.name);
 	const auto ratio = style::DevicePixelRatio();
 	item->nameCacheColor = color->c;
 	item->nameCache = QImage(
@@ -620,6 +622,7 @@ void List::mousePressEvent(QMouseEvent *e) {
 		return;
 	} else if (_state == State::Small) {
 		requestExpanded(true);
+		return;
 	} else if (_state != State::Full) {
 		return;
 	}

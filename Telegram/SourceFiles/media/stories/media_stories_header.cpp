@@ -235,14 +235,12 @@ void UserpicBadge::updateGeometry() {
 	return { Ui::FormatDateTime(whenFull) };
 }
 
-[[nodiscard]] TextWithEntities ComposeName(HeaderData data) {
-	auto result = Ui::Text::Bold(data.user->shortName());
-	if (data.fullCount) {
-		result.append(QString::fromUtf8(" \xE2\x80\xA2 %1/%2"
-		).arg(data.fullIndex + 1
-		).arg(data.fullCount));
-	}
-	return result;
+[[nodiscard]] QString ComposeCounter(HeaderData data) {
+	const auto index = data.fullIndex + 1;
+	const auto count = data.fullCount;
+	return count
+		? QString::fromUtf8(" \xE2\x80\xA2 %1/%2").arg(index).arg(count)
+		: QString();
 }
 
 [[nodiscard]] Timestamp ComposeDetails(HeaderData data, TimeId now) {
@@ -267,17 +265,23 @@ void Header::show(HeaderData data) {
 	if (_data == data) {
 		return;
 	}
-	const auto userChanged = !_data
-		|| (_data->user != data.user);
-	const auto nameDataChanged = userChanged
-		|| !_name
-		|| (_data->fullCount != data.fullCount)
-		|| (data.fullCount && _data->fullIndex != data.fullIndex);
+	const auto userChanged = !_data || (_data->user != data.user);
 	_data = data;
+	const auto updateInfoGeometry = [=] {
+		if (_name && _date) {
+			const auto namex = st::storiesHeaderNamePosition.x();
+			const auto namer = namex + _name->width();
+			const auto datex = st::storiesHeaderDatePosition.x();
+			const auto dater = datex + _date->width();
+			const auto r = std::max(namer, dater);
+			_info->setGeometry({ 0, 0, r, _widget->height() });
+		}
+	};
 	if (userChanged) {
 		_volume = nullptr;
 		_date = nullptr;
 		_name = nullptr;
+		_counter = nullptr;
 		_userpic = nullptr;
 		_info = nullptr;
 		_privacy = nullptr;
@@ -286,10 +290,12 @@ void Header::show(HeaderData data) {
 		const auto parent = _controller->wrap();
 		auto widget = std::make_unique<Ui::RpWidget>(parent);
 		const auto raw = widget.get();
+
 		_info = std::make_unique<Ui::AbstractButton>(raw);
 		_info->setClickedCallback([=] {
 			_controller->uiShow()->show(PrepareShortInfoBox(_data->user));
 		});
+
 		_userpic = std::make_unique<Ui::UserpicButton>(
 			raw,
 			data.user,
@@ -299,6 +305,23 @@ void Header::show(HeaderData data) {
 		_userpic->move(
 			st::storiesHeaderMargin.left(),
 			st::storiesHeaderMargin.top());
+
+		_name = std::make_unique<Ui::FlatLabel>(
+			raw,
+			rpl::single(data.user->isSelf()
+				? tr::lng_stories_my_name(tr::now)
+				: data.user->shortName()),
+			st::storiesHeaderName);
+		_name->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_name->setOpacity(kNameOpacity);
+		_name->show();
+		_name->move(st::storiesHeaderNamePosition);
+
+		rpl::combine(
+			_name->widthValue(),
+			raw->heightValue()
+		) | rpl::start_with_next(updateInfoGeometry, _name->lifetime());
+
 		raw->show();
 		_widget = std::move(widget);
 
@@ -306,26 +329,6 @@ void Header::show(HeaderData data) {
 		) | rpl::start_with_next([=](const Layout &layout) {
 			raw->setGeometry(layout.header);
 		}, raw->lifetime());
-	}
-	if (nameDataChanged) {
-		_name = std::make_unique<Ui::FlatLabel>(
-			_widget.get(),
-			rpl::single(ComposeName(data)),
-			st::storiesHeaderName);
-		_name->setAttribute(Qt::WA_TransparentForMouseEvents);
-		_name->setOpacity(kNameOpacity);
-		_name->move(st::storiesHeaderNamePosition);
-		_name->show();
-
-		rpl::combine(
-			_name->widthValue(),
-			_widget->heightValue()
-		) | rpl::start_with_next([=](int width, int height) {
-			if (_date) {
-				_info->setGeometry(
-					{ 0, 0, std::max(width, _date->width()), height });
-			}
-		}, _name->lifetime());
 	}
 	auto timestamp = ComposeDetails(data, base::unixtime::now());
 	_date = std::make_unique<Ui::FlatLabel>(
@@ -338,13 +341,23 @@ void Header::show(HeaderData data) {
 	_date->move(st::storiesHeaderDatePosition);
 
 	_date->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		_info->setGeometry(
-			{ 0, 0, std::max(width, _name->width()), _widget->height() });
-	}, _name->lifetime());
+	) | rpl::start_with_next(updateInfoGeometry, _date->lifetime());
+
+	auto counter = ComposeCounter(data);
+	if (!counter.isEmpty()) {
+		_counter = std::make_unique<Ui::FlatLabel>(
+			_widget.get(),
+			std::move(counter),
+			st::storiesHeaderDate);
+		_counter->resizeToNaturalWidth(_counter->naturalWidth());
+		_counter->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_counter->setOpacity(kNameOpacity);
+		_counter->show();
+	} else {
+		_counter = nullptr;
+	}
 
 	_privacy = MakePrivacyBadge(_userpic.get(), data.privacy, [=] {
-
 	});
 
 	if (data.video) {
@@ -365,6 +378,41 @@ void Header::show(HeaderData data) {
 		_playPause = nullptr;
 		_volumeToggle = nullptr;
 	}
+
+	rpl::combine(
+		_widget->widthValue(),
+		_counter ? _counter->widthValue() : rpl::single(0),
+		_dateUpdated.events_starting_with_copy(rpl::empty)
+	) | rpl::start_with_next([=](int outer, int counter, auto) {
+		const auto right = _playPause
+			? _playPause->x()
+			: (outer - st::storiesHeaderMargin.right());
+		const auto nameLeft = st::storiesHeaderNamePosition.x();
+		const auto nameNatural = _name->naturalWidth();
+		if (counter) {
+			counter += st::normalFont->spacew;
+		}
+		const auto nameAvailable = right - nameLeft - counter;
+		auto counterLeft = nameLeft;
+		if (nameAvailable <= 0) {
+			_name->hide();
+		} else {
+			_name->show();
+			_name->resizeToNaturalWidth(nameAvailable);
+			counterLeft += _name->width() + st::normalFont->spacew;
+		}
+		if (_counter) {
+			_counter->move(counterLeft, _name->y());
+		}
+		const auto dateLeft = st::storiesHeaderDatePosition.x();
+		const auto dateAvailable = right - dateLeft;
+		if (dateAvailable <= 0) {
+			_date->hide();
+		} else {
+			_date->show();
+			_date->resizeToNaturalWidth(dateAvailable);
+		}
+	}, _date->lifetime());
 
 	if (timestamp.changes > 0) {
 		_dateUpdateTimer.callOnce(timestamp.changes * crl::time(1000));
@@ -399,14 +447,17 @@ void Header::createPlayPause() {
 		} else if (type == QEvent::MouseButtonRelease) {
 			const auto down = base::take(state->down);
 			if (down && state->over) {
-				_controller->togglePaused(_pauseState != PauseState::Paused);
+				const auto paused = (_pauseState == PauseState::Paused)
+					|| (_pauseState == PauseState::InactivePaused);
+				_controller->togglePaused(!paused);
 			}
 		}
 	}, lifetime);
 
 	_playPause->paintRequest() | rpl::start_with_next([=] {
 		auto p = QPainter(_playPause.get());
-		const auto paused = (_pauseState == PauseState::Paused);
+		const auto paused = (_pauseState == PauseState::Paused)
+			|| (_pauseState == PauseState::InactivePaused);
 		const auto icon = paused
 			? &st::storiesPlayIcon
 			: &st::storiesPauseIcon;
@@ -496,13 +547,7 @@ void Header::createVolumeToggle() {
 			}
 		}
 	}, lifetime);
-	_controller->layoutValue(
-	) | rpl::map([](const Layout &layout) {
-		return (layout.headerLayout == HeaderLayout::Outside);
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool horizontal) {
-		rebuildVolumeControls(_volume->entity(), horizontal);
-	}, lifetime);
+	rebuildVolumeControls(_volume->entity(), false);
 
 	rpl::combine(
 		_widget->positionValue(),
@@ -570,7 +615,6 @@ void Header::rebuildVolumeControls(
 	});
 	slider->setValue(_controller->currentVolume());
 
-	const auto skip = button->width() / 2;
 	const auto size = button->width()
 		+ st::storiesVolumeSize
 		+ st::storiesVolumeBottom;
@@ -623,7 +667,8 @@ void Header::updateVolumeIcon() {
 void Header::applyPauseState() {
 	Expects(_playPause != nullptr);
 
-	const auto inactive = (_pauseState == PauseState::Inactive);
+	const auto inactive = (_pauseState == PauseState::Inactive)
+		|| (_pauseState == PauseState::InactivePaused);
 	_playPause->setAttribute(Qt::WA_TransparentForMouseEvents, inactive);
 	if (inactive) {
 		QEvent e(QEvent::Leave);
@@ -649,6 +694,7 @@ void Header::updateDateText() {
 	}
 	auto timestamp = ComposeDetails(*_data, base::unixtime::now());
 	_date->setText(timestamp.text);
+	_dateUpdated.fire({});
 	if (timestamp.changes > 0) {
 		_dateUpdateTimer.callOnce(timestamp.changes * crl::time(1000));
 	}

@@ -83,6 +83,7 @@ public:
 	void togglePinnedRequested(bool pinned);
 
 	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
+	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

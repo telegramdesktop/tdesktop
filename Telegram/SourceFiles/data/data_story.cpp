@@ -276,7 +276,7 @@ bool Story::edited() const {
 }
 
 bool Story::canDownload() const {
-	return !forbidsForward() || _peer->isSelf();
+	return /*!forbidsForward() || */_peer->isSelf();
 }
 
 bool Story::canShare() const {

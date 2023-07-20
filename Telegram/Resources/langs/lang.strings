@@ -2062,6 +2062,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 "lng_send_as_premium_required" = "Subscribe to {link} to be able to comment on behalf of your channels in group chats.";
 "lng_send_as_premium_required_link" = "Telegram Premium";
 "lng_record_cancel" = "Release outside this field to cancel";
+"lng_record_cancel_stories" = "Release outside to cancel";
 "lng_record_lock_cancel_sure" = "Are you sure you want to stop recording and discard your voice message?";
 "lng_record_listen_cancel_sure" = "Are you sure you want to discard your recorded voice message?";
 "lng_record_lock_discard" = "Discard";

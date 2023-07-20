@@ -9,7 +9,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 
 #include "base/const_string.h"
 
-#define TDESKTOP_REQUESTED_ALPHA_VERSION (4008004005ULL)
+#define TDESKTOP_REQUESTED_ALPHA_VERSION (0ULL)
 
 #ifdef TDESKTOP_ALLOW_CLOSED_ALPHA
 #define TDESKTOP_ALPHA_VERSION TDESKTOP_REQUESTED_ALPHA_VERSION
@@ -22,7 +22,8 @@ constexpr auto AppId = "{4356CE01-4137-4C55-9F8B-FB4EEBB6EC0C}"_cs;
 constexpr auto AppNameOld = "exteraGram Win (Unofficial)"_cs;
 constexpr auto AppName = "exteraGram Desktop"_cs;
 constexpr auto AppFile = "exteraGram"_cs;
-constexpr auto AppVersion = 4008004;
-constexpr auto AppVersionStr = "4.8.4";
+constexpr auto AppVersion = 4008005;
+constexpr auto AppVersionStr = "4.8.5";
+
 constexpr auto AppBetaVersion = false;
 constexpr auto AppAlphaVersion = TDESKTOP_ALPHA_VERSION;

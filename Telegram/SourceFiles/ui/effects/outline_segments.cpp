@@ -30,7 +30,6 @@ void PaintOutlineSegments(
 		: (full / (count * 1.1));
 	const auto left = full - (separator * count);
 	const auto length = left / float64(count);
-	const auto step = length + separator;
 	const auto spin = separator * (1. - fromFullProgress);
 
 	auto start = 0. + (arc::kQuarterLength + (separator / 2)) + (3. * spin);

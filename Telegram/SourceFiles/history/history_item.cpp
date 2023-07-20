@@ -4825,7 +4825,7 @@ PreparedServiceText HistoryItem::prepareStoryMentionText() {
 	auto result = PreparedServiceText();
 	const auto peer = history()->peer;
 	result.links.push_back(peer->createOpenLink());
-	const auto phrase = (this->media() && this->media()->storyExpired())
+	const auto phrase = (this->media() && this->media()->storyExpired(true))
 		? (out()
 			? tr::lng_action_story_mention_me_unavailable
 			: tr::lng_action_story_mention_unavailable)

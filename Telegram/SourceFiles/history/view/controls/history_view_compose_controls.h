@@ -103,6 +103,7 @@ struct ComposeControlsDescriptor {
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
 	rpl::producer<QString> customPlaceholder;
+	QString voiceCustomCancelText;
 	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
 };
@@ -217,7 +218,7 @@ public:
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isRecordingPressed() const;
-	[[nodiscard]] rpl::producer<bool> recordingValue() const;
+	[[nodiscard]] rpl::producer<bool> recordingActiveValue() const;
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 
 	void applyCloudDraft();

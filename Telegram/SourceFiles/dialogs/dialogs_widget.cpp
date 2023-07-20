@@ -1075,17 +1075,50 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 		cancelSearch();
 		closeChildList(anim::type::instant);
 		controller()->closeForum();
-		const auto was = (_openedFolder != nullptr);
 		_openedFolder = folder;
 		_inner->changeOpenedFolder(folder);
-		storiesToggleExplicitExpand(false);
-		if (was != (_openedFolder != nullptr)) {
-			using List = Data::StorySourcesList;
-			_storiesContents.fire(Stories::ContentForSession(
-				&controller()->session(),
-				folder ? List::Hidden : List::NotHidden));
+		if (_stories) {
+			storiesExplicitCollapse();
 		}
 	}, (folder != nullptr), animated);
+}
+
+void Widget::storiesExplicitCollapse() {
+	if (_storiesExplicitExpand) {
+		storiesToggleExplicitExpand(false);
+	} else if (_stories) {
+		using Type = Ui::ElasticScroll::OverscrollType;
+		_scroll->setOverscrollDefaults(0, 0);
+		_scroll->setOverscrollTypes(Type::None, Type::Real);
+		_scroll->setOverscrollTypes(
+			_stories->isHidden() ? Type::Real : Type::Virtual,
+			Type::Real);
+	}
+	_storiesExplicitExpandAnimation.stop();
+	_storiesExplicitExpandValue = 0;
+
+	using List = Data::StorySourcesList;
+	collectStoriesUserpicsViews(_openedFolder
+		? List::NotHidden
+		: List::Hidden);
+	_storiesContents.fire(Stories::ContentForSession(
+		&session(),
+		_openedFolder ? List::Hidden : List::NotHidden));
+}
+
+void Widget::collectStoriesUserpicsViews(Data::StorySourcesList list) {
+	auto &map = (list == Data::StorySourcesList::Hidden)
+		? _storiesUserpicsViewsHidden
+		: _storiesUserpicsViewsShown;
+	map.clear();
+	auto &owner = session().data();
+	for (const auto &source : owner.stories().sources(list)) {
+		if (const auto peer = owner.peerLoaded(source.id)) {
+			if (auto view = peer->activeUserpicView(); view.cloud) {
+				map.emplace(source.id, std::move(view));
+			}
+		}
+	}
 }
 
 void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {

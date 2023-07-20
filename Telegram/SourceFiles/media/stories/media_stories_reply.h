@@ -68,6 +68,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 
 	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
+	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
 private:
 	class Cant;

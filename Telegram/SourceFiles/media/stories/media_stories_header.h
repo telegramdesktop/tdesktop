@@ -62,7 +62,7 @@ private:
 	void createPlayPause();
 	void createVolumeToggle();
 	void rebuildVolumeControls(
-		not_null<Ui::RpWidget*> dropdown, 
+		not_null<Ui::RpWidget*> dropdown,
 		bool horizontal);
 
 	const not_null<Controller*> _controller;
@@ -73,7 +73,9 @@ private:
 	std::unique_ptr<Ui::AbstractButton> _info;
 	std::unique_ptr<Ui::UserpicButton> _userpic;
 	std::unique_ptr<Ui::FlatLabel> _name;
+	std::unique_ptr<Ui::FlatLabel> _counter;
 	std::unique_ptr<Ui::FlatLabel> _date;
+	rpl::event_stream<> _dateUpdated;
 	std::unique_ptr<Ui::RpWidget> _playPause;
 	std::unique_ptr<Ui::RpWidget> _volumeToggle;
 	std::unique_ptr<Ui::FadeWrap<Ui::RpWidget>> _volume;

@@ -426,11 +426,15 @@ storiesHeaderPhoto: UserpicButton(defaultUserpicButton) {
 }
 storiesHeaderName: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewControlFg;
-	style: defaultTextStyle;
+	style: semiboldTextStyle;
+	minWidth: 10px;
+	maxHeight: 20px;
 }
 storiesHeaderNamePosition: point(50px, 0px);
 storiesHeaderDate: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewControlFg;
+	minWidth: 10px;
+	maxHeight: 20px;
 }
 storiesHeaderDatePosition: point(50px, 17px);
 storiesShadowTop: icon{{ "mediaview/shadow_bottom-flip_vertical", windowShadowFg }};

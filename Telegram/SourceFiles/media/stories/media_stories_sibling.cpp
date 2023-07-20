@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
 #include "media/stories/media_stories_view.h"
@@ -339,7 +340,9 @@ QImage Sibling::nameImage(const SiblingLayout &layout) {
 			.linkFontOver = font,
 		});
 	};
-	const auto text = _peer->shortName();
+	const auto text = _peer->isSelf()
+		? tr::lng_stories_my_name(tr::now)
+		: _peer->shortName();
 	if (_nameText != text) {
 		_name.reset();
 		_nameText = text;

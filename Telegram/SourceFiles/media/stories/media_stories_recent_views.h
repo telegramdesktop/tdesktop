@@ -55,6 +55,7 @@ private:
 		not_null<Ui::WhoReactedEntryAction*> action;
 		PeerData *peer = nullptr;
 		QString date;
+		Fn<void()> callback;
 		Ui::PeerUserpicView view;
 		InMemoryKey key;
 	};

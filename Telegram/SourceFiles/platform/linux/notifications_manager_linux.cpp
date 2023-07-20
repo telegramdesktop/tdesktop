@@ -37,10 +37,10 @@ namespace Platform {
 namespace Notifications {
 namespace {
 
-constexpr auto kService = "org.freedesktop.Notifications"_cs;
-constexpr auto kObjectPath = "/org/freedesktop/Notifications"_cs;
+constexpr auto kService = "org.freedesktop.Notifications";
+constexpr auto kObjectPath = "/org/freedesktop/Notifications";
 constexpr auto kInterface = kService;
-constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
+constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
 
 struct ServerInformation {
 	QString name;
@@ -76,7 +76,7 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 			try {
 				return ranges::contains(
 					base::Platform::DBus::ListActivatableNames(connection),
-					std::string(kService),
+					kService,
 					&Glib::ustring::raw);
 			} catch (...) {
 				// avoid service restart loop in sandboxed environments
@@ -86,7 +86,7 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 
 		return std::make_unique<base::Platform::DBus::ServiceWatcher>(
 			connection,
-			std::string(kService),
+			kService,
 			[=](
 				const Glib::ustring &service,
 				const Glib::ustring &oldOwner,
@@ -115,7 +115,7 @@ void StartServiceAsync(Fn<void()> callback) {
 
 		base::Platform::DBus::StartServiceByNameAsync(
 			connection,
-			std::string(kService),
+			kService,
 			[=](Fn<base::Platform::DBus::StartReply()> result) {
 				Noexcept([&] {
 					try {
@@ -155,7 +155,7 @@ bool GetServiceRegistered() {
 			try {
 				return base::Platform::DBus::NameHasOwner(
 					connection,
-					std::string(kService));
+					kService);
 			} catch (...) {
 				return false;
 			}
@@ -165,7 +165,7 @@ bool GetServiceRegistered() {
 			try {
 				return ranges::contains(
 					base::Platform::DBus::ListActivatableNames(connection),
-					std::string(kService),
+					kService,
 					&Glib::ustring::raw);
 			} catch (...) {
 				return false;
@@ -186,8 +186,8 @@ void GetServerInformation(
 			Gio::DBus::BusType::SESSION);
 
 		connection->call(
-			std::string(kObjectPath),
-			std::string(kInterface),
+			kObjectPath,
+			kInterface,
 			"GetServerInformation",
 			{},
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
@@ -224,7 +224,7 @@ void GetServerInformation(
 					crl::on_main([=] { callback(std::nullopt); });
 				});
 			},
-			std::string(kService));
+			kService);
 	}, [&] {
 		crl::on_main([=] { callback(std::nullopt); });
 	});
@@ -236,8 +236,8 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 			Gio::DBus::BusType::SESSION);
 
 		connection->call(
-			std::string(kObjectPath),
-			std::string(kInterface),
+			kObjectPath,
+			kInterface,
 			"GetCapabilities",
 			{},
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
@@ -257,7 +257,7 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 					crl::on_main([=] { callback({}); });
 				});
 			},
-			std::string(kService));
+			kService);
 	}, [&] {
 		crl::on_main([=] { callback({}); });
 	});
@@ -269,11 +269,11 @@ void GetInhibited(Fn<void(bool)> callback) {
 			Gio::DBus::BusType::SESSION);
 
 		connection->call(
-			std::string(kObjectPath),
-			std::string(kPropertiesInterface),
+			kObjectPath,
+			kPropertiesInterface,
 			"Get",
 			Glib::create_variant(std::tuple{
-				Glib::ustring(std::string(kInterface)),
+				Glib::ustring(kInterface),
 				Glib::ustring("Inhibited"),
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
@@ -290,7 +290,7 @@ void GetInhibited(Fn<void(bool)> callback) {
 					crl::on_main([=] { callback(false); });
 				});
 			},
-			std::string(kService));
+			kService);
 	}, [&] {
 		crl::on_main([=] { callback(false); });
 	});
@@ -545,25 +545,25 @@ bool NotificationData::init(
 			_notificationRepliedSignalId =
 				_dbusConnection->signal_subscribe(
 					signalEmitted,
-					std::string(kService),
-					std::string(kInterface),
+					kService,
+					kInterface,
 					"NotificationReplied",
-					std::string(kObjectPath));
+					kObjectPath);
 		}
 
 		_actionInvokedSignalId = _dbusConnection->signal_subscribe(
 			signalEmitted,
-			std::string(kService),
-			std::string(kInterface),
+			kService,
+			kInterface,
 			"ActionInvoked",
-			std::string(kObjectPath));
+			kObjectPath);
 
 		_activationTokenSignalId = _dbusConnection->signal_subscribe(
 			signalEmitted,
-			std::string(kService),
-			std::string(kInterface),
+			kService,
+			kInterface,
 			"ActivationToken",
-			std::string(kObjectPath));
+			kObjectPath);
 	}
 
 	if (capabilities.contains("action-icons")) {
@@ -594,10 +594,10 @@ bool NotificationData::init(
 
 	_notificationClosedSignalId = _dbusConnection->signal_subscribe(
 		signalEmitted,
-		std::string(kService),
-		std::string(kInterface),
+		kService,
+		kInterface,
 		"NotificationClosed",
-		std::string(kObjectPath));
+		kObjectPath);
 	return true;
 }
 
@@ -643,8 +643,8 @@ void NotificationData::show() {
 		const auto connection = _dbusConnection;
 
 		connection->call(
-			std::string(kObjectPath),
-			std::string(kInterface),
+			kObjectPath,
+			kInterface,
 			"Notify",
 			Glib::create_variant(std::tuple{
 				Glib::ustring(std::string(AppName)),
@@ -673,7 +673,7 @@ void NotificationData::show() {
 					});
 				});
 			},
-			std::string(kService));
+			kService);
 	}));
 }
 
@@ -690,14 +690,14 @@ void NotificationData::close() {
 	}
 
 	_dbusConnection->call(
-		std::string(kObjectPath),
-		std::string(kInterface),
+		kObjectPath,
+		kInterface,
 		"CloseNotification",
 		Glib::create_variant(std::tuple{
 			_notificationId,
 		}),
 		{},
-		std::string(kService),
+		kService,
 		-1,
 		Gio::DBus::CallFlags::NO_AUTO_START);
 	_manager->clearNotification(_id);
@@ -987,7 +987,7 @@ Manager::Private::Private(not_null<Manager*> manager)
 						0
 					).get_dynamic<Glib::ustring>();
 
-					if (interface != kInterface.data()) {
+					if (interface != kInterface) {
 						return;
 					}
 
@@ -1003,10 +1003,10 @@ Manager::Private::Private(not_null<Manager*> manager)
 					});
 				});
 			},
-			std::string(kService),
-			std::string(kPropertiesInterface),
+			kService,
+			kPropertiesInterface,
 			"PropertiesChanged",
-			std::string(kObjectPath));
+			kObjectPath);
 	}
 }
 
