@@ -360,15 +360,12 @@ void Row::PaintCornerBadgeFrame(
 	if (storiesCount) {
 		q.restore();
 
-		const auto st = context.st;
 		const auto outline = QRectF(0, 0, photoSize, photoSize);
 		const auto storiesUnreadCount = data->storiesUnreadCount;
 		const auto storiesUnreadBrush = [&] {
 			if (context.active || !storiesUnreadCount) {
 				return st::dialogsUnreadBgMutedActive->b;
 			}
-			const auto left = st->padding.left();
-			const auto top = st->padding.top();
 			auto gradient = Ui::UnreadStoryOutlineGradient(outline);
 			return QBrush(gradient);
 		}();

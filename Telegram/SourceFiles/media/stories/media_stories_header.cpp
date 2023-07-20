@@ -566,7 +566,6 @@ void Header::rebuildVolumeControls(
 	});
 	slider->setValue(_controller->currentVolume());
 
-	const auto skip = button->width() / 2;
 	const auto size = button->width()
 		+ st::storiesVolumeSize
 		+ st::storiesVolumeBottom;

@@ -233,7 +233,6 @@ List::Layout List::computeLayout(float64 expanded) const {
 	const auto smallCount = std::min(
 		kSmallThumbsShown,
 		itemsCount - smallSkip);
-	const auto smallWidth = st.photo + (smallCount - 1) * st.shift;
 	const auto leftSmall = st.left - (smallSkip ? st.shift : 0);
 	const auto leftFull = full.left - _scrollLeft + skipSide;
 	const auto startIndexFull = std::max(-leftFull, 0) / singleFull;
