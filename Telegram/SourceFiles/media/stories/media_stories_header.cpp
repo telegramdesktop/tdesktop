@@ -498,13 +498,7 @@ void Header::createVolumeToggle() {
 			}
 		}
 	}, lifetime);
-	_controller->layoutValue(
-	) | rpl::map([](const Layout &layout) {
-		return (layout.headerLayout == HeaderLayout::Outside);
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](bool horizontal) {
-		rebuildVolumeControls(_volume->entity(), horizontal);
-	}, lifetime);
+	rebuildVolumeControls(_volume->entity(), false);
 
 	rpl::combine(
 		_widget->positionValue(),
