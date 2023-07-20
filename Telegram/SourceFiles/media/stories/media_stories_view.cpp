@@ -107,6 +107,10 @@ bool View::ignoreWindowMove(QPoint position) const {
 	return _controller->ignoreWindowMove(position);
 }
 
+void View::tryProcessKeyInput(not_null<QKeyEvent*> e) {
+	_controller->tryProcessKeyInput(e);
+}
+
 SiblingView View::sibling(SiblingType type) const {
 	return _controller->sibling(type);
 }

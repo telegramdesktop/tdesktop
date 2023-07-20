@@ -1448,6 +1448,10 @@ bool Controller::ignoreWindowMove(QPoint position) const {
 		|| _header->ignoreWindowMove(position);
 }
 
+void Controller::tryProcessKeyInput(not_null<QKeyEvent*> e) {
+	_replyArea->tryProcessKeyInput(e);
+}
+
 rpl::lifetime &Controller::lifetime() {
 	return _lifetime;
 }

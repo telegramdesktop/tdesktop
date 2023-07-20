@@ -4886,14 +4886,20 @@ bool OverlayWidget::isSaveMsgShown() const {
 }
 
 void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
+	if (_processingKeyPress) {
+		return;
+	}
+	_processingKeyPress = true;
+	const auto guard = gsl::finally([&] { _processingKeyPress = false; });
 	const auto key = e->key();
 	const auto modifiers = e->modifiers();
 	const auto ctrl = modifiers.testFlag(Qt::ControlModifier);
-	if (_stories && key == Qt::Key_Space && _down != Over::Video) {
-		_stories->togglePaused(!_stories->paused());
-		return;
-	}
-	if (_streamed) {
+	if (_stories) {
+		if (key == Qt::Key_Space && _down != Over::Video) {
+			_stories->togglePaused(!_stories->paused());
+			return;
+		}
+	} else if (_streamed) {
 		// Ctrl + F for full screen toggle is in eventFilter().
 		const auto toggleFull = (modifiers.testFlag(Qt::AltModifier) || ctrl)
 			&& (key == Qt::Key_Enter || key == Qt::Key_Return);
@@ -4962,9 +4968,9 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 			zoomIn();
 		} else if (key == Qt::Key_Minus || key == Qt::Key_Underscore) {
 			zoomOut();
-		} else if (key == Qt::Key_I) {
-			update();
 		}
+	} else if (_stories) {
+		_stories->tryProcessKeyInput(e);
 	}
 }
 

@@ -681,6 +681,10 @@ bool ReplyArea::ignoreWindowMove(QPoint position) const {
 	return _controls->isRecordingPressed();
 }
 
+void ReplyArea::tryProcessKeyInput(not_null<QKeyEvent*> e) {
+	_controls->tryProcessKeyInput(e);
+}
+
 void ReplyArea::showPremiumToast(not_null<DocumentData*> emoji) {
 	// #TODO stories
 }
