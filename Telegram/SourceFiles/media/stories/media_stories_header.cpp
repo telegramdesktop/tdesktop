@@ -236,7 +236,9 @@ void UserpicBadge::updateGeometry() {
 }
 
 [[nodiscard]] TextWithEntities ComposeName(HeaderData data) {
-	auto result = Ui::Text::Bold(data.user->shortName());
+	auto result = Ui::Text::Bold(data.user->isSelf()
+		? tr::lng_stories_my_name(tr::now)
+		: data.user->shortName());
 	if (data.fullCount) {
 		result.append(QString::fromUtf8(" \xE2\x80\xA2 %1/%2"
 		).arg(data.fullIndex + 1
