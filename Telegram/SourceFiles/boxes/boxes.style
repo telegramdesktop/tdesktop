@@ -24,6 +24,11 @@ UserpicButton {
 	uploadIcon: icon;
 	uploadIconPosition: point;
 }
+ShortInfoBox {
+	label: FlatLabel;
+	labeled: FlatLabel;
+	labeledOneLine: FlatLabel;
+}
 
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
@@ -344,11 +349,6 @@ autoDownloadLimitSlider: MediaSlider(defaultContinuousSlider) {
 }
 autoDownloadLimitPadding: margins(22px, 8px, 22px, 8px);
 
-confirmCaptionArea: InputField(defaultInputField) {
-	textMargins: margins(1px, 26px, 31px, 4px);
-	heightMax: 158px;
-}
-confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
 
 supportInfoField: InputField(defaultInputField) {
@@ -391,50 +391,10 @@ sendMediaPreviewSize: 308px;
 sendMediaPreviewHeightMax: 1280;
 sendMediaRowSkip: 10px;
 
-editMediaButtonSize: 32px;
-
-editMediaButtonIconFile: icon {{ "send_media/send_media_replace", menuIconFg }};
-editMediaButton: IconButton(defaultIconButton) {
-	width: editMediaButtonSize;
-	height: editMediaButtonSize;
-
-	icon: editMediaButtonIconFile;
-
-	rippleAreaSize: editMediaButtonSize;
-	ripple: defaultRippleAnimation;
-}
-
 editMediaHintLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	minWidth: sendMediaPreviewSize;
 }
-
-// SendFilesBox
-
-sendBoxAlbumGroupEditInternalSkip: 8px;
-sendBoxAlbumGroupSkipRight: 5px;
-sendBoxAlbumGroupSkipTop: 5px;
-sendBoxAlbumGroupRadius: 4px;
-sendBoxAlbumGroupSize: size(62px, 25px);
-sendBoxAlbumSmallGroupSize: size(30px, 25px);
-
-sendBoxFileGroupSkipTop: 2px;
-sendBoxFileGroupSkipRight: 5px;
-sendBoxFileGroupEditInternalSkip: -1px;
-
-sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgRipple;
-	}
-}
-sendBoxAlbumGroupEditButtonIconFile: editMediaButtonIconFile;
-sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "send_media/send_media_delete", menuIconFg }};
-
-sendBoxAlbumButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg }};
-sendBoxAlbumGroupButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg, point(4px, 1px) }};
-sendBoxAlbumGroupButtonMediaDelete: icon {{ "send_media/send_media_delete", roundedFg }};
-
-// End of SendFilesBox
 
 calendarTitleHeight: boxTitleHeight;
 calendarPrevious: IconButton {
@@ -982,6 +942,27 @@ requestsBoxList: PeerList(peerListBox) {
 	padding: margins(0px, 12px, 0px, 12px);
 	item: requestsBoxItem;
 }
+contactsWithStories: PeerList(peerListBox) {
+	padding: margins(0px, 0px, 0px, 0px);
+	item: PeerListItem(peerListBoxItem) {
+		height: 52px;
+		photoPosition: point(18px, 5px);
+		namePosition: point(70px, 7px);
+		statusPosition: point(70px, 27px);
+
+		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+			selectExtendTwice: 1px;
+			imageRadius: 21px;
+			imageSmallRadius: 19px;
+			check: RoundCheckbox(defaultPeerListCheck) {
+				size: 0px;
+			}
+		}
+		nameFgChecked: contactsNameFg;
+	}
+}
+storiesReadLineTwice: 2px;
+storiesUnreadLineTwice: 4px;
 requestsAcceptButton: RoundButton(defaultActiveButton) {
 	width: -28px;
 	height: 30px;
@@ -1006,3 +987,26 @@ ringtonesBoxSkip: 7px;
 gradientButtonGlareDuration: 700;
 gradientButtonGlareTimeout: 2000;
 gradientButtonGlareWidth: 100px;
+
+infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 19px;
+	}
+	margin: margins(5px, 5px, 5px, 5px);
+}
+infoLabelSkip: 2px;
+infoLabeled: FlatLabel(infoLabeledOneLine) {
+	minWidth: 180px;
+	maxHeight: 0px;
+	margin: margins(5px, 5px, 5px, 5px);
+}
+infoLabel: FlatLabel(infoLabeled) {
+	textFg: windowSubTextFg;
+}
+
+shortInfoBox: ShortInfoBox {
+	label: infoLabel;
+	labeled: infoLabeled;
+	labeledOneLine: infoLabeledOneLine;
+}

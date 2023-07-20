@@ -244,6 +244,12 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 		return Dialogs::RowDescriptor(
 			peer->owner().history(peer),
 			FullMsgId());
+	} else if (const auto storiesPeer = key().storiesPeer()) {
+		return (key().storiesTab() == Stories::Tab::Saved)
+			? Dialogs::RowDescriptor(
+				storiesPeer->owner().history(storiesPeer),
+				FullMsgId())
+			: Dialogs::RowDescriptor();
 	} else if (key().settingsSelf() || key().isDownloads() || key().poll()) {
 		return Dialogs::RowDescriptor();
 	}
@@ -297,6 +303,11 @@ void WrapWidget::createTopBar() {
 			_controller->parentController()->closeThirdSection();
 		});
 	}
+	_topBar->storyClicks() | rpl::start_with_next([=] {
+		if (const auto peer = _controller->key().peer()) {
+			_controller->parentController()->openPeerStories(peer->id);
+		}
+	}, _topBar->lifetime());
 	if (wrapValue == Wrap::Layer) {
 		auto close = _topBar->addButton(
 			base::make_unique_q<Ui::IconButton>(
@@ -573,6 +584,9 @@ void WrapWidget::finishShowContent() {
 	_content->setIsStackBottom(!hasStackHistory());
 	if (_topBar) {
 		_topBar->setTitle(_content->title());
+		_topBar->setStories(_content->titleStories());
+		_topBar->setStoriesArchive(
+			_controller->key().storiesTab() == Stories::Tab::Archive);
 	}
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());

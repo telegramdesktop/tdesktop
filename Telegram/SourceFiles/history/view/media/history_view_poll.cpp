@@ -182,7 +182,7 @@ struct Poll::CloseInformation {
 };
 
 struct Poll::RecentVoter {
-	not_null<UserData*> user;
+	not_null<PeerData*> peer;
 	mutable Ui::PeerUserpicView userpic;
 };
 
@@ -487,20 +487,20 @@ void Poll::updateRecentVoters() {
 		_recentVoters,
 		sliced,
 		ranges::equal_to(),
-		&RecentVoter::user);
+		&RecentVoter::peer);
 	if (changed) {
 		auto updated = ranges::views::all(
 			sliced
-		) | ranges::views::transform([](not_null<UserData*> user) {
-			return RecentVoter{ user };
+		) | ranges::views::transform([](not_null<PeerData*> peer) {
+			return RecentVoter{ peer };
 		}) | ranges::to_vector;
 		const auto has = hasHeavyPart();
 		if (has) {
 			for (auto &voter : updated) {
 				const auto i = ranges::find(
 					_recentVoters,
-					voter.user,
-					&RecentVoter::user);
+					voter.peer,
+					&RecentVoter::peer);
 				if (i != end(_recentVoters)) {
 					voter.userpic = std::move(i->userpic);
 				}
@@ -892,7 +892,7 @@ void Poll::paintRecentVoters(
 	auto created = false;
 	for (auto &recent : _recentVoters) {
 		const auto was = !recent.userpic.null();
-		recent.user->paintUserpic(p, recent.userpic, x, y, size);
+		recent.peer->paintUserpic(p, recent.userpic, x, y, size);
 		if (!was && !recent.userpic.null()) {
 			created = true;
 		}

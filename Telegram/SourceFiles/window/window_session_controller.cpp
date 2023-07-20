@@ -45,6 +45,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
+#include "data/data_stories.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -113,6 +114,8 @@ class MainWindowShow final : public ChatHelpers::Show {
 public:
 	explicit MainWindowShow(not_null<SessionController*> controller);
 
+	void activate() override;
+
 	void showOrHideBoxOrLayer(
 		std::variant<
 			v::null_t,
@@ -140,7 +143,7 @@ public:
 		not_null<PhotoData*> photo) const override;
 
 	void processChosenSticker(
-		ChatHelpers::FileChosen chosen) const override;
+		ChatHelpers::FileChosen &&chosen) const override;
 
 private:
 	const base::weak_ptr<SessionController> _window;
@@ -149,6 +152,12 @@ private:
 
 MainWindowShow::MainWindowShow(not_null<SessionController*> controller)
 : _window(base::make_weak(controller)) {
+}
+
+void MainWindowShow::activate() {
+	if (const auto window = _window.get()) {
+		Window::ActivateWindow(window);
+	}
 }
 
 void MainWindowShow::showOrHideBoxOrLayer(
@@ -233,7 +242,7 @@ bool MainWindowShow::showMediaPreview(
 }
 
 void MainWindowShow::processChosenSticker(
-		ChatHelpers::FileChosen chosen) const {
+		ChatHelpers::FileChosen &&chosen) const {
 	if (const auto window = _window.get()) {
 		Ui::PostponeCall(window, [=, chosen = std::move(chosen)]() mutable {
 			window->stickerOrEmojiChosen(std::move(chosen));
@@ -244,10 +253,7 @@ void MainWindowShow::processChosenSticker(
 } // namespace
 
 void ActivateWindow(not_null<SessionController*> controller) {
-	const auto window = controller->widget();
-	window->raise();
-	window->activateWindow();
-	Ui::ActivateWindowDelayed(window);
+	Ui::ActivateWindow(controller->widget());
 }
 
 bool IsPaused(
@@ -497,6 +503,18 @@ void SessionNavigation::showPeerByLinkResolved(
 				info.messageId,
 				callback);
 		}
+	} else if (peer->isUser() && info.storyId) {
+		const auto storyId = FullStoryId{ peer->id, info.storyId };
+		peer->owner().stories().resolve(storyId, crl::guard(this, [=] {
+			if (peer->owner().stories().lookup(storyId)) {
+				parentController()->openPeerStory(
+					peer,
+					storyId.story,
+					Data::StoriesContext{ Data::StoriesContextSingle() });
+			} else {
+				showToast(tr::lng_stories_link_invalid(tr::now));
+			}
+		}));
 	} else if (bot && resolveType == ResolveType::BotApp) {
 		const auto itemId = info.clickFromMessageId;
 		const auto item = _session->data().message(itemId);
@@ -931,7 +949,8 @@ SessionController::SessionController(
 	) | rpl::filter([=](Data::Folder *folder) {
 		return (folder != nullptr)
 			&& (folder == _openedFolder.current())
-			&& folder->chatsList()->indexed()->empty();
+			&& folder->chatsList()->indexed()->empty()
+			&& !folder->storiesCount();
 	}) | rpl::start_with_next([=](Data::Folder *folder) {
 		folder->updateChatListSortPosition();
 		closeFolder();
@@ -1136,7 +1155,9 @@ void SessionController::openFolder(not_null<Data::Folder*> folder) {
 	if (_openedFolder.current() != folder) {
 		resetFakeUnreadWhileOpened();
 	}
-	setActiveChatsFilter(0);
+	if (activeChatsFilterCurrent() != 0) {
+		setActiveChatsFilter(0);
+	}
 	closeForum();
 	_openedFolder = folder.get();
 }
@@ -2133,13 +2154,14 @@ void SessionController::hideLayer(anim::type animated) {
 
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
-		FullMsgId contextId,
-		MsgId topicRootId) {
-	_window->openInMediaView(Media::View::OpenRequest(
-		this,
-		photo,
-		session().data().message(contextId),
-		topicRootId));
+		MessageContext message,
+		const Data::StoriesContext *stories) {
+	const auto item = session().data().message(message.id);
+	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
+		return;
+	}
+	_window->openInMediaView(
+		Media::View::OpenRequest(this, photo, item, message.topicRootId));
 }
 
 void SessionController::openPhoto(
@@ -2150,22 +2172,60 @@ void SessionController::openPhoto(
 
 void SessionController::openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId contextId,
-		MsgId topicRootId,
-		bool showInMediaView) {
-	if (showInMediaView) {
+		bool showInMediaView,
+		MessageContext message,
+		const Data::StoriesContext *stories) {
+	const auto item = session().data().message(message.id);
+	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
+		return;
+	} else if (showInMediaView) {
 		_window->openInMediaView(Media::View::OpenRequest(
 			this,
 			document,
-			session().data().message(contextId),
-			topicRootId));
+			item,
+			message.topicRootId));
 		return;
 	}
-	Data::ResolveDocument(
-		this,
-		document,
-		session().data().message(contextId),
-		topicRootId);
+	Data::ResolveDocument(this, document, item, message.topicRootId);
+}
+
+bool SessionController::openSharedStory(HistoryItem *item) {
+	if (const auto media = item ? item->media() : nullptr) {
+		if (const auto storyId = media->storyId()) {
+			const auto story = session().data().stories().lookup(storyId);
+			if (story) {
+				_window->openInMediaView(::Media::View::OpenRequest(
+					this,
+					*story,
+					Data::StoriesContext{ Data::StoriesContextSingle() }));
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+bool SessionController::openFakeItemStory(
+		FullMsgId fakeItemId,
+		const Data::StoriesContext *stories) {
+	if (!peerIsUser(fakeItemId.peer)
+		|| !IsStoryMsgId(fakeItemId.msg)) {
+		return false;
+	}
+	const auto maybeStory = session().data().stories().lookup({
+		fakeItemId.peer,
+		StoryIdFromMsgId(fakeItemId.msg),
+	});
+	if (maybeStory) {
+		using namespace Data;
+		const auto story = *maybeStory;
+		const auto context = stories
+			? *stories
+			: StoriesContext{ StoriesContextSingle() };
+		_window->openInMediaView(
+			::Media::View::OpenRequest(this, story, context));
+	}
+	return true;
 }
 
 auto SessionController::cachedChatThemeValue(
@@ -2454,6 +2514,53 @@ Ui::ChatThemeBackgroundData SessionController::backgroundData(
 		.generateGradient = generateGradient,
 		.gradientRotation = gradientRotation,
 	};
+}
+
+void SessionController::openPeerStory(
+		not_null<PeerData*> peer,
+		StoryId storyId,
+		Data::StoriesContext context) {
+	using namespace Media::View;
+	using namespace Data;
+
+	invalidate_weak_ptrs(&_storyOpenGuard);
+	auto &stories = session().data().stories();
+	const auto from = stories.lookup({ peer->id, storyId });
+	if (from) {
+		window().openInMediaView(OpenRequest(this, *from, context));
+	} else if (from.error() == Data::NoStory::Unknown) {
+		const auto done = crl::guard(&_storyOpenGuard, [=] {
+			openPeerStory(peer, storyId, context);
+		});
+		stories.resolve({ peer->id, storyId }, done);
+	}
+}
+
+void SessionController::openPeerStories(
+		PeerId peerId,
+		std::optional<Data::StorySourcesList> list) {
+	using namespace Media::View;
+	using namespace Data;
+
+	invalidate_weak_ptrs(&_storyOpenGuard);
+	auto &stories = session().data().stories();
+	if (const auto source = stories.source(peerId)) {
+		if (const auto idDates = source->toOpen()) {
+			openPeerStory(
+				source->user,
+				idDates.id,
+				(list
+					? StoriesContext{ *list }
+					: StoriesContext{ StoriesContextPeer() }));
+		}
+	} else if (const auto userId = peerToUser(peerId)) {
+		if (const auto user = session().data().userLoaded(userId)) {
+			const auto done = crl::guard(&_storyOpenGuard, [=] {
+				openPeerStories(peerId, list);
+			});
+			stories.requestUserStories(user, done);
+		}
+	}
 }
 
 HistoryView::PaintContext SessionController::preparePaintContext(

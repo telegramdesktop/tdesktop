@@ -28,6 +28,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "history/view/media/history_view_slot_machine.h"
 #include "history/view/media/history_view_dice.h"
 #include "history/view/media/history_view_service_box.h"
+#include "history/view/media/history_view_story_mention.h"
 #include "history/view/media/history_view_premium_gift.h"
 #include "history/view/media/history_view_userpic_suggestion.h"
 #include "dialogs/ui/dialogs_message_view.h"
@@ -56,6 +57,8 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "data/data_poll.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
+#include "data/data_stories.h"
+#include "data/data_story.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "core/application.h"
@@ -72,6 +75,7 @@ namespace {
 
 constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 constexpr auto kMaxPreviewImages = 3;
+constexpr auto kLoadingStoryPhotoId = PhotoId(0x7FFF'DEAD'FFFF'FFFFULL);
 
 using ItemPreview = HistoryView::ItemPreview;
 using ItemPreviewImage = HistoryView::ItemPreviewImage;
@@ -402,6 +406,18 @@ PollData *Media::poll() const {
 
 const WallPaper *Media::paper() const {
 	return nullptr;
+}
+
+FullStoryId Media::storyId() const {
+	return {};
+}
+
+bool Media::storyExpired() const {
+	return false;
+}
+
+bool Media::storyMention() const {
+	return false;
 }
 
 bool Media::uploading() const {
@@ -1966,6 +1982,155 @@ std::unique_ptr<HistoryView::Media> MediaWallPaper::createView(
 	return std::make_unique<HistoryView::ServiceBox>(
 		message,
 		std::make_unique<HistoryView::ThemeDocumentBox>(message, _paper));
+}
+
+MediaStory::MediaStory(
+	not_null<HistoryItem*> parent,
+	FullStoryId storyId,
+	bool mention)
+: Media(parent)
+, _storyId(storyId)
+, _mention(mention) {
+	const auto owner = &parent->history()->owner();
+	owner->registerStoryItem(storyId, parent);
+
+	const auto stories = &owner->stories();
+	if (const auto maybeStory = stories->lookup(storyId)) {
+		if (!_mention) {
+			parent->setText((*maybeStory)->caption());
+		}
+	} else {
+		if (maybeStory.error() == NoStory::Unknown) {
+			stories->resolve(storyId, crl::guard(this, [=] {
+				if (const auto maybeStory = stories->lookup(storyId)) {
+					if (!_mention) {
+						parent->setText((*maybeStory)->caption());
+					}
+				} else {
+					_expired = true;
+				}
+				if (_mention) {
+					parent->updateStoryMentionText();
+				}
+				parent->history()->owner().requestItemViewRefresh(parent);
+			}));
+		} else {
+			_expired = true;
+		}
+	}
+}
+
+MediaStory::~MediaStory() {
+	const auto owner = &parent()->history()->owner();
+	owner->unregisterStoryItem(_storyId, parent());
+}
+
+std::unique_ptr<Media> MediaStory::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaStory>(parent, _storyId, false);
+}
+
+FullStoryId MediaStory::storyId() const {
+	return _storyId;
+}
+
+bool MediaStory::storyExpired() const {
+	return _expired;
+}
+
+bool MediaStory::storyMention() const {
+	return _mention;
+}
+
+TextWithEntities MediaStory::notificationText() const {
+	const auto stories = &parent()->history()->owner().stories();
+	const auto maybeStory = stories->lookup(_storyId);
+	return WithCaptionNotificationText(
+		((_expired
+			|| (!maybeStory
+				&& maybeStory.error() == Data::NoStory::Deleted))
+			? tr::lng_in_dlg_story_expired
+			: tr::lng_in_dlg_story)(tr::now),
+		(maybeStory
+			? (*maybeStory)->caption()
+			: TextWithEntities()));
+}
+
+QString MediaStory::pinnedTextSubstring() const {
+	return tr::lng_action_pinned_media_story(tr::now);
+}
+
+TextForMimeData MediaStory::clipboardText() const {
+	return WithCaptionClipboardText(
+		(_expired
+			? tr::lng_in_dlg_story_expired
+			: tr::lng_in_dlg_story)(tr::now),
+		parent()->clipboardText());
+}
+
+bool MediaStory::dropForwardedInfo() const {
+	return true;
+}
+
+bool MediaStory::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+bool MediaStory::updateSentMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+not_null<PhotoData*> MediaStory::LoadingStoryPhoto(
+		not_null<Session*> owner) {
+	return owner->photo(kLoadingStoryPhotoId);
+}
+
+std::unique_ptr<HistoryView::Media> MediaStory::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
+	const auto spoiler = false;
+	const auto stories = &parent()->history()->owner().stories();
+	const auto maybeStory = stories->lookup(_storyId);
+	if (!maybeStory) {
+		if (!_mention) {
+			realParent->setText(TextWithEntities());
+		}
+		if (maybeStory.error() == Data::NoStory::Deleted) {
+			_expired = true;
+			return nullptr;
+		}
+		_expired = false;
+		if (_mention) {
+			return nullptr;
+		}
+		return std::make_unique<HistoryView::Photo>(
+			message,
+			realParent,
+			LoadingStoryPhoto(&realParent->history()->owner()),
+			spoiler);
+	}
+	_expired = false;
+	const auto story = *maybeStory;
+	if (_mention) {
+		return std::make_unique<HistoryView::ServiceBox>(
+			message,
+			std::make_unique<HistoryView::StoryMention>(message, story));
+	} else {
+		realParent->setText(story->caption());
+		if (const auto photo = story->photo()) {
+			return std::make_unique<HistoryView::Photo>(
+				message,
+				realParent,
+				photo,
+				spoiler);
+		} else {
+			return std::make_unique<HistoryView::Gif>(
+				message,
+				realParent,
+				story->document(),
+				spoiler);
+		}
+	}
 }
 
 } // namespace Data

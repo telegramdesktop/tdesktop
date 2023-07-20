@@ -28,6 +28,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_streaming.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
@@ -39,6 +40,9 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 
 namespace HistoryView {
 namespace {
+
+constexpr auto kStoryWidth = 720;
+constexpr auto kStoryHeight = 1280;
 
 using Data::PhotoSize;
 
@@ -67,6 +71,11 @@ Photo::Photo(
 , _data(photo)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr) {
+	if (const auto media = realParent->media()) {
+		if (media->storyId()) {
+			_story = 1;
+		}
+	}
 	_caption = createCaption(realParent);
 	create(realParent->fullId());
 }
@@ -93,6 +102,7 @@ Photo::~Photo() {
 			_parent->checkHeavyPart();
 		}
 	}
+	togglePollingStory(false);
 }
 
 void Photo::create(FullMsgId contextId, PeerData *chat) {
@@ -137,6 +147,7 @@ void Photo::dataMediaCreated() const {
 		_dataMedia->wanted(PhotoSize::Small, _realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);
+	togglePollingStory(true);
 }
 
 bool Photo::hasHeavyPart() const {
@@ -152,11 +163,28 @@ void Photo::unloadHeavyPart() {
 	}
 	_imageCache = QImage();
 	_caption.unloadPersistentAnimation();
+	togglePollingStory(false);
+}
+
+void Photo::togglePollingStory(bool enabled) const {
+	const auto pollingStory = (enabled ? 1 : 0);
+	if (!_story || _pollingStory == pollingStory) {
+		return;
+	}
+	const auto polling = Data::Stories::Polling::Chat;
+	const auto media = _parent->data()->media();
+	const auto id = media ? media->storyId() : FullStoryId();
+	if (!enabled) {
+		_data->owner().stories().unregisterPolling(id, polling);
+	} else if (!_data->owner().stories().registerPolling(id, polling)) {
+		return;
+	}
+	_pollingStory = pollingStory;
 }
 
 QSize Photo::countOptimalSize() {
 	if (_serviceWidth > 0) {
-		return { _serviceWidth, _serviceWidth };
+		return { int(_serviceWidth), int(_serviceWidth) };
 	}
 
 	if (_parent->media() != this) {
@@ -167,7 +195,7 @@ QSize Photo::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
-	const auto dimensions = QSize(_data->width(), _data->height());
+	const auto dimensions = photoSize();
 	const auto scaled = CountDesiredMediaSize(dimensions);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
@@ -201,7 +229,7 @@ QSize Photo::countOptimalSize() {
 
 QSize Photo::countCurrentSize(int newWidth) {
 	if (_serviceWidth) {
-		return { _serviceWidth, _serviceWidth };
+		return { int(_serviceWidth), int(_serviceWidth) };
 	}
 	const auto thumbMaxWidth = qMin(newWidth, st::maxMediaSize);
 	const auto minWidth = std::clamp(
@@ -210,7 +238,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 			? st::historyPhotoBubbleMinWidth
 			: st::minPhotoSize),
 		thumbMaxWidth);
-	const auto dimensions = QSize(_data->width(), _data->height());
+	const auto dimensions = photoSize();
 	auto pix = CountPhotoMediaSize(
 		CountDesiredMediaSize(dimensions),
 		newWidth,
@@ -255,7 +283,11 @@ int Photo::adjustHeightForLessCrop(QSize dimensions, QSize current) const {
 }
 
 void Photo::draw(Painter &p, const PaintContext &context) const {
-	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
+	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
+		return;
+	} else if (_story && _data->isNull()) {
+		return;
+	}
 
 	ensureDataMediaCreated();
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
@@ -590,10 +622,19 @@ void Photo::paintUserpicFrame(
 	}
 }
 
+QSize Photo::photoSize() const {
+	if (_story) {
+		return { kStoryWidth, kStoryHeight };
+	}
+	return QSize(_data->width(), _data->height());
+}
+
 TextState Photo::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
+		return result;
+	} else if (_story && _data->isNull()) {
 		return result;
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -657,9 +698,8 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 }
 
 QSize Photo::sizeForGroupingOptimal(int maxWidth) const {
-	const auto width = _data->width();
-	const auto height = _data->height();
-	return { std::max(width, 1), std::max(height, 1) };
+	const auto size = photoSize();
+	return { std::max(size.width(), 1), std::max(size.height(), 1)};
 }
 
 QSize Photo::sizeForGrouping(int width) const {
@@ -848,8 +888,9 @@ void Photo::validateGroupedCache(
 		return;
 	}
 
-	const auto originalWidth = style::ConvertScale(_data->width());
-	const auto originalHeight = style::ConvertScale(_data->height());
+	const auto unscaled = photoSize();
+	const auto originalWidth = style::ConvertScale(unscaled.width());
+	const auto originalHeight = style::ConvertScale(unscaled.height());
 	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
@@ -905,6 +946,7 @@ void Photo::setStreamed(std::unique_ptr<Streamed> value) {
 	_streamed = std::move(value);
 	if (set) {
 		history()->owner().registerHeavyViewPart(_parent);
+		togglePollingStory(true);
 	} else if (removed) {
 		_parent->checkHeavyPart();
 	}
@@ -1012,7 +1054,7 @@ void Photo::hideSpoilers() {
 }
 
 bool Photo::needsBubble() const {
-	if (!_caption.isEmpty()) {
+	if (_story || !_caption.isEmpty()) {
 		return true;
 	}
 	const auto item = _parent->data();

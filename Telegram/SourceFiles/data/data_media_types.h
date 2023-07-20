@@ -7,6 +7,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "data/data_location.h"
 #include "data/data_wall_paper.h"
 
@@ -37,6 +38,7 @@ namespace Data {
 
 class CloudImage;
 class WallPaper;
+class Session;
 
 enum class CallFinishReason : char {
 	Missed,
@@ -58,6 +60,7 @@ struct Call {
 	int duration = 0;
 	FinishReason finishReason = FinishReason::Missed;
 	bool video = false;
+
 };
 
 struct ExtendedPreview {
@@ -110,6 +113,9 @@ public:
 	virtual CloudImage *location() const;
 	virtual PollData *poll() const;
 	virtual const WallPaper *paper() const;
+	virtual FullStoryId storyId() const;
+	virtual bool storyExpired() const;
+	virtual bool storyMention() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -560,6 +566,42 @@ public:
 
 private:
 	const WallPaper _paper;
+
+};
+
+class MediaStory final : public Media, public base::has_weak_ptr {
+public:
+	MediaStory(
+		not_null<HistoryItem*> parent,
+		FullStoryId storyId,
+		bool mention);
+	~MediaStory();
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	FullStoryId storyId() const override;
+	bool storyExpired() const override;
+	bool storyMention() const override;
+
+	TextWithEntities notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+	bool dropForwardedInfo() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
+
+	[[nodiscard]] static not_null<PhotoData*> LoadingStoryPhoto(
+		not_null<Session*> owner);
+
+private:
+	const FullStoryId _storyId;
+	const bool _mention = false;
+	bool _expired = false;
 
 };
 

@@ -171,7 +171,8 @@ void Account::createSession(
 			MTPstring(), // bot_inline_placeholder
 			MTPstring(), // lang_code
 			MTPEmojiStatus(),
-			MTPVector<MTPUsername>()),
+			MTPVector<MTPUsername>(),
+			MTPint()), // stories_max_id
 		serialized,
 		streamVersion,
 		std::move(settings));

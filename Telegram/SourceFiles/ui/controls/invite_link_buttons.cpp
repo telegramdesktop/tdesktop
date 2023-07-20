@@ -12,7 +12,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "lang/lang_keys.h"
-#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
 namespace Ui {

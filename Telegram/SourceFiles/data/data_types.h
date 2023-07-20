@@ -135,6 +135,7 @@ using PollId = uint64;
 using WallPaperId = uint64;
 using CallId = uint64;
 using BotAppId = uint64;
+
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
 struct PreparedPhotoThumb {
@@ -300,6 +301,8 @@ enum class MessageFlag : uint64 {
 
 	// Fake message with bot cover and information.
 	FakeBotAbout          = (1ULL << 36),
+
+	StoryItem             = (1ULL << 37),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

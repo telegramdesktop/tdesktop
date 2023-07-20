@@ -29,6 +29,11 @@ namespace Adaptive {
 enum class WindowLayout;
 } // namespace Adaptive
 
+namespace Data {
+struct StoriesContext;
+enum class StorySourcesList : uchar;
+} // namespace Data
+
 namespace ChatHelpers {
 class TabbedSelector;
 class EmojiInteractions;
@@ -199,6 +204,7 @@ public:
 		std::variant<QString, ChannelId> usernameOrId;
 		QString phone;
 		MsgId messageId = ShowAtUnreadMsgId;
+		StoryId storyId = 0;
 		RepliesByLinkInfo repliesInfo;
 		ResolveType resolveType = ResolveType::Default;
 		QString startToken;
@@ -476,16 +482,24 @@ public:
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
 
+	struct MessageContext {
+		FullMsgId id;
+		MsgId topicRootId;
+	};
 	void openPhoto(
 		not_null<PhotoData*> photo,
-		FullMsgId contextId,
-		MsgId topicRootId);
+		MessageContext message,
+		const Data::StoriesContext *stories = nullptr);
 	void openPhoto(not_null<PhotoData*> photo, not_null<PeerData*> peer);
 	void openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId contextId,
-		MsgId topicRootId,
-		bool showInMediaView = false);
+		bool showInMediaView,
+		MessageContext message,
+		const Data::StoriesContext *stories = nullptr);
+	bool openSharedStory(HistoryItem *item);
+	bool openFakeItemStory(
+		FullMsgId fakeItemId,
+		const Data::StoriesContext *stories = nullptr);
 
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
@@ -563,6 +577,14 @@ public:
 		-> rpl::producer<PeerThemeOverride> {
 		return _peerThemeOverride.value();
 	}
+
+	void openPeerStory(
+		not_null<PeerData*> peer,
+		StoryId storyId,
+		Data::StoriesContext context);
+	void openPeerStories(
+		PeerId peerId,
+		std::optional<Data::StorySourcesList> list = std::nullopt);
 
 	struct PaintContextArgs {
 		not_null<Ui::ChatTheme*> theme;
@@ -694,6 +716,8 @@ private:
 
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
+
+	base::has_weak_ptr _storyOpenGuard;
 
 	GiftPremiumValidator _giftPremiumValidator;
 

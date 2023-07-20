@@ -221,56 +221,6 @@ int PhotoSideLimit() {
 	return PhotoSideLimit(SendLargePhotos.value());
 }
 
-SendMediaPrepare::SendMediaPrepare(
-	const QString &file,
-	const PeerId &peer,
-	SendMediaType type,
-	MsgId replyTo)
-: id(base::RandomValue<PhotoId>())
-, file(file)
-, peer(peer)
-, type(type)
-, replyTo(replyTo) {
-}
-
-SendMediaPrepare::SendMediaPrepare(
-	const QImage &img,
-	const PeerId &peer,
-	SendMediaType type,
-	MsgId replyTo)
-: id(base::RandomValue<PhotoId>())
-, img(img)
-, peer(peer)
-, type(type)
-, replyTo(replyTo) {
-}
-
-SendMediaPrepare::SendMediaPrepare(
-	const QByteArray &data,
-	const PeerId &peer,
-	SendMediaType type,
-	MsgId replyTo)
-: id(base::RandomValue<PhotoId>())
-, data(data)
-, peer(peer)
-, type(type)
-, replyTo(replyTo) {
-}
-
-SendMediaPrepare::SendMediaPrepare(
-	const QByteArray &data,
-	int duration,
-	const PeerId &peer,
-	SendMediaType type,
-	MsgId replyTo)
-: id(base::RandomValue<PhotoId>())
-, data(data)
-, peer(peer)
-, type(type)
-, duration(duration)
-, replyTo(replyTo) {
-}
-
 SendMediaReady::SendMediaReady(
 	SendMediaType type,
 	const QString &file,
@@ -284,10 +234,8 @@ SendMediaReady::SendMediaReady(
 	const MTPPhoto &photo,
 	const PreparedPhotoThumbs &photoThumbs,
 	const MTPDocument &document,
-	const QByteArray &jpeg,
-	MsgId replyTo)
-: replyTo(replyTo)
-, type(type)
+	const QByteArray &jpeg)
+: type(type)
 , file(file)
 , filename(filename)
 , filesize(filesize)
@@ -918,7 +866,12 @@ void FileLoadTask::process(Args &&args) {
 			if (video->supportsStreaming) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
 			}
-			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
+			attributes.push_back(MTP_documentAttributeVideo(
+				MTP_flags(flags),
+				MTP_double(video->duration / 1000.),
+				MTP_int(coverWidth),
+				MTP_int(coverHeight),
+				MTPint())); // preload_prefix_size
 
 			if (args.generateGoodThumbnail) {
 				goodThumbnail = video->thumbnail;
@@ -1096,7 +1049,7 @@ void FileLoadTask::finish() {
 	} else if (_result->filesize > kFileSizePremiumLimit
 		|| (_result->filesize > kFileSizeLimit && !premium)) {
 		Ui::show(
-			Box(FileSizeLimitBox, session, _result->filesize),
+			Box(FileSizeLimitBox, session, _result->filesize, nullptr),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else {

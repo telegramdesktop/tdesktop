@@ -38,6 +38,7 @@ inline constexpr int CountBit(Flag Last = Flag::LastUsedBit) {
 namespace Data {
 
 class ForumTopic;
+class Story;
 
 struct NameUpdate {
 	NameUpdate(
@@ -84,26 +85,27 @@ struct PeerUpdate {
 		SupportInfo         = (1ULL << 23),
 		IsBot               = (1ULL << 24),
 		EmojiStatus         = (1ULL << 25),
+		StoriesState        = (1ULL << 26),
 
 		// For chats and channels
-		InviteLinks         = (1ULL << 26),
-		Members             = (1ULL << 27),
-		Admins              = (1ULL << 28),
-		BannedUsers         = (1ULL << 29),
-		Rights              = (1ULL << 30),
-		PendingRequests     = (1ULL << 31),
-		Reactions           = (1ULL << 32),
+		InviteLinks         = (1ULL << 27),
+		Members             = (1ULL << 28),
+		Admins              = (1ULL << 29),
+		BannedUsers         = (1ULL << 30),
+		Rights              = (1ULL << 31),
+		PendingRequests     = (1ULL << 32),
+		Reactions           = (1ULL << 33),
 
 		// For channels
-		ChannelAmIn         = (1ULL << 33),
-		StickersSet         = (1ULL << 34),
-		ChannelLinkedChat   = (1ULL << 35),
-		ChannelLocation     = (1ULL << 36),
-		Slowmode            = (1ULL << 37),
-		GroupCall           = (1ULL << 38),
+		ChannelAmIn         = (1ULL << 34),
+		StickersSet         = (1ULL << 35),
+		ChannelLinkedChat   = (1ULL << 36),
+		ChannelLocation     = (1ULL << 37),
+		Slowmode            = (1ULL << 38),
+		GroupCall           = (1ULL << 39),
 
 		// For iteration
-		LastUsedBit         = (1ULL << 38),
+		LastUsedBit         = (1ULL << 39),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -147,19 +149,19 @@ struct TopicUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		UnreadView = (1U << 1),
-		UnreadMentions = (1U << 2),
+		UnreadView      = (1U << 1),
+		UnreadMentions  = (1U << 2),
 		UnreadReactions = (1U << 3),
-		Notifications = (1U << 4),
-		Title = (1U << 5),
-		IconId = (1U << 6),
-		ColorId = (1U << 7),
-		CloudDraft = (1U << 8),
-		Closed = (1U << 9),
-		Creator = (1U << 10),
-		Destroyed = (1U << 11),
+		Notifications   = (1U << 4),
+		Title           = (1U << 5),
+		IconId          = (1U << 6),
+		ColorId         = (1U << 7),
+		CloudDraft      = (1U << 8),
+		Closed          = (1U << 9),
+		Creator         = (1U << 10),
+		Destroyed       = (1U << 11),
 
-		LastUsedBit = (1U << 11),
+		LastUsedBit     = (1U << 11),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -198,19 +200,39 @@ struct EntryUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		Repaint = (1U << 0),
+		Repaint           = (1U << 0),
 		HasPinnedMessages = (1U << 1),
-		ForwardDraft = (1U << 2),
-		LocalDraftSet = (1U << 3),
-		Height = (1U << 4),
-		Destroyed = (1U << 5),
+		ForwardDraft      = (1U << 2),
+		LocalDraftSet     = (1U << 3),
+		Height            = (1U << 4),
+		Destroyed         = (1U << 5),
 
-		LastUsedBit = (1U << 5),
+		LastUsedBit       = (1U << 5),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
 
 	not_null<Dialogs::Entry*> entry;
+	Flags flags = 0;
+
+};
+
+struct StoryUpdate {
+	enum class Flag : uint32 {
+		None = 0,
+
+		Edited      = (1U << 0),
+		Destroyed   = (1U << 1),
+		NewAdded    = (1U << 2),
+		ViewsAdded  = (1U << 3),
+		MarkRead    = (1U << 4),
+
+		LastUsedBit = (1U << 4),
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; }
+
+	not_null<Story*> story;
 	Flags flags = 0;
 
 };
@@ -298,6 +320,20 @@ public:
 		EntryUpdate::Flag flag) const;
 	void entryRemoved(not_null<Dialogs::Entry*> entry);
 
+	void storyUpdated(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags);
+	[[nodiscard]] rpl::producer<StoryUpdate> storyUpdates(
+		StoryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<StoryUpdate> storyUpdates(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<StoryUpdate> storyFlagsValue(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<StoryUpdate> realtimeStoryUpdates(
+		StoryUpdate::Flag flag) const;
+
 	void sendNotifications();
 
 private:
@@ -348,6 +384,7 @@ private:
 	Manager<ForumTopic, TopicUpdate> _topicChanges;
 	Manager<HistoryItem, MessageUpdate> _messageChanges;
 	Manager<Dialogs::Entry, EntryUpdate> _entryChanges;
+	Manager<Story, StoryUpdate> _storyChanges;
 
 	bool _notify = false;
 

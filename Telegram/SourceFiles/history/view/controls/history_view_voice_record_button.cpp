@@ -10,6 +10,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 
 namespace HistoryView::Controls {
@@ -47,7 +48,9 @@ auto Blobs() {
 
 } // namespace
 
-VoiceRecordButton::VoiceRecordButton(not_null<Ui::RpWidget*> parent)
+VoiceRecordButton::VoiceRecordButton(
+	not_null<Ui::RpWidget*> parent,
+	const style::RecordBar &st)
 : AbstractButton(parent)
 , _blobs(std::make_unique<Ui::Paint::Blobs>(
 	Blobs(),

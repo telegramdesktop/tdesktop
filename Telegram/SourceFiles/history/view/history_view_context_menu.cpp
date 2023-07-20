@@ -48,6 +48,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_groups.h"
 #include "data/data_channel.h"
 #include "data/data_file_click_handler.h"
@@ -68,6 +69,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "spellcheck/spellcheck_types.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -993,7 +995,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		list,
 		st::popupMenuWithIcons);
 
-	if (request.overSelection && !list->hasCopyRestrictionForSelected()) {
+	if (request.overSelection
+		&& !list->hasCopyRestrictionForSelected()
+		&& !list->getSelectedText().empty()) {
 		const auto text = request.selectedItems.empty()
 			? tr::lng_context_copy_selected(tr::now)
 			: tr::lng_context_copy_selected_items(tr::now);
@@ -1130,6 +1134,20 @@ void CopyPostLink(
 		: tr::lng_context_about_private_link(tr::now));
 }
 
+void CopyStoryLink(
+		std::shared_ptr<Main::SessionShow> show,
+		FullStoryId storyId) {
+	const auto session = &show->session();
+	const auto maybeStory = session->data().stories().lookup(storyId);
+	if (!maybeStory) {
+		return;
+	}
+	const auto story = *maybeStory;
+	QGuiApplication::clipboard()->setText(
+		session->api().exportDirectStoryLink(story));
+	show->showToast(tr::lng_channel_public_link_copied(tr::now));
+}
+
 void AddPollActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<PollData*> poll,
@@ -1198,11 +1216,11 @@ void AddSaveSoundForNotifications(
 	} else if (int(ringtones.list().size()) >= ringtones.maxSavedCount()) {
 		return;
 	} else if (const auto song = document->song()) {
-		if (song->duration > ringtones.maxDuration()) {
+		if (document->duration() > ringtones.maxDuration()) {
 			return;
 		}
 	} else if (const auto voice = document->voice()) {
-		if (voice->duration > ringtones.maxDuration()) {
+		if (document->duration() > ringtones.maxDuration()) {
 			return;
 		}
 	} else {

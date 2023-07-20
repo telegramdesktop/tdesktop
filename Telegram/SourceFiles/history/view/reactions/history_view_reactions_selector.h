@@ -19,6 +19,7 @@ struct ReactionId;
 } // namespace Data
 
 namespace ChatHelpers {
+class Show;
 class TabbedPanel;
 class EmojiListWidget;
 class StickersListFooter;
@@ -41,16 +42,20 @@ class Selector final : public Ui::RpWidget {
 public:
 	Selector(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> parentController,
+		const style::EmojiPan &st,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::PossibleItemReactionsRef &reactions,
 		IconFactory iconFactory,
-		Fn<void(bool fast)> close);
+		Fn<void(bool fast)> close,
+		bool child = false);
 	Selector(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> parentController,
+		const style::EmojiPan &st,
+		std::shared_ptr<ChatHelpers::Show> show,
 		ChatHelpers::EmojiListMode mode,
 		std::vector<DocumentId> recent,
-		Fn<void(bool fast)> close);
+		Fn<void(bool fast)> close,
+		bool child = false);
 
 	[[nodiscard]] bool useTransparency() const;
 
@@ -68,6 +73,10 @@ public:
 	[[nodiscard]] rpl::producer<> premiumPromoChosen() const {
 		return _premiumPromoChosen.events();
 	}
+	[[nodiscard]] rpl::producer<> willExpand() const {
+		return _willExpand.events();
+	}
+	[[nodiscard]] rpl::producer<> escapes() const;
 
 	void updateShowState(
 		float64 progress,
@@ -82,17 +91,20 @@ private:
 		QRect categories;
 		QRect list;
 		float64 radius = 0.;
+		float64 expanding = 0.;
 		int finalBottom = 0;
 	};
 
 	Selector(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> parentController,
+		const style::EmojiPan &st,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::PossibleItemReactionsRef &reactions,
 		ChatHelpers::EmojiListMode mode,
 		std::vector<DocumentId> recent,
 		IconFactory iconFactory,
-		Fn<void(bool fast)> close);
+		Fn<void(bool fast)> close,
+		bool child);
 
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -116,11 +128,13 @@ private:
 
 	void expand();
 	void cacheExpandIcon();
-	void createList(not_null<Window::SessionController*> controller);
+	void createList();
 	void finishExpand();
 	ChosenReaction lookupChosen(const Data::ReactionId &id) const;
+	void preloadAllRecentsAnimations();
 
-	const base::weak_ptr<Window::SessionController> _parentController;
+	const style::EmojiPan &_st;
+	const std::shared_ptr<ChatHelpers::Show> _show;
 	const Data::PossibleItemReactions _reactions;
 	const std::vector<DocumentId> _recent;
 	const ChatHelpers::EmojiListMode _listMode;
@@ -133,6 +147,8 @@ private:
 
 	rpl::event_stream<ChosenReaction> _chosen;
 	rpl::event_stream<> _premiumPromoChosen;
+	rpl::event_stream<> _willExpand;
+	rpl::event_stream<> _escapes;
 
 	Ui::ScrollArea *_scroll = nullptr;
 	ChatHelpers::EmojiListWidget *_list = nullptr;

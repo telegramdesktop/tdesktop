@@ -1414,15 +1414,16 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				? MsgId(0)
 				: topicRootId;
 			const auto peer = thread->peer();
-			histories.sendRequest(history, requestType, [=](
+			const auto threadHistory = thread->owningHistory();
+			histories.sendRequest(threadHistory, requestType, [=](
 					Fn<void()> finish) {
-				auto &api = history->session().api();
+				auto &api = threadHistory->session().api();
 				const auto sendFlags = commonSendFlags
 					| (topMsgId ? Flag::f_top_msg_id : Flag(0))
 					| (ShouldSendSilent(peer, options)
 						? Flag::f_silent
 						: Flag(0));
-				history->sendRequestId = api.request(
+				threadHistory->sendRequestId = api.request(
 					MTPmessages_ForwardMessages(
 						MTP_flags(sendFlags),
 						history->peer->input,
@@ -1433,7 +1434,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						MTP_int(options.scheduled),
 						MTP_inputPeerEmpty() // send_as
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
-					history->session().api().applyUpdates(updates);
+					threadHistory->session().api().applyUpdates(updates);
 					state->requests.remove(reqId);
 					if (state->requests.empty()) {
 						if (show->valid()) {
@@ -1451,10 +1452,10 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 								peer->name()));
 					}
 					finish();
-				}).afterRequest(history->sendRequestId).send();
-				return history->sendRequestId;
+				}).afterRequest(threadHistory->sendRequestId).send();
+				return threadHistory->sendRequestId;
 			});
-			state->requests.insert(history->sendRequestId);
+			state->requests.insert(threadHistory->sendRequestId);
 		}
 	};
 }

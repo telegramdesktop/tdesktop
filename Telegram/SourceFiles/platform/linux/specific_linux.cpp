@@ -9,7 +9,6 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 
 #include "base/random.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "platform/linux/linux_desktop_environment.h"
@@ -90,13 +89,13 @@ bool PortalAutostart(bool start, bool silent) {
 		commandline.push_back("-autostart");
 
 		std::map<Glib::ustring, Glib::VariantBase> options;
-		options["handle_token"] = Glib::Variant<Glib::ustring>::create(
-			handleToken);
-		options["reason"] = Glib::Variant<Glib::ustring>::create(
-			tr::lng_settings_auto_start(tr::now).toStdString());
-		options["autostart"] = Glib::Variant<bool>::create(start);
-		options["commandline"] = base::Platform::MakeGlibVariant(commandline);
-		options["dbus-activatable"] = Glib::Variant<bool>::create(false);
+		options["handle_token"] = Glib::create_variant(handleToken);
+		options["reason"] = Glib::create_variant(
+			Glib::ustring(
+				tr::lng_settings_auto_start(tr::now).toStdString()));
+		options["autostart"] = Glib::create_variant(start);
+		options["commandline"] = Glib::create_variant(commandline);
+		options["dbus-activatable"] = Glib::create_variant(false);
 
 		auto uniqueName = connection->get_unique_name();
 		uniqueName.erase(0, 1);
@@ -117,10 +116,11 @@ bool PortalAutostart(bool start, bool silent) {
 				const Glib::ustring &object_path,
 				const Glib::ustring &interface_name,
 				const Glib::ustring &signal_name,
-				Glib::VariantContainerBase parameters) {
+				const Glib::VariantContainerBase &parameters) {
 				try {
-					const auto response = base::Platform::GlibVariantCast<
-						uint>(parameters.get_child(0));
+					const auto response = parameters.get_child(
+						0
+					).get_dynamic<uint>();
 
 					if (response) {
 						if (!silent) {
@@ -139,7 +139,7 @@ bool PortalAutostart(bool start, bool silent) {
 				loop->quit();
 			},
 			std::string(base::Platform::XDP::kService),
-			"org.freedesktop.portal.Request",
+			std::string(base::Platform::XDP::kRequestInterface),
 			"Response",
 			requestPath);
 
@@ -153,7 +153,7 @@ bool PortalAutostart(bool start, bool silent) {
 			std::string(base::Platform::XDP::kObjectPath),
 			"org.freedesktop.portal.Background",
 			"RequestBackground",
-			base::Platform::MakeGlibVariant(std::tuple{
+			Glib::create_variant(std::tuple{
 				parentWindowId,
 				options,
 			}),
@@ -191,7 +191,9 @@ bool GenerateDesktopFile(
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
 	const auto sourceFile = kDesktopFile.utf16();
-	const auto targetFile = targetPath + QGuiApplication::desktopFileName();
+	const auto targetFile = targetPath
+		+ QGuiApplication::desktopFileName()
+		+ u".desktop"_q;
 
 	const auto sourceText = [&] {
 		QFile source(sourceFile);
@@ -332,7 +334,7 @@ bool GenerateServiceFile(bool silent = false) {
 		QStandardPaths::GenericDataLocation) + u"/dbus-1/services/"_q;
 
 	const auto targetFile = targetPath
-		+ QGuiApplication::desktopFileName().chopped(8)
+		+ QGuiApplication::desktopFileName()
 		+ u".service"_q;
 
 	DEBUG_LOG(("App Info: placing .service file to %1").arg(targetPath));
@@ -344,7 +346,7 @@ bool GenerateServiceFile(bool silent = false) {
 	target->set_string(
 		group,
 		"Name",
-		QGuiApplication::desktopFileName().chopped(8).toStdString());
+		QGuiApplication::desktopFileName().toStdString());
 
 	target->set_string(
 		group,
@@ -427,8 +429,7 @@ std::optional<bool> IsDarkMode() {
 			"color-scheme");
 
 		if (result.has_value()) {
-			const auto value = base::Platform::GlibVariantCast<uint>(*result);
-			return value == 1;
+			return result->get_dynamic<uint>() == 1;
 		}
 	} catch (...) {
 	}
@@ -455,7 +456,9 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 
 		if (!enabled) {
 			return QFile::remove(
-				autostart + QGuiApplication::desktopFileName());
+				autostart
+					+ QGuiApplication::desktopFileName()
+					+ u".desktop"_q);
 		}
 
 		return GenerateDesktopFile(
@@ -557,14 +560,13 @@ void start() {
 
 	QGuiApplication::setDesktopFileName([&] {
 		if (KSandbox::isFlatpak()) {
-			return qEnvironmentVariable("FLATPAK_ID") + u".desktop"_q;
+			return qEnvironmentVariable("FLATPAK_ID");
 		}
 
 		if (KSandbox::isSnap()) {
 			return qEnvironmentVariable("SNAP_INSTANCE_NAME")
 				+ '_'
-				+ cExeName()
-				+ u".desktop"_q;
+				+ cExeName();
 		}
 
 		if (!Core::UpdaterDisabled()) {
@@ -579,14 +581,13 @@ void start() {
 					md5Hash.data());
 			}
 
-			return u"org.telegram.desktop._%1.desktop"_q.arg(
-				md5Hash.constData());
+			return u"org.telegram.desktop._%1"_q.arg(md5Hash.constData());
 		}
 
-		return u"org.telegram.desktop.desktop"_q;
+		return u"org.telegram.desktop"_q;
 	}());
 
-	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
+	LOG(("App ID: %1").arg(QGuiApplication::desktopFileName()));
 
 	if (!qEnvironmentVariableIsSet("XDG_ACTIVATION_TOKEN")
 		&& qEnvironmentVariableIsSet("DESKTOP_STARTUP_ID")) {

@@ -17,6 +17,12 @@ class Session;
 
 namespace Api {
 
+enum class UnarchiveOnNewMessage {
+	None,
+	NotInFoldersUnmuted,
+	AnyUnmuted,
+};
+
 class GlobalPrivacy final {
 public:
 	explicit GlobalPrivacy(not_null<ApiWrap*> api);
@@ -26,6 +32,10 @@ public:
 
 	[[nodiscard]] bool archiveAndMuteCurrent() const;
 	[[nodiscard]] rpl::producer<bool> archiveAndMute() const;
+	[[nodiscard]] auto unarchiveOnNewMessageCurrent() const
+		-> UnarchiveOnNewMessage;
+	[[nodiscard]] auto unarchiveOnNewMessage() const
+		-> rpl::producer<UnarchiveOnNewMessage>;
 	[[nodiscard]] rpl::producer<bool> showArchiveAndMute() const;
 	[[nodiscard]] rpl::producer<> suggestArchiveAndMute() const;
 	void dismissArchiveAndMuteSuggestion();
@@ -37,6 +47,8 @@ private:
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 	rpl::variable<bool> _archiveAndMute = false;
+	rpl::variable<UnarchiveOnNewMessage> _unarchiveOnNewMessage
+		= UnarchiveOnNewMessage::None;
 	rpl::variable<bool> _showArchiveAndMute = false;
 	std::vector<Fn<void()>> _callbacks;
 

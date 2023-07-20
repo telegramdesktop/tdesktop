@@ -168,6 +168,7 @@ QSize WebPage::countOptimalSize() {
 		&& _data->photo
 		&& _data->type != WebPageType::Photo
 		&& _data->type != WebPageType::Document
+		&& _data->type != WebPageType::Story
 		&& _data->type != WebPageType::Video) {
 		if (_data->type == WebPageType::Profile) {
 			_asArticle = true;

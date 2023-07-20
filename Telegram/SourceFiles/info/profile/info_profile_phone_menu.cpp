@@ -18,6 +18,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_chat.h" // expandedMenuSeparator.
+#include "styles/style_chat_helpers.h"
 
 namespace Info {
 namespace Profile {

@@ -27,6 +27,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "mainwindow.h"
 #include "windows_quiethours_h.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 #include <QtCore/QOperatingSystemVersion>
 

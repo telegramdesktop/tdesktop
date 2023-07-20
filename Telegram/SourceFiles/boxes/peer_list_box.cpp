@@ -10,13 +10,14 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "ui/effects/loading_element.h"
+#include "ui/effects/outline_segments.h"
+#include "ui/effects/round_checkbox.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/effects/loading_element.h"
-#include "ui/effects/round_checkbox.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/empty_userpic.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
@@ -32,8 +33,6 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
-
-#include <rpl/range.h>
 
 PaintRoundImageCallback PaintUserpicCallback(
 		not_null<PeerData*> peer,
@@ -263,15 +262,23 @@ void PeerListBox::peerListSetRowChecked(
 		not_null<PeerListRow*> row,
 		bool checked) {
 	if (checked) {
-		addSelectItem(row, anim::type::normal);
+		if (_controller->trackSelectedList()) {
+			addSelectItem(row, anim::type::normal);
+		}
 		PeerListContentDelegate::peerListSetRowChecked(row, checked);
 		peerListUpdateRow(row);
 
 		// This call deletes row from _searchRows.
-		_select->entity()->clearQuery();
+		if (_select) {
+			_select->entity()->clearQuery();
+		}
 	} else {
 		// The itemRemovedCallback will call changeCheckState() here.
-		_select->entity()->removeItem(row->id());
+		if (_select) {
+			_select->entity()->removeItem(row->id());
+		} else {
+			PeerListContentDelegate::peerListSetRowChecked(row, checked);
+		}
 		peerListUpdateRow(row);
 	}
 }
@@ -882,9 +889,18 @@ void PeerListRow::createCheckbox(
 }
 
 void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
+	Expects(!checked || _checkbox != nullptr);
+
+	if (_checkbox) {
+		_checkbox->setChecked(checked, animated);
+	}
+}
+
+void PeerListRow::setCustomizedCheckSegments(
+		std::vector<Ui::OutlineSegment> segments) {
 	Expects(_checkbox != nullptr);
 
-	_checkbox->setChecked(checked, animated);
+	_checkbox->setCustomizedSegments(std::move(segments));
 }
 
 void PeerListRow::finishCheckedAnimation() {
@@ -1126,6 +1142,24 @@ PeerListRow *PeerListContent::findRow(PeerListRowId id) {
 	return (it == _rowsById.cend()) ? nullptr : it->second.get();
 }
 
+std::optional<QPoint> PeerListContent::lastRowMousePosition() const {
+	if (!_lastMousePosition) {
+		return std::nullopt;
+	}
+	const auto point = mapFromGlobal(*_lastMousePosition);
+	auto in = parentWidget()->rect().contains(
+		parentWidget()->mapFromGlobal(*_lastMousePosition));
+	auto rowsPointY = point.y() - rowsTop();
+	const auto index = (in
+		&& rowsPointY >= 0
+		&& rowsPointY < shownRowsCount() * _rowHeight)
+		? (rowsPointY / _rowHeight)
+		: -1;
+	return (index >= 0 && index == _selected.index.value)
+		? QPoint(point.x(), rowsPointY)
+		: std::optional<QPoint>();
+}
+
 void PeerListContent::removeRow(not_null<PeerListRow*> row) {
 	auto index = row->absoluteIndex();
 	auto isSearchResult = row->isSearchResult();
@@ -1253,6 +1287,9 @@ void PeerListContent::initDecorateWidget(Ui::RpWidget *widget) {
 			return (e->type() == QEvent::Enter) && widget->isVisible();
 		}) | rpl::start_with_next([=] {
 			mouseLeftGeometry();
+		}, widget->lifetime());
+		widget->heightValue() | rpl::skip(1) | rpl::start_with_next([=] {
+			resizeToWidth(width());
 		}, widget->lifetime());
 	}
 }
@@ -1990,10 +2027,12 @@ void PeerListContent::setSearchQuery(
 
 bool PeerListContent::submitted() {
 	if (const auto row = getRow(_selected.index)) {
+		_lastMousePosition = std::nullopt;
 		_controller->rowClicked(row);
 		return true;
 	} else if (showingSearch()) {
 		if (const auto row = getRow(RowIndex(0))) {
+			_lastMousePosition = std::nullopt;
 			_controller->rowClicked(row);
 			return true;
 		}

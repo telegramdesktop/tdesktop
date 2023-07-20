@@ -97,8 +97,7 @@ constexpr auto kSharedMediaLimit = 100;
 		photo,
 		photoThumbs,
 		MTP_documentEmpty(MTP_long(0)),
-		jpeg,
-		0);
+		jpeg);
 }
 
 [[nodiscard]] std::optional<MTPVideoSize> PrepareMtpMarkup(

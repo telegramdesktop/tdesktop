@@ -36,6 +36,7 @@ class SlideWrap;
 class FlatLabel;
 struct ScrollToRequest;
 class PopupMenu;
+struct OutlineSegment;
 } // namespace Ui
 
 using PaintRoundImageCallback = Fn<void(
@@ -202,6 +203,8 @@ public:
 		}
 		setCheckedInternal(checked, animated);
 	}
+	void setCustomizedCheckSegments(
+		std::vector<Ui::OutlineSegment> segments);
 	void setHidden(bool hidden) {
 		_hidden = hidden;
 	}
@@ -324,6 +327,7 @@ public:
 	virtual void peerListScrollToTop() = 0;
 	virtual int peerListFullRowsCount() = 0;
 	virtual PeerListRow *peerListFindRow(PeerListRowId id) = 0;
+	virtual std::optional<QPoint> peerListLastRowMousePosition() = 0;
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 	virtual void peerListShowBox(
@@ -500,6 +504,9 @@ public:
 		return delegate()->peerListIsRowChecked(row);
 	}
 
+	virtual bool trackSelectedList() {
+		return true;
+	}
 	virtual bool searchInLocal() {
 		return true;
 	}
@@ -609,6 +616,7 @@ public:
 	void prependRow(std::unique_ptr<PeerListRow> row);
 	void prependRowFromSearchResult(not_null<PeerListRow*> row);
 	PeerListRow *findRow(PeerListRowId id);
+	std::optional<QPoint> lastRowMousePosition() const;
 	void updateRow(not_null<PeerListRow*> row) {
 		updateRow(row, RowIndex());
 	}
@@ -862,6 +870,9 @@ public:
 	}
 	PeerListRow *peerListFindRow(PeerListRowId id) override {
 		return _content->findRow(id);
+	}
+	std::optional<QPoint> peerListLastRowMousePosition() override {
+		return _content->lastRowMousePosition();
 	}
 	void peerListUpdateRow(not_null<PeerListRow*> row) override {
 		_content->updateRow(row);

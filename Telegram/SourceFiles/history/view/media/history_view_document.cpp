@@ -172,7 +172,7 @@ void PaintWaveform(
 		accumulate_max(result, st::normalFont->width(text));
 	};
 	add(FormatDownloadText(document->size, document->size));
-	const auto duration = document->getDuration();
+	const auto duration = document->duration() / 1000;
 	if (const auto song = document->song()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
@@ -1212,14 +1212,16 @@ bool Document::uploading() const {
 }
 
 void Document::setStatusSize(int64 newSize, TimeId realDuration) const {
-	TimeId duration = _data->isSong()
-		? _data->song()->duration
-		: (_data->isVoiceMessage()
-			? _data->voice()->duration
-			: _transcribedRound
-			? _data->round()->duration
-			: -1);
-	File::setStatusSize(newSize, _data->size, duration, realDuration);
+	const auto duration = (_data->isSong()
+		|| _data->isVoiceMessage()
+		|| _transcribedRound)
+		? _data->duration()
+		: -1;
+	File::setStatusSize(
+		newSize,
+		_data->size,
+		(duration >= 0) ? duration / 1000 : -1,
+		realDuration);
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
 		if (_statusSize == Ui::FileStatusSizeReady) {
 			thumbed->link = tr::lng_media_download(tr::now).toUpper();

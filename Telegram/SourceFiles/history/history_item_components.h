@@ -25,6 +25,7 @@ struct PeerUserpicView;
 
 namespace Data {
 class Session;
+class Story;
 } // namespace Data
 
 namespace Media::Player {
@@ -128,6 +129,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	PeerData *savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
 	bool imported = false;
+	bool story = false;
 };
 
 struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored, HistoryItem> {
@@ -137,6 +139,7 @@ struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored
 		Broadcast,
 		Post,
 		Bot,
+		ExternalLink,
 	};
 	std::unique_ptr<HiddenSenderInfo> sender;
 	Type type = Type::User;
@@ -182,6 +185,44 @@ private:
 
 };
 
+class ReplyToStoryPointer final {
+public:
+	ReplyToStoryPointer(Data::Story *story = nullptr) : _data(story) {
+	}
+	ReplyToStoryPointer(ReplyToStoryPointer &&other)
+	: _data(base::take(other._data)) {
+	}
+	ReplyToStoryPointer &operator=(ReplyToStoryPointer &&other) {
+		_data = base::take(other._data);
+		return *this;
+	}
+	ReplyToStoryPointer &operator=(Data::Story *item) {
+		_data = item;
+		return *this;
+	}
+
+	[[nodiscard]] bool empty() const {
+		return !_data;
+	}
+	[[nodiscard]] Data::Story *get() const {
+		return _data;
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
+
+	[[nodiscard]] Data::Story *operator->() const {
+		return _data;
+	}
+	[[nodiscard]] Data::Story &operator*() const {
+		return *_data;
+	}
+
+private:
+	Data::Story *_data = nullptr;
+
+};
+
 struct HistoryMessageReply
 	: public RuntimeComponent<HistoryMessageReply, HistoryItem> {
 	HistoryMessageReply() = default;
@@ -210,7 +251,12 @@ struct HistoryMessageReply
 	[[nodiscard]] bool isNameUpdated(not_null<HistoryItem*> holder) const;
 	void updateName(not_null<HistoryItem*> holder) const;
 	void resize(int width) const;
-	void itemRemoved(HistoryItem *holder, HistoryItem *removed);
+	void itemRemoved(
+		not_null<HistoryItem*> holder,
+		not_null<HistoryItem*> removed);
+	void storyRemoved(
+		not_null<HistoryItem*> holder,
+		not_null<Data::Story*> removed);
 
 	void paint(
 		Painter &p,
@@ -236,6 +282,7 @@ struct HistoryMessageReply
 	[[nodiscard]] ClickHandlerPtr replyToLink() const {
 		return replyToLnk;
 	}
+	[[nodiscard]] QString statePhrase() const;
 	void setReplyToLinkFrom(not_null<HistoryItem*> holder);
 
 	void refreshReplyToMedia();
@@ -243,11 +290,13 @@ struct HistoryMessageReply
 	PeerId replyToPeerId = 0;
 	MsgId replyToMsgId = 0;
 	MsgId replyToMsgTop = 0;
+	StoryId replyToStoryId = 0;
 	using ColorKey = PeerId;
 	ColorKey replyToColorKey = 0;
 	DocumentId replyToDocumentId = 0;
 	WebPageId replyToWebPageId = 0;
 	ReplyToMessagePointer replyToMsg;
+	ReplyToStoryPointer replyToStory;
 	std::unique_ptr<HistoryMessageVia> replyToVia;
 	std::unique_ptr<Ui::SpoilerAnimation> spoiler;
 	ClickHandlerPtr replyToLnk;
@@ -256,6 +305,7 @@ struct HistoryMessageReply
 	mutable int maxReplyWidth = 0;
 	int toWidth = 0;
 	bool topicPost = false;
+	bool storyReply = false;
 
 };
 
