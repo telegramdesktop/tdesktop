@@ -910,9 +910,11 @@ PauseState Controller::pauseState() const {
 	const auto playing = !inactive && !_paused;
 	return playing
 		? PauseState::Playing
-		: inactive
-		? PauseState::Inactive
-		: PauseState::Paused;
+		: !inactive
+		? PauseState::Paused
+		: _paused
+		? PauseState::InactivePaused
+		: PauseState::Inactive;
 }
 
 float64 Controller::currentVolume() const {

@@ -76,6 +76,7 @@ enum class PauseState {
 	Playing,
 	Paused,
 	Inactive,
+	InactivePaused,
 };
 
 struct SiblingLayout {
