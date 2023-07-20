@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/userpic_view.h"
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
@@ -20,6 +21,7 @@ class Error;
 
 namespace Data {
 class Forum;
+enum class StorySourcesList : uchar;
 } // namespace Data
 
 namespace Main {
@@ -168,6 +170,8 @@ private:
 	void setupDownloadBar();
 	void setupShortcuts();
 	void setupStories();
+	void storiesExplicitCollapse();
+	void collectStoriesUserpicsViews(Data::StorySourcesList list);
 	void storiesToggleExplicitExpand(bool expand);
 	void trackScroll(not_null<Ui::RpWidget*> widget);
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
@@ -281,6 +285,8 @@ private:
 	QString _lastFilterText;
 
 	rpl::event_stream<rpl::producer<Stories::Content>> _storiesContents;
+	base::flat_map<PeerId, Ui::PeerUserpicView> _storiesUserpicsViewsHidden;
+	base::flat_map<PeerId, Ui::PeerUserpicView> _storiesUserpicsViewsShown;
 	Fn<void()> _updateScrollGeometryCached;
 	std::unique_ptr<Stories::List> _stories;
 	Ui::Animations::Simple _storiesExplicitExpandAnimation;

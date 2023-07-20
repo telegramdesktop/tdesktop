@@ -622,6 +622,7 @@ void List::mousePressEvent(QMouseEvent *e) {
 		return;
 	} else if (_state == State::Small) {
 		requestExpanded(true);
+		return;
 	} else if (_state != State::Full) {
 		return;
 	}
