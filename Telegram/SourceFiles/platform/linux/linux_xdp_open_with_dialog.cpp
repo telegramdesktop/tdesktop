@@ -23,8 +23,8 @@ namespace File {
 namespace internal {
 namespace {
 
-constexpr auto kXDPOpenURIInterface = "org.freedesktop.portal.OpenURI"_cs;
-constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
+constexpr auto kXDPOpenURIInterface = "org.freedesktop.portal.OpenURI";
+constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
 
 } // namespace
 
@@ -34,15 +34,14 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 			Gio::DBus::BusType::SESSION);
 
 		const auto version = connection->call_sync(
-			std::string(base::Platform::XDP::kObjectPath),
-			std::string(kPropertiesInterface),
+			base::Platform::XDP::kObjectPath,
+			kPropertiesInterface,
 			"Get",
 			Glib::create_variant(std::tuple{
-				Glib::ustring(
-					std::string(kXDPOpenURIInterface)),
+				Glib::ustring(kXDPOpenURIInterface),
 				Glib::ustring("version"),
 			}),
-			std::string(base::Platform::XDP::kService)
+			base::Platform::XDP::kService
 		).get_child(0).get_dynamic<Glib::Variant<uint>>().get();
 
 		if (version < 3) {
@@ -107,8 +106,8 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 				const Glib::VariantContainerBase &parameters) {
 				loop->quit();
 			},
-			std::string(base::Platform::XDP::kService),
-			std::string(base::Platform::XDP::kRequestInterface),
+			base::Platform::XDP::kService,
+			base::Platform::XDP::kRequestInterface,
 			"Response",
 			requestPath);
 
@@ -121,8 +120,8 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 		auto outFdList = Glib::RefPtr<Gio::UnixFDList>();
 
 		connection->call_sync(
-			std::string(base::Platform::XDP::kObjectPath),
-			std::string(kXDPOpenURIInterface),
+			base::Platform::XDP::kObjectPath,
+			kXDPOpenURIInterface,
 			"OpenFile",
 			Glib::create_variant(std::tuple{
 				parentWindowId,
@@ -144,7 +143,7 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 			}),
 			Gio::UnixFDList::create(std::vector<int>{ fd }),
 			outFdList,
-			std::string(base::Platform::XDP::kService));
+			base::Platform::XDP::kService);
 
 		if (signalId != 0) {
 			QWidget window;

@@ -114,8 +114,8 @@ LinuxIntegration::LinuxIntegration()
 	XdpInhibit::InhibitProxy::new_for_bus_sync(
 		Gio::BusType::SESSION_,
 		Gio::DBusProxyFlags::DO_NOT_AUTO_START_AT_CONSTRUCTION_,
-		std::string(base::Platform::XDP::kService),
-		std::string(base::Platform::XDP::kObjectPath),
+		base::Platform::XDP::kService,
+		base::Platform::XDP::kObjectPath,
 		nullptr))
 , _darkModeWatcher([](
 	const Glib::ustring &group,

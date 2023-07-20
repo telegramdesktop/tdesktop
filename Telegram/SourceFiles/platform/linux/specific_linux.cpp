@@ -54,8 +54,6 @@ using Platform::internal::WaylandIntegration;
 namespace Platform {
 namespace {
 
-constexpr auto kDesktopFile = ":/misc/org.telegram.desktop.desktop"_cs;
-
 bool PortalAutostart(bool start, bool silent) {
 	if (cExeName().isEmpty()) {
 		return false;
@@ -138,8 +136,8 @@ bool PortalAutostart(bool start, bool silent) {
 
 				loop->quit();
 			},
-			std::string(base::Platform::XDP::kService),
-			std::string(base::Platform::XDP::kRequestInterface),
+			base::Platform::XDP::kService,
+			base::Platform::XDP::kRequestInterface,
 			"Response",
 			requestPath);
 
@@ -150,14 +148,14 @@ bool PortalAutostart(bool start, bool silent) {
 		});
 
 		connection->call_sync(
-			std::string(base::Platform::XDP::kObjectPath),
+			base::Platform::XDP::kObjectPath,
 			"org.freedesktop.portal.Background",
 			"RequestBackground",
 			Glib::create_variant(std::tuple{
 				parentWindowId,
 				options,
 			}),
-			std::string(base::Platform::XDP::kService));
+			base::Platform::XDP::kService);
 
 		if (signalId != 0) {
 			QWidget window;
@@ -190,7 +188,7 @@ bool GenerateDesktopFile(
 	DEBUG_LOG(("App Info: placing .desktop file to %1").arg(targetPath));
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
-	const auto sourceFile = kDesktopFile.utf16();
+	const auto sourceFile = u":/misc/org.telegram.desktop.desktop"_q;
 	const auto targetFile = targetPath
 		+ QGuiApplication::desktopFileName()
 		+ u".desktop"_q;
