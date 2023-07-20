@@ -248,7 +248,7 @@ parts:
   glibmm:
     source: https://github.com/GNOME/glibmm.git
     source-depth: 1
-    source-tag: 2.76.0
+    source-tag: 2.77.0
     plugin: meson
     build-packages:
       - meson
