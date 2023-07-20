@@ -388,7 +388,6 @@ void Header::show(HeaderData data) {
 			? _playPause->x()
 			: (outer - st::storiesHeaderMargin.right());
 		const auto nameLeft = st::storiesHeaderNamePosition.x();
-		const auto nameNatural = _name->naturalWidth();
 		if (counter) {
 			counter += st::normalFont->spacew;
 		}
