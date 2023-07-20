@@ -51,14 +51,49 @@ Q_DECLARE_METATYPE(MsgId);
 	return MsgId(a.bare - b.bare);
 }
 
+using StoryId = int32;
+
+struct FullStoryId {
+	PeerId peer = 0;
+	StoryId story = 0;
+
+	[[nodiscard]] bool valid() const {
+		return peer != 0 && story != 0;
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	friend inline auto operator<=>(FullStoryId, FullStoryId) = default;
+	friend inline bool operator==(FullStoryId, FullStoryId) = default;
+};
+
+struct FullReplyTo {
+	MsgId msgId = 0;
+	MsgId topicRootId = 0;
+	FullStoryId storyId;
+
+	[[nodiscard]] bool valid() const {
+		return msgId || storyId;
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	friend inline auto operator<=>(FullReplyTo, FullReplyTo) = default;
+	friend inline bool operator==(FullReplyTo, FullReplyTo) = default;
+};
+
 constexpr auto StartClientMsgId = MsgId(0x01 - (1LL << 58));
 constexpr auto ClientMsgIds = (1LL << 31);
 constexpr auto EndClientMsgId = MsgId(StartClientMsgId.bare + ClientMsgIds);
+constexpr auto StartStoryMsgId = MsgId(EndClientMsgId.bare + 1);
+constexpr auto ServerMaxStoryId = StoryId(1 << 30);
+constexpr auto StoryMsgIds = int64(ServerMaxStoryId);
+constexpr auto EndStoryMsgId = MsgId(StartStoryMsgId.bare + StoryMsgIds);
 constexpr auto ServerMaxMsgId = MsgId(1LL << 56);
 constexpr auto ScheduledMsgIdsRange = (1LL << 32);
 constexpr auto ShowAtUnreadMsgId = MsgId(0);
 
-constexpr auto SpecialMsgIdShift = EndClientMsgId.bare;
+constexpr auto SpecialMsgIdShift = EndStoryMsgId.bare;
 constexpr auto ShowAtTheEndMsgId = MsgId(SpecialMsgIdShift + 1);
 constexpr auto SwitchAtTopMsgId = MsgId(SpecialMsgIdShift + 2);
 constexpr auto ShowAndStartBotMsgId = MsgId(SpecialMsgIdShift + 4);
@@ -79,6 +114,20 @@ static_assert(-(SpecialMsgIdShift + 0xFF) > ServerMaxMsgId);
 	Expects(index >= 0);
 
 	return MsgId(StartClientMsgId.bare + index);
+}
+
+[[nodiscrd]] constexpr inline bool IsStoryMsgId(MsgId id) noexcept {
+	return (id >= StartStoryMsgId && id < EndStoryMsgId);
+}
+[[nodiscard]] constexpr inline StoryId StoryIdFromMsgId(MsgId id) noexcept {
+	Expects(IsStoryMsgId(id));
+
+	return StoryId(id.bare - StartStoryMsgId.bare);
+}
+[[nodiscard]] constexpr inline MsgId StoryIdToMsgId(StoryId id) noexcept {
+	Expects(id >= 0);
+
+	return MsgId(StartStoryMsgId.bare + id);
 }
 
 [[nodiscard]] constexpr inline bool IsServerMsgId(MsgId id) noexcept {
@@ -142,6 +191,15 @@ template <>
 struct hash<MsgId> : private hash<int64> {
 	size_t operator()(MsgId value) const noexcept {
 		return hash<int64>::operator()(value.bare);
+	}
+};
+
+template <>
+struct hash<FullStoryId> {
+	size_t operator()(FullStoryId value) const {
+		return QtPrivate::QHashCombine().operator()(
+			std::hash<BareId>()(value.peer.value),
+			value.story);
 	}
 };
 

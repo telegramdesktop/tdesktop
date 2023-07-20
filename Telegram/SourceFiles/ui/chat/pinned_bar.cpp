@@ -11,7 +11,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
-#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/palette.h"
 
 #include <QtGui/QtEvents>

@@ -591,7 +591,7 @@ bool NotificationData::init(
 	_hints["category"] = Glib::Variant<Glib::ustring>::create("im.received");
 
 	_hints["desktop-entry"] = Glib::Variant<Glib::ustring>::create(
-		QGuiApplication::desktopFileName().chopped(8).toStdString());
+		QGuiApplication::desktopFileName().toStdString());
 
 	_notificationClosedSignalId = _dbusConnection->signal_subscribe(
 		signalEmitted,

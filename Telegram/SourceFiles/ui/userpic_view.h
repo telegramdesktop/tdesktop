@@ -25,8 +25,8 @@ struct PeerUserpicView {
 	QImage cached;
 	std::shared_ptr<QImage> cloud;
 	base::weak_ptr<const EmptyUserpic> empty;
-	int paletteVersion : 31 = 0;
-	int forum : 1 = 0;
+	uint32 paletteVersion : 31 = 0;
+	uint32 forum : 1 = 0;
 };
 
 [[nodiscard]] bool PeerUserpicLoading(const PeerUserpicView &view);

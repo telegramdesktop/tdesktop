@@ -309,7 +309,7 @@ object_ptr<Ui::RpWidget> CreatePeerListSectionSubtitle(
 		rpl::producer<QString> text) {
 	auto result = object_ptr<Ui::FixedHeightWidget>(
 		parent,
-		st::searchedBarHeight);
+		st::windowFilterChatsSectionSubtitleHeight);
 
 	const auto raw = result.data();
 	raw->paintRequest(

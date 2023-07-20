@@ -30,7 +30,7 @@ public:
 	int top() override;
 	QSize size() override;
 	QString title() override;
-	QString subtitle() override;
+	TextWithEntities subtitle() override;
 	QString button() override;
 	void draw(
 		Painter &p,

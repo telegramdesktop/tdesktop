@@ -80,6 +80,8 @@ QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 			return tr::lng_edit_privacy_calls_p2p_everyone(tr::now);
 		case Option::Contacts:
 			return tr::lng_edit_privacy_calls_p2p_contacts(tr::now);
+		case Option::CloseFriends:
+			return tr::lng_edit_privacy_close_friends(tr::now); // unused
 		case Option::Nobody:
 			return tr::lng_edit_privacy_calls_p2p_nobody(tr::now);
 		}
@@ -88,6 +90,8 @@ QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 		switch (option) {
 		case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);
 		case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);
+		case Option::CloseFriends:
+			return tr::lng_edit_privacy_close_friends(tr::now);
 		case Option::Nobody: return tr::lng_edit_privacy_nobody(tr::now);
 		}
 		Unexpected("Value in Privacy::Option.");
@@ -121,17 +125,15 @@ void AddPremiumPrivacyButton(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> label,
-		IconDescriptor &&descriptor,
 		Privacy::Key key,
 		Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory) {
 	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 	const auto session = &controller->session();
-	const auto &st = st::settingsButton;
+	const auto &st = st::settingsButtonNoIcon;
 	const auto button = AddButton(
 		container,
 		rpl::duplicate(label),
-		st,
-		std::move(descriptor));
+		st);
 	struct State {
 		State(QWidget *parent) : widget(parent) {
 			widget.setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -256,54 +258,50 @@ void SetupPrivacy(
 	using Key = Privacy::Key;
 	const auto add = [&](
 			rpl::producer<QString> label,
-			IconDescriptor &&descriptor,
 			Key key,
 			auto controllerFactory) {
 		AddPrivacyButton(
 			controller,
 			container,
 			std::move(label),
-			std::move(descriptor),
+			{},
 			key,
 			controllerFactory);
 	};
 	add(
 		tr::lng_settings_phone_number_privacy(),
-		{ &st::settingsIconCalls, kIconGreen },
 		Key::PhoneNumber,
 		[=] { return std::make_unique<PhoneNumberPrivacyController>(
 			controller); });
 	add(
 		tr::lng_settings_last_seen(),
-		{ &st::settingsIconOnline, kIconLightBlue },
 		Key::LastSeen,
 		[=] { return std::make_unique<LastSeenPrivacyController>(session); });
 	add(
 		tr::lng_settings_profile_photo_privacy(),
-		{ &st::settingsIconAccount, kIconRed },
 		Key::ProfilePhoto,
 		[] { return std::make_unique<ProfilePhotoPrivacyController>(); });
 	add(
+		tr::lng_settings_bio_privacy(),
+		Key::About,
+		[] { return std::make_unique<AboutPrivacyController>(); });
+	add(
 		tr::lng_settings_forwards_privacy(),
-		{ &st::settingsIconForward, kIconLightOrange },
 		Key::Forwards,
 		[=] { return std::make_unique<ForwardsPrivacyController>(
 			controller); });
 	add(
 		tr::lng_settings_calls(),
-		{ &st::settingsIconVideoCalls, kIconGreen },
 		Key::Calls,
 		[] { return std::make_unique<CallsPrivacyController>(); });
 	add(
 		tr::lng_settings_groups_invite(),
-		{ &st::settingsIconGroup, kIconDarkBlue },
 		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 	AddPremiumPrivacyButton(
 		controller,
 		container,
 		tr::lng_settings_voices_privacy(),
-		{ &st::settingsPremiumIconVoice, kIconRed },
 		Key::Voices,
 		[=] { return std::make_unique<VoicesPrivacyController>(session); });
 
@@ -816,14 +814,15 @@ void AddPrivacyButton(
 		rpl::producer<QString> label,
 		IconDescriptor &&descriptor,
 		Privacy::Key key,
-		Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory) {
+		Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory,
+		const style::SettingsButton *stOverride) {
 	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 	const auto session = &controller->session();
 	AddButtonWithLabel(
 		container,
 		std::move(label),
 		PrivacyString(session, key),
-		st::settingsButton,
+		stOverride ? *stOverride : st::settingsButtonNoIcon,
 		std::move(descriptor)
 	)->addClickHandler([=] {
 		*shower = session->api().userPrivacy().value(

@@ -219,6 +219,7 @@ void CreateRightLabel(
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
 		st.rightLabel);
+	name->show();
 	rpl::combine(
 		button->widthValue(),
 		std::move(buttonText),

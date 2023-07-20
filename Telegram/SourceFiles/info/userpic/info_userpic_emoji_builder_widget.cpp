@@ -321,7 +321,7 @@ void EmojiSelector::createSelector(Type type) {
 			if (isEmoji) {
 				st::userpicBuilderEmojiToggleStickersIcon.paintInCenter(p, r);
 			} else {
-				st::emojiPeople.paintInCenter(p, r);
+				st::defaultEmojiPan.icons.people.paintInCenter(p, r);
 			}
 		}, toggleButton->lifetime());
 	}

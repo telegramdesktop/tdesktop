@@ -246,12 +246,12 @@ EditCaptionBox::EditCaptionBox(
 , _scroll(base::make_unique_q<Ui::ScrollArea>(this, st::boxScroll))
 , _field(base::make_unique_q<Ui::InputField>(
 	this,
-	st::confirmCaptionArea,
+	st::defaultComposeFiles.caption,
 	Ui::InputField::Mode::MultiLine,
 	tr::lng_photo_caption()))
 , _emojiToggle(base::make_unique_q<Ui::EmojiButton>(
 	this,
-	st::boxAttachEmoji))
+	st::defaultComposeFiles.emoji))
 , _initialText(std::move(text))
 , _initialList(std::move(list))
 , _saved(std::move(saved)) {
@@ -402,6 +402,7 @@ void EditCaptionBox::rebuildPreview() {
 		if (photo || document->isVideoFile() || document->isAnimation()) {
 			const auto media = Ui::CreateChild<Ui::ItemSingleMediaPreview>(
 				this,
+				st::defaultComposeControls,
 				gifPaused,
 				_historyItem,
 				Ui::AttachControls::Type::EditOnly);
@@ -410,6 +411,7 @@ void EditCaptionBox::rebuildPreview() {
 		} else {
 			_content.reset(Ui::CreateChild<Ui::ItemSingleFilePreview>(
 				this,
+				st::defaultComposeControls,
 				_historyItem,
 				Ui::AttachControls::Type::EditOnly));
 		}
@@ -418,6 +420,7 @@ void EditCaptionBox::rebuildPreview() {
 
 		const auto media = Ui::SingleMediaPreview::Create(
 			this,
+			st::defaultComposeControls,
 			gifPaused,
 			file,
 			Ui::AttachControls::Type::EditOnly);
@@ -429,6 +432,7 @@ void EditCaptionBox::rebuildPreview() {
 		} else {
 			_content.reset(Ui::CreateChild<Ui::SingleFilePreview>(
 				this,
+				st::defaultComposeControls,
 				file,
 				Ui::AttachControls::Type::EditOnly));
 		}
@@ -482,7 +486,7 @@ void EditCaptionBox::setupField() {
 
 	_field->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());
-	_field->setMaxHeight(st::confirmCaptionArea.heightMax);
+	_field->setMaxHeight(st::defaultComposeFiles.caption.heightMax);
 
 	connect(_field, &Ui::InputField::submitted, [=] { save(); });
 	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
@@ -596,7 +600,7 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 		if (!_preparedList.files.empty()) {
 			Editor::OpenWithPreparedFile(
 				this,
-				controller,
+				controller->uiShow(),
 				&_preparedList.files.front(),
 				st::sendMediaPreviewSize,
 				[=] { rebuildPreview(); });
@@ -845,7 +849,8 @@ bool EditCaptionBox::validateLength(const QString &text) const {
 	if (remove <= 0) {
 		return true;
 	}
-	_controller->show(Box(CaptionLimitReachedBox, session, remove));
+	_controller->show(
+		Box(CaptionLimitReachedBox, session, remove, nullptr));
 	return false;
 }
 

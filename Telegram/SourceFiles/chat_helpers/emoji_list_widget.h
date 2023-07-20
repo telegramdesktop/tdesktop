@@ -7,6 +7,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 */
 #pragma once
 
+#include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/round_rect.h"
@@ -84,6 +85,7 @@ struct EmojiListDescriptor {
 		DocumentId,
 		Fn<void()>)> customRecentFactory;
 	const style::EmojiPan *st = nullptr;
+	ComposeFeatures features;
 };
 
 class EmojiListWidget final
@@ -123,6 +125,7 @@ public:
 	[[nodiscard]] rpl::producer<EmojiChosen> chosen() const;
 	[[nodiscard]] rpl::producer<FileChosen> customChosen() const;
 	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
+	[[nodiscard]] rpl::producer<> escapes() const;
 
 	void provideRecent(const std::vector<DocumentId> &customRecentList);
 
@@ -131,7 +134,8 @@ public:
 		Painter &p,
 		QRect clip,
 		int finalBottom,
-		float64 progress,
+		float64 geometryProgress,
+		float64 fullProgress,
 		RectPart origin);
 
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
@@ -345,6 +349,7 @@ private:
 	void applyNextSearchQuery();
 
 	const std::shared_ptr<Show> _show;
+	const ComposeFeatures _features;
 	Mode _mode = Mode::Full;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 	const int _staticCount = 0;

@@ -93,6 +93,7 @@ public:
 	virtual bool listScrollTo(int top, bool syntetic = true) = 0;
 	virtual void listCancelRequest() = 0;
 	virtual void listDeleteRequest() = 0;
+	virtual void listTryProcessKeyInput(not_null<QKeyEvent*> e) = 0;
 	virtual rpl::producer<Data::MessagesSlice> listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,

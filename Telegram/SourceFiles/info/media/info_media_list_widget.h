@@ -169,7 +169,6 @@ private:
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
-	void refreshViewer();
 	void refreshRows();
 	void trackSession(not_null<Main::Session*> session);
 
@@ -190,8 +189,12 @@ private:
 	void forwardItem(GlobalMsgId globalId);
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
+	void toggleStoryPinSelected();
 	void deleteItem(GlobalMsgId globalId);
 	void deleteItems(SelectedItems &&items, Fn<void()> confirmed = nullptr);
+	void toggleStoryPin(
+		MessageIdsList &&items,
+		Fn<void()> confirmed = nullptr);
 	void applyItemSelection(
 		HistoryItem *item,
 		TextSelection selection);

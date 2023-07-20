@@ -25,6 +25,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
@@ -63,7 +64,7 @@ ShowButton::ShowButton(not_null<Ui::RpWidget*> parent)
 	_button.sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		resize(
-			s.width() + st::emojiSuggestionsFadeRight.width(),
+			s.width() + st::defaultEmojiSuggestions.fadeRight.width(),
 			s.height());
 		_button.moveToRight(0, 0);
 	}, lifetime());
@@ -74,7 +75,7 @@ void ShowButton::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	const auto clip = e->rect();
 
-	const auto &icon = st::emojiSuggestionsFadeRight;
+	const auto &icon = st::defaultEmojiSuggestions.fadeRight;
 	const auto fade = QRect(0, 0, icon.width(), height());
 	if (fade.intersects(clip)) {
 		icon.fill(p, fade);
@@ -131,6 +132,14 @@ void TranslateBox(
 	// 	container,
 	// 	tr::lng_translate_box_original());
 
+	const auto animationsPaused = [] {
+		using Which = FlatLabel::WhichAnimationsPaused;
+		const auto emoji = On(PowerSaving::kEmojiChat);
+		const auto spoiler = On(PowerSaving::kChatSpoiler);
+		return emoji
+			? (spoiler ? Which::All : Which::CustomEmoji)
+			: (spoiler ? Which::Spoiler : Which::None);
+	};
 	const auto original = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
 		box,
 		object_ptr<FlatLabel>(box, stLabel)));
@@ -139,6 +148,7 @@ void TranslateBox(
 			original->entity()->setContextMenuHook([](auto&&) {
 			});
 		}
+		original->entity()->setAnimationsPausedCallback(animationsPaused);
 		original->entity()->setMarkedText(
 			text,
 			Core::MarkedTextContext{
@@ -194,6 +204,7 @@ void TranslateBox(
 		box,
 		object_ptr<FlatLabel>(box, stLabel)));
 	translated->entity()->setSelectable(!hasCopyRestriction);
+	translated->entity()->setAnimationsPausedCallback(animationsPaused);
 
 	constexpr auto kMaxLines = 3;
 	container->resizeToWidth(box->width());

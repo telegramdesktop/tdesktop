@@ -37,6 +37,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "data/data_forum.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
+#include "data/data_stories.h"
 #include "data/data_message_reactions.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -677,9 +678,11 @@ void Updates::getDifference() {
 	api().request(MTPupdates_GetDifference(
 		MTP_flags(0),
 		MTP_int(_ptsWaiter.current()),
-		MTPint(),
+		MTPint(), // pts_limit
+		MTPint(), // pts_total_limit
 		MTP_int(_updatesDate),
-		MTP_int(_updatesQts)
+		MTP_int(_updatesQts),
+		MTPint() // qts_limit
 	)).done([=](const MTPupdates_Difference &result) {
 		differenceDone(result);
 	}).fail([=](const MTP::Error &error) {
@@ -2515,7 +2518,15 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateTranscribedAudio: {
 		const auto &data = update.c_updateTranscribedAudio();
 		_session->api().transcribes().apply(data);
-	}
+	} break;
+
+	case mtpc_updateStory: {
+		_session->data().stories().apply(update.c_updateStory());
+	} break;
+
+	case mtpc_updateReadStories: {
+		_session->data().stories().apply(update.c_updateReadStories());
+	} break;
 
 	}
 }

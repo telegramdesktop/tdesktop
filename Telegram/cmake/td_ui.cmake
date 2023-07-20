@@ -70,6 +70,9 @@ PRIVATE
 
     data/data_subscription_option.h
 
+    dialogs/ui/dialogs_stories_list.cpp
+    dialogs/ui/dialogs_stories_list.h
+
     editor/controllers/undo_controller.cpp
     editor/controllers/undo_controller.h
     editor/editor_crop.cpp
@@ -264,6 +267,8 @@ PRIVATE
     ui/effects/glare.h
     ui/effects/loading_element.cpp
     ui/effects/loading_element.h
+    ui/effects/outline_segments.cpp
+    ui/effects/outline_segments.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
     ui/effects/premium_stars.cpp

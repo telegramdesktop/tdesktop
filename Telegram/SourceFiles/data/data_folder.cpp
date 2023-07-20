@@ -39,6 +39,21 @@ constexpr auto kShowChatNamesCount = 8;
 		not_null<Folder*> folder) {
 	const auto &list = folder->lastHistories();
 	if (list.empty()) {
+		if (const auto storiesUnread = folder->storiesUnreadCount()) {
+			return {
+				tr::lng_contacts_stories_status_new(
+					tr::now,
+					lt_count,
+					storiesUnread),
+			};
+		} else if (const auto storiesCount = folder->storiesCount()) {
+			return {
+				tr::lng_contacts_stories_status(
+					tr::now,
+					lt_count,
+					storiesCount),
+			};
+		}
 		return {};
 	}
 
@@ -301,6 +316,33 @@ void Folder::validateListEntryCache() {
 		Ui::ItemTextDefaultOptions());
 }
 
+void Folder::updateStoriesCount(int count, int unread) {
+	if (_storiesCount == count && _storiesUnreadCount == unread) {
+		return;
+	}
+	const auto limit = (1 << 16) - 1;
+	const auto was = (_storiesCount > 0);
+	_storiesCount = std::min(count, limit);
+	_storiesUnreadCount = std::min(unread, limit);
+	const auto now = (_storiesCount > 0);
+	if (was == now) {
+		updateChatListEntryPostponed();
+	} else if (now) {
+		updateChatListSortPosition();
+	} else {
+		updateChatListExistence();
+	}
+	++_chatListViewVersion;
+}
+
+int Folder::storiesCount() const {
+	return _storiesCount;
+}
+
+int Folder::storiesUnreadCount() const {
+	return _storiesUnreadCount;
+}
+
 void Folder::requestChatListMessage() {
 	if (!chatListMessageKnown()) {
 		owner().histories().requestDialogEntry(this);
@@ -339,7 +381,7 @@ int Folder::fixedOnTopIndex() const {
 }
 
 bool Folder::shouldBeInChatList() const {
-	return !_chatsList.empty();
+	return !_chatsList.empty() || (_storiesCount > 0);
 }
 
 Dialogs::UnreadState Folder::chatListUnreadState() const {

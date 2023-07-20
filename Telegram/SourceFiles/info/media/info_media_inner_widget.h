@@ -20,10 +20,10 @@ class SearchFieldController;
 } // namespace Ui
 
 namespace Info {
-
 class Controller;
+} // namespace Info
 
-namespace Media {
+namespace Info::Media {
 
 class Memento;
 class ListWidget;
@@ -86,5 +86,4 @@ private:
 
 };
 
-} // namespace Media
-} // namespace Info
+} // namespace Info::Media

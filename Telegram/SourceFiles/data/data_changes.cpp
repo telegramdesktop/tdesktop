@@ -272,6 +272,38 @@ void Changes::entryRemoved(not_null<Dialogs::Entry*> entry) {
 	_entryChanges.drop(entry);
 }
 
+void Changes::storyUpdated(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags) {
+	const auto drop = (flags & StoryUpdate::Flag::Destroyed);
+	_storyChanges.updated(story, flags, drop);
+	if (!drop) {
+		scheduleNotifications();
+	}
+}
+
+rpl::producer<StoryUpdate> Changes::storyUpdates(
+		StoryUpdate::Flags flags) const {
+	return _storyChanges.updates(flags);
+}
+
+rpl::producer<StoryUpdate> Changes::storyUpdates(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags) const {
+	return _storyChanges.updates(story, flags);
+}
+
+rpl::producer<StoryUpdate> Changes::storyFlagsValue(
+		not_null<Story*> story,
+		StoryUpdate::Flags flags) const {
+	return _storyChanges.flagsValue(story, flags);
+}
+
+rpl::producer<StoryUpdate> Changes::realtimeStoryUpdates(
+		StoryUpdate::Flag flag) const {
+	return _storyChanges.realtimeUpdates(flag);
+}
+
 void Changes::scheduleNotifications() {
 	if (!_notify) {
 		_notify = true;
@@ -291,6 +323,7 @@ void Changes::sendNotifications() {
 	_messageChanges.sendNotifications();
 	_entryChanges.sendNotifications();
 	_topicChanges.sendNotifications();
+	_storyChanges.sendNotifications();
 }
 
 } // namespace Data

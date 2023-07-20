@@ -63,6 +63,7 @@ class Stickers;
 class GroupCall;
 class NotifySettings;
 class CustomEmojiManager;
+class Stories;
 
 struct RepliesReadTillUpdate {
 	FullMsgId id;
@@ -135,6 +136,9 @@ public:
 	}
 	[[nodiscard]] CustomEmojiManager &customEmojiManager() const {
 		return *_customEmojiManager;
+	}
+	[[nodiscard]] Stories &stories() const {
+		return *_stories;
 	}
 
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
@@ -633,6 +637,9 @@ public:
 		not_null<HistoryItem*> item);
 	void registerCallItem(not_null<HistoryItem*> item);
 	void unregisterCallItem(not_null<HistoryItem*> item);
+	void registerStoryItem(FullStoryId id, not_null<HistoryItem*> item);
+	void unregisterStoryItem(FullStoryId id, not_null<HistoryItem*> item);
+	void refreshStoryItemViews(FullStoryId id);
 
 	void documentMessageRemoved(not_null<DocumentData*> document);
 
@@ -807,6 +814,7 @@ private:
 		const QString &siteName,
 		const QString &title,
 		const TextWithEntities &description,
+		FullStoryId storyId,
 		PhotoData *photo,
 		DocumentData *document,
 		WebPageCollage &&collage,
@@ -944,6 +952,9 @@ private:
 		UserId,
 		base::flat_set<not_null<ViewElement*>>> _contactViews;
 	std::unordered_set<not_null<HistoryItem*>> _callItems;
+	std::unordered_map<
+		FullStoryId,
+		base::flat_set<not_null<HistoryItem*>>> _storyItems;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
@@ -1007,6 +1018,7 @@ private:
 	const std::unique_ptr<ForumIcons> _forumIcons;
 	const std::unique_ptr<NotifySettings> _notifySettings;
 	const std::unique_ptr<CustomEmojiManager> _customEmojiManager;
+	const std::unique_ptr<Stories> _stories;
 
 	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 

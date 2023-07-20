@@ -26,6 +26,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "base/power_save_blocker.h"
 #include "base/event_filter.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"

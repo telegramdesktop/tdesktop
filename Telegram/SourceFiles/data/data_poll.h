@@ -67,7 +67,7 @@ struct PollData {
 	PollId id = 0;
 	QString question;
 	std::vector<PollAnswer> answers;
-	std::vector<not_null<UserData*>> recentVoters;
+	std::vector<not_null<PeerData*>> recentVoters;
 	std::vector<QByteArray> sendingVotes;
 	TextWithEntities solution;
 	TimeId closePeriod = 0;

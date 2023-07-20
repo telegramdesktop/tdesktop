@@ -610,14 +610,14 @@ void InnerWidget::elementShowPollResults(
 void InnerWidget::elementOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	_controller->openPhoto(photo, context, MsgId(0));
+	_controller->openPhoto(photo, { context });
 }
 
 void InnerWidget::elementOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	_controller->openDocument(document, context, MsgId(0), showInMediaView);
+	_controller->openDocument(document, showInMediaView, { context });
 }
 
 void InnerWidget::elementCancelUpload(const FullMsgId &context) {
@@ -1380,7 +1380,7 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				_controller->openDocument(document, itemId, MsgId(), true);
+				_controller->openDocument(document, true, { itemId });
 			}
 		}
 	}

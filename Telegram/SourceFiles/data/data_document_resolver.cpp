@@ -254,7 +254,10 @@ void ResolveDocument(
 			&& !document->filepath().isEmpty()) {
 			File::Launch(document->location(false).fname);
 		} else if (controller) {
-			controller->openDocument(document, msgId, topicRootId, true);
+			controller->openDocument(
+				document,
+				true,
+				{ msgId, topicRootId });
 		}
 	};
 

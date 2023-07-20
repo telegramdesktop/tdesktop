@@ -42,6 +42,16 @@ QString PreparePhotoFileName(int index, TimeId date) {
 		+ ".jpg";
 }
 
+QString PrepareStoryFileName(
+		int index,
+		TimeId date,
+		const Utf8String &extension) {
+	return "story_"
+		+ QString::number(index)
+		+ PrepareFileNameDatePart(date)
+		+ extension;
+}
+
 } // namespace
 
 int PeerColorIndex(BareId bareId) {
@@ -295,7 +305,7 @@ void ParseAttributes(
 			}
 			result.width = data.vw().v;
 			result.height = data.vh().v;
-			result.duration = data.vduration().v;
+			result.duration = int(data.vduration().v);
 		}, [&](const MTPDdocumentAttributeAudio &data) {
 			if (data.is_voice()) {
 				result.isVoiceMessage = true;
@@ -580,6 +590,98 @@ UserpicsSlice ParseUserpicsSlice(
 					? photo.c_photo().vdate().v
 					: TimeId(0)));
 		result.list.push_back(ParsePhoto(photo, suggestedPath));
+	}
+	return result;
+}
+
+File &Story::file() {
+	return media.file();
+}
+
+const File &Story::file() const {
+	return media.file();
+}
+
+Image &Story::thumb() {
+	return media.thumb();
+}
+
+const Image &Story::thumb() const {
+	return media.thumb();
+}
+
+StoriesSlice ParseStoriesSlice(
+		const MTPVector<MTPStoryItem> &data,
+		int baseIndex) {
+	const auto &list = data.v;
+	auto result = StoriesSlice();
+	result.list.reserve(list.size());
+	for (const auto &story : list) {
+		result.lastId = story.match([](const auto &data) {
+			return data.vid().v;
+		});
+		++result.skipped;
+		story.match([&](const MTPDstoryItem &data) {
+			const auto date = data.vdate().v;
+			auto media = Media();
+			data.vmedia().match([&](const MTPDmessageMediaPhoto &data) {
+				const auto suggestedPath = "stories/"
+					+ PrepareStoryFileName(
+						++baseIndex,
+						date,
+						".jpg"_q);
+				const auto photo = data.vphoto();
+				auto content = photo
+					? ParsePhoto(*photo, suggestedPath)
+					: Photo();
+				media.content = content;
+			}, [&](const MTPDmessageMediaDocument &data) {
+				const auto document = data.vdocument();
+				auto fake = ParseMediaContext();
+				auto content = document
+					? ParseDocument(fake, *document, "stories", date)
+					: Document();
+				const auto extension = (content.mime == "image/jpeg")
+					? ".jpg"_q
+					: (content.mime == "image/png")
+					? ".png"_q
+					: [&] {
+						const auto mimeType = Core::MimeTypeForName(
+							content.mime);
+						QStringList patterns = mimeType.globPatterns();
+						if (!patterns.isEmpty()) {
+							return patterns.front().replace(
+								'*',
+								QString()).toUtf8();
+						}
+						return QByteArray();
+					}();
+				const auto path = content.file.suggestedPath = "stories/"
+					+ PrepareStoryFileName(
+						++baseIndex,
+						date,
+						extension);
+				content.thumb.file.suggestedPath = path + "_thumb.jpg";
+				media.content = content;
+			}, [&](const auto &data) {
+				media.content = UnsupportedMedia();
+			});
+			if (!v::is<UnsupportedMedia>(media.content)) {
+				result.list.push_back(Story{
+					.id = data.vid().v,
+					.date = date,
+					.expires = data.vexpire_date().v,
+					.media = std::move(media),
+					.pinned = data.is_pinned(),
+					.caption = (data.vcaption()
+						? ParseText(
+							*data.vcaption(),
+							data.ventities().value_or_empty())
+						: std::vector<TextPart>()),
+				});
+				--result.skipped;
+			}
+		}, [](const auto &) {});
 	}
 	return result;
 }
@@ -954,6 +1056,8 @@ Media ParseMedia(
 		result.content = ParsePoll(data);
 	}, [](const MTPDmessageMediaDice &data) {
 		// #TODO dice
+	}, [](const MTPDmessageMediaStory &data) {
+		// #TODO stories export
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }
@@ -1260,6 +1364,8 @@ Message ParseMessage(
 					if (result.replyToPeerId == result.peerId) {
 						result.replyToPeerId = 0;
 					}
+				}, [&](const MTPDmessageReplyStoryHeader &data) {
+					// #TODO stories export
 				});
 			}
 		}
@@ -1307,6 +1413,8 @@ Message ParseMessage(
 				result.replyToPeerId = data.vreply_to_peer_id()
 					? ParsePeerId(*data.vreply_to_peer_id())
 					: PeerId(0);
+			}, [&](const MTPDmessageReplyStoryHeader &data) {
+				// #TODO stories export
 			});
 		}
 		if (const auto viaBotId = data.vvia_bot_id()) {

@@ -191,7 +191,9 @@ bool GenerateDesktopFile(
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
 	const auto sourceFile = kDesktopFile.utf16();
-	const auto targetFile = targetPath + QGuiApplication::desktopFileName();
+	const auto targetFile = targetPath
+		+ QGuiApplication::desktopFileName()
+		+ u".desktop"_q;
 
 	const auto sourceText = [&] {
 		QFile source(sourceFile);
@@ -332,7 +334,7 @@ bool GenerateServiceFile(bool silent = false) {
 		QStandardPaths::GenericDataLocation) + u"/dbus-1/services/"_q;
 
 	const auto targetFile = targetPath
-		+ QGuiApplication::desktopFileName().chopped(8)
+		+ QGuiApplication::desktopFileName()
 		+ u".service"_q;
 
 	DEBUG_LOG(("App Info: placing .service file to %1").arg(targetPath));
@@ -344,7 +346,7 @@ bool GenerateServiceFile(bool silent = false) {
 	target->set_string(
 		group,
 		"Name",
-		QGuiApplication::desktopFileName().chopped(8).toStdString());
+		QGuiApplication::desktopFileName().toStdString());
 
 	target->set_string(
 		group,
@@ -455,7 +457,9 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 
 		if (!enabled) {
 			return QFile::remove(
-				autostart + QGuiApplication::desktopFileName());
+				autostart
+					+ QGuiApplication::desktopFileName()
+					+ u".desktop"_q);
 		}
 
 		return GenerateDesktopFile(
@@ -557,14 +561,13 @@ void start() {
 
 	QGuiApplication::setDesktopFileName([&] {
 		if (KSandbox::isFlatpak()) {
-			return qEnvironmentVariable("FLATPAK_ID") + u".desktop"_q;
+			return qEnvironmentVariable("FLATPAK_ID");
 		}
 
 		if (KSandbox::isSnap()) {
 			return qEnvironmentVariable("SNAP_INSTANCE_NAME")
 				+ '_'
-				+ cExeName()
-				+ u".desktop"_q;
+				+ cExeName();
 		}
 
 		if (!Core::UpdaterDisabled()) {
@@ -579,14 +582,13 @@ void start() {
 					md5Hash.data());
 			}
 
-			return u"org.telegram.desktop._%1.desktop"_q.arg(
-				md5Hash.constData());
+			return u"org.telegram.desktop._%1"_q.arg(md5Hash.constData());
 		}
 
-		return u"org.telegram.desktop.desktop"_q;
+		return u"org.telegram.desktop"_q;
 	}());
 
-	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
+	LOG(("App ID: %1").arg(QGuiApplication::desktopFileName()));
 
 	if (!qEnvironmentVariableIsSet("XDG_ACTIVATION_TOKEN")
 		&& qEnvironmentVariableIsSet("DESKTOP_STARTUP_ID")) {

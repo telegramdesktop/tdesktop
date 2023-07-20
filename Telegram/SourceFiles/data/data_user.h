@@ -62,6 +62,9 @@ enum class UserDataFlag {
 	CanReceiveGifts = (1 << 15),
 	VoiceMessagesForbidden = (1 << 16),
 	PersonalPhoto = (1 << 17),
+	StoriesHidden = (1 << 18),
+	HasActiveStories = (1 << 19),
+	HasUnreadStories = (1 << 20),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -119,6 +122,7 @@ public:
 	[[nodiscard]] bool isInaccessible() const;
 	[[nodiscard]] bool applyMinPhoto() const;
 	[[nodiscard]] bool hasPersonalPhoto() const;
+	[[nodiscard]] bool hasStoriesHidden() const;
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;
@@ -168,6 +172,20 @@ public:
 	int commonChatsCount() const;
 	void setCommonChatsCount(int count);
 
+	[[nodiscard]] bool hasPrivateForwardName() const;
+	[[nodiscard]] QString privateForwardName() const;
+	void setPrivateForwardName(const QString &name);
+
+	enum class StoriesState {
+		Unknown,
+		None,
+		HasRead,
+		HasUnread,
+	};
+	[[nodiscard]] bool hasActiveStories() const;
+	[[nodiscard]] bool hasUnreadStories() const;
+	void setStoriesState(StoriesState state);
+
 private:
 	auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> & override;
@@ -178,6 +196,7 @@ private:
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
+	QString _privateForwardName;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;

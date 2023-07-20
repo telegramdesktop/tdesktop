@@ -48,7 +48,7 @@ public:
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const = 0;
 	virtual QString getErrorOnSend(
@@ -90,7 +90,7 @@ public:
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const override;
 
@@ -258,7 +258,7 @@ public:
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const override;
 
@@ -299,7 +299,7 @@ public:
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const override;
 
@@ -334,7 +334,7 @@ public:
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const override;
 

@@ -35,6 +35,7 @@ enum class StickersType : uchar;
 class Forum;
 class ForumTopic;
 class Thread;
+class Story;
 } // namespace Data
 
 namespace InlineBots {
@@ -160,6 +161,7 @@ public:
 	QString exportDirectMessageLink(
 		not_null<HistoryItem*> item,
 		bool inRepliesContext);
+	QString exportDirectStoryLink(not_null<Data::Story*> item);
 
 	void requestContacts();
 	void requestDialogs(Data::Folder *folder = nullptr);
@@ -707,5 +709,6 @@ private:
 	base::flat_map<not_null<UserData*>, Fn<void()>> _botCommonGroupsRequests;
 
 	base::flat_map<FullMsgId, QString> _unlikelyMessageLinks;
+	base::flat_map<FullStoryId, QString> _unlikelyStoryLinks;
 
 };

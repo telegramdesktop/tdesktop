@@ -460,8 +460,8 @@ QString ThemeDocumentBox::title() {
 	return QString();
 }
 
-QString ThemeDocumentBox::subtitle() {
-	return _parent->data()->notificationText().text;
+TextWithEntities ThemeDocumentBox::subtitle() {
+	return _parent->data()->notificationText();
 }
 
 QString ThemeDocumentBox::button() {

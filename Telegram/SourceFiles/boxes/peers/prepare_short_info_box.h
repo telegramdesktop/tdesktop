@@ -13,6 +13,7 @@ class PeerData;
 
 namespace style {
 struct ShortInfoCover;
+struct ShortInfoBox;
 } // namespace style
 
 namespace Ui {
@@ -33,11 +34,13 @@ struct PreparedShortInfoUserpic {
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 	not_null<PeerData*> peer,
 	Fn<void()> open,
-	Fn<bool()> videoPaused);
+	Fn<bool()> videoPaused,
+	const style::ShortInfoBox *stOverride = nullptr);
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 	not_null<PeerData*> peer,
-	not_null<Window::SessionNavigation*> navigation);
+	not_null<Window::SessionNavigation*> navigation,
+	const style::ShortInfoBox *stOverride = nullptr);
 
 [[nodiscard]] rpl::producer<QString> PrepareShortInfoStatus(
 	not_null<PeerData*> peer);

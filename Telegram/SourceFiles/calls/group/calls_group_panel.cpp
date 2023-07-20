@@ -124,7 +124,7 @@ void Show::showOrHideBoxOrLayer(
 	} else if (const auto panel = _panel.get()) {
 		panel->hideLayer(animated);
 	}
- }
+}
 
 not_null<QWidget*> Show::toastParent() const {
 	const auto panel = _panel.get();

@@ -218,22 +218,28 @@ dialogsMenuToggleUnreadMuted: icon {
 	{ "dialogs/dialogs_menu_unread_dot", dialogsMenuIconFg },
 };
 
-dialogsLock: IconButton(dialogsMenuToggle) {
-	icon: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFg }};
-	iconOver: icon {{ "dialogs/dialogs_lock", dialogsMenuIconFgOver }};
+dialogsLock: IconButton {
+	width: 36px;
+	height: 38px;
+
+	icon: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	ripple: emptyRippleAnimation;
 }
-dialogsUnlockIcon: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFg }};
-dialogsUnlockIconOver: icon {{ "dialogs/dialogs_unlock", dialogsMenuIconFgOver }};
+dialogsUnlockIcon: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFg }};
+dialogsUnlockIconOver: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFgOver }};
 dialogsCalendar: IconButton {
-	width: 29px;
-	height: 32px;
+	width: 32px;
+	height: 35px;
 
 	icon: icon {{ "dialogs/dialogs_calendar", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_calendar", dialogsMenuIconFgOver }};
-	iconPosition: point(0px, 5px);
+	iconPosition: point(1px, 6px);
 }
 dialogsSearchFrom: IconButton(dialogsCalendar) {
-	width: 26px;
+	width: 29px;
 	icon: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs/dialogs_search_from", dialogsMenuIconFgOver }};
 }
@@ -246,27 +252,28 @@ dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
 dialogsFilter: InputField(defaultInputField) {
 	textBg: filterInputInactiveBg;
 	textBgActive: filterInputActiveBg;
-	textMargins: margins(12px, 7px, 30px, 3px);
+	textMargins: margins(12px, 8px, 30px, 5px);
 
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
 	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderMargins: margins(5px, 0px, 2px, 0px);
 	placeholderScale: 0.;
 	placeholderShift: -50px;
 	placeholderFont: normalFont;
 
 	borderFg: filterInputInactiveBg;
-	borderFgActive: filterInputBorderFg;
+	borderFgActive: windowBgRipple;
 	borderFgError: activeLineFgError;
 
-	border: 2px;
+	border: 3px;
 	borderActive: 2px;
-	borderRadius: roundRadiusSmall;
+	borderRadius: 18px;
+	borderDenominator: 2;
 
 	font: normalFont;
 
-	heightMin: 32px;
+	heightMin: 35px;
 }
 dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
@@ -276,12 +283,12 @@ dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	rippleAreaSize: 34px;
 }
 dialogsCancelSearch: CrossButton {
-	width: 32px;
-	height: 32px;
+	width: 35px;
+	height: 35px;
 
 	cross: CrossAnimation {
-		size: 32px;
-		skip: 10px;
+		size: 35px;
+		skip: 12px;
 		stroke: 1.5;
 		minScale: 0.3;
 	}
@@ -484,4 +491,74 @@ chooseTopicListItem: PeerListItem(defaultPeerListItem) {
 }
 chooseTopicList: PeerList(defaultPeerList) {
 	item: chooseTopicListItem;
+}
+
+DialogsStories {
+	left: pixels;
+	height: pixels;
+	photo: pixels;
+	photoLeft: pixels;
+	photoTop: pixels;
+	shift: pixels;
+	lineTwice: pixels;
+	lineReadTwice: pixels;
+	nameLeft: pixels;
+	nameRight: pixels;
+	nameTop: pixels;
+	nameStyle: TextStyle;
+}
+DialogsStoriesList {
+	small: DialogsStories;
+	full: DialogsStories;
+	bg: color;
+	readOpacity: double;
+	fullClickable: int;
+}
+
+dialogsStories: DialogsStories {
+	left: 4px;
+	height: 35px;
+	photo: 21px;
+	photoTop: 4px;
+	photoLeft: 4px;
+	shift: 16px;
+	lineTwice: 3px;
+	lineReadTwice: 0px;
+	nameLeft: 11px;
+	nameRight: 10px;
+	nameTop: 3px;
+	nameStyle: semiboldTextStyle;
+}
+
+dialogsStoriesFull: DialogsStories {
+	left: 4px;
+	height: 77px;
+	photo: 42px;
+	photoLeft: 10px;
+	photoTop: 9px;
+	lineTwice: 4px;
+	lineReadTwice: 2px;
+	nameLeft: 0px;
+	nameRight: 0px;
+	nameTop: 56px;
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(11px);
+		linkFont: font(11px);
+		linkFontOver: font(11px);
+	}
+}
+
+dialogsStoriesList: DialogsStoriesList {
+	small: dialogsStories;
+	full: dialogsStoriesFull;
+	bg: dialogsBg;
+	readOpacity: 0.6;
+	fullClickable: 0;
+}
+dialogsStoriesListInfo: DialogsStoriesList(dialogsStoriesList) {
+	bg: transparent;
+	fullClickable: 1;
+}
+dialogsStoriesListMine: DialogsStoriesList(dialogsStoriesListInfo) {
+	readOpacity: 1.;
 }

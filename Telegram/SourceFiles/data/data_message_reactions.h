@@ -225,14 +225,14 @@ struct RecentReaction {
 	not_null<PeerData*> peer;
 	bool unread = false;
 	bool big = false;
+	bool my = false;
 
-	inline friend constexpr bool operator==(
-			const RecentReaction &a,
-			const RecentReaction &b) noexcept {
-		return (a.peer.get() == b.peer.get())
-			&& (a.unread == b.unread)
-			&& (a.big == b.big);
-	}
+	friend inline auto operator<=>(
+		const RecentReaction &a,
+		const RecentReaction &b) = default;
+	friend inline bool operator==(
+		const RecentReaction &a,
+		const RecentReaction &b) = default;
 };
 
 class MessageReactions final {
@@ -247,7 +247,8 @@ public:
 		bool ignoreChosen);
 	[[nodiscard]] bool checkIfChanged(
 		const QVector<MTPReactionCount> &list,
-		const QVector<MTPMessagePeerReaction> &recent) const;
+		const QVector<MTPMessagePeerReaction> &recent,
+		bool ignoreChosen) const;
 	[[nodiscard]] const std::vector<MessageReaction> &list() const;
 	[[nodiscard]] auto recent() const
 		-> const base::flat_map<ReactionId, std::vector<RecentReaction>> &;

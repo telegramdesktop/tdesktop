@@ -230,6 +230,7 @@ FormatPointer MakeFormatPointer(
 	if (!io) {
 		return {};
 	}
+	io->seekable = (seek != nullptr);
 	auto result = avformat_alloc_context();
 	if (!result) {
 		LogError(u"avformat_alloc_context"_q);
@@ -250,7 +251,9 @@ FormatPointer MakeFormatPointer(
 		LogError(u"avformat_open_input"_q, error);
 		return {};
 	}
-	result->flags |= AVFMT_FLAG_FAST_SEEK;
+	if (seek) {
+		result->flags |= AVFMT_FLAG_FAST_SEEK;
+	}
 
 	// Now FormatPointer will own and free the IO context.
 	io.release();

@@ -29,6 +29,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
 

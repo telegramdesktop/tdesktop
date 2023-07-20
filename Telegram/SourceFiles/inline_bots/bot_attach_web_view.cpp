@@ -481,7 +481,6 @@ bool AttachWebView::IsSame(
 		&& (a->fromSwitch == b.fromSwitch)
 		&& (a->action.history == b.action.history)
 		&& (a->action.replyTo == b.action.replyTo)
-		&& (a->action.topicRootId == b.action.topicRootId)
 		&& (a->action.options.sendAs == b.action.options.sendAs)
 		&& (a->action.options.silent == b.action.options.silent);
 }
@@ -533,8 +532,7 @@ void AttachWebView::request(const WebViewButton &button) {
 	const auto flags = Flag::f_theme_params
 		| (button.url.isEmpty() ? Flag(0) : Flag::f_url)
 		| (_startCommand.isEmpty() ? Flag(0) : Flag::f_start_param)
-		| (action.replyTo ? Flag::f_reply_to_msg_id : Flag(0))
-		| (action.topicRootId ? Flag::f_top_msg_id : Flag(0))
+		| (action.replyTo ? Flag::f_reply_to : Flag(0))
 		| (action.options.sendAs ? Flag::f_send_as : Flag(0))
 		| (action.options.silent ? Flag::f_silent : Flag(0));
 	_requestId = _session->api().request(MTPmessages_RequestWebView(
@@ -545,8 +543,7 @@ void AttachWebView::request(const WebViewButton &button) {
 		MTP_string(_startCommand),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
 		MTP_string("tdesktop"),
-		MTP_int(action.replyTo.bare),
-		MTP_int(action.topicRootId.bare),
+		action.mtpReplyTo(),
 		(action.options.sendAs
 			? action.options.sendAs->input
 			: MTP_inputPeerEmpty())
@@ -810,8 +807,7 @@ void AttachWebView::requestMenu(
 			MTP_flags(Flag::f_theme_params
 				| Flag::f_url
 				| Flag::f_from_bot_menu
-				| (action.replyTo? Flag::f_reply_to_msg_id : Flag(0))
-				| (action.topicRootId ? Flag::f_top_msg_id : Flag(0))
+				| (action.replyTo? Flag::f_reply_to : Flag(0))
 				| (action.options.sendAs ? Flag::f_send_as : Flag(0))
 				| (action.options.silent ? Flag::f_silent : Flag(0))),
 			action.history->peer->input,
@@ -820,8 +816,7 @@ void AttachWebView::requestMenu(
 			MTPstring(), // start_param
 			MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
 			MTP_string("tdesktop"),
-			MTP_int(action.replyTo.bare),
-			MTP_int(action.topicRootId.bare),
+			action.mtpReplyTo(),
 			(action.options.sendAs
 				? action.options.sendAs->input
 				: MTP_inputPeerEmpty())
@@ -1189,15 +1184,13 @@ void AttachWebView::started(uint64 queryId) {
 		_session->api().request(base::take(_prolongId)).cancel();
 		_prolongId = _session->api().request(MTPmessages_ProlongWebView(
 			MTP_flags(Flag(0)
-				| (action.replyTo ? Flag::f_reply_to_msg_id : Flag(0))
-				| (action.topicRootId ? Flag::f_top_msg_id : Flag(0))
+				| (action.replyTo ? Flag::f_reply_to : Flag(0))
 				| (action.options.sendAs ? Flag::f_send_as : Flag(0))
 				| (action.options.silent ? Flag::f_silent : Flag(0))),
 			action.history->peer->input,
 			_bot->inputUser,
 			MTP_long(queryId),
-			MTP_int(action.replyTo.bare),
-			MTP_int(action.topicRootId.bare),
+			action.mtpReplyTo(),
 			(action.options.sendAs
 				? action.options.sendAs->input
 				: MTP_inputPeerEmpty())

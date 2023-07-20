@@ -457,11 +457,17 @@ auto ChatThemeValueFromPeer(
 bool ShowSendPremiumError(
 		not_null<SessionController*> controller,
 		not_null<DocumentData*> document) {
+	return ShowSendPremiumError(controller->uiShow(), document);
+}
+
+bool ShowSendPremiumError(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<DocumentData*> document) {
 	if (!document->isPremiumSticker()
 		|| document->session().premium()) {
 		return false;
 	}
-	ShowStickerPreviewBox(controller, document);
+	ShowStickerPreviewBox(std::move(show), document);
 	return true;
 }
 

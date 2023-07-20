@@ -22,6 +22,10 @@ void SendReport(
 	not_null<PeerData*> peer,
 	Ui::ReportReason reason,
 	const QString &comment,
-	std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data);
+	std::variant<
+		v::null_t,
+		MessageIdsList,
+		not_null<PhotoData*>,
+		StoryId> data);
 
 } // namespace Api
