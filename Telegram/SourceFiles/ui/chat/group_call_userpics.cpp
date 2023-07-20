@@ -364,6 +364,9 @@ void GroupCallUserpics::finishAnimating() {
 }
 
 void GroupCallUserpics::toggle(Userpic &userpic, bool shown) {
+	if (userpic.hiding == !shown && !userpic.shownAnimation.animating()) {
+		return;
+	}
 	userpic.hiding = !shown;
 	userpic.shownAnimation.start(
 		[=] { recountAndRepaint(); },
