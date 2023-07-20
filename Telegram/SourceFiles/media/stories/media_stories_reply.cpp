@@ -677,6 +677,10 @@ rpl::producer<bool> ReplyArea::activeValue() const {
 	) | rpl::distinct_until_changed();
 }
 
+bool ReplyArea::ignoreWindowMove(QPoint position) const {
+	return _controls->isRecordingPressed();
+}
+
 void ReplyArea::showPremiumToast(not_null<DocumentData*> emoji) {
 	// #TODO stories
 }

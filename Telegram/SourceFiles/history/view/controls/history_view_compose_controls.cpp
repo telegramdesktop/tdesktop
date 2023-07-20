@@ -2962,6 +2962,13 @@ bool ComposeControls::isRecording() const {
 	return _voiceRecordBar->isRecording();
 }
 
+bool ComposeControls::isRecordingPressed() const {
+	return !_voiceRecordBar->isRecordingLocked()
+		&& (!_voiceRecordBar->isHidden()
+			|| (_send->type() == Ui::SendButton::Type::Record
+				&& _send->isDown()));
+}
+
 rpl::producer<bool> ComposeControls::recordingValue() const {
 	return _recording.value();
 }

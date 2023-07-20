@@ -67,6 +67,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> activeValue() const;
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 
+	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
+
 private:
 	class Cant;
 

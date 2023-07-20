@@ -89,6 +89,7 @@ public:
 	void setStartRecordingFilter(Fn<bool()> &&callback);
 
 	[[nodiscard]] bool isRecording() const;
+	[[nodiscard]] bool isRecordingLocked() const;
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isListenState() const;
 	[[nodiscard]] bool isActive() const;

@@ -706,6 +706,8 @@ void OverlayWidget::setupWindow() {
 				&& (widgetPoint.y() > st::mediaviewHeaderTop)
 				&& QRect(_x, _y, _w, _h).contains(widgetPoint)) {
 			return Flag::None | Flag(0);
+		} else if (_stories && _stories->ignoreWindowMove(widgetPoint)) {
+			return Flag::None | Flag(0);
 		}
 		return Flag::Move | Flag(0);
 	});

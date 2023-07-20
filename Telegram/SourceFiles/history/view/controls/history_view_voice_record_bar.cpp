@@ -1581,6 +1581,10 @@ bool VoiceRecordBar::isRecording() const {
 	return _recording.current();
 }
 
+bool VoiceRecordBar::isRecordingLocked() const {
+	return isRecording() && _lock->isLocked();
+}
+
 bool VoiceRecordBar::isActive() const {
 	return isRecording() || isListenState();
 }

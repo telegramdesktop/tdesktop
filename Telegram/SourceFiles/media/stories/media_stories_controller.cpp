@@ -1443,6 +1443,11 @@ void Controller::moveFromShown() {
 	}
 }
 
+bool Controller::ignoreWindowMove(QPoint position) const {
+	return _replyArea->ignoreWindowMove(position)
+		|| _header->ignoreWindowMove(position);
+}
+
 rpl::lifetime &Controller::lifetime() {
 	return _lifetime;
 }

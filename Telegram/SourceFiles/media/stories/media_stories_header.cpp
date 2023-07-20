@@ -542,10 +542,12 @@ void Header::rebuildVolumeControls(
 		: Direction::Vertical);
 
 	slider->setChangeProgressCallback([=](float64 value) {
+		_ignoreWindowMove = true;
 		_controller->changeVolume(value);
 		updateVolumeIcon();
 	});
 	slider->setChangeFinishedCallback([=](float64 value) {
+		_ignoreWindowMove = false;
 		_controller->volumeChangeFinished();
 	});
 	button->setClickedCallback([=] {
@@ -621,6 +623,11 @@ void Header::raise() {
 	if (_widget) {
 		_widget->raise();
 	}
+}
+
+
+bool Header::ignoreWindowMove(QPoint position) const {
+	return _ignoreWindowMove;
 }
 
 void Header::updateDateText() {

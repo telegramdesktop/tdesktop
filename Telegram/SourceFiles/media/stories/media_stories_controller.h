@@ -160,6 +160,8 @@ public:
 	void reportRequested();
 	void togglePinnedRequested(bool pinned);
 
+	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:

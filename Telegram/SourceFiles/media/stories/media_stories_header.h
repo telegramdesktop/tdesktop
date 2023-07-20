@@ -54,6 +54,8 @@ public:
 	void show(HeaderData data);
 	void raise();
 
+	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
+
 private:
 	void updateDateText();
 	void applyPauseState();
@@ -79,6 +81,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _privacy;
 	std::optional<HeaderData> _data;
 	base::Timer _dateUpdateTimer;
+	bool _ignoreWindowMove = false;
 
 };
 

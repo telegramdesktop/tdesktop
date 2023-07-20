@@ -103,6 +103,10 @@ void View::togglePinnedRequested(bool pinned) {
 	_controller->togglePinnedRequested(pinned);
 }
 
+bool View::ignoreWindowMove(QPoint position) const {
+	return _controller->ignoreWindowMove(position);
+}
+
 SiblingView View::sibling(SiblingType type) const {
 	return _controller->sibling(type);
 }
