@@ -1,3 +1,7 @@
+4.8.5 (20.07.23)
+
+- Bug fixes and other minor improvements. And stories preview.
+
 4.8.4 (13.06.23)
 
 - Fix opening links on Linux.
