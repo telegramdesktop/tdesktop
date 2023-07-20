@@ -31,8 +31,9 @@ namespace {
 
 constexpr auto kNameOpacity = 1.;
 constexpr auto kDateOpacity = 0.8;
-constexpr auto kControlOpacity = 0.6;
+constexpr auto kControlOpacity = 0.65;
 constexpr auto kControlOpacityOver = 1.;
+constexpr auto kControlOpacityDisabled = 0.45;
 constexpr auto kVolumeHideTimeoutShort = crl::time(20);
 constexpr auto kVolumeHideTimeoutLong = crl::time(200);
 
@@ -427,20 +428,27 @@ void Header::createPlayPause() {
 }
 
 void Header::createVolumeToggle() {
+	Expects(_data.has_value());
+
 	struct VolumeState {
 		base::Timer hideTimer;
 		bool over = false;
+		bool silent = false;
 		bool dropdownOver = false;
 	};
 	_volumeToggle = std::make_unique<Ui::RpWidget>(_widget.get());
 	auto &lifetime = _volumeToggle->lifetime();
 	const auto state = lifetime.make_state<VolumeState>();
+	state->silent = _data->silent;
 	state->hideTimer.setCallback([=] {
 		_volume->toggle(false, anim::type::normal);
 	});
 
 	_volumeToggle->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (state->silent) {
+			return;
+		}
 		const auto type = e->type();
 		if (type == QEvent::Enter || type == QEvent::Leave) {
 			const auto over = (e->type() == QEvent::Enter);
@@ -458,7 +466,9 @@ void Header::createVolumeToggle() {
 
 	_volumeToggle->paintRequest() | rpl::start_with_next([=] {
 		auto p = QPainter(_volumeToggle.get());
-		p.setOpacity(kControlOpacity);
+		p.setOpacity(state->silent
+			? kControlOpacityDisabled
+			: kControlOpacity);
 		_volumeIcon.current()->paint(
 			p,
 			st::storiesVolumeButton.iconPosition,
@@ -469,6 +479,7 @@ void Header::createVolumeToggle() {
 	_volume = std::make_unique<Ui::FadeWrap<Ui::RpWidget>>(
 		_widget->parentWidget(),
 		object_ptr<Ui::RpWidget>(_widget->parentWidget()));
+	_volume->toggle(false, anim::type::instant);
 	_volume->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		const auto type = e->type();
@@ -505,7 +516,9 @@ void Header::createVolumeToggle() {
 		st::storiesVolumeButton.width,
 		st::storiesVolumeButton.height);
 	_volumeToggle->show();
-	_volumeToggle->setCursor(style::cur_pointer);
+	if (!state->silent) {
+		_volumeToggle->setCursor(style::cur_pointer);
+	}
 }
 
 void Header::rebuildVolumeControls(
@@ -600,7 +613,7 @@ void Header::updatePauseState() {
 
 void Header::updateVolumeIcon() {
 	const auto volume = _controller->currentVolume();
-	_volumeIcon = (volume <= 0.)
+	_volumeIcon = (volume <= 0. || (_data && _data->silent))
 		? &st::mediaviewVolumeIcon0Over
 		: (volume < 1 / 2.)
 		? &st::mediaviewVolumeIcon1Over
