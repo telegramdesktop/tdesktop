@@ -528,7 +528,9 @@ void Widget::chosenRow(const ChosenRow &row) {
 		const auto peer = history->peer;
 		if (const auto user = history->peer->asUser()) {
 			if (row.message.fullId.msg == ShowAtUnreadMsgId) {
-				if (row.userpicClick && user->hasActiveStories()) {
+				if (row.userpicClick
+					&& user->hasActiveStories()
+					&& !user->isSelf()) {
 					controller()->openPeerStories(user->id);
 					return;
 				}
