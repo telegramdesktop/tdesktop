@@ -2970,7 +2970,7 @@ bool ComposeControls::isRecordingPressed() const {
 				&& _send->isDown()));
 }
 
-rpl::producer<bool> ComposeControls::recordingValue() const {
+rpl::producer<bool> ComposeControls::recordingActiveValue() const {
 	return _voiceRecordBar->shownValue();
 }
 
