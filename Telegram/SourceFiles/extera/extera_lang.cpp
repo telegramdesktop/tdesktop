@@ -250,7 +250,7 @@ TextWithEntities TranslateWithEntities(const QString &key, EntVar var1, EntVar v
 							if (entity.offset() > endOld) {
 								entity.shiftRight(diff);
 							} else if (entity.offset() <= i && entity.offset() + entity.length() >= endOld) {
-								entity.extendToRight(diff);
+								entity.shrinkFromRight(-diff);
 							}
 						}
 					} else if (endNew < endOld) {

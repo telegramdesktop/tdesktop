@@ -8,7 +8,7 @@
 #define MyAppId "4356CE01-4137-4C55-9F8B-FB4EEBB6EC0C"
 #define CurrentYear GetDateTimeString('yyyy','','')
 #define MyBuildTarget "win64"
-#define MyAppVersionFull "4.8.4-17072023" ; CHANGE DATE HERE BEFORE COMPILATION
+#define MyAppVersionFull "4.8.4-20072023" ; CHANGE DATE HERE BEFORE COMPILATION
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -41,11 +41,11 @@ DisableProgramGroupPage=no
 #if MyBuildTarget == "win64"
   ArchitecturesAllowed="x64 arm64"
   ArchitecturesInstallIn64BitMode="x64 arm64"
-  OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
+  OutputBaseFilename=etgdsetup-x64.{#MyAppVersionFull}
   #define ArchModulesFolder "x64"
   AppVerName={#MyAppName} {#MyAppVersion} 64bit
 #else
-  OutputBaseFilename=tsetup.{#MyAppVersionFull}
+  OutputBaseFilename=etgdsetup.{#MyAppVersionFull}
   #define ArchModulesFolder "x86"
   AppVerName={#MyAppName} {#MyAppVersion} 32bit
 #endif
