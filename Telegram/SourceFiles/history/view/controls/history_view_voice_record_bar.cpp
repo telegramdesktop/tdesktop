@@ -1024,7 +1024,9 @@ VoiceRecordBar::VoiceRecordBar(
 , _startTimer([=] { startRecording(); })
 , _message(
 	st::historyRecordTextStyle,
-	tr::lng_record_cancel(tr::now),
+	(!descriptor.customCancelText.isEmpty()
+		? descriptor.customCancelText
+		: tr::lng_record_cancel(tr::now)),
 	TextParseOptions{ TextParseMultiline, 0, 0, Qt::LayoutDirectionAuto })
 , _lockFromBottom(descriptor.lockFromBottom)
 , _cancelFont(st::historyRecordFont) {

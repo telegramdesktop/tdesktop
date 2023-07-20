@@ -103,6 +103,7 @@ struct ComposeControlsDescriptor {
 	Window::SessionController *regularWindow = nullptr;
 	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
 	rpl::producer<QString> customPlaceholder;
+	QString voiceCustomCancelText;
 	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
 };

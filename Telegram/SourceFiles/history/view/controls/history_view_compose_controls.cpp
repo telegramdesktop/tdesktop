@@ -996,6 +996,7 @@ ComposeControls::ComposeControls(
 		.outerContainer = parent,
 		.show = _show,
 		.send = _send,
+		.customCancelText = descriptor.voiceCustomCancelText,
 		.stOverride = &_st.record,
 		.recorderHeight = st::historySendSize.height(),
 		.lockFromBottom = descriptor.voiceLockFromBottom,

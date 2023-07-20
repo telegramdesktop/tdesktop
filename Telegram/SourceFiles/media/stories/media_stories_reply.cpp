@@ -86,6 +86,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 		.sendMenuType = SendMenu::Type::SilentOnly,
 		.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
 		.customPlaceholder = tr::lng_story_reply_ph(),
+		.voiceCustomCancelText = tr::lng_record_cancel_stories(tr::now),
 		.voiceLockFromBottom = true,
 		.features = {
 			.sendAs = false,
