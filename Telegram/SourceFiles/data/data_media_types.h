@@ -114,7 +114,7 @@ public:
 	virtual PollData *poll() const;
 	virtual const WallPaper *paper() const;
 	virtual FullStoryId storyId() const;
-	virtual bool storyExpired() const;
+	virtual bool storyExpired(bool revalidate = false);
 	virtual bool storyMention() const;
 
 	virtual bool uploading() const;
@@ -580,7 +580,7 @@ public:
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	FullStoryId storyId() const override;
-	bool storyExpired() const override;
+	bool storyExpired(bool revalidate = false) override;
 	bool storyMention() const override;
 
 	TextWithEntities notificationText() const override;

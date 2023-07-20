@@ -3917,6 +3917,11 @@ void Session::refreshStoryItemViews(FullStoryId id) {
 	const auto i = _storyItems.find(id);
 	if (i != _storyItems.end()) {
 		for (const auto item : i->second) {
+			if (const auto media = item->media()) {
+				if (media->storyMention()) {
+					item->updateStoryMentionText();
+				}
+			}
 			requestItemViewRefresh(item);
 		}
 	}

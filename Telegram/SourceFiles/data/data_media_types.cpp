@@ -412,7 +412,7 @@ FullStoryId Media::storyId() const {
 	return {};
 }
 
-bool Media::storyExpired() const {
+bool Media::storyExpired(bool revalidate) {
 	return false;
 }
 
@@ -2033,7 +2033,15 @@ FullStoryId MediaStory::storyId() const {
 	return _storyId;
 }
 
-bool MediaStory::storyExpired() const {
+bool MediaStory::storyExpired(bool revalidate) {
+	if (revalidate) {
+		const auto stories = &parent()->history()->owner().stories();
+		if (const auto maybeStory = stories->lookup(_storyId)) {
+			_expired = false;
+		} else if (maybeStory.error() == Data::NoStory::Deleted) {
+			_expired = true;
+		}
+	}
 	return _expired;
 }
 
