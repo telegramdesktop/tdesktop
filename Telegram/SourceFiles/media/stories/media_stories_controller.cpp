@@ -345,10 +345,11 @@ Controller::~Controller() {
 }
 
 void Controller::updateContentFaded() {
-	if (_contentFaded == _replyActive) {
+	const auto faded = _replyActive || _captionFullView || _captionExpanded;
+	if (_contentFaded == faded) {
 		return;
 	}
-	_contentFaded = _replyActive;
+	_contentFaded = faded;
 	_contentFadeAnimation.start(
 		[=] { _delegate->storiesRepaint(); },
 		_contentFaded ? 0. : 1.,
@@ -570,16 +571,24 @@ TextWithEntities Controller::captionText() const {
 	return _captionText;
 }
 
+void Controller::setCaptionExpanded(bool expanded) {
+	if (_captionExpanded == expanded) {
+		return;
+	}
+	_captionExpanded = expanded;
+	updateContentFaded();
+}
+
 void Controller::showFullCaption() {
 	if (_captionText.empty()) {
 		return;
 	}
-	togglePaused(true);
 	_captionFullView = std::make_unique<CaptionFullView>(
 		wrap(),
 		&_delegate->storiesShow()->session(),
 		_captionText,
-		[=] { togglePaused(false); });
+		[=] { _captionFullView = nullptr; updateContentFaded(); });
+	updateContentFaded();
 }
 
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
@@ -796,6 +805,9 @@ void Controller::show(
 
 	_captionText = story->caption();
 	_captionFullView = nullptr;
+	_captionExpanded = false;
+	_contentFaded = false;
+	_contentFadeAnimation.stop();
 	const auto document = story->document();
 	_header->show({
 		.user = user,
@@ -942,6 +954,8 @@ void Controller::updatePlayingAllowed() {
 		&& _windowActive
 		&& !_paused
 		&& !_replyActive
+		&& !_captionFullView
+		&& !_captionExpanded
 		&& !_layerShown
 		&& !_menuShown);
 }

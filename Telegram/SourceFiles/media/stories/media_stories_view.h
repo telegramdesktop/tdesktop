@@ -64,6 +64,7 @@ public:
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
+	void setCaptionExpanded(bool expanded);
 	void showFullCaption();
 
 	void updatePlayback(const Player::TrackState &state);

@@ -486,6 +486,10 @@ OverlayWidget::OverlayWidget()
 			return base::EventFilterResult::Cancel;
 		} else if (type == QEvent::ThemeChange && Platform::IsLinux()) {
 			_window->setWindowIcon(Window::CreateIcon(_session));
+		} else if (type == QEvent::FocusOut) {
+			if (const auto popup = QApplication::activePopupWidget()) {
+				int a = popup->x();
+			}
 		}
 		return base::EventFilterResult::Continue;
 	});
@@ -1384,8 +1388,9 @@ void OverlayWidget::refreshCaptionGeometry() {
 	_captionFitsIfExpanded = _stories
 		&& (wantedHeight <= maxExpandedHeight);
 	_captionShownFull = (wantedHeight <= maxCollapsedHeight);
-	if (_captionShownFull) {
+	if (_captionShownFull && _captionExpanded && _stories) {
 		_captionExpanded = false;
+		_stories->setCaptionExpanded(false);
 	}
 	_captionRect = QRect(
 		(width() - captionWidth) / 2,
@@ -3120,7 +3125,7 @@ void OverlayWidget::setCursor(style::cursor cursor) {
 }
 
 void OverlayWidget::setFocus() {
-	_widget->setFocus();
+	_body->setFocus();
 }
 
 bool OverlayWidget::takeFocusFrom(not_null<QWidget*> window) const {
@@ -5570,10 +5575,12 @@ ClickHandlerPtr OverlayWidget::ensureCaptionExpandLink() {
 				return;
 			} else if (_captionExpanded) {
 				_captionExpanded = false;
+				_stories->setCaptionExpanded(false);
 				refreshCaptionGeometry();
 				update();
 			} else if (_captionFitsIfExpanded) {
 				_captionExpanded = true;
+				_stories->setCaptionExpanded(true);
 				refreshCaptionGeometry();
 				update();
 			} else {

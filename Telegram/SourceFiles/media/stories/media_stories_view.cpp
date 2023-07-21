@@ -123,6 +123,10 @@ TextWithEntities View::captionText() const {
 	return _controller->captionText();
 }
 
+void View::setCaptionExpanded(bool expanded) {
+	_controller->setCaptionExpanded(expanded);
+}
+
 void View::showFullCaption() {
 	_controller->showFullCaption();
 }
