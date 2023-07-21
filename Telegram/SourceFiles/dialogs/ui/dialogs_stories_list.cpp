@@ -41,6 +41,7 @@ struct List::Layout {
 	int itemsCount = 0;
 	QPointF geometryShift;
 	float64 expandedRatio = 0.;
+	float64 expandRatio = 0.;
 	float64 ratio = 0.;
 	float64 segmentsSpinProgress = 0.;
 	float64 thumbnailLeft = 0.;
@@ -210,6 +211,12 @@ List::Layout List::computeLayout(float64 expanded) const {
 	const auto collapsedRatio = expandedRatio * kFrictionRatio;
 	const auto ratio = expandedRatio * expanded
 		+ collapsedRatio * (1. - expanded);
+	const auto expandRatio = (ratio >= kCollapseAfterRatio)
+		? 1.
+		: (ratio <= kExpandAfterRatio * kFrictionRatio)
+		? 0.
+		: ((ratio - (kExpandAfterRatio * kFrictionRatio))
+			/ (kCollapseAfterRatio - (kExpandAfterRatio * kFrictionRatio)));
 
 	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * ratio;
@@ -257,6 +264,7 @@ List::Layout List::computeLayout(float64 expanded) const {
 				? (lerp(_changingGeometryFrom.y(), _geometryFull.y()) - y())
 				: 0.)),
 		.expandedRatio = expandedRatio,
+		.expandRatio = expandRatio,
 		.ratio = ratio,
 		.segmentsSpinProgress = segmentsSpinProgress,
 		.thumbnailLeft = thumbnailLeft,
@@ -280,12 +288,7 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto &full = _st.full;
 	const auto layout = computeLayout();
 	const auto ratio = layout.ratio;
-	const auto expandRatio = (ratio >= kCollapseAfterRatio)
-		? 1.
-		: (ratio <= kExpandAfterRatio * kFrictionRatio)
-		? 0.
-		: ((ratio - kExpandAfterRatio * kFrictionRatio)
-			/ (kCollapseAfterRatio - kExpandAfterRatio * kFrictionRatio));
+	const auto expandRatio = layout.expandRatio;
 	const auto lerp = [&](float64 a, float64 b) {
 		return a + (b - a) * ratio;
 	};
@@ -293,11 +296,50 @@ void List::paintEvent(QPaintEvent *e) {
 		return a + (b - a) * expandRatio;
 	};
 	const auto line = elerp(st.lineTwice, full.lineTwice) / 2.;
+	const auto photo = lerp(st.photo, full.photo);
+	const auto layered = layout.single < (photo + 4 * line);
+	auto p = QPainter(this);
+	if (layered) {
+		ensureLayer();
+		auto q = QPainter(&_layer);
+		paint(q, layout, photo, line, true);
+		q.end();
+		p.drawImage(0, 0, _layer);
+	} else {
+		paint(p, layout, photo, line, false);
+	}
+}
+
+void List::ensureLayer() {
+	const auto ratio = style::DevicePixelRatio();
+	const auto layer = size() * ratio;
+	if (_layer.size() != layer) {
+		_layer = QImage(layer, QImage::Format_ARGB32_Premultiplied);
+		_layer.setDevicePixelRatio(ratio);
+	}
+	_layer.fill(Qt::transparent);
+}
+
+void List::paint(
+		QPainter &p,
+		const Layout &layout,
+		float64 photo,
+		float64 line,
+		bool layered) {
+	const auto &st = _st.small;
+	const auto &full = _st.full;
+	const auto ratio = layout.ratio;
+	const auto expandRatio = layout.expandRatio;
+	const auto lerp = [&](float64 a, float64 b) {
+		return a + (b - a) * ratio;
+	};
+	const auto elerp = [&](float64 a, float64 b) {
+		return a + (b - a) * expandRatio;
+	};
 	const auto lineRead = elerp(st.lineReadTwice, full.lineReadTwice) / 2.;
 	const auto photoTopSmall = st.photoTop;
 	const auto photoTop = photoTopSmall
 		+ (full.photoTop - photoTopSmall) * layout.expandedRatio;
-	const auto photo = lerp(st.photo, full.photo);
 	const auto nameScale = _lastRatio;
 	const auto nameTop = full.nameTop
 		+ (photoTop + photo - full.photoTop - full.photo);
@@ -306,9 +348,6 @@ void List::paintEvent(QPaintEvent *e) {
 	const auto nameLeft = layout.photoLeft + (photo - nameWidth) / 2.;
 	const auto readUserpicOpacity = elerp(_st.readOpacity, 1.);
 	const auto readUserpicAppearingOpacity = elerp(_st.readOpacity, 0.);
-
-	auto p = QPainter(this);
-
 	if (_state == State::Changing) {
 		p.translate(layout.geometryShift);
 	}
@@ -438,6 +477,7 @@ void List::paintEvent(QPaintEvent *e) {
 			gradient.setFinalStop(userpic.bottomLeft());
 			if (!fullUnreadCount) {
 				p.setPen(QPen(gradient, line));
+				p.setBrush(Qt::NoBrush);
 				p.drawEllipse(outer);
 			} else {
 				validateSegments(itemFull, gradient, line, true);
@@ -475,9 +515,13 @@ void List::paintEvent(QPaintEvent *e) {
 			: expandRatio);
 		const auto add = line + (hasReadLine ? (lineRead / 2.) : 0.);
 		const auto rect = userpic.marginsAdded({ add, add, add, add });
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::dialogsBg);
-		p.drawEllipse(rect);
+		if (layered) {
+			p.setCompositionMode(QPainter::CompositionMode_Source);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::transparent);
+			p.drawEllipse(rect);
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		}
 		if (hasReadLine) {
 			if (small && !small->element.unreadCount) {
 				p.setOpacity(expandRatio);

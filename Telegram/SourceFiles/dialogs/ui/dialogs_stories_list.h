@@ -123,6 +123,13 @@ private:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
+	void paint(
+		QPainter &p,
+		const Layout &layout,
+		float64 photo,
+		float64 line,
+		bool layered);
+	void ensureLayer();
 	void validateThumbnail(not_null<Item*> item);
 	void validateName(not_null<Item*> item);
 	void updateScrollMax();
@@ -156,6 +163,7 @@ private:
 	rpl::event_stream<> _loadMoreRequests;
 	rpl::event_stream<> _collapsedGeometryChanged;
 
+	QImage _layer;
 	QPoint _positionSmall;
 	style::align _alignSmall = {};
 	QRect _geometryFull;
