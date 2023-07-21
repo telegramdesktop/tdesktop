@@ -177,6 +177,14 @@ private:
 			const StoriesList &,
 			const StoriesList &) = default;
 	};
+	struct CachedSource {
+		PeerId peerId = 0;
+		StoryId shownId = 0;
+
+		explicit operator bool() const {
+			return peerId != 0;
+		}
+	};
 	class PhotoPlayback;
 	class Unsupported;
 
@@ -198,7 +206,7 @@ private:
 	void showSibling(
 		std::unique_ptr<Sibling> &sibling,
 		not_null<Main::Session*> session,
-		PeerId peerId);
+		CachedSource cached);
 
 	void subjumpTo(int index);
 	void checkWaitingFor();
@@ -264,7 +272,7 @@ private:
 	bool _started = false;
 	bool _viewed = false;
 
-	std::vector<PeerId> _cachedSourcesList;
+	std::vector<CachedSource> _cachedSourcesList;
 	int _cachedSourceIndex = -1;
 	bool _showingUnreadSources = false;
 
