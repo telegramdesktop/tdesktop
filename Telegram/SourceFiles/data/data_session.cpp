@@ -1158,7 +1158,8 @@ UserData *Session::userByPhone(const QString &phone) const {
 PeerData *Session::peerByUsername(const QString &username) const {
 	const auto uname = username.trimmed();
 	for (const auto &[peerId, peer] : _peers) {
-		if (!peer->userName().compare(uname, Qt::CaseInsensitive)) {
+		if (peer->isLoaded()
+			&& !peer->userName().compare(uname, Qt::CaseInsensitive)) {
 			return peer.get();
 		}
 	}
