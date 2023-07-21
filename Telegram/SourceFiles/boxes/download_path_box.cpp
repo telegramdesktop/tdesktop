@@ -31,7 +31,7 @@ DownloadPathBox::DownloadPathBox(
 		this,
 		_group,
 		Directory::Downloads,
-		rktr("etg_download_path_default_radio"),
+		ktr("etg_download_path_default_radio"),
 		st::defaultBoxCheckbox)
 	: nullptr)
 , _temp(this, _group, Directory::Temp, tr::lng_download_path_temp_radio(tr::now), st::defaultBoxCheckbox)
