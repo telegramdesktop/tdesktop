@@ -344,7 +344,12 @@ void CustomEmojiLoader::check() {
 			sizeOverride);
 	};
 	auto put = [=, key = cacheKey(document)](QByteArray value) {
-		document->owner().cacheBigFile().put(key, std::move(value));
+		const auto size = value.size();
+		if (size <= Storage::Cache::Database::Settings().maxDataSize) {
+			document->owner().cacheBigFile().put(key, std::move(value));
+		} else {
+			LOG(("Data Error: Cached emoji size too big: %1.").arg(size));
+		}
 	};
 	const auto type = document->sticker()->type;
 	auto generator = [=, bytes = Lottie::ReadContent(data, filepath)]()

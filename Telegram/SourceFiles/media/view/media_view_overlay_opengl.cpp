@@ -896,6 +896,10 @@ void OverlayWidget::RendererGL::paintStoriesSiblingPart(
 		float64 opacity) {
 	Expects(index >= 0 && index < kStoriesSiblingPartsCount);
 
+	if (image.isNull() || rect.isEmpty()) {
+		return;
+	}
+
 	_f->glActiveTexture(GL_TEXTURE0);
 
 	auto &part = _storiesSiblingParts[index];
