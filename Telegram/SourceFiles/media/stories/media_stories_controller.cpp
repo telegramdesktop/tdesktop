@@ -673,6 +673,7 @@ void Controller::rebuildFromContext(
 				_showingUnreadSources = source && (source->readTill < id);
 			}
 			rebuildCachedSourcesList(sources, (i - begin(sources)));
+			_cachedSourcesList[_cachedSourceIndex].shownId = storyId.story;
 			showSiblings(&user->session());
 			if (int(sources.end() - i) < kPreloadUsersCount) {
 				stories.loadMore(list);
@@ -980,13 +981,13 @@ void Controller::showSiblings(not_null<Main::Session*> session) {
 		session,
 		(_cachedSourceIndex > 0
 			? _cachedSourcesList[_cachedSourceIndex - 1]
-			: PeerId()));
+			: CachedSource()));
 	showSibling(
 		_siblingRight,
 		session,
 		(_cachedSourceIndex + 1 < _cachedSourcesList.size()
 			? _cachedSourcesList[_cachedSourceIndex + 1]
-			: PeerId()));
+			: CachedSource()));
 }
 
 void Controller::hideSiblings() {
@@ -997,16 +998,16 @@ void Controller::hideSiblings() {
 void Controller::showSibling(
 		std::unique_ptr<Sibling> &sibling,
 		not_null<Main::Session*> session,
-		PeerId peerId) {
-	if (!peerId) {
+		CachedSource cached) {
+	if (!cached) {
 		sibling = nullptr;
 		return;
 	}
-	const auto source = session->data().stories().source(peerId);
+	const auto source = session->data().stories().source(cached.peerId);
 	if (!source) {
 		sibling = nullptr;
-	} else if (!sibling || !sibling->shows(*source)) {
-		sibling = std::make_unique<Sibling>(this, *source);
+	} else if (!sibling || !sibling->shows(*source, cached.shownId)) {
+		sibling = std::make_unique<Sibling>(this, *source, cached.shownId);
 	}
 }
 
@@ -1301,12 +1302,18 @@ void Controller::rebuildCachedSourcesList(
 
 	// Remove removed.
 	_cachedSourcesList.erase(ranges::remove_if(_cachedSourcesList, [&](
-			PeerId id) {
-		return !ranges::contains(lists, id, &Data::StoriesSourceInfo::id);
+			CachedSource source) {
+		return !ranges::contains(
+			lists,
+			source.peerId,
+			&Data::StoriesSourceInfo::id);
 	}), end(_cachedSourcesList));
 
 	// Find current, full rebuild if can't find.
-	const auto i = ranges::find(_cachedSourcesList, currentPeerId);
+	const auto i = ranges::find(
+		_cachedSourcesList,
+		currentPeerId,
+		&CachedSource::peerId);
 	if (i == end(_cachedSourcesList)) {
 		_cachedSourcesList.clear();
 	} else {
@@ -1320,17 +1327,24 @@ void Controller::rebuildCachedSourcesList(
 				|| (info.unreadCount > 0)
 				|| (info.id == currentPeerId);
 		};
+		const auto mapper = [](const Data::StoriesSourceInfo &info) {
+			return CachedSource{ info.id };
+		};
 		_cachedSourcesList = lists
 			| ranges::views::filter(predicate)
-			| ranges::views::transform(&Data::StoriesSourceInfo::id)
+			| ranges::views::transform(mapper)
 			| ranges::to_vector;
-		_cachedSourceIndex = ranges::find(_cachedSourcesList, currentPeerId)
-			- begin(_cachedSourcesList);
+		_cachedSourceIndex = ranges::find(
+			_cachedSourcesList,
+			currentPeerId,
+			&CachedSource::peerId
+		) - begin(_cachedSourcesList);
 	} else if (ranges::equal(
 			lists,
 			_cachedSourcesList,
 			ranges::equal_to(),
-			&Data::StoriesSourceInfo::id)) {
+			&Data::StoriesSourceInfo::id,
+			&CachedSource::peerId)) {
 		// No rebuild needed.
 	} else {
 		// All that go before the current push to front.
@@ -1338,10 +1352,13 @@ void Controller::rebuildCachedSourcesList(
 			const auto &info = lists[--before];
 			if (_showingUnreadSources && !info.unreadCount) {
 				continue;
-			} else if (!ranges::contains(_cachedSourcesList, info.id)) {
+			} else if (!ranges::contains(
+					_cachedSourcesList,
+					info.id,
+					&CachedSource::peerId)) {
 				_cachedSourcesList.insert(
 					begin(_cachedSourcesList),
-					info.id);
+					{ info.id });
 				++_cachedSourceIndex;
 			}
 		}
@@ -1352,8 +1369,11 @@ void Controller::rebuildCachedSourcesList(
 			const auto &info = lists[after];
 			if (_showingUnreadSources && !info.unreadCount) {
 				continue;
-			} else if (!ranges::contains(_cachedSourcesList, info.id)) {
-				_cachedSourcesList.push_back(info.id);
+			} else if (!ranges::contains(
+					_cachedSourcesList,
+					info.id,
+					&CachedSource::peerId)) {
+				_cachedSourcesList.push_back({ info.id });
 			}
 		}
 	}

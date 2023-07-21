@@ -33,6 +33,17 @@ constexpr auto kSiblingFadeOver = 0.4;
 constexpr auto kSiblingNameOpacity = 0.8;
 constexpr auto kSiblingNameOpacityOver = 1.;
 
+[[nodiscard]] StoryId LookupShownId(
+		const Data::StoriesSource &source,
+		StoryId suggestedId) {
+	const auto i = suggestedId
+		? source.ids.lower_bound(Data::StoryIdDates{ suggestedId })
+		: end(source.ids);
+	return (i != end(source.ids) && i->id == suggestedId)
+		? suggestedId
+		: source.toOpen().id;
+}
+
 } // namespace
 
 class Sibling::Loader {
@@ -229,9 +240,10 @@ bool Sibling::LoaderVideo::updateAfterGoodCheck() {
 
 Sibling::Sibling(
 	not_null<Controller*> controller,
-	const Data::StoriesSource &source)
+	const Data::StoriesSource &source,
+	StoryId suggestedId)
 : _controller(controller)
-, _id{ source.user->id, source.ids.front().id }
+, _id{ source.user->id, LookupShownId(source, suggestedId) }
 , _peer(source.user) {
 	checkStory();
 	_goodShown.stop();
@@ -288,10 +300,14 @@ not_null<PeerData*> Sibling::peer() const {
 	return _peer;
 }
 
-bool Sibling::shows(const Data::StoriesSource &source) const {
-	Expects(!source.ids.empty());
-
-	return _id == FullStoryId{ source.user->id, source.ids.front().id };
+bool Sibling::shows(
+		const Data::StoriesSource &source,
+		StoryId suggestedId) const {
+	const auto fullId = FullStoryId{
+		source.user->id,
+		LookupShownId(source, suggestedId),
+	};
+	return (_id == fullId);
 }
 
 SiblingView Sibling::view(const SiblingLayout &layout, float64 over) {
