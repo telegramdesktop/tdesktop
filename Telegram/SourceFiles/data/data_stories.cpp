@@ -692,10 +692,10 @@ void Stories::applyDeleted(FullStoryId id) {
 	if (i != end(_stories)) {
 		const auto j = i->second.find(id.story);
 		if (j != end(i->second)) {
-			// Duplicated in Stories::apply(peer, const MTPUserStories*).
-			auto story = std::move(j->second);
+			const auto &story = _deletingStories[id] = std::move(j->second);
 			_expiring.remove(story->expires(), story->fullId());
 			i->second.erase(j);
+
 			session().changes().storyUpdated(
 				story.get(),
 				UpdateFlag::Destroyed);
@@ -736,6 +736,7 @@ void Stories::applyDeleted(FullStoryId id) {
 			if (i->second.empty()) {
 				_stories.erase(i);
 			}
+			_deletingStories.remove(id);
 		}
 	}
 }
@@ -1628,9 +1629,14 @@ bool Stories::registerPolling(FullStoryId id, Polling polling) {
 }
 
 void Stories::unregisterPolling(FullStoryId id, Polling polling) {
-	const auto maybeStory = lookup(id);
-	Assert(maybeStory.has_value());
-	unregisterPolling(*maybeStory, polling);
+	if (const auto maybeStory = lookup(id)) {
+		unregisterPolling(*maybeStory, polling);
+	} else if (const auto i = _deletingStories.find(id)
+		; i != end(_deletingStories)) {
+		unregisterPolling(i->second.get(), polling);
+	} else {
+		Unexpected("Couldn't find story for unregistering polling.");
+	}
 }
 
 int Stories::pollingInterval(const PollingSettings &settings) const {

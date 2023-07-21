@@ -299,6 +299,7 @@ private:
 	std::unordered_map<
 		PeerId,
 		base::flat_map<StoryId, std::unique_ptr<Story>>> _stories;
+	base::flat_map<FullStoryId, std::unique_ptr<Story>> _deletingStories;
 	std::unordered_map<
 		PeerId,
 		base::flat_map<StoryId, std::weak_ptr<HistoryItem>>> _items;
