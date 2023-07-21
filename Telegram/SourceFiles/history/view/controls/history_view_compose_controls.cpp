@@ -2978,6 +2978,10 @@ rpl::producer<bool> ComposeControls::hasSendTextValue() const {
 	return _hasSendText.value();
 }
 
+rpl::producer<bool> ComposeControls::fieldMenuShownValue() const {
+	return _field->menuShownValue();
+}
+
 bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {
 	if (_voiceRecordBar->isActive()) {
 		_voiceRecordBar->showDiscardBox(std::move(continueCallback));

@@ -345,10 +345,11 @@ Controller::~Controller() {
 }
 
 void Controller::updateContentFaded() {
-	if (_contentFaded == _replyActive) {
+	const auto faded = _replyActive || _captionFullView || _captionExpanded;
+	if (_contentFaded == faded) {
 		return;
 	}
-	_contentFaded = _replyActive;
+	_contentFaded = faded;
 	_contentFadeAnimation.start(
 		[=] { _delegate->storiesRepaint(); },
 		_contentFaded ? 0. : 1.,
@@ -570,16 +571,24 @@ TextWithEntities Controller::captionText() const {
 	return _captionText;
 }
 
+void Controller::setCaptionExpanded(bool expanded) {
+	if (_captionExpanded == expanded) {
+		return;
+	}
+	_captionExpanded = expanded;
+	updateContentFaded();
+}
+
 void Controller::showFullCaption() {
 	if (_captionText.empty()) {
 		return;
 	}
-	togglePaused(true);
 	_captionFullView = std::make_unique<CaptionFullView>(
 		wrap(),
 		&_delegate->storiesShow()->session(),
 		_captionText,
-		[=] { togglePaused(false); });
+		[=] { _captionFullView = nullptr; updateContentFaded(); });
+	updateContentFaded();
 }
 
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
@@ -660,7 +669,11 @@ void Controller::rebuildFromContext(
 			storyId.peer,
 			&StoriesSourceInfo::id);
 		if (i != end(sources)) {
+			if (_cachedSourcesList.empty()) {
+				_showingUnreadSources = source && (source->readTill < id);
+			}
 			rebuildCachedSourcesList(sources, (i - begin(sources)));
+			_cachedSourcesList[_cachedSourceIndex].shownId = storyId.story;
 			showSiblings(&user->session());
 			if (int(sources.end() - i) < kPreloadUsersCount) {
 				stories.loadMore(list);
@@ -796,6 +809,9 @@ void Controller::show(
 
 	_captionText = story->caption();
 	_captionFullView = nullptr;
+	_captionExpanded = false;
+	_contentFaded = false;
+	_contentFadeAnimation.stop();
 	const auto document = story->document();
 	_header->show({
 		.user = user,
@@ -942,6 +958,8 @@ void Controller::updatePlayingAllowed() {
 		&& _windowActive
 		&& !_paused
 		&& !_replyActive
+		&& !_captionFullView
+		&& !_captionExpanded
 		&& !_layerShown
 		&& !_menuShown);
 }
@@ -963,13 +981,13 @@ void Controller::showSiblings(not_null<Main::Session*> session) {
 		session,
 		(_cachedSourceIndex > 0
 			? _cachedSourcesList[_cachedSourceIndex - 1]
-			: PeerId()));
+			: CachedSource()));
 	showSibling(
 		_siblingRight,
 		session,
 		(_cachedSourceIndex + 1 < _cachedSourcesList.size()
 			? _cachedSourcesList[_cachedSourceIndex + 1]
-			: PeerId()));
+			: CachedSource()));
 }
 
 void Controller::hideSiblings() {
@@ -980,16 +998,16 @@ void Controller::hideSiblings() {
 void Controller::showSibling(
 		std::unique_ptr<Sibling> &sibling,
 		not_null<Main::Session*> session,
-		PeerId peerId) {
-	if (!peerId) {
+		CachedSource cached) {
+	if (!cached) {
 		sibling = nullptr;
 		return;
 	}
-	const auto source = session->data().stories().source(peerId);
+	const auto source = session->data().stories().source(cached.peerId);
 	if (!source) {
 		sibling = nullptr;
-	} else if (!sibling || !sibling->shows(*source)) {
-		sibling = std::make_unique<Sibling>(this, *source);
+	} else if (!sibling || !sibling->shows(*source, cached.shownId)) {
+		sibling = std::make_unique<Sibling>(this, *source, cached.shownId);
 	}
 }
 
@@ -1280,14 +1298,22 @@ void Controller::rebuildCachedSourcesList(
 		int index) {
 	Expects(index >= 0 && index < lists.size());
 
+	const auto currentPeerId = lists[index].id;
+
 	// Remove removed.
 	_cachedSourcesList.erase(ranges::remove_if(_cachedSourcesList, [&](
-			PeerId id) {
-		return !ranges::contains(lists, id, &Data::StoriesSourceInfo::id);
+			CachedSource source) {
+		return !ranges::contains(
+			lists,
+			source.peerId,
+			&Data::StoriesSourceInfo::id);
 	}), end(_cachedSourcesList));
 
 	// Find current, full rebuild if can't find.
-	const auto i = ranges::find(_cachedSourcesList, lists[index].id);
+	const auto i = ranges::find(
+		_cachedSourcesList,
+		currentPeerId,
+		&CachedSource::peerId);
 	if (i == end(_cachedSourcesList)) {
 		_cachedSourcesList.clear();
 	} else {
@@ -1296,38 +1322,63 @@ void Controller::rebuildCachedSourcesList(
 
 	if (_cachedSourcesList.empty()) {
 		// Full rebuild.
+		const auto predicate = [&](const Data::StoriesSourceInfo &info) {
+			return !_showingUnreadSources
+				|| (info.unreadCount > 0)
+				|| (info.id == currentPeerId);
+		};
+		const auto mapper = [](const Data::StoriesSourceInfo &info) {
+			return CachedSource{ info.id };
+		};
 		_cachedSourcesList = lists
-			| ranges::views::transform(&Data::StoriesSourceInfo::id)
+			| ranges::views::filter(predicate)
+			| ranges::views::transform(mapper)
 			| ranges::to_vector;
-		_cachedSourceIndex = index;
+		_cachedSourceIndex = ranges::find(
+			_cachedSourcesList,
+			currentPeerId,
+			&CachedSource::peerId
+		) - begin(_cachedSourcesList);
 	} else if (ranges::equal(
 			lists,
 			_cachedSourcesList,
 			ranges::equal_to(),
-			&Data::StoriesSourceInfo::id)) {
+			&Data::StoriesSourceInfo::id,
+			&CachedSource::peerId)) {
 		// No rebuild needed.
-		_cachedSourceIndex = index;
 	} else {
 		// All that go before the current push to front.
 		for (auto before = index; before > 0;) {
-			const auto peerId = lists[--before].id;
-			if (!ranges::contains(_cachedSourcesList, peerId)) {
+			const auto &info = lists[--before];
+			if (_showingUnreadSources && !info.unreadCount) {
+				continue;
+			} else if (!ranges::contains(
+					_cachedSourcesList,
+					info.id,
+					&CachedSource::peerId)) {
 				_cachedSourcesList.insert(
 					begin(_cachedSourcesList),
-					peerId);
+					{ info.id });
 				++_cachedSourceIndex;
 			}
 		}
 		// All that go after the current push to back.
-		for (auto after = index + 1, count = int(lists.size()); after != count; ++after) {
-			const auto peerId = lists[after].id;
-			if (!ranges::contains(_cachedSourcesList, peerId)) {
-				_cachedSourcesList.push_back(peerId);
+		for (auto after = index + 1, count = int(lists.size())
+			; after != count
+			; ++after) {
+			const auto &info = lists[after];
+			if (_showingUnreadSources && !info.unreadCount) {
+				continue;
+			} else if (!ranges::contains(
+					_cachedSourcesList,
+					info.id,
+					&CachedSource::peerId)) {
+				_cachedSourcesList.push_back({ info.id });
 			}
 		}
 	}
 
-	Ensures(_cachedSourcesList.size() == lists.size());
+	Ensures(_cachedSourcesList.size() <= lists.size());
 	Ensures(_cachedSourceIndex >= 0
 		&& _cachedSourceIndex < _cachedSourcesList.size());
 }

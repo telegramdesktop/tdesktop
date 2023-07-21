@@ -91,6 +91,9 @@ public:
 	[[nodiscard]] rpl::producer<> entered() const;
 	[[nodiscard]] rpl::producer<> loadMoreRequests() const;
 
+	[[nodiscard]] auto verticalScrollEvents() const
+		-> rpl::producer<not_null<QWheelEvent*>>;
+
 private:
 	struct Layout;
 	enum class State {
@@ -123,6 +126,13 @@ private:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
+	void paint(
+		QPainter &p,
+		const Layout &layout,
+		float64 photo,
+		float64 line,
+		bool layered);
+	void ensureLayer();
 	void validateThumbnail(not_null<Item*> item);
 	void validateName(not_null<Item*> item);
 	void updateScrollMax();
@@ -156,6 +166,7 @@ private:
 	rpl::event_stream<> _loadMoreRequests;
 	rpl::event_stream<> _collapsedGeometryChanged;
 
+	QImage _layer;
 	QPoint _positionSmall;
 	style::align _alignSmall = {};
 	QRect _geometryFull;
@@ -169,6 +180,7 @@ private:
 	int _scrollLeft = 0;
 	int _scrollLeftMax = 0;
 	bool _dragging = false;
+	Qt::Orientation _scrollingLock = {};
 
 	Ui::Animations::Simple _expandedAnimation;
 	Ui::Animations::Simple _expandCatchUpAnimation;
@@ -179,6 +191,8 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+
+	rpl::event_stream<not_null<QWheelEvent*>> _verticalScrollEvents;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	base::has_weak_ptr _menuGuard;
