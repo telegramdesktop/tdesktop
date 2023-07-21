@@ -34,6 +34,7 @@ public:
 	uint64 installationTag() const;
 
 	bool checkPortableVersionFolder();
+	bool validateCustomWorkingDir();
 	void workingFolderReady();
 	void writeDebugModeSetting();
 	void writeInstallBetaVersionsSetting();
@@ -83,7 +84,7 @@ private:
 	QStringList _arguments;
 	BaseIntegration _baseIntegration;
 
-	bool _customWorkingDir = false;
+	QString _customWorkingDir;
 
 };
 
