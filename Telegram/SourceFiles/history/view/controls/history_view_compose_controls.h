@@ -220,6 +220,7 @@ public:
 	[[nodiscard]] bool isRecordingPressed() const;
 	[[nodiscard]] rpl::producer<bool> recordingActiveValue() const;
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
+	[[nodiscard]] rpl::producer<bool> fieldMenuShownValue() const;
 
 	void applyCloudDraft();
 	void applyDraft(

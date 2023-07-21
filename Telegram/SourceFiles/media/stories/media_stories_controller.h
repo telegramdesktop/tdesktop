@@ -122,6 +122,7 @@ public:
 	[[nodiscard]] bool closeByClickAt(QPoint position) const;
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
+	void setCaptionExpanded(bool expanded);
 	void showFullCaption();
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
@@ -241,6 +242,7 @@ private:
 	Ui::Animations::Simple _contentFadeAnimation;
 	bool _contentFaded = false;
 
+	bool _captionExpanded = false;
 	bool _windowActive = false;
 	bool _replyFocused = false;
 	bool _replyActive = false;
@@ -264,6 +266,7 @@ private:
 
 	std::vector<PeerId> _cachedSourcesList;
 	int _cachedSourceIndex = -1;
+	bool _showingUnreadSources = false;
 
 	ViewsSlice _viewsSlice;
 	rpl::event_stream<> _moreViewsLoaded;

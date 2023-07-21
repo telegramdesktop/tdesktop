@@ -68,13 +68,17 @@ void CaptionFullView::resizeEvent(QResizeEvent *e) {
 
 void CaptionFullView::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		_close();
+		if (const auto onstack = _close) {
+			onstack();
+		}
 	}
 }
 
 void CaptionFullView::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
-		_close();
+		if (const auto onstack = _close) {
+			onstack();
+		}
 	}
 }
 
