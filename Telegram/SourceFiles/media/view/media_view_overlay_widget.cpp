@@ -486,10 +486,6 @@ OverlayWidget::OverlayWidget()
 			return base::EventFilterResult::Cancel;
 		} else if (type == QEvent::ThemeChange && Platform::IsLinux()) {
 			_window->setWindowIcon(Window::CreateIcon(_session));
-		} else if (type == QEvent::FocusOut) {
-			if (const auto popup = QApplication::activePopupWidget()) {
-				int a = popup->x();
-			}
 		}
 		return base::EventFilterResult::Continue;
 	});

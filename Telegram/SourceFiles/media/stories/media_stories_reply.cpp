@@ -673,8 +673,9 @@ rpl::producer<bool> ReplyArea::activeValue() const {
 		_controls->focusedValue(),
 		_controls->recordingActiveValue(),
 		_controls->tabbedPanelShownValue(),
+		_controls->fieldMenuShownValue(),
 		_choosingAttach.value(),
-		_1 || _2 || _3 || _4
+		_1 || _2 || _3 || _4 || _5
 	) | rpl::distinct_until_changed();
 }
 
