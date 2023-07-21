@@ -16,6 +16,10 @@ class HistoryItem;
 class PeerData;
 class History;
 
+namespace Data {
+class Story;
+} // namespace Data
+
 namespace Info {
 class AbstractController;
 } // namespace Info
@@ -97,7 +101,7 @@ private:
 		not_null<const Media::BaseLayout*> item,
 		not_null<const Media::BaseLayout*> previous) override;
 
-	void itemRemoved(not_null<const HistoryItem*> item);
+	void storyRemoved(not_null<Data::Story*> story);
 	void markLayoutsStale();
 	void clearStaleLayouts();
 	void clear();

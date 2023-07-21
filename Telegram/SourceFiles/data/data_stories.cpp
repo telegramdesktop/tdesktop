@@ -723,6 +723,16 @@ void Stories::applyDeleted(FullStoryId id) {
 			}
 			_owner->refreshStoryItemViews(id);
 			Assert(!_pollingSettings.contains(story.get()));
+			if (const auto j = _items.find(id.peer); j != end(_items)) {
+				const auto k = j->second.find(id.story);
+				if (k != end(j->second)) {
+					Assert(!k->second.lock());
+					j->second.erase(k);
+					if (j->second.empty()) {
+						_items.erase(j);
+					}
+				}
+			}
 			if (i->second.empty()) {
 				_stories.erase(i);
 			}
