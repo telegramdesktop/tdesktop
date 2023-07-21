@@ -136,6 +136,8 @@ void RecentViews::show(RecentViewsData data) {
 	_data = data;
 	if (!_data.valid) {
 		_text = {};
+		_clickHandlerLifetime.destroy();
+		_userpicsLifetime.destroy();
 		_userpics = nullptr;
 		_widget = nullptr;
 		return;
@@ -305,6 +307,8 @@ void RecentViews::showMenu() {
 	_controller->setMenuShown(true);
 	_menu->setDestroyedCallback(crl::guard(_widget.get(), [=] {
 		_controller->setMenuShown(false);
+		_waitingForUserpicsLifetime.destroy();
+		_waitingForUserpics.clear();
 		_menuShortLifetime.destroy();
 		_menuEntries.clear();
 		_menuEntriesCount = 0;

@@ -692,10 +692,10 @@ void Stories::applyDeleted(FullStoryId id) {
 	if (i != end(_stories)) {
 		const auto j = i->second.find(id.story);
 		if (j != end(i->second)) {
-			// Duplicated in Stories::apply(peer, const MTPUserStories*).
-			auto story = std::move(j->second);
+			const auto &story = _deletingStories[id] = std::move(j->second);
 			_expiring.remove(story->expires(), story->fullId());
 			i->second.erase(j);
+
 			session().changes().storyUpdated(
 				story.get(),
 				UpdateFlag::Destroyed);
@@ -723,9 +723,20 @@ void Stories::applyDeleted(FullStoryId id) {
 			}
 			_owner->refreshStoryItemViews(id);
 			Assert(!_pollingSettings.contains(story.get()));
+			if (const auto j = _items.find(id.peer); j != end(_items)) {
+				const auto k = j->second.find(id.story);
+				if (k != end(j->second)) {
+					Assert(!k->second.lock());
+					j->second.erase(k);
+					if (j->second.empty()) {
+						_items.erase(j);
+					}
+				}
+			}
 			if (i->second.empty()) {
 				_stories.erase(i);
 			}
+			_deletingStories.remove(id);
 		}
 	}
 }
@@ -1618,9 +1629,14 @@ bool Stories::registerPolling(FullStoryId id, Polling polling) {
 }
 
 void Stories::unregisterPolling(FullStoryId id, Polling polling) {
-	const auto maybeStory = lookup(id);
-	Assert(maybeStory.has_value());
-	unregisterPolling(*maybeStory, polling);
+	if (const auto maybeStory = lookup(id)) {
+		unregisterPolling(*maybeStory, polling);
+	} else if (const auto i = _deletingStories.find(id)
+		; i != end(_deletingStories)) {
+		unregisterPolling(i->second.get(), polling);
+	} else {
+		Unexpected("Couldn't find story for unregistering polling.");
+	}
 }
 
 int Stories::pollingInterval(const PollingSettings &settings) const {

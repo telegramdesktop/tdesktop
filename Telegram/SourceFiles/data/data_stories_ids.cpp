@@ -116,7 +116,7 @@ rpl::producer<StoriesIdsSlice> ArchiveStoriesIds(
 			const auto hasBefore = int(i - begin(archive.list));
 			const auto hasAfter = int(end(archive.list) - i);
 			if (hasAfter < limit) {
-				//stories->archiveLoadMore();
+				stories->archiveLoadMore();
 			}
 			const auto takeBefore = std::min(hasBefore, limit);
 			const auto takeAfter = std::min(hasAfter, limit);
