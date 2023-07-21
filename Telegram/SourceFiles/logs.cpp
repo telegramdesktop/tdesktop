@@ -363,7 +363,6 @@ void start() {
 
 		if (!cWorkingDir().isEmpty()) {
 			// This value must come from TelegramForcePortable
-			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 			workingDirChosen = true;
 		} else {
@@ -391,7 +390,6 @@ void start() {
 
 		if (!cWorkingDir().isEmpty()) {
 			// This value must come from TelegramForcePortable
-			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 			workingDirChosen = true;
 		}
@@ -406,6 +404,11 @@ void start() {
 		if (!LogsData->openMain()) {
 			cForceWorkingDir(psAppDataPath());
 		}
+	}
+
+	if (launcher.validateCustomWorkingDir()) {
+		delete LogsData;
+		LogsData = new LogsDataFields();
 	}
 
 // WinRT build requires the working dir to stay the same for plugin loading.

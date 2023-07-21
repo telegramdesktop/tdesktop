@@ -394,6 +394,18 @@ int Launcher::exec() {
 	return result;
 }
 
+bool Launcher::validateCustomWorkingDir() {
+	if (customWorkingDir()) {
+		if (_customWorkingDir == cWorkingDir()) {
+			_customWorkingDir = {};
+			return false;
+		}
+		cForceWorkingDir(_customWorkingDir);
+		return true;
+	}
+	return false;
+}
+
 void Launcher::workingFolderReady() {
 	srand((unsigned int)time(nullptr));
 
@@ -435,7 +447,7 @@ const QStringList &Launcher::arguments() const {
 }
 
 bool Launcher::customWorkingDir() const {
-	return _customWorkingDir;
+	return !_customWorkingDir.isEmpty();
 }
 
 void Launcher::prepareSettings() {
@@ -534,9 +546,9 @@ void Launcher::processArguments() {
 	gStartInTray = parseResult.contains("-startintray");
 	gQuit = parseResult.contains("-quit");
 	gSendPaths = parseResult.value("-sendpath", {});
-	cForceWorkingDir(parseResult.value("-workdir", {}).join(QString()));
-	if (!gWorkingDir.isEmpty()) {
-		_customWorkingDir = true;
+	_customWorkingDir = parseResult.value("-workdir", {}).join(QString());
+	if (!_customWorkingDir.isEmpty()) {
+		_customWorkingDir = QDir(_customWorkingDir).absolutePath() + '/';
 	}
 	gStartUrl = parseResult.value("--", {}).join(QString());
 
