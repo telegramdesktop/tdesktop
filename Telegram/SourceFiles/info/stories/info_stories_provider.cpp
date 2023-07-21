@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_section.h"
 #include "info/info_controller.h"
+#include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -53,6 +54,14 @@ Provider::Provider(not_null<AbstractController*> controller)
 		for (auto &layout : _layouts) {
 			layout.second.item->invalidateCache();
 		}
+	}, _lifetime);
+
+	_peer->session().changes().storyUpdates(
+		Data::StoryUpdate::Flag::Destroyed
+	) | rpl::filter([=](const Data::StoryUpdate &update) {
+		return update.story->peer()  == _peer;
+	}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
+		storyRemoved(update.story);
 	}, _lifetime);
 }
 
@@ -253,15 +262,17 @@ bool Provider::isAfter(
 	return (a->id < b->id);
 }
 
-void Provider::itemRemoved(not_null<const HistoryItem*> item) {
-	const auto id = StoryIdFromMsgId(item->id);
-	if (const auto i = _layouts.find(id); i != end(_layouts)) {
+void Provider::storyRemoved(not_null<Data::Story*> story) {
+	Expects(story->peer() == _peer);
+
+	if (const auto i = _layouts.find(story->id()); i != end(_layouts)) {
 		_peer->owner().stories().unregisterPolling(
-			{ _peer->id, id },
+			story,
 			Data::Stories::Polling::Chat);
 		_layoutRemoved.fire(i->second.item.get());
 		_layouts.erase(i);
 	}
+	_items.remove(story->id());
 }
 
 BaseLayout *Provider::getLayout(
