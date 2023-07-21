@@ -345,7 +345,13 @@ bool ResolveUsernameOrPhone(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	const auto domain = params.value(u"domain"_q);
+	const auto domainParam = params.value(u"domain"_q);
+	const auto appnameParam = params.value(u"appname"_q);
+
+	// Fix t.me/s/username links.
+	const auto webChannelPreviewLink = (domainParam == u"s"_q)
+		&& !appnameParam.isEmpty();
+	const auto domain = webChannelPreviewLink ? appnameParam : domainParam;
 	const auto phone = params.value(u"phone"_q);
 	const auto validDomain = [](const QString &domain) {
 		return qthelp::regex_match(
@@ -385,7 +391,7 @@ bool ResolveUsernameOrPhone(
 	}
 	const auto storyParam = params.value(u"story"_q);
 	const auto storyId = storyParam.toInt();
-	const auto appname = params.value(u"appname"_q);
+	const auto appname = webChannelPreviewLink ? QString() : appnameParam;
 	const auto appstart = params.value(u"startapp"_q);
 	const auto commentParam = params.value(u"comment"_q);
 	const auto commentId = commentParam.toInt();
