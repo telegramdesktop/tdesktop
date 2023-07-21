@@ -1352,8 +1352,11 @@ void VoiceRecordBar::initLevelGeometry() {
 		_send->geometryValue(),
 		geometryValue(),
 		static_cast<Ui::RpWidget*>(parentWidget())->geometryValue()
-	) | rpl::start_with_next([=](QRect send, QRect me, QRect parent) {
-		const auto mapped = Ui::MapFrom(_outerContainer, this, send);
+	) | rpl::start_with_next([=](QRect send, auto, auto) {
+		const auto mapped = Ui::MapFrom(
+			_outerContainer,
+			_send->parentWidget(),
+			send);
 		const auto center = (send.width() - _level->width()) / 2;
 		_level->moveToLeft(mapped.x() + center, mapped.y() + center);
 	}, lifetime());
