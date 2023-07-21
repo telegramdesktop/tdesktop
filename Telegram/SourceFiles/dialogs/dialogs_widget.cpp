@@ -793,7 +793,10 @@ void Widget::setupMainMenuToggle() {
 }
 
 void Widget::setupStories() {
-	trackScroll(_stories.get());
+	_stories->verticalScrollEvents(
+	) | rpl::start_with_next([=](not_null<QWheelEvent*> e) {
+		_scroll->viewportEvent(e);
+	}, _stories->lifetime());
 
 	_storiesContents.fire(Stories::ContentForSession(
 		&controller()->session(),

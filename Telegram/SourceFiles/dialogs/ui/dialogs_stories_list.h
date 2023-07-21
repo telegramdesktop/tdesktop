@@ -91,6 +91,9 @@ public:
 	[[nodiscard]] rpl::producer<> entered() const;
 	[[nodiscard]] rpl::producer<> loadMoreRequests() const;
 
+	[[nodiscard]] auto verticalScrollEvents() const
+		-> rpl::producer<not_null<QWheelEvent*>>;
+
 private:
 	struct Layout;
 	enum class State {
@@ -177,6 +180,7 @@ private:
 	int _scrollLeft = 0;
 	int _scrollLeftMax = 0;
 	bool _dragging = false;
+	Qt::Orientation _scrollingLock = {};
 
 	Ui::Animations::Simple _expandedAnimation;
 	Ui::Animations::Simple _expandCatchUpAnimation;
@@ -187,6 +191,8 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+
+	rpl::event_stream<not_null<QWheelEvent*>> _verticalScrollEvents;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	base::has_weak_ptr _menuGuard;

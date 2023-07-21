@@ -152,6 +152,10 @@ rpl::producer<> List::loadMoreRequests() const {
 	return _loadMoreRequests.events();
 }
 
+rpl::producer<not_null<QWheelEvent*>> List::verticalScrollEvents() const {
+	return _verticalScrollEvents.events();
+}
+
 void List::requestExpanded(bool expanded) {
 	if (_expanded != expanded) {
 		_expanded = expanded;
@@ -635,18 +639,30 @@ void List::validateName(not_null<Item*> item) {
 }
 
 void List::wheelEvent(QWheelEvent *e) {
-	const auto horizontal = (e->angleDelta().x() != 0);
-	if (!horizontal || _state == State::Small) {
+	const auto phase = e->phase();
+	const auto fullDelta = e->pixelDelta().isNull()
+		? e->angleDelta()
+		: e->pixelDelta();
+	if (phase == Qt::ScrollBegin || phase == Qt::ScrollEnd) {
+		_scrollingLock = Qt::Orientation();
+		if (fullDelta.isNull()) {
+			return;
+		}
+	}
+	const auto vertical = qAbs(fullDelta.x()) < qAbs(fullDelta.y());
+	if (_scrollingLock == Qt::Orientation() && phase != Qt::NoScrollPhase) {
+		_scrollingLock = vertical ? Qt::Vertical : Qt::Horizontal;
+	}
+	if (_scrollingLock == Qt::Vertical || (vertical && !_scrollLeftMax)) {
+		_verticalScrollEvents.fire(e);
+		return;
+	} else if (_state == State::Small) {
 		e->ignore();
 		return;
 	}
-	auto delta = horizontal
-		? ((style::RightToLeft() ? -1 : 1) * (e->pixelDelta().x()
-			? e->pixelDelta().x()
-			: e->angleDelta().x()))
-		: (e->pixelDelta().y()
-			? e->pixelDelta().y()
-			: e->angleDelta().y());
+	const auto delta = vertical
+		? fullDelta.y()
+		: ((style::RightToLeft() ? -1 : 1) * fullDelta.x());
 
 	const auto now = _scrollLeft;
 	const auto used = now - delta;
