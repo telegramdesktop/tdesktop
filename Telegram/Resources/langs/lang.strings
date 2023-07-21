@@ -3,7 +3,7 @@ This file is part of exteraGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 "lng_language_name" = "English";
 "lng_switch_to_this" = "Continue in English";
@@ -765,7 +765,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 "lng_download_path_temp" = "Temp folder";
 "lng_download_path_default" = "Default folder";
 "lng_download_path_header" = "Choose download path";
-"lng_download_path_default_radio" = "Telegram folder in system «Downloads»";
+"lng_download_path_default_radio" = "exteraGram folder in system «Downloads»";
 "lng_download_path_temp_radio" = "Temp folder, cleared on logout or uninstall";
 "lng_download_path_dir_radio" = "Custom folder, cleared only manually";
 "lng_download_path_choose" = "Choose download path";

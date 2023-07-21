@@ -3,9 +3,10 @@ This file is part of exteraGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "boxes/download_path_box.h"
+#include "extera/extera_lang.h"
 
 #include "lang/lang_keys.h"
 #include "core/file_utilities.h"
@@ -30,7 +31,7 @@ DownloadPathBox::DownloadPathBox(
 		this,
 		_group,
 		Directory::Downloads,
-		tr::lng_download_path_default_radio(tr::now),
+		rktr("etg_download_path_default_radio"),
 		st::defaultBoxCheckbox)
 	: nullptr)
 , _temp(this, _group, Directory::Temp, tr::lng_download_path_temp_radio(tr::now), st::defaultBoxCheckbox)

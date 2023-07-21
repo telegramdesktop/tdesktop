@@ -3,7 +3,7 @@ This file is part of exteraGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "ui/effects/fireworks_animation.h"
 

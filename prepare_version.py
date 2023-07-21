@@ -3,18 +3,27 @@
 import os, shutil
 
 make_portable = True
-version = "4.8.4-20072023"
+version = "4.8.4-21072023"
 
 def rename_file():
     print("# Renaming file...")
-    try:
-        old_path = os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "Telegram.exe")
-        new_path = os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "exteraGram.exe")
-        os.rename(old_path, new_path)
-        print("#  Renamed Telegram.exe -> exteraGram.exe")
-    except:
-        print("#  Telegram.exe does not exist")
-        return
+
+    # check if Telegram.exe exists
+    if not os.path.exists(os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "Telegram.exe")):
+        print("#  Telegram.exe does not exist, halt...")
+        exit()
+
+    # removing old exteraGram.exe
+    if os.path.exists(os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "exteraGram.exe")):
+        os.remove(os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "exteraGram.exe"))
+        print("#  exteraGram.exe removed successfully, renaming")
+    else:
+        print("#  exteraGram.exe does not exist, renaming")
+
+    old_path = os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "Telegram.exe")
+    new_path = os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "exteraGram.exe")
+    os.rename(old_path, new_path)
+    print("#  Renamed Telegram.exe -> exteraGram.exe")
 
 def run_iss_build():
     print("# Running iscc build... If error occurs, check if iscc.exe path added to PATH")
