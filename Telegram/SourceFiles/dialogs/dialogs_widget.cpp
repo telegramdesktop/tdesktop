@@ -526,7 +526,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 		return;
 	} else if (history) {
 		const auto peer = history->peer;
-		if (const auto user = history->peer->asUser()) {
+		if (const auto user = peer->asUser()) {
 			if (row.message.fullId.msg == ShowAtUnreadMsgId) {
 				if (row.userpicClick
 					&& user->hasActiveStories()
@@ -549,6 +549,14 @@ void Widget::chosenRow(const ChosenRow &row) {
 			hideChildList();
 		}
 	} else if (const auto folder = row.key.folder()) {
+		if (row.userpicClick) {
+			const auto list = Data::StorySourcesList::Hidden;
+			const auto &sources = session().data().stories().sources(list);
+			if (!sources.empty()) {
+				controller()->openPeerStories(sources.front().id, list);
+				return;
+			}
+		}
 		controller()->openFolder(folder);
 		hideChildList();
 	}
