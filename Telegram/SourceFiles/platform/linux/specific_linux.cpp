@@ -346,12 +346,16 @@ bool GenerateServiceFile(bool silent = false) {
 		"Name",
 		QGuiApplication::desktopFileName().toStdString());
 
+	QStringList exec;
+	exec.append(executable);
+	if (Core::Launcher::Instance().customWorkingDir()) {
+		exec.append(u"-workdir"_q);
+		exec.append(cWorkingDir());
+	}
 	target->set_string(
 		group,
 		"Exec",
-		KShell::joinArgs({ executable }).replace(
-			'\\',
-			qstr("\\\\")).toStdString());
+		KShell::joinArgs(exec).toStdString());
 
 	try {
 		target->save_to_file(targetFile.toStdString());
