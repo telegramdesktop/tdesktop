@@ -222,7 +222,12 @@ void LinuxIntegration::LaunchNativeApplication() {
 				G_APPLICATION_HANDLES_OPEN,
 				nullptr)));
 
-	app->signal_startup().connect([=] {
+	app->signal_startup().connect([weak = std::weak_ptr(app)] {
+		const auto app = weak.lock();
+		if (!app) {
+			return;
+		}
+
 		// GNotification
 		InvokeQueued(qApp, [] {
 			Core::App().notifications().createManager();

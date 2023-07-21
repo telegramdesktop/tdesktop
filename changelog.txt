@@ -1,3 +1,7 @@
+4.8.6 (21.07.23)
+
+- Fix langpack keys by a full rebuild on macOS.
+
 4.8.5 (20.07.23)
 
 - Bug fixes and other minor improvements. And stories preview.
