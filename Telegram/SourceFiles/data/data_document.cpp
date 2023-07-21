@@ -1331,6 +1331,7 @@ bool DocumentData::canBeStreamed(HistoryItem *item) const {
 	return hasRemoteLocation()
 		&& supportsStreaming()
 		&& (!isVideoFile()
+			|| storyMedia()
 			|| !ExternalVideoPlayer.value()
 			|| (item && !item->allowsForward()));
 }
