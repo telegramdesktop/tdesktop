@@ -669,6 +669,9 @@ void Controller::rebuildFromContext(
 			storyId.peer,
 			&StoriesSourceInfo::id);
 		if (i != end(sources)) {
+			if (_cachedSourcesList.empty()) {
+				_showingUnreadSources = source && (source->readTill < id);
+			}
 			rebuildCachedSourcesList(sources, (i - begin(sources)));
 			showSiblings(&user->session());
 			if (int(sources.end() - i) < kPreloadUsersCount) {
@@ -1294,6 +1297,8 @@ void Controller::rebuildCachedSourcesList(
 		int index) {
 	Expects(index >= 0 && index < lists.size());
 
+	const auto currentPeerId = lists[index].id;
+
 	// Remove removed.
 	_cachedSourcesList.erase(ranges::remove_if(_cachedSourcesList, [&](
 			PeerId id) {
@@ -1301,7 +1306,7 @@ void Controller::rebuildCachedSourcesList(
 	}), end(_cachedSourcesList));
 
 	// Find current, full rebuild if can't find.
-	const auto i = ranges::find(_cachedSourcesList, lists[index].id);
+	const auto i = ranges::find(_cachedSourcesList, currentPeerId);
 	if (i == end(_cachedSourcesList)) {
 		_cachedSourcesList.clear();
 	} else {
@@ -1310,38 +1315,50 @@ void Controller::rebuildCachedSourcesList(
 
 	if (_cachedSourcesList.empty()) {
 		// Full rebuild.
+		const auto predicate = [&](const Data::StoriesSourceInfo &info) {
+			return !_showingUnreadSources
+				|| (info.unreadCount > 0)
+				|| (info.id == currentPeerId);
+		};
 		_cachedSourcesList = lists
+			| ranges::views::filter(predicate)
 			| ranges::views::transform(&Data::StoriesSourceInfo::id)
 			| ranges::to_vector;
-		_cachedSourceIndex = index;
+		_cachedSourceIndex = ranges::find(_cachedSourcesList, currentPeerId)
+			- begin(_cachedSourcesList);
 	} else if (ranges::equal(
 			lists,
 			_cachedSourcesList,
 			ranges::equal_to(),
 			&Data::StoriesSourceInfo::id)) {
 		// No rebuild needed.
-		_cachedSourceIndex = index;
 	} else {
 		// All that go before the current push to front.
 		for (auto before = index; before > 0;) {
-			const auto peerId = lists[--before].id;
-			if (!ranges::contains(_cachedSourcesList, peerId)) {
+			const auto &info = lists[--before];
+			if (_showingUnreadSources && !info.unreadCount) {
+				continue;
+			} else if (!ranges::contains(_cachedSourcesList, info.id)) {
 				_cachedSourcesList.insert(
 					begin(_cachedSourcesList),
-					peerId);
+					info.id);
 				++_cachedSourceIndex;
 			}
 		}
 		// All that go after the current push to back.
-		for (auto after = index + 1, count = int(lists.size()); after != count; ++after) {
-			const auto peerId = lists[after].id;
-			if (!ranges::contains(_cachedSourcesList, peerId)) {
-				_cachedSourcesList.push_back(peerId);
+		for (auto after = index + 1, count = int(lists.size())
+			; after != count
+			; ++after) {
+			const auto &info = lists[after];
+			if (_showingUnreadSources && !info.unreadCount) {
+				continue;
+			} else if (!ranges::contains(_cachedSourcesList, info.id)) {
+				_cachedSourcesList.push_back(info.id);
 			}
 		}
 	}
 
-	Ensures(_cachedSourcesList.size() == lists.size());
+	Ensures(_cachedSourcesList.size() <= lists.size());
 	Ensures(_cachedSourceIndex >= 0
 		&& _cachedSourceIndex < _cachedSourcesList.size());
 }

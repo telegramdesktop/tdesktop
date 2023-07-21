@@ -266,6 +266,7 @@ private:
 
 	std::vector<PeerId> _cachedSourcesList;
 	int _cachedSourceIndex = -1;
+	bool _showingUnreadSources = false;
 
 	ViewsSlice _viewsSlice;
 	rpl::event_stream<> _moreViewsLoaded;
