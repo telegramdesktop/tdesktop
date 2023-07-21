@@ -18,6 +18,8 @@ The latest version is available for
 
 * Windows 7 and above (x64/x32)
 
+You can build exteraGram Desktop yourself using [build instructions][build_instructions]
+
 ## Third-party
 
 * Qt 6 ([LGPL](http://doc.qt.io/qt-6/lgpl.html)) and Qt 5.15 ([LGPL](http://doc.qt.io/qt-5/lgpl.html)) slightly patched
@@ -58,3 +60,4 @@ The latest version is available for
 [win32]: docs/building-win.md
 [win64]: docs/building-win-x64.md
 [linux]: docs/building-linux.md
+[build_instructions]: https://github.com/exteraGramDesktop/exteraGramDesktop#build-instructions
