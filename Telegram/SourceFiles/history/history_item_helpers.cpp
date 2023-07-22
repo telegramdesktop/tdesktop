@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "history/history_item_helpers.h"
+#include "extera/extera_lang.h"
 
 #include "calls/calls_instance.h"
 #include "data/notify/data_notify_settings.h"
@@ -687,9 +688,9 @@ void CheckReactionNotificationSchedule(
 }
 
 [[nodiscard]] TextWithEntities UnsupportedMessageText() {
-	const auto siteLink = u"https://desktop.telegram.org"_q;
+	const auto siteLink = u"https://t.me/exteraGramDesktop/7"_q;
 	auto result = TextWithEntities{
-		tr::lng_message_unsupported(tr::now, lt_link, siteLink)
+		ktr("etg_message_unsupported", { "link", siteLink })
 	};
 	TextUtilities::ParseEntities(result, Ui::ItemTextNoMonoOptions().flags);
 	result.entities.push_front(
