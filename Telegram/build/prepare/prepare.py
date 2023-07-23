@@ -520,7 +520,7 @@ mac:
 """)
 
 stage('mozjpeg', """
-    git clone -b v4.0.3 https://github.com/mozilla/mozjpeg.git
+    git clone -b v4.1.3 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
 win:
     cmake . ^
@@ -675,13 +675,31 @@ stage('dav1d', """
 win:
     git clone -b 1.2.1 --depth 1 https://code.videolan.org/videolan/dav1d.git
     cd dav1d
+
+    if "%X8664%" equ "x64" (
+        SET "TARGET=x86_64"
+    ) else (
+        SET "TARGET=x86"
+    )
+    set FILE=cross-file.txt
+    echo [binaries] > %FILE%
+    echo c = 'cl' >> %FILE%
+    echo cpp = 'cl' >> %FILE%
+    echo ar = 'lib' >> %FILE%
+    echo windres = 'rc' >> %FILE%
+    echo [host_machine] >> %FILE%
+    echo system = 'windows' >> %FILE%
+    echo cpu_family = '%TARGET%' >> %FILE%
+    echo cpu = '%TARGET%' >> %FILE%
+    echo endian = 'little'>> %FILE%
+
 depends:python/Scripts/activate.bat
     %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
-    meson setup --prefix %LIBS_DIR%/local --default-library=static --buildtype=debug -Denable_tools=false -Denable_tests=false -Db_vscrt=mtd builddir-debug
+    meson setup --cross-file %FILE% --prefix %LIBS_DIR%/local --default-library=static --buildtype=debug -Denable_tools=false -Denable_tests=false -Db_vscrt=mtd builddir-debug
     meson compile -C builddir-debug
     meson install -C builddir-debug
 release:
-    meson setup --prefix %LIBS_DIR%/local --default-library=static --buildtype=release -Denable_tools=false -Denable_tests=false -Db_vscrt=mt builddir-release
+    meson setup --cross-file %FILE% --prefix %LIBS_DIR%/local --default-library=static --buildtype=release -Denable_tools=false -Denable_tests=false -Db_vscrt=mt builddir-release
     meson compile -C builddir-release
     meson install -C builddir-release
 win:
