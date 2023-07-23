@@ -6,6 +6,11 @@ This is the complete source code and the build instructions for the app based on
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
+## Features
+
+* Sticker size setting
+* Hide phone number in profile
+
 ## Exclusive themes
 
 You can add exclusive themes by these links: [Light][etg_light_theme] and [Dark][etg_dark_theme]

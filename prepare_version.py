@@ -3,7 +3,7 @@
 import os, shutil
 
 make_portable = True
-version = "4.8.4-21072023"
+version = "4.8.7-23072023"
 
 def rename_file():
     print("# Renaming file...")
