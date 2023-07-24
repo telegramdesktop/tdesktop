@@ -105,6 +105,7 @@ PeerShortInfoCover::PeerShortInfoCover(
 		userpic
 	) | rpl::start_with_next([=](PeerShortInfoUserpic &&value) {
 		applyUserpic(std::move(value));
+		applyAdditionalStatus(value.additionalStatus);
 	}, lifetime());
 
 	style::PaletteChanged(
@@ -136,16 +137,7 @@ PeerShortInfoCover::PeerShortInfoCover(
 		return base::EventFilterResult::Cancel;
 	});
 
-	_name->moveToLeft(
-		_st.namePosition.x(),
-		_st.size - _st.namePosition.y() - _name->height(),
-		_st.size);
-	_status->moveToLeft(
-		_st.statusPosition.x(),
-		(_st.size
-			- _st.statusPosition.y()
-			- _status->height()),
-		_st.size);
+	refreshLabelsGeometry();
 
 	_roundedTopImage = QImage(
 		QSize(_st.size, _st.radius) * style::DevicePixelRatio(),
@@ -415,6 +407,23 @@ QImage PeerShortInfoCover::currentVideoFrame() const {
 		: QImage();
 }
 
+void PeerShortInfoCover::applyAdditionalStatus(const QString &status) {
+	if (status.isEmpty()) {
+		if (_additionalStatus) {
+			_additionalStatus.destroy();
+			refreshLabelsGeometry();
+		}
+		return;
+	}
+	if (_additionalStatus) {
+		_additionalStatus->setText(status);
+	} else {
+		_additionalStatus.create(_widget.get(), status, _statusStyle->st);
+		_additionalStatus->show();
+		refreshLabelsGeometry();
+	}
+}
+
 void PeerShortInfoCover::applyUserpic(PeerShortInfoUserpic &&value) {
 	if (_index != value.index) {
 		_index = value.index;
@@ -591,6 +600,28 @@ void PeerShortInfoCover::refreshBarImages() {
 	};
 	_barSmall = makeBar(_smallWidth);
 	_barLarge = makeBar(_largeWidth);
+}
+
+void PeerShortInfoCover::refreshLabelsGeometry() {
+	const auto statusTop = _st.size
+		- _st.statusPosition.y()
+		- _status->height();
+	const auto diff = _st.namePosition.y()
+		- _name->height()
+		- _st.statusPosition.y();
+	if (_additionalStatus) {
+		_additionalStatus->moveToLeft(
+			_status->x(),
+			statusTop - diff - _additionalStatus->height());
+	}
+	_name->moveToLeft(
+		_st.namePosition.x(),
+		_st.size
+			- _st.namePosition.y()
+			- _name->height()
+			- (_additionalStatus ? (diff + _additionalStatus->height()) : 0),
+		_st.size);
+	_status->moveToLeft(_st.statusPosition.x(), statusTop, _st.size);
 }
 
 QRect PeerShortInfoCover::radialRect() const {

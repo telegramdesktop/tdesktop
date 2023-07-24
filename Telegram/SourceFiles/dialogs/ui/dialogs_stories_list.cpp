@@ -7,14 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_stories_list.h"
 
+#include "base/event_filter.h"
+#include "base/qt_signal_producer.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/outline_segments.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
 #include <QtWidgets/QApplication>
+#include <QtGui/QWindow>
 
 #include "base/debug_log.h"
 
@@ -27,6 +33,7 @@ constexpr auto kExpandAfterRatio = 0.72;
 constexpr auto kCollapseAfterRatio = 0.68;
 constexpr auto kFrictionRatio = 0.15;
 constexpr auto kExpandCatchUpDuration = crl::time(200);
+constexpr auto kMaxTooltipNames = 3;
 
 [[nodiscard]] int AvailableNameWidth(const style::DialogsStoriesList &st) {
 	const auto &full = st.full;
@@ -112,6 +119,7 @@ void List::showContent(Content &&content) {
 			_data.items.emplace_back(Item{ .element = element });
 		}
 	}
+	_lastCollapsedGeometry = {};
 	if (int(_data.items.size()) != wasCount) {
 		updateGeometry();
 	}
@@ -120,6 +128,8 @@ void List::showContent(Content &&content) {
 	if (!wasCount) {
 		_empty = false;
 	}
+	_tooltipText = computeTooltipText();
+	updateTooltipGeometry();
 }
 
 void List::updateScrollMax() {
@@ -162,10 +172,16 @@ void List::requestExpanded(bool expanded) {
 		const auto from = _expanded ? 0. : 1.;
 		const auto till = _expanded ? 2. : 0.;
 		const auto duration = (_expanded ? 2 : 1) * st::slideWrapDuration;
+		if (!isHidden() && _expanded) {
+			toggleTooltip(false);
+		}
 		_expandedAnimation.start([=] {
 			checkForFullState();
 			update();
 			_collapsedGeometryChanged.fire({});
+			if (!isHidden() && !_expandedAnimation.animating()) {
+				toggleTooltip(false);
+			}
 		}, from, till, duration, anim::sineInOut);
 	}
 	_toggleExpandedRequests.fire_copy(_expanded);
@@ -177,6 +193,12 @@ void List::enterEventHook(QEnterEvent *e) {
 
 void List::resizeEvent(QResizeEvent *e) {
 	updateScrollMax();
+}
+
+void List::updateExpanding() {
+	updateExpanding(
+		_lastExpandedHeight * _expandCatchUpAnimation.value(1.),
+		_st.full.height);
 }
 
 void List::updateExpanding(int expandingHeight, int expandedHeight) {
@@ -196,12 +218,10 @@ void List::updateExpanding(int expandingHeight, int expandedHeight) {
 	if (change) {
 		requestExpanded(!_expanded);
 	}
+	updateTooltipGeometry();
 }
 
 List::Layout List::computeLayout() {
-	updateExpanding(
-		_lastExpandedHeight * _expandCatchUpAnimation.value(1.),
-		_st.full.height);
 	return computeLayout(_expandedAnimation.value(_expanded ? 2. : 0.));
 }
 
@@ -678,6 +698,9 @@ void List::mousePressEvent(QMouseEvent *e) {
 		return;
 	} else if (_state == State::Small) {
 		requestExpanded(true);
+		if (const auto onstack = _tooltipHide) {
+			onstack();
+		}
 		return;
 	} else if (_state != State::Full) {
 		return;
@@ -757,6 +780,7 @@ void List::setExpandedHeight(int height, bool momentum) {
 	} else if (!momentum && _expandIgnored && height > 0) {
 		_expandIgnored = false;
 		_expandCatchUpAnimation.start([=] {
+			updateExpanding();
 			update();
 			checkForFullState();
 		}, 0., 1., kExpandCatchUpDuration);
@@ -764,6 +788,7 @@ void List::setExpandedHeight(int height, bool momentum) {
 		_expandCatchUpAnimation.stop();
 	}
 	_lastExpandedHeight = height;
+	updateExpanding();
 	if (!checkForFullState()) {
 		setState(!height ? State::Small : State::Changing);
 	}
@@ -784,17 +809,177 @@ void List::setLayoutConstraints(
 		QPoint positionSmall,
 		style::align alignSmall,
 		QRect geometryFull) {
+	if (_positionSmall == positionSmall
+		&& _alignSmall == alignSmall
+		&& _geometryFull == geometryFull) {
+		return;
+	}
 	_positionSmall = positionSmall;
 	_alignSmall = alignSmall;
 	_geometryFull = geometryFull;
+	_lastCollapsedGeometry = {};
 	updateGeometry();
 	update();
+}
+
+TextWithEntities List::computeTooltipText() const {
+	const auto &list = _data.items;
+	if (list.empty()) {
+		return {};
+	} else if (list.size() == 1 && list.front().element.skipSmall) {
+		return { tr::lng_stories_click_to_view_mine(tr::now) };
+	}
+	auto names = QStringList();
+	for (const auto &item : list) {
+		if (item.element.skipSmall) {
+			continue;
+		}
+		names.append(item.element.name);
+		if (names.size() >= kMaxTooltipNames) {
+			break;
+		}
+	}
+	auto sequence = Ui::Text::Bold(names.front());
+	if (names.size() > 1) {
+		for (auto i = 1; i + 1 != names.size(); ++i) {
+			sequence = tr::lng_stories_click_to_view_and_one(
+				tr::now,
+				lt_accumulated,
+				sequence,
+				lt_user,
+				Ui::Text::Bold(names[i]),
+				Ui::Text::WithEntities);
+		}
+		sequence = tr::lng_stories_click_to_view_and_last(
+			tr::now,
+			lt_accumulated,
+			sequence,
+			lt_user,
+			Ui::Text::Bold(names.back()),
+			Ui::Text::WithEntities);
+	}
+	return tr::lng_stories_click_to_view(
+		tr::now,
+		lt_users,
+		sequence,
+		Ui::Text::WithEntities);
+}
+
+void List::setShowTooltip(rpl::producer<bool> shown, Fn<void()> hide) {
+	_tooltip = nullptr;
+	_tooltipHide = std::move(hide);
+	_tooltipNotHidden = std::move(shown);
+	_tooltipText = computeTooltipText();
+	const auto window = this->window();
+	const auto notEmpty = [](const TextWithEntities &text) {
+		return !text.empty();
+	};
+	_tooltip = std::make_unique<Ui::ImportantTooltip>(
+		window,
+		Ui::MakeNiceTooltipLabel(
+			window,
+			_tooltipText.value() | rpl::filter(notEmpty),
+			st::dialogsStoriesTooltipMaxWidth,
+			st::dialogsStoriesTooltipLabel),
+		st::dialogsStoriesTooltip);
+	const auto tooltip = _tooltip.get();
+	const auto weak = QPointer<QWidget>(tooltip);
+	tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
+	tooltip->toggleFast(false);
+	updateTooltipGeometry();
+
+	const auto handle = window->windowHandle();
+	auto windowActive = rpl::single(
+		handle->isActive()
+	) | rpl::then(base::qt_signal_producer(
+		handle,
+		&QWindow::activeChanged
+	) | rpl::map([=] {
+		return handle->isActive();
+	})) | rpl::distinct_until_changed();
+
+	for (auto parent = parentWidget()
+		; parent != window
+		; parent = parent->parentWidget()) {
+		using namespace base;
+		install_event_filter(parent, tooltip, [=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Move) {
+				updateTooltipGeometry();
+			}
+			return EventFilterResult::Continue;
+		});
+	}
+
+	rpl::combine(
+		_tooltipNotHidden.value(),
+		_tooltipText.value() | rpl::map(
+			notEmpty
+		) | rpl::distinct_until_changed(),
+		std::move(windowActive)
+	) | rpl::start_with_next([=](bool, bool, bool active) {
+		_tooltipWindowActive = active;
+		if (!isHidden()) {
+			toggleTooltip(false);
+		}
+	}, tooltip->lifetime());
+
+	shownValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](bool shown) {
+		toggleTooltip(true);
+	}, tooltip->lifetime());
+}
+
+void List::toggleTooltip(bool fast) {
+	const auto shown = !_expanded
+		&& !_expandedAnimation.animating()
+		&& !isHidden()
+		&& _tooltipNotHidden.current()
+		&& !_tooltipText.current().empty()
+		&& window()->windowHandle()->isActive();
+	if (shown) {
+		updateTooltipGeometry();
+	}
+	if (fast) {
+		_tooltip->toggleFast(shown);
+	} else {
+		_tooltip->toggleAnimated(shown);
+	}
+}
+
+void List::updateTooltipGeometry() {
+	if (!_tooltip || _expanded || _expandedAnimation.animating()) {
+		return;
+	}
+	const auto collapsed = collapsedGeometryCurrent();
+	if (collapsed.geometry.isEmpty()) {
+		int a = 0;
+	}
+	const auto geometry = Ui::MapFrom(
+		window(),
+		parentWidget(),
+		QRect(
+			collapsed.geometry.x(),
+			collapsed.geometry.y(),
+			int(std::ceil(collapsed.singleWidth)),
+			collapsed.geometry.height()));
+	const auto weak = QPointer<QWidget>(_tooltip.get());
+	const auto countPosition = [=](QSize size) {
+		return QPoint(
+			geometry.x() + (geometry.width() - size.width()) / 2,
+			geometry.y() + geometry.height());
+	};
+	_tooltip->pointAt(geometry, RectPart::Bottom, countPosition);
 }
 
 List::CollapsedGeometry List::collapsedGeometryCurrent() const {
 	const auto expanded = _expandedAnimation.value(_expanded ? 2. : 0.);
 	if (expanded >= 1.) {
-		return { QRect(), 1. };
+		const auto single = 2 * _st.full.photoLeft + _st.full.photo;
+		return { QRect(), 1., float64(single) };
+	} else if (_lastCollapsedRatio == _lastRatio
+		&& _lastCollapsedGeometry.expanded == expanded
+		&& !_lastCollapsedGeometry.geometry.isEmpty()) {
+		return _lastCollapsedGeometry;
 	}
 	const auto layout = computeLayout(0.);
 	const auto small = countSmallGeometry();
@@ -803,10 +988,21 @@ List::CollapsedGeometry List::collapsedGeometryCurrent() const {
 	const auto left = int(base::SafeRound(
 		shift + layout.left + layout.single * index));
 	const auto width = small.x() + small.width() - left;
-	return {
-		QRect(left, small.y(), width, small.height()),
+	const auto photoTopSmall = _st.small.photoTop;
+	const auto photoTop = photoTopSmall
+		+ (_st.full.photoTop - photoTopSmall) * layout.expandedRatio;
+	const auto ySmall = photoTopSmall
+		+ ((photoTop - photoTopSmall) * kSmallThumbsShown / 0.5);
+	const auto photo = _st.small.photo
+		+ (_st.full.photo - _st.small.photo) * layout.ratio;
+	const auto top = y() + layout.geometryShift.y();
+	_lastCollapsedRatio = _lastRatio;
+	_lastCollapsedGeometry = {
+		QRect(left, top, width, ySmall + photo + _st.full.photoTop),
 		expanded,
+		layout.photoLeft * 2 + photo,
 	};
+	return _lastCollapsedGeometry;
 }
 
 rpl::producer<> List::collapsedGeometryChanged() const {
@@ -822,6 +1018,7 @@ void List::updateGeometry() {
 	} break;
 	case State::Full: setGeometry(_geometryFull);
 	}
+	updateTooltipGeometry();
 	update();
 }
 

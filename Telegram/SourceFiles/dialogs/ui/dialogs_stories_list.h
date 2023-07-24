@@ -23,6 +23,7 @@ struct DialogsStoriesList;
 namespace Ui {
 class PopupMenu;
 struct OutlineSegment;
+class ImportantTooltip;
 } // namespace Ui
 
 namespace Dialogs::Stories {
@@ -72,9 +73,11 @@ public:
 		QPoint positionSmall,
 		style::align alignSmall,
 		QRect geometryFull = QRect());
+	void setShowTooltip(rpl::producer<bool> shown, Fn<void()> hide);
 	struct CollapsedGeometry {
 		QRect geometry;
 		float64 expanded = 0.;
+		float64 singleWidth = 0.;
 	};
 	[[nodiscard]] CollapsedGeometry collapsedGeometryCurrent() const;
 	[[nodiscard]] rpl::producer<> collapsedGeometryChanged() const;
@@ -142,10 +145,15 @@ private:
 	void checkLoadMore();
 	void requestExpanded(bool expanded);
 
+	void updateTooltipGeometry();
+	[[nodiscard]] TextWithEntities computeTooltipText() const;
+	void toggleTooltip(bool fast);
+
 	bool checkForFullState();
 	void setState(State state);
 	void updateGeometry();
 	[[nodiscard]] QRect countSmallGeometry() const;
+	void updateExpanding();
 	void updateExpanding(int expandingHeight, int expandedHeight);
 	void validateSegments(
 		not_null<Item*> item,
@@ -189,10 +197,19 @@ private:
 	bool _expandIgnored : 1 = false;
 	bool _expanded : 1 = false;
 
+	mutable CollapsedGeometry _lastCollapsedGeometry;
+	mutable float64 _lastCollapsedRatio = 0.;
+
 	int _selected = -1;
 	int _pressed = -1;
 
 	rpl::event_stream<not_null<QWheelEvent*>> _verticalScrollEvents;
+
+	rpl::variable<TextWithEntities> _tooltipText;
+	rpl::variable<bool> _tooltipNotHidden;
+	Fn<void()> _tooltipHide;
+	std::unique_ptr<Ui::ImportantTooltip> _tooltip;
+	bool _tooltipWindowActive = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	base::has_weak_ptr _menuGuard;

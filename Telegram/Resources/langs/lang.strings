@@ -1143,6 +1143,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_profile_shared_links#other" = "{count} shared links";
 "lng_profile_copy_phone" = "Copy Phone Number";
 "lng_profile_copy_fullname" = "Copy Name";
+"lng_profile_photo_by_you" = "photo set by you";
 
 "lng_via_link_group_one" = "**{user}** restricts adding them to groups.\nYou can send them an invite link as message instead.";
 "lng_via_link_group_many#one" = "**{count} user** restricts adding them to groups.\nYou can send them an invite link as message instead.";
@@ -3840,6 +3841,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_stories_about_close_friends_my" = "Only your list of **Close Friends** can view this story.";
 "lng_stories_about_contacts_my" = "Only your contacts can view this story.";
 "lng_stories_about_selected_contacts_my" = "Only some contacts you selected can view this story.";
+"lng_stories_click_to_view_mine" = "Click here to view your story.";
 "lng_stories_click_to_view" = "Click here to view updates from {users}.";
 "lng_stories_click_to_view_and_one" = "{accumulated}, {user}";
 "lng_stories_click_to_view_and_last" = "{accumulated} and {user}";
