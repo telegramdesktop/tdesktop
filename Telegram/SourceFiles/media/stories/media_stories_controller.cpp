@@ -833,6 +833,7 @@ void Controller::show(
 		.video = (document != nullptr),
 		.silent = (document && document->isSilentVideo()),
 	});
+	uiShow()->hideLayer(anim::type::instant);
 	if (!changeShown(story)) {
 		return;
 	}
