@@ -335,10 +335,14 @@ bool ProcessCurrent(
 		: state->photoView
 		? state->photoView->owner().get()
 		: nullptr;
-	state->current.additionalStatus = ((state->photoId == userpicPhotoId)
-			&& peer->isUser()
+	state->current.additionalStatus = (!peer->isUser())
+		? QString()
+		: ((state->photoId == userpicPhotoId)
 			&& peer->asUser()->hasPersonalPhoto())
 		? tr::lng_profile_photo_by_you(tr::now)
+		: ((state->current.index == (state->current.count - 1))
+			&& SyncUserFallbackPhotoViewer(peer->asUser()))
+		? tr::lng_profile_public_photo(tr::now)
 		: QString();
 	state->waitingLoad = false;
 	if (!changedPhotoId
