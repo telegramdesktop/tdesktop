@@ -3833,6 +3833,16 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_stories_no_views" = "No views";
 "lng_stories_unsupported" = "This story is not supported\nby your version of Telegram.";
 "lng_stories_cant_reply" = "You can't reply to this story.";
+"lng_stories_about_silent" = "This video has no sound.";
+"lng_stories_about_close_friends" = "You're seeing this story because {user} added you to their list of **Close Friends**.";
+"lng_stories_about_contacts" = "Only {user}'s contacts can view this story.";
+"lng_stories_about_selected_contacts" = "Only some contacts {user} selected can view this story.";
+"lng_stories_about_close_friends_my" = "Only your list of **Close Friends** can view this story.";
+"lng_stories_about_contacts_my" = "Only your contacts can view this story.";
+"lng_stories_about_selected_contacts_my" = "Only some contacts you selected can view this story.";
+"lng_stories_click_to_view" = "Click here to view updates from {users}.";
+"lng_stories_click_to_view_and_one" = "{accumulated}, {user}";
+"lng_stories_click_to_view_and_last" = "{accumulated} and {user}";
 
 "lng_stories_my_title" = "Saved Stories";
 "lng_stories_archive_button" = "Stories Archive";
