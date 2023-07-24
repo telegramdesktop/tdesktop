@@ -332,11 +332,7 @@ void List::paint(
 		bool layered) {
 	const auto &st = _st.small;
 	const auto &full = _st.full;
-	const auto ratio = layout.ratio;
 	const auto expandRatio = layout.expandRatio;
-	const auto lerp = [&](float64 a, float64 b) {
-		return a + (b - a) * ratio;
-	};
 	const auto elerp = [&](float64 a, float64 b) {
 		return a + (b - a) * expandRatio;
 	};
