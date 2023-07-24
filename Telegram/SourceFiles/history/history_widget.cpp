@@ -2848,14 +2848,35 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_botMenuButton) {
 			_botMenuButton->show();
 		}
-		if (_silent) {
-			_silent->setVisible(!_editMsgId);
-		}
-		if (_scheduled) {
-			_scheduled->setVisible(!_editMsgId);
-		}
-		if (_ttlInfo) {
-			_ttlInfo->setVisible(!_editMsgId);
+		{
+			auto rightButtonsChanged = false;
+			if (_silent) {
+				const auto was = _silent->isVisible();
+				const auto now = (!_editMsgId);
+				if (was != now) {
+					_silent->setVisible(now);
+					rightButtonsChanged = true;
+				}
+			}
+			if (_scheduled) {
+				const auto was = _scheduled->isVisible();
+				const auto now = (!_editMsgId);
+				if (was != now) {
+					_scheduled->setVisible(now);
+					rightButtonsChanged = true;
+				}
+			}
+			if (_ttlInfo) {
+				const auto was = _ttlInfo->isVisible();
+				const auto now = (!_editMsgId);
+				if (was != now) {
+					_ttlInfo->setVisible(now);
+					rightButtonsChanged = true;
+				}
+			}
+			if (rightButtonsChanged) {
+				updateFieldSize();
+			}
 		}
 		if (_sendAs) {
 			_sendAs->show();
