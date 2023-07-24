@@ -309,6 +309,10 @@ bool GenerateDesktopFile(
 		hashMd5Hex(d.constData(), d.size(), md5Hash);
 
 		if (!Core::Launcher::Instance().customWorkingDir()) {
+			QFile::remove(u"%1org.telegram.desktop._%2.desktop"_q.arg(
+				targetPath,
+				md5Hash));
+
 			const auto exePath = QFile::encodeName(
 				cExeDir() + cExeName());
 			hashMd5Hex(exePath.constData(), exePath.size(), md5Hash);
@@ -335,7 +339,7 @@ bool GenerateServiceFile(bool silent = false) {
 		+ QGuiApplication::desktopFileName()
 		+ u".service"_q;
 
-	DEBUG_LOG(("App Info: placing .service file to %1").arg(targetPath));
+	DEBUG_LOG(("App Info: placing D-Bus service file to %1").arg(targetPath));
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
 	const auto target = Glib::KeyFile::create();
@@ -364,6 +368,18 @@ bool GenerateServiceFile(bool silent = false) {
 			LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
 		}
 		return false;
+	}
+
+	if (!Core::UpdaterDisabled() && !Core::Launcher::Instance().customWorkingDir()) {
+		DEBUG_LOG(("App Info: removing old D-Bus service files"));
+
+		char md5Hash[33] = { 0 };
+		const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
+		hashMd5Hex(d.constData(), d.size(), md5Hash);
+
+		QFile::remove(u"%1org.telegram.desktop._%2.service"_q.arg(
+			targetPath,
+			md5Hash));
 	}
 
 	QProcess::execute(u"systemctl"_q, {
