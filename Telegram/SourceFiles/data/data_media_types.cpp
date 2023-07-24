@@ -1995,18 +1995,11 @@ MediaStory::MediaStory(
 	owner->registerStoryItem(storyId, parent);
 
 	const auto stories = &owner->stories();
-	if (const auto maybeStory = stories->lookup(storyId)) {
-		if (!_mention) {
-			parent->setText((*maybeStory)->caption());
-		}
-	} else {
+	const auto maybeStory = stories->lookup(storyId);
+	if (!maybeStory) {
 		if (maybeStory.error() == NoStory::Unknown) {
 			stories->resolve(storyId, crl::guard(this, [=] {
-				if (const auto maybeStory = stories->lookup(storyId)) {
-					if (!_mention) {
-						parent->setText((*maybeStory)->caption());
-					}
-				} else {
+				if (!stories->lookup(storyId)) {
 					_expired = true;
 				}
 				if (_mention) {
@@ -2058,9 +2051,7 @@ TextWithEntities MediaStory::notificationText() const {
 				&& maybeStory.error() == Data::NoStory::Deleted))
 			? tr::lng_in_dlg_story_expired
 			: tr::lng_in_dlg_story)(tr::now),
-		(maybeStory
-			? (*maybeStory)->caption()
-			: TextWithEntities()));
+		parent()->originalText());
 }
 
 QString MediaStory::pinnedTextSubstring() const {
@@ -2100,9 +2091,6 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 	const auto stories = &parent()->history()->owner().stories();
 	const auto maybeStory = stories->lookup(_storyId);
 	if (!maybeStory) {
-		if (!_mention) {
-			realParent->setText(TextWithEntities());
-		}
 		if (maybeStory.error() == Data::NoStory::Deleted) {
 			_expired = true;
 			return nullptr;
@@ -2124,7 +2112,6 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 			message,
 			std::make_unique<HistoryView::StoryMention>(message, story));
 	} else {
-		realParent->setText(story->caption());
 		if (const auto photo = story->photo()) {
 			return std::make_unique<HistoryView::Photo>(
 				message,

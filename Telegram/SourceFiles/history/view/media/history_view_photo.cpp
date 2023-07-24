@@ -69,13 +69,11 @@ Photo::Photo(
 	bool spoiler)
 : File(parent, realParent)
 , _data(photo)
+, _storyId(realParent->media()
+	? realParent->media()->storyId()
+	: FullStoryId())
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr) {
-	if (const auto media = realParent->media()) {
-		if (media->storyId()) {
-			_story = 1;
-		}
-	}
 	_caption = createCaption(realParent);
 	create(realParent->fullId());
 }
@@ -168,15 +166,14 @@ void Photo::unloadHeavyPart() {
 
 void Photo::togglePollingStory(bool enabled) const {
 	const auto pollingStory = (enabled ? 1 : 0);
-	if (!_story || _pollingStory == pollingStory) {
+	if (!_storyId || _pollingStory == pollingStory) {
 		return;
 	}
 	const auto polling = Data::Stories::Polling::Chat;
-	const auto media = _parent->data()->media();
-	const auto id = media ? media->storyId() : FullStoryId();
 	if (!enabled) {
-		_data->owner().stories().unregisterPolling(id, polling);
-	} else if (!_data->owner().stories().registerPolling(id, polling)) {
+		_data->owner().stories().unregisterPolling(_storyId, polling);
+	} else if (
+			!_data->owner().stories().registerPolling(_storyId, polling)) {
 		return;
 	}
 	_pollingStory = pollingStory;
@@ -285,7 +282,7 @@ int Photo::adjustHeightForLessCrop(QSize dimensions, QSize current) const {
 void Photo::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return;
-	} else if (_story && _data->isNull()) {
+	} else if (_storyId && _data->isNull()) {
 		return;
 	}
 
@@ -623,7 +620,7 @@ void Photo::paintUserpicFrame(
 }
 
 QSize Photo::photoSize() const {
-	if (_story) {
+	if (_storyId) {
 		return { kStoryWidth, kStoryHeight };
 	}
 	return QSize(_data->width(), _data->height());
@@ -634,7 +631,7 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
-	} else if (_story && _data->isNull()) {
+	} else if (_storyId && _data->isNull()) {
 		return result;
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
@@ -1054,7 +1051,7 @@ void Photo::hideSpoilers() {
 }
 
 bool Photo::needsBubble() const {
-	if (_story || !_caption.isEmpty()) {
+	if (_storyId || !_caption.isEmpty()) {
 		return true;
 	}
 	const auto item = _parent->data();

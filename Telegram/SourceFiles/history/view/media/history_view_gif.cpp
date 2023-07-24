@@ -88,14 +88,13 @@ Gif::Gif(
 	bool spoiler)
 : File(parent, realParent)
 , _data(document)
-, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
+, _storyId(realParent->media()
+	? realParent->media()->storyId()
+	: FullStoryId())
+, _caption(
+	st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
-	if (const auto media = realParent->media()) {
-		if (media->storyId()) {
-			_story = true;
-		}
-	}
 	setDocumentLinks(_data, realParent, [=] {
 		if (!_data->createMediaView()->canBePlayed(realParent)
 			|| !_data->isAnimation()
@@ -1438,15 +1437,14 @@ void Gif::dataMediaCreated() const {
 }
 
 void Gif::togglePollingStory(bool enabled) const {
-	if (!_story || _pollingStory == enabled) {
+	if (!_storyId || _pollingStory == enabled) {
 		return;
 	}
 	const auto polling = Data::Stories::Polling::Chat;
-	const auto media = _parent->data()->media();
-	const auto id = media ? media->storyId() : FullStoryId();
 	if (!enabled) {
-		_data->owner().stories().unregisterPolling(id, polling);
-	} else if (!_data->owner().stories().registerPolling(id, polling)) {
+		_data->owner().stories().unregisterPolling(_storyId, polling);
+	} else if (
+			!_data->owner().stories().registerPolling(_storyId, polling)) {
 		return;
 	}
 	_pollingStory = enabled;
@@ -1464,7 +1462,7 @@ void Gif::hideSpoilers() {
 }
 
 bool Gif::needsBubble() const {
-	if (_story) {
+	if (_storyId) {
 		return true;
 	} else if (_data->isVideoMessage()) {
 		return false;
