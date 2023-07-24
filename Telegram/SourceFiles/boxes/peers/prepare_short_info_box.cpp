@@ -335,6 +335,11 @@ bool ProcessCurrent(
 		: state->photoView
 		? state->photoView->owner().get()
 		: nullptr;
+	state->current.additionalStatus = ((state->photoId == userpicPhotoId)
+			&& peer->isUser()
+			&& peer->asUser()->hasPersonalPhoto())
+		? tr::lng_profile_photo_by_you(tr::now)
+		: QString();
 	state->waitingLoad = false;
 	if (!changedPhotoId
 		&& (state->current.index > 0 || !changedUserpic)
