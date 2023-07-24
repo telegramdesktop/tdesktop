@@ -397,7 +397,7 @@ int Launcher::exec() {
 bool Launcher::validateCustomWorkingDir() {
 	if (customWorkingDir()) {
 		if (_customWorkingDir == cWorkingDir()) {
-			_customWorkingDir = {};
+			_customWorkingDir = QString();
 			return false;
 		}
 		cForceWorkingDir(_customWorkingDir);
