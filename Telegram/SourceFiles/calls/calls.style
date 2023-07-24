@@ -744,6 +744,11 @@ groupCallShareBoxComment: InputField(groupCallField) {
 }
 groupCallShareBoxList: PeerList(groupCallMembersList) {
 	item: PeerListItem(groupCallMembersListItem) {
+		nameStyle: TextStyle(defaultTextStyle) {
+			font: font(11px);
+			linkFont: font(11px);
+			linkFontOver: font(11px);
+		}
 		checkbox: RoundImageCheckbox(groupCallMembersListCheckbox) {
 			imageRadius: 28px;
 			imageSmallRadius: 24px;

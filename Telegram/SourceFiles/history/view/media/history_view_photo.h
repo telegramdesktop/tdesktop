@@ -163,6 +163,7 @@ private:
 	void togglePollingStory(bool enabled) const;
 
 	const not_null<PhotoData*> _data;
+	const FullStoryId _storyId;
 	Ui::Text::String _caption;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
@@ -172,7 +173,6 @@ private:
 	uint32 _serviceWidth : 28 = 0;
 	mutable uint32 _imageCacheForum : 1 = 0;
 	mutable uint32 _imageCacheBlurred : 1 = 0;
-	mutable uint32 _story : 1 = 0;
 	mutable uint32 _pollingStory : 1 = 0;
 
 };
