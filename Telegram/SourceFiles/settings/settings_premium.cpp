@@ -1653,7 +1653,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 	} else {
 #endif
 	{
-		_radioGroup->setChangedCallback([=](int value) {
+		const auto callback = [=](int value) {
 			const auto options =
 				_controller->session().api().premium().subscriptionOptions();
 			if (options.empty()) {
@@ -1665,8 +1665,9 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 				lt_cost,
 				options[value].costPerMonth);
 			_buttonText = std::move(text);
-		});
-		_radioGroup->setValue(0);
+		};
+		_radioGroup->setChangedCallback(callback);
+		callback(0);
 	}
 
 	_showFinished.events(
