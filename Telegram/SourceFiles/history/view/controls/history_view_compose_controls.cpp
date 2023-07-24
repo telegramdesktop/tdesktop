@@ -1663,6 +1663,8 @@ void ComposeControls::initField() {
 		}
 		return false;
 	});
+	_field->setEditLinkCallback(
+		DefaultEditLinkCallback(_show, _field, &_st.boxField));
 	initAutocomplete();
 	const auto allow = [=](const auto &) {
 		return _history && Data::AllowEmojiWithoutPremium(_history->peer);
