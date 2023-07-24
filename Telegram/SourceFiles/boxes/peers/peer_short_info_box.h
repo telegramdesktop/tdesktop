@@ -28,6 +28,7 @@ class RpWidget;
 } // namespace Ui
 
 enum class PeerShortInfoType {
+	Self,
 	User,
 	Group,
 	Channel,

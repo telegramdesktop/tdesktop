@@ -431,7 +431,9 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		Fn<void()> open,
 		Fn<bool()> videoPaused,
 		const style::ShortInfoBox *stOverride) {
-	const auto type = peer->isUser()
+	const auto type = peer->isSelf()
+		? PeerShortInfoType::Self
+		: peer->isUser()
 		? PeerShortInfoType::User
 		: peer->isBroadcast()
 		? PeerShortInfoType::Channel

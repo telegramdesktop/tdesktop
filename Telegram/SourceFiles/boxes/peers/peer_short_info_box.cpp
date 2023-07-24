@@ -685,12 +685,16 @@ rpl::producer<int> PeerShortInfoBox::moveRequests() const {
 void PeerShortInfoBox::prepare() {
 	addButton(tr::lng_close(), [=] { closeBox(); });
 
-	// Perhaps a new lang key should be added for opening a group.
-	addLeftButton((_type == PeerShortInfoType::User)
-		? tr::lng_profile_send_message()
-		: (_type == PeerShortInfoType::Group)
-		? tr::lng_view_button_group()
-		: tr::lng_profile_view_channel(), [=] { _openRequests.fire({}); });
+	if (_type != PeerShortInfoType::Self) {
+		// Perhaps a new lang key should be added for opening a group.
+		addLeftButton(
+			(_type == PeerShortInfoType::User)
+				? tr::lng_profile_send_message()
+				: (_type == PeerShortInfoType::Group)
+				? tr::lng_view_button_group()
+				: tr::lng_profile_view_channel(),
+			[=] { _openRequests.fire({}); });
+	}
 
 	prepareRows();
 
