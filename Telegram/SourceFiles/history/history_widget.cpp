@@ -2852,10 +2852,10 @@ void HistoryWidget::updateControlsVisibility() {
 			_silent->setVisible(!_editMsgId);
 		}
 		if (_scheduled) {
-			_scheduled->show();
+			_scheduled->setVisible(!_editMsgId);
 		}
 		if (_ttlInfo) {
-			_ttlInfo->show();
+			_ttlInfo->setVisible(!_editMsgId);
 		}
 		if (_sendAs) {
 			_sendAs->show();
@@ -5010,19 +5010,33 @@ void HistoryWidget::moveFieldControls() {
 }
 
 void HistoryWidget::updateFieldSize() {
-	auto kbShowShown = _history && !_kbShown && _keyboard->hasMarkup();
+	const auto kbShowShown = _history && !_kbShown && _keyboard->hasMarkup();
 	auto fieldWidth = width()
 		- _attachToggle->width()
 		- st::historySendRight
 		- _send->width()
 		- _tabbedSelectorToggle->width();
-	if (_botMenuButton) fieldWidth -= st::historyBotMenuSkip + _botMenuButton->width();
-	if (_sendAs) fieldWidth -= _sendAs->width();
-	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
-	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();
-	if (_silent && !_silent->isHidden()) fieldWidth -= _silent->width();
-	if (_scheduled) fieldWidth -= _scheduled->width();
-	if (_ttlInfo) fieldWidth -= _ttlInfo->width();
+	if (_botMenuButton) {
+		fieldWidth -= st::historyBotMenuSkip + _botMenuButton->width();
+	}
+	if (_sendAs) {
+		fieldWidth -= _sendAs->width();
+	}
+	if (kbShowShown) {
+		fieldWidth -= _botKeyboardShow->width();
+	}
+	if (_cmdStartShown) {
+		fieldWidth -= _botCommandStart->width();
+	}
+	if (_silent && _silent->isVisible()) {
+		fieldWidth -= _silent->width();
+	}
+	if (_scheduled && _scheduled->isVisible()) {
+		fieldWidth -= _scheduled->width();
+	}
+	if (_ttlInfo && _ttlInfo->isVisible()) {
+		fieldWidth -= _ttlInfo->width();
+	}
 
 	if (_fieldDisabled) {
 		_fieldDisabled->resize(fieldWidth, fieldHeight());
