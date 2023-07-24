@@ -110,7 +110,7 @@
 	"etg_stickers_copy_title": "复制名称",
 	"etg_stickers_title_copied": "贴纸包名称已复制到剪切板",
 	"etg_context_show_messages_from": "筛选成员消息",
-	"etg_settings_userpic_rounding": "个人资料中的图片",
+	"etg_settings_userpic_rounding": "个人资料中的图片: {radius}",
 	"etg_settings_userpic_rounding_none": "正方形",
 	"etg_settings_userpic_rounding_small": "较小",
 	"etg_settings_userpic_rounding_big": "较大",

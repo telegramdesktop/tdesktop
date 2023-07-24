@@ -103,6 +103,33 @@ namespace Settings {
 		        ::ExteraSettings::JsonSettings::Set("sticker_scale_both", checked);
 		        ::ExteraSettings::JsonSettings::Write();
 	        }, container->lifetime());
+
+		const auto userpicRadiusLabel = container->add(
+		    object_ptr<Ui::LabelSimple>(
+			    container,
+			    st::settingsAudioVolumeLabel),
+		    st::settingsAudioVolumeLabelPadding);
+	    const auto userpicRadiusSlider = container->add(
+		    object_ptr<Ui::MediaSlider>(
+			    container,
+			    st::settingsAudioVolumeSlider),
+		    st::settingsAudioVolumeSliderPadding);
+	    const auto updateUserpicRadiusLabel = [=](int value) {
+		    const auto radius = QString::number(value);
+		    userpicRadiusLabel->setText(ktr("etg_settings_userpic_rounding", { "radius", radius }));
+	    };
+	    const auto updateUserpicRadius = [=](int value) {
+		    updateUserpicRadiusLabel(value);
+		    ::ExteraSettings::JsonSettings::Set("userpic_radius", value);
+		    ::ExteraSettings::JsonSettings::Write();
+	    };
+	    userpicRadiusSlider->resize(st::settingsAudioVolumeSlider.seekSize);
+	    userpicRadiusSlider->setPseudoDiscrete(
+		    101,
+		    [](int val) { return val; },
+		    ::ExteraSettings::JsonSettings::GetInt("userpic_radius"),
+		    updateUserpicRadius);
+	    updateUserpicRadiusLabel(::ExteraSettings::JsonSettings::GetInt("userpic_radius"));
     }
 
 	void Extera::SetupOther(not_null<Ui::VerticalLayout *> container) {

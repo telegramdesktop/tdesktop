@@ -2,6 +2,7 @@
 
 import os, shutil
 
+make_setup = False
 make_portable = True
 version = "4.8.7-23072023"
 
@@ -48,7 +49,8 @@ def make_portable_version():
 
 # main script part
 rename_file()
-run_iss_build()
+if make_setup:
+    run_iss_build()
 if make_portable:
     make_portable_version()
 print("# All done.")

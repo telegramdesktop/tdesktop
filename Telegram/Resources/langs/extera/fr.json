@@ -110,7 +110,7 @@
 	"etg_stickers_copy_title": "Copier le nom",
 	"etg_stickers_title_copied": "Nom du pack d'autocollants copié dans le presse-papiers.",
 	"etg_context_show_messages_from": "Messages de l'utilisateur",
-	"etg_settings_userpic_rounding": "Encadrement de l'image de profil",
+	"etg_settings_userpic_rounding": "Encadrement de l'image de profil: {radius}",
 	"etg_settings_userpic_rounding_none": "Carré",
 	"etg_settings_userpic_rounding_small": "Petit carré",
 	"etg_settings_userpic_rounding_big": "Gros carré",

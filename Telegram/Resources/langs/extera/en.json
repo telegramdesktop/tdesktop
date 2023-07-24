@@ -109,7 +109,7 @@
 	"etg_stickers_copy_title": "Copy name",
 	"etg_stickers_title_copied": "Sticker pack name copied to clipboard.",
 	"etg_context_show_messages_from": "User messages",
-	"etg_settings_userpic_rounding": "Profile pictures rounding",
+	"etg_settings_userpic_rounding": "Profile pictures rounding: {radius}",
 	"etg_settings_userpic_rounding_none": "Square",
 	"etg_settings_userpic_rounding_small": "Small",
 	"etg_settings_userpic_rounding_big": "Big",

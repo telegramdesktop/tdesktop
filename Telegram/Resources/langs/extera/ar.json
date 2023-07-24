@@ -110,7 +110,7 @@
 	"etg_stickers_copy_title": "نسخ الإسم",
 	"etg_stickers_title_copied": "تم نسخ اسم باقة الملصق إلى الحافظة.",
 	"etg_context_show_messages_from": "رسائل المستخدم",
-	"etg_settings_userpic_rounding": "تدوير الصور الشخصية",
+	"etg_settings_userpic_rounding": "تدوير الصور الشخصية: {radius}",
 	"etg_settings_userpic_rounding_none": "مربع",
 	"etg_settings_userpic_rounding_small": "صغير",
 	"etg_settings_userpic_rounding_big": "كبير",

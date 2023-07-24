@@ -110,7 +110,7 @@
 	"etg_stickers_copy_title": "Копіювати назву",
 	"etg_stickers_title_copied": "Назва набору наліпок скопійовано в буфер обміну.",
 	"etg_context_show_messages_from": "Повідомлення користувача",
-	"etg_settings_userpic_rounding": "Скруглення фото профіля",
+	"etg_settings_userpic_rounding": "Скруглення фото профіля: {radius}",
 	"etg_settings_userpic_rounding_none": "Квадрат",
 	"etg_settings_userpic_rounding_small": "Мале",
 	"etg_settings_userpic_rounding_big": "Велике",

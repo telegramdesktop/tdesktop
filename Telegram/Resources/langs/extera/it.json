@@ -110,7 +110,7 @@
 	"etg_stickers_copy_title": "Copia nome",
 	"etg_stickers_title_copied": "Nome dello sticker pack name copiato negli appunti.",
 	"etg_context_show_messages_from": "Messaggi dell'utente",
-	"etg_settings_userpic_rounding": "Arrotondamento foto profilo",
+	"etg_settings_userpic_rounding": "Arrotondamento foto profilo: {radius}",
 	"etg_settings_userpic_rounding_none": "Quadrato",
 	"etg_settings_userpic_rounding_small": "Basso",
 	"etg_settings_userpic_rounding_big": "Alto",
