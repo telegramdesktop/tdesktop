@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "base/event_filter.h"
+#include "base/qt/qt_tab_key.h"
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -670,6 +671,8 @@ PeerShortInfoBox::PeerShortInfoBox(
 	) | rpl::start_with_next([=] {
 		_cover.setScrollTop(_scroll->scrollTop());
 	}, _cover.lifetime());
+
+	base::DisableTabKey(this);
 }
 
 PeerShortInfoBox::~PeerShortInfoBox() = default;
