@@ -322,8 +322,18 @@ Controller::Controller(not_null<Delegate*> delegate)
 
 	_delegate->storiesLayerShown(
 	) | rpl::start_with_next([=](bool shown) {
-		_layerShown = shown;
-		updatePlayingAllowed();
+		if (_layerShown != shown) {
+			_layerShown = shown;
+			updatePlayingAllowed();
+		}
+	}, _lifetime);
+
+	_header->tooltipShownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		if (_tooltipShown != shown) {
+			_tooltipShown = shown;
+			updatePlayingAllowed();
+		}
 	}, _lifetime);
 
 	const auto window = _wrap->window()->windowHandle();
@@ -961,7 +971,8 @@ void Controller::updatePlayingAllowed() {
 		&& !_captionFullView
 		&& !_captionExpanded
 		&& !_layerShown
-		&& !_menuShown);
+		&& !_menuShown
+		&& !_tooltipShown);
 }
 
 void Controller::setPlayingAllowed(bool allowed) {

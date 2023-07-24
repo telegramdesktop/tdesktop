@@ -257,6 +257,7 @@ private:
 	bool _hasSendText = false;
 	bool _layerShown = false;
 	bool _menuShown = false;
+	bool _tooltipShown = false;
 	bool _paused = false;
 
 	FullStoryId _shown;
