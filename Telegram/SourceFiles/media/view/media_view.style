@@ -891,18 +891,6 @@ storiesVolumeSlider: MediaSlider {
 	seekSize: size(12px, 12px);
 	duration: mediaviewOverDuration;
 }
-storiesInfoTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(11px);
-		linkFont: font(11px);
-		linkFontOver: font(11px underline);
-	}
-	minWidth: 36px;
-}
-storiesInfoTooltip: ImportantTooltip(defaultImportantTooltip) {
-	bg: importantTooltipBg;
-	padding: margins(10px, 3px, 10px, 5px);
-	radius: 4px;
-	arrow: 4px;
-}
+storiesInfoTooltipLabel: defaultImportantTooltipLabel;
+storiesInfoTooltip: defaultImportantTooltip;
 storiesInfoTooltipMaxWidth: 360px;

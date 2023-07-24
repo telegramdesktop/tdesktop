@@ -315,7 +315,7 @@ void Header::show(HeaderData data) {
 			raw,
 			rpl::single(data.user->isSelf()
 				? tr::lng_stories_my_name(tr::now)
-				: data.user->shortName()),
+				: data.user->name()),
 			st::storiesHeaderName);
 		_name->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_name->setOpacity(kNameOpacity);

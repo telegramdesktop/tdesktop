@@ -93,7 +93,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _privacy;
 	QRect _privacyBadgeGeometry;
 	std::optional<HeaderData> _data;
-	std::unique_ptr<Ui::ImportantTooltip> _tooltip = { nullptr };
+	std::unique_ptr<Ui::ImportantTooltip> _tooltip;
 	rpl::variable<bool> _tooltipShown = false;
 	QRect _contentGeometry;
 	Tooltip _tooltipType = {};

@@ -798,6 +798,15 @@ void Widget::setupStories() {
 		_scroll->viewportEvent(e);
 	}, _stories->lifetime());
 
+	const auto hideTooltip = [=] {
+		Core::App().settings().setStoriesClickTooltipHidden(true);
+		Core::App().saveSettingsDelayed();
+	};
+	_stories->setShowTooltip(
+		Core::App().settings().storiesClickTooltipHiddenValue(
+		) | rpl::map(!rpl::mappers::_1),
+		hideTooltip);
+
 	_storiesContents.fire(Stories::ContentForSession(
 		&controller()->session(),
 		Data::StorySourcesList::NotHidden));
