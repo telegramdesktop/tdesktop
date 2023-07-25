@@ -180,6 +180,7 @@ private:
 
 		// Stories.
 		qreal fade = 0.;
+		qreal scale = 1.;
 		int bottomShadowSkip = 0;
 		int roundRadius = 0;
 		bool topShadowShown = false;
@@ -421,7 +422,8 @@ private:
 	[[nodiscard]] QRect finalContentRect() const;
 	[[nodiscard]] ContentGeometry contentGeometry() const;
 	[[nodiscard]] ContentGeometry storiesContentGeometry(
-		const Stories::ContentLayout &layout) const;
+		const Stories::ContentLayout &layout,
+		float64 scale = 1.) const;
 	void updateContentRect();
 	void contentSizeChanged();
 
@@ -587,9 +589,8 @@ private:
 	Ui::Text::String _caption;
 	QRect _captionRect;
 	ClickHandlerPtr _captionExpandLink;
-	bool _captionShownFull = false;
-	bool _captionFitsIfExpanded = false;
-	bool _captionExpanded = false;
+	int _captionShowMoreWidth = 0;
+	int _captionSkipBlockWidth = 0;
 
 	int _topNotchSize = 0;
 	int _width = 0;

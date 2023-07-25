@@ -122,8 +122,10 @@ public:
 	[[nodiscard]] bool closeByClickAt(QPoint position) const;
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
-	void setCaptionExpanded(bool expanded);
+	[[nodiscard]] bool skipCaption() const;
 	void showFullCaption();
+	void captionClosing();
+	void captionClosed();
 
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 	[[nodiscard]] auto stickerOrEmojiChosen() const
@@ -250,7 +252,6 @@ private:
 	Ui::Animations::Simple _contentFadeAnimation;
 	bool _contentFaded = false;
 
-	bool _captionExpanded = false;
 	bool _windowActive = false;
 	bool _replyFocused = false;
 	bool _replyActive = false;

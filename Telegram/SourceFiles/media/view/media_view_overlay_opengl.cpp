@@ -488,7 +488,9 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
 		ContentGeometry geometry,
 		bool fillTransparentBackground) {
-	const auto rect = transformRect(geometry.rect);
+	const auto rect = scaleRect(
+		transformRect(geometry.rect),
+		geometry.scale);
 	const auto centerx = rect.x() + rect.width() / 2;
 	const auto centery = rect.y() + rect.height() / 2;
 	const auto rsin = float(std::sin(geometry.rotation * M_PI / 180.));
@@ -1064,6 +1066,19 @@ Rect OverlayWidget::RendererGL::transformRect(const QRectF &raster) const {
 
 Rect OverlayWidget::RendererGL::transformRect(const QRect &raster) const {
 	return TransformRect(Rect(raster), _viewport, _factor);
+}
+
+Rect OverlayWidget::RendererGL::scaleRect(
+		const Rect &unscaled,
+		float64 scale) const {
+	const auto added = scale - 1.;
+	const auto addw = unscaled.width() * added;
+	const auto addh = unscaled.height() * added;
+	return Rect(
+		unscaled.x() - addw / 2,
+		unscaled.y() - addh / 2,
+		unscaled.width() + addw,
+		unscaled.height() + addh);
 }
 
 } // namespace Media::View
