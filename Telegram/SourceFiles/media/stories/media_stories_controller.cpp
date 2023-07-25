@@ -872,9 +872,10 @@ bool Controller::changeShown(Data::Story *story) {
 	if (_shown == id && !sessionChanged) {
 		return false;
 	}
-	if (const auto now = this->story()) {
-		now->owner().stories().unregisterPolling(
-			now,
+	if (_shown) {
+		Assert(_session != nullptr);
+		_session->data().stories().unregisterPolling(
+			_shown,
 			Data::Stories::Polling::Viewer);
 	}
 	if (sessionChanged) {
