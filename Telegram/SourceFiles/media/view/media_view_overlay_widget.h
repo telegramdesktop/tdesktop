@@ -180,6 +180,7 @@ private:
 
 		// Stories.
 		qreal fade = 0.;
+		qreal scale = 1.;
 		int bottomShadowSkip = 0;
 		int roundRadius = 0;
 		bool topShadowShown = false;
@@ -421,7 +422,8 @@ private:
 	[[nodiscard]] QRect finalContentRect() const;
 	[[nodiscard]] ContentGeometry contentGeometry() const;
 	[[nodiscard]] ContentGeometry storiesContentGeometry(
-		const Stories::ContentLayout &layout) const;
+		const Stories::ContentLayout &layout,
+		float64 scale = 1.) const;
 	void updateContentRect();
 	void contentSizeChanged();
 

@@ -25,6 +25,7 @@ class Controller;
 struct ContentLayout {
 	QRect geometry;
 	float64 fade = 0.;
+	float64 scale = 1.;
 	int radius = 0;
 	bool headerOutside = false;
 };
@@ -39,6 +40,7 @@ struct SiblingView {
 	QImage name;
 	QPoint namePosition;
 	float64 nameOpacity = 0.;
+	float64 scale = 1.;
 
 	[[nodiscard]] bool valid() const {
 		return !image.isNull();

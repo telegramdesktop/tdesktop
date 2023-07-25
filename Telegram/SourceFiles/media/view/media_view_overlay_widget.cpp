@@ -1795,11 +1795,13 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 }
 
 OverlayWidget::ContentGeometry OverlayWidget::storiesContentGeometry(
-		const Stories::ContentLayout &layout) const {
+		const Stories::ContentLayout &layout,
+		float64 scale) const {
 	return {
 		.rect = QRectF(layout.geometry),
 		.controlsOpacity = kStoriesControlsOpacity,
 		.fade = layout.fade,
+		.scale = scale,
 		.roundRadius = layout.radius,
 		.topShadowShown = !layout.headerOutside,
 	};
@@ -4458,7 +4460,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 			const auto paint = [&](const SiblingView &view, int index) {
 				renderer->paintTransformedStaticContent(
 					view.image,
-					storiesContentGeometry(view.layout),
+					storiesContentGeometry(view.layout, view.scale),
 					false, // semi-transparent
 					false, // fill transparent background
 					index);

@@ -97,6 +97,9 @@ private:
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRectF &raster) const;
 	[[nodiscard]] Ui::GL::Rect transformRect(
 		const Ui::GL::Rect &raster) const;
+	[[nodiscard]] Ui::GL::Rect scaleRect(
+		const Ui::GL::Rect &unscaled,
+		float64 scale) const;
 
 	void uploadTexture(
 		GLint internalformat,
