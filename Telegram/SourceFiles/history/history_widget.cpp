@@ -6564,6 +6564,8 @@ void HistoryWidget::checkPinnedBarState() {
 			_list->setShownPinned(
 				session().data().message(
 					_pinnedTracker->currentMessageId().message));
+		} else {
+			_list->setShownPinned(nullptr);
 		}
 		return std::move(content);
 	}));
