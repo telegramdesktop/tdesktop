@@ -5045,7 +5045,9 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 		if (_controlsHideTimer.isActive()) {
 			activateControls();
 		}
-		moveToNext(1);
+		if (!moveToNext(1) && _stories) {
+			storiesClose();
+		}
 	} else if (ctrl) {
 		if (key == Qt::Key_Plus
 			|| key == Qt::Key_Equal
