@@ -186,8 +186,8 @@ void ReplyArea::send(
 
 	session().api().sendMessage(std::move(message));
 
-	_controls->clear();
 	finishSending(skipToast);
+	_controls->clear();
 }
 
 void ReplyArea::sendVoice(VoiceToSend &&data) {
@@ -276,8 +276,6 @@ void ReplyArea::sendInlineResult(
 	action.generateLocal = true;
 	session().api().sendInlineResult(bot, result, action, localMessageId);
 
-	_controls->clear();
-
 	auto &bots = cRefRecentInlineBots();
 	const auto index = bots.indexOf(bot);
 	if (index) {
@@ -290,11 +288,12 @@ void ReplyArea::sendInlineResult(
 		bot->session().local().writeRecentHashtagsAndBots();
 	}
 	finishSending();
+	_controls->clear();
 }
 
 void ReplyArea::finishSending(bool skipToast) {
 	_controls->hidePanelsAnimated();
-	_controller->wrap()->setFocus();
+	_controller->unfocusReply();
 	if (!skipToast) {
 		_controller->uiShow()->showToast(
 			tr::lng_stories_reply_sent(tr::now));
