@@ -752,6 +752,20 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 		statusFg: storiesComposeGrayText;
 	}
 	premium: storiesComposePremium;
+	boxField: InputField(defaultInputField) {
+		textBg: transparent;
+		textFg: groupCallMembersFg;
+
+		placeholderFg: groupCallMemberNotJoinedStatus;
+		placeholderFgActive: groupCallMemberNotJoinedStatus;
+		placeholderFgError: groupCallMemberNotJoinedStatus;
+
+		borderFg: inputBorderFg;
+		borderFgActive: groupCallMemberInactiveStatus;
+		borderFgError: activeLineFgError;
+
+		menu: storiesPopupMenu;
+	}
 }
 storiesViewsMenu: PopupMenu(storiesPopupMenuWithIcons) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);

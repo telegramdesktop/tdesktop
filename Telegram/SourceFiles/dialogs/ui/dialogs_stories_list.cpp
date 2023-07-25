@@ -951,9 +951,6 @@ void List::updateTooltipGeometry() {
 		return;
 	}
 	const auto collapsed = collapsedGeometryCurrent();
-	if (collapsed.geometry.isEmpty()) {
-		int a = 0;
-	}
 	const auto geometry = Ui::MapFrom(
 		window(),
 		parentWidget(),
@@ -964,8 +961,12 @@ void List::updateTooltipGeometry() {
 			collapsed.geometry.height()));
 	const auto weak = QPointer<QWidget>(_tooltip.get());
 	const auto countPosition = [=](QSize size) {
+		const auto left = geometry.x()
+			+ (geometry.width() - size.width()) / 2;
+		const auto right = window()->width()
+			- st::dialogsStoriesTooltip.padding.right();
 		return QPoint(
-			geometry.x() + (geometry.width() - size.width()) / 2,
+			std::max(std::min(left, right - size.width()), 0),
 			geometry.y() + geometry.height());
 	};
 	_tooltip->pointAt(geometry, RectPart::Bottom, countPosition);
