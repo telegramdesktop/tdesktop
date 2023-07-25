@@ -3846,6 +3846,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_click_to_view" = "Click here to view updates from {users}.";
 "lng_stories_click_to_view_and_one" = "{accumulated}, {user}";
 "lng_stories_click_to_view_and_last" = "{accumulated} and {user}";
+"lng_stories_show_more" = "Show more";
 
 "lng_stories_my_title" = "Saved Stories";
 "lng_stories_archive_button" = "Stories Archive";

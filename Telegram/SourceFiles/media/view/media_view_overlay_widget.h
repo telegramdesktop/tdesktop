@@ -587,9 +587,8 @@ private:
 	Ui::Text::String _caption;
 	QRect _captionRect;
 	ClickHandlerPtr _captionExpandLink;
-	bool _captionShownFull = false;
-	bool _captionFitsIfExpanded = false;
-	bool _captionExpanded = false;
+	int _captionShowMoreWidth = 0;
+	int _captionSkipBlockWidth = 0;
 
 	int _topNotchSize = 0;
 	int _width = 0;

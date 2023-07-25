@@ -123,8 +123,8 @@ TextWithEntities View::captionText() const {
 	return _controller->captionText();
 }
 
-void View::setCaptionExpanded(bool expanded) {
-	_controller->setCaptionExpanded(expanded);
+bool View::skipCaption() const {
+	return _controller->skipCaption();
 }
 
 void View::showFullCaption() {

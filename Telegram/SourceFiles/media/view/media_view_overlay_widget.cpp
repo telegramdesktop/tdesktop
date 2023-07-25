@@ -1383,6 +1383,10 @@ void OverlayWidget::resizeCenteredControls() {
 }
 
 void OverlayWidget::refreshCaptionGeometry() {
+	_caption.updateSkipBlock(0, 0);
+	_captionShowMoreWidth = 0;
+	_captionSkipBlockWidth = 0;
+
 	if (_caption.isEmpty()) {
 		_captionRect = QRect();
 		return;
@@ -1408,32 +1412,28 @@ void OverlayWidget::refreshCaptionGeometry() {
 				- st::mediaviewCaptionPadding.left()
 				- st::mediaviewCaptionPadding.right()),
 			_caption.maxWidth());
-	const auto maxExpandedOuterHeight = (_stories
-		? (_h - st::storiesShadowTop.height())
-		: _maxUsedHeight);
-	const auto maxCollapsedOuterHeight = !_stories
-		? (_maxUsedHeight / 4)
-		: (_h / 3);
-	const auto maxExpandedHeight = maxExpandedOuterHeight
-		- st::mediaviewCaptionPadding.top()
-		- st::mediaviewCaptionPadding.bottom();
-	const auto maxCollapsedHeight = maxCollapsedOuterHeight
-		- st::mediaviewCaptionPadding.top()
-		- st::mediaviewCaptionPadding.bottom();
 	const auto lineHeight = st::mediaviewCaptionStyle.font->height;
 	const auto wantedHeight = _caption.countHeight(captionWidth);
-	const auto maxHeight = _captionExpanded
-		? maxExpandedHeight
-		: maxCollapsedHeight;
+	const auto maxHeight = !_stories
+		? (_maxUsedHeight / 4)
+		: (wantedHeight > lineHeight * Stories::kMaxShownCaptionLines)
+		? (lineHeight * Stories::kCollapsedCaptionLines)
+		: wantedHeight;
 	const auto captionHeight = std::min(
 		wantedHeight,
 		(maxHeight / lineHeight) * lineHeight);
-	_captionFitsIfExpanded = _stories
-		&& (wantedHeight <= maxExpandedHeight);
-	_captionShownFull = (wantedHeight <= maxCollapsedHeight);
-	if (_captionShownFull && _captionExpanded && _stories) {
-		_captionExpanded = false;
-		_stories->setCaptionExpanded(false);
+	if (_stories && captionHeight < wantedHeight) {
+		const auto padding = st::storiesShowMorePadding;
+		_captionShowMoreWidth = st::storiesShowMoreFont->width(
+			tr::lng_stories_show_more(tr::now));
+		_captionSkipBlockWidth = _captionShowMoreWidth
+			+ padding.left()
+			+ padding.right()
+			- st::mediaviewCaptionPadding.right();
+		const auto skiph = st::storiesShowMoreFont->height
+			+ padding.bottom()
+			- st::mediaviewCaptionPadding.bottom();
+		_caption.updateSkipBlock(_captionSkipBlockWidth, skiph);
 	}
 	_captionRect = QRect(
 		(width() - captionWidth) / 2,
@@ -3495,7 +3495,6 @@ void OverlayWidget::updateThemePreviewGeometry() {
 }
 
 void OverlayWidget::displayFinished(anim::activation activation) {
-	_captionExpanded = _captionFitsIfExpanded = _captionShownFull = false;
 	updateControls();
 	if (isHidden()) {
 		_helper->beforeShow(_fullscreen);
@@ -4502,7 +4501,8 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		if (!_stories) {
 			renderer->paintFooter(footerGeometry(), opacity);
 		}
-		if (!_caption.isEmpty()) {
+		if (!_caption.isEmpty()
+			&& (!_stories || !_stories->skipCaption())) {
 			renderer->paintCaption(captionGeometry(), opacity);
 		}
 		if (_groupThumbs) {
@@ -4912,6 +4912,7 @@ void OverlayWidget::paintCaptionContent(
 	}
 	if (inner.intersects(clip)) {
 		p.setPen(st::mediaviewCaptionFg);
+		const auto lineHeight = st::mediaviewCaptionStyle.font->height;
 		_caption.draw(p, {
 			.position = inner.topLeft(),
 			.availableWidth = inner.width(),
@@ -4919,8 +4920,31 @@ void OverlayWidget::paintCaptionContent(
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.pausedEmoji = On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = On(PowerSaving::kChatSpoiler),
-			.elisionLines = inner.height() / st::mediaviewCaptionStyle.font->height,
+			.elisionLines = inner.height() / lineHeight,
+			.elisionRemoveFromEnd = _captionSkipBlockWidth,
 		});
+
+		if (_captionShowMoreWidth > 0) {
+			const auto padding = st::storiesShowMorePadding;
+			const auto showMoreLeft = outer.x()
+				+ outer.width()
+				- padding.right()
+				- _captionShowMoreWidth;
+			const auto showMoreTop = outer.y()
+				+ outer.height()
+				- padding.bottom()
+				- st::storiesShowMoreFont->height;
+			const auto underline = _captionExpandLink
+				&& ClickHandler::showAsActive(_captionExpandLink);
+			p.setFont(underline
+				? st::storiesShowMoreFont->underline()
+				: st::storiesShowMoreFont);
+			p.drawTextLeft(
+				showMoreLeft,
+				showMoreTop,
+				width(),
+				tr::lng_stories_show_more(tr::now));
+		}
 	}
 }
 
@@ -5545,9 +5569,13 @@ void OverlayWidget::updateOver(QPoint pos) {
 		lnk = textState.link;
 		lnkhost = this;
 	} else if (_captionRect.contains(pos)) {
-		auto textState = _caption.getState(pos - _captionRect.topLeft(), _captionRect.width());
+		auto request = Ui::Text::StateRequestElided();
+		const auto lineHeight = st::mediaviewCaptionStyle.font->height;
+		request.lines = _captionRect.height() / lineHeight;
+		request.removeFromEnd = _captionSkipBlockWidth;
+		auto textState = _caption.getStateElided(pos - _captionRect.topLeft(), _captionRect.width(), request);
 		lnk = textState.link;
-		if (_stories && !_captionShownFull && !lnk) {
+		if (_stories && !lnk) {
 			lnk = ensureCaptionExpandLink();
 		}
 		lnkhost = this;
@@ -5626,19 +5654,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 ClickHandlerPtr OverlayWidget::ensureCaptionExpandLink() {
 	if (!_captionExpandLink) {
 		const auto toggle = crl::guard(_widget, [=] {
-			if (!_stories) {
-				return;
-			} else if (_captionExpanded) {
-				_captionExpanded = false;
-				_stories->setCaptionExpanded(false);
-				refreshCaptionGeometry();
-				update();
-			} else if (_captionFitsIfExpanded) {
-				_captionExpanded = true;
-				_stories->setCaptionExpanded(true);
-				refreshCaptionGeometry();
-				update();
-			} else {
+			if (_stories) {
 				_stories->showFullCaption();
 			}
 		});

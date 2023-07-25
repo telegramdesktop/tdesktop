@@ -48,6 +48,9 @@ struct SiblingView {
 	}
 };
 
+inline constexpr auto kCollapsedCaptionLines = 2;
+inline constexpr auto kMaxShownCaptionLines = 4;
+
 class View final {
 public:
 	explicit View(not_null<Delegate*> delegate);
@@ -64,7 +67,7 @@ public:
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
-	void setCaptionExpanded(bool expanded);
+	[[nodiscard]] bool skipCaption() const;
 	void showFullCaption();
 
 	void updatePlayback(const Player::TrackState &state);
