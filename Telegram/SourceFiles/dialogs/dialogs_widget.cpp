@@ -803,8 +803,10 @@ void Widget::setupStories() {
 		Core::App().saveSettingsDelayed();
 	};
 	_stories->setShowTooltip(
-		Core::App().settings().storiesClickTooltipHiddenValue(
-		) | rpl::map(!rpl::mappers::_1),
+		rpl::combine(
+			Core::App().settings().storiesClickTooltipHiddenValue(),
+			shownValue(),
+			!rpl::mappers::_1 && rpl::mappers::_2),
 		hideTooltip);
 
 	_storiesContents.fire(Stories::ContentForSession(
