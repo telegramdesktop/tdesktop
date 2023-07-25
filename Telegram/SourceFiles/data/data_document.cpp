@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kDefaultCoverThumbnailSize = 100;
+constexpr auto kMaxAllowedPreloadPrefix = 6 * 1024 * 1024;
 
 const auto kLottieStickerDimensions = QSize(
 	kStickerSideSize,
@@ -393,7 +394,7 @@ void DocumentData::setattributes(
 				if (data.is_round_message()) {
 					_additional = std::make_unique<RoundData>();
 				} else if (const auto size = data.vpreload_prefix_size()) {
-					if (size->v > 0) {
+					if (size->v > 0 && size->v < kMaxAllowedPreloadPrefix) {
 						_videoPreloadPrefix = size->v;
 					}
 				}

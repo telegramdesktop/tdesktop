@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_generator.h"
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "storage/file_download.h" // kMaxFileInMemory
 #include "ui/widgets/input_fields.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
@@ -345,7 +346,7 @@ void CustomEmojiLoader::check() {
 	};
 	auto put = [=, key = cacheKey(document)](QByteArray value) {
 		const auto size = value.size();
-		if (size <= Storage::Cache::Database::Settings().maxDataSize) {
+		if (size <= Storage::kMaxFileInMemory) {
 			document->owner().cacheBigFile().put(key, std::move(value));
 		} else {
 			LOG(("Data Error: Cached emoji size too big: %1.").arg(size));
