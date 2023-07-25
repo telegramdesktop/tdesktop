@@ -45,6 +45,12 @@ void OverlayWidget::RendererSW::paintBackground() {
 	for (const auto &rect : region) {
 		_p->fillRect(rect, bg);
 	}
+	if (const auto notch = _owner->topNotchSkip()) {
+		const auto top = QRect(0, 0, _owner->width(), notch);
+		if (const auto black = top.intersected(_clipOuter); !black.isEmpty()) {
+			_p->fillRect(black, Qt::black);
+		}
+	}
 	_p->setCompositionMode(m);
 }
 
@@ -101,8 +107,8 @@ void OverlayWidget::RendererSW::paintTransformedStaticContent(
 }
 
 void OverlayWidget::RendererSW::paintControlsFade(
-	QRect content,
-	const ContentGeometry &geometry) {
+		QRect content,
+		const ContentGeometry &geometry) {
 	auto opacity = geometry.controlsOpacity;
 	if (geometry.fade > 0.) {
 		_p->setOpacity(geometry.fade);

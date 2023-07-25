@@ -388,6 +388,8 @@ void Controller::initLayout() {
 
 	_layout = _wrap->sizeValue(
 	) | rpl::map([=](QSize size) {
+		const auto topNotchSkip = _delegate->storiesTopNotchSkip();
+
 		size = QSize(
 			std::max(size.width(), st::mediaviewMinWidth),
 			std::max(size.height(), st::mediaviewMinHeight));
@@ -397,7 +399,8 @@ void Controller::initLayout() {
 			? HeaderLayout::Outside
 			: HeaderLayout::Normal;
 
-		const auto topSkip = st::storiesFieldMargin.bottom()
+		const auto topSkip = topNotchSkip
+			+ st::storiesFieldMargin.bottom()
 			+ (layout.headerLayout == HeaderLayout::Outside
 				? outsideHeaderHeight
 				: 0);

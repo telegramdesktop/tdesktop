@@ -58,6 +58,9 @@ public:
 	-> rpl::producer<not_null<QMouseEvent*>> {
 		return rpl::never<not_null<QMouseEvent*>>();
 	}
+	[[nodiscard]] virtual rpl::producer<int> topNotchSkipValue() {
+		return rpl::single(0);
+	}
 };
 
 [[nodiscard]] std::unique_ptr<OverlayWidgetHelper> CreateOverlayWidgetHelper(
