@@ -36,6 +36,7 @@ public:
 	void clearState() override;
 	void setControlsOpacity(float64 opacity) override;
 	rpl::producer<bool> controlsSideRightValue() override;
+	rpl::producer<int> topNotchSkipValue() override;
 
 private:
 	using Control = Ui::Platform::TitleControl;

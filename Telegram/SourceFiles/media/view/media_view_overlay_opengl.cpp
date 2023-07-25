@@ -21,7 +21,8 @@ namespace {
 
 using namespace Ui::GL;
 
-constexpr auto kRadialLoadingOffset = 4;
+constexpr auto kNotchOffset = 4;
+constexpr auto kRadialLoadingOffset = kNotchOffset + 4;
 constexpr auto kThemePreviewOffset = kRadialLoadingOffset + 4;
 constexpr auto kDocumentBubbleOffset = kThemePreviewOffset + 4;
 constexpr auto kSaveMsgOffset = kDocumentBubbleOffset + 4;
@@ -129,7 +130,7 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 void OverlayWidget::RendererGL::init(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
-	constexpr auto kQuads = 8;
+	constexpr auto kQuads = 9;
 	constexpr auto kQuadVertices = kQuads * 4;
 	constexpr auto kQuadValues = kQuadVertices * 4;
 	constexpr auto kControlsValues = kControlsCount * kControlValues;
@@ -291,6 +292,28 @@ bool OverlayWidget::RendererGL::handleHideWorkaround(QOpenGLFunctions &f) {
 
 void OverlayWidget::RendererGL::paintBackground() {
 	_contentBuffer->bind();
+	if (const auto notch = _owner->topNotchSkip()) {
+		const auto top = transformRect(QRect(0, 0, _owner->width(), notch));
+        const GLfloat coords[] = {
+			top.left(), top.top(),
+			top.right(), top.top(),
+			top.right(), top.bottom(),
+			top.left(), top.bottom(),
+		};
+		const auto offset = kNotchOffset;
+		_contentBuffer->write(
+			offset * 4 * sizeof(GLfloat),
+			coords,
+			sizeof(coords));
+
+		_fillProgram->bind();
+		_fillProgram->setUniformValue("viewport", _uniformViewport);
+		FillRectangle(
+			*_f,
+			&*_fillProgram,
+			offset,
+			QColor(0, 0, 0));
+	}
 }
 
 void OverlayWidget::RendererGL::paintTransformedVideoFrame(

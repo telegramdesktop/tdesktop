@@ -243,6 +243,7 @@ private:
 	void playbackResumeOnCall();
 	void playbackPauseMusic();
 	void switchToPip();
+	[[nodiscard]] int topNotchSkip() const;
 
 	not_null<Ui::RpWidget*> storiesWrap() override;
 	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
@@ -264,6 +265,7 @@ private:
 	void storiesVolumeToggle() override;
 	void storiesVolumeChanged(float64 volume) override;
 	void storiesVolumeChangeFinished() override;
+	int storiesTopNotchSkip() override;
 
 	void hideControls(bool force = false);
 	void subscribeToScreenGeometry();
@@ -589,10 +591,13 @@ private:
 	bool _captionFitsIfExpanded = false;
 	bool _captionExpanded = false;
 
+	int _topNotchSize = 0;
 	int _width = 0;
 	int _height = 0;
 	int _skipTop = 0;
 	int _availableHeight = 0;
+	int _minUsedTop = 0; // Geometry without top notch on macOS.
+	int _maxUsedHeight = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
 	int _xStart = 0, _yStart = 0;
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in

@@ -35,6 +35,7 @@ struct MacOverlayWidgetHelper::Data {
 	rpl::event_stream<> clearStateRequests;
 	bool anyOver = false;
 	NSWindow * __weak native = nil;
+	rpl::variable<int> topNotchSkip;
 };
 
 MacOverlayWidgetHelper::MacOverlayWidgetHelper(
@@ -96,6 +97,9 @@ void MacOverlayWidgetHelper::updateStyles(bool fullscreen) {
 	[window setTitleVisibility:NSWindowTitleHidden];
 	[window setTitlebarAppearsTransparent:YES];
 	[window setStyleMask:[window styleMask] | NSWindowStyleMaskFullSizeContentView];
+	if (@available(macOS 12.0, *)) {
+		_data->topNotchSkip = [[window screen] safeAreaInsets].top;
+	}
 }
 
 void MacOverlayWidgetHelper::refreshButtons(bool fullscreen) {
@@ -151,6 +155,10 @@ void MacOverlayWidgetHelper::setControlsOpacity(float64 opacity) {
 
 rpl::producer<bool> MacOverlayWidgetHelper::controlsSideRightValue() {
 	return rpl::single(false);
+}
+
+rpl::producer<int> MacOverlayWidgetHelper::topNotchSkipValue() {
+	return _data->topNotchSkip.value();
 }
 
 object_ptr<Ui::AbstractButton> MacOverlayWidgetHelper::create(

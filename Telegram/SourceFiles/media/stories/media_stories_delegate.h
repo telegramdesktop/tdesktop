@@ -64,6 +64,7 @@ public:
 	virtual void storiesVolumeToggle() = 0;
 	virtual void storiesVolumeChanged(float64 volume) = 0;
 	virtual void storiesVolumeChangeFinished() = 0;
+	[[nodiscard]] virtual int storiesTopNotchSkip() = 0;
 };
 
 } // namespace Media::Stories
