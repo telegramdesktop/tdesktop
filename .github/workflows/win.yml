@@ -1,4 +1,5 @@
 name: Windows.
+uses: easimon/maximize-build-space@v7
 
 on:
   workflow_dispatch:
