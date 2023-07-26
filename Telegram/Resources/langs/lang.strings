@@ -1926,6 +1926,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_switch_gifs" = "GIFs";
 "lng_switch_masks" = "Masks";
 "lng_stickers_featured_add" = "Add";
+"lng_stickers_featured_installed" = "Added";
 "lng_emoji_featured_unlock" = "Unlock";
 "lng_emoji_premium_restore" = "Restore";
 "lng_gifs_search" = "Search GIFs";

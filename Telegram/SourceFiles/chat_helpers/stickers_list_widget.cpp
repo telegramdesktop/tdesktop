@@ -186,7 +186,7 @@ StickersListWidget::StickersListWidget(
 , _mode(descriptor.mode)
 , _show(std::move(descriptor.show))
 , _features(descriptor.features)
-, _overBg(st::roundRadiusSmall, st().overBg)
+, _overBg(st::roundRadiusLarge, st().overBg)
 , _api(&session().mtp())
 , _localSetsManager(std::make_unique<LocalStickersManager>(&session()))
 , _section(Section::Stickers)
@@ -194,22 +194,27 @@ StickersListWidget::StickersListWidget(
 , _updateItemsTimer([=] { updateItems(); })
 , _updateSetsTimer([=] { updateSets(); })
 , _trendingAddBgOver(
-	ImageRoundRadius::Small,
+	ImageRoundRadius::Large,
 	st::stickersTrendingAdd.textBgOver)
-, _trendingAddBg(ImageRoundRadius::Small, st::stickersTrendingAdd.textBg)
+, _trendingAddBg(ImageRoundRadius::Large, st::stickersTrendingAdd.textBg)
+, _inactiveButtonBg(
+	ImageRoundRadius::Large,
+	st::stickersTrendingInstalled.textBg)
 , _groupCategoryAddBgOver(
-	ImageRoundRadius::Small,
+	ImageRoundRadius::Large,
 	st::stickerGroupCategoryAdd.textBgOver)
 , _groupCategoryAddBg(
-	ImageRoundRadius::Small,
+	ImageRoundRadius::Large,
 	st::stickerGroupCategoryAdd.textBg)
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
 	st().pathBg,
 	st().pathFg,
 	[=] { update(); }))
 , _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st().headerLeft)
-, _addText(tr::lng_stickers_featured_add(tr::now).toUpper())
+, _addText(tr::lng_stickers_featured_add(tr::now))
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
+, _installedText(tr::lng_stickers_featured_installed(tr::now))
+, _installedWidth(st::stickersTrendingInstalled.font->width(_installedText))
 , _settings(this, tr::lng_stickers_you_have(tr::now))
 , _previewTimer([=] { showPreview(); })
 , _premiumMark(std::make_unique<StickerPremiumMark>(&session()))
@@ -896,26 +901,40 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 				: loadedCount;
 
 			auto widthForTitle = stickersRight() - (st().headerLeft - st().margin.left());
-			if (featuredHasAddButton(info.section)) {
-				auto add = featuredAddRect(info);
-				auto selected = selectedButton ? (selectedButton->section == info.section) : false;
-				(selected ? _trendingAddBgOver : _trendingAddBg).paint(p, myrtlrect(add));
+			{
+				const auto installedSet = !featuredHasAddButton(info.section);
+				const auto add = featuredAddRect(info, installedSet);
+				const auto selected = selectedButton
+					? (selectedButton->section == info.section)
+					: false;
+				(installedSet
+					? _inactiveButtonBg
+					: selected
+					? _trendingAddBgOver
+					: _trendingAddBg).paint(p, myrtlrect(add));
 				if (set.ripple) {
 					set.ripple->paint(p, add.x(), add.y(), width());
 					if (set.ripple->empty()) {
 						set.ripple.reset();
 					}
 				}
-				p.setFont(st::stickersTrendingAdd.font);
-				p.setPen(selected ? st::stickersTrendingAdd.textFgOver : st::stickersTrendingAdd.textFg);
-				p.drawTextLeft(add.x() - (st::stickersTrendingAdd.width / 2), add.y() + st::stickersTrendingAdd.textTop, width(), _addText, _addWidth);
+				const auto &text = installedSet ? _installedText : _addText;
+				const auto textWidth = installedSet
+					? _installedWidth
+					: _addWidth;
+				const auto &st = installedSet
+					? st::stickersTrendingInstalled
+					: st::stickersTrendingAdd;
+				p.setFont(st.font);
+				p.setPen(selected ? st.textFgOver : st.textFg);
+				p.drawTextLeft(
+					add.x() - (st.width / 2),
+					add.y() + st.textTop,
+					width(),
+					text,
+					textWidth);
 
-				widthForTitle -= add.width() - (st::stickersTrendingAdd.width / 2);
-			} else {
-				auto add = featuredAddRect(info);
-				int checkx = add.left() + (add.width() - st::stickersFeaturedInstalled.width()) / 2;
-				int checky = add.top() + (add.height() - st::stickersFeaturedInstalled.height()) / 2;
-				st().trendingInstalled.paint(p, QPoint(checkx, checky), width());
+				widthForTitle -= add.width() - (st.width / 2);
 			}
 			if (set.flags & SetFlag::Unread) {
 				widthForTitle -= st::stickersFeaturedUnreadSize + st::stickersFeaturedUnreadSkip;
@@ -1453,14 +1472,17 @@ bool StickersListWidget::featuredHasAddButton(int index) const {
 }
 
 QRect StickersListWidget::featuredAddRect(int index) const {
-	return featuredAddRect(sectionInfo(index));
+	return featuredAddRect(sectionInfo(index), false);
 }
 
-QRect StickersListWidget::featuredAddRect(const SectionInfo &info) const {
-	auto addw = _addWidth - st::stickersTrendingAdd.width;
-	auto addh = st::stickersTrendingAdd.height;
-	auto addx = stickersRight() - addw;
-	auto addy = info.top + st::stickersTrendingAddTop;
+QRect StickersListWidget::featuredAddRect(
+		const SectionInfo &info,
+		bool installedSet) const {
+	const auto addw = (installedSet ? _installedWidth : _addWidth)
+		- st::stickersTrendingAdd.width;
+	const auto addh = st::stickersTrendingAdd.height;
+	const auto addx = stickersRight() - addw;
+	const auto addy = info.top + st::stickersTrendingAddTop;
 	return QRect(addx, addy, addw, addh);
 }
 
@@ -1536,7 +1558,7 @@ void StickersListWidget::setPressed(OverState newPressed) {
 	} else if (std::get_if<OverGroupAdd>(&_pressed)) {
 		if (!_megagroupSetButtonRipple) {
 			auto maskSize = _megagroupSetButtonRect.size();
-			auto mask = Ui::RippleAnimation::RoundRectMask(maskSize, st::roundRadiusSmall);
+			auto mask = Ui::RippleAnimation::RoundRectMask(maskSize, st::roundRadiusLarge);
 			_megagroupSetButtonRipple = std::make_unique<Ui::RippleAnimation>(st::stickerGroupCategoryAdd.ripple, std::move(mask), [this] {
 				rtlupdate(megagroupSetButtonRectFinal());
 			});
@@ -1564,7 +1586,7 @@ std::unique_ptr<Ui::RippleAnimation> StickersListWidget::createButtonRipple(int 
 
 	if (shownSets()[section].externalLayout) {
 		auto maskSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
-		auto mask = Ui::RippleAnimation::RoundRectMask(maskSize, st::roundRadiusSmall);
+		auto mask = Ui::RippleAnimation::RoundRectMask(maskSize, st::roundRadiusLarge);
 		return std::make_unique<Ui::RippleAnimation>(
 			st::stickersTrendingAdd.ripple,
 			std::move(mask),
@@ -1740,6 +1762,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			Assert(button->section >= 0 && button->section < sets.size());
 			if (sets[button->section].externalLayout) {
 				_localSetsManager->install(sets[button->section].id);
+				update();
 			} else {
 				removeSet(sets[button->section].id);
 			}
@@ -2354,7 +2377,7 @@ void StickersListWidget::updateSelected() {
 		if (p.y() >= info.top && p.y() < info.rowsTop) {
 			if (hasRemoveButton(section) && myrtlrect(removeButtonRect(info)).contains(p.x(), p.y())) {
 				newSelected = OverButton{ section };
-			} else if (featuredHasAddButton(section) && myrtlrect(featuredAddRect(info)).contains(p.x(), p.y())) {
+			} else if (featuredHasAddButton(section) && myrtlrect(featuredAddRect(info, false)).contains(p.x(), p.y())) {
 				newSelected = OverButton{ section };
 			} else if (_features.openStickerSets
 				&& !(sets[section].flags & SetFlag::Special)) {
@@ -2557,7 +2580,7 @@ void StickersListWidget::showMegagroupSet(ChannelData *megagroup) {
 			_megagroupSetAbout.setText(
 				st::stickerGroupCategoryAbout,
 				tr::lng_group_stickers_description(tr::now));
-			_megagroupSetButtonText = tr::lng_group_stickers_add(tr::now).toUpper();
+			_megagroupSetButtonText = tr::lng_group_stickers_add(tr::now);
 			refreshMegagroupSetGeometry();
 		}
 		_megagroupSetButtonRipple.reset();

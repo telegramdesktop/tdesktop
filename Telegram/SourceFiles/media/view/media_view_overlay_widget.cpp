@@ -5065,20 +5065,23 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 void OverlayWidget::handleWheelEvent(not_null<QWheelEvent*> e) {
 	constexpr auto step = int(QWheelEvent::DefaultDeltasPerStep);
 
+	const auto acceptForJump = !_stories
+		&& ((e->source() == Qt::MouseEventNotSynthesized)
+			|| (e->source() == Qt::MouseEventSynthesizedBySystem));
 	_verticalWheelDelta += e->angleDelta().y();
 	while (qAbs(_verticalWheelDelta) >= step) {
 		if (_verticalWheelDelta < 0) {
 			_verticalWheelDelta += step;
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {
 				zoomOut();
-			} else if (e->source() == Qt::MouseEventNotSynthesized) {
+			} else if (acceptForJump) {
 				moveToNext(1);
 			}
 		} else {
 			_verticalWheelDelta -= step;
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {
 				zoomIn();
-			} else if (e->source() == Qt::MouseEventNotSynthesized) {
+			} else if (acceptForJump) {
 				moveToNext(-1);
 			}
 		}

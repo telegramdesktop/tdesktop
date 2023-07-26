@@ -302,7 +302,9 @@ private:
 	[[nodiscard]] int stickersRight() const;
 	[[nodiscard]] bool featuredHasAddButton(int index) const;
 	[[nodiscard]] QRect featuredAddRect(int index) const;
-	[[nodiscard]] QRect featuredAddRect(const SectionInfo &info) const;
+	[[nodiscard]] QRect featuredAddRect(
+		const SectionInfo &info,
+		bool installedSet) const;
 	[[nodiscard]] bool hasRemoveButton(int index) const;
 	[[nodiscard]] QRect removeButtonRect(int index) const;
 	[[nodiscard]] QRect removeButtonRect(const SectionInfo &info) const;
@@ -392,7 +394,7 @@ private:
 	OverState _pressed;
 	QPoint _lastMousePosition;
 
-	Ui::RoundRect _trendingAddBgOver, _trendingAddBg;
+	Ui::RoundRect _trendingAddBgOver, _trendingAddBg, _inactiveButtonBg;
 	Ui::RoundRect _groupCategoryAddBgOver, _groupCategoryAddBg;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
@@ -405,6 +407,8 @@ private:
 
 	QString _addText;
 	int _addWidth;
+	QString _installedText;
+	int _installedWidth;
 
 	object_ptr<Ui::LinkButton> _settings;
 
