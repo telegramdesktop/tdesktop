@@ -19,9 +19,9 @@ struct Limits;
 struct DetailsPaintContext;
 struct ChartLineViewContext;
 
-class LinearChartPainter {
+class LinearChartView {
 public:
-	LinearChartPainter();
+	LinearChartView();
 
 	void paint(
 		QPainter &p,
@@ -76,15 +76,5 @@ private:
 	base::flat_map<int, Cache> _caches;
 
 };
-
-void PaintLinearChartView(
-	QPainter &p,
-	const Data::StatisticalChart &chartData,
-	const Limits &xIndices,
-	const Limits &xPercentageLimits,
-	const Limits &heightLimits,
-	const QRect &rect,
-	ChartLineViewContext &lineViewContext,
-	DetailsPaintContext &detailsPaintContext);
 
 } // namespace Statistic

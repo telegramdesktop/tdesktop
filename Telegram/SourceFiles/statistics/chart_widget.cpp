@@ -950,7 +950,7 @@ void ChartWidget::setupChartArea() {
 			// 	!_animationController.isFPSSlow()
 			// 		|| !_animationController.animating());
 			PainterHighQualityEnabler hp(p);
-			_linearChartPainter.main->paint(
+			_linearChartView.main->paint(
 				p,
 				_chartData,
 				_animationController.currentXIndices(),
@@ -1075,8 +1075,7 @@ void ChartWidget::setupFooter() {
 			// 	!_animationController.isFPSSlow()
 			// 		|| !_animationController.animating());
 			PainterHighQualityEnabler hp(p);
-			_animatedChartLines.setCacheFooter(true);
-			_linearChartPainter.footer->paint(
+			_linearChartView.footer->paint(
 				p,
 				_chartData,
 				{ 0., float64(_chartData.x.size() - 1) },
@@ -1085,7 +1084,6 @@ void ChartWidget::setupFooter() {
 				r,
 				_animatedChartLines,
 				detailsPaintContext);
-			_animatedChartLines.setCacheFooter(false);
 		}
 	});
 
@@ -1254,8 +1252,8 @@ void ChartWidget::setupFilterButtons() {
 void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_chartData = std::move(chartData);
 
-	_linearChartPainter.main = std::make_unique<LinearChartPainter>();
-	_linearChartPainter.footer = std::make_unique<LinearChartPainter>();
+	_linearChartView.main = std::make_unique<LinearChartView>();
+	_linearChartView.footer = std::make_unique<LinearChartView>();
 
 	setupDetails();
 	setupFilterButtons();
