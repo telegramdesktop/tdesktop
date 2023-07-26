@@ -29,7 +29,8 @@ public:
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		DetailsPaintContext &detailsPaintContext);
+		DetailsPaintContext &detailsPaintContext,
+		bool footer);
 
 	void setEnabled(int id, bool enabled, crl::time now);
 	[[nodiscard]] bool isEnabled(int id) const;
@@ -78,7 +79,8 @@ private:
 		bool hq = false;
 	};
 
-	base::flat_map<int, Cache> _caches;
+	base::flat_map<int, Cache> _mainCaches;
+	base::flat_map<int, Cache> _footerCaches;
 
 	struct Entry final {
 		bool enabled = false;

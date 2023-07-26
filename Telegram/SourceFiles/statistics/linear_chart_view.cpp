@@ -64,7 +64,8 @@ void LinearChartView::paint(
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		DetailsPaintContext &detailsPaintContext) {
+		DetailsPaintContext &detailsPaintContext,
+		bool footer) {
 
 	const auto cacheToken = LinearChartView::CacheToken(
 		xIndices,
@@ -72,42 +73,38 @@ void LinearChartView::paint(
 		heightLimits,
 		rect.size());
 
+	const auto imageSize = rect.size() * style::DevicePixelRatio();
+	const auto cacheScale = 1. / style::DevicePixelRatio();
+	auto &caches = (footer ? _footerCaches : _mainCaches);
+
 	for (auto i = 0; i < chartData.lines.size(); i++) {
 		const auto &line = chartData.lines[i];
 		p.setOpacity(alpha(line.id));
 		if (!p.opacity()) {
 			continue;
 		}
-		if (p.opacity() < 1.) {
-			// p.setRenderHint(QPainter::Antialiasing, false);
-		}
 
-		////
-		auto &cache = _caches[line.id];
+		auto &cache = caches[line.id];
 
 		const auto isSameToken = (cache.lastToken == cacheToken);
-		if (isSameToken && cache.hq) {
+		if ((isSameToken && cache.hq)
+			|| (p.opacity() < 1. && !isEnabled(line.id))) {
 			p.drawImage(rect.topLeft(), cache.image);
 			continue;
 		}
-		const auto ratio = style::DevicePixelRatio();
 		cache.hq = isSameToken;
 		auto image = QImage();
 		image = QImage(
-			rect.size() * style::DevicePixelRatio() * (isSameToken ? 1. : ratio),
+			imageSize * (isSameToken ? 1. : cacheScale),
 			QImage::Format_ARGB32_Premultiplied);
 		image.setDevicePixelRatio(style::DevicePixelRatio());
 		image.fill(Qt::transparent);
-		// image.fill(Qt::darkRed);
 		{
 			auto imagePainter = QPainter(&image);
-			imagePainter.setRenderHint(QPainter::Antialiasing, true);
-			if (isSameToken) {
-				// PainterHighQualityEnabler hp(imagePainter);
-			} else {
-				imagePainter.scale(ratio, ratio);
+			auto hq = PainterHighQualityEnabler(imagePainter);
+			if (!isSameToken) {
+				imagePainter.scale(cacheScale, cacheScale);
 			}
-			////
 
 			PaintChartLine(
 				imagePainter,
@@ -120,7 +117,10 @@ void LinearChartView::paint(
 		}
 
 		if (!isSameToken) {
-			image = image.scaled(rect.size() * style::DevicePixelRatio(), Qt::IgnoreAspectRatio, Qt::FastTransformation);
+			image = image.scaled(
+				imageSize,
+				Qt::IgnoreAspectRatio,
+				Qt::FastTransformation);
 		}
 		p.drawImage(rect.topLeft(), image);
 		cache.lastToken = cacheToken;

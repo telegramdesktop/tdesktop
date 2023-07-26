@@ -131,10 +131,7 @@ private:
 	base::unique_qptr<ChartLinesFilterWidget> _filterButtons;
 	Data::StatisticalChart _chartData;
 
-	struct {
-		std::unique_ptr<LinearChartView> main;
-		std::unique_ptr<LinearChartView> footer;
-	} _linearChartView;
+	std::unique_ptr<LinearChartView> _linearChartView;
 
 	struct {
 		base::unique_qptr<PointDetailsWidget> widget;

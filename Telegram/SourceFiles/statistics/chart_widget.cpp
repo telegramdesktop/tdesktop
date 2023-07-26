@@ -822,7 +822,7 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 , _animationController([=] {
 	_chartArea->update();
 	if (_animationController.footerAnimating()
-		|| !_linearChartView.main->isFinished()) {
+		|| !_linearChartView->isFinished()) {
 		_footer->update();
 	}
 }) {
@@ -900,7 +900,7 @@ void ChartWidget::setupChartArea() {
 			now,
 			_horizontalLines,
 			_bottomLine.dates,
-			_linearChartView.main);
+			_linearChartView);
 
 		const auto chartRect = chartAreaRect();
 
@@ -934,7 +934,7 @@ void ChartWidget::setupChartArea() {
 				for (const auto &line : _chartData.lines) {
 					_details.widget->setLineAlpha(
 						line.id,
-						_linearChartView.main->alpha(line.id));
+						_linearChartView->alpha(line.id));
 				}
 			}
 		}
@@ -949,15 +949,15 @@ void ChartWidget::setupChartArea() {
 			// 	QPainter::Antialiasing,
 			// 	!_animationController.isFPSSlow()
 			// 		|| !_animationController.animating());
-			PainterHighQualityEnabler hp(p);
-			_linearChartView.main->paint(
+			_linearChartView->paint(
 				p,
 				_chartData,
 				_animationController.currentXIndices(),
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
 				chartRect,
-				detailsPaintContext);
+				detailsPaintContext,
+				false);
 		}
 
 		for (auto &horizontalLine : _horizontalLines) {
@@ -1074,14 +1074,15 @@ void ChartWidget::setupFooter() {
 			// 	!_animationController.isFPSSlow()
 			// 		|| !_animationController.animating());
 			PainterHighQualityEnabler hp(p);
-			_linearChartView.footer->paint(
+			_linearChartView->paint(
 				p,
 				_chartData,
 				{ 0., float64(_chartData.x.size() - 1) },
 				fullXLimits,
 				_animationController.currentFooterHeightLimits(),
 				r,
-				detailsPaintContext);
+				detailsPaintContext,
+				true);
 		}
 	});
 
@@ -1097,7 +1098,7 @@ void ChartWidget::setupFooter() {
 		_animationController.setXPercentageLimits(
 			_chartData,
 			xPercentageLimits,
-			_linearChartView.main,
+			_linearChartView,
 			now);
 		updateChartFullWidth(_chartArea->width());
 		updateBottomDates();
@@ -1215,12 +1216,12 @@ void ChartWidget::setupFilterButtons() {
 	_filterButtons->buttonEnabledChanges(
 	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
 		const auto now = crl::now();
-		_linearChartView.main->setEnabled(e.id, e.enabled, now);
+		_linearChartView->setEnabled(e.id, e.enabled, now);
 
 		_animationController.setXPercentageLimits(
 			_chartData,
 			_animationController.currentXLimits(),
-			_linearChartView.main,
+			_linearChartView,
 			now);
 	}, _filterButtons->lifetime());
 }
@@ -1228,8 +1229,7 @@ void ChartWidget::setupFilterButtons() {
 void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_chartData = std::move(chartData);
 
-	_linearChartView.main = std::make_unique<LinearChartView>();
-	_linearChartView.footer = std::make_unique<LinearChartView>();
+	_linearChartView = std::make_unique<LinearChartView>();
 
 	setupDetails();
 	setupFilterButtons();
@@ -1237,7 +1237,7 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_animationController.setXPercentageLimits(
 		_chartData,
 		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() },
-		_linearChartView.main,
+		_linearChartView,
 		0);
 	updateChartFullWidth(_chartArea->width());
 	updateBottomDates();
