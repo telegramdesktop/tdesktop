@@ -288,6 +288,12 @@ stickersTrendingAdd: RoundButton(defaultActiveButton) {
 	height: 26px;
 	textTop: 4px;
 }
+stickersTrendingInstalled: RoundButton(stickersTrendingAdd) {
+	textFg: activeButtonBg;
+	textFgOver: activeButtonBgOver;
+	textBg: activeButtonSecondaryFg;
+	textBgOver: activeButtonSecondaryFgOver;
+}
 stickersRemove: IconButton(defaultIconButton) {
 	width: 40px;
 	height: 40px;
