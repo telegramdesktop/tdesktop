@@ -587,6 +587,16 @@ OverlayWidget::OverlayWidget()
 		update();
 	}, lifetime());
 
+	_helper->topNotchSkipValue(
+	) | rpl::start_with_next([=](int notch) {
+		if (_topNotchSize != notch) {
+			_topNotchSize = notch;
+			if (_fullscreen) {
+				updateControlsGeometry();
+			}
+		}
+	}, lifetime());
+
 	_window->setTitle(tr::lng_mediaview_title(tr::now));
 	_window->setTitleStyle(st::mediaviewTitle);
 
@@ -673,7 +683,11 @@ void OverlayWidget::showSaveMsgToastWith(
 	const auto h = st::mediaviewSaveMsgStyle.font->height
 		+ st::mediaviewSaveMsgPadding.top()
 		+ st::mediaviewSaveMsgPadding.bottom();
-	_saveMsg = QRect((width() - w) / 2, (height() - h) / 2, w, h);
+	_saveMsg = QRect(
+		(width() - w) / 2,
+		_minUsedTop + (_maxUsedHeight - h) / 2,
+		w,
+		h);
 	const auto callback = [=](float64 value) {
 		updateSaveMsg();
 		if (!_saveMsgAnimation.animating()) {
@@ -703,7 +717,7 @@ void OverlayWidget::setupWindow() {
 				&& _streamed->controls
 				&& _streamed->controls->dragging())) {
 			return Flag::None | Flag(0);
-		} else if ((_w > _widget->width() || _h > _widget->height())
+		} else if ((_w > _widget->width() || _h > _maxUsedHeight)
 				&& (widgetPoint.y() > st::mediaviewHeaderTop)
 				&& QRect(_x, _y, _w, _h).contains(widgetPoint)) {
 			return Flag::None | Flag(0);
@@ -940,8 +954,14 @@ void OverlayWidget::updateGeometryToScreen(bool inMove) {
 void OverlayWidget::updateControlsGeometry() {
 	updateNavigationControlsGeometry();
 
-	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
-	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
+	_saveMsg.moveTo(
+		(width() - _saveMsg.width()) / 2,
+		_minUsedTop + (_maxUsedHeight - _saveMsg.height()) / 2);
+	_photoRadialRect = QRect(
+		QPoint(
+			(width() - st::radialSize.width()) / 2,
+			_minUsedTop + (_maxUsedHeight - st::radialSize.height()) / 2),
+		st::radialSize);
 
 	const auto bottom = st::mediaviewShadowBottom.height();
 	const auto top = st::mediaviewShadowTop.size();
@@ -960,6 +980,9 @@ void OverlayWidget::updateControlsGeometry() {
 }
 
 void OverlayWidget::updateNavigationControlsGeometry() {
+	_minUsedTop = topNotchSkip();
+	_maxUsedHeight = height() - _minUsedTop;
+
 	const auto overRect = QRect(
 		QPoint(),
 		QSize(st::mediaviewIconOver, st::mediaviewIconOver));
@@ -969,14 +992,22 @@ void OverlayWidget::updateNavigationControlsGeometry() {
 	const auto navSkip = st::mediaviewHeaderTop;
 	const auto xLeft = _stories ? (_x - navSize) : 0;
 	const auto xRight = _stories ? (_x + _w) : (width() - navSize);
-	_leftNav = QRect(xLeft, navSkip, navSize, height() - 2 * navSkip);
+	_leftNav = QRect(
+		xLeft,
+		_minUsedTop + navSkip,
+		navSize,
+		_maxUsedHeight - 2 * navSkip);
 	_leftNavOver = _stories
 		? QRect()
 		: style::centerrect(_leftNav, overRect);
 	_leftNavIcon = style::centerrect(
 		_leftNav,
 		_stories ? st::storiesLeft : st::mediaviewLeft);
-	_rightNav = QRect(xRight, navSkip, navSize, height() - 2 * navSkip);
+	_rightNav = QRect(
+		xRight,
+		_minUsedTop + navSkip,
+		navSize,
+		_maxUsedHeight - 2 * navSkip);
 	_rightNavOver = _stories
 		? QRect()
 		: style::centerrect(_rightNav, overRect);
@@ -1213,7 +1244,7 @@ void OverlayWidget::updateControls() {
 	if (_document && documentBubbleShown()) {
 		_docRect = QRect(
 			(width() - st::mediaviewFileSize.width()) / 2,
-			(height() - st::mediaviewFileSize.height()) / 2,
+			_minUsedTop + (_maxUsedHeight - st::mediaviewFileSize.height()) / 2,
 			st::mediaviewFileSize.width(),
 			st::mediaviewFileSize.height());
 		_docIconRect = QRect(
@@ -1244,7 +1275,7 @@ void OverlayWidget::updateControls() {
 	} else {
 		_docIconRect = QRect(
 			(width() - st::mediaviewFileIconSize) / 2,
-			(height() - st::mediaviewFileIconSize) / 2,
+			_minUsedTop + (_maxUsedHeight - st::mediaviewFileIconSize) / 2,
 			st::mediaviewFileIconSize,
 			st::mediaviewFileIconSize);
 		_docDownload->hide();
@@ -1263,7 +1294,8 @@ void OverlayWidget::updateControls() {
 	_shareVisible = story && story->canShare();
 	_rotateVisible = !_themePreviewShown && !story;
 	const auto navRect = [&](int i) {
-		return QRect(width() - st::mediaviewIconSize.width() * i,
+		return QRect(
+			width() - st::mediaviewIconSize.width() * i,
 			height() - st::mediaviewIconSize.height(),
 			st::mediaviewIconSize.width(),
 			st::mediaviewIconSize.height());
@@ -1302,12 +1334,27 @@ void OverlayWidget::updateControls() {
 	}();
 	_dateText = d.isValid() ? Ui::FormatDateTime(d) : QString();
 	if (!_fromName.isEmpty()) {
-		_fromNameLabel.setText(st::mediaviewTextStyle, _fromName, Ui::NameTextOptions());
-		_nameNav = QRect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromNameLabel.maxWidth(), width() / 3), st::mediaviewFont->height);
-		_dateNav = QRect(st::mediaviewTextLeft + _nameNav.width() + st::mediaviewTextSkip, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
+		_fromNameLabel.setText(
+			st::mediaviewTextStyle,
+			_fromName,
+			Ui::NameTextOptions());
+		_nameNav = QRect(
+			st::mediaviewTextLeft,
+			height() - st::mediaviewTextTop,
+			qMin(_fromNameLabel.maxWidth(), width() / 3),
+			st::mediaviewFont->height);
+		_dateNav = QRect(
+			st::mediaviewTextLeft + _nameNav.width() + st::mediaviewTextSkip,
+			height() - st::mediaviewTextTop,
+			st::mediaviewFont->width(_dateText),
+			st::mediaviewFont->height);
 	} else {
 		_nameNav = QRect();
-		_dateNav = QRect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
+		_dateNav = QRect(
+			st::mediaviewTextLeft,
+			height() - st::mediaviewTextTop,
+			st::mediaviewFont->width(_dateText),
+			st::mediaviewFont->height);
 	}
 	updateHeader();
 	refreshNavVisibility();
@@ -1336,6 +1383,10 @@ void OverlayWidget::resizeCenteredControls() {
 }
 
 void OverlayWidget::refreshCaptionGeometry() {
+	_caption.updateSkipBlock(0, 0);
+	_captionShowMoreWidth = 0;
+	_captionSkipBlockWidth = 0;
+
 	if (_caption.isEmpty()) {
 		_captionRect = QRect();
 		return;
@@ -1361,32 +1412,28 @@ void OverlayWidget::refreshCaptionGeometry() {
 				- st::mediaviewCaptionPadding.left()
 				- st::mediaviewCaptionPadding.right()),
 			_caption.maxWidth());
-	const auto maxExpandedOuterHeight = (_stories
-		? (_h - st::storiesShadowTop.height())
-		: height());
-	const auto maxCollapsedOuterHeight = !_stories
-		? (height() / 4)
-		: (_h / 3);
-	const auto maxExpandedHeight = maxExpandedOuterHeight
-		- st::mediaviewCaptionPadding.top()
-		- st::mediaviewCaptionPadding.bottom();
-	const auto maxCollapsedHeight = maxCollapsedOuterHeight
-		- st::mediaviewCaptionPadding.top()
-		- st::mediaviewCaptionPadding.bottom();
 	const auto lineHeight = st::mediaviewCaptionStyle.font->height;
 	const auto wantedHeight = _caption.countHeight(captionWidth);
-	const auto maxHeight = _captionExpanded
-		? maxExpandedHeight
-		: maxCollapsedHeight;
+	const auto maxHeight = !_stories
+		? (_maxUsedHeight / 4)
+		: (wantedHeight > lineHeight * Stories::kMaxShownCaptionLines)
+		? (lineHeight * Stories::kCollapsedCaptionLines)
+		: wantedHeight;
 	const auto captionHeight = std::min(
 		wantedHeight,
 		(maxHeight / lineHeight) * lineHeight);
-	_captionFitsIfExpanded = _stories
-		&& (wantedHeight <= maxExpandedHeight);
-	_captionShownFull = (wantedHeight <= maxCollapsedHeight);
-	if (_captionShownFull && _captionExpanded && _stories) {
-		_captionExpanded = false;
-		_stories->setCaptionExpanded(false);
+	if (_stories && captionHeight < wantedHeight) {
+		const auto padding = st::storiesShowMorePadding;
+		_captionShowMoreWidth = st::storiesShowMoreFont->width(
+			tr::lng_stories_show_more(tr::now));
+		_captionSkipBlockWidth = _captionShowMoreWidth
+			+ padding.left()
+			+ padding.right()
+			- st::mediaviewCaptionPadding.right();
+		const auto skiph = st::storiesShowMoreFont->height
+			+ padding.bottom()
+			- st::mediaviewCaptionPadding.bottom();
+		_caption.updateSkipBlock(_captionSkipBlockWidth, skiph);
 	}
 	_captionRect = QRect(
 		(width() - captionWidth) / 2,
@@ -1748,11 +1795,13 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 }
 
 OverlayWidget::ContentGeometry OverlayWidget::storiesContentGeometry(
-		const Stories::ContentLayout &layout) const {
+		const Stories::ContentLayout &layout,
+		float64 scale) const {
 	return {
 		.rect = QRectF(layout.geometry),
 		.controlsOpacity = kStoriesControlsOpacity,
 		.fade = layout.fade,
+		.scale = scale,
 		.roundRadius = layout.radius,
 		.topShadowShown = !layout.headerOutside,
 	};
@@ -1777,7 +1826,7 @@ void OverlayWidget::recountSkipTop() {
 		? height()
 		: (_streamed->controls->y() - st::mediaviewCaptionPadding.bottom());
 	const auto skipHeightBottom = (height() - bottom);
-	_skipTop = std::min(
+	_skipTop = _minUsedTop + std::min(
 		std::max(
 			st::mediaviewCaptionMargin.height(),
 			height() - _height - skipHeightBottom),
@@ -1785,7 +1834,7 @@ void OverlayWidget::recountSkipTop() {
 	_availableHeight = height() - skipHeightBottom - _skipTop;
 	if (_fullScreenVideo && skipHeightBottom > 0 && _width > 0) {
 		const auto h = width() * _height / _width;
-		const auto topAllFit = height() - skipHeightBottom - h;
+		const auto topAllFit = _maxUsedHeight - skipHeightBottom - h;
 		if (_skipTop > topAllFit) {
 			_skipTop = std::max(topAllFit, 0);
 		}
@@ -1818,12 +1867,12 @@ void OverlayWidget::resizeContentByScreenSize() {
 	};
 	if (_width > 0 && _height > 0) {
 		_zoomToDefault = countZoomFor(availableWidth, _availableHeight);
-		_zoomToScreen = countZoomFor(width(), height());
+		_zoomToScreen = countZoomFor(width(), _maxUsedHeight);
 	} else {
 		_zoomToDefault = _zoomToScreen = 0;
 	}
 	const auto usew = _fullScreenVideo ? width() : availableWidth;
-	const auto useh = _fullScreenVideo ? height() : _availableHeight;
+	const auto useh = _fullScreenVideo ? _maxUsedHeight : _availableHeight;
 	if ((_width > usew) || (_height > useh) || _fullScreenVideo) {
 		const auto use = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 		_zoom = kZoomToScreenLevel;
@@ -3156,6 +3205,10 @@ void OverlayWidget::show(OpenRequest request) {
 			}
 		}
 	}
+	if (isHidden() || isMinimized()) {
+		// Count top notch on macOS before counting geometry.
+		_helper->beforeShow(_fullscreen);
+	}
 	if (photo) {
 		if (contextItem && contextPeer) {
 			return;
@@ -3444,7 +3497,6 @@ void OverlayWidget::updateThemePreviewGeometry() {
 }
 
 void OverlayWidget::displayFinished(anim::activation activation) {
-	_captionExpanded = _captionFitsIfExpanded = _captionShownFull = false;
 	updateControls();
 	if (isHidden()) {
 		_helper->beforeShow(_fullscreen);
@@ -4240,6 +4292,14 @@ void OverlayWidget::storiesVolumeChangeFinished() {
 	playbackControlsVolumeChangeFinished();
 }
 
+int OverlayWidget::topNotchSkip() const {
+	return _fullscreen ? _topNotchSize : 0;
+}
+
+int OverlayWidget::storiesTopNotchSkip() {
+	return topNotchSkip();
+}
+
 void OverlayWidget::playbackToggleFullScreen() {
 	Expects(_streamed != nullptr);
 
@@ -4400,7 +4460,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 			const auto paint = [&](const SiblingView &view, int index) {
 				renderer->paintTransformedStaticContent(
 					view.image,
-					storiesContentGeometry(view.layout),
+					storiesContentGeometry(view.layout, view.scale),
 					false, // semi-transparent
 					false, // fill transparent background
 					index);
@@ -4443,7 +4503,8 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		if (!_stories) {
 			renderer->paintFooter(footerGeometry(), opacity);
 		}
-		if (!_caption.isEmpty()) {
+		if (!_caption.isEmpty()
+			&& (!_stories || !_stories->skipCaption())) {
 			renderer->paintCaption(captionGeometry(), opacity);
 		}
 		if (_groupThumbs) {
@@ -4853,6 +4914,7 @@ void OverlayWidget::paintCaptionContent(
 	}
 	if (inner.intersects(clip)) {
 		p.setPen(st::mediaviewCaptionFg);
+		const auto lineHeight = st::mediaviewCaptionStyle.font->height;
 		_caption.draw(p, {
 			.position = inner.topLeft(),
 			.availableWidth = inner.width(),
@@ -4860,8 +4922,31 @@ void OverlayWidget::paintCaptionContent(
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.pausedEmoji = On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = On(PowerSaving::kChatSpoiler),
-			.elisionLines = inner.height() / st::mediaviewCaptionStyle.font->height,
+			.elisionLines = inner.height() / lineHeight,
+			.elisionRemoveFromEnd = _captionSkipBlockWidth,
 		});
+
+		if (_captionShowMoreWidth > 0) {
+			const auto padding = st::storiesShowMorePadding;
+			const auto showMoreLeft = outer.x()
+				+ outer.width()
+				- padding.right()
+				- _captionShowMoreWidth;
+			const auto showMoreTop = outer.y()
+				+ outer.height()
+				- padding.bottom()
+				- st::storiesShowMoreFont->height;
+			const auto underline = _captionExpandLink
+				&& ClickHandler::showAsActive(_captionExpandLink);
+			p.setFont(underline
+				? st::storiesShowMoreFont->underline()
+				: st::storiesShowMoreFont);
+			p.drawTextLeft(
+				showMoreLeft,
+				showMoreTop,
+				width(),
+				tr::lng_stories_show_more(tr::now));
+		}
 	}
 }
 
@@ -4960,7 +5045,9 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 		if (_controlsHideTimer.isActive()) {
 			activateControls();
 		}
-		moveToNext(1);
+		if (!moveToNext(1) && _stories) {
+			storiesClose();
+		}
 	} else if (ctrl) {
 		if (key == Qt::Key_Plus
 			|| key == Qt::Key_Equal
@@ -5366,7 +5453,7 @@ bool OverlayWidget::handleDoubleClick(
 
 void OverlayWidget::snapXY() {
 	auto xmin = width() - _w, xmax = 0;
-	auto ymin = height() - _h, ymax = 0;
+	auto ymin = height() - _h, ymax = _minUsedTop;
 	accumulate_min(xmin, (width() - _w) / 2);
 	accumulate_max(xmax, (width() - _w) / 2);
 	accumulate_min(ymin, _skipTop + (_availableHeight - _h) / 2);
@@ -5390,7 +5477,7 @@ void OverlayWidget::handleMouseMove(QPoint position) {
 				>= QApplication::startDragDistance())) {
 			_dragging = QRect(_x, _y, _w, _h).contains(_mStart) ? 1 : -1;
 			if (_dragging > 0) {
-				if (_w > width() || _h > height()) {
+				if (_w > width() || _h > _maxUsedHeight) {
 					setCursor(style::cur_sizeall);
 				} else {
 					setCursor(style::cur_default);
@@ -5486,9 +5573,13 @@ void OverlayWidget::updateOver(QPoint pos) {
 		lnk = textState.link;
 		lnkhost = this;
 	} else if (_captionRect.contains(pos)) {
-		auto textState = _caption.getState(pos - _captionRect.topLeft(), _captionRect.width());
+		auto request = Ui::Text::StateRequestElided();
+		const auto lineHeight = st::mediaviewCaptionStyle.font->height;
+		request.lines = _captionRect.height() / lineHeight;
+		request.removeFromEnd = _captionSkipBlockWidth;
+		auto textState = _caption.getStateElided(pos - _captionRect.topLeft(), _captionRect.width(), request);
 		lnk = textState.link;
-		if (_stories && !_captionShownFull && !lnk) {
+		if (_stories && !lnk) {
 			lnk = ensureCaptionExpandLink();
 		}
 		lnkhost = this;
@@ -5567,19 +5658,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 ClickHandlerPtr OverlayWidget::ensureCaptionExpandLink() {
 	if (!_captionExpandLink) {
 		const auto toggle = crl::guard(_widget, [=] {
-			if (!_stories) {
-				return;
-			} else if (_captionExpanded) {
-				_captionExpanded = false;
-				_stories->setCaptionExpanded(false);
-				refreshCaptionGeometry();
-				update();
-			} else if (_captionFitsIfExpanded) {
-				_captionExpanded = true;
-				_stories->setCaptionExpanded(true);
-				refreshCaptionGeometry();
-				update();
-			} else {
+			if (_stories) {
 				_stories->showFullCaption();
 			}
 		});

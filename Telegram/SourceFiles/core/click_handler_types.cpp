@@ -147,6 +147,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				my.show->showBox(std::move(box));
 			} else if (use) {
 				use->show(std::move(box));
+				use->activate();
 			}
 		} else {
 			open();

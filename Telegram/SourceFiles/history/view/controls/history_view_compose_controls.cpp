@@ -347,7 +347,7 @@ public:
 	void setHistory(const SetHistoryArgs &args);
 	void init();
 
-	void editMessage(FullMsgId id);
+	void editMessage(FullMsgId id, bool photoEditAllowed = false);
 	void replyToMessage(FullMsgId id);
 	void updateForwarding(
 		Data::Thread *thread,
@@ -363,8 +363,10 @@ public:
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] FullMsgId replyingToMessage() const;
-	[[nodiscard]] rpl::producer<FullMsgId> editMsgId() const;
+	[[nodiscard]] FullMsgId editMsgId() const;
+	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
 	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
+	[[nodiscard]] rpl::producer<> editPhotoRequests() const;
 	[[nodiscard]] MessageToEdit queryToEdit();
 	[[nodiscard]] WebPageId webPageId() const;
 
@@ -425,16 +427,24 @@ private:
 	HistoryItem *_shownMessage = nullptr;
 	Ui::Text::String _shownMessageName;
 	Ui::Text::String _shownMessageText;
+	std::unique_ptr<Ui::SpoilerAnimation> _shownPreviewSpoiler;
+	Ui::Animations::Simple _inPhotoEditOver;
 	int _shownMessageNameVersion = -1;
-	bool _repaintScheduled = false;
+	bool _shownMessageHasPreview : 1 = false;
+	bool _inPhotoEdit : 1 = false;
+	bool _photoEditAllowed : 1 = false;
+	bool _repaintScheduled : 1 = false;
+	bool _inClickable : 1 = false;
 
 	const not_null<Data::Session*> _data;
 	const not_null<Ui::IconButton*> _cancel;
 
 	QRect _clickableRect;
+	QRect _shownMessagePreviewRect;
 
 	rpl::event_stream<bool> _visibleChanged;
 	rpl::event_stream<FullMsgId> _scrollToItemRequests;
+	rpl::event_stream<> _editPhotoRequests;
 
 };
 
@@ -554,26 +564,45 @@ void FieldHeader::init() {
 	}, lifetime());
 
 	setMouseTracking(true);
-	const auto inClickable = lifetime().make_state<bool>(false);
 	events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
-		return ranges::contains(kMouseEvents, event->type())
+		const auto type = event->type();
+		const auto leaving = (type == QEvent::Leave);
+		return (ranges::contains(kMouseEvents, type) || leaving)
 			&& (isEditingMessage()
 				|| readyToForward()
 				|| replyingToMessage());
 	}) | rpl::start_with_next([=](not_null<QEvent*> event) {
-		const auto type = event->type();
-		const auto e = static_cast<QMouseEvent*>(event.get());
-		const auto pos = e ? e->pos() : mapFromGlobal(QCursor::pos());
-		const auto inPreviewRect = _clickableRect.contains(pos);
-
-		if (type == QEvent::MouseMove) {
-			if (inPreviewRect != *inClickable) {
-				*inClickable = inPreviewRect;
-				setCursor(*inClickable
+		const auto updateOver = [&](bool inClickable, bool inPhotoEdit) {
+			if (_inClickable != inClickable) {
+				_inClickable = inClickable;
+				setCursor(_inClickable
 					? style::cur_pointer
 					: style::cur_default);
 			}
+			if (_inPhotoEdit != inPhotoEdit) {
+				_inPhotoEdit = inPhotoEdit;
+				_inPhotoEditOver.start(
+					[=] { update(); },
+					_inPhotoEdit ? 0. : 1.,
+					_inPhotoEdit ? 1. : 0.,
+					st::defaultMessageBar.duration);
+			}
+		};
+		const auto type = event->type();
+		if (type == QEvent::Leave) {
+			updateOver(false, false);
+			return;
+		}
+		const auto e = static_cast<QMouseEvent*>(event.get());
+		const auto pos = e ? e->pos() : mapFromGlobal(QCursor::pos());
+		const auto inPreviewRect = _clickableRect.contains(pos);
+		const auto inPhotoEdit = _shownMessageHasPreview
+			&& _photoEditAllowed
+			&& _shownMessagePreviewRect.contains(pos);
+
+		if (type == QEvent::MouseMove) {
+			updateOver(inPreviewRect, inPhotoEdit);
 			return;
 		}
 		const auto isLeftIcon = (pos.x() < st::historyReplySkip);
@@ -582,6 +611,8 @@ void FieldHeader::init() {
 			if (isLeftButton && isLeftIcon) {
 				*leftIconPressed = true;
 				update();
+			} else if (isLeftButton && inPhotoEdit) {
+				_editPhotoRequests.fire({});
 			} else if (isLeftButton && inPreviewRect) {
 				if (!isEditingMessage() && readyToForward()) {
 					_forwardPanel->editOptions(_show);
@@ -794,20 +825,74 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 		}
 	}
 
+	const auto media = _shownMessage->media();
+	_shownMessageHasPreview = media && media->hasReplyPreview();
+	const auto preview = _shownMessageHasPreview
+		? media->replyPreview()
+		: nullptr;
+	const auto spoilered = preview && media->hasSpoiler();
+	if (!spoilered) {
+		_shownPreviewSpoiler = nullptr;
+	} else if (!_shownPreviewSpoiler) {
+		_shownPreviewSpoiler = std::make_unique<Ui::SpoilerAnimation>([=] {
+			update();
+		});
+	}
+	const auto previewSkipValue = st::msgReplyBarSize.height()
+		+ st::msgReplyBarSkip
+		- st::msgReplyBarSize.width()
+		- st::msgReplyBarPos.x();
+	const auto previewSkip = _shownMessageHasPreview ? previewSkipValue : 0;
+	const auto textLeft = replySkip + previewSkip;
+	const auto textAvailableWidth = availableWidth - previewSkip;
+	if (preview) {
+		const auto overEdit = _photoEditAllowed
+			? _inPhotoEditOver.value(_inPhotoEdit ? 1. : 0.)
+			: 0.;
+		const auto to = QRect(
+			replySkip,
+			st::msgReplyPadding.top(),
+			st::msgReplyBarSize.height(),
+			st::msgReplyBarSize.height());
+		p.drawPixmap(to.x(), to.y(), preview->pixSingle(
+			preview->size() / style::DevicePixelRatio(),
+			{
+				.options = Images::Option::RoundSmall,
+				.outer = to.size(),
+			}));
+		if (_shownPreviewSpoiler) {
+			if (overEdit > 0.) {
+				p.setOpacity(1. - overEdit);
+			}
+			Ui::FillSpoilerRect(
+				p,
+				to,
+				Ui::DefaultImageSpoiler().frame(
+					_shownPreviewSpoiler->index(crl::now(), p.inactive())));
+		}
+		if (overEdit > 0.) {
+			p.setOpacity(overEdit);
+			p.fillRect(to, st::historyEditMediaBg);
+			st::historyEditMedia.paintInCenter(p, to);
+			p.setOpacity(1.);
+		}
+
+	}
+
 	p.setPen(st::historyReplyNameFg);
 	p.setFont(st::msgServiceNameFont);
 	_shownMessageName.drawElided(
 		p,
-		replySkip,
+		textLeft,
 		st::msgReplyPadding.top(),
-		availableWidth);
+		textAvailableWidth);
 
 	p.setPen(st::historyComposeAreaFg);
 	_shownMessageText.draw(p, {
 		.position = QPoint(
-			replySkip,
+			textLeft,
 			st::msgReplyPadding.top() + st::msgServiceNameFont->height),
-		.availableWidth = availableWidth,
+		.availableWidth = textAvailableWidth,
 		.palette = &st::historyComposeAreaPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = crl::now(),
@@ -848,6 +933,10 @@ bool FieldHeader::isEditingMessage() const {
 	return !!_editMsgId.current();
 }
 
+FullMsgId FieldHeader::editMsgId() const {
+	return _editMsgId.current();
+}
+
 bool FieldHeader::readyToForward() const {
 	return !_forwardPanel->empty();
 }
@@ -879,10 +968,21 @@ void FieldHeader::updateControlsGeometry(QSize size) {
 		0,
 		width() - st::historyReplySkip - _cancel->width(),
 		height());
+	_shownMessagePreviewRect = QRect(
+		st::historyReplySkip,
+		st::msgReplyPadding.top(),
+		st::msgReplyBarSize.height(),
+		st::msgReplyBarSize.height());
 }
 
-void FieldHeader::editMessage(FullMsgId id) {
+void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
+	_photoEditAllowed = photoEditAllowed;
 	_editMsgId = id;
+	if (!photoEditAllowed) {
+		_inPhotoEdit = false;
+		_inPhotoEditOver.stop();
+	}
+	update();
 }
 
 void FieldHeader::replyToMessage(FullMsgId id) {
@@ -898,12 +998,16 @@ void FieldHeader::updateForwarding(
 	}
 }
 
-rpl::producer<FullMsgId> FieldHeader::editMsgId() const {
+rpl::producer<FullMsgId> FieldHeader::editMsgIdValue() const {
 	return _editMsgId.value();
 }
 
 rpl::producer<FullMsgId> FieldHeader::scrollToItemRequests() const {
 	return _scrollToItemRequests.events();
+}
+
+rpl::producer<> FieldHeader::editPhotoRequests() const {
+	return _editPhotoRequests.events();
 }
 
 MessageToEdit FieldHeader::queryToEdit() {
@@ -1470,7 +1574,7 @@ void ComposeControls::init() {
 		paintBackground(clip);
 	}, _wrap->lifetime());
 
-	_header->editMsgId(
+	_header->editMsgIdValue(
 	) | rpl::start_with_next([=](const auto &id) {
 		unregisterDraftSources();
 		updateSendButtonType();
@@ -1480,6 +1584,16 @@ void ComposeControls::init() {
 			orderControls();
 		}
 		registerDraftSource();
+	}, _wrap->lifetime());
+
+	_header->editPhotoRequests(
+	) | rpl::start_with_next([=] {
+		EditCaptionBox::StartPhotoEdit(
+			_regularWindow,
+			_photoEditMedia,
+			_editingId,
+			_field->getTextWithTags(),
+			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
 	}, _wrap->lifetime());
 
 	_header->previewCancelled(
@@ -1521,7 +1635,7 @@ void ComposeControls::init() {
 		_voiceRecordBar->requestToSendWithOptions(options);
 	}, _wrap->lifetime());
 
-	_header->editMsgId(
+	_header->editMsgIdValue(
 	) | rpl::start_with_next([=](const auto &id) {
 		_editingId = id;
 	}, _wrap->lifetime());
@@ -1663,6 +1777,8 @@ void ComposeControls::initField() {
 		}
 		return false;
 	});
+	_field->setEditLinkCallback(
+		DefaultEditLinkCallback(_show, _field, &_st.boxField));
 	initAutocomplete();
 	const auto allow = [=](const auto &) {
 		return _history && Data::AllowEmojiWithoutPremium(_history->peer);
@@ -2049,7 +2165,43 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	}
 
 	if (draft == editDraft) {
-		_header->editMessage(editingId);
+		const auto resolve = [=] {
+			if (const auto item = _history->owner().message(editingId)) {
+				const auto media = item->media();
+				_canReplaceMedia = media && media->allowsEditMedia();
+				_photoEditMedia = (_canReplaceMedia
+					&& _regularWindow
+					&& media->photo()
+					&& !media->photo()->isNull())
+					? media->photo()->createMediaView()
+					: nullptr;
+				if (_photoEditMedia) {
+					_photoEditMedia->wanted(
+						Data::PhotoSize::Large,
+						item->fullId());
+				}
+				_header->editMessage(editingId, _photoEditMedia != nullptr);
+				return true;
+			}
+			_canReplaceMedia = false;
+			_photoEditMedia = nullptr;
+			_header->editMessage(editingId, false);
+			return false;
+		};
+		if (!resolve()) {
+			const auto callback = crl::guard(_header.get(), [=] {
+				if (_header->editMsgId() == editingId
+					&& resolve()
+					&& updateReplaceMediaButton()) {
+					updateControlsVisibility();
+					updateControlsGeometry(_wrap->size());
+				}
+			});
+			_history->session().api().requestMessageData(
+				_history->peer,
+				editingId.msg,
+				callback);
+		}
 		_header->replyToMessage({});
 	} else {
 		_canReplaceMedia = false;
@@ -2708,17 +2860,6 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 			cursor,
 			previewState));
 	applyDraft();
-
-	const auto media = item->media();
-	_canReplaceMedia = media && media->allowsEditMedia();
-	_photoEditMedia = (_canReplaceMedia
-		&& media->photo()
-		&& !media->photo()->isNull())
-		? media->photo()->createMediaView()
-		: nullptr;
-	if (_photoEditMedia) {
-		_photoEditMedia->wanted(Data::PhotoSize::Large, item->fullId());
-	}
 	if (updateReplaceMediaButton()) {
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());

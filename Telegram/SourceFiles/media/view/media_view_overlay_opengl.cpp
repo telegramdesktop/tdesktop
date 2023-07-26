@@ -21,7 +21,8 @@ namespace {
 
 using namespace Ui::GL;
 
-constexpr auto kRadialLoadingOffset = 4;
+constexpr auto kNotchOffset = 4;
+constexpr auto kRadialLoadingOffset = kNotchOffset + 4;
 constexpr auto kThemePreviewOffset = kRadialLoadingOffset + 4;
 constexpr auto kDocumentBubbleOffset = kThemePreviewOffset + 4;
 constexpr auto kSaveMsgOffset = kDocumentBubbleOffset + 4;
@@ -129,7 +130,7 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 void OverlayWidget::RendererGL::init(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
-	constexpr auto kQuads = 8;
+	constexpr auto kQuads = 9;
 	constexpr auto kQuadVertices = kQuads * 4;
 	constexpr auto kQuadValues = kQuadVertices * 4;
 	constexpr auto kControlsValues = kControlsCount * kControlValues;
@@ -291,6 +292,28 @@ bool OverlayWidget::RendererGL::handleHideWorkaround(QOpenGLFunctions &f) {
 
 void OverlayWidget::RendererGL::paintBackground() {
 	_contentBuffer->bind();
+	if (const auto notch = _owner->topNotchSkip()) {
+		const auto top = transformRect(QRect(0, 0, _owner->width(), notch));
+        const GLfloat coords[] = {
+			top.left(), top.top(),
+			top.right(), top.top(),
+			top.right(), top.bottom(),
+			top.left(), top.bottom(),
+		};
+		const auto offset = kNotchOffset;
+		_contentBuffer->write(
+			offset * 4 * sizeof(GLfloat),
+			coords,
+			sizeof(coords));
+
+		_fillProgram->bind();
+		_fillProgram->setUniformValue("viewport", _uniformViewport);
+		FillRectangle(
+			*_f,
+			&*_fillProgram,
+			offset,
+			QColor(0, 0, 0));
+	}
 }
 
 void OverlayWidget::RendererGL::paintTransformedVideoFrame(
@@ -465,7 +488,9 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
 		ContentGeometry geometry,
 		bool fillTransparentBackground) {
-	const auto rect = transformRect(geometry.rect);
+	const auto rect = scaleRect(
+		transformRect(geometry.rect),
+		geometry.scale);
 	const auto centerx = rect.x() + rect.width() / 2;
 	const auto centery = rect.y() + rect.height() / 2;
 	const auto rsin = float(std::sin(geometry.rotation * M_PI / 180.));
@@ -1041,6 +1066,19 @@ Rect OverlayWidget::RendererGL::transformRect(const QRectF &raster) const {
 
 Rect OverlayWidget::RendererGL::transformRect(const QRect &raster) const {
 	return TransformRect(Rect(raster), _viewport, _factor);
+}
+
+Rect OverlayWidget::RendererGL::scaleRect(
+		const Rect &unscaled,
+		float64 scale) const {
+	const auto added = scale - 1.;
+	const auto addw = unscaled.width() * added;
+	const auto addh = unscaled.height() * added;
+	return Rect(
+		unscaled.x() - addw / 2,
+		unscaled.y() - addh / 2,
+		unscaled.width() + addw,
+		unscaled.height() + addh);
 }
 
 } // namespace Media::View

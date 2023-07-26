@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/round_rect.h"
+#include "ui/effects/animations.h"
 
 namespace Main {
 class Session;
@@ -16,30 +15,38 @@ class Session;
 
 namespace Ui {
 class FlatLabel;
-class ScrollArea;
+class ElasticScroll;
+template <typename Widget>
+class PaddingWrap;
 } // namespace Ui
 
 namespace Media::Stories {
 
-class CaptionFullView final : private Ui::RpWidget {
+class Controller;
+
+class CaptionFullView final {
 public:
-	CaptionFullView(
-		not_null<Ui::RpWidget*> parent,
-		not_null<Main::Session*> session,
-		const TextWithEntities &text,
-		Fn<void()> close);
+	explicit CaptionFullView(not_null<Controller*> controller);
 	~CaptionFullView();
 
-private:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
+	void close();
+	[[nodiscard]] bool closing() const;
+	[[nodiscard]] bool focused() const;
 
-	std::unique_ptr<Ui::ScrollArea> _scroll;
+private:
+	void updateGeometry();
+	void startAnimation();
+
+	const not_null<Controller*> _controller;
+	const std::unique_ptr<Ui::ElasticScroll> _scroll;
+	const not_null<Ui::PaddingWrap<Ui::FlatLabel>*> _wrap;
 	const not_null<Ui::FlatLabel*> _text;
-	Fn<void()> _close;
-	Ui::RoundRect _background;
+	Ui::Animations::Simple _animation;
+	QRect _outer;
+	int _closingTopAdded = 0;
+	bool _pulling = false;
+	bool _closing = false;
+	bool _down = false;
 
 };
 

@@ -1138,6 +1138,10 @@ void AddGiftOptions(
 			stCheckbox,
 			std::move(radioView));
 		radio->setAttribute(Qt::WA_TransparentForMouseEvents);
+		{ // Paint the last frame instantly for the layer animation.
+			group->setValue(0);
+			radio->finishAnimating();
+		}
 
 		row->sizeValue(
 		) | rpl::start_with_next([=, margins = stCheckbox.margin](

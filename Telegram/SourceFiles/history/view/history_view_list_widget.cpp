@@ -933,7 +933,7 @@ Element *ListWidget::viewByPosition(Data::MessagePosition position) const {
 	const auto result = (index < 0) ? nullptr : _items[index].get();
 	return (position == Data::MinMessagePosition
 		|| position == Data::MaxMessagePosition
-		|| result->data()->position() == position)
+		|| (result && result->data()->position() == position))
 		? result
 		: nullptr;
 }

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
@@ -50,10 +51,9 @@ struct PrivacyBadge {
 
 class UserpicBadge final : public Ui::RpWidget {
 public:
-	UserpicBadge(
-		not_null<QWidget*> userpic,
-		PrivacyBadge badge,
-		Fn<void()> clicked);
+	UserpicBadge(not_null<QWidget*> userpic, PrivacyBadge badge);
+
+	[[nodiscard]] QRect badgeGeometry() const;
 
 private:
 	bool eventFilter(QObject *o, QEvent *e) override;
@@ -63,7 +63,6 @@ private:
 
 	const not_null<QWidget*> _userpic;
 	const PrivacyBadge _badgeData;
-	const std::unique_ptr<Ui::AbstractButton> _clickable;
 	QRect _badge;
 	QImage _layer;
 	bool _grabbing = false;
@@ -95,15 +94,10 @@ private:
 	return {};
 }
 
-UserpicBadge::UserpicBadge(
-	not_null<QWidget*> userpic,
-	PrivacyBadge badge,
-	Fn<void()> clicked)
+UserpicBadge::UserpicBadge(not_null<QWidget*> userpic, PrivacyBadge badge)
 : RpWidget(userpic->parentWidget())
 , _userpic(userpic)
-, _badgeData(badge)
-, _clickable(std::make_unique<Ui::AbstractButton>(parentWidget())) {
-	_clickable->setClickedCallback(std::move(clicked));
+, _badgeData(badge) {
 	userpic->installEventFilter(this);
 	updateGeometry();
 	setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -111,6 +105,10 @@ UserpicBadge::UserpicBadge(
 		_userpic->raise();
 	});
 	show();
+}
+
+QRect UserpicBadge::badgeGeometry() const {
+	return _badge;
 }
 
 bool UserpicBadge::eventFilter(QObject *o, QEvent *e) {
@@ -173,22 +171,27 @@ void UserpicBadge::updateGeometry() {
 	_badge = QRect(
 		QPoint(width - badge.width(), height - badge.height()),
 		badge);
-	_clickable->setGeometry(_badge.translated(pos()));
 	update();
 }
 
-[[nodiscard]] std::unique_ptr<Ui::RpWidget> MakePrivacyBadge(
+struct MadePrivacyBadge {
+	std::unique_ptr<Ui::RpWidget> widget;
+	QRect geometry;
+};
+
+[[nodiscard]] MadePrivacyBadge MakePrivacyBadge(
 		not_null<QWidget*> userpic,
-		Data::StoryPrivacy privacy,
-		Fn<void()> clicked) {
+		Data::StoryPrivacy privacy) {
 	const auto badge = LookupPrivacyBadge(privacy);
 	if (!badge.icon) {
-		return nullptr;
+		return {};
 	}
-	return std::make_unique<UserpicBadge>(
-		userpic,
-		badge,
-		std::move(clicked));
+	auto widget = std::make_unique<UserpicBadge>(userpic, badge);
+	const auto geometry = widget->badgeGeometry();
+	return {
+		.widget = std::move(widget),
+		.geometry = geometry,
+	};
 }
 
 [[nodiscard]] Timestamp ComposeTimestamp(TimeId when, TimeId now) {
@@ -277,6 +280,8 @@ void Header::show(HeaderData data) {
 			_info->setGeometry({ 0, 0, r, _widget->height() });
 		}
 	};
+	_tooltip = nullptr;
+	_tooltipShown = false;
 	if (userChanged) {
 		_volume = nullptr;
 		_date = nullptr;
@@ -310,7 +315,7 @@ void Header::show(HeaderData data) {
 			raw,
 			rpl::single(data.user->isSelf()
 				? tr::lng_stories_my_name(tr::now)
-				: data.user->shortName()),
+				: data.user->name()),
 			st::storiesHeaderName);
 		_name->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_name->setOpacity(kNameOpacity);
@@ -328,6 +333,8 @@ void Header::show(HeaderData data) {
 		_controller->layoutValue(
 		) | rpl::start_with_next([=](const Layout &layout) {
 			raw->setGeometry(layout.header);
+			_contentGeometry = layout.content;
+			updateTooltipGeometry();
 		}, raw->lifetime());
 	}
 	auto timestamp = ComposeDetails(data, base::unixtime::now());
@@ -357,8 +364,29 @@ void Header::show(HeaderData data) {
 		_counter = nullptr;
 	}
 
-	_privacy = MakePrivacyBadge(_userpic.get(), data.privacy, [=] {
-	});
+	auto made = MakePrivacyBadge(_userpic.get(), data.privacy);
+	_privacy = std::move(made.widget);
+	_privacyBadgeOver = false;
+	_privacyBadgeGeometry = _privacy
+		? Ui::MapFrom(_info.get(), _privacy.get(), made.geometry)
+		: QRect();
+	if (_privacy) {
+		_info->setMouseTracking(true);
+		_info->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			const auto type = e->type();
+			if (type != QEvent::Leave && type != QEvent::MouseMove) {
+				return false;
+			}
+			const auto over = (type == QEvent::MouseMove)
+				&& _privacyBadgeGeometry.contains(
+					static_cast<QMouseEvent*>(e.get())->pos());
+			return (_privacyBadgeOver != over);
+		}) | rpl::start_with_next([=] {
+			_privacyBadgeOver = !_privacyBadgeOver;
+			toggleTooltip(Tooltip::Privacy, _privacyBadgeOver);
+		}, _privacy->lifetime());
+	}
 
 	if (data.video) {
 		createPlayPause();
@@ -369,6 +397,7 @@ void Header::show(HeaderData data) {
 			_playPause->moveToRight(playPause.x(), playPause.y(), width);
 			const auto volume = st::storiesVolumeButtonPosition;
 			_volumeToggle->moveToRight(volume.x(), volume.y(), width);
+			updateTooltipGeometry();
 		}, _playPause->lifetime());
 
 		_pauseState = _controller->pauseState();
@@ -496,15 +525,14 @@ void Header::createVolumeToggle() {
 
 	_volumeToggle->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (state->silent) {
-			return;
-		}
 		const auto type = e->type();
 		if (type == QEvent::Enter || type == QEvent::Leave) {
 			const auto over = (e->type() == QEvent::Enter);
 			if (state->over != over) {
 				state->over = over;
-				if (over) {
+				if (state->silent) {
+					toggleTooltip(Tooltip::SilentVideo, over);
+				} else if (over) {
 					state->hideTimer.cancel();
 					_volume->toggle(true, anim::type::normal);
 				} else if (!state->dropdownOver) {
@@ -563,6 +591,123 @@ void Header::createVolumeToggle() {
 	if (!state->silent) {
 		_volumeToggle->setCursor(style::cur_pointer);
 	}
+}
+
+void Header::toggleTooltip(Tooltip type, bool show) {
+	const auto guard = gsl::finally([&] {
+		_tooltipShown = (_tooltip != nullptr);
+	});
+	if (const auto was = _tooltip.release()) {
+		was->toggleAnimated(false);
+	}
+	if (!show) {
+		return;
+	}
+	const auto text = [&]() -> TextWithEntities {
+		using Privacy = Data::StoryPrivacy;
+		const auto boldName = Ui::Text::Bold(_data->user->shortName());
+		const auto self = _data->user->isSelf();
+		switch (type) {
+		case Tooltip::SilentVideo:
+			return { tr::lng_stories_about_silent(tr::now) };
+		case Tooltip::Privacy: switch (_data->privacy) {
+			case Privacy::CloseFriends:
+				return self
+					? tr::lng_stories_about_close_friends_my(
+						tr::now,
+						Ui::Text::RichLangValue)
+					: tr::lng_stories_about_close_friends(
+						tr::now,
+						lt_user,
+						boldName,
+						Ui::Text::RichLangValue);
+			case Privacy::Contacts:
+				return self
+					? tr::lng_stories_about_contacts_my(
+						tr::now,
+						Ui::Text::RichLangValue)
+					: tr::lng_stories_about_contacts(
+						tr::now,
+						lt_user,
+						boldName,
+						Ui::Text::RichLangValue);
+			case Privacy::SelectedContacts:
+				return self
+					? tr::lng_stories_about_selected_contacts_my(
+						tr::now,
+						Ui::Text::RichLangValue)
+					: tr::lng_stories_about_selected_contacts(
+						tr::now,
+						lt_user,
+						boldName,
+						Ui::Text::RichLangValue);
+			}
+		}
+		return {};
+	}();
+	if (text.empty()) {
+		return;
+	}
+	_tooltipType = type;
+	_tooltip = std::make_unique<Ui::ImportantTooltip>(
+		_widget->parentWidget(),
+		Ui::MakeNiceTooltipLabel(
+			_widget.get(),
+			rpl::single(text),
+			st::storiesInfoTooltipMaxWidth,
+			st::storiesInfoTooltipLabel),
+		st::storiesInfoTooltip);
+	const auto tooltip = _tooltip.get();
+	const auto weak = QPointer<QWidget>(tooltip);
+	const auto destroy = [=] {
+		delete weak.data();
+	};
+	tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
+	tooltip->setHiddenCallback(destroy);
+	updateTooltipGeometry();
+	tooltip->toggleAnimated(true);
+}
+
+void Header::updateTooltipGeometry() {
+	if (!_tooltip) {
+		return;
+	}
+	const auto geometry = [&] {
+		switch (_tooltipType) {
+		case Tooltip::SilentVideo:
+			return Ui::MapFrom(
+				_widget->parentWidget(),
+				_volumeToggle.get(),
+				_volumeToggle->rect());
+		case Tooltip::Privacy:
+			return Ui::MapFrom(
+				_widget->parentWidget(),
+				_info.get(),
+				_privacyBadgeGeometry.marginsAdded(
+					st::storiesInfoTooltip.padding));
+		}
+		return QRect();
+	}();
+	if (geometry.isEmpty()) {
+		toggleTooltip(Tooltip::None, false);
+		return;
+	}
+	const auto weak = QPointer<QWidget>(_tooltip.get());
+	const auto countPosition = [=](QSize size) {
+		const auto result = geometry.bottomLeft()
+			- QPoint(size.width() / 2, 0);
+		const auto inner = _contentGeometry.marginsRemoved(
+			st::storiesInfoTooltip.padding);
+		if (size.width() > inner.width()) {
+			return QPoint(
+				inner.x() + (inner.width() - size.width()) / 2,
+				result.y());
+		} else if (result.x() < inner.x()) {
+			return QPoint(inner.x(), result.y());
+		}
+		return result;
+	};
+	_tooltip->pointAt(geometry, RectPart::Bottom, countPosition);
 }
 
 void Header::rebuildVolumeControls(
@@ -682,9 +827,12 @@ void Header::raise() {
 	}
 }
 
-
 bool Header::ignoreWindowMove(QPoint position) const {
 	return _ignoreWindowMove;
+}
+
+rpl::producer<bool> Header::tooltipShownValue() const {
+	return _tooltipShown.value();
 }
 
 void Header::updateDateText() {

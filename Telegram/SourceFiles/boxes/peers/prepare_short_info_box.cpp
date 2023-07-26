@@ -335,6 +335,15 @@ bool ProcessCurrent(
 		: state->photoView
 		? state->photoView->owner().get()
 		: nullptr;
+	state->current.additionalStatus = (!peer->isUser())
+		? QString()
+		: ((state->photoId == userpicPhotoId)
+			&& peer->asUser()->hasPersonalPhoto())
+		? tr::lng_profile_photo_by_you(tr::now)
+		: ((state->current.index == (state->current.count - 1))
+			&& SyncUserFallbackPhotoViewer(peer->asUser()))
+		? tr::lng_profile_public_photo(tr::now)
+		: QString();
 	state->waitingLoad = false;
 	if (!changedPhotoId
 		&& (state->current.index > 0 || !changedUserpic)
@@ -422,7 +431,9 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		Fn<void()> open,
 		Fn<bool()> videoPaused,
 		const style::ShortInfoBox *stOverride) {
-	const auto type = peer->isUser()
+	const auto type = peer->isSelf()
+		? PeerShortInfoType::Self
+		: peer->isUser()
 		? PeerShortInfoType::User
 		: peer->isBroadcast()
 		? PeerShortInfoType::Channel

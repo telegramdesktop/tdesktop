@@ -280,9 +280,6 @@ Controller::Controller(not_null<Delegate*> delegate)
 		_1 || _2
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool active) {
-		if (active) {
-			_captionFullView = nullptr;
-		}
 		_replyActive = active;
 		updateContentFaded();
 	}, _lifetime);
@@ -322,8 +319,18 @@ Controller::Controller(not_null<Delegate*> delegate)
 
 	_delegate->storiesLayerShown(
 	) | rpl::start_with_next([=](bool shown) {
-		_layerShown = shown;
-		updatePlayingAllowed();
+		if (_layerShown != shown) {
+			_layerShown = shown;
+			updatePlayingAllowed();
+		}
+	}, _lifetime);
+
+	_header->tooltipShownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		if (_tooltipShown != shown) {
+			_tooltipShown = shown;
+			updatePlayingAllowed();
+		}
 	}, _lifetime);
 
 	const auto window = _wrap->window()->windowHandle();
@@ -345,7 +352,8 @@ Controller::~Controller() {
 }
 
 void Controller::updateContentFaded() {
-	const auto faded = _replyActive || _captionFullView || _captionExpanded;
+	const auto faded = _replyActive
+		|| (_captionFullView && !_captionFullView->closing());
 	if (_contentFaded == faded) {
 		return;
 	}
@@ -378,6 +386,8 @@ void Controller::initLayout() {
 
 	_layout = _wrap->sizeValue(
 	) | rpl::map([=](QSize size) {
+		const auto topNotchSkip = _delegate->storiesTopNotchSkip();
+
 		size = QSize(
 			std::max(size.width(), st::mediaviewMinWidth),
 			std::max(size.height(), st::mediaviewMinHeight));
@@ -387,7 +397,8 @@ void Controller::initLayout() {
 			? HeaderLayout::Outside
 			: HeaderLayout::Normal;
 
-		const auto topSkip = st::storiesFieldMargin.bottom()
+		const auto topSkip = topNotchSkip
+			+ st::storiesFieldMargin.bottom()
 			+ (layout.headerLayout == HeaderLayout::Outside
 				? outsideHeaderHeight
 				: 0);
@@ -571,24 +582,29 @@ TextWithEntities Controller::captionText() const {
 	return _captionText;
 }
 
-void Controller::setCaptionExpanded(bool expanded) {
-	if (_captionExpanded == expanded) {
-		return;
-	}
-	_captionExpanded = expanded;
-	updateContentFaded();
+bool Controller::skipCaption() const {
+	return _captionFullView != nullptr;
 }
 
 void Controller::showFullCaption() {
 	if (_captionText.empty()) {
 		return;
 	}
-	_captionFullView = std::make_unique<CaptionFullView>(
-		wrap(),
-		&_delegate->storiesShow()->session(),
-		_captionText,
-		[=] { _captionFullView = nullptr; updateContentFaded(); });
+	_captionFullView = std::make_unique<CaptionFullView>(this);
 	updateContentFaded();
+}
+
+void Controller::captionClosing() {
+	updateContentFaded();
+}
+
+void Controller::captionClosed() {
+	if (!_captionFullView) {
+		return;
+	} else if (_captionFullView->focused()) {
+		_wrap->setFocus();
+	}
+	_captionFullView = nullptr;
 }
 
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
@@ -807,9 +823,8 @@ void Controller::show(
 		_slider->raise();
 	}
 
+	captionClosed();
 	_captionText = story->caption();
-	_captionFullView = nullptr;
-	_captionExpanded = false;
 	_contentFaded = false;
 	_contentFadeAnimation.stop();
 	const auto document = story->document();
@@ -823,6 +838,7 @@ void Controller::show(
 		.video = (document != nullptr),
 		.silent = (document && document->isSilentVideo()),
 	});
+	uiShow()->hideLayer(anim::type::instant);
 	if (!changeShown(story)) {
 		return;
 	}
@@ -856,9 +872,10 @@ bool Controller::changeShown(Data::Story *story) {
 	if (_shown == id && !sessionChanged) {
 		return false;
 	}
-	if (const auto now = this->story()) {
-		now->owner().stories().unregisterPolling(
-			now,
+	if (_shown) {
+		Assert(_session != nullptr);
+		_session->data().stories().unregisterPolling(
+			_shown,
 			Data::Stories::Polling::Viewer);
 	}
 	if (sessionChanged) {
@@ -958,16 +975,13 @@ void Controller::updatePlayingAllowed() {
 		&& _windowActive
 		&& !_paused
 		&& !_replyActive
-		&& !_captionFullView
-		&& !_captionExpanded
+		&& (!_captionFullView || _captionFullView->closing())
 		&& !_layerShown
-		&& !_menuShown);
+		&& !_menuShown
+		&& !_tooltipShown);
 }
 
 void Controller::setPlayingAllowed(bool allowed) {
-	if (allowed) {
-		_captionFullView = nullptr;
-	}
 	if (_photoPlayback) {
 		_photoPlayback->togglePaused(!allowed);
 	} else {
@@ -1177,6 +1191,9 @@ void Controller::togglePaused(bool paused) {
 
 void Controller::contentPressed(bool pressed) {
 	togglePaused(pressed);
+	if (_captionFullView) {
+		_captionFullView->close();
+	}
 	if (pressed) {
 		_reactions->collapse();
 	}

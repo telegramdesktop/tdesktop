@@ -32,6 +32,7 @@ constexpr auto kSiblingFade = 0.5;
 constexpr auto kSiblingFadeOver = 0.4;
 constexpr auto kSiblingNameOpacity = 0.8;
 constexpr auto kSiblingNameOpacityOver = 1.;
+constexpr auto kSiblingScaleOver = 0.05;
 
 [[nodiscard]] StoryId LookupShownId(
 		const Data::StoriesSource &source,
@@ -325,6 +326,7 @@ SiblingView Sibling::view(const SiblingLayout &layout, float64 over) {
 		.namePosition = namePosition(layout, name),
 		.nameOpacity = (kSiblingNameOpacity * (1 - over)
 			+ kSiblingNameOpacityOver * over),
+		.scale = 1. + (over * kSiblingScaleOver),
 	};
 }
 

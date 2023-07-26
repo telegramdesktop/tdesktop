@@ -204,6 +204,7 @@ ComposeControls {
 	record: RecordBar;
 	files: ComposeFiles;
 	premium: PremiumLimits;
+	boxField: InputField;
 }
 
 ReportBox {
@@ -1148,6 +1149,7 @@ defaultComposeControls: ComposeControls {
 	record: defaultRecordBar;
 	files: defaultComposeFiles;
 	premium: defaultPremiumLimits;
+	boxField: defaultInputField;
 }
 
 moreChatsBarHeight: 48px;

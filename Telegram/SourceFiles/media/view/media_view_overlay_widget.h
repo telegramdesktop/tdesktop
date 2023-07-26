@@ -180,6 +180,7 @@ private:
 
 		// Stories.
 		qreal fade = 0.;
+		qreal scale = 1.;
 		int bottomShadowSkip = 0;
 		int roundRadius = 0;
 		bool topShadowShown = false;
@@ -243,6 +244,7 @@ private:
 	void playbackResumeOnCall();
 	void playbackPauseMusic();
 	void switchToPip();
+	[[nodiscard]] int topNotchSkip() const;
 
 	not_null<Ui::RpWidget*> storiesWrap() override;
 	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
@@ -264,6 +266,7 @@ private:
 	void storiesVolumeToggle() override;
 	void storiesVolumeChanged(float64 volume) override;
 	void storiesVolumeChangeFinished() override;
+	int storiesTopNotchSkip() override;
 
 	void hideControls(bool force = false);
 	void subscribeToScreenGeometry();
@@ -419,7 +422,8 @@ private:
 	[[nodiscard]] QRect finalContentRect() const;
 	[[nodiscard]] ContentGeometry contentGeometry() const;
 	[[nodiscard]] ContentGeometry storiesContentGeometry(
-		const Stories::ContentLayout &layout) const;
+		const Stories::ContentLayout &layout,
+		float64 scale = 1.) const;
 	void updateContentRect();
 	void contentSizeChanged();
 
@@ -585,14 +589,16 @@ private:
 	Ui::Text::String _caption;
 	QRect _captionRect;
 	ClickHandlerPtr _captionExpandLink;
-	bool _captionShownFull = false;
-	bool _captionFitsIfExpanded = false;
-	bool _captionExpanded = false;
+	int _captionShowMoreWidth = 0;
+	int _captionSkipBlockWidth = 0;
 
+	int _topNotchSize = 0;
 	int _width = 0;
 	int _height = 0;
 	int _skipTop = 0;
 	int _availableHeight = 0;
+	int _minUsedTop = 0; // Geometry without top notch on macOS.
+	int _maxUsedHeight = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
 	int _xStart = 0, _yStart = 0;
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in

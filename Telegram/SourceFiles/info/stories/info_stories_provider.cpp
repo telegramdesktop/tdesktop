@@ -283,9 +283,10 @@ BaseLayout *Provider::getLayout(
 		if (auto layout = createLayout(id, delegate)) {
 			layout->initDimensions();
 			it = _layouts.emplace(id, std::move(layout)).first;
-			_peer->owner().stories().registerPolling(
+			const auto ok = _peer->owner().stories().registerPolling(
 				{ _peer->id, id },
 				Data::Stories::Polling::Chat);
+			Assert(ok);
 		} else {
 			return nullptr;
 		}

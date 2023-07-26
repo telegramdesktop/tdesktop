@@ -25,6 +25,7 @@ class Controller;
 struct ContentLayout {
 	QRect geometry;
 	float64 fade = 0.;
+	float64 scale = 1.;
 	int radius = 0;
 	bool headerOutside = false;
 };
@@ -39,6 +40,7 @@ struct SiblingView {
 	QImage name;
 	QPoint namePosition;
 	float64 nameOpacity = 0.;
+	float64 scale = 1.;
 
 	[[nodiscard]] bool valid() const {
 		return !image.isNull();
@@ -47,6 +49,9 @@ struct SiblingView {
 		return valid();
 	}
 };
+
+inline constexpr auto kCollapsedCaptionLines = 2;
+inline constexpr auto kMaxShownCaptionLines = 4;
 
 class View final {
 public:
@@ -64,7 +69,7 @@ public:
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
-	void setCaptionExpanded(bool expanded);
+	[[nodiscard]] bool skipCaption() const;
 	void showFullCaption();
 
 	void updatePlayback(const Player::TrackState &state);

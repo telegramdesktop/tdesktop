@@ -445,7 +445,8 @@ storiesSideSkip: 145px;
 storiesCaptionFull: FlatLabel(defaultFlatLabel) {
 	style: mediaviewCaptionStyle;
 	textFg: mediaviewCaptionFg;
-	minWidth: 360px;
+	palette: mediaviewTextPalette;
+	minWidth: 36px;
 }
 storiesComposeBg: groupCallMembersBg;
 storiesComposeBgOver: groupCallMembersBgOver;
@@ -752,6 +753,20 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 		statusFg: storiesComposeGrayText;
 	}
 	premium: storiesComposePremium;
+	boxField: InputField(defaultInputField) {
+		textBg: transparent;
+		textFg: groupCallMembersFg;
+
+		placeholderFg: groupCallMemberNotJoinedStatus;
+		placeholderFgActive: groupCallMemberNotJoinedStatus;
+		placeholderFgError: groupCallMemberNotJoinedStatus;
+
+		borderFg: inputBorderFg;
+		borderFgActive: groupCallMemberInactiveStatus;
+		borderFgError: activeLineFgError;
+
+		menu: storiesPopupMenu;
+	}
 }
 storiesViewsMenu: PopupMenu(storiesPopupMenuWithIcons) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
@@ -891,3 +906,9 @@ storiesVolumeSlider: MediaSlider {
 	seekSize: size(12px, 12px);
 	duration: mediaviewOverDuration;
 }
+storiesInfoTooltipLabel: defaultImportantTooltipLabel;
+storiesInfoTooltip: defaultImportantTooltip;
+storiesInfoTooltipMaxWidth: 360px;
+storiesCaptionPullThreshold: 50px;
+storiesShowMorePadding: margins(6px, 4px, 6px, 4px);
+storiesShowMoreFont: semiboldFont;

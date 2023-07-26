@@ -217,7 +217,7 @@ public:
 	void registerPolling(not_null<Story*> story, Polling polling);
 	void unregisterPolling(not_null<Story*> story, Polling polling);
 
-	bool registerPolling(FullStoryId id, Polling polling);
+	[[nodiscard]] bool registerPolling(FullStoryId id, Polling polling);
 	void unregisterPolling(FullStoryId id, Polling polling);
 	void requestUserStories(
 		not_null<UserData*> user,

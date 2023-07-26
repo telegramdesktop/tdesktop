@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "media/streaming/media_streaming_reader.h"
 #include "storage/download_manager_mtproto.h"
+#include "storage/file_download.h" // kMaxFileInMemory
 #include "ui/text/text_utilities.h"
 
 namespace Data {
@@ -574,6 +575,7 @@ void StoryPreload::load() {
 	}
 	_task = std::make_unique<LoadTask>(id(), video, [=](QByteArray data) {
 		if (!data.isEmpty()) {
+			Assert(data.size() < Storage::kMaxFileInMemory);
 			_story->owner().cacheBigFile().putIfEmpty(
 				key,
 				Storage::Cache::Database::TaggedValue(std::move(data), 0));
