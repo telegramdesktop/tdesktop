@@ -1,3 +1,7 @@
+4.8.9 (26.07.23)
+
+- Bug fixes and other minor improvements.
+
 4.8.8 (25.07.23)
 
 - Several crash fixes and story viewer improvements.
