@@ -73,7 +73,10 @@ public:
 		QPoint positionSmall,
 		style::align alignSmall,
 		QRect geometryFull = QRect());
-	void setShowTooltip(rpl::producer<bool> shown, Fn<void()> hide);
+	void setShowTooltip(
+		not_null<QWidget*> tooltipParent,
+		rpl::producer<bool> shown,
+		Fn<void()> hide);
 	struct CollapsedGeometry {
 		QRect geometry;
 		float64 expanded = 0.;
