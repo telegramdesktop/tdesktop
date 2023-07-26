@@ -105,7 +105,6 @@ EmojiPan {
 	trendingHeaderFg: color;
 	trendingSubheaderFg: color;
 	trendingUnreadFg: color;
-	trendingInstalled: icon;
 	overBg: color;
 	pathBg: color;
 	pathFg: color;
@@ -330,7 +329,6 @@ stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {{ "chat/input_save", lightButtonFg }};
 
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);
@@ -597,7 +595,6 @@ defaultEmojiPan: EmojiPan {
 	trendingHeaderFg: stickersTrendingHeaderFg;
 	trendingSubheaderFg: stickersTrendingSubheaderFg;
 	trendingUnreadFg: stickersFeaturedUnreadBg;
-	trendingInstalled: stickersFeaturedInstalled;
 	overBg: emojiPanHover;
 	pathBg: windowBgRipple;
 	pathFg: windowBgOver;

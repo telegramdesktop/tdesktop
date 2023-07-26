@@ -571,7 +571,6 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	trendingHeaderFg: storiesComposeWhiteText;
 	trendingSubheaderFg: storiesComposeGrayText;
 	trendingUnreadFg: storiesComposeBlue;
-	trendingInstalled: icon {{ "chat/input_save", storiesComposeBlue }};
 	overBg: storiesComposeBgOver;
 	pathBg: storiesComposeBgRipple;
 	pathFg: storiesComposeBgOver;
