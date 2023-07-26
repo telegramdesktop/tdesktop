@@ -20,6 +20,7 @@ namespace Statistic {
 class RpMouseWidget;
 class PointDetailsWidget;
 class ChartLinesFilterWidget;
+class LinearChartPainter;
 
 class ChartWidget : public Ui::RpWidget {
 public:
@@ -132,6 +133,10 @@ private:
 	Data::StatisticalChart _chartData;
 
 	ChartLineViewContext _animatedChartLines;
+	struct {
+		std::unique_ptr<LinearChartPainter> main;
+		std::unique_ptr<LinearChartPainter> footer;
+	} _linearChartPainter;
 
 	struct {
 		base::unique_qptr<PointDetailsWidget> widget;
