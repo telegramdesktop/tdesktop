@@ -17,7 +17,6 @@ namespace Statistic {
 
 struct Limits;
 struct DetailsPaintContext;
-struct ChartLineViewContext;
 
 class LinearChartView {
 public:
@@ -30,8 +29,14 @@ public:
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		ChartLineViewContext &lineViewContext,
 		DetailsPaintContext &detailsPaintContext);
+
+	void setEnabled(int id, bool enabled, crl::time now);
+	[[nodiscard]] bool isEnabled(int id) const;
+	[[nodiscard]] bool isFinished() const;
+	[[nodiscard]] float64 alpha(int id) const;
+
+	void tick(crl::time now);
 
 private:
 	struct CacheToken final {
@@ -74,6 +79,15 @@ private:
 	};
 
 	base::flat_map<int, Cache> _caches;
+
+	struct Entry final {
+		bool enabled = false;
+		crl::time startedAt = 0;
+		float64 alpha = 1.;
+	};
+
+	base::flat_map<int, Entry> _entries;
+	bool _isFinished = true;
 
 };
 

@@ -479,11 +479,11 @@ ChartWidget::ChartAnimationController::ChartAnimationController(
 void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		Data::StatisticalChart &chartData,
 		Limits xPercentageLimits,
-		const ChartLineViewContext &chartLinesViewContext,
+		const std::unique_ptr<LinearChartView> &linearChartView,
 		crl::time now) {
 	if ((_animationValueXMin.to() == xPercentageLimits.min)
 		&& (_animationValueXMax.to() == xPercentageLimits.max)
-		&& chartLinesViewContext.isFinished()) {
+		&& linearChartView->isFinished()) {
 		return;
 	}
 	start();
@@ -505,7 +505,7 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		auto minValueFull = std::numeric_limits<int>::max();
 		auto maxValueFull = 0;
 		for (auto &l : chartData.lines) {
-			if (!chartLinesViewContext.isEnabled(l.id)) {
+			if (!linearChartView->isEnabled(l.id)) {
 				continue;
 			}
 			const auto lineMax = l.segmentTree.rMaxQ(startXIndex, endXIndex);
@@ -521,7 +521,7 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		if (!_previousFullHeightLimits.max) {
 			_previousFullHeightLimits = _finalHeightLimits;
 		}
-		if (!chartLinesViewContext.isFinished()) {
+		if (!linearChartView->isFinished()) {
 			_animationValueFooterHeightMin = anim::value(
 				_animationValueFooterHeightMin.current(),
 				minValueFull);
@@ -565,7 +565,7 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 			_dtHeight.currentAlpha = 0.;
 			_addHorizontalLineRequests.fire({});
 		}
-		_dtHeight.speed = (!chartLinesViewContext.isFinished())
+		_dtHeight.speed = (!linearChartView->isFinished())
 			? kDtHeightSpeedFilter
 			: (k > kDtHeightSpeedThreshold1)
 			? kDtHeightSpeed1
@@ -611,7 +611,7 @@ void ChartWidget::ChartAnimationController::tick(
 		crl::time now,
 		std::vector<ChartHorizontalLinesData> &horizontalLines,
 		std::vector<BottomCaptionLineData> &dateLines,
-		ChartLineViewContext &chartLinesViewContext) {
+		const std::unique_ptr<LinearChartView> &linearChartView) {
 	if (!_animation.animating()) {
 		return;
 	}
@@ -662,7 +662,7 @@ void ChartWidget::ChartAnimationController::tick(
 	const auto footerMinFinished = isFinished(_animationValueFooterHeightMin);
 	const auto footerMaxFinished = isFinished(_animationValueFooterHeightMax);
 
-	chartLinesViewContext.tick(now);
+	linearChartView->tick(now);
 
 	if (xFinished
 			&& yFinished
@@ -670,7 +670,7 @@ void ChartWidget::ChartAnimationController::tick(
 			&& bottomLineAlphaFinished
 			&& footerMinFinished
 			&& footerMaxFinished
-			&& chartLinesViewContext.isFinished()) {
+			&& linearChartView->isFinished()) {
 		const auto &lines = horizontalLines.back().lines;
 		if ((_finalHeightLimits.min == _animationValueHeightMin.to())
 			&& _finalHeightLimits.max == _animationValueHeightMax.to()) {
@@ -822,7 +822,7 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 , _animationController([=] {
 	_chartArea->update();
 	if (_animationController.footerAnimating()
-		|| !_animatedChartLines.isFinished()) {
+		|| !_linearChartView.main->isFinished()) {
 		_footer->update();
 	}
 }) {
@@ -900,7 +900,7 @@ void ChartWidget::setupChartArea() {
 			now,
 			_horizontalLines,
 			_bottomLine.dates,
-			_animatedChartLines);
+			_linearChartView.main);
 
 		const auto chartRect = chartAreaRect();
 
@@ -934,7 +934,7 @@ void ChartWidget::setupChartArea() {
 				for (const auto &line : _chartData.lines) {
 					_details.widget->setLineAlpha(
 						line.id,
-						_animatedChartLines.alpha(line.id));
+						_linearChartView.main->alpha(line.id));
 				}
 			}
 		}
@@ -957,7 +957,6 @@ void ChartWidget::setupChartArea() {
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
 				chartRect,
-				_animatedChartLines,
 				detailsPaintContext);
 		}
 
@@ -1082,7 +1081,6 @@ void ChartWidget::setupFooter() {
 				fullXLimits,
 				_animationController.currentFooterHeightLimits(),
 				r,
-				_animatedChartLines,
 				detailsPaintContext);
 		}
 	});
@@ -1099,7 +1097,7 @@ void ChartWidget::setupFooter() {
 		_animationController.setXPercentageLimits(
 			_chartData,
 			xPercentageLimits,
-			_animatedChartLines,
+			_linearChartView.main,
 			now);
 		updateChartFullWidth(_chartArea->width());
 		updateBottomDates();
@@ -1194,26 +1192,6 @@ void ChartWidget::setupFilterButtons() {
 	}
 	_filterButtons = base::make_unique_q<ChartLinesFilterWidget>(this);
 
-	const auto asd = Ui::CreateChild<Ui::AbstractButton>(_filterButtons.get());
-	asd->paintRequest(
-	) | rpl::start_with_next([=](QRect r) {
-		auto p = QPainter(asd);
-		p.setOpacity(0.3);
-		p.fillRect(r, Qt::darkRed);
-		p.setOpacity(1.0);
-		p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
-		p.setPen(st::boxTextFg);
-		p.drawText(asd->rect(), QString::number(_animatedChartLines.factor * 100) + "%", style::al_center);
-	}, asd->lifetime());
-	asd->setClickedCallback([=] {
-		_animatedChartLines.factor -= 0.1;
-		if (_animatedChartLines.factor <= 0) {
-			_animatedChartLines.factor = 1.0;
-		}
-		asd->update();
-	});
-	asd->resize(50, 50);
-
 	sizeValue(
 	) | rpl::filter([](const QSize &s) {
 		return s.width() > 0;
@@ -1232,19 +1210,17 @@ void ChartWidget::setupFilterButtons() {
 
 		_filterButtons->fillButtons(texts, colors, ids, s.width());
 		resizeHeight();
-		asd->raise();
-		asd->moveToRight(0, 0);
 	}, _filterButtons->lifetime());
 
 	_filterButtons->buttonEnabledChanges(
 	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
 		const auto now = crl::now();
-		_animatedChartLines.setEnabled(e.id, e.enabled, now);
+		_linearChartView.main->setEnabled(e.id, e.enabled, now);
 
 		_animationController.setXPercentageLimits(
 			_chartData,
 			_animationController.currentXLimits(),
-			_animatedChartLines,
+			_linearChartView.main,
 			now);
 	}, _filterButtons->lifetime());
 }
@@ -1261,7 +1237,7 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_animationController.setXPercentageLimits(
 		_chartData,
 		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() },
-		_animatedChartLines,
+		_linearChartView.main,
 		0);
 	updateChartFullWidth(_chartArea->width());
 	updateBottomDates();

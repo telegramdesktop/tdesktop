@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/linear_chart_view.h"
 
 #include "data/data_statistics.h"
-#include "statistics/chart_line_view_context.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
@@ -17,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 namespace {
+
+constexpr auto kAlphaDuration = float64(350);
 
 void PaintChartLine(
 		QPainter &p,
@@ -63,7 +64,6 @@ void LinearChartView::paint(
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		ChartLineViewContext &lineViewContext,
 		DetailsPaintContext &detailsPaintContext) {
 
 	const auto cacheToken = LinearChartView::CacheToken(
@@ -74,7 +74,7 @@ void LinearChartView::paint(
 
 	for (auto i = 0; i < chartData.lines.size(); i++) {
 		const auto &line = chartData.lines[i];
-		p.setOpacity(lineViewContext.alpha(line.id));
+		p.setOpacity(alpha(line.id));
 		if (!p.opacity()) {
 			continue;
 		}
@@ -125,6 +125,58 @@ void LinearChartView::paint(
 		p.drawImage(rect.topLeft(), image);
 		cache.lastToken = cacheToken;
 		cache.image = std::move(image);
+	}
+}
+
+void LinearChartView::setEnabled(int id, bool enabled, crl::time now) {
+	const auto it = _entries.find(id);
+	if (it == end(_entries)) {
+		_entries[id] = Entry{ .enabled = enabled, .startedAt = now };
+	} else if (it->second.enabled != enabled) {
+		auto &entry = it->second;
+		entry.enabled = enabled;
+		entry.startedAt = now
+			- kAlphaDuration * (enabled ? entry.alpha : (1. - entry.alpha));
+	}
+	_isFinished = false;
+}
+
+bool LinearChartView::isFinished() const {
+	return _isFinished;
+}
+
+bool LinearChartView::isEnabled(int id) const {
+	const auto it = _entries.find(id);
+	return (it == end(_entries)) ? true : it->second.enabled;
+}
+
+float64 LinearChartView::alpha(int id) const {
+	const auto it = _entries.find(id);
+	return (it == end(_entries)) ? 1. : it->second.alpha;
+}
+
+void LinearChartView::tick(crl::time now) {
+	auto finishedCount = 0;
+	auto idsToRemove = std::vector<int>();
+	for (auto &[id, entry] : _entries) {
+		if (!entry.startedAt) {
+			continue;
+		}
+		const auto progress = (now - entry.startedAt) / kAlphaDuration;
+		entry.alpha = std::clamp(
+			entry.enabled ? progress : (1. - progress),
+			0.,
+			1.);
+		if (entry.alpha == 1.) {
+			idsToRemove.push_back(id);
+		}
+		if (progress >= 1.) {
+			finishedCount++;
+		}
+	}
+	_isFinished = (finishedCount == _entries.size());
+	for (const auto &id : idsToRemove) {
+		_entries.remove(id);
 	}
 }
 

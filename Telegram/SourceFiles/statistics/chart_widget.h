@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_statistics.h"
 #include "statistics/chart_horizontal_lines_data.h"
-#include "statistics/chart_line_view_context.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animations.h"
@@ -50,7 +49,7 @@ private:
 		void setXPercentageLimits(
 			Data::StatisticalChart &chartData,
 			Limits xPercentageLimits,
-			const ChartLineViewContext &chartLinesViewContext,
+			const std::unique_ptr<LinearChartView> &linearChartView,
 			crl::time now);
 		void start();
 		void finish();
@@ -60,7 +59,7 @@ private:
 			crl::time now,
 			std::vector<ChartHorizontalLinesData> &horizontalLines,
 			std::vector<BottomCaptionLineData> &dateLines,
-			ChartLineViewContext &chartLinesViewContext);
+			const std::unique_ptr<LinearChartView> &linearChartView);
 
 		[[nodiscard]] Limits currentXLimits() const;
 		[[nodiscard]] Limits currentXIndices() const;
@@ -132,7 +131,6 @@ private:
 	base::unique_qptr<ChartLinesFilterWidget> _filterButtons;
 	Data::StatisticalChart _chartData;
 
-	ChartLineViewContext _animatedChartLines;
 	struct {
 		std::unique_ptr<LinearChartView> main;
 		std::unique_ptr<LinearChartView> footer;
