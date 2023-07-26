@@ -64,7 +64,6 @@ constexpr auto kStoriesTooltipHideBgOpacity = 0.2;
 	const auto button = Ui::CreateChild<Ui::AbstractButton>(result.data());
 	result->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		const auto buttonh = button->height();
 		button->resize(skip * 2 + buttonw, size.height());
 		button->moveToRight(0, 0, size.width());
 	}, button->lifetime());
