@@ -1,6 +1,7 @@
 name: Linux.
 
 on:
+  workflow_dispatch:
   push:
     paths-ignore:
       - 'docs/**'
