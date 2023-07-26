@@ -562,6 +562,9 @@ dialogsStoriesListInfo: DialogsStoriesList(dialogsStoriesList) {
 dialogsStoriesListMine: DialogsStoriesList(dialogsStoriesListInfo) {
 	readOpacity: 1.;
 }
-dialogsStoriesTooltip: defaultImportantTooltip;
+dialogsStoriesTooltip: ImportantTooltip(defaultImportantTooltip) {
+	padding: margins(0px, 0px, 0px, 0px);
+}
 dialogsStoriesTooltipLabel: defaultImportantTooltipLabel;
 dialogsStoriesTooltipMaxWidth: 200px;
+dialogsStoriesTooltipHide: size(14px, 14px);

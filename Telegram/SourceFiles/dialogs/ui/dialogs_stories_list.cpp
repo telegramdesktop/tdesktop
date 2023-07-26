@@ -16,11 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/abstract_button.h"
 #include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
+#include <QtGui/QPainter>
 
 #include "base/debug_log.h"
 
@@ -34,12 +36,62 @@ constexpr auto kCollapseAfterRatio = 0.68;
 constexpr auto kFrictionRatio = 0.15;
 constexpr auto kExpandCatchUpDuration = crl::time(200);
 constexpr auto kMaxTooltipNames = 3;
+constexpr auto kStoriesTooltipHideBgOpacity = 0.2;
 
 [[nodiscard]] int AvailableNameWidth(const style::DialogsStoriesList &st) {
 	const auto &full = st.full;
 	const auto &font = full.nameStyle.font;
 	const auto skip = font->spacew;
 	return full.photoLeft * 2 + full.photo - 2 * skip;
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeTooltipContent(
+		not_null<QWidget*> parent,
+		rpl::producer<TextWithEntities> text,
+		Fn<void()> hide) {
+	const auto size = st::dialogsStoriesTooltipHide;
+	const auto buttonw = size.width();
+	const auto skip = st::defaultImportantTooltip.padding.right();
+	auto result = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+		parent,
+		Ui::MakeNiceTooltipLabel(
+			parent,
+			std::move(text),
+			st::dialogsStoriesTooltipMaxWidth,
+			st::dialogsStoriesTooltipLabel),
+		(st::defaultImportantTooltip.padding
+			+ QMargins(0, 0, skip + buttonw, 0)));
+	const auto button = Ui::CreateChild<Ui::AbstractButton>(result.data());
+	result->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		const auto buttonh = button->height();
+		button->resize(skip * 2 + buttonw, size.height());
+		button->moveToRight(0, 0, size.width());
+	}, button->lifetime());
+	button->setClickedCallback(std::move(hide));
+	button->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(button);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::importantTooltipFg);
+		p.setOpacity(kStoriesTooltipHideBgOpacity);
+		const auto rect = style::centerrect(
+			button->rect(),
+			QRect(QPoint(), size));
+		const auto center = QRectF(rect).center();
+		const auto half = QSizeF(rect.size()) / 6.;
+		const auto phalf = QPointF(half.width(), half.height());
+		const auto mhalf = QPointF(-half.width(), half.height());
+		p.drawEllipse(rect);
+		p.setOpacity(1.);
+		auto pen = st::importantTooltipFg->p;
+		pen.setWidthF(style::ConvertScaleExact(sqrtf(2.)));
+		p.setPen(pen);
+		p.drawLine(center - phalf, center + phalf);
+		p.drawLine(center - mhalf, center + mhalf);
+	}, button->lifetime());
+	return result;
 }
 
 } // namespace
@@ -876,15 +928,13 @@ void List::setShowTooltip(rpl::producer<bool> shown, Fn<void()> hide) {
 	};
 	_tooltip = std::make_unique<Ui::ImportantTooltip>(
 		window,
-		Ui::MakeNiceTooltipLabel(
+		MakeTooltipContent(
 			window,
 			_tooltipText.value() | rpl::filter(notEmpty),
-			st::dialogsStoriesTooltipMaxWidth,
-			st::dialogsStoriesTooltipLabel),
+			_tooltipHide),
 		st::dialogsStoriesTooltip);
 	const auto tooltip = _tooltip.get();
 	const auto weak = QPointer<QWidget>(tooltip);
-	tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
 	tooltip->toggleFast(false);
 	updateTooltipGeometry();
 
