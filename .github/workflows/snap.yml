@@ -1,6 +1,7 @@
 name: Snap.
 
 on:
+  workflow_dispatch:
   push:
     paths-ignore:
       - 'docs/**'
