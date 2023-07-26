@@ -1,5 +1,4 @@
 name: Windows.
-uses: easimon/maximize-build-space@v7
 
 on:
   workflow_dispatch:
@@ -60,8 +59,35 @@ jobs:
         shell: cmd
 
     steps:
+      - name: Maximize build disk space
+        uses: easimon/maximize-build-space@v7
+        with:
+          # Space to be left free on the root filesystem, in Megabytes.
+          root-reserve-mb: 1024 # optional, default is 1024
+          # Space to be left free on the temp filesystem (/mnt), in Megabytes.
+          temp-reserve-mb: 100 # optional, default is 100
+          # Swap space to create, in Megabytes.
+          swap-size-mb: 4096 # optional, default is 4096
+          # LVM cleaner
+          overprovision-lvm: false # optional, default is false
+          # Absolute path to the mount point where the build space will be available, defaults to $GITHUB_WORKSPACE if unset.
+          build-mount-path: $GITHUB_WORKSPACE # optional
+          # Absolute file path for the LVM image created on the root filesystem, the default is usually fine.
+          pv-loop-path: /pv.img # optional, default is /pv.img
+          # Absolute file path for the LVM image created on the temp filesystem, the default is usually fine. Must reside on /mnt
+          tmp-pv-loop-path: /mnt/tmp-pv.img # optional, default is /mnt/tmp-pv.img
+          # Removes .NET runtime and libraries. (frees ~17 GB)
+          remove-dotnet: false # optional, default is false
+          # Removes Android SDKs and Tools. (frees ~11 GB)
+          remove-android: true # optional, default is false
+          # Removes GHC (Haskell) artifacts. (frees ~2.7 GB)
+          remove-haskell: false# optional, default is false
+          # Removes CodeQL Action Bundles. (frees ~5.4 GB)
+          remove-codeql: false # optional, default is false
+          # Removes cached Docker images. (frees ~3 GB)
+          remove-docker-images: false # optional, default is false
       - name: Prepare directories.
-        run: |
+        run:
           mkdir %userprofile%\TBuild
           mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
