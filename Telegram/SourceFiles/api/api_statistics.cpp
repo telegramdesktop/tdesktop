@@ -20,11 +20,17 @@ namespace {
 		const MTPStatsGraph &tl) {
 	return tl.match([&](const MTPDstatsGraph &d) {
 		using namespace Statistic;
+		const auto zoomToken = d.vzoom_token().has_value()
+			? qs(*d.vzoom_token()).toUtf8()
+			: QByteArray();
 		return Data::StatisticalGraph{
 			StatisticalChartFromJSON(qs(d.vjson().data().vdata()).toUtf8()),
+			zoomToken,
 		};
 	}, [&](const MTPDstatsGraphAsync &data) {
-		return Data::StatisticalGraph{ Data::StatisticalChart() };
+		return Data::StatisticalGraph{
+			.zoomToken = qs(data.vtoken()).toUtf8(),
+		};
 	}, [&](const MTPDstatsGraphError &data) {
 		return Data::StatisticalGraph{ Data::StatisticalChart() };
 	});
@@ -130,6 +136,34 @@ rpl::producer<rpl::no_value, QString> Statistics::request(
 				consumer.put_error_copy(error.type());
 			}).send();
 		}
+
+		return lifetime;
+	};
+}
+
+rpl::producer<Data::StatisticalGraph, QString> Statistics::requestZoom(
+		not_null<PeerData*> peer,
+		const QString &token,
+		float64 x) {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto channel = peer->asChannel();
+		if (!channel) {
+			return lifetime;
+		}
+
+		_api.request(MTPstats_LoadAsyncGraph(
+			MTP_flags(x
+				? MTPstats_LoadAsyncGraph::Flag::f_x
+				: MTPstats_LoadAsyncGraph::Flag(0)),
+			MTP_string(token),
+			MTP_long(x)
+		)).done([=](const MTPStatsGraph &result) {
+			consumer.put_next(StatisticalGraphFromTL(result));
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
 
 		return lifetime;
 	};
