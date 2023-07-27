@@ -8,16 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_statistics.h"
-#include "ui/rp_widget.h"
+#include "ui/abstract_button.h"
 
 namespace Statistic {
 
-class PointDetailsWidget : public Ui::RpWidget {
+class PointDetailsWidget : public Ui::AbstractButton {
 public:
 	PointDetailsWidget(
 		not_null<Ui::RpWidget*> parent,
 		const Data::StatisticalChart &chartData,
-		float64 maxAbsoluteValue);
+		float64 maxAbsoluteValue,
+		bool zoomEnabled);
 
 	[[nodiscard]] int xIndex() const;
 	void setXIndex(int xIndex);
@@ -28,6 +29,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	const bool _zoomEnabled;
 	const Data::StatisticalChart &_chartData;
 	const style::TextStyle &_textStyle;
 	const style::TextStyle &_headerStyle;

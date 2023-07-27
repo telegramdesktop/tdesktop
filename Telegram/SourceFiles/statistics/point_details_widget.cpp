@@ -33,8 +33,10 @@ namespace {
 PointDetailsWidget::PointDetailsWidget(
 	not_null<Ui::RpWidget*> parent,
 	const Data::StatisticalChart &chartData,
-	float64 maxAbsoluteValue)
-: Ui::RpWidget(parent)
+	float64 maxAbsoluteValue,
+	bool zoomEnabled)
+: Ui::AbstractButton(parent)
+, _zoomEnabled(zoomEnabled)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
 , _headerStyle(st::semiboldTextStyle)
@@ -118,6 +120,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 
 	_lines.clear();
 	_lines.reserve(_chartData.lines.size());
+	auto hasPositiveValues = false;
 	for (const auto &dataLine : _chartData.lines) {
 		auto textLine = Line();
 		textLine.id = dataLine.id;
@@ -125,9 +128,14 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		textLine.value.setText(
 			_textStyle,
 			QString("%L1").arg(dataLine.y[xIndex]));
+		hasPositiveValues |= (dataLine.y[xIndex] > 0);
 		textLine.valueColor = QColor(dataLine.color);
 		_lines.push_back(std::move(textLine));
 	}
+	const auto clickable = _zoomEnabled && hasPositiveValues;
+	setAttribute(
+		Qt::WA_TransparentForMouseEvents,
+		!clickable);
 }
 
 void PointDetailsWidget::setAlpha(float64 alpha) {

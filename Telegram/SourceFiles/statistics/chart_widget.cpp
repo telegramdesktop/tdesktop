@@ -1125,7 +1125,8 @@ void ChartWidget::setupDetails() {
 	_details.widget = base::make_unique_q<PointDetailsWidget>(
 		this,
 		_chartData,
-		maxAbsoluteValue);
+		maxAbsoluteValue,
+		false);
 
 	_details.widget->shownValue(
 	) | rpl::start_with_next([=](bool shown) {
