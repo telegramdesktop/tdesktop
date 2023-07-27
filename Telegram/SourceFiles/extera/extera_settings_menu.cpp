@@ -61,6 +61,33 @@ namespace Settings {
     void Extera::SetupChats(not_null<Ui::VerticalLayout *> container) {
         AddSubsectionTitle(container, rktr("etg_settings_chats"));
 
+    	const auto recentStickersLabel = container->add(
+			object_ptr<Ui::LabelSimple>(
+				container,
+				st::settingsAudioVolumeLabel),
+			st::settingsAudioVolumeLabelPadding);
+    	const auto recentStickersSlider = container->add(
+			object_ptr<Ui::MediaSlider>(
+				container,
+				st::settingsAudioVolumeSlider),
+			st::settingsAudioVolumeSliderPadding);
+    	const auto updateRecentStickersLabel = [=](int value) {
+    		const auto count = QString::number(value);
+    		recentStickersLabel->setText(ktr("etg_settings_recent_stickers_limit", value, { "count", count }));
+    	};
+    	const auto updateRecentStickers = [=](int value) {
+    		updateRecentStickersLabel(value);
+    		::ExteraSettings::JsonSettings::Set("recent_stickers_limit", value);
+    		::ExteraSettings::JsonSettings::Write();
+    	};
+    	recentStickersSlider->resize(st::settingsAudioVolumeSlider.seekSize);
+    	recentStickersSlider->setPseudoDiscrete(
+			101,
+			[](int val) { return val; },
+			::ExteraSettings::JsonSettings::GetInt("recent_stickers_limit"),
+			updateRecentStickers);
+    	updateRecentStickersLabel(::ExteraSettings::JsonSettings::GetInt("recent_stickers_limit"));
+    	
         const auto stickerHeightLabel = container->add(
 		    object_ptr<Ui::LabelSimple>(
 			    container,
@@ -87,8 +114,7 @@ namespace Settings {
 		    ::ExteraSettings::JsonSettings::GetInt("sticker_height"),
 		    updateStickerHeight);
 	    updateStickerHeightLabel(::ExteraSettings::JsonSettings::GetInt("sticker_height"));
-
-
+    	
         container->add(
 		object_ptr<Ui::Checkbox>(
 			container,

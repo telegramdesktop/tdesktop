@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "chat_helpers/stickers_list_widget.h"
+#include "extera/extera_settings.h"
 
 #include "core/application.h"
 #include "data/data_document.h"
@@ -268,6 +269,12 @@ StickersListWidget::StickersListWidget(
 	rpl::merge(
 		Data::AmPremiumValue(&session()) | rpl::to_empty,
 		session().api().premium().cloudSetUpdated()
+	) | rpl::start_with_next([=] {
+		refreshStickers();
+	}, lifetime());
+
+	::ExteraSettings::JsonSettings::Events(
+		"recent_stickers_limit"
 	) | rpl::start_with_next([=] {
 		refreshStickers();
 	}, lifetime());
@@ -2118,7 +2125,7 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 	_custom.reserve(cloudCount + recent.size() + customCount);
 
 	auto add = [&](not_null<DocumentData*> document, bool custom) {
-		if (result.size() >= kRecentDisplayLimit) {
+		if (result.size() >= ::ExteraSettings::JsonSettings::GetInt("recent_stickers_limit")) {
 			return;
 		}
 		const auto i = ranges::find(result, document, &Sticker::document);

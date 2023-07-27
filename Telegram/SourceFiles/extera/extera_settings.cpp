@@ -232,6 +232,10 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 		.defaultValue = false, }},
 
 	// Stored settings
+	{ "recent_stickers_limit", {
+		.type = SettingType::IntSetting,
+		.defaultValue = 20,
+		.limitHandler = IntLimit(0, 100, 20), }},
 	{ "sticker_height", {
 		.type = SettingType::IntSetting,
 		.defaultValue = 170,
