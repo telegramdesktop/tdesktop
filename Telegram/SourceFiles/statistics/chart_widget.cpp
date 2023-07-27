@@ -939,16 +939,12 @@ void ChartWidget::setupChartArea() {
 			}
 		}
 
-		auto detailsPaintContext = DetailsPaintContext{
-			.xIndex = (_details.widget && (detailsAlpha > 0.))
-				? _details.widget->xIndex()
-				: -1,
-		};
 		if (_chartData) {
 			// p.setRenderHint(
 			// 	QPainter::Antialiasing,
 			// 	!_animationController.isFPSSlow()
 			// 		|| !_animationController.animating());
+			PainterHighQualityEnabler hp(p);
 			_linearChartView->paint(
 				p,
 				_chartData,
@@ -956,7 +952,6 @@ void ChartWidget::setupChartArea() {
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
 				chartRect,
-				detailsPaintContext,
 				false);
 		}
 
@@ -971,13 +966,16 @@ void ChartWidget::setupChartArea() {
 				QRect(bottom.x(), bottom.y(), bottom.width(), st::lineWidth),
 				st::windowSubTextFg);
 		}
-		for (const auto &dot : detailsPaintContext.dots) {
-			p.setBrush(st::boxBg);
-			p.setPen(QPen(dot.color, st::statisticsChartLineWidth));
-			const auto r = st::statisticsDetailsDotRadius;
+		if (_details.widget && (detailsAlpha > 0.)) {
 			auto hq = PainterHighQualityEnabler(p);
-			auto o = ScopedPainterOpacity(p, dot.alpha * detailsAlpha);
-			p.drawEllipse(dot.point, r, r);
+			auto o = ScopedPainterOpacity(p, detailsAlpha);
+			_linearChartView->paintSelectedXIndex(
+				p,
+				_chartData,
+				_animationController.currentXLimits(),
+				_animationController.currentHeightLimits(),
+				chartRect,
+				_details.widget->xIndex());
 		}
 
 		p.setPen(st::windowSubTextFg);
@@ -1067,7 +1065,6 @@ void ChartWidget::setupFooter() {
 			QPainter &p,
 			const QRect &r) {
 		if (_chartData) {
-			auto detailsPaintContext = DetailsPaintContext{ .xIndex = -1 };
 			p.fillRect(r, st::boxBg);
 			// p.setRenderHint(
 			// 	QPainter::Antialiasing,
@@ -1081,7 +1078,6 @@ void ChartWidget::setupFooter() {
 				fullXLimits,
 				_animationController.currentFooterHeightLimits(),
 				r,
-				detailsPaintContext,
 				true);
 		}
 	});

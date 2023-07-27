@@ -16,7 +16,6 @@ struct StatisticalChart;
 namespace Statistic {
 
 struct Limits;
-struct DetailsPaintContext;
 
 class LinearChartView {
 public:
@@ -29,8 +28,15 @@ public:
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		DetailsPaintContext &detailsPaintContext,
 		bool footer);
+
+	void paintSelectedXIndex(
+		QPainter &p,
+		const Data::StatisticalChart &chartData,
+		const Limits &xPercentageLimits,
+		const Limits &heightLimits,
+		const QRect &rect,
+		int selectedXIndex);
 
 	void setEnabled(int id, bool enabled, crl::time now);
 	[[nodiscard]] bool isEnabled(int id) const;
@@ -81,6 +87,13 @@ private:
 
 	base::flat_map<int, Cache> _mainCaches;
 	base::flat_map<int, Cache> _footerCaches;
+
+	struct SelectedPoints final {
+		int lastXIndex = -1;
+		Limits lastHeightLimits;
+		base::flat_map<int, QPointF> points;
+	};
+	SelectedPoints _selectedPoints;
 
 	struct Entry final {
 		bool enabled = false;

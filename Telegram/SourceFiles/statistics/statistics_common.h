@@ -14,16 +14,4 @@ struct Limits final {
 	float64 max = 0;
 };
 
-// Dot on line charts.
-struct DetailsPaintContext final {
-	int xIndex = -1;
-
-	struct Dot {
-		QPointF point;
-		QColor color;
-		float64 alpha = 0.;
-	};
-	std::vector<Dot> dots;
-};
-
 } // namespace Statistic
