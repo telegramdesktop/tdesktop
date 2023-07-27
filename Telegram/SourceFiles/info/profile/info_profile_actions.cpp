@@ -6,6 +6,8 @@ For license and copyright information please follow this link:
 https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "info/profile/info_profile_actions.h"
+#include "extera/extera_lang.h"
+#include "extera/extera_settings.h"
 
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
@@ -250,6 +252,21 @@ private:
 
 };
 
+QString IDString(not_null<PeerData*> peer) {
+	auto resultId = QString::number(peerIsUser(peer->id)
+		? peerToUser(peer->id).bare
+		: peerIsChat(peer->id)
+		? peerToChat(peer->id).bare
+		: peerIsChannel(peer->id)
+		? peerToChannel(peer->id).bare
+		: peer->id.value);
+	return resultId;
+}
+
+rpl::producer<TextWithEntities> IDValue(not_null<PeerData*> peer) {
+	return rpl::single(IDString(peer)) | Ui::Text::ToWithEntities();
+}
+
 DetailsFiller::DetailsFiller(
 	not_null<Controller*> controller,
 	not_null<Ui::RpWidget*> parent,
@@ -402,6 +419,21 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			};
 			phoneLabel->setContextMenuHook(hook);
 		}
+
+		if (::ExteraSettings::JsonSettings::GetBool("show_ids")) {
+			auto idDrawableText = IDValue(
+				user
+			) | rpl::map([](TextWithEntities &&text) {
+				return Ui::Text::Link(text.text);
+			});
+			auto idInfo = addInfoOneLine(
+				(user->isBot()
+					? rktr("etg_profile_bot_id")
+					: rktr("etg_profile_user_id")),
+				std::move(idDrawableText),
+				ktr("etg_profile_copy_id"));
+		}
+
 		auto label = user->isBot()
 			? tr::lng_info_about_label()
 			: tr::lng_info_bio_label();
@@ -512,6 +544,22 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			addToLink);
 		linkLine.text->overrideLinkClickHandler(linkCallback);
 		linkLine.subtext->overrideLinkClickHandler(linkCallback);
+
+		if (::ExteraSettings::JsonSettings::GetBool("show_ids")) {
+			auto idDrawableText = IDValue(
+				_peer
+			) | rpl::map([](TextWithEntities &&text) {
+				return Ui::Text::Link(text.text);
+			});
+			auto idInfo = addInfoOneLine(
+				(_peer->isChat()
+					? rktr("etg_profile_group_id")
+					: _peer->isMegagroup()
+					? rktr("etg_profile_supergroup_id")
+					: rktr("etg_profile_channel_id")),
+				std::move(idDrawableText),
+				ktr("etg_profile_copy_id"));
+		}
 
 		if (const auto channel = _topic ? nullptr : _peer->asChannel()) {
 			auto locationText = LocationValue(

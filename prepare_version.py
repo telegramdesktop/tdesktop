@@ -2,17 +2,22 @@
 
 import os, shutil
 
-make_setup = False
+make_setup = True
 make_portable = True
-version = "4.8.7-23072023"
+version = "4.8.9-27072023"
 
 def rename_file():
     print("# Renaming file...")
 
     # check if Telegram.exe exists
-    if not os.path.exists(os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "Telegram.exe")):
-        print("#  Telegram.exe does not exist, halt...")
-        exit()
+    if (not os.path.exists(os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "Telegram.exe"))):
+        print("#  Telegram.exe does not exist, check if exteraGram.exe exist...")
+        if os.path.exists(os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "exteraGram.exe")):
+            print("#  exteraGram.exe exists, but Telegram.exe not exist. Skipping rename part...")
+            return
+        else:
+            print("#  exteraGram.exe does not exist too, halt...")
+            exit()
 
     # removing old exteraGram.exe
     if os.path.exists(os.path.join("C:/users/xmdnx/source/repos/exteraGramDesktop/out/Release/", "exteraGram.exe")):

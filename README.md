@@ -10,6 +10,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 * Sticker size setting
 * Hide phone number in profile
+* Show user ID in profile
 
 ## Exclusive themes
 

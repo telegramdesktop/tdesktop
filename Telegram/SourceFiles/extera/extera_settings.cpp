@@ -242,11 +242,9 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 	{ "show_phone_in_settings", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},
-	{ "userpic_radius", {
-		.type = SettingType::IntSetting,
-		.defaultValue = 30,
-		.limitHandler = IntLimit(0, 30, 30), }},
-	}}
+	{ "show_ids", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = false, }},
 };
 
 using OldOptionKey = QString;
