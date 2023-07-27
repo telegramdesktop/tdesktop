@@ -31,6 +31,8 @@ private:
 	const Data::StatisticalChart &_chartData;
 	const style::TextStyle &_textStyle;
 	const style::TextStyle &_headerStyle;
+	const QString _longFormat;
+	const QString _shortFormat;
 	Ui::Text::String _header;
 
 	[[nodiscard]] int lineYAt(int index) const;

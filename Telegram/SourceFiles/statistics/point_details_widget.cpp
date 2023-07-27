@@ -14,6 +14,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_statistics.h"
 
 namespace Statistic {
+namespace {
+
+[[nodiscard]] QString FormatTimestamp(
+		float64 timestamp,
+		const QString &longFormat,
+		const QString &shortFormat) {
+	const auto dateTime = QDateTime::fromSecsSinceEpoch(timestamp / 1000);
+	if (dateTime.toUTC().time().hour() || dateTime.toUTC().time().minute()) {
+		return QLocale().toString(dateTime, longFormat);
+	} else {
+		return QLocale().toString(dateTime.date(), shortFormat);
+	}
+}
+
+} // namespace
 
 PointDetailsWidget::PointDetailsWidget(
 	not_null<Ui::RpWidget*> parent,
@@ -22,7 +37,9 @@ PointDetailsWidget::PointDetailsWidget(
 : Ui::RpWidget(parent)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
-, _headerStyle(st::semiboldTextStyle) {
+, _headerStyle(st::semiboldTextStyle)
+, _longFormat(u"ddd, MMM d hh:mm"_q)
+, _shortFormat(u"ddd, MMM d"_q) {
 	const auto calculatedWidth = [&]{
 		const auto maxValueText = Ui::Text::String(
 			_textStyle,
@@ -41,7 +58,10 @@ PointDetailsWidget::PointDetailsWidget(
 		{
 			const auto maxHeaderText = Ui::Text::String(
 				_headerStyle,
-				_chartData.getDayString(0));
+				FormatTimestamp(
+					_chartData.x.front(),
+					_longFormat,
+					_shortFormat));
 			maxNameTextWidth = std::max(
 				maxHeaderText.maxWidth()
 					+ st::statisticsDetailsPopupPadding.left(),
@@ -92,7 +112,9 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 	if (xIndex < 0) {
 		return;
 	}
-	_header.setText(_headerStyle, _chartData.getDayString(xIndex));
+	_header.setText(
+		_headerStyle,
+		FormatTimestamp(_chartData.x[xIndex], _longFormat, _shortFormat));
 
 	_lines.clear();
 	_lines.reserve(_chartData.lines.size());
