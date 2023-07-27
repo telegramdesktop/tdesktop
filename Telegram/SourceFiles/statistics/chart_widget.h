@@ -39,6 +39,9 @@ public:
 		float64 fixedAlpha = 0.;
 	};
 
+protected:
+	int resizeGetHeight(int newWidth) override;
+
 private:
 	class Footer;
 
@@ -123,7 +126,6 @@ private:
 
 	void updateBottomDates();
 
-	void resizeHeight();
 	void updateChartFullWidth(int w);
 
 	const base::unique_qptr<RpMouseWidget> _chartArea;

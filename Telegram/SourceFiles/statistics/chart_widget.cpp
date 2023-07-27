@@ -829,53 +829,58 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		_footer->update();
 	}
 }) {
-	sizeValue(
-	) | rpl::filter([](const QSize &s) {
-		return !s.isNull();
-	}) | rpl::start_with_next([=](const QSize &s) {
-		const auto filtersHeight = _filterButtons
-			? _filterButtons->height()
-			: 0;
+	setupChartArea();
+	setupFooter();
+}
+
+int ChartWidget::resizeGetHeight(int newWidth) {
+	if (_filterButtons) {
+		auto texts = std::vector<QString>();
+		auto colors = std::vector<QColor>();
+		auto ids = std::vector<int>();
+		texts.reserve(_chartData.lines.size());
+		colors.reserve(_chartData.lines.size());
+		ids.reserve(_chartData.lines.size());
+		for (const auto &line : _chartData.lines) {
+			texts.push_back(line.name);
+			colors.push_back(line.color);
+			ids.push_back(line.id);
+		}
+
+		_filterButtons->fillButtons(texts, colors, ids, newWidth);
+	}
+	const auto filtersHeight = _filterButtons
+		? _filterButtons->height()
+		: 0;
+	const auto resultHeight = st::statisticsChartHeight
+		+ st::statisticsChartFooterHeight
+		+ st::statisticsChartFooterSkip
+		+ filtersHeight;
+	{
 		_footer->setGeometry(
 			0,
-			s.height() - st::statisticsChartFooterHeight - filtersHeight,
-			s.width(),
+			resultHeight - st::statisticsChartFooterHeight - filtersHeight,
+			newWidth,
 			st::statisticsChartFooterHeight);
 		if (_filterButtons) {
-			_filterButtons->setGeometry(
-				0,
-				s.height() - filtersHeight,
-				s.width(),
-				filtersHeight);
+			_filterButtons->show();
+			_filterButtons->moveToLeft(0, resultHeight - filtersHeight);
 		}
 		_chartArea->setGeometry(
 			0,
 			0,
-			s.width(),
-			s.height()
+			newWidth,
+			resultHeight
 				- st::statisticsChartFooterHeight
 				- filtersHeight
 				- st::statisticsChartFooterSkip);
 
 		{
-			updateChartFullWidth(s.width());
+			updateChartFullWidth(newWidth);
 			updateBottomDates();
 		}
-	}, lifetime());
-
-	setupChartArea();
-	setupFooter();
-
-	resizeHeight();
-}
-
-void ChartWidget::resizeHeight() {
-	resize(
-		width(),
-		st::statisticsChartHeight
-			+ st::statisticsChartFooterHeight
-			+ st::statisticsChartFooterSkip
-			+ (_filterButtons ? _filterButtons->height() : 0));
+	}
+	return resultHeight;
 }
 
 void ChartWidget::updateChartFullWidth(int w) {
@@ -1192,26 +1197,7 @@ void ChartWidget::setupFilterButtons() {
 		return;
 	}
 	_filterButtons = base::make_unique_q<ChartLinesFilterWidget>(this);
-
-	sizeValue(
-	) | rpl::filter([](const QSize &s) {
-		return s.width() > 0;
-	}) | rpl::take(2) | rpl::start_with_next([=](const QSize &s) {
-		auto texts = std::vector<QString>();
-		auto colors = std::vector<QColor>();
-		auto ids = std::vector<int>();
-		texts.reserve(_chartData.lines.size());
-		colors.reserve(_chartData.lines.size());
-		ids.reserve(_chartData.lines.size());
-		for (const auto &line : _chartData.lines) {
-			texts.push_back(line.name);
-			colors.push_back(line.color);
-			ids.push_back(line.id);
-		}
-
-		_filterButtons->fillButtons(texts, colors, ids, s.width());
-		resizeHeight();
-	}, _filterButtons->lifetime());
+	_filterButtons->show();
 
 	_filterButtons->buttonEnabledChanges(
 	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
