@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/chart_widget.h"
 
+#include "ui/effects/show_animation.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "statistics/chart_lines_filter_widget.h"
 #include "statistics/linear_chart_view.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image_prepare.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_statistics.h"
@@ -1131,7 +1133,12 @@ void ChartWidget::setupDetails() {
 		this,
 		_chartData,
 		maxAbsoluteValue,
-		false);
+		_zoomEnabled);
+	_details.widget->setClickedCallback([=] {
+		if (const auto index = _details.widget->xIndex(); index >= 0) {
+			_zoomRequests.fire_copy(_chartData.x[index]);
+		}
+	});
 
 	_details.widget->shownValue(
 	) | rpl::start_with_next([=](bool shown) {
@@ -1233,6 +1240,36 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_footer->update();
 }
 
+void ChartWidget::setZoomedChartData(Data::StatisticalChart chartData) {
+	_zoomedChartWidget = base::make_unique_q<ChartWidget>(
+		dynamic_cast<Ui::RpWidget*>(parentWidget()));
+	_zoomedChartWidget->setChartData(std::move(chartData));
+	geometryValue(
+	) | rpl::start_with_next([=](const QRect &geometry) {
+		_zoomedChartWidget->moveToLeft(geometry.x(), geometry.y());
+	}, _zoomedChartWidget->lifetime());
+	_zoomedChartWidget->show();
+	_zoomedChartWidget->resizeToWidth(width());
+
+	const auto zoomOutButton = Ui::CreateChild<Ui::RoundButton>(
+		_zoomedChartWidget.get(),
+		rpl::single(QString("Zoom Out")),
+		st::defaultActiveButton);
+	Ui::Animations::ShowWidgets({ _zoomedChartWidget.get(), zoomOutButton });
+	Ui::Animations::HideWidgets({ this });
+	zoomOutButton->moveToLeft(0, 0);
+	zoomOutButton->setClickedCallback([=] {
+		shownValue(
+		) | rpl::start_with_next([=](bool shown) {
+			if (shown) {
+				_zoomedChartWidget = nullptr;
+			}
+		}, _zoomedChartWidget->lifetime());
+		Ui::Animations::ShowWidgets({ this });
+		Ui::Animations::HideWidgets({ _zoomedChartWidget.get() });
+	});
+}
+
 void ChartWidget::addHorizontalLine(Limits newHeight, bool animated) {
 	const auto newLinesData = ChartHorizontalLinesData(
 		newHeight.max,
@@ -1248,6 +1285,12 @@ void ChartWidget::addHorizontalLine(Limits newHeight, bool animated) {
 	if (!animated) {
 		_horizontalLines.back().alpha = 1.;
 	}
+}
+
+rpl::producer<float64> ChartWidget::zoomRequests() {
+	_zoomEnabled = true;
+	setupDetails();
+	return _zoomRequests.events();
 }
 
 } // namespace Statistic

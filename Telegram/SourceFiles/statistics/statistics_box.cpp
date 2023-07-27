@@ -23,6 +23,28 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	const auto api = chartWidget->lifetime().make_state<Api::Statistics>(
 		&peer->session().api());
 
+	const auto processZoom = [=](
+			not_null<Statistic::ChartWidget*> widget,
+			const QString &zoomToken) {
+		if (!zoomToken.isEmpty()) {
+			widget->zoomRequests(
+			) | rpl::start_with_next([=](float64 x) {
+				api->requestZoom(
+					peer,
+					zoomToken,
+					x
+				) | rpl::start_with_next_error_done([=](
+						const Data::StatisticalGraph &graph) {
+					if (graph.chart) {
+						widget->setZoomedChartData(graph.chart);
+					}
+				}, [=](const QString &error) {
+				}, [=] {
+				}, widget->lifetime());
+			}, widget->lifetime());
+		}
+	};
+
 	api->request(
 		peer
 	) | rpl::start_with_done([=] {

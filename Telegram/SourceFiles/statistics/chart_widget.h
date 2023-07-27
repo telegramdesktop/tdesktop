@@ -26,7 +26,10 @@ public:
 	ChartWidget(not_null<Ui::RpWidget*> parent);
 
 	void setChartData(Data::StatisticalChart chartData);
+	void setZoomedChartData(Data::StatisticalChart chartData);
 	void addHorizontalLine(Limits newHeight, bool animated);
+
+	[[nodiscard]] rpl::producer<float64> zoomRequests();
 
 	struct BottomCaptionLineData final {
 		int step = 0;
@@ -133,6 +136,8 @@ private:
 	base::unique_qptr<ChartLinesFilterWidget> _filterButtons;
 	Data::StatisticalChart _chartData;
 
+	base::unique_qptr<ChartWidget> _zoomedChartWidget;
+
 	std::unique_ptr<LinearChartView> _linearChartView;
 
 	struct {
@@ -154,6 +159,9 @@ private:
 	crl::time _lastHeightLimitsChanged = 0;
 
 	std::vector<ChartHorizontalLinesData> _horizontalLines;
+
+	bool _zoomEnabled = false;
+	rpl::event_stream<float64> _zoomRequests;
 
 };
 
