@@ -2,6 +2,7 @@
 // You can see full list of settings in the 'extera-settings-default.json' file
 
 {
+    // "recent_stickers_limit": 20,
     // "sticker_height": 170,
     // "sticker_scale_both": true,
     // "show_phone_in_settings": true,
