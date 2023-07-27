@@ -516,6 +516,9 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 			maxValueFull = std::max(l.maxValue, maxValueFull);
 			minValueFull = std::min(l.minValue, minValueFull);
 		}
+		if (maxValue == minValue) {
+			return;
+		}
 		_previousFullHeightLimits = _finalHeightLimits;
 		_finalHeightLimits = { float64(minValue), float64(maxValue) };
 		if (!_previousFullHeightLimits.max) {
