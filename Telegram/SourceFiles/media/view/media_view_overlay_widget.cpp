@@ -3698,6 +3698,7 @@ bool OverlayWidget::createStreamingObjects() {
 	_streamed->instance.setPriority(kOverlayLoaderPriority);
 	_streamed->instance.lockPlayer();
 	_streamed->withSound = _document
+		&& !_document->isSilentVideo()
 		&& (_document->isAudioFile()
 			|| _document->isVideoFile()
 			|| _document->isVoiceMessage()
@@ -4038,12 +4039,14 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	};
 	if (!_streamed->withSound) {
 		options.mode = Streaming::Mode::Video;
-		options.loop = true;
+		options.loop = !_stories;
 	} else {
 		Assert(_document != nullptr);
 		const auto messageId = _message ? _message->fullId() : FullMsgId();
 		options.audioId = AudioMsgId(_document, messageId);
-		options.speed = Core::App().settings().videoPlaybackSpeed();
+		options.speed = _stories
+			? Core::App().settings().videoPlaybackSpeed()
+			: 1.;
 		if (_pip) {
 			_pip = nullptr;
 		}
@@ -4111,7 +4114,7 @@ void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
 		Core::App().settings().setVideoPlaybackSpeed(speed);
 		Core::App().saveSettingsDelayed();
 	}
-	if (_streamed && _streamed->controls) {
+	if (_streamed && _streamed->controls && !_stories) {
 		DEBUG_LOG(("Media playback speed: %1 to _streamed.").arg(speed));
 		_streamed->instance.setSpeed(speed);
 	}

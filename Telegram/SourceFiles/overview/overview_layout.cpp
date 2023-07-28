@@ -1020,7 +1020,7 @@ Document::Document(
 , _forceFileLayout(fields.forceFileLayout)
 , _date(langDateTime(base::unixtime::parse(fields.dateOverride
 	? fields.dateOverride
-	: _data->date)))
+	: parent->date())))
 , _ext(_generic.ext)
 , _datew(st::normalFont->width(_date)) {
 	_name.setMarkedText(

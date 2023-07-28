@@ -393,8 +393,12 @@ void UsernamesBox(
 	editor->submitted(
 	) | rpl::start_with_next(finish, editor->lifetime());
 
-	box->addButton(tr::lng_settings_save(), finish);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	if (isBot) {
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	} else {
+		box->addButton(tr::lng_settings_save(), finish);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}
 }
 
 void AddUsernameCheckLabel(

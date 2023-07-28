@@ -916,19 +916,21 @@ TextWithEntities List::computeTooltipText() const {
 		Ui::Text::WithEntities);
 }
 
-void List::setShowTooltip(rpl::producer<bool> shown, Fn<void()> hide) {
+void List::setShowTooltip(
+		not_null<QWidget*> tooltipParent,
+		rpl::producer<bool> shown,
+		Fn<void()> hide) {
 	_tooltip = nullptr;
 	_tooltipHide = std::move(hide);
 	_tooltipNotHidden = std::move(shown);
 	_tooltipText = computeTooltipText();
-	const auto window = this->window();
 	const auto notEmpty = [](const TextWithEntities &text) {
 		return !text.empty();
 	};
 	_tooltip = std::make_unique<Ui::ImportantTooltip>(
-		window,
+		tooltipParent,
 		MakeTooltipContent(
-			window,
+			tooltipParent,
 			_tooltipText.value() | rpl::filter(notEmpty),
 			_tooltipHide),
 		st::dialogsStoriesTooltip);
@@ -937,7 +939,7 @@ void List::setShowTooltip(rpl::producer<bool> shown, Fn<void()> hide) {
 	tooltip->toggleFast(false);
 	updateTooltipGeometry();
 
-	const auto handle = window->windowHandle();
+	const auto handle = tooltipParent->window()->windowHandle();
 	auto windowActive = rpl::single(
 		handle->isActive()
 	) | rpl::then(base::qt_signal_producer(
@@ -947,16 +949,29 @@ void List::setShowTooltip(rpl::producer<bool> shown, Fn<void()> hide) {
 		return handle->isActive();
 	})) | rpl::distinct_until_changed();
 
-	for (auto parent = parentWidget()
-		; parent != window
-		; parent = parent->parentWidget()) {
+	{
+		const auto recompute = [=] {
+			updateTooltipGeometry();
+			tooltip->raise();
+		};
 		using namespace base;
-		install_event_filter(parent, tooltip, [=](not_null<QEvent*> e) {
-			if (e->type() == QEvent::Move) {
-				updateTooltipGeometry();
+		using Event = not_null<QEvent*>;
+		install_event_filter(tooltip, tooltipParent, [=](Event e) {
+			if ((e->type() == QEvent::Move)
+				|| (e->type() == QEvent::ChildAdded)
+				|| (e->type() == QEvent::ChildRemoved)) {
+				recompute();
 			}
 			return EventFilterResult::Continue;
 		});
+		for (const auto &child : tooltipParent->children()) {
+			install_event_filter(tooltip, child, [=](Event e) {
+				if (e->type() == QEvent::ZOrderChange) {
+					recompute();
+				}
+				return EventFilterResult::Continue;
+			});
+		}
 	}
 
 	rpl::combine(
@@ -985,13 +1000,15 @@ void List::toggleTooltip(bool fast) {
 		&& _tooltipNotHidden.current()
 		&& !_tooltipText.current().empty()
 		&& window()->windowHandle()->isActive();
+	if (_tooltip) {
+		if (fast) {
+			_tooltip->toggleFast(shown);
+		} else {
+			_tooltip->toggleAnimated(shown);
+		}
+	}
 	if (shown) {
 		updateTooltipGeometry();
-	}
-	if (fast) {
-		_tooltip->toggleFast(shown);
-	} else {
-		_tooltip->toggleAnimated(shown);
 	}
 }
 
@@ -1001,7 +1018,7 @@ void List::updateTooltipGeometry() {
 	}
 	const auto collapsed = collapsedGeometryCurrent();
 	const auto geometry = Ui::MapFrom(
-		window(),
+		_tooltip->parentWidget(),
 		parentWidget(),
 		QRect(
 			collapsed.geometry.x(),
@@ -1012,7 +1029,7 @@ void List::updateTooltipGeometry() {
 	const auto countPosition = [=](QSize size) {
 		const auto left = geometry.x()
 			+ (geometry.width() - size.width()) / 2;
-		const auto right = window()->width()
+		const auto right = _tooltip->parentWidget()->width()
 			- st::dialogsStoriesTooltip.padding.right();
 		return QPoint(
 			std::max(std::min(left, right - size.width()), 0),
