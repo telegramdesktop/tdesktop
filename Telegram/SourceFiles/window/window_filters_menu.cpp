@@ -320,17 +320,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		} else if (id >= 0) {
 			_session->setActiveChatsFilter(id);
 		} else {
-			const auto filters = &_session->session().data().chatsFilters();
-			if (filters->suggestedLoaded()) {
-				_session->showSettings(Settings::Folders::Id());
-			} else if (!_waitingSuggested) {
-				_waitingSuggested = true;
-				filters->requestSuggested();
-				filters->suggestedUpdated(
-				) | rpl::take(1) | rpl::start_with_next([=] {
-					_session->showSettings(Settings::Folders::Id());
-				}, _outer.lifetime());
-			}
+			openFiltersSettings();
 		}
 	});
 	if (id >= 0) {
@@ -366,6 +356,20 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		}, raw->lifetime());
 	}
 	return button;
+}
+
+void FiltersMenu::openFiltersSettings() {
+	const auto filters = &_session->session().data().chatsFilters();
+	if (filters->suggestedLoaded()) {
+		_session->showSettings(Settings::Folders::Id());
+	} else if (!_waitingSuggested) {
+		_waitingSuggested = true;
+		filters->requestSuggested();
+		filters->suggestedUpdated(
+		) | rpl::take(1) | rpl::start_with_next([=] {
+			_session->showSettings(Settings::Folders::Id());
+		}, _outer.lifetime());
+	}
 }
 
 void FiltersMenu::showMenu(QPoint position, FilterId id) {
@@ -418,6 +422,11 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 			[=] { return _session->session().data().chatsList(); },
 			addAction,
 			std::move(customUnreadState));
+
+		addAction(
+			tr::lng_filters_setup_menu(tr::now),
+			[=] { openFiltersSettings(); },
+			&st::menuIconEdit);
 	}
 	if (_popupMenu->empty()) {
 		_popupMenu = nullptr;

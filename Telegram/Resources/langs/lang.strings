@@ -3587,6 +3587,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_restore" = "Undo";
 "lng_filters_new" = "New Folder";
 "lng_filters_edit" = "Edit Folder";
+"lng_filters_setup_menu" = "Edit Folders";
 "lng_filters_new_name" = "Folder name";
 "lng_filters_add_chats" = "Add chats";
 "lng_filters_remove_chats" = "Remove chats";

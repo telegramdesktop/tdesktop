@@ -52,6 +52,7 @@ private:
 	void showRemoveBox(FilterId id);
 	void remove(FilterId id, std::vector<not_null<PeerData*>> leave = {});
 	void scrollToButton(not_null<Ui::RpWidget*> widget);
+	void openFiltersSettings();
 
 	const not_null<SessionController*> _session;
 	const not_null<Ui::RpWidget*> _parent;
