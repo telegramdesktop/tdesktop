@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/ui_utility.h"
