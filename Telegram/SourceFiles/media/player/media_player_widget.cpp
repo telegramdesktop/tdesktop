@@ -55,7 +55,7 @@ Widget::Widget(
 , _playPause(this, st::mediaPlayerPlayButton)
 , _volumeToggle(rightControls(), st::mediaPlayerVolumeToggle)
 , _repeatToggle(rightControls(), st::mediaPlayerRepeatButton)
-, _orderToggle(rightControls(), st::mediaPlayerRepeatButton)
+, _orderToggle(rightControls(), st::mediaPlayerOrderButton)
 , _speedToggle(rightControls(), st::mediaPlayerSpeedButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this)
