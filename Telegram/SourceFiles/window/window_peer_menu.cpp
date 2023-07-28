@@ -2299,9 +2299,12 @@ void MenuAddMarkAsReadAllChatsAction(
 void MenuAddMarkAsReadChatListAction(
 		not_null<Window::SessionController*> controller,
 		Fn<not_null<Dialogs::MainList*>()> &&list,
-		const PeerMenuCallback &addAction) {
+		const PeerMenuCallback &addAction,
+		Fn<Dialogs::UnreadState()> customUnreadState) {
 	// There is no async to make weak from controller.
-	const auto unreadState = list()->unreadState();
+	const auto unreadState = customUnreadState
+		? customUnreadState()
+		: list()->unreadState();
 	if (!unreadState.messages && !unreadState.marks && !unreadState.chats) {
 		return;
 	}

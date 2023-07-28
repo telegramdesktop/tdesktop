@@ -32,6 +32,7 @@ class Thread;
 namespace Dialogs {
 class MainList;
 struct EntryState;
+struct UnreadState;
 } // namespace Dialogs
 
 namespace ChatHelpers {
@@ -69,7 +70,8 @@ void MenuAddMarkAsReadAllChatsAction(
 void MenuAddMarkAsReadChatListAction(
 	not_null<Window::SessionController*> controller,
 	Fn<not_null<Dialogs::MainList*>()> &&list,
-	const PeerMenuCallback &addAction);
+	const PeerMenuCallback &addAction,
+	Fn<Dialogs::UnreadState()> customUnreadState = nullptr);
 
 void PeerMenuExportChat(not_null<PeerData*> peer);
 void PeerMenuDeleteContact(
