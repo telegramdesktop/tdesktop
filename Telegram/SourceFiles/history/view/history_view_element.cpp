@@ -846,12 +846,8 @@ void Element::validateText() {
 		_media = nullptr;
 		if (!storyMention) {
 			if (_text.isEmpty()) {
-				auto now = Ui::Text::Italic(
-					tr::lng_forwarded_story_expired(tr::now));
-				if (!text.empty()) {
-					now.append(u"\n\n"_q).append(text);
-				}
-				setTextWithLinks(std::move(now));
+				setTextWithLinks(Ui::Text::Italic(
+					tr::lng_forwarded_story_expired(tr::now)));
 			}
 			return;
 		}
