@@ -700,7 +700,7 @@ Voice::Voice(
 
 	updateName();
 	const auto dateText = Ui::Text::Link(
-		langDateTime(base::unixtime::parse(_data->date))); // Link 1.
+		langDateTime(base::unixtime::parse(parent->date()))); // Link 1.
 	_details.setMarkedText(
 		st::defaultTextStyle,
 		tr::lng_date_and_duration(
