@@ -1386,6 +1386,15 @@ void Widget::jumpToTop(bool belowPinned) {
 	}
 }
 
+void Widget::raiseWithTooltip() {
+	raise();
+	if (_stories) {
+		Ui::PostponeCall(this, [=] {
+			_stories->raiseTooltip();
+		});
+	}
+}
+
 void Widget::scrollToDefault(bool verytop) {
 	if (verytop) {
 		//_scroll->verticalScrollBar()->setMinimum(0);

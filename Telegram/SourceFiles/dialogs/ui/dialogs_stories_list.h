@@ -77,6 +77,8 @@ public:
 		not_null<QWidget*> tooltipParent,
 		rpl::producer<bool> shown,
 		Fn<void()> hide);
+	void raiseTooltip();
+
 	struct CollapsedGeometry {
 		QRect geometry;
 		float64 expanded = 0.;

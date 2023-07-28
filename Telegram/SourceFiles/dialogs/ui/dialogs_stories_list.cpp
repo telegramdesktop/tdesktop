@@ -957,21 +957,11 @@ void List::setShowTooltip(
 		using namespace base;
 		using Event = not_null<QEvent*>;
 		install_event_filter(tooltip, tooltipParent, [=](Event e) {
-			if ((e->type() == QEvent::Move)
-				|| (e->type() == QEvent::ChildAdded)
-				|| (e->type() == QEvent::ChildRemoved)) {
+			if (e->type() == QEvent::ChildAdded) {
 				recompute();
 			}
 			return EventFilterResult::Continue;
 		});
-		for (const auto &child : tooltipParent->children()) {
-			install_event_filter(tooltip, child, [=](Event e) {
-				if (e->type() == QEvent::ZOrderChange) {
-					recompute();
-				}
-				return EventFilterResult::Continue;
-			});
-		}
 	}
 
 	rpl::combine(
@@ -991,6 +981,12 @@ void List::setShowTooltip(
 	) | rpl::skip(1) | rpl::start_with_next([=](bool shown) {
 		toggleTooltip(true);
 	}, tooltip->lifetime());
+}
+
+void List::raiseTooltip() {
+	if (_tooltip) {
+		_tooltip->raise();
+	}
 }
 
 void List::toggleTooltip(bool fast) {
