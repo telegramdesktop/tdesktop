@@ -1,3 +1,8 @@
+4.8.10 (28.07.23)
+
+- Send story sharing comments as separate messages.
+- Fix stories explanation tooltip ordering.
+
 4.8.9 (26.07.23)
 
 - Bug fixes and other minor improvements.
