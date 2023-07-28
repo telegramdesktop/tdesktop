@@ -567,4 +567,11 @@ dialogsStoriesTooltip: ImportantTooltip(defaultImportantTooltip) {
 }
 dialogsStoriesTooltipLabel: defaultImportantTooltipLabel;
 dialogsStoriesTooltipMaxWidth: 200px;
-dialogsStoriesTooltipHide: size(14px, 14px);
+dialogsStoriesTooltipHide: IconButton(defaultIconButton) {
+	width: 34px;
+	height: 20px;
+	iconPosition: point(-1px, -1px);
+	icon: icon {{ "calls/video_tooltip", importantTooltipFg }};
+	iconOver: icon {{ "calls/video_tooltip", importantTooltipFg }};
+	ripple: emptyRippleAnimation;
+}

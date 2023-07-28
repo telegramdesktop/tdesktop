@@ -13,10 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/outline_segments.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/abstract_button.h"
 #include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
@@ -49,8 +49,7 @@ constexpr auto kStoriesTooltipHideBgOpacity = 0.2;
 		not_null<QWidget*> parent,
 		rpl::producer<TextWithEntities> text,
 		Fn<void()> hide) {
-	const auto size = st::dialogsStoriesTooltipHide;
-	const auto buttonw = size.width();
+	const auto size = st::dialogsStoriesTooltipHide.width;
 	const auto skip = st::defaultImportantTooltip.padding.right();
 	auto result = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		parent,
@@ -60,36 +59,16 @@ constexpr auto kStoriesTooltipHideBgOpacity = 0.2;
 			st::dialogsStoriesTooltipMaxWidth,
 			st::dialogsStoriesTooltipLabel),
 		(st::defaultImportantTooltip.padding
-			+ QMargins(0, 0, skip + buttonw, 0)));
-	const auto button = Ui::CreateChild<Ui::AbstractButton>(result.data());
+			+ QMargins(0, 0, skip + size, 0)));
+	const auto button = Ui::CreateChild<Ui::IconButton>(
+		result.data(),
+		st::dialogsStoriesTooltipHide);
 	result->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		button->resize(skip * 2 + buttonw, size.height());
+		button->resize(button->width(), size.height());
 		button->moveToRight(0, 0, size.width());
 	}, button->lifetime());
 	button->setClickedCallback(std::move(hide));
-	button->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(button);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::importantTooltipFg);
-		p.setOpacity(kStoriesTooltipHideBgOpacity);
-		const auto rect = style::centerrect(
-			button->rect(),
-			QRect(QPoint(), size));
-		const auto center = QRectF(rect).center();
-		const auto half = QSizeF(rect.size()) / 6.;
-		const auto phalf = QPointF(half.width(), half.height());
-		const auto mhalf = QPointF(-half.width(), half.height());
-		p.drawEllipse(rect);
-		p.setOpacity(1.);
-		auto pen = st::importantTooltipFg->p;
-		pen.setWidthF(style::ConvertScaleExact(sqrtf(2.)));
-		p.setPen(pen);
-		p.drawLine(center - phalf, center + phalf);
-		p.drawLine(center - mhalf, center + mhalf);
-	}, button->lifetime());
 	return result;
 }
 
