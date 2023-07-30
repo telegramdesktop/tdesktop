@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/filters/edit_filter_chats_list.h"
 
+#include "data/data_premium_limits.h"
 #include "history/history.h"
 #include "window/window_session_controller.h"
-#include "boxes/premium_limits_box.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
@@ -97,22 +97,6 @@ private:
 
 [[nodiscard]] uint64 TypeId(Flag flag) {
 	return PeerId(FakeChatId(static_cast<BareId>(flag))).value;
-}
-
-[[nodiscard]] int Limit(
-		not_null<Main::Session*> session,
-		const QString &key,
-		int fallback) {
-	return session->account().appConfig().get<int>(key, fallback);
-}
-
-[[nodiscard]] int Limit(not_null<Main::Session*> session) {
-	const auto premium = session->premium();
-	return Limit(session,
-		(premium
-			? "dialog_filters_chats_limit_premium"
-			: "dialog_filters_chats_limit_default"),
-		premium ? 200 : 100);
 }
 
 TypeRow::TypeRow(Flag flag) : PeerListRow(TypeId(flag)) {
@@ -338,15 +322,18 @@ EditFilterChatsListController::EditFilterChatsListController(
 	rpl::producer<QString> title,
 	Flags options,
 	Flags selected,
-	const base::flat_set<not_null<History*>> &peers)
+	const base::flat_set<not_null<History*>> &peers,
+	LimitBoxFactory limitBox)
 : ChatsListBoxController(session)
 , _session(session)
+, _limitBox(std::move(limitBox))
 , _title(std::move(title))
 , _peers(peers)
 , _options(options & ~Flag::Chatlist)
 , _selected(selected)
-, _limit(Limit(session))
+, _limit(Data::PremiumLimits(session).dialogFiltersChatsCurrent())
 , _chatlist(options & Flag::Chatlist) {
+	Expects(_limitBox != nullptr);
 }
 
 Main::Session &EditFilterChatsListController::session() const {
@@ -375,8 +362,7 @@ void EditFilterChatsListController::rowClicked(not_null<PeerListRow*> row) {
 		delegate()->peerListSetRowChecked(row, !row->checked());
 		updateTitle();
 	} else {
-		delegate()->peerListShowBox(
-			Box(FilterChatsLimitBox, _session, count));
+		delegate()->peerListShowBox(_limitBox(count));
 	}
 }
 

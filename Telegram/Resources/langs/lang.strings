@@ -189,6 +189,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filter_chats_limit_title" = "Limit Reached";
 "lng_filter_chats_limit1#one" = "Sorry, you can't add more than **{count}** chat to a folder.";
 "lng_filter_chats_limit1#other" = "Sorry, you can't add more than **{count}** chats to a folder.";
+"lng_filter_chats_exlude_limit1#one" = "Sorry, you can't exlude more than **{count}** chat from a folder.";
+"lng_filter_chats_exlude_limit1#other" = "Sorry, you can't exlude more than **{count}** chats from a folder.";
 "lng_filter_chats_limit2#one" = "You can increase this limit to **{count}** by upgrading to **Telegram Premium**.";
 "lng_filter_chats_limit2#other" = "You can increase this limit to **{count}** by upgrading to **Telegram Premium**.";
 
