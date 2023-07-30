@@ -523,7 +523,7 @@ historyFastShareSize: 31px;
 historyFastShareLeft: 13px;
 historyFastShareBottom: 5px;
 historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
-historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg }};
+historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg, point(1px, 0px) }};
 historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
 historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
 
