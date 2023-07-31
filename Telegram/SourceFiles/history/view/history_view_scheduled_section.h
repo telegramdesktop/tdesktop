@@ -197,11 +197,14 @@ private:
 		Api::SendOptions options) const;
 	void send();
 	void send(Api::SendOptions options);
-	void sendVoice(QByteArray bytes, VoiceWaveform waveform, int duration);
 	void sendVoice(
 		QByteArray bytes,
 		VoiceWaveform waveform,
-		int duration,
+		crl::time duration);
+	void sendVoice(
+		QByteArray bytes,
+		VoiceWaveform waveform,
+		crl::time duration,
 		Api::SendOptions options);
 	void edit(
 		not_null<HistoryItem*> item,

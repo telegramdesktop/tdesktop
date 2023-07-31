@@ -72,8 +72,8 @@ enum class FilterType {
 	return std::clamp(float64(low) / high, 0., 1.);
 }
 
-[[nodiscard]] auto Duration(int samples) {
-	return samples / ::Media::Player::kDefaultFrequency;
+[[nodiscard]] crl::time Duration(int samples) {
+	return samples * crl::time(1000) / ::Media::Player::kDefaultFrequency;
 }
 
 [[nodiscard]] auto FormatVoiceDuration(int samples) {
