@@ -1987,7 +1987,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updatePeerBlocked: {
 		const auto &d = update.c_updatePeerBlocked();
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer_id()))) {
-			peer->setIsBlocked(mtpIsTrue(d.vblocked()));
+			peer->setIsBlocked(d.is_blocked());
 		}
 	} break;
 
