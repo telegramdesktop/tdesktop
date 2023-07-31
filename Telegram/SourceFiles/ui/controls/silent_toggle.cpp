@@ -31,23 +31,29 @@ SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 
 	resize(_st.width, _st.height);
 
-	paintRequest(
-	) | rpl::start_with_next([=](const QRect &clip) {
-		auto p = QPainter(this);
-		paintRipple(p, _st.rippleAreaPosition, nullptr);
-
-		//const auto checked = _crossLineAnimation.value(_checked ? 1. : 0.);
-		const auto over = isOver();
-		(_checked
-			? (over
-				? st::historySilentToggleOnOver
-				: st::historySilentToggleOn)
-			: (over
-				? st::historySilentToggle.iconOver
-				: st::historySilentToggle.icon)).paintInCenter(p, rect());
-	}, lifetime());
-
 	setMouseTracking(true);
+
+	clicks(
+	) | rpl::start_with_next([=] {
+		setChecked(!_checked);
+		Ui::Tooltip::Show(0, this);
+		_channel->owner().notifySettings().update(_channel, {}, _checked);
+	}, lifetime());
+}
+
+void SilentToggle::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	paintRipple(p, _st.rippleAreaPosition, nullptr);
+
+	//const auto checked = _crossLineAnimation.value(_checked ? 1. : 0.);
+	const auto over = isOver();
+	(_checked
+		? (over
+			? st::historySilentToggleOnOver
+			: st::historySilentToggleOn)
+		: (over
+			? st::historySilentToggle.iconOver
+			: st::historySilentToggle.icon)).paintInCenter(p, rect());
 }
 
 void SilentToggle::mouseMoveEvent(QMouseEvent *e) {
@@ -62,24 +68,18 @@ void SilentToggle::mouseMoveEvent(QMouseEvent *e) {
 void SilentToggle::setChecked(bool checked) {
 	if (_checked != checked) {
 		_checked = checked;
-		_crossLineAnimation.start(
-			[=] { update(); },
-			_checked ? 0. : 1.,
-			_checked ? 1. : 0.,
-			kAnimationDuration);
+		update();
+		// _crossLineAnimation.start(
+		// 	[=] { update(); },
+		// 	_checked ? 0. : 1.,
+		// 	_checked ? 1. : 0.,
+		// 	kAnimationDuration);
 	}
 }
 
 void SilentToggle::leaveEventHook(QEvent *e) {
 	RippleButton::leaveEventHook(e);
 	Ui::Tooltip::Hide();
-}
-
-void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
-	setChecked(!_checked);
-	RippleButton::mouseReleaseEvent(e);
-	Ui::Tooltip::Show(0, this);
-	_channel->owner().notifySettings().update(_channel, {}, _checked);
 }
 
 QString SilentToggle::tooltipText() const {
