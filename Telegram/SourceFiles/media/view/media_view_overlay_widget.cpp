@@ -1631,6 +1631,15 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			}
 		}, &st::mediaMenuIconReport);
 	}();
+	if (_stories && _stories->allowStealthMode()) {
+		const auto now = base::unixtime::now();
+		const auto stealth = _session->data().stories().stealthMode();
+		addAction(tr::lng_stealth_mode_menu_item(tr::now), [=] {
+			_stories->setupStealthMode();
+		}, ((_session->premium() || (stealth.enabledTill > now))
+			? &st::mediaMenuIconStealth
+			: &st::mediaMenuIconStealthLocked));
+	}
 	if (story && story->canReport()) {
 		addAction(tr::lng_profile_report(tr::now), [=] {
 			_stories->reportRequested();
@@ -5249,6 +5258,7 @@ void OverlayWidget::setContext(
 			{ story->peer->id, story->id });
 		if (maybeStory) {
 			_stories->show(*maybeStory, story->within);
+			_dropdown->raise();
 		}
 	} else {
 		_message = nullptr;
@@ -5289,7 +5299,6 @@ void OverlayWidget::setStoriesPeer(PeerData *peer) {
 			updateControlsGeometry();
 		}, _stories->lifetime());
 		_storiesChanged.fire({});
-		_dropdown->raise();
 	}
 }
 

@@ -134,6 +134,8 @@ mediaMenuIconProfile: icon {{ "menu/profile", mediaviewMenuFg }};
 mediaMenuIconReport: icon {{ "menu/report", mediaviewMenuFg }};
 mediaMenuIconSaveStory: icon {{ "menu/stories_save", mediaviewMenuFg }};
 mediaMenuIconArchiveStory: icon {{ "menu/stories_archive", mediaviewMenuFg }};
+mediaMenuIconStealthLocked: icon {{ "menu/stealth_locked", mediaviewMenuFg }};
+mediaMenuIconStealth: icon {{ "menu/stealth", mediaviewMenuFg }};
 
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};

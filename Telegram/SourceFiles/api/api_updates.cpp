@@ -2528,6 +2528,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		_session->data().stories().apply(update.c_updateReadStories());
 	} break;
 
+	case mtpc_updateStoriesStealthMode: {
+		const auto &data = update.c_updateStoriesStealthMode();
+		_session->data().stories().apply(data.vstealth_mode());
+	} break;
+
 	}
 }
 

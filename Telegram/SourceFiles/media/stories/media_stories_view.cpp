@@ -111,6 +111,14 @@ void View::tryProcessKeyInput(not_null<QKeyEvent*> e) {
 	_controller->tryProcessKeyInput(e);
 }
 
+bool View::allowStealthMode() const {
+	return _controller->allowStealthMode();
+}
+
+void View::setupStealthMode() {
+	_controller->setupStealthMode();
+}
+
 SiblingView View::sibling(SiblingType type) const {
 	return _controller->sibling(type);
 }

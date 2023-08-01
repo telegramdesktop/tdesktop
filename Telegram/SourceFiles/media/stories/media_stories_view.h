@@ -91,6 +91,9 @@ public:
 	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
+	[[nodiscard]] bool allowStealthMode() const;
+	void setupStealthMode();
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:

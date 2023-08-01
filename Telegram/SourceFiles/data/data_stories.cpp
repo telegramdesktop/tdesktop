@@ -174,6 +174,14 @@ void Stories::apply(const MTPDupdateReadStories &data) {
 	bumpReadTill(peerFromUser(data.vuser_id()), data.vmax_id().v);
 }
 
+void Stories::apply(const MTPStoriesStealthMode &stealthMode) {
+	const auto &data = stealthMode.data();
+	_stealthMode = StealthMode{
+		.enabledTill = data.vactive_until_date().value_or_empty(),
+		.cooldownTill = data.vcooldown_until_date().value_or_empty(),
+	};
+}
+
 void Stories::apply(not_null<PeerData*> peer, const MTPUserStories *data) {
 	if (!data) {
 		applyDeletedFromSources(peer->id, StorySourcesList::NotHidden);
@@ -536,6 +544,10 @@ void Stories::loadMore(StorySourcesList list) {
 		}, [](const MTPDstories_allStoriesNotModified &) {
 		});
 
+		result.match([&](const auto &data) {
+			apply(data.vstealth_mode());
+		});
+
 		preloadListsMore();
 	}).fail([=] {
 		_loadMoreRequestId[index] = 0;
@@ -719,6 +731,7 @@ void Stories::applyDeleted(FullStoryId id) {
 				}
 			}
 			if (_preloading && _preloading->id() == id) {
+				_preloading = nullptr;
 				preloadFinished(id);
 			}
 			_owner->refreshStoryItemViews(id);
@@ -834,6 +847,26 @@ std::shared_ptr<HistoryItem> Stories::lookupItem(not_null<Story*> story) {
 		return nullptr;
 	}
 	return j->second.lock();
+}
+
+StealthMode Stories::stealthMode() const {
+	return _stealthMode.current();
+}
+
+rpl::producer<StealthMode> Stories::stealthModeValue() const {
+	return _stealthMode.value();
+}
+
+void Stories::activateStealthMode(Fn<void()> done) {
+	const auto api = &session().api();
+	using Flag = MTPstories_ActivateStealthMode::Flag;
+	api->request(MTPstories_ActivateStealthMode(
+		MTP_flags(Flag::f_past | Flag::f_future)
+	)).done([=](const MTPBool &result) {
+		if (done) done();
+	}).fail([=] {
+		if (done) done();
+	}).send();
 }
 
 std::shared_ptr<HistoryItem> Stories::resolveItem(not_null<Story*> story) {

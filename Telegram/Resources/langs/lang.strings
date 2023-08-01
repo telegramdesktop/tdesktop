@@ -3877,6 +3877,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_archive_done_many#one" = "{count} story is hidden from your profile.";
 "lng_stories_archive_done_many#other" = "{count} stories are hidden from your profile.";
 
+"lng_stealth_mode_menu_item" = "Stealth Mode";
+"lng_stealth_mode_title" = "Stealth Mode";
+"lng_stealth_mode_unlock_about" = "Subscribe to Telegram Premium to hide the fact that you viewed peoples' stories from them.";
+"lng_stealth_mode_about" = "Turn Stealth Mode on to hide the fact that you viewed peoples' stories from them.";
+"lng_stealth_mode_past_title" = "Hide Recent Views";
+"lng_stealth_mode_past_about" = "Hide my views in the last 5 minutes.";
+"lng_stealth_mode_next_title" = "Hide Next Views";
+"lng_stealth_mode_next_about" = "Hide my views in the next 25 minutes.";
+"lng_stealth_mode_unlock" = "Unlock Stealth Mode";
+"lng_stealth_mode_enable" = "Enable Stealth Mode";
+"lng_stealth_mode_cooldown_in" = "Available in {left}";
+"lng_stealth_mode_cooldown_tip" = "Please wait until the **Stealth Mode** is ready to use again.";
+"lng_stealth_mode_enabled_tip_title" = "Stealth Mode On";
+"lng_stealth_mode_enabled_tip" = "The creators of stories you viewed in the last **5 minutes** or will view in the next **25 minutes** won't see you in the viewers' lists.";
+"lng_stealth_mode_countdown" = "Stealth Mode active – {left}";
+"lng_stealth_mode_already_title" = "You are in Stealth Mode";
+"lng_stealth_mode_already_about" = "The creators of stories you will view in the next **{left}** won't see you in the viewers' lists.";
+
 "lng_stories_link_invalid" = "This link is broken or has expired.";
 
 // Wnd specific

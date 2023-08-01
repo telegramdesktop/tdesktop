@@ -116,6 +116,14 @@ struct StoriesContext {
 	friend inline bool operator==(StoriesContext, StoriesContext) = default;
 };
 
+struct StealthMode {
+	TimeId enabledTill = 0;
+	TimeId cooldownTill = 0;
+
+	friend inline auto operator<=>(StealthMode, StealthMode) = default;
+	friend inline bool operator==(StealthMode, StealthMode) = default;
+};
+
 inline constexpr auto kStorySourcesListCount = 2;
 
 class Stories final : public base::has_weak_ptr {
@@ -139,6 +147,7 @@ public:
 	void loadMore(StorySourcesList list);
 	void apply(const MTPDupdateStory &data);
 	void apply(const MTPDupdateReadStories &data);
+	void apply(const MTPStoriesStealthMode &stealthMode);
 	void apply(not_null<PeerData*> peer, const MTPUserStories *data);
 	Story *applyFromWebpage(PeerId peerId, const MTPstoryItem &story);
 	void loadAround(FullStoryId id, StoriesContext context);
@@ -226,6 +235,10 @@ public:
 	void savedStateChanged(not_null<Story*> story);
 	[[nodiscard]] std::shared_ptr<HistoryItem> lookupItem(
 		not_null<Story*> story);
+
+	[[nodiscard]] StealthMode stealthMode() const;
+	[[nodiscard]] rpl::producer<StealthMode> stealthModeValue() const;
+	void activateStealthMode(Fn<void()> done = nullptr);
 
 private:
 	struct Saved {
@@ -374,6 +387,8 @@ private:
 	base::flat_set<not_null<Story*>> _pollingViews;
 	base::Timer _pollingTimer;
 	base::Timer _pollingViewsTimer;
+
+	rpl::variable<StealthMode> _stealthMode;
 
 };
 

@@ -997,6 +997,8 @@ PRIVATE
     media/stories/media_stories_sibling.h
     media/stories/media_stories_slider.cpp
     media/stories/media_stories_slider.h
+    media/stories/media_stories_stealth.cpp
+    media/stories/media_stories_stealth.h
     media/stories/media_stories_view.cpp
     media/stories/media_stories_view.h
     media/streaming/media_streaming_audio_track.cpp
