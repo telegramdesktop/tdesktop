@@ -12,21 +12,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QDesktopServices>
 
-#include <glibmm.h>
-#include <giomm.h>
+#include <gio/gio.hpp>
+
+using namespace gi::repository;
 
 namespace Platform {
 namespace File {
 
 void UnsafeOpenUrl(const QString &url) {
-	try {
-		if (Gio::AppInfo::launch_default_for_uri(
+	{
+		const auto result = Gio::AppInfo::launch_default_for_uri(
 			url.toStdString(),
-			base::Platform::AppLaunchContext())) {
+			base::Platform::AppLaunchContext());
+
+		if (!result) {
+			LOG(("App Error: %1").arg(
+				QString::fromStdString(result.error().what())));
+		} else if (*result) {
 			return;
 		}
-	} catch (const std::exception &e) {
-		LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
 	}
 
 	QDesktopServices::openUrl(url);
@@ -45,14 +49,29 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 }
 
 void UnsafeLaunch(const QString &filepath) {
-	try {
-		if (Gio::AppInfo::launch_default_for_uri(
-			Glib::filename_to_uri(filepath.toStdString()),
-			base::Platform::AppLaunchContext())) {
-			return;
+	if ([&] {
+		const auto filename = GLib::filename_to_uri(filepath.toStdString());
+		if (!filename) {
+			LOG(("App Error: %1").arg(
+				QString::fromStdString(filename.error().what())));
+
+			return false;
 		}
-	} catch (const std::exception &e) {
-		LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
+
+		const auto result = Gio::AppInfo::launch_default_for_uri(
+			*filename,
+			base::Platform::AppLaunchContext());
+
+		if (!result) {
+			LOG(("App Error: %1").arg(
+				QString::fromStdString(result.error().what())));
+
+			return false;
+		}
+
+		return *result;
+	}()) {
+		return;
 	}
 
 	if (UnsafeShowOpenWith(filepath)) {
