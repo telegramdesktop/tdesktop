@@ -3209,6 +3209,12 @@ void OverlayWidget::show(OpenRequest request) {
 		// Count top notch on macOS before counting geometry.
 		_helper->beforeShow(_fullscreen);
 	}
+	if (_cachedShow) {
+		_cachedShow->showOrHideBoxOrLayer(
+			v::null,
+			Ui::LayerOption::CloseOther,
+			anim::type::instant);
+	}
 	if (photo) {
 		if (contextItem && contextPeer) {
 			return;
