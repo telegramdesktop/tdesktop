@@ -360,6 +360,7 @@ private:
 
 	Glib::RefPtr<Gio::Application> _application;
 	Glib::RefPtr<Gio::Notification> _notification;
+	const std::string _guid;
 
 	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
 	Glib::ustring _title;
@@ -390,7 +391,8 @@ NotificationData::NotificationData(
 , _id(id)
 , _application(UseGNotification()
 		? Gio::Application::get_default()
-		: nullptr) {
+		: nullptr)
+, _guid(_application ? Gio::DBus::generate_guid() : std::string()) {
 }
 
 bool NotificationData::init(
@@ -623,13 +625,7 @@ NotificationData::~NotificationData() {
 
 void NotificationData::show() {
 	if (_application && _notification) {
-		_application->send_notification(
-			std::to_string(_id.contextId.sessionId)
-				+ '-'
-				+ std::to_string(_id.contextId.peerId.value)
-				+ '-'
-				+ std::to_string(_id.msgId.bare),
-			_notification);
+		_application->send_notification(_guid, _notification);
 		return;
 	}
 
@@ -679,12 +675,7 @@ void NotificationData::show() {
 
 void NotificationData::close() {
 	if (_application) {
-		_application->withdraw_notification(
-			std::to_string(_id.contextId.sessionId)
-				+ '-'
-				+ std::to_string(_id.contextId.peerId.value)
-				+ '-'
-				+ std::to_string(_id.msgId.bare));
+		_application->withdraw_notification(_guid);
 		_manager->clearNotification(_id);
 		return;
 	}
