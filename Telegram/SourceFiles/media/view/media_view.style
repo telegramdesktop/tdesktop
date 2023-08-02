@@ -109,6 +109,7 @@ mediaviewRight: icon {
 	{ "mediaview/next", mediaviewControlFg }
 };
 mediaviewSave: icon {{ "mediaview/download", mediaviewControlFg }};
+mediaviewSaveLocked: icon {{ "mediaview/download_locked", mediaviewControlFg }};
 mediaviewShare: icon {{ "mediaview/viewer_share", mediaviewControlFg }};
 mediaviewRotate: icon {{ "mediaview/rotate", mediaviewControlFg }};
 mediaviewMore: icon {{ "title_menu_dots", mediaviewControlFg }};
@@ -466,6 +467,10 @@ storiesAttach: IconButton(historyAttach) {
 	iconOver: icon {{ "chat/input_attach", storiesComposeGrayIcon }};
 	ripple: storiesComposeRippleLight;
 }
+storiesLike: IconButton(storiesAttach) {
+	icon: icon {{ "chat/input_like", storiesComposeGrayIcon }};
+	iconOver: icon {{ "chat/input_like", storiesComposeGrayIcon }};
+}
 storiesRecordVoice: icon {{ "chat/input_record", storiesComposeGrayIcon }};
 storiesRecordVoiceOver: icon {{ "chat/input_record", storiesComposeGrayIcon }};
 storiesRemoveSet: IconButton(stickerPanRemoveSet) {
@@ -676,6 +681,8 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 	}
 	attach: storiesAttach;
 	emoji: storiesAttachEmoji;
+	like: storiesLike;
+	liked: icon{{ "chat/input_liked", settingsIconBg1 }};
 	suggestions: EmojiSuggestions(defaultEmojiSuggestions) {
 		dropdown: InnerDropdown(emojiSuggestionsDropdown) {
 			animation: PanelAnimation(defaultPanelAnimation) {

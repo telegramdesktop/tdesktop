@@ -196,6 +196,8 @@ ComposeControls {
 	send: SendButton;
 	attach: IconButton;
 	emoji: EmojiButton;
+	like: IconButton;
+	liked: icon;
 	suggestions: EmojiSuggestions;
 	tabbed: EmojiPan;
 	tabbedHeightMin: pixels;

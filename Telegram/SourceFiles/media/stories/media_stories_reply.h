@@ -70,6 +70,8 @@ public:
 	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
+	[[nodiscard]] not_null<QWidget*> likeAnimationTarget() const;
+
 private:
 	class Cant;
 

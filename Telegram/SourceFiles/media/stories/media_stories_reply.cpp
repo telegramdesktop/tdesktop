@@ -121,6 +121,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 		.voiceCustomCancelText = tr::lng_record_cancel_stories(tr::now),
 		.voiceLockFromBottom = true,
 		.features = {
+			.likes = true,
 			.sendAs = false,
 			.ttlInfo = false,
 			.botCommandSend = false,
@@ -620,6 +621,11 @@ void ReplyArea::initActions() {
 		sendInlineResult(chosen.result, chosen.bot, chosen.options, localId);
 	}, _lifetime);
 
+	_controls->likeToggled(
+	) | rpl::start_with_next([=] {
+		_controller->toggleLiked(!_controller->liked());
+	}, _lifetime);
+
 	_controls->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
@@ -660,6 +666,7 @@ void ReplyArea::show(ReplyAreaData data) {
 	const auto history = user ? user->owner().history(user).get() : nullptr;
 	_controls->setHistory({
 		.history = history,
+		.liked = _controller->likedValue(),
 	});
 	_controls->clear();
 	const auto hidden = user && user->isSelf();
@@ -716,6 +723,10 @@ bool ReplyArea::ignoreWindowMove(QPoint position) const {
 
 void ReplyArea::tryProcessKeyInput(not_null<QKeyEvent*> e) {
 	_controls->tryProcessKeyInput(e);
+}
+
+not_null<QWidget*> ReplyArea::likeAnimationTarget() const {
+	return _controls->likeAnimationTarget();
 }
 
 void ReplyArea::showPremiumToast(not_null<DocumentData*> emoji) {

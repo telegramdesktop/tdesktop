@@ -126,6 +126,7 @@ mediaMenuIconCancel: icon {{ "menu/cancel", mediaviewMenuFg }};
 mediaMenuIconShowInChat: icon {{ "menu/show_in_chat", mediaviewMenuFg }};
 mediaMenuIconShowInFolder: icon {{ "menu/show_in_folder", mediaviewMenuFg }};
 mediaMenuIconDownload: icon {{ "menu/download", mediaviewMenuFg }};
+mediaMenuIconDownloadLocked: icon {{ "menu/download_locked", mediaviewMenuFg }};
 mediaMenuIconCopy: icon {{ "menu/copy", mediaviewMenuFg }};
 mediaMenuIconForward: icon {{ "menu/forward", mediaviewMenuFg }};
 mediaMenuIconDelete: icon {{ "menu/delete", mediaviewMenuFg }};

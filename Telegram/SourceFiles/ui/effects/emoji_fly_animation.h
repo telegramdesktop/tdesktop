@@ -25,7 +25,7 @@ public:
 	[[nodiscard]] bool finished() const;
 
 	void repaint();
-	bool paintBadgeFrame(not_null<Ui::RpWidget*> widget);
+	bool paintBadgeFrame(not_null<QWidget*> widget);
 
 private:
 	const int _flySize = 0;
@@ -33,7 +33,7 @@ private:
 	Ui::RpWidget _layer;
 	QRect _area;
 	bool _areaUpdated = false;
-	QPointer<Ui::RpWidget> _target;
+	QPointer<QWidget> _target;
 
 };
 

@@ -95,8 +95,7 @@ void EmojiFlyAnimation::repaint() {
 	}
 }
 
-bool EmojiFlyAnimation::paintBadgeFrame(
-		not_null<Ui::RpWidget*> widget) {
+bool EmojiFlyAnimation::paintBadgeFrame(not_null<QWidget*> widget) {
 	_target = widget;
 	return !_fly.finished();
 }

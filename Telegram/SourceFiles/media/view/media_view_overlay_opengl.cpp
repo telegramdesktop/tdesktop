@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_view_overlay_opengl.h"
 
+#include "data/data_peer_values.h" // AmPremiumValue.
 #include "ui/gl/gl_shader.h"
 #include "ui/painter.h"
 #include "media/stories/media_stories_view.h"
@@ -122,7 +123,16 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 	crl::on_main(this, [=] {
 		_owner->_storiesChanged.events(
 		) | rpl::start_with_next([=] {
-			invalidateControls();
+			if (_owner->_storiesSession) {
+				Data::AmPremiumValue(
+					_owner->_storiesSession
+				) | rpl::start_with_next([=] {
+					invalidateControls();
+				}, _storiesLifetime);
+			} else {
+				_storiesLifetime.destroy();
+				invalidateControls();
+			}
 		}, _lifetime);
 	});
 }
@@ -648,8 +658,7 @@ void OverlayWidget::RendererGL::paintControl(
 		QRect inner,
 		float64 innerOpacity,
 		const style::icon &icon) {
-	const auto stories = (_owner->_stories != nullptr);
-	const auto meta = ControlMeta(control, stories);
+	const auto meta = controlMeta(control);
 	Assert(meta.icon == &icon);
 
 	const auto overAlpha = overOpacity * kOverBackgroundOpacity;
@@ -707,18 +716,25 @@ void OverlayWidget::RendererGL::paintControl(
 	FillTexturedRectangle(*_f, &*_controlsProgram, fgOffset);
 }
 
-auto OverlayWidget::RendererGL::ControlMeta(Over control, bool stories)
--> Control {
+auto OverlayWidget::RendererGL::controlMeta(Over control) const -> Control {
+	const auto stories = [&] {
+		return (_owner->_stories != nullptr);
+	};
 	switch (control) {
 	case Over::Left: return {
 		0,
-		stories ? &st::storiesLeft : &st::mediaviewLeft
+		stories() ? &st::storiesLeft : &st::mediaviewLeft
 	};
 	case Over::Right: return {
 		1,
-		stories ? &st::storiesRight : &st::mediaviewRight
+		stories() ? &st::storiesRight : &st::mediaviewRight
 	};
-	case Over::Save: return { 2, &st::mediaviewSave };
+	case Over::Save: return {
+		2,
+		(_owner->saveControlLocked()
+			? &st::mediaviewSaveLocked
+			: &st::mediaviewSave)
+	};
 	case Over::Share: return { 3, &st::mediaviewShare };
 	case Over::Rotate: return { 4, &st::mediaviewRotate };
 	case Over::More: return { 5, &st::mediaviewMore };
@@ -730,14 +746,13 @@ void OverlayWidget::RendererGL::validateControls() {
 	if (!_controlsImage.image().isNull()) {
 		return;
 	}
-	const auto stories = (_owner->_stories != nullptr);
 	const auto metas = {
-		ControlMeta(Over::Left, stories),
-		ControlMeta(Over::Right, stories),
-		ControlMeta(Over::Save, stories),
-		ControlMeta(Over::Share, stories),
-		ControlMeta(Over::Rotate, stories),
-		ControlMeta(Over::More, stories),
+		controlMeta(Over::Left),
+		controlMeta(Over::Right),
+		controlMeta(Over::Save),
+		controlMeta(Over::Share),
+		controlMeta(Over::Rotate),
+		controlMeta(Over::More),
 	};
 	auto maxWidth = 0;
 	auto fullHeight = 0;

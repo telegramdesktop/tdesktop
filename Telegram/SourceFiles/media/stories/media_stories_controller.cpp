@@ -313,7 +313,7 @@ Controller::Controller(not_null<Delegate*> delegate)
 			.type = Ui::MessageSendingAnimationFrom::Type::Emoji,
 			.globalStartGeometry = id.globalGeometry,
 			.frame = id.icon,
-		});
+		}, _wrap.get());
 		_replyArea->sendReaction(id.id);
 		unfocusReply();
 	}, _lifetime);
@@ -585,6 +585,18 @@ TextWithEntities Controller::captionText() const {
 
 bool Controller::skipCaption() const {
 	return _captionFullView != nullptr;
+}
+
+bool Controller::liked() const {
+	return _liked.current();
+}
+
+rpl::producer<bool> Controller::likedValue() const {
+	return _liked.value();
+}
+
+void Controller::toggleLiked(bool liked) {
+	_liked = liked;
 }
 
 void Controller::showFullCaption() {
@@ -892,6 +904,7 @@ bool Controller::changeShown(Data::Story *story) {
 			story,
 			Data::Stories::Polling::Viewer);
 	}
+	_liked = false;
 	return true;
 }
 
@@ -1551,7 +1564,8 @@ void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {
 
 void Controller::startReactionAnimation(
 		Data::ReactionId id,
-		Ui::MessageSendingAnimationFrom from) {
+		Ui::MessageSendingAnimationFrom from,
+		not_null<QWidget*> target) {
 	Expects(shown());
 
 	auto args = Ui::ReactionFlyAnimationArgs{
@@ -1568,7 +1582,7 @@ void Controller::startReactionAnimation(
 		Data::CustomEmojiSizeTag::Isolated);
 	const auto layer = _reactionAnimation->layer();
 	_wrap->paintRequest() | rpl::start_with_next([=] {
-		if (!_reactionAnimation->paintBadgeFrame(_wrap.get())) {
+		if (!_reactionAnimation->paintBadgeFrame(target)) {
 			InvokeQueued(layer, [=] {
 				_reactionAnimation = nullptr;
 				_wrap->update();

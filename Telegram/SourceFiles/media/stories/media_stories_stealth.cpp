@@ -353,7 +353,7 @@ struct Feature {
 				if (const auto window = show->resolveWindow(usage)) {
 					Settings::ShowPremium(
 						window,
-						u"stories_stealth_mode"_q);
+						u"stories__stealth_mode"_q);
 					window->window().activate();
 				}
 			} else if (now.mode.cooldownTill > now.now) {

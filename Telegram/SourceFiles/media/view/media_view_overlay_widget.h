@@ -245,6 +245,7 @@ private:
 	void playbackPauseMusic();
 	void switchToPip();
 	[[nodiscard]] int topNotchSkip() const;
+	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow();
 
 	not_null<Ui::RpWidget*> storiesWrap() override;
 	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
@@ -310,8 +311,9 @@ private:
 
 	void handleScreenChanged(QScreen *screen);
 
-	bool contentCanBeSaved() const;
+	[[nodiscard]] bool computeSaveButtonVisible() const;
 	void checkForSaveLoaded();
+	void showPremiumDownloadPromo();
 
 	Entity entityForUserPhotos(int index) const;
 	Entity entityForSharedMedia(int index) const;
@@ -495,8 +497,10 @@ private:
 	void validatePhotoImage(Image *image, bool blurred);
 	void validatePhotoCurrentImage();
 
-	[[nodiscard]] bool hasCopyMediaRestriction() const;
-	[[nodiscard]] bool showCopyMediaRestriction();
+	[[nodiscard]] bool hasCopyMediaRestriction(
+		bool skipPremiumCheck = false) const;
+	[[nodiscard]] bool showCopyMediaRestriction(
+		bool skipPRemiumCheck = false);
 
 	[[nodiscard]] QSize flipSizeByRotation(QSize size) const;
 
@@ -518,7 +522,8 @@ private:
 	[[nodiscard]] bool contentShown() const;
 	[[nodiscard]] bool opaqueContentShown() const;
 	void clearStreaming(bool savePosition = true);
-	bool canInitStreaming() const;
+	[[nodiscard]] bool canInitStreaming() const;
+	[[nodiscard]] bool saveControlLocked() const;
 
 	[[nodiscard]] bool topShadowOnTheRight() const;
 	void applyHideWindowWorkaround();

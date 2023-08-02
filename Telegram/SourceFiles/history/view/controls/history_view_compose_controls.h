@@ -161,6 +161,7 @@ public:
 	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> viewportEvents() const;
+	[[nodiscard]] rpl::producer<> likeToggled() const;
 	[[nodiscard]] auto scrollKeyEvents() const
 	-> rpl::producer<not_null<QKeyEvent*>>;
 	[[nodiscard]] auto editLastMessageRequests() const
@@ -221,6 +222,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> recordingActiveValue() const;
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 	[[nodiscard]] rpl::producer<bool> fieldMenuShownValue() const;
+	[[nodiscard]] not_null<QWidget*> likeAnimationTarget() const;
 
 	void applyCloudDraft();
 	void applyDraft(
@@ -292,6 +294,7 @@ private:
 	bool showRecordButton() const;
 	void drawRestrictedWrite(QPainter &p, const QString &error);
 	bool updateBotCommandShown();
+	bool updateLikeShown();
 
 	void cancelInlineBot();
 	void clearInlineBot();
@@ -344,6 +347,7 @@ private:
 	Fn<Api::SendAction()> _sendActionFactory;
 	rpl::variable<int> _slowmodeSecondsLeft;
 	rpl::variable<bool> _sendDisabledBySlowmode;
+	rpl::variable<bool> _liked;
 	rpl::variable<std::optional<QString>> _writeRestriction;
 	rpl::variable<bool> _hidden;
 	Mode _mode = Mode::Normal;
@@ -354,6 +358,7 @@ private:
 	std::optional<Ui::RoundRect> _backgroundRect;
 
 	const std::shared_ptr<Ui::SendButton> _send;
+	Ui::IconButton * const _like = nullptr;
 	const not_null<Ui::IconButton*> _attachToggle;
 	std::unique_ptr<Ui::IconButton> _replaceMedia;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
@@ -386,6 +391,7 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
 	rpl::event_stream<std::optional<bool>> _attachRequests;
+	rpl::event_stream<> _likeToggled;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 	rpl::event_stream<> _focusRequests;
 	rpl::variable<bool> _recording;
@@ -407,6 +413,7 @@ private:
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
+	bool _likeShown = false;
 
 	FullMsgId _editingId;
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;

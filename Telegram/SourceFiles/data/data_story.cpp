@@ -276,8 +276,13 @@ bool Story::edited() const {
 	return _edited;
 }
 
-bool Story::canDownload() const {
-	return /*!forbidsForward() || */_peer->isSelf();
+bool Story::canDownloadIfPremium() const {
+	return !forbidsForward() || _peer->isSelf();
+}
+
+bool Story::canDownloadChecked() const {
+	return _peer->isSelf()
+		|| (canDownloadIfPremium() && _peer->session().premium());
 }
 
 bool Story::canShare() const {

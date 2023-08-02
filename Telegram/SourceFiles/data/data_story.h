@@ -100,7 +100,8 @@ public:
 	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] bool edited() const;
 
-	[[nodiscard]] bool canDownload() const;
+	[[nodiscard]] bool canDownloadIfPremium() const;
+	[[nodiscard]] bool canDownloadChecked() const;
 	[[nodiscard]] bool canShare() const;
 	[[nodiscard]] bool canDelete() const;
 	[[nodiscard]] bool canReport() const;

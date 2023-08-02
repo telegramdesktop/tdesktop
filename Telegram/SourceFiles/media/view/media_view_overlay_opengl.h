@@ -149,7 +149,7 @@ private:
 	Ui::GL::Image _storiesSiblingParts[kStoriesSiblingPartsCount];
 
 	static constexpr auto kControlsCount = 6;
-	[[nodiscard]] static Control ControlMeta(Over control, bool stories);
+	[[nodiscard]] Control controlMeta(Over control) const;
 
 	// Last one is for the over circle image.
 	std::array<QRect, kControlsCount + 1> _controlsTextures;
@@ -158,6 +158,7 @@ private:
 	bool _shadowsForStories = false;
 	bool _blendingEnabled = false;
 
+	rpl::lifetime _storiesLifetime;
 	rpl::lifetime _lifetime;
 
 };

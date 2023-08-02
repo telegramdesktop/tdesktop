@@ -123,6 +123,9 @@ public:
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
 	[[nodiscard]] bool skipCaption() const;
+	[[nodiscard]] bool liked() const;
+	[[nodiscard]] rpl::producer<bool> likedValue() const;
+	void toggleLiked(bool liked);
 	void showFullCaption();
 	void captionClosing();
 	void captionClosed();
@@ -236,7 +239,8 @@ private:
 
 	void startReactionAnimation(
 		Data::ReactionId id,
-		Ui::MessageSendingAnimationFrom from);
+		Ui::MessageSendingAnimationFrom from,
+		not_null<QWidget*> target);
 
 	const not_null<Delegate*> _delegate;
 
@@ -269,6 +273,7 @@ private:
 	Data::StoriesContext _context;
 	std::optional<Data::StoriesSource> _source;
 	std::optional<StoriesList> _list;
+	rpl::variable<bool> _liked;
 	FullStoryId _waitingForId;
 	int _waitingForDelta = 0;
 	int _index = 0;

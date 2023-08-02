@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace ChatHelpers {
 
 struct ComposeFeatures {
+	bool likes = false;
 	bool sendAs = true;
 	bool ttlInfo = true;
 	bool botCommandSend = true;
