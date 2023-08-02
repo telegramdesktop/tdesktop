@@ -15,4 +15,6 @@ namespace Media::Stories {
 
 void SetupStealthMode(std::shared_ptr<ChatHelpers::Show> show);
 
+[[nodiscard]] QString TimeLeftText(int left);
+
 } // namespace Media::Stories

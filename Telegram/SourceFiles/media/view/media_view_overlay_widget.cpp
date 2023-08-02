@@ -1313,7 +1313,7 @@ void OverlayWidget::updateControls() {
 	}
 	_shareNav = navRect(index);
 	_shareNavOver = style::centerrect(_shareNav, overRect);
-	_shareNavIcon = style::centerrect(_shareNav, st::mediaviewSave);
+	_shareNavIcon = style::centerrect(_shareNav, st::mediaviewShare);
 	if (_shareVisible) {
 		++index;
 	}

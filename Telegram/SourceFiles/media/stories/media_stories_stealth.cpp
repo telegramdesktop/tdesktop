@@ -45,31 +45,13 @@ struct Feature {
 	TextWithEntities about;
 };
 
-[[nodiscard]] QString LeftText(int left) {
-	Expects(left >= 0);
-
-	const auto hours = left / 3600;
-	const auto minutes = (left % 3600) / 60;
-	const auto seconds = left % 60;
-	const auto zero = QChar('0');
-	if (hours) {
-		return u"%1:%2:%3"_q
-			.arg(hours)
-			.arg(minutes, 2, 10, zero)
-			.arg(seconds, 2, 10, zero);
-	} else if (minutes) {
-		return u"%1:%2"_q.arg(minutes).arg(seconds, 2, 10, zero);
-	}
-	return u"0:%1"_q.arg(left, 2, 10, zero);
-}
-
 [[nodiscard]] Ui::Toast::Config ToastAlready(TimeId left) {
 	return {
 		.title = tr::lng_stealth_mode_already_title(tr::now),
 		.text = tr::lng_stealth_mode_already_about(
 			tr::now,
 			lt_left,
-			TextWithEntities{ LeftText(left) },
+			TextWithEntities{ TimeLeftText(left) },
 			Ui::Text::RichLangValue),
 		.st = &st::storiesStealthToast,
 		.duration = kAlreadyToastDuration,
@@ -277,7 +259,7 @@ struct Feature {
 			return tr::lng_stealth_mode_cooldown_in(
 				tr::now,
 				lt_left,
-				LeftText(left));
+				TimeLeftText(left));
 		}) | rpl::type_erased();
 	}) | rpl::flatten_latest();
 
@@ -402,6 +384,24 @@ void SetupStealthMode(std::shared_ptr<ChatHelpers::Show> show) {
 	} else {
 		show->show(StealthModeBox(show));
 	}
+}
+
+QString TimeLeftText(int left) {
+	Expects(left >= 0);
+
+	const auto hours = left / 3600;
+	const auto minutes = (left % 3600) / 60;
+	const auto seconds = left % 60;
+	const auto zero = QChar('0');
+	if (hours) {
+		return u"%1:%2:%3"_q
+			.arg(hours)
+			.arg(minutes, 2, 10, zero)
+			.arg(seconds, 2, 10, zero);
+	} else if (minutes) {
+		return u"%1:%2"_q.arg(minutes).arg(seconds, 2, 10, zero);
+	}
+	return u"0:%1"_q.arg(left, 2, 10, zero);
 }
 
 } // namespace Media::Stories

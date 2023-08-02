@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
+#include "base/timer_rpl.h"
+#include "base/unixtime.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/send_files_box.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
+#include "media/stories/media_stories_stealth.h"
 #include "menu/menu_send.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_account.h"
@@ -42,6 +45,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
+namespace {
+
+[[nodiscard]] rpl::producer<QString> PlaceholderText(
+		const std::shared_ptr<ChatHelpers::Show> &show) {
+	return show->session().data().stories().stealthModeValue(
+	) | rpl::map([](Data::StealthMode value) {
+		return value.enabledTill;
+	}) | rpl::distinct_until_changed() | rpl::map([](TimeId till) {
+		return rpl::single(
+			rpl::empty
+		) | rpl::then(
+			base::timer_each(250)
+		) | rpl::map([=] {
+			return till - base::unixtime::now();
+		}) | rpl::take_while([](TimeId left) {
+			return left > 0;
+		}) | rpl::then(
+			rpl::single(0)
+		) | rpl::map([](TimeId left) {
+			return left
+				? tr::lng_stealth_mode_countdown(
+					lt_left,
+					rpl::single(TimeLeftText(left)))
+				: tr::lng_story_reply_ph();
+		}) | rpl::flatten_latest();
+	}) | rpl::flatten_latest();
+}
+
+} // namespace
 
 class ReplyArea::Cant final : public Ui::RpWidget {
 public:
@@ -85,7 +117,7 @@ ReplyArea::ReplyArea(not_null<Controller*> controller)
 		.mode = HistoryView::ComposeControlsMode::Normal,
 		.sendMenuType = SendMenu::Type::SilentOnly,
 		.stickerOrEmojiChosen = _controller->stickerOrEmojiChosen(),
-		.customPlaceholder = tr::lng_story_reply_ph(),
+		.customPlaceholder = PlaceholderText(_controller->uiShow()),
 		.voiceCustomCancelText = tr::lng_record_cancel_stories(tr::now),
 		.voiceLockFromBottom = true,
 		.features = {
