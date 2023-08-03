@@ -28,6 +28,7 @@ struct ReactionFlyAnimationArgs {
 	QImage flyIcon;
 	QRect flyFrom;
 	crl::time scaleOutDuration = 0;
+	bool effectOnly = false;
 
 	[[nodiscard]] ReactionFlyAnimationArgs translated(QPoint point) const;
 };

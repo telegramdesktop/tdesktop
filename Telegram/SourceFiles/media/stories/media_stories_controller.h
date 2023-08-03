@@ -35,7 +35,7 @@ class CachedIconFactory;
 
 namespace Ui {
 class RpWidget;
-struct MessageSendingAnimationFrom;
+struct ReactionFlyAnimationArgs;
 class EmojiFlyAnimation;
 class BoxContent;
 } // namespace Ui
@@ -238,8 +238,7 @@ private:
 		int index);
 
 	void startReactionAnimation(
-		Data::ReactionId id,
-		Ui::MessageSendingAnimationFrom from,
+		Ui::ReactionFlyAnimationArgs from,
 		not_null<QWidget*> target);
 
 	const not_null<Delegate*> _delegate;

@@ -114,6 +114,10 @@ struct SameDayRange {
 	return result;
 }
 
+[[nodiscard]] Data::ReactionId HeartReactionId() {
+	return { QString() + QChar(10084) };
+}
+
 } // namespace
 
 class Controller::PhotoPlayback final {
@@ -309,10 +313,11 @@ Controller::Controller(not_null<Delegate*> delegate)
 
 	_reactions->chosen(
 	) | rpl::start_with_next([=](HistoryView::Reactions::ChosenReaction id) {
-		startReactionAnimation(id.id, {
-			.type = Ui::MessageSendingAnimationFrom::Type::Emoji,
-			.globalStartGeometry = id.globalGeometry,
-			.frame = id.icon,
+		startReactionAnimation({
+			.id = id.id,
+			.flyIcon = id.icon,
+			.flyFrom = _wrap->mapFromGlobal(id.globalGeometry),
+			.scaleOutDuration = st::fadeWrapDuration * 2,
 		}, _wrap.get());
 		_replyArea->sendReaction(id.id);
 		unfocusReply();
@@ -597,6 +602,13 @@ rpl::producer<bool> Controller::likedValue() const {
 
 void Controller::toggleLiked(bool liked) {
 	_liked = liked;
+	if (liked) {
+		startReactionAnimation({
+			.id = HeartReactionId(),
+			.scaleOutDuration = st::fadeWrapDuration * 2,
+			.effectOnly = true,
+		}, _replyArea->likeAnimationTarget());
+	}
 }
 
 void Controller::showFullCaption() {
@@ -1045,6 +1057,8 @@ void Controller::ready() {
 	}
 	_started = true;
 	updatePlayingAllowed();
+	uiShow()->session().data().reactions().preloadAnimationsFor(
+		HeartReactionId());
 }
 
 void Controller::updateVideoPlayback(const Player::TrackState &state) {
@@ -1563,17 +1577,10 @@ void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {
 }
 
 void Controller::startReactionAnimation(
-		Data::ReactionId id,
-		Ui::MessageSendingAnimationFrom from,
+		Ui::ReactionFlyAnimationArgs args,
 		not_null<QWidget*> target) {
 	Expects(shown());
 
-	auto args = Ui::ReactionFlyAnimationArgs{
-		.id = id,
-		.flyIcon = from.frame,
-		.flyFrom = _wrap->mapFromGlobal(from.globalStartGeometry),
-		.scaleOutDuration = st::fadeWrapDuration * 2,
-	};
 	_reactionAnimation = std::make_unique<Ui::EmojiFlyAnimation>(
 		_wrap,
 		&shownUser()->owner().reactions(),

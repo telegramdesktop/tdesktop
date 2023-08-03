@@ -111,11 +111,13 @@ ReactionFlyAnimation::ReactionFlyAnimation(
 		});
 		return true;
 	};
-	if (!_custom && !resolve(_center, centerIcon, size)) {
+	generateMiniCopies(size + size / 2);
+	if (args.effectOnly) {
+		_custom = nullptr;
+	} else if (!_custom && !resolve(_center, centerIcon, size)) {
 		return;
 	}
 	resolve(_effect, aroundAnimation, size * 2);
-	generateMiniCopies(size + size / 2);
 	if (!args.flyIcon.isNull()) {
 		_flyIcon = std::move(args.flyIcon);
 		_fly.start(flyCallback(), 0., 1., kFlyDuration);
@@ -210,8 +212,6 @@ void ReactionFlyAnimation::paintCenterFrame(
 		QRect target,
 		const QColor &colored,
 		crl::time now) const {
-	Expects(_center || _custom);
-
 	const auto size = QSize(
 		int(base::SafeRound(target.width() * _centerSizeMultiplier)),
 		int(base::SafeRound(target.height() * _centerSizeMultiplier)));
@@ -222,7 +222,7 @@ void ReactionFlyAnimation::paintCenterFrame(
 			size.width(),
 			size.height());
 		p.drawImage(rect, _center->frame(st::windowFg->c));
-	} else {
+	} else if (_custom) {
 		const auto scaled = (size.width() != _customSize);
 		_custom->paint(p, {
 			.textColor = colored,

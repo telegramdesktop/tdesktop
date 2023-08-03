@@ -1031,8 +1031,8 @@ QSize OverlayWidget::flipSizeByRotation(QSize size) const {
 bool OverlayWidget::hasCopyMediaRestriction(bool skipPremiumCheck) const {
 	if (const auto story = _stories ? _stories->story() : nullptr) {
 		return skipPremiumCheck
-			? story->canDownloadIfPremium()
-			: story->canDownloadChecked();
+			? !story->canDownloadIfPremium()
+			: !story->canDownloadChecked();
 	}
 	return (_history && !_history->peer->allowsForwarding())
 		|| (_message && _message->forbidsSaving());
@@ -1261,9 +1261,12 @@ void OverlayWidget::showPremiumDownloadPromo() {
 		.text = tr::lng_stories_save_promo(
 			tr::now,
 			lt_link,
-			Ui::Text::Bold(tr::lng_send_as_premium_required_link(tr::now)),
+			Ui::Text::Link(
+				Ui::Text::Bold(
+					tr::lng_send_as_premium_required_link(tr::now))),
 			Ui::Text::WithEntities),
 		.duration = kStorySavePromoDuration,
+		.adaptive = true,
 		.filter = filter,
 	});
 }
