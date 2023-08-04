@@ -40,9 +40,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QWindow>
 
-#if __has_include(<giomm.h>)
-#include <giomm.h>
-#endif // __has_include(<giomm.h>)
+#if __has_include(<gio/gio.hpp>)
+#include <gio/gio.hpp>
+#endif // __has_include(<gio/gio.hpp>)
 
 namespace Window {
 namespace Notifications {
@@ -90,11 +90,12 @@ base::options::toggle OptionGNotification({
 	.description = "Force enable GLib's GNotification."
 		" When disabled, autodetect is used.",
 	.scope = [] {
-#if __has_include(<giomm.h>)
+#if __has_include(<gio/gio.hpp>)
+		using namespace gi::repository;
 		return bool(Gio::Application::get_default());
-#else // __has_include(<giomm.h>)
+#else // __has_include(<gio/gio.hpp>)
 		return false;
-#endif // __has_include(<giomm.h>)
+#endif // __has_include(<gio/gio.hpp>)
 	},
 	.restartRequired = true,
 });
