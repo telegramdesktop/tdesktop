@@ -347,10 +347,16 @@ int Story::views() const {
 	return _views.total;
 }
 
+int Story::reactions() const {
+	return _views.reactions;
+}
+
 void Story::applyViewsSlice(
 		const QString &offset,
 		const StoryViews &slice) {
-	const auto changed = (_views.total != slice.total);
+	const auto changed = (_views.reactions != slice.reactions)
+		|| (_views.total != slice.total);
+	_views.reactions = slice.reactions;
 	_views.total = slice.total;
 	if (offset.isEmpty()) {
 		_views = slice;
@@ -362,6 +368,11 @@ void Story::applyViewsSlice(
 		_views.nextOffset = slice.nextOffset;
 		if (_views.nextOffset.isEmpty()) {
 			_views.total = int(_views.list.size());
+			_views.reactions = _views.total
+				- ranges::count(
+					_views.list,
+					Data::ReactionId(),
+					&StoryView::reaction);
 		}
 	}
 	const auto known = int(_views.list.size());
@@ -421,10 +432,12 @@ void Story::applyFields(
 			data.ventities().value_or_empty()),
 	};
 	auto views = _views.total;
+	auto reactions = _views.reactions;
 	auto viewers = std::vector<not_null<PeerData*>>();
 	if (!data.is_min()) {
 		if (const auto info = data.vviews()) {
 			views = info->data().vviews_count().v;
+			reactions = info->data().vreactions_count().v;
 			if (const auto list = info->data().vrecent_viewers()) {
 				viewers.reserve(list->v.size());
 				auto &owner = _peer->owner();
@@ -442,6 +455,7 @@ void Story::applyFields(
 	const auto mediaChanged = (_media != media);
 	const auto captionChanged = (_caption != caption);
 	const auto viewsChanged = (_views.total != views)
+		|| (_views.reactions != reactions)
 		|| (_recentViewers != viewers);
 
 	_privacyPublic = (privacy == StoryPrivacy::Public);
@@ -452,8 +466,8 @@ void Story::applyFields(
 	_edited = edited;
 	_pinned = pinned;
 	_noForwards = noForwards;
-	if (_views.total != views) {
-		_views = StoryViews{ .total = views };
+	if (_views.reactions != reactions || _views.total != views) {
+		_views = StoryViews{ .reactions = reactions, .total = views };
 	}
 	if (viewsChanged) {
 		_recentViewers = std::move(viewers);

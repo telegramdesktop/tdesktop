@@ -68,6 +68,7 @@ struct StoryView {
 struct StoryViews {
 	std::vector<StoryView> list;
 	QString nextOffset;
+	int reactions = 0;
 	int total = 0;
 };
 
@@ -125,6 +126,7 @@ public:
 		-> const std::vector<not_null<PeerData*>> &;
 	[[nodiscard]] const StoryViews &viewsList() const;
 	[[nodiscard]] int views() const;
+	[[nodiscard]] int reactions() const;
 	void applyViewsSlice(const QString &offset, const StoryViews &slice);
 
 	void applyChanges(

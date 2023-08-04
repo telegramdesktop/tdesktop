@@ -32,6 +32,7 @@ class Controller;
 
 struct RecentViewsData {
 	std::vector<not_null<PeerData*>> list;
+	int reactions = 0;
 	int total = 0;
 	bool valid = false;
 
@@ -55,6 +56,7 @@ private:
 		not_null<Ui::WhoReactedEntryAction*> action;
 		PeerData *peer = nullptr;
 		QString date;
+		QString customEntityData;
 		Fn<void()> callback;
 		Ui::PeerUserpicView view;
 		InMemoryKey key;

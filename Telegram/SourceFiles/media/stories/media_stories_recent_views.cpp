@@ -131,7 +131,9 @@ void RecentViews::show(RecentViewsData data) {
 	if (_data == data) {
 		return;
 	}
-	const auto totalChanged = _text.isEmpty() || (_data.total != data.total);
+	const auto countersChanged = _text.isEmpty()
+		|| (_data.total != data.total)
+		|| (_data.reactions != data.reactions);
 	const auto usersChanged = !_userpics || (_data.list != data.list);
 	_data = data;
 	if (!_data.valid) {
@@ -148,7 +150,7 @@ void RecentViews::show(RecentViewsData data) {
 	if (!_userpics) {
 		setupUserpics();
 	}
-	if (totalChanged) {
+	if (countersChanged) {
 		updateText();
 	}
 	if (usersChanged) {
@@ -253,9 +255,13 @@ void RecentViews::updatePartsGeometry() {
 }
 
 void RecentViews::updateText() {
-	_text.setText(st::defaultTextStyle, _data.total
-		? tr::lng_stories_views(tr::now, lt_count, _data.total)
-		: tr::lng_stories_no_views(tr::now));
+	const auto text = _data.total
+		? (tr::lng_stories_views(tr::now, lt_count, _data.total)
+			+ (_data.reactions
+				? (u" "_q + QChar(10084) + QString::number(_data.reactions))
+				: QString()))
+		: tr::lng_stories_no_views(tr::now);
+	_text.setText(st::defaultTextStyle, text);
 	updatePartsGeometry();
 }
 
@@ -340,6 +346,7 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 		return Ui::WhoReactedEntryData{
 			.text = peer->name(),
 			.date = date,
+			.customEntityData = Data::ReactionEntityData(entry.reaction),
 			.userpic = std::move(userpic),
 			.callback = [=] { show->show(PrepareShortInfoBox(peer)); },
 		};
@@ -349,12 +356,14 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 		auto data = prepare(i->view);
 		i->peer = peer;
 		i->date = date;
+		i->customEntityData = data.customEntityData;
 		i->callback = data.callback;
 		i->action->setData(std::move(data));
 	} else {
 		auto view = Ui::PeerUserpicView();
 		auto data = prepare(view);
 		auto callback = data.callback;
+		auto customEntityData = data.customEntityData;
 		auto action = base::make_unique_q<Ui::WhoReactedEntryAction>(
 			_menu->menu(),
 			nullptr,
@@ -366,6 +375,7 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 			.action = raw,
 			.peer = peer,
 			.date = date,
+			.customEntityData = std::move(customEntityData),
 			.callback = std::move(callback),
 			.view = std::move(view),
 		});

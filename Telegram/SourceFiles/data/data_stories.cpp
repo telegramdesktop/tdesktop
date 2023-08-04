@@ -1263,6 +1263,7 @@ void Stories::loadViewsSlice(
 		const auto &data = result.data();
 		auto slice = StoryViews{
 			.nextOffset = data.vnext_offset().value_or_empty(),
+			.reactions = data.vreactions_count().v,
 			.total = data.vcount().v,
 		};
 		_owner->processUsers(data.vusers());

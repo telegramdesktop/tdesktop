@@ -880,6 +880,7 @@ void Controller::show(
 	});
 	_recentViews->show({
 		.list = story->recentViewers(),
+		.reactions = story->reactions(),
 		.total = story->views(),
 		.valid = user->isSelf(),
 	});
@@ -951,6 +952,7 @@ void Controller::subscribeToSession() {
 		} else {
 			_recentViews->show({
 				.list = update.story->recentViewers(),
+				.reactions = update.story->reactions(),
 				.total = update.story->views(),
 				.valid = update.story->peer()->isSelf(),
 			});
@@ -1439,12 +1441,9 @@ void Controller::refreshViewsFromData() {
 	const auto maybeStory = stories.lookup(_shown);
 	if (!maybeStory || !user->isSelf()) {
 		_viewsSlice = {};
-		return;
+	} else {
+		_viewsSlice = (*maybeStory)->viewsList();
 	}
-	const auto story = *maybeStory;
-	const auto &views = story->viewsList();
-	const auto total = story->views();
-	_viewsSlice = story->viewsList();
 }
 
 void Controller::unfocusReply() {
