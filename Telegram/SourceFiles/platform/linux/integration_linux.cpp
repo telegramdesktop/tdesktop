@@ -47,17 +47,6 @@ public:
 		}
 	}
 
-	void startup_() noexcept override {
-		// GNotification
-		InvokeQueued(qApp, [] {
-			Core::App().notifications().createManager();
-		});
-
-		Gio::impl::ApplicationImpl::startup_();
-		QEventLoop().exec();
-		quit();
-	}
-
 	void activate_() noexcept override {
 		Core::Sandbox::Instance().customEnterFromEventLoop([] {
 			Core::App().activate();
@@ -72,14 +61,6 @@ public:
 				QGuiApplication::sendEvent(qApp, &e);
 			}
 		});
-	}
-
-	int command_line_(Gio::ApplicationCommandLine) noexcept override {
-		return 0;
-	}
-
-	gboolean local_command_line_(char***, int*) noexcept override {
-		return false;
 	}
 
 	void add_platform_data_(GLib::VariantBuilder builder) noexcept override {
@@ -188,6 +169,16 @@ Application::Application()
 	actionMap.add_action(notificationMarkAsReadAction);
 }
 
+gi::ref_ptr<Application> MakeApplication() {
+	const auto result = gi::make_ref<Application>();
+	if (const auto registered = result->register_(); !registered) {
+		LOG(("App Error: Failed to register: %1").arg(
+			QString::fromStdString(registered.error().message_())));
+		return nullptr;
+	}
+	return result;
+}
+
 class LinuxIntegration final : public Integration {
 public:
 	LinuxIntegration();
@@ -201,12 +192,14 @@ private:
 
 	void initInhibit();
 
+	const gi::ref_ptr<Application> _application;
 	XdpInhibit::InhibitProxy _inhibitProxy;
 	base::Platform::XDP::SettingWatcher _darkModeWatcher;
 };
 
 LinuxIntegration::LinuxIntegration()
-: _inhibitProxy(
+: _application(MakeApplication())
+, _inhibitProxy(
 	XdpInhibit::InhibitProxy::new_for_bus_sync(
 		Gio::BusType::SESSION_,
 		Gio::DBusProxyFlags::DO_NOT_AUTO_START_AT_CONSTRUCTION_,
@@ -241,10 +234,6 @@ LinuxIntegration::LinuxIntegration()
 
 void LinuxIntegration::init() {
 	initInhibit();
-
-	GLib::idle_add_once([] {
-		gi::make_ref<Application>()->run(0, nullptr);
-	});
 }
 
 void LinuxIntegration::initInhibit() {
