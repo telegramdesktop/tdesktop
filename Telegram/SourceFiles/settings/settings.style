@@ -129,6 +129,17 @@ settingsStoriesIconDownload: icon {{ "menu/download", premiumButtonBg1 }};
 settingsStoriesIconCaption: icon {{ "settings/premium/stories_caption", premiumButtonBg1 }};
 settingsStoriesIconLinks: icon {{ "settings/premium/stories_links", premiumButtonBg1 }};
 
+settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(10px semibold);
+		linkFont: font(10px semibold);
+		linkFontOver: font(10px semibold);
+	}
+	textFg: windowFgActive;
+}
+settingsPremiumNewBadgePosition: point(4px, 1px);
+settingsPremiumNewBadgePadding: margins(4px, 1px, 4px, 1px);
+
 settingsTTLChatsOff: icon {{ "settings/ttl/autodelete_off", windowSubTextFg }};
 settingsTTLChatsOn: icon {{ "settings/ttl/autodelete_on", windowActiveTextFg }};
 

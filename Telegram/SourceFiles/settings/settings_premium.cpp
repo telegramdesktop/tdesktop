@@ -204,6 +204,7 @@ struct Entry {
 	rpl::producer<QString> title;
 	rpl::producer<QString> description;
 	PremiumPreview section = PremiumPreview::DoubleLimits;
+	bool newBadge = false;
 };
 
 using Order = std::vector<QString>;
@@ -236,6 +237,7 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_stories(),
 				tr::lng_premium_summary_about_stories(),
 				PremiumPreview::Stories,
+				true,
 			},
 		},
 		{
@@ -1271,6 +1273,32 @@ void Premium::setupContent() {
 			descriptionPadding);
 		description->setAttribute(Qt::WA_TransparentForMouseEvents);
 
+		const auto badge = entry.newBadge
+			? Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
+				content,
+				object_ptr<Ui::FlatLabel>(
+					content,
+					tr::lng_premium_summary_new_badge(),
+					st::settingsPremiumNewBadge),
+				st::settingsPremiumNewBadgePadding)
+			: nullptr;
+		if (badge) {
+			badge->setAttribute(Qt::WA_TransparentForMouseEvents);
+			badge->paintRequest() | rpl::start_with_next([=] {
+				auto p = QPainter(badge);
+				auto hq = PainterHighQualityEnabler(p);
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::windowBgActive);
+				const auto r = st::settingsPremiumNewBadgePadding.left();
+				p.drawRoundedRect(badge->rect(), r, r);
+			}, badge->lifetime());
+
+			label->geometryValue(
+			) | rpl::start_with_next([=](QRect geometry) {
+				badge->move(st::settingsPremiumNewBadgePosition
+					+ QPoint(label->x() + label->width(), label->y()));
+			}, badge->lifetime());
+		}
 		const auto dummy = Ui::CreateChild<Ui::AbstractButton>(content);
 		dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
 
