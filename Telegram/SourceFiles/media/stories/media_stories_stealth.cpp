@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
+#include "boxes/premium_preview_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
@@ -295,7 +296,7 @@ struct Feature {
 		label->resizeToWidth(width);
 		label->move(added / 2, top);
 		const auto inner = std::min(label->textMaxWidth(), width);
-		const auto right = (added / 2) + (width - inner) / 2 + inner;
+		const auto right = (added / 2) + (outer - inner) / 2 + inner;
 		const auto lockTop = (label->height() - lock->height()) / 2;
 		lock->move(right + lockLeft, top + lockTop);
 	};
@@ -351,9 +352,7 @@ struct Feature {
 				data->requested = false;
 				const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
 				if (const auto window = show->resolveWindow(usage)) {
-					Settings::ShowPremium(
-						window,
-						u"stories__stealth_mode"_q);
+					ShowPremiumPreviewBox(window, PremiumPreview::Stories);
 					window->window().activate();
 				}
 			} else if (now.mode.cooldownTill > now.now) {

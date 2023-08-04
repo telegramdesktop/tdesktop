@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
+#include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/file_utilities.h"
@@ -1252,8 +1253,8 @@ void OverlayWidget::showPremiumDownloadPromo() {
 	const auto filter = [=](const auto &...) {
 		const auto usage = ChatHelpers::WindowUsage::PremiumPromo;
 		if (const auto window = uiShow()->resolveWindow(usage)) {
-			const auto ref = u"stories__save_stories_to_gallery"_q;
-			Settings::ShowPremium(window, ref);
+			ShowPremiumPreviewBox(window, PremiumPreview::Stories);
+			window->window().activate();
 		}
 		return false;
 	};

@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
+#include "settings/settings_common.h"
 #include "settings/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
@@ -92,6 +93,10 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 [[nodiscard]] rpl::producer<QString> SectionTitle(PremiumPreview section) {
 	switch (section) {
+	case PremiumPreview::Stories:
+		return tr::lng_premium_summary_subtitle_stories();
+	case PremiumPreview::DoubleLimits:
+		return tr::lng_premium_summary_subtitle_double_limits();
 	case PremiumPreview::MoreUpload:
 		return tr::lng_premium_summary_subtitle_more_upload();
 	case PremiumPreview::FasterDownload:
@@ -122,6 +127,10 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 [[nodiscard]] rpl::producer<QString> SectionAbout(PremiumPreview section) {
 	switch (section) {
+	case PremiumPreview::Stories:
+		return tr::lng_premium_summary_about_stories();
+	case PremiumPreview::DoubleLimits:
+		return tr::lng_premium_summary_about_double_limits();
 	case PremiumPreview::MoreUpload:
 		return tr::lng_premium_summary_about_more_upload();
 	case PremiumPreview::FasterDownload:
@@ -1117,6 +1126,56 @@ void Show(std::shared_ptr<ChatHelpers::Show> show, QImage back) {
 	}
 }
 
+void DecorateListPromoBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<ChatHelpers::Show> show,
+		const Descriptor &descriptor) {
+	const auto session = &show->session();
+
+	box->addTopButton(st::boxTitleClose, [=] {
+		box->closeBox();
+	});
+
+	Data::AmPremiumValue(
+		session
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		box->closeBox();
+	}, box->lifetime());
+
+	if (const auto &hidden = descriptor.hiddenCallback) {
+		box->boxClosing() | rpl::start_with_next(hidden, box->lifetime());
+	}
+
+	if (session->premium()) {
+		box->addButton(tr::lng_close(), [=] {
+			box->closeBox();
+		});
+	} else {
+		const auto button = Settings::CreateSubscribeButton({
+			.parent = box,
+			.computeRef = [] { return u"double_limits"_q; },
+			.show = show,
+		});
+
+		box->setShowFinishedCallback([=] {
+			button->startGlareAnimation();
+		});
+
+		box->setStyle(st::premiumPreviewDoubledLimitsBox);
+		box->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			const auto &padding =
+				st::premiumPreviewDoubledLimitsBox.buttonPadding;
+			button->resizeToWidth(width
+				- padding.left()
+				- padding.right());
+			button->moveToLeft(padding.left(), padding.top());
+		}, button->lifetime());
+		box->addButton(
+			object_ptr<Ui::AbstractButton>::fromRaw(button));
+	}
+}
+
 void Show(
 		std::shared_ptr<ChatHelpers::Show> show,
 		Descriptor &&descriptor) {
@@ -1127,6 +1186,18 @@ void Show(
 		if (descriptor.shownCallback) {
 			descriptor.shownCallback(raw);
 		}
+		return;
+	} else if (descriptor.section == PremiumPreview::DoubleLimits) {
+		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+			DoubledLimitsPreviewBox(box, &show->session());
+			DecorateListPromoBox(box, show, descriptor);
+		}));
+		return;
+	} else if (descriptor.section == PremiumPreview::Stories) {
+		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+			UpgradedStoriesPreviewBox(box, &show->session());
+			DecorateListPromoBox(box, show, descriptor);
+		}));
 		return;
 	}
 	auto &list = Preloads();
@@ -1240,11 +1311,13 @@ void PremiumUnavailableBox(not_null<Ui::GenericBox*> box) {
 void DoubledLimitsPreviewBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
+	box->setTitle(tr::lng_premium_summary_subtitle_double_limits());
+
 	const auto limits = Data::PremiumLimits(session);
 	auto entries = std::vector<Ui::Premium::ListEntry>();
 	{
 		const auto premium = limits.channelsPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_channels(),
 			tr::lng_premium_double_limits_about_channels(
 				lt_count,
@@ -1256,7 +1329,7 @@ void DoubledLimitsPreviewBox(
 	}
 	{
 		const auto premium = limits.dialogsPinnedPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_pins(),
 			tr::lng_premium_double_limits_about_pins(
 				lt_count,
@@ -1268,7 +1341,7 @@ void DoubledLimitsPreviewBox(
 	}
 	{
 		const auto premium = limits.channelsPublicPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_links(),
 			tr::lng_premium_double_limits_about_links(
 				lt_count,
@@ -1280,7 +1353,7 @@ void DoubledLimitsPreviewBox(
 	}
 	{
 		const auto premium = limits.gifsPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_gifs(),
 			tr::lng_premium_double_limits_about_gifs(
 				lt_count,
@@ -1292,7 +1365,7 @@ void DoubledLimitsPreviewBox(
 	}
 	{
 		const auto premium = limits.stickersFavedPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_stickers(),
 			tr::lng_premium_double_limits_about_stickers(
 				lt_count,
@@ -1304,7 +1377,7 @@ void DoubledLimitsPreviewBox(
 	}
 	{
 		const auto premium = limits.aboutLengthPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_bio(),
 			tr::lng_premium_double_limits_about_bio(
 				Ui::Text::RichLangValue),
@@ -1314,7 +1387,7 @@ void DoubledLimitsPreviewBox(
 	}
 	{
 		const auto premium = limits.captionLengthPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_captions(),
 			tr::lng_premium_double_limits_about_captions(
 				Ui::Text::RichLangValue),
@@ -1324,7 +1397,7 @@ void DoubledLimitsPreviewBox(
 	}
 	{
 		const auto premium = limits.dialogFiltersPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_folders(),
 			tr::lng_premium_double_limits_about_folders(
 				lt_count,
@@ -1336,7 +1409,7 @@ void DoubledLimitsPreviewBox(
 	}
 	{
 		const auto premium = limits.dialogFiltersChatsPremium();
-		entries.push_back(Ui::Premium::ListEntry{
+		entries.push_back({
 			tr::lng_premium_double_limits_subtitle_folder_chats(),
 			tr::lng_premium_double_limits_about_folder_chats(
 				lt_count,
@@ -1350,7 +1423,7 @@ void DoubledLimitsPreviewBox(
 	const auto till = (nextMax >= Main::Domain::kPremiumMaxAccounts)
 		? QString::number(Main::Domain::kPremiumMaxAccounts)
 		: (QString::number(nextMax) + QChar('+'));
-	entries.push_back(Ui::Premium::ListEntry{
+	entries.push_back({
 		tr::lng_premium_double_limits_subtitle_accounts(),
 		tr::lng_premium_double_limits_about_accounts(
 			lt_count,
@@ -1364,6 +1437,60 @@ void DoubledLimitsPreviewBox(
 		box,
 		st::defaultPremiumLimits,
 		std::move(entries));
+}
+
+void UpgradedStoriesPreviewBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	using namespace Ui::Text;
+
+	box->setTitle(tr::lng_premium_summary_subtitle_stories());
+
+	auto entries = std::vector<Ui::Premium::ListEntry>();
+	entries.push_back({
+		.title = tr::lng_premium_stories_subtitle_order(),
+		.about = tr::lng_premium_stories_about_order(WithEntities),
+		.icon = &st::settingsStoriesIconOrder,
+	});
+	entries.push_back({
+		.title = tr::lng_premium_stories_subtitle_stealth(),
+		.about = tr::lng_premium_stories_about_stealth(WithEntities),
+		.icon = &st::settingsStoriesIconStealth,
+	});
+	entries.push_back({
+		.title = tr::lng_premium_stories_subtitle_views(),
+		.about = tr::lng_premium_stories_about_views(WithEntities),
+		.icon = &st::settingsStoriesIconViews,
+	});
+	entries.push_back({
+		.title = tr::lng_premium_stories_subtitle_expiration(),
+		.about = tr::lng_premium_stories_about_expiration(WithEntities),
+		.icon = &st::settingsStoriesIconExpiration,
+	});
+	entries.push_back({
+		.title = tr::lng_premium_stories_subtitle_download(),
+		.about = tr::lng_premium_stories_about_download(WithEntities),
+		.icon = &st::settingsStoriesIconDownload,
+	});
+	entries.push_back({
+		.title = tr::lng_premium_stories_subtitle_caption(),
+		.about = tr::lng_premium_stories_about_caption(WithEntities),
+		.icon = &st::settingsStoriesIconCaption,
+	});
+	entries.push_back({
+		.title = tr::lng_premium_stories_subtitle_links(),
+		.about = tr::lng_premium_stories_about_links(WithEntities),
+		.icon = &st::settingsStoriesIconLinks,
+	});
+
+	Ui::Premium::ShowListBox(
+		box,
+		st::defaultPremiumLimits,
+		std::move(entries));
+
+	Settings::AddDividerText(
+		box->verticalLayout(),
+		tr::lng_premium_stories_about_mobile());
 }
 
 object_ptr<Ui::GradientButton> CreateUnlockButton(

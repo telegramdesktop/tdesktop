@@ -109,6 +109,7 @@ settingsIconTopics: icon {{ "settings/topics", settingsIconFg }};
 settingsIconTTL: icon {{ "settings/ttl", settingsIconFg }};
 settingsIconPhoto: icon {{ "settings/photo", settingsIconFg }};
 
+settingsPremiumIconStories: icon {{ "settings/stories", settingsIconFg }};
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
 settingsPremiumIconStatus: icon {{ "settings/premium/status", settingsIconFg }};
@@ -119,6 +120,14 @@ settingsPremiumIconStar: icon {{ "settings/premium/star", settingsIconFg }};
 settingsPremiumIconVoice: icon {{ "settings/premium/voice", settingsIconFg }};
 settingsPremiumIconFiles: icon {{ "settings/premium/files", settingsIconFg }};
 settingsPremiumIconTranslations: icon {{ "settings/premium/translations", settingsIconFg }};
+
+settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
+settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};
+settingsStoriesIconViews: icon {{ "menu/show_in_chat", premiumButtonBg1 }};
+settingsStoriesIconExpiration: icon {{ "settings/premium/timer", premiumButtonBg1 }};
+settingsStoriesIconDownload: icon {{ "menu/download", premiumButtonBg1 }};
+settingsStoriesIconCaption: icon {{ "settings/premium/stories_caption", premiumButtonBg1 }};
+settingsStoriesIconLinks: icon {{ "settings/premium/stories_links", premiumButtonBg1 }};
 
 settingsTTLChatsOff: icon {{ "settings/ttl/autodelete_off", windowSubTextFg }};
 settingsTTLChatsOn: icon {{ "settings/ttl/autodelete_on", windowActiveTextFg }};
@@ -473,6 +482,9 @@ settingsPremiumRowAboutPadding: margins(59px, 0px, 46px, 6px);
 settingsPremiumPreviewTitlePadding: margins(24px, 13px, 24px, 3px);
 settingsPremiumPreviewAboutPadding: margins(24px, 0px, 24px, 11px);
 settingsPremiumPreviewLinePadding: margins(18px, 0px, 18px, 8px);
+settingsPremiumPreviewIconTitlePadding: margins(62px, 13px, 24px, 1px);
+settingsPremiumPreviewIconAboutPadding: margins(62px, 0px, 24px, 0px);
+settingsPremiumPreviewIconPosition: point(20px, 7px);
 
 settingsPremiumTitlePadding: margins(0px, 18px, 0px, 11px);
 settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {

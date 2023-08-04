@@ -1828,6 +1828,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_subtitle_gift#other" = "{user} has gifted you a {count}-months subscription for Telegram Premium.";
 "lng_premium_summary_subtitle_gift_me#one" = "You gifted {user} a {count}-month subscription for Telegram Premium.";
 "lng_premium_summary_subtitle_gift_me#other" = "You gifted {user} a {count}-months subscription for Telegram Premium.";
+"lng_premium_summary_subtitle_stories" = "Upgraded Stories";
+"lng_premium_summary_about_stories" = "Priority order, stealth mode, permanent views history and more.";
 "lng_premium_summary_subtitle_double_limits" = "Doubled Limits";
 "lng_premium_summary_about_double_limits" = "Up to 1000 channels, 20 folders, 10 pins, 20 public links, 4 accounts and more.";
 "lng_premium_summary_subtitle_more_upload" = "4Gb Upload Size";
@@ -1860,6 +1862,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_premium_success" = "You've successfully subscribed to Telegram Premium!";
 "lng_premium_unavailable" = "This feature requires subscription to **Telegram Premium**.\n\nUnfortunately, **Telegram Premium** is not available in your region.";
+
+// Upgraded Stories.
+"lng_premium_stories_subtitle_order" = "Priority Order";
+"lng_premium_stories_about_order" = "Get more views as your stories are always displayed first.";
+
+"lng_premium_stories_subtitle_stealth" = "Stealth Mode";
+"lng_premium_stories_about_stealth" = "Hide the fact that you viewed other people's stories.";
+
+"lng_premium_stories_subtitle_views" = "Permanent Views History";
+"lng_premium_stories_about_views" = "Check who opens your stories – even after they expire.";
+
+"lng_premium_stories_subtitle_expiration" = "Expiration Durations*";
+"lng_premium_stories_about_expiration" = "Set custom expiration durations like 6 or 48 hours for your stories.";
+
+"lng_premium_stories_subtitle_download" = "Download Stories";
+"lng_premium_stories_about_download" = "Save other people's unprotected stories to your disk.";
+
+"lng_premium_stories_subtitle_caption" = "Longer Captions*";
+"lng_premium_stories_about_caption" = "Add ten times longer captions to your stories – up to 2048 symbols.";
+
+"lng_premium_stories_subtitle_links" = "Links and Formatting*";
+"lng_premium_stories_about_links" = "Add links and formatting in captions of your stories.";
+
+"lng_premium_stories_about_mobile" = "* Available when posting stories from Telegram apps for iOS and Android.";
 
 // Doubled Limits.
 "lng_premium_double_limits_subtitle_channels" = "Groups and Channels";

@@ -203,13 +203,14 @@ struct Entry {
 	const style::icon *icon;
 	rpl::producer<QString> title;
 	rpl::producer<QString> description;
-	std::optional<PremiumPreview> section;
+	PremiumPreview section = PremiumPreview::DoubleLimits;
 };
 
 using Order = std::vector<QString>;
 
 [[nodiscard]] Order FallbackOrder() {
 	return Order{
+		u"stories"_q,
 		u"double_limits"_q,
 		u"more_upload"_q,
 		u"faster_download"_q,
@@ -229,11 +230,21 @@ using Order = std::vector<QString>;
 [[nodiscard]] base::flat_map<QString, Entry> EntryMap() {
 	return base::flat_map<QString, Entry>{
 		{
+			u"stories"_q,
+			Entry{
+				&st::settingsPremiumIconStories,
+				tr::lng_premium_summary_subtitle_stories(),
+				tr::lng_premium_summary_about_stories(),
+				PremiumPreview::Stories,
+			},
+		},
+		{
 			u"double_limits"_q,
 			Entry{
 				&st::settingsPremiumIconDouble,
 				tr::lng_premium_summary_subtitle_double_limits(),
 				tr::lng_premium_summary_about_double_limits(),
+				PremiumPreview::DoubleLimits,
 			},
 		},
 		{
@@ -1318,55 +1329,7 @@ void Premium::setupContent() {
 				_setPaused(false);
 			});
 
-			if (section) {
-				ShowPremiumPreviewToBuy(controller, *section, hidden);
-				return;
-			}
-			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-				DoubledLimitsPreviewBox(box, &controller->session());
-
-				box->addTopButton(st::boxTitleClose, [=] {
-					box->closeBox();
-				});
-
-				Data::AmPremiumValue(
-					&controller->session()
-				) | rpl::skip(1) | rpl::start_with_next([=] {
-					box->closeBox();
-				}, box->lifetime());
-
-				box->boxClosing(
-				) | rpl::start_with_next(hidden, box->lifetime());
-
-				if (controller->session().premium()) {
-					box->addButton(tr::lng_close(), [=] {
-						box->closeBox();
-					});
-				} else {
-					const auto button = CreateSubscribeButton({
-						controller,
-						box,
-						[] { return u"double_limits"_q; }
-					});
-
-					box->setShowFinishedCallback([=] {
-						button->startGlareAnimation();
-					});
-
-					box->setStyle(st::premiumPreviewDoubledLimitsBox);
-					box->widthValue(
-					) | rpl::start_with_next([=](int width) {
-						const auto &padding =
-							st::premiumPreviewDoubledLimitsBox.buttonPadding;
-						button->resizeToWidth(width
-							- padding.left()
-							- padding.right());
-						button->moveToLeft(padding.left(), padding.top());
-					}, button->lifetime());
-					box->addButton(
-						object_ptr<Ui::AbstractButton>::fromRaw(button));
-				}
-			}));
+			ShowPremiumPreviewToBuy(controller, section, hidden);
 		});
 
 		iconContainers.push_back(dummy);
