@@ -31,6 +31,44 @@ namespace {
 
 using UpdateFlag = StoryUpdate::Flag;
 
+[[nodiscard]] StoryArea ParseArea(const MTPMediaAreaCoordinates &area) {
+	const auto &data = area.data();
+	return {
+		.geometry = { data.vx().v, data.vy().v, data.vw().v, data.vh().v },
+		.rotation = data.vrotation().v,
+	};
+}
+
+[[nodiscard]] auto ParseLocation(const MTPMediaArea &area)
+-> std::optional<StoryLocation> {
+	auto result = std::optional<StoryLocation>();
+	area.match([&](const MTPDmediaAreaVenue &data) {
+		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+			result.emplace(StoryLocation{
+				.area = ParseArea(data.vcoordinates()),
+				.point = Data::LocationPoint(geo),
+				.title = qs(data.vtitle()),
+				.address = qs(data.vaddress()),
+				.provider = qs(data.vprovider()),
+				.venueId = qs(data.vvenue_id()),
+				.venueType = qs(data.vvenue_type()),
+			});
+		}, [](const MTPDgeoPointEmpty &) {
+		});
+	}, [&](const MTPDmediaAreaGeoPoint &data) {
+		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+			result.emplace(StoryLocation{
+				.area = ParseArea(data.vcoordinates()),
+				.point = Data::LocationPoint(geo),
+			});
+		}, [](const MTPDgeoPointEmpty &) {
+		});
+	}, [&](const MTPDinputMediaAreaVenue &data) {
+		LOG(("API Error: Unexpected inputMediaAreaVenue in API data."));
+	});
+	return result;
+}
+
 } // namespace
 
 class StoryPreload::LoadTask final : private Storage::DownloadMtprotoTask {
@@ -399,6 +437,10 @@ void Story::applyViewsSlice(
 	}
 }
 
+const std::vector<StoryLocation> &Story::locations() const {
+	return _locations;
+}
+
 void Story::applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
@@ -449,6 +491,15 @@ void Story::applyFields(
 			}
 		}
 	}
+	auto locations = std::vector<StoryLocation>();
+	if (const auto areas = data.vmedia_areas()) {
+		locations.reserve(areas->v.size());
+		for (const auto &area : areas->v) {
+			if (const auto parsed = ParseLocation(area)) {
+				locations.push_back(*parsed);
+			}
+		}
+	}
 
 	const auto pinnedChanged = (_pinned != pinned);
 	const auto editedChanged = (_edited != edited);
@@ -457,6 +508,7 @@ void Story::applyFields(
 	const auto viewsChanged = (_views.total != views)
 		|| (_views.reactions != reactions)
 		|| (_recentViewers != viewers);
+	const auto locationsChanged = (_locations != locations);
 
 	_privacyPublic = (privacy == StoryPrivacy::Public);
 	_privacyCloseFriends = (privacy == StoryPrivacy::CloseFriends);
@@ -478,8 +530,14 @@ void Story::applyFields(
 	if (captionChanged) {
 		_caption = std::move(caption);
 	}
+	if (locationsChanged) {
+		_locations = std::move(locations);
+	}
 
-	const auto changed = (editedChanged || captionChanged || mediaChanged);
+	const auto changed = editedChanged
+		|| captionChanged
+		|| mediaChanged
+		|| locationsChanged;
 	if (!initial && (changed || viewsChanged)) {
 		_peer->session().changes().storyUpdated(this, UpdateFlag()
 			| (changed ? UpdateFlag::Edited : UpdateFlag())

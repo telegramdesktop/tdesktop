@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "data/data_location.h"
 #include "data/data_message_reaction_id.h"
 
 class Image;
@@ -72,6 +73,29 @@ struct StoryViews {
 	int total = 0;
 };
 
+struct StoryArea {
+	QRectF geometry;
+	float64 rotation = 0;
+
+	friend inline bool operator==(
+		const StoryArea &,
+		const StoryArea &) = default;
+};
+
+struct StoryLocation {
+	StoryArea area;
+	Data::LocationPoint point;
+	QString title;
+	QString address;
+	QString provider;
+	QString venueId;
+	QString venueType;
+
+	friend inline bool operator==(
+		const StoryLocation &,
+		const StoryLocation &) = default;
+};
+
 class Story final {
 public:
 	Story(
@@ -129,6 +153,8 @@ public:
 	[[nodiscard]] int reactions() const;
 	void applyViewsSlice(const QString &offset, const StoryViews &slice);
 
+	[[nodiscard]] const std::vector<StoryLocation> &locations() const;
+
 	void applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
@@ -147,6 +173,7 @@ private:
 	StoryMedia _media;
 	TextWithEntities _caption;
 	std::vector<not_null<PeerData*>> _recentViewers;
+	std::vector<StoryLocation> _locations;
 	StoryViews _views;
 	const TimeId _date = 0;
 	const TimeId _expires = 0;
