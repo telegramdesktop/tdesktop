@@ -264,8 +264,8 @@ void RecentViews::showMenu() {
 		return;
 	}
 
-	const auto views = _controller->views(PeerId());
-	if (views.list.empty() && !views.left) {
+	const auto views = _controller->views(kAddPerPage * 2, true);
+	if (views.list.empty() && !views.total) {
 		return;
 	}
 
@@ -276,7 +276,7 @@ void RecentViews::showMenu() {
 		st::storiesViewsMenu);
 	auto count = 0;
 	const auto added = std::min(int(views.list.size()), kAddPerPage);
-	const auto add = std::min(added + views.left, kAddPerPage);
+	const auto add = std::min(views.total, kAddPerPage);
 	const auto now = QDateTime::currentDateTime();
 	for (const auto &entry  : views.list) {
 		addMenuRow(entry, now);
@@ -393,23 +393,18 @@ void RecentViews::addMenuRowPlaceholder() {
 }
 
 void RecentViews::rebuildMenuTail() {
-	const auto offset = (_menuPlaceholderCount < _menuEntries.size())
-		? (end(_menuEntries) - _menuPlaceholderCount - 1)->peer->id
-		: PeerId();
-	const auto views = _controller->views(offset);
-	if (views.list.empty()) {
+	const auto elements = _menuEntries.size() - _menuPlaceholderCount;
+	const auto views = _controller->views(elements + kAddPerPage, false);
+	if (views.list.size() <= elements) {
 		return;
 	}
 	const auto now = QDateTime::currentDateTime();
 	const auto added = std::min(
 		_menuPlaceholderCount + kAddPerPage,
-		int(views.list.size()));
-	auto add = added;
-	for (const auto &entry : views.list) {
+		int(views.list.size() - elements));
+	for (auto i = elements, till = i + added; i != till; ++i) {
+		const auto &entry = views.list[i];
 		addMenuRow(entry, now);
-		if (!--add) {
-			break;
-		}
 	}
 	_menuEntriesCount = _menuEntriesCount.current() + added;
 }

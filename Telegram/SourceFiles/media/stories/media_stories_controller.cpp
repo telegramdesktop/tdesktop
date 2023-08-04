@@ -1254,12 +1254,17 @@ SiblingView Controller::sibling(SiblingType type) const {
 	return {};
 }
 
-ViewsSlice Controller::views(PeerId offset) {
+const Data::StoryViews &Controller::views(int limit, bool initial) {
 	invalidate_weak_ptrs(&_viewsLoadGuard);
-	if (!offset) {
+	if (initial) {
 		refreshViewsFromData();
-	} else if (!sliceViewsTo(offset)) {
-		return { .left = _viewsSlice.left };
+	}
+	if (_viewsSlice.total > _viewsSlice.list.size()
+		&& _viewsSlice.list.size() < limit) {
+		const auto done = viewsGotMoreCallback();
+		const auto user = shownUser();
+		auto &stories = user->owner().stories();
+		stories.loadViewsSlice(_shown.story, _viewsSlice.nextOffset, done);
 	}
 	return _viewsSlice;
 }
@@ -1268,27 +1273,25 @@ rpl::producer<> Controller::moreViewsLoaded() const {
 	return _moreViewsLoaded.events();
 }
 
-Fn<void(std::vector<Data::StoryView>)> Controller::viewsGotMoreCallback() {
-	return crl::guard(&_viewsLoadGuard, [=](
-			const std::vector<Data::StoryView> &result) {
+Fn<void(Data::StoryViews)> Controller::viewsGotMoreCallback() {
+	return crl::guard(&_viewsLoadGuard, [=](Data::StoryViews result) {
 		if (_viewsSlice.list.empty()) {
 			const auto user = shownUser();
 			auto &stories = user->owner().stories();
 			if (const auto maybeStory = stories.lookup(_shown)) {
-				_viewsSlice = {
-					.list = result,
-					.left = (*maybeStory)->views() - int(result.size()),
-				};
+				_viewsSlice = (*maybeStory)->viewsList();
 			} else {
 				_viewsSlice = {};
 			}
 		} else {
 			_viewsSlice.list.insert(
 				end(_viewsSlice.list),
-				begin(result),
-				end(result));
-			_viewsSlice.left
-				= std::max(_viewsSlice.left - int(result.size()), 0);
+				begin(result.list),
+				end(result.list));
+			_viewsSlice.total = result.nextOffset.isEmpty()
+				? int(_viewsSlice.list.size())
+				: std::max(result.total, int(_viewsSlice.list.size()));
+			_viewsSlice.nextOffset = result.nextOffset;
 		}
 		_moreViewsLoaded.fire({});
 	});
@@ -1439,46 +1442,9 @@ void Controller::refreshViewsFromData() {
 		return;
 	}
 	const auto story = *maybeStory;
-	const auto &list = story->viewsList();
+	const auto &views = story->viewsList();
 	const auto total = story->views();
-	_viewsSlice.list = list
-		| ranges::views::take(Data::Stories::kViewsPerPage)
-		| ranges::to_vector;
-	_viewsSlice.left = total - int(_viewsSlice.list.size());
-	if (_viewsSlice.list.empty() && _viewsSlice.left > 0) {
-		const auto done = viewsGotMoreCallback();
-		stories.loadViewsSlice(_shown.story, std::nullopt, done);
-	}
-}
-
-bool Controller::sliceViewsTo(PeerId offset) {
-	Expects(shown());
-
-	const auto user = shownUser();
-	auto &stories = user->owner().stories();
-	const auto maybeStory = stories.lookup(_shown);
-	if (!maybeStory || !user->isSelf()) {
-		_viewsSlice = {};
-		return true;
-	}
-	const auto story = *maybeStory;
-	const auto &list = story->viewsList();
-	const auto proj = [&](const Data::StoryView &single) {
-		return single.peer->id;
-	};
-	const auto i = ranges::find(list, _viewsSlice.list.back());
-	const auto add = (i != end(list)) ? int(end(list) - i - 1) : 0;
-	const auto j = ranges::find(_viewsSlice.list, offset, proj);
-	Assert(j != end(_viewsSlice.list));
-	if (!add && (j + 1) == end(_viewsSlice.list)) {
-		const auto done = viewsGotMoreCallback();
-		stories.loadViewsSlice(_shown.story, _viewsSlice.list.back(), done);
-		return false;
-	}
-	_viewsSlice.list.erase(begin(_viewsSlice.list), j + 1);
-	_viewsSlice.list.insert(end(_viewsSlice.list), i + 1, end(list));
-	_viewsSlice.left -= add;
-	return true;
+	_viewsSlice = story->viewsList();
 }
 
 void Controller::unfocusReply() {

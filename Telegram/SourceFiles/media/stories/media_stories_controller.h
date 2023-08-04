@@ -104,11 +104,6 @@ struct Layout {
 	friend inline bool operator==(Layout, Layout) = default;
 };
 
-struct ViewsSlice {
-	std::vector<Data::StoryView> list;
-	int left = 0;
-};
-
 class Controller final : public base::has_weak_ptr {
 public:
 	explicit Controller(not_null<Delegate*> delegate);
@@ -158,7 +153,7 @@ public:
 	void repaintSibling(not_null<Sibling*> sibling);
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 
-	[[nodiscard]] ViewsSlice views(PeerId offset);
+	[[nodiscard]] const Data::StoryViews &views(int limit, bool initial);
 	[[nodiscard]] rpl::producer<> moreViewsLoaded() const;
 
 	void unfocusReply();
@@ -221,9 +216,8 @@ private:
 	void moveFromShown();
 
 	void refreshViewsFromData();
-	bool sliceViewsTo(PeerId offset);
 	[[nodiscard]] auto viewsGotMoreCallback()
-		-> Fn<void(std::vector<Data::StoryView>)>;
+		-> Fn<void(Data::StoryViews)>;
 
 	[[nodiscard]] bool shown() const;
 	[[nodiscard]] UserData *shownUser() const;
@@ -285,7 +279,7 @@ private:
 	int _cachedSourceIndex = -1;
 	bool _showingUnreadSources = false;
 
-	ViewsSlice _viewsSlice;
+	Data::StoryViews _viewsSlice;
 	rpl::event_stream<> _moreViewsLoaded;
 	base::has_weak_ptr _viewsLoadGuard;
 

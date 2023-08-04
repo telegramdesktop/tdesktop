@@ -179,8 +179,8 @@ public:
 	static constexpr auto kViewsPerPage = 50;
 	void loadViewsSlice(
 		StoryId id,
-		std::optional<StoryView> offset,
-		Fn<void(std::vector<StoryView>)> done);
+		QString offset,
+		Fn<void(StoryViews)> done);
 
 	[[nodiscard]] const StoriesIds &archive() const;
 	[[nodiscard]] rpl::producer<> archiveChanged() const;
@@ -366,8 +366,8 @@ private:
 	base::flat_set<PeerId> _incrementViewsRequests;
 
 	StoryId _viewsStoryId = 0;
-	std::optional<StoryView> _viewsOffset;
-	Fn<void(std::vector<StoryView>)> _viewsDone;
+	QString _viewsOffset;
+	Fn<void(StoryViews)> _viewsDone;
 	mtpRequestId _viewsRequestId = 0;
 
 	base::flat_set<FullStoryId> _preloaded;

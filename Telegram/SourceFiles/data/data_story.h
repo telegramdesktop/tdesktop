@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "data/data_message_reaction_id.h"
 
 class Image;
 class PhotoData;
@@ -58,9 +59,16 @@ struct StoryMedia {
 
 struct StoryView {
 	not_null<PeerData*> peer;
+	Data::ReactionId reaction;
 	TimeId date = 0;
 
 	friend inline bool operator==(StoryView, StoryView) = default;
+};
+
+struct StoryViews {
+	std::vector<StoryView> list;
+	QString nextOffset;
+	int total = 0;
 };
 
 class Story final {
@@ -115,12 +123,9 @@ public:
 
 	[[nodiscard]] auto recentViewers() const
 		-> const std::vector<not_null<PeerData*>> &;
-	[[nodiscard]] const std::vector<StoryView> &viewsList() const;
+	[[nodiscard]] const StoryViews &viewsList() const;
 	[[nodiscard]] int views() const;
-	void applyViewsSlice(
-		const std::optional<StoryView> &offset,
-		const std::vector<StoryView> &slice,
-		int total);
+	void applyViewsSlice(const QString &offset, const StoryViews &slice);
 
 	void applyChanges(
 		StoryMedia media,
@@ -140,8 +145,7 @@ private:
 	StoryMedia _media;
 	TextWithEntities _caption;
 	std::vector<not_null<PeerData*>> _recentViewers;
-	std::vector<StoryView> _viewsList;
-	int _views = 0;
+	StoryViews _views;
 	const TimeId _date = 0;
 	const TimeId _expires = 0;
 	TimeId _lastUpdateTime = 0;

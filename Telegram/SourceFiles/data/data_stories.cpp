@@ -862,7 +862,8 @@ void Stories::activateStealthMode(Fn<void()> done) {
 	using Flag = MTPstories_ActivateStealthMode::Flag;
 	api->request(MTPstories_ActivateStealthMode(
 		MTP_flags(Flag::f_past | Flag::f_future)
-	)).done([=](const MTPBool &result) {
+	)).done([=](const MTPUpdates &result) {
+		api->applyUpdates(result);
 		if (done) done();
 	}).fail([=] {
 		if (done) done();
@@ -1233,11 +1234,11 @@ void Stories::sendIncrementViewsRequests() {
 
 void Stories::loadViewsSlice(
 		StoryId id,
-		std::optional<StoryView> offset,
-		Fn<void(std::vector<StoryView>)> done) {
+		QString offset,
+		Fn<void(StoryViews)> done) {
 	if (_viewsStoryId == id
 		&& _viewsOffset == offset
-		&& (offset || _viewsRequestId)) {
+		&& (!offset.isEmpty() || _viewsRequestId)) {
 		if (_viewsRequestId) {
 			_viewsDone = std::move(done);
 		}
@@ -1251,21 +1252,27 @@ void Stories::loadViewsSlice(
 	const auto perPage = _viewsDone ? kViewsPerPage : kPollingViewsPerPage;
 	api->request(_viewsRequestId).cancel();
 	_viewsRequestId = api->request(MTPstories_GetStoryViewsList(
+		MTP_flags(0),
+		MTPstring(), // q
 		MTP_int(id),
-		MTP_int(offset ? offset->date : 0),
-		MTP_long(offset ? peerToUser(offset->peer->id).bare : 0),
+		MTP_string(offset),
 		MTP_int(perPage)
 	)).done([=](const MTPstories_StoryViewsList &result) {
 		_viewsRequestId = 0;
 
-		auto slice = std::vector<StoryView>();
-
 		const auto &data = result.data();
+		auto slice = StoryViews{
+			.nextOffset = data.vnext_offset().value_or_empty(),
+			.total = data.vcount().v,
+		};
 		_owner->processUsers(data.vusers());
-		slice.reserve(data.vviews().v.size());
+		slice.list.reserve(data.vviews().v.size());
 		for (const auto &view : data.vviews().v) {
-			slice.push_back({
+			slice.list.push_back({
 				.peer = _owner->peer(peerFromUser(view.data().vuser_id())),
+				.reaction = (view.data().vreaction()
+					? ReactionFromMTP(*view.data().vreaction())
+					: Data::ReactionId()),
 				.date = view.data().vdate().v,
 			});
 		}
@@ -1274,7 +1281,7 @@ void Stories::loadViewsSlice(
 			.story = _viewsStoryId,
 		};
 		if (const auto story = lookup(fullId)) {
-			(*story)->applyViewsSlice(_viewsOffset, slice, data.vcount().v);
+			(*story)->applyViewsSlice(_viewsOffset, slice);
 		}
 		if (const auto done = base::take(_viewsDone)) {
 			done(std::move(slice));
@@ -1713,7 +1720,7 @@ void Stories::sendPollingViewsRequests() {
 		return;
 	} else if (!_viewsRequestId) {
 		Assert(_viewsDone == nullptr);
-		loadViewsSlice(_pollingViews.front()->id(), std::nullopt, nullptr);
+		loadViewsSlice(_pollingViews.front()->id(), QString(), nullptr);
 	}
 	_pollingViewsTimer.callOnce(kPollViewsInterval);
 }

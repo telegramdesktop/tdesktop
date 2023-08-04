@@ -339,51 +339,35 @@ const std::vector<not_null<PeerData*>> &Story::recentViewers() const {
 	return _recentViewers;
 }
 
-const std::vector<StoryView> &Story::viewsList() const {
-	return _viewsList;
-}
-
-int Story::views() const {
+const StoryViews &Story::viewsList() const {
 	return _views;
 }
 
+int Story::views() const {
+	return _views.total;
+}
+
 void Story::applyViewsSlice(
-		const std::optional<StoryView> &offset,
-		const std::vector<StoryView> &slice,
-		int total) {
-	const auto changed = (_views != total);
-	_views = total;
-	if (!offset) {
-		const auto i = _viewsList.empty()
-			? end(slice)
-			: ranges::find(slice, _viewsList.front());
-		const auto merge = (i != end(slice))
-			&& !ranges::contains(slice, _viewsList.back());
-		if (merge) {
-			_viewsList.insert(begin(_viewsList), begin(slice), i);
-		} else {
-			_viewsList = slice;
-		}
-	} else if (!slice.empty()) {
-		const auto i = ranges::find(_viewsList, *offset);
-		const auto merge = (i != end(_viewsList))
-			&& !ranges::contains(_viewsList, slice.back());
-		if (merge) {
-			const auto after = i + 1;
-			if (after == end(_viewsList)) {
-				_viewsList.insert(after, begin(slice), end(slice));
-			} else {
-				const auto j = ranges::find(slice, _viewsList.back());
-				if (j != end(slice)) {
-					_viewsList.insert(end(_viewsList), j + 1, end(slice));
-				}
-			}
+		const QString &offset,
+		const StoryViews &slice) {
+	const auto changed = (_views.total != slice.total);
+	_views.total = slice.total;
+	if (offset.isEmpty()) {
+		_views = slice;
+	} else if (_views.nextOffset == offset) {
+		_views.list.insert(
+			end(_views.list),
+			begin(slice.list),
+			end(slice.list));
+		_views.nextOffset = slice.nextOffset;
+		if (_views.nextOffset.isEmpty()) {
+			_views.total = int(_views.list.size());
 		}
 	}
-	const auto known = int(_viewsList.size());
+	const auto known = int(_views.list.size());
 	if (known >= _recentViewers.size()) {
 		const auto take = std::min(known, kRecentViewersMax);
-		auto viewers = _viewsList
+		auto viewers = _views.list
 			| ranges::views::take(take)
 			| ranges::views::transform(&StoryView::peer)
 			| ranges::to_vector;
@@ -436,7 +420,7 @@ void Story::applyFields(
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
-	auto views = _views;
+	auto views = _views.total;
 	auto viewers = std::vector<not_null<PeerData*>>();
 	if (!data.is_min()) {
 		if (const auto info = data.vviews()) {
@@ -457,7 +441,7 @@ void Story::applyFields(
 	const auto editedChanged = (_edited != edited);
 	const auto mediaChanged = (_media != media);
 	const auto captionChanged = (_caption != caption);
-	const auto viewsChanged = (_views != views)
+	const auto viewsChanged = (_views.total != views)
 		|| (_recentViewers != viewers);
 
 	_privacyPublic = (privacy == StoryPrivacy::Public);
@@ -468,8 +452,10 @@ void Story::applyFields(
 	_edited = edited;
 	_pinned = pinned;
 	_noForwards = noForwards;
+	if (_views.total != views) {
+		_views = StoryViews{ .total = views };
+	}
 	if (viewsChanged) {
-		_views = views;
 		_recentViewers = std::move(viewers);
 	}
 	if (mediaChanged) {
