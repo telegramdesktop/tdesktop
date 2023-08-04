@@ -228,7 +228,7 @@ LinuxIntegration::LinuxIntegration()
 	if (!QCoreApplication::eventDispatcher()->inherits(
 		"QEventDispatcherGlib")) {
 		g_warning("Qt is running without GLib event loop integration, "
-			"except various functionality to not to work.");
+			"expect various functionality to not to work.");
 	}
 }
 
