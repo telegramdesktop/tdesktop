@@ -135,6 +135,7 @@ public:
 	void ready();
 
 	void updateVideoPlayback(const Player::TrackState &state);
+	[[nodiscard]] ClickHandlerPtr lookupLocationHandler(QPoint point) const;
 
 	[[nodiscard]] bool subjumpAvailable(int delta) const;
 	[[nodiscard]] bool subjumpFor(int delta);
@@ -188,6 +189,11 @@ private:
 			return peerId != 0;
 		}
 	};
+	struct LocationArea {
+		QRect geometry;
+		float64 rotation = 0.;
+		ClickHandlerPtr handler;
+	};
 	class PhotoPlayback;
 	class Unsupported;
 
@@ -203,6 +209,7 @@ private:
 	void updateContentFaded();
 	void updatePlayingAllowed();
 	void setPlayingAllowed(bool allowed);
+	void rebuildLocationAreas(const Layout &layout) const;
 
 	void hideSiblings();
 	void showSiblings(not_null<Main::Session*> session);
@@ -274,6 +281,9 @@ private:
 	int _sliderCount = 0;
 	bool _started = false;
 	bool _viewed = false;
+
+	std::vector<Data::StoryLocation> _locations;
+	mutable std::vector<LocationArea> _locationAreas;
 
 	std::vector<CachedSource> _cachedSourcesList;
 	int _cachedSourceIndex = -1;

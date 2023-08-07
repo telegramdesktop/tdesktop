@@ -5666,6 +5666,9 @@ void OverlayWidget::updateOver(QPoint pos) {
 		const auto point = pos - QPoint(_groupThumbsLeft, _groupThumbsTop);
 		lnk = _groupThumbs->getState(point);
 		lnkhost = this;
+	} else if (_stories) {
+		lnk = _stories->lookupLocationHandler(pos);
+		lnkhost = this;
 	}
 
 

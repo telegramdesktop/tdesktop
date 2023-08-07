@@ -118,6 +118,19 @@ struct SameDayRange {
 	return { QString() + QChar(10084) };
 }
 
+[[nodiscard]] QPoint Rotated(QPoint point, QPoint origin, float64 angle) {
+	if (std::abs(angle) < 1.) {
+		return point;
+	}
+	const auto alpha = angle / 180. * M_PI;
+	const auto acos = cos(alpha);
+	const auto asin = sin(alpha);
+	point -= origin;
+	return origin + QPoint(
+		int(base::SafeRound(acos * point.x() - asin * point.y())),
+		int(base::SafeRound(asin * point.x() + acos * point.y())));
+}
+
 } // namespace
 
 class Controller::PhotoPlayback final {
@@ -531,9 +544,28 @@ void Controller::initLayout() {
 			.nameBoundingRect = nameBoundingRect(right, false),
 			.nameFontSize = nameFontSize,
 		};
-
+		if (!_locationAreas.empty()) {
+			rebuildLocationAreas(layout);
+		}
 		return layout;
 	});
+}
+
+void Controller::rebuildLocationAreas(const Layout &layout) const {
+	Expects(_locations.size() == _locationAreas.size());
+
+	const auto origin = layout.content.topLeft();
+	const auto scale = layout.content.size();
+	for (auto i = 0, count = int(_locations.size()); i != count; ++i) {
+		auto &area = _locationAreas[i];
+		const auto &general = _locations[i].area.geometry;
+		area.geometry = QRect(
+			int(base::SafeRound(general.x() * scale.width())),
+			int(base::SafeRound(general.y() * scale.height())),
+			int(base::SafeRound(general.width() * scale.width())),
+			int(base::SafeRound(general.height() * scale.height()))
+		).translated(origin);
+	}
 }
 
 Data::Story *Controller::story() const {
@@ -918,6 +950,14 @@ bool Controller::changeShown(Data::Story *story) {
 			Data::Stories::Polling::Viewer);
 	}
 	_liked = false;
+	const auto &locations = story
+		? story->locations()
+		: std::vector<Data::StoryLocation>();
+	if (_locations != locations) {
+		_locations = locations;
+		_locationAreas.clear();
+	}
+
 	return true;
 }
 
@@ -1080,6 +1120,32 @@ void Controller::updatePlayback(const Player::TrackState &state) {
 			_delegate->storiesClose();
 		}
 	}
+}
+
+ClickHandlerPtr Controller::lookupLocationHandler(QPoint point) const {
+	const auto &layout = _layout.current();
+	if (_locations.empty() || !layout) {
+		return nullptr;
+	} else if (_locationAreas.empty()) {
+		_locationAreas = _locations | ranges::views::transform([](
+				const Data::StoryLocation &location) {
+			return LocationArea{
+				.rotation = location.area.rotation,
+				.handler = std::make_shared<LocationClickHandler>(
+					location.point),
+			};
+		}) | ranges::to_vector;
+		rebuildLocationAreas(*layout);
+	}
+
+	for (const auto &area : _locationAreas) {
+		const auto center = area.geometry.center();
+		const auto angle = -area.rotation;
+		if (area.geometry.contains(Rotated(point, center, angle))) {
+			return area.handler;
+		}
+	}
+	return nullptr;
 }
 
 void Controller::maybeMarkAsRead(const Player::TrackState &state) {

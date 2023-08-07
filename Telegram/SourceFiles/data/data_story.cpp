@@ -33,8 +33,11 @@ using UpdateFlag = StoryUpdate::Flag;
 
 [[nodiscard]] StoryArea ParseArea(const MTPMediaAreaCoordinates &area) {
 	const auto &data = area.data();
+	const auto center = QPointF(data.vx().v, data.vy().v);
+	const auto size = QSizeF(data.vw().v, data.vh().v);
+	const auto corner = center - QPointF(size.width(), size.height()) / 2.;
 	return {
-		.geometry = { data.vx().v, data.vy().v, data.vw().v, data.vh().v },
+		.geometry = { corner / 100., size / 100. },
 		.rotation = data.vrotation().v,
 	};
 }
