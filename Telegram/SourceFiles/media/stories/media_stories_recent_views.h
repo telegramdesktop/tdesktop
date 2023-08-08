@@ -70,7 +70,7 @@ private:
 	void showMenu();
 
 	void addMenuRow(Data::StoryView entry, const QDateTime &now);
-	void addMenuRowPlaceholder();
+	void addMenuRowPlaceholder(not_null<Main::Session*> session);
 	void rebuildMenuTail();
 	void subscribeToMenuUserpicsLoading(not_null<Main::Session*> session);
 	void refreshClickHandler();

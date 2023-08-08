@@ -778,8 +778,9 @@ storiesViewsMenu: PopupMenu(storiesPopupMenuWithIcons) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 320px;
 	menu: Menu(storiesMenuWithIcons) {
+		itemPadding: margins(54px, 8px, 17px, 8px);
 		widthMin: 215px;
-		widthMax: 215px;
+		widthMax: 250px;
 	}
 	radius: 7px;
 }

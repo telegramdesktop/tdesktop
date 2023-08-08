@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_who_reacted.h" // FormatReadDate.
 #include "chat_helpers/compose/compose_show.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_peer.h"
 #include "data/data_stories.h"
 #include "main/main_session.h"
@@ -258,7 +259,7 @@ void RecentViews::updateText() {
 	const auto text = _data.total
 		? (tr::lng_stories_views(tr::now, lt_count, _data.total)
 			+ (_data.reactions
-				? (u" "_q + QChar(10084) + QString::number(_data.reactions))
+				? (u"  "_q + QChar(10084) + QString::number(_data.reactions))
 				: QString()))
 		: tr::lng_stories_no_views(tr::now);
 	_text.setText(st::defaultTextStyle, text);
@@ -281,6 +282,7 @@ void RecentViews::showMenu() {
 		_widget.get(),
 		st::storiesViewsMenu);
 	auto count = 0;
+	const auto session = &_controller->story()->session();
 	const auto added = std::min(int(views.list.size()), kAddPerPage);
 	const auto add = std::min(views.total, kAddPerPage);
 	const auto now = QDateTime::currentDateTime();
@@ -291,7 +293,7 @@ void RecentViews::showMenu() {
 		}
 	}
 	while (count++ < add) {
-		addMenuRowPlaceholder();
+		addMenuRowPlaceholder(session);
 	}
 	rpl::merge(
 		_controller->moreViewsLoaded(),
@@ -366,7 +368,7 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 		auto customEntityData = data.customEntityData;
 		auto action = base::make_unique_q<Ui::WhoReactedEntryAction>(
 			_menu->menu(),
-			nullptr,
+			Data::ReactedMenuFactory(&entry.peer->session()),
 			_menu->menu()->st(),
 			prepare(view));
 		const auto raw = action.get();
@@ -390,10 +392,10 @@ void RecentViews::addMenuRow(Data::StoryView entry, const QDateTime &now) {
 	}
 }
 
-void RecentViews::addMenuRowPlaceholder() {
+void RecentViews::addMenuRowPlaceholder(not_null<Main::Session*> session) {
 	auto action = base::make_unique_q<Ui::WhoReactedEntryAction>(
 		_menu->menu(),
-		nullptr,
+		Data::ReactedMenuFactory(session),
 		_menu->menu()->st(),
 		Ui::WhoReactedEntryData{ .preloader = true });
 	const auto raw = action.get();
