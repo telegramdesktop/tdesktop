@@ -123,6 +123,13 @@ void View::setupStealthMode() {
 	_controller->setupStealthMode();
 }
 
+auto View::attachReactionsToMenu(
+	not_null<Ui::PopupMenu*> menu,
+	QPoint desiredPosition)
+-> AttachStripResult {
+	return _controller->attachReactionsToMenu(menu, desiredPosition);
+}
+
 SiblingView View::sibling(SiblingType type) const {
 	return _controller->sibling(type);
 }

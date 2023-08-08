@@ -20,6 +20,7 @@ class Story;
 namespace HistoryView::Reactions {
 class Selector;
 struct ChosenReaction;
+enum class AttachSelectorResult;
 } // namespace HistoryView::Reactions
 
 namespace Ui {
@@ -27,6 +28,7 @@ class RpWidget;
 struct ReactionFlyAnimationArgs;
 struct ReactionFlyCenter;
 class EmojiFlyAnimation;
+class PopupMenu;
 } // namespace Ui
 
 namespace Media::Stories {
@@ -68,6 +70,11 @@ public:
 		rpl::producer<bool> focused,
 		rpl::producer<bool> hasSendText);
 	void attachToReactionButton(not_null<Ui::RpWidget*> button);
+
+	using AttachStripResult = HistoryView::Reactions::AttachSelectorResult;
+	[[nodiscard]] AttachStripResult attachToMenu(
+		not_null<Ui::PopupMenu*> menu,
+		QPoint desiredPosition);
 
 private:
 	class Panel;

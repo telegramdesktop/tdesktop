@@ -17,6 +17,14 @@ namespace Media::Player {
 struct TrackState;
 } // namespace Media::Player
 
+namespace HistoryView::Reactions {
+enum class AttachSelectorResult;
+} // namespace HistoryView::Reactions
+
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
+
 namespace Media::Stories {
 
 class Delegate;
@@ -94,6 +102,11 @@ public:
 
 	[[nodiscard]] bool allowStealthMode() const;
 	void setupStealthMode();
+
+	using AttachStripResult = HistoryView::Reactions::AttachSelectorResult;
+	[[nodiscard]] AttachStripResult attachReactionsToMenu(
+		not_null<Ui::PopupMenu*> menu,
+		QPoint desiredPosition);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

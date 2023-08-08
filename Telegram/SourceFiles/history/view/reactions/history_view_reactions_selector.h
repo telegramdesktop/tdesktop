@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/reactions/history_view_reactions_strip.h"
-#include "data/data_message_reactions.h"
+#include "base/expected.h"
 #include "base/unique_qptr.h"
+#include "data/data_message_reactions.h"
+#include "history/view/reactions/history_view_reactions_strip.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/round_area_with_shadow.h"
 #include "ui/rp_widget.h"
@@ -209,5 +210,14 @@ AttachSelectorResult AttachSelectorToMenu(
 	Fn<void(ChosenReaction)> chosen,
 	Fn<void(FullMsgId)> showPremiumPromo,
 	IconFactory iconFactory);
+
+[[nodiscard]] auto AttachSelectorToMenu(
+	not_null<Ui::PopupMenu*> menu,
+	QPoint desiredPosition,
+	const style::EmojiPan &st,
+	std::shared_ptr<ChatHelpers::Show> show,
+	const Data::PossibleItemReactionsRef &reactions,
+	IconFactory iconFactory
+) -> base::expected<not_null<Selector*>, AttachSelectorResult>;
 
 } // namespace HistoryView::Reactions

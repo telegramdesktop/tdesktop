@@ -14,12 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
 #include "ui/effects/emoji_fly_animation.h"
 #include "ui/effects/reaction_fly_animation.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
 #include "styles/style_chat_helpers.h"
@@ -387,6 +389,38 @@ void Reactions::setReplyFieldState(
 void Reactions::attachToReactionButton(not_null<Ui::RpWidget*> button) {
 	_likeButton = button;
 	_panel->attachToReactionButton(button);
+}
+
+auto Reactions::attachToMenu(
+	not_null<Ui::PopupMenu*> menu,
+	QPoint desiredPosition)
+-> AttachStripResult {
+	using namespace HistoryView::Reactions;
+
+	const auto story = _controller->story();
+	if (!story || story->peer()->isSelf()) {
+		return AttachStripResult::Skipped;
+	}
+
+	const auto show = _controller->uiShow();
+	const auto result = AttachSelectorToMenu(
+		menu,
+		desiredPosition,
+		st::storiesReactionsPan,
+		show,
+		LookupPossibleReactions(&show->session()),
+		_controller->cachedReactionIconFactory().createMethod());
+	if (!result) {
+		return result.error();
+	}
+	const auto selector = *result;
+
+	selector->chosen() | rpl::start_with_next([=](ChosenReaction reaction) {
+		menu->hideMenu();
+		animateAndProcess({ reaction, ReactionsMode::Reaction });
+	}, selector->lifetime());
+
+	return AttachSelectorResult::Attached;
 }
 
 Data::ReactionId Reactions::liked() const {

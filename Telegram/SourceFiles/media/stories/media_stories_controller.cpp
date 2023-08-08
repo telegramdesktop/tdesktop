@@ -1552,6 +1552,13 @@ void Controller::setupStealthMode() {
 	SetupStealthMode(uiShow());
 }
 
+auto Controller::attachReactionsToMenu(
+	not_null<Ui::PopupMenu*> menu,
+	QPoint desiredPosition)
+-> AttachStripResult {
+	return _reactions->attachToMenu(menu, desiredPosition);
+}
+
 rpl::lifetime &Controller::lifetime() {
 	return _lifetime;
 }

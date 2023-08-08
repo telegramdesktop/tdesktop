@@ -145,29 +145,30 @@ mediaviewFileIconSize: 80px;
 mediaviewFileLink: defaultLinkButton;
 
 mediaviewMenuSeparator: MenuSeparator(defaultMenuSeparator) {
-	fg: mediaviewMenuFg;
+	fg: groupCallMenuBgOver;
 }
 mediaviewMenu: Menu(menuWithIcons) {
-	itemBg: mediaviewMenuBg;
-	itemBgOver: mediaviewMenuBgOver;
-	itemFg: mediaviewMenuFg;
-	itemFgOver: mediaviewMenuFg;
-	itemFgDisabled: mediaviewMenuFg;
-	itemFgShortcut: mediaviewMenuFg;
-	itemFgShortcutOver: mediaviewMenuFg;
-	itemFgShortcutDisabled: mediaviewMenuFg;
+	itemBg: groupCallMenuBg;
+	itemBgOver: groupCallMenuBgOver;
+	itemFg: groupCallMembersFg;
+	itemFgOver: groupCallMembersFg;
+	itemFgDisabled: groupCallMemberNotJoinedStatus;
+	itemFgShortcut: groupCallMemberNotJoinedStatus;
+	itemFgShortcutOver: groupCallMemberNotJoinedStatus;
+	itemFgShortcutDisabled: groupCallMemberNotJoinedStatus;
 
 	separator: mediaviewMenuSeparator;
+	arrow: icon {{ "menu/submenu_arrow", groupCallMemberNotJoinedStatus }};
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: mediaviewMenuBgRipple;
+		color: groupCallMenuBgRipple;
 	}
 }
 mediaviewMenuShadow: Shadow(defaultEmptyShadow) {
-	fallback: mediaviewMenuBg;
+	fallback: groupCallMenuBg;
 }
 mediaviewPanelAnimation: PanelAnimation(defaultPanelAnimation) {
-	fadeBg: mediaviewMenuBg;
+	fadeBg: groupCallMenuBg;
 	shadow: mediaviewMenuShadow;
 }
 mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
@@ -178,7 +179,7 @@ mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
 mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: mediaviewMenu;
 	wrap: InnerDropdown(defaultInnerDropdown) {
-		bg: mediaviewMenuBg;
+		bg: groupCallMenuBg;
 		animation: mediaviewPanelAnimation;
 		scrollPadding: margins(0px, 8px, 0px, 8px);
 		shadow: mediaviewMenuShadow;
@@ -312,7 +313,7 @@ mediaviewSpeedMenu: MediaSpeedMenu(mediaPlayerSpeedMenu) {
 	dropdown: DropdownMenu(mediaviewDropdownMenu) {
 		menu: Menu(mediaviewMenu) {
 			separator: MenuSeparator(mediaviewMenuSeparator) {
-				fg: mediaviewMenuBgOver;
+				fg: groupCallMenuBgOver;
 				padding: margins(0px, 4px, 0px, 4px);
 				width: 6px;
 			}
@@ -478,9 +479,7 @@ storiesRemoveSet: IconButton(stickerPanRemoveSet) {
 	iconOver: icon {{ "simple_close", storiesComposeGrayIcon }};
 	ripple: storiesComposeRippleLight;
 }
-storiesMenuSeparator: MenuSeparator(defaultMenuSeparator) {
-	fg: groupCallMenuBgOver;
-}
+storiesMenuSeparator: mediaviewMenuSeparator;
 storiesMenu: Menu(defaultMenu) {
 	itemBg: groupCallMenuBg;
 	itemBgOver: groupCallMenuBgOver;
@@ -498,22 +497,14 @@ storiesMenu: Menu(defaultMenu) {
 		color: groupCallMenuBgRipple;
 	}
 }
-storiesMenuShadow: Shadow(defaultEmptyShadow) {
-	fallback: groupCallMenuBg;
-}
-storiesMenuAnimation: PanelAnimation(defaultPanelAnimation) {
-	fadeBg: groupCallMenuBg;
-	shadow: storiesMenuShadow;
-}
+storiesMenuShadow: mediaviewMenuShadow;
+storiesMenuAnimation: mediaviewPanelAnimation;
 storiesPopupMenu: PopupMenu(defaultPopupMenu) {
 	shadow: storiesMenuShadow;
 	menu: storiesMenu;
 	animation: storiesMenuAnimation;
 }
-storiesMenuWithIcons: Menu(storiesMenu) {
-	itemIconPosition: point(15px, 5px);
-	itemPadding: margins(54px, 8px, 17px, 8px);
-}
+storiesMenuWithIcons: mediaviewMenu;
 storiesPopupMenuWithIcons: PopupMenu(storiesPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
 	menu: storiesMenuWithIcons;
@@ -779,8 +770,8 @@ storiesViewsMenu: PopupMenu(storiesPopupMenuWithIcons) {
 	maxHeight: 320px;
 	menu: Menu(storiesMenuWithIcons) {
 		itemPadding: margins(54px, 8px, 17px, 8px);
-		widthMin: 215px;
-		widthMax: 250px;
+		widthMin: 240px;
+		widthMax: 240px;
 	}
 	radius: 7px;
 }

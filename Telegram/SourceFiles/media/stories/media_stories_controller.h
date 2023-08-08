@@ -32,11 +32,13 @@ class DocumentMedia;
 namespace HistoryView::Reactions {
 class CachedIconFactory;
 struct ChosenReaction;
+enum class AttachSelectorResult;
 } // namespace HistoryView::Reactions
 
 namespace Ui {
 class RpWidget;
 class BoxContent;
+class PopupMenu;
 } // namespace Ui
 
 namespace Ui::Toast {
@@ -166,6 +168,11 @@ public:
 
 	[[nodiscard]] bool allowStealthMode() const;
 	void setupStealthMode();
+
+	using AttachStripResult = HistoryView::Reactions::AttachSelectorResult;
+	[[nodiscard]] AttachStripResult attachReactionsToMenu(
+		not_null<Ui::PopupMenu*> menu,
+		QPoint desiredPosition);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

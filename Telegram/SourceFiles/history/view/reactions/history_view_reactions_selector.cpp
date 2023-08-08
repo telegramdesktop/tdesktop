@@ -1036,21 +1036,65 @@ AttachSelectorResult AttachSelectorToMenu(
 		Fn<void(ChosenReaction)> chosen,
 		Fn<void(FullMsgId)> showPremiumPromo,
 		IconFactory iconFactory) {
-	auto reactions = Data::LookupPossibleReactions(item);
+	const auto result = AttachSelectorToMenu(
+		menu,
+		desiredPosition,
+		st::reactPanelEmojiPan,
+		controller->uiShow(),
+		Data::LookupPossibleReactions(item),
+		std::move(iconFactory));
+	if (!result) {
+		return result.error();
+	}
+	const auto selector = *result;
+	const auto itemId = item->fullId();
+
+	selector->chosen() | rpl::start_with_next([=](ChosenReaction reaction) {
+		menu->hideMenu();
+		reaction.context = itemId;
+		chosen(std::move(reaction));
+	}, selector->lifetime());
+
+	selector->premiumPromoChosen() | rpl::start_with_next([=] {
+		menu->hideMenu();
+		showPremiumPromo(itemId);
+	}, selector->lifetime());
+
+	const auto weak = base::make_weak(controller);
+	controller->enableGifPauseReason(
+		Window::GifPauseReason::MediaPreview);
+	QObject::connect(menu.get(), &QObject::destroyed, [weak] {
+		if (const auto strong = weak.get()) {
+			strong->disableGifPauseReason(
+				Window::GifPauseReason::MediaPreview);
+		}
+	});
+
+	return AttachSelectorResult::Attached;
+}
+
+auto AttachSelectorToMenu(
+	not_null<Ui::PopupMenu*> menu,
+	QPoint desiredPosition,
+	const style::EmojiPan &st,
+	std::shared_ptr<ChatHelpers::Show> show,
+	const Data::PossibleItemReactionsRef &reactions,
+	IconFactory iconFactory)
+-> base::expected<not_null<Selector*>, AttachSelectorResult> {
 	if (reactions.recent.empty() && !reactions.morePremiumAvailable) {
-		return AttachSelectorResult::Skipped;
+		return base::make_unexpected(AttachSelectorResult::Skipped);
 	}
 	const auto withSearch = reactions.customAllowed;
 	const auto selector = Ui::CreateChild<Selector>(
 		menu.get(),
-		st::reactPanelEmojiPan,
-		controller->uiShow(),
+		st,
+		std::move(show),
 		std::move(reactions),
 		std::move(iconFactory),
 		[=](bool fast) { menu->hideMenu(fast); },
 		false); // child
 	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
-		return AttachSelectorResult::Failed;
+		return base::make_unexpected(AttachSelectorResult::Failed);
 	}
 	if (withSearch) {
 		Ui::Platform::FixPopupMenuNativeEmojiPopup(menu);
@@ -1066,19 +1110,6 @@ AttachSelectorResult AttachSelectorToMenu(
 	}, selector->lifetime());
 	selector->initGeometry(selectorInnerTop);
 	selector->show();
-
-	const auto itemId = item->fullId();
-
-	selector->chosen() | rpl::start_with_next([=](ChosenReaction reaction) {
-		menu->hideMenu();
-		reaction.context = itemId;
-		chosen(std::move(reaction));
-	}, selector->lifetime());
-
-	selector->premiumPromoChosen() | rpl::start_with_next([=] {
-		menu->hideMenu();
-		showPremiumPromo(itemId);
-	}, selector->lifetime());
 
 	const auto correctTop = selector->y();
 	menu->showStateValue(
@@ -1100,17 +1131,7 @@ AttachSelectorResult AttachSelectorToMenu(
 			state.toggling);
 	}, selector->lifetime());
 
-	const auto weak = base::make_weak(controller);
-	controller->enableGifPauseReason(
-		Window::GifPauseReason::MediaPreview);
-	QObject::connect(menu.get(), &QObject::destroyed, [weak] {
-		if (const auto strong = weak.get()) {
-			strong->disableGifPauseReason(
-				Window::GifPauseReason::MediaPreview);
-		}
-	});
-
-	return AttachSelectorResult::Attached;
+	return selector;
 }
 
 } // namespace HistoryView::Reactions

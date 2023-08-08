@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/reactions/history_view_reactions_strip.h"
+#include "history/view/reactions/history_view_reactions_selector.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -5849,20 +5850,33 @@ bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
 			const style::icon *icon) {
 		_menu->addAction(text, std::move(handler), icon);
 	});
+
 	if (_menu->empty()) {
 		_menu = nullptr;
-	} else {
+		return true;
+	}
+	if (_stories) {
+		_stories->menuShown(true);
+	}
+	_menu->setDestroyedCallback(crl::guard(_widget, [=] {
 		if (_stories) {
-			_stories->menuShown(true);
+			_stories->menuShown(false);
 		}
-		_menu->setDestroyedCallback(crl::guard(_widget, [=] {
-			if (_stories) {
-				_stories->menuShown(false);
-			}
-			activateControls();
-			_receiveMouse = false;
-			InvokeQueued(_widget, [=] { receiveMouse(); });
-		}));
+		activateControls();
+		_receiveMouse = false;
+		InvokeQueued(_widget, [=] { receiveMouse(); });
+	}));
+
+	using HistoryView::Reactions::AttachSelectorResult;
+	const auto attached = _stories
+		? _stories->attachReactionsToMenu(_menu.get(), QCursor::pos())
+		: AttachSelectorResult::Skipped;
+	if (attached == AttachSelectorResult::Failed) {
+		_menu = nullptr;
+		return true;
+	} else if (attached == AttachSelectorResult::Attached) {
+		_menu->popupPrepared();
+	} else {
 		_menu->popup(QCursor::pos());
 	}
 	activateControls();
