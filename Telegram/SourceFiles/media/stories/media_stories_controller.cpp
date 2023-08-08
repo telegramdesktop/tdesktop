@@ -7,19 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_controller.h"
 
-#include "base/timer.h"
 #include "base/power_save_blocker.h"
 #include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
 #include "boxes/peers/prepare_short_info_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/update_checker.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
-#include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -40,22 +38,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/report_box.h"
-#include "ui/effects/emoji_fly_animation.h"
-#include "ui/effects/message_sending_animation_common.h"
-#include "ui/effects/reaction_fly_animation.h"
-#include "ui/layers/box_content.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/round_rect.h"
-#include "ui/rp_widget.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_chat.h"
-#include "styles/style_chat_helpers.h"
+#include "styles/style_chat_helpers.h" // defaultReportBox
 #include "styles/style_media_view.h"
-#include "styles/style_widgets.h"
 #include "styles/style_boxes.h" // UserpicButton
 
 #include <QtGui/QWindow>
@@ -112,10 +103,6 @@ struct SameDayRange {
 		++result.till;
 	}
 	return result;
-}
-
-[[nodiscard]] Data::ReactionId HeartReactionId() {
-	return { QString() + QChar(10084) };
 }
 
 [[nodiscard]] QPoint Rotated(QPoint point, QPoint origin, float64 angle) {
@@ -294,7 +281,7 @@ Controller::Controller(not_null<Delegate*> delegate)
 
 	rpl::combine(
 		_replyArea->activeValue(),
-		_reactions->expandedValue(),
+		_reactions->activeValue(),
 		_1 || _2
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool active) {
@@ -302,38 +289,16 @@ Controller::Controller(not_null<Delegate*> delegate)
 		updateContentFaded();
 	}, _lifetime);
 
-	_replyArea->focusedValue(
-	) | rpl::start_with_next([=](bool focused) {
-		_replyFocused = focused;
-		if (!_replyFocused) {
-			_reactions->hideIfCollapsed();
-		} else if (!_hasSendText) {
-			_reactions->show();
-		}
-	}, _lifetime);
-
-	_replyArea->hasSendTextValue(
-	) | rpl::start_with_next([=](bool has) {
-		_hasSendText = has;
-		if (_replyFocused) {
-			if (_hasSendText) {
-				_reactions->hide();
-			} else {
-				_reactions->show();
-			}
-		}
-	}, _lifetime);
+	_reactions->setReplyFieldState(
+		_replyArea->focusedValue(),
+		_replyArea->hasSendTextValue());
+	if (const auto like = _replyArea->likeAnimationTarget()) {
+		_reactions->attachToReactionButton(like);
+	}
 
 	_reactions->chosen(
-	) | rpl::start_with_next([=](HistoryView::Reactions::ChosenReaction id) {
-		startReactionAnimation({
-			.id = id.id,
-			.flyIcon = id.icon,
-			.flyFrom = _wrap->mapFromGlobal(id.globalGeometry),
-			.scaleOutDuration = st::fadeWrapDuration * 2,
-		}, _wrap.get());
-		_replyArea->sendReaction(id.id);
-		unfocusReply();
+	) | rpl::start_with_next([=](Reactions::Chosen chosen) {
+		reactionChosen(chosen.mode, chosen.reaction);
 	}, _lifetime);
 
 	_delegate->storiesLayerShown(
@@ -624,23 +589,17 @@ bool Controller::skipCaption() const {
 	return _captionFullView != nullptr;
 }
 
-bool Controller::liked() const {
-	return _liked.current();
+void Controller::toggleLiked() {
+	_reactions->toggleLiked();
 }
 
-rpl::producer<bool> Controller::likedValue() const {
-	return _liked.value();
-}
-
-void Controller::toggleLiked(bool liked) {
-	_liked = liked;
-	if (liked) {
-		startReactionAnimation({
-			.id = HeartReactionId(),
-			.scaleOutDuration = st::fadeWrapDuration * 2,
-			.effectOnly = true,
-		}, _replyArea->likeAnimationTarget());
+void Controller::reactionChosen(ReactionsMode mode, ChosenReaction chosen) {
+	if (mode == ReactionsMode::Message) {
+		_replyArea->sendReaction(chosen.id);
+	} else if (const auto user = shownUser()) {
+		user->owner().stories().sendReaction(_shown, chosen.id);
 	}
+	unfocusReply();
 }
 
 void Controller::showFullCaption() {
@@ -902,14 +861,15 @@ void Controller::show(
 	_viewed = false;
 	invalidate_weak_ptrs(&_viewsLoadGuard);
 	_reactions->hide();
-	if (_replyFocused) {
+	if (_replyArea->focused()) {
 		unfocusReply();
 	}
 
 	_replyArea->show({
 		.user = unsupported ? nullptr : user,
 		.id = story->id(),
-	});
+	}, _reactions->likedValue());
+
 	_recentViews->show({
 		.list = story->recentViewers(),
 		.reactions = story->reactions(),
@@ -949,7 +909,8 @@ bool Controller::changeShown(Data::Story *story) {
 			story,
 			Data::Stories::Polling::Viewer);
 	}
-	_liked = false;
+	_reactions->showLikeFrom(story);
+
 	const auto &locations = story
 		? story->locations()
 		: std::vector<Data::StoryLocation>();
@@ -1099,8 +1060,7 @@ void Controller::ready() {
 	}
 	_started = true;
 	updatePlayingAllowed();
-	uiShow()->session().data().reactions().preloadAnimationsFor(
-		HeartReactionId());
+	_reactions->ready();
 }
 
 void Controller::updateVideoPlayback(const Player::TrackState &state) {
@@ -1291,7 +1251,7 @@ void Controller::contentPressed(bool pressed) {
 		_captionFullView->close();
 	}
 	if (pressed) {
-		_reactions->collapse();
+		_reactions->outsidePressed();
 	}
 }
 
@@ -1605,28 +1565,6 @@ void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {
 		base::PowerSaveBlockType::PreventDisplaySleep,
 		[] { return u"Stories playback is active"_q; },
 		[=] { return _wrap->window()->windowHandle(); });
-}
-
-void Controller::startReactionAnimation(
-		Ui::ReactionFlyAnimationArgs args,
-		not_null<QWidget*> target) {
-	Expects(shown());
-
-	_reactionAnimation = std::make_unique<Ui::EmojiFlyAnimation>(
-		_wrap,
-		&shownUser()->owner().reactions(),
-		std::move(args),
-		[=] { _reactionAnimation->repaint(); },
-		Data::CustomEmojiSizeTag::Isolated);
-	const auto layer = _reactionAnimation->layer();
-	_wrap->paintRequest() | rpl::start_with_next([=] {
-		if (!_reactionAnimation->paintBadgeFrame(target)) {
-			InvokeQueued(layer, [=] {
-				_reactionAnimation = nullptr;
-				_wrap->update();
-			});
-		}
-	}, layer->lifetime());
 }
 
 Ui::Toast::Config PrepareTogglePinnedToast(int count, bool pinned) {

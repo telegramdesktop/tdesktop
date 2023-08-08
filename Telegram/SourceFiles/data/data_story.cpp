@@ -376,6 +376,17 @@ const TextWithEntities &Story::caption() const {
 	return unsupported() ? empty : _caption;
 }
 
+Data::ReactionId Story::sentReactionId() const {
+	return _sentReactionId;
+}
+
+void Story::setReactionId(Data::ReactionId id) {
+	if (_sentReactionId != id) {
+		_sentReactionId = id;
+		session().changes().storyUpdated(this, UpdateFlag::Reaction);
+	}
+}
+
 const std::vector<not_null<PeerData*>> &Story::recentViewers() const {
 	return _recentViewers;
 }
@@ -458,6 +469,9 @@ void Story::applyFields(
 		bool initial) {
 	_lastUpdateTime = now;
 
+	const auto reaction = data.vsent_reaction()
+		? Data::ReactionFromMTP(*data.vsent_reaction())
+		: Data::ReactionId();
 	const auto pinned = data.is_pinned();
 	const auto edited = data.is_edited();
 	const auto privacy = data.is_public()
@@ -512,6 +526,7 @@ void Story::applyFields(
 		|| (_views.reactions != reactions)
 		|| (_recentViewers != viewers);
 	const auto locationsChanged = (_locations != locations);
+	const auto reactionChanged = (_sentReactionId != reaction);
 
 	_privacyPublic = (privacy == StoryPrivacy::Public);
 	_privacyCloseFriends = (privacy == StoryPrivacy::CloseFriends);
@@ -536,15 +551,19 @@ void Story::applyFields(
 	if (locationsChanged) {
 		_locations = std::move(locations);
 	}
+	if (reactionChanged) {
+		_sentReactionId = reaction;
+	}
 
 	const auto changed = editedChanged
 		|| captionChanged
 		|| mediaChanged
 		|| locationsChanged;
-	if (!initial && (changed || viewsChanged)) {
+	if (!initial && (changed || viewsChanged || reactionChanged)) {
 		_peer->session().changes().storyUpdated(this, UpdateFlag()
 			| (changed ? UpdateFlag::Edited : UpdateFlag())
-			| (viewsChanged ? UpdateFlag::ViewsAdded : UpdateFlag()));
+			| (viewsChanged ? UpdateFlag::ViewsAdded : UpdateFlag())
+			| (reactionChanged ? UpdateFlag::Reaction : UpdateFlag()));
 	}
 	if (!initial && (captionChanged || mediaChanged)) {
 		if (const auto item = _peer->owner().stories().lookupItem(this)) {

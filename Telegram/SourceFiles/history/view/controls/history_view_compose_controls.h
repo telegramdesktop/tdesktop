@@ -147,6 +147,7 @@ public:
 	[[nodiscard]] int heightCurrent() const;
 
 	bool focus();
+	[[nodiscard]] bool focused() const;
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
 	[[nodiscard]] rpl::producer<bool> tabbedPanelShownValue() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
@@ -222,7 +223,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> recordingActiveValue() const;
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
 	[[nodiscard]] rpl::producer<bool> fieldMenuShownValue() const;
-	[[nodiscard]] not_null<QWidget*> likeAnimationTarget() const;
+	[[nodiscard]] not_null<Ui::RpWidget*> likeAnimationTarget() const;
 
 	void applyCloudDraft();
 	void applyDraft(

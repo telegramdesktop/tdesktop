@@ -1241,9 +1241,12 @@ bool ComposeControls::focus() {
 	return true;
 }
 
+bool ComposeControls::focused() const {
+	return Ui::InFocusChain(_wrap.get());
+}
+
 rpl::producer<bool> ComposeControls::focusedValue() const {
-	return rpl::single(Ui::InFocusChain(_wrap.get()))
-		| rpl::then(_focusChanges.events());
+	return rpl::single(focused()) | rpl::then(_focusChanges.events());
 }
 
 rpl::producer<bool> ComposeControls::tabbedPanelShownValue() const {
@@ -3022,7 +3025,7 @@ bool ComposeControls::handleCancelRequest() {
 }
 
 void ComposeControls::tryProcessKeyInput(not_null<QKeyEvent*> e) {
-	if (_field->isVisible()) {
+	if (_field->isVisible() && !e->text().isEmpty()) {
 		_field->setFocusFast();
 		QCoreApplication::sendEvent(_field->rawTextEdit(), e);
 	}
@@ -3158,7 +3161,7 @@ rpl::producer<bool> ComposeControls::fieldMenuShownValue() const {
 	return _field->menuShownValue();
 }
 
-not_null<QWidget*> ComposeControls::likeAnimationTarget() const {
+not_null<Ui::RpWidget*> ComposeControls::likeAnimationTarget() const {
 	Expects(_like != nullptr);
 
 	return _like;

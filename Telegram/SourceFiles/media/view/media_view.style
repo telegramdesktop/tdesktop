@@ -682,7 +682,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 	attach: storiesAttach;
 	emoji: storiesAttachEmoji;
 	like: storiesLike;
-	liked: icon{{ "chat/input_liked", settingsIconBg1 }};
+	liked: icon{};
 	suggestions: EmojiSuggestions(defaultEmojiSuggestions) {
 		dropdown: InnerDropdown(emojiSuggestionsDropdown) {
 			animation: PanelAnimation(defaultPanelAnimation) {
@@ -807,6 +807,7 @@ storiesReactionsPan: EmojiPan(storiesEmojiPan) {
 storiesReactionsWidth: 210px;
 storiesReactionsBottomSkip: 29px;
 storiesReactionsAddedTop: 200px;
+storiesLikeReactionsPosition: point(85px, 30px);
 
 storiesUnsupportedLabel: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewControlFg;

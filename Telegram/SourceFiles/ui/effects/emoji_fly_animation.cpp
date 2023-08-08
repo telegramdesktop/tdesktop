@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/emoji_fly_animation.h"
 
 #include "data/stickers/data_custom_emoji.h"
+#include "ui/text/text_custom_emoji.h"
+#include "ui/animated_icon.h"
 #include "styles/style_info.h"
 #include "styles/style_chat.h"
 
@@ -98,6 +100,12 @@ void EmojiFlyAnimation::repaint() {
 bool EmojiFlyAnimation::paintBadgeFrame(not_null<QWidget*> widget) {
 	_target = widget;
 	return !_fly.finished();
+}
+
+ReactionFlyCenter EmojiFlyAnimation::grabBadgeCenter() {
+	auto result = _fly.takeCenter();
+	result.size = _flySize;
+	return result;
 }
 
 } // namespace Ui

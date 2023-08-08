@@ -328,6 +328,10 @@ void Selector::updateShowState(
 	update();
 }
 
+int Selector::countAppearedWidth(float64 progress) const {
+	return anim::interpolate(_skipx * 2 + _size, _inner.width(), progress);
+}
+
 void Selector::paintAppearing(QPainter &p) {
 	Expects(_strip != nullptr);
 
@@ -340,10 +344,7 @@ void Selector::paintAppearing(QPainter &p) {
 	_paintBuffer.fill(_st.bg->c);
 	auto q = QPainter(&_paintBuffer);
 	const auto extents = extentsForShadow();
-	const auto appearedWidth = anim::interpolate(
-		_skipx * 2 + _size,
-		_inner.width(),
-		_appearProgress);
+	const auto appearedWidth = countAppearedWidth(_appearProgress);
 	const auto fullWidth = _inner.x() + appearedWidth + extents.right();
 	const auto size = QSize(fullWidth, _outer.height());
 

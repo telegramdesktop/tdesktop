@@ -146,6 +146,9 @@ public:
 	void setCaption(TextWithEntities &&caption);
 	[[nodiscard]] const TextWithEntities &caption() const;
 
+	[[nodiscard]] Data::ReactionId sentReactionId() const;
+	void setReactionId(Data::ReactionId id);
+
 	[[nodiscard]] auto recentViewers() const
 		-> const std::vector<not_null<PeerData*>> &;
 	[[nodiscard]] const StoryViews &viewsList() const;
@@ -170,6 +173,7 @@ private:
 
 	const StoryId _id = 0;
 	const not_null<PeerData*> _peer;
+	Data::ReactionId _sentReactionId;
 	StoryMedia _media;
 	TextWithEntities _caption;
 	std::vector<not_null<PeerData*>> _recentViewers;

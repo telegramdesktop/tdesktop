@@ -41,6 +41,7 @@ class Session;
 namespace Ui {
 struct PreparedList;
 class SendFilesWay;
+class RpWidget;
 } // namespace Ui
 
 namespace Media::Stories {
@@ -60,9 +61,12 @@ public:
 	explicit ReplyArea(not_null<Controller*> controller);
 	~ReplyArea();
 
-	void show(ReplyAreaData data);
+	void show(
+		ReplyAreaData data,
+		rpl::producer<Data::ReactionId> likedValue);
 	void sendReaction(const Data::ReactionId &id);
 
+	[[nodiscard]] bool focused() const;
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
 	[[nodiscard]] rpl::producer<bool> activeValue() const;
 	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
@@ -70,7 +74,7 @@ public:
 	[[nodiscard]] bool ignoreWindowMove(QPoint position) const;
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
-	[[nodiscard]] not_null<QWidget*> likeAnimationTarget() const;
+	[[nodiscard]] not_null<Ui::RpWidget*> likeAnimationTarget() const;
 
 private:
 	class Cant;

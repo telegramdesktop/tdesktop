@@ -381,7 +381,7 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		loadImage(set, document, !i->centerIcon);
 	} else if (!_waitingForList) {
 		_waitingForList = true;
-		refreshRecent();
+		refreshDefault();
 	}
 }
 

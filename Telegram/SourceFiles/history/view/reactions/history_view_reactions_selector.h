@@ -63,6 +63,7 @@ public:
 	[[nodiscard]] QMargins extentsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
 	[[nodiscard]] int minimalHeight() const;
+	[[nodiscard]] int countAppearedWidth(float64 progress) const;
 	void setSpecialExpandTopSkip(int skip);
 	void initGeometry(int innerTop);
 	void beforeDestroy();

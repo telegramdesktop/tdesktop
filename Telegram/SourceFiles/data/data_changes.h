@@ -226,8 +226,9 @@ struct StoryUpdate {
 		NewAdded    = (1U << 2),
 		ViewsAdded  = (1U << 3),
 		MarkRead    = (1U << 4),
+		Reaction    = (1U << 5),
 
-		LastUsedBit = (1U << 4),
+		LastUsedBit = (1U << 5),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

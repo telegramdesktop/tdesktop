@@ -26,17 +26,16 @@ struct FileChosen;
 
 namespace Data {
 struct FileOrigin;
-struct ReactionId;
+class DocumentMedia;
 } // namespace Data
 
 namespace HistoryView::Reactions {
 class CachedIconFactory;
+struct ChosenReaction;
 } // namespace HistoryView::Reactions
 
 namespace Ui {
 class RpWidget;
-struct ReactionFlyAnimationArgs;
-class EmojiFlyAnimation;
 class BoxContent;
 } // namespace Ui
 
@@ -66,6 +65,7 @@ struct SiblingView;
 enum class SiblingType;
 struct ContentLayout;
 class CaptionFullView;
+enum class ReactionsMode;
 
 enum class HeaderLayout {
 	Normal,
@@ -118,9 +118,7 @@ public:
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
 	[[nodiscard]] bool skipCaption() const;
-	[[nodiscard]] bool liked() const;
-	[[nodiscard]] rpl::producer<bool> likedValue() const;
-	void toggleLiked(bool liked);
+	void toggleLiked();
 	void showFullCaption();
 	void captionClosing();
 	void captionClosed();
@@ -172,6 +170,9 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	class PhotoPlayback;
+	class Unsupported;
+	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 	struct StoriesList {
 		not_null<UserData*> user;
 		Data::StoriesIds ids;
@@ -194,8 +195,6 @@ private:
 		float64 rotation = 0.;
 		ClickHandlerPtr handler;
 	};
-	class PhotoPlayback;
-	class Unsupported;
 
 	void initLayout();
 	bool changeShown(Data::Story *story);
@@ -238,9 +237,7 @@ private:
 		const std::vector<Data::StoriesSourceInfo> &lists,
 		int index);
 
-	void startReactionAnimation(
-		Ui::ReactionFlyAnimationArgs from,
-		not_null<QWidget*> target);
+	void reactionChosen(ReactionsMode mode, ChosenReaction chosen);
 
 	const not_null<Delegate*> _delegate;
 
@@ -260,9 +257,7 @@ private:
 	bool _contentFaded = false;
 
 	bool _windowActive = false;
-	bool _replyFocused = false;
 	bool _replyActive = false;
-	bool _hasSendText = false;
 	bool _layerShown = false;
 	bool _menuShown = false;
 	bool _tooltipShown = false;
@@ -273,7 +268,6 @@ private:
 	Data::StoriesContext _context;
 	std::optional<Data::StoriesSource> _source;
 	std::optional<StoriesList> _list;
-	rpl::variable<bool> _liked;
 	FullStoryId _waitingForId;
 	int _waitingForDelta = 0;
 	int _index = 0;
@@ -297,7 +291,6 @@ private:
 	std::unique_ptr<Sibling> _siblingRight;
 
 	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
-	std::unique_ptr<Ui::EmojiFlyAnimation> _reactionAnimation;
 
 	Main::Session *_session = nullptr;
 	rpl::lifetime _sessionLifetime;

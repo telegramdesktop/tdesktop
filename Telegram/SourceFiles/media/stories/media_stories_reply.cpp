@@ -623,7 +623,7 @@ void ReplyArea::initActions() {
 
 	_controls->likeToggled(
 	) | rpl::start_with_next([=] {
-		_controller->toggleLiked(!_controller->liked());
+		_controller->toggleLiked();
 	}, _lifetime);
 
 	_controls->setMimeDataHook([=](
@@ -649,7 +649,9 @@ void ReplyArea::initActions() {
 	_controls->showFinished();
 }
 
-void ReplyArea::show(ReplyAreaData data) {
+void ReplyArea::show(
+		ReplyAreaData data,
+		rpl::producer<Data::ReactionId> likedValue) {
 	if (_data == data) {
 		return;
 	}
@@ -666,7 +668,11 @@ void ReplyArea::show(ReplyAreaData data) {
 	const auto history = user ? user->owner().history(user).get() : nullptr;
 	_controls->setHistory({
 		.history = history,
-		.liked = _controller->likedValue(),
+		.liked = std::move(
+			likedValue
+		) | rpl::map([](const Data::ReactionId &id) {
+			return !id.empty();
+		}),
 	});
 	_controls->clear();
 	const auto hidden = user && user->isSelf();
@@ -697,6 +703,10 @@ Main::Session &ReplyArea::session() const {
 	return _data.user->session();
 }
 
+bool ReplyArea::focused() const {
+	return _controls->focused();
+}
+
 rpl::producer<bool> ReplyArea::focusedValue() const {
 	return _controls->focusedValue();
 }
@@ -725,7 +735,7 @@ void ReplyArea::tryProcessKeyInput(not_null<QKeyEvent*> e) {
 	_controls->tryProcessKeyInput(e);
 }
 
-not_null<QWidget*> ReplyArea::likeAnimationTarget() const {
+not_null<Ui::RpWidget*> ReplyArea::likeAnimationTarget() const {
 	return _controls->likeAnimationTarget();
 }
 

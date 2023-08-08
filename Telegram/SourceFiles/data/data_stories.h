@@ -240,6 +240,8 @@ public:
 	[[nodiscard]] rpl::producer<StealthMode> stealthModeValue() const;
 	void activateStealthMode(Fn<void()> done = nullptr);
 
+	void sendReaction(FullStoryId id, Data::ReactionId reaction);
+
 private:
 	struct Saved {
 		StoriesIds ids;

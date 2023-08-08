@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+struct ReactionFlyCenter;
+
 class EmojiFlyAnimation {
 public:
 	EmojiFlyAnimation(
@@ -26,6 +28,7 @@ public:
 
 	void repaint();
 	bool paintBadgeFrame(not_null<QWidget*> widget);
+	[[nodiscard]] ReactionFlyCenter grabBadgeCenter();
 
 private:
 	const int _flySize = 0;
