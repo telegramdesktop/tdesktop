@@ -21,6 +21,7 @@ public:
 		not_null<Data::Reactions*> owner,
 		Ui::ReactionFlyAnimationArgs &&args,
 		Fn<void()> repaint,
+		Fn<QColor()> textColor,
 		Data::CustomEmojiSizeTag tag);
 
 	[[nodiscard]] not_null<Ui::RpWidget*> layer();
@@ -32,6 +33,7 @@ public:
 
 private:
 	const int _flySize = 0;
+	Fn<QColor()> _textColor;
 	Ui::ReactionFlyAnimation _fly;
 	Ui::RpWidget _layer;
 	QRect _area;

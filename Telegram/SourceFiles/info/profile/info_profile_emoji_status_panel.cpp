@@ -229,6 +229,7 @@ void EmojiStatusPanel::startAnimation(
 		&owner->reactions(),
 		std::move(args),
 		[=] { _animation->repaint(); },
+		[] { return st::profileVerifiedCheckBg->c; },
 		_animationSizeTag);
 }
 

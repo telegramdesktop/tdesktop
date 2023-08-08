@@ -33,8 +33,10 @@ EmojiFlyAnimation::EmojiFlyAnimation(
 	not_null<Data::Reactions*> owner,
 	ReactionFlyAnimationArgs &&args,
 	Fn<void()> repaint,
+	Fn<QColor()> textColor,
 	Data::CustomEmojiSizeTag tag)
 : _flySize(ComputeFlySize(tag))
+, _textColor(std::move(textColor))
 , _fly(
 	owner,
 	std::move(args),
@@ -63,7 +65,7 @@ EmojiFlyAnimation::EmojiFlyAnimation(
 			QRect(
 				rect.topLeft() + QPoint(skipx, skipy),
 				QSize(_flySize, _flySize)),
-			st::infoPeerBadge.premiumFg->c,
+			_textColor(),
 			clip,
 			crl::now());
 		if (_areaUpdated || _area.isEmpty()) {

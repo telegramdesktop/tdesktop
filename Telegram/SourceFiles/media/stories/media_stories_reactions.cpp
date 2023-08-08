@@ -556,12 +556,12 @@ void Reactions::initLikeIcon(
 				target.y() + (target.height() - inner) / 2,
 				inner,
 				inner);
-			p.drawImage(rect, icon->frame(st::windowFg->c));
+			p.drawImage(rect, icon->frame(st::storiesComposeWhiteText->c));
 		} else {
 			const auto customSize = fly->center.customSize;
 			const auto scaled = (inner != customSize);
 			fly->center.custom->paint(p, {
-				.textColor = st::windowFg->c,
+				.textColor = st::storiesComposeWhiteText->c,
 				.size = { customSize, customSize },
 				.now = crl::now(),
 				.scale = (scaled ? (inner / float64(customSize)) : 1.),
@@ -650,11 +650,13 @@ void Reactions::setLikedId(
 		bool force) {
 	if (const auto done = setLikedIdIconInit(owner, id, force)) {
 		const auto reactions = &owner->reactions();
+		const auto colored = [] { return st::storiesComposeWhiteText->c; };
+		const auto sizeTag = Data::CustomEmojiSizeTag::Isolated;
 		done(Ui::EmojiFlyAnimation(_controller->wrap(), reactions, {
 			.id = id,
 			.scaleOutDuration = kReactionScaleOutDuration,
 			.scaleOutTarget = kReactionScaleOutTarget,
-		}, [] {}, Data::CustomEmojiSizeTag::Isolated).grabBadgeCenter());
+		}, [] {}, colored, sizeTag).grabBadgeCenter());
 	}
 }
 
@@ -669,6 +671,7 @@ void Reactions::startReactionAnimation(
 		&story->owner().reactions(),
 		std::move(args),
 		[=] { _reactionAnimation->repaint(); },
+		[] { return st::storiesComposeWhiteText->c; },
 		Data::CustomEmojiSizeTag::Isolated);
 	const auto layer = _reactionAnimation->layer();
 	wrap->paintRequest() | rpl::start_with_next([=] {
