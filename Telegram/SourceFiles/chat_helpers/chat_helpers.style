@@ -508,6 +508,7 @@ sendBoxAlbumGroupSkipRight: 5px;
 sendBoxAlbumGroupSkipTop: 5px;
 sendBoxAlbumGroupRadius: 4px;
 sendBoxAlbumGroupSize: size(62px, 25px);
+sendBoxAlbumGroupSizeVertical: size(30px, 50px);
 sendBoxAlbumSmallGroupSize: size(30px, 25px);
 
 sendBoxFileGroupSkipTop: 2px;
