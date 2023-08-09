@@ -15,7 +15,6 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
-class SettingsSlider;
 class FadeShadow;
 class PlainShadow;
 class PopupMenu;

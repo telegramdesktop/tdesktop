@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 
 namespace Ui {
-class SettingsSlider;
 class VerticalLayout;
 class SearchFieldController;
 } // namespace Ui

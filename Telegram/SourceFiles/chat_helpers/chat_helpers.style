@@ -351,11 +351,7 @@ filtersRemove: IconButton(stickersRemove) {
 
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
-emojiTabs: SettingsSlider(defaultTabsSlider) {
-	height: 43px;
-	barTop: 40px;
-	labelTop: 12px;
-}
+emojiTabs: defaultTabsSlider;
 
 emojiCategoryIconTop: 6px;
 emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {

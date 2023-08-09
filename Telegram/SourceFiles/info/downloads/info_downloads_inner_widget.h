@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 
 namespace Ui {
-class SettingsSlider;
 class VerticalLayout;
 class SearchFieldController;
 } // namespace Ui
