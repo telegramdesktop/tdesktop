@@ -241,7 +241,11 @@ void LinuxIntegration::initInhibit() {
 		return;
 	}
 
-	auto uniqueName = _inhibitProxy.get_connection().get_unique_name();
+	auto uniqueName = _inhibitProxy
+		.get_connection()
+		.get_unique_name()
+		.value_or("");
+
 	uniqueName.erase(0, 1);
 	uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
 
