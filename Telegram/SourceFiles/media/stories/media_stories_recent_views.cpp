@@ -455,6 +455,7 @@ void RecentViews::subscribeToMenuUserpicsLoading(
 				entry.action->setData({
 					.text = peer->name(),
 					.date = entry.date,
+					.customEntityData = entry.customEntityData,
 					.userpic = std::move(userpic),
 					.callback = entry.callback,
 				});
