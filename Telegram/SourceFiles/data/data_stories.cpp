@@ -1266,8 +1266,9 @@ void Stories::loadViewsSlice(
 	const auto api = &_owner->session().api();
 	const auto perPage = _viewsDone ? kViewsPerPage : kPollingViewsPerPage;
 	api->request(_viewsRequestId).cancel();
+	using Flag = MTPstories_GetStoryViewsList::Flag;
 	_viewsRequestId = api->request(MTPstories_GetStoryViewsList(
-		MTP_flags(0),
+		MTP_flags(Flag::f_reactions_first),
 		MTPstring(), // q
 		MTP_int(id),
 		MTP_string(offset),
