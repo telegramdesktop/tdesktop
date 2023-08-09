@@ -250,6 +250,7 @@ private:
 	int countMaxNameWidth(bool installedSet) const;
 	[[nodiscard]] bool skipPremium() const;
 
+	const style::PeerListItem &_st;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -386,7 +387,8 @@ StickersBox::StickersBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	Section section,
 	bool masks)
-: _show(std::move(show))
+: _st(st::stickersRowItem)
+, _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
 , _tabs(this, st::stickersTabs)
@@ -407,7 +409,8 @@ StickersBox::StickersBox(
 	QWidget*,
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<ChannelData*> megagroup)
-: _show(std::move(show))
+: _st(st::stickersRowItem)
+, _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
 , _section(Section::Installed)
@@ -425,7 +428,8 @@ StickersBox::StickersBox(
 	QWidget*,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const QVector<MTPStickerSetCovered> &attachedSets)
-: _show(std::move(show))
+: _st(st::stickersRowItem)
+, _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
 , _section(Section::Attached)
@@ -440,7 +444,8 @@ StickersBox::StickersBox(
 	QWidget*,
 	std::shared_ptr<ChatHelpers::Show> show,
 	const std::vector<StickerSetIdentifier> &emojiSets)
-: _show(std::move(show))
+: _st(st::stickersRowItem)
+, _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
 , _section(Section::Attached)
@@ -1131,6 +1136,7 @@ StickersBox::Inner::Inner(
 	std::shared_ptr<ChatHelpers::Show> show,
 	StickersBox::Section section)
 : RpWidget(parent)
+, _st(st::stickersRowItem)
 , _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
@@ -1150,11 +1156,11 @@ StickersBox::Inner::Inner(
 , _inactiveButtonBg(
 	ImageRoundRadius::Large,
 	st::stickersTrendingInstalled.textBg)
-, _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
+, _rowHeight(_st.height)
 , _shiftingAnimation([=](crl::time now) {
 	return shiftingAnimationCallback(now);
 })
-, _itemsTop(st::membersMarginTop)
+, _itemsTop(st::lineWidth)
 , _addText(tr::lng_stickers_featured_add(tr::now))
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
 , _undoText(tr::lng_stickers_return(tr::now))
@@ -1169,6 +1175,7 @@ StickersBox::Inner::Inner(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<ChannelData*> megagroup)
 : RpWidget(parent)
+, _st(st::stickersRowItem)
 , _show(std::move(show))
 , _session(&_show->session())
 , _api(&_session->mtp())
@@ -1188,11 +1195,11 @@ StickersBox::Inner::Inner(
 , _inactiveButtonBg(
 	ImageRoundRadius::Large,
 	st::stickersTrendingInstalled.textBg)
-, _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
+, _rowHeight(_st.height)
 , _shiftingAnimation([=](crl::time now) {
 	return shiftingAnimationCallback(now);
 })
-, _itemsTop(st::membersMarginTop)
+, _itemsTop(st::lineWidth)
 , _megagroupSet(megagroup)
 , _megagroupSetInput(_megagroupSet->mgInfo->stickerSet)
 , _megagroupSetField(
@@ -1328,8 +1335,8 @@ QRect StickersBox::Inner::relativeButtonRect(
 		buttonh = st.height;
 		buttonshift = 0;
 	}
-	auto buttonx = width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - buttonw + buttonshift;
-	auto buttony = st::contactsPadding.top() + (st::contactsPhotoSize - buttonh) / 2;
+	auto buttonx = width() - st::contactsPadding.right() - buttonw + buttonshift;
+	auto buttony = (_st.height - buttonh) / 2;
 	return QRect(buttonx, buttony, buttonw, buttonh);
 }
 
@@ -1345,7 +1352,7 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
 			return -1;
 		}();
 		if (index >= 0 && index == selectedIndex) {
-			p.fillRect(0, 0, width(), _rowHeight, st::contactsBgOver);
+			p.fillRect(0, 0, width(), _rowHeight, _st.button.textBgOver);
 			if (row->ripple) {
 				row->ripple->paint(p, 0, 0, width());
 			}
@@ -1362,7 +1369,7 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
 					current = reachedOpacity;
 				}
 			}
-			auto rect = myrtlrect(st::contactsPadding.left() / 2, st::contactsPadding.top() / 2, width() - (st::contactsPadding.left() / 2) - _scrollbar - st::contactsPadding.left() / 2, _rowHeight - ((st::contactsPadding.top() + st::contactsPadding.bottom()) / 2));
+			auto rect = myrtlrect(_st.photoPosition.x() / 2, _st.photoPosition.y() / 2, width() - _st.photoPosition.x() - _scrollbar, _rowHeight - _st.photoPosition.y());
 			p.setOpacity(current);
 			Ui::Shadow::paint(p, rect, width(), st::boxRoundShadow);
 			p.setOpacity(1);
@@ -1383,27 +1390,27 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
 		p.setOpacity(st::stickersRowDisabledOpacity);
 	}
 
-	auto stickerx = st::contactsPadding.left();
+	auto stickerskip = 0;
 
 	if (!_megagroupSet && _isInstalledTab) {
-		stickerx += st::stickersReorderIcon.width() + st::stickersReorderSkip;
+		stickerskip += st::stickersReorderIcon.width() + st::stickersReorderSkip;
 		if (!row->isRecentSet()) {
-			st::stickersReorderIcon.paint(p, st::contactsPadding.left(), (_rowHeight - st::stickersReorderIcon.height()) / 2, width());
+			st::stickersReorderIcon.paint(p, _st.photoPosition.x(), (_rowHeight - st::stickersReorderIcon.height()) / 2, width());
 		}
 	}
 
 	if (row->sticker) {
-		paintRowThumbnail(p, row, stickerx);
+		paintRowThumbnail(p, row, stickerskip + _st.photoPosition.x());
 	}
 
-	int namex = stickerx + st::contactsPhotoSize + st::contactsPadding.left();
-	int namey = st::contactsPadding.top() + st::contactsNameTop;
+	int namex = stickerskip + _st.namePosition.x();
+	int namey = _st.namePosition.y();
 
-	int statusx = namex;
-	int statusy = st::contactsPadding.top() + st::contactsStatusTop;
+	int statusx = stickerskip + _st.statusPosition.x();
+	int statusy = _st.statusPosition.y();
 
 	p.setFont(st::contactsNameStyle.font);
-	p.setPen(st::contactsNameFg);
+	p.setPen(_st.nameFg);
 	p.drawTextLeft(namex, namey, width(), row->title, row->titleWidth);
 
 	if (row->isUnread()) {
@@ -1425,7 +1432,7 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
 		: tr::lng_stickers_count(tr::now, lt_count, row->count);
 
 	p.setFont(st::contactsStatusFont);
-	p.setPen(st::contactsStatusFg);
+	p.setPen(_st.statusFg);
 	p.drawTextLeft(statusx, statusy, width(), statusText);
 
 	p.setOpacity(1);
@@ -1457,15 +1464,15 @@ void StickersBox::Inner::paintRowThumbnail(
 		? row->stickerMedia->thumbnail()
 		: nullptr;
 	const auto paused = _show->paused(ChatHelpers::PauseReason::Layer);
-	const auto x = left + (st::contactsPhotoSize - row->pixw) / 2;
-	const auto y = st::contactsPadding.top() + (st::contactsPhotoSize - row->pixh) / 2;
+	const auto x = left + (_st.photoSize - row->pixw) / 2;
+	const auto y = _st.photoPosition.y() + (_st.photoSize - row->pixh) / 2;
 	if (row->lottie && row->lottie->ready()) {
 		const auto frame = row->lottie->frame();
 		const auto size = frame.size() / cIntRetinaFactor();
 		p.drawImage(
 			QRect(
-				left + (st::contactsPhotoSize - size.width()) / 2,
-				st::contactsPadding.top() + (st::contactsPhotoSize - size.height()) / 2,
+				left + (_st.photoSize - size.width()) / 2,
+				_st.photoPosition.y() + (_st.photoSize - size.height()) / 2,
 				size.width(),
 				size.height()),
 			frame);
@@ -1500,9 +1507,7 @@ void StickersBox::Inner::validateLottieAnimation(not_null<Row*> row) {
 		row->thumbnailMedia.get(),
 		row->stickerMedia.get(),
 		ChatHelpers::StickerLottieSize::SetsListThumbnail,
-		QSize(
-			st::contactsPhotoSize,
-			st::contactsPhotoSize) * cIntRetinaFactor());
+		QSize(_st.photoSize, _st.photoSize) * cIntRetinaFactor());
 	if (!player) {
 		return;
 	}
@@ -1572,15 +1577,12 @@ void StickersBox::Inner::updateRowThumbnail(not_null<Row*> row) {
 		}
 		Unexpected("StickersBox::Inner::updateRowThumbnail: row not found");
 	}();
-	const auto left = st::contactsPadding.left()
+	const auto left = _st.photoPosition.x()
 		+ ((!_megagroupSet && _isInstalledTab)
 			? st::stickersReorderIcon.width() + st::stickersReorderSkip
 			: 0);
-	update(
-		left,
-		rowTop + st::contactsPadding.top(),
-		st::contactsPhotoSize,
-		st::contactsPhotoSize);
+	const auto top = rowTop + _st.photoPosition.y();
+	update(left, top, _st.photoSize, _st.photoSize);
 }
 
 void StickersBox::Inner::paintFakeButton(Painter &p, not_null<Row*> row, int index) {
@@ -1818,7 +1820,7 @@ void StickersBox::Inner::updateSelected() {
 				actionSel = -1;
 			}
 			if (!_megagroupSet && _isInstalledTab && !row->isRecentSet()) {
-				auto dragAreaWidth = st::contactsPadding.left() + st::stickersReorderIcon.width() + st::stickersReorderSkip;
+				auto dragAreaWidth = _st.photoPosition.x() + st::stickersReorderIcon.width() + st::stickersReorderSkip;
 				auto dragArea = myrtlrect(0, 0, dragAreaWidth, _rowHeight);
 				inDragArea = dragArea.contains(local);
 			}
@@ -2142,7 +2144,7 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 }
 
 void StickersBox::Inner::rebuild(bool masks) {
-	_itemsTop = st::membersMarginTop;
+	_itemsTop = st::lineWidth;
 
 	if (_megagroupSet) {
 		_itemsTop += st::groupStickersFieldPadding.top() + _megagroupSetField->height() + st::groupStickersFieldPadding.bottom();
@@ -2291,11 +2293,11 @@ bool StickersBox::Inner::skipPremium() const {
 }
 
 int StickersBox::Inner::countMaxNameWidth(bool installedSet) const {
-	int namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
+	int namex = _st.namePosition.x();
 	if (!_megagroupSet && _isInstalledTab) {
 		namex += st::stickersReorderIcon.width() + st::stickersReorderSkip;
 	}
-	int namew = st::boxWideWidth - namex - st::contactsPadding.right() - st::contactsCheckPosition.x();
+	int namew = st::boxWideWidth - namex - st::contactsPadding.right();
 	if (_isInstalledTab) {
 		if (!_megagroupSet) {
 			namew -= _undoWidth - st::stickersUndoRemove.width;
@@ -2401,17 +2403,17 @@ void StickersBox::Inner::fillSetCover(
 		: QSize(1, 1);
 	auto pixw = size.width();
 	auto pixh = size.height();
-	if (pixw > st::contactsPhotoSize) {
+	if (pixw > _st.photoSize) {
 		if (pixw > pixh) {
-			pixh = (pixh * st::contactsPhotoSize) / pixw;
-			pixw = st::contactsPhotoSize;
+			pixh = (pixh * _st.photoSize) / pixw;
+			pixw = _st.photoSize;
 		} else {
-			pixw = (pixw * st::contactsPhotoSize) / pixh;
-			pixh = st::contactsPhotoSize;
+			pixw = (pixw * _st.photoSize) / pixh;
+			pixh = _st.photoSize;
 		}
-	} else if (pixh > st::contactsPhotoSize) {
-		pixw = (pixw * st::contactsPhotoSize) / pixh;
-		pixh = st::contactsPhotoSize;
+	} else if (pixh > _st.photoSize) {
+		pixw = (pixw * _st.photoSize) / pixh;
+		pixh = _st.photoSize;
 	}
 	*outWidth = pixw;
 	*outHeight = pixh;

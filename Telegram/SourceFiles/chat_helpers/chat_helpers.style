@@ -313,9 +313,25 @@ stickersUndoRemove: RoundButton(defaultLightButton) {
 }
 stickersRemoveSkip: 4px;
 stickersReorderIcon: icon {{ "stickers_reorder", menuIconFg }};
-stickersReorderSkip: 13px;
+stickersReorderSkip: 18px;
 
 stickersTabs: defaultTabsSlider;
+
+stickersRowItem: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoSize: 32px;
+	photoPosition: point(18px, 10px);
+	namePosition: point(66px, 7px);
+	statusPosition: point(66px, 26px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
 
 stickerEmojiSkip: 5px;
 

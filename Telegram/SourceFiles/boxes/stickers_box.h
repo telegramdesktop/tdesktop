@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct RippleAnimation;
+struct PeerListItem;
 } // namespace style
 
 namespace Ui {
@@ -142,6 +143,7 @@ private:
 
 	std::array<Inner*, 5> widgets() const;
 
+	const style::PeerListItem &_st;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
