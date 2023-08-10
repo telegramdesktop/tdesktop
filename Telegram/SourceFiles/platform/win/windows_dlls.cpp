@@ -34,7 +34,6 @@ SafeIniter::SafeIniter() {
 	LOAD_SYMBOL(LibShell32, OpenAs_RunDLL);
 	LOAD_SYMBOL(LibShell32, SHQueryUserNotificationState);
 	LOAD_SYMBOL(LibShell32, SHChangeNotify);
-	LOAD_SYMBOL(LibShell32, SetCurrentProcessExplicitAppUserModelID);
 
 	//if (IsWindows10OrGreater()) {
 	//	static const auto kSystemVersion = QOperatingSystemVersion::current();

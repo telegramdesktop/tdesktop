@@ -107,11 +107,7 @@ crl::time LastSettingsQueryMs/* = 0*/;
 }
 
 bool init() {
-	if (!IsWindows8OrGreater()) {
-		return false;
-	}
-	if ((Dlls::SetCurrentProcessExplicitAppUserModelID == nullptr)
-		|| !base::WinRT::Supported()) {
+	if (!IsWindows8OrGreater() || !base::WinRT::Supported()) {
 		return false;
 	}
 
@@ -128,7 +124,7 @@ bool init() {
 	}
 
 	auto appUserModelId = AppUserModelId::getId();
-	if (!SUCCEEDED(Dlls::SetCurrentProcessExplicitAppUserModelID(appUserModelId))) {
+	if (!SUCCEEDED(SetCurrentProcessExplicitAppUserModelID(appUserModelId))) {
 		return false;
 	}
 	return true;
