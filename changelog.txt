@@ -1,3 +1,9 @@
+4.8.11 beta (10.08.23)
+
+- Fix initial video playback speed.
+- Use native window resize on Windows 11.
+- Fix memory leak in Direct3D 11 media viewer on Windows.
+
 4.8.10 (28.07.23)
 
 - Send story sharing comments as separate messages.
