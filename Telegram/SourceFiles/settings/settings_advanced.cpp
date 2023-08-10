@@ -737,18 +737,19 @@ void SetupANGLE(
 		tr::lng_settings_angle_backend_d3d11(tr::now),
 		tr::lng_settings_angle_backend_d3d9(tr::now),
 		tr::lng_settings_angle_backend_d3d11on12(tr::now),
-		tr::lng_settings_angle_backend_opengl(tr::now),
+		//tr::lng_settings_angle_backend_opengl(tr::now),
 		tr::lng_settings_angle_backend_disabled(tr::now),
 	};
-	const auto backendIndex = [] {
+	const auto disabled = int(options.size()) - 1;
+	const auto backendIndex = [=] {
 		if (Core::App().settings().disableOpenGL()) {
-			return 5;
+			return disabled;
 		} else switch (Ui::GL::CurrentANGLE()) {
 		case ANGLE::Auto: return 0;
 		case ANGLE::D3D11: return 1;
 		case ANGLE::D3D9: return 2;
 		case ANGLE::D3D11on12: return 3;
-		case ANGLE::OpenGL: return 4;
+		//case ANGLE::OpenGL: return 4;
 		}
 		Unexpected("Ui::GL::CurrentANGLE value in SetupANGLE.");
 	}();
@@ -764,7 +765,7 @@ void SetupANGLE(
 					return;
 				}
 				const auto confirmed = crl::guard(button, [=] {
-					const auto nowDisabled = (index == 5);
+					const auto nowDisabled = (index == disabled);
 					if (!nowDisabled) {
 						Ui::GL::ChangeANGLE([&] {
 							switch (index) {
@@ -772,12 +773,12 @@ void SetupANGLE(
 							case 1: return ANGLE::D3D11;
 							case 2: return ANGLE::D3D9;
 							case 3: return ANGLE::D3D11on12;
-							case 4: return ANGLE::OpenGL;
+							//case 4: return ANGLE::OpenGL;
 							}
 							Unexpected("Index in SetupANGLE.");
 						}());
 					}
-					const auto wasDisabled = (backendIndex == 5);
+					const auto wasDisabled = (backendIndex == disabled);
 					if (nowDisabled != wasDisabled) {
 						Core::App().settings().setDisableOpenGL(nowDisabled);
 						Local::writeSettings();

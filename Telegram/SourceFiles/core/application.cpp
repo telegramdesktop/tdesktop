@@ -123,7 +123,7 @@ void SetCrashAnnotationsGL() {
 		case Ui::GL::ANGLE::D3D11: return "Direct3D 11";
 		case Ui::GL::ANGLE::D3D9: return "Direct3D 9";
 		case Ui::GL::ANGLE::D3D11on12: return "D3D11on12";
-		case Ui::GL::ANGLE::OpenGL: return "OpenGL";
+		//case Ui::GL::ANGLE::OpenGL: return "OpenGL";
 		}
 		Unexpected("Ui::GL::CurrentANGLE value in SetupANGLE.");
 	}());
