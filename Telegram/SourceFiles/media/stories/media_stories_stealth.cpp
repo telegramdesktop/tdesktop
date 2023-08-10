@@ -138,7 +138,7 @@ struct Feature {
 	return {
 		.icon = st::storiesStealthFeaturePastIcon,
 		.title = tr::lng_stealth_mode_past_title(tr::now),
-		.about = tr::lng_stealth_mode_past_about(tr::now),
+		.about = { tr::lng_stealth_mode_past_about(tr::now) },
 	};
 }
 
@@ -146,7 +146,7 @@ struct Feature {
 	return {
 		.icon = st::storiesStealthFeatureNextIcon,
 		.title = tr::lng_stealth_mode_next_title(tr::now),
-		.about = tr::lng_stealth_mode_next_about(tr::now),
+		.about = { tr::lng_stealth_mode_next_about(tr::now) },
 	};
 }
 
