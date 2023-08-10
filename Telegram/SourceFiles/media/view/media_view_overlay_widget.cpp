@@ -4051,8 +4051,8 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		const auto messageId = _message ? _message->fullId() : FullMsgId();
 		options.audioId = AudioMsgId(_document, messageId);
 		options.speed = _stories
-			? Core::App().settings().videoPlaybackSpeed()
-			: 1.;
+			? 1.
+			: Core::App().settings().videoPlaybackSpeed();
 		if (_pip) {
 			_pip = nullptr;
 		}
