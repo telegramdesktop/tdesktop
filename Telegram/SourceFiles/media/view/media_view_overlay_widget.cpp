@@ -492,6 +492,15 @@ OverlayWidget::OverlayWidget()
 			return base::EventFilterResult::Cancel;
 		} else if (type == QEvent::ThemeChange && Platform::IsLinux()) {
 			_window->setWindowIcon(Window::CreateIcon(_session));
+		} else if (type == QEvent::ContextMenu) {
+			const auto event = static_cast<QContextMenuEvent*>(e.get());
+			const auto mouse = (event->reason() == QContextMenuEvent::Mouse);
+			const auto position = mouse
+				? std::make_optional(event->pos())
+				: std::nullopt;
+			if (handleContextMenu(position)) {
+				return base::EventFilterResult::Cancel;
+			}
 		}
 		return base::EventFilterResult::Continue;
 	});
