@@ -123,8 +123,16 @@ bool init() {
 		return false;
 	}
 
-	auto appUserModelId = AppUserModelId::getId();
-	if (!SUCCEEDED(SetCurrentProcessExplicitAppUserModelID(appUserModelId))) {
+	PWSTR appUserModelId = {};
+	if (!SUCCEEDED(GetCurrentProcessExplicitAppUserModelID(&appUserModelId))) {
+		return false;
+	}
+
+	const auto appUserModelIdGuard = gsl::finally([&] {
+		CoTaskMemFree(appUserModelId);
+	});
+
+	if (AppUserModelId::getId() != appUserModelId) {
 		return false;
 	}
 	return true;
@@ -300,7 +308,7 @@ void QueryFocusAssist() {
 		}
 		return;
 	}
-	const auto appUserModelId = std::wstring(AppUserModelId::getId());
+	const auto appUserModelId = AppUserModelId::getId();
 	auto blocked = true;
 	const auto guard = gsl::finally([&] {
 		if (FocusAssistBlocks != blocked) {

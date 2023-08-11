@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_dlls.h"
 #include "platform/win/windows_toast_activator.h"
 #include "base/platform/win/base_windows_wrl.h"
+#include "core/launcher.h"
 
 #include <propvarutil.h>
 #include <propkey.h>
@@ -137,7 +138,7 @@ void checkPinned() {
 				WCHAR already[MAX_PATH];
 				hr = PropVariantToString(appIdPropVar, already, MAX_PATH);
 				if (SUCCEEDED(hr)) {
-					if (std::wstring(getId()) == already) {
+					if (getId() == already) {
 						LOG(("Already!"));
 						PropVariantClear(&appIdPropVar);
 						return;
@@ -149,7 +150,7 @@ void checkPinned() {
 				}
 				PropVariantClear(&appIdPropVar);
 
-				hr = InitPropVariantFromString(getId(), &appIdPropVar);
+				hr = InitPropVariantFromString(getId().c_str(), &appIdPropVar);
 				if (!SUCCEEDED(hr)) return;
 
 				hr = propertyStore->SetValue(getKey(), appIdPropVar);
@@ -247,6 +248,20 @@ bool validateShortcutAt(const QString &path) {
 	hr = persistFile->Load(p.c_str(), STGM_READWRITE);
 	if (!SUCCEEDED(hr)) return false;
 
+	WCHAR szGotPath[MAX_PATH];
+	WIN32_FIND_DATA wfd;
+	hr = shellLink->GetPath(
+		szGotPath,
+		MAX_PATH,
+		(WIN32_FIND_DATA*)&wfd,
+		SLGP_SHORTPATH);
+	if (!SUCCEEDED(hr)) return false;
+
+	const auto full = cExeDir() + cExeName();
+	if (QDir::toNativeSeparators(full).toStdWString() != szGotPath) {
+		return false;
+	}
+
 	ComPtr<IPropertyStore> propertyStore;
 	hr = shellLink.As(&propertyStore);
 	if (!SUCCEEDED(hr)) return false;
@@ -263,7 +278,7 @@ bool validateShortcutAt(const QString &path) {
 
 	WCHAR already[MAX_PATH];
 	hr = PropVariantToString(appIdPropVar, already, MAX_PATH);
-	const auto good1 = SUCCEEDED(hr) && (std::wstring(getId()) == already);
+	const auto good1 = SUCCEEDED(hr) && (getId() == already);
 	const auto bad1 = !good1 && (appIdPropVar.vt != VT_EMPTY);
 	PropVariantClear(&appIdPropVar);
 
@@ -279,7 +294,7 @@ bool validateShortcutAt(const QString &path) {
 		return false;
 	}
 
-	hr = InitPropVariantFromString(getId(), &appIdPropVar);
+	hr = InitPropVariantFromString(getId().c_str(), &appIdPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
 	hr = propertyStore->SetValue(getKey(), appIdPropVar);
@@ -309,6 +324,20 @@ bool validateShortcutAt(const QString &path) {
 	return true;
 }
 
+bool checkInstalled(QString path = {}) {
+	if (path.isEmpty()) {
+		path = systemShortcutPath();
+		if (path.isEmpty()) {
+			return false;
+		}
+	}
+
+	const auto installed = u"Telegram Desktop/Telegram.lnk"_q;
+	const auto old = u"Telegram Win (Unofficial)/Telegram.lnk"_q;
+	return validateShortcutAt(path + installed)
+		|| validateShortcutAt(path + old);
+}
+
 bool validateShortcut() {
 	QString path = systemShortcutPath();
 	if (path.isEmpty() || cExeName().isEmpty()) {
@@ -321,10 +350,7 @@ bool validateShortcut() {
 			return true;
 		}
 	} else {
-		const auto installed = u"Telegram Desktop/Telegram.lnk"_q;
-		const auto old = u"Telegram Win (Unofficial)/Telegram.lnk"_q;
-		if (validateShortcutAt(path + installed)
-			|| validateShortcutAt(path + old)) {
+		if (checkInstalled(path)) {
 			return true;
 		}
 
@@ -360,7 +386,7 @@ bool validateShortcut() {
 	if (!SUCCEEDED(hr)) return false;
 
 	PROPVARIANT appIdPropVar;
-	hr = InitPropVariantFromString(getId(), &appIdPropVar);
+	hr = InitPropVariantFromString(getId().c_str(), &appIdPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
 	hr = propertyStore->SetValue(getKey(), appIdPropVar);
@@ -407,8 +433,42 @@ bool validateShortcut() {
 	return true;
 }
 
-const WCHAR *getId() {
-	return cAlphaVersion() ? AppUserModelIdAlpha : AppUserModelIdRelease;
+const std::wstring &getId() {
+	static const std::wstring BaseId(cAlphaVersion()
+		? AppUserModelIdAlpha
+		: AppUserModelIdRelease);
+	static auto CheckingInstalled = false;
+	if (CheckingInstalled) {
+		return BaseId;
+	}
+	static const auto Installed = [] {
+		CheckingInstalled = true;
+		const auto guard = gsl::finally([] {
+			CheckingInstalled = false;
+		});
+		if (!SUCCEEDED(CoInitialize(nullptr))) {
+			return false;
+		}
+		const auto coGuard = gsl::finally([] {
+			CoUninitialize();
+		});
+		return checkInstalled();
+	}();
+	if (Installed) {
+		return BaseId;
+	}
+	static const auto PortableId = [] {
+		std::string h(32, 0);
+		if (Core::Launcher::Instance().customWorkingDir()) {
+			const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
+			hashMd5Hex(d.constData(), d.size(), h.data());
+		} else {
+			const auto exePath = QFile::encodeName(cExeDir() + cExeName());
+			hashMd5Hex(exePath.constData(), exePath.size(), h.data());
+		}
+		return BaseId + L'.' + std::wstring(h.begin(), h.end());
+	}();
+	return PortableId;
 }
 
 const PROPERTYKEY &getKey() {
