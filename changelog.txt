@@ -1,3 +1,7 @@
+4.8.12 beta (11.08.23)
+
+- Fix crash by a full rebuild on macOS.
+
 4.8.11 beta (10.08.23)
 
 - Fix initial video playback speed.
