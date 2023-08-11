@@ -422,7 +422,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		if (_chat) {
 			maxListSize += (_chat->participants.empty() ? _chat->lastAuthors.size() : _chat->participants.size());
 		} else if (_channel && _channel->isMegagroup()) {
-			if (!_channel->lastParticipantsRequestNeeded()) {
+			if (!_channel->canViewMembers()) {
+				maxListSize += _channel->mgInfo->admins.size();
+			} else if (!_channel->lastParticipantsRequestNeeded()) {
 				maxListSize += _channel->mgInfo->lastParticipants.size();
 			}
 		}
@@ -488,10 +490,22 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				--i;
 				mrows.push_back({ i->second });
 			}
-		} else if (_channel
-			&& _channel->isMegagroup()
-			&& _channel->canViewMembers()) {
-			if (_channel->lastParticipantsRequestNeeded()) {
+		} else if (_channel && _channel->isMegagroup()) {
+			if (!_channel->canViewMembers()) {
+				if (!_channel->mgInfo->adminsLoaded) {
+					_channel->session().api().chatParticipants().requestAdmins(_channel);
+				} else {
+					mrows.reserve(mrows.size() + _channel->mgInfo->admins.size());
+					for (const auto [userId, rank] : _channel->mgInfo->admins) {
+						if (const auto user = _channel->owner().userLoaded(userId)) {
+							if (user->isInaccessible()) continue;
+							if (!listAllSuggestions && filterNotPassedByName(user)) continue;
+							if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
+							mrows.push_back({ user });
+						}
+					}
+				}
+			} else if (_channel->lastParticipantsRequestNeeded()) {
 				_channel->session().api().chatParticipants().requestLast(
 					_channel);
 			} else {

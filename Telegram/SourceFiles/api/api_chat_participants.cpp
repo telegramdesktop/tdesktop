@@ -439,6 +439,7 @@ void ChatParticipants::requestAdmins(not_null<ChannelData*> channel) {
 		MTP_int(channel->session().serverConfig().chatSizeMax),
 		MTP_long(participantsHash)
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
+		channel->mgInfo->adminsLoaded = true;
 		_adminsRequests.remove(channel);
 		result.match([&](const MTPDchannels_channelParticipants &data) {
 			channel->owner().processUsers(data.vusers());
@@ -448,6 +449,7 @@ void ChatParticipants::requestAdmins(not_null<ChannelData*> channel) {
 				"channels.channelParticipantsNotModified received!"));
 		});
 	}).fail([=] {
+		channel->mgInfo->adminsLoaded = true;
 		_adminsRequests.remove(channel);
 	}).send();
 

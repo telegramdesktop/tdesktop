@@ -1505,6 +1505,11 @@ void ParticipantsBoxController::loadMoreRows() {
 			LOG(("API Error: "
 				"channels.channelParticipantsNotModified received!"));
 		});
+		if (_offset > 0 && _role == Role::Admins && channel->isMegagroup()) {
+			if (channel->mgInfo->admins.empty() && channel->mgInfo->adminsLoaded) {
+				channel->mgInfo->adminsLoaded = false;
+			}
+		}
 		if (!firstLoad && !added) {
 			_allLoaded = true;
 		}
