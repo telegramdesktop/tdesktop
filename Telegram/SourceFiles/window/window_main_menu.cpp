@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "support/support_templates.h"
+#include "settings/settings_advanced.h"
 #include "settings/settings_common.h"
 #include "settings/settings_calls.h"
 #include "settings/settings_information.h"
@@ -63,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_stories.h"
 #include "mainwidget.h"
+#include "styles/style_chat.h" // popupMenuExpandedSeparator
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
 #include "styles/style_dialogs.h"
@@ -602,7 +604,7 @@ void MainMenu::setupArchive() {
 		}
 		_contextMenu = base::make_unique_q<Ui::PopupMenu>(
 			this,
-			st::popupMenuWithIcons);
+			st::popupMenuExpandedSeparator);
 		const auto addAction = PeerMenuCallback([&](
 				PeerMenuCallback::Args a) {
 			return _contextMenu->addAction(
@@ -625,6 +627,12 @@ void MainMenu::setupArchive() {
 			controller,
 			[f = folder()] { return f->chatsList(); },
 			addAction);
+
+		_contextMenu->addSeparator();
+		Settings::PreloadArchiveSettings(&controller->session());
+		addAction(tr::lng_context_archive_settings(tr::now), [=] {
+			controller->show(Box(Settings::ArchiveSettingsBox, controller));
+		}, &st::menuIconManage);
 
 		_contextMenu->popup(QCursor::pos());
 	}, button->lifetime());

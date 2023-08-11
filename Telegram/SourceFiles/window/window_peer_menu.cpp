@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_adaptive.h" // Adaptive::isThreeColumn
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "settings/settings_advanced.h"
 #include "support/support_helper.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
@@ -1276,6 +1277,12 @@ void Filler::fillArchiveActions() {
 		controller,
 		[folder = _folder] { return folder->chatsList(); },
 		_addAction);
+
+	_addAction({ .isSeparator = true });
+	Settings::PreloadArchiveSettings(&controller->session());
+	_addAction(tr::lng_context_archive_settings(tr::now), [=] {
+		controller->show(Box(Settings::ArchiveSettingsBox, controller));
+	}, &st::menuIconManage);
 }
 
 } // namespace

@@ -11,10 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Main {
 class Account;
+class Session;
 } // namespace Main
+
+namespace Ui {
+class GenericBox;
+} // namespace Ui
 
 namespace Window {
 class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Settings {
@@ -36,6 +42,11 @@ void SetupSystemIntegrationContent(
 void SetupAnimations(
 	not_null<Window::Controller*> window,
 	not_null<Ui::VerticalLayout*> container);
+
+void ArchiveSettingsBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller);
+void PreloadArchiveSettings(not_null<::Main::Session*> session);
 
 class Advanced : public Section<Advanced> {
 public:

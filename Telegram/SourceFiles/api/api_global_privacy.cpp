@@ -84,19 +84,29 @@ void GlobalPrivacy::dismissArchiveAndMuteSuggestion() {
 		u"AUTOARCHIVE_POPULAR"_q);
 }
 
-void GlobalPrivacy::update(bool archiveAndMute) {
+void GlobalPrivacy::updateArchiveAndMute(bool value) {
+	update(value, unarchiveOnNewMessageCurrent());
+}
+
+void GlobalPrivacy::updateUnarchiveOnNewMessage(
+		UnarchiveOnNewMessage value) {
+	update(archiveAndMuteCurrent(), value);
+}
+
+void GlobalPrivacy::update(
+		bool archiveAndMute,
+		UnarchiveOnNewMessage unarchiveOnNewMessage) {
 	using Flag = MTPDglobalPrivacySettings::Flag;
 
-	const auto unarchive = unarchiveOnNewMessageCurrent();
 	_api.request(_requestId).cancel();
 	const auto flags = Flag()
 		| (archiveAndMute
 			? Flag::f_archive_and_mute_new_noncontact_peers
 			: Flag())
-		| (unarchive == UnarchiveOnNewMessage::AnyUnmuted
+		| (unarchiveOnNewMessage == UnarchiveOnNewMessage::AnyUnmuted
 			? Flag::f_keep_archived_unmuted
 			: Flag())
-		| (unarchive != UnarchiveOnNewMessage::None
+		| (unarchiveOnNewMessage != UnarchiveOnNewMessage::None
 			? Flag::f_keep_archived_folders
 			: Flag());
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
@@ -108,6 +118,7 @@ void GlobalPrivacy::update(bool archiveAndMute) {
 		_requestId = 0;
 	}).send();
 	_archiveAndMute = archiveAndMute;
+	_unarchiveOnNewMessage = unarchiveOnNewMessage;
 }
 
 void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &data) {

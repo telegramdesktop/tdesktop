@@ -615,9 +615,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_security" = "Security";
 "lng_settings_passcode_title" = "Local passcode";
 "lng_settings_sessions_title" = "Active sessions";
+"lng_settings_archive_title" = "Archive Settings";
 "lng_settings_new_unknown" = "New chats from unknown users";
 "lng_settings_auto_archive" = "Archive and Mute";
 "lng_settings_auto_archive_about" = "Automatically archive and mute new chats, groups and channels from non-contacts.";
+"lng_settings_unmuted_chats" = "Unmuted chats";
+"lng_settings_always_in_archive" = "Always keep archived";
+"lng_settings_unmuted_chats_about" = "Keep archived chats in the Archive even if they are unmuted and get a new message.";
+"lng_settings_chats_from_folders" = "Chats from folders";
+"lng_settings_chats_from_folders_about" = "Keep archived chats from folders in the Archive even if they are unmuted and get a new message.";
 "lng_settings_destroy_title" = "Delete my account";
 "lng_settings_version_info" = "Version and updates";
 "lng_settings_system_integration" = "System integration";
@@ -2278,6 +2284,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_archive_to_menu" = "Move to main menu";
 "lng_context_archive_to_list" = "Move to chats list";
 "lng_context_archive_to_menu_info" = "Archive moved to the main menu!\nYou can return it from the context menu of the archive button.";
+"lng_context_archive_settings" = "Archive settings";
 
 "lng_context_mute" = "Mute";
 "lng_context_unmute" = "Unmute";

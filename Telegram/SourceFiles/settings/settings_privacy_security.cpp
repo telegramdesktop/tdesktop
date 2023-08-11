@@ -311,53 +311,6 @@ void SetupPrivacy(
 	AddDivider(container);
 }
 
-void SetupArchiveAndMute(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	using namespace rpl::mappers;
-
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
-	const auto inner = wrap->entity();
-
-	AddSkip(inner);
-	AddSubsectionTitle(inner, tr::lng_settings_new_unknown());
-
-	const auto session = &controller->session();
-
-	const auto privacy = &session->api().globalPrivacy();
-	privacy->reload();
-	AddButton(
-		inner,
-		tr::lng_settings_auto_archive(),
-		st::settingsButtonNoIcon
-	)->toggleOn(
-		privacy->archiveAndMute()
-	)->toggledChanges(
-	) | rpl::filter([=](bool toggled) {
-		return toggled != privacy->archiveAndMuteCurrent();
-	}) | rpl::start_with_next([=](bool toggled) {
-		privacy->update(toggled);
-	}, container->lifetime());
-
-	AddSkip(inner);
-	AddDividerText(inner, tr::lng_settings_auto_archive_about());
-
-	auto shown = rpl::single(
-		false
-	) | rpl::then(session->api().globalPrivacy().showArchiveAndMute(
-	) | rpl::filter(_1) | rpl::take(1));
-	auto premium = Data::AmPremiumValue(&controller->session());
-
-	using namespace rpl::mappers;
-	wrap->toggleOn(rpl::combine(
-		std::move(shown),
-		std::move(premium),
-		_1 || _2));
-}
-
 void SetupLocalPasscode(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -836,6 +789,53 @@ void AddPrivacyButton(
 				value));
 		});
 	});
+}
+
+void SetupArchiveAndMute(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	using namespace rpl::mappers;
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = wrap->entity();
+
+	AddSkip(inner);
+	AddSubsectionTitle(inner, tr::lng_settings_new_unknown());
+
+	const auto session = &controller->session();
+
+	const auto privacy = &session->api().globalPrivacy();
+	privacy->reload();
+	AddButton(
+		inner,
+		tr::lng_settings_auto_archive(),
+		st::settingsButtonNoIcon
+	)->toggleOn(
+		privacy->archiveAndMute()
+	)->toggledChanges(
+	) | rpl::filter([=](bool toggled) {
+		return toggled != privacy->archiveAndMuteCurrent();
+	}) | rpl::start_with_next([=](bool toggled) {
+		privacy->updateArchiveAndMute(toggled);
+	}, container->lifetime());
+
+	AddSkip(inner);
+	AddDividerText(inner, tr::lng_settings_auto_archive_about());
+
+	auto shown = rpl::single(
+		false
+	) | rpl::then(session->api().globalPrivacy().showArchiveAndMute(
+	) | rpl::filter(_1) | rpl::take(1));
+	auto premium = Data::AmPremiumValue(&controller->session());
+
+	using namespace rpl::mappers;
+	wrap->toggleOn(rpl::combine(
+		std::move(shown),
+		std::move(premium),
+		_1 || _2));
 }
 
 PrivacySecurity::PrivacySecurity(
