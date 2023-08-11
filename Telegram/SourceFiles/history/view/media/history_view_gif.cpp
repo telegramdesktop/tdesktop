@@ -1064,8 +1064,18 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			recth -= skip;
 		}
 		if (reply) {
-			if (QRect(rectx, recty, rectw, recth).contains(point)) {
+			const auto replyRect = QRect(rectx, recty, rectw, recth);
+			if (replyRect.contains(point)) {
 				result.link = reply->replyToLink();
+				reply->ripple.lastPoint = point - replyRect.topLeft();
+				if (!reply->ripple.animation) {
+					reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
+						st::defaultRippleAnimation,
+						Ui::RippleAnimation::RoundRectMask(
+							replyRect.size(),
+							st::roundRadiusSmall),
+						[=] { item->history()->owner().requestItemRepaint(item); });
+				}
 				return result;
 			}
 		}

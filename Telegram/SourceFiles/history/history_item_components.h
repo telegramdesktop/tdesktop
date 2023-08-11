@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_types.h" // LanguageId.
 #include "ui/empty_userpic.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/chat/message_bubble.h"
 
 struct WebPageData;
@@ -306,6 +307,11 @@ struct HistoryMessageReply
 	int toWidth = 0;
 	bool topicPost = false;
 	bool storyReply = false;
+
+	struct final {
+		mutable std::unique_ptr<Ui::RippleAnimation> animation;
+		QPoint lastPoint;
+	} ripple;
 
 };
 

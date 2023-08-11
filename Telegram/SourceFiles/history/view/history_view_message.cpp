@@ -1600,6 +1600,8 @@ void Message::clickHandlerPressedChanged(
 		toggleTopicButtonRipple(pressed);
 	} else if (_viewButton) {
 		_viewButton->checkLink(handler, pressed);
+	} else if (const auto reply = displayedReply()) {
+		toggleReplyRipple(pressed);
 	}
 }
 
@@ -1636,6 +1638,58 @@ void Message::toggleRightActionRipple(bool pressed) {
 		_rightAction->ripple->add(_rightAction->lastPoint);
 	} else if (_rightAction->ripple) {
 		_rightAction->ripple->lastStop();
+	}
+}
+
+void Message::toggleReplyRipple(bool pressed) {
+	const auto reply = displayedReply();
+	if (!reply) {
+		return;
+	}
+
+	if (pressed) {
+		if (!reply->ripple.animation && !unwrapped()) {
+			const auto smallTop = displayFromName()
+				|| displayedTopicButton()
+				|| displayForwardedFrom();
+			const auto rounding = countBubbleRounding();
+
+			using Corner = Ui::BubbleCornerRounding;
+			using Radius = Ui::CachedCornerRadius;
+			const auto &small = Ui::CachedCornersMasks(Radius::ThumbSmall);
+			const auto &large = Ui::CachedCornersMasks(Radius::ThumbLarge);
+			const auto corners = std::array<QImage, 4>{{
+				((smallTop || (rounding.topLeft == Corner::Small))
+					? small
+					: large)[0],
+				((smallTop || (rounding.topRight == Corner::Small))
+					? small
+					: large)[1],
+				small[2],
+				small[3],
+			}};
+
+			const auto &padding = st::msgReplyPadding;
+			const auto geometry = countGeometry();
+			const auto size = QSize(
+				geometry.width()
+					- padding.left() / 2
+					- padding.right(),
+				st::msgReplyBarSize.height()
+					+ padding.top()
+					+ padding.bottom());
+			reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
+				st::defaultRippleAnimation,
+				Images::Round(
+					Ui::RippleAnimation::MaskByDrawer(size, true, nullptr),
+					corners),
+				[=] { repaint(); });
+		}
+		if (reply->ripple.animation) {
+			reply->ripple.animation->add(reply->ripple.lastPoint);
+		}
+	} else if (reply->ripple.animation) {
+		reply->ripple.animation->lastStop();
 	}
 }
 
@@ -2268,9 +2322,15 @@ bool Message::getStateReplyInfo(
 	if (auto reply = displayedReply()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		if (point.y() >= trect.top() && point.y() < trect.top() + h) {
+			const auto g = QRect(
+				trect.x(),
+				trect.y() + st::msgReplyPadding.top(),
+				trect.width(),
+				st::msgReplyBarSize.height());
 			if ((reply->replyToMsg || reply->replyToStory)
-				&& QRect(trect.x(), trect.y() + st::msgReplyPadding.top(), trect.width(), st::msgReplyBarSize.height()).contains(point)) {
+				&& g.contains(point)) {
 				outResult->link = reply->replyToLink();
+				reply->ripple.lastPoint = point - g.topLeft();
 			}
 			return true;
 		}
