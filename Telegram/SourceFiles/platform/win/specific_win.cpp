@@ -209,7 +209,7 @@ bool ManageAppLink(
 
 	if (const auto propertyStore = shellLink.try_as<IPropertyStore>()) {
 		PROPVARIANT appIdPropVar;
-		hr = InitPropVariantFromString(AppUserModelId::getId(), &appIdPropVar);
+		hr = InitPropVariantFromString(AppUserModelId::getId().c_str(), &appIdPropVar);
 		if (SUCCEEDED(hr)) {
 			hr = propertyStore->SetValue(AppUserModelId::getKey(), appIdPropVar);
 			PropVariantClear(&appIdPropVar);
@@ -370,6 +370,10 @@ void start() {
 void start() {
 	// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/setlocale-wsetlocale#utf-8-support
 	setlocale(LC_ALL, ".UTF8");
+
+	const auto appUserModelId = AppUserModelId::getId();
+	SetCurrentProcessExplicitAppUserModelID(appUserModelId.c_str());
+	LOG(("AppUserModelID: %1").arg(appUserModelId));
 }
 
 void finish() {
@@ -638,7 +642,7 @@ bool OpenSystemSettings(SystemSettingsType type) {
 }
 
 void NewVersionLaunched(int oldVersion) {
-	if (oldVersion < 8051) {
+	if (oldVersion <= 4009009) {
 		AppUserModelId::checkPinned();
 	}
 	if (oldVersion > 0 && oldVersion < 2008012) {

@@ -15,7 +15,7 @@ namespace AppUserModelId {
 void cleanupShortcut();
 void checkPinned();
 
-const WCHAR *getId();
+const std::wstring &getId();
 bool validateShortcut();
 
 const PROPERTYKEY &getKey();
