@@ -10,10 +10,6 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include <rpl/event_stream.h>
 #include "window/section_widget.h"
 
-namespace Ui {
-class SettingsSlider;
-} // namespace Ui
-
 namespace Window {
 class ConnectionState;
 } // namespace Window

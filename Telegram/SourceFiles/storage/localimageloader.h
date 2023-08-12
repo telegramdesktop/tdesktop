@@ -256,7 +256,7 @@ public:
 	FileLoadTask(
 		not_null<Main::Session*> session,
 		const QByteArray &voice,
-		int32 duration,
+		crl::time duration,
 		const VoiceWaveform &waveform,
 		const FileLoadTo &to,
 		const TextWithTags &caption);
@@ -306,7 +306,7 @@ private:
 	QString _filepath;
 	QByteArray _content;
 	std::unique_ptr<Ui::PreparedFileInformation> _information;
-	int32 _duration = 0;
+	crl::time _duration = 0;
 	VoiceWaveform _waveform;
 	SendMediaType _type;
 	TextWithTags _caption;

@@ -382,11 +382,18 @@ bool GenerateServiceFile(bool silent = false) {
 			md5Hash));
 	}
 
-	QProcess::execute(u"systemctl"_q, {
-		u"--user"_q,
-		u"reload"_q,
-		u"dbus"_q,
-	});
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::SESSION);
+
+		connection->call_sync(
+			base::Platform::DBus::kObjectPath,
+			base::Platform::DBus::kInterface,
+			"ReloadConfig",
+			{},
+			base::Platform::DBus::kService);
+	} catch (...) {
+	}
 
 	return true;
 }

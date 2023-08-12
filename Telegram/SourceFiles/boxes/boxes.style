@@ -607,7 +607,7 @@ groupStickersField: InputField(defaultMultiSelectSearchField) {
 	textBg: boxBg;
 	heightMin: 32px;
 }
-groupStickersSubTitleHeight: 36px;
+groupStickersSubTitleHeight: 48px;
 
 proxyUsePadding: margins(22px, 6px, 22px, 5px);
 proxyTryIPv6Padding: margins(22px, 8px, 22px, 5px);

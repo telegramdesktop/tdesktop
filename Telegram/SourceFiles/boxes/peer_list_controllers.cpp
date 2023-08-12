@@ -59,7 +59,20 @@ constexpr auto kSearchPerPage = 50;
 object_ptr<Ui::BoxContent> PrepareContactsBox(
 		not_null<Window::SessionController*> sessionController) {
 	using Mode = ContactsBoxController::SortMode;
-	auto controller = std::make_unique<ContactsBoxController>(
+	class Controller final : public ContactsBoxController {
+	public:
+		using ContactsBoxController::ContactsBoxController;
+
+	protected:
+		std::unique_ptr<PeerListRow> createRow(
+				not_null<UserData*> user) override {
+			return !user->isSelf()
+				? ContactsBoxController::createRow(user)
+				: nullptr;
+		}
+
+	};
+	auto controller = std::make_unique<Controller>(
 		&sessionController->session());
 	controller->setStyleOverrides(&st::contactsWithStories);
 	controller->setStoriesShown(true);

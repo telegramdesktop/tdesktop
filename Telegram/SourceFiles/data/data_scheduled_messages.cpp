@@ -467,16 +467,17 @@ HistoryItem *ScheduledMessages::append(
 			// probably this message was edited.
 			if (data.is_edit_hide()) {
 				existing->applyEdition(HistoryMessageEdition(_session, data));
+			} else {
+				existing->updateSentContent({
+					qs(data.vmessage()),
+					Api::EntitiesFromMTP(
+						_session,
+						data.ventities().value_or_empty())
+				}, data.vmedia());
+				existing->updateReplyMarkup(
+					HistoryMessageMarkupData(data.vreply_markup()));
+				existing->updateForwardedInfo(data.vfwd_from());
 			}
-			existing->updateSentContent({
-				qs(data.vmessage()),
-				Api::EntitiesFromMTP(
-					_session,
-					data.ventities().value_or_empty())
-			}, data.vmedia());
-			existing->updateReplyMarkup(
-				HistoryMessageMarkupData(data.vreply_markup()));
-			existing->updateForwardedInfo(data.vfwd_from());
 			existing->updateDate(data.vdate().v);
 			history->owner().requestItemTextRefresh(existing);
 		}, [&](const auto &data) {});

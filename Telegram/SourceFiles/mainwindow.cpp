@@ -27,6 +27,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "export/export_manager.h"
+#include "inline_bots/bot_attach_web_view.h" // AttachWebView::cancel.
 #include "intro/intro_widget.h"
 #include "main/main_session.h"
 #include "main/main_account.h" // Account::sessionValue.
@@ -198,6 +199,9 @@ void MainWindow::setupPasscodeLock() {
 	} else {
 		_passcodeLock->showFinished();
 		setInnerFocus();
+	}
+	if (const auto sessionController = controller().sessionController()) {
+		sessionController->session().attachWebView().cancel();
 	}
 }
 

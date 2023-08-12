@@ -185,7 +185,8 @@ rpl::producer<SparseIdsMergedSlice> SharedScheduledMediaViewer(
 		SharedMediaMergedKey key,
 		int limitBefore,
 		int limitAfter) {
-	Expects(!IsServerMsgId(key.mergedKey.universalId));
+	Expects(!key.mergedKey.universalId
+		|| Data::IsScheduledMsgId(key.mergedKey.universalId));
 	Expects((key.mergedKey.universalId != 0)
 		|| (limitBefore == 0 && limitAfter == 0));
 

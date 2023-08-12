@@ -43,13 +43,15 @@ class EditFilterChatsListController final : public ChatsListBoxController {
 public:
 	using Flag = Data::ChatFilter::Flag;
 	using Flags = Data::ChatFilter::Flags;
+	using LimitBoxFactory = Fn<object_ptr<Ui::BoxContent>(int)>;
 
 	EditFilterChatsListController(
 		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		Flags options,
 		Flags selected,
-		const base::flat_set<not_null<History*>> &peers);
+		const base::flat_set<not_null<History*>> &peers,
+		LimitBoxFactory limitBox);
 
 	[[nodiscard]] Main::Session &session() const override;
 	[[nodiscard]] Flags chosenOptions() const {
@@ -70,6 +72,7 @@ private:
 	void updateTitle();
 
 	const not_null<Main::Session*> _session;
+	const LimitBoxFactory _limitBox;
 	rpl::producer<QString> _title;
 	base::flat_set<not_null<History*>> _peers;
 	Flags _options;

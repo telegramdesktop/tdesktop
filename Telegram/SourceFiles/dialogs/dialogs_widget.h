@@ -98,6 +98,7 @@ public:
 	void setInnerFocus();
 
 	void jumpToTop(bool belowPinned = false);
+	void raiseWithTooltip();
 
 	void startWidthAnimation();
 	void stopWidthAnimation();

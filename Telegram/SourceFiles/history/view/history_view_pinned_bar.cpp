@@ -55,7 +55,9 @@ namespace {
 		result.preview = kEmpty;
 		result.spoilerRepaint = nullptr;
 	} else {
-		result.preview = preview->original();
+		result.preview = Images::Round(
+			preview->original(),
+			ImageRoundRadius::Small);
 		result.spoilerRepaint = spoiler ? repaint : nullptr;
 	}
 	return result;

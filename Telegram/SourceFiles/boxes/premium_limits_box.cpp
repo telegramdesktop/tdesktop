@@ -694,7 +694,8 @@ void PublicLinksLimitBox(
 void FilterChatsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
-		int currentCount) {
+		int currentCount,
+		bool include) {
 	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
@@ -707,10 +708,12 @@ void FilterChatsLimitBox(
 		premiumLimit);
 
 	auto text = rpl::combine(
-		tr::lng_filter_chats_limit1(
-			lt_count,
-			rpl::single(premium ? premiumLimit : defaultLimit),
-			Ui::Text::RichLangValue),
+		(include
+			? tr::lng_filter_chats_limit1
+			: tr::lng_filter_chats_exlude_limit1)(
+				lt_count,
+				rpl::single(premium ? premiumLimit : defaultLimit),
+				Ui::Text::RichLangValue),
 		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_chats_limit2(

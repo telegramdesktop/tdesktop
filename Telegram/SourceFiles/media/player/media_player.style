@@ -106,7 +106,7 @@ mediaPlayerRepeatButton: IconButton {
 	icon: icon {
 		{ "player/player_repeat", mediaPlayerActiveFg }
 	};
-	iconPosition: point(3px, 6px);
+	iconPosition: point(2px, 5px);
 
 	rippleAreaPosition: point(2px, 6px);
 	rippleAreaSize: 24px;
@@ -135,6 +135,10 @@ mediaPlayerReverseDisabledIconOver: icon {
 mediaPlayerShuffleIcon: icon {
 	{ "player/player_shuffle", mediaPlayerActiveFg }
 };
+mediaPlayerOrderButton: IconButton(mediaPlayerRepeatButton) {
+	iconPosition: point(2px, 6px);
+	rippleAreaPosition: point(2px, 6px);
+}
 mediaPlayerRepeatDisabledRippleBg: windowBgOver;
 
 mediaPlayerPlayButton: IconButton(mediaPlayerRepeatButton) {
@@ -233,7 +237,7 @@ mediaPlayerVolumeToggle: IconButton(mediaPlayerRepeatButton) {
 		{ "player/player_mini_full", mediaPlayerActiveFg },
 	};
 	iconPosition: point(5px, 6px);
-	rippleAreaPosition: point(4px, 5px);
+	rippleAreaPosition: point(5px, 6px);
 }
 mediaPlayerVolumeMargin: 10px;
 mediaPlayerVolumeSize: size(27px, 100px);
@@ -267,9 +271,9 @@ mediaPlayerClose: IconButton(mediaPlayerRepeatButton) {
 	width: 39px;
 	icon: icon {{ "player/panel_close", menuIconFg }};
 	iconOver: icon {{ "player/panel_close", menuIconFgOver }};
-	iconPosition: point(5px, 6px);
+	iconPosition: point(4px, 6px);
 
-	rippleAreaPosition: point(4px, 5px);
+	rippleAreaPosition: point(4px, 6px);
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}

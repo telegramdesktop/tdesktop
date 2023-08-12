@@ -189,6 +189,8 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_filter_chats_limit_title" = "Limit Reached";
 "lng_filter_chats_limit1#one" = "Sorry, you can't add more than **{count}** chat to a folder.";
 "lng_filter_chats_limit1#other" = "Sorry, you can't add more than **{count}** chats to a folder.";
+"lng_filter_chats_exlude_limit1#one" = "Sorry, you can't exlude more than **{count}** chat from a folder.";
+"lng_filter_chats_exlude_limit1#other" = "Sorry, you can't exlude more than **{count}** chats from a folder.";
 "lng_filter_chats_limit2#one" = "You can increase this limit to **{count}** by upgrading to **Telegram Premium**.";
 "lng_filter_chats_limit2#other" = "You can increase this limit to **{count}** by upgrading to **Telegram Premium**.";
 
@@ -433,7 +435,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_channel_usernames_deactivate_description" = "Do you want to hide this link from the channel info page?";
 "lng_channel_usernames_description" = "Drag and drop links to change the order in which they will be displayed on the channel info page.";
 
-"lng_bot_username_title" = "Username";
+"lng_bot_username_title" = "Public Link";
 "lng_bot_username_description1" = "This link cannot be edited. You can acquire additional usernames on {link}.";
 "lng_bot_username_description1_link" = "Fragment";
 "lng_bot_usernames_activate_description" = "Do you want to show this link on the bot info page?";
@@ -3587,6 +3589,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_filters_restore" = "Undo";
 "lng_filters_new" = "New Folder";
 "lng_filters_edit" = "Edit Folder";
+"lng_filters_setup_menu" = "Edit Folders";
 "lng_filters_new_name" = "Folder name";
 "lng_filters_add_chats" = "Add chats";
 "lng_filters_remove_chats" = "Remove chats";

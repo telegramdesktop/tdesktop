@@ -336,14 +336,18 @@ void EditExceptions(
 		Fn<void()> refresh) {
 	const auto include = (options & Flag::Contacts) != Flags(0);
 	const auto rules = data->current();
+	const auto session = &window->session();
 	auto controller = std::make_unique<EditFilterChatsListController>(
-		&window->session(),
+		session,
 		(include
 			? tr::lng_filters_include_title()
 			: tr::lng_filters_exclude_title()),
 		options,
 		rules.flags() & options,
-		include ? rules.always() : rules.never());
+		include ? rules.always() : rules.never(),
+		[=](int count) {
+			return Box(FilterChatsLimitBox, session, count, include);
+		});
 	const auto rawController = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setCloseByOutsideClick(false);

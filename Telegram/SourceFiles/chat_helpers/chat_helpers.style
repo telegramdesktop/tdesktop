@@ -313,9 +313,25 @@ stickersUndoRemove: RoundButton(defaultLightButton) {
 }
 stickersRemoveSkip: 4px;
 stickersReorderIcon: icon {{ "stickers_reorder", menuIconFg }};
-stickersReorderSkip: 13px;
+stickersReorderSkip: 18px;
 
 stickersTabs: defaultTabsSlider;
+
+stickersRowItem: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoSize: 32px;
+	photoPosition: point(18px, 10px);
+	namePosition: point(66px, 7px);
+	statusPosition: point(66px, 26px);
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: contactsBg;
+		textBgOver: contactsBgOver;
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: contactsStatusFg;
+	statusFgOver: contactsStatusFgOver;
+	statusFgActive: contactsStatusFgOnline;
+}
 
 stickerEmojiSkip: 5px;
 
@@ -351,11 +367,7 @@ filtersRemove: IconButton(stickersRemove) {
 
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
-emojiTabs: SettingsSlider(defaultTabsSlider) {
-	height: 43px;
-	barTop: 40px;
-	labelTop: 12px;
-}
+emojiTabs: defaultTabsSlider;
 
 emojiCategoryIconTop: 6px;
 emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
@@ -508,6 +520,7 @@ sendBoxAlbumGroupSkipRight: 5px;
 sendBoxAlbumGroupSkipTop: 5px;
 sendBoxAlbumGroupRadius: 4px;
 sendBoxAlbumGroupSize: size(62px, 25px);
+sendBoxAlbumGroupSizeVertical: size(30px, 50px);
 sendBoxAlbumSmallGroupSize: size(30px, 25px);
 
 sendBoxFileGroupSkipTop: 2px;

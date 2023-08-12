@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_share.h"
 
 #include "api/api_common.h"
-#include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/random.h"
 #include "boxes/share_box.h"
@@ -87,7 +86,7 @@ namespace Media::Stories {
 			for (const auto thread : result) {
 				const auto error = GetErrorTextForSending(
 					thread,
-					{ .story = story });
+					{ .story = story, .text = &comment });
 				if (!error.isEmpty()) {
 					return std::make_pair(error, thread);
 				}
@@ -106,21 +105,16 @@ namespace Media::Stories {
 			return;
 		}
 
-		auto caption = TextWithEntities{
-			comment.text,
-			TextUtilities::ConvertTextTagsToEntities(comment.tags)
-		};
-		TextUtilities::Trim(caption);
-		auto sentEntities = Api::EntitiesToMTP(
-			session,
-			caption.entities,
-			Api::ConvertOption::SkipLocal);
-		const auto captionText = caption.text;
-
 		const auto api = &story->owner().session().api();
 		auto &histories = story->owner().histories();
 		for (const auto thread : result) {
 			const auto action = Api::SendAction(thread, options);
+			if (!comment.text.isEmpty()) {
+				auto message = Api::MessageToSend(action);
+				message.textWithTags = comment;
+				message.action.clearDraft = false;
+				api->sendMessage(std::move(message));
+			}
 			const auto peer = thread->peer();
 			const auto threadHistory = thread->owningHistory();
 			const auto randomId = base::RandomValue<uint64>();
@@ -131,9 +125,6 @@ namespace Media::Stories {
 			const auto silentPost = ShouldSendSilent(peer, action.options);
 			if (silentPost) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-			}
-			if (!sentEntities.v.isEmpty()) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 			}
 			const auto done = [=] {
 				if (!--state->requests) {
@@ -154,10 +145,10 @@ namespace Media::Stories {
 					MTP_inputMediaStory(
 						user->inputUser,
 						MTP_int(id.story)),
-					MTP_string(captionText),
+					MTPstring(),
 					MTP_long(randomId),
 					MTPReplyMarkup(),
-					sentEntities,
+					MTPVector<MTPMessageEntity>(),
 					MTP_int(action.options.scheduled),
 					MTP_inputPeerEmpty()
 				), [=](const MTPUpdates &result, const MTP::Response &response) {

@@ -700,7 +700,7 @@ Voice::Voice(
 
 	updateName();
 	const auto dateText = Ui::Text::Link(
-		langDateTime(base::unixtime::parse(_data->date))); // Link 1.
+		langDateTime(base::unixtime::parse(parent->date()))); // Link 1.
 	_details.setMarkedText(
 		st::defaultTextStyle,
 		tr::lng_date_and_duration(
@@ -1020,7 +1020,7 @@ Document::Document(
 , _forceFileLayout(fields.forceFileLayout)
 , _date(langDateTime(base::unixtime::parse(fields.dateOverride
 	? fields.dateOverride
-	: _data->date)))
+	: parent->date())))
 , _ext(_generic.ext)
 , _datew(st::normalFont->width(_date)) {
 	_name.setMarkedText(

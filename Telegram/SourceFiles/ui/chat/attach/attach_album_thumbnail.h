@@ -78,8 +78,7 @@ private:
 	void drawSimpleFrame(QPainter &p, QRect to, QSize size) const;
 	QRect paintButtons(
 		QPainter &p,
-		QPoint point,
-		int outerWidth,
+		QRect geometry,
 		float64 shrinkProgress);
 	void paintPlayVideo(QPainter &p, QRect geometry);
 

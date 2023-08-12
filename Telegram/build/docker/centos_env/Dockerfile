@@ -26,7 +26,7 @@ RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.n
 		autoconf automake libtool patch gperf flex \
 		fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
-		libdrm-devel vulkan-devel boost169-devel fmt-devel \
+		libdrm-devel vulkan-devel libva-devel libvdpau-devel boost169-devel fmt-devel \
 		gtk3-devel perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
 		devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
 		devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
@@ -420,6 +420,17 @@ RUN git clone -b libXfixes-5.0.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxfixes.git \
 	&& cd .. \
 	&& rm -rf libxfixes
 
+FROM builder AS libXv
+COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
+
+RUN git clone -b libXv-1.0.12 --depth=1 {{ GIT_FREEDESKTOP }}/libxv.git \
+	&& cd libxv \
+	&& ./autogen.sh --enable-static \
+	&& make -j$(nproc) \
+	&& make DESTDIR="{{ LibrariesPath }}/libXv-cache" install \
+	&& cd .. \
+	&& rm -rf libxv
+
 FROM builder AS libXrandr
 RUN git clone -b libXrandr-1.5.2 --depth=1 {{ GIT_FREEDESKTOP }}/libxrandr.git \
 	&& cd libxrandr \
@@ -482,6 +493,8 @@ FROM builder AS ffmpeg
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
+COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
+COPY --link --from=libXv {{ LibrariesPath }}/libXv-cache /
 COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 
 RUN git init ffmpeg \
@@ -503,15 +516,29 @@ RUN git init ffmpeg \
 		--enable-libdav1d \
 		--enable-libopus \
 		--enable-libvpx \
+		--enable-vaapi \
+		--enable-vdpau \
+		--enable-xlib \
+		--enable-libdrm \
 		--enable-ffnvcodec \
 		--enable-nvdec \
 		--enable-cuvid \
 		--enable-protocol=file \
+		--enable-hwaccel=av1_vaapi \
 		--enable-hwaccel=av1_nvdec \
+		--enable-hwaccel=h264_vaapi \
+		--enable-hwaccel=h264_vdpau \
 		--enable-hwaccel=h264_nvdec \
+		--enable-hwaccel=hevc_vaapi \
+		--enable-hwaccel=hevc_vdpau \
 		--enable-hwaccel=hevc_nvdec \
+		--enable-hwaccel=mpeg2_vaapi \
+		--enable-hwaccel=mpeg2_vdpau \
 		--enable-hwaccel=mpeg2_nvdec \
+		--enable-hwaccel=mpeg4_vaapi \
+		--enable-hwaccel=mpeg4_vdpau \
 		--enable-hwaccel=mpeg4_nvdec \
+		--enable-hwaccel=vp8_vaapi \
 		--enable-hwaccel=vp8_nvdec \
 		--enable-decoder=aac \
 		--enable-decoder=aac_fixed \
@@ -839,6 +866,7 @@ COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
 COPY --link --from=xcb-cursor {{ LibrariesPath }}/xcb-cursor-cache /
 COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
 COPY --link --from=libXfixes {{ LibrariesPath }}/libXfixes-cache /
+COPY --link --from=libXv {{ LibrariesPath }}/libXv-cache /
 COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
 COPY --link --from=libXrandr {{ LibrariesPath }}/libXrandr-cache /
 COPY --link --from=libXrender {{ LibrariesPath }}/libXrender-cache /

@@ -25,10 +25,15 @@ void AttachControls::paint(QPainter &p, int x, int y) {
 
 	if (full) {
 		const auto groupHalfWidth = groupWidth / 2;
-		QRect leftRect(x, y, groupHalfWidth, groupHeight);
-		st::sendBoxAlbumGroupButtonMediaEdit.paintInCenter(p, leftRect);
-		QRect rightRect(x + groupHalfWidth, y, groupHalfWidth, groupHeight);
-		st::sendBoxAlbumGroupButtonMediaDelete.paintInCenter(p, rightRect);
+		const auto groupHalfHeight = groupHeight / 2;
+		const auto editRect = _vertical
+			? QRect(x, y, groupWidth, groupHalfHeight)
+			: QRect(x, y, groupHalfWidth, groupHeight);
+		st::sendBoxAlbumGroupButtonMediaEdit.paintInCenter(p, editRect);
+		const auto deleteRect = _vertical
+			? QRect(x, y + groupHalfHeight, groupWidth, groupHalfHeight)
+			: QRect(x + groupHalfWidth, y, groupHalfWidth, groupHeight);
+		st::sendBoxAlbumGroupButtonMediaDelete.paintInCenter(p, deleteRect);
 	} else if (_type == Type::EditOnly) {
 		st::sendBoxAlbumButtonMediaEdit.paintInCenter(p, groupRect);
 	}
@@ -36,7 +41,9 @@ void AttachControls::paint(QPainter &p, int x, int y) {
 
 int AttachControls::width() const {
 	return (_type == Type::Full)
-		? st::sendBoxAlbumGroupSize.width()
+		? (_vertical
+			? st::sendBoxAlbumGroupSizeVertical.width()
+			: st::sendBoxAlbumGroupSize.width())
 		: (_type == Type::EditOnly)
 		? st::sendBoxAlbumSmallGroupSize.width()
 		: 0;
@@ -44,7 +51,9 @@ int AttachControls::width() const {
 
 int AttachControls::height() const {
 	return (_type == Type::Full)
-		? st::sendBoxAlbumGroupSize.height()
+		? (_vertical
+			? st::sendBoxAlbumGroupSizeVertical.height()
+			: st::sendBoxAlbumGroupSize.height())
 		: (_type == Type::EditOnly)
 		? st::sendBoxAlbumSmallGroupSize.height()
 		: 0;
@@ -54,10 +63,18 @@ AttachControls::Type AttachControls::type() const {
 	return _type;
 }
 
+bool AttachControls::vertical() const {
+	return _vertical;
+}
+
 void AttachControls::setType(Type type) {
 	if (_type != type) {
 		_type = type;
 	}
+}
+
+void AttachControls::setVertical(bool vertical) {
+	_vertical = vertical;
 }
 
 AttachControlsWidget::AttachControlsWidget(
