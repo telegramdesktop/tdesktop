@@ -510,7 +510,7 @@ void ShowImportError(
 	if (error == u"CHANNELS_TOO_MUCH"_q) {
 		window->show(Box(ChannelsLimitBox, session));
 	} else if (error == u"FILTER_INCLUDE_TOO_MUCH"_q) {
-		window->show(Box(FilterChatsLimitBox, session, count));
+		window->show(Box(FilterChatsLimitBox, session, count, true));
 	} else if (error == u"CHATLISTS_TOO_MUCH"_q) {
 		window->show(Box(ShareableFiltersLimitBox, session));
 	} else {

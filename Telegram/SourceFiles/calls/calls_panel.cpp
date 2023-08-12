@@ -95,6 +95,7 @@ Panel::Panel(not_null<Call*> call)
 	_decline->entity()->setText(tr::lng_call_decline());
 	_cancel->setDuration(st::callPanelDuration);
 	_cancel->entity()->setText(tr::lng_call_cancel());
+	_screencast->setDuration(st::callPanelDuration);
 
 	initWindow();
 	initWidget();
@@ -299,6 +300,7 @@ void Panel::initControls() {
 
 	_decline->finishAnimating();
 	_cancel->finishAnimating();
+	_screencast->finishAnimating();
 }
 
 void Panel::setIncomingSize(QSize size) {
@@ -595,6 +597,7 @@ void Panel::showControls() {
 	widget()->showChildren();
 	_decline->setVisible(_decline->toggled());
 	_cancel->setVisible(_cancel->toggled());
+	_screencast->setVisible(_screencast->toggled());
 
 	const auto shown = !_incomingFrameSize.isEmpty();
 	_incoming->widget()->setVisible(shown);
@@ -753,12 +756,6 @@ void Panel::updateControlsGeometry() {
 		updateOutgoingVideoBubbleGeometry();
 	}
 
-	auto threeWidth = _answerHangupRedial->width()
-		+ st::callCancel.button.width
-		- _screencast->width();
-	_decline->moveToLeft((widget()->width() - threeWidth) / 2, _buttonsTop);
-	_cancel->moveToLeft((widget()->width() - threeWidth) / 2, _buttonsTop);
-
 	updateHangupGeometry();
 }
 
@@ -779,22 +776,28 @@ void Panel::updateOutgoingVideoBubbleGeometry() {
 }
 
 void Panel::updateHangupGeometry() {
-	auto twoWidth = _answerHangupRedial->width() + _screencast->width();
-	auto threeWidth = twoWidth + st::callCancel.button.width;
-	auto rightFrom = (widget()->width() - threeWidth) / 2;
-	auto rightTo = (widget()->width() - twoWidth) / 2;
-	auto hangupProgress = (_call
-			&& _call->state() == State::WaitingUserConfirmation)
+	const auto isWaitingUser = (_call
+		&& _call->state() == State::WaitingUserConfirmation);
+	const auto hangupProgress = isWaitingUser
 		? 0.
 		: _hangupShownProgress.value(_hangupShown ? 1. : 0.);
-	auto hangupRight = anim::interpolate(rightFrom, rightTo, hangupProgress);
-	_answerHangupRedial->moveToRight(hangupRight, _buttonsTop);
 	_answerHangupRedial->setProgress(hangupProgress);
-	_mute->moveToRight(hangupRight - _mute->width(), _buttonsTop);
-	_screencast->moveToLeft(hangupRight - _mute->width(), _buttonsTop);
-	_camera->moveToLeft(
-		hangupRight - _mute->width() + _screencast->width(),
-		_buttonsTop);
+
+	// Screencast - Camera - Cancel/Decline - Answer/Hangup/Redial - Mute.
+	const auto buttonWidth = st::callCancel.button.width;
+	const auto cancelWidth = buttonWidth * (1. - hangupProgress);
+	const auto cancelLeft = (isWaitingUser)
+		? ((widget()->width() - buttonWidth) / 2)
+		: (_mute->animating())
+		? ((widget()->width() - cancelWidth) / 2)
+		: ((widget()->width() / 2) - cancelWidth);
+
+	_cancel->moveToLeft(cancelLeft, _buttonsTop);
+	_decline->moveToLeft(cancelLeft, _buttonsTop);
+	_camera->moveToLeft(cancelLeft - buttonWidth, _buttonsTop);
+	_screencast->moveToLeft(_camera->x() - buttonWidth, _buttonsTop);
+	_answerHangupRedial->moveToLeft(cancelLeft + cancelWidth, _buttonsTop);
+	_mute->moveToLeft(_answerHangupRedial->x() + buttonWidth, _buttonsTop);
 	if (_startVideo) {
 		_startVideo->moveToLeft(_camera->x(), _camera->y());
 	}
@@ -877,7 +880,9 @@ void Panel::stateChanged(State state) {
 		toggleButton(_decline, incomingWaiting);
 		toggleButton(_cancel, (isBusy || isWaitingUser));
 		toggleButton(_mute, !isWaitingUser);
-		toggleButton(_screencast, !isWaitingUser);
+		toggleButton(
+			_screencast,
+			!(isBusy || isWaitingUser || incomingWaiting));
 		const auto hangupShown = !_decline->toggled()
 			&& !_cancel->toggled();
 		if (_hangupShown != hangupShown) {

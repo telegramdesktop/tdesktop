@@ -17,78 +17,167 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 
 #include <QtCore/QAbstractEventDispatcher>
 
+#include <glibmm.h>
+#include <gio/gio.hpp>
 #include <xdpinhibit/xdpinhibit.hpp>
-#include <giomm.h>
 
-typedef GApplication TDesktopApplication;
-typedef GApplicationClass TDesktopApplicationClass;
+namespace Platform {
+namespace {
 
-G_DEFINE_TYPE(
-	TDesktopApplication,
-	t_desktop_application,
-	G_TYPE_APPLICATION)
+using namespace gi::repository;
 
-static void t_desktop_application_class_init(
-		TDesktopApplicationClass *klass) {
-	const auto application_class = G_APPLICATION_CLASS(klass);
+class Application : public Gio::impl::ApplicationImpl {
+public:
+	Application();
 
-	application_class->local_command_line = [](
-			GApplication *application,
-			char ***arguments,
-			int *exit_status) -> gboolean {
-		return false;
-	};
-
-	application_class->command_line = [](
-			GApplication *application,
-			GApplicationCommandLine *cmdline) {
-		return 0;
-	};
-
-	application_class->before_emit = [](
-			GApplication *application,
-			GVariant *platformData) {
+	void before_emit_(GLib::Variant platformData) noexcept override {
 		if (Platform::IsWayland()) {
 			static const auto keys = {
 				"activation-token",
 				"desktop-startup-id",
 			};
 			for (const auto &key : keys) {
-				const char *token = nullptr;
-				g_variant_lookup(platformData, key, "&s", &token);
-				if (token) {
-					qputenv("XDG_ACTIVATION_TOKEN", token);
+				if (auto token = platformData.lookup_value(key)) {
+					qputenv(
+						"XDG_ACTIVATION_TOKEN",
+						token.get_string(nullptr).c_str());
 					break;
 				}
 			}
 		}
-	};
+	}
 
-	application_class->add_platform_data = [](
-			GApplication *application,
-			GVariantBuilder *builder) {
+	void activate_() noexcept override {
+		Core::Sandbox::Instance().customEnterFromEventLoop([] {
+			Core::App().activate();
+		});
+	}
+
+	void open_(GFile **files, int n_files, const char*) noexcept override {
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			for (int i = 0; i < n_files; ++i) {
+				QFileOpenEvent e(
+					QUrl(QString::fromUtf8(g_file_get_uri(files[i]))));
+				QGuiApplication::sendEvent(qApp, &e);
+			}
+		});
+	}
+
+	void add_platform_data_(GLib::VariantBuilder builder) noexcept override {
 		if (Platform::IsWayland()) {
 			const auto token = qgetenv("XDG_ACTIVATION_TOKEN");
 			if (!token.isEmpty()) {
-				g_variant_builder_add(
-					builder,
-					"{sv}",
-					"activation-token",
-					g_variant_new_string(token.constData()));
+				builder.add_value(
+					GLib::Variant::new_dict_entry(
+						GLib::Variant::new_string("activation-token"),
+						GLib::Variant::new_variant(
+							GLib::Variant::new_string(token.toStdString()))));
 				qunsetenv("XDG_ACTIVATION_TOKEN");
 			}
 		}
-	};
+	}
+};
+
+Application::Application()
+: Gio::impl::ApplicationImpl(this) {
+	const auto appId = QGuiApplication::desktopFileName().toStdString();
+	if (Gio::Application::id_is_valid(appId)) {
+		set_application_id(appId);
+	}
+	set_flags(Gio::ApplicationFlags::HANDLES_OPEN_);
+
+	auto actionMap = Gio::ActionMap(*this);
+
+	auto quitAction = Gio::SimpleAction::new_("quit");
+	quitAction.signal_activate().connect([](
+			Gio::SimpleAction,
+			GLib::Variant parameter) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([] {
+			Core::Quit();
+		});
+	});
+	actionMap.add_action(quitAction);
+
+	using Window::Notifications::Manager;
+	using NotificationId = Manager::NotificationId;
+	using NotificationIdTuple = std::invoke_result_t<
+		decltype(&NotificationId::toTuple),
+		NotificationId*
+	>;
+
+	const auto notificationIdVariantType = [] {
+		try {
+			return gi::wrap(
+				Glib::create_variant(
+					NotificationId().toTuple()
+				).get_type().gobj_copy(),
+				gi::transfer_full,
+				gi::direction_out
+			);
+		} catch (...) {
+			return GLib::VariantType();
+		}
+	}();
+
+	auto notificationActivateAction = Gio::SimpleAction::new_(
+		"notification-activate",
+		notificationIdVariantType);
+
+	notificationActivateAction.signal_activate().connect([](
+			Gio::SimpleAction,
+			GLib::Variant parameter) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			try {
+				const auto &app = Core::App();
+				app.notifications().manager().notificationActivated(
+					NotificationId::FromTuple(
+						Glib::wrap(
+							parameter.gobj_copy_()
+						).get_dynamic<NotificationIdTuple>()
+					)
+				);
+			} catch (...) {
+			}
+		});
+	});
+
+	actionMap.add_action(notificationActivateAction);
+
+	auto notificationMarkAsReadAction = Gio::SimpleAction::new_(
+		"notification-mark-as-read",
+		notificationIdVariantType);
+
+	notificationMarkAsReadAction.signal_activate().connect([](
+			Gio::SimpleAction,
+			GLib::Variant parameter) {
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			try {
+				const auto &app = Core::App();
+				app.notifications().manager().notificationReplied(
+					NotificationId::FromTuple(
+						Glib::wrap(
+							parameter.gobj_copy_()
+						).get_dynamic<NotificationIdTuple>()
+					),
+					{}
+				);
+			} catch (...) {
+			}
+		});
+	});
+
+	actionMap.add_action(notificationMarkAsReadAction);
 }
 
-static void t_desktop_application_init(TDesktopApplication *application) {
+gi::ref_ptr<Application> MakeApplication() {
+	const auto result = gi::make_ref<Application>();
+	if (const auto registered = result->register_(); !registered) {
+		LOG(("App Error: Failed to register: %1").arg(
+			QString::fromStdString(registered.error().message_())));
+		return nullptr;
+	}
+	return result;
 }
-
-namespace Platform {
-namespace {
-
-using namespace gi::repository;
-namespace Gio = gi::repository::Gio;
 
 class LinuxIntegration final : public Integration {
 public:
@@ -103,14 +192,14 @@ private:
 
 	void initInhibit();
 
-	static void LaunchNativeApplication();
-
+	const gi::ref_ptr<Application> _application;
 	XdpInhibit::InhibitProxy _inhibitProxy;
 	base::Platform::XDP::SettingWatcher _darkModeWatcher;
 };
 
 LinuxIntegration::LinuxIntegration()
-: _inhibitProxy(
+: _application(MakeApplication())
+, _inhibitProxy(
 	XdpInhibit::InhibitProxy::new_for_bus_sync(
 		Gio::BusType::SESSION_,
 		Gio::DBusProxyFlags::DO_NOT_AUTO_START_AT_CONSTRUCTION_,
@@ -139,16 +228,12 @@ LinuxIntegration::LinuxIntegration()
 	if (!QCoreApplication::eventDispatcher()->inherits(
 		"QEventDispatcherGlib")) {
 		g_warning("Qt is running without GLib event loop integration, "
-			"except various functionality to not to work.");
+			"expect various functionality to not to work.");
 	}
 }
 
 void LinuxIntegration::init() {
 	initInhibit();
-
-	Glib::signal_idle().connect_once([] {
-		LaunchNativeApplication();
-	});
 }
 
 void LinuxIntegration::initInhibit() {
@@ -156,7 +241,11 @@ void LinuxIntegration::initInhibit() {
 		return;
 	}
 
-	auto uniqueName = _inhibitProxy.get_connection().get_unique_name();
+	auto uniqueName = _inhibitProxy
+		.get_connection()
+		.get_unique_name()
+		.value_or("");
+
 	uniqueName.erase(0, 1);
 	uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
 
@@ -205,115 +294,6 @@ void LinuxIntegration::initInhibit() {
 		{},
 		GLib::Variant::new_array(options.data(), options.size()),
 		nullptr);
-}
-
-void LinuxIntegration::LaunchNativeApplication() {
-	const auto appId = QGuiApplication::desktopFileName().toStdString();
-
-	const auto app = Glib::wrap(
-		G_APPLICATION(
-			g_object_new(
-				t_desktop_application_get_type(),
-				"application-id",
-				::Gio::Application::id_is_valid(appId)
-					? appId.c_str()
-					: nullptr,
-				"flags",
-				G_APPLICATION_HANDLES_OPEN,
-				nullptr)));
-
-	app->signal_startup().connect([weak = std::weak_ptr(app)] {
-		const auto app = weak.lock();
-		if (!app) {
-			return;
-		}
-
-		// GNotification
-		InvokeQueued(qApp, [] {
-			Core::App().notifications().createManager();
-		});
-
-		QEventLoop().exec();
-		app->quit();
-	}, true);
-
-	app->signal_activate().connect([] {
-		Core::Sandbox::Instance().customEnterFromEventLoop([] {
-			Core::App().activate();
-		});
-	}, true);
-
-	app->signal_open().connect([](
-			const ::Gio::Application::type_vec_files &files,
-			const Glib::ustring &hint) {
-		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			for (const auto &file : files) {
-				QFileOpenEvent e(
-					QUrl(QString::fromStdString(file->get_uri())));
-				QGuiApplication::sendEvent(qApp, &e);
-			}
-		});
-	}, true);
-
-	app->add_action("quit", [] {
-		Core::Sandbox::Instance().customEnterFromEventLoop([] {
-			Core::Quit();
-		});
-	});
-
-	using Window::Notifications::Manager;
-	using NotificationId = Manager::NotificationId;
-	using NotificationIdTuple = std::invoke_result_t<
-		decltype(&NotificationId::toTuple),
-		NotificationId*
-	>;
-
-	const auto notificationIdVariantType = [] {
-		try {
-			return Glib::create_variant(
-				NotificationId().toTuple()
-			).get_type();
-		} catch (...) {
-			return Glib::VariantType();
-		}
-	}();
-
-	app->add_action_with_parameter(
-		"notification-activate",
-		notificationIdVariantType,
-		[](const Glib::VariantBase &parameter) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				try {
-					const auto &app = Core::App();
-					app.notifications().manager().notificationActivated(
-						NotificationId::FromTuple(
-							parameter.get_dynamic<NotificationIdTuple>()
-						)
-					);
-				} catch (...) {
-				}
-			});
-		});
-
-	app->add_action_with_parameter(
-		"notification-mark-as-read",
-		notificationIdVariantType,
-		[](const Glib::VariantBase &parameter) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-				try {
-					const auto &app = Core::App();
-					app.notifications().manager().notificationReplied(
-						NotificationId::FromTuple(
-							parameter.get_dynamic<NotificationIdTuple>()
-						),
-						{}
-					);
-				} catch (...) {
-				}
-			});
-		});
-
-	app->run(0, nullptr);
 }
 
 } // namespace

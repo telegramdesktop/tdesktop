@@ -164,7 +164,8 @@ void FillChooseFilterMenu(
 				controller->show(Box(
 					FilterChatsLimitBox,
 					&controller->session(),
-					r.count));
+					r.count,
+					true));
 			} else if (validator.canAdd()) {
 				validator.add(id);
 			}

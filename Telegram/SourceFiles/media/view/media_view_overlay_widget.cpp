@@ -900,7 +900,7 @@ void OverlayWidget::savePosition() {
 
 void OverlayWidget::updateGeometry(bool inMove) {
 	initFullScreen();
-	if (_fullscreen) {
+	if (_fullscreen && (!Platform::IsWindows11OrGreater() || !isHidden())) {
 		updateGeometryToScreen(inMove);
 	} else if (_windowed && _normalGeometryInited) {
 		_window->setGeometry(_normalGeometry);
@@ -3209,6 +3209,12 @@ void OverlayWidget::show(OpenRequest request) {
 		// Count top notch on macOS before counting geometry.
 		_helper->beforeShow(_fullscreen);
 	}
+	if (_cachedShow) {
+		_cachedShow->showOrHideBoxOrLayer(
+			v::null,
+			Ui::LayerOption::CloseOther,
+			anim::type::instant);
+	}
 	if (photo) {
 		if (contextItem && contextPeer) {
 			return;
@@ -3529,6 +3535,9 @@ void OverlayWidget::showAndActivate() {
 		_wasWindowedMode = true;
 	} else if (_fullscreen) {
 		_window->showFullScreen();
+		if (Platform::IsWindows11OrGreater()) {
+			updateGeometry();
+		}
 	} else {
 		_window->showMaximized();
 	}
@@ -3698,6 +3707,7 @@ bool OverlayWidget::createStreamingObjects() {
 	_streamed->instance.setPriority(kOverlayLoaderPriority);
 	_streamed->instance.lockPlayer();
 	_streamed->withSound = _document
+		&& !_document->isSilentVideo()
 		&& (_document->isAudioFile()
 			|| _document->isVideoFile()
 			|| _document->isVoiceMessage()
@@ -4038,12 +4048,14 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	};
 	if (!_streamed->withSound) {
 		options.mode = Streaming::Mode::Video;
-		options.loop = true;
+		options.loop = !_stories;
 	} else {
 		Assert(_document != nullptr);
 		const auto messageId = _message ? _message->fullId() : FullMsgId();
 		options.audioId = AudioMsgId(_document, messageId);
-		options.speed = Core::App().settings().videoPlaybackSpeed();
+		options.speed = _stories
+			? 1.
+			: Core::App().settings().videoPlaybackSpeed();
 		if (_pip) {
 			_pip = nullptr;
 		}
@@ -4111,7 +4123,7 @@ void OverlayWidget::playbackControlsSpeedChanged(float64 speed) {
 		Core::App().settings().setVideoPlaybackSpeed(speed);
 		Core::App().saveSettingsDelayed();
 	}
-	if (_streamed && _streamed->controls) {
+	if (_streamed && _streamed->controls && !_stories) {
 		DEBUG_LOG(("Media playback speed: %1 to _streamed.").arg(speed));
 		_streamed->instance.setSpeed(speed);
 	}

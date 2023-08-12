@@ -12,7 +12,6 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "base/unique_qptr.h"
 
 namespace Ui {
-class SettingsSlider;
 class VerticalLayout;
 class SearchFieldController;
 } // namespace Ui

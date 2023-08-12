@@ -64,7 +64,7 @@ namespace {
 
 constexpr auto kPhotoProgressInterval = crl::time(100);
 constexpr auto kPhotoDuration = 5 * crl::time(1000);
-constexpr auto kFullContentFade = 0.35;
+constexpr auto kFullContentFade = 0.6;
 constexpr auto kSiblingMultiplierDefault = 0.448;
 constexpr auto kSiblingMultiplierMax = 0.72;
 constexpr auto kSiblingOutsidePart = 0.24;
