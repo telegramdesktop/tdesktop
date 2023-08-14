@@ -43,8 +43,6 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	}
 
 	const auto justRelaunch = action == UpdaterLaunch::JustRelaunch;
-	const auto writeProtectedUpdate = action == UpdaterLaunch::PerformUpdate
-		&& cWriteProtected();
 
 	const auto binaryPath = justRelaunch
 		? (cExeDir() + cExeName()).toStdString()
@@ -53,31 +51,30 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			: (cExeDir() + u"Updater"_q)).toStdString();
 
 	std::vector<std::string> argumentsList;
-	if (writeProtectedUpdate) {
-		argumentsList.push_back("pkexec");
-		argumentsList.push_back("--keep-cwd");
-	} else {
+	if (justRelaunch) {
 		argumentsList.push_back(binaryPath);
+	} else if (cWriteProtected()) {
+		argumentsList.push_back("pkexec");
 	}
 	argumentsList.push_back((justRelaunch && !arguments().isEmpty())
 		? arguments().first().toStdString()
 		: binaryPath);
 
-	if (cLaunchMode() == LaunchModeAutoStart) {
-		argumentsList.push_back("-autostart");
-	}
 	if (Logs::DebugEnabled()) {
 		argumentsList.push_back("-debug");
 	}
-	if (cStartInTray()) {
-		argumentsList.push_back("-startintray");
-	}
-	if (cDataFile() != u"data"_q) {
-		argumentsList.push_back("-key");
-		argumentsList.push_back(cDataFile().toStdString());
-	}
 
 	if (justRelaunch) {
+		if (cLaunchMode() == LaunchModeAutoStart) {
+			argumentsList.push_back("-autostart");
+		}
+		if (cStartInTray()) {
+			argumentsList.push_back("-startintray");
+		}
+		if (cDataFile() != u"data"_q) {
+			argumentsList.push_back("-key");
+			argumentsList.push_back(cDataFile().toStdString());
+		}
 		argumentsList.push_back("-noupdate");
 		argumentsList.push_back("-tosettings");
 		if (customWorkingDir()) {
@@ -91,13 +88,6 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		argumentsList.push_back(cExeName().toStdString());
 		argumentsList.push_back("-exepath");
 		argumentsList.push_back(cExeDir().toStdString());
-		if (!arguments().isEmpty()) {
-			argumentsList.push_back("-argv0");
-			argumentsList.push_back(arguments().first().toStdString());
-		}
-		if (customWorkingDir()) {
-			argumentsList.push_back("-workdir_custom");
-		}
 		if (cWriteProtected()) {
 			argumentsList.push_back("-writeprotected");
 		}
@@ -106,13 +96,24 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	Logs::closeMain();
 	CrashReports::Finish();
 
-	// pkexec needs an alive parent
-	if (writeProtectedUpdate) {
+	if (justRelaunch) {
+		return GLib::spawn_async(
+			initialWorkingDir().toStdString(),
+			argumentsList,
+			std::nullopt,
+			GLib::SpawnFlags::FILE_AND_ARGV_ZERO_,
+			nullptr,
+			nullptr,
+			nullptr);
+	} else {
 		if (!GLib::spawn_sync(
-				initialWorkingDir().toStdString(),
 				argumentsList,
 				std::nullopt,
-				GLib::SpawnFlags::SEARCH_PATH_,
+				// if the spawn is sync, working directory is not set
+				// and GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_ is set,
+				// it goes through an optimized code path
+				GLib::SpawnFlags::SEARCH_PATH_
+					| GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_,
 				nullptr,
 				nullptr,
 				nullptr,
@@ -120,18 +121,8 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 				nullptr)) {
 			return false;
 		}
-		// launch new version in the same environment
 		return launchUpdater(UpdaterLaunch::JustRelaunch);
 	}
-
-	return GLib::spawn_async(
-		initialWorkingDir().toStdString(),
-		argumentsList,
-		std::nullopt,
-		GLib::SpawnFlags::FILE_AND_ARGV_ZERO_,
-		nullptr,
-		nullptr,
-		nullptr);
 }
 
 } // namespace
