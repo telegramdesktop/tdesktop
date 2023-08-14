@@ -1848,8 +1848,7 @@ ClickHandlerPtr MediaDice::MakeHandler(
 			.multiline = true,
 		};
 		if (CanSend(history->peer, ChatRestriction::SendOther)) {
-			auto link = Ui::Text::Link(
-				tr::lng_about_random_send(tr::now).toUpper());
+			auto link = Ui::Text::Link(tr::lng_about_random_send(tr::now));
 			link.entities.push_back(
 				EntityInText(EntityType::Semibold, 0, link.text.size()));
 			config.text.append(' ').append(std::move(link));

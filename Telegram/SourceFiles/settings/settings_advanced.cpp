@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/gl/gl_detection.h"
 #include "ui/layers/generic_box.h"
-#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/format_values.h"
 #include "ui/boxes/single_choice_box.h"
 #include "ui/painter.h"

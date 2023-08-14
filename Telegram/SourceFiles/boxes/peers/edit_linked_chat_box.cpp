@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/text/text_utilities.h" // Ui::Text::RichLangValue
 #include "boxes/peer_list_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
