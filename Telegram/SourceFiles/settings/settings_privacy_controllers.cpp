@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -762,7 +763,7 @@ object_ptr<Ui::RpWidget> CallsPrivacyController::setupBelowWidget(
 		controller,
 		content,
 		tr::lng_settings_calls_peer_to_peer_button(),
-		{ &st::settingsIconArrows, kIconLightBlue },
+		{ &st::menuIconNetwork },
 		UserPrivacy::Key::CallsPeer2Peer,
 		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); },
 		&st::settingsButton);
@@ -1038,9 +1039,10 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupAboveWidget(
 	return nullptr;
 }
 
-object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupBelowWidget(
+object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupMiddleWidget(
 		not_null<Window::SessionController*> controller,
-		not_null<QWidget*> parent) {
+		not_null<QWidget*> parent,
+		rpl::producer<Option> optionValue) {
 	const auto self = controller->session().user();
 	auto widget = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
@@ -1082,7 +1084,7 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupBelowWidget(
 		container,
 		state->setUserpicButtonText.value(),
 		st::settingsButtonLight,
-		{ &st::settingsIconPhoto, kIconLightBlue });
+		{ &st::menuBlueIconPhotoSet });
 	const auto &stRemoveButton = st::settingsAttentionButtonWithIcon;
 	const auto removeButton = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -1112,7 +1114,7 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupBelowWidget(
 	removeButton->entity()->heightValue(
 	) | rpl::start_with_next([=,
 			left = stRemoveButton.iconLeft,
-			width = st::settingsIconPhoto.width()](int height) {
+			width = st::menuBlueIconPhotoSet.width()](int height) {
 		userpic->moveToLeft(
 			left + (width - userpic->width()) / 2,
 			(height - userpic->height()) / 2);
@@ -1173,7 +1175,7 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupBelowWidget(
 	};
 
 	widget->toggleOn(rpl::combine(
-		_option.value(),
+		std::move(optionValue),
 		_exceptionsNever.value()
 	) | rpl::map(rpl::mappers::_1 != Option::Everyone || rpl::mappers::_2));
 

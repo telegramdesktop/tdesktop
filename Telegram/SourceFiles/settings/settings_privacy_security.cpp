@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -332,7 +333,7 @@ void SetupLocalPasscode(
 		tr::lng_settings_passcode_title(),
 		std::move(label),
 		st::settingsButton,
-		{ &st::settingsIconLock, kIconGreen }
+		{ &st::menuIconLock }
 	)->addClickHandler([=] {
 		if (controller->session().domain().local().hasLocalPasscode()) {
 			showOther(LocalPasscodeCheckId());
@@ -382,7 +383,7 @@ void SetupCloudPassword(
 		tr::lng_settings_cloud_password_start_title(),
 		std::move(label),
 		st::settingsButton,
-		{ &st::settingsIconKey, kIconLightBlue }
+		{ &st::menuIconPermissions }
 	)->addClickHandler([=, passwordState = base::duplicate(passwordState)] {
 		const auto state = rpl::variable<PasswordState>(
 			base::duplicate(passwordState)).current();
@@ -580,7 +581,7 @@ void SetupBlockedList(
 		tr::lng_settings_blocked_users(),
 		std::move(blockedCount),
 		st::settingsButton,
-		{ &st::settingsIconMinus, kIconRed });
+		{ &st::menuIconBlock });
 	blockedPeers->addClickHandler([=] {
 		showOther(Blocked::Id());
 	});
@@ -612,10 +613,13 @@ void SetupSessionsList(
 		tr::lng_settings_show_sessions(),
 		std::move(count),
 		st::settingsButton,
-		{ &st::settingsIconLaptop, kIconLightOrange }
+		{ &st::menuIconDevices }
 	)->addClickHandler([=] {
 		showOther(Sessions::Id());
 	});
+
+	AddSkip(container);
+	AddDividerText(container, tr::lng_settings_sessions_about());
 }
 
 void SetupGlobalTTLList(
@@ -635,7 +639,7 @@ void SetupGlobalTTLList(
 		tr::lng_settings_ttl_title(),
 		std::move(ttlLabel),
 		st::settingsButton,
-		{ &st::settingsIconTTL, kIconPurple });
+		{ &st::menuIconTTL });
 	globalTTLButton->addClickHandler([=] {
 		showOther(GlobalTTLId());
 	});
@@ -644,9 +648,6 @@ void SetupGlobalTTLList(
 	) | rpl::start_with_next([=] {
 		session->api().selfDestruct().reload();
 	}, container->lifetime());
-
-	AddSkip(container);
-	AddDividerText(container, tr::lng_settings_ttl_about());
 }
 
 void SetupSecurity(
@@ -657,19 +658,19 @@ void SetupSecurity(
 	AddSkip(container, st::settingsPrivacySkip);
 	AddSubsectionTitle(container, tr::lng_settings_security());
 
+	SetupCloudPassword(controller, container, showOther);
+	SetupGlobalTTLList(
+		controller,
+		container,
+		rpl::duplicate(updateTrigger),
+		showOther);
 	SetupBlockedList(
 		controller,
 		container,
 		rpl::duplicate(updateTrigger),
 		showOther);
-	SetupSessionsList(
-		controller,
-		container,
-		rpl::duplicate(updateTrigger),
-		showOther);
 	SetupLocalPasscode(controller, container, showOther);
-	SetupCloudPassword(controller, container, showOther);
-	SetupGlobalTTLList(
+	SetupSessionsList(
 		controller,
 		container,
 		rpl::duplicate(updateTrigger),

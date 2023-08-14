@@ -298,17 +298,11 @@ void EditPrivacyBox::setupContent() {
 				CreateButton(
 					content,
 					rpl::duplicate(text),
-					st::settingsButton,
-					{
-						(always
-							? &st::settingsIconPlus
-							: &st::settingsIconMinus),
-						always ? kIconGreen : kIconRed,
-					})));
+					st::settingsButtonNoIcon)));
 		CreateRightLabel(
 			button->entity(),
 			std::move(label),
-			st::settingsButton,
+			st::settingsButtonNoIcon,
 			std::move(text));
 		button->toggleOn(rpl::duplicate(
 			optionValue
@@ -384,9 +378,9 @@ void EditPrivacyBox::setupContent() {
 	});
 	addButton(tr::lng_cancel(), [this] { closeBox(); });
 
-	const auto linkHeight = st::settingsButton.padding.top()
-		+ st::settingsButton.height
-		+ st::settingsButton.padding.bottom();
+	const auto linkHeight = st::settingsButtonNoIcon.padding.top()
+		+ st::settingsButtonNoIcon.height
+		+ st::settingsButtonNoIcon.padding.bottom();
 
 	widthValue(
 	) | rpl::start_with_next([=](int width) {

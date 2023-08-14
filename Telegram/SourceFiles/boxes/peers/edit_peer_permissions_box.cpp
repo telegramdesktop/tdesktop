@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
 #include "styles/style_settings.h"
 
@@ -818,7 +819,7 @@ void AddSuggestGigagroup(
 		rpl::single(QString()),
 		std::move(callback),
 		st::manageGroupTopicsButton,
-		{ &st::settingsIconAskQuestion, Settings::kIconGreen }));
+		{ &st::menuIconChatDiscuss }));
 
 	container->add(
 		object_ptr<Ui::DividerLabel>(
@@ -854,7 +855,7 @@ void AddBannedButtons(
 				ParticipantsBoxController::Role::Restricted);
 		},
 		st::manageGroupTopicsButton,
-		{ &st::settingsIconKey, Settings::kIconLightOrange }));
+		{ &st::menuIconPermissions }));
 	if (channel) {
 		container->add(EditPeerInfoBox::CreateButton(
 			container,
@@ -868,7 +869,7 @@ void AddBannedButtons(
 					ParticipantsBoxController::Role::Kicked);
 			},
 			st::manageGroupTopicsButton,
-			{ &st::settingsIconMinus, Settings::kIconRed }));
+			{ &st::menuIconRemove }));
 	}
 }
 

@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "api/api_invite_links.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
@@ -307,11 +308,9 @@ private:
 	void fillPendingRequestsButton();
 
 	void fillBotUsernamesButton();
-#if 0 // Enable after design improvements.
 	void fillBotEditIntroButton();
 	void fillBotEditCommandsButton();
 	void fillBotEditSettingsButton();
-#endif
 
 	void submitTitle();
 	void submitDescription();
@@ -348,9 +347,7 @@ private:
 	void continueSave();
 	void cancelSave();
 
-#if 0 // Enable after design improvements.
 	void toggleBotManager(const QString &command);
-#endif
 
 	void togglePreHistoryHidden(
 		not_null<ChannelData*> channel,
@@ -605,7 +602,7 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 			controller->show(
 				Box<StickersBox>(controller->uiShow(), channel));
 		},
-		{ &st::settingsIconStickers, Settings::kIconLightOrange });
+		{ &st::menuIconStickers });
 
 	Settings::AddSkip(container, bottomSkip);
 
@@ -770,9 +767,6 @@ void Controller::fillPrivacyTypeButton() {
 			&& _peer->asChannel()->requestToJoin()),
 	};
 	const auto isGroup = (_peer->isChat() || _peer->isMegagroup());
-	const auto icon = isGroup
-		? &st::settingsIconGroup
-		: &st::settingsIconChannel;
 	AddButtonWithText(
 		_controls.buttonsLayout,
 		(hasLocation
@@ -798,7 +792,7 @@ void Controller::fillPrivacyTypeButton() {
 					: tr::lng_manage_private_peer_title)();
 		}) | rpl::flatten_latest(),
 		[=] { showEditPeerTypeBox(); },
-		{ icon, Settings::kIconLightBlue });
+		{ &st::menuIconCustomize });
 
 	_privacyTypeUpdates.fire_copy(_typeDataSavedValue->privacy);
 }
@@ -839,7 +833,7 @@ void Controller::fillLinkedChatButton() {
 		std::move(text),
 		std::move(label),
 		[=] { showEditLinkedChatBox(); },
-		{ &st::settingsIconChat, Settings::kIconGreen });
+		{ isGroup ? &st::menuIconChannel : &st::menuIconGroups });
 	_linkedChatUpdates.fire_copy(*_linkedChatSavedValue);
 }
 //
@@ -867,7 +861,7 @@ void Controller::fillForumButton() {
 			rpl::single(QString()),
 			[] {},
 			st::manageGroupTopicsButton,
-			{ &st::settingsIconTopics, Settings::kIconPurple }));
+			{ &st::menuIconTopics }));
 	const auto unlocks = std::make_shared<rpl::event_stream<bool>>();
 	button->toggleOn(
 		rpl::single(_peer->isForum()) | rpl::then(unlocks->events())
@@ -924,7 +918,7 @@ void Controller::fillSignaturesButton() {
 		tr::lng_edit_sign_messages(),
 		rpl::single(QString()),
 		[] {},
-		{ &st::infoRoundedIconSignature, Settings::kIconLightBlue }
+		{ &st::menuIconSigned }
 	)->toggleOn(rpl::single(channel->addsSignature())
 	)->toggledValue(
 	) | rpl::start_with_next([=](bool toggled) {
@@ -986,7 +980,7 @@ void Controller::fillHistoryVisibilityButton() {
 				: tr::lng_manage_history_visibility_hidden)();
 		}) | rpl::flatten_latest(),
 		buttonCallback,
-		{ &st::settingsIconChat, Settings::kIconGreen });
+		{ &st::menuIconChatBubble });
 
 	updateHistoryVisibility->fire_copy(*_historyVisibilitySavedValue);
 
@@ -1001,11 +995,9 @@ void Controller::fillManageSection() {
 
 		AddSkip(container, 0);
 		fillBotUsernamesButton();
-#if 0 // Enable after design improvements.
 		fillBotEditIntroButton();
 		fillBotEditCommandsButton();
 		fillBotEditSettingsButton();
-#endif
 		Settings::AddSkip(
 			container,
 			st::editPeerTopButtonsLayoutSkipCustomBottom);
@@ -1174,7 +1166,7 @@ void Controller::fillManageSection() {
 					Data::PeerAllowedReactions(_peer),
 					done));
 			},
-			{ &st::infoRoundedIconReactions, Settings::kIconRed });
+			{ &st::menuIconGroupReactions });
 	}
 	if (canEditPermissions) {
 		AddButtonWithCount(
@@ -1193,7 +1185,7 @@ void Controller::fillManageSection() {
 				});
 			}) | rpl::flatten_latest(),
 			[=] { ShowEditPermissions(_navigation, _peer); },
-			{ &st::settingsIconKey, Settings::kIconGreen });
+			{ &st::menuIconPermissions });
 	}
 	if (canEditInviteLinks) {
 		auto count = Info::Profile::MigratedOrMeValue(
@@ -1227,7 +1219,7 @@ void Controller::fillManageSection() {
 					0,
 					0));
 			},
-			{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange });
+			{ &st::menuIconLinks });
 		wrap->toggle(true, anim::type::instant);
 	}
 	if (canViewAdmins) {
@@ -1246,7 +1238,7 @@ void Controller::fillManageSection() {
 					_peer,
 					ParticipantsBoxController::Role::Admins);
 			},
-			{ &st::infoRoundedIconAdministrators, Settings::kIconLightBlue });
+			{ &st::menuIconAdmin });
 	}
 	if (canViewMembers) {
 		AddButtonWithCount(
@@ -1266,7 +1258,7 @@ void Controller::fillManageSection() {
 					_peer,
 					ParticipantsBoxController::Role::Members);
 			},
-			{ &st::settingsIconGroup, Settings::kIconDarkBlue });
+			{ &st::menuIconGroups });
 	}
 
 	fillPendingRequestsButton();
@@ -1283,7 +1275,7 @@ void Controller::fillManageSection() {
 					_peer,
 					ParticipantsBoxController::Role::Kicked);
 			},
-			{ &st::settingsIconMinus, Settings::kIconRed });
+			{ &st::menuIconRemove });
 	}
 	if (hasRecentActions) {
 		auto callback = [=] {
@@ -1295,7 +1287,7 @@ void Controller::fillManageSection() {
 			tr::lng_manage_peer_recent_actions(),
 			rpl::single(QString()), //Empty count.
 			std::move(callback),
-			{ &st::infoRoundedIconRecentActions, Settings::kIconPurple });
+			{ &st::menuIconGroupLog });
 	}
 
 	if (canEditStickers || canDeleteChannel) {
@@ -1337,7 +1329,7 @@ void Controller::fillPendingRequestsButton() {
 			: tr::lng_manage_peer_requests_channel()),
 		rpl::duplicate(pendingRequestsCount) | ToPositiveNumberString(),
 		[=] { RequestsBoxController::Start(_navigation, _peer); },
-		{ &st::infoRoundedIconRequests, Settings::kIconRed });
+		{ &st::menuIconInvite });
 	std::move(
 		pendingRequestsCount
 	) | rpl::start_with_next([=](int count) {
@@ -1396,10 +1388,9 @@ void Controller::fillBotUsernamesButton() {
 		[=] {
 			_navigation->uiShow()->showBox(Box(UsernamesBox, user));
 		},
-		{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange });
+		{ &st::menuIconLinks });
 }
 
-#if 0 // Enable after design improvements.
 void Controller::fillBotEditIntroButton() {
 	Expects(_isBot);
 
@@ -1409,7 +1400,7 @@ void Controller::fillBotEditIntroButton() {
 		tr::lng_manage_peer_bot_edit_intro(),
 		rpl::never<QString>(),
 		[=] { toggleBotManager(u"%1-intro"_q.arg(user->username())); },
-		{ &st::settingsIconChat, Settings::kIconLightBlue });
+		{ &st::menuIconEdit });
 }
 
 void Controller::fillBotEditCommandsButton() {
@@ -1421,7 +1412,7 @@ void Controller::fillBotEditCommandsButton() {
 		tr::lng_manage_peer_bot_edit_commands(),
 		rpl::never<QString>(),
 		[=] { toggleBotManager(u"%1-commands"_q.arg(user->username())); },
-		{ &st::settingsIconChat, Settings::kIconLightBlue });
+		{ &st::menuIconBotCommands });
 }
 
 void Controller::fillBotEditSettingsButton() {
@@ -1433,9 +1424,8 @@ void Controller::fillBotEditSettingsButton() {
 		tr::lng_manage_peer_bot_edit_settings(),
 		rpl::never<QString>(),
 		[=] { toggleBotManager(user->username()); },
-		{ &st::settingsIconChat, Settings::kIconLightBlue });
+		{ &st::menuIconSettings });
 }
-#endif
 
 void Controller::submitTitle() {
 	Expects(_controls.title != nullptr);
@@ -1910,7 +1900,6 @@ void Controller::saveHistoryVisibility() {
 		[=] { cancelSave(); });
 }
 
-#if 0 // Enable after design improvements.
 void Controller::toggleBotManager(const QString &command) {
 	const auto controller = _navigation->parentController();
 	_api.request(MTPcontacts_ResolveUsername(
@@ -1926,7 +1915,6 @@ void Controller::toggleBotManager(const QString &command) {
 		}
 	}).send();
 }
-#endif
 
 void Controller::togglePreHistoryHidden(
 		not_null<ChannelData*> channel,

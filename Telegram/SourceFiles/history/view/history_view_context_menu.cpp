@@ -1199,7 +1199,7 @@ void AddPollActions(
 				.confirmText = tr::lng_polls_stop_sure(),
 				.cancelText = tr::lng_cancel(),
 			}));
-		}, &st::menuIconStopPoll);
+		}, &st::menuIconRemove);
 	}
 }
 

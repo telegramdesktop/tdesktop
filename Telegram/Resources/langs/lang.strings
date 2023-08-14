@@ -600,6 +600,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_username_label" = "Username";
 "lng_settings_phone_label" = "Phone number";
 "lng_settings_username_add" = "Add username";
+"lng_settings_username_about" = "Username lets people contact you on Telegram without needing your phone number.";
+"lng_settings_add_account_about" = "You can add up to four accounts with different phone numbers.";
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
 "lng_settings_advanced" = "Advanced";
 "lng_settings_stickers_emoji" = "Stickers and emoji";
@@ -612,9 +614,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_theme_accent_title" = "Choose accent color";
 "lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";
+"lng_settings_my_account" = "My Account";
 "lng_settings_security" = "Security";
 "lng_settings_passcode_title" = "Local passcode";
 "lng_settings_sessions_title" = "Active sessions";
+"lng_settings_sessions_about" = "Review the list of devices where you are logged into your Telegram account.";
 "lng_settings_archive_title" = "Archive Settings";
 "lng_settings_new_unknown" = "New chats from unknown users";
 "lng_settings_auto_archive" = "Archive and Mute";
@@ -642,6 +646,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 "lng_settings_security_bots" = "Bots and websites";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
+"lng_settings_logged_in" = "Logged In with Telegram";
+"lng_settings_logged_in_about" = "Websites where you've used Telegram to log in.";
+"lng_settings_logged_in_title" = "Logged In with Telegram";
+"lng_settings_logged_in_description" = "You can log in on websites that support signing in with Telegram.";
+"lng_settings_disconnect_all" = "Disconnect All Websites";
+"lng_settings_connected_title" = "Connected websites";
+"lng_settings_connected_about" = "Click to disconnect from your Telegram account.";
 
 "lng_settings_power_menu" = "Battery and Animations";
 "lng_settings_power_title" = "Power Usage";

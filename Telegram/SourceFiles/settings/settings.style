@@ -74,40 +74,10 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButtonNoIcon) {
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 8px, 22px, 16px);
 
-settingsIconAccount: icon {{ "settings/account", settingsIconFg }};
-settingsIconNotifications: icon {{ "settings/notifications", settingsIconFg }};
 settingsIconChat: icon {{ "settings/chat", settingsIconFg }};
-settingsIconFolders: icon {{ "settings/folders", settingsIconFg }};
-settingsIconGeneral: icon {{ "settings/advanced", settingsIconFg }};
-settingsIconLock: icon {{ "settings/lock", settingsIconFg }};
-settingsIconLanguage: icon {{ "settings/language", settingsIconFg }};
-settingsIconBattery: icon {{ "settings/battery", settingsIconFg }};
 settingsIconInterfaceScale: icon {{ "settings/interface_scale", settingsIconFg }};
-settingsIconFaq: icon {{ "settings/faq", settingsIconFg }};
-settingsIconCalls: icon {{ "settings/calls", settingsIconFg }};
-settingsIconAskQuestion: icon {{ "settings/ask_question", settingsIconFg }};
-settingsIconTips: icon {{ "settings/tips", settingsIconFg }};
 settingsIconStickers: icon {{ "settings/stickers", settingsIconFg }};
 settingsIconEmoji: icon {{ "settings/emoji", settingsIconFg }};
-settingsIconThemes: icon {{ "settings/palette", settingsIconFg }};
-settingsIconGroup: icon {{ "settings/group", settingsIconFg }};
-settingsIconChannel: icon {{ "settings/channel", settingsIconFg }};
-settingsIconUser: icon {{ "settings/user", settingsIconFg }};
-settingsIconKey: icon {{ "settings/key", settingsIconFg }};
-settingsIconPlus: icon {{ "settings/plus", settingsIconFg }};
-settingsIconMinus: icon {{ "settings/minus", settingsIconFg }};
-settingsIconTimer: icon {{ "settings/timer", settingsIconFg }};
-settingsIconLaptop: icon {{ "settings/laptop", settingsIconFg }};
-settingsIconArrows: icon {{ "settings/arrows", settingsIconFg }};
-settingsIconEmail: icon {{ "settings/email", settingsIconFg }};
-settingsIconSound: icon {{ "settings/sound", settingsIconFg }};
-settingsIconDock: icon {{ "settings/dock", settingsIconFg }};
-settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
-settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
-settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
-settingsIconTopics: icon {{ "settings/topics", settingsIconFg }};
-settingsIconTTL: icon {{ "settings/ttl", settingsIconFg }};
-settingsIconPhoto: icon {{ "settings/photo", settingsIconFg }};
 
 settingsPremiumIconStories: icon {{ "settings/stories", settingsIconFg }};
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
@@ -127,7 +97,7 @@ settingsStoriesIconViews: icon {{ "menu/show_in_chat", premiumButtonBg1 }};
 settingsStoriesIconExpiration: icon {{ "settings/premium/timer", premiumButtonBg1 }};
 settingsStoriesIconDownload: icon {{ "menu/download", premiumButtonBg1 }};
 settingsStoriesIconCaption: icon {{ "settings/premium/stories_caption", premiumButtonBg1 }};
-settingsStoriesIconLinks: icon {{ "settings/premium/stories_links", premiumButtonBg1 }};
+settingsStoriesIconLinks: icon {{ "menu/links_profile", premiumButtonBg1 }};
 
 settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(semiboldTextStyle) {

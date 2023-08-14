@@ -1468,7 +1468,7 @@ void InnerWidget::suggestRestrictParticipant(
 				editRestrictions(false, ChatRestrictionsInfo());
 			}).send();
 		}
-	}, &st::menuIconRestrict);
+	}, &st::menuIconPermissions);
 }
 
 void InnerWidget::restrictParticipant(

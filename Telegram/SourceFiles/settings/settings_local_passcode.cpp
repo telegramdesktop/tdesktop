@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 namespace Settings {
@@ -442,7 +443,7 @@ void LocalPasscodeManage::setupContent() {
 		content,
 		tr::lng_passcode_change(),
 		st::settingsButton,
-		{ &st::settingsIconLock, kIconLightBlue }
+		{ &st::menuIconLock }
 	)->addClickHandler([=] {
 		_showOther.fire(LocalPasscodeChange::Id());
 	});
@@ -473,7 +474,7 @@ void LocalPasscodeManage::setupContent() {
 			: tr::lng_passcode_autolock_inactive)(),
 		std::move(autolockLabel),
 		st::settingsButton,
-		{ &st::settingsIconTimer, kIconGreen }
+		{ &st::menuIconTimer }
 	)->addClickHandler([=] {
 		const auto box = _controller->show(Box<AutoLockBox>());
 		box->boxClosing(

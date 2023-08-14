@@ -1684,7 +1684,7 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 			result->addAction(
 				tr::lng_context_restrict_user(tr::now),
 				crl::guard(this, [=] { showRestricted(user); }),
-				&st::menuIconRestrict);
+				&st::menuIconPermissions);
 		}
 	}
 	if (user && _additional.canRemoveParticipant(participant)) {

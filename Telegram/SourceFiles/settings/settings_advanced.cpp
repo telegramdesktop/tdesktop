@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "settings/settings_common.h"
 #include "settings/settings_chat.h"
-#include "settings/settings_experimental.h"
 #include "settings/settings_power_saving.h"
 #include "settings/settings_privacy_security.h"
 #include "ui/wrap/vertical_layout.h"
@@ -46,8 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
-#include "styles/style_settings.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 
 #ifdef Q_OS_MAC
 #include "base/platform/mac/base_confirm_quit.h"
@@ -96,7 +96,7 @@ void SetupConnectionType(
 			tr::lng_connection_auto_connecting() | rpl::to_empty
 		) | rpl::map(connectionType),
 		st::settingsButton,
-		{ &st::settingsIconArrows, kIconGreen });
+		{ &st::menuIconNetwork });
 	button->addClickHandler([=] {
 		controller->show(ProxiesBoxController::CreateOwningBox(account));
 	});
@@ -106,9 +106,7 @@ bool HasUpdate() {
 	return !Core::UpdaterDisabled();
 }
 
-void SetupUpdate(
-		not_null<Ui::VerticalLayout*> container,
-		Fn<void(Type)> showOther) {
+void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	if (!HasUpdate()) {
 		return;
 	}
@@ -139,24 +137,6 @@ void SetupUpdate(
 		inner,
 		tr::lng_settings_install_beta(),
 		st::settingsButtonNoIcon).get();
-
-	if (showOther) {
-		const auto experimental = inner->add(
-			object_ptr<Ui::SlideWrap<Button>>(
-				inner,
-				CreateButton(
-					inner,
-					tr::lng_settings_experimental(),
-					st::settingsButtonNoIcon)));
-		if (!install) {
-			experimental->toggle(true, anim::type::instant);
-		} else {
-			experimental->toggleOn(install->toggledValue());
-		}
-		experimental->entity()->setClickedCallback([=] {
-			showOther(Experimental::Id());
-		});
-	}
 
 	const auto check = AddButton(
 		inner,
@@ -996,9 +976,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 			addDivider();
 			AddSkip(content);
 			AddSubsectionTitle(content, tr::lng_settings_version_info());
-			SetupUpdate(content, [=](Type type) {
-				_showOther.fire_copy(type);
-			});
+			SetupUpdate(content);
 			AddSkip(content);
 		}
 	};
@@ -1029,24 +1007,13 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	if (cAutoUpdate()) {
 		addUpdate();
 	}
-	if (!HasUpdate()) {
-		AddSkip(content);
-		AddDivider(content);
-		AddSkip(content);
-		content->add(
-			CreateButton(
-				content,
-				tr::lng_settings_experimental(),
-				st::settingsButtonNoIcon)
-		)->setClickedCallback([=] {
-			_showOther.fire_copy(Experimental::Id());
-		});
-	}
 
 	AddSkip(content);
 	AddDivider(content);
 	AddSkip(content);
-	SetupExport(controller, content);
+	SetupExport(controller, content, [=](Type type) {
+		_showOther.fire_copy(type);
+	});
 
 	Ui::ResizeFitChild(this, content);
 }

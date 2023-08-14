@@ -410,15 +410,6 @@ infoIconMediaStories: icon {{ "info/info_media_stories", infoIconFg }};
 infoIconMediaStoriesArchive: icon {{ "info/info_stories_archive", infoIconFg }};
 infoIconMediaStoriesRecent: icon {{ "info/info_stories_recent", infoIconFg }};
 
-infoRoundedIconRequests: icon {{ "info/edit/group_manage_join_requests", settingsIconFg }};
-infoRoundedIconRecentActions: icon {{ "info/edit/group_manage_actions", settingsIconFg }};
-infoRoundedIconAdministrators: icon {{ "info/edit/group_manage_admins", settingsIconFg }};
-infoRoundedIconInviteLinks: icon {{ "info/edit/group_manage_links", settingsIconFg }};
-infoRoundedIconReactions: icon {{ "info/edit/group_manage_reactions", settingsIconFg }};
-infoRoundedIconSignature: icon {{ "info/edit/channel_manage_signature", settingsIconFg }};
-infoRoundedIconAntiSpam: icon {{ "info/edit/antispam", settingsIconFg }};
-infoRoundedIconHideMembers: icon {{ "info/edit/hidden_members", settingsIconFg }};
-
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
 infoIconDelete: icon {{ "info/info_delete", infoIconFg }};
@@ -473,8 +464,10 @@ infoBlockButton: SettingsButton(infoProfileButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
-infoCreateLinkedChatButton: SettingsButton(infoMainButton) {
+infoCreateLinkedChatButton: SettingsButton(infoProfileButton) {
 	padding: margins(74px, 10px, 8px, 8px);
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
 }
 infoUnlinkChatButton: SettingsButton(infoCreateLinkedChatButton) {
 	textFg: attentionButtonFg;

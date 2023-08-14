@@ -549,15 +549,6 @@ OverlayWidget::OverlayWidget()
 			handleMouseRelease(mousePosition(e), mouseButton(e));
 		} else if (type == QEvent::MouseMove) {
 			handleMouseMove(mousePosition(e));
-		} else if (type == QEvent::ContextMenu) {
-			const auto event = static_cast<QContextMenuEvent*>(e.get());
-			const auto mouse = (event->reason() == QContextMenuEvent::Mouse);
-			const auto position = mouse
-				? std::make_optional(event->pos())
-				: std::nullopt;
-			if (handleContextMenu(position)) {
-				return base::EventFilterResult::Cancel;
-			}
 		} else if (type == QEvent::MouseButtonDblClick) {
 			if (handleDoubleClick(mousePosition(e), mouseButton(e))) {
 				return base::EventFilterResult::Cancel;

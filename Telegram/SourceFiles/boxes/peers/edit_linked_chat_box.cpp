@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
@@ -271,7 +272,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 				above,
 				tr::lng_manage_discussion_group_create(),
 				st::infoCreateLinkedChatButton,
-				{ &st::settingsIconChat, Settings::kIconLightBlue }
+				{ &st::menuIconGroupCreate }
 			)->addClickHandler([=, parent = above.data()] {
 				const auto guarded = crl::guard(parent, callback);
 				navigation->uiShow()->showBox(Box<GroupInfoBox>(
@@ -291,7 +292,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 					? tr::lng_manage_discussion_group_unlink
 					: tr::lng_manage_linked_channel_unlink)(),
 				st::infoUnlinkChatButton,
-				{ &st::settingsIconMinus, Settings::kIconRed }
+				{ &st::menuIconRemove }
 			)->addClickHandler([=] { callback(nullptr); });
 			Settings::AddSkip(below);
 		}

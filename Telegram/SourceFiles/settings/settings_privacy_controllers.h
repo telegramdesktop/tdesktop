@@ -235,9 +235,10 @@ public:
 		rpl::producer<Option> optionValue,
 		not_null<QWidget*> outerContainer) override;
 
-	object_ptr<Ui::RpWidget> setupBelowWidget(
+	object_ptr<Ui::RpWidget> setupMiddleWidget(
 		not_null<Window::SessionController*> controller,
-		not_null<QWidget*> parent) override;
+		not_null<QWidget*> parent,
+		rpl::producer<Option> optionValue) override;
 
 	void saveAdditional() override;
 
