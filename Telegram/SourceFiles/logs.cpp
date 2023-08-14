@@ -351,7 +351,6 @@ void start() {
 		return;
 	}
 
-	auto initialWorkingDir = QDir(cWorkingDir()).absolutePath() + '/';
 	auto moveOldDataFrom = QString();
 	auto workingDirChosen = false;
 
@@ -373,7 +372,7 @@ void start() {
 		}
 
 #if !defined Q_OS_MAC && !defined _DEBUG // fix first version
-		moveOldDataFrom = initialWorkingDir;
+		moveOldDataFrom = launcher.initialWorkingDir();
 #endif // !Q_OS_MAC && !_DEBUG
 
 #elif defined Q_OS_WINRT // Q_OS_UNIX
@@ -432,7 +431,7 @@ void start() {
 		).arg(cAlphaVersion()
 		).arg(Logs::b(DebugEnabled())));
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir(), cExeName()));
-	LOG(("Initial working dir: %1").arg(initialWorkingDir));
+	LOG(("Initial working dir: %1").arg(launcher.initialWorkingDir()));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
 	LOG(("Command line: %1").arg(launcher.arguments().join(' ')));
 
