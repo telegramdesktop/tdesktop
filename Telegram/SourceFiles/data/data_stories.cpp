@@ -345,7 +345,9 @@ void Stories::parseAndApply(const MTPUserStories &stories) {
 		}
 		sort(list);
 	};
-	if (result.user->isContact()) {
+	if (result.user->isBot()
+		|| result.user->isServiceUser()
+		|| result.user->isContact()) {
 		const auto hidden = result.user->hasStoriesHidden();
 		using List = StorySourcesList;
 		add(hidden ? List::Hidden : List::NotHidden);
