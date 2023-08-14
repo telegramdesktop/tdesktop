@@ -291,7 +291,6 @@ void EditPrivacyBox::setupContent() {
 				return Settings::ExceptionUsersCount(exceptions(exception));
 			}));
 		auto text = _controller->exceptionButtonTextKey(exception);
-		const auto always = (exception == Exception::Always);
 		const auto button = content->add(
 			object_ptr<Ui::SlideWrap<Button>>(
 				content,
