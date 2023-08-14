@@ -223,7 +223,7 @@ bool CheckPortableVersionFolder() {
 	if (cAlphaVersion()) {
 		Assert(*AlphaPrivateKey != 0);
 
-		cForceWorkingDir(portable + '/');
+		cForceWorkingDir(portable);
 		QDir().mkpath(cWorkingDir() + u"tdata"_q);
 		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
 		if (!key.open(QIODevice::WriteOnly)) {
@@ -239,7 +239,7 @@ bool CheckPortableVersionFolder() {
 	if (!QDir(portable).exists()) {
 		return true;
 	}
-	cForceWorkingDir(portable + '/');
+	cForceWorkingDir(portable);
 	if (!key.exists()) {
 		return true;
 	}
