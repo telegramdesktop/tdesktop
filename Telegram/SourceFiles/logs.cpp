@@ -360,36 +360,15 @@ void start() {
 		workingDirChosen = true;
 	} else {
 
-#ifdef Q_OS_UNIX
-
 		if (!cWorkingDir().isEmpty()) {
 			// This value must come from TelegramForcePortable
 			workingDirChosen = true;
+#if (!defined Q_OS_WIN && !defined _DEBUG) || defined Q_OS_WINRT || defined OS_WIN_STORE || defined OS_MAC_STORE
 		} else {
-#if !defined _DEBUG || defined OS_MAC_STORE
 			cForceWorkingDir(psAppDataPath());
 			workingDirChosen = true;
-#endif // !_DEBUG || OS_MAC_STORE
+#endif // (!Q_OS_WIN && !_DEBUG) || Q_OS_WINRT || OS_WIN_STORE || OS_MAC_STORE
 		}
-
-#elif defined Q_OS_WINRT // Q_OS_UNIX
-
-		cForceWorkingDir(psAppDataPath());
-		workingDirChosen = true;
-
-#elif defined OS_WIN_STORE // Q_OS_UNIX || Q_OS_WINRT
-
-		cForceWorkingDir(psAppDataPath());
-		workingDirChosen = true;
-
-#elif defined Q_OS_WIN
-
-		if (!cWorkingDir().isEmpty()) {
-			// This value must come from TelegramForcePortable
-			workingDirChosen = true;
-		}
-
-#endif // Q_OS_UNIX || Q_OS_WINRT || OS_WIN_STORE
 
 	}
 
