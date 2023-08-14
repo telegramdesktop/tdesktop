@@ -291,7 +291,8 @@ Launcher::Launcher(int argc, char *argv[])
 : _argc(argc)
 , _argv(argv)
 , _arguments(readArguments(_argc, _argv))
-, _baseIntegration(_argc, _argv) {
+, _baseIntegration(_argc, _argv)
+, _initialWorkingDir(QDir::currentPath() + '/') {
 	crl::toggle_fp_exceptions(true);
 
 	base::Integration::Set(&_baseIntegration);
@@ -444,6 +445,10 @@ QStringList Launcher::readArguments(int argc, char *argv[]) const {
 
 const QStringList &Launcher::arguments() const {
 	return _arguments;
+}
+
+QString Launcher::initialWorkingDir() const {
+	return _initialWorkingDir;
 }
 
 bool Launcher::customWorkingDir() const {
