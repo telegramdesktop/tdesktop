@@ -47,7 +47,6 @@ string updaterName;
 string workDir;
 string exeName;
 string exePath;
-string argv0;
 
 FILE *_logFile = 0;
 void openLog() {
@@ -357,40 +356,17 @@ string CurrentExecutablePath(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-	bool needupdate = true;
-	bool autostart = false;
-	bool debug = false;
-	bool tosettings = false;
-	bool startintray = false;
-	bool customWorkingDir = false;
-
-	char *key = 0;
-	char *workdir = 0;
 	for (int i = 1; i < argc; ++i) {
-		if (equal(argv[i], "-noupdate")) {
-			needupdate = false;
-		} else if (equal(argv[i], "-autostart")) {
-			autostart = true;
-		} else if (equal(argv[i], "-debug")) {
-			debug = _debug = true;
-		} else if (equal(argv[i], "-startintray")) {
-			startintray = true;
-		} else if (equal(argv[i], "-tosettings")) {
-			tosettings = true;
-		} else if (equal(argv[i], "-workdir_custom")) {
-			customWorkingDir = true;
+		if (equal(argv[i], "-debug")) {
+			_debug = true;
 		} else if (equal(argv[i], "-writeprotected")) {
 			writeprotected = true;
-		} else if (equal(argv[i], "-key") && ++i < argc) {
-			key = argv[i];
 		} else if (equal(argv[i], "-workpath") && ++i < argc) {
-			workDir = workdir = argv[i];
+			workDir = argv[i];
 		} else if (equal(argv[i], "-exename") && ++i < argc) {
 			exeName = argv[i];
 		} else if (equal(argv[i], "-exepath") && ++i < argc) {
 			exePath = argv[i];
-		} else if (equal(argv[i], "-argv0") && ++i < argc) {
-			argv0 = argv[i];
 		}
 	}
 	if (exeName.empty() || exeName.find('/') != string::npos) {
@@ -402,8 +378,6 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < argc; ++i) {
 		writeLog("Argument: '%s'", argv[i]);
 	}
-	if (needupdate) writeLog("Need to update!");
-	if (autostart) writeLog("From autostart!");
 	if (writeprotected) writeLog("Write Protected folder!");
 
 	updaterName = CurrentExecutablePath(argc, argv);
@@ -421,42 +395,38 @@ int main(int argc, char *argv[]) {
 				exePath = updaterDir;
 				writeLog("Using updater binary dir.", exePath.c_str());
 			}
-			if (needupdate) {
-				if (workDir.empty()) { // old app launched, update prepared in tupdates/ready (not in tupdates/temp)
-					customWorkingDir = false;
-
-					writeLog("No workdir, trying to figure it out");
-					struct passwd *pw = getpwuid(getuid());
-					if (pw && pw->pw_dir && strlen(pw->pw_dir)) {
-						string tryDir = pw->pw_dir + string("/.TelegramDesktop/");
-						struct stat statbuf;
-						writeLog("Trying to use '%s' as workDir, getting stat() for tupdates/ready", tryDir.c_str());
-						if (!stat((tryDir + "tupdates/ready").c_str(), &statbuf)) {
-							writeLog("Stat got");
-							if (S_ISDIR(statbuf.st_mode)) {
-								writeLog("It is directory, using home work dir");
-								workDir = tryDir;
-							}
+			if (workDir.empty()) { // old app launched, update prepared in tupdates/ready (not in tupdates/temp)
+				writeLog("No workdir, trying to figure it out");
+				struct passwd *pw = getpwuid(getuid());
+				if (pw && pw->pw_dir && strlen(pw->pw_dir)) {
+					string tryDir = pw->pw_dir + string("/.TelegramDesktop/");
+					struct stat statbuf;
+					writeLog("Trying to use '%s' as workDir, getting stat() for tupdates/ready", tryDir.c_str());
+					if (!stat((tryDir + "tupdates/ready").c_str(), &statbuf)) {
+						writeLog("Stat got");
+						if (S_ISDIR(statbuf.st_mode)) {
+							writeLog("It is directory, using home work dir");
+							workDir = tryDir;
 						}
 					}
-					if (workDir.empty()) {
-						workDir = exePath;
-
-						struct stat statbuf;
-						writeLog("Trying to use current as workDir, getting stat() for tupdates/ready");
-						if (!stat("tupdates/ready", &statbuf)) {
-							writeLog("Stat got");
-							if (S_ISDIR(statbuf.st_mode)) {
-								writeLog("It is directory, using current dir");
-								workDir = string();
-							}
-						}
-					}
-				} else {
-					writeLog("Passed workpath is '%s'", workDir.c_str());
 				}
-				update();
+				if (workDir.empty()) {
+					workDir = exePath;
+
+					struct stat statbuf;
+					writeLog("Trying to use current as workDir, getting stat() for tupdates/ready");
+					if (!stat("tupdates/ready", &statbuf)) {
+						writeLog("Stat got");
+						if (S_ISDIR(statbuf.st_mode)) {
+							writeLog("It is directory, using current dir");
+							workDir = string();
+						}
+					}
+				}
+			} else {
+				writeLog("Passed workpath is '%s'", workDir.c_str());
 			}
+			update();
 		} else {
 			writeLog("Error: bad exe name!");
 		}
@@ -464,48 +434,7 @@ int main(int argc, char *argv[]) {
 		writeLog("Error: short exe name!");
 	}
 
-	const auto fullBinaryPath = exePath + exeName;
-
-	auto values = vector<string>();
-	const auto push = [&](string arg) {
-		// Force null-terminated .data() call result.
-		values.push_back(arg + char(0));
-	};
-	push(!argv0.empty() ? argv0 : fullBinaryPath);
-	push("-noupdate");
-	if (autostart) push("-autostart");
-	if (debug) push("-debug");
-	if (startintray) push("-startintray");
-	if (tosettings) push("-tosettings");
-	if (key) {
-		push("-key");
-		push(key);
-	}
-	if (customWorkingDir && workdir) {
-		push("-workdir");
-		push(workdir);
-	}
-
-	auto args = vector<char*>();
-	for (auto &arg : values) {
-		args.push_back(arg.data());
-	}
-	args.push_back(nullptr);
-
-	// let the parent launch instead
-	if (!writeprotected) {
-		pid_t pid = fork();
-		switch (pid) {
-		case -1:
-			writeLog("fork() failed!");
-			return 1;
-		case 0:
-			execv(fullBinaryPath.c_str(), args.data());
-			return 1;
-		}
-	}
-
-	writeLog("Executed Telegram, closing log and quitting..");
+	writeLog("Closing log and quitting..");
 	closeLog();
 
 	return 0;
