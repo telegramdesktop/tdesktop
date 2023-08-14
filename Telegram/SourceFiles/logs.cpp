@@ -364,7 +364,6 @@ void start() {
 
 		if (!cWorkingDir().isEmpty()) {
 			// This value must come from TelegramForcePortable
-			cForceWorkingDir(cWorkingDir());
 			workingDirChosen = true;
 		} else {
 #if !defined _DEBUG || defined OS_MAC_STORE
@@ -387,7 +386,6 @@ void start() {
 
 		if (!cWorkingDir().isEmpty()) {
 			// This value must come from TelegramForcePortable
-			cForceWorkingDir(cWorkingDir());
 			workingDirChosen = true;
 		}
 
