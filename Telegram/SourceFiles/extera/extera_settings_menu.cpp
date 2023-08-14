@@ -34,7 +34,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #define SettingsMenuJsonSwitch(LangKey, Option) AddButton( \
 	container, \
 	rktr(#LangKey), \
-	st::settingsButton \
+	st::settingsButtonNoIcon \
 )->toggleOn( \
 	rpl::single(::ExteraSettings::JsonSettings::GetBool(#Option)) \
 )->toggledValue( \
