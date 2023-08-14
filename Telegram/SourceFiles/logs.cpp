@@ -413,7 +413,7 @@ void start() {
 
 // WinRT build requires the working dir to stay the same for plugin loading.
 #ifndef Q_OS_WINRT
-	QDir().setCurrent(cWorkingDir());
+	QDir::setCurrent(cWorkingDir());
 #endif // !Q_OS_WINRT
 
 	QDir().mkpath(cWorkingDir() + u"tdata"_q);
