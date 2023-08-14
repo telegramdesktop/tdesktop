@@ -53,7 +53,12 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			: (cExeDir() + u"Updater"_q)).toStdString();
 
 	std::vector<std::string> argumentsList;
-	argumentsList.push_back(writeProtectedUpdate ? "pkexec" : binaryPath);
+	if (writeProtectedUpdate) {
+		argumentsList.push_back("pkexec");
+		argumentsList.push_back("--keep-cwd");
+	} else {
+		argumentsList.push_back(binaryPath);
+	}
 	argumentsList.push_back((justRelaunch && !arguments().isEmpty())
 		? arguments().first().toStdString()
 		: binaryPath);
@@ -104,6 +109,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	// pkexec needs an alive parent
 	if (writeProtectedUpdate) {
 		if (!GLib::spawn_sync(
+				initialWorkingDir().toStdString(),
 				argumentsList,
 				std::nullopt,
 				GLib::SpawnFlags::SEARCH_PATH_,
@@ -119,6 +125,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	}
 
 	return GLib::spawn_async(
+		initialWorkingDir().toStdString(),
 		argumentsList,
 		std::nullopt,
 		GLib::SpawnFlags::FILE_AND_ARGV_ZERO_,
