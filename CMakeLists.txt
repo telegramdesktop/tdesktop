@@ -19,9 +19,11 @@ include(cmake/validate_special_target.cmake)
 include(cmake/version.cmake)
 desktop_app_parse_version(Telegram/build/version)
 
-set(project_langs ASM C CXX)
+set(project_langs C CXX)
 if (APPLE)
     list(APPEND project_langs OBJC OBJCXX)
+elseif (LINUX)
+    list(APPEND project_langs ASM)
 endif()
 
 project(Telegram
