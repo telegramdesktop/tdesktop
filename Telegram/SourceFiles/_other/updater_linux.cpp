@@ -41,6 +41,7 @@ bool do_mkdir(const char *path) { // from http://stackoverflow.com/questions/675
 }
 
 bool _debug = false;
+bool writeprotected = false;
 string updaterDir;
 string updaterName;
 string workDir;
@@ -88,7 +89,7 @@ void writeLog(const char *format, ...) {
 	va_end(args);
 }
 
-bool copyFile(const char *from, const char *to, bool writeprotected) {
+bool copyFile(const char *from, const char *to) {
 	FILE *ffrom = fopen(from, "rb"), *fto = fopen(to, "wb");
 	if (!ffrom) {
 		if (fto) fclose(fto);
@@ -211,7 +212,7 @@ void delFolder() {
 	rmdir(delFolder.c_str());
 }
 
-bool update(bool writeprotected) {
+bool update() {
 	writeLog("Update started..");
 
 	string updDir = workDir + "tupdates/temp", readyFilePath = workDir + "tupdates/temp/ready", tdataDir = workDir + "tupdates/temp/tdata";
@@ -324,7 +325,7 @@ bool update(bool writeprotected) {
 		writeLog("Copying file '%s' to '%s'..", fname.c_str(), tofname.c_str());
 		int copyTries = 0, triesLimit = 30;
 		do {
-			if (!copyFile(fname.c_str(), tofname.c_str(), writeprotected)) {
+			if (!copyFile(fname.c_str(), tofname.c_str())) {
 				++copyTries;
 				usleep(100000);
 			} else {
@@ -359,7 +360,6 @@ int main(int argc, char *argv[]) {
 	bool needupdate = true;
 	bool autostart = false;
 	bool debug = false;
-	bool writeprotected = false;
 	bool tosettings = false;
 	bool startintray = false;
 	bool customWorkingDir = false;
@@ -455,7 +455,7 @@ int main(int argc, char *argv[]) {
 				} else {
 					writeLog("Passed workpath is '%s'", workDir.c_str());
 				}
-				update(writeprotected);
+				update();
 			}
 		} else {
 			writeLog("Error: bad exe name!");
