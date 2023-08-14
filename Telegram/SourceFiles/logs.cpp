@@ -280,6 +280,9 @@ namespace {
 bool DebugModeEnabled = false;
 
 void MoveOldDataFiles(const QString &wasDir) {
+	if (wasDir.isEmpty()) {
+		return;
+	}
 	QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
 	if (data.exists() && dataConfig.exists() && !QFileInfo::exists(cWorkingDir() + "data") && !QFileInfo::exists(cWorkingDir() + "data_config")) { // move to home dir
 		LOG(("Copying data to home dir '%1' from '%2'").arg(cWorkingDir(), wasDir));
@@ -351,7 +354,6 @@ void start() {
 		return;
 	}
 
-	auto moveOldDataFrom = QString();
 	auto workingDirChosen = false;
 
 	if (cAlphaVersion()) {
@@ -370,10 +372,6 @@ void start() {
 			workingDirChosen = true;
 #endif // !_DEBUG || OS_MAC_STORE
 		}
-
-#if !defined Q_OS_MAC && !defined _DEBUG // fix first version
-		moveOldDataFrom = launcher.initialWorkingDir();
-#endif // !Q_OS_MAC && !_DEBUG
 
 #elif defined Q_OS_WINRT // Q_OS_UNIX
 
@@ -443,12 +441,11 @@ void start() {
 
 #ifdef Q_OS_WIN
 	if (cWorkingDir() == psAppDataPath()) { // fix old "Telegram Win (Unofficial)" version
-		moveOldDataFrom = psAppDataPathOld();
+		MoveOldDataFiles(psAppDataPathOld());
 	}
+#elif !defined Q_OS_MAC && !defined _DEBUG // fix first version
+	MoveOldDataFiles(launcher.initialWorkingDir());
 #endif
-	if (!moveOldDataFrom.isEmpty()) {
-		MoveOldDataFiles(moveOldDataFrom);
-	}
 
 	if (LogsInMemory) {
 		Assert(LogsInMemory != DeletedLogsInMemory);
