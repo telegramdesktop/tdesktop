@@ -354,30 +354,16 @@ void start() {
 		return;
 	}
 
-	auto workingDirChosen = false;
-
-	if (cAlphaVersion()) {
-		workingDirChosen = true;
-	} else {
-
-		if (!cWorkingDir().isEmpty()) {
-			// This value must come from TelegramForcePortable
-			workingDirChosen = true;
-#if (!defined Q_OS_WIN && !defined _DEBUG) || defined Q_OS_WINRT || defined OS_WIN_STORE || defined OS_MAC_STORE
-		} else {
-			cForceWorkingDir(psAppDataPath());
-			workingDirChosen = true;
-#endif // (!Q_OS_WIN && !_DEBUG) || Q_OS_WINRT || OS_WIN_STORE || OS_MAC_STORE
-		}
-
-	}
-
 	LogsData = new LogsDataFields();
-	if (!workingDirChosen) {
+	if (cWorkingDir().isEmpty()) {
+#if (!defined Q_OS_WIN && !defined _DEBUG) || defined Q_OS_WINRT || defined OS_WIN_STORE || defined OS_MAC_STORE
+		cForceWorkingDir(psAppDataPath());
+#else // (!Q_OS_WIN && !_DEBUG) || Q_OS_WINRT || OS_WIN_STORE || OS_MAC_STORE
 		cForceWorkingDir(cExeDir());
 		if (!LogsData->openMain()) {
 			cForceWorkingDir(psAppDataPath());
 		}
+#endif // (!Q_OS_WIN && !_DEBUG) || Q_OS_WINRT || OS_WIN_STORE || OS_MAC_STORE
 	}
 
 	if (launcher.validateCustomWorkingDir()) {
