@@ -6212,6 +6212,16 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			return;
 		}
 		_scroll->keyPressEvent(e);
+	} else if (e->key() == Qt::Key_Up
+		&& commonModifiers == Qt::ControlModifier) {
+		if (!replyToPreviousMessage()) {
+			e->ignore();
+		}
+	} else if (e->key() == Qt::Key_Down
+		&& commonModifiers == Qt::ControlModifier) {
+		if (!replyToNextMessage()) {
+			e->ignore();
+		}
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		if (!_botStart->isHidden()) {
 			sendBotStartCommand();
@@ -6268,20 +6278,28 @@ bool HistoryWidget::replyToPreviousMessage() {
 	if (!_history || _editMsgId || _history->isForum()) {
 		return false;
 	}
-	const auto fullId = FullMsgId(_history->peer->id, _replyToId);
+	const auto fullId = FullMsgId(
+		_history->peer->id,
+		_field->isVisible()
+			? _replyToId
+			: _highlighter.latestSingleHighlightedMsgId());
 	if (const auto item = session().data().message(fullId)) {
 		if (const auto view = item->mainView()) {
 			if (const auto previousView = view->previousDisplayedInBlocks()) {
 				const auto previous = previousView->data();
 				controller()->showMessage(previous);
-				replyToMessage(previous);
+				if (_field->isVisible()) {
+					replyToMessage(previous);
+				}
 				return true;
 			}
 		}
 	} else if (const auto previousView = _history->findLastDisplayed()) {
 		const auto previous = previousView->data();
 		controller()->showMessage(previous);
-		replyToMessage(previous);
+		if (_field->isVisible()) {
+			replyToMessage(previous);
+		}
 		return true;
 	}
 	return false;
@@ -6291,13 +6309,19 @@ bool HistoryWidget::replyToNextMessage() {
 	if (!_history || _editMsgId || _history->isForum()) {
 		return false;
 	}
-	const auto fullId = FullMsgId(_history->peer->id, _replyToId);
+	const auto fullId = FullMsgId(
+		_history->peer->id,
+		_field->isVisible()
+			? _replyToId
+			: _highlighter.latestSingleHighlightedMsgId());
 	if (const auto item = session().data().message(fullId)) {
 		if (const auto view = item->mainView()) {
 			if (const auto nextView = view->nextDisplayedInBlocks()) {
 				const auto next = nextView->data();
 				controller()->showMessage(next);
-				replyToMessage(next);
+				if (_field->isVisible()) {
+					replyToMessage(next);
+				}
 			} else {
 				_highlighter.clear();
 				cancelReply(false);
