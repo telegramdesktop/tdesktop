@@ -426,7 +426,9 @@ public:
 		virtual void paintButtonLoading(
 			QPainter &p,
 			const Ui::ChatStyle *st,
-			const QRect &rect) const = 0;
+			const QRect &rect,
+			int outerWidth,
+			Ui::BubbleRounding rounding) const = 0;
 		virtual int minButtonWidth(
 			HistoryMessageMarkupButton::Type type) const = 0;
 

@@ -1068,7 +1068,7 @@ void ReplyKeyboard::Style::paintButton(
 		|| button.type == HistoryMessageMarkupButton::Type::Game) {
 		if (const auto data = button.link->getButton()) {
 			if (data->requestId) {
-				paintButtonLoading(p, st, rect);
+				paintButtonLoading(p, st, rect, outerWidth, rounding);
 			}
 		}
 	}
