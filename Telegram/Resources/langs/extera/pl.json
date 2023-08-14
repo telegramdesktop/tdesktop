@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "Kopiuj dane oddzwonienia",
 	"etg_pinned_message_show": "Pokaż przypiętą wiadomość",
 	"etg_pinned_message_hide": "Ukryj przypiętą wiadomość",
+	"etg_settings_general": "Ogólne",
 	"etg_settings_chats": "Czaty",
 	"etg_settings_sticker_height": "Wysokość naklejki: {pixels}px",
 	"etg_settings_sticker_scale_both": "Zastosuj do szerokości naklejki",

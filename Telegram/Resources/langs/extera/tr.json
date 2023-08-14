@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "Tuş verirsini kopyala",
 	"etg_pinned_message_show": "Sabitlenmiş mesajı göster",
 	"etg_pinned_message_hide": "Sabitlenmiş mesajı gizle",
+	"etg_settings_general": "Genel",
 	"etg_settings_chats": "Sohbetler",
 	"etg_settings_sticker_height": "Çıkartma uzunluğu: {pixels}px",
 	"etg_settings_sticker_scale_both": "Aynısını Genişliğe Ekle",

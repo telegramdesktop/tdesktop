@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "Копіювати callback-дані",
 	"etg_pinned_message_show": "Показати закріплене повідомлення",
 	"etg_pinned_message_hide": "Приховати закріплене повідомлення",
+	"etg_settings_general": "Загальні",
 	"etg_settings_chats": "Чати",
 	"etg_settings_sticker_height": "Висота наліпок: {pixels} пікс.",
 	"etg_settings_sticker_scale_both": "Застосовувати до ширини наліпок",

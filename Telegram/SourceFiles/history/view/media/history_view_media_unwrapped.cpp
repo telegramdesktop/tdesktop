@@ -49,12 +49,6 @@ UnwrappedMedia::UnwrappedMedia(
 	) | rpl::start_with_next([=] {
 		history()->owner().requestItemViewRefresh(_parent->data());
 	}, _lifetime);
-
-	::ExteraSettings::JsonSettings::Events(
-		"sticker_scale_both"
-	) | rpl::start_with_next([=] {
-		history()->owner().requestItemViewRefresh(_parent->data());
-	}, _lifetime);
 }
 
 QSize UnwrappedMedia::countOptimalSize() {

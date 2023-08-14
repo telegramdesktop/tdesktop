@@ -582,14 +582,6 @@ HistoryWidget::HistoryWidget(
 		});
 	}, lifetime());
 
-	::ExteraSettings::JsonSettings::Events(
-		"sticker_scale_both"
-	) | rpl::start_with_next([=] {
-		crl::on_main(this, [=] {
-			updateHistoryGeometry();
-		});
-	}, lifetime());
-
 	session().data().webPageUpdates(
 	) | rpl::filter([=](not_null<WebPageData*> page) {
 		return (_previewData == page.get());

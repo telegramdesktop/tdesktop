@@ -140,7 +140,7 @@ bool Sticker::isEmojiSticker() const {
 
 void Sticker::initSize() {
 	const auto currentStickerHeight = ::ExteraSettings::JsonSettings::GetInt("sticker_height");
-	const auto currentScaleBoth = ::ExteraSettings::JsonSettings::GetBool("sticker_scale_both");
+	const auto currentScaleBoth = true;
 	const auto maxHeight = int(st::maxStickerSize / 256.0 * currentStickerHeight);
 	const auto maxWidth = currentScaleBoth ? maxHeight : st::maxStickerSize;
 
@@ -188,7 +188,7 @@ bool Sticker::readyToDrawAnimationFrame() {
 
 QSize Sticker::Size() {
 	const auto currentStickerHeight = ::ExteraSettings::JsonSettings::GetInt("sticker_height");
-	const auto currentScaleBoth = ::ExteraSettings::JsonSettings::GetBool("sticker_scale_both");
+	const auto currentScaleBoth = true;
 	const auto maxHeight = int(st::maxStickerSize / 256.0 * currentStickerHeight);
 	const auto maxWidth = currentScaleBoth ? maxHeight : st::maxStickerSize;
 	return { maxWidth, maxHeight };

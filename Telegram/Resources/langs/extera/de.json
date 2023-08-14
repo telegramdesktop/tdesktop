@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "Callback-Daten kopieren",
 	"etg_pinned_message_show": "Angeheftete Nachricht anzeigen",
 	"etg_pinned_message_hide": "Angeheftete Nachricht ausblenden",
+	"etg_settings_general": "Allgemein",
 	"etg_settings_chats": "Chats",
 	"etg_settings_sticker_height": "Stickerhöhe: {pixels}px",
 	"etg_settings_sticker_scale_both": "Auf Stickerbreite anwenden",

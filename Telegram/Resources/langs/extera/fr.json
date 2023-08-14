@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "Copier les données de rappel",
 	"etg_pinned_message_show": "Afficher le message épinglé",
 	"etg_pinned_message_hide": "Masquer le message épinglé",
+	"etg_settings_general": "Général",
 	"etg_settings_chats": "Discussions",
 	"etg_settings_sticker_height": "Hauteur de l'autocollant: {pixels}px",
 	"etg_settings_sticker_scale_both": "Appliquer à la largeur de l'autocollant",

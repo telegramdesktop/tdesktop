@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "نسخ بيانات الرد على الاتصال",
 	"etg_pinned_message_show": "إظهار الرسالة المثبتة",
 	"etg_pinned_message_hide": "إخفاء الرسائل المثبتة",
+	"etg_settings_general": "عام",
 	"etg_settings_chats": "المحادثات",
 	"etg_settings_sticker_height": "ارتفاع الملصق: {pixels} بكسل",
 	"etg_settings_sticker_scale_both": "تطبيق التعديلات على عرض الملصق",

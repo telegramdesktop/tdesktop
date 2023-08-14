@@ -232,17 +232,10 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 		.defaultValue = false, }},
 
 	// Stored settings
-	{ "recent_stickers_limit", {
-		.type = SettingType::IntSetting,
-		.defaultValue = 20,
-		.limitHandler = IntLimit(0, 100, 20), }},
 	{ "sticker_height", {
 		.type = SettingType::IntSetting,
 		.defaultValue = 170,
 		.limitHandler = IntLimit(64, 256, 170), }},
-	{ "sticker_scale_both", {
-		.type = SettingType::BoolSetting,
-		.defaultValue = true, }},
 	{ "show_phone_in_settings", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},

@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "کپی کردن داده های برگشت به تماس",
 	"etg_pinned_message_show": "نمایش پیام های سنجاق شده",
 	"etg_pinned_message_hide": "پنهان کردن پیام های سنجاق شده",
+	"etg_settings_general": "عمومی",
 	"etg_settings_chats": "گفتگو ها",
 	"etg_settings_sticker_height": "ارتفاع استیکر: {pixels}px",
 	"etg_settings_sticker_scale_both": "اعمال کردن برروی عرض استیکر",

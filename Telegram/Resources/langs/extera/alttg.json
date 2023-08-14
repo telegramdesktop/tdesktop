@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "Копировать callback-данные",
 	"etg_pinned_message_show": "Показать пины",
 	"etg_pinned_message_hide": "Скрыть пины",
+	"etg_settings_general": "Общие",
 	"etg_settings_chats": "Чаты",
 	"etg_settings_sticker_height": "Высота стикеров: {pixels} пикс.",
 	"etg_settings_sticker_scale_both": "Применять к ширине",

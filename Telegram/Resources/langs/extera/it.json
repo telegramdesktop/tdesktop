@@ -34,6 +34,7 @@
 	"etg_copy_btn_callback": "Copia callback data",
 	"etg_pinned_message_show": "Mostra messaggio fissato",
 	"etg_pinned_message_hide": "Nascondi messaggio fissato",
+	"etg_settings_general": "Generale",
 	"etg_settings_chats": "Chats",
 	"etg_settings_sticker_height": "Altezza sticker: {pixels}px",
 	"etg_settings_sticker_scale_both": "Applica alla larghezza degli sticker",
