@@ -617,7 +617,7 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = QPoint(
-				width() - _st.itemPadding.right() - (size / ratio) + skip,
+				width() - _st.itemPadding.right() - size + skip,
 				(height() - _customSize) / 2),
 		});
 	}

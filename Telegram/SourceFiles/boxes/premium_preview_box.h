@@ -41,7 +41,13 @@ void DoubledLimitsPreviewBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
 
+void UpgradedStoriesPreviewBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
+
 enum class PremiumPreview {
+	Stories,
+	DoubleLimits,
 	MoreUpload,
 	FasterDownload,
 	VoiceToText,

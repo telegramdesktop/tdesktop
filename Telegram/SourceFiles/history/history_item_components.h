@@ -12,6 +12,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "spellcheck/spellcheck_types.h" // LanguageId.
 #include "ui/empty_userpic.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/chat/message_bubble.h"
 
 struct WebPageData;
@@ -307,6 +308,11 @@ struct HistoryMessageReply
 	bool topicPost = false;
 	bool storyReply = false;
 
+	struct final {
+		mutable std::unique_ptr<Ui::RippleAnimation> animation;
+		QPoint lastPoint;
+	} ripple;
+
 };
 
 struct HistoryMessageTranslation
@@ -420,7 +426,9 @@ public:
 		virtual void paintButtonLoading(
 			QPainter &p,
 			const Ui::ChatStyle *st,
-			const QRect &rect) const = 0;
+			const QRect &rect,
+			int outerWidth,
+			Ui::BubbleRounding rounding) const = 0;
 		virtual int minButtonWidth(
 			HistoryMessageMarkupButton::Type type) const = 0;
 

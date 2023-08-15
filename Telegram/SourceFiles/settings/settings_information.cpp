@@ -372,7 +372,7 @@ void SetupRows(
 		Info::Profile::NameValue(self) | Ui::Text::ToWithEntities(),
 		tr::lng_profile_copy_fullname(tr::now),
 		[=] { controller->show(Box<EditNameBox>(self)); },
-		{ &st::settingsIconUser, kIconLightBlue });
+		{ &st::menuIconProfile });
 
 	const auto showChangePhone = [=] {
 		controller->show(
@@ -387,7 +387,7 @@ void SetupRows(
 		: rktre("etg_phone_hidden"),
 		tr::lng_profile_copy_phone(tr::now),
 		showChangePhone,
-		{ &st::settingsIconCalls, kIconGreen });
+		{ &st::menuIconPhone });
 
 	auto username = Info::Profile::UsernameValue(self);
 	auto empty = base::duplicate(
@@ -430,9 +430,10 @@ void SetupRows(
 				session->api().usernames().requestToCache(session->user());
 			}, box->lifetime());
 		},
-		{ &st::settingsIconMention, kIconLightOrange });
+		{ &st::menuIconUsername });
 
 	AddSkip(container);
+	AddDividerText(container, tr::lng_settings_username_about());
 }
 
 void SetupBio(
@@ -560,7 +561,6 @@ void SetupBio(
 void SetupAccountsWrap(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller) {
-	AddDivider(container);
 	AddSkip(container);
 
 	SetupAccounts(container, controller);
@@ -790,7 +790,6 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 				st::mainMenuAddAccountButton,
 				{
 					&st::settingsIconAdd,
-					0,
 					IconType::Round,
 					&st::windowBgActive
 				})))->setDuration(0);

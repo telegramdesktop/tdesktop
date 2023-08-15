@@ -28,7 +28,8 @@ public:
 	explicit GlobalPrivacy(not_null<ApiWrap*> api);
 
 	void reload(Fn<void()> callback = nullptr);
-	void update(bool archiveAndMute);
+	void updateArchiveAndMute(bool value);
+	void updateUnarchiveOnNewMessage(UnarchiveOnNewMessage value);
 
 	[[nodiscard]] bool archiveAndMuteCurrent() const;
 	[[nodiscard]] rpl::producer<bool> archiveAndMute() const;
@@ -42,6 +43,10 @@ public:
 
 private:
 	void apply(const MTPGlobalPrivacySettings &data);
+
+	void update(
+		bool archiveAndMute,
+		UnarchiveOnNewMessage unarchiveOnNewMessage);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;

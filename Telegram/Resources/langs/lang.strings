@@ -272,6 +272,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_error_noforwards_channel" = "Sorry, forwarding from this channel is disabled by admins.";
 "lng_error_nocopy_group" = "Sorry, copying from this group is disabled by admins.";
 "lng_error_nocopy_channel" = "Sorry, copying from this channel is disabled by admins.";
+"lng_error_nocopy_story" = "Sorry, copying of this story is disabled by the author.";
 "lng_sure_add_admin_invite" = "This user is not a member of this group. Add them to the group and promote them to admin?";
 "lng_sure_add_admin_invite_channel" = "This user is not a subscriber of this channel. Add them to the channel and promote them to admin?";
 "lng_sure_add_admin_unremove" = "This user is currently restricted or removed. Are you sure you want to promote them?";
@@ -599,6 +600,8 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_settings_username_label" = "Username";
 "lng_settings_phone_label" = "Phone number";
 "lng_settings_username_add" = "Add username";
+"lng_settings_username_about" = "Username lets people contact you on Telegram without needing your phone number.";
+"lng_settings_add_account_about" = "You can add up to four accounts with different phone numbers.";
 "lng_settings_peer_to_peer_about" = "Disabling peer-to-peer will relay all calls through Telegram servers to avoid revealing your IP address, but may slightly decrease audio quality.";
 "lng_settings_advanced" = "Advanced";
 "lng_settings_stickers_emoji" = "Stickers and emoji";
@@ -611,12 +614,20 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_settings_theme_accent_title" = "Choose accent color";
 "lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";
+"lng_settings_my_account" = "My Account";
 "lng_settings_security" = "Security";
 "lng_settings_passcode_title" = "Local passcode";
 "lng_settings_sessions_title" = "Active sessions";
+"lng_settings_sessions_about" = "Review the list of devices where you are logged into your Telegram account.";
+"lng_settings_archive_title" = "Archive Settings";
 "lng_settings_new_unknown" = "New chats from unknown users";
 "lng_settings_auto_archive" = "Archive and Mute";
 "lng_settings_auto_archive_about" = "Automatically archive and mute new chats, groups and channels from non-contacts.";
+"lng_settings_unmuted_chats" = "Unmuted chats";
+"lng_settings_always_in_archive" = "Always keep archived";
+"lng_settings_unmuted_chats_about" = "Keep archived chats in the Archive even if they are unmuted and get a new message.";
+"lng_settings_chats_from_folders" = "Chats from folders";
+"lng_settings_chats_from_folders_about" = "Keep archived chats from folders in the Archive even if they are unmuted and get a new message.";
 "lng_settings_destroy_title" = "Delete my account";
 "lng_settings_version_info" = "Version and updates";
 "lng_settings_system_integration" = "System integration";
@@ -635,6 +646,13 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 "lng_settings_security_bots" = "Bots and websites";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
+"lng_settings_logged_in" = "Logged In with Telegram";
+"lng_settings_logged_in_about" = "Websites where you've used Telegram to log in.";
+"lng_settings_logged_in_title" = "Logged In with Telegram";
+"lng_settings_logged_in_description" = "You can log in on websites that support signing in with Telegram.";
+"lng_settings_disconnect_all" = "Disconnect All Websites";
+"lng_settings_connected_title" = "Connected websites";
+"lng_settings_connected_about" = "Click to disconnect from your Telegram account.";
 
 "lng_settings_power_menu" = "Battery and Animations";
 "lng_settings_power_title" = "Power Usage";
@@ -1827,6 +1845,8 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_premium_summary_subtitle_gift#other" = "{user} has gifted you a {count}-months subscription for Telegram Premium.";
 "lng_premium_summary_subtitle_gift_me#one" = "You gifted {user} a {count}-month subscription for Telegram Premium.";
 "lng_premium_summary_subtitle_gift_me#other" = "You gifted {user} a {count}-months subscription for Telegram Premium.";
+"lng_premium_summary_subtitle_stories" = "Upgraded Stories";
+"lng_premium_summary_about_stories" = "Priority order, stealth mode, permanent views history and more.";
 "lng_premium_summary_subtitle_double_limits" = "Doubled Limits";
 "lng_premium_summary_about_double_limits" = "Up to 1000 channels, 20 folders, 10 pins, 20 public links, 4 accounts and more.";
 "lng_premium_summary_subtitle_more_upload" = "4Gb Upload Size";
@@ -1857,8 +1877,34 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
 "lng_premium_summary_button" = "Subscribe for {cost} per month";
 
+"lng_premium_summary_new_badge" = "NEW";
+
 "lng_premium_success" = "You've successfully subscribed to Telegram Premium!";
 "lng_premium_unavailable" = "This feature requires subscription to **Telegram Premium**.\n\nUnfortunately, **Telegram Premium** is not available in your region.";
+
+// Upgraded Stories.
+"lng_premium_stories_subtitle_order" = "Priority Order";
+"lng_premium_stories_about_order" = "Get more views as your stories are always displayed first.";
+
+"lng_premium_stories_subtitle_stealth" = "Stealth Mode";
+"lng_premium_stories_about_stealth" = "Hide the fact that you viewed other people's stories.";
+
+"lng_premium_stories_subtitle_views" = "Permanent Views History";
+"lng_premium_stories_about_views" = "Check who opens your stories – even after they expire.";
+
+"lng_premium_stories_subtitle_expiration" = "Expiration Durations*";
+"lng_premium_stories_about_expiration" = "Set custom expiration durations like 6 or 48 hours for your stories.";
+
+"lng_premium_stories_subtitle_download" = "Download Stories";
+"lng_premium_stories_about_download" = "Save other people's unprotected stories to your disk.";
+
+"lng_premium_stories_subtitle_caption" = "Longer Captions*";
+"lng_premium_stories_about_caption" = "Add ten times longer captions to your stories – up to 2048 symbols.";
+
+"lng_premium_stories_subtitle_links" = "Links and Formatting*";
+"lng_premium_stories_about_links" = "Add links and formatting in captions of your stories.";
+
+"lng_premium_stories_about_mobile" = "* Available when posting stories from Telegram apps for iOS and Android.";
 
 // Doubled Limits.
 "lng_premium_double_limits_subtitle_channels" = "Groups and Channels";
@@ -2249,6 +2295,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_context_archive_to_menu" = "Move to main menu";
 "lng_context_archive_to_list" = "Move to chats list";
 "lng_context_archive_to_menu_info" = "Archive moved to the main menu!\nYou can return it from the context menu of the archive button.";
+"lng_context_archive_settings" = "Archive settings";
 
 "lng_context_mute" = "Mute";
 "lng_context_unmute" = "Unmute";
@@ -3876,6 +3923,25 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 "lng_stories_archive_done" = "This story is hidden from your profile.";
 "lng_stories_archive_done_many#one" = "{count} story is hidden from your profile.";
 "lng_stories_archive_done_many#other" = "{count} stories are hidden from your profile.";
+"lng_stories_save_promo" = "Subscribe to {link} to download other people's unprotected stories to disk.";
+
+"lng_stealth_mode_menu_item" = "Stealth Mode";
+"lng_stealth_mode_title" = "Stealth Mode";
+"lng_stealth_mode_unlock_about" = "Subscribe to Telegram Premium to hide the fact that you viewed peoples' stories from them.";
+"lng_stealth_mode_about" = "Turn Stealth Mode on to hide the fact that you viewed peoples' stories from them.";
+"lng_stealth_mode_past_title" = "Hide Recent Views";
+"lng_stealth_mode_past_about" = "Hide my views in the last 5 minutes.";
+"lng_stealth_mode_next_title" = "Hide Next Views";
+"lng_stealth_mode_next_about" = "Hide my views in the next 25 minutes.";
+"lng_stealth_mode_unlock" = "Unlock Stealth Mode";
+"lng_stealth_mode_enable" = "Enable Stealth Mode";
+"lng_stealth_mode_cooldown_in" = "Available in {left}";
+"lng_stealth_mode_cooldown_tip" = "Please wait until the **Stealth Mode** is ready to use again.";
+"lng_stealth_mode_enabled_tip_title" = "Stealth Mode On";
+"lng_stealth_mode_enabled_tip" = "The creators of stories you viewed in the last **5 minutes** or will view in the next **25 minutes** won't see you in the viewers' lists.";
+"lng_stealth_mode_countdown" = "Stealth Mode active – {left}";
+"lng_stealth_mode_already_title" = "You are in Stealth Mode";
+"lng_stealth_mode_already_about" = "The creators of stories you will view in the next **{left}** won't see you in the viewers' lists.";
 
 "lng_stories_link_invalid" = "This link is broken or has expired.";
 

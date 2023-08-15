@@ -52,7 +52,9 @@ protected:
 	void paintButtonLoading(
 		QPainter &p,
 		const Ui::ChatStyle *st,
-		const QRect &rect) const override;
+		const QRect &rect,
+		int outerWidth,
+		Ui::BubbleRounding rounding) const override;
 	int minButtonWidth(HistoryMessageMarkupButton::Type type) const override;
 
 private:
@@ -107,7 +109,9 @@ void Style::paintButtonIcon(
 void Style::paintButtonLoading(
 		QPainter &p,
 		const Ui::ChatStyle *st,
-		const QRect &rect) const {
+		const QRect &rect,
+		int outerWidth,
+		Ui::BubbleRounding rounding) const {
 	// Buttons with loading progress should not appear here.
 }
 

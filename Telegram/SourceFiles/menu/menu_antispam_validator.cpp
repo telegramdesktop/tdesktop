@@ -73,7 +73,7 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 			rpl::single(QString()),
 			[] {},
 			st::manageGroupTopicsButton,
-			{ &st::infoRoundedIconAntiSpam, Settings::kIconPurple }
+			{ &st::menuIconAntispam }
 	))->toggleOn(rpl::single(
 		_channel->antiSpamMode()
 	) | rpl::then(state->toggled.events()));

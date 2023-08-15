@@ -354,6 +354,7 @@ struct IconSelector {
 				&owner->reactions(),
 				std::move(args),
 				[=] { state->animation->repaint(); },
+				[] { return st::windowFg->c; },
 				Data::CustomEmojiSizeTag::Large);
 		}
 		state->iconId = id;

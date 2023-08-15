@@ -7,16 +7,19 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "settings/settings_advanced.h"
 
+#include "api/api_global_privacy.h"
+#include "apiwrap.h"
 #include "settings/settings_common.h"
 #include "settings/settings_chat.h"
-#include "settings/settings_experimental.h"
 #include "settings/settings_power_saving.h"
+#include "settings/settings_privacy_security.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/gl/gl_detection.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/format_values.h"
 #include "ui/boxes/single_choice_box.h"
@@ -42,6 +45,8 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
+#include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 #ifdef Q_OS_MAC
@@ -91,7 +96,7 @@ void SetupConnectionType(
 			tr::lng_connection_auto_connecting() | rpl::to_empty
 		) | rpl::map(connectionType),
 		st::settingsButton,
-		{ &st::settingsIconArrows, kIconGreen });
+		{ &st::menuIconNetwork });
 	button->addClickHandler([=] {
 		controller->show(ProxiesBoxController::CreateOwningBox(account));
 	});
@@ -101,9 +106,7 @@ bool HasUpdate() {
 	return !Core::UpdaterDisabled();
 }
 
-void SetupUpdate(
-		not_null<Ui::VerticalLayout*> container,
-		Fn<void(Type)> showOther) {
+void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	if (!HasUpdate()) {
 		return;
 	}
@@ -134,24 +137,6 @@ void SetupUpdate(
 		inner,
 		tr::lng_settings_install_beta(),
 		st::settingsButtonNoIcon).get();
-
-	if (showOther) {
-		const auto experimental = inner->add(
-			object_ptr<Ui::SlideWrap<Button>>(
-				inner,
-				CreateButton(
-					inner,
-					tr::lng_settings_experimental(),
-					st::settingsButtonNoIcon)));
-		if (!install) {
-			experimental->toggle(true, anim::type::instant);
-		} else {
-			experimental->toggleOn(install->toggledValue());
-		}
-		experimental->entity()->setClickedCallback([=] {
-			showOther(Experimental::Id());
-		});
-	}
 
 	const auto check = AddButton(
 		inner,
@@ -710,6 +695,94 @@ void SetupAnimations(
 	});
 }
 
+void ArchiveSettingsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	box->setTitle(tr::lng_settings_archive_title());
+	box->setWidth(st::boxWideWidth);
+
+	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+
+	PreloadArchiveSettings(&controller->session());
+
+	struct State {
+		Ui::SlideWrap<Ui::VerticalLayout> *foldersWrap = nullptr;
+		Ui::SettingsButton *folders = nullptr;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto privacy = &controller->session().api().globalPrivacy();
+
+	const auto container = box->verticalLayout();
+	AddSkip(container);
+	AddSubsectionTitle(container, tr::lng_settings_unmuted_chats());
+
+	using Unarchive = Api::UnarchiveOnNewMessage;
+	AddButton(
+		container,
+		tr::lng_settings_always_in_archive(),
+		st::settingsButtonNoIcon
+	)->toggleOn(privacy->unarchiveOnNewMessage(
+	) | rpl::map(
+		rpl::mappers::_1 == Unarchive::None
+	))->toggledChanges(
+	) | rpl::filter([=](bool toggled) {
+		const auto current = privacy->unarchiveOnNewMessageCurrent();
+		return toggled != (current == Unarchive::None);
+	}) | rpl::start_with_next([=](bool toggled) {
+		privacy->updateUnarchiveOnNewMessage(toggled
+			? Unarchive::None
+			: state->folders->toggled()
+			? Unarchive::NotInFoldersUnmuted
+			: Unarchive::AnyUnmuted);
+		state->foldersWrap->toggle(!toggled, anim::type::normal);
+	}, container->lifetime());
+
+	AddSkip(container);
+	AddDividerText(container, tr::lng_settings_unmuted_chats_about());
+
+	state->foldersWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = state->foldersWrap->entity();
+	AddSkip(inner);
+	AddSubsectionTitle(inner, tr::lng_settings_chats_from_folders());
+
+	state->folders = AddButton(
+		inner,
+		tr::lng_settings_always_in_archive(),
+		st::settingsButtonNoIcon
+	)->toggleOn(privacy->unarchiveOnNewMessage(
+	) | rpl::map(
+		rpl::mappers::_1 != Unarchive::AnyUnmuted
+	));
+	state->folders->toggledChanges(
+	) | rpl::filter([=](bool toggled) {
+		const auto current = privacy->unarchiveOnNewMessageCurrent();
+		return toggled != (current != Unarchive::AnyUnmuted);
+	}) | rpl::start_with_next([=](bool toggled) {
+		const auto current = privacy->unarchiveOnNewMessageCurrent();
+		privacy->updateUnarchiveOnNewMessage(!toggled
+			? Unarchive::AnyUnmuted
+			: (current == Unarchive::AnyUnmuted)
+			? Unarchive::NotInFoldersUnmuted
+			: current);
+	}, inner->lifetime());
+
+	AddSkip(inner);
+	AddDividerText(inner, tr::lng_settings_chats_from_folders_about());
+
+	state->foldersWrap->toggle(
+		privacy->unarchiveOnNewMessageCurrent() != Unarchive::None,
+		anim::type::instant);
+
+	SetupArchiveAndMute(controller, box->verticalLayout());
+}
+
+void PreloadArchiveSettings(not_null<::Main::Session*> session) {
+	session->api().globalPrivacy().reload();
+}
+
 void SetupHardwareAcceleration(not_null<Ui::VerticalLayout*> container) {
 	const auto settings = &Core::App().settings();
 	AddButton(
@@ -903,9 +976,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 			addDivider();
 			AddSkip(content);
 			AddSubsectionTitle(content, tr::lng_settings_version_info());
-			SetupUpdate(content, [=](Type type) {
-				_showOther.fire_copy(type);
-			});
+			SetupUpdate(content);
 			AddSkip(content);
 		}
 	};
@@ -936,24 +1007,13 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	if (cAutoUpdate()) {
 		addUpdate();
 	}
-	if (!HasUpdate()) {
-		AddSkip(content);
-		AddDivider(content);
-		AddSkip(content);
-		content->add(
-			CreateButton(
-				content,
-				tr::lng_settings_experimental(),
-				st::settingsButtonNoIcon)
-		)->setClickedCallback([=] {
-			_showOther.fire_copy(Experimental::Id());
-		});
-	}
 
 	AddSkip(content);
 	AddDivider(content);
 	AddSkip(content);
-	SetupExport(controller, content);
+	SetupExport(controller, content, [=](Type type) {
+		_showOther.fire_copy(type);
+	});
 
 	Ui::ResizeFitChild(this, content);
 }

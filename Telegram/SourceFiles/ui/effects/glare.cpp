@@ -21,6 +21,24 @@ float64 GlareEffect::progress(crl::time now) const {
 		/ float64(glare.deathTime - glare.birthTime);
 }
 
+QLinearGradient GlareEffect::computeGradient(const QColor &color) const {
+	auto gradient = QLinearGradient(
+		QPointF(0, 0),
+		QPointF(width, 0));
+
+	auto tempColor = color;
+	tempColor.setAlphaF(0);
+	const auto edge = tempColor;
+	tempColor.setAlphaF(kMaxGlareOpaque);
+	const auto middle = tempColor;
+	gradient.setStops({
+		{ 0., edge },
+		{ .5, middle },
+		{ 1., edge },
+	});
+	return gradient;
+}
+
 void GlareEffect::validate(
 		const QColor &color,
 		Fn<void()> updateCallback,
@@ -53,21 +71,7 @@ void GlareEffect::validate(
 		newPixmap.fill(Qt::transparent);
 		{
 			auto p = QPainter(&newPixmap);
-			auto gradient = QLinearGradient(
-				QPointF(0, 0),
-				QPointF(width, 0));
-
-			auto tempColor = color;
-			tempColor.setAlphaF(0);
-			const auto edge = tempColor;
-			tempColor.setAlphaF(kMaxGlareOpaque);
-			const auto middle = tempColor;
-			gradient.setStops({
-				{ 0., edge },
-				{ .5, middle },
-				{ 1., edge },
-			});
-			p.fillRect(newPixmap.rect(), QBrush(gradient));
+			p.fillRect(newPixmap.rect(), QBrush(computeGradient(color)));
 		}
 		pixmap = std::move(newPixmap);
 	}

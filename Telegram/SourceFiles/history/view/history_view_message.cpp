@@ -21,10 +21,12 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "history/view/history_view_view_button.h" // ViewButton.
 #include "history/history.h"
 #include "boxes/share_box.h"
+#include "ui/effects/glare.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
+#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
 #include "ui/cached_round_corners.h"
@@ -65,7 +67,7 @@ std::optional<Window::SessionController*> ExtractController(
 
 class KeyboardStyle : public ReplyKeyboard::Style {
 public:
-	using ReplyKeyboard::Style::Style;
+	KeyboardStyle(const style::BotKeyboardButton &st);
 
 	Images::CornersMaskRef buttonRounding(
 		Ui::BubbleRounding outer,
@@ -93,10 +95,28 @@ protected:
 	void paintButtonLoading(
 		QPainter &p,
 		const Ui::ChatStyle *st,
-		const QRect &rect) const override;
+		const QRect &rect,
+		int outerWidth,
+		Ui::BubbleRounding rounding) const override;
 	int minButtonWidth(HistoryMessageMarkupButton::Type type) const override;
 
+private:
+	using BubbleRoundingKey = uchar;
+	mutable base::flat_map<BubbleRoundingKey, QImage> _cachedBg;
+	mutable base::flat_map<BubbleRoundingKey, QPainterPath> _cachedOutline;
+	mutable std::unique_ptr<Ui::GlareEffect> _glare;
+	rpl::lifetime _lifetime;
+
 };
+
+KeyboardStyle::KeyboardStyle(const style::BotKeyboardButton &st)
+: ReplyKeyboard::Style(st) {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_cachedBg = {};
+		_cachedOutline = {};
+	}, _lifetime);
+}
 
 void KeyboardStyle::startPaint(
 		QPainter &p,
@@ -112,6 +132,15 @@ const style::TextStyle &KeyboardStyle::textStyle() const {
 
 void KeyboardStyle::repaint(not_null<const HistoryItem*> item) const {
 	item->history()->owner().requestItemRepaint(item);
+	if (_glare && !_glare->glare.birthTime) {
+		constexpr auto kTimeout = crl::time(0);
+		constexpr auto kDuration = crl::time(1100);
+		_glare->validate(
+			st::premiumButtonFg->c,
+			[=] { repaint(item); },
+			kTimeout,
+			kDuration);
+	}
 }
 
 Images::CornersMaskRef KeyboardStyle::buttonRounding(
@@ -143,15 +172,42 @@ void KeyboardStyle::paintButtonBg(
 		float64 howMuchOver) const {
 	Expects(st != nullptr);
 
-	const auto sti = &st->imageStyle(false);
-	const auto &small = sti->msgServiceBgCornersSmall;
-	const auto &large = sti->msgServiceBgCornersLarge;
-	auto corners = Ui::CornersPixmaps();
 	using Corner = Ui::BubbleCornerRounding;
-	for (auto i = 0; i != 4; ++i) {
-		corners.p[i] = (rounding[i] == Corner::Large ? large : small).p[i];
+	auto &cachedBg = _cachedBg[rounding.key()];
+
+	if (cachedBg.isNull()
+		|| cachedBg.width() != (rect.width() * style::DevicePixelRatio())) {
+		cachedBg = QImage(
+			rect.size() * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		cachedBg.setDevicePixelRatio(style::DevicePixelRatio());
+		cachedBg.fill(Qt::transparent);
+		{
+			auto painter = QPainter(&cachedBg);
+
+			const auto sti = &st->imageStyle(false);
+			const auto &small = sti->msgServiceBgCornersSmall;
+			const auto &large = sti->msgServiceBgCornersLarge;
+			auto corners = Ui::CornersPixmaps();
+            int radiuses[4];
+			for (auto i = 0; i != 4; ++i) {
+				const auto isLarge = (rounding[i] == Corner::Large);
+				corners.p[i] = (isLarge ? large : small).p[i];
+				radiuses[i] = Ui::CachedCornerRadiusValue(isLarge
+					? Ui::CachedCornerRadius::BubbleLarge
+					: Ui::CachedCornerRadius::BubbleSmall);
+			}
+			const auto r = Rect(rect.size());
+			_cachedOutline[rounding.key()] = Ui::ComplexRoundedRectPath(
+				r - Margins(st::lineWidth),
+				radiuses[0],
+				radiuses[1],
+				radiuses[2],
+				radiuses[3]);
+			Ui::FillRoundRect(painter, r, sti->msgServiceBg, corners);
+		}
 	}
-	Ui::FillRoundRect(p, rect, sti->msgServiceBg, corners);
+	p.drawImage(rect.topLeft(), cachedBg);
 	if (howMuchOver > 0) {
 		auto o = p.opacity();
 		p.setOpacity(o * howMuchOver);
@@ -195,11 +251,74 @@ void KeyboardStyle::paintButtonIcon(
 void KeyboardStyle::paintButtonLoading(
 		QPainter &p,
 		const Ui::ChatStyle *st,
-		const QRect &rect) const {
+		const QRect &rect,
+		int outerWidth,
+		Ui::BubbleRounding rounding) const {
 	Expects(st != nullptr);
 
-	const auto &icon = st->historySendingInvertedIcon();
-	icon.paint(p, rect.x() + rect.width() - icon.width() - st::msgBotKbIconPadding, rect.y() + rect.height() - icon.height() - st::msgBotKbIconPadding, rect.x() * 2 + rect.width());
+	if (anim::Disabled()) {
+		const auto &icon = st->historySendingInvertedIcon();
+		icon.paint(
+			p,
+			rect::right(rect) - icon.width() - st::msgBotKbIconPadding,
+			rect::bottom(rect) - icon.height() - st::msgBotKbIconPadding,
+			rect.x() * 2 + rect.width());
+		return;
+	}
+
+	const auto cacheKey = rounding.key();
+	auto &cachedBg = _cachedBg[cacheKey];
+	if (!cachedBg.isNull()) {
+		if (_glare && _glare->glare.birthTime) {
+			const auto progress = _glare->progress(crl::now());
+			const auto w = _glare->width;
+			const auto h = rect.height();
+			const auto x = (-w) + (w * 2) * progress;
+
+			auto frame = cachedBg;
+			frame.fill(Qt::transparent);
+			{
+				auto painter = QPainter(&frame);
+				auto hq = PainterHighQualityEnabler(painter);
+				painter.setPen(Qt::NoPen);
+				painter.drawTiledPixmap(x, 0, w, h, _glare->pixmap, 0, 0);
+
+				auto path = QPainterPath();
+				path.addRect(Rect(rect.size()));
+				path -= _cachedOutline[cacheKey];
+
+				constexpr auto kBgOutlineAlpha = 0.5;
+				constexpr auto kFgOutlineAlpha = 0.8;
+				const auto &c = st::premiumButtonFg->c;
+				painter.setPen(Qt::NoPen);
+				painter.setBrush(c);
+				painter.setOpacity(kBgOutlineAlpha);
+				painter.drawPath(path);
+				auto gradient = QLinearGradient(-w, 0, w * 2, 0);
+				{
+					constexpr auto kShiftLeft = 0.01;
+					constexpr auto kShiftRight = 0.99;
+					auto stops = _glare->computeGradient(c).stops();
+					stops[1] = {
+						std::clamp(progress, kShiftLeft, kShiftRight),
+						QColor(c.red(), c.green(), c.blue(), kFgOutlineAlpha),
+					};
+					gradient.setStops(std::move(stops));
+				}
+				painter.setBrush(QBrush(gradient));
+				painter.setOpacity(1);
+				painter.drawPath(path);
+
+				painter.setCompositionMode(
+					QPainter::CompositionMode_DestinationIn);
+				painter.drawImage(0, 0, cachedBg);
+			}
+			p.drawImage(rect.x(), rect.y(), frame);
+		} else {
+			_glare = std::make_unique<Ui::GlareEffect>();
+			_glare->width = outerWidth;
+		}
+	}
 }
 
 int KeyboardStyle::minButtonWidth(
@@ -1600,6 +1719,8 @@ void Message::clickHandlerPressedChanged(
 		toggleTopicButtonRipple(pressed);
 	} else if (_viewButton) {
 		_viewButton->checkLink(handler, pressed);
+	} else if (const auto reply = displayedReply()) {
+		toggleReplyRipple(pressed);
 	}
 }
 
@@ -1636,6 +1757,58 @@ void Message::toggleRightActionRipple(bool pressed) {
 		_rightAction->ripple->add(_rightAction->lastPoint);
 	} else if (_rightAction->ripple) {
 		_rightAction->ripple->lastStop();
+	}
+}
+
+void Message::toggleReplyRipple(bool pressed) {
+	const auto reply = displayedReply();
+	if (!reply) {
+		return;
+	}
+
+	if (pressed) {
+		if (!reply->ripple.animation && !unwrapped()) {
+			const auto smallTop = displayFromName()
+				|| displayedTopicButton()
+				|| displayForwardedFrom();
+			const auto rounding = countBubbleRounding();
+
+			using Corner = Ui::BubbleCornerRounding;
+			using Radius = Ui::CachedCornerRadius;
+			const auto &small = Ui::CachedCornersMasks(Radius::ThumbSmall);
+			const auto &large = Ui::CachedCornersMasks(Radius::ThumbLarge);
+			const auto corners = std::array<QImage, 4>{{
+				((smallTop || (rounding.topLeft == Corner::Small))
+					? small
+					: large)[0],
+				((smallTop || (rounding.topRight == Corner::Small))
+					? small
+					: large)[1],
+				small[2],
+				small[3],
+			}};
+
+			const auto &padding = st::msgReplyPadding;
+			const auto geometry = countGeometry();
+			const auto size = QSize(
+				geometry.width()
+					- padding.left() / 2
+					- padding.right(),
+				st::msgReplyBarSize.height()
+					+ padding.top()
+					+ padding.bottom());
+			reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
+				st::defaultRippleAnimation,
+				Images::Round(
+					Ui::RippleAnimation::MaskByDrawer(size, true, nullptr),
+					corners),
+				[=] { repaint(); });
+		}
+		if (reply->ripple.animation) {
+			reply->ripple.animation->add(reply->ripple.lastPoint);
+		}
+	} else if (reply->ripple.animation) {
+		reply->ripple.animation->lastStop();
 	}
 }
 
@@ -2268,9 +2441,15 @@ bool Message::getStateReplyInfo(
 	if (auto reply = displayedReply()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		if (point.y() >= trect.top() && point.y() < trect.top() + h) {
+			const auto g = QRect(
+				trect.x(),
+				trect.y() + st::msgReplyPadding.top(),
+				trect.width(),
+				st::msgReplyBarSize.height());
 			if ((reply->replyToMsg || reply->replyToStory)
-				&& QRect(trect.x(), trect.y() + st::msgReplyPadding.top(), trect.width(), st::msgReplyBarSize.height()).contains(point)) {
+				&& g.contains(point)) {
 				outResult->link = reply->replyToLink();
+				reply->ripple.lastPoint = point - g.topLeft();
 			}
 			return true;
 		}

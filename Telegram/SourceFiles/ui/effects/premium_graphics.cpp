@@ -1018,79 +1018,123 @@ QGradientStops GiftGradientStops() {
 	};
 }
 
+QGradientStops StoriesIconsGradientStops() {
+	return {
+		{ 0., st::premiumButtonBg1->c },
+		{ .33, st::premiumButtonBg2->c },
+		{ .66, st::premiumButtonBg3->c },
+		{ 1., st::premiumIconBg1->c },
+	};
+}
+
 void ShowListBox(
 		not_null<Ui::GenericBox*> box,
 		const style::PremiumLimits &st,
 		std::vector<ListEntry> entries) {
+	box->setWidth(st::boxWideWidth);
 
 	const auto &stLabel = st::defaultFlatLabel;
 	const auto &titlePadding = st::settingsPremiumPreviewTitlePadding;
-	const auto &descriptionPadding = st::settingsPremiumPreviewAboutPadding;
+	const auto &aboutPadding = st::settingsPremiumPreviewAboutPadding;
+	const auto iconTitlePadding = st::settingsPremiumPreviewIconTitlePadding;
+	const auto iconAboutPadding = st::settingsPremiumPreviewIconAboutPadding;
 
 	auto lines = std::vector<Line*>();
 	lines.reserve(int(entries.size()));
 
+	auto icons = std::shared_ptr<std::vector<QColor>>();
+
 	const auto content = box->verticalLayout();
 	for (auto &entry : entries) {
-		content->add(
+		const auto title = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				base::take(entry.subtitle) | rpl::map(Ui::Text::Bold),
+				base::take(entry.title) | rpl::map(Ui::Text::Bold),
 				stLabel),
-			titlePadding);
+			entry.icon ? iconTitlePadding : titlePadding);
 		content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				base::take(entry.description),
+				base::take(entry.about),
 				st::boxDividerLabel),
-			descriptionPadding);
-
-		const auto limitRow = content->add(
-			object_ptr<Line>(
-				content,
-				st,
-				entry.rightNumber,
-				TextFactory([=, text = ProcessTextFactory(std::nullopt)](
-						int n) {
-					if (entry.customRightText && (n == entry.rightNumber)) {
-						return *entry.customRightText;
-					} else {
-						return text(n);
-					}
-				}),
-				entry.leftNumber,
-				kLimitRowRatio),
-			st::settingsPremiumPreviewLinePadding);
-		lines.push_back(limitRow);
+			entry.icon ? iconAboutPadding : aboutPadding);
+		if (const auto outlined = entry.icon) {
+			if (!icons) {
+				icons = std::make_shared<std::vector<QColor>>();
+			}
+			const auto index = int(icons->size());
+			icons->push_back(QColor());
+			const auto icon = Ui::CreateChild<Ui::RpWidget>(content.get());
+			icon->resize(outlined->size());
+			title->topValue() | rpl::start_with_next([=](int y) {
+				const auto shift = st::settingsPremiumPreviewIconPosition;
+				icon->move(QPoint(0, y) + shift);
+			}, icon->lifetime());
+			icon->paintRequest() | rpl::start_with_next([=] {
+				auto p = QPainter(icon);
+				outlined->paintInCenter(p, icon->rect(), (*icons)[index]);
+			}, icon->lifetime());
+		}
+		if (entry.leftNumber || entry.rightNumber) {
+			auto factory = [=, text = ProcessTextFactory({})](int n) {
+				if (entry.customRightText && (n == entry.rightNumber)) {
+					return *entry.customRightText;
+				} else {
+					return text(n);
+				}
+			};
+			const auto limitRow = content->add(
+				object_ptr<Line>(
+					content,
+					st,
+					entry.rightNumber,
+					TextFactory(std::move(factory)),
+					entry.leftNumber,
+					kLimitRowRatio),
+				st::settingsPremiumPreviewLinePadding);
+			lines.push_back(limitRow);
+		}
 	}
 
 	content->resizeToWidth(content->height());
 
-	// Color lines.
-	Assert(lines.size() > 2);
-	const auto from = lines.front()->y();
-	const auto to = lines.back()->y() + lines.back()->height();
+	// Colors for icons.
+	if (icons) {
+		box->addSkip(st::settingsPremiumPreviewLinePadding.bottom());
 
-	const auto partialGradient = [&] {
-		auto stops = Ui::Premium::FullHeightGradientStops();
-		// Reverse.
-		for (auto &stop : stops) {
-			stop.first = std::abs(stop.first - 1.);
+		const auto stops = Ui::Premium::StoriesIconsGradientStops();
+		for (auto i = 0, count = int(icons->size()); i != count; ++i) {
+			(*icons)[i] = anim::gradient_color_at(
+				stops,
+				(count > 1) ? (i / float64(count - 1)) : 0.);
 		}
-		return PartialGradient(from, to, std::move(stops));
-	}();
-
-	for (auto i = 0; i < int(lines.size()); i++) {
-		const auto &line = lines[i];
-
-		const auto brush = QBrush(
-			partialGradient.compute(line->y(), line->height()));
-		line->setColorOverride(brush);
 	}
-	box->addSkip(st::settingsPremiumPreviewLinePadding.bottom());
 
-	box->setTitle(tr::lng_premium_summary_subtitle_double_limits());
-	box->setWidth(st::boxWideWidth);
+	// Color lines.
+	if (!lines.empty()) {
+		box->addSkip(st::settingsPremiumPreviewLinePadding.bottom());
+
+		const auto from = lines.front()->y();
+		const auto to = lines.back()->y() + lines.back()->height();
+
+		const auto partialGradient = [&] {
+			auto stops = Ui::Premium::FullHeightGradientStops();
+			// Reverse.
+			for (auto &stop : stops) {
+				stop.first = std::abs(stop.first - 1.);
+			}
+			return PartialGradient(from, to, std::move(stops));
+		}();
+
+		for (auto i = 0; i < int(lines.size()); i++) {
+			const auto &line = lines[i];
+
+			const auto brush = QBrush(
+				partialGradient.compute(line->y(), line->height()));
+			line->setColorOverride(brush);
+		}
+		box->addSkip(st::settingsPremiumPreviewLinePadding.bottom());
+	}
 }
 
 void AddGiftOptions(

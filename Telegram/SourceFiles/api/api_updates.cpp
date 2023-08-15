@@ -1987,7 +1987,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updatePeerBlocked: {
 		const auto &d = update.c_updatePeerBlocked();
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer_id()))) {
-			peer->setIsBlocked(mtpIsTrue(d.vblocked()));
+			peer->setIsBlocked(d.is_blocked());
 		}
 	} break;
 
@@ -2526,6 +2526,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateReadStories: {
 		_session->data().stories().apply(update.c_updateReadStories());
+	} break;
+
+	case mtpc_updateStoriesStealthMode: {
+		const auto &data = update.c_updateStoriesStealthMode();
+		_session->data().stories().apply(data.vstealth_mode());
 	} break;
 
 	}

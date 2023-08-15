@@ -88,11 +88,12 @@ void AddAccountsRow(
 [[nodiscard]] QGradientStops GiftGradientStops();
 
 struct ListEntry final {
-	rpl::producer<QString> subtitle;
-	rpl::producer<TextWithEntities> description;
+	rpl::producer<QString> title;
+	rpl::producer<TextWithEntities> about;
 	int leftNumber = 0;
 	int rightNumber = 0;
 	std::optional<QString> customRightText;
+	const style::icon *icon = nullptr;
 };
 void ShowListBox(
 	not_null<Ui::GenericBox*> box,
