@@ -519,6 +519,12 @@ bool UnwrappedMedia::hasTextForCopy() const {
 	return _content->hasTextForCopy();
 }
 
+bool UnwrappedMedia::dragItemByHandler(
+		const ClickHandlerPtr &p) const {
+	const auto reply = _parent->displayedReply();
+	return !(reply && (reply->replyToLink() == p));
+}
+
 QRect UnwrappedMedia::contentRectForReactions() const {
 	const auto inWebPage = (_parent->media() != this);
 	if (inWebPage) {
