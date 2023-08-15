@@ -1302,16 +1302,8 @@ auto ListWidget::itemUnderPressSelection() const
 		: _selected.end();
 }
 
-bool ListWidget::requiredToStartDragging(
-		not_null<Element*> view) const {
-	if (_mouseCursorState == CursorState::Date) {
-		return true;
-	} else if (const auto media = view->media()) {
-		if (media->dragItem()) {
-			return true;
-		}
-	}
-	return false;
+bool ListWidget::requiredToStartDragging(not_null<Element*> view) const {
+	return (_mouseCursorState == CursorState::Date);
 }
 
 bool ListWidget::isPressInSelectedText(TextState state) const {
@@ -3625,8 +3617,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 			}
 		} else if (const auto media = pressedView->media()) {
 			if (pressedView->data()->allowsForward()
-				&& (media->dragItemByHandler(pressedHandler)
-					|| media->dragItem())) {
+				&& media->dragItemByHandler(pressedHandler)) {
 				forwardIds = MessageIdsList(1, exactItem->fullId());
 			}
 		}

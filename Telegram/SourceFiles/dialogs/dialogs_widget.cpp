@@ -121,7 +121,7 @@ Widget::BottomButton::BottomButton(
 	const style::icon &icon,
 	const style::icon &iconOver)
 : RippleButton(parent, st.ripple)
-, _text(text.toUpper())
+, _text(text)
 , _st(st)
 , _icon(icon)
 , _iconOver(iconOver) {
@@ -129,7 +129,7 @@ Widget::BottomButton::BottomButton(
 }
 
 void Widget::BottomButton::setText(const QString &text) {
-	_text = text.toUpper();
+	_text = text;
 	update();
 }
 

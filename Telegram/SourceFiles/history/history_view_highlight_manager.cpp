@@ -115,6 +115,7 @@ void ElementHighlighter::updateMessage() {
 void ElementHighlighter::clear() {
 	_animation.cancel();
 	_highlightedMessageId = FullMsgId();
+	_lastHighlightedMessageId = FullMsgId();
 	_queue.clear();
 }
 
@@ -139,10 +140,17 @@ float64 ElementHighlighter::AnimationManager::progress() const {
 	}
 }
 
+MsgId ElementHighlighter::latestSingleHighlightedMsgId() const {
+	return _highlightedMessageId
+		? _highlightedMessageId.msg
+		: _lastHighlightedMessageId.msg;
+}
+
 void ElementHighlighter::AnimationManager::start() {
 	const auto finish = [=] {
 		cancel();
-		_parent._highlightedMessageId = FullMsgId();
+		_parent._lastHighlightedMessageId = base::take(
+			_parent._highlightedMessageId);
 		_parent.checkNextHighlight();
 	};
 	cancel();
