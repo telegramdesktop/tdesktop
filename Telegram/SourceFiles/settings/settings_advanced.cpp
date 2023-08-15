@@ -726,6 +726,7 @@ void ArchiveSettingsBox(
 	))->toggledChanges(
 	) | rpl::filter([=](bool toggled) {
 		const auto current = privacy->unarchiveOnNewMessageCurrent();
+		state->foldersWrap->toggle(!toggled, anim::type::normal);
 		return toggled != (current == Unarchive::None);
 	}) | rpl::start_with_next([=](bool toggled) {
 		privacy->updateUnarchiveOnNewMessage(toggled
@@ -733,7 +734,6 @@ void ArchiveSettingsBox(
 			: state->folders->toggled()
 			? Unarchive::NotInFoldersUnmuted
 			: Unarchive::AnyUnmuted);
-		state->foldersWrap->toggle(!toggled, anim::type::normal);
 	}, container->lifetime());
 
 	AddSkip(container);
