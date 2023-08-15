@@ -1690,8 +1690,7 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 					_mouseAction = MouseAction::PrepareDrag; // start text drag
 				} else if (!_pressWasInactive) {
 					const auto media = Element::Pressed()->media();
-					if ((media && media->dragItem())
-						|| _mouseCursorState == CursorState::Date) {
+					if (_mouseCursorState == CursorState::Date) {
 						_mouseAction = MouseAction::PrepareDrag; // start sticker drag or by-date drag
 					} else {
 						if (dragState.afterSymbol) ++_mouseTextSymbol;
@@ -1804,8 +1803,7 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 		} else if (view->isHiddenByGroup() && pressedHandler) {
 			forwardIds = MessageIdsList(1, _dragStateItem->fullId());
 		} else if (const auto media = view->media()) {
-			if (media->dragItemByHandler(pressedHandler)
-				|| media->dragItem()) {
+			if (media->dragItemByHandler(pressedHandler)) {
 				forwardIds = MessageIdsList(1, _dragStateItem->fullId());
 			}
 		}

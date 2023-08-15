@@ -1815,7 +1815,7 @@ void ListWidget::performDrag() {
 	//	auto pressedMedia = static_cast<HistoryView::Media*>(nullptr);
 	//	if (auto pressedItem = _pressState.layout) {
 	//		pressedMedia = pressedItem->getMedia();
-	//		if (_mouseCursorState == CursorState::Date || (pressedMedia && pressedMedia->dragItem())) {
+	//		if (_mouseCursorState == CursorState::Date) {
 	//			session().data().setMimeForwardIds(session().data().itemOrItsGroup(pressedItem));
 	//			forwardMimeType = u"application/x-td-forward"_q;
 	//		}

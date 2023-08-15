@@ -73,9 +73,6 @@ public:
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
 	}
-	bool dragItem() const override {
-		return true;
-	}
 	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
 		return true;
 	}
