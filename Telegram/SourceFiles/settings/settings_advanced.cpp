@@ -20,7 +20,6 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/gl/gl_detection.h"
 #include "ui/layers/generic_box.h"
-#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/format_values.h"
 #include "ui/boxes/single_choice_box.h"
 #include "ui/painter.h"
@@ -144,7 +143,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		st::settingsButtonNoIcon);
 	const auto update = Ui::CreateChild<Button>(
 		check.get(),
-		tr::lng_update_telegram() | Ui::Text::ToUpper(),
+		tr::lng_update_telegram(),
 		st::settingsUpdate);
 	update->hide();
 	check->widthValue() | rpl::start_with_next([=](int width) {
