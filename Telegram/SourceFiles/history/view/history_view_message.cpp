@@ -1719,7 +1719,8 @@ void Message::clickHandlerPressedChanged(
 		toggleTopicButtonRipple(pressed);
 	} else if (_viewButton) {
 		_viewButton->checkLink(handler, pressed);
-	} else if (const auto reply = displayedReply()) {
+	} else if (const auto reply = displayedReply();
+			reply && (handler == reply->replyToLink())) {
 		toggleReplyRipple(pressed);
 	}
 }
