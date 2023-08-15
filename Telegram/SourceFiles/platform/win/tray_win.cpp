@@ -18,7 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_window.h"
 
-#include <QtWidgets/QSystemTrayIcon>
+#include <qpa/qplatformscreen.h>
+#include <qpa/qplatformsystemtrayicon.h>
+#include <qpa/qplatformtheme.h>
+#include <private/qguiapplication_p.h>
+#include <private/qhighdpiscaling_p.h>
 
 namespace Platform {
 
@@ -96,28 +100,45 @@ Tray::Tray() {
 
 void Tray::createIcon() {
 	if (!_icon) {
-		_icon = base::make_unique_q<QSystemTrayIcon>(nullptr);
+		if (const auto theme = QGuiApplicationPrivate::platformTheme()) {
+			_icon.reset(theme->createPlatformSystemTrayIcon());
+		}
+		if (!_icon) {
+			return;
+		}
+		_icon->init();
 		updateIcon();
-		_icon->setToolTip(AppName.utf16());
-		using Reason = QSystemTrayIcon::ActivationReason;
+		_icon->updateToolTip(AppName.utf16());
+
+		using Reason = QPlatformSystemTrayIcon::ActivationReason;
 		base::qt_signal_producer(
 			_icon.get(),
-			&QSystemTrayIcon::activated
-		) | rpl::start_with_next([=](Reason reason) {
-			if (reason == QSystemTrayIcon::Context && _menu) {
-				_aboutToShowRequests.fire({});
-				InvokeQueued(_menu.get(), [=] {
-					_menu->popup(QCursor::pos());
-				});
-			} else {
-				_iconClicks.fire({});
-			}
+			&QPlatformSystemTrayIcon::activated
+		) | rpl::filter(
+			rpl::mappers::_1 != Reason::Context
+		) | rpl::map_to(
+			rpl::empty
+		) | rpl::start_to_stream(_iconClicks, _lifetime);
+
+		base::qt_signal_producer(
+			_icon.get(),
+			&QPlatformSystemTrayIcon::contextMenuRequested
+		) | rpl::filter([=] {
+			return _menu != nullptr;
+		}) | rpl::start_with_next([=](
+				QPoint globalNativePosition,
+				const QPlatformScreen *screen) {
+			_aboutToShowRequests.fire({});
+			const auto position = QHighDpi::fromNativePixels(
+				globalNativePosition,
+				screen ? screen->screen() : nullptr);
+			InvokeQueued(_menu.get(), [=] {
+				_menu->popup(position);
+			});
 		}, _lifetime);
 	} else {
 		updateIcon();
 	}
-
-	_icon->show();
 }
 
 void Tray::destroyIcon() {
@@ -155,7 +176,7 @@ void Tray::updateIcon() {
 	forTrayIcon.addPixmap(iconSizeWidth >= 20
 		? iconSmallPixmap32
 		: iconSmallPixmap16);
-	_icon->setIcon(forTrayIcon);
+	_icon->updateIcon(forTrayIcon);
 }
 
 void Tray::createMenu() {
@@ -199,7 +220,8 @@ void Tray::showTrayMessage() const {
 		_icon->showMessage(
 			AppName.utf16(),
 			tr::lng_tray_icon_text(tr::now),
-			QSystemTrayIcon::Information,
+			QIcon(),
+			QPlatformSystemTrayIcon::Information,
 			kTooltipDelay);
 		cSetSeenTrayTooltip(true);
 		Local::writeSettings();
