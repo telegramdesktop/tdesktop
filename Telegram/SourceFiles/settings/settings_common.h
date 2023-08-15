@@ -48,8 +48,6 @@ struct IconDescriptor;
 
 namespace Settings {
 
-extern const char kOptionMonoSettingsIcons[];
-
 using Button = Ui::SettingsButton;
 
 class AbstractSection;
@@ -129,15 +127,6 @@ public:
 	}
 };
 
-inline constexpr auto kIconRed = 1;
-inline constexpr auto kIconGreen = 2;
-inline constexpr auto kIconLightOrange = 3;
-inline constexpr auto kIconLightBlue = 4;
-inline constexpr auto kIconDarkBlue = 5;
-inline constexpr auto kIconPurple = 6;
-inline constexpr auto kIconDarkOrange = 8;
-inline constexpr auto kIconGray = 9;
-
 enum class IconType {
 	Rounded,
 	Round,
@@ -146,10 +135,9 @@ enum class IconType {
 
 struct IconDescriptor {
 	const style::icon *icon = nullptr;
-	int color = 0; // settingsIconBg{color}, 9 for settingsIconBgArchive.
 	IconType type = IconType::Rounded;
 	const style::color *background = nullptr;
-	std::optional<QBrush> backgroundBrush; // Can be useful for gragdients.
+	std::optional<QBrush> backgroundBrush; // Can be useful for gradients.
 
 	explicit operator bool() const {
 		return (icon != nullptr);

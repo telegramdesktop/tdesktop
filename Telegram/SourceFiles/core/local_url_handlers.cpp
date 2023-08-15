@@ -412,6 +412,7 @@ bool ResolveUsernameOrPhone(
 	}
 	const auto myContext = context.value<ClickHandlerContext>();
 	using Navigation = Window::SessionNavigation;
+	controller->window().activate();
 	controller->showPeerByLink(Navigation::PeerByLinkInfo{
 		.usernameOrId = domain,
 		.phone = phone,
@@ -447,7 +448,6 @@ bool ResolveUsernameOrPhone(
 			: std::nullopt),
 		.clickFromMessageId = myContext.itemId,
 	});
-	controller->window().activate();
 	return true;
 }
 

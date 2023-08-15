@@ -7504,7 +7504,7 @@ void HistoryWidget::handlePeerUpdate() {
 		if (!channel->mgInfo->botStatus) {
 			session().api().chatParticipants().requestBots(channel);
 		}
-		if (channel->mgInfo->admins.empty()) {
+		if (!channel->mgInfo->adminsLoaded) {
 			session().api().chatParticipants().requestAdmins(channel);
 		}
 	}

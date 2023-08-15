@@ -70,8 +70,6 @@ void ChangeFilterById(
 			MTP_int(filter.id()),
 			filter.tl()
 		)).done([=, chat = history->peer->name(), name = filter.title()] {
-			// Since only the primary window has dialogs list,
-			// We can safely show toast there.
 			const auto account = &history->session().account();
 			if (const auto controller = Core::App().windowFor(account)) {
 				controller->showToast((add
@@ -120,17 +118,19 @@ bool ChooseFilterValidator::canRemove(FilterId filterId) const {
 }
 
 ChooseFilterValidator::LimitData ChooseFilterValidator::limitReached(
-		FilterId filterId) const {
+		FilterId filterId,
+		bool always) const {
 	Expects(filterId != 0);
 
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	const auto limit = _history->owner().pinnedChatsLimit(filterId);
+	const auto &chatsList = always ? i->always() : i->never();
 	return {
 		.reached = (i != end(list))
-			&& !ranges::contains(i->always(), _history)
-			&& (i->always().size() >= limit),
-		.count = int(i->always().size()),
+			&& !ranges::contains(chatsList, _history)
+			&& (chatsList.size() >= limit),
+		.count = int(chatsList.size()),
 	};
 }
 
@@ -156,18 +156,21 @@ void FillChooseFilterMenu(
 
 		const auto contains = filter.contains(history);
 		const auto action = menu->addAction(filter.title(), [=] {
-			if (filter.contains(history)) {
-				if (validator.canRemove(id)) {
-					validator.remove(id);
-				}
-			} else if (const auto r = validator.limitReached(id); r.reached) {
+			const auto toAdd = !filter.contains(history);
+			const auto r = validator.limitReached(id, toAdd);
+			if (r.reached) {
 				controller->show(Box(
 					FilterChatsLimitBox,
 					&controller->session(),
 					r.count,
-					true));
-			} else if (validator.canAdd()) {
-				validator.add(id);
+					toAdd));
+				return;
+			} else if (toAdd ? validator.canAdd() : validator.canRemove(id)) {
+				if (toAdd) {
+					validator.add(id);
+				} else {
+					validator.remove(id);
+				}
 			}
 		}, contains ? &st::mediaPlayerMenuCheck : nullptr);
 		action->setEnabled(contains

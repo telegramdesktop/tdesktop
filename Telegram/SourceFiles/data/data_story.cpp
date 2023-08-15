@@ -31,6 +31,47 @@ namespace {
 
 using UpdateFlag = StoryUpdate::Flag;
 
+[[nodiscard]] StoryArea ParseArea(const MTPMediaAreaCoordinates &area) {
+	const auto &data = area.data();
+	const auto center = QPointF(data.vx().v, data.vy().v);
+	const auto size = QSizeF(data.vw().v, data.vh().v);
+	const auto corner = center - QPointF(size.width(), size.height()) / 2.;
+	return {
+		.geometry = { corner / 100., size / 100. },
+		.rotation = data.vrotation().v,
+	};
+}
+
+[[nodiscard]] auto ParseLocation(const MTPMediaArea &area)
+-> std::optional<StoryLocation> {
+	auto result = std::optional<StoryLocation>();
+	area.match([&](const MTPDmediaAreaVenue &data) {
+		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+			result.emplace(StoryLocation{
+				.area = ParseArea(data.vcoordinates()),
+				.point = Data::LocationPoint(geo),
+				.title = qs(data.vtitle()),
+				.address = qs(data.vaddress()),
+				.provider = qs(data.vprovider()),
+				.venueId = qs(data.vvenue_id()),
+				.venueType = qs(data.vvenue_type()),
+			});
+		}, [](const MTPDgeoPointEmpty &) {
+		});
+	}, [&](const MTPDmediaAreaGeoPoint &data) {
+		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+			result.emplace(StoryLocation{
+				.area = ParseArea(data.vcoordinates()),
+				.point = Data::LocationPoint(geo),
+			});
+		}, [](const MTPDgeoPointEmpty &) {
+		});
+	}, [&](const MTPDinputMediaAreaVenue &data) {
+		LOG(("API Error: Unexpected inputMediaAreaVenue in API data."));
+	});
+	return result;
+}
+
 } // namespace
 
 class StoryPreload::LoadTask final : private Storage::DownloadMtprotoTask {
@@ -276,8 +317,13 @@ bool Story::edited() const {
 	return _edited;
 }
 
-bool Story::canDownload() const {
-	return /*!forbidsForward() || */_peer->isSelf();
+bool Story::canDownloadIfPremium() const {
+	return !forbidsForward() || _peer->isSelf();
+}
+
+bool Story::canDownloadChecked() const {
+	return _peer->isSelf()
+		|| (canDownloadIfPremium() && _peer->session().premium());
 }
 
 bool Story::canShare() const {
@@ -330,55 +376,61 @@ const TextWithEntities &Story::caption() const {
 	return unsupported() ? empty : _caption;
 }
 
+Data::ReactionId Story::sentReactionId() const {
+	return _sentReactionId;
+}
+
+void Story::setReactionId(Data::ReactionId id) {
+	if (_sentReactionId != id) {
+		_sentReactionId = id;
+		session().changes().storyUpdated(this, UpdateFlag::Reaction);
+	}
+}
+
 const std::vector<not_null<PeerData*>> &Story::recentViewers() const {
 	return _recentViewers;
 }
 
-const std::vector<StoryView> &Story::viewsList() const {
-	return _viewsList;
-}
-
-int Story::views() const {
+const StoryViews &Story::viewsList() const {
 	return _views;
 }
 
+int Story::views() const {
+	return _views.total;
+}
+
+int Story::reactions() const {
+	return _views.reactions;
+}
+
 void Story::applyViewsSlice(
-		const std::optional<StoryView> &offset,
-		const std::vector<StoryView> &slice,
-		int total) {
-	const auto changed = (_views != total);
-	_views = total;
-	if (!offset) {
-		const auto i = _viewsList.empty()
-			? end(slice)
-			: ranges::find(slice, _viewsList.front());
-		const auto merge = (i != end(slice))
-			&& !ranges::contains(slice, _viewsList.back());
-		if (merge) {
-			_viewsList.insert(begin(_viewsList), begin(slice), i);
-		} else {
-			_viewsList = slice;
-		}
-	} else if (!slice.empty()) {
-		const auto i = ranges::find(_viewsList, *offset);
-		const auto merge = (i != end(_viewsList))
-			&& !ranges::contains(_viewsList, slice.back());
-		if (merge) {
-			const auto after = i + 1;
-			if (after == end(_viewsList)) {
-				_viewsList.insert(after, begin(slice), end(slice));
-			} else {
-				const auto j = ranges::find(slice, _viewsList.back());
-				if (j != end(slice)) {
-					_viewsList.insert(end(_viewsList), j + 1, end(slice));
-				}
-			}
+		const QString &offset,
+		const StoryViews &slice) {
+	const auto changed = (_views.reactions != slice.reactions)
+		|| (_views.total != slice.total);
+	_views.reactions = slice.reactions;
+	_views.total = slice.total;
+	if (offset.isEmpty()) {
+		_views = slice;
+	} else if (_views.nextOffset == offset) {
+		_views.list.insert(
+			end(_views.list),
+			begin(slice.list),
+			end(slice.list));
+		_views.nextOffset = slice.nextOffset;
+		if (_views.nextOffset.isEmpty()) {
+			_views.total = int(_views.list.size());
+			_views.reactions = _views.total
+				- ranges::count(
+					_views.list,
+					Data::ReactionId(),
+					&StoryView::reaction);
 		}
 	}
-	const auto known = int(_viewsList.size());
+	const auto known = int(_views.list.size());
 	if (known >= _recentViewers.size()) {
 		const auto take = std::min(known, kRecentViewersMax);
-		auto viewers = _viewsList
+		auto viewers = _views.list
 			| ranges::views::take(take)
 			| ranges::views::transform(&StoryView::peer)
 			| ranges::to_vector;
@@ -399,6 +451,10 @@ void Story::applyViewsSlice(
 	}
 }
 
+const std::vector<StoryLocation> &Story::locations() const {
+	return _locations;
+}
+
 void Story::applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
@@ -413,6 +469,9 @@ void Story::applyFields(
 		bool initial) {
 	_lastUpdateTime = now;
 
+	const auto reaction = data.vsent_reaction()
+		? Data::ReactionFromMTP(*data.vsent_reaction())
+		: Data::ReactionId();
 	const auto pinned = data.is_pinned();
 	const auto edited = data.is_edited();
 	const auto privacy = data.is_public()
@@ -431,11 +490,13 @@ void Story::applyFields(
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
-	auto views = _views;
+	auto views = _views.total;
+	auto reactions = _views.reactions;
 	auto viewers = std::vector<not_null<PeerData*>>();
 	if (!data.is_min()) {
 		if (const auto info = data.vviews()) {
 			views = info->data().vviews_count().v;
+			reactions = info->data().vreactions_count().v;
 			if (const auto list = info->data().vrecent_viewers()) {
 				viewers.reserve(list->v.size());
 				auto &owner = _peer->owner();
@@ -447,13 +508,25 @@ void Story::applyFields(
 			}
 		}
 	}
+	auto locations = std::vector<StoryLocation>();
+	if (const auto areas = data.vmedia_areas()) {
+		locations.reserve(areas->v.size());
+		for (const auto &area : areas->v) {
+			if (const auto parsed = ParseLocation(area)) {
+				locations.push_back(*parsed);
+			}
+		}
+	}
 
 	const auto pinnedChanged = (_pinned != pinned);
 	const auto editedChanged = (_edited != edited);
 	const auto mediaChanged = (_media != media);
 	const auto captionChanged = (_caption != caption);
-	const auto viewsChanged = (_views != views)
+	const auto viewsChanged = (_views.total != views)
+		|| (_views.reactions != reactions)
 		|| (_recentViewers != viewers);
+	const auto locationsChanged = (_locations != locations);
+	const auto reactionChanged = (_sentReactionId != reaction);
 
 	_privacyPublic = (privacy == StoryPrivacy::Public);
 	_privacyCloseFriends = (privacy == StoryPrivacy::CloseFriends);
@@ -463,8 +536,10 @@ void Story::applyFields(
 	_edited = edited;
 	_pinned = pinned;
 	_noForwards = noForwards;
+	if (_views.reactions != reactions || _views.total != views) {
+		_views = StoryViews{ .reactions = reactions, .total = views };
+	}
 	if (viewsChanged) {
-		_views = views;
 		_recentViewers = std::move(viewers);
 	}
 	if (mediaChanged) {
@@ -473,12 +548,22 @@ void Story::applyFields(
 	if (captionChanged) {
 		_caption = std::move(caption);
 	}
+	if (locationsChanged) {
+		_locations = std::move(locations);
+	}
+	if (reactionChanged) {
+		_sentReactionId = reaction;
+	}
 
-	const auto changed = (editedChanged || captionChanged || mediaChanged);
-	if (!initial && (changed || viewsChanged)) {
+	const auto changed = editedChanged
+		|| captionChanged
+		|| mediaChanged
+		|| locationsChanged;
+	if (!initial && (changed || viewsChanged || reactionChanged)) {
 		_peer->session().changes().storyUpdated(this, UpdateFlag()
 			| (changed ? UpdateFlag::Edited : UpdateFlag())
-			| (viewsChanged ? UpdateFlag::ViewsAdded : UpdateFlag()));
+			| (viewsChanged ? UpdateFlag::ViewsAdded : UpdateFlag())
+			| (reactionChanged ? UpdateFlag::Reaction : UpdateFlag()));
 	}
 	if (!initial && (captionChanged || mediaChanged)) {
 		if (const auto item = _peer->owner().stories().lookupItem(this)) {

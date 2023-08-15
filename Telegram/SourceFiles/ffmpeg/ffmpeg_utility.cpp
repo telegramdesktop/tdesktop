@@ -16,6 +16,8 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include <private/qdrawhelper_p.h>
 #endif // LIB_FFMPEG_USE_QT_PRIVATE_API
 
+#include <deque>
+
 extern "C" {
 #include <libavutil/opt.h>
 #if !defined DESKTOP_APP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC

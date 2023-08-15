@@ -508,6 +508,8 @@ void HistoryMessageReply::paint(
 	const auto stm = context.messageStyle();
 
 	{
+		const auto opacity = p.opacity();
+		const auto outerWidth = w + 2 * x;
 		const auto &bar = !inBubble
 			? st->msgImgReplyBarColor()
 			: replyToColorKey
@@ -518,8 +520,22 @@ void HistoryMessageReply::paint(
 			y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(),
 			st::msgReplyBarSize.width(),
 			st::msgReplyBarSize.height(),
-			w + 2 * x);
-		const auto opacity = p.opacity();
+			outerWidth);
+
+		if (ripple.animation) {
+			const auto colorOverride = &stm->msgWaveformInactive->c;
+			p.setOpacity(st::historyPollRippleOpacity);
+			ripple.animation->paint(
+				p,
+				x - st::msgReplyPadding.left(),
+				y,
+				outerWidth,
+				colorOverride);
+			if (ripple.animation->empty()) {
+				ripple.animation.reset();
+			}
+		}
+
 		p.setOpacity(opacity * kBarAlpha);
 		p.fillRect(rbar, bar);
 		p.setOpacity(opacity);
@@ -1052,7 +1068,7 @@ void ReplyKeyboard::Style::paintButton(
 		|| button.type == HistoryMessageMarkupButton::Type::Game) {
 		if (const auto data = button.link->getButton()) {
 			if (data->requestId) {
-				paintButtonLoading(p, st, rect);
+				paintButtonLoading(p, st, rect, outerWidth, rounding);
 			}
 		}
 	}

@@ -7,19 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_controller.h"
 
-#include "base/timer.h"
 #include "base/power_save_blocker.h"
 #include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
 #include "boxes/peers/prepare_short_info_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/update_checker.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
-#include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -35,26 +33,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_recent_views.h"
 #include "media/stories/media_stories_reply.h"
 #include "media/stories/media_stories_share.h"
+#include "media/stories/media_stories_stealth.h"
 #include "media/stories/media_stories_view.h"
 #include "media/audio/media_audio.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/report_box.h"
-#include "ui/effects/emoji_fly_animation.h"
-#include "ui/effects/message_sending_animation_common.h"
-#include "ui/effects/reaction_fly_animation.h"
-#include "ui/layers/box_content.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/round_rect.h"
-#include "ui/rp_widget.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_chat.h"
-#include "styles/style_chat_helpers.h"
+#include "styles/style_chat_helpers.h" // defaultReportBox
 #include "styles/style_media_view.h"
-#include "styles/style_widgets.h"
 #include "styles/style_boxes.h" // UserpicButton
 
 #include <QtGui/QWindow>
@@ -111,6 +103,19 @@ struct SameDayRange {
 		++result.till;
 	}
 	return result;
+}
+
+[[nodiscard]] QPoint Rotated(QPoint point, QPoint origin, float64 angle) {
+	if (std::abs(angle) < 1.) {
+		return point;
+	}
+	const auto alpha = angle / 180. * M_PI;
+	const auto acos = cos(alpha);
+	const auto asin = sin(alpha);
+	point -= origin;
+	return origin + QPoint(
+		int(base::SafeRound(acos * point.x() - asin * point.y())),
+		int(base::SafeRound(asin * point.x() + acos * point.y())));
 }
 
 } // namespace
@@ -276,7 +281,7 @@ Controller::Controller(not_null<Delegate*> delegate)
 
 	rpl::combine(
 		_replyArea->activeValue(),
-		_reactions->expandedValue(),
+		_reactions->activeValue(),
 		_1 || _2
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool active) {
@@ -284,37 +289,16 @@ Controller::Controller(not_null<Delegate*> delegate)
 		updateContentFaded();
 	}, _lifetime);
 
-	_replyArea->focusedValue(
-	) | rpl::start_with_next([=](bool focused) {
-		_replyFocused = focused;
-		if (!_replyFocused) {
-			_reactions->hideIfCollapsed();
-		} else if (!_hasSendText) {
-			_reactions->show();
-		}
-	}, _lifetime);
-
-	_replyArea->hasSendTextValue(
-	) | rpl::start_with_next([=](bool has) {
-		_hasSendText = has;
-		if (_replyFocused) {
-			if (_hasSendText) {
-				_reactions->hide();
-			} else {
-				_reactions->show();
-			}
-		}
-	}, _lifetime);
+	_reactions->setReplyFieldState(
+		_replyArea->focusedValue(),
+		_replyArea->hasSendTextValue());
+	if (const auto like = _replyArea->likeAnimationTarget()) {
+		_reactions->attachToReactionButton(like);
+	}
 
 	_reactions->chosen(
-	) | rpl::start_with_next([=](HistoryView::Reactions::ChosenReaction id) {
-		startReactionAnimation(id.id, {
-			.type = Ui::MessageSendingAnimationFrom::Type::Emoji,
-			.globalStartGeometry = id.globalGeometry,
-			.frame = id.icon,
-		});
-		_replyArea->sendReaction(id.id);
-		unfocusReply();
+	) | rpl::start_with_next([=](Reactions::Chosen chosen) {
+		reactionChosen(chosen.mode, chosen.reaction);
 	}, _lifetime);
 
 	_delegate->storiesLayerShown(
@@ -525,9 +509,28 @@ void Controller::initLayout() {
 			.nameBoundingRect = nameBoundingRect(right, false),
 			.nameFontSize = nameFontSize,
 		};
-
+		if (!_locationAreas.empty()) {
+			rebuildLocationAreas(layout);
+		}
 		return layout;
 	});
+}
+
+void Controller::rebuildLocationAreas(const Layout &layout) const {
+	Expects(_locations.size() == _locationAreas.size());
+
+	const auto origin = layout.content.topLeft();
+	const auto scale = layout.content.size();
+	for (auto i = 0, count = int(_locations.size()); i != count; ++i) {
+		auto &area = _locationAreas[i];
+		const auto &general = _locations[i].area.geometry;
+		area.geometry = QRect(
+			int(base::SafeRound(general.x() * scale.width())),
+			int(base::SafeRound(general.y() * scale.height())),
+			int(base::SafeRound(general.width() * scale.width())),
+			int(base::SafeRound(general.height() * scale.height()))
+		).translated(origin);
+	}
 }
 
 Data::Story *Controller::story() const {
@@ -584,6 +587,19 @@ TextWithEntities Controller::captionText() const {
 
 bool Controller::skipCaption() const {
 	return _captionFullView != nullptr;
+}
+
+void Controller::toggleLiked() {
+	_reactions->toggleLiked();
+}
+
+void Controller::reactionChosen(ReactionsMode mode, ChosenReaction chosen) {
+	if (mode == ReactionsMode::Message) {
+		_replyArea->sendReaction(chosen.id);
+	} else if (const auto user = shownUser()) {
+		user->owner().stories().sendReaction(_shown, chosen.id);
+	}
+	unfocusReply();
 }
 
 void Controller::showFullCaption() {
@@ -845,16 +861,18 @@ void Controller::show(
 	_viewed = false;
 	invalidate_weak_ptrs(&_viewsLoadGuard);
 	_reactions->hide();
-	if (_replyFocused) {
+	if (_replyArea->focused()) {
 		unfocusReply();
 	}
 
 	_replyArea->show({
 		.user = unsupported ? nullptr : user,
 		.id = story->id(),
-	});
+	}, _reactions->likedValue());
+
 	_recentViews->show({
 		.list = story->recentViewers(),
+		.reactions = story->reactions(),
 		.total = story->views(),
 		.valid = user->isSelf(),
 	});
@@ -891,6 +909,16 @@ bool Controller::changeShown(Data::Story *story) {
 			story,
 			Data::Stories::Polling::Viewer);
 	}
+	_reactions->showLikeFrom(story);
+
+	const auto &locations = story
+		? story->locations()
+		: std::vector<Data::StoryLocation>();
+	if (_locations != locations) {
+		_locations = locations;
+		_locationAreas.clear();
+	}
+
 	return true;
 }
 
@@ -925,6 +953,7 @@ void Controller::subscribeToSession() {
 		} else {
 			_recentViews->show({
 				.list = update.story->recentViewers(),
+				.reactions = update.story->reactions(),
 				.total = update.story->views(),
 				.valid = update.story->peer()->isSelf(),
 			});
@@ -1031,6 +1060,7 @@ void Controller::ready() {
 	}
 	_started = true;
 	updatePlayingAllowed();
+	_reactions->ready();
 }
 
 void Controller::updateVideoPlayback(const Player::TrackState &state) {
@@ -1050,6 +1080,32 @@ void Controller::updatePlayback(const Player::TrackState &state) {
 			_delegate->storiesClose();
 		}
 	}
+}
+
+ClickHandlerPtr Controller::lookupLocationHandler(QPoint point) const {
+	const auto &layout = _layout.current();
+	if (_locations.empty() || !layout) {
+		return nullptr;
+	} else if (_locationAreas.empty()) {
+		_locationAreas = _locations | ranges::views::transform([](
+				const Data::StoryLocation &location) {
+			return LocationArea{
+				.rotation = location.area.rotation,
+				.handler = std::make_shared<LocationClickHandler>(
+					location.point),
+			};
+		}) | ranges::to_vector;
+		rebuildLocationAreas(*layout);
+	}
+
+	for (const auto &area : _locationAreas) {
+		const auto center = area.geometry.center();
+		const auto angle = -area.rotation;
+		if (area.geometry.contains(Rotated(point, center, angle))) {
+			return area.handler;
+		}
+	}
+	return nullptr;
 }
 
 void Controller::maybeMarkAsRead(const Player::TrackState &state) {
@@ -1195,7 +1251,7 @@ void Controller::contentPressed(bool pressed) {
 		_captionFullView->close();
 	}
 	if (pressed) {
-		_reactions->collapse();
+		_reactions->outsidePressed();
 	}
 }
 
@@ -1226,12 +1282,17 @@ SiblingView Controller::sibling(SiblingType type) const {
 	return {};
 }
 
-ViewsSlice Controller::views(PeerId offset) {
+const Data::StoryViews &Controller::views(int limit, bool initial) {
 	invalidate_weak_ptrs(&_viewsLoadGuard);
-	if (!offset) {
+	if (initial) {
 		refreshViewsFromData();
-	} else if (!sliceViewsTo(offset)) {
-		return { .left = _viewsSlice.left };
+	}
+	if (_viewsSlice.total > _viewsSlice.list.size()
+		&& _viewsSlice.list.size() < limit) {
+		const auto done = viewsGotMoreCallback();
+		const auto user = shownUser();
+		auto &stories = user->owner().stories();
+		stories.loadViewsSlice(_shown.story, _viewsSlice.nextOffset, done);
 	}
 	return _viewsSlice;
 }
@@ -1240,27 +1301,25 @@ rpl::producer<> Controller::moreViewsLoaded() const {
 	return _moreViewsLoaded.events();
 }
 
-Fn<void(std::vector<Data::StoryView>)> Controller::viewsGotMoreCallback() {
-	return crl::guard(&_viewsLoadGuard, [=](
-			const std::vector<Data::StoryView> &result) {
+Fn<void(Data::StoryViews)> Controller::viewsGotMoreCallback() {
+	return crl::guard(&_viewsLoadGuard, [=](Data::StoryViews result) {
 		if (_viewsSlice.list.empty()) {
 			const auto user = shownUser();
 			auto &stories = user->owner().stories();
 			if (const auto maybeStory = stories.lookup(_shown)) {
-				_viewsSlice = {
-					.list = result,
-					.left = (*maybeStory)->views() - int(result.size()),
-				};
+				_viewsSlice = (*maybeStory)->viewsList();
 			} else {
 				_viewsSlice = {};
 			}
 		} else {
 			_viewsSlice.list.insert(
 				end(_viewsSlice.list),
-				begin(result),
-				end(result));
-			_viewsSlice.left
-				= std::max(_viewsSlice.left - int(result.size()), 0);
+				begin(result.list),
+				end(result.list));
+			_viewsSlice.total = result.nextOffset.isEmpty()
+				? int(_viewsSlice.list.size())
+				: std::max(result.total, int(_viewsSlice.list.size()));
+			_viewsSlice.nextOffset = result.nextOffset;
 		}
 		_moreViewsLoaded.fire({});
 	});
@@ -1408,49 +1467,9 @@ void Controller::refreshViewsFromData() {
 	const auto maybeStory = stories.lookup(_shown);
 	if (!maybeStory || !user->isSelf()) {
 		_viewsSlice = {};
-		return;
+	} else {
+		_viewsSlice = (*maybeStory)->viewsList();
 	}
-	const auto story = *maybeStory;
-	const auto &list = story->viewsList();
-	const auto total = story->views();
-	_viewsSlice.list = list
-		| ranges::views::take(Data::Stories::kViewsPerPage)
-		| ranges::to_vector;
-	_viewsSlice.left = total - int(_viewsSlice.list.size());
-	if (_viewsSlice.list.empty() && _viewsSlice.left > 0) {
-		const auto done = viewsGotMoreCallback();
-		stories.loadViewsSlice(_shown.story, std::nullopt, done);
-	}
-}
-
-bool Controller::sliceViewsTo(PeerId offset) {
-	Expects(shown());
-
-	const auto user = shownUser();
-	auto &stories = user->owner().stories();
-	const auto maybeStory = stories.lookup(_shown);
-	if (!maybeStory || !user->isSelf()) {
-		_viewsSlice = {};
-		return true;
-	}
-	const auto story = *maybeStory;
-	const auto &list = story->viewsList();
-	const auto proj = [&](const Data::StoryView &single) {
-		return single.peer->id;
-	};
-	const auto i = ranges::find(list, _viewsSlice.list.back());
-	const auto add = (i != end(list)) ? int(end(list) - i - 1) : 0;
-	const auto j = ranges::find(_viewsSlice.list, offset, proj);
-	Assert(j != end(_viewsSlice.list));
-	if (!add && (j + 1) == end(_viewsSlice.list)) {
-		const auto done = viewsGotMoreCallback();
-		stories.loadViewsSlice(_shown.story, _viewsSlice.list.back(), done);
-		return false;
-	}
-	_viewsSlice.list.erase(begin(_viewsSlice.list), j + 1);
-	_viewsSlice.list.insert(end(_viewsSlice.list), i + 1, end(list));
-	_viewsSlice.left -= add;
-	return true;
 }
 
 void Controller::unfocusReply() {
@@ -1522,6 +1541,24 @@ void Controller::tryProcessKeyInput(not_null<QKeyEvent*> e) {
 	_replyArea->tryProcessKeyInput(e);
 }
 
+bool Controller::allowStealthMode() const {
+	const auto story = this->story();
+	return story
+		&& !story->peer()->isSelf()
+		&& story->peer()->session().premiumPossible();
+}
+
+void Controller::setupStealthMode() {
+	SetupStealthMode(uiShow());
+}
+
+auto Controller::attachReactionsToMenu(
+	not_null<Ui::PopupMenu*> menu,
+	QPoint desiredPosition)
+-> AttachStripResult {
+	return _reactions->attachToMenu(menu, desiredPosition);
+}
+
 rpl::lifetime &Controller::lifetime() {
 	return _lifetime;
 }
@@ -1535,34 +1572,6 @@ void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {
 		base::PowerSaveBlockType::PreventDisplaySleep,
 		[] { return u"Stories playback is active"_q; },
 		[=] { return _wrap->window()->windowHandle(); });
-}
-
-void Controller::startReactionAnimation(
-		Data::ReactionId id,
-		Ui::MessageSendingAnimationFrom from) {
-	Expects(shown());
-
-	auto args = Ui::ReactionFlyAnimationArgs{
-		.id = id,
-		.flyIcon = from.frame,
-		.flyFrom = _wrap->mapFromGlobal(from.globalStartGeometry),
-		.scaleOutDuration = st::fadeWrapDuration * 2,
-	};
-	_reactionAnimation = std::make_unique<Ui::EmojiFlyAnimation>(
-		_wrap,
-		&shownUser()->owner().reactions(),
-		std::move(args),
-		[=] { _reactionAnimation->repaint(); },
-		Data::CustomEmojiSizeTag::Isolated);
-	const auto layer = _reactionAnimation->layer();
-	_wrap->paintRequest() | rpl::start_with_next([=] {
-		if (!_reactionAnimation->paintBadgeFrame(_wrap.get())) {
-			InvokeQueued(layer, [=] {
-				_reactionAnimation = nullptr;
-				_wrap->update();
-			});
-		}
-	}, layer->lifetime());
 }
 
 Ui::Toast::Config PrepareTogglePinnedToast(int count, bool pinned) {

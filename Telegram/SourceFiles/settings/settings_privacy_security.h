@@ -35,6 +35,10 @@ void AddPrivacyButton(
 	Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory,
 	const style::SettingsButton *stOverride = nullptr);
 
+void SetupArchiveAndMute(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::VerticalLayout*> container);
+
 class PrivacySecurity : public Section<PrivacySecurity> {
 public:
 	PrivacySecurity(

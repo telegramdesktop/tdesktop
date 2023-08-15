@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "data/data_location.h"
+#include "data/data_message_reaction_id.h"
 
 class Image;
 class PhotoData;
@@ -58,9 +60,40 @@ struct StoryMedia {
 
 struct StoryView {
 	not_null<PeerData*> peer;
+	Data::ReactionId reaction;
 	TimeId date = 0;
 
 	friend inline bool operator==(StoryView, StoryView) = default;
+};
+
+struct StoryViews {
+	std::vector<StoryView> list;
+	QString nextOffset;
+	int reactions = 0;
+	int total = 0;
+};
+
+struct StoryArea {
+	QRectF geometry;
+	float64 rotation = 0;
+
+	friend inline bool operator==(
+		const StoryArea &,
+		const StoryArea &) = default;
+};
+
+struct StoryLocation {
+	StoryArea area;
+	Data::LocationPoint point;
+	QString title;
+	QString address;
+	QString provider;
+	QString venueId;
+	QString venueType;
+
+	friend inline bool operator==(
+		const StoryLocation &,
+		const StoryLocation &) = default;
 };
 
 class Story final {
@@ -100,7 +133,8 @@ public:
 	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] bool edited() const;
 
-	[[nodiscard]] bool canDownload() const;
+	[[nodiscard]] bool canDownloadIfPremium() const;
+	[[nodiscard]] bool canDownloadChecked() const;
 	[[nodiscard]] bool canShare() const;
 	[[nodiscard]] bool canDelete() const;
 	[[nodiscard]] bool canReport() const;
@@ -112,14 +146,17 @@ public:
 	void setCaption(TextWithEntities &&caption);
 	[[nodiscard]] const TextWithEntities &caption() const;
 
+	[[nodiscard]] Data::ReactionId sentReactionId() const;
+	void setReactionId(Data::ReactionId id);
+
 	[[nodiscard]] auto recentViewers() const
 		-> const std::vector<not_null<PeerData*>> &;
-	[[nodiscard]] const std::vector<StoryView> &viewsList() const;
+	[[nodiscard]] const StoryViews &viewsList() const;
 	[[nodiscard]] int views() const;
-	void applyViewsSlice(
-		const std::optional<StoryView> &offset,
-		const std::vector<StoryView> &slice,
-		int total);
+	[[nodiscard]] int reactions() const;
+	void applyViewsSlice(const QString &offset, const StoryViews &slice);
+
+	[[nodiscard]] const std::vector<StoryLocation> &locations() const;
 
 	void applyChanges(
 		StoryMedia media,
@@ -136,11 +173,12 @@ private:
 
 	const StoryId _id = 0;
 	const not_null<PeerData*> _peer;
+	Data::ReactionId _sentReactionId;
 	StoryMedia _media;
 	TextWithEntities _caption;
 	std::vector<not_null<PeerData*>> _recentViewers;
-	std::vector<StoryView> _viewsList;
-	int _views = 0;
+	std::vector<StoryLocation> _locations;
+	StoryViews _views;
 	const TimeId _date = 0;
 	const TimeId _expires = 0;
 	TimeId _lastUpdateTime = 0;

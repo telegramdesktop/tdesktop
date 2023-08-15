@@ -7,60 +7,120 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_message_reaction_id.h"
 #include "ui/effects/animations.h"
 
 namespace Data {
+class DocumentMedia;
 struct ReactionId;
+class Session;
+class Story;
 } // namespace Data
 
 namespace HistoryView::Reactions {
 class Selector;
 struct ChosenReaction;
+enum class AttachSelectorResult;
 } // namespace HistoryView::Reactions
 
 namespace Ui {
 class RpWidget;
+struct ReactionFlyAnimationArgs;
+struct ReactionFlyCenter;
+class EmojiFlyAnimation;
+class PopupMenu;
 } // namespace Ui
 
 namespace Media::Stories {
 
 class Controller;
 
+enum class ReactionsMode {
+	Message,
+	Reaction,
+};
+
 class Reactions final {
 public:
 	explicit Reactions(not_null<Controller*> controller);
 	~Reactions();
 
-	using Chosen = HistoryView::Reactions::ChosenReaction;
-	[[nodiscard]] rpl::producer<bool> expandedValue() const {
-		return _expanded.value();
-	}
-	[[nodiscard]] rpl::producer<Chosen> chosen() const {
-		return _chosen.events();
-	}
+	using Mode = ReactionsMode;
 
-	void show();
+	template <typename Reaction>
+	struct ChosenWrap {
+		Reaction reaction;
+		Mode mode;
+	};
+	using Chosen = ChosenWrap<HistoryView::Reactions::ChosenReaction>;
+
+	[[nodiscard]] rpl::producer<bool> activeValue() const;
+	[[nodiscard]] rpl::producer<Chosen> chosen() const;
+
+	[[nodiscard]] Data::ReactionId liked() const;
+	[[nodiscard]] rpl::producer<Data::ReactionId> likedValue() const;
+	void showLikeFrom(Data::Story *story);
+
 	void hide();
-	void hideIfCollapsed();
-	void collapse();
+	void outsidePressed();
+	void toggleLiked();
+	void ready();
+
+	void setReplyFieldState(
+		rpl::producer<bool> focused,
+		rpl::producer<bool> hasSendText);
+	void attachToReactionButton(not_null<Ui::RpWidget*> button);
+
+	using AttachStripResult = HistoryView::Reactions::AttachSelectorResult;
+	[[nodiscard]] AttachStripResult attachToMenu(
+		not_null<Ui::PopupMenu*> menu,
+		QPoint desiredPosition);
 
 private:
-	struct Hiding;
+	class Panel;
 
-	void create();
-	void updateShowState();
-	void fadeOutSelector();
+	void animateAndProcess(Chosen &&chosen);
+
+	void assignLikedId(Data::ReactionId id);
+	[[nodiscard]] Fn<void(Ui::ReactionFlyCenter)> setLikedIdIconInit(
+		not_null<Data::Session*> owner,
+		Data::ReactionId id,
+		bool force = false);
+	void setLikedIdFrom(Data::Story *story);
+	void setLikedId(
+		not_null<Data::Session*> owner,
+		Data::ReactionId id,
+		bool force = false);
+	void startReactionAnimation(
+		Ui::ReactionFlyAnimationArgs from,
+		not_null<QWidget*> target,
+		Fn<void(Ui::ReactionFlyCenter)> done = nullptr);
+	void waitForLikeIcon(
+		not_null<Data::Session*> owner,
+		Data::ReactionId id);
+	void initLikeIcon(
+		not_null<Data::Session*> owner,
+		Data::ReactionId id,
+		Ui::ReactionFlyCenter center);
 
 	const not_null<Controller*> _controller;
+	const std::unique_ptr<Panel> _panel;
 
-	std::unique_ptr<Ui::RpWidget> _parent;
-	std::unique_ptr<HistoryView::Reactions::Selector> _selector;
-	std::vector<std::unique_ptr<Hiding>> _hiding;
 	rpl::event_stream<Chosen> _chosen;
-	Ui::Animations::Simple _showing;
-	rpl::variable<float64> _shownValue;
-	rpl::variable<bool> _expanded;
-	bool _shown = false;
+	bool _replyFocused = false;
+	bool _hasSendText = false;
+
+	Ui::RpWidget *_likeButton = nullptr;
+	rpl::variable<Data::ReactionId> _liked;
+	base::has_weak_ptr _likeIconGuard;
+	std::unique_ptr<Ui::RpWidget> _likeIcon;
+	std::shared_ptr<Data::DocumentMedia> _likeIconMedia;
+
+	std::unique_ptr<Ui::EmojiFlyAnimation> _reactionAnimation;
+
+	rpl::lifetime _likeIconWaitLifetime;
+	rpl::lifetime _likeFromLifetime;
+	rpl::lifetime _lifetime;
 
 };
 
