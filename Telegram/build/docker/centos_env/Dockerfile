@@ -470,12 +470,12 @@ RUN git clone -b libXcomposite-0.4.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposi
 FROM builder AS wayland
 COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 
-RUN git clone -b 1.21.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
+RUN git clone -b 1.19.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 	&& cd wayland \
+	&& sed -i "/subdir('tests')/d" meson.build \
 	&& meson build \
 		--buildtype=plain \
 		--default-library=both \
-		-Dtests=false \
 		-Ddocumentation=false \
 		-Ddtd_validation=false \
 		-Dicon_directory=/usr/share/icons \
