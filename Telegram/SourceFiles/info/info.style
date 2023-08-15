@@ -600,15 +600,20 @@ manageGroupTopicsButton: SettingsCountButton(manageGroupTopButtonWithText) {
 		}
 	}
 }
+manageGroupNoIconButtonInner: SettingsButton(infoProfileButton) {
+	padding: margins(25px, 11px, 24px, 8px);
+}
+manageGroupNoIconButton: SettingsCountButton(manageGroupTopButtonWithText) {
+	button: manageGroupNoIconButtonInner;
+	labelPosition: point(22px, 11px);
+	iconPosition: point(0px, 0px);
+}
 
-manageDeleteGroupButton: SettingsCountButton(manageGroupTopButtonWithText) {
-	button: SettingsButton(infoProfileButton) {
-		padding: margins(25px, 11px, 24px, 8px);
+manageDeleteGroupButton: SettingsCountButton(manageGroupNoIconButton) {
+	button: SettingsButton(manageGroupNoIconButtonInner) {
 		textFg: attentionButtonFg;
 		textFgOver: attentionButtonFg;
 	}
-	labelPosition: point(22px, 11px);
-	iconPosition: point(0px, 0px);
 }
 
 infoEmptyFg: windowSubTextFg;
