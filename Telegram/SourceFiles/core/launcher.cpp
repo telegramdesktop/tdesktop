@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 
 #include <QtCore/QLoggingCategory>
+#include <QtCore/QStandardPaths>
 
 namespace Core {
 namespace {
@@ -115,16 +116,26 @@ void ComputeDebugMode() {
 }
 
 void ComputeExternalUpdater() {
-	QFile file(u"/etc/tdesktop/externalupdater"_q);
-
-	if (file.exists() && file.open(QIODevice::ReadOnly)) {
-		QTextStream fileStream(&file);
-		while (!fileStream.atEnd()) {
-			const auto path = fileStream.readLine();
-
-			if (path == (cExeDir() + cExeName())) {
-				SetUpdaterDisabledAtStartup();
-				return;
+	auto locations = QStandardPaths::standardLocations(
+		QStandardPaths::AppDataLocation);
+	if (locations.isEmpty()) {
+		locations << QString();
+	}
+	locations[0] = QDir::cleanPath(cWorkingDir());
+	locations << QDir::cleanPath(cExeDir());
+	for (const auto &location : locations) {
+		const auto dir = location + u"/externalupdater.d"_q;
+		for (const auto &info : QDir(dir).entryInfoList(QDir::Files)) {
+			QFile file(info.absoluteFilePath());
+			if (file.open(QIODevice::ReadOnly)) {
+				QTextStream fileStream(&file);
+				while (!fileStream.atEnd()) {
+					const auto path = fileStream.readLine();
+					if (path == (cExeDir() + cExeName())) {
+						SetUpdaterDisabledAtStartup();
+						return;
+					}
+				}
 			}
 		}
 	}
