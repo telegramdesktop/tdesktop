@@ -1446,6 +1446,8 @@ void Widget::startWidthAnimation() {
 		st::columnMinimalWidthLeft,
 		scrollGeometry.height());
 	_scroll->setGeometry(grabGeometry);
+	_inner->resize(st::columnMinimalWidthLeft, _inner->height());
+	_inner->setNarrowRatio(0.);
 	Ui::SendPendingMoveResizeEvents(_scroll);
 	auto image = QImage(
 		grabGeometry.size() * cIntRetinaFactor(),
@@ -1457,7 +1459,10 @@ void Widget::startWidthAnimation() {
 		Ui::RenderWidget(p, _scroll);
 	}
 	_widthAnimationCache = Ui::PixmapFromImage(std::move(image));
-	_scroll->setGeometry(scrollGeometry);
+	if (scrollGeometry != grabGeometry) {
+		_scroll->setGeometry(scrollGeometry);
+		updateControlsGeometry();
+	}
 	_scroll->hide();
 	updateStoriesVisibility();
 }
