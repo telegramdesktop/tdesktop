@@ -312,9 +312,6 @@ void SetupSections(
 			st::settingsButton,
 			std::move(descriptor)
 		)->addClickHandler([=] {
-			if (type == PremiumId()) {
-				controller->setPremiumRef("settings");
-			}
 			showOther(type);
 		});
 	};
@@ -398,27 +395,28 @@ void SetupSections(
 	SetupPowerSavingButton(&controller->window(), container);
 	SetupLanguageButton(&controller->window(), container);
 
-	if (controller->session().premiumPossible()) {
-		AddSkip(container);
-		AddDivider(container);
-		AddSkip(container);
+	AddSkip(container);
+}
 
-		const auto icon = &st::settingsPremiumIconStar;
-		auto gradient = QLinearGradient(
-			0,
-			icon->height(),
-			icon->width() + icon->width() / 3,
-			0 - icon->height() / 3);
-		gradient.setStops(QGradientStops{
-			{ 0.0, st::premiumButtonBg1->c },
-			{ 1.0, st::premiumButtonBg3->c },
-		});
-		addSection(
-			tr::lng_premium_summary_title(),
-			PremiumId(),
-			{ .icon = icon, .backgroundBrush = QBrush(gradient) });
+void SetupPremium(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
+	if (!controller->session().premiumPossible()) {
+		return;
 	}
+	AddDivider(container);
+	AddSkip(container);
 
+	AddButton(
+		container,
+		tr::lng_premium_summary_title(),
+		st::settingsButton,
+		{ .icon = &st::menuIconPremium }
+	)->addClickHandler([=] {
+		controller->setPremiumRef("settings");
+		showOther(PremiumId());
+	});
 	AddSkip(container);
 }
 
@@ -686,6 +684,9 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 		SetupInterfaceScale(&controller->window(), content);
 		AddSkip(content);
 	}
+	SetupPremium(controller, content, [=](Type type) {
+		_showOther.fire_copy(type);
+	});
 	SetupHelp(controller, content);
 
 	Ui::ResizeFitChild(this, content);

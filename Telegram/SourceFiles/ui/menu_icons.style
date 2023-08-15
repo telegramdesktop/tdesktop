@@ -134,7 +134,7 @@ menuIconSigned: icon {{ "menu/signed", menuIconColor }};
 menuIconAntispam: icon {{ "menu/antispam", menuIconColor }};
 menuIconChatDiscuss: icon {{ "menu/chat_discuss", menuIconColor }};
 menuIconBotCommands: icon {{ "menu/bot_commands", menuIconColor }};
-menuIconHideMembers: icon {{ "menu/hide_members", menuIconColor }};
+menuIconPremium: icon {{ "menu/premium", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

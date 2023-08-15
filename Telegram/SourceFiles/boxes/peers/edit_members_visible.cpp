@@ -53,8 +53,8 @@ namespace {
 			tr::lng_profile_hide_participants(),
 			rpl::single(QString()),
 			[] {},
-			st::manageGroupTopicsButton,
-			{ &st::menuIconHideMembers }
+			st::manageGroupNoIconButton,
+			{}
 	))->toggleOn(rpl::single(
 		(megagroup->flags() & ChannelDataFlag::ParticipantsHidden) != 0
 	) | rpl::then(state->toggled.events()));
