@@ -1806,7 +1806,10 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(
 void HistoryWidget::tryProcessKeyInput(not_null<QKeyEvent*> e) {
 	e->accept();
 	keyPressEvent(e);
-	if (!e->isAccepted() && _canSendTexts && _field->isVisible()) {
+	if (!e->isAccepted()
+		&& _canSendTexts
+		&& _field->isVisible()
+		&& !e->text().isEmpty()) {
 		_field->setFocusFast();
 		QCoreApplication::sendEvent(_field->rawTextEdit(), e);
 	}
