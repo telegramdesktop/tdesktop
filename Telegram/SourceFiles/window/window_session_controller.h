@@ -217,6 +217,7 @@ public:
 		InlineBots::PeerTypes attachBotChooseTypes;
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
+		QString clickFromAttachBotWebviewUrl;
 	};
 	void showPeerByLink(const PeerByLinkInfo &info);
 

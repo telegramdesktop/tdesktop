@@ -1,3 +1,8 @@
+4.9.1 (15.08.23)
+
+- Fix a crash in reply area ripple animation.
+- Fix a crash on start in some Linux distributions.
+
 4.9 (14.08.23)
 
 - Gradual stories rollout.

@@ -122,6 +122,9 @@ public:
 		PeerTypes chooseTypes);
 	void removeFromMenu(not_null<UserData*> bot);
 
+	[[nodiscard]] std::optional<Api::SendAction> lookupLastAction(
+		const QString &url) const;
+
 	static void ClearAll();
 
 private:
@@ -180,6 +183,8 @@ private:
 	const not_null<Main::Session*> _session;
 
 	std::unique_ptr<Context> _context;
+	std::unique_ptr<Context> _lastShownContext;
+	QString _lastShownUrl;
 	UserData *_bot = nullptr;
 	QString _botUsername;
 	QString _botAppName;
