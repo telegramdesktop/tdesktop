@@ -582,7 +582,7 @@ void Sandbox::registerEnterFromEventLoop() {
 
 bool Sandbox::notifyOrInvoke(QObject *receiver, QEvent *e) {
 	const auto type = e->type();
-	if (type == base::InvokeQueuedEvent::kType) {
+	if (type == base::InvokeQueuedEvent::Type()) {
 		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
 		return true;
 	} else if (receiver == this) {
