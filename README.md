@@ -1,6 +1,6 @@
 # [Telegram Desktop][telegram_desktop] – Official Messenger
 
-This is the complete source code and the build instructions for the official [Telegram][telegram] messenger desktop client, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
+This is the complete source code and the build instructions for the official [Telegram][telegram] Messenger desktop client, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
 
 [![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
 [![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Windows./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
@@ -9,7 +9,7 @@ This is the complete source code and the build instructions for the official [Te
 
 [![Preview of Telegram Desktop][preview_image]][preview_image_url]
 
-The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
+The source code is published under GPLv3 with an OpenSSL exception; the license is available [here][license].
 
 ## Supported systems
 
@@ -24,7 +24,7 @@ The latest version is available for
 
 ## Old system versions
 
-Version **2.4.4** was the last that supports older systems
+Version **2.4.4** was the last that supported older systems
 
 * [OS X 10.10 and 10.11](https://updates.tdesktop.com/tosx/tsetup-osx.2.4.4.dmg)
 * [Linux static build for 32 bit](https://updates.tdesktop.com/tlinux32/tsetup32.2.4.4.tar.xz)
