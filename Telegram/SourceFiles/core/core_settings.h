@@ -668,7 +668,10 @@ public:
 	[[nodiscard]] const base::flat_map<QString, uint8> &emojiVariants() const {
 		return _emojiVariants;
 	}
+	[[nodiscard]] EmojiPtr lookupEmojiVariant(EmojiPtr emoji) const;
+	[[nodiscard]] bool hasChosenEmojiVariant(EmojiPtr emoji) const;
 	void saveEmojiVariant(EmojiPtr emoji);
+	void saveAllEmojiVariants(EmojiPtr emoji);
 	void setLegacyEmojiVariants(QMap<QString, int> data);
 
 	[[nodiscard]] bool disableOpenGL() const {

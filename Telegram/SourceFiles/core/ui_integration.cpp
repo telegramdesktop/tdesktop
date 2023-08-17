@@ -282,15 +282,10 @@ rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 
 const Ui::Emoji::One *UiIntegration::defaultEmojiVariant(
 		const Ui::Emoji::One *emoji) {
-	if (!emoji || !emoji->hasVariants()) {
+	if (!emoji) {
 		return emoji;
 	}
-	const auto nonColored = emoji->nonColoredId();
-	const auto &variants = Core::App().settings().emojiVariants();
-	const auto i = variants.find(nonColored);
-	const auto result = (i != end(variants))
-		? emoji->variant(i->second)
-		: emoji;
+	const auto result = Core::App().settings().lookupEmojiVariant(emoji);
 	Core::App().settings().incrementRecentEmoji({ result });
 	return result;
 }
