@@ -1472,6 +1472,7 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	if (!_savedLocalEditMediaData && edition.savePreviousMedia) {
 		savePreviousMedia();
 	}
+	Assert(!updatingSavedLocalEdit || !isLocalUpdateMedia());
 
 	if (edition.isEditHide) {
 		_flags |= MessageFlag::HideEdited;
@@ -1491,15 +1492,13 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	if (!edition.useSameMarkup) {
 		setReplyMarkup(base::take(edition.replyMarkup));
 	}
-	if (!isLocalUpdateMedia()) {
-		if (updatingSavedLocalEdit) {
-			_savedLocalEditMediaData->media = edition.mtpMedia
-				? CreateMedia(this, *edition.mtpMedia)
-				: nullptr;
-		} else {
-			removeFromSharedMediaIndex();
-			refreshMedia(edition.mtpMedia);
-		}
+	if (updatingSavedLocalEdit) {
+		_savedLocalEditMediaData->media = edition.mtpMedia
+			? CreateMedia(this, *edition.mtpMedia)
+			: nullptr;
+	} else {
+		removeFromSharedMediaIndex();
+		refreshMedia(edition.mtpMedia);
 	}
 	if (!edition.useSameReactions) {
 		updateReactions(edition.mtpReactions);
@@ -1520,8 +1519,6 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 		_savedLocalEditMediaData->text = std::move(updatedText);
 	} else {
 		setText(std::move(updatedText));
-	}
-	if (!isLocalUpdateMedia() && !updatingSavedLocalEdit) {
 		addToSharedMediaIndex();
 	}
 	if (!edition.useSameReplies) {
