@@ -1160,6 +1160,8 @@ void SessionController::openFolder(not_null<Data::Folder*> folder) {
 	}
 	if (activeChatsFilterCurrent() != 0) {
 		setActiveChatsFilter(0);
+	} else if (adaptive().isOneColumn()) {
+		clearSectionStack(SectionShow::Way::ClearStack);
 	}
 	closeForum();
 	_openedFolder = folder.get();
