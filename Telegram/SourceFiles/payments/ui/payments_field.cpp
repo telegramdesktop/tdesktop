@@ -322,7 +322,7 @@ struct SimpleFieldState {
 		QString(),
 		st::paymentsFieldAdditional);
 	const auto leftSkip = state->left
-		? (state->left->naturalWidth() + state->currencySkip)
+		? (state->left->textMaxWidth() + state->currencySkip)
 		: 0;
 	const auto rightSkip = st::paymentsFieldAdditional.style.font->width(
 		QString(QChar(rule.decimal))
