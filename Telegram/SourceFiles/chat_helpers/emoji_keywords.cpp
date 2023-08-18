@@ -672,17 +672,9 @@ std::vector<Result> EmojiKeywords::PrioritizeRecent(
 }
 
 std::vector<Result> EmojiKeywords::ApplyVariants(std::vector<Result> list) {
+	auto &settings = Core::App().settings();
 	for (auto &item : list) {
-		item.emoji = [&] {
-			const auto result = item.emoji;
-			const auto &variants = Core::App().settings().emojiVariants();
-			const auto i = result->hasVariants()
-				? variants.find(result->nonColoredId())
-				: end(variants);
-			return (i != end(variants))
-				? result->variant(i->second)
-				: result;
-		}();
+		item.emoji = settings.lookupEmojiVariant(item.emoji);
 	}
 	return list;
 }

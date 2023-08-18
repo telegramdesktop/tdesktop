@@ -1472,6 +1472,7 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	if (!_savedLocalEditMediaData && edition.savePreviousMedia) {
 		savePreviousMedia();
 	}
+	Assert(!updatingSavedLocalEdit || !isLocalUpdateMedia());
 
 	if (edition.isEditHide) {
 		_flags |= MessageFlag::HideEdited;
@@ -1491,15 +1492,13 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	if (!edition.useSameMarkup) {
 		setReplyMarkup(base::take(edition.replyMarkup));
 	}
-	if (!isLocalUpdateMedia()) {
-		if (updatingSavedLocalEdit) {
-			_savedLocalEditMediaData->media = edition.mtpMedia
-				? CreateMedia(this, *edition.mtpMedia)
-				: nullptr;
-		} else {
-			removeFromSharedMediaIndex();
-			refreshMedia(edition.mtpMedia);
-		}
+	if (updatingSavedLocalEdit) {
+		_savedLocalEditMediaData->media = edition.mtpMedia
+			? CreateMedia(this, *edition.mtpMedia)
+			: nullptr;
+	} else {
+		removeFromSharedMediaIndex();
+		refreshMedia(edition.mtpMedia);
 	}
 	if (!edition.useSameReactions) {
 		updateReactions(edition.mtpReactions);
@@ -1520,9 +1519,7 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 		_savedLocalEditMediaData->text = std::move(updatedText);
 	} else {
 		setText(std::move(updatedText));
-	}
-	if (!isLocalUpdateMedia() && !updatingSavedLocalEdit) {
-		indexAsNewItem();
+		addToSharedMediaIndex();
 	}
 	if (!edition.useSameReplies) {
 		if (!edition.replies.isNull) {
@@ -1633,7 +1630,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	setPostAuthor(data.vpost_author().value_or_empty());
 	setIsPinned(data.is_pinned());
 	contributeToSlowmode(data.vdate().v);
-	indexAsNewItem();
+	addToSharedMediaIndex();
 	invalidateChatListEntry();
 	if (const auto period = data.vttl_period(); period && period->v > 0) {
 		applyTTL(data.vdate().v + period->v);
@@ -1657,7 +1654,7 @@ void HistoryItem::applySentMessage(
 		}, data.vmedia());
 	contributeToSlowmode(data.vdate().v);
 	if (!wasAlready) {
-		indexAsNewItem();
+		addToSharedMediaIndex();
 	}
 	invalidateChatListEntry();
 	if (const auto period = data.vttl_period(); period && period->v > 0) {
@@ -1819,6 +1816,12 @@ Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
 void HistoryItem::indexAsNewItem() {
 	if (isRegular()) {
 		addToUnreadThings(HistoryUnreadThings::AddType::New);
+	}
+	addToSharedMediaIndex();
+}
+
+void HistoryItem::addToSharedMediaIndex() {
+	if (isRegular()) {
 		if (const auto types = sharedMediaTypes()) {
 			_history->session().storage().add(Storage::SharedMediaAddNew(
 				_history->peer->id,

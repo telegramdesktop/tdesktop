@@ -305,7 +305,7 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 				padding.left(),
 				padding.top(),
 				(padding.right()
-					+ right->naturalWidth()
+					+ right->textMaxWidth()
 					+ 2 * st.style.font->spacew),
 				padding.bottom()));
 		rpl::combine(

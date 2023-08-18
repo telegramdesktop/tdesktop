@@ -2818,12 +2818,9 @@ void InnerWidget::resizeEmptyLabel() {
 	if (!_empty) {
 		return;
 	}
-	const auto useWidth = std::min(
-		_empty->naturalWidth(),
-		width() - 2 * st::dialogsEmptySkip);
-	const auto left = (width() - useWidth) / 2;
-	_empty->resizeToWidth(useWidth);
-	_empty->move(left, (st::dialogsEmptyHeight - _empty->height()) / 2);
+	const auto skip = st::dialogsEmptySkip;
+	_empty->resizeToWidth(width() - 2 * skip);
+	_empty->move(skip, (st::dialogsEmptyHeight - _empty->height()) / 2);
 }
 
 void InnerWidget::clearMouseSelection(bool clearSelection) {
