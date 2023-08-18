@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
+#include "api/api_websites.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_input.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_local_passcode.h"
 #include "settings/settings_premium.h" // Settings::ShowPremium.
 #include "settings/settings_privacy_controllers.h"
+#include "settings/settings_websites.h"
 #include "base/timer_rpl.h"
 #include "boxes/edit_privacy_box.h"
 #include "boxes/passcode_box.h"
@@ -592,6 +594,44 @@ void SetupBlockedList(
 	}, blockedPeers->lifetime());
 }
 
+void SetupWebsitesList(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<> updateTrigger,
+		Fn<void(Type)> showOther) {
+	std::move(
+		updateTrigger
+	) | rpl::start_with_next([=] {
+		controller->session().api().websites().reload();
+	}, container->lifetime());
+
+	auto count = controller->session().api().websites().totalValue();
+	auto countText = rpl::duplicate(
+		count
+	) | rpl::filter(rpl::mappers::_1 > 0) | rpl::map([](int count) {
+		return QString::number(count);
+	});
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = wrap->entity();
+
+	AddButtonWithLabel(
+		inner,
+		tr::lng_settings_logged_in(),
+		std::move(countText),
+		st::settingsButton,
+		{ &st::menuIconIpAddress }
+	)->addClickHandler([=] {
+		showOther(Websites::Id());
+	});
+
+	wrap->toggleOn(std::move(count) | rpl::map(rpl::mappers::_1 > 0));
+	wrap->finishAnimating();
+}
+
 void SetupSessionsList(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -603,7 +643,7 @@ void SetupSessionsList(
 		controller->session().api().authorizations().reload();
 	}, container->lifetime());
 
-	auto count = controller->session().api().authorizations().totalChanges(
+	auto count = controller->session().api().authorizations().totalValue(
 	) | rpl::map([](int count) {
 		return count ? QString::number(count) : QString();
 	});
@@ -664,12 +704,17 @@ void SetupSecurity(
 		container,
 		rpl::duplicate(updateTrigger),
 		showOther);
+	SetupLocalPasscode(controller, container, showOther);
 	SetupBlockedList(
 		controller,
 		container,
 		rpl::duplicate(updateTrigger),
 		showOther);
-	SetupLocalPasscode(controller, container, showOther);
+	SetupWebsitesList(
+		controller,
+		container,
+		rpl::duplicate(updateTrigger),
+		showOther);
 	SetupSessionsList(
 		controller,
 		container,

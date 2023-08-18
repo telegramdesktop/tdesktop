@@ -9,15 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
-namespace Ui {
-class VerticalLayout;
-} // namespace Ui
-
 namespace Settings {
 
-class Sessions : public Section<Sessions> {
+class Websites : public Section<Websites> {
 public:
-	Sessions(
+	Websites(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 
@@ -27,11 +23,5 @@ private:
 	void setupContent(not_null<Window::SessionController*> controller);
 
 };
-
-void AddSessionInfoRow(
-	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> label,
-	const QString &value,
-	const style::icon &icon);
 
 } // namespace Settings

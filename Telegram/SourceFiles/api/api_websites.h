@@ -11,20 +11,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Api {
 
-class Authorizations final {
+class Websites final {
 public:
-	explicit Authorizations(not_null<ApiWrap*> api);
+	explicit Websites(not_null<ApiWrap*> api);
 
 	struct Entry {
 		uint64 hash = 0;
 
-		bool incomplete = false;
-		bool callsDisabled = false;
-		int apiId = 0;
+		not_null<UserData*> bot;
 		TimeId activeTime = 0;
-		QString name, active, info, ip, location, system, platform;
+		QString active, platform, domain, browser, ip, location;
 	};
 	using List = std::vector<Entry>;
 
@@ -33,7 +35,8 @@ public:
 	void requestTerminate(
 		Fn<void(const MTPBool &result)> &&done,
 		Fn<void(const MTP::Error &error)> &&fail,
-		std::optional<uint64> hash = std::nullopt);
+		std::optional<uint64> hash = std::nullopt,
+		UserData *botToBlock = nullptr);
 
 	[[nodiscard]] crl::time lastReceivedTime();
 
@@ -42,33 +45,14 @@ public:
 	[[nodiscard]] int total() const;
 	[[nodiscard]] rpl::producer<int> totalValue() const;
 
-	void updateTTL(int days);
-	[[nodiscard]] rpl::producer<int> ttlDays() const;
-
-	void toggleCallsDisabledHere(bool disabled) {
-		toggleCallsDisabled(0, disabled);
-	}
-	void toggleCallsDisabled(uint64 hash, bool disabled);
-	[[nodiscard]] bool callsDisabledHere() const;
-	[[nodiscard]] rpl::producer<bool> callsDisabledHereValue() const;
-	[[nodiscard]] rpl::producer<bool> callsDisabledHereChanges() const;
-
-	[[nodiscard]] static QString ActiveDateString(TimeId active);
-
 private:
-	void refreshCallsDisabledHereFromCloud();
+	not_null<Main::Session*> _session;
 
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 
 	List _list;
 	rpl::event_stream<> _listChanges;
-
-	mtpRequestId _ttlRequestId = 0;
-	rpl::variable<int> _ttlDays = 0;
-
-	base::flat_map<uint64, mtpRequestId> _toggleCallsDisabledRequests;
-	rpl::variable<bool> _callsDisabledHere;
 
 	crl::time _lastReceived = 0;
 	rpl::lifetime _lifetime;

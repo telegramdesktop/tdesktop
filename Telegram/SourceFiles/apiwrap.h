@@ -80,6 +80,7 @@ class Ringtones;
 class Transcribes;
 class Premium;
 class Usernames;
+class Websites;
 
 namespace details {
 
@@ -383,6 +384,7 @@ public:
 	[[nodiscard]] Api::Transcribes &transcribes();
 	[[nodiscard]] Api::Premium &premium();
 	[[nodiscard]] Api::Usernames &usernames();
+	[[nodiscard]] Api::Websites &websites();
 
 	void updatePrivacyLastSeens();
 
@@ -693,6 +695,7 @@ private:
 	const std::unique_ptr<Api::Transcribes> _transcribes;
 	const std::unique_ptr<Api::Premium> _premium;
 	const std::unique_ptr<Api::Usernames> _usernames;
+	const std::unique_ptr<Api::Websites> _websites;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

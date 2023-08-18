@@ -646,13 +646,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 "lng_settings_security_bots" = "Bots and websites";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
-"lng_settings_logged_in" = "Logged In with Telegram";
-"lng_settings_logged_in_about" = "Websites where you've used Telegram to log in.";
-"lng_settings_logged_in_title" = "Logged In with Telegram";
+"lng_settings_logged_in" = "Connected websites";
+"lng_settings_logged_in_title" = "Logged in with Telegram";
 "lng_settings_logged_in_description" = "You can log in on websites that support signing in with Telegram.";
-"lng_settings_disconnect_all" = "Disconnect All Websites";
+"lng_settings_disconnect_all" = "Disconnect all websites";
+"lng_settings_disconnect_title" = "Disconnect website";
+"lng_settings_disconnect_sure" = "Are you sure you want to disconnect {domain}?";
+"lng_settings_disconnect_block" = "Block {name}";
+"lng_settings_disconnect_all_title" = "Disconnect websites";
+"lng_settings_disconnect_all_sure" = "Are you sure you want to disconnect all websites where you logged in with Telegram?";
+"lng_settings_disconnect" = "Disconnect";
 "lng_settings_connected_title" = "Connected websites";
-"lng_settings_connected_about" = "Click to disconnect from your Telegram account.";
 
 "lng_settings_power_menu" = "Battery and Animations";
 "lng_settings_power_title" = "Power Usage";
@@ -962,6 +966,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sessions_terminate" = "Terminate Session";
 "lng_sessions_application" = "Application";
 "lng_sessions_system" = "System version";
+"lng_sessions_browser" = "Browser";
 "lng_sessions_ip" = "IP address";
 "lng_sessions_location" = "Location";
 "lng_sessions_location_about" = "This location is based only on the IP address and may not always be accurate.";

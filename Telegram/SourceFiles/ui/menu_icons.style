@@ -135,6 +135,8 @@ menuIconAntispam: icon {{ "menu/antispam", menuIconColor }};
 menuIconChatDiscuss: icon {{ "menu/chat_discuss", menuIconColor }};
 menuIconBotCommands: icon {{ "menu/bot_commands", menuIconColor }};
 menuIconPremium: icon {{ "menu/premium", menuIconColor }};
+menuIconIpAddress: icon {{ "menu/ip_address", menuIconColor }};
+menuIconAddress: icon {{ "menu/payment_address", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
