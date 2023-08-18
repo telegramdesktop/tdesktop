@@ -517,7 +517,8 @@ void EditCaptionBox::setInitialText() {
 	_field->setTextCursor(cursor);
 
 	_checkChangedTimer.setCallback([=] {
-		if (_field->getTextWithAppliedMarkdown() == _initialText) {
+		if (_field->getTextWithAppliedMarkdown() == _initialText
+			&& _preparedList.files.empty()) {
 			setCloseByOutsideClick(true);
 		}
 	});
@@ -738,6 +739,7 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 	const auto wasSpoiler = hasSpoiler();
 	_preparedList = std::move(list);
 	_preparedList.files.front().spoiler = wasSpoiler;
+	setCloseByOutsideClick(false);
 	rebuildPreview();
 	return true;
 }
