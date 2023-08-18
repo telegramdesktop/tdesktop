@@ -1893,6 +1893,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 		_y = content.y();
 		_w = content.width();
 		_h = content.height();
+		_zoom = 0;
 		updateNavigationControlsGeometry();
 		return;
 	}
@@ -2054,6 +2055,9 @@ void OverlayWidget::zoomOut() {
 }
 
 void OverlayWidget::zoomReset() {
+	if (_stories) {
+		return;
+	}
 	auto newZoom = _zoom;
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	if (_zoom == 0) {
@@ -4371,7 +4375,9 @@ int OverlayWidget::storiesTopNotchSkip() {
 void OverlayWidget::playbackToggleFullScreen() {
 	Expects(_streamed != nullptr);
 
-	if (!videoShown() || (!_streamed->controls && !_fullScreenVideo)) {
+	if (_stories
+		|| !videoShown()
+		|| (!_streamed->controls && !_fullScreenVideo)) {
 		return;
 	}
 	_fullScreenVideo = !_fullScreenVideo;
@@ -5166,7 +5172,7 @@ void OverlayWidget::handleWheelEvent(not_null<QWheelEvent*> e) {
 }
 
 void OverlayWidget::setZoomLevel(int newZoom, bool force) {
-	if (!force && _zoom == newZoom) {
+	if (_stories || (!force && _zoom == newZoom)) {
 		return;
 	}
 

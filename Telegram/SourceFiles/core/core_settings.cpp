@@ -1076,8 +1076,37 @@ void Settings::setLegacyRecentEmojiPreload(
 	}
 }
 
+EmojiPtr Settings::lookupEmojiVariant(EmojiPtr emoji) const {
+	if (emoji->hasVariants()) {
+		const auto i = _emojiVariants.find(emoji->nonColoredId());
+		if (i != end(_emojiVariants)) {
+			return emoji->variant(i->second);
+		}
+		const auto j = _emojiVariants.find(QString());
+		if (j != end(_emojiVariants)) {
+			return emoji->variant(j->second);
+		}
+	}
+	return emoji;
+}
+
+bool Settings::hasChosenEmojiVariant(EmojiPtr emoji) const {
+	return _emojiVariants.contains(QString())
+		|| _emojiVariants.contains(emoji->nonColoredId());
+}
+
 void Settings::saveEmojiVariant(EmojiPtr emoji) {
+	Expects(emoji->hasVariants());
+
 	_emojiVariants[emoji->nonColoredId()] = emoji->variantIndex(emoji);
+	_saveDelayed.fire({});
+}
+
+void Settings::saveAllEmojiVariants(EmojiPtr emoji) {
+	Expects(emoji->hasVariants());
+
+	_emojiVariants.clear();
+	_emojiVariants[QString()] = emoji->variantIndex(emoji);
 	_saveDelayed.fire({});
 }
 

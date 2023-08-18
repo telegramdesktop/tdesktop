@@ -94,6 +94,7 @@ public:
 		bool enabled,
 		Fn<void(ChosenImage)> chosen);
 	void showSavedMessagesOnSelf(bool enabled);
+	void forceForumShape(bool force);
 
 	// Role::ChoosePhoto or Role::ChangePhoto
 	[[nodiscard]] rpl::producer<ChosenImage> chosenImages() const {

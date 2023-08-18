@@ -38,9 +38,9 @@ public:
 	[[nodiscard]] crl::time lastReceivedTime();
 
 	[[nodiscard]] List list() const;
-	[[nodiscard]] rpl::producer<List> listChanges() const;
+	[[nodiscard]] rpl::producer<List> listValue() const;
 	[[nodiscard]] int total() const;
-	[[nodiscard]] rpl::producer<int> totalChanges() const;
+	[[nodiscard]] rpl::producer<int> totalValue() const;
 
 	void updateTTL(int days);
 	[[nodiscard]] rpl::producer<int> ttlDays() const;
@@ -52,6 +52,8 @@ public:
 	[[nodiscard]] bool callsDisabledHere() const;
 	[[nodiscard]] rpl::producer<bool> callsDisabledHereValue() const;
 	[[nodiscard]] rpl::producer<bool> callsDisabledHereChanges() const;
+
+	[[nodiscard]] static QString ActiveDateString(TimeId active);
 
 private:
 	void refreshCallsDisabledHereFromCloud();

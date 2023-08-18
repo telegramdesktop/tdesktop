@@ -671,7 +671,14 @@ void List::validateName(not_null<Item*> item) {
 	const auto &full = _st.full;
 	const auto &font = full.nameStyle.font;
 	const auto available = AvailableNameWidth(_st);
-	const auto text = Ui::Text::String(full.nameStyle, element.name);
+	const auto my = element.skipSmall
+		? tr::lng_stories_my_name(tr::now)
+		: QString();
+	const auto use = (my.isEmpty()
+		|| full.nameStyle.font->width(my) > available)
+		? element.name
+		: my;
+	const auto text = Ui::Text::String(full.nameStyle, use);
 	const auto ratio = style::DevicePixelRatio();
 	item->nameCacheColor = color->c;
 	item->nameCache = QImage(

@@ -403,7 +403,7 @@ not_null<Ui::RpWidget*> AddInnerToggle(
 			(s.height() - label->height()) / 2);
 		arrow->moveToLeft(
 			std::min(
-				labelLeft + label->naturalWidth(),
+				labelLeft + label->textMaxWidth(),
 				labelRight - arrow->width()),
 			(s.height() - arrow->height()) / 2);
 	}, button->lifetime());
