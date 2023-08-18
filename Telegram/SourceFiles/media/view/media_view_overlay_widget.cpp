@@ -2055,7 +2055,7 @@ void OverlayWidget::zoomOut() {
 }
 
 void OverlayWidget::zoomReset() {
-	if (_stories) {
+	if (_stories || _fullScreenVideo) {
 		return;
 	}
 	auto newZoom = _zoom;
@@ -5179,7 +5179,9 @@ void OverlayWidget::handleWheelEvent(not_null<QWheelEvent*> e) {
 }
 
 void OverlayWidget::setZoomLevel(int newZoom, bool force) {
-	if (_stories || (!force && _zoom == newZoom)) {
+	if (_stories
+		|| (!force && _zoom == newZoom)
+		|| (_fullScreenVideo && newZoom != kZoomToScreenLevel)) {
 		return;
 	}
 
