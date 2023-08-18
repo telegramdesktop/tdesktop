@@ -325,7 +325,7 @@ void SetupSections(
 	addSection(
 		rktr("etg_settings_extera"),
 		Extera::Id(),
-		{ &st::settingsIconExtera, kIconRed });
+		{ &st::menuIconExtera });
 	if (controller->session().supportMode()) {
 		SetupSupport(controller, container);
 

@@ -74,7 +74,6 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButtonNoIcon) {
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 8px, 22px, 16px);
 
-settingsIconExtera: icon {{ "settings/extera", settingsIconFg }};
 settingsIconChat: icon {{ "settings/chat", settingsIconFg }};
 settingsIconInterfaceScale: icon {{ "settings/interface_scale", settingsIconFg }};
 settingsIconStickers: icon {{ "settings/stickers", settingsIconFg }};
