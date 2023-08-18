@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 
 #include <QtCore/QAbstractEventDispatcher>
+#include <qpa/qwindowsysteminterface.h>
 
 #include <glibmm.h>
 #include <gio/gio.hpp>
@@ -212,6 +213,9 @@ LinuxIntegration::LinuxIntegration()
 	const Glib::VariantBase &value) {
 	if (group == "org.freedesktop.appearance"
 		&& key == "color-scheme") {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+		QWindowSystemInterface::handleThemeChange();
+#else // Qt >= 6.5.0
 		try {
 			const auto ivalue = value.get_dynamic<uint>();
 
@@ -220,6 +224,7 @@ LinuxIntegration::LinuxIntegration()
 			});
 		} catch (...) {
 		}
+#endif // Qt < 6.5.0
 	}
 }) {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
