@@ -35,6 +35,7 @@
 	"etg_pinned_message_show": "Mostrar mensagem fixada",
 	"etg_pinned_message_hide": "Ocultar mensagem fixada",
 	"etg_settings_general": "Geral",
+	"etg_settings_appearance": "Aparência",
 	"etg_settings_chats": "Chats",
 	"etg_settings_sticker_height": "Altura do sticker: {pixels}px",
 	"etg_settings_sticker_scale_both": "Aplicar à largura do adesivo",

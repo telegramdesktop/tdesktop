@@ -35,6 +35,7 @@
 	"etg_pinned_message_show": "Показать закреплённое сообщение",
 	"etg_pinned_message_hide": "Скрыть закреплённое сообщение",
 	"etg_settings_general": "Основные",
+	"etg_settings_appearance": "Оформление",
 	"etg_settings_chats": "Чаты",
 	"etg_settings_sticker_height": "Высота стикеров: {pixels} пикс.",
 	"etg_settings_sticker_scale_both": "Применять к ширине стикера",

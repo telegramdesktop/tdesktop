@@ -34,6 +34,7 @@
 	"etg_pinned_message_show": "Show pinned message",
 	"etg_pinned_message_hide": "Hide pinned message",
 	"etg_settings_general": "General",
+	"etg_settings_appearance": "Appearance",
 	"etg_settings_chats": "Chats",
 	"etg_settings_sticker_height": "Sticker height: {pixels}px",
 	"etg_settings_sticker_scale_both": "Apply to sticker width",

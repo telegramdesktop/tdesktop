@@ -35,6 +35,7 @@
 	"etg_pinned_message_show": "הצג את ההודעה הנעוצה",
 	"etg_pinned_message_hide": "הסתר את ההודעה הנעוצה",
 	"etg_settings_general": "כללי",
+	"etg_settings_appearance": "מראה",
 	"etg_settings_chats": "צ'אטים",
 	"etg_settings_sticker_height": "גובה המדבקות: {pixels}פיקסלים",
 	"etg_settings_sticker_scale_both": "החל על רוחב המדבקה",

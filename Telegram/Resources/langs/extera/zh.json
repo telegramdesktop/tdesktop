@@ -35,6 +35,7 @@
 	"etg_pinned_message_show": "显示已置顶消息",
 	"etg_pinned_message_hide": "隐藏已置顶消息",
 	"etg_settings_general": "常规",
+	"etg_settings_appearance": "外观",
 	"etg_settings_chats": "对话",
 	"etg_settings_sticker_height": "贴纸高度: {pixels}px",
 	"etg_settings_sticker_scale_both": "应用于贴纸宽度",
