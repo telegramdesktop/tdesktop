@@ -34,6 +34,7 @@ public:
 	void clear();
 
 	[[nodiscard]] float64 progress(not_null<const HistoryItem*> item) const;
+	[[nodiscard]] MsgId latestSingleHighlightedMsgId() const;
 
 private:
 	void checkNextHighlight();
@@ -47,10 +48,12 @@ private:
 		[[nodiscard]] float64 progress() const;
 		void start();
 		void cancel();
+
 	private:
 		ElementHighlighter &_parent;
 		Ui::Animations::Simple _simple;
 		std::optional<base::Timer> _timer;
+
 	};
 
 	const not_null<Data::Session*> _data;
@@ -58,9 +61,11 @@ private:
 	const RepaintView _repaintView;
 
 	FullMsgId _highlightedMessageId;
+	FullMsgId _lastHighlightedMessageId;
 	std::deque<FullMsgId> _queue;
 
 	AnimationManager _animation;
+
 };
 
 } // namespace HistoryView

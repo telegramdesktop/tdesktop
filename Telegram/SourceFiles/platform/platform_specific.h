@@ -46,13 +46,13 @@ bool TrayIconSupported();
 bool SkipTaskbarSupported();
 void WriteCrashDumpDetails();
 void NewVersionLaunched(int oldVersion);
-
+[[nodiscard]] QImage DefaultApplicationIcon();
 [[nodiscard]] bool PreventsQuit(Core::QuitReason reason);
+[[nodiscard]] QString ExecutablePathForShortcuts();
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 [[nodiscard]] std::optional<bool> IsDarkMode();
-[[nodiscard]] inline bool IsDarkModeSupported() {
-	return IsDarkMode().has_value();
-}
+#endif // Qt < 6.5.0
 
 namespace ThirdParty {
 

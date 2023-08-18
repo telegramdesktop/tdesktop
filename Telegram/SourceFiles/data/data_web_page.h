@@ -31,9 +31,11 @@ enum class WebPageType {
 	User,
 	Bot,
 	Profile,
+	BotApp,
 
 	WallPaper,
 	Theme,
+	Story,
 
 	Article,
 	ArticleWithIV,
@@ -69,6 +71,7 @@ struct WebPageData {
 		const QString &newSiteName,
 		const QString &newTitle,
 		const TextWithEntities &newDescription,
+		FullStoryId newStoryId,
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
 		WebPageCollage &&newCollage,
@@ -88,6 +91,7 @@ struct WebPageData {
 	QString siteName;
 	QString title;
 	TextWithEntities description;
+	FullStoryId storyId;
 	int duration = 0;
 	QString author;
 	PhotoData *photo = nullptr;

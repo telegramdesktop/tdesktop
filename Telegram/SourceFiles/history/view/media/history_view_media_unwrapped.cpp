@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_media_unwrapped.h"
 
+#include "data/data_session.h"
+#include "history/history.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_element.h"
@@ -460,8 +462,18 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 					recth -= skip;
 				}
 				if (reply) {
-					if (QRect(rectx, recty, rectw, recth).contains(point)) {
+					const auto replyRect = QRect(rectx, recty, rectw, recth);
+					if (replyRect.contains(point)) {
 						result.link = reply->replyToLink();
+						reply->ripple.lastPoint = point - replyRect.topLeft();
+						if (!reply->ripple.animation) {
+							reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
+								st::defaultRippleAnimation,
+								Ui::RippleAnimation::RoundRectMask(
+									replyRect.size(),
+									st::roundRadiusSmall),
+								[=] { item->history()->owner().requestItemRepaint(item); });
+						}
 						return result;
 					}
 				}
@@ -505,6 +517,12 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 
 bool UnwrappedMedia::hasTextForCopy() const {
 	return _content->hasTextForCopy();
+}
+
+bool UnwrappedMedia::dragItemByHandler(
+		const ClickHandlerPtr &p) const {
+	const auto reply = _parent->displayedReply();
+	return !(reply && (reply->replyToLink() == p));
 }
 
 QRect UnwrappedMedia::contentRectForReactions() const {

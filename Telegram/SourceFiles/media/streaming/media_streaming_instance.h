@@ -60,7 +60,7 @@ public:
 	[[nodiscard]] bool paused() const;
 
 	[[nodiscard]] float64 speed() const;
-	void setSpeed(float64 speed); // 0.5 <= speed <= 2.
+	void setSpeed(float64 speed);
 
 	[[nodiscard]] bool waitingShown() const;
 	[[nodiscard]] float64 waitingOpacity() const;

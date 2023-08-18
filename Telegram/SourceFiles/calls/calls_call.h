@@ -126,6 +126,7 @@ public:
 		WaitingIncoming,
 		Ringing,
 		Busy,
+		WaitingUserConfirmation,
 	};
 	[[nodiscard]] State state() const {
 		return _state.current();
@@ -179,6 +180,7 @@ public:
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
 
+	void applyUserConfirmation();
 	void answer();
 	void hangup();
 	void redial();

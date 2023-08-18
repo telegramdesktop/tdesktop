@@ -14,16 +14,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 
 namespace Ui {
-class SettingsSlider;
 class VerticalLayout;
 class SearchFieldController;
 } // namespace Ui
 
 namespace Info {
-
 class Controller;
+} // namespace Info
 
-namespace Media {
+namespace Info::Media {
 
 class Memento;
 class ListWidget;
@@ -86,5 +85,4 @@ private:
 
 };
 
-} // namespace Media
-} // namespace Info
+} // namespace Info::Media

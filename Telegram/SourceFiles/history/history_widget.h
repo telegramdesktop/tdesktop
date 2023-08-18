@@ -31,6 +31,7 @@ class Error;
 
 namespace Data {
 enum class PreviewState : char;
+class PhotoMedia;
 } // namespace Data
 
 namespace SendMenu {
@@ -145,6 +146,7 @@ public:
 	void firstLoadMessages();
 	void delayedShowAt(MsgId showAtMsgId);
 
+	bool updateReplaceMediaButton();
 	void updateFieldPlaceholder();
 	bool updateStickersByEmoji();
 
@@ -224,7 +226,9 @@ public:
 	void clearDelayedShowAtRequest();
 	void clearDelayedShowAt();
 
-	void toggleChooseChatTheme(not_null<PeerData*> peer);
+	void toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show = std::nullopt);
 	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
 
 	void applyCloudDraft(History *history);
@@ -275,6 +279,8 @@ public:
 	QRect floatPlayerAvailableRect() override;
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
+
+	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
 	~HistoryWidget();
 
@@ -376,6 +382,7 @@ private:
 	void sendSilent();
 	void sendScheduled();
 	void sendAutoDelete();
+	void sendWhenOnline();
 	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
 	void handlePendingHistoryUpdate();
 	void fullInfoUpdated();
@@ -635,6 +642,8 @@ private:
 	HistoryItem *_processingReplyItem = nullptr;
 
 	MsgId _editMsgId = 0;
+	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
+	bool _canReplaceMedia = false;
 
 	HistoryItem *_replyEditMsg = nullptr;
 	Ui::Text::String _replyEditMsgText;
@@ -733,6 +742,7 @@ private:
 	object_ptr<Ui::RoundButton> _botMenuButton = { nullptr };
 	QString _botMenuButtonText;
 	object_ptr<Ui::IconButton> _attachToggle;
+	object_ptr<Ui::IconButton> _replaceMedia = { nullptr };
 	object_ptr<Ui::SendAsButton> _sendAs = { nullptr };
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
@@ -747,7 +757,9 @@ private:
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
 	base::unique_qptr<Ui::RpWidget> _fieldDisabled;
+	Ui::Animations::Simple _inPhotoEditOver;
 	bool _inReplyEditForward = false;
+	bool _inPhotoEdit = false;
 	bool _inClickable = false;
 
 	bool _kbShown = false;
@@ -793,6 +805,8 @@ private:
 		not_null<HistoryItem*>,
 		ItemRevealAnimation> _itemRevealAnimations;
 	int _itemsRevealHeight = 0;
+
+	bool _sponsoredMessagesStateKnown = false;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;

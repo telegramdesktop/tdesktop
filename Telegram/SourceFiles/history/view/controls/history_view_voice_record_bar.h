@@ -11,9 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "ui/effects/animations.h"
+#include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 
 struct VoiceData;
+
+namespace style {
+struct RecordBar;
+} // namespace style
 
 namespace Ui {
 class SendButton;
@@ -23,12 +28,26 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace HistoryView::Controls {
 
 class VoiceRecordButton;
 class ListenWrap;
 class RecordLock;
 class CancelButton;
+
+struct VoiceRecordBarDescriptor {
+	not_null<Ui::RpWidget*> outerContainer;
+	std::shared_ptr<ChatHelpers::Show> show;
+	std::shared_ptr<Ui::SendButton> send;
+	QString customCancelText;
+	const style::RecordBar *stOverride = nullptr;
+	int recorderHeight = 0;
+	bool lockFromBottom = false;
+};
 
 class VoiceRecordBar final : public Ui::RpWidget {
 public:
@@ -37,13 +56,10 @@ public:
 
 	VoiceRecordBar(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Ui::RpWidget*> sectionWidget,
-		not_null<Window::SessionController*> controller,
-		std::shared_ptr<Ui::SendButton> send,
-		int recorderHeight);
+		VoiceRecordBarDescriptor &&descriptor);
 	VoiceRecordBar(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Ui::SendButton> send,
 		int recorderHeight);
 	~VoiceRecordBar();
@@ -71,11 +87,10 @@ public:
 
 	void requestToSendWithOptions(Api::SendOptions options);
 
-	void setLockBottom(rpl::producer<int> &&bottom);
-	void setSendButtonGeometryValue(rpl::producer<QRect> &&geometry);
 	void setStartRecordingFilter(Fn<bool()> &&callback);
 
 	[[nodiscard]] bool isRecording() const;
+	[[nodiscard]] bool isRecordingLocked() const;
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isListenState() const;
 	[[nodiscard]] bool isActive() const;
@@ -89,6 +104,8 @@ private:
 	};
 
 	void init();
+	void initLockGeometry();
+	void initLevelGeometry();
 
 	void updateMessageGeometry();
 	void updateLockGeometry();
@@ -121,8 +138,9 @@ private:
 
 	void computeAndSetLockProgress(QPoint globalPos);
 
-	const not_null<Ui::RpWidget*> _sectionWidget;
-	const not_null<Window::SessionController*> _controller;
+	const style::RecordBar &_st;
+	const not_null<Ui::RpWidget*> _outerContainer;
+	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
 	const std::unique_ptr<VoiceRecordButton> _level;
@@ -155,11 +173,13 @@ private:
 
 	rpl::event_stream<> _recordingTipRequests;
 	bool _recordingTipRequired = false;
+	bool _lockFromBottom = false;
 
 	const style::font &_cancelFont;
 
 	rpl::lifetime _recordingLifetime;
 
+	std::optional<Ui::RoundRect> _backgroundRect;
 	Ui::Animations::Simple _showLockAnimation;
 	Ui::Animations::Simple _lockToStopAnimation;
 	Ui::Animations::Simple _showListenAnimation;

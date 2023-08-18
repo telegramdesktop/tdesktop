@@ -244,6 +244,12 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 		return Dialogs::RowDescriptor(
 			peer->owner().history(peer),
 			FullMsgId());
+	} else if (const auto storiesPeer = key().storiesPeer()) {
+		return (key().storiesTab() == Stories::Tab::Saved)
+			? Dialogs::RowDescriptor(
+				storiesPeer->owner().history(storiesPeer),
+				FullMsgId())
+			: Dialogs::RowDescriptor();
 	} else if (key().settingsSelf() || key().isDownloads() || key().poll()) {
 		return Dialogs::RowDescriptor();
 	}
@@ -297,6 +303,11 @@ void WrapWidget::createTopBar() {
 			_controller->parentController()->closeThirdSection();
 		});
 	}
+	_topBar->storyClicks() | rpl::start_with_next([=] {
+		if (const auto peer = _controller->key().peer()) {
+			_controller->parentController()->openPeerStories(peer->id);
+		}
+	}, _topBar->lifetime());
 	if (wrapValue == Wrap::Layer) {
 		auto close = _topBar->addButton(
 			base::make_unique_q<Ui::IconButton>(
@@ -573,6 +584,9 @@ void WrapWidget::finishShowContent() {
 	_content->setIsStackBottom(!hasStackHistory());
 	if (_topBar) {
 		_topBar->setTitle(_content->title());
+		_topBar->setStories(_content->titleStories());
+		_topBar->setStoriesArchive(
+			_controller->key().storiesTab() == Stories::Tab::Archive);
 	}
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
@@ -759,9 +773,9 @@ bool WrapWidget::returnToFirstStackFrame(
 void WrapWidget::showNewContent(
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params) {
-	auto saveToStack = (_content != nullptr)
+	const auto saveToStack = (_content != nullptr)
 		&& (params.way == Window::SectionShow::Way::Forward);
-	auto needAnimation = (_content != nullptr)
+	const auto needAnimation = (_content != nullptr)
 		&& (params.animated != anim::type::instant);
 	auto animationParams = SectionSlideParams();
 	auto newController = createController(
@@ -771,8 +785,12 @@ void WrapWidget::showNewContent(
 		newController->takeStepData(_controller.get());
 	}
 	auto newContent = object_ptr<ContentWidget>(nullptr);
-	if (needAnimation) {
+	const auto enableBackButton = hasBackButton();
+	const auto createInAdvance = needAnimation || enableBackButton;
+	if (createInAdvance) {
 		newContent = createContent(memento, newController.get());
+	}
+	if (needAnimation) {
 		animationParams.withTopBarShadow = hasTopBarShadow()
 			&& newContent->hasTopBarShadow();
 		animationParams.oldContentCache = grabForShowAnimation(
@@ -783,7 +801,6 @@ void WrapWidget::showNewContent(
 
 		if (HasCustomTopBar(_controller.get())
 			|| HasCustomTopBar(newController.get())) {
-
 			const auto s = QSize(
 				newContent->width(),
 				animationParams.topSkip);
@@ -803,11 +820,10 @@ void WrapWidget::showNewContent(
 		_historyStack.clear();
 	}
 
-	{
-		if (hasBackButton()) {
-			newContent->enableBackButton();
-		}
+	if (enableBackButton) {
+		newContent->enableBackButton();
 	}
+
 	{
 		// Let old controller outlive old content widget.
 		const auto oldController = std::exchange(

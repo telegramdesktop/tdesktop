@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "data/data_session.h"
 #include "data/data_wall_paper.h"
 #include "data/data_media_types.h"
@@ -167,6 +168,7 @@ QSize WebPage::countOptimalSize() {
 		&& _data->photo
 		&& _data->type != WebPageType::Photo
 		&& _data->type != WebPageType::Document
+		&& _data->type != WebPageType::Story
 		&& _data->type != WebPageType::Video) {
 		if (_data->type == WebPageType::Profile) {
 			_asArticle = true;
@@ -578,7 +580,8 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			.availableWidth = paintw,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = toDescriptionSelection(context.selection),
 			.elisionLines = std::max(_descriptionLines, 0),
 			.elisionRemoveFromEnd = (_descriptionLines > 0) ? endskip : 0,

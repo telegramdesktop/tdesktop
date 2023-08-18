@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "chat_helpers/compose/compose_features.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_animation_common.h"
@@ -34,11 +35,6 @@ class BoxContent;
 class TabbedSearch;
 } // namespace Ui
 
-namespace Window {
-class SessionController;
-enum class GifPauseReason;
-} // namespace Window
-
 namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
@@ -49,9 +45,11 @@ struct EmojiPan;
 
 namespace ChatHelpers {
 
+class Show;
 class EmojiListWidget;
 class StickersListWidget;
 class GifsListWidget;
+enum class PauseReason;
 
 enum class SelectorTab {
 	Emoji,
@@ -78,6 +76,21 @@ struct EmojiChosen {
 
 using InlineChosen = InlineBots::ResultSelected;
 
+enum class TabbedSelectorMode {
+	Full,
+	EmojiOnly,
+	MediaEditor,
+	EmojiStatus,
+};
+
+struct TabbedSelectorDescriptor {
+	std::shared_ptr<Show> show;
+	const style::EmojiPan &st;
+	PauseReason level = {};
+	TabbedSelectorMode mode = TabbedSelectorMode::Full;
+	ComposeFeatures features;
+};
+
 [[nodiscard]] std::unique_ptr<Ui::TabbedSearch> MakeSearch(
 	not_null<Ui::RpWidget*> parent,
 	const style::EmojiPan &st,
@@ -89,12 +102,7 @@ using InlineChosen = InlineBots::ResultSelected;
 class TabbedSelector : public Ui::RpWidget {
 public:
 	static constexpr auto kPickCustomTimeId = -1;
-	enum class Mode {
-		Full,
-		EmojiOnly,
-		MediaEditor,
-		EmojiStatus,
-	};
+	using Mode = TabbedSelectorMode;
 	enum class Action {
 		Update,
 		Cancel,
@@ -102,31 +110,36 @@ public:
 
 	TabbedSelector(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level,
+		std::shared_ptr<Show> show,
+		PauseReason level,
 		Mode mode = Mode::Full);
+	TabbedSelector(
+		QWidget *parent,
+		TabbedSelectorDescriptor &&descriptor);
 	~TabbedSelector();
 
-	Main::Session &session() const;
-	Window::GifPauseReason level() const;
+	[[nodiscard]] const style::EmojiPan &st() const;
+	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] PauseReason level() const;
 
-	rpl::producer<EmojiChosen> emojiChosen() const;
-	rpl::producer<FileChosen> customEmojiChosen() const;
-	rpl::producer<FileChosen> fileChosen() const;
-	rpl::producer<PhotoChosen> photoChosen() const;
-	rpl::producer<InlineChosen> inlineResultChosen() const;
+	[[nodiscard]] rpl::producer<EmojiChosen> emojiChosen() const;
+	[[nodiscard]] rpl::producer<FileChosen> customEmojiChosen() const;
+	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
+	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
+	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 
-	rpl::producer<> cancelled() const;
-	rpl::producer<> checkForHide() const;
-	rpl::producer<> slideFinished() const;
-	rpl::producer<> contextMenuRequested() const;
-	rpl::producer<Action> choosingStickerUpdated() const;
+	[[nodiscard]] rpl::producer<> cancelled() const;
+	[[nodiscard]] rpl::producer<> checkForHide() const;
+	[[nodiscard]] rpl::producer<> slideFinished() const;
+	[[nodiscard]] rpl::producer<> contextMenuRequested() const;
+	[[nodiscard]] rpl::producer<Action> choosingStickerUpdated() const;
 
 	void setAllowEmojiWithoutPremium(bool allow);
 	void setRoundRadius(int radius);
 	void refreshStickers();
 	void setCurrentPeer(PeerData *peer);
-	void provideRecentEmoji(const std::vector<DocumentId> &customRecentList);
+	void provideRecentEmoji(
+		const std::vector<DocumentId> &customRecentList);
 
 	void hideFinished();
 	void showStarted();
@@ -256,8 +269,9 @@ private:
 	not_null<StickersListWidget*> masks() const;
 
 	const style::EmojiPan &_st;
-	const not_null<Window::SessionController*> _controller;
-	const Window::GifPauseReason _level = {};
+	const ComposeFeatures _features;
+	const std::shared_ptr<Show> _show;
+	const PauseReason _level = {};
 
 	Mode _mode = Mode::Full;
 	int _roundRadius = 0;
@@ -299,12 +313,12 @@ class TabbedSelector::Inner : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level);
+		std::shared_ptr<Show> show,
+		PauseReason level);
 	Inner(
 		QWidget *parent,
 		const style::EmojiPan &st,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Show> show,
 		Fn<bool()> paused);
 
 	[[nodiscard]] Main::Session &session() const {
@@ -374,7 +388,7 @@ protected:
 	void scrollTo(int y);
 	void disableScroll(bool disabled);
 
-	void checkHideWithBox(QPointer<Ui::BoxContent> box);
+	void checkHideWithBox(object_ptr<Ui::BoxContent> box);
 
 	void paintEmptySearchResults(
 		Painter &p,
@@ -383,6 +397,7 @@ protected:
 
 private:
 	const style::EmojiPan &_st;
+	const std::shared_ptr<Show> _show;
 	const not_null<Main::Session*> _session;
 	const Fn<bool()> _paused;
 

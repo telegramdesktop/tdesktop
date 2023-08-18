@@ -21,6 +21,7 @@ public:
 		uint64 hash = 0;
 
 		bool incomplete = false;
+		bool callsDisabled = false;
 		int apiId = 0;
 		TimeId activeTime = 0;
 		QString name, active, info, ip, location, system, platform;
@@ -53,6 +54,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> callsDisabledHereChanges() const;
 
 private:
+	void refreshCallsDisabledHereFromCloud();
+
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 

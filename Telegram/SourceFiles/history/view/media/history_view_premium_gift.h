@@ -26,13 +26,18 @@ public:
 	int top() override;
 	QSize size() override;
 	QString title() override;
-	QString subtitle() override;
+	TextWithEntities subtitle() override;
 	QString button() override;
+	int buttonSkip() override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,
 		const QRect &geometry) override;
 	ClickHandlerPtr createViewLink() override;
+
+	bool hideServiceText() override {
+		return false;
+	}
 
 	void stickerClearLoopPlayed() override;
 	std::unique_ptr<StickerPlayer> stickerTakePlayer(

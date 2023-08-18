@@ -10,10 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/event_stream.h>
 #include "window/section_widget.h"
 
-namespace Ui {
-class SettingsSlider;
-} // namespace Ui
-
 namespace Window {
 class ConnectionState;
 } // namespace Window

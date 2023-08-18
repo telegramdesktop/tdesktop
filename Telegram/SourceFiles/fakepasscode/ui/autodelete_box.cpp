@@ -237,6 +237,7 @@ static void MakeAutoDeleteBox(
         [=] { return SendMenu::Type::SilentOnly; },
         [=] { save({ .silent = true, .ptgAutoDelete = descriptor.collect() }); },
         nullptr,
+        nullptr,
         nullptr);
 }
 

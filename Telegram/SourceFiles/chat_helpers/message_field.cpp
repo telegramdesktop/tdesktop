@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -35,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QMimeData>
@@ -124,8 +126,7 @@ QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
 
 void EditLinkBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		const QString &startText,
 		const QString &startLink,
 		Fn<void(QString, QString)> callback,
@@ -148,8 +149,8 @@ void EditLinkBox(
 	Ui::Emoji::SuggestionsController::Init(
 		box->getDelegate()->outerContainer(),
 		text,
-		session);
-	InitSpellchecker(std::move(show), session, text, fieldStyle != nullptr);
+		&show->session());
+	InitSpellchecker(show, text, fieldStyle != nullptr);
 
 	const auto placeholder = content->add(
 		object_ptr<Ui::RpWidget>(content),
@@ -283,8 +284,7 @@ Fn<bool(
 	QString text,
 	QString link,
 	EditLinkAction action)> DefaultEditLinkCallback(
-		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		const style::InputField *fieldStyle) {
 	const auto weak = Ui::MakeWeak(field);
@@ -302,29 +302,29 @@ Fn<bool(
 				strong->commitMarkdownLinkEdit(selection, text, link);
 			}
 		};
-		show->showBox(
-			Box(
-				EditLinkBox,
-				show,
-				session,
-				text,
-				link,
-				std::move(callback),
-				fieldStyle),
-			Ui::LayerOption::KeepOther);
+		show->showBox(Box(
+			EditLinkBox,
+			show,
+			text,
+			link,
+			std::move(callback),
+			fieldStyle));
 		return true;
 	};
 }
 
 void InitMessageFieldHandlers(
 		not_null<Main::Session*> session,
-		std::shared_ptr<Ui::Show> show,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		Fn<bool()> customEmojiPaused,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji,
 		const style::InputField *fieldStyle) {
 	field->setTagMimeProcessor(
 		FieldTagMimeProcessor(session, allowPremiumEmoji));
+	const auto paused = [customEmojiPaused] {
+		return On(PowerSaving::kEmojiChat) || customEmojiPaused();
+	};
 	field->setCustomEmojiFactory(
 		session->data().customEmojiManager().factory(),
 		std::move(customEmojiPaused));
@@ -334,19 +334,19 @@ void InitMessageFieldHandlers(
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	if (show) {
 		field->setEditLinkCallback(
-			DefaultEditLinkCallback(show, session, field, fieldStyle));
-		InitSpellchecker(show, session, field, fieldStyle != nullptr);
+			DefaultEditLinkCallback(show, field, fieldStyle));
+		InitSpellchecker(show, field, fieldStyle != nullptr);
 	}
 }
 
 void InitMessageFieldHandlers(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field,
-		Window::GifPauseReason pauseReasonLevel,
+		ChatHelpers::PauseReason pauseReasonLevel,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
 	InitMessageFieldHandlers(
 		&controller->session(),
-		std::make_shared<Window::Show>(controller),
+		controller->uiShow(),
 		field,
 		[=] { return controller->isGifPausedAtLeastFor(pauseReasonLevel); },
 		allowPremiumEmoji);
@@ -362,25 +362,36 @@ void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {
 }
 
 void InitMessageField(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::InputField*> field,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
 	InitMessageFieldHandlers(
-		controller,
+		&show->session(),
+		show,
 		field,
-		Window::GifPauseReason::Any,
-		allowPremiumEmoji);
+		[=] { return show->paused(ChatHelpers::PauseReason::Any); },
+		std::move(allowPremiumEmoji));
 	InitMessageFieldGeometry(field);
 	field->customTab(true);
 }
 
+void InitMessageField(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::InputField*> field,
+		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
+	return InitMessageField(
+		controller->uiShow(),
+		field,
+		std::move(allowPremiumEmoji));
+}
+
 void InitSpellchecker(
-		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		bool skipDictionariesManager) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	using namespace Spellchecker;
+	const auto session = &show->session();
 	const auto menuItem = skipDictionariesManager
 		? std::nullopt
 		: std::make_optional(SpellingHighlighter::CustomContextMenuItem{
@@ -487,7 +498,8 @@ InlineBotQuery ParseInlineBotQuery(
 }
 
 AutocompleteQuery ParseMentionHashtagBotCommandQuery(
-		not_null<const Ui::InputField*> field) {
+		not_null<const Ui::InputField*> field,
+		ChatHelpers::ComposeFeatures features) {
 	auto result = AutocompleteQuery();
 
 	const auto cursor = field->textCursor();
@@ -519,6 +531,9 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 		const auto text = fragment.text();
 		for (auto i = position - fragmentPosition; i != 0; --i) {
 			if (text[i - 1] == '@') {
+				if (!features.autocompleteMentions) {
+					return {};
+				}
 				if ((position - fragmentPosition - i < 1 || text[i].isLetter()) && (i < 2 || !(text[i - 2].isLetterOrNumber() || text[i - 2] == '_'))) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
@@ -529,12 +544,18 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 				}
 				return result;
 			} else if (text[i - 1] == '#') {
+				if (!features.autocompleteHashtags) {
+					return {};
+				}
 				if (i < 2 || !(text[i - 2].isLetterOrNumber() || text[i - 2] == '_')) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
 				}
 				return result;
 			} else if (text[i - 1] == '/') {
+				if (!features.autocompleteCommands) {
+					return {};
+				}
 				if (i < 2 && !fragmentPosition) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
@@ -852,7 +873,7 @@ base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 		*toast = Ui::Toast::Show(parent, {
 			.text = { tr::lng_send_text_no_about(tr::now, lt_types, types) },
 			.st = &st::defaultMultilineToast,
-			.durationMs = kTypesDuration,
+			.duration = kTypesDuration,
 			.multiline = true,
 			.slideSide = RectPart::Bottom,
 		});

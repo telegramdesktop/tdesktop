@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_unread_things.h"
 #include "apiwrap.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
@@ -49,18 +50,27 @@ Fn<void()> DefaultScheduleCallback(
 	};
 }
 
+Fn<void()> DefaultWhenOnlineCallback(Fn<void(Api::SendOptions)> send) {
+	return [=] { send(Api::DefaultSendWhenOnlineOptions()); };
+}
+
 FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,
 		Type type,
 		Fn<void()> silent,
 		Fn<void()> schedule,
-		Fn<void()> autoDelete) {
+		Fn<void()> autoDelete,
+		Fn<void()> whenOnline,
+		const style::ComposeIcons *iconsOverride) {
 	if (FakePasscode::DisableAutoDeleteInContextMenu()) {
 		autoDelete = NoAutoDeleteCallback();
 	}
 	if (!silent && !schedule && !autoDelete) {
 		return FillMenuResult::None;
 	}
+	const auto &icons = iconsOverride
+		? *iconsOverride
+		: st::defaultComposeIcons;
 	const auto now = type;
 	if (now == Type::Disabled
 		|| (!silent && !autoDelete && now == Type::SilentOnly)) {
@@ -71,7 +81,7 @@ FillMenuResult FillSendMenu(
 		menu->addAction(
 			tr::lng_send_silent_message(tr::now),
 			silent,
-			&st::menuIconMute);
+			&icons.menuMute);
 	}
 	if (schedule && now != Type::SilentOnly) {
 		menu->addAction(
@@ -79,7 +89,13 @@ FillMenuResult FillSendMenu(
 				? tr::lng_reminder_message(tr::now)
 				: tr::lng_schedule_message(tr::now)),
 			schedule,
-			&st::menuIconSchedule);
+			&icons.menuSchedule);
+	}
+	if (whenOnline && now == Type::ScheduledToUser) {
+		menu->addAction(
+			tr::lng_scheduled_send_until_online(tr::now),
+			whenOnline,
+			&icons.menuWhenOnline);
 	}
 	if (autoDelete) {
 		menu->addAction(
@@ -95,8 +111,9 @@ void SetupMenuAndShortcuts(
 		Fn<Type()> type,
 		Fn<void()> silent,
 		Fn<void()> schedule,
-		Fn<void()> autoDelete) {
-	if (!silent && !schedule && !autoDelete) {
+		Fn<void()> autoDelete,
+		Fn<void()> whenOnline) {
+	if (!silent && !schedule && !autoDelete && !whenOnline) {
 		return;
 	}
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
@@ -104,7 +121,7 @@ void SetupMenuAndShortcuts(
 		*menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
 			st::popupMenuWithIcons);
-		const auto result = FillSendMenu(*menu, type(), silent, schedule, autoDelete);
+		const auto result = FillSendMenu(*menu, type(), silent, schedule, autoDelete, whenOnline);
 		const auto success = (result == FillMenuResult::Success);
 		if (success) {
 			(*menu)->popup(QCursor::pos());

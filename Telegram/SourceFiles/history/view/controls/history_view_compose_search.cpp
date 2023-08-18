@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_info.h"
 
@@ -818,12 +819,12 @@ ComposeSearch::Inner::Inner(
 		auto box = Dialogs::SearchFromBox(
 			peer,
 			crl::guard(_bottomBar.get(), [=](not_null<PeerData*> from) {
-				Window::Show(_window).hideLayer();
+				_window->hideLayer();
 				_topBar->setFrom(from);
 			}),
 			crl::guard(_bottomBar.get(), [=] { setInnerFocus(); }));
 
-		Window::Show(_window).showBox(std::move(box));
+		_window->show(std::move(box));
 	}, _bottomBar->lifetime());
 
 	_bottomBar->showListRequests(

@@ -76,7 +76,6 @@ public:
 
 	void setResultSelectedCallback(Fn<void(ResultSelected)> callback);
 	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
-	void setCurrentDialogsEntryState(Dialogs::EntryState state);
 
 	[[nodiscard]] rpl::producer<bool> requesting() const {
 		return _requesting.events();

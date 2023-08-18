@@ -13,7 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-DiscreteSlider::DiscreteSlider(QWidget *parent) : RpWidget(parent) {
+DiscreteSlider::DiscreteSlider(QWidget *parent, bool snapToLabel)
+: RpWidget(parent)
+, _snapToLabel(snapToLabel) {
 	setCursor(style::cur_pointer);
 }
 
@@ -80,9 +82,23 @@ void DiscreteSlider::setSections(const std::vector<QString> &labels) {
 	resizeToWidth(width());
 }
 
-int DiscreteSlider::getCurrentActiveLeft() {
-	const auto left = _sections.empty() ? 0 : _sections[_selected].left;
-	return _a_left.value(left);
+DiscreteSlider::Range DiscreteSlider::getFinalActiveRange() const {
+	const auto raw = _sections.empty() ? nullptr : &_sections[_selected];
+	if (!raw) {
+		return { 0, 0 };
+	}
+	const auto width = _snapToLabel
+		? std::min(raw->width, raw->label.maxWidth())
+		: raw->width;
+	return { raw->left + ((raw->width - width) / 2), width };
+}
+
+DiscreteSlider::Range DiscreteSlider::getCurrentActiveRange() const {
+	const auto to = getFinalActiveRange();
+	return {
+		int(base::SafeRound(_a_left.value(to.left))),
+		int(base::SafeRound(_a_width.value(to.width))),
+	};
 }
 
 template <typename Lambda>
@@ -138,11 +154,13 @@ void DiscreteSlider::setSelectedSection(int index) {
 	if (index < 0 || index >= _sections.size()) return;
 
 	if (_selected != index) {
-		auto from = _sections[_selected].left;
+		const auto from = getFinalActiveRange();
 		_selected = index;
-		auto to = _sections[_selected].left;
-		auto duration = getAnimationDuration();
-		_a_left.start([this] { update(); }, from, to, duration);
+		const auto to = getFinalActiveRange();
+		const auto duration = getAnimationDuration();
+		const auto updater = [=] { update(); };
+		_a_left.start(updater, from.left, to.left, duration);
+		_a_width.start(updater, from.width, to.width, duration);
 		_callbackAfterMs = crl::now() + duration;
 	}
 }
@@ -166,7 +184,7 @@ DiscreteSlider::Section::Section(
 SettingsSlider::SettingsSlider(
 	QWidget *parent,
 	const style::SettingsSlider &st)
-: DiscreteSlider(parent)
+: DiscreteSlider(parent, st.barSnapToLabel)
 , _st(st) {
 	if (_st.barRadius > 0) {
 		_bar.emplace(_st.barRadius, _st.barFg);
@@ -299,7 +317,7 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto clip = e->rect();
-	auto activeLeft = getCurrentActiveLeft();
+	auto range = getCurrentActiveRange();
 
 	const auto drawRect = [&](QRect rect, bool active = false) {
 		const auto &bar = active ? _barActive : _bar;
@@ -310,9 +328,14 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 		}
 	};
 	enumerateSections([&](Section &section) {
+		const auto activeWidth = _st.barSnapToLabel
+			? section.label.maxWidth()
+			: section.width;
+		const auto activeLeft = section.left
+			+ (section.width - activeWidth) / 2;
 		auto active = 1.
 			- std::clamp(
-				qAbs(activeLeft - section.left) / float64(section.width),
+				qAbs(range.left - activeLeft) / float64(section.width),
 				0.,
 				1.);
 		if (section.ripple) {
@@ -322,36 +345,47 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 				section.ripple.reset();
 			}
 		}
-		auto from = section.left, tofill = section.width;
-		if (activeLeft > from) {
-			auto fill = qMin(tofill, activeLeft - from);
-			drawRect(myrtlrect(from, _st.barTop, fill, _st.barStroke));
-			from += fill;
-			tofill -= fill;
-		}
-		if (activeLeft + section.width > from) {
-			if (auto fill = qMin(tofill, activeLeft + section.width - from)) {
-				drawRect(
-					myrtlrect(from, _st.barTop, fill, _st.barStroke),
-					true);
+		if (!_st.barSnapToLabel) {
+			auto from = activeLeft, tofill = activeWidth;
+			if (range.left > from) {
+				auto fill = qMin(tofill, range.left - from);
+				drawRect(myrtlrect(from, _st.barTop, fill, _st.barStroke));
 				from += fill;
 				tofill -= fill;
 			}
+			if (range.left + activeWidth > from) {
+				if (auto fill = qMin(tofill, range.left + activeWidth - from)) {
+					drawRect(
+						myrtlrect(from, _st.barTop, fill, _st.barStroke),
+						true);
+					from += fill;
+					tofill -= fill;
+				}
+			}
+			if (tofill) {
+				drawRect(myrtlrect(from, _st.barTop, tofill, _st.barStroke));
+			}
 		}
-		if (tofill) {
-			drawRect(myrtlrect(from, _st.barTop, tofill, _st.barStroke));
-		}
-		if (myrtlrect(section.left, _st.labelTop, section.width, _st.labelStyle.font->height).intersects(clip)) {
+		const auto labelLeft = section.left + (section.width - section.label.maxWidth()) / 2;
+		if (myrtlrect(labelLeft, _st.labelTop, section.label.maxWidth(), _st.labelStyle.font->height).intersects(clip)) {
 			p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));
 			section.label.drawLeft(
 				p,
-				section.left + (section.width - section.label.maxWidth()) / 2,
+				labelLeft,
 				_st.labelTop,
 				section.label.maxWidth(),
 				width());
 		}
 		return true;
 	});
+	if (_st.barSnapToLabel) {
+		const auto add = _st.barStroke / 2;
+		const auto from = std::max(range.left - add, 0);
+		const auto till = std::min(range.left + range.width + add, width());
+		if (from < till) {
+			drawRect(myrtlrect(from, _st.barTop, till - from, _st.barStroke), true);
+		}
+	}
 }
 
 } // namespace Ui

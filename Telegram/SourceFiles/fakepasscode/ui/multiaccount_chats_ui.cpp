@@ -23,6 +23,7 @@
 #include "window/window_session_controller.h"
 
 #include "fakepasscode/actions/delete_chats.h"
+#include "styles/style_menu_icons.h"
 
 using Action = FakePasscode::MultiAccountAction<FakePasscode::SelectPeersData>;
 
@@ -169,7 +170,7 @@ void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content,
                 content,
                 _description.account_title(account.get()),
                 st::settingsButton,
-                {&st::settingsIconChat, Settings::kIconGray}
+                {&st::menuIconChannel}
         )->addClickHandler([index = index, controller, this] {
             if (!_action->HasAction(index)) {
                 _action->AddAction(index, FakePasscode::SelectPeersData{});

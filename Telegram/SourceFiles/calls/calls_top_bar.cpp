@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/format_values.h"
 #include "ui/toast/toast.h"
+#include "ui/power_saving.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "calls/calls_call.h"
@@ -33,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "styles/style_calls.h"
-#include "styles/style_chat.h" // style::GroupCallUserpics
+#include "styles/style_chat_helpers.h" // style::GroupCallUserpics
 #include "styles/style_layers.h"
 
 namespace Calls {
@@ -291,8 +292,7 @@ void TopBar::initControls() {
 			call->setMuted(!call->muted());
 		} else if (const auto group = _groupCall.get()) {
 			if (group->mutedByAdmin()) {
-				Ui::Toast::Show(
-					_show->toastParent(),
+				_show->showToast(
 					tr::lng_group_call_force_muted_sub(tr::now));
 			} else {
 				group->setMuted((group->muted() == MuteState::Muted)
@@ -496,18 +496,12 @@ void TopBar::initBlobsUnder(
 		}
 	}, lifetime());
 
+	using namespace rpl::mappers;
 	auto hideBlobs = rpl::combine(
-		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
+		PowerSaving::OnValue(PowerSaving::kCalls),
 		Core::App().appDeactivatedValue(),
 		group->instanceStateValue()
-	) | rpl::map([](
-			bool animDisabled,
-			bool hide,
-			GroupCall::InstanceState instanceState) {
-		return (instanceState == GroupCall::InstanceState::Disconnected)
-			|| animDisabled
-			|| hide;
-	});
+	) | rpl::map(_1 || _2 || _3 == GroupCall::InstanceState::Disconnected);
 
 	std::move(
 		hideBlobs

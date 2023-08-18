@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/emoji_fly_animation.h"
 
 #include "data/stickers/data_custom_emoji.h"
+#include "ui/text/text_custom_emoji.h"
+#include "ui/animated_icon.h"
 #include "styles/style_info.h"
 #include "styles/style_chat.h"
 
@@ -31,8 +33,10 @@ EmojiFlyAnimation::EmojiFlyAnimation(
 	not_null<Data::Reactions*> owner,
 	ReactionFlyAnimationArgs &&args,
 	Fn<void()> repaint,
+	Fn<QColor()> textColor,
 	Data::CustomEmojiSizeTag tag)
 : _flySize(ComputeFlySize(tag))
+, _textColor(std::move(textColor))
 , _fly(
 	owner,
 	std::move(args),
@@ -61,7 +65,7 @@ EmojiFlyAnimation::EmojiFlyAnimation(
 			QRect(
 				rect.topLeft() + QPoint(skipx, skipy),
 				QSize(_flySize, _flySize)),
-			st::infoPeerBadge.premiumFg->c,
+			_textColor(),
 			clip,
 			crl::now());
 		if (_areaUpdated || _area.isEmpty()) {
@@ -95,10 +99,15 @@ void EmojiFlyAnimation::repaint() {
 	}
 }
 
-bool EmojiFlyAnimation::paintBadgeFrame(
-		not_null<Ui::RpWidget*> widget) {
+bool EmojiFlyAnimation::paintBadgeFrame(not_null<QWidget*> widget) {
 	_target = widget;
 	return !_fly.finished();
+}
+
+ReactionFlyCenter EmojiFlyAnimation::grabBadgeCenter() {
+	auto result = _fly.takeCenter();
+	result.size = _flySize;
+	return result;
 }
 
 } // namespace Ui

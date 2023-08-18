@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "api/api_common.h"
 #include "mtproto/sender.h"
 #include "base/weak_ptr.h"
 #include "base/flags.h"
+
+namespace Api {
+struct SendAction;
+} // namespace Api
 
 namespace Ui {
 class GenericBox;
@@ -71,13 +74,15 @@ public:
 		QString startCommand;
 		QByteArray url;
 		bool fromMenu = false;
+		bool fromSwitch = false;
 	};
 	void request(
+		not_null<Window::SessionController*> controller,
 		const Api::SendAction &action,
 		const QString &botUsername,
 		const QString &startCommand);
 	void request(
-		Window::SessionController *controller,
+		not_null<Window::SessionController*> controller,
 		const Api::SendAction &action,
 		not_null<UserData*> bot,
 		const WebViewButton &button);
@@ -88,6 +93,13 @@ public:
 	void requestMenu(
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> bot);
+	void requestApp(
+		not_null<Window::SessionController*> controller,
+		const Api::SendAction &action,
+		not_null<UserData*> bot,
+		const QString &appName,
+		const QString &startParam,
+		bool forceConfirmation);
 
 	void cancel();
 
@@ -100,16 +112,37 @@ public:
 	}
 
 	void requestAddToMenu(
-		const std::optional<Api::SendAction> &action,
+		not_null<UserData*> bot,
+		const QString &startCommand);
+	void requestAddToMenu(
 		not_null<UserData*> bot,
 		const QString &startCommand,
-		Window::SessionController *controller = nullptr,
-		PeerTypes chooseTypes = {});
+		Window::SessionController *controller,
+		std::optional<Api::SendAction> action,
+		PeerTypes chooseTypes);
 	void removeFromMenu(not_null<UserData*> bot);
+
+	[[nodiscard]] std::optional<Api::SendAction> lookupLastAction(
+		const QString &url) const;
 
 	static void ClearAll();
 
 private:
+	struct Context;
+
+	[[nodiscard]] static Context LookupContext(
+		not_null<Window::SessionController*> controller,
+		const Api::SendAction &action);
+	[[nodiscard]] static bool IsSame(
+		const std::unique_ptr<Context> &a,
+		const Context &b);
+
+	void requestWithOptionalConfirm(
+		not_null<UserData*> bot,
+		const WebViewButton &button,
+		const Context &context,
+		Window::SessionController *controllerForConfirm = nullptr);
+
 	void resolve();
 	void request(const WebViewButton &button);
 	void requestSimple(const WebViewButton &button);
@@ -139,14 +172,24 @@ private:
 	void confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback = nullptr);
+	void confirmAppOpen(bool requestWriteAccess);
+	void requestAppView(bool allowWrite);
 	void started(uint64 queryId);
+
+	void showToast(
+		const QString &text,
+		Window::SessionController *controller = nullptr);
 
 	const not_null<Main::Session*> _session;
 
-	std::optional<Api::SendAction> _action;
+	std::unique_ptr<Context> _context;
+	std::unique_ptr<Context> _lastShownContext;
+	QString _lastShownUrl;
 	UserData *_bot = nullptr;
 	QString _botUsername;
+	QString _botAppName;
 	QString _startCommand;
+	BotAppData *_app = nullptr;
 	QPointer<Ui::GenericBox> _confirmAddBox;
 
 	mtpRequestId _requestId = 0;
@@ -155,7 +198,7 @@ private:
 	uint64 _botsHash = 0;
 	mtpRequestId _botsRequestId = 0;
 
-	std::optional<Api::SendAction> _addToMenuAction;
+	std::unique_ptr<Context> _addToMenuContext;
 	UserData *_addToMenuBot = nullptr;
 	mtpRequestId _addToMenuId = 0;
 	QString _addToMenuStartCommand;
@@ -171,6 +214,7 @@ private:
 
 [[nodiscard]] std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	not_null<QWidget*> parent,
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	Fn<Api::SendAction()> actionFactory,
 	Fn<void(bool)> attach);

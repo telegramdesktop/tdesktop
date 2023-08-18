@@ -21,11 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace HistoryView::Controls {
 namespace {
@@ -169,6 +171,7 @@ void ForwardPanel::updateTexts() {
 				.hideSender = true,
 				.hideCaption = !keepCaptions,
 				.generateImages = false,
+				.ignoreGroup = true,
 			}).text;
 			const auto history = item->history();
 			const auto dropCustomEmoji = !history->session().premium()
@@ -216,8 +219,7 @@ bool ForwardPanel::empty() const {
 	return _data.items.empty();
 }
 
-void ForwardPanel::editOptions(
-		not_null<Window::SessionController*> controller) {
+void ForwardPanel::editOptions(std::shared_ptr<ChatHelpers::Show> show) {
 	using Options = Data::ForwardOptions;
 	const auto now = _data.options;
 	const auto count = _data.items.size();
@@ -256,7 +258,7 @@ void ForwardPanel::editOptions(
 		}
 		auto data = base::take(_data);
 		_to->owningHistory()->setForwardDraft(_to->topicRootId(), {});
-		Window::ShowForwardMessagesBox(controller, {
+		Window::ShowForwardMessagesBox(show, {
 			.ids = _to->owner().itemsToIds(data.items),
 			.options = data.options,
 		});
@@ -285,7 +287,7 @@ void ForwardPanel::editOptions(
 			_repaint();
 		}
 	});
-	controller->show(Box(
+	show->showBox(Box(
 		Ui::ForwardOptionsBox,
 		count,
 		Ui::ForwardOptions{
@@ -309,6 +311,7 @@ void ForwardPanel::paint(
 	const_cast<ForwardPanel*>(this)->checkTexts();
 	const auto now = crl::now();
 	const auto paused = p.inactive();
+	const auto pausedSpoiler = paused || On(PowerSaving::kChatSpoiler);
 	const auto firstItem = _data.items.front();
 	const auto firstMedia = firstItem->media();
 	const auto hasPreview = (_data.items.size() < 2)
@@ -335,7 +338,7 @@ void ForwardPanel::paint(
 			}));
 		if (_spoiler) {
 			Ui::FillSpoilerRect(p, to, Ui::DefaultImageSpoiler().frame(
-				_spoiler->index(now, paused)));
+				_spoiler->index(now, pausedSpoiler)));
 		}
 		const auto skip = st::msgReplyBarSize.height()
 			+ st::msgReplyBarSkip
@@ -359,7 +362,8 @@ void ForwardPanel::paint(
 		.palette = &st::historyComposeAreaPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = now,
-		.paused = paused,
+		.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = pausedSpoiler,
 		.elisionLines = 1,
 	});
 }

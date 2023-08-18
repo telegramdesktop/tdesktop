@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_hardcoded.h"
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration.
-#include "ui/toasts/common_toasts.h"
+#include "ui/toast/toast.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -1413,11 +1413,9 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				}
 
 				hangup();
-				Ui::ShowMultilineToast({
-					.text = { type == u"GROUPCALL_FORBIDDEN"_q
-						? tr::lng_group_not_accessible(tr::now)
-						: Lang::Hard::ServerError() },
-				});
+				Ui::Toast::Show((type == u"GROUPCALL_FORBIDDEN"_q)
+					? tr::lng_group_not_accessible(tr::now)
+					: Lang::Hard::ServerError());
 			}).send();
 		});
 	});

@@ -285,7 +285,7 @@ void DeleteMessagesBox::prepare() {
 
 	if (_wipeHistoryJustClear && _wipeHistoryPeer) {
 		const auto validator = TTLMenu::TTLValidator(
-			std::make_shared<Ui::BoxShow>(this),
+			uiShow(),
 			_wipeHistoryPeer);
 		if (validator.can()) {
 			_wipeHistoryPeer->updateFull();

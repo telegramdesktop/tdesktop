@@ -40,19 +40,27 @@ void AppConfig::refresh() {
 		return;
 	}
 	_requestId = _api->request(MTPhelp_GetAppConfig(
-	)).done([=](const MTPJSONValue &result) {
+		MTP_int(_hash)
+	)).done([=](const MTPhelp_AppConfig &result) {
 		_requestId = 0;
 		refreshDelayed();
-		if (result.type() == mtpc_jsonObject) {
+		result.match([&](const MTPDhelp_appConfig &data) {
+			_hash = data.vhash().v;
+
+			const auto &config = data.vconfig();
+			if (config.type() != mtpc_jsonObject) {
+				LOG(("API Error: Unexpected config type."));
+				return;
+			}
 			_data.clear();
-			for (const auto &element : result.c_jsonObject().vvalue().v) {
+			for (const auto &element : config.c_jsonObject().vvalue().v) {
 				element.match([&](const MTPDjsonObjectValue &data) {
 					_data.emplace_or_assign(qs(data.vkey()), data.vvalue());
 				});
 			}
 			DEBUG_LOG(("getAppConfig result handled."));
-		}
-		_refreshed.fire({});
+			_refreshed.fire({});
+		}, [](const MTPDhelp_appConfigNotModified &) {});
 	}).fail([=] {
 		_requestId = 0;
 		refreshDelayed();

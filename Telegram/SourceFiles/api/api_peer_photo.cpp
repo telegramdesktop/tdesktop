@@ -97,8 +97,7 @@ constexpr auto kSharedMediaLimit = 100;
 		photo,
 		photoThumbs,
 		MTP_documentEmpty(MTP_long(0)),
-		jpeg,
-		0);
+		jpeg);
 }
 
 [[nodiscard]] std::optional<MTPVideoSize> PrepareMtpMarkup(
@@ -118,7 +117,7 @@ constexpr auto kSharedMediaLimit = 100;
 			return (quint32(std::clamp(color.red(), 0, 255)) << 16)
 				| (quint32(std::clamp(color.green(), 0, 255)) << 8)
 				| quint32(std::clamp(color.blue(), 0, 255));
-        };
+		};
 
 		auto mtpColors = QVector<MTPint>();
 		mtpColors.reserve(colors.size());
@@ -186,6 +185,7 @@ void PeerPhoto::updateSelf(
 		const auto usedFileReference = photo->fileReference();
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
+			MTPInputUser(), // bot
 			photo->mtpInput()
 		)).done([=](const MTPphotos_Photo &result) {
 			result.match([&](const MTPDphotos_photo &data) {
@@ -252,6 +252,7 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 	if (self->userpicPhotoId() == photo->id) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
+			MTPInputUser(), // bot
 			MTP_inputPhotoEmpty()
 		)).done([=](const MTPphotos_Photo &result) {
 			self->setPhoto(MTP_userProfilePhotoEmpty());
@@ -276,6 +277,7 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 		if (fallbackPhotoId && (*fallbackPhotoId) == photo->id) {
 			_api.request(MTPphotos_UpdateProfilePhoto(
 				MTP_flags(MTPphotos_UpdateProfilePhoto::Flag::f_fallback),
+				MTPInputUser(), // bot
 				MTP_inputPhotoEmpty()
 			)).send();
 			_session->storage().add(Storage::UserPhotosSetBack(
@@ -321,6 +323,7 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 	if (peer == _session->user()) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
+			MTPInputUser(), // bot
 			photo->mtpInput()
 		)).done([=](const MTPphotos_Photo &result) {
 			result.match([&](const MTPDphotos_photo &data) {
@@ -363,13 +366,21 @@ void PeerPhoto::ready(
 			done();
 		}
 	};
-	if (peer->isSelf()) {
+	const auto botUserInput = [&] {
+		const auto user = peer->asUser();
+		return (user && user->botInfo && user->botInfo->canEditInformation)
+			? std::make_optional<MTPInputUser>(user->inputUser)
+			: std::nullopt;
+	}();
+	if (peer->isSelf() || botUserInput) {
 		using Flag = MTPphotos_UploadProfilePhoto::Flag;
 		const auto none = MTPphotos_UploadProfilePhoto::Flags(0);
 		_api.request(MTPphotos_UploadProfilePhoto(
 			MTP_flags((file ? Flag::f_file : none)
+				| (botUserInput ? Flag::f_bot : none)
 				| (videoSize ? Flag::f_video_emoji_markup : none)
 				| ((type == UploadType::Fallback) ? Flag::f_fallback : none)),
+			botUserInput ? (*botUserInput) : MTPInputUser(), // bot
 			file ? (*file) : MTPInputFile(),
 			MTPInputFile(), // video
 			MTPdouble(), // video_start_ts

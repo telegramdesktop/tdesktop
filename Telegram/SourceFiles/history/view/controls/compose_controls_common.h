@@ -25,7 +25,7 @@ struct MessageToEdit {
 struct VoiceToSend {
 	QByteArray bytes;
 	VoiceWaveform waveform;
-	int duration = 0;
+	crl::time duration = 0;
 	Api::SendOptions options;
 };
 struct SendActionUpdate {
@@ -41,6 +41,7 @@ struct SetHistoryArgs {
 	Fn<Api::SendAction()> sendActionFactory;
 	rpl::producer<int> slowmodeSecondsLeft;
 	rpl::producer<bool> sendDisabledBySlowmode;
+	rpl::producer<bool> liked;
 	rpl::producer<std::optional<QString>> writeRestriction;
 };
 

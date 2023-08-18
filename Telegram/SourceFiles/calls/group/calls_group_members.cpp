@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/cross_line.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "core/application.h" // Core::App().domain, .activeWindow.
 #include "main/main_domain.h" // Core::App().domain().activate.
 #include "main/main_session.h"
@@ -234,10 +235,10 @@ Members::Controller::Controller(
 	}, _lifetime);
 
 	rpl::combine(
-		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
+		PowerSaving::OnValue(PowerSaving::kCalls),
 		Core::App().appDeactivatedValue()
-	) | rpl::start_with_next([=](bool animDisabled, bool deactivated) {
-		const auto hide = !(!animDisabled && !deactivated);
+	) | rpl::start_with_next([=](bool disabled, bool deactivated) {
+		const auto hide = disabled || deactivated;
 
 		if (!(hide && _soundingAnimationHideLastTime)) {
 			_soundingAnimationHideLastTime = hide ? crl::now() : 0;
@@ -1982,8 +1983,8 @@ void Members::peerListShowBox(
 void Members::peerListHideLayer() {
 }
 
-not_null<QWidget*> Members::peerListToastParent() {
-	Unexpected("...Members::peerListToastParent");
+std::shared_ptr<Main::SessionShow> Members::peerListUiShow() {
+	Unexpected("...Members::peerListUiShow");
 }
 
 } // namespace Calls::Group

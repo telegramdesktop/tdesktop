@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 namespace Lang {
@@ -69,14 +70,9 @@ StringWithReacted ReplaceTag<StringWithReacted>::Call(
 namespace Ui {
 namespace {
 
-using Text::CustomEmojiFactory;
+constexpr auto kPreloaderAlpha = 0.2;
 
-struct EntryData {
-	QString text;
-	QString customEntityData;
-	QImage userpic;
-	Fn<void()> callback;
-};
+using Text::CustomEmojiFactory;
 
 class Action final : public Menu::ItemBase {
 public:
@@ -169,8 +165,9 @@ Action::Action(
 		+ _st.itemStyle.font->height
 		+ st::defaultWhoRead.itemPadding.bottom()) {
 	const auto parent = parentMenu->menu();
-	const auto checkAppeared = [=, now = crl::now()] {
-		_appeared = (crl::now() - now) >= parentMenu->st().duration;
+	const auto delay = anim::Disabled() ? 0 : parentMenu->st().duration;
+	const auto checkAppeared = [=, now = crl::now()](bool force = false) {
+		_appeared = force || ((crl::now() - now) >= delay);
 	};
 
 	setAcceptBoth(true);
@@ -228,8 +225,10 @@ Action::Action(
 	enableMouseSelecting();
 
 	base::call_delayed(parentMenu->st().duration, this, [=] {
-		checkAppeared();
-		updateUserpicsFromContent();
+		if (!_appeared) {
+			checkAppeared(true);
+			updateUserpicsFromContent();
+		}
 	});
 }
 
@@ -287,7 +286,7 @@ void Action::updateUserpicsFromContent() {
 }
 
 void Action::populateSubmenu() {
-	if (_content.participants.size() < 2) {
+	if (_content.participants.size() < 1) {
 		_submenu.clear();
 		_parentMenu->removeSubmenu(action());
 		if (!isEnabled()) {
@@ -463,42 +462,11 @@ void Action::handleKeyPress(not_null<QKeyEvent*> e) {
 
 } // namespace
 
-class WhoReactedListMenu::EntryAction final : public Menu::ItemBase {
-public:
-	EntryAction(
-		not_null<RpWidget*> parent,
-		CustomEmojiFactory factory,
-		const style::Menu &st,
-		EntryData &&data);
-
-	void setData(EntryData &&data);
-
-	not_null<QAction*> action() const override;
-	bool isEnabled() const override;
-
-private:
-	int contentHeight() const override;
-
-	void paint(Painter &&p);
-
-	const not_null<QAction*> _dummyAction;
-	const CustomEmojiFactory _customEmojiFactory;
-	const style::Menu &_st;
-	const int _height = 0;
-
-	Text::String _text;
-	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
-	QImage _userpic;
-	int _textWidth = 0;
-	int _customSize = 0;
-
-};
-
-WhoReactedListMenu::EntryAction::EntryAction(
+WhoReactedEntryAction::WhoReactedEntryAction(
 	not_null<RpWidget*> parent,
 	CustomEmojiFactory customEmojiFactory,
 	const style::Menu &st,
-	EntryData &&data)
+	Data &&data)
 : ItemBase(parent, st)
 , _dummyAction(CreateChild<QAction>(parent.get()))
 , _customEmojiFactory(std::move(customEmojiFactory))
@@ -517,27 +485,41 @@ WhoReactedListMenu::EntryAction::EntryAction(
 	enableMouseSelecting();
 }
 
-not_null<QAction*> WhoReactedListMenu::EntryAction::action() const {
+not_null<QAction*> WhoReactedEntryAction::action() const {
 	return _dummyAction.get();
 }
 
-bool WhoReactedListMenu::EntryAction::isEnabled() const {
+bool WhoReactedEntryAction::isEnabled() const {
 	return true;
 }
 
-int WhoReactedListMenu::EntryAction::contentHeight() const {
+int WhoReactedEntryAction::contentHeight() const {
 	return _height;
 }
 
-void WhoReactedListMenu::EntryAction::setData(EntryData &&data) {
+void WhoReactedEntryAction::setData(Data &&data) {
 	setClickedCallback(std::move(data.callback));
 	_userpic = std::move(data.userpic);
 	_text.setMarkedText(_st.itemStyle, { data.text }, MenuTextOptions);
-	_custom = _customEmojiFactory(data.customEntityData, [=] { update(); });
+	if (data.date.isEmpty()) {
+		_date = Text::String();
+	} else {
+		_date.setMarkedText(
+			st::whoReadDateStyle,
+			{ data.date },
+			MenuTextOptions);
+	}
+	_dateReacted = data.dateReacted;
+	_preloader = data.preloader;
+	_custom = _customEmojiFactory
+		? _customEmojiFactory(data.customEntityData, [=] { update(); })
+		: nullptr;
 	const auto ratio = style::DevicePixelRatio();
 	const auto size = Emoji::GetSizeNormal() / ratio;
 	_customSize = Text::AdjustCustomEmojiSize(size);
-	const auto textWidth = _text.maxWidth();
+	const auto textWidth = std::max(
+		_text.maxWidth(),
+		st::whoReadDateSkip + _date.maxWidth());
 	const auto &padding = _st.itemPadding;
 	const auto rightSkip = padding.right()
 		+ (_custom ? (size + padding.right()) : 0);
@@ -550,7 +532,7 @@ void WhoReactedListMenu::EntryAction::setData(EntryData &&data) {
 	update();
 }
 
-void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
+void WhoReactedEntryAction::paint(Painter &&p) {
 	const auto enabled = isEnabled();
 	const auto selected = isSelected();
 	if (selected && _st.itemBgOver->c.alpha() < 255) {
@@ -563,7 +545,18 @@ void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
 	const auto photoSize = st::defaultWhoRead.photoSize;
 	const auto photoLeft = st::defaultWhoRead.photoLeft;
 	const auto photoTop = (height() - photoSize) / 2;
-	if (!_userpic.isNull()) {
+	const auto preloaderBrush = _preloader
+		? [&] {
+			auto color = _st.itemFg->c;
+			color.setAlphaF(color.alphaF() * kPreloaderAlpha);
+			return QBrush(color);
+		}() : QBrush();
+	if (_preloader) {
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(preloaderBrush);
+		p.drawEllipse(photoLeft, photoTop, photoSize, photoSize);
+	} else if (!_userpic.isNull()) {
 		p.drawImage(photoLeft, photoTop, _userpic);
 	} else if (!_custom) {
 		st::menuIconReactions.paintInCenter(
@@ -571,18 +564,51 @@ void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
 			QRect(photoLeft, photoTop, photoSize, photoSize));
 	}
 
-	p.setPen(selected
-		? _st.itemFgOver
-		: enabled
-		? _st.itemFg
-		: _st.itemFgDisabled);
-	_text.drawLeftElided(
-		p,
-		st::defaultWhoRead.nameLeft,
-		(height() - _st.itemStyle.font->height) / 2,
-		_textWidth,
-		width());
-
+	const auto withDate = !_date.isEmpty();
+	const auto textTop = withDate
+		? st::whoReadNameWithDateTop
+		: (height() - _st.itemStyle.font->height) / 2;
+	if (_preloader) {
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(preloaderBrush);
+		const auto height = _st.itemStyle.font->height / 2;
+		p.drawRoundedRect(
+			st::defaultWhoRead.nameLeft,
+			textTop + (_st.itemStyle.font->height - height) / 2,
+			_textWidth,
+			height,
+			height / 2.,
+			height / 2.);
+	} else {
+		p.setPen(selected
+			? _st.itemFgOver
+			: enabled
+			? _st.itemFg
+			: _st.itemFgDisabled);
+		_text.drawLeftElided(
+			p,
+			st::defaultWhoRead.nameLeft,
+			textTop,
+			_textWidth,
+			width());
+	}
+	if (withDate) {
+		const auto iconPosition = QPoint(
+			st::defaultWhoRead.nameLeft,
+			st::whoReadDateTop) + st::whoReadDateChecksPosition;
+		const auto &icon = _dateReacted
+			? (selected ? st::whoLikedDateHeartOver : st::whoLikedDateHeart)
+			: (selected ? st::whoReadDateChecksOver : st::whoReadDateChecks);
+		icon.paint(p, iconPosition, width());
+		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
+		_date.drawLeftElided(
+			p,
+			st::defaultWhoRead.nameLeft + st::whoReadDateSkip,
+			st::whoReadDateTop,
+			_textWidth - st::whoReadDateSkip,
+			width());
+	}
 	if (_custom) {
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = Emoji::GetSizeNormal() / ratio;
@@ -591,7 +617,7 @@ void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
 			.textColor = (selected ? _st.itemFgOver : _st.itemFg)->c,
 			.now = crl::now(),
 			.position = QPoint(
-				width() - _st.itemPadding.right() - (size / ratio) + skip,
+				width() - _st.itemPadding.right() - size + skip,
 				(height() - _customSize) / 2),
 		});
 	}
@@ -600,6 +626,7 @@ void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
 bool operator==(const WhoReadParticipant &a, const WhoReadParticipant &b) {
 	return (a.id == b.id)
 		&& (a.name == b.name)
+		&& (a.date == b.date)
 		&& (a.userpicKey == b.userpicKey);
 }
 
@@ -655,11 +682,11 @@ void WhoReactedListMenu::populate(
 		addedToBottom = 0;
 	}
 	auto index = 0;
-	const auto append = [&](EntryData &&data) {
+	const auto append = [&](WhoReactedEntryData &&data) {
 		if (index < _actions.size()) {
 			_actions[index]->setData(std::move(data));
 		} else {
-			auto item = base::make_unique_q<EntryAction>(
+			auto item = base::make_unique_q<WhoReactedEntryAction>(
 				menu->menu(),
 				_customEmojiFactory,
 				menu->menu()->st(),
@@ -680,6 +707,8 @@ void WhoReactedListMenu::populate(
 		};
 		append({
 			.text = participant.name,
+			.date = participant.date,
+			.dateReacted = participant.dateReacted,
 			.customEntityData = participant.customEntityData,
 			.userpic = participant.userpicLarge,
 			.callback = chosen,

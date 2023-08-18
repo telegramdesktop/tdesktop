@@ -338,15 +338,19 @@ void ListSection::resizeToWidth(int newWidth) {
 	switch (_type) {
 	case Type::Photo:
 	case Type::Video:
+	case Type::PhotoVideo:
 	case Type::RoundFile: {
-		_itemsLeft = st::infoMediaSkip;
+		const auto skip = st::infoMediaSkip;
+		_itemsLeft = st::infoMediaLeft;
 		_itemsTop = st::infoMediaSkip;
-		_itemsInRow = (newWidth - _itemsLeft)
-			/ (st::infoMediaMinGridSize + st::infoMediaSkip);
-		_itemWidth = ((newWidth - _itemsLeft) / _itemsInRow)
+		_itemsInRow = (newWidth - _itemsLeft * 2 + skip)
+			/ (st::infoMediaMinGridSize + skip);
+		_itemWidth = ((newWidth - _itemsLeft * 2 + skip) / _itemsInRow)
 			- st::infoMediaSkip;
+		_itemsLeft = (newWidth - (_itemWidth + skip) * _itemsInRow + skip)
+			/ 2;
 		for (auto &item : _items) {
-			item->resizeGetHeight(_itemWidth);
+			_itemHeight = item->resizeGetHeight(_itemWidth);
 		}
 	} break;
 
@@ -375,8 +379,9 @@ int ListSection::recountHeight() {
 	switch (_type) {
 	case Type::Photo:
 	case Type::Video:
+	case Type::PhotoVideo:
 	case Type::RoundFile: {
-		auto itemHeight = _itemWidth + st::infoMediaSkip;
+		auto itemHeight = _itemHeight + st::infoMediaSkip;
 		auto index = 0;
 		result += _itemsTop;
 		for (auto &item : _items) {

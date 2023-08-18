@@ -475,8 +475,16 @@ QByteArray SerializeMessage(
 		pushActor();
 		push("information_text", data.message);
 	}, [&](const ActionBotAllowed &data) {
-		pushAction("allow_sending_messages");
-		push("reason_domain", data.domain);
+		if (data.attachMenu) {
+			pushAction("attach_menu_bot_allowed");
+		} else if (data.appId) {
+			pushAction("allow_sending_messages");
+			push("reason_app_id", data.appId);
+			push("reason_app_name", data.app);
+		} else {
+			pushAction("allow_sending_messages");
+			push("reason_domain", data.domain);
+		}
 	}, [&](const ActionSecureValuesSent &data) {
 		pushAction("send_passport_values");
 		auto list = std::vector<QByteArray>();
@@ -577,14 +585,18 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("suggest_profile_photo");
 		pushPhoto(data.photo.image);
-	}, [&](const ActionAttachMenuBotAllowed &data) {
-		pushActor();
-		pushAction("attach_menu_bot_allowed");
 	}, [&](const ActionRequestedPeer &data) {
 		pushActor();
 		pushAction("requested_peer");
 		push("button_id", data.buttonId);
 		push("peer_id", data.peerId.value);
+	}, [&](const ActionSetChatWallPaper &data) {
+		pushActor();
+		pushAction("set_chat_wallpaper");
+	}, [&](const ActionSetSameChatWallPaper &data) {
+		pushActor();
+		pushAction("set_same_chat_wallpaper");
+		pushReplyToMsgId("message_id");
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
@@ -870,6 +882,77 @@ Result JsonWriter::writeUserpicsSlice(const Data::UserpicsSlice &data) {
 }
 
 Result JsonWriter::writeUserpicsEnd() {
+	Expects(_output != nullptr);
+
+	return _output->writeBlock(popNesting());
+}
+
+Result JsonWriter::writeStoriesStart(const Data::StoriesInfo &data) {
+	Expects(_output != nullptr);
+
+	auto block = prepareObjectItemStart("stories");
+	return _output->writeBlock(block + pushNesting(Context::kArray));
+}
+
+Result JsonWriter::writeStoriesSlice(const Data::StoriesSlice &data) {
+	Expects(_output != nullptr);
+
+	if (data.list.empty()) {
+		return Result::Success();
+	}
+
+	auto block = QByteArray();
+	for (const auto &story : data.list) {
+		using SkipReason = Data::File::SkipReason;
+		const auto &file = story.file();
+		Assert(!file.relativePath.isEmpty()
+			|| file.skipReason != SkipReason::None);
+		const auto path = [&]() -> Data::Utf8String {
+			switch (file.skipReason) {
+			case SkipReason::Unavailable:
+				return "(Photo unavailable, please try again later)";
+			case SkipReason::FileSize:
+				return "(Photo exceeds maximum size. "
+					"Change data exporting settings to download.)";
+			case SkipReason::FileType:
+				return "(Photo not included. "
+					"Change data exporting settings to download.)";
+			case SkipReason::None: return FormatFilePath(file);
+			}
+			Unexpected("Skip reason while writing story path.");
+		}();
+		block.append(prepareArrayItemStart());
+		block.append(SerializeObject(_context, {
+			{
+				"date",
+				story.date ? SerializeDate(story.date) : QByteArray()
+			},
+			{
+				"date_unixtime",
+				story.date ? SerializeDateRaw(story.date) : QByteArray()
+			},
+			{
+				"expires",
+				story.expires ? SerializeDate(story.expires) : QByteArray()
+			},
+			{
+				"expires_unixtime",
+				story.expires ? SerializeDateRaw(story.expires) : QByteArray()
+			},
+			{
+				"pinned",
+				story.pinned ? "true" : "false"
+			},
+			{
+				"media",
+				SerializeString(path)
+			},
+		}));
+	}
+	return _output->writeBlock(block);
+}
+
+Result JsonWriter::writeStoriesEnd() {
 	Expects(_output != nullptr);
 
 	return _output->writeBlock(popNesting());

@@ -284,7 +284,7 @@ void TranslateBar::setup(not_null<History*> history) {
 
 	button->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
-		QPainter(button).fillRect(clip, st::historyComposeButton.bgColor);
+		QPainter(button).fillRect(clip, st::historyComposeButtonBg);
 	}, button->lifetime());
 
 	button->setClickedCallback([=] {
@@ -524,7 +524,7 @@ void TranslateBar::showToast(
 	const auto weak = Ui::Toast::Show(_wrap.window(), Ui::Toast::Config{
 		.text = std::move(text),
 		.st = st.get(),
-		.durationMs = kToastDuration,
+		.duration = kToastDuration,
 		.multiline = true,
 		.dark = true,
 		.slideSide = RectPart::Bottom,

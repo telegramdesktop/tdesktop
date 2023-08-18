@@ -93,6 +93,7 @@ public:
 		not_null<Main::Session*> session) const;
 	bool activateCurrentCall(const QString &joinHash = QString());
 	bool minimizeCurrentActiveCall();
+	bool toggleFullScreenCurrentActiveCall();
 	bool closeCurrentActiveCall();
 	[[nodiscard]] auto getVideoCapture(
 		std::optional<QString> deviceId = std::nullopt,
@@ -104,6 +105,7 @@ public:
 
 	[[nodiscard]] FnMut<void()> addAsyncWaiter();
 
+	[[nodiscard]] bool isSharingScreen() const;
 	[[nodiscard]] bool isQuitPrevent();
 
 private:
@@ -113,7 +115,7 @@ private:
 	not_null<Media::Audio::Track*> ensureSoundLoaded(const QString &key);
 	void playSoundOnce(const QString &key);
 
-	void createCall(not_null<UserData*> user, CallType type, bool video);
+	void createCall(not_null<UserData*> user, CallType type, bool isVideo);
 	void destroyCall(not_null<Call*> call);
 
 	void createGroupCall(

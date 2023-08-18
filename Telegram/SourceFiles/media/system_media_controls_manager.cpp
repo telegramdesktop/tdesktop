@@ -21,13 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_player.h"
 #include "ui/text/format_song_document_name.h"
 
-#include <ksandbox.h>
-
 namespace Media {
 namespace {
 
-[[nodiscard]] auto RepeatModeToLoopStatus(Media::Player::RepeatMode mode) {
-	using Mode = Media::Player::RepeatMode;
+[[nodiscard]] auto RepeatModeToLoopStatus(Media::RepeatMode mode) {
+	using Mode = Media::RepeatMode;
 	using Status = base::Platform::SystemMediaControls::LoopStatus;
 	switch (mode) {
 	case Mode::None: return Status::None;
@@ -50,10 +48,6 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		base::Platform::SystemMediaControls::PlaybackStatus;
 	using Command = base::Platform::SystemMediaControls::Command;
 
-	// Flatpak provides default permission to MPRIS, but not snap
-	if (!KSandbox::isFlatpak()) {
-		_controls->setServiceName(u"tdesktop"_q);
-	}
 	_controls->setApplicationName(AppName.utf16());
 	const auto inited = _controls->init();
 	if (!inited) {
@@ -199,8 +193,8 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(type));
 	}, _lifetime);
 
-	using Media::Player::RepeatMode;
-	using Media::Player::OrderMode;
+	using Media::RepeatMode;
+	using Media::OrderMode;
 
 	Core::App().settings().playerRepeatModeValue(
 	) | rpl::start_with_next([=](RepeatMode mode) {

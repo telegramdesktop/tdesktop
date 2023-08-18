@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/integration.h"
 #include "ui/style/style_core.h"
 
 #define DeclareReadSetting(Type, Name) extern Type g##Name; \
@@ -38,7 +39,6 @@ DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
 DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
-DeclareSetting(bool, UseExternalVideoPlayer);
 enum LaunchMode {
 	LaunchModeNormal = 0,
 	LaunchModeAutoStart,
@@ -57,11 +57,15 @@ inline void cForceWorkingDir(const QString &newDir) {
 	}
 
 }
-DeclareReadSetting(QString, ExeName);
-DeclareReadSetting(QString, ExeDir);
+inline QString cExeName() {
+	return base::Integration::Instance().executableName();
+}
+inline QString cExeDir() {
+	return base::Integration::Instance().executableDir();
+}
 DeclareSetting(QString, DialogLastPath);
 DeclareSetting(QString, DialogHelperPath);
-inline const QString &cDialogHelperPathFinal() {
+inline QString cDialogHelperPathFinal() {
 	return cDialogHelperPath().isEmpty() ? cExeDir() : cDialogHelperPath();
 }
 

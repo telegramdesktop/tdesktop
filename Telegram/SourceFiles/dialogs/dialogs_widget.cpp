@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_widget.h"
 
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_list.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "dialogs/dialogs_key.h"
@@ -19,11 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_bar.h"
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
+#include "ui/chat/more_chats_bar.h"
 #include "ui/controls/download_bar.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/painter.h"
@@ -34,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "api/api_chat_filters.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "core/application.h"
@@ -61,20 +66,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
 #include "data/data_chat_filters.h"
+#include "data/data_stories.h"
 #include "info/downloads/info_downloads_widget.h"
 #include "info/info_memento.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
 #include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QMimeData>
+#include <QtWidgets/QScrollBar>
 
 namespace Dialogs {
 namespace {
 
 constexpr auto kSearchPerPage = 50;
+constexpr auto kStoriesExpandDuration = crl::time(200);
 
 } // namespace
 
@@ -112,7 +121,7 @@ Widget::BottomButton::BottomButton(
 	const style::icon &icon,
 	const style::icon &iconOver)
 : RippleButton(parent, st.ripple)
-, _text(text.toUpper())
+, _text(text)
 , _st(st)
 , _icon(icon)
 , _iconOver(iconOver) {
@@ -120,7 +129,7 @@ Widget::BottomButton::BottomButton(
 }
 
 void Widget::BottomButton::setText(const QString &text) {
-	_text = text.toUpper();
+	_text = text;
 	update();
 }
 
@@ -203,14 +212,26 @@ Widget::Widget(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(_searchControls, st::dialogsCancelSearch)
-, _lockUnlock(_searchControls, st::dialogsLock)
+, _lockUnlock(
+	_searchControls,
+	object_ptr<Ui::IconButton>(this, st::dialogsLock))
 , _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
+, _stories((_layout != Layout::Child)
+	? std::make_unique<Stories::List>(
+		this,
+		st::dialogsStoriesList,
+		_storiesContents.events() | rpl::flatten_latest())
+	: nullptr)
 , _searchTimer([=] { searchMessages(); })
 , _singleMessageSearch(&controller->session()) {
 	const auto makeChildListShown = [](PeerId peerId, float64 shown) {
 		return InnerWidget::ChildListShown{ peerId, shown };
 	};
+	using OverscrollType = Ui::ElasticScroll::OverscrollType;
+	_scroll->setOverscrollTypes(
+		_stories ? OverscrollType::Virtual : OverscrollType::Real,
+		OverscrollType::Real);
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(
 		this,
 		controller,
@@ -218,6 +239,8 @@ Widget::Widget(
 			_childListPeerId.value(),
 			_childListShown.value(),
 			makeChildListShown)));
+	_scrollToTop->raise();
+	_lockUnlock->toggle(false, anim::type::instant);
 
 	_inner->updated(
 	) | rpl::start_with_next([=] {
@@ -350,14 +373,20 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		updateLockUnlockVisibility();
 	}, lifetime());
-	_lockUnlock->setClickedCallback([this] {
-		_lockUnlock->setIconOverride(&st::dialogsUnlockIcon, &st::dialogsUnlockIconOver);
+	const auto lockUnlock = _lockUnlock->entity();
+	lockUnlock->setClickedCallback([=] {
+		lockUnlock->setIconOverride(
+			&st::dialogsUnlockIcon,
+			&st::dialogsUnlockIconOver);
 		Core::App().maybeLockByPasscode();
-		_lockUnlock->setIconOverride(nullptr);
+		lockUnlock->setIconOverride(nullptr);
 	});
 
 	setupMainMenuToggle();
 	setupShortcuts();
+	if (_stories) {
+		setupStories();
+	}
 
 	_searchForNarrowFilters->setClickedCallback([=] {
 		_filter->setFocusFast();
@@ -406,6 +435,18 @@ Widget::Widget(
 	setupSupportMode();
 	setupScrollUpButton();
 
+	const auto overscrollBg = [=] {
+		return anim::color(
+			st::dialogsBg,
+			st::dialogsBgOver,
+			_childListShown.current());
+	};
+	_scroll->setOverscrollBg(overscrollBg());
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_scroll->setOverscrollBg(overscrollBg());
+	}, lifetime());
+
 	if (_layout != Layout::Child) {
 		setupConnectingWidget();
 
@@ -429,6 +470,7 @@ Widget::Widget(
 
 		_childListShown.changes(
 		) | rpl::start_with_next([=] {
+			_scroll->setOverscrollBg(overscrollBg());
 			updateControlsGeometry();
 		}, lifetime());
 
@@ -440,11 +482,14 @@ Widget::Widget(
 			_searchForNarrowFilters->setRippleColorOverride(color);
 		}, lifetime());
 
+		setupMoreChatsBar();
 		setupDownloadBar();
 	}
 }
 
 void Widget::chosenRow(const ChosenRow &row) {
+	storiesToggleExplicitExpand(false);
+
 	const auto history = row.key.history();
 	const auto topicJump = history
 		? history->peer->forumTopicFor(row.message.fullId.msg)
@@ -481,6 +526,16 @@ void Widget::chosenRow(const ChosenRow &row) {
 		return;
 	} else if (history) {
 		const auto peer = history->peer;
+		if (const auto user = peer->asUser()) {
+			if (row.message.fullId.msg == ShowAtUnreadMsgId) {
+				if (row.userpicClick
+					&& user->hasActiveStories()
+					&& !user->isSelf()) {
+					controller()->openPeerStories(user->id);
+					return;
+				}
+			}
+		}
 		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
 			? ShowAtUnreadMsgId
 			: row.message.fullId.msg;
@@ -494,6 +549,14 @@ void Widget::chosenRow(const ChosenRow &row) {
 			hideChildList();
 		}
 	} else if (const auto folder = row.key.folder()) {
+		if (row.userpicClick) {
+			const auto list = Data::StorySourcesList::Hidden;
+			const auto &sources = session().data().stories().sources(list);
+			if (!sources.empty()) {
+				controller()->openPeerStories(sources.front().id, list);
+				return;
+			}
+		}
 		controller()->openFolder(folder);
 		hideChildList();
 	}
@@ -524,22 +587,65 @@ void Widget::setGeometryWithTopMoved(
 	_topDelta = 0;
 }
 
+void Widget::scrollToDefaultChecked(bool verytop) {
+	if (_scrollToAnimation.animating()) {
+		return;
+	}
+	scrollToDefault(verytop);
+}
+
 void Widget::setupScrollUpButton() {
-	_scrollToTop->setClickedCallback([=] {
-		if (_scrollToAnimation.animating()) {
+	_scrollToTop->setClickedCallback([=] { scrollToDefaultChecked(); });
+	trackScroll(_scrollToTop);
+	trackScroll(this);
+	updateScrollUpVisibility();
+}
+
+void Widget::setupMoreChatsBar() {
+	if (_layout == Layout::Child) {
+		return;
+	}
+	controller()->activeChatsFilter(
+	) | rpl::start_with_next([=](FilterId id) {
+		storiesToggleExplicitExpand(false);
+
+		if (!id) {
+			_moreChatsBar = nullptr;
+			updateControlsGeometry();
 			return;
 		}
-		scrollToTop();
-	});
-	base::install_event_filter(_scrollToTop, [=](not_null<QEvent*> event) {
-		if (event->type() != QEvent::Wheel) {
-			return base::EventFilterResult::Continue;
+		const auto filters = &session().data().chatsFilters();
+		_moreChatsBar = std::make_unique<Ui::MoreChatsBar>(
+			this,
+			filters->moreChatsContent(id));
+
+		trackScroll(_moreChatsBar->wrap());
+
+		_moreChatsBar->barClicks(
+		) | rpl::start_with_next([=] {
+			if (const auto missing = filters->moreChats(id)
+				; !missing.empty()) {
+				Api::ProcessFilterUpdate(controller(), id, missing);
+			}
+		}, _moreChatsBar->lifetime());
+
+		_moreChatsBar->closeClicks(
+		) | rpl::start_with_next([=] {
+			Api::ProcessFilterUpdate(controller(), id, {});
+		}, _moreChatsBar->lifetime());
+
+		if (_showAnimation) {
+			_moreChatsBar->hide();
+		} else {
+			_moreChatsBar->show();
+			_moreChatsBar->finishAnimating();
 		}
-		return _scroll->viewportEvent(event)
-			? base::EventFilterResult::Cancel
-			: base::EventFilterResult::Continue;
-	});
-	updateScrollUpVisibility();
+
+		_moreChatsBar->heightValue(
+		) | rpl::start_with_next([=] {
+			updateControlsGeometry();
+		}, _moreChatsBar->lifetime());
+	}, lifetime());
 }
 
 void Widget::setupDownloadBar() {
@@ -660,7 +766,7 @@ void Widget::setupSupportMode() {
 
 void Widget::setupMainMenuToggle() {
 	_mainMenu.under->setClickedCallback([=] {
-        _mainMenu.toggle->clicked({}, Qt::LeftButton);
+		_mainMenu.toggle->clicked({}, Qt::LeftButton);
 	});
 	_mainMenu.under->stackUnder(_mainMenu.toggle);
 	_mainMenu.toggle->setClickedCallback([=] { showMainMenu(); });
@@ -684,6 +790,156 @@ void Widget::setupMainMenuToggle() {
 			: &st::dialogsMenuToggleUnreadMuted;
 		_mainMenu.toggle->setIconOverride(icon, icon);
 	}, _mainMenu.toggle->lifetime());
+}
+
+void Widget::setupStories() {
+	_stories->verticalScrollEvents(
+	) | rpl::start_with_next([=](not_null<QWheelEvent*> e) {
+		_scroll->viewportEvent(e);
+	}, _stories->lifetime());
+
+	if (!Core::App().settings().storiesClickTooltipHidden()) {
+		// Don't create tooltip
+		// until storiesClickTooltipHidden can be returned to false.
+		const auto hideTooltip = [=] {
+			Core::App().settings().setStoriesClickTooltipHidden(true);
+			Core::App().saveSettingsDelayed();
+		};
+		_stories->setShowTooltip(
+			parentWidget(),
+			rpl::combine(
+				Core::App().settings().storiesClickTooltipHiddenValue(),
+				shownValue(),
+				!rpl::mappers::_1 && rpl::mappers::_2),
+			hideTooltip);
+	}
+
+	_storiesContents.fire(Stories::ContentForSession(
+		&controller()->session(),
+		Data::StorySourcesList::NotHidden));
+
+	const auto currentSource = [=] {
+		using List = Data::StorySourcesList;
+		return _openedFolder ? List::Hidden : List::NotHidden;
+	};
+
+	rpl::combine(
+		_scroll->positionValue(),
+		_scroll->movementValue(),
+		_storiesExplicitExpandValue.value()
+	) | rpl::start_with_next([=](
+			Ui::ElasticScrollPosition position,
+			Ui::ElasticScrollMovement movement,
+			int explicitlyExpanded) {
+		if (_stories->isHidden()) {
+			return;
+		}
+		const auto overscrollTop = std::max(-position.overscroll, 0);
+		if (overscrollTop > 0 && _storiesExplicitExpand) {
+			_scroll->setOverscrollDefaults(
+				-st::dialogsStoriesFull.height,
+				0,
+				true);
+		}
+		if (explicitlyExpanded > 0 && explicitlyExpanded < overscrollTop) {
+			_storiesExplicitExpandAnimation.stop();
+			_storiesExplicitExpand = false;
+			_storiesExplicitExpandValue = 0;
+			return;
+		}
+		const auto above = std::max(explicitlyExpanded, overscrollTop);
+		if (_aboveScrollAdded != above) {
+			_aboveScrollAdded = above;
+			if (_updateScrollGeometryCached) {
+				_updateScrollGeometryCached();
+			}
+		}
+		using Phase = Ui::ElasticScrollMovement;
+		_stories->setExpandedHeight(
+			_aboveScrollAdded,
+			((movement == Phase::Momentum || movement == Phase::Returning)
+				&& (explicitlyExpanded < above)));
+		if (position.overscroll > 0
+			|| (position.value
+				> (_storiesExplicitExpandScrollTop
+					+ st::dialogsRowHeight))) {
+			storiesToggleExplicitExpand(false);
+		}
+		updateLockUnlockPosition();
+	}, lifetime());
+
+	_stories->collapsedGeometryChanged(
+	) | rpl::start_with_next([=] {
+		updateLockUnlockPosition();
+	}, lifetime());
+
+	_stories->clicks(
+	) | rpl::start_with_next([=](uint64 id) {
+		controller()->openPeerStories(PeerId(int64(id)), currentSource());
+	}, lifetime());
+
+	_stories->showMenuRequests(
+	) | rpl::start_with_next([=](const Stories::ShowMenuRequest &request) {
+		FillSourceMenu(controller(), request);
+	}, lifetime());
+
+	_stories->loadMoreRequests(
+	) | rpl::start_with_next([=] {
+		session().data().stories().loadMore(currentSource());
+	}, lifetime());
+
+	_stories->toggleExpandedRequests(
+	) | rpl::start_with_next([=](bool expanded) {
+		const auto position = _scroll->position();
+		if (!expanded) {
+			_scroll->setOverscrollDefaults(0, 0);
+		} else if (position.value > 0 || position.overscroll >= 0) {
+			storiesToggleExplicitExpand(true);
+			_scroll->setOverscrollDefaults(0, 0);
+		} else {
+			_scroll->setOverscrollDefaults(
+				-st::dialogsStoriesFull.height,
+				0);
+		}
+	}, lifetime());
+
+	_stories->emptyValue() | rpl::skip(1) | rpl::start_with_next([=] {
+		updateStoriesVisibility();
+	}, lifetime());
+
+	_stories->widthValue() | rpl::start_with_next([=] {
+		updateLockUnlockPosition();
+	}, lifetime());
+}
+
+void Widget::storiesToggleExplicitExpand(bool expand) {
+	if (_storiesExplicitExpand == expand) {
+		return;
+	}
+	_storiesExplicitExpand = expand;
+	if (!expand) {
+		_scroll->setOverscrollDefaults(0, 0, true);
+	}
+	const auto height = st::dialogsStoriesFull.height;
+	const auto duration = kStoriesExpandDuration;
+	_storiesExplicitExpandScrollTop = _scroll->position().value;
+	_storiesExplicitExpandAnimation.start([=](float64 value) {
+		_storiesExplicitExpandValue = int(base::SafeRound(value));
+	}, expand ? 0 : height, expand ? height : 0, duration, anim::sineInOut);
+}
+
+void Widget::trackScroll(not_null<Ui::RpWidget*> widget) {
+	widget->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::TouchBegin
+			|| type == QEvent::TouchUpdate
+			|| type == QEvent::TouchEnd
+			|| type == QEvent::TouchCancel
+			|| type == QEvent::Wheel) {
+			_scroll->viewportEvent(e);
+		}
+	}, widget->lifetime());
 }
 
 void Widget::setupShortcuts() {
@@ -728,6 +984,7 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 void Widget::updateControlsVisibility(bool fast) {
 	updateLoadMoreChatsVisibility();
 	_scroll->show();
+	updateStoriesVisibility();
 	if ((_openedFolder || _openedForum) && _filter->hasFocus()) {
 		setInnerFocus();
 	}
@@ -735,6 +992,9 @@ void Widget::updateControlsVisibility(bool fast) {
 		_updateTelegram->show();
 	}
 	_searchControls->setVisible(!_openedFolder && !_openedForum);
+	if (_moreChatsBar) {
+		_moreChatsBar->show();
+	}
 	if (_openedFolder || _openedForum) {
 		_subsectionTopBar->show();
 		if (_forumTopShadow) {
@@ -770,6 +1030,23 @@ void Widget::updateControlsVisibility(bool fast) {
 	if (_childList && _filter->hasFocus()) {
 		setInnerFocus();
 	}
+	updateLockUnlockPosition();
+}
+
+void Widget::updateLockUnlockPosition() {
+	if (_lockUnlock->isHidden()) {
+		return;
+	}
+	const auto stories = (_stories && !_stories->isHidden())
+		? _stories->collapsedGeometryCurrent()
+		: Stories::List::CollapsedGeometry();
+	const auto simple = _filter->x() + _filter->width();
+	const auto right = stories.geometry.isEmpty()
+		? simple
+		: anim::interpolate(stories.geometry.x(), simple, stories.expanded);
+	_lockUnlock->move(
+		right - _lockUnlock->width(),
+		st::dialogsFilterPadding.y());
 }
 
 void Widget::changeOpenedSubsection(
@@ -789,6 +1066,7 @@ void Widget::changeOpenedSubsection(
 		}
 		oldContentCache = grabForFolderSlideAnimation();
 	}
+	//_scroll->verticalScrollBar()->setMinimum(0);
 	_showAnimation = nullptr;
 	destroyChildListCanvas();
 	change();
@@ -821,11 +1099,53 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 		return;
 	}
 	changeOpenedSubsection([&] {
+		cancelSearch();
 		closeChildList(anim::type::instant);
 		controller()->closeForum();
 		_openedFolder = folder;
 		_inner->changeOpenedFolder(folder);
+		if (_stories) {
+			storiesExplicitCollapse();
+		}
 	}, (folder != nullptr), animated);
+}
+
+void Widget::storiesExplicitCollapse() {
+	if (_storiesExplicitExpand) {
+		storiesToggleExplicitExpand(false);
+	} else if (_stories) {
+		using Type = Ui::ElasticScroll::OverscrollType;
+		_scroll->setOverscrollDefaults(0, 0);
+		_scroll->setOverscrollTypes(Type::None, Type::Real);
+		_scroll->setOverscrollTypes(
+			_stories->isHidden() ? Type::Real : Type::Virtual,
+			Type::Real);
+	}
+	_storiesExplicitExpandAnimation.stop();
+	_storiesExplicitExpandValue = 0;
+
+	using List = Data::StorySourcesList;
+	collectStoriesUserpicsViews(_openedFolder
+		? List::NotHidden
+		: List::Hidden);
+	_storiesContents.fire(Stories::ContentForSession(
+		&session(),
+		_openedFolder ? List::Hidden : List::NotHidden));
+}
+
+void Widget::collectStoriesUserpicsViews(Data::StorySourcesList list) {
+	auto &map = (list == Data::StorySourcesList::Hidden)
+		? _storiesUserpicsViewsHidden
+		: _storiesUserpicsViewsShown;
+	map.clear();
+	auto &owner = session().data();
+	for (const auto &source : owner.stories().sources(list)) {
+		if (const auto peer = owner.peerLoaded(source.id)) {
+			if (auto view = peer->activeUserpicView(); view.cloud) {
+				map.emplace(source.id, std::move(view));
+			}
+		}
+	}
 }
 
 void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
@@ -838,6 +1158,8 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 		_openedForum = forum;
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		_inner->changeOpenedForum(forum);
+		storiesToggleExplicitExpand(false);
+		updateStoriesVisibility();
 	}, (forum != nullptr), animated);
 }
 
@@ -851,6 +1173,9 @@ void Widget::refreshTopBars() {
 	if (_openedFolder || _openedForum) {
 		if (!_subsectionTopBar) {
 			_subsectionTopBar.create(this, controller());
+			if (_stories) {
+				_stories->raise();
+			}
 			_subsectionTopBar->searchCancelled(
 			) | rpl::start_with_next([=] {
 				escape();
@@ -1061,10 +1386,25 @@ void Widget::jumpToTop(bool belowPinned) {
 	}
 }
 
-void Widget::scrollToTop() {
+void Widget::raiseWithTooltip() {
+	raise();
+	if (_stories) {
+		Ui::PostponeCall(this, [=] {
+			_stories->raiseTooltip();
+		});
+	}
+}
+
+void Widget::scrollToDefault(bool verytop) {
+	if (verytop) {
+		//_scroll->verticalScrollBar()->setMinimum(0);
+	}
 	_scrollToAnimation.stop();
 	auto scrollTop = _scroll->scrollTop();
 	const auto scrollTo = 0;
+	if (scrollTop == scrollTo) {
+		return;
+	}
 	const auto maxAnimatedDelta = _scroll->height();
 	if (scrollTo + maxAnimatedDelta < scrollTop) {
 		scrollTop = scrollTo + maxAnimatedDelta;
@@ -1074,9 +1414,19 @@ void Widget::scrollToTop() {
 	startScrollUpButtonAnimation(false);
 
 	const auto scroll = [=] {
-		_scroll->scrollToY(qRound(_scrollToAnimation.value(scrollTo)));
+		const auto animated = qRound(_scrollToAnimation.value(scrollTo));
+		const auto animatedDelta = animated - scrollTo;
+		const auto realDelta = _scroll->scrollTop() - scrollTo;
+		if (base::OppositeSigns(realDelta, animatedDelta)) {
+			// We scrolled manually to the other side of target 'scrollTo'.
+			_scrollToAnimation.stop();
+		} else if (std::abs(realDelta) > std::abs(animatedDelta)) {
+			// We scroll by animation only if it gets us closer to target.
+			_scroll->scrollToY(animated);
+		}
 	};
 
+	_scrollAnimationTo = scrollTo;
 	_scrollToAnimation.start(
 		scroll,
 		scrollTop,
@@ -1096,6 +1446,8 @@ void Widget::startWidthAnimation() {
 		st::columnMinimalWidthLeft,
 		scrollGeometry.height());
 	_scroll->setGeometry(grabGeometry);
+	_inner->resize(st::columnMinimalWidthLeft, _inner->height());
+	_inner->setNarrowRatio(0.);
 	Ui::SendPendingMoveResizeEvents(_scroll);
 	auto image = QImage(
 		grabGeometry.size() * cIntRetinaFactor(),
@@ -1107,8 +1459,12 @@ void Widget::startWidthAnimation() {
 		Ui::RenderWidget(p, _scroll);
 	}
 	_widthAnimationCache = Ui::PixmapFromImage(std::move(image));
-	_scroll->setGeometry(scrollGeometry);
+	if (scrollGeometry != grabGeometry) {
+		_scroll->setGeometry(scrollGeometry);
+		updateControlsGeometry();
+	}
 	_scroll->hide();
+	updateStoriesVisibility();
 }
 
 void Widget::stopWidthAnimation() {
@@ -1116,7 +1472,43 @@ void Widget::stopWidthAnimation() {
 	if (!_showAnimation) {
 		_scroll->show();
 	}
+	updateStoriesVisibility();
 	update();
+}
+
+void Widget::updateStoriesVisibility() {
+	updateLockUnlockVisibility();
+	if (!_stories) {
+		return;
+	}
+	const auto hidden = (_showAnimation != nullptr)
+		|| _openedForum
+		|| !_widthAnimationCache.isNull()
+		|| _childList
+		|| !_filter->getLastText().isEmpty()
+		|| _searchInChat
+		|| _stories->empty();
+	if (_stories->isHidden() != hidden) {
+		_stories->setVisible(!hidden);
+		using Type = Ui::ElasticScroll::OverscrollType;
+		if (hidden) {
+			_scroll->setOverscrollDefaults(0, 0);
+			_scroll->setOverscrollTypes(Type::Real, Type::Real);
+			if (_scroll->position().overscroll < 0) {
+				_scroll->scrollToY(0);
+			}
+			_scroll->update();
+		} else {
+			_scroll->setOverscrollDefaults(0, 0);
+			_scroll->setOverscrollTypes(Type::Virtual, Type::Real);
+			_storiesExplicitExpandValue.force_assign(
+				_storiesExplicitExpandValue.current());
+		}
+		if (_aboveScrollAdded > 0 && _updateScrollGeometryCached) {
+			_updateScrollGeometryCached();
+		}
+		updateLockUnlockPosition();
+	}
 }
 
 void Widget::showFast() {
@@ -1161,9 +1553,15 @@ void Widget::startSlideAnimation(
 		QPixmap newContentCache,
 		Window::SlideDirection direction) {
 	_scroll->hide();
+	if (_stories) {
+		_stories->hide();
+	}
 	_searchControls->hide();
 	if (_subsectionTopBar) {
 		_subsectionTopBar->hide();
+	}
+	if (_moreChatsBar) {
+		_moreChatsBar->hide();
 	}
 	if (_forumTopShadow) {
 		_forumTopShadow->hide();
@@ -1938,7 +2336,8 @@ void Widget::dropEvent(QDropEvent *e) {
 	if (_scroll->geometry().contains(e->pos())) {
 		const auto point = mapToGlobal(e->pos());
 		if (const auto thread = _inner->updateFromParentDrag(point)) {
-			e->acceptProposedAction();
+			e->setDropAction(Qt::CopyAction);
+			e->accept();
 			controller()->content()->filesOrForwardDrop(
 				thread,
 				e->mimeData());
@@ -1965,6 +2364,8 @@ void Widget::applyFilterUpdate(bool force) {
 		return;
 	}
 
+	updateLockUnlockVisibility(anim::type::normal);
+	updateStoriesVisibility();
 	const auto filterText = currentSearchQuery();
 	_inner->applyFilterUpdate(filterText, force);
 	if (filterText.isEmpty() && !_searchFromAuthor) {
@@ -1973,6 +2374,7 @@ void Widget::applyFilterUpdate(bool force) {
 	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
 	updateLoadMoreChatsVisibility();
 	updateJumpToDateVisibility();
+	updateLockUnlockPosition();
 
 	if (filterText.isEmpty()) {
 		_peerSearchCache.clear();
@@ -2118,6 +2520,7 @@ void Widget::closeChildList(anim::type animated) {
 	} else {
 		_childListShadow = nullptr;
 	}
+	updateStoriesVisibility();
 }
 
 void Widget::searchInChat(Key chat) {
@@ -2171,11 +2574,13 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 		_searchInChat = chat;
 		controller()->searchInChat = _searchInChat;
 		updateJumpToDateVisibility();
+		updateStoriesVisibility();
 	}
 	if (searchFromUpdated) {
 		updateSearchFromVisibility();
 		clearSearchCache();
 	}
+	updateLockUnlockPosition();
 	if (_searchInChat && _layout == Layout::Main) {
 		controller()->closeFolder();
 	}
@@ -2233,7 +2638,7 @@ void Widget::showSearchFrom() {
 			}),
 			crl::guard(this, [=] { _filter->setFocus(); }));
 		if (box) {
-			Window::Show(controller()).showBox(std::move(box));
+			controller()->show(std::move(box));
 		}
 	}
 }
@@ -2294,13 +2699,25 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
-void Widget::updateLockUnlockVisibility() {
+void Widget::updateLockUnlockVisibility(anim::type animated) {
 	if (_showAnimation) {
 		return;
 	}
-	const auto hidden = !session().domain().local().hasLocalPasscode();
-	if (_lockUnlock->isHidden() != hidden) {
-		_lockUnlock->setVisible(!hidden);
+	const auto hidden = !session().domain().local().hasLocalPasscode()
+		|| (_showAnimation != nullptr)
+		|| _openedForum
+		|| !_widthAnimationCache.isNull()
+		|| _childList
+		|| !_filter->getLastText().isEmpty()
+		|| _searchInChat;
+	if (_lockUnlock->toggled() == hidden) {
+		const auto stories = _stories && !_stories->empty();
+		_lockUnlock->toggle(
+			!hidden,
+			stories ? anim::type::instant : animated);
+		if (!hidden) {
+			updateLockUnlockPosition();
+		}
 		updateControlsGeometry();
 	}
 }
@@ -2369,11 +2786,9 @@ void Widget::updateControlsGeometry() {
 		? st::dialogsFilterSkip
 		: (st::dialogsFilterPadding.x() + _mainMenu.toggle->width()))
 		+ st::dialogsFilterPadding.x();
-	auto filterRight = (session().domain().local().hasLocalPasscode()
-		? (st::dialogsFilterPadding.x() + _lockUnlock->width())
-		: st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
-	auto filterWidth = qMax(ratiow, smallw) - filterLeft - filterRight;
-	auto filterAreaHeight = st::topBarHeight;
+	const auto filterRight = st::dialogsFilterSkip + st::dialogsFilterPadding.x();
+	const auto filterWidth = qMax(ratiow, smallw) - filterLeft - filterRight;
+	const auto filterAreaHeight = st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, ratiow, filterAreaHeight);
 	if (_subsectionTopBar) {
 		_subsectionTopBar->setGeometryWithNarrowRatio(
@@ -2385,6 +2800,7 @@ void Widget::updateControlsGeometry() {
 	auto filterTop = (filterAreaHeight - _filter->height()) / 2;
 	filterLeft = anim::interpolate(filterLeft, _narrowWidth, narrowRatio);
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
+
 	auto mainMenuLeft = anim::interpolate(
 		st::dialogsFilterPadding.x(),
 		(_narrowWidth - _mainMenu.toggle->width()) / 2,
@@ -2404,46 +2820,39 @@ void Widget::updateControlsGeometry() {
 	_searchForNarrowFilters->moveToLeft(searchLeft, st::dialogsFilterPadding.y());
 
 	auto right = filterLeft + filterWidth;
-	_lockUnlock->moveToLeft(right + st::dialogsFilterPadding.x(), st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(right - _cancelSearch->width(), _filter->y());
 	right -= _jumpToDate->width(); _jumpToDate->moveToLeft(right, _filter->y());
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
 
 	const auto barw = width();
+	const auto expandedStoriesTop = filterAreaTop + filterAreaHeight;
+	const auto storiesHeight = 2 * st::dialogsStories.photoTop
+		+ st::dialogsStories.photo;
+	const auto added = (st::dialogsFilter.heightMin - storiesHeight) / 2;
+	if (_stories) {
+		_stories->setLayoutConstraints(
+			{ filterLeft + filterWidth, filterTop + added },
+			style::al_right,
+			{ 0, expandedStoriesTop, barw, st::dialogsStoriesFull.height });
+	}
 	if (_forumTopShadow) {
 		_forumTopShadow->setGeometry(
 			0,
-			filterAreaTop + filterAreaHeight,
+			expandedStoriesTop,
 			barw,
 			st::lineWidth);
 	}
-	const auto forumGroupCallTop = filterAreaTop + filterAreaHeight;
-	if (_forumGroupCallBar) {
-		_forumGroupCallBar->move(0, forumGroupCallTop);
-		_forumGroupCallBar->resizeToWidth(barw);
-	}
-	const auto forumRequestsTop = forumGroupCallTop
-		+ (_forumGroupCallBar ? _forumGroupCallBar->height() : 0);
-	if (_forumRequestsBar) {
-		_forumRequestsBar->move(0, forumRequestsTop);
-		_forumRequestsBar->resizeToWidth(barw);
-	}
-	const auto forumReportTop = forumRequestsTop
-		+ (_forumRequestsBar ? _forumRequestsBar->height() : 0);
-	if (_forumReportBar) {
-		_forumReportBar->bar().move(0, forumReportTop);
-	}
-	auto scrollTop = forumReportTop
-		+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
-	auto newScrollTop = _scroll->scrollTop() + _topDelta;
-	auto scrollHeight = height() - scrollTop;
+
+	updateLockUnlockPosition();
+
+	auto bottomSkip = 0;
 	const auto putBottomButton = [&](auto &button) {
 		if (button && !button->isHidden()) {
 			const auto buttonHeight = button->height();
-			scrollHeight -= buttonHeight;
+			bottomSkip += buttonHeight;
 			button->setGeometry(
 				0,
-				scrollTop + scrollHeight,
+				height() - bottomSkip,
 				barw,
 				buttonHeight);
 		}
@@ -2451,21 +2860,61 @@ void Widget::updateControlsGeometry() {
 	putBottomButton(_updateTelegram);
 	putBottomButton(_downloadBar);
 	putBottomButton(_loadMoreChats);
-	const auto bottomSkip = (height() - scrollTop) - scrollHeight;
 	if (_connecting) {
 		_connecting->setBottomSkip(bottomSkip);
 	}
 	controller()->setConnectingBottomSkip(bottomSkip);
 
-	const auto scrollw = _childList ? _narrowWidth : barw;
-	const auto wasScrollHeight = _scroll->height();
-	_scroll->setGeometry(0, scrollTop, scrollw, scrollHeight);
-	_inner->resize(scrollw, _inner->height());
-	_inner->setNarrowRatio(narrowRatio);
-	if (scrollHeight != wasScrollHeight) {
-		controller()->floatPlayerAreaUpdated();
+	const auto wasScrollTop = _scroll->scrollTop();
+	const auto newScrollTop = (_topDelta < 0 && wasScrollTop <= 0)
+		? wasScrollTop
+		: (wasScrollTop + _topDelta);
+
+	const auto scrollWidth = _childList ? _narrowWidth : barw;
+	if (_moreChatsBar) {
+		_moreChatsBar->resizeToWidth(barw);
 	}
-	if (_topDelta) {
+	if (_forumGroupCallBar) {
+		_forumGroupCallBar->resizeToWidth(barw);
+	}
+	if (_forumRequestsBar) {
+		_forumRequestsBar->resizeToWidth(barw);
+	}
+	_updateScrollGeometryCached = [=] {
+		const auto moreChatsBarTop = expandedStoriesTop
+			+ ((!_stories || _stories->isHidden()) ? 0 : _aboveScrollAdded);
+		if (_moreChatsBar) {
+			_moreChatsBar->move(0, moreChatsBarTop);
+		}
+		const auto forumGroupCallTop = moreChatsBarTop
+			+ (_moreChatsBar ? _moreChatsBar->height() : 0);
+		if (_forumGroupCallBar) {
+			_forumGroupCallBar->move(0, forumGroupCallTop);
+		}
+		const auto forumRequestsTop = forumGroupCallTop
+			+ (_forumGroupCallBar ? _forumGroupCallBar->height() : 0);
+		if (_forumRequestsBar) {
+			_forumRequestsBar->move(0, forumRequestsTop);
+		}
+		const auto forumReportTop = forumRequestsTop
+			+ (_forumRequestsBar ? _forumRequestsBar->height() : 0);
+		if (_forumReportBar) {
+			_forumReportBar->bar().move(0, forumReportTop);
+		}
+		const auto scrollTop = forumReportTop
+			+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
+		const auto scrollHeight = height() - scrollTop;
+		const auto wasScrollHeight = _scroll->height();
+		_scroll->setGeometry(0, scrollTop, scrollWidth, scrollHeight);
+		if (scrollHeight != wasScrollHeight) {
+			controller()->floatPlayerAreaUpdated();
+		}
+	};
+	_updateScrollGeometryCached();
+
+	_inner->resize(scrollWidth, _inner->height());
+	_inner->setNarrowRatio(narrowRatio);
+	if (newScrollTop != wasScrollTop) {
 		_scroll->scrollToY(newScrollTop);
 	} else {
 		listScrollUpdated();
@@ -2475,8 +2924,8 @@ void Widget::updateControlsGeometry() {
 	}
 
 	if (_childList) {
-		const auto childw = std::max(_narrowWidth, width() - scrollw);
-		const auto childh = scrollTop + scrollHeight;
+		const auto childw = std::max(_narrowWidth, width() - scrollWidth);
+		const auto childh = _scroll->y() + _scroll->height();
 		const auto childx = width() - childw;
 		_childList->setGeometryWithTopMoved(
 			{ childx, 0, childw, childh },
@@ -2542,7 +2991,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		p.fillRect(above.intersected(r), bg);
 	}
 
-	auto belowTop = _scroll->y() + qMin(_scroll->height(), _inner->height());
+	auto belowTop = _scroll->y() + _scroll->height();
 	if (!_widthAnimationCache.isNull()) {
 		p.drawPixmapLeft(0, _scroll->y(), width(), _widthAnimationCache);
 		belowTop = _scroll->y() + (_widthAnimationCache.height() / cIntRetinaFactor());

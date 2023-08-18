@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_message_reaction_id.h"
+#include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/who_reacted_context_action.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Api {
 namespace {
@@ -36,37 +38,33 @@ constexpr auto kContextReactionsLimit = 50;
 using Data::ReactionId;
 
 struct Peers {
-	std::vector<PeerId> list;
+	std::vector<WhoReadPeer> list;
 	bool unknown = false;
+
+	friend inline bool operator==(
+		const Peers &a,
+		const Peers &b) noexcept = default;
 };
-inline bool operator==(const Peers &a, const Peers &b) noexcept {
-	return (a.list == b.list) && (a.unknown == b.unknown);
-}
 
 struct PeerWithReaction {
-	PeerId peer = 0;
+	WhoReadPeer peerWithDate;
 	ReactionId reaction;
-};
-inline bool operator==(
+
+	friend inline bool operator==(
 		const PeerWithReaction &a,
-		const PeerWithReaction &b) noexcept {
-	return (a.peer == b.peer) && (a.reaction == b.reaction);
-}
+		const PeerWithReaction &b) noexcept = default;
+};
 
 struct PeersWithReactions {
 	std::vector<PeerWithReaction> list;
-	std::vector<PeerId> read;
+	std::vector<WhoReadPeer> read;
 	int fullReactionsCount = 0;
 	bool unknown = false;
-};
-inline bool operator==(
+
+	friend inline bool operator==(
 		const PeersWithReactions &a,
-		const PeersWithReactions &b) noexcept {
-	return (a.fullReactionsCount == b.fullReactionsCount)
-		&& (a.list == b.list)
-		&& (a.read == b.read)
-		&& (a.unknown == b.unknown);
-}
+		const PeersWithReactions &b) noexcept = default;
+};
 
 struct CachedRead {
 	CachedRead()
@@ -113,6 +111,8 @@ struct Context {
 
 struct Userpic {
 	not_null<PeerData*> peer;
+	TimeId date = 0;
+	bool dateReacted = false;
 	QString customEntityData;
 	mutable Ui::PeerUserpicView view;
 	mutable InMemoryKey uniqueKey;
@@ -228,13 +228,16 @@ struct State {
 					item->history()->peer->input,
 					MTP_int(item->id)
 				)
-			).done([=](const MTPVector<MTPlong> &result) {
+			).done([=](const MTPVector<MTPReadParticipantDate> &result) {
 				auto &entry = context->cacheRead(item);
 				entry.requestId = 0;
 				auto parsed = Peers();
 				parsed.list.reserve(result.v.size());
 				for (const auto &id : result.v) {
-					parsed.list.push_back(UserId(id));
+					parsed.list.push_back({
+						.peer = UserId(id.data().vuser_id()),
+						.date = id.data().vdate().v,
+					});
 				}
 				entry.data = std::move(parsed);
 			}).fail([=] {
@@ -252,8 +255,8 @@ struct State {
 [[nodiscard]] PeersWithReactions WithEmptyReactions(
 		Peers &&peers) {
 	auto result = PeersWithReactions{
-		.list = peers.list | ranges::views::transform([](PeerId peer) {
-			return PeerWithReaction{ .peer = peer };
+		.list = peers.list | ranges::views::transform([](WhoReadPeer peer) {
+			return PeerWithReaction{ .peerWithDate = peer };
 		}) | ranges::to_vector,
 		.unknown = peers.unknown,
 	};
@@ -300,12 +303,15 @@ struct State {
 					};
 					parsed.list.reserve(data.vreactions().v.size());
 					for (const auto &vote : data.vreactions().v) {
-						vote.match([&](const auto &data) {
-							parsed.list.push_back(PeerWithReaction{
+						const auto &data = vote.data();
+						parsed.list.push_back(PeerWithReaction{
+							.peerWithDate = {
 								.peer = peerFromMTP(data.vpeer_id()),
-								.reaction = Data::ReactionFromMTP(
-									data.vreaction()),
-							});
+								.date = data.vdate().v,
+								.dateReacted = true,
+							},
+							.reaction = Data::ReactionFromMTP(
+								data.vreaction()),
 						});
 					}
 					entry.data = std::move(parsed);
@@ -334,9 +340,17 @@ struct State {
 			return PeersWithReactions{ .unknown = true };
 		}
 		auto &list = reacted.list;
-		for (const auto &peer : read.list) {
-			if (!ranges::contains(list, peer, &PeerWithReaction::peer)) {
-				list.push_back({ .peer = peer });
+		for (const auto &peerWithDate : read.list) {
+			const auto i = ranges::find(
+				list,
+				peerWithDate.peer,
+				[](const PeerWithReaction &p) {
+					return p.peerWithDate.peer; });
+			if (i == end(list)) {
+				list.push_back({ .peerWithDate = peerWithDate });
+			} else if (!i->peerWithDate.date) {
+				i->peerWithDate.date = peerWithDate.date;
+				i->peerWithDate.dateReacted = peerWithDate.dateReacted;
 			}
 		}
 		reacted.read = std::move(read.list);
@@ -352,13 +366,17 @@ bool UpdateUserpics(
 
 	struct ResolvedPeer {
 		PeerData *peer = nullptr;
+		TimeId date = 0;
+		bool dateReacted = false;
 		ReactionId reaction;
 	};
 	const auto peers = ranges::views::all(
 		ids
 	) | ranges::views::transform([&](PeerWithReaction id) {
 		return ResolvedPeer{
-			.peer = owner.peerLoaded(id.peer),
+			.peer = owner.peerLoaded(id.peerWithDate.peer),
+			.date = id.peerWithDate.date,
+			.dateReacted = id.peerWithDate.dateReacted,
 			.reaction = id.reaction,
 		};
 	}) | ranges::views::filter([](ResolvedPeer resolved) {
@@ -369,8 +387,8 @@ bool UpdateUserpics(
 		state->userpics,
 		peers,
 		ranges::equal_to(),
-		&Userpic::peer,
-		[](const ResolvedPeer &r) { return not_null{ r.peer }; });
+		[](const Userpic &u) { return std::pair(u.peer.get(), u.date); },
+		[](const ResolvedPeer &r) { return std::pair(r.peer, r.date); });
 	if (same) {
 		return false;
 	}
@@ -381,12 +399,16 @@ bool UpdateUserpics(
 		const auto &data = ReactionEntityData(resolved.reaction);
 		const auto i = ranges::find(was, peer, &Userpic::peer);
 		if (i != end(was) && i->view.cloud) {
+			i->date = resolved.date;
+			i->dateReacted = resolved.dateReacted;
 			now.push_back(std::move(*i));
 			now.back().customEntityData = data;
 			continue;
 		}
 		now.push_back(Userpic{
 			.peer = peer,
+			.date = resolved.date,
+			.dateReacted = resolved.dateReacted,
 			.customEntityData = data,
 		});
 		auto &userpic = now.back();
@@ -422,20 +444,26 @@ void RegenerateUserpics(not_null<State*> state, int small, int large) {
 }
 
 void RegenerateParticipants(not_null<State*> state, int small, int large) {
+	const auto currentDate = QDateTime::currentDateTime();
 	auto old = base::take(state->current.participants);
 	auto &now = state->current.participants;
 	now.reserve(state->userpics.size());
 	for (auto &userpic : state->userpics) {
 		const auto peer = userpic.peer;
+		const auto date = userpic.date;
 		const auto id = peer->id.value;
 		const auto was = ranges::find(old, id, &Ui::WhoReadParticipant::id);
 		if (was != end(old)) {
 			was->name = peer->name();
+			was->date = FormatReadDate(date, currentDate);
+			was->dateReacted = userpic.dateReacted;
 			now.push_back(std::move(*was));
 			continue;
 		}
 		now.push_back({
 			.name = peer->name(),
+			.date = FormatReadDate(date, currentDate),
+			.dateReacted = userpic.dateReacted,
 			.customEntityData = userpic.customEntityData,
 			.userpicLarge = GenerateUserpic(userpic, large),
 			.userpicKey = userpic.uniqueKey,
@@ -522,7 +550,7 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 					&PeerWithReaction::reaction);
 				whoReadIds->list = (peers.read.size() > reacted)
 					? std::move(peers.read)
-					: std::vector<PeerId>();
+					: std::vector<WhoReadPeer>();
 			}
 			if (UpdateUserpics(state, item, peers.list)) {
 				RegenerateParticipants(state, small, large);
@@ -556,13 +584,47 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 
 } // namespace
 
+QString FormatReadDate(TimeId date, const QDateTime &now) {
+	if (!date) {
+		return {};
+	}
+	const auto parsed = base::unixtime::parse(date);
+	const auto readDate = parsed.date();
+	const auto nowDate = now.date();
+	if (readDate == nowDate) {
+		return tr::lng_mediaview_today(
+			tr::now,
+			lt_time,
+			QLocale().toString(parsed.time(), QLocale::ShortFormat));
+	} else if (readDate.addDays(1) == nowDate) {
+		return tr::lng_mediaview_yesterday(
+			tr::now,
+			lt_time,
+			QLocale().toString(parsed.time(), QLocale::ShortFormat));
+	}
+	return tr::lng_mediaview_date_time(
+		tr::now,
+		lt_date,
+		tr::lng_month_day(
+			tr::now,
+			lt_month,
+			Lang::MonthDay(readDate.month())(tr::now),
+			lt_day,
+			QString::number(readDate.day())),
+		lt_time,
+		QLocale().toString(parsed.time(), QLocale::ShortFormat));
+}
+
 bool WhoReadExists(not_null<HistoryItem*> item) {
 	if (!item->out()) {
 		return false;
 	}
 	const auto type = DetectSeenType(item);
+	const auto thread = item->topic()
+		? (Data::Thread*)item->topic()
+		: item->history();
 	const auto unseen = (type == Ui::WhoReadType::Seen)
-		? item->unread(item->history())
+		? item->unread(thread)
 		: item->isUnreadMedia();
 	if (unseen) {
 		return false;
@@ -572,7 +634,6 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	const auto chat = peer->asChat();
 	const auto megagroup = peer->asMegagroup();
 	if ((!chat && !megagroup)
-		|| peer->isForum()
 		|| (megagroup
 			&& (megagroup->flags() & ChannelDataFlag::ParticipantsHidden))) {
 		return false;

@@ -315,14 +315,12 @@ FormRequest::FormRequest(
 	const QString &scope,
 	const QString &callbackUrl,
 	const QString &publicKey,
-	const QString &nonce,
-	const QString &errors)
+	const QString &nonce)
 : botId(botId)
 , scope(scope)
 , callbackUrl(ValidateUrl(callbackUrl))
 , publicKey(publicKey)
-, nonce(nonce)
-, errors(errors) {
+, nonce(nonce) {
 }
 
 EditFile::EditFile(
@@ -1586,7 +1584,7 @@ void FormController::uploadEncryptedFile(
 	auto prepared = std::make_shared<FileLoadResult>(
 		TaskId(),
 		file.uploadData->fileId,
-		FileLoadTo(PeerId(), Api::SendOptions(), MsgId(), MsgId(), MsgId()),
+		FileLoadTo(PeerId(), Api::SendOptions(), FullReplyTo(), MsgId()),
 		TextWithTags(),
 		false,
 		std::shared_ptr<SendingAlbum>(nullptr));

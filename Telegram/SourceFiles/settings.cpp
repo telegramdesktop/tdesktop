@@ -18,7 +18,7 @@ QByteArray gAlphaPrivateKey;
 
 bool gManyInstance = false;
 QString gKeyFile;
-QString gWorkingDir, gExeDir, gExeName;
+QString gWorkingDir;
 
 QStringList gSendPaths;
 QString gStartUrl;
@@ -29,7 +29,6 @@ bool gStartMinimized = false;
 bool gStartInTray = false;
 bool gAutoStart = false;
 bool gSendToMenu = false;
-bool gUseExternalVideoPlayer = false;
 bool gAutoUpdate = true;
 LaunchMode gLaunchMode = LaunchModeNormal;
 bool gSeenTrayTooltip = false;

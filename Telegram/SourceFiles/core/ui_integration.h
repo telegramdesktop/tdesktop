@@ -60,6 +60,9 @@ public:
 		const QString &data,
 		const std::any &context) override;
 	Fn<void()> createSpoilerRepaint(const std::any &context) override;
+	bool allowClickHandlerActivation(
+		const std::shared_ptr<ClickHandler> &handler,
+		const ClickContext &context) override;
 
 	QString phraseContextCopyText() override;
 	QString phraseContextCopyEmail() override;

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/file_utilities.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_session.h"
 #include "data/data_sponsored_messages.h"
@@ -42,6 +43,8 @@ inline auto SponsoredPhrase(SponsoredType type) {
 		case SponsoredType::Broadcast: return tr::lng_view_button_channel;
 		case SponsoredType::Post: return tr::lng_view_button_message;
 		case SponsoredType::Bot: return tr::lng_view_button_bot;
+		case SponsoredType::ExternalLink:
+			return tr::lng_view_button_external_link;
 		}
 		Unexpected("SponsoredType in SponsoredPhrase.");
 	}();
@@ -52,6 +55,8 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 	const auto type = webpage->type;
 	return Ui::Text::Upper((type == WebPageType::Theme)
 		? tr::lng_view_button_theme(tr::now)
+		: (type == WebPageType::Story)
+		? tr::lng_view_button_story(tr::now)
 		: (type == WebPageType::Message)
 		? tr::lng_view_button_message(tr::now)
 		: (type == WebPageType::Group)
@@ -71,18 +76,29 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 		? tr::lng_view_button_bot(tr::now)
 		: (type == WebPageType::User)
 		? tr::lng_view_button_user(tr::now)
+		: (type == WebPageType::BotApp)
+		? tr::lng_view_button_bot_app(tr::now)
 		: QString());
 }
 
-[[nodiscard]] ClickHandlerPtr MakeWebPageClickHandler(
+[[nodiscard]] ClickHandlerPtr MakeWebPageButtonClickHandler(
 		not_null<Data::Media*> media) {
 	Expects(media->webpage() != nullptr);
 
 	const auto url = media->webpage()->url;
+	const auto type = media->webpage()->type;
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			HiddenUrlClickHandler::Open(url, context.other);
+			if (type == WebPageType::BotApp) {
+				// Bot Web Apps always show confirmation on hidden urls.
+				//
+				// But from the dedicated "Open App" button we don't want
+				// to request users confirmation on non-first app opening.
+				UrlClickHandler::Open(url, context.other);
+			} else {
+				HiddenUrlClickHandler::Open(url, context.other);
+			}
 		}
 	});
 }
@@ -102,6 +118,7 @@ struct ViewButton::Inner {
 	const ClickHandlerPtr link;
 	const Fn<void()> updateCallback;
 	bool belowInfo = true;
+	bool externalLink = false;
 	int lastWidth = 0;
 	QPoint lastPoint;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
@@ -124,9 +141,12 @@ bool ViewButton::MediaHasViewButton(
 		|| (type == WebPageType::User)
 		|| (type == WebPageType::VoiceChat)
 		|| (type == WebPageType::Livestream)
+		|| (type == WebPageType::BotApp)
 		|| ((type == WebPageType::Theme)
 			&& webpage->document
 			&& webpage->document->isTheme())
+		|| ((type == WebPageType::Story)
+			&& (webpage->photo || webpage->document))
 		|| ((type == WebPageType::WallPaper)
 			&& webpage->document
 			&& webpage->document->isWallPaper());
@@ -142,7 +162,9 @@ ViewButton::Inner::Inner(
 		const auto &data = controller->session().data();
 		const auto itemId = my.itemId;
 		const auto details = data.sponsoredMessages().lookupDetails(itemId);
-		if (details.hash) {
+		if (!details.externalLink.isEmpty()) {
+			File::OpenUrl(details.externalLink);
+		} else if (details.hash) {
 			Api::CheckChatInvite(controller, *details.hash);
 		} else if (details.peer) {
 			controller->showPeerHistory(
@@ -153,6 +175,7 @@ ViewButton::Inner::Inner(
 	}
 }))
 , updateCallback(std::move(updateCallback))
+, externalLink(sponsored->type == SponsoredType::ExternalLink)
 , text(st::historyViewButtonTextStyle, SponsoredPhrase(sponsored->type)) {
 }
 
@@ -160,7 +183,7 @@ ViewButton::Inner::Inner(
 	not_null<Data::Media*> media,
 	Fn<void()> updateCallback)
 : margins(st::historyViewButtonMargins)
-, link(MakeWebPageClickHandler(media))
+, link(MakeWebPageButtonClickHandler(media))
 , updateCallback(std::move(updateCallback))
 , belowInfo(false)
 , text(st::historyViewButtonTextStyle, WebPageToPhrase(media->webpage())) {
@@ -244,6 +267,17 @@ void ViewButton::draw(
 			r.width(),
 			1,
 			style::al_center);
+
+		if (_inner->externalLink) {
+			const auto &icon = st::msgBotKbUrlIcon;
+			const auto padding = st::msgBotKbIconPadding;
+			icon.paint(
+				p,
+				r.left() + r.width() - icon.width() - padding,
+				r.top() + padding,
+				r.width(),
+				stm->fwdTextPalette.linkFg->c);
+		}
 	}
 	p.restore();
 	if (_inner->lastWidth != r.width()) {

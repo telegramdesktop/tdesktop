@@ -11,6 +11,7 @@
 #include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
 
 MultiAccountToggleUi::MultiAccountToggleUi(QWidget *parent, gsl::not_null<Main::Domain*> domain, size_t index, Description description)
     : ActionUI(parent, domain, index)
@@ -32,7 +33,7 @@ void MultiAccountToggleUi::Create(not_null<Ui::VerticalLayout *> content,
                 content,
                 _description.account_title(account.get()),
                 st::settingsButton,
-                {&st::settingsIconMinus, Settings::kIconRed}
+                {&st::menuIconRemove}
         )->toggleOn(toggled->events_starting_with_copy(_action != nullptr && _action->HasAction(index)));
         account_buttons_[idx] = button;
 

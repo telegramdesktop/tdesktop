@@ -29,13 +29,24 @@ enum class WhoReactedList {
 	One,
 };
 
+[[nodiscard]] QString FormatReadDate(TimeId date, const QDateTime &now);
 [[nodiscard]] bool WhoReadExists(not_null<HistoryItem*> item);
 [[nodiscard]] bool WhoReactedExists(
 	not_null<HistoryItem*> item,
 	WhoReactedList list);
 
+struct WhoReadPeer {
+	PeerId peer = 0;
+	TimeId date = 0;
+	bool dateReacted = false;
+
+	friend inline bool operator==(
+		const WhoReadPeer &a,
+		const WhoReadPeer &b) noexcept = default;
+};
+
 struct WhoReadList {
-	std::vector<PeerId> list;
+	std::vector<WhoReadPeer> list;
 	Ui::WhoReadType type = {};
 };
 

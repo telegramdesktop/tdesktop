@@ -37,6 +37,7 @@ struct ToPreviewOptions {
 	bool generateImages = true;
 	bool ignoreGroup = false;
 	bool ignoreTopic = true;
+	bool spoilerLoginCode = false;
 	bool translated = false;
 };
 

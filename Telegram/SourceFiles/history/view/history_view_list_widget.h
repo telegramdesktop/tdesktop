@@ -93,6 +93,7 @@ public:
 	virtual bool listScrollTo(int top, bool syntetic = true) = 0;
 	virtual void listCancelRequest() = 0;
 	virtual void listDeleteRequest() = 0;
+	virtual void listTryProcessKeyInput(not_null<QKeyEvent*> e) = 0;
 	virtual rpl::producer<Data::MessagesSlice> listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -359,6 +360,9 @@ private:
 	using PointState = HistoryView::PointState;
 	using CursorState = HistoryView::CursorState;
 	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
+	using ViewsMap = base::flat_map<
+		not_null<HistoryItem*>,
+		std::unique_ptr<Element>>;
 
 	struct MouseState {
 		MouseState();
@@ -433,7 +437,9 @@ private:
 
 	Element *viewForItem(FullMsgId itemId) const;
 	Element *viewForItem(const HistoryItem *item) const;
-	not_null<Element*> enforceViewForItem(not_null<HistoryItem*> item);
+	not_null<Element*> enforceViewForItem(
+		not_null<HistoryItem*> item,
+		ViewsMap &old);
 
 	void mouseActionStart(
 		const QPoint &globalPosition,
@@ -623,10 +629,7 @@ private:
 	int _idsLimit = kMinimalIdsLimit;
 	Data::MessagesSlice _slice;
 	std::vector<not_null<Element*>> _items;
-	std::map<
-		not_null<HistoryItem*>,
-		std::unique_ptr<Element>,
-		std::less<>> _views;
+	ViewsMap _views, _viewsCapacity;
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;

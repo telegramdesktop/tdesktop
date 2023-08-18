@@ -48,7 +48,7 @@ public:
 	[[nodiscard]] bool ready() const;
 
 	[[nodiscard]] float64 speed() const;
-	void setSpeed(float64 speed); // 0.5 <= speed <= 2.
+	void setSpeed(float64 speed);
 	void setWaitForMarkAsShown(bool wait);
 
 	[[nodiscard]] bool playing() const;

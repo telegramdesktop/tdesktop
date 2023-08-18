@@ -69,14 +69,7 @@ FilteredCommandLineArguments::FilteredCommandLineArguments(
 		pushArgument("cocoa:fontengine=freetype");
 #endif // !Q_OS_WIN
 	}
-#elif defined Q_OS_UNIX
-	if (QFile::exists(cWorkingDir() + u"tdata/nowayland"_q)
-		&& qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) {
-		LOG(("Wayland: Disable on old installations"));
-		pushArgument("-platform");
-		pushArgument("xcb;wayland");
-	}
-#endif // Q_OS_WIN || Q_OS_MAC || Q_OS_UNIX
+#endif // Q_OS_WIN || Q_OS_MAC
 
 	pushArgument(nullptr);
 }
@@ -288,6 +281,8 @@ base::options::toggle OptionFractionalScalingEnabled({
 const char kOptionFractionalScalingEnabled[] = "fractional-scaling-enabled";
 const char kOptionFreeType[] = "freetype";
 
+Launcher *Launcher::InstanceSetter::Instance = nullptr;
+
 std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
 }
@@ -295,15 +290,18 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 Launcher::Launcher(int argc, char *argv[])
 : _argc(argc)
 , _argv(argv)
+, _arguments(readArguments(_argc, _argv))
 , _baseIntegration(_argc, _argv) {
 	crl::toggle_fp_exceptions(true);
 
 	base::Integration::Set(&_baseIntegration);
 }
 
-void Launcher::init() {
-	_arguments = readArguments(_argc, _argv);
+Launcher::~Launcher() {
+	InstanceSetter::Instance = nullptr;
+}
 
+void Launcher::init() {
 	prepareSettings();
 	initQtMessageLogging();
 
@@ -350,7 +348,7 @@ int Launcher::exec() {
 	}
 
 	// Must be started before Platform is started.
-	Logs::start(this);
+	Logs::start();
 	base::options::init(cWorkingDir() + "tdata/experimental_options.json");
 
 	// Must be called after options are inited.
@@ -396,6 +394,18 @@ int Launcher::exec() {
 	return result;
 }
 
+bool Launcher::validateCustomWorkingDir() {
+	if (customWorkingDir()) {
+		if (_customWorkingDir == cWorkingDir()) {
+			_customWorkingDir = QString();
+			return false;
+		}
+		cForceWorkingDir(_customWorkingDir);
+		return true;
+	}
+	return false;
+}
+
 void Launcher::workingFolderReady() {
 	srand((unsigned int)time(nullptr));
 
@@ -432,28 +442,17 @@ QStringList Launcher::readArguments(int argc, char *argv[]) const {
 	return result;
 }
 
-QString Launcher::argumentsString() const {
-	return _arguments.join(' ');
+const QStringList &Launcher::arguments() const {
+	return _arguments;
 }
 
 bool Launcher::customWorkingDir() const {
-	return _customWorkingDir;
+	return !_customWorkingDir.isEmpty();
 }
 
 void Launcher::prepareSettings() {
 	auto path = base::Platform::CurrentExecutablePath(_argc, _argv);
 	LOG(("Executable path before check: %1").arg(path));
-	if (!path.isEmpty()) {
-		auto info = QFileInfo(path);
-		if (info.isSymLink()) {
-			info = QFileInfo(info.symLinkTarget());
-		}
-		if (info.exists()) {
-			const auto dir = info.absoluteDir().absolutePath();
-			gExeDir = (dir.endsWith('/') ? dir : (dir + '/'));
-			gExeName = info.fileName();
-		}
-	}
 	if (cExeName().isEmpty()) {
 		LOG(("WARNING: Could not compute executable path, some features will be disabled."));
 	}
@@ -547,9 +546,9 @@ void Launcher::processArguments() {
 	gStartInTray = parseResult.contains("-startintray");
 	gQuit = parseResult.contains("-quit");
 	gSendPaths = parseResult.value("-sendpath", {});
-	cForceWorkingDir(parseResult.value("-workdir", {}).join(QString()));
-	if (!gWorkingDir.isEmpty()) {
-		_customWorkingDir = true;
+	_customWorkingDir = parseResult.value("-workdir", {}).join(QString());
+	if (!_customWorkingDir.isEmpty()) {
+		_customWorkingDir = QDir(_customWorkingDir).absolutePath() + '/';
 	}
 	gStartUrl = parseResult.value("--", {}).join(QString());
 
@@ -565,7 +564,7 @@ void Launcher::processArguments() {
 
 int Launcher::executeApplication() {
 	FilteredCommandLineArguments arguments(_argc, _argv);
-	Sandbox sandbox(this, arguments.count(), arguments.values());
+	Sandbox sandbox(arguments.count(), arguments.values());
 	Ui::MainQueueProcessor processor;
 	base::ConcurrentTimerEnvironment environment;
 	return sandbox.start();

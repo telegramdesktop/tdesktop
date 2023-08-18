@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_child_ffmpeg_loader.h"
 #include "media/audio/media_audio_loaders.h"
 #include "media/audio/media_audio_track.h"
-#include "media/audio/media_openal_functions.h"
+#include "media/media_common.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "data/data_document.h"
@@ -44,15 +44,6 @@ ALCcontext *AudioContext = nullptr;
 
 auto VolumeMultiplierAll = 1.;
 auto VolumeMultiplierSong = 1.;
-
-// Value for AL_PITCH_SHIFTER_COARSE_TUNE effect, 0.5 <= speed <= 2.
-int CoarseTuneForSpeed(float64 speed) {
-	Expects(speed >= 0.5 && speed <= 2.);
-
-	constexpr auto kTuneSteps = 12;
-	const auto tuneRatio = std::log(speed) / std::log(2.);
-	return -int(base::SafeRound(kTuneSteps * tuneRatio));
-}
 
 } // namespace
 
@@ -205,7 +196,6 @@ void Start(not_null<Instance*> instance) {
 	auto loglevel = getenv("ALSOFT_LOGLEVEL");
 	LOG(("OpenAL Logging Level: %1").arg(loglevel ? loglevel : "(not set)"));
 
-	OpenAL::LoadEFXExtension();
 	EnumeratePlaybackDevices();
 	EnumerateCaptureDevices();
 
@@ -244,9 +234,9 @@ bool AttachToDevice() {
 		return false;
 	}
 
-	if (auto m = Player::mixer()) {
+	if (const auto m = Player::mixer()) {
 		m->reattachTracks();
-		m->faderOnTimer();
+		m->scheduleFaderCallback();
 	}
 
 	crl::on_main([] {
@@ -282,16 +272,12 @@ void StopDetachIfNotUsedSafe() {
 }
 
 bool SupportsSpeedControl() {
-	return OpenAL::HasEFXExtension()
-		&& (alGetEnumValue("AL_AUXILIARY_SEND_FILTER") != 0)
-		&& (alGetEnumValue("AL_DIRECT_FILTER") != 0)
-		&& (alGetEnumValue("AL_EFFECT_TYPE") != 0)
-		&& (alGetEnumValue("AL_EFFECT_PITCH_SHIFTER") != 0)
-		&& (alGetEnumValue("AL_FILTER_TYPE") != 0)
-		&& (alGetEnumValue("AL_FILTER_LOWPASS") != 0)
-		&& (alGetEnumValue("AL_LOWPASS_GAIN") != 0)
-		&& (alGetEnumValue("AL_PITCH_SHIFTER_COARSE_TUNE") != 0)
-		&& (alGetEnumValue("AL_EFFECTSLOT_EFFECT") != 0);
+	static const auto result = [] {
+		return avfilter_get_by_name("abuffer")
+			&& avfilter_get_by_name("abuffersink")
+			&& avfilter_get_by_name("atempo");
+	}();
+	return result;
 }
 
 } // namespace Audio
@@ -300,7 +286,7 @@ namespace Player {
 namespace {
 
 constexpr auto kVolumeRound = 10000;
-constexpr auto kPreloadSamples = 2LL * kDefaultFrequency; // preload next part if less than 2 seconds remains
+constexpr auto kPreloadSeconds = 2LL; // preload next part if less than 2 seconds remains
 constexpr auto kFadeDuration = crl::time(500);
 constexpr auto kCheckPlaybackPositionTimeout = crl::time(100); // 100ms per check audio position
 constexpr auto kCheckPlaybackPositionDelta = 2400LL; // update position called each 2400 samples
@@ -348,43 +334,6 @@ void Mixer::Track::createStream(AudioMsgId::Type type) {
 			alGetEnumValue("AL_REMIX_UNMATCHED_SOFT"));
 	}
 	alGenBuffers(3, stream.buffers);
-	if (speedEffect) {
-		applySourceSpeedEffect();
-	} else {
-		removeSourceSpeedEffect();
-	}
-}
-
-void Mixer::Track::removeSourceSpeedEffect() {
-	if (!Audio::SupportsSpeedControl()) {
-		return;
-	}
-
-	alSource3i(stream.source, alGetEnumValue("AL_AUXILIARY_SEND_FILTER"), alGetEnumValue("AL_EFFECTSLOT_NULL"), 0, 0);
-	alSourcei(stream.source, alGetEnumValue("AL_DIRECT_FILTER"), alGetEnumValue("AL_FILTER_NULL"));
-	alSourcef(stream.source, AL_PITCH, 1.f);
-}
-
-void Mixer::Track::applySourceSpeedEffect() {
-	if (!Audio::SupportsSpeedControl()) {
-		return;
-	}
-
-	Expects(speedEffect != nullptr);
-
-	if (!speedEffect->effect || !OpenAL::alIsEffect(speedEffect->effect)) {
-		OpenAL::alGenAuxiliaryEffectSlots(1, &speedEffect->effectSlot);
-		OpenAL::alGenEffects(1, &speedEffect->effect);
-		OpenAL::alGenFilters(1, &speedEffect->filter);
-		OpenAL::alEffecti(speedEffect->effect, alGetEnumValue("AL_EFFECT_TYPE"), alGetEnumValue("AL_EFFECT_PITCH_SHIFTER"));
-		OpenAL::alFilteri(speedEffect->filter, alGetEnumValue("AL_FILTER_TYPE"), alGetEnumValue("AL_FILTER_LOWPASS"));
-		OpenAL::alFilterf(speedEffect->filter, alGetEnumValue("AL_LOWPASS_GAIN"), 0.f);
-	}
-	OpenAL::alEffecti(speedEffect->effect, alGetEnumValue("AL_PITCH_SHIFTER_COARSE_TUNE"), speedEffect->coarseTune);
-	OpenAL::alAuxiliaryEffectSloti(speedEffect->effectSlot, alGetEnumValue("AL_EFFECTSLOT_EFFECT"), speedEffect->effect);
-	alSourcef(stream.source, AL_PITCH, speedEffect->speed);
-	alSource3i(stream.source, alGetEnumValue("AL_AUXILIARY_SEND_FILTER"), speedEffect->effectSlot, 0, 0);
-	alSourcei(stream.source, alGetEnumValue("AL_DIRECT_FILTER"), speedEffect->filter);
 }
 
 void Mixer::Track::destroyStream() {
@@ -396,45 +345,32 @@ void Mixer::Track::destroyStream() {
 	for (auto i = 0; i != 3; ++i) {
 		stream.buffers[i] = 0;
 	}
-	resetSpeedEffect();
-}
-
-void Mixer::Track::resetSpeedEffect() {
-	if (!Audio::SupportsSpeedControl()) {
-		return;
-	}
-
-	if (!speedEffect) {
-		return;
-	} else if (speedEffect->effect && OpenAL::alIsEffect(speedEffect->effect)) {
-		if (isStreamCreated()) {
-			removeSourceSpeedEffect();
-		}
-		if (Player::mixer()) {
-			// Don't destroy effect slot immediately.
-			// See https://github.com/kcat/openal-soft/issues/486
-			Player::mixer()->scheduleEffectDestruction(*speedEffect);
-		}
-	}
-	speedEffect->effect = speedEffect->effectSlot = speedEffect->filter = 0;
 }
 
 void Mixer::Track::reattach(AudioMsgId::Type type) {
 	if (isStreamCreated()
-		|| (!samplesCount[0] && !state.id.externalPlayId())) {
+		|| (!withSpeed.samples[0] && !state.id.externalPlayId())) {
 		return;
 	}
 
 	createStream(type);
 	for (auto i = 0; i != kBuffersCount; ++i) {
-		if (!samplesCount[i]) {
+		if (!withSpeed.samples[i]) {
 			break;
 		}
-		alBufferData(stream.buffers[i], format, bufferSamples[i].constData(), bufferSamples[i].size(), frequency);
+		alBufferData(
+			stream.buffers[i],
+			format,
+			withSpeed.buffered[i].constData(),
+			withSpeed.buffered[i].size(),
+			state.frequency);
 		alSourceQueueBuffers(stream.source, 1, stream.buffers + i);
 	}
 
-	alSourcei(stream.source, AL_SAMPLE_OFFSET, qMax(state.position - bufferedPosition, 0LL));
+	alSourcei(
+		stream.source,
+		AL_SAMPLE_OFFSET,
+		qMax(withSpeed.position - withSpeed.bufferedPosition, 0LL));
 	if (!IsStopped(state.state)
 		&& (state.state != State::PausedAtEnd)
 		&& !state.waitingForData) {
@@ -461,18 +397,12 @@ void Mixer::Track::clear() {
 	state = TrackState();
 	file = Core::FileLocation();
 	data = QByteArray();
-	bufferedPosition = 0;
-	bufferedLength = 0;
+	format = 0;
 	loading = false;
 	loaded = false;
-	fadeStartPosition = 0;
-
-	format = 0;
-	frequency = kDefaultFrequency;
-	for (int i = 0; i != kBuffersCount; ++i) {
-		samplesCount[i] = 0;
-		bufferSamples[i] = QByteArray();
-	}
+	waitingForBuffer = false;
+	withSpeed = WithSpeed();
+	speed = 1.;
 
 	setExternalData(nullptr);
 	lastUpdateWhen = 0;
@@ -482,17 +412,9 @@ void Mixer::Track::clear() {
 void Mixer::Track::started() {
 	resetStream();
 
-	bufferedPosition = 0;
-	bufferedLength = 0;
-	loaded = false;
-	fadeStartPosition = 0;
-
 	format = 0;
-	frequency = kDefaultFrequency;
-	for (auto i = 0; i != kBuffersCount; ++i) {
-		samplesCount[i] = 0;
-		bufferSamples[i] = QByteArray();
-	}
+	loaded = false;
+	withSpeed = WithSpeed();
 }
 
 bool Mixer::Track::isStreamCreated() const {
@@ -507,7 +429,7 @@ void Mixer::Track::ensureStreamCreated(AudioMsgId::Type type) {
 
 int Mixer::Track::getNotQueuedBufferIndex() {
 	// See if there are no free buffers right now.
-	while (samplesCount[kBuffersCount - 1] != 0) {
+	while (withSpeed.samples[kBuffersCount - 1] != 0) {
 		// Try to unqueue some buffer.
 		ALint processed = 0;
 		alGetSourcei(stream.source, AL_BUFFERS_PROCESSED, &processed);
@@ -523,17 +445,17 @@ int Mixer::Track::getNotQueuedBufferIndex() {
 		bool found = false;
 		for (auto i = 0; i != kBuffersCount; ++i) {
 			if (stream.buffers[i] == buffer) {
-				auto samplesInBuffer = samplesCount[i];
-				bufferedPosition += samplesInBuffer;
-				bufferedLength -= samplesInBuffer;
+				const auto samplesInBuffer = withSpeed.samples[i];
+				withSpeed.bufferedPosition += samplesInBuffer;
+				withSpeed.bufferedLength -= samplesInBuffer;
 				for (auto j = i + 1; j != kBuffersCount; ++j) {
-					samplesCount[j - 1] = samplesCount[j];
+					withSpeed.samples[j - 1] = withSpeed.samples[j];
 					stream.buffers[j - 1] = stream.buffers[j];
-					bufferSamples[j - 1] = bufferSamples[j];
+					withSpeed.buffered[j - 1] = withSpeed.buffered[j];
 				}
-				samplesCount[kBuffersCount - 1] = 0;
+				withSpeed.samples[kBuffersCount - 1] = 0;
 				stream.buffers[kBuffersCount - 1] = buffer;
-				bufferSamples[kBuffersCount - 1] = QByteArray();
+				withSpeed.buffered[kBuffersCount - 1] = QByteArray();
 				found = true;
 				break;
 			}
@@ -545,7 +467,7 @@ int Mixer::Track::getNotQueuedBufferIndex() {
 	}
 
 	for (auto i = 0; i != kBuffersCount; ++i) {
-		if (!samplesCount[i]) {
+		if (!withSpeed.samples[i]) {
 			return i;
 		}
 	}
@@ -554,28 +476,33 @@ int Mixer::Track::getNotQueuedBufferIndex() {
 
 void Mixer::Track::setExternalData(
 		std::unique_ptr<ExternalSoundData> data) {
-	changeSpeedEffect(data ? data->speed : 1.);
+	nextSpeed = speed = data ? data->speed : 1.;
 	externalData = std::move(data);
 }
 
-void Mixer::Track::changeSpeedEffect(float64 speed) {
-	if (!Audio::SupportsSpeedControl()) {
-		return;
-	}
+void Mixer::Track::updateStatePosition() {
+	state.position = SpeedIndependentPosition(withSpeed.position, speed);
+}
 
-	if (speed != 1.) {
-		if (!speedEffect) {
-			speedEffect = std::make_unique<SpeedEffect>();
-		}
-		speedEffect->speed = speed;
-		speedEffect->coarseTune = CoarseTuneForSpeed(speed);
-		if (isStreamCreated()) {
-			applySourceSpeedEffect();
-		}
-	} else if (speedEffect) {
-		resetSpeedEffect();
-		speedEffect = nullptr;
-	}
+void Mixer::Track::updateWithSpeedPosition() {
+	withSpeed.position = SpeedDependentPosition(state.position, speed);
+	withSpeed.fineTunedPosition = withSpeed.position;
+}
+
+int64 Mixer::Track::SpeedIndependentPosition(
+		int64 position,
+		float64 speed) {
+	Expects(speed <= kSpeedMax);
+
+	return int64(base::SafeRound(position * speed));
+}
+
+int64 Mixer::Track::SpeedDependentPosition(
+		int64 position,
+		float64 speed) {
+	Expects(speed >= kSpeedMin);
+
+	return int64(base::SafeRound(position / speed));
 }
 
 void Mixer::Track::resetStream() {
@@ -589,24 +516,26 @@ Mixer::Track::~Track() = default;
 
 Mixer::Mixer(not_null<Audio::Instance*> instance)
 : _instance(instance)
-, _effectsDestructionTimer([=] { destroyStaleEffectsSafe(); })
 , _volumeVideo(kVolumeRound)
 , _volumeSong(kVolumeRound)
 , _fader(new Fader(&_faderThread))
 , _loader(new Loaders(&_loaderThread)) {
-	connect(this, SIGNAL(faderOnTimer()), _fader, SLOT(onTimer()), Qt::QueuedConnection);
 	connect(this, SIGNAL(suppressSong()), _fader, SLOT(onSuppressSong()));
 	connect(this, SIGNAL(unsuppressSong()), _fader, SLOT(onUnsuppressSong()));
 	connect(this, SIGNAL(suppressAll(qint64)), _fader, SLOT(onSuppressAll(qint64)));
 
 	Core::App().settings().songVolumeChanges(
 	) | rpl::start_with_next([=] {
-		QMetaObject::invokeMethod(_fader, "onSongVolumeChanged");
+		InvokeQueued(_fader, [fader = _fader] {
+			fader->songVolumeChanged();
+		});
 	}, _lifetime);
 
 	Core::App().settings().videoVolumeChanges(
 	) | rpl::start_with_next([=] {
-		QMetaObject::invokeMethod(_fader, "onVideoVolumeChanged");
+		InvokeQueued(_fader, [fader = _fader] {
+			fader->videoVolumeChanged();
+		});
 	}, _lifetime);
 
 	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&, qint64)), _loader, SLOT(onStart(const AudioMsgId&, qint64)));
@@ -645,6 +574,12 @@ Mixer::~Mixer() {
 	_loaderThread.wait();
 }
 
+void Mixer::scheduleFaderCallback() {
+	InvokeQueued(_fader, [fader = _fader] {
+		fader->onTimer();
+	});
+}
+
 void Mixer::onUpdated(const AudioMsgId &audio) {
 	if (audio.externalPlayId()) {
 		externalSoundProgress(audio);
@@ -654,60 +589,6 @@ void Mixer::onUpdated(const AudioMsgId &audio) {
 		// base::Observable::notify is not syncronous by default.
 		UpdatedStream.fire_copy(audio);
 	});
-}
-
-// Thread: Any. Must be locked: AudioMutex.
-void Mixer::scheduleEffectDestruction(const SpeedEffect &effect) {
-	_effectsForDestruction.emplace_back(
-		crl::now() + kEffectDestructionDelay,
-		effect);
-	scheduleEffectsDestruction();
-}
-
-// Thread: Any. Must be locked: AudioMutex.
-void Mixer::scheduleEffectsDestruction() {
-	if (_effectsForDestruction.empty()) {
-		return;
-	}
-	InvokeQueued(this, [=] {
-		if (!_effectsDestructionTimer.isActive()) {
-			_effectsDestructionTimer.callOnce(kEffectDestructionDelay + 1);
-		}
-	});
-}
-
-// Thread: Main. Locks: AudioMutex.
-void Mixer::destroyStaleEffectsSafe() {
-	QMutexLocker lock(&AudioMutex);
-	destroyStaleEffects();
-}
-
-// Thread: Main. Must be locked: AudioMutex.
-void Mixer::destroyStaleEffects() {
-	const auto now = crl::now();
-	const auto checkAndDestroy = [&](
-			const std::pair<crl::time, SpeedEffect> &pair) {
-		const auto &[when, effect] = pair;
-		if (when && when > now) {
-			return false;
-		}
-		OpenAL::alDeleteEffects(1, &effect.effect);
-		OpenAL::alDeleteAuxiliaryEffectSlots(1, &effect.effectSlot);
-		OpenAL::alDeleteFilters(1, &effect.filter);
-		return true;
-	};
-	_effectsForDestruction.erase(
-		ranges::remove_if(_effectsForDestruction, checkAndDestroy),
-		end(_effectsForDestruction));
-	scheduleEffectsDestruction();
-}
-
-// Thread: Main. Must be locked: AudioMutex.
-void Mixer::destroyEffectsOnClose() {
-	for (auto &[when, effect] : _effectsForDestruction) {
-		when = 0;
-	}
-	destroyStaleEffects();
 }
 
 void Mixer::onError(const AudioMsgId &audio) {
@@ -789,7 +670,7 @@ void Mixer::resetFadeStartPosition(AudioMsgId::Type type, int positionInBuffered
 			} else if ((alState == AL_STOPPED)
 				&& (alSampleOffset == 0)
 				&& !internal::CheckAudioDeviceConnected()) {
-				track->fadeStartPosition = track->state.position;
+				track->withSpeed.fadeStartPosition = track->withSpeed.position;
 				return;
 			}
 
@@ -798,17 +679,19 @@ void Mixer::resetFadeStartPosition(AudioMsgId::Type type, int positionInBuffered
 					&& (!IsStopped(track->state.state)
 						|| IsStoppedAtEnd(track->state.state)));
 			positionInBuffered = stoppedAtEnd
-				? track->bufferedLength
+				? track->withSpeed.bufferedLength
 				: alSampleOffset;
 		} else {
 			positionInBuffered = 0;
 		}
 	}
-	auto fullPosition = track->samplesCount[0]
-		? (track->bufferedPosition + positionInBuffered)
-		: track->state.position;
-	track->state.position = fullPosition;
-	track->fadeStartPosition = fullPosition;
+	const auto withSpeedPosition = track->withSpeed.samples[0]
+		? (track->withSpeed.bufferedPosition + positionInBuffered)
+		: track->withSpeed.position;
+	track->withSpeed.fineTunedPosition = withSpeedPosition;
+	track->withSpeed.position = withSpeedPosition;
+	track->withSpeed.fadeStartPosition = withSpeedPosition;
+	track->updateStatePosition();
 }
 
 bool Mixer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
@@ -862,7 +745,7 @@ void Mixer::play(
 			}
 			if (current->state.id) {
 				loaderOnCancel(current->state.id);
-				faderOnTimer();
+				scheduleFaderCallback();
 			}
 			if (type != AudioMsgId::Type::Video) {
 				auto foundCurrent = currentIndex(type);
@@ -887,6 +770,7 @@ void Mixer::play(
 		current->setExternalData(std::move(externalData));
 		current->state.position = (positionMs * current->state.frequency)
 			/ 1000LL;
+		current->updateWithSpeedPosition();
 		current->state.state = current->externalData
 			? State::Paused
 			: fadedStart
@@ -916,7 +800,15 @@ void Mixer::setSpeedFromExternal(const AudioMsgId &audioId, float64 speed) {
 	QMutexLocker lock(&AudioMutex);
 	const auto track = trackForType(audioId.type());
 	if (track->state.id == audioId) {
-		track->changeSpeedEffect(speed);
+		track->nextSpeed = speed;
+		if (!EqualSpeeds(track->speed, track->nextSpeed)
+			&& !IsStoppedOrStopping(track->state.state)) {
+			track->loading = true;
+			track->loaded = false;
+			InvokeQueued(_loader, [loader = _loader, id = audioId] {
+				loader->onLoad(id);
+			});
+		}
 	}
 }
 
@@ -957,9 +849,11 @@ void Mixer::externalSoundProgress(const AudioMsgId &audio) {
 	QMutexLocker lock(&AudioMutex);
 	const auto current = trackForType(type);
 	if (current && current->state.length && current->state.frequency) {
-		if (current->state.id == audio && current->state.state == State::Playing) {
+		if (current->state.id == audio
+			&& current->state.state == State::Playing) {
 			current->lastUpdateWhen = crl::now();
-			current->lastUpdatePosition = (current->state.position * 1000ULL) / current->state.frequency;
+			current->lastUpdatePosition = (current->state.position * 1000LL)
+				/ current->state.frequency;
 		}
 	}
 }
@@ -1014,7 +908,7 @@ void Mixer::pause(const AudioMsgId &audio, bool fast) {
 			}
 		}
 
-		faderOnTimer();
+		scheduleFaderCallback();
 
 		track->lastUpdateWhen = 0;
 		track->lastUpdatePosition = 0;
@@ -1061,7 +955,10 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 					if (!checkCurrentALError(type)) return;
 
 					if (state == AL_STOPPED) {
-						alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
+						alSourcei(
+							track->stream.source,
+							AL_SAMPLE_OFFSET,
+							qMax(track->withSpeed.position - track->withSpeed.bufferedPosition, 0LL));
 						if (!checkCurrentALError(type)) return;
 					}
 					alSourcePlay(track->stream.source);
@@ -1073,78 +970,10 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 			}
 		} break;
 		}
-		faderOnTimer();
+		scheduleFaderCallback();
 	}
 	if (current) updated(current);
 }
-//
-// Right now all the music is played in the streaming player.
-//
-//void Mixer::seek(AudioMsgId::Type type, crl::time positionMs) {
-//	QMutexLocker lock(&AudioMutex);
-//
-//	const auto current = trackForType(type);
-//	const auto audio = current->state.id;
-//
-//	Audio::AttachToDevice();
-//	const auto streamCreated = current->isStreamCreated();
-//	const auto position = (positionMs * current->frequency) / 1000LL;
-//	const auto fastSeek = [&] {
-//		const auto loadedStart = current->bufferedPosition;
-//		const auto loadedLength = current->bufferedLength;
-//		const auto skipBack = (current->loaded ? 0 : kDefaultFrequency);
-//		const auto availableEnd = loadedStart + loadedLength - skipBack;
-//		if (position < loadedStart) {
-//			return false;
-//		} else if (position >= availableEnd) {
-//			return false;
-//		} else if (!streamCreated) {
-//			return false;
-//		} else if (IsStoppedOrStopping(current->state.state)) {
-//			return false;
-//		}
-//		return true;
-//	}();
-//	if (fastSeek) {
-//		alSourcei(current->stream.source, AL_SAMPLE_OFFSET, position - current->bufferedPosition);
-//		if (!checkCurrentALError(type)) return;
-//
-//		alSourcef(current->stream.source, AL_GAIN, ComputeVolume(type));
-//		if (!checkCurrentALError(type)) return;
-//
-//		resetFadeStartPosition(type, position - current->bufferedPosition);
-//	} else {
-//		setStoppedState(current);
-//	}
-//	switch (current->state.state) {
-//	case State::Pausing:
-//	case State::Paused:
-//	case State::PausedAtEnd: {
-//		if (current->state.state == State::PausedAtEnd) {
-//			current->state.state = State::Paused;
-//		}
-//		lock.unlock();
-//		return resume(audio, true);
-//	} break;
-//	case State::Starting:
-//	case State::Resuming:
-//	case State::Playing: {
-//		current->state.state = State::Pausing;
-//		resetFadeStartPosition(type);
-//		if (type == AudioMsgId::Type::Voice) {
-//			emit unsuppressSong();
-//		}
-//	} break;
-//	case State::Stopping:
-//	case State::Stopped:
-//	case State::StoppedAtEnd:
-//	case State::StoppedAtError:
-//	case State::StoppedAtStart: {
-//		lock.unlock();
-//	} return play(audio, positionMs);
-//	}
-//	emit faderOnTimer();
-//}
 
 void Mixer::stop(const AudioMsgId &audio) {
 	AudioMsgId current;
@@ -1239,6 +1068,8 @@ TrackState Mixer::currentState(AudioMsgId::Type type) {
 void Mixer::setStoppedState(Track *current, State state) {
 	current->state.state = state;
 	current->state.position = 0;
+	current->withSpeed.position = 0;
+	current->withSpeed.fineTunedPosition = 0;
 	if (current->isStreamCreated()) {
 		alSourceStop(current->stream.source);
 		alSourcef(current->stream.source, AL_GAIN, 1);
@@ -1255,8 +1086,6 @@ void Mixer::prepareToCloseDevice() {
 		trackForType(AudioMsgId::Type::Song, i)->detach();
 	}
 	_videoTrack.detach();
-
-	destroyEffectsOnClose();
 }
 
 // Thread: Main. Must be locked: AudioMutex.
@@ -1427,12 +1256,13 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 			&& (!IsStopped(track->state.state)
 				|| IsStoppedAtEnd(track->state.state)));
 	const auto positionInBuffered = stoppedAtEnd
-		? track->bufferedLength
+		? track->withSpeed.bufferedLength
 		: alSampleOffset;
 	const auto waitingForDataOld = track->state.waitingForData;
 	track->state.waitingForData = stoppedAtEnd
 		&& (track->state.state != State::Stopping);
-	const auto fullPosition = track->bufferedPosition + positionInBuffered;
+	const auto withSpeedPosition = track->withSpeed.bufferedPosition
+		+ positionInBuffered;
 
 	auto playing = (track->state.state == State::Playing);
 	auto fading = IsFading(track->state.state);
@@ -1451,7 +1281,8 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 			emitSignals |= EmitStopped;
 		}
 	} else if (fading && alState == AL_PLAYING) {
-		auto fadingForSamplesCount = (fullPosition - track->fadeStartPosition);
+		const auto fadingForSamplesCount = withSpeedPosition
+			- track->withSpeed.fadeStartPosition;
 		if (crl::time(1000) * fadingForSamplesCount >= kFadeDuration * track->state.frequency) {
 			fading = false;
 			alSourcef(track->stream.source, AL_GAIN, 1. * volumeMultiplier);
@@ -1488,20 +1319,22 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 			if (errorHappened()) return EmitError;
 		}
 	}
-	if (alState == AL_PLAYING && fullPosition >= track->state.position + kCheckPlaybackPositionDelta) {
-		track->state.position = fullPosition;
+	track->withSpeed.fineTunedPosition = withSpeedPosition;
+	if (alState == AL_PLAYING && withSpeedPosition >= track->withSpeed.position + kCheckPlaybackPositionDelta) {
+		track->withSpeed.position = withSpeedPosition;
+		track->updateStatePosition();
 		emitSignals |= EmitPositionUpdated;
 	} else if (track->state.waitingForData && !waitingForDataOld) {
-		if (fullPosition > track->state.position) {
-			track->state.position = fullPosition;
+		if (withSpeedPosition > track->withSpeed.position) {
+			track->withSpeed.position = withSpeedPosition;
 		}
 		// When stopped because of insufficient data while streaming,
 		// inform the player about the last position we were at.
 		emitSignals |= EmitPositionUpdated;
 	}
 	if (playing || track->state.state == State::Starting || track->state.state == State::Resuming) {
-		if (!track->loaded && !track->loading) {
-			auto needPreload = (track->state.position + kPreloadSamples > track->bufferedPosition + track->bufferedLength);
+		if ((!track->loaded && !track->loading) || track->waitingForBuffer) {
+			auto needPreload = (track->withSpeed.position + kPreloadSeconds * track->state.frequency > track->withSpeed.bufferedPosition + track->withSpeed.bufferedLength);
 			if (needPreload) {
 				track->loading = true;
 				emitSignals |= EmitNeedToPreload;
@@ -1549,12 +1382,12 @@ void Fader::onSuppressAll(qint64 duration) {
 	onTimer();
 }
 
-void Fader::onSongVolumeChanged() {
+void Fader::songVolumeChanged() {
 	_volumeChangedSong = true;
 	onTimer();
 }
 
-void Fader::onVideoVolumeChanged() {
+void Fader::videoVolumeChanged() {
 	_volumeChangedVideo = true;
 	onTimer();
 }
@@ -1615,12 +1448,10 @@ public:
 	: AbstractFFMpegLoader(file, data, bytes::vector()) {
 	}
 
-	bool open(crl::time positionMs) override {
-		if (!AbstractFFMpegLoader::open(positionMs)) {
+	bool open(crl::time positionMs, float64 speed = 1.) override {
+		if (!AbstractFFMpegLoader::open(positionMs, speed)) {
 			return false;
 		}
-
-		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
 		for (int32 i = 0, l = fmtContext->nb_streams; i < l; ++i) {
 			const auto stream = fmtContext->streams[i];
@@ -1644,11 +1475,10 @@ public:
 					}
 				}
 			} else if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-				DEBUG_LOG(("Audio Read Error: Found video stream in file '%1', data size '%2', error %3, %4")
+				DEBUG_LOG(("Audio Read Error: Found video stream in file '%1', data size '%2', stream %3.")
 					.arg(_file.name())
 					.arg(_data.size())
-					.arg(i)
-					.arg(av_make_error_string(err, sizeof(err), streamId)));
+					.arg(i));
 				return false;
 			}
 		}
@@ -1677,6 +1507,10 @@ public:
 		//}
 	}
 
+	int sampleSize() override {
+		Unexpected("We shouldn't try to read sample size here.");
+	}
+
 	int format() override {
 		return 0;
 	}
@@ -1701,9 +1535,9 @@ public:
 		return _coverFormat;
 	}
 
-	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override {
+	ReadResult readMore() override {
 		DEBUG_LOG(("Audio Read Error: should not call this"));
-		return ReadResult::Error;
+		return ReadError::Other;
 	}
 
 	~FFMpegAttributesReader() {
@@ -1725,8 +1559,8 @@ Ui::PreparedFileInformation PrepareForSending(
 	auto result = Ui::PreparedFileInformation::Song();
 	FFMpegAttributesReader reader(Core::FileLocation(fname), data);
 	const auto positionMs = crl::time(0);
-	if (reader.open(positionMs) && reader.samplesCount() > 0) {
-		result.duration = reader.samplesCount() / reader.samplesFrequency();
+	if (reader.open(positionMs) && reader.duration() > 0) {
+		result.duration = reader.duration();
 		result.title = reader.title();
 		result.performer = reader.performer();
 		result.cover = reader.cover();
@@ -1741,17 +1575,18 @@ public:
 	FFMpegWaveformCounter(const Core::FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, bytes::vector()) {
 	}
 
-	bool open(crl::time positionMs) override {
-		if (!FFMpegLoader::open(positionMs)) {
+	bool open(crl::time positionMs, float64 speed = 1.) override {
+		if (!FFMpegLoader::open(positionMs, speed)) {
 			return false;
 		}
 
 		QByteArray buffer;
 		buffer.reserve(kWaveformCounterBufferSize);
-		int64 countbytes = sampleSize() * samplesCount();
+		const auto samplesCount = samplesFrequency() * duration() / 1000;
+		int64 countbytes = sampleSize() * samplesCount;
 		int64 processed = 0;
 		int64 sumbytes = 0;
-		if (samplesCount() < Media::Player::kWaveformSamplesCount) {
+		if (samplesCount < Media::Player::kWaveformSamplesCount) {
 			return false;
 		}
 
@@ -1770,24 +1605,23 @@ public:
 			}
 		};
 		while (processed < countbytes) {
-			buffer.resize(0);
-
-			int64 samples = 0;
-			auto res = readMore(buffer, samples);
-			if (res == ReadResult::Error || res == ReadResult::EndOfFile) {
+			const auto result = readMore();
+			Assert(result != ReadError::Wait); // Not a child loader.
+			if (result == ReadError::Retry) {
+				continue;
+			} else if (result == ReadError::Other
+				|| result == ReadError::EndOfFile) {
 				break;
 			}
-			if (buffer.isEmpty()) {
-				continue;
-			}
-
-			auto sampleBytes = bytes::make_span(buffer);
+			Assert(v::is<bytes::const_span>(result));
+			const auto sampleBytes = v::get<bytes::const_span>(result);
+			Assert(!sampleBytes.empty());
 			if (fmt == AL_FORMAT_MONO8 || fmt == AL_FORMAT_STEREO8) {
 				Media::Audio::IterateSamples<uchar>(sampleBytes, callback);
 			} else if (fmt == AL_FORMAT_MONO16 || fmt == AL_FORMAT_STEREO16) {
 				Media::Audio::IterateSamples<int16>(sampleBytes, callback);
 			}
-			processed += sampleSize() * samples;
+			processed += sampleBytes.size();
 		}
 		if (sumbytes > 0 && peaks.size() < Media::Player::kWaveformSamplesCount) {
 			peaks.push_back(peak);

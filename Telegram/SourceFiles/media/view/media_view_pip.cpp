@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/power_save_blocker.h"
 #include "base/event_filter.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
@@ -48,20 +49,19 @@ namespace {
 constexpr auto kPipLoaderPriority = 2;
 constexpr auto kMsInSecond = 1000;
 
-[[nodiscard]] bool IsWindowControlsOnLeft() {
-	using Control = Ui::Platform::TitleControls::Control;
-	const auto controlsLayout = Ui::Platform::TitleControlsLayout();
-	return ranges::contains(controlsLayout.left, Control::Close)
-		|| (controlsLayout.left.size() > controlsLayout.right.size()
-			&& !ranges::contains(controlsLayout.right, Control::Close));
-}
-
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
 	const auto screen = QGuiApplication::screenAt(point);
 	const auto use = screen ? screen : QGuiApplication::primaryScreen();
 	return use
 		? use->availableGeometry()
 		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
+}
+
+[[nodiscard]] QSize MaxAllowedSizeForScreen(QSize screenSize) {
+	// Each side should be less than screen side - 3 * st::pipBorderSkip,
+	// That way it won't try to snap to both opposite sides of the screen.
+	const auto skip = 3 * st::pipBorderSkip;
+	return { screenSize.width() - skip, screenSize.height() - skip };
 }
 
 [[nodiscard]] QPoint ClampToEdges(QRect screen, QRect inner) {
@@ -535,10 +535,10 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 		? QSize(max, max * _ratio.height() / _ratio.width())
 		: QSize(max * _ratio.width() / _ratio.height(), max);
 
-	// At least one side should not be greater than half of screen size.
-	const auto byWidth = (scaled.width() * screen.height())
-		> (scaled.height() * screen.width());
-	const auto fit = QSize(screen.width() / 2, screen.height() / 2);
+	// Apply maximum size.
+	const auto fit = MaxAllowedSizeForScreen(screen.size());
+	const auto byWidth = (scaled.width() * fit.height())
+		> (scaled.height() * fit.width());
 	const auto normalized = (byWidth && scaled.width() > fit.width())
 		? QSize(fit.width(), fit.width() * scaled.height() / scaled.width())
 		: (!byWidth && scaled.height() > fit.height())
@@ -642,8 +642,7 @@ void PipPanel::handleScreenChanged(QScreen *screen) {
 		st::pipMinimalSize,
 		Qt::KeepAspectRatioByExpanding);
 	const auto maximalSize = _ratio.scaled(
-		screenGeometry.width() / 2,
-		screenGeometry.height() / 2,
+		MaxAllowedSizeForScreen(screenGeometry.size()),
 		Qt::KeepAspectRatio);
 	widget()->setMinimumSize(minimalSize);
 	widget()->setMaximumSize(
@@ -762,6 +761,11 @@ void PipPanel::startSystemDrag() {
 	} else {
 		widget()->windowHandle()->startSystemMove();
 	}
+
+	Ui::SendSynteticMouseEvent(
+		widget().get(),
+		QEvent::MouseButtonRelease,
+		Qt::LeftButton);
 }
 
 void PipPanel::processDrag(QPoint point) {
@@ -781,8 +785,7 @@ void PipPanel::processDrag(QPoint point) {
 		st::pipMinimalSize,
 		Qt::KeepAspectRatioByExpanding);
 	const auto maximalSize = _ratio.scaled(
-		screen.width() / 2,
-		screen.height() / 2,
+		MaxAllowedSizeForScreen(screen.size()),
 		Qt::KeepAspectRatio);
 	const auto geometry = Transformed(
 		_dragStartGeometry,
@@ -1093,9 +1096,6 @@ void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
 }
 
 void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
-	Expects(1 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	const auto weak = Ui::MakeWeak(_panel.widget());
 	const auto guard = gsl::finally([&] {
 		if (weak) {
@@ -1107,21 +1107,11 @@ void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 	}
 	seekUpdate(position);
 
-	Assert(2 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	volumeControllerUpdate(position);
-
-	Assert(3 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
 
 	const auto pressed = base::take(_pressed);
 	if (pressed && *pressed == OverState::Playback) {
 		_panel.setDragDisabled(false);
-
-		Assert(4 && _delegate->pipPlaybackSpeed() >= 0.5
-			&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 		seekFinish(_playbackProgress->value());
 	} else if (pressed && *pressed == OverState::VolumeController) {
 		_panel.setDragDisabled(false);
@@ -1182,9 +1172,6 @@ void Pip::seekProgress(float64 value) {
 }
 
 void Pip::seekFinish(float64 value) {
-	Expects(5 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	if (!_lastDurationMs) {
 		return;
 	}
@@ -1271,7 +1258,7 @@ void Pip::setupButtons() {
 			rect.y(),
 			volumeToggleWidth,
 			volumeToggleHeight);
-		if (!IsWindowControlsOnLeft()) {
+		if (!Ui::Platform::TitleControlsOnLeft()) {
 			_close.area.moveLeft(rect.x()
 				+ rect.width()
 				- (_close.area.x() - rect.x())
@@ -1384,7 +1371,7 @@ void Pip::paint(not_null<Renderer*> renderer) const {
 		if (_preparedCoverState == ThumbState::Cover) {
 			geometry.rotation += base::take(geometry.videoRotation);
 		}
-		renderer->paintTransformedStaticContent(staticContent(), geometry);
+		renderer->paintTransformedStaticContent(content, geometry);
 	}
 	if (_instance.waitingShown()) {
 		renderer->paintRadialLoading(countRadialRect(), controlsShown);
@@ -1671,30 +1658,17 @@ void Pip::playbackPauseResume() {
 }
 
 void Pip::restartAtSeekPosition(crl::time position) {
-	Expects(6 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	if (!_instance.info().video.cover.isNull()) {
 		_preparedCoverStorage = QImage();
 		_preparedCoverState = ThumbState::Empty;
 		_instance.saveFrameToCover();
 	}
 
-	Assert(7 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
 	options.hwAllowed = Core::App().settings().hardwareAcceleratedVideo();
 	options.audioId = _instance.player().prepareLegacyState().id;
-
-	Assert(8 && _delegate->pipPlaybackSpeed() >= 0.5
-		&& _delegate->pipPlaybackSpeed() <= 2.); // Debugging strange crash.
-
 	options.speed = _delegate->pipPlaybackSpeed();
-
-	Assert(9 && options.speed >= 0.5
-		&& options.speed <= 2.); // Debugging strange crash.
 
 	_instance.play(options);
 	if (_startPaused) {

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_calls.h"
 #include "styles/style_info.h" // st::topBarArrowPadding, like TopBarWidget.
 #include "styles/style_window.h" // st::columnMinimalWidthLeft
@@ -220,7 +221,9 @@ void GroupCallBar::setupInner() {
 	_inner->setCursor(style::cur_pointer);
 	_inner->events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
-		return (event->type() == QEvent::MouseButtonPress);
+		return (event->type() == QEvent::MouseButtonPress)
+			&& (static_cast<QMouseEvent*>(event.get())->button()
+				== Qt::LeftButton);
 	}) | rpl::map([=] {
 		return _inner->events(
 		) | rpl::filter([=](not_null<QEvent*> event) {
@@ -441,7 +444,10 @@ rpl::producer<> GroupCallBar::barClicks() const {
 }
 
 rpl::producer<> GroupCallBar::joinClicks() const {
-	return _joinClicks.events() | rpl::to_empty;
+	using namespace rpl::mappers;
+	return _joinClicks.events()
+		| rpl::filter(_1 == Qt::LeftButton)
+		| rpl::to_empty;
 }
 
 } // namespace Ui

@@ -156,7 +156,7 @@ PanelController::~PanelController() {
 		saveSettings();
 	}
 	if (_panel) {
-		_panel->destroyLayer();
+		_panel->hideLayer(anim::type::instant);
 	}
 }
 

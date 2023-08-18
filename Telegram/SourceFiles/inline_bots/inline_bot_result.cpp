@@ -374,7 +374,7 @@ void Result::addToHistory(
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor) const {
 	flags |= MessageFlag::FromInlineBot;
 
@@ -390,7 +390,7 @@ void Result::addToHistory(
 		fromId,
 		date,
 		viaBotId,
-		replyToId,
+		replyTo,
 		postAuthor,
 		std::move(markup));
 }

@@ -152,6 +152,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::WallPaper;
 	} else if (type == u"telegram_theme"_q) {
 		return WebPageType::Theme;
+	} else if (type == u"telegram_story"_q) {
+		return WebPageType::Story;
 	} else if (type == u"telegram_channel"_q) {
 		return WebPageType::Channel;
 	} else if (type == u"telegram_channel_request"_q) {
@@ -162,16 +164,18 @@ WebPageType ParseWebPageType(
 	} else if (type == u"telegram_megagroup_request"_q
 		|| type == u"telegram_chat_request"_q) {
 		return WebPageType::GroupWithRequest;
-	}  else if (type == u"telegram_message"_q) {
+	} else if (type == u"telegram_message"_q) {
 		return WebPageType::Message;
-	}  else if (type == u"telegram_bot"_q) {
+	} else if (type == u"telegram_bot"_q) {
 		return WebPageType::Bot;
-	}  else if (type == u"telegram_voicechat"_q) {
+	} else if (type == u"telegram_voicechat"_q) {
 		return WebPageType::VoiceChat;
-	}  else if (type == u"telegram_livestream"_q) {
+	} else if (type == u"telegram_livestream"_q) {
 		return WebPageType::Livestream;
-	}  else if (type == u"telegram_user"_q) {
+	} else if (type == u"telegram_user"_q) {
 		return WebPageType::User;
+	} else if (type == u"telegram_botapp"_q) {
+		return WebPageType::BotApp;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {
@@ -212,6 +216,7 @@ bool WebPageData::applyChanges(
 		const QString &newSiteName,
 		const QString &newTitle,
 		const TextWithEntities &newDescription,
+		FullStoryId newStoryId,
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
 		WebPageCollage &&newCollage,
@@ -252,6 +257,7 @@ bool WebPageData::applyChanges(
 		&& siteName == resultSiteName
 		&& title == resultTitle
 		&& description.text == newDescription.text
+		&& storyId == newStoryId
 		&& photo == newPhoto
 		&& document == newDocument
 		&& collage.items == newCollage.items
@@ -269,6 +275,7 @@ bool WebPageData::applyChanges(
 	siteName = resultSiteName;
 	title = resultTitle;
 	description = newDescription;
+	storyId = newStoryId;
 	photo = newPhoto;
 	document = newDocument;
 	collage = std::move(newCollage);

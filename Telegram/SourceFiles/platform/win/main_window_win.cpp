@@ -587,7 +587,7 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 		SetWindowTheme(_hWnd, empty, empty);
 		QApplication::setStyle(QStyleFactory::create(u"Windows"_q));
 #if 0
-	} else if (!Platform::IsDarkModeSupported()/*
+	} else if (!Core::App().settings().systemDarkMode().has_value()/*
 		|| (!Dlls::AllowDarkModeForApp && !Dlls::SetPreferredAppMode)
 		|| !Dlls::AllowDarkModeForWindow
 		|| !Dlls::RefreshImmersiveColorPolicyState

@@ -39,6 +39,62 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QScreen>
 
 namespace Window {
+namespace {
+
+class Show final : public Ui::Show {
+public:
+	explicit Show(not_null<Controller*> window);
+
+	void showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const override;
+	[[nodiscard]] not_null<QWidget*> toastParent() const override;
+	[[nodiscard]] bool valid() const override;
+	operator bool() const override;
+
+private:
+	const base::weak_ptr<Controller> _window;
+
+};
+
+Show::Show(not_null<Controller*> window)
+: _window(base::make_weak(window)) {
+}
+
+void Show::showOrHideBoxOrLayer(
+		std::variant<
+			v::null_t,
+			object_ptr<Ui::BoxContent>,
+			std::unique_ptr<Ui::LayerWidget>> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) const {
+	if (const auto window = _window.get()) {
+		window->widget()->showOrHideBoxOrLayer(
+			std::move(layer),
+			options,
+			animated);
+	}
+}
+
+not_null<QWidget*> Show::toastParent() const {
+	const auto window = _window.get();
+	Assert(window != nullptr);
+	return window->widget()->bodyWidget();
+}
+
+bool Show::valid() const {
+	return !_window.empty();
+}
+
+Show::operator bool() const {
+	return valid();
+}
+
+} // namespace
 
 Controller::Controller() : Controller(CreateArgs{}) {
 }
@@ -220,13 +276,11 @@ void Controller::checkLockByTerms() {
 }
 
 void Controller::showTermsDecline() {
-	const auto box = show(
-		Box<Window::TermsBox>(
-			TextWithEntities{ tr::lng_terms_update_sorry(tr::now) },
-			tr::lng_terms_decline_and_delete(),
-			tr::lng_terms_back(),
-			true),
-		Ui::LayerOption::KeepOther);
+	const auto box = show(Box<Window::TermsBox>(
+		TextWithEntities{ tr::lng_terms_update_sorry(tr::now) },
+		tr::lng_terms_decline_and_delete(),
+		tr::lng_terms_back(),
+		true));
 
 	box->agreeClicks(
 	) | rpl::start_with_next([=] {
@@ -252,14 +306,12 @@ void Controller::showTermsDelete() {
 			hideLayer();
 		}
 	};
-	show(
-		Ui::MakeConfirmBox({
-			.text = tr::lng_terms_delete_warning(),
-			.confirmed = deleteByTerms,
-			.confirmText = tr::lng_terms_delete_now(),
-			.confirmStyle = &st::attentionBoxButton,
-		}),
-		Ui::LayerOption::KeepOther);
+	show(Ui::MakeConfirmBox({
+		.text = tr::lng_terms_delete_warning(),
+		.confirmed = deleteByTerms,
+		.confirmText = tr::lng_terms_delete_now(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
 }
 
 void Controller::finishFirstShow() {
@@ -341,22 +393,30 @@ int Controller::verticalShadowTop() const {
 		: 0;
 }
 
-void Controller::showToast(const QString &text) {
-	Ui::Toast::Show(_widget.bodyWidget(), text);
+void Controller::showToast(Ui::Toast::Config &&config) {
+	Show(this).showToast(std::move(config));
+}
+
+void Controller::showToast(TextWithEntities &&text, crl::time duration) {
+	Show(this).showToast(std::move(text), duration);
+}
+
+void Controller::showToast(const QString &text, crl::time duration) {
+	Show(this).showToast(text, duration);
 }
 
 void Controller::showLayer(
 		std::unique_ptr<Ui::LayerWidget> &&layer,
 		Ui::LayerOptions options,
 		anim::type animated) {
-	_widget.showLayer(std::move(layer), options, animated);
+	_widget.showOrHideBoxOrLayer(std::move(layer), options, animated);
 }
 
 void Controller::showBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options,
 		anim::type animated) {
-	_widget.ui_showBox(std::move(content), options, animated);
+	_widget.showOrHideBoxOrLayer(std::move(content), options, animated);
 }
 
 void Controller::showRightColumn(object_ptr<TWidget> widget) {
@@ -364,7 +424,7 @@ void Controller::showRightColumn(object_ptr<TWidget> widget) {
 }
 
 void Controller::hideLayer(anim::type animated) {
-	_widget.ui_showBox({ nullptr }, Ui::LayerOption::CloseOther, animated);
+	_widget.showOrHideBoxOrLayer(v::null, Ui::LayerOption::CloseOther, animated);
 }
 
 void Controller::hideSettingsAndLayer(anim::type animated) {
@@ -513,6 +573,10 @@ auto Controller::floatPlayerDelegate() const -> FloatDelegate* {
 auto Controller::floatPlayerDelegateValue() const
 -> rpl::producer<FloatDelegate*> {
 	return _floatPlayerDelegate.value();
+}
+
+std::shared_ptr<Ui::Show> Controller::uiShow() {
+	return std::make_shared<Show>(this);
 }
 
 rpl::lifetime &Controller::lifetime() {

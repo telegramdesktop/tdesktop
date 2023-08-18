@@ -40,10 +40,8 @@ struct FileReferenceAccumulator {
 		});
 	}
 	void push(const MTPPage &data) {
-		data.match([&](const auto &data) {
-			push(data.vphotos());
-			push(data.vdocuments());
-		});
+		push(data.data().vphotos());
+		push(data.data().vdocuments());
 	}
 	void push(const MTPWallPaper &data) {
 		data.match([&](const MTPDwallPaper &data) {
@@ -52,12 +50,12 @@ struct FileReferenceAccumulator {
 		});
 	}
 	void push(const MTPTheme &data) {
-		data.match([&](const MTPDtheme &data) {
-			push(data.vdocument());
-		});
+		push(data.data().vdocument());
 	}
 	void push(const MTPWebPageAttribute &data) {
-		data.match([&](const MTPDwebPageAttributeTheme &data) {
+		data.match([&](const MTPDwebPageAttributeStory &data) {
+			push(data.vstory());
+		}, [&](const MTPDwebPageAttributeTheme &data) {
 			push(data.vdocuments());
 		});
 	}
@@ -97,9 +95,18 @@ struct FileReferenceAccumulator {
 				push(data.vphoto());
 			}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
 				push(data.vphoto());
+			}, [&](const MTPDmessageActionSetChatWallPaper &data) {
+				push(data.vwallpaper());
 			}, [](const auto &data) {
 			});
 		}, [](const MTPDmessageEmpty &data) {
+		});
+	}
+	void push(const MTPStoryItem &data) {
+		data.match([&](const MTPDstoryItem &data) {
+			push(data.vmedia());
+		}, [](const MTPDstoryItemDeleted &) {
+		}, [](const MTPDstoryItemSkipped &) {
 		});
 	}
 	void push(const MTPmessages_Messages &data) {
@@ -114,9 +121,7 @@ struct FileReferenceAccumulator {
 		});
 	}
 	void push(const MTPusers_UserFull &data) {
-		data.match([&](const auto &data) {
-			push(data.vfull_user().data().vpersonal_photo());
-		});
+		push(data.data().vfull_user().data().vpersonal_photo());
 	}
 	void push(const MTPmessages_RecentStickers &data) {
 		data.match([&](const MTPDmessages_recentStickers &data) {
@@ -149,9 +154,10 @@ struct FileReferenceAccumulator {
 		});
 	}
 	void push(const MTPhelp_PremiumPromo &data) {
-		data.match([&](const MTPDhelp_premiumPromo &data) {
-			push(data.vvideos());
-		});
+		push(data.data().vvideos());
+	}
+	void push(const MTPstories_Stories &data) {
+		push(data.data().vstories());
 	}
 
 	UpdatedFileReferences result;
@@ -211,6 +217,10 @@ UpdatedFileReferences GetFileReferences(
 }
 
 UpdatedFileReferences GetFileReferences(const MTPhelp_PremiumPromo &data) {
+	return GetFileReferencesHelper(data);
+}
+
+UpdatedFileReferences GetFileReferences(const MTPstories_Stories &data) {
 	return GetFileReferencesHelper(data);
 }
 

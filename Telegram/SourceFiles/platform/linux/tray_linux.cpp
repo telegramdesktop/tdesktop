@@ -91,7 +91,7 @@ QIcon IconGraphic::systemIcon(
 		int counter,
 		bool muted) const {
 	if (iconThemeName == _themeName
-		&& counterSlice(counter) == _count
+		&& (counter > 0) == (_count > 0)
 		&& muted == _muted) {
 		return _systemIcon;
 	}
@@ -232,6 +232,7 @@ QIcon IconGraphic::trayIcon(
 					: 16;
 				const auto layer = Window::GenerateCounterLayer({
 					.size = layerSize,
+					.devicePixelRatio = iconImage.devicePixelRatio(),
 					.count = counter,
 					.bg = bg,
 					.fg = fg,

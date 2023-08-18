@@ -12,13 +12,11 @@ class GenericBox;
 class VerticalLayout;
 } // namespace Ui
 
-namespace Main {
-class Session;
-} // namespace Main
+class PeerData;
 
 void UsernamesBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Main::Session*> session);
+	not_null<PeerData*> peer);
 
 struct UsernameCheckInfo final {
 	enum class Type {

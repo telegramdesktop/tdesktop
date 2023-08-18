@@ -116,19 +116,6 @@ auto GenerateCodes() {
 			}
 		});
 	});
-	codes.emplace(u"videoplayer"_q, [](SessionController *window) {
-		if (!window) {
-			return;
-		}
-		auto text = cUseExternalVideoPlayer()
-			? u"Use internal video player?"_q
-			: u"Use external video player?"_q;
-		Ui::show(Ui::MakeConfirmBox({ text, [=] {
-			cSetUseExternalVideoPlayer(!cUseExternalVideoPlayer());
-			window->session().saveSettingsDelayed();
-			Ui::hideLayer();
-		} }));
-	});
 	codes.emplace(u"endpoints"_q, [](SessionController *window) {
 		if (!Core::App().domain().started()) {
 			return;
