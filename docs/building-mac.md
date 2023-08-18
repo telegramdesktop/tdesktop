@@ -17,15 +17,15 @@ Go to ***BuildPath*** and run
 
     sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
-    ./tdesktop/Telegram/build/prepare/mac.sh
+    git clone --recursive https://github.com/exteraGramDesktop/exteraGramDesktop.git
+    ./exteraGramDesktop/Telegram/build/prepare/mac.sh
 
 ### Building the project
 
-Go to ***BuildPath*/tdesktop/Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
+Go to ***BuildPath*/exteraGramDesktop/Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
     ./configure.sh -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH
 
-Then launch Xcode, open ***BuildPath*/tdesktop/out/Telegram.xcodeproj** and build for Debug / Release.
+Then launch Xcode, open ***BuildPath*/exteraGramDesktop/out/Telegram.xcodeproj** and build for Debug / Release.
 
 [api_credentials]: api_credentials.md
