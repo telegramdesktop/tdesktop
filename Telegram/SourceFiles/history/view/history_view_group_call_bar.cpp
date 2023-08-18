@@ -19,6 +19,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "calls/group/calls_group_call.h"
 #include "calls/calls_instance.h"
 #include "core/application.h"
+#include "extera/extera_settings.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
@@ -59,7 +60,9 @@ void GenerateUserpicsInRow(
 		q.setCompositionMode(QPainter::CompositionMode_Source);
 		q.setBrush(Qt::NoBrush);
 		q.setPen(pen);
-		q.drawEllipse(x, 0, single, single);
+		/* q.drawEllipse(x, 0, single, single); */
+		q.drawRoundedRect(QRect{ x, 0, single, single },
+					ExteraSettings::JsonSettings::GetInt("userpic_rounding"), ExteraSettings::JsonSettings::GetInt("userpic_rounding"));
 		x -= single - shift;
 	}
 }

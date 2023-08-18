@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/outline_segments.h"
 
+#include "extera/extera_settings.h"
+
 namespace Ui {
 
 void PaintOutlineSegments(
@@ -18,9 +20,9 @@ void PaintOutlineSegments(
 
 	p.setBrush(Qt::NoBrush);
 	const auto count = std::min(int(segments.size()), kOutlineSegmentsMax);
-	if (count == 1) {
+	if (count == 1 || (ExteraSettings::JsonSettings::GetInt("userpic_roundness") != 23)) {
 		p.setPen(QPen(segments.front().brush, segments.front().width));
-		p.drawEllipse(ellipse);
+		p.drawRoundedRect(ellipse, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 		return;
 	}
 	const auto small = 160;

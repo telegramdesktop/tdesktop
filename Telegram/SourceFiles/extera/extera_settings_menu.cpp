@@ -66,6 +66,37 @@ namespace Settings {
     	SettingsMenuJsonSwitch(etg_settings_chat_id, show_ids);
     }
 
+	void Extera::SetupAppearance(not_null<Ui::VerticalLayout *> container) {
+	    AddSubsectionTitle(container, rktr("etg_settings_appearance")); // TODO: translate etg_settings_appearance
+
+    	const auto userpicRoundnessLabel = container->add(
+			object_ptr<Ui::LabelSimple>(
+				container,
+				st::settingsAudioVolumeLabel),
+			st::settingsAudioVolumeLabelPadding);
+    	const auto userpicRoundnessSlider = container->add(
+			object_ptr<Ui::MediaSlider>(
+				container,
+				st::settingsAudioVolumeSlider),
+			st::settingsAudioVolumeSliderPadding);
+    	const auto updateUserpicRoundnessLabel = [=](int value) {
+    		const auto radius = QString::number(value);
+    		userpicRoundnessLabel->setText(ktr("etg_settings_userpic_rounding", { "radius", radius }));
+    	};
+    	const auto updateUserpicRoundness = [=](int value) {
+    		updateUserpicRoundnessLabel(value);
+    		::ExteraSettings::JsonSettings::Set("userpic_roundness", value);
+    		::ExteraSettings::JsonSettings::Write();
+    	};
+    	userpicRoundnessSlider->resize(st::settingsAudioVolumeSlider.seekSize);
+    	userpicRoundnessSlider->setPseudoDiscrete(
+			24,
+			[](int val) { return val; },
+			::ExteraSettings::JsonSettings::GetInt("userpic_roundness"),
+			updateUserpicRoundness);
+    	updateUserpicRoundnessLabel(::ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+    }
+
     void Extera::SetupChats(not_null<Ui::VerticalLayout *> container) {
         AddSubsectionTitle(container, rktr("etg_settings_chats"));
     	
@@ -100,6 +131,9 @@ namespace Settings {
     void Extera::SetupExteraSettings(not_null<Ui::VerticalLayout *> container, not_null<Window::SessionController *> controller) {
 		AddSkip(container);
     	SetupGeneral(container);
+
+    	AddSkip(container);
+    	SetupAppearance(container);
 
     	AddSkip(container);
         SetupChats(container);

@@ -232,16 +232,23 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 		.defaultValue = false, }},
 
 	// Stored settings
-	{ "sticker_height", {
-		.type = SettingType::IntSetting,
-		.defaultValue = 170,
-		.limitHandler = IntLimit(64, 256, 170), }},
+	//   General
 	{ "show_phone_in_settings", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},
 	{ "show_ids", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = false, }},
+	//   Appearance
+	{ "userpic_roundness", {
+		.type = SettingType::IntSetting,
+		.defaultValue = 23,
+		.limitHandler = IntLimit(0, 23, 23), }},
+	//   Chats
+	{ "sticker_height", {
+		.type = SettingType::IntSetting,
+		.defaultValue = 170,
+		.limitHandler = IntLimit(64, 256, 170), }},
 };
 
 using OldOptionKey = QString;

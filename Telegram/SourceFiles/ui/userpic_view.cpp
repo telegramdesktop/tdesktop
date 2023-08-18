@@ -7,6 +7,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "ui/userpic_view.h"
 
+#include "extera/extera_settings.h"
 #include "ui/empty_userpic.h"
 #include "ui/image/image_prepare.h"
 
@@ -48,7 +49,7 @@ void ValidateUserpicCache(
 			full,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
-		if (forum) {
+		/* if (forum) {
 			view.cached = Images::Round(
 				std::move(view.cached),
 				Images::CornersMask(size
@@ -56,7 +57,15 @@ void ValidateUserpicCache(
 					/ style::DevicePixelRatio()));
 		} else {
 			view.cached = Images::Circle(std::move(view.cached));
-		}
+		} */
+		view.cached = Images::Round(
+			std::move(view.cached),
+			Images::CornersMask(
+				forum
+				? size * Ui::ForumUserpicRadiusMultiplier() / style::DevicePixelRatio()
+				: ExteraSettings::JsonSettings::GetInt("userpic_roundness")
+			)
+		);
 	} else {
 		if (view.cached.size() != full) {
 			view.cached = QImage(full, QImage::Format_ARGB32_Premultiplied);
@@ -64,7 +73,7 @@ void ValidateUserpicCache(
 		view.cached.fill(Qt::transparent);
 
 		auto p = QPainter(&view.cached);
-		if (forum) {
+		/* if (forum) {
 			empty->paintRounded(
 				p,
 				0,
@@ -74,7 +83,14 @@ void ValidateUserpicCache(
 				size * Ui::ForumUserpicRadiusMultiplier());
 		} else {
 			empty->paintCircle(p, 0, 0, size, size);
-		}
+		}*/ 
+
+		empty->paintRounded(
+			p, 0, 0, size, size,
+			forum
+			? size * Ui::ForumUserpicRadiusMultiplier()
+			: ExteraSettings::JsonSettings::GetInt("userpic_roundness")
+		);
 	}
 }
 

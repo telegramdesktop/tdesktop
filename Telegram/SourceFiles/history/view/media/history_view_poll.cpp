@@ -33,6 +33,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_polls.h"
+#include "extera/extera_settings.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -900,7 +901,8 @@ void Poll::paintRecentVoters(
 			p.setPen(pen);
 			p.setBrush(Qt::NoBrush);
 			PainterHighQualityEnabler hq(p);
-			p.drawEllipse(x, y, size, size);
+			/* p.drawEllipse(x, y, size, size); */
+			p.drawRoundedRect(x, y, size, size, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 		};
 		if (usesBubblePattern(context)) {
 			const auto add = st::lineWidth * 2;

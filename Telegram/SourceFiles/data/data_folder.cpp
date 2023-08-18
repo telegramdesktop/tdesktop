@@ -7,6 +7,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "data/data_folder.h"
 
+#include "extera/extera_settings.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
@@ -269,7 +270,8 @@ void Folder::paintUserpic(
 	p.setBrush(overrideBg ? *overrideBg : st::historyPeerArchiveUserpicBg);
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(x, y, size, size);
+		/* p.drawEllipse(x, y, size, size); */
+		p.drawRoundedRect(x, y, size, size, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 	}
 	if (size == st::defaultDialogRow.photoSize) {
 		const auto rect = QRect{ x, y, size, size };

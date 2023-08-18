@@ -29,6 +29,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
+#include "extera/extera_settings.h"
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {
@@ -424,8 +425,12 @@ void Row::PaintCornerBadgeFrame(
 		? st::dialogsOnlineBadgeFgActive
 		: st::dialogsOnlineBadgeFg);
 	q.drawEllipse(QRectF(
-		photoSize - skip.x() - size,
-		photoSize - skip.y() - size,
+		46 - size -
+			(ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 23
+				? skip.x() : -(stroke / 2)),
+		46 - size -
+			(ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 23
+				? skip.y() : -(stroke / 2)),
 		size,
 		size
 	).marginsRemoved({ shrink, shrink, shrink, shrink }));
@@ -541,13 +546,16 @@ void Row::paintUserpic(
 		: st::dialogsBg;
 	const auto size = st::dialogsCallBadgeSize;
 	const auto skip = st::dialogsCallBadgeSkip;
+	const auto stroke = st::dialogsOnlineBadgeStroke;
 	p.setOpacity(
 		_cornerBadgeUserpic->layersManager.progressForLayer(kTopLayer));
 	p.translate(context.st->padding.left(), context.st->padding.top());
 	actionPainter->paintSpeaking(
 		p,
-		context.st->photoSize - skip.x() - size,
-		context.st->photoSize - skip.y() - size,
+		context.st->photoSize - size - (ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 23
+				? skip.x() : -(stroke / 2)),
+		context.st->photoSize - size - (ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 23
+				? skip.y() : -(stroke / 2)),
 		context.width,
 		bg,
 		context.now);

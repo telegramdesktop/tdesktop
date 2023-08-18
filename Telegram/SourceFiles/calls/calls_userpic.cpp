@@ -18,6 +18,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "apiwrap.h" // requestFullPeer.
+#include "extera/extera_settings.h"
 #include "styles/style_calls.h"
 
 namespace Calls {
@@ -105,7 +106,8 @@ void Userpic::paint() {
 			_mutePosition.y() - _muteSize / 2,
 			_muteSize,
 			_muteSize);
-		p.drawEllipse(rect);
+		/* p.drawEllipse(rect); */
+		p.drawRoundedRect(rect, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 		st::callMutedPeerIcon.paintInCenter(p, rect);
 	}
 }

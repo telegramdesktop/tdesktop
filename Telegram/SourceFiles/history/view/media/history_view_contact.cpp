@@ -7,6 +7,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "history/view/media/history_view_contact.h"
 
+#include "extera/extera_settings.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "lang/lang_keys.h"
 #include "layout/layout_selection.h"
@@ -189,7 +190,8 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 			PainterHighQualityEnabler hq(p);
 			p.setBrush(p.textPalette().selectOverlay);
 			p.setPen(Qt::NoPen);
-			p.drawEllipse(rthumb);
+			/* p.drawEllipse(rthumb); */
+			p.drawRoundedRect(rthumb, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 		}
 
 		bool over = ClickHandler::showAsActive(_linkl);

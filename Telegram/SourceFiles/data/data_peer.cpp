@@ -7,6 +7,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "data/data_peer.h"
 
+#include "extera/extera_settings.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_chat_participant_status.h"
@@ -353,7 +354,7 @@ QImage PeerData::generateUserpicImage(
 				std::move(image),
 				Images::CornersMask(radius / style::DevicePixelRatio()));
 		};
-		if (radius == 0) {
+		/* if (radius == 0) {
 			return image;
 		} else if (radius) {
 			return round(*radius);
@@ -361,7 +362,13 @@ QImage PeerData::generateUserpicImage(
 			return round(size * Ui::ForumUserpicRadiusMultiplier());
 		} else {
 			return Images::Circle(std::move(image));
-		}
+		} */
+
+		return round(
+			isForum()
+			? size * Ui::ForumUserpicRadiusMultiplier()
+			: ExteraSettings::JsonSettings::GetInt("userpic_roundness")
+			);
 	}
 	auto result = QImage(
 		QSize(size, size),

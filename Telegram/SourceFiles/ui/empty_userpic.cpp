@@ -7,6 +7,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "ui/empty_userpic.h"
 
+#include "extera/extera_settings.h"
 #include "ui/emoji_config.h"
 #include "ui/effects/animation_value.h"
 #include "ui/painter.h"
@@ -292,8 +293,12 @@ void EmptyUserpic::paintCircle(
 		int y,
 		int outerWidth,
 		int size) const {
-	paint(p, x, y, outerWidth, size, [&] {
+	/* paint(p, x, y, outerWidth, size, [&] {
 		p.drawEllipse(x, y, size, size);
+	}); */
+	
+	paint(p, x, y, outerWidth, size, [&p, x, y, size] {
+		p.drawRoundedRect(x, y, size, size, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 	});
 }
 

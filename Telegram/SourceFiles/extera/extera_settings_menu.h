@@ -26,6 +26,7 @@ namespace Settings {
 
     private:
         void SetupGeneral(not_null<Ui::VerticalLayout *> container);
+        void SetupAppearance(not_null<Ui::VerticalLayout *> container);
         void SetupChats(not_null<Ui::VerticalLayout *> container);
 
         void SetupExteraSettings(not_null<Ui::VerticalLayout *> container, not_null<Window::SessionController *> null);

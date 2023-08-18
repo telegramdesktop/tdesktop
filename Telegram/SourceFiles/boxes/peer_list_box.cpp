@@ -29,6 +29,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "base/unixtime.h"
+#include "extera/extera_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
@@ -846,7 +847,8 @@ void PeerListRow::paintDisabledCheckUserpic(
 
 		p.setPen(userpicBorderPen);
 		p.setBrush(Qt::NoBrush);
-		p.drawEllipse(userpicEllipse);
+		/* p.drawEllipse(userpicEllipse); */
+		p.drawRoundedRect(userpicEllipse, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 
 		p.setPen(iconBorderPen);
 		p.setBrush(st.disabledCheckFg);

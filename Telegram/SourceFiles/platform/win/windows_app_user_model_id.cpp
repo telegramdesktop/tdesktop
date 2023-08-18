@@ -25,11 +25,11 @@ const PROPERTYKEY pkey_AppUserModel_StartPinOption = { { 0x9F4C2855, 0x9F79, 0x4
 const PROPERTYKEY pkey_AppUserModel_ToastActivator = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 26 };
 
 #ifdef OS_WIN_STORE
-const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop.Store";
+const WCHAR AppUserModelIdRelease[] = L"Exteragram.ExteragramDesktop.Store";
 #else // OS_WIN_STORE
-const WCHAR AppUserModelIdRelease[] = L"Telegram.TelegramDesktop";
+const WCHAR AppUserModelIdRelease[] = L"Exteragram.ExteragramDesktop";
 #endif // OS_WIN_STORE
-const WCHAR AppUserModelIdAlpha[] = L"Telegram.TelegramDesktop.Alpha";
+const WCHAR AppUserModelIdAlpha[] = L"Exteragram.ExteragramDesktop.Alpha";
 
 } // namespace
 
@@ -188,7 +188,7 @@ QString systemShortcutPath() {
 void cleanupShortcut() {
 	static const int maxFileLen = MAX_PATH * 10;
 
-	QString path = systemShortcutPath() + u"Telegram.lnk"_q;
+	QString path = systemShortcutPath() + u"exteraGram.lnk"_q;
 	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
 
 	DWORD attributes = GetFileAttributes(p.c_str());
@@ -316,19 +316,19 @@ bool validateShortcut() {
 	}
 
 	if (cAlphaVersion()) {
-		path += u"TelegramAlpha.lnk"_q;
+		path += u"exteraGramAlpha.lnk"_q;
 		if (validateShortcutAt(path)) {
 			return true;
 		}
 	} else {
-		const auto installed = u"Telegram Desktop/Telegram.lnk"_q;
-		const auto old = u"Telegram Win (Unofficial)/Telegram.lnk"_q;
+		const auto installed = u"exteraGram Desktop/exteraGram.lnk"_q;
+		const auto old = u"exteraGram Win (Unofficial)/exteraGram.lnk"_q;
 		if (validateShortcutAt(path + installed)
 			|| validateShortcutAt(path + old)) {
 			return true;
 		}
 
-		path += u"Telegram.lnk"_q;
+		path += u"exteraGram.lnk"_q;
 		if (validateShortcutAt(path)) {
 			return true;
 		}
