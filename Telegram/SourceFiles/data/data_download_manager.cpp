@@ -86,6 +86,45 @@ constexpr auto ByDocument = [](const auto &entry) {
 	return nullptr;
 }
 
+[[nodiscard]] bool ItemContainsMedia(const DownloadObject &object) {
+	if (const auto photo = object.photo) {
+		if (const auto media = object.item->media()) {
+			if (const auto page = media->webpage()) {
+				if (page->photo == photo) {
+					return true;
+				}
+				for (const auto &item : page->collage.items) {
+					if (const auto v = std::get_if<PhotoData*>(&item)) {
+						if ((*v) == photo) {
+							return true;
+						}
+					}
+				}
+			} else {
+				return (media->photo() == photo);
+			}
+		}
+	} else if (const auto document = object.document) {
+		if (const auto media = object.item->media()) {
+			if (const auto page = media->webpage()) {
+				if (page->document == document) {
+					return true;
+				}
+				for (const auto &item : page->collage.items) {
+					if (const auto v = std::get_if<DocumentData*>(&item)) {
+						if ((*v) == document) {
+							return true;
+						}
+					}
+				}
+			} else {
+				return (media->document() == document);
+			}
+		}
+	}
+	return false;
+}
+
 struct DocumentDescriptor {
 	uint64 sessionUniqueId = 0;
 	DocumentId documentId = 0;
@@ -242,12 +281,12 @@ void DownloadManager::check(
 		std::vector<DownloadingId>::iterator i) {
 	auto &entry = *i;
 
-	const auto photo = ItemPhoto(entry.object.item);
-	const auto document = ItemDocument(entry.object.item);
-	if (entry.object.photo != photo || entry.object.document != document) {
+	if (!ItemContainsMedia(entry.object)) {
 		cancel(data, i);
 		return;
 	}
+	const auto document = entry.object.document;
+
 	// Load with progress only documents for now.
 	Assert(document != nullptr);
 

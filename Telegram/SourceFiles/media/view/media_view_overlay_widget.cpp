@@ -2055,7 +2055,7 @@ void OverlayWidget::zoomOut() {
 }
 
 void OverlayWidget::zoomReset() {
-	if (_stories) {
+	if (_stories || _fullScreenVideo) {
 		return;
 	}
 	auto newZoom = _zoom;
@@ -2512,19 +2512,26 @@ void OverlayWidget::downloadMedia() {
 		} else {
 			if (_document->filepath(true).isEmpty()
 				&& !_document->loading()) {
+				const auto document = _document;
+				const auto checkSaveStarted = [=] {
+					if (isHidden() || _document != document) {
+						return;
+					}
+					_documentLoadingTo = _document->loadingFilePath();
+					if (_stories && _documentLoadingTo.isEmpty()) {
+						const auto toName = _document->filepath(true);
+						if (!toName.isEmpty()) {
+							showSaveMsgToast(
+								toName,
+								tr::lng_mediaview_video_saved_to);
+						}
+					}
+				};
 				DocumentSaveClickHandler::SaveAndTrack(
 					_message ? _message->fullId() : FullMsgId(),
 					_document,
-					DocumentSaveClickHandler::Mode::ToFile);
-				_documentLoadingTo = _document->loadingFilePath();
-				if (_stories && _documentLoadingTo.isEmpty()) {
-					toName = _document->filepath(true);
-					if (!toName.isEmpty()) {
-						showSaveMsgToast(
-							toName,
-							tr::lng_mediaview_video_saved_to);
-					}
-				}
+					DocumentSaveClickHandler::Mode::ToFile,
+					crl::guard(_widget, checkSaveStarted));
 			} else {
 				_saveVisible = computeSaveButtonVisible();
 				update(_saveNavOver);
@@ -5172,7 +5179,9 @@ void OverlayWidget::handleWheelEvent(not_null<QWheelEvent*> e) {
 }
 
 void OverlayWidget::setZoomLevel(int newZoom, bool force) {
-	if (_stories || (!force && _zoom == newZoom)) {
+	if (_stories
+		|| (!force && _zoom == newZoom)
+		|| (_fullScreenVideo && newZoom != kZoomToScreenLevel)) {
 		return;
 	}
 

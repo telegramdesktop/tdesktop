@@ -74,7 +74,8 @@ void DocumentOpenClickHandler::onClickImpl() const {
 void DocumentSaveClickHandler::Save(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
-		Mode mode) {
+		Mode mode,
+		Fn<void()> started) {
 	if (data->isNull()) {
 		return;
 	}
@@ -89,6 +90,9 @@ void DocumentSaveClickHandler::Save(
 		// background thread timers from working which would
 		// stop audio playback in voice chats / live streams.
 		if (mode != Mode::ToNewFile && data->saveFromData()) {
+			if (started) {
+				started();
+			}
 			return;
 		}
 		const auto filepath = data->filepath(true);
@@ -107,6 +111,9 @@ void DocumentSaveClickHandler::Save(
 			filedir);
 		if (!savename.isEmpty()) {
 			data->save(origin, savename);
+			if (started) {
+				started();
+			}
 		}
 	}));
 }
@@ -114,16 +121,21 @@ void DocumentSaveClickHandler::Save(
 void DocumentSaveClickHandler::SaveAndTrack(
 		FullMsgId itemId,
 		not_null<DocumentData*> document,
-		Mode mode) {
-	Save(itemId ? itemId : Data::FileOrigin(), document, mode);
-	if (document->loading() && !document->loadingFilePath().isEmpty()) {
-		if (const auto item = document->owner().message(itemId)) {
-			Core::App().downloadManager().addLoading({
-				.item = item,
-				.document = document,
-			});
+		Mode mode,
+		Fn<void()> started) {
+	Save(itemId ? itemId : Data::FileOrigin(), document, mode, [=] {
+		if (document->loading() && !document->loadingFilePath().isEmpty()) {
+			if (const auto item = document->owner().message(itemId)) {
+				Core::App().downloadManager().addLoading({
+					.item = item,
+					.document = document,
+				});
+			}
 		}
-	}
+		if (started) {
+			started();
+		}
+	});
 }
 
 void DocumentSaveClickHandler::onClickImpl() const {
