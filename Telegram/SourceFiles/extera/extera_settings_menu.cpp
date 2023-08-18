@@ -67,7 +67,7 @@ namespace Settings {
     }
 
 	void Extera::SetupAppearance(not_null<Ui::VerticalLayout *> container) {
-	    AddSubsectionTitle(container, rktr("etg_settings_appearance")); // TODO: translate etg_settings_appearance
+	    AddSubsectionTitle(container, rktr("etg_settings_appearance"));
 
     	const auto userpicRoundnessLabel = container->add(
 			object_ptr<Ui::LabelSimple>(

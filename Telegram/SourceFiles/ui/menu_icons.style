@@ -111,6 +111,7 @@ menuIconArchiveOpen: icon {{ "menu/archive_open", menuIconColor }};
 menuIconGroups: icon {{ "menu/groups", menuIconColor }};
 menuIconSavedMessages: icon {{ "menu/saved_messages", menuIconColor }};
 menuIconNightMode: icon {{ "menu/night_mode", menuIconColor }};
+menuIconExtera: icon {{ "menu/extera", menuIconColor }};
 menuIconNotifications: icon {{ "menu/info_notifications", menuIconColor }};
 menuIconLock: icon {{ "menu/lock", menuIconColor }};
 menuIconPowerUsage: icon {{ "menu/power_usage", menuIconColor }};
