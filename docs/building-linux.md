@@ -15,13 +15,6 @@ Install [poetry](https://python-poetry.org), go to ***BuildPath*** and run
     git clone --recursive https://github.com/wrwrabbit/tdesktop.git
     ./tdesktop/Telegram/build/prepare/linux.sh
 
-### Prepare libraries
-
-Install [poetry](https://python-poetry.org), go to the `tdesktop/Telegram/build/docker/centos_env` directory and run
-
-    poetry install
-    poetry run gen_dockerfile | DOCKER_BUILDKIT=1 docker build -t tdesktop:centos_env -
-
 ### Building the project
 
 Go to ***BuildPath*/tdesktop** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
