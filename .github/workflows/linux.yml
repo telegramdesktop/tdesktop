@@ -33,7 +33,6 @@ jobs:
   linux:
     name: CentOS 7
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.experimental }}
     container:
       image: ghcr.io/wrwrabbit/tdesktop/centos_env
       credentials:
