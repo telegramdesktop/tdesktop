@@ -377,14 +377,14 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				exeName = args[i];
 				for (int j = 0, l = exeName.size(); j < l; ++j) {
 					if (exeName[j] == L'/' || exeName[j] == L'\\') {
-						exeName = L"Telegram.exe";
+						exeName = L"exteraGram.exe";
 						break;
 					}
 				}
 			}
 		}
 		if (exeName.empty()) {
-			exeName = L"Telegram.exe";
+			exeName = L"exteraGram.exe";
 		}
 		if (needupdate) writeLog(L"Need to update!");
 		if (autostart) writeLog(L"From autostart!");

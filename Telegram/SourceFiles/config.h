@@ -39,9 +39,9 @@ enum {
 
 inline const char *cGUIDStr() {
 #ifndef OS_MAC_STORE
-	static const char *gGuidStr = "{87A94AB0-E370-4cde-98D3-ACC110C5967D}";
+	static const char *gGuidStr = "{5D3E0B5A-B680-48EA-8D92-5A0488A73180}";
 #else // OS_MAC_STORE
-	static const char *gGuidStr = "{E51FB841-8C0B-4EF9-9E9E-5A0078567627}";
+	static const char *gGuidStr = "{B41482E8-3B05-4F15-918D-C651F2EBF767}";
 #endif // OS_MAC_STORE
 
 	return gGuidStr;
@@ -70,7 +70,7 @@ constexpr auto ApiHash = QT_STRINGIFY(TDESKTOP_API_HASH);
 
 #else // TDESKTOP_API_ID && TDESKTOP_API_HASH
 
-// To build your version of Telegram Desktop you're required to provide
+// To build your version of exteraGram Desktop you're required to provide
 // your own 'api_id' and 'api_hash' for the Telegram API access.
 //
 // How to obtain your 'api_id' and 'api_hash' is described here:
