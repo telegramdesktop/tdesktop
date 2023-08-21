@@ -101,9 +101,14 @@ VerticalDrumPicker::VerticalDrumPicker(
 }
 
 void VerticalDrumPicker::increaseShift(float64 by) {
-	// Guard input.
-	if (by >= 1.) {
-		by = .99;
+	{
+		// Guard input.
+		constexpr auto kAlmostIndex = .99;
+		if (by >= 1.) {
+			by = kAlmostIndex;
+		} else if (by <= -1.) {
+			by = -kAlmostIndex;
+		}
 	}
 
 	auto shift = _shift;
