@@ -833,11 +833,14 @@ void DownloadManager::cancel(
 		SessionData &data,
 		std::vector<DownloadingId>::iterator i) {
 	const auto object = i->object;
+	const auto item = object.item;
 	remove(data, i);
-	if (const auto document = object.document) {
-		document->cancel();
-	} else if (const auto photo = object.photo) {
-		photo->cancel();
+	if (!item->isAdminLogEntry()) {
+		if (const auto document = object.document) {
+			document->cancel();
+		} else if (const auto photo = object.photo) {
+			photo->cancel();
+		}
 	}
 }
 
