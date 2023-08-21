@@ -232,6 +232,7 @@ RUN git clone -b v1.11.0 --depth=1 {{ GIT }}/webmproject/libvpx.git \
 		--enable-vp8 \
 		--enable-vp9 \
 		--enable-webm-io \
+		--size-limit=4096x4096 \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/libvpx-cache" install \
 	&& cd .. \

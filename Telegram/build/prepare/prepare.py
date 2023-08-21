@@ -404,7 +404,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout b9361e74b2
+    git checkout 24d8dc2bde
 """)
 
 stage('msys64', """
@@ -854,7 +854,8 @@ depends:yasm/yasm
     --disable-docs \
     --enable-vp8 \
     --enable-vp9 \
-    --enable-webm-io
+    --enable-webm-io \
+    --size-limit=4096x4096
 
     make $MAKE_THREADS_CNT
 
