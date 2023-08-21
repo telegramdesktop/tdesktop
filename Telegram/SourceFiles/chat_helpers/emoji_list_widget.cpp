@@ -1084,7 +1084,7 @@ void EmojiListWidget::fillRecentMenu(
 			data.rich.entities.push_back({
 				EntityType::CustomEmoji,
 				0,
-				emoji.size(),
+				int(emoji.size()),
 				Data::SerializeCustomEmojiId(custom)
 			});
 			addAction(tr::lng_emoji_copy(tr::now), [=] {
