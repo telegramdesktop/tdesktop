@@ -72,7 +72,6 @@ public:
 	Row(not_null<RowDelegate*> delegate, const EntryData &data);
 
 	void update(const EntryData &data);
-	void updateName(const QString &name);
 
 	[[nodiscard]] EntryData data() const;
 
@@ -522,12 +521,6 @@ void Row::update(const EntryData &data) {
 	_location.setText(st::defaultTextStyle, LocationAndDate(_data));
 	_type = TypeFromEntry(_data);
 	_userpic = GenerateUserpic(_type);
-	_delegate->rowUpdateRow(this);
-}
-
-void Row::updateName(const QString &name) {
-	_data.name = name;
-	refreshName(st::sessionListItem);
 	_delegate->rowUpdateRow(this);
 }
 

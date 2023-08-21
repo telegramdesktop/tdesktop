@@ -64,28 +64,6 @@ constexpr auto ByDocument = [](const auto &entry) {
 	return 0;
 }
 
-[[nodiscard]] PhotoData *ItemPhoto(not_null<HistoryItem*> item) {
-	if (const auto media = item->media()) {
-		if (const auto page = media->webpage()) {
-			return page->document ? nullptr : page->photo;
-		} else if (const auto photo = media->photo()) {
-			return photo;
-		}
-	}
-	return nullptr;
-}
-
-[[nodiscard]] DocumentData *ItemDocument(not_null<HistoryItem*> item) {
-	if (const auto media = item->media()) {
-		if (const auto page = media->webpage()) {
-			return page->document;
-		} else if (const auto document = media->document()) {
-			return document;
-		}
-	}
-	return nullptr;
-}
-
 [[nodiscard]] bool ItemContainsMedia(const DownloadObject &object) {
 	if (const auto photo = object.photo) {
 		if (const auto media = object.item->media()) {
