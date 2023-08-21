@@ -45,7 +45,7 @@ int APIENTRY wWinMain(
 		ShellExecute(
 			nullptr,
 			nullptr,
-			(directory + L"\\Telegram.exe").c_str(),
+			(directory + L"\\exteraGram.exe").c_str(),
 			L"-autostart",
 			directory.data(),
 			SW_SHOWNORMAL);
