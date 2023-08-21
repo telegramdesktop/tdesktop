@@ -129,7 +129,7 @@ public:
 
 	[[nodiscard]] Data::PreviewState state() const;
 	void setState(Data::PreviewState value);
-	void refreshState(Data::PreviewState value);
+	void refreshState(Data::PreviewState value, bool disable);
 
 	[[nodiscard]] rpl::producer<> paintRequests() const;
 	[[nodiscard]] rpl::producer<QString> titleChanges() const;
@@ -219,12 +219,16 @@ void WebpageProcessor::setState(Data::PreviewState value) {
 	_previewState = value;
 }
 
-void WebpageProcessor::refreshState(Data::PreviewState value) {
+void WebpageProcessor::refreshState(
+		Data::PreviewState value,
+		bool disable) {
 	// Save links from _field to _parsedLinks without generating preview.
 	_previewState = Data::PreviewState::Cancelled;
+	_fieldLinksParser.setDisabled(disable);
 	_fieldLinksParser.parseNow();
 	_parsedLinks = _fieldLinksParser.list().current();
 	_previewState = value;
+	checkPreview();
 }
 
 void WebpageProcessor::cancel() {
@@ -2163,6 +2167,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		}
 		_header->editMessage({});
 		_header->replyToMessage({});
+		_preview->refreshState(Data::PreviewState::Allowed, false);
 		_canReplaceMedia = false;
 		_photoEditMedia = nullptr;
 		return;
@@ -2176,13 +2181,15 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	draft->cursor.applyTo(_field);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
 	if (_preview) {
-		_preview->refreshState(draft->previewState);
+		const auto disablePreview = (editDraft != nullptr);
+		_preview->refreshState(draft->previewState, disablePreview);
 	}
 
 	if (draft == editDraft) {
 		const auto resolve = [=] {
 			if (const auto item = _history->owner().message(editingId)) {
 				const auto media = item->media();
+				const auto disablePreview = media && !media->webpage();
 				_canReplaceMedia = media && media->allowsEditMedia();
 				_photoEditMedia = (_canReplaceMedia
 					&& _regularWindow
@@ -2196,6 +2203,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 						item->fullId());
 				}
 				_header->editMessage(editingId, _photoEditMedia != nullptr);
+				_preview->refreshState(_preview->state(), disablePreview);
 				return true;
 			}
 			_canReplaceMedia = false;
@@ -2937,6 +2945,26 @@ void ComposeControls::cancelEditMessage() {
 	saveDraft();
 }
 
+void ComposeControls::maybeCancelEditMessage() {
+	Expects(_history != nullptr);
+
+	const auto item = _history->owner().message(_header->editMsgId());
+	if (item && EditTextChanged(item, _field->getTextWithTags())) {
+		const auto guard = _field.get();
+		_show->show(Ui::MakeConfirmBox({
+			.text = tr::lng_cancel_edit_post_sure(),
+			.confirmed = crl::guard(guard, [this](Fn<void()> &&close) {
+				cancelEditMessage();
+				close();
+			}),
+			.confirmText = tr::lng_cancel_edit_post_yes(),
+			.cancelText = tr::lng_cancel_edit_post_no(),
+		}));
+	} else {
+		cancelEditMessage();
+	}
+}
+
 void ComposeControls::replyToMessage(FullMsgId id) {
 	Expects(_history != nullptr);
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
@@ -3012,7 +3040,7 @@ bool ComposeControls::handleCancelRequest() {
 		_autocomplete->hideAnimated();
 		return true;
 	} else if (isEditingMessage()) {
-		cancelEditMessage();
+		maybeCancelEditMessage();
 		return true;
 	} else if (readyToForward()) {
 		cancelForward();
