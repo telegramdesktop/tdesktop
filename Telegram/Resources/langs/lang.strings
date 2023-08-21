@@ -1813,6 +1813,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_set_download" = "Download {size}";
 "lng_emoji_set_loading" = "{percent}, {progress}";
 "lng_emoji_color_all" = "Choose color for all emoji";
+"lng_emoji_copy" = "Copy emoji";
+"lng_emoji_view_pack" = "View pack";
+"lng_emoji_remove_recent" = "Remove from recents";
+"lng_emoji_reset_recent" = "Reset recents";
+"lng_emoji_reset_recent_sure" = "Do you want to reset recent emoji?";
+"lng_emoji_reset_recent_button" = "Reset";
 
 "lng_recent_stickers" = "Frequently used";
 "lng_faved_stickers_add" = "Add to Favorites";

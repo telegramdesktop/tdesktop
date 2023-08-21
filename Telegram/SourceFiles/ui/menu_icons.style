@@ -137,6 +137,7 @@ menuIconBotCommands: icon {{ "menu/bot_commands", menuIconColor }};
 menuIconPremium: icon {{ "menu/premium", menuIconColor }};
 menuIconIpAddress: icon {{ "menu/ip_address", menuIconColor }};
 menuIconAddress: icon {{ "menu/payment_address", menuIconColor }};
+menuIconShowAll: icon {{ "menu/all_media", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
@@ -169,6 +170,7 @@ menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};
 menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};
 menuIconReportAttention: icon {{ "menu/report", menuIconAttentionColor }};
+menuIconRestoreAttention: icon {{ "menu/restore", menuIconAttentionColor }};
 
 menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};
 

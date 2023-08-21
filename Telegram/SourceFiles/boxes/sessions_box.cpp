@@ -689,8 +689,6 @@ public:
 		style::margins margins = {});
 
 private:
-	void subscribeToCustomDeviceModel();
-
 	const not_null<Main::Session*> _session;
 
 	rpl::event_stream<uint64> _terminateRequests;
@@ -1052,18 +1050,6 @@ SessionsContent::ListController::ListController(
 
 Main::Session &SessionsContent::ListController::session() const {
 	return *_session;
-}
-
-void SessionsContent::ListController::subscribeToCustomDeviceModel() {
-	Core::App().settings().deviceModelChanges(
-	) | rpl::start_with_next([=](const QString &model) {
-		for (auto i = 0; i != delegate()->peerListFullRowsCount(); ++i) {
-			const auto row = delegate()->peerListRowAt(i);
-			if (!row->id()) {
-				static_cast<Row*>(row.get())->updateName(model);
-			}
-		}
-	}, lifetime());
 }
 
 void SessionsContent::ListController::prepare() {

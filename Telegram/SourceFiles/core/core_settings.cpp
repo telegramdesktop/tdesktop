@@ -201,7 +201,10 @@ QByteArray Settings::serialize() const {
 		+ Serialize::bytearraySize(mediaViewPosition)
 		+ sizeof(qint32)
 		+ sizeof(quint64)
-		+ sizeof(qint32);
+		+ sizeof(qint32) * 2;
+	for (const auto &id : _recentEmojiSkip) {
+		size += Serialize::stringSize(id);
+	}
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -336,7 +339,11 @@ QByteArray Settings::serialize() const {
 			<< mediaViewPosition
 			<< qint32(_ignoreBatterySaving.current() ? 1 : 0)
 			<< quint64(_macRoundIconDigest.value_or(0))
-			<< qint32(_storiesClickTooltipHidden.current() ? 1 : 0);
+			<< qint32(_storiesClickTooltipHidden.current() ? 1 : 0)
+			<< qint32(_recentEmojiSkip.size());
+		for (const auto &id : _recentEmojiSkip) {
+			stream << id;
+		}
 	}
 	return result;
 }
@@ -443,6 +450,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 ignoreBatterySaving = _ignoreBatterySaving.current() ? 1 : 0;
 	quint64 macRoundIconDigest = _macRoundIconDigest.value_or(0);
 	qint32 storiesClickTooltipHidden = _storiesClickTooltipHidden.current() ? 1 : 0;
+	base::flat_set<QString> recentEmojiSkip;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -680,6 +688,19 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> storiesClickTooltipHidden;
 	}
+	if (!stream.atEnd()) {
+		auto count = qint32();
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				auto id = QString();
+				stream >> id;
+				if (stream.status() == QDataStream::Ok) {
+					recentEmojiSkip.emplace(id);
+				}
+			}
+		}
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -872,6 +893,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_ignoreBatterySaving = (ignoreBatterySaving == 1);
 	_macRoundIconDigest = macRoundIconDigest ? macRoundIconDigest : std::optional<uint64>();
 	_storiesClickTooltipHidden = (storiesClickTooltipHidden == 1);
+	_recentEmojiSkip = std::move(recentEmojiSkip);
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -964,7 +986,8 @@ rpl::producer<int> Settings::thirdColumnWidthChanges() const {
 }
 
 const std::vector<RecentEmoji> &Settings::recentEmoji() const {
-	if (_recentEmoji.empty()) {
+	if (!_recentEmojiResolved) {
+		_recentEmojiResolved = true;
 		resolveRecentEmoji();
 	}
 	return _recentEmoji;
@@ -1005,6 +1028,8 @@ void Settings::resolveRecentEmoji() const {
 	for (const auto emoji : Ui::Emoji::GetDefaultRecent()) {
 		if (_recentEmoji.size() >= specialCount + kRecentEmojiLimit) {
 			break;
+		} else if (_recentEmojiSkip.contains(emoji->id())) {
+			continue;
 		} else if (!haveAlready({ emoji })) {
 			_recentEmoji.push_back({ { emoji }, 1 });
 		}
@@ -1014,6 +1039,9 @@ void Settings::resolveRecentEmoji() const {
 void Settings::incrementRecentEmoji(RecentEmojiId id) {
 	resolveRecentEmoji();
 
+	if (const auto emoji = std::get_if<EmojiPtr>(&id.data)) {
+		_recentEmojiSkip.remove((*emoji)->id());
+	}
 	auto i = _recentEmoji.begin(), e = _recentEmoji.end();
 	for (; i != e; ++i) {
 		if (i->id == id) {
@@ -1061,6 +1089,36 @@ void Settings::incrementRecentEmoji(RecentEmojiId id) {
 			_recentEmoji.pop_back();
 		}
 	}
+	_recentEmojiUpdated.fire({});
+	_saveDelayed.fire({});
+}
+
+void Settings::hideRecentEmoji(RecentEmojiId id) {
+	resolveRecentEmoji();
+
+	_recentEmoji.erase(
+		ranges::remove(_recentEmoji, id, &RecentEmoji::id),
+		end(_recentEmoji));
+	if (const auto emoji = std::get_if<EmojiPtr>(&id.data)) {
+		for (const auto always : Ui::Emoji::GetDefaultRecent()) {
+			if (always == *emoji) {
+				_recentEmojiSkip.emplace(always->id());
+				break;
+			}
+		}
+	}
+	_recentEmojiUpdated.fire({});
+	_saveDelayed.fire({});
+}
+
+void Settings::resetRecentEmoji() {
+	resolveRecentEmoji();
+
+	_recentEmoji.clear();
+	_recentEmojiSkip.clear();
+	_recentEmojiPreload.clear();
+	_recentEmojiResolved = false;
+
 	_recentEmojiUpdated.fire({});
 	_saveDelayed.fire({});
 }
