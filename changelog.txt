@@ -1,3 +1,10 @@
+4.9.2 (21.08.23)
+
+- Remove single recently used emoji or reset the list from context menu.
+- Change all emoji skin colors from Emoji & People section.
+- Connected Websites section in Settings > Advanced.
+- Bug fixes and other minor improvements.
+
 4.9.1 (15.08.23)
 
 - Fix a crash in reply area ripple animation.
