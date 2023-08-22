@@ -1097,6 +1097,11 @@ void EmojiListWidget::fillRecentMenu(
 				crl::guard(this, [=] { displaySet(setId); }),
 				&st::menuIconShowAll);
 		}
+	} else if (emoji) {
+		addAction(tr::lng_emoji_copy(tr::now), [=] {
+			const auto text = emoji->text();
+			TextUtilities::SetClipboardText({ text, { text } });
+		}, &st::menuIconCopy);
 	}
 	auto id = RecentEmojiId{ emoji };
 	if (custom) {
