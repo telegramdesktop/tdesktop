@@ -144,7 +144,7 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_clear_proxy.base:
                 return "Очистить список прокси";
             case tr::lng_clear_cache.base:
-                return "Очистить кеш";
+                return "Очистить кэш";
             case tr::lng_logout.base:
                 return "Выход из аккаунтов";
             case tr::lng_logout_account.base: {
