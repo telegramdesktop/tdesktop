@@ -93,11 +93,6 @@ bool Get(
 	if (parent) {
 		parent = parent->window();
 	}
-	// Workaround for sandboxed paths
-	static const auto docRegExp = QRegularExpression("^/run/user/\\d+/doc");
-	if (cDialogLastPath().contains(docRegExp)) {
-		InitLastPath();
-	}
 	return ::FileDialog::internal::GetDefault(
 		parent,
 		files,
