@@ -234,6 +234,8 @@ parts:
       - libavutil56
       - libswresample3
       - libswscale5
+      - va-driver-all
+      - vdpau-driver-all
     override-build: |
       craftctl default
       mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/blas/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET"
