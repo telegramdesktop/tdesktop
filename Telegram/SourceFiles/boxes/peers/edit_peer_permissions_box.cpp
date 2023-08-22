@@ -319,16 +319,15 @@ not_null<Ui::RpWidget*> AddInnerToggle(
 		button->geometryValue(
 		) | rpl::start_with_next([=](const QRect &r) {
 			const auto w = st::rightsButtonToggleWidth;
-			constexpr auto kLineWidth = int(1);
 			toggleButton->setGeometry(
 				r.x() + r.width() - w,
 				r.y(),
 				w,
 				r.height());
 			separator->setGeometry(
-				toggleButton->x() - kLineWidth,
+				toggleButton->x() - st::lineWidth,
 				r.y() + (r.height() - separatorHeight) / 2,
-				kLineWidth,
+				st::lineWidth,
 				separatorHeight);
 		}, toggleButton->lifetime());
 

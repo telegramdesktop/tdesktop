@@ -528,6 +528,14 @@ settingsBlockedList: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, membersMarginBottom);
 }
 
+settingsNotificationType: SettingsButton(settingsButton) {
+	height: 40px;
+	padding: margins(60px, 4px, 22px, 4px);
+}
+settingsNotificationTypeDetails: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+
 requestPeerRestriction: FlatLabel(defaultFlatLabel) {
 	minWidth: 240px;
 	textFg: membersAboutLimitFg;
