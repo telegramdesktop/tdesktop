@@ -127,7 +127,7 @@ void FakePasscodeBox::submit() {
         }
     } else if (_newPasscode->hasFocus()) {
         _reenterPasscode->setFocus();
-    } else if (_reenterPasscode->hasFocus()) {
+    } else {
         if (has && _oldPasscode->text().isEmpty()) {
             _oldPasscode->setFocus();
             _oldPasscode->showError();
