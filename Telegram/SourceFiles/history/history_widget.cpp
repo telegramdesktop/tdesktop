@@ -2031,12 +2031,19 @@ void HistoryWidget::showHistory(
 			}
 			const auto canShowNow = _history->isReadyFor(showAtMsgId);
 			if (!canShowNow) {
-				DEBUG_LOG(("JumpToEnd(%1, %2, %3): Showing delayed at %4."
-					).arg(_history->peer->name()
-					).arg(_history->inboxReadTillId().bare
-					).arg(Logs::b(_history->loadedAtBottom())
-					).arg(showAtMsgId.bare));
-				delayedShowAt(showAtMsgId);
+				if (!_firstLoadRequest) {
+					DEBUG_LOG(("JumpToEnd(%1, %2, %3): Showing delayed at %4."
+						).arg(_history->peer->name()
+						).arg(_history->inboxReadTillId().bare
+						).arg(Logs::b(_history->loadedAtBottom())
+						).arg(showAtMsgId.bare));
+					delayedShowAt(showAtMsgId);
+				} else if (_showAtMsgId != showAtMsgId) {
+					clearAllLoadRequests();
+					setMsgId(showAtMsgId);
+					firstLoadMessages();
+					doneShow();
+				}
 			} else {
 				_history->forgetScrollState();
 				if (_migrated) {
