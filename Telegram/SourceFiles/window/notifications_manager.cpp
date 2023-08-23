@@ -40,9 +40,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QWindow>
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <giomm.h>
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#if __has_include(<gio/gio.hpp>)
+#include <gio/gio.hpp>
+#endif // __has_include(<gio/gio.hpp>)
 
 namespace Window {
 namespace Notifications {
@@ -90,11 +90,12 @@ base::options::toggle OptionGNotification({
 	.description = "Force enable GLib's GNotification."
 		" When disabled, autodetect is used.",
 	.scope = [] {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#if __has_include(<gio/gio.hpp>)
+		using namespace gi::repository;
 		return bool(Gio::Application::get_default());
-#else // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#else // __has_include(<gio/gio.hpp>)
 		return false;
-#endif // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#endif // __has_include(<gio/gio.hpp>)
 	},
 	.restartRequired = true,
 });
@@ -856,6 +857,10 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 			&& (!topic || !Data::CanSendTexts(topic)))
 		|| peer->isBroadcast()
 		|| (peer->slowmodeSecondsLeft() > 0);
+	result.spoilerLoginCode = item
+		&& !item->out()
+		&& peer->isNotificationsUser()
+		&& Core::App().isSharingScreen();
 	return result;
 }
 
@@ -1109,13 +1114,16 @@ void Manager::notificationReplied(
 
 	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
-	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser()
+	const auto replyToId = (id.msgId > 0 && !history->peer->isUser()
 		&& id.msgId != topicRootId)
 		? id.msgId
 		: history->peer->isForum()
 		? topicRootId
 		: MsgId(0);
-	message.action.topicRootId = topic ? topic->rootId() : 0;
+	message.action.replyTo = {
+		.msgId = replyToId,
+		.topicRootId = topic ? topic->rootId() : 0,
+	};
 	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
 
@@ -1167,7 +1175,9 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		? tr::lng_forward_messages(tr::now, lt_count, fields.forwardedCount)
 		: item->groupId()
 		? tr::lng_in_dlg_album(tr::now)
-		: TextWithPermanentSpoiler(item->notificationText());
+		: TextWithPermanentSpoiler(item->notificationText({
+			.spoilerLoginCode = options.spoilerLoginCode,
+		}));
 
 	// #TODO optimize
 	auto userpicView = item->history()->peer->createUserpicView();

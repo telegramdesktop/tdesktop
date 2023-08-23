@@ -27,12 +27,13 @@ private:
 		const QImage &image,
 		ContentGeometry geometry,
 		bool semiTransparent,
-		bool fillTransparentBackground) override;
+		bool fillTransparentBackground,
+		int index = 0) override;
 	void paintTransformedImage(
 		const QImage &image,
 		QRect rect,
 		int rotation);
-	void paintControlsFade(QRect geometry, float64 opacity);
+	void paintControlsFade(QRect content, const ContentGeometry &geometry);
 	void paintRadialLoading(
 		QRect inner,
 		bool radial,
@@ -42,7 +43,7 @@ private:
 	void paintSaveMsg(QRect outer) override;
 	void paintControlsStart() override;
 	void paintControl(
-		OverState control,
+		Over control,
 		QRect over,
 		float64 overOpacity,
 		QRect inner,
@@ -52,6 +53,11 @@ private:
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
 	void paintRoundedCorners(int radius) override;
+	void paintStoriesSiblingPart(
+		int index,
+		const QImage &image,
+		QRect rect,
+		float64 opacity = 1.) override;
 
 	void validateOverControlImage();
 

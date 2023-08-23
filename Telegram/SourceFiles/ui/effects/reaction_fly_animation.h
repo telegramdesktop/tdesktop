@@ -27,8 +27,20 @@ struct ReactionFlyAnimationArgs {
 	::Data::ReactionId id;
 	QImage flyIcon;
 	QRect flyFrom;
+	crl::time scaleOutDuration = 0;
+	float64 scaleOutTarget = 0.;
+	bool effectOnly = false;
 
 	[[nodiscard]] ReactionFlyAnimationArgs translated(QPoint point) const;
+};
+
+struct ReactionFlyCenter {
+	std::unique_ptr<Text::CustomEmoji> custom;
+	std::unique_ptr<AnimatedIcon> icon;
+	float64 scale = 0.;
+	float64 centerSizeMultiplier = 0.;
+	int customSize = 0;
+	int size = 0;
 };
 
 class ReactionFlyAnimation final {
@@ -53,6 +65,8 @@ public:
 	[[nodiscard]] bool flying() const;
 	[[nodiscard]] float64 flyingProgress() const;
 	[[nodiscard]] bool finished() const;
+
+	[[nodiscard]] ReactionFlyCenter takeCenter();
 
 private:
 	struct Parabolic {
@@ -96,12 +110,16 @@ private:
 	std::unique_ptr<Text::CustomEmoji> _custom;
 	std::unique_ptr<AnimatedIcon> _center;
 	std::unique_ptr<AnimatedIcon> _effect;
+	Animations::Simple _noEffectScaleAnimation;
 	std::vector<MiniCopy> _miniCopies;
 	Animations::Simple _fly;
 	Animations::Simple _minis;
 	QRect _flyFrom;
 	float64 _centerSizeMultiplier = 0.;
 	int _customSize = 0;
+	crl::time _scaleOutDuration = 0;
+	float64 _scaleOutTarget = 0.;
+	bool _noEffectScaleStarted = false;
 	bool _valid = false;
 
 	mutable Parabolic _cached;

@@ -143,11 +143,10 @@ void ShowSetToast(
 	st->padding.setLeft(skip + size + skip);
 	st->palette.linkFg = st->palette.selectLinkFg = st::mediaviewTextLinkFg;
 
-	const auto parent = Window::Show(controller).toastParent();
-	const auto weak = Ui::Toast::Show(parent, {
+	const auto weak = controller->showToast({
 		.text = text,
 		.st = st.get(),
-		.durationMs = kToastDuration,
+		.duration = kToastDuration,
 		.multiline = true,
 		.dark = true,
 		.slideSide = RectPart::Bottom,
@@ -212,8 +211,8 @@ QString UserpicSuggestion::button() {
 		: tr::lng_action_suggested_photo_button(tr::now);
 }
 
-QString UserpicSuggestion::subtitle() {
-	return _photo.parent()->data()->notificationText().text;
+TextWithEntities UserpicSuggestion::subtitle() {
+	return _photo.parent()->data()->notificationText();
 }
 
 ClickHandlerPtr UserpicSuggestion::createViewLink() {

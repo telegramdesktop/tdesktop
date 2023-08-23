@@ -383,6 +383,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 	return u"Global\\"_q + hash + '-' + cGUIDStr();
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 std::optional<bool> IsDarkMode() {
 	static const auto kSystemVersion = QOperatingSystemVersion::current();
 	static const auto kDarkModeAddedVersion = QOperatingSystemVersion(
@@ -413,6 +414,7 @@ std::optional<bool> IsDarkMode() {
 
 	return (value == 0);
 }
+#endif // Qt < 6.5.0
 
 bool AutostartSupported() {
 	return true;
@@ -681,7 +683,10 @@ bool psLaunchMaps(const Data::LocationPoint &point) {
 		AT_URLPROTOCOL,
 		AL_EFFECTIVE,
 		handler.put());
-	if (FAILED(result) || !handler) {
+	if (FAILED(result)
+		|| !handler
+		|| !handler.data()
+		|| std::wstring(handler.data()) == L"bingmaps") {
 		return false;
 	}
 

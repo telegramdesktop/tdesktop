@@ -97,6 +97,7 @@ void AddAction(
 			return;
 		}
 
+		QDir().mkpath(path);
 		const auto fullPath = [&](int i) {
 			return filedialogDefaultName(
 				u"photo_"_q + QString::number(i),
@@ -114,7 +115,7 @@ void AddAction(
 				File::ShowInFolder(lastPath);
 				return false;
 			};
-			const auto config = Ui::Toast::Config{
+			controller->showToast({
 				.text = (photos.size() > 1
 						? tr::lng_mediaview_saved_images_to
 						: tr::lng_mediaview_saved_to)(
@@ -126,8 +127,7 @@ void AddAction(
 					Ui::Text::WithEntities),
 				.st = &st::defaultToast,
 				.filter = filter,
-			};
-			Ui::Toast::Show(Window::Show(controller).toastParent(), config);
+			});
 		}
 	};
 	const auto saveDocuments = [=](const QString &folderPath) {

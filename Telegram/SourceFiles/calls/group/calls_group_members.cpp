@@ -1983,8 +1983,8 @@ void Members::peerListShowBox(
 void Members::peerListHideLayer() {
 }
 
-not_null<QWidget*> Members::peerListToastParent() {
-	Unexpected("...Members::peerListToastParent");
+std::shared_ptr<Main::SessionShow> Members::peerListUiShow() {
+	Unexpected("...Members::peerListUiShow");
 }
 
 } // namespace Calls::Group

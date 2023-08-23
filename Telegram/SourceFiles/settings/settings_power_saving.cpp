@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/power_saving.h"
 #include "styles/style_menu_icons.h"
@@ -84,13 +83,13 @@ void PowerSavingBox(not_null<Ui::GenericBox*> box) {
 				: rpl::single(QString());
 		}) | rpl::flatten_latest();
 
-		const auto disabler = Ui::CreateChild<Ui::AbstractButton>(container.get());
+		const auto show = box->uiShow();
+		const auto disabler = Ui::CreateChild<Ui::AbstractButton>(
+			container.get());
 		disabler->setClickedCallback([=] {
-			Ui::ShowMultilineToast({
-				.parentOverride = container,
-				.text = { tr::lng_settings_power_turn_off(tr::now) },
-				.duration = kForceDisableTooltipDuration,
-			});
+			show->showToast(
+				tr::lng_settings_power_turn_off(tr::now),
+				kForceDisableTooltipDuration);
 		});
 		disabler->paintRequest() | rpl::start_with_next([=](QRect clip) {
 			auto color = st::boxBg->c;

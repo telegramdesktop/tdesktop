@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/round_rect.h"
@@ -76,18 +77,18 @@ enum class EmojiListMode {
 };
 
 struct EmojiListDescriptor {
-	not_null<Main::Session*> session;
+	std::shared_ptr<Show> show;
 	EmojiListMode mode = EmojiListMode::Full;
-	Window::SessionController *controller = nullptr;
 	Fn<bool()> paused;
 	std::vector<DocumentId> customRecentList;
 	Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
 		DocumentId,
 		Fn<void()>)> customRecentFactory;
 	const style::EmojiPan *st = nullptr;
+	ComposeFeatures features;
 };
 
-class EmojiListWidget
+class EmojiListWidget final
 	: public TabbedSelector::Inner
 	, public Ui::AbstractTooltipShower {
 public:
@@ -96,7 +97,7 @@ public:
 	EmojiListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level,
+		PauseReason level,
 		Mode mode);
 	EmojiListWidget(QWidget *parent, EmojiListDescriptor &&descriptor);
 	~EmojiListWidget();
@@ -124,6 +125,7 @@ public:
 	[[nodiscard]] rpl::producer<EmojiChosen> chosen() const;
 	[[nodiscard]] rpl::producer<FileChosen> customChosen() const;
 	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
+	[[nodiscard]] rpl::producer<> escapes() const;
 
 	void provideRecent(const std::vector<DocumentId> &customRecentList);
 
@@ -132,7 +134,8 @@ public:
 		Painter &p,
 		QRect clip,
 		int finalBottom,
-		float64 progress,
+		float64 geometryProgress,
+		float64 fullProgress,
 		RectPart origin);
 
 	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
@@ -244,6 +247,7 @@ private:
 	[[nodiscard]] SectionInfo sectionInfoByOffset(int yOffset) const;
 	[[nodiscard]] int sectionsCount() const;
 	void setSingleSize(QSize size);
+	void setColorAllForceRippled(bool force);
 
 	void showPicker();
 	void pickerHidden();
@@ -261,6 +265,15 @@ private:
 	void updateSelected();
 	void setSelected(OverState newSelected);
 	void setPressed(OverState newPressed);
+
+	void fillRecentMenu(
+		not_null<Ui::PopupMenu*> menu,
+		int section,
+		int index);
+	void fillEmojiStatusMenu(
+		not_null<Ui::PopupMenu*> menu,
+		int section,
+		int index);
 
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
 	[[nodiscard]] DocumentData *lookupCustomEmoji(
@@ -294,6 +307,9 @@ private:
 		int set,
 		int index);
 	void validateEmojiPaintContext(const ExpandingContext &context);
+	[[nodiscard]] bool hasColorButton(int index) const;
+	[[nodiscard]] QRect colorButtonRect(int index) const;
+	[[nodiscard]] QRect colorButtonRect(const SectionInfo &info) const;
 	[[nodiscard]] bool hasRemoveButton(int index) const;
 	[[nodiscard]] QRect removeButtonRect(int index) const;
 	[[nodiscard]] QRect removeButtonRect(const SectionInfo &info) const;
@@ -345,7 +361,8 @@ private:
 
 	void applyNextSearchQuery();
 
-	Window::SessionController *_controller = nullptr;
+	const std::shared_ptr<Show> _show;
+	const ComposeFeatures _features;
 	Mode _mode = Mode::Full;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 	const int _staticCount = 0;
@@ -373,6 +390,10 @@ private:
 	bool _allowWithoutPremium = false;
 	Ui::RoundRect _overBg;
 	QImage _searchExpandCache;
+
+	mutable std::unique_ptr<Ui::RippleAnimation> _colorAllRipple;
+	bool _colorAllRippleForced = false;
+	rpl::lifetime _colorAllRippleForcedLifetime;
 
 	std::vector<QString> _nextSearchQuery;
 	std::vector<QString> _searchQuery;

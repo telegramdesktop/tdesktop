@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -52,8 +53,8 @@ namespace {
 			tr::lng_profile_hide_participants(),
 			rpl::single(QString()),
 			[] {},
-			st::manageGroupTopicsButton,
-			{ &st::infoRoundedIconHideMembers, Settings::kIconDarkBlue }
+			st::manageGroupNoIconButton,
+			{}
 	))->toggleOn(rpl::single(
 		(megagroup->flags() & ChannelDataFlag::ParticipantsHidden) != 0
 	) | rpl::then(state->toggled.events()));

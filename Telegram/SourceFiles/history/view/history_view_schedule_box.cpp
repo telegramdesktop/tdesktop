@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
-#include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "lang/lang_keys.h"
 #include "base/event_filter.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -98,12 +97,12 @@ void ScheduleBox(
 		descriptor.submit.data(),
 		[=] { return SendMenu::Type::SilentOnly; },
 		[=] { save(true, descriptor.collect()); },
+		nullptr,
 		nullptr);
 
 	if (type == SendMenu::Type::ScheduledToUser) {
 		const auto sendUntilOnline = box->addTopButton(*style.topButtonStyle);
-		const auto timestamp
-			= Data::ScheduledMessages::kScheduledUntilOnlineTimestamp;
+		const auto timestamp = Api::kScheduledUntilOnlineTimestamp;
 		FillSendUntilOnlineMenu(
 			sendUntilOnline.data(),
 			[=] { save(false, timestamp); },

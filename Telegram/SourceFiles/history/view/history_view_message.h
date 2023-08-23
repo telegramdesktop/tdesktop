@@ -187,7 +187,8 @@ private:
 	void createTopicButtonRipple();
 
 	void toggleRightActionRipple(bool pressed);
-	void createRightActionRipple();
+
+	void toggleReplyRipple(bool pressed);
 
 	void paintCommentsButton(
 		Painter &p,

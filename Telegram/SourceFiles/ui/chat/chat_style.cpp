@@ -425,11 +425,12 @@ ChatStyle::ChatStyle(not_null<const style::palette*> isolated)
 }
 
 void ChatStyle::apply(not_null<ChatTheme*> theme) {
-	const auto themePalette = theme->palette();
-	assignPalette(themePalette
-		? themePalette
-		: style::main_palette::get().get());
-	if (themePalette) {
+	applyCustomPalette(theme->palette());
+}
+
+void ChatStyle::applyCustomPalette(const style::palette *palette) {
+	assignPalette(palette ? palette : style::main_palette::get().get());
+	if (palette) {
 		_defaultPaletteChangeLifetime.destroy();
 	} else {
 		style::PaletteChanged(
@@ -437,6 +438,12 @@ void ChatStyle::apply(not_null<ChatTheme*> theme) {
 			assignPalette(style::main_palette::get());
 		}, _defaultPaletteChangeLifetime);
 	}
+}
+
+void ChatStyle::applyAdjustedServiceBg(QColor serviceBg) {
+	auto r = 0, g = 0, b = 0, a = 0;
+	serviceBg.getRgb(&r, &g, &b, &a);
+	msgServiceBg().set(uchar(r), uchar(g), uchar(b), uchar(a));
 }
 
 void ChatStyle::assignPalette(not_null<const style::palette*> palette) {

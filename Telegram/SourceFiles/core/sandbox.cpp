@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "ui/ui_utility.h"
 #include "ui/effects/animations.h"
+#include "ui/platform/ui_platform_utility.h"
 
 #include <QtCore/QLockFile>
 #include <QtGui/QSessionManager>
@@ -78,13 +79,9 @@ QString _escapeFrom7bit(const QString &str) {
 
 bool Sandbox::QuitOnStartRequested = false;
 
-Sandbox::Sandbox(
-	not_null<Core::Launcher*> launcher,
-	int &argc,
-	char **argv)
+Sandbox::Sandbox(int &argc, char **argv)
 : QApplication(argc, argv)
-, _mainThreadId(QThread::currentThreadId())
-, _launcher(launcher) {
+, _mainThreadId(QThread::currentThreadId()) {
 	setQuitOnLastWindowClosed(false);
 }
 
@@ -107,7 +104,8 @@ int Sandbox::start() {
 		hashMd5Hex(d.constData(), d.size(), h.data());
 		_lockFile = std::make_unique<QLockFile>(QDir::tempPath() + '/' + h + '-' + cGUIDStr());
 		_lockFile->setStaleLockTime(0);
-		if (!_lockFile->tryLock() && _launcher->customWorkingDir()) {
+		if (!_lockFile->tryLock()
+			&& Launcher::Instance().customWorkingDir()) {
 			// On Windows, QLockFile has problems detecting a stale lock
 			// if the machine's hostname contains characters outside the US-ASCII character set.
 			if constexpr (Platform::IsWindows()) {
@@ -200,7 +198,7 @@ void Sandbox::launchApplication() {
 		}
 		setupScreenScale();
 
-		_application = std::make_unique<Application>(_launcher);
+		_application = std::make_unique<Application>();
 
 		// Ideally this should go to constructor.
 		// But we want to catch all native events and Application installs
@@ -401,7 +399,6 @@ void Sandbox::singleInstanceChecked() {
 		}
 		_lastCrashDump = crashdump;
 		auto window = new LastCrashedWindow(
-			_launcher,
 			_lastCrashDump,
 			[=] { launchApplication(); });
 		window->proxyChanges(
@@ -529,14 +526,6 @@ void Sandbox::refreshGlobalProxy() {
 	}
 }
 
-bool Sandbox::customWorkingDir() const {
-	return _launcher->customWorkingDir();
-}
-
-uint64 Sandbox::installationTag() const {
-	return _launcher->installationTag();
-}
-
 void Sandbox::checkForEmptyLoopNestingLevel() {
 	// _loopNestingLevel == _eventNestingLevel means that we had a
 	// native event in a nesting loop that didn't get a notify() call
@@ -592,9 +581,18 @@ void Sandbox::registerEnterFromEventLoop() {
 }
 
 bool Sandbox::notifyOrInvoke(QObject *receiver, QEvent *e) {
-	if (e->type() == base::InvokeQueuedEvent::kType) {
+	const auto type = e->type();
+	if (type == base::InvokeQueuedEvent::Type()) {
 		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
 		return true;
+	} else if (receiver == this) {
+		if (type == QEvent::ApplicationDeactivate) {
+			if (Ui::Platform::SkipApplicationDeactivateEvent()) {
+				return true;
+			}
+		} else if (type == QEvent::ApplicationActivate) {
+			Ui::Platform::GotApplicationActivateEvent();
+		}
 	}
 	return QApplication::notify(receiver, e);
 }

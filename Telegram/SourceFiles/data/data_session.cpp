@@ -66,6 +66,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_emoji_statuses.h"
 #include "data/data_forum_icons.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_stories.h"
+#include "data/data_story.h"
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
 #include "data/data_histories.h"
@@ -117,7 +119,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 						if (!windows.empty()) {
 							Api::SwitchInlineBotButtonReceived(
 								windows.front(),
-								QString::fromUtf8(button.data));
+								button.data);
 						}
 						return;
 					}
@@ -266,7 +268,8 @@ Session::Session(not_null<Main::Session*> session)
 , _emojiStatuses(std::make_unique<EmojiStatuses>(this))
 , _forumIcons(std::make_unique<ForumIcons>(this))
 , _notifySettings(std::make_unique<NotifySettings>(this))
-, _customEmojiManager(std::make_unique<CustomEmojiManager>(this)) {
+, _customEmojiManager(std::make_unique<CustomEmojiManager>(this))
+, _stories(std::make_unique<Stories>(this)) {
 	_cache->open(_session->local().cacheKey());
 	_bigFileCache->open(_session->local().cacheBigFileKey());
 
@@ -311,6 +314,8 @@ Session::Session(not_null<Main::Session*> session)
 				}
 			}
 		}, _lifetime);
+
+		_stories->loadMore(Data::StorySourcesList::NotHidden);
 	});
 }
 
@@ -518,7 +523,15 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				? Flag::Contact
 				| Flag::MutualContact
 				| Flag::DiscardMinPhoto
+				| Flag::StoriesHidden
 				: Flag());
+		const auto storiesState = minimal
+			? std::optional<Data::Stories::PeerSourceState>()
+			: data.is_stories_unavailable()
+			? Data::Stories::PeerSourceState()
+			: !data.vstories_max_id()
+			? std::optional<Data::Stories::PeerSourceState>()
+			: stories().peerSourceState(result, data.vstories_max_id()->v);
 		const auto flagsSet = (data.is_deleted() ? Flag::Deleted : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
 			| (data.is_scam() ? Flag::Scam : Flag())
@@ -530,6 +543,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				? (data.is_contact() ? Flag::Contact : Flag())
 				| (data.is_mutual_contact() ? Flag::MutualContact : Flag())
 				| (data.is_apply_min_photo() ? Flag() : Flag::DiscardMinPhoto)
+				| (data.is_stories_hidden() ? Flag::StoriesHidden : Flag())
 				: Flag());
 		result->setFlags((result->flags() & ~flagsMask) | flagsSet);
 		if (minimal) {
@@ -544,6 +558,13 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 					MTP_long(data.vaccess_hash().value_or_empty()));
 			}
 		} else {
+			if (storiesState) {
+				result->setStoriesState(!storiesState->maxId
+					? UserData::StoriesState::None
+					: (storiesState->maxId > storiesState->readTill)
+					? UserData::StoriesState::HasUnread
+					: UserData::StoriesState::HasRead);
+			}
 			if (data.is_self()) {
 				result->input = MTP_inputPeerSelf();
 				result->inputUser = MTP_inputUserSelf();
@@ -667,6 +688,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 					result->botInfo->inlinePlaceholder = QString();
 				}
 				result->botInfo->supportsAttachMenu = data.is_bot_attach_menu();
+				result->botInfo->canEditInformation = data.is_bot_can_edit();
 			} else {
 				result->setBotInfoVersion(-1);
 			}
@@ -1136,7 +1158,8 @@ UserData *Session::userByPhone(const QString &phone) const {
 PeerData *Session::peerByUsername(const QString &username) const {
 	const auto uname = username.trimmed();
 	for (const auto &[peerId, peer] : _peers) {
-		if (!peer->userName().compare(uname, Qt::CaseInsensitive)) {
+		if (peer->isLoaded()
+			&& !peer->userName().compare(uname, Qt::CaseInsensitive)) {
 			return peer.get();
 		}
 	}
@@ -1354,6 +1377,9 @@ void Session::setupChannelLeavingViewer() {
 				history->removeJoinedMessage();
 				history->updateChatListExistence();
 				history->updateChatListSortPosition();
+				if (!history->inChatList()) {
+					history->clearFolder();
+				}
 			}
 		}
 	}, _lifetime);
@@ -3205,6 +3231,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
 		QString(),
 		QString(),
 		TextWithEntities(),
+		FullStoryId(),
 		nullptr,
 		nullptr,
 		WebPageCollage(),
@@ -3259,6 +3286,7 @@ not_null<WebPageData*> Session::webpage(
 		siteName,
 		title,
 		description,
+		FullStoryId(),
 		photo,
 		document,
 		std::move(collage),
@@ -3301,6 +3329,8 @@ void Session::webpageApplyFields(
 				const auto result = attribute.match([&](
 						const MTPDwebPageAttributeTheme &data) {
 					return lookupInAttribute(data);
+				}, [&](const MTPDwebPageAttributeStory &data) {
+					return (DocumentData*)nullptr;
 				});
 				if (result) {
 					return result;
@@ -3309,16 +3339,55 @@ void Session::webpageApplyFields(
 		}
 		return nullptr;
 	};
+	auto story = (Data::Story*)nullptr;
+	auto storyId = FullStoryId();
+	if (const auto attributes = data.vattributes()) {
+		for (const auto &attribute : attributes->v) {
+			attribute.match([&](const MTPDwebPageAttributeStory &data) {
+				storyId = FullStoryId{
+					peerFromUser(data.vuser_id()),
+					data.vid().v,
+				};
+				if (const auto embed = data.vstory()) {
+					story = stories().applyFromWebpage(
+						peerFromUser(data.vuser_id()),
+						*embed);
+				} else if (const auto maybe = stories().lookup(storyId)) {
+					story = *maybe;
+				} else if (maybe.error() == Data::NoStory::Unknown) {
+					stories().resolve(storyId, [=] {
+						if (const auto maybe = stories().lookup(storyId)) {
+							const auto story = *maybe;
+							page->document = story->document();
+							page->photo = story->photo();
+							page->description = story->caption();
+							page->type = WebPageType::Story;
+							notifyWebPageUpdateDelayed(page);
+						}
+					});
+				}
+			}, [](const auto &) {});
+		}
+	}
 	webpageApplyFields(
 		page,
-		ParseWebPageType(data),
+		(story ? WebPageType::Story : ParseWebPageType(data)),
 		qs(data.vurl()),
 		qs(data.vdisplay_url()),
 		siteName,
 		qs(data.vtitle().value_or_empty()),
-		description,
-		photo ? processPhoto(*photo).get() : nullptr,
-		document ? processDocument(*document).get() : lookupThemeDocument(),
+		(story ? story->caption() : description),
+		storyId,
+		(story
+			? story->photo()
+			: photo
+			? processPhoto(*photo).get()
+			: nullptr),
+		(story
+			? story->document()
+			: document
+			? processDocument(*document).get()
+			: lookupThemeDocument()),
 		WebPageCollage(this, data),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
@@ -3333,6 +3402,7 @@ void Session::webpageApplyFields(
 		const QString &siteName,
 		const QString &title,
 		const TextWithEntities &description,
+		FullStoryId storyId,
 		PhotoData *photo,
 		DocumentData *document,
 		WebPageCollage &&collage,
@@ -3347,6 +3417,7 @@ void Session::webpageApplyFields(
 		siteName,
 		title,
 		description,
+		storyId,
 		photo,
 		document,
 		std::move(collage),
@@ -3825,6 +3896,38 @@ void Session::destroyAllCallItems() {
 	}
 }
 
+void Session::registerStoryItem(
+		FullStoryId id,
+		not_null<HistoryItem*> item) {
+	_storyItems[id].emplace(item);
+}
+
+void Session::unregisterStoryItem(
+		FullStoryId id,
+		not_null<HistoryItem*> item) {
+	const auto i = _storyItems.find(id);
+	if (i != _storyItems.end()) {
+		auto &items = i->second;
+		if (items.remove(item) && items.empty()) {
+			_storyItems.erase(i);
+		}
+	}
+}
+
+void Session::refreshStoryItemViews(FullStoryId id) {
+	const auto i = _storyItems.find(id);
+	if (i != _storyItems.end()) {
+		for (const auto item : i->second) {
+			if (const auto media = item->media()) {
+				if (media->storyMention()) {
+					item->updateStoryMentionText();
+				}
+			}
+			requestItemViewRefresh(item);
+		}
+	}
+}
+
 void Session::documentMessageRemoved(not_null<DocumentData*> document) {
 	if (_documentItems.find(document) != _documentItems.end()) {
 		return;
@@ -4175,7 +4278,8 @@ void Session::serviceNotification(
 			MTPstring(), // bot_inline_placeholder
 			MTPstring(), // lang_code
 			MTPEmojiStatus(),
-			MTPVector<MTPUsername>()));
+			MTPVector<MTPUsername>(),
+			MTPint())); // stories_max_id
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	if (!history->folderKnown()) {

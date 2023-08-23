@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
@@ -382,16 +381,13 @@ void RequestsBoxController::processRequest(
 	const auto done = crl::guard(this, [=] {
 		remove();
 		if (approved) {
-			Ui::ShowMultilineToast({
-				.parentOverride = delegate()->peerListToastParent(),
-				.text = (_peer->isBroadcast()
-					? tr::lng_group_requests_was_added_channel
-					: tr::lng_group_requests_was_added)(
-						tr::now,
-						lt_user,
-						Ui::Text::Bold(user->name()),
-						Ui::Text::WithEntities)
-			});
+			delegate()->peerListUiShow()->showToast((_peer->isBroadcast()
+				? tr::lng_group_requests_was_added_channel
+				: tr::lng_group_requests_was_added)(
+					tr::now,
+					lt_user,
+					Ui::Text::Bold(user->name()),
+					Ui::Text::WithEntities));
 		}
 	});
 	const auto fail = crl::guard(this, remove);

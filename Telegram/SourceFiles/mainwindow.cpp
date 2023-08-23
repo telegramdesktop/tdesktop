@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "export/export_manager.h"
+#include "inline_bots/bot_attach_web_view.h" // AttachWebView::cancel.
 #include "intro/intro_widget.h"
 #include "main/main_session.h"
 #include "main/main_account.h" // Account::sessionValue.
@@ -198,6 +199,9 @@ void MainWindow::setupPasscodeLock() {
 		_passcodeLock->showFinished();
 		setInnerFocus();
 	}
+	if (const auto sessionController = controller().sessionController()) {
+		sessionController->session().attachWebView().cancel();
+	}
 }
 
 void MainWindow::clearPasscodeLock() {
@@ -352,8 +356,7 @@ void MainWindow::ensureLayerCreated() {
 	}
 	_layer = base::make_unique_q<Ui::LayerStackWidget>(
 		bodyWidget(),
-		crl::guard(this, [=] {
-			return std::make_shared<Window::Show>(&controller()); }));
+		crl::guard(this, [=] { return controller().uiShow(); }));
 
 	_layer->hideFinishEvents(
 	) | rpl::filter([=] {
@@ -408,7 +411,7 @@ MainWidget *MainWindow::sessionContent() const {
 	return _main.data();
 }
 
-void MainWindow::showBoxOrLayer(
+void MainWindow::showOrHideBoxOrLayer(
 		std::variant<
 			v::null_t,
 			object_ptr<Ui::BoxContent>,
@@ -420,7 +423,7 @@ void MainWindow::showBoxOrLayer(
 	if (auto layerWidget = std::get_if<UniqueLayer>(&layer)) {
 		ensureLayerCreated();
 		_layer->showLayer(std::move(*layerWidget), options, animated);
-	} else if (auto box = std::get_if<ObjectBox>(&layer); *box != nullptr) {
+	} else if (auto box = std::get_if<ObjectBox>(&layer)) {
 		ensureLayerCreated();
 		_layer->showBox(std::move(*box), options, animated);
 	} else {
@@ -434,20 +437,6 @@ void MainWindow::showBoxOrLayer(
 		}
 		Core::App().hideMediaView();
 	}
-}
-
-void MainWindow::ui_showBox(
-		object_ptr<Ui::BoxContent> box,
-		Ui::LayerOptions options,
-		anim::type animated) {
-	showBoxOrLayer(std::move(box), options, animated);
-}
-
-void MainWindow::showLayer(
-		std::unique_ptr<Ui::LayerWidget> &&layer,
-		Ui::LayerOptions options,
-		anim::type animated) {
-	showBoxOrLayer(std::move(layer), options, animated);
 }
 
 bool MainWindow::ui_isLayerShown() const {

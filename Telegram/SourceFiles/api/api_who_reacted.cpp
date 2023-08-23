@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/who_reacted_context_action.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Api {
 namespace {
@@ -357,37 +358,6 @@ struct State {
 	});
 }
 
-[[nodiscard]] QString FormatReadDate(TimeId date, const QDateTime &now) {
-	if (!date) {
-		return {};
-	}
-	const auto parsed = base::unixtime::parse(date);
-	const auto readDate = parsed.date();
-	const auto nowDate = now.date();
-	if (readDate == nowDate) {
-		return tr::lng_mediaview_today(
-			tr::now,
-			lt_time,
-			QLocale().toString(parsed.time(), QLocale::ShortFormat));
-	} else if (readDate.addDays(1) == nowDate) {
-		return tr::lng_mediaview_yesterday(
-			tr::now,
-			lt_time,
-			QLocale().toString(parsed.time(), QLocale::ShortFormat));
-	}
-	return tr::lng_mediaview_date_time(
-		tr::now,
-		lt_date,
-		tr::lng_month_day(
-			tr::now,
-			lt_month,
-			Lang::MonthDay(readDate.month())(tr::now),
-			lt_day,
-			QString::number(readDate.day())),
-		lt_time,
-		QLocale().toString(parsed.time(), QLocale::ShortFormat));
-}
-
 bool UpdateUserpics(
 		not_null<State*> state,
 		not_null<HistoryItem*> item,
@@ -614,13 +584,47 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 
 } // namespace
 
+QString FormatReadDate(TimeId date, const QDateTime &now) {
+	if (!date) {
+		return {};
+	}
+	const auto parsed = base::unixtime::parse(date);
+	const auto readDate = parsed.date();
+	const auto nowDate = now.date();
+	if (readDate == nowDate) {
+		return tr::lng_mediaview_today(
+			tr::now,
+			lt_time,
+			QLocale().toString(parsed.time(), QLocale::ShortFormat));
+	} else if (readDate.addDays(1) == nowDate) {
+		return tr::lng_mediaview_yesterday(
+			tr::now,
+			lt_time,
+			QLocale().toString(parsed.time(), QLocale::ShortFormat));
+	}
+	return tr::lng_mediaview_date_time(
+		tr::now,
+		lt_date,
+		tr::lng_month_day(
+			tr::now,
+			lt_month,
+			Lang::MonthDay(readDate.month())(tr::now),
+			lt_day,
+			QString::number(readDate.day())),
+		lt_time,
+		QLocale().toString(parsed.time(), QLocale::ShortFormat));
+}
+
 bool WhoReadExists(not_null<HistoryItem*> item) {
 	if (!item->out()) {
 		return false;
 	}
 	const auto type = DetectSeenType(item);
+	const auto thread = item->topic()
+		? (Data::Thread*)item->topic()
+		: item->history();
 	const auto unseen = (type == Ui::WhoReadType::Seen)
-		? item->unread(item->history())
+		? item->unread(thread)
 		: item->isUnreadMedia();
 	if (unseen) {
 		return false;
@@ -630,7 +634,6 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	const auto chat = peer->asChat();
 	const auto megagroup = peer->asMegagroup();
 	if ((!chat && !megagroup)
-		|| peer->isForum()
 		|| (megagroup
 			&& (megagroup->flags() & ChannelDataFlag::ParticipantsHidden))) {
 		return false;

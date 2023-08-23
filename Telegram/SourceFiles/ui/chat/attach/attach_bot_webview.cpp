@@ -510,7 +510,7 @@ bool Panel::showWebview(
 	}
 	const auto allowBack = false;
 	showWebviewProgress();
-	_widget->destroyLayer();
+	_widget->hideLayer(anim::type::instant);
 	updateThemeParams(params);
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
@@ -1045,8 +1045,8 @@ void Panel::showBox(object_ptr<BoxContent> box) {
 		anim::type::normal);
 }
 
-void Panel::showToast(const TextWithEntities &text) {
-	_widget->showToast(text);
+void Panel::showToast(TextWithEntities &&text) {
+	_widget->showToast(std::move(text));
 }
 
 void Panel::showCriticalError(const TextWithEntities &text) {

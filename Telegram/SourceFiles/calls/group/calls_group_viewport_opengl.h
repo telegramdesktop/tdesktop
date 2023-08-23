@@ -130,6 +130,7 @@ private:
 	const not_null<Viewport*> _owner;
 
 	GLfloat _factor = 1.;
+	int _ifactor = 1;
 	QSize _viewport;
 	bool _rgbaFrame = false;
 	bool _userpicFrame;

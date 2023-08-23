@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 /*
@@ -133,7 +134,7 @@ void Manage::setupContent() {
 		content,
 		tr::lng_settings_cloud_password_manage_password_change(),
 		st::settingsButton,
-		{ &st::settingsIconKey, kIconLightBlue }
+		{ &st::menuIconPermissions }
 	)->setClickedCallback([=] {
 		showOtherAndRememberPassword(CloudPasswordInputId());
 	});
@@ -143,7 +144,7 @@ void Manage::setupContent() {
 			? tr::lng_settings_cloud_password_manage_email_change()
 			: tr::lng_settings_cloud_password_manage_email_new(),
 		st::settingsButton,
-		{ &st::settingsIconEmail, kIconLightOrange }
+		{ &st::menuIconRecoveryEmail }
 	)->setClickedCallback([=] {
 		auto data = stepData();
 		data.setOnlyRecoveryEmail = true;

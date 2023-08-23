@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "info/profile/info_profile_members_controllers.h"
 
+class PeerListStories;
 struct ChatAdminRightsInfo;
 struct ChatRestrictionsInfo;
 
@@ -174,6 +175,9 @@ public:
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
+	bool trackSelectedList() override {
+		return !_stories;
+	}
 
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
 	std::unique_ptr<PeerListRow> createSearchRow(
@@ -186,6 +190,8 @@ public:
 
 	[[nodiscard]] rpl::producer<int> onlineCountValue() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
+
+	void setStoriesShown(bool shown);
 
 protected:
 	// Allow child controllers not providing navigation.
@@ -287,6 +293,8 @@ private:
 	Ui::BoxPointer _editBox;
 	Ui::BoxPointer _addBox;
 	QPointer<Ui::BoxContent> _editParticipantBox;
+
+	std::unique_ptr<PeerListStories> _stories;
 
 };
 

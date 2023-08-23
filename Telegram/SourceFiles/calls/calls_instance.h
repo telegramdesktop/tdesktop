@@ -105,6 +105,7 @@ public:
 
 	[[nodiscard]] FnMut<void()> addAsyncWaiter();
 
+	[[nodiscard]] bool isSharingScreen() const;
 	[[nodiscard]] bool isQuitPrevent();
 
 private:

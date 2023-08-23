@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_info.h"
 
@@ -561,16 +562,17 @@ void Generator::paintComposeArea() {
 	auto right = st::historySendRight + st::historySendSize.width();
 	st::historyRecordVoice[_palette].paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySendSize.width(), st::historySendSize.height()));
 
-	const auto emojiIconLeft = (st::historyAttachEmoji.iconPosition.x() < 0)
-		? ((st::historyAttachEmoji.width - st::historyAttachEmoji.icon.width()) / 2)
-		: st::historyAttachEmoji.iconPosition.x();
-	const auto emojiIconTop = (st::historyAttachEmoji.iconPosition.y() < 0)
-		? ((st::historyAttachEmoji.height - st::historyAttachEmoji.icon.height()) / 2)
-		: st::historyAttachEmoji.iconPosition.y();
-	const auto &emojiIcon = st::historyAttachEmoji.icon[_palette];
-	right += st::historyAttachEmoji.width;
+	const auto &emojiButton = st::historyAttachEmoji.inner;
+	const auto emojiIconLeft = (emojiButton.iconPosition.x() < 0)
+		? ((emojiButton.width - emojiButton.icon.width()) / 2)
+		: emojiButton.iconPosition.x();
+	const auto emojiIconTop = (emojiButton.iconPosition.y() < 0)
+		? ((emojiButton.height - emojiButton.icon.height()) / 2)
+		: emojiButton.iconPosition.y();
+	const auto &emojiIcon = emojiButton.icon[_palette];
+	right += emojiButton.width;
 	auto attachEmojiLeft = _composeArea.x() + _composeArea.width() - right;
-	_p->fillRect(attachEmojiLeft, controlsTop, st::historyAttachEmoji.width, st::historyAttachEmoji.height, st::historyComposeAreaBg[_palette]);
+	_p->fillRect(attachEmojiLeft, controlsTop, emojiButton.width, emojiButton.height, st::historyComposeAreaBg[_palette]);
 	emojiIcon.paint(*_p, attachEmojiLeft + emojiIconLeft, controlsTop + emojiIconTop, _rect.width());
 
 	auto pen = st::historyEmojiCircleFg[_palette]->p;
@@ -591,7 +593,7 @@ void Generator::paintComposeArea() {
 
 	auto fieldLeft = _composeArea.x() + st::historyAttach.width;
 	auto fieldTop = _composeArea.y() + _composeArea.height() - st::historyAttach.height + st::historySendPadding;
-	auto fieldWidth = _composeArea.width() - st::historyAttach.width - st::historySendSize.width() - st::historySendRight - st::historyAttachEmoji.width;
+	auto fieldWidth = _composeArea.width() - st::historyAttach.width - st::historySendSize.width() - st::historySendRight - emojiButton.width;
 	auto fieldHeight = st::historySendSize.height() - 2 * st::historySendPadding;
 	auto field = QRect(fieldLeft, fieldTop, fieldWidth, fieldHeight);
 	_p->fillRect(field, st::historyComposeField.textBg[_palette]);

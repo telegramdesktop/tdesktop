@@ -72,7 +72,7 @@ struct WindowTitleContent {
 		WindowTitleContent) = default;
 };
 
-constexpr auto kRecentEmojiLimit = 42;
+constexpr auto kRecentEmojiLimit = 54;
 
 struct RecentEmojiDocument {
 	DocumentId id = 0;
@@ -660,6 +660,8 @@ public:
 
 	[[nodiscard]] const std::vector<RecentEmoji> &recentEmoji() const;
 	void incrementRecentEmoji(RecentEmojiId id);
+	void hideRecentEmoji(RecentEmojiId id);
+	void resetRecentEmoji();
 	void setLegacyRecentEmojiPreload(QVector<QPair<QString, ushort>> data);
 	[[nodiscard]] rpl::producer<> recentEmojiUpdated() const {
 		return _recentEmojiUpdated.events();
@@ -668,7 +670,10 @@ public:
 	[[nodiscard]] const base::flat_map<QString, uint8> &emojiVariants() const {
 		return _emojiVariants;
 	}
+	[[nodiscard]] EmojiPtr lookupEmojiVariant(EmojiPtr emoji) const;
+	[[nodiscard]] bool hasChosenEmojiVariant(EmojiPtr emoji) const;
 	void saveEmojiVariant(EmojiPtr emoji);
+	void saveAllEmojiVariants(EmojiPtr emoji);
 	void setLegacyEmojiVariants(QMap<QString, int> data);
 
 	[[nodiscard]] bool disableOpenGL() const {
@@ -802,6 +807,15 @@ public:
 	[[nodiscard]] std::optional<uint64> macRoundIconDigest() const {
 		return _macRoundIconDigest;
 	}
+	[[nodiscard]] bool storiesClickTooltipHidden() const {
+		return _storiesClickTooltipHidden.current();
+	}
+	[[nodiscard]] rpl::producer<bool> storiesClickTooltipHiddenValue() const {
+		return _storiesClickTooltipHidden.value();
+	}
+	void setStoriesClickTooltipHidden(bool value) {
+		_storiesClickTooltipHidden = value;
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
@@ -882,6 +896,8 @@ private:
 	rpl::variable<bool> _mainMenuAccountsShown = true;
 	mutable std::vector<RecentEmojiPreload> _recentEmojiPreload;
 	mutable std::vector<RecentEmoji> _recentEmoji;
+	base::flat_set<QString> _recentEmojiSkip;
+	mutable bool _recentEmojiResolved = false;
 	base::flat_map<QString, uint8> _emojiVariants;
 	rpl::event_stream<> _recentEmojiUpdated;
 	bool _tabbedSelectorSectionEnabled = false; // per-window
@@ -923,6 +939,7 @@ private:
 	WindowPosition _mediaViewPosition = { .maximized = 2 };
 	rpl::variable<bool> _ignoreBatterySaving = false;
 	std::optional<uint64> _macRoundIconDigest;
+	rpl::variable<bool> _storiesClickTooltipHidden = false;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

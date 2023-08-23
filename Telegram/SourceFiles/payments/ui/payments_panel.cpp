@@ -487,7 +487,7 @@ bool Panel::showWebview(
 		return false;
 	}
 	showWebviewProgress();
-	_widget->destroyLayer();
+	_widget->hideLayer(anim::type::instant);
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
 	if (bottomText) {
@@ -859,8 +859,8 @@ void Panel::showBox(object_ptr<BoxContent> box) {
 		anim::type::normal);
 }
 
-void Panel::showToast(const TextWithEntities &text) {
-	_widget->showToast(text);
+void Panel::showToast(TextWithEntities &&text) {
+	_widget->showToast(std::move(text));
 }
 
 void Panel::showCriticalError(const TextWithEntities &text) {

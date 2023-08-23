@@ -18,7 +18,7 @@ namespace Serialize {
 namespace {
 
 constexpr auto kVersionTag = int32(0x7FFFFFFF);
-constexpr auto kVersion = 5;
+constexpr auto kVersion = 6;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -58,7 +58,7 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 			stream << qint32(StickerSetTypeEmpty);
 		}
 	}
-	stream << qint32(document->getDuration());
+	stream << qint64(document->hasDuration() ? document->duration() : -1);
 	if (document->type == StickerDocument) {
 		const auto premium = document->isPremiumSticker()
 			|| document->isPremiumEmoji();
@@ -110,15 +110,19 @@ DocumentData *Document::readFromStreamHelper(
 		attributes.push_back(MTP_documentAttributeFilename(MTP_string(name)));
 	}
 
-	qint32 duration = -1;
+	qint64 duration = -1;
 	qint32 isPremiumSticker = 0;
 	qint32 useTextColor = 0;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
 		stream >> alt >> typeOfSet;
-		if (version >= 3) {
-			stream >> duration;
+		if (version >= 6) {
+			stream >> duration >> isPremiumSticker >> useTextColor;
+		} else if (version >= 3) {
+			qint32 oldDuration = -1;
+			stream >> oldDuration;
+			duration = (oldDuration < 0) ? oldDuration : oldDuration * 1000;
 			if (version >= 4) {
 				stream >> isPremiumSticker;
 				if (version >= 5) {
@@ -166,7 +170,13 @@ DocumentData *Document::readFromStreamHelper(
 			}
 		}
 	} else {
-		stream >> duration;
+		if (version >= 6) {
+			stream >> duration;
+		} else {
+			qint32 oldDuration = -1;
+			stream >> oldDuration;
+			duration = (oldDuration < 0) ? oldDuration : oldDuration * 1000;
+		}
 		if (type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
 		}
@@ -192,9 +202,16 @@ DocumentData *Document::readFromStreamHelper(
 			if (type == RoundVideoDocument) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
 			}
-			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(duration), MTP_int(width), MTP_int(height)));
+			attributes.push_back(MTP_documentAttributeVideo(
+				MTP_flags(flags),
+				MTP_double(duration / 1000.),
+				MTP_int(width),
+				MTP_int(height),
+				MTPint())); // preload_prefix_size
 		} else {
-			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
+			attributes.push_back(MTP_documentAttributeImageSize(
+				MTP_int(width),
+				MTP_int(height)));
 		}
 	}
 

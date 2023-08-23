@@ -82,7 +82,7 @@ private:
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
 	void peerListHideLayer() override;
-	not_null<QWidget*> peerListToastParent() override;
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 
 	//void peerListAppendRow(
 	//	std::unique_ptr<PeerListRow> row) override {
@@ -114,7 +114,7 @@ private:
 	void updateHeaderControlsGeometry(int newWidth);
 	//void updateSearchEnabledByContent();
 
-	std::unique_ptr<Window::Show> _show;
+	std::shared_ptr<Main::SessionShow> _show;
 
 	//Wrap _wrap;
 	not_null<Controller*> _controller;

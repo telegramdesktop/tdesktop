@@ -54,8 +54,8 @@ QString PremiumGift::title() {
 	return tr::lng_premium_summary_title(tr::now);
 }
 
-QString PremiumGift::subtitle() {
-	return FormatGiftMonths(_gift->months());
+TextWithEntities PremiumGift::subtitle() {
+	return { FormatGiftMonths(_gift->months()) };
 }
 
 QString PremiumGift::button() {
@@ -74,6 +74,10 @@ ClickHandlerPtr PremiumGift::createViewLink() {
 			Settings::ShowGiftPremium(controller, peer, months, me);
 		}
 	});
+}
+
+int PremiumGift::buttonSkip() {
+	return st::msgServiceGiftBoxButtonMargins.top();
 }
 
 void PremiumGift::draw(

@@ -53,8 +53,6 @@ public:
 	[[nodiscard]] rpl::producer<> updates(not_null<History*> history);
 	[[nodiscard]] Data::MessagesSlice list(not_null<History*> history);
 
-	static constexpr auto kScheduledUntilOnlineTimestamp = TimeId(0x7FFFFFFE);
-
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
 	struct List {

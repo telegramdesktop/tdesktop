@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_session.h"
+#include "data/data_sponsored_messages.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/emoji_config.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
 #include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "mainwindow.h"
 
 namespace Core {
@@ -264,21 +266,26 @@ Fn<void()> UiIntegration::createSpoilerRepaint(const std::any &context) {
 	return my ? my->customEmojiRepaint : nullptr;
 }
 
+bool UiIntegration::allowClickHandlerActivation(
+		const std::shared_ptr<ClickHandler> &handler,
+		const ClickContext &context) {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto window = my.sessionWindow.get()) {
+		window->session().data().sponsoredMessages().clicked(my.itemId);
+	}
+	return true;
+}
+
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 	return Core::App().passcodeLockChanges() | rpl::to_empty;
 }
 
 const Ui::Emoji::One *UiIntegration::defaultEmojiVariant(
 		const Ui::Emoji::One *emoji) {
-	if (!emoji || !emoji->hasVariants()) {
+	if (!emoji) {
 		return emoji;
 	}
-	const auto nonColored = emoji->nonColoredId();
-	const auto &variants = Core::App().settings().emojiVariants();
-	const auto i = variants.find(nonColored);
-	const auto result = (i != end(variants))
-		? emoji->variant(i->second)
-		: emoji;
+	const auto result = Core::App().settings().lookupEmojiVariant(emoji);
 	Core::App().settings().incrementRecentEmoji({ result });
 	return result;
 }

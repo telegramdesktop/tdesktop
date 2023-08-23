@@ -22,8 +22,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 	const auto dimensions = document->dimensions;
 	auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
 	if (dimensions.width() > 0 && dimensions.height() > 0) {
-		const auto duration = document->getDuration();
-		if (duration >= 0 && !document->hasMimeType(u"image/gif"_q)) {
+		if (document->hasDuration() && !document->hasMimeType(u"image/gif"_q)) {
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
 			using VideoFlag = MTPDdocumentAttributeVideo::Flag;
 			if (document->isVideoMessage()) {
@@ -34,9 +33,10 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 			}
 			attributes.push_back(MTP_documentAttributeVideo(
 				MTP_flags(flags),
-				MTP_int(duration),
+				MTP_double(document->duration() / 1000.),
 				MTP_int(dimensions.width()),
-				MTP_int(dimensions.height())));
+				MTP_int(dimensions.height()),
+				MTPint())); // preload_prefix_size
 		} else {
 			attributes.push_back(MTP_documentAttributeImageSize(
 				MTP_int(dimensions.width()),
@@ -56,7 +56,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 			| MTPDdocumentAttributeAudio::Flag::f_performer;
 		attributes.push_back(MTP_documentAttributeAudio(
 			MTP_flags(flags),
-			MTP_int(song->duration),
+			MTP_int(document->duration() / 1000),
 			MTP_string(song->title),
 			MTP_string(song->performer),
 			MTPstring()));
@@ -65,7 +65,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 			| MTPDdocumentAttributeAudio::Flag::f_waveform;
 		attributes.push_back(MTP_documentAttributeAudio(
 			MTP_flags(flags),
-			MTP_int(voice->duration),
+			MTP_int(document->duration() / 1000),
 			MTPstring(),
 			MTPstring(),
 			MTP_bytes(documentWaveformEncode5bit(voice->waveform))));

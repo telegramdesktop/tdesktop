@@ -83,9 +83,9 @@ void FileDialogCallback(
 		Fn<bool(const Ui::PreparedList&)> checkResult,
 		Fn<void(Ui::PreparedList)> callback,
 		bool premium,
-		not_null<QWidget*> toastParent) {
+		std::shared_ptr<Ui::Show> show) {
 	auto showError = [=](tr::phrase<> text) {
-		Ui::Toast::Show(toastParent, text(tr::now));
+		show->showToast(text(tr::now));
 	};
 
 	auto list = Storage::PreparedFileFromFilesDialog(
@@ -137,13 +137,19 @@ SendFilesLimits DefaultLimitsForPeer(not_null<PeerData*> peer) {
 SendFilesCheck DefaultCheckForPeer(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
+	return DefaultCheckForPeer(controller->uiShow(), peer);
+}
+
+SendFilesCheck DefaultCheckForPeer(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer) {
 	return [=](
 			const Ui::PreparedFile &file,
 			bool compress,
 			bool silent) {
 		const auto error = Data::FileRestrictionError(peer, file, compress);
 		if (error && !silent) {
-			controller->showToast({ *error });
+			show->showToast(*error);
 		}
 		return !error.has_value();
 	};
@@ -151,6 +157,7 @@ SendFilesCheck DefaultCheckForPeer(
 
 SendFilesBox::Block::Block(
 	not_null<QWidget*> parent,
+	const style::ComposeControls &st,
 	not_null<std::vector<Ui::PreparedFile>*> items,
 	int from,
 	int till,
@@ -170,20 +177,24 @@ SendFilesBox::Block::Block(
 	if (_isAlbum) {
 		const auto preview = Ui::CreateChild<Ui::AlbumPreview>(
 			parent.get(),
+			st,
 			my,
 			way);
 		_preview.reset(preview);
 	} else {
 		const auto media = Ui::SingleMediaPreview::Create(
 			parent,
+			st,
 			gifPaused,
 			first);
 		if (media) {
 			_isSingleMedia = true;
 			_preview.reset(media);
 		} else {
-			_preview.reset(
-				Ui::CreateChild<Ui::SingleFilePreview>(parent.get(), first));
+			_preview.reset(Ui::CreateChild<Ui::SingleFilePreview>(
+				parent.get(),
+				st,
+				first));
 		}
 	}
 	_preview->show();
@@ -328,15 +339,32 @@ SendFilesBox::SendFilesBox(
 	SendFilesCheck check,
 	Api::SendType sendType,
 	SendMenu::Type sendMenuType)
-: _controller(controller)
-, _sendType(sendType)
+: SendFilesBox(nullptr, {
+	.show = controller->uiShow(),
+	.list = std::move(list),
+	.caption = caption,
+	.limits = limits,
+	.check = check,
+	.sendType = sendType,
+	.sendMenuType = sendMenuType,
+}) {
+}
+
+SendFilesBox::SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor)
+: _show(std::move(descriptor.show))
+, _st(descriptor.stOverride
+	? *descriptor.stOverride
+	: st::defaultComposeControls)
+, _sendType(descriptor.sendType)
 , _titleHeight(st::boxTitleHeight)
-, _list(std::move(list))
-, _limits(limits)
-, _sendMenuType(sendMenuType)
-, _check(std::move(check))
-, _caption(this, st::confirmCaptionArea, Ui::InputField::Mode::MultiLine)
-, _prefilledCaptionText(std::move(caption))
+, _list(std::move(descriptor.list))
+, _limits(descriptor.limits)
+, _sendMenuType(descriptor.sendMenuType)
+, _check(std::move(descriptor.check))
+, _confirmedCallback(std::move(descriptor.confirmed))
+, _cancelledCallback(std::move(descriptor.cancelled))
+, _caption(this, _st.files.caption, Ui::InputField::Mode::MultiLine)
+, _prefilledCaptionText(std::move(descriptor.caption))
 , _scroll(this, st::boxScroll)
 , _inner(
 	_scroll->setOwnedWidget(
@@ -431,7 +459,7 @@ void SendFilesBox::setupDragArea() {
 	const auto droppedCallback = [=](bool compress) {
 		return [=](const QMimeData *data) {
 			addFiles(data);
-			Window::ActivateWindow(_controller);
+			_show->activate();
 		};
 	};
 	areas.document->setDroppedCallback(droppedCallback(false));
@@ -468,24 +496,24 @@ void SendFilesBox::refreshAllAfterChanges(int fromItem, Fn<void()> perform) {
 }
 
 void SendFilesBox::openDialogToAddFileToAlbum() {
-	const auto toastParent = Ui::BoxShow(this).toastParent();
+	const auto show = uiShow();
 	const auto checkResult = [=](const Ui::PreparedList &list) {
 		if (!(_limits & SendFilesAllow::OnlyOne)) {
 			return true;
 		} else if (!_list.canBeSentInSlowmodeWith(list)) {
-			Ui::Toast::Show(toastParent, tr::lng_slowmode_no_many(tr::now));
+			showToast(tr::lng_slowmode_no_many(tr::now));
 			return false;
 		}
 		return true;
 	};
 	const auto callback = [=](FileDialog::OpenResult &&result) {
-		const auto premium = _controller->session().premium();
+		const auto premium = _show->session().premium();
 		FileDialogCallback(
 			std::move(result),
 			checkResult,
 			[=](Ui::PreparedList list) { addFiles(std::move(list)); },
 			premium,
-			toastParent);
+			show);
 	};
 
 	FileDialog::GetOpenPaths(
@@ -508,7 +536,8 @@ void SendFilesBox::refreshButtons() {
 			_send,
 			[=] { return _sendMenuType; },
 			[=] { sendSilent(); },
-			[=] { sendScheduled(); });
+			[=] { sendScheduled(); },
+			[=] { sendWhenOnline(); });
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	_addFile = addLeftButton(
@@ -562,11 +591,11 @@ void SendFilesBox::addMenuButton() {
 		return;
 	}
 
-	const auto top = addTopButton(st::infoTopBarMenu);
+	const auto top = addTopButton(_st.files.menu);
 	top->setClickedCallback([=] {
-		_menu = base::make_unique_q<Ui::PopupMenu>(
-			top,
-			st::popupMenuExpandedSeparator);
+		const auto &tabbed = _st.tabbed;
+		const auto &icons = tabbed.icons;
+		_menu = base::make_unique_q<Ui::PopupMenu>(top, tabbed.menu);
 		if (hasSpoilerMenu()) {
 			const auto spoilered = allWithSpoilers();
 			_menu->addAction(
@@ -574,9 +603,9 @@ void SendFilesBox::addMenuButton() {
 					? tr::lng_context_disable_spoiler(tr::now)
 					: tr::lng_context_spoiler_effect(tr::now)),
 				[=] { toggleSpoilers(!spoilered); },
-				spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
+				spoilered ? &icons.menuSpoilerOff : &icons.menuSpoiler);
 			if (hasSendMenu()) {
-				_menu->addSeparator();
+				_menu->addSeparator(&tabbed.expandedSeparator);
 			}
 		}
 		if (hasSendMenu()) {
@@ -584,7 +613,9 @@ void SendFilesBox::addMenuButton() {
 				_menu.get(),
 				_sendMenuType,
 				[=] { sendSilent(); },
-				[=] { sendScheduled(); });
+				[=] { sendScheduled(); },
+				[=] { sendWhenOnline(); },
+				&_st.tabbed.icons);
 		}
 		_menu->popup(QCursor::pos());
 		return true;
@@ -709,12 +740,12 @@ void SendFilesBox::generatePreviewFrom(int fromBlock) {
 }
 
 void SendFilesBox::pushBlock(int from, int till) {
-	const auto gifPaused = [controller = _controller] {
-		return controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer);
+	const auto gifPaused = [show = _show] {
+		return show->paused(Window::GifPauseReason::Layer);
 	};
 	_blocks.emplace_back(
 		_inner.data(),
+		_st,
 		&_list.files,
 		from,
 		till,
@@ -729,6 +760,8 @@ void SendFilesBox::pushBlock(int from, int till) {
 	) | rpl::filter([=] {
 		return !_removingIndex;
 	}) | rpl::start_with_next([=](int index) {
+		applyBlockChanges();
+
 		_removingIndex = index;
 		crl::on_main(this, [=] {
 			const auto index = base::take(_removingIndex).value_or(-1);
@@ -746,9 +779,11 @@ void SendFilesBox::pushBlock(int from, int till) {
 		});
 	}, widget->lifetime());
 
-	const auto toastParent = Ui::BoxShow(this).toastParent();
+	const auto show = uiShow();
 	block.itemReplaceRequest(
 	) | rpl::start_with_next([=](int index) {
+		applyBlockChanges();
+
 		const auto replace = [=](Ui::PreparedList list) {
 			if (list.files.empty()) {
 				return;
@@ -768,9 +803,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 			_list.files.push_back(std::move(removing));
 			std::swap(_list.files[index], _list.files.back());
 			if (!result) {
-				Ui::Toast::Show(
-					toastParent,
-					tr::lng_slowmode_no_many(tr::now));
+				show->showToast(tr::lng_slowmode_no_many(tr::now));
 				return false;
 			}
 			return true;
@@ -807,13 +840,13 @@ void SendFilesBox::pushBlock(int from, int till) {
 			return checkSlowmode(list) && checkRights(list);
 		};
 		const auto callback = [=](FileDialog::OpenResult &&result) {
-			const auto premium = _controller->session().premium();
+			const auto premium = _show->session().premium();
 			FileDialogCallback(
 				std::move(result),
 				checkResult,
 				replace,
 				premium,
-				toastParent);
+				show);
 		};
 
 		FileDialog::GetOpenPath(
@@ -825,15 +858,17 @@ void SendFilesBox::pushBlock(int from, int till) {
 
 	const auto openedOnce = widget->lifetime().make_state<bool>(false);
 	block.itemModifyRequest(
-	) | rpl::start_with_next([=, controller = _controller](int index) {
+	) | rpl::start_with_next([=, show = _show](int index) {
+		applyBlockChanges();
+
 		if (!(*openedOnce)) {
-			controller->session().settings().incrementPhotoEditorHintShown();
-			controller->session().saveSettings();
+			show->session().settings().incrementPhotoEditorHintShown();
+			show->session().saveSettings();
 		}
 		*openedOnce = true;
 		Editor::OpenWithPreparedFile(
 			this,
-			controller,
+			show,
 			&_list.files[index],
 			st::sendMediaPreviewSize,
 			[=] { refreshAllAfterChanges(from); });
@@ -856,12 +891,14 @@ void SendFilesBox::setupSendWayControls() {
 		this,
 		tr::lng_send_grouped(tr::now),
 		groupFilesFirst,
-		st::defaultBoxCheckbox);
+		_st.files.checkbox,
+		_st.files.check);
 	_sendImagesAsPhotos.create(
 		this,
 		tr::lng_send_compressed(tr::now),
 		_sendWay.current().sendImagesAsPhotos(),
-		st::defaultBoxCheckbox);
+		_st.files.checkbox,
+		_st.files.check);
 
 	_sendWay.changes(
 	) | rpl::start_with_next([=](SendFilesWay value) {
@@ -905,7 +942,8 @@ void SendFilesBox::setupSendWayControls() {
 		this,
 		tr::lng_remember(tr::now),
 		false,
-		st::defaultBoxCheckbox);
+		_st.files.checkbox,
+		_st.files.check);
 	_wayRemember->hide();
 	rpl::combine(
 		_groupFiles->checkedValue(),
@@ -953,25 +991,32 @@ void SendFilesBox::updateSendWayControls() {
 		: tr::lng_send_compressed_one(tr::now));
 
 	_hintLabel->setVisible(
-		_controller->session().settings().photoEditorHintShown()
+		_show->session().settings().photoEditorHintShown()
 			? _list.canHaveEditorHintLabel()
 			: false);
 }
 
 void SendFilesBox::setupCaption() {
-	const auto allow = [=](const auto&) {
+	const auto allow = [=](const auto &) {
 		return (_limits & SendFilesAllow::EmojiWithoutPremium);
 	};
+	const auto show = _show;
 	InitMessageFieldHandlers(
-		_controller,
+		&show->session(),
+		show,
 		_caption.data(),
-		Window::GifPauseReason::Layer,
-		allow);
+		[=] { return show->paused(Window::GifPauseReason::Layer); },
+		allow,
+		&_st.files.caption);
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_caption,
-		&_controller->session(),
-		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
+		&_show->session(),
+		{
+			.suggestCustomEmoji = true,
+			.allowCustomWithoutPremium = allow,
+			.st = &_st.suggestions,
+		});
 
 	if (!_prefilledCaptionText.text.isEmpty()) {
 		_caption->setTextWithTags(
@@ -1019,12 +1064,21 @@ void SendFilesBox::setupEmojiPanel() {
 	using Selector = ChatHelpers::TabbedSelector;
 	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
 		container,
-		_controller,
-		object_ptr<Selector>(
-			nullptr,
-			_controller,
-			Window::GifPauseReason::Layer,
-			Selector::Mode::EmojiOnly));
+		ChatHelpers::TabbedPanelDescriptor{
+			.ownedSelector = object_ptr<Selector>(
+				nullptr,
+				ChatHelpers::TabbedSelectorDescriptor{
+					.show = _show,
+					.st = _st.tabbed,
+					.level = Window::GifPauseReason::Layer,
+					.mode = ChatHelpers::TabbedSelector::Mode::EmojiOnly,
+					.features = {
+						.megagroupSet = false,
+						.stickersSettings = false,
+						.openStickerSets = false,
+					},
+				}),
+		});
 	_emojiPanel->setDesiredHeightValues(
 		1.,
 		st::emojiPanMinHeight / 2,
@@ -1041,11 +1095,9 @@ void SendFilesBox::setupEmojiPanel() {
 		const auto info = data.document->sticker();
 		if (info
 			&& info->setType == Data::StickersType::Emoji
-			&& !_controller->session().premium()
+			&& !_show->session().premium()
 			&& !(_limits & SendFilesAllow::EmojiWithoutPremium)) {
-			ShowPremiumPreviewBox(
-				_controller,
-				PremiumPreview::AnimatedEmoji);
+			ShowPremiumPreviewBox(_show, PremiumPreview::AnimatedEmoji);
 		} else {
 			Data::InsertCustomEmoji(_caption.data(), data.document);
 		}
@@ -1057,7 +1109,7 @@ void SendFilesBox::setupEmojiPanel() {
 	};
 	_emojiFilter.reset(base::install_event_filter(container, filterCallback));
 
-	_emojiToggle.create(this, st::boxAttachEmoji);
+	_emojiToggle.create(this, _st.files.emoji);
 	_emojiToggle->setVisible(!_caption->isHidden());
 	_emojiToggle->installEventFilter(_emojiPanel);
 	_emojiToggle->addClickHandler([=] {
@@ -1095,7 +1147,7 @@ bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 }
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
-	const auto premium = _controller->session().premium();
+	const auto premium = _show->session().premium();
 	auto list = [&] {
 		const auto urls = Core::ReadMimeUrls(data);
 		auto result = CanAddUrls(urls)
@@ -1242,7 +1294,7 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 		Painter p(this);
 
 		p.setFont(st::boxTitleFont);
-		p.setPen(st::boxTitleFg);
+		p.setPen(getDelegate()->style().title.textFg);
 		p.drawTextLeft(
 			st::boxPhotoTitlePosition.x(),
 			st::boxTitlePosition.y() - st::boxTopMargin,
@@ -1318,7 +1370,7 @@ void SendFilesBox::saveSendWaySettings() {
 }
 
 bool SendFilesBox::validateLength(const QString &text) const {
-	const auto session = &_controller->session();
+	const auto session = &_show->session();
 	const auto limit = Data::PremiumLimits(session).captionLengthCurrent();
 	const auto remove = int(text.size()) - limit;
 	const auto way = _sendWay.current();
@@ -1328,7 +1380,8 @@ bool SendFilesBox::validateLength(const QString &text) const {
 			way.sendImagesAsPhotos())) {
 		return true;
 	}
-	_controller->show(Box(CaptionLimitReachedBox, session, remove));
+	_show->showBox(
+		Box(CaptionLimitReachedBox, session, remove, &_st.premium));
 	return false;
 }
 
@@ -1385,9 +1438,11 @@ void SendFilesBox::sendScheduled() {
 		? SendMenu::Type::ScheduledToUser
 		: _sendMenuType;
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	_controller->show(
-		HistoryView::PrepareScheduleBox(this, type, callback),
-		Ui::LayerOption::KeepOther);
+	_show->showBox(HistoryView::PrepareScheduleBox(this, type, callback));
+}
+
+void SendFilesBox::sendWhenOnline() {
+	send(Api::DefaultSendWhenOnlineOptions());
 }
 
 SendFilesBox::~SendFilesBox() = default;

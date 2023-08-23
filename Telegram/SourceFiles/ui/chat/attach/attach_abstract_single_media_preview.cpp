@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
@@ -30,8 +31,10 @@ constexpr auto kMinPreviewWidth = 20;
 
 AbstractSingleMediaPreview::AbstractSingleMediaPreview(
 	QWidget *parent,
+	const style::ComposeControls &st,
 	AttachControls::Type type)
 : AbstractSinglePreview(parent)
+, _st(st)
 , _minThumbH(st::sendBoxAlbumGroupSize.height()
 	+ st::sendBoxAlbumGroupSkipTop * 2)
 , _controls(base::make_unique_q<AttachControlsWidget>(this, type)) {
@@ -173,7 +176,7 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 				_previewTop,
 				_previewLeft - padding.left(),
 				_previewHeight,
-				st::confirmBg);
+				_st.files.confirmBg);
 		}
 		if ((_previewLeft + _previewWidth) < (width() - padding.right())) {
 			p.fillRect(
@@ -181,7 +184,7 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 				_previewTop,
 				width() - padding.right() - _previewLeft - _previewWidth,
 				_previewHeight,
-				st::confirmBg);
+				_st.files.confirmBg);
 		}
 		if (_previewTop > 0) {
 			p.fillRect(
@@ -189,7 +192,7 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 				0,
 				width() - padding.right() - padding.left(),
 				height(),
-				st::confirmBg);
+				_st.files.confirmBg);
 		}
 	}
 
@@ -264,14 +267,15 @@ void AbstractSingleMediaPreview::showContextMenu(QPoint position) {
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		st::popupMenuWithIcons);
+		_st.tabbed.menu);
 
+	const auto &icons = _st.tabbed.icons;
 	const auto spoilered = hasSpoiler();
 	_menu->addAction(spoilered
 		? tr::lng_context_disable_spoiler(tr::now)
 		: tr::lng_context_spoiler_effect(tr::now), [=] {
 		setSpoiler(!spoilered);
-	}, spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
+	}, spoilered ? &icons.menuSpoilerOff : &icons.menuSpoiler);
 
 	if (_menu->empty()) {
 		_menu = nullptr;

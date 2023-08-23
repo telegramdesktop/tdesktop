@@ -14,9 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
 #include "data/data_photo.h"
+#include "data/data_stories.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_user_names.h"
+#include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
+#include "history/history.h"
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "ui/text/text_options.h"
@@ -108,6 +111,51 @@ void UserData::setCommonChatsCount(int count) {
 	if (_commonChatsCount != count) {
 		_commonChatsCount = count;
 		session().changes().peerUpdated(this, UpdateFlag::CommonChats);
+	}
+}
+
+bool UserData::hasPrivateForwardName() const {
+	return !_privateForwardName.isEmpty();
+}
+
+QString UserData::privateForwardName() const {
+	return _privateForwardName;
+}
+
+void UserData::setPrivateForwardName(const QString &name) {
+	_privateForwardName = name;
+}
+
+bool UserData::hasActiveStories() const {
+	return flags() & UserDataFlag::HasActiveStories;
+}
+
+bool UserData::hasUnreadStories() const {
+	return flags() & UserDataFlag::HasUnreadStories;
+}
+
+void UserData::setStoriesState(StoriesState state) {
+	Expects(state != StoriesState::Unknown);
+
+	const auto was = flags();
+	using Flag = UserDataFlag;
+	switch (state) {
+	case StoriesState::None:
+		_flags.remove(Flag::HasActiveStories | Flag::HasUnreadStories);
+		break;
+	case StoriesState::HasRead:
+		_flags.set(
+			(flags() & ~Flag::HasUnreadStories) | Flag::HasActiveStories);
+		break;
+	case StoriesState::HasUnread:
+		_flags.add(Flag::HasActiveStories | Flag::HasUnreadStories);
+		break;
+	}
+	if (flags() != was) {
+		if (const auto history = owner().historyLoaded(this)) {
+			history->updateChatListEntryPostponed();
+		}
+		session().changes().peerUpdated(this, UpdateFlag::StoriesState);
 	}
 }
 
@@ -320,6 +368,10 @@ bool UserData::hasPersonalPhoto() const {
 	return (flags() & UserDataFlag::PersonalPhoto);
 }
 
+bool UserData::hasStoriesHidden() const {
+	return (flags() & UserDataFlag::StoriesHidden);
+}
+
 bool UserData::canAddContact() const {
 	return canShareThisContact() && !isContact();
 }
@@ -443,6 +495,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->checkFolder(update.vfolder_id().value_or_empty());
 	user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 	user->setTranslationDisabled(update.is_translations_disabled());
+	user->setPrivateForwardName(
+		update.vprivate_forward_name().value_or_empty());
 
 	if (const auto info = user->botInfo.get()) {
 		const auto group = update.vbot_group_admin_rights()
@@ -461,6 +515,15 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 				Data::PeerUpdate::Flag::Rights);
 		}
 	}
+
+	if (const auto paper = update.vwallpaper()) {
+		user->setWallPaper(
+			Data::WallPaper::Create(&user->session(), *paper));
+	} else {
+		user->setWallPaper({});
+	}
+
+	user->owner().stories().apply(user, update.vstories());
 
 	user->fullUpdated();
 }

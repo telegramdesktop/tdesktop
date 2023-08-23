@@ -28,9 +28,11 @@ constexpr auto kDragDuration = crl::time(200);
 
 AlbumPreview::AlbumPreview(
 	QWidget *parent,
+	const style::ComposeControls &st,
 	gsl::span<Ui::PreparedFile> items,
 	SendFilesWay way)
 : RpWidget(parent)
+, _st(st)
 , _sendWay(way)
 , _dragTimer([=] { switchToDrag(); }) {
 	setMouseTracking(true);
@@ -135,12 +137,13 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 	_thumbs.reserve(count);
 	for (auto i = 0; i != count; ++i) {
 		_thumbs.push_back(std::make_unique<AlbumThumbnail>(
+			_st,
 			items[i],
 			layout[i],
 			this,
 			[=] { update(); },
-			[=] { changeThumbByIndex(thumbIndex(thumbUnderCursor())); },
-			[=] { deleteThumbByIndex(thumbIndex(thumbUnderCursor())); }));
+			[=] { changeThumbByIndex(orderIndex(thumbUnderCursor())); },
+			[=] { deleteThumbByIndex(orderIndex(thumbUnderCursor())); }));
 		if (_thumbs.back()->isCompressedSticker()) {
 			_hasMixedFileHeights = true;
 		}
@@ -215,8 +218,7 @@ not_null<AlbumThumbnail*> AlbumPreview::findClosestThumb(
 	return result;
 }
 
-int AlbumPreview::orderIndex(
-	not_null<AlbumThumbnail*> thumb) const {
+int AlbumPreview::orderIndex(not_null<AlbumThumbnail*> thumb) const {
 	const auto i = ranges::find_if(_order, [&](int index) {
 		return (_thumbs[index].get() == thumb);
 	});
@@ -397,17 +399,6 @@ void AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 	}
 }
 
-int AlbumPreview::thumbIndex(AlbumThumbnail *thumb) {
-	if (!thumb) {
-		return -1;
-	}
-	const auto thumbIt = ranges::find_if(_thumbs, [&](auto &t) {
-		return t.get() == thumb;
-	});
-	Expects(thumbIt != _thumbs.end());
-	return std::distance(_thumbs.begin(), thumbIt);
-}
-
 AlbumThumbnail *AlbumPreview::thumbUnderCursor() {
 	return findThumb(mapFromGlobal(QCursor::pos()));
 }
@@ -436,7 +427,7 @@ void AlbumPreview::modifyThumbByIndex(int index) {
 void AlbumPreview::thumbButtonsCallback(
 		not_null<AlbumThumbnail*> thumb,
 		AttachButtonType type) {
-	const auto index = thumbIndex(thumb);
+	const auto index = orderIndex(thumb);
 
 	switch (type) {
 	case AttachButtonType::None: return;

@@ -12,8 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-PickerAnimation::PickerAnimation() {
-}
+PickerAnimation::PickerAnimation() = default;
 
 void PickerAnimation::jumpToOffset(int offset) {
 	_result.from = _result.current;
@@ -95,15 +94,25 @@ VerticalDrumPicker::VerticalDrumPicker(
 	}, lifetime());
 
 	_animation.updates(
+	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](PickerAnimation::Shift shift) {
 		increaseShift(shift);
+		if (anim::Disabled()) {
+			animationDataFromIndex();
+			_animation.jumpToOffset(0);
+		}
 	}, lifetime());
 }
 
 void VerticalDrumPicker::increaseShift(float64 by) {
-	// Guard input.
-	if (by >= 1.) {
-		by = .99;
+	{
+		// Guard input.
+		constexpr auto kAlmostIndex = .99;
+		if (by >= 1.) {
+			by = kAlmostIndex;
+		} else if (by <= -1.) {
+			by = -kAlmostIndex;
+		}
 	}
 
 	auto shift = _shift;

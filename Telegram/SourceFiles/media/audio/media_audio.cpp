@@ -1560,7 +1560,7 @@ Ui::PreparedFileInformation PrepareForSending(
 	FFMpegAttributesReader reader(Core::FileLocation(fname), data);
 	const auto positionMs = crl::time(0);
 	if (reader.open(positionMs) && reader.duration() > 0) {
-		result.duration = reader.duration() / 1000;
+		result.duration = reader.duration();
 		result.title = reader.title();
 		result.performer = reader.performer();
 		result.cover = reader.cover();

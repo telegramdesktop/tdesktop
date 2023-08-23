@@ -29,6 +29,7 @@ enum class WhoReactedList {
 	One,
 };
 
+[[nodiscard]] QString FormatReadDate(TimeId date, const QDateTime &now);
 [[nodiscard]] bool WhoReadExists(not_null<HistoryItem*> item);
 [[nodiscard]] bool WhoReactedExists(
 	not_null<HistoryItem*> item,

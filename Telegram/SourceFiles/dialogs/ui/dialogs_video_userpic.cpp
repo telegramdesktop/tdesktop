@@ -7,13 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_video_userpic.h"
 
-#include "ui/painter.h"
 #include "core/file_location.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
+#include "dialogs/ui/dialogs_layout.h"
+#include "ui/painter.h"
+#include "styles/style_dialogs.h"
 
 namespace Dialogs::Ui {
 
@@ -126,6 +128,29 @@ void VideoUserpic::clipCallback(Media::Clip::Notification notification) {
 	} break;
 
 	case Notification::Repaint: _repaint(); break;
+	}
+}
+
+void PaintUserpic(
+		Painter &p,
+		not_null<Entry*> entry,
+		PeerData *peer,
+		VideoUserpic *videoUserpic,
+		PeerUserpicView &view,
+		const Ui::PaintContext &context) {
+	if (peer) {
+		PaintUserpic(
+			p,
+			peer,
+			videoUserpic,
+			view,
+			context.st->padding.left(),
+			context.st->padding.top(),
+			context.width,
+			context.st->photoSize,
+			context.paused);
+	} else {
+		entry->paintUserpic(p, view, context);
 	}
 }
 

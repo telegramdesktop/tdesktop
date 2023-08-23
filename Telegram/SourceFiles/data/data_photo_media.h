@@ -43,7 +43,8 @@ public:
 
 	[[nodiscard]] bool autoLoadThumbnailAllowed(
 		not_null<PeerData*> peer) const;
-	void automaticLoad(Data::FileOrigin origin, const HistoryItem *item);
+	void automaticLoad(FileOrigin origin, const HistoryItem *item);
+	void automaticLoad(FileOrigin origin, not_null<PeerData*> peer);
 
 	void collectLocalData(not_null<PhotoMedia*> local);
 

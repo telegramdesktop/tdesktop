@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
@@ -119,10 +118,8 @@ void TTLChatsBoxController::prepareViewHook() {
 
 void TTLChatsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	if (!TTLMenu::TTLValidator(nullptr, row->peer()).can()) {
-		Ui::ShowMultilineToast({
-			.parentOverride = delegate()->peerListToastParent(),
-			.text = { tr::lng_settings_ttl_select_chats_sorry(tr::now) },
-		});
+		delegate()->peerListUiShow()->showToast(
+			{ tr::lng_settings_ttl_select_chats_sorry(tr::now) });
 		return;
 	}
 	delegate()->peerListSetRowChecked(row, !row->checked());
@@ -208,7 +205,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const std::shared_ptr<Ui::RadiobuttonGroup> _group;
-	const std::shared_ptr<Window::Show> _show;
+	const std::shared_ptr<Main::SessionShow> _show;
 
 	not_null<Ui::VerticalLayout*> _buttons;
 
@@ -223,7 +220,7 @@ GlobalTTL::GlobalTTL(
 : Section(parent)
 , _controller(controller)
 , _group(std::make_shared<Ui::RadiobuttonGroup>(0))
-, _show(std::make_shared<Window::Show>(controller))
+, _show(controller->uiShow())
 , _buttons(Ui::CreateChild<Ui::VerticalLayout>(this)) {
 	setupContent();
 }
@@ -244,14 +241,11 @@ void GlobalTTL::showSure(TimeId ttl, bool rebuild) const {
 		}
 		_group->setChangedCallback([=](int value) {
 			_group->setChangedCallback(nullptr);
-			Ui::ShowMultilineToast({
-				.parentOverride = _show->toastParent(),
-				.text = tr::lng_settings_ttl_after_toast(
-					tr::now,
-					lt_after_duration,
-					{ .text = ttlText },
-					Ui::Text::WithEntities)
-			});
+			_show->showToast(tr::lng_settings_ttl_after_toast(
+				tr::now,
+				lt_after_duration,
+				{ .text = ttlText },
+				Ui::Text::WithEntities));
 			_show->hideLayer(); // Don't use close().
 		});
 		request(ttl);
@@ -348,7 +342,7 @@ void GlobalTTL::setupContent() {
 		) | rpl::start_with_next(rebuild, content->lifetime());
 	}
 
-	const auto show = std::make_shared<Window::Show>(_controller);
+	const auto show = _controller->uiShow();
 	AddButton(
 		content,
 		tr::lng_settings_ttl_after_custom(),
@@ -398,29 +392,25 @@ void GlobalTTL::setupContent() {
 						peer->session().api().applyUpdates(result);
 					}).send();
 				}
-				Ui::ShowMultilineToast({
-					.parentOverride = Ui::BoxShow(box).toastParent(),
-					.text = ttl
-						? tr::lng_settings_ttl_select_chats_toast(
-							tr::now,
-							lt_count,
-							peers.size(),
-							lt_duration,
-							{ .text = Ui::FormatTTL(ttl) },
-							Ui::Text::WithEntities)
-						: tr::lng_settings_ttl_select_chats_disabled_toast(
-							tr::now,
-							lt_count,
-							peers.size(),
-							Ui::Text::WithEntities),
-				});
+				box->showToast(ttl
+					? tr::lng_settings_ttl_select_chats_toast(
+						tr::now,
+						lt_count,
+						peers.size(),
+						lt_duration,
+						{ .text = Ui::FormatTTL(ttl) },
+						Ui::Text::WithEntities)
+					: tr::lng_settings_ttl_select_chats_disabled_toast(
+						tr::now,
+						lt_count,
+						peers.size(),
+						Ui::Text::WithEntities));
 				box->closeBox();
 			}));
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		};
 		_controller->show(
-			Box<PeerListBox>(std::move(controller), std::move(initBox)),
-			Ui::LayerOption::KeepOther);
+			Box<PeerListBox>(std::move(controller), std::move(initBox)));
 	}));
 	content->add(object_ptr<Ui::DividerLabel>(
 		content,

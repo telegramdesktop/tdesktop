@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "ui/boxes/confirm_box.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "core/application.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -26,18 +27,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
-#include "styles/style_chat.h"
-#include "styles/style_layers.h"
-#include "styles/style_media_player.h"
 #include "ui/controls/send_button.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "ui/painter.h"
-#include "window/window_session_controller.h"
+#include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
+#include "styles/style_layers.h"
+#include "styles/style_media_player.h"
 
 namespace HistoryView::Controls {
-
 namespace {
 
 using SendActionUpdate = VoiceRecordBar::SendActionUpdate;
@@ -72,8 +72,8 @@ enum class FilterType {
 	return std::clamp(float64(low) / high, 0., 1.);
 }
 
-[[nodiscard]] auto Duration(int samples) {
-	return samples / ::Media::Player::kDefaultFrequency;
+[[nodiscard]] crl::time Duration(int samples) {
+	return samples * crl::time(1000) / ::Media::Player::kDefaultFrequency;
 }
 
 [[nodiscard]] auto FormatVoiceDuration(int samples) {
@@ -90,7 +90,6 @@ enum class FilterType {
 [[nodiscard]] std::unique_ptr<VoiceData> ProcessCaptureResult(
 		const ::Media::Capture::Result &data) {
 	auto voiceData = std::make_unique<VoiceData>();
-	voiceData->duration = Duration(data.samples);
 	voiceData->waveform = data.waveform;
 	voiceData->wavemax = voiceData->waveform.empty()
 		? uchar(0)
@@ -206,7 +205,8 @@ class ListenWrap final {
 public:
 	ListenWrap(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller,
+		const style::RecordBar &st,
+		not_null<Main::Session*> session,
 		::Media::Capture::Result &&data,
 		const style::font &font);
 
@@ -231,12 +231,12 @@ private:
 
 	not_null<Ui::RpWidget*> _parent;
 
-	const not_null<Window::SessionController*> _controller;
+	const style::RecordBar &_st;
+	const not_null<Main::Session*> _session;
 	const not_null<DocumentData*> _document;
 	const std::unique_ptr<VoiceData> _voiceData;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
 	const std::unique_ptr<::Media::Capture::Result> _data;
-	const style::IconButton &_stDelete;
 	const base::unique_qptr<Ui::IconButton> _delete;
 	const style::font &_durationFont;
 	const QString _duration;
@@ -264,17 +264,18 @@ private:
 
 ListenWrap::ListenWrap(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Window::SessionController*> controller,
+	const style::RecordBar &st,
+	not_null<Main::Session*> session,
 	::Media::Capture::Result &&data,
 	const style::font &font)
 : _parent(parent)
-, _controller(controller)
-, _document(DummyDocument(&_controller->session().data()))
+, _st(st)
+, _session(session)
+, _document(DummyDocument(&session->data()))
 , _voiceData(ProcessCaptureResult(data))
 , _mediaView(_document->createMediaView())
 , _data(std::make_unique<::Media::Capture::Result>(std::move(data)))
-, _stDelete(st::historyRecordDelete)
-, _delete(base::make_unique_q<Ui::IconButton>(parent, _stDelete))
+, _delete(base::make_unique_q<Ui::IconButton>(parent, _st.remove))
 , _durationFont(font)
 , _duration(Ui::FormatDurationText(
 	float64(_data->samples) / ::Media::Player::kDefaultFrequency))
@@ -299,7 +300,7 @@ void ListenWrap::init() {
 		_waveformBgRect = QRect({ 0, 0 }, size)
 			.marginsRemoved(st::historyRecordWaveformBgMargins);
 		{
-			const auto m = _stDelete.width + _waveformBgRect.height() / 2;
+			const auto m = _st.remove.width + _waveformBgRect.height() / 2;
 			_waveformBgFinalCenterRect = _waveformBgRect.marginsRemoved(
 				style::margins(m, 0, m, 0));
 		}
@@ -319,22 +320,23 @@ void ListenWrap::init() {
 		PainterHighQualityEnabler hq(p);
 		const auto progress = _showProgress.current();
 		p.setOpacity(progress);
+		const auto &remove = _st.remove;
 		if (progress > 0. && progress < 1.) {
-			_stDelete.icon.paint(p, _stDelete.iconPosition, _parent->width());
+			remove.icon.paint(p, remove.iconPosition, _parent->width());
 		}
 
 		{
 			const auto hideOffset = _isShowAnimation
 				? 0
 				: anim::interpolate(kHideWaveformBgOffset, 0, progress);
-			const auto deleteIconLeft = _stDelete.iconPosition.x();
+			const auto deleteIconLeft = remove.iconPosition.x();
 			const auto bgRectRight = anim::interpolate(
 				deleteIconLeft,
-				_stDelete.width,
+				remove.width,
 				_isShowAnimation ? progress : 1.);
 			const auto bgRectLeft = anim::interpolate(
 				_parent->width() - deleteIconLeft - _waveformBgRect.height(),
-				_stDelete.width,
+				remove.width,
 				_isShowAnimation ? progress : 1.);
 			const auto bgRectMargins = style::margins(
 				bgRectLeft - hideOffset,
@@ -357,7 +359,7 @@ void ListenWrap::init() {
 				p.setOpacity(progress);
 			}
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::historyRecordCancelActive);
+			p.setBrush(_st.cancelActive);
 			QPainterPath path;
 			path.setFillRule(Qt::WindingFill);
 			path.addEllipse(bgLeftCircleRect);
@@ -456,13 +458,6 @@ void ListenWrap::initPlayButton() {
 	) | rpl::start_with_next([=] {
 		*showPause = false;
 	}, _lifetime);
-
-	const auto weak = Ui::MakeWeak(_controller->content().get());
-	_lifetime.add([=] {
-		if (weak && isInPlayer()) {
-			weak->stopAndClosePlayer();
-		}
-	});
 }
 
 void ListenWrap::initPlayProgress() {
@@ -612,10 +607,13 @@ rpl::lifetime &ListenWrap::lifetime() {
 
 class RecordLock final : public Ui::RippleButton {
 public:
-	RecordLock(not_null<Ui::RpWidget*> parent);
+	RecordLock(
+		not_null<Ui::RpWidget*> parent,
+		const style::RecordBarLock &st);
 
 	void requestPaintProgress(float64 progress);
 	void requestPaintLockToStopProgress(float64 progress);
+	void setVisibleTopPart(int part);
 
 	[[nodiscard]] rpl::producer<> locks() const;
 	[[nodiscard]] bool isLocked() const;
@@ -634,6 +632,7 @@ private:
 	void setProgress(float64 progress);
 	void startLockingAnimation(float64 to);
 
+	const style::RecordBarLock &_st;
 	const QRect _rippleRect;
 	const QPen _arcPen;
 
@@ -641,10 +640,15 @@ private:
 
 	float64 _lockToStopProgress = 0.;
 	rpl::variable<float64> _progress = 0.;
+	int _visibleTopPart = -1;
+
 };
 
-RecordLock::RecordLock(not_null<Ui::RpWidget*> parent)
-: RippleButton(parent, st::defaultRippleAnimation)
+RecordLock::RecordLock(
+	not_null<Ui::RpWidget*> parent,
+	const style::RecordBarLock &st)
+: RippleButton(parent, st.ripple)
+, _st(st)
 , _rippleRect(QRect(
 	0,
 	0,
@@ -658,6 +662,10 @@ RecordLock::RecordLock(not_null<Ui::RpWidget*> parent)
 	Qt::SquareCap,
 	Qt::RoundJoin) {
 	init();
+}
+
+void RecordLock::setVisibleTopPart(int part) {
+	_visibleTopPart = part;
 }
 
 void RecordLock::init() {
@@ -677,7 +685,13 @@ void RecordLock::init() {
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
+		if (!_visibleTopPart) {
+			return;
+		}
 		Painter p(this);
+		if (_visibleTopPart > 0 && _visibleTopPart < height()) {
+			p.setClipRect(0, 0, width(), _visibleTopPart);
+		}
 		if (isLocked()) {
 			const auto top = anim::interpolate(
 				0,
@@ -694,12 +708,12 @@ void RecordLock::init() {
 void RecordLock::drawProgress(Painter &p) {
 	const auto progress = _progress.current();
 
-	const auto &originTop = st::historyRecordLockTop;
-	const auto &originBottom = st::historyRecordLockBottom;
-	const auto &originBody = st::historyRecordLockBody;
-	const auto &shadowTop = st::historyRecordLockTopShadow;
-	const auto &shadowBottom = st::historyRecordLockBottomShadow;
-	const auto &shadowBody = st::historyRecordLockBodyShadow;
+	const auto &originTop = _st.originTop;
+	const auto &originBottom = _st.originBottom;
+	const auto &originBody = _st.originBody;
+	const auto &shadowTop = _st.shadowTop;
+	const auto &shadowBottom = _st.shadowBottom;
+	const auto &shadowBody = _st.shadowBody;
 	const auto &shadowMargins = st::historyRecordLockMargin;
 
 	const auto bottomMargin = anim::interpolate(
@@ -746,7 +760,7 @@ void RecordLock::drawProgress(Painter &p) {
 		originBody.fill(p, content);
 	}
 	{
-		const auto &arrow = st::historyRecordLockArrow;
+		const auto &arrow = _st.arrow;
 		const auto arrowRect = QRect(
 			inner.x(),
 			content.y() + content.height() - arrow.height() / 2,
@@ -798,7 +812,7 @@ void RecordLock::drawProgress(Painter &p) {
 			PainterHighQualityEnabler hq(p);
 			p.translate(inner.topLeft() + lockTranslation);
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::historyRecordLockIconFg);
+			p.setBrush(_st.fg);
 			p.drawRoundedRect(blockRect, xRadius, 3);
 		} else {
 			// Paint an animation frame.
@@ -851,7 +865,7 @@ void RecordLock::drawProgress(Painter &p) {
 
 			p.drawImage(
 				inner.topLeft(),
-				style::colorizeImage(frame, st::historyRecordLockIconFg));
+				style::colorizeImage(frame, _st.fg));
 		}
 	}
 }
@@ -921,7 +935,10 @@ QPoint RecordLock::prepareRippleStartPosition() const {
 
 class CancelButton final : public Ui::RippleButton {
 public:
-	CancelButton(not_null<Ui::RpWidget*> parent, int height);
+	CancelButton(
+		not_null<Ui::RpWidget*> parent,
+		const style::RecordBar &st,
+		int height);
 
 	void requestPaintProgress(float64 progress);
 
@@ -932,6 +949,7 @@ protected:
 private:
 	void init();
 
+	const style::RecordBar &_st;
 	const int _width;
 	const QRect _rippleRect;
 
@@ -941,8 +959,12 @@ private:
 
 };
 
-CancelButton::CancelButton(not_null<Ui::RpWidget*> parent, int height)
-: Ui::RippleButton(parent, st::defaultLightButton.ripple)
+CancelButton::CancelButton(
+	not_null<Ui::RpWidget*> parent,
+	const style::RecordBar &st,
+	int height)
+: Ui::RippleButton(parent, st.cancelRipple)
+, _st(st)
 , _width(st::historyRecordCancelButtonWidth)
 , _rippleRect(QRect(0, (height - _width) / 2, _width, _width))
 , _text(st::semiboldTextStyle, tr::lng_selected_clear(tr::now)) {
@@ -965,7 +987,7 @@ void CancelButton::init() {
 
 		paintRipple(p, _rippleRect.x(), _rippleRect.y());
 
-		p.setPen(st::historyRecordCancelButtonFg);
+		p.setPen(_st.cancelActive);
 		_text.draw(
 			p,
 			0,
@@ -990,36 +1012,40 @@ void CancelButton::requestPaintProgress(float64 progress) {
 
 VoiceRecordBar::VoiceRecordBar(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Ui::RpWidget*> sectionWidget,
-	not_null<Window::SessionController*> controller,
-	std::shared_ptr<Ui::SendButton> send,
-	int recorderHeight)
+	VoiceRecordBarDescriptor &&descriptor)
 : RpWidget(parent)
-, _sectionWidget(sectionWidget)
-, _controller(controller)
-, _send(send)
-, _lock(std::make_unique<RecordLock>(sectionWidget))
-, _level(std::make_unique<VoiceRecordButton>(
-	sectionWidget,
-	_controller->widget()->leaveEvents()))
-, _cancel(std::make_unique<CancelButton>(this, recorderHeight))
+, _st(descriptor.stOverride ? *descriptor.stOverride : st::defaultRecordBar)
+, _outerContainer(descriptor.outerContainer)
+, _show(std::move(descriptor.show))
+, _send(std::move(descriptor.send))
+, _lock(std::make_unique<RecordLock>(_outerContainer, _st.lock))
+, _level(std::make_unique<VoiceRecordButton>(_outerContainer, _st))
+, _cancel(std::make_unique<CancelButton>(this, _st, descriptor.recorderHeight))
 , _startTimer([=] { startRecording(); })
 , _message(
 	st::historyRecordTextStyle,
-	tr::lng_record_cancel(tr::now),
+	(!descriptor.customCancelText.isEmpty()
+		? descriptor.customCancelText
+		: tr::lng_record_cancel(tr::now)),
 	TextParseOptions{ TextParseMultiline, 0, 0, Qt::LayoutDirectionAuto })
+, _lockFromBottom(descriptor.lockFromBottom)
 , _cancelFont(st::historyRecordFont) {
-	resize(QSize(parent->width(), recorderHeight));
+	resize(QSize(parent->width(), descriptor.recorderHeight));
 	init();
 	hideFast();
 }
 
 VoiceRecordBar::VoiceRecordBar(
 	not_null<Ui::RpWidget*> parent,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Ui::SendButton> send,
 	int recorderHeight)
-: VoiceRecordBar(parent, parent, controller, send, recorderHeight) {
+: VoiceRecordBar(parent, {
+	.outerContainer = parent,
+	.show = std::move(show),
+	.send = std::move(send),
+	.recorderHeight = recorderHeight,
+}) {
 }
 
 VoiceRecordBar::~VoiceRecordBar() {
@@ -1049,14 +1075,32 @@ void VoiceRecordBar::updateMessageGeometry() {
 }
 
 void VoiceRecordBar::updateLockGeometry() {
-	const auto right = anim::interpolate(
-		-_lock->width(),
-		st::historyRecordLockPosition.x(),
-		_showLockAnimation.value(_lockShowing.current() ? 1. : 0.));
-	_lock->moveToRight(right, _lock->y());
+	const auto parent = parentWidget();
+	const auto me = Ui::MapFrom(_outerContainer, parent, geometry());
+	const auto finalTop = me.y()
+		- st::historyRecordLockPosition.y()
+		- _lock->height();
+	const auto finalRight = _outerContainer->width()
+		- (me.x() + me.width())
+		+ st::historyRecordLockPosition.x();
+	const auto progress = _showLockAnimation.value(
+		_lockShowing.current() ? 1. : 0.);
+	if (_lockFromBottom) {
+		const auto top = anim::interpolate(me.y(), finalTop, progress);
+		_lock->moveToRight(finalRight, top);
+		_lock->setVisibleTopPart(me.y() - top);
+	} else {
+		const auto from = -_lock->width();
+		const auto right = anim::interpolate(from, finalRight, progress);
+		_lock->moveToRight(right, finalTop);
+	}
 }
 
 void VoiceRecordBar::init() {
+	if (_st.radius > 0) {
+		_backgroundRect.emplace(_st.radius, _st.bg);
+	}
+
 	// Keep VoiceRecordBar behind SendButton.
 	rpl::single(
 	) | rpl::then(
@@ -1096,7 +1140,6 @@ void VoiceRecordBar::init() {
 		}
 		_cancel->moveToLeft((size.width() - _cancel->width()) / 2, 0);
 		updateMessageGeometry();
-		updateLockGeometry();
 	}, lifetime());
 
 	paintRequest(
@@ -1105,7 +1148,11 @@ void VoiceRecordBar::init() {
 		if (_showAnimation.animating()) {
 			p.setOpacity(showAnimationRatio());
 		}
-		p.fillRect(clip, st::historyComposeAreaBg);
+		if (_backgroundRect) {
+			_backgroundRect->paint(p, rect());
+		} else {
+			p.fillRect(clip, _st.bg);
+		}
 
 		p.setOpacity(std::min(p.opacity(), 1. - showListenAnimationRatio()));
 		const auto opacity = p.opacity();
@@ -1246,6 +1293,9 @@ void VoiceRecordBar::init() {
 	_cancel->setClickedCallback([=] {
 		hideAnimated();
 	});
+
+	initLockGeometry();
+	initLevelGeometry();
 }
 
 void VoiceRecordBar::activeAnimate(bool active) {
@@ -1287,22 +1337,28 @@ void VoiceRecordBar::setStartRecordingFilter(Fn<bool()> &&callback) {
 	_startRecordingFilter = std::move(callback);
 }
 
-void VoiceRecordBar::setLockBottom(rpl::producer<int> &&bottom) {
+void VoiceRecordBar::initLockGeometry() {
 	rpl::combine(
-		std::move(bottom),
-		_lock->sizeValue() | rpl::map_to(true) // Dummy value.
-	) | rpl::start_with_next([=](int value, bool dummy) {
-		_lock->moveToLeft(_lock->x(), value - _lock->height());
+		_lock->heightValue(),
+		geometryValue(),
+		static_cast<Ui::RpWidget*>(parentWidget())->geometryValue()
+	) | rpl::start_with_next([=] {
+		updateLockGeometry();
 	}, lifetime());
 }
 
-void VoiceRecordBar::setSendButtonGeometryValue(
-		rpl::producer<QRect> &&geometry) {
-	std::move(
-		geometry
-	) | rpl::start_with_next([=](QRect r) {
-		const auto center = (r.width() - _level->width()) / 2;
-		_level->moveToLeft(r.x() + center, r.y() + center);
+void VoiceRecordBar::initLevelGeometry() {
+	rpl::combine(
+		_send->geometryValue(),
+		geometryValue(),
+		static_cast<Ui::RpWidget*>(parentWidget())->geometryValue()
+	) | rpl::start_with_next([=](QRect send, auto, auto) {
+		const auto mapped = Ui::MapFrom(
+			_outerContainer,
+			_send->parentWidget(),
+			send);
+		const auto center = (send.width() - _level->width()) / 2;
+		_level->moveToLeft(mapped.x() + center, mapped.y() + center);
 	}, lifetime());
 }
 
@@ -1325,7 +1381,6 @@ void VoiceRecordBar::startRecording() {
 		startRedCircleAnimation();
 
 		_recording = true;
-		_controller->widget()->setInnerFocus();
 		instance()->start();
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
@@ -1410,7 +1465,6 @@ void VoiceRecordBar::finish() {
 	_listen = nullptr;
 
 	_sendActionUpdates.fire({ Api::SendProgressType::RecordVoice, -1 });
-	_controller->widget()->setInnerFocus();
 }
 
 void VoiceRecordBar::hideFast() {
@@ -1434,14 +1488,16 @@ void VoiceRecordBar::stopRecording(StopType type) {
 			return;
 		}
 
-		Window::ActivateWindow(_controller);
+		window()->raise();
+		window()->activateWindow();
 		const auto duration = Duration(data.samples);
 		if (type == StopType::Send) {
 			_sendVoiceRequests.fire({ data.bytes, data.waveform, duration });
 		} else if (type == StopType::Listen) {
 			_listen = std::make_unique<ListenWrap>(
 				this,
-				_controller,
+				_st,
+				&_show->session(),
 				std::move(data),
 				_cancelFont);
 			_listenChanges.fire({});
@@ -1454,7 +1510,7 @@ void VoiceRecordBar::stopRecording(StopType type) {
 void VoiceRecordBar::drawDuration(Painter &p) {
 	const auto duration = FormatVoiceDuration(_recordingSamples);
 	p.setFont(_cancelFont);
-	p.setPen(st::historyRecordDurationFg);
+	p.setPen(_st.durationFg);
 
 	p.drawText(_durationRect, style::al_left, duration);
 }
@@ -1488,11 +1544,7 @@ void VoiceRecordBar::drawRedCircle(Painter &p) {
 }
 
 void VoiceRecordBar::drawMessage(Painter &p, float64 recordActive) {
-	p.setPen(
-		anim::pen(
-			st::historyRecordCancel,
-			st::historyRecordCancelActive,
-			1. - recordActive));
+	p.setPen(anim::pen(_st.cancel, _st.cancelActive, 1. - recordActive));
 
 	const auto opacity = p.opacity();
 	p.setOpacity(opacity * (1. - _lock->lockToStopProgress()));
@@ -1532,6 +1584,10 @@ rpl::producer<> VoiceRecordBar::cancelRequests() const {
 
 bool VoiceRecordBar::isRecording() const {
 	return _recording.current();
+}
+
+bool VoiceRecordBar::isRecordingLocked() const {
+	return isRecording() && _lock->isLocked();
 }
 
 bool VoiceRecordBar::isActive() const {
@@ -1631,8 +1687,8 @@ void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {
 
 void VoiceRecordBar::orderControls() {
 	stackUnder(_send.get());
-	_level->raise();
 	_lock->raise();
+	_level->raise();
 }
 
 void VoiceRecordBar::installListenStateFilter() {
@@ -1690,7 +1746,7 @@ void VoiceRecordBar::showDiscardBox(
 			callback();
 		}
 	};
-	_controller->show(Ui::MakeConfirmBox({
+	_show->showBox(Ui::MakeConfirmBox({
 		.text = (isListenState()
 			? tr::lng_record_listen_cancel_sure
 			: tr::lng_record_lock_cancel_sure)(),

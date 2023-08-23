@@ -35,10 +35,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
 
 namespace {
 
-constexpr auto kSessionsShortPollTimeout = 60 * crl::time(1000);
+constexpr auto kShortPollTimeout = 60 * crl::time(1000);
 constexpr auto kMaxDeviceModelLength = 32;
 
 using EntryData = Api::Authorizations::Entry;
@@ -71,7 +72,6 @@ public:
 	Row(not_null<RowDelegate*> delegate, const EntryData &data);
 
 	void update(const EntryData &data);
-	void updateName(const QString &name);
 
 	[[nodiscard]] EntryData data() const;
 
@@ -79,6 +79,14 @@ public:
 	QString generateShortName() override;
 	PaintRoundImageCallback generatePaintUserpicCallback(
 		bool forceRound) override;
+
+	QSize rightActionSize() const override {
+		return elementGeometry(2, 0).size();
+	}
+	QMargins rightActionMargins() const override {
+		const auto rect = elementGeometry(2, 0);
+		return QMargins(0, rect.y(), -(rect.x() + rect.width()), 0);
+	}
 
 	int elementsCount() const override;
 	QRect elementGeometry(int element, int outerWidth) const override;
@@ -458,28 +466,27 @@ void SessionInfoBox(
 	AddSkip(container, st::sessionSubtitleSkip);
 	AddSubsectionTitle(container, tr::lng_sessions_info());
 
-	const auto add = [&](rpl::producer<QString> label, QString value) {
-		if (value.isEmpty()) {
-			return;
-		}
-		container->add(
-			object_ptr<Ui::FlatLabel>(
-				container,
-				rpl::single(value),
-				st::boxLabel),
-			st::boxRowPadding + st::sessionValuePadding);
-		container->add(
-			object_ptr<Ui::FlatLabel>(
-				container,
-				std::move(label),
-				st::sessionValueLabel),
-			(st::boxRowPadding
-				+ style::margins{ 0, 0, 0, st::sessionValueSkip }));
-	};
-	add(tr::lng_sessions_application(), data.info);
-	add(tr::lng_sessions_system(), data.system);
-	add(tr::lng_sessions_ip(), data.ip);
-	add(tr::lng_sessions_location(), data.location);
+	AddSessionInfoRow(
+		container,
+		tr::lng_sessions_application(),
+		data.info,
+		st::menuIconDevices);
+	AddSessionInfoRow(
+		container,
+		tr::lng_sessions_system(),
+		data.system,
+		st::menuIconInfo);
+	AddSessionInfoRow(
+		container,
+		tr::lng_sessions_ip(),
+		data.ip,
+		st::menuIconIpAddress);
+	AddSessionInfoRow(
+		container,
+		tr::lng_sessions_location(),
+		data.location,
+		st::menuIconAddress);
+
 	AddSkip(container, st::sessionValueSkip);
 	if (!data.location.isEmpty()) {
 		AddDividerText(container, tr::lng_sessions_location_about());
@@ -514,12 +521,6 @@ void Row::update(const EntryData &data) {
 	_location.setText(st::defaultTextStyle, LocationAndDate(_data));
 	_type = TypeFromEntry(_data);
 	_userpic = GenerateUserpic(_type);
-	_delegate->rowUpdateRow(this);
-}
-
-void Row::updateName(const QString &name) {
-	_data.name = name;
-	refreshName(st::sessionListItem);
 	_delegate->rowUpdateRow(this);
 }
 
@@ -615,8 +616,6 @@ void Row::elementsPaint(
 		outerWidth);
 }
 
-} // namespace
-
 class SessionsContent : public Ui::RpWidget {
 public:
 	SessionsContent(
@@ -683,8 +682,6 @@ public:
 		style::margins margins = {});
 
 private:
-	void subscribeToCustomDeviceModel();
-
 	const not_null<Main::Session*> _session;
 
 	rpl::event_stream<uint64> _terminateRequests;
@@ -760,7 +757,7 @@ void SessionsContent::setupContent() {
 		_inner->setVisible(!value);
 	}, lifetime());
 
-	_authorizations->listChanges(
+	_authorizations->listValue(
 	) | rpl::start_with_next([=](const Api::Authorizations::List &list) {
 		parse(list);
 	}, lifetime());
@@ -791,7 +788,7 @@ void SessionsContent::parse(const Api::Authorizations::List &list) {
 
 	_inner->showData(_data);
 
-	_shortPollTimer.callOnce(kSessionsShortPollTimeout);
+	_shortPollTimer.callOnce(kShortPollTimeout);
 }
 
 void SessionsContent::resizeEvent(QResizeEvent *e) {
@@ -816,7 +813,7 @@ void SessionsContent::paintEvent(QPaintEvent *e) {
 }
 
 void SessionsContent::shortPollSessions() {
-	const auto left = kSessionsShortPollTimeout
+	const auto left = kShortPollTimeout
 		- (crl::now() - _authorizations->lastReceivedTime());
 	if (left > 0) {
 		parse(_authorizations->list());
@@ -846,7 +843,7 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 		.confirmStyle = &st::attentionBoxButton,
 	});
 	_terminateBox = Ui::MakeWeak(box.data());
-	_controller->show(std::move(box), Ui::LayerOption::KeepOther);
+	_controller->show(std::move(box));
 }
 
 void SessionsContent::terminateOne(uint64 hash) {
@@ -928,7 +925,7 @@ void SessionsContent::Inner::setupContent() {
 		rename->moveToRight(x, y, outer.width());
 	}, rename->lifetime());
 	rename->setClickedCallback([=] {
-		_controller->show(Box(RenameBox), Ui::LayerOption::KeepOther);
+		_controller->show(Box(RenameBox));
 	});
 
 	const auto session = &_controller->session();
@@ -1048,18 +1045,6 @@ Main::Session &SessionsContent::ListController::session() const {
 	return *_session;
 }
 
-void SessionsContent::ListController::subscribeToCustomDeviceModel() {
-	Core::App().settings().deviceModelChanges(
-	) | rpl::start_with_next([=](const QString &model) {
-		for (auto i = 0; i != delegate()->peerListFullRowsCount(); ++i) {
-			const auto row = delegate()->peerListRowAt(i);
-			if (!row->id()) {
-				static_cast<Row*>(row.get())->updateName(model);
-			}
-		}
-	}, lifetime());
-}
-
 void SessionsContent::ListController::prepare() {
 }
 
@@ -1148,27 +1133,7 @@ auto SessionsContent::ListController::Add(
 	return controller;
 }
 
-SessionsBox::SessionsBox(
-	QWidget*,
-	not_null<Window::SessionController*> controller)
-: _controller(controller) {
-}
-
-void SessionsBox::prepare() {
-	setTitle(tr::lng_sessions_other_header());
-
-	addButton(tr::lng_close(), [=] { closeBox(); });
-
-	const auto w = st::boxWideWidth;
-
-	const auto content = setInnerWidget(
-		object_ptr<SessionsContent>(this, _controller),
-		st::sessionsScroll);
-	content->resize(w, st::noContactsHeight);
-	content->setupContent();
-
-	setDimensions(w, st::sessionsHeight);
-}
+} // namespace
 
 namespace Settings {
 
@@ -1191,6 +1156,43 @@ void Sessions::setupContent(not_null<Window::SessionController*> controller) {
 	content->setupContent();
 
 	Ui::ResizeFitChild(this, container);
+}
+
+void AddSessionInfoRow(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> label,
+		const QString &value,
+		const style::icon &icon) {
+	if (value.isEmpty()) {
+		return;
+	}
+
+	const auto text = container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			rpl::single(value),
+			st::boxLabel),
+		st::boxRowPadding + st::sessionValuePadding);
+	const auto left = st::sessionValuePadding.left();
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			std::move(label),
+			st::sessionValueLabel),
+		(st::boxRowPadding
+			+ style::margins{ left, 0, 0, st::sessionValueSkip }));
+
+	const auto widget = Ui::CreateChild<Ui::RpWidget>(container.get());
+	widget->resize(icon.size());
+
+	text->topValue() | rpl::start_with_next([=](int top) {
+		widget->move(st::sessionValueIconPosition + QPoint(0, top));
+	}, widget->lifetime());
+
+	widget->paintRequest() | rpl::start_with_next([=, &icon] {
+		auto p = QPainter(widget);
+		icon.paintInCenter(p, widget->rect());
+	}, widget->lifetime());
 }
 
 } // namespace Settings

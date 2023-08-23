@@ -257,11 +257,14 @@ void Document::validateGoodThumbnail() {
 		const auto length = bytes.size();
 		if (!length || length > Storage::kMaxFileInMemory) {
 			LOG(("App Error: Bad thumbnail data for saving to cache."));
-			bytes = "(failed)";
+			bytes = "(failed)"_q;
 		}
 		crl::on_main(guard, [=] {
 			if (const auto active = document->activeMediaView()) {
 				active->setGoodThumbnail(image);
+			}
+			if (bytes != "(failed)"_q) {
+				document->setGoodThumbnailChecked(true);
 			}
 			document->owner().cache().putIfEmpty(
 				document->goodThumbnailCacheKey(),

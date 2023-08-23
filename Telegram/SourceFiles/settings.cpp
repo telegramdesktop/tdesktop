@@ -18,7 +18,7 @@ QByteArray gAlphaPrivateKey;
 
 bool gManyInstance = false;
 QString gKeyFile;
-QString gWorkingDir, gExeDir, gExeName;
+QString gWorkingDir;
 
 QStringList gSendPaths;
 QString gStartUrl;

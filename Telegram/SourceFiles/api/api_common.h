@@ -15,6 +15,8 @@ class Thread;
 
 namespace Api {
 
+inline constexpr auto kScheduledUntilOnlineTimestamp = TimeId(0x7FFFFFFE);
+
 struct SendOptions {
 	PeerData *sendAs = nullptr;
 	TimeId scheduled = 0;
@@ -23,6 +25,7 @@ struct SendOptions {
 	bool removeWebPageId = false;
 	bool hideViaBot = false;
 };
+[[nodiscard]] SendOptions DefaultSendWhenOnlineOptions();
 
 enum class SendType {
 	Normal,
@@ -37,11 +40,12 @@ struct SendAction {
 
 	not_null<History*> history;
 	SendOptions options;
-	MsgId replyTo = 0;
-	MsgId topicRootId = 0;
+	FullReplyTo replyTo;
 	bool clearDraft = true;
 	bool generateLocal = true;
 	MsgId replaceMediaOf = 0;
+
+	[[nodiscard]] MTPInputReplyTo mtpReplyTo() const;
 };
 
 struct MessageToSend {

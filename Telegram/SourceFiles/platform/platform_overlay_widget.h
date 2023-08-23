@@ -20,6 +20,8 @@ namespace Media::View {
 inline constexpr auto kMaximizedIconOpacity = 0.6;
 inline constexpr auto kNormalIconOpacity = 0.9;
 inline constexpr auto kOverBackgroundOpacity = 0.2775;
+inline constexpr auto kStoriesNavOpacity = 0.3;
+inline constexpr auto kStoriesNavOverOpacity = 0.7;
 [[nodiscard]] QColor OverBackgroundColor();
 
 } // namespace Media::View
@@ -55,6 +57,9 @@ public:
 	[[nodiscard]] virtual auto mouseEvents() const
 	-> rpl::producer<not_null<QMouseEvent*>> {
 		return rpl::never<not_null<QMouseEvent*>>();
+	}
+	[[nodiscard]] virtual rpl::producer<int> topNotchSkipValue() {
+		return rpl::single(0);
 	}
 };
 

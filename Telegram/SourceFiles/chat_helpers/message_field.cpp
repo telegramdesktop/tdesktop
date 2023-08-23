@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QMimeData>
@@ -125,8 +126,7 @@ QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
 
 void EditLinkBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		const QString &startText,
 		const QString &startLink,
 		Fn<void(QString, QString)> callback,
@@ -149,8 +149,8 @@ void EditLinkBox(
 	Ui::Emoji::SuggestionsController::Init(
 		box->getDelegate()->outerContainer(),
 		text,
-		session);
-	InitSpellchecker(std::move(show), session, text, fieldStyle != nullptr);
+		&show->session());
+	InitSpellchecker(show, text, fieldStyle != nullptr);
 
 	const auto placeholder = content->add(
 		object_ptr<Ui::RpWidget>(content),
@@ -279,13 +279,25 @@ TextWithTags PrepareEditText(not_null<HistoryItem*> item) {
 	};
 }
 
+bool EditTextChanged(
+		not_null<HistoryItem*> item,
+		const TextWithTags &updated) {
+	const auto original = PrepareEditText(item);
+
+	// Tags can be different for the same entities, because for
+	// animated emoji each tag contains a different random number.
+	// So we compare entities instead of tags.
+	return (original.text != updated.text)
+		|| (TextUtilities::ConvertTextTagsToEntities(original.tags)
+			!= TextUtilities::ConvertTextTagsToEntities(updated.tags));
+}
+
 Fn<bool(
 	Ui::InputField::EditLinkSelection selection,
 	QString text,
 	QString link,
 	EditLinkAction action)> DefaultEditLinkCallback(
-		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		const style::InputField *fieldStyle) {
 	const auto weak = Ui::MakeWeak(field);
@@ -303,23 +315,20 @@ Fn<bool(
 				strong->commitMarkdownLinkEdit(selection, text, link);
 			}
 		};
-		show->showBox(
-			Box(
-				EditLinkBox,
-				show,
-				session,
-				text,
-				link,
-				std::move(callback),
-				fieldStyle),
-			Ui::LayerOption::KeepOther);
+		show->showBox(Box(
+			EditLinkBox,
+			show,
+			text,
+			link,
+			std::move(callback),
+			fieldStyle));
 		return true;
 	};
 }
 
 void InitMessageFieldHandlers(
 		not_null<Main::Session*> session,
-		std::shared_ptr<Ui::Show> show,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		Fn<bool()> customEmojiPaused,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji,
@@ -338,19 +347,19 @@ void InitMessageFieldHandlers(
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	if (show) {
 		field->setEditLinkCallback(
-			DefaultEditLinkCallback(show, session, field, fieldStyle));
-		InitSpellchecker(show, session, field, fieldStyle != nullptr);
+			DefaultEditLinkCallback(show, field, fieldStyle));
+		InitSpellchecker(show, field, fieldStyle != nullptr);
 	}
 }
 
 void InitMessageFieldHandlers(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field,
-		Window::GifPauseReason pauseReasonLevel,
+		ChatHelpers::PauseReason pauseReasonLevel,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
 	InitMessageFieldHandlers(
 		&controller->session(),
-		std::make_shared<Window::Show>(controller),
+		controller->uiShow(),
 		field,
 		[=] { return controller->isGifPausedAtLeastFor(pauseReasonLevel); },
 		allowPremiumEmoji);
@@ -366,25 +375,36 @@ void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {
 }
 
 void InitMessageField(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Ui::InputField*> field,
 		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
 	InitMessageFieldHandlers(
-		controller,
+		&show->session(),
+		show,
 		field,
-		Window::GifPauseReason::Any,
-		allowPremiumEmoji);
+		[=] { return show->paused(ChatHelpers::PauseReason::Any); },
+		std::move(allowPremiumEmoji));
 	InitMessageFieldGeometry(field);
 	field->customTab(true);
 }
 
+void InitMessageField(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::InputField*> field,
+		Fn<bool(not_null<DocumentData*>)> allowPremiumEmoji) {
+	return InitMessageField(
+		controller->uiShow(),
+		field,
+		std::move(allowPremiumEmoji));
+}
+
 void InitSpellchecker(
-		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::InputField*> field,
 		bool skipDictionariesManager) {
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 	using namespace Spellchecker;
+	const auto session = &show->session();
 	const auto menuItem = skipDictionariesManager
 		? std::nullopt
 		: std::make_optional(SpellingHighlighter::CustomContextMenuItem{
@@ -491,7 +511,8 @@ InlineBotQuery ParseInlineBotQuery(
 }
 
 AutocompleteQuery ParseMentionHashtagBotCommandQuery(
-		not_null<const Ui::InputField*> field) {
+		not_null<const Ui::InputField*> field,
+		ChatHelpers::ComposeFeatures features) {
 	auto result = AutocompleteQuery();
 
 	const auto cursor = field->textCursor();
@@ -523,6 +544,9 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 		const auto text = fragment.text();
 		for (auto i = position - fragmentPosition; i != 0; --i) {
 			if (text[i - 1] == '@') {
+				if (!features.autocompleteMentions) {
+					return {};
+				}
 				if ((position - fragmentPosition - i < 1 || text[i].isLetter()) && (i < 2 || !(text[i - 2].isLetterOrNumber() || text[i - 2] == '_'))) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
@@ -533,12 +557,18 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 				}
 				return result;
 			} else if (text[i - 1] == '#') {
+				if (!features.autocompleteHashtags) {
+					return {};
+				}
 				if (i < 2 || !(text[i - 2].isLetterOrNumber() || text[i - 2] == '_')) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
 				}
 				return result;
 			} else if (text[i - 1] == '/') {
+				if (!features.autocompleteCommands) {
+					return {};
+				}
 				if (i < 2 && !fragmentPosition) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
@@ -578,6 +608,10 @@ void MessageLinksParser::parseNow() {
 	parse();
 }
 
+void MessageLinksParser::setDisabled(bool disabled) {
+	_disabled = disabled;
+}
+
 bool MessageLinksParser::eventFilter(QObject *object, QEvent *event) {
 	if (object == _field) {
 		if (event->type() == QEvent::KeyPress) {
@@ -608,7 +642,7 @@ void MessageLinksParser::parse() {
 	const auto &text = textWithTags.text;
 	const auto &tags = textWithTags.tags;
 	const auto &markdownTags = _field->getMarkdownTags();
-	if (text.isEmpty()) {
+	if (_disabled || text.isEmpty()) {
 		_list = QStringList();
 		return;
 	}
@@ -856,7 +890,7 @@ base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 		*toast = Ui::Toast::Show(parent, {
 			.text = { tr::lng_send_text_no_about(tr::now, lt_types, types) },
 			.st = &st::defaultMultilineToast,
-			.durationMs = kTypesDuration,
+			.duration = kTypesDuration,
 			.multiline = true,
 			.slideSide = RectPart::Bottom,
 		});

@@ -168,6 +168,7 @@ QSize WebPage::countOptimalSize() {
 		&& _data->photo
 		&& _data->type != WebPageType::Photo
 		&& _data->type != WebPageType::Document
+		&& _data->type != WebPageType::Story
 		&& _data->type != WebPageType::Video) {
 		if (_data->type == WebPageType::Profile) {
 			_asArticle = true;
@@ -826,6 +827,10 @@ bool WebPage::isDisplayed() const {
 	const auto item = _parent->data();
 	return !_data->pendingTill
 		&& !item->Has<HistoryMessageLogEntryOriginal>();
+}
+
+QString WebPage::additionalInfoString() const {
+	return _attach ? _attach->additionalInfoString() : QString();
 }
 
 TextForMimeData WebPage::selectedText(TextSelection selection) const {

@@ -544,8 +544,16 @@ void Player::play(const PlaybackOptions &options) {
 	if (!Media::Audio::SupportsSpeedControl()) {
 		_options.speed = 1.;
 	}
+	if (!_options.seekable) {
+		_options.position = 0;
+	}
 	_stage = Stage::Initializing;
-	_file->start(delegate(), _options.position, _options.hwAllowed);
+	_file->start(delegate(), {
+		.position = _options.position,
+		.durationOverride = options.durationOverride,
+		.seekable = _options.seekable,
+		.hwAllow = _options.hwAllowed,
+	});
 }
 
 void Player::savePreviousReceivedTill(
@@ -946,9 +954,9 @@ Media::Player::TrackState Player::prepareLegacyState() const {
 
 	if (result.length == kTimeUnknown) {
 		const auto document = _options.audioId.audio();
-		const auto duration = document ? document->getDuration() : 0;
+		const auto duration = document ? document->duration() : 0;
 		if (duration > 0) {
-			result.length = duration * crl::time(1000);
+			result.length = duration;
 		} else {
 			result.length = std::max(crl::time(result.position), crl::time(0));
 		}

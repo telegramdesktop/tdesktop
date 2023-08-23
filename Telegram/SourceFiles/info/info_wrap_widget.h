@@ -15,7 +15,6 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
-class SettingsSlider;
 class FadeShadow;
 class PlainShadow;
 class PopupMenu;
@@ -58,6 +57,7 @@ struct SelectedItem {
 	GlobalMsgId globalId;
 	bool canDelete = false;
 	bool canForward = false;
+	bool canToggleStoryPin = false;
 };
 
 struct SelectedItems {
@@ -73,6 +73,7 @@ enum class SelectionAction {
 	Clear,
 	Forward,
 	Delete,
+	ToggleStoryPin,
 };
 
 class WrapWidget final : public Window::SectionWidget {

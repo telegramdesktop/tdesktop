@@ -28,9 +28,11 @@ apps:
       - camera
       - desktop
       - desktop-legacy
+      - gsettings
       - hardware-observe
       - home
       - network
+      - network-bind
       - network-status
       - opengl
       - removable-media
@@ -38,7 +40,7 @@ apps:
       - wayland
       - x11
     slots:
-      - tdesktop-mpris
+      - mpris
 
 hooks:
   configure:
@@ -52,7 +54,6 @@ plugs:
     mount-host-font-cache: false
   # Support for common GTK themes
   # https://forum.snapcraft.io/t/how-to-use-the-system-gtk-theme-via-the-gtk-common-themes-snap/6235
-  gsettings:
   gtk-3-themes:
     interface: content
     target: $SNAP/data-dir/themes
@@ -65,11 +66,6 @@ plugs:
     interface: content
     target: $SNAP/data-dir/sounds
     default-provider: gtk-common-themes
-
-slots:
-  tdesktop-mpris:
-    interface: mpris
-    name: tdesktop
 
 layout:
   /usr/share/alsa:
@@ -99,15 +95,20 @@ parts:
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - clang
+      - libtool-bin
       - python3
       - libasound2-dev
       - libavif-dev
+      - libboost-program-options-dev
+      - libfmt-dev
+      - libgirepository1.0-dev
       - libheif-dev
       - libopus-dev
       - libpulse-dev
+      - libssl-dev
       - libwayland-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
@@ -120,6 +121,7 @@ parts:
       - libheif1
       - libopus0
       - libpulse0
+      - libssl3
       - libwayland-client0
       - libwebkit2gtk-4.1-0
       - libxcb1
@@ -128,7 +130,6 @@ parts:
       - libxcb-screensaver0
       - zlib1g
       - glib-networking
-      - systemd
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -157,15 +158,12 @@ parts:
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
-    prime:
-      - -./lib/systemd
     after:
       - ffmpeg
       - libjxl
       - glibmm
       - mozjpeg
       - openal
-      - openssl
       - protobuf
       - qt
       - rnnoise
@@ -233,6 +231,8 @@ parts:
       - libavutil56
       - libswresample3
       - libswscale5
+      - va-driver-all
+      - vdpau-driver-all
     override-build: |
       craftctl default
       mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/blas/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET"
@@ -247,7 +247,7 @@ parts:
   glibmm:
     source: https://github.com/GNOME/glibmm.git
     source-depth: 1
-    source-tag: 2.76.0
+    source-tag: 2.77.0
     plugin: meson
     build-packages:
       - meson
@@ -271,10 +271,10 @@ parts:
   libjxl:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v0.8.1
+    source-tag: v0.8.2
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -307,7 +307,7 @@ parts:
     source-tag: v4.0.3
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -328,7 +328,7 @@ parts:
     source-tag: 1.23.0
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - libasound2-dev
       - libdbus-1-dev
@@ -352,36 +352,13 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
 
-  openssl:
-    source: https://github.com/openssl/openssl.git
-    source-depth: 1
-    source-branch: OpenSSL_1_1_1-stable
-    plugin: make
-    build-environment:
-      - LDFLAGS: -s
-    override-build: |
-      ./config \
-        shared \
-        --prefix=/usr \
-        --openssldir=/usr/lib/ssl \
-        --libdir=lib/$CRAFT_ARCH_TRIPLET \
-        no-tests
-      craftctl default
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
-      - -./usr/share
-
   protobuf:
     source: https://github.com/protocolbuffers/protobuf.git
     source-depth: 1
     source-tag: v21.9
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - zlib1g-dev
     stage-packages:
@@ -402,7 +379,7 @@ parts:
   qt:
     plugin: nil
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - libdbus-1-dev
       - libegl-dev
@@ -418,6 +395,7 @@ parts:
       - libpcre2-dev
       - libpng-dev
       - libsm-dev
+      - libssl-dev
       - libvulkan-dev
       - libwayland-dev
       - libx11-dev
@@ -455,6 +433,7 @@ parts:
       - libpcre2-16-0
       - libpng16-16
       - libsm6
+      - libssl3
       - libvulkan1
       - libwayland-client0
       - libwayland-cursor0
@@ -481,13 +460,15 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6.5.0
+      QT=6.5.2
 
       git clone -b v${QT} --depth=1 https://code.qt.io/qt/qt5.git .
-      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools
+      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 
       cd qtbase
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ../qtwayland
+      sed -i 's/qMin(version, 8)/qMin(version, 7)/' src/client/qwaylandinputdevice.cpp
       cd ..
     override-build: |
       ./configure \
@@ -525,7 +506,6 @@ parts:
     after:
       - glibmm
       - mozjpeg
-      - openssl
       - patches
 
   rnnoise:
@@ -548,13 +528,20 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
 
+  systemd:
+    plugin: nil
+    stage-packages:
+      - systemd
+    stage:
+      - ./usr/bin/systemd-detect-virt
+
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 5098730b9eb6173f0b52068fe2555b7c1015123a
+    source-commit: dcb5069ff76bd293e86928804208737e6cee2ccc
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - yasm
       - libdrm-dev
@@ -564,6 +551,7 @@ parts:
       - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
+      - libssl-dev
       - libvpx-dev
       - libx11-dev
       - libxcomposite-dev
@@ -580,6 +568,7 @@ parts:
       - libgl1
       - libopenh264-6
       - libopus0
+      - libssl3
       - libvpx7
       - libx11-6
       - libxcomposite1
@@ -602,4 +591,3 @@ parts:
       - ffmpeg
       - glibmm
       - mozjpeg
-      - openssl

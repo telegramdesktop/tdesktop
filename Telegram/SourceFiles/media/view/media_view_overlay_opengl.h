@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::View {
 
-class OverlayWidget::RendererGL final : public OverlayWidget::Renderer {
+class OverlayWidget::RendererGL final
+	: public OverlayWidget::Renderer
+	, public base::has_weak_ptr {
 public:
 	explicit RendererGL(not_null<OverlayWidget*> owner);
 
@@ -46,10 +48,12 @@ private:
 		const QImage &image,
 		ContentGeometry geometry,
 		bool semiTransparent,
-		bool fillTransparentBackground) override;
+		bool fillTransparentBackground,
+		int index = 0) override;
 	void paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
-		ContentGeometry geometry);
+		ContentGeometry geometry,
+		bool fillTransparentBackground);
 	void paintRadialLoading(
 		QRect inner,
 		bool radial,
@@ -59,7 +63,7 @@ private:
 	void paintSaveMsg(QRect outer) override;
 	void paintControlsStart() override;
 	void paintControl(
-		OverState control,
+		Over control,
 		QRect over,
 		float64 overOpacity,
 		QRect inner,
@@ -69,6 +73,11 @@ private:
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
 	void paintRoundedCorners(int radius) override;
+	void paintStoriesSiblingPart(
+		int index,
+		const QImage &image,
+		QRect rect,
+		float64 opacity = 1.) override;
 
 	//void invalidate();
 
@@ -88,6 +97,9 @@ private:
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRectF &raster) const;
 	[[nodiscard]] Ui::GL::Rect transformRect(
 		const Ui::GL::Rect &raster) const;
+	[[nodiscard]] Ui::GL::Rect scaleRect(
+		const Ui::GL::Rect &unscaled,
+		float64 scale) const;
 
 	void uploadTexture(
 		GLint internalformat,
@@ -102,6 +114,7 @@ private:
 	QOpenGLFunctions *_f = nullptr;
 	QSize _viewport;
 	float _factor = 1.;
+	int _ifactor = 1;
 	QVector2D _uniformViewport;
 
 	std::optional<QOpenGLBuffer> _contentBuffer;
@@ -114,11 +127,11 @@ private:
 	std::optional<QOpenGLShaderProgram> _fillProgram;
 	std::optional<QOpenGLShaderProgram> _controlsProgram;
 	std::optional<QOpenGLShaderProgram> _roundedCornersProgram;
-	Ui::GL::Textures<4> _textures;
-	QSize _rgbaSize;
+	Ui::GL::Textures<6> _textures; // image, sibling, right sibling, y, u, v
+	QSize _rgbaSize[3];
 	QSize _lumaSize;
 	QSize _chromaSize;
-	qint64 _cacheKey = 0;
+	qint64 _cacheKeys[3] = { 0 }; // image, sibling, right sibling
 	int _trackFrameIndex = 0;
 	int _streamedIndex = 0;
 	bool _chromaNV12 = false;
@@ -133,18 +146,20 @@ private:
 	Ui::GL::Image _groupThumbsImage;
 	Ui::GL::Image _controlsImage;
 
-	static constexpr auto kControlsCount = 5;
-	[[nodiscard]] static Control ControlMeta(OverState control);
+	static constexpr auto kStoriesSiblingPartsCount = 4;
+	Ui::GL::Image _storiesSiblingParts[kStoriesSiblingPartsCount];
+
+	static constexpr auto kControlsCount = 6;
+	[[nodiscard]] Control controlMeta(Over control) const;
 
 	// Last one is for the over circle image.
 	std::array<QRect, kControlsCount + 1> _controlsTextures;
 
-	QRect _shadowTopTexture;
-	QRect _shadowBottomTexture;
-
-	bool _shadowTopFlip;
+	bool _shadowTopFlip = false;
+	bool _shadowsForStories = false;
 	bool _blendingEnabled = false;
 
+	rpl::lifetime _storiesLifetime;
 	rpl::lifetime _lifetime;
 
 };

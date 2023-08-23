@@ -44,7 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/inactive_press.h"
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -934,7 +933,7 @@ Element *ListWidget::viewByPosition(Data::MessagePosition position) const {
 	const auto result = (index < 0) ? nullptr : _items[index].get();
 	return (position == Data::MinMessagePosition
 		|| position == Data::MaxMessagePosition
-		|| result->data()->position() == position)
+		|| (result && result->data()->position() == position))
 		? result
 		: nullptr;
 }
@@ -1303,16 +1302,8 @@ auto ListWidget::itemUnderPressSelection() const
 		: _selected.end();
 }
 
-bool ListWidget::requiredToStartDragging(
-		not_null<Element*> view) const {
-	if (_mouseCursorState == CursorState::Date) {
-		return true;
-	} else if (const auto media = view->media()) {
-		if (media->dragItem()) {
-			return true;
-		}
-	}
-	return false;
+bool ListWidget::requiredToStartDragging(not_null<Element*> view) const {
+	return (_mouseCursorState == CursorState::Date);
 }
 
 bool ListWidget::isPressInSelectedText(TextState state) const {
@@ -1443,12 +1434,9 @@ bool ListWidget::showCopyRestriction(HistoryItem *item) {
 	if (type == CopyRestrictionType::None) {
 		return false;
 	}
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(_controller).toastParent(),
-		.text = { (type == CopyRestrictionType::Channel)
-			? tr::lng_error_nocopy_channel(tr::now)
-			: tr::lng_error_nocopy_group(tr::now) },
-	});
+	_controller->showToast((type == CopyRestrictionType::Channel)
+		? tr::lng_error_nocopy_channel(tr::now)
+		: tr::lng_error_nocopy_group(tr::now));
 	return true;
 }
 
@@ -1457,12 +1445,9 @@ bool ListWidget::showCopyMediaRestriction(not_null<HistoryItem*> item) {
 	if (type == CopyRestrictionType::None) {
 		return false;
 	}
-	Ui::ShowMultilineToast({
-		.parentOverride = Window::Show(_controller).toastParent(),
-		.text = { (type == CopyRestrictionType::Channel)
-			? tr::lng_error_nocopy_channel(tr::now)
-			: tr::lng_error_nocopy_group(tr::now) },
-	});
+	_controller->showToast((type == CopyRestrictionType::Channel)
+		? tr::lng_error_nocopy_channel(tr::now)
+		: tr::lng_error_nocopy_group(tr::now));
 	return true;
 }
 
@@ -2066,12 +2051,13 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	}
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
+	const auto markingAsViewed = markingMessagesRead();
 	const auto guard = gsl::finally([&] {
 		if (_translateTracker) {
 			_delegate->listAddTranslatedItems(_translateTracker.get());
 			_translateTracker->finishBunch();
 		}
-		if (readTill && markingMessagesRead()) {
+		if (markingAsViewed && readTill) {
 			_delegate->listMarkReadTill(readTill);
 		}
 		if (!readContents.empty() && markingContentsRead()) {
@@ -2143,7 +2129,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			} else if (isUnread) {
 				readTill = item;
 			}
-			if (item->hasViews()) {
+			if (markingAsViewed && item->hasViews()) {
 				session->api().views().scheduleIncrement(item);
 			}
 			if (withReaction) {
@@ -2467,6 +2453,9 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
 		_delegate->listDeleteRequest();
+	} else if (!(e->modifiers() & ~Qt::ShiftModifier)
+		&& e->key() != Qt::Key_Shift) {
+		_delegate->listTryProcessKeyInput(e);
 	} else {
 		e->ignore();
 	}
@@ -3628,8 +3617,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 			}
 		} else if (const auto media = pressedView->media()) {
 			if (pressedView->data()->allowsForward()
-				&& (media->dragItemByHandler(pressedHandler)
-					|| media->dragItem())) {
+				&& media->dragItemByHandler(pressedHandler)) {
 				forwardIds = MessageIdsList(1, exactItem->fullId());
 			}
 		}
@@ -3763,7 +3751,7 @@ void ListWidget::refreshItem(not_null<const Element*> view) {
 		}();
 		const auto [i, ok] = _views.emplace(
 			item,
-			item->createView(this));
+			item->createView(this, was.get()));
 		const auto now = i->second.get();
 		_items[index] = now;
 

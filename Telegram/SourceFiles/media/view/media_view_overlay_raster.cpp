@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_overlay_raster.h"
 
 #include "ui/painter.h"
+#include "media/stories/media_stories_view.h"
 #include "media/view/media_view_pip.h"
 #include "platform/platform_overlay_widget.h"
 #include "styles/style_media_view.h"
@@ -44,6 +45,12 @@ void OverlayWidget::RendererSW::paintBackground() {
 	for (const auto &rect : region) {
 		_p->fillRect(rect, bg);
 	}
+	if (const auto notch = _owner->topNotchSkip()) {
+		const auto top = QRect(0, 0, _owner->width(), notch);
+		if (const auto black = top.intersected(_clipOuter); !black.isEmpty()) {
+			_p->fillRect(black, Qt::black);
+		}
+	}
 	_p->setCompositionMode(m);
 }
 
@@ -75,14 +82,15 @@ void OverlayWidget::RendererSW::paintTransformedVideoFrame(
 		return;
 	}
 	paintTransformedImage(_owner->videoFrame(), rect, rotation);
-	paintControlsFade(rect, geometry.controlsOpacity);
+	paintControlsFade(rect, geometry);
 }
 
 void OverlayWidget::RendererSW::paintTransformedStaticContent(
 		const QImage &image,
 		ContentGeometry geometry,
 		bool semiTransparent,
-		bool fillTransparentBackground) {
+		bool fillTransparentBackground,
+		int index) {
 	const auto rotation = int(geometry.rotation);
 	const auto rect = TransformRect(geometry.rect, rotation);
 	if (!rect.intersects(_clipOuter)) {
@@ -95,42 +103,71 @@ void OverlayWidget::RendererSW::paintTransformedStaticContent(
 	if (!image.isNull()) {
 		paintTransformedImage(image, rect, rotation);
 	}
-	paintControlsFade(rect, geometry.controlsOpacity);
+	paintControlsFade(rect, geometry);
 }
 
 void OverlayWidget::RendererSW::paintControlsFade(
-		QRect geometry,
-		float64 opacity) {
+		QRect content,
+		const ContentGeometry &geometry) {
+	auto opacity = geometry.controlsOpacity;
+	if (geometry.fade > 0.) {
+		_p->setOpacity(geometry.fade);
+		_p->fillRect(content, Qt::black);
+		opacity *= 1. - geometry.fade;
+	}
+
 	_p->setOpacity(opacity);
-	_p->setClipRect(geometry);
+	_p->setClipRect(content);
 	const auto width = _owner->width();
-	const auto &top = st::mediaviewShadowTop;
-	const auto flip = !_owner->topShadowOnTheRight();
-	const auto topShadow = QRect(
-		QPoint(flip ? 0 : (width - top.width()), 0),
-		top.size());
-	if (topShadow.intersected(geometry).intersects(_clipOuter)) {
-		if (flip) {
-			if (_topShadowCache.isNull()
-				|| _topShadowColor != st::windowShadowFg->c) {
-				_topShadowColor = st::windowShadowFg->c;
-				_topShadowCache = top.instance(
-					_topShadowColor).mirrored(true, false);
+	const auto stories = (_owner->_stories != nullptr);
+	if (!stories || geometry.topShadowShown) {
+		const auto flip = !stories && !_owner->topShadowOnTheRight();
+		const auto &top = stories
+			? st::storiesShadowTop
+			: st::mediaviewShadowTop;
+		const auto topShadow = stories
+			? QRect(
+				content.topLeft(),
+				QSize(content.width(), top.height()))
+			: QRect(
+				QPoint(flip ? 0 : (width - top.width()), 0),
+				top.size());
+		if (topShadow.intersected(content).intersects(_clipOuter)) {
+			if (stories) {
+				top.fill(*_p, topShadow);
+			} else if (flip) {
+				if (_topShadowCache.isNull()
+					|| _topShadowColor != st::windowShadowFg->c) {
+					_topShadowColor = st::windowShadowFg->c;
+					_topShadowCache = top.instance(
+						_topShadowColor).mirrored(true, false);
+				}
+				_p->drawImage(0, 0, _topShadowCache);
+			} else {
+				top.paint(*_p, topShadow.topLeft(), width);
 			}
-			_p->drawImage(0, 0, _topShadowCache);
-		} else {
-			top.paint(*_p, topShadow.topLeft(), width);
 		}
 	}
-	const auto &bottom = st::mediaviewShadowBottom;
+	const auto &bottom = stories
+		? st::storiesShadowBottom
+		: st::mediaviewShadowBottom;
+	const auto bottomStart = _owner->height() - geometry.bottomShadowSkip;
 	const auto bottomShadow = QRect(
-		QPoint(0, _owner->height() - bottom.height()),
+		QPoint(0, bottomStart - bottom.height()),
 		QSize(width, bottom.height()));
-	if (bottomShadow.intersected(geometry).intersects(_clipOuter)) {
+	if (bottomShadow.intersected(content).intersects(_clipOuter)) {
 		bottom.fill(*_p, bottomShadow);
 	}
 	_p->setClipping(false);
 	_p->setOpacity(1.);
+	if (bottomStart < content.y() + content.height()) {
+		_p->fillRect(
+			content.x(),
+			bottomStart,
+			content.width(),
+			content.y() + content.height() - bottomStart,
+			QColor(0, 0, 0, 88));
+	}
 }
 
 void OverlayWidget::RendererSW::paintTransformedImage(
@@ -184,7 +221,7 @@ void OverlayWidget::RendererSW::paintControlsStart() {
 }
 
 void OverlayWidget::RendererSW::paintControl(
-		OverState control,
+		Over control,
 		QRect over,
 		float64 overOpacity,
 		QRect inner,
@@ -228,6 +265,21 @@ void OverlayWidget::RendererSW::paintGroupThumbs(
 
 void OverlayWidget::RendererSW::paintRoundedCorners(int radius) {
 	// The RpWindow rounding overlay will do the job.
+}
+
+void OverlayWidget::RendererSW::paintStoriesSiblingPart(
+		int index,
+		const QImage &image,
+		QRect rect,
+		float64 opacity) {
+	const auto changeOpacity = (opacity != 1.);
+	if (changeOpacity) {
+		_p->setOpacity(opacity);
+	}
+	_p->drawImage(rect, image);
+	if (changeOpacity) {
+		_p->setOpacity(1.);
+	}
 }
 
 void OverlayWidget::RendererSW::validateOverControlImage() {

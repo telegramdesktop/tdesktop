@@ -505,5 +505,5 @@ void ShowChoosePeerBox(
 			bot,
 			query,
 			std::move(callback)),
-		std::move(initBox)), Ui::LayerOption::KeepOther);
+		std::move(initBox)));
 }

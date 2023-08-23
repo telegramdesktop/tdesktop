@@ -24,6 +24,14 @@ namespace {
 	};
 }
 
+[[nodiscard]] std::optional<MTPInputUser> BotUserInput(
+		not_null<PeerData*> peer) {
+	const auto user = peer->asUser();
+	return (user && user->botInfo && user->botInfo->canEditInformation)
+		? std::make_optional<MTPInputUser>(user->inputUser)
+		: std::nullopt;
+}
+
 } // namespace
 
 Usernames::Usernames(not_null<ApiWrap*> api)
@@ -157,6 +165,12 @@ rpl::producer<rpl::no_value, Usernames::Error> Usernames::toggle(
 			MTP_string(username),
 			MTP_bool(active)
 		)).done(done).fail(fail).send();
+	} else if (const auto botUserInput = BotUserInput(peer)) {
+		_api.request(MTPbots_ToggleUsername(
+			*botUserInput,
+			MTP_string(username),
+			MTP_bool(active)
+		)).done(done).fail(fail).send();
 	} else {
 		return rpl::never<rpl::no_value, Error>();
 	}
@@ -201,6 +215,12 @@ rpl::producer<> Usernames::reorder(
 		} else if (const auto channel = peer->asChannel()) {
 			const auto requestId = _api.request(MTPchannels_ReorderUsernames(
 				channel->inputChannel,
+				MTP_vector<MTPstring>(std::move(tlUsernames))
+			)).done(finish).fail(finish).send();
+			_reorderRequests.emplace(peerId, requestId);
+		} else if (const auto botUserInput = BotUserInput(peer)) {
+			const auto requestId = _api.request(MTPbots_ReorderUsernames(
+				*botUserInput,
 				MTP_vector<MTPstring>(std::move(tlUsernames))
 			)).done(finish).fail(finish).send();
 			_reorderRequests.emplace(peerId, requestId);

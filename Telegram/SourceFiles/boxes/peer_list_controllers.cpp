@@ -9,12 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_participants.h"
 #include "base/random.h"
+#include "boxes/filters/edit_filter_chats_list.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/effects/round_checkbox.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -31,11 +37,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "dialogs/dialogs_main_list.h"
+#include "ui/effects/outline_segments.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h" // showAddContact()
 #include "base/unixtime.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 #include "styles/style_dialogs.h"
+
+#include "data/data_stories.h"
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_list.h"
 
 namespace {
 
@@ -47,23 +59,41 @@ constexpr auto kSearchPerPage = 50;
 object_ptr<Ui::BoxContent> PrepareContactsBox(
 		not_null<Window::SessionController*> sessionController) {
 	using Mode = ContactsBoxController::SortMode;
-	auto controller = std::make_unique<ContactsBoxController>(
+	class Controller final : public ContactsBoxController {
+	public:
+		using ContactsBoxController::ContactsBoxController;
+
+	protected:
+		std::unique_ptr<PeerListRow> createRow(
+				not_null<UserData*> user) override {
+			return !user->isSelf()
+				? ContactsBoxController::createRow(user)
+				: nullptr;
+		}
+
+	};
+	auto controller = std::make_unique<Controller>(
 		&sessionController->session());
+	controller->setStyleOverrides(&st::contactsWithStories);
+	controller->setStoriesShown(true);
 	const auto raw = controller.get();
 	auto init = [=](not_null<PeerListBox*> box) {
 		struct State {
-			QPointer<Ui::IconButton> toggleSort;
-			Mode mode = ContactsBoxController::SortMode::Online;
+			QPointer<::Ui::IconButton> toggleSort;
+			rpl::variable<Mode> mode = Mode::Online;
+			::Ui::Animations::Simple scrollAnimation;
 		};
+
 		const auto state = box->lifetime().make_state<State>();
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 		box->addLeftButton(
 			tr::lng_profile_add_contact(),
 			[=] { sessionController->showAddContact(); });
 		state->toggleSort = box->addTopButton(st::contactsSortButton, [=] {
-			const auto online = (state->mode == Mode::Online);
-			state->mode = online ? Mode::Alphabet : Mode::Online;
-			raw->setSortMode(state->mode);
+			const auto online = (state->mode.current() == Mode::Online);
+			const auto mode = online ? Mode::Alphabet : Mode::Online;
+			state->mode = mode;
+			raw->setSortMode(mode);
 			state->toggleSort->setIconOverride(
 				online ? &st::contactsSortOnlineIcon : nullptr,
 				online ? &st::contactsSortOnlineIconOver : nullptr);
@@ -71,6 +101,39 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		raw->setSortMode(Mode::Online);
 	};
 	return Box<PeerListBox>(std::move(controller), std::move(init));
+}
+
+QBrush PeerListStoriesGradient(const style::PeerList &st) {
+	const auto left = st.item.photoPosition.x();
+	const auto top = st.item.photoPosition.y();
+	const auto size = st.item.photoSize;
+	return Ui::UnreadStoryOutlineGradient(QRectF(left, top, size, size));
+}
+
+std::vector<Ui::OutlineSegment> PeerListStoriesSegments(
+		int count,
+		int unread,
+		const QBrush &unreadBrush) {
+	Expects(unread <= count);
+	Expects(count > 0);
+
+	auto result = std::vector<Ui::OutlineSegment>();
+	const auto add = [&](bool unread) {
+		result.push_back({
+			.brush = unread ? unreadBrush : st::dialogsUnreadBgMuted->b,
+			.width = (unread
+				? st::dialogsStoriesFull.lineTwice / 2.
+				: st::dialogsStoriesFull.lineReadTwice / 2.),
+		});
+	};
+	result.reserve(count);
+	for (auto i = 0, till = count - unread; i != till; ++i) {
+		add(false);
+	}
+	for (auto i = 0; i != unread; ++i) {
+		add(true);
+	}
+	return result;
 }
 
 void PeerListRowWithLink::setActionLink(const QString &action) {
@@ -308,6 +371,115 @@ bool ChatsListBoxController::appendRow(not_null<History*> history) {
 	return false;
 }
 
+PeerListStories::PeerListStories(
+	not_null<PeerListController*> controller,
+	not_null<Main::Session*> session)
+: _controller(controller)
+, _session(session) {
+}
+
+void PeerListStories::updateColors() {
+	for (auto i = begin(_counts); i != end(_counts); ++i) {
+		if (const auto row = _delegate->peerListFindRow(i->first)) {
+			if (i->second.count >= 0 && i->second.unread >= 0) {
+				applyForRow(row, i->second.count, i->second.unread, true);
+			}
+		}
+	}
+}
+
+void PeerListStories::updateFor(
+		uint64 id,
+		int count,
+		int unread) {
+	if (const auto row = _delegate->peerListFindRow(id)) {
+		applyForRow(row, count, unread);
+		_delegate->peerListUpdateRow(row);
+	}
+}
+
+void PeerListStories::process(not_null<PeerListRow*> row) {
+	const auto user = row->peer()->asUser();
+	if (!user) {
+		return;
+	}
+	const auto stories = &_session->data().stories();
+	const auto source = stories->source(user->id);
+	const auto count = source
+		? int(source->ids.size())
+		: user->hasActiveStories()
+		? 1
+		: 0;
+	const auto unread = source
+		? source->info().unreadCount
+		: user->hasUnreadStories()
+		? 1
+		: 0;
+	applyForRow(row, count, unread, true);
+}
+
+bool PeerListStories::handleClick(not_null<PeerData*> peer) {
+	const auto point = _delegate->peerListLastRowMousePosition();
+	const auto &st = _controller->listSt()->item;
+	if (point && point->x() < st.photoPosition.x() + st.photoSize) {
+		if (const auto window = peer->session().tryResolveWindow()) {
+			if (const auto user = peer->asUser()) {
+				if (user->hasActiveStories()) {
+					window->openPeerStories(peer->id);
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void PeerListStories::prepare(not_null<PeerListDelegate*> delegate) {
+	_delegate = delegate;
+
+	_unreadBrush = PeerListStoriesGradient(*_controller->listSt());
+	style::PaletteChanged() | rpl::start_with_next([=] {
+		_unreadBrush = PeerListStoriesGradient(*_controller->listSt());
+		updateColors();
+	}, _lifetime);
+
+	_session->changes().peerUpdates(
+		Data::PeerUpdate::Flag::StoriesState
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		const auto id = update.peer->id.value;
+		if (const auto row = _delegate->peerListFindRow(id)) {
+			process(row);
+		}
+	}, _lifetime);
+
+	const auto stories = &_session->data().stories();
+	stories->sourceChanged() | rpl::start_with_next([=](PeerId id) {
+		const auto source = stories->source(id);
+		const auto info = source
+			? source->info()
+			: Data::StoriesSourceInfo();
+		updateFor(id.value, info.count, info.unreadCount);
+	}, _lifetime);
+}
+
+void PeerListStories::applyForRow(
+		not_null<PeerListRow*> row,
+		int count,
+		int unread,
+		bool force) {
+	auto &counts = _counts[row->id()];
+	if (!force && counts.count == count && counts.unread == unread) {
+		return;
+	}
+	counts.count = count;
+	counts.unread = unread;
+	_delegate->peerListSetRowChecked(row, count > 0);
+	if (count > 0) {
+		row->setCustomizedCheckSegments(
+			PeerListStoriesSegments(count, unread, _unreadBrush));
+	}
+}
+
 ContactsBoxController::ContactsBoxController(
 	not_null<Main::Session*> session)
 : ContactsBoxController(
@@ -333,6 +505,10 @@ void ContactsBoxController::prepare() {
 	delegate()->peerListSetTitle(tr::lng_contacts_header());
 
 	prepareViewHook();
+
+	if (_stories) {
+		_stories->prepare(delegate());
+	}
 
 	session().data().contactsLoaded().value(
 	) | rpl::start_with_next([=] {
@@ -378,8 +554,10 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(
 
 void ContactsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
-	if (const auto window = peer->session().tryResolveWindow()) {
-		window->showPeerHistory(row->peer());
+	if (_stories && _stories->handleClick(peer)) {
+		return;
+	} else if (const auto window = peer->session().tryResolveWindow()) {
+		window->showPeerHistory(peer);
 	}
 }
 
@@ -402,6 +580,10 @@ void ContactsBoxController::setSortMode(SortMode mode) {
 		_sortByOnlineTimer.cancel();
 		_sortByOnlineLifetime.destroy();
 	}
+}
+
+void ContactsBoxController::setStoriesShown(bool shown) {
+	_stories = std::make_unique<PeerListStories>(this, _session);
 }
 
 void ContactsBoxController::sort() {
@@ -449,7 +631,11 @@ bool ContactsBoxController::appendRow(not_null<UserData*> user) {
 		return false;
 	}
 	if (auto row = createRow(user)) {
+		const auto raw = row.get();
 		delegate()->peerListAppendRow(std::move(row));
+		if (_stories) {
+			_stories->process(raw);
+		}
 		return true;
 	}
 	return false;

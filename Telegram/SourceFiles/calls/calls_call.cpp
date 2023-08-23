@@ -128,6 +128,7 @@ void AppendServer(
 				.login = username,
 				.password = password,
 				.isTurn = true,
+				.isTcp = data.is_tcp(),
 			});
 		};
 		pushTurn(host);

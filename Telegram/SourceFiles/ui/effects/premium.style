@@ -7,7 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 using "ui/widgets/widgets.style";
-using "settings/settings.style";
+using "ui/layers/layers.style";
+
+PremiumLimits {
+	boxLabel: FlatLabel;
+	nonPremiumBg: color;
+	nonPremiumFg: color;
+}
+
+defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 220px;
+	align: align(topleft);
+	style: TextStyle(boxTextStyle) {
+		lineHeight: 22px;
+	}
+}
+defaultPremiumLimits: PremiumLimits {
+	boxLabel: defaultPremiumBoxLabel;
+	nonPremiumBg: windowBgOver;
+	nonPremiumFg: windowFg;
+}
 
 // Preview.
 premiumPreviewBox: Box(defaultBox) {
@@ -144,8 +163,10 @@ premiumGiftUserpicPadding: margins(10px, 27px, 18px, 13px);
 premiumGiftTitlePadding: margins(18px, 0px, 18px, 0px);
 premiumGiftAboutPadding: margins(18px, 5px, 18px, 23px);
 premiumGiftTermsPadding: margins(18px, 27px, 18px, 0px);
-
-premiumGiftTerms: FlatLabel(settingLocalPasscodeDescription) {
+premiumGiftTerms: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	align: align(top);
+	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px);
 		linkFont: font(11px);

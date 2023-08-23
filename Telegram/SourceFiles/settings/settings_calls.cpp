@@ -223,10 +223,7 @@ void Calls::setupContent() {
 	if (!GetVideoInputList().empty()) {
 		AddSkip(content);
 		AddSubsectionTitle(content, tr::lng_settings_call_camera());
-		AddCameraSubsection(
-			std::make_shared<Window::Show>(_controller),
-			content,
-			true);
+		AddCameraSubsection(_controller->uiShow(), content, true);
 		AddSkip(content);
 		AddDivider(content);
 	}

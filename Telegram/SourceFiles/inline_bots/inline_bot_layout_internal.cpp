@@ -88,8 +88,8 @@ int FileBase::content_height() const {
 
 int FileBase::content_duration() const {
 	if (const auto document = getShownDocument()) {
-		if (document->getDuration() > 0) {
-			return document->getDuration();
+		if (document->hasDuration()) {
+			return document->duration() / 1000;
 		}
 	}
 	return getResultDuration();
@@ -1143,12 +1143,10 @@ bool File::updateStatusText() const {
 	}
 
 	if (statusSize != _statusSize) {
-		TimeId duration = _document->isSong()
-			? _document->song()->duration
-			: (_document->isVoiceMessage()
-				? _document->voice()->duration
-				: -1);
-		setStatusSize(statusSize, _document->size, duration, realDuration);
+		const auto duration = _document->isSong()
+			? _document->duration()
+			: (_document->isVoiceMessage() ? _document->duration() : -1);
+		setStatusSize(statusSize, _document->size, (duration >= 0) ? (duration / 1000) : -1, realDuration);
 	}
 	return showPause;
 }
@@ -1269,7 +1267,7 @@ Article::Article(
 , _url(getResultUrlHandler())
 , _link(getResultPreviewHandler())
 , _withThumb(withThumb)
-, _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
+, _title(st::emojiPanWidth / 2)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	if (!_link) {
 		if (const auto point = result->getLocationPoint()) {

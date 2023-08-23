@@ -157,6 +157,7 @@ void MessageView::prepare(
 	}
 	options.existing = &_imagesCache;
 	options.ignoreTopic = true;
+	options.spoilerLoginCode = true;
 	auto preview = item->toPreview(options);
 	const auto hasImages = !preview.images.empty();
 	const auto history = item->history();

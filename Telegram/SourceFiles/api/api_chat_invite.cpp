@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/toasts/common_toasts.h"
+#include "ui/toast/toast.h"
 #include "boxes/premium_limits_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -85,20 +85,17 @@ void SubmitChatInvite(
 		}
 
 		strongController->hideLayer();
-		Ui::ShowMultilineToast({
-			.parentOverride = Window::Show(strongController).toastParent(),
-			.text = { [&] {
-				if (type == u"INVITE_REQUEST_SENT"_q) {
-					return isGroup
-						? tr::lng_group_request_sent(tr::now)
-						: tr::lng_group_request_sent_channel(tr::now);
-				} else if (type == u"USERS_TOO_MUCH"_q) {
-					return tr::lng_group_invite_no_room(tr::now);
-				} else {
-					return tr::lng_group_invite_bad_link(tr::now);
-				}
-			}() },
-			.duration = ApiWrap::kJoinErrorDuration });
+		strongController->showToast([&] {
+			if (type == u"INVITE_REQUEST_SENT"_q) {
+				return isGroup
+					? tr::lng_group_request_sent(tr::now)
+					: tr::lng_group_request_sent_channel(tr::now);
+			} else if (type == u"USERS_TOO_MUCH"_q) {
+				return tr::lng_group_invite_no_room(tr::now);
+			} else {
+				return tr::lng_group_invite_bad_link(tr::now);
+			}
+		}(), ApiWrap::kJoinErrorDuration);
 	}).send();
 }
 

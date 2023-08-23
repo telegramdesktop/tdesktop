@@ -556,6 +556,11 @@ FnMut<void()> Instance::addAsyncWaiter() {
 	};
 }
 
+bool Instance::isSharingScreen() const {
+	return (_currentCall && _currentCall->isSharingScreen())
+		|| (_currentGroupCall && _currentGroupCall->isSharingScreen());
+}
+
 bool Instance::isQuitPrevent() {
 	if (!_currentCall || _currentCall->isIncomingWaiting()) {
 		return false;
@@ -584,6 +589,15 @@ void Instance::handleCallUpdate(
 			// May be a repeated phoneCallRequested update from getDifference.
 			return;
 		}
+		if (inCall()
+			&& _currentCall->type() == Call::Type::Outgoing
+			&& _currentCall->user()->id == session->userPeerId()
+			&& (peerFromUser(phoneCall.vparticipant_id())
+				== _currentCall->user()->session().userPeerId())) {
+			// Ignore call from the same running app, other account.
+			return;
+		}
+
 		const auto &config = session->serverConfig();
 		if (inCall() || inGroupCall() || !user || user->isSelf()) {
 			const auto flags = phoneCall.is_video()

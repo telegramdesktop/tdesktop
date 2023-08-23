@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "base/random.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Ui {
 namespace {
@@ -347,16 +348,25 @@ void GroupCallUserpics::update(
 		_speakingAnimation.start();
 	}
 
-	if (!visible) {
-		for (auto &userpic : _list) {
-			userpic.shownAnimation.stop();
-			userpic.leftAnimation.stop();
-		}
+	if (visible) {
+		recountAndRepaint();
+	} else {
+		finishAnimating();
+	}
+}
+
+void GroupCallUserpics::finishAnimating() {
+	for (auto &userpic : _list) {
+		userpic.shownAnimation.stop();
+		userpic.leftAnimation.stop();
 	}
 	recountAndRepaint();
 }
 
 void GroupCallUserpics::toggle(Userpic &userpic, bool shown) {
+	if (userpic.hiding == !shown && !userpic.shownAnimation.animating()) {
+		return;
+	}
 	userpic.hiding = !shown;
 	userpic.shownAnimation.start(
 		[=] { recountAndRepaint(); },

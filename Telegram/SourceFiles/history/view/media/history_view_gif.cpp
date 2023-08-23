@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/spoiler_mess.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_streaming.h"
 #include "data/data_document.h"
 #include "data/data_file_click_handler.h"
@@ -87,7 +88,11 @@ Gif::Gif(
 	bool spoiler)
 : File(parent, realParent)
 , _data(document)
-, _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
+, _storyId(realParent->media()
+	? realParent->media()->storyId()
+	: FullStoryId())
+, _caption(
+	st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
 , _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
 	setDocumentLinks(_data, realParent, [=] {
@@ -129,6 +134,7 @@ Gif::~Gif() {
 			_parent->checkHeavyPart();
 		}
 	}
+	togglePollingStory(false);
 }
 
 bool Gif::CanPlayInline(not_null<DocumentData*> document) {
@@ -536,6 +542,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (radial
 		|| (!streamingMode
 			&& ((!loaded && !_data->loading()) || !autoplay))) {
+		const auto radialRevealed = 1.;
 		const auto opacity = (item->isSending() || _data->uploading())
 			? 1.
 			: streamedForWaiting
@@ -543,7 +550,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			: (radial && loaded)
 			? _animation->radial.opacity()
 			: 1.;
-		const auto radialOpacity = opacity * revealed;
+		const auto radialOpacity = opacity * radialRevealed;
 		const auto innerSize = st::msgFileLayout.thumbSize;
 		auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 		p.setPen(Qt::NoPen);
@@ -581,7 +588,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		if (icon) {
 			icon->paintInCenter(p, inner);
 		}
-		p.setOpacity(revealed);
+		p.setOpacity(radialRevealed);
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			if (streamedForWaiting && !_data->uploading()) {
@@ -1057,8 +1064,18 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			recth -= skip;
 		}
 		if (reply) {
-			if (QRect(rectx, recty, rectw, recth).contains(point)) {
+			const auto replyRect = QRect(rectx, recty, rectw, recth);
+			if (replyRect.contains(point)) {
 				result.link = reply->replyToLink();
+				reply->ripple.lastPoint = point - replyRect.topLeft();
+				if (!reply->ripple.animation) {
+					reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
+						st::defaultRippleAnimation,
+						Ui::RippleAnimation::RoundRectMask(
+							replyRect.size(),
+							st::roundRadiusSmall),
+						[=] { item->history()->owner().requestItemRepaint(item); });
+				}
 				return result;
 			}
 		}
@@ -1295,6 +1312,7 @@ void Gif::drawGrouped(
 	if (radial
 		|| (!streamingMode
 			&& ((!loaded && !_data->loading()) || !autoplay))) {
+		const auto radialRevealed = 1.;
 		const auto opacity = (item->isSending() || _data->uploading())
 			? 1.
 			: streamedForWaiting
@@ -1302,7 +1320,7 @@ void Gif::drawGrouped(
 			: (radial && loaded)
 			? _animation->radial.opacity()
 			: 1.;
-		const auto radialOpacity = opacity * revealed;
+		const auto radialOpacity = opacity * radialRevealed;
 		const auto radialSize = st::historyGroupRadialSize;
 		const auto inner = QRect(
 			geometry.x() + (geometry.width() - radialSize) / 2,
@@ -1353,7 +1371,7 @@ void Gif::drawGrouped(
 				icon->paintInCenter(p, inner);
 			}
 		}
-		p.setOpacity(revealed);
+		p.setOpacity(radialRevealed);
 		if (radial) {
 			const auto line = st::historyGroupRadialLine;
 			const auto rinner = inner.marginsRemoved({ line, line, line, line });
@@ -1425,6 +1443,21 @@ void Gif::dataMediaCreated() const {
 		_dataMedia->videoThumbnailWanted(_realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);
+	togglePollingStory(true);
+}
+
+void Gif::togglePollingStory(bool enabled) const {
+	if (!_storyId || _pollingStory == enabled) {
+		return;
+	}
+	const auto polling = Data::Stories::Polling::Chat;
+	if (!enabled) {
+		_data->owner().stories().unregisterPolling(_storyId, polling);
+	} else if (
+			!_data->owner().stories().registerPolling(_storyId, polling)) {
+		return;
+	}
+	_pollingStory = enabled;
 }
 
 bool Gif::uploading() const {
@@ -1439,7 +1472,9 @@ void Gif::hideSpoilers() {
 }
 
 bool Gif::needsBubble() const {
-	if (_data->isVideoMessage()) {
+	if (_storyId) {
+		return true;
+	} else if (_data->isVideoMessage()) {
 		return false;
 	} else if (!_caption.isEmpty()) {
 		return true;
@@ -1598,12 +1633,12 @@ void Gif::setStatusSize(int64 newSize) const {
 		_statusText = Ui::FormatDurationText(-newSize - 1);
 	} else if (_data->isVideoMessage()) {
 		_statusSize = newSize;
-		_statusText = Ui::FormatDurationText(_data->getDuration());
+		_statusText = Ui::FormatDurationText(_data->duration() / 1000);
 	} else {
 		File::setStatusSize(
 			newSize,
 			_data->size,
-			_data->isVideoFile() ? _data->getDuration() : -2,
+			_data->isVideoFile() ? (_data->duration() / 1000) : -2,
 			0);
 	}
 }
@@ -1636,7 +1671,7 @@ void Gif::updateStatusText() const {
 			}
 			statusSize = -1 - int((state.length - position) / state.frequency + 1);
 		} else {
-			statusSize = -1 - _data->getDuration();
+			statusSize = -1 - (_data->duration() / 1000);
 		}
 	}
 	if (statusSize != _statusSize) {
@@ -1677,6 +1712,7 @@ void Gif::unloadHeavyPart() {
 	_thumbCache = QImage();
 	_videoThumbnailFrame = nullptr;
 	_caption.unloadPersistentAnimation();
+	togglePollingStory(false);
 }
 
 void Gif::refreshParentId(not_null<HistoryItem*> realParent) {
@@ -1806,6 +1842,7 @@ void Gif::setStreamed(std::unique_ptr<Streamed> value) {
 	_streamed = std::move(value);
 	if (set) {
 		history()->owner().registerHeavyViewPart(_parent);
+		togglePollingStory(true);
 	} else if (removed) {
 		_parent->checkHeavyPart();
 	}

@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 struct ReactionId;
 class ForumTopic;
@@ -237,6 +241,9 @@ private:
 
 [[nodiscard]] bool ShowSendPremiumError(
 	not_null<SessionController*> controller,
+	not_null<DocumentData*> document);
+[[nodiscard]] bool ShowSendPremiumError(
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<DocumentData*> document);
 
 [[nodiscard]] bool ShowReactPremiumError(

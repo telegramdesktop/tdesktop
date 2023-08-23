@@ -54,8 +54,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "payments/payments_checkout_process.h"
 #include "core/crash_reports.h"
 #include "core/application.h"
@@ -495,8 +495,10 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 		session().api().cancelLocalItem(item);
 	}
 
-	const auto document = [&] {
-		const auto media = item->media();
+	const auto documentToCancel = [&] {
+		const auto media = item->isAdminLogEntry()
+			? nullptr
+			: item->media();
 		return media ? media->document() : nullptr;
 	}();
 
@@ -510,8 +512,8 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	Assert(i != end(_messages));
 	_messages.erase(i);
 
-	if (document) {
-		session().data().documentMessageRemoved(document);
+	if (documentToCancel) {
+		session().data().documentMessageRemoved(documentToCancel);
 	}
 }
 
@@ -631,7 +633,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
 		UserId viaBotId,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
@@ -679,7 +681,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
 		UserId viaBotId,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
@@ -705,7 +707,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
 		UserId viaBotId,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
@@ -731,7 +733,7 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
 		UserId viaBotId,
-		MsgId replyTo,
+		FullReplyTo replyTo,
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
@@ -1144,6 +1146,8 @@ void History::applyServiceChanges(
 						topic->setHasPinnedMessages(true);
 					}
 				}
+			}, [&](const MTPDmessageReplyStoryHeader &data) {
+				LOG(("API Error: story reply in messageActionPinMessage."));
 			});
 		}
 	}, [&](const MTPDmessageActionGroupCall &data) {
@@ -1176,7 +1180,7 @@ void History::applyServiceChanges(
 			}
 			if (paid) {
 				// Toast on a current active window.
-				Ui::ShowMultilineToast({
+				Ui::Toast::Show({
 					.text = tr::lng_payments_success(
 						tr::now,
 						lt_amount,
@@ -1260,9 +1264,20 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		Core::App().notifications().schedule(notification);
 	}
 	if (item->out()) {
-		destroyUnreadBar();
+		if (item->isFromScheduled() && unreadCountRefreshNeeded(item->id)) {
+			if (unreadCountKnown()) {
+				setUnreadCount(unreadCount() + 1);
+			} else if (!isForum()) {
+				owner().histories().requestDialogEntry(this);
+			}
+		} else {
+			destroyUnreadBar();
+		}
 		if (!item->unread(this)) {
 			outboxRead(item);
+		}
+		if (item->changesWallPaper()) {
+			peer->updateFullForced();
 		}
 	} else {
 		if (item->unread(this)) {

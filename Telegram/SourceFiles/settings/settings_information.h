@@ -33,7 +33,7 @@ private:
 };
 
 struct AccountsEvents {
-	rpl::producer<> currentAccountActivations;
+	rpl::producer<> closeRequests;
 };
 AccountsEvents SetupAccounts(
 	not_null<Ui::VerticalLayout*> container,

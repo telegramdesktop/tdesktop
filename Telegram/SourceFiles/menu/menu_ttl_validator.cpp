@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/text/format_values.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -30,11 +29,11 @@ namespace {
 constexpr auto kToastDuration = crl::time(3500);
 
 void ShowAutoDeleteToast(
-		not_null<QWidget*> parent,
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer) {
 	const auto period = peer->messagesTTL();
 	if (!period) {
-		Ui::Toast::Show(parent, tr::lng_ttl_about_tooltip_off(tr::now));
+		show->showToast(tr::lng_ttl_about_tooltip_off(tr::now));
 		return;
 	}
 
@@ -44,11 +43,7 @@ void ShowAutoDeleteToast(
 	const auto text = peer->isBroadcast()
 		? tr::lng_ttl_about_tooltip_channel(tr::now, lt_duration, duration)
 		: tr::lng_ttl_about_tooltip(tr::now, lt_duration, duration);
-	Ui::ShowMultilineToast({
-		.parentOverride = parent,
-		.text = { text },
-		.duration = kToastDuration,
-	});
+	show->showToast(text, kToastDuration);
 }
 
 } // namespace
@@ -79,15 +74,12 @@ Args TTLValidator::createArgs() const {
 			api.request(state->savingRequestId).cancel();
 		}
 		state->savingPeriod = period;
-		const auto weak = Ui::MakeWeak(show->toastParent().get());
 		state->savingRequestId = api.request(MTPmessages_SetHistoryTTL(
 			peer->input,
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);
-			if (const auto strong = weak.data()) {
-				ShowAutoDeleteToast(strong, peer);
-			}
+			ShowAutoDeleteToast(show, peer);
 			state->savingRequestId = 0;
 		}).fail([=] {
 			state->savingRequestId = 0;
@@ -130,7 +122,7 @@ bool TTLValidator::can() const {
 }
 
 void TTLValidator::showToast() const {
-	ShowAutoDeleteToast(_show->toastParent(), _peer);
+	ShowAutoDeleteToast(_show, _peer);
 }
 
 const style::icon *TTLValidator::icon() const {

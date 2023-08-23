@@ -125,7 +125,15 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix several possible crashes.\n"
 
 		"- Deprecate macOS 10.12, Ubuntu 18.04 and CentOS 7 in July.\n"
-	}
+	},
+	{
+		4008011,
+		"- Fix initial video playback speed.\n"
+
+		"- Use native window resize on Windows 11.\n"
+
+		"- Fix memory leak in Direct3D 11 media viewer on Windows.\n"
+	},
 	};
 };
 

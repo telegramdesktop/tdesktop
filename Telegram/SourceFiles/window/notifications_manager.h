@@ -316,6 +316,7 @@ public:
 		bool hideMessageText = false;
 		bool hideMarkAsRead = false;
 		bool hideReplyButton = false;
+		bool spoilerLoginCode = false;
 	};
 	[[nodiscard]] DisplayOptions getNotificationOptions(
 		HistoryItem *item,

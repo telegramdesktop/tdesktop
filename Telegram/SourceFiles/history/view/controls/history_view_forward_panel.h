@@ -26,6 +26,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace HistoryView::Controls {
 
 class ForwardPanel final : public base::has_weak_ptr {
@@ -42,7 +46,7 @@ public:
 
 	[[nodiscard]] rpl::producer<> itemsUpdated() const;
 
-	void editOptions(not_null<Window::SessionController*> controller);
+	void editOptions(std::shared_ptr<ChatHelpers::Show> show);
 
 	[[nodiscard]] const HistoryItemsList &items() const;
 	[[nodiscard]] bool empty() const;

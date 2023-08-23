@@ -152,6 +152,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::WallPaper;
 	} else if (type == u"telegram_theme"_q) {
 		return WebPageType::Theme;
+	} else if (type == u"telegram_story"_q) {
+		return WebPageType::Story;
 	} else if (type == u"telegram_channel"_q) {
 		return WebPageType::Channel;
 	} else if (type == u"telegram_channel_request"_q) {
@@ -214,6 +216,7 @@ bool WebPageData::applyChanges(
 		const QString &newSiteName,
 		const QString &newTitle,
 		const TextWithEntities &newDescription,
+		FullStoryId newStoryId,
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
 		WebPageCollage &&newCollage,
@@ -254,6 +257,7 @@ bool WebPageData::applyChanges(
 		&& siteName == resultSiteName
 		&& title == resultTitle
 		&& description.text == newDescription.text
+		&& storyId == newStoryId
 		&& photo == newPhoto
 		&& document == newDocument
 		&& collage.items == newCollage.items
@@ -271,6 +275,7 @@ bool WebPageData::applyChanges(
 	siteName = resultSiteName;
 	title = resultTitle;
 	description = newDescription;
+	storyId = newStoryId;
 	photo = newPhoto;
 	document = newDocument;
 	collage = std::move(newCollage);

@@ -1,3 +1,99 @@
+4.9.3 (22.08.23)
+
+- Fix audio output on macOS.
+
+4.9.2 (21.08.23)
+
+- Remove single recently used emoji or reset the list from context menu.
+- Change all emoji skin colors from Emoji & People section.
+- Connected Websites section in Settings > Advanced.
+- Bug fixes and other minor improvements.
+
+4.9.1 (15.08.23)
+
+- Fix a crash in reply area ripple animation.
+- Fix a crash on start in some Linux distributions.
+
+4.9 (14.08.23)
+
+- Gradual stories rollout.
+
+4.8.12 beta (11.08.23)
+
+- Fix crash by a full rebuild on macOS.
+
+4.8.11 beta (10.08.23)
+
+- Fix initial video playback speed.
+- Use native window resize on Windows 11.
+- Fix memory leak in Direct3D 11 media viewer on Windows.
+
+4.8.10 (28.07.23)
+
+- Send story sharing comments as separate messages.
+- Fix stories explanation tooltip ordering.
+
+4.8.9 (26.07.23)
+
+- Bug fixes and other minor improvements.
+
+4.8.8 (25.07.23)
+
+- Several crash fixes and story viewer improvements.
+
+4.8.7 (21.07.23)
+
+- Several crash fixes and small stories improvements.
+
+4.8.6 (21.07.23)
+
+- Fix langpack keys by a full rebuild on macOS.
+
+4.8.5 (20.07.23)
+
+- Bug fixes and other minor improvements. And stories preview.
+
+4.8.4 (13.06.23)
+
+- Fix opening links on Linux.
+
+4.8.3 (31.05.23)
+
+- Fix main window focus from notifications with disabled animations.
+- Some minor fixes and improvements. 
+
+4.8.2 (16.05.23)
+
+- Apply hardening runtime for Mac App Store version.
+
+4.8.1 (24.04.23)
+
+- Fix sending an album of ten scheduled messages.
+- Convert folder back to non-shareable on last link deletion.
+- Several fixes of focus control in discussions / channel comments.
+- Drop all formatting on paste in non-message input fields.
+- Clear search field on archive opening.
+- Show video upload / download progress over the spoiler.
+- Better support for text-colored emoji in reactions.
+- Close archive / topics group when clicking on currently active folder.
+- Allow replace media by paste in discussions / comments / scheduled messages.
+- Fix stuck Replace Media button after editing media in some chats.
+- Quick reply by double click only with the left mouse button.
+- Fix applying the same custom chat background with different dimming value.
+- Fix "who reacted" list display for media album parts.
+- Show full t.me/+ invite link prefix in Recent Actions.
+- Don't try to suggest userpic photos to bots.
+- Add "Send when online" to the send button context menu.
+- Fix crash in empty topics message sending.
+
+4.8 (21.04.23)
+
+- Share folders that include dozens of chats with friends or colleagues.
+- Anyone you invite can add the folder and join all its chats in one tap.
+- You can create multiple invite links to give different people access to different chats in the folder.
+- Set a custom wallpaper for any 1-on-1 chat.
+- Your chat partner can apply the same wallpaper - or choose their own.
+
 4.7.1 (21.03.23)
 
 - Fix media viewer with some system scale settings on Windows.
@@ -14,7 +110,7 @@
 - When inviting people to groups, you can quickly send invite links to anyone who doesn't allow adding them directly.
 - Invite links now show previews in chats.
 - Fully translatable bots. Bot descriptions and ”What can this bot do?" sections can now be translated.
-- Starting a call now shows a confirmation window. 
+- Starting a call now shows a confirmation window.
 - Fixed pasting images from Firefox on Windows.
 - Global Fn+F shortcut to switch active window to full screen mode on macOS.
 - Silent notification sound in Focus Mode on macOS.

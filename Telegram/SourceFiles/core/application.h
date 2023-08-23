@@ -103,7 +103,6 @@ class Instance;
 
 namespace Core {
 
-class Launcher;
 struct LocalUrlHandler;
 class Settings;
 class Tray;
@@ -126,16 +125,13 @@ public:
 		MTP::ProxyData now;
 	};
 
-	Application(not_null<Launcher*> launcher);
+	Application();
 	Application(const Application &other) = delete;
 	Application &operator=(const Application &other) = delete;
 	~Application();
 
 	void run();
 
-	[[nodiscard]] Launcher &launcher() const {
-		return *_launcher;
-	}
 	[[nodiscard]] Platform::Integration &platformIntegration() const {
 		return *_platformIntegration;
 	}
@@ -195,6 +191,7 @@ public:
 	bool hideMediaView();
 
 	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
+	[[nodiscard]] bool isSharingScreen() const;
 
 	void startSettingsAndBackground();
 	[[nodiscard]] Settings &settings();
@@ -262,6 +259,7 @@ public:
 	// Internal links.
 	void checkStartUrl();
 	void checkSendPaths();
+	void checkFileOpen();
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);
 	[[nodiscard]] QString changelogLink() const;
@@ -313,8 +311,10 @@ public:
 	void handleAppDeactivated();
 	[[nodiscard]] rpl::producer<bool> appDeactivatedValue() const;
 
+	void materializeLocalDrafts();
+	[[nodiscard]] rpl::producer<> materializeLocalDraftsRequests() const;
+
 	void switchDebugMode();
-	void writeInstallBetaVersionsSetting();
 
 	void preventOrInvoke(Fn<void()> &&callback);
 
@@ -376,7 +376,6 @@ private:
 	};
 	InstanceSetter _setter = { this };
 
-	const not_null<Launcher*> _launcher;
 	rpl::event_stream<ProxyChange> _proxyChanges;
 
 	// Some fields are just moved from the declaration.
@@ -433,6 +432,9 @@ private:
 	crl::time _shouldLockAt = 0;
 	base::Timer _autoLockTimer;
 
+	QStringList _filesToOpen;
+	base::Timer _fileOpenTimer;
+
 	std::optional<base::Timer> _saveSettingsTimer;
 
 	struct LeaveFilter {
@@ -442,6 +444,8 @@ private:
 	base::flat_map<not_null<QWidget*>, LeaveFilter> _leaveFilters;
 
 	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;
+
+	rpl::event_stream<> _materializeLocalDraftsRequests;
 
 	rpl::lifetime _lifetime;
 

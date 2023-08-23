@@ -34,7 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "styles/style_calls.h"
-#include "styles/style_chat.h" // style::GroupCallUserpics
+#include "styles/style_chat_helpers.h" // style::GroupCallUserpics
 #include "styles/style_layers.h"
 
 namespace Calls {
@@ -292,8 +292,7 @@ void TopBar::initControls() {
 			call->setMuted(!call->muted());
 		} else if (const auto group = _groupCall.get()) {
 			if (group->mutedByAdmin()) {
-				Ui::Toast::Show(
-					_show->toastParent(),
+				_show->showToast(
 					tr::lng_group_call_force_muted_sub(tr::now));
 			} else {
 				group->setMuted((group->muted() == MuteState::Muted)
@@ -732,14 +731,14 @@ void TopBar::updateControlsGeometry() {
 		width() - _mute->width() - _hangup->width(),
 		height());
 
-	auto fullWidth = _fullInfoLabel->naturalWidth();
+	auto fullWidth = _fullInfoLabel->textMaxWidth();
 	auto showFull = (left + fullWidth + right <= width());
 	_fullInfoLabel->setVisible(showFull);
 	_shortInfoLabel->setVisible(!showFull);
 
 	auto setInfoLabelGeometry = [this, left, right](auto &&infoLabel) {
 		auto minPadding = qMax(left, right);
-		auto infoWidth = infoLabel->naturalWidth();
+		auto infoWidth = infoLabel->textMaxWidth();
 		auto infoLeft = (width() - infoWidth) / 2;
 		if (infoLeft < minPadding) {
 			infoLeft = left;

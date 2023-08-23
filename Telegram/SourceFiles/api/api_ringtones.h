@@ -40,7 +40,7 @@ public:
 
 	[[nodiscard]] int64 maxSize() const;
 	[[nodiscard]] int maxSavedCount() const;
-	[[nodiscard]] int maxDuration() const;
+	[[nodiscard]] crl::time maxDuration() const;
 
 private:
 	struct UploadedData {

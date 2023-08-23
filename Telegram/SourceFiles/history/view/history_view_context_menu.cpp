@@ -48,11 +48,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_groups.h"
 #include "data/data_channel.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
-#include "data/data_scheduled_messages.h"
 #include "data/data_message_reactions.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "core/file_utilities.h"
@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_types.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
@@ -131,14 +132,14 @@ void CopyImage(not_null<PhotoData*> photo) {
 void ShowStickerPackInfo(
 		not_null<DocumentData*> document,
 		not_null<ListWidget*> list) {
-	StickerSetBox::Show(list->controller(), document);
+	StickerSetBox::Show(list->controller()->uiShow(), document);
 }
 
 void ToggleFavedSticker(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document,
 		FullMsgId contextId) {
-	Api::ToggleFavedSticker(controller, document, contextId);
+	Api::ToggleFavedSticker(controller->uiShow(), document, contextId);
 }
 
 void AddPhotoActions(
@@ -182,7 +183,7 @@ void SaveGif(
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
 				Api::ToggleSavedGif(
-					controller,
+					controller->uiShow(),
 					document,
 					item->fullId(),
 					true);
@@ -555,9 +556,8 @@ bool AddRescheduleAction(
 			? SendMenu::Type::ScheduledToUser
 			: SendMenu::Type::Scheduled;
 
-		using S = Data::ScheduledMessages;
 		const auto itemDate = firstItem->date();
-		const auto date = (itemDate == S::kScheduledUntilOnlineTimestamp)
+		const auto date = (itemDate == Api::kScheduledUntilOnlineTimestamp)
 			? HistoryView::DefaultScheduleTime()
 			: itemDate + 600;
 
@@ -566,8 +566,7 @@ bool AddRescheduleAction(
 				&request.navigation->session(),
 				sendMenuType,
 				callback,
-				date),
-			Ui::LayerOption::KeepOther);
+				date));
 
 		owner->itemRemoved(
 		) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
@@ -996,7 +995,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		list,
 		st::popupMenuWithIcons);
 
-	if (request.overSelection && !list->hasCopyRestrictionForSelected()) {
+	if (request.overSelection
+		&& !list->hasCopyRestrictionForSelected()
+		&& !list->getSelectedText().empty()) {
 		const auto text = request.selectedItems.empty()
 			? tr::lng_context_copy_selected(tr::now)
 			: tr::lng_context_copy_selected_items(tr::now);
@@ -1128,11 +1129,23 @@ void CopyPostLink(
 		return channel->hasUsername();
 	}();
 
-	Ui::Toast::Show(
-		Window::Show(controller).toastParent(),
-		isPublicLink
-			? tr::lng_channel_public_link_copied(tr::now)
-			: tr::lng_context_about_private_link(tr::now));
+	controller->showToast(isPublicLink
+		? tr::lng_channel_public_link_copied(tr::now)
+		: tr::lng_context_about_private_link(tr::now));
+}
+
+void CopyStoryLink(
+		std::shared_ptr<Main::SessionShow> show,
+		FullStoryId storyId) {
+	const auto session = &show->session();
+	const auto maybeStory = session->data().stories().lookup(storyId);
+	if (!maybeStory) {
+		return;
+	}
+	const auto story = *maybeStory;
+	QGuiApplication::clipboard()->setText(
+		session->api().exportDirectStoryLink(story));
+	show->showToast(tr::lng_channel_public_link_copied(tr::now));
 }
 
 void AddPollActions(
@@ -1150,7 +1163,7 @@ void AddPollActions(
 		}
 		if (!Ui::SkipTranslate({ text })) {
 			menu->addAction(tr::lng_context_translate(tr::now), [=] {
-				Window::Show(controller).showBox(Box(
+				controller->show(Box(
 					Ui::TranslateBox,
 					item->history()->peer,
 					MsgId(),
@@ -1186,7 +1199,7 @@ void AddPollActions(
 				.confirmText = tr::lng_polls_stop_sure(),
 				.cancelText = tr::lng_cancel(),
 			}));
-		}, &st::menuIconStopPoll);
+		}, &st::menuIconRemove);
 	}
 }
 
@@ -1203,26 +1216,23 @@ void AddSaveSoundForNotifications(
 	} else if (int(ringtones.list().size()) >= ringtones.maxSavedCount()) {
 		return;
 	} else if (const auto song = document->song()) {
-		if (song->duration > ringtones.maxDuration()) {
+		if (document->duration() > ringtones.maxDuration()) {
 			return;
 		}
 	} else if (const auto voice = document->voice()) {
-		if (voice->duration > ringtones.maxDuration()) {
+		if (document->duration() > ringtones.maxDuration()) {
 			return;
 		}
 	} else {
 		return;
 	}
-	const auto toastParent = Window::Show(controller).toastParent();
+	const auto show = controller->uiShow();
 	menu->addAction(tr::lng_context_save_custom_sound(tr::now), [=] {
 		Api::ToggleSavedRingtone(
 			document,
 			item->fullId(),
-			crl::guard(toastParent, [=] {
-				Ui::Toast::Show(
-					toastParent,
-					tr::lng_ringtones_toast_added(tr::now));
-			}),
+			[=] { show->showToast(
+				tr::lng_ringtones_toast_added(tr::now)); },
 			true);
 	}, &st::menuIconSoundAdd);
 }
@@ -1453,17 +1463,14 @@ void AddEmojiPacksAction(
 		if (!strong) {
 			return;
 		} else if (packIds.size() > 1) {
-			strong->show(Box<StickersBox>(strong, packIds));
+			strong->show(Box<StickersBox>(strong->uiShow(), packIds));
 			return;
 		}
 		// Single used emoji pack.
-		strong->show(
-			Box<StickerSetBox>(
-				strong,
-				packIds.front(),
-				Data::StickersType::Emoji),
-			Ui::LayerOption::KeepOther);
-
+		strong->show(Box<StickerSetBox>(
+			strong->uiShow(),
+			packIds.front(),
+			Data::StickersType::Emoji));
 	});
 	menu->addAction(std::move(button));
 }

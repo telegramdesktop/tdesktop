@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "data/data_drafts.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
@@ -28,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/localimageloader.h"
-#include "core/sandbox.h"
+#include "core/launcher.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
@@ -88,10 +90,7 @@ EditInfoBox::EditInfoBox(
 		Core::App().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
 	_field->setEditLinkCallback(
-		DefaultEditLinkCallback(
-			std::make_shared<Window::Show>(controller),
-			&controller->session(),
-			_field));
+		DefaultEditLinkCallback(controller->uiShow(), _field));
 }
 
 void EditInfoBox::prepare() {
@@ -141,7 +140,7 @@ void EditInfoBox::setInnerFocus() {
 }
 
 uint32 OccupationTag() {
-	return uint32(Core::Sandbox::Instance().installationTag() & 0xFFFFFFFF);
+	return uint32(Core::Launcher::Instance().installationTag() & 0xFFFFFFFF);
 }
 
 QString NormalizeName(QString name) {
@@ -271,7 +270,7 @@ Helper::Helper(not_null<Main::Session*> session)
 	}).fail([=] {
 		setSupportName(
 			u"[rand^"_q
-			+ QString::number(Core::Sandbox::Instance().installationTag())
+			+ QString::number(Core::Launcher::Instance().installationTag())
 			+ ']');
 	}).send();
 }
@@ -495,9 +494,7 @@ void Helper::showEditInfoBox(
 			TextUtilities::ConvertTextTagsToEntities(result.tags)
 		}, done);
 	};
-	controller->show(
-		Box<EditInfoBox>(controller, editData, save),
-		Ui::LayerOption::KeepOther);
+	controller->show(Box<EditInfoBox>(controller, editData, save));
 }
 
 void Helper::saveInfo(
@@ -560,6 +557,7 @@ QString InterpretSendPath(
 	f.close();
 	const auto lines = content.split('\n');
 	auto toId = PeerId(0);
+	auto topicRootId = MsgId(0);
 	auto filePath = QString();
 	auto caption = QString();
 	for (const auto &line : lines) {
@@ -575,6 +573,11 @@ QString InterpretSendPath(
 				line,
 				u"channel: "_q.size()).toULongLong();
 			toId = peerFromChannel(channelId);
+		} else if (line.startsWith(u"topic: "_q)) {
+			const auto topicId = base::StringViewMid(
+				line,
+				u"topic: "_q.size()).toULongLong();
+			topicRootId = MsgId(topicId);
 		} else if (line.startsWith(u"file: "_q)) {
 			const auto path = line.mid(u"file: "_q.size());
 			if (!QFile(path).exists()) {
@@ -590,21 +593,33 @@ QString InterpretSendPath(
 		}
 	}
 	const auto history = window->session().data().historyLoaded(toId);
+	const auto sendTo = [=](not_null<Data::Thread*> thread) {
+		window->showThread(thread);
+		const auto premium = thread->session().user()->isPremium();
+		thread->session().api().sendFiles(
+			Storage::PrepareMediaList(
+				QStringList(filePath),
+				st::sendMediaPreviewSize,
+				premium),
+			SendMediaType::File,
+			{ caption },
+			nullptr,
+			Api::SendAction(thread));
+	};
 	if (!history) {
 		return "App Error: Could not find channel with id: "
 			+ QString::number(peerToChannel(toId).bare);
+	} else if (const auto forum = history->asForum()) {
+		forum->requestTopic(topicRootId, [=] {
+			if (const auto forum = history->asForum()) {
+				if (const auto topic = forum->topicFor(topicRootId)) {
+					sendTo(topic);
+				}
+			}
+		});
+	} else if (!topicRootId) {
+		sendTo(history);
 	}
-	window->showPeerHistory(history);
-	const auto premium = window->session().user()->isPremium();
-	history->session().api().sendFiles(
-		Storage::PrepareMediaList(
-			QStringList(filePath),
-			st::sendMediaPreviewSize,
-			premium),
-		SendMediaType::File,
-		{ caption },
-		nullptr,
-		Api::SendAction(history));
 	return QString();
 }
 

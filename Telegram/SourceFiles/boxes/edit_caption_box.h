@@ -36,7 +36,32 @@ public:
 		QWidget*,
 		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item);
+	EditCaptionBox(
+		QWidget*,
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item,
+		TextWithTags &&text,
+		Ui::PreparedList &&list,
+		Fn<void()> saved);
 	~EditCaptionBox();
+
+	static void StartMediaReplace(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		TextWithTags text,
+		Fn<void()> saved);
+	static void StartMediaReplace(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId,
+		Ui::PreparedList &&list,
+		TextWithTags text,
+		Fn<void()> saved);
+	static void StartPhotoEdit(
+		not_null<Window::SessionController*> controller,
+		std::shared_ptr<Data::PhotoMedia> media,
+		FullMsgId itemId,
+		TextWithTags text,
+		Fn<void()> saved);
 
 protected:
 	void prepare() override;
@@ -66,6 +91,7 @@ private:
 	bool validateLength(const QString &text) const;
 	void applyChanges();
 	void save();
+	void closeAfterSave();
 
 	bool fileFromClipboard(not_null<const QMimeData*> data);
 
@@ -88,6 +114,10 @@ private:
 	Fn<bool()> _previewHasSpoiler;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
+
+	const TextWithTags _initialText;
+	Ui::PreparedList _initialList;
+	Fn<void()> _saved;
 
 	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 

@@ -17,16 +17,15 @@ namespace Countries {
 struct Info;
 } // namespace Countries
 
-namespace Window {
+namespace Ui {
 class Show;
-} // namespace Window
+} // namespace Ui
 
 class CountryInput : public Ui::RpWidget {
-
 public:
 	CountryInput(
 		QWidget *parent,
-		std::shared_ptr<Window::Show> show,
+		std::shared_ptr<Ui::Show> show,
 		const style::InputField &st);
 
 	[[nodiscard]] QString iso() const {
@@ -49,7 +48,7 @@ private:
 	void chooseCountry(not_null<const Countries::Info*> info, int codeIndex);
 	void setText(const QString &newText);
 
-	const std::shared_ptr<Window::Show> _show;
+	const std::shared_ptr<Ui::Show> _show;
 	const style::InputField &_st;
 	bool _active = false;
 	QString _text;
