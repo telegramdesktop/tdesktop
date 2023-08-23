@@ -85,6 +85,7 @@ public:
 
 	[[nodiscard]] const PeerNotifySettings &defaultSettings(
 		DefaultNotify type) const;
+	[[nodiscard]] bool isMuted(DefaultNotify type) const;
 
 	void defaultUpdate(
 		DefaultNotify type,

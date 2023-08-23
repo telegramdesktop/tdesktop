@@ -289,6 +289,13 @@ const PeerNotifySettings &NotifySettings::defaultSettings(
 	return defaultValue(type).settings;
 }
 
+bool NotifySettings::isMuted(DefaultNotify type) const {
+	if (const auto until = defaultSettings(type).muteUntil()) {
+		return MutedFromUntil(*until, nullptr);
+	}
+	return true;
+}
+
 void NotifySettings::defaultUpdate(
 		DefaultNotify type,
 		MuteValue muteForSeconds,

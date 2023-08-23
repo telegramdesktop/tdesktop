@@ -380,7 +380,26 @@ void SetupChecks(
 			tr::lng_notification_enable(),
 			st::settingsButton,
 			{ &st::menuIconNotifications }));
-	enabled->toggleOn(NotificationsEnabledForTypeValue(session, type));
+	enabled->toggleOn(
+		NotificationsEnabledForTypeValue(session, type),
+		true);
+
+	enabled->setAcceptBoth();
+	MuteMenu::SetupMuteMenu(
+		enabled,
+		enabled->clicks(
+		) | rpl::filter([=](Qt::MouseButton button) {
+			if (button == Qt::RightButton) {
+				return true;
+			} else if (settings->isMuted(type)) {
+				settings->defaultUpdate(type, { .unmute = true });
+				return false;
+			} else {
+				return true;
+			}
+		}) | rpl::to_empty,
+		[=] { return MuteMenu::DefaultDescriptor(session, type); },
+		controller->uiShow());
 
 	const auto soundWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
