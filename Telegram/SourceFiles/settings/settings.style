@@ -523,10 +523,11 @@ settingsPremiumLock: icon{{ "emoji/premium_lock", windowActiveTextFg, point(0px,
 settingsPremiumLockSkip: 3px;
 
 settingsBlockedListSubtitleAddPadding: margins(0px, 1px, 0px, -4px);
-settingsBlockedListIconPadding: margins(0px, 34px, 0px, 5px);
+settingsBlockedListIconPadding: margins(0px, 24px, 0px, 5px);
 settingsBlockedList: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, membersMarginBottom);
 }
+settingsBlockedHeightMin: 240px;
 
 settingsNotificationType: SettingsButton(settingsButton) {
 	height: 40px;
