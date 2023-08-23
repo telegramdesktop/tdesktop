@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 #include "settings/settings_notifications_type.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/chat_service_checkbox.h"
 #include "ui/effects/animations.h"
+#include "ui/text/text_utilities.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/box_content_divider.h"
@@ -248,15 +250,50 @@ void AddTypeButton(
 			(s.height() - checkWidget->height()) / 2);
 	}, toggleButton->lifetime());
 
-	toggleButton->clicks(
-	) | rpl::start_with_next([=] {
+	const auto toggle = crl::guard(toggleButton, [=] {
 		const auto enabled = !checkView->checked();
-		const auto settings = &session->data().notifySettings();
 		checkView->setChecked(enabled, anim::type::normal);
 		settings->defaultUpdate(type, Data::MuteValue{
 			.unmute = enabled,
 			.forever = !enabled,
 		});
+	});
+	toggleButton->clicks(
+	) | rpl::start_with_next([=] {
+		const auto count = int(settings->exceptions(type).size());
+		if (!count) {
+			toggle();
+		} else {
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				const auto phrase = [&] {
+					switch (type) {
+					case Type::User:
+						return tr::lng_notification_about_private_chats;
+					case Type::Group:
+						return tr::lng_notification_about_groups;
+					case Type::Broadcast:
+						return tr::lng_notification_about_channels;
+					}
+					Unexpected("Type in AddTypeButton.");
+				}();
+				Ui::ConfirmBox(box, {
+					.text = phrase(
+						lt_count,
+						rpl::single(float64(count)),
+						Ui::Text::RichLangValue),
+					.confirmed = [=](auto close) { toggle(); close(); },
+					.confirmText = tr::lng_box_ok(),
+					.title = tr::lng_notification_exceptions_title(),
+					.inform = true,
+				});
+				box->addLeftButton(
+					tr::lng_notification_exceptions_view(),
+					[=] {
+						box->closeBox();
+						showOther(NotificationsTypeId(type));
+					});
+			}));
+		}
 	}, toggleButton->lifetime());
 }
 
