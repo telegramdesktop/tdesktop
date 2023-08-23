@@ -498,6 +498,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_notification_title_channels" = "Notifications for channels";
 "lng_notification_about_channels#one" = "Please note that **{count} channel** is listed as an exception and won't be affected by this change.";
 "lng_notification_about_channels#other" = "Please note that **{count} channels** are listed as exceptions and won't be affected by this change.";
+"lng_notification_exceptions_view" = "View exceptions";
 "lng_notification_enable" = "Enable notifications";
 "lng_notification_sound" = "Sound";
 "lng_notification_tone" = "Notification tone";
@@ -505,6 +506,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_notification_exceptions_unmuted" = "Unmuted";
 "lng_notification_exceptions_add" = "Add an exception";
 "lng_notification_exceptions_clear" = "Delete all exceptions";
+"lng_notification_exceptions_clear_sure" = "Are you sure you want to delete all exceptions?";
+"lng_notification_exceptions_clear_button" = "Delete";
+"lng_notification_exceptions_remove" = "Remove";
+"lng_notification_context_remove" = "Remove exception";
 
 "lng_reaction_text" = "{reaction} to your «{text}»";
 "lng_reaction_notext" = "{reaction} to your message";

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_box.h"
 
+#include "history/history.h" // chatListNameSortKey.
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -394,6 +395,27 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 		setSearchNoResults(
 			object_ptr<Ui::FlatLabel>(nullptr, text, st::membersAbout));
 	}
+}
+
+void PeerListController::sortByName() {
+	auto keys = base::flat_map<PeerListRowId, QString>();
+	keys.reserve(delegate()->peerListFullRowsCount());
+	const auto key = [&](const PeerListRow &row) {
+		const auto id = row.id();
+		const auto i = keys.find(id);
+		if (i != end(keys)) {
+			return i->second;
+		}
+		const auto peer = row.peer();
+		const auto history = peer->owner().history(peer);
+		return keys.emplace(
+			id,
+			history->chatListNameSortKey()).first->second;
+	};
+	const auto predicate = [&](const PeerListRow &a, const PeerListRow &b) {
+		return (key(a).compare(key(b)) < 0);
+	};
+	delegate()->peerListSortRows(predicate);
 }
 
 base::unique_qptr<Ui::PopupMenu> PeerListController::rowContextMenu(

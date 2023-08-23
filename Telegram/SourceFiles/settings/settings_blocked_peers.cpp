@@ -80,7 +80,7 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 		content,
 		tr::lng_blocked_list_add(),
 		st::settingsButtonActive,
-		{ &st::menuIconBlockSettings, IconType::Round, &st::transparent }
+		{ &st::menuIconBlockSettings }
 	)->addClickHandler([=] {
 		BlockedBoxController::BlockNewPeer(_controller);
 	});

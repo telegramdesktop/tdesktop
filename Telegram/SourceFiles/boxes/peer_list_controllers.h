@@ -192,7 +192,6 @@ protected:
 
 private:
 	void sort();
-	void sortByName();
 	void sortByOnline();
 	void rebuildRows();
 	void checkForEmptyRows();

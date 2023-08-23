@@ -256,6 +256,15 @@ bool PeerNotifySettings::change(
 		SerializeSound(std::nullopt))); // stories_sound
 }
 
+bool PeerNotifySettings::resetToDefault() {
+	if (_known && !_value) {
+		return false;
+	}
+	_known = true;
+	_value = nullptr;
+	return true;
+}
+
 std::optional<TimeId> PeerNotifySettings::muteUntil() const {
 	return _value
 		? _value->muteUntil()

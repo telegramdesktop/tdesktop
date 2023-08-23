@@ -172,10 +172,30 @@ void AddTypeButton(
 		showOther(NotificationsTypeId(type));
 	});
 
+	const auto session = &controller->session();
+	const auto settings = &session->data().notifySettings();
 	const auto &st = st::settingsNotificationType;
+	auto status = rpl::combine(
+		NotificationsEnabledForTypeValue(session, type),
+		rpl::single(
+			type
+		) | rpl::then(settings->exceptionsUpdates(
+		) | rpl::filter(rpl::mappers::_1 == type))
+	) | rpl::map([=](bool enabled, const auto &) {
+		const auto count = int(settings->exceptions(type).size());
+		return !count
+			? tr::lng_notification_click_to_change()
+			: (enabled
+				? tr::lng_notification_on
+				: tr::lng_notification_off)(
+					lt_exceptions,
+					tr::lng_notification_exceptions(
+						lt_count,
+						rpl::single(float64(count))));
+	}) | rpl::flatten_latest();
 	const auto details = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
-		tr::lng_notification_click_to_change(),
+		std::move(status),
 		st::settingsNotificationTypeDetails);
 	details->show();
 	details->moveToLeft(
@@ -183,12 +203,11 @@ void AddTypeButton(
 		st.padding.top() + st.height - details->height());
 	details->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto session = &controller->session();
 	const auto toggleButton = Ui::CreateChild<Ui::SettingsButton>(
 		container.get(),
 		nullptr,
 		st);
-	const auto checkView = toggleButton->lifetime().make_state<Ui::ToggleView>(
+	const auto checkView = button->lifetime().make_state<Ui::ToggleView>(
 		st.toggle,
 		NotificationsEnabledForType(session, type),
 		[=] { toggleButton->update(); });
@@ -970,6 +989,8 @@ void SetupNotificationsContent(
 			object_ptr<Ui::BoxContentDivider>(container)));
 	previewWrap->toggle(settings.desktopNotify(), anim::type::instant);
 	previewDivider->toggle(!settings.desktopNotify(), anim::type::instant);
+
+	controller->session().data().notifySettings().loadExceptions();
 
 	AddSkip(container, st::notifyPreviewBottomSkip);
 	AddSubsectionTitle(container, tr::lng_settings_notify_title());
