@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "calls/calls_instance.h"
 #include "countries/countries_manager.h"
+#include "iv/iv_instance.h"
 #include "lang/lang_file_parser.h"
 #include "lang/lang_translator.h"
 #include "lang/lang_cloud_manager.h"
@@ -162,6 +163,7 @@ Application::Application()
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _exportManager(std::make_unique<Export::Manager>())
 , _calls(std::make_unique<Calls::Instance>())
+, _iv(std::make_unique<Iv::Instance>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
@@ -218,6 +220,7 @@ Application::~Application() {
 	// Domain::finish() and there is a violation on Ensures(started()).
 	Payments::CheckoutProcess::ClearAll();
 	InlineBots::AttachWebView::ClearAll();
+	_iv->closeAll();
 
 	_domain->finish();
 
@@ -1271,6 +1274,8 @@ bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 	if (Quitting() || !_lastActiveWindow) {
 		return false;
 	} else if (_calls->hasActivePanel(session)) {
+		return true;
+	} else if (_iv->hasActiveWindow(session)) {
 		return true;
 	} else if (const auto window = _lastActiveWindow) {
 		return (window->account().maybeSession() == session)

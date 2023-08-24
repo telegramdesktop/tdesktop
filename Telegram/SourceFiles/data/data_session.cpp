@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "boxes/abstract_box.h"
 #include "passport/passport_form_controller.h"
+#include "iv/iv_data.h"
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
 #include "data/business/data_business_chatbots.h"
 #include "data/business/data_business_info.h"
@@ -3365,6 +3366,7 @@ not_null<WebPageData*> Session::processWebpage(
 		nullptr,
 		nullptr,
 		WebPageCollage(),
+		nullptr,
 		0,
 		QString(),
 		false,
@@ -3389,6 +3391,7 @@ not_null<WebPageData*> Session::webpage(
 		nullptr,
 		nullptr,
 		WebPageCollage(),
+		nullptr,
 		0,
 		QString(),
 		false,
@@ -3406,6 +3409,7 @@ not_null<WebPageData*> Session::webpage(
 		PhotoData *photo,
 		DocumentData *document,
 		WebPageCollage &&collage,
+		std::unique_ptr<Iv::Data> iv,
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
@@ -3423,6 +3427,7 @@ not_null<WebPageData*> Session::webpage(
 		photo,
 		document,
 		std::move(collage),
+		std::move(iv),
 		duration,
 		author,
 		hasLargeMedia,
@@ -3503,6 +3508,14 @@ void Session::webpageApplyFields(
 			}, [](const auto &) {});
 		}
 	}
+	if (const auto page = data.vcached_page()) {
+		for (const auto photo : page->data().vphotos().v) {
+			processPhoto(photo);
+		}
+		for (const auto document : page->data().vdocuments().v) {
+			processDocument(document);
+		}
+	}
 	webpageApplyFields(
 		page,
 		(story ? WebPageType::Story : ParseWebPageType(data)),
@@ -3523,6 +3536,9 @@ void Session::webpageApplyFields(
 			? processDocument(*document).get()
 			: lookupThemeDocument()),
 		WebPageCollage(this, data),
+		(data.vcached_page()
+			? std::make_unique<Iv::Data>(data, *data.vcached_page())
+			: nullptr),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
 		data.is_has_large_media(),
@@ -3541,6 +3557,7 @@ void Session::webpageApplyFields(
 		PhotoData *photo,
 		DocumentData *document,
 		WebPageCollage &&collage,
+		std::unique_ptr<Iv::Data> iv,
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
@@ -3557,6 +3574,7 @@ void Session::webpageApplyFields(
 		photo,
 		document,
 		std::move(collage),
+		std::move(iv),
 		duration,
 		author,
 		hasLargeMedia,

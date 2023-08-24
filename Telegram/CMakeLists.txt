@@ -30,8 +30,9 @@ include(cmake/lib_tgvoip.cmake)
 include(cmake/lib_tgcalls.cmake)
 include(cmake/lib_prisma.cmake)
 include(cmake/td_export.cmake)
-include(cmake/td_mtproto.cmake)
+include(cmake/td_iv.cmake)
 include(cmake/td_lang.cmake)
+include(cmake/td_mtproto.cmake)
 include(cmake/td_scheme.cmake)
 include(cmake/td_ui.cmake)
 include(cmake/generate_appdata_changelog.cmake)
@@ -62,8 +63,9 @@ PRIVATE
     desktop-app::external_minizip
 
     tdesktop::td_export
-    tdesktop::td_mtproto
+    tdesktop::td_iv
     tdesktop::td_lang
+    tdesktop::td_mtproto
     tdesktop::td_scheme
     tdesktop::td_ui
     desktop-app::lib_webrtc
@@ -995,6 +997,8 @@ PRIVATE
     intro/intro_step.h
     intro/intro_widget.cpp
     intro/intro_widget.h
+    iv/iv_instance.cpp
+    iv/iv_instance.h
     lang/lang_cloud_manager.cpp
     lang/lang_cloud_manager.h
     lang/lang_instance.cpp
@@ -1567,6 +1571,7 @@ PRIVATE
     qrc/emoji_preview.qrc
     qrc/telegram/animations.qrc
     qrc/telegram/export.qrc
+    qrc/telegram/iv.qrc
     qrc/telegram/telegram.qrc
     qrc/telegram/sounds.qrc
     winrc/Telegram.rc

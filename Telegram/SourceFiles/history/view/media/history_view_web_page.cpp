@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_web_page.h"
 
+#include "core/application.h"
+#include "base/qt/qt_key_modifiers.h"
+#include "window/window_session_controller.h"
+#include "iv/iv_instance.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h"
 #include "data/data_file_click_handler.h"
@@ -82,7 +86,29 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 	return result;
 }
 
+[[nodiscard]] ClickHandlerPtr IvClickHandler(not_null<WebPageData*> webpage) {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (const auto iv = webpage->iv.get()) {
+#ifdef _DEBUG
+				const auto local = base::IsCtrlPressed();
+#else // _DEBUG
+				const auto local = false;
+#endif // _DEBUG
+				Core::App().iv().show(controller->uiShow(), iv, local);
+				return;
+			} else {
+				HiddenUrlClickHandler::Open(webpage->url, context.other);
+			}
+		}
+	});
+}
+
 [[nodiscard]] QString PageToPhrase(not_null<WebPageData*> webpage) {
+	if (webpage->iv) {
+		return u"Instant View"_q;
+	}
 	const auto type = webpage->type;
 	return Ui::Text::Upper((type == WebPageType::Theme)
 		? tr::lng_view_button_theme(tr::now)
@@ -118,7 +144,8 @@ constexpr auto kMaxOriginalEntryLines = 8192;
 
 [[nodiscard]] bool HasButton(not_null<WebPageData*> webpage) {
 	const auto type = webpage->type;
-	return (type == WebPageType::Message)
+	return webpage->iv
+		|| (type == WebPageType::Message)
 		|| (type == WebPageType::Group)
 		|| (type == WebPageType::Channel)
 		|| (type == WebPageType::ChannelBoost)
@@ -245,7 +272,7 @@ QSize WebPage::countOptimalSize() {
 			}
 			return true;
 		}();
-		_openl = (previewOfHiddenUrl
+		_openl = _data->iv ? IvClickHandler(_data) : (previewOfHiddenUrl
 			|| UrlClickHandler::IsSuspicious(_data->url))
 			? std::make_shared<HiddenUrlClickHandler>(_data->url)
 			: std::make_shared<UrlClickHandler>(_data->url, true);

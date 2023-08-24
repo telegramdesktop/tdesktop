@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
+#include "iv/iv_data.h"
 #include "ui/image/image.h"
 #include "ui/text/text_entity.h"
 
@@ -206,6 +207,8 @@ WebPageData::WebPageData(not_null<Data::Session*> owner, const WebPageId &id)
 , _owner(owner) {
 }
 
+WebPageData::~WebPageData() = default;
+
 Data::Session &WebPageData::owner() const {
 	return *_owner;
 }
@@ -225,6 +228,7 @@ bool WebPageData::applyChanges(
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
 		WebPageCollage &&newCollage,
+		std::unique_ptr<Iv::Data> newIv,
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
@@ -276,6 +280,7 @@ bool WebPageData::applyChanges(
 		&& photo == newPhoto
 		&& document == newDocument
 		&& collage.items == newCollage.items
+		&& (!iv == !newIv)
 		&& duration == newDuration
 		&& author == resultAuthor
 		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
@@ -296,6 +301,7 @@ bool WebPageData::applyChanges(
 	photo = newPhoto;
 	document = newDocument;
 	collage = std::move(newCollage);
+	iv = std::move(newIv);
 	duration = newDuration;
 	author = resultAuthor;
 	pendingTill = newPendingTill;

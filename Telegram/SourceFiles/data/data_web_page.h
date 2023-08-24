@@ -17,6 +17,10 @@ namespace Data {
 class Session;
 } // namespace Data
 
+namespace Iv {
+class Data;
+} // namespace Iv
+
 enum class WebPageType : uint8 {
 	None,
 
@@ -64,6 +68,7 @@ struct WebPageCollage {
 
 struct WebPageData {
 	WebPageData(not_null<Data::Session*> owner, const WebPageId &id);
+	~WebPageData();
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -79,6 +84,7 @@ struct WebPageData {
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
 		WebPageCollage &&newCollage,
+		std::unique_ptr<Iv::Data> newIv,
 		int newDuration,
 		const QString &newAuthor,
 		bool newHasLargeMedia,
@@ -105,6 +111,7 @@ struct WebPageData {
 	PhotoData *photo = nullptr;
 	DocumentData *document = nullptr;
 	WebPageCollage collage;
+	std::unique_ptr<Iv::Data> iv;
 	int duration = 0;
 	TimeId pendingTill = 0;
 	uint32 version : 30 = 0;

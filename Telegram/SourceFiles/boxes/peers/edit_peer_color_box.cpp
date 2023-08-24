@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/boosts/info_boosts_widget.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_memento.h"
+#include "iv/iv_data.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "lottie/lottie_single_player.h"
@@ -310,6 +311,7 @@ PreviewWrap::PreviewWrap(
 	nullptr, // photo
 	nullptr, // document
 	WebPageCollage(),
+	nullptr, // iv
 	0, // duration
 	QString(), // author
 	false, // hasLargeMedia
