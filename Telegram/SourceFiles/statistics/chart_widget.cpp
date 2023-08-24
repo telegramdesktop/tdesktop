@@ -917,7 +917,6 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 			newWidth,
 			st::statisticsChartFooterHeight);
 		if (_filterButtons) {
-			_filterButtons->show();
 			_filterButtons->moveToLeft(0, resultHeight - filtersHeight);
 		}
 		_chartArea->setGeometry(
@@ -1270,7 +1269,6 @@ void ChartWidget::setupFilterButtons() {
 		return;
 	}
 	_filterButtons = base::make_unique_q<ChartLinesFilterWidget>(this);
-	_filterButtons->show();
 
 	_filterButtons->buttonEnabledChanges(
 	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
@@ -1303,8 +1301,11 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	updateBottomDates();
 	_animationController.finish();
 	addHorizontalLine(_animationController.finalHeightLimits(), false);
+
+	RpWidget::showChildren();
 	_chartArea->update();
 	_footer->update();
+	RpWidget::resizeToWidth(width());
 }
 
 void ChartWidget::setTitle(rpl::producer<QString> &&title) {
