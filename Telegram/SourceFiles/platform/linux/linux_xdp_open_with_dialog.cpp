@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "base/platform/linux/base_linux_wayland_integration.h"
-#include "core/application.h"
-#include "window/window_controller.h"
 #include "base/random.h"
 
 #include <fcntl.h>
@@ -60,26 +58,13 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 
 		const auto fdGuard = gsl::finally([&] { ::close(fd); });
 
-		const auto parentWindowId = [&]() -> Glib::ustring {
-			const auto activeWindow = Core::App().activeWindow();
-			if (!activeWindow) {
-				return {};
-			}
-
-			return base::Platform::XDP::ParentWindowID(
-				activeWindow->widget()->windowHandle());
-		}();
-
 		const auto handleToken = Glib::ustring("tdesktop")
 			+ std::to_string(base::RandomValue<uint>());
 
 		const auto activationToken = []() -> Glib::ustring {
 			using base::Platform::WaylandIntegration;
 			if (const auto integration = WaylandIntegration::Instance()) {
-				if (const auto token = integration->activationToken()
-					; !token.isNull()) {
-					return token.toStdString();
-				}
+				return integration->activationToken().toStdString();
 			}
 			return {};
 		}();
@@ -124,7 +109,7 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 			kXDPOpenURIInterface,
 			"OpenFile",
 			Glib::create_variant(std::tuple{
-				parentWindowId,
+				base::Platform::XDP::ParentWindowID(),
 				Glib::DBusHandle(),
 				std::map<Glib::ustring, Glib::VariantBase>{
 					{

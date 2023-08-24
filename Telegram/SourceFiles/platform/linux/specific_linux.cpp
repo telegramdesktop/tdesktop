@@ -17,10 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "core/launcher.h"
-#include "core/application.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
-#include "window/window_controller.h"
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -64,16 +62,6 @@ bool PortalAutostart(bool start, bool silent) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
-
-		const auto parentWindowId = [&]() -> Glib::ustring {
-			const auto activeWindow = Core::App().activeWindow();
-			if (!activeWindow) {
-				return {};
-			}
-
-			return base::Platform::XDP::ParentWindowID(
-				activeWindow->widget()->windowHandle());
-		}();
 
 		const auto handleToken = Glib::ustring("tdesktop")
 			+ std::to_string(base::RandomValue<uint>());
@@ -152,7 +140,7 @@ bool PortalAutostart(bool start, bool silent) {
 			"org.freedesktop.portal.Background",
 			"RequestBackground",
 			Glib::create_variant(std::tuple{
-				parentWindowId,
+				base::Platform::XDP::ParentWindowID(),
 				options,
 			}),
 			base::Platform::XDP::kService);
