@@ -4067,6 +4067,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_stats_title" = "Statistics";
 
+"lng_chart_title_member_count" = "Growth";
+"lng_chart_title_join" = "Followers";
+"lng_chart_title_mute" = "Notifications";
+"lng_chart_title_view_count_by_hour" = "Views by hours";
+"lng_chart_title_view_count_by_source" = "Views by source";
+"lng_chart_title_join_by_source" = "New followers by source";
+"lng_chart_title_language" = "Languages";
+"lng_chart_title_message_interaction" = "Interactions";
+"lng_chart_title_instant_view_interaction" = "IV Interactions";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
