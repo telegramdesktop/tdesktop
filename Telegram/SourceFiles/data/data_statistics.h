@@ -85,6 +85,7 @@ struct StatisticalChart {
 struct StatisticalGraph final {
 	StatisticalChart chart;
 	QString zoomToken;
+	QString error;
 };
 
 struct StatisticalValue final {

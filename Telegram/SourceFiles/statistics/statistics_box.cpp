@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "statistics/chart_widget.h"
+#include "ui/toast/toast.h"
 #include "ui/layers/generic_box.h"
 
 namespace {
@@ -37,6 +38,10 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 						const Data::StatisticalGraph &graph) {
 					if (graph.chart) {
 						widget->setZoomedChartData(graph.chart);
+					} else if (!graph.error.isEmpty()) {
+						Ui::Toast::Show(
+							box->uiShow()->toastParent(),
+							graph.error);
 					}
 				}, [=](const QString &error) {
 				}, [=] {
