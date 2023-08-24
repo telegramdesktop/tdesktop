@@ -4066,6 +4066,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_link_invalid" = "This link is broken or has expired.";
 
 "lng_stats_title" = "Statistics";
+"lng_stats_zoom_out" = "Zoom Out";
 
 "lng_chart_title_member_count" = "Growth";
 "lng_chart_title_join" = "Followers";

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/show_animation.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "lang/lang_keys.h"
 #include "statistics/chart_lines_filter_widget.h"
 #include "statistics/linear_chart_view.h"
 #include "statistics/point_details_widget.h"
@@ -222,6 +223,8 @@ void ChartWidget::Header::setRightInfo(QString rightInfo) {
 
 void ChartWidget::Header::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
+
+	p.fillRect(rect(), st::boxBg);
 
 	p.setPen(st::boxTextFg);
 	const auto top = (height()
@@ -1317,7 +1320,9 @@ void ChartWidget::setTitle(rpl::producer<QString> &&title) {
 	}, _header->lifetime());
 }
 
-void ChartWidget::setZoomedChartData(Data::StatisticalChart chartData) {
+void ChartWidget::setZoomedChartData(
+		Data::StatisticalChart chartData,
+		float64 x) {
 	_zoomedChartWidget = base::make_unique_q<ChartWidget>(
 		dynamic_cast<Ui::RpWidget*>(parentWidget()));
 	_zoomedChartWidget->setChartData(std::move(chartData));
@@ -1328,13 +1333,21 @@ void ChartWidget::setZoomedChartData(Data::StatisticalChart chartData) {
 	_zoomedChartWidget->show();
 	_zoomedChartWidget->resizeToWidth(width());
 
+	const auto customHeader = Ui::CreateChild<Header>(
+		_zoomedChartWidget.get());
+	const auto xIndex = std::distance(
+		begin(_chartData.x),
+		ranges::find(_chartData.x, x));
+	if ((xIndex >= 0) && (xIndex < _chartData.x.size())) {
+		customHeader->setRightInfo(_chartData.getDayString(xIndex));
+	}
+
 	const auto zoomOutButton = Ui::CreateChild<Ui::RoundButton>(
-		_zoomedChartWidget.get(),
-		rpl::single(QString("Zoom Out")),
-		st::defaultActiveButton);
-	Ui::Animations::ShowWidgets({ _zoomedChartWidget.get(), zoomOutButton });
-	Ui::Animations::HideWidgets({ this });
-	zoomOutButton->moveToLeft(0, 0);
+		customHeader,
+		tr::lng_stats_zoom_out(),
+		st::statisticsHeaderButton);
+	zoomOutButton->setTextTransform(
+		Ui::RoundButton::TextTransform::NoTransform);
 	zoomOutButton->setClickedCallback([=] {
 		shownValue(
 		) | rpl::start_with_next([=](bool shown) {
@@ -1345,6 +1358,12 @@ void ChartWidget::setZoomedChartData(Data::StatisticalChart chartData) {
 		Ui::Animations::ShowWidgets({ this });
 		Ui::Animations::HideWidgets({ _zoomedChartWidget.get() });
 	});
+
+	Ui::Animations::ShowWidgets({ _zoomedChartWidget.get(), customHeader });
+	Ui::Animations::HideWidgets({ this });
+
+	customHeader->setGeometry(0, 0, width(), st::statisticsChartHeaderHeight);
+	zoomOutButton->moveToLeft(0, 0);
 }
 
 void ChartWidget::addHorizontalLine(Limits newHeight, bool animated) {

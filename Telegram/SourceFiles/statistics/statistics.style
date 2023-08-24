@@ -48,3 +48,9 @@ statisticsHeaderTitleTextStyle: TextStyle(defaultTextStyle) {
 statisticsHeaderDatesTextStyle: TextStyle(defaultTextStyle) {
 	font: font(11px semibold);
 }
+statisticsHeaderButton: RoundButton(defaultLightButton) {
+	width: -14px;
+	height: statisticsChartHeaderHeight;
+	textTop: 2px;
+	font: font(11px semibold);
+}

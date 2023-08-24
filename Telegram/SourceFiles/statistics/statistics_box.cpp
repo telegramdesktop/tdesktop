@@ -37,7 +37,7 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 				) | rpl::start_with_next_error_done([=](
 						const Data::StatisticalGraph &graph) {
 					if (graph.chart) {
-						widget->setZoomedChartData(graph.chart);
+						widget->setZoomedChartData(graph.chart, x);
 					} else if (!graph.error.isEmpty()) {
 						Ui::Toast::Show(
 							box->uiShow()->toastParent(),
