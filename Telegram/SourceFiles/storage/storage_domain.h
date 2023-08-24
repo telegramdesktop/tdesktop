@@ -77,7 +77,7 @@ public:
     QString GetCurrentFakePasscodeName(size_t fakeIndex) const;
 	void SetFakePasscodeName(QString newName, size_t fakeIndex);
     bool CheckFakePasscodeExists(const QByteArray& passcode) const;
-    void AddFakePasscode(QByteArray passcode, QString name);
+    size_t AddFakePasscode(QByteArray passcode, QString name);
     void SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex);
 //    void SetFakePasscode(FakePasscode::FakePasscode passcode, size_t fakeIndex);
     void RemoveFakePasscode(size_t index);

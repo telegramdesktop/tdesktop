@@ -21,4 +21,20 @@ private:
     const not_null<Window::SessionController*> _controller;
 };
 
+class FakePasscodeContentBox : public Ui::BoxContent {
+public:
+    FakePasscodeContentBox(QWidget* parent,
+        Main::Domain* domain, not_null<Window::SessionController*> controller,
+        size_t passcodeIndex);
+
+protected:
+    void prepare() override;
+
+private:
+    Main::Domain* _domain;
+    Window::SessionController* _controller;
+    size_t _passcodeIndex;
+
+};
+
 #endif //TELEGRAM_FAKEPASSCODES_LIST_H
