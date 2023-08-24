@@ -40,3 +40,11 @@ statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
 statisticsDetailsBottomCaptionStyle: TextStyle(defaultTextStyle) {
 	font: font(10px);
 }
+
+statisticsChartHeaderHeight: 20px;
+statisticsHeaderTitleTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+statisticsHeaderDatesTextStyle: TextStyle(defaultTextStyle) {
+	font: font(11px semibold);
+}

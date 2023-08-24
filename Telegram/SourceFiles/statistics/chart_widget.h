@@ -26,6 +26,7 @@ public:
 	ChartWidget(not_null<Ui::RpWidget*> parent);
 
 	void setChartData(Data::StatisticalChart chartData);
+	void setTitle(rpl::producer<QString> &&title);
 	void setZoomedChartData(Data::StatisticalChart chartData);
 	void addHorizontalLine(Limits newHeight, bool animated);
 
@@ -46,6 +47,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	class Header;
 	class Footer;
 
 	class ChartAnimationController final {
@@ -128,10 +130,12 @@ private:
 	void setupFilterButtons();
 
 	void updateBottomDates();
+	void updateHeader();
 
 	void updateChartFullWidth(int w);
 
 	const base::unique_qptr<RpMouseWidget> _chartArea;
+	const std::unique_ptr<Header> _header;
 	const std::unique_ptr<Footer> _footer;
 	base::unique_qptr<ChartLinesFilterWidget> _filterButtons;
 	Data::StatisticalChart _chartData;

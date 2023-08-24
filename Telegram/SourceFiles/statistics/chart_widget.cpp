@@ -192,6 +192,51 @@ void RpMouseWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_mouseStateChanged.fire({ e->pos(), QEvent::MouseButtonRelease });
 }
 
+class ChartWidget::Header final : public RpWidget {
+public:
+	using RpWidget::RpWidget;
+
+	void setTitle(QString title);
+	void setRightInfo(QString rightInfo);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	Ui::Text::String _title;
+	Ui::Text::String _rightInfo;
+	int _titleWidth = 0;
+
+};
+
+void ChartWidget::Header::setTitle(QString title) {
+	_titleWidth = st::statisticsHeaderTitleTextStyle.font->width(title);
+	_title.setText(st::statisticsHeaderTitleTextStyle, std::move(title));
+}
+
+void ChartWidget::Header::setRightInfo(QString rightInfo) {
+	_rightInfo.setText(
+		st::statisticsHeaderDatesTextStyle,
+		std::move(rightInfo));
+}
+
+void ChartWidget::Header::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+
+	p.setPen(st::boxTextFg);
+	const auto top = (height()
+		- st::statisticsHeaderTitleTextStyle.font->height) / 2;
+	_title.drawLeftElided(p, 0, top, width(), width());
+	_rightInfo.drawRightElided(
+		p,
+		0,
+		top,
+		width() - _titleWidth,
+		width(),
+		1,
+		style::al_right);
+}
+
 class ChartWidget::Footer final : public RpMouseWidget {
 public:
 	using PaintCallback = Fn<void(QPainter &, const QRect &)>;
@@ -823,6 +868,7 @@ bool ChartWidget::ChartAnimationController::isFPSSlow() const {
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 : Ui::RpWidget(parent)
 , _chartArea(base::make_unique_q<RpMouseWidget>(this))
+, _header(std::make_unique<Header>(this))
 , _footer(std::make_unique<Footer>(this))
 , _animationController([=] {
 	_chartArea->update();
@@ -857,8 +903,14 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 	const auto resultHeight = st::statisticsChartHeight
 		+ st::statisticsChartFooterHeight
 		+ st::statisticsChartFooterSkip
-		+ filtersHeight;
+		+ filtersHeight
+		+ st::statisticsChartHeaderHeight;
 	{
+		_header->setGeometry(
+			0,
+			0,
+			newWidth,
+			st::statisticsChartHeaderHeight);
 		_footer->setGeometry(
 			0,
 			resultHeight - st::statisticsChartFooterHeight - filtersHeight,
@@ -870,7 +922,7 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 		}
 		_chartArea->setGeometry(
 			0,
-			0,
+			st::statisticsChartHeaderHeight,
 			newWidth,
 			resultHeight
 				- st::statisticsChartFooterHeight
@@ -1070,6 +1122,19 @@ void ChartWidget::updateBottomDates() {
 	_animationController.restartBottomLineAlpha();
 }
 
+void ChartWidget::updateHeader() {
+	if (!_chartData) {
+		return;
+	}
+	const auto indices = _animationController.currentXIndices();
+	_header->setRightInfo(_chartData.getDayString(indices.min)
+		+ ' '
+		+ QChar(8212)
+		+ ' '
+		+ _chartData.getDayString(indices.max));
+	_header->update();
+}
+
 void ChartWidget::setupFooter() {
 	_footer->setPaintChartCallback([=, fullXLimits = Limits{ 0., 1. }](
 			QPainter &p,
@@ -1108,6 +1173,7 @@ void ChartWidget::setupFooter() {
 			now);
 		updateChartFullWidth(_chartArea->width());
 		updateBottomDates();
+		updateHeader();
 		if ((now - _lastHeightLimitsChanged) < kHeightLimitsUpdateTimeout) {
 			return;
 		}
@@ -1233,11 +1299,21 @@ void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 		_linearChartView,
 		0);
 	updateChartFullWidth(_chartArea->width());
+	updateHeader();
 	updateBottomDates();
 	_animationController.finish();
 	addHorizontalLine(_animationController.finalHeightLimits(), false);
 	_chartArea->update();
 	_footer->update();
+}
+
+void ChartWidget::setTitle(rpl::producer<QString> &&title) {
+	std::move(
+		title
+	) | rpl::start_with_next([=](QString t) {
+		_header->setTitle(std::move(t));
+		_header->update();
+	}, _header->lifetime());
 }
 
 void ChartWidget::setZoomedChartData(Data::StatisticalChart chartData) {

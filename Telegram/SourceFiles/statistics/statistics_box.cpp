@@ -55,6 +55,8 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	) | rpl::start_with_done([=] {
 		if (const auto stats = api->channelStats()) {
 			chartWidget->setChartData(stats.memberCountGraph.chart);
+			processZoom(chartWidget, stats.memberCountGraph.zoomToken);
+			chartWidget->setTitle(tr::lng_chart_title_member_count());
 		}
 	}, chartWidget->lifetime());
 	box->setTitle(tr::lng_stats_title());
