@@ -90,7 +90,7 @@ namespace Settings {
     	};
     	userpicRoundnessSlider->resize(st::settingsAudioVolumeSlider.seekSize);
     	userpicRoundnessSlider->setPseudoDiscrete(
-			24,
+			51,
 			[](int val) { return val; },
 			::ExteraSettings::JsonSettings::GetInt("userpic_roundness"),
 			updateUserpicRoundness);

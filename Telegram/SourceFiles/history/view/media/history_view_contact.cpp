@@ -190,8 +190,8 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 			PainterHighQualityEnabler hq(p);
 			p.setBrush(p.textPalette().selectOverlay);
 			p.setPen(Qt::NoPen);
-			/* p.drawEllipse(rthumb); */
-			p.drawRoundedRect(rthumb, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+			p.drawEllipse(rthumb);
+			// p.drawRoundedRect(rthumb, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 		}
 
 		bool over = ClickHandler::showAsActive(_linkl);

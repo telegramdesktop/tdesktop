@@ -297,8 +297,10 @@ void EmptyUserpic::paintCircle(
 		p.drawEllipse(x, y, size, size);
 	}); */
 	
-	paint(p, x, y, outerWidth, size, [&p, x, y, size] {
-		p.drawRoundedRect(x, y, size, size, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+	paint(p, x, y, outerWidth, size, [&] {
+		double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+		p.drawRoundedRect(x, y, size, size, 
+			customRadius, customRadius);
 	});
 }
 
@@ -310,7 +312,9 @@ void EmptyUserpic::paintRounded(
 		int size,
 		int radius) const {
 	paint(p, x, y, outerWidth, size, [&] {
-		p.drawRoundedRect(x, y, size, size, radius, radius);
+		double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+		p.drawRoundedRect(x, y, size, size, 
+			customRadius, customRadius);
 	});
 }
 
@@ -321,7 +325,9 @@ void EmptyUserpic::paintSquare(
 		int outerWidth,
 		int size) const {
 	paint(p, x, y, outerWidth, size, [&] {
-		p.fillRect(x, y, size, size, p.brush());
+		double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+		p.drawRoundedRect(x, y, size, size, 
+			customRadius, customRadius);
 	});
 }
 
@@ -353,7 +359,10 @@ void EmptyUserpic::PaintSavedMessages(
 	PainterHighQualityEnabler hq(p);
 	p.setBrush(std::move(bg));
 	p.setPen(Qt::NoPen);
-	p.drawEllipse(x, y, size, size);
+	// p.drawEllipse(x, y, size, size);
+	double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+	p.drawRoundedRect(x, y, size, size, 
+		customRadius, customRadius);
 
 	PaintSavedMessagesInner(p, x, y, size, fg);
 }
@@ -392,7 +401,10 @@ void EmptyUserpic::PaintRepliesMessages(
 	PainterHighQualityEnabler hq(p);
 	p.setBrush(bg);
 	p.setPen(Qt::NoPen);
-	p.drawEllipse(x, y, size, size);
+	// p.drawEllipse(x, y, size, size);
+	double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+	p.drawRoundedRect(x, y, size, size, 
+		customRadius, customRadius);
 
 	PaintRepliesMessagesInner(p, x, y, size, fg);
 }

@@ -649,6 +649,7 @@ void SetupAccountsWrap(
 			p.setPen(pen);
 			p.setBrush(Qt::NoBrush);
 			p.drawEllipse(rect);
+			// p.drawRoundedRect(rect, ::ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ::ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 		}
 	}, state->userpic.lifetime());
 

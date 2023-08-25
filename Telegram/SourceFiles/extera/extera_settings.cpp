@@ -242,8 +242,8 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 	//   Appearance
 	{ "userpic_roundness", {
 		.type = SettingType::IntSetting,
-		.defaultValue = 23,
-		.limitHandler = IntLimit(0, 23, 23), }},
+		.defaultValue = 50,
+		.limitHandler = IntLimit(0, 50, 50), }},
 	//   Chats
 	{ "sticker_height", {
 		.type = SettingType::IntSetting,

@@ -1,3 +1,5 @@
+/.cache
+/.fleet
 /out/
 Debug/
 Release/

@@ -63,7 +63,7 @@ void ValidateUserpicCache(
 			Images::CornersMask(
 				forum
 				? size * Ui::ForumUserpicRadiusMultiplier() / style::DevicePixelRatio()
-				: ExteraSettings::JsonSettings::GetInt("userpic_roundness")
+				: size * (ExteraSettings::JsonSettings::GetInt("userpic_roundness")) / 100 / style::DevicePixelRatio()
 			)
 		);
 	} else {
@@ -89,7 +89,7 @@ void ValidateUserpicCache(
 			p, 0, 0, size, size,
 			forum
 			? size * Ui::ForumUserpicRadiusMultiplier()
-			: ExteraSettings::JsonSettings::GetInt("userpic_roundness")
+			: size * ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100
 		);
 	}
 }

@@ -354,7 +354,7 @@ QImage PeerData::generateUserpicImage(
 				std::move(image),
 				Images::CornersMask(radius / style::DevicePixelRatio()));
 		};
-		/* if (radius == 0) {
+		if (radius == 0) {
 			return image;
 		} else if (radius) {
 			return round(*radius);
@@ -362,13 +362,17 @@ QImage PeerData::generateUserpicImage(
 			return round(size * Ui::ForumUserpicRadiusMultiplier());
 		} else {
 			return Images::Circle(std::move(image));
-		} */
+		}
 
-		return round(
-			isForum()
-			? size * Ui::ForumUserpicRadiusMultiplier()
-			: ExteraSettings::JsonSettings::GetInt("userpic_roundness")
+		/* if (radius) {
+			return round(*radius);
+		} else {
+			return round(
+				isForum()
+					? size * Ui::ForumUserpicRadiusMultiplier()
+					: size * ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100
 			);
+		} */
 	}
 	auto result = QImage(
 		QSize(size, size),
@@ -391,6 +395,22 @@ QImage PeerData::generateUserpicImage(
 	} else {
 		ensureEmptyUserpic()->paintCircle(p, 0, 0, size, size);
 	}
+
+	/* if (radius) {
+		ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size, *radius);
+	} else {
+		ensureEmptyUserpic()->paintRounded(
+			p,
+			0,
+			0,
+			size,
+			size,
+			isForum()
+				? size * Ui::ForumUserpicRadiusMultiplier()
+				: size * (ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100)
+		);
+	} */
+
 	p.end();
 
 	return result;

@@ -847,8 +847,8 @@ void PeerListRow::paintDisabledCheckUserpic(
 
 		p.setPen(userpicBorderPen);
 		p.setBrush(Qt::NoBrush);
-		/* p.drawEllipse(userpicEllipse); */
-		p.drawRoundedRect(userpicEllipse, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+		p.drawEllipse(userpicEllipse);
+		// p.drawRoundedRect(userpicEllipse, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 
 		p.setPen(iconBorderPen);
 		p.setBrush(st.disabledCheckFg);

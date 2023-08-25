@@ -426,10 +426,10 @@ void Row::PaintCornerBadgeFrame(
 		: st::dialogsOnlineBadgeFg);
 	q.drawEllipse(QRectF(
 		46 - size -
-			(ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 23
+			(ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 100
 				? skip.x() : -(stroke / 2)),
 		46 - size -
-			(ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 23
+			(ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 100
 				? skip.y() : -(stroke / 2)),
 		size,
 		size
@@ -552,9 +552,9 @@ void Row::paintUserpic(
 	p.translate(context.st->padding.left(), context.st->padding.top());
 	actionPainter->paintSpeaking(
 		p,
-		context.st->photoSize - size - (ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 23
+		context.st->photoSize - size - (ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 50
 				? skip.x() : -(stroke / 2)),
-		context.st->photoSize - size - (ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 23
+		context.st->photoSize - size - (ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 50
 				? skip.y() : -(stroke / 2)),
 		context.width,
 		bg,

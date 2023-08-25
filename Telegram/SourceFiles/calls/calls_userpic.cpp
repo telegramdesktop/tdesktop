@@ -106,8 +106,8 @@ void Userpic::paint() {
 			_mutePosition.y() - _muteSize / 2,
 			_muteSize,
 			_muteSize);
-		/* p.drawEllipse(rect); */
-		p.drawRoundedRect(rect, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+		p.drawEllipse(rect);
+		// p.drawRoundedRect(rect, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
 		st::callMutedPeerIcon.paintInCenter(p, rect);
 	}
 }
