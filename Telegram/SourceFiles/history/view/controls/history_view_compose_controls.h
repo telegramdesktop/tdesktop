@@ -196,6 +196,7 @@ public:
 
 	void editMessage(FullMsgId id);
 	void cancelEditMessage();
+	void maybeCancelEditMessage(); // Confirm if changed and cancel.
 
 	void replyToMessage(FullMsgId id);
 	void cancelReplyMessage();

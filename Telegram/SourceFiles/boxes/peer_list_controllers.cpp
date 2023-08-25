@@ -594,25 +594,6 @@ void ContactsBoxController::sort() {
 	}
 }
 
-void ContactsBoxController::sortByName() {
-	auto keys = base::flat_map<PeerListRowId, QString>();
-	keys.reserve(delegate()->peerListFullRowsCount());
-	const auto key = [&](const PeerListRow &row) {
-		const auto id = row.id();
-		const auto i = keys.find(id);
-		if (i != end(keys)) {
-			return i->second;
-		}
-		const auto peer = row.peer();
-		const auto history = peer->owner().history(peer);
-		return keys.emplace(id, history->chatListNameSortKey()).first->second;
-	};
-	const auto predicate = [&](const PeerListRow &a, const PeerListRow &b) {
-		return (key(a).compare(key(b)) < 0);
-	};
-	delegate()->peerListSortRows(predicate);
-}
-
 void ContactsBoxController::sortByOnline() {
 	const auto now = base::unixtime::now();
 	const auto key = [&](const PeerListRow &row) {

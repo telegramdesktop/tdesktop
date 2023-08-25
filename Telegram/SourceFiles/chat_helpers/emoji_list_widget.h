@@ -266,6 +266,15 @@ private:
 	void setSelected(OverState newSelected);
 	void setPressed(OverState newPressed);
 
+	void fillRecentMenu(
+		not_null<Ui::PopupMenu*> menu,
+		int section,
+		int index);
+	void fillEmojiStatusMenu(
+		not_null<Ui::PopupMenu*> menu,
+		int section,
+		int index);
+
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
 	[[nodiscard]] DocumentData *lookupCustomEmoji(
 		int index,

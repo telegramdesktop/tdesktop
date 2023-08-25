@@ -37,8 +37,11 @@ namespace Ui {
 class PopupMenu;
 } // namespace Ui
 
-QString PrepareMentionTag(not_null<UserData*> user);
-TextWithTags PrepareEditText(not_null<HistoryItem*> item);
+[[nodiscard]] QString PrepareMentionTag(not_null<UserData*> user);
+[[nodiscard]] TextWithTags PrepareEditText(not_null<HistoryItem*> item);
+[[nodiscard]] bool EditTextChanged(
+	not_null<HistoryItem*> item,
+	const TextWithTags &updated);
 
 Fn<bool(
 	Ui::InputField::EditLinkSelection selection,
@@ -99,6 +102,7 @@ public:
 	MessageLinksParser(not_null<Ui::InputField*> field);
 
 	void parseNow();
+	void setDisabled(bool disabled);
 
 	[[nodiscard]] const rpl::variable<QStringList> &list() const;
 
@@ -126,6 +130,7 @@ private:
 	not_null<Ui::InputField*> _field;
 	rpl::variable<QStringList> _list;
 	int _lastLength = 0;
+	bool _disabled = false;
 	base::Timer _timer;
 	base::qt_connection _connection;
 

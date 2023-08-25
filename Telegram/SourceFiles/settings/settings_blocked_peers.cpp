@@ -47,7 +47,10 @@ Blocked::Blocked(
 					tr::lng_contacts_loading(),
 					st::changePhoneDescription),
 				std::move(padding)));
-		Ui::ResizeFitChild(this, _loading.get());
+		Ui::ResizeFitChild(
+			this,
+			_loading.get(),
+			st::settingsBlockedHeightMin);
 	}
 
 	_controller->session().api().blockedPeers().slice(
@@ -77,7 +80,7 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 		content,
 		tr::lng_blocked_list_add(),
 		st::settingsButtonActive,
-		{ &st::menuIconBlockSettings, IconType::Round, &st::transparent }
+		{ &st::menuIconBlockSettings }
 	)->addClickHandler([=] {
 		BlockedBoxController::BlockNewPeer(_controller);
 	});
@@ -201,7 +204,30 @@ void Blocked::setupContent() {
 		AddSkip(content, st::settingsBlockedListIconPadding.top());
 	}
 
-	Ui::ResizeFitChild(this, _container);
+	// We want minimal height to be the same no matter if subtitle
+	// is visible or not, so minimal height isn't a constant here.
+//	Ui::ResizeFitChild(this, _container, st::settingsBlockedHeightMin);
+
+	widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_container->resizeToWidth(width);
+	}, _container->lifetime());
+
+	rpl::combine(
+		_container->heightValue(),
+		_emptinessChanges.events_starting_with(true)
+	) | rpl::start_with_next([=](int height, bool empty) {
+		const auto subtitled = !empty || (_countBlocked.current() > 0);
+		const auto total = st::settingsBlockedHeightMin;
+		const auto padding = st::settingsSubsectionTitlePadding
+			+ st::settingsBlockedListSubtitleAddPadding;
+		const auto subtitle = st::settingsSectionSkip
+			+ padding.top()
+			+ st::settingsSubsectionTitle.style.font->height
+			+ padding.bottom();
+		const auto min = total - (subtitled ? subtitle : 0);
+		resize(width(), std::max(height, min));
+	}, _container->lifetime());
 }
 
 void Blocked::checkTotal(int total) {
