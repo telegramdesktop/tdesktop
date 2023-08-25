@@ -72,7 +72,6 @@ public:
 	Row(not_null<RowDelegate*> delegate, const EntryData &data);
 
 	void update(const EntryData &data);
-	void updateName(const QString &name);
 
 	[[nodiscard]] EntryData data() const;
 
@@ -525,12 +524,6 @@ void Row::update(const EntryData &data) {
 	_delegate->rowUpdateRow(this);
 }
 
-void Row::updateName(const QString &name) {
-	_data.name = name;
-	refreshName(st::sessionListItem);
-	_delegate->rowUpdateRow(this);
-}
-
 EntryData Row::data() const {
 	return _data;
 }
@@ -689,8 +682,6 @@ public:
 		style::margins margins = {});
 
 private:
-	void subscribeToCustomDeviceModel();
-
 	const not_null<Main::Session*> _session;
 
 	rpl::event_stream<uint64> _terminateRequests;
@@ -1052,18 +1043,6 @@ SessionsContent::ListController::ListController(
 
 Main::Session &SessionsContent::ListController::session() const {
 	return *_session;
-}
-
-void SessionsContent::ListController::subscribeToCustomDeviceModel() {
-	Core::App().settings().deviceModelChanges(
-	) | rpl::start_with_next([=](const QString &model) {
-		for (auto i = 0; i != delegate()->peerListFullRowsCount(); ++i) {
-			const auto row = delegate()->peerListRowAt(i);
-			if (!row->id()) {
-				static_cast<Row*>(row.get())->updateName(model);
-			}
-		}
-	}, lifetime());
 }
 
 void SessionsContent::ListController::prepare() {

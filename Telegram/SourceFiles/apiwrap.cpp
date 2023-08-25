@@ -1887,17 +1887,8 @@ void ApiWrap::sendNotifySettingsUpdates() {
 	}
 	const auto &settings = session().data().notifySettings();
 	for (const auto type : base::take(_updateNotifyDefaults)) {
-		const auto input = [&] {
-			switch (type) {
-			case Data::DefaultNotify::User: return MTP_inputNotifyUsers();
-			case Data::DefaultNotify::Group: return MTP_inputNotifyChats();
-			case Data::DefaultNotify::Broadcast:
-				return MTP_inputNotifyBroadcasts();
-			}
-			Unexpected("Default notify type in sendNotifySettingsUpdates");
-		}();
 		request(MTPaccount_UpdateNotifySettings(
-			input,
+			Data::DefaultNotifyToMTP(type),
 			settings.defaultSettings(type).serialize()
 		)).afterDelay(kSmallDelayMs).send();
 	}

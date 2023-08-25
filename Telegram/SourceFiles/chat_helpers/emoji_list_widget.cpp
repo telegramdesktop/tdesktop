@@ -8,9 +8,12 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 
 #include "base/unixtime.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/tabbed_search.h"
 #include "ui/text/format_values.h"
 #include "ui/effects/animations.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
@@ -41,6 +44,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "settings/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h"
 
 namespace ChatHelpers {
 namespace {
@@ -1035,7 +1039,7 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 
 base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 		SendMenu::Type type) {
-	if (_mode != Mode::EmojiStatus || v::is_null(_selected)) {
+	if (v::is_null(_selected)) {
 		return nullptr;
 	}
 	const auto over = std::get_if<OverEmoji>(&_selected);
@@ -1044,13 +1048,104 @@ base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 	}
 	const auto section = over->section;
 	const auto index = over->index;
-	const auto chosen = lookupCustomEmoji(index, section);
-	if (!chosen) {
-		return nullptr;
-	}
 	auto menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		st::defaultPopupMenu);
+		(_mode == Mode::Full
+			? st::popupMenuWithIcons
+			: st::defaultPopupMenu));
+	if (_mode == Mode::Full) {
+		fillRecentMenu(menu, section, index);
+	} else if (_mode == Mode::EmojiStatus) {
+		fillEmojiStatusMenu(menu, section, index);
+	}
+	if (menu->empty()) {
+		return nullptr;
+	}
+	return menu;
+}
+
+void EmojiListWidget::fillRecentMenu(
+		not_null<Ui::PopupMenu*> menu,
+		int section,
+		int index) {
+	if (section != int(Section::Recent)) {
+		return;
+	}
+	const auto addAction = Ui::Menu::CreateAddActionCallback(menu);
+	const auto over = OverEmoji{ section, index };
+	const auto emoji = lookupOverEmoji(&over);
+	const auto custom = lookupCustomEmoji(index, section);
+	if (custom && custom->sticker()) {
+		const auto sticker = custom->sticker();
+		const auto emoji = sticker->alt;
+		const auto setId = sticker->set.id;
+		if (!emoji.isEmpty()) {
+			auto data = TextForMimeData{ emoji, { emoji } };
+			data.rich.entities.push_back({
+				EntityType::CustomEmoji,
+				0,
+				int(emoji.size()),
+				Data::SerializeCustomEmojiId(custom)
+			});
+			addAction(tr::lng_emoji_copy(tr::now), [=] {
+				TextUtilities::SetClipboardText(data);
+			}, &st::menuIconCopy);
+		}
+		if (setId && _features.openStickerSets) {
+			addAction(
+				tr::lng_emoji_view_pack(tr::now),
+				crl::guard(this, [=] { displaySet(setId); }),
+				&st::menuIconShowAll);
+		}
+	} else if (emoji) {
+		addAction(tr::lng_emoji_copy(tr::now), [=] {
+			const auto text = emoji->text();
+			TextUtilities::SetClipboardText({ text, { text } });
+		}, &st::menuIconCopy);
+	}
+	auto id = RecentEmojiId{ emoji };
+	if (custom) {
+		id.data = RecentEmojiDocument{
+			.id = custom->id,
+			.test = custom->session().isTestMode(),
+		};
+	}
+	addAction(tr::lng_emoji_remove_recent(tr::now), crl::guard(this, [=] {
+		Core::App().settings().hideRecentEmoji(id);
+		refreshRecent();
+	}), &st::menuIconCancel);
+
+	menu->addSeparator(&st().expandedSeparator);
+
+	const auto resetRecent = [=] {
+		const auto sure = [=](Fn<void()> &&close) {
+			Core::App().settings().resetRecentEmoji();
+			refreshRecent();
+			close();
+		};
+		checkHideWithBox(Ui::MakeConfirmBox({
+			.text = tr::lng_emoji_reset_recent_sure(),
+			.confirmed = crl::guard(this, sure),
+			.confirmText = tr::lng_emoji_reset_recent_button(tr::now),
+			.labelStyle = &st().boxLabel,
+			}));
+	};
+	addAction({
+		.text = tr::lng_emoji_reset_recent(tr::now),
+		.handler = crl::guard(this, resetRecent),
+		.icon = &st::menuIconRestoreAttention,
+		.isAttention = true,
+	});
+}
+
+void EmojiListWidget::fillEmojiStatusMenu(
+		not_null<Ui::PopupMenu*> menu,
+		int section,
+		int index) {
+	const auto chosen = lookupCustomEmoji(index, section);
+	if (!chosen) {
+		return;
+	}
 	const auto selectWith = [=](TimeId scheduled) {
 		selectCustom(
 			lookupChosen(chosen, nullptr, { .scheduled = scheduled }));
@@ -1068,7 +1163,6 @@ base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 		tr::lng_manage_messages_ttl_after_custom(tr::now),
 		crl::guard(this, [=] { selectWith(
 			TabbedSelector::kPickCustomTimeId); }));
-	return menu;
 }
 
 void EmojiListWidget::paintEvent(QPaintEvent *e) {
@@ -1884,6 +1978,7 @@ void EmojiListWidget::refreshRecent() {
 	clearSelection();
 	fillRecent();
 	resizeToWidth(width());
+	update();
 }
 
 void EmojiListWidget::refreshCustom() {

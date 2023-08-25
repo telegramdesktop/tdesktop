@@ -130,7 +130,6 @@ parts:
       - libxcb-screensaver0
       - zlib1g
       - glib-networking
-      - systemd
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -159,8 +158,6 @@ parts:
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
-    prime:
-      - -./lib/systemd
     after:
       - ffmpeg
       - libjxl
@@ -234,6 +231,8 @@ parts:
       - libavutil56
       - libswresample3
       - libswscale5
+      - va-driver-all
+      - vdpau-driver-all
     override-build: |
       craftctl default
       mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/blas/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET"
@@ -528,6 +527,13 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.la
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
+
+  systemd:
+    plugin: nil
+    stage-packages:
+      - systemd
+    stage:
+      - ./usr/bin/systemd-detect-virt
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git

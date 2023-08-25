@@ -139,11 +139,13 @@ void XCBSetDesktopFileName(QWindow *window) {
 void SkipTaskbar(QWindow *window, bool skip) {
 	if (const auto integration = WaylandIntegration::Instance()) {
 		integration->skipTaskbar(window, skip);
+		return;
 	}
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (IsX11()) {
 		XCBSkipTaskbar(window, skip);
+		return;
 	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }

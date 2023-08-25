@@ -177,6 +177,7 @@ passportDetailsSeparator: FlatLabel(passportPasswordLabelBold) {
 		font: font(semibold 14px);
 	}
 	textFg: windowSubTextFg;
+	align: align(topleft);
 }
 passportDetailsSeparatorPadding: margins(5px, 8px, 5px, 0px);
 passportContactField: InputField(defaultInputField) {
