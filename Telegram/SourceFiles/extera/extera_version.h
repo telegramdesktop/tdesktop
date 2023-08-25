@@ -7,6 +7,6 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #pragma once
 
-constexpr auto AppExteraVersion = 4009001;
-constexpr auto AppExteraVersionStr = "4.9.1";
+constexpr auto AppExteraVersion = 4009003;
+constexpr auto AppExteraVersionStr = "4.9.3";
 constexpr auto AppExteraBetaVersion = true;
