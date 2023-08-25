@@ -45,12 +45,9 @@ inline QString IconName() {
 
 inline bool CanReadDirectory(const QString &path) {
 #ifndef Q_OS_MAC // directory_iterator since 10.15
-	try {
-		std::filesystem::directory_iterator(path.toStdString());
-		return true;
-	} catch (...) {
-		return false;
-	}
+	std::error_code error;
+	std::filesystem::directory_iterator(path.toStdString(), error);
+	return !error;
 #else
 	Unexpected("Not implemented.");
 #endif
