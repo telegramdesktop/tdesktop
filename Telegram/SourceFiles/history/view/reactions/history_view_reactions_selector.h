@@ -61,7 +61,7 @@ public:
 	[[nodiscard]] bool useTransparency() const;
 
 	int countWidth(int desiredWidth, int maxWidth);
-	[[nodiscard]] QMargins extentsForShadow() const;
+	[[nodiscard]] QMargins marginsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
 	[[nodiscard]] int minimalHeight() const;
 	[[nodiscard]] int countAppearedWidth(float64 progress) const;

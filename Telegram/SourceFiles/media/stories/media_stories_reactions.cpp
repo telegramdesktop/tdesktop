@@ -243,18 +243,18 @@ void Reactions::Panel::create() {
 	const auto desiredWidth = st::storiesReactionsWidth;
 	const auto maxWidth = desiredWidth * 2;
 	const auto width = _selector->countWidth(desiredWidth, maxWidth);
-	const auto extents = _selector->extentsForShadow();
+	const auto margins = _selector->marginsForShadow();
 	const auto categoriesTop = _selector->extendTopForCategories();
-	const auto full = extents.left() + width + extents.right();
+	const auto full = margins.left() + width + margins.right();
 
 	_shownValue = 0.;
 	rpl::combine(
 		_controller->layoutValue(),
 		_shownValue.value()
 	) | rpl::start_with_next([=](const Layout &layout, float64 shown) {
-		const auto width = extents.left()
+		const auto width = margins.left()
 			+ _selector->countAppearedWidth(shown)
-			+ extents.right();
+			+ margins.right();
 		const auto height = layout.reactions.height();
 		const auto shift = (width / 2);
 		const auto right = (mode == Mode::Message)
@@ -271,7 +271,7 @@ void Reactions::Panel::create() {
 		const auto innerTop = height
 			- st::storiesReactionsBottomSkip
 			- st::reactStripHeight;
-		const auto maxAdded = innerTop - extents.top() - categoriesTop;
+		const auto maxAdded = innerTop - margins.top() - categoriesTop;
 		const auto added = std::min(maxAdded, st::storiesReactionsAddedTop);
 		_selector->setSpecialExpandTopSkip(added);
 		_selector->initGeometry(innerTop);
