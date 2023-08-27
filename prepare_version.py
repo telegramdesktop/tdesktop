@@ -1,82 +1,96 @@
-# script for full new version preparation
-
-# imports
+# new version preparation script
+# libraries
 import os, shutil
 from datetime import date
 
 # config
-make_setup = True
-make_portable = True
-repo_folder = "c:/users/xmdnx/source/repos/exteraGramDesktop/"
-version = "4.9.1-27082023"
+config = {
+    "make_setup": True,          # set True if you want to make setup version
+    "make_portable": True,       # set True if you want to make portable version
+    "repo_path": "",             # leave it blank if this script located in repo folder
+    "version": "",               # leave it blank to fill with version from SourceFiles/core/version.h and script runtime date
+    "client_name": "exteraGram",
+}
+
+# functions
+def log(text, level):
+    print("#" + " " * level + text)
+
+def set_repo_path():
+    log("Setting repo path...", 1)
+    config["repo_path"] = os.getcwd()
+    log("Repo path was not set in config", 2)
+    log("Set repo path to: " + config["repo_path"], 2)
 
 def set_version():
-    global version
-    with open(repo_folder + "Telegram/SourceFiles/core/version.h", "r") as version_file:
-        version_code = version_file.readlines()[25]
-        version += version_code.replace('constexpr auto AppVersionStr = "', '').replace('";', date.today().strftime("-%d%m%Y")).replace('\n', '')
-    print("version: " + version)
+    log("Setting version...", 1)
+    version_file = open(config["repo_path"] + "/Telegram/SourceFiles/core/version.h", "r")
+    version_code = version_file.readlines()[25]
+    config["version"] += version_code.replace('constexpr auto AppVersionStr = "', '').replace('";', date.today().strftime("-%d%m%Y")).replace('\n', '')
 
-def update_build_date():
-    read_iss_file = open(repo_folder + "Telegram/build/setup.iss", "r", encoding="utf-8")
-    iss_file_data = read_iss_file.readlines()
-    iss_file_data[10] = '#define MyAppVersionFull "' + version + '"\n'
-    with open(repo_folder + "Telegram/build/setup.iss", "w", encoding="utf-8") as write_iss_file:
-        write_iss_file.writelines(iss_file_data)
+def set_iss():
+    log("Updating iss file...", 1)
+    iss_file = open(config["repo_path"] + "/Telegram/build/setup.iss", "r", encoding="utf-8")
+    iss_file_data = iss_file.readlines()
+    iss_file_data[10] = '#define MyAppVersionFull "' + config["version"] + '"\n'
+    iss_file.close()
+    iss_file = open(config["repo_path"] + "/Telegram/build/setup.iss", "w", encoding="utf-8")
+    iss_file.writelines(iss_file_data)
 
-def rename_file():
-    print("# Renaming file...")
+def rename_files():
+    log("# Renaming files...", 1)
 
-    # check if Telegram.exe exists
-    if (not os.path.exists(os.path.join(repo_folder + "out/Release/", "Telegram.exe"))):
-        print("#  Telegram.exe does not exist, check if exteraGram.exe exist...")
-        if os.path.exists(os.path.join(repo_folder + "out/Release/", "exteraGram.exe")):
-            print("#  exteraGram.exe exists, but Telegram.exe not exist. Skipping rename part...")
+    if (not os.path.exists(os.path.join(config["repo_path"] + "/out/Release/", "Telegram.exe"))):
+        log("Telegram.exe does not exist, check if exteraGram.exe exist...", 2)
+        if os.path.exists(os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe")):
+            log("exteraGram.exe exists, but Telegram.exe not exist. Skipping rename part...", 2)
             return
         else:
-            print("#  exteraGram.exe does not exist too, halt...")
+            log("exteraGram.exe does not exist too, halt...", 2)
             exit()
 
-    # removing old exteraGram.exe
-    if os.path.exists(os.path.join(repo_folder + "out/Release/", "exteraGram.exe")):
-        os.remove(os.path.join(repo_folder + "out/Release/", "exteraGram.exe"))
-        print("#  exteraGram.exe removed successfully, renaming")
+    if os.path.exists(os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe")):
+        os.remove(os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe"))
+        log("exteraGram.exe removed successfully, renaming", 2)
     else:
-        print("#  exteraGram.exe does not exist, renaming")
+        log("exteraGram.exe does not exist, renaming", 2)
 
-    old_path = os.path.join(repo_folder + "out/Release/", "Telegram.exe")
-    new_path = os.path.join(repo_folder + "out/Release/", "exteraGram.exe")
+    old_path = os.path.join(config["repo_path"] + "/out/Release/", "Telegram.exe")
+    new_path = os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe")
     os.rename(old_path, new_path)
-    print("#  Renamed Telegram.exe -> exteraGram.exe")
+    log("Renamed Telegram.exe -> exteraGram.exe", 2)
 
 def run_iss_build():
-    print("# Running iscc build... If error occurs, check if iscc.exe path added to PATH")
-    os.system("iscc " + repo_folder + "Telegram/build/setup.iss")
+    log("Running iscc build... If error occurs, check if iscc.exe path added to PATH", 1)
+    os.system("iscc " + config["repo_path"] + "/Telegram/build/setup.iss")
 
-def make_portable_version():
-    print("# Making portable version\n#  Creating 'portable' folder")
+def make_portable():
+    log("Making portable version", 1)
+    log("Creating 'portable' folder", 2)
     try:
-        os.mkdir(os.path.join(repo_folder + "out/Release/portable"))
-        print("#   Created 'portable' folder")
+        os.mkdir(os.path.join(config["repo_path"] + "/out/Release/portable"))
+        log("Created 'portable' folder", 3)
     except:
-        print("#   Folder 'portable' already exists")
-    print("#  Copying portable files")
+        log("Folder 'portable' already exists", 3)
+    log("Copying portable files", 2)
     try:
-        shutil.copyfile(os.path.join(repo_folder + "out/Release/", "exteraGram.exe"), os.path.join(repo_folder + "out/Release/portable", "exteraGram.exe"))
-        shutil.copytree(repo_folder + "out/Release/modules", repo_folder + "out/Release/portable/modules")
-        print("#   Files copied to 'portable' folder")
+        shutil.copyfile(os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe"), os.path.join(config["repo_path"] + "/out/Release/portable", "exteraGram.exe"))
+        shutil.copytree(config["repo_path"] + "/out/Release/modules", config["repo_path"] + "/out/Release/portable/modules")
+        log("Files copied to 'portable' folder", 3)
     except:
-        print("#   Files already exist")
-    print("#  Making archive...")
-    shutil.make_archive(os.path.join(repo_folder + "out/Release/etgdportable-x64." + version), 'zip', os.path.join(repo_folder + "out/Release/portable"))
+        log("Files already exist", 3)
+    log("Making archive...", 2)
+    shutil.make_archive(os.path.join(config["repo_path"] + "/out/Release/etgdportable-x64." + config["version"]), 'zip', os.path.join(config["repo_path"] + "/out/Release/portable"))
 
-# main script part
-if version == "":
+if config["repo_path"] == "":
+    set_repo_path()
+if config["version"] == "":
     set_version()
-update_build_date()
-rename_file()
-if make_setup:
+rename_files()
+if config["make_setup"]:
+    set_iss()
     run_iss_build()
-if make_portable:
-    make_portable_version()
-print("# All done.")
+if config["make_portable"]:
+    make_portable()
+
+log("All done!", 1)
