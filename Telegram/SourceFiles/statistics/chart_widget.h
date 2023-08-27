@@ -19,7 +19,7 @@ namespace Statistic {
 class RpMouseWidget;
 class PointDetailsWidget;
 class ChartLinesFilterWidget;
-class LinearChartView;
+class AbstractChartView;
 
 class ChartWidget : public Ui::RpWidget {
 public:
@@ -57,7 +57,7 @@ private:
 		void setXPercentageLimits(
 			Data::StatisticalChart &chartData,
 			Limits xPercentageLimits,
-			const std::unique_ptr<LinearChartView> &linearChartView,
+			const std::unique_ptr<AbstractChartView> &AbstractChartView,
 			crl::time now);
 		void start();
 		void finish();
@@ -67,7 +67,7 @@ private:
 			crl::time now,
 			std::vector<ChartHorizontalLinesData> &horizontalLines,
 			std::vector<BottomCaptionLineData> &dateLines,
-			const std::unique_ptr<LinearChartView> &linearChartView);
+			const std::unique_ptr<AbstractChartView> &AbstractChartView);
 
 		[[nodiscard]] Limits currentXLimits() const;
 		[[nodiscard]] Limits currentXIndices() const;
@@ -142,7 +142,7 @@ private:
 
 	base::unique_qptr<ChartWidget> _zoomedChartWidget;
 
-	std::unique_ptr<LinearChartView> _linearChartView;
+	std::unique_ptr<AbstractChartView> _chartView;
 
 	struct {
 		base::unique_qptr<PointDetailsWidget> widget;

@@ -1295,6 +1295,9 @@ PRIVATE
     statistics/statistics_common.h
     statistics/statistics_data_deserialize.cpp
     statistics/statistics_data_deserialize.h
+    statistics/view/abstract_chart_view.h
+    statistics/view/chart_view_factory.cpp
+    statistics/view/chart_view_factory.h
     statistics/view/linear_chart_view.cpp
     statistics/view/linear_chart_view.h
     storage/details/storage_file_utilities.cpp

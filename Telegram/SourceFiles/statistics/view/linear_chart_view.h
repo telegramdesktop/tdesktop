@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <statistics/statistics_common.h>
+#include "statistics/statistics_common.h"
+#include "statistics/view/abstract_chart_view.h"
 
 namespace Data {
 struct StatisticalChart;
@@ -17,9 +18,10 @@ namespace Statistic {
 
 struct Limits;
 
-class LinearChartView {
+class LinearChartView final : public AbstractChartView {
 public:
 	LinearChartView();
+	~LinearChartView() override final;
 
 	void paint(
 		QPainter &p,
@@ -28,7 +30,7 @@ public:
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		bool footer);
+		bool footer) override;
 
 	void paintSelectedXIndex(
 		QPainter &p,
@@ -36,14 +38,14 @@ public:
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		int selectedXIndex);
+		int selectedXIndex) override;
 
-	void setEnabled(int id, bool enabled, crl::time now);
-	[[nodiscard]] bool isEnabled(int id) const;
-	[[nodiscard]] bool isFinished() const;
-	[[nodiscard]] float64 alpha(int id) const;
+	void setEnabled(int id, bool enabled, crl::time now) override;
+	[[nodiscard]] bool isEnabled(int id) const override;
+	[[nodiscard]] bool isFinished() const override;
+	[[nodiscard]] float64 alpha(int id) const override;
 
-	void tick(crl::time now);
+	void tick(crl::time now) override;
 
 private:
 	struct CacheToken final {

@@ -9,13 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 
-struct Limits final {
-	float64 min = 0;
-	float64 max = 0;
-};
+class AbstractChartView;
+enum class ChartViewType;
 
-enum class ChartViewType {
-	Linear,
-};
+[[nodiscard]] std::unique_ptr<AbstractChartView> CreateChartView(
+	ChartViewType type);
 
 } // namespace Statistic

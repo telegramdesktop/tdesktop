@@ -57,6 +57,8 @@ void PaintChartLine(
 
 LinearChartView::LinearChartView() = default;
 
+LinearChartView::~LinearChartView() = default;
+
 void LinearChartView::paint(
 		QPainter &p,
 		const Data::StatisticalChart &chartData,
