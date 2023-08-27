@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/view/stack_chart_view.h"
 
+#include "data/data_statistics.h"
+
 namespace Statistic {
 namespace {
 } // namespace
@@ -52,7 +54,32 @@ float64 StackChartView::alpha(int id) const {
 AbstractChartView::HeightLimits StackChartView::heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) {
-	return {};
+	if (_cachedHeightLimits.ySum.empty()) {
+		_cachedHeightLimits.ySum.reserve(chartData.x.size());
+
+		auto maxValueFull = 0;
+		for (auto i = 0; i < chartData.x.size(); i++) {
+			auto sum = 0;
+			for (const auto &line : chartData.lines) {
+				if (isEnabled(line.id)) {
+					sum += line.y[i];
+				}
+			}
+			_cachedHeightLimits.ySum.push_back(sum);
+			maxValueFull = std::max(sum, maxValueFull);
+		}
+
+		_cachedHeightLimits.ySumSegmentTree = SegmentTree(
+			_cachedHeightLimits.ySum);
+		_cachedHeightLimits.full = { 0., float64(maxValueFull) };
+	}
+	const auto max = _cachedHeightLimits.ySumSegmentTree.rMaxQ(
+		xIndices.min,
+		xIndices.max);
+	return {
+		.full = _cachedHeightLimits.full,
+		.ranged = { 0., float64(max) },
+	};
 }
 
 void StackChartView::tick(crl::time now) {

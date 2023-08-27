@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "statistics/segment_tree.h"
 #include "statistics/statistics_common.h"
 #include "statistics/view/abstract_chart_view.h"
 
@@ -50,6 +51,13 @@ public:
 		Limits xIndices) override;
 
 	void tick(crl::time now) override;
+
+private:
+	struct {
+		Limits full;
+		std::vector<int> ySum;
+		SegmentTree ySumSegmentTree;
+	} _cachedHeightLimits;
 
 };
 
