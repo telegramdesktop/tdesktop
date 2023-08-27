@@ -1286,8 +1286,6 @@ PRIVATE
     statistics/chart_horizontal_lines_data.h
     statistics/chart_widget.cpp
     statistics/chart_widget.h
-    statistics/linear_chart_view.cpp
-    statistics/linear_chart_view.h
     statistics/point_details_widget.cpp
     statistics/point_details_widget.h
     statistics/segment_tree.cpp
@@ -1297,6 +1295,8 @@ PRIVATE
     statistics/statistics_common.h
     statistics/statistics_data_deserialize.cpp
     statistics/statistics_data_deserialize.h
+    statistics/view/linear_chart_view.cpp
+    statistics/view/linear_chart_view.h
     storage/details/storage_file_utilities.cpp
     storage/details/storage_file_utilities.h
     storage/details/storage_settings_scheme.cpp
