@@ -41,6 +41,15 @@ public:
 	[[nodiscard]] virtual bool isFinished() const = 0;
 	[[nodiscard]] virtual float64 alpha(int id) const = 0;
 
+	struct HeightLimits final {
+		Limits full;
+		Limits ranged;
+	};
+
+	[[nodiscard]] virtual HeightLimits heightLimits(
+		Data::StatisticalChart &chartData,
+		Limits xIndices) = 0;
+
 	virtual void tick(crl::time now) = 0;
 
 };

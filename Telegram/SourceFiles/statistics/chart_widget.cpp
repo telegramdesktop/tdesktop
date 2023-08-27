@@ -550,42 +550,32 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 	_currentXIndices = { float64(startXIndex), float64(endXIndex) };
 
 	{
-		auto minValue = std::numeric_limits<int>::max();
-		auto maxValue = 0;
-
-		auto minValueFull = std::numeric_limits<int>::max();
-		auto maxValueFull = 0;
-		for (auto &l : chartData.lines) {
-			if (!chartView->isEnabled(l.id)) {
-				continue;
-			}
-			const auto lineMax = l.segmentTree.rMaxQ(startXIndex, endXIndex);
-			const auto lineMin = l.segmentTree.rMinQ(startXIndex, endXIndex);
-			maxValue = std::max(lineMax, maxValue);
-			minValue = std::min(lineMin, minValue);
-
-			maxValueFull = std::max(l.maxValue, maxValueFull);
-			minValueFull = std::min(l.minValue, minValueFull);
-		}
-		if (maxValue == minValue) {
+		const auto heightLimits = chartView->heightLimits(
+			chartData,
+			_currentXIndices);
+		if (heightLimits.ranged.min == heightLimits.ranged.max) {
 			return;
 		}
 		_previousFullHeightLimits = _finalHeightLimits;
-		_finalHeightLimits = { float64(minValue), float64(maxValue) };
+		_finalHeightLimits = heightLimits.ranged;
 		if (!_previousFullHeightLimits.max) {
 			_previousFullHeightLimits = _finalHeightLimits;
 		}
 		if (!chartView->isFinished()) {
 			_animationValueFooterHeightMin = anim::value(
 				_animationValueFooterHeightMin.current(),
-				minValueFull);
+				heightLimits.full.min);
 			_animationValueFooterHeightMax = anim::value(
 				_animationValueFooterHeightMax.current(),
-				maxValueFull);
+				heightLimits.full.max);
 		} else if (!_animationValueFooterHeightMax.to()) {
 			// Will be finished in setChartData.
-			_animationValueFooterHeightMin = anim::value(0, minValueFull);
-			_animationValueFooterHeightMax = anim::value(0, maxValueFull);
+			_animationValueFooterHeightMin = anim::value(
+				0,
+				heightLimits.full.min);
+			_animationValueFooterHeightMax = anim::value(
+				0,
+				heightLimits.full.max);
 		}
 	}
 

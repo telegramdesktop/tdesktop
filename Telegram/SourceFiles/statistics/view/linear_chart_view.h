@@ -45,6 +45,10 @@ public:
 	[[nodiscard]] bool isFinished() const override;
 	[[nodiscard]] float64 alpha(int id) const override;
 
+	[[nodiscard]] HeightLimits heightLimits(
+		Data::StatisticalChart &chartData,
+		Limits xIndices) override;
+
 	void tick(crl::time now) override;
 
 private:

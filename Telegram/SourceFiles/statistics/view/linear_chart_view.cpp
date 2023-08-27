@@ -197,6 +197,32 @@ float64 LinearChartView::alpha(int id) const {
 	return (it == end(_entries)) ? 1. : it->second.alpha;
 }
 
+AbstractChartView::HeightLimits LinearChartView::heightLimits(
+		Data::StatisticalChart &chartData,
+		Limits xIndices) {
+	auto minValue = std::numeric_limits<int>::max();
+	auto maxValue = 0;
+
+	auto minValueFull = std::numeric_limits<int>::max();
+	auto maxValueFull = 0;
+	for (auto &l : chartData.lines) {
+		if (!isEnabled(l.id)) {
+			continue;
+		}
+		const auto lineMax = l.segmentTree.rMaxQ(xIndices.min, xIndices.max);
+		const auto lineMin = l.segmentTree.rMinQ(xIndices.min, xIndices.max);
+		maxValue = std::max(lineMax, maxValue);
+		minValue = std::min(lineMin, minValue);
+
+		maxValueFull = std::max(l.maxValue, maxValueFull);
+		minValueFull = std::min(l.minValue, minValueFull);
+	}
+	return {
+		.full = Limits{ float64(minValueFull), float64(maxValueFull) },
+		.ranged = Limits{ float64(minValue), float64(maxValue) },
+	};
+}
+
 void LinearChartView::tick(crl::time now) {
 	auto finishedCount = 0;
 	auto idsToRemove = std::vector<int>();
