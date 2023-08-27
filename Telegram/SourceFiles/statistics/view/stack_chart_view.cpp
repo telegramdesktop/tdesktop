@@ -25,6 +25,67 @@ void StackChartView::paint(
 		const Limits &heightLimits,
 		const QRect &rect,
 		bool footer) {
+	const auto localStart = std::max(0, int(xIndices.min) - 2);
+	const auto localEnd = std::min(
+		int(chartData.xPercentage.size() - 1),
+		int(xIndices.max) + 2);
+
+	const auto fullWidth = rect.width() / (xPercentageLimits.max - xPercentageLimits.min);
+	const auto offset = fullWidth * xPercentageLimits.min;
+	const auto pp = (chartData.xPercentage.size() < 2)
+		? 1.
+		: chartData.xPercentage[1] * fullWidth;
+	const auto w = chartData.xPercentage[1] * (fullWidth - pp);
+	// const auto w = rect.width() / float64(localEnd - localStart);
+	const auto r = w / 2.;
+	const auto leftStart = chartData.xPercentage[localStart] * (fullWidth - pp) - offset + rect.x();
+
+	auto paths = std::vector<QPainterPath>();
+	paths.resize(chartData.lines.size());
+
+	for (auto i = localStart; i <= localEnd; i++) {
+		auto chartPoints = QPolygonF();
+
+		const auto xPoint = rect.width()
+			* ((chartData.xPercentage[i] - xPercentageLimits.min)
+				/ (xPercentageLimits.max - xPercentageLimits.min));
+		auto bottom = float64(-rect.y());
+		const auto left = leftStart + (i - localStart) * w;
+
+		for (auto j = 0; j < chartData.lines.size(); j++) {
+			const auto &line = chartData.lines[j];
+			if (line.y[i] <= 0) {
+				continue;
+			}
+			const auto yPercentage = (line.y[i] - heightLimits.min)
+				/ float64(heightLimits.max - heightLimits.min);
+			const auto yPoint = yPercentage * rect.height() * alpha(line.id);
+			// const auto column = QRectF(
+			// 	xPoint - r,
+			// 	rect.height() - bottom - yPoint,
+			// 	w,
+			// 	yPoint);
+			const auto column = QRectF(
+				left,
+				rect.height() - bottom - yPoint,
+				w,
+				yPoint);
+			paths[j].addRect(column);
+
+			// p.setPen(Qt::NoPen);
+			// p.setBrush(line.color);
+			// p.setOpacity(0.3);
+			// // p.setOpacity(1.);
+			// p.drawRect(column);
+			// p.setOpacity(1.);
+			bottom += yPoint;
+		}
+	}
+
+	p.setPen(Qt::NoPen);
+	for (auto i = 0; i < paths.size(); i++) {
+		p.fillPath(paths[i], chartData.lines[i].color);
+	}
 }
 
 void StackChartView::paintSelectedXIndex(
