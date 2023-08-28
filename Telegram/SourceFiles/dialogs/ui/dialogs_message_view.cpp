@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/spoiler_mess.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
-#include "ui/image/image.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "core/ui_integration.h"
@@ -159,6 +158,7 @@ void MessageView::prepare(
 	options.ignoreTopic = true;
 	options.spoilerLoginCode = true;
 	auto preview = item->toPreview(options);
+	_displayMiniForwardIcon = preview.forwardedMessage;
 	const auto hasImages = !preview.images.empty();
 	const auto history = item->history();
 	const auto context = Core::MarkedTextContext{
@@ -169,7 +169,7 @@ void MessageView::prepare(
 	const auto senderTill = (preview.arrowInTextPosition > 0)
 		? preview.arrowInTextPosition
 		: preview.imagesInTextPosition;
-	if (hasImages && senderTill > 0) {
+	if ((hasImages || _displayMiniForwardIcon) && senderTill > 0) {
 		auto sender = Text::Mid(preview.text, 0, senderTill);
 		TextUtilities::Trim(sender);
 		_senderCache.setMarkedText(
@@ -313,6 +313,18 @@ void MessageView::paint(
 				+ st::dialogsMiniPreviewRight;
 			rect.setLeft(rect.x() + skip);
 		}
+	}
+
+	if (_displayMiniForwardIcon) {
+		const auto &icon = context.active
+			? st::dialogsMiniForwardIconActive
+			: context.selected
+			? st::dialogsMiniForwardIconOver
+			: st::dialogsMiniForwardIcon;
+		icon.paint(p, rect.topLeft(), rect.width());
+		rect.setLeft(rect.x()
+			+ icon.width()
+			+ st::dialogsMiniForwardIconSkip);
 	}
 	for (const auto &image : _imagesCache) {
 		if (rect.width() < st::dialogsMiniPreview) {

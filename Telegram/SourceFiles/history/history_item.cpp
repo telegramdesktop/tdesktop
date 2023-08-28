@@ -2958,6 +2958,9 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 			? tr::lng_from_you(tr::now)
 			: sender->shortName();
 	};
+	if (!options.ignoreForwardedMessage) {
+		result.forwardedMessage = Get<HistoryMessageForwarded>() != nullptr;
+	}
 	const auto fromForwarded = [&]() -> std::optional<QString> {
 		if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 			return forwarded->originalSender

@@ -28,6 +28,7 @@ struct ItemPreview {
 	int arrowInTextPosition = -1;
 	int imagesInTextPosition = 0;
 	std::any loadingContext;
+	bool forwardedMessage = false;
 };
 
 struct ToPreviewOptions {
@@ -37,6 +38,7 @@ struct ToPreviewOptions {
 	bool generateImages = true;
 	bool ignoreGroup = false;
 	bool ignoreTopic = true;
+	bool ignoreForwardedMessage = false;
 	bool spoilerLoginCode = false;
 	bool translated = false;
 };

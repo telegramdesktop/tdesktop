@@ -92,6 +92,7 @@ private:
 	mutable std::vector<ItemPreviewImage> _imagesCache;
 	mutable std::unique_ptr<SpoilerAnimation> _spoiler;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
+	mutable bool _displayMiniForwardIcon = false;
 
 };
 

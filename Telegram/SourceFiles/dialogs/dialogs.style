@@ -436,6 +436,11 @@ dialogsMiniPreviewSkip: 2px;
 dialogsMiniPreviewRight: 3px;
 dialogsMiniPlay: icon{{ "dialogs/dialogs_mini_play", videoPlayIconFg }};
 
+dialogsMiniForwardIcon: icon {{ "mini_forward", dialogsTextFg, point(0px, 1px) }};
+dialogsMiniForwardIconOver: icon {{ "mini_forward", dialogsTextFgOver, point(0px, 1px) }};
+dialogsMiniForwardIconActive: icon {{ "mini_forward", dialogsTextFgActive, point(0px, 1px) }};
+dialogsMiniForwardIconSkip: 2px;
+
 dialogsUnreadMention: icon{{ "dialogs/dialogs_mention", dialogsUnreadFg }};
 dialogsUnreadMentionOver: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgOver }};
 dialogsUnreadMentionActive: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgActive }};
