@@ -213,7 +213,6 @@ private:
 	void updateControlsGeometry();
 	void updateCaptionPlaceholder();
 
-	bool canAddFiles(not_null<const QMimeData*> data) const;
 	bool addFiles(not_null<const QMimeData*> data);
 	bool addFiles(Ui::PreparedList list);
 	void addFile(Ui::PreparedFile &&file);
