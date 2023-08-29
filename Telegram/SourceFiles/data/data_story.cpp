@@ -512,8 +512,8 @@ void Story::applyFields(
 	if (const auto areas = data.vmedia_areas()) {
 		locations.reserve(areas->v.size());
 		for (const auto &area : areas->v) {
-			if (const auto parsed = ParseLocation(area)) {
-				locations.push_back(*parsed);
+			if (const auto location = ParseLocation(area)) {
+				locations.push_back(*location);
 			}
 		}
 	}
