@@ -5,11 +5,11 @@ from datetime import date
 
 # config
 config = {
-    "make_setup": True,          # set True if you want to make setup version
-    "make_portable": True,       # set True if you want to make portable version
-    "repo_path": "",             # leave it blank if this script located in repo folder
-    "version": "",               # leave it blank to fill with version from SourceFiles/core/version.h and script runtime date
-    "client_name": "exteraGram",
+    "make_setup": True,           # set True if you want to make setup version
+    "make_portable": True,        # set True if you want to make portable version
+    "repo_path": "",              # leave it blank if this script located in repo folder
+    "version": "",                # leave it blank to fill with version from SourceFiles/core/version.h and script runtime date
+    "exe_filename": "exteraGram.exe", # set your client name here
 }
 
 # functions
@@ -41,24 +41,24 @@ def rename_files():
     log("# Renaming files...", 1)
 
     if (not os.path.exists(os.path.join(config["repo_path"] + "/out/Release/", "Telegram.exe"))):
-        log("Telegram.exe does not exist, check if exteraGram.exe exist...", 2)
-        if os.path.exists(os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe")):
-            log("exteraGram.exe exists, but Telegram.exe not exist. Skipping rename part...", 2)
+        log("Telegram.exe does not exist, check if " + config["exe_filename"] + " exist...", 2)
+        if os.path.exists(os.path.join(config["repo_path"] + "/out/Release/", config["exe_filename"])):
+            log(config["exe_filename"] + " exists, but Telegram.exe not exist. Skipping rename part...", 2)
             return
         else:
-            log("exteraGram.exe does not exist too, halt...", 2)
+            log(config["exe_filename"] + " does not exist too, halt...", 2)
             exit()
 
-    if os.path.exists(os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe")):
-        os.remove(os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe"))
-        log("exteraGram.exe removed successfully, renaming", 2)
+    if os.path.exists(os.path.join(config["repo_path"] + "/out/Release/", config["exe_filename"] + ".exe")):
+        os.remove(os.path.join(config["repo_path"] + "/out/Release/", config["exe_filename"] + ".exe"))
+        log(config["exe_filename"] + " removed successfully, renaming", 2)
     else:
-        log("exteraGram.exe does not exist, renaming", 2)
+        log(config["exe_filename"] + " does not exist, renaming", 2)
 
     old_path = os.path.join(config["repo_path"] + "/out/Release/", "Telegram.exe")
-    new_path = os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe")
+    new_path = os.path.join(config["repo_path"] + "/out/Release/", config["exe_filename"])
     os.rename(old_path, new_path)
-    log("Renamed Telegram.exe -> exteraGram.exe", 2)
+    log("Renamed Telegram.exe -> " + config["exe_filename"], 2)
 
 def run_iss_build():
     log("Running iscc build... If error occurs, check if iscc.exe path added to PATH", 1)
@@ -74,7 +74,7 @@ def make_portable():
         log("Folder 'portable' already exists", 3)
     log("Copying portable files", 2)
     try:
-        shutil.copyfile(os.path.join(config["repo_path"] + "/out/Release/", "exteraGram.exe"), os.path.join(config["repo_path"] + "/out/Release/portable", "exteraGram.exe"))
+        shutil.copyfile(os.path.join(config["repo_path"] + "/out/Release/", config["exe_filename"]), os.path.join(config["repo_path"] + "/out/Release/portable", config["exe_filename"]))
         shutil.copytree(config["repo_path"] + "/out/Release/modules", config["repo_path"] + "/out/Release/portable/modules")
         log("Files copied to 'portable' folder", 3)
     except:
