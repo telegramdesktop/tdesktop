@@ -599,13 +599,22 @@ enum class HistorySelfDestructType {
 	Video,
 };
 
+struct TimeToLiveSingleView {
+	friend inline auto operator<=>(
+		TimeToLiveSingleView,
+		TimeToLiveSingleView) = default;
+	friend inline bool operator==(
+		TimeToLiveSingleView,
+		TimeToLiveSingleView) = default;
+};
+
 struct HistoryServiceSelfDestruct
 : public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
 	using Type = HistorySelfDestructType;
 
 	Type type = Type::Photo;
-	crl::time timeToLive = 0;
-	crl::time destructAt = 0;
+	std::variant<crl::time, TimeToLiveSingleView> timeToLive = crl::time();
+	std::variant<crl::time, TimeToLiveSingleView> destructAt = crl::time();
 };
 
 struct HistoryServiceOngoingCall
