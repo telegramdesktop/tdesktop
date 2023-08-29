@@ -509,27 +509,27 @@ void Controller::initLayout() {
 			.nameBoundingRect = nameBoundingRect(right, false),
 			.nameFontSize = nameFontSize,
 		};
-		if (!_locationAreas.empty()) {
-			rebuildLocationAreas(layout);
+		if (!_areas.empty()) {
+			rebuildActiveAreas(layout);
 		}
 		return layout;
 	});
 }
 
-void Controller::rebuildLocationAreas(const Layout &layout) const {
-	Expects(_locations.size() == _locationAreas.size());
-
+void Controller::rebuildActiveAreas(const Layout &layout) const {
 	const auto origin = layout.content.topLeft();
 	const auto scale = layout.content.size();
-	for (auto i = 0, count = int(_locations.size()); i != count; ++i) {
-		auto &area = _locationAreas[i];
-		const auto &general = _locations[i].area.geometry;
+	for (auto &area : _areas) {
+		const auto &general = area.original;
 		area.geometry = QRect(
 			int(base::SafeRound(general.x() * scale.width())),
 			int(base::SafeRound(general.y() * scale.height())),
 			int(base::SafeRound(general.width() * scale.width())),
 			int(base::SafeRound(general.height() * scale.height()))
 		).translated(origin);
+		if (const auto reaction = area.reaction.get()) {
+			reaction->setAreaGeometry(area.geometry);
+		}
 	}
 }
 
@@ -914,9 +914,16 @@ bool Controller::changeShown(Data::Story *story) {
 	const auto &locations = story
 		? story->locations()
 		: std::vector<Data::StoryLocation>();
+	const auto &suggestedReactions = story
+		? story->suggestedReactions()
+		: std::vector<Data::SuggestedReaction>();
 	if (_locations != locations) {
 		_locations = locations;
-		_locationAreas.clear();
+		_areas.clear();
+	}
+	if (_suggestedReactions != suggestedReactions) {
+		_suggestedReactions = suggestedReactions;
+		_areas.clear();
 	}
 
 	return true;
@@ -1082,26 +1089,47 @@ void Controller::updatePlayback(const Player::TrackState &state) {
 	}
 }
 
-ClickHandlerPtr Controller::lookupLocationHandler(QPoint point) const {
+ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 	const auto &layout = _layout.current();
-	if (_locations.empty() || !layout) {
+	if ((_locations.empty() && _suggestedReactions.empty()) || !layout) {
 		return nullptr;
-	} else if (_locationAreas.empty()) {
-		_locationAreas = _locations | ranges::views::transform([](
-				const Data::StoryLocation &location) {
-			return LocationArea{
+	} else if (_areas.empty()) {
+		_areas.reserve(_locations.size() + _suggestedReactions.size());
+		for (const auto &location : _locations) {
+			_areas.push_back({
+				.original = location.area.geometry,
 				.rotation = location.area.rotation,
 				.handler = std::make_shared<LocationClickHandler>(
 					location.point),
-			};
-		}) | ranges::to_vector;
-		rebuildLocationAreas(*layout);
+			});
+		}
+		for (const auto &suggestedReaction : _suggestedReactions) {
+			const auto id = suggestedReaction.reaction;
+			_areas.push_back({
+				.original = suggestedReaction.area.geometry,
+				.rotation = suggestedReaction.area.rotation,
+				.handler = std::make_shared<LambdaClickHandler>([=] {
+					_reactions->applyLike(id);
+				}),
+				.reaction = _reactions->makeSuggestedReactionWidget(
+					suggestedReaction),
+			});
+		}
+		rebuildActiveAreas(*layout);
 	}
 
-	for (const auto &area : _locationAreas) {
+	const auto circleContains = [&](QRect circle) {
+		const auto radius = std::min(circle.width(), circle.height()) / 2;
+		const auto delta = circle.center() - point;
+		return QPoint::dotProduct(delta, delta) < (radius * radius);
+	};
+	for (const auto &area : _areas) {
 		const auto center = area.geometry.center();
 		const auto angle = -area.rotation;
-		if (area.geometry.contains(Rotated(point, center, angle))) {
+		const auto contains = area.reaction
+			? circleContains(area.geometry)
+			: area.geometry.contains(Rotated(point, center, angle));
+		if (contains) {
 			return area.handler;
 		}
 	}

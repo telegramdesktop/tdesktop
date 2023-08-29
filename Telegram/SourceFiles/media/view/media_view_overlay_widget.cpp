@@ -5685,7 +5685,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		lnk = _groupThumbs->getState(point);
 		lnkhost = this;
 	} else if (_stories) {
-		lnk = _stories->lookupLocationHandler(pos);
+		lnk = _stories->lookupAreaHandler(pos);
 		lnkhost = this;
 	}
 

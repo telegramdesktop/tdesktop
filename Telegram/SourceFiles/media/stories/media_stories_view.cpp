@@ -59,8 +59,8 @@ void View::updatePlayback(const Player::TrackState &state) {
 	_controller->updateVideoPlayback(state);
 }
 
-ClickHandlerPtr View::lookupLocationHandler(QPoint point) const {
-	return _controller->lookupLocationHandler(point);
+ClickHandlerPtr View::lookupAreaHandler(QPoint point) const {
+	return _controller->lookupAreaHandler(point);
 }
 
 bool View::subjumpAvailable(int delta) const {

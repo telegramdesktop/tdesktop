@@ -81,7 +81,7 @@ public:
 	void showFullCaption();
 
 	void updatePlayback(const Player::TrackState &state);
-	[[nodiscard]] ClickHandlerPtr lookupLocationHandler(QPoint point) const;
+	[[nodiscard]] ClickHandlerPtr lookupAreaHandler(QPoint point) const;
 
 	[[nodiscard]] bool subjumpAvailable(int delta) const;
 	[[nodiscard]] bool subjumpFor(int delta) const;

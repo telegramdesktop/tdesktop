@@ -68,6 +68,7 @@ enum class SiblingType;
 struct ContentLayout;
 class CaptionFullView;
 enum class ReactionsMode;
+class SuggestedReactionView;
 
 enum class HeaderLayout {
 	Normal,
@@ -135,7 +136,7 @@ public:
 	void ready();
 
 	void updateVideoPlayback(const Player::TrackState &state);
-	[[nodiscard]] ClickHandlerPtr lookupLocationHandler(QPoint point) const;
+	[[nodiscard]] ClickHandlerPtr lookupAreaHandler(QPoint point) const;
 
 	[[nodiscard]] bool subjumpAvailable(int delta) const;
 	[[nodiscard]] bool subjumpFor(int delta);
@@ -197,10 +198,12 @@ private:
 			return peerId != 0;
 		}
 	};
-	struct LocationArea {
+	struct ActiveArea {
+		QRectF original;
 		QRect geometry;
 		float64 rotation = 0.;
 		ClickHandlerPtr handler;
+		std::unique_ptr<SuggestedReactionView> reaction;
 	};
 
 	void initLayout();
@@ -215,7 +218,7 @@ private:
 	void updateContentFaded();
 	void updatePlayingAllowed();
 	void setPlayingAllowed(bool allowed);
-	void rebuildLocationAreas(const Layout &layout) const;
+	void rebuildActiveAreas(const Layout &layout) const;
 
 	void hideSiblings();
 	void showSiblings(not_null<Main::Session*> session);
@@ -284,7 +287,8 @@ private:
 	bool _viewed = false;
 
 	std::vector<Data::StoryLocation> _locations;
-	mutable std::vector<LocationArea> _locationAreas;
+	std::vector<Data::SuggestedReaction> _suggestedReactions;
+	mutable std::vector<ActiveArea> _areas;
 
 	std::vector<CachedSource> _cachedSourcesList;
 	int _cachedSourceIndex = -1;

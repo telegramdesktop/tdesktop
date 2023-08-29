@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_reactions.h"
 
 #include "base/event_filter.h"
+#include "base/unixtime.h"
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_changes.h"
@@ -16,17 +17,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "history/admin_log/history_admin_log_item.h"
+#include "history/view/media/history_view_custom_emoji.h"
+#include "history/view/media/history_view_media_unwrapped.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
+#include "history/view/history_view_element.h"
+#include "history/history_item_reply_markup.h"
+#include "history/history_item.h"
+#include "history/history.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
+#include "ui/chat/chat_style.h"
 #include "ui/effects/emoji_fly_animation.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/reaction_fly_animation.h"
+#include "ui/text/text_isolated_emoji.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_chat.h"
 #include "styles/style_media_view.h"
 #include "styles/style_widgets.h"
+#include "styles/style_window.h"
 
 namespace Media::Stories {
 namespace {
@@ -34,6 +47,241 @@ namespace {
 constexpr auto kReactionScaleOutTarget = 0.7;
 constexpr auto kReactionScaleOutDuration = crl::time(1000);
 constexpr auto kMessageReactionScaleOutDuration = crl::time(400);
+constexpr auto kSuggestedBubbleSize = 1.0;
+constexpr auto kSuggestedTailBigSize = 0.264;
+constexpr auto kSuggestedTailBigOffset = 0.464;
+constexpr auto kSuggestedTailSmallSize = 0.110;
+constexpr auto kSuggestedTailSmallOffset = 0.697;
+constexpr auto kSuggestedTailBigRotation = -42.29;
+constexpr auto kSuggestedTailSmallRotation = -40.87;
+constexpr auto kSuggestedReactionSize = 0.7;
+
+class ReactionView final
+	: public Ui::RpWidget
+	, public SuggestedReactionView
+	, public HistoryView::DefaultElementDelegate {
+public:
+	ReactionView(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		const Data::SuggestedReaction &reaction);
+
+	void setAreaGeometry(QRect geometry) override;
+
+private:
+	using Element = HistoryView::Element;
+	not_null<HistoryView::ElementDelegate*> delegate();
+	HistoryView::Context elementContext() override;
+	bool elementAnimationsPaused() override;
+	bool elementShownUnread(not_null<const Element*> view) override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
+
+	void paintEvent(QPaintEvent *e) override;
+
+	void cacheBackground();
+
+	Data::SuggestedReaction _data;
+	std::unique_ptr<Ui::ChatStyle> _chatStyle;
+	std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	AdminLog::OwnedItem _fake;
+	QImage _background;
+	QRectF _bubbleGeometry;
+	int _size = 0;
+	int _mediaLeft = 0;
+	int _mediaTop = 0;
+	int _mediaWidth = 0;
+	int _mediaHeight = 0;
+	float64 _bubble = 0;
+	float64 _bigOffset = 0;
+	float64 _bigSize = 0;
+	float64 _smallOffset = 0;
+	float64 _smallSize = 0;
+
+};
+
+[[nodiscard]] AdminLog::OwnedItem GenerateFakeItem(
+		not_null<HistoryView::ElementDelegate*> delegate,
+		not_null<History*> history) {
+	Expects(history->peer->isUser());
+
+	const auto flags = MessageFlag::FakeHistoryItem
+		| MessageFlag::HasFromId;
+	const auto replyTo = FullReplyTo();
+	const auto viaBotId = UserId();
+	const auto groupedId = uint64();
+	const auto item = history->makeMessage(
+		history->nextNonHistoryEntryId(),
+		flags,
+		replyTo,
+		viaBotId,
+		base::unixtime::now(),
+		peerToUser(history->peer->id),
+		QString(),
+		TextWithEntities(),
+		MTP_messageMediaEmpty(),
+		HistoryMessageMarkupData(),
+		groupedId);
+	return AdminLog::OwnedItem(delegate, item);
+}
+
+ReactionView::ReactionView(
+	QWidget *parent,
+	not_null<Main::Session*> session,
+	const Data::SuggestedReaction &reaction)
+: RpWidget(parent)
+, _data(reaction)
+, _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _pathGradient(
+	std::make_unique<Ui::PathShiftGradient>(
+		st::shadowFg,
+		st::shadowFg,
+		[=] { update(); }))
+, _fake(
+	GenerateFakeItem(
+		delegate(),
+		session->data().history(PeerData::kServiceNotificationsId))) {
+	style::PaletteChanged() | rpl::start_with_next([=] {
+		_background = QImage();
+	}, lifetime());
+
+	const auto view = _fake.get();
+	const auto item = view->data();
+
+	const auto entityData = [&] {
+		const auto &id = _data.reaction;
+		const auto reactions = &session->data().reactions();
+		reactions->preloadAnimationsFor(id);
+		if (const auto customId = id.custom()) {
+			return Data::SerializeCustomEmojiId(customId);
+		}
+		const auto type = Data::Reactions::Type::All;
+		const auto &list = reactions->list(type);
+		const auto i = ranges::find(list, id, &Data::Reaction::id);
+		return (i != end(list))
+			? Data::SerializeCustomEmojiId(i->selectAnimation->id)
+			: QString();
+	}();
+
+	const auto emoji = Ui::Text::OnlyCustomEmoji{
+		{ { { entityData } } }
+	};
+	view->overrideMedia(std::make_unique<HistoryView::UnwrappedMedia>(
+		view,
+		std::make_unique<HistoryView::CustomEmoji>(view, emoji)));
+	view->initDimensions();
+
+	_mediaLeft = st::msgMargin.left();
+	_mediaTop = st::msgMargin.top();
+	_mediaWidth = _mediaHeight = view->resizeGetHeight(st::windowMinWidth)
+		- _mediaTop
+		- st::msgMargin.bottom();
+
+	session->data().viewRepaintRequest(
+	) | rpl::start_with_next([=](not_null<const Element*> element) {
+		if (element == view) {
+			update();
+		}
+	}, lifetime());
+
+	setAttribute(Qt::WA_TransparentForMouseEvents);
+	show();
+}
+
+void ReactionView::setAreaGeometry(QRect geometry) {
+	_size = std::min(geometry.width(), geometry.height());
+	const auto scaled = [&](float64 scale) {
+		return int(base::SafeRound(scale * _size));
+	};
+	_bubble = _size * kSuggestedBubbleSize;
+	_bigOffset = _bubble * kSuggestedTailBigOffset;
+	_bigSize = _bubble * kSuggestedTailBigSize;
+	_smallOffset = _bubble * kSuggestedTailSmallOffset;
+	_smallSize = _bubble * kSuggestedTailSmallSize;
+	const auto add = int(base::SafeRound(_smallOffset + _smallSize))
+		- (_size / 2);
+	setGeometry(geometry.marginsAdded({ add, add, add, add }));
+}
+
+not_null<HistoryView::ElementDelegate*> ReactionView::delegate() {
+	return static_cast<HistoryView::ElementDelegate*>(this);
+}
+
+void ReactionView::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	if (!_size) {
+		return;
+	} else if (_background.size() != size() * style::DevicePixelRatio()) {
+		cacheBackground();
+	}
+	p.drawImage(0, 0, _background);
+
+	auto hq = PainterHighQualityEnabler(p);
+	p.translate(_bubbleGeometry.center());
+	p.scale(
+		kSuggestedReactionSize * _bubbleGeometry.width() / _mediaWidth,
+		kSuggestedReactionSize * _bubbleGeometry.height() / _mediaHeight);
+	p.rotate(_data.area.rotation);
+	p.translate(
+		-(_mediaLeft + (_mediaWidth / 2)),
+		-(_mediaTop + (_mediaHeight / 2)));
+
+	auto context = Ui::ChatPaintContext{
+		.st = _chatStyle.get(),
+		.viewport = rect(),
+		.clip = rect(),
+		.now = crl::now(),
+	};
+	_fake->draw(p, context);
+}
+
+void ReactionView::cacheBackground() {
+	const auto ratio = style::DevicePixelRatio();
+	_background = QImage(
+		size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	_background.setDevicePixelRatio(ratio);
+	_background.fill(Qt::transparent);
+
+	auto p = QPainter(&_background);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(_data.dark ? QColor(0, 0, 0, 128) : QColor(255, 255, 255));
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+
+	_bubbleGeometry = QRectF(
+		(width() - _bubble) / 2.,
+		(height() - _bubble) / 2.,
+		_bubble,
+		_bubble);
+	p.drawEllipse(_bubbleGeometry);
+
+	const auto center = QPointF(width() / 2., height() / 2.);
+	p.translate(center);
+
+	auto previous = 0.;
+	const auto rotate = [&](float64 initial) {
+		if (_data.flipped) {
+			initial = 180 - initial;
+		}
+		auto rotation = _data.area.rotation - initial;
+		while (rotation < 0) {
+			rotation += 360;
+		}
+		while (rotation >= 360) {
+			rotation -= 360;
+		}
+		const auto delta = rotation - previous;
+		previous = rotation;
+		p.rotate(delta);
+	};
+	const auto paintTailPart = [&](float64 offset, float64 size) {
+		p.drawEllipse(QRectF(offset - size / 2., -size / 2., size, size));
+	};
+	rotate(kSuggestedTailBigRotation);
+	paintTailPart(_bigOffset, _bigSize);
+	rotate(kSuggestedTailSmallRotation);
+	paintTailPart(_smallOffset, _smallSize);
+}
 
 [[nodiscard]] Data::ReactionId HeartReactionId() {
 	return { QString() + QChar(10084) };
@@ -65,6 +313,24 @@ constexpr auto kMessageReactionScaleOutDuration = crl::time(400);
 		std::rotate(begin(result.recent), i, i + 1);
 	}
 	return result;
+}
+
+HistoryView::Context ReactionView::elementContext() {
+	return HistoryView::Context::ContactPreview;
+}
+
+bool ReactionView::elementAnimationsPaused() {
+	return false;
+}
+
+bool ReactionView::elementShownUnread(
+		not_null<const Element*> view) {
+	return false;
+}
+
+auto ReactionView::elementPathShiftGradient()
+-> not_null<Ui::PathShiftGradient*> {
+	return _pathGradient.get();
 }
 
 } // namespace
@@ -358,6 +624,15 @@ auto Reactions::chosen() const -> rpl::producer<Chosen> {
 	return _chosen.events();
 }
 
+auto Reactions::makeSuggestedReactionWidget(
+	const Data::SuggestedReaction &reaction)
+-> std::unique_ptr<SuggestedReactionView> {
+	return std::make_unique<ReactionView>(
+		_controller->wrap(),
+		&_controller->uiShow()->session(),
+		reaction);
+}
+
 void Reactions::setReplyFieldState(
 		rpl::producer<bool> focused,
 		rpl::producer<bool> hasSendText) {
@@ -458,9 +733,12 @@ void Reactions::outsidePressed() {
 
 void Reactions::toggleLiked() {
 	const auto liked = !_liked.current().empty();
-	const auto now = liked ? Data::ReactionId() : HeartReactionId();
-	if (_liked.current() != now) {
-		animateAndProcess({ { .id = now }, ReactionsMode::Reaction });
+	applyLike(liked ? Data::ReactionId() : HeartReactionId());
+}
+
+void Reactions::applyLike(Data::ReactionId id) {
+	if (_liked.current() != id) {
+		animateAndProcess({ { .id = id }, ReactionsMode::Reaction });
 	}
 }
 
