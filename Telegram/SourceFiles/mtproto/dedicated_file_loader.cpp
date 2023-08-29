@@ -7,6 +7,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "mtproto/dedicated_file_loader.h"
 
+#include "extera/extera_settings.h"
 #include "mtproto/facade.h"
 #include "main/main_account.h" // Account::sessionChanges.
 #include "main/main_session.h" // Session::account.
@@ -78,6 +79,11 @@ std::optional<DedicatedLoader::File> ParseFile(
 		fields.vfile_reference(),
 		MTP_string());
 	return DedicatedLoader::File{ name, size, fields.vdc_id().v, location };
+}
+
+int RequestCount() {
+	static const auto count = 2 + (2 * ::ExteraSettings::JsonSettings::GetInt("net_speed_boost"));
+	return count;
 }
 
 } // namespace
@@ -310,7 +316,7 @@ void DedicatedLoader::startLoading() {
 }
 
 void DedicatedLoader::sendRequest() {
-	if (_requests.size() >= kRequestsCount || _offset >= _size) {
+	if (_requests.size() >= RequestCount() || _offset >= _size) {
 		return;
 	}
 	const auto offset = _offset;
@@ -326,7 +332,7 @@ void DedicatedLoader::sendRequest() {
 		MTP::updaterDcId(_dcId));
 	_offset += kChunkSize;
 
-	if (_requests.size() < kRequestsCount) {
+	if (_requests.size() < RequestCount()) {
 		base::call_delayed(kNextRequestDelay, this, [=] { sendRequest(); });
 	}
 }
