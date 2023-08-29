@@ -3316,24 +3316,24 @@ void ApiWrap::forwardMessages(
 	_session->data().sendHistoryChangeNotifications();
 }
 
-void ApiWrap::shareContact(
+FullMsgId ApiWrap::shareContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
 		const SendAction &action) {
 	const auto userId = UserId(0);
-	sendSharedContact(phone, firstName, lastName, userId, action);
+	return sendSharedContact(phone, firstName, lastName, userId, action);
 }
 
-void ApiWrap::shareContact(
+FullMsgId ApiWrap::shareContact(
 		not_null<UserData*> user,
 		const SendAction &action) {
 	const auto userId = peerToUser(user->id);
 	const auto phone = _session->data().findContactPhone(user);
 	if (phone.isEmpty()) {
-		return;
+		return {};
 	}
-	sendSharedContact(
+	return sendSharedContact(
 		phone,
 		user->firstName,
 		user->lastName,
@@ -3341,7 +3341,7 @@ void ApiWrap::shareContact(
 		action);
 }
 
-void ApiWrap::sendSharedContact(
+FullMsgId ApiWrap::sendSharedContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
@@ -3391,6 +3391,7 @@ void ApiWrap::sendSharedContact(
 			MTP_string(), // vcard
 			MTP_long(userId.bare)),
 		HistoryMessageMarkupData());
+	const auto result = item->fullId();
 
 	const auto media = MTP_inputMediaContact(
 		MTP_string(phone),
@@ -3405,6 +3406,8 @@ void ApiWrap::sendSharedContact(
 		(action.options.scheduled
 			? Data::HistoryUpdate::Flag::ScheduledSent
 			: Data::HistoryUpdate::Flag::MessageSent));
+
+	return result;
 }
 
 void ApiWrap::sendVoiceMessage(

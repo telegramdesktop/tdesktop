@@ -1173,6 +1173,7 @@ ServiceAction ParseServiceAction(
 			content.domain = ParseString(*domain);
 		}
 		content.attachMenu = data.is_attach_menu();
+		content.fromRequest = data.is_from_request();
 		result.content = content;
 	}, [&](const MTPDmessageActionSecureValuesSentMe &data) {
 		// Should not be in user inbox.

@@ -290,12 +290,14 @@ public:
 		Data::ResolvedForwardDraft &&draft,
 		const SendAction &action,
 		FnMut<void()> &&successCallback = nullptr);
-	void shareContact(
+	FullMsgId shareContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
 		const SendAction &action);
-	void shareContact(not_null<UserData*> user, const SendAction &action);
+	FullMsgId shareContact(
+		not_null<UserData*> user,
+		const SendAction &action);
 	void applyAffectedMessages(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
@@ -484,7 +486,7 @@ private:
 		SharedMediaType type,
 		Api::SearchResult &&parsed);
 
-	void sendSharedContact(
+	FullMsgId sendSharedContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,

@@ -477,6 +477,8 @@ QByteArray SerializeMessage(
 	}, [&](const ActionBotAllowed &data) {
 		if (data.attachMenu) {
 			pushAction("attach_menu_bot_allowed");
+		} else if (data.fromRequest) {
+			pushAction("web_app_bot_allowed");
 		} else if (data.appId) {
 			pushAction("allow_sending_messages");
 			push("reason_app_id", data.appId);

@@ -1127,6 +1127,8 @@ auto HtmlWriter::Wrap::pushMessage(
 		return data.attachMenu
 			? "You allowed this bot to message you "
 			"when you added it in the attachment menu."_q
+			: data.fromRequest
+			? "You allowed this bot to message you in his web-app."_q
 			: data.app.isEmpty()
 			? ("You allowed this bot to message you when you opened "
 				+ SerializeString(data.app))
