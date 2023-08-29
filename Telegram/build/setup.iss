@@ -1,7 +1,7 @@
 #define MyAppShortName "exteraGram"
 #define MyAppName "exteraGram Desktop"
 #define MyAppPublisher "xmdnx"
-#define MyAppVersion "4.9.1"
+#define MyAppVersion "4.9.3"
 #define MyAppURL "https://t.me/exteraGramDesktop"
 #define ReleasePath "C:\Users\xmdnx\source\repos\exteraGramDesktop\out\Release"
 #define MyAppExeName "exteraGram.exe"

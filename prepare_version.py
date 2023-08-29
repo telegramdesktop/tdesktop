@@ -5,10 +5,11 @@ from datetime import date
 
 # config
 config = {
-    "make_setup": True,           # set True if you want to make setup version
-    "make_portable": True,        # set True if you want to make portable version
-    "repo_path": "",              # leave it blank if this script located in repo folder
-    "version": "",                # leave it blank to fill with version from SourceFiles/core/version.h and script runtime date
+    "make_setup": True,               # set True if you want to make setup version
+    "make_portable": True,            # set True if you want to make portable version
+    "repo_path": "",                  # leave it blank if this script located in repo folder
+    "version": "",                    # leave it blank to fill with version from SourceFiles/core/version.h and script runtime date
+    "tgversion": "",                  # leave it blanl to set it automatically
     "exe_filename": "exteraGram.exe", # set your client name here
 }
 
@@ -27,11 +28,13 @@ def set_version():
     version_file = open(config["repo_path"] + "/Telegram/SourceFiles/core/version.h", "r")
     version_code = version_file.readlines()[25]
     config["version"] += version_code.replace('constexpr auto AppVersionStr = "', '').replace('";', date.today().strftime("-%d%m%Y")).replace('\n', '')
+    config["tgversion"] += version_code.replace('constexpr auto AppVersionStr = "', '').replace('";', '').replace('\n', '')    
 
 def set_iss():
     log("Updating iss file...", 1)
     iss_file = open(config["repo_path"] + "/Telegram/build/setup.iss", "r", encoding="utf-8")
     iss_file_data = iss_file.readlines()
+    iss_file_data[3] = '#define MyAppVersion "' + config["tgversion"] + '"\n'
     iss_file_data[10] = '#define MyAppVersionFull "' + config["version"] + '"\n'
     iss_file.close()
     iss_file = open(config["repo_path"] + "/Telegram/build/setup.iss", "w", encoding="utf-8")
