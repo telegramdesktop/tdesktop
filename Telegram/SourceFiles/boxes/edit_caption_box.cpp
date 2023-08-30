@@ -622,9 +622,10 @@ void EditCaptionBox::setupDragArea() {
 	};
 	// Avoid both drag areas appearing at one time.
 	auto computeState = [=](const QMimeData *data) {
+		using DragState = Storage::MimeDataState;
 		const auto state = Storage::ComputeMimeDataState(data);
-		return (state == Storage::MimeDataState::PhotoFiles)
-			? Storage::MimeDataState::Image
+		return (state == DragState::PhotoFiles || state == DragState::Image)
+			? (_asFile ? DragState::Files : DragState::Image)
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(
