@@ -23,12 +23,17 @@ struct ItemPreviewImage {
 };
 
 struct ItemPreview {
+	enum class Icon {
+		None,
+		ForwardedMessage,
+		ReplyToStory,
+	};
 	TextWithEntities text;
 	std::vector<ItemPreviewImage> images;
 	int arrowInTextPosition = -1;
 	int imagesInTextPosition = 0;
 	std::any loadingContext;
-	bool forwardedMessage = false;
+	Icon icon = Icon::None;
 };
 
 struct ToPreviewOptions {
@@ -38,7 +43,6 @@ struct ToPreviewOptions {
 	bool generateImages = true;
 	bool ignoreGroup = false;
 	bool ignoreTopic = true;
-	bool ignoreForwardedMessage = false;
 	bool spoilerLoginCode = false;
 	bool translated = false;
 };

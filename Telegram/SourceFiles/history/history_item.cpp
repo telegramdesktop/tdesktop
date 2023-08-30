@@ -15,17 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_media_grouped.h"
-#include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/history_unread_things.h"
 #include "history/history.h"
 #include "mtproto/mtproto_config.h"
 #include "media/clip/media_clip_reader.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_isolated_emoji.h"
-#include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
@@ -41,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "core/crash_reports.h"
 #include "core/click_handler_types.h"
 #include "base/unixtime.h"
 #include "base/timer_rpl.h"
@@ -72,7 +68,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "payments/payments_checkout_process.h" // CheckoutProcess::Start.
 #include "styles/style_dialogs.h"
-#include "styles/style_chat.h"
 
 namespace {
 
@@ -2958,9 +2953,11 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 			? tr::lng_from_you(tr::now)
 			: sender->shortName();
 	};
-	if (!options.ignoreForwardedMessage) {
-		result.forwardedMessage = Get<HistoryMessageForwarded>() != nullptr;
-	}
+	result.icon = (Get<HistoryMessageForwarded>() != nullptr)
+		? ItemPreview::Icon::ForwardedMessage
+		: replyToStory().valid()
+		? ItemPreview::Icon::ReplyToStory
+		: ItemPreview::Icon::None;
 	const auto fromForwarded = [&]() -> std::optional<QString> {
 		if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 			return forwarded->originalSender

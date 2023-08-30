@@ -467,7 +467,12 @@ dialogsMiniForwardIcon: ThreeStateIcon {
 	over: icon {{ "mini_forward", dialogsTextFgOver, point(0px, 1px) }};
 	active: icon {{ "mini_forward", dialogsTextFgActive, point(0px, 1px) }};
 }
-dialogsMiniForwardIconSkip: 2px;
+dialogsMiniIconSkip: 2px;
+dialogsMiniReplyStoryIcon: ThreeStateIcon {
+	icon: icon {{ "mini_reply_story", dialogsTextFg, point(0px, 1px) }};
+	over: icon {{ "mini_reply_story", dialogsTextFgOver, point(0px, 1px) }};
+	active: icon {{ "mini_reply_story", dialogsTextFgActive, point(0px, 1px) }};
+}
 
 dialogsUnreadMention: ThreeStateIcon {
 	icon: icon{{ "dialogs/dialogs_mention", dialogsUnreadFg }};
