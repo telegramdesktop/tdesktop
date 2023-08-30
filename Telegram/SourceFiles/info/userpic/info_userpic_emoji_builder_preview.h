@@ -29,7 +29,7 @@ class PreviewPainter final {
 public:
 	PreviewPainter(int size);
 
-	[[nodiscard]] not_null<DocumentData*> document() const;
+	[[nodiscard]] DocumentData *document() const;
 
 	void setPlayOnce(bool value);
 	void setDocument(
