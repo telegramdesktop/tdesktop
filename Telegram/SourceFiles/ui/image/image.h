@@ -11,14 +11,6 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 
 class QPainterPath;
 
-namespace Images {
-
-[[nodiscard]] QByteArray ExpandInlineBytes(const QByteArray &bytes);
-[[nodiscard]] QImage FromInlineBytes(const QByteArray &bytes);
-[[nodiscard]] QPainterPath PathFromInlineBytes(const QByteArray &bytes);
-
-} // namespace Images
-
 class Image final {
 public:
 	explicit Image(const QString &path);
