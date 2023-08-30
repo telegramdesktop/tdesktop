@@ -15,14 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/filter_icons.h"
 #include "ui/text/text_utilities.h" // Ui::Text::Bold
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "styles/style_settings.h"
-#include "styles/style_payments.h" // paymentsSectionButton
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 
 namespace {
@@ -32,16 +29,30 @@ Data::ChatFilter ChangedFilter(
 		not_null<History*> history,
 		bool add) {
 	auto always = base::duplicate(filter.always());
-	if (add) {
-		always.insert(history);
-	} else {
-		always.remove(history);
-	}
 	auto never = base::duplicate(filter.never());
 	if (add) {
 		never.remove(history);
+		const auto result = Data::ChatFilter(
+			filter.id(),
+			filter.title(),
+			filter.iconEmoji(),
+			filter.flags(),
+			filter.always(),
+			filter.pinned(),
+			std::move(never));
+		if (result.contains(history)) {
+			return result;
+		} else {
+			never = base::duplicate(result.never());
+			always.insert(history);
+		}
 	} else {
-		never.insert(history);
+		const auto alwaysIt = always.find(history);
+		if (alwaysIt != end(always)) {
+			always.erase(alwaysIt);
+		} else {
+			never.insert(history);
+		}
 	}
 	return Data::ChatFilter(
 		filter.id(),
