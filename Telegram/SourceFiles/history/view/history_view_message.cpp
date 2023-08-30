@@ -759,7 +759,9 @@ QSize Message::performCountOptimalSize() {
 					: item->hiddenSenderInfo()->nameText();
 				auto namew = st::msgPadding.left()
 					+ name.maxWidth()
-					+ (_fromNameStatus ? st::dialogsPremiumIcon.width() : 0)
+					+ (_fromNameStatus
+						? st::dialogsPremiumIcon.icon.width()
+						: 0)
 					+ st::msgPadding.right();
 				if (via && !displayForwardedFrom()) {
 					namew += st::msgServiceFont->spacew + via->maxWidth
@@ -1358,7 +1360,7 @@ void Message::paintFromName(
 		return &info->nameText();
 	}();
 	const auto statusWidth = _fromNameStatus
-		? st::dialogsPremiumIcon.width()
+		? st::dialogsPremiumIcon.icon.width()
 		: 0;
 	if (statusWidth && availableWidth > statusWidth) {
 		const auto x = availableLeft
@@ -1398,7 +1400,7 @@ void Message::paintFromName(
 				.paused = context.paused || On(PowerSaving::kEmojiStatus),
 			});
 		} else {
-			st::dialogsPremiumIcon.paint(p, x, y, width(), color);
+			st::dialogsPremiumIcon.icon.paint(p, x, y, width(), color);
 		}
 		availableWidth -= statusWidth;
 	}
@@ -1407,7 +1409,8 @@ void Message::paintFromName(
 	nameText->drawElided(p, availableLeft, trect.top(), availableWidth);
 	const auto skipWidth = nameText->maxWidth()
 		+ (_fromNameStatus
-			? (st::dialogsPremiumIcon.width() + st::msgServiceFont->spacew)
+			? (st::dialogsPremiumIcon.icon.width()
+				+ st::msgServiceFont->spacew)
 			: 0)
 		+ st::msgServiceFont->spacew;
 	availableLeft += skipWidth;
@@ -3525,7 +3528,7 @@ void Message::fromNameUpdated(int width) const {
 				- st::msgPadding.right()
 				- nameText->maxWidth()
 				+ (_fromNameStatus
-					? (st::dialogsPremiumIcon.width()
+					? (st::dialogsPremiumIcon.icon.width()
 						+ st::msgServiceFont->spacew)
 					: 0)
 				- st::msgServiceFont->spacew);

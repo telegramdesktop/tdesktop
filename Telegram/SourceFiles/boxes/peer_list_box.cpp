@@ -763,8 +763,8 @@ int PeerListRow::paintNameIconGetWidth(
 				? st::dialogsVerifiedIconOver
 				: st::dialogsVerifiedIcon),
 			.premium = &(selected
-				? st::dialogsPremiumIconOver
-				: st::dialogsPremiumIcon),
+				? st::dialogsPremiumIcon.over
+				: st::dialogsPremiumIcon.icon),
 			.scam = &(selected ? st::dialogsScamFgOver : st::dialogsScamFg),
 			.premiumFg = &(selected
 				? st::dialogsVerifiedIconBgOver

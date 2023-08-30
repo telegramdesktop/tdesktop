@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
+#include "dialogs/dialogs_three_state_icon.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_topics_view.h"
 #include "ui/effects/spoiler_mess.h"
@@ -316,11 +317,10 @@ void MessageView::paint(
 	}
 
 	if (_displayMiniForwardIcon) {
-		const auto &icon = context.active
-			? st::dialogsMiniForwardIconActive
-			: context.selected
-			? st::dialogsMiniForwardIconOver
-			: st::dialogsMiniForwardIcon;
+		const auto &icon = ThreeStateIcon(
+			st::dialogsMiniForwardIcon,
+			context.active,
+			context.selected);
 		icon.paint(p, rect.topLeft(), rect.width());
 		rect.setLeft(rect.x()
 			+ icon.width()

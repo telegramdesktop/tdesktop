@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_inner_widget.h"
 
+#include "dialogs/dialogs_three_state_icon.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
@@ -1010,11 +1011,10 @@ void InnerWidget::paintPeerSearchResult(
 				: context.selected
 				? &st::dialogsVerifiedIconOver
 				: &st::dialogsVerifiedIcon),
-			.premium = (context.active
-				? &st::dialogsPremiumIconActive
-				: context.selected
-				? &st::dialogsPremiumIconOver
-				: &st::dialogsPremiumIcon),
+			.premium = &ThreeStateIcon(
+				st::dialogsPremiumIcon,
+				context.active,
+				context.selected),
 			.scam = (context.active
 				? &st::dialogsScamFgActive
 				: context.selected
