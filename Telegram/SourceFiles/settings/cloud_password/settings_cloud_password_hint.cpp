@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -79,9 +79,10 @@ void Hint::setupContent() {
 		currentStepDataHint);
 	const auto newInput = wrap->entity();
 	const auto error = AddError(content, nullptr);
-	QObject::connect(newInput, &Ui::InputField::changed, [=] {
+	newInput->changes(
+	) | rpl::start_with_next([=] {
 		error->hide();
-	});
+	}, newInput->lifetime());
 	AddSkipInsteadOfField(content);
 
 	const auto save = [=](const QString &hint) {
@@ -142,7 +143,7 @@ void Hint::setupContent() {
 	});
 
 	const auto submit = [=] { button->clicked({}, Qt::LeftButton); };
-	QObject::connect(newInput, &Ui::InputField::submitted, submit);
+	newInput->submits() | rpl::start_with_next(submit, newInput->lifetime());
 
 	setFocusCallback([=] { newInput->setFocus(); });
 

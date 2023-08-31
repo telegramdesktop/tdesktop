@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "storage/file_download.h" // kMaxFileInMemory
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"

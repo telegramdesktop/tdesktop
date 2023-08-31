@@ -51,7 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/padding_wrap.h"
@@ -519,10 +519,10 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 		result->entity(),
 		&_peer->session());
 
-	QObject::connect(
-		result->entity(),
-		&Ui::InputField::submitted,
-		[=] { submitTitle(); });
+	result->entity()->submits(
+	) | rpl::start_with_next([=] {
+		submitTitle();
+	}, result->entity()->lifetime());
 
 	_controls.title = result->entity();
 	return result;
@@ -555,10 +555,10 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 		result->entity(),
 		&_peer->session());
 
-	QObject::connect(
-		result->entity(),
-		&Ui::InputField::submitted,
-		[=] { submitDescription(); });
+	result->entity()->submits(
+	) | rpl::start_with_next([=] {
+		submitDescription();
+	}, result->entity()->lifetime());
 
 	_controls.description = result->entity();
 	return result;

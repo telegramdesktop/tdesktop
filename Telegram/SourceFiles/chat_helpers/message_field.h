@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "base/timer.h"
-#include "base/qt_connection.h"
 #include "chat_helpers/compose/compose_features.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
@@ -132,7 +131,7 @@ private:
 	int _lastLength = 0;
 	bool _disabled = false;
 	base::Timer _timer;
-	base::qt_connection _connection;
+	rpl::lifetime _lifetime;
 
 };
 

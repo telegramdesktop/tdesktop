@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -184,7 +184,8 @@ not_null<Ui::FlatLabel*> CreateWarningLabel(
 		QString(),
 		st::createPollWarning);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
-	QObject::connect(field, &Ui::InputField::changed, [=] {
+	field->changes(
+	) | rpl::start_with_next([=] {
 		Ui::PostponeCall(crl::guard(field, [=] {
 			const auto length = field->getLastText().size();
 			const auto value = valueLimit - length;
@@ -198,7 +199,7 @@ not_null<Ui::FlatLabel*> CreateWarningLabel(
 			}
 			result->setVisible(shown);
 		}));
-	});
+	}, field->lifetime());
 	return result;
 }
 
@@ -243,13 +244,14 @@ Options::Option::Option(
 		_content->resize(_content->width(), height);
 	}, _field->lifetime());
 
-	QObject::connect(_field, &Ui::InputField::changed, [=] {
+	_field->changes(
+	) | rpl::start_with_next([=] {
 		Ui::PostponeCall(crl::guard(_field, [=] {
 			if (_hasCorrect) {
 				_correct->toggle(isGood(), anim::type::normal);
 			}
 		}));
-	});
+	}, _field->lifetime());
 
 	createShadow();
 	createRemove();
@@ -303,10 +305,11 @@ void Options::Option::createRemove() {
 	const auto toggle = lifetime.make_state<rpl::variable<bool>>(false);
 	_removeAlways = lifetime.make_state<rpl::variable<bool>>(false);
 
-	QObject::connect(field, &Ui::InputField::changed, [=] {
+	field->changes(
+	) | rpl::start_with_next([field, toggle] {
 		// Don't capture 'this'! Because Option is a value type.
 		*toggle = !field->getLastText().isEmpty();
-	});
+	}, field->lifetime());
 	rpl::combine(
 		toggle->value(),
 		_removeAlways->value(),
@@ -649,28 +652,32 @@ void Options::addEmptyOption() {
 		_position + _list.size() + _destroyed.size(),
 		_chooseCorrectGroup));
 	const auto field = _list.back()->field();
-	QObject::connect(field, &Ui::InputField::submitted, [=] {
+	field->submits(
+	) | rpl::start_with_next([=] {
 		const auto index = findField(field);
 		if (_list[index]->isGood() && index + 1 < _list.size()) {
 			_list[index + 1]->setFocus();
 		}
-	});
-	QObject::connect(field, &Ui::InputField::changed, [=] {
+	}, field->lifetime());
+	field->changes(
+	) | rpl::start_with_next([=] {
 		Ui::PostponeCall(crl::guard(field, [=] {
 			validateState();
 		}));
-	});
-	QObject::connect(field, &Ui::InputField::focused, [=] {
+	}, field->lifetime());
+	field->focusedChanges(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
 		_scrollToWidget.fire_copy(field);
-	});
-	QObject::connect(field, &Ui::InputField::tabbed, [=] {
+	}, field->lifetime());
+	field->tabbed(
+	) | rpl::start_with_next([=] {
 		const auto index = findField(field);
 		if (index + 1 < _list.size()) {
 			_list[index + 1]->setFocus();
 		} else {
 			_tabbed.fire({});
 		}
-	});
+	}, field->lifetime());
 	base::install_event_filter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
 			|| !field->getLastText().isEmpty()) {
@@ -927,9 +934,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				st::boxDividerLabel),
 			st::createPollLimitPadding));
 
-	connect(question, &Ui::InputField::tabbed, [=] {
+	question->tabbed(
+	) | rpl::start_with_next([=] {
 		options->focusFirst();
-	});
+	}, question->lifetime());
 
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_polls_create_settings());
@@ -975,9 +983,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		}
 	}, question->lifetime());
 
-	connect(solution, &Ui::InputField::tabbed, [=] {
+	solution->tabbed(
+	) | rpl::start_with_next([=] {
 		question->setFocus();
-	});
+	}, solution->lifetime());
 
 	quiz->setDisabled(_disabled & PollData::Flag::Quiz);
 	if (multiple) {
@@ -1009,12 +1018,12 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		const auto text = question->getLastText().trimmed();
 		return !text.isEmpty() && (text.size() <= kQuestionLimit);
 	};
-
-	connect(question, &Ui::InputField::submitted, [=] {
+	question->submits(
+	) | rpl::start_with_next([=] {
 		if (isValidQuestion()) {
 			options->focusFirst();
 		}
-	});
+	}, question->lifetime());
 
 	_setInnerFocus = [=] {
 		question->setFocusFast();

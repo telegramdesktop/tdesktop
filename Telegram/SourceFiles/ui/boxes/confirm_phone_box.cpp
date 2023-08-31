@@ -73,7 +73,8 @@ void ConfirmPhoneBox::prepare() {
 			+ st::usernameSkip
 			+ (_fragment ? (_fragment->height() + fragmentSkip()) : 0));
 
-	connect(_code, &Ui::InputField::submitted, [=] { sendCode(); });
+	_code->submits(
+	) | rpl::start_with_next([=] { sendCode(); }, _code->lifetime());
 
 	showChildren();
 }

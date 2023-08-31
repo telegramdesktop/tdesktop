@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_forum_topic_box.h"
 
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/emoji_fly_animation.h"
 #include "ui/abstract_button.h"
@@ -465,15 +465,13 @@ void EditForumTopicBox(
 			ChooseNextColorId(current.colorId, state->otherColorIds),
 		};
 	});
-	base::qt_signal_producer(
-		title,
-		&Ui::InputField::changed
+	title->changes(
 	) | rpl::start_with_next([=] {
 		state->defaultIcon = DefaultIcon{
 			title->getLastText().trimmed(),
 			state->defaultIcon.current().colorId,
 		};
-	}, box->lifetime());
+	}, title->lifetime());
 
 	if (!topic || !topic->isGeneral()) {
 		Settings::AddDividerText(

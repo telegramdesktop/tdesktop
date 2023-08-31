@@ -60,7 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/text/format_values.h"
 #include "ui/controls/emoji_button.h"
@@ -1250,7 +1250,7 @@ bool ComposeControls::focused() const {
 }
 
 rpl::producer<bool> ComposeControls::focusedValue() const {
-	return rpl::single(focused()) | rpl::then(_focusChanges.events());
+	return rpl::single(focused()) | rpl::then(_field->focusedChanges());
 }
 
 rpl::producer<bool> ComposeControls::tabbedPanelShownValue() const {
@@ -1291,12 +1291,9 @@ auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 		return (_send->type() == type) && (sendRequestType == requestType);
 	});
 	auto map = rpl::map_to(Api::SendOptions());
-	auto submits = base::qt_signal_producer(
-		_field.get(),
-		&Ui::InputField::submitted);
 	return rpl::merge(
 		_send->clicks() | filter | map,
-		std::move(submits) | filter | map,
+		_field->submits() | filter | map,
 		_sendCustomRequests.events());
 }
 
@@ -1317,12 +1314,9 @@ rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 	auto filter = rpl::filter([=] {
 		return _send->type() == Ui::SendButton::Type::Save;
 	});
-	auto submits = base::qt_signal_producer(
-		_field.get(),
-		&Ui::InputField::submitted);
 	return rpl::merge(
 		_send->clicks() | filter | toValue,
-		std::move(submits) | filter | toValue);
+		_field->submits() | filter | toValue);
 }
 
 rpl::producer<std::optional<bool>> ComposeControls::attachRequests() const {
@@ -1776,17 +1770,22 @@ void ComposeControls::initKeyHandler() {
 void ComposeControls::initField() {
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 	updateSubmitSettings();
-	//Ui::Connect(_field, &Ui::InputField::submitted, [=] { send(); });
-	Ui::Connect(_field, &Ui::InputField::cancelled, [=] { escape(); });
-	Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });
-	Ui::Connect(_field, &Ui::InputField::resized, [=] { updateHeight(); });
-	Ui::Connect(_field, &Ui::InputField::focused, [=] {
-		_focusChanges.fire(true);
-	});
-	Ui::Connect(_field, &Ui::InputField::blurred, [=] {
-		_focusChanges.fire(false);
-	});
-	Ui::Connect(_field, &Ui::InputField::changed, [=] { fieldChanged(); });
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
+		escape();
+	}, _field->lifetime());
+	_field->tabbed(
+	) | rpl::start_with_next([=] {
+		fieldTabbed();
+	}, _field->lifetime());
+	_field->heightChanges(
+	) | rpl::start_with_next([=] {
+		updateHeight();
+	}, _field->lifetime());
+	_field->changes(
+	) | rpl::start_with_next([=] {
+		fieldChanged();
+	}, _field->lifetime());
 	InitMessageField(_show, _field, [=](not_null<DocumentData*> emoji) {
 		if (_history && Data::AllowEmojiWithoutPremium(_history->peer)) {
 			return true;

@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/ui_utility.h"
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -40,6 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeData>
 #include <QtGui/QWindow>
 #include <QtWidgets/QMenuBar>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QTextEdit>
 
 #include <glibmm.h>
 #include <giomm.h>

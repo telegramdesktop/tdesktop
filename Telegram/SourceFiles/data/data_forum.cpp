@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "window/window_session_controller.h"

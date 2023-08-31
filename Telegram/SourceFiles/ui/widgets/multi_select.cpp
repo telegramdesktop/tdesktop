@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_animation.h"
@@ -453,7 +453,6 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
-	void submitted(Qt::KeyboardModifiers modifiers);
 	void cancelled();
 	void queryChanged();
 	void fieldFocused();
@@ -659,10 +658,24 @@ MultiSelect::Inner::Inner(
 , _field(this, _st.field, std::move(placeholder), query)
 , _cancel(this, _st.fieldCancel) {
 	_field->customUpDown(true);
-	connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
-	connect(_field, &Ui::InputField::changed, [=] { queryChanged(); });
-	connect(_field, &Ui::InputField::submitted, this, &Inner::submitted);
-	connect(_field, &Ui::InputField::cancelled, this, &Inner::cancelled);
+	_field->focusedChanges(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
+		fieldFocused();
+	}, _field->lifetime());
+	_field->changes(
+	) | rpl::start_with_next([=] {
+		queryChanged();
+	}, _field->lifetime());
+	_field->submits(
+	) | rpl::start_with_next([=](Qt::KeyboardModifiers m) {
+		if (_submittedCallback) {
+			_submittedCallback(m);
+		}
+	}, _field->lifetime());
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
+		cancelled();
+	}, _field->lifetime());
 	_cancel->setClickedCallback([=] {
 		clearQuery();
 		_field->setFocus();
@@ -871,12 +884,6 @@ void MultiSelect::Inner::keyPressEvent(QKeyEvent *e) {
 		setActiveItemPrevious();
 	} else {
 		e->ignore();
-	}
-}
-
-void MultiSelect::Inner::submitted(Qt::KeyboardModifiers modifiers) {
-	if (_submittedCallback) {
-		_submittedCallback(modifiers);
 	}
 }
 

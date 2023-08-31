@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/send_files_box.h"
 #include "history/view/history_view_quick_action.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "storage/serialize_common.h"
 #include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"

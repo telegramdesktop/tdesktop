@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"

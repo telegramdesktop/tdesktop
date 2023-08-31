@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/effects/panel_animation.h"
 #include "ui/filter_icons.h"
@@ -619,11 +619,12 @@ void EditFilterBox(
 		nameEditing->custom = true;
 	}, box->lifetime());
 
-	QObject::connect(name, &Ui::InputField::changed, [=] {
+	name->changes(
+	) | rpl::start_with_next([=] {
 		if (!nameEditing->settingDefault) {
 			nameEditing->custom = true;
 		}
-	});
+	}, name->lifetime());
 	const auto updateDefaultTitle = [=](const Data::ChatFilter &filter) {
 		if (nameEditing->custom) {
 			return;

@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
@@ -1030,17 +1030,21 @@ void SendFilesBox::setupCaption() {
 		Core::App().settings().sendSubmitWay());
 	_caption->setMaxLength(kMaxMessageLength);
 
-	connect(_caption, &Ui::InputField::resized, [=] {
+	_caption->heightChanges(
+	) | rpl::start_with_next([=] {
 		captionResized();
-	});
-	connect(_caption, &Ui::InputField::submitted, [=](
-			Qt::KeyboardModifiers modifiers) {
+	}, _caption->lifetime());
+	_caption->submits(
+	) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
 		const auto ctrlShiftEnter = modifiers.testFlag(Qt::ShiftModifier)
 			&& (modifiers.testFlag(Qt::ControlModifier)
 				|| modifiers.testFlag(Qt::MetaModifier));
 		send({}, ctrlShiftEnter);
-	});
-	connect(_caption, &Ui::InputField::cancelled, [=] { closeBox(); });
+	}, _caption->lifetime());
+	_caption->cancelled(
+	) | rpl::start_with_next([=] {
+		closeBox();
+	}, _caption->lifetime());
 	_caption->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {

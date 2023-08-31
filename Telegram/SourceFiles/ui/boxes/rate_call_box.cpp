@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "styles/style_layers.h"
 #include "styles/style_calls.h"
 
@@ -92,11 +92,16 @@ void RateCallBox::ratingChanged(int value) {
 				_comment->height());
 
 			updateMaxHeight();
-			connect(_comment, &InputField::resized, [=] {
+			_comment->heightChanges(
+			) | rpl::start_with_next([=] {
 				commentResized();
-			});
-			connect(_comment, &InputField::submitted, [=] { send(); });
-			connect(_comment, &InputField::cancelled, [=] { closeBox(); });
+			}, _comment->lifetime());
+			_comment->submits(
+			) | rpl::start_with_next([=] { send(); }, _comment->lifetime());
+			_comment->cancelled(
+			) | rpl::start_with_next([=] {
+				closeBox();
+			}, _comment->lifetime());
 		}
 		_comment->setFocusFast();
 	} else if (_comment) {

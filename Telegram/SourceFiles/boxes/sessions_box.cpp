@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
@@ -144,7 +144,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 		Core::App().settings().setCustomDeviceModel(result);
 		Core::App().saveSettingsDelayed();
 	};
-	QObject::connect(name, &Ui::InputField::submitted, submit);
+	name->submits() | rpl::start_with_next(submit, name->lifetime());
 	box->addButton(tr::lng_settings_save(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

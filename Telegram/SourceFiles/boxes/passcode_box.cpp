@@ -21,10 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/sent_code_field.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
 #include "passport/passport_encryption.h"
@@ -306,15 +305,26 @@ void PasscodeBox::prepare() {
 	connect(_oldPasscode, &Ui::MaskedInputField::changed, [=] { oldChanged(); });
 	connect(_newPasscode, &Ui::MaskedInputField::changed, [=] { newChanged(); });
 	connect(_reenterPasscode, &Ui::MaskedInputField::changed, [=] { newChanged(); });
-	connect(_passwordHint, &Ui::InputField::changed, [=] { newChanged(); });
-	connect(_recoverEmail, &Ui::InputField::changed, [=] { emailChanged(); });
+	_passwordHint->changes(
+	) | rpl::start_with_next([=] {
+		newChanged();
+	}, _passwordHint->lifetime());
+	_recoverEmail->changes(
+	) | rpl::start_with_next([=] {
+		if (!_emailError.isEmpty()) {
+			_emailError = QString();
+			update();
+		}
+	}, _recoverEmail->lifetime());
 
 	const auto fieldSubmit = [=] { submit(); };
 	connect(_oldPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
 	connect(_newPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
 	connect(_reenterPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
-	connect(_passwordHint, &Ui::InputField::submitted, fieldSubmit);
-	connect(_recoverEmail, &Ui::InputField::submitted, fieldSubmit);
+	_passwordHint->submits(
+	) | rpl::start_with_next(fieldSubmit, _passwordHint->lifetime());
+	_recoverEmail->submits(
+	) | rpl::start_with_next(fieldSubmit, _recoverEmail->lifetime());
 
 	_recover->addClickHandler([=] { recoverByEmail(); });
 
@@ -1061,13 +1071,6 @@ void PasscodeBox::newChanged() {
 	}
 }
 
-void PasscodeBox::emailChanged() {
-	if (!_emailError.isEmpty()) {
-		_emailError = QString();
-		update();
-	}
-}
-
 void PasscodeBox::recoverByEmail() {
 	if (!_cloudFields.hasRecovery) {
 		Assert(_session != nullptr);
@@ -1189,8 +1192,12 @@ void RecoverBox::prepare() {
 			+ _recoverCode->height()
 			+ st::passcodeTextLine));
 
-	connect(_recoverCode, &Ui::InputField::changed, [=] { codeChanged(); });
-	connect(_recoverCode, &Ui::InputField::submitted, [=] { submit(); });
+	_recoverCode->changes(
+	) | rpl::start_with_next([=] {
+		codeChanged();
+	}, _recoverCode->lifetime());
+	_recoverCode->submits(
+	) | rpl::start_with_next([=] { submit(); }, _recoverCode->lifetime());
 }
 
 void RecoverBox::paintEvent(QPaintEvent *e) {

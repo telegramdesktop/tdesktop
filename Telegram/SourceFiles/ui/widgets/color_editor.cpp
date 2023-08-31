@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/masked_input_field.h"
 #include "ui/widgets/shadow.h"
 #include "styles/style_boxes.h"
 #include "styles/style_media_view.h"

@@ -54,7 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -488,9 +488,16 @@ void EditCaptionBox::setupField() {
 		Core::App().settings().sendSubmitWay());
 	_field->setMaxHeight(st::defaultComposeFiles.caption.heightMax);
 
-	connect(_field, &Ui::InputField::submitted, [=] { save(); });
-	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
-	connect(_field, &Ui::InputField::resized, [=] { captionResized(); });
+	_field->submits(
+	) | rpl::start_with_next([=] { save(); }, _field->lifetime());
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
+		closeBox();
+	}, _field->lifetime());
+	_field->heightChanges(
+	) | rpl::start_with_next([=] {
+		captionResized();
+	}, _field->lifetime());
 	_field->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
@@ -522,10 +529,11 @@ void EditCaptionBox::setInitialText() {
 			setCloseByOutsideClick(true);
 		}
 	});
-	connect(_field, &Ui::InputField::changed, [=] {
+	_field->changes(
+	) | rpl::start_with_next([=] {
 		_checkChangedTimer.callOnce(kChangesDebounceTimeout);
 		setCloseByOutsideClick(false);
-	});
+	}, _field->lifetime());
 }
 
 void EditCaptionBox::setupControls() {

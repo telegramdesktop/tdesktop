@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -1105,9 +1105,16 @@ void Notification::showReplyField() {
 
 	// Catch mouse press event to activate the window.
 	QCoreApplication::instance()->installEventFilter(this);
-	connect(_replyArea, &Ui::InputField::resized, [=] { replyResized(); });
-	connect(_replyArea, &Ui::InputField::submitted, [=] { sendReply(); });
-	connect(_replyArea, &Ui::InputField::cancelled, [=] { replyCancel(); });
+	_replyArea->heightChanges(
+	) | rpl::start_with_next([=] {
+		replyResized();
+	}, _replyArea->lifetime());
+	_replyArea->submits(
+	) | rpl::start_with_next([=] { sendReply(); }, _replyArea->lifetime());
+	_replyArea->cancelled(
+	) | rpl::start_with_next([=] {
+		replyCancel();
+	}, _replyArea->lifetime());
 
 	_replySend.create(this, st::notifySendReply);
 	_replySend->moveToRight(st::notifyBorderWidth, st::notifyMinHeight);

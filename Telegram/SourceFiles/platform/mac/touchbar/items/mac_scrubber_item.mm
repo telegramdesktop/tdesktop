@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/touchbar/mac_touchbar_common.h"
 #include "styles/style_basic.h"
 #include "styles/style_settings.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "window/section_widget.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -46,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #import <AppKit/NSScrubberLayout.h>
 #import <AppKit/NSSegmentedControl.h>
 #import <AppKit/NSTextField.h>
+
+#include <QtWidgets/QTextEdit>
 
 using TouchBar::kCircleDiameter;
 using TouchBar::CreateNSImageFromStyleIcon;

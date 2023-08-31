@@ -8,15 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_password_check.h"
 
 #include "intro/intro_widget.h"
-#include "core/file_utilities.h"
 #include "core/core_cloud_password.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "intro/intro_signup.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
-#include "ui/widgets/labels.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/password_input.h"
 #include "main/main_account.h"
 #include "base/random.h"
 #include "styles/style_intro.h"
@@ -46,7 +45,10 @@ PasswordCheckWidget::PasswordCheckWidget(
 	_toRecover->addClickHandler([=] { toRecover(); });
 	_toPassword->addClickHandler([=] { toPassword(); });
 	connect(_pwdField, &Ui::PasswordInput::changed, [=] { hideError(); });
-	connect(_codeField, &Ui::InputField::changed, [=] { hideError(); });
+	_codeField->changes(
+	) | rpl::start_with_next([=] {
+		hideError();
+	}, _codeField->lifetime());
 
 	setTitleText(tr::lng_signin_title());
 	updateDescriptionText();

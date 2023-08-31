@@ -136,9 +136,10 @@ void EmailConfirm::setupContent() {
 			std::move(objectInput)));
 
 	const auto error = AddError(content, nullptr);
-	QObject::connect(newInput, &Ui::InputField::changed, [=] {
+	newInput->changes(
+	) | rpl::start_with_next([=] {
 		error->hide();
-	});
+	}, newInput->lifetime());
 	AddSkipInsteadOfField(content);
 
 	const auto resendInfo = Ui::CreateChild<Ui::FlatLabel>(
@@ -326,7 +327,7 @@ void EmailConfirm::setupContent() {
 
 	const auto submit = [=] { button->clicked({}, Qt::LeftButton); };
 	newInput->setAutoSubmit(currentStepDataCodeLength, submit);
-	QObject::connect(newInput, &Ui::InputField::submitted, submit);
+	newInput->submits() | rpl::start_with_next(submit, newInput->lifetime());
 
 	setFocusCallback([=] { newInput->setFocus(); });
 
