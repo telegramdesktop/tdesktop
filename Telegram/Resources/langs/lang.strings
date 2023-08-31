@@ -2759,6 +2759,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_payments_terms_title" = "Terms of Service";
 "lng_payments_terms_text" = "Subscribe and accept terms of service of {bot}?";
+"lng_payments_terms_text_once" = "Are you accepting terms of service of {bot}?";
 "lng_payments_terms_agree" = "I agree to {link}";
 "lng_payments_terms_link" = "Terms of Service";
 "lng_payments_terms_accept" = "Accept";
@@ -3091,9 +3092,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gigagroup_suggest_more" = "Learn more";
 
 "lng_rights_channel_info" = "Change channel info";
+"lng_rights_channel_manage" = "Manage messages";
 "lng_rights_channel_post" = "Post messages";
 "lng_rights_channel_edit" = "Edit messages of others";
 "lng_rights_channel_delete" = "Delete messages of others";
+"lng_rights_channel_manage_stories" = "Manage stories";
+"lng_rights_channel_post_stories" = "Post stories";
+"lng_rights_channel_edit_stories" = "Edit stories of others";
+"lng_rights_channel_delete_stories" = "Delete stories of others";
 "lng_rights_channel_manage_calls" = "Manage live streams";
 "lng_rights_group_info" = "Change group info";
 "lng_rights_group_ban" = "Ban users";
@@ -3352,6 +3358,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_post_messages" = "Post messages";
 "lng_admin_log_admin_edit_messages" = "Edit messages";
 "lng_admin_log_admin_delete_messages" = "Delete messages";
+"lng_admin_log_admin_post_stories" = "Post stories";
+"lng_admin_log_admin_edit_stories" = "Edit stories";
+"lng_admin_log_admin_delete_stories" = "Delete stories";
 "lng_admin_log_admin_remain_anonymous" = "Remain anonymous";
 "lng_admin_log_admin_ban_users" = "Ban users";
 "lng_admin_log_admin_invite_users" = "Add members";

@@ -18,9 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
-#include "data/data_user.h"
 #include "history/view/reactions/history_view_reactions_strip.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -62,7 +62,7 @@ constexpr auto kSiblingMultiplierMax = 0.72;
 constexpr auto kSiblingOutsidePart = 0.24;
 constexpr auto kSiblingUserpicSize = 0.3;
 constexpr auto kInnerHeightMultiplier = 1.6;
-constexpr auto kPreloadUsersCount = 3;
+constexpr auto kPreloadPeersCount = 3;
 constexpr auto kPreloadStoriesCount = 5;
 constexpr auto kPreloadNextMediaCount = 3;
 constexpr auto kPreloadPreviousMediaCount = 1;
@@ -140,10 +140,10 @@ private:
 
 class Controller::Unsupported final {
 public:
-	Unsupported(not_null<Controller*> controller, not_null<UserData*> user);
+	Unsupported(not_null<Controller*> controller, not_null<PeerData*> peer);
 
 private:
-	void setup(not_null<UserData*> user);
+	void setup(not_null<PeerData*> peer);
 
 	const not_null<Controller*> _controller;
 	std::unique_ptr<Ui::RpWidget> _bg;
@@ -206,13 +206,13 @@ void Controller::PhotoPlayback::callback() {
 
 Controller::Unsupported::Unsupported(
 	not_null<Controller*> controller,
-	not_null<UserData*> user)
+	not_null<PeerData*> peer)
 : _controller(controller)
 , _bgRound(st::storiesRadius, st::storiesComposeBg) {
-	setup(user);
+	setup(peer);
 }
 
-void Controller::Unsupported::setup(not_null<UserData*> user) {
+void Controller::Unsupported::setup(not_null<PeerData*> peer) {
 	const auto wrap = _controller->wrap();
 
 	_bg = std::make_unique<Ui::RpWidget>(wrap);
@@ -596,8 +596,8 @@ void Controller::toggleLiked() {
 void Controller::reactionChosen(ReactionsMode mode, ChosenReaction chosen) {
 	if (mode == ReactionsMode::Message) {
 		_replyArea->sendReaction(chosen.id);
-	} else if (const auto user = shownUser()) {
-		user->owner().stories().sendReaction(_shown, chosen.id);
+	} else if (const auto peer = shownPeer()) {
+		peer->owner().stories().sendReaction(_shown, chosen.id);
 	}
 	unfocusReply();
 }
@@ -638,11 +638,11 @@ auto Controller::cachedReactionIconFactory() const
 }
 
 void Controller::rebuildFromContext(
-		not_null<UserData*> user,
+		not_null<PeerData*> peer,
 		FullStoryId storyId) {
 	using namespace Data;
 
-	auto &stories = user->owner().stories();
+	auto &stories = peer->owner().stories();
 	auto list = std::optional<StoriesList>();
 	auto source = (const StoriesSource*)nullptr;
 	const auto peerId = storyId.peer;
@@ -659,7 +659,7 @@ void Controller::rebuildFromContext(
 				const auto i = ids.find(id);
 				if (i != end(ids)) {
 					list = StoriesList{
-						.user = user,
+						.peer = peer,
 						.ids = *saved,
 						.total = stories.savedCount(peerId),
 					};
@@ -673,7 +673,7 @@ void Controller::rebuildFromContext(
 		}
 		hideSiblings();
 	}, [&](StoriesContextArchive) {
-		Expects(user->isSelf());
+		Expects(peer->isSelf());
 
 		if (stories.archiveCountKnown()) {
 			const auto &archive = stories.archive();
@@ -681,7 +681,7 @@ void Controller::rebuildFromContext(
 			const auto i = ids.find(id);
 			if (i != end(ids)) {
 				list = StoriesList{
-					.user = user,
+					.peer = peer,
 					.ids = archive,
 					.total = stories.archiveCount(),
 				};
@@ -706,8 +706,8 @@ void Controller::rebuildFromContext(
 			}
 			rebuildCachedSourcesList(sources, (i - begin(sources)));
 			_cachedSourcesList[_cachedSourceIndex].shownId = storyId.story;
-			showSiblings(&user->session());
-			if (int(sources.end() - i) < kPreloadUsersCount) {
+			showSiblings(&peer->session());
+			if (int(sources.end() - i) < kPreloadPeersCount) {
 				stories.loadMore(list);
 			}
 		}
@@ -719,7 +719,7 @@ void Controller::rebuildFromContext(
 		if (_list != list) {
 			_list = std::move(list);
 		}
-		if (const auto maybe = user->owner().stories().lookup(storyId)) {
+		if (const auto maybe = peer->owner().stories().lookup(storyId)) {
 			const auto now = *maybe;
 			const auto range = ComputeSameDayRange(now, _list->ids, _index);
 			_sliderCount = range.till - range.from + 1;
@@ -737,7 +737,7 @@ void Controller::rebuildFromContext(
 		if (!source) {
 			_source = std::nullopt;
 			_list = StoriesList{
-				.user = user,
+				.peer = peer,
 				.ids = { { id } },
 				.total = 1,
 			};
@@ -761,17 +761,17 @@ void Controller::preloadNext() {
 
 	auto ids = std::vector<FullStoryId>();
 	ids.reserve(kPreloadPreviousMediaCount + kPreloadNextMediaCount);
-	const auto user = shownUser();
+	const auto peer = shownPeer();
 	const auto count = shownCount();
 	const auto till = std::min(_index + kPreloadNextMediaCount, count);
 	for (auto i = _index + 1; i != till; ++i) {
-		ids.push_back({ .peer = user->id, .story = shownId(i) });
+		ids.push_back({ .peer = peer->id, .story = shownId(i) });
 	}
 	const auto from = std::max(_index - kPreloadPreviousMediaCount, 0);
 	for (auto i = _index; i != from;) {
-		ids.push_back({ .peer = user->id, .story = shownId(--i) });
+		ids.push_back({ .peer = peer->id, .story = shownId(--i) });
 	}
-	user->owner().stories().setPreloadingInViewer(std::move(ids));
+	peer->owner().stories().setPreloadingInViewer(std::move(ids));
 }
 
 void Controller::checkMoveByDelta() {
@@ -786,18 +786,18 @@ void Controller::show(
 		Data::StoriesContext context) {
 	auto &stories = story->owner().stories();
 	const auto storyId = story->fullId();
-	const auto user = story->peer()->asUser();
+	const auto peer = story->peer();
 	_context = context;
 	_waitingForId = {};
 	_waitingForDelta = 0;
 
-	rebuildFromContext(user, storyId);
+	rebuildFromContext(peer, storyId);
 	_contextLifetime.destroy();
 	const auto subscribeToSource = [&] {
 		stories.sourceChanged() | rpl::filter(
 			rpl::mappers::_1 == storyId.peer
 		) | rpl::start_with_next([=] {
-			rebuildFromContext(user, storyId);
+			rebuildFromContext(peer, storyId);
 		}, _contextLifetime);
 	};
 	v::match(_context.data, [&](Data::StoriesContextSingle) {
@@ -807,13 +807,13 @@ void Controller::show(
 		stories.savedChanged() | rpl::filter(
 			rpl::mappers::_1 == storyId.peer
 		) | rpl::start_with_next([=] {
-			rebuildFromContext(user, storyId);
+			rebuildFromContext(peer, storyId);
 			checkMoveByDelta();
 		}, _contextLifetime);
 	}, [&](Data::StoriesContextArchive) {
 		stories.archiveChanged(
 		) | rpl::start_with_next([=] {
-			rebuildFromContext(user, storyId);
+			rebuildFromContext(peer, storyId);
 			checkMoveByDelta();
 		}, _contextLifetime);
 	}, [&](Data::StorySourcesList) {
@@ -834,7 +834,7 @@ void Controller::show(
 	if (!unsupported) {
 		_unsupported = nullptr;
 	} else {
-		_unsupported = std::make_unique<Unsupported>(this, user);
+		_unsupported = std::make_unique<Unsupported>(this, peer);
 		_header->raise();
 		_slider->raise();
 	}
@@ -845,7 +845,7 @@ void Controller::show(
 	_contentFadeAnimation.stop();
 	const auto document = story->document();
 	_header->show({
-		.user = user,
+		.peer = peer,
 		.date = story->date(),
 		.fullIndex = _sliderCount ? _index : 0,
 		.fullCount = _sliderCount ? shownCount() : 0,
@@ -866,7 +866,7 @@ void Controller::show(
 	}
 
 	_replyArea->show({
-		.user = unsupported ? nullptr : user,
+		.peer = unsupported ? nullptr : peer.get(),
 		.id = story->id(),
 	}, _reactions->likedValue());
 
@@ -874,13 +874,13 @@ void Controller::show(
 		.list = story->recentViewers(),
 		.reactions = story->reactions(),
 		.total = story->views(),
-		.valid = user->isSelf(),
+		.valid = peer->isSelf(),
 	});
 
 	stories.loadAround(storyId, context);
 
 	updatePlayingAllowed();
-	user->updateFull();
+	peer->updateFull();
 }
 
 bool Controller::changeShown(Data::Story *story) {
@@ -1129,7 +1129,7 @@ void Controller::markAsRead() {
 		return;
 	}
 	_viewed = true;
-	shownUser()->owner().stories().markAsRead(_shown, _started);
+	shownPeer()->owner().stories().markAsRead(_shown, _started);
 }
 
 bool Controller::subjumpAvailable(int delta) const {
@@ -1169,12 +1169,12 @@ void Controller::subjumpTo(int index) {
 	Expects(shown());
 	Expects(index >= 0 && index < shownCount());
 
-	const auto user = shownUser();
+	const auto peer = shownPeer();
 	const auto id = FullStoryId{
-		.peer = user->id,
+		.peer = peer->id,
 		.story = shownId(index),
 	};
-	auto &stories = user->owner().stories();
+	auto &stories = peer->owner().stories();
 	if (!id.story) {
 		const auto delta = index - _index;
 		if (_waitingForDelta != delta) {
@@ -1183,7 +1183,7 @@ void Controller::subjumpTo(int index) {
 			loadMoreToList();
 		}
 	} else if (stories.lookup(id)) {
-		_delegate->storiesJumpTo(&user->session(), id, _context);
+		_delegate->storiesJumpTo(&peer->session(), id, _context);
 	} else if (_waitingForId != id) {
 		_waitingForId = id;
 		_waitingForDelta = 0;
@@ -1195,8 +1195,8 @@ void Controller::checkWaitingFor() {
 	Expects(_waitingForId.valid());
 	Expects(shown());
 
-	const auto user = shownUser();
-	auto &stories = user->owner().stories();
+	const auto peer = shownPeer();
+	auto &stories = peer->owner().stories();
 	const auto maybe = stories.lookup(_waitingForId);
 	if (!maybe) {
 		if (maybe.error() == Data::NoStory::Deleted) {
@@ -1205,7 +1205,7 @@ void Controller::checkWaitingFor() {
 		return;
 	}
 	_delegate->storiesJumpTo(
-		&user->session(),
+		&peer->session(),
 		base::take(_waitingForId),
 		_context);
 }
@@ -1290,8 +1290,8 @@ const Data::StoryViews &Controller::views(int limit, bool initial) {
 	if (_viewsSlice.total > _viewsSlice.list.size()
 		&& _viewsSlice.list.size() < limit) {
 		const auto done = viewsGotMoreCallback();
-		const auto user = shownUser();
-		auto &stories = user->owner().stories();
+		const auto peer = shownPeer();
+		auto &stories = peer->owner().stories();
 		stories.loadViewsSlice(_shown.story, _viewsSlice.nextOffset, done);
 	}
 	return _viewsSlice;
@@ -1304,8 +1304,8 @@ rpl::producer<> Controller::moreViewsLoaded() const {
 Fn<void(Data::StoryViews)> Controller::viewsGotMoreCallback() {
 	return crl::guard(&_viewsLoadGuard, [=](Data::StoryViews result) {
 		if (_viewsSlice.list.empty()) {
-			const auto user = shownUser();
-			auto &stories = user->owner().stories();
+			const auto peer = shownPeer();
+			auto &stories = peer->owner().stories();
 			if (const auto maybeStory = stories.lookup(_shown)) {
 				_viewsSlice = (*maybeStory)->viewsList();
 			} else {
@@ -1329,11 +1329,11 @@ bool Controller::shown() const {
 	return _source || _list;
 }
 
-UserData *Controller::shownUser() const {
+PeerData *Controller::shownPeer() const {
 	return _source
-		? _source->user.get()
+		? _source->peer.get()
 		: _list
-		? _list->user.get()
+		? _list->peer.get()
 		: nullptr;
 }
 
@@ -1356,13 +1356,13 @@ void Controller::loadMoreToList() {
 
 	using namespace Data;
 
-	const auto user = shownUser();
+	const auto peer = shownPeer();
 	const auto peerId = _shown.peer;
-	auto &stories = user->owner().stories();
+	auto &stories = peer->owner().stories();
 	v::match(_context.data, [&](StoriesContextSaved) {
 		stories.savedLoadMore(peerId);
 	}, [&](StoriesContextArchive) {
-		Expects(user->isSelf());
+		Expects(peer->isSelf());
 
 		stories.archiveLoadMore();
 	}, [](const auto &) {
@@ -1462,10 +1462,10 @@ void Controller::rebuildCachedSourcesList(
 void Controller::refreshViewsFromData() {
 	Expects(shown());
 
-	const auto user = shownUser();
-	auto &stories = user->owner().stories();
+	const auto peer = shownPeer();
+	auto &stories = peer->owner().stories();
 	const auto maybeStory = stories.lookup(_shown);
-	if (!maybeStory || !user->isSelf()) {
+	if (!maybeStory || !peer->isSelf()) {
 		_viewsSlice = {};
 	} else {
 		_viewsSlice = (*maybeStory)->viewsList();

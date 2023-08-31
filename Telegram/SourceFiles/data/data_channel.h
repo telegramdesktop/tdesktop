@@ -59,6 +59,9 @@ enum class ChannelDataFlag {
 	Forum = (1 << 23),
 	AntiSpam = (1 << 24),
 	ParticipantsHidden = (1 << 25),
+	StoriesHidden = (1 << 26),
+	HasActiveStories = (1 << 27),
+	HasUnreadStories = (1 << 28),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -226,6 +229,9 @@ public:
 	[[nodiscard]] bool isFake() const {
 		return flags() & Flag::Fake;
 	}
+	[[nodiscard]] bool hasStoriesHidden() const {
+		return flags() & Flag::StoriesHidden;
+	}
 
 	[[nodiscard]] static ChatRestrictionsInfo KickedRestrictedRights(
 		not_null<PeerData*> participant);
@@ -329,10 +335,13 @@ public:
 	[[nodiscard]] bool canBanMembers() const;
 	[[nodiscard]] bool anyoneCanAddMembers() const;
 
+	[[nodiscard]] bool canPostMessages() const;
 	[[nodiscard]] bool canEditMessages() const;
 	[[nodiscard]] bool canDeleteMessages() const;
+	[[nodiscard]] bool canPostStories() const;
+	[[nodiscard]] bool canEditStories() const;
+	[[nodiscard]] bool canDeleteStories() const;
 	[[nodiscard]] bool hiddenPreHistory() const;
-	[[nodiscard]] bool canPublish() const;
 	[[nodiscard]] bool canViewMembers() const;
 	[[nodiscard]] bool canViewAdmins() const;
 	[[nodiscard]] bool canViewBanned() const;
@@ -436,6 +445,10 @@ public:
 
 	void setAllowedReactions(Data::AllowedReactions value);
 	[[nodiscard]] const Data::AllowedReactions &allowedReactions() const;
+
+	[[nodiscard]] bool hasActiveStories() const;
+	[[nodiscard]] bool hasUnreadStories() const;
+	void setStoriesState(StoriesState state);
 
 	[[nodiscard]] Data::Forum *forum() const {
 		return mgInfo ? mgInfo->forum() : nullptr;

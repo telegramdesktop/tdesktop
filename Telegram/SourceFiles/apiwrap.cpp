@@ -789,7 +789,7 @@ QString ApiWrap::exportDirectStoryLink(not_null<Data::Story*> story) {
 		? i->second
 		: fallback();
 	request(MTPstories_ExportStoryLink(
-		story->peer()->asUser()->inputUser,
+		story->peer()->input,
 		MTP_int(story->id())
 	)).done([=](const MTPExportedStoryLink &result) {
 		const auto link = qs(result.data().vlink());
@@ -2533,14 +2533,9 @@ void ApiWrap::refreshFileReference(
 	}, [&](Data::FileOriginPremiumPreviews data) {
 		request(MTPhelp_GetPremiumPromo());
 	}, [&](Data::FileOriginStory data) {
-		const auto user = _session->data().peer(data.peerId)->asUser();
-		if (user) {
-			request(MTPstories_GetStoriesByID(
-				user->inputUser,
-				MTP_vector<MTPint>(1, MTP_int(data.storyId))));
-		} else {
-			fail();
-		}
+		request(MTPstories_GetStoriesByID(
+			_session->data().peer(data.peerId)->input,
+			MTP_vector<MTPint>(1, MTP_int(data.storyId))));
 	}, [&](v::null_t) {
 		fail();
 	});

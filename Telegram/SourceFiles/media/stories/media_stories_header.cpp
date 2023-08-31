@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "data/data_user.h"
+#include "data/data_peer.h"
 #include "media/stories/media_stories_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/controls/userpic_button.h"
@@ -268,7 +268,7 @@ void Header::show(HeaderData data) {
 	if (_data == data) {
 		return;
 	}
-	const auto userChanged = !_data || (_data->user != data.user);
+	const auto peerChanged = !_data || (_data->peer != data.peer);
 	_data = data;
 	const auto updateInfoGeometry = [=] {
 		if (_name && _date) {
@@ -282,7 +282,7 @@ void Header::show(HeaderData data) {
 	};
 	_tooltip = nullptr;
 	_tooltipShown = false;
-	if (userChanged) {
+	if (peerChanged) {
 		_volume = nullptr;
 		_date = nullptr;
 		_name = nullptr;
@@ -298,12 +298,12 @@ void Header::show(HeaderData data) {
 
 		_info = std::make_unique<Ui::AbstractButton>(raw);
 		_info->setClickedCallback([=] {
-			_controller->uiShow()->show(PrepareShortInfoBox(_data->user));
+			_controller->uiShow()->show(PrepareShortInfoBox(_data->peer));
 		});
 
 		_userpic = std::make_unique<Ui::UserpicButton>(
 			raw,
-			data.user,
+			data.peer,
 			st::storiesHeaderPhoto);
 		_userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_userpic->show();
@@ -313,9 +313,9 @@ void Header::show(HeaderData data) {
 
 		_name = std::make_unique<Ui::FlatLabel>(
 			raw,
-			rpl::single(data.user->isSelf()
+			rpl::single(data.peer->isSelf()
 				? tr::lng_stories_my_name(tr::now)
-				: data.user->name()),
+				: data.peer->name()),
 			st::storiesHeaderName);
 		_name->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_name->setOpacity(kNameOpacity);
@@ -605,8 +605,8 @@ void Header::toggleTooltip(Tooltip type, bool show) {
 	}
 	const auto text = [&]() -> TextWithEntities {
 		using Privacy = Data::StoryPrivacy;
-		const auto boldName = Ui::Text::Bold(_data->user->shortName());
-		const auto self = _data->user->isSelf();
+		const auto boldName = Ui::Text::Bold(_data->peer->shortName());
+		const auto self = _data->peer->isSelf();
 		switch (type) {
 		case Tooltip::SilentVideo:
 			return { tr::lng_stories_about_silent(tr::now) };

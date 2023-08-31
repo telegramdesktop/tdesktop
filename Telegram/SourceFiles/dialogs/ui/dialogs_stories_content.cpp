@@ -134,7 +134,7 @@ private:
 	const not_null<Data::Stories*> _data;
 	const Data::StorySourcesList _list;
 	base::flat_map<
-		not_null<UserData*>,
+		not_null<PeerData*>,
 		std::shared_ptr<Thumbnail>> _userpics;
 
 };
@@ -338,20 +338,20 @@ Content State::next() {
 		Assert(source != nullptr);
 
 		auto userpic = std::shared_ptr<Thumbnail>();
-		const auto user = source->user;
-		if (const auto i = _userpics.find(user); i != end(_userpics)) {
+		const auto peer = source->peer;
+		if (const auto i = _userpics.find(peer); i != end(_userpics)) {
 			userpic = i->second;
 		} else {
-			userpic = MakeUserpicThumbnail(user);
-			_userpics.emplace(user, userpic);
+			userpic = MakeUserpicThumbnail(peer);
+			_userpics.emplace(peer, userpic);
 		}
 		result.elements.push_back({
-			.id = uint64(user->id.value),
-			.name = user->shortName(),
+			.id = uint64(peer->id.value),
+			.name = peer->shortName(),
 			.thumbnail = std::move(userpic),
 			.count = info.count,
 			.unreadCount = info.unreadCount,
-			.skipSmall = user->isSelf() ? 1U : 0U,
+			.skipSmall = peer->isSelf() ? 1U : 0U,
 		});
 	}
 	return result;

@@ -504,6 +504,7 @@ void ApiWrap::requestStoriesCount() {
 	Expects(_startProcess != nullptr);
 
 	mainRequest(MTPstories_GetStoriesArchive(
+		MTP_inputPeerSelf(),
 		MTP_int(0), // offset_id
 		MTP_int(0) // limit
 	)).done([=](const MTPstories_Stories &result) {
@@ -907,6 +908,7 @@ void ApiWrap::requestStories(
 	_storiesProcess->finish = std::move(finish);
 
 	mainRequest(MTPstories_GetStoriesArchive(
+		MTP_inputPeerSelf(),
 		MTP_int(_storiesProcess->offsetId),
 		MTP_int(kStoriesSliceLimit)
 	)).done([=](const MTPstories_Stories &result) mutable {
@@ -993,6 +995,7 @@ void ApiWrap::finishStoriesSlice() {
 	}
 
 	mainRequest(MTPstories_GetStoriesArchive(
+		MTP_inputPeerSelf(),
 		MTP_int(_storiesProcess->offsetId),
 		MTP_int(kStoriesSliceLimit)
 	)).done([=](const MTPstories_Stories &result) {
@@ -2186,7 +2189,7 @@ void ApiWrap::filePartRefreshReference(int64 offset) {
 	const auto &origin = _fileProcess->origin;
 	if (origin.storyId) {
 		_fileProcess->requestId = mainRequest(MTPstories_GetStoriesByID(
-			MTP_inputUserSelf(),
+			MTP_inputPeerSelf(),
 			MTP_vector<MTPint>(1, MTP_int(origin.storyId))
 		)).fail([=](const MTP::Error &error) {
 			_fileProcess->requestId = 0;

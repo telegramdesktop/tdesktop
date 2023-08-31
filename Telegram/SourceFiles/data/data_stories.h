@@ -52,7 +52,7 @@ struct StoriesSourceInfo {
 };
 
 struct StoriesSource {
-	not_null<UserData*> user;
+	not_null<PeerData*> peer;
 	base::flat_set<StoryIdDates> ids;
 	StoryId readTill = 0;
 	bool hidden = false;
@@ -148,7 +148,7 @@ public:
 	void apply(const MTPDupdateStory &data);
 	void apply(const MTPDupdateReadStories &data);
 	void apply(const MTPStoriesStealthMode &stealthMode);
-	void apply(not_null<PeerData*> peer, const MTPUserStories *data);
+	void apply(not_null<PeerData*> peer, const MTPPeerStories *data);
 	Story *applyFromWebpage(PeerId peerId, const MTPstoryItem &story);
 	void loadAround(FullStoryId id, StoriesContext context);
 
@@ -228,8 +228,8 @@ public:
 
 	[[nodiscard]] bool registerPolling(FullStoryId id, Polling polling);
 	void unregisterPolling(FullStoryId id, Polling polling);
-	void requestUserStories(
-		not_null<UserData*> user,
+	void requestPeerStories(
+		not_null<PeerData*> peer,
 		Fn<void()> done = nullptr);
 
 	void savedStateChanged(not_null<Story*> story);
@@ -255,7 +255,7 @@ private:
 		int viewer = 0;
 	};
 
-	void parseAndApply(const MTPUserStories &stories);
+	void parseAndApply(const MTPPeerStories &stories);
 	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPDstoryItem &data,
@@ -269,7 +269,7 @@ private:
 		const QVector<MTPStoryItem> &list);
 	void sendResolveRequests();
 	void finalizeResolve(FullStoryId id);
-	void updateUserStoriesState(not_null<PeerData*> peer);
+	void updatePeerStoriesState(not_null<PeerData*> peer);
 
 	void applyDeleted(FullStoryId id);
 	void applyExpired(FullStoryId id);
@@ -360,8 +360,8 @@ private:
 	base::Timer _markReadTimer;
 	base::flat_set<PeerId> _markReadRequests;
 	base::flat_map<
-		not_null<UserData*>,
-		std::vector<Fn<void()>>> _requestingUserStories;
+		not_null<PeerData*>,
+		std::vector<Fn<void()>>> _requestingPeerStories;
 
 	base::flat_map<PeerId, base::flat_set<StoryId>> _incrementViewsPending;
 	base::Timer _incrementViewsTimer;
@@ -381,7 +381,7 @@ private:
 
 	base::flat_map<PeerId, StoryId> _readTill;
 	base::flat_set<FullStoryId> _pendingReadTillItems;
-	base::flat_map<not_null<PeerData*>, StoryId> _pendingUserStateMaxId;
+	base::flat_map<not_null<PeerData*>, StoryId> _pendingPeerStateMaxId;
 	mtpRequestId _readTillsRequestId = 0;
 	bool _readTillReceived = false;
 

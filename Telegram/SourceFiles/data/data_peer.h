@@ -183,9 +183,9 @@ public:
 	[[nodiscard]] bool isForum() const;
 	[[nodiscard]] bool isGigagroup() const;
 	[[nodiscard]] bool isRepliesChat() const;
-	[[nodiscard]] bool sharedMediaInfo() const {
-		return isSelf() || isRepliesChat();
-	}
+	[[nodiscard]] bool sharedMediaInfo() const;
+	[[nodiscard]] bool hasStoriesHidden() const;
+	void setStoriesHidden(bool hidden);
 
 	[[nodiscard]] bool isNotificationsUser() const {
 		return (id == peerFromUser(333000))
@@ -406,6 +406,16 @@ public:
 
 	void setWallPaper(std::optional<Data::WallPaper> paper);
 	[[nodiscard]] const Data::WallPaper *wallPaper() const;
+
+	enum class StoriesState {
+		Unknown,
+		None,
+		HasRead,
+		HasUnread,
+	};
+	[[nodiscard]] bool hasActiveStories() const;
+	[[nodiscard]] bool hasUnreadStories() const;
+	void setStoriesState(StoriesState state);
 
 	const PeerId id;
 	MTPinputPeer input = MTP_inputPeerEmpty();

@@ -176,12 +176,6 @@ public:
 	[[nodiscard]] QString privateForwardName() const;
 	void setPrivateForwardName(const QString &name);
 
-	enum class StoriesState {
-		Unknown,
-		None,
-		HasRead,
-		HasUnread,
-	};
 	[[nodiscard]] bool hasActiveStories() const;
 	[[nodiscard]] bool hasUnreadStories() const;
 	void setStoriesState(StoriesState state);

@@ -704,15 +704,18 @@ void Panel::showWarning(const QString &bot, const QString &provider) {
 
 void Panel::requestTermsAcceptance(
 		const QString &username,
-		const QString &url) {
+		const QString &url,
+		bool recurring) {
 	showBox(Box([=](not_null<GenericBox*> box) {
 		box->setTitle(tr::lng_payments_terms_title());
 		box->addRow(object_ptr<Ui::FlatLabel>(
 			box.get(),
-			tr::lng_payments_terms_text(
-				lt_bot,
-				rpl::single(Ui::Text::Bold('@' + username)),
-				Ui::Text::WithEntities),
+			(recurring
+				? tr::lng_payments_terms_text
+				: tr::lng_payments_terms_text_once)(
+					lt_bot,
+					rpl::single(Ui::Text::Bold('@' + username)),
+					Ui::Text::WithEntities),
 			st::boxLabel));
 		const auto update = std::make_shared<Fn<void()>>();
 		auto checkView = std::make_unique<Ui::CheckView>(

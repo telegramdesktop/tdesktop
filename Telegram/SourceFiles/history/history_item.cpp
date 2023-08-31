@@ -287,7 +287,7 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			media.vvalue().v);
 	}, [&](const MTPDmessageMediaStory &media) -> Result {
 		return std::make_unique<Data::MediaStory>(item, FullStoryId{
-			peerFromUser(media.vuser_id()),
+			peerFromMTP(media.vpeer()),
 			media.vid().v,
 		}, media.is_via_mention());
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
@@ -1981,7 +1981,7 @@ bool HistoryItem::canBeEdited() const {
 			return true;
 		} else if (out()) {
 			if (isPost()) {
-				return channel->canPublish();
+				return channel->canPostMessages();
 			} else if (const auto topic = this->topic()) {
 				return Data::CanSendAnything(topic);
 			} else {
@@ -2033,9 +2033,8 @@ bool HistoryItem::canDelete() const {
 	}
 	if (channel->canDeleteMessages()) {
 		return true;
-	}
-	if (out() && !isService()) {
-		return isPost() ? channel->canPublish() : true;
+	} else if (out() && !isService()) {
+		return isPost() ? channel->canPostMessages() : true;
 	}
 	return false;
 }

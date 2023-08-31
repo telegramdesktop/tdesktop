@@ -146,7 +146,7 @@ bool CanSendAnyOf(
 				&& !(channel->flags() & Flag::JoinToWrite));
 		if (!allowed || (forbidInForums && channel->isForum())) {
 			return false;
-		} else if (channel->canPublish()) {
+		} else if (channel->canPostMessages()) {
 			return true;
 		} else if (channel->isBroadcast()) {
 			return false;

@@ -2557,19 +2557,17 @@ void SessionController::openPeerStories(
 	if (const auto source = stories.source(peerId)) {
 		if (const auto idDates = source->toOpen()) {
 			openPeerStory(
-				source->user,
+				source->peer,
 				idDates.id,
 				(list
 					? StoriesContext{ *list }
 					: StoriesContext{ StoriesContextPeer() }));
 		}
-	} else if (const auto userId = peerToUser(peerId)) {
-		if (const auto user = session().data().userLoaded(userId)) {
-			const auto done = crl::guard(&_storyOpenGuard, [=] {
-				openPeerStories(peerId, list);
-			});
-			stories.requestUserStories(user, done);
-		}
+	} else if (const auto peer = session().data().peerLoaded(peerId)) {
+		const auto done = crl::guard(&_storyOpenGuard, [=] {
+			openPeerStories(peerId, list);
+		});
+		stories.requestPeerStories(peer, done);
 	}
 }
 

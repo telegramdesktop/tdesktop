@@ -66,6 +66,25 @@ using UpdateFlag = StoryUpdate::Flag;
 			});
 		}, [](const MTPDgeoPointEmpty &) {
 		});
+	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
+	}, [&](const MTPDinputMediaAreaVenue &data) {
+		LOG(("API Error: Unexpected inputMediaAreaVenue in API data."));
+	});
+	return result;
+}
+
+[[nodiscard]] auto ParseSuggestedReaction(const MTPMediaArea &area)
+-> std::optional<SuggestedReaction> {
+	auto result = std::optional<SuggestedReaction>();
+	area.match([&](const MTPDmediaAreaVenue &data) {
+	}, [&](const MTPDmediaAreaGeoPoint &data) {
+	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
+		result.emplace(SuggestedReaction{
+			.area = ParseArea(data.vcoordinates()),
+			.reaction = Data::ReactionFromMTP(data.vreaction()),
+			.flipped = data.is_flipped(),
+			.dark = data.is_dark(),
+		});
 	}, [&](const MTPDinputMediaAreaVenue &data) {
 		LOG(("API Error: Unexpected inputMediaAreaVenue in API data."));
 	});
@@ -317,6 +336,10 @@ bool Story::edited() const {
 	return _edited;
 }
 
+bool Story::out() const {
+	return _out;
+}
+
 bool Story::canDownloadIfPremium() const {
 	return !forbidsForward() || _peer->isSelf();
 }
@@ -455,6 +478,10 @@ const std::vector<StoryLocation> &Story::locations() const {
 	return _locations;
 }
 
+const std::vector<SuggestedReaction> &Story::suggestedReactions() const {
+	return _suggestedReactions;
+}
+
 void Story::applyChanges(
 		StoryMedia media,
 		const MTPDstoryItem &data,
@@ -486,6 +513,7 @@ void Story::applyFields(
 		? StoryPrivacy::SelectedContacts
 		: StoryPrivacy::Other;
 	const auto noForwards = data.is_noforwards();
+	const auto out = data.is_min() ? _out : data.is_out();
 	auto caption = TextWithEntities{
 		data.vcaption().value_or_empty(),
 		Api::EntitiesFromMTP(
@@ -497,7 +525,7 @@ void Story::applyFields(
 	auto viewers = std::vector<not_null<PeerData*>>();
 	if (const auto info = data.vviews()) {
 		views = info->data().vviews_count().v;
-		reactions = info->data().vreactions_count().v;
+		reactions = info->data().vreactions_count().value_or_empty();
 		if (const auto list = info->data().vrecent_viewers()) {
 			viewers.reserve(list->v.size());
 			auto &owner = _peer->owner();
@@ -511,11 +539,15 @@ void Story::applyFields(
 		viewers = _recentViewers;
 	}
 	auto locations = std::vector<StoryLocation>();
+	auto suggestedReactions = std::vector<SuggestedReaction>();
 	if (const auto areas = data.vmedia_areas()) {
 		locations.reserve(areas->v.size());
+		suggestedReactions.reserve(areas->v.size());
 		for (const auto &area : areas->v) {
 			if (const auto location = ParseLocation(area)) {
 				locations.push_back(*location);
+			} else if (const auto reaction = ParseSuggestedReaction(area)) {
+				suggestedReactions.push_back(*reaction);
 			}
 		}
 	}
@@ -528,13 +560,15 @@ void Story::applyFields(
 		|| (_views.reactions != reactions)
 		|| (_recentViewers != viewers);
 	const auto locationsChanged = (_locations != locations);
+	const auto suggestedReactionsChanged
+		= (_suggestedReactions != suggestedReactions);
 	const auto reactionChanged = (_sentReactionId != reaction);
 
+	_out = out;
 	_privacyPublic = (privacy == StoryPrivacy::Public);
 	_privacyCloseFriends = (privacy == StoryPrivacy::CloseFriends);
 	_privacyContacts = (privacy == StoryPrivacy::Contacts);
 	_privacySelectedContacts = (privacy == StoryPrivacy::SelectedContacts);
-	_noForwards = noForwards;
 	_edited = edited;
 	_pinned = pinned;
 	_noForwards = noForwards;
@@ -553,6 +587,9 @@ void Story::applyFields(
 	if (locationsChanged) {
 		_locations = std::move(locations);
 	}
+	if (suggestedReactionsChanged) {
+		_suggestedReactions = std::move(suggestedReactions);
+	}
 	if (reactionChanged) {
 		_sentReactionId = reaction;
 	}
@@ -560,7 +597,8 @@ void Story::applyFields(
 	const auto changed = editedChanged
 		|| captionChanged
 		|| mediaChanged
-		|| locationsChanged;
+		|| locationsChanged
+		|| suggestedReactionsChanged;
 	if (!initial && (changed || viewsChanged || reactionChanged)) {
 		_peer->session().changes().storyUpdated(this, UpdateFlag()
 			| (changed ? UpdateFlag::Edited : UpdateFlag())

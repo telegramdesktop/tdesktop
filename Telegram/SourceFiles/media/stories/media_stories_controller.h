@@ -181,7 +181,7 @@ private:
 	class Unsupported;
 	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 	struct StoriesList {
-		not_null<UserData*> user;
+		not_null<PeerData*> peer;
 		Data::StoriesIds ids;
 		int total = 0;
 
@@ -233,10 +233,10 @@ private:
 		-> Fn<void(Data::StoryViews)>;
 
 	[[nodiscard]] bool shown() const;
-	[[nodiscard]] UserData *shownUser() const;
+	[[nodiscard]] PeerData *shownPeer() const;
 	[[nodiscard]] int shownCount() const;
 	[[nodiscard]] StoryId shownId(int index) const;
-	void rebuildFromContext(not_null<UserData*> user, FullStoryId storyId);
+	void rebuildFromContext(not_null<PeerData*> peer, FullStoryId storyId);
 	void checkMoveByDelta();
 	void loadMoreToList();
 	void preloadNext();

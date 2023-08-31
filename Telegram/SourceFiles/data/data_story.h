@@ -96,6 +96,17 @@ struct StoryLocation {
 		const StoryLocation &) = default;
 };
 
+struct SuggestedReaction {
+	StoryArea area;
+	Data::ReactionId reaction;
+	bool flipped = false;
+	bool dark = false;
+
+	friend inline bool operator==(
+		const SuggestedReaction &,
+		const SuggestedReaction &) = default;
+};
+
 class Story final {
 public:
 	Story(
@@ -132,6 +143,7 @@ public:
 	[[nodiscard]] StoryPrivacy privacy() const;
 	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] bool edited() const;
+	[[nodiscard]] bool out() const;
 
 	[[nodiscard]] bool canDownloadIfPremium() const;
 	[[nodiscard]] bool canDownloadChecked() const;
@@ -157,6 +169,8 @@ public:
 	void applyViewsSlice(const QString &offset, const StoryViews &slice);
 
 	[[nodiscard]] const std::vector<StoryLocation> &locations() const;
+	[[nodiscard]] auto suggestedReactions() const
+		-> const std::vector<SuggestedReaction> &;
 
 	void applyChanges(
 		StoryMedia media,
@@ -178,10 +192,12 @@ private:
 	TextWithEntities _caption;
 	std::vector<not_null<PeerData*>> _recentViewers;
 	std::vector<StoryLocation> _locations;
+	std::vector<SuggestedReaction> _suggestedReactions;
 	StoryViews _views;
 	const TimeId _date = 0;
 	const TimeId _expires = 0;
 	TimeId _lastUpdateTime = 0;
+	bool _out : 1 = false;
 	bool _pinned : 1 = false;
 	bool _privacyPublic : 1 = false;
 	bool _privacyCloseFriends : 1 = false;
