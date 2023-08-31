@@ -12,13 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "base/flat_map.h"
 
-#include "qwayland-wayland.h"
-#include "qwayland-plasma-shell.h"
-
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 #include <qpa/qplatformnativeinterface.h>
 #include <qpa/qplatformwindow_p.h>
+
+#include <qwayland-wayland.h>
+#include <qwayland-plasma-shell.h>
 
 using namespace QNativeInterface;
 using namespace QNativeInterface::Private;
