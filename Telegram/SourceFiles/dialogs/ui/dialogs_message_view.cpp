@@ -11,12 +11,12 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
+#include "dialogs/dialogs_three_state_icon.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_topics_view.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
-#include "ui/image/image.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "core/ui_integration.h"
@@ -159,6 +159,11 @@ void MessageView::prepare(
 	options.ignoreTopic = true;
 	options.spoilerLoginCode = true;
 	auto preview = item->toPreview(options);
+	_leftIcon = (preview.icon == ItemPreview::Icon::ForwardedMessage)
+		? &st::dialogsMiniForwardIcon
+		: (preview.icon == ItemPreview::Icon::ReplyToStory)
+		? &st::dialogsMiniReplyStoryIcon
+		: nullptr;
 	const auto hasImages = !preview.images.empty();
 	const auto history = item->history();
 	const auto context = Core::MarkedTextContext{
@@ -169,7 +174,7 @@ void MessageView::prepare(
 	const auto senderTill = (preview.arrowInTextPosition > 0)
 		? preview.arrowInTextPosition
 		: preview.imagesInTextPosition;
-	if (hasImages && senderTill > 0) {
+	if ((hasImages || _leftIcon) && senderTill > 0) {
 		auto sender = Text::Mid(preview.text, 0, senderTill);
 		TextUtilities::Trim(sender);
 		_senderCache.setMarkedText(
@@ -313,6 +318,15 @@ void MessageView::paint(
 				+ st::dialogsMiniPreviewRight;
 			rect.setLeft(rect.x() + skip);
 		}
+	}
+
+	if (_leftIcon) {
+		const auto &icon = ThreeStateIcon(
+			*_leftIcon,
+			context.active,
+			context.selected);
+		icon.paint(p, rect.topLeft(), rect.width());
+		rect.setLeft(rect.x() + icon.width() + st::dialogsMiniIconSkip);
 	}
 	for (const auto &image : _imagesCache) {
 		if (rect.width() < st::dialogsMiniPreview) {

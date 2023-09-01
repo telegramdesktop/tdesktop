@@ -44,7 +44,7 @@ constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * crl::time(1000);
 
 [[nodiscard]] bool SkipAddException(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		return user->isInaccessible();
+		return user->isInaccessible() || user->isSelf();
 	} else if (const auto chat = peer->asChat()) {
 		return chat->isDeactivated() || chat->isForbidden();
 	} else if (const auto channel = peer->asChannel()) {

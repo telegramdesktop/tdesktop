@@ -294,8 +294,11 @@ stickersTrendingAdd: RoundButton(defaultActiveButton) {
 stickersTrendingInstalled: RoundButton(stickersTrendingAdd) {
 	textFg: activeButtonBg;
 	textFgOver: activeButtonBgOver;
-	textBg: activeButtonSecondaryFg;
-	textBgOver: activeButtonSecondaryFgOver;
+	textBg: lightButtonBgOver;
+	textBgOver: lightButtonBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: activeButtonSecondaryFg;
+	}
 }
 stickersRemove: IconButton(defaultIconButton) {
 	width: 40px;

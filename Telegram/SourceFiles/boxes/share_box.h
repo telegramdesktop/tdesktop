@@ -119,7 +119,7 @@ private:
 	void submitSilent();
 	void submitScheduled();
 	void submitWhenOnline();
-	void copyLink();
+	void copyLink() const;
 	bool searchByUsername(bool useCache = false);
 
 	SendMenu::Type sendMenuType() const;

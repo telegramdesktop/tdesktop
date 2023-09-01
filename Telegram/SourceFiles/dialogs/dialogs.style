@@ -23,6 +23,12 @@ DialogRow {
 	unreadMarkDiameter: pixels;
 }
 
+ThreeStateIcon {
+	icon: icon;
+	over: icon;
+	active: icon;
+}
+
 ForumTopicIcon {
 	size: pixels;
 	font: font;
@@ -316,38 +322,56 @@ dialogSearchFrom: IconButton(dialogCalendar) {
 }
 
 dialogsChatTypeSkip: 3px;
-dialogsChatIcon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
-dialogsChatIconOver: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
-dialogsChatIconActive: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
-dialogsChannelIcon: icon {{ "dialogs/dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
-dialogsChannelIconOver: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
-dialogsChannelIconActive: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
-dialogsBotIcon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
-dialogsBotIconOver: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
-dialogsBotIconActive: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
-dialogsForumIcon: icon {{ "dialogs/dialogs_forum", dialogsChatIconFg, point(1px, 4px) }};
-dialogsForumIconOver: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, point(1px, 4px) }};
-dialogsForumIconActive: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
+dialogsChatIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
+	over: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
+	active: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
+}
+dialogsChannelIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
+	over: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
+	active: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
+}
+dialogsBotIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
+	over: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
+	active: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
+}
+dialogsForumIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_forum", dialogsChatIconFg, point(1px, 4px) }};
+	over: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, point(1px, 4px) }};
+	active: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
+}
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
 dialogsInaccessibleUserpic: icon {{ "dialogs/inaccessible_userpic", historyPeerUserpicFg }};
 
 dialogsSendStateSkip: 20px;
-dialogsSendingIcon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
-dialogsSendingIconOver: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
-dialogsSendingIconActive: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
-dialogsSentIcon: icon {{ "dialogs/dialogs_sent", dialogsSentIconFg, point(10px, 4px) }};
-dialogsSentIconOver: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgOver, point(10px, 4px) }};
-dialogsSentIconActive: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgActive, point(10px, 4px) }};
-dialogsReceivedIcon: icon {{ "dialogs/dialogs_received", dialogsSentIconFg, point(5px, 4px) }};
-dialogsReceivedIconOver: icon {{ "dialogs/dialogs_received", dialogsSentIconFgOver, point(5px, 4px) }};
-dialogsReceivedIconActive: icon {{ "dialogs/dialogs_received", dialogsSentIconFgActive, point(5px, 4px) }};
-dialogsPinnedIcon: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMuted }};
-dialogsPinnedIconOver: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedOver }};
-dialogsPinnedIconActive: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedActive }};
-dialogsLockIcon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
-dialogsLockIconOver: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
-dialogsLockIconActive: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
+dialogsSendingIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
+	over: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
+	active: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
+}
+dialogsSentIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_sent", dialogsSentIconFg, point(10px, 4px) }};
+	over: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgOver, point(10px, 4px) }};
+	active: icon {{ "dialogs/dialogs_sent", dialogsSentIconFgActive, point(10px, 4px) }};
+}
+dialogsReceivedIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_received", dialogsSentIconFg, point(5px, 4px) }};
+	over: icon {{ "dialogs/dialogs_received", dialogsSentIconFgOver, point(5px, 4px) }};
+	active: icon {{ "dialogs/dialogs_received", dialogsSentIconFgActive, point(5px, 4px) }};
+}
+dialogsPinnedIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMuted }};
+	over: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedOver }};
+	active: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedActive }};
+}
+dialogsLockIcon: ThreeStateIcon {
+	icon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
+	over: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
+	active: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
+}
 
 dialogsVerifiedIcon: icon {
 	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg },
@@ -361,9 +385,11 @@ dialogsVerifiedIconActive: icon {
 	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBgActive },
 	{ "dialogs/dialogs_verified_check", dialogsVerifiedIconFgActive },
 };
-dialogsPremiumIcon: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
-dialogsPremiumIconOver: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgOver }};
-dialogsPremiumIconActive: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgActive }};
+dialogsPremiumIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
+	over: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgOver }};
+	active: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgActive }};
+}
 
 historySendingIcon: icon {{ "dialogs/dialogs_sending", historySendingOutIconFg, point(5px, 5px) }};
 historySendingInvertedIcon: icon {{ "dialogs/dialogs_sending", historySendingInvertedIconFg, point(5px, 5px) }};
@@ -436,12 +462,28 @@ dialogsMiniPreviewSkip: 2px;
 dialogsMiniPreviewRight: 3px;
 dialogsMiniPlay: icon{{ "dialogs/dialogs_mini_play", videoPlayIconFg }};
 
-dialogsUnreadMention: icon{{ "dialogs/dialogs_mention", dialogsUnreadFg }};
-dialogsUnreadMentionOver: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgOver }};
-dialogsUnreadMentionActive: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgActive }};
-dialogsUnreadReaction: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFg }};
-dialogsUnreadReactionOver: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgOver }};
-dialogsUnreadReactionActive: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgActive }};
+dialogsMiniForwardIcon: ThreeStateIcon {
+	icon: icon {{ "mini_forward", dialogsTextFg, point(0px, 1px) }};
+	over: icon {{ "mini_forward", dialogsTextFgOver, point(0px, 1px) }};
+	active: icon {{ "mini_forward", dialogsTextFgActive, point(0px, 1px) }};
+}
+dialogsMiniIconSkip: 2px;
+dialogsMiniReplyStoryIcon: ThreeStateIcon {
+	icon: icon {{ "mini_reply_story", dialogsTextFg, point(0px, 1px) }};
+	over: icon {{ "mini_reply_story", dialogsTextFgOver, point(0px, 1px) }};
+	active: icon {{ "mini_reply_story", dialogsTextFgActive, point(0px, 1px) }};
+}
+
+dialogsUnreadMention: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_mention", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_mention", dialogsUnreadFgActive }};
+}
+dialogsUnreadReaction: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_reaction", dialogsUnreadFgActive }};
+}
 
 downloadBarHeight: 46px;
 downloadArrow: icon{{ "fast_to_original", menuIconFg }};
