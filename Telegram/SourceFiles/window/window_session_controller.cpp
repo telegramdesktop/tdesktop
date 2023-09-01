@@ -2218,7 +2218,7 @@ bool SessionController::openSharedStory(HistoryItem *item) {
 bool SessionController::openFakeItemStory(
 		FullMsgId fakeItemId,
 		const Data::StoriesContext *stories) {
-	if (!peerIsUser(fakeItemId.peer)
+	if (peerIsChat(fakeItemId.peer)
 		|| !IsStoryMsgId(fakeItemId.msg)) {
 		return false;
 	}

@@ -129,10 +129,10 @@ inline auto AddCommonGroupsButton(
 inline auto AddStoriesButton(
 		Ui::VerticalLayout *parent,
 		not_null<Window::SessionNavigation*> navigation,
-		not_null<UserData*> user,
+		not_null<PeerData*> peer,
 		Ui::MultiSlideTracker &tracker) {
 	auto count = rpl::single(0) | rpl::then(Data::SavedStoriesIds(
-		user,
+		peer,
 		ServerMaxStoryId - 1,
 		0
 	) | rpl::map([](const Data::StoriesIdsSlice &slice) {
@@ -146,7 +146,7 @@ inline auto AddStoriesButton(
 		},
 		tracker)->entity();
 	result->addClickHandler([=] {
-		navigation->showSection(Info::Stories::Make(user));
+		navigation->showSection(Info::Stories::Make(peer));
 	});
 	return result;
 };
