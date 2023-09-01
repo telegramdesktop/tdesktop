@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/bot_attach_web_view.h"
 
+#include "api/api_blocked_peers.h"
 #include "api/api_common.h"
 #include "core/click_handler_types.h"
 #include "data/data_bot_app.h"
@@ -626,7 +627,22 @@ void AttachWebView::botAllowWriteAccess(Fn<void(bool allowed)> callback) {
 }
 
 void AttachWebView::botSharePhone(Fn<void(bool shared)> callback) {
+	const auto bot = _bot;
 	const auto history = _bot->owner().history(_bot);
+	if (_bot->isBlocked()) {
+		const auto done = [=](bool success) {
+			if (success && _bot == bot) {
+				Assert(!_bot->isBlocked());
+				botSharePhone(callback);
+			} else {
+				callback(false);
+			}
+		};
+		_bot->session().api().blockedPeers().unblock(
+			_bot,
+			crl::guard(this, done));
+		return;
+	}
 	auto action = Api::SendAction(history);
 	action.clearDraft = false;
 	const auto id = history->session().api().shareContact(

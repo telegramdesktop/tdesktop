@@ -77,45 +77,59 @@ void BlockedPeers::block(not_null<PeerData*> peer) {
 		_session->changes().peerUpdated(
 			peer,
 			Data::PeerUpdate::Flag::IsBlocked);
-	} else if (_blockRequests.find(peer) == end(_blockRequests)) {
-		const auto requestId = _api.request(MTPcontacts_Block(
-			MTP_flags(0),
-			peer->input
-		)).done([=] {
-			_blockRequests.erase(peer);
-			peer->setIsBlocked(true);
-			if (_slice) {
-				_slice->list.insert(
-					_slice->list.begin(),
-					{ peer->id, base::unixtime::now() });
-				++_slice->total;
-				_changes.fire_copy(*_slice);
-			}
-		}).fail([=] {
-			_blockRequests.erase(peer);
-		}).send();
-
-		_blockRequests.emplace(peer, requestId);
+		return;
+	} else if (blockAlreadySent(peer, true)) {
+		return;
 	}
+	const auto requestId = _api.request(MTPcontacts_Block(
+		MTP_flags(0),
+		peer->input
+	)).done([=] {
+		const auto data = _blockRequests.take(peer);
+		peer->setIsBlocked(true);
+		if (_slice) {
+			_slice->list.insert(
+				_slice->list.begin(),
+				{ peer->id, base::unixtime::now() });
+			++_slice->total;
+			_changes.fire_copy(*_slice);
+		}
+		if (data) {
+			for (const auto &callback : data->callbacks) {
+				callback(false);
+			}
+		}
+	}).fail([=] {
+		if (const auto data = _blockRequests.take(peer)) {
+			for (const auto &callback : data->callbacks) {
+				callback(false);
+			}
+		}
+	}).send();
+
+	_blockRequests.emplace(peer, Request{
+		.requestId = requestId,
+		.blocking = true,
+	});
 }
 
 void BlockedPeers::unblock(
 		not_null<PeerData*> peer,
-		Fn<void()> onDone,
+		Fn<void(bool success)> done,
 		bool force) {
 	if (!force && !peer->isBlocked()) {
 		_session->changes().peerUpdated(
 			peer,
 			Data::PeerUpdate::Flag::IsBlocked);
 		return;
-	} else if (_blockRequests.find(peer) != end(_blockRequests)) {
+	} else if (blockAlreadySent(peer, false, done)) {
 		return;
 	}
 	const auto requestId = _api.request(MTPcontacts_Unblock(
 		MTP_flags(0),
 		peer->input
 	)).done([=] {
-		_blockRequests.erase(peer);
+		const auto data = _blockRequests.take(peer);
 		peer->setIsBlocked(false);
 		if (_slice) {
 			auto &list = _slice->list;
@@ -130,13 +144,46 @@ void BlockedPeers::unblock(
 			}
 			_changes.fire_copy(*_slice);
 		}
-		if (onDone) {
-			onDone();
+		if (data) {
+			for (const auto &callback : data->callbacks) {
+				callback(true);
+			}
 		}
 	}).fail([=] {
-		_blockRequests.erase(peer);
+		if (const auto data = _blockRequests.take(peer)) {
+			for (const auto &callback : data->callbacks) {
+				callback(false);
+			}
+		}
 	}).send();
-	_blockRequests.emplace(peer, requestId);
+	const auto i = _blockRequests.emplace(peer, Request{
+		.requestId = requestId,
+		.blocking = false,
+	}).first;
+	if (done) {
+		i->second.callbacks.push_back(std::move(done));
+	}
+}
+
+bool BlockedPeers::blockAlreadySent(
+		not_null<PeerData*> peer,
+		bool blocking,
+		Fn<void(bool success)> done) {
+	const auto i = _blockRequests.find(peer);
+	if (i == end(_blockRequests)) {
+		return false;
+	} else if (i->second.blocking == blocking) {
+		if (done) {
+			i->second.callbacks.push_back(std::move(done));
+		}
+		return true;
+	}
+	const auto callbacks = base::take(i->second.callbacks);
+	_blockRequests.erase(i);
+	for (const auto &callback : callbacks) {
+		callback(false);
+	}
+	return false;
 }
 
 void BlockedPeers::reload() {
@@ -160,7 +207,7 @@ auto BlockedPeers::slice() -> rpl::producer<BlockedPeers::Slice> {
 		: (_changes.events() | rpl::type_erased());
 }
 
-void BlockedPeers::request(int offset, Fn<void(BlockedPeers::Slice)> onDone) {
+void BlockedPeers::request(int offset, Fn<void(BlockedPeers::Slice)> done) {
 	if (_requestId) {
 		return;
 	}
@@ -170,7 +217,7 @@ void BlockedPeers::request(int offset, Fn<void(BlockedPeers::Slice)> onDone) {
 		MTP_int(offset ? kBlockedPerPage : kBlockedFirstSlice)
 	)).done([=](const MTPcontacts_Blocked &result) {
 		_requestId = 0;
-		onDone(TLToSlice(result, _session->data()));
+		done(TLToSlice(result, _session->data()));
 	}).fail([=] {
 		_requestId = 0;
 	}).send();

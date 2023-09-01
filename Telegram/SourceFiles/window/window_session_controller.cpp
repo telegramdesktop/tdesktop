@@ -314,7 +314,7 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 			if (info.startAutoSubmit) {
 				peer->session().api().blockedPeers().unblock(
 					peer,
-					[=] { showPeerByLinkResolved(peer, info); },
+					[=](bool) { showPeerByLinkResolved(peer, info); },
 					true);
 			} else {
 				showPeerByLinkResolved(peer, info);
