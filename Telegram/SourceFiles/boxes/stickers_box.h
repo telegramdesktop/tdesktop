@@ -104,7 +104,7 @@ private:
 		[[nodiscard]] int index() const;
 
 		void saveScrollTop();
-		int getScrollTop() const {
+		int scrollTop() const {
 			return _scrollTop;
 		}
 
@@ -122,12 +122,12 @@ private:
 	void updateTabsGeometry();
 	void switchTab();
 	void installSet(uint64 setId);
-	int getTopSkip() const;
+	int topSkip() const;
 	void saveChanges();
 
 	QPixmap grabContentCache();
 
-	void installDone(const MTPmessages_StickerSetInstallResult &result);
+	void installDone(const MTPmessages_StickerSetInstallResult &result) const;
 	void installFail(const MTP::Error &error, uint64 setId);
 
 	void preloadArchivedSets();
@@ -139,7 +139,7 @@ private:
 	void showAttachedStickers();
 
 	const Data::StickersSetsOrder &archivedSetsOrder() const;
-	Data::StickersSetsOrder &archivedSetsOrderRef();
+	Data::StickersSetsOrder &archivedSetsOrderRef() const;
 
 	std::array<Inner*, 5> widgets() const;
 

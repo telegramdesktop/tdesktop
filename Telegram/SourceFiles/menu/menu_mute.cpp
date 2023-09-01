@@ -311,7 +311,6 @@ void FillMuteMenu(
 		soundSelect,
 		&st::menuIconSoundSelect);
 
-	const auto notifySettings = &session->data().notifySettings();
 	const auto soundIsNone = descriptor.currentSound().value_or(
 		Data::NotifySound()
 	).none;

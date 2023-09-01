@@ -1,3 +1,9 @@
+4.9.4 (30.08.23)
+
+- Default private chats / groups / channels notification settings.
+- Forwarded / reply-to-a-story icon in chats list message preview.
+- Bug fixes and other minor improvements.
+
 4.9.3 (22.08.23)
 
 - Fix audio output on macOS.
