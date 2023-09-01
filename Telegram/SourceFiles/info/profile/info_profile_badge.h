@@ -18,6 +18,10 @@ namespace Data {
 enum class CustomEmojiSizeTag : uchar;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
 class RpWidget;
 class AbstractButton;
@@ -45,7 +49,25 @@ public:
 		EmojiStatusPanel *emojiStatusPanel,
 		Fn<bool()> animationPaused,
 		int customStatusLoopsLimit = 0,
-		base::flags<BadgeType> allowed = base::flags<BadgeType>::from_raw(-1));
+		base::flags<BadgeType> allowed
+			= base::flags<BadgeType>::from_raw(-1));
+
+	struct Content {
+		BadgeType badge = BadgeType::None;
+		DocumentId emojiStatusId = 0;
+
+		friend inline constexpr bool operator==(Content, Content) = default;
+	};
+	Badge(
+		not_null<QWidget*> parent,
+		const style::InfoPeerBadge &st,
+		not_null<Main::Session*> session,
+		rpl::producer<Content> content,
+		EmojiStatusPanel *emojiStatusPanel,
+		Fn<bool()> animationPaused,
+		int customStatusLoopsLimit = 0,
+		base::flags<BadgeType> allowed
+			= base::flags<BadgeType>::from_raw(-1));
 
 	[[nodiscard]] Ui::RpWidget *widget() const;
 
@@ -56,17 +78,16 @@ public:
 	[[nodiscard]] Data::CustomEmojiSizeTag sizeTag() const;
 
 private:
-	void setBadge(BadgeType badge, DocumentId emojiStatusId);
+	void setContent(Content content);
 
 	const not_null<QWidget*> _parent;
 	const style::InfoPeerBadge &_st;
-	const not_null<PeerData*> _peer;
+	const not_null<Main::Session*> _session;
 	EmojiStatusPanel *_emojiStatusPanel = nullptr;
 	const int _customStatusLoopsLimit = 0;
-	DocumentId _emojiStatusId = 0;
 	std::unique_ptr<Ui::Text::CustomEmoji> _emojiStatus;
 	base::flags<BadgeType> _allowed;
-	BadgeType _badge = BadgeType();
+	Content _content;
 	Fn<void()> _premiumClickCallback;
 	Fn<bool()> _animationPaused;
 	object_ptr<Ui::AbstractButton> _view = { nullptr };
