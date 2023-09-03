@@ -16,8 +16,20 @@ inline QString UrlToLocal(const QUrl &url) {
 	return ::File::internal::UrlToLocalDefault(url);
 }
 
+inline void UnsafeOpenUrl(const QString &url) {
+	return ::File::internal::UnsafeOpenUrlDefault(url);
+}
+
+inline void UnsafeOpenEmailLink(const QString &email) {
+	return ::File::internal::UnsafeOpenEmailLinkDefault(email);
+}
+
 inline bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 	return false;
+}
+
+inline void UnsafeLaunch(const QString &filepath) {
+	return ::File::internal::UnsafeLaunchDefault(filepath);
 }
 
 inline void PostprocessDownloaded(const QString &filepath) {
