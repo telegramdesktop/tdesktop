@@ -365,7 +365,10 @@ void MessageView::paint(
 	if (!_imagesCache.empty()) {
 		rect.setLeft(rect.x() + st::dialogsMiniPreviewRight);
 	}
-	if (!rect.isEmpty()) {
+	// Style of _textCache.
+	static const auto ellipsisWidth = st::dialogsTextStyle.font->width(
+		kQEllipsis);
+	if (rect.width() > ellipsisWidth) {
 		_textCache.draw(p, {
 			.position = rect.topLeft(),
 			.availableWidth = rect.width(),
