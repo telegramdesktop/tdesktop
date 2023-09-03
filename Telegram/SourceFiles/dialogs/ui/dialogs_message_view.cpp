@@ -186,9 +186,12 @@ void MessageView::prepare(
 		_senderCache = { st::dialogsTextWidthMin };
 	}
 	TextUtilities::Trim(preview.text);
+	auto textToCache = DialogsPreviewText(std::move(preview.text));
+	_hasPlainLinkAtBegin = !textToCache.entities.empty()
+		&& (textToCache.entities.front().type() == EntityType::PlainLink);
 	_textCache.setMarkedText(
 		st::dialogsTextStyle,
-		DialogsPreviewText(std::move(preview.text)),
+		std::move(textToCache),
 		DialogTextOptions(),
 		context);
 	_textCachedFor = item;
@@ -325,7 +328,11 @@ void MessageView::paint(
 			*_leftIcon,
 			context.active,
 			context.selected);
-		icon.paint(p, rect.topLeft(), rect.width());
+		if (_hasPlainLinkAtBegin && !context.active) {
+			icon.paint(p, rect.topLeft(), rect.width(), palette->linkFg->c);
+		} else {
+			icon.paint(p, rect.topLeft(), rect.width());
+		}
 		rect.setLeft(rect.x() + icon.width() + st::dialogsMiniIconSkip);
 	}
 	for (const auto &image : _imagesCache) {
