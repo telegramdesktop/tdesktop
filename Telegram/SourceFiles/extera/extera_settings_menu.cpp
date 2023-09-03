@@ -62,33 +62,6 @@ namespace Settings {
     {
 	    AddSubsectionTitle(container, rktr("etg_settings_general"));
 
-		const auto netSpeedLabel = container->add(
-			object_ptr<Ui::LabelSimple>(
-				container,
-				st::settingsAudioVolumeLabel),
-			st::settingsAudioVolumeLabelPadding);
-    	const auto netSpeedSlider = container->add(
-			object_ptr<Ui::MediaSlider>(
-				container,
-				st::settingsAudioVolumeSlider),
-			st::settingsAudioVolumeSliderPadding);
-    	const auto updateNetSpeedLabel = [=](int value) {
-    		const auto radius = QString::number(value);
-    		netSpeedLabel->setText(ktr("etg_settings_net_speed_boost"));
-    	};
-    	const auto updateNetSpeed = [=](int value) {
-    		updateNetSpeedLabel(value);
-    		::ExteraSettings::JsonSettings::Set("net_speed_boost", value);
-    		::ExteraSettings::JsonSettings::Write();
-    	};
-    	netSpeedSlider->resize(st::settingsAudioVolumeSlider.seekSize);
-    	netSpeedSlider->setPseudoDiscrete(
-			3,
-			[](int val) { return val; },
-			::ExteraSettings::JsonSettings::GetInt("net_speed_boost"),
-			updateNetSpeed);
-    	updateNetSpeedLabel(::ExteraSettings::JsonSettings::GetInt("net_speed_boost"));
-
     	SettingsMenuJsonSwitch(etg_settings_show_phone_number, show_phone_in_settings);
     	SettingsMenuJsonSwitch(etg_settings_chat_id, show_ids);
     }

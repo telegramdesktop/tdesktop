@@ -233,10 +233,6 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 
 	// Stored settings
 	//   General
-	{ "net_speed_boost", {
-		.type = SettingType::IntSetting,
-		.defaultValue = 0,
-		.limitHandler = IntLimit(0, 2, 2), }},
 	{ "show_phone_in_settings", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},

@@ -6,10 +6,10 @@ For license and copyright information please follow this link:
 https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 */
 #include "settings/settings_main.h"
+
 #include "extera/extera_settings_menu.h"
 #include "extera/extera_settings.h"
 #include "extera/extera_lang.h"
-
 #include "settings/settings_common.h"
 #include "settings/settings_codes.h"
 #include "settings/settings_chat.h"
