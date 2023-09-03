@@ -328,15 +328,23 @@ void MessageView::paint(
 			*_leftIcon,
 			context.active,
 			context.selected);
-		if (_hasPlainLinkAtBegin && !context.active) {
-			icon.paint(p, rect.topLeft(), rect.width(), palette->linkFg->c);
-		} else {
-			icon.paint(p, rect.topLeft(), rect.width());
+		const auto w = (icon.width());
+		if (rect.width() > w) {
+			if (_hasPlainLinkAtBegin && !context.active) {
+				icon.paint(
+					p,
+					rect.topLeft(),
+					rect.width(),
+					palette->linkFg->c);
+			} else {
+				icon.paint(p, rect.topLeft(), rect.width());
+			}
+			rect.setLeft(rect.x() + w + st::dialogsMiniIconSkip);
 		}
-		rect.setLeft(rect.x() + icon.width() + st::dialogsMiniIconSkip);
 	}
 	for (const auto &image : _imagesCache) {
-		if (rect.width() < st::dialogsMiniPreview) {
+		const auto w = st::dialogsMiniPreview + st::dialogsMiniPreviewSkip;
+		if (rect.width() < w) {
 			break;
 		}
 		const auto mini = QRect(
@@ -352,9 +360,7 @@ void MessageView::paint(
 				FillSpoilerRect(p, mini, frame);
 			}
 		}
-		rect.setLeft(rect.x()
-			+ st::dialogsMiniPreview
-			+ st::dialogsMiniPreviewSkip);
+		rect.setLeft(rect.x() + w);
 	}
 	if (!_imagesCache.empty()) {
 		rect.setLeft(rect.x() + st::dialogsMiniPreviewRight);
