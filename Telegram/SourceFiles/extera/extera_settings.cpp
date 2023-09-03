@@ -244,6 +244,28 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 		.type = SettingType::IntSetting,
 		.defaultValue = 50,
 		.limitHandler = IntLimit(0, 50, 50), }},
+	//     Side menu elements
+	{ "side_menu_archive", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = true, }},
+	{ "side_menu_create_group", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = true, }},
+	{ "side_menu_create_secret_chat", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = false, }},
+	{ "side_menu_create_channel", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = false, }},
+	{ "side_menu_contacts", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = true, }},
+	{ "side_menu_calls", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = true, }},
+	{ "side_menu_saved_messages", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = true, }},
 	//   Chats
 	{ "sticker_height", {
 		.type = SettingType::IntSetting,
