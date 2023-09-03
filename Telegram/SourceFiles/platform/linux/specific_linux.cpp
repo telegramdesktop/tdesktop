@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "core/launcher.h"
+#include "core/sandbox.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
@@ -52,115 +53,138 @@ using Platform::internal::WaylandIntegration;
 namespace Platform {
 namespace {
 
-bool PortalAutostart(bool start, bool silent) {
+void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 	if (cExeName().isEmpty()) {
-		return false;
+		if (done) {
+			done(false);
+		}
+		return;
 	}
 
-	auto error = false;
-
-	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::SESSION);
-
-		const auto handleToken = Glib::ustring("tdesktop")
-			+ std::to_string(base::RandomValue<uint>());
-
-		std::vector<Glib::ustring> commandline;
-		commandline.push_back(cExeName().toStdString());
-		if (Core::Launcher::Instance().customWorkingDir()) {
-			commandline.push_back("-workdir");
-			commandline.push_back(cWorkingDir().toStdString());
+	const auto connection = [&] {
+		try {
+			return Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::SESSION);
+		} catch (const std::exception &e) {
+			if (done) {
+				LOG(("Portal Autostart Error: %1").arg(
+					QString::fromStdString(e.what())));
+			}
+			return Glib::RefPtr<Gio::DBus::Connection>();
 		}
-		commandline.push_back("-autostart");
+	}();
 
-		std::map<Glib::ustring, Glib::VariantBase> options;
-		options["handle_token"] = Glib::create_variant(handleToken);
-		options["reason"] = Glib::create_variant(
-			Glib::ustring(
-				tr::lng_settings_auto_start(tr::now).toStdString()));
-		options["autostart"] = Glib::create_variant(start);
-		options["commandline"] = Glib::create_variant(commandline);
-		options["dbus-activatable"] = Glib::create_variant(false);
+	if (!connection) {
+		if (done) {
+			done(false);
+		}
+		return;
+	}
 
-		auto uniqueName = connection->get_unique_name();
-		uniqueName.erase(0, 1);
-		uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
+	const auto handleToken = Glib::ustring("tdesktop")
+		+ std::to_string(base::RandomValue<uint>());
 
-		const auto requestPath = Glib::ustring(
-				"/org/freedesktop/portal/desktop/request/")
-			+ uniqueName
-			+ '/'
-			+ handleToken;
+	std::vector<Glib::ustring> commandline;
+	commandline.push_back(cExeName().toStdString());
+	if (Core::Launcher::Instance().customWorkingDir()) {
+		commandline.push_back("-workdir");
+		commandline.push_back(cWorkingDir().toStdString());
+	}
+	commandline.push_back("-autostart");
 
-		const auto loop = Glib::MainLoop::create();
+	std::map<Glib::ustring, Glib::VariantBase> options;
+	options["handle_token"] = Glib::create_variant(handleToken);
+	options["reason"] = Glib::create_variant(
+		Glib::ustring(
+			tr::lng_settings_auto_start(tr::now).toStdString()));
+	options["autostart"] = Glib::create_variant(enabled);
+	options["commandline"] = Glib::create_variant(commandline);
+	options["dbus-activatable"] = Glib::create_variant(false);
 
-		const auto signalId = connection->signal_subscribe(
-			[&](
-				const Glib::RefPtr<Gio::DBus::Connection> &connection,
-				const Glib::ustring &sender_name,
-				const Glib::ustring &object_path,
-				const Glib::ustring &interface_name,
-				const Glib::ustring &signal_name,
-				const Glib::VariantContainerBase &parameters) {
+	auto uniqueName = connection->get_unique_name();
+	uniqueName.erase(0, 1);
+	uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
+
+	const auto requestPath = Glib::ustring(
+			"/org/freedesktop/portal/desktop/request/")
+		+ uniqueName
+		+ '/'
+		+ handleToken;
+
+	const auto window = std::make_shared<QWidget>();
+	window->setAttribute(Qt::WA_DontShowOnScreen);
+	window->setWindowModality(Qt::ApplicationModal);
+	window->show();
+
+	const auto signalId = std::make_shared<uint>();
+	*signalId = connection->signal_subscribe(
+		[=](
+			const Glib::RefPtr<Gio::DBus::Connection> &connection,
+			const Glib::ustring &sender_name,
+			const Glib::ustring &object_path,
+			const Glib::ustring &interface_name,
+			const Glib::ustring &signal_name,
+			const Glib::VariantContainerBase &parameters) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				(void)window; // don't destroy until finish
+
 				try {
 					const auto response = parameters.get_child(
 						0
 					).get_dynamic<uint>();
 
 					if (response) {
-						if (!silent) {
+						if (done) {
 							LOG(("Portal Autostart Error: Request denied"));
+							done(false);
 						}
-						error = true;
+					} else if (done) {
+						done(enabled);
 					}
 				} catch (const std::exception &e) {
-					if (!silent) {
+					if (done) {
 						LOG(("Portal Autostart Error: %1").arg(
 							QString::fromStdString(e.what())));
+						done(false);
 					}
-					error = true;
 				}
 
-				loop->quit();
-			},
-			base::Platform::XDP::kService,
-			base::Platform::XDP::kRequestInterface,
-			"Response",
-			requestPath);
+				if (*signalId) {
+					connection->signal_unsubscribe(*signalId);
+				}
+			});
+		},
+		base::Platform::XDP::kService,
+		base::Platform::XDP::kRequestInterface,
+		"Response",
+		requestPath);
 
-		const auto signalGuard = gsl::finally([&] {
-			if (signalId != 0) {
-				connection->signal_unsubscribe(signalId);
-			}
-		});
+	connection->call(
+		base::Platform::XDP::kObjectPath,
+		"org.freedesktop.portal.Background",
+		"RequestBackground",
+		Glib::create_variant(std::tuple{
+			base::Platform::XDP::ParentWindowID(),
+			options,
+		}),
+		[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				try {
+					connection->call_finish(result);
+				} catch (const std::exception &e) {
+					if (done) {
+						LOG(("Portal Autostart Error: %1").arg(
+							QString::fromStdString(e.what())));
+						done(false);
+					}
 
-		connection->call_sync(
-			base::Platform::XDP::kObjectPath,
-			"org.freedesktop.portal.Background",
-			"RequestBackground",
-			Glib::create_variant(std::tuple{
-				base::Platform::XDP::ParentWindowID(),
-				options,
-			}),
-			base::Platform::XDP::kService);
-
-		if (signalId != 0) {
-			QWidget window;
-			window.setAttribute(Qt::WA_DontShowOnScreen);
-			window.setWindowModality(Qt::ApplicationModal);
-			window.show();
-			loop->run();
-		}
-	} catch (const std::exception &e) {
-		if (!silent) {
-			LOG(("Portal Autostart Error: %1").arg(
-				QString::fromStdString(e.what())));
-		}
-		error = true;
-	}
-
-	return !error;
+					if (*signalId) {
+						connection->signal_unsubscribe(*signalId);
+					}
+				}
+			});
+		},
+		base::Platform::XDP::kService);
 }
 
 bool GenerateDesktopFile(
@@ -457,13 +481,12 @@ bool AutostartSupported() {
 }
 
 void AutostartToggle(bool enabled, Fn<void(bool)> done) {
+	if (KSandbox::isFlatpak()) {
+		PortalAutostart(enabled, done);
+		return;
+	}
+
 	const auto success = [&] {
-		const auto silent = !done;
-
-		if (KSandbox::isFlatpak()) {
-			return PortalAutostart(enabled, silent);
-		}
-
 		const auto autostart = QStandardPaths::writableLocation(
 			QStandardPaths::GenericConfigLocation)
 			+ u"/autostart/"_q;
@@ -479,7 +502,7 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 			autostart,
 			{ u"-autostart"_q },
 			true,
-			silent);
+			!done);
 	}();
 
 	if (done) {
