@@ -130,6 +130,7 @@ private:
             const QByteArray &passcode);
     [[nodiscard]] StartModernResult startUsingKeyStream(
             Storage::details::EncryptedDescriptor& keyInnerData,
+            const QByteArray& keyEncrypted,
             const QByteArray& infoEncrypted,
             const QByteArray& salt,
             const QByteArray& passcode);
