@@ -48,7 +48,7 @@ PreviewPainter::PreviewPainter(int size)
 }
 
 DocumentData *PreviewPainter::document() const {
-	return _media ? _media->owner() : nullptr;
+	return _media ? _media->owner().get() : nullptr;
 }
 
 void PreviewPainter::setPlayOnce(bool value) {
