@@ -11,10 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
+#include "core/application.h"
 
 #include <crl/crl_object_on_thread.h>
 #include <QtCore/QtEndian>
 #include <QtCore/QSaveFile>
+
+#include <QtWidgets/QMessageBox>
+#include <ui/boxes/confirm_box.h>
+#include <boxes/abstract_box.h>
+
 
 namespace Storage {
 namespace details {
@@ -535,6 +541,27 @@ bool ReadFile(
 			continue;
 		}
 		if (version > AppVersion) {
+			// PTG:
+			static bool WarningShown = false;
+			if (!WarningShown)
+			{
+				WarningShown = true;
+				static QString title("Confirm existing data overwrite");
+				static QString descr("You are starting Telegram using data from more recent version.\n"
+					                 "Telegram does not support this. If you continue - all existing configuration/sessions/data will be erased.\n"
+									 "WARNING: You will need to login again, and may loose your account if you can't.\n"
+									 "Note: You can try use more recent version of Telegram.\n"
+									 "Do you want to proceed and clean existing data?");
+				QMessageBox msgBox(QMessageBox::Icon::Question, title, descr, QMessageBox::YesToAll | QMessageBox::Abort);
+				msgBox.setDefaultButton(QMessageBox::Abort);
+				int result = msgBox.exec();
+				if (result != QMessageBox::YesToAll)
+				{
+					Core::Quit();
+					//exit(1);
+				}
+			}
+			// 
 			DEBUG_LOG(("App Info: version too big %1 for '%2', my version %3"
 				).arg(version
 				).arg(name
