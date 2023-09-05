@@ -34,7 +34,8 @@ public:
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		int selectedXIndex) = 0;
+		int selectedXIndex,
+		float64 progress) = 0;
 
 	virtual void setEnabled(int id, bool enabled, crl::time now) = 0;
 	[[nodiscard]] virtual bool isEnabled(int id) const = 0;

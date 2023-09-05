@@ -143,6 +143,10 @@ void PointDetailsWidget::setAlpha(float64 alpha) {
 	update();
 }
 
+float64 PointDetailsWidget::alpha() const {
+	return _alpha;
+}
+
 int PointDetailsWidget::lineYAt(int index) const {
 	auto linesHeight = 0.;
 	for (auto i = 0; i < index; i++) {
@@ -186,7 +190,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 			.outerWidth = _textRect.width() - valueWidth,
 			.availableWidth = _textRect.width(),
 		};
-		p.setOpacity(line.alpha * line.alpha);
+		p.setOpacity(line.alpha * line.alpha * _alpha);
 		p.setPen(st::boxTextFg);
 		line.name.draw(p, nameContext);
 		p.setPen(line.valueColor);

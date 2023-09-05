@@ -75,9 +75,6 @@ private:
 		[[nodiscard]] Limits currentHeightLimits() const;
 		[[nodiscard]] Limits currentFooterHeightLimits() const;
 		[[nodiscard]] Limits finalHeightLimits() const;
-		[[nodiscard]] float64 detailsProgress(
-			crl::time now,
-			const Limits &appearedOnXLimits) const;
 		[[nodiscard]] bool animating() const;
 		[[nodiscard]] bool footerAnimating() const;
 		[[nodiscard]] bool isFPSSlow() const;
@@ -146,8 +143,8 @@ private:
 
 	struct {
 		base::unique_qptr<PointDetailsWidget> widget;
-		float64 currentX = 0;
-		Limits appearedOnXLimits;
+		Ui::Animations::Basic animation;
+		bool hideOnAnimationEnd = false;
 	} _details;
 
 	struct {

@@ -94,7 +94,8 @@ void StackChartView::paintSelectedXIndex(
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		int selectedXIndex) {
+		int selectedXIndex,
+		float64 progress) {
 }
 
 void StackChartView::setEnabled(int id, bool enabled, crl::time now) {

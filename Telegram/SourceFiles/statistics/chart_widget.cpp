@@ -830,20 +830,6 @@ Limits ChartWidget::ChartAnimationController::finalHeightLimits() const {
 	return _finalHeightLimits;
 }
 
-float64 ChartWidget::ChartAnimationController::detailsProgress(
-		crl::time now,
-		const Limits &appearedOnXLimits) const {
-	const auto xLimitsChanged = false
-		|| (appearedOnXLimits.min != _animationValueXMin.to())
-		|| (appearedOnXLimits.max != _animationValueXMax.to());
-	return (_animation.animating() && xLimitsChanged)
-		? std::clamp(
-			(now - _animation.started()) / float64(kExpandingDelay),
-			0.,
-			1.)
-		: 0.;
-}
-
 bool ChartWidget::ChartAnimationController::animating() const {
 	return _animation.animating();
 }
@@ -964,35 +950,6 @@ void ChartWidget::setupChartArea() {
 			PaintHorizontalLines(p, horizontalLine, chartRect);
 		}
 
-		const auto detailsAlpha = 1.
-			- _animationController.detailsProgress(
-				now,
-				_details.appearedOnXLimits);
-
-		if (_details.widget) {
-			if (!detailsAlpha && _details.currentX) {
-				_details.widget->hide();
-				_details.widget->setXIndex(-1);
-				_details.currentX = 0;
-				_details.appearedOnXLimits = {};
-			}
-			if (_details.currentX) {
-				const auto lineRect = QRectF(
-					_details.currentX - (st::lineWidth / 2.),
-					0,
-					st::lineWidth,
-					_chartArea->height());
-				const auto opacity = ScopedPainterOpacity(p, detailsAlpha);
-				p.fillRect(lineRect, st::windowSubTextFg);
-				_details.widget->setAlpha(detailsAlpha);
-				for (const auto &line : _chartData.lines) {
-					_details.widget->setLineAlpha(
-						line.id,
-						_chartView->alpha(line.id));
-				}
-			}
-		}
-
 		if (_chartData) {
 			// p.setRenderHint(
 			// 	QPainter::Antialiasing,
@@ -1020,16 +977,22 @@ void ChartWidget::setupChartArea() {
 				QRect(bottom.x(), bottom.y(), bottom.width(), st::lineWidth),
 				st::windowSubTextFg);
 		}
-		if (_details.widget && (detailsAlpha > 0.)) {
-			auto hq = PainterHighQualityEnabler(p);
-			auto o = ScopedPainterOpacity(p, detailsAlpha);
+		if (_details.widget) {
+			const auto detailsAlpha = _details.widget->alpha();
+
+			for (const auto &line : _chartData.lines) {
+				_details.widget->setLineAlpha(
+					line.id,
+					_chartView->alpha(line.id));
+			}
 			_chartView->paintSelectedXIndex(
 				p,
 				_chartData,
 				_animationController.currentXLimits(),
 				_animationController.currentHeightLimits(),
 				chartRect,
-				_details.widget->xIndex());
+				_details.widget->xIndex(),
+				detailsAlpha);
 		}
 
 		p.setPen(st::windowSubTextFg);
@@ -1158,6 +1121,12 @@ void ChartWidget::setupFooter() {
 	_footer->xPercentageLimitsChange(
 	) | rpl::start_with_next([=](Limits xPercentageLimits) {
 		const auto now = crl::now();
+		if (_details.widget
+			&& (_details.widget->xIndex() >= 0)
+			&& !_details.animation.animating()) {
+			_details.hideOnAnimationEnd = true;
+			_details.animation.start();
+		}
 		_animationController.setXPercentageLimits(
 			_chartData,
 			xPercentageLimits,
@@ -1176,7 +1145,7 @@ void ChartWidget::setupFooter() {
 
 void ChartWidget::setupDetails() {
 	if (!_chartData) {
-		_details = {};
+		_details.widget = nullptr;
 		_chartArea->update();
 		return;
 	}
@@ -1229,23 +1198,26 @@ void ChartWidget::setupDetails() {
 			const auto nearestXIndex = std::distance(
 				begin(_chartData.xPercentage),
 				nearestXPercentageIt);
-			_details.currentX = 0
+			const auto currentX = 0
 				+ chartRect.width() * InterpolationRatio(
 					currentXLimits.min,
 					currentXLimits.max,
 					*nearestXPercentageIt);
-			_details.appearedOnXLimits = currentXLimits;
-			const auto xLeft = _details.currentX
+			const auto xLeft = currentX
 				- _details.widget->width();
 			const auto x = (xLeft >= 0)
 				? xLeft
-				: ((_details.currentX
+				: ((currentX
 					+ _details.widget->width()
 					- _chartArea->width()) > 0)
 				? 0
-				: _details.currentX;
+				: currentX;
 			_details.widget->moveToLeft(x, _chartArea->y());
 			_details.widget->setXIndex(nearestXIndex);
+			if (_details.widget->isHidden()) {
+				_details.hideOnAnimationEnd = false;
+				_details.animation.start();
+			}
 			_details.widget->show();
 			_chartArea->update();
 		} break;
@@ -1253,6 +1225,26 @@ void ChartWidget::setupDetails() {
 		} break;
 		}
 	}, _details.widget->lifetime());
+
+	_details.animation.init([=](crl::time now) {
+		const auto value = std::clamp(
+			(now - _details.animation.started()) / float64(200),
+			0.,
+			1.);
+		const auto alpha = _details.hideOnAnimationEnd ? (1. - value) : value;
+		_chartArea->update();
+		if (_details.widget) {
+			_details.widget->setAlpha(alpha);
+			_details.widget->update();
+		}
+		if (value >= 1.) {
+			if (_details.hideOnAnimationEnd && _details.widget) {
+				_details.widget->hide();
+				_details.widget->setXIndex(-1);
+			}
+			_details.animation.stop();
+		}
+	});
 }
 
 void ChartWidget::setupFilterButtons() {

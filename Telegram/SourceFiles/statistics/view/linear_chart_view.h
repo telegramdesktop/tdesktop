@@ -38,7 +38,8 @@ public:
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		int selectedXIndex) override;
+		int selectedXIndex,
+		float64 progress) override;
 
 	void setEnabled(int id, bool enabled, crl::time now) override;
 	[[nodiscard]] bool isEnabled(int id) const override;
@@ -97,6 +98,7 @@ private:
 	struct SelectedPoints final {
 		int lastXIndex = -1;
 		Limits lastHeightLimits;
+		Limits lastXLimits;
 		base::flat_map<int, QPointF> points;
 	};
 	SelectedPoints _selectedPoints;

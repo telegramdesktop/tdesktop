@@ -39,7 +39,8 @@ public:
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		int selectedXIndex) override;
+		int selectedXIndex,
+		float64 progress) override;
 
 	void setEnabled(int id, bool enabled, crl::time now) override;
 	[[nodiscard]] bool isEnabled(int id) const override;

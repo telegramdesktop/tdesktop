@@ -23,6 +23,7 @@ public:
 	[[nodiscard]] int xIndex() const;
 	void setXIndex(int xIndex);
 	void setAlpha(float64 alpha);
+	[[nodiscard]] float64 alpha() const;
 	void setLineAlpha(int lineId, float64 alpha);
 
 protected:

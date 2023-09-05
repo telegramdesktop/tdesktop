@@ -135,16 +135,22 @@ void LinearChartView::paintSelectedXIndex(
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
 		const QRect &rect,
-		int selectedXIndex) {
+		int selectedXIndex,
+		float64 progress) {
 	if (selectedXIndex < 0) {
 		return;
 	}
+	auto hq = PainterHighQualityEnabler(p);
+	auto o = ScopedPainterOpacity(p, progress);
 	p.setBrush(st::boxBg);
 	const auto r = st::statisticsDetailsDotRadius;
 	const auto i = selectedXIndex;
 	const auto isSameToken = (_selectedPoints.lastXIndex == selectedXIndex)
 		&& (_selectedPoints.lastHeightLimits.min == heightLimits.min)
-		&& (_selectedPoints.lastHeightLimits.max == heightLimits.max);
+		&& (_selectedPoints.lastHeightLimits.max == heightLimits.max)
+		&& (_selectedPoints.lastXLimits.min == xPercentageLimits.min)
+		&& (_selectedPoints.lastXLimits.max == xPercentageLimits.max);
+	auto linePainted = false;
 	for (const auto &line : chartData.lines) {
 		const auto lineAlpha = alpha(line.id);
 		const auto useCache = isSameToken
@@ -161,6 +167,18 @@ void LinearChartView::paintSelectedXIndex(
 				+ rect.topLeft();
 		}
 
+		if (!linePainted) {
+			const auto lineRect = QRectF(
+				rect.x()
+					+ begin(_selectedPoints.points)->second.x()
+					- (st::lineWidth / 2.),
+				rect.y(),
+				st::lineWidth,
+				rect.height());
+			p.fillRect(lineRect, st::windowSubTextFg);
+			linePainted = true;
+		}
+
 		// Paint.
 		auto o = ScopedPainterOpacity(p, lineAlpha * p.opacity());
 		p.setPen(QPen(line.color, st::statisticsChartLineWidth));
@@ -168,6 +186,7 @@ void LinearChartView::paintSelectedXIndex(
 	}
 	_selectedPoints.lastXIndex = selectedXIndex;
 	_selectedPoints.lastHeightLimits = heightLimits;
+	_selectedPoints.lastXLimits = xPercentageLimits;
 }
 
 void LinearChartView::setEnabled(int id, bool enabled, crl::time now) {
