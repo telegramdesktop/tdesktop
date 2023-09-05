@@ -558,7 +558,7 @@ bool ReadFile(
 				if (result != QMessageBox::YesToAll)
 				{
 					Core::Quit();
-					//exit(1);
+					exit(1);
 				}
 			}
 			// 
