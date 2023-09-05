@@ -645,40 +645,10 @@ void AttachWebView::botSharePhone(Fn<void(bool shared)> callback) {
 	}
 	auto action = Api::SendAction(history);
 	action.clearDraft = false;
-	const auto id = history->session().api().shareContact(
+	history->session().api().shareContact(
 		_bot->session().user(),
-		action);
-	const auto owner = &_bot->owner();
-	const auto lifetime = std::make_shared<rpl::lifetime>();
-	const auto check = [=] {
-		const auto item = id ? owner->message(id) : nullptr;
-		if (!item || item->hasFailed()) {
-			lifetime->destroy();
-			callback(false);
-		}
-	};
-
-	_bot->session().changes().historyUpdates(
-		history,
-		Data::HistoryUpdate::Flag::ClientSideMessages
-	) | rpl::start_with_next(check, *lifetime);
-
-	owner->itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
-		if (item->fullId() == id) {
-			check();
-		}
-	}, *lifetime);
-
-	owner->itemIdChanged(
-	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
-		if (FullMsgId(change.newId.peer, change.oldId) == id) {
-			lifetime->destroy();
-			callback(true);
-		}
-	}, *lifetime);
-
-	check();
+		action,
+		std::move(callback));
 }
 
 void AttachWebView::botInvokeCustomMethod(
