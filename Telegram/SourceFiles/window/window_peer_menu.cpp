@@ -1237,6 +1237,7 @@ void Filler::fillProfileActions() {
 	addGiftPremium();
 	addBotToGroup();
 	addNewMembers();
+	addStoryArchive();
 	addManageChat();
 	addTopicLink();
 	addManageTopic();

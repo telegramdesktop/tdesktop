@@ -1536,35 +1536,39 @@ void Stories::savedLoadMore(PeerId peerId) {
 }
 
 void Stories::deleteList(const std::vector<FullStoryId> &ids) {
+	if (ids.empty()) {
+		return;
+	}
+	const auto peer = session().data().peer(ids.front().peer);
 	auto list = QVector<MTPint>();
 	list.reserve(ids.size());
-	const auto selfId = session().userPeerId();
 	for (const auto &id : ids) {
-		if (id.peer == selfId) {
+		if (id.peer == peer->id) {
 			list.push_back(MTP_int(id.story));
 		}
 	}
-	if (!list.empty()) {
-		const auto api = &_owner->session().api();
-		api->request(MTPstories_DeleteStories(
-			MTP_inputPeerSelf(),
-			MTP_vector<MTPint>(list)
-		)).done([=](const MTPVector<MTPint> &result) {
-			for (const auto &id : result.v) {
-				applyDeleted(_owner->session().user(), id.v);
-			}
-		}).send();
-	}
+	const auto api = &_owner->session().api();
+	api->request(MTPstories_DeleteStories(
+		peer->input,
+		MTP_vector<MTPint>(list)
+	)).done([=](const MTPVector<MTPint> &result) {
+		for (const auto &id : result.v) {
+			applyDeleted(peer, id.v);
+		}
+	}).send();
 }
 
 void Stories::togglePinnedList(
 		const std::vector<FullStoryId> &ids,
 		bool pinned) {
+	if (ids.empty()) {
+		return;
+	}
+	const auto peer = session().data().peer(ids.front().peer);
 	auto list = QVector<MTPint>();
 	list.reserve(ids.size());
-	const auto selfId = session().userPeerId();
 	for (const auto &id : ids) {
-		if (id.peer == selfId) {
+		if (id.peer == peer->id) {
 			list.push_back(MTP_int(id.story));
 		}
 	}
@@ -1573,11 +1577,12 @@ void Stories::togglePinnedList(
 	}
 	const auto api = &_owner->session().api();
 	api->request(MTPstories_TogglePinned(
-		MTP_inputPeerSelf(),
+		peer->input,
 		MTP_vector<MTPint>(list),
 		MTP_bool(pinned)
 	)).done([=](const MTPVector<MTPint> &result) {
-		auto &saved = _saved[selfId];
+		const auto peerId = peer->id;
+		auto &saved = _saved[peerId];
 		const auto loaded = saved.loaded;
 		const auto lastId = !saved.ids.list.empty()
 			? saved.ids.list.back()
@@ -1586,7 +1591,7 @@ void Stories::togglePinnedList(
 			: std::numeric_limits<StoryId>::max();
 		auto dirty = false;
 		for (const auto &id : result.v) {
-			if (const auto maybeStory = lookup({ selfId, id.v })) {
+			if (const auto maybeStory = lookup({ peerId, id.v })) {
 				const auto story = *maybeStory;
 				story->setPinned(pinned);
 				if (pinned) {
@@ -1610,9 +1615,9 @@ void Stories::togglePinnedList(
 			}
 		}
 		if (dirty) {
-			savedLoadMore(selfId);
+			savedLoadMore(peerId);
 		} else {
-			_savedChanged.fire_copy(selfId);
+			_savedChanged.fire_copy(peerId);
 		}
 	}).send();
 }

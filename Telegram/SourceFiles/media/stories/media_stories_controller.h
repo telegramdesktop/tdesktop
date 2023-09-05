@@ -313,6 +313,7 @@ private:
 };
 
 [[nodiscard]] Ui::Toast::Config PrepareTogglePinnedToast(
+	bool channel,
 	int count,
 	bool pinned);
 void ReportRequested(

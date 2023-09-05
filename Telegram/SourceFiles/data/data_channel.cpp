@@ -547,16 +547,25 @@ bool ChannelData::canDeleteMessages() const {
 }
 
 bool ChannelData::canPostStories() const {
+	if (!isBroadcast()) {
+		return false;
+	}
 	return amCreator()
 		|| (adminRights() & AdminRight::PostStories);
 }
 
 bool ChannelData::canEditStories() const {
+	if (!isBroadcast()) {
+		return false;
+	}
 	return amCreator()
 		|| (adminRights() & AdminRight::EditStories);
 }
 
 bool ChannelData::canDeleteStories() const {
+	if (!isBroadcast()) {
+		return false;
+	}
 	return amCreator()
 		|| (adminRights() & AdminRight::DeleteStories);
 }

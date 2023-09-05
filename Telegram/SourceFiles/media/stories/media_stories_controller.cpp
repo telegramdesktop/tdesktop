@@ -1546,7 +1546,8 @@ void Controller::togglePinnedRequested(bool pinned) {
 		moveFromShown();
 	}
 	story->owner().stories().togglePinnedList({ story->fullId() }, pinned);
-	uiShow()->showToast(PrepareTogglePinnedToast(1, pinned));
+	const auto channel = story->peer()->isChannel();
+	uiShow()->showToast(PrepareTogglePinnedToast(channel, 1, pinned));
 }
 
 void Controller::moveFromShown() {
@@ -1597,29 +1598,41 @@ void Controller::updatePowerSaveBlocker(const Player::TrackState &state) {
 		[=] { return _wrap->window()->windowHandle(); });
 }
 
-Ui::Toast::Config PrepareTogglePinnedToast(int count, bool pinned) {
+Ui::Toast::Config PrepareTogglePinnedToast(
+		bool channel,
+		int count,
+		bool pinned) {
 	return {
 		.text = (pinned
 			? (count == 1
-				? tr::lng_stories_save_done(
-					tr::now,
-					Ui::Text::Bold)
-				: tr::lng_stories_save_done_many(
-					tr::now,
-					lt_count,
-					count,
-					Ui::Text::Bold)).append(
-						'\n').append(
-							tr::lng_stories_save_done_about(tr::now))
+				? (channel
+					? tr::lng_stories_channel_save_done
+					: tr::lng_stories_save_done)(
+						tr::now,
+						Ui::Text::Bold)
+				: (channel
+					? tr::lng_stories_channel_save_done_many
+					: tr::lng_stories_save_done_many)(
+						tr::now,
+						lt_count,
+						count,
+						Ui::Text::Bold)).append(
+							'\n').append((channel
+								? tr::lng_stories_channel_save_done_about
+								: tr::lng_stories_save_done_about)(tr::now))
 			: (count == 1
-				? tr::lng_stories_archive_done(
-					tr::now,
-					Ui::Text::WithEntities)
-				: tr::lng_stories_archive_done_many(
-					tr::now,
-					lt_count,
-					count,
-					Ui::Text::WithEntities))),
+				? (channel
+					? tr::lng_stories_channel_archive_done
+					: tr::lng_stories_archive_done)(
+						tr::now,
+						Ui::Text::WithEntities)
+				: (channel
+					? tr::lng_stories_channel_archive_done_many
+					: tr::lng_stories_archive_done_many)(
+						tr::now,
+						lt_count,
+						count,
+						Ui::Text::WithEntities))),
 		.st = &st::storiesActionToast,
 		.duration = (pinned
 			? Data::Stories::kPinnedToastDuration

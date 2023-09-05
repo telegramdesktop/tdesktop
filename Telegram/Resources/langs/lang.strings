@@ -3976,7 +3976,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_recent_button" = "Recent Stories";
 "lng_stories_archive_title" = "Stories Archive";
 "lng_stories_archive_about" = "Only you can see archived stories unless you choose to save them to your profile.";
-"lng_stories_channel_archive_about" = "Only admins of the channel can see archived stories unless you choose to save them to the channel page.";
+"lng_stories_channel_archive_about" = "Only admins of the channel can see archived stories unless they are saved to the channel page.";
 "lng_stories_reply_sent" = "Message Sent";
 "lng_stories_hidden_to_contacts" = "Stories from {user} will now be shown in **Archived Chats**.";
 "lng_stories_shown_in_chats" = "Stories from {user} will now be shown in the **Chats List**.";
@@ -3996,6 +3996,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_archive_done" = "This story is hidden from your profile.";
 "lng_stories_archive_done_many#one" = "{count} story is hidden from your profile.";
 "lng_stories_archive_done_many#other" = "{count} stories are hidden from your profile.";
+"lng_stories_channel_save_sure" = "Do you want to save this story to the channel page?";
+"lng_stories_channel_save_sure_many#one" = "Do you want to save {count} story to the channel page?";
+"lng_stories_channel_save_sure_many#other" = "Do you want to save {count} stories to the channel page?";
+"lng_stories_channel_save_done" = "This story is saved to the channel page.";
+"lng_stories_channel_save_done_many#one" = "{count} story is saved to the channel page.";
+"lng_stories_channel_save_done_many#other" = "{count} stories are saved to the channel page.";
+"lng_stories_channel_save_done_about" = "Saved stories can be viewed by others on the channel page until they are removed.";
+"lng_stories_channel_archive_sure" = "Do you want to hide this story from the channel page?";
+"lng_stories_channel_archive_sure_many#one" = "Do you want to hide {count} story from the channel page?";
+"lng_stories_channel_archive_sure_many#other" = "Do you want to hide {count} stories from the channel page?";
+"lng_stories_channel_archive_done" = "This story is hidden from the channel page.";
+"lng_stories_channel_archive_done_many#one" = "{count} story is hidden from the channel page.";
+"lng_stories_channel_archive_done_many#other" = "{count} stories are hidden from the channel page.";
 "lng_stories_save_promo" = "Subscribe to {link} to download other people's unprotected stories to disk.";
 
 "lng_stealth_mode_menu_item" = "Stealth Mode";
