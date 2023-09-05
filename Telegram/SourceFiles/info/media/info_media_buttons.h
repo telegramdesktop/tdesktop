@@ -138,12 +138,15 @@ inline auto AddStoriesButton(
 	) | rpl::map([](const Data::StoriesIdsSlice &slice) {
 		return slice.fullCount().value_or(0);
 	}));
+	const auto phrase = peer->isChannel() ? (+[](int count) {
+		return tr::lng_profile_posts(tr::now, lt_count, count);
+	}) : (+[](int count) {
+		return tr::lng_profile_saved_stories(tr::now, lt_count, count);
+	});
 	auto result = AddCountedButton(
 		parent,
 		std::move(count),
-		[](int count) {
-			return tr::lng_profile_saved_stories(tr::now, lt_count, count);
-		},
+		phrase,
 		tracker)->entity();
 	result->addClickHandler([=] {
 		navigation->showSection(Info::Stories::Make(peer));

@@ -1183,6 +1183,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_loading" = "Loading...";
 "lng_profile_saved_stories#one" = "{count} saved story";
 "lng_profile_saved_stories#other" = "{count} saved stories";
+"lng_profile_posts#one" = "{count} post";
+"lng_profile_posts#other" = "{count} posts";
 "lng_profile_photos#one" = "{count} photo";
 "lng_profile_photos#other" = "{count} photos";
 "lng_profile_gifs#one" = "{count} GIF";
@@ -3974,6 +3976,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_recent_button" = "Recent Stories";
 "lng_stories_archive_title" = "Stories Archive";
 "lng_stories_archive_about" = "Only you can see archived stories unless you choose to save them to your profile.";
+"lng_stories_channel_archive_about" = "Only admins of the channel can see archived stories unless you choose to save them to the channel page.";
 "lng_stories_reply_sent" = "Message Sent";
 "lng_stories_hidden_to_contacts" = "Stories from {user} will now be shown in **Archived Chats**.";
 "lng_stories_shown_in_chats" = "Stories from {user} will now be shown in the **Chats List**.";

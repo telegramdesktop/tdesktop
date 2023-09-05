@@ -177,7 +177,7 @@ void Provider::refreshViewer() {
 	const auto session = &_peer->session();
 	auto ids = (_tab == Tab::Saved)
 		? Data::SavedStoriesIds(_peer, idForViewer, _idsLimit)
-		: Data::ArchiveStoriesIds(session, idForViewer, _idsLimit);
+		: Data::ArchiveStoriesIds(_peer, idForViewer, _idsLimit);
 	std::move(
 		ids
 	) | rpl::start_with_next([=](Data::StoriesIdsSlice &&slice) {

@@ -546,6 +546,21 @@ bool ChannelData::canDeleteMessages() const {
 		|| (adminRights() & AdminRight::DeleteMessages);
 }
 
+bool ChannelData::canPostStories() const {
+	return amCreator()
+		|| (adminRights() & AdminRight::PostStories);
+}
+
+bool ChannelData::canEditStories() const {
+	return amCreator()
+		|| (adminRights() & AdminRight::EditStories);
+}
+
+bool ChannelData::canDeleteStories() const {
+	return amCreator()
+		|| (adminRights() & AdminRight::DeleteStories);
+}
+
 bool ChannelData::anyoneCanAddMembers() const {
 	return !(defaultRestrictions() & Restriction::AddParticipants);
 }

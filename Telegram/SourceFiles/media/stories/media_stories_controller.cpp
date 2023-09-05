@@ -654,41 +654,38 @@ void Controller::rebuildFromContext(
 		hideSiblings();
 	}, [&](StoriesContextSaved) {
 		if (stories.savedCountKnown(peerId)) {
-			if (const auto saved = stories.saved(peerId)) {
-				const auto &ids = saved->list;
-				const auto i = ids.find(id);
-				if (i != end(ids)) {
-					list = StoriesList{
-						.peer = peer,
-						.ids = *saved,
-						.total = stories.savedCount(peerId),
-					};
-					_index = int(i - begin(ids));
-					if (ids.size() < list->total
-						&& (end(ids) - i) < kPreloadStoriesCount) {
-						stories.savedLoadMore(peerId);
-					}
+			const auto &saved = stories.saved(peerId);
+			const auto &ids = saved.list;
+			const auto i = ids.find(id);
+			if (i != end(ids)) {
+				list = StoriesList{
+					.peer = peer,
+					.ids = saved,
+					.total = stories.savedCount(peerId),
+				};
+				_index = int(i - begin(ids));
+				if (ids.size() < list->total
+					&& (end(ids) - i) < kPreloadStoriesCount) {
+					stories.savedLoadMore(peerId);
 				}
 			}
 		}
 		hideSiblings();
 	}, [&](StoriesContextArchive) {
-		Expects(peer->isSelf());
-
-		if (stories.archiveCountKnown()) {
-			const auto &archive = stories.archive();
+		if (stories.archiveCountKnown(peerId)) {
+			const auto &archive = stories.archive(peerId);
 			const auto &ids = archive.list;
 			const auto i = ids.find(id);
 			if (i != end(ids)) {
 				list = StoriesList{
 					.peer = peer,
 					.ids = archive,
-					.total = stories.archiveCount(),
+					.total = stories.archiveCount(peerId),
 				};
 				_index = int(i - begin(ids));
 				if (ids.size() < list->total
 					&& (end(ids) - i) < kPreloadStoriesCount) {
-					stories.archiveLoadMore();
+					stories.archiveLoadMore(peerId);
 				}
 			}
 		}
@@ -1390,9 +1387,7 @@ void Controller::loadMoreToList() {
 	v::match(_context.data, [&](StoriesContextSaved) {
 		stories.savedLoadMore(peerId);
 	}, [&](StoriesContextArchive) {
-		Expects(peer->isSelf());
-
-		stories.archiveLoadMore();
+		stories.archiveLoadMore(peerId);
 	}, [](const auto &) {
 	});
 }
