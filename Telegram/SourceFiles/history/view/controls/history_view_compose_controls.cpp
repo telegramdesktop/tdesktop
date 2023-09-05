@@ -612,7 +612,7 @@ void FieldHeader::init() {
 		const auto isLeftIcon = (pos.x() < st::historyReplySkip);
 		const auto isLeftButton = (e->button() == Qt::LeftButton);
 		if (type == QEvent::MouseButtonPress) {
-			if (isLeftButton && isLeftIcon) {
+			if (isLeftButton && isLeftIcon && !inPreviewRect) {
 				*leftIconPressed = true;
 				update();
 			} else if (isLeftButton && inPhotoEdit) {
@@ -966,11 +966,13 @@ MsgId FieldHeader::getDraftMessageId() const {
 }
 
 void FieldHeader::updateControlsGeometry(QSize size) {
+	const auto isReadyToForward = readyToForward();
+	const auto skip = isReadyToForward ? 0 : st::historyReplySkip;
 	_cancel->moveToRight(0, 0);
 	_clickableRect = QRect(
-		st::historyReplySkip,
+		skip,
 		0,
-		width() - st::historyReplySkip - _cancel->width(),
+		width() - skip - _cancel->width(),
 		height());
 	_shownMessagePreviewRect = QRect(
 		st::historyReplySkip,
@@ -1000,6 +1002,7 @@ void FieldHeader::updateForwarding(
 	if (readyToForward()) {
 		replyToMessage({});
 	}
+	updateControlsGeometry(size());
 }
 
 rpl::producer<FullMsgId> FieldHeader::editMsgIdValue() const {
