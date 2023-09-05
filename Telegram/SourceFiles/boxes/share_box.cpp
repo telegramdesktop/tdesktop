@@ -248,6 +248,8 @@ void ShareBox::prepareCommentField() {
 void ShareBox::prepare() {
 	prepareCommentField();
 
+	setCloseByOutsideClick(false);
+
 	_select->resizeToWidth(st::boxWideWidth);
 	Ui::SendPendingMoveResizeEvents(_select);
 
