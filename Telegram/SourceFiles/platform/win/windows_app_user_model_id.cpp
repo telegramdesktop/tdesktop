@@ -1,9 +1,9 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "platform/win/windows_app_user_model_id.h"
 
@@ -25,11 +25,11 @@ const PROPERTYKEY pkey_AppUserModel_StartPinOption = { { 0x9F4C2855, 0x9F79, 0x4
 const PROPERTYKEY pkey_AppUserModel_ToastActivator = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 26 };
 
 #ifdef OS_WIN_STORE
-const WCHAR AppUserModelIdRelease[] = L"Exteragram.ExteragramDesktop.Store";
+const WCHAR AppUserModelIdRelease[] = L"Rabbitgram.RabbitgramDesktop.Store";
 #else // OS_WIN_STORE
-const WCHAR AppUserModelIdRelease[] = L"Exteragram.ExteragramDesktop";
+const WCHAR AppUserModelIdRelease[] = L"Rabbitgram.RabbitgramDesktop";
 #endif // OS_WIN_STORE
-const WCHAR AppUserModelIdAlpha[] = L"Exteragram.ExteragramDesktop.Alpha";
+const WCHAR AppUserModelIdAlpha[] = L"Rabbitgram.RabbitgramDesktop.Alpha";
 
 } // namespace
 
@@ -188,7 +188,7 @@ QString systemShortcutPath() {
 void cleanupShortcut() {
 	static const int maxFileLen = MAX_PATH * 10;
 
-	QString path = systemShortcutPath() + u"exteraGram.lnk"_q;
+	QString path = systemShortcutPath() + u"rabbitGram.lnk"_q;
 	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
 
 	DWORD attributes = GetFileAttributes(p.c_str());
@@ -316,19 +316,19 @@ bool validateShortcut() {
 	}
 
 	if (cAlphaVersion()) {
-		path += u"exteraGramAlpha.lnk"_q;
+		path += u"rabbitGramAlpha.lnk"_q;
 		if (validateShortcutAt(path)) {
 			return true;
 		}
 	} else {
-		const auto installed = u"exteraGram Desktop/exteraGram.lnk"_q;
-		const auto old = u"exteraGram Win (Unofficial)/exteraGram.lnk"_q;
+		const auto installed = u"rabbitGram Desktop/rabbitGram.lnk"_q;
+		const auto old = u"rabbitGram Win (Unofficial)/rabbitGram.lnk"_q;
 		if (validateShortcutAt(path + installed)
 			|| validateShortcutAt(path + old)) {
 			return true;
 		}
 
-		path += u"exteraGram.lnk"_q;
+		path += u"rabbitGram.lnk"_q;
 		if (validateShortcutAt(path)) {
 			return true;
 		}

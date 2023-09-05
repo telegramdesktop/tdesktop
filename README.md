@@ -1,4 +1,4 @@
-# exteraGram Desktop – Telegram Desktop based messenger with special features
+# rabbitGram Desktop – Telegram Desktop based messenger with special features
 
 This is the complete source code and the build instructions for the app based on the official [Telegram][telegram] messenger desktop client.
 
@@ -24,7 +24,7 @@ The latest version is available for
 
 * Windows 7 and above (x64/x32)
 
-You can build exteraGram Desktop yourself using [build instructions][build_instructions]
+You can build rabbitGram Desktop yourself using [build instructions][build_instructions]
 
 ## Third-party
 
@@ -66,4 +66,4 @@ You can build exteraGram Desktop yourself using [build instructions][build_instr
 [win32]: docs/building-win.md
 [win64]: docs/building-win-x64.md
 [linux]: docs/building-linux.md
-[build_instructions]: https://github.com/exteraGramDesktop/exteraGramDesktop#build-instructions
+[build_instructions]: https://github.com/rabbitGramDesktop/rabbitGramDesktop#build-instructions

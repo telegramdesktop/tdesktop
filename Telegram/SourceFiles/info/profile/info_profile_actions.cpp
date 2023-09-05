@@ -1,13 +1,13 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "info/profile/info_profile_actions.h"
-#include "extera/extera_lang.h"
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_lang.h"
+#include "rabbit/rabbit_settings.h"
 
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
@@ -420,7 +420,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			phoneLabel->setContextMenuHook(hook);
 		}
 
-		if (::ExteraSettings::JsonSettings::GetBool("show_ids")) {
+		if (::RabbitSettings::JsonSettings::GetBool("show_ids")) {
 			auto idDrawableText = IDValue(
 				user
 			) | rpl::map([](TextWithEntities &&text) {
@@ -428,10 +428,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			});
 			auto idInfo = addInfoOneLine(
 				(user->isBot()
-					? rktr("etg_profile_bot_id")
-					: rktr("etg_profile_user_id")),
+					? rktr("rtg_profile_bot_id")
+					: rktr("rtg_profile_user_id")),
 				std::move(idDrawableText),
-				ktr("etg_profile_copy_id"));
+				ktr("rtg_profile_copy_id"));
 		}
 
 		auto label = user->isBot()
@@ -545,7 +545,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		linkLine.text->overrideLinkClickHandler(linkCallback);
 		linkLine.subtext->overrideLinkClickHandler(linkCallback);
 
-		if (::ExteraSettings::JsonSettings::GetBool("show_ids")) {
+		if (::RabbitSettings::JsonSettings::GetBool("show_ids")) {
 			auto idDrawableText = IDValue(
 				_peer
 			) | rpl::map([](TextWithEntities &&text) {
@@ -553,12 +553,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			});
 			auto idInfo = addInfoOneLine(
 				(_peer->isChat()
-					? rktr("etg_profile_group_id")
+					? rktr("rtg_profile_group_id")
 					: _peer->isMegagroup()
-					? rktr("etg_profile_supergroup_id")
-					: rktr("etg_profile_channel_id")),
+					? rktr("rtg_profile_supergroup_id")
+					: rktr("rtg_profile_channel_id")),
 				std::move(idDrawableText),
-				ktr("etg_profile_copy_id"));
+				ktr("rtg_profile_copy_id"));
 		}
 
 		if (const auto channel = _topic ? nullptr : _peer->asChannel()) {

@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "mainwindow.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "data/data_document.h"
 #include "data/data_session.h"

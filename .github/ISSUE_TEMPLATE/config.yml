@@ -2,10 +2,10 @@ blank_issues_enabled: false
 contact_links:
   - name: Platform-wide issue
     url: https://bugs.telegram.org
-    about: Any bug report or feature request affecting more than only exteraGram Desktop.
+    about: Any bug report or feature request affecting more than only rabbitGram Desktop.
   - name: Issue of other client
     url: https://bugs.telegram.org
     about: Any bug report or feature request not about Telegram Desktop.
   - name: Question
-    url: https://t.me/exteraGramDesktop
+    url: https://t.me/rabbitGramDesktop
     about: Ask a question.

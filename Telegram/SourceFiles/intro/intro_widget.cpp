@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "intro/intro_widget.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "intro/intro_start.h"
 #include "intro/intro_phone.h"
@@ -260,7 +260,7 @@ void Widget::createLanguageLink() {
 		_changeLanguage->hide(anim::type::instant);
 		_changeLanguage->entity()->setClickedCallback([=] {
 			Lang::CurrentCloudManager().switchToLanguage(languageId);
-			ExteraLang::Lang::Load(
+			RabbitLang::Lang::Load(
 				Lang::GetInstance().baseId(), 
 				Lang::GetInstance().id());
 		});

@@ -1,13 +1,13 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
-#include "extera/extera_settings.h" // todo
+#include "rabbit/rabbit_settings.h" // todo
 
-#include "extera/extera_version.h"
+#include "rabbit/rabbit_version.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "window/window_controller.h"
@@ -24,7 +24,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include <QtCore/QJsonValue>
 #include <QtCore/QTimer>
 
-namespace ExteraSettings {
+namespace RabbitSettings {
 namespace JsonSettings {
 namespace {
 
@@ -183,13 +183,13 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 
 	// Non-stored settings
 
-	// To build your version of exteraGram Desktop you're required to provide
+	// To build your version of rabbitGram Desktop you're required to provide
 	// your own 'api_id' and 'api_hash' for the Telegram API access.
 	//
 	// How to obtain your 'api_id' and 'api_hash' is described here:
 	// https://core.telegram.org/api/obtaining_api_id
 	//
-	// By default exteraGram Desktop provides empty 'api_id' and 'api_hash'
+	// By default rabbitGram Desktop provides empty 'api_id' and 'api_hash'
 	// since you can set it them in runtime. They can be set with
 	// TDESKTOP_API_ID and TDESKTOP_API_HASH environment variables.
 	// You must set both variables for it to work.
@@ -202,7 +202,7 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 	//
 	// If 'api_id' and 'api_hash' are empty, and they're not set by any
 	// of these parameters, you won't be able to connect to Telegram at all.
-	// Sessions created on TDesktop + forks (including exteraGram Desktop) might
+	// Sessions created on TDesktop + forks (including rabbitGram Desktop) might
 	// work, but it could be risky, so be careful with it.
 	{ "api_id", {
 		.storage = SettingStorage::None,
@@ -281,11 +281,11 @@ const std::map<OldOptionKey, NewOptionKey, std::greater<OldOptionKey>> ReplacedO
 };
 
 QString DefaultFilePath() {
-	return cWorkingDir() + qsl("tdata/extera-settings-default.json");
+	return cWorkingDir() + qsl("tdata/rabbit-settings-default.json");
 }
 
 QString CustomFilePath() {
-	return cWorkingDir() + qsl("tdata/extera-settings-custom.json");
+	return cWorkingDir() + qsl("tdata/rabbit-settings-custom.json");
 }
 
 bool DefaultFileIsValid() {
@@ -305,7 +305,7 @@ bool DefaultFileIsValid() {
 	const auto settings = document.object();
 
 	const auto version = settings.constFind(qsl("version"));
-	if (version == settings.constEnd() || (*version).toInt() != AppExteraVersion) {
+	if (version == settings.constEnd() || (*version).toInt() != AppRabbitVersion) {
 		return false;
 	}
 
@@ -314,7 +314,7 @@ bool DefaultFileIsValid() {
 
 void WriteDefaultCustomFile() {
 	const auto path = CustomFilePath();
-	auto input = QFile(":/misc/default_extera-settings-custom.json");
+	auto input = QFile(":/misc/default_rabbit-settings-custom.json");
 	auto output = QFile(path);
 	if (input.open(QIODevice::ReadOnly) && output.open(QIODevice::WriteOnly)) {
 		output.write(input.readAll());
@@ -415,7 +415,7 @@ QByteArray GenerateSettingsJson(bool areDefault = false) {
 	}
 
 	if (areDefault) {
-		settings.insert(qsl("version"), QString::number(AppExteraVersion));
+		settings.insert(qsl("version"), QString::number(AppRabbitVersion));
 	}
 
 	auto document = QJsonDocument();
@@ -770,9 +770,9 @@ void Manager::writeDefaultFile() {
 		return;
 	}
 	const char *defaultHeader = R"HEADER(
-// This is a list of default options for exteraGram Desktop
+// This is a list of default options for rabbitGram Desktop
 // Please don't modify it, its content is not used in any way
-// You can place your own options in the 'extera-settings-custom.json' file
+// You can place your own options in the 'rabbit-settings-custom.json' file
 
 )HEADER";
 	file.write(defaultHeader);
@@ -871,4 +871,4 @@ void ResetAfterRestart(const QString &key, uint64 accountId, bool isTestAccount)
 }
 
 } // namespace JsonSettings
-} // namespace ExteraSettings
+} // namespace RabbitSettings

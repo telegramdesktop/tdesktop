@@ -1,9 +1,9 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "history/view/media/history_view_poll.h"
 
@@ -33,7 +33,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_polls.h"
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -902,7 +902,7 @@ void Poll::paintRecentVoters(
 			p.setBrush(Qt::NoBrush);
 			PainterHighQualityEnabler hq(p);
 			p.drawEllipse(x, y, size, size);
-			// p.drawRoundedRect(x, y, size, size, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+			// p.drawRoundedRect(x, y, size, size, RabbitSettings::JsonSettings::GetInt("userpic_roundness"), RabbitSettings::JsonSettings::GetInt("userpic_roundness"));
 		};
 		if (usesBubblePattern(context)) {
 			const auto add = st::lineWidth * 2;

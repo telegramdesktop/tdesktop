@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting issues of exteraGram Desktop!
+        Thanks for reporting issues of rabbitGram Desktop!
 
         To make it easier for us to help you please enter detailed information below.
   - type: textarea
@@ -52,7 +52,7 @@ body:
       label: Installation source
       multiple: false
       options:
-        - Static binary from exteraGram channel
+        - Static binary from rabbitGram channel
         - Microsoft Store
         - Flatpak
         - Snap

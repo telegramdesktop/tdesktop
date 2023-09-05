@@ -1,13 +1,13 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "settings/settings_information.h"
-#include "extera/extera_settings.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_settings.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "editor/photo_editor_layer_widget.h"
 #include "settings/settings_common.h"
@@ -382,9 +382,9 @@ void SetupRows(
 	AddRow(
 		container,
 		tr::lng_settings_phone_label(),
-		::ExteraSettings::JsonSettings::GetBool("show_phone_in_settings")
+		::RabbitSettings::JsonSettings::GetBool("show_phone_in_settings")
 		? Info::Profile::PhoneValue(self)
-		: rktre("etg_phone_hidden"),
+		: rktre("rtg_phone_hidden"),
 		tr::lng_profile_copy_phone(tr::now),
 		showChangePhone,
 		{ &st::menuIconPhone });
@@ -649,7 +649,7 @@ void SetupAccountsWrap(
 			p.setPen(pen);
 			p.setBrush(Qt::NoBrush);
 			p.drawEllipse(rect);
-			// p.drawRoundedRect(rect, ::ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ::ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+			// p.drawRoundedRect(rect, ::RabbitSettings::JsonSettings::GetInt("userpic_roundness"), ::RabbitSettings::JsonSettings::GetInt("userpic_roundness"));
 		}
 	}, state->userpic.lifetime());
 

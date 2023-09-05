@@ -1,13 +1,13 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "data/data_peer.h"
 
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_chat_participant_status.h"
@@ -370,7 +370,7 @@ QImage PeerData::generateUserpicImage(
 			return round(
 				isForum()
 					? size * Ui::ForumUserpicRadiusMultiplier()
-					: size * ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100
+					: size * RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100
 			);
 		} */
 	}
@@ -407,7 +407,7 @@ QImage PeerData::generateUserpicImage(
 			size,
 			isForum()
 				? size * Ui::ForumUserpicRadiusMultiplier()
-				: size * (ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100)
+				: size * (RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100)
 		);
 	} */
 

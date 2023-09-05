@@ -1,11 +1,11 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "base/parse_helper.h"
 #include "lang/lang_tag.h"
@@ -15,7 +15,7 @@ https://github.com/xmdnx/exteraGramDesktop/blob/dev/LEGAL
 #include <QtCore/QJsonArray>
 #include <QtCore/QDir>
 
-namespace ExteraLang {
+namespace RabbitLang {
 namespace Lang {
 namespace {
 
@@ -38,14 +38,14 @@ QMap<QString, QString> CurrentValues;
 rpl::event_stream<> LangChanges;
 
 QString LangDir() {
-	return cWorkingDir() + "tdata/etg_lang/";
+	return cWorkingDir() + "tdata/rtg_lang/";
 }
 
 void ParseLanguageData(
 	const QString &langCode,
 	bool isDefault) {
 	const auto filename = isDefault
-		? qsl(":/etg_lang/%1.json").arg(langCode)
+		? qsl(":/rtg_lang/%1.json").arg(langCode)
 		: LangDir() + (qsl("%1.json").arg(langCode));
 
 	QFile file(filename);
@@ -53,7 +53,7 @@ void ParseLanguageData(
 		return;
 	}
 	if (!file.open(QIODevice::ReadOnly)) {
-		LOG(("ExteraLang::Lang Info: file %1 could not be read.").arg(filename));
+		LOG(("RabbitLang::Lang Info: file %1 could not be read.").arg(filename));
 		return;
 	}
 	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
@@ -63,12 +63,12 @@ void ParseLanguageData(
 	file.close();
 
 	if (error.error != QJsonParseError::NoError) {
-		LOG(("ExteraLang::Lang Info: file %1 has failed to parse. Error: %2"
+		LOG(("RabbitLang::Lang Info: file %1 has failed to parse. Error: %2"
 			).arg(filename
 			).arg(error.errorString()));
 		return;
 	} else if (!document.isObject()) {
-		LOG(("ExteraLang::Lang Info: file %1 has failed to parse. Error: object expected"
+		LOG(("RabbitLang::Lang Info: file %1 has failed to parse. Error: object expected"
 			).arg(filename));
 		return;
 	}
@@ -106,7 +106,7 @@ void ParseLanguageData(
 				const auto pluralValue = keyPlurals.constFind(plural);
 
 				if (!(*pluralValue).isString()) {
-					LOG(("ExteraLang::Lang Info: wrong value for key %1 in %2 in file %3, string expected")
+					LOG(("RabbitLang::Lang Info: wrong value for key %1 in %2 in file %3, string expected")
 						.arg(plural).arg(key).arg(filename));
 					continue;
 				}
@@ -117,7 +117,7 @@ void ParseLanguageData(
 				applyValue(name, translation);
 			}
 		} else {
-			LOG(("ExteraLang::Lang Info: wrong value for key %1 in file %2, string or object expected")
+			LOG(("RabbitLang::Lang Info: wrong value for key %1 in file %2, string or object expected")
 				.arg(key).arg(filename));
 		}
 	}
@@ -127,7 +127,7 @@ void UnpackDefault() {
 	const auto langDir = LangDir();
 	if (!QDir().exists(langDir)) QDir().mkpath(langDir);
 
-	const auto langs = QDir(":/etg_lang").entryList(QStringList() << "*.json", QDir::Files);
+	const auto langs = QDir(":/rtg_lang").entryList(QStringList() << "*.json", QDir::Files);
 	auto neededLangs = QStringList() << kDefaultLanguage << LangCode << BaseLangCode;
 	neededLangs.removeDuplicates();
 
@@ -138,7 +138,7 @@ void UnpackDefault() {
 		}
 
 		const auto path = langDir + language + ".default.json";
-		auto input = QFile(qsl(":/etg_lang/%1.json").arg(language));
+		auto input = QFile(qsl(":/rtg_lang/%1.json").arg(language));
 		auto output = QFile(path);
 		if (input.open(QIODevice::ReadOnly)) {
 			auto inputData = input.readAll();
@@ -291,4 +291,4 @@ rpl::producer<> Events() {
 }
 
 } // namespace Lang
-} // namespace ExteraLang
+} // namespace RabbitLang

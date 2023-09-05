@@ -1,8 +1,8 @@
-# This file is part of exteraGram Desktop,
+# This file is part of rabbitGram Desktop,
 # the unofficial desktop application for the Telegram messaging service.
 #
 # For license and copyright information please follow this link:
-# https://github.com/exteraGramDesktop/exteraGramDesktop/blob/master/LEGAL
+# https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/master/LEGAL
 
 add_executable(Telegram WIN32 MACOSX_BUNDLE)
 init_non_host_target(Telegram)
@@ -632,13 +632,13 @@ PRIVATE
     export/view/export_view_settings.h
     export/view/export_view_top_bar.cpp
     export/view/export_view_top_bar.h
-    extera/extera_version.h
-    extera/extera_lang.cpp
-    extera/extera_lang.h
-    extera/extera_settings.cpp
-    extera/extera_settings.h
-    extera/extera_settings_menu.cpp
-    extera/extera_settings_menu.h
+    rabbit/rabbit_version.h
+    rabbit/rabbit_lang.cpp
+    rabbit/rabbit_lang.h
+    rabbit/rabbit_settings.cpp
+    rabbit/rabbit_settings.h
+    rabbit/rabbit_settings_menu.cpp
+    rabbit/rabbit_settings_menu.h
     history/admin_log/history_admin_log_filter.cpp
     history/admin_log/history_admin_log_filter.h
     history/admin_log/history_admin_log_inner.cpp

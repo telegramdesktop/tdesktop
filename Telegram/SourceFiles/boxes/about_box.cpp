@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "boxes/about_box.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -29,9 +29,9 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 namespace {
 
 rpl::producer<TextWithEntities> Text1() {
-	return rktre("etg_about_text1", {
+	return rktre("rtg_about_text1", {
 		"tdesktop_link",
-		Ui::Text::Link(ktr("etg_about_text1_tdesktop"), "https://desktop.telegram.org/")
+		Ui::Text::Link(ktr("rtg_about_text1_tdesktop"), "https://desktop.telegram.org/")
 	});
 }
 
@@ -40,18 +40,18 @@ rpl::producer<TextWithEntities> Text2() {
 		lt_gpl_link,
 		rpl::single(Ui::Text::Link(
 			"GNU GPL",
-			"https://github.com/exteraGramDesktop/exteraGramDesktop/blob/master/LICENSE")),
+			"https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/master/LICENSE")),
 		lt_github_link,
 		rpl::single(Ui::Text::Link(
 			"GitHub",
-			"https://github.com/exteraGramDesktop/exteraGramDesktop")),
+			"https://github.com/rabbitGramDesktop/rabbitGramDesktop")),
 		Ui::Text::WithEntities);
 }
 
 rpl::producer<TextWithEntities> Text3() {
-	return rktre("etg_about_text3", {
+	return rktre("rtg_about_text3", {
 		"channel_link",
-		Ui::Text::Link(ktr("etg_about_text3_channel"), "https://t.me/exteraGramDesktop")
+		Ui::Text::Link(ktr("rtg_about_text3_channel"), "https://t.me/rabbitGramDesktop")
 	}, {
 		"faq_link",
 		Ui::Text::Link(tr::lng_about_text3_faq(tr::now), telegramFaqLink())
@@ -68,7 +68,7 @@ AboutBox::AboutBox(QWidget *parent)
 }
 
 void AboutBox::prepare() {
-	setTitle(rpl::single(u"exteraGram Desktop"_q));
+	setTitle(rpl::single(u"rabbitGram Desktop"_q));
 
 	addButton(tr::lng_close(), [this] { closeBox(); });
 

@@ -19,9 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 // used in Updater.cpp and Setup.iss for Windows
 constexpr auto AppId = "{4356CE01-4137-4C55-9F8B-FB4EEBB6EC0C}"_cs;
-constexpr auto AppNameOld = "exteraGram Win (Unofficial)"_cs;
-constexpr auto AppName = "exteraGram Desktop"_cs;
-constexpr auto AppFile = "exteraGram"_cs;
+constexpr auto AppNameOld = "rabbitGram Win (Unofficial)"_cs;
+constexpr auto AppName = "rabbitGram Desktop"_cs;
+constexpr auto AppFile = "rabbitGram"_cs;
 constexpr auto AppVersion = 4009004;
 constexpr auto AppVersionStr = "4.9.4";
 constexpr auto AppBetaVersion = false;

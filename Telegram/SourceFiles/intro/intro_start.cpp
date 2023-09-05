@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "intro/intro_start.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "lang/lang_keys.h"
 #include "intro/intro_qr.h"
@@ -25,8 +25,8 @@ StartWidget::StartWidget(
 	not_null<Data*> data)
 : Step(parent, account, data, true) {
 	setMouseTracking(true);
-	setTitleText(rpl::single(u"exteraGram Desktop"_q));
-	setDescriptionText(rktr("etg_intro_about"));
+	setTitleText(rpl::single(u"rabbitGram Desktop"_q));
+	setDescriptionText(rktr("rtg_intro_about"));
 	show();
 }
 

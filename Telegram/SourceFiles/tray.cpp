@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "tray.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -68,7 +68,7 @@ void Tray::rebuildMenu() {
 			_activeForTrayIconAction = Core::App().isActiveForTrayMenu();
 			return _activeForTrayIconAction
 				? tr::lng_minimize_to_tray(tr::now)
-				: ktr("etg_open_from_tray");
+				: ktr("rtg_open_from_tray");
 		});
 
 		_tray.addAction(
@@ -89,7 +89,7 @@ void Tray::rebuildMenu() {
 			[=] { toggleSoundNotifications(); });
 	}
 
-	_tray.addAction(rktr("etg_quit_from_tray"), [] { Core::Quit(); });
+	_tray.addAction(rktr("rtg_quit_from_tray"), [] { Core::Quit(); });
 
 	updateMenuText();
 }

@@ -1,13 +1,13 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "ui/userpic_view.h"
 
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 #include "ui/empty_userpic.h"
 #include "ui/image/image_prepare.h"
 
@@ -63,7 +63,7 @@ void ValidateUserpicCache(
 			Images::CornersMask(
 				forum
 				? size * Ui::ForumUserpicRadiusMultiplier() / style::DevicePixelRatio()
-				: size * (ExteraSettings::JsonSettings::GetInt("userpic_roundness")) / 100 / style::DevicePixelRatio()
+				: size * (RabbitSettings::JsonSettings::GetInt("userpic_roundness")) / 100 / style::DevicePixelRatio()
 			)
 		);
 	} else {
@@ -89,7 +89,7 @@ void ValidateUserpicCache(
 			p, 0, 0, size, size,
 			forum
 			? size * Ui::ForumUserpicRadiusMultiplier()
-			: size * ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100
+			: size * RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100
 		);
 	}
 }

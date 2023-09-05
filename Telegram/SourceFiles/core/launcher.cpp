@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "core/launcher.h"
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
@@ -306,7 +306,7 @@ void Launcher::init() {
 	prepareSettings();
 	initQtMessageLogging();
 
-	QApplication::setApplicationName(u"exteraGramDesktop"_q);
+	QApplication::setApplicationName(u"rabbitGramDesktop"_q);
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	// fallback session management is useless for tdesktop since it doesn't have
@@ -340,7 +340,7 @@ void Launcher::initHighDpi() {
 }
 
 int Launcher::exec() {
-	ExteraSettings::JsonSettings::Start();
+	RabbitSettings::JsonSettings::Start();
 	init();
 
 	if (cLaunchMode() == LaunchModeFixPrevious) {
@@ -352,7 +352,7 @@ int Launcher::exec() {
 	// Must be started before Platform is started.
 	Logs::start();
 	base::options::init(cWorkingDir() + "tdata/experimental_options.json");
-	ExteraSettings::JsonSettings::Load();
+	RabbitSettings::JsonSettings::Load();
 
 	// Must be called after options are inited.
 	initHighDpi();
@@ -392,7 +392,7 @@ int Launcher::exec() {
 
 	CrashReports::Finish();
 	Platform::finish();
-	ExteraSettings::JsonSettings::Finish();
+	RabbitSettings::JsonSettings::Finish();
 	Logs::finish();
 
 	return result;

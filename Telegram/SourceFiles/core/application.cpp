@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "core/application.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "data/data_abstract_structure.h"
 #include "data/data_photo.h"
@@ -251,7 +251,7 @@ void Application::run() {
 	_notifications = std::make_unique<Window::Notifications::System>();
 
 	startLocalStorage();
-	ExteraLang::Lang::Load(Lang::GetInstance().baseId(), Lang::GetInstance().id());
+	RabbitLang::Lang::Load(Lang::GetInstance().baseId(), Lang::GetInstance().id());
 	ValidateScale();
 
 	refreshGlobalProxy(); // Depends on app settings being read.

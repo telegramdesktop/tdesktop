@@ -1,9 +1,9 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "ui/effects/round_checkbox.h"
 
@@ -15,7 +15,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 
 #include <QtCore/QCoreApplication>
 
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 
 namespace Ui {
 namespace {
@@ -420,7 +420,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 			if (!radius) {
 				p.drawEllipse(outline);
 				// p.drawRoundedRect(outline,
-				// 	ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+				// 	RabbitSettings::JsonSettings::GetInt("userpic_roundness"), RabbitSettings::JsonSettings::GetInt("userpic_roundness"));
 			} else {
 				p.drawRoundedRect(outline, *radius, *radius);
 			}

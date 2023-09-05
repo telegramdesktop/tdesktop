@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "history/view/media/history_view_media_unwrapped.h"
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 
 #include "data/data_session.h"
 #include "history/history.h"
@@ -46,7 +46,7 @@ UnwrappedMedia::UnwrappedMedia(
 	std::unique_ptr<Content> content)
 : Media(parent)
 , _content(std::move(content)) {
-	::ExteraSettings::JsonSettings::Events(
+	::RabbitSettings::JsonSettings::Events(
 		"sticker_height"
 	) | rpl::start_with_next([=] {
 		history()->owner().requestItemViewRefresh(_parent->data());

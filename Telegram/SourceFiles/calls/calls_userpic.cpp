@@ -1,9 +1,9 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "calls/calls_userpic.h"
 
@@ -18,7 +18,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "apiwrap.h" // requestFullPeer.
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 #include "styles/style_calls.h"
 
 namespace Calls {
@@ -107,7 +107,7 @@ void Userpic::paint() {
 			_muteSize,
 			_muteSize);
 		p.drawEllipse(rect);
-		// p.drawRoundedRect(rect, ExteraSettings::JsonSettings::GetInt("userpic_roundness"), ExteraSettings::JsonSettings::GetInt("userpic_roundness"));
+		// p.drawRoundedRect(rect, RabbitSettings::JsonSettings::GetInt("userpic_roundness"), RabbitSettings::JsonSettings::GetInt("userpic_roundness"));
 		st::callMutedPeerIcon.paintInCenter(p, rect);
 	}
 }

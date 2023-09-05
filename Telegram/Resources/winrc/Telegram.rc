@@ -61,10 +61,10 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "xmdnx"
-            VALUE "FileDescription", "exteraGram Desktop"
+            VALUE "FileDescription", "rabbitGram Desktop"
             VALUE "FileVersion", "4.9.4.0"
             VALUE "LegalCopyright", "Copyright (C) 2021-2023"
-            VALUE "ProductName", "exteraGram Desktop"
+            VALUE "ProductName", "rabbitGram Desktop"
             VALUE "ProductVersion", "4.9.4.0"
         END
     END

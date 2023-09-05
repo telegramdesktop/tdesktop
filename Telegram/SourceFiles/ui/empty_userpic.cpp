@@ -1,13 +1,13 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "ui/empty_userpic.h"
 
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 #include "ui/emoji_config.h"
 #include "ui/effects/animation_value.h"
 #include "ui/painter.h"
@@ -298,7 +298,7 @@ void EmptyUserpic::paintCircle(
 	}); */
 	
 	paint(p, x, y, outerWidth, size, [&] {
-		double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+		double customRadius = (double) size * ((double) RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100);
 		p.drawRoundedRect(x, y, size, size, 
 			customRadius, customRadius);
 	});
@@ -312,7 +312,7 @@ void EmptyUserpic::paintRounded(
 		int size,
 		int radius) const {
 	paint(p, x, y, outerWidth, size, [&] {
-		double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+		double customRadius = (double) size * ((double) RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100);
 		p.drawRoundedRect(x, y, size, size, 
 			customRadius, customRadius);
 	});
@@ -325,7 +325,7 @@ void EmptyUserpic::paintSquare(
 		int outerWidth,
 		int size) const {
 	paint(p, x, y, outerWidth, size, [&] {
-		double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+		double customRadius = (double) size * ((double) RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100);
 		p.drawRoundedRect(x, y, size, size, 
 			customRadius, customRadius);
 	});
@@ -360,7 +360,7 @@ void EmptyUserpic::PaintSavedMessages(
 	p.setBrush(std::move(bg));
 	p.setPen(Qt::NoPen);
 	// p.drawEllipse(x, y, size, size);
-	double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+	double customRadius = (double) size * ((double) RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100);
 	p.drawRoundedRect(x, y, size, size, 
 		customRadius, customRadius);
 
@@ -402,7 +402,7 @@ void EmptyUserpic::PaintRepliesMessages(
 	p.setBrush(bg);
 	p.setPen(Qt::NoPen);
 	// p.drawEllipse(x, y, size, size);
-	double customRadius = (double) size * ((double) ExteraSettings::JsonSettings::GetInt("userpic_roundness") / 100);
+	double customRadius = (double) size * ((double) RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100);
 	p.drawRoundedRect(x, y, size, size, 
 		customRadius, customRadius);
 

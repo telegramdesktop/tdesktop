@@ -1,15 +1,15 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "settings/settings_main.h"
 
-#include "extera/extera_settings_menu.h"
-#include "extera/extera_settings.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_settings_menu.h"
+#include "rabbit/rabbit_settings.h"
+#include "rabbit/rabbit_lang.h"
 #include "settings/settings_common.h"
 #include "settings/settings_codes.h"
 #include "settings/settings_chat.h"
@@ -198,9 +198,9 @@ void Cover::initViewers() {
 		_user
 	) | rpl::start_with_next([=](const TextWithEntities &value) {
 		_phone->setText(
-			::ExteraSettings::JsonSettings::GetBool("show_phone_in_settings")
+			::RabbitSettings::JsonSettings::GetBool("show_phone_in_settings")
 			? value.text              // shown
-			: ktr("etg_phone_hidden") // hidden
+			: ktr("rtg_phone_hidden") // hidden
 		);
 		refreshPhoneGeometry(width());
 	}, lifetime());
@@ -323,9 +323,9 @@ void SetupSections(
 		});
 	};
 	addSection(
-		rktr("etg_settings_extera"),
-		Extera::Id(),
-		{ &st::menuIconExtera });
+		rktr("rtg_settings_rabbit"),
+		Rabbit::Id(),
+		{ &st::menuIconRabbit });
 	if (controller->session().supportMode()) {
 		SetupSupport(controller, container);
 

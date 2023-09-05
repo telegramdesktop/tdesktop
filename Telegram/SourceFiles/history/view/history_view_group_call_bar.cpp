@@ -1,9 +1,9 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "history/view/history_view_group_call_bar.h"
 
@@ -19,7 +19,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "calls/group/calls_group_call.h"
 #include "calls/calls_instance.h"
 #include "core/application.h"
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
@@ -62,7 +62,7 @@ void GenerateUserpicsInRow(
 		q.setPen(pen);
 		/* q.drawEllipse(x, 0, single, single); */
 		q.drawRoundedRect(QRect{ x, 0, single, single },
-					ExteraSettings::JsonSettings::GetInt("userpic_rounding"), ExteraSettings::JsonSettings::GetInt("userpic_rounding"));
+					RabbitSettings::JsonSettings::GetInt("userpic_rounding"), RabbitSettings::JsonSettings::GetInt("userpic_rounding"));
 		x -= single - shift;
 	}
 }

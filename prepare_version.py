@@ -10,7 +10,7 @@ config = {
     "repo_path": "",                  # leave it blank if this script located in repo folder
     "version": "",                    # leave it blank to fill with version from SourceFiles/core/version.h and script runtime date
     "tgversion": "",                  # leave it blanl to set it automatically
-    "exe_filename": "exteraGram.exe", # set your client name here
+    "exe_filename": "rabbitGram.exe", # set your client name here
 }
 
 # functions

@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "history/history_item_helpers.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "calls/calls_instance.h"
 #include "data/notify/data_notify_settings.h"
@@ -688,9 +688,9 @@ void CheckReactionNotificationSchedule(
 }
 
 [[nodiscard]] TextWithEntities UnsupportedMessageText() {
-	const auto siteLink = u"https://t.me/exteraGramDesktop/7"_q;
+	const auto siteLink = u"https://t.me/rabbitGramDesktop/7"_q;
 	auto result = TextWithEntities{
-		ktr("etg_message_unsupported", { "link", siteLink })
+		ktr("rtg_message_unsupported", { "link", siteLink })
 	};
 	TextUtilities::ParseEntities(result, Ui::ItemTextNoMonoOptions().flags);
 	result.entities.push_front(

@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "history/view/media/history_view_sticker.h"
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 
 #include "boxes/sticker_set_box.h"
 #include "history/history.h"
@@ -139,7 +139,7 @@ bool Sticker::isEmojiSticker() const {
 }
 
 void Sticker::initSize() {
-	const auto currentStickerHeight = ::ExteraSettings::JsonSettings::GetInt("sticker_height");
+	const auto currentStickerHeight = ::RabbitSettings::JsonSettings::GetInt("sticker_height");
 	const auto currentScaleBoth = true;
 	const auto maxHeight = int(st::maxStickerSize / 256.0 * currentStickerHeight);
 	const auto maxWidth = currentScaleBoth ? maxHeight : st::maxStickerSize;
@@ -187,7 +187,7 @@ bool Sticker::readyToDrawAnimationFrame() {
 }
 
 QSize Sticker::Size() {
-	const auto currentStickerHeight = ::ExteraSettings::JsonSettings::GetInt("sticker_height");
+	const auto currentStickerHeight = ::RabbitSettings::JsonSettings::GetInt("sticker_height");
 	const auto currentScaleBoth = true;
 	const auto maxHeight = int(st::maxStickerSize / 256.0 * currentStickerHeight);
 	const auto maxWidth = currentScaleBoth ? maxHeight : st::maxStickerSize;
@@ -212,7 +212,7 @@ QSize Sticker::EmojiEffectSize() {
 }
 
 QSize Sticker::EmojiSize() {
-	const auto currentStickerHeight = ::ExteraSettings::JsonSettings::GetInt("sticker_height");
+	const auto currentStickerHeight = ::RabbitSettings::JsonSettings::GetInt("sticker_height");
 	const auto maxHeight = int(st::maxStickerSize / 256.0 * currentStickerHeight / 2);
 	const auto side = std::min(maxHeight, kMaxEmojiSizeFixed);
 	return { side, side };

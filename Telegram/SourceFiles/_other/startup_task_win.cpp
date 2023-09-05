@@ -1,9 +1,9 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include <windows.h>
 
@@ -45,7 +45,7 @@ int APIENTRY wWinMain(
 		ShellExecute(
 			nullptr,
 			nullptr,
-			(directory + L"\\exteraGram.exe").c_str(),
+			(directory + L"\\rabbitGram.exe").c_str(),
 			L"-autostart",
 			directory.data(),
 			SW_SHOWNORMAL);

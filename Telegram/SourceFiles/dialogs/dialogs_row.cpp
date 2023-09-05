@@ -1,9 +1,9 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "dialogs/dialogs_row.h"
 
@@ -29,7 +29,7 @@ https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
-#include "extera/extera_settings.h"
+#include "rabbit/rabbit_settings.h"
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {
@@ -426,10 +426,10 @@ void Row::PaintCornerBadgeFrame(
 		: st::dialogsOnlineBadgeFg);
 	q.drawEllipse(QRectF(
 		46 - size -
-			(ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 100
+			(RabbitSettings::JsonSettings::GetInt("userpic_roundness") == 100
 				? skip.x() : -(stroke / 2)),
 		46 - size -
-			(ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 100
+			(RabbitSettings::JsonSettings::GetInt("userpic_roundness") == 100
 				? skip.y() : -(stroke / 2)),
 		size,
 		size
@@ -552,9 +552,9 @@ void Row::paintUserpic(
 	p.translate(context.st->padding.left(), context.st->padding.top());
 	actionPainter->paintSpeaking(
 		p,
-		context.st->photoSize - size - (ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 50
+		context.st->photoSize - size - (RabbitSettings::JsonSettings::GetInt("userpic_roundness") == 50
 				? skip.x() : -(stroke / 2)),
-		context.st->photoSize - size - (ExteraSettings::JsonSettings::GetInt("userpic_roundness") == 50
+		context.st->photoSize - size - (RabbitSettings::JsonSettings::GetInt("userpic_roundness") == 50
 				? skip.y() : -(stroke / 2)),
 		context.width,
 		bg,

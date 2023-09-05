@@ -1,14 +1,14 @@
-#define MyAppShortName "exteraGram"
-#define MyAppName "exteraGram Desktop"
+#define MyAppShortName "rabbitGram"
+#define MyAppName "rabbitGram Desktop"
 #define MyAppPublisher "xmdnx"
-#define MyAppVersion "4.9.3"
-#define MyAppURL "https://t.me/exteraGramDesktop"
-#define ReleasePath "C:\Users\xmdnx\source\repos\exteraGramDesktop\out\Release"
-#define MyAppExeName "exteraGram.exe"
+#define MyAppVersion "4.9.4"
+#define MyAppURL "https://t.me/rabbitGramDesktop"
+#define ReleasePath "C:\Users\xmdnx\source\repos\rabbitGramDesktop\out\Release"
+#define MyAppExeName "rabbitGram.exe"
 #define MyAppId "4356CE01-4137-4C55-9F8B-FB4EEBB6EC0C"
 #define CurrentYear GetDateTimeString('yyyy','','')
 #define MyBuildTarget "win64"
-#define MyAppVersionFull "4.9.3-29082023"
+#define MyAppVersionFull "4.9.4-03092023"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -17,7 +17,7 @@
 AppId={{{#MyAppId}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppCopyright={#MyAppPublisher} 2021-{#CurrentYear}
+AppCopyright={#MyAppPublisher} {#CurrentYear}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -28,7 +28,7 @@ AllowNoIcons=yes
 OutputDir={#ReleasePath}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
 UninstallDisplayName={#MyAppName}
-UninstallDisplayIcon={app}\exteraGram.exe
+UninstallDisplayIcon={app}\rabbitGram.exe
 Compression=lzma
 SolidCompression=yes
 DisableStartupPrompt=yes
@@ -41,11 +41,11 @@ DisableProgramGroupPage=no
 #if MyBuildTarget == "win64"
   ArchitecturesAllowed="x64 arm64"
   ArchitecturesInstallIn64BitMode="x64 arm64"
-  OutputBaseFilename=etgdsetup-x64.{#MyAppVersionFull}
+  OutputBaseFilename=rtgdsetup-x64.{#MyAppVersionFull}
   #define ArchModulesFolder "x64"
   AppVerName={#MyAppName} {#MyAppVersion} 64bit
 #else
-  OutputBaseFilename=etgdsetup.{#MyAppVersionFull}
+  OutputBaseFilename=rtgdsetup.{#MyAppVersionFull}
   #define ArchModulesFolder "x86"
   AppVerName={#MyAppName} {#MyAppVersion} 32bit
 #endif
@@ -68,7 +68,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: "{#ReleasePath}\exteraGram.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ReleasePath}\rabbitGram.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#ReleasePath}\{#ModulesFolder}\d3d\d3dcompiler_47.dll"; DestDir: "{app}\{#ModulesFolder}\d3d"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 

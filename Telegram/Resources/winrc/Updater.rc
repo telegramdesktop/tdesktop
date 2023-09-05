@@ -51,21 +51,12 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-<<<<<<< HEAD
-            VALUE "CompanyName", "exteraSquad (xmdnx)"
-            VALUE "FileDescription", "exteraGram Desktop Updater"
+            VALUE "CompanyName", "xmdnx"
+            VALUE "FileDescription", "rabbitGram Desktop Updater"
             VALUE "FileVersion", "4.8.4.0"
             VALUE "LegalCopyright", "Copyright (C) 2021-2023"
-            VALUE "ProductName", "exteraGram Desktop"
+            VALUE "ProductName", "rabbitGram Desktop"
             VALUE "ProductVersion", "4.8.4.0"
-=======
-            VALUE "CompanyName", "Telegram FZ-LLC"
-            VALUE "FileDescription", "Telegram Desktop Updater"
-            VALUE "FileVersion", "4.9.4.0"
-            VALUE "LegalCopyright", "Copyright (C) 2014-2023"
-            VALUE "ProductName", "Telegram Desktop"
-            VALUE "ProductVersion", "4.9.4.0"
-        END
     END
     BLOCK "VarFileInfo"
     BEGIN

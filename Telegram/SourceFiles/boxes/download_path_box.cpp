@@ -1,12 +1,12 @@
 /*
-This file is part of exteraGram Desktop,
+This file is part of rabbitGram Desktop,
 the unofficial app based on Telegram Desktop.
 
 For license and copyright information please follow this link:
-https://github.com/exteraGramDesktop/exteraGramDesktop/blob/dev/LEGAL
+https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "boxes/download_path_box.h"
-#include "extera/extera_lang.h"
+#include "rabbit/rabbit_lang.h"
 
 #include "lang/lang_keys.h"
 #include "core/file_utilities.h"
@@ -31,7 +31,7 @@ DownloadPathBox::DownloadPathBox(
 		this,
 		_group,
 		Directory::Downloads,
-		ktr("etg_download_path_default_radio"),
+		ktr("rtg_download_path_default_radio"),
 		st::defaultBoxCheckbox)
 	: nullptr)
 , _temp(this, _group, Directory::Temp, tr::lng_download_path_temp_radio(tr::now), st::defaultBoxCheckbox)
