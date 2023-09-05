@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/level_meter.h"
 
 #include "ui/painter.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 

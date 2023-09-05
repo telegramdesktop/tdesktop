@@ -13,12 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
-#include "styles/style_overview.h"
 
 class Image;
 
 namespace style {
 struct RoundCheckbox;
+struct OverviewFileLayout;
 } // namespace style
 
 namespace Data {
@@ -367,6 +367,7 @@ struct DocumentFields {
 	TimeId dateOverride = 0;
 	bool forceFileLayout = false;
 };
+
 class Document final : public RadialProgressItem {
 public:
 	Document(

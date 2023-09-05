@@ -7,13 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "styles/style_widgets.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace base {
 class Timer;
 } // namespace base
+
+namespace style {
+struct FilledSlider;
+struct MediaSlider;
+} // namespace style
 
 namespace Ui {
 

@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
-#include "base/unique_qptr.h"
-#include "styles/style_widgets.h"
 
 namespace Ui {
 class LabelSimple;

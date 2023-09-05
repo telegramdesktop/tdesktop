@@ -14,14 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_media_types.h"
 #include "data/data_peer.h"
-#include "data/data_file_origin.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
-#include "styles/style_overview.h"
-#include "styles/style_chat.h"
-#include "core/file_utilities.h"
-#include "boxes/add_contact_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_selection.h"
@@ -50,6 +45,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
+#include "styles/style_overview.h"
+#include "styles/style_chat.h"
 
 namespace Overview {
 namespace Layout {
