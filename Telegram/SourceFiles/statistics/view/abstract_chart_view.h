@@ -37,6 +37,12 @@ public:
 		int selectedXIndex,
 		float64 progress) = 0;
 
+	[[nodiscard]] virtual int findXIndexByPosition(
+		const Data::StatisticalChart &chartData,
+		const Limits &xPercentageLimits,
+		const QRect &rect,
+		float64 x) = 0;
+
 	virtual void setEnabled(int id, bool enabled, crl::time now) = 0;
 	[[nodiscard]] virtual bool isEnabled(int id) const = 0;
 	[[nodiscard]] virtual bool isFinished() const = 0;

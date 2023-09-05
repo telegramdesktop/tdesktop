@@ -98,6 +98,14 @@ void StackChartView::paintSelectedXIndex(
 		float64 progress) {
 }
 
+int StackChartView::findXIndexByPosition(
+		const Data::StatisticalChart &chartData,
+		const Limits &xPercentageLimits,
+		const QRect &rect,
+		float64 xPos) {
+	return 0;
+}
+
 void StackChartView::setEnabled(int id, bool enabled, crl::time now) {
 }
 

@@ -41,6 +41,12 @@ public:
 		int selectedXIndex,
 		float64 progress) override;
 
+	int findXIndexByPosition(
+		const Data::StatisticalChart &chartData,
+		const Limits &xPercentageLimits,
+		const QRect &rect,
+		float64 x) override;
+
 	void setEnabled(int id, bool enabled, crl::time now) override;
 	[[nodiscard]] bool isEnabled(int id) const override;
 	[[nodiscard]] bool isFinished() const override;

@@ -1183,26 +1183,17 @@ void ChartWidget::setupDetails() {
 		case QEvent::MouseButtonPress:
 		case QEvent::MouseMove: {
 			const auto chartRect = chartAreaRect();
-			const auto pointerRatio = std::clamp(
-				state.point.x() / float64(chartRect.width()),
-				0.,
-				1.);
 			const auto currentXLimits = _animationController.finalXLimits();
-			const auto rawXPercentage = anim::interpolateF(
-				currentXLimits.min,
-				currentXLimits.max,
-				pointerRatio);
-			const auto nearestXPercentageIt = ranges::lower_bound(
-				_chartData.xPercentage,
-				rawXPercentage);
-			const auto nearestXIndex = std::distance(
-				begin(_chartData.xPercentage),
-				nearestXPercentageIt);
+			const auto nearestXIndex = _chartView->findXIndexByPosition(
+				_chartData,
+				currentXLimits,
+				chartRect,
+				state.point.x());
 			const auto currentX = 0
 				+ chartRect.width() * InterpolationRatio(
 					currentXLimits.min,
 					currentXLimits.max,
-					*nearestXPercentageIt);
+					_chartData.xPercentage[nearestXIndex]);
 			const auto xLeft = currentX
 				- _details.widget->width();
 			const auto x = (xLeft >= 0)

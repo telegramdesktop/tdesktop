@@ -189,6 +189,35 @@ void LinearChartView::paintSelectedXIndex(
 	_selectedPoints.lastXLimits = xPercentageLimits;
 }
 
+int LinearChartView::findXIndexByPosition(
+		const Data::StatisticalChart &chartData,
+		const Limits &xPercentageLimits,
+		const QRect &rect,
+		float64 x) {
+	if (x < rect.x()) {
+		return 0;
+	} else if (x > (rect.x() + rect.width())) {
+		return chartData.xPercentage.size() - 1;
+	}
+	const auto pointerRatio = std::clamp(
+		(x - rect.x()) / rect.width(),
+		0.,
+		1.);
+	const auto rawXPercentage = anim::interpolateF(
+		xPercentageLimits.min,
+		xPercentageLimits.max,
+		pointerRatio);
+	const auto it = ranges::lower_bound(
+		chartData.xPercentage,
+		rawXPercentage);
+	const auto left = rawXPercentage - (*(it - 1));
+	const auto right = (*it) - rawXPercentage;
+	const auto nearestXPercentageIt = ((right) > (left)) ? (it - 1) : it;
+	return std::distance(
+		begin(chartData.xPercentage),
+		nearestXPercentageIt);
+}
+
 void LinearChartView::setEnabled(int id, bool enabled, crl::time now) {
 	const auto it = _entries.find(id);
 	if (it == end(_entries)) {
