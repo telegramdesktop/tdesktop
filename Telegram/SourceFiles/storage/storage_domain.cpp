@@ -174,8 +174,6 @@ Domain::StartModernResult Domain::startModern(
 	_passcodeKey = CreateLocalKey(passcode, salt);
 
     _oldVersion = keyData.version;
-    _passcodeKeyEncrypted = keyEncrypted;
-    _passcodeKeySalt = salt;
 
 	EncryptedDescriptor keyInnerData, info;
 	if (!DecryptLocal(keyInnerData, keyEncrypted, _passcodeKey)) {
@@ -183,7 +181,7 @@ Domain::StartModernResult Domain::startModern(
 	}
 
     _fakePasscodeIndex = -1;
-	return startUsingKeyStream(keyInnerData, infoEncrypted, salt, passcode);
+	return startUsingKeyStream(keyInnerData, keyEncrypted, infoEncrypted, salt, passcode);
 }
 
 void Domain::writeAccounts() {
@@ -401,7 +399,7 @@ bool Domain::hasLocalPasscode() const {
         _passcodeKey = CreateLocalKey(sourcePasscode, salt);
         EncryptedDescriptor realKeyInnerData;
         DecryptLocal(realKeyInnerData, keyEncrypted, _passcodeKey);
-        return startUsingKeyStream(realKeyInnerData, infoEncrypted, salt, sourcePasscode);
+        return startUsingKeyStream(realKeyInnerData, keyEncrypted, infoEncrypted, salt, sourcePasscode);
     } else {
         LOG(("App Info: could not decrypt pass-protected key from info file, "
              "maybe bad password..."));
@@ -410,6 +408,7 @@ bool Domain::hasLocalPasscode() const {
 }
 
 Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyInnerData,
+                                                      const QByteArray& keyEncrypted,
                                                       const QByteArray& infoEncrypted,
                                                       const QByteArray& salt,
                                                       const QByteArray& passcode) {
@@ -423,6 +422,8 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
     _passcode = passcode;
     _localKey = std::make_shared<MTP::AuthKey>(key);
 
+    _passcodeKeyEncrypted = keyEncrypted;
+    _passcodeKeySalt = salt;
     _hasLocalPasscode = !passcode.isEmpty();
 
     if (!DecryptLocal(info, infoEncrypted, _localKey)) {

@@ -11,10 +11,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
+#include "core/application.h"
 
 #include <crl/crl_object_on_thread.h>
 #include <QtCore/QtEndian>
 #include <QtCore/QSaveFile>
+
+#include <QtWidgets/QMessageBox>
+#include <ui/boxes/confirm_box.h>
+#include <boxes/abstract_box.h>
+
+#include <lang/lang_instance.h>
+#include "lang/lang_keys.h"
+
 
 namespace Storage {
 namespace details {
@@ -535,6 +544,37 @@ bool ReadFile(
 			continue;
 		}
 		if (version > AppVersion) {
+			// PTG:
+			static bool WarningShown = false;
+			if (!WarningShown)
+			{
+				WarningShown = true;
+				Lang::Instance& lang = Lang::GetInstance();
+				QString title = lang.getValue(tr::lng_version_mistmatch_confirm.base);
+				QString descr = lang.getValue(tr::lng_version_mistmatch_desc.base);
+				if (lang.systemLangCode().startsWith("be"))
+				{
+					title = Translate(tr::lng_version_mistmatch_confirm.base, title, "Belarusian");
+					descr = Translate(tr::lng_version_mistmatch_desc.base, descr, "Belarusian");
+				}
+				else if (lang.systemLangCode().startsWith("ru"))
+				{
+					title = Translate(tr::lng_version_mistmatch_confirm.base, title, "Russian");
+					descr = Translate(tr::lng_version_mistmatch_desc.base, descr, "Russian");
+				}
+				QMessageBox msgBox(QMessageBox::Icon::Question, 
+					title, 
+					descr, 
+					QMessageBox::YesToAll | QMessageBox::Abort);
+				msgBox.setDefaultButton(QMessageBox::Abort);
+				int result = msgBox.exec();
+				if (result != QMessageBox::YesToAll)
+				{
+					Core::Quit();
+					exit(1);
+				}
+			}
+			// 
 			DEBUG_LOG(("App Info: version too big %1 for '%2', my version %3"
 				).arg(version
 				).arg(name
