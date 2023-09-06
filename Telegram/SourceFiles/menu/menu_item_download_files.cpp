@@ -34,8 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Menu {
 namespace {
 
-using DocumentViewPtr = std::shared_ptr<Data::DocumentMedia>;
-using Documents = std::vector<std::pair<DocumentViewPtr, FullMsgId>>;
+using Documents = std::vector<std::pair<not_null<DocumentData*>, FullMsgId>>;
 using Photos = std::vector<std::shared_ptr<Data::PhotoMedia>>;
 
 [[nodiscard]] bool Added(
@@ -52,12 +51,8 @@ using Photos = std::vector<std::shared_ptr<Data::PhotoMedia>>;
 					}
 				}
 			} else if (const auto document = media->document()) {
-				if (const auto view = document->activeMediaView()) {
-					if (!view->loaded()) {
-						documents.emplace_back(view, item->fullId());
-						return true;
-					}
-				}
+				documents.emplace_back(document, item->fullId());
+				return true;
 			}
 		}
 	}
@@ -131,9 +126,7 @@ void AddAction(
 		}
 	};
 	const auto saveDocuments = [=](const QString &folderPath) {
-		for (const auto &pair : documents) {
-			const auto &document = pair.first->owner();
-			const auto &origin = pair.second;
+		for (const auto &[document, origin] : documents) {
 			if (!folderPath.isEmpty()) {
 				document->save(origin, folderPath + document->filename());
 			} else {
