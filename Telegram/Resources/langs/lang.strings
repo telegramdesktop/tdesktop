@@ -3559,6 +3559,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_choose_format" = "Choose export format";
 "lng_export_option_html" = "Human-readable HTML";
 "lng_export_option_json" = "Machine-readable JSON";
+"lng_export_option_html_and_json" = "Both";
 "lng_export_limits" = "From: {from}, to: {till}";
 "lng_export_beginning" = "the oldest message";
 "lng_export_end" = "present";
