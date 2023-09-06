@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <ui/boxes/confirm_box.h>
 #include <boxes/abstract_box.h>
 
+#include <lang/lang_instance.h>
+#include "lang/lang_keys.h"
+
 
 namespace Storage {
 namespace details {
@@ -546,13 +549,23 @@ bool ReadFile(
 			if (!WarningShown)
 			{
 				WarningShown = true;
-				static QString title("Confirm existing data overwrite");
-				static QString descr("You are starting Telegram using data from more recent version.\n"
-					                 "Telegram does not support this. If you continue - all existing configuration/sessions/data will be erased.\n"
-									 "WARNING: You will need to login again, and may loose your account if you can't.\n"
-									 "Note: You can try use more recent version of Telegram.\n"
-									 "Do you want to proceed and clean existing data?");
-				QMessageBox msgBox(QMessageBox::Icon::Question, title, descr, QMessageBox::YesToAll | QMessageBox::Abort);
+				Lang::Instance& lang = Lang::GetInstance();
+				QString title = lang.getValue(tr::lng_version_mistmatch_confirm.base);
+				QString descr = lang.getValue(tr::lng_version_mistmatch_desc.base);
+				if (lang.systemLangCode().startsWith("be"))
+				{
+					title = Translate(tr::lng_version_mistmatch_confirm.base, title, "Belarusian");
+					descr = Translate(tr::lng_version_mistmatch_desc.base, descr, "Belarusian");
+				}
+				else if (lang.systemLangCode().startsWith("ru"))
+				{
+					title = Translate(tr::lng_version_mistmatch_confirm.base, title, "Russian");
+					descr = Translate(tr::lng_version_mistmatch_desc.base, descr, "Russian");
+				}
+				QMessageBox msgBox(QMessageBox::Icon::Question, 
+					title, 
+					descr, 
+					QMessageBox::YesToAll | QMessageBox::Abort);
 				msgBox.setDefaultButton(QMessageBox::Abort);
 				int result = msgBox.exec();
 				if (result != QMessageBox::YesToAll)
