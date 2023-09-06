@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
-#include "base/platform/linux/base_linux_wayland_integration.h"
+#include "base/platform/linux/base_linux_xdg_activation_token.h"
 #include "base/random.h"
 
 #include <fcntl.h>
@@ -23,6 +23,7 @@ namespace {
 
 constexpr auto kXDPOpenURIInterface = "org.freedesktop.portal.OpenURI";
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
+const auto XdgActivationToken = base::Platform::XdgActivationToken;
 
 } // namespace
 
@@ -60,14 +61,6 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 
 		const auto handleToken = Glib::ustring("tdesktop")
 			+ std::to_string(base::RandomValue<uint>());
-
-		const auto activationToken = []() -> Glib::ustring {
-			using base::Platform::WaylandIntegration;
-			if (const auto integration = WaylandIntegration::Instance()) {
-				return integration->activationToken().toStdString();
-			}
-			return {};
-		}();
 
 		auto uniqueName = connection->get_unique_name();
 		uniqueName.erase(0, 1);
@@ -118,7 +111,8 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 					},
 					{
 						"activation_token",
-						Glib::create_variant(activationToken)
+						Glib::create_variant(
+							Glib::ustring(XdgActivationToken().toStdString()))
 					},
 					{
 						"ask",
