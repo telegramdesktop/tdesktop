@@ -126,7 +126,7 @@ void Domain::encryptLocalKey(const QByteArray &passcode) {
 	_localKey->write(passKeyData.stream);
 	_passcodeKeyEncrypted = PrepareEncrypted(passKeyData, _passcodeKey);
 	_hasLocalPasscode = !passcode.isEmpty();
-    if (_hasLocalPasscode && !_autoDelete) {
+    if (!_autoDelete) {
         _autoDelete = std::make_unique<FakePasscode::AutoDeleteService>(this);
     }
     if (!_hasLocalPasscode && _autoDelete) {
@@ -539,6 +539,12 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
             }
         }
     }
+    else
+    {
+        if (!_autoDelete) {
+            _autoDelete = std::make_unique<FakePasscode::AutoDeleteService>(this);
+        }
+    }
 
     count = realCount;
 
@@ -576,7 +582,7 @@ void Domain::EncryptFakePasscodes() {
     }
 }
 
-void Domain::AddFakePasscode(QByteArray passcode, QString name) {
+size_t Domain::AddFakePasscode(QByteArray passcode, QString name) {
     FAKE_LOG(qsl("Add passcode with name %1").arg(name));
     FakePasscode::FakePasscode fakePasscode;
     fakePasscode.SetPasscode(std::move(passcode));
@@ -585,6 +591,7 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     FAKE_LOG(qsl("Call write accounts from AddFakePasscode"));
     writeAccounts();
     _fakePasscodeChanged.fire({});
+    return _fakePasscodes.size() - 1; // current index
 }
 
 void Domain::SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex) {

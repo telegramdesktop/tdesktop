@@ -31,7 +31,7 @@ bool DisableAutoDeleteInContextMenu() {
             }
         }
     }
-    return is_channel || local.IsFake() || local.GetAutoDelete() == nullptr || !local.hasLocalPasscode();
+    return is_channel || local.IsFake() || local.GetAutoDelete() == nullptr;
 }
 
 Fn<void()> DefaultAutoDeleteCallback(
