@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/weak_ptr.h"
 #include "base/flags.h"
+#include "base/timer.h"
+#include "base/weak_ptr.h"
 #include "mtproto/sender.h"
 #include "ui/chat/attach/attach_bot_webview.h"
+#include "ui/rp_widget.h"
 
 namespace Api {
 struct SendAction;
@@ -60,9 +62,12 @@ struct AttachWebViewBot {
 	std::shared_ptr<Data::DocumentMedia> media;
 	QString name;
 	PeerTypes types = 0;
-	bool inactive = false;
-	bool hasSettings = false;
-	bool requestWriteAccess = false;
+	bool inactive : 1 = false;
+	bool inMainMenu : 1 = false;
+	bool inAttachMenu : 1 = false;
+	bool disclaimerRequired : 1 = false;
+	bool hasSettings : 1 = false;
+	bool requestWriteAccess : 1 = false;
 };
 
 class AttachWebView final
@@ -76,7 +81,8 @@ public:
 		QString text;
 		QString startCommand;
 		QByteArray url;
-		bool fromMenu = false;
+		bool fromAttachMenu = false;
+		bool fromMainMenu = false;
 		bool fromSwitch = false;
 	};
 	void request(
@@ -116,10 +122,10 @@ public:
 
 	void requestAddToMenu(
 		not_null<UserData*> bot,
-		const QString &startCommand);
+		std::optional<QString> startCommand);
 	void requestAddToMenu(
 		not_null<UserData*> bot,
-		const QString &startCommand,
+		std::optional<QString> startCommand,
 		Window::SessionController *controller,
 		std::optional<Api::SendAction> action,
 		PeerTypes chooseTypes);
@@ -171,6 +177,9 @@ private:
 	void confirmOpen(
 		not_null<Window::SessionController*> controller,
 		Fn<void()> done);
+	void acceptDisclaimer(
+		not_null<Window::SessionController*> controller,
+		Fn<void()> done);
 
 	enum class ToggledState {
 		Removed,
@@ -200,6 +209,8 @@ private:
 
 	const not_null<Main::Session*> _session;
 
+	base::Timer _refreshTimer;
+
 	std::unique_ptr<Context> _context;
 	std::unique_ptr<Context> _lastShownContext;
 	QString _lastShownUrl;
@@ -221,7 +232,7 @@ private:
 	std::unique_ptr<Context> _addToMenuContext;
 	UserData *_addToMenuBot = nullptr;
 	mtpRequestId _addToMenuId = 0;
-	QString _addToMenuStartCommand;
+	std::optional<QString> _addToMenuStartCommand;
 	base::weak_ptr<Window::SessionController> _addToMenuChooseController;
 	PeerTypes _addToMenuChooseTypes;
 
@@ -238,5 +249,22 @@ private:
 	not_null<PeerData*> peer,
 	Fn<Api::SendAction()> actionFactory,
 	Fn<void(bool)> attach);
+
+class MenuBotIcon final : public Ui::RpWidget {
+public:
+	MenuBotIcon(
+		QWidget *parent,
+		std::shared_ptr<Data::DocumentMedia> media);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	void validate();
+
+	std::shared_ptr<Data::DocumentMedia> _media;
+	QImage _image;
+	QImage _mask;
+
+};
 
 } // namespace InlineBots

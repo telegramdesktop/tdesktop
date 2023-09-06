@@ -212,6 +212,7 @@ public:
 		bool botAppForceConfirmation = false;
 		QString attachBotUsername;
 		std::optional<QString> attachBotToggleCommand;
+		bool attachBotMenuOpen = false;
 		InlineBots::PeerTypes attachBotChooseTypes;
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;

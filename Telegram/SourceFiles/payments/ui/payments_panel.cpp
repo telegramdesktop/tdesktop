@@ -735,41 +735,9 @@ void Panel::requestTermsAcceptance(
 
 		(*update) = [=] { row->update(); };
 
-		struct State {
-			bool error = false;
-			Ui::Animations::Simple errorAnimation;
-		};
-		const auto state = box->lifetime().make_state<State>();
-		const auto showError = [=] {
-			const auto callback = [=] {
-				const auto error = state->errorAnimation.value(
-					state->error ? 1. : 0.);
-				if (error == 0.) {
-					check->setUntoggledOverride(std::nullopt);
-				} else {
-					const auto color = anim::color(
-						st::defaultCheck.untoggledFg,
-						st::boxTextFgError,
-						error);
-					check->setUntoggledOverride(color);
-				}
-			};
-			state->error = true;
-			state->errorAnimation.stop();
-			state->errorAnimation.start(
-				callback,
-				0.,
-				1.,
-				st::defaultCheck.duration);
-		};
-
-		row->checkedChanges(
-		) | rpl::filter([=](bool checked) {
-			return checked;
-		}) | rpl::start_with_next([=] {
-			state->error = false;
-			check->setUntoggledOverride(std::nullopt);
-		}, row->lifetime());
+		const auto showError = Ui::CheckView::PrepareNonToggledError(
+			check,
+			box->lifetime());
 
 		box->addButton(tr::lng_payments_terms_accept(), [=] {
 			if (check->checked()) {

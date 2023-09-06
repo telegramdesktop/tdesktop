@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge_paint.h"
 #include "base/call_delayed.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
@@ -196,6 +197,45 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 			? tr::lng_menu_change_status
 			: tr::lng_menu_set_status)(makeLink);
 	}) | rpl::flatten_latest();
+}
+
+void SetupMenuBots(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller) {
+	const auto wrap = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
+	const auto bots = &controller->session().attachWebView();
+
+	rpl::single(
+		rpl::empty
+	) | rpl::then(
+		bots->attachBotsUpdates()
+	) | rpl::start_with_next([=] {
+		wrap->clear();
+		for (const auto &bot : bots->attachBots()) {
+			if (!bot.inMainMenu) {
+				continue;
+			}
+			const auto button = Settings::AddButton(
+				container,
+				rpl::single(bot.name),
+				st::mainMenuButton);
+			const auto icon = Ui::CreateChild<InlineBots::MenuBotIcon>(
+				button.get(),
+				bot.media);
+			button->heightValue(
+			) | rpl::start_with_next([=](int height) {
+				icon->move(
+					st::mainMenuButton.iconLeft,
+					(height - icon->height()) / 2);
+			}, button->lifetime());
+			button->setClickedCallback([=] {
+				bots->requestSimple(controller, bot.user, {
+					.fromMainMenu = true,
+				});
+			});
+		}
+	}, wrap->lifetime());
 }
 
 } // namespace
@@ -783,6 +823,8 @@ void MainMenu::setupMenu() {
 			controller->showSection(
 				Info::Stories::Make(controller->session().user()));
 		});
+
+		SetupMenuBots(_menu, controller);
 
 		addAction(
 			tr::lng_menu_contacts(),

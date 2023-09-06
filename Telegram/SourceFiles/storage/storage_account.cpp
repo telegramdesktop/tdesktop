@@ -2808,7 +2808,13 @@ void Account::writeTrustedBots() {
 }
 
 void Account::readTrustedBots() {
-	if (!_trustedBotsKey) return;
+	if (_trustedBotsRead) {
+		return;
+	}
+	_trustedBotsRead = true;
+	if (!_trustedBotsKey) {
+		return;
+	}
 
 	FileReadDescriptor trusted;
 	if (!ReadEncryptedFile(trusted, _trustedBotsKey, _basePath, _localKey)) {
@@ -2845,10 +2851,7 @@ void Account::markBotTrustedOpenGame(PeerId botId) {
 }
 
 bool Account::isBotTrustedOpenGame(PeerId botId) {
-	if (!_trustedBotsRead) {
-		readTrustedBots();
-		_trustedBotsRead = true;
-	}
+	readTrustedBots();
 	const auto i = _trustedBots.find(botId);
 	return (i != end(_trustedBots))
 		&& ((i->second & BotTrustFlag::NoOpenGame) == 0);
@@ -2870,10 +2873,7 @@ void Account::markBotTrustedPayment(PeerId botId) {
 }
 
 bool Account::isBotTrustedPayment(PeerId botId) {
-	if (!_trustedBotsRead) {
-		readTrustedBots();
-		_trustedBotsRead = true;
-	}
+	readTrustedBots();
 	const auto i = _trustedBots.find(botId);
 	return (i != end(_trustedBots))
 		&& ((i->second & BotTrustFlag::Payment) != 0);
@@ -2895,10 +2895,7 @@ void Account::markBotTrustedOpenWebView(PeerId botId) {
 }
 
 bool Account::isBotTrustedOpenWebView(PeerId botId) {
-	if (!_trustedBotsRead) {
-		readTrustedBots();
-		_trustedBotsRead = true;
-	}
+	readTrustedBots();
 	const auto i = _trustedBots.find(botId);
 	return (i != end(_trustedBots))
 		&& ((i->second & BotTrustFlag::OpenWebView) != 0);

@@ -36,10 +36,11 @@ struct MainButtonArgs {
 };
 
 enum class MenuButton {
-	None           = 0x00,
-	Settings       = 0x01,
-	OpenBot        = 0x02,
-	RemoveFromMenu = 0x04,
+	None               = 0x00,
+	Settings           = 0x01,
+	OpenBot            = 0x02,
+	RemoveFromMenu     = 0x04,
+	RemoveFromMainMenu = 0x08,
 };
 inline constexpr bool is_flag_type(MenuButton) { return true; }
 using MenuButtons = base::flags<MenuButton>;

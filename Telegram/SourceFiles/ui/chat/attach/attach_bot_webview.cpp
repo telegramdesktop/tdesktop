@@ -535,12 +535,17 @@ bool Panel::showWebview(
 		callback(tr::lng_bot_reload_page(tr::now), [=] {
 			_webview->window.reload();
 		}, &st::menuIconRestore);
-		if (_menuButtons & MenuButton::RemoveFromMenu) {
+		const auto main = (_menuButtons & MenuButton::RemoveFromMainMenu);
+		if (main || (_menuButtons & MenuButton::RemoveFromMenu)) {
 			const auto handler = [=] {
-				_delegate->botHandleMenuButton(MenuButton::RemoveFromMenu);
+				_delegate->botHandleMenuButton(main
+					? MenuButton::RemoveFromMainMenu
+					: MenuButton::RemoveFromMenu);
 			};
 			callback({
-				.text = tr::lng_bot_remove_from_menu(tr::now),
+				.text = (main
+					? tr::lng_bot_remove_from_side_menu
+					: tr::lng_bot_remove_from_menu)(tr::now),
 				.handler = handler,
 				.icon = &st::menuIconDeleteAttention,
 				.isAttention = true,

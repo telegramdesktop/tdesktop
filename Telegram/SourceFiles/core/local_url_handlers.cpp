@@ -392,7 +392,6 @@ bool ResolveUsernameOrPhone(
 	const auto storyParam = params.value(u"story"_q);
 	const auto storyId = storyParam.toInt();
 	const auto appname = webChannelPreviewLink ? QString() : appnameParam;
-	const auto appstart = params.value(u"startapp"_q);
 	const auto commentParam = params.value(u"comment"_q);
 	const auto commentId = commentParam.toInt();
 	const auto topicParam = params.value(u"topic"_q);
@@ -404,11 +403,11 @@ bool ResolveUsernameOrPhone(
 		startToken = gameParam;
 		resolveType = ResolveType::ShareGame;
 	}
-	if (startToken.isEmpty() && params.contains(u"startapp"_q)) {
-		startToken = params.value(u"startapp"_q);
-	}
 	if (!appname.isEmpty()) {
 		resolveType = ResolveType::BotApp;
+		if (startToken.isEmpty() && params.contains(u"startapp"_q)) {
+			startToken = params.value(u"startapp"_q);
+		}
 	}
 	const auto myContext = context.value<ClickHandlerContext>();
 	using Navigation = Window::SessionNavigation;
@@ -437,6 +436,8 @@ bool ResolveUsernameOrPhone(
 		.attachBotToggleCommand = (params.contains(u"startattach"_q)
 			? params.value(u"startattach"_q)
 			: std::optional<QString>()),
+		.attachBotMenuOpen = (appname.isEmpty()
+			&& params.contains(u"startapp"_q)),
 		.attachBotChooseTypes = InlineBots::ParseChooseTypes(
 			params.value(u"choose"_q)),
 		.voicechatHash = (params.contains(u"livestream"_q)

@@ -596,6 +596,13 @@ void SessionNavigation::showPeerByLinkResolved(
 						contextUser->owner().history(contextUser))
 					: std::optional<Api::SendAction>()),
 				info.attachBotChooseTypes);
+		} else if (bot && info.attachBotMenuOpen) {
+			bot->session().attachWebView().requestAddToMenu(
+				bot,
+				std::nullopt,
+				parentController(),
+				std::optional<Api::SendAction>(),
+				{});
 		} else {
 			crl::on_main(this, [=] {
 				showPeerHistory(peer, params, msgId);
