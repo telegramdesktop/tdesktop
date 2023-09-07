@@ -94,6 +94,7 @@ private:
 	mutable std::unique_ptr<SpoilerAnimation> _spoiler;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 	mutable const style::ThreeStateIcon *_leftIcon = nullptr;
+	mutable bool _hasPlainLinkAtBegin = false;
 
 };
 

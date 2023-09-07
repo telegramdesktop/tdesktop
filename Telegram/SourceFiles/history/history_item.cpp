@@ -3887,6 +3887,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			result.text = {
 				tr::lng_action_attach_menu_bot_allowed(tr::now)
 			};
+		} else if (action.is_from_request()) {
+			result.text = {
+				tr::lng_action_webapp_bot_allowed(tr::now)
+			};
 		} else if (const auto app = action.vapp()) {
 			const auto bot = history()->peer->asUser();
 			const auto botId = bot ? bot->id : PeerId();

@@ -26,7 +26,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "ui/dpr/dpr_icon.h"
 #include "ui/dpr/dpr_image.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/rect_part.h"

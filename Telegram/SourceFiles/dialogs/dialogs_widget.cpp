@@ -22,7 +22,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/elastic_scroll.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/chat/requests_bar.h"
@@ -78,6 +78,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 
 #include <QtCore/QMimeData>
 #include <QtWidgets/QScrollBar>
+#include <QtWidgets/QTextEdit>
 
 namespace Dialogs {
 namespace {
@@ -340,12 +341,12 @@ Widget::Widget(
 		Ui::PostponeCall(this, [=] { listScrollUpdated(); });
 	}, lifetime());
 
-	QObject::connect(_filter, &Ui::InputField::changed, [=] {
+	_filter->changes(
+	) | rpl::start_with_next([=] {
 		applyFilterUpdate();
-	});
-	QObject::connect(_filter, &Ui::InputField::submitted, [=] {
-		submit();
-	});
+	}, _filter->lifetime());
+	_filter->submits(
+	) | rpl::start_with_next([=] { submit(); }, _filter->lifetime());
 	QObject::connect(
 		_filter->rawTextEdit().get(),
 		&QTextEdit::cursorPositionChanged,

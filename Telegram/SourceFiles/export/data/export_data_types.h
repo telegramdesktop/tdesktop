@@ -439,6 +439,7 @@ struct ActionBotAllowed {
 	Utf8String app;
 	Utf8String domain;
 	bool attachMenu = false;
+	bool fromRequest = false;
 };
 
 struct ActionSecureValuesSent {

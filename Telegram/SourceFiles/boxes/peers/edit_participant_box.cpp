@@ -15,7 +15,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
@@ -384,8 +384,11 @@ void EditAdminBox::prepare() {
 			if (!_saveCallback) {
 				return;
 			} else if (_addAsAdmin && !_addAsAdmin->checked()) {
+				const auto weak = Ui::MakeWeak(this);
 				AddBotToGroup(user(), peer(), _addingBot->token);
-				getDelegate()->hideLayer();
+				if (const auto strong = weak.data()) {
+					strong->closeBox();
+				}
 				return;
 			} else if (_addingBot && !_addingBot->existing) {
 				const auto phrase = peer()->isBroadcast()
@@ -461,13 +464,14 @@ not_null<Ui::InputField*> EditAdminBox::addRankInput(
 		st::rightsAboutMargin);
 	result->setMaxLength(kAdminRoleLimit);
 	result->setInstantReplaces(Ui::InstantReplaces::TextOnly());
-	connect(result, &Ui::InputField::changed, [=] {
+	result->changes(
+	) | rpl::start_with_next([=] {
 		const auto text = result->getLastText();
 		const auto removed = TextUtilities::RemoveEmoji(text);
 		if (removed != text) {
 			result->setText(removed);
 		}
-	});
+	}, result->lifetime());
 
 	container->add(
 		object_ptr<Ui::FlatLabel>(

@@ -8,7 +8,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "data/data_drafts.h"
 
 #include "api/api_text_entities.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
 #include "history/history_widget.h"

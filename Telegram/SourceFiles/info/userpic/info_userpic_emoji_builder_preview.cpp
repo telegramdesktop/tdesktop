@@ -47,9 +47,8 @@ PreviewPainter::PreviewPainter(int size)
 	}
 }
 
-not_null<DocumentData*> PreviewPainter::document() const {
-	Expects(_media != nullptr);
-	return _media->owner();
+DocumentData *PreviewPainter::document() const {
+	return _media ? _media->owner().get() : nullptr;
 }
 
 void PreviewPainter::setPlayOnce(bool value) {
@@ -183,7 +182,7 @@ void EmojiUserpic::result(int size, Fn<void(UserpicBuilder::Result)> done) {
 	const auto painter = lifetime().make_state<PreviewPainter>(size);
 	// Reset to the first frame.
 	const auto document = _painter.document();
-	painter->setDocument(document, [=] {
+	const auto callback = [=] {
 		auto background = GenerateGradient(Size(size), _colors, false);
 
 		{
@@ -194,12 +193,17 @@ void EmojiUserpic::result(int size, Fn<void(UserpicBuilder::Result)> done) {
 				}
 			}
 		}
-		if (*_playOnce) {
+		if (*_playOnce && document) {
 			done({ std::move(background), document->id, _colors });
 		} else {
 			done({ std::move(background) });
 		}
-	});
+	};
+	if (document) {
+		painter->setDocument(document, callback);
+	} else {
+		callback();
+	}
 }
 
 void EmojiUserpic::setGradientColors(std::vector<QColor> colors) {

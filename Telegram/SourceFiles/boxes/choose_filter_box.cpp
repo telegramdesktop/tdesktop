@@ -32,27 +32,27 @@ Data::ChatFilter ChangedFilter(
 	auto never = base::duplicate(filter.never());
 	if (add) {
 		never.remove(history);
-		const auto result = Data::ChatFilter(
-			filter.id(),
-			filter.title(),
-			filter.iconEmoji(),
-			filter.flags(),
-			filter.always(),
-			filter.pinned(),
-			std::move(never));
-		if (result.contains(history)) {
-			return result;
-		} else {
-			never = base::duplicate(result.never());
-			always.insert(history);
-		}
 	} else {
-		const auto alwaysIt = always.find(history);
-		if (alwaysIt != end(always)) {
-			always.erase(alwaysIt);
-		} else {
-			never.insert(history);
-		}
+		always.remove(history);
+	}
+	const auto result = Data::ChatFilter(
+		filter.id(),
+		filter.title(),
+		filter.iconEmoji(),
+		filter.flags(),
+		std::move(always),
+		filter.pinned(),
+		std::move(never));
+	const auto in = result.contains(history);
+	if (in == add) {
+		return result;
+	}
+	always = base::duplicate(result.always());
+	never = base::duplicate(result.never());
+	if (add) {
+		always.insert(history);
+	} else {
+		never.insert(history);
 	}
 	return Data::ChatFilter(
 		filter.id(),

@@ -1,3 +1,8 @@
+4.9.5 (04.09.23)
+
+- Several new bot web-app features.
+- Bug fixes and other minor improvements.
+
 4.9.4 (30.08.23)
 
 - Default private chats / groups / channels notification settings.
