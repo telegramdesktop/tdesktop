@@ -54,24 +54,24 @@
   </qresource>
   <qresource prefix="/misc">
     <file alias="default_shortcuts-custom.json">../../default_shortcuts-custom.json</file>
-    <file alias="default_-settings-custom.json">../../default_-settings-custom.json</file>
+    <file alias="default_-settings-custom.json">../../default_rabbit-settings-custom.json</file>
     <file alias="org.telegram.desktop.desktop">../../../../lib/xdg/org.telegram.desktop.desktop</file>
   </qresource>
   <qresource prefix="/rtg_lang">
-    <file alias="alttg.json">../../langs//alttg.json</file>
-    <file alias="ar.json">../../langs//ar.json</file>
-    <file alias="de.json">../../langs//de.json</file>
-    <file alias="en.json">../../langs//en.json</file>
-    <file alias="es.json">../../langs//es.json</file>
-    <file alias="fa.json">../../langs//fa.json</file>
-    <file alias="fr.json">../../langs//fr.json</file>
-    <file alias="he.json">../../langs//he.json</file>
-    <file alias="it.json">../../langs//it.json</file>
-    <file alias="pl.json">../../langs//pl.json</file>
-    <file alias="pt-br.json">../../langs//pt-br.json</file>
-    <file alias="ru.json">../../langs//ru.json</file>
-    <file alias="tr.json">../../langs//tr.json</file>
-    <file alias="uk.json">../../langs//uk.json</file>
-    <file alias="zh.json">../../langs//zh.json</file>
+    <file alias="alttg.json">../../langs/rabbit/alttg.json</file>
+    <file alias="ar.json">../../langs/rabbit/ar.json</file>
+    <file alias="de.json">../../langs/rabbit/de.json</file>
+    <file alias="en.json">../../langs/rabbit/en.json</file>
+    <file alias="es.json">../../langs/rabbit/es.json</file>
+    <file alias="fa.json">../../langs/rabbit/fa.json</file>
+    <file alias="fr.json">../../langs/rabbit/fr.json</file>
+    <file alias="he.json">../../langs/rabbit/he.json</file>
+    <file alias="it.json">../../langs/rabbit/it.json</file>
+    <file alias="pl.json">../../langs/rabbit/pl.json</file>
+    <file alias="pt-br.json">../../langs/rabbit/pt-br.json</file>
+    <file alias="ru.json">../../langs/rabbit/ru.json</file>
+    <file alias="tr.json">../../langs/rabbit/tr.json</file>
+    <file alias="uk.json">../../langs/rabbit/uk.json</file>
+    <file alias="zh.json">../../langs/rabbit/zh.json</file>
   </qresource>
 </RCC>

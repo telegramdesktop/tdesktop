@@ -12,7 +12,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include <QtCore/QVariant>
 #include <QtCore/QJsonArray>
 
-namespace ExteraSettings {
+namespace RabbitSettings {
 namespace JsonSettings {
 
 void Start();
@@ -112,4 +112,4 @@ inline QJsonArray GetJsonArrayWithPending(
 }
 
 } // namespace JsonSettings
-} // namespace ExteraSettings
+} // namespace RabbitSettings

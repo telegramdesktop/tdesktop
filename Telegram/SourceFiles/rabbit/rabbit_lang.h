@@ -7,7 +7,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #pragma once
 
-namespace ExteraLang {
+namespace RabbitLang {
 namespace Lang {
 
 struct Var {
@@ -65,102 +65,102 @@ TextWithEntities TranslateWithEntities(
 rpl::producer<> Events();
 
 } // namespace Lang
-} // namespace ExteraLang
+} // namespace RabbitLang
 
 // Shorthands
 
 inline QString ktr(
 	const QString &key,
-	::ExteraLang::Lang::Var var1 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var2 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var3 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var4 = ::ExteraLang::Lang::Var()) {
-	return ::ExteraLang::Lang::Translate(key, var1, var2, var3, var4);
+	::RabbitLang::Lang::Var var1 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var2 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var3 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var4 = ::RabbitLang::Lang::Var()) {
+	return ::RabbitLang::Lang::Translate(key, var1, var2, var3, var4);
 }
 
 inline QString ktr(
 	const QString &key,
 	float64 value,
-	::ExteraLang::Lang::Var var1 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var2 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var3 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var4 = ::ExteraLang::Lang::Var()) {
-	return ::ExteraLang::Lang::Translate(key, value, var1, var2, var3, var4);
+	::RabbitLang::Lang::Var var1 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var2 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var3 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var4 = ::RabbitLang::Lang::Var()) {
+	return ::RabbitLang::Lang::Translate(key, value, var1, var2, var3, var4);
 }
 
 inline TextWithEntities ktre(
 	const QString &key,
-	::ExteraLang::Lang::EntVar var1 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var2 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var3 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var4 = ::ExteraLang::Lang::EntVar()) {
-	return ::ExteraLang::Lang::TranslateWithEntities(key, var1, var2, var3, var4);
+	::RabbitLang::Lang::EntVar var1 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var2 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var3 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var4 = ::RabbitLang::Lang::EntVar()) {
+	return ::RabbitLang::Lang::TranslateWithEntities(key, var1, var2, var3, var4);
 }
 
 inline TextWithEntities ktre(
 	const QString &key,
 	float64 value,
-	::ExteraLang::Lang::EntVar var1 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var2 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var3 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var4 = ::ExteraLang::Lang::EntVar()) {
-	return ::ExteraLang::Lang::TranslateWithEntities(key, value, var1, var2, var3, var4);
+	::RabbitLang::Lang::EntVar var1 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var2 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var3 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var4 = ::RabbitLang::Lang::EntVar()) {
+	return ::RabbitLang::Lang::TranslateWithEntities(key, value, var1, var2, var3, var4);
 }
 
 inline rpl::producer<QString> rktr(
 	const QString &key,
-	::ExteraLang::Lang::Var var1 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var2 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var3 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var4 = ::ExteraLang::Lang::Var()) {
+	::RabbitLang::Lang::Var var1 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var2 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var3 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var4 = ::RabbitLang::Lang::Var()) {
 	return rpl::single(
-			::ExteraLang::Lang::Translate(key, var1, var2, var3, var4)
+			::RabbitLang::Lang::Translate(key, var1, var2, var3, var4)
 		) | rpl::then(
-			::ExteraLang::Lang::Events() | rpl::map(
-				[=]{ return ::ExteraLang::Lang::Translate(key, var1, var2, var3, var4); })
+			::RabbitLang::Lang::Events() | rpl::map(
+				[=]{ return ::RabbitLang::Lang::Translate(key, var1, var2, var3, var4); })
 		);
 }
 
 inline rpl::producer<QString> rktr(
 	const QString &key,
 	float64 value,
-	::ExteraLang::Lang::Var var1 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var2 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var3 = ::ExteraLang::Lang::Var(),
-	::ExteraLang::Lang::Var var4 = ::ExteraLang::Lang::Var()) {
+	::RabbitLang::Lang::Var var1 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var2 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var3 = ::RabbitLang::Lang::Var(),
+	::RabbitLang::Lang::Var var4 = ::RabbitLang::Lang::Var()) {
 	return rpl::single(
-			::ExteraLang::Lang::Translate(key, value, var1, var2, var3, var4)
+			::RabbitLang::Lang::Translate(key, value, var1, var2, var3, var4)
 		) | rpl::then(
-			::ExteraLang::Lang::Events() | rpl::map(
-				[=]{ return ::ExteraLang::Lang::Translate(key, value, var1, var2, var3, var4); })
+			::RabbitLang::Lang::Events() | rpl::map(
+				[=]{ return ::RabbitLang::Lang::Translate(key, value, var1, var2, var3, var4); })
 		);
 }
 
 inline rpl::producer<TextWithEntities> rktre(
 	const QString &key,
-	::ExteraLang::Lang::EntVar var1 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var2 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var3 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var4 = ::ExteraLang::Lang::EntVar()) {
+	::RabbitLang::Lang::EntVar var1 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var2 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var3 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var4 = ::RabbitLang::Lang::EntVar()) {
 	return rpl::single(
-			::ExteraLang::Lang::TranslateWithEntities(key, var1, var2, var3, var4)
+			::RabbitLang::Lang::TranslateWithEntities(key, var1, var2, var3, var4)
 		) | rpl::then(
-			::ExteraLang::Lang::Events() | rpl::map(
-				[=]{ return ::ExteraLang::Lang::TranslateWithEntities(key, var1, var2, var3, var4); })
+			::RabbitLang::Lang::Events() | rpl::map(
+				[=]{ return ::RabbitLang::Lang::TranslateWithEntities(key, var1, var2, var3, var4); })
 		);
 }
 
 inline rpl::producer<TextWithEntities> rktre(
 	const QString &key,
 	float64 value,
-	::ExteraLang::Lang::EntVar var1 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var2 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var3 = ::ExteraLang::Lang::EntVar(),
-	::ExteraLang::Lang::EntVar var4 = ::ExteraLang::Lang::EntVar()) {
+	::RabbitLang::Lang::EntVar var1 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var2 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var3 = ::RabbitLang::Lang::EntVar(),
+	::RabbitLang::Lang::EntVar var4 = ::RabbitLang::Lang::EntVar()) {
 	return rpl::single(
-			::ExteraLang::Lang::TranslateWithEntities(key, value, var1, var2, var3, var4)
+			::RabbitLang::Lang::TranslateWithEntities(key, value, var1, var2, var3, var4)
 		) | rpl::then(
-			::ExteraLang::Lang::Events() | rpl::map(
-				[=]{ return ::ExteraLang::Lang::TranslateWithEntities(key, value, var1, var2, var3, var4); })
+			::RabbitLang::Lang::Events() | rpl::map(
+				[=]{ return ::RabbitLang::Lang::TranslateWithEntities(key, value, var1, var2, var3, var4); })
 		);
 }
