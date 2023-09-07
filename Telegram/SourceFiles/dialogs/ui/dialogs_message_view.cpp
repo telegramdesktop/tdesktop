@@ -186,9 +186,12 @@ void MessageView::prepare(
 		_senderCache = { st::dialogsTextWidthMin };
 	}
 	TextUtilities::Trim(preview.text);
+	auto textToCache = DialogsPreviewText(std::move(preview.text));
+	_hasPlainLinkAtBegin = !textToCache.entities.empty()
+		&& (textToCache.entities.front().type() == EntityType::PlainLink);
 	_textCache.setMarkedText(
 		st::dialogsTextStyle,
-		DialogsPreviewText(std::move(preview.text)),
+		std::move(textToCache),
 		DialogTextOptions(),
 		context);
 	_textCachedFor = item;
@@ -325,11 +328,23 @@ void MessageView::paint(
 			*_leftIcon,
 			context.active,
 			context.selected);
-		icon.paint(p, rect.topLeft(), rect.width());
-		rect.setLeft(rect.x() + icon.width() + st::dialogsMiniIconSkip);
+		const auto w = (icon.width());
+		if (rect.width() > w) {
+			if (_hasPlainLinkAtBegin && !context.active) {
+				icon.paint(
+					p,
+					rect.topLeft(),
+					rect.width(),
+					palette->linkFg->c);
+			} else {
+				icon.paint(p, rect.topLeft(), rect.width());
+			}
+			rect.setLeft(rect.x() + w + st::dialogsMiniIconSkip);
+		}
 	}
 	for (const auto &image : _imagesCache) {
-		if (rect.width() < st::dialogsMiniPreview) {
+		const auto w = st::dialogsMiniPreview + st::dialogsMiniPreviewSkip;
+		if (rect.width() < w) {
 			break;
 		}
 		const auto mini = QRect(
@@ -345,14 +360,15 @@ void MessageView::paint(
 				FillSpoilerRect(p, mini, frame);
 			}
 		}
-		rect.setLeft(rect.x()
-			+ st::dialogsMiniPreview
-			+ st::dialogsMiniPreviewSkip);
+		rect.setLeft(rect.x() + w);
 	}
 	if (!_imagesCache.empty()) {
 		rect.setLeft(rect.x() + st::dialogsMiniPreviewRight);
 	}
-	if (!rect.isEmpty()) {
+	// Style of _textCache.
+	static const auto ellipsisWidth = st::dialogsTextStyle.font->width(
+		kQEllipsis);
+	if (rect.width() > ellipsisWidth) {
 		_textCache.draw(p, {
 			.position = rect.topLeft(),
 			.availableWidth = rect.width(),

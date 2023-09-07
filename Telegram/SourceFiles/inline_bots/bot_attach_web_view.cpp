@@ -7,9 +7,11 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "inline_bots/bot_attach_web_view.h"
 
+#include "api/api_blocked_peers.h"
 #include "api/api_common.h"
 #include "core/click_handler_types.h"
 #include "data/data_bot_app.h"
+#include "data/data_changes.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
@@ -462,6 +464,211 @@ void AttachWebView::request(
 	resolve();
 }
 
+Webview::ThemeParams AttachWebView::botThemeParams() {
+	return Window::Theme::WebViewParams();
+}
+
+bool AttachWebView::botHandleLocalUri(QString uri) {
+	const auto local = Core::TryConvertUrlToLocal(uri);
+	if (uri == local || Core::InternalPassportLink(local)) {
+		return local.startsWith(u"tg://"_q);
+	} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
+		return false;
+	}
+	botClose();
+	crl::on_main([=, shownUrl = _lastShownUrl] {
+		const auto variant = QVariant::fromValue(ClickHandlerContext{
+			.attachBotWebviewUrl = shownUrl,
+		});
+		UrlClickHandler::Open(local, variant);
+	});
+	return true;
+}
+
+void AttachWebView::botHandleInvoice(QString slug) {
+	Expects(_panel != nullptr);
+
+	using Result = Payments::CheckoutResult;
+	const auto weak = base::make_weak(_panel.get());
+	const auto reactivate = [=](Result result) {
+		if (const auto strong = weak.get()) {
+			strong->invoiceClosed(slug, [&] {
+				switch (result) {
+				case Result::Paid: return "paid";
+				case Result::Failed: return "failed";
+				case Result::Pending: return "pending";
+				case Result::Cancelled: return "cancelled";
+				}
+				Unexpected("Payments::CheckoutResult value.");
+			}());
+		}
+	};
+	_panel->hideForPayment();
+	Payments::CheckoutProcess::Start(&_bot->session(), slug, reactivate);
+}
+
+void AttachWebView::botHandleMenuButton(Ui::BotWebView::MenuButton button) {
+	Expects(_bot != nullptr);
+	Expects(_panel != nullptr);
+
+	using Button = Ui::BotWebView::MenuButton;
+	const auto bot = _bot;
+	switch (button) {
+	case Button::OpenBot:
+		botClose();
+		if (bot->session().windows().empty()) {
+			Core::App().domain().activate(&bot->session().account());
+		}
+		if (!bot->session().windows().empty()) {
+			const auto window = bot->session().windows().front();
+			window->showPeerHistory(bot);
+			window->window().activate();
+		}
+		break;
+	case Button::RemoveFromMenu:
+		const auto attached = ranges::find(
+			_attachBots,
+			not_null{ _bot },
+			&AttachWebViewBot::user);
+		const auto name = (attached != end(_attachBots))
+			? attached->name
+			: _bot->name();
+		const auto done = crl::guard(this, [=] {
+			removeFromMenu(bot);
+			botClose();
+			if (const auto active = Core::App().activeWindow()) {
+				active->activate();
+			}
+		});
+		_panel->showBox(Ui::MakeConfirmBox({
+			tr::lng_bot_remove_from_menu_sure(
+				tr::now,
+				lt_bot,
+				Ui::Text::Bold(name),
+				Ui::Text::WithEntities),
+			done,
+		}));
+		break;
+	}
+}
+
+void AttachWebView::botSendData(QByteArray data) {
+	if (!_context
+		|| _context->fromSwitch
+		|| _context->fromBotApp
+		|| _context->action.history->peer != _bot
+		|| _lastShownQueryId) {
+		return;
+	}
+	const auto randomId = base::RandomValue<uint64>();
+	_session->api().request(MTPmessages_SendWebViewData(
+		_bot->inputUser,
+		MTP_long(randomId),
+		MTP_string(_lastShownButtonText),
+		MTP_bytes(data)
+	)).done([=](const MTPUpdates &result) {
+		_session->api().applyUpdates(result);
+	}).send();
+	crl::on_main(this, [=] { cancel(); });
+}
+
+void AttachWebView::botSwitchInlineQuery(
+		std::vector<QString> chatTypes,
+		QString query) {
+	const auto controller = _context
+		? _context->controller.get()
+		: nullptr;
+	const auto types = PeerTypesFromNames(chatTypes);
+	if (!_bot
+		|| !_bot->isBot()
+		|| _bot->botInfo->inlinePlaceholder.isEmpty()
+		|| !controller) {
+		return;
+	} else if (!types) {
+		if (_context->dialogsEntryState.key.owningHistory()) {
+			controller->switchInlineQuery(
+				_context->dialogsEntryState,
+				_bot,
+				query);
+		}
+	} else {
+		const auto bot = _bot;
+		const auto done = [=](not_null<Data::Thread*> thread) {
+			controller->switchInlineQuery(thread, bot, query);
+		};
+		ShowChooseBox(
+			controller,
+			types,
+			done,
+			tr::lng_inline_switch_choose());
+	}
+	crl::on_main(this, [=] { cancel(); });
+}
+
+void AttachWebView::botCheckWriteAccess(Fn<void(bool allowed)> callback) {
+	_session->api().request(MTPbots_CanSendMessage(
+		_bot->inputUser
+	)).done([=](const MTPBool &result) {
+		callback(mtpIsTrue(result));
+	}).fail([=] {
+		callback(false);
+	}).send();
+}
+
+void AttachWebView::botAllowWriteAccess(Fn<void(bool allowed)> callback) {
+	_session->api().request(MTPbots_AllowSendMessage(
+		_bot->inputUser
+	)).done([=](const MTPUpdates &result) {
+		_session->api().applyUpdates(result);
+		callback(true);
+	}).fail([=] {
+		callback(false);
+	}).send();
+}
+
+void AttachWebView::botSharePhone(Fn<void(bool shared)> callback) {
+	const auto bot = _bot;
+	const auto history = _bot->owner().history(_bot);
+	if (_bot->isBlocked()) {
+		const auto done = [=](bool success) {
+			if (success && _bot == bot) {
+				Assert(!_bot->isBlocked());
+				botSharePhone(callback);
+			} else {
+				callback(false);
+			}
+		};
+		_bot->session().api().blockedPeers().unblock(
+			_bot,
+			crl::guard(this, done));
+		return;
+	}
+	auto action = Api::SendAction(history);
+	action.clearDraft = false;
+	history->session().api().shareContact(
+		_bot->session().user(),
+		action,
+		std::move(callback));
+}
+
+void AttachWebView::botInvokeCustomMethod(
+		Ui::BotWebView::CustomMethodRequest request) {
+	const auto callback = request.callback;
+	_bot->session().api().request(MTPbots_InvokeWebViewCustomMethod(
+		_bot->inputUser,
+		MTP_string(request.method),
+		MTP_dataJSON(MTP_bytes(request.params))
+	)).done([=](const MTPDataJSON &result) {
+		callback(result.data().vdata().v);
+	}).fail([=](const MTP::Error &error) {
+		callback(base::make_unexpected(error.type()));
+	}).send();
+}
+
+void AttachWebView::botClose() {
+	crl::on_main(this, [=] { cancel(); });
+}
+
 AttachWebView::Context AttachWebView::LookupContext(
 		not_null<Window::SessionController*> controller,
 		const Api::SendAction &action) {
@@ -568,7 +775,7 @@ void AttachWebView::cancel() {
 	ActiveWebViews().remove(this);
 	_session->api().request(base::take(_requestId)).cancel();
 	_session->api().request(base::take(_prolongId)).cancel();
-	_panel = nullptr;
+	base::take(_panel);
 	_lastShownContext = base::take(_context);
 	_bot = nullptr;
 	_app = nullptr;
@@ -723,6 +930,8 @@ std::optional<Api::SendAction> AttachWebView::lookupLastAction(
 }
 
 void AttachWebView::resolve() {
+	Expects(!_panel);
+
 	resolveUsername(_botUsername, [=](not_null<PeerData*> bot) {
 		if (!_context) {
 			return;
@@ -1004,98 +1213,6 @@ void AttachWebView::show(
 		bool allowClipboardRead) {
 	Expects(_bot != nullptr && _context != nullptr);
 
-	const auto close = crl::guard(this, [=] {
-		crl::on_main(this, [=] { cancel(); });
-	});
-	const auto sendData = crl::guard(this, [=](QByteArray data) {
-		if (!_context
-			|| _context->fromSwitch
-			|| _context->fromBotApp
-			|| _context->action.history->peer != _bot
-			|| queryId) {
-			return;
-		}
-		const auto randomId = base::RandomValue<uint64>();
-		_session->api().request(MTPmessages_SendWebViewData(
-			_bot->inputUser,
-			MTP_long(randomId),
-			MTP_string(buttonText),
-			MTP_bytes(data)
-		)).done([=](const MTPUpdates &result) {
-			_session->api().applyUpdates(result);
-		}).send();
-		crl::on_main(this, [=] { cancel(); });
-	});
-	const auto switchInlineQuery = crl::guard(this, [=](
-			std::vector<QString> typeNames,
-			QString query) {
-		const auto controller = _context
-			? _context->controller.get()
-			: nullptr;
-		const auto types = PeerTypesFromNames(typeNames);
-		if (!_bot
-			|| !_bot->isBot()
-			|| _bot->botInfo->inlinePlaceholder.isEmpty()
-			|| !controller) {
-			return;
-		} else if (!types) {
-			if (_context->dialogsEntryState.key.owningHistory()) {
-				controller->switchInlineQuery(
-					_context->dialogsEntryState,
-					_bot,
-					query);
-			}
-		} else {
-			const auto bot = _bot;
-			const auto done = [=](not_null<Data::Thread*> thread) {
-				controller->switchInlineQuery(thread, bot, query);
-			};
-			ShowChooseBox(
-				controller,
-				types,
-				done,
-				tr::lng_inline_switch_choose());
-		}
-		crl::on_main(this, [=] { cancel(); });
-	});
-	const auto handleLocalUri = [close, url](QString uri) {
-		const auto local = Core::TryConvertUrlToLocal(uri);
-		if (uri == local || Core::InternalPassportLink(local)) {
-			return local.startsWith(u"tg://"_q);
-		} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
-			return false;
-		}
-		close();
-		crl::on_main([=] {
-			const auto variant = QVariant::fromValue(ClickHandlerContext{
-				.attachBotWebviewUrl = url,
-			});
-			UrlClickHandler::Open(local, variant);
-		});
-		return true;
-	};
-	const auto panel = std::make_shared<
-		base::weak_ptr<Ui::BotWebView::Panel>>(nullptr);
-	const auto handleInvoice = [=, session = _session](QString slug) {
-		using Result = Payments::CheckoutResult;
-		const auto reactivate = [=](Result result) {
-			if (const auto strong = panel->get()) {
-				strong->invoiceClosed(slug, [&] {
-					switch (result) {
-					case Result::Paid: return "paid";
-					case Result::Failed: return "failed";
-					case Result::Pending: return "pending";
-					case Result::Cancelled: return "cancelled";
-					}
-					Unexpected("Payments::CheckoutResult value.");
-				}());
-			}
-		};
-		if (const auto strong = panel->get()) {
-			strong->hideForPayment();
-		}
-		Payments::CheckoutProcess::Start(session, slug, reactivate);
-	};
 	auto title = Info::Profile::NameValue(_bot);
 	ActiveWebViews().emplace(this);
 
@@ -1104,9 +1221,6 @@ void AttachWebView::show(
 		_attachBots,
 		not_null{ _bot },
 		&AttachWebViewBot::user);
-	const auto name = (attached != end(_attachBots))
-		? attached->name
-		: _bot->name();
 	const auto hasSettings = (attached != end(_attachBots))
 		&& !attached->inactive
 		&& attached->hasSettings;
@@ -1117,61 +1231,20 @@ void AttachWebView::show(
 	const auto buttons = (hasSettings ? Button::Settings : Button::None)
 		| (hasOpenBot ? Button::OpenBot : Button::None)
 		| (hasRemoveFromMenu ? Button::RemoveFromMenu : Button::None);
-	const auto bot = _bot;
-
-	const auto handleMenuButton = crl::guard(this, [=](Button button) {
-		switch (button) {
-		case Button::OpenBot:
-			close();
-			if (bot->session().windows().empty()) {
-				Core::App().domain().activate(&bot->session().account());
-			}
-			if (!bot->session().windows().empty()) {
-				const auto window = bot->session().windows().front();
-				window->showPeerHistory(bot);
-				window->window().activate();
-			}
-			break;
-		case Button::RemoveFromMenu:
-			if (const auto strong = panel->get()) {
-				const auto done = crl::guard(this, [=] {
-					removeFromMenu(bot);
-					close();
-					if (const auto active = Core::App().activeWindow()) {
-						active->activate();
-					}
-				});
-				strong->showBox(Ui::MakeConfirmBox({
-					tr::lng_bot_remove_from_menu_sure(
-						tr::now,
-						lt_bot,
-						Ui::Text::Bold(name),
-						Ui::Text::WithEntities),
-					done,
-				}));
-			}
-			break;
-		}
-	});
 
 	_lastShownUrl = url;
+	_lastShownQueryId = queryId;
+	_lastShownButtonText = buttonText;
+	base::take(_panel);
 	_panel = Ui::BotWebView::Show({
 		.url = url,
 		.userDataPath = _session->domain().local().webviewDataPath(),
 		.title = std::move(title),
 		.bottom = rpl::single('@' + _bot->username()),
-		.handleLocalUri = handleLocalUri,
-		.handleInvoice = handleInvoice,
-		.sendData = sendData,
-		.switchInlineQuery = switchInlineQuery,
-		.close = close,
-		.phone = _session->user()->phone(),
+		.delegate = static_cast<Ui::BotWebView::Delegate*>(this),
 		.menuButtons = buttons,
-		.handleMenuButton = handleMenuButton,
-		.themeParams = [] { return Window::Theme::WebViewParams(); },
 		.allowClipboardRead = allowClipboardRead,
 	});
-	*panel = _panel.get();
 	started(queryId);
 }
 

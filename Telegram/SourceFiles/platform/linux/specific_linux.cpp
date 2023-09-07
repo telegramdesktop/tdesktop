@@ -371,15 +371,16 @@ bool GenerateServiceFile(bool silent = false) {
 	}
 
 	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::SESSION);
-
-		connection->call_sync(
+		Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::SESSION
+		)->call(
 			base::Platform::DBus::kObjectPath,
 			base::Platform::DBus::kInterface,
 			"ReloadConfig",
 			{},
-			base::Platform::DBus::kService);
+			{},
+			base::Platform::DBus::kService
+		);
 	} catch (...) {
 	}
 

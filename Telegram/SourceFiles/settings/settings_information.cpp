@@ -17,7 +17,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -542,10 +542,8 @@ void SetupBio(
 	auto cursor = bio->textCursor();
 	cursor.setPosition(bio->getLastText().size());
 	bio->setTextCursor(cursor);
-	QObject::connect(bio, &Ui::InputField::submitted, [=] {
-		save();
-	});
-	QObject::connect(bio, &Ui::InputField::changed, updated);
+	bio->submits() | rpl::start_with_next([=] { save(); }, bio->lifetime());
+	bio->changes() | rpl::start_with_next(updated, bio->lifetime());
 	bio->setInstantReplaces(Ui::InstantReplaces::Default());
 	bio->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());

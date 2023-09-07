@@ -402,66 +402,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
         cd "$ReleasePath"
       fi
     fi
-    if [ "$NotarizeRequestId" == "" ]; then
-      echo "Beginning notarization process."
-      set +e
-      xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" --file "$SetupFile" > request_uuid.txt
-      set -e
-      while IFS='' read -r line || [[ -n "$line" ]]; do
-        Prefix=$(echo $line | cut -d' ' -f 1)
-        Value=$(echo $line | cut -d' ' -f 3)
-        if [ "$Prefix" == "RequestUUID" ]; then
-          RequestUUID=$Value
-        fi
-      done < "request_uuid.txt"
-      if [ "$RequestUUID" == "" ]; then
-        cat request_uuid.txt
-        Error "Could not extract Request UUID."
-      fi
-      echo "Request UUID: $RequestUUID"
-      rm request_uuid.txt
-    else
-      RequestUUID=$NotarizeRequestId
-      echo "Continue notarization process with Request UUID: $RequestUUID"
-    fi
-
-    RequestStatus=
-    LogFile=
-    while [[ "$RequestStatus" == "" ]]; do
-      sleep 5
-      xcrun altool --notarization-info "$RequestUUID" --username "$AC_USERNAME" --password "@keychain:AC_PASSWORD" > request_result.txt
-      while IFS='' read -r line || [[ -n "$line" ]]; do
-        Prefix=$(echo $line | cut -d' ' -f 1)
-        Value=$(echo $line | cut -d' ' -f 2)
-        if [ "$Prefix" == "LogFileURL:" ]; then
-          LogFile=$Value
-        fi
-        if [ "$Prefix" == "Status:" ]; then
-          if [ "$Value" == "in" ]; then
-            echo "In progress..."
-          else
-            RequestStatus=$Value
-            echo "Status: $RequestStatus"
-          fi
-        fi
-      done < "request_result.txt"
-    done
-    if [ "$RequestStatus" != "success" ]; then
-      echo "Notarization problems, response:"
-      cat request_result.txt
-      if [ "$LogFile" != "" ]; then
-        echo "Requesting log: $LogFile"
-        curl $LogFile
-      fi
-      Error "Notarization FAILED."
-    fi
-    rm request_result.txt
-
-    if [ "$LogFile" != "" ]; then
-      echo "Requesting log: $LogFile"
-      curl $LogFile > request_log.txt
-    fi
-
+    echo "Beginning notarization process."
+    xcrun notarytool submit "$SetupFile" --keychain-profile "preston" --wait
     xcrun stapler staple "$ReleasePath/$BundleName"
 
     if [ "$MacArch" != "" ]; then
@@ -543,34 +485,3 @@ sleep 1;
 echo -en "\007";
 sleep 1;
 echo -en "\007";
-
-if [ "$BuildTarget" == "mac" ]; then
-  if [ -f "$ReleasePath/request_log.txt" ]; then
-    DisplayingLog=
-    while IFS='' read -r line || [[ -n "$line" ]]; do
-      if [ "$DisplayingLog" == "1" ]; then
-        echo $line
-      else
-        Prefix=$(echo $line | cut -d' ' -f 1)
-        Value=$(echo $line | cut -d' ' -f 2)
-        if [ "$Prefix" == '"issues":' ]; then
-          if [ "$Value" != "null" ]; then
-            echo "NB! Notarization log issues:"
-            echo $line
-            DisplayingLog=1
-          else
-            DisplayingLog=0
-          fi
-        fi
-      fi
-    done < "$ReleasePath/request_log.txt"
-    if [ "$DisplayingLog" != "0" ] && [ "$DisplayingLog" != "1" ]; then
-      echo "NB! Notarization issues not found:"
-      cat "$ReleasePath/request_log.txt"
-    else
-      rm "$ReleasePath/request_log.txt"
-    fi
-  else
-    echo "NB! Notarization log not found :("
-  fi
-fi

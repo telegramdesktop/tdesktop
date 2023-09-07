@@ -90,7 +90,6 @@ private:
 	void closeReplacedBy();
 	void oldChanged();
 	void newChanged();
-	void emailChanged();
 	void save(bool force = false);
 	void badOldPasscode();
 	void recoverByEmail();

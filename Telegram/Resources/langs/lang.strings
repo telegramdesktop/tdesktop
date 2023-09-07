@@ -1611,6 +1611,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 "lng_action_suggested_video" = "{user} suggests you to use this profile video.";
 "lng_action_suggested_video_button" = "View Video";
 "lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
+"lng_action_webapp_bot_allowed" = "You allowed this bot to message you in his web-app.";
 "lng_action_set_wallpaper_me" = "You set a new wallpaper for this chat";
 "lng_action_set_wallpaper" = "{user} set a new wallpaper for this chat";
 "lng_action_set_wallpaper_button" = "View Wallpaper";
@@ -1799,6 +1800,9 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 "lng_bot_share_location_unavailable" = "Sorry, location sharing is currently unavailable in rabbitGram Desktop.";
 "lng_bot_share_phone" = "Do you want to share your phone number with this bot?";
 "lng_bot_share_phone_confirm" = "Share";
+"lng_bot_allow_write_title" = "Allow messaging";
+"lng_bot_allow_write" = "Do you want to allow this bot writing you?";
+"lng_bot_allow_write_confirm" = "Allow";
 
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "File";

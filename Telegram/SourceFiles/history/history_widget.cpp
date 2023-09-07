@@ -305,25 +305,30 @@ HistoryWidget::HistoryWidget(
 	_joinChannel->addClickHandler([=] { joinChannel(); });
 	_muteUnmute->addClickHandler([=] { toggleMuteUnmute(); });
 	_reportMessages->addClickHandler([=] { reportSelectedMessages(); });
-	connect(
-		_field,
-		&Ui::InputField::submitted,
-		[=](Qt::KeyboardModifiers modifiers) { sendWithModifiers(modifiers); });
-	connect(_field, &Ui::InputField::cancelled, [=] {
+	_field->submits(
+	) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
+		sendWithModifiers(modifiers);
+	}, _field->lifetime());
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
 		escape();
-	});
-	connect(_field, &Ui::InputField::tabbed, [=] {
+	}, _field->lifetime());
+	_field->tabbed(
+	) | rpl::start_with_next([=] {
 		fieldTabbed();
-	});
-	connect(_field, &Ui::InputField::resized, [=] {
+	}, _field->lifetime());
+	_field->heightChanges(
+	) | rpl::start_with_next([=] {
 		fieldResized();
-	});
-	connect(_field, &Ui::InputField::focused, [=] {
+	}, _field->lifetime());
+	_field->focusedChanges(
+	) | rpl::filter(rpl::mappers::_1) | rpl::start_with_next([=] {
 		fieldFocused();
-	});
-	connect(_field, &Ui::InputField::changed, [=] {
+	}, _field->lifetime());
+	_field->changes(
+	) | rpl::start_with_next([=] {
 		fieldChanged();
-	});
+	}, _field->lifetime());
 	connect(
 		controller->widget()->windowHandle(),
 		&QWindow::visibleChanged,

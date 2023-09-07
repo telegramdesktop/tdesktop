@@ -19,7 +19,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
@@ -226,9 +226,8 @@ void ShareBox::prepareCommentField() {
 
 	const auto field = _comment->entity();
 
-	connect(field, &Ui::InputField::submitted, [=] {
-		submit({});
-	});
+	field->submits(
+	) | rpl::start_with_next([=] { submit({}); }, field->lifetime());
 	if (const auto show = uiShow(); show->valid()) {
 		InitMessageFieldHandlers(
 			_descriptor.session,
@@ -248,6 +247,8 @@ void ShareBox::prepareCommentField() {
 
 void ShareBox::prepare() {
 	prepareCommentField();
+
+	setCloseByOutsideClick(false);
 
 	_select->resizeToWidth(st::boxWideWidth);
 	Ui::SendPendingMoveResizeEvents(_select);
