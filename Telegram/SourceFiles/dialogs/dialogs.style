@@ -468,6 +468,7 @@ dialogsMiniForwardIcon: ThreeStateIcon {
 	active: icon {{ "mini_forward", dialogsTextFgActive, point(0px, 1px) }};
 }
 dialogsMiniIconSkip: 2px;
+dialogsMiniIconTextSkip: 1px;
 dialogsMiniReplyStoryIcon: ThreeStateIcon {
 	icon: icon {{ "mini_reply_story", dialogsTextFg, point(0px, 1px) }};
 	over: icon {{ "mini_reply_story", dialogsTextFgOver, point(0px, 1px) }};
