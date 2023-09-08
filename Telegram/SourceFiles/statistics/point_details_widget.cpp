@@ -39,7 +39,7 @@ PointDetailsWidget::PointDetailsWidget(
 , _zoomEnabled(zoomEnabled)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
-, _headerStyle(st::semiboldTextStyle)
+, _headerStyle(st::statisticsDetailsPopupHeaderStyle)
 , _longFormat(u"ddd, MMM d hh:mm"_q)
 , _shortFormat(u"ddd, MMM d"_q) {
 	const auto calculatedWidth = [&]{
@@ -158,7 +158,7 @@ int PointDetailsWidget::lineYAt(int index) const {
 
 	return _textRect.y()
 		+ _headerStyle.font->height
-		+ st::statisticsDetailsPopupMargins.bottom()
+		+ st::statisticsDetailsPopupMargins.bottom() / 2
 		+ std::ceil(linesHeight);
 }
 

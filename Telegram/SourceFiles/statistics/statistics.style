@@ -14,7 +14,7 @@ statisticsChartHeight: 150px;
 
 statisticsDetailsPopupMargins: margins(8px, 8px, 8px, 8px);
 statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);
-statisticsDetailsPopupMidLineSpace: 8px;
+statisticsDetailsPopupMidLineSpace: 4px;
 statisticsDetailsDotRadius: 4px;
 statisticsChartLineWidth: 2px;
 
@@ -34,8 +34,11 @@ statisticsChartFooterHeight: 52px;
 statisticsChartFlatCheckboxMargins: margins(6px, 4px, 6px, 4px);
 statisticsChartFlatCheckboxCheckWidth: 4px;
 
+statisticsDetailsPopupHeaderStyle: TextStyle(defaultTextStyle) {
+	font: font(9px semibold);
+}
 statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
-	font: font(11px);
+	font: font(8px);
 }
 statisticsDetailsBottomCaptionStyle: TextStyle(defaultTextStyle) {
 	font: font(10px);
