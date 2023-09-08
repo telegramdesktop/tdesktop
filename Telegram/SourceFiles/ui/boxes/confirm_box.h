@@ -30,6 +30,7 @@ struct ConfirmBoxArgs {
 
 	const style::FlatLabel *labelStyle = nullptr;
 	Fn<bool(const ClickHandlerPtr&, Qt::MouseButton)> labelFilter;
+	std::optional<QMargins> labelPadding;
 
 	v::text::data title = v::null;
 

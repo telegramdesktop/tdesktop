@@ -124,6 +124,10 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 	if (result && result->icon) {
 		result->icon->forceToCache(true);
 	}
+	if (const auto icon = result->icon) {
+		result->media = icon->createMediaView();
+		icon->save(Data::FileOrigin(), {});
+	}
 	return result;
 }
 
@@ -192,6 +196,78 @@ void ShowChooseBox(
 [[nodiscard]] base::flat_set<not_null<AttachWebView*>> &ActiveWebViews() {
 	static auto result = base::flat_set<not_null<AttachWebView*>>();
 	return result;
+}
+
+void FillDisclaimerBox(not_null<Ui::GenericBox*> box, Fn<void()> done) {
+	const auto updateCheck = std::make_shared<Fn<void()>>();
+	const auto validateCheck = std::make_shared<Fn<bool()>>();
+
+	const auto callback = [=](Fn<void()> close) {
+		if (validateCheck && (*validateCheck)()) {
+			done();
+			close();
+		}
+	};
+
+	const auto padding = st::boxRowPadding;
+	Ui::ConfirmBox(box, {
+		.text = tr::lng_mini_apps_disclaimer_text(
+			tr::now,
+			Ui::Text::RichLangValue),
+		.confirmed = callback,
+		.confirmText = tr::lng_box_ok(),
+		.labelPadding = QMargins(padding.left(), 0, padding.right(), 0),
+		.title = tr::lng_mini_apps_disclaimer_title(),
+	});
+
+	auto checkView = std::make_unique<Ui::CheckView>(
+		st::defaultCheck,
+		false,
+		[=] { if (*updateCheck) { (*updateCheck)(); } });
+	const auto check = checkView.get();
+	const auto row = box->addRow(
+		object_ptr<Ui::Checkbox>(
+			box.get(),
+			tr::lng_mini_apps_disclaimer_button(
+				lt_link,
+				rpl::single(Ui::Text::Link(
+					tr::lng_mini_apps_disclaimer_link(tr::now),
+					tr::lng_mini_apps_tos_url(tr::now))),
+				Ui::Text::WithEntities),
+			st::defaultBoxCheckbox,
+			std::move(checkView)),
+		{
+			st::boxRowPadding.left(),
+			st::boxRowPadding.left(),
+			st::boxRowPadding.right(),
+			0,
+		});
+	row->setAllowTextLines(5);
+	row->setClickHandlerFilter([=](
+			const ClickHandlerPtr &link,
+			Qt::MouseButton button) {
+		ActivateClickHandler(row, link, ClickContext{
+			.button = button,
+			.other = QVariant::fromValue(ClickHandlerContext{
+				.show = box->uiShow(),
+			})
+		});
+		return false;
+	});
+
+	(*updateCheck) = [=] { row->update(); };
+
+	const auto showError = Ui::CheckView::PrepareNonToggledError(
+		check,
+		box->lifetime());
+
+	(*validateCheck) = [=] {
+		if (check->checked()) {
+			return true;
+		}
+		showError();
+		return false;
+	};
 }
 
 class BotAction final : public Ui::Menu::ItemBase {
@@ -818,10 +894,6 @@ void AttachWebView::requestBots() {
 			_attachBots.reserve(data.vbots().v.size());
 			for (const auto &bot : data.vbots().v) {
 				if (auto parsed = ParseAttachBot(_session, bot)) {
-					if (const auto icon = parsed->icon) {
-						parsed->media = icon->createMediaView();
-						icon->save(Data::FileOrigin(), {});
-					}
 					_attachBots.push_back(std::move(*parsed));
 				}
 			}
@@ -830,6 +902,11 @@ void AttachWebView::requestBots() {
 	}).fail([=] {
 		_botsRequestId = 0;
 	}).send();
+}
+
+bool AttachWebView::showingDisclaimer(const AttachWebViewBot &bot) const {
+	return bot.disclaimerRequired
+		&& !_disclaimerAccepted.contains(bot.user);
 }
 
 void AttachWebView::requestAddToMenu(
@@ -885,9 +962,7 @@ void AttachWebView::requestAddToMenu(
 				}
 			} else if (!startCommand) {
 				_bot = bot;
-				acceptDisclaimer(strong, [=] {
-					requestSimple(strong, bot, { .fromMainMenu = true });
-				});
+				requestSimple(strong, bot, { .fromMainMenu = true });
 				return true;
 			} else if (const auto useTypes = chooseTypes & types) {
 				const auto done = [=](not_null<Data::Thread*> thread) {
@@ -1128,6 +1203,7 @@ void AttachWebView::requestApp(
 			_bot->id,
 			data.vapp());
 		_app = received ? received : already;
+		_app->hasSettings = data.is_has_settings();
 		if (!_app) {
 			cancel();
 			showToast(tr::lng_username_app_not_found(tr::now));
@@ -1140,8 +1216,8 @@ void AttachWebView::requestApp(
 			requestAppView(false);
 		}
 	}).fail([=] {
-		cancel();
 		showToast(tr::lng_username_app_not_found(tr::now));
+		cancel();
 	}).send();
 }
 
@@ -1190,13 +1266,14 @@ void AttachWebView::requestAppView(bool allowWrite) {
 		return;
 	}
 	using Flag = MTPmessages_RequestAppWebView::Flag;
+	const auto app = _app;
 	const auto flags = Flag::f_theme_params
 		| (_startCommand.isEmpty() ? Flag(0) : Flag::f_start_param)
 		| (allowWrite ? Flag::f_write_allowed : Flag(0));
 	_requestId = _session->api().request(MTPmessages_RequestAppWebView(
 		MTP_flags(flags),
 		_context->action.history->peer->input,
-		MTP_inputBotAppID(MTP_long(_app->id), MTP_long(_app->accessHash)),
+		MTP_inputBotAppID(MTP_long(app->id), MTP_long(app->accessHash)),
 		MTP_string(_startCommand),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
 		MTP_string("tdesktop")
@@ -1204,7 +1281,7 @@ void AttachWebView::requestAppView(bool allowWrite) {
 		_requestId = 0;
 		const auto &data = result.data();
 		const auto queryId = uint64();
-		show(queryId, qs(data.vurl()));
+		show(queryId, qs(data.vurl()), QString(), false, app);
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		if (error.type() == u"BOT_INVALID"_q) {
@@ -1256,93 +1333,17 @@ void AttachWebView::acceptDisclaimer(
 	} else if (i->inactive) {
 		requestAddToMenu(_bot, {}, controller, {}, {});
 		return;
-	} else if (!i->disclaimerRequired) {
+	} else if (!showingDisclaimer(*i)) {
 		done();
 		return;
 	}
 
 	const auto weak = base::make_weak(this);
-	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-		const auto updateCheck = std::make_shared<Fn<void()>>();
-		const auto validateCheck = std::make_shared<Fn<bool()>>();
-
-		const auto callback = [=](Fn<void()> close) {
-			if (validateCheck && (*validateCheck)() && weak) {
-				const auto i = ranges::find(
-					_attachBots,
-					not_null(_bot),
-					&AttachWebViewBot::user);
-				if (i == end(_attachBots)) {
-					_attachBotsUpdates.fire({});
-				} else if (i->inactive) {
-					requestAddToMenu(_bot, std::nullopt);
-				} else {
-					i->disclaimerRequired = false;
-					requestBots();
-					done();
-				}
-				close();
-			}
-		};
-
-		Ui::ConfirmBox(box, {
-			.text = tr::lng_mini_apps_disclaimer_text(
-				tr::now,
-				Ui::Text::RichLangValue),
-			.confirmed = callback,
-			.confirmText = tr::lng_box_ok(),
-			.title = tr::lng_mini_apps_disclaimer_title(),
-		});
-
-		auto checkView = std::make_unique<Ui::CheckView>(
-			st::defaultCheck,
-			false,
-			[=] { if (*updateCheck) { (*updateCheck)(); } });
-		const auto check = checkView.get();
-		const auto row = box->addRow(
-			object_ptr<Ui::Checkbox>(
-				box.get(),
-				tr::lng_mini_apps_disclaimer_button(
-					lt_link,
-					rpl::single(Ui::Text::Link(
-						tr::lng_mini_apps_disclaimer_link(tr::now),
-						tr::lng_mini_apps_tos_url(tr::now))),
-					Ui::Text::WithEntities),
-				st::defaultBoxCheckbox,
-				std::move(checkView)),
-			{
-				st::boxRowPadding.left(),
-				st::boxRowPadding.left(),
-				st::boxRowPadding.right(),
-				st::defaultBoxCheckbox.margin.bottom(),
-			});
-		row->setAllowTextLines(5);
-		row->setClickHandlerFilter([=](
-				const ClickHandlerPtr &link,
-				Qt::MouseButton button) {
-			ActivateClickHandler(row, link, ClickContext{
-				.button = button,
-				.other = QVariant::fromValue(ClickHandlerContext{
-					.show = box->uiShow(),
-				})
-			});
-			return false;
-		});
-
-		(*updateCheck) = [=] { row->update(); };
-
-		const auto showError = Ui::CheckView::PrepareNonToggledError(
-			check,
-			box->lifetime());
-
-		(*validateCheck) = [=] {
-			if (check->checked()) {
-				return true;
-			}
-			showError();
-			return false;
-		};
-	}));
+	controller->show(Box(FillDisclaimerBox, crl::guard(this, [=] {
+		_disclaimerAccepted.emplace(_bot);
+		_attachBotsUpdates.fire({});
+		done();
+	})));
 }
 
 void AttachWebView::ClearAll() {
@@ -1355,7 +1356,8 @@ void AttachWebView::show(
 		uint64 queryId,
 		const QString &url,
 		const QString &buttonText,
-		bool allowClipboardRead) {
+		bool allowClipboardRead,
+		const BotAppData *app) {
 	Expects(_bot != nullptr && _context != nullptr);
 
 	auto title = Info::Profile::NameValue(_bot);
@@ -1366,12 +1368,15 @@ void AttachWebView::show(
 		_attachBots,
 		not_null{ _bot },
 		&AttachWebViewBot::user);
-	const auto hasSettings = (attached != end(_attachBots))
-		&& !attached->inactive
-		&& attached->hasSettings;
+	const auto hasSettings = app
+		? app->hasSettings
+		: ((attached != end(_attachBots))
+			&& !attached->inactive
+			&& attached->hasSettings);
 	const auto hasOpenBot = !_context
 		|| (_bot != _context->action.history->peer);
-	const auto hasRemoveFromMenu = (attached != end(_attachBots))
+	const auto hasRemoveFromMenu = !app
+		&& (attached != end(_attachBots))
 		&& (!attached->inactive || attached->inMainMenu);
 	const auto buttons = (hasSettings ? Button::Settings : Button::None)
 		| (hasOpenBot ? Button::OpenBot : Button::None)
@@ -1473,16 +1478,25 @@ void AttachWebView::confirmAddToMenu(
 			});
 			close();
 		};
-		Ui::ConfirmBox(box, {
-			(bot.inMainMenu
-				? tr::lng_bot_add_to_side_menu
-				: tr::lng_bot_add_to_menu)(
-					tr::now,
-					lt_bot,
-					Ui::Text::Bold(bot.name),
-					Ui::Text::WithEntities),
-			done,
-		});
+		const auto disclaimer = showingDisclaimer(bot);
+		if (disclaimer) {
+			FillDisclaimerBox(box, [=] {
+				_disclaimerAccepted.emplace(bot.user);
+				_attachBotsUpdates.fire({});
+				done([] {});
+			});
+		} else {
+			Ui::ConfirmBox(box, {
+				(bot.inMainMenu
+					? tr::lng_bot_add_to_side_menu
+					: tr::lng_bot_add_to_menu)(
+						tr::now,
+						lt_bot,
+						Ui::Text::Bold(bot.name),
+						Ui::Text::WithEntities),
+				done,
+			});
+		}
 		if (bot.requestWriteAccess) {
 			(*allowed) = box->addRow(
 				object_ptr<Ui::Checkbox>(
@@ -1496,10 +1510,26 @@ void AttachWebView::confirmAddToMenu(
 					st::urlAuthCheckbox),
 				style::margins(
 					st::boxRowPadding.left(),
-					st::boxPhotoCaptionSkip,
+					(disclaimer
+						? st::boxPhotoCaptionSkip
+						: st::boxRowPadding.left()),
 					st::boxRowPadding.right(),
-					st::boxPhotoCaptionSkip));
+					st::boxRowPadding.left()));
 			(*allowed)->setAllowTextLines();
+		}
+		if (disclaimer) {
+			if (!bot.requestWriteAccess) {
+				box->addRow(object_ptr<Ui::FixedHeightWidget>(
+					box,
+					st::boxRowPadding.left()));
+			}
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_bot_will_be_added(
+					lt_bot,
+					rpl::single(Ui::Text::Bold(bot.name)),
+					Ui::Text::WithEntities),
+				st::boxLabel));
 		}
 	}));
 }

@@ -561,10 +561,6 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	_widget->showInner(std::move(outer));
 	_webviewParent = container;
 
-	container->paintRequest() | rpl::start_with_next([=] {
-		QPainter(container).fillRect(container->rect(), QColor(0, 128, 0, 255));
-	}, container->lifetime());
-
 	_webviewBottom = std::make_unique<RpWidget>(_widget.get());
 	const auto bottom = _webviewBottom.get();
 	bottom->show();

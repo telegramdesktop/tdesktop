@@ -2268,6 +2268,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_reload_page" = "Reload Page";
 "lng_bot_add_to_menu" = "{bot} asks your permission to be added as an option to your attachments menu so you can access it from any chat.";
 "lng_bot_add_to_menu_done" = "Bot added to the menu.";
+"lng_bot_will_be_added" = "{bot} shortcuts will be added to the attachment options and the main menu.";
+"lng_bot_side_menu_new" = "NEW";
 "lng_bot_menu_not_supported" = "This bot isn't supported in the attach menu.";
 "lng_bot_menu_already_added" = "This bot is already added in your attach menu.";
 "lng_bot_menu_button" = "Menu";

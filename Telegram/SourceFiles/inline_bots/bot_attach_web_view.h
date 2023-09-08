@@ -119,6 +119,7 @@ public:
 	[[nodiscard]] rpl::producer<> attachBotsUpdates() const {
 		return _attachBotsUpdates.events();
 	}
+	[[nodiscard]] bool showingDisclaimer(const AttachWebViewBot &bot) const;
 
 	void requestAddToMenu(
 		not_null<UserData*> bot,
@@ -195,7 +196,8 @@ private:
 		uint64 queryId,
 		const QString &url,
 		const QString &buttonText = QString(),
-		bool allowClipboardRead = false);
+		bool allowClipboardRead = false,
+		const BotAppData *app = nullptr);
 	void confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback = nullptr);
@@ -238,6 +240,7 @@ private:
 
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;
+	base::flat_set<not_null<UserData*>> _disclaimerAccepted;
 
 	std::unique_ptr<Ui::BotWebView::Panel> _panel;
 

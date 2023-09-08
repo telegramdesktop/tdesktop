@@ -211,15 +211,19 @@ void SetupMenuBots(
 	) | rpl::then(
 		bots->attachBotsUpdates()
 	) | rpl::start_with_next([=] {
+		const auto width = wrap->widthNoMargins();
 		wrap->clear();
 		for (const auto &bot : bots->attachBots()) {
 			if (!bot.inMainMenu) {
 				continue;
 			}
 			const auto button = Settings::AddButton(
-				container,
+				wrap,
 				rpl::single(bot.name),
 				st::mainMenuButton);
+			const auto menu = button->lifetime().make_state<
+				base::unique_qptr<Ui::PopupMenu>
+			>();
 			const auto icon = Ui::CreateChild<InlineBots::MenuBotIcon>(
 				button.get(),
 				bot.media);
@@ -229,12 +233,57 @@ void SetupMenuBots(
 					st::mainMenuButton.iconLeft,
 					(height - icon->height()) / 2);
 			}, button->lifetime());
-			button->setClickedCallback([=] {
-				bots->requestSimple(controller, bot.user, {
-					.fromMainMenu = true,
-				});
-			});
+			const auto user = bot.user;
+			button->setAcceptBoth(true);
+			button->clicks(
+			) | rpl::start_with_next([=](Qt::MouseButton which) {
+				if (which == Qt::LeftButton) {
+					bots->requestSimple(controller, user, {
+						.fromMainMenu = true,
+					});
+				} else {
+					(*menu) = nullptr;
+					(*menu) = base::make_unique_q<Ui::PopupMenu>(
+						button,
+						st::popupMenuWithIcons);
+					(*menu)->addAction(
+						tr::lng_bot_remove_from_menu(tr::now),
+						[=] { bots->removeFromMenu(user); },
+						&st::menuIconDelete);
+					(*menu)->popup(QCursor::pos());
+				}
+			}, button->lifetime());
+
+			const auto badge = bots->showingDisclaimer(bot)
+				? Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
+					button.get(),
+					object_ptr<Ui::FlatLabel>(
+						button,
+						tr::lng_bot_side_menu_new(),
+						st::settingsPremiumNewBadge),
+					st::settingsPremiumNewBadgePadding)
+				: nullptr;
+			if (badge) {
+				badge->setAttribute(Qt::WA_TransparentForMouseEvents);
+				badge->paintRequest() | rpl::start_with_next([=] {
+					auto p = QPainter(badge);
+					auto hq = PainterHighQualityEnabler(p);
+					p.setPen(Qt::NoPen);
+					p.setBrush(st::windowBgActive);
+					const auto r = st::settingsPremiumNewBadgePadding.left();
+					p.drawRoundedRect(badge->rect(), r, r);
+				}, badge->lifetime());
+
+				button->sizeValue(
+				) | rpl::start_with_next([=](QSize size) {
+					badge->moveToRight(
+						st::mainMenuButton.padding.right(),
+						(size.height() - badge->height()) / 2,
+						size.width());
+				}, badge->lifetime());
+			}
 		}
+		wrap->resizeToWidth(width);
 	}, wrap->lifetime());
 }
 
