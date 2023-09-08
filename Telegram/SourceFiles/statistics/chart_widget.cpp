@@ -706,7 +706,17 @@ void ChartWidget::ChartAnimationController::tick(
 	const auto footerMinFinished = isFinished(_animationValueFooterHeightMin);
 	const auto footerMaxFinished = isFinished(_animationValueFooterHeightMax);
 
-	chartView->tick(now);
+	// chartView->tick(now);
+	{
+		constexpr auto kDtHeightSpeed1 = 0.03 * 2;
+		constexpr auto kDtHeightSpeed2 = 0.03 * 2;
+		constexpr auto kDtHeightSpeed3 = 0.045 * 2;
+		if (_dtHeight.current.max > 0 && _dtHeight.current.max < 1) {
+			chartView->update(_dtHeight.current.max);
+		} else {
+			chartView->tick(now);
+		}
+	}
 
 	if (xFinished
 			&& yFinished
@@ -1262,7 +1272,8 @@ void ChartWidget::setupFilterButtons() {
 void ChartWidget::setChartData(Data::StatisticalChart chartData) {
 	_chartData = std::move(chartData);
 
-	_chartView = CreateChartView(ChartViewType::Linear);
+	// _chartView = CreateChartView(ChartViewType::Linear);
+	_chartView = CreateChartView(ChartViewType::Stack);
 
 	setupDetails();
 	setupFilterButtons();

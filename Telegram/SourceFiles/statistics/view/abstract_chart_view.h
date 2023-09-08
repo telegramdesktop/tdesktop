@@ -58,6 +58,8 @@ public:
 		Limits xIndices) = 0;
 
 	virtual void tick(crl::time now) = 0;
+	virtual void update(float64 dt) {
+	};
 
 };
 

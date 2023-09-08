@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/segment_tree.h"
 #include "statistics/statistics_common.h"
 #include "statistics/view/abstract_chart_view.h"
+#include "ui/effects/animation_value.h"
 
 namespace Data {
 struct StatisticalChart;
@@ -58,13 +59,37 @@ public:
 		Limits xIndices) override;
 
 	void tick(crl::time now) override;
+	void update(float64 dt) override;
 
 private:
+	void paint(
+		QPainter &p,
+		const Data::StatisticalChart &chartData,
+		const Limits &xPercentageLimits,
+		const Limits &heightLimits,
+		const QRect &rect,
+		bool footer);
+
 	struct {
 		Limits full;
 		std::vector<int> ySum;
 		SegmentTree ySumSegmentTree;
 	} _cachedHeightLimits;
+
+	Limits _lastPaintedXIndices;
+	int _lastSelectedXIndex = -1;
+	float64 _lastSelectedXProgress = 0;
+
+	struct Entry final {
+		bool enabled = false;
+		crl::time startedAt = 0;
+		float64 alpha = 1.;
+		anim::value anim;
+		bool disabled = false;
+	};
+
+	base::flat_map<int, Entry> _entries;
+	bool _isFinished = true;
 
 };
 
