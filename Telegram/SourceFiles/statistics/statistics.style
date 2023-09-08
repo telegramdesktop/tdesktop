@@ -12,6 +12,8 @@ using "ui/widgets/widgets.style";
 
 statisticsChartHeight: 150px;
 
+statisticsDetailsArrowShift: 2px;
+statisticsDetailsArrowStroke: 1.5;
 statisticsDetailsPopupMargins: margins(8px, 8px, 8px, 8px);
 statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);
 statisticsDetailsPopupMidLineSpace: 4px;

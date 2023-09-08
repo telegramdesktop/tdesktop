@@ -8,11 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_statistics.h"
-#include "ui/abstract_button.h"
+#include "ui/widgets/buttons.h"
 
 namespace Statistic {
 
-class PointDetailsWidget : public Ui::AbstractButton {
+class PointDetailsWidget : public Ui::RippleButton {
 public:
 	PointDetailsWidget(
 		not_null<Ui::RpWidget*> parent,
@@ -28,6 +28,9 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 private:
 	const bool _zoomEnabled;
@@ -52,6 +55,7 @@ private:
 
 	QRect _innerRect;
 	QRect _textRect;
+	QImage _arrow;
 
 	int _xIndex = -1;
 	float64 _alpha = 1.;

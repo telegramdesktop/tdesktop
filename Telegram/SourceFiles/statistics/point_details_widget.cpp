@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/point_details_widget.h"
 
 #include "ui/cached_round_corners.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/widgets/shadow.h"
 #include "styles/style_layers.h"
@@ -35,13 +37,38 @@ PointDetailsWidget::PointDetailsWidget(
 	const Data::StatisticalChart &chartData,
 	float64 maxAbsoluteValue,
 	bool zoomEnabled)
-: Ui::AbstractButton(parent)
+: Ui::RippleButton(parent, st::defaultRippleAnimation)
 , _zoomEnabled(zoomEnabled)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
 , _headerStyle(st::statisticsDetailsPopupHeaderStyle)
 , _longFormat(u"ddd, MMM d hh:mm"_q)
 , _shortFormat(u"ddd, MMM d"_q) {
+
+	if (zoomEnabled) {
+		rpl::single(rpl::empty_value()) | rpl::then(
+			style::PaletteChanged()
+		) | rpl::start_with_next([=] {
+			const auto w = st::statisticsDetailsArrowShift;
+			const auto stroke = style::ConvertScaleExact(
+				st::statisticsDetailsArrowStroke);
+			_arrow = QImage(
+				QSize(w + stroke, w * 2 + stroke) * style::DevicePixelRatio(),
+				QImage::Format_ARGB32_Premultiplied);
+			_arrow.fill(Qt::transparent);
+			{
+				auto p = QPainter(&_arrow);
+
+				const auto hq = PainterHighQualityEnabler(p);
+				const auto s = stroke / 2.;
+
+				p.setPen(QPen(st::windowSubTextFg, stroke));
+				p.drawLine(QLineF(s, s, w, w + s));
+				p.drawLine(QLineF(s, s + w * 2, w, w + s));
+			}
+		}, lifetime());
+	}
+
 	const auto calculatedWidth = [&]{
 		const auto maxValueText = Ui::Text::String(
 			_textStyle,
@@ -171,6 +198,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 
 	Ui::Shadow::paint(p, _innerRect, width(), st::boxRoundShadow);
 	Ui::FillRoundRect(p, _innerRect, st::boxBg, Ui::BoxCorners);
+	Ui::RippleButton::paintRipple(p, _innerRect.topLeft());
 
 	p.setPen(st::boxTextFg);
 	const auto headerContext = Ui::Text::PaintContext{
@@ -196,6 +224,24 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 		p.setPen(line.valueColor);
 		line.value.draw(p, valueContext);
 	}
+
+	if (_zoomEnabled) {
+		const auto s = _arrow.size() / style::DevicePixelRatio();
+		const auto x = rect::right(_textRect) - s.width();
+		const auto y = _textRect.y()
+			+ (_headerStyle.font->height - s.height()) / 2.;
+		p.drawImage(x, y, _arrow);
+	}
+}
+
+QPoint PointDetailsWidget::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _innerRect.topLeft();
+}
+
+QImage PointDetailsWidget::prepareRippleMask() const {
+	return Ui::RippleAnimation::RoundRectMask(
+		_innerRect.size(),
+		st::boxRadius);
 }
 
 } // namespace Statistic
