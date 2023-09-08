@@ -1286,6 +1286,8 @@ PRIVATE
     statistics/segment_tree.h
     statistics/statistics_box.cpp
     statistics/statistics_box.h
+    statistics/statistics_data_deserialize.cpp
+    statistics/statistics_data_deserialize.h
     storage/details/storage_file_utilities.cpp
     storage/details/storage_file_utilities.h
     storage/details/storage_settings_scheme.cpp
