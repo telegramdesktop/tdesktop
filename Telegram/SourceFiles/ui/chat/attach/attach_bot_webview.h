@@ -106,7 +106,7 @@ private:
 	struct Progress;
 	struct WebviewWithLifetime;
 
-	bool createWebview();
+	bool createWebview(const Webview::ThemeParams &params);
 	void showWebviewProgress();
 	void hideWebviewProgress();
 	void setTitle(rpl::producer<QString> title);
@@ -114,6 +114,7 @@ private:
 	void switchInlineQueryMessage(const QJsonObject &args);
 	void processMainButtonMessage(const QJsonObject &args);
 	void processBackButtonMessage(const QJsonObject &args);
+	void processHeaderColor(const QJsonObject &args);
 	void openTgLink(const QJsonObject &args);
 	void openExternalLink(const QJsonObject &args);
 	void openInvoice(const QJsonObject &args);
@@ -153,6 +154,7 @@ private:
 	mutable crl::time _mainButtonLastClick = 0;
 	std::unique_ptr<Progress> _progress;
 	rpl::event_stream<> _themeUpdateForced;
+	rpl::lifetime _headerColorLifetime;
 	rpl::lifetime _fgLifetime;
 	rpl::lifetime _bgLifetime;
 	bool _webviewProgress = false;
