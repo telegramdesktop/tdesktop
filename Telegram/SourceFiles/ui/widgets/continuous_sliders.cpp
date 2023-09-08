@@ -10,6 +10,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "ui/painter.h"
 #include "base/timer.h"
 #include "base/platform/base_platform_info.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 namespace {

@@ -95,6 +95,8 @@ private:
 		float64 radius = 0.;
 		float64 expanding = 0.;
 		int finalBottom = 0;
+		int frame = 0;
+		QRect outer;
 	};
 
 	Selector(
@@ -117,11 +119,14 @@ private:
 	void paintAppearing(QPainter &p);
 	void paintCollapsed(QPainter &p);
 	void paintExpanding(Painter &p, float64 progress);
-	ExpandingRects paintExpandingBg(QPainter &p, float64 progress);
+	void paintExpandingBg(QPainter &p, const ExpandingRects &rects);
 	void paintFadingExpandIcon(QPainter &p, float64 progress);
 	void paintExpanded(QPainter &p);
+	void paintNonTransparentExpandRect(QPainter &p, const QRect &) const;
 	void paintBubble(QPainter &p, int innerWidth);
 	void paintBackgroundToBuffer();
+
+	ExpandingRects updateExpandingRects(float64 progress);
 
 	[[nodiscard]] int recentCount() const;
 	[[nodiscard]] int countSkipLeft() const;

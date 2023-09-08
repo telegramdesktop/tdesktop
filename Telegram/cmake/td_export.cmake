@@ -26,6 +26,8 @@ PRIVATE
     export/output/export_output_file.h
     export/output/export_output_html.cpp
     export/output/export_output_html.h
+    export/output/export_output_html_and_json.cpp
+    export/output/export_output_html_and_json.h
     export/output/export_output_json.cpp
     export/output/export_output_json.h
     export/output/export_output_result.h

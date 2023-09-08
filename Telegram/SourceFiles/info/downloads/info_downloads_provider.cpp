@@ -23,6 +23,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "core/application.h"
 #include "storage/storage_shared_media.h"
 #include "layout/layout_selection.h"
+#include "styles/style_overview.h"
 
 namespace Info::Downloads {
 namespace {
