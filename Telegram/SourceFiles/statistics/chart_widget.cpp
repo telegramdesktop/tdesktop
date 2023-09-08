@@ -1192,6 +1192,7 @@ void ChartWidget::setupDetails() {
 		switch (state.mouseState) {
 		case QEvent::MouseButtonPress:
 		case QEvent::MouseMove: {
+			const auto wasXIndex = _details.widget->xIndex();
 			const auto chartRect = chartAreaRect();
 			const auto currentXLimits = _animationController.finalXLimits();
 			const auto nearestXIndex = _chartView->findXIndexByPosition(
@@ -1218,6 +1219,10 @@ void ChartWidget::setupDetails() {
 			if (_details.widget->isHidden()) {
 				_details.hideOnAnimationEnd = false;
 				_details.animation.start();
+			} else if ((state.mouseState == QEvent::MouseButtonPress)
+				&& (wasXIndex == nearestXIndex)) {
+				_details.hideOnAnimationEnd = true;
+				_details.animation.start();
 			}
 			_details.widget->show();
 			_chartArea->update();
@@ -1233,7 +1238,6 @@ void ChartWidget::setupDetails() {
 			0.,
 			1.);
 		const auto alpha = _details.hideOnAnimationEnd ? (1. - value) : value;
-		_chartArea->update();
 		if (_details.widget) {
 			_details.widget->setAlpha(alpha);
 			_details.widget->update();
@@ -1245,6 +1249,7 @@ void ChartWidget::setupDetails() {
 			}
 			_details.animation.stop();
 		}
+		_chartArea->update();
 	});
 }
 
