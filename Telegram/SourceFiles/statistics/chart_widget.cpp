@@ -1274,11 +1274,12 @@ void ChartWidget::setupFilterButtons() {
 	}, _filterButtons->lifetime());
 }
 
-void ChartWidget::setChartData(Data::StatisticalChart chartData) {
+void ChartWidget::setChartData(
+		Data::StatisticalChart chartData,
+		ChartViewType type) {
 	_chartData = std::move(chartData);
 
-	// _chartView = CreateChartView(ChartViewType::Linear);
-	_chartView = CreateChartView(ChartViewType::Stack);
+	_chartView = CreateChartView(type);
 
 	setupDetails();
 	setupFilterButtons();
@@ -1311,10 +1312,11 @@ void ChartWidget::setTitle(rpl::producer<QString> &&title) {
 
 void ChartWidget::setZoomedChartData(
 		Data::StatisticalChart chartData,
-		float64 x) {
+		float64 x,
+		ChartViewType type) {
 	_zoomedChartWidget = base::make_unique_q<ChartWidget>(
 		dynamic_cast<Ui::RpWidget*>(parentWidget()));
-	_zoomedChartWidget->setChartData(std::move(chartData));
+	_zoomedChartWidget->setChartData(std::move(chartData), type);
 	geometryValue(
 	) | rpl::start_with_next([=](const QRect &geometry) {
 		_zoomedChartWidget->moveToLeft(geometry.x(), geometry.y());

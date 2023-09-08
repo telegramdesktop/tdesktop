@@ -25,9 +25,12 @@ class ChartWidget : public Ui::RpWidget {
 public:
 	ChartWidget(not_null<Ui::RpWidget*> parent);
 
-	void setChartData(Data::StatisticalChart chartData);
+	void setChartData(Data::StatisticalChart chartData, ChartViewType type);
 	void setTitle(rpl::producer<QString> &&title);
-	void setZoomedChartData(Data::StatisticalChart chartData, float64 x);
+	void setZoomedChartData(
+		Data::StatisticalChart chartData,
+		float64 x,
+		ChartViewType type);
 	void addHorizontalLine(Limits newHeight, bool animated);
 
 	[[nodiscard]] rpl::producer<float64> zoomRequests();
