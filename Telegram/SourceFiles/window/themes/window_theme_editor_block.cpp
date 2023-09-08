@@ -225,6 +225,10 @@ void EditorBlock::feed(const QString &name, QColor value, const QString &copyOfE
 
 bool EditorBlock::feedCopy(const QString &name, const QString &copyOf) {
 	if (auto row = findRow(copyOf)) {
+		if (copyOf == name) {
+			LOG(("Theme Warning: Skipping value '%1: %2' (the value refers to itself.)").arg(name, copyOf));
+			return true;
+		}
 		if (findRow(name)) {
 			// Remove the existing row and mark all its copies as unique keys.
 			LOG(("Theme Warning: Color value '%1' appears more than once in the color scheme.").arg(name));
@@ -232,6 +236,10 @@ bool EditorBlock::feedCopy(const QString &name, const QString &copyOf) {
 
 			// row was invalidated by removeRow() call.
 			row = findRow(copyOf);
+			// Should not happen, but still check.
+			if (!row) {
+				return true;
+			}
 		}
 		addRow(name, copyOf, row->value());
 	} else {

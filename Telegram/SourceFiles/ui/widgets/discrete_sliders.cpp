@@ -9,7 +9,6 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
-#include "styles/style_widgets.h"
 
 namespace Ui {
 

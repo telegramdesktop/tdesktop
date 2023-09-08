@@ -316,7 +316,7 @@ void MessageView::paint(
 			.elisionLines = lines,
 		});
 		rect.setLeft(rect.x() + _senderCache.maxWidth());
-		if (!_imagesCache.empty()) {
+		if (!_imagesCache.empty() && !_leftIcon) {
 			const auto skip = st::dialogsMiniPreviewSkip
 				+ st::dialogsMiniPreviewRight;
 			rect.setLeft(rect.x() + skip);
@@ -339,7 +339,11 @@ void MessageView::paint(
 			} else {
 				icon.paint(p, rect.topLeft(), rect.width());
 			}
-			rect.setLeft(rect.x() + w + st::dialogsMiniIconSkip);
+			rect.setLeft(rect.x()
+				+ w
+				+ (_imagesCache.empty()
+					? st::dialogsMiniIconTextSkip
+					: st::dialogsMiniIconSkip));
 		}
 	}
 	for (const auto &image : _imagesCache) {

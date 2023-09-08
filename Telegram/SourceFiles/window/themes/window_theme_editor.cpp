@@ -672,7 +672,10 @@ Editor::Editor(
 , _select(this, st::defaultMultiSelect, tr::lng_country_ph())
 , _leftShadow(this)
 , _topShadow(this)
-, _save(this, tr::lng_theme_editor_save_button(tr::now).toUpper(), st::dialogsUpdateButton) {
+, _save(
+		this,
+		tr::lng_theme_editor_save_button(tr::now),
+		st::dialogsUpdateButton) {
 	const auto path = EditingPalettePath();
 
 	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, path));

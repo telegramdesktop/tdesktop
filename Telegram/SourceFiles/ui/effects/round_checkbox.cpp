@@ -11,7 +11,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
 #include "ui/effects/outline_segments.h"
-#include "ui/image/image_prepare.h"
+#include "styles/style_widgets.h"
 
 #include <QtCore/QCoreApplication>
 
@@ -22,6 +22,10 @@ namespace {
 
 constexpr auto kAnimationTimerDelta = crl::time(7);
 constexpr auto kWideScale = 3;
+
+[[nodiscard]] int CountFramesCount(const style::RoundCheckbox *st) {
+	return (st->duration / kAnimationTimerDelta) + 1;
+}
 
 class CheckCaches : public QObject {
 public:
@@ -48,7 +52,6 @@ private:
 		QPixmap check;
 	};
 
-	int countFramesCount(const style::RoundCheckbox *st);
 	Frames &framesForStyle(
 		const style::RoundCheckbox *st,
 		bool displayInactive);
@@ -143,10 +146,6 @@ QRect WideDestRect(
 	return QRect(iconLeft, iconTop, iconSize, iconSize);
 }
 
-int CheckCaches::countFramesCount(const style::RoundCheckbox *st) {
-	return (st->duration / kAnimationTimerDelta) + 1;
-}
-
 CheckCaches::Frames &CheckCaches::framesForStyle(
 		const style::RoundCheckbox *st,
 		bool displayInactive) {
@@ -165,7 +164,7 @@ void CheckCaches::prepareFramesData(
 		const style::RoundCheckbox *st,
 		bool displayInactive,
 		Frames &frames) {
-	frames.list.resize(countFramesCount(st));
+	frames.list.resize(CountFramesCount(st));
 	frames.displayInactive = displayInactive;
 
 	if (!frames.displayInactive) {
