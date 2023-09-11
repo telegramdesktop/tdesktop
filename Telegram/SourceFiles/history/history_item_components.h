@@ -146,6 +146,7 @@ struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored
 	Type type = Type::User;
 	bool recommended = false;
 	bool isForceUserpicDisplay = false;
+	QString externalLink;
 };
 
 class ReplyToMessagePointer final {

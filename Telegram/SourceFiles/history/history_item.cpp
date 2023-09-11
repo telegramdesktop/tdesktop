@@ -3234,8 +3234,9 @@ void HistoryItem::setSponsoredFrom(const Data::SponsoredFrom &from) {
 			from.userpic);
 	}
 
+	sponsored->externalLink = from.externalLink;
 	using Type = HistoryMessageSponsored::Type;
-	sponsored->type = from.isExternalLink
+	sponsored->type = (!from.externalLink.isEmpty())
 		? Type::ExternalLink
 		: from.isExactPost
 		? Type::Post
