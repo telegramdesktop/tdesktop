@@ -7,7 +7,7 @@
 
 #include <ui/layers/box_content.h>
 #include <ui/layers/generic_box.h>
-#include <ui/widgets/input_fields.h>
+#include "ui/widgets/fields/masked_input_field.h"
 #include <ui/widgets/buttons.h>
 
 #include "menu/menu_send.h"

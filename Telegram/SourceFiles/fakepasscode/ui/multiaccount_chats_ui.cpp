@@ -11,7 +11,7 @@
 #include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "lang/lang_keys.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
