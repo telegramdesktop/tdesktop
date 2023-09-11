@@ -617,18 +617,6 @@ void start() {
 	Glib::init();
 	Gio::init();
 
-#ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
-	g_warning(
-		"Application has been built with foreign rlottie, "
-		"animated emojis won't be colored to the selected pack.");
-#endif // DESKTOP_APP_USE_PACKAGED_RLOTTIE
-
-#ifdef DESKTOP_APP_USE_PACKAGED_FONTS
-	g_warning(
-		"Application was built without embedded fonts, "
-		"this may lead to font issues.");
-#endif // DESKTOP_APP_USE_PACKAGED_FONTS
-
 	Webview::WebKitGTK::SetSocketPath(u"%1/%2-%3-webview-%4"_q.arg(
 		QDir::tempPath(),
 		h,
