@@ -20,6 +20,8 @@ struct Limits;
 
 class LinearChartView final : public AbstractChartView {
 public:
+	using CachedLineRatios = std::pair<float64, float64>;
+
 	LinearChartView(bool isDouble);
 	~LinearChartView() override final;
 
@@ -59,7 +61,9 @@ public:
 	void tick(crl::time now) override;
 
 private:
-	const bool _isDouble;
+	CachedLineRatios _cachedLineRatios;
+
+	[[nodiscard]] float64 lineRatio() const;
 
 	struct CacheToken final {
 		explicit CacheToken() = default;

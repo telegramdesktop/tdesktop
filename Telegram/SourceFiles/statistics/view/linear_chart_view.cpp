@@ -19,6 +19,10 @@ namespace {
 
 constexpr auto kAlphaDuration = float64(350);
 
+float64 Ratio(const LinearChartView::CachedLineRatios &ratios, int id) {
+	return (id == 1) ? ratios.first : ratios.second;
+}
+
 void PaintChartLine(
 		QPainter &p,
 		int lineIndex,
@@ -26,7 +30,8 @@ void PaintChartLine(
 		const Limits &xIndices,
 		const Limits &xPercentageLimits,
 		const Limits &heightLimits,
-		const QSize &size) {
+		const QSize &size,
+		const LinearChartView::CachedLineRatios &ratios) {
 	const auto &line = chartData.lines[lineIndex];
 
 	auto chartPoints = QPolygonF();
@@ -36,6 +41,8 @@ void PaintChartLine(
 		int(chartData.xPercentage.size() - 1),
 		int(xIndices.max));
 
+	const auto ratio = Ratio(ratios, line.id);
+
 	for (auto i = localStart; i <= localEnd; i++) {
 		if (line.y[i] < 0) {
 			continue;
@@ -43,7 +50,7 @@ void PaintChartLine(
 		const auto xPoint = size.width()
 			* ((chartData.xPercentage[i] - xPercentageLimits.min)
 				/ (xPercentageLimits.max - xPercentageLimits.min));
-		const auto yPercentage = (line.y[i] - heightLimits.min)
+		const auto yPercentage = (line.y[i] * ratio - heightLimits.min)
 			/ float64(heightLimits.max - heightLimits.min);
 		const auto yPoint = (1. - yPercentage) * size.height();
 		chartPoints << QPointF(xPoint, yPoint);
@@ -56,7 +63,7 @@ void PaintChartLine(
 } // namespace
 
 LinearChartView::LinearChartView(bool isDouble)
-: _isDouble(isDouble) {
+: _cachedLineRatios(CachedLineRatios{ isDouble ? 0 : 1, isDouble ? 0 : 1 }) {
 }
 
 LinearChartView::~LinearChartView() = default;
@@ -116,7 +123,8 @@ void LinearChartView::paint(
 				xIndices,
 				xPercentageLimits,
 				heightLimits,
-				rect.size());
+				rect.size(),
+				_cachedLineRatios);
 		}
 
 		if (!isSameToken) {
@@ -159,10 +167,11 @@ void LinearChartView::paintSelectedXIndex(
 			|| (lineAlpha < 1. && !isEnabled(line.id));
 		if (!useCache) {
 			// Calculate.
+			const auto r = Ratio(_cachedLineRatios, line.id);
 			const auto xPoint = rect.width()
 				* ((chartData.xPercentage[i] - xPercentageLimits.min)
 					/ (xPercentageLimits.max - xPercentageLimits.min));
-			const auto yPercentage = (line.y[i] - heightLimits.min)
+			const auto yPercentage = (line.y[i] * r - heightLimits.min)
 				/ float64(heightLimits.max - heightLimits.min);
 			const auto yPoint = (1. - yPercentage) * rect.height();
 			_selectedPoints.points[line.id] = QPointF(xPoint, yPoint)
@@ -250,6 +259,24 @@ float64 LinearChartView::alpha(int id) const {
 AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) {
+	if (!_cachedLineRatios.first) {
+		// Double Linear calculation.
+		if (chartData.lines.size() != 2) {
+			_cachedLineRatios.first = 1.;
+			_cachedLineRatios.second = 1.;
+		} else {
+			const auto firstMax = chartData.lines.front().maxValue;
+			const auto secondMax = chartData.lines.back().maxValue;
+			if (firstMax > secondMax) {
+				_cachedLineRatios.first = 1.;
+				_cachedLineRatios.second = firstMax / float64(secondMax);
+			} else {
+				_cachedLineRatios.first = secondMax / float64(firstMax);
+				_cachedLineRatios.second = 1.;
+			}
+		}
+	}
+
 	auto minValue = std::numeric_limits<int>::max();
 	auto maxValue = 0;
 
@@ -259,13 +286,14 @@ AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		if (!isEnabled(l.id)) {
 			continue;
 		}
+		const auto r = Ratio(_cachedLineRatios, l.id);
 		const auto lineMax = l.segmentTree.rMaxQ(xIndices.min, xIndices.max);
 		const auto lineMin = l.segmentTree.rMinQ(xIndices.min, xIndices.max);
-		maxValue = std::max(lineMax, maxValue);
-		minValue = std::min(lineMin, minValue);
+		maxValue = std::max(int(lineMax * r), maxValue);
+		minValue = std::min(int(lineMin * r), minValue);
 
-		maxValueFull = std::max(l.maxValue, maxValueFull);
-		minValueFull = std::min(l.minValue, minValueFull);
+		maxValueFull = std::max(int(l.maxValue * r), maxValueFull);
+		minValueFull = std::min(int(l.minValue * r), minValueFull);
 	}
 	return {
 		.full = Limits{ float64(minValueFull), float64(maxValueFull) },
