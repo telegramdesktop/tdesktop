@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_statistics.h"
-#include "statistics/chart_horizontal_lines_data.h"
+#include "statistics/view/chart_horizontal_lines_view.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animations.h"
@@ -68,7 +68,7 @@ private:
 		void restartBottomLineAlpha();
 		void tick(
 			crl::time now,
-			std::vector<ChartHorizontalLinesData> &horizontalLines,
+			ChartHorizontalLinesView &horizontalLinesView,
 			std::vector<BottomCaptionLineData> &dateLines,
 			const std::unique_ptr<AbstractChartView> &AbstractChartView);
 
@@ -162,7 +162,7 @@ private:
 	ChartAnimationController _animationController;
 	crl::time _lastHeightLimitsChanged = 0;
 
-	std::vector<ChartHorizontalLinesData> _horizontalLines;
+	ChartHorizontalLinesView _horizontalLinesView;
 
 	bool _zoomEnabled = false;
 	rpl::event_stream<float64> _zoomRequests;

@@ -37,38 +37,6 @@ inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 	return (result - from) / (to - from);
 };
 
-void PaintHorizontalLines(
-		QPainter &p,
-		const ChartHorizontalLinesData &horizontalLine,
-		const QRect &r) {
-	const auto alpha = p.opacity();
-	p.setOpacity(horizontalLine.alpha);
-	for (const auto &line : horizontalLine.lines) {
-		const auto lineRect = QRect(
-			0,
-			r.y() + r.height() * line.relativeValue,
-			r.x() + r.width(),
-			st::lineWidth);
-		p.fillRect(lineRect, st::windowSubTextFg);
-	}
-	p.setOpacity(alpha);
-}
-
-void PaintCaptionsToHorizontalLines(
-		QPainter &p,
-		const ChartHorizontalLinesData &horizontalLine,
-		const QRect &r) {
-	const auto alpha = p.opacity();
-	p.setOpacity(horizontalLine.alpha);
-	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
-	p.setPen(st::windowSubTextFg);
-	const auto offset = r.y() - st::statisticsChartHorizontalLineCaptionSkip;
-	for (const auto &line : horizontalLine.lines) {
-		p.drawText(0, offset + r.height() * line.relativeValue, line.caption);
-	}
-	p.setOpacity(alpha);
-}
-
 void PaintBottomLine(
 		QPainter &p,
 		const std::vector<ChartWidget::BottomCaptionLineData> &dates,
@@ -653,7 +621,7 @@ void ChartWidget::ChartAnimationController::restartBottomLineAlpha() {
 
 void ChartWidget::ChartAnimationController::tick(
 		crl::time now,
-		std::vector<ChartHorizontalLinesData> &horizontalLines,
+		ChartHorizontalLinesView &horizontalLinesView,
 		std::vector<BottomCaptionLineData> &dateLines,
 		const std::unique_ptr<AbstractChartView> &chartView) {
 	if (!_animation.animating()) {
@@ -725,7 +693,6 @@ void ChartWidget::ChartAnimationController::tick(
 			&& footerMinFinished
 			&& footerMaxFinished
 			&& chartView->isFinished()) {
-		const auto &lines = horizontalLines.back().lines;
 		if ((_finalHeightLimits.min == _animationValueHeightMin.to())
 			&& _finalHeightLimits.max == _animationValueHeightMax.to()) {
 			_animation.stop();
@@ -755,11 +722,9 @@ void ChartWidget::ChartAnimationController::tick(
 			_dtHeight.current.max,
 			anim::easeInCubic);
 
-		for (auto &horizontalLine : horizontalLines) {
-			horizontalLine.computeRelative(
-				_animationValueHeightMax.current(),
-				_animationValueHeightMin.current());
-		}
+		horizontalLinesView.computeRelative(
+			_animationValueHeightMax.current(),
+			_animationValueHeightMin.current());
 	}
 	if (!footerMinFinished) {
 		_animationValueFooterHeightMin.update(
@@ -776,22 +741,7 @@ void ChartWidget::ChartAnimationController::tick(
 		_animationValueHeightAlpha.update(
 			_dtHeight.currentAlpha,
 			anim::easeInCubic);
-		const auto value = _animationValueHeightAlpha.current();
-
-		for (auto &horizontalLine : horizontalLines) {
-			horizontalLine.alpha = horizontalLine.fixedAlpha * (1. - value);
-		}
-		horizontalLines.back().alpha = value;
-		if (value == 1.) {
-			while (horizontalLines.size() > 1) {
-				const auto startIt = begin(horizontalLines);
-				if (!startIt->alpha) {
-					horizontalLines.erase(startIt);
-				} else {
-					break;
-				}
-			}
-		}
+		horizontalLinesView.setAlpha(_animationValueHeightAlpha.current());
 	}
 
 	if (!bottomLineAlphaFinished) {
@@ -948,7 +898,7 @@ void ChartWidget::setupChartArea() {
 
 		_animationController.tick(
 			now,
-			_horizontalLines,
+			_horizontalLinesView,
 			_bottomLine.dates,
 			_chartView);
 
@@ -956,9 +906,7 @@ void ChartWidget::setupChartArea() {
 
 		p.fillRect(r, st::boxBg);
 
-		for (auto &horizontalLine : _horizontalLines) {
-			PaintHorizontalLines(p, horizontalLine, chartRect);
-		}
+		_horizontalLinesView.paintHorizontalLines(p, chartRect);
 
 		if (_chartData) {
 			// p.setRenderHint(
@@ -976,9 +924,7 @@ void ChartWidget::setupChartArea() {
 				false);
 		}
 
-		for (auto &horizontalLine : _horizontalLines) {
-			PaintCaptionsToHorizontalLines(p, horizontalLine, chartRect);
-		}
+		_horizontalLinesView.paintCaptionsToHorizontalLines(p, chartRect);
 		{
 			const auto bottom = r
 				- QMargins{ 0, rect::bottom(chartRect), 0, 0 };
@@ -1124,7 +1070,9 @@ void ChartWidget::setupFooter() {
 
 	_animationController.addHorizontalLineRequests(
 	) | rpl::start_with_next([=] {
-		addHorizontalLine(_animationController.finalHeightLimits(), true);
+		_horizontalLinesView.add(
+			_animationController.finalHeightLimits(),
+			true);
 		_animationController.start();
 	}, _footer->lifetime());
 
@@ -1149,7 +1097,9 @@ void ChartWidget::setupFooter() {
 			return;
 		}
 		_lastHeightLimitsChanged = now;
-		addHorizontalLine(_animationController.finalHeightLimits(), true);
+		_horizontalLinesView.add(
+			_animationController.finalHeightLimits(),
+			true);
 	}, _footer->lifetime());
 }
 
@@ -1280,6 +1230,7 @@ void ChartWidget::setChartData(
 	_chartData = std::move(chartData);
 
 	_chartView = CreateChartView(type);
+	_horizontalLinesView.setChartData(_chartData, type);
 
 	setupDetails();
 	setupFilterButtons();
@@ -1293,7 +1244,7 @@ void ChartWidget::setChartData(
 	updateHeader();
 	updateBottomDates();
 	_animationController.finish();
-	addHorizontalLine(_animationController.finalHeightLimits(), false);
+	_horizontalLinesView.add(_animationController.finalHeightLimits(), false);
 
 	RpWidget::showChildren();
 	_chartArea->update();
@@ -1355,23 +1306,6 @@ void ChartWidget::setZoomedChartData(
 
 	customHeader->setGeometry(0, 0, width(), st::statisticsChartHeaderHeight);
 	zoomOutButton->moveToLeft(0, 0);
-}
-
-void ChartWidget::addHorizontalLine(Limits newHeight, bool animated) {
-	const auto newLinesData = ChartHorizontalLinesData(
-		newHeight.max,
-		newHeight.min,
-		true);
-	if (!animated) {
-		_horizontalLines.clear();
-	}
-	for (auto &horizontalLine : _horizontalLines) {
-		horizontalLine.fixedAlpha = horizontalLine.alpha;
-	}
-	_horizontalLines.push_back(newLinesData);
-	if (!animated) {
-		_horizontalLines.back().alpha = 1.;
-	}
 }
 
 rpl::producer<float64> ChartWidget::zoomRequests() {
