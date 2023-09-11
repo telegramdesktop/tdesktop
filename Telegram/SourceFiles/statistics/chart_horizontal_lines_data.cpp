@@ -21,12 +21,19 @@ constexpr auto kStep = 5.;
 	return (k % 10 == 0) ? maxValue : ((maxValue / 10 + 1) * 10);
 }
 
+[[nodiscard]] QString Format(int absoluteValue) {
+	return (absoluteValue >= 10'000)
+		? Lang::FormatCountToShort(absoluteValue).string
+		: QString("%L1").arg(absoluteValue);
+}
+
 } // namespace
 
 ChartHorizontalLinesData::ChartHorizontalLinesData(
 		int newMaxHeight,
 		int newMinHeight,
-		bool useMinHeight) {
+		bool useMinHeight,
+		float64 rightRatio) {
 	if (!useMinHeight) {
 		const auto v = (newMaxHeight > 100)
 			? Round(newMaxHeight)
@@ -78,14 +85,21 @@ ChartHorizontalLinesData::ChartHorizontalLinesData(
 
 		lines.resize(n);
 		const auto diffAbsoluteValue = int((n - 1) * step);
+		const auto skipFloatValues = (step / rightRatio) < 1;
 		for (auto i = 0; i < n; i++) {
 			auto &line = lines[i];
 			const auto value = int(i * step);
 			line.absoluteValue = newMinHeight + value;
 			line.relativeValue = 1. - value / float64(diffAbsoluteValue);
-			line.caption = (line.absoluteValue >= 10'000)
-				? Lang::FormatCountToShort(line.absoluteValue).string
-				: QString("%L1").arg(line.absoluteValue);
+			line.caption = Format(line.absoluteValue);
+			if (rightRatio > 0) {
+				const auto v = (newMinHeight + i * step) / rightRatio;
+				line.scaledLineCaption = (!skipFloatValues)
+					? Format(v)
+					: ((v - int(v)) < 0.01)
+					? Format(v)
+					: QString();
+			}
 		}
 	}
 }

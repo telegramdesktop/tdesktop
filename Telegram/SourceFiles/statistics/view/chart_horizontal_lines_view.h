@@ -36,10 +36,13 @@ public:
 
 private:
 	bool _isDouble = false;
-	QColor _leftColor;
-	QColor _rightColor;
+	QPen _leftPen;
+	QPen _rightPen;
 
 	std::vector<ChartHorizontalLinesData> _horizontalLines;
+
+	float64 _scaledLineRatio = 0.;
+	bool _isLeftLineScaled = false;
 
 };
 

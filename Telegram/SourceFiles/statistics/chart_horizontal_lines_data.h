@@ -14,7 +14,8 @@ public:
 	ChartHorizontalLinesData(
 		int newMaxHeight,
 		int newMinHeight,
-		bool useMinHeight);
+		bool useMinHeight,
+		float64 rightRatio);
 
 	void computeRelative(
 		int newMaxHeight,
@@ -26,6 +27,8 @@ public:
 		float64 absoluteValue = 0.;
 		float64 relativeValue = 0.;
 		QString caption;
+		QString scaledLineCaption;
+		float64 rightCaptionWidth = 0.;
 	};
 
 	std::vector<Line> lines;

@@ -18,10 +18,21 @@ ChartHorizontalLinesView::ChartHorizontalLinesView() = default;
 void ChartHorizontalLinesView::setChartData(
 		const Data::StatisticalChart &chartData,
 		ChartViewType type) {
+	_horizontalLines.clear();
 	_isDouble = (type == ChartViewType::DoubleLinear);
 	if (_isDouble && (chartData.lines.size() == 2)) {
-		_leftColor = chartData.lines.front().color;
-		_rightColor = chartData.lines.back().color;
+		_leftPen = QPen(chartData.lines.front().color);
+		_rightPen = QPen(chartData.lines.back().color);
+
+		const auto firstMax = chartData.lines.front().maxValue;
+		const auto secondMax = chartData.lines.back().maxValue;
+		if (firstMax > secondMax) {
+			_isLeftLineScaled = false;
+			_scaledLineRatio = firstMax / float64(secondMax);
+		} else {
+			_isLeftLineScaled = true;
+			_scaledLineRatio = secondMax / float64(firstMax);
+		}
 	}
 }
 
@@ -46,16 +57,31 @@ void ChartHorizontalLinesView::paintHorizontalLines(
 void ChartHorizontalLinesView::paintCaptionsToHorizontalLines(
 		QPainter &p,
 		const QRect &r) {
+	const auto offset = r.y() - st::statisticsChartHorizontalLineCaptionSkip;
+	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
 	for (auto &horizontalLine : _horizontalLines) {
 		const auto alpha = p.opacity();
 		p.setOpacity(horizontalLine.alpha);
-		p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
-		p.setPen(st::windowSubTextFg);
-		const auto offset = r.y()
-			- st::statisticsChartHorizontalLineCaptionSkip;
 		for (const auto &line : horizontalLine.lines) {
 			const auto y = offset + r.height() * line.relativeValue;
-			p.drawText(0, y, line.caption);
+			p.setPen(_isDouble ? _leftPen : st::windowSubTextFg);
+			p.drawText(
+				0,
+				y,
+				(!_isDouble)
+					? line.caption
+					: _isLeftLineScaled
+					? line.scaledLineCaption
+					: line.caption);
+			if (_isDouble) {
+				p.setPen(_rightPen);
+				p.drawText(
+					r.width() - line.rightCaptionWidth,
+					y,
+					_isLeftLineScaled
+						? line.caption
+						: line.scaledLineCaption);
+			}
 		}
 		p.setOpacity(alpha);
 	}
@@ -87,10 +113,19 @@ void ChartHorizontalLinesView::setAlpha(float64 value) {
 }
 
 void ChartHorizontalLinesView::add(Limits newHeight, bool animated) {
-	const auto newLinesData = ChartHorizontalLinesData(
+	auto newLinesData = ChartHorizontalLinesData(
 		newHeight.max,
 		newHeight.min,
-		true);
+		true,
+		_isDouble ? _scaledLineRatio : 0.);
+	if (_isDouble) {
+		const auto &font = st::statisticsDetailsBottomCaptionStyle.font;
+		for (auto &line : newLinesData.lines) {
+			line.rightCaptionWidth = font->width(_isLeftLineScaled
+				? line.caption
+				: line.scaledLineCaption);
+		}
+	}
 	if (!animated) {
 		_horizontalLines.clear();
 	}
