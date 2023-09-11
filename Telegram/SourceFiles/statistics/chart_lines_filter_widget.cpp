@@ -57,7 +57,7 @@ ChartLinesFilterWidget::FlatCheckbox::FlatCheckbox(
 : Ui::AbstractButton(parent)
 , _activeColor(activeColor)
 , _inactiveColor(st::boxBg->c)
-, _text(st::defaultTextStyle, text) {
+, _text(st::statisticsDetailsBottomCaptionStyle, text) {
 	const auto &margins = st::statisticsChartFlatCheckboxMargins;
 	const auto h = _text.minHeight() + rect::m::sum::v(margins) * 2;
 	resize(
