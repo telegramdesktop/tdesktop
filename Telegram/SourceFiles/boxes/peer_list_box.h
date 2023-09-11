@@ -560,6 +560,8 @@ protected:
 		delegate()->peerListSetSearchNoResults(std::move(noResults));
 	}
 
+	void sortByName();
+
 private:
 	PeerListDelegate *_delegate = nullptr;
 	std::unique_ptr<PeerListSearchController> _searchController = nullptr;

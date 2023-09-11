@@ -269,9 +269,10 @@ void Pip::RendererGL::createShadowTexture() {
 void Pip::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
-	const auto factor = widget->devicePixelRatio();
+	const auto factor = widget->devicePixelRatioF();
 	if (_factor != factor) {
 		_factor = factor;
+		_ifactor = int(std::ceil(_factor));
 		_controlsImage.invalidate();
 	}
 	_blendingEnabled = false;
@@ -667,10 +668,10 @@ void Pip::RendererGL::validateControls() {
 		fullHeight += 2 * meta.icon->height();
 	}
 	auto image = QImage(
-		QSize(maxWidth, fullHeight) * _factor,
+		QSize(maxWidth, fullHeight) * _ifactor,
 		QImage::Format_ARGB32_Premultiplied);
 	image.fill(Qt::transparent);
-	image.setDevicePixelRatio(_factor);
+	image.setDevicePixelRatio(_ifactor);
 	{
 		auto p = QPainter(&image);
 		auto index = 0;
@@ -678,8 +679,8 @@ void Pip::RendererGL::validateControls() {
 		const auto paint = [&](not_null<const style::icon*> icon) {
 			icon->paint(p, 0, height, maxWidth);
 			_controlsTextures[index++] = QRect(
-				QPoint(0, height) * _factor,
-				icon->size() * _factor);
+				QPoint(0, height) * _ifactor,
+				icon->size() * _ifactor);
 			height += icon->height();
 		};
 		for (const auto &meta : metas) {
@@ -702,7 +703,7 @@ void Pip::RendererGL::paintUsingRaster(
 		int bufferOffset,
 		bool transparent) {
 	auto raster = image.takeImage();
-	const auto size = rect.size() * _factor;
+	const auto size = rect.size() * _ifactor;
 	if (raster.width() < size.width() || raster.height() < size.height()) {
 		raster = QImage(size, QImage::Format_ARGB32_Premultiplied);
 		raster.setDevicePixelRatio(_factor);
@@ -711,8 +712,8 @@ void Pip::RendererGL::paintUsingRaster(
 				|| raster.height() > size.height())) {
 			raster.fill(Qt::transparent);
 		}
-	} else if (raster.devicePixelRatio() != _factor) {
-		raster.setDevicePixelRatio(_factor);
+	} else if (raster.devicePixelRatio() != _ifactor) {
+		raster.setDevicePixelRatio(_ifactor);
 	}
 
 	if (transparent) {

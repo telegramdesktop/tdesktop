@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/ui_utility.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -125,9 +125,16 @@ FixedBar::FixedBar(
 	_cancel->setClickedCallback([=] { cancelSearch(); });
 	_field->hide();
 	_filter->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-	connect(_field, &Ui::InputField::cancelled, [=] { cancelSearch(); });
-	connect(_field, &Ui::InputField::changed, [=] { searchUpdated(); });
-	connect(_field, &Ui::InputField::submitted, [=] { applySearch(); });
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
+		cancelSearch();
+	}, _field->lifetime());
+	_field->changes(
+	) | rpl::start_with_next([=] {
+		searchUpdated();
+	}, _field->lifetime());
+	_field->submits(
+	) | rpl::start_with_next([=] { applySearch(); }, _field->lifetime());
 	_searchTimer.setCallback([=] { applySearch(); });
 
 	_cancel->hide(anim::type::instant);

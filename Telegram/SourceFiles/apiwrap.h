@@ -80,6 +80,7 @@ class Ringtones;
 class Transcribes;
 class Premium;
 class Usernames;
+class Websites;
 
 namespace details {
 
@@ -289,12 +290,14 @@ public:
 		Data::ResolvedForwardDraft &&draft,
 		const SendAction &action,
 		FnMut<void()> &&successCallback = nullptr);
-	void shareContact(
+	FullMsgId shareContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
 		const SendAction &action);
-	void shareContact(not_null<UserData*> user, const SendAction &action);
+	FullMsgId shareContact(
+		not_null<UserData*> user,
+		const SendAction &action);
 	void applyAffectedMessages(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
@@ -383,6 +386,7 @@ public:
 	[[nodiscard]] Api::Transcribes &transcribes();
 	[[nodiscard]] Api::Premium &premium();
 	[[nodiscard]] Api::Usernames &usernames();
+	[[nodiscard]] Api::Websites &websites();
 
 	void updatePrivacyLastSeens();
 
@@ -482,7 +486,7 @@ private:
 		SharedMediaType type,
 		Api::SearchResult &&parsed);
 
-	void sendSharedContact(
+	FullMsgId sendSharedContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
@@ -693,6 +697,7 @@ private:
 	const std::unique_ptr<Api::Transcribes> _transcribes;
 	const std::unique_ptr<Api::Premium> _premium;
 	const std::unique_ptr<Api::Usernames> _usernames;
+	const std::unique_ptr<Api::Websites> _websites;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

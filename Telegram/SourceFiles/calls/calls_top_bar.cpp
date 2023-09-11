@@ -731,14 +731,14 @@ void TopBar::updateControlsGeometry() {
 		width() - _mute->width() - _hangup->width(),
 		height());
 
-	auto fullWidth = _fullInfoLabel->naturalWidth();
+	auto fullWidth = _fullInfoLabel->textMaxWidth();
 	auto showFull = (left + fullWidth + right <= width());
 	_fullInfoLabel->setVisible(showFull);
 	_shortInfoLabel->setVisible(!showFull);
 
 	auto setInfoLabelGeometry = [this, left, right](auto &&infoLabel) {
 		auto minPadding = qMax(left, right);
-		auto infoWidth = infoLabel->naturalWidth();
+		auto infoWidth = infoLabel->textMaxWidth();
 		auto infoLeft = (width() - infoWidth) / 2;
 		if (infoLeft < minPadding) {
 			infoLeft = left;

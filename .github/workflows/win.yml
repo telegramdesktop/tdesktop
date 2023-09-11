@@ -2,8 +2,6 @@ name: Windows.
 
 on:
   push:
-    branches:
-      - master
     paths-ignore:
       - 'docs/**'
       - '**.md'
@@ -11,6 +9,7 @@ on:
       - 'LEGAL'
       - 'LICENSE'
       - '.github/**'
+      - '!.github/workflows/win.yml'
       - 'lib/xdg/**'
       - 'snap/**'
       - 'Telegram/build/docker/**'
@@ -33,7 +32,6 @@ jobs:
   windows:
     name: Windows
     runs-on: self-hosted
-    continue-on-error: true
 
     strategy:
       matrix:
@@ -54,39 +52,43 @@ jobs:
       - name: Prepare directories.
         run: |
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo REPO_NAME=tdesktop
+
       - name: Clone.
         uses: actions/checkout@v3.1.0
         if: github.event.inputs.buildCommit == ''
         with:
           submodules: recursive
-          path: ${{ env.TBUILD }}\tdesktop
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
       - uses: ilammy/msvc-dev-cmd@v1.12.0
         name: Native Tools Command Prompt.
         with:
           arch: ${{ matrix.arch }}
 
-      - name: Setup NASM.
-        uses: ilammy/setup-nasm@v1
-
       - name: Clone with checkout.
         uses: actions/checkout@v3.1.0
         if: github.event.inputs.buildCommit != ''
         with:
           submodules: recursive
-          path: ${{ env.TBUILD }}\tdesktop
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
           ref: ${{ github.event.inputs.buildCommit }}
+
+      - name: Setup NASM.
+        uses: ilammy/setup-nasm@v1
 
       - name: Libraries.
         env:
           GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Community\'
           GYP_MSVS_VERSION: 2022
-        run: '%TBUILD%\tdesktop\Telegram\build\prepare\win.bat silent'
+        run: |
+          cd %TBUILD%
+          %REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
-          cd %TBUILD%\tdesktop\Telegram
+          cd %TBUILD%\%REPO_NAME%\Telegram
           SET CXXFLAGS="-bigobj"
           call configure.bat ^
           ${{ matrix.arch }} ^
@@ -99,12 +101,14 @@ jobs:
           -DCMAKE_SYSTEM_VERSION=%SDK%
           cd ..\out
           msbuild -m Telegram.sln /p:Configuration=Release,Platform=${{ matrix.arch }}
+
       - name: Move and hash artifact.
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           mkdir artifact
           move %TBUILD%\tdesktop\out\Release\Telegram.exe artifact/Telegram_${{ matrix.arch }}.exe
           certutil -hashfile artifact/Telegram_${{ matrix.arch }}.exe SHA256 | find /i /v "SHA256" | find /i /v "CertUtil" > artifact/Telegram_${{ matrix.arch }}_sha256.txt
+
       - uses: actions/upload-artifact@master
         name: Upload artifact.
         if: env.UPLOAD_ARTIFACT == 'true'

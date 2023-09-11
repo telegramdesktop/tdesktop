@@ -356,7 +356,7 @@ void Header::show(HeaderData data) {
 			_widget.get(),
 			std::move(counter),
 			st::storiesHeaderDate);
-		_counter->resizeToNaturalWidth(_counter->naturalWidth());
+		_counter->resizeToWidth(_counter->textMaxWidth());
 		_counter->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_counter->setOpacity(kNameOpacity);
 		_counter->show();

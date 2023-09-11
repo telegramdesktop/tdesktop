@@ -40,6 +40,7 @@ public:
 	bool hasTextForCopy() const override {
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
+	QString additionalInfoString() const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return _attach && _attach->toggleSelectionByHandlerClick(p);

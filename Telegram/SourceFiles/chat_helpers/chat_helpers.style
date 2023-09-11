@@ -118,6 +118,8 @@ EmojiPan {
 	tabs: SettingsSlider;
 	search: TabbedSearch;
 	searchMargin: margins;
+	colorAll: IconButton;
+	colorAllLabel: FlatLabel;
 	removeSet: IconButton;
 	boxLabel: FlatLabel;
 	icons: ComposeIcons;
@@ -292,8 +294,11 @@ stickersTrendingAdd: RoundButton(defaultActiveButton) {
 stickersTrendingInstalled: RoundButton(stickersTrendingAdd) {
 	textFg: activeButtonBg;
 	textFgOver: activeButtonBgOver;
-	textBg: activeButtonSecondaryFg;
-	textBgOver: activeButtonSecondaryFgOver;
+	textBg: lightButtonBgOver;
+	textBgOver: lightButtonBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: activeButtonSecondaryFg;
+	}
 }
 stickersRemove: IconButton(defaultIconButton) {
 	width: 40px;
@@ -448,6 +453,7 @@ inlineResultsMaxHeight: 640px;
 emojiPanHeaderFont: semiboldFont;
 emojiPanRemoveSkip: 10px;
 emojiPanRemoveTop: 10px;
+emojiPanColorAllSkip: 9px;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
@@ -489,6 +495,25 @@ stickerPanRemoveSet: IconButton(hashtagClose) {
 stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
+
+emojiPanColorAll: IconButton(stickerPanRemoveSet) {
+	width: 24px;
+	height: 24px;
+	rippleAreaSize: 24px;
+	icon: icon {{ "emoji/emoji_skin", smallCloseIconFg }};
+	iconOver: icon {{ "emoji/emoji_skin", smallCloseIconFgOver }};
+}
+emojiPanColorAllLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	minWidth: 40px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkFont: font(12px);
+		linkFontOver: font(12px);
+	}
+}
+emojiPanColorAllPadding: margins(10px, 6px, 10px, -1px);
 
 stickerGroupCategorySize: 28px;
 stickerGroupCategoryAbout: defaultTextStyle;
@@ -626,6 +651,8 @@ defaultEmojiPan: EmojiPan {
 	tabs: emojiTabs;
 	search: defaultTabbedSearch;
 	searchMargin: margins(1px, 11px, 2px, 5px);
+	colorAll: emojiPanColorAll;
+	colorAllLabel: emojiPanColorAllLabel;
 	removeSet: stickerPanRemoveSet;
 	boxLabel: boxLabel;
 	icons: defaultComposeIcons;

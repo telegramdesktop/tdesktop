@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/special_fields.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/format_values.h"
@@ -297,8 +298,11 @@ void AddContactBox::prepare() {
 		: tr::lng_enter_contact_data());
 	updateButtons();
 
-	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
-	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
+	const auto submitted = [=] { submit(); };
+	_first->submits(
+	) | rpl::start_with_next(submitted, _first->lifetime());
+	_last->submits(
+	) | rpl::start_with_next(submitted, _last->lifetime());
 	connect(_phone, &Ui::PhoneInput::submitted, [=] { submit(); });
 
 	setDimensions(
@@ -567,23 +571,24 @@ void GroupInfoBox::prepare() {
 		_description->setSubmitSettings(
 			Core::App().settings().sendSubmitWay());
 
-		connect(_description, &Ui::InputField::resized, [=] {
+		_description->heightChanges(
+		) | rpl::start_with_next([=] {
 			descriptionResized();
-		});
-		connect(_description, &Ui::InputField::submitted, [=] {
-			submit();
-		});
-		connect(_description, &Ui::InputField::cancelled, [=] {
+		}, _description->lifetime());
+		_description->submits(
+		) | rpl::start_with_next([=] { submit(); }, _description->lifetime());
+		_description->cancelled(
+		) | rpl::start_with_next([=] {
 			closeBox();
-		});
+		}, _description->lifetime());
 
 		Ui::Emoji::SuggestionsController::Init(
 			getDelegate()->outerContainer(),
 			_description,
 			&_navigation->session());
 	}
-
-	connect(_title, &Ui::InputField::submitted, [=] { submitName(); });
+	_title->submits(
+	) | rpl::start_with_next([=] { submitName(); }, _title->lifetime());
 
 	addButton(
 		((_type != Type::Group || _canAddBot)
@@ -1522,20 +1527,22 @@ void EditNameBox::prepare() {
 	_first->setMaxLength(Ui::EditPeer::kMaxUserFirstLastName);
 	_last->setMaxLength(Ui::EditPeer::kMaxUserFirstLastName);
 
-	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
-	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
+	_first->submits(
+	) | rpl::start_with_next([=] { submit(); }, _first->lifetime());
+	_last->submits(
+	) | rpl::start_with_next([=] { submit(); }, _last->lifetime());
 
 	_first->customTab(true);
 	_last->customTab(true);
 
-	QObject::connect(
-		_first,
-		&Ui::InputField::tabbed,
-		[=] { _last->setFocus(); });
-	QObject::connect(
-		_last,
-		&Ui::InputField::tabbed,
-		[=] { _first->setFocus(); });
+	_first->tabbed(
+	) | rpl::start_with_next([=] {
+		_last->setFocus();
+	}, _first->lifetime());
+	_last->tabbed(
+	) | rpl::start_with_next([=] {
+		_first->setFocus();
+	}, _last->lifetime());
 }
 
 void EditNameBox::setInnerFocus() {

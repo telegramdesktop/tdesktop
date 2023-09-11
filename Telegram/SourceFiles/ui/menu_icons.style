@@ -135,6 +135,9 @@ menuIconAntispam: icon {{ "menu/antispam", menuIconColor }};
 menuIconChatDiscuss: icon {{ "menu/chat_discuss", menuIconColor }};
 menuIconBotCommands: icon {{ "menu/bot_commands", menuIconColor }};
 menuIconPremium: icon {{ "menu/premium", menuIconColor }};
+menuIconIpAddress: icon {{ "menu/ip_address", menuIconColor }};
+menuIconAddress: icon {{ "menu/payment_address", menuIconColor }};
+menuIconShowAll: icon {{ "menu/all_media", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
@@ -167,8 +170,10 @@ menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};
 menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};
 menuIconReportAttention: icon {{ "menu/report", menuIconAttentionColor }};
+menuIconRestoreAttention: icon {{ "menu/restore", menuIconAttentionColor }};
 
 menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};
+menuIconInviteSettings: icon {{ "menu/invite", windowBgActive }};
 
 playerSpeedSlow: icon {{ "player/speed/audiospeed_menu_0.5", menuIconColor }};
 playerSpeedSlowActive: icon {{ "player/speed/audiospeed_menu_0.5", mediaPlayerActiveFg }};

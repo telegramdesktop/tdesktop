@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/inner_dropdown.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/emoji_config.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"

@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/sender.h"
 #include "base/weak_ptr.h"
 #include "base/flags.h"
+#include "mtproto/sender.h"
+#include "ui/chat/attach/attach_bot_webview.h"
 
 namespace Api {
 struct SendAction;
@@ -64,7 +65,9 @@ struct AttachWebViewBot {
 	bool requestWriteAccess = false;
 };
 
-class AttachWebView final : public base::has_weak_ptr {
+class AttachWebView final
+	: public base::has_weak_ptr
+	, public Ui::BotWebView::Delegate {
 public:
 	explicit AttachWebView(not_null<Main::Session*> session);
 	~AttachWebView();
@@ -130,6 +133,21 @@ public:
 private:
 	struct Context;
 
+	Webview::ThemeParams botThemeParams() override;
+	bool botHandleLocalUri(QString uri) override;
+	void botHandleInvoice(QString slug) override;
+	void botHandleMenuButton(Ui::BotWebView::MenuButton button) override;
+	void botSendData(QByteArray data) override;
+	void botSwitchInlineQuery(
+		std::vector<QString> chatTypes,
+		QString query) override;
+	void botCheckWriteAccess(Fn<void(bool allowed)> callback) override;
+	void botAllowWriteAccess(Fn<void(bool allowed)> callback) override;
+	void botSharePhone(Fn<void(bool shared)> callback) override;
+	void botInvokeCustomMethod(
+		Ui::BotWebView::CustomMethodRequest request) override;
+	void botClose() override;
+
 	[[nodiscard]] static Context LookupContext(
 		not_null<Window::SessionController*> controller,
 		const Api::SendAction &action);
@@ -185,6 +203,8 @@ private:
 	std::unique_ptr<Context> _context;
 	std::unique_ptr<Context> _lastShownContext;
 	QString _lastShownUrl;
+	uint64 _lastShownQueryId = 0;
+	QString _lastShownButtonText;
 	UserData *_bot = nullptr;
 	QString _botUsername;
 	QString _botAppName;

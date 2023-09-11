@@ -15,6 +15,7 @@ enum class ImageRoundRadius;
 
 namespace style {
 struct DialogRow;
+struct ThreeStateIcon;
 } // namespace style
 
 namespace Ui {
@@ -92,6 +93,8 @@ private:
 	mutable std::vector<ItemPreviewImage> _imagesCache;
 	mutable std::unique_ptr<SpoilerAnimation> _spoiler;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
+	mutable const style::ThreeStateIcon *_leftIcon = nullptr;
+	mutable bool _hasPlainLinkAtBegin = false;
 
 };
 

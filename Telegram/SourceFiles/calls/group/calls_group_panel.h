@@ -228,6 +228,7 @@ private:
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 	rpl::variable<PanelMode> _mode;
 	rpl::variable<bool> _fullScreenOrMaximized = false;
+	bool _unpinnedMaximized = false;
 
 #ifndef Q_OS_MAC
 	rpl::variable<int> _controlsTop = 0;

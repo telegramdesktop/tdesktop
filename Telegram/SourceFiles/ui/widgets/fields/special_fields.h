@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/masked_input_field.h"
 
 namespace Ui {
 

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/painter.h"
@@ -418,16 +418,20 @@ void Autocomplete::setupContent() {
 	};
 
 	inner->activated() | rpl::start_with_next(submit, lifetime());
-	connect(input, &Ui::InputField::blurred, [=] {
+	input->focusedChanges(
+	) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
 		base::call_delayed(10, this, [=] {
 			if (!input->hasFocus()) {
 				deactivate();
 			}
 		});
-	});
-	connect(input, &Ui::InputField::cancelled, [=] { deactivate(); });
-	connect(input, &Ui::InputField::changed, refresh);
-	connect(input, &Ui::InputField::submitted, submit);
+	}, input->lifetime());
+	input->cancelled(
+	) | rpl::start_with_next([=] {
+		deactivate();
+	}, input->lifetime());
+	input->changes() | rpl::start_with_next(refresh, input->lifetime());
+	input->submits() | rpl::start_with_next(submit, input->lifetime());
 	input->customUpDown(true);
 
 	_activate = [=] {

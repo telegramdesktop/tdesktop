@@ -479,6 +479,14 @@ storiesRemoveSet: IconButton(stickerPanRemoveSet) {
 	iconOver: icon {{ "simple_close", storiesComposeGrayIcon }};
 	ripple: storiesComposeRippleLight;
 }
+storiesColorAll: IconButton(emojiPanColorAll) {
+	icon: icon {{ "emoji/emoji_skin", storiesComposeGrayIcon }};
+	iconOver: icon {{ "emoji/emoji_skin", storiesComposeGrayIcon }};
+	ripple: storiesComposeRippleLight;
+}
+storiesColorAllLabel: FlatLabel(emojiPanColorAllLabel) {
+	textFg: storiesComposeGrayText;
+}
 storiesMenuSeparator: mediaviewMenuSeparator;
 storiesMenu: Menu(defaultMenu) {
 	itemBg: groupCallMenuBg;
@@ -588,6 +596,8 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		rippleBgActive: storiesComposeBgOver;
 	}
 	search: storiesEmojiTabbedSearch;
+	colorAll: storiesColorAll;
+	colorAllLabel: storiesColorAllLabel;
 	removeSet: storiesRemoveSet;
 	boxLabel: storiesBoxLabel;
 	icons: ComposeIcons {

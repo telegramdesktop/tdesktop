@@ -642,21 +642,35 @@ infoStoriesAboutArchivePadding: margins(22px, 12px, 22px, 12px);
 
 editPeerBottomButtonsLayoutMargins: margins(0px, 7px, 0px, 0px);
 
-editPeerTopButtonsLayoutSkip: 13px;
-editPeerTopButtonsLayoutSkipToBottom: 12px;
+editPeerTopButtonsLayoutSkip: 5px;
+editPeerTopButtonsLayoutSkipToBottom: 5px;
 
-editPeerTopButtonsLayoutSkipCustomTop: 14px;
-editPeerTopButtonsLayoutSkipCustomBottom: 11px;
+editPeerTopButtonsLayoutSkipCustomBottom: 5px;
 
 editPeerHistoryVisibilityTopSkip: 8px;
 
-editPeerPhotoMargins: margins(22px, 16px, 22px, 8px);
+editPeerPhotoMargins: margins(22px, 8px, 22px, 8px);
 editPeerTitle: defaultInputField;
-editPeerTitleMargins: margins(27px, 21px, 22px, 8px);
-editPeerDescription: InputField(newGroupDescription) {
-	borderFg: transparent;
+editPeerTitleMargins: margins(27px, 13px, 22px, 8px);
+editPeerDescription: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(0px, 7px, 0px, 7px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 32px;
+
+	font: boxTextFont;
 }
-editPeerDescriptionMargins: margins(22px, 5px, 22px, 16px);
+editPeerDescriptionMargins: margins(22px, 3px, 22px, 2px);
 editPeerPrivaciesMargins: margins(15px, 7px, 22px, 0px);
 editPeerPrivacyBottomSkip: 16px;
 editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {

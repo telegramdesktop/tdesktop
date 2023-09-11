@@ -495,8 +495,10 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 		session().api().cancelLocalItem(item);
 	}
 
-	const auto document = [&] {
-		const auto media = item->media();
+	const auto documentToCancel = [&] {
+		const auto media = item->isAdminLogEntry()
+			? nullptr
+			: item->media();
 		return media ? media->document() : nullptr;
 	}();
 
@@ -510,8 +512,8 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 	Assert(i != end(_messages));
 	_messages.erase(i);
 
-	if (document) {
-		session().data().documentMessageRemoved(document);
+	if (documentToCancel) {
+		session().data().documentMessageRemoved(documentToCancel);
 	}
 }
 
@@ -1262,7 +1264,15 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		Core::App().notifications().schedule(notification);
 	}
 	if (item->out()) {
-		destroyUnreadBar();
+		if (item->isFromScheduled() && unreadCountRefreshNeeded(item->id)) {
+			if (unreadCountKnown()) {
+				setUnreadCount(unreadCount() + 1);
+			} else if (!isForum()) {
+				owner().histories().requestDialogEntry(this);
+			}
+		} else {
+			destroyUnreadBar();
+		}
 		if (!item->unread(this)) {
 			outboxRead(item);
 		}

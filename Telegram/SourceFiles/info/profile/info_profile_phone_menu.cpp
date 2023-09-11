@@ -52,7 +52,7 @@ private:
 		return label->height();
 	};
 	auto widthMin = basicWidth;
-	auto widthMax = label->naturalWidth();
+	auto widthMax = label->textMaxWidth();
 	if (height(widthMin) <= heightLimit || height(widthMax) > heightLimit) {
 		return basicWidth;
 	}

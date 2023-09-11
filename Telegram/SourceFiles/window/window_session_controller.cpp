@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
-#include "data/data_document_resolver.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_forum.h"
@@ -47,9 +46,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "base/unixtime.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone.
 #include "ui/delayed_activation.h"
+#include "ui/chat/attach/attach_bot_webview.h"
+#include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/style/style_palette_colorizer.h"
@@ -306,7 +308,7 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 			if (info.startAutoSubmit) {
 				peer->session().api().blockedPeers().unblock(
 					peer,
-					[=] { showPeerByLinkResolved(peer, info); },
+					[=](bool) { showPeerByLinkResolved(peer, info); },
 					true);
 			} else {
 				showPeerByLinkResolved(peer, info);
@@ -1147,6 +1149,8 @@ void SessionController::openFolder(not_null<Data::Folder*> folder) {
 	}
 	if (activeChatsFilterCurrent() != 0) {
 		setActiveChatsFilter(0);
+	} else if (adaptive().isOneColumn()) {
+		clearSectionStack(SectionShow::Way::ClearStack);
 	}
 	closeForum();
 	_openedFolder = folder.get();

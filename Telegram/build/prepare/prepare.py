@@ -404,7 +404,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 3fad86d684
+    git checkout 24d8dc2bde
 """)
 
 stage('msys64', """
@@ -851,7 +851,8 @@ depends:yasm/yasm
     --disable-docs \
     --enable-vp8 \
     --enable-vp9 \
-    --enable-webm-io
+    --enable-webm-io \
+    --size-limit=4096x4096
 
     make $MAKE_THREADS_CNT
 
@@ -1072,7 +1073,7 @@ release:
 mac:
     git clone https://github.com/kcat/openal-soft.git
     cd openal-soft
-    git checkout 716f5373cb
+    git checkout 1.23.1
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
         -D CMAKE_BUILD_TYPE=RelWithDebInfo \\
         -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\
@@ -1205,28 +1206,28 @@ win:
 """)
 
 if buildQt5:
-    stage('qt_5_15_9', """
-    git clone https://github.com/qt/qt5.git qt_5_15_9
-    cd qt_5_15_9
+    stage('qt_5_15_10', """
+    git clone https://github.com/qt/qt5.git qt_5_15_10
+    cd qt_5_15_10
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-    git checkout v5.15.9-lts-lgpl
+    git checkout v5.15.10-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
-depends:patches/qtbase_5.15.9/*.patch
+depends:patches/qtbase_5.15.10/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5.15.9\\*) do git apply %%i
+    for /r %%i in (..\\..\\patches\\qtbase_5.15.10\\*) do git apply %%i
     cd ..
 
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.9\"") + """
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.10\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.9" ^
+    configure -prefix "%LIBS_DIR%\\Qt-5.15.10" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1263,12 +1264,12 @@ win:
     del /S *.obj
     cd ..
 mac:
-    find ../../patches/qtbase_5.15.9 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5.15.10 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.9" \
+    ./configure -prefix "$USED_PREFIX/Qt-5.15.10" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \

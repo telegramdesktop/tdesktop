@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_thread.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -31,10 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 namespace MuteMenu {
-
 namespace {
 
 constexpr auto kMuteDurSecondsDefault = crl::time(8) * 3600;
+constexpr auto kMuteForeverValue = std::numeric_limits<TimeId>::max();
 
 class IconWithText final : public Ui::Menu::Action {
 public:
@@ -70,7 +71,7 @@ public:
 	MuteItem(
 		not_null<RpWidget*> parent,
 		const style::Menu &st,
-		not_null<Data::Thread*> thread);
+		Descriptor descriptor);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -79,31 +80,30 @@ private:
 	const QPoint _itemIconPosition;
 	Ui::Animations::Simple _animation;
 	bool _isMuted = false;
+	bool _inited;
 
 };
 
 MuteItem::MuteItem(
 	not_null<RpWidget*> parent,
 	const style::Menu &st,
-	not_null<Data::Thread*> thread)
+	Descriptor descriptor)
 : Ui::Menu::Action(
 	parent,
 	st,
 	Ui::CreateChild<QAction>(parent.get()),
 	nullptr,
 	nullptr)
-, _itemIconPosition(st.itemIconPosition)
-, _isMuted(thread->owner().notifySettings().isMuted(thread)) {
-	Info::Profile::NotificationsEnabledValue(
-		thread
-	) | rpl::start_with_next([=](bool isUnmuted) {
-		const auto isMuted = !isUnmuted;
+, _itemIconPosition(st.itemIconPosition) {
+	descriptor.isMutedValue(
+	) | rpl::start_with_next([=](bool isMuted) {
 		action()->setText(isMuted
 			? tr::lng_mute_menu_duration_unmute(tr::now)
 			: tr::lng_mute_menu_duration_forever(tr::now));
-		if (isMuted == _isMuted) {
+		if (_inited && isMuted == _isMuted) {
 			return;
 		}
+		_inited = true;
 		_isMuted = isMuted;
 		_animation.start(
 			[=] { update(); },
@@ -112,13 +112,8 @@ MuteItem::MuteItem(
 			st::defaultPopupMenu.showDuration);
 	}, lifetime());
 
-	const auto weak = base::make_weak(thread);
 	setClickedCallback([=] {
-		if (const auto strong = weak.get()) {
-			strong->owner().notifySettings().update(
-				strong,
-				{ .unmute = _isMuted, .forever = !_isMuted });
-		}
+		descriptor.updateMutePeriod(_isMuted ? 0 : kMuteForeverValue);
 	});
 }
 
@@ -140,7 +135,7 @@ void MuteItem::paintEvent(QPaintEvent *e) {
 	icon.paint(p, _itemIconPosition, width(), color);
 }
 
-void MuteBox(not_null<Ui::GenericBox*> box, not_null<Data::Thread*> thread) {
+void MuteBox(not_null<Ui::GenericBox*> box, Descriptor descriptor) {
 	struct State {
 		int lastSeconds = 0;
 	};
@@ -161,14 +156,9 @@ void MuteBox(not_null<Ui::GenericBox*> box, not_null<Data::Thread*> thread) {
 			: tr::lng_mute_menu_mute();
 	}) | rpl::flatten_latest();
 
-	const auto weak = base::make_weak(thread);
 	Ui::ConfirmBox(box, {
 		.confirmed = [=] {
-			if (const auto strong = weak.get()) {
-				strong->owner().notifySettings().update(
-					strong,
-					{ .period = state->lastSeconds });
-			}
+			descriptor.updateMutePeriod(state->lastSeconds);
 			box->getDelegate()->hideLayer();
 		},
 		.confirmText = std::move(confirmText),
@@ -178,7 +168,7 @@ void MuteBox(not_null<Ui::GenericBox*> box, not_null<Data::Thread*> thread) {
 
 void PickMuteBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Data::Thread*> thread) {
+		Descriptor descriptor) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
@@ -191,17 +181,12 @@ void PickMuteBox(
 
 	const auto pickerCallback = TimePickerBox(box, seconds, phrases, 0);
 
-	const auto weak = base::make_weak(thread);
 	Ui::ConfirmBox(box, {
 		.confirmed = [=] {
 			const auto muteFor = pickerCallback();
-			if (const auto strong = weak.get()) {
-				strong->owner().notifySettings().update(
-					strong,
-					{ .period = muteFor });
-				strong->session().settings().addMutePeriod(muteFor);
-				strong->session().saveSettings();
-			}
+			descriptor.updateMutePeriod(muteFor);
+			descriptor.session->settings().addMutePeriod(muteFor);
+			descriptor.session->saveSettings();
 			box->closeBox();
 		},
 		.confirmText = tr::lng_mute_menu_mute(),
@@ -220,11 +205,7 @@ void PickMuteBox(
 			st::popupMenuWithIcons);
 		state->menu->addAction(
 			tr::lng_manage_messages_ttl_after_custom(tr::now),
-			[=] {
-				if (const auto strong = weak.get()) {
-					box->getDelegate()->show(Box(MuteBox, strong));
-				}
-			},
+			[=] { box->getDelegate()->show(Box(MuteBox, descriptor)); },
 			&st::menuIconCustomize);
 		state->menu->setDestroyedCallback(crl::guard(top, [=] {
 			top->setForceRippled(false);
@@ -236,46 +217,123 @@ void PickMuteBox(
 
 } // namespace
 
+Descriptor ThreadDescriptor(not_null<Data::Thread*> thread) {
+	const auto weak = base::make_weak(thread);
+	const auto isMutedValue = [=]() -> rpl::producer<bool> {
+		if (const auto strong = weak.get()) {
+			return Info::Profile::NotificationsEnabledValue(
+				strong
+			) | rpl::map(!rpl::mappers::_1);
+		}
+		return rpl::single(false);
+	};
+	const auto currentSound = [=] {
+		const auto strong = weak.get();
+		return strong
+			? strong->owner().notifySettings().sound(strong)
+			: std::optional<Data::NotifySound>();
+	};
+	const auto updateSound = crl::guard(weak, [=](Data::NotifySound sound) {
+		thread->owner().notifySettings().update(thread, {}, {}, sound);
+	});
+	const auto updateMutePeriod = crl::guard(weak, [=](TimeId mute) {
+		const auto settings = &thread->owner().notifySettings();
+		if (!mute) {
+			settings->update(thread, { .unmute = true });
+		} else if (mute == kMuteForeverValue) {
+			settings->update(thread, { .forever = true });
+		} else {
+			settings->update(thread, { .period = mute });
+		}
+	});
+	return {
+		.session = &thread->session(),
+		.isMutedValue = isMutedValue,
+		.currentSound = currentSound,
+		.updateSound = updateSound,
+		.updateMutePeriod = updateMutePeriod,
+	};
+}
+
+Descriptor DefaultDescriptor(
+		not_null<Main::Session*> session,
+		Data::DefaultNotify type) {
+	const auto settings = &session->data().notifySettings();
+	const auto isMutedValue = [=]() -> rpl::producer<bool> {
+		return rpl::single(
+			rpl::empty
+		) | rpl::then(
+			settings->defaultUpdates(type)
+		) | rpl::map([=] {
+			return settings->isMuted(type);
+		});
+	};
+	const auto currentSound = [=] {
+		return settings->defaultSettings(type).sound();
+	};
+	const auto updateSound = [=](Data::NotifySound sound) {
+		settings->defaultUpdate(type, {}, {}, sound);
+	};
+	const auto updateMutePeriod = [=](TimeId mute) {
+		if (!mute) {
+			settings->defaultUpdate(type, { .unmute = true });
+		} else if (mute == kMuteForeverValue) {
+			settings->defaultUpdate(type, { .forever = true });
+		} else {
+			settings->defaultUpdate(type, { .period = mute });
+		}
+	};
+	return {
+		.session = session,
+		.isMutedValue = isMutedValue,
+		.currentSound = currentSound,
+		.updateSound = updateSound,
+		.updateMutePeriod = updateMutePeriod,
+	};
+}
+
 void FillMuteMenu(
 		not_null<Ui::PopupMenu*> menu,
-		not_null<Data::Thread*> thread,
+		Descriptor descriptor,
 		std::shared_ptr<Ui::Show> show) {
-	const auto weak = base::make_weak(thread);
-	const auto with = [=](Fn<void(not_null<Data::Thread*> thread)> handler) {
-		return [=] {
-			if (const auto strong = weak.get()) {
-				handler(strong);
-			}
-		};
+	const auto session = descriptor.session;
+	const auto soundSelect = [=] {
+		if (const auto currentSound = descriptor.currentSound()) {
+			show->showBox(Box(
+				RingtonesBox,
+				session,
+				*currentSound,
+				descriptor.updateSound));
+		}
 	};
-
 	menu->addAction(
 		tr::lng_mute_menu_sound_select(tr::now),
-		with([=](not_null<Data::Thread*> thread) {
-			show->showBox(Box(ThreadRingtonesBox, thread));
-		}),
+		soundSelect,
 		&st::menuIconSoundSelect);
 
-	const auto notifySettings = &thread->owner().notifySettings();
-	const auto soundIsNone = notifySettings->sound(thread).none;
+	const auto soundIsNone = descriptor.currentSound().value_or(
+		Data::NotifySound()
+	).none;
+	const auto toggleSound = [=] {
+		if (auto sound = descriptor.currentSound()) {
+			sound->none = !soundIsNone;
+			descriptor.updateSound(*sound);
+		}
+	};
 	menu->addAction(
-		soundIsNone
+		(soundIsNone
 			? tr::lng_mute_menu_sound_on(tr::now)
-			: tr::lng_mute_menu_sound_off(tr::now),
-		with([=](not_null<Data::Thread*> thread) {
-			auto sound = notifySettings->sound(thread);
-			sound.none = !sound.none;
-			notifySettings->update(thread, {}, {}, sound);
-		}),
+			: tr::lng_mute_menu_sound_off(tr::now)),
+		toggleSound,
 		soundIsNone ? &st::menuIconSoundOn : &st::menuIconSoundOff);
 
 	const auto &st = menu->st().menu;
 	const auto iconTextPosition = st.itemIconPosition
 		+ st::menuIconMuteForAnyTextPosition;
-	for (const auto muteFor : thread->session().settings().mutePeriods()) {
-		const auto callback = with([=](not_null<Data::Thread*> thread) {
-			notifySettings->update(thread, { .period = muteFor });
-		});
+	for (const auto muteFor : session->settings().mutePeriods()) {
+		const auto callback = [=, update = descriptor.updateMutePeriod] {
+			update(muteFor);
+		};
 
 		auto item = base::make_unique_q<IconWithText>(
 			menu,
@@ -295,20 +353,17 @@ void FillMuteMenu(
 
 	menu->addAction(
 		tr::lng_mute_menu_duration(tr::now),
-		with([=](not_null<Data::Thread*> thread) {
-			DEBUG_LOG(("Mute Info: PickMuteBox called."));
-			show->showBox(Box(PickMuteBox, thread));
-		}),
+		[=] { show->showBox(Box(PickMuteBox, descriptor)); },
 		&st::menuIconMuteFor);
 
 	menu->addAction(
-		base::make_unique_q<MuteItem>(menu, menu->st().menu, thread));
+		base::make_unique_q<MuteItem>(menu, menu->st().menu, descriptor));
 }
 
 void SetupMuteMenu(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<> triggers,
-		Fn<Data::Thread*()> makeThread,
+		Fn<std::optional<Descriptor>()> makeDescriptor,
 		std::shared_ptr<Ui::Show> show) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
@@ -319,11 +374,11 @@ void SetupMuteMenu(
 	) | rpl::start_with_next([=] {
 		if (state->menu) {
 			return;
-		} else if (const auto thread = makeThread()) {
+		} else if (const auto descriptor = makeDescriptor()) {
 			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				parent,
 				st::popupMenuWithIcons);
-			FillMuteMenu(state->menu.get(), thread, show);
+			FillMuteMenu(state->menu.get(), *descriptor, show);
 			state->menu->popup(QCursor::pos());
 		}
 	}, parent->lifetime());

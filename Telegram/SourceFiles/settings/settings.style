@@ -316,21 +316,15 @@ sessionLocationTop: 54px;
 sessionCurrentSkip: 8px;
 sessionSubtitleSkip: 14px;
 sessionInfoFg: windowSubTextFg;
-sessionTerminateTop: 9px;
-sessionTerminateSkip: 12px;
+sessionTerminateTop: 8px;
+sessionTerminateSkip: 11px;
 sessionTerminate: IconButton {
-	width: 20px;
-	height: 20px;
+	width: 34px;
+	height: 34px;
 
 	icon: smallCloseIcon;
 	iconOver: smallCloseIconOver;
-	iconPosition: point(5px, 5px);
-
-	rippleAreaPosition: point(0px, 0px);
-	rippleAreaSize: 20px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	iconPosition: point(12px, 12px);
 }
 sessionIconWindows: icon{{ "settings/devices/device_desktop_win", historyPeerUserpicFg }};
 sessionIconMac: icon{{ "settings/devices/device_desktop_mac", historyPeerUserpicFg }};
@@ -365,11 +359,12 @@ sessionDateLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 }
 sessionDateSkip: 19px;
-sessionValuePadding: margins(0px, 5px, 0px, 2px);
+sessionValuePadding: margins(37px, 5px, 0px, 0px);
 sessionValueLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 sessionValueSkip: 8px;
+sessionValueIconPosition: point(20px, 9px);
 
 sessionListItem: PeerListItem(defaultPeerListItem) {
 	button: OutlineButton(defaultPeerListButton) {
@@ -390,6 +385,21 @@ sessionListItem: PeerListItem(defaultPeerListItem) {
 sessionList: PeerList(defaultPeerList) {
 	item: sessionListItem;
 	padding: margins(0px, 4px, 0px, 0px);
+}
+websiteListItem: PeerListItem(sessionListItem) {
+	height: 72px;
+	photoPosition: point(18px, 10px);
+	namePosition: point(64px, 6px);
+	statusPosition: point(64px, 26px);
+	photoSize: 32px;
+}
+websiteList: PeerList(sessionList) {
+	item: websiteListItem;
+}
+websiteLocationTop: 46px;
+websiteBigUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(70px, 70px);
+	photoSize: 70px;
 }
 
 settingsPhotoLeft: 22px;
@@ -513,9 +523,18 @@ settingsPremiumLock: icon{{ "emoji/premium_lock", windowActiveTextFg, point(0px,
 settingsPremiumLockSkip: 3px;
 
 settingsBlockedListSubtitleAddPadding: margins(0px, 1px, 0px, -4px);
-settingsBlockedListIconPadding: margins(0px, 34px, 0px, 5px);
+settingsBlockedListIconPadding: margins(0px, 24px, 0px, 5px);
 settingsBlockedList: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, membersMarginBottom);
+}
+settingsBlockedHeightMin: 240px;
+
+settingsNotificationType: SettingsButton(settingsButton) {
+	height: 40px;
+	padding: margins(60px, 4px, 22px, 4px);
+}
+settingsNotificationTypeDetails: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
 }
 
 requestPeerRestriction: FlatLabel(defaultFlatLabel) {

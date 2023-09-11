@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/bot_command.h"
 #include "chat_helpers/field_autocomplete.h"
 #include "window/section_widget.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
 #include "base/flags.h"
 

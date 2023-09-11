@@ -31,6 +31,8 @@ struct ConfirmBoxArgs {
 	const style::FlatLabel *labelStyle = nullptr;
 	Fn<bool(const ClickHandlerPtr&, Qt::MouseButton)> labelFilter;
 
+	v::text::data title = v::null;
+
 	bool inform = false;
 	// If strict cancel is set the cancel.callback() is only called
 	// if the cancel button was pressed.

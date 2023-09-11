@@ -190,16 +190,18 @@ void EditLinkBox(
 		}
 	};
 
-	QObject::connect(text, &Ui::InputField::submitted, [=] {
+	text->submits(
+	) | rpl::start_with_next([=] {
 		url->setFocusFast();
-	});
-	QObject::connect(url, &Ui::InputField::submitted, [=] {
+	}, text->lifetime());
+	url->submits(
+	) | rpl::start_with_next([=] {
 		if (text->getLastText().isEmpty()) {
 			text->setFocusFast();
 		} else {
 			submit();
 		}
-	});
+	}, url->lifetime());
 
 	box->setTitle(url->getLastText().isEmpty()
 		? tr::lng_formatting_link_create_title()
@@ -223,8 +225,14 @@ void EditLinkBox(
 	url->customTab(true);
 	text->customTab(true);
 
-	QObject::connect(url, &Ui::InputField::tabbed, [=] { text->setFocus(); });
-	QObject::connect(text, &Ui::InputField::tabbed, [=] { url->setFocus(); });
+	url->tabbed(
+	) | rpl::start_with_next([=] {
+		text->setFocus();
+	}, url->lifetime());
+	text->tabbed(
+	) | rpl::start_with_next([=] {
+		url->setFocus();
+	}, text->lifetime());
 }
 
 TextWithEntities StripSupportHashtag(TextWithEntities text) {
@@ -277,6 +285,19 @@ TextWithTags PrepareEditText(not_null<HistoryItem*> item) {
 		original.text,
 		TextUtilities::ConvertEntitiesToTextTags(original.entities)
 	};
+}
+
+bool EditTextChanged(
+		not_null<HistoryItem*> item,
+		const TextWithTags &updated) {
+	const auto original = PrepareEditText(item);
+
+	// Tags can be different for the same entities, because for
+	// animated emoji each tag contains a different random number.
+	// So we compare entities instead of tags.
+	return (original.text != updated.text)
+		|| (TextUtilities::ConvertTextTagsToEntities(original.tags)
+			!= TextUtilities::ConvertTextTagsToEntities(updated.tags));
 }
 
 Fn<bool(
@@ -577,7 +598,8 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 MessageLinksParser::MessageLinksParser(not_null<Ui::InputField*> field)
 : _field(field)
 , _timer([=] { parse(); }) {
-	_connection = QObject::connect(_field, &Ui::InputField::changed, [=] {
+	_lifetime = _field->changes(
+	) | rpl::start_with_next([=] {
 		const auto length = _field->getTextWithTags().text.size();
 		const auto timeout = (std::abs(length - _lastLength) > 2)
 			? 0
@@ -593,6 +615,10 @@ MessageLinksParser::MessageLinksParser(not_null<Ui::InputField*> field)
 void MessageLinksParser::parseNow() {
 	_timer.cancel();
 	parse();
+}
+
+void MessageLinksParser::setDisabled(bool disabled) {
+	_disabled = disabled;
 }
 
 bool MessageLinksParser::eventFilter(QObject *object, QEvent *event) {
@@ -625,7 +651,7 @@ void MessageLinksParser::parse() {
 	const auto &text = textWithTags.text;
 	const auto &tags = textWithTags.tags;
 	const auto &markdownTags = _field->getMarkdownTags();
-	if (text.isEmpty()) {
+	if (_disabled || text.isEmpty()) {
 		_list = QStringList();
 		return;
 	}
