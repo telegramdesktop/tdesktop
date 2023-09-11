@@ -55,7 +55,9 @@ void PaintChartLine(
 
 } // namespace
 
-LinearChartView::LinearChartView() = default;
+LinearChartView::LinearChartView(bool isDouble)
+: _isDouble(isDouble) {
+}
 
 LinearChartView::~LinearChartView() = default;
 

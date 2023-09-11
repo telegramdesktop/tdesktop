@@ -16,10 +16,13 @@ namespace Statistic {
 std::unique_ptr<AbstractChartView> CreateChartView(ChartViewType type) {
 	switch (type) {
 	case ChartViewType::Linear: {
-		return std::make_unique<LinearChartView>();
+		return std::make_unique<LinearChartView>(false);
 	} break;
 	case ChartViewType::Stack: {
 		return std::make_unique<StackChartView>();
+	} break;
+	case ChartViewType::DoubleLinear: {
+		return std::make_unique<LinearChartView>(true);
 	} break;
 	default: Unexpected("Type in Statistic::CreateChartView.");
 	}

@@ -17,6 +17,7 @@ struct Limits final {
 enum class ChartViewType {
 	Linear,
 	Stack,
+	DoubleLinear,
 };
 
 } // namespace Statistic

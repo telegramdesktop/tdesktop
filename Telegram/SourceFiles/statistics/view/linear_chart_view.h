@@ -20,7 +20,7 @@ struct Limits;
 
 class LinearChartView final : public AbstractChartView {
 public:
-	LinearChartView();
+	LinearChartView(bool isDouble);
 	~LinearChartView() override final;
 
 	void paint(
@@ -59,6 +59,8 @@ public:
 	void tick(crl::time now) override;
 
 private:
+	const bool _isDouble;
+
 	struct CacheToken final {
 		explicit CacheToken() = default;
 		explicit CacheToken(
