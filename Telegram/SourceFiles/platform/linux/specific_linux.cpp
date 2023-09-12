@@ -538,7 +538,9 @@ bool SkipTaskbarSupported() {
 bool RunInBackground() {
 	const auto layout = Ui::Platform::TitleControlsLayout();
 	using TitleControl = Ui::Platform::TitleControl;
-	return !ranges::contains(layout.left, TitleControl::Minimize)
+	return (ranges::contains(layout.left, TitleControl::Close)
+		|| ranges::contains(layout.right, TitleControl::Close))
+		&& !ranges::contains(layout.left, TitleControl::Minimize)
 		&& !ranges::contains(layout.right, TitleControl::Minimize);
 }
 
