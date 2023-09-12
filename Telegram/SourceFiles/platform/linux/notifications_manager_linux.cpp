@@ -355,7 +355,7 @@ public:
 
 	void show();
 	void close();
-	void setImage(const QImage &image);
+	void setImage(QImage image);
 
 private:
 	const not_null<Manager*> _manager;
@@ -695,7 +695,7 @@ void NotificationData::close() {
 	_manager->clearNotification(_id);
 }
 
-void NotificationData::setImage(const QImage &image) {
+void NotificationData::setImage(QImage image) {
 	if (_notification) {
 		const auto imageData = [&] {
 			QByteArray ba;
@@ -718,20 +718,22 @@ void NotificationData::setImage(const QImage &image) {
 		return;
 	}
 
-	const auto convertedImage = image.hasAlphaChannel()
-		? image.convertToFormat(QImage::Format_RGBA8888)
-		: image.convertToFormat(QImage::Format_RGB888);
+	if (image.hasAlphaChannel()) {
+		image.convertTo(QImage::Format_RGBA8888);
+	} else {
+		image.convertTo(QImage::Format_RGB888);
+	}
 
 	_hints[_imageKey] = Glib::create_variant(std::tuple{
-		convertedImage.width(),
-		convertedImage.height(),
-		int(convertedImage.bytesPerLine()),
-		convertedImage.hasAlphaChannel(),
+		image.width(),
+		image.height(),
+		int(image.bytesPerLine()),
+		image.hasAlphaChannel(),
 		8,
-		convertedImage.hasAlphaChannel() ? 4 : 3,
+		image.hasAlphaChannel() ? 4 : 3,
 		std::vector<uchar>(
-			convertedImage.constBits(),
-			convertedImage.constBits() + convertedImage.sizeInBytes()),
+			image.constBits(),
+			image.constBits() + image.sizeInBytes()),
 	});
 }
 
