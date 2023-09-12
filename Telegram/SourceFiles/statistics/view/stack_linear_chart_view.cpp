@@ -10,34 +10,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value_f.h"
 #include "data/data_statistics.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "styles/style_statistics.h"
+
+#include <QtCore/QtMath>
 
 namespace Statistic {
 namespace {
 
 constexpr auto kAlphaDuration = float64(200);
 
-struct LeftStartAndStep final {
-	float64 start = 0.;
-	float64 step = 0.;
-};
+constexpr auto kRightTop = short(0);
+constexpr auto kRightBottom = short(1);
+constexpr auto kLeftBottom = short(2);
+constexpr auto kLeftTop = short(3);
 
-[[nodiscard]] LeftStartAndStep ComputeLeftStartAndStep(
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const QRect &rect,
-		float64 xIndexStart) {
-	const auto fullWidth = rect.width()
-		/ (xPercentageLimits.max - xPercentageLimits.min);
-	const auto offset = fullWidth * xPercentageLimits.min;
-	const auto p = (chartData.xPercentage.size() < 2)
-		? 1.
-		: chartData.xPercentage[1] * fullWidth;
-	const auto w = chartData.xPercentage[1] * (fullWidth - p);
-	const auto leftStart = rect.x()
-		+ chartData.xPercentage[xIndexStart] * (fullWidth - p)
-		- offset;
-	return { leftStart, w };
+[[nodiscard]] short QuarterForPoint(const QRect &r, const QPointF &p) {
+	if (p.x() >= r.center().x() && p.y() <= r.center().y()) {
+		return kRightTop;
+	} else if (p.x() >= r.center().x() && p.y() >= r.center().y()) {
+		return kRightBottom;
+	} else if (p.x() < r.center().x() && p.y() >= r.center().y()) {
+		return kLeftBottom;
+	} else {
+		return kLeftTop;
+	}
 }
 
 } // namespace
@@ -55,12 +52,76 @@ void StackLinearChartView::paint(
 		const QRect &rect,
 		bool footer) {
 	constexpr auto kOffset = float64(2);
+	const auto wasXIndices = _lastPaintedXIndices;
 	_lastPaintedXIndices = {
 		float64(std::max(0., xIndices.min - kOffset)),
 		float64(std::min(
 			float64(chartData.xPercentage.size() - 1),
 			xIndices.max + kOffset)),
 	};
+	if ((wasXIndices.min != _lastPaintedXIndices.min)
+		|| (wasXIndices.max != _lastPaintedXIndices.max)) {
+
+		const auto &[localStart, localEnd] = _lastPaintedXIndices;
+		_cachedTransition.lines = std::vector<Transition::TransitionLine>(
+			chartData.lines.size(),
+			Transition::TransitionLine());
+
+		for (auto j = 0; j < 2; j++) {
+			const auto i = int((j == 1) ? localEnd : localStart);
+			auto stackOffset = 0;
+			auto sum = 0.;
+			auto drawingLinesCount = 0;
+			for (const auto &line : chartData.lines) {
+				if (!isEnabled(line.id)) {
+					continue;
+				}
+				if (line.y[i] > 0) {
+					sum += line.y[i] * alpha(line.id);
+					drawingLinesCount++;
+				}
+			}
+
+			for (auto k = 0; k < chartData.lines.size(); k++) {
+				auto &linePoint = (j
+					? _cachedTransition.lines[k].end
+					: _cachedTransition.lines[k].start);
+				const auto &line = chartData.lines[k];
+				if (!isEnabled(line.id)) {
+					continue;
+				}
+				const auto yPercentage = (drawingLinesCount == 1)
+					? (line.y[i] ? alpha(line.id) : 0)
+					: (sum ? (line.y[i] * alpha(line.id) / sum) : 0);
+
+				const auto xPoint = rect.width()
+					* ((chartData.xPercentage[i] - xPercentageLimits.min)
+						/ (xPercentageLimits.max - xPercentageLimits.min));
+				const auto height = yPercentage * rect.height();
+				const auto yPoint = rect::bottom(rect) - height - stackOffset;
+				linePoint = { xPoint, yPoint };
+				stackOffset += height;
+			}
+		}
+
+		auto sums = std::vector<float64>();
+		sums.reserve(chartData.lines.size());
+		auto totalSum = 0;
+		for (const auto &line : chartData.lines) {
+			auto sum = 0;
+			for (auto i = xIndices.min; i <= xIndices.max; i++) {
+				sum += line.y[i];
+			}
+			totalSum += sum;
+			sums.push_back(sum);
+		}
+		auto stackedPercentage = 0.;
+		for (auto k = 0; k < sums.size(); k++) {
+			const auto percentage = (sums[k] / float64(totalSum));
+			stackedPercentage += percentage;
+			_cachedTransition.lines[k].angle = stackedPercentage * 360 - 180.;
+		}
+	}
 
 	StackLinearChartView::paint(
 		p,
@@ -79,14 +140,48 @@ void StackLinearChartView::paint(
 		const QRect &rect,
 		bool footer) {
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
-	const auto &[leftStart, w] = ComputeLeftStartAndStep(
-		chartData,
-		xPercentageLimits,
-		rect,
-		localStart);
+	_skipPoints = std::vector<bool>(chartData.lines.size(), false);
+	auto paths = std::vector<QPainterPath>(
+		chartData.lines.size(),
+		QPainterPath());
 
-	auto skipPoints = std::vector<bool>(chartData.lines.size(), false);
-	auto paths = std::vector<QPainterPath>(chartData.lines.size(), QPainterPath());
+	const auto center = QPointF(rect.center());
+
+	const auto rotate = [&](float64 ang, const QPointF &p) {
+		return QTransform()
+			.translate(center.x(), center.y())
+			.rotate(ang)
+			.translate(-center.x(), -center.y())
+			.map(p);
+	};
+
+	const auto hasTransitionAnimation = _transitionProgress && !footer;
+
+	auto straightLineProgress = 0.;
+	auto hasEmptyPoint = false;
+
+	auto ovalPath = QPainterPath();
+	if (hasTransitionAnimation) {
+		constexpr auto kStraightLinePart = 0.6;
+		straightLineProgress = std::clamp(
+			_transitionProgress / kStraightLinePart,
+			0.,
+			1.);
+		auto rectPath = QPainterPath();
+		rectPath.addRect(rect);
+		constexpr auto kCircleSizeRatio = 0.42;
+		const auto r = anim::interpolateF(
+			1.,
+			kCircleSizeRatio,
+			_transitionProgress);
+		const auto per = anim::interpolateF(0., 100., _transitionProgress);
+		const auto side = (rect.width() / 2.) * r;
+		const auto rectF = QRectF(
+			center - QPointF(side, side),
+			center + QPointF(side, side));
+		ovalPath.addRoundedRect(rectF, per, per, Qt::RelativeSize);
+		ovalPath = ovalPath.intersected(rectPath);
+	}
 
 	for (auto i = localStart; i <= localEnd; i++) {
 		auto stackOffset = 0.;
@@ -109,6 +204,8 @@ void StackLinearChartView::paint(
 
 		for (auto k = 0; k < chartData.lines.size(); k++) {
 			const auto &line = chartData.lines[k];
+			const auto isLastLine = (k == lastEnabled);
+			const auto &transitionLine = _cachedTransition.lines[k];
 			if (!isEnabled(line.id)) {
 				continue;
 			}
@@ -117,76 +214,154 @@ void StackLinearChartView::paint(
 
 			auto &chartPath = paths[k];
 
-			auto yPercentage = 0.;
-
-			if (drawingLinesCount == 1) {
-				if (y[i] == 0) {
-					yPercentage = 0;
-				} else {
-					yPercentage = lineAlpha;
-				}
-			} else {
-				if (sum == 0) {
-					yPercentage = 0;
-				} else {
-					yPercentage = y[i] * lineAlpha / sum;
-				}
-			}
+			const auto yPercentage = (drawingLinesCount == 1)
+				? float64(y[i] ? lineAlpha : 0.)
+				: float64(sum ? (y[i] * lineAlpha / sum) : 0.);
 
 			const auto xPoint = rect.width()
 				* ((chartData.xPercentage[i] - xPercentageLimits.min)
 					/ (xPercentageLimits.max - xPercentageLimits.min));
-			const auto nextXPoint = (i == localEnd)
-				? rect.width()
-				: rect.width()
-					* ((chartData.xPercentage[i + 1] - xPercentageLimits.min)
-						/ (xPercentageLimits.max - xPercentageLimits.min));
 
-			const auto height = (yPercentage) * rect.height();
-			const auto yPoint = rect.y() + rect.height() - height - stackOffset;
+			if (!yPercentage && isLastLine) {
+				hasEmptyPoint = true;
+			}
+			const auto height = yPercentage * rect.height();
+			const auto yPoint = rect::bottom(rect) - height - stackOffset;
+			// startFromY[k] = yPoint;
 
-			auto yPointZero = rect.y() + rect.height();
-			auto xPointZero = xPoint;
+			auto angle = 0.;
+			auto resultPoint = QPointF(xPoint, yPoint);
+			auto pointZero = QPointF(xPoint, rect.y() + rect.height());
+			// if (i == localEnd) {
+			// 	endXPoint = xPoint;
+			// } else if (i == localStart) {
+			// 	startXPoint = xPoint;
+			// }
+			if (hasTransitionAnimation && !isLastLine) {
+				const auto point1 = (resultPoint.x() < center.x())
+					? transitionLine.start
+					: transitionLine.end;
 
-			if (i == localStart) {
-				auto localX = rect.x();
-				auto localY = rect.y() + rect.height();
-				chartPath.moveTo(localX, localY);
-				skipPoints[k] = false;
+				const auto diff = center - point1;
+				const auto yTo = point1.y()
+					+ diff.y() * (resultPoint.x() - point1.x()) / diff.x();
+				const auto yToResult = yTo * straightLineProgress;
+				const auto revProgress = (1. - straightLineProgress);
+
+				resultPoint.setY(resultPoint.y() * revProgress + yToResult);
+				pointZero.setY(pointZero.y() * revProgress + yToResult);
+
+				{
+					const auto angleK = diff.y() / float64(diff.x());
+					angle = (angleK > 0)
+						? (-std::atan(angleK)) * (180. / M_PI)
+						: (std::atan(std::abs(angleK))) * (180. / M_PI);
+					angle -= 90;
+				}
+
+				if (resultPoint.x() >= center.x()) {
+					const auto resultAngle = _transitionProgress * angle;
+					const auto rotated = rotate(resultAngle, resultPoint);
+					resultPoint = QPointF(
+						std::max(rotated.x(), center.x()),
+						rotated.y());
+
+					pointZero = QPointF(
+						std::max(pointZero.x(), center.x()),
+						rotate(resultAngle, pointZero).y());
+				} else {
+					const auto &xLimits = xPercentageLimits;
+					const auto isNextXPointAfterCenter = false
+						|| center.x() < (rect.width() * ((i == localEnd)
+							? 1.
+							: ((chartData.xPercentage[i + 1] - xLimits.min)
+								/ (xLimits.max - xLimits.min))));
+					if (isNextXPointAfterCenter) {
+						pointZero = resultPoint = QPointF()
+							+ center * straightLineProgress
+							+ resultPoint * revProgress;
+					} else {
+						const auto resultAngle = _transitionProgress * angle
+							+ _transitionProgress * transitionLine.angle;
+						resultPoint = rotate(resultAngle, resultPoint);
+						pointZero = rotate(resultAngle, pointZero);
+					}
+				}
 			}
 
-			const auto transitionProgress = 0.;
-			if ((yPercentage == 0)
+			if (i == localStart) {
+				const auto bottomLeft = QPointF(rect.x(), rect::bottom(rect));
+				const auto local = (hasTransitionAnimation && !isLastLine)
+					? rotate(
+						_transitionProgress * angle
+							+ _transitionProgress * transitionLine.angle,
+						bottomLeft - QPointF(center.x(), 0))
+					: bottomLeft;
+				chartPath.setFillRule(Qt::WindingFill);
+				chartPath.moveTo(local);
+				_skipPoints[k] = false;
+			}
+
+			const auto yRatio = 1. - (isLastLine ? _transitionProgress : 0.);
+			if ((!yPercentage)
 				&& (i > 0 && (y[i - 1] == 0))
-				&& (i < localEnd && (y[i + 1] == 0))) {
-				if (!skipPoints[k]) {
-					if (k == lastEnabled) {
-						chartPath.lineTo(xPointZero, yPointZero * (1. - transitionProgress));
-					} else {
-						chartPath.lineTo(xPointZero, yPointZero);
-					}
+				&& (i < localEnd && (y[i + 1] == 0))
+				&& (!hasTransitionAnimation)) {
+				if (!_skipPoints[k]) {
+					chartPath.lineTo(pointZero.x(), pointZero.y() * yRatio);
 				}
-				skipPoints[k] = true;
+				_skipPoints[k] = true;
 			} else {
-				if (skipPoints[k]) {
-					if (k == lastEnabled) {
-						chartPath.lineTo(xPointZero, yPointZero * (1. - transitionProgress));
-					} else {
-						chartPath.lineTo(xPointZero, yPointZero);
-					}
+				if (_skipPoints[k]) {
+					chartPath.lineTo(pointZero.x(), pointZero.y() * yRatio);
 				}
-				if (k == lastEnabled) {
-					chartPath.lineTo(xPoint, yPoint * (1. - transitionProgress));
-				} else {
-					chartPath.lineTo(xPoint, yPoint);
-				}
-				skipPoints[k] = false;
+				chartPath.lineTo(resultPoint.x(), resultPoint.y() * yRatio);
+				_skipPoints[k] = false;
 			}
 
 			if (i == localEnd) {
-				auto localX = rect.x() + rect.width();
-				auto localY = rect.y() + rect.height();
-					chartPath.lineTo(localX, localY);
+				if (hasTransitionAnimation && !isLastLine) {
+					{
+						const auto diff = center - transitionLine.start;
+						const auto angleK = diff.y() / diff.x();
+						angle = (angleK > 0)
+							? ((-std::atan(angleK)) * (180. / M_PI))
+							: ((std::atan(std::abs(angleK))) * (180. / M_PI));
+						angle -= 90;
+					}
+
+					const auto local = rotate(
+						_transitionProgress * angle
+							+ _transitionProgress * transitionLine.angle,
+						transitionLine.start);
+
+					const auto ending = true
+						&& (std::abs(resultPoint.x() - local.x()) < 0.001)
+						&& ((local.y() < center.y()
+								&& resultPoint.y() < center.y())
+							|| (local.y() > center.y()
+								&& resultPoint.y() > center.y()));
+					const auto endQuarter = (!ending)
+						? QuarterForPoint(rect, resultPoint)
+						: kRightTop;
+					const auto startQuarter = (!ending)
+						? QuarterForPoint(rect, local)
+						: (transitionLine.angle == -180.)
+						? kRightTop
+						: kLeftTop;
+
+					for (auto q = endQuarter; q <= startQuarter; q++) {
+						chartPath.lineTo(
+							(q == kLeftTop || q == kLeftBottom)
+								? rect.x()
+								: rect::right(rect),
+							(q == kLeftTop || q == kRightTop)
+								? rect.y()
+								: rect::right(rect));
+					}
+				} else {
+					chartPath.lineTo(rect::right(rect), rect::bottom(rect));
+				}
 			}
 
 			stackOffset += height;
@@ -194,6 +369,11 @@ void StackLinearChartView::paint(
 	}
 
 	auto hq = PainterHighQualityEnabler(p);
+
+	p.fillRect(rect, st::boxBg);
+	if (!ovalPath.isEmpty()) {
+		p.setClipPath(ovalPath);
+	}
 
 	for (auto k = int(chartData.lines.size() - 1); k >= 0; k--) {
 		if (paths[k].isEmpty()) {
@@ -205,6 +385,13 @@ void StackLinearChartView::paint(
 		p.fillPath(paths[k], line.color);
 	}
 	p.setOpacity(1.);
+
+	// Fix ugly outline.
+	if (!footer || !_transitionProgress) {
+		p.setBrush(Qt::transparent);
+		p.setPen(st::boxBg);
+		p.drawPath(ovalPath);
+	}
 }
 
 void StackLinearChartView::paintSelectedXIndex(
@@ -301,7 +488,6 @@ void StackLinearChartView::setEnabled(int id, bool enabled, crl::time now) {
 		entry.anim.start(enabled ? 1. : 0.);
 	}
 	_isFinished = false;
-	_cachedHeightLimits = {};
 }
 
 bool StackLinearChartView::isFinished() const {

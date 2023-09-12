@@ -70,14 +70,6 @@ private:
 		const QRect &rect,
 		bool footer);
 
-	struct {
-		Limits full;
-		std::vector<int> ySum;
-		SegmentTree ySumSegmentTree;
-	} _cachedHeightLimits;
-
-	Limits _lastPaintedXIndices;
-
 	struct SelectedPoints final {
 		int lastXIndex = -1;
 		Limits lastHeightLimits;
@@ -96,6 +88,21 @@ private:
 
 	base::flat_map<int, Entry> _entries;
 	bool _isFinished = true;
+
+	float64 _transitionProgress = 0;
+	struct Transition {
+		struct TransitionLine {
+			QPointF start;
+			QPointF end;
+			float64 angle = 0.;
+			float64 sum = 0.;
+		};
+		std::vector<TransitionLine> lines;
+	} _cachedTransition;
+
+	Limits _lastPaintedXIndices;
+
+	std::vector<bool> _skipPoints;
 
 };
 
