@@ -18,6 +18,7 @@ enum class ChartViewType {
 	Linear,
 	Stack,
 	DoubleLinear,
+	StackLinear,
 };
 
 } // namespace Statistic
