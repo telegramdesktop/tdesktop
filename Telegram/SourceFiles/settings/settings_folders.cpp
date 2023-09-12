@@ -362,10 +362,11 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		const auto removed = ranges::count_if(
 			state->rows,
 			&FilterRow::removed);
-		if (state->rows.size() < limit() + removed) {
+		const auto count = int(state->rows.size() - removed);
+		if (count < limit()) {
 			return false;
 		}
-		controller->show(Box(FiltersLimitBox, session));
+		controller->show(Box(FiltersLimitBox, session, count));
 		return true;
 	};
 	const auto markForRemovalSure = [=](not_null<FilterRowButton*> button) {

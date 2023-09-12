@@ -160,6 +160,8 @@ PRIVATE
 
     ui/boxes/auto_delete_settings.cpp
     ui/boxes/auto_delete_settings.h
+    ui/boxes/boost_box.cpp
+    ui/boxes/boost_box.h
     ui/boxes/calendar_box.cpp
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp

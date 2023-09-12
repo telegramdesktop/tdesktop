@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone.
 #include "ui/delayed_activation.h"
+#include "ui/boxes/boost_box.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -80,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "settings/settings_main.h"
+#include "settings/settings_premium.h"
 #include "settings/settings_privacy_security.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
@@ -554,6 +556,8 @@ void SessionNavigation::showPeerByLinkResolved(
 		} else {
 			showPeerInfo(peer, params);
 		}
+	} else if (resolveType == ResolveType::Boost && peer->isBroadcast()) {
+		resolveBoostState(peer->asChannel());
 	} else {
 		// Show specific posts only in channels / supergroups.
 		const auto msgId = peer->isChannel()
@@ -612,6 +616,145 @@ void SessionNavigation::showPeerByLinkResolved(
 			});
 		}
 	}
+}
+
+void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
+	if (_boostStateResolving == channel) {
+		return;
+	}
+	_boostStateResolving = channel;
+	_api.request(MTPstories_GetBoostsStatus(
+		channel->input
+	)).done([=](const MTPstories_BoostsStatus &result) {
+		_boostStateResolving = nullptr;
+		const auto &data = result.data();
+		const auto submit = [=](Fn<void(bool)> done) {
+			applyBoost(channel, done);
+		};
+		const auto next = data.vnext_level_boosts().value_or_empty();
+		uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
+			.name = channel->name(),
+			.boost = {
+				.level = data.vlevel().v,
+				.boosts = data.vboosts().v,
+				.thisLevelBoosts = data.vcurrent_level_boosts().v,
+				.nextLevelBoosts = next,
+			},
+		}, submit));
+	}).fail([=](const MTP::Error &error) {
+		_boostStateResolving = nullptr;
+		showToast(u"Error: "_q + error.type());
+	}).send();
+}
+
+void SessionNavigation::applyBoost(
+		not_null<ChannelData*> channel,
+		Fn<void(bool)> done) {
+	_api.request(MTPstories_CanApplyBoost(
+		channel->input
+	)).done([=](const MTPstories_CanApplyBoostResult &result) {
+		result.match([&](const MTPDstories_canApplyBoostOk &) {
+			applyBoostChecked(channel, done);
+		}, [&](const MTPDstories_canApplyBoostReplace &data) {
+			_session->data().processChats(data.vchats());
+			const auto peer = _session->data().peer(
+				peerFromMTP(data.vcurrent_boost()));
+			replaceBoostConfirm(peer, channel, done);
+		});
+	}).fail([=](const MTP::Error &error) {
+		const auto type = error.type();
+		if (type == u"PREMIUM_ACCOUNT_REQUIRED"_q) {
+			const auto jumpToPremium = [=] {
+				const auto id = peerToChannel(channel->id).bare;
+				Settings::ShowPremium(
+					parentController(),
+					"channel_boost__" + QString::number(id));
+			};
+			uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_boost_error_premium_text(
+					Ui::Text::RichLangValue),
+				.confirmed = jumpToPremium,
+				.confirmText = tr::lng_boost_error_premium_yes(),
+				.title = tr::lng_boost_error_premium_title(),
+			}));
+		} else if (type == u"PREMIUM_GIFTED_NOT_ALLOWED"_q) {
+			uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_boost_error_gifted_text(
+					Ui::Text::RichLangValue),
+				.title = tr::lng_boost_error_gifted_title(),
+				.inform = true,
+			}));
+		} else if (type == u"BOOST_NOT_MODIFIED"_q) {
+			uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_boost_error_already_text(
+					Ui::Text::RichLangValue),
+				.title = tr::lng_boost_error_already_title(),
+				.inform = true,
+			}));
+		} else if (type.startsWith(u"FLOOD_WAIT_"_q)) {
+			const auto seconds = type.mid(u"FLOOD_WAIT_"_q.size()).toInt();
+			const auto days = seconds / 86400;
+			const auto hours = seconds / 3600;
+			const auto minutes = seconds / 60;
+			uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_boost_error_flood_text(
+					lt_left,
+					rpl::single(Ui::Text::Bold((days > 1)
+						? tr::lng_days(tr::now, lt_count, days)
+						: (hours > 1)
+						? tr::lng_hours(tr::now, lt_count, hours)
+						: (minutes > 1)
+						? tr::lng_minutes(tr::now, lt_count, minutes)
+						: tr::lng_seconds(tr::now, lt_count, seconds))),
+					Ui::Text::RichLangValue),
+				.title = tr::lng_boost_error_flood_title(),
+				.inform = true,
+			}));
+		} else {
+			showToast(u"Error: "_q + type);
+		}
+		done(false);
+	}).handleFloodErrors().send();
+}
+
+void SessionNavigation::replaceBoostConfirm(
+		not_null<PeerData*> from,
+		not_null<ChannelData*> channel,
+		Fn<void(bool)> done) {
+	const auto forwarded = std::make_shared<bool>(false);
+	const auto confirmed = [=](Fn<void()> close) {
+		*forwarded = true;
+		applyBoostChecked(channel, done);
+		close();
+	};
+	const auto box = uiShow()->show(Ui::MakeConfirmBox({
+		.text = tr::lng_boost_now_instead(
+			lt_channel,
+			rpl::single(Ui::Text::Bold(from->name())),
+			lt_other,
+			rpl::single(Ui::Text::Bold(channel->name())),
+			Ui::Text::WithEntities),
+		.confirmed = confirmed,
+		.confirmText = tr::lng_boost_now_replace(),
+	}));
+	box->boxClosing() | rpl::filter([=] {
+		return !*forwarded;
+	}) | rpl::start_with_next([=] {
+		done(false);
+	}, box->lifetime());
+}
+
+void SessionNavigation::applyBoostChecked(
+		not_null<ChannelData*> channel,
+		Fn<void(bool)> done) {
+	_api.request(MTPstories_ApplyBoost(
+		channel->input
+	)).done([=](const MTPBool &result) {
+		done(true);
+	}).fail([=](const MTP::Error &error) {
+		showToast(u"Error: "_q + error.type());
+		done(false);
+	}).send();
 }
 
 void SessionNavigation::joinVoiceChatFromLink(

@@ -2002,6 +2002,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gift_terms" = "You can review the list of features and terms of use for Telegram Premium {link}.";
 "lng_premium_gift_terms_link" = "here";
 
+"lng_boost_channel_button" = "Boost Channel";
+"lng_boost_level#one" = "Level {count}";
+"lng_boost_level#other" = "Level {count}";
+"lng_boost_channel_title_first" = "Enable stories for channel";
+"lng_boost_channel_needs_first#one" = "{channel} needs **{count}** more boost to enable posting stories. Help make it possible!";
+"lng_boost_channel_needs_first#other" = "{channel} needs **{count}** more boosts to enable posting stories. Help make it possible!";
+"lng_boost_channel_title_more" = "Help upgrade channel";
+"lng_boost_channel_needs_more#one" = "{channel} needs **{count}** more boost to be able to {post}.";
+"lng_boost_channel_needs_more#other" = "{channel} needs **{count}** more boosts to be able to {post}.";
+"lng_boost_channel_you_title" = "You boosted {channel}!";
+"lng_boost_channel_you_first#one" = "This channel needs **{count}** more boost\nto enable stories.";
+"lng_boost_channel_you_first#other" = "This channel needs **{count}** more boosts\nto enable stories.";
+"lng_boost_channel_you_more#one" = "This channel needs **{count}** more boost\nto be able to {post}.";
+"lng_boost_channel_you_more#other" = "This channel needs **{count}** more boosts\nto be able to {post}.";
+"lng_boost_channel_reached_first" = "This channel reached **Level 1** and can now post stories.";
+"lng_boost_channel_reached_more#one" = "This channel reached **Level {count}** and can now {post}.";
+"lng_boost_channel_reached_more#other" = "This channel reached **Level {count}** and can now {post}.";
+"lng_boost_channel_post_stories#one" = "post **{count} story** per day";
+"lng_boost_channel_post_stories#other" = "post **{count} stories** per day";
+"lng_boost_error_gifted_title" = "Can't boost with gifted Premium!";
+"lng_boost_error_gifted_text" = "Because your **Telegram Premium** subscription was gifted to you, you can't use it to boost channels.";
+"lng_boost_error_already_title" = "Already Boosted!";
+"lng_boost_error_already_text" = "You are already boosting this channel.";
+"lng_boost_error_premium_title" = "Premium needed!";
+"lng_boost_error_premium_text" = "Only **Telegram Premium** subscribers can boost channels. Do you want to subscribe to **Telegram Premium**?";
+"lng_boost_error_premium_yes" = "Yes";
+"lng_boost_error_flood_title" = "Can't boost too often!";
+"lng_boost_error_flood_text" = "You can change the channel you boost only once a day. Next time you can boost is in {left}.";
+"lng_boost_now_instead" = "You currently boost {channel}. Do you want to boost {other} instead?";
+"lng_boost_now_replace" = "Replace";
+
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected accounts.";
 "lng_accounts_limit1#other" = "You have reached the limit of **{count}** connected accounts.";
