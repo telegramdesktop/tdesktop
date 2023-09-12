@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "lang/lang_keys.h"
@@ -532,6 +533,13 @@ bool SkipTaskbarSupported() {
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 	return false;
+}
+
+bool RunInBackground() {
+	const auto layout = Ui::Platform::TitleControlsLayout();
+	using TitleControl = Ui::Platform::TitleControl;
+	return !ranges::contains(layout.left, TitleControl::Minimize)
+		&& !ranges::contains(layout.right, TitleControl::Minimize);
 }
 
 QString ExecutablePathForShortcuts() {
