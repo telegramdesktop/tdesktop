@@ -70,6 +70,21 @@ struct AttachWebViewBot {
 	bool requestWriteAccess : 1 = false;
 };
 
+struct AddToMenuOpenAttach {
+	QString startCommand;
+	PeerTypes chooseTypes;
+};
+struct AddToMenuOpenMenu {
+};
+struct AddToMenuOpenApp {
+	not_null<BotAppData*> app;
+	QString startCommand;
+};
+using AddToMenuOpen = std::variant<
+	AddToMenuOpenAttach,
+	AddToMenuOpenMenu,
+	AddToMenuOpenApp>;
+
 class AttachWebView final
 	: public base::has_weak_ptr
 	, public Ui::BotWebView::Delegate {
@@ -119,17 +134,19 @@ public:
 	[[nodiscard]] rpl::producer<> attachBotsUpdates() const {
 		return _attachBotsUpdates.events();
 	}
-	[[nodiscard]] bool showingDisclaimer(const AttachWebViewBot &bot) const;
+	[[nodiscard]] bool disclaimerAccepted(
+		const AttachWebViewBot &bot) const;
+	[[nodiscard]] bool showMainMenuNewBadge(
+		const AttachWebViewBot &bot) const;
 
 	void requestAddToMenu(
 		not_null<UserData*> bot,
-		std::optional<QString> startCommand);
+		AddToMenuOpen open);
 	void requestAddToMenu(
 		not_null<UserData*> bot,
-		std::optional<QString> startCommand,
+		AddToMenuOpen open,
 		Window::SessionController *controller,
-		std::optional<Api::SendAction> action,
-		PeerTypes chooseTypes);
+		std::optional<Api::SendAction> action);
 	void removeFromMenu(not_null<UserData*> bot);
 
 	[[nodiscard]] std::optional<Api::SendAction> lookupLastAction(
@@ -139,6 +156,7 @@ public:
 
 private:
 	struct Context;
+
 
 	Webview::ThemeParams botThemeParams() override;
 	bool botHandleLocalUri(QString uri) override;
@@ -224,6 +242,8 @@ private:
 	QString _startCommand;
 	BotAppData *_app = nullptr;
 	QPointer<Ui::GenericBox> _confirmAddBox;
+	bool _appConfirmationRequired = false;
+	bool _appRequestWriteAccess = false;
 
 	mtpRequestId _requestId = 0;
 	mtpRequestId _prolongId = 0;
@@ -234,9 +254,8 @@ private:
 	std::unique_ptr<Context> _addToMenuContext;
 	UserData *_addToMenuBot = nullptr;
 	mtpRequestId _addToMenuId = 0;
-	std::optional<QString> _addToMenuStartCommand;
+	AddToMenuOpen _addToMenuOpen;
 	base::weak_ptr<Window::SessionController> _addToMenuChooseController;
-	PeerTypes _addToMenuChooseTypes;
 
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;

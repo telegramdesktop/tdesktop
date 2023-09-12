@@ -904,23 +904,28 @@ void AttachWebView::requestBots() {
 	}).send();
 }
 
-bool AttachWebView::showingDisclaimer(const AttachWebViewBot &bot) const {
-	return bot.disclaimerRequired
-		&& !_disclaimerAccepted.contains(bot.user);
+bool AttachWebView::disclaimerAccepted(const AttachWebViewBot &bot) const {
+	return _disclaimerAccepted.contains(bot.user);
+}
+
+bool AttachWebView::showMainMenuNewBadge(
+		const AttachWebViewBot &bot) const {
+	return bot.inMainMenu
+		&& bot.disclaimerRequired
+		&& !disclaimerAccepted(bot);
 }
 
 void AttachWebView::requestAddToMenu(
 		not_null<UserData*> bot,
-		std::optional<QString> startCommand) {
-	requestAddToMenu(bot, startCommand, nullptr, std::nullopt, PeerTypes());
+		AddToMenuOpen open) {
+	requestAddToMenu(bot, open, nullptr, std::nullopt);
 }
 
 void AttachWebView::requestAddToMenu(
 		not_null<UserData*> bot,
-		std::optional<QString> startCommand,
+		AddToMenuOpen open,
 		Window::SessionController *controller,
-		std::optional<Api::SendAction> action,
-		PeerTypes chooseTypes) {
+		std::optional<Api::SendAction> action) {
 	Expects(controller != nullptr || _context != nullptr);
 
 	if (!bot->isBot() || !bot->botInfo->supportsAttachMenu) {
@@ -929,8 +934,7 @@ void AttachWebView::requestAddToMenu(
 	}
 	const auto wasController = (controller != nullptr);
 	_addToMenuChooseController = base::make_weak(controller);
-	_addToMenuStartCommand = startCommand;
-	_addToMenuChooseTypes = chooseTypes;
+	_addToMenuOpen = open;
 	if (!controller) {
 		_addToMenuContext = base::take(_context);
 	} else if (action) {
@@ -950,17 +954,30 @@ void AttachWebView::requestAddToMenu(
 		_addToMenuId = 0;
 		const auto bot = base::take(_addToMenuBot);
 		const auto context = std::shared_ptr(base::take(_addToMenuContext));
-		const auto chooseTypes = base::take(_addToMenuChooseTypes);
-		const auto startCommand = base::take(_addToMenuStartCommand);
+		const auto open = base::take(_addToMenuOpen);
 		const auto chooseController = base::take(_addToMenuChooseController);
-		const auto open = [=](PeerTypes types) {
+		const auto launch = [=](PeerTypes types) {
+			const auto openAttach = v::is<AddToMenuOpenAttach>(open)
+				? v::get<AddToMenuOpenAttach>(open)
+				: AddToMenuOpenAttach();
+			const auto chooseTypes = openAttach.chooseTypes;
 			const auto strong = chooseController.get();
-			if (!strong) {
-				if (wasController || !startCommand) {
+			if (v::is<AddToMenuOpenApp>(open)) {
+				if (!context) {
+					return false;
+				}
+				const auto &openApp = v::get<AddToMenuOpenApp>(open);
+				_app = openApp.app;
+				_startCommand = openApp.startCommand;
+				_context = std::make_unique<Context>(*context);
+				requestAppView(true);
+				return true;
+			} else if (!strong) {
+				if (wasController || !v::is<AddToMenuOpenAttach>(open)) {
 					// Just ignore the click if controller was destroyed.
 					return true;
 				}
-			} else if (!startCommand) {
+			} else if (v::is<AddToMenuOpenMenu>(open)) {
 				_bot = bot;
 				requestSimple(strong, bot, { .fromMainMenu = true });
 				return true;
@@ -969,7 +986,7 @@ void AttachWebView::requestAddToMenu(
 					strong->showThread(thread);
 					requestWithOptionalConfirm(
 						bot,
-						{ .startCommand = *startCommand },
+						{ .startCommand = openAttach.startCommand },
 						LookupContext(strong, Api::SendAction(thread)));
 				};
 				ShowChooseBox(strong, useTypes, done);
@@ -980,7 +997,7 @@ void AttachWebView::requestAddToMenu(
 			}
 			requestWithOptionalConfirm(
 				bot,
-				{ .startCommand = *startCommand },
+				{ .startCommand = openAttach.startCommand },
 				*context);
 			return true;
 		};
@@ -999,11 +1016,11 @@ void AttachWebView::requestAddToMenu(
 					const auto types = parsed->types;
 					if (parsed->inactive) {
 						confirmAddToMenu(*parsed, [=] {
-							open(types);
+							launch(types);
 						});
 					} else {
 						requestBots();
-						if (!open(types)) {
+						if (!launch(types)) {
 							showToast(
 								tr::lng_bot_menu_already_added(tr::now));
 						}
@@ -1014,9 +1031,20 @@ void AttachWebView::requestAddToMenu(
 	}).fail([=] {
 		_addToMenuId = 0;
 		_addToMenuBot = nullptr;
-		_addToMenuContext = nullptr;
-		_addToMenuStartCommand = std::nullopt;
-		showToast(tr::lng_bot_menu_not_supported(tr::now));
+		auto context = base::take(_addToMenuContext);
+		const auto open = base::take(_addToMenuOpen);
+		if (const auto openApp = std::get_if<AddToMenuOpenApp>(&open)) {
+			_app = openApp->app;
+			_startCommand = openApp->startCommand;
+			_context = std::move(context);
+			if (_appConfirmationRequired) {
+				confirmAppOpen(_appRequestWriteAccess);
+			} else {
+				requestAppView(false);
+			}
+		} else {
+			showToast(tr::lng_bot_menu_not_supported(tr::now));
+		}
 	}).send();
 }
 
@@ -1046,7 +1074,9 @@ void AttachWebView::resolve() {
 			showToast(tr::lng_bot_menu_not_supported(tr::now));
 			return;
 		}
-		requestAddToMenu(_bot, _startCommand);
+		requestAddToMenu(_bot, AddToMenuOpenAttach{
+			.startCommand = _startCommand,
+		});
 	});
 }
 
@@ -1209,12 +1239,14 @@ void AttachWebView::requestApp(
 			showToast(tr::lng_username_app_not_found(tr::now));
 			return;
 		}
-		const auto confirm = firstTime || forceConfirmation;
-		if (confirm) {
-			confirmAppOpen(result.data().is_request_write_access());
-		} else {
-			requestAppView(false);
-		}
+		// Check if this app can be added to main menu.
+		// On fail it'll still be opened.
+		_appConfirmationRequired = firstTime || forceConfirmation;
+		_appRequestWriteAccess = result.data().is_request_write_access();
+		requestAddToMenu(_bot, AddToMenuOpenApp{
+			.app = _app,
+			.startCommand = _startCommand,
+		});
 	}).fail([=] {
 		showToast(tr::lng_username_app_not_found(tr::now));
 		cancel();
@@ -1331,9 +1363,9 @@ void AttachWebView::acceptDisclaimer(
 		_attachBotsUpdates.fire({});
 		return;
 	} else if (i->inactive) {
-		requestAddToMenu(_bot, {}, controller, {}, {});
+		requestAddToMenu(_bot, AddToMenuOpenMenu(), controller, {});
 		return;
-	} else if (!showingDisclaimer(*i)) {
+	} else if (!i->disclaimerRequired || disclaimerAccepted(*i)) {
 		done();
 		return;
 	}
@@ -1478,7 +1510,7 @@ void AttachWebView::confirmAddToMenu(
 			});
 			close();
 		};
-		const auto disclaimer = showingDisclaimer(bot);
+		const auto disclaimer = !disclaimerAccepted(bot);
 		if (disclaimer) {
 			FillDisclaimerBox(box, [=] {
 				_disclaimerAccepted.emplace(bot.user);

@@ -254,7 +254,7 @@ void SetupMenuBots(
 				}
 			}, button->lifetime());
 
-			const auto badge = bots->showingDisclaimer(bot)
+			const auto badge = bots->showMainMenuNewBadge(bot)
 				? Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
 					button.get(),
 					object_ptr<Ui::FlatLabel>(
