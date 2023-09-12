@@ -106,7 +106,17 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 [[nodiscard]] ClickHandlerPtr SponsoredLink(
 		not_null<HistoryMessageSponsored*> sponsored) {
 	if (!sponsored->externalLink.isEmpty()) {
-		return std::make_shared<UrlClickHandler>(
+		class ClickHandler : public UrlClickHandler {
+		public:
+			using UrlClickHandler::UrlClickHandler;
+
+			QString copyToClipboardContextItemText() const override {
+				return QString();
+			}
+
+		};
+
+		return std::make_shared<ClickHandler>(
 			sponsored->externalLink,
 			false);
 	} else {
