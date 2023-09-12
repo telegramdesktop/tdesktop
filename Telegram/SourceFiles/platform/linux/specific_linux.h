@@ -24,10 +24,6 @@ inline void WriteCrashDumpDetails() {
 inline void AutostartRequestStateFromSystem(Fn<void(bool)> callback) {
 }
 
-inline bool RunInBackground() {
-	return false;
-}
-
 inline bool PreventsQuit(Core::QuitReason reason) {
 	return false;
 }
