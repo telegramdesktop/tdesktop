@@ -445,7 +445,8 @@ void Reactions::Panel::collapse(Mode mode) {
 	}
 }
 
-void Reactions::Panel::attachToReactionButton(not_null<Ui::RpWidget*> button) {
+void Reactions::Panel::attachToReactionButton(
+		not_null<Ui::RpWidget*> button) {
 	base::install_event_filter(button, [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::ContextMenu && !button->isHidden()) {
 			show(Reactions::Mode::Reaction);
@@ -662,8 +663,15 @@ void Reactions::setReplyFieldState(
 }
 
 void Reactions::attachToReactionButton(not_null<Ui::RpWidget*> button) {
-	_likeButton = button;
 	_panel->attachToReactionButton(button);
+}
+
+void Reactions::setReactionIconWidget(Ui::RpWidget *widget) {
+	if (_likeIconWidget != widget) {
+		assignLikedId({});
+		_likeIconWidget = widget;
+		_reactionAnimation = nullptr;
+	}
 }
 
 auto Reactions::attachToMenu(
@@ -751,7 +759,7 @@ void Reactions::ready() {
 void Reactions::animateAndProcess(Chosen &&chosen) {
 	const auto like = (chosen.mode == Mode::Reaction);
 	const auto wrap = _controller->wrap();
-	const auto target = like ? _likeButton : wrap.get();
+	const auto target = like ? _likeIconWidget : wrap.get();
 	const auto story = _controller->story();
 	if (!story || !target) {
 		return;
@@ -796,7 +804,7 @@ Fn<void(Ui::ReactionFlyCenter)> Reactions::setLikedIdIconInit(
 		return nullptr;
 	}
 	assignLikedId(id);
-	if (id.empty() || !_likeButton) {
+	if (id.empty() || !_likeIconWidget) {
 		return nullptr;
 	}
 	return crl::guard(&_likeIconGuard, [=](Ui::ReactionFlyCenter center) {
@@ -812,12 +820,12 @@ void Reactions::initLikeIcon(
 		not_null<Data::Session*> owner,
 		Data::ReactionId id,
 		Ui::ReactionFlyCenter center) {
-	Expects(_likeButton != nullptr);
+	Expects(_likeIconWidget != nullptr);
 
-	_likeIcon = std::make_unique<Ui::RpWidget>(_likeButton);
+	_likeIcon = std::make_unique<Ui::RpWidget>(_likeIconWidget);
 	const auto icon = _likeIcon.get();
 	icon->show();
-	_likeButton->sizeValue() | rpl::start_with_next([=](QSize size) {
+	_likeIconWidget->sizeValue() | rpl::start_with_next([=](QSize size) {
 		icon->setGeometry(QRect(QPoint(), size));
 	}, icon->lifetime());
 

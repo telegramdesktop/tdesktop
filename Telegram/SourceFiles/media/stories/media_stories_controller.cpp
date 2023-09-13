@@ -855,24 +855,32 @@ void Controller::show(
 	if (!changeShown(story)) {
 		return;
 	}
-	_viewed = false;
-	invalidate_weak_ptrs(&_viewsLoadGuard);
-	_reactions->hide();
-	if (_replyArea->focused()) {
-		unfocusReply();
-	}
 
 	_replyArea->show({
 		.peer = unsupported ? nullptr : peer.get(),
 		.id = story->id(),
 	}, _reactions->likedValue());
 
+	const auto wasLikeButton = QPointer(_recentViews->likeButton());
 	_recentViews->show({
 		.list = story->recentViewers(),
 		.reactions = story->reactions(),
 		.total = story->views(),
-		.valid = peer->isSelf(),
-	});
+		.self = peer->isSelf(),
+		.channel = peer->isChannel(),
+	}, _reactions->likedValue());
+	if (const auto nowLikeButton = _recentViews->likeButton()) {
+		if (wasLikeButton != nowLikeButton) {
+			_reactions->attachToReactionButton(nowLikeButton);
+		}
+	}
+
+	if (peer->isSelf() || peer->isChannel()) {
+		_reactions->setReactionIconWidget(_recentViews->likeIconWidget());
+	} else if (const auto like = _replyArea->likeAnimationTarget()) {
+		_reactions->setReactionIconWidget(like);
+	}
+	_reactions->showLikeFrom(story);
 
 	stories.loadAround(storyId, context);
 
@@ -906,7 +914,6 @@ bool Controller::changeShown(Data::Story *story) {
 			story,
 			Data::Stories::Polling::Viewer);
 	}
-	_reactions->showLikeFrom(story);
 
 	const auto &locations = story
 		? story->locations()
@@ -921,6 +928,14 @@ bool Controller::changeShown(Data::Story *story) {
 	if (_suggestedReactions != suggestedReactions) {
 		_suggestedReactions = suggestedReactions;
 		_areas.clear();
+	}
+
+	_viewed = false;
+	invalidate_weak_ptrs(&_viewsLoadGuard);
+	_reactions->hide();
+	_reactions->setReactionIconWidget(nullptr);
+	if (_replyArea->focused()) {
+		unfocusReply();
 	}
 
 	return true;
@@ -947,7 +962,7 @@ void Controller::subscribeToSession() {
 	}, _sessionLifetime);
 	_session->changes().storyUpdates(
 		Data::StoryUpdate::Flag::Edited
-		| Data::StoryUpdate::Flag::ViewsAdded
+		| Data::StoryUpdate::Flag::ViewsChanged
 	) | rpl::filter([=](const Data::StoryUpdate &update) {
 		return (update.story == this->story());
 	}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
@@ -959,7 +974,8 @@ void Controller::subscribeToSession() {
 				.list = update.story->recentViewers(),
 				.reactions = update.story->reactions(),
 				.total = update.story->views(),
-				.valid = update.story->peer()->isSelf(),
+				.self = update.story->peer()->isSelf(),
+				.channel = update.story->peer()->isChannel(),
 			});
 		}
 	}, _sessionLifetime);

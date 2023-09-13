@@ -410,8 +410,17 @@ Data::ReactionId Story::sentReactionId() const {
 
 void Story::setReactionId(Data::ReactionId id) {
 	if (_sentReactionId != id) {
+		const auto wasEmpty = _sentReactionId.empty();
 		_sentReactionId = id;
-		session().changes().storyUpdated(this, UpdateFlag::Reaction);
+		auto flags = UpdateFlag::Reaction | UpdateFlag();
+		if (_views.known && _sentReactionId.empty() != wasEmpty) {
+			const auto delta = wasEmpty ? 1 : -1;
+			if (_views.reactions + delta >= 0) {
+				_views.reactions += delta;
+				flags |= UpdateFlag::ViewsChanged;
+			}
+		}
+		session().changes().storyUpdated(this, flags);
 	}
 }
 
@@ -438,6 +447,7 @@ void Story::applyViewsSlice(
 		|| (_views.total != slice.total);
 	_views.reactions = slice.reactions;
 	_views.total = slice.total;
+	_views.known = true;
 	if (offset.isEmpty()) {
 		_views = slice;
 	} else if (_views.nextOffset == offset) {
@@ -468,14 +478,14 @@ void Story::applyViewsSlice(
 				// Count not changed, but list of recent viewers changed.
 				_peer->session().changes().storyUpdated(
 					this,
-					UpdateFlag::ViewsAdded);
+					UpdateFlag::ViewsChanged);
 			}
 		}
 	}
 	if (changed) {
 		_peer->session().changes().storyUpdated(
 			this,
-			UpdateFlag::ViewsAdded);
+			UpdateFlag::ViewsChanged);
 	}
 }
 
@@ -528,9 +538,11 @@ void Story::applyFields(
 	auto views = _views.total;
 	auto reactions = _views.reactions;
 	auto viewers = std::vector<not_null<PeerData*>>();
+	auto viewsKnown = _views.known;
 	if (const auto info = data.vviews()) {
 		views = info->data().vviews_count().v;
 		reactions = info->data().vreactions_count().value_or_empty();
+		viewsKnown = true;
 		if (const auto list = info->data().vrecent_viewers()) {
 			viewers.reserve(list->v.size());
 			auto &owner = _peer->owner();
@@ -577,8 +589,14 @@ void Story::applyFields(
 	_edited = edited;
 	_pinned = pinned;
 	_noForwards = noForwards;
-	if (_views.reactions != reactions || _views.total != views) {
-		_views = StoryViews{ .reactions = reactions, .total = views };
+	if (_views.reactions != reactions
+		|| _views.total != views
+		|| _views.known != viewsKnown) {
+		_views = StoryViews{
+			.reactions = reactions,
+			.total = views,
+			.known = viewsKnown,
+		};
 	}
 	if (viewsChanged) {
 		_recentViewers = std::move(viewers);
@@ -607,7 +625,7 @@ void Story::applyFields(
 	if (!initial && (changed || viewsChanged || reactionChanged)) {
 		_peer->session().changes().storyUpdated(this, UpdateFlag()
 			| (changed ? UpdateFlag::Edited : UpdateFlag())
-			| (viewsChanged ? UpdateFlag::ViewsAdded : UpdateFlag())
+			| (viewsChanged ? UpdateFlag::ViewsChanged : UpdateFlag())
 			| (reactionChanged ? UpdateFlag::Reaction : UpdateFlag()));
 	}
 	if (!initial && (captionChanged || mediaChanged)) {

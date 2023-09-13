@@ -71,6 +71,7 @@ struct StoryViews {
 	QString nextOffset;
 	int reactions = 0;
 	int total = 0;
+	bool known = false;
 };
 
 struct StoryArea {

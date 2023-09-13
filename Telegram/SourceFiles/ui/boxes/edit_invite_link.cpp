@@ -213,7 +213,7 @@ void EditInviteLinkBox(
 				? tr::lng_group_invite_usage_any(tr::now)
 				: !limit
 				? tr::lng_group_invite_usage_custom(tr::now)
-				: QString("%L1").arg(limit);
+				: Lang::FormatCountDecimal(limit);
 			state->usageButtons.emplace(
 				limit,
 				addButton(usagesWrap, usageGroup, limit, text));
