@@ -211,7 +211,7 @@ void SetupMenuBots(
 	) | rpl::then(
 		bots->attachBotsUpdates()
 	) | rpl::start_with_next([=] {
-		const auto width = wrap->widthNoMargins();
+		const auto width = container->widthNoMargins();
 		wrap->clear();
 		for (const auto &bot : bots->attachBots()) {
 			if (!bot.inMainMenu) {
@@ -234,6 +234,7 @@ void SetupMenuBots(
 					(height - icon->height()) / 2);
 			}, button->lifetime());
 			const auto user = bot.user;
+			const auto weak = Ui::MakeWeak(container);
 			button->setAcceptBoth(true);
 			button->clicks(
 			) | rpl::start_with_next([=](Qt::MouseButton which) {
@@ -241,6 +242,9 @@ void SetupMenuBots(
 					bots->requestSimple(controller, user, {
 						.fromMainMenu = true,
 					});
+					if (weak) {
+						controller->window().hideSettingsAndLayer();
+					}
 				} else {
 					(*menu) = nullptr;
 					(*menu) = base::make_unique_q<Ui::PopupMenu>(
