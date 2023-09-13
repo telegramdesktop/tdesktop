@@ -1151,8 +1151,13 @@ void AttachWebView::requestSimple(const WebViewButton &button) {
 	)).done([=](const MTPSimpleWebViewResult &result) {
 		_requestId = 0;
 		result.match([&](const MTPDsimpleWebViewResultUrl &data) {
-			const auto queryId = uint64();
-			show(queryId, qs(data.vurl()), button.text);
+			show(
+				uint64(),
+				qs(data.vurl()),
+				button.text,
+				false,
+				nullptr,
+				button.fromMainMenu);
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
@@ -1396,7 +1401,8 @@ void AttachWebView::show(
 		const QString &url,
 		const QString &buttonText,
 		bool allowClipboardRead,
-		const BotAppData *app) {
+		const BotAppData *app,
+		bool fromMainMenu) {
 	Expects(_bot != nullptr && _context != nullptr);
 
 	auto title = Info::Profile::NameValue(_bot);
@@ -1413,7 +1419,8 @@ void AttachWebView::show(
 			&& !attached->inactive
 			&& attached->hasSettings);
 	const auto hasOpenBot = !_context
-		|| (_bot != _context->action.history->peer);
+		|| (_bot != _context->action.history->peer)
+		|| fromMainMenu;
 	const auto hasRemoveFromMenu = !app
 		&& (attached != end(_attachBots))
 		&& (!attached->inactive || attached->inMainMenu);

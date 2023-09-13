@@ -215,7 +215,8 @@ private:
 		const QString &url,
 		const QString &buttonText = QString(),
 		bool allowClipboardRead = false,
-		const BotAppData *app = nullptr);
+		const BotAppData *app = nullptr,
+		bool fromMainMenu = false);
 	void confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback = nullptr);
