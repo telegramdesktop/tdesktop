@@ -928,10 +928,6 @@ void AttachWebView::requestAddToMenu(
 		std::optional<Api::SendAction> action) {
 	Expects(controller != nullptr || _context != nullptr);
 
-	if (!bot->isBot() || !bot->botInfo->supportsAttachMenu) {
-		showToast(tr::lng_bot_menu_not_supported(tr::now), controller);
-		return;
-	}
 	const auto wasController = (controller != nullptr);
 	_addToMenuChooseController = base::make_weak(controller);
 	_addToMenuOpen = open;
@@ -941,6 +937,30 @@ void AttachWebView::requestAddToMenu(
 		_addToMenuContext = std::make_unique<Context>(
 			LookupContext(controller, *action));
 	}
+
+	const auto unsupported = [=] {
+		auto context = base::take(_addToMenuContext);
+		const auto open = base::take(_addToMenuOpen);
+		if (const auto openApp = std::get_if<AddToMenuOpenApp>(&open)) {
+			_app = openApp->app;
+			_startCommand = openApp->startCommand;
+			_context = std::move(context);
+			if (_appConfirmationRequired) {
+				confirmAppOpen(_appRequestWriteAccess);
+			} else {
+				requestAppView(false);
+			}
+		} else {
+			showToast(
+				tr::lng_bot_menu_not_supported(tr::now),
+				_addToMenuChooseController.get());
+		}
+	};
+	if (!bot->isBot() || !bot->botInfo->supportsAttachMenu) {
+		unsupported();
+		return;
+	}
+
 	if (_addToMenuId) {
 		if (_addToMenuBot == bot) {
 			return;
@@ -1031,20 +1051,7 @@ void AttachWebView::requestAddToMenu(
 	}).fail([=] {
 		_addToMenuId = 0;
 		_addToMenuBot = nullptr;
-		auto context = base::take(_addToMenuContext);
-		const auto open = base::take(_addToMenuOpen);
-		if (const auto openApp = std::get_if<AddToMenuOpenApp>(&open)) {
-			_app = openApp->app;
-			_startCommand = openApp->startCommand;
-			_context = std::move(context);
-			if (_appConfirmationRequired) {
-				confirmAppOpen(_appRequestWriteAccess);
-			} else {
-				requestAppView(false);
-			}
-		} else {
-			showToast(tr::lng_bot_menu_not_supported(tr::now));
-		}
+		unsupported();
 	}).send();
 }
 
