@@ -452,7 +452,10 @@ void SetApplicationIcon(const QIcon &icon) {
 QString SingleInstanceLocalServerName(const QString &hash) {
 #if defined Q_OS_LINUX && QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
 	if (KSandbox::isSnap()) {
-		return u"snap.telegram-desktop."_q + hash;
+		return u"snap."_q
+			+ qEnvironmentVariable("SNAP_INSTANCE_NAME")
+			+ '.'
+			+ hash;
 	}
 	return hash + '-' + cGUIDStr();
 #else // Q_OS_LINUX && Qt >= 6.2.0
