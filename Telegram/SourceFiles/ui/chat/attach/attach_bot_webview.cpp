@@ -1050,6 +1050,18 @@ void Panel::processMainButtonMessage(const QJsonObject &args) {
 		return;
 	}
 
+	const auto shown = [&] {
+		return _mainButton && !_mainButton->isHidden();
+	};
+	const auto wasShown = shown();
+	const auto guard = gsl::finally([&] {
+		if (shown() != wasShown) {
+			crl::on_main(this, [=] {
+				sendViewport();
+			});
+		}
+	});
+
 	if (!_mainButton) {
 		if (args["is_visible"].toBool()) {
 			createMainButton();
