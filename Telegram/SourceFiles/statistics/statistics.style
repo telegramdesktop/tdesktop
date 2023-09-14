@@ -46,6 +46,8 @@ statisticsDetailsBottomCaptionStyle: TextStyle(defaultTextStyle) {
 	font: font(10px);
 }
 
+statisticsPieChartFont: font(20px);
+
 statisticsChartHeaderHeight: 20px;
 statisticsHeaderTitleTextStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);

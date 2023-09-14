@@ -62,6 +62,14 @@ public:
 	void update(float64 dt) override;
 
 private:
+	struct PaintContext final {
+		const Data::StatisticalChart &chartData;
+		const Limits &xPercentageLimits;
+		const Limits &heightLimits;
+		const QRect &rect;
+		bool footer = false;
+	};
+
 	void paint(
 		QPainter &p,
 		const Data::StatisticalChart &chartData,
@@ -69,6 +77,8 @@ private:
 		const Limits &heightLimits,
 		const QRect &rect,
 		bool footer);
+
+	void paintZoomed(QPainter &p, const PaintContext &context);
 
 	struct SelectedPoints final {
 		int lastXIndex = -1;

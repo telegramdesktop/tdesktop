@@ -19,6 +19,8 @@ namespace Statistic {
 namespace {
 
 constexpr auto kAlphaDuration = float64(200);
+constexpr auto kCircleSizeRatio = 0.42;
+constexpr auto kMinTextScaleRatio = 0.3;
 
 constexpr auto kRightTop = short(0);
 constexpr auto kRightBottom = short(1);
@@ -112,6 +114,7 @@ void StackLinearChartView::paint(
 			for (auto i = xIndices.min; i <= xIndices.max; i++) {
 				sum += line.y[i];
 			}
+			sum *= alpha(line.id);
 			totalSum += sum;
 			sums.push_back(sum);
 		}
@@ -139,6 +142,17 @@ void StackLinearChartView::paint(
 		const Limits &heightLimits,
 		const QRect &rect,
 		bool footer) {
+	if (_transitionProgress == 1) {
+		return paintZoomed(
+			p,
+			{
+				chartData,
+				xPercentageLimits,
+				heightLimits,
+				rect,
+				footer
+			});
+	}
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
 	_skipPoints = std::vector<bool>(chartData.lines.size(), false);
 	auto paths = std::vector<QPainterPath>(
@@ -169,7 +183,6 @@ void StackLinearChartView::paint(
 			1.);
 		auto rectPath = QPainterPath();
 		rectPath.addRect(rect);
-		constexpr auto kCircleSizeRatio = 0.42;
 		const auto r = anim::interpolateF(
 			1.,
 			kCircleSizeRatio,
@@ -392,6 +405,70 @@ void StackLinearChartView::paint(
 		p.setPen(st::boxBg);
 		p.drawPath(ovalPath);
 	}
+}
+
+void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
+	if (c.footer) {
+		return;
+	}
+	const auto &chartData = c.chartData;
+	const auto center = QPointF(c.rect.center());
+	const auto side = (c.rect.width() / 2.) * kCircleSizeRatio;
+	const auto rectF = QRectF(
+		center - QPointF(side, side),
+		center + QPointF(side, side));
+
+	auto hq = PainterHighQualityEnabler(p);
+	constexpr auto kOffset = 90;
+	for (auto k = 0; k < chartData.lines.size(); k++) {
+		const auto previous = k
+			? _cachedTransition.lines[k - 1].angle
+			: -180;
+		const auto now = _cachedTransition.lines[k].angle;
+
+		p.setBrush(chartData.lines[k].color);
+		p.setPen(Qt::NoPen);
+		p.drawPie(rectF, -(previous + kOffset) * 16, -(now - previous) * 16);
+	}
+	const auto &font = st::statisticsPieChartFont;
+	const auto maxScale = side / (font->height * 2);
+	const auto minScale = maxScale * kMinTextScaleRatio;
+	p.setBrush(Qt::NoBrush);
+	p.setPen(st::premiumButtonFg);
+	p.setFont(font);
+	for (auto k = 0; k < chartData.lines.size(); k++) {
+		const auto previous = k
+			? _cachedTransition.lines[k - 1].angle
+			: -180;
+		const auto now = _cachedTransition.lines[k].angle;
+		const auto percentage = (now - previous) / 360.;
+
+		const auto rText = side * std::sqrt(1. - percentage);
+		const auto textAngle = (previous + kOffset) + (now - previous) / 2.;
+		const auto textRadians = textAngle * M_PI / 180.;
+
+		const auto scale = (minScale) + percentage * (maxScale - minScale);
+		const auto text = QString::number(std::round(percentage * 100))
+			+ u"%"_q;
+		const auto textW = font->width(text);
+		const auto textH = font->height;
+		const auto textXShift = textW / 2.;
+		const auto textYShift = textW / 2.;
+		const auto textRectCenter = rectF.center() + QPointF(
+			(rText - textXShift * (1. - scale)) * std::cos(textRadians),
+			(rText - textYShift * (1. - scale)) * std::sin(textRadians));
+		const auto textRect = QRectF(
+			textRectCenter - QPointF(textXShift, textYShift),
+			textRectCenter + QPointF(textXShift, textYShift));
+		p.setOpacity(alpha(chartData.lines[k].id));
+		p.setTransform(
+			QTransform()
+				.translate(textRectCenter.x(), textRectCenter.y())
+				.scale(scale, scale)
+				.translate(-textRectCenter.x(), -textRectCenter.y()));
+		p.drawText(textRect, text, style::al_center);
+	}
+	p.resetTransform();
 }
 
 void StackLinearChartView::paintSelectedXIndex(
