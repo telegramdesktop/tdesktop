@@ -409,45 +409,53 @@ void ReactionView::cacheBackground() {
 	_background.setDevicePixelRatio(ratio);
 	_background.fill(Qt::transparent);
 
-	auto p = QPainter(&_background);
-	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(_data.dark ? QColor(0, 0, 0, 128) : QColor(255, 255, 255));
-	p.setCompositionMode(QPainter::CompositionMode_Source);
+	const auto paintShape = [&](QColor color) {
+		auto p = QPainter(&_background);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.setBrush(color);
+		_bubbleGeometry = QRectF(
+			(width() - _bubble) / 2.,
+			(height() - _bubble) / 2.,
+			_bubble,
+			_bubble);
+		p.drawEllipse(_bubbleGeometry);
 
-	_bubbleGeometry = QRectF(
-		(width() - _bubble) / 2.,
-		(height() - _bubble) / 2.,
-		_bubble,
-		_bubble);
-	p.drawEllipse(_bubbleGeometry);
+		const auto center = QPointF(width() / 2., height() / 2.);
+		p.translate(center);
 
-	const auto center = QPointF(width() / 2., height() / 2.);
-	p.translate(center);
-
-	auto previous = 0.;
-	const auto rotate = [&](float64 initial) {
-		if (_data.flipped) {
-			initial = 180 - initial;
-		}
-		auto rotation = _data.area.rotation - initial;
-		while (rotation < 0) {
-			rotation += 360;
-		}
-		while (rotation >= 360) {
-			rotation -= 360;
-		}
-		const auto delta = rotation - previous;
-		previous = rotation;
-		p.rotate(delta);
+		auto previous = 0.;
+		const auto rotate = [&](float64 initial) {
+			if (_data.flipped) {
+				initial = 180 - initial;
+			}
+			auto rotation = _data.area.rotation - initial;
+			while (rotation < 0) {
+				rotation += 360;
+			}
+			while (rotation >= 360) {
+				rotation -= 360;
+			}
+			const auto delta = rotation - previous;
+			previous = rotation;
+			p.rotate(delta);
+		};
+		const auto paintTailPart = [&](float64 offset, float64 size) {
+			const auto part = QRectF(-size / 2., -size / 2., size, size);
+			p.drawEllipse(part.translated(offset, 0));
+		};
+		rotate(kSuggestedTailBigRotation);
+		paintTailPart(_bigOffset, _bigSize);
+		rotate(kSuggestedTailSmallRotation);
+		paintTailPart(_smallOffset, _smallSize);
 	};
-	const auto paintTailPart = [&](float64 offset, float64 size) {
-		p.drawEllipse(QRectF(offset - size / 2., -size / 2., size, size));
-	};
-	rotate(kSuggestedTailBigRotation);
-	paintTailPart(_bigOffset, _bigSize);
-	rotate(kSuggestedTailSmallRotation);
-	paintTailPart(_smallOffset, _smallSize);
+	const auto dark = QColor(0, 0, 0, 128);
+	if (!_data.dark) {
+		paintShape(dark);
+		_background = Images::Blur(std::move(_background), true);
+	}
+	paintShape(_data.dark ? dark : QColor(255, 255, 255));
 }
 
 [[nodiscard]] Data::ReactionId HeartReactionId() {
