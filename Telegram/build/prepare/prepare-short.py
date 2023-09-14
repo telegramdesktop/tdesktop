@@ -83,9 +83,9 @@ for singlePrefix in pathPrefixes:
 
 environment = {
     'MAKE_THREADS_CNT': '-j8',
-    'MACOSX_DEPLOYMENT_TARGET': '10.12',
+    'MACOSX_DEPLOYMENT_TARGET': '10.13',
     'UNGUARDED': '-Werror=unguarded-availability-new',
-    'MIN_VER': '-mmacosx-version-min=10.12',
+    'MIN_VER': '-mmacosx-version-min=10.13',
     'USED_PREFIX': usedPrefix,
     'ROOT_DIR': rootDir,
     'LIBS_DIR': libsDir,
@@ -359,7 +359,7 @@ def runStages():
             if checkResult == 'Stale':
                 print('CHANGED, ', end='')
             if rebuildStale:
-                checkResult == 'Rebuild'
+                checkResult = 'Rebuild'
             else:
                 print('(r)ebuild, rebuild (a)ll, (s)kip, (p)rint, (q)uit?: ', end='', flush=True)
                 while True:
@@ -411,14 +411,11 @@ stage('msys64', """
 win:
     SET PATH_BACKUP_=%PATH%
     SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
-
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
-
     powershell -Command "iwr -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20221028.sfx.exe"
     msys64.exe
     del msys64.exe
-
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
     pacman -Syu --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
 
@@ -480,8 +477,6 @@ stage('lzma', """
 win:
     git clone https://github.com/desktop-app/lzma.git
     cd lzma\\C\\Util\\LzmaLib
-    msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform="$X8664"
-release:
     msbuild LzmaLib.sln /property:Configuration=Release /property:Platform="$X8664"
 """)
 
@@ -530,6 +525,12 @@ win:
     cmake --build . --config Debug
 release:
     cmake --build . --config Release
+    cd ..
+
+    del /S mozjpeg\*.cpp
+    del /S mozjpeg\*.pdb
+
+    cd mozjpeg
 mac:
     CFLAGS="-arch arm64" cmake -B build.arm64 . \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
@@ -628,18 +629,14 @@ stage('rnnoise', """
     cd out
 win:
     cmake -A %WIN32X64% ..
-    cmake --build . --config Debug
-release:
     cmake --build . --config Release
+    cd ../..
+
+    del /S rnnoise\*.cpp
+    del /S rnnoise\*.pdb
+
+    cd rnnoise\out
 !win:
-    mkdir Debug
-    cd Debug
-    cmake -G Ninja ../.. \\
-        -D CMAKE_BUILD_TYPE=Debug \\
-        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-    ninja
-release:
-    cd ..
     mkdir Release
     cd Release
     cmake -G Ninja ../.. \\
@@ -895,27 +892,31 @@ win:
     copy out\\release-static\\$X8664\\lib\\libwebpdemux.lib out\\release-static\\$X8664\\lib\\webpdemux.lib
     copy out\\release-static\\$X8664\\lib\\libwebpmux.lib out\\release-static\\$X8664\\lib\\webpmux.lib
 mac:
-    CFLAGS=$UNGUARDED cmake -B build.arm64 -G Ninja . \\
-        -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D CMAKE_OSX_ARCHITECTURES=arm64
-    cmake --build build.arm64 $MAKE_THREADS_CNT
-    CFLAGS=$UNGUARDED cmake -B build -G Ninja . \\
-        -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D CMAKE_OSX_ARCHITECTURES=x86_64
-    cmake --build build $MAKE_THREADS_CNT
+    buildOneArch() {
+        arch=$1
+        folder=$2
 
-    lipo -create build.arm64/libexampleutil.a build/libexampleutil.a -output build/libexampleutil.a
-    lipo -create build.arm64/libextras.a build/libextras.a -output build/libextras.a
-    lipo -create build.arm64/libimagedec.a build/libimagedec.a -output build/libimagedec.a
-    lipo -create build.arm64/libimageenc.a build/libimageenc.a -output build/libimageenc.a
-    lipo -create build.arm64/libimageioutil.a build/libimageioutil.a -output build/libimageioutil.a
+        CFLAGS=$UNGUARDED cmake -B $folder -G Ninja . \\
+            -D CMAKE_BUILD_TYPE=Release \\
+            -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
+            -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+            -D CMAKE_OSX_ARCHITECTURES=$arch \\
+            -D WEBP_BUILD_ANIM_UTILS=OFF \\
+            -D WEBP_BUILD_CWEBP=OFF \\
+            -D WEBP_BUILD_DWEBP=OFF \\
+            -D WEBP_BUILD_GIF2WEBP=OFF \\
+            -D WEBP_BUILD_IMG2WEBP=OFF \\
+            -D WEBP_BUILD_VWEBP=OFF \\
+            -D WEBP_BUILD_WEBPMUX=OFF \\
+            -D WEBP_BUILD_WEBPINFO=OFF \\
+            -D WEBP_BUILD_EXTRAS=OFF
+        cmake --build $folder $MAKE_THREADS_CNT
+    }
+    buildOneArch arm64 build.arm64
+    buildOneArch x86_64 build
+      
     lipo -create build.arm64/libsharpyuv.a build/libsharpyuv.a -output build/libsharpyuv.a
     lipo -create build.arm64/libwebp.a build/libwebp.a -output build/libwebp.a
-    lipo -create build.arm64/libwebpdecoder.a build/libwebpdecoder.a -output build/libwebpdecoder.a
     lipo -create build.arm64/libwebpdemux.a build/libwebpdemux.a -output build/libwebpdemux.a
     lipo -create build.arm64/libwebpmux.a build/libwebpmux.a -output build/libwebpmux.a
     cmake --install build
@@ -1164,8 +1165,6 @@ depends:python/Scripts/activate.bat
     cd src\\client\\windows
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\\..
-    ninja -C out/Debug%FolderPostfix% common crash_generation_client exception_handler
-release:
     ninja -C out/Release%FolderPostfix% common crash_generation_client exception_handler
     cd tools\\windows\\dump_syms
     gyp dump_syms.gyp --format=msvs
@@ -1178,8 +1177,6 @@ mac:
     git checkout e1e7b0ad8e
     cd ../../..
     cd src/client/mac
-    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug build
-release:
     xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build
     cd ../../tools/mac/dump_syms
     xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
@@ -1196,30 +1193,6 @@ mac:
     ZLIB_LIB=$USED_PREFIX/lib/libz.a
     mkdir out
     cd out
-    mkdir Debug.x86_64
-    cd Debug.x86_64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
-        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
-    cd ..
-    mkdir Debug.arm64
-    cd Debug.arm64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
-        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
-    cd ..
-    mkdir Debug
-    lipo -create Debug.arm64/crashpad_handler Debug.x86_64/crashpad_handler -output Debug/crashpad_handler
-    lipo -create Debug.arm64/libcrashpad_client.a Debug.x86_64/libcrashpad_client.a -output Debug/libcrashpad_client.a
-release:
     mkdir Release.x86_64
     cd Release.x86_64
     cmake -G Ninja \
@@ -1259,7 +1232,6 @@ win:
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
-release:
     cd ..
     mkdir Release
     cd Release
@@ -1269,6 +1241,9 @@ release:
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
     cd ..\\..\\..
+    del /S tg_angle\*.cpp
+    del /S tg_angle\*.pdb
+    del /S tg_angle\*.obj
 """)
 
 if buildQt5:
@@ -1284,8 +1259,6 @@ win:
     for /r %%i in (..\\..\\patches\\qtbase_5.15.10\\*) do git apply %%i
     cd ..
 
-    SET CONFIGURATIONS=-debug
-release:
     SET CONFIGURATIONS=-debug-and-release
 win:
     """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.10\"") + """
@@ -1330,12 +1303,15 @@ win:
 
     jom -j16
     jom -j16 install
+
+    del /S *.cpp
+    del /S *.pdb
+    del /S *.obj
+    cd ..
 mac:
     find ../../patches/qtbase_5.15.10 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    CONFIGURATIONS=-debug
-release:
     CONFIGURATIONS=-debug-and-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-5.15.10" \
@@ -1370,8 +1346,6 @@ depends:patches/qtbase_6.3.2/*.patch
     find ../../patches/qtbase_6.3.2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    CONFIGURATIONS=-debug
-release:
     CONFIGURATIONS=-debug-and-release
 mac:
     ./configure -prefix "$USED_PREFIX/Qt-6.3.2" \
@@ -1410,20 +1384,6 @@ win:
     SET FFMPEG_PATH=$LIBS_DIR/ffmpeg
     mkdir out
     cd out
-    mkdir Debug
-    cd Debug
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$OPENSSL_PATH \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-release:
-    cd ..
     mkdir Release
     cd Release
     cmake -G Ninja \
@@ -1443,37 +1403,6 @@ mac:
     FFMPEG_PATH=$USED_PREFIX/include
     mkdir out
     cd out
-    mkdir Debug.x86_64
-    cd Debug.x86_64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-    cd ..
-    mkdir Debug.arm64
-    cd Debug.arm64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-    cd ..
-    mkdir Debug
-    lipo -create Debug.arm64/libtg_owt.a Debug.x86_64/libtg_owt.a -output Debug/libtg_owt.a
-release:
     mkdir Release.x86_64
     cd Release.x86_64
     cmake -G Ninja \
@@ -1522,7 +1451,6 @@ win:
         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
         -Dprotobuf_DEBUG_POSTFIX=""
     cmake --build . --config Release --parallel
-    cmake --build . --config Debug --parallel
 """)
 # mac:
 #     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
