@@ -892,27 +892,31 @@ win:
     copy out\\release-static\\$X8664\\lib\\libwebpdemux.lib out\\release-static\\$X8664\\lib\\webpdemux.lib
     copy out\\release-static\\$X8664\\lib\\libwebpmux.lib out\\release-static\\$X8664\\lib\\webpmux.lib
 mac:
-    CFLAGS=$UNGUARDED cmake -B build.arm64 -G Ninja . \\
-        -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D CMAKE_OSX_ARCHITECTURES=arm64
-    cmake --build build.arm64 $MAKE_THREADS_CNT
-    CFLAGS=$UNGUARDED cmake -B build -G Ninja . \\
-        -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D CMAKE_OSX_ARCHITECTURES=x86_64
-    cmake --build build $MAKE_THREADS_CNT
+    buildOneArch() {
+        arch=$1
+        folder=$2
 
-    lipo -create build.arm64/libexampleutil.a build/libexampleutil.a -output build/libexampleutil.a
-    lipo -create build.arm64/libextras.a build/libextras.a -output build/libextras.a
-    lipo -create build.arm64/libimagedec.a build/libimagedec.a -output build/libimagedec.a
-    lipo -create build.arm64/libimageenc.a build/libimageenc.a -output build/libimageenc.a
-    lipo -create build.arm64/libimageioutil.a build/libimageioutil.a -output build/libimageioutil.a
+        CFLAGS=$UNGUARDED cmake -B $folder -G Ninja . \\
+            -D CMAKE_BUILD_TYPE=Release \\
+            -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
+            -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+            -D CMAKE_OSX_ARCHITECTURES=$arch \\
+            -D WEBP_BUILD_ANIM_UTILS=OFF \\
+            -D WEBP_BUILD_CWEBP=OFF \\
+            -D WEBP_BUILD_DWEBP=OFF \\
+            -D WEBP_BUILD_GIF2WEBP=OFF \\
+            -D WEBP_BUILD_IMG2WEBP=OFF \\
+            -D WEBP_BUILD_VWEBP=OFF \\
+            -D WEBP_BUILD_WEBPMUX=OFF \\
+            -D WEBP_BUILD_WEBPINFO=OFF \\
+            -D WEBP_BUILD_EXTRAS=OFF
+        cmake --build $folder $MAKE_THREADS_CNT
+    }
+    buildOneArch arm64 build.arm64
+    buildOneArch x86_64 build
+      
     lipo -create build.arm64/libsharpyuv.a build/libsharpyuv.a -output build/libsharpyuv.a
     lipo -create build.arm64/libwebp.a build/libwebp.a -output build/libwebp.a
-    lipo -create build.arm64/libwebpdecoder.a build/libwebpdecoder.a -output build/libwebpdecoder.a
     lipo -create build.arm64/libwebpdemux.a build/libwebpdemux.a -output build/libwebpdemux.a
     lipo -create build.arm64/libwebpmux.a build/libwebpmux.a -output build/libwebpmux.a
     cmake --install build

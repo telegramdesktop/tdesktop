@@ -243,6 +243,15 @@ RUN git clone -b chrome-m116-5845 --depth=1 {{ GIT }}/webmproject/libwebp.git \
 	&& cd libwebp \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
+		-DWEBP_BUILD_ANIM_UTILS=OFF \
+		-DWEBP_BUILD_CWEBP=OFF \
+		-DWEBP_BUILD_DWEBP=OFF \
+		-DWEBP_BUILD_GIF2WEBP=OFF \
+		-DWEBP_BUILD_IMG2WEBP=OFF \
+		-DWEBP_BUILD_VWEBP=OFF \
+		-DWEBP_BUILD_WEBPMUX=OFF \
+		-DWEBP_BUILD_WEBPINFO=OFF \
+		-DWEBP_BUILD_EXTRAS=OFF \
 	&& cmake --build build --parallel \
 	&& DESTDIR="{{ LibrariesPath }}/libwebp-cache" cmake --install build \
 	&& cd .. \
