@@ -95,6 +95,8 @@ namespace Settings {
 			::RabbitSettings::JsonSettings::GetInt("userpic_roundness"),
 			updateUserpicRoundness);
     	updateUserpicRoundnessLabel(::RabbitSettings::JsonSettings::GetInt("userpic_roundness"));
+
+		AddSubsectionTitle(container, )
     }
 
     void Rabbit::SetupChats(not_null<Ui::VerticalLayout *> container) {

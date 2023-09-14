@@ -15,7 +15,6 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "data/data_peer_id.h"
 #include "base/parse_helper.h"
 #include "base/timer.h"
-#include "ui/widgets/input_fields.h"
 #include "data/data_chat_filters.h"
 #include "platform/platform_file_utilities.h"
 
@@ -245,18 +244,15 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 		.defaultValue = 50,
 		.limitHandler = IntLimit(0, 50, 50), }},
 	//     Side menu elements
+	{ "side_menu_my_stories", {
+		.type = SettingsType::BoolSetting,
+		.defaultValue = true, }},
 	{ "side_menu_archive", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},
 	{ "side_menu_create_group", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},
-	{ "side_menu_create_secret_chat", {
-		.type = SettingType::BoolSetting,
-		.defaultValue = false, }},
-	{ "side_menu_create_channel", {
-		.type = SettingType::BoolSetting,
-		.defaultValue = false, }},
 	{ "side_menu_contacts", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},

@@ -1,14 +1,14 @@
 #define MyAppShortName "rabbitGram"
 #define MyAppName "rabbitGram Desktop"
 #define MyAppPublisher "xmdnx"
-#define MyAppVersion "4.9.4"
+#define MyAppVersion "4.9.5"
 #define MyAppURL "https://t.me/rabbitGramDesktop"
 #define ReleasePath "C:\Users\xmdnx\source\repos\exteraGramDesktop\out\Release"
 #define MyAppExeName "rabbitGram.exe"
 #define MyAppId "4356CE01-4137-4C55-9F8B-FB4EEBB6EC0C"
 #define CurrentYear GetDateTimeString('yyyy','','')
 #define MyBuildTarget "win64"
-#define MyAppVersionFull "4.9.4-07092023"
+#define MyAppVersionFull "4.9.5-10092023"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -25,7 +25,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={userappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-OutputDir={#ReleasePath}
+OutputDir={#ReleasePath}\releases\rtgdrelease-{#MyAppVersionFull}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\rabbitGram.exe

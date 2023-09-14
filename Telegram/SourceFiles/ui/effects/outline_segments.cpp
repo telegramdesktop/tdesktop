@@ -20,13 +20,13 @@ void PaintOutlineSegments(
 
 	p.setBrush(Qt::NoBrush);
 	const auto count = std::min(int(segments.size()), kOutlineSegmentsMax);
-	if (count == 1 || (RabbitSettings::JsonSettings::GetInt("userpic_roundness") != 100)) {
+	// if (count == 1 /* || (RabbitSettings::JsonSettings::GetInt("userpic_roundness") != 100) */) {
 		p.setPen(QPen(segments.front().brush, segments.front().width));
 		// p.drawEllipse(ellipse);
-		p.drawRoundedRect(ellipse, ellipse.height() / 2 * (RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100), ellipse.height() / 2 * (RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100));
+		p.drawRoundedRect(ellipse, ellipse.height() * RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100, ellipse.height() * RabbitSettings::JsonSettings::GetInt("userpic_roundness") / 100);
 		return;
-	}
-	const auto small = 160;
+	// }
+	/* const auto small = 160;
 	const auto full = arc::kFullLength;
 	const auto separator = (full > 1.1 * small * count)
 		? small
@@ -69,7 +69,7 @@ void PaintOutlineSegments(
 			added += (separator + length) * (1. - fromFullProgress);
 		}
 		p.drawArc(ellipse, from, int(base::SafeRound(till + added)) - from);
-	}
+	} */
 }
 
 QLinearGradient UnreadStoryOutlineGradient(QRectF rect) {

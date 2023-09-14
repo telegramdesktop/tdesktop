@@ -83,7 +83,7 @@ def make_portable():
     except:
         log("Files already exist", 3)
     log("Making archive...", 2)
-    shutil.make_archive(os.path.join(config["repo_path"] + "/out/Release/etgdportable-x64." + config["version"]), 'zip', os.path.join(config["repo_path"] + "/out/Release/portable"))
+    shutil.make_archive(os.path.join(config["repo_path"] + "/out/Release/releases/rtgdrelease-" + config["version"] + "/rtgdportable-x64." + config["version"]), 'zip', os.path.join(config["repo_path"] + "/out/Release/portable"))
 
 if config["repo_path"] == "":
     set_repo_path()
