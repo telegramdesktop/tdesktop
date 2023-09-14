@@ -881,6 +881,43 @@ depends:yasm/yasm
     make install
 """)
 
+stage('libwebp', """
+    git clone https://github.com/webmproject/libwebp.git
+    cd libwebp
+    git checkout chrome-m116-5845
+win:
+    nmake /f Makefile.vc CFG=debug-static OBJDIR=out RTLIBCFG=static all
+    nmake /f Makefile.vc CFG=release-static OBJDIR=out RTLIBCFG=static all
+    copy out\\release-static\\$X8664\\lib\\libwebp.lib out\\release-static\\$X8664\\lib\\webp.lib
+    copy out\\release-static\\$X8664\\lib\\libwebpdemux.lib out\\release-static\\$X8664\\lib\\webpdemux.lib
+    copy out\\release-static\\$X8664\\lib\\libwebpmux.lib out\\release-static\\$X8664\\lib\\webpmux.lib
+mac:
+    CFLAGS=$UNGUARDED cmake -B build.arm64 -G Ninja . \\
+        -D CMAKE_BUILD_TYPE=Release \\
+        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+        -D CMAKE_OSX_ARCHITECTURES=arm64
+    cmake --build build.arm64 $MAKE_THREADS_CNT
+    CFLAGS=$UNGUARDED cmake -B build -G Ninja . \\
+        -D CMAKE_BUILD_TYPE=Release \\
+        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
+        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+        -D CMAKE_OSX_ARCHITECTURES=x86_64
+    cmake --build build $MAKE_THREADS_CNT
+
+    lipo -create build.arm64/libexampleutil.a build/libexampleutil.a -output build/libexampleutil.a
+    lipo -create build.arm64/libextras.a build/libextras.a -output build/libextras.a
+    lipo -create build.arm64/libimagedec.a build/libimagedec.a -output build/libimagedec.a
+    lipo -create build.arm64/libimageenc.a build/libimageenc.a -output build/libimageenc.a
+    lipo -create build.arm64/libimageioutil.a build/libimageioutil.a -output build/libimageioutil.a
+    lipo -create build.arm64/libsharpyuv.a build/libsharpyuv.a -output build/libsharpyuv.a
+    lipo -create build.arm64/libwebp.a build/libwebp.a -output build/libwebp.a
+    lipo -create build.arm64/libwebpdecoder.a build/libwebpdecoder.a -output build/libwebpdecoder.a
+    lipo -create build.arm64/libwebpdemux.a build/libwebpdemux.a -output build/libwebpdemux.a
+    lipo -create build.arm64/libwebpmux.a build/libwebpmux.a -output build/libwebpmux.a
+    cmake --install build
+""")
+
 stage('nv-codec-headers', """
 win:
     git clone https://github.com/FFmpeg/nv-codec-headers.git
@@ -1227,6 +1264,7 @@ win:
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
+    SET WEBP_DIR=%LIBS_DIR%\\libwebp
     configure -prefix "%LIBS_DIR%\\Qt-5.15.10" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
@@ -1238,18 +1276,21 @@ win:
         -I "%ANGLE_DIR%\\include" ^
         -D "KHRONOS_STATIC=" ^
         -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
-        QMAKE_LIBS_OPENGL_ES2_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\Debug\zlibstaticd.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        QMAKE_LIBS_OPENGL_ES2_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\Release\zlibstatic.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib d3d9.lib dxgi.lib dxguid.lib" ^
         -egl ^
-        QMAKE_LIBS_EGL_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\Debug\zlibstaticd.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        QMAKE_LIBS_EGL_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\Release\zlibstatic.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\zlibstaticd.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\zlibstatic.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         -openssl-linked ^
-        -I "%OPENSSL_DIR%\include" ^
-        OPENSSL_LIBS_DEBUG="%OPENSSL_LIBS_DIR%.dbg\libssl.lib %OPENSSL_LIBS_DIR%.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
-        OPENSSL_LIBS_RELEASE="%OPENSSL_LIBS_DIR%\libssl.lib %OPENSSL_LIBS_DIR%\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
+        -I "%OPENSSL_DIR%\\include" ^
+        OPENSSL_LIBS_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libssl.lib %OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
+        OPENSSL_LIBS_RELEASE="%OPENSSL_LIBS_DIR%\\libssl.lib %OPENSSL_LIBS_DIR%\\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
         -I "%MOZJPEG_DIR%" ^
-        LIBJPEG_LIBS_DEBUG="%MOZJPEG_DIR%\Debug\jpeg-static.lib" ^
-        LIBJPEG_LIBS_RELEASE="%MOZJPEG_DIR%\Release\jpeg-static.lib" ^
+        LIBJPEG_LIBS_DEBUG="%MOZJPEG_DIR%\\Debug\\jpeg-static.lib" ^
+        LIBJPEG_LIBS_RELEASE="%MOZJPEG_DIR%\\Release\\jpeg-static.lib" ^
+        -system-webp ^
+        -I "%WEBP_DIR%\\src" ^
+        -L "%WEBP_DIR%\\out\\release-static\\$X8664\\lib" ^
         -mp ^
         -no-feature-netlistmgr ^
         -nomake examples ^
@@ -1312,11 +1353,14 @@ mac:
         -opengl desktop \
         -no-openssl \
         -securetransport \
+        -system-webp \
         -I "$USED_PREFIX/include" \
         -no-feature-futimens \
         -nomake examples \
         -nomake tests \
-        -platform macx-clang -- -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        -platform macx-clang -- \
+        -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+        -DCMAKE_PREFIX_PATH="$USED_PREFIX"
 
     ninja
     ninja install

@@ -494,7 +494,7 @@ bool Panel::showWebview(
 		const QString &url,
 		const Webview::ThemeParams &params,
 		rpl::producer<QString> bottomText) {
-	if (!_webview && !createWebview()) {
+	if (!_webview && !createWebview(params)) {
 		return false;
 	}
 	const auto allowBack = false;
@@ -535,12 +535,17 @@ bool Panel::showWebview(
 		callback(tr::lng_bot_reload_page(tr::now), [=] {
 			_webview->window.reload();
 		}, &st::menuIconRestore);
-		if (_menuButtons & MenuButton::RemoveFromMenu) {
+		const auto main = (_menuButtons & MenuButton::RemoveFromMainMenu);
+		if (main || (_menuButtons & MenuButton::RemoveFromMenu)) {
 			const auto handler = [=] {
-				_delegate->botHandleMenuButton(MenuButton::RemoveFromMenu);
+				_delegate->botHandleMenuButton(main
+					? MenuButton::RemoveFromMainMenu
+					: MenuButton::RemoveFromMenu);
 			};
 			callback({
-				.text = tr::lng_bot_remove_from_menu(tr::now),
+				.text = (main
+					? tr::lng_bot_remove_from_side_menu
+					: tr::lng_bot_remove_from_menu)(tr::now),
 				.handler = handler,
 				.icon = &st::menuIconDeleteAttention,
 				.isAttention = true,
@@ -550,7 +555,7 @@ bool Panel::showWebview(
 	return true;
 }
 
-bool Panel::createWebview() {
+bool Panel::createWebview(const Webview::ThemeParams &params) {
 	auto outer = base::make_unique_q<RpWidget>(_widget.get());
 	const auto container = outer.get();
 	_widget->showInner(std::move(outer));
@@ -575,6 +580,7 @@ bool Panel::createWebview() {
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
+			.opaqueBg = params.opaqueBg,
 			.userDataPath = _userDataPath,
 		});
 	const auto raw = &_webview->window;
@@ -644,6 +650,8 @@ bool Panel::createWebview() {
 			setupClosingBehaviour(arguments);
 		} else if (command == "web_app_read_text_from_clipboard") {
 			requestClipboardText(arguments);
+		} else if (command == "web_app_set_header_color") {
+			processHeaderColor(arguments);
 		}
 	});
 
@@ -1042,6 +1050,18 @@ void Panel::processMainButtonMessage(const QJsonObject &args) {
 		return;
 	}
 
+	const auto shown = [&] {
+		return _mainButton && !_mainButton->isHidden();
+	};
+	const auto wasShown = shown();
+	const auto guard = gsl::finally([&] {
+		if (shown() != wasShown) {
+			crl::on_main(this, [=] {
+				sendViewport();
+			});
+		}
+	});
+
 	if (!_mainButton) {
 		if (args["is_visible"].toBool()) {
 			createMainButton();
@@ -1082,6 +1102,22 @@ void Panel::processMainButtonMessage(const QJsonObject &args) {
 
 void Panel::processBackButtonMessage(const QJsonObject &args) {
 	_widget->setBackAllowed(args["is_visible"].toBool());
+}
+
+void Panel::processHeaderColor(const QJsonObject &args) {
+	if (const auto color = ParseColor(args["color"].toString())) {
+		_widget->overrideTitleColor(color);
+		_headerColorLifetime.destroy();
+	} else if (args["color_key"].toString() == u"secondary_bg_color"_q) {
+		_widget->overrideTitleColor(st::boxDividerBg->c);
+		_headerColorLifetime = style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_widget->overrideTitleColor(st::boxDividerBg->c);
+		});
+	} else {
+		_widget->overrideTitleColor(std::nullopt);
+		_headerColorLifetime.destroy();
+	}
 }
 
 void Panel::createMainButton() {
@@ -1174,6 +1210,7 @@ void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 		return;
 	}
 	_webview->window.updateTheme(
+		params.opaqueBg,
 		params.scrollBg,
 		params.scrollBgOver,
 		params.scrollBarBg,

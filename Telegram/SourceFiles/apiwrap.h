@@ -290,14 +290,16 @@ public:
 		Data::ResolvedForwardDraft &&draft,
 		const SendAction &action,
 		FnMut<void()> &&successCallback = nullptr);
-	FullMsgId shareContact(
+	void shareContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
-		const SendAction &action);
-	FullMsgId shareContact(
+		const SendAction &action,
+		Fn<void(bool)> done = nullptr);
+	void shareContact(
 		not_null<UserData*> user,
-		const SendAction &action);
+		const SendAction &action,
+		Fn<void(bool)> done = nullptr);
 	void applyAffectedMessages(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
@@ -486,12 +488,13 @@ private:
 		SharedMediaType type,
 		Api::SearchResult &&parsed);
 
-	FullMsgId sendSharedContact(
+	void sendSharedContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
 		UserId userId,
-		const SendAction &action);
+		const SendAction &action,
+		Fn<void(bool)> done);
 
 	void deleteHistory(
 		not_null<PeerData*> peer,
@@ -518,12 +521,14 @@ private:
 	void sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
-		Api::SendOptions options);
+		Api::SendOptions options,
+		Fn<void(bool)> done = nullptr);
 	void sendMediaWithRandomId(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
 		Api::SendOptions options,
-		uint64 randomId);
+		uint64 randomId,
+		Fn<void(bool)> done = nullptr);
 	FileLoadTo fileLoadTaskOptions(const SendAction &action) const;
 
 	void getTopPromotionDelayed(TimeId now, TimeId next);

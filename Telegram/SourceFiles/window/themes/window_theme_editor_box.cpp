@@ -692,7 +692,7 @@ void CreateForExistingBox(
 	box->addRow(
 		object_ptr<Ui::SettingsButton>(
 			box,
-			tr::lng_theme_editor_import_existing() | Ui::Text::ToUpper(),
+			tr::lng_theme_editor_import_existing(),
 			st::createThemeImportButton),
 		style::margins(
 			0,

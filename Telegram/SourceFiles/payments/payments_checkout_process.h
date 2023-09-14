@@ -150,6 +150,7 @@ private:
 	QVariant panelClickHandlerContext() override;
 
 	QString panelWebviewDataPath() override;
+	Webview::ThemeParams panelWebviewThemeParams() override;
 
 	std::optional<QDate> panelOverrideExpireDateThreshold() override;
 
@@ -163,7 +164,6 @@ private:
 	bool _sendFormPending = false;
 	bool _sendFormFailed = false;
 
-	bool _themeUpdateScheduled = false;
 	rpl::lifetime _gettingPasswordState;
 	rpl::lifetime _lifetime;
 

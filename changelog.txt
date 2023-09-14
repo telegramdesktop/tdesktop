@@ -1,3 +1,14 @@
+4.9.7 (13.09.23)
+
+- Fix direct bot web app links handling.
+- Close main menu when opening a web app.
+- Bump libwebp revision.
+
+4.9.6 (12.09.23)
+
+- Some bot web-app improvements.
+- Bug fixes and other minor improvements.
+
 4.9.5 (04.09.23)
 
 - Several new bot web-app features.

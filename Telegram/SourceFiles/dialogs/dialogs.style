@@ -35,6 +35,12 @@ ForumTopicIcon {
 	textTop: pixels;
 }
 
+DialogsMiniIcon {
+	icon: ThreeStateIcon;
+	skipText: pixels;
+	skipMedia: pixels;
+}
+
 defaultForumTopicIcon: ForumTopicIcon {
 	size: 21px;
 	font: font(bold 11px);
@@ -462,16 +468,24 @@ dialogsMiniPreviewSkip: 2px;
 dialogsMiniPreviewRight: 3px;
 dialogsMiniPlay: icon{{ "dialogs/dialogs_mini_play", videoPlayIconFg }};
 
-dialogsMiniForwardIcon: ThreeStateIcon {
-	icon: icon {{ "mini_forward", dialogsTextFg, point(0px, 1px) }};
-	over: icon {{ "mini_forward", dialogsTextFgOver, point(0px, 1px) }};
-	active: icon {{ "mini_forward", dialogsTextFgActive, point(0px, 1px) }};
+dialogsMiniForward: DialogsMiniIcon {
+	icon: ThreeStateIcon {
+		icon: icon {{ "mini_forward", dialogsTextFg, point(0px, 1px) }};
+		over: icon {{ "mini_forward", dialogsTextFgOver, point(0px, 1px) }};
+		active: icon {{ "mini_forward", dialogsTextFgActive, point(0px, 1px) }};
+	}
+	skipText: 1px;
+	skipMedia: 2px;
 }
-dialogsMiniIconSkip: 2px;
-dialogsMiniReplyStoryIcon: ThreeStateIcon {
-	icon: icon {{ "mini_reply_story", dialogsTextFg, point(0px, 1px) }};
-	over: icon {{ "mini_reply_story", dialogsTextFgOver, point(0px, 1px) }};
-	active: icon {{ "mini_reply_story", dialogsTextFgActive, point(0px, 1px) }};
+
+dialogsMiniReplyStory: DialogsMiniIcon {
+	icon: ThreeStateIcon {
+		icon: icon {{ "mini_reply_story", dialogsTextFg, point(0px, 1px) }};
+		over: icon {{ "mini_reply_story", dialogsTextFgOver, point(0px, 1px) }};
+		active: icon {{ "mini_reply_story", dialogsTextFgActive, point(0px, 1px) }};
+	}
+	skipText: 4px;
+	skipMedia: 5px;
 }
 
 dialogsUnreadMention: ThreeStateIcon {

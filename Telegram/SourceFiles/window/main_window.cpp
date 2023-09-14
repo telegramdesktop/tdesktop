@@ -416,8 +416,8 @@ bool MainWindow::hideNoQuit() {
 			return true;
 		}
 	}
-	if (Platform::IsMac() || Core::App().settings().closeToTaskbar()) {
-		if (Platform::IsMac()) {
+	if (Platform::RunInBackground() || Core::App().settings().closeToTaskbar()) {
+		if (Platform::RunInBackground()) {
 			closeWithoutDestroy();
 		} else {
 			setWindowState(window()->windowState() | Qt::WindowMinimized);

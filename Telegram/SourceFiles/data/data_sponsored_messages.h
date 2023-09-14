@@ -31,7 +31,7 @@ struct SponsoredFrom {
 	bool isBot = false;
 	bool isExactPost = false;
 	bool isRecommended = false;
-	bool isExternalLink = false;
+	QString externalLink;
 	ImageWithLocation userpic;
 	bool isForceUserpicDisplay = false;
 };

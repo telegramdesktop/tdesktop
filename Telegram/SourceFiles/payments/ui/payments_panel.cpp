@@ -82,6 +82,17 @@ Panel::Panel(not_null<PanelDelegate*> delegate)
 	) | rpl::start_with_next([=] {
 		_delegate->panelCloseSure();
 	}, _widget->lifetime());
+
+	style::PaletteChanged(
+	) | rpl::filter([=] {
+		return !_themeUpdateScheduled;
+	}) | rpl::start_with_next([=] {
+		_themeUpdateScheduled = true;
+		crl::on_main(_widget.get(), [=] {
+			_themeUpdateScheduled = false;
+			updateThemeParams(_delegate->panelWebviewThemeParams());
+		});
+	}, lifetime());
 }
 
 Panel::~Panel() {
@@ -483,11 +494,13 @@ bool Panel::showWebview(
 		const QString &url,
 		bool allowBack,
 		rpl::producer<QString> bottomText) {
-	if (!_webview && !createWebview()) {
+	const auto params = _delegate->panelWebviewThemeParams();
+	if (!_webview && !createWebview(params)) {
 		return false;
 	}
 	showWebviewProgress();
 	_widget->hideLayer(anim::type::instant);
+	updateThemeParams(params);
 	_webview->window.navigate(url);
 	_widget->setBackAllowed(allowBack);
 	if (bottomText) {
@@ -511,7 +524,7 @@ bool Panel::showWebview(
 	return true;
 }
 
-bool Panel::createWebview() {
+bool Panel::createWebview(const Webview::ThemeParams &params) {
 	auto outer = base::make_unique_q<RpWidget>(_widget.get());
 	const auto container = outer.get();
 	_widget->showInner(std::move(outer));
@@ -532,8 +545,10 @@ bool Panel::createWebview() {
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
+			.opaqueBg = params.opaqueBg,
 			.userDataPath = _delegate->panelWebviewDataPath(),
 		});
+
 	const auto raw = &_webview->window;
 	QObject::connect(container, &QObject::destroyed, [=] {
 		if (_webview && &_webview->window == raw) {
@@ -735,41 +750,9 @@ void Panel::requestTermsAcceptance(
 
 		(*update) = [=] { row->update(); };
 
-		struct State {
-			bool error = false;
-			Ui::Animations::Simple errorAnimation;
-		};
-		const auto state = box->lifetime().make_state<State>();
-		const auto showError = [=] {
-			const auto callback = [=] {
-				const auto error = state->errorAnimation.value(
-					state->error ? 1. : 0.);
-				if (error == 0.) {
-					check->setUntoggledOverride(std::nullopt);
-				} else {
-					const auto color = anim::color(
-						st::defaultCheck.untoggledFg,
-						st::boxTextFgError,
-						error);
-					check->setUntoggledOverride(color);
-				}
-			};
-			state->error = true;
-			state->errorAnimation.stop();
-			state->errorAnimation.start(
-				callback,
-				0.,
-				1.,
-				st::defaultCheck.duration);
-		};
-
-		row->checkedChanges(
-		) | rpl::filter([=](bool checked) {
-			return checked;
-		}) | rpl::start_with_next([=] {
-			state->error = false;
-			check->setUntoggledOverride(std::nullopt);
-		}, row->lifetime());
+		const auto showError = Ui::CheckView::PrepareNonToggledError(
+			check,
+			box->lifetime());
 
 		box->addButton(tr::lng_payments_terms_accept(), [=] {
 			if (check->checked()) {
@@ -932,6 +915,7 @@ void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 		return;
 	}
 	_webview->window.updateTheme(
+		params.opaqueBg,
 		params.scrollBg,
 		params.scrollBgOver,
 		params.scrollBarBg,

@@ -8,7 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
-#include "styles/style_widgets.h"
+
+namespace style {
+struct RoundCheckbox;
+struct RoundImageCheckbox;
+} // namespace style
 
 class Painter;
 enum class ImageRoundRadius;

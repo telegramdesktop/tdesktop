@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
 #include "styles/style_info.h"
+#include "styles/style_overview.h"
 
 namespace Info::Media {
 namespace {

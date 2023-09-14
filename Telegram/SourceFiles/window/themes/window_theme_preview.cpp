@@ -12,14 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_window_title.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
-#include "ui/image/image_prepare.h"
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
-#include "ui/image/image_prepare.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
@@ -32,7 +30,7 @@ namespace Window {
 namespace Theme {
 namespace {
 
-QString fillLetters(const QString &name) {
+[[nodiscard]] QString FillLetters(const QString &name) {
 	QList<QString> letters;
 	QList<int> levels;
 	auto level = 0;
@@ -237,7 +235,7 @@ void Generator::addRow(
 	Row row;
 	row.name.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 
-	row.letters = fillLetters(name);
+	row.letters = FillLetters(name);
 
 	row.peerIndex = peerIndex;
 	row.date = date;

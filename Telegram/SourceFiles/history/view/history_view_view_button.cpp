@@ -103,6 +103,46 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 	});
 }
 
+[[nodiscard]] ClickHandlerPtr SponsoredLink(
+		not_null<HistoryMessageSponsored*> sponsored) {
+	if (!sponsored->externalLink.isEmpty()) {
+		class ClickHandler : public UrlClickHandler {
+		public:
+			using UrlClickHandler::UrlClickHandler;
+
+			QString copyToClipboardContextItemText() const override {
+				return QString();
+			}
+
+		};
+
+		return std::make_shared<ClickHandler>(
+			sponsored->externalLink,
+			false);
+	} else {
+		return std::make_shared<LambdaClickHandler>([](ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto controller = my.sessionWindow.get();
+			if (!controller) {
+				return;
+			}
+			const auto &data = controller->session().data();
+			const auto details = data.sponsoredMessages().lookupDetails(
+				my.itemId);
+			if (!details.externalLink.isEmpty()) {
+				File::OpenUrl(details.externalLink);
+			} else if (details.hash) {
+				Api::CheckChatInvite(controller, *details.hash);
+			} else if (details.peer) {
+				controller->showPeerHistory(
+					details.peer,
+					Window::SectionShow::Way::Forward,
+					details.msgId);
+			}
+		});
+	}
+}
+
 } // namespace
 
 struct ViewButton::Inner {
@@ -156,24 +196,7 @@ ViewButton::Inner::Inner(
 	not_null<HistoryMessageSponsored*> sponsored,
 	Fn<void()> updateCallback)
 : margins(st::historyViewButtonMargins)
-, link(std::make_shared<LambdaClickHandler>([=](ClickContext context) {
-	const auto my = context.other.value<ClickHandlerContext>();
-	if (const auto controller = my.sessionWindow.get()) {
-		const auto &data = controller->session().data();
-		const auto itemId = my.itemId;
-		const auto details = data.sponsoredMessages().lookupDetails(itemId);
-		if (!details.externalLink.isEmpty()) {
-			File::OpenUrl(details.externalLink);
-		} else if (details.hash) {
-			Api::CheckChatInvite(controller, *details.hash);
-		} else if (details.peer) {
-			controller->showPeerHistory(
-				details.peer,
-				Window::SectionShow::Way::Forward,
-				details.msgId);
-		}
-	}
-}))
+, link(SponsoredLink(sponsored))
 , updateCallback(std::move(updateCallback))
 , externalLink(sponsored->type == SponsoredType::ExternalLink)
 , text(st::historyViewButtonTextStyle, SponsoredPhrase(sponsored->type)) {

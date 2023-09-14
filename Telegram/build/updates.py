@@ -109,53 +109,9 @@ if building:
             finish(1, 'Adding tdesktop to archive.')
 
         print('Beginning notarization process.')
-        lines = subprocess.check_output('xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "' + username + '" --password "@keychain:AC_PASSWORD" --file "' + archive + '"', stderr=subprocess.STDOUT, shell=True).decode('utf-8')
-        print('Response received.')
-        uuid = ''
-        for line in lines.split('\n'):
-            parts = line.strip().split(' ')
-            if len(parts) > 2 and parts[0] == 'RequestUUID':
-                uuid = parts[2]
-        if uuid == '':
-            finish(1, 'Could not extract Request UUID. Response: ' + lines)
-        print('Request UUID: ' + uuid)
-    else:
-        print('Continue with request UUID: ' + uuid)
-
-    requestStatus = ''
-    logUrl = ''
-    while requestStatus == '':
-        time.sleep(5)
-        print('Checking...')
-        lines = subprocess.check_output('xcrun altool --notarization-info "' + uuid + '" --username "' + username + '" --password "@keychain:AC_PASSWORD"', stderr=subprocess.STDOUT, shell=True).decode('utf-8')
-        statusFound = False
-        for line in lines.split('\n'):
-            parts = line.strip().split(' ')
-            if len(parts) > 1:
-                if parts[0] == 'LogFileURL:':
-                    logUrl = parts[1]
-                elif parts[0] == 'Status:':
-                    if parts[1] == 'in':
-                        print('In progress.')
-                        statusFound = True
-                    else:
-                        requestStatus = parts[1]
-                        print('Status: ' + requestStatus)
-                        statusFound = True
-        if not statusFound:
-            print('Nothing: ' + lines)
-    if requestStatus != 'success':
-        print('Notarization problems, response: ' + lines)
-        if logUrl != '':
-            print('Requesting log...')
-            result = subprocess.call('curl ' + logUrl, shell=True)
-            if result != 0:
-                finish(1, 'Error calling curl ' + logUrl)
-        finish(1, 'Notarization failed.')
-    logLines = ''
-    if logUrl != '':
-        print('Requesting log...')
-        logLines = subprocess.check_output('curl ' + logUrl, shell=True).decode('utf-8')
+        result = subprocess.call('xcrun notarytool submit "' + archive + '" --keychain-profile "preston" --wait', shell=True)
+        if result != 0:
+            finish(1, 'Notarizing the archive.')
     result = subprocess.call('xcrun stapler staple Telegram.app', shell=True)
     if result != 0:
         finish(1, 'Error calling stapler')
@@ -175,25 +131,6 @@ if building:
     subprocess.call('mv ' + archive + ' ' + outputFolder + '/', shell=True)
     subprocess.call('rm -rf ' + today, shell=True)
     print('Finished.')
-
-    if logLines != '':
-        displayingLog = 0
-        for line in logLines.split('\n'):
-            if displayingLog == 1:
-                print(line)
-            else:
-                parts = line.strip().split(' ')
-                if len(parts) > 1 and parts[0] == '"issues":':
-                    if parts[1] != 'null':
-                        print('NB! Notarization log issues:')
-                        print(line)
-                        displayingLog = 1
-                    else:
-                        displayingLog = -1
-        if displayingLog == 0:
-            print('NB! Notarization issues not found: ' + logLines)
-    else:
-        print('NB! Notarization log not found.')
     finish(0)
 
 commandPath = scriptPath + '/../../out/' + conf + '/' + outputFolder + '/command.txt'

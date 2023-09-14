@@ -2619,7 +2619,7 @@ void Session::checkSelfDestructItems() {
 	auto nextDestructIn = crl::time(0);
 	for (auto i = _selfDestructItems.begin(); i != _selfDestructItems.cend();) {
 		if (const auto item = message(*i)) {
-			if (auto destructIn = item->getSelfDestructIn(now)) {
+			if (const auto destructIn = item->getSelfDestructIn(now)) {
 				if (nextDestructIn > 0) {
 					accumulate_min(nextDestructIn, destructIn);
 				} else {

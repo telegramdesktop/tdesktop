@@ -3323,37 +3323,50 @@ void ApiWrap::forwardMessages(
 	_session->data().sendHistoryChangeNotifications();
 }
 
-FullMsgId ApiWrap::shareContact(
+void ApiWrap::shareContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
-		const SendAction &action) {
+		const SendAction &action,
+		Fn<void(bool)> done) {
 	const auto userId = UserId(0);
-	return sendSharedContact(phone, firstName, lastName, userId, action);
+	sendSharedContact(
+		phone,
+		firstName,
+		lastName,
+		userId,
+		action,
+		std::move(done));
 }
 
-FullMsgId ApiWrap::shareContact(
+void ApiWrap::shareContact(
 		not_null<UserData*> user,
-		const SendAction &action) {
+		const SendAction &action,
+		Fn<void(bool)> done) {
 	const auto userId = peerToUser(user->id);
 	const auto phone = _session->data().findContactPhone(user);
 	if (phone.isEmpty()) {
-		return {};
+		if (done) {
+			done(false);
+		}
+		return;
 	}
 	return sendSharedContact(
 		phone,
 		user->firstName,
 		user->lastName,
 		userId,
-		action);
+		action,
+		std::move(done));
 }
 
-FullMsgId ApiWrap::sendSharedContact(
+void ApiWrap::sendSharedContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
 		UserId userId,
-		const SendAction &action) {
+		const SendAction &action,
+		Fn<void(bool)> done) {
 	sendAction(action);
 
 	const auto history = action.history;
@@ -3398,14 +3411,13 @@ FullMsgId ApiWrap::sendSharedContact(
 			MTP_string(), // vcard
 			MTP_long(userId.bare)),
 		HistoryMessageMarkupData());
-	const auto result = item->fullId();
 
 	const auto media = MTP_inputMediaContact(
 		MTP_string(phone),
 		MTP_string(firstName),
 		MTP_string(lastName),
 		MTP_string()); // vcard
-	sendMedia(item, media, action.options);
+	sendMedia(item, media, action.options, std::move(done));
 
 	_session->data().sendHistoryChangeNotifications();
 	_session->changes().historyUpdated(
@@ -3413,8 +3425,6 @@ FullMsgId ApiWrap::sendSharedContact(
 		(action.options.scheduled
 			? Data::HistoryUpdate::Flag::ScheduledSent
 			: Data::HistoryUpdate::Flag::MessageSent));
-
-	return result;
 }
 
 void ApiWrap::sendVoiceMessage(
@@ -3940,19 +3950,21 @@ void ApiWrap::uploadAlbumMedia(
 void ApiWrap::sendMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
-		Api::SendOptions options) {
+		Api::SendOptions options,
+		Fn<void(bool)> done) {
 	const auto randomId = base::RandomValue<uint64>();
 	_session->data().registerMessageRandomId(randomId, item->fullId());
     FakePasscode::RegisterMessageRandomId(_session, randomId, item->fullId().peer, options);
 
-	sendMediaWithRandomId(item, media, options, randomId);
+	sendMediaWithRandomId(item, media, options, randomId, std::move(done));
 }
 
 void ApiWrap::sendMediaWithRandomId(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
 		Api::SendOptions options,
-		uint64 randomId) {
+		uint64 randomId,
+		Fn<void(bool)> done) {
 	const auto history = item->history();
 	const auto replyTo = item->replyTo();
 
@@ -3994,10 +4006,12 @@ void ApiWrap::sendMediaWithRandomId(
 			MTP_int(options.scheduled),
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty())
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		if (done) done(true);
 		if (updateRecentStickers) {
 			requestRecentStickersForce(true);
 		}
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		if (done) done(false);
 		sendMessageFail(error, peer, randomId, itemId);
 	});
 }

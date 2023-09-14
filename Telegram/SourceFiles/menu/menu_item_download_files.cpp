@@ -34,9 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Menu {
 namespace {
 
-using DocumentViewPtr = std::shared_ptr<Data::DocumentMedia>;
-using Documents = std::vector<std::pair<DocumentViewPtr, FullMsgId>>;
-using Photos = std::vector<std::shared_ptr<Data::PhotoMedia>>;
+using Documents = std::vector<std::pair<not_null<DocumentData*>, FullMsgId>>;
+using Photos = std::vector<std::pair<not_null<PhotoData*>, FullMsgId>>;
 
 [[nodiscard]] bool Added(
 		HistoryItem *item,
@@ -45,19 +44,11 @@ using Photos = std::vector<std::shared_ptr<Data::PhotoMedia>>;
 	if (item && !item->forbidsForward()) {
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {
-				if (const auto view = photo->activeMediaView()) {
-					if (view->loaded()) {
-						photos.push_back(view);
-						return true;
-					}
-				}
+				photos.emplace_back(photo, item->fullId());
+				return true;
 			} else if (const auto document = media->document()) {
-				if (const auto view = document->activeMediaView()) {
-					if (!view->loaded()) {
-						documents.emplace_back(view, item->fullId());
-						return true;
-					}
-				}
+				documents.emplace_back(document, item->fullId());
+				return true;
 			}
 		}
 	}
@@ -76,7 +67,7 @@ void AddAction(
 	const auto icon = documents.empty()
 		? &st::menuIconSaveImage
 		: &st::menuIconDownload;
-	const auto showToast = documents.empty();
+	const auto shouldShowToast = documents.empty();
 
 	const auto weak = base::make_weak(controller);
 	const auto saveImages = [=](const QString &folderPath) {
@@ -96,44 +87,79 @@ void AddAction(
 		if (path.isEmpty()) {
 			return;
 		}
-
 		QDir().mkpath(path);
-		const auto fullPath = [&](int i) {
-			return filedialogDefaultName(
-				u"photo_"_q + QString::number(i),
-				u".jpg"_q,
-				path);
-		};
-		auto lastPath = QString();
-		for (auto i = 0; i < photos.size(); i++) {
-			lastPath = fullPath(i + 1);
-			photos[i]->saveToFile(lastPath);
+
+		const auto showToast = !shouldShowToast
+			? Fn<void(const QString &)>(nullptr)
+			: [=](const QString &lastPath) {
+				const auto filter = [lastPath](const auto ...) {
+					File::ShowInFolder(lastPath);
+					return false;
+				};
+				controller->showToast({
+					.text = (photos.size() > 1
+							? tr::lng_mediaview_saved_images_to
+							: tr::lng_mediaview_saved_to)(
+						tr::now,
+						lt_downloads,
+						Ui::Text::Link(
+							tr::lng_mediaview_downloads(tr::now),
+							"internal:show_saved_message"),
+						Ui::Text::WithEntities),
+					.st = &st::defaultToast,
+					.filter = filter,
+				});
+			};
+
+		auto views = std::vector<std::shared_ptr<Data::PhotoMedia>>();
+		for (const auto &[photo, fullId] : photos) {
+			if (const auto view = photo->createMediaView()) {
+				view->wanted(Data::PhotoSize::Large, fullId);
+				views.push_back(view);
+			}
 		}
 
-		if (showToast) {
-			const auto filter = [lastPath](const auto ...) {
-				File::ShowInFolder(lastPath);
-				return false;
+		const auto finalCheck = [=] {
+			for (const auto &[photo, _] : photos) {
+				if (photo->loading()) {
+					return false;
+				}
+			}
+			return true;
+		};
+
+		const auto saveToFiles = [=] {
+			const auto fullPath = [&](int i) {
+				return filedialogDefaultName(
+					u"photo_"_q + QString::number(i),
+					u".jpg"_q,
+					path);
 			};
-			controller->showToast({
-				.text = (photos.size() > 1
-						? tr::lng_mediaview_saved_images_to
-						: tr::lng_mediaview_saved_to)(
-					tr::now,
-					lt_downloads,
-					Ui::Text::Link(
-						tr::lng_mediaview_downloads(tr::now),
-						"internal:show_saved_message"),
-					Ui::Text::WithEntities),
-				.st = &st::defaultToast,
-				.filter = filter,
-			});
+			auto lastPath = QString();
+			for (auto i = 0; i < views.size(); i++) {
+				lastPath = fullPath(i + 1);
+				views[i]->saveToFile(lastPath);
+			}
+			if (showToast) {
+				showToast(lastPath);
+			}
+		};
+
+		if (finalCheck()) {
+			saveToFiles();
+		} else {
+			auto lifetime = std::make_shared<rpl::lifetime>();
+			session->downloaderTaskFinished(
+			) | rpl::start_with_next([=]() mutable {
+				if (finalCheck()) {
+					saveToFiles();
+					base::take(lifetime)->destroy();
+				}
+			}, *lifetime);
 		}
 	};
 	const auto saveDocuments = [=](const QString &folderPath) {
-		for (const auto &pair : documents) {
-			const auto &document = pair.first->owner();
-			const auto &origin = pair.second;
+		for (const auto &[document, origin] : documents) {
 			if (!folderPath.isEmpty()) {
 				document->save(origin, folderPath + document->filename());
 			} else {
