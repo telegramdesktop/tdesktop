@@ -567,7 +567,8 @@ void Story::applyFields(
 			}
 		}
 		auto total = 0;
-		if (const auto list = data.vreactions()) {
+		if (const auto list = data.vreactions()
+			; list && _peer->isChannel()) {
 			reactionsCounts.reserve(list->v.size());
 			for (const auto &reaction : list->v) {
 				const auto &data = reaction.data();

@@ -47,6 +47,7 @@ public:
 
 	virtual void setAreaGeometry(QRect geometry) = 0;
 	virtual void updateCount(int count) = 0;
+	virtual void playEffect() = 0;
 };
 
 class Reactions final {

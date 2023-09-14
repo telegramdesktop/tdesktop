@@ -57,6 +57,7 @@ constexpr auto kSuggestedTailBigRotation = -42.29;
 constexpr auto kSuggestedTailSmallRotation = -40.87;
 constexpr auto kSuggestedReactionSize = 0.7;
 constexpr auto kSuggestedWithCountSize = 0.55;
+constexpr auto kStoppingFadeDuration = crl::time(150);
 
 class ReactionView final
 	: public Ui::RpWidget
@@ -70,9 +71,16 @@ public:
 
 	void setAreaGeometry(QRect geometry) override;
 	void updateCount(int count) override;
+	void playEffect() override;
 
 private:
 	using Element = HistoryView::Element;
+
+	struct Stopping {
+		std::unique_ptr<Ui::ReactionFlyAnimation> effect;
+		Ui::Animations::Simple animation;
+	};
+
 	not_null<HistoryView::ElementDelegate*> delegate();
 	HistoryView::Context elementContext() override;
 	bool elementAnimationsPaused() override;
@@ -81,7 +89,15 @@ private:
 
 	void paintEvent(QPaintEvent *e) override;
 
+	void setupCustomChatStylePalette();
 	void cacheBackground();
+	void paintEffectFrame(
+		QPainter &p,
+		not_null<Ui::ReactionFlyAnimation*> effect,
+		crl::time now);
+	void updateEffectGeometry();
+	void createEffectCanvas();
+	void stopEffect();
 
 	Data::SuggestedReaction _data;
 	std::unique_ptr<Ui::ChatStyle> _chatStyle;
@@ -101,6 +117,11 @@ private:
 	float64 _bigSize = 0;
 	float64 _smallOffset = 0;
 	float64 _smallSize = 0;
+
+	std::unique_ptr<Ui::RpWidget> _effectCanvas;
+	std::unique_ptr<Ui::ReactionFlyAnimation> _effect;
+	std::vector<Stopping> _effectStopping;
+	QRect _effectTarget;
 
 };
 
@@ -190,9 +211,15 @@ ReactionView::ReactionView(
 
 	_data.count = 0;
 	updateCount(reaction.count);
-
+	setupCustomChatStylePalette();
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	show();
+}
+
+void ReactionView::setupCustomChatStylePalette() {
+	const auto color = uchar(_data.dark ? 255 : 0);
+	_chatStyle->historyTextInFg().set(color, color, color, 255);
+	_chatStyle->applyCustomPalette(_chatStyle.get());
 }
 
 void ReactionView::setAreaGeometry(QRect geometry) {
@@ -208,6 +235,10 @@ void ReactionView::setAreaGeometry(QRect geometry) {
 	const auto add = int(base::SafeRound(_smallOffset + _smallSize))
 		- (_size / 2);
 	setGeometry(geometry.marginsAdded({ add, add, add, add }));
+	const auto sub = int(base::SafeRound(
+		(1. - kSuggestedReactionSize) * _size / 2));
+	_effectTarget = geometry.marginsRemoved({ sub, sub, sub, sub });
+	updateEffectGeometry();
 }
 
 void ReactionView::updateCount(int count) {
@@ -226,6 +257,97 @@ void ReactionView::updateCount(int count) {
 		_counter = { st::storiesLikeCountStyle, _countShort };
 	}
 	update();
+}
+
+void ReactionView::playEffect() {
+	const auto exists = (_effectCanvas != nullptr);
+	if (exists) {
+		stopEffect();
+	} else {
+		createEffectCanvas();
+	}
+	const auto reactions = &_fake->history()->owner().reactions();
+	const auto scaleDown = _bubbleGeometry.width() / float64(_mediaWidth);
+	auto args = Ui::ReactionFlyAnimationArgs{
+		.id = _data.reaction,
+		.miniCopyMultiplier = std::min(1., scaleDown),
+		.effectOnly = true,
+	};
+	_effect = std::make_unique<Ui::ReactionFlyAnimation>(
+		reactions,
+		std::move(args),
+		[=] { _effectCanvas->update(); },
+		_size / 2,
+		Data::CustomEmojiSizeTag::Isolated);
+	if (exists) {
+		_effectStopping.back().animation.start([=] {
+			_effectCanvas->update();
+		}, 1., 0., kStoppingFadeDuration);
+	}
+}
+
+void ReactionView::paintEffectFrame(
+		QPainter &p,
+		not_null<Ui::ReactionFlyAnimation*> effect,
+		crl::time now) {
+	effect->paintGetArea(
+		p,
+		QPoint(),
+		_effectTarget.translated(-_effectCanvas->pos()),
+		_data.dark ? Qt::white : Qt::black,
+		QRect(),
+		now);
+}
+
+void ReactionView::createEffectCanvas() {
+	_effectCanvas = std::make_unique<Ui::RpWidget>(parentWidget());
+	const auto raw = _effectCanvas.get();
+	raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+	raw->show();
+	raw->paintRequest() | rpl::start_with_next([=] {
+		if (!_effect || _effect->finished()) {
+			crl::on_main(_effectCanvas.get(), [=] {
+				_effect = nullptr;
+				_effectStopping.clear();
+				_effectCanvas = nullptr;
+			});
+			return;
+		}
+		const auto now = crl::now();
+		auto p = QPainter(raw);
+		auto hq = PainterHighQualityEnabler(p);
+		_effectStopping.erase(ranges::remove_if(_effectStopping, [&](
+				const Stopping &stopping) {
+			if (!stopping.animation.animating()
+				|| stopping.effect->finished()) {
+				return true;
+			}
+			p.setOpacity(stopping.animation.value(0.));
+			paintEffectFrame(p, stopping.effect.get(), now);
+			return false;
+		}), end(_effectStopping));
+		paintEffectFrame(p, _effect.get(), now);
+	}, raw->lifetime());
+	updateEffectGeometry();
+}
+
+void ReactionView::stopEffect() {
+	_effectStopping.push_back({ .effect = std::move(_effect) });
+	_effectStopping.back().animation.start([=] {
+		_effectCanvas->update();
+	}, 1., 0., kStoppingFadeDuration);
+}
+
+void ReactionView::updateEffectGeometry() {
+	if (!_effectCanvas) {
+		return;
+	}
+	const auto center = geometry().center();
+	_effectCanvas->setGeometry(
+		center.x() - _size,
+		center.y() - _size,
+		_size * 2,
+		_size * 3);
 }
 
 not_null<HistoryView::ElementDelegate*> ReactionView::delegate() {

@@ -1143,14 +1143,23 @@ ClickHandlerPtr Controller::lookupAreaHandler(QPoint point) const {
 		}
 		for (const auto &suggestedReaction : _suggestedReactions) {
 			const auto id = suggestedReaction.reaction;
+			auto widget = _reactions->makeSuggestedReactionWidget(
+				suggestedReaction);
+			const auto raw = widget.get();
 			_areas.push_back({
 				.original = suggestedReaction.area.geometry,
 				.rotation = suggestedReaction.area.rotation,
 				.handler = std::make_shared<LambdaClickHandler>([=] {
-					_reactions->applyLike(id);
+					raw->playEffect();
+					if (const auto now = story()) {
+						if (now->sentReactionId() != id) {
+							now->owner().stories().sendReaction(
+								now->fullId(),
+								id);
+						}
+					}
 				}),
-				.reaction = _reactions->makeSuggestedReactionWidget(
-					suggestedReaction),
+				.reaction = std::move(widget),
 			});
 		}
 		rebuildActiveAreas(*layout);
