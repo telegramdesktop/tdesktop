@@ -469,7 +469,9 @@ void Story::applyFields(
 		bool initial) {
 	_lastUpdateTime = now;
 
-	const auto reaction = data.vsent_reaction()
+	const auto reaction = data.is_min()
+		? _sentReactionId
+		: data.vsent_reaction()
 		? Data::ReactionFromMTP(*data.vsent_reaction())
 		: Data::ReactionId();
 	const auto pinned = data.is_pinned();
@@ -493,20 +495,20 @@ void Story::applyFields(
 	auto views = _views.total;
 	auto reactions = _views.reactions;
 	auto viewers = std::vector<not_null<PeerData*>>();
-	if (!data.is_min()) {
-		if (const auto info = data.vviews()) {
-			views = info->data().vviews_count().v;
-			reactions = info->data().vreactions_count().v;
-			if (const auto list = info->data().vrecent_viewers()) {
-				viewers.reserve(list->v.size());
-				auto &owner = _peer->owner();
-				auto &&cut = list->v
-					| ranges::views::take(kRecentViewersMax);
-				for (const auto &id : cut) {
-					viewers.push_back(owner.peer(peerFromUser(id)));
-				}
+	if (const auto info = data.vviews()) {
+		views = info->data().vviews_count().v;
+		reactions = info->data().vreactions_count().v;
+		if (const auto list = info->data().vrecent_viewers()) {
+			viewers.reserve(list->v.size());
+			auto &owner = _peer->owner();
+			auto &&cut = list->v
+				| ranges::views::take(kRecentViewersMax);
+			for (const auto &id : cut) {
+				viewers.push_back(owner.peer(peerFromUser(id)));
 			}
 		}
+	} else {
+		viewers = _recentViewers;
 	}
 	auto locations = std::vector<StoryLocation>();
 	if (const auto areas = data.vmedia_areas()) {
