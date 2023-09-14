@@ -686,6 +686,8 @@ void Reactions::Panel::create() {
 		_controller->layoutValue(),
 		_shownValue.value()
 	) | rpl::start_with_next([=](const Layout &layout, float64 shown) {
+		const auto story = _controller->story();
+		const auto viewsReactionsMode = story && story->peer()->isChannel();
 		const auto width = margins.left()
 			+ _selector->countAppearedWidth(shown)
 			+ margins.right();
@@ -693,6 +695,8 @@ void Reactions::Panel::create() {
 		const auto shift = (width / 2);
 		const auto right = (mode == Mode::Message)
 			? (layout.reactions.x() + layout.reactions.width() / 2 + shift)
+			: viewsReactionsMode
+			? (layout.content.x() + layout.content.width())
 			: (layout.controlsBottomPosition.x()
 				+ layout.controlsWidth
 				- st::storiesLikeReactionsPosition.x());

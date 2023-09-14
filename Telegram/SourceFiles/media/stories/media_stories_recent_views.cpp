@@ -286,7 +286,11 @@ void RecentViews::setupViewsReactions() {
 
 	_controller->layoutValue(
 	) | rpl::start_with_next([=](const Layout &layout) {
-		_outer = layout.views;
+		_outer = QRect(
+			layout.content.x(),
+			layout.views.y(),
+			layout.content.width(),
+			layout.views.height());
 		updateViewsReactionsGeometry();
 	}, _likeWrap->lifetime());
 
