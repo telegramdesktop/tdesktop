@@ -323,7 +323,7 @@ void RecentViews::setupViewsReactions() {
 	) | rpl::start_with_next([=](int width) {
 		width += width
 			? st::storiesLikesTextRightSkip
-			: st::storiesLieksEmptyRightSkip;
+			: st::storiesLikesEmptyRightSkip;
 		_likeWrap->resize(likes->x() + width, _likeIcon->height());
 		updateViewsReactionsGeometry();
 	}, _likeWrap->lifetime());

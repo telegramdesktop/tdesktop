@@ -100,6 +100,7 @@ struct StoryLocation {
 struct SuggestedReaction {
 	StoryArea area;
 	Data::ReactionId reaction;
+	int count = 0;
 	bool flipped = false;
 	bool dark = false;
 
@@ -180,6 +181,7 @@ public:
 	[[nodiscard]] TimeId lastUpdateTime() const;
 
 private:
+	void changeSuggestedReactionCount(Data::ReactionId id, int delta);
 	void applyFields(
 		StoryMedia media,
 		const MTPDstoryItem &data,

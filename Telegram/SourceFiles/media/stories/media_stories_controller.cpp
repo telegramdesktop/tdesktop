@@ -892,6 +892,9 @@ bool Controller::changeShown(Data::Story *story) {
 	const auto id = story ? story->fullId() : FullStoryId();
 	const auto session = story ? &story->session() : nullptr;
 	const auto sessionChanged = (_session != session);
+
+	updateAreas(story);
+
 	if (_shown == id && !sessionChanged) {
 		return false;
 	}
@@ -913,21 +916,6 @@ bool Controller::changeShown(Data::Story *story) {
 		story->owner().stories().registerPolling(
 			story,
 			Data::Stories::Polling::Viewer);
-	}
-
-	const auto &locations = story
-		? story->locations()
-		: std::vector<Data::StoryLocation>();
-	const auto &suggestedReactions = story
-		? story->suggestedReactions()
-		: std::vector<Data::SuggestedReaction>();
-	if (_locations != locations) {
-		_locations = locations;
-		_areas.clear();
-	}
-	if (_suggestedReactions != suggestedReactions) {
-		_suggestedReactions = suggestedReactions;
-		_areas.clear();
 	}
 
 	_viewed = false;
@@ -963,6 +951,7 @@ void Controller::subscribeToSession() {
 	_session->changes().storyUpdates(
 		Data::StoryUpdate::Flag::Edited
 		| Data::StoryUpdate::Flag::ViewsChanged
+		| Data::StoryUpdate::Flag::Reaction
 	) | rpl::filter([=](const Data::StoryUpdate &update) {
 		return (update.story == this->story());
 	}) | rpl::start_with_next([=](const Data::StoryUpdate &update) {
@@ -977,11 +966,47 @@ void Controller::subscribeToSession() {
 				.self = update.story->peer()->isSelf(),
 				.channel = update.story->peer()->isChannel(),
 			});
+			updateAreas(update.story);
 		}
 	}, _sessionLifetime);
 	_sessionLifetime.add([=] {
 		_session->data().stories().setPreloadingInViewer({});
 	});
+}
+
+void Controller::updateAreas(Data::Story *story) {
+	const auto &locations = story
+		? story->locations()
+		: std::vector<Data::StoryLocation>();
+	const auto &suggestedReactions = story
+		? story->suggestedReactions()
+		: std::vector<Data::SuggestedReaction>();
+	if (_locations != locations) {
+		_locations = locations;
+		_areas.clear();
+	}
+	const auto reactionsCount = int(suggestedReactions.size());
+	if (_suggestedReactions.size() == reactionsCount && !_areas.empty()) {
+		for (auto i = 0; i != reactionsCount; ++i) {
+			const auto count = suggestedReactions[i].count;
+			if (_suggestedReactions[i].count != count) {
+				_suggestedReactions[i].count = count;
+				_areas[i + _locations.size()].reaction->updateCount(count);
+			}
+			if (_suggestedReactions[i] != suggestedReactions[i]) {
+				_suggestedReactions = suggestedReactions;
+				_areas.clear();
+				break;
+			}
+		}
+	} else if (_suggestedReactions != suggestedReactions) {
+		_suggestedReactions = suggestedReactions;
+		_areas.clear();
+	}
+	if (_areas.empty() || _suggestedReactions.empty()) {
+		return;
+	}
+
 }
 
 PauseState Controller::pauseState() const {

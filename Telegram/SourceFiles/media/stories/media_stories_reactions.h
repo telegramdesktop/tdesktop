@@ -46,6 +46,7 @@ public:
 	virtual ~SuggestedReactionView() = default;
 
 	virtual void setAreaGeometry(QRect geometry) = 0;
+	virtual void updateCount(int count) = 0;
 };
 
 class Reactions final {

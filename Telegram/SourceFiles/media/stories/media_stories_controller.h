@@ -247,6 +247,7 @@ private:
 		const std::vector<Data::StoriesSourceInfo> &lists,
 		int index);
 
+	void updateAreas(Data::Story *story);
 	void reactionChosen(ReactionsMode mode, ChosenReaction chosen);
 
 	const not_null<Delegate*> _delegate;

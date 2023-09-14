@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
+#include "lang/lang_tag.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/emoji_fly_animation.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -55,6 +56,7 @@ constexpr auto kSuggestedTailSmallOffset = 0.697;
 constexpr auto kSuggestedTailBigRotation = -42.29;
 constexpr auto kSuggestedTailSmallRotation = -40.87;
 constexpr auto kSuggestedReactionSize = 0.7;
+constexpr auto kSuggestedWithCountSize = 0.55;
 
 class ReactionView final
 	: public Ui::RpWidget
@@ -67,6 +69,7 @@ public:
 		const Data::SuggestedReaction &reaction);
 
 	void setAreaGeometry(QRect geometry) override;
+	void updateCount(int count) override;
 
 private:
 	using Element = HistoryView::Element;
@@ -85,6 +88,8 @@ private:
 	std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	AdminLog::OwnedItem _fake;
 	QImage _background;
+	QString _countShort;
+	Ui::Text::String _counter;
 	QRectF _bubbleGeometry;
 	int _size = 0;
 	int _mediaLeft = 0;
@@ -183,6 +188,9 @@ ReactionView::ReactionView(
 		}
 	}, lifetime());
 
+	_data.count = 0;
+	updateCount(reaction.count);
+
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	show();
 }
@@ -202,6 +210,24 @@ void ReactionView::setAreaGeometry(QRect geometry) {
 	setGeometry(geometry.marginsAdded({ add, add, add, add }));
 }
 
+void ReactionView::updateCount(int count) {
+	if (_data.count == count) {
+		return;
+	}
+	_data.count = count;
+	const auto countShort = Lang::FormatCountToShort(count).string;
+	if (_countShort == countShort) {
+		return;
+	}
+	_countShort = countShort;
+	if (!count) {
+		_counter = {};
+	} else {
+		_counter = { st::storiesLikeCountStyle, _countShort };
+	}
+	update();
+}
+
 not_null<HistoryView::ElementDelegate*> ReactionView::delegate() {
 	return static_cast<HistoryView::ElementDelegate*>(this);
 }
@@ -215,15 +241,34 @@ void ReactionView::paintEvent(QPaintEvent *e) {
 	}
 	p.drawImage(0, 0, _background);
 
+	const auto counter = !_counter.isEmpty();
+	const auto scale = counter
+		? kSuggestedWithCountSize
+		: kSuggestedReactionSize;
+	const auto counterSkip = counter
+		? ((kSuggestedReactionSize - kSuggestedWithCountSize)
+			* _mediaHeight / 2)
+		: 0;
+
 	auto hq = PainterHighQualityEnabler(p);
 	p.translate(_bubbleGeometry.center());
 	p.scale(
-		kSuggestedReactionSize * _bubbleGeometry.width() / _mediaWidth,
-		kSuggestedReactionSize * _bubbleGeometry.height() / _mediaHeight);
+		scale * _bubbleGeometry.width() / _mediaWidth,
+		scale * _bubbleGeometry.height() / _mediaHeight);
 	p.rotate(_data.area.rotation);
 	p.translate(
 		-(_mediaLeft + (_mediaWidth / 2)),
-		-(_mediaTop + (_mediaHeight / 2)));
+		-(_mediaTop + (_mediaHeight / 2) + counterSkip));
+
+	if (counter) {
+		p.setPen(_data.dark ? Qt::white : Qt::black);
+		_counter.draw(
+			p,
+			_mediaLeft,
+			_mediaTop + _mediaHeight,
+			_mediaWidth,
+			style::al_top);
+	}
 
 	auto context = Ui::ChatPaintContext{
 		.st = _chatStyle.get(),

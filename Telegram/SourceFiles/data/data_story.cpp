@@ -411,16 +411,28 @@ Data::ReactionId Story::sentReactionId() const {
 void Story::setReactionId(Data::ReactionId id) {
 	if (_sentReactionId != id) {
 		const auto wasEmpty = _sentReactionId.empty();
+		changeSuggestedReactionCount(_sentReactionId, -1);
 		_sentReactionId = id;
-		auto flags = UpdateFlag::Reaction | UpdateFlag();
+		changeSuggestedReactionCount(id, 1);
+
 		if (_views.known && _sentReactionId.empty() != wasEmpty) {
 			const auto delta = wasEmpty ? 1 : -1;
 			if (_views.reactions + delta >= 0) {
 				_views.reactions += delta;
-				flags |= UpdateFlag::ViewsChanged;
 			}
 		}
-		session().changes().storyUpdated(this, flags);
+		session().changes().storyUpdated(this, UpdateFlag::Reaction);
+	}
+}
+
+void Story::changeSuggestedReactionCount(Data::ReactionId id, int delta) {
+	if (id.empty() || !_peer->isChannel()) {
+		return;
+	}
+	for (auto &suggested : _suggestedReactions) {
+		if (suggested.reaction == id && suggested.count + delta >= 0) {
+			suggested.count += delta;
+		}
 	}
 }
 
@@ -539,11 +551,13 @@ void Story::applyFields(
 	auto reactions = _views.reactions;
 	auto viewers = std::vector<not_null<PeerData*>>();
 	auto viewsKnown = _views.known;
+	auto reactionsCounts = base::flat_map<Data::ReactionId, int>();
 	if (const auto info = data.vviews()) {
-		views = info->data().vviews_count().v;
-		reactions = info->data().vreactions_count().value_or_empty();
+		const auto &data = info->data();
+		views = data.vviews_count().v;
+		reactions = data.vreactions_count().value_or_empty();
 		viewsKnown = true;
-		if (const auto list = info->data().vrecent_viewers()) {
+		if (const auto list = data.vrecent_viewers()) {
 			viewers.reserve(list->v.size());
 			auto &owner = _peer->owner();
 			auto &&cut = list->v
@@ -552,8 +566,33 @@ void Story::applyFields(
 				viewers.push_back(owner.peer(peerFromUser(id)));
 			}
 		}
+		auto total = 0;
+		if (const auto list = data.vreactions()) {
+			reactionsCounts.reserve(list->v.size());
+			for (const auto &reaction : list->v) {
+				const auto &data = reaction.data();
+				const auto id = Data::ReactionFromMTP(data.vreaction());
+				const auto count = data.vcount().v;
+				reactionsCounts[id] = count;
+				total += count;
+			}
+		}
+		if (!reaction.empty()) {
+			if (auto &mine = reactionsCounts[reaction]; !mine) {
+				mine = 1;
+				++total;
+			}
+		}
+		if (reactions < total) {
+			reactions = total;
+		}
 	} else {
 		viewers = _recentViewers;
+		for (const auto &suggested : _suggestedReactions) {
+			if (const auto count = suggested.count) {
+				reactionsCounts[suggested.reaction] = count;
+			}
+		}
 	}
 	auto locations = std::vector<StoryLocation>();
 	auto suggestedReactions = std::vector<SuggestedReaction>();
@@ -563,7 +602,11 @@ void Story::applyFields(
 		for (const auto &area : areas->v) {
 			if (const auto location = ParseLocation(area)) {
 				locations.push_back(*location);
-			} else if (const auto reaction = ParseSuggestedReaction(area)) {
+			} else if (auto reaction = ParseSuggestedReaction(area)) {
+				const auto i = reactionsCounts.find(reaction->reaction);
+				if (i != end(reactionsCounts)) {
+					reaction->count = i->second;
+				}
 				suggestedReactions.push_back(*reaction);
 			}
 		}
