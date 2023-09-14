@@ -52,7 +52,7 @@ jobs:
       - name: Prepare directories.
         run: |
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
-          echo REPO_NAME=tdesktop
+          echo REPO_NAME=tdesktop>>%GITHUB_ENV%
 
       - name: Clone.
         uses: actions/checkout@v3.1.0
@@ -83,7 +83,7 @@ jobs:
           GYP_MSVS_VERSION: 2022
         run: |
           cd %TBUILD%
-          %REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
+          %REPO_NAME%\Telegram\build\prepare\win.bat silent
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'

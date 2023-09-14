@@ -13,7 +13,8 @@
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
@@ -98,15 +99,20 @@ void FakePasscodeBox::prepare() {
     connect(_oldPasscode, &Ui::MaskedInputField::changed, [=] { oldChanged(); });
     connect(_newPasscode, &Ui::MaskedInputField::changed, [=] { newChanged(); });
     connect(_reenterPasscode, &Ui::MaskedInputField::changed, [=] { newChanged(); });
-    connect(_passwordName, &Ui::InputField::changed, [=] { newChanged(); });
-    connect(_passwordHint, &Ui::InputField::changed, [=] { newChanged(); });
+
+    _passwordName->changes(
+    ) | rpl::start_with_next([=] { newChanged(); }, _passwordName->lifetime());
+    _passwordHint->changes(
+    ) | rpl::start_with_next([=] { newChanged(); }, _passwordHint->lifetime());
 
     const auto fieldSubmit = [=] { submit(); };
     connect(_oldPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
     connect(_newPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
     connect(_reenterPasscode, &Ui::MaskedInputField::submitted, fieldSubmit);
-    connect(_passwordName, &Ui::InputField::submitted, fieldSubmit);
-    connect(_passwordHint, &Ui::InputField::submitted, fieldSubmit);
+    _passwordName->submits(
+    ) | rpl::start_with_next(fieldSubmit, _passwordName->lifetime());
+    _passwordHint->submits(
+    ) | rpl::start_with_next(fieldSubmit, _passwordHint->lifetime());
 
     const auto has = currentlyHave();
     _oldPasscode->setVisible(onlyCheck || has);
