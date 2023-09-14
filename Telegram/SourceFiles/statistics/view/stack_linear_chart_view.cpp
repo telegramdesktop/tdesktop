@@ -21,6 +21,7 @@ namespace {
 constexpr auto kAlphaDuration = float64(200);
 constexpr auto kCircleSizeRatio = 0.42;
 constexpr auto kMinTextScaleRatio = 0.3;
+constexpr auto kPieAngleOffset = 90;
 
 constexpr auto kRightTop = short(0);
 constexpr auto kRightBottom = short(1);
@@ -142,16 +143,15 @@ void StackLinearChartView::paint(
 		const Limits &heightLimits,
 		const QRect &rect,
 		bool footer) {
+	const auto context = PaintContext{
+		chartData,
+		xPercentageLimits,
+		heightLimits,
+		rect,
+		footer
+	};
 	if (_transitionProgress == 1) {
-		return paintZoomed(
-			p,
-			{
-				chartData,
-				xPercentageLimits,
-				heightLimits,
-				rect,
-				footer
-			});
+		return paintZoomed(p, context);
 	}
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
 	_skipPoints = std::vector<bool>(chartData.lines.size(), false);
@@ -398,6 +398,17 @@ void StackLinearChartView::paint(
 		p.fillPath(paths[k], line.color);
 	}
 	p.setOpacity(1.);
+	{
+		constexpr auto kAlphaTextPart = 0.6;
+		const auto progress = std::clamp(
+			(_transitionProgress - kAlphaTextPart) / (1. - kAlphaTextPart),
+			0.,
+			1.);
+		if (progress > 0) {
+			auto o = ScopedPainterOpacity(p, progress);
+			paintPieText(p, context);
+		}
+	}
 
 	// Fix ugly outline.
 	if (!footer || !_transitionProgress) {
@@ -411,7 +422,6 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 	if (c.footer) {
 		return;
 	}
-	const auto &chartData = c.chartData;
 	const auto center = QPointF(c.rect.center());
 	const auto side = (c.rect.width() / 2.) * kCircleSizeRatio;
 	const auto rectF = QRectF(
@@ -419,24 +429,36 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 		center + QPointF(side, side));
 
 	auto hq = PainterHighQualityEnabler(p);
-	constexpr auto kOffset = 90;
-	for (auto k = 0; k < chartData.lines.size(); k++) {
+	for (auto k = 0; k < c.chartData.lines.size(); k++) {
 		const auto previous = k
 			? _cachedTransition.lines[k - 1].angle
 			: -180;
 		const auto now = _cachedTransition.lines[k].angle;
 
-		p.setBrush(chartData.lines[k].color);
+		p.setBrush(c.chartData.lines[k].color);
 		p.setPen(Qt::NoPen);
-		p.drawPie(rectF, -(previous + kOffset) * 16, -(now - previous) * 16);
+		p.drawPie(
+			rectF,
+			-(previous + kPieAngleOffset) * 16,
+			-(now - previous) * 16);
 	}
+	paintPieText(p, c);
+}
+
+void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
+	const auto center = QPointF(c.rect.center());
+	const auto side = (c.rect.width() / 2.) * kCircleSizeRatio;
+	const auto rectF = QRectF(
+		center - QPointF(side, side),
+		center + QPointF(side, side));
 	const auto &font = st::statisticsPieChartFont;
 	const auto maxScale = side / (font->height * 2);
 	const auto minScale = maxScale * kMinTextScaleRatio;
 	p.setBrush(Qt::NoBrush);
 	p.setPen(st::premiumButtonFg);
 	p.setFont(font);
-	for (auto k = 0; k < chartData.lines.size(); k++) {
+	const auto opacity = p.opacity();
+	for (auto k = 0; k < c.chartData.lines.size(); k++) {
 		const auto previous = k
 			? _cachedTransition.lines[k - 1].angle
 			: -180;
@@ -444,9 +466,9 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 		const auto percentage = (now - previous) / 360.;
 
 		const auto rText = side * std::sqrt(1. - percentage);
-		const auto textAngle = (previous + kOffset) + (now - previous) / 2.;
+		const auto textAngle = (previous + kPieAngleOffset)
+			+ (now - previous) / 2.;
 		const auto textRadians = textAngle * M_PI / 180.;
-
 		const auto scale = (minScale) + percentage * (maxScale - minScale);
 		const auto text = QString::number(std::round(percentage * 100))
 			+ u"%"_q;
@@ -460,12 +482,12 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 		const auto textRect = QRectF(
 			textRectCenter - QPointF(textXShift, textYShift),
 			textRectCenter + QPointF(textXShift, textYShift));
-		p.setOpacity(alpha(chartData.lines[k].id));
 		p.setTransform(
 			QTransform()
 				.translate(textRectCenter.x(), textRectCenter.y())
 				.scale(scale, scale)
 				.translate(-textRectCenter.x(), -textRectCenter.y()));
+		p.setOpacity(opacity * alpha(c.chartData.lines[k].id));
 		p.drawText(textRect, text, style::al_center);
 	}
 	p.resetTransform();

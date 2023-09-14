@@ -79,6 +79,7 @@ private:
 		bool footer);
 
 	void paintZoomed(QPainter &p, const PaintContext &context);
+	void paintPieText(QPainter &p, const PaintContext &context);
 
 	struct SelectedPoints final {
 		int lastXIndex = -1;
