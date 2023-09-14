@@ -917,7 +917,7 @@ mac:
     }
     buildOneArch arm64 build.arm64
     buildOneArch x86_64 build
-      
+
     lipo -create build.arm64/libsharpyuv.a build/libsharpyuv.a -output build/libsharpyuv.a
     lipo -create build.arm64/libwebp.a build/libwebp.a -output build/libwebp.a
     lipo -create build.arm64/libwebpdemux.a build/libwebpdemux.a -output build/libwebpdemux.a
