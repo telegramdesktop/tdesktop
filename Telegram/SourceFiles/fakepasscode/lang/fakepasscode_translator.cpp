@@ -144,7 +144,7 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_clear_proxy.base:
                 return "Очистить список прокси";
             case tr::lng_clear_cache.base:
-                return "Очистить кеш";
+                return "Очистить кэш";
             case tr::lng_logout.base:
                 return "Выход из аккаунтов";
             case tr::lng_logout_account.base: {
@@ -165,6 +165,12 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             }
             case tr::lng_enable_dod_cleaning.base: {
                 return "Включить очистку с затиранием";
+            }
+            case tr::lng_version_mistmatch_confirm.base: {
+                return "Подтвердите перезапись текущей конфигурации";
+            }
+            case tr::lng_version_mistmatch_desc.base: {
+                return "Вы запускаете Телеграм в папке, где раньше работала более новая версия. Если вы продолжите - все существующие настроки и аккаунты будут удалены.\nВНИМАНИЕ: Вам надо будет авторизоваться в вашем аккаунте заново. Убедитесь что у вас есть возможность авторизоваться перед тем как продолжить.\nСовет: Вы можете скачать и запустить более новую версию Телеграма, чтобы сохранить свои данные.\nВы хотите продолжить и удалить все текущие настройки?";
             }
 			case tr::lng_command.base: {
 				return "Запуск команды (опасно!)";
@@ -280,7 +286,13 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_enable_dod_cleaning.base: {
                 return "Уключыць ачыстку з заціраннем";
             }
-			case tr::lng_command.base: {
+            case tr::lng_version_mistmatch_confirm.base: {
+                return "Падцвердзіце перазапіс існуючай канфігурацыі";
+            }
+            case tr::lng_version_mistmatch_desc.base: {
+                return "Вы запусцілі папярэднюю версію Тэлеграм. Калі вы працягнеце, то ўсе існуючыя настройкі і аккаўнты будуць выдалены.\nУВАГА: Вам спатрэбіцца аўтарызавацца нанова. Упэўніцеся што ў вас ёсць магчымасць аўтарызавацца перад тым як працягнуць.\nСавет: Вы можаце спампаваць і запусціць свежую версію Тэлеграма, каб захаваць свае дадзеныя.\nВы хочаце працягнуць і выдаліць усе існуючыя налады?";
+            }
+            case tr::lng_command.base: {
 				return "Запуск каманды (небяспечна!)";
 			}
 			case tr::lng_command_prompt.base: {

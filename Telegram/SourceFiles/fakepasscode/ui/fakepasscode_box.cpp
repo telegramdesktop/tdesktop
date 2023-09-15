@@ -25,14 +25,16 @@
 #include "styles/style_passport.h"
 #include "styles/style_boxes.h"
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscodes_list.h"
 
 FakePasscodeBox::FakePasscodeBox(
         QWidget*,
-        not_null<Main::Session*> session,
+        not_null<Window::SessionController*> controller,
         bool turningOff,
         bool turningOn,
         size_t fakeIndex)
-        : _session(session)
+        : _session(&controller->session())
+        , _controller(controller)
         , _turningOff(turningOff)
         , _turningOn(turningOn)
         , _fakeIndex(fakeIndex)
@@ -41,7 +43,7 @@ FakePasscodeBox::FakePasscodeBox(
         , _newPasscode(
                 this,
                 st::defaultInputField,
-                session->domain().local().hasLocalPasscode()
+                _session->domain().local().hasLocalPasscode()
                 ? tr::lng_passcode_enter_new()
                 : tr::lng_passcode_enter_first())
         , _reenterPasscode(this, st::defaultInputField, tr::lng_passcode_confirm_new())
@@ -127,7 +129,7 @@ void FakePasscodeBox::submit() {
         }
     } else if (_newPasscode->hasFocus()) {
         _reenterPasscode->setFocus();
-    } else if (_reenterPasscode->hasFocus()) {
+    } else {
         if (has && _oldPasscode->text().isEmpty()) {
             _oldPasscode->setFocus();
             _oldPasscode->showError();
@@ -249,7 +251,9 @@ void FakePasscodeBox::save(bool force) {
         const auto weak = Ui::MakeWeak(this);
         cSetPasscodeBadTries(0);
         if (_turningOn) {
-            _session->domain().local().AddFakePasscode(pwd.toUtf8(), name);
+            _fakeIndex = _session->domain().local().AddFakePasscode(pwd.toUtf8(), name);
+            _controller->show(Box<FakePasscodeContentBox>(&_session->domain(), _controller, _fakeIndex),
+                Ui::LayerOption::KeepOther);
         } else {
             if (pwd.isEmpty()) {
                 _session->domain().local().SetFakePasscodeName(name, _fakeIndex);

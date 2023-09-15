@@ -4013,6 +4013,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_fakepasscode" = "Passcode {caption}";
 "lng_ptelegram_version" = "PTelegram v. {version}";
 
+"lng_version_mistmatch_confirm" = "Confirm existing data overwrite";
+"lng_version_mistmatch_desc" = "You are starting Telegram using data from more recent version. Telegram does not support this. If you continue - all existing configuration/sessions/data will be erased.\nWARNING: You will need to login again, and may loose your account if you can't.\nNote: You can try use more recent version of Telegram.\nDo you want to proceed and clean existing data?";
+
 "lng_fakepasscodes_list" = "Fake passcodes list";
 "lng_fakeaction_list" = "Actions";
 "lng_remove_fakepasscode" = "Remove fake passcode";

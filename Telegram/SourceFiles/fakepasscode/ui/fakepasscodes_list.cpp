@@ -46,22 +46,6 @@ FakePasscodeContent::FakePasscodeContent(QWidget *parent,
 , _outerBox(outerBox) {
 }
 
-class FakePasscodeContentBox : public Ui::BoxContent {
-public:
-    FakePasscodeContentBox(QWidget* parent,
-                           Main::Domain* domain, not_null<Window::SessionController*> controller,
-                           size_t passcodeIndex);
-
-protected:
-    void prepare() override;
-
-private:
-    Main::Domain* _domain;
-    Window::SessionController* _controller;
-    size_t _passcodeIndex;
-
-};
-
 void FakePasscodeContent::setupContent() {
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     Settings::AddSubsectionTitle(content, tr::lng_fakeaction_list());
@@ -74,7 +58,7 @@ void FakePasscodeContent::setupContent() {
     Settings::AddButton(content, tr::lng_fakepasscode_change(), st::settingsButton,
                         {&st::menuIconEdit})
             ->addClickHandler([this] {
-                _controller->show(Box<FakePasscodeBox>(&_controller->session(), false, false,
+                _controller->show(Box<FakePasscodeBox>(_controller, false, false,
                                                        _passcodeIndex),
                                   Ui::LayerOption::KeepOther);
             });
@@ -121,7 +105,7 @@ void FakePasscodeList::draw(size_t passcodesSize) {
     AddDivider(content);
     AddButton(content, tr::lng_add_fakepasscode(), st::settingsButton,
               {&st::settingsIconAdd})->addClickHandler([this] {
-        _controller->show(Box<FakePasscodeBox>(&_controller->session(), false, true, 0), // _domain
+        _controller->show(Box<FakePasscodeBox>(_controller, false, true, 0), // _domain
                           Ui::LayerOption::KeepOther);
     });
     AddDividerText(content, tr::lng_special_actions());
