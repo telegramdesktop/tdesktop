@@ -639,6 +639,7 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 				.boosts = data.vboosts().v,
 				.thisLevelBoosts = data.vcurrent_level_boosts().v,
 				.nextLevelBoosts = next,
+				.mine = data.is_my_boost(),
 			},
 		}, submit));
 	}).fail([=](const MTP::Error &error) {

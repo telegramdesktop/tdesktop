@@ -2011,6 +2011,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_channel_title_more" = "Help upgrade channel";
 "lng_boost_channel_needs_more#one" = "{channel} needs **{count}** more boost to be able to {post}.";
 "lng_boost_channel_needs_more#other" = "{channel} needs **{count}** more boosts to be able to {post}.";
+"lng_boost_channel_title_max" = "Maximum level reached";
 "lng_boost_channel_you_title" = "You boosted {channel}!";
 "lng_boost_channel_you_first#one" = "This channel needs **{count}** more boost\nto enable stories.";
 "lng_boost_channel_you_first#other" = "This channel needs **{count}** more boosts\nto enable stories.";

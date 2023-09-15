@@ -16,6 +16,7 @@ struct BoostCounters {
 	int boosts = 0;
 	int thisLevelBoosts = 0;
 	int nextLevelBoosts = 0; // Zero means no next level is available.
+	bool mine = false;
 };
 
 struct BoostBoxData {

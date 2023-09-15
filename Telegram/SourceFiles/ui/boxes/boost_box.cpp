@@ -46,11 +46,34 @@ void BoostBox(
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::boostBox);
 
+	const auto full = !data.boost.nextLevelBoosts;
+
+	if (data.boost.mine && data.boost.boosts > 0) {
+		--data.boost.boosts;
+	}
+
+	if (full) {
+		data.boost.nextLevelBoosts = data.boost.boosts
+			+ (data.boost.mine ? 1 : 0);
+		data.boost.thisLevelBoosts = 0;
+		if (data.boost.level > 0) {
+			--data.boost.level;
+		}
+	} else if (data.boost.mine
+		&& data.boost.level > 0
+		&& data.boost.boosts < data.boost.thisLevelBoosts) {
+		--data.boost.level;
+		data.boost.nextLevelBoosts = data.boost.thisLevelBoosts;
+		data.boost.thisLevelBoosts = 0;
+	}
+
 	struct State {
 		rpl::variable<bool> you = false;
 		bool submitted = false;
 	};
-	const auto state = box->lifetime().make_state<State>();
+	const auto state = box->lifetime().make_state<State>(State{
+		.you = data.boost.mine,
+	});
 	box->addTopButton(st::boxTitleClose, [=] {
 		box->closeBox();
 	});
@@ -150,6 +173,8 @@ void BoostBox(
 			? tr::lng_boost_channel_you_title(
 				lt_channel,
 				rpl::single(data.name))
+			: full
+			? tr::lng_boost_channel_title_max()
 			: !data.boost.level
 			? tr::lng_boost_channel_title_first()
 			: tr::lng_boost_channel_title_more();
@@ -164,8 +189,8 @@ void BoostBox(
 			lt_count,
 			rpl::single(float64(data.boost.level + 1)),
 			Ui::Text::RichLangValue);
-		return your
-			? ((left > 0)
+		return (your || full)
+			? ((!full && left > 0)
 				? (!data.boost.level
 					? tr::lng_boost_channel_you_first(
 						lt_count,
@@ -216,14 +241,16 @@ void BoostBox(
 		(st::boxRowPadding
 			+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
 
-	auto submit = state->you.value(
-	) | rpl::map([](bool mine) {
-		return mine ? tr::lng_box_ok() : tr::lng_boost_channel_button();
-	}) | rpl::flatten_latest();
+	auto submit = full
+		? (tr::lng_box_ok() | rpl::type_erased())
+		: state->you.value(
+		) | rpl::map([](bool mine) {
+			return mine ? tr::lng_box_ok() : tr::lng_boost_channel_button();
+		}) | rpl::flatten_latest();
 	const auto button = box->addButton(rpl::duplicate(submit), [=] {
 		if (state->submitted) {
 			return;
-		} else if (!state->you.current()) {
+		} else if (!full && !state->you.current()) {
 			state->submitted = true;
 			boost(crl::guard(box, [=](bool success) {
 				state->submitted = false;
