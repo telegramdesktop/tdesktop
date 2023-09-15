@@ -516,6 +516,46 @@ void Story::applyChanges(
 	applyFields(std::move(media), data, now, false);
 }
 
+Story::ViewsCounts Story::parseViewsCounts(
+		const MTPDstoryViews &data,
+		const Data::ReactionId &mine) {
+	auto result = ViewsCounts{
+		.views = data.vviews_count().v,
+		.reactions = data.vreactions_count().value_or_empty(),
+	};
+	if (const auto list = data.vrecent_viewers()) {
+		result.viewers.reserve(list->v.size());
+		auto &owner = _peer->owner();
+		auto &&cut = list->v
+			| ranges::views::take(kRecentViewersMax);
+		for (const auto &id : cut) {
+			result.viewers.push_back(owner.peer(peerFromUser(id)));
+		}
+	}
+	auto total = 0;
+	if (const auto list = data.vreactions()
+		; list && _peer->isChannel()) {
+		result.reactionsCounts.reserve(list->v.size());
+		for (const auto &reaction : list->v) {
+			const auto &data = reaction.data();
+			const auto id = Data::ReactionFromMTP(data.vreaction());
+			const auto count = data.vcount().v;
+			result.reactionsCounts[id] = count;
+			total += count;
+		}
+	}
+	if (!mine.empty()) {
+		if (auto &count = result.reactionsCounts[mine]; !count) {
+			count = 1;
+			++total;
+		}
+	}
+	if (result.reactions < total) {
+		result.reactions = total;
+	}
+	return result;
+}
+
 void Story::applyFields(
 		StoryMedia media,
 		const MTPDstoryItem &data,
@@ -547,51 +587,18 @@ void Story::applyFields(
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
-	auto views = _views.total;
-	auto reactions = _views.reactions;
-	auto viewers = std::vector<not_null<PeerData*>>();
+	auto counts = ViewsCounts();
 	auto viewsKnown = _views.known;
-	auto reactionsCounts = base::flat_map<Data::ReactionId, int>();
 	if (const auto info = data.vviews()) {
-		const auto &data = info->data();
-		views = data.vviews_count().v;
-		reactions = data.vreactions_count().value_or_empty();
+		counts = parseViewsCounts(info->data(), reaction);
 		viewsKnown = true;
-		if (const auto list = data.vrecent_viewers()) {
-			viewers.reserve(list->v.size());
-			auto &owner = _peer->owner();
-			auto &&cut = list->v
-				| ranges::views::take(kRecentViewersMax);
-			for (const auto &id : cut) {
-				viewers.push_back(owner.peer(peerFromUser(id)));
-			}
-		}
-		auto total = 0;
-		if (const auto list = data.vreactions()
-			; list && _peer->isChannel()) {
-			reactionsCounts.reserve(list->v.size());
-			for (const auto &reaction : list->v) {
-				const auto &data = reaction.data();
-				const auto id = Data::ReactionFromMTP(data.vreaction());
-				const auto count = data.vcount().v;
-				reactionsCounts[id] = count;
-				total += count;
-			}
-		}
-		if (!reaction.empty()) {
-			if (auto &mine = reactionsCounts[reaction]; !mine) {
-				mine = 1;
-				++total;
-			}
-		}
-		if (reactions < total) {
-			reactions = total;
-		}
 	} else {
-		viewers = _recentViewers;
+		counts.views = _views.total;
+		counts.reactions = _views.reactions;
+		counts.viewers = _recentViewers;
 		for (const auto &suggested : _suggestedReactions) {
 			if (const auto count = suggested.count) {
-				reactionsCounts[suggested.reaction] = count;
+				counts.reactionsCounts[suggested.reaction] = count;
 			}
 		}
 	}
@@ -604,8 +611,9 @@ void Story::applyFields(
 			if (const auto location = ParseLocation(area)) {
 				locations.push_back(*location);
 			} else if (auto reaction = ParseSuggestedReaction(area)) {
-				const auto i = reactionsCounts.find(reaction->reaction);
-				if (i != end(reactionsCounts)) {
+				const auto i = counts.reactionsCounts.find(
+					reaction->reaction);
+				if (i != end(counts.reactionsCounts)) {
 					reaction->count = i->second;
 				}
 				suggestedReactions.push_back(*reaction);
@@ -617,9 +625,6 @@ void Story::applyFields(
 	const auto editedChanged = (_edited != edited);
 	const auto mediaChanged = (_media != media);
 	const auto captionChanged = (_caption != caption);
-	const auto viewsChanged = (_views.total != views)
-		|| (_views.reactions != reactions)
-		|| (_recentViewers != viewers);
 	const auto locationsChanged = (_locations != locations);
 	const auto suggestedReactionsChanged
 		= (_suggestedReactions != suggestedReactions);
@@ -633,18 +638,6 @@ void Story::applyFields(
 	_edited = edited;
 	_pinned = pinned;
 	_noForwards = noForwards;
-	if (_views.reactions != reactions
-		|| _views.total != views
-		|| _views.known != viewsKnown) {
-		_views = StoryViews{
-			.reactions = reactions,
-			.total = views,
-			.known = viewsKnown,
-		};
-	}
-	if (viewsChanged) {
-		_recentViewers = std::move(viewers);
-	}
 	if (mediaChanged) {
 		_media = std::move(media);
 	}
@@ -660,17 +653,18 @@ void Story::applyFields(
 	if (reactionChanged) {
 		_sentReactionId = reaction;
 	}
+	updateViewsCounts(std::move(counts), viewsKnown, initial);
 
 	const auto changed = editedChanged
 		|| captionChanged
 		|| mediaChanged
-		|| locationsChanged
+		|| locationsChanged;
+	const auto reactionsChanged = reactionChanged
 		|| suggestedReactionsChanged;
-	if (!initial && (changed || viewsChanged || reactionChanged)) {
+	if (!initial && (changed || reactionsChanged)) {
 		_peer->session().changes().storyUpdated(this, UpdateFlag()
 			| (changed ? UpdateFlag::Edited : UpdateFlag())
-			| (viewsChanged ? UpdateFlag::ViewsChanged : UpdateFlag())
-			| (reactionChanged ? UpdateFlag::Reaction : UpdateFlag()));
+			| (reactionsChanged ? UpdateFlag::Reaction : UpdateFlag()));
 	}
 	if (!initial && (captionChanged || mediaChanged)) {
 		if (const auto item = _peer->owner().stories().lookupItem(this)) {
@@ -680,6 +674,44 @@ void Story::applyFields(
 	}
 	if (pinnedChanged) {
 		_peer->owner().stories().savedStateChanged(this);
+	}
+}
+
+void Story::updateViewsCounts(ViewsCounts &&counts, bool known, bool initial) {
+	const auto viewsChanged = (_views.total != counts.views)
+		|| (_views.reactions != counts.reactions)
+		|| (_recentViewers != counts.viewers);
+	if (_views.reactions != counts.reactions
+		|| _views.total != counts.views
+		|| _views.known != known) {
+		_views = StoryViews{
+			.reactions = counts.reactions,
+			.total = counts.views,
+			.known = known,
+		};
+	}
+	if (viewsChanged) {
+		_recentViewers = std::move(counts.viewers);
+		_peer->session().changes().storyUpdated(
+			this,
+			UpdateFlag::ViewsChanged);
+	}
+}
+
+void Story::applyViewsCounts(const MTPDstoryViews &data) {
+	auto counts = parseViewsCounts(data, _sentReactionId);
+	auto suggestedCountsChanged = false;
+	for (auto &suggested : _suggestedReactions) {
+		const auto i = counts.reactionsCounts.find(suggested.reaction);
+		const auto v = (i != end(counts.reactionsCounts)) ? i->second : 0;
+		if (suggested.count != v) {
+			suggested.count = v;
+			suggestedCountsChanged = true;
+		}
+	}
+	updateViewsCounts(std::move(counts), true, false);
+	if (suggestedCountsChanged) {
+		_peer->session().changes().storyUpdated(this, UpdateFlag::Reaction);
 	}
 }
 

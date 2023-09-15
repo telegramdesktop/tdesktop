@@ -1318,10 +1318,14 @@ void Stories::sendIncrementViewsRequests() {
 }
 
 void Stories::loadViewsSlice(
+		not_null<PeerData*> peer,
 		StoryId id,
 		QString offset,
 		Fn<void(StoryViews)> done) {
-	if (_viewsStoryId == id
+	Expects(peer->isSelf() || !done);
+
+	if (_viewsStoryPeer == peer
+		&& _viewsStoryId == id
 		&& _viewsOffset == offset
 		&& (!offset.isEmpty() || _viewsRequestId)) {
 		if (_viewsRequestId) {
@@ -1329,21 +1333,32 @@ void Stories::loadViewsSlice(
 		}
 		return;
 	}
+	_viewsStoryPeer = peer;
 	_viewsStoryId = id;
 	_viewsOffset = offset;
 	_viewsDone = std::move(done);
 
-	const auto api = &_owner->session().api();
-	const auto perPage = _viewsDone ? kViewsPerPage : kPollingViewsPerPage;
-	api->request(_viewsRequestId).cancel();
+	if (peer->isSelf()) {
+		sendViewsSliceRequest();
+	} else {
+		sendViewsCountsRequest();
+	}
+}
+
+void Stories::sendViewsSliceRequest() {
+	Expects(_viewsStoryPeer != nullptr);
+	Expects(_viewsStoryPeer->isSelf());
+
 	using Flag = MTPstories_GetStoryViewsList::Flag;
+	const auto api = &_owner->session().api();
+	_owner->session().api().request(_viewsRequestId).cancel();
 	_viewsRequestId = api->request(MTPstories_GetStoryViewsList(
 		MTP_flags(Flag::f_reactions_first),
-		MTP_inputPeerSelf(),
+		_viewsStoryPeer->input,
 		MTPstring(), // q
-		MTP_int(id),
-		MTP_string(offset),
-		MTP_int(perPage)
+		MTP_int(_viewsStoryId),
+		MTP_string(_viewsOffset),
+		MTP_int(_viewsDone ? kViewsPerPage : kPollingViewsPerPage)
 	)).done([=](const MTPstories_StoryViewsList &result) {
 		_viewsRequestId = 0;
 
@@ -1379,6 +1394,34 @@ void Stories::loadViewsSlice(
 		if (const auto done = base::take(_viewsDone)) {
 			done({});
 		}
+	}).send();
+}
+
+void Stories::sendViewsCountsRequest() {
+	Expects(_viewsStoryPeer != nullptr);
+	Expects(!_viewsDone);
+
+	const auto api = &_owner->session().api();
+	_owner->session().api().request(_viewsRequestId).cancel();
+	_viewsRequestId = api->request(MTPstories_GetStoriesViews(
+		_viewsStoryPeer->input,
+		MTP_vector<MTPint>(1, MTP_int(_viewsStoryId))
+	)).done([=](const MTPstories_StoryViews &result) {
+		_viewsRequestId = 0;
+
+		const auto &data = result.data();
+		_owner->processUsers(data.vusers());
+		if (data.vviews().v.size() == 1) {
+			const auto fullId = FullStoryId{
+				_viewsStoryPeer->id,
+				_viewsStoryId,
+			};
+			if (const auto story = lookup(fullId)) {
+				(*story)->applyViewsCounts(data.vviews().v.front().data());
+			}
+		}
+	}).fail([=] {
+		_viewsRequestId = 0;
 	}).send();
 }
 
@@ -1745,7 +1788,7 @@ void Stories::registerPolling(not_null<Story*> story, Polling polling) {
 	case Polling::Chat: ++settings.chat; break;
 	case Polling::Viewer:
 		++settings.viewer;
-		if (story->peer()->isSelf()
+		if ((story->peer()->isSelf() || story->peer()->isChannel())
 			&& _pollingViews.emplace(story).second) {
 			sendPollingViewsRequests();
 		}
@@ -1838,7 +1881,8 @@ void Stories::sendPollingViewsRequests() {
 		return;
 	} else if (!_viewsRequestId) {
 		Assert(_viewsDone == nullptr);
-		loadViewsSlice(_pollingViews.front()->id(), QString(), nullptr);
+		const auto story = _pollingViews.front();
+		loadViewsSlice(story->peer(), story->id(), QString(), nullptr);
 	}
 	_pollingViewsTimer.callOnce(kPollViewsInterval);
 }

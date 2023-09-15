@@ -178,15 +178,28 @@ public:
 		StoryMedia media,
 		const MTPDstoryItem &data,
 		TimeId now);
+	void applyViewsCounts(const MTPDstoryViews &data);
 	[[nodiscard]] TimeId lastUpdateTime() const;
 
 private:
+	struct ViewsCounts {
+		int views = 0;
+		int reactions = 0;
+		base::flat_map<Data::ReactionId, int> reactionsCounts;
+		std::vector<not_null<PeerData*>> viewers;
+	};
+
 	void changeSuggestedReactionCount(Data::ReactionId id, int delta);
 	void applyFields(
 		StoryMedia media,
 		const MTPDstoryItem &data,
 		TimeId now,
 		bool initial);
+
+	void updateViewsCounts(ViewsCounts &&counts, bool known, bool initial);
+	[[nodiscard]] ViewsCounts parseViewsCounts(
+		const MTPDstoryViews &data,
+		const Data::ReactionId &mine);
 
 	const StoryId _id = 0;
 	const not_null<PeerData*> _peer;

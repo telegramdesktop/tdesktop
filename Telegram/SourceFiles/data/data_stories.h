@@ -178,6 +178,7 @@ public:
 
 	static constexpr auto kViewsPerPage = 50;
 	void loadViewsSlice(
+		not_null<PeerData*> peer,
 		StoryId id,
 		QString offset,
 		Fn<void(StoryViews)> done);
@@ -315,6 +316,8 @@ private:
 		TimeId now);
 	void sendPollingRequests();
 	void sendPollingViewsRequests();
+	void sendViewsSliceRequest();
+	void sendViewsCountsRequest();
 
 	const not_null<Session*> _owner;
 	std::unordered_map<
@@ -370,6 +373,7 @@ private:
 	base::Timer _incrementViewsTimer;
 	base::flat_set<PeerId> _incrementViewsRequests;
 
+	PeerData *_viewsStoryPeer = nullptr;
 	StoryId _viewsStoryId = 0;
 	QString _viewsOffset;
 	Fn<void(StoryViews)> _viewsDone;

@@ -1367,7 +1367,11 @@ const Data::StoryViews &Controller::views(int limit, bool initial) {
 		const auto done = viewsGotMoreCallback();
 		const auto peer = shownPeer();
 		auto &stories = peer->owner().stories();
-		stories.loadViewsSlice(_shown.story, _viewsSlice.nextOffset, done);
+		stories.loadViewsSlice(
+			peer,
+			_shown.story,
+			_viewsSlice.nextOffset,
+			done);
 	}
 	return _viewsSlice;
 }
