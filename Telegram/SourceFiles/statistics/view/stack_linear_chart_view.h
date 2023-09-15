@@ -128,6 +128,7 @@ private:
 		bool set(LineId id);
 		[[nodiscard]] float64 progress(LineId id);
 		[[nodiscard]] QPointF offset(LineId id, float64 angle);
+		[[nodiscard]] LineId selected() const;
 
 	private:
 		void update(LineId id);

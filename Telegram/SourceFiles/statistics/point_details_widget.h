@@ -12,6 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 
+void PaintDetails(
+	QPainter &p,
+	const Data::StatisticalChart::Line &line,
+	int absoluteValue,
+	const QRect &rect);
+
 class PointDetailsWidget : public Ui::RippleButton {
 public:
 	PointDetailsWidget(

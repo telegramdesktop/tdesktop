@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/view/stack_linear_chart_view.h"
 
-#include "ui/effects/animation_value_f.h"
 #include "data/data_statistics.h"
+#include "statistics/point_details_widget.h"
+#include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "styles/style_statistics.h"
@@ -429,27 +430,43 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 		center + QPointF(side, side));
 
 	auto hq = PainterHighQualityEnabler(p);
+	auto selectedLineIndex = -1;
 	for (auto k = 0; k < c.chartData.lines.size(); k++) {
 		const auto previous = k
 			? _cachedTransition.lines[k - 1].angle
 			: -180;
 		const auto now = _cachedTransition.lines[k].angle;
 
-		p.setBrush(c.chartData.lines[k].color);
+		const auto &line = c.chartData.lines[k];
+		p.setBrush(line.color);
 		p.setPen(Qt::NoPen);
 		const auto textAngle = (previous + kPieAngleOffset)
 			+ (now - previous) / 2.;
-		const auto partOffset = _piePartController.offset(
-			c.chartData.lines[k].id,
-			textAngle);
+		const auto partOffset = _piePartController.offset(line.id, textAngle);
 		p.translate(partOffset);
 		p.drawPie(
 			rectF,
 			-(previous + kPieAngleOffset) * 16,
 			-(now - previous) * 16);
 		p.translate(-partOffset);
+		if (_piePartController.selected() == line.id) {
+			selectedLineIndex = k;
+		}
 	}
 	paintPieText(p, c);
+
+	if (selectedLineIndex >= 0) {
+		const auto &[localStart, localEnd] = _lastPaintedXIndices;
+		const auto &line = c.chartData.lines[selectedLineIndex];
+		auto sum = 0;
+		for (auto i = localStart; i <= localEnd; i++) {
+			sum += line.y[i];
+		}
+		sum *= alpha(line.id);
+		if (sum > 0) {
+			PaintDetails(p, line, sum, c.rect);
+		}
+	}
 }
 
 void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
@@ -552,6 +569,10 @@ QPointF StackLinearChartView::PiePartController::offset(
 	return { std::cos(radians) * offset, std::sin(radians) * offset };
 }
 
+auto StackLinearChartView::PiePartController::selected() const -> LineId {
+	return _selected;
+}
+
 void StackLinearChartView::handleMouseMove(
 		const Data::StatisticalChart &chartData,
 		const QPoint &center,
@@ -570,7 +591,10 @@ void StackLinearChartView::handleMouseMove(
 			: -180;
 		const auto now = _cachedTransition.lines[k].angle;
 		if (angle > previous && angle <= now) {
-			if (_piePartController.set(chartData.lines[k].id)) {
+			const auto id = p.isNull()
+				? -1
+				: chartData.lines[k].id;
+			if (_piePartController.set(id)) {
 				if (!_piePartAnimation.animating()) {
 					_piePartAnimation.start();
 				}

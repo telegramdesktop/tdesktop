@@ -32,6 +32,57 @@ namespace {
 
 } // namespace
 
+void PaintDetails(
+		QPainter &p,
+		const Data::StatisticalChart::Line &line,
+		int absoluteValue,
+		const QRect &rect) {
+	auto name = Ui::Text::String(
+		st::statisticsDetailsPopupStyle,
+		line.name);
+	auto value = Ui::Text::String(
+		st::statisticsDetailsPopupStyle,
+		QString("%L1").arg(absoluteValue));
+	const auto nameWidth = name.maxWidth();
+	const auto valueWidth = value.maxWidth();
+
+	const auto width = valueWidth
+		+ rect::m::sum::h(st::statisticsDetailsPopupMargins)
+		+ rect::m::sum::h(st::statisticsDetailsPopupPadding)
+		+ st::statisticsDetailsPopupPadding.left() // Between strings.
+		+ nameWidth;
+
+	const auto height = st::statisticsDetailsPopupStyle.font->height
+		+ rect::m::sum::v(st::statisticsDetailsPopupMargins)
+		+ rect::m::sum::v(st::statisticsDetailsPopupPadding);
+
+	const auto fullRect = QRect(
+		rect.x() + rect.width() - width,
+		rect.y(),
+		width,
+		height);
+
+	const auto innerRect = fullRect - st::statisticsDetailsPopupPadding;
+	const auto textRect = innerRect - st::statisticsDetailsPopupMargins;
+
+	Ui::Shadow::paint(p, innerRect, rect.width(), st::boxRoundShadow);
+	Ui::FillRoundRect(p, innerRect, st::boxBg, Ui::BoxCorners);
+
+	const auto lineY = textRect.y();
+	const auto valueContext = Ui::Text::PaintContext{
+		.position = QPoint(rect::right(textRect) - valueWidth, lineY),
+	};
+	const auto nameContext = Ui::Text::PaintContext{
+		.position = QPoint(textRect.x(), lineY),
+		.outerWidth = textRect.width() - valueWidth,
+		.availableWidth = textRect.width(),
+	};
+	p.setPen(st::boxTextFg);
+	name.draw(p, nameContext);
+	p.setPen(line.color);
+	value.draw(p, valueContext);
+}
+
 PointDetailsWidget::PointDetailsWidget(
 	not_null<Ui::RpWidget*> parent,
 	const Data::StatisticalChart &chartData,
