@@ -97,7 +97,7 @@ QtWayland::org_kde_plasma_surface WaylandIntegration::Private::plasmaSurface(
 		if (it != plasmaShell->surfaces.cend()) {
 			plasmaShell->surfaces.erase(it);
 		}
-	}, lifetime);
+	}, result.first->second.lifetime());
 
 	return result.first->second;
 }
