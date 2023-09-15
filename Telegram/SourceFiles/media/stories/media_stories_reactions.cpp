@@ -106,6 +106,7 @@ private:
 	QImage _background;
 	QString _countShort;
 	Ui::Text::String _counter;
+	Ui::Animations::Simple _counterAnimation;
 	QRectF _bubbleGeometry;
 	int _size = 0;
 	int _mediaLeft = 0;
@@ -211,6 +212,8 @@ ReactionView::ReactionView(
 
 	_data.count = 0;
 	updateCount(reaction.count);
+	_counterAnimation.stop();
+
 	setupCustomChatStylePalette();
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	show();
@@ -246,15 +249,25 @@ void ReactionView::updateCount(int count) {
 		return;
 	}
 	_data.count = count;
-	const auto countShort = Lang::FormatCountToShort(count).string;
+	const auto countShort = count
+		? Lang::FormatCountToShort(count).string
+		: QString();
 	if (_countShort == countShort) {
 		return;
 	}
+	const auto was = !_countShort.isEmpty();
 	_countShort = countShort;
-	if (!count) {
-		_counter = {};
-	} else {
+	const auto now = !_countShort.isEmpty();
+
+	if (!_countShort.isEmpty()) {
 		_counter = { st::storiesLikeCountStyle, _countShort };
+	}
+	if (now != was) {
+		_counterAnimation.start(
+			[=] { update(); },
+			was ? 1. : 0.,
+			was ? 0. : 1.,
+			st::fadeWrapDuration);
 	}
 	update();
 }
@@ -363,14 +376,12 @@ void ReactionView::paintEvent(QPaintEvent *e) {
 	}
 	p.drawImage(0, 0, _background);
 
-	const auto counter = !_counter.isEmpty();
-	const auto scale = counter
-		? kSuggestedWithCountSize
-		: kSuggestedReactionSize;
-	const auto counterSkip = counter
-		? ((kSuggestedReactionSize - kSuggestedWithCountSize)
-			* _mediaHeight / 2)
-		: 0;
+	const auto counted = _counterAnimation.value(_countShort.isEmpty()
+		? 0.
+		: 1.);
+	const auto scale = kSuggestedReactionSize
+		+ (kSuggestedWithCountSize - kSuggestedReactionSize) * counted;
+	const auto counterSkip = (kSuggestedReactionSize - scale) * _mediaHeight / 2;
 
 	auto hq = PainterHighQualityEnabler(p);
 	p.translate(_bubbleGeometry.center());
@@ -382,16 +393,6 @@ void ReactionView::paintEvent(QPaintEvent *e) {
 		-(_mediaLeft + (_mediaWidth / 2)),
 		-(_mediaTop + (_mediaHeight / 2) + counterSkip));
 
-	if (counter) {
-		p.setPen(_data.dark ? Qt::white : Qt::black);
-		_counter.draw(
-			p,
-			_mediaLeft,
-			_mediaTop + _mediaHeight,
-			_mediaWidth,
-			style::al_top);
-	}
-
 	auto context = Ui::ChatPaintContext{
 		.st = _chatStyle.get(),
 		.viewport = rect(),
@@ -399,6 +400,20 @@ void ReactionView::paintEvent(QPaintEvent *e) {
 		.now = crl::now(),
 	};
 	_fake->draw(p, context);
+
+	if (counted > 0.) {
+		p.setPen(_data.dark ? Qt::white : Qt::black);
+		const auto countTop = _mediaTop + _mediaHeight;
+		if (counted < 1.) {
+			const auto center = QPoint(
+				_mediaLeft + (_mediaWidth / 2),
+				countTop + st::storiesLikeCountStyle.font->height / 2);
+			p.translate(center);
+			p.scale(counted, counted);
+			p.translate(-center);
+		}
+		_counter.draw(p, _mediaLeft, countTop, _mediaWidth, style::al_top);
+	}
 }
 
 void ReactionView::cacheBackground() {
