@@ -902,12 +902,12 @@ void AttachWebView::requestBots(Fn<void()> callback) {
 			}
 			_attachBotsUpdates.fire({});
 		});
-		for (const auto callback : base::take(_botsRequestCallbacks)) {
+		for (const auto &callback : base::take(_botsRequestCallbacks)) {
 			callback();
 		}
 	}).fail([=] {
 		_botsRequestId = 0;
-		for (const auto callback : base::take(_botsRequestCallbacks)) {
+		for (const auto &callback : base::take(_botsRequestCallbacks)) {
 			callback();
 		}
 	}).send();
