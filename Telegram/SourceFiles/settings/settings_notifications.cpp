@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
+#include "base/call_delayed.h"
 #include "mainwindow.h"
 #include "core/application.h"
 #include "main/main_session.h"
@@ -49,7 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 #include <QSvgRenderer>
-#include <QTimer>
 
 namespace Settings {
 namespace {
@@ -675,11 +675,11 @@ void NotificationsCount::SampleWidget::destroyDelayed() {
 	_deleted = true;
 
 	// Ubuntu has a lag if deleteLater() called immediately.
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	QTimer::singleShot(1000, [this] { delete this; });
-#else // Q_OS_UNIX && !Q_OS_MAC
-	deleteLater();
-#endif // Q_OS_UNIX && !Q_OS_MAC
+	if constexpr (Platform::IsLinux()) {
+		base::call_delayed(1000, this, [this] { delete this; });
+	} else {
+		deleteLater();
+	}
 }
 
 class NotifyPreview final {
