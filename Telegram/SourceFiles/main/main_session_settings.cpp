@@ -143,7 +143,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 appSuggestStickersByEmoji = app.suggestStickersByEmoji() ? 1 : 0;
 	qint32 appSpellcheckerEnabled = app.spellcheckerEnabled() ? 1 : 0;
 	std::vector<std::pair<DocumentId, crl::time>> mediaLastPlaybackPosition;
-	qint32 appVideoPlaybackSpeed = Core::Settings::SerializePlaybackSpeed(app.videoPlaybackSpeed());
+	qint32 appVideoPlaybackSpeed = app.videoPlaybackSpeedSerialized();
 	QByteArray appVideoPipGeometry = app.videoPipGeometry();
 	std::vector<int> appDictionariesEnabled;
 	qint32 appAutoDownloadDictionaries = app.autoDownloadDictionaries() ? 1 : 0;
@@ -479,7 +479,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		app.setSuggestEmoji(appSuggestEmoji == 1);
 		app.setSuggestStickersByEmoji(appSuggestStickersByEmoji == 1);
 		app.setSpellcheckerEnabled(appSpellcheckerEnabled == 1);
-		app.setVideoPlaybackSpeed(Core::Settings::DeserializePlaybackSpeed(appVideoPlaybackSpeed));
+		app.setVideoPlaybackSpeedSerialized(appVideoPlaybackSpeed);
 		app.setVideoPipGeometry(appVideoPipGeometry);
 		app.setDictionariesEnabled(std::move(appDictionariesEnabled));
 		app.setAutoDownloadDictionaries(appAutoDownloadDictionaries == 1);

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 
 namespace HistoryView::Controls {
@@ -49,7 +50,7 @@ auto Blobs() {
 
 VoiceRecordButton::VoiceRecordButton(
 	not_null<Ui::RpWidget*> parent,
-	rpl::producer<> leaveWindowEventProducer)
+	const style::RecordBar &st)
 : AbstractButton(parent)
 , _blobs(std::make_unique<Ui::Paint::Blobs>(
 	Blobs(),
@@ -57,11 +58,6 @@ VoiceRecordButton::VoiceRecordButton(
 	kMaxLevel))
 , _center(_blobs->maxRadius()) {
 	resize(_center * 2, _center * 2);
-	std::move(
-		leaveWindowEventProducer
-	) | rpl::start_with_next([=] {
-		_inCircle = false;
-	}, lifetime());
 	init();
 }
 

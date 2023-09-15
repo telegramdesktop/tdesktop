@@ -342,9 +342,9 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 }
 
 void CheckoutProcess::handleError(const Error &error) {
-	const auto showToast = [&](const TextWithEntities &text) {
+	const auto showToast = [&](TextWithEntities &&text) {
 		_panel->requestActivate();
-		_panel->showToast(text);
+		_panel->showToast(std::move(text));
 	};
 	const auto &id = error.id;
 	switch (error.type) {

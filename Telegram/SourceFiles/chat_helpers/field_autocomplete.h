@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace Ui {
 class PopupMenu;
 class ScrollArea;
@@ -24,6 +28,10 @@ namespace Lottie {
 class SinglePlayer;
 class FrameRenderer;
 } // namespace Lottie;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Window {
 class SessionController;
@@ -39,6 +47,7 @@ enum class Type;
 
 namespace ChatHelpers {
 struct FileChosen;
+class Show;
 } // namespace ChatHelpers
 
 class FieldAutocomplete final : public Ui::RpWidget {
@@ -46,9 +55,13 @@ public:
 	FieldAutocomplete(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
+	FieldAutocomplete(
+		QWidget *parent,
+		std::shared_ptr<ChatHelpers::Show> show,
+		const style::EmojiPan *stOverride = nullptr);
 	~FieldAutocomplete();
 
-	[[nodiscard]] not_null<Window::SessionController*> controller() const;
+	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow() const;
 
 	bool clearFilteredBotCommands();
 	void showFiltered(
@@ -112,16 +125,14 @@ public:
 	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
 
 	void hideFast();
+	void showAnimated();
+	void hideAnimated();
 
 	rpl::producer<MentionChosen> mentionChosen() const;
 	rpl::producer<HashtagChosen> hashtagChosen() const;
 	rpl::producer<BotCommandChosen> botCommandChosen() const;
 	rpl::producer<StickerChosen> stickerChosen() const;
 	rpl::producer<Type> choosingProcesses() const;
-
-public Q_SLOTS:
-	void showAnimated();
-	void hideAnimated();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -145,7 +156,9 @@ private:
 	void recount(bool resetScroll = false);
 	StickerRows getStickerSuggestions();
 
-	const not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const not_null<Main::Session*> _session;
+	const style::EmojiPan &_st;
 	QPixmap _cache;
 	MentionRows _mrows;
 	HashtagRows _hrows;

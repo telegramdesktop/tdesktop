@@ -10,8 +10,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "inline_bots/bot_attach_web_view.h"
 
 namespace {
+
+[[nodiscard]] InlineBots::PeerTypes PeerTypesFromMTP(
+		const MTPvector<MTPInlineQueryPeerType> &types) {
+	using namespace InlineBots;
+	auto result = PeerTypes(0);
+	for (const auto &type : types.v) {
+		result |= type.match([&](const MTPDinlineQueryPeerTypePM &data) {
+			return PeerType::User;
+		}, [&](const MTPDinlineQueryPeerTypeChat &data) {
+			return PeerType::Group;
+		}, [&](const MTPDinlineQueryPeerTypeMegagroup &data) {
+			return PeerType::Group;
+		}, [&](const MTPDinlineQueryPeerTypeBroadcast &data) {
+			return PeerType::Broadcast;
+		}, [&](const MTPDinlineQueryPeerTypeBotPM &data) {
+			return PeerType::Bot;
+		}, [&](const MTPDinlineQueryPeerTypeSameBotPM &data) {
+			return PeerType();
+		});
+	}
+	return result;
+}
 
 [[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
 		const MTPRequestPeerType &query) {
@@ -134,6 +157,9 @@ void HistoryMessageMarkupData::fillRows(
 						// Optimization flag.
 						// Fast check on all new messages if there is a switch button to auto-click it.
 						flags |= ReplyMarkupFlag::HasSwitchInlineButton;
+						if (const auto types = data.vpeer_types()) {
+							row.back().peerTypes = PeerTypesFromMTP(*types);
+						}
 					}
 				}, [&](const MTPDkeyboardButtonGame &data) {
 					row.emplace_back(Type::Game, qs(data.vtext()));

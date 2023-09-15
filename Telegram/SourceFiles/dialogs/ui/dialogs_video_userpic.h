@@ -19,9 +19,15 @@ namespace Ui {
 struct PeerUserpicView;
 } // namespace Ui
 
+namespace Dialogs {
+class Entry;
+} // namespace Dialogs
+
 namespace Dialogs::Ui {
 
 using namespace ::Ui;
+
+struct PaintContext;
 
 class VideoUserpic final {
 public:
@@ -53,6 +59,14 @@ private:
 	PhotoId _videoPhotoId = 0;
 
 };
+
+void PaintUserpic(
+	Painter &p,
+	not_null<Entry*> entry,
+	PeerData *peer,
+	VideoUserpic *videoUserpic,
+	PeerUserpicView &view,
+	const Ui::PaintContext &context);
 
 void PaintUserpic(
 	Painter &p,

@@ -27,13 +27,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/ui_utility.h"
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include "base/platform/linux/base_linux_glibmm_helper.h"
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #include "base/platform/linux/base_linux_xcb_utilities.h"
@@ -44,10 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtWidgets/QMenuBar>
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
 #include <giomm.h>
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
 namespace {
@@ -123,9 +118,7 @@ void XCBSetDesktopFileName(QWindow *window) {
 		base::Platform::XCB::GetAtom(connection, "_KDE_NET_WM_DESKTOP_FILE"),
 	};
 
-	const auto filename = QGuiApplication::desktopFileName()
-		.chopped(8)
-		.toUtf8();
+	const auto filename = QGuiApplication::desktopFileName().toUtf8();
 
 	for (const auto atom : filenameAtoms) {
 		if (atom.has_value()) {
@@ -177,16 +170,6 @@ void ForceDisabled(QAction *action, bool disabled) {
 	}
 }
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-uint djbStringHash(const std::string &string) {
-	uint hash = 5381;
-	for (const auto &curChar : string) {
-		hash = (hash << 5) + hash + curChar;
-	}
-	return hash;
-}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 } // namespace
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
@@ -194,6 +177,12 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 }
 
 void MainWindow::initHook() {
+	events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ThemeChange) {
+			updateWindowIcon();
+		}
+	}, lifetime());
+
 	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Expose) {
 			auto ee = static_cast<QExposeEvent*>(e.get());
@@ -236,34 +225,38 @@ void MainWindow::updateWindowIcon() {
 	const auto session = sessionController()
 		? &sessionController()->session()
 		: nullptr;
-	const auto supportIcon = session && session->supportMode();
-	if (supportIcon != _usingSupportIcon || _icon.isNull()) {
-		_icon = Window::CreateIcon(session);
-		_usingSupportIcon = supportIcon;
-	}
-	setWindowIcon(_icon);
+	setWindowIcon(Window::CreateIcon(session));
 }
 
 void MainWindow::updateUnityCounter() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+	qApp->setBadgeNumber(Core::App().unreadBadge());
+#else // Qt >= 6.6.0
+	static const auto djbStringHash = [](const std::string &string) {
+		uint hash = 5381;
+		for (const auto &curChar : string) {
+			hash = (hash << 5) + hash + curChar;
+		}
+		return hash;
+	};
+
 	const auto launcherUrl = Glib::ustring(
 		"application://"
-			+ QGuiApplication::desktopFileName().toStdString());
+			+ QGuiApplication::desktopFileName().toStdString()
+			+ ".desktop");
 	const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
 	std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 
-        if (counterSlice > 0) {
-            // According to the spec, it should be of 'x' D-Bus signature,
-            // which corresponds to signed 64-bit integer
-            // https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
-            dbusUnityProperties["count"] = Glib::Variant<int64>::create(
-                    counterSlice);
-            dbusUnityProperties["count-visible"] =
-                    Glib::Variant<bool>::create(true);
-        } else {
-            dbusUnityProperties["count-visible"] =
-                    Glib::Variant<bool>::create(false);
-        }
+	if (counterSlice > 0) {
+		// According to the spec, it should be of 'x' D-Bus signature,
+		// which corresponds to signed 64-bit integer
+		// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
+		dbusUnityProperties["count"] = Glib::create_variant(
+			int64(counterSlice));
+		dbusUnityProperties["count-visible"] = Glib::create_variant(true);
+	} else {
+		dbusUnityProperties["count-visible"] = Glib::create_variant(false);
+	}
 
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
@@ -275,13 +268,13 @@ void MainWindow::updateUnityCounter() {
 			"com.canonical.Unity.LauncherEntry",
 			"Update",
 			{},
-			base::Platform::MakeGlibVariant(std::tuple{
+			Glib::create_variant(std::tuple{
 				launcherUrl,
 				dbusUnityProperties,
 			}));
 	} catch (...) {
 	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#endif // Qt < 6.6.0
 }
 
 void MainWindow::createGlobalMenu() {

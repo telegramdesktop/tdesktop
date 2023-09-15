@@ -278,7 +278,6 @@ void RingtonesBox(
 			st::ringtonesBoxButton,
 			{
 				&st::settingsIconAdd,
-				0,
 				Settings::IconType::Round,
 				&st::windowBgActive
 			}),

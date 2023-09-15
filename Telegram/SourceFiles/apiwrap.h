@@ -35,6 +35,7 @@ enum class StickersType : uchar;
 class Forum;
 class ForumTopic;
 class Thread;
+class Story;
 } // namespace Data
 
 namespace InlineBots {
@@ -160,6 +161,7 @@ public:
 	QString exportDirectMessageLink(
 		not_null<HistoryItem*> item,
 		bool inRepliesContext);
+	QString exportDirectStoryLink(not_null<Data::Story*> item);
 
 	void requestContacts();
 	void requestDialogs(Data::Folder *folder = nullptr);
@@ -201,6 +203,10 @@ public:
 	void checkChatInvite(
 		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
+		Fn<void(const MTP::Error &)> fail);
+	void checkFilterInvite(
+		const QString &slug,
+		FnMut<void(const MTPchatlists_ChatlistInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
 
 	void processFullPeer(
@@ -296,7 +302,7 @@ public:
 	void sendVoiceMessage(
 		QByteArray result,
 		VoiceWaveform waveform,
-		int duration,
+		crl::time duration,
 		const SendAction &action);
 	void sendFiles(
 		Ui::PreparedList &&list,
@@ -653,6 +659,7 @@ private:
 	mtpRequestId _termsUpdateRequestId = 0;
 
 	mtpRequestId _checkInviteRequestId = 0;
+	mtpRequestId _checkFilterInviteRequestId = 0;
 
 	struct MigrateCallbacks {
 		FnMut<void(not_null<ChannelData*>)> done;
@@ -702,5 +709,6 @@ private:
 	base::flat_map<not_null<UserData*>, Fn<void()>> _botCommonGroupsRequests;
 
 	base::flat_map<FullMsgId, QString> _unlikelyMessageLinks;
+	base::flat_map<FullStoryId, QString> _unlikelyStoryLinks;
 
 };

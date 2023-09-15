@@ -182,8 +182,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	if (const auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
 			_controller->show(
-				Ui::MakeInformBox(tr::lng_error_cant_add_member()),
-				Ui::LayerOption::KeepOther);
+				Ui::MakeInformBox(tr::lng_error_cant_add_member()));
 			return;
 		}
 	}
@@ -243,18 +242,16 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 				_token,
 				_existingRights.value_or(ChatAdminRights()) });
 		box->setSaveCallback(saveCallback);
-		controller->show(std::move(box), Ui::LayerOption::KeepOther);
+		controller->show(std::move(box));
 	} else {
 		auto callback = crl::guard(this, [=] {
 			AddBotToGroup(bot, chat, _token);
 			controller->hideLayer();
 		});
-		controller->show(
-			Ui::MakeConfirmBox({
-				tr::lng_bot_sure_invite(tr::now, lt_group, chat->name()),
-				std::move(callback),
-			}),
-			Ui::LayerOption::KeepOther);
+		controller->show(Ui::MakeConfirmBox({
+			tr::lng_bot_sure_invite(tr::now, lt_group, chat->name()),
+			std::move(callback),
+		}));
 	}
 }
 

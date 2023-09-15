@@ -1,3 +1,157 @@
+4.9.1 (15.08.23)
+
+- Fix a crash in reply area ripple animation.
+- Fix a crash on start in some Linux distributions.
+
+4.9 (14.08.23)
+
+- Gradual stories rollout.
+
+4.8.12 beta (11.08.23)
+
+- Fix crash by a full rebuild on macOS.
+
+4.8.11 beta (10.08.23)
+
+- Fix initial video playback speed.
+- Use native window resize on Windows 11.
+- Fix memory leak in Direct3D 11 media viewer on Windows.
+
+4.8.10 (28.07.23)
+
+- Send story sharing comments as separate messages.
+- Fix stories explanation tooltip ordering.
+
+4.8.9 (26.07.23)
+
+- Bug fixes and other minor improvements.
+
+4.8.8 (25.07.23)
+
+- Several crash fixes and story viewer improvements.
+
+4.8.7 (21.07.23)
+
+- Several crash fixes and small stories improvements.
+
+4.8.6 (21.07.23)
+
+- Fix langpack keys by a full rebuild on macOS.
+
+4.8.5 (20.07.23)
+
+- Bug fixes and other minor improvements. And stories preview.
+
+4.8.4 (13.06.23)
+
+- Fix opening links on Linux.
+
+4.8.3 (31.05.23)
+
+- Fix main window focus from notifications with disabled animations.
+- Some minor fixes and improvements. 
+
+4.8.2 (16.05.23)
+
+- Apply hardening runtime for Mac App Store version.
+
+4.8.1 (24.04.23)
+
+- Fix sending an album of ten scheduled messages.
+- Convert folder back to non-shareable on last link deletion.
+- Several fixes of focus control in discussions / channel comments.
+- Drop all formatting on paste in non-message input fields.
+- Clear search field on archive opening.
+- Show video upload / download progress over the spoiler.
+- Better support for text-colored emoji in reactions.
+- Close archive / topics group when clicking on currently active folder.
+- Allow replace media by paste in discussions / comments / scheduled messages.
+- Fix stuck Replace Media button after editing media in some chats.
+- Quick reply by double click only with the left mouse button.
+- Fix applying the same custom chat background with different dimming value.
+- Fix "who reacted" list display for media album parts.
+- Show full t.me/+ invite link prefix in Recent Actions.
+- Don't try to suggest userpic photos to bots.
+- Add "Send when online" to the send button context menu.
+- Fix crash in empty topics message sending.
+
+4.8 (21.04.23)
+
+- Share folders that include dozens of chats with friends or colleagues.
+- Anyone you invite can add the folder and join all its chats in one tap.
+- You can create multiple invite links to give different people access to different chats in the folder.
+- Set a custom wallpaper for any 1-on-1 chat.
+- Your chat partner can apply the same wallpaper - or choose their own.
+
+4.7.1 (21.03.23)
+
+- Fix media viewer with some system scale settings on Windows.
+- Fix calls on Linux.
+
+4.7 (19.03.23)
+
+- You can disable all resource-intensive animations and animated stickers and emoji.
+- Power saving mode turns on automatically based on system battery saving settings.
+- Fully flexible playback speed settings for videos, voice and video messages.
+- Click the "1X" button to quickly switch between normal and adjusted speed – or hold it to set any speed between 0.5-2.5x.
+- Improved sound quality for adjusted speed playback.
+- Read receipts in groups under 100 members now show reaction timestamps and when your messages were read.
+- When inviting people to groups, you can quickly send invite links to anyone who doesn't allow adding them directly.
+- Invite links now show previews in chats.
+- Fully translatable bots. Bot descriptions and ”What can this bot do?" sections can now be translated.
+- Starting a call now shows a confirmation window.
+- Fixed pasting images from Firefox on Windows.
+- Global Fn+F shortcut to switch active window to full screen mode on macOS.
+- Silent notification sound in Focus Mode on macOS.
+
+4.6.12 beta (17.03.23)
+
+- Fix several possible crashes.
+- Deprecate macOS 10.12, Ubuntu 18.04 and CentOS 7 in July.
+
+4.6.11 beta (15.03.23)
+
+- Allow larger interface scale values on high-dpi screens.
+- Implement new voice and video speed change interface (up to 2.5x).
+- Support global Fn+F shortcut to toggle fullscreen on macOS.
+- Silent notification sound in Focus Mode on macOS.
+- Fix media viewer on macOS with several screens.
+- Fix a crash in connection type box.
+- Fix possible crash on quit.
+
+4.6.10 beta (12.03.23)
+
+- Suggest sending an invite link if user forbids inviting him to groups.
+- Show when a reaction was left on your message in small groups.
+- Fix a crash in video chats on Windows.
+- Fix a crash in audio speed change.
+
+4.6.9 beta (10.03.23)
+
+- Fix audio speed change filter in Windows x64 build.
+- Fix build scripts.
+
+4.6.8 beta (09.03.23)
+
+- Improve quality of voice messages with changed playback speed.
+- Show when your message was read in small groups.
+- Fix pasting images from Firefox on Windows.
+- Improve memory usage for custom emoji.
+
+4.6.7 beta (02.03.23)
+
+- Fix crash when accepting incoming calls.
+- Remove sound when cancelling an unconfirmed call.
+
+4.6.6 beta (01.03.23)
+
+- Confirmation window before starting a call.
+- New "Battery and Animations" settings section.
+- "Save Power on Low Battery" option for laptops.
+- Improved windowed mode support for media viewer.
+- Hardware accelerated video playback fix on macOS.
+- New application icon on macOS following the system guidelines.
+
 4.6.5 (25.02.23)
 
 - Fix payment card input field validation.
@@ -90,7 +244,7 @@
 - Media with spoiler effects. You can wrap photos and videos you send in a fuzzy cover by selecting media in the attachment menu and tapping (...) > Hide With Spoiler.
 - Setting pictures for your contacts. You can choose your own picture for a contact – only you will see it on their profile.
 - Suggested profile pictures. When editing your contacts, you can suggest a photo for their profile. It will take them just two clicks to add the picture you suggested.
-- Public profile pictures. If you only allow certain users to see your profile photos, you can set a public picture for everyone else. 
+- Public profile pictures. If you only allow certain users to see your profile photos, you can set a public picture for everyone else.
 - Ultimate profile picture privacy. You can set 'Who can see my profile photos' to 'Nobody' and add some users or groups as exceptions.
 - Member list privacy. Owners of large groups can hide the list of members.
 

@@ -21,11 +21,6 @@ apps:
     common-id: org.telegram.desktop
     desktop: usr/share/applications/org.telegram.desktop.desktop
     autostart: telegram-desktop_telegram-desktop.desktop
-    environment:
-      # Tell glib to use portals on file associations handling.
-      GTK_USE_PORTAL: 1
-      # Use sandboxed ibus api
-      IBUS_USE_PORTAL: 1
     plugs:
       - alsa
       - audio-playback
@@ -33,9 +28,11 @@ apps:
       - camera
       - desktop
       - desktop-legacy
+      - gsettings
       - hardware-observe
       - home
       - network
+      - network-bind
       - network-status
       - opengl
       - removable-media
@@ -43,7 +40,7 @@ apps:
       - wayland
       - x11
     slots:
-      - tdesktop-mpris
+      - mpris
 
 hooks:
   configure:
@@ -57,7 +54,6 @@ plugs:
     mount-host-font-cache: false
   # Support for common GTK themes
   # https://forum.snapcraft.io/t/how-to-use-the-system-gtk-theme-via-the-gtk-common-themes-snap/6235
-  gsettings:
   gtk-3-themes:
     interface: content
     target: $SNAP/data-dir/themes
@@ -70,11 +66,6 @@ plugs:
     interface: content
     target: $SNAP/data-dir/sounds
     default-provider: gtk-common-themes
-
-slots:
-  tdesktop-mpris:
-    interface: mpris
-    name: tdesktop
 
 layout:
   /usr/share/alsa:
@@ -104,16 +95,20 @@ parts:
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - clang
+      - libtool-bin
       - python3
       - libasound2-dev
       - libavif-dev
-      - libglib2.0-dev
+      - libboost-program-options-dev
+      - libfmt-dev
+      - libgirepository1.0-dev
       - libheif-dev
       - libopus-dev
       - libpulse-dev
+      - libssl-dev
       - libwayland-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
@@ -123,10 +118,10 @@ parts:
     stage-packages:
       - libasound2
       - libavif13
-      - libglib2.0-0
       - libheif1
       - libopus0
       - libpulse0
+      - libssl3
       - libwayland-client0
       - libwebkit2gtk-4.1-0
       - libxcb1
@@ -174,7 +169,6 @@ parts:
       - glibmm
       - mozjpeg
       - openal
-      - openssl
       - protobuf
       - qt
       - rnnoise
@@ -187,7 +181,7 @@ parts:
     override-pull: |
       craftctl default
       cp -r . "$CRAFT_STAGE/patches"
-    override-stage: |
+    override-prime: |
       rm -rf patches
     stage: [-./*]
 
@@ -196,6 +190,8 @@ parts:
     source-subdir: qt
     plugin: make
     make-parameters: ["FLAVOR=qt5"]
+    build-environment:
+      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     build-packages:
       - build-essential
       - dpkg-dev
@@ -210,7 +206,7 @@ parts:
       - shared-mime-info
       - xdg-user-dirs
     override-prime: |
-      snapcraftctl prime
+      craftctl default
       update-mime-database usr/share/mime
       glib-compile-schemas usr/share/glib-2.0/schemas
       for theme in usr/share/icons/*; do
@@ -228,16 +224,24 @@ parts:
     plugin: nil
     build-packages:
       - libavcodec-dev
+      - libavfilter-dev
       - libavformat-dev
       - libavutil-dev
       - libswresample-dev
       - libswscale-dev
     stage-packages:
       - libavcodec58
+      - libavfilter7
       - libavformat58
       - libavutil56
       - libswresample3
       - libswscale5
+    override-build: |
+      craftctl default
+      mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/blas/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET"
+      rmdir "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/blas"
+      mv "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/lapack/"* "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET"
+      rmdir "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/lapack"
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
@@ -246,16 +250,13 @@ parts:
   glibmm:
     source: https://github.com/GNOME/glibmm.git
     source-depth: 1
-    source-tag: 2.72.1
+    source-tag: 2.77.0
     plugin: meson
     build-packages:
       - meson
       - mm-common
       - ninja-build
-      - libglib2.0-dev
       - libxml-parser-perl
-    stage-packages:
-      - libglib2.0-0
     meson-parameters:
       - --buildtype=release
       - --prefix=/usr
@@ -273,10 +274,10 @@ parts:
   libjxl:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v0.8.1
+    source-tag: v0.8.2
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -293,9 +294,6 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
-    override-pull: |
-      craftctl default
-      sed -i 's/NOT JPEGXL_ENABLE_SKCMS/0/' lib/jxl.cmake
     stage:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/libbrotli*
     prime:
@@ -312,7 +310,7 @@ parts:
     source-tag: v4.0.3
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -330,10 +328,10 @@ parts:
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
-    source-tag: 1.22.2
+    source-tag: 1.23.0
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - libasound2-dev
       - libdbus-1-dev
@@ -357,36 +355,13 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
 
-  openssl:
-    source: https://github.com/openssl/openssl.git
-    source-depth: 1
-    source-branch: OpenSSL_1_1_1-stable
-    plugin: make
-    build-environment:
-      - LDFLAGS: -s
-    override-build: |
-      ./config \
-        shared \
-        --prefix=/usr \
-        --openssldir=/usr/lib/ssl \
-        --libdir=lib/$CRAFT_ARCH_TRIPLET \
-        no-tests
-      craftctl default
-    prime:
-      - -./usr/bin
-      - -./usr/include
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
-      - -./usr/share
-
   protobuf:
     source: https://github.com/protocolbuffers/protobuf.git
     source-depth: 1
     source-tag: v21.9
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - zlib1g-dev
     stage-packages:
@@ -407,13 +382,12 @@ parts:
   qt:
     plugin: nil
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - libdbus-1-dev
       - libegl-dev
       - libfontconfig1-dev
       - libfreetype-dev
-      - libglib2.0-dev
       - libglx-dev
       - libgtk-3-dev
       - libharfbuzz-dev
@@ -424,11 +398,13 @@ parts:
       - libpcre2-dev
       - libpng-dev
       - libsm-dev
+      - libssl-dev
       - libvulkan-dev
       - libwayland-dev
       - libx11-dev
       - libx11-xcb-dev
       - libxcb1-dev
+      - libxcb-cursor-dev
       - libxcb-glx0-dev
       - libxcb-icccm4-dev
       - libxcb-image0-dev
@@ -442,7 +418,6 @@ parts:
       - libxcb-util-dev
       - libxcb-xfixes0-dev
       - libxcb-xkb-dev
-      - libxcursor-dev
       - libxkbcommon-dev
       - libxkbcommon-x11-dev
       - zlib1g-dev
@@ -451,7 +426,6 @@ parts:
       - libegl1
       - libfontconfig1
       - libfreetype6
-      - libglib2.0-0
       - libglx0
       - libgtk-3-0
       - libharfbuzz0b
@@ -462,6 +436,7 @@ parts:
       - libpcre2-16-0
       - libpng16-16
       - libsm6
+      - libssl3
       - libvulkan1
       - libwayland-client0
       - libwayland-cursor0
@@ -470,6 +445,7 @@ parts:
       - libx11-6
       - libx11-xcb1
       - libxcb1
+      - libxcb-cursor0
       - libxcb-glx0
       - libxcb-icccm4
       - libxcb-image0
@@ -483,18 +459,19 @@ parts:
       - libxcb-util1
       - libxcb-xfixes0
       - libxcb-xkb1
-      - libxcursor1
       - libxkbcommon0
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6_4_2
+      QT=6.5.2
 
-      git clone -b v6.4.2 --depth=1 git://code.qt.io/qt/qt5.git .
-      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools
+      git clone -b v${QT} --depth=1 https://code.qt.io/qt/qt5.git .
+      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 
       cd qtbase
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ../qtwayland
+      sed -i 's/qMin(version, 8)/qMin(version, 7)/' src/client/qwaylandinputdevice.cpp
       cd ..
     override-build: |
       ./configure \
@@ -530,8 +507,8 @@ parts:
       - -./usr/mkspecs
       - -./usr/modules
     after:
+      - glibmm
       - mozjpeg
-      - openssl
       - patches
 
   rnnoise:
@@ -557,20 +534,20 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 5098730b9eb6173f0b52068fe2555b7c1015123a
+    source-commit: dcb5069ff76bd293e86928804208737e6cee2ccc
     plugin: cmake
     build-environment:
-      - LDFLAGS: -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
     build-packages:
       - yasm
       - libdrm-dev
       - libegl-dev
       - libgbm-dev
       - libgl-dev
-      - libglib2.0-dev
       - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
+      - libssl-dev
       - libvpx-dev
       - libx11-dev
       - libxcomposite-dev
@@ -585,9 +562,9 @@ parts:
       - libegl1
       - libgbm1
       - libgl1
-      - libglib2.0-0
       - libopenh264-6
       - libopus0
+      - libssl3
       - libvpx7
       - libx11-6
       - libxcomposite1
@@ -608,5 +585,5 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
     after:
       - ffmpeg
+      - glibmm
       - mozjpeg
-      - openssl

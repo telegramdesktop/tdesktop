@@ -23,29 +23,11 @@ namespace {
 
 constexpr auto kMinimalSchedule = TimeId(10);
 
-tr::phrase<> MonthDay(int index) {
-	switch (index) {
-	case 1: return tr::lng_month_day1;
-	case 2: return tr::lng_month_day2;
-	case 3: return tr::lng_month_day3;
-	case 4: return tr::lng_month_day4;
-	case 5: return tr::lng_month_day5;
-	case 6: return tr::lng_month_day6;
-	case 7: return tr::lng_month_day7;
-	case 8: return tr::lng_month_day8;
-	case 9: return tr::lng_month_day9;
-	case 10: return tr::lng_month_day10;
-	case 11: return tr::lng_month_day11;
-	case 12: return tr::lng_month_day12;
-	}
-	Unexpected("Index in MonthDay.");
-}
-
 QString DayString(const QDate &date) {
 	return tr::lng_month_day(
 		tr::now,
 		lt_month,
-		MonthDay(date.month())(tr::now),
+		Lang::MonthDay(date.month())(tr::now),
 		lt_day,
 		QString::number(date.day()));
 }

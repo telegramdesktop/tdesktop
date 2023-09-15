@@ -60,9 +60,6 @@ private:
 	QAction *psMonospace = nullptr;
 	QAction *psClearFormat = nullptr;
 
-	QIcon _icon;
-	bool _usingSupportIcon = false;
-
 };
 
 [[nodiscard]] inline int32 ScreenNameChecksum(const QString &name) {

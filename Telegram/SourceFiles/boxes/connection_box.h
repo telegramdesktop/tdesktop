@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_proxy_data.h"
 
 namespace Ui {
+class Show;
 class BoxContent;
 class InputField;
 class PortInput;
@@ -117,7 +118,7 @@ private:
 	rpl::event_stream<ItemView> _views;
 	base::Timer _saveTimer;
 	rpl::event_stream<ProxyData::Settings> _proxySettingsChanges;
-	QPointer<QWidget> _toastParent;
+	std::shared_ptr<Ui::Show> _show;
 
 	ProxyData _lastSelectedProxy;
 	bool _lastSelectedProxyUsed = false;

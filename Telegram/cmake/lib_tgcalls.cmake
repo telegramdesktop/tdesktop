@@ -28,6 +28,7 @@ PRIVATE
     CodecSelectHelper.h
     CryptoHelper.cpp
     CryptoHelper.h
+    DirectConnectionChannel.h
     EncryptedConnection.cpp
     EncryptedConnection.h
     FakeAudioDeviceModule.cpp
@@ -64,8 +65,11 @@ PRIVATE
 
     v2/ContentNegotiation.cpp
     v2/ContentNegotiation.h
+    v2/DirectNetworkingImpl.cpp
+    v2/DirectNetworkingImpl.h
     v2/ExternalSignalingConnection.cpp
     v2/ExternalSignalingConnection.h
+    v2/InstanceNetworking.h
     v2/InstanceV2ReferenceImpl.cpp
     v2/InstanceV2ReferenceImpl.h
     v2/InstanceV2Impl.cpp

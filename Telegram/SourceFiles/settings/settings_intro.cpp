@@ -69,7 +69,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	if (HasUpdate()) {
 		AddDivider(result);
 		AddSkip(result);
-		SetupUpdate(result, nullptr);
+		SetupUpdate(result);
 		AddSkip(result);
 	}
 	{
@@ -98,7 +98,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	if (anim::Disabled()) {
 		AddDivider(result);
 		AddSkip(result);
-		SetupAnimations(result);
+		SetupAnimations(window, result);
 		AddSkip(result);
 	}
 

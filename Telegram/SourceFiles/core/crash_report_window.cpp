@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/application.h"
-#include "core/launcher.h"
 #include "core/sandbox.h"
 #include "core/update_checker.h"
 #include "core/ui_integration.h"
@@ -250,7 +249,6 @@ LastCrashedWindow::UpdaterData::UpdaterData(QWidget *buttonParent)
 }
 
 LastCrashedWindow::LastCrashedWindow(
-	not_null<Core::Launcher*> launcher,
 	const QByteArray &crashdump,
 	Fn<void()> launch)
 : _dumpraw(crashdump)

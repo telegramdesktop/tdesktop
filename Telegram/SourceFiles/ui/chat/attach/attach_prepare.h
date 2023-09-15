@@ -27,7 +27,7 @@ struct PreparedFileInformation {
 		Editor::PhotoModifications modifications;
 	};
 	struct Song {
-		int duration = -1;
+		crl::time duration = -1;
 		QString title;
 		QString performer;
 		QImage cover;
@@ -36,7 +36,7 @@ struct PreparedFileInformation {
 		bool isGifv = false;
 		bool isWebmSticker = false;
 		bool supportsStreaming = false;
-		int duration = -1;
+		crl::time duration = -1;
 		QImage thumbnail;
 	};
 

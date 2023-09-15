@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 CountryInput::CountryInput(
 	QWidget *parent,
-	std::shared_ptr<Window::Show> show,
+	std::shared_ptr<Ui::Show> show,
 	const style::InputField &st)
 : RpWidget(parent)
 , _show(show)

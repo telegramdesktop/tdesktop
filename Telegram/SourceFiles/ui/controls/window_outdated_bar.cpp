@@ -174,6 +174,9 @@ object_ptr<RpWidget> CreateOutdatedBar(
 		Closed(workingPath);
 	}, wrap->lifetime());
 
+	wrap->entity()->resizeToWidth(st::windowMinWidth);
+	wrap->show(anim::type::instant);
+
 	return result;
 #else // DESKTOP_APP_SPECIAL_TARGET
 	return { nullptr };

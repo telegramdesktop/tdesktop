@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/boxes/report_box.h" // Ui::ReportReason
 #include "ui/text/text.h"
 #include "ui/text/text_options.h"
@@ -128,7 +127,8 @@ TopBarWidget::TopBarWidget(
 	_groupCall->setClickedCallback([=] { groupCall(); });
 	_menuToggle->setClickedCallback([=] { showPeerMenu(); });
 	_infoToggle->setClickedCallback([=] { toggleInfoSection(); });
-	_back->setClickedCallback([=] {
+	_back->setAcceptBoth();
+	_back->addClickHandler([=](Qt::MouseButton) {
 		InvokeQueued(_back.data(), [=] { backClicked(); });
 	});
 	_cancelChoose->setClickedCallback(

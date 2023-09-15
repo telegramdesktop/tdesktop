@@ -67,7 +67,9 @@ ReactionFlyAnimation::ReactionFlyAnimation(
 	Data::CustomEmojiSizeTag customSizeTag)
 : _owner(owner)
 , _repaint(std::move(repaint))
-, _flyFrom(args.flyFrom) {
+, _flyFrom(args.flyFrom)
+, _scaleOutDuration(args.scaleOutDuration)
+, _scaleOutTarget(args.scaleOutTarget) {
 	const auto &list = owner->list(::Data::Reactions::Type::All);
 	auto centerIcon = (DocumentData*)nullptr;
 	auto aroundAnimation = (DocumentData*)nullptr;
@@ -85,12 +87,14 @@ ReactionFlyAnimation::ReactionFlyAnimation(
 		aroundAnimation = owner->chooseGenericAnimation(document);
 	} else {
 		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
-		if (i == end(list) || !i->centerIcon) {
+		if (i == end(list)/* || !i->centerIcon*/) {
 			return;
 		}
-		centerIcon = i->centerIcon;
+		centerIcon = i->centerIcon
+			? not_null(i->centerIcon)
+			: i->selectAnimation;
 		aroundAnimation = i->aroundAnimation;
-		_centerSizeMultiplier = 1.;
+		_centerSizeMultiplier = i->centerIcon ? 1. : 0.5;
 	}
 	const auto resolve = [&](
 			std::unique_ptr<AnimatedIcon> &icon,
@@ -106,14 +110,17 @@ ReactionFlyAnimation::ReactionFlyAnimation(
 		icon = MakeAnimatedIcon({
 			.generator = DocumentIconFrameGenerator(media),
 			.sizeOverride = QSize(size, size),
+			.colorized = media->owner()->emojiUsesTextColor(),
 		});
 		return true;
 	};
-	if (!_custom && !resolve(_center, centerIcon, size)) {
+	generateMiniCopies(size + size / 2);
+	if (args.effectOnly) {
+		_custom = nullptr;
+	} else if (!_custom && !resolve(_center, centerIcon, size)) {
 		return;
 	}
 	resolve(_effect, aroundAnimation, size * 2);
-	generateMiniCopies(size + size / 2);
 	if (!args.flyIcon.isNull()) {
 		_flyIcon = std::move(args.flyIcon);
 		_fly.start(flyCallback(), 0., 1., kFlyDuration);
@@ -134,7 +141,36 @@ QRect ReactionFlyAnimation::paintGetArea(
 		const QColor &colored,
 		QRect clip,
 		crl::time now) const {
-	if (_flyIcon.isNull()) {
+	const auto scale = [&] {
+		if (!_scaleOutDuration
+			|| (!_effect && !_noEffectScaleStarted)) {
+			return 1.;
+		}
+		auto progress = _noEffectScaleAnimation.value(0.);
+		if (_effect) {
+			const auto rate = _effect->frameRate();
+			if (!rate) {
+				return 1.;
+			}
+			const auto left = _effect->framesCount() - _effect->frameIndex();
+			const auto duration = left * 1000. / rate;
+			progress = (duration < _scaleOutDuration)
+				? (duration / double(_scaleOutDuration))
+				: 1.;
+		}
+		return (1. * progress + _scaleOutTarget * (1. - progress));
+	}();
+	auto hq = std::optional<PainterHighQualityEnabler>();
+	if (scale < 1.) {
+		hq.emplace(p);
+		const auto shift = QRectF(target).center();
+		p.translate(shift);
+		p.scale(scale, scale);
+		p.translate(-shift);
+	}
+	if (!_valid) {
+		return QRect();
+	} else if (_flyIcon.isNull()) {
 		const auto wide = QRect(
 			target.topLeft() - QPoint(target.width(), target.height()) / 2,
 			target.size() * 2);
@@ -146,7 +182,10 @@ QRect ReactionFlyAnimation::paintGetArea(
 		if (clip.isEmpty() || area.intersects(clip)) {
 			paintCenterFrame(p, target, colored, now);
 			if (const auto effect = _effect.get()) {
-				p.drawImage(wide, effect->frame());
+				if (effect->animating()) {
+					// Must not be colored to text.
+					p.drawImage(wide, effect->frame(QColor()));
+				}
 			}
 			paintMiniCopies(p, target.center(), colored, now);
 		}
@@ -188,8 +227,6 @@ void ReactionFlyAnimation::paintCenterFrame(
 		QRect target,
 		const QColor &colored,
 		crl::time now) const {
-	Expects(_center || _custom);
-
 	const auto size = QSize(
 		int(base::SafeRound(target.width() * _centerSizeMultiplier)),
 		int(base::SafeRound(target.height() * _centerSizeMultiplier)));
@@ -199,8 +236,8 @@ void ReactionFlyAnimation::paintCenterFrame(
 			target.y() + (target.height() - size.height()) / 2,
 			size.width(),
 			size.height());
-		p.drawImage(rect, _center->frame());
-	} else {
+		p.drawImage(rect, _center->frame(st::windowFg->c));
+	} else if (_custom) {
 		const auto scaled = (size.width() != _customSize);
 		_custom->paint(p, {
 			.textColor = colored,
@@ -337,6 +374,9 @@ void ReactionFlyAnimation::startAnimations() {
 	}
 	if (const auto effect = _effect.get()) {
 		_effect->animate(callback());
+	} else if (_scaleOutDuration > 0) {
+		_noEffectScaleStarted = true;
+		_noEffectScaleAnimation.start(callback(), 1, 0, _scaleOutDuration);
 	}
 	if (!_miniCopies.empty()) {
 		_minis.start(callback(), 0., 1., kMiniCopiesDurationMax);
@@ -360,7 +400,19 @@ bool ReactionFlyAnimation::finished() const {
 		|| (_flyIcon.isNull()
 			&& (!_center || !_center->animating())
 			&& (!_effect || !_effect->animating())
+			&& !_noEffectScaleAnimation.animating()
 			&& !_minis.animating());
+}
+
+ReactionFlyCenter ReactionFlyAnimation::takeCenter() {
+	_valid = false;
+	return {
+		.custom = std::move(_custom),
+		.icon = std::move(_center),
+		.scale = (_scaleOutDuration > 0) ? _scaleOutTarget : 1.,
+		.centerSizeMultiplier = _centerSizeMultiplier,
+		.customSize = _customSize,
+	};
 }
 
 } // namespace HistoryView::Reactions

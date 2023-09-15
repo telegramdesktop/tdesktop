@@ -116,6 +116,7 @@ public:
 	QString creatorRank;
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 	bool joinedMessageFound = false;
+	bool adminsLoaded = false;
 	StickerSetIdentifier stickerSet;
 
 	enum LastParticipantsStatus {

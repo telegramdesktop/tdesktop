@@ -3,7 +3,7 @@
 	url = https://github.com/telegramdesktop/libtgvoip
 [submodule "Telegram/ThirdParty/GSL"]
 	path = Telegram/ThirdParty/GSL
-	url = https://github.com/Microsoft/GSL.git
+	url = https://github.com/desktop-app/GSL.git
 [submodule "Telegram/ThirdParty/xxHash"]
 	path = Telegram/ThirdParty/xxHash
 	url = https://github.com/Cyan4973/xxHash.git
@@ -100,3 +100,6 @@
 [submodule "Telegram/ThirdParty/cld3"]
 	path = Telegram/ThirdParty/cld3
 	url = https://github.com/google/cld3.git
+[submodule "Telegram/ThirdParty/wayland"]
+	path = Telegram/ThirdParty/wayland
+	url = https://github.com/gitlab-freedesktop-mirrors/wayland.git

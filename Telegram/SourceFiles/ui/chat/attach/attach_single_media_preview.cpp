@@ -16,6 +16,7 @@ namespace Ui {
 
 SingleMediaPreview *SingleMediaPreview::Create(
 		QWidget *parent,
+		const style::ComposeControls &st,
 		Fn<bool()> gifPaused,
 		const PreparedFile &file,
 		AttachControls::Type type) {
@@ -43,6 +44,7 @@ SingleMediaPreview *SingleMediaPreview::Create(
 	}
 	return CreateChild<SingleMediaPreview>(
 		parent,
+		st,
 		std::move(gifPaused),
 		preview,
 		animated,
@@ -54,6 +56,7 @@ SingleMediaPreview *SingleMediaPreview::Create(
 
 SingleMediaPreview::SingleMediaPreview(
 	QWidget *parent,
+	const style::ComposeControls &st,
 	Fn<bool()> gifPaused,
 	QImage preview,
 	bool animated,
@@ -61,7 +64,7 @@ SingleMediaPreview::SingleMediaPreview(
 	bool spoiler,
 	const QString &animatedPreviewPath,
 	AttachControls::Type type)
-: AbstractSingleMediaPreview(parent, type)
+: AbstractSingleMediaPreview(parent, st, type)
 , _gifPaused(std::move(gifPaused))
 , _sticker(sticker) {
 	Expects(!preview.isNull());

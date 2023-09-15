@@ -41,7 +41,7 @@ void AttachedStickers::request(
 			return;
 		} else if (result.v.size() > 1) {
 			strongController->show(
-				Box<StickersBox>(strongController, result.v));
+				Box<StickersBox>(strongController->uiShow(), result.v));
 			return;
 		}
 		// Single attached sticker pack.
@@ -54,16 +54,14 @@ void AttachedStickers::request(
 				.id = data->vid().v,
 				.accessHash = data->vaccess_hash().v }
 			: StickerSetIdentifier{ .shortName = qs(data->vshort_name()) };
-		strongController->show(
-			Box<StickerSetBox>(
-				strongController,
-				setId,
-				(data->is_emojis()
-					? Data::StickersType::Emoji
-					: data->is_masks()
-					? Data::StickersType::Masks
-					: Data::StickersType::Stickers)),
-			Ui::LayerOption::KeepOther);
+		strongController->show(Box<StickerSetBox>(
+			strongController->uiShow(),
+			setId,
+			(data->is_emojis()
+				? Data::StickersType::Emoji
+				: data->is_masks()
+				? Data::StickersType::Masks
+				: Data::StickersType::Stickers)));
 	}).fail([=] {
 		_requestId = 0;
 		if (const auto strongController = weak.get()) {

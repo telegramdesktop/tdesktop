@@ -26,6 +26,10 @@ namespace Data {
 class Session;
 class Folder;
 
+[[nodiscard]] MTPInputReplyTo ReplyToForMTP(
+	not_null<Session*> owner,
+	FullReplyTo replyTo);
+
 class Histories final {
 public:
 	enum class RequestType : uchar {
@@ -102,29 +106,27 @@ public:
 		MTPmessages_SendMultiMedia>;
 	int sendPreparedMessage(
 		not_null<History*> history,
-		MsgId replyTo,
-		MsgId topicRootId,
+		FullReplyTo replyTo,
 		uint64 randomId,
-		Fn<PreparedMessage(MsgId replyTo, MsgId topicRootId)> message,
+		Fn<PreparedMessage(not_null<Session*>, FullReplyTo)> message,
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail);
 
 	struct ReplyToPlaceholder {
 	};
-	struct TopicRootPlaceholder {
-	};
 	template <typename RequestType, typename ...Args>
-	static Fn<Histories::PreparedMessage(MsgId, MsgId)> PrepareMessage(
-			const Args &...args) {
-		return [=](MsgId replyTo, MsgId topicRootId) -> RequestType {
-			return { ReplaceReplyIds(args, replyTo, topicRootId)... };
+	static auto PrepareMessage(const Args &...args)
+	-> Fn<Histories::PreparedMessage(not_null<Session*>, FullReplyTo)> {
+		return [=](not_null<Session*> owner, FullReplyTo replyTo)
+		-> RequestType {
+			return { ReplaceReplyIds(owner, args, replyTo)... };
 		};
 	}
 
 	void checkTopicCreated(FullMsgId rootId, MsgId realRoot);
-	[[nodiscard]] MsgId convertTopicReplyTo(
+	[[nodiscard]] MsgId convertTopicReplyToId(
 		not_null<History*> history,
-		MsgId replyTo) const;
+		MsgId replyToId) const;
 
 private:
 	struct PostponedHistoryRequest {
@@ -151,7 +153,7 @@ private:
 	struct DelayedByTopicMessage {
 		uint64 randomId = 0;
 		MsgId replyTo = 0;
-		Fn<PreparedMessage(MsgId replyTo, MsgId topicRootId)> message;
+		Fn<PreparedMessage(not_null<Session*>, FullReplyTo)> message;
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done;
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail;
 		int requestId = 0;
@@ -166,11 +168,12 @@ private:
 	};
 
 	template <typename Arg>
-	static auto ReplaceReplyIds(Arg arg, MsgId replyTo, MsgId topicRootId) {
+	static auto ReplaceReplyIds(
+			not_null<Session*> owner,
+			Arg arg,
+			FullReplyTo replyTo) {
 		if constexpr (std::is_same_v<Arg, ReplyToPlaceholder>) {
-			return MTP_int(replyTo);
-		} else if constexpr (std::is_same_v<Arg, TopicRootPlaceholder>) {
-			return MTP_int(topicRootId);
+			return ReplyToForMTP(owner, replyTo);
 		} else {
 			return arg;
 		}

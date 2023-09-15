@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace HistoryView::Reactions {
 namespace {
@@ -37,20 +38,38 @@ constexpr auto kHoverScale = 1.24;
 	return std::make_shared<Ui::AnimatedIcon>(Ui::AnimatedIconDescriptor{
 		.generator = DocumentIconFrameGenerator(media),
 		.sizeOverride = QSize(size, size),
+		.colorized = media->owner()->emojiUsesTextColor(),
 	});
 }
 
 } // namespace
 
 Strip::Strip(
+	const style::EmojiPan &st,
 	QRect inner,
 	int size,
 	Fn<void()> update,
 	IconFactory iconFactory)
-: _iconFactory(std::move(iconFactory))
+: _st(st)
+, _iconFactory(std::move(iconFactory))
 , _inner(inner)
 , _finalSize(size)
 , _update(std::move(update)) {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		invalidateMainReactionImage();
+	}, _lifetime);
+}
+
+void Strip::invalidateMainReactionImage() {
+	if (_mainReactionImage.isNull()
+		&& !ranges::contains(_validEmoji, true)) {
+		return;
+	}
+	const auto was = base::take(_mainReactionMedia);
+	_mainReactionImage = QImage();
+	ranges::fill(_validEmoji, false);
+	resolveMainReactionIcon();
 }
 
 void Strip::applyList(
@@ -157,7 +176,11 @@ void Strip::paintOne(
 	} else {
 		const auto paintFrame = [&](not_null<Ui::AnimatedIcon*> animation) {
 			const auto size = int(std::floor(target.width() + 0.01));
-			const auto frame = animation->frame({ size, size }, _update);
+			const auto &textColor = _st.textFg->c;
+			const auto frame = animation->frame(
+				textColor,
+				{ size, size },
+				_update);
 			p.drawImage(target, frame.image);
 		};
 
@@ -218,9 +241,9 @@ int Strip::fillChosenIconGetIndex(ChosenReaction &chosen) const {
 	}
 	const auto &icon = *i;
 	if (const auto &appear = icon.appear; appear && appear->animating()) {
-		chosen.icon = appear->frame();
+		chosen.icon = appear->frame(_st.textFg->c);
 	} else if (const auto &select = icon.select; select && select->valid()) {
-		chosen.icon = select->frame();
+		chosen.icon = select->frame(_st.textFg->c);
 	}
 	return (i - begin(_icons));
 }
@@ -243,7 +266,7 @@ void Strip::paintPremiumIcon(
 		p.translate(-target.center());
 	}
 	auto hq = PainterHighQualityEnabler(p);
-	st::reactionPremiumLocked.paintInCenter(p, to);
+	_st.icons.stripPremiumLocked.paintInCenter(p, to);
 	if (scale != 1.) {
 		p.restore();
 	}
@@ -268,8 +291,8 @@ void Strip::paintExpandIcon(
 	}
 	auto hq = PainterHighQualityEnabler(p);
 	((_finalSize == st::reactionCornerImage)
-		? st::reactionsExpandDropdown
-		: st::reactionExpandPanel).paintInCenter(p, to);
+		? _st.icons.stripExpandDropdown
+		: _st.icons.stripExpandPanel).paintInCenter(p, to);
 	if (scale != 1.) {
 		p.restore();
 	}
@@ -475,7 +498,7 @@ void Strip::setMainReactionIcon() {
 	if (i != end(_loadCache) && i->second.icon) {
 		const auto &icon = i->second.icon;
 		if (!icon->frameIndex() && icon->width() == MainReactionSize()) {
-			_mainReactionImage = i->second.icon->frame();
+			_mainReactionImage = i->second.icon->frame(_st.textFg->c);
 			return;
 		}
 	}
@@ -522,7 +545,8 @@ Ui::ImageSubrect Strip::validateEmoji(int frameIndex, float64 scale) {
 	p.fillRect(QRect(position, result.rect.size() / ratio), Qt::transparent);
 	if (_mainReactionImage.isNull()
 		&& _mainReactionIcon) {
-		_mainReactionImage = base::take(_mainReactionIcon)->frame();
+		_mainReactionImage = base::take(_mainReactionIcon)->frame(
+			_st.textFg->c);
 	}
 	if (!_mainReactionImage.isNull()) {
 		const auto target = QRect(

@@ -51,15 +51,13 @@ struct FormRequest {
 		const QString &scope,
 		const QString &callbackUrl,
 		const QString &publicKey,
-		const QString &nonce,
-		const QString &errors);
+		const QString &nonce);
 
 	UserId botId;
 	QString scope;
 	QString callbackUrl;
 	QString publicKey;
 	QString nonce;
-	QString errors;
 
 };
 

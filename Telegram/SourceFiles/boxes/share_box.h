@@ -119,6 +119,7 @@ private:
 	void submitSilent();
 	void submitScheduled();
 	void submitAutoDelete();
+	void submitWhenOnline();
 	void copyLink();
 	bool searchByUsername(bool useCache = false);
 
@@ -146,8 +147,6 @@ private:
 
 	Descriptor _descriptor;
 	MTP::Sender _api;
-
-	std::shared_ptr<Ui::BoxShow> _show;
 
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::SlideWrap<Ui::InputField>> _comment;

@@ -63,5 +63,10 @@ void Colorize(
 [[nodiscard]] std::vector<EmbeddedScheme> EmbeddedThemes();
 [[nodiscard]] std::vector<QColor> DefaultAccentColors(EmbeddedType type);
 
+[[nodiscard]] Fn<void(style::palette&)> PreparePaletteCallback(
+	bool dark,
+	std::optional<QColor> accent);
+[[nodiscard]] Fn<void(style::palette&)> PrepareCurrentPaletteCallback();
+
 } // namespace Theme
 } // namespace Window

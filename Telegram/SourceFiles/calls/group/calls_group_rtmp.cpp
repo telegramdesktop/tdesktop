@@ -151,9 +151,7 @@ void StartRtmpProcess::requestUrl(bool revoke) {
 		});
 		processUrl(std::move(data));
 	}).fail([=] {
-		Ui::Toast::Show(
-			_request->show->toastParent(),
-			Lang::Hard::ServerError());
+		_request->show->showToast(Lang::Hard::ServerError());
 	}).send();
 }
 
@@ -229,7 +227,7 @@ void StartRtmpProcess::FillRtmpRows(
 	) | rpl::map([=](const auto &d) { return d.url; });
 
 	const auto showToast = [=](const QString &text) {
-		Ui::Toast::Show(show->toastParent(), text);
+		show->showToast(text);
 	};
 	const auto addButton = [&](
 			bool key,

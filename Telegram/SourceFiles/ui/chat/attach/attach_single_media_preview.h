@@ -22,12 +22,14 @@ class SingleMediaPreview final : public AbstractSingleMediaPreview {
 public:
 	static SingleMediaPreview *Create(
 		QWidget *parent,
+		const style::ComposeControls &st,
 		Fn<bool()> gifPaused,
 		const PreparedFile &file,
 		AttachControls::Type type = AttachControls::Type::Full);
 
 	SingleMediaPreview(
 		QWidget *parent,
+		const style::ComposeControls &st,
 		Fn<bool()> gifPaused,
 		QImage preview,
 		bool animated,

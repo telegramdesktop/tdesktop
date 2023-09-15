@@ -298,7 +298,7 @@ void Preview::init() {
 		initAsWindow();
 		updateToScale(style::kScaleMin);
 		_minOuterSize = _outer.size();
-		updateToScale(style::kScaleMax / _ratio);
+		updateToScale(style::MaxScaleForRatio(_ratio));
 		_maxOuterSize = _outer.size();
 	}
 }

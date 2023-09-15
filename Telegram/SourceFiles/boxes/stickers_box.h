@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct RippleAnimation;
+struct PeerListItem;
 } // namespace style
 
 namespace Ui {
@@ -27,9 +28,9 @@ class CrossButton;
 class BoxContentDivider;
 } // namespace Ui
 
-namespace Window {
-class SessionController;
-} // namespace Window
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
 
 namespace Main {
 class Session;
@@ -60,20 +61,20 @@ public:
 
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		Section section,
 		bool masks = false);
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<ChannelData*> megagroup);
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const QVector<MTPStickerSetCovered> &attachedSets);
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const std::vector<StickerSetIdentifier> &emojiSets);
 	~StickersBox();
 
@@ -142,7 +143,9 @@ private:
 
 	std::array<Inner*, 5> widgets() const;
 
-	const not_null<Window::SessionController*> _controller;
+	const style::PeerListItem &_st;
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };

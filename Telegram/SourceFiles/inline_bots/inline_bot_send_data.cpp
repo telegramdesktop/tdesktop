@@ -36,18 +36,18 @@ void SendDataCommon::addToHistory(
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const {
 	auto fields = getSentMessageFields();
-	if (replyToId) {
+	if (replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
 	history->addNewLocalMessage(
 		msgId,
 		flags,
 		viaBotId,
-		replyToId,
+		replyTo,
 		date,
 		fromId,
 		postAuthor,
@@ -119,14 +119,14 @@ void SendPhoto::addToHistory(
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const {
 	history->addNewLocalMessage(
 		msgId,
 		flags,
 		viaBotId,
-		replyToId,
+		replyTo,
 		date,
 		fromId,
 		postAuthor,
@@ -150,14 +150,14 @@ void SendFile::addToHistory(
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const {
 	history->addNewLocalMessage(
 		msgId,
 		flags,
 		viaBotId,
-		replyToId,
+		replyTo,
 		date,
 		fromId,
 		postAuthor,
@@ -181,14 +181,14 @@ void SendGame::addToHistory(
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const {
 	history->addNewLocalMessage(
 		msgId,
 		flags,
 		viaBotId,
-		replyToId,
+		replyTo,
 		date,
 		fromId,
 		postAuthor,

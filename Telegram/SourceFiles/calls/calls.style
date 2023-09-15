@@ -117,6 +117,14 @@ callAnswer: CallButton {
 	outerBg: callAnswerBgOuter;
 	label: callButtonLabel;
 }
+callStartVideo: CallButton(callAnswer) {
+	button: IconButton(callButton) {
+		icon: icon {{ "calls/call_camera_active", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callAnswerRipple;
+		}
+	}
+}
 callHangup: CallButton(callAnswer) {
 	button: IconButton(callButton) {
 		icon: icon {{ "calls/call_discard", callIconFg }};
@@ -292,7 +300,7 @@ callName: FlatLabel(defaultFlatLabel) {
 }
 callStatus: FlatLabel(defaultFlatLabel) {
 	minWidth: 260px;
-	maxHeight: 20px;
+	maxHeight: 60px;
 	textFg: callStatusFg;
 	align: align(top);
 	style: TextStyle(defaultTextStyle) {
@@ -736,6 +744,11 @@ groupCallShareBoxComment: InputField(groupCallField) {
 }
 groupCallShareBoxList: PeerList(groupCallMembersList) {
 	item: PeerListItem(groupCallMembersListItem) {
+		nameStyle: TextStyle(defaultTextStyle) {
+			font: font(11px);
+			linkFont: font(11px);
+			linkFontOver: font(11px);
+		}
 		checkbox: RoundImageCheckbox(groupCallMembersListCheckbox) {
 			imageRadius: 28px;
 			imageSmallRadius: 24px;
@@ -1325,13 +1338,7 @@ groupCallNiceTooltip: ImportantTooltip(defaultImportantTooltip) {
 	radius: 4px;
 	arrow: 4px;
 }
-groupCallNiceTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(11px);
-		linkFont: font(11px);
-		linkFontOver: font(11px underline);
-	}
-}
+groupCallNiceTooltipLabel: defaultImportantTooltipLabel;
 groupCallStickedTooltip: ImportantTooltip(groupCallNiceTooltip) {
 	padding: margins(10px, 1px, 6px, 3px);
 }

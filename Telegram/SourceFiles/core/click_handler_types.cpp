@@ -108,7 +108,11 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	};
 	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)
 		|| url.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
-		open();
+		UrlClickHandler::Open(url, QVariant::fromValue([&] {
+			auto result = context.value<ClickHandlerContext>();
+			result.mayShowConfirmation = !base::IsCtrlPressed();
+			return result;
+		}()));
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
 		if (UrlRequiresConfirmation(parsedUrl) && !base::IsCtrlPressed()) {
@@ -142,7 +146,8 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 			if (my.show) {
 				my.show->showBox(std::move(box));
 			} else if (use) {
-				use->show(std::move(box), Ui::LayerOption::KeepOther);
+				use->show(std::move(box));
+				use->activate();
 			}
 		} else {
 			open();
@@ -331,16 +336,13 @@ void MonospaceClickHandler::onClick(ClickContext context) const {
 		const auto hasCopyRestriction = item
 			&& (!item->history()->peer->allowsForwarding()
 				|| item->forbidsForward());
-		const auto toastParent = Window::Show(controller).toastParent();
 		if (hasCopyRestriction) {
-			Ui::Toast::Show(
-				toastParent,
-				item->history()->peer->isBroadcast()
-					? tr::lng_error_nocopy_channel(tr::now)
-					: tr::lng_error_nocopy_group(tr::now));
+			controller->showToast(item->history()->peer->isBroadcast()
+				? tr::lng_error_nocopy_channel(tr::now)
+				: tr::lng_error_nocopy_group(tr::now));
 			return;
 		}
-		Ui::Toast::Show(toastParent, tr::lng_text_copied(tr::now));
+		controller->showToast(tr::lng_text_copied(tr::now));
 	}
 	TextUtilities::SetClipboardText(TextForMimeData::Simple(_text.trimmed()));
 }

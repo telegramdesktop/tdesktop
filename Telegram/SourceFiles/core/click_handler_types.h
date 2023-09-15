@@ -38,10 +38,12 @@ class SessionController;
 class PeerData;
 struct ClickHandlerContext {
 	FullMsgId itemId;
+	QString attachBotWebviewUrl;
 	// Is filled from sections.
 	Fn<HistoryView::ElementDelegate*()> elementDelegate;
 	base::weak_ptr<Window::SessionController> sessionWindow;
 	std::shared_ptr<Ui::Show> show;
+	bool mayShowConfirmation = false;
 	bool skipBotAutoLogin = false;
 	bool botStartAutoSubmit = false;
 	// Is filled from peer info.

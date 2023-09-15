@@ -7,18 +7,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/required.h"
 #include "api/api_common.h"
+#include "base/required.h"
 #include "base/unique_qptr.h"
 #include "base/timer.h"
+#include "chat_helpers/compose/compose_features.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
+#include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/input_fields.h"
 
 class History;
+class DocumentData;
 class FieldAutocomplete;
+
+namespace style {
+struct ComposeControls;
+} // namespace style
 
 namespace SendMenu {
 enum class Type;
@@ -29,6 +36,7 @@ class TabbedPanel;
 class TabbedSelector;
 struct FileChosen;
 struct PhotoChosen;
+class Show;
 } // namespace ChatHelpers
 
 namespace Data {
@@ -36,6 +44,7 @@ struct MessagePosition;
 struct Draft;
 class DraftKey;
 enum class PreviewState : char;
+class PhotoMedia;
 } // namespace Data
 
 namespace InlineBots {
@@ -54,6 +63,7 @@ class EmojiButton;
 class SendAsButton;
 class SilentToggle;
 class DropdownMenu;
+struct PreparedList;
 } // namespace Ui
 
 namespace Main {
@@ -61,8 +71,8 @@ class Session;
 } // namespace Main
 
 namespace Window {
-class SessionController;
 struct SectionShow;
+class SessionController;
 } // namespace Window
 
 namespace Api {
@@ -79,6 +89,25 @@ class TTLButton;
 class FieldHeader;
 class WebpageProcessor;
 
+enum class ComposeControlsMode {
+	Normal,
+	Scheduled,
+};
+
+struct ComposeControlsDescriptor {
+	const style::ComposeControls *stOverride = nullptr;
+	std::shared_ptr<ChatHelpers::Show> show;
+	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted;
+	ComposeControlsMode mode = ComposeControlsMode::Normal;
+	SendMenu::Type sendMenuType = {};
+	Window::SessionController *regularWindow = nullptr;
+	rpl::producer<ChatHelpers::FileChosen> stickerOrEmojiChosen;
+	rpl::producer<QString> customPlaceholder;
+	QString voiceCustomCancelText;
+	bool voiceLockFromBottom = false;
+	ChatHelpers::ComposeFeatures features;
+};
+
 class ComposeControls final {
 public:
 	using FileChosen = ChatHelpers::FileChosen;
@@ -91,18 +120,17 @@ public:
 	using SetHistoryArgs = Controls::SetHistoryArgs;
 	using ReplyNextRequest = Controls::ReplyNextRequest;
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
-
-	enum class Mode {
-		Normal,
-		Scheduled,
-	};
+	using Mode = ComposeControlsMode;
 
 	ComposeControls(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> window,
+		not_null<Window::SessionController*> controller,
 		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted,
 		Mode mode,
 		SendMenu::Type sendMenuType);
+	ComposeControls(
+		not_null<Ui::RpWidget*> parent,
+		ComposeControlsDescriptor descriptor);
 	~ComposeControls();
 
 	[[nodiscard]] Main::Session &session() const;
@@ -119,6 +147,9 @@ public:
 	[[nodiscard]] int heightCurrent() const;
 
 	bool focus();
+	[[nodiscard]] bool focused() const;
+	[[nodiscard]] rpl::producer<bool> focusedValue() const;
+	[[nodiscard]] rpl::producer<bool> tabbedPanelShownValue() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<Api::SendOptions> sendRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
@@ -131,17 +162,20 @@ public:
 	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> viewportEvents() const;
+	[[nodiscard]] rpl::producer<> likeToggled() const;
 	[[nodiscard]] auto scrollKeyEvents() const
 	-> rpl::producer<not_null<QKeyEvent*>>;
 	[[nodiscard]] auto editLastMessageRequests() const
 	-> rpl::producer<not_null<QKeyEvent*>>;
 	[[nodiscard]] auto replyNextRequests() const
 	-> rpl::producer<ReplyNextRequest>;
+	[[nodiscard]] rpl::producer<> focusRequests() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action)>;
 	void setMimeDataHook(MimeDataHook hook);
+	bool confirmMediaEdit(Ui::PreparedList &list);
 
 	bool pushTabbedSelectorToThirdSection(
 		not_null<Data::Thread*> thread,
@@ -170,6 +204,7 @@ public:
 	void cancelForward();
 
 	bool handleCancelRequest();
+	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	[[nodiscard]] WebPageId webPageId() const;
@@ -184,6 +219,11 @@ public:
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
+	[[nodiscard]] bool isRecordingPressed() const;
+	[[nodiscard]] rpl::producer<bool> recordingActiveValue() const;
+	[[nodiscard]] rpl::producer<bool> hasSendTextValue() const;
+	[[nodiscard]] rpl::producer<bool> fieldMenuShownValue() const;
+	[[nodiscard]] not_null<Ui::RpWidget*> likeAnimationTarget() const;
 
 	void applyCloudDraft();
 	void applyDraft(
@@ -227,6 +267,7 @@ private:
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
 	void updateControlsGeometry(QSize size);
+	bool updateReplaceMediaButton();
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QRect clip);
 
@@ -234,8 +275,6 @@ private:
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
 
-	void sendSilent();
-	void sendScheduled();
 	[[nodiscard]] auto sendContentRequests(
 		SendRequestType requestType = SendRequestType::Text) const;
 
@@ -256,6 +295,7 @@ private:
 	bool showRecordButton() const;
 	void drawRestrictedWrite(QPainter &p, const QString &error);
 	bool updateBotCommandShown();
+	bool updateLikeShown();
 
 	void cancelInlineBot();
 	void clearInlineBot();
@@ -290,14 +330,25 @@ private:
 
 	void unregisterDraftSources();
 	void registerDraftSource();
+	void changeFocusedControl();
 
+	const style::ComposeControls &_st;
+	const ChatHelpers::ComposeFeatures _features;
 	const not_null<QWidget*> _parent;
-	const not_null<Window::SessionController*> _window;
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const not_null<Main::Session*> _session;
+
+	Window::SessionController * const _regularWindow = nullptr;
+	std::unique_ptr<ChatHelpers::TabbedSelector> _ownedSelector;
+	const not_null<ChatHelpers::TabbedSelector*> _selector;
+	rpl::event_stream<ChatHelpers::FileChosen> _stickerOrEmojiChosen;
+
 	History *_history = nullptr;
 	Fn<bool()> _showSlowmodeError;
 	Fn<Api::SendAction()> _sendActionFactory;
 	rpl::variable<int> _slowmodeSecondsLeft;
 	rpl::variable<bool> _sendDisabledBySlowmode;
+	rpl::variable<bool> _liked;
 	rpl::variable<std::optional<QString>> _writeRestriction;
 	rpl::variable<bool> _hidden;
 	Mode _mode = Mode::Normal;
@@ -305,11 +356,16 @@ private:
 	const std::unique_ptr<Ui::RpWidget> _wrap;
 	const std::unique_ptr<Ui::RpWidget> _writeRestricted;
 
+	std::optional<Ui::RoundRect> _backgroundRect;
+
 	const std::shared_ptr<Ui::SendButton> _send;
+	Ui::IconButton * const _like = nullptr;
 	const not_null<Ui::IconButton*> _attachToggle;
+	std::unique_ptr<Ui::IconButton> _replaceMedia;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
+	rpl::producer<QString> _fieldCustomPlaceholder;
 	const not_null<Ui::InputField*> _field;
-	const not_null<Ui::IconButton*> _botCommandStart;
+	Ui::IconButton * const _botCommandStart = nullptr;
 	std::unique_ptr<Ui::SendAsButton> _sendAs;
 	std::unique_ptr<Ui::SilentToggle> _silent;
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
@@ -336,7 +392,11 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
 	rpl::event_stream<std::optional<bool>> _attachRequests;
+	rpl::event_stream<> _likeToggled;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
+	rpl::event_stream<> _focusRequests;
+	rpl::variable<bool> _recording;
+	rpl::variable<bool> _hasSendText;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
 		| TextUpdateEvent::SaveDraft
@@ -354,12 +414,19 @@ private:
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
+	bool _likeShown = false;
+
+	FullMsgId _editingId;
+	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
+	bool _canReplaceMedia = false;
 
 	std::unique_ptr<WebpageProcessor> _preview;
 
-	rpl::lifetime _uploaderSubscriptions;
-
 	Fn<void()> _raiseEmojiSuggestions;
+	rpl::event_stream<bool> _focusChanges;
+
+	rpl::lifetime _historyLifetime;
+	rpl::lifetime _uploaderSubscriptions;
 
 };
 

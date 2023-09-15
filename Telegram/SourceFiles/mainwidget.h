@@ -186,9 +186,6 @@ public:
 	bool filesOrForwardDrop(
 		not_null<Data::Thread*> thread,
 		not_null<const QMimeData*> data);
-	bool inlineSwitchChosen(
-		not_null<Data::Thread*> thread,
-		const QString &botAndQuery) const;
 
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
@@ -218,7 +215,9 @@ public:
 		Fn<void(MessageIdsList)> done);
 	void clearChooseReportMessages();
 
-	void toggleChooseChatTheme(not_null<PeerData*> peer);
+	void toggleChooseChatTheme(
+		not_null<PeerData*> peer,
+		std::optional<bool> show);
 
 	void showHistory(
 		PeerId peer,

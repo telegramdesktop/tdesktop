@@ -13,9 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "mtproto/mtproto_config.h"
-#include "ui/effects/animation_value.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/power_saving.h"
 #include "window/themes/window_theme.h"
 #include "core/update_checker.h"
 #include "platform/platform_specific.h"
@@ -192,12 +192,10 @@ bool ReadSetting(
 		cSetSendToMenu(v == 1);
 	} break;
 
-	case dbiUseExternalVideoPlayer: {
+	case dbiUseExternalVideoPlayerOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
-
-		cSetUseExternalVideoPlayer(v == 1);
 	} break;
 
 	case dbiCacheSettingsOld: {
@@ -234,14 +232,14 @@ bool ReadSetting(
 		context.cacheBigFileTotalTimeLimit = NoTimeLimit(timeBig) ? 0 : timeBig;
 	} break;
 
-	case dbiAnimationsDisabled: {
-		qint32 disabled;
-		stream >> disabled;
+	case dbiPowerSaving: {
+		qint32 settings;
+		stream >> settings;
 		if (!CheckStreamStatus(stream)) {
 			return false;
 		}
 
-		anim::SetDisabled(disabled == 1);
+		PowerSaving::Set(PowerSaving::Flags::from_raw(settings));
 	} break;
 
 	case dbiSoundFlashBounceNotifyOld: {
@@ -1182,17 +1180,9 @@ void ApplyReadFallbackConfig(ReadSettingsContext &context) {
 		if (context.fallbackConfigLegacyChatSizeMax > 0) {
 			config.setChatSizeMax(context.fallbackConfigLegacyChatSizeMax);
 		}
-		if (context.fallbackConfigLegacySavedGifsLimit > 0) {
-			config.setSavedGifsLimit(
-				context.fallbackConfigLegacySavedGifsLimit);
-		}
 		if (context.fallbackConfigLegacyStickersRecentLimit > 0) {
 			config.setStickersRecentLimit(
 				context.fallbackConfigLegacyStickersRecentLimit);
-		}
-		if (context.fallbackConfigLegacyStickersFavedLimit > 0) {
-			config.setStickersFavedLimit(
-				context.fallbackConfigLegacyStickersFavedLimit);
 		}
 		if (context.fallbackConfigLegacyMegagroupSizeMax > 0) {
 			config.setMegagroupSizeMax(

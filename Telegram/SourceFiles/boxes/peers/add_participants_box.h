@@ -73,6 +73,14 @@ private:
 
 };
 
+[[nodiscard]] std::vector<not_null<UserData*>> CollectForbiddenUsers(
+	not_null<Main::Session*> session,
+	const MTPUpdates &updates);
+bool ChatInviteForbidden(
+	std::shared_ptr<Ui::Show> show,
+	not_null<PeerData*> peer,
+	std::vector<not_null<UserData*>> forbidden);
+
 // Adding an admin, banned or restricted user from channel members
 // with search + contacts search + global search.
 class AddSpecialBoxController

@@ -52,16 +52,34 @@ PhotoEditor::PhotoEditor(
 	std::shared_ptr<Image> photo,
 	PhotoModifications modifications,
 	EditorData data)
+: PhotoEditor(
+	parent,
+	controller->uiShow(),
+	(controller->sessionController()
+		? controller->sessionController()->uiShow()
+		: nullptr),
+	std::move(photo),
+	std::move(modifications),
+	std::move(data)) {
+}
+
+PhotoEditor::PhotoEditor(
+	not_null<QWidget*> parent,
+	std::shared_ptr<Ui::Show> show,
+	std::shared_ptr<ChatHelpers::Show> sessionShow,
+	std::shared_ptr<Image> photo,
+	PhotoModifications modifications,
+	EditorData data)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
 , _controllers(std::make_shared<Controllers>(
-	controller->sessionController()
+	sessionShow
 		? std::make_unique<StickersPanelController>(
 			this,
-			controller->sessionController())
+			std::move(sessionShow))
 		: nullptr,
 	std::make_unique<UndoController>(),
-	std::make_shared<Window::Show>(controller)))
+	std::move(show)))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,

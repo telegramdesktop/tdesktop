@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum class PremiumPreview;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Ui {
 class RpWidget;
 class GradientButton;
@@ -48,12 +52,13 @@ void StartPremiumPayment(
 [[nodiscard]] QString LookupPremiumRef(PremiumPreview section);
 
 struct SubscribeButtonArgs final {
-	not_null<Window::SessionController*> controller;
+	Window::SessionController *controller = nullptr;
 	not_null<Ui::RpWidget*> parent;
 	Fn<QString()> computeRef;
 	std::optional<rpl::producer<QString>> text;
 	std::optional<QGradientStops> gradientStops;
 	Fn<QString()> computeBotUrl; // nullable
+	std::shared_ptr<ChatHelpers::Show> show;
 };
 
 [[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(

@@ -324,26 +324,52 @@ void Instance::destroyCall(not_null<Call*> call) {
 	}
 }
 
-void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video) {
-	auto call = std::make_unique<Call>(_delegate.get(), user, type, video);
-	const auto raw = call.get();
+void Instance::createCall(
+		not_null<UserData*> user,
+		Call::Type type,
+		bool isVideo) {
+	struct Performer final {
+		explicit Performer(Fn<void(bool, bool, const Performer &)> callback)
+		: callback(std::move(callback)) {
+		}
+		Fn<void(bool, bool, const Performer &)> callback;
+	};
+	const auto performer = Performer([=](
+			bool video,
+			bool isConfirmed,
+			const Performer &repeater) {
+		const auto delegate = _delegate.get();
+		auto call = std::make_unique<Call>(delegate, user, type, video);
+		if (isConfirmed) {
+			call->applyUserConfirmation();
+		}
+		const auto raw = call.get();
 
-	user->session().account().sessionChanges(
-	) | rpl::start_with_next([=] {
-		destroyCall(raw);
-	}, raw->lifetime());
+		user->session().account().sessionChanges(
+		) | rpl::start_with_next([=] {
+			destroyCall(raw);
+		}, raw->lifetime());
 
-	if (_currentCall) {
-		_currentCallPanel->replaceCall(raw);
-		std::swap(_currentCall, call);
-		call->hangup();
-	} else {
-		_currentCallPanel = std::make_unique<Panel>(raw);
-		_currentCall = std::move(call);
-	}
-	_currentCallChanges.fire_copy(raw);
-	refreshServerConfig(&user->session());
-	refreshDhConfig();
+		if (_currentCall) {
+			_currentCallPanel->replaceCall(raw);
+			std::swap(_currentCall, call);
+			call->hangup();
+		} else {
+			_currentCallPanel = std::make_unique<Panel>(raw);
+			_currentCall = std::move(call);
+		}
+		if (raw->state() == Call::State::WaitingUserConfirmation) {
+			_currentCallPanel->startOutgoingRequests(
+			) | rpl::start_with_next([=](bool video) {
+				repeater.callback(video, true, repeater);
+			}, raw->lifetime());
+		} else {
+			refreshServerConfig(&user->session());
+			refreshDhConfig();
+		}
+		_currentCallChanges.fire_copy(raw);
+	});
+	performer.callback(isVideo, false, performer);
 }
 
 void Instance::destroyGroupCall(not_null<GroupCall*> call) {
@@ -530,6 +556,11 @@ FnMut<void()> Instance::addAsyncWaiter() {
 	};
 }
 
+bool Instance::isSharingScreen() const {
+	return (_currentCall && _currentCall->isSharingScreen())
+		|| (_currentGroupCall && _currentGroupCall->isSharingScreen());
+}
+
 bool Instance::isQuitPrevent() {
 	if (!_currentCall || _currentCall->isIncomingWaiting()) {
 		return false;
@@ -558,6 +589,15 @@ void Instance::handleCallUpdate(
 			// May be a repeated phoneCallRequested update from getDifference.
 			return;
 		}
+		if (inCall()
+			&& _currentCall->type() == Call::Type::Outgoing
+			&& _currentCall->user()->id == session->userPeerId()
+			&& (peerFromUser(phoneCall.vparticipant_id())
+				== _currentCall->user()->session().userPeerId())) {
+			// Ignore call from the same running app, other account.
+			return;
+		}
+
 		const auto &config = session->serverConfig();
 		if (inCall() || inGroupCall() || !user || user->isSelf()) {
 			const auto flags = phoneCall.is_video()
@@ -703,6 +743,17 @@ bool Instance::minimizeCurrentActiveCall() {
 		return true;
 	} else if (inGroupCall() && _currentGroupCallPanel->isActive()) {
 		_currentGroupCallPanel->minimize();
+		return true;
+	}
+	return false;
+}
+
+bool Instance::toggleFullScreenCurrentActiveCall() {
+	if (inCall() && _currentCallPanel->isActive()) {
+		_currentCallPanel->toggleFullScreen();
+		return true;
+	} else if (inGroupCall() && _currentGroupCallPanel->isActive()) {
+		_currentGroupCallPanel->toggleFullScreen();
 		return true;
 	}
 	return false;

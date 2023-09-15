@@ -7,28 +7,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_advanced.h"
 
+#include "api/api_global_privacy.h"
+#include "apiwrap.h"
 #include "settings/settings_common.h"
 #include "settings/settings_chat.h"
-#include "settings/settings_experimental.h"
+#include "settings/settings_power_saving.h"
+#include "settings/settings_privacy_security.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/gl/gl_detection.h"
-#include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/boxes/single_choice_box.h"
+#include "ui/painter.h"
 #include "boxes/connection_box.h"
 #include "boxes/about_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "platform/platform_specific.h"
 #include "ui/platform/ui_platform_window.h"
+#include "base/platform/base_platform_custom_app_icon.h"
 #include "base/platform/base_platform_info.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
+#include "core/launcher.h"
 #include "core/application.h"
 #include "tray.h"
 #include "storage/localstorage.h"
@@ -38,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
+#include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 #ifdef Q_OS_MAC
@@ -51,6 +59,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
 
 namespace Settings {
+namespace {
+
+#if defined Q_OS_MAC && !defined OS_MAC_STORE
+[[nodiscard]] const QImage &IconMacRound() {
+	static const auto result = QImage(u":/gui/art/icon_round512@2x.png"_q);
+	return result;
+}
+#endif // Q_OS_MAC && !OS_MAC_STORE
+
+} // namespace
 
 void SetupConnectionType(
 		not_null<Window::Controller*> controller,
@@ -77,7 +95,7 @@ void SetupConnectionType(
 			tr::lng_connection_auto_connecting() | rpl::to_empty
 		) | rpl::map(connectionType),
 		st::settingsButton,
-		{ &st::settingsIconArrows, kIconGreen });
+		{ &st::menuIconNetwork });
 	button->addClickHandler([=] {
 		controller->show(ProxiesBoxController::CreateOwningBox(account));
 	});
@@ -87,9 +105,7 @@ bool HasUpdate() {
 	return !Core::UpdaterDisabled();
 }
 
-void SetupUpdate(
-		not_null<Ui::VerticalLayout*> container,
-		Fn<void(Type)> showOther) {
+void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	if (!HasUpdate()) {
 		return;
 	}
@@ -121,31 +137,13 @@ void SetupUpdate(
 		tr::lng_settings_install_beta(),
 		st::settingsButtonNoIcon).get();
 
-	if (showOther) {
-		const auto experimental = inner->add(
-			object_ptr<Ui::SlideWrap<Button>>(
-				inner,
-				CreateButton(
-					inner,
-					tr::lng_settings_experimental(),
-					st::settingsButtonNoIcon)));
-		if (!install) {
-			experimental->toggle(true, anim::type::instant);
-		} else {
-			experimental->toggleOn(install->toggledValue());
-		}
-		experimental->entity()->setClickedCallback([=] {
-			showOther(Experimental::Id());
-		});
-	}
-
 	const auto check = AddButton(
 		inner,
 		tr::lng_settings_check_now(),
 		st::settingsButtonNoIcon);
 	const auto update = Ui::CreateChild<Button>(
 		check.get(),
-		tr::lng_update_telegram() | Ui::Text::ToUpper(),
+		tr::lng_update_telegram(),
 		st::settingsUpdate);
 	update->hide();
 	check->widthValue() | rpl::start_with_next([=](int width) {
@@ -211,7 +209,7 @@ void SetupUpdate(
 			return (toggled != cInstallBetaVersion());
 		}) | rpl::start_with_next([=](bool toggled) {
 			cSetInstallBetaVersion(toggled);
-			Core::App().writeInstallBetaVersionsSetting();
+			Core::Launcher::Instance().writeInstallBetaVersionsSetting();
 
 			Core::UpdateChecker checker;
 			checker.stop();
@@ -527,6 +525,32 @@ void SetupSystemIntegrationContent(
 		Core::App().settings().setMacWarnBeforeQuit(checked);
 		Core::App().saveSettingsDelayed();
 	}, warnBeforeQuit->lifetime());
+
+#ifndef OS_MAC_STORE
+	const auto enabled = [] {
+		const auto digest = base::Platform::CurrentCustomAppIconDigest();
+		return digest && (Core::App().settings().macRoundIconDigest() == digest);
+	};
+	const auto roundIcon = addCheckbox(
+		tr::lng_settings_mac_round_icon(),
+		enabled());
+	roundIcon->checkedChanges(
+	) | rpl::filter([=](bool checked) {
+		return (checked != enabled());
+	}) | rpl::start_with_next([=](bool checked) {
+		const auto digest = checked
+			? base::Platform::SetCustomAppIcon(IconMacRound())
+			: std::optional<uint64>();
+		if (!checked) {
+			base::Platform::ClearCustomAppIcon();
+		}
+		Window::OverrideApplicationIcon(checked ? IconMacRound() : QImage());
+		Core::App().refreshApplicationIcon();
+		Core::App().settings().setMacRoundIconDigest(digest);
+		Core::App().saveSettings();
+	}, roundIcon->lifetime());
+#endif // OS_MAC_STORE
+
 #else // Q_OS_MAC
 	const auto closeToTaskbar = addSlidingCheckbox(
 		tr::lng_settings_close_to_taskbar(),
@@ -658,20 +682,104 @@ void SetupWindowTitleOptions(
 		SetupWindowTitleContent);
 }
 
-void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
+void SetupAnimations(
+		not_null<Window::Controller*> window,
+		not_null<Ui::VerticalLayout*> container) {
 	AddButton(
 		container,
-		tr::lng_settings_enable_animations(),
+		tr::lng_settings_power_menu(),
 		st::settingsButtonNoIcon
-	)->toggleOn(
-		rpl::single(!anim::Disabled())
-	)->toggledValue(
-	) | rpl::filter([](bool enabled) {
-		return (enabled == anim::Disabled());
-	}) | rpl::start_with_next([](bool enabled) {
-		anim::SetDisabled(!enabled);
-		Local::writeSettings();
+	)->setClickedCallback([=] {
+		window->show(Box(PowerSavingBox));
+	});
+}
+
+void ArchiveSettingsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller) {
+	box->setTitle(tr::lng_settings_archive_title());
+	box->setWidth(st::boxWideWidth);
+
+	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+
+	PreloadArchiveSettings(&controller->session());
+
+	struct State {
+		Ui::SlideWrap<Ui::VerticalLayout> *foldersWrap = nullptr;
+		Ui::SettingsButton *folders = nullptr;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto privacy = &controller->session().api().globalPrivacy();
+
+	const auto container = box->verticalLayout();
+	AddSkip(container);
+	AddSubsectionTitle(container, tr::lng_settings_unmuted_chats());
+
+	using Unarchive = Api::UnarchiveOnNewMessage;
+	AddButton(
+		container,
+		tr::lng_settings_always_in_archive(),
+		st::settingsButtonNoIcon
+	)->toggleOn(privacy->unarchiveOnNewMessage(
+	) | rpl::map(
+		rpl::mappers::_1 == Unarchive::None
+	))->toggledChanges(
+	) | rpl::filter([=](bool toggled) {
+		const auto current = privacy->unarchiveOnNewMessageCurrent();
+		state->foldersWrap->toggle(!toggled, anim::type::normal);
+		return toggled != (current == Unarchive::None);
+	}) | rpl::start_with_next([=](bool toggled) {
+		privacy->updateUnarchiveOnNewMessage(toggled
+			? Unarchive::None
+			: state->folders->toggled()
+			? Unarchive::NotInFoldersUnmuted
+			: Unarchive::AnyUnmuted);
 	}, container->lifetime());
+
+	AddSkip(container);
+	AddDividerText(container, tr::lng_settings_unmuted_chats_about());
+
+	state->foldersWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = state->foldersWrap->entity();
+	AddSkip(inner);
+	AddSubsectionTitle(inner, tr::lng_settings_chats_from_folders());
+
+	state->folders = AddButton(
+		inner,
+		tr::lng_settings_always_in_archive(),
+		st::settingsButtonNoIcon
+	)->toggleOn(privacy->unarchiveOnNewMessage(
+	) | rpl::map(
+		rpl::mappers::_1 != Unarchive::AnyUnmuted
+	));
+	state->folders->toggledChanges(
+	) | rpl::filter([=](bool toggled) {
+		const auto current = privacy->unarchiveOnNewMessageCurrent();
+		return toggled != (current != Unarchive::AnyUnmuted);
+	}) | rpl::start_with_next([=](bool toggled) {
+		const auto current = privacy->unarchiveOnNewMessageCurrent();
+		privacy->updateUnarchiveOnNewMessage(!toggled
+			? Unarchive::AnyUnmuted
+			: (current == Unarchive::AnyUnmuted)
+			? Unarchive::NotInFoldersUnmuted
+			: current);
+	}, inner->lifetime());
+
+	AddSkip(inner);
+	AddDividerText(inner, tr::lng_settings_chats_from_folders_about());
+
+	state->foldersWrap->toggle(
+		privacy->unarchiveOnNewMessageCurrent() != Unarchive::None,
+		anim::type::instant);
+
+	SetupArchiveAndMute(controller, box->verticalLayout());
+}
+
+void PreloadArchiveSettings(not_null<::Main::Session*> session) {
+	session->api().globalPrivacy().reload();
 }
 
 void SetupHardwareAcceleration(not_null<Ui::VerticalLayout*> container) {
@@ -701,18 +809,19 @@ void SetupANGLE(
 		tr::lng_settings_angle_backend_d3d11(tr::now),
 		tr::lng_settings_angle_backend_d3d9(tr::now),
 		tr::lng_settings_angle_backend_d3d11on12(tr::now),
-		tr::lng_settings_angle_backend_opengl(tr::now),
+		//tr::lng_settings_angle_backend_opengl(tr::now),
 		tr::lng_settings_angle_backend_disabled(tr::now),
 	};
-	const auto backendIndex = [] {
+	const auto disabled = int(options.size()) - 1;
+	const auto backendIndex = [=] {
 		if (Core::App().settings().disableOpenGL()) {
-			return 5;
+			return disabled;
 		} else switch (Ui::GL::CurrentANGLE()) {
 		case ANGLE::Auto: return 0;
 		case ANGLE::D3D11: return 1;
 		case ANGLE::D3D9: return 2;
 		case ANGLE::D3D11on12: return 3;
-		case ANGLE::OpenGL: return 4;
+		//case ANGLE::OpenGL: return 4;
 		}
 		Unexpected("Ui::GL::CurrentANGLE value in SetupANGLE.");
 	}();
@@ -728,7 +837,7 @@ void SetupANGLE(
 					return;
 				}
 				const auto confirmed = crl::guard(button, [=] {
-					const auto nowDisabled = (index == 5);
+					const auto nowDisabled = (index == disabled);
 					if (!nowDisabled) {
 						Ui::GL::ChangeANGLE([&] {
 							switch (index) {
@@ -736,12 +845,12 @@ void SetupANGLE(
 							case 1: return ANGLE::D3D11;
 							case 2: return ANGLE::D3D9;
 							case 3: return ANGLE::D3D11on12;
-							case 4: return ANGLE::OpenGL;
+							//case 4: return ANGLE::OpenGL;
 							}
 							Unexpected("Index in SetupANGLE.");
 						}());
 					}
-					const auto wasDisabled = (backendIndex == 5);
+					const auto wasDisabled = (backendIndex == disabled);
 					if (nowDisabled != wasDisabled) {
 						Core::App().settings().setDisableOpenGL(nowDisabled);
 						Local::writeSettings();
@@ -804,7 +913,7 @@ void SetupOpenGL(
 void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	SetupAnimations(container);
+	SetupAnimations(&controller->window(), container);
 	SetupHardwareAcceleration(container);
 #ifdef Q_OS_WIN
 	SetupANGLE(controller, container);
@@ -866,9 +975,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 			addDivider();
 			AddSkip(content);
 			AddSubsectionTitle(content, tr::lng_settings_version_info());
-			SetupUpdate(content, [=](Type type) {
-				_showOther.fire_copy(type);
-			});
+			SetupUpdate(content);
 			AddSkip(content);
 		}
 	};
@@ -899,24 +1006,13 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	if (cAutoUpdate()) {
 		addUpdate();
 	}
-	if (!HasUpdate()) {
-		AddSkip(content);
-		AddDivider(content);
-		AddSkip(content);
-		content->add(
-			CreateButton(
-				content,
-				tr::lng_settings_experimental(),
-				st::settingsButtonNoIcon)
-		)->setClickedCallback([=] {
-			_showOther.fire_copy(Experimental::Id());
-		});
-	}
 
 	AddSkip(content);
 	AddDivider(content);
 	AddSkip(content);
-	SetupExport(controller, content);
+	SetupExport(controller, content, [=](Type type) {
+		_showOther.fire_copy(type);
+	});
 
 	Ui::ResizeFitChild(this, content);
 }

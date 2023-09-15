@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 namespace HistoryView::Reactions {
@@ -318,6 +319,7 @@ Manager::Manager(
 : _outer(CountOuterSize())
 , _inner(QRect({}, st::reactionCornerSize))
 , _strip(
+	st::reactPanelEmojiPan,
 	_inner,
 	st::reactionCornerImage,
 	crl::guard(this, [=] { updateCurrentButton(); }),

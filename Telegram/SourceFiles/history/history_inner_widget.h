@@ -185,8 +185,9 @@ public:
 	void setCanHaveFromUserpicsSponsored(bool value);
 
 	// -1 if should not be visible, -2 if bad history()
-	int itemTop(const HistoryItem *item) const;
-	int itemTop(const Element *view) const;
+	[[nodiscard]] int itemTop(const HistoryItem *item) const;
+	[[nodiscard]] int itemTop(const Element *view) const;
+	[[nodiscard]] Element *viewByItem(const HistoryItem *item) const;
 
 	// Returns (view, offset-from-top).
 	[[nodiscard]] std::pair<Element*, int> findViewForPinnedTracking(

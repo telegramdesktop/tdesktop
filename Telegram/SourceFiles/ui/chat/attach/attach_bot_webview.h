@@ -48,6 +48,7 @@ public:
 		Fn<bool(QString)> handleLocalUri,
 		Fn<void(QString)> handleInvoice,
 		Fn<void(QByteArray)> sendData,
+		Fn<void(std::vector<QString>, QString)> switchInlineQuery,
 		Fn<void()> close,
 		QString phone,
 		MenuButtons menuButtons,
@@ -65,7 +66,7 @@ public:
 		rpl::producer<QString> bottomText);
 
 	void showBox(object_ptr<BoxContent> box);
-	void showToast(const TextWithEntities &text);
+	void showToast(TextWithEntities &&text);
 	void showCriticalError(const TextWithEntities &text);
 	void showWebviewError(
 		const QString &text,
@@ -88,6 +89,7 @@ private:
 	void hideWebviewProgress();
 	void setTitle(rpl::producer<QString> title);
 	void sendDataMessage(const QJsonObject &args);
+	void switchInlineQueryMessage(const QJsonObject &args);
 	void processMainButtonMessage(const QJsonObject &args);
 	void processBackButtonMessage(const QJsonObject &args);
 	void openTgLink(const QJsonObject &args);
@@ -116,6 +118,7 @@ private:
 	Fn<bool(QString)> _handleLocalUri;
 	Fn<void(QString)> _handleInvoice;
 	Fn<void(QByteArray)> _sendData;
+	Fn<void(std::vector<QString>, QString)> _switchInlineQuery;
 	Fn<void()> _close;
 	QString _phone;
 	bool _closeNeedConfirmation = false;
@@ -147,6 +150,7 @@ struct Args {
 	Fn<bool(QString)> handleLocalUri;
 	Fn<void(QString)> handleInvoice;
 	Fn<void(QByteArray)> sendData;
+	Fn<void(std::vector<QString>, QString)> switchInlineQuery;
 	Fn<void()> close;
 	QString phone;
 	MenuButtons menuButtons;

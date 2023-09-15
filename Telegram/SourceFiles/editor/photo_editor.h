@@ -15,7 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class LayerWidget;
+class Show;
 } // namespace Ui
+
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
 
 namespace Window {
 class Controller;
@@ -33,6 +38,13 @@ public:
 	PhotoEditor(
 		not_null<QWidget*> parent,
 		not_null<Window::Controller*> controller,
+		std::shared_ptr<Image> photo,
+		PhotoModifications modifications,
+		EditorData data = EditorData());
+	PhotoEditor(
+		not_null<QWidget*> parent,
+		std::shared_ptr<Ui::Show> show,
+		std::shared_ptr<ChatHelpers::Show> sessionShow,
 		std::shared_ptr<Image> photo,
 		PhotoModifications modifications,
 		EditorData data = EditorData());

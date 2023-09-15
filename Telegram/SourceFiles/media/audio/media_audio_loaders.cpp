@@ -10,14 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_ffmpeg_loader.h"
 #include "media/audio/media_child_ffmpeg_loader.h"
+#include "media/media_common.h"
 
 namespace Media {
 namespace Player {
-namespace {
-
-constexpr auto kPlaybackBufferSize = 256 * 1024;
-
-} // namespace
 
 Loaders::Loaders(QThread *thread)
 : _fromExternalNotify([=] { videoSoundAdded(); }) {
@@ -151,30 +147,55 @@ void Loaders::onLoad(const AudioMsgId &audio) {
 }
 
 void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
-	auto err = SetupNoErrorStarted;
 	auto type = audio.type();
-	auto l = setupLoader(audio, err, positionMs);
+	auto setup = setupLoader(audio, positionMs);
+	const auto l = setup.loader;
 	if (!l) {
-		if (err == SetupErrorAtStart) {
+		if (setup.errorAtStart) {
 			emitError(type);
 		}
 		return;
 	}
 
-	auto started = (err == SetupNoErrorStarted);
+	const auto sampleSize = l->sampleSize();
+	const auto speedChanged = !EqualSpeeds(setup.newSpeed, setup.oldSpeed);
+	auto updatedWithSpeed = speedChanged
+		? rebufferOnSpeedChange(setup)
+		: std::optional<Mixer::Track::WithSpeed>();
+	if (!speedChanged && setup.oldSpeed > 0.) {
+		const auto normalPosition = Mixer::Track::SpeedIndependentPosition(
+			setup.position,
+			setup.oldSpeed);
+		l->dropFramesTill(normalPosition);
+	}
+
+	const auto started = setup.justStarted;
 	auto finished = false;
 	auto waiting = false;
 	auto errAtStart = started;
 
-	QByteArray samples;
-	int64 samplesCount = 0;
+	auto accumulated = QByteArray();
+	auto accumulatedCount = 0;
 	if (l->holdsSavedDecodedSamples()) {
-		l->takeSavedDecodedSamples(&samples, &samplesCount);
+		l->takeSavedDecodedSamples(&accumulated);
+		accumulatedCount = accumulated.size() / sampleSize;
 	}
-	while (samples.size() < kPlaybackBufferSize) {
-		auto res = l->readMore(samples, samplesCount);
-		using Result = AudioPlayerLoader::ReadResult;
-		if (res == Result::Error) {
+	const auto accumulateTill = l->bytesPerBuffer();
+	while (accumulated.size() < accumulateTill) {
+		using Error = AudioPlayerLoader::ReadError;
+		const auto result = l->readMore();
+		if (result == Error::Retry) {
+			continue;
+		}
+		const auto sampleBytes = v::is<bytes::const_span>(result)
+			? v::get<bytes::const_span>(result)
+			: bytes::const_span();
+		if (!sampleBytes.empty()) {
+			accumulated.append(
+				reinterpret_cast<const char*>(sampleBytes.data()),
+				sampleBytes.size());
+			accumulatedCount += sampleBytes.size() / sampleSize;
+		} else if (result == Error::Other) {
 			if (errAtStart) {
 				{
 					QMutexLocker lock(internal::audioPlayerMutex());
@@ -187,18 +208,18 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 			}
 			finished = true;
 			break;
-		} else if (res == Result::EndOfFile) {
+		} else if (result == Error::EndOfFile) {
 			finished = true;
 			break;
-		} else if (res == Result::Ok) {
-			errAtStart = false;
-		} else if (res == Result::Wait) {
-			waiting = (samples.size() < kPlaybackBufferSize)
-				&& (!samplesCount || !l->forceToBuffer());
+		} else if (result == Error::Wait) {
+			waiting = (accumulated.size() < accumulateTill)
+				&& (accumulated.isEmpty() || !l->forceToBuffer());
 			if (waiting) {
-				l->saveDecodedSamples(&samples, &samplesCount);
+				l->saveDecodedSamples(&accumulated);
 			}
 			break;
+		} else if (v::is<bytes::const_span>(result)) {
+			errAtStart = false;
 		}
 
 		QMutexLocker lock(internal::audioPlayerMutex());
@@ -215,10 +236,11 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		return;
 	}
 
-	if (started || samplesCount) {
+	if (started || !accumulated.isEmpty() || updatedWithSpeed) {
 		Audio::AttachToDevice();
 	}
 	if (started) {
+		Assert(!updatedWithSpeed);
 		track->started();
 		if (!internal::audioCheckError()) {
 			setStoppedState(track, State::StoppedAtStart);
@@ -227,14 +249,22 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		}
 
 		track->format = l->format();
-		track->frequency = l->samplesFrequency();
+		track->state.frequency = l->samplesFrequency();
 
-		const auto position = (positionMs * track->frequency) / 1000LL;
-		track->bufferedPosition = position;
-		track->state.position = position;
-		track->fadeStartPosition = position;
+		track->state.position = (positionMs * track->state.frequency)
+			/ 1000LL;
+		track->updateWithSpeedPosition();
+		track->withSpeed.bufferedPosition = track->withSpeed.position;
+		track->withSpeed.fadeStartPosition = track->withSpeed.position;
+	} else if (updatedWithSpeed) {
+		auto old = Mixer::Track();
+		old.stream = base::take(track->stream);
+		old.withSpeed = std::exchange(track->withSpeed, *updatedWithSpeed);
+		track->speed = setup.newSpeed;
+		track->reattach(type);
+		old.detach();
 	}
-	if (samplesCount) {
+	if (!accumulated.isEmpty()) {
 		track->ensureStreamCreated(type);
 
 		auto bufferIndex = track->getNotQueuedBufferIndex();
@@ -246,18 +276,28 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		}
 
 		if (bufferIndex < 0) { // No free buffers, wait.
-			l->saveDecodedSamples(&samples, &samplesCount);
+			track->waitingForBuffer = true;
+			l->saveDecodedSamples(&accumulated);
 			return;
 		} else if (l->forceToBuffer()) {
 			l->setForceToBuffer(false);
 		}
+		track->waitingForBuffer = false;
 
-		track->bufferSamples[bufferIndex] = samples;
-		track->samplesCount[bufferIndex] = samplesCount;
-		track->bufferedLength += samplesCount;
-		alBufferData(track->stream.buffers[bufferIndex], track->format, samples.constData(), samples.size(), track->frequency);
+		track->withSpeed.buffered[bufferIndex] = accumulated;
+		track->withSpeed.samples[bufferIndex] = accumulatedCount;
+		track->withSpeed.bufferedLength += accumulatedCount;
+		alBufferData(
+			track->stream.buffers[bufferIndex],
+			track->format,
+			accumulated.constData(),
+			accumulated.size(),
+			track->state.frequency);
 
-		alSourceQueueBuffers(track->stream.source, 1, track->stream.buffers + bufferIndex);
+		alSourceQueueBuffers(
+			track->stream.source,
+			1,
+			track->stream.buffers + bufferIndex);
 
 		if (!internal::audioCheckError()) {
 			setStoppedState(track, State::StoppedAtError);
@@ -274,8 +314,11 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 
 	if (finished) {
 		track->loaded = true;
-		track->state.length = track->bufferedPosition + track->bufferedLength;
-		clear(type);
+		track->withSpeed.length = track->withSpeed.bufferedPosition
+			+ track->withSpeed.bufferedLength;
+		track->state.length = Mixer::Track::SpeedIndependentPosition(
+			track->withSpeed.length,
+			track->speed);
 	}
 
 	track->loading = false;
@@ -305,7 +348,10 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 	}
 
 	if (state == AL_STOPPED) {
-		alSourcei(track->stream.source, AL_SAMPLE_OFFSET, qMax(track->state.position - track->bufferedPosition, 0LL));
+		alSourcei(
+			track->stream.source,
+			AL_SAMPLE_OFFSET,
+			qMax(track->withSpeed.position - track->withSpeed.bufferedPosition, 0LL));
 		if (!internal::audioCheckError()) {
 			setStoppedState(track, State::StoppedAtError);
 			emitError(type);
@@ -322,20 +368,19 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 	needToCheck();
 }
 
-AudioPlayerLoader *Loaders::setupLoader(
+Loaders::SetupLoaderResult Loaders::setupLoader(
 		const AudioMsgId &audio,
-		SetupError &err,
 		crl::time positionMs) {
-	err = SetupErrorAtStart;
 	QMutexLocker lock(internal::audioPlayerMutex());
-	if (!mixer()) return nullptr;
+	if (!mixer()) {
+		return {};
+	}
 
 	auto track = mixer()->trackForType(audio.type());
 	if (!track || track->state.id != audio || !track->loading) {
 		error(audio);
 		LOG(("Audio Error: trying to load part of audio, that is not current at the moment"));
-		err = SetupErrorNotPlaying;
-		return nullptr;
+		return {};
 	}
 
 	bool isGoodId = false;
@@ -351,6 +396,7 @@ AudioPlayerLoader *Loaders::setupLoader(
 		l = nullptr;
 	}
 
+	auto SpeedDependentPosition = Mixer::Track::SpeedDependentPosition;
 	if (!l) {
 		std::unique_ptr<AudioPlayerLoader> *loader = nullptr;
 		switch (audio.type()) {
@@ -365,7 +411,7 @@ AudioPlayerLoader *Loaders::setupLoader(
 				track->state.state = State::StoppedAtError;
 				error(audio);
 				LOG(("Audio Error: video sound data not ready"));
-				return nullptr;
+				return {};
 			}
 			*loader = std::make_unique<ChildFFMpegLoader>(
 				std::move(track->externalData));
@@ -377,24 +423,121 @@ AudioPlayerLoader *Loaders::setupLoader(
 		}
 		l = loader->get();
 
-		if (!l->open(positionMs)) {
+		track->speed = track->nextSpeed;
+		if (!l->open(positionMs, track->speed)) {
 			track->state.state = State::StoppedAtStart;
-			return nullptr;
+			return { .errorAtStart = true };
 		}
-		auto length = l->samplesCount();
-		if (length <= 0) {
+		const auto duration = l->duration();
+		if (duration <= 0) {
 			track->state.state = State::StoppedAtStart;
-			return nullptr;
+			return { .errorAtStart = true };
 		}
-		track->state.length = length;
 		track->state.frequency = l->samplesFrequency();
-		err = SetupNoErrorStarted;
+		track->state.length = (duration * track->state.frequency) / 1000;
+		track->withSpeed.length = SpeedDependentPosition(
+			track->state.length,
+			track->speed);
+		return { .loader = l, .justStarted = true };
+	} else if (!EqualSpeeds(track->nextSpeed, track->speed)) {
+		return {
+			.loader = l,
+			.oldSpeed = track->speed,
+			.newSpeed = track->nextSpeed,
+			.fadeStartPosition = track->withSpeed.fadeStartPosition,
+			.position = track->withSpeed.fineTunedPosition,
+			.normalLength = track->state.length,
+			.frequency = track->state.frequency,
+		};
 	} else if (track->loaded) {
-		err = SetupErrorLoadedFull;
 		LOG(("Audio Error: trying to load part of audio, that is already loaded to the end"));
-		return nullptr;
+		return {};
 	}
-	return l;
+	return {
+		.loader = l,
+		.oldSpeed = track->speed,
+		.newSpeed = track->nextSpeed,
+		.position = track->withSpeed.fineTunedPosition,
+		.frequency = track->state.frequency,
+	};
+}
+
+Mixer::Track::WithSpeed Loaders::rebufferOnSpeedChange(
+		const SetupLoaderResult &setup) {
+	Expects(setup.oldSpeed > 0. && setup.newSpeed > 0.);
+	Expects(setup.loader != nullptr);
+
+	const auto speed = setup.newSpeed;
+	const auto change = setup.oldSpeed / speed;
+	const auto normalPosition = Mixer::Track::SpeedIndependentPosition(
+		setup.position,
+		setup.oldSpeed);
+	const auto newPosition = int64(base::SafeRound(setup.position * change));
+	auto result = Mixer::Track::WithSpeed{
+		.fineTunedPosition = newPosition,
+		.position = newPosition,
+		.length = Mixer::Track::SpeedDependentPosition(
+			setup.normalLength,
+			speed),
+		.fadeStartPosition = int64(
+			base::SafeRound(setup.fadeStartPosition * change)),
+	};
+	const auto l = setup.loader;
+	l->dropFramesTill(normalPosition);
+	const auto normalFrom = l->startReadingQueuedFrames(speed);
+	if (normalFrom < 0) {
+		result.bufferedPosition = newPosition;
+		return result;
+	}
+
+	result.bufferedPosition = Mixer::Track::SpeedDependentPosition(
+		normalFrom,
+		speed);
+	for (auto i = 0; i != Mixer::Track::kBuffersCount; ++i) {
+		auto finished = false;
+		auto accumulated = QByteArray();
+		auto accumulatedCount = int64();
+		const auto sampleSize = l->sampleSize();
+		const auto accumulateTill = l->bytesPerBuffer();
+		while (accumulated.size() < accumulateTill) {
+			const auto result = l->readMore();
+			const auto sampleBytes = v::is<bytes::const_span>(result)
+				? v::get<bytes::const_span>(result)
+				: bytes::const_span();
+			if (!sampleBytes.empty()) {
+				accumulated.append(
+					reinterpret_cast<const char*>(sampleBytes.data()),
+					sampleBytes.size());
+				accumulatedCount += sampleBytes.size() / sampleSize;
+				continue;
+			} else if (result == AudioPlayerLoader::ReadError::Retry) {
+				continue;
+			}
+			Assert(result == AudioPlayerLoader::ReadError::RetryNotQueued
+				|| result == AudioPlayerLoader::ReadError::EndOfFile);
+			finished = true;
+			break;
+		}
+		if (!accumulated.isEmpty()) {
+			result.samples[i] = accumulatedCount;
+			result.bufferedLength += accumulatedCount;
+			result.buffered[i] = accumulated;
+		}
+		if (finished) {
+			break;
+		}
+	}
+
+	const auto limit = result.bufferedPosition + result.bufferedLength;
+	if (newPosition > limit) {
+		result.fineTunedPosition = limit;
+		result.position = limit;
+	}
+	if (limit > result.length) {
+		result.length = limit;
+	}
+
+	return result;
 }
 
 Mixer::Track *Loaders::checkLoader(AudioMsgId::Type type) {

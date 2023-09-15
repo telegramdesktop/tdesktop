@@ -15,8 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/spoiler_mess.h"
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "base/call_delayed.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_boxes.h"
 
 #include <QtCore/QFileInfo>
@@ -24,13 +26,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 AlbumThumbnail::AlbumThumbnail(
+	const style::ComposeControls &st,
 	const PreparedFile &file,
 	const GroupMediaLayout &layout,
 	QWidget *parent,
 	Fn<void()> repaint,
 	Fn<void()> editCallback,
 	Fn<void()> deleteCallback)
-: _layout(layout)
+: _st(st)
+, _layout(layout)
 , _fullPreview(file.preview)
 , _shrinkSize(int(std::ceil(st::roundRadiusLarge / 1.4)))
 , _isPhoto(file.type == PreparedFile::Type::Photo)
@@ -58,8 +62,8 @@ AlbumThumbnail::AlbumThumbnail(
 			.outer = { imageWidth, imageHeight },
 		}));
 
-	const auto &st = st::attachPreviewThumbLayout;
-	const auto idealSize = st.thumbSize * style::DevicePixelRatio();
+	const auto &layoutSt = st::attachPreviewThumbLayout;
+	const auto idealSize = layoutSt.thumbSize * style::DevicePixelRatio();
 	const auto fileThumbSize = (previewWidth > previewHeight)
 		? QSize(previewWidth * idealSize / previewHeight, idealSize)
 		: QSize(idealSize, previewHeight * idealSize / previewWidth);
@@ -68,12 +72,12 @@ AlbumThumbnail::AlbumThumbnail(
 		fileThumbSize,
 		{
 			.options = Option::RoundSmall,
-			.outer = { st.thumbSize, st.thumbSize },
+			.outer = { layoutSt.thumbSize, layoutSt.thumbSize },
 		}));
 
 	const auto availableFileWidth = st::sendMediaPreviewSize
-		- st.thumbSize
-		- st.thumbSkip
+		- layoutSt.thumbSize
+		- layoutSt.thumbSkip
 		// Right buttons.
 		- st::sendBoxAlbumGroupButtonFile.width * 2
 		- st::sendBoxAlbumGroupEditInternalSkip * 2
@@ -97,8 +101,8 @@ AlbumThumbnail::AlbumThumbnail(
 	}
 	_statusWidth = st::normalFont->width(_status);
 
-	_editMedia.create(parent, st::sendBoxAlbumGroupButtonFile);
-	_deleteMedia.create(parent, st::sendBoxAlbumGroupButtonFile);
+	_editMedia.create(parent, _st.files.buttonFile);
+	_deleteMedia.create(parent, _st.files.buttonFile);
 
 	const auto duration = st::historyAttach.ripple.hideDuration;
 	_editMedia->setClickedCallback([=] {
@@ -106,8 +110,8 @@ AlbumThumbnail::AlbumThumbnail(
 	});
 	_deleteMedia->setClickedCallback(deleteCallback);
 
-	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
-	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
+	_editMedia->setIconOverride(&_st.files.buttonFileEdit);
+	_deleteMedia->setIconOverride(&_st.files.buttonFileDelete);
 
 	setSpoiler(file.spoiler);
 	setButtonVisible(false);
@@ -243,19 +247,19 @@ void AlbumThumbnail::paintInAlbum(
 				_albumCorners);
 		}
 		p.drawPixmap(paintedTo, _albumImageBlurred);
+		const auto paused = On(PowerSaving::kChatSpoiler);
 		FillSpoilerRect(
 			p,
 			paintedTo,
 			corners,
-			DefaultImageSpoiler().frame(_spoiler->index(crl::now(), false)),
+			DefaultImageSpoiler().frame(_spoiler->index(crl::now(), paused)),
 			_cornerCache);
 		p.setOpacity(1.);
 	}
 
 	_lastRectOfButtons = paintButtons(
 		p,
-		geometry.topLeft(),
-		geometry.width(),
+		geometry,
 		shrinkProgress);
 	_lastRectOfModify = geometry;
 }
@@ -439,12 +443,13 @@ void AlbumThumbnail::paintPhoto(Painter &p, int left, int top, int outerWidth) {
 		outerWidth,
 		pixmap);
 	if (_spoiler) {
+		const auto paused = On(PowerSaving::kChatSpoiler);
 		FillSpoilerRect(
 			p,
 			rect,
 			Images::CornersMaskRef(
 				Images::CornersMask(ImageRoundRadius::Large)),
-			DefaultImageSpoiler().frame(_spoiler->index(crl::now(), false)),
+			DefaultImageSpoiler().frame(_spoiler->index(crl::now(), paused)),
 			_cornerCache);
 	} else if (_isVideo) {
 		paintPlayVideo(p, rect);
@@ -454,8 +459,7 @@ void AlbumThumbnail::paintPhoto(Painter &p, int left, int top, int outerWidth) {
 
 	_lastRectOfButtons = paintButtons(
 		p,
-		topLeft,
-		st::sendMediaPreviewSize,
+		QRect(left, top, st::sendMediaPreviewSize, size.height()),
 		0);
 
 	_lastRectOfModify = QRect(topLeft, size);
@@ -478,7 +482,7 @@ void AlbumThumbnail::paintFile(
 
 	p.drawPixmap(left, top, _fileThumb);
 	p.setFont(st::semiboldFont);
-	p.setPen(st::historyFileNameInFg);
+	p.setPen(_st.files.nameFg);
 	p.drawTextLeft(
 		textLeft,
 		top + st.nameTop,
@@ -486,7 +490,7 @@ void AlbumThumbnail::paintFile(
 		_name,
 		_nameWidth);
 	p.setFont(st::normalFont);
-	p.setPen(st::mediaInFg);
+	p.setPen(_st.files.statusFg);
 	p.drawTextLeft(
 		textLeft,
 		top + st.statusTop,
@@ -515,7 +519,9 @@ AttachButtonType AlbumThumbnail::buttonTypeFromPoint(QPoint position) const {
 	}
 	return (!_lastRectOfButtons.contains(position) && !_isCompressedSticker)
 		? AttachButtonType::Modify
-		: (position.x() < _lastRectOfButtons.center().x())
+		: (_buttons.vertical()
+			? (position.y() < _lastRectOfButtons.center().y())
+			: (position.x() < _lastRectOfButtons.center().x()))
 		? AttachButtonType::Edit
 		: AttachButtonType::Delete;
 }
@@ -579,24 +585,31 @@ void AlbumThumbnail::finishAnimations() {
 
 QRect AlbumThumbnail::paintButtons(
 		QPainter &p,
-		QPoint point,
-		int outerWidth,
+		QRect geometry,
 		float64 shrinkProgress) {
 	const auto &skipRight = st::sendBoxAlbumGroupSkipRight;
 	const auto &skipTop = st::sendBoxAlbumGroupSkipTop;
-	const auto groupWidth = _buttons.width();
-
-	// If the width is tiny, it would be better to not display the buttons.
-	if (groupWidth > outerWidth) {
+	const auto outerWidth = geometry.width();
+	const auto outerHeight = geometry.height();
+	if (st::sendBoxAlbumGroupSize.width() <= outerWidth) {
+		_buttons.setVertical(false);
+	} else if (st::sendBoxAlbumGroupSize.height() <= outerHeight) {
+		_buttons.setVertical(true);
+	} else {
+		// If the size is tiny, skip the buttons.
 		return QRect();
 	}
+	const auto groupWidth = _buttons.width();
+	const auto groupHeight = _buttons.height();
 
 	// If the width is too small,
 	// it would be better to display the buttons in the center.
-	const auto groupX = point.x() + ((groupWidth + skipRight * 2 > outerWidth)
+	const auto groupX = geometry.x() + ((groupWidth + skipRight * 2 > outerWidth)
 		? (outerWidth - groupWidth) / 2
 		: outerWidth - skipRight - groupWidth);
-	const auto groupY = point.y() + skipTop;
+	const auto groupY = geometry.y() + ((groupHeight + skipTop * 2 > outerHeight)
+		? (outerHeight - groupHeight) / 2
+		: skipTop);
 
 	const auto opacity = p.opacity();
 	p.setOpacity(1.0 - shrinkProgress);

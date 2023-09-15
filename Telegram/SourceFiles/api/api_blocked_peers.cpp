@@ -79,6 +79,7 @@ void BlockedPeers::block(not_null<PeerData*> peer) {
 			Data::PeerUpdate::Flag::IsBlocked);
 	} else if (_blockRequests.find(peer) == end(_blockRequests)) {
 		const auto requestId = _api.request(MTPcontacts_Block(
+			MTP_flags(0),
 			peer->input
 		)).done([=] {
 			_blockRequests.erase(peer);
@@ -111,6 +112,7 @@ void BlockedPeers::unblock(
 		return;
 	}
 	const auto requestId = _api.request(MTPcontacts_Unblock(
+		MTP_flags(0),
 		peer->input
 	)).done([=] {
 		_blockRequests.erase(peer);
@@ -163,6 +165,7 @@ void BlockedPeers::request(int offset, Fn<void(BlockedPeers::Slice)> onDone) {
 		return;
 	}
 	_requestId = _api.request(MTPcontacts_GetBlocked(
+		MTP_flags(0),
 		MTP_int(offset),
 		MTP_int(offset ? kBlockedPerPage : kBlockedFirstSlice)
 	)).done([=](const MTPcontacts_Blocked &result) {

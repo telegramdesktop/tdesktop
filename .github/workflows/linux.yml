@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     container:
-      image: ghcr.io/wrwrabbit/tdesktop/centos_env
+      image: ghcr.io/${{ github.repository }}/centos_env
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -46,7 +46,10 @@ jobs:
 
     strategy:
       matrix:
-        defines: [""]
+        defines:
+          - ""
+#          - "DESKTOP_APP_DISABLE_X11_INTEGRATION"
+#          - "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
         experimental: [false]
 
     env:
@@ -90,6 +93,10 @@ jobs:
           fi
 
           ./configure.sh \
+          -D CMAKE_C_FLAGS_DEBUG="" \
+          -D CMAKE_CXX_FLAGS_DEBUG="" \
+          -D CMAKE_C_FLAGS="-Werror" \
+          -D CMAKE_CXX_FLAGS="-Werror" \
           -D CMAKE_EXE_LINKER_FLAGS="-s" \
           -D TDESKTOP_API_TEST=OFF \
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} \

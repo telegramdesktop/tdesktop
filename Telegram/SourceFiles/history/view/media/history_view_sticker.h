@@ -129,11 +129,12 @@ private:
 	mutable int _frameIndex = -1;
 	mutable int _framesCount = -1;
 	ChatHelpers::StickerLottieSize _cachingTag = {};
-	mutable bool _oncePlayed : 1;
-	mutable bool _premiumEffectPlayed : 1;
-	mutable bool _nextLastDiceFrame : 1;
-	bool _skipPremiumEffect : 1;
-	bool _giftBoxSticker : 1;
+	mutable bool _oncePlayed : 1 = false;
+	mutable bool _premiumEffectPlayed : 1 = false;
+	mutable bool _premiumEffectSkipped : 1 = false;
+	mutable bool _nextLastDiceFrame : 1 = false;
+	bool _skipPremiumEffect : 1 = false;
+	bool _giftBoxSticker : 1 = false;
 
 };
 

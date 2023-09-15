@@ -15,6 +15,7 @@ struct ReactionId;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Ui {
@@ -58,6 +59,9 @@ void CopyPostLink(
 	not_null<Window::SessionController*> controller,
 	FullMsgId itemId,
 	Context context);
+void CopyStoryLink(
+	std::shared_ptr<Main::SessionShow> show,
+	FullStoryId storyId);
 void AddPollActions(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<PollData*> poll,

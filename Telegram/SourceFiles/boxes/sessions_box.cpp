@@ -846,7 +846,7 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 		.confirmStyle = &st::attentionBoxButton,
 	});
 	_terminateBox = Ui::MakeWeak(box.data());
-	_controller->show(std::move(box), Ui::LayerOption::KeepOther);
+	_controller->show(std::move(box));
 }
 
 void SessionsContent::terminateOne(uint64 hash) {
@@ -928,7 +928,7 @@ void SessionsContent::Inner::setupContent() {
 		rename->moveToRight(x, y, outer.width());
 	}, rename->lifetime());
 	rename->setClickedCallback([=] {
-		_controller->show(Box(RenameBox), Ui::LayerOption::KeepOther);
+		_controller->show(Box(RenameBox));
 	});
 
 	const auto session = &_controller->session();

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
+#include "core/file_utilities.h"
 #include "core/ui_integration.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
@@ -36,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/item_text_options.h"
@@ -249,6 +249,7 @@ TextSelection ShiftItemSelection(
 QString DateTooltipText(not_null<Element*> view) {
 	const auto locale = QLocale();
 	const auto format = QLocale::LongFormat;
+	const auto item = view->data();
 	auto dateText = locale.toString(view->dateTime(), format);
 	if (const auto editedDate = view->displayedEditDate()) {
 		dateText += '\n' + tr::lng_edited_date(
@@ -256,18 +257,22 @@ QString DateTooltipText(not_null<Element*> view) {
 			lt_date,
 			locale.toString(base::unixtime::parse(editedDate), format));
 	}
-	if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
-		dateText += '\n' + tr::lng_forwarded_date(
-			tr::now,
-			lt_date,
-			locale.toString(base::unixtime::parse(forwarded->originalDate), format));
-		if (forwarded->imported) {
-			dateText = tr::lng_forwarded_imported(tr::now)
-				+ "\n\n" + dateText;
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (!forwarded->story && forwarded->psaType.isEmpty()) {
+			dateText += '\n' + tr::lng_forwarded_date(
+				tr::now,
+				lt_date,
+				locale.toString(
+					base::unixtime::parse(forwarded->originalDate),
+					format));
+			if (forwarded->imported) {
+				dateText = tr::lng_forwarded_imported(tr::now)
+					+ "\n\n" + dateText;
+			}
 		}
 	}
 	if (view->isSignedAuthorElided()) {
-		if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
+		if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
 			dateText += '\n'
 				+ tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
 		}
@@ -354,6 +359,20 @@ void DateBadge::paint(
 	ServiceMessagePainter::PaintDate(p, st, text, width, y, w, chatWide);
 }
 
+void FakeBotAboutTop::init() {
+	if (!text.isEmpty()) {
+		return;
+	}
+	text.setText(
+		st::msgNameStyle,
+		tr::lng_bot_description(tr::now),
+		Ui::NameTextOptions());
+	maxWidth = st::msgPadding.left()
+		+ text.maxWidth()
+		+ st::msgPadding.right();
+	height = st::msgNameStyle.font->height + st::botDescSkip;
+}
+
 Element::Element(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryItem*> data,
@@ -375,6 +394,9 @@ Element::Element(
 	refreshMedia(replacing);
 	if (_context == Context::History) {
 		history()->setHasPendingResizedItems();
+	}
+	if (data->isFakeBotAbout() && !data->history()->peer->isRepliesChat()) {
+		AddComponents(FakeBotAboutTop::Bit());
 	}
 }
 
@@ -818,14 +840,20 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 void Element::validateText() {
 	const auto item = data();
 	const auto &text = item->_text;
-	if (_text.isEmpty() == text.empty()) {
-		return;
+	const auto media = item->media();
+	const auto storyMention = media && media->storyMention();
+	if (media && media->storyExpired()) {
+		_media = nullptr;
+		if (!storyMention) {
+			if (_text.isEmpty()) {
+				setTextWithLinks(Ui::Text::Italic(
+					tr::lng_forwarded_story_expired(tr::now)));
+			}
+			return;
+		}
 	}
-	const auto context = Core::MarkedTextContext{
-		.session = &history()->session(),
-		.customEmojiRepaint = [=] { customEmojiRepaint(); },
-	};
-	if (_flags & Flag::ServiceMessage) {
+	if (_text.isEmpty() == text.empty()) {
+	} else if (_flags & Flag::ServiceMessage) {
 		const auto contextDependentText = contextDependentServiceText();
 		const auto &markedText = contextDependentText.text.empty()
 			? text
@@ -833,28 +861,33 @@ void Element::validateText() {
 		const auto &customLinks = contextDependentText.text.empty()
 			? item->customTextLinks()
 			: contextDependentText.links;
-		_text.setMarkedText(
-			st::serviceTextStyle,
-			markedText,
-			Ui::ItemTextServiceOptions(),
-			context);
+		setTextWithLinks(markedText, customLinks);
+	} else {
+		setTextWithLinks(item->translatedTextWithLocalEntities());
+	}
+}
+
+void Element::setTextWithLinks(
+		const TextWithEntities &text,
+		const std::vector<ClickHandlerPtr> &links) {
+	const auto context = Core::MarkedTextContext{
+		.session = &history()->session(),
+		.customEmojiRepaint = [=] { customEmojiRepaint(); },
+	};
+	if (_flags & Flag::ServiceMessage) {
+		const auto &options = Ui::ItemTextServiceOptions();
+		_text.setMarkedText(st::serviceTextStyle, text, options, context);
 		auto linkIndex = 0;
-		for (const auto &link : customLinks) {
+		for (const auto &link : links) {
 			// Link indices start with 1.
 			_text.setLink(++linkIndex, link);
 		}
 	} else {
+		const auto item = data();
+		const auto &options = Ui::ItemTextOptions(item);
 		clearSpecialOnlyEmoji();
-		const auto context = Core::MarkedTextContext{
-			.session = &history()->session(),
-			.customEmojiRepaint = [=] { customEmojiRepaint(); },
-		};
-		_text.setMarkedText(
-			st::messageTextStyle,
-			item->translatedTextWithLocalEntities(),
-			Ui::ItemTextOptions(item),
-			context);
-		if (!text.empty() && _text.isEmpty()) {
+		_text.setMarkedText(st::messageTextStyle, text, options, context);
+		if (!item->_text.empty() && _text.isEmpty()){
 			// If server has allowed some text that we've trim-ed entirely,
 			// just replace it with something so that UI won't look buggy.
 			_text.setMarkedText(
@@ -965,7 +998,9 @@ ClickHandlerPtr Element::fromLink() const {
 				auto &sponsored = session->data().sponsoredMessages();
 				const auto itemId = my.itemId ? my.itemId : item->fullId();
 				const auto details = sponsored.lookupDetails(itemId);
-				if (const auto &hash = details.hash) {
+				if (!details.externalLink.isEmpty()) {
+					File::OpenUrl(details.externalLink);
+				} else if (const auto &hash = details.hash) {
 					Api::CheckChatInvite(window, *hash);
 				} else if (const auto peer = details.peer) {
 					window->showPeerInfo(peer);
@@ -995,10 +1030,7 @@ ClickHandlerPtr Element::fromLink() const {
 				const auto my = context.other.value<ClickHandlerContext>();
 				const auto weak = my.sessionWindow;
 				if (const auto strong = weak.get()) {
-					Ui::ShowMultilineToast({
-						.parentOverride = Window::Show(strong).toastParent(),
-						.text = { tr::lng_forwarded_imported(tr::now) },
-					});
+					strong->showToast(tr::lng_forwarded_imported(tr::now));
 				}
 			});
 			return imported;
@@ -1480,6 +1512,7 @@ auto Element::takeReactionAnimations()
 
 Element::~Element() {
 	// Delete media while owner still exists.
+	clearSpecialOnlyEmoji();
 	base::take(_media);
 	if (_heavyCustomEmoji) {
 		_heavyCustomEmoji = false;

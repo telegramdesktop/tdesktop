@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/core_settings_proxy.h"
+#include "media/media_common.h"
 #include "window/themes/window_themes_embedded.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "platform/platform_notifications_manager.h"
@@ -36,11 +37,6 @@ enum class Backend;
 namespace Calls::Group {
 enum class StickedTooltip;
 } // namespace Calls::Group
-
-namespace Media::Player {
-enum class RepeatMode;
-enum class OrderMode;
-} // namespace Media::Player
 
 namespace Core {
 
@@ -485,23 +481,37 @@ public:
 		return _autoDownloadDictionaries.changes();
 	}
 
-	[[nodiscard]] float64 videoPlaybackSpeed() const {
-		return _videoPlaybackSpeed.current();
+	[[nodiscard]] float64 videoPlaybackSpeed(
+			bool lastNonDefault = false) const {
+		return (_videoPlaybackSpeed.enabled || lastNonDefault)
+			? _videoPlaybackSpeed.value
+			: 1.;
 	}
 	void setVideoPlaybackSpeed(float64 speed) {
-		_videoPlaybackSpeed = speed;
+		if ((_videoPlaybackSpeed.enabled = !Media::EqualSpeeds(speed, 1.))) {
+			_videoPlaybackSpeed.value = speed;
+		}
 	}
 	[[nodiscard]] float64 voicePlaybackSpeed(
 			bool lastNonDefault = false) const {
-		return (_nonDefaultVoicePlaybackSpeed || lastNonDefault)
-			? _voicePlaybackSpeed
-			: 1.0;
+		return (_voicePlaybackSpeed.enabled || lastNonDefault)
+			? _voicePlaybackSpeed.value
+			: 1.;
 	}
 	void setVoicePlaybackSpeed(float64 speed) {
-		if ((_nonDefaultVoicePlaybackSpeed = (speed != 1.0))) {
-			_voicePlaybackSpeed = speed;
+		if ((_voicePlaybackSpeed.enabled = !Media::EqualSpeeds(speed, 1.0))) {
+			_voicePlaybackSpeed.value = speed;
 		}
 	}
+
+	// For legacy values read-write outside of Settings.
+	[[nodiscard]] qint32 videoPlaybackSpeedSerialized() const {
+		return SerializePlaybackSpeed(_videoPlaybackSpeed);
+	}
+	void setVideoPlaybackSpeedSerialized(qint32 value) {
+		_videoPlaybackSpeed = DeserializePlaybackSpeed(value);
+	}
+
 	[[nodiscard]] QByteArray videoPipGeometry() const {
 		return _videoPipGeometry;
 	}
@@ -704,28 +714,28 @@ public:
 	[[nodiscard]] rpl::producer<QString> deviceModelChanges() const;
 	[[nodiscard]] rpl::producer<QString> deviceModelValue() const;
 
-	void setPlayerRepeatMode(Media::Player::RepeatMode mode) {
+	void setPlayerRepeatMode(Media::RepeatMode mode) {
 		_playerRepeatMode = mode;
 	}
-	[[nodiscard]] Media::Player::RepeatMode playerRepeatMode() const {
+	[[nodiscard]] Media::RepeatMode playerRepeatMode() const {
 		return _playerRepeatMode.current();
 	}
-	[[nodiscard]] rpl::producer<Media::Player::RepeatMode> playerRepeatModeValue() const {
+	[[nodiscard]] rpl::producer<Media::RepeatMode> playerRepeatModeValue() const {
 		return _playerRepeatMode.value();
 	}
-	[[nodiscard]] rpl::producer<Media::Player::RepeatMode> playerRepeatModeChanges() const {
+	[[nodiscard]] rpl::producer<Media::RepeatMode> playerRepeatModeChanges() const {
 		return _playerRepeatMode.changes();
 	}
-	void setPlayerOrderMode(Media::Player::OrderMode mode) {
+	void setPlayerOrderMode(Media::OrderMode mode) {
 		_playerOrderMode = mode;
 	}
-	[[nodiscard]] Media::Player::OrderMode playerOrderMode() const {
+	[[nodiscard]] Media::OrderMode playerOrderMode() const {
 		return _playerOrderMode.current();
 	}
-	[[nodiscard]] rpl::producer<Media::Player::OrderMode> playerOrderModeValue() const {
+	[[nodiscard]] rpl::producer<Media::OrderMode> playerOrderModeValue() const {
 		return _playerOrderMode.value();
 	}
-	[[nodiscard]] rpl::producer<Media::Player::OrderMode> playerOrderModeChanges() const {
+	[[nodiscard]] rpl::producer<Media::OrderMode> playerOrderModeChanges() const {
 		return _playerOrderMode.changes();
 	}
 	[[nodiscard]] std::vector<uint64> accountsOrder() const {
@@ -777,20 +787,41 @@ public:
 	void setMediaViewPosition(const WindowPosition &position) {
 		_mediaViewPosition = position;
 	}
+	[[nodiscard]] bool ignoreBatterySaving() const {
+		return _ignoreBatterySaving.current();
+	}
+	[[nodiscard]] rpl::producer<bool> ignoreBatterySavingValue() const {
+		return _ignoreBatterySaving.value();
+	}
+	void setIgnoreBatterySavingValue(bool value) {
+		_ignoreBatterySaving = value;
+	}
+	void setMacRoundIconDigest(std::optional<uint64> value) {
+		_macRoundIconDigest = value;
+	}
+	[[nodiscard]] std::optional<uint64> macRoundIconDigest() const {
+		return _macRoundIconDigest;
+	}
+	[[nodiscard]] bool storiesClickTooltipHidden() const {
+		return _storiesClickTooltipHidden.current();
+	}
+	[[nodiscard]] rpl::producer<bool> storiesClickTooltipHiddenValue() const {
+		return _storiesClickTooltipHidden.value();
+	}
+	void setStoriesClickTooltipHidden(bool value) {
+		_storiesClickTooltipHidden = value;
+	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
-	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
-		return int(base::SafeRound(std::clamp(speed, 0.5, 2.0) * 100));
-	}
-	[[nodiscard]] static float64 DeserializePlaybackSpeed(qint32 speed) {
-		if (speed < 10) {
-			// The old values in settings.
-			return (std::clamp(speed, 0, 6) + 2) / 4.;
-		} else {
-			return std::clamp(speed, 50, 200) / 100.;
-		}
-	}
+
+	struct PlaybackSpeed {
+		float64 value = Media::kSpedUpDefault;
+		bool enabled = false;
+	};
+	[[nodiscard]] static qint32 SerializePlaybackSpeed(PlaybackSpeed speed);
+	[[nodiscard]] static PlaybackSpeed DeserializePlaybackSpeed(
+		qint32 speed);
 
 	void resetOnLastLogout();
 
@@ -852,9 +883,8 @@ private:
 	bool _suggestAnimatedEmoji = true;
 	rpl::variable<bool> _cornerReaction = true;
 	rpl::variable<bool> _spellcheckerEnabled = true;
-	rpl::variable<float64> _videoPlaybackSpeed = 1.;
-	float64 _voicePlaybackSpeed = 2.;
-	bool _nonDefaultVoicePlaybackSpeed = false;
+	PlaybackSpeed _videoPlaybackSpeed;
+	PlaybackSpeed _voicePlaybackSpeed;
 	QByteArray _videoPipGeometry;
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;
@@ -882,8 +912,8 @@ private:
 	base::flags<Calls::Group::StickedTooltip> _hiddenGroupCallTooltips;
 	rpl::variable<bool> _closeToTaskbar = false;
 	rpl::variable<QString> _customDeviceModel;
-	rpl::variable<Media::Player::RepeatMode> _playerRepeatMode;
-	rpl::variable<Media::Player::OrderMode> _playerOrderMode;
+	rpl::variable<Media::RepeatMode> _playerRepeatMode;
+	rpl::variable<Media::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;
 	std::vector<uint64> _accountsOrder;
 #ifdef Q_OS_MAC
@@ -900,6 +930,9 @@ private:
 	rpl::event_stream<> _skipTranslationLanguagesChanges;
 	bool _rememberedDeleteMessageOnlyForYou = false;
 	WindowPosition _mediaViewPosition = { .maximized = 2 };
+	rpl::variable<bool> _ignoreBatterySaving = false;
+	std::optional<uint64> _macRoundIconDigest;
+	rpl::variable<bool> _storiesClickTooltipHidden = false;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

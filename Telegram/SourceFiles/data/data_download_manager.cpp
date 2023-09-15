@@ -865,7 +865,7 @@ not_null<HistoryItem*> DownloadManager::generateItem(
 		? previousItem->history()
 		: session->data().history(session->user());
 	const auto flags = MessageFlag::FakeHistoryItem;
-	const auto replyTo = MsgId();
+	const auto replyTo = FullReplyTo();
 	const auto viaBotId = UserId();
 	const auto date = base::unixtime::now();
 	const auto postAuthor = QString();

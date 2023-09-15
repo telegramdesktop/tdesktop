@@ -343,10 +343,11 @@ bool WritingEntry() {
 	return WritingEntryFlag;
 }
 
-void start(not_null<Core::Launcher*> launcher) {
+void start() {
 	Assert(LogsData == nullptr);
 
-	if (!launcher->checkPortableVersionFolder()) {
+	auto &launcher = Core::Launcher::Instance();
+	if (!launcher.checkPortableVersionFolder()) {
 		return;
 	}
 
@@ -362,7 +363,6 @@ void start(not_null<Core::Launcher*> launcher) {
 
 		if (!cWorkingDir().isEmpty()) {
 			// This value must come from TelegramForcePortable
-			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 			workingDirChosen = true;
 		} else {
@@ -390,7 +390,6 @@ void start(not_null<Core::Launcher*> launcher) {
 
 		if (!cWorkingDir().isEmpty()) {
 			// This value must come from TelegramForcePortable
-			// or from the "-workdir" command line argument.
 			cForceWorkingDir(cWorkingDir());
 			workingDirChosen = true;
 		}
@@ -407,6 +406,11 @@ void start(not_null<Core::Launcher*> launcher) {
 		}
 	}
 
+	if (launcher.validateCustomWorkingDir()) {
+		delete LogsData;
+		LogsData = new LogsDataFields();
+	}
+
 // WinRT build requires the working dir to stay the same for plugin loading.
 #ifndef Q_OS_WINRT
 	QDir().setCurrent(cWorkingDir());
@@ -414,8 +418,8 @@ void start(not_null<Core::Launcher*> launcher) {
 
 	QDir().mkpath(cWorkingDir() + u"tdata"_q);
 
-	launcher->workingFolderReady();
-	CrashReports::StartCatching(launcher);
+	launcher.workingFolderReady();
+	CrashReports::StartCatching();
 
 	if (!LogsData->openMain()) {
 		delete LogsData;
@@ -430,7 +434,7 @@ void start(not_null<Core::Launcher*> launcher) {
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir(), cExeName()));
 	LOG(("Initial working dir: %1").arg(initialWorkingDir));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
-	LOG(("Command line: %1").arg(launcher->argumentsString()));
+	LOG(("Command line: %1").arg(launcher.arguments().join(' ')));
 
 	if (!LogsData) {
 		LOG(("FATAL: Could not open '%1' for writing log!"

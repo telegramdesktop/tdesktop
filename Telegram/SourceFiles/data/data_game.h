@@ -21,5 +21,4 @@ struct GameData {
 	QString description;
 	PhotoData *photo = nullptr;
 	DocumentData *document = nullptr;
-
 };

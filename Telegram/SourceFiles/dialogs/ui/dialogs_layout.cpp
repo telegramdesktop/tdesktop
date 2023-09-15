@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "ui/unread_badge_paint.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
@@ -262,7 +263,8 @@ void PaintFolderEntryText(
 			: st::dialogsTextPaletteArchive),
 		.spoiler = Text::DefaultSpoilerCache(),
 		.now = context.now,
-		.paused = context.paused,
+		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 		.elisionLines = rect.height() / st::dialogsTextFont->height,
 	});
 }
@@ -329,22 +331,23 @@ void PaintRow(
 			context.st->padding.top(),
 			context.width,
 			context.st->photoSize);
-	} else if (from) {
-		row->paintUserpic(
-			p,
-			from,
-			videoUserpic,
-			(flags & Flag::AllowUserOnline) ? history : nullptr,
-			context);
-	} else if (hiddenSenderInfo) {
+	} else if (!from && hiddenSenderInfo) {
 		hiddenSenderInfo->emptyUserpic.paintCircle(
 			p,
 			context.st->padding.left(),
 			context.st->padding.top(),
 			context.width,
 			context.st->photoSize);
+	} else if (!(flags & Flag::AllowUserOnline)) {
+		PaintUserpic(
+			p,
+			entry,
+			from,
+			videoUserpic,
+			row->userpicView(),
+			context);
 	} else {
-		entry->paintUserpic(p, row->userpicView(), context);
+		row->paintUserpic(p, entry, from, videoUserpic, context);
 	}
 
 	auto nameleft = context.st->nameLeft;
@@ -420,7 +423,8 @@ void PaintRow(
 			.availableWidth = availableWidth,
 			.spoiler = Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.elisionLines = 1,
 		});
 	} else if (draft
@@ -514,7 +518,8 @@ void PaintRow(
 						: st::dialogsTextPaletteDraft)),
 				.spoiler = Text::DefaultSpoilerCache(),
 				.now = context.now,
-				.paused = context.paused,
+				.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+				.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 				.elisionLines = 1,
 			});
 		}
@@ -781,7 +786,7 @@ void RowPainter::Paint(
 			? history->peer->migrateTo()
 			: history->peer.get())
 		: nullptr;
-	const auto allowUserOnline = !context.narrow || badgesState.empty();
+	const auto allowUserOnline = true;// !context.narrow || badgesState.empty();
 	const auto flags = (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
 		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0))
 		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0))

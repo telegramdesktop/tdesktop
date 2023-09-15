@@ -59,7 +59,8 @@ void Track::fillFromData(bytes::vector &&data) {
 	}
 	auto format = loader.format();
 	_peakEachPosition = _peakDurationMs ? ((loader.samplesFrequency() * _peakDurationMs) / 1000) : 0;
-	auto peaksCount = _peakEachPosition ? (loader.samplesCount() / _peakEachPosition) : 0;
+	const auto samplesCount = (loader.duration() * loader.samplesFrequency()) / 1000;
+	const auto peaksCount = _peakEachPosition ? (samplesCount / _peakEachPosition) : 0;
 	_peaks.reserve(peaksCount);
 	auto peakValue = uint16(0);
 	auto peakSamples = 0;
@@ -77,38 +78,35 @@ void Track::fillFromData(bytes::vector &&data) {
 		}
 	};
 	do {
-		auto buffer = QByteArray();
-		auto samplesAdded = int64(0);
-		auto result = loader.readMore(buffer, samplesAdded);
-		if (samplesAdded > 0) {
-			auto sampleBytes = bytes::make_span(buffer);
-			_samplesCount += samplesAdded;
-			_samples.insert(_samples.end(), sampleBytes.data(), sampleBytes.data() + sampleBytes.size());
-			if (peaksCount) {
-				if (format == AL_FORMAT_MONO8 || format == AL_FORMAT_STEREO8) {
-					Media::Audio::IterateSamples<uchar>(sampleBytes, peakCallback);
-				} else if (format == AL_FORMAT_MONO16 || format == AL_FORMAT_STEREO16) {
-					Media::Audio::IterateSamples<int16>(sampleBytes, peakCallback);
-				}
-			}
-		}
+		using Error = AudioPlayerLoader::ReadError;
+		const auto result = loader.readMore();
+		Assert(result != Error::Wait && result != Error::RetryNotQueued);
 
-		using Result = AudioPlayerLoader::ReadResult;
-		switch (result) {
-		case Result::Error:
-		case Result::NotYet:
-		case Result::Wait: {
-			_failed = true;
-		} break;
-		}
-		if (result != Result::Ok) {
+		if (result == Error::Retry) {
+			continue;
+		} else if (result == Error::EndOfFile) {
 			break;
+		} else if (result == Error::Other || result == Error::Wait) {
+			_failed = true;
+			break;
+		}
+		Assert(v::is<bytes::const_span>(result));
+		const auto sampleBytes = v::get<bytes::const_span>(result);
+		Assert(!sampleBytes.empty());
+		_samplesCount += sampleBytes.size() / loader.sampleSize();
+		_samples.insert(_samples.end(), sampleBytes.data(), sampleBytes.data() + sampleBytes.size());
+		if (peaksCount) {
+			if (format == AL_FORMAT_MONO8 || format == AL_FORMAT_STEREO8) {
+				Media::Audio::IterateSamples<uchar>(sampleBytes, peakCallback);
+			} else if (format == AL_FORMAT_MONO16 || format == AL_FORMAT_STEREO16) {
+				Media::Audio::IterateSamples<int16>(sampleBytes, peakCallback);
+			}
 		}
 	} while (true);
 
 	_alFormat = loader.format();
 	_sampleRate = loader.samplesFrequency();
-	_lengthMs = (loader.samplesCount() * crl::time(1000)) / _sampleRate;
+	_lengthMs = loader.duration();
 }
 
 void Track::fillFromFile(const Core::FileLocation &location) {

@@ -16,6 +16,7 @@ struct GlareEffect final {
 		crl::time timeout,
 		crl::time duration);
 	[[nodiscard]] float64 progress(crl::time now) const;
+	[[nodiscard]] QLinearGradient computeGradient(const QColor &color) const;
 
 	Ui::Animations::Basic animation;
 	struct {

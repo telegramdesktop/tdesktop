@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/ui_utility.h"
 #include "mainwidget.h"
 #include "menu/menu_ttl_validator.h"
@@ -428,7 +429,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 		return { newWidth, newHeight };
 	}
 	const auto media = this->media();
-	if (media && data()->isUserpicSuggestion()) {
+	if (media && media->hideServiceText()) {
 		newHeight += st::msgServiceMargin.top()
 			+ media->resizeGetHeight(newWidth)
 			+ st::msgServiceMargin.bottom();
@@ -460,7 +461,7 @@ QSize Service::performCountOptimalSize() {
 
 	if (const auto media = this->media()) {
 		media->initDimensions();
-		if (data()->isUserpicSuggestion()) {
+		if (media->hideServiceText()) {
 			return { media->maxWidth(), media->minHeight() };
 		}
 	}
@@ -526,7 +527,7 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	p.setTextPalette(st->serviceTextPalette());
 
 	const auto media = this->media();
-	const auto onlyMedia = (media && data()->isUserpicSuggestion());
+	const auto onlyMedia = (media && media->hideServiceText());
 
 	if (!onlyMedia) {
 		if (media) {
@@ -554,7 +555,8 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 			.palette = &st->serviceTextPalette(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = context.selection,
 			.fullWidthSelection = false,
 		});
@@ -600,7 +602,7 @@ PointState Service::pointState(QPoint point) const {
 TextState Service::textState(QPoint point, StateRequest request) const {
 	const auto item = data();
 	const auto media = this->media();
-	const auto onlyMedia = (media && data()->isUserpicSuggestion());
+	const auto onlyMedia = (media && media->hideServiceText());
 
 	auto result = TextState(item);
 
@@ -650,6 +652,8 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				if (TTLMenu::TTLValidator(nullptr, history()->peer).can()) {
 					result.link = ttl->link;
 				}
+			} else if (const auto same = item->Get<HistoryServiceSameBackground>()) {
+				result.link = same->lnk;
 			}
 		}
 	} else if (media) {

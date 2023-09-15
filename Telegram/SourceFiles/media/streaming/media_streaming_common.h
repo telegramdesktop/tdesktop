@@ -40,11 +40,13 @@ enum class Mode {
 struct PlaybackOptions {
 	Mode mode = Mode::Both;
 	crl::time position = 0;
+	crl::time durationOverride = 0;
 	float64 speed = 1.; // Valid values between 0.5 and 2.
 	AudioMsgId audioId;
 	bool syncVideoByAudio = true;
 	bool waitForMarkAsShown = false;
 	bool hwAllowed = false;
+	bool seekable = true;
 	bool loop = false;
 };
 

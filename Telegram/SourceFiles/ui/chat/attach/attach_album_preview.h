@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "base/timer.h"
 
+namespace style {
+struct ComposeControls;
+} // namespace style
+
 namespace Ui {
 
 struct PreparedFile;
@@ -22,6 +26,7 @@ class AlbumPreview final : public RpWidget {
 public:
 	AlbumPreview(
 		QWidget *parent,
+		const style::ComposeControls &st,
 		gsl::span<Ui::PreparedFile> items,
 		SendFilesWay way);
 	~AlbumPreview();
@@ -86,6 +91,7 @@ private:
 
 	void showContextMenu(not_null<AlbumThumbnail*> thumb, QPoint position);
 
+	const style::ComposeControls &_st;
 	SendFilesWay _sendWay;
 	style::cursor _cursor = style::cur_default;
 	std::vector<int> _order;

@@ -29,8 +29,8 @@ public:
 	bool tooltipWindowActive() const override;
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
 	QImage prepareRippleMask() const override;
@@ -42,7 +42,7 @@ private:
 	not_null<ChannelData*> _channel;
 	bool _checked = false;
 
-	Animations::Simple _crossLineAnimation;
+	// Animations::Simple _crossLineAnimation;
 
 };
 

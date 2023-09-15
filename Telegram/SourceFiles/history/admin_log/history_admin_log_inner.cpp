@@ -610,14 +610,14 @@ void InnerWidget::elementShowPollResults(
 void InnerWidget::elementOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	_controller->openPhoto(photo, context, MsgId(0));
+	_controller->openPhoto(photo, { context });
 }
 
 void InnerWidget::elementOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	_controller->openDocument(document, context, MsgId(0), showInMediaView);
+	_controller->openDocument(document, showInMediaView, { context });
 }
 
 void InnerWidget::elementCancelUpload(const FullMsgId &context) {
@@ -1362,7 +1362,7 @@ void InnerWidget::copySelectedText() {
 }
 
 void InnerWidget::showStickerPackInfo(not_null<DocumentData*> document) {
-	StickerSetBox::Show(_controller, document);
+	StickerSetBox::Show(_controller->uiShow(), document);
 }
 
 void InnerWidget::cancelContextDownload(not_null<DocumentData*> document) {
@@ -1380,7 +1380,7 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				_controller->openDocument(document, itemId, MsgId(), true);
+				_controller->openDocument(document, true, { itemId });
 			}
 		}
 	}
@@ -1468,7 +1468,7 @@ void InnerWidget::suggestRestrictParticipant(
 				editRestrictions(false, ChatRestrictionsInfo());
 			}).send();
 		}
-	}, &st::menuIconRestrict);
+	}, &st::menuIconPermissions);
 }
 
 void InnerWidget::restrictParticipant(
@@ -1892,8 +1892,7 @@ void InnerWidget::performDrag() {
 	//	auto pressedMedia = static_cast<HistoryView::Media*>(nullptr);
 	//	if (auto pressedItem = Element::Pressed()) {
 	//		pressedMedia = pressedItem->media();
-	//		if (_mouseCursorState == CursorState::Date
-	//			|| (pressedMedia && pressedMedia->dragItem())) {
+	//		if (_mouseCursorState == CursorState::Date) {
 	//			forwardMimeType = u"application/x-td-forward"_q;
 	//			session().data().setMimeForwardIds(
 	//				session().data().itemOrItsGroup(pressedItem->data()));

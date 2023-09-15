@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 
@@ -96,7 +97,8 @@ void Badge::setBadge(BadgeType badge, DocumentId emojiStatusId) {
 				auto args = Ui::Text::CustomEmoji::Context{
 					.textColor = _st.premiumFg->c,
 					.now = crl::now(),
-					.paused = _animationPaused && _animationPaused(),
+					.paused = ((_animationPaused && _animationPaused())
+						|| On(PowerSaving::kEmojiStatus)),
 				};
 				if (!_emojiStatusPanel
 					|| !_emojiStatusPanel->paintBadgeFrame(check)) {

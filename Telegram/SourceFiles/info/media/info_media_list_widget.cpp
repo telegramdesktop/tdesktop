@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_provider.h"
 #include "info/media/info_media_list_section.h"
 #include "info/downloads/info_downloads_provider.h"
+#include "info/stories/info_stories_provider.h"
 #include "info/info_controller.h"
 #include "layout/layout_mosaic.h"
 #include "layout/layout_selection.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_download_manager.h"
@@ -30,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_service_message.h"
+#include "media/stories/media_stories_controller.h" // ...TogglePinnedToast.
+#include "media/stories/media_stories_share.h" // PrepareShareBox.
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
@@ -53,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
+#include "ui/toast/toast.h"
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -88,6 +93,8 @@ struct ListWidget::DateBadge {
 		not_null<AbstractController*> controller) {
 	if (controller->isDownloads()) {
 		return std::make_unique<Downloads::Provider>(controller);
+	} else if (controller->storiesPeer()) {
+		return std::make_unique<Stories::Provider>(controller);
 	}
 	return std::make_unique<Provider>(controller);
 }
@@ -126,6 +133,7 @@ ListWidget::DateBadge::DateBadge(
 , hideTimer(std::move(hideCallback))
 , goodType(type == Type::Photo
 	|| type == Type::Video
+	|| type == Type::PhotoVideo
 	|| type == Type::GIF) {
 }
 
@@ -171,6 +179,9 @@ void ListWidget::start() {
 		) | rpl::start_with_next([this](QString &&query) {
 			_provider->setSearchQuery(std::move(query));
 		}, lifetime());
+	} else if (_controller->storiesPeer()) {
+		trackSession(&session());
+		restart();
 	} else {
 		trackSession(&session());
 
@@ -250,6 +261,7 @@ void ListWidget::selectionAction(SelectionAction action) {
 	case SelectionAction::Clear: clearSelected(); return;
 	case SelectionAction::Forward: forwardSelected(); return;
 	case SelectionAction::Delete: deleteSelected(); return;
+	case SelectionAction::ToggleStoryPin: toggleStoryPinSelected(); return;
 	}
 }
 
@@ -327,6 +339,7 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 		auto result = SelectedItem(item->globalId());
 		result.canDelete = selection.canDelete;
 		result.canForward = selection.canForward;
+		result.canToggleStoryPin = selection.canToggleStoryPin;
 		return result;
 	};
 	auto transformation = [&](const auto &item) {
@@ -340,6 +353,12 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 			_selected.end(),
 			std::back_inserter(items.list),
 			transformation);
+	}
+	if (_controller->storiesPeer() && items.list.size() > 1) {
+		// Don't allow forwarding more than one story.
+		for (auto &entry : items.list) {
+			entry.canForward = false;
+		}
 	}
 	return items;
 }
@@ -469,18 +488,31 @@ bool ListWidget::tooltipWindowActive() const {
 }
 
 void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
-	_controller->parentController()->openPhoto(photo, id, topicRootId());
+	using namespace Data;
+
+	const auto tab = _controller->storiesTab();
+	const auto context = (tab == Stories::Tab::Archive)
+		? Data::StoriesContext{ Data::StoriesContextArchive() }
+		: Data::StoriesContext{ Data::StoriesContextSaved() };
+	_controller->parentController()->openPhoto(
+		photo,
+		{ id, topicRootId() },
+		_controller->storiesPeer() ? &context : nullptr);
 }
 
 void ListWidget::openDocument(
 		not_null<DocumentData*> document,
 		FullMsgId id,
 		bool showInMediaView) {
+	const auto tab = _controller->storiesTab();
+	const auto context = (tab == Stories::Tab::Archive)
+		? Data::StoriesContext{ Data::StoriesContextArchive() }
+		: Data::StoriesContext{ Data::StoriesContextSaved() };
 	_controller->parentController()->openDocument(
 		document,
-		id,
-		topicRootId(),
-		showInMediaView);
+		showInMediaView,
+		{ id, topicRootId() },
+		_controller->storiesPeer() ? &context : nullptr);
 }
 
 void ListWidget::trackSession(not_null<Main::Session*> session) {
@@ -516,6 +548,7 @@ void ListWidget::refreshRows() {
 	resizeToWidth(width());
 	restoreScrollState();
 	mouseActionUpdate();
+	update();
 }
 
 bool ListWidget::preventAutoHide() const {
@@ -883,6 +916,11 @@ void ListWidget::showContextMenu(
 	auto canForwardAll = [&] {
 		return ranges::none_of(_selected, [](auto &&item) {
 			return !item.second.canForward;
+		}) && (!_controller->key().storiesPeer() || _selected.size() == 1);
+	};
+	auto canToggleStoryPinAll = [&] {
+		return ranges::none_of(_selected, [](auto &&item) {
+			return !item.second.canToggleStoryPin;
 		});
 	};
 
@@ -984,6 +1022,18 @@ void ListWidget::showContextMenu(
 		}
 	}
 	if (overSelected == SelectionState::OverSelectedItems) {
+		if (canToggleStoryPinAll()) {
+			const auto tab = _controller->key().storiesTab();
+			const auto pin = (tab == Stories::Tab::Archive);
+			_contextMenu->addAction(
+				(pin
+					? tr::lng_mediaview_save_to_profile
+					: tr::lng_archived_add)(tr::now),
+				crl::guard(this, [this] { toggleStoryPinSelected(); }),
+				(pin
+					? &st::menuIconStoriesSave
+					: &st::menuIconStoriesArchive));
+		}
 		if (canForwardAll()) {
 			_contextMenu->addAction(
 				tr::lng_context_forward_selected(tr::now),
@@ -1013,6 +1063,20 @@ void ListWidget::showContextMenu(
 			const auto selectionData = _provider->computeSelectionData(
 				item,
 				FullSelection);
+			if (selectionData.canToggleStoryPin) {
+				const auto tab = _controller->key().storiesTab();
+				const auto pin = (tab == Stories::Tab::Archive);
+				_contextMenu->addAction(
+					(pin
+						? tr::lng_mediaview_save_to_profile
+						: tr::lng_mediaview_archive_story)(tr::now),
+					crl::guard(this, [=] {
+						toggleStoryPin({ 1, globalId.itemId });
+					}),
+					(pin
+						? &st::menuIconStoriesSave
+						: &st::menuIconStoriesArchive));
+			}
 			if (selectionData.canForward) {
 				_contextMenu->addAction(
 					tr::lng_context_forward_msg(tr::now),
@@ -1032,6 +1096,20 @@ void ListWidget::showContextMenu(
 						item->ttlDestroyAt(),
 						[=] { _contextMenu = nullptr; }));
 				}
+			}
+		}
+		if (const auto peer = _controller->key().storiesPeer()) {
+			if (!peer->isSelf() && IsStoryMsgId(globalId.itemId.msg)) {
+				const auto storyId = FullStoryId{
+					globalId.itemId.peer,
+					StoryIdFromMsgId(globalId.itemId.msg),
+				};
+				_contextMenu->addAction(
+					tr::lng_profile_report(tr::now),
+					[=] { ::Media::Stories::ReportRequested(
+						_controller->uiShow(),
+						storyId); },
+					&st::menuIconReport);
 			}
 		}
 		if (!_provider->hasSelectRestriction()) {
@@ -1088,20 +1166,72 @@ void ListWidget::forwardItem(GlobalMsgId globalId) {
 }
 
 void ListWidget::forwardItems(MessageIdsList &&items) {
-	auto callback = [weak = Ui::MakeWeak(this)] {
-		if (const auto strong = weak.data()) {
-			strong->clearSelected();
+	if (_controller->storiesPeer()) {
+		if (items.size() == 1 && IsStoryMsgId(items.front().msg)) {
+			const auto id = items.front();
+			_controller->parentController()->show(
+				::Media::Stories::PrepareShareBox(
+					_controller->parentController()->uiShow(),
+					{ id.peer, StoryIdFromMsgId(id.msg) }));
 		}
-	};
-	setActionBoxWeak(Window::ShowForwardMessagesBox(
-		_controller,
-		std::move(items),
-		std::move(callback)));
+	} else {
+		auto callback = [weak = Ui::MakeWeak(this)] {
+			if (const auto strong = weak.data()) {
+				strong->clearSelected();
+			}
+		};
+		setActionBoxWeak(Window::ShowForwardMessagesBox(
+			_controller,
+			std::move(items),
+			std::move(callback)));
+	}
 }
 
 void ListWidget::deleteSelected() {
 	deleteItems(collectSelectedItems(), crl::guard(this, [=]{
 		clearSelected();
+	}));
+}
+
+void ListWidget::toggleStoryPinSelected() {
+	toggleStoryPin(collectSelectedIds(), crl::guard(this, [=] {
+		clearSelected();
+	}));
+}
+
+void ListWidget::toggleStoryPin(
+		MessageIdsList &&items,
+		Fn<void()> confirmed) {
+	auto list = std::vector<FullStoryId>();
+	for (const auto &id : items) {
+		if (IsStoryMsgId(id.msg)) {
+			list.push_back({ id.peer, StoryIdFromMsgId(id.msg) });
+		}
+	}
+	const auto count = int(list.size());
+	const auto pin = (_controller->storiesTab() == Stories::Tab::Archive);
+	const auto controller = _controller;
+	const auto sure = [=](Fn<void()> close) {
+		controller->session().data().stories().togglePinnedList(list, pin);
+		controller->showToast(
+			::Media::Stories::PrepareTogglePinnedToast(count, pin));
+		close();
+		if (confirmed) {
+			confirmed();
+		}
+	};
+	const auto onePhrase = pin
+		? tr::lng_stories_save_sure
+		: tr::lng_stories_archive_sure;
+	const auto manyPhrase = pin
+		? tr::lng_stories_save_sure_many
+		: tr::lng_stories_archive_sure_many;
+	_controller->parentController()->show(Ui::MakeConfirmBox({
+		.text = (count == 1
+			? onePhrase()
+			: manyPhrase(lt_count, rpl::single(count) | tr::to_count())),
+		.confirmed = sure,
+		.confirmText = tr::lng_box_ok(),
 	}));
 }
 
@@ -1113,7 +1243,6 @@ void ListWidget::deleteItem(GlobalMsgId globalId) {
 			item,
 			FullSelection);
 		items.list.back().canDelete = selectionData.canDelete;
-		items.list.back().canForward = selectionData.canForward;
 		deleteItems(std::move(items));
 	}
 }
@@ -1159,6 +1288,33 @@ void ListWidget::deleteItems(SelectedItems &&items, Fn<void()> confirmed) {
 			.confirmText = tr::lng_box_delete(tr::now),
 			.confirmStyle = &st::attentionBoxButton,
 		})));
+	} else if (_controller->storiesPeer()) {
+		auto list = std::vector<FullStoryId>();
+		for (const auto &item : items.list) {
+			const auto id = item.globalId.itemId;
+			if (IsStoryMsgId(id.msg)) {
+				list.push_back({ id.peer, StoryIdFromMsgId(id.msg) });
+			}
+		}
+		const auto session = &_controller->session();
+		const auto sure = [=](Fn<void()> close) {
+			session->data().stories().deleteList(list);
+			close();
+			if (confirmed) {
+				confirmed();
+			}
+		};
+		const auto count = int(list.size());
+		window->show(Ui::MakeConfirmBox({
+			.text = (count == 1
+				? tr::lng_stories_delete_one_sure()
+				: tr::lng_stories_delete_sure(
+					lt_count,
+					rpl::single(count) | tr::to_count())),
+			.confirmed = sure,
+			.confirmText = tr::lng_selected_delete(),
+			.confirmStyle = &st::attentionBoxButton,
+		}));
 	} else if (auto list = collectSelectedIds(items); !list.empty()) {
 		auto box = Box<DeleteMessagesBox>(
 			&_controller->session(),
@@ -1659,7 +1815,7 @@ void ListWidget::performDrag() {
 	//	auto pressedMedia = static_cast<HistoryView::Media*>(nullptr);
 	//	if (auto pressedItem = _pressState.layout) {
 	//		pressedMedia = pressedItem->getMedia();
-	//		if (_mouseCursorState == CursorState::Date || (pressedMedia && pressedMedia->dragItem())) {
+	//		if (_mouseCursorState == CursorState::Date) {
 	//			session().data().setMimeForwardIds(session().data().itemOrItsGroup(pressedItem));
 	//			forwardMimeType = u"application/x-td-forward"_q;
 	//		}
@@ -1787,6 +1943,7 @@ void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 
 void ListWidget::refreshHeight() {
 	resize(width(), recountHeight());
+	update();
 }
 
 int ListWidget::recountHeight() {

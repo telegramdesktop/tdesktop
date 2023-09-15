@@ -173,6 +173,11 @@ void SettingsWidget::setupFullExportOptions(
 		tr::lng_export_option_contacts(tr::now),
 		Type::Contacts,
 		tr::lng_export_option_contacts_about(tr::now));
+	addOptionWithAbout(
+		container,
+		tr::lng_export_option_stories(tr::now),
+		Type::Stories,
+		tr::lng_export_option_stories_about(tr::now));
 	addHeader(container, tr::lng_export_header_chats(tr::now));
 	addOption(
 		container,

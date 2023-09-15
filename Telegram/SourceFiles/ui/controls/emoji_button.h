@@ -9,13 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 
+namespace style {
+struct EmojiButton;
+} // namespace style
+
 namespace Ui {
 
 class InfiniteRadialAnimation;
 
 class EmojiButton final : public RippleButton {
 public:
-	EmojiButton(QWidget *parent, const style::IconButton &st);
+	EmojiButton(QWidget *parent, const style::EmojiButton &st);
 
 	void setLoading(bool loading);
 	void setColorOverrides(
@@ -33,7 +37,7 @@ protected:
 private:
 	void loadingAnimationCallback();
 
-	const style::IconButton &_st;
+	const style::EmojiButton &_st;
 
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
 

@@ -11,13 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_download_manager.h"
-#include "base/timer.h"
+#include "base/battery_saving.h"
 #include "base/event_filter.h"
 #include "base/concurrent_timer.h"
 #include "base/qt_signal_producer.h"
+#include "base/timer.h"
 #include "base/unixtime.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
@@ -29,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
 #include "base/qt/qt_common_adapters.h"
+#include "base/platform/base_platform_global_shortcuts.h"
 #include "base/platform/base_platform_url_scheme.h"
 #include "base/platform/base_platform_last_input.h"
 #include "base/platform/base_platform_info.h"
@@ -78,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/cached_round_corners.h"
+#include "ui/power_saving.h"
 #include "storage/serialize_common.h"
 #include "storage/storage_domain.h"
 #include "storage/storage_databases.h"
@@ -102,6 +106,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
+#include <QtGui/QWindow>
 
 namespace Core {
 namespace {
@@ -109,6 +114,7 @@ namespace {
 constexpr auto kQuitPreventTimeoutMs = crl::time(1500);
 constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
 constexpr auto kClearEmojiImageSourceTimeout = 10 * crl::time(1000);
+constexpr auto kFileOpenTimeoutMs = crl::time(1000);
 
 LaunchState GlobalLaunchState/* = LaunchState::Running*/;
 
@@ -122,7 +128,7 @@ void SetCrashAnnotationsGL() {
 		case Ui::GL::ANGLE::D3D11: return "Direct3D 11";
 		case Ui::GL::ANGLE::D3D9: return "Direct3D 9";
 		case Ui::GL::ANGLE::D3D11on12: return "D3D11on12";
-		case Ui::GL::ANGLE::OpenGL: return "OpenGL";
+		//case Ui::GL::ANGLE::OpenGL: return "OpenGL";
 		}
 		Unexpected("Ui::GL::CurrentANGLE value in SetupANGLE.");
 	}());
@@ -143,11 +149,11 @@ struct Application::Private {
 	Settings settings;
 };
 
-Application::Application(not_null<Launcher*> launcher)
+Application::Application()
 : QObject()
-, _launcher(launcher)
 , _private(std::make_unique<Private>())
 , _platformIntegration(Platform::Integration::Create())
+, _batterySaving(std::make_unique<base::BatterySaving>())
 , _databases(std::make_unique<Storage::Databases>())
 , _animationsManager(std::make_unique<Ui::Animations::Manager>())
 , _clearEmojiImageLoaderTimer([=] { clearEmojiSourceImages(); })
@@ -163,6 +169,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
 , _tray(std::make_unique<Tray>())
 , _autoLockTimer([=] { checkAutoLock(); })
+, _fileOpenTimer([=] { checkFileOpen(); })
 , _fakeMtpHolder(new FakePasscode::FakeMtpHolder) {
 	Ui::Integration::Set(&_private->uiIntegration);
 
@@ -286,6 +293,13 @@ void Application::run() {
 	if (MediaControlsManager::Supported()) {
 		_mediaControlsManager = std::make_unique<MediaControlsManager>();
 	}
+
+	rpl::combine(
+		_batterySaving->value(),
+		settings().ignoreBatterySavingValue()
+	) | rpl::start_with_next([=](bool saving, bool ignore) {
+		PowerSaving::SetForceAll(saving && !ignore);
+	}, _lifetime);
 
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=](bool playing) {
@@ -417,14 +431,14 @@ void Application::showOpenGLCrashNotification() {
 	const auto enable = [=] {
 		Ui::GL::ForceDisable(false);
 		Ui::GL::CrashCheckFinish();
-		Core::App().settings().setDisableOpenGL(false);
+		settings().setDisableOpenGL(false);
 		Local::writeSettings();
 		Restart();
 	};
 	const auto keepDisabled = [=] {
 		Ui::GL::ForceDisable(true);
 		Ui::GL::CrashCheckFinish();
-		Core::App().settings().setDisableOpenGL(true);
+		settings().setDisableOpenGL(true);
 		Local::writeSettings();
 	};
 	_lastActivePrimaryWindow->show(Ui::MakeConfirmBox({
@@ -616,7 +630,14 @@ bool Application::hideMediaView() {
 
 bool Application::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
-	case QEvent::KeyPress:
+	case QEvent::KeyPress: {
+		updateNonIdle();
+		const auto event = static_cast<QKeyEvent*>(e);
+		if (base::Platform::GlobalShortcuts::IsToggleFullScreenKey(event)
+			&& toggleActiveWindowFullScreen()) {
+			return true;
+		}
+	} break;
 	case QEvent::MouseButtonPress:
 	case QEvent::TouchBegin:
 	case QEvent::Wheel: {
@@ -646,15 +667,29 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 	case QEvent::FileOpen: {
 		if (object == QCoreApplication::instance()) {
 			const auto event = static_cast<QFileOpenEvent*>(e);
-			const auto url = QString::fromUtf8(
-				event->url().toEncoded().trimmed());
-			if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
+			if (const auto file = event->file(); !file.isEmpty()) {
+				_filesToOpen.append(file);
+				_fileOpenTimer.callOnce(kFileOpenTimeoutMs);
+			} else if (event->url().scheme() == u"tg"_q) {
+				const auto url = QString::fromUtf8(
+					event->url().toEncoded().trimmed());
 				cSetStartUrl(url.mid(0, 8192));
 				checkStartUrl();
+				if (_lastActivePrimaryWindow
+					&& StartUrlRequiresActivate(url)) {
+					_lastActivePrimaryWindow->activate();
+				}
+			} else if (event->url().scheme() == u"interpret"_q) {
+				_filesToOpen.append(event->url().toString());
+				_fileOpenTimer.callOnce(kFileOpenTimeoutMs);
 			}
-			if (_lastActivePrimaryWindow && StartUrlRequiresActivate(url)) {
-				_lastActivePrimaryWindow->activate();
-			}
+		}
+	} break;
+
+	case QEvent::ThemeChange: {
+		if (Platform::IsLinux() && object == QGuiApplication::allWindows().first()) {
+			Core::App().refreshApplicationIcon();
+			Core::App().tray().updateIconCounters();
 		}
 	} break;
 	}
@@ -663,6 +698,10 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 }
 
 Settings &Application::settings() {
+	return _private->settings;
+}
+
+const Settings &Application::settings() const {
 	return _private->settings;
 }
 
@@ -678,7 +717,7 @@ void Application::saveSettings() {
 
 bool Application::canReadDefaultDownloadPath(bool always) const {
 	if (KSandbox::isInside()
-		&& (always || Core::App().settings().downloadPath().isEmpty())) {
+		&& (always || settings().downloadPath().isEmpty())) {
 		const auto path = QStandardPaths::writableLocation(
 			QStandardPaths::DownloadLocation);
 		return base::CanReadDirectory(path);
@@ -687,7 +726,7 @@ bool Application::canReadDefaultDownloadPath(bool always) const {
 }
 
 bool Application::canSaveFileWithoutAskingForPath() const {
-	return !Core::App().settings().askDownloadPath();
+	return !settings().askDownloadPath();
 }
 
 MTP::Config &Application::fallbackProductionConfig() const {
@@ -938,23 +977,27 @@ rpl::producer<bool> Application::appDeactivatedValue() const {
 	});
 }
 
+void Application::materializeLocalDrafts() {
+	_materializeLocalDraftsRequests.fire({});
+}
+
+rpl::producer<> Application::materializeLocalDraftsRequests() const {
+	return _materializeLocalDraftsRequests.events();
+}
+
 void Application::switchDebugMode() {
 	if (Logs::DebugEnabled()) {
 		Logs::SetDebugEnabled(false);
-		_launcher->writeDebugModeSetting();
+		Launcher::Instance().writeDebugModeSetting();
 		Restart();
 	} else {
 		Logs::SetDebugEnabled(true);
-		_launcher->writeDebugModeSetting();
+		Launcher::Instance().writeDebugModeSetting();
 		DEBUG_LOG(("Debug logs started."));
 		if (_lastActivePrimaryWindow) {
 			_lastActivePrimaryWindow->hideLayer();
 		}
 	}
-}
-
-void Application::writeInstallBetaVersionsSetting() {
-	_launcher->writeInstallBetaVersionsSetting();
 }
 
 Main::Account &Application::activeAccount() const {
@@ -1044,6 +1087,12 @@ bool Application::canApplyLangPackWithoutRestart() const {
 		}
 	}
 	return true;
+}
+
+void Application::checkFileOpen() {
+	cSetSendPaths(_filesToOpen);
+	_filesToOpen.clear();
+	checkSendPaths();
 }
 
 void Application::checkSendPaths() {
@@ -1157,7 +1206,9 @@ void Application::lockByPasscode() {
         }
         w->setupPasscodeLock();
 	});
-	hideMediaView();
+	if (_mediaView) {
+		_mediaView->close();
+	}
 }
 
 void Application::maybeLockByPasscode() {
@@ -1555,9 +1606,30 @@ bool Application::minimizeActiveWindow() {
 	if (_mediaView && _mediaView->isActive()) {
 		_mediaView->minimize();
 		return true;
-	} else if (!calls().minimizeCurrentActiveCall()) {
+	} else if (calls().minimizeCurrentActiveCall()) {
+		return true;
+	} else {
 		if (const auto window = activeWindow()) {
 			window->minimize();
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Application::toggleActiveWindowFullScreen() {
+	if (_mediaView && _mediaView->isActive()) {
+		_mediaView->toggleFullScreen();
+		return true;
+	} else if (calls().toggleFullScreenCurrentActiveCall()) {
+		return true;
+	} else if (const auto window = activeWindow()) {
+		if constexpr (Platform::IsMac()) {
+			if (window->widget()->isFullScreen()) {
+				window->widget()->showNormal();
+			} else {
+				window->widget()->showFullScreen();
+			}
 			return true;
 		}
 	}
@@ -1584,6 +1656,10 @@ QPoint Application::getPointForCallPanelCenter() const {
 		return window->getPointForCallPanelCenter();
 	}
 	return QGuiApplication::primaryScreen()->geometry().center();
+}
+
+bool Application::isSharingScreen() const {
+	return _calls->isSharingScreen();
 }
 
 // macOS Qt bug workaround, sometimes no leaveEvent() gets to the nested widgets.
@@ -1666,6 +1742,9 @@ bool Application::readyToQuit() {
 				if (session->api().isQuitPrevent()) {
 					prevented = true;
 				}
+				if (session->data().stories().isQuitPrevent()) {
+					prevented = true;
+				}
 			}
 		}
 	}
@@ -1695,16 +1774,27 @@ void Application::quitDelayed() {
 	}
 }
 
+void Application::refreshApplicationIcon() {
+	const auto session = (domain().started() && domain().active().sessionExists())
+		? &domain().active().session()
+		: nullptr;
+	refreshApplicationIcon(session);
+}
+
+void Application::refreshApplicationIcon(Main::Session *session) {
+	const auto support = session && session->supportMode();
+	Shortcuts::ToggleSupportShortcuts(support);
+	Platform::SetApplicationIcon(Window::CreateIcon(
+		session,
+		Platform::IsMac()));
+}
+
 void Application::startShortcuts() {
 	Shortcuts::Start();
 
 	_domain->activeSessionChanges(
 	) | rpl::start_with_next([=](Main::Session *session) {
-		const auto support = session && session->supportMode();
-		Shortcuts::ToggleSupportShortcuts(support);
-		Platform::SetApplicationIcon(Window::CreateIcon(
-			session,
-			Platform::IsMac()));
+		refreshApplicationIcon(session);
 	}, _lifetime);
 
 	Shortcuts::Requests(
@@ -1732,8 +1822,8 @@ void Application::startShortcuts() {
 
 void Application::RegisterUrlScheme() {
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
-		.executable = cExeDir() + cExeName(),
-		.arguments = Sandbox::Instance().customWorkingDir()
+		.executable = Platform::ExecutablePathForShortcuts(),
+		.arguments = Launcher::Instance().customWorkingDir()
 			? u"-workdir \"%1\""_q.arg(cWorkingDir())
 			: QString(),
 		.protocol = u"tg"_q,

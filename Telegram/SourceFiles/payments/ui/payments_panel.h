@@ -90,7 +90,7 @@ public:
 	[[nodiscard]] rpl::producer<QString> savedMethodChosen() const;
 
 	void showBox(object_ptr<Ui::BoxContent> box);
-	void showToast(const TextWithEntities &text);
+	void showToast(TextWithEntities &&text);
 	void showCriticalError(const TextWithEntities &text);
 	[[nodiscard]] std::shared_ptr<Show> uiShow();
 

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
+#include "ui/effects/outline_segments.h"
 #include "ui/image/image_prepare.h"
 
 #include <QtCore/QCoreApplication>
@@ -368,6 +369,10 @@ RoundImageCheckbox::RoundImageCheckbox(
 , _check(_st.check, _updateCallback) {
 }
 
+RoundImageCheckbox::RoundImageCheckbox(RoundImageCheckbox&&) = default;
+
+RoundImageCheckbox::~RoundImageCheckbox() = default;
+
 void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 	auto selectionLevel = _selection.value(checked() ? 1. : 0.);
 	if (_selection.animating()) {
@@ -389,26 +394,34 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 	}
 
 	if (selectionLevel > 0) {
-		const auto radius = _roundingRadius
-			? _roundingRadius(_st.imageRadius * 2)
-			: std::optional<int>();
 		PainterHighQualityEnabler hq(p);
 		p.setOpacity(std::clamp(selectionLevel, 0., 1.));
 		p.setBrush(Qt::NoBrush);
-		const auto pen = QPen(
-			_fgOverride ? (*_fgOverride) : _st.selectFg->b,
-			_st.selectWidth);
-		p.setPen(pen);
+		const auto segments = int(_segments.size());
 		const auto rect = style::rtlrect(
 			x,
 			y,
 			_st.imageRadius * 2,
 			_st.imageRadius * 2,
 			outerWidth);
-		if (!radius) {
-			p.drawEllipse(rect);
+		const auto add = _st.selectExtendTwice / 2.;
+		const auto outline = QRectF(rect).marginsAdded({
+			add, add, add, add });
+		if (segments < 2) {
+			const auto radius = _roundingRadius
+				? _roundingRadius(_st.imageRadius * 2)
+				: std::optional<int>();
+			const auto pen = QPen(
+				segments ? _segments.front().brush : _st.selectFg->b,
+				segments ? _segments.front().width : _st.selectWidth);
+			p.setPen(pen);
+			if (!radius) {
+				p.drawEllipse(outline);
+			} else {
+				p.drawRoundedRect(outline, *radius, *radius);
+			}
 		} else {
-			p.drawRoundedRect(rect, *radius, *radius);
+			PaintOutlineSegments(p, outline, _segments);
 		}
 		p.setOpacity(1.);
 	}
@@ -429,6 +442,7 @@ void RoundImageCheckbox::setChecked(bool newChecked, anim::type animated) {
 	if (!changed) {
 		if (animated == anim::type::instant) {
 			_selection.stop();
+			_wideCache = QPixmap();
 		}
 		return;
 	}
@@ -451,6 +465,7 @@ void RoundImageCheckbox::setChecked(bool newChecked, anim::type animated) {
 			anim::bumpy(1.25));
 	} else {
 		_selection.stop();
+		_wideCache = QPixmap();
 	}
 }
 
@@ -472,7 +487,18 @@ void RoundImageCheckbox::prepareWideCache() {
 }
 
 void RoundImageCheckbox::setColorOverride(std::optional<QBrush> fg) {
-	_fgOverride = fg;
+	if (fg) {
+		setCustomizedSegments({
+			{ .brush = *fg, .width = float64(_st.selectWidth) }
+		});
+	} else {
+		setCustomizedSegments({});
+	}
+}
+
+void RoundImageCheckbox::setCustomizedSegments(
+		std::vector<Ui::OutlineSegment> segments) {
+	_segments = std::move(segments);
 }
 
 } // namespace Ui

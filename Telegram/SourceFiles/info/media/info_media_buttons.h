@@ -10,10 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/mappers.h>
 #include <rpl/map.h>
 #include "lang/lang_keys.h"
+#include "data/data_stories_ids.h"
 #include "storage/storage_shared_media.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h"
+#include "info/stories/info_stories_widget.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
@@ -120,6 +122,31 @@ inline auto AddCommonGroupsButton(
 	result->addClickHandler([=] {
 		navigation->showSection(
 			std::make_shared<Info::Memento>(user, Section::Type::CommonGroups));
+	});
+	return result;
+};
+
+inline auto AddStoriesButton(
+		Ui::VerticalLayout *parent,
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<UserData*> user,
+		Ui::MultiSlideTracker &tracker) {
+	auto count = rpl::single(0) | rpl::then(Data::SavedStoriesIds(
+		user,
+		ServerMaxStoryId - 1,
+		0
+	) | rpl::map([](const Data::StoriesIdsSlice &slice) {
+		return slice.fullCount().value_or(0);
+	}));
+	auto result = AddCountedButton(
+		parent,
+		std::move(count),
+		[](int count) {
+			return tr::lng_profile_saved_stories(tr::now, lt_count, count);
+		},
+		tracker)->entity();
+	result->addClickHandler([=] {
+		navigation->showSection(Info::Stories::Make(user));
 	});
 	return result;
 };

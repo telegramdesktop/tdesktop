@@ -156,14 +156,15 @@ void GiftBox(
 
 	// List.
 	const auto group = std::make_shared<Ui::RadiobuttonGroup>();
-	group->setChangedCallback([=](int value) {
+	const auto groupValueChangedCallback = [=](int value) {
 		Expects(value < options.size() && value >= 0);
 		auto text = tr::lng_premium_gift_button(
 			tr::now,
 			lt_cost,
 			options[value].costTotal);
 		state->buttonText.fire(std::move(text));
-	});
+	};
+	group->setChangedCallback(groupValueChangedCallback);
 	Ui::Premium::AddGiftOptions(
 		buttonsParent,
 		group,
@@ -215,7 +216,7 @@ void GiftBox(
 	});
 	box->addButton(std::move(button));
 
-	group->setValue(0);
+	groupValueChangedCallback(0);
 
 	Data::PeerPremiumValue(
 		user

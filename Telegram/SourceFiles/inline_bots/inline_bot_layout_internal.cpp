@@ -88,8 +88,8 @@ int FileBase::content_height() const {
 
 int FileBase::content_duration() const {
 	if (const auto document = getShownDocument()) {
-		if (document->getDuration() > 0) {
-			return document->getDuration();
+		if (document->hasDuration()) {
+			return document->duration() / 1000;
 		}
 	}
 	return getResultDuration();
@@ -1143,12 +1143,10 @@ bool File::updateStatusText() const {
 	}
 
 	if (statusSize != _statusSize) {
-		TimeId duration = _document->isSong()
-			? _document->song()->duration
-			: (_document->isVoiceMessage()
-				? _document->voice()->duration
-				: -1);
-		setStatusSize(statusSize, _document->size, duration, realDuration);
+		const auto duration = _document->isSong()
+			? _document->duration()
+			: (_document->isVoiceMessage() ? _document->duration() : -1);
+		setStatusSize(statusSize, _document->size, (duration >= 0) ? (duration / 1000) : -1, realDuration);
 	}
 	return showPause;
 }

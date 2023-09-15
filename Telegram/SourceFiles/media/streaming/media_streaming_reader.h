@@ -277,5 +277,8 @@ private:
 
 };
 
+[[nodiscard]] QByteArray SerializeComplexPartsMap(
+	const base::flat_map<uint32, QByteArray> &parts);
+
 } // namespace Streaming
 } // namespace Media

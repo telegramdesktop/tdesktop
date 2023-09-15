@@ -53,37 +53,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_layout.h"
 
 namespace Settings {
-namespace {
-
-base::options::toggle OptionMonoSettingsIcons({
-	.id = kOptionMonoSettingsIcons,
-	.name = "Mono settings and menu icons",
-	.description = "Use a single color for settings and main menu icons.",
-});
-
-} // namespace
-
-const char kOptionMonoSettingsIcons[] = "mono-settings-icons";
 
 Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
-	const auto background = [&] {
-		if (OptionMonoSettingsIcons.value()) {
-			return &st::transparent;
-		}
-		if (descriptor.color > 0) {
-			const auto list = std::array{
-				&st::settingsIconBg1,
-				&st::settingsIconBg2,
-				&st::settingsIconBg3,
-				&st::settingsIconBg4,
-				&st::settingsIconBg5,
-				&st::settingsIconBg6,
-				(const style::color*)nullptr,
-				&st::settingsIconBg8,
-				&st::settingsIconBgArchive,
-			};
-			Assert(descriptor.color < 10 && descriptor.color != 7);
-			return list[descriptor.color - 1];
+	const auto background = [&]() -> const style::color* {
+		if (descriptor.type == IconType::Simple) {
+			return nullptr;
 		}
 		return descriptor.background;
 	}();
@@ -116,11 +90,7 @@ void Icon::paint(QPainter &p, int x, int y) const {
 			_backgroundBrush->first,
 			_backgroundBrush->first);
 	}
-	if (OptionMonoSettingsIcons.value()) {
-		_icon->paint(p, { x, y }, 2 * x + _icon->width(), st::menuIconFg->c);
-	} else {
-		_icon->paint(p, { x, y }, 2 * x + _icon->width());
-	}
+	_icon->paint(p, { x, y }, 2 * x + _icon->width());
 }
 
 int Icon::width() const {
@@ -211,7 +181,7 @@ void AddDialogImageToButton(
             button,
             std::move(dialog));
     icon->widget.setAttribute(Qt::WA_TransparentForMouseEvents);
-    icon->widget.resize(st::settingsIconLock.size()); // use size from icon
+    icon->widget.resize(st::menuIconLock.size()); // use size from icon
     button->sizeValue(
     ) | rpl::start_with_next([=, left = st.iconLeft](QSize size) {
         icon->widget.moveToLeft(
@@ -265,6 +235,7 @@ void CreateRightLabel(
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
 		st.rightLabel);
+	name->show();
 	rpl::combine(
 		button->widthValue(),
 		std::move(buttonText),

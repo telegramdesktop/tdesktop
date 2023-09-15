@@ -9,13 +9,14 @@
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
 #include "fakepasscode/log/fake_log.h"
+#include "styles/style_menu_icons.h"
 
 void ClearProxyUI::Create(not_null<Ui::VerticalLayout*> content,
                           Window::SessionController*) {
     Settings::AddSubsectionTitle(content, tr::lng_clear_proxy());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
     auto *button = Settings::AddButton(content, tr::lng_clear_proxy(), st::settingsButton,
-                                       {&st::settingsIconForward, Settings::kIconRed})
+                                       {&st::menuIconForward})
             ->toggleOn(toggled->events_starting_with_copy(
                     _domain->local().ContainsAction(_index, FakePasscode::ActionType::ClearProxy)));
     button->addClickHandler([=] {

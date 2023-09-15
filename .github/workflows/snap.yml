@@ -31,7 +31,7 @@ jobs:
 
   snap:
     name: Ubuntu
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     env:
       UPLOAD_ARTIFACT: "true"
@@ -63,6 +63,9 @@ jobs:
 
           sed -i 's/$API_ID/${{ secrets.API_ID }}/g' snap/snapcraft.yaml
           sed -i 's/$API_HASH/${{ secrets.API_HASH }}/g' snap/snapcraft.yaml
+
+      - name: Free up some disk space.
+        uses: jlumbroso/free-disk-space@76866dbe54312617f00798d1762df7f43def6e5c
 
       - name: Telegram Desktop snap build.
         run: sg lxd -c 'snap run snapcraft -v'

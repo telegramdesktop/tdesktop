@@ -21,7 +21,8 @@ void EditFilterBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> window,
 	const Data::ChatFilter &filter,
-	Fn<void(const Data::ChatFilter &)> doneCallback);
+	Fn<void(const Data::ChatFilter &)> doneCallback,
+	Fn<void(const Data::ChatFilter &, Fn<void(Data::ChatFilter)>)> saveAnd);
 
 void EditExistingFilter(
 	not_null<Window::SessionController*> window,

@@ -11,17 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/assertion.h"
 #include "base/debug_log.h"
 
-namespace Core {
-class Launcher;
-} // namespace Core
-
 namespace Logs {
 
 void SetDebugEnabled(bool enabled);
 bool DebugEnabled();
 [[nodiscard]] bool WritingEntry();
 
-void start(not_null<Core::Launcher*> launcher);
+void start();
 bool started();
 void finish();
 

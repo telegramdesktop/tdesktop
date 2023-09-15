@@ -37,4 +37,9 @@ namespace Lang {
 [[nodiscard]] QString DefaultLanguageId();
 [[nodiscard]] QString LanguageIdOrDefault(const QString &id);
 
+[[nodiscard]] tr::phrase<> Month(int index);
+[[nodiscard]] tr::phrase<> MonthSmall(int index);
+[[nodiscard]] tr::phrase<> MonthDay(int index);
+[[nodiscard]] tr::phrase<> Weekday(int index);
+
 } // namespace Lang

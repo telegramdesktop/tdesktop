@@ -98,6 +98,9 @@ public:
 	[[nodiscard]] virtual bool hideMessageText() const {
 		return true;
 	}
+	[[nodiscard]] virtual bool hideServiceText() const {
+		return false;
+	}
 	[[nodiscard]] virtual bool allowsFastShare() const {
 		return false;
 	}
@@ -122,11 +125,6 @@ public:
 	// toggle selection instead of activating the pressed link
 	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const = 0;
-
-	// if we press and drag on this media should we drag the item
-	[[nodiscard]] virtual bool dragItem() const {
-		return false;
-	}
 
 	[[nodiscard]] virtual TextSelection adjustSelection(
 			TextSelection selection,

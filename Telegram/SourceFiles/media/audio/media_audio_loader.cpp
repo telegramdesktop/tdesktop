@@ -31,32 +31,37 @@ bool AudioPlayerLoader::check(
 	return (this->_file == file) && (this->_data.size() == data.size());
 }
 
-void AudioPlayerLoader::saveDecodedSamples(
-		not_null<QByteArray*> samples,
-		not_null<int64*> samplesCount) {
-	Expects(_savedSamplesCount == 0);
+void AudioPlayerLoader::saveDecodedSamples(not_null<QByteArray*> samples) {
 	Expects(_savedSamples.isEmpty());
 	Expects(!_holdsSavedSamples);
 
 	samples->swap(_savedSamples);
-	std::swap(*samplesCount, _savedSamplesCount);
 	_holdsSavedSamples = true;
 }
 
 void AudioPlayerLoader::takeSavedDecodedSamples(
-		not_null<QByteArray*> samples,
-		not_null<int64*> samplesCount) {
-	Expects(*samplesCount == 0);
+		not_null<QByteArray*> samples) {
 	Expects(samples->isEmpty());
 	Expects(_holdsSavedSamples);
 
 	samples->swap(_savedSamples);
-	std::swap(*samplesCount, _savedSamplesCount);
 	_holdsSavedSamples = false;
 }
 
 bool AudioPlayerLoader::holdsSavedDecodedSamples() const {
 	return _holdsSavedSamples;
+}
+
+void AudioPlayerLoader::dropDecodedSamples() {
+	_savedSamples = {};
+	_holdsSavedSamples = false;
+}
+
+int AudioPlayerLoader::bytesPerBuffer() {
+	if (!_bytesPerBuffer) {
+		_bytesPerBuffer = samplesFrequency() * sampleSize();
+	}
+	return _bytesPerBuffer;
 }
 
 bool AudioPlayerLoader::openFile() {

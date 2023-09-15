@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/ripple_animation.h"
@@ -138,7 +139,8 @@ void TopicsView::paint(
 			.palette = palette,
 			.spoiler = Text::DefaultSpoilerCache(),
 			.now = context.now,
-			.paused = context.paused,
+			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
+			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.elisionLines = 1,
 		});
 		const auto skip = skipBig

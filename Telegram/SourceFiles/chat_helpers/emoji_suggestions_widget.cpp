@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
+#include "ui/round_rect.h"
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "base/event_filter.h"
@@ -41,15 +42,133 @@ constexpr auto kAnimationDuration = crl::time(120);
 
 } // namespace
 
+class SuggestionsWidget final : public Ui::RpWidget {
+public:
+	SuggestionsWidget(
+		QWidget *parent,
+		const style::EmojiSuggestions &st,
+		not_null<Main::Session*> session,
+		bool suggestCustomEmoji,
+		Fn<bool(not_null<DocumentData*>)> allowCustomWithoutPremium);
+	~SuggestionsWidget();
+
+	void showWithQuery(SuggestionsQuery query, bool force = false);
+	void selectFirstResult();
+	bool handleKeyEvent(int key);
+
+	[[nodiscard]] rpl::producer<bool> toggleAnimated() const;
+
+	struct Chosen {
+		QString emoji;
+		QString customData;
+	};
+	[[nodiscard]] rpl::producer<Chosen> triggered() const;
+
+private:
+	struct Row {
+		Row(not_null<EmojiPtr> emoji, const QString &replacement);
+
+		Ui::Text::CustomEmoji *custom = nullptr;
+		DocumentData *document = nullptr;
+		not_null<EmojiPtr> emoji;
+		QString replacement;
+	};
+	struct Custom {
+		not_null<DocumentData*> document;
+		not_null<EmojiPtr> emoji;
+		QString replacement;
+	};
+
+	bool eventHook(QEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void enterEventHook(QEnterEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
+
+	void scrollByWheelEvent(not_null<QWheelEvent*> e);
+	void paintFadings(QPainter &p) const;
+
+	[[nodiscard]] std::vector<Row> getRowsByQuery(const QString &text) const;
+	[[nodiscard]] base::flat_multi_map<int, Custom> lookupCustom(
+		const std::vector<Row> &rows) const;
+	[[nodiscard]] std::vector<Row> appendCustom(
+		std::vector<Row> rows);
+	[[nodiscard]] std::vector<Row> appendCustom(
+		std::vector<Row> rows,
+		const base::flat_multi_map<int, Custom> &custom);
+	void resizeToRows();
+	void setSelected(
+		int selected,
+		anim::type animated = anim::type::instant);
+	void setPressed(int pressed);
+	void clearMouseSelection();
+	void clearSelection();
+	void updateSelectedItem();
+	void updateItem(int index);
+	[[nodiscard]] QRect inner() const;
+	[[nodiscard]] QPoint innerShift() const;
+	[[nodiscard]] QPoint mapToInner(QPoint globalPosition) const;
+	void selectByMouse(QPoint globalPosition);
+	bool triggerSelectedRow() const;
+	void triggerRow(const Row &row) const;
+
+	[[nodiscard]] int scrollCurrent() const;
+	void scrollTo(int value, anim::type animated = anim::type::instant);
+	void stopAnimations();
+
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
+		not_null<DocumentData*> document);
+	void customEmojiRepaint();
+
+	const style::EmojiSuggestions &_st;
+	const not_null<Main::Session*> _session;
+	SuggestionsQuery _query;
+	std::vector<Row> _rows;
+	bool _suggestCustomEmoji = false;
+	Fn<bool(not_null<DocumentData*>)> _allowCustomWithoutPremium;
+
+	Ui::RoundRect _overRect;
+
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::unique_ptr<Ui::Text::CustomEmoji>> _customEmoji;
+	bool _repaintScheduled = false;
+
+	std::optional<QPoint> _lastMousePosition;
+	bool _mouseSelection = false;
+	int _selected = -1;
+	int _pressed = -1;
+
+	int _scrollValue = 0;
+	Ui::Animations::Simple _scrollAnimation;
+	Ui::Animations::Simple _selectedAnimation;
+	int _scrollMax = 0;
+	int _oneWidth = 0;
+	QMargins _padding;
+
+	QPoint _mousePressPosition;
+	int _dragScrollStart = -1;
+
+	rpl::event_stream<bool> _toggleAnimated;
+	rpl::event_stream<Chosen> _triggered;
+
+};
+
 SuggestionsWidget::SuggestionsWidget(
 	QWidget *parent,
+	const style::EmojiSuggestions &st,
 	not_null<Main::Session*> session,
 	bool suggestCustomEmoji,
 	Fn<bool(not_null<DocumentData*>)> allowCustomWithoutPremium)
 : RpWidget(parent)
+, _st(st)
 , _session(session)
 , _suggestCustomEmoji(suggestCustomEmoji)
 , _allowCustomWithoutPremium(std::move(allowCustomWithoutPremium))
+, _overRect(st::roundRadiusSmall, _st.overBg)
 , _oneWidth(st::emojiSuggestionSize)
 , _padding(st::emojiSuggestionsPadding) {
 	resize(
@@ -284,7 +403,7 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 	_repaintScheduled = false;
 
 	const auto clip = e->rect();
-	p.fillRect(clip, st::boxBg);
+	p.fillRect(clip, _st.bg);
 
 	const auto shift = innerShift();
 	p.translate(-shift);
@@ -298,15 +417,13 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 		? _pressed
 		: _selectedAnimation.value(_selected);
 	if (selected > -1.) {
-		Ui::FillRoundRect(
+		_overRect.paint(
 			p,
-			QRect(selected * _oneWidth, 0, _oneWidth, _oneWidth),
-			st::emojiPanHover,
-			Ui::StickerHoverCorners);
+			QRect(selected * _oneWidth, 0, _oneWidth, _oneWidth));
 	}
 
 	auto context = Ui::CustomEmoji::Context{
-		.textColor = st::windowFg->c,
+		.textColor = _st.textFg->c,
 		.now = crl::now(),
 	};
 	for (auto i = from; i != till; ++i) {
@@ -338,9 +455,9 @@ void SuggestionsWidget::paintFadings(QPainter &p) const {
 		const auto rect = myrtlrect(
 			shift.x(),
 			0,
-			st::emojiSuggestionsFadeLeft.width(),
+			_st.fadeLeft.width(),
 			height());
-		st::emojiSuggestionsFadeLeft.fill(p, rect);
+		_st.fadeLeft.fill(p, rect);
 		p.setOpacity(1.);
 	}
 	const auto o_right = std::clamp(
@@ -350,11 +467,11 @@ void SuggestionsWidget::paintFadings(QPainter &p) const {
 	if (o_right > 0.) {
 		p.setOpacity(o_right);
 		const auto rect = myrtlrect(
-			shift.x() + width() - st::emojiSuggestionsFadeRight.width(),
+			shift.x() + width() - _st.fadeRight.width(),
 			0,
-			st::emojiSuggestionsFadeRight.width(),
+			_st.fadeRight.width(),
 			height());
-		st::emojiSuggestionsFadeRight.fill(p, rect);
+		_st.fadeRight.fill(p, rect);
 		p.setOpacity(1.);
 	}
 }
@@ -601,17 +718,17 @@ SuggestionsController::SuggestionsController(
 	not_null<QTextEdit*> field,
 	not_null<Main::Session*> session,
 	const Options &options)
-: _field(field)
+: _st(options.st ? *options.st : st::defaultEmojiSuggestions)
+, _field(field)
 , _session(session)
 , _showExactTimer([=] { showWithQuery(getEmojiQuery()); })
 , _options(options) {
-	_container = base::make_unique_q<InnerDropdown>(
-		outer,
-		st::emojiSuggestionsDropdown);
+	_container = base::make_unique_q<InnerDropdown>(outer, _st.dropdown);
 	_container->setAutoHiding(false);
 	_suggestions = _container->setOwnedWidget(
 		object_ptr<Ui::Emoji::SuggestionsWidget>(
 			_container,
+			_st,
 			session,
 			_options.suggestCustomEmoji,
 			_options.allowCustomWithoutPremium));
@@ -660,6 +777,13 @@ SuggestionsController::SuggestionsController(
 	}, _lifetime);
 
 	updateForceHidden();
+
+	_container->shownValue(
+	) | rpl::filter([=](bool shown) {
+		return shown && !_shown;
+	}) | rpl::start_with_next([=] {
+		_container->hide();
+	}, _container->lifetime());
 
 	handleTextChange();
 }
@@ -749,6 +873,7 @@ void SuggestionsController::showWithQuery(SuggestionsQuery query) {
 	const auto force = base::take(_keywordsRefreshed);
 	_lastShownQuery = query;
 	_suggestions->showWithQuery(_lastShownQuery, force);
+	_container->resizeToContent();
 }
 
 SuggestionsQuery SuggestionsController::getEmojiQuery() {
@@ -910,7 +1035,7 @@ void SuggestionsController::updateGeometry() {
 	auto boundingRect = _container->parentWidget()->rect();
 	auto origin = rtl() ? PanelAnimation::Origin::BottomRight : PanelAnimation::Origin::BottomLeft;
 	auto point = rtl() ? (aroundRect.topLeft() + QPoint(aroundRect.width(), 0)) : aroundRect.topLeft();
-	const auto padding = st::emojiSuggestionsDropdown.padding;
+	const auto padding = _st.dropdown.padding;
 	const auto shift = std::min(_container->width() - padding.left() - padding.right(), st::emojiSuggestionSize) / 2;
 	point -= rtl() ? QPoint(_container->width() - padding.right() - shift, _container->height()) : QPoint(padding.left() + shift, _container->height());
 	if (rtl()) {

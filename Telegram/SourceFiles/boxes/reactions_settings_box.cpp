@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/layers/generic_box.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
@@ -63,7 +62,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPstring(), // bot placeholder
 		MTPstring(), // lang code
 		MTPEmojiStatus(),
-		MTPVector<MTPUsername>()));
+		MTPVector<MTPUsername>(),
+		MTPint())); // stories_max_id
 	return peerId;
 }
 
@@ -77,11 +77,11 @@ AdminLog::OwnedItem GenerateItem(
 
 	const auto item = history->addNewLocalMessage(
 		history->nextNonHistoryEntryId(),
-		MessageFlag::FakeHistoryItem
+		(MessageFlag::FakeHistoryItem
 			| MessageFlag::HasFromId
-			| MessageFlag::HasReplyInfo,
+			| MessageFlag::HasReplyInfo),
 		UserId(), // via
-		replyTo,
+		FullReplyTo{ .msgId = replyTo },
 		base::unixtime::now(), // date
 		from,
 		QString(), // postAuthor
@@ -384,7 +384,7 @@ void AddReactionAnimatedIcon(
 
 	const auto paintCallback = [=](not_null<QWidget*> widget, QPainter &p) {
 		const auto paintFrame = [&](not_null<Ui::AnimatedIcon*> animation) {
-			const auto frame = animation->frame();
+			const auto frame = animation->frame(st::windowFg->c);
 			p.drawImage(
 				QRect(
 					(widget->width() - iconSize) / 2,
@@ -404,7 +404,6 @@ void AddReactionAnimatedIcon(
 		} else if (const auto select = state->select.icon.get()) {
 			paintFrame(select);
 		}
-
 	};
 	const auto widget = AddReactionIconWrap(
 		parent,

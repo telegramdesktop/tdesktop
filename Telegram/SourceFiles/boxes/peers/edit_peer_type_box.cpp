@@ -52,7 +52,7 @@ class Controller : public base::has_weak_ptr {
 public:
 	Controller(
 		Window::SessionNavigation *navigation,
-		std::shared_ptr<Ui::BoxShow> show,
+		std::shared_ptr<Ui::Show> show,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		bool useLocationPhrases,
@@ -140,7 +140,7 @@ private:
 		rpl::producer<QString> about);
 
 	Window::SessionNavigation *_navigation = nullptr;
-	std::shared_ptr<Ui::BoxShow> _show;
+	std::shared_ptr<Ui::Show> _show;
 
 	not_null<PeerData*> _peer;
 	bool _linkOnly = false;
@@ -168,7 +168,7 @@ private:
 
 Controller::Controller(
 	Window::SessionNavigation *navigation,
-	std::shared_ptr<Ui::BoxShow> show,
+	std::shared_ptr<Ui::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	bool useLocationPhrases,
@@ -601,9 +601,7 @@ void Controller::askUsernameRevoke() {
 		_controls.privacy->setValue(Privacy::HasUsername);
 		checkUsernameAvailability();
 	});
-	_show->showBox(
-		Box(PublicLinksLimitBox, _navigation, revokeCallback),
-		Ui::LayerOption::KeepOther);
+	_show->showBox(Box(PublicLinksLimitBox, _navigation, revokeCallback));
 }
 
 void Controller::usernameChanged() {
@@ -735,7 +733,7 @@ void EditPeerTypeBox::prepare() {
 	const auto controller = Ui::CreateChild<Controller>(
 		this,
 		_navigation,
-		std::make_shared<Ui::BoxShow>(this),
+		uiShow(),
 		content.data(),
 		_peer,
 		_useLocationPhrases,

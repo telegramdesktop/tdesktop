@@ -42,7 +42,11 @@ public:
 
 	void setLocalImageAsThumbnail(std::shared_ptr<Image> image);
 
+	[[nodiscard]] bool equals(const WallPaper &paper) const;
+
 	[[nodiscard]] WallPaperId id() const;
+	[[nodiscard]] bool isNull() const;
+	[[nodiscard]] QString key() const;
 	[[nodiscard]] const std::vector<QColor> backgroundColors() const;
 	[[nodiscard]] DocumentData *document() const;
 	[[nodiscard]] Image *localThumbnail() const;
@@ -102,6 +106,8 @@ public:
 
 private:
 	static constexpr auto kDefaultIntensity = 50;
+
+	[[nodiscard]] QStringList collectShareParams() const;
 
 	WallPaperId _id = WallPaperId();
 	uint64 _accessHash = 0;

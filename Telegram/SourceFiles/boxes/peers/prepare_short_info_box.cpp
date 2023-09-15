@@ -335,6 +335,15 @@ bool ProcessCurrent(
 		: state->photoView
 		? state->photoView->owner().get()
 		: nullptr;
+	state->current.additionalStatus = (!peer->isUser())
+		? QString()
+		: ((state->photoId == userpicPhotoId)
+			&& peer->asUser()->hasPersonalPhoto())
+		? tr::lng_profile_photo_by_you(tr::now)
+		: ((state->current.index == (state->current.count - 1))
+			&& SyncUserFallbackPhotoViewer(peer->asUser()))
+		? tr::lng_profile_public_photo(tr::now)
+		: QString();
 	state->waitingLoad = false;
 	if (!changedPhotoId
 		&& (state->current.index > 0 || !changedUserpic)
@@ -420,8 +429,11 @@ bool ProcessCurrent(
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
 		Fn<void()> open,
-		Fn<bool()> videoPaused) {
-	const auto type = peer->isUser()
+		Fn<bool()> videoPaused,
+		const style::ShortInfoBox *stOverride) {
+	const auto type = peer->isSelf()
+		? PeerShortInfoType::Self
+		: peer->isUser()
 		? PeerShortInfoType::User
 		: peer->isBroadcast()
 		? PeerShortInfoType::Channel
@@ -432,7 +444,8 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		FieldsValue(peer),
 		StatusValue(peer),
 		std::move(userpic.value),
-		std::move(videoPaused));
+		std::move(videoPaused),
+		stOverride);
 
 	result->openRequests(
 	) | rpl::start_with_next(open, result->lifetime());
@@ -445,7 +458,8 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 
 object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 		not_null<PeerData*> peer,
-		not_null<Window::SessionNavigation*> navigation) {
+		not_null<Window::SessionNavigation*> navigation,
+		const style::ShortInfoBox *stOverride) {
 	const auto open = [=] { navigation->showPeerHistory(peer); };
 	const auto videoIsPaused = [=] {
 		return navigation->parentController()->isGifPausedAtLeastFor(
@@ -454,7 +468,8 @@ object_ptr<Ui::BoxContent> PrepareShortInfoBox(
 	return PrepareShortInfoBox(
 		peer,
 		open,
-		videoIsPaused);
+		videoIsPaused,
+		stOverride);
 }
 
 rpl::producer<QString> PrepareShortInfoStatus(not_null<PeerData*> peer) {

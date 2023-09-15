@@ -126,7 +126,6 @@ public:
 	Key key() const override;
 
 	rpl::producer<QString> title() const override;
-	bool hasOption(Option option) const override;
 	rpl::producer<QString> optionsTitleKey() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
 		Exception exception) const override;
@@ -236,9 +235,10 @@ public:
 		rpl::producer<Option> optionValue,
 		not_null<QWidget*> outerContainer) override;
 
-	object_ptr<Ui::RpWidget> setupBelowWidget(
+	object_ptr<Ui::RpWidget> setupMiddleWidget(
 		not_null<Window::SessionController*> controller,
-		not_null<QWidget*> parent) override;
+		not_null<QWidget*> parent,
+		rpl::producer<Option> optionValue) override;
 
 	void saveAdditional() override;
 
@@ -268,6 +268,23 @@ public:
 
 private:
 	rpl::lifetime _lifetime;
+
+};
+
+class AboutPrivacyController final : public EditPrivacyController {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	Key key() const override;
+
+	rpl::producer<QString> title() const override;
+	rpl::producer<QString> optionsTitleKey() const override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 };
 

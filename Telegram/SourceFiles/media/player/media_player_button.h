@@ -7,12 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
-#include "styles/style_media_player.h"
+#include "ui/widgets/buttons.h"
 
-namespace Media {
-namespace Player {
+#include <QtGui/QFontMetrics>
+
+namespace style {
+struct MediaPlayerButton;
+struct MediaSpeedButton;
+} // namespace style
+
+namespace Media::Player {
 
 class PlayButtonLayout {
 public:
@@ -48,5 +53,50 @@ private:
 
 };
 
-} // namespace Player
-} // namespace Media
+class SpeedButtonLayout {
+public:
+	SpeedButtonLayout(
+		const style::MediaSpeedButton &st,
+		Fn<void()> callback,
+		float64 speed);
+
+	void setSpeed(float64 speed);
+	void paint(QPainter &p, bool over, bool active);
+
+private:
+	const style::MediaSpeedButton &_st;
+
+	float64 _speed = 1.;
+
+	QFontMetricsF _metrics;
+
+	QString _text;
+	float64 _textWidth = 0;
+
+	Fn<void()> _callback;
+
+};
+
+class SpeedButton final : public Ui::RippleButton {
+public:
+	SpeedButton(QWidget *parent, const style::MediaSpeedButton &st);
+
+	[[nodiscard]] const style::MediaSpeedButton &st() const {
+		return _st;
+	}
+
+	void setSpeed(float64 speed, anim::type animated = anim::type::normal);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	const style::MediaSpeedButton &_st;
+	SpeedButtonLayout _layout;
+	bool _isDefault = false;
+
+};
+
+} // namespace Media::Player

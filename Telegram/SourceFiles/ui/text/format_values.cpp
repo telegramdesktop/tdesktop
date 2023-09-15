@@ -392,15 +392,24 @@ QString FormatPhone(const QString &phone) {
 }
 
 QString FormatTTL(float64 ttl) {
-	return (ttl <= 3600 * 23)
-		? tr::lng_hours(tr::now, lt_count, int(ttl / 3600))
-		: (ttl <= (86400) * 6)
-		? tr::lng_days(tr::now, lt_count, int(ttl / (86400)))
-		: (ttl <= (86400 * 7) * 3)
-		? tr::lng_weeks(tr::now, lt_count, int(ttl / (86400 * 7)))
-		: (ttl <= (86400 * 31) * 11)
-		? tr::lng_months({}, lt_count, int(ttl / (86400 * 31)))
-		: tr::lng_years({}, lt_count, std::round(ttl / (86400 * 365)));
+	if (ttl < 86400) {
+		return tr::lng_hours(tr::now, lt_count, int(ttl / 3600));
+	} else if (ttl < 86400 * 7) {
+		return tr::lng_days(tr::now, lt_count, int(ttl / (86400)));
+	} else if (ttl < 86400 * 31) {
+		const auto days = int(ttl / 86400);
+		if ((int(ttl) % 7) == 0) {
+			return tr::lng_weeks(tr::now, lt_count, int(days / 7));
+		} else {
+			return tr::lng_weeks(tr::now, lt_count, int(days / 7))
+				+ ' '
+				+ tr::lng_days(tr::now, lt_count, int(days % 7));
+		}
+	} else if (ttl < (86400 * 31) * 12) {
+		return tr::lng_months(tr::now, lt_count, int(ttl / (86400 * 31)));
+	} else {
+		return tr::lng_years({}, lt_count, std::round(ttl / (86400 * 365)));
+	}
 }
 
 QString FormatTTLAfter(float64 ttl) {

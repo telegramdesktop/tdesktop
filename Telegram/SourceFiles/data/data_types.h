@@ -63,13 +63,17 @@ struct FileOrigin;
 } // namespace Data
 
 struct MessageGroupId {
-	PeerId peer = 0;
+	uint64 peerAndScheduledFlag = 0;
 	uint64 value = 0;
 
 	MessageGroupId() = default;
-	static MessageGroupId FromRaw(PeerId peer, uint64 value) {
+	static MessageGroupId FromRaw(
+			PeerId peer,
+			uint64 value,
+			bool scheduled) {
 		auto result = MessageGroupId();
-		result.peer = peer;
+		result.peerAndScheduledFlag = peer.value
+			| (scheduled ? (1ULL << 55) : 0);
 		result.value = value;
 		return result;
 	}
@@ -118,6 +122,7 @@ class DocumentData;
 class PhotoData;
 struct WebPageData;
 struct GameData;
+struct BotAppData;
 struct PollData;
 
 using PhotoId = uint64;
@@ -129,6 +134,8 @@ using GameId = uint64;
 using PollId = uint64;
 using WallPaperId = uint64;
 using CallId = uint64;
+using BotAppId = uint64;
+
 constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
 struct PreparedPhotoThumb {
@@ -291,6 +298,11 @@ enum class MessageFlag : uint64 {
 
 	OnlyEmojiAndSpaces    = (1ULL << 34),
 	OnlyEmojiAndSpacesSet = (1ULL << 35),
+
+	// Fake message with bot cover and information.
+	FakeBotAbout          = (1ULL << 36),
+
+	StoryItem             = (1ULL << 37),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

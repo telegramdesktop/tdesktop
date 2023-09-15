@@ -37,9 +37,10 @@ AttachControls::Type CheckControlsType(
 
 ItemSingleFilePreview::ItemSingleFilePreview(
 	QWidget *parent,
+	const style::ComposeControls &st,
 	not_null<HistoryItem*> item,
 	AttachControls::Type type)
-: AbstractSingleFilePreview(parent, CheckControlsType(item, type)) {
+: AbstractSingleFilePreview(parent, st, CheckControlsType(item, type)) {
 	const auto media = item->media();
 	Assert(media != nullptr);
 	const auto document = media->document();

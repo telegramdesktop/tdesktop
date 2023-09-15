@@ -11,6 +11,7 @@
 #include "main/main_account.h"
 #include "styles/style_settings.h"
 #include "fakepasscode/log/fake_log.h"
+#include "styles/style_menu_icons.h"
 
 void LogoutUI::Create(not_null<Ui::VerticalLayout *> content,
                       Window::SessionController*) {
@@ -25,7 +26,7 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content,
                 content,
                 tr::lng_logout_account(lt_caption, rpl::single(user->firstName + " " + user->lastName)),
                 st::settingsButton,
-                {&st::settingsIconAccount, Settings::kIconRed}
+                {&st::menuIconLeave}
             )->toggleOn(toggled->events_starting_with_copy(_logout != nullptr && _logout->IsLogout(index)));
         account_buttons_[idx] = button;
 

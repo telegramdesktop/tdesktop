@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_session.h"
+#include "data/data_sponsored_messages.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/emoji_config.h"
@@ -24,7 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
+#include "mtproto/mtproto_config.h"
 #include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "mainwindow.h"
 
 namespace Core {
@@ -48,9 +51,9 @@ const auto kBadPrefix = u"http://"_q;
 		const QString &url,
 		QUrl parsed,
 		const QString &domain) {
-	const auto &config = Core::App().activeAccount().appConfig();
-	const auto token = config.get<QString>("autologin_token", {});
-	const auto domains = config.get<std::vector<QString>>(
+	const auto &active = Core::App().activeAccount();
+	const auto token = active.mtp().configValues().autologinToken;
+	const auto domains = active.appConfig().get<std::vector<QString>>(
 		"autologin_domains",
 		{});
 	if (token.isEmpty()
@@ -261,6 +264,16 @@ std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 Fn<void()> UiIntegration::createSpoilerRepaint(const std::any &context) {
 	const auto my = std::any_cast<MarkedTextContext>(&context);
 	return my ? my->customEmojiRepaint : nullptr;
+}
+
+bool UiIntegration::allowClickHandlerActivation(
+		const std::shared_ptr<ClickHandler> &handler,
+		const ClickContext &context) {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto window = my.sessionWindow.get()) {
+		window->session().data().sponsoredMessages().clicked(my.itemId);
+	}
+	return true;
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {

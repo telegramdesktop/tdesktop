@@ -28,7 +28,12 @@ crl::time FramePosition(const Stream &stream) {
 		: (stream.decodedFrame->pts != AV_NOPTS_VALUE)
 		? stream.decodedFrame->pts
 		: stream.decodedFrame->pkt_dts;
-	return FFmpeg::PtsToTime(pts, stream.timeBase);
+	const auto result = FFmpeg::PtsToTime(pts, stream.timeBase);
+
+	// Sometimes the result here may be larger than the stream duration.
+	return (stream.duration == kDurationUnavailable)
+		? result
+		: std::min(result, stream.duration);
 }
 
 FFmpeg::AvErrorWrap ProcessPacket(Stream &stream, FFmpeg::Packet &&packet) {

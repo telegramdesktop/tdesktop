@@ -6,7 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/localstorage.h"
-//
+
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"
 #include "storage/details/storage_file_utilities.h"
@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "base/platform/base_platform_info.h"
 #include "base/random.h"
-#include "ui/effects/animation_value.h"
+#include "ui/power_saving.h"
 #include "core/update_checker.h"
 #include "core/file_location.h"
 #include "core/application.h"
@@ -473,6 +473,8 @@ void writeSettings() {
 	}
 	size += sizeof(quint32) + sizeof(qint32) * 8;
 
+	const auto powerSaving = PowerSaving::Current().value();
+
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 	data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
@@ -484,7 +486,7 @@ void writeSettings() {
 	data.stream << quint32(dbiFallbackProductionConfig) << configSerialized;
 	data.stream << quint32(dbiApplicationSettings) << applicationSettings;
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
-	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);
+	data.stream << quint32(dbiPowerSaving) << qint32(powerSaving);
 
 	data.stream
 		<< quint32(dbiThemeKey)

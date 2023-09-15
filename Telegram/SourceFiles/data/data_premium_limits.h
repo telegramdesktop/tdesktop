@@ -33,9 +33,17 @@ public:
 	[[nodiscard]] int dialogFiltersPremium() const;
 	[[nodiscard]] int dialogFiltersCurrent() const;
 
+	[[nodiscard]] int dialogShareableFiltersDefault() const;
+	[[nodiscard]] int dialogShareableFiltersPremium() const;
+	[[nodiscard]] int dialogShareableFiltersCurrent() const;
+
 	[[nodiscard]] int dialogFiltersChatsDefault() const;
 	[[nodiscard]] int dialogFiltersChatsPremium() const;
 	[[nodiscard]] int dialogFiltersChatsCurrent() const;
+
+	[[nodiscard]] int dialogFiltersLinksDefault() const;
+	[[nodiscard]] int dialogFiltersLinksPremium() const;
+	[[nodiscard]] int dialogFiltersLinksCurrent() const;
 
 	[[nodiscard]] int dialogsPinnedDefault() const;
 	[[nodiscard]] int dialogsPinnedPremium() const;

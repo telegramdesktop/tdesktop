@@ -134,7 +134,7 @@ void EmojiStatusPanel::create(
 		controller,
 		object_ptr<Selector>(
 			nullptr,
-			controller,
+			controller->uiShow(),
 			Window::GifPauseReason::Layer,
 			ChatHelpers::TabbedSelector::Mode::EmojiStatus));
 	_panel->setDropDown(true);
@@ -229,6 +229,7 @@ void EmojiStatusPanel::startAnimation(
 		&owner->reactions(),
 		std::move(args),
 		[=] { _animation->repaint(); },
+		[] { return st::profileVerifiedCheckBg->c; },
 		_animationSizeTag);
 }
 

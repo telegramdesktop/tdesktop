@@ -128,6 +128,7 @@ void AppendServer(
 				.login = username,
 				.password = password,
 				.isTurn = true,
+				.isTcp = data.is_tcp(),
 			});
 		};
 		pushTurn(host);
@@ -220,7 +221,7 @@ Call::Call(
 	std::make_unique<Webrtc::VideoTrack>(
 		StartVideoState(video))) {
 	if (_type == Type::Outgoing) {
-		setState(State::Requesting);
+		setState(State::WaitingUserConfirmation);
 	} else {
 		const auto &config = _user->session().serverConfig();
 		_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
@@ -342,6 +343,12 @@ void Call::startIncoming() {
 	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
+}
+
+void Call::applyUserConfirmation() {
+	if (_state.current() == State::WaitingUserConfirmation) {
+		setState(State::Requesting);
+	}
 }
 
 void Call::answer() {
@@ -1033,14 +1040,15 @@ bool Call::checkCallFields(const MTPDphoneCallAccepted &call) {
 }
 
 void Call::setState(State state) {
-	if (_state.current() == State::Failed) {
+	const auto was = _state.current();
+	if (was == State::Failed) {
 		return;
 	}
-	if (_state.current() == State::FailedHangingUp
+	if (was == State::FailedHangingUp
 		&& state != State::Failed) {
 		return;
 	}
-	if (_state.current() != state) {
+	if (was != state) {
 		_state = state;
 
 		if (true
@@ -1068,7 +1076,9 @@ void Call::setState(State state) {
 			_delegate->callPlaySound(Delegate::CallSound::Connecting);
 			break;
 		case State::Ended:
-			_delegate->callPlaySound(Delegate::CallSound::Ended);
+			if (was != State::WaitingUserConfirmation) {
+				_delegate->callPlaySound(Delegate::CallSound::Ended);
+			}
 			[[fallthrough]];
 		case State::EndedByOtherDevice:
 			_delegate->callFinished(this);

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_palette.h"
 
 class QFileSystemWatcher;
+struct SendMediaReady;
 
 namespace style {
 struct colorizer;
@@ -295,6 +296,10 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] SendMediaReady PrepareWallPaper(
+	MTP::DcId dcId,
+	const QImage &image);
 
 [[nodiscard]] ChatBackground *Background();
 

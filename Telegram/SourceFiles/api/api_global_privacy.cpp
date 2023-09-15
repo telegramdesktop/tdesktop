@@ -56,6 +56,15 @@ rpl::producer<bool> GlobalPrivacy::archiveAndMute() const {
 	return _archiveAndMute.value();
 }
 
+UnarchiveOnNewMessage GlobalPrivacy::unarchiveOnNewMessageCurrent() const {
+	return _unarchiveOnNewMessage.current();
+}
+
+auto GlobalPrivacy::unarchiveOnNewMessage() const
+-> rpl::producer<UnarchiveOnNewMessage> {
+	return _unarchiveOnNewMessage.value();
+}
+
 rpl::producer<bool> GlobalPrivacy::showArchiveAndMute() const {
 	using namespace rpl::mappers;
 
@@ -75,14 +84,33 @@ void GlobalPrivacy::dismissArchiveAndMuteSuggestion() {
 		u"AUTOARCHIVE_POPULAR"_q);
 }
 
-void GlobalPrivacy::update(bool archiveAndMute) {
+void GlobalPrivacy::updateArchiveAndMute(bool value) {
+	update(value, unarchiveOnNewMessageCurrent());
+}
+
+void GlobalPrivacy::updateUnarchiveOnNewMessage(
+		UnarchiveOnNewMessage value) {
+	update(archiveAndMuteCurrent(), value);
+}
+
+void GlobalPrivacy::update(
+		bool archiveAndMute,
+		UnarchiveOnNewMessage unarchiveOnNewMessage) {
 	using Flag = MTPDglobalPrivacySettings::Flag;
 
 	_api.request(_requestId).cancel();
+	const auto flags = Flag()
+		| (archiveAndMute
+			? Flag::f_archive_and_mute_new_noncontact_peers
+			: Flag())
+		| (unarchiveOnNewMessage == UnarchiveOnNewMessage::None
+			? Flag::f_keep_archived_unmuted
+			: Flag())
+		| (unarchiveOnNewMessage != UnarchiveOnNewMessage::AnyUnmuted
+			? Flag::f_keep_archived_folders
+			: Flag());
 	_requestId = _api.request(MTPaccount_SetGlobalPrivacySettings(
-		MTP_globalPrivacySettings(
-			MTP_flags(Flag::f_archive_and_mute_new_noncontact_peers),
-			MTP_bool(archiveAndMute))
+		MTP_globalPrivacySettings(MTP_flags(flags))
 	)).done([=](const MTPGlobalPrivacySettings &result) {
 		_requestId = 0;
 		apply(result);
@@ -90,13 +118,17 @@ void GlobalPrivacy::update(bool archiveAndMute) {
 		_requestId = 0;
 	}).send();
 	_archiveAndMute = archiveAndMute;
+	_unarchiveOnNewMessage = unarchiveOnNewMessage;
 }
 
 void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &data) {
 	data.match([&](const MTPDglobalPrivacySettings &data) {
-		_archiveAndMute = data.varchive_and_mute_new_noncontact_peers()
-			? mtpIsTrue(*data.varchive_and_mute_new_noncontact_peers())
-			: false;
+		_archiveAndMute = data.is_archive_and_mute_new_noncontact_peers();
+		_unarchiveOnNewMessage = data.is_keep_archived_unmuted()
+			? UnarchiveOnNewMessage::None
+			: data.is_keep_archived_folders()
+			? UnarchiveOnNewMessage::NotInFoldersUnmuted
+			: UnarchiveOnNewMessage::AnyUnmuted;
 	});
 }
 

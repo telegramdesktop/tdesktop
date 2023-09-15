@@ -276,7 +276,7 @@ AdminLog::OwnedItem GenerateCommentItem(
 	const auto flags = MessageFlag::HasFromId
 		| MessageFlag::Outgoing
 		| MessageFlag::FakeHistoryItem;
-	const auto replyTo = MsgId();
+	const auto replyTo = FullReplyTo();
 	const auto viaBotId = UserId();
 	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
@@ -298,7 +298,7 @@ AdminLog::OwnedItem GenerateContactItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		const Contact &data) {
-	const auto replyTo = MsgId();
+	const auto replyTo = FullReplyTo();
 	const auto viaBotId = UserId();
 	const auto postAuthor = QString();
 	const auto groupedId = uint64();

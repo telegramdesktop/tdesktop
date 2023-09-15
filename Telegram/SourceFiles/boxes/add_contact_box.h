@@ -48,7 +48,8 @@ enum class PeerFloodType {
 void ShowAddParticipantsError(
 	const QString &error,
 	not_null<PeerData*> chat,
-	const std::vector<not_null<UserData*>> &users);
+	const std::vector<not_null<UserData*>> &users,
+	std::shared_ptr<Ui::Show> show = nullptr);
 
 class AddContactBox : public Ui::BoxContent {
 public:

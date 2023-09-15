@@ -23,6 +23,15 @@ namespace Data {
 class StickersSet;
 } // namespace Data
 
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
+
+namespace ChatHelpers {
+struct FileChosen;
+class Show;
+} // namespace ChatHelpers
+
 class StickerPremiumMark final {
 public:
 	explicit StickerPremiumMark(not_null<Main::Session*> session);
@@ -51,16 +60,16 @@ class StickerSetBox final : public Ui::BoxContent {
 public:
 	StickerSetBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		const StickerSetIdentifier &set,
 		Data::StickersType type);
 	StickerSetBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Data::StickersSet*> set);
 
 	static QPointer<Ui::BoxContent> Show(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document);
 
 protected:
@@ -79,7 +88,8 @@ private:
 	void copyStickersLink();
 	void handleError(Error error);
 
-	const not_null<Window::SessionController*> _controller;
+	const std::shared_ptr<ChatHelpers::Show> _show;
+	const not_null<Main::Session*> _session;
 	const StickerSetIdentifier _set;
 	const Data::StickersType _type;
 

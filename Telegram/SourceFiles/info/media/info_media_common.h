@@ -30,15 +30,12 @@ struct ListItemSelectionData {
 	TextSelection text;
 	bool canDelete = false;
 	bool canForward = false;
-};
+	bool canToggleStoryPin = false;
 
-inline bool operator==(
-		ListItemSelectionData a,
-		ListItemSelectionData b) {
-	return (a.text == b.text)
-		&& (a.canDelete == b.canDelete)
-		&& (a.canForward == b.canForward);
-}
+	friend inline bool operator==(
+		ListItemSelectionData,
+		ListItemSelectionData) = default;
+};
 
 using ListSelectedMap = base::flat_map<
 	not_null<const HistoryItem*>,

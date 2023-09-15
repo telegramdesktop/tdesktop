@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_location.h"
 
 namespace Media {
+namespace {
+
+using FFmpeg::AvErrorWrap;
+
+} // namespace
 
 ChildFFMpegLoader::ChildFFMpegLoader(
 	std::unique_ptr<ExternalSoundData> &&data)
@@ -22,45 +27,40 @@ ChildFFMpegLoader::ChildFFMpegLoader(
 	Expects(_parentData->codec != nullptr);
 }
 
-bool ChildFFMpegLoader::open(crl::time positionMs) {
-	return initUsingContext(
-		_parentData->codec.get(),
-		_parentData->length,
-		_parentData->frequency);
+bool ChildFFMpegLoader::open(crl::time positionMs, float64 speed) {
+	const auto sample = (positionMs * samplesFrequency()) / 1000LL;
+	overrideDuration(sample, _parentData->duration);
+	return initUsingContext(_parentData->codec.get(), speed);
 }
 
-AudioPlayerLoader::ReadResult ChildFFMpegLoader::readFromInitialFrame(
-		QByteArray &result,
-		int64 &samplesAdded) {
+auto ChildFFMpegLoader::readFromInitialFrame() -> ReadResult {
 	if (!_parentData->frame) {
-		return ReadResult::Wait;
+		return ReadError::Wait;
 	}
-	return replaceFrameAndRead(
-		base::take(_parentData->frame),
-		result,
-		samplesAdded);
+	return replaceFrameAndRead(base::take(_parentData->frame));
 }
 
-AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(
-	QByteArray & result,
-	int64 & samplesAdded) {
-	const auto initialFrameResult = readFromInitialFrame(
-		result,
-		samplesAdded);
-	if (initialFrameResult != ReadResult::Wait) {
+auto ChildFFMpegLoader::readMore() -> ReadResult {
+	if (_readTillEnd) {
+		return ReadError::EndOfFile;
+	}
+	const auto initialFrameResult = readFromInitialFrame();
+	if (initialFrameResult != ReadError::Wait) {
 		return initialFrameResult;
 	}
 
 	const auto readResult = readFromReadyContext(
-		_parentData->codec.get(),
-		result,
-		samplesAdded);
-	if (readResult != ReadResult::Wait) {
+		_parentData->codec.get());
+	if (readResult != ReadError::Wait) {
 		return readResult;
 	}
 
 	if (_queue.empty()) {
-		return _eofReached ? ReadResult::EndOfFile : ReadResult::Wait;
+		if (!_eofReached) {
+			return ReadError::Wait;
+		}
+		_readTillEnd = true;
+		return ReadError::EndOfFile;
 	}
 
 	auto packet = std::move(_queue.front());
@@ -69,28 +69,22 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readMore(
 	_eofReached = packet.empty();
 	if (_eofReached) {
 		avcodec_send_packet(_parentData->codec.get(), nullptr); // drain
-		return ReadResult::Ok;
+		return ReadError::Retry;
 	}
 
-	auto res = avcodec_send_packet(
+	AvErrorWrap error = avcodec_send_packet(
 		_parentData->codec.get(),
 		&packet.fields());
-	if (res < 0) {
-		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-		LOG(("Audio Error: Unable to avcodec_send_packet() file '%1', "
-			"data size '%2', error %3, %4"
-			).arg(_file.name()
-			).arg(_data.size()
-			).arg(res
-			).arg(av_make_error_string(err, sizeof(err), res)));
+	if (error) {
+		LogError(u"avcodec_send_packet"_q, error);
 		// There is a sample voice message where skipping such packet
 		// results in a crash (read_access to nullptr) in swr_convert().
-		if (res == AVERROR_INVALIDDATA) {
-			return ReadResult::NotYet; // try to skip bad packet
+		if (error.code() == AVERROR_INVALIDDATA) {
+			return ReadError::Retry; // try to skip bad packet
 		}
-		return ReadResult::Error;
+		return ReadError::Other;
 	}
-	return ReadResult::Ok;
+	return ReadError::Retry;
 }
 
 void ChildFFMpegLoader::enqueuePackets(

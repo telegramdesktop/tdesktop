@@ -20,12 +20,21 @@ class Forum;
 class ForumTopic;
 } // namespace Data
 
+namespace Ui {
+struct OutlineSegment;
+} // namespace Ui
+
 namespace Window {
 class SessionController;
 } // namespace Window
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareContactsBox(
 	not_null<Window::SessionController*> sessionController);
+[[nodiscard]] QBrush PeerListStoriesGradient(const style::PeerList &st);
+[[nodiscard]] std::vector<Ui::OutlineSegment> PeerListStoriesSegments(
+	int count,
+	int unread,
+	const QBrush &unreadBrush);
 
 class PeerListRowWithLink : public PeerListRow {
 public:
@@ -116,6 +125,41 @@ private:
 
 };
 
+class PeerListStories final {
+public:
+	PeerListStories(
+		not_null<PeerListController*> controller,
+		not_null<Main::Session*> session);
+
+	void prepare(not_null<PeerListDelegate*> delegate);
+
+	void process(not_null<PeerListRow*> row);
+	bool handleClick(not_null<PeerData*> peer);
+
+private:
+	struct Counts {
+		int count = 0;
+		int unread = 0;
+	};
+
+	void updateColors();
+	void updateFor(uint64 id, int count, int unread);
+	void applyForRow(
+		not_null<PeerListRow*> row,
+		int count,
+		int unread,
+		bool force = false);
+
+	const not_null<PeerListController*> _controller;
+	const not_null<Main::Session*> _session;
+	PeerListDelegate *_delegate = nullptr;
+
+	QBrush _unreadBrush;
+	base::flat_map<uint64, Counts> _counts;
+	rpl::lifetime _lifetime;
+
+};
+
 class ContactsBoxController : public PeerListController {
 public:
 	explicit ContactsBoxController(not_null<Main::Session*> session);
@@ -128,12 +172,16 @@ public:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createSearchRow(
 		not_null<PeerData*> peer) override final;
 	void rowClicked(not_null<PeerListRow*> row) override;
+	bool trackSelectedList() override {
+		return !_stories;
+	}
 
 	enum class SortMode {
 		Alphabet,
 		Online,
 	};
 	void setSortMode(SortMode mode);
+	void setStoriesShown(bool shown);
 
 protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
@@ -154,6 +202,8 @@ private:
 	SortMode _sortMode = SortMode::Alphabet;
 	base::Timer _sortByOnlineTimer;
 	rpl::lifetime _sortByOnlineLifetime;
+
+	std::unique_ptr<PeerListStories> _stories;
 
 };
 

@@ -172,7 +172,7 @@ InnerWidget::InnerWidget(
 	not_null<Controller*> controller,
 	not_null<UserData*> user)
 : RpWidget(parent)
-, _show(std::make_unique<Window::Show>(controller->parentController()))
+, _show(controller->uiShow())
 , _controller(controller)
 , _user(user)
 , _listController(std::make_unique<ListController>(controller, _user))
@@ -291,8 +291,8 @@ void InnerWidget::peerListHideLayer() {
 	_show->hideLayer();
 }
 
-not_null<QWidget*> InnerWidget::peerListToastParent() {
-	return _show->toastParent();
+std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
+	return _show;
 }
 
 } // namespace CommonGroups

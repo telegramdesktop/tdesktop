@@ -198,6 +198,16 @@ WallPaperId WallPaper::id() const {
 	return _id;
 }
 
+bool WallPaper::equals(const WallPaper &paper) const {
+	return (_flags == paper._flags)
+		&& (_slug == paper._slug)
+		&& (_backgroundColors == paper._backgroundColors)
+		&& (_rotation == paper._rotation)
+		&& (_intensity == paper._intensity)
+		&& (_blurred == paper._blurred)
+		&& (_document == paper._document);
+}
+
 const std::vector<QColor> WallPaper::backgroundColors() const {
 	return _backgroundColors;
 }
@@ -251,34 +261,57 @@ bool WallPaper::hasShareUrl() const {
 	return !_slug.isEmpty();
 }
 
-QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
-	if (!hasShareUrl()) {
-		return QString();
-	}
-	const auto base = session->createInternalLinkFull("bg/" + _slug);
-	auto params = QStringList();
+QStringList WallPaper::collectShareParams() const {
+	auto result = QStringList();
 	if (isPattern()) {
 		if (!backgroundColors().empty()) {
-			params.push_back(
+			result.push_back(
 				"bg_color=" + StringFromColors(backgroundColors()));
 		}
 		if (_intensity) {
-			params.push_back("intensity=" + QString::number(_intensity));
+			result.push_back("intensity=" + QString::number(_intensity));
 		}
 	}
 	if (_rotation && backgroundColors().size() == 2) {
-		params.push_back("rotation=" + QString::number(_rotation));
+		result.push_back("rotation=" + QString::number(_rotation));
 	}
 	auto mode = QStringList();
 	if (_blurred) {
 		mode.push_back("blur");
 	}
 	if (!mode.isEmpty()) {
-		params.push_back("mode=" + mode.join('+'));
+		result.push_back("mode=" + mode.join('+'));
 	}
-	return params.isEmpty()
-		? base
-		: base + '?' + params.join('&');
+	return result;
+}
+
+bool WallPaper::isNull() const {
+	return !_id && _slug.isEmpty() && _backgroundColors.empty();
+}
+
+QString WallPaper::key() const {
+	if (isNull()) {
+		return QString();
+	}
+	const auto base = _slug.isEmpty()
+		? (_id
+			? QString::number(_id)
+			: StringFromColors(backgroundColors()))
+		: ("bg/" + _slug);
+	auto params = collectShareParams();
+	if (_document && !isPattern()) {
+		params += u"&intensity="_q + QString::number(_intensity);
+	}
+	return params.isEmpty() ? base : (base + '?' + params.join('&'));
+}
+
+QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
+	if (!hasShareUrl()) {
+		return QString();
+	}
+	const auto base = session->createInternalLinkFull("bg/" + _slug);
+	const auto params = collectShareParams();
+	return params.isEmpty() ? base : (base + '?' + params.join('&'));
 }
 
 void WallPaper::loadDocumentThumbnail() const {
@@ -327,6 +360,8 @@ MTPWallPaperSettings WallPaper::mtpSettings() const {
 	};
 	return MTP_wallPaperSettings(
 		MTP_flags((_blurred ? Flag::f_blur : Flag(0))
+			| Flag::f_intensity
+			| Flag::f_rotation
 			| flagForIndex(0)
 			| flagForIndex(1)
 			| flagForIndex(2)
@@ -457,11 +492,11 @@ std::optional<WallPaper> WallPaper::Create(
 	if (const auto settings = data.vsettings()) {
 		settings->match([&](const MTPDwallPaperSettings &data) {
 			result._blurred = data.is_blur();
+			if (const auto intensity = data.vintensity()) {
+				result._intensity = intensity->v;
+			}
 			if (result.isPattern()) {
 				result._backgroundColors = ColorsFromMTP(data);
-				if (const auto intensity = data.vintensity()) {
-					result._intensity = intensity->v;
-				}
 				if (const auto rotation = data.vrotation()) {
 					result._rotation = rotation->v;
 				}

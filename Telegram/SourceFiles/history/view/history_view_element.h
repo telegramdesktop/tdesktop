@@ -230,6 +230,14 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
+struct FakeBotAboutTop : public RuntimeComponent<FakeBotAboutTop, Element> {
+	void init();
+
+	Ui::Text::String text;
+	int maxWidth = 0;
+	int height = 0;
+};
+
 struct TopicButton {
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	ClickHandlerPtr link;
@@ -528,6 +536,9 @@ private:
 	virtual QSize performCountCurrentSize(int newWidth) = 0;
 
 	void refreshMedia(Element *replacing);
+	void setTextWithLinks(
+		const TextWithEntities &text,
+		const std::vector<ClickHandlerPtr> &links = {});
 
 	struct TextWithLinks {
 		TextWithEntities text;

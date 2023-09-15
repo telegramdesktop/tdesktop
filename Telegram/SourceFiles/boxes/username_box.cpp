@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_usernames_list.h"
 #include "base/timer.h"
 #include "boxes/peers/edit_peer_common.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config_values.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
@@ -45,9 +47,10 @@ namespace {
 
 class UsernameEditor final : public Ui::RpWidget {
 public:
-	UsernameEditor(not_null<Ui::RpWidget*>, not_null<Main::Session*> session);
+	UsernameEditor(not_null<Ui::RpWidget*>, not_null<PeerData*> peer);
 
 	void setInnerFocus();
+	void setEnabled(bool value);
 	[[nodiscard]] rpl::producer<> submitted() const;
 	[[nodiscard]] rpl::producer<> save();
 	[[nodiscard]] rpl::producer<UsernameCheckInfo> checkInfoChanged() const;
@@ -66,8 +69,11 @@ private:
 
 	void checkInfoChange();
 
+	[[nodiscard]] QString editableUsername() const;
+
 	QString getName() const;
 
+	const not_null<PeerData*> _peer;
 	const not_null<Main::Session*> _session;
 	const style::margins &_padding;
 	MTP::Sender _api;
@@ -87,18 +93,19 @@ private:
 
 UsernameEditor::UsernameEditor(
 	not_null<Ui::RpWidget*>,
-	not_null<Main::Session*> session)
-: _session(session)
+	not_null<PeerData*> peer)
+: _peer(peer)
+, _session(&peer->session())
 , _padding(st::usernamePadding)
 , _api(&_session->mtp())
 , _username(
 	this,
 	st::defaultInputField,
 	rpl::single(u"@username"_q),
-	session->user()->editableUsername(),
+	editableUsername(),
 	QString())
 , _checkTimer([=] { check(); }) {
-	_goodText = _session->user()->editableUsername().isEmpty()
+	_goodText = editableUsername().isEmpty()
 		? QString()
 		: tr::lng_username_available(tr::now);
 
@@ -119,7 +126,14 @@ rpl::producer<> UsernameEditor::submitted() const {
 }
 
 void UsernameEditor::setInnerFocus() {
-	_username->setFocusFast();
+	if (_username->isEnabled()) {
+		_username->setFocusFast();
+	}
+}
+
+void UsernameEditor::setEnabled(bool value) {
+	_username->setEnabled(value);
+	_username->setDisplayFocused(value);
 }
 
 void UsernameEditor::resizeEvent(QResizeEvent *e) {
@@ -148,6 +162,16 @@ rpl::producer<> UsernameEditor::save() {
 	return _saved.events();
 }
 
+QString UsernameEditor::editableUsername() const {
+	if (const auto user = _peer->asUser()) {
+		return user->editableUsername();
+	} else if (const auto channel = _peer->asChannel()) {
+		return channel->editableUsername();
+	} else {
+		return QString();
+	}
+}
+
 rpl::producer<UsernameCheckInfo> UsernameEditor::checkInfoChanged() const {
 	return _checkInfoChanged.events();
 }
@@ -166,7 +190,7 @@ void UsernameEditor::check() {
 		_checkRequestId = 0;
 
 		_errorText = (mtpIsTrue(result)
-				|| _checkUsername == _session->user()->editableUsername())
+				|| (_checkUsername == editableUsername()))
 			? QString()
 			: tr::lng_username_occupied(tr::now);
 		_goodText = _errorText.isEmpty()
@@ -251,14 +275,15 @@ void UsernameEditor::checkInfoPurchaseAvailable() {
 }
 
 void UsernameEditor::updateFail(const QString &error) {
-	const auto self = _session->user();
 	if ((error == u"USERNAME_NOT_MODIFIED"_q)
-		|| (_sentUsername == self->editableUsername())) {
-		self->setName(
-			TextUtilities::SingleLine(self->firstName),
-			TextUtilities::SingleLine(self->lastName),
-			TextUtilities::SingleLine(self->nameOrPhone),
-			TextUtilities::SingleLine(_sentUsername));
+		|| (_sentUsername == editableUsername())) {
+		if (const auto user = _peer->asUser()) {
+			user->setName(
+				TextUtilities::SingleLine(user->firstName),
+				TextUtilities::SingleLine(user->lastName),
+				TextUtilities::SingleLine(user->nameOrPhone),
+				TextUtilities::SingleLine(_sentUsername));
+		}
 		_saved.fire_done();
 	} else if (error == u"USERNAME_INVALID"_q) {
 		_username->setFocus();
@@ -283,7 +308,7 @@ void UsernameEditor::checkFail(const QString &error) {
 		_errorText = tr::lng_username_invalid(tr::now);
 		checkInfoChange();
 	} else if ((error == u"USERNAME_OCCUPIED"_q)
-		&& (_checkUsername != _session->user()->editableUsername())) {
+		&& (_checkUsername != editableUsername())) {
 		_errorText = tr::lng_username_occupied(tr::now);
 		checkInfoChange();
 	} else if (error == u"USERNAME_PURCHASE_AVAILABLE"_q) {
@@ -302,35 +327,58 @@ QString UsernameEditor::getName() const {
 
 void UsernamesBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
-	box->setTitle(tr::lng_username_title());
+		not_null<PeerData*> peer) {
+	const auto isBot = peer && peer->isUser() && peer->asUser()->isBot();
+	box->setTitle(isBot
+		? tr::lng_bot_username_title()
+		: tr::lng_username_title());
 
 	const auto container = box->verticalLayout();
 
 	const auto editor = box->addRow(
-		object_ptr<UsernameEditor>(box, session),
+		object_ptr<UsernameEditor>(box, peer),
 		{});
+	editor->setEnabled(!isBot);
 	box->setFocusCallback([=] { editor->setInnerFocus(); });
 
 	AddUsernameCheckLabel(container, editor->checkInfoChanged());
 
+	auto description = [&]() -> rpl::producer<TextWithEntities> {
+		if (!isBot) {
+			return rpl::combine(
+				tr::lng_username_description1(Ui::Text::RichLangValue),
+				tr::lng_username_description2(Ui::Text::RichLangValue)
+			) | rpl::map([](TextWithEntities d1, TextWithEntities d2) {
+				return d1.append("\n\n").append(std::move(d2));
+			});
+		}
+		if (const auto url = AppConfig::FragmentLink(&peer->session())) {
+			const auto link = Ui::Text::Link(
+				tr::lng_bot_username_description1_link(tr::now),
+				*url);
+			return tr::lng_bot_username_description1(
+				lt_link,
+				rpl::single(link),
+				Ui::Text::RichLangValue);
+		}
+		return rpl::single<TextWithEntities>({});
+	}();
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
 		object_ptr<Ui::FlatLabel>(
 			container,
-			tr::lng_username_description(Ui::Text::RichLangValue),
+			std::move(description),
 			st::boxDividerLabel),
 		st::settingsDividerLabelPadding));
 
 	const auto list = box->addRow(
 		object_ptr<UsernamesList>(
 			box,
-			session->user(),
-			std::make_shared<Ui::BoxShow>(box),
-			[=] {
-				box->scrollToY(0);
-				editor->setInnerFocus();
-			}),
+			peer,
+			box->uiShow(),
+			!isBot
+				? [=] { box->scrollToY(0); editor->setInnerFocus(); }
+				: Fn<void()>(nullptr)),
 		{});
 
 	const auto finish = [=] {
@@ -345,8 +393,12 @@ void UsernamesBox(
 	editor->submitted(
 	) | rpl::start_with_next(finish, editor->lifetime());
 
-	box->addButton(tr::lng_settings_save(), finish);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	if (isBot) {
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	} else {
+		box->addButton(tr::lng_settings_save(), finish);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}
 }
 
 void AddUsernameCheckLabel(

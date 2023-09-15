@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "main/session/send_as_peers.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_histories.h"
@@ -80,6 +81,30 @@ constexpr auto kTopReactionsLimit = 14;
 	return session->premium()
 		? config->get<int>("reactions_user_max_premium", 3)
 		: config->get<int>("reactions_user_max_default", 1);
+}
+
+bool IsMyRecent(
+		const MTPDmessagePeerReaction &data,
+		const ReactionId &id,
+		not_null<PeerData*> peer,
+		const base::flat_map<
+			ReactionId,
+			std::vector<RecentReaction>> &recent,
+		bool ignoreChosen) {
+	if (peer->id == peer->session().userPeerId()) {
+		return true;
+	} else if (!ignoreChosen) {
+		return data.is_my();
+	}
+	const auto j = recent.find(id);
+	if (j == end(recent)) {
+		return false;
+	}
+	const auto k = ranges::find(
+		j->second,
+		peer,
+		&RecentReaction::peer);
+	return (k != end(j->second)) && k->my;
 }
 
 } // namespace
@@ -356,7 +381,7 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		loadImage(set, document, !i->centerIcon);
 	} else if (!_waitingForList) {
 		_waitingForList = true;
-		refreshRecent();
+		refreshDefault();
 	}
 }
 
@@ -399,7 +424,8 @@ QImage Reactions::resolveImageFor(
 		const auto frameSize = set.fromSelectAnimation
 			? (size / 2)
 			: size;
-		image = set.icon->frame().scaled(
+		// Must not be colored to text.
+		image = set.icon->frame(QColor()).scaled(
 			frameSize * factor,
 			frameSize * factor,
 			Qt::IgnoreAspectRatio,
@@ -480,6 +506,7 @@ void Reactions::setAnimatedIcon(ImageSet &set) {
 	set.icon = Ui::MakeAnimatedIcon({
 		.generator = DocumentIconFrameGenerator(set.media),
 		.sizeOverride = QSize(size, size),
+		.colorized = set.media->owner()->emojiUsesTextColor(),
 	});
 	set.media = nullptr;
 }
@@ -951,7 +978,6 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 	Expects(!id.empty());
 
 	const auto history = _item->history();
-	const auto self = history->session().user();
 	const auto myLimit = SentReactionsLimit(_item);
 	if (ranges::contains(chosen(), id)) {
 		return;
@@ -966,20 +992,28 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 		const auto removed = !--one.count;
 		const auto j = _recent.find(one.id);
 		if (j != end(_recent)) {
-			j->second.erase(
-				ranges::remove(j->second, self, &RecentReaction::peer),
-				end(j->second));
-			if (j->second.empty()) {
+			if (removed) {
+				j->second.clear();
 				_recent.erase(j);
 			} else {
-				Assert(!removed);
+				j->second.erase(
+					ranges::remove(j->second, true, &RecentReaction::my),
+					end(j->second));
+				if (j->second.empty()) {
+					_recent.erase(j);
+				}
 			}
 		}
 		return removed;
 	}), end(_list));
-	if (_item->canViewReactions() || history->peer->isUser()) {
+	const auto peer = history->peer;
+	if (_item->canViewReactions() || peer->isUser()) {
 		auto &list = _recent[id];
-		list.insert(begin(list), RecentReaction{ self });
+		const auto from = peer->session().sendAsPeers().resolveChosen(peer);
+		list.insert(begin(list), RecentReaction{
+			.peer = from,
+			.my = true,
+		});
 	}
 	const auto i = ranges::find(_list, id, &MessageReaction::id);
 	if (i != end(_list)) {
@@ -1013,13 +1047,16 @@ void MessageReactions::remove(const ReactionId &id) {
 		_list.erase(i);
 	}
 	if (j != end(_recent)) {
-		j->second.erase(
-			ranges::remove(j->second, self, &RecentReaction::peer),
-			end(j->second));
-		if (j->second.empty()) {
+		if (removed) {
+			j->second.clear();
 			_recent.erase(j);
 		} else {
-			Assert(!removed);
+			j->second.erase(
+				ranges::remove(j->second, true, &RecentReaction::my),
+				end(j->second));
+			if (j->second.empty()) {
+				_recent.erase(j);
+			}
 		}
 	}
 	auto &owner = history->owner();
@@ -1029,7 +1066,8 @@ void MessageReactions::remove(const ReactionId &id) {
 
 bool MessageReactions::checkIfChanged(
 		const QVector<MTPReactionCount> &list,
-		const QVector<MTPMessagePeerReaction> &recent) const {
+		const QVector<MTPMessagePeerReaction> &recent,
+		bool min) const {
 	auto &owner = _item->history()->owner();
 	if (owner.reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
@@ -1061,13 +1099,18 @@ bool MessageReactions::checkIfChanged(
 	for (const auto &reaction : recent) {
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
 			const auto id = ReactionFromMTP(data.vreaction());
-			if (ranges::contains(_list, id, &MessageReaction::id)) {
-				parsed[id].push_back(RecentReaction{
-					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
-					.unread = data.is_unread(),
-					.big = data.is_big(),
-				});
+			if (!ranges::contains(_list, id, &MessageReaction::id)) {
+				return;
 			}
+			const auto peerId = peerFromMTP(data.vpeer_id());
+			const auto peer = owner.peer(peerId);
+			const auto my = IsMyRecent(data, id, peer, _recent, min);
+			parsed[id].push_back({
+				.peer = peer,
+				.unread = data.is_unread(),
+				.big = data.is_big(),
+				.my = my,
+			});
 		});
 	}
 	return !ranges::equal(_recent, parsed, [](
@@ -1076,7 +1119,7 @@ bool MessageReactions::checkIfChanged(
 		return ranges::equal(a.second, b.second, [](
 				const RecentReaction &a,
 				const RecentReaction &b) {
-			return (a.peer == b.peer) && (a.big == b.big);
+			return (a.peer == b.peer) && (a.big == b.big) && (a.my == b.my);
 		});
 	});
 }
@@ -1084,7 +1127,7 @@ bool MessageReactions::checkIfChanged(
 bool MessageReactions::change(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
-		bool ignoreChosen) {
+		bool min) {
 	auto &owner = _item->history()->owner();
 	if (owner.reactions().sending(_item)) {
 		// We'll apply non-stale data from the request response.
@@ -1097,7 +1140,7 @@ bool MessageReactions::change(
 		count.match([&](const MTPDreactionCount &data) {
 			const auto id = ReactionFromMTP(data.vreaction());
 			const auto &chosen = data.vchosen_order();
-			if (!ignoreChosen && chosen) {
+			if (!min && chosen) {
 				order[id] = chosen->v;
 			}
 			const auto i = ranges::find(_list, id, &MessageReaction::id);
@@ -1107,10 +1150,10 @@ bool MessageReactions::change(
 				_list.push_back({
 					.id = id,
 					.count = nowCount,
-					.my = (!ignoreChosen && chosen)
+					.my = (!min && chosen)
 				});
 			} else {
-				const auto nowMy = ignoreChosen ? i->my : chosen.has_value();
+				const auto nowMy = min ? i->my : chosen.has_value();
 				if (i->count != nowCount || i->my != nowMy) {
 					i->count = nowCount;
 					i->my = nowMy;
@@ -1120,13 +1163,13 @@ bool MessageReactions::change(
 			existing.emplace(id);
 		});
 	}
-	if (!ignoreChosen && !order.empty()) {
-		const auto min = std::numeric_limits<int>::min();
+	if (!min && !order.empty()) {
+		const auto minimal = std::numeric_limits<int>::min();
 		const auto proj = [&](const MessageReaction &reaction) {
-			return reaction.my ? order[reaction.id] : min;
+			return reaction.my ? order[reaction.id] : minimal;
 		};
 		const auto correctOrder = [&] {
-			auto previousOrder = min;
+			auto previousOrder = minimal;
 			for (const auto &reaction : _list) {
 				const auto nowOrder = proj(reaction);
 				if (nowOrder < previousOrder) {
@@ -1156,16 +1199,22 @@ bool MessageReactions::change(
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
 			const auto id = ReactionFromMTP(data.vreaction());
 			const auto i = ranges::find(_list, id, &MessageReaction::id);
-			if (i != end(_list)) {
-				auto &list = parsed[id];
-				if (list.size() < i->count) {
-					list.push_back(RecentReaction{
-						.peer = owner.peer(peerFromMTP(data.vpeer_id())),
-						.unread = data.is_unread(),
-						.big = data.is_big(),
-					});
-				}
+			if (i == end(_list)) {
+				return;
 			}
+			auto &list = parsed[id];
+			if (list.size() >= i->count) {
+				return;
+			}
+			const auto peerId = peerFromMTP(data.vpeer_id());
+			const auto peer = owner.peer(peerId);
+			const auto my = IsMyRecent(data, id, peer, _recent, min);
+			list.push_back({
+				.peer = peer,
+				.unread = data.is_unread(),
+				.big = data.is_big(),
+				.my = my,
+			});
 		});
 	}
 	if (_recent != parsed) {

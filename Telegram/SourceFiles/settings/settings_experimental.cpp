@@ -26,8 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "window/notifications_manager.h"
-#include "settings/settings_common.h"
 #include "storage/localimageloader.h"
+#include "data/data_document_resolver.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 
@@ -143,11 +143,11 @@ void SetupExperimental(
 	addToggle(Ui::kOptionUseSmallMsgBubbleRadius);
 	addToggle(Media::Player::kOptionDisableAutoplayNext);
 	addToggle(kOptionSendLargePhotos);
-	addToggle(Settings::kOptionMonoSettingsIcons);
 	addToggle(Webview::kOptionWebviewDebugEnabled);
 	addToggle(kOptionAutoScrollInactiveChat);
 	addToggle(Window::Notifications::kOptionGNotification);
 	addToggle(Core::kOptionFreeType);
+	addToggle(Data::kOptionExternalVideoPlayer);
 }
 
 } // namespace

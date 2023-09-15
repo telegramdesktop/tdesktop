@@ -69,7 +69,7 @@ public:
 		PeerId fromId,
 		TimeId date,
 		UserId viaBotId,
-		MsgId replyToId,
+		FullReplyTo replyTo,
 		const QString &postAuthor) const;
 	QString getErrorOnSend(not_null<History*> history) const;
 

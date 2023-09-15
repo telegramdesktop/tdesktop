@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 class ChannelData;
 
+namespace Ui {
+class Show;
+} // namespace Ui
+
 namespace Api {
 
 class ChatParticipant final {
@@ -95,6 +99,7 @@ public:
 	void add(
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
+		std::shared_ptr<Ui::Show> show = nullptr,
 		bool passGroupHistory = true,
 		Fn<void(bool)> done = nullptr);
 

@@ -82,6 +82,17 @@ void ForwardOptionsBox(
 	box->addButton(tr::lng_box_done(), [=] {
 		box->closeBox();
 	});
+
+	box->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress) {
+			const auto k = static_cast<QKeyEvent*>(e.get());
+			if (k->key() == Qt::Key_Enter || k->key() == Qt::Key_Return) {
+				box->closeBox();
+			}
+		}
+	}, box->lifetime());
+
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box.get(),

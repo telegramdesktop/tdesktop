@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_theme_document.h"
 
+#include "boxes/background_preview_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/media/history_view_sticker_player_abstract.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_document_media.h"
@@ -18,13 +20,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_wall_paper.h"
 #include "base/qthelp_url.h"
+#include "core/click_handler_types.h"
 #include "core/local_url_handlers.h"
+#include "lang/lang_keys.h"
 #include "ui/text/format_values.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "window/window_session_controller.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -32,21 +38,29 @@ namespace HistoryView {
 ThemeDocument::ThemeDocument(
 	not_null<Element*> parent,
 	DocumentData *document)
-: ThemeDocument(parent, document, std::nullopt) {
+: ThemeDocument(parent, document, std::nullopt, 0) {
 }
 
 ThemeDocument::ThemeDocument(
 	not_null<Element*> parent,
 	DocumentData *document,
-	const std::optional<Data::WallPaper> &params)
+	const std::optional<Data::WallPaper> &params,
+	int serviceWidth)
 : File(parent, parent->data())
-, _data(document) {
+, _data(document)
+, _serviceWidth(serviceWidth) {
 	Expects(params.has_value() || _data->hasThumbnail() || _data->isTheme());
 
 	if (params) {
 		_background = params->backgroundColors();
 		_patternOpacity = params->patternOpacity();
 		_gradientRotation = params->gradientRotation();
+		_blurredWallPaper = params->isBlurred();
+		_dimmingIntensity = (!params->document()
+			|| params->isPattern()
+			|| !_serviceWidth)
+			? 0
+			: std::max(params->patternIntensity(), 0);
 	}
 	const auto fullId = _parent->data()->fullId();
 	if (_data) {
@@ -100,6 +114,10 @@ std::optional<Data::WallPaper> ThemeDocument::ParamsFromUrl(
 }
 
 QSize ThemeDocument::countOptimalSize() {
+	if (_serviceWidth > 0) {
+		return { _serviceWidth, _serviceWidth };
+	}
+
 	if (!_data) {
 		return { st::maxWallPaperWidth, st::maxWallPaperHeight };
 	} else if (_data->isTheme()) {
@@ -123,6 +141,10 @@ QSize ThemeDocument::countOptimalSize() {
 }
 
 QSize ThemeDocument::countCurrentSize(int newWidth) {
+	if (_serviceWidth) {
+		_pixw = _pixh = _serviceWidth;
+		return { _serviceWidth, _serviceWidth };
+	}
 	if (!_data) {
 		_pixw = st::maxWallPaperWidth;
 		_pixh = st::maxWallPaperHeight;
@@ -187,14 +209,16 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	if (_data) {
-		auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
-		auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
-		auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
-		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-		Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgDateImgBg, sti->msgDateImgBgCorners);
-		p.setFont(st::normalFont);
-		p.setPen(st->msgDateImgFg());
-		p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
+		if (!_serviceWidth) {
+			auto statusX = paintx + st::msgDateImgDelta + st::msgDateImgPadding.x();
+			auto statusY = painty + st::msgDateImgDelta + st::msgDateImgPadding.y();
+			auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+			auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+			Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgDateImgBg, sti->msgDateImgBgCorners);
+			p.setFont(st::normalFont);
+			p.setPen(st->msgDateImgFg());
+			p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
+		}
 		if (radial || (!loaded && !_data->loading())) {
 			const auto radialOpacity = (radial && loaded && !_data->uploading())
 				? _animation->radial.opacity() :
@@ -250,6 +274,11 @@ bool ThemeDocument::checkGoodThumbnail() const {
 }
 
 void ThemeDocument::validateThumbnail() const {
+	const auto isDark = Window::Theme::IsNightMode();
+	if (_isDark != isDark) {
+		_isDark = isDark;
+		_thumbnailGood = -1;
+	}
 	if (checkGoodThumbnail()) {
 		if (_thumbnailGood > 0) {
 			return;
@@ -277,12 +306,30 @@ void ThemeDocument::validateThumbnail() const {
 	}
 }
 
+QImage ThemeDocument::finishServiceThumbnail(QImage image) const {
+	if (!_serviceWidth) {
+		return image;
+	} else if (_isDark && _dimmingIntensity > 0) {
+		image.setDevicePixelRatio(cIntRetinaFactor());
+		auto p = QPainter(&image);
+		const auto alpha = 255 * _dimmingIntensity / 100;
+		p.fillRect(0, 0, _pixw, _pixh, QColor(0, 0, 0, alpha));
+	}
+	if (_blurredWallPaper) {
+		constexpr auto kRadius = 16;
+		image = Images::BlurLargeImage(std::move(image), kRadius);
+	}
+	return Images::Circle(std::move(image));
+}
+
 void ThemeDocument::generateThumbnail() const {
-	_thumbnail = Ui::PixmapFromImage(Ui::GenerateBackgroundImage(
+	auto image = Ui::GenerateBackgroundImage(
 		QSize(_pixw, _pixh) * cIntRetinaFactor(),
 		_background,
 		_gradientRotation,
-		_patternOpacity));
+		_patternOpacity);
+	_thumbnail = Ui::PixmapFromImage(
+		finishServiceThumbnail(std::move(image)));
 	_thumbnail.setDevicePixelRatio(cRetinaFactor());
 	_thumbnailGood = 1;
 }
@@ -307,9 +354,12 @@ void ThemeDocument::prepareThumbnailFrom(
 		tw = th = 1;
 	}
 	const auto ratio = style::DevicePixelRatio();
+	const auto resizeTo = _serviceWidth
+		? QSize(tw, th).scaled(_pixw, _pixh, Qt::KeepAspectRatioByExpanding)
+		: QSize(_pixw, (_pixw * th) / tw);
 	original = Images::Prepare(
 		std::move(original),
-		QSize(_pixw, (_pixw * th) / tw) * ratio,
+		resizeTo * ratio,
 		{ .options = options, .outer = { _pixw, _pixh } });
 	if (isPattern) {
 		original = Ui::PreparePatternImage(
@@ -319,7 +369,8 @@ void ThemeDocument::prepareThumbnailFrom(
 			_patternOpacity);
 		original.setDevicePixelRatio(ratio);
 	}
-	_thumbnail = Ui::PixmapFromImage(std::move(original));
+	_thumbnail = Ui::PixmapFromImage(
+		finishServiceThumbnail(std::move(original)));
 	_thumbnailGood = good;
 }
 
@@ -380,6 +431,91 @@ bool ThemeDocument::hasHeavyPart() const {
 
 void ThemeDocument::unloadHeavyPart() {
 	_dataMedia = nullptr;
+}
+
+ThemeDocumentBox::ThemeDocumentBox(
+	not_null<Element*> parent,
+	const Data::WallPaper &paper)
+: _parent(parent)
+, _preview(
+		parent,
+		paper.document(),
+		paper,
+		st::msgServicePhotoWidth) {
+	_preview.initDimensions();
+	_preview.resizeGetHeight(_preview.maxWidth());
+}
+
+ThemeDocumentBox::~ThemeDocumentBox() = default;
+
+int ThemeDocumentBox::top() {
+	return st::msgServiceGiftBoxButtonMargins.top();
+}
+
+QSize ThemeDocumentBox::size() {
+	return { _preview.maxWidth(), _preview.minHeight() };
+}
+
+QString ThemeDocumentBox::title() {
+	return QString();
+}
+
+TextWithEntities ThemeDocumentBox::subtitle() {
+	return _parent->data()->notificationText();
+}
+
+QString ThemeDocumentBox::button() {
+	return _parent->data()->out()
+		? QString()
+		: tr::lng_action_set_wallpaper_button(tr::now);
+}
+
+ClickHandlerPtr ThemeDocumentBox::createViewLink() {
+	const auto out = _parent->data()->out();
+	const auto to = _parent->history()->peer;
+	const auto media = _parent->data()->media();
+	const auto paper = media ? media->paper() : nullptr;
+	const auto maybe = paper ? *paper : std::optional<Data::WallPaper>();
+	const auto itemId = _parent->data()->fullId();
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (out) {
+				controller->toggleChooseChatTheme(to);
+			} else if (maybe) {
+				controller->show(Box<BackgroundPreviewBox>(
+					controller,
+					*maybe,
+					BackgroundPreviewArgs{ to, itemId }));
+			}
+		}
+	});
+}
+
+void ThemeDocumentBox::draw(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &geometry) {
+	p.translate(geometry.topLeft());
+	_preview.draw(p, context);
+	p.translate(-geometry.topLeft());
+}
+
+void ThemeDocumentBox::stickerClearLoopPlayed() {
+}
+
+std::unique_ptr<StickerPlayer> ThemeDocumentBox::stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
+	return nullptr;
+}
+
+bool ThemeDocumentBox::hasHeavyPart() {
+	return _preview.hasHeavyPart();
+}
+
+void ThemeDocumentBox::unloadHeavyPart() {
+	_preview.unloadHeavyPart();
 }
 
 } // namespace HistoryView

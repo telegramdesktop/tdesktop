@@ -292,7 +292,7 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 	descriptor.st ? *descriptor.st : st::defaultEmojiPan)
 , _session(descriptor.session)
 , _paused(descriptor.paused)
-, _settingsButtonVisible(descriptor.settingsButtonVisible)
+, _features(descriptor.features)
 , _iconState([=] { update(); })
 , _subiconState([=] { update(); })
 , _selectionBg(st::emojiPanRadius, st().categoriesBgOver)
@@ -300,7 +300,7 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 	setMouseTracking(true);
 
 	_iconsLeft = st().iconSkip
-		+ (_settingsButtonVisible ? st().iconWidth : 0);
+		+ (_features.stickersSettings ? st().iconWidth : 0);
 	_iconsRight = st().iconSkip;
 
 	_session->downloaderTaskFinished(
@@ -618,7 +618,7 @@ void StickersListFooter::paint(
 		return;
 	}
 
-	if (_settingsButtonVisible && !hasOnlyFeaturedSets()) {
+	if (_features.stickersSettings) {
 		paintStickerSettingsIcon(p);
 	}
 
@@ -1012,12 +1012,12 @@ void StickersListFooter::updateSelected() {
 	if (rtl()) x = width() - x;
 	const auto settingsLeft = _iconsLeft - _singleWidth;
 	auto newOver = OverState(SpecialOver::None);
-	if (_settingsButtonVisible
+	if (_features.stickersSettings
 		&& x >= settingsLeft
 		&& x < settingsLeft + _singleWidth
 		&& y >= _iconsTop
 		&& y < _iconsTop + st().footer) {
-		if (!_icons.empty() && !hasOnlyFeaturedSets()) {
+		if (!_icons.empty()) {
 			newOver = SpecialOver::Settings;
 		}
 	} else if (!_icons.empty()) {
@@ -1161,17 +1161,11 @@ void StickersListFooter::refreshSubiconsGeometry() {
 	updateEmojiWidthCallback();
 }
 
-bool StickersListFooter::hasOnlyFeaturedSets() const {
-	return (_icons.size() == 1)
-		&& (_icons[0].setId == Data::Stickers::FeaturedSetId);
-}
-
 void StickersListFooter::paintStickerSettingsIcon(QPainter &p) const {
 	const auto settingsLeft = _iconsLeft - _singleWidth;
-	st::stickersSettings.paint(
+	st().icons.settings.paint(
 		p,
-		settingsLeft
-			+ (_singleWidth - st::stickersSettings.width()) / 2,
+		(settingsLeft + (_singleWidth - st().icons.settings.width()) / 2),
 		_iconsTop + st::emojiCategoryIconTop,
 		width());
 }
@@ -1351,7 +1345,7 @@ void StickersListFooter::paintSetIconToCache(
 		const auto y = (st().footer - icon.pixh) / 2;
 		if (icon.custom) {
 			icon.custom->paint(p, Ui::Text::CustomEmoji::Context{
-				.textColor = st::windowFg->c,
+				.textColor = st().textFg->c,
 				.size = QSize(icon.pixw, icon.pixh),
 				.now = now,
 				.scale = context.progress,
@@ -1411,22 +1405,22 @@ void StickersListFooter::paintSetIconToCache(
 		using Section = Ui::Emoji::Section;
 		const auto sectionIcon = [&](Section section, bool active) {
 			const auto icons = std::array{
-				&st::emojiRecent,
-				&st::emojiRecentActive,
-				&st::emojiPeople,
-				&st::emojiPeopleActive,
-				&st::emojiNature,
-				&st::emojiNatureActive,
-				&st::emojiFood,
-				&st::emojiFoodActive,
-				&st::emojiActivity,
-				&st::emojiActivityActive,
-				&st::emojiTravel,
-				&st::emojiTravelActive,
-				&st::emojiObjects,
-				&st::emojiObjectsActive,
-				&st::emojiSymbols,
-				&st::emojiSymbolsActive,
+				&st().icons.recent,
+				&st().icons.recentActive,
+				&st().icons.people,
+				&st().icons.peopleActive,
+				&st().icons.nature,
+				&st().icons.natureActive,
+				&st().icons.food,
+				&st().icons.foodActive,
+				&st().icons.activity,
+				&st().icons.activityActive,
+				&st().icons.travel,
+				&st().icons.travelActive,
+				&st().icons.objects,
+				&st().icons.objectsActive,
+				&st().icons.symbols,
+				&st().icons.symbolsActive,
 			};
 			const auto index = int(section) * 2 + (active ? 1 : 0);
 
@@ -1464,15 +1458,8 @@ void StickersListFooter::paintSetIconToCache(
 		} else {
 			paintOne(0, [&] {
 				const auto selected = (info.index == _iconState.selected);
-				if (icon.setId == Data::Stickers::FeaturedSetId) {
-					const auto &stickers = _session->data().stickers();
-					return stickers.featuredSetsUnreadCount()
-						? &st::stickersTrendingUnread
-						: &st::stickersTrending;
-					//} else if (setId == Stickers::FavedSetId) {
-					//	return &st::stickersFaved;
-				} else if (icon.setId == AllEmojiSectionSetId()) {
-					return &st::emojiPeople;
+				if (icon.setId == AllEmojiSectionSetId()) {
+					return &st().icons.people;
 				} else if (const auto section = SetIdEmojiSection(icon.setId)) {
 					return sectionIcon(*section, selected);
 				}

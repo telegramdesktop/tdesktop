@@ -133,8 +133,7 @@ void AudioTrack::mixerInit() {
 	auto data = std::make_unique<ExternalSoundData>();
 	data->frame = std::move(_stream.decodedFrame);
 	data->codec = std::move(_stream.codec);
-	data->frequency = _stream.frequency;
-	data->length = (_stream.duration * data->frequency) / 1000LL;
+	data->duration = _stream.duration;
 	data->speed = _options.speed;
 
 	Media::Player::mixer()->play(

@@ -61,8 +61,9 @@ class IndexedList;
 struct ChosenRow {
 	Key key;
 	Data::MessagePosition message;
-	bool filteredRow = false;
-	bool newWindow = false;
+	bool userpicClick : 1 = false;
+	bool filteredRow : 1 = false;
+	bool newWindow : 1 = false;
 };
 
 enum class SearchRequestType {
@@ -219,6 +220,7 @@ private:
 
 	void dialogRowReplaced(Row *oldRow, Row *newRow);
 
+	void setState(WidgetState state);
 	void editOpenedFilter();
 	void repaintCollapsedFolderRow(not_null<Data::Folder*> folder);
 	void refreshWithCollapsedRows(bool toTop = false);
@@ -274,6 +276,7 @@ private:
 
 	int defaultRowTop(not_null<Row*> row) const;
 	void setupOnlineStatusCheck();
+	void jumpToTop();
 
 	void updateRowCornerStatusShown(not_null<History*> history);
 	void repaintDialogRowCornerStatus(not_null<History*> history);
@@ -310,6 +313,7 @@ private:
 
 	void refreshShownList();
 	[[nodiscard]] int skipTopHeight() const;
+	[[nodiscard]] int collapsedRowsOffset() const;
 	[[nodiscard]] int dialogsOffset() const;
 	[[nodiscard]] int shownHeight(int till = -1) const;
 	[[nodiscard]] int fixedOnTopCount() const;
@@ -398,6 +402,7 @@ private:
 	FilterId _filterId = 0;
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
+	int _lastRowLocalMouseX = -1;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	Data::Folder *_openedFolder = nullptr;

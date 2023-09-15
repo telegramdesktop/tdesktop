@@ -891,7 +891,6 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 	}
 
 	EncryptedDescriptor data(size);
-	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiCacheSettings) << qint64(_cacheTotalSizeLimit) << qint32(_cacheTotalTimeLimit) << qint64(_cacheBigFileTotalSizeLimit) << qint32(_cacheBigFileTotalTimeLimit);
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiSessionSettings) << userData;
@@ -1119,7 +1118,7 @@ void Account::unregisterDraftSource(
 void Account::writeDrafts(not_null<History*> history) {
 	const auto peerId = history->peer->id;
 	const auto &map = history->draftsMap();
-	const auto supportMode = _owner->session().supportMode();
+	const auto supportMode = history->session().supportMode();
 	const auto sourcesIt = _draftSources.find(history);
 	const auto &sources = (sourcesIt != _draftSources.end())
 		? sourcesIt->second
@@ -1200,7 +1199,7 @@ void Account::writeDrafts(not_null<History*> history) {
 void Account::writeDraftCursors(not_null<History*> history) {
 	const auto peerId = history->peer->id;
 	const auto &map = history->draftsMap();
-	const auto supportMode = _owner->session().supportMode();
+	const auto supportMode = history->session().supportMode();
 	const auto sourcesIt = _draftSources.find(history);
 	const auto &sources = (sourcesIt != _draftSources.end())
 		? sourcesIt->second

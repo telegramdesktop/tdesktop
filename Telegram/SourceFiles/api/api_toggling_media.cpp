@@ -48,27 +48,26 @@ void ToggleExistingMedia(
 } // namespace
 
 void ToggleFavedSticker(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin) {
 	ToggleFavedSticker(
-		controller,
+		std::move(show),
 		document,
 		std::move(origin),
 		!document->owner().stickers().isFaved(document));
 }
 
 void ToggleFavedSticker(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin,
 		bool faved) {
 	if (faved && !document->sticker()) {
 		return;
 	}
-	const auto weak = base::make_weak(controller);
 	auto done = [=] {
-		document->owner().stickers().setFaved(weak.get(), document, faved);
+		document->owner().stickers().setFaved(show, document, faved);
 	};
 	ToggleExistingMedia(
 		document,
@@ -104,17 +103,16 @@ void ToggleRecentSticker(
 }
 
 void ToggleSavedGif(
-		Window::SessionController *controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin,
 		bool saved) {
 	if (saved && !document->isGifv()) {
 		return;
 	}
-	const auto weak = base::make_weak(controller);
 	auto done = [=] {
 		if (saved) {
-			document->owner().stickers().addSavedGif(weak.get(), document);
+			document->owner().stickers().addSavedGif(show, document);
 		}
 	};
 	ToggleExistingMedia(

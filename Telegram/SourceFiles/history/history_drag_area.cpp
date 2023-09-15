@@ -206,7 +206,8 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 
 		*attachDragState = DragState::None;
 		updateDragAreas();
-		e->acceptProposedAction();
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
 	};
 
 	const auto processDragEvents = [=](not_null<QEvent*> event) {

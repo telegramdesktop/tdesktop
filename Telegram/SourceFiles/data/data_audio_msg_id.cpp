@@ -27,7 +27,7 @@ AudioMsgId::AudioMsgId(
 , _externalPlayId(externalPlayId)
 , _changeablePlaybackSpeed(_audio->isVoiceMessage()
 	|| _audio->isVideoMessage()
-	|| (_audio->getDuration() >= kMinLengthForChangeablePlaybackSpeed)) {
+	|| (_audio->duration() >= kMinLengthForChangeablePlaybackSpeed)) {
 	setTypeFromAudio();
 }
 

@@ -44,6 +44,10 @@ public:
 	Result writeUserpicsSlice(const Data::UserpicsSlice &data) override;
 	Result writeUserpicsEnd() override;
 
+	Result writeStoriesStart(const Data::StoriesInfo &data) override;
+	Result writeStoriesSlice(const Data::StoriesSlice &data) override;
+	Result writeStoriesEnd() override;
+
 	Result writeContactsList(const Data::ContactsList &data) override;
 
 	Result writeSessionsList(const Data::SessionsList &data) override;

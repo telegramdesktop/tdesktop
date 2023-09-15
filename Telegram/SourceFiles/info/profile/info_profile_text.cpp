@@ -22,6 +22,7 @@ TextWithLabel CreateTextWithLabel(
 		QWidget *parent,
 		rpl::producer<TextWithEntities> &&label,
 		rpl::producer<TextWithEntities> &&text,
+		const style::FlatLabel &labelSt,
 		const style::FlatLabel &textSt,
 		const style::margins &padding) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -58,7 +59,7 @@ TextWithLabel CreateTextWithLabel(
 		) | rpl::after_next([=] {
 			layout->resizeToWidth(layout->widthNoMargins());
 		}),
-		st::infoLabel));
+		labelSt));
 	result->finishAnimating();
 	return { std::move(result), labeled, subtext };
 }

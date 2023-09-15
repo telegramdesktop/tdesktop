@@ -15,6 +15,11 @@ class DocumentData;
 class History;
 
 namespace Media {
+enum class RepeatMode;
+enum class OrderMode;
+} // namespace Media
+
+namespace Media {
 namespace Audio {
 class Instance;
 } // namespace Audio
@@ -44,18 +49,6 @@ namespace Media {
 namespace Player {
 
 extern const char kOptionDisableAutoplayNext[];
-
-enum class RepeatMode {
-	None,
-	One,
-	All,
-};
-
-enum class OrderMode {
-	Default,
-	Reverse,
-	Shuffle,
-};
 
 class Instance;
 struct TrackState;

@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
-#include "ui/toasts/common_toasts.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "history/history.h"
@@ -1091,6 +1090,22 @@ void PeerData::setThemeEmoji(const QString &emoticon) {
 
 const QString &PeerData::themeEmoji() const {
 	return _themeEmoticon;
+}
+
+void PeerData::setWallPaper(std::optional<Data::WallPaper> paper) {
+	if (!paper && !_wallPaper) {
+		return;
+	} else if (paper && _wallPaper && _wallPaper->equals(*paper)) {
+		return;
+	}
+	_wallPaper = paper
+		? std::make_unique<Data::WallPaper>(std::move(*paper))
+		: nullptr;
+	session().changes().peerUpdated(this, UpdateFlag::ChatWallPaper);
+}
+
+const Data::WallPaper *PeerData::wallPaper() const {
+	return _wallPaper.get();
 }
 
 void PeerData::setIsBlocked(bool is) {

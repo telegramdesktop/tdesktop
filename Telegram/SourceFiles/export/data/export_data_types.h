@@ -48,6 +48,10 @@ struct UserpicsInfo {
 	int count = 0;
 };
 
+struct StoriesInfo {
+	int count = 0;
+};
+
 struct FileLocation {
 	int dcId = 0;
 	MTPInputFileLocation data;
@@ -431,7 +435,10 @@ struct ActionCustomAction {
 };
 
 struct ActionBotAllowed {
+	uint64 appId = 0;
+	Utf8String app;
 	Utf8String domain;
+	bool attachMenu = false;
 };
 
 struct ActionSecureValuesSent {
@@ -512,7 +519,11 @@ struct ActionSuggestProfilePhoto {
 	Photo photo;
 };
 
-struct ActionAttachMenuBotAllowed {
+struct ActionSetChatWallPaper {
+	// #TODO wallpapers
+};
+
+struct ActionSetSameChatWallPaper {
 };
 
 struct ActionRequestedPeer {
@@ -556,8 +567,9 @@ struct ServiceAction {
 		ActionTopicCreate,
 		ActionTopicEdit,
 		ActionSuggestProfilePhoto,
-		ActionAttachMenuBotAllowed,
-		ActionRequestedPeer> content;
+		ActionRequestedPeer,
+		ActionSetChatWallPaper,
+		ActionSetSameChatWallPaper> content;
 };
 
 ServiceAction ParseServiceAction(
@@ -655,8 +667,33 @@ struct FileOrigin {
 	int split = 0;
 	MTPInputPeer peer;
 	int32 messageId = 0;
+	int32 storyId = 0;
 	uint64 customEmojiId = 0;
 };
+
+struct Story {
+	int32 id = 0;
+	TimeId date = 0;
+	TimeId expires = 0;
+	Media media;
+	bool pinned = false;
+	std::vector<TextPart> caption;
+
+	File &file();
+	const File &file() const;
+	Image &thumb();
+	const Image &thumb() const;
+};
+
+struct StoriesSlice {
+	std::vector<Story> list;
+	int32 lastId = 0;
+	int skipped = 0;
+};
+
+StoriesSlice ParseStoriesSlice(
+	const MTPVector<MTPStoryItem> &data,
+	int baseIndex);
 
 Message ParseMessage(
 	ParseMediaContext &context,

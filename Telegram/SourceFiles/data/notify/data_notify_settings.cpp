@@ -174,8 +174,13 @@ void NotifySettings::update(
 		not_null<Data::Thread*> thread,
 		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
-		std::optional<NotifySound> sound) {
-	if (thread->notify().change(muteForSeconds, silentPosts, sound)) {
+		std::optional<NotifySound> sound,
+		std::optional<bool> storiesMuted) {
+	if (thread->notify().change(
+			muteForSeconds,
+			silentPosts,
+			sound,
+			storiesMuted)) {
 		updateLocal(thread);
 		thread->session().api().updateNotifySettingsDelayed(thread);
 	}
@@ -189,6 +194,11 @@ void NotifySettings::resetToDefault(not_null<Data::Thread*> thread) {
 		MTPint(),
 		MTPNotificationSound(),
 		MTPNotificationSound(),
+		MTPNotificationSound(),
+		MTPBool(),
+		MTPBool(),
+		MTPNotificationSound(),
+		MTPNotificationSound(),
 		MTPNotificationSound());
 	if (thread->notify().change(empty)) {
 		updateLocal(thread);
@@ -200,8 +210,13 @@ void NotifySettings::update(
 		not_null<PeerData*> peer,
 		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
-		std::optional<NotifySound> sound) {
-	if (peer->notify().change(muteForSeconds, silentPosts, sound)) {
+		std::optional<NotifySound> sound,
+		std::optional<bool> storiesMuted) {
+	if (peer->notify().change(
+			muteForSeconds,
+			silentPosts,
+			sound,
+			storiesMuted)) {
 		updateLocal(peer);
 		peer->session().api().updateNotifySettingsDelayed(peer);
 	}
@@ -213,6 +228,11 @@ void NotifySettings::resetToDefault(not_null<PeerData*> peer) {
 		MTPBool(),
 		MTPBool(),
 		MTPint(),
+		MTPNotificationSound(),
+		MTPNotificationSound(),
+		MTPNotificationSound(),
+		MTPBool(),
+		MTPBool(),
 		MTPNotificationSound(),
 		MTPNotificationSound(),
 		MTPNotificationSound());
@@ -262,9 +282,10 @@ void NotifySettings::defaultUpdate(
 		DefaultNotify type,
 		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
-		std::optional<NotifySound> sound) {
+		std::optional<NotifySound> sound,
+		std::optional<bool> storiesMuted) {
 	auto &settings = defaultValue(type).settings;
-	if (settings.change(muteForSeconds, silentPosts, sound)) {
+	if (settings.change(muteForSeconds, silentPosts, sound, storiesMuted)) {
 		updateLocal(type);
 		_owner->session().api().updateNotifySettingsDelayed(type);
 	}

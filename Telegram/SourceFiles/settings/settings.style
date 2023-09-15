@@ -74,48 +74,12 @@ settingsUpdate: SettingsButton(infoMainButton, settingsButtonNoIcon) {
 settingsUpdateStatePosition: point(22px, 29px);
 settingsDividerLabelPadding: margins(22px, 8px, 22px, 16px);
 
-settingsIconAccount: icon {{ "settings/account", settingsIconFg }};
-settingsIconNotifications: icon {{ "settings/notifications", settingsIconFg }};
 settingsIconChat: icon {{ "settings/chat", settingsIconFg }};
-settingsIconFolders: icon {{ "settings/folders", settingsIconFg }};
-settingsIconGeneral: icon {{ "settings/advanced", settingsIconFg }};
-settingsIconLock: icon {{ "settings/lock", settingsIconFg }};
-settingsIconLanguage: icon {{ "settings/language", settingsIconFg }};
 settingsIconInterfaceScale: icon {{ "settings/interface_scale", settingsIconFg }};
-settingsIconFaq: icon {{ "settings/faq", settingsIconFg }};
-settingsIconCalls: icon {{ "settings/calls", settingsIconFg }};
-settingsIconAskQuestion: icon {{ "settings/ask_question", settingsIconFg }};
-settingsIconTips: icon {{ "settings/tips", settingsIconFg }};
 settingsIconStickers: icon {{ "settings/stickers", settingsIconFg }};
 settingsIconEmoji: icon {{ "settings/emoji", settingsIconFg }};
-settingsIconThemes: icon {{ "settings/palette", settingsIconFg }};
-settingsIconGroup: icon {{ "settings/group", settingsIconFg }};
-settingsIconChannel: icon {{ "settings/channel", settingsIconFg }};
-settingsIconUser: icon {{ "settings/user", settingsIconFg }};
-settingsIconSavedMessages: icon {{ "settings/saved_messages", settingsIconFg }};
-settingsIconKey: icon {{ "settings/key", settingsIconFg }};
-settingsIconReload: icon {{ "settings/reload", settingsIconFg }};
-settingsIconNight: icon {{ "settings/night", settingsIconFg }};
-settingsIconSettings: icon {{ "settings/settings", settingsIconFg }};
-settingsIconArchive: icon {{ "settings/archive", settingsIconFg }};
-settingsIconPlus: icon {{ "settings/plus", settingsIconFg }};
-settingsIconMinus: icon {{ "settings/minus", settingsIconFg }};
-settingsIconTimer: icon {{ "settings/timer", settingsIconFg }};
-settingsIconLaptop: icon {{ "settings/laptop", settingsIconFg }};
-settingsIconArrows: icon {{ "settings/arrows", settingsIconFg }};
-settingsIconOnline: icon {{ "settings/online", settingsIconFg }};
-settingsIconVideoCalls: icon {{ "settings/video_calls", settingsIconFg }};
-settingsIconEmail: icon {{ "settings/email", settingsIconFg }};
-settingsIconForward: icon {{ "settings/forward", settingsIconFg }};
-settingsIconSound: icon {{ "settings/sound", settingsIconFg }};
-settingsIconDock: icon {{ "settings/dock", settingsIconFg }};
-settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
-settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
-settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
-settingsIconTopics: icon {{ "settings/topics", settingsIconFg }};
-settingsIconTTL: icon {{ "settings/ttl", settingsIconFg }};
-settingsIconPhoto: icon {{ "settings/photo", settingsIconFg }};
 
+settingsPremiumIconStories: icon {{ "settings/stories", settingsIconFg }};
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
 settingsPremiumIconStatus: icon {{ "settings/premium/status", settingsIconFg }};
@@ -127,11 +91,31 @@ settingsPremiumIconVoice: icon {{ "settings/premium/voice", settingsIconFg }};
 settingsPremiumIconFiles: icon {{ "settings/premium/files", settingsIconFg }};
 settingsPremiumIconTranslations: icon {{ "settings/premium/translations", settingsIconFg }};
 
+settingsStoriesIconOrder: icon {{ "settings/premium/stories_order", premiumButtonBg1 }};
+settingsStoriesIconStealth: icon {{ "menu/stealth", premiumButtonBg1 }};
+settingsStoriesIconViews: icon {{ "menu/show_in_chat", premiumButtonBg1 }};
+settingsStoriesIconExpiration: icon {{ "settings/premium/timer", premiumButtonBg1 }};
+settingsStoriesIconDownload: icon {{ "menu/download", premiumButtonBg1 }};
+settingsStoriesIconCaption: icon {{ "settings/premium/stories_caption", premiumButtonBg1 }};
+settingsStoriesIconLinks: icon {{ "menu/links_profile", premiumButtonBg1 }};
+
+settingsPremiumNewBadge: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(10px semibold);
+		linkFont: font(10px semibold);
+		linkFontOver: font(10px semibold);
+	}
+	textFg: windowFgActive;
+}
+settingsPremiumNewBadgePosition: point(4px, 1px);
+settingsPremiumNewBadgePadding: margins(4px, 1px, 4px, 1px);
+
 settingsTTLChatsOff: icon {{ "settings/ttl/autodelete_off", windowSubTextFg }};
 settingsTTLChatsOn: icon {{ "settings/ttl/autodelete_on", windowActiveTextFg }};
 
 settingsIconAdd: icon {{ "settings/add", windowFgActive }};
 settingsIconRemove: icon {{ "settings/remove", windowFgActive }};
+settingsFolderShareIcon: icon {{ "settings/folder_links", lightButtonFg }};
 
 settingsCheckbox: Checkbox(defaultBoxCheckbox) {
 	textPosition: point(15px, 1px);
@@ -266,6 +250,18 @@ settingsThemeMinSkip: 4px;
 
 settingsThemeNotSupportedBg: windowBgOver;
 settingsThemeNotSupportedIcon: icon {{ "theme_preview", menuIconFg }};
+
+chatThemeTitlePadding: margins(22px, 13px, 22px, 9px);
+chatThemePreviewSize: size(80px, 108px);
+chatThemeBubbleSize: size(48px, 22px);
+chatThemeBubbleRadius: 10px;
+chatThemeBubblePosition: point(6px, 12px);
+chatThemeBubbleSkip: 6px;
+chatThemeEntrySkip: 10px;
+chatThemeEntryMargin: margins(16px, 10px, 16px, 8px);
+chatThemeEmptyPreviewTop: 16px;
+chatThemeEmojiBottom: 12px;
+chatThemeButtonMargin: margins(10px, 0px, 10px, 8px);
 
 autoDownloadLimitButton: SettingsButton(settingsButtonNoIcon) {
 	padding: margins(22px, 10px, 22px, 0px);
@@ -467,6 +463,9 @@ settingsPremiumRowAboutPadding: margins(59px, 0px, 46px, 6px);
 settingsPremiumPreviewTitlePadding: margins(24px, 13px, 24px, 3px);
 settingsPremiumPreviewAboutPadding: margins(24px, 0px, 24px, 11px);
 settingsPremiumPreviewLinePadding: margins(18px, 0px, 18px, 8px);
+settingsPremiumPreviewIconTitlePadding: margins(62px, 13px, 24px, 1px);
+settingsPremiumPreviewIconAboutPadding: margins(62px, 0px, 24px, 0px);
+settingsPremiumPreviewIconPosition: point(20px, 7px);
 
 settingsPremiumTitlePadding: margins(0px, 18px, 0px, 11px);
 settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {
@@ -525,4 +524,67 @@ requestPeerRestriction: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(boxTextStyle) {
 		lineHeight: 22px;
 	}
+}
+
+powerSavingButton: SettingsButton(settingsButton) {
+	style: boxTextStyle;
+	padding: margins(57px, 8px, 22px, 8px);
+	iconLeft: 20px;
+}
+powerSavingButtonNoIcon: SettingsButton(powerSavingButton) {
+	padding: margins(22px, 8px, 22px, 8px);
+}
+powerSavingSubtitlePadding: margins(0px, 4px, 0px, -2px);
+
+filterInviteBox: Box(defaultBox) {
+	buttonPadding: margins(10px, 9px, 10px, 9px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+}
+filterInviteButtonStyle: TextStyle(defaultTextStyle) {
+	font: font(13px semibold);
+	linkFont: font(13px underline);
+	linkFontOver: font(13px underline);
+}
+filterInviteButtonBadgeStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+	linkFont: font(12px underline);
+	linkFontOver: font(12px underline);
+}
+filterInviteButtonBadgePadding: margins(5px, 0px, 5px, 2px);
+filterInviteButtonBadgeSkip: 5px;
+filterLinkDividerLabelPadding: margins(0px, 10px, 0px, 17px);
+filterLinkTitlePadding: margins(0px, 15px, 0px, 17px);
+filterLinkAboutTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkFont: font(12px underline);
+	linkFontOver: font(12px underline);
+	lineHeight: 17px;
+}
+filterLinkAbout: FlatLabel(defaultFlatLabel) {
+	style: filterLinkAboutTextStyle;
+	align: align(top);
+	minWidth: 190px;
+}
+filterLinkAboutTop: 170px;
+filterLinkAboutBottom: 15px;
+filterLinkPreview: 96px;
+filterLinkPreviewRadius: 13px;
+filterLinkPreviewTop: 30px;
+filterLinkPreviewColumn: 65px;
+filterLinkPreviewAllBottom: 18px;
+filterLinkPreviewAllTop: 17px;
+filterLinkPreviewMyBottom: 74px;
+filterLinkPreviewMyTop: 73px;
+filterLinkPreviewChatSize: 36px;
+filterLinkPreviewChatSkip: 10px;
+filterLinkPreviewBadgeLeft: 40px;
+filterLinkPreviewBadgeTop: 38px;
+filterLinkSubsectionTitlePadding: margins(0px, 5px, 0px, -4px);
+filterLinkChatsList: PeerList(peerListBox) {
+	padding: margins(0px, 0px, 0px, membersMarginBottom);
 }

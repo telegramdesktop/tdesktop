@@ -16,6 +16,14 @@ class Account;
 class Session;
 } // namespace Main
 
+namespace Ui {
+class Show;
+} // namespace Ui
+
+namespace Ui::Toast {
+struct Config;
+} // namespace Ui::Toast
+
 namespace Media::View {
 struct OpenRequest;
 } // namespace Media::View
@@ -78,26 +86,37 @@ public:
 
 	[[nodiscard]] int verticalShadowTop() const;
 
-	template <typename BoxType>
-	QPointer<BoxType> show(
-			object_ptr<BoxType> content,
-			Ui::LayerOptions options = Ui::LayerOption::KeepOther,
-			anim::type animated = anim::type::normal) {
-		const auto result = QPointer<BoxType>(content.data());
-		showBox(std::move(content), options, animated);
-		return result;
-	}
-	void showToast(const QString &text);
+	void showToast(Ui::Toast::Config &&config);
+	void showToast(TextWithEntities &&text, crl::time duration = 0);
+	void showToast(const QString &text, crl::time duration = 0);
+
+	void showRightColumn(object_ptr<TWidget> widget);
+
+	void showBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options,
+		anim::type animated);
 	void showLayer(
 		std::unique_ptr<Ui::LayerWidget> &&layer,
 		Ui::LayerOptions options,
 		anim::type animated = anim::type::normal);
 
-	void showRightColumn(object_ptr<TWidget> widget);
-
 	void hideLayer(anim::type animated = anim::type::normal);
 	void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 	[[nodiscard]] bool isLayerShown() const;
+
+	template <
+		typename BoxType,
+		typename = std::enable_if_t<
+			std::is_base_of_v<Ui::BoxContent, BoxType>>>
+	QPointer<BoxType> show(
+			object_ptr<BoxType> content,
+			Ui::LayerOptions options = Ui::LayerOption::KeepOther,
+			anim::type animated = anim::type()) {
+		auto result = QPointer<BoxType>(content.data());
+		showBox(std::move(content), options, animated);
+		return result;
+	}
 
 	void activate();
 	void reActivate();
@@ -131,6 +150,8 @@ public:
 	[[nodiscard]] auto floatPlayerDelegateValue() const
 		-> rpl::producer<FloatDelegate*>;
 
+	[[nodiscard]] std::shared_ptr<Ui::Show> uiShow();
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
@@ -148,10 +169,6 @@ private:
 	void setupSideBar();
 	void sideBarChanged();
 
-	void showBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options,
-		anim::type animated);
 	void checkThemeEditor();
 	void checkLockByTerms();
 	void showTermsDecline();

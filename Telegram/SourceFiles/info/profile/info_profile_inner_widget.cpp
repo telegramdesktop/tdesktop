@@ -186,7 +186,23 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			icon,
 			st::infoSharedMediaButtonIconPosition);
 	};
+	auto addStoriesButton = [&](
+			not_null<UserData*> user,
+			const style::icon &icon) {
+		auto result = Media::AddStoriesButton(
+			content,
+			_controller,
+			user,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
 
+	if (auto user = _peer->asUser()) {
+		addStoriesButton(user, st::infoIconMediaStories);
+	}
 	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);
 	addMediaButton(MediaType::Video, st::infoIconMediaVideo);
 	addMediaButton(MediaType::File, st::infoIconMediaFile);

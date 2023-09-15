@@ -165,6 +165,8 @@ public:
 	explicit ChatStyle(not_null<const style::palette*> isolated);
 
 	void apply(not_null<ChatTheme*> theme);
+	void applyCustomPalette(const style::palette *palette);
+	void applyAdjustedServiceBg(QColor serviceBg);
 
 	[[nodiscard]] rpl::producer<> paletteChanged() const {
 		return _paletteChanged.events();

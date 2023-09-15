@@ -53,9 +53,9 @@ outputFolder = 'updates/' + today
 archive = 'tdesktop_macOS_' + today + '.zip'
 
 if building:
-    print('Building debug version for OS X 10.12+..')
+    print('Building Release version for OS X 10.12+..')
 
-    if os.path.exists('../out/Debug/' + outputFolder):
+    if os.path.exists('../out/Release/' + outputFolder):
         finish(1, 'Todays updates version exists.')
 
     if uuid == '':
@@ -65,11 +65,11 @@ if building:
 
     os.chdir('../out')
     if uuid == '':
-        result = subprocess.call('cmake --build . --config Debug --target Telegram', shell=True)
+        result = subprocess.call('cmake --build . --config Release --target Telegram', shell=True)
         if result != 0:
             finish(1, 'While building Telegram.')
 
-    os.chdir('Debug')
+    os.chdir('Release')
     if uuid == '':
         if not os.path.exists('Telegram.app'):
             finish(1, 'Telegram.app not found.')
@@ -106,7 +106,7 @@ if building:
             finish(1, 'Adding tdesktop to archive.')
 
         print('Beginning notarization process.')
-        lines = subprocess.check_output('xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.TelegramDebug" --username "' + username + '" --password "@keychain:AC_PASSWORD" --file "' + archive + '"', stderr=subprocess.STDOUT, shell=True).decode('utf-8')
+        lines = subprocess.check_output('xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.Telegram" --username "' + username + '" --password "@keychain:AC_PASSWORD" --file "' + archive + '"', stderr=subprocess.STDOUT, shell=True).decode('utf-8')
         print('Response received.')
         uuid = ''
         for line in lines.split('\n'):
@@ -193,7 +193,7 @@ if building:
         print('NB! Notarization log not found.')
     finish(0)
 
-commandPath = scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt'
+commandPath = scriptPath + '/../../out/Release/' + outputFolder + '/command.txt'
 
 if composing:
     templatePath = scriptPath + '/../../../DesktopPrivate/updates_template.txt'
@@ -235,7 +235,7 @@ if composing:
             for line in template:
                 if line.startswith('//'):
                     continue
-                line = line.replace('{path}', scriptPath + '/../../out/Debug/' + outputFolder + '/' + archive)
+                line = line.replace('{path}', scriptPath + '/../../out/Release/' + outputFolder + '/' + archive)
                 line = line.replace('{caption}', 'TDesktop at ' + today.replace('_', '.') + ':\n\n' + changelog)
                 f.write(line)
     print('\n\nEdit:\n')
@@ -262,9 +262,9 @@ if len(caption) > 1024:
     print('vi ' + commandPath)
     finish(1, 'Too large.')
 
-if not os.path.exists('../out/Debug/' + outputFolder + '/' + archive):
+if not os.path.exists('../out/Release/' + outputFolder + '/' + archive):
     finish(1, 'Not built yet.')
 
-subprocess.call(scriptPath + '/../../out/Debug/Telegram.app/Contents/MacOS/Telegram -sendpath interpret://' + scriptPath + '/../../out/Debug/' + outputFolder + '/command.txt', shell=True)
+subprocess.call(scriptPath + '/../../out/Release/Telegram.app/Contents/MacOS/Telegram -sendpath interpret://' + scriptPath + '/../../out/Release/' + outputFolder + '/command.txt', shell=True)
 
 finish(0)

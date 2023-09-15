@@ -16,8 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <private/qdrawhelper_p.h>
 #endif // LIB_FFMPEG_USE_QT_PRIVATE_API
 
+#include <deque>
+
 extern "C" {
 #include <libavutil/opt.h>
+#if !defined DESKTOP_APP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
+#include <dlfcn.h>
+#endif // !DESKTOP_APP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
 } // extern "C"
 
 namespace FFmpeg {
@@ -85,6 +90,47 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 #endif // LIB_FFMPEG_USE_QT_PRIVATE_API
 }
 
+#if !defined DESKTOP_APP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
+[[nodiscard]] auto CheckHwLibs() {
+	auto list = std::deque{
+		AV_PIX_FMT_CUDA,
+	};
+	const auto vdpau = [&] {
+		if (const auto handle = dlopen("libvdpau.so.1", RTLD_LAZY)) {
+			dlclose(handle);
+		}
+		if (dlerror()) {
+			return false;
+		}
+		return true;
+	}();
+	if (vdpau) {
+		list.push_front(AV_PIX_FMT_VDPAU);
+	}
+	const auto va = [&] {
+		const auto list = std::array{
+			"libva-drm.so.1",
+			"libva-x11.so.1",
+			"libva.so.1",
+			"libdrm.so.2",
+		};
+		for (const auto lib : list) {
+			if (const auto handle = dlopen(lib, RTLD_LAZY)) {
+				dlclose(handle);
+			}
+			if (dlerror()) {
+				return false;
+			}
+		}
+		return true;
+	}();
+	if (va) {
+		list.push_front(AV_PIX_FMT_VAAPI);
+	}
+	return list;
+}
+#endif // !DESKTOP_APP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
+
 [[nodiscard]] bool InitHw(AVCodecContext *context, AVHWDeviceType type) {
 	AVCodecContext *parent = static_cast<AVCodecContext*>(context->opaque);
 
@@ -125,6 +171,9 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		}
 		return false;
 	};
+#if !defined DESKTOP_APP_USE_PACKAGED && !defined Q_OS_WIN && !defined Q_OS_MAC
+	static const auto list = CheckHwLibs();
+#else // !DESKTOP_APP_USE_PACKAGED && !Q_OS_WIN && !Q_OS_MAC
 	const auto list = std::array{
 #ifdef Q_OS_WIN
 		AV_PIX_FMT_D3D11,
@@ -138,6 +187,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		AV_PIX_FMT_CUDA,
 #endif // Q_OS_WIN || Q_OS_MAC
 	};
+#endif // DESKTOP_APP_USE_PACKAGED || Q_OS_WIN || Q_OS_MAC
 	for (const auto format : list) {
 		if (!has(format)) {
 			continue;
@@ -230,6 +280,7 @@ FormatPointer MakeFormatPointer(
 	if (!io) {
 		return {};
 	}
+	io->seekable = (seek != nullptr);
 	auto result = avformat_alloc_context();
 	if (!result) {
 		LogError(u"avformat_alloc_context"_q);
@@ -250,7 +301,9 @@ FormatPointer MakeFormatPointer(
 		LogError(u"avformat_open_input"_q, error);
 		return {};
 	}
-	result->flags |= AVFMT_FLAG_FAST_SEEK;
+	if (seek) {
+		result->flags |= AVFMT_FLAG_FAST_SEEK;
+	}
 
 	// Now FormatPointer will own and free the IO context.
 	io.release();
@@ -319,6 +372,12 @@ void CodecDeleter::operator()(AVCodecContext *value) {
 
 FramePointer MakeFramePointer() {
 	return FramePointer(av_frame_alloc());
+}
+
+FramePointer DuplicateFramePointer(AVFrame *frame) {
+	return frame
+		? FramePointer(av_frame_clone(frame))
+		: FramePointer();
 }
 
 bool FrameHasData(AVFrame *frame) {

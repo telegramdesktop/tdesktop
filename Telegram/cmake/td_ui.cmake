@@ -70,6 +70,9 @@ PRIVATE
 
     data/data_subscription_option.h
 
+    dialogs/ui/dialogs_stories_list.cpp
+    dialogs/ui/dialogs_stories_list.h
+
     editor/controllers/undo_controller.cpp
     editor/controllers/undo_controller.h
     editor/editor_crop.cpp
@@ -120,8 +123,12 @@ PRIVATE
     media/clip/media_clip_reader.cpp
     media/clip/media_clip_reader.h
 
+    media/player/media_player_button.cpp
+    media/player/media_player_button.h
     media/player/media_player_dropdown.cpp
     media/player/media_player_dropdown.h
+
+    media/media_common.h
 
     menu/menu_check_item.cpp
     menu/menu_check_item.h
@@ -218,6 +225,8 @@ PRIVATE
     ui/chat/message_bar.h
     ui/chat/message_bubble.cpp
     ui/chat/message_bubble.h
+    ui/chat/more_chats_bar.cpp
+    ui/chat/more_chats_bar.h
     ui/chat/pinned_bar.cpp
     ui/chat/pinned_bar.h
     ui/chat/requests_bar.cpp
@@ -232,6 +241,8 @@ PRIVATE
     ui/controls/download_bar.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
+    ui/controls/filter_link_header.cpp
+    ui/controls/filter_link_header.h
     ui/controls/jump_down_button.cpp
     ui/controls/jump_down_button.h
     ui/controls/invite_link_buttons.cpp
@@ -256,6 +267,8 @@ PRIVATE
     ui/effects/glare.h
     ui/effects/loading_element.cpp
     ui/effects/loading_element.h
+    ui/effects/outline_segments.cpp
+    ui/effects/outline_segments.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
     ui/effects/premium_stars.cpp
@@ -303,6 +316,8 @@ PRIVATE
     ui/empty_userpic.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
+    ui/power_saving.cpp
+    ui/power_saving.h
     ui/unread_badge_paint.cpp
     ui/unread_badge_paint.h
     ui/userpic_view.cpp

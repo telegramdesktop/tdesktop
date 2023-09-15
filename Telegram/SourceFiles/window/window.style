@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 using "ui/widgets/widgets.style";
-using "ui/chat/chat.style";
+using "chat_helpers/chat_helpers.style";
 using "boxes/boxes.style"; // UserpicButton
 
 windowMinWidth: 380px;
@@ -165,7 +165,7 @@ mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 mainMenuVersionBottom: 17px;
 
 mainMenuToggleSize: 6px;
-mainMenuToggleFourStrokes: 4px;
+mainMenuToggleFourStrokes: 3px;
 mainMenuTogglePosition: point(30px, 30px);
 
 themeEditorSampleSize: size(90px, 51px);
@@ -305,13 +305,14 @@ windowFilterTypeBots: icon {{ "folders/folders_type_bots", historyPeerUserpicFg 
 windowFilterTypeNoMuted: icon {{ "folders/folders_type_muted", historyPeerUserpicFg }};
 windowFilterTypeNoArchived: icon {{ "folders/folders_type_archived", historyPeerUserpicFg }};
 windowFilterTypeNoRead: icon {{ "folders/folders_type_read", historyPeerUserpicFg }};
+windowFilterChatsSectionSubtitleHeight: 28px;
 windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
-		font: searchedBarFont;
+		font: semiboldFont;
 	}
 	textFg: searchedBarFg;
 }
-windowFilterChatsSectionSubtitlePadding: margins(17px, 7px, 17px, 7px);
+windowFilterChatsSectionSubtitlePadding: margins(22px, 5px, 22px, 5px);
 
 windowArchiveToast: Toast(defaultToast) {
 	minWidth: boxWideWidth;

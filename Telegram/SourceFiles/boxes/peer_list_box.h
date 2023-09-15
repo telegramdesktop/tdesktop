@@ -24,6 +24,7 @@ struct MultiSelect;
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Ui {
@@ -35,6 +36,7 @@ class SlideWrap;
 class FlatLabel;
 struct ScrollToRequest;
 class PopupMenu;
+struct OutlineSegment;
 } // namespace Ui
 
 using PaintRoundImageCallback = Fn<void(
@@ -201,6 +203,8 @@ public:
 		}
 		setCheckedInternal(checked, animated);
 	}
+	void setCustomizedCheckSegments(
+		std::vector<Ui::OutlineSegment> segments);
 	void setHidden(bool hidden) {
 		_hidden = hidden;
 	}
@@ -298,9 +302,9 @@ public:
 	virtual void peerListSetHideEmpty(bool hide) = 0;
 	virtual void peerListSetDescription(object_ptr<Ui::FlatLabel> description) = 0;
 	virtual void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) = 0;
-	virtual void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) = 0;
-	virtual void peerListSetAboveSearchWidget(object_ptr<TWidget> aboveWidget) = 0;
-	virtual void peerListSetBelowWidget(object_ptr<TWidget> belowWidget) = 0;
+	virtual void peerListSetAboveWidget(object_ptr<Ui::RpWidget> aboveWidget) = 0;
+	virtual void peerListSetAboveSearchWidget(object_ptr<Ui::RpWidget> aboveWidget) = 0;
+	virtual void peerListSetBelowWidget(object_ptr<Ui::RpWidget> belowWidget) = 0;
 	virtual void peerListMouseLeftGeometry() = 0;
 	virtual void peerListSetSearchMode(PeerListSearchMode mode) = 0;
 	virtual void peerListAppendRow(std::unique_ptr<PeerListRow> row) = 0;
@@ -323,13 +327,14 @@ public:
 	virtual void peerListScrollToTop() = 0;
 	virtual int peerListFullRowsCount() = 0;
 	virtual PeerListRow *peerListFindRow(PeerListRowId id) = 0;
+	virtual std::optional<QPoint> peerListLastRowMousePosition() = 0;
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
 	virtual void peerListShowBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) = 0;
 	virtual void peerListHideLayer() = 0;
-	virtual not_null<QWidget*> peerListToastParent() = 0;
+	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedPeers(PeerDataRange &&range) {
@@ -447,6 +452,9 @@ public:
 
 	virtual void prepare() = 0;
 
+	virtual void showFinished() {
+	}
+
 	virtual void rowClicked(not_null<PeerListRow*> row) = 0;
 	virtual void rowRightActionClicked(not_null<PeerListRow*> row) {
 	}
@@ -496,6 +504,9 @@ public:
 		return delegate()->peerListIsRowChecked(row);
 	}
 
+	virtual bool trackSelectedList() {
+		return true;
+	}
 	virtual bool searchInLocal() {
 		return true;
 	}
@@ -605,6 +616,7 @@ public:
 	void prependRow(std::unique_ptr<PeerListRow> row);
 	void prependRowFromSearchResult(not_null<PeerListRow*> row);
 	PeerListRow *findRow(PeerListRowId id);
+	std::optional<QPoint> lastRowMousePosition() const;
 	void updateRow(not_null<PeerListRow*> row) {
 		updateRow(row, RowIndex());
 	}
@@ -615,9 +627,9 @@ public:
 	void setDescription(object_ptr<Ui::FlatLabel> description);
 	void setSearchLoading(object_ptr<Ui::FlatLabel> loading);
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> noResults);
-	void setAboveWidget(object_ptr<TWidget> widget);
-	void setAboveSearchWidget(object_ptr<TWidget> widget);
-	void setBelowWidget(object_ptr<TWidget> width);
+	void setAboveWidget(object_ptr<Ui::RpWidget> widget);
+	void setAboveSearchWidget(object_ptr<Ui::RpWidget> widget);
+	void setBelowWidget(object_ptr<Ui::RpWidget> width);
 	void setHideEmpty(bool hide);
 	void refreshRows();
 
@@ -778,6 +790,7 @@ private:
 	void clearAllContent();
 	void handleMouseMove(QPoint globalPosition);
 	void mousePressReleased(Qt::MouseButton button);
+	void initDecorateWidget(Ui::RpWidget *widget);
 
 	const style::PeerList &_st;
 	not_null<PeerListController*> _controller;
@@ -812,9 +825,9 @@ private:
 	int _aboveHeight = 0;
 	int _belowHeight = 0;
 	bool _hideEmpty = false;
-	object_ptr<TWidget> _aboveWidget = { nullptr };
-	object_ptr<TWidget> _aboveSearchWidget = { nullptr };
-	object_ptr<TWidget> _belowWidget = { nullptr };
+	object_ptr<Ui::RpWidget> _aboveWidget = { nullptr };
+	object_ptr<Ui::RpWidget> _aboveSearchWidget = { nullptr };
+	object_ptr<Ui::RpWidget> _belowWidget = { nullptr };
 	object_ptr<Ui::FlatLabel> _description = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchLoading = { nullptr };
@@ -858,6 +871,9 @@ public:
 	PeerListRow *peerListFindRow(PeerListRowId id) override {
 		return _content->findRow(id);
 	}
+	std::optional<QPoint> peerListLastRowMousePosition() override {
+		return _content->lastRowMousePosition();
+	}
 	void peerListUpdateRow(not_null<PeerListRow*> row) override {
 		_content->updateRow(row);
 	}
@@ -898,13 +914,13 @@ public:
 	void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) override {
 		_content->setSearchNoResults(std::move(noResults));
 	}
-	void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) override {
+	void peerListSetAboveWidget(object_ptr<Ui::RpWidget> aboveWidget) override {
 		_content->setAboveWidget(std::move(aboveWidget));
 	}
-	void peerListSetAboveSearchWidget(object_ptr<TWidget> aboveWidget) override {
+	void peerListSetAboveSearchWidget(object_ptr<Ui::RpWidget> aboveWidget) override {
 		_content->setAboveSearchWidget(std::move(aboveWidget));
 	}
-	void peerListSetBelowWidget(object_ptr<TWidget> belowWidget) override {
+	void peerListSetBelowWidget(object_ptr<Ui::RpWidget> belowWidget) override {
 		_content->setBelowWidget(std::move(belowWidget));
 	}
 	void peerListSetSearchMode(PeerListSearchMode mode) override {
@@ -995,22 +1011,24 @@ public:
 	void peerListHideLayer() override {
 		Unexpected("...DelegateSimple::peerListHideLayer");
 	}
-	not_null<QWidget*> peerListToastParent() override {
-		Unexpected("...DelegateSimple::peerListToastParent");
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override {
+		Unexpected("...DelegateSimple::peerListUiShow");
 	}
 
 };
 
 class PeerListContentDelegateShow : public PeerListContentDelegateSimple {
 public:
-	PeerListContentDelegateShow(std::shared_ptr<Ui::Show> show);
+	explicit PeerListContentDelegateShow(
+		std::shared_ptr<Main::SessionShow> show);
 	void peerListShowBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
 	void peerListHideLayer() override;
-	not_null<QWidget*> peerListToastParent() override;
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
+
 private:
-	std::shared_ptr<Ui::Show> _show;
+	std::shared_ptr<Main::SessionShow> _show;
 
 };
 
@@ -1046,9 +1064,11 @@ public:
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
 	void peerListHideLayer() override;
-	not_null<QWidget*> peerListToastParent() override;
+	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 
 	void setAddedTopScrollSkip(int skip);
+
+	void showFinished() override;
 
 protected:
 	void prepare() override;
@@ -1086,7 +1106,7 @@ private:
 
 	object_ptr<Ui::SlideWrap<Ui::MultiSelect>> _select = { nullptr };
 
-	const Ui::BoxShow _show;
+	const std::shared_ptr<Main::SessionShow> _show;
 	std::unique_ptr<PeerListController> _controller;
 	Fn<void(PeerListBox*)> _init;
 	bool _scrollBottomFixed = false;

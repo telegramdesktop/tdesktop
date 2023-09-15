@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
@@ -826,7 +827,7 @@ void SetupNotificationsContent(
 	).make_state<rpl::event_stream<bool>>();
 	const auto desktop = addCheckbox(
 		tr::lng_settings_desktop_notify(),
-		{ &st::settingsIconNotifications, kIconRed },
+		{ &st::menuIconNotifications },
 		desktopToggles->events_starting_with(settings.desktopNotify()));
 
 	const auto flashbounceToggles = container->lifetime(
@@ -837,7 +838,7 @@ void SetupNotificationsContent(
 			: Platform::IsMac()
 			? tr::lng_settings_alert_mac
 			: tr::lng_settings_alert_linux)(),
-		{ &st::settingsIconDock, kIconDarkBlue },
+		{ &st::menuIconDockBounce },
 		flashbounceToggles->events_starting_with(
 			settings.flashBounceNotify()));
 
@@ -875,7 +876,7 @@ void SetupNotificationsContent(
 		tr::lng_settings_sound_notify(),
 		soundLabel->events_starting_with(label()),
 		st::settingsButton,
-		{ &st::settingsIconSound, kIconLightBlue });
+		{ &st::menuIconSoundOn });
 
 	AddSkip(container);
 
@@ -902,7 +903,7 @@ void SetupNotificationsContent(
 	) | rpl::then(session->api().contactSignupSilent());
 	const auto joined = addCheckbox(
 		tr::lng_settings_events_joined(),
-		{ &st::settingsIconPlus, kIconGreen },
+		{ &st::menuIconInvite },
 		std::move(joinSilent) | rpl::map(!_1));
 	joined->toggledChanges(
 	) | rpl::filter([=](bool enabled) {
@@ -914,7 +915,7 @@ void SetupNotificationsContent(
 
 	const auto pinned = addCheckbox(
 		tr::lng_settings_events_pinned(),
-		{ &st::settingsIconPin, kIconLightOrange },
+		{ &st::menuIconPin },
 		rpl::single(
 			settings.notifyAboutPinned()
 		) | rpl::then(settings.notifyAboutPinnedChanges()));
@@ -935,7 +936,7 @@ void SetupNotificationsContent(
 	const auto authorizations = &session->api().authorizations();
 	const auto acceptCalls = addCheckbox(
 		tr::lng_settings_call_accept_calls(),
-		{ &st::settingsIconCalls, kIconGreen },
+		{ &st::menuIconCallsReceive },
 		authorizations->callsDisabledHereValue() | rpl::map(!_1));
 	acceptCalls->toggledChanges(
 	) | rpl::filter([=](bool toggled) {

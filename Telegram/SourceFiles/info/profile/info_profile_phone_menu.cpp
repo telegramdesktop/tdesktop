@@ -11,12 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "main/main_app_config_values.h"
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_chat.h" // expandedMenuSeparator.
+#include "styles/style_chat_helpers.h"
 
 namespace Info {
 namespace Profile {
@@ -127,28 +129,19 @@ void AddPhoneMenu(not_null<Ui::PopupMenu*> menu, not_null<UserData*> user) {
 			return;
 		}
 	}
-	const auto domains = user->session().account().appConfig().get<Strings>(
-		u"whitelisted_domains"_q,
-		std::vector<QString>());
-	const auto proj = [&, domain = u"fragment"_q](const QString &p) {
-		return p.contains(domain);
-	};
-	const auto it = ranges::find_if(domains, proj);
-	if (it == end(domains)) {
-		return;
+	if (const auto url = AppConfig::FragmentLink(&user->session())) {
+		menu->addSeparator(&st::expandedMenuSeparator);
+		const auto link = Ui::Text::Link(
+			tr::lng_info_mobile_context_menu_fragment_about_link(tr::now),
+			*url);
+		menu->addAction(base::make_unique_q<TextItem>(
+			menu->menu(),
+			st::reactionMenu.menu,
+			tr::lng_info_mobile_context_menu_fragment_about(
+				lt_link,
+				rpl::single(link),
+				Ui::Text::RichLangValue)));
 	}
-
-	menu->addSeparator(&st::expandedMenuSeparator);
-	const auto link = Ui::Text::Link(
-		tr::lng_info_mobile_context_menu_fragment_about_link(tr::now),
-		*it);
-	menu->addAction(base::make_unique_q<TextItem>(
-		menu->menu(),
-		st::reactionMenu.menu,
-		tr::lng_info_mobile_context_menu_fragment_about(
-			lt_link,
-			rpl::single(link),
-			Ui::Text::RichLangValue)));
 }
 
 } // namespace Profile

@@ -22,13 +22,18 @@ public:
 	[[nodiscard]] virtual int top() = 0;
 	[[nodiscard]] virtual QSize size() = 0;
 	[[nodiscard]] virtual QString title() = 0;
-	[[nodiscard]] virtual QString subtitle() = 0;
+	[[nodiscard]] virtual TextWithEntities subtitle() = 0;
+	[[nodiscard]] virtual int buttonSkip() {
+		return top();
+	}
 	[[nodiscard]] virtual QString button() = 0;
 	virtual void draw(
 		Painter &p,
 		const PaintContext &context,
 		const QRect &geometry) = 0;
 	[[nodiscard]] virtual ClickHandlerPtr createViewLink() = 0;
+
+	[[nodiscard]] virtual bool hideServiceText() = 0;
 
 	virtual void stickerClearLoopPlayed() = 0;
 	[[nodiscard]] virtual std::unique_ptr<StickerPlayer> stickerTakePlayer(
@@ -69,6 +74,10 @@ public:
 	[[nodiscard]] bool needsBubble() const override;
 	[[nodiscard]] bool customInfoLayout() const override;
 
+	[[nodiscard]] bool hideServiceText() const override {
+		return _content->hideServiceText();
+	}
+
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
 
@@ -78,10 +87,12 @@ private:
 
 	const not_null<Element*> _parent;
 	const std::unique_ptr<ServiceBoxContent> _content;
+	mutable ClickHandlerPtr _contentLink;
 
 	struct Button {
 		void drawBg(QPainter &p) const;
 		void toggleRipple(bool pressed);
+		[[nodiscard]] bool empty() const;
 
 		Fn<void()> repaint;
 

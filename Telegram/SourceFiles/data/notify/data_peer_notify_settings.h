@@ -44,7 +44,8 @@ public:
 	bool change(
 		MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
-		std::optional<NotifySound> sound);
+		std::optional<NotifySound> sound,
+		std::optional<bool> storiesMuted);
 
 	bool settingsUnknown() const;
 	std::optional<TimeId> muteUntil() const;

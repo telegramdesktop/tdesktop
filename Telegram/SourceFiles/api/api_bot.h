@@ -30,7 +30,7 @@ void SendBotCallbackDataWithPassword(
 
 bool SwitchInlineBotButtonReceived(
 	not_null<Window::SessionController*> controller,
-	const QString &query,
+	const QByteArray &queryWithPeerTypes,
 	UserData *samePeerBot = nullptr,
 	MsgId samePeerReplyTo = 0);
 

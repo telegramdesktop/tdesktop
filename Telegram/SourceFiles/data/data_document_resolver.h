@@ -20,6 +20,8 @@ namespace Data {
 
 class DocumentMedia;
 
+extern const char kOptionExternalVideoPlayer[];
+
 [[nodiscard]] QString FileExtension(const QString &filepath);
 // [[nodiscard]] bool IsValidMediaFile(const QString &filepath);
 [[nodiscard]] bool IsExecutableName(const QString &filepath);

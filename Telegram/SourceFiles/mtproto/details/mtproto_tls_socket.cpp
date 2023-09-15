@@ -35,14 +35,22 @@ using BigNum = openssl::BigNum;
 using BigNumContext = openssl::Context;
 
 [[nodiscard]] MTPTlsClientHello PrepareClientHelloRules() {
-	auto stack = std::vector<QVector<MTPTlsBlock>>();
+	using Scope = QVector<MTPTlsBlock>;
+	using Permutation = std::vector<Scope>;
+	using StackElement = std::variant<Scope, Permutation>;
+	auto stack = std::vector<StackElement>();
 	const auto pushToBack = [&](MTPTlsBlock &&block) {
 		Expects(!stack.empty());
 
-		stack.back().push_back(std::move(block));
+		if (const auto scope = std::get_if<Scope>(&stack.back())) {
+			scope->push_back(std::move(block));
+		} else {
+			auto &permutation = v::get<Permutation>(stack.back());
+			Assert(!permutation.empty());
+			permutation.back().push_back(std::move(block));
+		}
 	};
-	const auto S = [&](QLatin1String s) {
-		const auto data = QByteArray(s.data(), s.size());
+	const auto S = [&](QByteArray data) {
 		pushToBack(MTP_tlsBlockString(MTP_bytes(data)));
 	};
 	const auto Z = [&](int length) {
@@ -60,60 +68,130 @@ using BigNumContext = openssl::Context;
 	const auto K = [&] {
 		pushToBack(MTP_tlsBlockPublicKey());
 	};
-	const auto Open = [&] {
-		stack.emplace_back();
+	const auto OpenScope = [&] {
+		stack.emplace_back(Scope());
 	};
-	const auto Close = [&] {
+	const auto CloseScope = [&] {
 		Expects(stack.size() > 1);
+		Expects(v::is<Scope>(stack.back()));
 
-		const auto blocks = std::move(stack.back());
+		const auto blocks = std::move(v::get<Scope>(stack.back()));
 		stack.pop_back();
 		pushToBack(MTP_tlsBlockScope(MTP_vector<MTPTlsBlock>(blocks)));
 	};
+	const auto OpenPermutation = [&] {
+		stack.emplace_back(Permutation());
+	};
+	const auto ClosePermutation = [&] {
+		Expects(stack.size() > 1);
+		Expects(v::is<Permutation>(stack.back()));
+
+		const auto list = std::move(v::get<Permutation>(stack.back()));
+		stack.pop_back();
+
+		const auto wrapped = list | ranges::views::transform([](
+				const QVector<MTPTlsBlock> &elements) {
+			return MTP_vector<MTPTlsBlock>(elements);
+		}) | ranges::to<QVector<MTPVector<MTPTlsBlock>>>();
+
+		pushToBack(MTP_tlsBlockPermutation(
+			MTP_vector<MTPVector<MTPTlsBlock>>(wrapped)));
+	};
+	const auto StartPermutationElement = [&] {
+		Expects(stack.size() > 1);
+		Expects(v::is<Permutation>(stack.back()));
+
+		v::get<Permutation>(stack.back()).emplace_back();
+	};
 	const auto Finish = [&] {
 		Expects(stack.size() == 1);
+		Expects(v::is<Scope>(stack.back()));
 
-		return stack.back();
+		return v::get<Scope>(stack.back());
 	};
 
-	stack.emplace_back();
+	stack.emplace_back(Scope());
 
-	S(qstr("\x16\x03\x01\x02\x00\x01\x00\x01\xfc\x03\x03"));
+	S("\x16\x03\x01\x02\x00\x01\x00\x01\xfc\x03\x03"_q);
 	Z(32);
-	S(qstr("\x20"));
+	S("\x20"_q);
 	R(32);
-	S(qstr("\x00\x20"));
+	S("\x00\x20"_q);
 	G(0);
-	S(qstr(""
+	S(""
 		"\x13\x01\x13\x02\x13\x03\xc0\x2b\xc0\x2f\xc0\x2c\xc0\x30\xcc\xa9"
 		"\xcc\xa8\xc0\x13\xc0\x14\x00\x9c\x00\x9d\x00\x2f\x00\x35\x01\x00"
-		"\x01\x93"));
+		"\x01\x93"_q);
 	G(2);
-	S(qstr("\x00\x00\x00\x00"));
-	Open();
-	Open();
-	S(qstr("\x00"));
-	Open();
-	D();
-	Close();
-	Close();
-	Close();
-	S(qstr("\x00\x17\x00\x00\xff\x01\x00\x01\x00\x00\x0a\x00\x0a\x00\x08"));
-	G(4);
-	S(qstr(""
-		"\x00\x1d\x00\x17\x00\x18\x00\x0b\x00\x02\x01\x00\x00\x23\x00\x00"
-		"\x00\x10\x00\x0e\x00\x0c\x02\x68\x32\x08\x68\x74\x74\x70\x2f\x31"
-		"\x2e\x31\x00\x05\x00\x05\x01\x00\x00\x00\x00\x00\x0d\x00\x12\x00"
-		"\x10\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06"
-		"\x01\x00\x12\x00\x00\x00\x33\x00\x2b\x00\x29"));
-	G(4);
-	S(qstr("\x00\x01\x00\x00\x1d\x00\x20"));
-	K();
-	S(qstr("\x00\x2d\x00\x02\x01\x01\x00\x2b\x00\x0b\x0a"));
-	G(6);
-	S(qstr("\x03\x04\x03\x03\x03\x02\x03\x01\x00\x1b\x00\x03\x02\x00\x02"));
+	S("\x00\x00"_q);
+	OpenPermutation(); {
+		StartPermutationElement(); {
+			S("\x00\x00"_q);
+			OpenScope();
+			OpenScope();
+			S("\x00"_q);
+			OpenScope();
+			D();
+			CloseScope();
+			CloseScope();
+			CloseScope();
+		}
+		StartPermutationElement(); {
+			S("\x00\x05\x00\x05\x01\x00\x00\x00\x00"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x0a\x00\x0a\x00\x08"_q);
+			G(4);
+			S("\x00\x1d\x00\x17\x00\x18"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x0b\x00\x02\x01\x00"_q);
+		}
+		StartPermutationElement(); {
+			S(""
+				"\x00\x0d\x00\x12\x00\x10\x04\x03\x08\x04\x04\x01\x05\x03"
+				"\x08\x05\x05\x01\x08\x06\x06\x01"_q);
+		}
+		StartPermutationElement(); {
+			S(""
+				"\x00\x10\x00\x0e\x00\x0c\x02\x68\x32\x08\x68\x74\x74\x70"
+				"\x2f\x31\x2e\x31"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x12\x00\x00"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x17\x00\x00"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x1b\x00\x03\x02\x00\x02"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x23\x00\x00"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x2b\x00\x07\x06"_q);
+			G(6);
+			S("\x03\x04\x03\x03"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x2d\x00\x02\x01\x01"_q);
+		}
+		StartPermutationElement(); {
+			S("\x00\x33\x00\x2b\x00\x29"_q);
+			G(4);
+			S("\x00\x01\x00\x00\x1d\x00\x20"_q);
+			K();
+		}
+		StartPermutationElement(); {
+			S("\x44\x69\x00\x05\x00\x03\x02\x68\x32"_q);
+		}
+		StartPermutationElement(); {
+			S("\xff\x01\x00\x01\x00"_q);
+		}
+	} ClosePermutation();
 	G(3);
-	S(qstr("\x00\x01\x00\x00\x15"));
+	S("\x00\x01\x00\x00\x15"_q);
 
 	return MTP_tlsClientHello(MTP_vector<MTPTlsBlock>(Finish()));
 }
@@ -228,63 +306,78 @@ struct ClientHello {
 	QByteArray digest;
 };
 
-class ClientHelloGenerator {
+class Generator {
 public:
-	ClientHelloGenerator(
+	Generator(
 		const MTPTlsClientHello &rules,
 		bytes::const_span domain,
 		bytes::const_span key);
-	[[nodiscard]] ClientHello result();
+	[[nodiscard]] ClientHello take();
 
 private:
-	[[nodiscard]] bytes::span grow(int size);
-	void writeBlocks(const QVector<MTPTlsBlock> &blocks);
-	void writeBlock(const MTPTlsBlock &data);
-	void writeBlock(const MTPDtlsBlockString &data);
-	void writeBlock(const MTPDtlsBlockZero &data);
-	void writeBlock(const MTPDtlsBlockGrease &data);
-	void writeBlock(const MTPDtlsBlockRandom &data);
-	void writeBlock(const MTPDtlsBlockDomain &data);
-	void writeBlock(const MTPDtlsBlockPublicKey &data);
-	void writeBlock(const MTPDtlsBlockScope &data);
-	void writePadding();
-	void writeDigest();
-	void writeTimestamp();
+	class Part final {
+	public:
+		explicit Part(
+			bytes::const_span domain,
+			const bytes::vector &greases);
 
-	bytes::const_span _domain;
-	bytes::const_span _key;
+		[[nodiscard]] bytes::span grow(int size);
+		void writeBlocks(const QVector<MTPTlsBlock> &blocks);
+		void writeBlock(const MTPTlsBlock &data);
+		void writeBlock(const MTPDtlsBlockString &data);
+		void writeBlock(const MTPDtlsBlockZero &data);
+		void writeBlock(const MTPDtlsBlockGrease &data);
+		void writeBlock(const MTPDtlsBlockRandom &data);
+		void writeBlock(const MTPDtlsBlockDomain &data);
+		void writeBlock(const MTPDtlsBlockPublicKey &data);
+		void writeBlock(const MTPDtlsBlockScope &data);
+		void writeBlock(const MTPDtlsBlockPermutation &data);
+		void finalize(bytes::const_span key);
+		[[nodiscard]] QByteArray extractDigest() const;
+
+		[[nodiscard]] bool error() const;
+		[[nodiscard]] QByteArray take();
+
+	private:
+		void writePadding();
+		void writeDigest(bytes::const_span key);
+		void injectTimestamp();
+
+		bytes::const_span _domain;
+		const bytes::vector &_greases;
+		QByteArray _result;
+		const char *_data = nullptr;
+		int _digestPosition = -1;
+		bool _error = false;
+
+	};
+
 	bytes::vector _greases;
-	std::vector<int> _scopeStack;
-	QByteArray _result;
+	Part _result;
 	QByteArray _digest;
-	int _digestPosition = -1;
-	bool _error = false;
 
 };
 
-ClientHelloGenerator::ClientHelloGenerator(
-	const MTPTlsClientHello &rules,
+Generator::Part::Part(
 	bytes::const_span domain,
-	bytes::const_span key)
+	const bytes::vector &greases)
 : _domain(domain)
-, _key(key)
-, _greases(PrepareGreases()) {
+, _greases(greases) {
 	_result.reserve(kClientHelloLength);
-	writeBlocks(rules.match([&](const MTPDtlsClientHello &data) {
-		return data.vblocks().v;
-	}));
-	writePadding();
-	writeDigest();
-	writeTimestamp();
+	_data = _result.constData();
 }
 
-ClientHello ClientHelloGenerator::result() {
-	return {
-		_error ? QByteArray() : std::move(_result),
-		_error ? QByteArray() : std::move(_digest) };
+bool Generator::Part::error() const {
+	return _error;
 }
 
-bytes::span ClientHelloGenerator::grow(int size) {
+QByteArray Generator::Part::take() {
+	Expects(_error || _result.constData() == _data);
+
+	return _error ? QByteArray() : std::move(_result);
+}
+
+bytes::span Generator::Part::grow(int size) {
 	if (_error
 		|| size <= 0
 		|| _result.size() + size > kClientHelloLength) {
@@ -297,19 +390,19 @@ bytes::span ClientHelloGenerator::grow(int size) {
 	return bytes::make_detached_span(_result).subspan(offset);
 }
 
-void ClientHelloGenerator::writeBlocks(const QVector<MTPTlsBlock> &blocks) {
+void Generator::Part::writeBlocks(const QVector<MTPTlsBlock> &blocks) {
 	for (const auto &block : blocks) {
 		writeBlock(block);
 	}
 }
 
-void ClientHelloGenerator::writeBlock(const MTPTlsBlock &data) {
+void Generator::Part::writeBlock(const MTPTlsBlock &data) {
 	data.match([&](const auto &data) {
 		writeBlock(data);
 	});
 }
 
-void ClientHelloGenerator::writeBlock(const MTPDtlsBlockString &data) {
+void Generator::Part::writeBlock(const MTPDtlsBlockString &data) {
 	const auto &bytes = data.vdata().v;
 	const auto storage = grow(bytes.size());
 	if (storage.empty()) {
@@ -318,7 +411,7 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockString &data) {
 	bytes::copy(storage, bytes::make_span(bytes));
 }
 
-void ClientHelloGenerator::writeBlock(const MTPDtlsBlockZero &data) {
+void Generator::Part::writeBlock(const MTPDtlsBlockZero &data) {
 	const auto length = data.vlength().v;
 	const auto already = _result.size();
 	const auto storage = grow(length);
@@ -331,7 +424,7 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockZero &data) {
 	bytes::set_with_const(storage, bytes::type(0));
 }
 
-void ClientHelloGenerator::writeBlock(const MTPDtlsBlockGrease &data) {
+void Generator::Part::writeBlock(const MTPDtlsBlockGrease &data) {
 	const auto seed = data.vseed().v;
 	if (seed < 0 || seed >= _greases.size()) {
 		_error = true;
@@ -344,7 +437,7 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockGrease &data) {
 	bytes::set_with_const(storage, _greases[seed]);
 }
 
-void ClientHelloGenerator::writeBlock(const MTPDtlsBlockRandom &data) {
+void Generator::Part::writeBlock(const MTPDtlsBlockRandom &data) {
 	const auto length = data.vlength().v;
 	const auto storage = grow(length);
 	if (storage.empty()) {
@@ -353,7 +446,7 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockRandom &data) {
 	bytes::set_random(storage);
 }
 
-void ClientHelloGenerator::writeBlock(const MTPDtlsBlockDomain &data) {
+void Generator::Part::writeBlock(const MTPDtlsBlockDomain &data) {
 	const auto storage = grow(_domain.size());
 	if (storage.empty()) {
 		return;
@@ -361,7 +454,7 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockDomain &data) {
 	bytes::copy(storage, _domain);
 }
 
-void ClientHelloGenerator::writeBlock(const MTPDtlsBlockPublicKey &data) {
+void Generator::Part::writeBlock(const MTPDtlsBlockPublicKey &data) {
 	const auto key = GeneratePublicKey();
 	const auto storage = grow(key.size());
 	if (storage.empty()) {
@@ -370,7 +463,7 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockPublicKey &data) {
 	bytes::copy(storage, key);
 }
 
-void ClientHelloGenerator::writeBlock(const MTPDtlsBlockScope &data) {
+void Generator::Part::writeBlock(const MTPDtlsBlockScope &data) {
 	const auto storage = grow(kLengthSize);
 	if (storage.empty()) {
 		return;
@@ -381,27 +474,66 @@ void ClientHelloGenerator::writeBlock(const MTPDtlsBlockScope &data) {
 	bytes::copy(storage, bytes::object_as_span(&length));
 }
 
-void ClientHelloGenerator::writePadding() {
+void Generator::Part::writeBlock(const MTPDtlsBlockPermutation &data) {
+	auto list = std::vector<QByteArray>();
+	list.reserve(data.ventries().v.size());
+	for (const auto &inner : data.ventries().v) {
+		auto part = Part(_domain, _greases);
+		part.writeBlocks(inner.v);
+		if (part.error()) {
+			_error = true;
+			return;
+		}
+		list.push_back(part.take());
+	}
+	ranges::shuffle(list);
+	for (const auto &element : list) {
+		const auto storage = grow(element.size());
+		if (storage.empty()) {
+			return;
+		}
+		bytes::copy(storage, bytes::make_span(element));
+	}
+}
+
+void Generator::Part::finalize(bytes::const_span key) {
+	if (_error) {
+		return;
+	} else if (_digestPosition < 0) {
+		_error = true;
+		return;
+	}
+	writePadding();
+	writeDigest(key);
+	injectTimestamp();
+}
+
+QByteArray Generator::Part::extractDigest() const {
+	if (_digestPosition < 0) {
+		return {};
+	}
+	return _result.mid(_digestPosition, kHelloDigestLength);
+}
+
+void Generator::Part::writePadding() {
+	Expects(_result.size() <= kClientHelloLength - kLengthSize);
+
 	const auto padding = kClientHelloLength - kLengthSize - _result.size();
 	writeBlock(MTP_tlsBlockScope(
 		MTP_vector<MTPTlsBlock>(1, MTP_tlsBlockZero(MTP_int(padding)))));
 }
 
-void ClientHelloGenerator::writeDigest() {
-	if (_digestPosition < 0) {
-		_error = true;
-		return;
-	}
+void Generator::Part::writeDigest(bytes::const_span key) {
+	Expects(_digestPosition >= 0);
+
 	bytes::copy(
 		bytes::make_detached_span(_result).subspan(_digestPosition),
-		openssl::HmacSha256(_key, bytes::make_span(_result)));
+		openssl::HmacSha256(key, bytes::make_span(_result)));
 }
 
-void ClientHelloGenerator::writeTimestamp() {
-	if (_digestPosition < 0) {
-		_error = true;
-		return;
-	}
+void Generator::Part::injectTimestamp() {
+	Expects(_digestPosition >= 0);
+
 	const auto storage = bytes::make_detached_span(_result).subspan(
 		_digestPosition + kHelloDigestLength - sizeof(int32),
 		sizeof(int32));
@@ -409,20 +541,30 @@ void ClientHelloGenerator::writeTimestamp() {
 	bytes::copy(bytes::object_as_span(&already), storage);
 	already ^= qToLittleEndian(int32(base::unixtime::http_now()));
 	bytes::copy(storage, bytes::object_as_span(&already));
+}
 
-	_digest = QByteArray(kHelloDigestLength, Qt::Uninitialized);
-	bytes::copy(
-		bytes::make_detached_span(_digest),
-		bytes::make_detached_span(_result).subspan(
-			_digestPosition,
-			kHelloDigestLength));
+Generator::Generator(
+	const MTPTlsClientHello &rules,
+	bytes::const_span domain,
+	bytes::const_span key)
+: _greases(PrepareGreases())
+, _result(domain, _greases) {
+	_result.writeBlocks(rules.match([&](const MTPDtlsClientHello &data) {
+		return data.vblocks().v;
+	}));
+	_result.finalize(key);
+}
+
+ClientHello Generator::take() {
+	auto digest = _result.extractDigest();
+	return { _result.take(), std::move(digest) };
 }
 
 [[nodiscard]] ClientHello PrepareClientHello(
 		const MTPTlsClientHello &rules,
 		bytes::const_span domain,
 		bytes::const_span key) {
-	return ClientHelloGenerator(rules, domain, key).result();
+	return Generator(rules, domain, key).take();
 }
 
 [[nodiscard]] bool CheckPart(bytes::const_span data, QLatin1String check) {

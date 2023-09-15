@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct ShortInfoCover;
+struct ShortInfoBox;
 } // namespace style
 
 namespace Media::Streaming {
@@ -27,6 +28,7 @@ class RpWidget;
 } // namespace Ui
 
 enum class PeerShortInfoType {
+	Self,
 	User,
 	Group,
 	Channel,
@@ -49,6 +51,7 @@ struct PeerShortInfoUserpic {
 	float64 photoLoadingProgress = 0.;
 	std::shared_ptr<Media::Streaming::Document> videoDocument;
 	crl::time videoStartPosition = 0;
+	QString additionalStatus;
 };
 
 class PeerShortInfoCover final {
@@ -86,6 +89,7 @@ private:
 	[[nodiscard]] QImage currentVideoFrame() const;
 
 	void applyUserpic(PeerShortInfoUserpic &&value);
+	void applyAdditionalStatus(const QString &status);
 	[[nodiscard]] QRect radialRect() const;
 
 	void videoWaiting();
@@ -98,6 +102,7 @@ private:
 	void updateRadialState();
 	void refreshCoverCursor();
 	void refreshBarImages();
+	void refreshLabelsGeometry();
 
 	const style::ShortInfoCover &_st;
 
@@ -107,6 +112,7 @@ private:
 	object_ptr<Ui::FlatLabel> _name;
 	std::unique_ptr<CustomLabelStyle> _statusStyle;
 	object_ptr<Ui::FlatLabel> _status;
+	object_ptr<Ui::FlatLabel> _additionalStatus = { nullptr };
 
 	std::array<QImage, 4> _roundMask;
 	QImage _userpicImage;
@@ -144,7 +150,8 @@ public:
 		rpl::producer<PeerShortInfoFields> fields,
 		rpl::producer<QString> status,
 		rpl::producer<PeerShortInfoUserpic> userpic,
-		Fn<bool()> videoPaused);
+		Fn<bool()> videoPaused,
+		const style::ShortInfoBox *stOverride);
 	~PeerShortInfoBox();
 
 	[[nodiscard]] rpl::producer<> openRequests() const;
@@ -166,6 +173,7 @@ private:
 	[[nodiscard]] rpl::producer<QString> usernameValue() const;
 	[[nodiscard]] rpl::producer<TextWithEntities> aboutValue() const;
 
+	const style::ShortInfoBox &_st;
 	const PeerShortInfoType _type = PeerShortInfoType::User;
 
 	rpl::variable<PeerShortInfoFields> _fields;

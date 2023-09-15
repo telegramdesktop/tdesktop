@@ -46,10 +46,11 @@ Members::Members(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : RpWidget(parent)
-, _show(std::make_unique<Window::Show>(controller->parentController()))
+, _show(controller->uiShow())
 , _controller(controller)
 , _peer(_controller->key().peer())
 , _listController(CreateMembersController(controller, _peer)) {
+	_listController->setStoriesShown(true);
 	setupHeader();
 	setupList();
 	setContent(_list.data());
@@ -232,6 +233,7 @@ void Members::setupButtons() {
 void Members::setupList() {
 	auto topSkip = _header ? _header->height() : 0;
 	_listController->setStyleOverrides(&st::infoMembersList);
+	_listController->setStoriesShown(true);
 	_list = object_ptr<ListWidget>(
 		this,
 		_listController.get());
@@ -467,8 +469,8 @@ void Members::peerListHideLayer() {
 	_show->hideLayer();
 }
 
-not_null<QWidget*> Members::peerListToastParent() {
-	return _show->toastParent();
+std::shared_ptr<Main::SessionShow> Members::peerListUiShow() {
+	return _show;
 }
 
 void Members::peerListSetDescription(

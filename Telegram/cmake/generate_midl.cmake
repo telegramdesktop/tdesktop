@@ -5,9 +5,6 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 function(generate_midl target_name src_loc)
-    set(list ${ARGV})
-    list(REMOVE_AT list 0 1)
-
     set(gen_dst ${CMAKE_CURRENT_BINARY_DIR}/gen)
     file(MAKE_DIRECTORY ${gen_dst})
 
@@ -21,7 +18,7 @@ function(generate_midl target_name src_loc)
     set(gen_files "")
     set(full_generation_sources "")
     set(full_dependencies_list "")
-    foreach (file ${list})
+    foreach (file ${ARGN})
         list(APPEND full_generation_sources ${src_loc}/${file})
         get_filename_component(file_name ${file} NAME_WLE)
         list(APPEND gen_files

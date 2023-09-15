@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_inner_widget.h"
 
-#include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_stories_list.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "history/history.h"
@@ -18,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
@@ -36,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "data/data_stories.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_send_action.h"
 #include "base/unixtime.h"
@@ -317,6 +321,8 @@ InnerWidget::InnerWidget(
 		switchToFilter(filterId);
 	}, lifetime());
 
+	session().data().stories().incrementPreloadingMainSources();
+
 	handleChatListEntryRefreshes();
 
 	refreshWithCollapsedRows(true);
@@ -406,8 +412,13 @@ int InnerWidget::skipTopHeight() const {
 		: 0;
 }
 
+int InnerWidget::collapsedRowsOffset() const {
+	return 0;
+}
+
 int InnerWidget::dialogsOffset() const {
-	return _collapsedRows.size() * st::dialogsImportantBarHeight
+	return collapsedRowsOffset()
+		+ (_collapsedRows.size() * st::dialogsImportantBarHeight)
 		- skipTopHeight();
 }
 
@@ -569,6 +580,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		.paused = videoPaused,
 		.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
 	};
+	const auto fillGuard = gsl::finally([&] {
+		// We translate painter down, but it'll be cropped below rect.
+		p.fillRect(rect(), context.currentBg);
+	});
 	const auto paintRow = [&](
 			not_null<Row*> row,
 			bool selected,
@@ -596,7 +611,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), context);
 	};
 	if (_state == WidgetState::Default) {
-		paintCollapsedRows(p, r);
+		const auto collapsedSkip = collapsedRowsOffset();
+		p.translate(0, collapsedSkip);
+		paintCollapsedRows(p, r.translated(0, -collapsedSkip));
 
 		const auto &list = _shownList->all();
 		const auto shownBottom = _shownList->height() - skipTopHeight();
@@ -657,7 +674,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				p.translate(0, top - skippedTop);
 				for (auto e = list.cend(); i != e; ++i) {
 					auto row = (*i);
-					if (top - skippedTop >= dialogsClip.top() - skip + dialogsClip.height()) {
+					if (top >= dialogsClip.top() - skip + dialogsClip.height()) {
 						break;
 					}
 
@@ -1215,6 +1232,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 	}
 	_mouseSelection = true;
 	_lastMousePosition = globalPosition;
+	_lastRowLocalMouseX = local.x();
 
 	const auto w = width();
 	const auto mouseY = local.y();
@@ -2122,6 +2140,7 @@ FilterId InnerWidget::filterId() const {
 void InnerWidget::clearSelection() {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
+	_lastRowLocalMouseX = -1;
 	if (isSelected()) {
 		updateSelectedRow();
 		_collapsedSelected = -1;
@@ -2255,7 +2274,7 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 		if (_filter.isEmpty() && !_searchFromPeer) {
 			clearFilter();
 		} else {
-			_state = WidgetState::Filtered;
+			setState(WidgetState::Filtered);
 			_waitingForSearch = true;
 			_filterResults.clear();
 			_filterResultsGlobal.clear();
@@ -2339,6 +2358,7 @@ void InnerWidget::appendToFiltered(Key key) {
 }
 
 InnerWidget::~InnerWidget() {
+	session().data().stories().decrementPreloadingMainSources();
 	clearSearchResults();
 }
 
@@ -2725,7 +2745,7 @@ void InnerWidget::refresh(bool toTop) {
 	resize(width(), h);
 	if (toTop) {
 		stopReorderPinned();
-		_mustScrollTo.fire({ 0, 0 });
+		jumpToTop();
 		preloadRowsData();
 	}
 	_controller->setDialogsListDisplayForced(
@@ -2809,6 +2829,7 @@ void InnerWidget::resizeEmptyLabel() {
 void InnerWidget::clearMouseSelection(bool clearSelection) {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
+	_lastRowLocalMouseX = -1;
 	if (clearSelection) {
 		if (_state == WidgetState::Default) {
 			_collapsedSelected = -1;
@@ -2915,10 +2936,10 @@ void InnerWidget::repaintSearchResult(int index) {
 void InnerWidget::clearFilter() {
 	if (_state == WidgetState::Filtered || _searchInChat) {
 		if (_searchInChat) {
-			_state = WidgetState::Filtered;
+			setState(WidgetState::Filtered);
 			_waitingForSearch = true;
 		} else {
-			_state = WidgetState::Default;
+			setState(WidgetState::Default);
 		}
 		_hashtagResults.clear();
 		_filterResults.clear();
@@ -2928,6 +2949,10 @@ void InnerWidget::clearFilter() {
 		_filter = QString();
 		refresh(true);
 	}
+}
+
+void InnerWidget::setState(WidgetState state) {
+	_state = state;
 }
 
 void InnerWidget::selectSkip(int32 direction) {
@@ -3196,7 +3221,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		filterId = 0;
 	}
 	if (_filterId == filterId) {
-		_mustScrollTo.fire({ 0, 0 });
+		jumpToTop();
 		return;
 	}
 	saveChatsFilterScrollState(_filterId);
@@ -3221,6 +3246,10 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 	}
 }
 
+void InnerWidget::jumpToTop() {
+	_mustScrollTo.fire({ 0, -1 });
+}
+
 void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
 	_chatsFilterScrollStates[filterId] = -y();
 }
@@ -3228,7 +3257,7 @@ void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
 void InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
 	const auto it = _chatsFilterScrollStates.find(filterId);
 	if (it != end(_chatsFilterScrollStates)) {
-		_mustScrollTo.fire({ it->second, -1 });
+		_mustScrollTo.fire({ std::max(it->second, 0), -1 });
 	}
 }
 
@@ -3264,29 +3293,30 @@ ChosenRow InnerWidget::computeChosenRow() const {
 	if (_state == WidgetState::Default) {
 		if (_selected) {
 			return {
-				_selected->key(),
-				Data::UnreadMessagePosition
+				.key = _selected->key(),
+				.message = Data::UnreadMessagePosition,
 			};
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
 			return {
-				_filterResults[_filteredSelected].key(),
-				Data::UnreadMessagePosition,
-				true
+				.key = _filterResults[_filteredSelected].key(),
+				.message = Data::UnreadMessagePosition,
+				.filteredRow = true,
 			};
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
+			const auto peer = _peerSearchResults[_peerSearchSelected]->peer;
 			return {
-				session().data().history(_peerSearchResults[_peerSearchSelected]->peer),
-				Data::UnreadMessagePosition
+				.key = session().data().history(peer),
+				.message = Data::UnreadMessagePosition
 			};
 		} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
 			const auto result = _searchResults[_searchedSelected].get();
 			const auto topic = result->topic();
 			const auto item = result->item();
 			return {
-				(topic ? (Entry*)topic : (Entry*)item->history()),
-				item->position()
+				.key = (topic ? (Entry*)topic : (Entry*)item->history()),
+				.message = item->position()
 			};
 		}
 	}
@@ -3301,10 +3331,13 @@ bool InnerWidget::chooseRow(
 	} else if (chooseHashtag()) {
 		return true;
 	}
-	const auto modifyChosenRow = [](
+	const auto modifyChosenRow = [&](
 			ChosenRow row,
 			Qt::KeyboardModifiers modifiers) {
 		row.newWindow = (modifiers & Qt::ControlModifier);
+		row.userpicClick = (_lastRowLocalMouseX >= 0)
+			&& (_lastRowLocalMouseX < _st->nameLeft)
+			&& (width() > _narrowWidth);
 		return row;
 	};
 	auto chosen = modifyChosenRow(computeChosenRow(), modifiers);

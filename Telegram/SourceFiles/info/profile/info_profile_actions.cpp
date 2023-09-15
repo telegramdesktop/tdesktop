@@ -103,7 +103,7 @@ namespace {
 
 [[nodiscard]] Fn<void(QString)> UsernamesLinkCallback(
 		not_null<PeerData*> peer,
-		Window::Show show,
+		std::shared_ptr<Ui::Show> show,
 		const QString &addToLink) {
 	return [=](QString link) {
 		if (!link.startsWith(u"https://"_q)) {
@@ -112,9 +112,7 @@ namespace {
 		}
 		if (!link.isEmpty()) {
 			QGuiApplication::clipboard()->setText(link);
-			Ui::Toast::Show(
-				show.toastParent(),
-				tr::lng_username_copied(tr::now));
+			show->showToast(tr::lng_username_copied(tr::now));
 		}
 	};
 }
@@ -352,6 +350,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			result,
 			v::text::take_marked(std::move(label)),
 			std::move(text),
+			st::infoLabel,
 			textSt,
 			padding);
 		tracker.track(result->add(std::move(line.wrap)));
@@ -424,7 +423,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			st::infoProfileLabeledUsernamePadding);
 		const auto callback = UsernamesLinkCallback(
 			_peer,
-			Window::Show(controller),
+			controller->uiShow(),
 			QString());
 		const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
 			if (!request.link) {
@@ -471,9 +470,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 					user->userName());
 				if (!link.isEmpty()) {
 					QGuiApplication::clipboard()->setText(link);
-					Ui::Toast::Show(
-						Window::Show(controller).toastParent(),
-						tr::lng_username_copied(tr::now));
+					controller->showToast(tr::lng_username_copied(tr::now));
 				}
 				return false;
 			});
@@ -511,7 +508,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		const auto controller = _controller->parentController();
 		const auto linkCallback = UsernamesLinkCallback(
 			_peer,
-			Window::Show(controller),
+			controller->uiShow(),
 			addToLink);
 		linkLine.text->overrideLinkClickHandler(linkCallback);
 		linkLine.subtext->overrideLinkClickHandler(linkCallback);
@@ -603,7 +600,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 			}
 		}) | rpl::to_empty,
 		makeThread,
-		std::make_shared<Window::Show>(_controller));
+		_controller->uiShow());
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconNotifications,

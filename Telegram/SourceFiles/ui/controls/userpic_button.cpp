@@ -63,7 +63,7 @@ void CameraBox(
 	using namespace Webrtc;
 
 	const auto track = Settings::Calls::AddCameraSubsection(
-		std::make_shared<Ui::BoxShow>(box),
+		box->uiShow(),
 		box->verticalLayout(),
 		false);
 	if (!track) {
@@ -234,6 +234,7 @@ void UserpicButton::requestSuggestAvailability() {
 bool UserpicButton::canSuggestPhoto(not_null<UserData*> user) const {
 	// Server allows suggesting photos only in non-empty chats.
 	return !user->isSelf()
+		&& !user->isBot()
 		&& (user->owner().history(user)->lastServerMessage() != nullptr);
 }
 

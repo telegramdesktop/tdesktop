@@ -10,6 +10,7 @@
 #include "ui/abstract_button.h"
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/widgets/call_button.h"
 #include "ui/widgets/labels.h"
 #include "base/random.h"
@@ -516,15 +517,13 @@ CallMuteButton::CallMuteButton(
 	parent,
 	_st->active.bgSize,
 	rpl::combine(
-		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
+		PowerSaving::OnValue(PowerSaving::kCalls),
 		std::move(hideBlobs),
 		_state.value(
 		) | rpl::map([](const CallMuteButtonState &state) {
 			return IsInactive(state.type);
 		})
-	) | rpl::map([](bool animDisabled, bool hide, bool isBadState) {
-		return isBadState || !(!animDisabled && !hide);
-	})))
+	) | rpl::map(rpl::mappers::_1 || rpl::mappers::_2 || rpl::mappers::_3)))
 , _content(base::make_unique_q<AbstractButton>(parent))
 , _colors(Colors())
 , _iconState(iconStateFrom(initial.type)) {

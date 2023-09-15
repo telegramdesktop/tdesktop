@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/toast/toast.h"
 #include "info/profile/info_profile_icon.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
@@ -32,6 +33,7 @@ using Reason = ReportReason;
 
 void ReportReasonBox(
 		not_null<GenericBox*> box,
+		const style::ReportBox &st,
 		ReportSource source,
 		Fn<void(Reason)> done) {
 	box->setTitle([&] {
@@ -50,28 +52,27 @@ void ReportReasonBox(
 			return tr::lng_report_channel_photo_title();
 		case Source::ChannelVideo:
 			return tr::lng_report_channel_video_title();
+		case Source::Story:
+			return tr::lng_report_story();
 		}
 		Unexpected("'source' in ReportReasonBox.");
 	}());
-	const auto isProfileSource = (source == Source::ProfilePhoto)
-		|| (source == Source::ProfileVideo);
 	auto margin = style::margins{ 0, st::reportReasonTopSkip, 0, 0 };
 	const auto add = [&](
 			Reason reason,
 			tr::phrase<> text,
 			const style::icon &icon) {
-		const auto &st = st::reportReasonButton;
 		const auto layout = box->verticalLayout();
 		const auto button = layout->add(
-			object_ptr<Ui::SettingsButton>(layout.get(), text(), st),
+			object_ptr<Ui::SettingsButton>(layout.get(), text(), st.button),
 			margin);
 		margin = {};
 		button->setClickedCallback([=] {
 			done(reason);
 		});
-		const auto height = st.padding.top()
-			+ st.height
-			+ st.padding.bottom();
+		const auto height = st.button.padding.top()
+			+ st.button.height
+			+ st.button.padding.bottom();
 		object_ptr<Info::Profile::FloatingIcon>(
 			button,
 			icon,
@@ -80,49 +81,52 @@ void ReportReasonBox(
 				(height - icon.height()) / 2,
 			});
 	};
-	add(Reason::Spam, tr::lng_report_reason_spam, st::menuIconDelete);
-	if (source != Source::Message && !isProfileSource) {
-		add(Reason::Fake, tr::lng_report_reason_fake, st::menuIconFake);
+	add(Reason::Spam, tr::lng_report_reason_spam, st.spam);
+	if (source == Source::Channel
+		|| source == Source::Group
+		|| source == Source::Bot) {
+		add(Reason::Fake, tr::lng_report_reason_fake, st.fake);
 	}
 	add(
 		Reason::Violence,
 		tr::lng_report_reason_violence,
-		st::menuIconViolence);
+		st.violence);
 	add(
 		Reason::ChildAbuse,
 		tr::lng_report_reason_child_abuse,
-		st::menuIconBlock);
+		st.children);
 	add(
 		Reason::Pornography,
 		tr::lng_report_reason_pornography,
-		st::menuIconPorn);
+		st.pornography);
 	add(
 		Reason::Copyright,
 		tr::lng_report_reason_copyright,
-		st::menuIconCopyright);
-	if (source == Source::Message) {
+		st.copyright);
+	if (source == Source::Message || source == Source::Story) {
 		add(
 			Reason::IllegalDrugs,
 			tr::lng_report_reason_illegal_drugs,
-			st::menuIconDrugs);
+			st.drugs);
 		add(
 			Reason::PersonalDetails,
 			tr::lng_report_reason_personal_details,
-			st::menuIconPersonal);
+			st.personal);
 	}
-	add(Reason::Other, tr::lng_report_reason_other, st::menuIconReport);
+	add(Reason::Other, tr::lng_report_reason_other, st.other);
 
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 void ReportDetailsBox(
 		not_null<GenericBox*> box,
+		const style::ReportBox &st,
 		Fn<void(QString)> done) {
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box, // #TODO reports
 			tr::lng_report_details_about(),
-			st::boxLabel),
+			st.label),
 		{
 			st::boxRowPadding.left(),
 			st::boxPadding.top(),
@@ -131,7 +135,7 @@ void ReportDetailsBox(
 	const auto details = box->addRow(
 		object_ptr<InputField>(
 			box,
-			st::newGroupDescription,
+			st.field,
 			InputField::Mode::MultiLine,
 			tr::lng_report_details(),
 			QString()));

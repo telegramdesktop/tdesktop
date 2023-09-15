@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_scheduled_messages.h"
+#include "data/data_user.h"
 #include "base/unixtime.h"
 #include "base/random.h"
 #include "main/main_session.h"
@@ -32,6 +33,29 @@ namespace {
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
 
 } // namespace
+
+MTPInputReplyTo ReplyToForMTP(
+		not_null<Session*> owner,
+		FullReplyTo replyTo) {
+	if (replyTo.storyId) {
+		if (const auto peer = owner->peerLoaded(replyTo.storyId.peer)) {
+			if (const auto user = peer->asUser()) {
+				return MTP_inputReplyToStory(
+					user->inputUser,
+					MTP_int(replyTo.storyId.story));
+			}
+		}
+	} else if (replyTo.msgId || replyTo.topicRootId) {
+		using Flag = MTPDinputReplyToMessage::Flag;
+		return MTP_inputReplyToMessage(
+			(replyTo.topicRootId
+				? MTP_flags(Flag::f_top_msg_id)
+				: MTP_flags(0)),
+			MTP_int(replyTo.msgId ? replyTo.msgId : replyTo.topicRootId),
+			MTP_int(replyTo.topicRootId));
+	}
+	return MTPInputReplyTo();
+}
 
 Histories::Histories(not_null<Session*> owner)
 : _owner(owner)
@@ -890,23 +914,24 @@ bool Histories::isCreatingTopic(
 
 int Histories::sendPreparedMessage(
 		not_null<History*> history,
-		MsgId replyTo,
-		MsgId topicRootId,
+		FullReplyTo replyTo,
 		uint64 randomId,
-		Fn<PreparedMessage(MsgId replyTo, MsgId topicRootId)> message,
+		Fn<PreparedMessage(not_null<Session*>, FullReplyTo)> message,
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail) {
-	if (isCreatingTopic(history, topicRootId)) {
+	if (isCreatingTopic(history, replyTo.topicRootId)) {
 		const auto id = ++_requestAutoincrement;
-		const auto creatingId = FullMsgId(history->peer->id, topicRootId);
+		const auto creatingId = FullMsgId(
+			history->peer->id,
+			replyTo.topicRootId);
 		auto i = _creatingTopics.find(creatingId);
 		if (i == end(_creatingTopics)) {
-			sendCreateTopicRequest(history, topicRootId);
+			sendCreateTopicRequest(history, replyTo.topicRootId);
 			i = _creatingTopics.emplace(creatingId).first;
 		}
 		i->second.push_back({
 			.randomId = randomId,
-			.replyTo = replyTo,
+			.replyTo = replyTo.msgId,
 			.message = std::move(message),
 			.done = std::move(done),
 			.fail = std::move(fail),
@@ -915,9 +940,12 @@ int Histories::sendPreparedMessage(
 		_creatingTopicRequests.emplace(id);
 		return id;
 	}
-	const auto realReply = convertTopicReplyTo(history, replyTo);
-	const auto realRoot = convertTopicReplyTo(history, topicRootId);
-	return v::match(message(realReply, realRoot), [&](const auto &request) {
+	const auto realReplyTo = FullReplyTo{
+		.msgId = convertTopicReplyToId(history, replyTo.msgId),
+		.topicRootId = convertTopicReplyToId(history, replyTo.topicRootId),
+		.storyId = replyTo.storyId,
+	};
+	return v::match(message(_owner, realReplyTo), [&](const auto &request) {
 		const auto type = RequestType::Send;
 		return sendRequest(history, type, [=](Fn<void()> finish) {
 			const auto session = &_owner->session();
@@ -960,8 +988,10 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 			_creatingTopicRequests.erase(entry.requestId);
 			sendPreparedMessage(
 				history,
-				entry.replyTo,
-				realRoot,
+				FullReplyTo{
+					.msgId = entry.replyTo,
+					.topicRootId = realRoot,
+				},
 				entry.randomId,
 				std::move(entry.message),
 				std::move(entry.done),
@@ -981,14 +1011,14 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 	}
 }
 
-MsgId Histories::convertTopicReplyTo(
+MsgId Histories::convertTopicReplyToId(
 		not_null<History*> history,
-		MsgId replyTo) const {
-	if (!replyTo) {
+		MsgId replyToId) const {
+	if (!replyToId) {
 		return {};
 	}
-	const auto i = _createdTopicIds.find({ history->peer->id, replyTo });
-	return (i != end(_createdTopicIds)) ? i->second : replyTo;
+	const auto i = _createdTopicIds.find({ history->peer->id, replyToId });
+	return (i != end(_createdTopicIds)) ? i->second : replyToId;
 }
 
 void Histories::checkPostponed(not_null<History*> history, int id) {

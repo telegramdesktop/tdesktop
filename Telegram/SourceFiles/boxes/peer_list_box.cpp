@@ -7,15 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_box.h"
 
+#include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "ui/effects/loading_element.h"
+#include "ui/effects/outline_segments.h"
+#include "ui/effects/round_checkbox.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/effects/loading_element.h"
-#include "ui/effects/round_checkbox.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/empty_userpic.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
@@ -31,8 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
-
-#include <rpl/range.h>
 
 PaintRoundImageCallback PaintUserpicCallback(
 		not_null<PeerData*> peer,
@@ -74,7 +74,7 @@ PaintRoundImageCallback ForceRoundUserpicCallback(not_null<PeerData*> peer) {
 }
 
 PeerListContentDelegateShow::PeerListContentDelegateShow(
-	std::shared_ptr<Ui::Show> show)
+	std::shared_ptr<Main::SessionShow> show)
 : _show(show) {
 }
 
@@ -88,15 +88,16 @@ void PeerListContentDelegateShow::peerListHideLayer() {
 	_show->hideLayer();
 }
 
-not_null<QWidget*> PeerListContentDelegateShow::peerListToastParent() {
-	return _show->toastParent();
+auto PeerListContentDelegateShow::peerListUiShow()
+-> std::shared_ptr<Main::SessionShow>{
+	return _show;
 }
 
 PeerListBox::PeerListBox(
 	QWidget*,
 	std::unique_ptr<PeerListController> controller,
 	Fn<void(not_null<PeerListBox*>)> init)
-: _show(this)
+: _show(Main::MakeSessionShow(uiShow(), &controller->session()))
 , _controller(std::move(controller))
 , _init(std::move(init)) {
 	Expects(_controller != nullptr);
@@ -140,7 +141,12 @@ void PeerListBox::createMultiSelect() {
 
 void PeerListBox::setAddedTopScrollSkip(int skip) {
 	_addedTopScrollSkip = skip;
+	_scrollBottomFixed = false;
 	updateScrollSkips();
+}
+
+void PeerListBox::showFinished() {
+	_controller->showFinished();
 }
 
 int PeerListBox::getTopScrollSkip() const {
@@ -256,15 +262,23 @@ void PeerListBox::peerListSetRowChecked(
 		not_null<PeerListRow*> row,
 		bool checked) {
 	if (checked) {
-		addSelectItem(row, anim::type::normal);
+		if (_controller->trackSelectedList()) {
+			addSelectItem(row, anim::type::normal);
+		}
 		PeerListContentDelegate::peerListSetRowChecked(row, checked);
 		peerListUpdateRow(row);
 
 		// This call deletes row from _searchRows.
-		_select->entity()->clearQuery();
+		if (_select) {
+			_select->entity()->clearQuery();
+		}
 	} else {
 		// The itemRemovedCallback will call changeCheckState() here.
-		_select->entity()->removeItem(row->id());
+		if (_select) {
+			_select->entity()->removeItem(row->id());
+		} else {
+			PeerListContentDelegate::peerListSetRowChecked(row, checked);
+		}
 		peerListUpdateRow(row);
 	}
 }
@@ -306,18 +320,20 @@ void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {
 void PeerListBox::peerListShowBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options) {
-	_show.showBox(std::move(content), options);
+	_show->showBox(std::move(content), options);
 }
 
 void PeerListBox::peerListHideLayer() {
-	_show.hideLayer();
+	_show->hideLayer();
 }
 
-not_null<QWidget*> PeerListBox::peerListToastParent() {
-	return _show.toastParent();
+std::shared_ptr<Main::SessionShow> PeerListBox::peerListUiShow() {
+	return _show;
 }
 
-PeerListController::PeerListController(std::unique_ptr<PeerListSearchController> searchController) : _searchController(std::move(searchController)) {
+PeerListController::PeerListController(
+	std::unique_ptr<PeerListSearchController> searchController)
+: _searchController(std::move(searchController)) {
 	if (_searchController) {
 		_searchController->setDelegate(this);
 	}
@@ -873,9 +889,18 @@ void PeerListRow::createCheckbox(
 }
 
 void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
+	Expects(!checked || _checkbox != nullptr);
+
+	if (_checkbox) {
+		_checkbox->setChecked(checked, animated);
+	}
+}
+
+void PeerListRow::setCustomizedCheckSegments(
+		std::vector<Ui::OutlineSegment> segments) {
 	Expects(_checkbox != nullptr);
 
-	_checkbox->setChecked(checked, animated);
+	_checkbox->setCustomizedSegments(std::move(segments));
 }
 
 void PeerListRow::finishCheckedAnimation() {
@@ -1117,6 +1142,24 @@ PeerListRow *PeerListContent::findRow(PeerListRowId id) {
 	return (it == _rowsById.cend()) ? nullptr : it->second.get();
 }
 
+std::optional<QPoint> PeerListContent::lastRowMousePosition() const {
+	if (!_lastMousePosition) {
+		return std::nullopt;
+	}
+	const auto point = mapFromGlobal(*_lastMousePosition);
+	auto in = parentWidget()->rect().contains(
+		parentWidget()->mapFromGlobal(*_lastMousePosition));
+	auto rowsPointY = point.y() - rowsTop();
+	const auto index = (in
+		&& rowsPointY >= 0
+		&& rowsPointY < shownRowsCount() * _rowHeight)
+		? (rowsPointY / _rowHeight)
+		: -1;
+	return (index >= 0 && index == _selected.index.value)
+		? QPoint(point.x(), rowsPointY)
+		: std::optional<QPoint>();
+}
+
 void PeerListContent::removeRow(not_null<PeerListRow*> row) {
 	auto index = row->absoluteIndex();
 	auto isSearchResult = row->isSearchResult();
@@ -1216,18 +1259,14 @@ void PeerListContent::setSearchNoResults(object_ptr<Ui::FlatLabel> noResults) {
 	}
 }
 
-void PeerListContent::setAboveWidget(object_ptr<TWidget> widget) {
+void PeerListContent::setAboveWidget(object_ptr<Ui::RpWidget> widget) {
 	_aboveWidget = std::move(widget);
-	if (_aboveWidget) {
-		_aboveWidget->setParent(this);
-	}
+	initDecorateWidget(_aboveWidget.data());
 }
 
-void PeerListContent::setAboveSearchWidget(object_ptr<TWidget> widget) {
+void PeerListContent::setAboveSearchWidget(object_ptr<Ui::RpWidget> widget) {
 	_aboveSearchWidget = std::move(widget);
-	if (_aboveSearchWidget) {
-		_aboveSearchWidget->setParent(this);
-	}
+	initDecorateWidget(_aboveSearchWidget.data());
 }
 
 void PeerListContent::setHideEmpty(bool hide) {
@@ -1235,10 +1274,23 @@ void PeerListContent::setHideEmpty(bool hide) {
 	resizeToWidth(width());
 }
 
-void PeerListContent::setBelowWidget(object_ptr<TWidget> widget) {
+void PeerListContent::setBelowWidget(object_ptr<Ui::RpWidget> widget) {
 	_belowWidget = std::move(widget);
-	if (_belowWidget) {
-		_belowWidget->setParent(this);
+	initDecorateWidget(_belowWidget.data());
+}
+
+void PeerListContent::initDecorateWidget(Ui::RpWidget *widget) {
+	if (widget) {
+		widget->setParent(this);
+		widget->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return (e->type() == QEvent::Enter) && widget->isVisible();
+		}) | rpl::start_with_next([=] {
+			mouseLeftGeometry();
+		}, widget->lifetime());
+		widget->heightValue() | rpl::skip(1) | rpl::start_with_next([=] {
+			resizeToWidth(width());
+		}, widget->lifetime());
 	}
 }
 
@@ -1975,10 +2027,12 @@ void PeerListContent::setSearchQuery(
 
 bool PeerListContent::submitted() {
 	if (const auto row = getRow(_selected.index)) {
+		_lastMousePosition = std::nullopt;
 		_controller->rowClicked(row);
 		return true;
 	} else if (showingSearch()) {
 		if (const auto row = getRow(RowIndex(0))) {
+			_lastMousePosition = std::nullopt;
 			_controller->rowClicked(row);
 			return true;
 		}

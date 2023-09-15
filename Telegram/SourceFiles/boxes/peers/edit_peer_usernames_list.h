@@ -41,6 +41,7 @@ private:
 
 	const std::shared_ptr<Ui::Show> _show;
 	const not_null<PeerData*> _peer;
+	const bool _isBot = false;
 	Fn<void()> _focusCallback;
 
 	base::unique_qptr<Ui::VerticalLayout> _container;

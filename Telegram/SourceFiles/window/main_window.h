@@ -37,6 +37,7 @@ struct TermsLock;
 
 [[nodiscard]] const QImage &Logo();
 [[nodiscard]] const QImage &LogoNoMargin();
+void OverrideApplicationIcon(QImage image);
 [[nodiscard]] QIcon CreateIcon(
 	Main::Session *session = nullptr,
 	bool returnNullIfDefault = false);
@@ -47,6 +48,7 @@ struct CounterLayerArgs {
 	using required = base::required<T>;
 
 	required<int> size = 16;
+	double devicePixelRatio = 1.;
 	required<int> count = 1;
 	required<style::color> bg;
 	required<style::color> fg;
@@ -147,6 +149,8 @@ protected:
 	void handleActiveChanged();
 	void handleVisibleChanged(bool visible);
 
+	virtual void checkActivation() {
+	}
 	virtual void initHook() {
 	}
 

@@ -6,12 +6,12 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
-//
-//#include "ui/image/image.h"
-//#include "editor/photo_editor_common.h"
-//#include "base/unique_qptr.h"
 
 enum class ImageRoundRadius;
+
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
 
 namespace Ui {
 class RpWidget;
@@ -31,7 +31,7 @@ struct EditorData;
 
 void OpenWithPreparedFile(
 	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::PreparedFile*> file,
 	int previewWidth,
 	Fn<void()> &&doneCallback);

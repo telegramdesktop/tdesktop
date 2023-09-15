@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toasts/common_toasts.h"
 #include "lang/lang_keys.h"
 #include "boxes/share_box.h"
 #include "history/view/history_view_schedule_box.h"
@@ -108,7 +107,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		not_null<PeerData*> peer,
 		const QString &linkSpeaker,
 		const QString &linkListener,
-		Fn<void(QString)> showToast) {
+		std::shared_ptr<Ui::Show> show) {
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
@@ -130,7 +129,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	};
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(currentLink());
-		showToast(tr::lng_group_invite_copied(tr::now));
+		show->showToast(tr::lng_group_invite_copied(tr::now));
 	};
 	auto submitCallback = [=](
 			std::vector<not_null<Data::Thread*>> &&result,
@@ -191,7 +190,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		if (*box) {
 			(*box)->closeBox();
 		}
-		showToast(tr::lng_share_done(tr::now));
+		show->showToast(tr::lng_share_done(tr::now));
 	};
 	auto filterCallback = [](not_null<Data::Thread*> thread) {
 		return Data::CanSend(thread, ChatRestriction::SendOther);
@@ -591,15 +590,11 @@ void SettingsBox(
 			box->getDelegate()->show(std::move(next));
 		});
 		const auto showToast = crl::guard(box, [=](QString text) {
-			Ui::ShowMultilineToast({
-				.parentOverride = Ui::BoxShow(box).toastParent(),
-				.text = { text },
-			});
+			box->showToast(text);
 		});
 		auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
 			peer,
-			showBox,
-			showToast);
+			box->uiShow());
 		shareLink = std::move(shareLinkCallback);
 		box->lifetime().add(std::move(shareLinkLifetime));
 	} else {
@@ -635,10 +630,8 @@ void SettingsBox(
 				}
 				QGuiApplication::clipboard()->setText(link);
 				if (weakBox) {
-					Ui::ShowMultilineToast({
-						.parentOverride = Ui::BoxShow(box).toastParent(),
-						.text = { tr::lng_create_channel_link_copied(tr::now) },
-					});
+					box->showToast(
+						tr::lng_create_channel_link_copied(tr::now));
 				}
 				return true;
 			};
@@ -735,7 +728,7 @@ void SettingsBox(
 		StartRtmpProcess::FillRtmpRows(
 			layout,
 			false,
-			std::make_shared<Ui::BoxShow>(box),
+			box->uiShow(),
 			state->data.events(),
 			&st::groupCallBoxLabel,
 			&st::groupCallSettingsRtmpShowButton,
@@ -795,8 +788,7 @@ void SettingsBox(
 
 std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 		not_null<PeerData*> peer,
-		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
-		Fn<void(QString)> showToast) {
+		std::shared_ptr<Ui::Show> show) {
 	auto lifetime = rpl::lifetime();
 	struct State {
 		State(not_null<Main::Session*> session) : session(session) {
@@ -823,11 +815,11 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 			|| state->linkListener.isEmpty()) {
 			return false;
 		}
-		showBox(ShareInviteLinkBox(
+		show->showBox(ShareInviteLinkBox(
 			peer,
 			*state->linkSpeaker,
 			state->linkListener,
-			showToast));
+			show));
 		return true;
 	};
 	auto callback = [=] {

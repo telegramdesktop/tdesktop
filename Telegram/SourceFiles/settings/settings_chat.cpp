@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 #include "settings/settings_advanced.h"
+#include "settings/settings_experimental.h"
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"
 #include "boxes/reactions_settings_box.h"
@@ -67,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h" // stickersRemove
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
 
 namespace Settings {
@@ -805,17 +807,18 @@ void SetupStickersEmoji(
 		container,
 		tr::lng_stickers_you_have(),
 		st::settingsButton,
-		{ &st::settingsIconStickers, kIconLightOrange }
+		{ &st::menuIconStickers }
 	)->addClickHandler([=] {
-		controller->show(
-			Box<StickersBox>(controller, StickersBox::Section::Installed));
+		controller->show(Box<StickersBox>(
+			controller->uiShow(),
+			StickersBox::Section::Installed));
 	});
 
 	AddButton(
 		container,
 		tr::lng_emoji_manage_sets(),
 		st::settingsButton,
-		{ &st::settingsIconEmoji, kIconDarkOrange }
+		{ &st::menuIconEmoji }
 	)->addClickHandler([=] {
 		controller->show(Box<Ui::Emoji::ManageSetsBox>(session));
 	});
@@ -991,8 +994,8 @@ void SetupMessages(
 		Core::App().saveSettingsDelayed();
 	});
 
-	buttonRight->setClickedCallback([=, show = Window::Show(controller)] {
-		show.showBox(Box(ReactionsSettingsBox, controller));
+	buttonRight->setClickedCallback([=, show = controller->uiShow()] {
+		show->showBox(Box(ReactionsSettingsBox, controller));
 	});
 
 	AddSkip(inner, st::settingsSendTypeSkip);
@@ -1015,11 +1018,13 @@ void SetupMessages(
 
 void SetupExport(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(Type)> showOther) {
 	AddButton(
 		container,
 		tr::lng_settings_export_data(),
-		st::settingsButtonNoIcon
+		st::settingsButton,
+		{ &st::menuIconExport }
 	)->addClickHandler([=] {
 		const auto session = &controller->session();
 		controller->window().hideSettingsAndLayer();
@@ -1027,6 +1032,15 @@ void SetupExport(
 			st::boxDuration,
 			session,
 			[=] { Core::App().exportManager().start(session); });
+	});
+
+	AddButton(
+		container,
+		tr::lng_settings_experimental(),
+		st::settingsButton,
+		{ &st::menuIconExperimental }
+	)->addClickHandler([=] {
+		showOther(Experimental::Id());
 	});
 }
 
@@ -1037,7 +1051,7 @@ void SetupLocalStorage(
 		container,
 		tr::lng_settings_manage_local_storage(),
 		st::settingsButton,
-		{ &st::settingsIconGeneral, kIconLightOrange }
+		{ &st::menuIconStorage }
 	)->addClickHandler([=] {
 		LocalStorageBox::Show(&controller->session());
 	});
@@ -1068,7 +1082,7 @@ void SetupDataStorage(
 				container,
 				tr::lng_download_path(),
 				st::settingsButton,
-				{ &st::settingsIconFolders, kIconLightBlue })));
+				{ &st::menuIconShowInFolder })));
 	auto pathtext = Core::App().settings().downloadPathValue(
 	) | rpl::map([](const QString &text) {
 		if (text.isEmpty()) {
@@ -1096,7 +1110,7 @@ void SetupDataStorage(
 		container,
 		tr::lng_downloads_section(),
 		st::settingsButton,
-		{ &st::settingsIconDownload, kIconPurple }
+		{ &st::menuIconDownload }
 	)->setClickedCallback([=] {
 		controller->showSection(
 			Info::Downloads::Make(controller->session().user()));
@@ -1154,15 +1168,15 @@ void SetupAutoDownload(
 	add(
 		tr::lng_media_auto_in_private(),
 		Source::User,
-		{ &st::settingsIconUser, kIconLightBlue });
+		{ &st::menuIconProfile });
 	add(
 		tr::lng_media_auto_in_groups(),
 		Source::Group,
-		{ &st::settingsIconGroup, kIconGreen });
+		{ &st::menuIconGroups });
 	add(
 		tr::lng_media_auto_in_channels(),
 		Source::Channel,
-		{ &st::settingsIconChannel, kIconLightOrange });
+		{ &st::menuIconChannel });
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
@@ -1506,7 +1520,7 @@ void SetupCloudThemes(
 		edit,
 		tr::lng_settings_bg_theme_edit(),
 		st::settingsButton,
-		{ &st::settingsIconThemes, kIconGreen }
+		{ &st::menuIconPalette }
 	)->addClickHandler([=] {
 		StartEditor(
 			&controller->window(),
@@ -1533,7 +1547,7 @@ void SetupCloudThemes(
 void SetupAutoNightMode(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	if (!Platform::IsDarkModeSupported()) {
+	if (!Core::App().settings().systemDarkMode().has_value()) {
 		return;
 	}
 

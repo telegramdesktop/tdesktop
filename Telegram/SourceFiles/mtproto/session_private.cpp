@@ -1630,6 +1630,11 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 		_sessionSalt = data.vnew_server_salt().v;
 		correctUnixtimeWithBadLocal(info.serverTime);
 
+		if (_bindMsgId) {
+			LOG(("Message Info: bad_server_salt received while binding temp key, restarting."));
+			return HandleResult::RestartConnection;
+		}
+
 		if (setState(ConnectedState, ConnectingState)) {
 			resendAll();
 		}

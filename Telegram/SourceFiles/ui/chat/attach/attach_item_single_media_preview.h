@@ -32,6 +32,7 @@ class ItemSingleMediaPreview final : public AbstractSingleMediaPreview {
 public:
 	ItemSingleMediaPreview(
 		QWidget *parent,
+		const style::ComposeControls &st,
 		Fn<bool()> gifPaused,
 		not_null<HistoryItem*> item,
 		AttachControls::Type type);

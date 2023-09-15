@@ -21,10 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <set>
 #include <filesystem>
 
-#if __has_include(<kurlmimedata.h>)
-#include <kurlmimedata.h>
-#endif
-
 #if __has_include(<ksandbox.h>)
 #include <ksandbox.h>
 #endif
@@ -37,18 +33,6 @@ template <typename Value, typename From, typename Till>
 inline bool in_range(Value &&value, From &&from, Till &&till) {
 	return (value >= from) && (value < till);
 }
-
-#if __has_include(<kurlmimedata.h>)
-inline QList<QUrl> GetMimeUrls(const QMimeData *data) {
-	if (!data->hasUrls()) {
-		return {};
-	}
-
-	return KUrlMimeData::urlsFromMimeData(
-		data,
-		KUrlMimeData::PreferLocalUrls);
-}
-#endif
 
 #if __has_include(<ksandbox.h>)
 inline QString IconName() {

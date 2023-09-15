@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Notifications {
 
-[[nodiscard]] bool SkipAudioForCustom();
 [[nodiscard]] bool SkipToastForCustom();
-[[nodiscard]] bool SkipFlashBounceForCustom();
+void MaybePlaySoundForCustom(Fn<void()> playSound);
+void MaybeFlashBounceForCustom(Fn<void()> flashBounce);
 [[nodiscard]] bool WaitForInputForCustom();
 
 [[nodiscard]] bool Supported();

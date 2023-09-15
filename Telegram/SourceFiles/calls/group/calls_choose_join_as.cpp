@@ -406,9 +406,7 @@ void ChooseJoinAsProcess::processList(
 	auto info = JoinInfo{ .peer = peer, .joinAs = self };
 	const auto selectedId = peer->groupCallDefaultJoinAs();
 	if (list.empty()) {
-		Ui::Toast::Show(
-			_request->show->toastParent(),
-			Lang::Hard::ServerError());
+		_request->show->showToast(Lang::Hard::ServerError());
 		return;
 	}
 	info.joinAs = [&]() -> not_null<PeerData*> {

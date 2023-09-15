@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
 namespace {
@@ -54,7 +55,9 @@ namespace {
 		result.preview = kEmpty;
 		result.spoilerRepaint = nullptr;
 	} else {
-		result.preview = preview->original();
+		result.preview = Images::Round(
+			preview->original(),
+			ImageRoundRadius::Small);
 		result.spoilerRepaint = spoiler ? repaint : nullptr;
 	}
 	return result;

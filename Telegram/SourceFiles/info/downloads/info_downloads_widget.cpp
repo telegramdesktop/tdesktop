@@ -26,7 +26,7 @@ Memento::Memento(not_null<Controller*> controller)
 }
 
 Memento::Memento(not_null<UserData*> self)
-: ContentMemento(Downloads::Tag{})
+: ContentMemento(Tag{})
 , _media(self, 0, Media::Type::File) {
 }
 

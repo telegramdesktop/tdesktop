@@ -57,13 +57,15 @@ public:
 		not_null<Data::Thread*> thread,
 		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
-		std::optional<NotifySound> sound = std::nullopt);
+		std::optional<NotifySound> sound = std::nullopt,
+		std::optional<bool> storiesMuted = std::nullopt);
 	void resetToDefault(not_null<Data::Thread*> thread);
 	void update(
 		not_null<PeerData*> peer,
 		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
-		std::optional<NotifySound> sound = std::nullopt);
+		std::optional<NotifySound> sound = std::nullopt,
+		std::optional<bool> storiesMuted = std::nullopt);
 	void resetToDefault(not_null<PeerData*> peer);
 
 	void forumParentMuteUpdated(not_null<Data::Forum*> forum);
@@ -84,7 +86,8 @@ public:
 		DefaultNotify type,
 		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
-		std::optional<NotifySound> sound = std::nullopt);
+		std::optional<NotifySound> sound = std::nullopt,
+		std::optional<bool> storiesMuted = std::nullopt);
 
 	[[nodiscard]] bool isMuted(not_null<const Data::Thread*> thread) const;
 	[[nodiscard]] NotifySound sound(

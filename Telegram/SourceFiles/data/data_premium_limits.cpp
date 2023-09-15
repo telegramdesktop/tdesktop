@@ -65,6 +65,18 @@ int PremiumLimits::dialogFiltersCurrent() const {
 		: dialogFiltersDefault();
 }
 
+int PremiumLimits::dialogShareableFiltersDefault() const {
+	return appConfigLimit("chatlists_joined_limit_default", 2);
+}
+int PremiumLimits::dialogShareableFiltersPremium() const {
+	return appConfigLimit("chatlists_joined_limit_premium", 20);
+}
+int PremiumLimits::dialogShareableFiltersCurrent() const {
+	return isPremium()
+		? dialogShareableFiltersPremium()
+		: dialogShareableFiltersDefault();
+}
+
 int PremiumLimits::dialogFiltersChatsDefault() const {
 	return appConfigLimit("dialog_filters_chats_limit_default", 100);
 }
@@ -75,6 +87,18 @@ int PremiumLimits::dialogFiltersChatsCurrent() const {
 	return isPremium()
 		? dialogFiltersChatsPremium()
 		: dialogFiltersChatsDefault();
+}
+
+int PremiumLimits::dialogFiltersLinksDefault() const {
+	return appConfigLimit("chatlist_invites_limit_default", 3);
+}
+int PremiumLimits::dialogFiltersLinksPremium() const {
+	return appConfigLimit("chatlist_invites_limit_premium", 20);
+}
+int PremiumLimits::dialogFiltersLinksCurrent() const {
+	return isPremium()
+		? dialogFiltersLinksPremium()
+		: dialogFiltersLinksDefault();
 }
 
 int PremiumLimits::dialogsPinnedDefault() const {
