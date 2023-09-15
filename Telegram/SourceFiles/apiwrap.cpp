@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 #include "api/api_premium.h"
 #include "api/api_user_names.h"
+#include "api/api_websites.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -179,7 +180,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _ringtones(std::make_unique<Api::Ringtones>(this))
 , _transcribes(std::make_unique<Api::Transcribes>(this))
 , _premium(std::make_unique<Api::Premium>(this))
-, _usernames(std::make_unique<Api::Usernames>(this)) {
+, _usernames(std::make_unique<Api::Usernames>(this))
+, _websites(std::make_unique<Api::Websites>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -1890,17 +1892,8 @@ void ApiWrap::sendNotifySettingsUpdates() {
 	}
 	const auto &settings = session().data().notifySettings();
 	for (const auto type : base::take(_updateNotifyDefaults)) {
-		const auto input = [&] {
-			switch (type) {
-			case Data::DefaultNotify::User: return MTP_inputNotifyUsers();
-			case Data::DefaultNotify::Group: return MTP_inputNotifyChats();
-			case Data::DefaultNotify::Broadcast:
-				return MTP_inputNotifyBroadcasts();
-			}
-			Unexpected("Default notify type in sendNotifySettingsUpdates");
-		}();
 		request(MTPaccount_UpdateNotifySettings(
-			input,
+			Data::DefaultNotifyToMTP(type),
 			settings.defaultSettings(type).serialize()
 		)).afterDelay(kSmallDelayMs).send();
 	}
@@ -3330,24 +3323,24 @@ void ApiWrap::forwardMessages(
 	_session->data().sendHistoryChangeNotifications();
 }
 
-void ApiWrap::shareContact(
+FullMsgId ApiWrap::shareContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
 		const SendAction &action) {
 	const auto userId = UserId(0);
-	sendSharedContact(phone, firstName, lastName, userId, action);
+	return sendSharedContact(phone, firstName, lastName, userId, action);
 }
 
-void ApiWrap::shareContact(
+FullMsgId ApiWrap::shareContact(
 		not_null<UserData*> user,
 		const SendAction &action) {
 	const auto userId = peerToUser(user->id);
 	const auto phone = _session->data().findContactPhone(user);
 	if (phone.isEmpty()) {
-		return;
+		return {};
 	}
-	sendSharedContact(
+	return sendSharedContact(
 		phone,
 		user->firstName,
 		user->lastName,
@@ -3355,7 +3348,7 @@ void ApiWrap::shareContact(
 		action);
 }
 
-void ApiWrap::sendSharedContact(
+FullMsgId ApiWrap::sendSharedContact(
 		const QString &phone,
 		const QString &firstName,
 		const QString &lastName,
@@ -3405,6 +3398,7 @@ void ApiWrap::sendSharedContact(
 			MTP_string(), // vcard
 			MTP_long(userId.bare)),
 		HistoryMessageMarkupData());
+	const auto result = item->fullId();
 
 	const auto media = MTP_inputMediaContact(
 		MTP_string(phone),
@@ -3419,6 +3413,8 @@ void ApiWrap::sendSharedContact(
 		(action.options.scheduled
 			? Data::HistoryUpdate::Flag::ScheduledSent
 			: Data::HistoryUpdate::Flag::MessageSent));
+
+	return result;
 }
 
 void ApiWrap::sendVoiceMessage(
@@ -4300,4 +4296,8 @@ Api::Premium &ApiWrap::premium() {
 
 Api::Usernames &ApiWrap::usernames() {
 	return *_usernames;
+}
+
+Api::Websites &ApiWrap::websites() {
+	return *_websites;
 }

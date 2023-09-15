@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "mtproto/mtproto_config.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/power_saving.h"
 #include "window/themes/window_theme.h"

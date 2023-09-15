@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 
 #include "chat_helpers/tabbed_selector.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "window/section_widget.h"
 #include "support/support_common.h"

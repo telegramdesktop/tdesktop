@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "base/platform/base_platform_info.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/masked_input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -268,9 +269,16 @@ AbstractTextRow<Input>::AbstractTextRow(
 , _field(this, st::passportDetailsField, nullptr, value)
 , _value(value) {
 	_field->setMaxLength(limit);
-	connect(_field, &Input::changed, [=] {
-		_value = valueCurrent();
-	});
+	if constexpr (std::is_same<Input, Ui::InputField>::value) {
+		_field->changes(
+		) | rpl::start_with_next([=] {
+			_value = valueCurrent();
+		}, _field->lifetime());
+	} else {
+		connect(_field, &Input::changed, [=] {
+			_value = valueCurrent();
+		});
+	}
 }
 
 template <typename Input>

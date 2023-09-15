@@ -359,6 +359,7 @@ public:
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const;
 
 	void indexAsNewItem();
+	void addToSharedMediaIndex();
 	void removeFromSharedMediaIndex();
 
 	struct NotificationTextOptions {

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/toast/toast.h"
 #include "info/profile/info_profile_icon.h"
 #include "styles/style_chat_helpers.h"
@@ -148,7 +148,8 @@ void ReportDetailsBox(
 		const auto text = details->getLastText();
 		done(text);
 	};
-	QObject::connect(details, &InputField::submitted, submit);
+	details->submits(
+	) | rpl::start_with_next(submit, details->lifetime());
 	box->addButton(tr::lng_report_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

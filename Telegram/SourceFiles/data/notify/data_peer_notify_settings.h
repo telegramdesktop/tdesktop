@@ -46,6 +46,7 @@ public:
 		std::optional<bool> silentPosts,
 		std::optional<NotifySound> sound,
 		std::optional<bool> storiesMuted);
+	bool resetToDefault();
 
 	bool settingsUnknown() const;
 	std::optional<TimeId> muteUntil() const;

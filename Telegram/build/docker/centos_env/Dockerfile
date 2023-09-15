@@ -59,7 +59,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin edafe1a2484cd6ac9be357aa1e4cda61bf6a8b9a \
+	&& git fetch --depth=1 origin 2cf975200b9baac520b9b298776e0a20b24e397a \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 
@@ -232,6 +232,7 @@ RUN git clone -b v1.11.0 --depth=1 {{ GIT }}/webmproject/libvpx.git \
 		--enable-vp8 \
 		--enable-vp9 \
 		--enable-webm-io \
+		--size-limit=4096x4096 \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/libvpx-cache" install \
 	&& cd .. \

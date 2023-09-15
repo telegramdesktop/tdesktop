@@ -11,12 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "ui/boxes/calendar_box.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/time_input.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+
+#include <QtWidgets/QTextEdit>
 
 namespace Ui {
 namespace {
@@ -147,8 +149,9 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	const auto calendar =
 		content->lifetime().make_state<QPointer<CalendarBox>>();
 	const auto calendarStyle = args.style.calendarStyle;
-	QObject::connect(state->day, &InputField::focused, [=] {
-		if (*calendar) {
+	state->day->focusedChanges(
+	) | rpl::start_with_next([=](bool focused) {
+		if (*calendar || !focused) {
 			return;
 		}
 		*calendar = box->getDelegate()->show(
@@ -167,7 +170,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		) | rpl::start_with_next(crl::guard(state->time, [=] {
 			state->time->setFocusFast();
 		}), (*calendar)->lifetime());
-	});
+	}, state->day->lifetime());
 
 	const auto collect = [=] {
 		const auto timeValue = state->time->valueCurrent().split(':');

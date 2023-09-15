@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 
 class History;
 class DocumentData;
@@ -196,6 +196,7 @@ public:
 
 	void editMessage(FullMsgId id);
 	void cancelEditMessage();
+	void maybeCancelEditMessage(); // Confirm if changed and cancel.
 
 	void replyToMessage(FullMsgId id);
 	void cancelReplyMessage();
@@ -423,7 +424,6 @@ private:
 	std::unique_ptr<WebpageProcessor> _preview;
 
 	Fn<void()> _raiseEmojiSuggestions;
-	rpl::event_stream<bool> _focusChanges;
 
 	rpl::lifetime _historyLifetime;
 	rpl::lifetime _uploaderSubscriptions;

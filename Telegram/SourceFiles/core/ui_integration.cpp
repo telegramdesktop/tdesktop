@@ -282,15 +282,10 @@ rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 
 const Ui::Emoji::One *UiIntegration::defaultEmojiVariant(
 		const Ui::Emoji::One *emoji) {
-	if (!emoji || !emoji->hasVariants()) {
+	if (!emoji) {
 		return emoji;
 	}
-	const auto nonColored = emoji->nonColoredId();
-	const auto &variants = Core::App().settings().emojiVariants();
-	const auto i = variants.find(nonColored);
-	const auto result = (i != end(variants))
-		? emoji->variant(i->second)
-		: emoji;
+	const auto result = Core::App().settings().lookupEmojiVariant(emoji);
 	Core::App().settings().incrementRecentEmoji({ result });
 	return result;
 }
@@ -375,7 +370,6 @@ QString UiIntegration::phrasePanelCloseAnyway() {
 	return tr::lng_bot_close_warning_sure(tr::now);
 }
 
-#if 0 // disabled for now
 QString UiIntegration::phraseBotSharePhone() {
 	return tr::lng_bot_share_phone(tr::now);
 }
@@ -387,7 +381,18 @@ QString UiIntegration::phraseBotSharePhoneTitle() {
 QString UiIntegration::phraseBotSharePhoneConfirm() {
 	return tr::lng_bot_share_phone_confirm(tr::now);
 }
-#endif
+
+QString UiIntegration::phraseBotAllowWrite() {
+	return tr::lng_bot_allow_write(tr::now);
+}
+
+QString UiIntegration::phraseBotAllowWriteTitle() {
+	return tr::lng_bot_allow_write_title(tr::now);
+}
+
+QString UiIntegration::phraseBotAllowWriteConfirm() {
+	return tr::lng_bot_allow_write_confirm(tr::now);
+}
 
 bool OpenGLLastCheckFailed() {
 	return QFile::exists(OpenGLCheckFilePath());

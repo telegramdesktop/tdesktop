@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_widgets.h"
 #include "ui/wrap/padding_wrap.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "lang/lang_keys.h"
@@ -30,9 +30,10 @@ auto SearchFieldController::createRowView(
 
 	auto field = createField(wrap, st.field).release();
 	field->show();
-	field->connect(field, &Ui::InputField::cancelled, [=] {
+	field->cancelled(
+	) | rpl::start_with_next([=] {
 		field->setText(QString());
-	});
+	}, field->lifetime());
 
 	auto cancel = CreateChild<Ui::CrossButton>(
 		wrap,
@@ -104,9 +105,10 @@ base::unique_qptr<Ui::InputField> SearchFieldController::createField(
 		tr::lng_dlg_filter(),
 		_query.current());
 	auto field = result.get();
-	field->connect(field, &Ui::InputField::changed, [=] {
+	field->changes(
+	) | rpl::start_with_next([=] {
 		_query = field->getLastText();
-	});
+	}, field->lifetime());
 	_view.reset(field);
 	return result;
 }

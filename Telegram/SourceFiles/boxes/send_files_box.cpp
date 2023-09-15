@@ -28,12 +28,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
-#include "ui/boxes/confirm_box.h"
-#include "ui/effects/animations.h"
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
@@ -42,9 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_album_preview.h"
 #include "ui/chat/attach/attach_single_file_preview.h"
 #include "ui/chat/attach/attach_single_media_preview.h"
-#include "ui/text/format_values.h"
 #include "ui/grouped_layout.h"
-#include "ui/text/text_options.h"
 #include "ui/toast/toast.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/painter.h"
@@ -54,16 +50,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "media/clip/media_clip_reader.h"
 #include "api/api_common.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
 #include <QtCore/QMimeData>
@@ -74,8 +67,12 @@ constexpr auto kMaxMessageLength = 4096;
 
 using Ui::SendFilesWay;
 
-inline bool CanAddUrls(const QList<QUrl> &urls) {
+[[nodiscard]] inline bool CanAddUrls(const QList<QUrl> &urls) {
 	return !urls.isEmpty() && ranges::all_of(urls, &QUrl::isLocalFile);
+}
+
+[[nodiscard]] bool CanAddFiles(not_null<const QMimeData*> data) {
+	return data->hasImage() || CanAddUrls(Core::ReadMimeUrls(data));
 }
 
 void FileDialogCallback(
@@ -445,13 +442,15 @@ void SendFilesBox::setupDragArea() {
 	auto computeState = [=](const QMimeData *data) {
 		using DragState = Storage::MimeDataState;
 		const auto state = Storage::ComputeMimeDataState(data);
-		return (state == DragState::PhotoFiles)
-			? DragState::Image
+		return (state == DragState::PhotoFiles || state == DragState::Image)
+			? (_sendWay.current().sendImagesAsPhotos()
+				? DragState::Image
+				: DragState::Files)
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(
 		this,
-		[=](not_null<const QMimeData*> d) { return canAddFiles(d); },
+		CanAddFiles,
 		[=](bool f) { _caption->setAcceptDrops(f); },
 		[=] { updateControlsGeometry(); },
 		std::move(computeState));
@@ -763,6 +762,8 @@ void SendFilesBox::pushBlock(int from, int till) {
 	) | rpl::filter([=] {
 		return !_removingIndex;
 	}) | rpl::start_with_next([=](int index) {
+		applyBlockChanges();
+
 		_removingIndex = index;
 		crl::on_main(this, [=] {
 			const auto index = base::take(_removingIndex).value_or(-1);
@@ -783,6 +784,8 @@ void SendFilesBox::pushBlock(int from, int till) {
 	const auto show = uiShow();
 	block.itemReplaceRequest(
 	) | rpl::start_with_next([=](int index) {
+		applyBlockChanges();
+
 		const auto replace = [=](Ui::PreparedList list) {
 			if (list.files.empty()) {
 				return;
@@ -858,6 +861,8 @@ void SendFilesBox::pushBlock(int from, int till) {
 	const auto openedOnce = widget->lifetime().make_state<bool>(false);
 	block.itemModifyRequest(
 	) | rpl::start_with_next([=, show = _show](int index) {
+		applyBlockChanges();
+
 		if (!(*openedOnce)) {
 			show->session().settings().incrementPhotoEditorHintShown();
 			show->session().saveSettings();
@@ -1028,22 +1033,26 @@ void SendFilesBox::setupCaption() {
 		Core::App().settings().sendSubmitWay());
 	_caption->setMaxLength(kMaxMessageLength);
 
-	connect(_caption, &Ui::InputField::resized, [=] {
+	_caption->heightChanges(
+	) | rpl::start_with_next([=] {
 		captionResized();
-	});
-	connect(_caption, &Ui::InputField::submitted, [=](
-			Qt::KeyboardModifiers modifiers) {
+	}, _caption->lifetime());
+	_caption->submits(
+	) | rpl::start_with_next([=](Qt::KeyboardModifiers modifiers) {
 		const auto ctrlShiftEnter = modifiers.testFlag(Qt::ShiftModifier)
 			&& (modifiers.testFlag(Qt::ControlModifier)
 				|| modifiers.testFlag(Qt::MetaModifier));
 		send({}, ctrlShiftEnter);
-	});
-	connect(_caption, &Ui::InputField::cancelled, [=] { closeBox(); });
+	}, _caption->lifetime());
+	_caption->cancelled(
+	) | rpl::start_with_next([=] {
+		closeBox();
+	}, _caption->lifetime());
 	_caption->setMimeDataHook([=](
 			not_null<const QMimeData*> data,
 			Ui::InputField::MimeAction action) {
 		if (action == Ui::InputField::MimeAction::Check) {
-			return canAddFiles(data);
+			return CanAddFiles(data);
 		} else if (action == Ui::InputField::MimeAction::Insert) {
 			return addFiles(data);
 		}
@@ -1137,10 +1146,6 @@ void SendFilesBox::captionResized() {
 	updateControlsGeometry();
 	updateEmojiPanelGeometry();
 	update();
-}
-
-bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
-	return data->hasImage() || CanAddUrls(Core::ReadMimeUrls(data));
 }
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/message_field.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "api/api_chat_participants.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
@@ -1616,8 +1616,8 @@ void PeerMenuBlockUserBox(
 }
 
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
-	user->session().api().blockedPeers().unblock(user, [=] {
-		if (user->isBot() && !user->isSupport()) {
+	user->session().api().blockedPeers().unblock(user, [=](bool success) {
+		if (success && user->isBot() && !user->isSupport()) {
 			user->session().api().sendBotStart(user);
 		}
 	});
@@ -1963,9 +1963,8 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 
 	const auto field = comment->entity();
 
-	QObject::connect(field, &Ui::InputField::submitted, [=] {
-		submit({});
-	});
+	field->submits(
+	) | rpl::start_with_next([=] { submit({}); }, field->lifetime());
 	InitMessageFieldHandlers(
 		session,
 		show,

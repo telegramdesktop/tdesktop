@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "payments/ui/payments_field.h"
 
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/boxes/country_select_box.h"
 #include "ui/text/format_values.h"
 #include "ui/ui_utility.h"
@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_payments.h"
 
 #include <QtCore/QRegularExpression>
+#include <QtWidgets/QTextEdit>
 
 namespace Payments::Ui {
 namespace {
@@ -322,7 +323,7 @@ struct SimpleFieldState {
 		QString(),
 		st::paymentsFieldAdditional);
 	const auto leftSkip = state->left
-		? (state->left->naturalWidth() + state->currencySkip)
+		? (state->left->textMaxWidth() + state->currencySkip)
 		: 0;
 	const auto rightSkip = st::paymentsFieldAdditional.style.font->width(
 		QString(QChar(rule.decimal))
@@ -610,7 +611,8 @@ void Field::setupValidator(Fn<ValidateResult(ValidateRequest)> validator) {
 	} else {
 		const auto raw = _input->rawTextEdit();
 		QObject::connect(raw, &QTextEdit::cursorPositionChanged, save);
-		QObject::connect(_input, &InputField::changed, validate);
+		_input->changes(
+		) | rpl::start_with_next(validate, _input->lifetime());
 	}
 }
 
@@ -648,7 +650,8 @@ void Field::setupSubmit() {
 	if (_masked) {
 		QObject::connect(_masked, &MaskedInputField::submitted, submitted);
 	} else {
-		QObject::connect(_input, &InputField::submitted, submitted);
+		_input->submits(
+		) | rpl::start_with_next(submitted, _input->lifetime());
 	}
 }
 

@@ -73,6 +73,7 @@ private:
 
 	QSize _viewport;
 	float _factor = 1.;
+	int _ifactor = 1;
 	QVector2D _uniformViewport;
 
 	std::optional<QOpenGLBuffer> _contentBuffer;
@@ -189,9 +190,10 @@ void Panel::Incoming::RendererGL::paint(
 		return;
 	}
 
-	const auto factor = widget->devicePixelRatio();
+	const auto factor = widget->devicePixelRatioF();
 	if (_factor != factor) {
 		_factor = factor;
+		_ifactor = int(std::ceil(_factor));
 		_controlsShadowImage.invalidate();
 	}
 	_viewport = widget->size();
@@ -375,9 +377,9 @@ void Panel::Incoming::RendererGL::validateShadowImage() {
 		return;
 	}
 	const auto size = st::callTitleShadowLeft.size();
-	const auto full = QSize(size.width(), 2 * size.height()) * int(_factor);
+	const auto full = QSize(size.width(), 2 * size.height()) * _ifactor;
 	auto image = QImage(full, QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(_factor);
+	image.setDevicePixelRatio(_ifactor);
 	image.fill(Qt::transparent);
 	{
 		auto p = QPainter(&image);

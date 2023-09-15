@@ -1,3 +1,25 @@
+4.9.5 (04.09.23)
+
+- Several new bot web-app features.
+- Bug fixes and other minor improvements.
+
+4.9.4 (30.08.23)
+
+- Default private chats / groups / channels notification settings.
+- Forwarded / reply-to-a-story icon in chats list message preview.
+- Bug fixes and other minor improvements.
+
+4.9.3 (22.08.23)
+
+- Fix audio output on macOS.
+
+4.9.2 (21.08.23)
+
+- Remove single recently used emoji or reset the list from context menu.
+- Change all emoji skin colors from Emoji & People section.
+- Connected Websites section in Settings > Advanced.
+- Bug fixes and other minor improvements.
+
 4.9.1 (15.08.23)
 
 - Fix a crash in reply area ripple animation.

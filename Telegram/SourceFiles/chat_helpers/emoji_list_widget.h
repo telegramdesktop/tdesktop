@@ -247,6 +247,7 @@ private:
 	[[nodiscard]] SectionInfo sectionInfoByOffset(int yOffset) const;
 	[[nodiscard]] int sectionsCount() const;
 	void setSingleSize(QSize size);
+	void setColorAllForceRippled(bool force);
 
 	void showPicker();
 	void pickerHidden();
@@ -264,6 +265,15 @@ private:
 	void updateSelected();
 	void setSelected(OverState newSelected);
 	void setPressed(OverState newPressed);
+
+	void fillRecentMenu(
+		not_null<Ui::PopupMenu*> menu,
+		int section,
+		int index);
+	void fillEmojiStatusMenu(
+		not_null<Ui::PopupMenu*> menu,
+		int section,
+		int index);
 
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
 	[[nodiscard]] DocumentData *lookupCustomEmoji(
@@ -297,6 +307,9 @@ private:
 		int set,
 		int index);
 	void validateEmojiPaintContext(const ExpandingContext &context);
+	[[nodiscard]] bool hasColorButton(int index) const;
+	[[nodiscard]] QRect colorButtonRect(int index) const;
+	[[nodiscard]] QRect colorButtonRect(const SectionInfo &info) const;
 	[[nodiscard]] bool hasRemoveButton(int index) const;
 	[[nodiscard]] QRect removeButtonRect(int index) const;
 	[[nodiscard]] QRect removeButtonRect(const SectionInfo &info) const;
@@ -377,6 +390,10 @@ private:
 	bool _allowWithoutPremium = false;
 	Ui::RoundRect _overBg;
 	QImage _searchExpandCache;
+
+	mutable std::unique_ptr<Ui::RippleAnimation> _colorAllRipple;
+	bool _colorAllRippleForced = false;
+	rpl::lifetime _colorAllRippleForcedLifetime;
 
 	std::vector<QString> _nextSearchQuery;
 	std::vector<QString> _searchQuery;

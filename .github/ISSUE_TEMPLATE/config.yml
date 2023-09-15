@@ -1,6 +1,6 @@
 blank_issues_enabled: false
 contact_links:
-  - name: API issue
+  - name: Platform-wide issue
     url: https://bugs.telegram.org
     about: Any bug report or feature request affecting more than only Telegram Desktop.
   - name: Issue of other client

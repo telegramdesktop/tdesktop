@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "passport/passport_panel_controller.h"
 #include "passport/ui/passport_details_row.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -195,11 +195,12 @@ void VerifyBox::setupControls(
 	if (codeLength > 0) {
 		_code->setAutoSubmit(codeLength, _submit);
 	} else {
-		connect(_code, &Ui::SentCodeField::submitted, _submit);
+		_code->submits() | rpl::start_with_next(_submit, _code->lifetime());
 	}
-	connect(_code, &Ui::SentCodeField::changed, [=] {
+	_code->changes(
+	) | rpl::start_with_next([=] {
 		problem->hide(anim::type::normal);
-	});
+	}, _code->lifetime());
 }
 
 void VerifyBox::setInnerFocus() {

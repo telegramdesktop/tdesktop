@@ -26,13 +26,17 @@ enum class DefaultNotify {
 	Group,
 	Broadcast,
 };
+[[nodiscard]] DefaultNotify DefaultNotifyType(
+	not_null<const PeerData*> peer);
+
+[[nodiscard]] MTPInputNotifyPeer DefaultNotifyToMTP(DefaultNotify type);
 
 class NotifySettings final {
 public:
 	NotifySettings(not_null<Session*> owner);
 
 	void request(not_null<PeerData*> peer);
-	void request(not_null<Data::Thread*> thread);
+	void request(not_null<Thread*> thread);
 
 	void apply(
 		const MTPNotifyPeer &notifyPeer,
@@ -50,25 +54,25 @@ public:
 		MsgId topicRootId,
 		const MTPPeerNotifySettings &settings);
 	void apply(
-		not_null<Data::ForumTopic*> topic,
+		not_null<ForumTopic*> topic,
 		const MTPPeerNotifySettings &settings);
 
 	void update(
-		not_null<Data::Thread*> thread,
-		Data::MuteValue muteForSeconds,
+		not_null<Thread*> thread,
+		MuteValue muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt,
 		std::optional<bool> storiesMuted = std::nullopt);
-	void resetToDefault(not_null<Data::Thread*> thread);
+	void resetToDefault(not_null<Thread*> thread);
 	void update(
 		not_null<PeerData*> peer,
-		Data::MuteValue muteForSeconds,
+		MuteValue muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt,
 		std::optional<bool> storiesMuted = std::nullopt);
 	void resetToDefault(not_null<PeerData*> peer);
 
-	void forumParentMuteUpdated(not_null<Data::Forum*> forum);
+	void forumParentMuteUpdated(not_null<Forum*> forum);
 
 	void cacheSound(DocumentId id);
 	void cacheSound(not_null<DocumentData*> document);
@@ -81,21 +85,19 @@ public:
 
 	[[nodiscard]] const PeerNotifySettings &defaultSettings(
 		DefaultNotify type) const;
+	[[nodiscard]] bool isMuted(DefaultNotify type) const;
 
 	void defaultUpdate(
 		DefaultNotify type,
-		Data::MuteValue muteForSeconds,
+		MuteValue muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt,
 		std::optional<bool> storiesMuted = std::nullopt);
 
-	[[nodiscard]] bool isMuted(not_null<const Data::Thread*> thread) const;
-	[[nodiscard]] NotifySound sound(
-		not_null<const Data::Thread*> thread) const;
-	[[nodiscard]] bool muteUnknown(
-		not_null<const Data::Thread*> thread) const;
-	[[nodiscard]] bool soundUnknown(
-		not_null<const Data::Thread*> thread) const;
+	[[nodiscard]] bool isMuted(not_null<const Thread*> thread) const;
+	[[nodiscard]] NotifySound sound(not_null<const Thread*> thread) const;
+	[[nodiscard]] bool muteUnknown(not_null<const Thread*> thread) const;
+	[[nodiscard]] bool soundUnknown(not_null<const Thread*> thread) const;
 
 	[[nodiscard]] bool isMuted(not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool silentPosts(not_null<const PeerData*> peer) const;
@@ -105,7 +107,17 @@ public:
 		not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool soundUnknown(not_null<const PeerData*> peer) const;
 
+	void loadExceptions();
+	[[nodiscard]] rpl::producer<DefaultNotify> exceptionsUpdates() const;
+	[[nodiscard]] auto exceptionsUpdatesRealtime() const
+		-> rpl::producer<DefaultNotify>;
+	[[nodiscard]] const base::flat_set<not_null<PeerData*>> &exceptions(
+		DefaultNotify type) const;
+	void clearExceptions(DefaultNotify type);
+
 private:
+	static constexpr auto kDefaultNotifyTypes = 3;
+
 	struct DefaultValue {
 		PeerNotifySettings settings;
 		rpl::event_stream<> updates;
@@ -114,7 +126,7 @@ private:
 	void cacheSound(const std::optional<NotifySound> &sound);
 
 	[[nodiscard]] bool isMuted(
-		not_null<const Data::Thread*> thread,
+		not_null<const Thread*> thread,
 		crl::time *changesIn) const;
 	[[nodiscard]] bool isMuted(
 		not_null<const PeerData*> peer,
@@ -126,21 +138,22 @@ private:
 		not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool settingsUnknown(not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool settingsUnknown(
-		not_null<const Data::Thread*> thread) const;
+		not_null<const Thread*> thread) const;
 
 	void unmuteByFinished();
 	void unmuteByFinishedDelayed(crl::time delay);
-	void updateLocal(not_null<Data::Thread*> thread);
+	void updateLocal(not_null<Thread*> thread);
 	void updateLocal(not_null<PeerData*> peer);
 	void updateLocal(DefaultNotify type);
+
+	void updateException(not_null<PeerData*> peer);
+	void exceptionsUpdated(DefaultNotify type);
 
 	const not_null<Session*> _owner;
 
 	DefaultValue _defaultValues[3];
 	std::unordered_set<not_null<const PeerData*>> _mutedPeers;
-	std::unordered_map<
-		not_null<Data::ForumTopic*>,
-		rpl::lifetime> _mutedTopics;
+	std::unordered_map<not_null<ForumTopic*>, rpl::lifetime> _mutedTopics;
 	base::Timer _unmuteByFinishedTimer;
 
 	struct {
@@ -150,6 +163,14 @@ private:
 		std::vector<DocumentId> pendingIds;
 		rpl::lifetime pendingLifetime;
 	} _ringtones;
+
+	rpl::event_stream<DefaultNotify> _exceptionsUpdates;
+	rpl::event_stream<DefaultNotify> _exceptionsUpdatesRealtime;
+	std::array<
+		base::flat_set<not_null<PeerData*>>,
+		kDefaultNotifyTypes> _exceptions;
+	std::array<mtpRequestId, kDefaultNotifyTypes> _exceptionsRequestId = {};
+	std::array<bool, kDefaultNotifyTypes> _exceptionsUpdatesScheduled = {};
 
 };
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_inner_widget.h"
 
+#include "dialogs/dialogs_three_state_icon.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
@@ -1010,11 +1011,10 @@ void InnerWidget::paintPeerSearchResult(
 				: context.selected
 				? &st::dialogsVerifiedIconOver
 				: &st::dialogsVerifiedIcon),
-			.premium = (context.active
-				? &st::dialogsPremiumIconActive
-				: context.selected
-				? &st::dialogsPremiumIconOver
-				: &st::dialogsPremiumIcon),
+			.premium = &ThreeStateIcon(
+				st::dialogsPremiumIcon,
+				context.active,
+				context.selected),
 			.scam = (context.active
 				? &st::dialogsScamFgActive
 				: context.selected
@@ -2818,12 +2818,9 @@ void InnerWidget::resizeEmptyLabel() {
 	if (!_empty) {
 		return;
 	}
-	const auto useWidth = std::min(
-		_empty->naturalWidth(),
-		width() - 2 * st::dialogsEmptySkip);
-	const auto left = (width() - useWidth) / 2;
-	_empty->resizeToWidth(useWidth);
-	_empty->move(left, (st::dialogsEmptyHeight - _empty->height()) / 2);
+	const auto skip = st::dialogsEmptySkip;
+	_empty->resizeToWidth(width() - 2 * skip);
+	_empty->move(skip, (st::dialogsEmptyHeight - _empty->height()) / 2);
 }
 
 void InnerWidget::clearMouseSelection(bool clearSelection) {

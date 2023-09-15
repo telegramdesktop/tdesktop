@@ -64,7 +64,6 @@ private:
 	void updateSize();
 	void updateFileRows();
 
-	int thumbIndex(AlbumThumbnail *thumb);
 	AlbumThumbnail *thumbUnderCursor();
 	void deleteThumbByIndex(int index);
 	void changeThumbByIndex(int index);

@@ -60,7 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/input_fields.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/text/format_values.h"
 #include "ui/controls/emoji_button.h"
@@ -129,7 +129,7 @@ public:
 
 	[[nodiscard]] Data::PreviewState state() const;
 	void setState(Data::PreviewState value);
-	void refreshState(Data::PreviewState value);
+	void refreshState(Data::PreviewState value, bool disable);
 
 	[[nodiscard]] rpl::producer<> paintRequests() const;
 	[[nodiscard]] rpl::producer<QString> titleChanges() const;
@@ -219,12 +219,16 @@ void WebpageProcessor::setState(Data::PreviewState value) {
 	_previewState = value;
 }
 
-void WebpageProcessor::refreshState(Data::PreviewState value) {
+void WebpageProcessor::refreshState(
+		Data::PreviewState value,
+		bool disable) {
 	// Save links from _field to _parsedLinks without generating preview.
 	_previewState = Data::PreviewState::Cancelled;
+	_fieldLinksParser.setDisabled(disable);
 	_fieldLinksParser.parseNow();
 	_parsedLinks = _fieldLinksParser.list().current();
 	_previewState = value;
+	checkPreview();
 }
 
 void WebpageProcessor::cancel() {
@@ -1246,7 +1250,7 @@ bool ComposeControls::focused() const {
 }
 
 rpl::producer<bool> ComposeControls::focusedValue() const {
-	return rpl::single(focused()) | rpl::then(_focusChanges.events());
+	return rpl::single(focused()) | rpl::then(_field->focusedChanges());
 }
 
 rpl::producer<bool> ComposeControls::tabbedPanelShownValue() const {
@@ -1287,12 +1291,9 @@ auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 		return (_send->type() == type) && (sendRequestType == requestType);
 	});
 	auto map = rpl::map_to(Api::SendOptions());
-	auto submits = base::qt_signal_producer(
-		_field.get(),
-		&Ui::InputField::submitted);
 	return rpl::merge(
 		_send->clicks() | filter | map,
-		std::move(submits) | filter | map,
+		_field->submits() | filter | map,
 		_sendCustomRequests.events());
 }
 
@@ -1313,12 +1314,9 @@ rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 	auto filter = rpl::filter([=] {
 		return _send->type() == Ui::SendButton::Type::Save;
 	});
-	auto submits = base::qt_signal_producer(
-		_field.get(),
-		&Ui::InputField::submitted);
 	return rpl::merge(
 		_send->clicks() | filter | toValue,
-		std::move(submits) | filter | toValue);
+		_field->submits() | filter | toValue);
 }
 
 rpl::producer<std::optional<bool>> ComposeControls::attachRequests() const {
@@ -1772,17 +1770,22 @@ void ComposeControls::initKeyHandler() {
 void ComposeControls::initField() {
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 	updateSubmitSettings();
-	//Ui::Connect(_field, &Ui::InputField::submitted, [=] { send(); });
-	Ui::Connect(_field, &Ui::InputField::cancelled, [=] { escape(); });
-	Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });
-	Ui::Connect(_field, &Ui::InputField::resized, [=] { updateHeight(); });
-	Ui::Connect(_field, &Ui::InputField::focused, [=] {
-		_focusChanges.fire(true);
-	});
-	Ui::Connect(_field, &Ui::InputField::blurred, [=] {
-		_focusChanges.fire(false);
-	});
-	Ui::Connect(_field, &Ui::InputField::changed, [=] { fieldChanged(); });
+	_field->cancelled(
+	) | rpl::start_with_next([=] {
+		escape();
+	}, _field->lifetime());
+	_field->tabbed(
+	) | rpl::start_with_next([=] {
+		fieldTabbed();
+	}, _field->lifetime());
+	_field->heightChanges(
+	) | rpl::start_with_next([=] {
+		updateHeight();
+	}, _field->lifetime());
+	_field->changes(
+	) | rpl::start_with_next([=] {
+		fieldChanged();
+	}, _field->lifetime());
 	InitMessageField(_show, _field, [=](not_null<DocumentData*> emoji) {
 		if (_history && Data::AllowEmojiWithoutPremium(_history->peer)) {
 			return true;
@@ -2163,6 +2166,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		}
 		_header->editMessage({});
 		_header->replyToMessage({});
+		_preview->refreshState(Data::PreviewState::Allowed, false);
 		_canReplaceMedia = false;
 		_photoEditMedia = nullptr;
 		return;
@@ -2176,13 +2180,15 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	draft->cursor.applyTo(_field);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
 	if (_preview) {
-		_preview->refreshState(draft->previewState);
+		const auto disablePreview = (editDraft != nullptr);
+		_preview->refreshState(draft->previewState, disablePreview);
 	}
 
 	if (draft == editDraft) {
 		const auto resolve = [=] {
 			if (const auto item = _history->owner().message(editingId)) {
 				const auto media = item->media();
+				const auto disablePreview = media && !media->webpage();
 				_canReplaceMedia = media && media->allowsEditMedia();
 				_photoEditMedia = (_canReplaceMedia
 					&& _regularWindow
@@ -2196,6 +2202,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 						item->fullId());
 				}
 				_header->editMessage(editingId, _photoEditMedia != nullptr);
+				_preview->refreshState(_preview->state(), disablePreview);
 				return true;
 			}
 			_canReplaceMedia = false;
@@ -2938,6 +2945,26 @@ void ComposeControls::cancelEditMessage() {
 	saveDraft();
 }
 
+void ComposeControls::maybeCancelEditMessage() {
+	Expects(_history != nullptr);
+
+	const auto item = _history->owner().message(_header->editMsgId());
+	if (item && EditTextChanged(item, _field->getTextWithTags())) {
+		const auto guard = _field.get();
+		_show->show(Ui::MakeConfirmBox({
+			.text = tr::lng_cancel_edit_post_sure(),
+			.confirmed = crl::guard(guard, [this](Fn<void()> &&close) {
+				cancelEditMessage();
+				close();
+			}),
+			.confirmText = tr::lng_cancel_edit_post_yes(),
+			.cancelText = tr::lng_cancel_edit_post_no(),
+		}));
+	} else {
+		cancelEditMessage();
+	}
+}
+
 void ComposeControls::replyToMessage(FullMsgId id) {
 	Expects(_history != nullptr);
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
@@ -3013,7 +3040,7 @@ bool ComposeControls::handleCancelRequest() {
 		_autocomplete->hideAnimated();
 		return true;
 	} else if (isEditingMessage()) {
-		cancelEditMessage();
+		maybeCancelEditMessage();
 		return true;
 	} else if (readyToForward()) {
 		cancelForward();

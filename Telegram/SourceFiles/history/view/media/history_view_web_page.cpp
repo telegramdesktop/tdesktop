@@ -829,6 +829,10 @@ bool WebPage::isDisplayed() const {
 		&& !item->Has<HistoryMessageLogEntryOriginal>();
 }
 
+QString WebPage::additionalInfoString() const {
+	return _attach ? _attach->additionalInfoString() : QString();
+}
+
 TextForMimeData WebPage::selectedText(TextSelection selection) const {
 	auto siteNameResult = _siteName.toTextForMimeData(selection);
 	auto titleResult = _title.toTextForMimeData(

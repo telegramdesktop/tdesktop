@@ -871,6 +871,11 @@ void UserpicButton::switchChangePhotoOverlay(
 	}
 }
 
+void UserpicButton::forceForumShape(bool force) {
+	_forceForumShape = force;
+	prepare();
+}
+
 void UserpicButton::showSavedMessagesOnSelf(bool enabled) {
 	if (_showSavedMessagesOnSelf != enabled) {
 		_showSavedMessagesOnSelf = enabled;
@@ -1003,7 +1008,26 @@ void UserpicButton::prepareUserpicPixmap() {
 	_userpic = CreateSquarePixmap(size, [&](Painter &p) {
 		if (_userpicHasImage) {
 			if (_showPeerUserpic) {
-				_peer->paintUserpic(p, _userpicView, 0, 0, size);
+				if (useForumShape()) {
+					const auto ratio = style::DevicePixelRatio();
+					if (const auto cloud = _peer->userpicCloudImage(_userpicView)) {
+						Ui::ValidateUserpicCache(
+							_userpicView,
+							cloud,
+							nullptr,
+							size * ratio,
+							true);
+						p.drawImage(QRect(0, 0, size, size), _userpicView.cached);
+					} else {
+						const auto empty = _peer->generateUserpicImage(
+							_userpicView,
+							size * ratio,
+							size * ratio * Ui::ForumUserpicRadiusMultiplier());
+						p.drawImage(QRect(0, 0, size, size), empty);
+					}
+				} else {
+					_peer->paintUserpic(p, _userpicView, 0, 0, size);
+				}
 			} else if (_nonPersonalView) {
 				using Size = Data::PhotoSize;
 				if (const auto full = _nonPersonalView->image(Size::Large)) {

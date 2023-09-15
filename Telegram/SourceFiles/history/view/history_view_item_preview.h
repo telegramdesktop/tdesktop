@@ -23,11 +23,17 @@ struct ItemPreviewImage {
 };
 
 struct ItemPreview {
+	enum class Icon {
+		None,
+		ForwardedMessage,
+		ReplyToStory,
+	};
 	TextWithEntities text;
 	std::vector<ItemPreviewImage> images;
 	int arrowInTextPosition = -1;
 	int imagesInTextPosition = 0;
 	std::any loadingContext;
+	Icon icon = Icon::None;
 };
 
 struct ToPreviewOptions {

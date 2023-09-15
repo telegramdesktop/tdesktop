@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_participant_status.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/layers/layer_widget.h"
-#include "ui/layers/show.h"
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
 #include "mtproto/sender.h"
@@ -89,7 +88,6 @@ namespace Window {
 using GifPauseReason = ChatHelpers::PauseReason;
 using GifPauseReasons = ChatHelpers::PauseReasons;
 
-class MainWindow;
 class SectionMemento;
 class Controller;
 class FiltersMenu;

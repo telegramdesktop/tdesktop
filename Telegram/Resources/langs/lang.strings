@@ -451,6 +451,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_show_from" = "Show notifications from";
 "lng_settings_notify_all" = "All accounts";
 "lng_settings_notify_all_about" = "Turn this off if you want to receive notifications only from the account you are currently using.";
+"lng_settings_notify_global" = "Global settings";
 "lng_settings_notify_title" = "Notifications for chats";
 "lng_settings_desktop_notify" = "Desktop notifications";
 "lng_settings_native_title" = "Native notifications";
@@ -458,8 +459,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_use_native_notifications" = "Use native notifications";
 "lng_settings_notifications_position" = "Location on the screen";
 "lng_settings_notifications_count" = "Notifications count";
-"lng_settings_sound_notify" = "Play sound";
-"lng_settings_sound_notify_off" = "Off";
+"lng_settings_sound_allowed" = "Allow sound";
 "lng_settings_alert_windows" = "Flash the taskbar icon";
 "lng_settings_alert_mac" = "Bounce the dock icon";
 "lng_settings_alert_linux" = "Draw attention to the window";
@@ -480,6 +480,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_notification_hide_all" = "Hide all";
 "lng_notification_sample" = "This is a sample notification";
 "lng_notification_reminder" = "Reminder";
+"lng_notification_private_chats" = "Private chats";
+"lng_notification_groups" = "Groups";
+"lng_notification_channels" = "Channels";
+"lng_notification_click_to_change" = "Click here to change";
+"lng_notification_on" = "On, {exceptions}";
+"lng_notification_off" = "Off, {exceptions}";
+"lng_notification_exceptions#one" = "{count} exception";
+"lng_notification_exceptions#other" = "{count} exceptions";
+"lng_notification_exceptions_title" = "Exceptions";
+"lng_notification_title_private_chats" = "Notifications for private chats";
+"lng_notification_about_private_chats#one" = "Please note that **{count} chat** is listed as an exception and won't be affected by this change.";
+"lng_notification_about_private_chats#other" = "Please note that **{count} chats** are listed as exceptions and won't be affected by this change.";
+"lng_notification_title_groups" = "Notifications for groups";
+"lng_notification_about_groups#one" = "Please note that **{count} group** is listed as an exception and won't be affected by this change.";
+"lng_notification_about_groups#other" = "Please note that **{count} groups** are listed as exceptions and won't be affected by this change.";
+"lng_notification_title_channels" = "Notifications for channels";
+"lng_notification_about_channels#one" = "Please note that **{count} channel** is listed as an exception and won't be affected by this change.";
+"lng_notification_about_channels#other" = "Please note that **{count} channels** are listed as exceptions and won't be affected by this change.";
+"lng_notification_exceptions_view" = "View exceptions";
+"lng_notification_enable" = "Enable notifications";
+"lng_notification_sound" = "Sound";
+"lng_notification_tone" = "Notification tone";
+"lng_notification_exceptions_muted" = "Muted";
+"lng_notification_exceptions_unmuted" = "Unmuted";
+"lng_notification_exceptions_add" = "Add an exception";
+"lng_notification_exceptions_clear" = "Delete all exceptions";
+"lng_notification_exceptions_clear_sure" = "Are you sure you want to delete all exceptions?";
+"lng_notification_exceptions_clear_button" = "Delete";
+"lng_notification_exceptions_remove" = "Remove";
+"lng_notification_context_remove" = "Remove exception";
 
 "lng_reaction_text" = "{reaction} to your «{text}»";
 "lng_reaction_notext" = "{reaction} to your message";
@@ -646,13 +676,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 "lng_settings_security_bots" = "Bots and websites";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
-"lng_settings_logged_in" = "Logged In with Telegram";
-"lng_settings_logged_in_about" = "Websites where you've used Telegram to log in.";
-"lng_settings_logged_in_title" = "Logged In with Telegram";
+"lng_settings_logged_in" = "Connected websites";
+"lng_settings_logged_in_title" = "Logged in with Telegram";
 "lng_settings_logged_in_description" = "You can log in on websites that support signing in with Telegram.";
-"lng_settings_disconnect_all" = "Disconnect All Websites";
+"lng_settings_disconnect_all" = "Disconnect all websites";
+"lng_settings_disconnect_title" = "Disconnect website";
+"lng_settings_disconnect_sure" = "Are you sure you want to disconnect {domain}?";
+"lng_settings_disconnect_block" = "Block {name}";
+"lng_settings_disconnect_all_title" = "Disconnect websites";
+"lng_settings_disconnect_all_sure" = "Are you sure you want to disconnect all websites where you logged in with Telegram?";
+"lng_settings_disconnect" = "Disconnect";
 "lng_settings_connected_title" = "Connected websites";
-"lng_settings_connected_about" = "Click to disconnect from your Telegram account.";
 
 "lng_settings_power_menu" = "Battery and Animations";
 "lng_settings_power_title" = "Power Usage";
@@ -962,6 +996,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sessions_terminate" = "Terminate Session";
 "lng_sessions_application" = "Application";
 "lng_sessions_system" = "System version";
+"lng_sessions_browser" = "Browser";
 "lng_sessions_ip" = "IP address";
 "lng_sessions_location" = "Location";
 "lng_sessions_location_about" = "This location is based only on the IP address and may not always be accurate.";
@@ -1577,6 +1612,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_suggested_video" = "{user} suggests you to use this profile video.";
 "lng_action_suggested_video_button" = "View Video";
 "lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
+"lng_action_webapp_bot_allowed" = "You allowed this bot to message you in his web-app.";
 "lng_action_set_wallpaper_me" = "You set a new wallpaper for this chat";
 "lng_action_set_wallpaper" = "{user} set a new wallpaper for this chat";
 "lng_action_set_wallpaper_button" = "View Wallpaper";
@@ -1765,6 +1801,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_share_location_unavailable" = "Sorry, location sharing is currently unavailable in Telegram Desktop.";
 "lng_bot_share_phone" = "Do you want to share your phone number with this bot?";
 "lng_bot_share_phone_confirm" = "Share";
+"lng_bot_allow_write_title" = "Allow messaging";
+"lng_bot_allow_write" = "Do you want to allow this bot writing you?";
+"lng_bot_allow_write_confirm" = "Allow";
 
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "File";
@@ -1808,6 +1847,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_set_active" = "Current set";
 "lng_emoji_set_download" = "Download {size}";
 "lng_emoji_set_loading" = "{percent}, {progress}";
+"lng_emoji_color_all" = "Choose color for all emoji";
+"lng_emoji_copy" = "Copy emoji";
+"lng_emoji_view_pack" = "View pack";
+"lng_emoji_remove_recent" = "Remove from recents";
+"lng_emoji_reset_recent" = "Reset recents";
+"lng_emoji_reset_recent_sure" = "Do you want to reset recent emoji?";
+"lng_emoji_reset_recent_button" = "Reset";
 
 "lng_recent_stickers" = "Frequently used";
 "lng_faved_stickers_add" = "Add to Favorites";
