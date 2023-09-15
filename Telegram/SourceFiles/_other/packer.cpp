@@ -498,8 +498,6 @@ int main(int argc, char *argv[])
 	QString outName((targetarmac ? QString("tarmacupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
 #else
 	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
-#else
-#error Unknown platform!
 #endif
 	if (AlphaVersion) {
 		outName += "_" + AlphaSignature;
