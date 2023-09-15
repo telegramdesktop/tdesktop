@@ -437,10 +437,17 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 
 		p.setBrush(c.chartData.lines[k].color);
 		p.setPen(Qt::NoPen);
+		const auto textAngle = (previous + kPieAngleOffset)
+			+ (now - previous) / 2.;
+		const auto partOffset = _piePartController.offset(
+			c.chartData.lines[k].id,
+			textAngle);
+		p.translate(partOffset);
 		p.drawPie(
 			rectF,
 			-(previous + kPieAngleOffset) * 16,
 			-(now - previous) * 16);
+		p.translate(-partOffset);
 	}
 	paintPieText(p, c);
 }
@@ -482,15 +489,95 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 		const auto textRect = QRectF(
 			textRectCenter - QPointF(textXShift, textYShift),
 			textRectCenter + QPointF(textXShift, textYShift));
+		const auto partOffset = _piePartController.offset(
+			c.chartData.lines[k].id,
+			textAngle);
 		p.setTransform(
 			QTransform()
-				.translate(textRectCenter.x(), textRectCenter.y())
+				.translate(
+					textRectCenter.x() + partOffset.x(),
+					textRectCenter.y() + partOffset.y())
 				.scale(scale, scale)
 				.translate(-textRectCenter.x(), -textRectCenter.y()));
 		p.setOpacity(opacity * alpha(c.chartData.lines[k].id));
 		p.drawText(textRect, text, style::al_center);
 	}
 	p.resetTransform();
+}
+
+void StackLinearChartView::setUpdateCallback(Fn<void()> callback) {
+	if (callback) {
+		_piePartAnimation.init([=] { callback(); });
+	}
+}
+
+bool StackLinearChartView::PiePartController::set(int id) {
+	if (_selected != id) {
+		update(_selected);
+		_selected = id;
+		update(_selected);
+		return true;
+	}
+	return false;
+}
+
+void StackLinearChartView::PiePartController::update(int id) {
+	if (id >= 0) {
+		const auto was = _startedAt[id];
+		const auto p = (crl::now() - was) / st::slideWrapDuration;
+		const auto progress = ((p > 0) && (p < 1)) ? (1. - p) : 0.;
+		_startedAt[id] = crl::now() - (st::slideWrapDuration * progress);
+	}
+}
+
+float64 StackLinearChartView::PiePartController::progress(int id) {
+	const auto it = _startedAt.find(id);
+	if (it == end(_startedAt)) {
+		return 0.;
+	}
+	const auto at = it->second;
+	const auto show = (_selected == id);
+	const auto progress = std::clamp(
+		(crl::now() - at) / float64(st::slideWrapDuration),
+		0.,
+		1.);
+	return std::clamp(show ? progress : (1. - progress), 0., 1.);
+}
+
+QPointF StackLinearChartView::PiePartController::offset(
+		LineId id,
+		float64 angle) {
+	const auto offset = st::statisticsPieChartPartOffset * progress(id);
+	const auto radians = angle * M_PI / 180.;
+	return { std::cos(radians) * offset, std::sin(radians) * offset };
+}
+
+void StackLinearChartView::handleMouseMove(
+		const Data::StatisticalChart &chartData,
+		const QPoint &center,
+		const QPoint &p) {
+	if (_transitionProgress < 1) {
+		return;
+	}
+	const auto theta = std::atan2(center.y() - p.y(), (center.x() - p.x()));
+	const auto angle = [&] {
+		const auto a = theta * (180. / M_PI) + 90.;
+		return (a > 180.) ? (a - 360.) : a;
+	}();
+	for (auto k = 0; k < chartData.lines.size(); k++) {
+		const auto previous = k
+			? _cachedTransition.lines[k - 1].angle
+			: -180;
+		const auto now = _cachedTransition.lines[k].angle;
+		if (angle > previous && angle <= now) {
+			if (_piePartController.set(chartData.lines[k].id)) {
+				if (!_piePartAnimation.animating()) {
+					_piePartAnimation.start();
+				}
+			}
+			return;
+		}
+	}
 }
 
 void StackLinearChartView::paintSelectedXIndex(
@@ -548,7 +635,9 @@ int StackLinearChartView::findXIndexByPosition(
 		const Limits &xPercentageLimits,
 		const QRect &rect,
 		float64 x) {
-	if (x < rect.x()) {
+	if (_transitionProgress == 1.) {
+		return -1;
+	} else if (x < rect.x()) {
 		return 0;
 	} else if (x > (rect.x() + rect.width())) {
 		return chartData.xPercentage.size() - 1;

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/segment_tree.h"
 #include "statistics/statistics_common.h"
 #include "statistics/view/abstract_chart_view.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/animation_value.h"
 
 namespace Data {
@@ -60,6 +61,12 @@ public:
 
 	void tick(crl::time now) override;
 	void update(float64 dt) override;
+
+	void setUpdateCallback(Fn<void()> callback);
+	void handleMouseMove(
+		const Data::StatisticalChart &chartData,
+		const QPoint &center,
+		const QPoint &p);
 
 private:
 	struct PaintContext final {
@@ -114,6 +121,23 @@ private:
 	Limits _lastPaintedXIndices;
 
 	std::vector<bool> _skipPoints;
+
+	class PiePartController final {
+	public:
+		using LineId = int;
+		bool set(LineId id);
+		[[nodiscard]] float64 progress(LineId id);
+		[[nodiscard]] QPointF offset(LineId id, float64 angle);
+
+	private:
+		void update(LineId id);
+
+		base::flat_map<LineId, crl::time> _startedAt;
+		LineId _selected = -1;
+
+	};
+	PiePartController _piePartController;
+	Ui::Animations::Basic _piePartAnimation;
 
 };
 
