@@ -578,6 +578,14 @@ void SessionNavigation::showPeerByLinkResolved(
 					attachBotUsername,
 					info.attachBotToggleCommand.value_or(QString()));
 			});
+		} else if (bot && info.attachBotMenuOpen) {
+			const auto startCommand = info.attachBotToggleCommand.value_or(
+				QString());
+			bot->session().attachWebView().requestAddToMenu(
+				bot,
+				InlineBots::AddToMenuOpenMenu{ startCommand },
+				parentController(),
+				std::optional<Api::SendAction>());
 		} else if (bot && info.attachBotToggleCommand) {
 			const auto itemId = info.clickFromMessageId;
 			const auto item = _session->data().message(itemId);
@@ -598,12 +606,6 @@ void SessionNavigation::showPeerByLinkResolved(
 					? Api::SendAction(
 						contextUser->owner().history(contextUser))
 					: std::optional<Api::SendAction>()));
-		} else if (bot && info.attachBotMenuOpen) {
-			bot->session().attachWebView().requestAddToMenu(
-				bot,
-				InlineBots::AddToMenuOpenMenu(),
-				parentController(),
-				std::optional<Api::SendAction>());
 		} else {
 			crl::on_main(this, [=] {
 				showPeerHistory(peer, params, msgId);
