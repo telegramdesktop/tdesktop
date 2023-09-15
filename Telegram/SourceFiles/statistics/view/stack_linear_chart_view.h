@@ -88,6 +88,8 @@ private:
 	void paintZoomed(QPainter &p, const PaintContext &context);
 	void paintPieText(QPainter &p, const PaintContext &context);
 
+	[[nodiscard]] bool skipSelectedTranslation() const;
+
 	struct SelectedPoints final {
 		int lastXIndex = -1;
 		Limits lastHeightLimits;

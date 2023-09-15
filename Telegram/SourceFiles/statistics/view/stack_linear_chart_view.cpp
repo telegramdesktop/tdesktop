@@ -431,6 +431,7 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 
 	auto hq = PainterHighQualityEnabler(p);
 	auto selectedLineIndex = -1;
+	const auto skipTranslation = skipSelectedTranslation();
 	for (auto k = 0; k < c.chartData.lines.size(); k++) {
 		const auto previous = k
 			? _cachedTransition.lines[k - 1].angle
@@ -442,7 +443,9 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 		p.setPen(Qt::NoPen);
 		const auto textAngle = (previous + kPieAngleOffset)
 			+ (now - previous) / 2.;
-		const auto partOffset = _piePartController.offset(line.id, textAngle);
+		const auto partOffset = skipTranslation
+			? QPointF()
+			: _piePartController.offset(line.id, textAngle);
 		p.translate(partOffset);
 		p.drawPie(
 			rectF,
@@ -482,6 +485,7 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 	p.setPen(st::premiumButtonFg);
 	p.setFont(font);
 	const auto opacity = p.opacity();
+	const auto skipTranslation = skipSelectedTranslation();
 	for (auto k = 0; k < c.chartData.lines.size(); k++) {
 		const auto previous = k
 			? _cachedTransition.lines[k - 1].angle
@@ -506,9 +510,9 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 		const auto textRect = QRectF(
 			textRectCenter - QPointF(textXShift, textYShift),
 			textRectCenter + QPointF(textXShift, textYShift));
-		const auto partOffset = _piePartController.offset(
-			c.chartData.lines[k].id,
-			textAngle);
+		const auto partOffset = skipTranslation
+			? QPointF()
+			: _piePartController.offset(c.chartData.lines[k].id, textAngle);
 		p.setTransform(
 			QTransform()
 				.translate(
@@ -602,6 +606,10 @@ void StackLinearChartView::handleMouseMove(
 			return;
 		}
 	}
+}
+
+bool StackLinearChartView::skipSelectedTranslation() const {
+	return (_entries.size() == (_cachedTransition.lines.size() - 1));
 }
 
 void StackLinearChartView::paintSelectedXIndex(
