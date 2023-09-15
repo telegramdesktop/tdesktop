@@ -3875,6 +3875,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_voice_chat_channel" = "Live stream";
 "lng_view_button_request_join" = "Request to Join";
 "lng_view_button_external_link" = "Open link";
+"lng_view_button_boost" = "Boost";
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";
