@@ -1,3 +1,8 @@
+4.9.8 (16.09.23)
+
+- Fix t.me/botname?startapp=token deeplinks.
+- Fix a possible crash in media viewer on Wayland.
+
 4.9.7 (13.09.23)
 
 - Fix direct bot web app links handling.
