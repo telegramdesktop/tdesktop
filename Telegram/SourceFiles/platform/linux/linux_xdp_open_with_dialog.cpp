@@ -23,7 +23,7 @@ namespace {
 
 constexpr auto kXDPOpenURIInterface = "org.freedesktop.portal.OpenURI";
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
-const auto XdgActivationToken = base::Platform::XdgActivationToken;
+using base::Platform::XdgActivationToken;
 
 } // namespace
 
