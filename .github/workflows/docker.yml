@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/docker.yml'
       - 'Telegram/build/docker/centos_env/**'
+    branches-ignore:
+      - 'compare/**'
   pull_request:
     paths:
       - '.github/workflows/docker.yml'

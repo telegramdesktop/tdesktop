@@ -19,6 +19,8 @@ on:
       - 'Telegram/Telegram/**'
       - 'Telegram/configure.sh'
       - 'Telegram/Telegram.plist'
+    branches-ignore:
+      - 'compare/**'
   workflow_dispatch:
     inputs:
       buildCommit:
