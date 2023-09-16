@@ -42,7 +42,6 @@ struct WaylandIntegration::Private : public AutoDestroyer<QtWayland::wl_registry
 	QtWayland::org_kde_plasma_surface plasmaSurface(QWindow *window);
 
 	std::optional<PlasmaShell> plasmaShell;
-	rpl::lifetime lifetime;
 
 protected:
 	void registry_global(
@@ -129,7 +128,7 @@ WaylandIntegration *WaylandIntegration::Instance() {
 			&QObject::destroyed
 		) | rpl::start_with_next([] {
 			instance = std::nullopt;
-		}, instance->_private->lifetime);
+		}, instance->_private->lifetime());
 		return true;
 	}();
 	if (!instance) return nullptr;
