@@ -27,6 +27,10 @@ inline bool SkipTaskbarSupported() {
 	return true;
 }
 
+inline bool RunInBackground() {
+	return false;
+}
+
 inline bool PreventsQuit(Core::QuitReason reason) {
 	return false;
 }

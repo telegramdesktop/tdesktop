@@ -32,8 +32,8 @@ enum class SystemSettingsType {
 };
 
 void SetApplicationIcon(const QIcon &icon);
-QString SingleInstanceLocalServerName(const QString &hash);
-PermissionStatus GetPermissionStatus(PermissionType type);
+[[nodiscard]] QString SingleInstanceLocalServerName(const QString &hash);
+[[nodiscard]] PermissionStatus GetPermissionStatus(PermissionType type);
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback);
 void OpenSystemSettingsForPermission(PermissionType type);
 bool OpenSystemSettings(SystemSettingsType type);
@@ -42,8 +42,9 @@ void IgnoreApplicationActivationRightNow();
 void AutostartRequestStateFromSystem(Fn<void(bool)> callback);
 void AutostartToggle(bool enabled, Fn<void(bool)> done = nullptr);
 [[nodiscard]] bool AutostartSkip();
-bool TrayIconSupported();
-bool SkipTaskbarSupported();
+[[nodiscard]] bool TrayIconSupported();
+[[nodiscard]] bool SkipTaskbarSupported();
+[[nodiscard]] bool RunInBackground();
 void WriteCrashDumpDetails();
 void NewVersionLaunched(int oldVersion);
 [[nodiscard]] QImage DefaultApplicationIcon();
@@ -62,10 +63,10 @@ void finish();
 } // namespace ThirdParty
 } // namespace Platform
 
-#ifdef Q_OS_MAC
-#include "platform/mac/specific_mac.h"
-#elif defined Q_OS_UNIX // Q_OS_MAC
-#include "platform/linux/specific_linux.h"
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_UNIX
+#ifdef Q_OS_WIN
 #include "platform/win/specific_win.h"
-#endif // Q_OS_MAC || Q_OS_UNIX || Q_OS_WIN
+#elif defined Q_OS_MAC // Q_OS_WIN
+#include "platform/mac/specific_mac.h"
+#else // Q_OS_WIN || Q_OS_MAC
+#include "platform/linux/specific_linux.h"
+#endif // else for Q_OS_WIN || Q_OS_MAC

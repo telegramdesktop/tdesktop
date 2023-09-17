@@ -100,7 +100,7 @@ private:
 	struct Progress;
 	struct WebviewWithLifetime;
 
-	bool createWebview();
+	bool createWebview(const Webview::ThemeParams &params);
 	void showWebviewProgress();
 	void hideWebviewProgress();
 	void showWebviewError(
@@ -123,6 +123,7 @@ private:
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;
 	rpl::event_stream<QString> _savedMethodChosen;
+	bool _themeUpdateScheduled = false;
 	bool _webviewProgress = false;
 	bool _testMode = false;
 

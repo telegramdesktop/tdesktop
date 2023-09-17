@@ -297,7 +297,7 @@ void SponsoredMessages::append(
 				: ImageWithLocation{};
 			return SponsoredFrom{
 				.title = qs(data.vsite_name()),
-				.isExternalLink = true,
+				.externalLink = externalLink,
 				.userpic = std::move(userpic),
 				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
 			};

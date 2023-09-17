@@ -44,8 +44,8 @@ IDI_ICON1               ICON                    "..\\art\\icon256.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 4,9,5,0
- PRODUCTVERSION 4,9,5,0
+ FILEVERSION 4,9,8,0
+ PRODUCTVERSION 4,9,8,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -62,10 +62,10 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "xmdnx"
             VALUE "FileDescription", "rabbitGram Desktop"
-            VALUE "FileVersion", "4.9.5.0"
-            VALUE "LegalCopyright", "Copyright (C) 2021-2023"
+            VALUE "FileVersion", "4.9.8.0"
+            VALUE "LegalCopyright", "Copyright (C) 2023"
             VALUE "ProductName", "rabbitGram Desktop"
-            VALUE "ProductVersion", "4.9.5.0"
+            VALUE "ProductVersion", "4.9.8.0"
         END
     END
     BLOCK "VarFileInfo"

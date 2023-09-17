@@ -2260,17 +2260,24 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 "lng_bot_remove_from_menu" = "Remove From Menu";
 "lng_bot_remove_from_menu_sure" = "Remove {bot} from the attachment menu?";
 "lng_bot_remove_from_menu_done" = "Bot removed from the menu.";
+"lng_bot_remove_from_side_menu" = "Remove From Menu";
+"lng_bot_remove_from_side_menu_sure" = "Remove {bot} from the main menu?";
+"lng_bot_remove_from_side_menu_done" = "Bot removed from the main menu.";
 "lng_bot_settings" = "Settings";
 "lng_bot_open" = "Open Bot";
 "lng_bot_reload_page" = "Reload Page";
 "lng_bot_add_to_menu" = "{bot} asks your permission to be added as an option to your attachments menu so you can access it from any chat.";
 "lng_bot_add_to_menu_done" = "Bot added to the menu.";
+"lng_bot_will_be_added" = "{bot} shortcuts will be added to the attachment options and the main menu.";
+"lng_bot_side_menu_new" = "NEW";
 "lng_bot_menu_not_supported" = "This bot isn't supported in the attach menu.";
 "lng_bot_menu_already_added" = "This bot is already added in your attach menu.";
 "lng_bot_menu_button" = "Menu";
 "lng_bot_close_warning_title" = "Warning";
 "lng_bot_close_warning" = "Changes that you made may not be saved.";
 "lng_bot_close_warning_sure" = "Close anyway";
+"lng_bot_add_to_side_menu" = "{bot} asks your permission to be added as an option to your main menu so you can access it any time.";
+"lng_bot_add_to_side_menu_done" = "Bot added to the main menu.";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
@@ -3833,6 +3840,12 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 "lng_sponsored_info_submenu" = "Advertiser: {text}";
 
 "lng_telegram_features_url" = "https://t.me/TelegramTips";
+
+"lng_mini_apps_disclaimer_title" = "Warning";
+"lng_mini_apps_disclaimer_text" = "You are about to use a mini app operated by an independent party **not affiliated with Telegram**. You must agree to the Terms of Use of mini apps to continue.";
+"lng_mini_apps_disclaimer_button" = "I agree to the {link}";
+"lng_mini_apps_disclaimer_link" = "Terms of Use";
+"lng_mini_apps_tos_url" = "https://telegram.org/tos/mini-apps";
 
 "lng_ringtones_box_title" = "Notification Sound";
 "lng_ringtones_box_cloud_subtitle" = "Choose your tone";

@@ -5,7 +5,7 @@ the unofficial app based on Telegram Desktop.
 For license and copyright information please follow this link:
 https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
-#include "rabbit/rabbit_settings.h" // todo
+#include "rabbit/rabbit_settings.h"
 
 #include "rabbit/rabbit_version.h"
 #include "mainwindow.h"
