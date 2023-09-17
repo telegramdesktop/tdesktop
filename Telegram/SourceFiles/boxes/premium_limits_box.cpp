@@ -48,19 +48,6 @@ struct InfographicDescriptor {
 	bool complexRatio = false;
 };
 
-[[nodiscard]] rpl::producer<> BoxShowFinishes(not_null<Ui::GenericBox*> box) {
-	const auto singleShot = box->lifetime().make_state<rpl::lifetime>();
-	const auto showFinishes = singleShot->make_state<rpl::event_stream<>>();
-
-	box->setShowFinishedCallback([=] {
-		showFinishes->fire({});
-		singleShot->destroy();
-		box->setShowFinishedCallback(nullptr);
-	});
-
-	return showFinishes->events();
-}
-
 void AddSubsectionTitle(
 		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<QString> text) {

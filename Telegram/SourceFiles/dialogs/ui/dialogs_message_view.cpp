@@ -160,9 +160,9 @@ void MessageView::prepare(
 	options.spoilerLoginCode = true;
 	auto preview = item->toPreview(options);
 	_leftIcon = (preview.icon == ItemPreview::Icon::ForwardedMessage)
-		? &st::dialogsMiniForwardIcon
+		? &st::dialogsMiniForward
 		: (preview.icon == ItemPreview::Icon::ReplyToStory)
-		? &st::dialogsMiniReplyStoryIcon
+		? &st::dialogsMiniReplyStory
 		: nullptr;
 	const auto hasImages = !preview.images.empty();
 	const auto history = item->history();
@@ -325,7 +325,7 @@ void MessageView::paint(
 
 	if (_leftIcon) {
 		const auto &icon = ThreeStateIcon(
-			*_leftIcon,
+			_leftIcon->icon,
 			context.active,
 			context.selected);
 		const auto w = (icon.width());
@@ -342,8 +342,8 @@ void MessageView::paint(
 			rect.setLeft(rect.x()
 				+ w
 				+ (_imagesCache.empty()
-					? st::dialogsMiniIconTextSkip
-					: st::dialogsMiniIconSkip));
+					? _leftIcon->skipText
+					: _leftIcon->skipMedia));
 		}
 	}
 	for (const auto &image : _imagesCache) {

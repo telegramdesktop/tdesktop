@@ -65,6 +65,8 @@ struct Content;
 
 namespace Dialogs {
 
+extern const char kOptionForumHideChatsList[];
+
 struct RowDescriptor;
 class Row;
 class FakeRow;

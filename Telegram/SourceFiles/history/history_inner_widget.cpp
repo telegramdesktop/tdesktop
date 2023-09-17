@@ -2544,7 +2544,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}, &st::menuIconLink);
 		}
 		if (item && item->isSponsored()) {
-			_menu->addSeparator(&st::expandedMenuSeparator);
+			if (!_menu->empty()) {
+				_menu->addSeparator(&st::expandedMenuSeparator);
+			}
 			auto item = base::make_unique_q<Ui::Menu::MultilineAction>(
 				_menu,
 				st::menuWithIcons,

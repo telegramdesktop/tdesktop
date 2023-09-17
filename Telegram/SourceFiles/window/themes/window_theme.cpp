@@ -1512,6 +1512,7 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		object.insert(name, '#' + hex(r) + hex(g) + hex(b));
 	}
 	return {
+		.opaqueBg = st::windowBg->c,
 		.scrollBg = st::scrollBg->c,
 		.scrollBgOver = st::scrollBgOver->c,
 		.scrollBarBg = st::scrollBarBg->c,

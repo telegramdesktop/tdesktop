@@ -550,27 +550,28 @@ void SetupSystemIntegrationContent(
 		Core::App().saveSettings();
 	}, roundIcon->lifetime());
 #endif // OS_MAC_STORE
-
-#else // Q_OS_MAC
-	const auto closeToTaskbar = addSlidingCheckbox(
-		tr::lng_settings_close_to_taskbar(),
-		Core::App().settings().closeToTaskbar());
-
-	const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
-	Core::App().settings().workModeValue(
-	) | rpl::start_with_next([=](WorkMode workMode) {
-		*closeToTaskbarShown = !Core::App().tray().has();
-	}, closeToTaskbar->lifetime());
-
-	closeToTaskbar->toggleOn(closeToTaskbarShown->value());
-	closeToTaskbar->entity()->checkedChanges(
-	) | rpl::filter([=](bool checked) {
-		return (checked != Core::App().settings().closeToTaskbar());
-	}) | rpl::start_with_next([=](bool checked) {
-		Core::App().settings().setCloseToTaskbar(checked);
-		Local::writeSettings();
-	}, closeToTaskbar->lifetime());
 #endif // Q_OS_MAC
+
+	if (!Platform::RunInBackground()) {
+		const auto closeToTaskbar = addSlidingCheckbox(
+			tr::lng_settings_close_to_taskbar(),
+			Core::App().settings().closeToTaskbar());
+
+		const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
+		Core::App().settings().workModeValue(
+		) | rpl::start_with_next([=](WorkMode workMode) {
+			*closeToTaskbarShown = !Core::App().tray().has();
+		}, closeToTaskbar->lifetime());
+
+		closeToTaskbar->toggleOn(closeToTaskbarShown->value());
+		closeToTaskbar->entity()->checkedChanges(
+		) | rpl::filter([=](bool checked) {
+			return (checked != Core::App().settings().closeToTaskbar());
+		}) | rpl::start_with_next([=](bool checked) {
+			Core::App().settings().setCloseToTaskbar(checked);
+			Local::writeSettings();
+		}, closeToTaskbar->lifetime());
+	}
 
 	if (Platform::AutostartSupported() && controller) {
 		const auto minimizedToggled = [=] {

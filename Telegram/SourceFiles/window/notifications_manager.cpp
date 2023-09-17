@@ -88,6 +88,25 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 	return text;
 }
 
+[[nodiscard]] QByteArray ReadRingtoneBytes(
+		const std::shared_ptr<Data::DocumentMedia> &media) {
+	const auto result = media->bytes();
+	if (!result.isEmpty()) {
+		return result;
+	}
+	const auto &location = media->owner()->location();
+	if (!location.isEmpty() && location.accessEnable()) {
+		const auto guard = gsl::finally([&] {
+			location.accessDisable();
+		});
+		auto f = QFile(location.name());
+		if (f.open(QIODevice::ReadOnly)) {
+			return f.readAll();
+		}
+	}
+	return {};
+}
+
 } // namespace
 
 const char kOptionGNotification[] = "gnotification";
@@ -801,14 +820,16 @@ not_null<Media::Audio::Track*> System::lookupSound(
 		return i->second.get();
 	}
 	const auto &notifySettings = owner->notifySettings();
-	const auto custom = notifySettings.lookupRingtone(id);
-	if (custom && !custom->bytes().isEmpty()) {
-		const auto j = _customSoundTracks.emplace(
-			id,
-			Media::Audio::Current().createTrack()
-		).first;
-		j->second->fillFromData(bytes::make_vector(custom->bytes()));
-		return j->second.get();
+	if (const auto custom = notifySettings.lookupRingtone(id)) {
+		const auto bytes = ReadRingtoneBytes(custom);
+		if (!bytes.isEmpty()) {
+			const auto j = _customSoundTracks.emplace(
+				id,
+				Media::Audio::Current().createTrack()
+			).first;
+			j->second->fillFromData(bytes::make_vector(bytes));
+			return j->second.get();
+		}
 	}
 	ensureSoundCreated();
 	return _soundTrack.get();

@@ -91,15 +91,12 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 				const Glib::ustring &service,
 				const Glib::ustring &oldOwner,
 				const Glib::ustring &newOwner) {
-				if (activatable && newOwner.empty()) {
-					crl::on_main([] {
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					if (activatable && newOwner.empty()) {
 						Core::App().notifications().clearAll();
-					});
-					return;
-				}
-
-				crl::on_main([] {
-					Core::App().notifications().createManager();
+					} else {
+						Core::App().notifications().createManager();
+					}
 				});
 			});
 	} catch (...) {
@@ -117,33 +114,35 @@ void StartServiceAsync(Fn<void()> callback) {
 			connection,
 			kService,
 			[=](Fn<base::Platform::DBus::StartReply()> result) {
-				Noexcept([&] {
-					try {
-						result(); // get the error if any
-					} catch (const Glib::Error &e) {
-						static const auto NotSupportedErrors = {
-							"org.freedesktop.DBus.Error.ServiceUnknown",
-						};
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					Noexcept([&] {
+						try {
+							result(); // get the error if any
+						} catch (const Glib::Error &e) {
+							static const auto NotSupportedErrors = {
+								"org.freedesktop.DBus.Error.ServiceUnknown",
+							};
 
-						const auto errorName =
-							Gio::DBus::ErrorUtils::get_remote_error(e).raw();
+							const auto errorName =
+								Gio::DBus::ErrorUtils::get_remote_error(e).raw();
 
-						if (!ranges::contains(
-								NotSupportedErrors,
-								errorName)) {
-							throw e;
+							if (!ranges::contains(
+									NotSupportedErrors,
+									errorName)) {
+								throw e;
+							}
 						}
-					}
-				});
+					});
 
-				crl::on_main(callback);
+					callback();
+				});
 			});
 
 			return;
 	} catch (...) {
 	}
 
-	crl::on_main(callback);
+	callback();
 }
 
 bool GetServiceRegistered() {
@@ -191,26 +190,26 @@ void GetServerInformation(
 			"GetServerInformation",
 			{},
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				Noexcept([&] {
-					const auto reply = connection->call_finish(result);
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					Noexcept([&] {
+						const auto reply = connection->call_finish(result);
 
-					const auto name = reply.get_child(
-						0
-					).get_dynamic<Glib::ustring>();
+						const auto name = reply.get_child(
+							0
+						).get_dynamic<Glib::ustring>();
 
-					const auto vendor = reply.get_child(
-						1
-					).get_dynamic<Glib::ustring>();
+						const auto vendor = reply.get_child(
+							1
+						).get_dynamic<Glib::ustring>();
 
-					const auto version = reply.get_child(
-						2
-					).get_dynamic<Glib::ustring>();
+						const auto version = reply.get_child(
+							2
+						).get_dynamic<Glib::ustring>();
 
-					const auto specVersion = reply.get_child(
-						3
-					).get_dynamic<Glib::ustring>();
+						const auto specVersion = reply.get_child(
+							3
+						).get_dynamic<Glib::ustring>();
 
-					crl::on_main([=] {
 						callback(ServerInformation{
 							QString::fromStdString(name),
 							QString::fromStdString(vendor),
@@ -219,14 +218,14 @@ void GetServerInformation(
 							QVersionNumber::fromString(
 								QString::fromStdString(specVersion)),
 						});
+					}, [&] {
+						callback(std::nullopt);
 					});
-				}, [&] {
-					crl::on_main([=] { callback(std::nullopt); });
 				});
 			},
 			kService);
 	}, [&] {
-		crl::on_main([=] { callback(std::nullopt); });
+		callback(std::nullopt);
 	});
 }
 
@@ -241,25 +240,27 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 			"GetCapabilities",
 			{},
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				Noexcept([&] {
-					QStringList value;
-					ranges::transform(
-						connection->call_finish(
-							result
-						).get_child(
-							0
-						).get_dynamic<std::vector<Glib::ustring>>(),
-						ranges::back_inserter(value),
-						QString::fromStdString);
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					Noexcept([&] {
+						QStringList value;
+						ranges::transform(
+							connection->call_finish(
+								result
+							).get_child(
+								0
+							).get_dynamic<std::vector<Glib::ustring>>(),
+							ranges::back_inserter(value),
+							QString::fromStdString);
 
-					crl::on_main([=] { callback(value); });
-				}, [&] {
-					crl::on_main([=] { callback({}); });
+						callback(value);
+					}, [&] {
+						callback({});
+					});
 				});
 			},
 			kService);
 	}, [&] {
-		crl::on_main([=] { callback({}); });
+		callback({});
 	});
 }
 
@@ -277,22 +278,24 @@ void GetInhibited(Fn<void(bool)> callback) {
 				Glib::ustring("Inhibited"),
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				Noexcept([&] {
-					const auto value = connection->call_finish(
-						result
-					).get_child(
-						0
-					).get_dynamic<Glib::Variant<bool>>(
-					).get();
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					Noexcept([&] {
+						const auto value = connection->call_finish(
+							result
+						).get_child(
+							0
+						).get_dynamic<Glib::Variant<bool>>(
+						).get();
 
-					crl::on_main([=] { callback(value); });
-				}, [&] {
-					crl::on_main([=] { callback(false); });
+						callback(value);
+					}, [&] {
+						callback(false);
+					});
 				});
 			},
 			kService);
 	}, [&] {
-		crl::on_main([=] { callback(false); });
+		callback(false);
 	});
 }
 
@@ -352,7 +355,7 @@ public:
 
 	void show();
 	void close();
-	void setImage(const QImage &image);
+	void setImage(QImage image);
 
 private:
 	const not_null<Manager*> _manager;
@@ -465,49 +468,51 @@ bool NotificationData::init(
 	const auto weak = base::make_weak(this);
 	const auto capabilities = CurrentCapabilities;
 
-	const auto signalEmitted = [=](
+	const auto signalEmitted = crl::guard(weak, [=](
 			const Glib::RefPtr<Gio::DBus::Connection> &connection,
 			const Glib::ustring &sender_name,
 			const Glib::ustring &object_path,
 			const Glib::ustring &interface_name,
 			const Glib::ustring &signal_name,
 			const Glib::VariantContainerBase &parameters) {
-		Noexcept([&] {
-			if (signal_name == "ActionInvoked") {
-				const auto id = parameters.get_child(0).get_dynamic<uint>();
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			Noexcept([&] {
+				if (signal_name == "ActionInvoked") {
+					const auto id = parameters.get_child(0).get_dynamic<uint>();
 
-				const auto actionName = parameters.get_child(
-					1
-				).get_dynamic<Glib::ustring>();
+					const auto actionName = parameters.get_child(
+						1
+					).get_dynamic<Glib::ustring>();
 
-				crl::on_main(weak, [=] { actionInvoked(id, actionName); });
-			} else if (signal_name == "ActivationToken") {
-				const auto id = parameters.get_child(0).get_dynamic<uint>();
+					actionInvoked(id, actionName);
+				} else if (signal_name == "ActivationToken") {
+					const auto id = parameters.get_child(0).get_dynamic<uint>();
 
-				const auto token = parameters.get_child(
-					1
-				).get_dynamic<Glib::ustring>();
+					const auto token = parameters.get_child(
+						1
+					).get_dynamic<Glib::ustring>();
 
-				crl::on_main(weak, [=] { activationToken(id, token); });
-			} else if (signal_name == "NotificationReplied") {
-				const auto id = parameters.get_child(0).get_dynamic<uint>();
+					activationToken(id, token);
+				} else if (signal_name == "NotificationReplied") {
+					const auto id = parameters.get_child(0).get_dynamic<uint>();
 
-				const auto text = parameters.get_child(
-					1
-				).get_dynamic<Glib::ustring>();
+					const auto text = parameters.get_child(
+						1
+					).get_dynamic<Glib::ustring>();
 
-				crl::on_main(weak, [=] { notificationReplied(id, text); });
-			} else if (signal_name == "NotificationClosed") {
-				const auto id = parameters.get_child(0).get_dynamic<uint>();
+					notificationReplied(id, text);
+				} else if (signal_name == "NotificationClosed") {
+					const auto id = parameters.get_child(0).get_dynamic<uint>();
 
-				const auto reason = parameters.get_child(
-					1
-				).get_dynamic<uint>();
+					const auto reason = parameters.get_child(
+						1
+					).get_dynamic<uint>();
 
-				crl::on_main(weak, [=] { notificationClosed(id, reason); });
-			}
+					notificationClosed(id, reason);
+				}
+			});
 		});
-	};
+	});
 
 	_imageKey = GetImageKey(CurrentServerInformationValue().specVersion);
 
@@ -652,23 +657,19 @@ void NotificationData::show() {
 				_hints,
 				-1,
 			}),
-			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				Noexcept([&] {
-					const auto notificationId = connection->call_finish(
-						result
-					).get_child(
-						0
-					).get_dynamic<uint>();
-
-					crl::on_main(weak, [=] {
-						_notificationId = notificationId;
-					});
-				}, [&] {
-					crl::on_main(weak, [=] {
+			crl::guard(weak, [=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					Noexcept([&] {
+						_notificationId = connection->call_finish(
+							result
+						).get_child(
+							0
+						).get_dynamic<uint>();
+					}, [&] {
 						_manager->clearNotification(_id);
 					});
 				});
-			},
+			}),
 			kService);
 	}));
 }
@@ -694,7 +695,7 @@ void NotificationData::close() {
 	_manager->clearNotification(_id);
 }
 
-void NotificationData::setImage(const QImage &image) {
+void NotificationData::setImage(QImage image) {
 	if (_notification) {
 		const auto imageData = [&] {
 			QByteArray ba;
@@ -717,20 +718,22 @@ void NotificationData::setImage(const QImage &image) {
 		return;
 	}
 
-	const auto convertedImage = image.hasAlphaChannel()
-		? image.convertToFormat(QImage::Format_RGBA8888)
-		: image.convertToFormat(QImage::Format_RGB888);
+	if (image.hasAlphaChannel()) {
+		image.convertTo(QImage::Format_RGBA8888);
+	} else {
+		image.convertTo(QImage::Format_RGB888);
+	}
 
 	_hints[_imageKey] = Glib::create_variant(std::tuple{
-		convertedImage.width(),
-		convertedImage.height(),
-		int(convertedImage.bytesPerLine()),
-		convertedImage.hasAlphaChannel(),
+		image.width(),
+		image.height(),
+		int(image.bytesPerLine()),
+		image.hasAlphaChannel(),
 		8,
-		convertedImage.hasAlphaChannel() ? 4 : 3,
+		image.hasAlphaChannel() ? 4 : 3,
 		std::vector<uchar>(
-			convertedImage.constBits(),
-			convertedImage.constBits() + convertedImage.sizeInBytes()),
+			image.constBits(),
+			image.constBits() + image.sizeInBytes()),
 	});
 }
 
@@ -966,34 +969,32 @@ Manager::Private::Private(not_null<Manager*> manager)
 		}));
 
 		_inhibitedSignalId = _dbusConnection->signal_subscribe(
-			[=](
+			crl::guard(weak, [=](
 					const Glib::RefPtr<Gio::DBus::Connection> &connection,
 					const Glib::ustring &sender_name,
 					const Glib::ustring &object_path,
 					const Glib::ustring &interface_name,
 					const Glib::ustring &signal_name,
 					const Glib::VariantContainerBase &parameters) {
-				Noexcept([&] {
-					const auto interface = parameters.get_child(
-						0
-					).get_dynamic<Glib::ustring>();
+				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+					Noexcept([&] {
+						const auto interface = parameters.get_child(
+							0
+						).get_dynamic<Glib::ustring>();
 
-					if (interface != kInterface) {
-						return;
-					}
+						if (interface != kInterface) {
+							return;
+						}
 
-					const auto inhibited = parameters.get_child(
-						1
-					).get_dynamic<std::map<Glib::ustring, Glib::VariantBase>>(
-					).at(
-						"Inhibited"
-					).get_dynamic<bool>();
-
-					crl::on_main(weak, [=] {
-						_inhibited = inhibited;
+						_inhibited = parameters.get_child(
+							1
+						).get_dynamic<std::map<Glib::ustring, Glib::VariantBase>>(
+						).at(
+							"Inhibited"
+						).get_dynamic<bool>();
 					});
 				});
-			},
+			}),
 			kService,
 			kPropertiesInterface,
 			"PropertiesChanged",

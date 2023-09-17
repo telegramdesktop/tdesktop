@@ -30,6 +30,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge_paint.h"
 #include "base/call_delayed.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
@@ -196,6 +197,98 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 			? tr::lng_menu_change_status
 			: tr::lng_menu_set_status)(makeLink);
 	}) | rpl::flatten_latest();
+}
+
+void SetupMenuBots(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller) {
+	const auto wrap = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
+	const auto bots = &controller->session().attachWebView();
+
+	rpl::single(
+		rpl::empty
+	) | rpl::then(
+		bots->attachBotsUpdates()
+	) | rpl::start_with_next([=] {
+		const auto width = container->widthNoMargins();
+		wrap->clear();
+		for (const auto &bot : bots->attachBots()) {
+			if (!bot.inMainMenu) {
+				continue;
+			}
+			const auto button = Settings::AddButton(
+				wrap,
+				rpl::single(bot.name),
+				st::mainMenuButton);
+			const auto menu = button->lifetime().make_state<
+				base::unique_qptr<Ui::PopupMenu>
+			>();
+			const auto icon = Ui::CreateChild<InlineBots::MenuBotIcon>(
+				button.get(),
+				bot.media);
+			button->heightValue(
+			) | rpl::start_with_next([=](int height) {
+				icon->move(
+					st::mainMenuButton.iconLeft,
+					(height - icon->height()) / 2);
+			}, button->lifetime());
+			const auto user = bot.user;
+			const auto weak = Ui::MakeWeak(container);
+			button->setAcceptBoth(true);
+			button->clicks(
+			) | rpl::start_with_next([=](Qt::MouseButton which) {
+				if (which == Qt::LeftButton) {
+					bots->requestSimple(controller, user, {
+						.fromMainMenu = true,
+					});
+					if (weak) {
+						controller->window().hideSettingsAndLayer();
+					}
+				} else {
+					(*menu) = nullptr;
+					(*menu) = base::make_unique_q<Ui::PopupMenu>(
+						button,
+						st::popupMenuWithIcons);
+					(*menu)->addAction(
+						tr::lng_bot_remove_from_menu(tr::now),
+						[=] { bots->removeFromMenu(user); },
+						&st::menuIconDelete);
+					(*menu)->popup(QCursor::pos());
+				}
+			}, button->lifetime());
+
+			const auto badge = bots->showMainMenuNewBadge(bot)
+				? Ui::CreateChild<Ui::PaddingWrap<Ui::FlatLabel>>(
+					button.get(),
+					object_ptr<Ui::FlatLabel>(
+						button,
+						tr::lng_bot_side_menu_new(),
+						st::settingsPremiumNewBadge),
+					st::settingsPremiumNewBadgePadding)
+				: nullptr;
+			if (badge) {
+				badge->setAttribute(Qt::WA_TransparentForMouseEvents);
+				badge->paintRequest() | rpl::start_with_next([=] {
+					auto p = QPainter(badge);
+					auto hq = PainterHighQualityEnabler(p);
+					p.setPen(Qt::NoPen);
+					p.setBrush(st::windowBgActive);
+					const auto r = st::settingsPremiumNewBadgePadding.left();
+					p.drawRoundedRect(badge->rect(), r, r);
+				}, badge->lifetime());
+
+				button->sizeValue(
+				) | rpl::start_with_next([=](QSize size) {
+					badge->moveToRight(
+						st::mainMenuButton.padding.right(),
+						(size.height() - badge->height()) / 2,
+						size.width());
+				}, badge->lifetime());
+			}
+		}
+		wrap->resizeToWidth(width);
+	}, wrap->lifetime());
 }
 
 } // namespace
@@ -785,6 +878,8 @@ void MainMenu::setupMenu() {
 					Info::Stories::Make(controller->session().user()));
 			});
 		}
+
+		SetupMenuBots(_menu, controller);
 
 		addAction(
 			tr::lng_menu_contacts(),

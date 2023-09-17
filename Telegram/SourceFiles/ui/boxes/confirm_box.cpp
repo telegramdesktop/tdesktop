@@ -24,7 +24,9 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
 
 	if (!v::is_null(args.text)) {
 		const auto padding = st::boxPadding;
-		const auto use = withTitle
+		const auto use = args.labelPadding
+			? *args.labelPadding
+			: withTitle
 			? QMargins(padding.left(), 0, padding.right(), padding.bottom())
 			: padding;
 		const auto label = box->addRow(
