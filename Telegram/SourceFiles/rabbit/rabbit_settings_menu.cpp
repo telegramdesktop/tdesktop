@@ -45,6 +45,21 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 	::RabbitSettings::JsonSettings::Write(); \
 }, container->lifetime());
 
+#define SettingsMenuJsonSwitchIcon(LangKey, Icon, Option) AddButton( \
+	container, \
+	#LangKey, \
+	st::settingsButton, \
+	IconDescriptor{ &st::#Icon } \
+)->toggleOn( \
+	rpl::single(::RabbitSettings::JsonSettings::GetBool(#Option)) \
+)->toggledValue( \
+) | rpl::filter([](bool enabled) { \
+	return (enabled != ::RabbitSettings::JsonSettings::GetBool(#Option)); \
+}) | rpl::start_with_next([](bool enabled) { \
+	::RabbitSettings::JsonSettings::Set(#Option, enabled); \
+	::RabbitSettings::JsonSettings::Write(); \
+}, container->lifetime());
+
 namespace Settings {
 
     rpl::producer<QString> Rabbit::title() {
@@ -96,7 +111,9 @@ namespace Settings {
 			updateUserpicRoundness);
     	updateUserpicRoundnessLabel(::RabbitSettings::JsonSettings::GetInt("userpic_roundness"));
 
-		AddSubsectionTitle(container, )
+		AddSubsectionTitle(container, rktr("rtg_side_menu_elements"));
+
+		SettingsMenuJsonSwitchIcon(tr::lng_menu_my_stories(), menuIconStoriesSavedSection, side_menu_my_stories);
     }
 
     void Rabbit::SetupChats(not_null<Ui::VerticalLayout *> container) {

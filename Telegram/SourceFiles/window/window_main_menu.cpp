@@ -758,31 +758,33 @@ void MainMenu::setupMenu() {
 			controller->showNewChannel();
 		});
 
-		const auto wrap = _menu->add(
-			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
-				_menu,
-				CreateButton(
+		if (RabbitSettings::JsonSettings::GetBool("side_menu_my_stories")) {
+			const auto wrap = _menu->add(
+				object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 					_menu,
-					tr::lng_menu_my_stories(),
-					st::mainMenuButton,
-					IconDescriptor{ &st::menuIconStoriesSavedSection })));
-		const auto stories = &controller->session().data().stories();
-		if (stories->archiveCount() > 0) {
-			wrap->toggle(true, anim::type::instant);
-		} else {
-			wrap->toggle(false, anim::type::instant);
-			if (!stories->archiveCountKnown()) {
-				stories->archiveLoadMore();
-				wrap->toggleOn(stories->archiveChanged(
-				) | rpl::map([=] {
-					return stories->archiveCount() > 0;
-				}) | rpl::filter(rpl::mappers::_1) | rpl::take(1));
+					CreateButton(
+						_menu,
+						tr::lng_menu_my_stories(),
+						st::mainMenuButton,
+						IconDescriptor{ &st::menuIconStoriesSavedSection })));
+			const auto stories = &controller->session().data().stories();
+			if (stories->archiveCount() > 0) {
+				wrap->toggle(true, anim::type::instant);
+			} else {
+				wrap->toggle(false, anim::type::instant);
+				if (!stories->archiveCountKnown()) {
+					stories->archiveLoadMore();
+					wrap->toggleOn(stories->archiveChanged(
+					) | rpl::map([=] {
+						return stories->archiveCount() > 0;
+					}) | rpl::filter(rpl::mappers::_1) | rpl::take(1));
+				}
 			}
+			wrap->entity()->setClickedCallback([=] {
+				controller->showSection(
+					Info::Stories::Make(controller->session().user()));
+			});
 		}
-		wrap->entity()->setClickedCallback([=] {
-			controller->showSection(
-				Info::Stories::Make(controller->session().user()));
-		});
 
 		addAction(
 			tr::lng_menu_contacts(),
