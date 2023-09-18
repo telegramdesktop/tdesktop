@@ -1302,6 +1302,8 @@ PRIVATE
     statistics/view/chart_view_factory.h
     statistics/view/linear_chart_view.cpp
     statistics/view/linear_chart_view.h
+    statistics/view/stack_chart_common.cpp
+    statistics/view/stack_chart_common.h
     statistics/view/stack_chart_view.cpp
     statistics/view/stack_chart_view.h
     statistics/view/stack_linear_chart_view.cpp

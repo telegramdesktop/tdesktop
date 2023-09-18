@@ -7,37 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/view/stack_chart_view.h"
 
-#include "ui/effects/animation_value_f.h"
 #include "data/data_statistics.h"
+#include "statistics/view/stack_chart_common.h"
+#include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 
 namespace Statistic {
 namespace {
 
 constexpr auto kAlphaDuration = float64(200);
-
-struct LeftStartAndStep final {
-	float64 start = 0.;
-	float64 step = 0.;
-};
-
-[[nodiscard]] LeftStartAndStep ComputeLeftStartAndStep(
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const QRect &rect,
-		float64 xIndexStart) {
-	const auto fullWidth = rect.width()
-		/ (xPercentageLimits.max - xPercentageLimits.min);
-	const auto offset = fullWidth * xPercentageLimits.min;
-	const auto p = (chartData.xPercentage.size() < 2)
-		? 1.
-		: chartData.xPercentage[1] * fullWidth;
-	const auto w = chartData.xPercentage[1] * (fullWidth - p);
-	const auto leftStart = rect.x()
-		+ chartData.xPercentage[xIndexStart] * (fullWidth - p)
-		- offset;
-	return { leftStart, w };
-}
 
 } // namespace
 

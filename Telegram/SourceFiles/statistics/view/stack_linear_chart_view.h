@@ -86,6 +86,7 @@ private:
 		bool footer);
 
 	void paintZoomed(QPainter &p, const PaintContext &context);
+	void paintZoomedFooter(QPainter &p, const PaintContext &context);
 	void paintPieText(QPainter &p, const PaintContext &context);
 
 	[[nodiscard]] bool skipSelectedTranslation() const;

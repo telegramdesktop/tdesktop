@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_statistics.h"
 #include "statistics/point_details_widget.h"
+#include "statistics/view/stack_chart_common.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -151,8 +152,12 @@ void StackLinearChartView::paint(
 		rect,
 		footer
 	};
-	if (_transitionProgress == 1) {
-		return paintZoomed(p, context);
+	if (_transitionProgress == 1.) {
+		if (footer) {
+			return paintZoomedFooter(p, context);
+		} else {
+			return paintZoomed(p, context);
+		}
 	}
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
 	_skipPoints = std::vector<bool>(chartData.lines.size(), false);
@@ -389,17 +394,18 @@ void StackLinearChartView::paint(
 		p.setClipPath(ovalPath);
 	}
 
+	const auto opacity = footer ? (1. - _transitionProgress) : 1.;
 	for (auto k = int(chartData.lines.size() - 1); k >= 0; k--) {
 		if (paths[k].isEmpty()) {
 			continue;
 		}
 		const auto &line = chartData.lines[k];
-		p.setOpacity(alpha(line.id));
+		p.setOpacity(alpha(line.id) * opacity);
 		p.setPen(Qt::NoPen);
 		p.fillPath(paths[k], line.color);
 	}
-	p.setOpacity(1.);
-	{
+	p.setOpacity(opacity);
+	if (!footer) {
 		constexpr auto kAlphaTextPart = 0.6;
 		const auto progress = std::clamp(
 			(_transitionProgress - kAlphaTextPart) / (1. - kAlphaTextPart),
@@ -409,6 +415,8 @@ void StackLinearChartView::paint(
 			auto o = ScopedPainterOpacity(p, progress);
 			paintPieText(p, context);
 		}
+	} else {
+		paintZoomedFooter(p, context);
 	}
 
 	// Fix ugly outline.
@@ -423,6 +431,7 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 	if (c.footer) {
 		return;
 	}
+	p.fillRect(c.rect, st::boxBg);
 	const auto center = QPointF(c.rect.center());
 	const auto side = (c.rect.width() / 2.) * kCircleSizeRatio;
 	const auto rectF = QRectF(
@@ -468,6 +477,55 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 		sum *= alpha(line.id);
 		if (sum > 0) {
 			PaintDetails(p, line, sum, c.rect);
+		}
+	}
+}
+
+void StackLinearChartView::paintZoomedFooter(
+		QPainter &p,
+		const PaintContext &c) {
+	if (!c.footer) {
+		return;
+	}
+	auto o = ScopedPainterOpacity(p, _transitionProgress);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto &[localStart, localEnd] = _lastPaintedXIndices;
+	const auto &[leftStart, w] = ComputeLeftStartAndStep(
+		c.chartData,
+		c.xPercentageLimits,
+		c.rect,
+		localStart);
+	for (auto i = localStart; i <= localEnd; i++) {
+		auto sum = 0.;
+		auto lastEnabledId = int(0);
+		for (const auto &line : c.chartData.lines) {
+			if (!isEnabled(line.id)) {
+				continue;
+			}
+			sum += line.y[i] * alpha(line.id);
+			lastEnabledId = line.id;
+		}
+
+		auto stack = 0.;
+		for (auto k = int(c.chartData.lines.size() - 1); k >= 0; k--) {
+			const auto &line = c.chartData.lines[k];
+			if (!isEnabled(line.id)) {
+				continue;
+			}
+			const auto visibleHeight = c.rect.height() * (line.y[i] / sum);
+			const auto height = (line.id == lastEnabledId)
+				? c.rect.height()
+				: visibleHeight;
+
+			const auto column = QRectF(
+				leftStart + (i - localStart) * w,
+				stack,
+				w,
+				height);
+
+			p.setPen(Qt::NoPen);
+			p.fillRect(column, line.color);
+			stack += visibleHeight;
 		}
 	}
 }
