@@ -27,6 +27,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -35,21 +36,6 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 	container, \
 	rktr(#LangKey), \
 	st::settingsButtonNoIcon \
-)->toggleOn( \
-	rpl::single(::RabbitSettings::JsonSettings::GetBool(#Option)) \
-)->toggledValue( \
-) | rpl::filter([](bool enabled) { \
-	return (enabled != ::RabbitSettings::JsonSettings::GetBool(#Option)); \
-}) | rpl::start_with_next([](bool enabled) { \
-	::RabbitSettings::JsonSettings::Set(#Option, enabled); \
-	::RabbitSettings::JsonSettings::Write(); \
-}, container->lifetime());
-
-#define SettingsMenuJsonSwitchIcon(LangKey, Icon, Option) AddButton( \
-	container, \
-	#LangKey, \
-	st::settingsButton, \
-	IconDescriptor{ &st::#Icon } \
 )->toggleOn( \
 	rpl::single(::RabbitSettings::JsonSettings::GetBool(#Option)) \
 )->toggledValue( \
@@ -113,7 +99,95 @@ namespace Settings {
 
 		AddSubsectionTitle(container, rktr("rtg_side_menu_elements"));
 
-		SettingsMenuJsonSwitchIcon(tr::lng_menu_my_stories(), menuIconStoriesSavedSection, side_menu_my_stories);
+		AddButton(
+			container,
+			tr::lng_create_group_title(),
+			st::settingsButton,
+			IconDescriptor{ &st::menuIconGroups }
+		)->toggleOn(
+			rpl::single(::RabbitSettings::JsonSettings::GetBool("side_menu_create_group"))
+		)->toggledValue(
+		) | rpl::filter([](bool enabled) {
+			return (enabled != ::RabbitSettings::JsonSettings::GetBool("side_menu_create_group"));
+		}) | rpl::start_with_next([](bool enabled) {
+			::RabbitSettings::JsonSettings::Set("side_menu_create_group", enabled);
+			::RabbitSettings::JsonSettings::Write();
+		}, container->lifetime());
+
+		AddButton(
+			container,
+			tr::lng_create_channel_title(),
+			st::settingsButton,
+			IconDescriptor{ &st::menuIconChannel }
+		)->toggleOn(
+			rpl::single(::RabbitSettings::JsonSettings::GetBool("side_menu_create_channel"))
+		)->toggledValue(
+		) | rpl::filter([](bool enabled) {
+			return (enabled != ::RabbitSettings::JsonSettings::GetBool("side_menu_create_channel"));
+		}) | rpl::start_with_next([](bool enabled) {
+			::RabbitSettings::JsonSettings::Set("side_menu_create_channel", enabled);
+			::RabbitSettings::JsonSettings::Write();
+		}, container->lifetime());
+
+		AddButton(
+			container,
+			tr::lng_menu_my_stories(),
+			st::settingsButton,
+			IconDescriptor{ &st::menuIconStoriesSavedSection }
+		)->toggleOn(
+			rpl::single(::RabbitSettings::JsonSettings::GetBool("side_menu_my_stories"))
+		)->toggledValue(
+		) | rpl::filter([](bool enabled) {
+			return (enabled != ::RabbitSettings::JsonSettings::GetBool("side_menu_my_stories"));
+		}) | rpl::start_with_next([](bool enabled) {
+			::RabbitSettings::JsonSettings::Set("side_menu_my_stories", enabled);
+			::RabbitSettings::JsonSettings::Write();
+		}, container->lifetime());
+
+		AddButton(
+			container,
+			tr::lng_menu_contacts(),
+			st::settingsButton,
+			IconDescriptor{ &st::menuIconProfile }
+		)->toggleOn(
+			rpl::single(::RabbitSettings::JsonSettings::GetBool("side_menu_contacts"))
+		)->toggledValue(
+		) | rpl::filter([](bool enabled) {
+			return (enabled != ::RabbitSettings::JsonSettings::GetBool("side_menu_contacts"));
+		}) | rpl::start_with_next([](bool enabled) {
+			::RabbitSettings::JsonSettings::Set("side_menu_contacts", enabled);
+			::RabbitSettings::JsonSettings::Write();
+		}, container->lifetime());
+
+		AddButton(
+			container,
+			tr::lng_menu_calls(),
+			st::settingsButton,
+			IconDescriptor{ &st::menuIconPhone }
+		)->toggleOn(
+			rpl::single(::RabbitSettings::JsonSettings::GetBool("side_menu_calls"))
+		)->toggledValue(
+		) | rpl::filter([](bool enabled) {
+			return (enabled != ::RabbitSettings::JsonSettings::GetBool("side_menu_calls"));
+		}) | rpl::start_with_next([](bool enabled) {
+			::RabbitSettings::JsonSettings::Set("side_menu_calls", enabled);
+			::RabbitSettings::JsonSettings::Write();
+		}, container->lifetime());
+
+		AddButton(
+			container,
+			tr::lng_saved_messages(),
+			st::settingsButton,
+			IconDescriptor{ &st::menuIconSavedMessages }
+		)->toggleOn(
+			rpl::single(::RabbitSettings::JsonSettings::GetBool("side_menu_saved_messages"))
+		)->toggledValue(
+		) | rpl::filter([](bool enabled) {
+			return (enabled != ::RabbitSettings::JsonSettings::GetBool("side_menu_saved_messages"));
+		}) | rpl::start_with_next([](bool enabled) {
+			::RabbitSettings::JsonSettings::Set("side_menu_saved_messages", enabled);
+			::RabbitSettings::JsonSettings::Write();
+		}, container->lifetime());
     }
 
     void Rabbit::SetupChats(not_null<Ui::VerticalLayout *> container) {

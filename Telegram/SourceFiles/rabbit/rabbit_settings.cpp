@@ -244,13 +244,13 @@ const std::map<QString, Definition, std::greater<QString>> DefinitionMap {
 		.defaultValue = 50,
 		.limitHandler = IntLimit(0, 50, 50), }},
 	//     Side menu elements
-	{ "side_menu_my_stories", {
-		.type = SettingsType::BoolSetting,
-		.defaultValue = true, }},
-	{ "side_menu_archive", {
+	{ "side_menu_create_group", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},
-	{ "side_menu_create_group", {
+	{ "side_menu_create_channel", {
+		.type = SettingType::BoolSetting,
+		.defaultValue = true, }},
+	{ "side_menu_my_stories", {
 		.type = SettingType::BoolSetting,
 		.defaultValue = true, }},
 	{ "side_menu_contacts", {

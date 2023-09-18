@@ -7,6 +7,7 @@ https://github.com/rabbitGramDesktop/rabbitGramDesktop/blob/dev/LEGAL
 */
 #include "window/window_main_menu.h"
 
+#include "rabbit/rabbit_settings.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -838,18 +839,23 @@ void MainMenu::setupMenu() {
 			std::move(descriptor));
 	};
 	if (!_controller->session().supportMode()) {
-		addAction(
-			tr::lng_create_group_title(),
-			{ &st::menuIconGroups }
-		)->setClickedCallback([=] {
-			controller->showNewGroup();
-		});
-		addAction(
-			tr::lng_create_channel_title(),
-			{ &st::menuIconChannel }
-		)->setClickedCallback([=] {
-			controller->showNewChannel();
-		});
+		if (RabbitSettings::JsonSettings::GetBool("side_menu_create_group")) {
+			addAction(
+				tr::lng_create_group_title(),
+				{ &st::menuIconGroups }
+			)->setClickedCallback([=] {
+				controller->showNewGroup();
+			});
+		}
+
+		if (RabbitSettings::JsonSettings::GetBool("side_menu_create_channel")) {
+			addAction(
+				tr::lng_create_channel_title(),
+				{ &st::menuIconChannel }
+			)->setClickedCallback([=] {
+				controller->showNewChannel();
+			});
+		}
 
 		if (RabbitSettings::JsonSettings::GetBool("side_menu_my_stories")) {
 			const auto wrap = _menu->add(
@@ -880,25 +886,31 @@ void MainMenu::setupMenu() {
 		}
 
 		SetupMenuBots(_menu, controller);
-
-		addAction(
-			tr::lng_menu_contacts(),
-			{ &st::menuIconProfile }
-		)->setClickedCallback([=] {
-			controller->show(PrepareContactsBox(controller));
-		});
-		addAction(
-			tr::lng_menu_calls(),
-			{ &st::menuIconPhone }
-		)->setClickedCallback([=] {
-			ShowCallsBox(controller);
-		});
-		addAction(
-			tr::lng_saved_messages(),
-			{ &st::menuIconSavedMessages }
-		)->setClickedCallback([=] {
-			controller->showPeerHistory(controller->session().user());
-		});
+		
+		if (RabbitSettings::JsonSettings::GetBool("side_menu_contacts")) {
+			addAction(
+				tr::lng_menu_contacts(),
+				{ &st::menuIconProfile }
+			)->setClickedCallback([=] {
+				controller->show(PrepareContactsBox(controller));
+			});
+		}
+		if (RabbitSettings::JsonSettings::GetBool("side_menu_calls")) {
+			addAction(
+				tr::lng_menu_calls(),
+				{ &st::menuIconPhone }
+			)->setClickedCallback([=] {
+				ShowCallsBox(controller);
+			});
+		}
+		if (RabbitSettings::JsonSettings::GetBool("side_menu_saved_messages")) {
+			addAction(
+				tr::lng_saved_messages(),
+				{ &st::menuIconSavedMessages }
+			)->setClickedCallback([=] {
+				controller->showPeerHistory(controller->session().user());
+			});
+		}
 	} else {
 		addAction(
 			tr::lng_profile_add_contact(),
