@@ -215,6 +215,9 @@ public:
 
 	Footer(not_null<Ui::RpWidget*> parent);
 
+	void setXPercentageLimits(const Limits &xLimits);
+
+	[[nodiscard]] Limits xPercentageLimits() const;
 	[[nodiscard]] rpl::producer<Limits> xPercentageLimitsChange() const;
 	[[nodiscard]] rpl::producer<> userInteractionFinished() const;
 
@@ -355,11 +358,15 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 	}, lifetime());
 }
 
-void ChartWidget::Footer::fire() const {
-	_xPercentageLimitsChange.fire({
+Limits ChartWidget::Footer::xPercentageLimits() const {
+	return {
 		.min = _leftSide.min / float64(width()),
 		.max = _rightSide.max / float64(width()),
-	});
+	};
+}
+
+void ChartWidget::Footer::fire() const {
+	_xPercentageLimitsChange.fire(xPercentageLimits());
 }
 
 void ChartWidget::Footer::moveCenter(
@@ -480,6 +487,16 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 
 	p.drawImage(_leftSide.min, 0, _leftCache);
 	p.drawImage(_rightSide.min, 0, _rightCache);
+}
+
+void ChartWidget::Footer::setXPercentageLimits(const Limits &xLimits) {
+	const auto left = xLimits.min * width();
+	const auto w = float64(st::statisticsChartFooterSideWidth);
+	const auto right = xLimits.max * width() - w;
+	moveSide(true, left);
+	moveSide(false, right);
+	fire();
+	update();
 }
 
 rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
