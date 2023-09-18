@@ -2437,8 +2437,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			: QString();
 
 		if (isUponSelected > 0) {
-			if (!hasCopyRestrictionForSelected()
-				&& !getSelectedText().empty()) {
+			const auto selectedText = getSelectedText();
+			if (!hasCopyRestrictionForSelected() && !selectedText.empty()) {
 				_menu->addAction(
 					((isUponSelected > 1)
 						? tr::lng_context_copy_selected_items(tr::now)
@@ -2446,13 +2446,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					[=] { copySelectedText(); },
 					&st::menuIconCopy);
 			}
-			if (!Ui::SkipTranslate(getSelectedText().rich)) {
+			if (!Ui::SkipTranslate(selectedText.rich)) {
+				const auto peer = item->history()->peer;
 				_menu->addAction(tr::lng_context_translate_selected({}), [=] {
 					_controller->show(Box(
 						Ui::TranslateBox,
-						item->history()->peer,
+						peer,
 						MsgId(),
-						getSelectedText().rich,
+						selectedText.rich,
 						hasCopyRestrictionForSelected()));
 				}, &st::menuIconTranslate);
 			}
