@@ -6607,12 +6607,21 @@ void HistoryWidget::checkPinnedBarState() {
 		std::move(pinnedRefreshed),
 		std::move(markupRefreshed)
 	) | rpl::map([=](Ui::MessageBarContent &&content, bool, HistoryItem*) {
-		if (!content.title.isEmpty() || !content.text.empty()) {
-			_list->setShownPinned(
-				session().data().message(
-					_pinnedTracker->currentMessageId().message));
-		} else {
-			_list->setShownPinned(nullptr);
+		const auto id = (!content.title.isEmpty() || !content.text.empty())
+			? _pinnedTracker->currentMessageId().message
+			: FullMsgId();
+		if (const auto list = _list.data()) {
+			// Sometimes we get here with non-empty content and id of
+			// message that is being deleted right now. We get here in
+			// the moment when _itemRemoved was already fired (so in
+			// the _list the _pinnedItem is already cleared) and the
+			// MessageUpdate::Flag::Destroyed being fired right now,
+			// so the message is still in Data::Session. So we need to
+			// call data().message() async, otherwise we get a nearly-
+			// destroyed message from it and save the pointer in _list.
+			crl::on_main(list, [=] {
+				list->setShownPinned(session().data().message(id));
+			});
 		}
 		return std::move(content);
 	}));
