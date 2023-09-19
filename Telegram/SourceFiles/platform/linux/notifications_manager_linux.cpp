@@ -50,7 +50,7 @@ struct ServerInformation {
 };
 
 bool ServiceRegistered = false;
-std::optional<ServerInformation> CurrentServerInformation;
+ServerInformation CurrentServerInformation;
 std::vector<Glib::ustring> CurrentCapabilities;
 
 void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
@@ -178,8 +178,7 @@ bool GetServiceRegistered() {
 	return false;
 }
 
-void GetServerInformation(
-		Fn<void(const std::optional<ServerInformation> &)> callback) {
+void GetServerInformation(Fn<void(const ServerInformation &)> callback) {
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
@@ -219,13 +218,13 @@ void GetServerInformation(
 								QString::fromStdString(specVersion)),
 						});
 					}, [&] {
-						callback(std::nullopt);
+						callback({});
 					});
 				});
 			},
 			kService);
 	}, [&] {
-		callback(std::nullopt);
+		callback({});
 	});
 }
 
@@ -293,10 +292,6 @@ void GetInhibited(Fn<void(bool)> callback) {
 	}, [&] {
 		callback(false);
 	});
-}
-
-ServerInformation CurrentServerInformationValue() {
-	return CurrentServerInformation.value_or(ServerInformation{});
 }
 
 Glib::ustring GetImageKey(const QVersionNumber &specificationVersion) {
@@ -510,7 +505,7 @@ bool NotificationData::init(
 		});
 	});
 
-	_imageKey = GetImageKey(CurrentServerInformationValue().specVersion);
+	_imageKey = GetImageKey(CurrentServerInformation.specVersion);
 
 	if (ranges::contains(capabilities, "body-markup")) {
 		_title = title.toStdString();
@@ -868,14 +863,13 @@ void Create(Window::Notifications::System *system) {
 		ServiceRegistered = GetServiceRegistered();
 
 		if (!ServiceRegistered) {
-			CurrentServerInformation = std::nullopt;
+			CurrentServerInformation = {};
 			CurrentCapabilities = {};
 			managerSetter();
 			return;
 		}
 
-		GetServerInformation([=](
-				const std::optional<ServerInformation> &result) {
+		GetServerInformation([=](const ServerInformation &result) {
 			CurrentServerInformation = result;
 			oneReady();
 		});
@@ -928,18 +922,24 @@ Manager::Private::Private(not_null<Manager*> manager)
 	const auto &serverInformation = CurrentServerInformation;
 	const auto &capabilities = CurrentCapabilities;
 
-	if (serverInformation.has_value()) {
+	if (!serverInformation.name.empty()) {
 		LOG(("Notification daemon product name: %1")
-			.arg(serverInformation->name.c_str()));
+			.arg(serverInformation.name.c_str()));
+	}
 
+	if (!serverInformation.vendor.empty()) {
 		LOG(("Notification daemon vendor name: %1")
-			.arg(serverInformation->vendor.c_str()));
+			.arg(serverInformation.vendor.c_str()));
+	}
 
+	if (!serverInformation.version.isNull()) {
 		LOG(("Notification daemon version: %1")
-			.arg(serverInformation->version.toString()));
+			.arg(serverInformation.version.toString()));
+	}
 
+	if (!serverInformation.specVersion.isNull()) {
 		LOG(("Notification daemon specification version: %1")
-			.arg(serverInformation->specVersion.toString()));
+			.arg(serverInformation.specVersion.toString()));
 	}
 
 	if (!capabilities.empty()) {
