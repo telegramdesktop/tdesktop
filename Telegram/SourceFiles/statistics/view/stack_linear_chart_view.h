@@ -26,21 +26,11 @@ public:
 	StackLinearChartView();
 	~StackLinearChartView() override final;
 
-	void paint(
-		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer) override;
+	void paint(QPainter &p, const PaintContext &c) override;
 
 	void paintSelectedXIndex(
 		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
+		const PaintContext &c,
 		int selectedXIndex,
 		float64 progress) override;
 
@@ -69,25 +59,11 @@ public:
 		const QPoint &p);
 
 private:
-	struct PaintContext final {
-		const Data::StatisticalChart &chartData;
-		const Limits &xPercentageLimits;
-		const Limits &heightLimits;
-		const QRect &rect;
-		bool footer = false;
-	};
+	void paintChartOrZoomAnimation(QPainter &p, const PaintContext &c);
 
-	void paint(
-		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer);
-
-	void paintZoomed(QPainter &p, const PaintContext &context);
-	void paintZoomedFooter(QPainter &p, const PaintContext &context);
-	void paintPieText(QPainter &p, const PaintContext &context);
+	void paintZoomed(QPainter &p, const PaintContext &c);
+	void paintZoomedFooter(QPainter &p, const PaintContext &c);
+	void paintPieText(QPainter &p, const PaintContext &c);
 
 	[[nodiscard]] bool skipSelectedTranslation() const;
 

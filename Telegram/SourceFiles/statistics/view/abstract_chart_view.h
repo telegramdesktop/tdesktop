@@ -15,25 +15,24 @@ namespace Statistic {
 
 struct Limits;
 
+struct PaintContext final {
+	const Data::StatisticalChart &chartData;
+	const Limits &xIndices;
+	const Limits &xPercentageLimits;
+	const Limits &heightLimits;
+	const QRect &rect;
+	bool footer = false;
+};
+
 class AbstractChartView {
 public:
 	virtual ~AbstractChartView() = default;
 
-	virtual void paint(
-		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer) = 0;
+	virtual void paint(QPainter &p, const PaintContext &c) = 0;
 
 	virtual void paintSelectedXIndex(
 		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
+		const PaintContext &c,
 		int selectedXIndex,
 		float64 progress) = 0;
 

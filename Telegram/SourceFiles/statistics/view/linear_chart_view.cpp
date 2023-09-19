@@ -26,20 +26,16 @@ float64 Ratio(const LinearChartView::CachedLineRatios &ratios, int id) {
 void PaintChartLine(
 		QPainter &p,
 		int lineIndex,
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QSize &size,
+		const PaintContext &c,
 		const LinearChartView::CachedLineRatios &ratios) {
-	const auto &line = chartData.lines[lineIndex];
+	const auto &line = c.chartData.lines[lineIndex];
 
 	auto chartPoints = QPolygonF();
 
-	const auto localStart = std::max(0, int(xIndices.min));
+	const auto localStart = std::max(0, int(c.xIndices.min));
 	const auto localEnd = std::min(
-		int(chartData.xPercentage.size() - 1),
-		int(xIndices.max));
+		int(c.chartData.xPercentage.size() - 1),
+		int(c.xIndices.max));
 
 	const auto ratio = Ratio(ratios, line.id);
 
@@ -47,12 +43,12 @@ void PaintChartLine(
 		if (line.y[i] < 0) {
 			continue;
 		}
-		const auto xPoint = size.width()
-			* ((chartData.xPercentage[i] - xPercentageLimits.min)
-				/ (xPercentageLimits.max - xPercentageLimits.min));
-		const auto yPercentage = (line.y[i] * ratio - heightLimits.min)
-			/ float64(heightLimits.max - heightLimits.min);
-		const auto yPoint = (1. - yPercentage) * size.height();
+		const auto xPoint = c.rect.width()
+			* ((c.chartData.xPercentage[i] - c.xPercentageLimits.min)
+				/ (c.xPercentageLimits.max - c.xPercentageLimits.min));
+		const auto yPercentage = (line.y[i] * ratio - c.heightLimits.min)
+			/ float64(c.heightLimits.max - c.heightLimits.min);
+		const auto yPoint = (1. - yPercentage) * c.rect.height();
 		chartPoints << QPointF(xPoint, yPoint);
 	}
 	p.setPen(QPen(line.color, st::statisticsChartLineWidth));
@@ -68,27 +64,19 @@ LinearChartView::LinearChartView(bool isDouble)
 
 LinearChartView::~LinearChartView() = default;
 
-void LinearChartView::paint(
-		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer) {
-
+void LinearChartView::paint(QPainter &p, const PaintContext &c) {
 	const auto cacheToken = LinearChartView::CacheToken(
-		xIndices,
-		xPercentageLimits,
-		heightLimits,
-		rect.size());
+		c.xIndices,
+		c.xPercentageLimits,
+		c.heightLimits,
+		c.rect.size());
 
-	const auto imageSize = rect.size() * style::DevicePixelRatio();
+	const auto imageSize = c.rect.size() * style::DevicePixelRatio();
 	const auto cacheScale = 1. / style::DevicePixelRatio();
-	auto &caches = (footer ? _footerCaches : _mainCaches);
+	auto &caches = (c.footer ? _footerCaches : _mainCaches);
 
-	for (auto i = 0; i < chartData.lines.size(); i++) {
-		const auto &line = chartData.lines[i];
+	for (auto i = 0; i < c.chartData.lines.size(); i++) {
+		const auto &line = c.chartData.lines[i];
 		p.setOpacity(alpha(line.id));
 		if (!p.opacity()) {
 			continue;
@@ -99,7 +87,7 @@ void LinearChartView::paint(
 		const auto isSameToken = (cache.lastToken == cacheToken);
 		if ((isSameToken && cache.hq)
 			|| (p.opacity() < 1. && !isEnabled(line.id))) {
-			p.drawImage(rect.topLeft(), cache.image);
+			p.drawImage(c.rect.topLeft(), cache.image);
 			continue;
 		}
 		cache.hq = isSameToken;
@@ -116,15 +104,7 @@ void LinearChartView::paint(
 				imagePainter.scale(cacheScale, cacheScale);
 			}
 
-			PaintChartLine(
-				imagePainter,
-				i,
-				chartData,
-				xIndices,
-				xPercentageLimits,
-				heightLimits,
-				rect.size(),
-				_cachedLineRatios);
+			PaintChartLine(imagePainter, i, c, _cachedLineRatios);
 		}
 
 		if (!isSameToken) {
@@ -133,7 +113,7 @@ void LinearChartView::paint(
 				Qt::IgnoreAspectRatio,
 				Qt::FastTransformation);
 		}
-		p.drawImage(rect.topLeft(), image);
+		p.drawImage(c.rect.topLeft(), image);
 		cache.lastToken = cacheToken;
 		cache.image = std::move(image);
 	}
@@ -141,10 +121,7 @@ void LinearChartView::paint(
 
 void LinearChartView::paintSelectedXIndex(
 		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
+		const PaintContext &c,
 		int selectedXIndex,
 		float64 progress) {
 	if (selectedXIndex < 0) {
@@ -156,36 +133,36 @@ void LinearChartView::paintSelectedXIndex(
 	const auto r = st::statisticsDetailsDotRadius;
 	const auto i = selectedXIndex;
 	const auto isSameToken = (_selectedPoints.lastXIndex == selectedXIndex)
-		&& (_selectedPoints.lastHeightLimits.min == heightLimits.min)
-		&& (_selectedPoints.lastHeightLimits.max == heightLimits.max)
-		&& (_selectedPoints.lastXLimits.min == xPercentageLimits.min)
-		&& (_selectedPoints.lastXLimits.max == xPercentageLimits.max);
+		&& (_selectedPoints.lastHeightLimits.min == c.heightLimits.min)
+		&& (_selectedPoints.lastHeightLimits.max == c.heightLimits.max)
+		&& (_selectedPoints.lastXLimits.min == c.xPercentageLimits.min)
+		&& (_selectedPoints.lastXLimits.max == c.xPercentageLimits.max);
 	auto linePainted = false;
-	for (const auto &line : chartData.lines) {
+	for (const auto &line : c.chartData.lines) {
 		const auto lineAlpha = alpha(line.id);
 		const auto useCache = isSameToken
 			|| (lineAlpha < 1. && !isEnabled(line.id));
 		if (!useCache) {
 			// Calculate.
 			const auto r = Ratio(_cachedLineRatios, line.id);
-			const auto xPoint = rect.width()
-				* ((chartData.xPercentage[i] - xPercentageLimits.min)
-					/ (xPercentageLimits.max - xPercentageLimits.min));
-			const auto yPercentage = (line.y[i] * r - heightLimits.min)
-				/ float64(heightLimits.max - heightLimits.min);
-			const auto yPoint = (1. - yPercentage) * rect.height();
+			const auto xPoint = c.rect.width()
+				* ((c.chartData.xPercentage[i] - c.xPercentageLimits.min)
+					/ (c.xPercentageLimits.max - c.xPercentageLimits.min));
+			const auto yPercentage = (line.y[i] * r - c.heightLimits.min)
+				/ float64(c.heightLimits.max - c.heightLimits.min);
+			const auto yPoint = (1. - yPercentage) * c.rect.height();
 			_selectedPoints.points[line.id] = QPointF(xPoint, yPoint)
-				+ rect.topLeft();
+				+ c.rect.topLeft();
 		}
 
 		if (!linePainted) {
 			const auto lineRect = QRectF(
-				rect.x()
+				c.rect.x()
 					+ begin(_selectedPoints.points)->second.x()
 					- (st::lineWidth / 2.),
-				rect.y(),
+				c.rect.y(),
 				st::lineWidth,
-				rect.height());
+				c.rect.height());
 			p.fillRect(lineRect, st::windowSubTextFg);
 			linePainted = true;
 		}
@@ -196,8 +173,8 @@ void LinearChartView::paintSelectedXIndex(
 		p.drawEllipse(_selectedPoints.points[line.id], r, r);
 	}
 	_selectedPoints.lastXIndex = selectedXIndex;
-	_selectedPoints.lastHeightLimits = heightLimits;
-	_selectedPoints.lastXLimits = xPercentageLimits;
+	_selectedPoints.lastHeightLimits = c.heightLimits;
+	_selectedPoints.lastXLimits = c.xPercentageLimits;
 }
 
 int LinearChartView::findXIndexByPosition(

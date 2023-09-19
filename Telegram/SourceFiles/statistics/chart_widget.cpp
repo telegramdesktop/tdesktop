@@ -923,22 +923,24 @@ void ChartWidget::setupChartArea() {
 
 		p.fillRect(r, st::boxBg);
 
+		if (!_chartData) {
+			return;
+		}
+
 		_horizontalLinesView.paintHorizontalLines(p, chartRect);
 
-		if (_chartData) {
-			// p.setRenderHint(
-			// 	QPainter::Antialiasing,
-			// 	!_animationController.isFPSSlow()
-			// 		|| !_animationController.animating());
+		const auto context = PaintContext{
+			_chartData,
+			_animationController.currentXIndices(),
+			_animationController.currentXLimits(),
+			_animationController.currentHeightLimits(),
+			chartRect,
+			false,
+		};
+
+		{
 			PainterHighQualityEnabler hp(p);
-			_chartView->paint(
-				p,
-				_chartData,
-				_animationController.currentXIndices(),
-				_animationController.currentXLimits(),
-				_animationController.currentHeightLimits(),
-				chartRect,
-				false);
+			_chartView->paint(p, context);
 		}
 
 		_horizontalLinesView.paintCaptionsToHorizontalLines(p, chartRect);
@@ -960,10 +962,7 @@ void ChartWidget::setupChartArea() {
 			}
 			_chartView->paintSelectedXIndex(
 				p,
-				_chartData,
-				_animationController.currentXLimits(),
-				_animationController.currentHeightLimits(),
-				chartRect,
+				context,
 				_details.widget->xIndex(),
 				detailsAlpha);
 		}
@@ -1069,19 +1068,18 @@ void ChartWidget::setupFooter() {
 			const QRect &r) {
 		if (_chartData) {
 			p.fillRect(r, st::boxBg);
-			// p.setRenderHint(
-			// 	QPainter::Antialiasing,
-			// 	!_animationController.isFPSSlow()
-			// 		|| !_animationController.animating());
-			PainterHighQualityEnabler hp(p);
+
+			auto hp = PainterHighQualityEnabler(p);
 			_chartView->paint(
 				p,
-				_chartData,
-				{ 0., float64(_chartData.x.size() - 1) },
-				fullXLimits,
-				_animationController.currentFooterHeightLimits(),
-				r,
-				true);
+				PaintContext{
+					_chartData,
+					{ 0., float64(_chartData.x.size() - 1) },
+					fullXLimits,
+					_animationController.currentFooterHeightLimits(),
+					r,
+					true,
+				});
 		}
 	});
 

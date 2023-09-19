@@ -25,21 +25,11 @@ public:
 	StackChartView();
 	~StackChartView() override final;
 
-	void paint(
-		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer) override;
+	void paint(QPainter &p, const PaintContext &c) override;
 
 	void paintSelectedXIndex(
 		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
+		const PaintContext &c,
 		int selectedXIndex,
 		float64 progress) override;
 
@@ -62,13 +52,7 @@ public:
 	void update(float64 dt) override;
 
 private:
-	void paint(
-		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer);
+	void paintChartAndSelected(QPainter &p, const PaintContext &c);
 
 	struct {
 		Limits full;

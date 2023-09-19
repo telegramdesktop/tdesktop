@@ -23,76 +23,60 @@ StackChartView::StackChartView() = default;
 
 StackChartView::~StackChartView() = default;
 
-void StackChartView::paint(
-		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer) {
+void StackChartView::paint(QPainter &p, const PaintContext &c) {
 	constexpr auto kOffset = float64(2);
 	_lastPaintedXIndices = {
-		float64(std::max(0., xIndices.min - kOffset)),
+		float64(std::max(0., c.xIndices.min - kOffset)),
 		float64(std::min(
-			float64(chartData.xPercentage.size() - 1),
-			xIndices.max + kOffset)),
+			float64(c.chartData.xPercentage.size() - 1),
+			c.xIndices.max + kOffset)),
 	};
 
-	StackChartView::paint(
-		p,
-		chartData,
-		xPercentageLimits,
-		heightLimits,
-		rect,
-		footer);
+	StackChartView::paintChartAndSelected(p, c);
 }
 
-void StackChartView::paint(
+void StackChartView::paintChartAndSelected(
 		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer) {
+		const PaintContext &c) {
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
 	const auto &[leftStart, w] = ComputeLeftStartAndStep(
-		chartData,
-		xPercentageLimits,
-		rect,
+		c.chartData,
+		c.xPercentageLimits,
+		c.rect,
 		localStart);
 
 	const auto opacity = p.opacity();
 	auto hq = PainterHighQualityEnabler(p);
 
-	auto bottoms = std::vector<float64>(localEnd - localStart + 1, -rect.y());
+	auto bottoms = std::vector<float64>(
+		localEnd - localStart + 1,
+		-c.rect.y());
 	auto selectedBottoms = std::vector<float64>();
-	const auto hasSelectedXIndex = !footer && (_lastSelectedXIndex >= 0);
+	const auto hasSelectedXIndex = !c.footer && (_lastSelectedXIndex >= 0);
 	if (hasSelectedXIndex) {
-		selectedBottoms = std::vector<float64>(chartData.lines.size(), 0);
+		selectedBottoms = std::vector<float64>(c.chartData.lines.size(), 0);
 		constexpr auto kSelectedAlpha = 0.5;
 		p.setOpacity(
 			anim::interpolateF(1.0, kSelectedAlpha, _lastSelectedXProgress));
 	}
 
-	for (auto i = 0; i < chartData.lines.size(); i++) {
-		const auto &line = chartData.lines[i];
+	for (auto i = 0; i < c.chartData.lines.size(); i++) {
+		const auto &line = c.chartData.lines[i];
 		auto path = QPainterPath();
 		for (auto x = localStart; x <= localEnd; x++) {
 			if (line.y[x] <= 0) {
 				continue;
 			}
-			const auto xPoint = rect.width()
-				* ((chartData.xPercentage[x] - xPercentageLimits.min)
-					/ (xPercentageLimits.max - xPercentageLimits.min));
-			const auto yPercentage = (line.y[x] - heightLimits.min)
-				/ float64(heightLimits.max - heightLimits.min);
-			const auto yPoint = yPercentage * rect.height() * alpha(line.id);
+			const auto yPercentage = (line.y[x] - c.heightLimits.min)
+				/ float64(c.heightLimits.max - c.heightLimits.min);
+			const auto yPoint = yPercentage
+				* c.rect.height()
+				* alpha(line.id);
 
 			const auto bottomIndex = x - localStart;
 			const auto column = QRectF(
 				leftStart + (x - localStart) * w,
-				rect.height() - bottoms[bottomIndex] - yPoint,
+				c.rect.height() - bottoms[bottomIndex] - yPoint,
 				w,
 				yPoint);
 			if (hasSelectedXIndex && (x == _lastSelectedXIndex)) {
@@ -110,10 +94,10 @@ void StackChartView::paint(
 		if (selectedBottoms[i] <= 0) {
 			continue;
 		}
-		const auto &line = chartData.lines[i];
-		const auto yPercentage = (line.y[_lastSelectedXIndex] - heightLimits.min)
-			/ float64(heightLimits.max - heightLimits.min);
-		const auto yPoint = yPercentage * rect.height() * alpha(line.id);
+		const auto &line = c.chartData.lines[i];
+		const auto yPercentage = (line.y[_lastSelectedXIndex] - c.heightLimits.min)
+			/ float64(c.heightLimits.max - c.heightLimits.min);
+		const auto yPoint = yPercentage * c.rect.height() * alpha(line.id);
 
 		const auto column = QRectF(
 			leftStart + (_lastSelectedXIndex - localStart) * w,
@@ -126,22 +110,13 @@ void StackChartView::paint(
 
 void StackChartView::paintSelectedXIndex(
 		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
+		const PaintContext &c,
 		int selectedXIndex,
 		float64 progress) {
 	_lastSelectedXIndex = selectedXIndex;
 	_lastSelectedXProgress = progress;
 	[[maybe_unused]] const auto o = ScopedPainterOpacity(p, progress);
-	StackChartView::paint(
-		p,
-		chartData,
-		xPercentageLimits,
-		heightLimits,
-		rect,
-		false);
+	StackChartView::paintChartAndSelected(p, c);
 }
 
 int StackChartView::findXIndexByPosition(

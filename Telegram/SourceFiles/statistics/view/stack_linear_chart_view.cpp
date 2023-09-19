@@ -48,28 +48,21 @@ StackLinearChartView::StackLinearChartView() = default;
 
 StackLinearChartView::~StackLinearChartView() = default;
 
-void StackLinearChartView::paint(
-		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer) {
+void StackLinearChartView::paint(QPainter &p, const PaintContext &c) {
 	constexpr auto kOffset = float64(2);
 	const auto wasXIndices = _lastPaintedXIndices;
 	_lastPaintedXIndices = {
-		float64(std::max(0., xIndices.min - kOffset)),
+		float64(std::max(0., c.xIndices.min - kOffset)),
 		float64(std::min(
-			float64(chartData.xPercentage.size() - 1),
-			xIndices.max + kOffset)),
+			float64(c.chartData.xPercentage.size() - 1),
+			c.xIndices.max + kOffset)),
 	};
 	if ((wasXIndices.min != _lastPaintedXIndices.min)
 		|| (wasXIndices.max != _lastPaintedXIndices.max)) {
 
 		const auto &[localStart, localEnd] = _lastPaintedXIndices;
 		_cachedTransition.lines = std::vector<Transition::TransitionLine>(
-			chartData.lines.size(),
+			c.chartData.lines.size(),
 			Transition::TransitionLine());
 
 		for (auto j = 0; j < 2; j++) {
@@ -77,7 +70,7 @@ void StackLinearChartView::paint(
 			auto stackOffset = 0;
 			auto sum = 0.;
 			auto drawingLinesCount = 0;
-			for (const auto &line : chartData.lines) {
+			for (const auto &line : c.chartData.lines) {
 				if (!isEnabled(line.id)) {
 					continue;
 				}
@@ -87,11 +80,11 @@ void StackLinearChartView::paint(
 				}
 			}
 
-			for (auto k = 0; k < chartData.lines.size(); k++) {
+			for (auto k = 0; k < c.chartData.lines.size(); k++) {
 				auto &linePoint = (j
 					? _cachedTransition.lines[k].end
 					: _cachedTransition.lines[k].start);
-				const auto &line = chartData.lines[k];
+				const auto &line = c.chartData.lines[k];
 				if (!isEnabled(line.id)) {
 					continue;
 				}
@@ -99,22 +92,22 @@ void StackLinearChartView::paint(
 					? (line.y[i] ? alpha(line.id) : 0)
 					: (sum ? (line.y[i] * alpha(line.id) / sum) : 0);
 
-				const auto xPoint = rect.width()
-					* ((chartData.xPercentage[i] - xPercentageLimits.min)
-						/ (xPercentageLimits.max - xPercentageLimits.min));
-				const auto height = yPercentage * rect.height();
-				const auto yPoint = rect::bottom(rect) - height - stackOffset;
+				const auto xPoint = c.rect.width()
+					* ((c.chartData.xPercentage[i] - c.xPercentageLimits.min)
+						/ (c.xPercentageLimits.max - c.xPercentageLimits.min));
+				const auto height = yPercentage * c.rect.height();
+				const auto yPoint = rect::bottom(c.rect) - height - stackOffset;
 				linePoint = { xPoint, yPoint };
 				stackOffset += height;
 			}
 		}
 
 		auto sums = std::vector<float64>();
-		sums.reserve(chartData.lines.size());
+		sums.reserve(c.chartData.lines.size());
 		auto totalSum = 0;
-		for (const auto &line : chartData.lines) {
+		for (const auto &line : c.chartData.lines) {
 			auto sum = 0;
-			for (auto i = xIndices.min; i <= xIndices.max; i++) {
+			for (auto i = c.xIndices.min; i <= c.xIndices.max; i++) {
 				sum += line.y[i];
 			}
 			sum *= alpha(line.id);
@@ -129,43 +122,26 @@ void StackLinearChartView::paint(
 		}
 	}
 
-	StackLinearChartView::paint(
-		p,
-		chartData,
-		xPercentageLimits,
-		heightLimits,
-		rect,
-		footer);
+	StackLinearChartView::paintChartOrZoomAnimation(p, c);
 }
 
-void StackLinearChartView::paint(
+void StackLinearChartView::paintChartOrZoomAnimation(
 		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
-		bool footer) {
-	const auto context = PaintContext{
-		chartData,
-		xPercentageLimits,
-		heightLimits,
-		rect,
-		footer
-	};
+		const PaintContext &c) {
 	if (_transitionProgress == 1.) {
-		if (footer) {
-			return paintZoomedFooter(p, context);
+		if (c.footer) {
+			return paintZoomedFooter(p, c);
 		} else {
-			return paintZoomed(p, context);
+			return paintZoomed(p, c);
 		}
 	}
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
-	_skipPoints = std::vector<bool>(chartData.lines.size(), false);
+	_skipPoints = std::vector<bool>(c.chartData.lines.size(), false);
 	auto paths = std::vector<QPainterPath>(
-		chartData.lines.size(),
+		c.chartData.lines.size(),
 		QPainterPath());
 
-	const auto center = QPointF(rect.center());
+	const auto center = QPointF(c.rect.center());
 
 	const auto rotate = [&](float64 ang, const QPointF &p) {
 		return QTransform()
@@ -175,7 +151,7 @@ void StackLinearChartView::paint(
 			.map(p);
 	};
 
-	const auto hasTransitionAnimation = _transitionProgress && !footer;
+	const auto hasTransitionAnimation = _transitionProgress && !c.footer;
 
 	auto straightLineProgress = 0.;
 	auto hasEmptyPoint = false;
@@ -188,13 +164,13 @@ void StackLinearChartView::paint(
 			0.,
 			1.);
 		auto rectPath = QPainterPath();
-		rectPath.addRect(rect);
+		rectPath.addRect(c.rect);
 		const auto r = anim::interpolateF(
 			1.,
 			kCircleSizeRatio,
 			_transitionProgress);
 		const auto per = anim::interpolateF(0., 100., _transitionProgress);
-		const auto side = (rect.width() / 2.) * r;
+		const auto side = (c.rect.width() / 2.) * r;
 		const auto rectF = QRectF(
 			center - QPointF(side, side),
 			center + QPointF(side, side));
@@ -209,8 +185,8 @@ void StackLinearChartView::paint(
 
 		auto drawingLinesCount = int(0);
 
-		for (auto k = 0; k < chartData.lines.size(); k++) {
-			const auto &line = chartData.lines[k];
+		for (auto k = 0; k < c.chartData.lines.size(); k++) {
+			const auto &line = c.chartData.lines[k];
 			if (!isEnabled(line.id)) {
 				continue;
 			}
@@ -221,8 +197,8 @@ void StackLinearChartView::paint(
 			lastEnabled = k;
 		}
 
-		for (auto k = 0; k < chartData.lines.size(); k++) {
-			const auto &line = chartData.lines[k];
+		for (auto k = 0; k < c.chartData.lines.size(); k++) {
+			const auto &line = c.chartData.lines[k];
 			const auto isLastLine = (k == lastEnabled);
 			const auto &transitionLine = _cachedTransition.lines[k];
 			if (!isEnabled(line.id)) {
@@ -237,20 +213,20 @@ void StackLinearChartView::paint(
 				? float64(y[i] ? lineAlpha : 0.)
 				: float64(sum ? (y[i] * lineAlpha / sum) : 0.);
 
-			const auto xPoint = rect.width()
-				* ((chartData.xPercentage[i] - xPercentageLimits.min)
-					/ (xPercentageLimits.max - xPercentageLimits.min));
+			const auto xPoint = c.rect.width()
+				* ((c.chartData.xPercentage[i] - c.xPercentageLimits.min)
+					/ (c.xPercentageLimits.max - c.xPercentageLimits.min));
 
 			if (!yPercentage && isLastLine) {
 				hasEmptyPoint = true;
 			}
-			const auto height = yPercentage * rect.height();
-			const auto yPoint = rect::bottom(rect) - height - stackOffset;
+			const auto height = yPercentage * c.rect.height();
+			const auto yPoint = rect::bottom(c.rect) - height - stackOffset;
 			// startFromY[k] = yPoint;
 
 			auto angle = 0.;
 			auto resultPoint = QPointF(xPoint, yPoint);
-			auto pointZero = QPointF(xPoint, rect.y() + rect.height());
+			auto pointZero = QPointF(xPoint, c.rect.y() + c.rect.height());
 			// if (i == localEnd) {
 			// 	endXPoint = xPoint;
 			// } else if (i == localStart) {
@@ -289,11 +265,11 @@ void StackLinearChartView::paint(
 						std::max(pointZero.x(), center.x()),
 						rotate(resultAngle, pointZero).y());
 				} else {
-					const auto &xLimits = xPercentageLimits;
+					const auto &xLimits = c.xPercentageLimits;
 					const auto isNextXPointAfterCenter = false
-						|| center.x() < (rect.width() * ((i == localEnd)
+						|| center.x() < (c.rect.width() * ((i == localEnd)
 							? 1.
-							: ((chartData.xPercentage[i + 1] - xLimits.min)
+							: ((c.chartData.xPercentage[i + 1] - xLimits.min)
 								/ (xLimits.max - xLimits.min))));
 					if (isNextXPointAfterCenter) {
 						pointZero = resultPoint = QPointF()
@@ -309,7 +285,7 @@ void StackLinearChartView::paint(
 			}
 
 			if (i == localStart) {
-				const auto bottomLeft = QPointF(rect.x(), rect::bottom(rect));
+				const auto bottomLeft = QPointF(c.rect.x(), rect::bottom(c.rect));
 				const auto local = (hasTransitionAnimation && !isLastLine)
 					? rotate(
 						_transitionProgress * angle
@@ -361,10 +337,10 @@ void StackLinearChartView::paint(
 							|| (local.y() > center.y()
 								&& resultPoint.y() > center.y()));
 					const auto endQuarter = (!ending)
-						? QuarterForPoint(rect, resultPoint)
+						? QuarterForPoint(c.rect, resultPoint)
 						: kRightTop;
 					const auto startQuarter = (!ending)
-						? QuarterForPoint(rect, local)
+						? QuarterForPoint(c.rect, local)
 						: (transitionLine.angle == -180.)
 						? kRightTop
 						: kLeftTop;
@@ -372,14 +348,14 @@ void StackLinearChartView::paint(
 					for (auto q = endQuarter; q <= startQuarter; q++) {
 						chartPath.lineTo(
 							(q == kLeftTop || q == kLeftBottom)
-								? rect.x()
-								: rect::right(rect),
+								? c.rect.x()
+								: rect::right(c.rect),
 							(q == kLeftTop || q == kRightTop)
-								? rect.y()
-								: rect::right(rect));
+								? c.rect.y()
+								: rect::right(c.rect));
 					}
 				} else {
-					chartPath.lineTo(rect::right(rect), rect::bottom(rect));
+					chartPath.lineTo(rect::right(c.rect), rect::bottom(c.rect));
 				}
 			}
 
@@ -389,23 +365,23 @@ void StackLinearChartView::paint(
 
 	auto hq = PainterHighQualityEnabler(p);
 
-	p.fillRect(rect, st::boxBg);
+	p.fillRect(c.rect, st::boxBg);
 	if (!ovalPath.isEmpty()) {
 		p.setClipPath(ovalPath);
 	}
 
-	const auto opacity = footer ? (1. - _transitionProgress) : 1.;
-	for (auto k = int(chartData.lines.size() - 1); k >= 0; k--) {
+	const auto opacity = c.footer ? (1. - _transitionProgress) : 1.;
+	for (auto k = int(c.chartData.lines.size() - 1); k >= 0; k--) {
 		if (paths[k].isEmpty()) {
 			continue;
 		}
-		const auto &line = chartData.lines[k];
+		const auto &line = c.chartData.lines[k];
 		p.setOpacity(alpha(line.id) * opacity);
 		p.setPen(Qt::NoPen);
 		p.fillPath(paths[k], line.color);
 	}
 	p.setOpacity(opacity);
-	if (!footer) {
+	if (!c.footer) {
 		constexpr auto kAlphaTextPart = 0.6;
 		const auto progress = std::clamp(
 			(_transitionProgress - kAlphaTextPart) / (1. - kAlphaTextPart),
@@ -413,14 +389,14 @@ void StackLinearChartView::paint(
 			1.);
 		if (progress > 0) {
 			auto o = ScopedPainterOpacity(p, progress);
-			paintPieText(p, context);
+			paintPieText(p, c);
 		}
 	} else {
-		paintZoomedFooter(p, context);
+		paintZoomedFooter(p, c);
 	}
 
 	// Fix ugly outline.
-	if (!footer || !_transitionProgress) {
+	if (!c.footer || !_transitionProgress) {
 		p.setBrush(Qt::transparent);
 		p.setPen(st::boxBg);
 		p.drawPath(ovalPath);
@@ -672,10 +648,7 @@ bool StackLinearChartView::skipSelectedTranslation() const {
 
 void StackLinearChartView::paintSelectedXIndex(
 		QPainter &p,
-		const Data::StatisticalChart &chartData,
-		const Limits &xPercentageLimits,
-		const Limits &heightLimits,
-		const QRect &rect,
+		const PaintContext &c,
 		int selectedXIndex,
 		float64 progress) {
 	if (selectedXIndex < 0) {
@@ -685,39 +658,39 @@ void StackLinearChartView::paintSelectedXIndex(
 	const auto r = st::statisticsDetailsDotRadius;
 	const auto i = selectedXIndex;
 	const auto isSameToken = (_selectedPoints.lastXIndex == selectedXIndex)
-		&& (_selectedPoints.lastHeightLimits.min == heightLimits.min)
-		&& (_selectedPoints.lastHeightLimits.max == heightLimits.max)
-		&& (_selectedPoints.lastXLimits.min == xPercentageLimits.min)
-		&& (_selectedPoints.lastXLimits.max == xPercentageLimits.max);
-	for (const auto &line : chartData.lines) {
+		&& (_selectedPoints.lastHeightLimits.min == c.heightLimits.min)
+		&& (_selectedPoints.lastHeightLimits.max == c.heightLimits.max)
+		&& (_selectedPoints.lastXLimits.min == c.xPercentageLimits.min)
+		&& (_selectedPoints.lastXLimits.max == c.xPercentageLimits.max);
+	for (const auto &line : c.chartData.lines) {
 		const auto lineAlpha = alpha(line.id);
 		const auto useCache = isSameToken
 			|| (lineAlpha < 1. && !isEnabled(line.id));
 		if (!useCache) {
 			// Calculate.
-			const auto xPoint = rect.width()
-				* ((chartData.xPercentage[i] - xPercentageLimits.min)
-					/ (xPercentageLimits.max - xPercentageLimits.min));
-			const auto yPercentage = (line.y[i] - heightLimits.min)
-				/ float64(heightLimits.max - heightLimits.min);
+			const auto xPoint = c.rect.width()
+				* ((c.chartData.xPercentage[i] - c.xPercentageLimits.min)
+					/ (c.xPercentageLimits.max - c.xPercentageLimits.min));
+			const auto yPercentage = (line.y[i] - c.heightLimits.min)
+				/ float64(c.heightLimits.max - c.heightLimits.min);
 			_selectedPoints.points[line.id] = QPointF(xPoint, 0)
-				+ rect.topLeft();
+				+ c.rect.topLeft();
 		}
 
 		{
 			const auto lineRect = QRectF(
-				rect.x()
+				c.rect.x()
 					+ begin(_selectedPoints.points)->second.x()
 					- (st::lineWidth / 2.),
-				rect.y(),
+				c.rect.y(),
 				st::lineWidth,
-				rect.height());
+				c.rect.height());
 			p.fillRect(lineRect, st::windowSubTextFg);
 		}
 	}
 	_selectedPoints.lastXIndex = selectedXIndex;
-	_selectedPoints.lastHeightLimits = heightLimits;
-	_selectedPoints.lastXLimits = xPercentageLimits;
+	_selectedPoints.lastHeightLimits = c.heightLimits;
+	_selectedPoints.lastXLimits = c.xPercentageLimits;
 }
 
 int StackLinearChartView::findXIndexByPosition(
