@@ -447,6 +447,9 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 			selectedLineIndex = k;
 		}
 	}
+	if (_piePartController.isFinished()) {
+		_piePartAnimation.stop();
+	}
 	paintPieText(p, c);
 
 	if (selectedLineIndex >= 0) {
@@ -591,7 +594,7 @@ void StackLinearChartView::PiePartController::update(int id) {
 	}
 }
 
-float64 StackLinearChartView::PiePartController::progress(int id) {
+float64 StackLinearChartView::PiePartController::progress(int id) const {
 	const auto it = _startedAt.find(id);
 	if (it == end(_startedAt)) {
 		return 0.;
@@ -607,7 +610,7 @@ float64 StackLinearChartView::PiePartController::progress(int id) {
 
 QPointF StackLinearChartView::PiePartController::offset(
 		LineId id,
-		float64 angle) {
+		float64 angle) const {
 	const auto offset = st::statisticsPieChartPartOffset * progress(id);
 	const auto radians = angle * M_PI / 180.;
 	return { std::cos(radians) * offset, std::sin(radians) * offset };
@@ -615,6 +618,16 @@ QPointF StackLinearChartView::PiePartController::offset(
 
 auto StackLinearChartView::PiePartController::selected() const -> LineId {
 	return _selected;
+}
+
+bool StackLinearChartView::PiePartController::isFinished() const {
+	for (const auto &[id, _] : _startedAt) {
+		const auto p = progress(id);
+		if (p > 0 && p < 1) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void StackLinearChartView::handleMouseMove(

@@ -105,9 +105,10 @@ private:
 	public:
 		using LineId = int;
 		bool set(LineId id);
-		[[nodiscard]] float64 progress(LineId id);
-		[[nodiscard]] QPointF offset(LineId id, float64 angle);
+		[[nodiscard]] float64 progress(LineId id) const;
+		[[nodiscard]] QPointF offset(LineId id, float64 angle) const;
 		[[nodiscard]] LineId selected() const;
+		[[nodiscard]] bool isFinished() const;
 
 	private:
 		void update(LineId id);
