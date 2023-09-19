@@ -75,6 +75,7 @@ struct AddToMenuOpenAttach {
 	PeerTypes chooseTypes;
 };
 struct AddToMenuOpenMenu {
+	QString startCommand;
 };
 struct AddToMenuOpenApp {
 	not_null<BotAppData*> app;
@@ -127,7 +128,7 @@ public:
 
 	void cancel();
 
-	void requestBots();
+	void requestBots(Fn<void()> callback = nullptr);
 	[[nodiscard]] const std::vector<AttachWebViewBot> &attachBots() const {
 		return _attachBots;
 	}
@@ -196,9 +197,9 @@ private:
 	void confirmOpen(
 		not_null<Window::SessionController*> controller,
 		Fn<void()> done);
-	void acceptDisclaimer(
+	void acceptMainMenuDisclaimer(
 		not_null<Window::SessionController*> controller,
-		Fn<void()> done);
+		const WebViewButton &button);
 
 	enum class ToggledState {
 		Removed,
@@ -251,6 +252,7 @@ private:
 
 	uint64 _botsHash = 0;
 	mtpRequestId _botsRequestId = 0;
+	std::vector<Fn<void()>> _botsRequestCallbacks;
 
 	std::unique_ptr<Context> _addToMenuContext;
 	UserData *_addToMenuBot = nullptr;

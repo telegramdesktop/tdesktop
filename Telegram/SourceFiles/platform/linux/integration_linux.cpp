@@ -207,24 +207,17 @@ LinuxIntegration::LinuxIntegration()
 		base::Platform::XDP::kService,
 		base::Platform::XDP::kObjectPath,
 		nullptr))
-, _darkModeWatcher([](
-	const Glib::ustring &group,
-	const Glib::ustring &key,
-	const Glib::VariantBase &value) {
-	if (group == "org.freedesktop.appearance"
-		&& key == "color-scheme") {
+, _darkModeWatcher(
+	"org.freedesktop.appearance",
+	"color-scheme",
+	[](uint value) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 		QWindowSystemInterface::handleThemeChange();
 #else // Qt >= 6.5.0
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			try {
-				Core::App().settings().setSystemDarkMode(
-					value.get_dynamic<uint>() == 1);
-			} catch (...) {
-			}
+			Core::App().settings().setSystemDarkMode(value == 1);
 		});
 #endif // Qt < 6.5.0
-	}
 }) {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));

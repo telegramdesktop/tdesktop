@@ -159,14 +159,7 @@ wv xm xml ym yuv").split(' ');
 bool IsExecutableName(const QString &filepath) {
 	static const auto kExtensions = [] {
 		const auto joined =
-#ifdef Q_OS_MAC
-			u"\
-applescript action app bin command csh osx workflow terminal url caction \
-mpkg pkg scpt scptd xhtm webarchive"_q;
-#elif defined Q_OS_UNIX // Q_OS_MAC
-			u"bin csh deb desktop ksh out pet pkg pup rpm run sh shar \
-slp zsh"_q;
-#else // Q_OS_MAC || Q_OS_UNIX
+#ifdef Q_OS_WIN
 			u"\
 ad ade adp app application appref-ms asp asx bas bat bin cab cdxml cer cfg \
 chi chm cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget \
@@ -179,7 +172,14 @@ psd1 psm1 pssc pst py py3 pyc pyd pyi pyo pyw pywz pyz rb reg rgs scf scr \
 sct search-ms settingcontent-ms sh shb shs slk sys t tmp u3p url vb vbe vbp \
 vbs vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx \
 vtx website ws wsc wsf wsh xbap xll xnk xs"_q;
-#endif // !Q_OS_MAC && !Q_OS_UNIX
+#elif defined Q_OS_MAC // Q_OS_MAC
+			u"\
+applescript action app bin command csh osx workflow terminal url caction \
+mpkg pkg scpt scptd xhtm webarchive"_q;
+#else // Q_OS_WIN || Q_OS_MAC
+			u"bin csh deb desktop ksh out pet pkg pup rpm run sh shar \
+slp zsh"_q;
+#endif // !Q_OS_WIN && !Q_OS_MAC
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();

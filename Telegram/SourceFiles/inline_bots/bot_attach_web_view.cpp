@@ -878,7 +878,10 @@ void AttachWebView::cancel() {
 	_startCommand = QString();
 }
 
-void AttachWebView::requestBots() {
+void AttachWebView::requestBots(Fn<void()> callback) {
+	if (callback) {
+		_botsRequestCallbacks.push_back(std::move(callback));
+	}
 	if (_botsRequestId) {
 		return;
 	}
@@ -899,8 +902,14 @@ void AttachWebView::requestBots() {
 			}
 			_attachBotsUpdates.fire({});
 		});
+		for (const auto &callback : base::take(_botsRequestCallbacks)) {
+			callback();
+		}
 	}).fail([=] {
 		_botsRequestId = 0;
+		for (const auto &callback : base::take(_botsRequestCallbacks)) {
+			callback();
+		}
 	}).send();
 }
 
@@ -998,8 +1007,12 @@ void AttachWebView::requestAddToMenu(
 					return true;
 				}
 			} else if (v::is<AddToMenuOpenMenu>(open)) {
+				const auto &openMenu = v::get<AddToMenuOpenMenu>(open);
 				_bot = bot;
-				requestSimple(strong, bot, { .fromMainMenu = true });
+				requestSimple(strong, bot, {
+					.startCommand = openMenu.startCommand,
+					.fromMainMenu = true,
+				});
 				return true;
 			} else if (const auto useTypes = chooseTypes & types) {
 				const auto done = [=](not_null<Data::Thread*> thread) {
@@ -1127,9 +1140,7 @@ void AttachWebView::requestSimple(
 	_context->fromSwitch = button.fromSwitch;
 	_context->fromMainMenu = button.fromMainMenu;
 	if (button.fromMainMenu) {
-		acceptDisclaimer(controller, [=] {
-			requestSimple(button);
-		});
+		acceptMainMenuDisclaimer(controller, button);
 	} else {
 		confirmOpen(controller, [=] {
 			requestSimple(button);
@@ -1141,11 +1152,16 @@ void AttachWebView::requestSimple(const WebViewButton &button) {
 	using Flag = MTPmessages_RequestSimpleWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestSimpleWebView(
 		MTP_flags(Flag::f_theme_params
-			| (button.fromMainMenu ? Flag::f_from_side_menu : Flag::f_url)
+			| (button.fromMainMenu
+				? (Flag::f_from_side_menu
+					| (button.startCommand.isEmpty()
+						? Flag()
+						: Flag::f_start_param))
+				: Flag::f_url)
 			| (button.fromSwitch ? Flag::f_from_switch_webview : Flag())),
 		_bot->inputUser,
 		MTP_bytes(button.url),
-		MTP_string(""), // start_param
+		MTP_string(button.startCommand),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
 		MTP_string("tdesktop")
 	)).done([=](const MTPSimpleWebViewResult &result) {
@@ -1360,9 +1376,11 @@ void AttachWebView::confirmOpen(
 	}));
 }
 
-void AttachWebView::acceptDisclaimer(
+void AttachWebView::acceptMainMenuDisclaimer(
 		not_null<Window::SessionController*> controller,
-		Fn<void()> done) {
+		const WebViewButton &button) {
+	Expects(button.fromMainMenu);
+
 	const auto local = _bot ? &_bot->session().local() : nullptr;
 	if (!local) {
 		return;
@@ -1375,10 +1393,12 @@ void AttachWebView::acceptDisclaimer(
 		_attachBotsUpdates.fire({});
 		return;
 	} else if (i->inactive) {
-		requestAddToMenu(_bot, AddToMenuOpenMenu(), controller, {});
+		requestAddToMenu(_bot, AddToMenuOpenMenu{
+			.startCommand = button.startCommand,
+		}, controller, {});
 		return;
 	} else if (!i->disclaimerRequired || disclaimerAccepted(*i)) {
-		done();
+		requestSimple(button);
 		return;
 	}
 
@@ -1386,7 +1406,7 @@ void AttachWebView::acceptDisclaimer(
 	controller->show(Box(FillDisclaimerBox, crl::guard(this, [=] {
 		_disclaimerAccepted.emplace(_bot);
 		_attachBotsUpdates.fire({});
-		done();
+		requestSimple(button);
 	})));
 }
 
@@ -1593,10 +1613,8 @@ void AttachWebView::toggleInMenu(
 		MTP_bool(state != ToggledState::Removed)
 	)).done([=] {
 		_requestId = 0;
-		requestBots();
-		if (callback) {
-			callback();
-		}
+		_session->api().request(base::take(_botsRequestId)).cancel();
+		requestBots(std::move(callback));
 	}).fail([=] {
 		cancel();
 	}).send();
