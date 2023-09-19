@@ -39,9 +39,9 @@ void ChartHorizontalLinesView::setChartData(
 void ChartHorizontalLinesView::paintHorizontalLines(
 		QPainter &p,
 		const QRect &r) {
+	const auto alpha = p.opacity();
 	for (auto &horizontalLine : _horizontalLines) {
-		const auto alpha = p.opacity();
-		p.setOpacity(horizontalLine.alpha);
+		p.setOpacity(alpha * horizontalLine.alpha);
 		for (const auto &line : horizontalLine.lines) {
 			const auto lineRect = QRect(
 				0,
@@ -50,8 +50,8 @@ void ChartHorizontalLinesView::paintHorizontalLines(
 				st::lineWidth);
 			p.fillRect(lineRect, st::windowSubTextFg);
 		}
-		p.setOpacity(alpha);
 	}
+	p.setOpacity(alpha);
 }
 
 void ChartHorizontalLinesView::paintCaptionsToHorizontalLines(
@@ -59,9 +59,9 @@ void ChartHorizontalLinesView::paintCaptionsToHorizontalLines(
 		const QRect &r) {
 	const auto offset = r.y() - st::statisticsChartHorizontalLineCaptionSkip;
 	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
+	const auto alpha = p.opacity();
 	for (auto &horizontalLine : _horizontalLines) {
-		const auto alpha = p.opacity();
-		p.setOpacity(horizontalLine.alpha);
+		p.setOpacity(alpha * horizontalLine.alpha);
 		for (const auto &line : horizontalLine.lines) {
 			const auto y = offset + r.height() * line.relativeValue;
 			p.setPen(_isDouble ? _leftPen : st::windowSubTextFg);
@@ -83,8 +83,8 @@ void ChartHorizontalLinesView::paintCaptionsToHorizontalLines(
 						: line.scaledLineCaption);
 			}
 		}
-		p.setOpacity(alpha);
 	}
+	p.setOpacity(alpha);
 }
 
 void ChartHorizontalLinesView::computeRelative(

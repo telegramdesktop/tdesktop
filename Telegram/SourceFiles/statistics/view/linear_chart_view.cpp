@@ -71,6 +71,7 @@ void LinearChartView::paint(QPainter &p, const PaintContext &c) {
 		c.heightLimits,
 		c.rect.size());
 
+	const auto opacity = p.opacity();
 	const auto imageSize = c.rect.size() * style::DevicePixelRatio();
 	const auto cacheScale = 1. / style::DevicePixelRatio();
 	auto &caches = (c.footer ? _footerCaches : _mainCaches);
@@ -117,6 +118,7 @@ void LinearChartView::paint(QPainter &p, const PaintContext &c) {
 		cache.lastToken = cacheToken;
 		cache.image = std::move(image);
 	}
+	p.setOpacity(opacity);
 }
 
 void LinearChartView::paintSelectedXIndex(

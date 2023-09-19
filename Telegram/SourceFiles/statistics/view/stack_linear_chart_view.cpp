@@ -130,10 +130,11 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		const PaintContext &c) {
 	if (_transitionProgress == 1.) {
 		if (c.footer) {
-			return paintZoomedFooter(p, c);
+			paintZoomedFooter(p, c);
 		} else {
-			return paintZoomed(p, c);
+			paintZoomed(p, c);
 		}
+		return p.setOpacity(0.);
 	}
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
 	_skipPoints = std::vector<bool>(c.chartData.lines.size(), false);
@@ -365,7 +366,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 
 	auto hq = PainterHighQualityEnabler(p);
 
-	p.fillRect(c.rect, st::boxBg);
+	p.fillRect(c.rect + QMargins(0, 0, 0, st::lineWidth), st::boxBg);
 	if (!ovalPath.isEmpty()) {
 		p.setClipPath(ovalPath);
 	}
@@ -401,13 +402,18 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		p.setPen(st::boxBg);
 		p.drawPath(ovalPath);
 	}
+
+	if (!ovalPath.isEmpty()) {
+		p.setClipRect(c.rect, Qt::NoClip);
+	}
+	p.setOpacity(1. - _transitionProgress);
 }
 
 void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 	if (c.footer) {
 		return;
 	}
-	p.fillRect(c.rect, st::boxBg);
+	p.fillRect(c.rect + QMargins(0, 0, 0, st::lineWidth), st::boxBg);
 	const auto center = QPointF(c.rect.center());
 	const auto side = (c.rect.width() / 2.) * kCircleSizeRatio;
 	const auto rectF = QRectF(

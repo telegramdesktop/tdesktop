@@ -47,6 +47,7 @@ void PaintBottomLine(
 		int y,
 		int captionIndicesOffset) {
 	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
+	const auto opacity = p.opacity();
 
 	const auto startXIndex = chartData.findStartIndex(
 		xPercentageLimits.min);
@@ -105,7 +106,8 @@ void PaintBottomLine(
 					0.,
 					1. + ((chartWidth - rect::right(r)) / edgeAlphaSize))
 				: 1.;
-			p.setOpacity(edgeAlpha
+			p.setOpacity(opacity
+				* edgeAlpha
 				* (hasFastAlpha ? fastAlpha : resultAlpha));
 			p.drawText(r, chartData.getDayString(i), style::al_center);
 		}
@@ -450,7 +452,11 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 	if (_paintChartCallback) {
 		auto q = QPainter(&_frame);
 
-		_paintChartCallback(q, Rect(innerRect.size()));
+		{
+			const auto opacity = q.opacity();
+			_paintChartCallback(q, Rect(innerRect.size()));
+			q.setOpacity(opacity);
+		}
 
 		q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 		q.drawImage(0, 0, _mask);
