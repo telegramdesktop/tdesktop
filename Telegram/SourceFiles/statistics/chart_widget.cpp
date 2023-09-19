@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/show_animation.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "lang/lang_keys.h"
+#include "statistics/chart_header_widget.h"
 #include "statistics/chart_lines_filter_widget.h"
 #include "statistics/point_details_widget.h"
 #include "statistics/view/abstract_chart_view.h"
@@ -162,53 +163,6 @@ void RpMouseWidget::mouseMoveEvent(QMouseEvent *e) {
 void RpMouseWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_start = { -1, -1 };
 	_mouseStateChanged.fire({ e->pos(), QEvent::MouseButtonRelease });
-}
-
-class ChartWidget::Header final : public RpWidget {
-public:
-	using RpWidget::RpWidget;
-
-	void setTitle(QString title);
-	void setRightInfo(QString rightInfo);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	Ui::Text::String _title;
-	Ui::Text::String _rightInfo;
-	int _titleWidth = 0;
-
-};
-
-void ChartWidget::Header::setTitle(QString title) {
-	_titleWidth = st::statisticsHeaderTitleTextStyle.font->width(title);
-	_title.setText(st::statisticsHeaderTitleTextStyle, std::move(title));
-}
-
-void ChartWidget::Header::setRightInfo(QString rightInfo) {
-	_rightInfo.setText(
-		st::statisticsHeaderDatesTextStyle,
-		std::move(rightInfo));
-}
-
-void ChartWidget::Header::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
-
-	p.fillRect(rect(), st::boxBg);
-
-	p.setPen(st::boxTextFg);
-	const auto top = (height()
-		- st::statisticsHeaderTitleTextStyle.font->height) / 2;
-	_title.drawLeftElided(p, 0, top, width(), width());
-	_rightInfo.drawRightElided(
-		p,
-		0,
-		top,
-		width() - _titleWidth,
-		width(),
-		1,
-		style::al_right);
 }
 
 class ChartWidget::Footer final : public RpMouseWidget {

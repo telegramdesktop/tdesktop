@@ -1282,6 +1282,8 @@ PRIVATE
     settings/settings_type.h
     settings/settings_websites.cpp
     settings/settings_websites.h
+    statistics/chart_header_widget.cpp
+    statistics/chart_header_widget.h
     statistics/chart_horizontal_lines_data.cpp
     statistics/chart_horizontal_lines_data.h
     statistics/chart_widget.cpp

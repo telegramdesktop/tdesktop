@@ -20,6 +20,7 @@ class RpMouseWidget;
 class PointDetailsWidget;
 class ChartLinesFilterWidget;
 class AbstractChartView;
+class Header;
 
 class ChartWidget : public Ui::RpWidget {
 public:
@@ -50,7 +51,6 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	class Header;
 	class Footer;
 
 	class ChartAnimationController final {
