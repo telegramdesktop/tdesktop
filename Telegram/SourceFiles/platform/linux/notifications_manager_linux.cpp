@@ -43,15 +43,15 @@ constexpr auto kInterface = kService;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
 
 struct ServerInformation {
-	QString name;
-	QString vendor;
+	Glib::ustring name;
+	Glib::ustring vendor;
 	QVersionNumber version;
 	QVersionNumber specVersion;
 };
 
 bool ServiceRegistered = false;
 std::optional<ServerInformation> CurrentServerInformation;
-QStringList CurrentCapabilities;
+std::vector<Glib::ustring> CurrentCapabilities;
 
 void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 	try {
@@ -210,8 +210,8 @@ void GetServerInformation(
 						).get_dynamic<Glib::ustring>();
 
 						callback(ServerInformation{
-							QString::fromStdString(name),
-							QString::fromStdString(vendor),
+							name,
+							vendor,
 							QVersionNumber::fromString(
 								QString::fromStdString(version)),
 							QVersionNumber::fromString(
@@ -228,7 +228,7 @@ void GetServerInformation(
 	});
 }
 
-void GetCapabilities(Fn<void(const QStringList &)> callback) {
+void GetCapabilities(Fn<void(const std::vector<Glib::ustring> &)> callback) {
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
@@ -241,17 +241,13 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						QStringList value;
-						ranges::transform(
+						callback(
 							connection->call_finish(
 								result
 							).get_child(
 								0
-							).get_dynamic<std::vector<Glib::ustring>>(),
-							ranges::back_inserter(value),
-							QString::fromStdString);
-
-						callback(value);
+							).get_dynamic<std::vector<Glib::ustring>>()
+						);
 					}, [&] {
 						callback({});
 					});
@@ -515,7 +511,7 @@ bool NotificationData::init(
 
 	_imageKey = GetImageKey(CurrentServerInformationValue().specVersion);
 
-	if (capabilities.contains(u"body-markup"_q)) {
+	if (ranges::contains(capabilities, "body-markup")) {
 		_title = title.toStdString();
 
 		_body = subtitle.isEmpty()
@@ -531,7 +527,7 @@ bool NotificationData::init(
 		_body = msg.toStdString();
 	}
 
-	if (capabilities.contains("actions")) {
+	if (ranges::contains(capabilities, "actions")) {
 		_actions.push_back("default");
 		_actions.push_back(tr::lng_open_link(tr::now).toStdString());
 
@@ -542,7 +538,7 @@ bool NotificationData::init(
 				tr::lng_context_mark_read(tr::now).toStdString());
 		}
 
-		if (capabilities.contains("inline-reply")
+		if (ranges::contains(capabilities, "inline-reply")
 			&& !options.hideReplyButton) {
 			_actions.push_back("inline-reply");
 			_actions.push_back(
@@ -572,13 +568,13 @@ bool NotificationData::init(
 			kObjectPath);
 	}
 
-	if (capabilities.contains("action-icons")) {
+	if (ranges::contains(capabilities, "action-icons")) {
 		_hints["action-icons"] = Glib::create_variant(true);
 	}
 
 	// suppress system sound if telegram sound activated,
 	// otherwise use system sound
-	if (capabilities.contains("sound")) {
+	if (ranges::contains(capabilities, "sound")) {
 		if (Core::App().settings().soundNotify()) {
 			_hints["suppress-sound"] = Glib::create_variant(true);
 		} else {
@@ -588,7 +584,7 @@ bool NotificationData::init(
 		}
 	}
 
-	if (capabilities.contains("x-canonical-append")) {
+	if (ranges::contains(capabilities, "x-canonical-append")) {
 		_hints["x-canonical-append"] = Glib::create_variant(
 			Glib::ustring("true"));
 	}
@@ -824,20 +820,18 @@ bool ByDefault() {
 
 	// A list of capabilities that offer feature parity
 	// with custom notifications
-	static const auto NeededCapabilities = {
+	return ranges::all_of(std::initializer_list{
 		// To show message content
-		u"body"_q,
+		"body",
 		// To have buttons on notifications
-		u"actions"_q,
+		"actions",
 		// To have quick reply
-		u"inline-reply"_q,
+		"inline-reply",
 		// To not to play sound with Don't Disturb activated
 		// (no, using sound capability is not a way)
-		u"inhibitions"_q,
-	};
-
-	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
-		return CurrentCapabilities.contains(capability);
+		"inhibitions",
+	}, [](const auto *capability) {
+		return ranges::contains(CurrentCapabilities, capability);
 	});
 }
 
@@ -874,7 +868,7 @@ void Create(Window::Notifications::System *system) {
 
 		if (!ServiceRegistered) {
 			CurrentServerInformation = std::nullopt;
-			CurrentCapabilities = QStringList{};
+			CurrentCapabilities = {};
 			managerSetter();
 			return;
 		}
@@ -885,7 +879,7 @@ void Create(Window::Notifications::System *system) {
 			oneReady();
 		});
 
-		GetCapabilities([=](const QStringList &result) {
+		GetCapabilities([=](const std::vector<Glib::ustring> &result) {
 			CurrentCapabilities = result;
 			oneReady();
 		});
@@ -935,10 +929,10 @@ Manager::Private::Private(not_null<Manager*> manager)
 
 	if (serverInformation.has_value()) {
 		LOG(("Notification daemon product name: %1")
-			.arg(serverInformation->name));
+			.arg(serverInformation->name.c_str()));
 
 		LOG(("Notification daemon vendor name: %1")
-			.arg(serverInformation->vendor));
+			.arg(serverInformation->vendor.c_str()));
 
 		LOG(("Notification daemon version: %1")
 			.arg(serverInformation->version.toString()));
@@ -947,12 +941,17 @@ Manager::Private::Private(not_null<Manager*> manager)
 			.arg(serverInformation->specVersion.toString()));
 	}
 
-	if (!capabilities.isEmpty()) {
-		LOG(("Notification daemon capabilities: %1")
-			.arg(capabilities.join(", ")));
+	if (!capabilities.empty()) {
+		LOG(("Notification daemon capabilities: %1").arg(
+			ranges::fold_left(
+				capabilities,
+				"",
+				[](const Glib::ustring &a, const Glib::ustring &b) {
+					return a + (a.empty() ? "" : ", ") + b;
+				}).c_str()));
 	}
 
-	if (capabilities.contains(u"inhibitions"_q)) {
+	if (ranges::contains(capabilities, "inhibitions")) {
 		Noexcept([&] {
 			_dbusConnection = Gio::DBus::Connection::get_sync(
 				Gio::DBus::BusType::SESSION);
