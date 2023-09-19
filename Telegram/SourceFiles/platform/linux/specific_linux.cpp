@@ -68,8 +68,7 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 				Gio::DBus::BusType::SESSION);
 		} catch (const std::exception &e) {
 			if (done) {
-				LOG(("Portal Autostart Error: %1").arg(
-					QString::fromStdString(e.what())));
+				LOG(("Portal Autostart Error: %1").arg(e.what()));
 			}
 			return Glib::RefPtr<Gio::DBus::Connection>();
 		}
@@ -144,8 +143,7 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 					}
 				} catch (const std::exception &e) {
 					if (done) {
-						LOG(("Portal Autostart Error: %1").arg(
-							QString::fromStdString(e.what())));
+						LOG(("Portal Autostart Error: %1").arg(e.what()));
 						done(false);
 					}
 				}
@@ -174,8 +172,7 @@ void PortalAutostart(bool enabled, Fn<void(bool)> done) {
 					connection->call_finish(result);
 				} catch (const std::exception &e) {
 					if (done) {
-						LOG(("Portal Autostart Error: %1").arg(
-							QString::fromStdString(e.what())));
+						LOG(("Portal Autostart Error: %1").arg(e.what()));
 						done(false);
 					}
 
@@ -286,7 +283,7 @@ bool GenerateDesktopFile(
 		target->save_to_file(targetFile.toStdString());
 	} catch (const std::exception &e) {
 		if (!silent) {
-			LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
+			LOG(("App Error: %1").arg(e.what()));
 		}
 		return false;
 	}
@@ -378,7 +375,7 @@ bool GenerateServiceFile(bool silent = false) {
 		target->save_to_file(targetFile.toStdString());
 	} catch (const std::exception &e) {
 		if (!silent) {
-			LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
+			LOG(("App Error: %1").arg(e.what()));
 		}
 		return false;
 	}
