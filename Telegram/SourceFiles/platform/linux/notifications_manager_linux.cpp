@@ -58,8 +58,7 @@ void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 		callback();
 		return;
 	} catch (const std::exception &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
+		LOG(("Native Notification Error: %1").arg(e.what()));
 	}
 
 	if (failed) {
