@@ -370,15 +370,18 @@ void Domain::watchSession(not_null<Account*> account) {
 
 void Domain::closeAccountWindows(not_null<Main::Account*> account) {
 	auto another = (Main::Account*)nullptr;
-	const auto that = Core::App().separateWindowForAccount(account);
-	if (that) {
-		that->close();
-	}
 	for (auto i = _accounts.begin(); i != _accounts.end(); ++i) {
 		const auto other = i->account.get();
 		if (other == account) {
 			continue;
-		} else if (!another
+		} 
+		if (Core::App().separateWindowForAccount(other)) {
+			const auto that = Core::App().separateWindowForAccount(account);
+			if (that) {
+				that->close();
+			}
+		}
+		if (!another
 			|| (other->sessionExists() && !another->sessionExists())) {
 			another = other;
 		}
