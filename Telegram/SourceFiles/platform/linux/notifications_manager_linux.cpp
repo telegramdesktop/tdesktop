@@ -462,7 +462,7 @@ bool NotificationData::init(
 	}
 
 	const auto weak = base::make_weak(this);
-	const auto capabilities = CurrentCapabilities;
+	const auto &capabilities = CurrentCapabilities;
 
 	const auto signalEmitted = crl::guard(weak, [=](
 			const Glib::RefPtr<Gio::DBus::Connection> &connection,
@@ -925,8 +925,8 @@ private:
 
 Manager::Private::Private(not_null<Manager*> manager)
 : _manager(manager) {
-	const auto serverInformation = CurrentServerInformation;
-	const auto capabilities = CurrentCapabilities;
+	const auto &serverInformation = CurrentServerInformation;
+	const auto &capabilities = CurrentCapabilities;
 
 	if (serverInformation.has_value()) {
 		LOG(("Notification daemon product name: %1")
