@@ -231,6 +231,10 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_macos_cache_folder_permission_desc.base: {
                 return "Чтобы очистить кэш правильно, пожалуйста, подтвердите доступ к папке Downloads, если необходимо";
             }
+            case tr::lng_continue.base:
+                return "Продолжить";
+            case tr::lng_cancel.base:
+                return "Отменить";
         }
     } else if (lang_id == "Belarusian") {
         switch (key) {
@@ -351,6 +355,10 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_macos_cache_folder_permission_desc.base: {
                 return "Каб ачысціць кэш правільна, калі ласка, пацвердзіце доступ да папкі Downloads, калі есць неабходнасць";
             }
+            case tr::lng_continue.base: 
+                return "Прадоўжыць";
+            case tr::lng_cancel.base:
+                return "Адмяніць";
         }
     }
     return value;

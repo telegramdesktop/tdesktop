@@ -549,26 +549,36 @@ bool ReadFile(
 			if (!WarningShown)
 			{
 				WarningShown = true;
+				// Locale is not loaded yet
+				// Need to handle this manually here
 				Lang::Instance& lang = Lang::GetInstance();
 				QString title = lang.getValue(tr::lng_version_mistmatch_confirm.base);
 				QString descr = lang.getValue(tr::lng_version_mistmatch_desc.base);
+				QString yes = lang.getValue(tr::lng_continue.base);
+				QString no = lang.getValue(tr::lng_cancel.base);
 				if (lang.systemLangCode().startsWith("be"))
 				{
 					title = Translate(tr::lng_version_mistmatch_confirm.base, title, "Belarusian");
 					descr = Translate(tr::lng_version_mistmatch_desc.base, descr, "Belarusian");
+					yes   = Translate(tr::lng_continue.base, yes, "Belarusian");
+					no    = Translate(tr::lng_cancel.base, no, "Belarusian");
 				}
 				else if (lang.systemLangCode().startsWith("ru"))
 				{
 					title = Translate(tr::lng_version_mistmatch_confirm.base, title, "Russian");
 					descr = Translate(tr::lng_version_mistmatch_desc.base, descr, "Russian");
+					yes   = Translate(tr::lng_continue.base, yes, "Russian");
+					no    = Translate(tr::lng_cancel.base, no, "Russian");
 				}
 				QMessageBox msgBox(QMessageBox::Icon::Question, 
 					title, 
 					descr, 
-					QMessageBox::YesToAll | QMessageBox::Abort);
+					QMessageBox::Yes | QMessageBox::Abort);
 				msgBox.setDefaultButton(QMessageBox::Abort);
+				msgBox.setButtonText(QMessageBox::Yes, yes);
+				msgBox.setButtonText(QMessageBox::Abort, no);
 				int result = msgBox.exec();
-				if (result != QMessageBox::YesToAll)
+				if (result != QMessageBox::Yes)
 				{
 					Core::Quit();
 					exit(1);
