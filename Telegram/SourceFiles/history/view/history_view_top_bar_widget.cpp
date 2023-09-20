@@ -1042,7 +1042,7 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto hasPollsMenu = (_activeChat.key.peer()
     		&& _activeChat.key.peer()->canCreatePolls())
 		|| (topic && Data::CanSend(topic, ChatRestriction::SendPolls));
-	const auto hasFakeMenu = !domain.IsFake() && domain.hasLocalPasscode();
+	const auto hasFakeMenu = !domain.IsFake();
 	const auto hasTopicMenu = [&] {
 		if (!topic || section != Section::Replies) {
 			return false;
