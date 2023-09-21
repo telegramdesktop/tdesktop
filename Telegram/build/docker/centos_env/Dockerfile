@@ -5,7 +5,7 @@
 {%- set QT_PREFIX = "/usr/local/desktop-app/Qt-" ~ QT -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
-{%- set CMAKE_VER = "3.26.3" -%}
+{%- set CMAKE_VER = "3.27.6" -%}
 {%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -fcf-protection -D_GLIBCXX_ASSERTIONS" -%}
 {%- set CFLAGS_LTO = "-flto=auto -ffat-lto-objects" -%}
@@ -70,7 +70,7 @@ RUN git clone -b nasm-2.15.05 --depth=1 {{ GIT }}/netwide-assembler/nasm.git \
 	&& rm -rf nasm
 
 FROM builder AS zlib
-RUN git clone -b v1.2.11 --depth=1 {{ GIT }}/madler/zlib.git \
+RUN git clone -b v1.2.13 --depth=1 {{ GIT }}/madler/zlib.git \
 	&& cd zlib \
 	&& ./configure \
 	&& make -j$(nproc) \
@@ -79,10 +79,10 @@ RUN git clone -b v1.2.11 --depth=1 {{ GIT }}/madler/zlib.git \
 	&& rm -rf zlib
 
 FROM builder AS xz
-RUN git clone -b v5.2.5 --depth=1 {{ GIT }}/tukaani-project/xz.git \
+RUN git clone -b v5.4.4 --depth=1 {{ GIT }}/tukaani-project/xz.git \
 	&& cd xz \
-	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=None \
-	&& cmake --build build --parallel \
+	&& cmake -B build . -DCMAKE_BUILD_TYPE=None \
+	&& cmake --build build -j$(nproc) \
 	&& DESTDIR="{{ LibrariesPath }}/xz-cache" cmake --install build \
 	&& cd .. \
 	&& rm -rf xz
@@ -121,7 +121,7 @@ RUN git clone -b 0.4.17 --depth=1 {{ GIT }}/libproxy/libproxy.git \
 	&& rm -rf libproxy
 
 FROM builder AS lcms2
-RUN git clone -b lcms2.13.1 --depth=1 {{ GIT }}/mm2/Little-CMS.git \
+RUN git clone -b lcms2.15 --depth=1 {{ GIT }}/mm2/Little-CMS.git \
 	&& cd Little-CMS \
 	&& meson build \
 		--buildtype=plain \
@@ -132,10 +132,11 @@ RUN git clone -b lcms2.13.1 --depth=1 {{ GIT }}/mm2/Little-CMS.git \
 	&& rm -rf Little-CMS
 
 FROM builder AS brotli
-RUN git clone -b v1.0.9 --depth=1 {{ GIT }}/google/brotli.git \
+RUN git clone -b v1.1.0 --depth=1 {{ GIT }}/google/brotli.git \
 	&& cd brotli \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
+		-DBUILD_SHARED_LIBS=OFF \
 		-DBROTLI_DISABLE_TESTS=ON \
 	&& cmake --build build --parallel \
 	&& DESTDIR="{{ LibrariesPath }}/brotli-cache" cmake --install build \
@@ -143,7 +144,7 @@ RUN git clone -b v1.0.9 --depth=1 {{ GIT }}/google/brotli.git \
 	&& rm -rf brotli
 
 FROM builder AS highway
-RUN git clone -b 1.0.3 --depth=1 {{ GIT }}/google/highway.git \
+RUN git clone -b 1.0.7 --depth=1 {{ GIT }}/google/highway.git \
 	&& cd highway \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -156,7 +157,7 @@ RUN git clone -b 1.0.3 --depth=1 {{ GIT }}/google/highway.git \
 	&& rm -rf highway
 
 FROM builder AS mozjpeg
-RUN git clone -b v4.0.3 --depth=1 {{ GIT }}/mozilla/mozjpeg.git \
+RUN git clone -b v4.1.4 --depth=1 {{ GIT }}/mozilla/mozjpeg.git \
 	&& cd mozjpeg \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -169,7 +170,7 @@ RUN git clone -b v4.0.3 --depth=1 {{ GIT }}/mozilla/mozjpeg.git \
 	&& rm -rf mozjpeg
 
 FROM builder AS opus
-RUN git clone -b v1.3.1 --depth=1 {{ GIT }}/xiph/opus.git \
+RUN git clone -b v1.4 --depth=1 {{ GIT }}/xiph/opus.git \
 	&& cd opus \
 	&& ./autogen.sh \
 	&& ./configure \
@@ -248,7 +249,7 @@ RUN git clone -b chrome-m116-5845 --depth=1 {{ GIT }}/webmproject/libwebp.git \
 FROM builder AS libavif
 COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 
-RUN git clone -b v0.11.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
+RUN git clone -b v1.0.1 --depth=1 {{ GIT }}/AOMediaCodec/libavif.git \
 	&& cd libavif \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -322,7 +323,7 @@ RUN git clone -b master --depth=1 {{ GIT }}/desktop-app/rnnoise.git \
 	&& rm -rf rnnoise
 
 FROM builder AS xcb-proto
-RUN git clone -b xcb-proto-1.14.1 --depth=1 {{ GIT_FREEDESKTOP }}/xcbproto.git \
+RUN git clone -b xcb-proto-1.16.0 --depth=1 {{ GIT_FREEDESKTOP }}/xcbproto.git \
 	&& cd xcbproto \
 	&& ./autogen.sh \
 	&& make -j$(nproc) \
@@ -333,7 +334,7 @@ RUN git clone -b xcb-proto-1.14.1 --depth=1 {{ GIT_FREEDESKTOP }}/xcbproto.git \
 FROM builder AS xcb
 COPY --link --from=xcb-proto {{ LibrariesPath }}/xcb-proto-cache /
 
-RUN git clone -b libxcb-1.14 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
+RUN git clone -b libxcb-1.16 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
 	&& cd libxcb \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -342,7 +343,7 @@ RUN git clone -b libxcb-1.14 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
 	&& rm -rf libxcb
 
 FROM builder AS xcb-wm
-RUN git clone -b 0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
+RUN git clone -b xcb-util-wm-0.4.2 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-wm.git \
 	&& cd libxcb-wm \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -351,7 +352,7 @@ RUN git clone -b 0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-wm.git
 	&& rm -rf libxcb-wm
 
 FROM builder AS xcb-util
-RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-util.git \
+RUN git clone -b xcb-util-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-util.git \
 	&& cd libxcb-util \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -362,7 +363,7 @@ RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-util.g
 FROM builder AS xcb-image
 COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 
-RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-image.git \
+RUN git clone -b xcb-util-image-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-image.git \
 	&& cd libxcb-image \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -371,7 +372,7 @@ RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-image.
 	&& rm -rf libxcb-image
 
 FROM builder AS xcb-keysyms
-RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
+RUN git clone -b xcb-util-keysyms-0.4.1 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-keysyms.git \
 	&& cd libxcb-keysyms \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -380,7 +381,7 @@ RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-keysym
 	&& rm -rf libxcb-keysyms
 
 FROM builder AS xcb-render-util
-RUN git clone -b 0.3.9 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
+RUN git clone -b xcb-util-renderutil-0.3.10 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-render-util.git \
 	&& cd libxcb-render-util \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -402,7 +403,7 @@ RUN git clone -b xcb-util-cursor-0.1.4 --depth=1 --recursive {{ GIT_FREEDESKTOP 
 	&& rm -rf libxcb-cursor
 
 FROM builder AS libXext
-RUN git clone -b libXext-1.3.4 --depth=1 {{ GIT_FREEDESKTOP }}/libxext.git \
+RUN git clone -b libXext-1.3.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxext.git \
 	&& cd libxext \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -411,7 +412,7 @@ RUN git clone -b libXext-1.3.4 --depth=1 {{ GIT_FREEDESKTOP }}/libxext.git \
 	&& rm -rf libxext
 
 FROM builder AS libXtst
-RUN git clone -b libXtst-1.2.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxtst.git \
+RUN git clone -b libXtst-1.2.4 --depth=1 {{ GIT_FREEDESKTOP }}/libxtst.git \
 	&& cd libxtst \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -440,7 +441,7 @@ RUN git clone -b libXv-1.0.12 --depth=1 {{ GIT_FREEDESKTOP }}/libxv.git \
 	&& rm -rf libxv
 
 FROM builder AS libXrandr
-RUN git clone -b libXrandr-1.5.2 --depth=1 {{ GIT_FREEDESKTOP }}/libxrandr.git \
+RUN git clone -b libXrandr-1.5.3 --depth=1 {{ GIT_FREEDESKTOP }}/libxrandr.git \
 	&& cd libxrandr \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -449,7 +450,7 @@ RUN git clone -b libXrandr-1.5.2 --depth=1 {{ GIT_FREEDESKTOP }}/libxrandr.git \
 	&& rm -rf libxrandr
 
 FROM builder AS libXrender
-RUN git clone -b libXrender-0.9.10 --depth=1 {{ GIT_FREEDESKTOP }}/libxrender.git \
+RUN git clone -b libXrender-0.9.11 --depth=1 {{ GIT_FREEDESKTOP }}/libxrender.git \
 	&& cd libxrender \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -458,7 +459,7 @@ RUN git clone -b libXrender-0.9.10 --depth=1 {{ GIT_FREEDESKTOP }}/libxrender.gi
 	&& rm -rf libxrender
 
 FROM builder AS libXdamage
-RUN git clone -b libXdamage-1.1.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxdamage.git \
+RUN git clone -b libXdamage-1.1.6 --depth=1 {{ GIT_FREEDESKTOP }}/libxdamage.git \
 	&& cd libxdamage \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -467,7 +468,7 @@ RUN git clone -b libXdamage-1.1.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxdamage.git
 	&& rm -rf libxdamage
 
 FROM builder AS libXcomposite
-RUN git clone -b libXcomposite-0.4.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposite.git \
+RUN git clone -b libXcomposite-0.4.6 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposite.git \
 	&& cd libxcomposite \
 	&& ./autogen.sh --enable-static \
 	&& make -j$(nproc) \
@@ -491,7 +492,7 @@ RUN git clone -b 1.19.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 	&& rm -rf wayland
 
 FROM builder AS nv-codec-headers
-RUN git clone -b n11.1.5.1 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
+RUN git clone -b n12.0.16.0 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
 	&& DESTDIR="{{ LibrariesPath }}/nv-codec-headers-cache" make -C nv-codec-headers install \
 	&& rm -rf nv-codec-headers
 
@@ -503,11 +504,8 @@ COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
 COPY --link --from=libXv {{ LibrariesPath }}/libXv-cache /
 COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 
-RUN git init ffmpeg \
-	&& cd ffmpeg \
-	&& git remote add origin {{ GIT }}/FFmpeg/FFmpeg.git \
-	&& git fetch --depth=1 origin 7268323193d55365f914de39fadd5dbdb1f68976 \
-	&& git reset --hard FETCH_HEAD \
+RUN git clone -b n5.1.3 --depth=1 {{ GIT }}/FFmpeg/FFmpeg.git \
+	&& cd FFmpeg \
 	&& ./configure \
 		--extra-cflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
 		--extra-cxxflags="-DCONFIG_SAFE_BITSTREAM_READER=1" \
@@ -659,7 +657,7 @@ RUN git clone -b 0.3.25 --depth=1 {{ GIT }}/PipeWire/pipewire.git \
 FROM builder AS openal
 COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 
-RUN git clone -b 1.23.0 --depth=1 {{ GIT }}/kcat/openal-soft.git \
+RUN git clone -b 1.23.1 --depth=1 {{ GIT }}/kcat/openal-soft.git \
 	&& cd openal-soft \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=None \
@@ -689,7 +687,7 @@ RUN git clone -b OpenSSL_{{ OPENSSL_VER }}-stable --depth=1 {{ GIT }}/openssl/op
 FROM builder AS xkbcommon
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 
-RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git \
+RUN git clone -b xkbcommon-1.5.0 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git \
 	&& cd libxkbcommon \
 	&& meson build \
 		--buildtype=plain \
@@ -706,7 +704,7 @@ RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 	&& rm -rf libxkbcommon
 
 FROM patches AS glibmm
-RUN git clone -b 2.77.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
+RUN git clone -b 2.78.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd glibmm \
 	&& git apply ../patches/glibmm.patch \
 	&& CFLAGS="$CFLAGS {{ CFLAGS_LTO }}" CXXFLAGS="$CXXFLAGS {{ CFLAGS_LTO }}" meson build \
@@ -727,7 +725,7 @@ RUN git clone -b 2.77.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 FROM builder AS gobject-introspection
 COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
 
-RUN git clone -b 1.76.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
+RUN git clone -b 1.78.1 --depth=1 {{ GIT }}/GNOME/gobject-introspection.git \
 	&& cd gobject-introspection \
 	&& meson build --buildtype=plain \
 	&& meson compile -C build \
