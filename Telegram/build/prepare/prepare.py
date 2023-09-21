@@ -83,9 +83,9 @@ for singlePrefix in pathPrefixes:
 
 environment = {
     'MAKE_THREADS_CNT': '-j8',
-    'MACOSX_DEPLOYMENT_TARGET': '10.12',
+    'MACOSX_DEPLOYMENT_TARGET': '10.13',
     'UNGUARDED': '-Werror=unguarded-availability-new',
-    'MIN_VER': '-mmacosx-version-min=10.12',
+    'MIN_VER': '-mmacosx-version-min=10.13',
     'USED_PREFIX': usedPrefix,
     'ROOT_DIR': rootDir,
     'LIBS_DIR': libsDir,
@@ -624,6 +624,7 @@ mac:
 stage('rnnoise', """
     git clone https://github.com/desktop-app/rnnoise.git
     cd rnnoise
+    git checkout fe37e57d09
     mkdir out
     cd out
 win:
@@ -1403,7 +1404,7 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 3bb3d75768
+    git checkout 592b14d13b
     git submodule init
     git submodule update
 win:

@@ -61,13 +61,13 @@ if [ "$BuildTarget" == "linux" ]; then
   BinaryName="Telegram"
 elif [ "$BuildTarget" == "mac" ] ; then
   if [ "$arg1" == "x86_64" ] || [ "$arg1" == "arm64" ]; then
-    echo "Building version $AppVersionStrFull for macOS 10.12+ ($arg1).."
+    echo "Building version $AppVersionStrFull for macOS 10.13+ ($arg1).."
     MacArch="$arg1"
     if [ "$arg2" == "request_uuid" ] && [ "$arg3" != "" ]; then
       NotarizeRequestId="$arg3"
     fi
   else
-    echo "Building version $AppVersionStrFull for macOS 10.12+.."
+    echo "Building version $AppVersionStrFull for macOS 10.13+.."
     if [ "$arg2" != "" ]; then
       if [ "$arg1" == "request_uuid_x86_64" ]; then
         NotarizeRequestIdAMD64="$arg2"

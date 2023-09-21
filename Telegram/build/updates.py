@@ -56,7 +56,7 @@ outputFolder = 'updates/' + today
 archive = 'tdesktop_macOS_' + today + '.zip'
 
 if building:
-    print('Building ' + conf + ' version for OS X 10.12+..')
+    print('Building ' + conf + ' version for OS X 10.13+..')
 
     if os.path.exists('../out/' + conf + '/' + outputFolder):
         finish(1, 'Todays updates version exists.')

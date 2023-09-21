@@ -218,7 +218,7 @@ files.append({
   'remote': 'tsetup.' + version_full + '.dmg',
   'backup_folder': 'tmac',
   'mime': 'application/octet-stream',
-  'label': 'macOS 10.12+: Installer',
+  'label': 'macOS 10.13+: Installer',
 })
 files.append({
   'local': 'tsetup.' + version_full + '.tar.xz',
