@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
 #include "base/unixtime.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone.
@@ -86,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
+#include "styles/style_premium.h"
 
 namespace Window {
 namespace {
@@ -728,15 +730,22 @@ void SessionNavigation::replaceBoostConfirm(
 		applyBoostChecked(channel, done);
 		close();
 	};
-	const auto box = uiShow()->show(Ui::MakeConfirmBox({
-		.text = tr::lng_boost_now_instead(
-			lt_channel,
-			rpl::single(Ui::Text::Bold(from->name())),
-			lt_other,
-			rpl::single(Ui::Text::Bold(channel->name())),
-			Ui::Text::WithEntities),
-		.confirmed = confirmed,
-		.confirmText = tr::lng_boost_now_replace(),
+	const auto box = uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_boost_now_instead(
+				lt_channel,
+				rpl::single(Ui::Text::Bold(from->name())),
+				lt_other,
+				rpl::single(Ui::Text::Bold(channel->name())),
+				Ui::Text::WithEntities),
+			.confirmed = confirmed,
+			.confirmText = tr::lng_boost_now_replace(),
+			.labelPadding = st::boxRowPadding,
+		});
+		box->verticalLayout()->insert(
+			0,
+			Ui::CreateBoostReplaceUserpics(box, from, channel),
+			st::boxRowPadding + st::boostReplaceUserpicsPadding);
 	}));
 	box->boxClosing() | rpl::filter([=] {
 		return !*forwarded;
