@@ -207,8 +207,11 @@ RUN git clone -b v1.0.12 --depth=1 {{ GIT }}/strukturag/libde265.git \
 	&& rm -rf libde265
 
 FROM builder AS libvpx
-RUN git clone -b v1.11.0 --depth=1 {{ GIT }}/webmproject/libvpx.git \
+RUN git init libvpx \
 	&& cd libvpx \
+	&& git remote add origin {{ GIT }}/webmproject/libvpx.git \
+	&& git fetch --depth=1 origin e1c124f8965f166d3e9ca26c9215ebc3ec3a1d72 \
+	&& git reset --hard FETCH_HEAD \
 	&& CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure \
 		--disable-examples \
 		--disable-unit-tests \
@@ -810,7 +813,7 @@ COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin {{ GIT }}/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin dcb5069ff76bd293e86928804208737e6cee2ccc \
+	&& git fetch --depth=1 origin 3bb3d757681e6cc5135aec6529a753dc3dcdcfb9 \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \

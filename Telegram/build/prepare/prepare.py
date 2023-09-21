@@ -404,7 +404,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 24d8dc2bde
+    git checkout dbaa6eb6f9
 """)
 
 stage('msys64', """
@@ -822,7 +822,7 @@ stage('libvpx', """
     git clone https://github.com/webmproject/libvpx.git
 depends:patches/libvpx/*.patch
     cd libvpx
-    git checkout v1.11.0
+    git checkout e1c124f89
 win:
     for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
 
@@ -1403,7 +1403,7 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout dcb5069ff7
+    git checkout 3bb3d75768
     git submodule init
     git submodule update
 win:
