@@ -37,6 +37,7 @@ class Stats;
 enum class Format {
 	Html,
 	Json,
+	HtmlAndJson,
 };
 
 class AbstractWriter {

@@ -76,9 +76,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QOpenGLWidget>
 
 // Fix Google Breakpad build for Mac App Store and Linux version
-#ifdef Q_OS_UNIX
+#ifndef Q_OS_WIN
 #define __STDC_FORMAT_MACROS
-#endif // Q_OS_UNIX
+#endif // !Q_OS_WIN
 
 // Remove 'small' macro definition.
 #ifdef Q_OS_WIN

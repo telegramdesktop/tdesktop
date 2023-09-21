@@ -560,7 +560,7 @@ void writeDebug(const QString &v) {
 	//OutputDebugString(reinterpret_cast<const wchar_t *>(msg.utf16()));
 #elif defined Q_OS_MAC
 	//objc_outputDebugString(msg);
-#elif defined Q_OS_UNIX && defined _DEBUG
+#elif defined _DEBUG
 	//std::cout << msg.toUtf8().constData();
 #endif
 }

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/layers/box_content.h"
-#include "styles/style_widgets.h"
 
 namespace Countries {
 struct Info;

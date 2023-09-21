@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout/abstract_layout_item.h"
 #include "layout/layout_position.h"
 
-#include "styles/style_chat_helpers.h"
-
 namespace Mosaic::Layout {
 
 struct FoundItem {

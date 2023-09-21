@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
 			}
 			QByteArray inner = f.readAll();
 			stream << name << quint32(inner.size()) << inner;
-#ifdef Q_OS_UNIX
+#ifndef Q_OS_WIN
 			stream << (QFileInfo(fullName).isExecutable() ? true : false);
 #endif
 		}
@@ -496,10 +496,8 @@ int main(int argc, char *argv[])
 	QString outName((targetwin64 ? QString("tx64upd%1") : QString("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_MAC
 	QString outName((targetarmac ? QString("tarmacupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
-#elif defined Q_OS_UNIX
-	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
 #else
-#error Unknown platform!
+	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
 #endif
 	if (AlphaVersion) {
 		outName += "_" + AlphaSignature;

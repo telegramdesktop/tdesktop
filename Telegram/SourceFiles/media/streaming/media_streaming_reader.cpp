@@ -903,6 +903,10 @@ void Reader::stopStreaming(bool stillActive) {
 
 	_stopStreamingAsync = false;
 	_waiting.store(nullptr, std::memory_order_release);
+	if (_cacheHelper && _cacheHelper->waiting != nullptr) {
+		QMutexLocker lock(&_cacheHelper->mutex);
+		_cacheHelper->waiting.store(nullptr, std::memory_order_release);
+	}
 	if (!stillActive) {
 		_streamingActive = false;
 		refreshLoaderPriority();
@@ -1379,10 +1383,6 @@ void Reader::finalizeCache() {
 		return;
 	}
 	Assert(_cache != nullptr);
-	if (_cacheHelper->waiting != nullptr) {
-		QMutexLocker lock(&_cacheHelper->mutex);
-		_cacheHelper->waiting.store(nullptr, std::memory_order_release);
-	}
 	auto toCache = _slices.unloadToCache();
 	while (toCache.number >= 0) {
 		putToCache(std::move(toCache));

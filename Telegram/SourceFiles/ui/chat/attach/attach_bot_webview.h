@@ -36,10 +36,11 @@ struct MainButtonArgs {
 };
 
 enum class MenuButton {
-	None           = 0x00,
-	Settings       = 0x01,
-	OpenBot        = 0x02,
-	RemoveFromMenu = 0x04,
+	None               = 0x00,
+	Settings           = 0x01,
+	OpenBot            = 0x02,
+	RemoveFromMenu     = 0x04,
+	RemoveFromMainMenu = 0x08,
 };
 inline constexpr bool is_flag_type(MenuButton) { return true; }
 using MenuButtons = base::flags<MenuButton>;
@@ -105,7 +106,7 @@ private:
 	struct Progress;
 	struct WebviewWithLifetime;
 
-	bool createWebview();
+	bool createWebview(const Webview::ThemeParams &params);
 	void showWebviewProgress();
 	void hideWebviewProgress();
 	void setTitle(rpl::producer<QString> title);
@@ -113,6 +114,7 @@ private:
 	void switchInlineQueryMessage(const QJsonObject &args);
 	void processMainButtonMessage(const QJsonObject &args);
 	void processBackButtonMessage(const QJsonObject &args);
+	void processHeaderColor(const QJsonObject &args);
 	void openTgLink(const QJsonObject &args);
 	void openExternalLink(const QJsonObject &args);
 	void openInvoice(const QJsonObject &args);
@@ -152,6 +154,7 @@ private:
 	mutable crl::time _mainButtonLastClick = 0;
 	std::unique_ptr<Progress> _progress;
 	rpl::event_stream<> _themeUpdateForced;
+	rpl::lifetime _headerColorLifetime;
 	rpl::lifetime _fgLifetime;
 	rpl::lifetime _bgLifetime;
 	bool _webviewProgress = false;

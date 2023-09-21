@@ -43,7 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_bot.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
-#include "styles/style_dialogs.h" // dialogsMiniReplyStoryIcon.
+#include "styles/style_dialogs.h" // dialogsMiniReplyStory.
 
 #include <QtGui/QGuiApplication>
 
@@ -466,8 +466,8 @@ void HistoryMessageReply::updateName(
 				w,
 				std::min(replyToText.maxWidth(), st::maxSignatureSize))
 			+ (storyReply
-				? (st::dialogsMiniIconSkip
-					+ st::dialogsMiniReplyStoryIcon.icon.width())
+				? (st::dialogsMiniReplyStory.skipText
+					+ st::dialogsMiniReplyStory.icon.icon.width())
 				: 0);
 	} else {
 		maxReplyWidth = st::msgDateFont->width(statePhrase());
@@ -611,14 +611,14 @@ void HistoryMessageReply::paint(
 					? stm->replyTextPalette
 					: st->imgReplyTextPalette());
 				if (storyReply) {
-					st::dialogsMiniReplyStoryIcon.icon.paint(
+					st::dialogsMiniReplyStory.icon.icon.paint(
 						p,
 						replyToTextPosition,
 						w - st::msgReplyBarSkip - previewSkip,
 						replyToTextPalette->linkFg->c);
 					replyToTextPosition += QPoint(
-						st::dialogsMiniIconSkip
-							+ st::dialogsMiniReplyStoryIcon.icon.width(),
+						st::dialogsMiniReplyStory.skipText
+							+ st::dialogsMiniReplyStory.icon.icon.width(),
 						0);
 				}
 				replyToText.draw(p, {

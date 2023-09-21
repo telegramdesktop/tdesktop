@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
+
+namespace style {
+struct LevelMeter;
+} // namespace style
 
 namespace Ui {
 

@@ -12,13 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "base/flat_map.h"
 
-#include "qwayland-wayland.h"
-#include "qwayland-plasma-shell.h"
-
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 #include <qpa/qplatformnativeinterface.h>
 #include <qpa/qplatformwindow_p.h>
+
+#include <qwayland-wayland.h>
+#include <qwayland-plasma-shell.h>
 
 using namespace QNativeInterface;
 using namespace QNativeInterface::Private;
@@ -42,7 +42,6 @@ struct WaylandIntegration::Private : public AutoDestroyer<QtWayland::wl_registry
 	QtWayland::org_kde_plasma_surface plasmaSurface(QWindow *window);
 
 	std::optional<PlasmaShell> plasmaShell;
-	rpl::lifetime lifetime;
 
 protected:
 	void registry_global(
@@ -97,7 +96,7 @@ QtWayland::org_kde_plasma_surface WaylandIntegration::Private::plasmaSurface(
 		if (it != plasmaShell->surfaces.cend()) {
 			plasmaShell->surfaces.erase(it);
 		}
-	}, lifetime);
+	}, result.first->second.lifetime());
 
 	return result.first->second;
 }
@@ -129,7 +128,7 @@ WaylandIntegration *WaylandIntegration::Instance() {
 			&QObject::destroyed
 		) | rpl::start_with_next([] {
 			instance = std::nullopt;
-		}, instance->_private->lifetime);
+		}, instance->_private->lifetime());
 		return true;
 	}();
 	if (!instance) return nullptr;

@@ -4339,12 +4339,14 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void HistoryWidget::updateOverStates(QPoint pos) {
+	const auto isReadyToForward = readyToForward();
+	const auto skip = isReadyToForward ? 0 : st::historyReplySkip;
 	const auto replyEditForwardInfoRect = QRect(
-		st::historyReplySkip,
+		skip,
 		_field->y() - st::historySendPadding - st::historyReplyHeight,
-		width() - st::historyReplySkip - _fieldBarCancel->width(),
+		width() - skip - _fieldBarCancel->width(),
 		st::historyReplyHeight);
-	auto inReplyEditForward = (_editMsgId || replyToId() || readyToForward())
+	auto inReplyEditForward = (_editMsgId || replyToId() || isReadyToForward)
 		&& replyEditForwardInfoRect.contains(pos);
 	auto inPhotoEdit = inReplyEditForward
 		&& _photoEditMedia
@@ -6180,16 +6182,19 @@ bool HistoryWidget::cornerButtonsHas(HistoryView::CornerButtonType type) {
 }
 
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {
+	const auto isReadyToForward = readyToForward();
 	const auto hasSecondLayer = (_editMsgId
 		|| _replyToId
-		|| readyToForward()
+		|| isReadyToForward
 		|| _kbReplyTo);
 	_replyForwardPressed = hasSecondLayer && QRect(
 		0,
 		_field->y() - st::historySendPadding - st::historyReplyHeight,
 		st::historyReplySkip,
 		st::historyReplyHeight).contains(e->pos());
-	if (_replyForwardPressed && !_fieldBarCancel->isHidden()) {
+	if (_replyForwardPressed
+			&& !_fieldBarCancel->isHidden()
+			&& !isReadyToForward) {
 		updateField();
 	} else if (_inPhotoEdit && _photoEditMedia) {
 		EditCaptionBox::StartPhotoEdit(
@@ -6199,7 +6204,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			_field->getTextWithTags(),
 			crl::guard(_list, [=] { cancelEdit(); }));
 	} else if (_inReplyEditForward) {
-		if (readyToForward()) {
+		if (isReadyToForward) {
 			_forwardPanel->editOptions(controller()->uiShow());
 		} else {
 			controller()->showPeerHistory(
@@ -6612,12 +6617,21 @@ void HistoryWidget::checkPinnedBarState() {
 		std::move(pinnedRefreshed),
 		std::move(markupRefreshed)
 	) | rpl::map([=](Ui::MessageBarContent &&content, bool, HistoryItem*) {
-		if (!content.title.isEmpty() || !content.text.empty()) {
-			_list->setShownPinned(
-				session().data().message(
-					_pinnedTracker->currentMessageId().message));
-		} else {
-			_list->setShownPinned(nullptr);
+		const auto id = (!content.title.isEmpty() || !content.text.empty())
+			? _pinnedTracker->currentMessageId().message
+			: FullMsgId();
+		if (const auto list = _list.data()) {
+			// Sometimes we get here with non-empty content and id of
+			// message that is being deleted right now. We get here in
+			// the moment when _itemRemoved was already fired (so in
+			// the _list the _pinnedItem is already cleared) and the
+			// MessageUpdate::Flag::Destroyed being fired right now,
+			// so the message is still in Data::Session. So we need to
+			// call data().message() async, otherwise we get a nearly-
+			// destroyed message from it and save the pointer in _list.
+			crl::on_main(list, [=] {
+				list->setShownPinned(session().data().message(id));
+			});
 		}
 		return std::move(content);
 	}));

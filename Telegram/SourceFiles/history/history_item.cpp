@@ -1212,9 +1212,15 @@ void HistoryItem::markMediaAndMentionRead() {
 	}
 
 	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
-		if (!selfdestruct->destructAt) {
-			selfdestruct->destructAt = crl::now() + selfdestruct->timeToLive;
-			_history->owner().selfDestructIn(this, selfdestruct->timeToLive);
+		if (selfdestruct->destructAt == crl::time()) {
+			const auto ttl = selfdestruct->timeToLive;
+			if (const auto maybeTime = std::get_if<crl::time>(&ttl)) {
+				const auto time = *maybeTime;
+				selfdestruct->destructAt = crl::now() + time;
+				_history->owner().selfDestructIn(this, time);
+			} else {
+				selfdestruct->destructAt = TimeToLiveSingleView();
+			}
 		}
 	}
 }
@@ -3234,8 +3240,9 @@ void HistoryItem::setSponsoredFrom(const Data::SponsoredFrom &from) {
 			from.userpic);
 	}
 
+	sponsored->externalLink = from.externalLink;
 	using Type = HistoryMessageSponsored::Type;
-	sponsored->type = from.isExternalLink
+	sponsored->type = (!from.externalLink.isEmpty())
 		? Type::ExternalLink
 		: from.isExactPost
 		? Type::Post
@@ -3429,7 +3436,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessage &message) {
 			const auto ttl = data.vttl_seconds();
 			Assert(ttl != nullptr);
 
-			setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, ttl->v);
+			setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, *ttl);
 			if (out()) {
 				setServiceText({
 					tr::lng_ttl_photo_sent(tr::now, Ui::Text::WithEntities)
@@ -3454,7 +3461,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessage &message) {
 			const auto ttl = data.vttl_seconds();
 			Assert(ttl != nullptr);
 
-			setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, ttl->v);
+			setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, *ttl);
 			if (out()) {
 				setServiceText({
 					tr::lng_ttl_video_sent(tr::now, Ui::Text::WithEntities)
@@ -4557,10 +4564,16 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 	});
 }
 
-void HistoryItem::setSelfDestruct(HistoryServiceSelfDestruct::Type type, int ttlSeconds) {
+void HistoryItem::setSelfDestruct(
+		HistoryServiceSelfDestruct::Type type,
+		MTPint mtpTTLvalue) {
 	UpdateComponents(HistoryServiceSelfDestruct::Bit());
-	auto selfdestruct = Get<HistoryServiceSelfDestruct>();
-	selfdestruct->timeToLive = ttlSeconds * 1000LL;
+	const auto selfdestruct = Get<HistoryServiceSelfDestruct>();
+	if (mtpTTLvalue.v == TimeId(0x7FFFFFFF)) {
+		selfdestruct->timeToLive = TimeToLiveSingleView();
+	} else {
+		selfdestruct->timeToLive = mtpTTLvalue.v * crl::time(1000);
+	}
 	selfdestruct->type = type;
 }
 
@@ -4948,10 +4961,12 @@ ClickHandlerPtr HistoryItem::fromLink() const {
 }
 
 crl::time HistoryItem::getSelfDestructIn(crl::time now) {
-	if (auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
-		if (selfdestruct->destructAt > 0) {
-			if (selfdestruct->destructAt <= now) {
-				auto text = [selfdestruct] {
+	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
+		const auto at = std::get_if<crl::time>(&selfdestruct->destructAt);
+		if (at && (*at) > 0) {
+			const auto destruct = *at;
+			if (destruct <= now) {
+				auto text = [&] {
 					switch (selfdestruct->type) {
 					case HistoryServiceSelfDestruct::Type::Photo:
 						return tr::lng_ttl_photo_expired(tr::now);
@@ -4960,10 +4975,10 @@ crl::time HistoryItem::getSelfDestructIn(crl::time now) {
 					}
 					Unexpected("Type in HistoryServiceSelfDestruct::Type");
 				};
-				setServiceText({ TextWithEntities{.text = text() } });
+				setServiceText({ TextWithEntities{ .text = text() } });
 				return 0;
 			}
-			return selfdestruct->destructAt - now;
+			return destruct - now;
 		}
 	}
 	return 0;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_widget.h"
 
+#include "base/options.h"
 #include "dialogs/ui/dialogs_stories_content.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "dialogs/dialogs_inner_widget.h"
@@ -86,7 +87,15 @@ namespace {
 constexpr auto kSearchPerPage = 50;
 constexpr auto kStoriesExpandDuration = crl::time(200);
 
+base::options::toggle OptionForumHideChatsList({
+	.id = kOptionForumHideChatsList,
+	.name = "Hide chats list in forums",
+	.description = "Don't keep a narrow column of chats list.",
+});
+
 } // namespace
+
+const char kOptionForumHideChatsList[] = "forum-hide-chats-list";
 
 class Widget::BottomButton : public Ui::RippleButton {
 public:
@@ -2401,7 +2410,8 @@ void Widget::showForum(
 		const Window::SectionShow &params) {
 	if (!params.childColumn
 		|| !Core::App().settings().dialogsWidthRatio()
-		|| (_layout != Layout::Main)) {
+		|| (_layout != Layout::Main)
+		|| OptionForumHideChatsList.value()) {
 		changeOpenedForum(forum, params.animated);
 		return;
 	}

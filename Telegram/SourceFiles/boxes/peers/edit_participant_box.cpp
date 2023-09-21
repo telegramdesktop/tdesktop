@@ -384,8 +384,11 @@ void EditAdminBox::prepare() {
 			if (!_saveCallback) {
 				return;
 			} else if (_addAsAdmin && !_addAsAdmin->checked()) {
+				const auto weak = Ui::MakeWeak(this);
 				AddBotToGroup(user(), peer(), _addingBot->token);
-				getDelegate()->hideLayer();
+				if (const auto strong = weak.data()) {
+					strong->closeBox();
+				}
 				return;
 			} else if (_addingBot && !_addingBot->existing) {
 				const auto phrase = peer()->isBroadcast()

@@ -49,9 +49,9 @@ extern "C" {
 #endif // else of Q_OS_WIN && !DESKTOP_APP_USE_PACKAGED
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
-#ifdef Q_OS_UNIX
+#ifndef Q_OS_WIN
 #include <unistd.h>
-#endif // Q_OS_UNIX
+#endif // !Q_OS_WIN
 
 namespace Core {
 namespace {
@@ -448,9 +448,9 @@ bool UnpackUpdate(const QString &filepath) {
 			bool executable = false;
 
 			stream >> relativeName >> fileSize >> fileInnerData;
-#ifdef Q_OS_UNIX
+#ifndef Q_OS_WIN
 			stream >> executable;
-#endif // Q_OS_UNIX
+#endif // !Q_OS_WIN
 			if (stream.status() != QDataStream::Ok) {
 				LOG(("Update Error: cant read file from downloaded stream, status: %1").arg(stream.status()));
 				return false;
@@ -1554,10 +1554,10 @@ bool checkReadyUpdate() {
 #elif defined Q_OS_MAC // Q_OS_WIN
 	QString curUpdater = (cExeDir() + cExeName() + u"/Contents/Frameworks/Updater"_q);
 	QFileInfo updater(cWorkingDir() + u"tupdates/temp/Telegram.app/Contents/Frameworks/Updater"_q);
-#elif defined Q_OS_UNIX // Q_OS_MAC
+#else // Q_OS_MAC
 	QString curUpdater = (cExeDir() + u"Updater"_q);
 	QFileInfo updater(cWorkingDir() + u"tupdates/temp/Updater"_q);
-#endif // Q_OS_UNIX
+#endif // else for Q_OS_WIN || Q_OS_MAC
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
 		if (!current.exists()) {
@@ -1591,7 +1591,7 @@ bool checkReadyUpdate() {
 		ClearAll();
 		return false;
 	}
-#elif defined Q_OS_UNIX // Q_OS_MAC
+#else // Q_OS_MAC
 	// if the files in the directory are owned by user, while the directory is not,
 	// update will still fail since it's not possible to remove files
 	if (QFile::exists(curUpdater)
@@ -1619,7 +1619,7 @@ bool checkReadyUpdate() {
 			return false;
 		}
 	}
-#endif // Q_OS_UNIX
+#endif // else for Q_OS_WIN || Q_OS_MAC
 
 #ifdef Q_OS_MAC
 	base::Platform::RemoveQuarantine(QFileInfo(curUpdater).absolutePath());
