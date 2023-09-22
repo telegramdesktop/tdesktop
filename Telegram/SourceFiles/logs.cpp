@@ -279,7 +279,7 @@ namespace {
 
 bool DebugModeEnabled = false;
 
-void MoveOldDataFiles(const QString &wasDir) {
+[[maybe_unused]] void MoveOldDataFiles(const QString &wasDir) {
 	if (wasDir.isEmpty()) {
 		return;
 	}
