@@ -250,6 +250,7 @@ PRIVATE
     -Wno-deprecated-volatile
     -Wno-ambiguous-reversed-operator
     -Wno-deprecated-declarations
+    -Wno-unqualified-std-cast-call
 )
 
 remove_target_sources(lib_tgcalls ${tgcalls_loc}

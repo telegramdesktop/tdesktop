@@ -178,7 +178,6 @@ void Provider::setSearchQuery(QString query) {
 void Provider::refreshViewer() {
 	_viewerLifetime.destroy();
 	const auto idForViewer = _aroundId;
-	const auto session = &_peer->session();
 	auto ids = (_tab == Tab::Saved)
 		? Data::SavedStoriesIds(_peer, idForViewer, _idsLimit)
 		: Data::ArchiveStoriesIds(_peer, idForViewer, _idsLimit);
