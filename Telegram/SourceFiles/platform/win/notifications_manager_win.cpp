@@ -118,7 +118,7 @@ bool init() {
 			LOG(("App Error: Object registration failed."));
 		}
 	}
-	if (!AppUserModelId::validateShortcut()) {
+	if (!AppUserModelId::ValidateShortcut()) {
 		LOG(("App Error: Shortcut validation failed."));
 		return false;
 	}
@@ -132,7 +132,7 @@ bool init() {
 		CoTaskMemFree(appUserModelId);
 	});
 
-	if (AppUserModelId::getId() != appUserModelId) {
+	if (AppUserModelId::Id() != appUserModelId) {
 		return false;
 	}
 	return true;
@@ -308,7 +308,7 @@ void QueryFocusAssist() {
 		}
 		return;
 	}
-	const auto appUserModelId = AppUserModelId::getId();
+	const auto appUserModelId = AppUserModelId::Id();
 	auto blocked = true;
 	const auto guard = gsl::finally([&] {
 		if (FocusAssistBlocks != blocked) {
@@ -500,7 +500,7 @@ Manager::Private::Private(Manager *instance)
 bool Manager::Private::init() {
 	return base::WinRT::Try([&] {
 		_notifier = ToastNotificationManager::CreateToastNotifier(
-			AppUserModelId::getId());
+			AppUserModelId::Id());
 	});
 }
 

@@ -209,9 +209,9 @@ bool ManageAppLink(
 
 	if (const auto propertyStore = shellLink.try_as<IPropertyStore>()) {
 		PROPVARIANT appIdPropVar;
-		hr = InitPropVariantFromString(AppUserModelId::getId().c_str(), &appIdPropVar);
+		hr = InitPropVariantFromString(AppUserModelId::Id().c_str(), &appIdPropVar);
 		if (SUCCEEDED(hr)) {
-			hr = propertyStore->SetValue(AppUserModelId::getKey(), appIdPropVar);
+			hr = propertyStore->SetValue(AppUserModelId::Key(), appIdPropVar);
 			PropVariantClear(&appIdPropVar);
 			if (SUCCEEDED(hr)) {
 				hr = propertyStore->Commit();
@@ -262,7 +262,7 @@ void psDoCleanup() {
 	try {
 		Platform::AutostartToggle(false);
 		psSendToMenu(false, true);
-		AppUserModelId::cleanupShortcut();
+		AppUserModelId::CleanupShortcut();
 		DeleteMyModules();
 	} catch (...) {
 	}
@@ -371,7 +371,7 @@ void start() {
 	// https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/setlocale-wsetlocale#utf-8-support
 	setlocale(LC_ALL, ".UTF8");
 
-	const auto appUserModelId = AppUserModelId::getId();
+	const auto appUserModelId = AppUserModelId::Id();
 	SetCurrentProcessExplicitAppUserModelID(appUserModelId.c_str());
 	LOG(("AppUserModelID: %1").arg(appUserModelId));
 }
@@ -643,7 +643,7 @@ bool OpenSystemSettings(SystemSettingsType type) {
 
 void NewVersionLaunched(int oldVersion) {
 	if (oldVersion <= 4009009) {
-		AppUserModelId::checkPinned();
+		AppUserModelId::CheckPinned();
 	}
 	if (oldVersion > 0 && oldVersion < 2008012) {
 		// Reset icons cache, because we've changed the application icon.
