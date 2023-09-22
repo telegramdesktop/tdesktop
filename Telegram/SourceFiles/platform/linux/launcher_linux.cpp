@@ -44,21 +44,27 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 
 	const auto justRelaunch = action == UpdaterLaunch::JustRelaunch;
 
-	const auto binaryPath = justRelaunch
-		? (cExeDir() + cExeName()).toStdString()
-		: (cWriteProtected()
-			? (cWorkingDir() + u"tupdates/temp/Updater"_q)
-			: (cExeDir() + u"Updater"_q)).toStdString();
-
 	std::vector<std::string> argumentsList;
-	if (justRelaunch) {
-		argumentsList.push_back(binaryPath);
-	} else if (cWriteProtected()) {
-		argumentsList.push_back("pkexec");
+
+	// What we are launching.
+	const auto launching = justRelaunch
+		? (cExeDir() + cExeName())
+		: cWriteProtected()
+		? u"pkexec"_q
+		: (cExeDir() + u"Updater"_q);
+	argumentsList.push_back(launching.toStdString());
+
+	// argv[0] that is passed to what we are launching.
+	const auto argv0 = (justRelaunch && !arguments().isEmpty())
+		? arguments().first()
+		: launching;
+	argumentsList.push_back(argv0.toStdString());
+
+	if (!justRelaunch && cWriteProtected()) {
+		// Elevated process that pkexec should launch.
+		const auto elevated = cWorkingDir() + u"tupdates/temp/Updater"_q;
+		argumentsList.push_back(elevated.toStdString());
 	}
-	argumentsList.push_back((justRelaunch && !arguments().isEmpty())
-		? arguments().first().toStdString()
-		: binaryPath);
 
 	if (Logs::DebugEnabled()) {
 		argumentsList.push_back("-debug");
@@ -82,6 +88,9 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			argumentsList.push_back(cWorkingDir().toStdString());
 		}
 	} else {
+		// Don't relaunch Telegram.
+		argumentsList.push_back("-justupdate");
+
 		argumentsList.push_back("-workpath");
 		argumentsList.push_back(cWorkingDir().toStdString());
 		argumentsList.push_back("-exename");
@@ -105,24 +114,22 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			nullptr,
 			nullptr,
 			nullptr);
-	} else {
-		if (!GLib::spawn_sync(
-				argumentsList,
-				std::nullopt,
-				// if the spawn is sync, working directory is not set
-				// and GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_ is set,
-				// it goes through an optimized code path
-				GLib::SpawnFlags::SEARCH_PATH_
-					| GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_,
-				nullptr,
-				nullptr,
-				nullptr,
-				nullptr,
-				nullptr)) {
-			return false;
-		}
-		return launchUpdater(UpdaterLaunch::JustRelaunch);
+	} else if (!GLib::spawn_sync(
+			argumentsList,
+			std::nullopt,
+			// if the spawn is sync, working directory is not set
+			// and GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_ is set,
+			// it goes through an optimized code path
+			GLib::SpawnFlags::SEARCH_PATH_
+				| GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_,
+			nullptr,
+			nullptr,
+			nullptr,
+			nullptr,
+			nullptr)) {
+		return false;
 	}
+	return launchUpdater(UpdaterLaunch::JustRelaunch);
 }
 
 } // namespace
