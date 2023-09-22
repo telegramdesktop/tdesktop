@@ -54,13 +54,14 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		: (cExeDir() + u"Updater"_q);
 	argumentsList.push_back(launching.toStdString());
 
-	// argv[0] that is passed to what we are launching.
-	const auto argv0 = (justRelaunch && !arguments().isEmpty())
-		? arguments().first()
-		: launching;
-	argumentsList.push_back(argv0.toStdString());
-
-	if (!justRelaunch && cWriteProtected()) {
+	if (justRelaunch) {
+		// argv[0] that is passed to what we are launching.
+		// It should be added explicitly in case of FILE_AND_ARGV_ZERO_.
+		const auto argv0 = !arguments().isEmpty()
+			? arguments().first()
+			: launching;
+		argumentsList.push_back(argv0.toStdString());
+	} else if (cWriteProtected()) {
 		// Elevated process that pkexec should launch.
 		const auto elevated = cWorkingDir() + u"tupdates/temp/Updater"_q;
 		argumentsList.push_back(elevated.toStdString());
