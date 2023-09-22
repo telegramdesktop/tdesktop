@@ -172,8 +172,6 @@ ReactionView::ReactionView(
 	}, lifetime());
 
 	const auto view = _fake.get();
-	const auto item = view->data();
-
 	const auto entityData = [&] {
 		const auto &id = _data.reaction;
 		const auto reactions = &session->data().reactions();
@@ -227,9 +225,6 @@ void ReactionView::setupCustomChatStylePalette() {
 
 void ReactionView::setAreaGeometry(QRect geometry) {
 	_size = std::min(geometry.width(), geometry.height());
-	const auto scaled = [&](float64 scale) {
-		return int(base::SafeRound(scale * _size));
-	};
 	_bubble = _size * kSuggestedBubbleSize;
 	_bigOffset = _bubble * kSuggestedTailBigOffset;
 	_bigSize = _bubble * kSuggestedTailBigSize;
