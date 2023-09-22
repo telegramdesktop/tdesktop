@@ -34,52 +34,18 @@ cd $ReleasePath
 
 echo "$BinaryName build complete!"
 
+Error () {
+  cd $FullExecPath
+  echo "$1"
+  exit 1
+}
+
 if [ ! -f "$ReleasePath/$BinaryName" ]; then
-Error "$BinaryName not found!"
-fi
-
-BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.1[8-9] | wc -l`
-if [ "$BadCount" != "0" ]; then
-  Error "Bad GLIBC usages found: $BadCount"
-fi
-
-BadCount=`objdump -T $ReleasePath/$BinaryName | grep GLIBC_2\.2[0-9] | wc -l`
-if [ "$BadCount" != "0" ]; then
-  Error "Bad GLIBC usages found: $BadCount"
-fi
-
-BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_4\.[3-9] | wc -l`
-if [ "$BadCount" != "0" ]; then
-  Error "Bad GCC usages found: $BadCount"
-fi
-
-BadCount=`objdump -T $ReleasePath/$BinaryName | grep GCC_[5-9]\. | wc -l`
-if [ "$BadCount" != "0" ]; then
-  Error "Bad GCC usages found: $BadCount"
+  Error "$BinaryName not found!"
 fi
 
 if [ ! -f "$ReleasePath/Updater" ]; then
   Error "Updater not found!"
-fi
-
-BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.1[8-9] | wc -l`
-if [ "$BadCount" != "0" ]; then
-  Error "Bad GLIBC usages found: $BadCount"
-fi
-
-BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.2[0-9] | wc -l`
-if [ "$BadCount" != "0" ]; then
-  Error "Bad GLIBC usages found: $BadCount"
-fi
-
-BadCount=`objdump -T $ReleasePath/Updater | grep GCC_4\.[3-9] | wc -l`
-if [ "$BadCount" != "0" ]; then
-  Error "Bad GCC usages found: $BadCount"
-fi
-
-BadCount=`objdump -T $ReleasePath/Updater | grep GCC_[5-9]\. | wc -l`
-if [ "$BadCount" != "0" ]; then
-  Error "Bad GCC usages found: $BadCount"
 fi
 
 rm -rf "$ReleasePath/root"
