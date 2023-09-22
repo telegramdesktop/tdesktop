@@ -27,7 +27,7 @@ extern "C" {
 #include <openssl/evp.h>
 } // extern "C"
 
-#if defined Q_OS_WIN && !defined DESKTOP_APP_USE_PACKAGED // use Lzma SDK for win
+#if defined Q_OS_WIN && !defined TDESKTOP_USE_PACKAGED // use Lzma SDK for win
 #include <LzmaLib.h>
 #else
 #include <lzma.h>

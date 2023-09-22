@@ -40,6 +40,14 @@ if (DESKTOP_APP_DISABLE_AUTOUPDATE)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_AUTOUPDATE)
 endif()
 
+if (DESKTOP_APP_DISABLE_CRASH_REPORTS)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_CRASH_REPORTS)
+endif()
+
+if (DESKTOP_APP_USE_PACKAGED)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_USE_PACKAGED)
+endif()
+
 if (DESKTOP_APP_SPECIAL_TARGET)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_ALLOW_CLOSED_ALPHA)
 endif()

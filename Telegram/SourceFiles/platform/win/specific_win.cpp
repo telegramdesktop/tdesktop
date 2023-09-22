@@ -482,7 +482,7 @@ bool AutostartSkip() {
 }
 
 void WriteCrashDumpDetails() {
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	PROCESS_MEMORY_COUNTERS data = { 0 };
 	if (Dlls::GetProcessMemoryInfo
 		&& Dlls::GetProcessMemoryInfo(
@@ -503,7 +503,7 @@ void WriteCrashDumpDetails() {
 			<< (data.PagefileUsage / mb)
 			<< " MB (current)\n";
 	}
-#endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 void SetWindowPriority(not_null<QWidget*> window, uint32 priority) {
