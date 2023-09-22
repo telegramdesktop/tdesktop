@@ -1,7 +1,7 @@
-AppVersion         4009009
+AppVersion         4009010
 AppVersionStrMajor 4.9
-AppVersionStrSmall 4.9.9
-AppVersionStr      4.9.9
-BetaChannel        0
+AppVersionStrSmall 4.9.10
+AppVersionStr      4.9.10
+BetaChannel        1
 AlphaVersion       0
-AppVersionOriginal 4.9.9
+AppVersionOriginal 4.9.10.beta
