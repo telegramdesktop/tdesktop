@@ -25,6 +25,13 @@ init_target(lib_tgvoip_bundled)
 cmake_dependent_option(LIBTGVOIP_DISABLE_ALSA "Disable libtgvoip's ALSA backend." OFF LINUX ON)
 cmake_dependent_option(LIBTGVOIP_DISABLE_PULSEAUDIO "Disable libtgvoip's PulseAudio backend." OFF LINUX ON)
 
+if (APPLE)
+    target_compile_options(lib_tgvoip_bundled
+    PRIVATE
+        -Wno-unqualified-std-cast-call
+    )
+endif()
+
 set(tgvoip_loc ${third_party_loc}/libtgvoip)
 
 nice_target_sources(lib_tgvoip_bundled ${tgvoip_loc}
