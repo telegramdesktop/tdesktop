@@ -1,3 +1,8 @@
+4.10 (22.09.23)
+
+- Stories for Channels.
+- Reaction Stickers in Stories.
+
 4.9.10 beta (22.09.23)
 
 - Update Qt to 6.2.5 on macOS.
