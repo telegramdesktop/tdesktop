@@ -512,12 +512,19 @@ void FillSourceMenu(
 			controller->showSection(Info::Stories::Make(peer));
 		}, &st::menuIconStoriesSavedSection);
 	} else {
-		add(tr::lng_profile_send_message(tr::now), [=] {
+		const auto channel = peer->isChannel();
+		const auto showHistoryText = channel
+			? tr::lng_context_open_channel(tr::now)
+			: tr::lng_profile_send_message(tr::now);
+		add(showHistoryText, [=] {
 			controller->showPeerHistory(peer);
-		}, &st::menuIconChatBubble);
-		add(tr::lng_context_view_profile(tr::now), [=] {
+		}, channel ? &st::menuIconChannel : &st::menuIconChatBubble);
+		const auto viewProfileText = channel
+			? tr::lng_context_view_channel(tr::now)
+			: tr::lng_context_view_profile(tr::now);
+		add(viewProfileText, [=] {
 			controller->showPeerInfo(peer);
-		}, &st::menuIconProfile);
+		}, channel ? &st::menuIconInfo : &st::menuIconProfile);
 		const auto in = [&](Data::StorySourcesList list) {
 			return ranges::contains(
 				owner->stories().sources(list),
