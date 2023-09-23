@@ -461,9 +461,9 @@ win:
     cd gyp
     git checkout 9d09418933
 mac:
-    python3 -m pip install ^
-        --ignore-installed ^
-        --target=$THIRDPARTY_DIR/gyp ^
+    python3 -m pip install \\
+        --ignore-installed \\
+        --target=$THIRDPARTY_DIR/gyp \\
         git+https://chromium.googlesource.com/external/gyp@master
 """, 'ThirdParty')
 
@@ -1144,8 +1144,7 @@ depends:patches/breakpad.diff
     cd src/third_party/lss
     git checkout e1e7b0ad8e
     cd ../../build
-    PYTHONPATH=$THIRDPARTY_DIR/gyp
-    python3 gyp_breakpad
+    PYTHONPATH=$THIRDPARTY_DIR/gyp python3 gyp_breakpad
     cd ../processor
     xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
 """)
