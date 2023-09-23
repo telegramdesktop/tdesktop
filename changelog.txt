@@ -1,3 +1,15 @@
+4.10 (22.09.23)
+
+- Stories for Channels.
+- Reaction Stickers in Stories.
+
+4.9.10 beta (22.09.23)
+
+- Update Qt to 6.2.5 on macOS.
+- Update minimum target to macOS 10.13 and toolchain to Xcode 15.
+- Update Linux build host from CentOS 7 to Rocky Linux 8.
+- Update Linux toolchain to GCC 12.
+
 4.9.9 (18.09.23)
 
 - Add support for Emoji 15.

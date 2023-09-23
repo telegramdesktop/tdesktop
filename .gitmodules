@@ -58,9 +58,6 @@
 [submodule "Telegram/ThirdParty/range-v3"]
 	path = Telegram/ThirdParty/range-v3
 	url = https://github.com/ericniebler/range-v3.git
-[submodule "Telegram/ThirdParty/fcitx-qt5"]
-	path = Telegram/ThirdParty/fcitx-qt5
-	url = https://github.com/fcitx/fcitx-qt5.git
 [submodule "Telegram/ThirdParty/nimf"]
 	path = Telegram/ThirdParty/nimf
 	url = https://github.com/hamonikr/nimf.git

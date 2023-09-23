@@ -155,10 +155,10 @@ std::optional<bool> IsDarkMode() {
 #endif // Qt < 6.5.0
 
 void WriteCrashDumpDetails() {
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	double v = objc_appkitVersion();
 	CrashReports::dump() << "OS-Version: " << v;
-#endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 // I do check for availability, just not in the exact way clang is content with

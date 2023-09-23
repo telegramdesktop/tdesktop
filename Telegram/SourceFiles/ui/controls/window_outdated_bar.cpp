@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-#ifdef DESKTOP_APP_SPECIAL_TARGET
 constexpr auto kMinimalSkip = 7;
 constexpr auto kSoonSkip = 30;
 constexpr auto kNowSkip = 90;
@@ -148,14 +147,12 @@ void Closed(const QString &workingDir) {
 		reinterpret_cast<const char*>(&value),
 		sizeof(qint32)));
 }
-#endif // DESKTOP_APP_SPECIAL_TARGET
 
 } // namespace
 
 object_ptr<RpWidget> CreateOutdatedBar(
 		not_null<QWidget*> parent,
 		const QString &workingPath) {
-#ifdef DESKTOP_APP_SPECIAL_TARGET
 	const auto date = Platform::WhenSystemBecomesOutdated();
 	if (date.isNull()) {
 		return { nullptr };
@@ -178,9 +175,6 @@ object_ptr<RpWidget> CreateOutdatedBar(
 	wrap->show(anim::type::instant);
 
 	return result;
-#else // DESKTOP_APP_SPECIAL_TARGET
-	return { nullptr };
-#endif // DESKTOP_APP_SPECIAL_TARGET
 }
 
 } // namespace Ui

@@ -991,3 +991,26 @@ storiesStealthBoxBottom: 11px;
 storiesStealthToast: Toast(defaultMultilineToast) {
 	maxWidth: 340px;
 }
+
+storiesViewsPosition: point(4px, 29px);
+storiesViewsIcon: icon{{ "mediaview/views", storiesComposeGrayText }};
+storiesViewsText: FlatLabel(defaultFlatLabel) {
+	textFg: storiesComposeGrayText;
+}
+storiesViewsTextPosition: point(26px, 14px);
+
+storiesLikesPosition: point(0px, 29px);
+storiesLikesIcon: icon {{ "chat/input_like", storiesComposeWhiteText }};
+storiesLikesText: FlatLabel(defaultFlatLabel) {
+	textFg: storiesComposeWhiteText;
+	style: semiboldTextStyle;
+}
+storiesLikesTextPosition: point(41px, 14px);
+storiesLikesTextRightSkip: 8px;
+storiesLikesEmptyRightSkip: 2px;
+
+storiesLikeCountStyle: TextStyle(defaultTextStyle) {
+	font: font(32px semibold);
+	linkFont: font(32px semibold);
+	linkFontOver: font(32px semibold underline);
+}

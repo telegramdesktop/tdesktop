@@ -12,38 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
 
 #include <QtWidgets/QApplication>
+#include <glib/glib.hpp>
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <cstdlib>
-#include <unistd.h>
-#include <dirent.h>
-#include <pwd.h>
+using namespace gi::repository;
 
 namespace Platform {
-namespace {
-
-class Arguments {
-public:
-	void push(QByteArray argument) {
-		argument.append(char(0));
-		_argumentValues.push_back(argument);
-		_arguments.push_back(_argumentValues.back().data());
-	}
-
-	char **result() {
-		_arguments.push_back(nullptr);
-		return _arguments.data();
-	}
-
-private:
-	std::vector<QByteArray> _argumentValues;
-	std::vector<char*> _arguments;
-
-};
-
-} // namespace
 
 Launcher::Launcher(int argc, char *argv[])
 : Core::Launcher(argc, argv) {
@@ -70,86 +43,94 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	}
 
 	const auto justRelaunch = action == UpdaterLaunch::JustRelaunch;
-	const auto writeProtectedUpdate = action == UpdaterLaunch::PerformUpdate
-		&& cWriteProtected();
 
-	const auto binaryPath = justRelaunch
-		? QFile::encodeName(cExeDir() + cExeName())
-		: QFile::encodeName(cWriteProtected()
-			? (cWorkingDir() + u"tupdates/temp/Updater"_q)
-			: (cExeDir() + u"Updater"_q));
+	std::vector<std::string> argumentsList;
 
-	auto argumentsList = Arguments();
-	if (writeProtectedUpdate) {
-		argumentsList.push("pkexec");
+	// What we are launching.
+	const auto launching = justRelaunch
+		? (cExeDir() + cExeName())
+		: cWriteProtected()
+		? u"pkexec"_q
+		: (cExeDir() + u"Updater"_q);
+	argumentsList.push_back(launching.toStdString());
+
+	if (justRelaunch) {
+		// argv[0] that is passed to what we are launching.
+		// It should be added explicitly in case of FILE_AND_ARGV_ZERO_.
+		const auto argv0 = !arguments().isEmpty()
+			? arguments().first()
+			: launching;
+		argumentsList.push_back(argv0.toStdString());
+	} else if (cWriteProtected()) {
+		// Elevated process that pkexec should launch.
+		const auto elevated = cWorkingDir() + u"tupdates/temp/Updater"_q;
+		argumentsList.push_back(elevated.toStdString());
 	}
-	argumentsList.push((justRelaunch && !arguments().isEmpty())
-		? QFile::encodeName(arguments().first())
-		: binaryPath);
 
-	if (cLaunchMode() == LaunchModeAutoStart) {
-		argumentsList.push("-autostart");
-	}
 	if (Logs::DebugEnabled()) {
-		argumentsList.push("-debug");
-	}
-	if (cStartInTray()) {
-		argumentsList.push("-startintray");
-	}
-	if (cDataFile() != u"data"_q) {
-		argumentsList.push("-key");
-		argumentsList.push(QFile::encodeName(cDataFile()));
+		argumentsList.push_back("-debug");
 	}
 
 	if (justRelaunch) {
-		argumentsList.push("-noupdate");
-		argumentsList.push("-tosettings");
+		if (cLaunchMode() == LaunchModeAutoStart) {
+			argumentsList.push_back("-autostart");
+		}
+		if (cStartInTray()) {
+			argumentsList.push_back("-startintray");
+		}
+		if (cDataFile() != u"data"_q) {
+			argumentsList.push_back("-key");
+			argumentsList.push_back(cDataFile().toStdString());
+		}
+		argumentsList.push_back("-noupdate");
+		argumentsList.push_back("-tosettings");
 		if (customWorkingDir()) {
-			argumentsList.push("-workdir");
-			argumentsList.push(QFile::encodeName(cWorkingDir()));
+			argumentsList.push_back("-workdir");
+			argumentsList.push_back(cWorkingDir().toStdString());
 		}
 	} else {
-		argumentsList.push("-workpath");
-		argumentsList.push(QFile::encodeName(cWorkingDir()));
-		argumentsList.push("-exename");
-		argumentsList.push(QFile::encodeName(cExeName()));
-		argumentsList.push("-exepath");
-		argumentsList.push(QFile::encodeName(cExeDir()));
-		if (!arguments().isEmpty()) {
-			argumentsList.push("-argv0");
-			argumentsList.push(QFile::encodeName(arguments().first()));
-		}
-		if (customWorkingDir()) {
-			argumentsList.push("-workdir_custom");
-		}
+		// Don't relaunch Telegram.
+		argumentsList.push_back("-justupdate");
+
+		argumentsList.push_back("-workpath");
+		argumentsList.push_back(cWorkingDir().toStdString());
+		argumentsList.push_back("-exename");
+		argumentsList.push_back(cExeName().toStdString());
+		argumentsList.push_back("-exepath");
+		argumentsList.push_back(cExeDir().toStdString());
 		if (cWriteProtected()) {
-			argumentsList.push("-writeprotected");
+			argumentsList.push_back("-writeprotected");
 		}
 	}
 
 	Logs::closeMain();
 	CrashReports::Finish();
 
-	const auto args = argumentsList.result();
-
-	pid_t pid = fork();
-	switch (pid) {
-	case -1: return false;
-	case 0:
-		execvp(
-			writeProtectedUpdate ? args[0] : binaryPath.constData(),
-			args);
+	if (justRelaunch) {
+		return GLib::spawn_async(
+			initialWorkingDir().toStdString(),
+			argumentsList,
+			std::nullopt,
+			GLib::SpawnFlags::FILE_AND_ARGV_ZERO_,
+			nullptr,
+			nullptr,
+			nullptr);
+	} else if (!GLib::spawn_sync(
+			argumentsList,
+			std::nullopt,
+			// if the spawn is sync, working directory is not set
+			// and GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_ is set,
+			// it goes through an optimized code path
+			GLib::SpawnFlags::SEARCH_PATH_
+				| GLib::SpawnFlags::LEAVE_DESCRIPTORS_OPEN_,
+			nullptr,
+			nullptr,
+			nullptr,
+			nullptr,
+			nullptr)) {
 		return false;
 	}
-
-	// pkexec needs an alive parent
-	if (writeProtectedUpdate) {
-		waitpid(pid, nullptr, 0);
-		// launch new version in the same environment
-		return launchUpdater(UpdaterLaunch::JustRelaunch);
-	}
-
-	return true;
+	return launchUpdater(UpdaterLaunch::JustRelaunch);
 }
 
 } // namespace

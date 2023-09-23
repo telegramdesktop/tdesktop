@@ -49,7 +49,7 @@ namespace Media::Stories {
 class Controller;
 
 struct ReplyAreaData {
-	UserData *user = nullptr;
+	PeerData *peer = nullptr;
 	StoryId id = 0;
 
 	friend inline auto operator<=>(ReplyAreaData, ReplyAreaData) = default;
@@ -148,7 +148,7 @@ private:
 	std::unique_ptr<Cant> _cant;
 
 	ReplyAreaData _data;
-	base::has_weak_ptr _shownUserGuard;
+	base::has_weak_ptr _shownPeerGuard;
 	bool _chooseAttachRequest = false;
 	rpl::variable<bool> _choosingAttach;
 

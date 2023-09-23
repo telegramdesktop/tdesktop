@@ -127,18 +127,17 @@ void UserData::setPrivateForwardName(const QString &name) {
 }
 
 bool UserData::hasActiveStories() const {
-	return flags() & UserDataFlag::HasActiveStories;
+	return flags() & Flag::HasActiveStories;
 }
 
 bool UserData::hasUnreadStories() const {
-	return flags() & UserDataFlag::HasUnreadStories;
+	return flags() & Flag::HasUnreadStories;
 }
 
 void UserData::setStoriesState(StoriesState state) {
 	Expects(state != StoriesState::Unknown);
 
 	const auto was = flags();
-	using Flag = UserDataFlag;
 	switch (state) {
 	case StoriesState::None:
 		_flags.remove(Flag::HasActiveStories | Flag::HasUnreadStories);

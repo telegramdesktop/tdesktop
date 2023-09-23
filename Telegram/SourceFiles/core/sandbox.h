@@ -131,6 +131,8 @@ private:
 
 	rpl::event_stream<> _widgetUpdateRequests;
 
+	std::unique_ptr<QThread> _deadlockDetector;
+
 };
 
 } // namespace Core

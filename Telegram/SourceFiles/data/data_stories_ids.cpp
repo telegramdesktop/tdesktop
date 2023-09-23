@@ -32,19 +32,19 @@ rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 		const auto push = [=] {
 			state->scheduled = false;
 
+			const auto peerId = peer->id;
 			const auto stories = &peer->owner().stories();
-			if (!stories->savedCountKnown(peer->id)) {
+			if (!stories->savedCountKnown(peerId)) {
 				return;
 			}
 
-			const auto saved = stories->saved(peer->id);
-			Assert(saved != nullptr);
-			const auto count = stories->savedCount(peer->id);
-			const auto around = saved->list.lower_bound(aroundId);
-			const auto hasBefore = int(around - begin(saved->list));
-			const auto hasAfter = int(end(saved->list) - around);
+			const auto &saved = stories->saved(peerId);
+			const auto count = stories->savedCount(peerId);
+			const auto around = saved.list.lower_bound(aroundId);
+			const auto hasBefore = int(around - begin(saved.list));
+			const auto hasAfter = int(end(saved.list) - around);
 			if (hasAfter < limit) {
-				stories->savedLoadMore(peer->id);
+				stories->savedLoadMore(peerId);
 			}
 			const auto takeBefore = std::min(hasBefore, limit);
 			const auto takeAfter = std::min(hasAfter, limit);
@@ -72,14 +72,15 @@ rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 			});
 		};
 
+		const auto peerId = peer->id;
 		const auto stories = &peer->owner().stories();
 		stories->savedChanged(
 		) | rpl::filter(
-			rpl::mappers::_1 == peer->id
+			rpl::mappers::_1 == peerId
 		) | rpl::start_with_next(schedule, lifetime);
 
-		if (!stories->savedCountKnown(peer->id)) {
-			stories->savedLoadMore(peer->id);
+		if (!stories->savedCountKnown(peerId)) {
+			stories->savedLoadMore(peerId);
 		}
 
 		push();
@@ -89,7 +90,7 @@ rpl::producer<StoriesIdsSlice> SavedStoriesIds(
 }
 
 rpl::producer<StoriesIdsSlice> ArchiveStoriesIds(
-		not_null<Main::Session*> session,
+		not_null<PeerData*> peer,
 		StoryId aroundId,
 		int limit) {
 	return [=](auto consumer) {
@@ -105,18 +106,19 @@ rpl::producer<StoriesIdsSlice> ArchiveStoriesIds(
 		const auto push = [=] {
 			state->scheduled = false;
 
-			const auto stories = &session->data().stories();
-			if (!stories->archiveCountKnown()) {
+			const auto peerId = peer->id;
+			const auto stories = &peer->owner().stories();
+			if (!stories->archiveCountKnown(peerId)) {
 				return;
 			}
 
-			const auto &archive = stories->archive();
-			const auto count = stories->archiveCount();
+			const auto &archive = stories->archive(peerId);
+			const auto count = stories->archiveCount(peerId);
 			const auto i = archive.list.lower_bound(aroundId);
 			const auto hasBefore = int(i - begin(archive.list));
 			const auto hasAfter = int(end(archive.list) - i);
 			if (hasAfter < limit) {
-				stories->archiveLoadMore();
+				stories->archiveLoadMore(peerId);
 			}
 			const auto takeBefore = std::min(hasBefore, limit);
 			const auto takeAfter = std::min(hasAfter, limit);
@@ -144,12 +146,13 @@ rpl::producer<StoriesIdsSlice> ArchiveStoriesIds(
 			});
 		};
 
-		const auto stories = &session->data().stories();
+		const auto peerId = peer->id;
+		const auto stories = &peer->owner().stories();
 		stories->archiveChanged(
 		) | rpl::start_with_next(schedule, lifetime);
 
-		if (!stories->archiveCountKnown()) {
-			stories->archiveLoadMore();
+		if (!stories->archiveCountKnown(peerId)) {
+			stories->archiveLoadMore(peerId);
 		}
 
 		push();

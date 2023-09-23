@@ -204,4 +204,9 @@ private:
 	not_null<UserData*> contact,
 	not_null<Window::SessionController*> controller);
 
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateBoostReplaceUserpics(
+	not_null<Ui::RpWidget*> parent,
+	not_null<PeerData*> from,
+	not_null<PeerData*> to);
+
 } // namespace Ui

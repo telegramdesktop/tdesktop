@@ -17,11 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
-constexpr auto TestApiId = 17349;
-constexpr auto SnapApiId = 611335;
-constexpr auto DesktopApiId = 2040;
-
-Websites::Entry ParseEntry(
+[[nodiscard]] Websites::Entry ParseEntry(
 		not_null<Data::Session*> owner,
 		const MTPDwebAuthorization &data) {
 	auto result = Websites::Entry{

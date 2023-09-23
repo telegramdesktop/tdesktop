@@ -78,12 +78,8 @@ void SendReport(
 			MTP_string(comment)
 		)).done(std::move(done)).send();
 	}, [&](StoryId id) {
-		const auto user = peer->asUser();
-		if (!user) {
-			return;
-		}
 		peer->session().api().request(MTPstories_Report(
-			user->inputUser,
+			peer->input,
 			MTP_vector<MTPint>(1, MTP_int(id)),
 			ReasonToTL(reason),
 			MTP_string(comment)

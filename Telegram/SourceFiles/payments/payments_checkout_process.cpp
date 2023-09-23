@@ -529,10 +529,12 @@ void CheckoutProcess::panelSubmit() {
 	} else if (!method.newCredentials
 		&& method.savedCredentialsIndex >= method.savedCredentials.size()) {
 		editPaymentMethod();
-	} else if (invoice.isRecurring && !_form->details().termsAccepted) {
+	} else if (!invoice.termsUrl.isEmpty()
+		&& !_form->details().termsAccepted) {
 		_panel->requestTermsAcceptance(
 			_form->details().termsBotUsername,
-			invoice.recurringTermsUrl);
+			invoice.termsUrl,
+			invoice.isRecurring);
 	} else {
 		RegisterPaymentStart(this, { _form->invoice().cover.title });
 		_submitState = SubmitState::Finishing;

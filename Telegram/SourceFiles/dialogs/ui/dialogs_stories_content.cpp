@@ -134,7 +134,7 @@ private:
 	const not_null<Data::Stories*> _data;
 	const Data::StorySourcesList _list;
 	base::flat_map<
-		not_null<UserData*>,
+		not_null<PeerData*>,
 		std::shared_ptr<Thumbnail>> _userpics;
 
 };
@@ -338,20 +338,20 @@ Content State::next() {
 		Assert(source != nullptr);
 
 		auto userpic = std::shared_ptr<Thumbnail>();
-		const auto user = source->user;
-		if (const auto i = _userpics.find(user); i != end(_userpics)) {
+		const auto peer = source->peer;
+		if (const auto i = _userpics.find(peer); i != end(_userpics)) {
 			userpic = i->second;
 		} else {
-			userpic = MakeUserpicThumbnail(user);
-			_userpics.emplace(user, userpic);
+			userpic = MakeUserpicThumbnail(peer);
+			_userpics.emplace(peer, userpic);
 		}
 		result.elements.push_back({
-			.id = uint64(user->id.value),
-			.name = user->shortName(),
+			.id = uint64(peer->id.value),
+			.name = peer->shortName(),
 			.thumbnail = std::move(userpic),
 			.count = info.count,
 			.unreadCount = info.unreadCount,
-			.skipSmall = user->isSelf() ? 1U : 0U,
+			.skipSmall = peer->isSelf() ? 1U : 0U,
 		});
 	}
 	return result;
@@ -512,12 +512,19 @@ void FillSourceMenu(
 			controller->showSection(Info::Stories::Make(peer));
 		}, &st::menuIconStoriesSavedSection);
 	} else {
-		add(tr::lng_profile_send_message(tr::now), [=] {
+		const auto channel = peer->isChannel();
+		const auto showHistoryText = channel
+			? tr::lng_context_open_channel(tr::now)
+			: tr::lng_profile_send_message(tr::now);
+		add(showHistoryText, [=] {
 			controller->showPeerHistory(peer);
-		}, &st::menuIconChatBubble);
-		add(tr::lng_context_view_profile(tr::now), [=] {
+		}, channel ? &st::menuIconChannel : &st::menuIconChatBubble);
+		const auto viewProfileText = channel
+			? tr::lng_context_view_channel(tr::now)
+			: tr::lng_context_view_profile(tr::now);
+		add(viewProfileText, [=] {
 			controller->showPeerInfo(peer);
-		}, &st::menuIconProfile);
+		}, channel ? &st::menuIconInfo : &st::menuIconProfile);
 		const auto in = [&](Data::StorySourcesList list) {
 			return ranges::contains(
 				owner->stories().sources(list),

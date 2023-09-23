@@ -15,10 +15,17 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 The latest version is available for
 
-* [Windows 7 and above (64, 32 bit)](https://github.com/wrwrabbit/tdesktop/actions?query=branch%3Amaster+workflow%3AWindows.++)
-* [macOS 10.12 and above](https://github.com/wrwrabbit/tdesktop/actions?query=branch%3Amaster+workflow%3AMacOS.)
+* [Windows 7 and above (64, 32 bit)](https://github.com/wrwrabbit/tdesktop/actions?query=branch%3Amaster+workflow%3AWindows.)
+* [macOS 10.13 and above](https://github.com/wrwrabbit/tdesktop/actions?query=branch%3Amaster+workflow%3AMacOS.)
 * [Linux static build for 64 bit](https://github.com/wrwrabbit/tdesktop/actions?query=branch%3Amaster+workflow%3ALinux.)
 * [Snap](https://github.com/wrwrabbit/tdesktop/actions?query=branch%3Amaster+workflow%3ASnap.)
+
+## Old system versions
+
+Version **1.5.0** based on TG **4.9.9** was the last that supports older systems
+
+* [macOS 10.12](https://github.com/wrwrabbit/tdesktop/actions/runs/6265853178)
+* [Linux with glibc < 2.28 static build](https://github.com/wrwrabbit/tdesktop/actions/runs/6265853180)
 
 ## Third-party
 

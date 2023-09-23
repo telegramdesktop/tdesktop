@@ -43,23 +43,22 @@ constexpr auto kInterface = kService;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
 
 struct ServerInformation {
-	QString name;
-	QString vendor;
+	Glib::ustring name;
+	Glib::ustring vendor;
 	QVersionNumber version;
 	QVersionNumber specVersion;
 };
 
 bool ServiceRegistered = false;
-std::optional<ServerInformation> CurrentServerInformation;
-QStringList CurrentCapabilities;
+ServerInformation CurrentServerInformation;
+std::vector<Glib::ustring> CurrentCapabilities;
 
 void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 	try {
 		callback();
 		return;
 	} catch (const std::exception &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
+		LOG(("Native Notification Error: %1").arg(e.what()));
 	}
 
 	if (failed) {
@@ -178,8 +177,7 @@ bool GetServiceRegistered() {
 	return false;
 }
 
-void GetServerInformation(
-		Fn<void(const std::optional<ServerInformation> &)> callback) {
+void GetServerInformation(Fn<void(const ServerInformation &)> callback) {
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
@@ -211,25 +209,25 @@ void GetServerInformation(
 						).get_dynamic<Glib::ustring>();
 
 						callback(ServerInformation{
-							QString::fromStdString(name),
-							QString::fromStdString(vendor),
+							name,
+							vendor,
 							QVersionNumber::fromString(
 								QString::fromStdString(version)),
 							QVersionNumber::fromString(
 								QString::fromStdString(specVersion)),
 						});
 					}, [&] {
-						callback(std::nullopt);
+						callback({});
 					});
 				});
 			},
 			kService);
 	}, [&] {
-		callback(std::nullopt);
+		callback({});
 	});
 }
 
-void GetCapabilities(Fn<void(const QStringList &)> callback) {
+void GetCapabilities(Fn<void(const std::vector<Glib::ustring> &)> callback) {
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
@@ -242,17 +240,13 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						QStringList value;
-						ranges::transform(
+						callback(
 							connection->call_finish(
 								result
 							).get_child(
 								0
-							).get_dynamic<std::vector<Glib::ustring>>(),
-							ranges::back_inserter(value),
-							QString::fromStdString);
-
-						callback(value);
+							).get_dynamic<std::vector<Glib::ustring>>()
+						);
 					}, [&] {
 						callback({});
 					});
@@ -297,10 +291,6 @@ void GetInhibited(Fn<void(bool)> callback) {
 	}, [&] {
 		callback(false);
 	});
-}
-
-ServerInformation CurrentServerInformationValue() {
-	return CurrentServerInformation.value_or(ServerInformation{});
 }
 
 Glib::ustring GetImageKey(const QVersionNumber &specificationVersion) {
@@ -414,21 +404,11 @@ bool NotificationData::init(
 		_notification->set_icon(
 			Gio::ThemedIcon::create(base::IconName().toStdString()));
 
-		// glib 2.42+, we keep glib 2.40+ compatibility
-		static const auto set_priority = [] {
-			// reset dlerror after dlsym call
-			const auto guard = gsl::finally([] { dlerror(); });
-			return reinterpret_cast<decltype(&g_notification_set_priority)>(
-				dlsym(RTLD_DEFAULT, "g_notification_set_priority"));
-		}();
+		// for chat messages, according to
+		// https://docs.gtk.org/gio/enum.NotificationPriority.html
+		_notification->set_priority(Gio::Notification::Priority::HIGH);
 
-		if (set_priority) {
-			// for chat messages, according to
-			// https://docs.gtk.org/gio/enum.NotificationPriority.html
-			set_priority(_notification->gobj(), G_NOTIFICATION_PRIORITY_HIGH);
-		}
-
-		// glib 2.70+, we keep glib 2.40+ compatibility
+		// glib 2.70+, we keep glib 2.56+ compatibility
 		static const auto set_category = [] {
 			// reset dlerror after dlsym call
 			const auto guard = gsl::finally([] { dlerror(); });
@@ -466,7 +446,7 @@ bool NotificationData::init(
 	}
 
 	const auto weak = base::make_weak(this);
-	const auto capabilities = CurrentCapabilities;
+	const auto &capabilities = CurrentCapabilities;
 
 	const auto signalEmitted = crl::guard(weak, [=](
 			const Glib::RefPtr<Gio::DBus::Connection> &connection,
@@ -514,9 +494,9 @@ bool NotificationData::init(
 		});
 	});
 
-	_imageKey = GetImageKey(CurrentServerInformationValue().specVersion);
+	_imageKey = GetImageKey(CurrentServerInformation.specVersion);
 
-	if (capabilities.contains(u"body-markup"_q)) {
+	if (ranges::contains(capabilities, "body-markup")) {
 		_title = title.toStdString();
 
 		_body = subtitle.isEmpty()
@@ -532,7 +512,7 @@ bool NotificationData::init(
 		_body = msg.toStdString();
 	}
 
-	if (capabilities.contains("actions")) {
+	if (ranges::contains(capabilities, "actions")) {
 		_actions.push_back("default");
 		_actions.push_back(tr::lng_open_link(tr::now).toStdString());
 
@@ -543,7 +523,7 @@ bool NotificationData::init(
 				tr::lng_context_mark_read(tr::now).toStdString());
 		}
 
-		if (capabilities.contains("inline-reply")
+		if (ranges::contains(capabilities, "inline-reply")
 			&& !options.hideReplyButton) {
 			_actions.push_back("inline-reply");
 			_actions.push_back(
@@ -573,13 +553,13 @@ bool NotificationData::init(
 			kObjectPath);
 	}
 
-	if (capabilities.contains("action-icons")) {
+	if (ranges::contains(capabilities, "action-icons")) {
 		_hints["action-icons"] = Glib::create_variant(true);
 	}
 
 	// suppress system sound if telegram sound activated,
 	// otherwise use system sound
-	if (capabilities.contains("sound")) {
+	if (ranges::contains(capabilities, "sound")) {
 		if (Core::App().settings().soundNotify()) {
 			_hints["suppress-sound"] = Glib::create_variant(true);
 		} else {
@@ -589,7 +569,7 @@ bool NotificationData::init(
 		}
 	}
 
-	if (capabilities.contains("x-canonical-append")) {
+	if (ranges::contains(capabilities, "x-canonical-append")) {
 		_hints["x-canonical-append"] = Glib::create_variant(
 			Glib::ustring("true"));
 	}
@@ -825,20 +805,18 @@ bool ByDefault() {
 
 	// A list of capabilities that offer feature parity
 	// with custom notifications
-	static const auto NeededCapabilities = {
+	return ranges::all_of(std::initializer_list{
 		// To show message content
-		u"body"_q,
+		"body",
 		// To have buttons on notifications
-		u"actions"_q,
+		"actions",
 		// To have quick reply
-		u"inline-reply"_q,
+		"inline-reply",
 		// To not to play sound with Don't Disturb activated
 		// (no, using sound capability is not a way)
-		u"inhibitions"_q,
-	};
-
-	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
-		return CurrentCapabilities.contains(capability);
+		"inhibitions",
+	}, [](const auto *capability) {
+		return ranges::contains(CurrentCapabilities, capability);
 	});
 }
 
@@ -874,19 +852,18 @@ void Create(Window::Notifications::System *system) {
 		ServiceRegistered = GetServiceRegistered();
 
 		if (!ServiceRegistered) {
-			CurrentServerInformation = std::nullopt;
-			CurrentCapabilities = QStringList{};
+			CurrentServerInformation = {};
+			CurrentCapabilities = {};
 			managerSetter();
 			return;
 		}
 
-		GetServerInformation([=](
-				const std::optional<ServerInformation> &result) {
+		GetServerInformation([=](const ServerInformation &result) {
 			CurrentServerInformation = result;
 			oneReady();
 		});
 
-		GetCapabilities([=](const QStringList &result) {
+		GetCapabilities([=](const std::vector<Glib::ustring> &result) {
 			CurrentCapabilities = result;
 			oneReady();
 		});
@@ -931,29 +908,40 @@ private:
 
 Manager::Private::Private(not_null<Manager*> manager)
 : _manager(manager) {
-	const auto serverInformation = CurrentServerInformation;
-	const auto capabilities = CurrentCapabilities;
+	const auto &serverInformation = CurrentServerInformation;
+	const auto &capabilities = CurrentCapabilities;
 
-	if (serverInformation.has_value()) {
+	if (!serverInformation.name.empty()) {
 		LOG(("Notification daemon product name: %1")
-			.arg(serverInformation->name));
+			.arg(serverInformation.name.c_str()));
+	}
 
+	if (!serverInformation.vendor.empty()) {
 		LOG(("Notification daemon vendor name: %1")
-			.arg(serverInformation->vendor));
+			.arg(serverInformation.vendor.c_str()));
+	}
 
+	if (!serverInformation.version.isNull()) {
 		LOG(("Notification daemon version: %1")
-			.arg(serverInformation->version.toString()));
+			.arg(serverInformation.version.toString()));
+	}
 
+	if (!serverInformation.specVersion.isNull()) {
 		LOG(("Notification daemon specification version: %1")
-			.arg(serverInformation->specVersion.toString()));
+			.arg(serverInformation.specVersion.toString()));
 	}
 
-	if (!capabilities.isEmpty()) {
-		LOG(("Notification daemon capabilities: %1")
-			.arg(capabilities.join(", ")));
+	if (!capabilities.empty()) {
+		LOG(("Notification daemon capabilities: %1").arg(
+			ranges::fold_left(
+				capabilities,
+				"",
+				[](const Glib::ustring &a, const Glib::ustring &b) {
+					return a + (a.empty() ? "" : ", ") + b;
+				}).c_str()));
 	}
 
-	if (capabilities.contains(u"inhibitions"_q)) {
+	if (ranges::contains(capabilities, "inhibitions")) {
 		Noexcept([&] {
 			_dbusConnection = Gio::DBus::Connection::get_sync(
 				Gio::DBus::BusType::SESSION);

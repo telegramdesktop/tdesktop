@@ -548,6 +548,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_title_account_name" = "Show active account";
 "lng_settings_title_total_count" = "Total unread count";
 "lng_settings_native_frame" = "Use system window frame";
+"lng_settings_qt_frame" = "Use Qt window frame";
 "lng_settings_auto_start" = "Launch Telegram when system starts";
 "lng_settings_start_min" = "Launch minimized";
 "lng_settings_auto_start_disabled_uwp" = "Starting with the system was disabled in Windows Settings.\n\nPlease enable Telegram Desktop in the Startup Apps Settings.";
@@ -1182,6 +1183,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_loading" = "Loading...";
 "lng_profile_saved_stories#one" = "{count} saved story";
 "lng_profile_saved_stories#other" = "{count} saved stories";
+"lng_profile_posts#one" = "{count} post";
+"lng_profile_posts#other" = "{count} posts";
 "lng_profile_photos#one" = "{count} photo";
 "lng_profile_photos#other" = "{count} photos";
 "lng_profile_gifs#one" = "{count} GIF";
@@ -2000,6 +2003,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gift_terms" = "You can review the list of features and terms of use for Telegram Premium {link}.";
 "lng_premium_gift_terms_link" = "here";
 
+"lng_boost_channel_button" = "Boost Channel";
+"lng_boost_level#one" = "Level {count}";
+"lng_boost_level#other" = "Level {count}";
+"lng_boost_channel_title_first" = "Enable stories for channel";
+"lng_boost_channel_needs_first#one" = "{channel} needs **{count}** more boost to enable posting stories. Help make it possible!";
+"lng_boost_channel_needs_first#other" = "{channel} needs **{count}** more boosts to enable posting stories. Help make it possible!";
+"lng_boost_channel_title_more" = "Help upgrade channel";
+"lng_boost_channel_needs_more#one" = "{channel} needs **{count}** more boost to be able to {post}.";
+"lng_boost_channel_needs_more#other" = "{channel} needs **{count}** more boosts to be able to {post}.";
+"lng_boost_channel_title_max" = "Maximum level reached";
+"lng_boost_channel_you_title" = "You boosted {channel}!";
+"lng_boost_channel_you_first#one" = "This channel needs **{count}** more boost\nto enable stories.";
+"lng_boost_channel_you_first#other" = "This channel needs **{count}** more boosts\nto enable stories.";
+"lng_boost_channel_you_more#one" = "This channel needs **{count}** more boost\nto be able to {post}.";
+"lng_boost_channel_you_more#other" = "This channel needs **{count}** more boosts\nto be able to {post}.";
+"lng_boost_channel_reached_first" = "This channel reached **Level 1** and can now post stories.";
+"lng_boost_channel_reached_more#one" = "This channel reached **Level {count}** and can now {post}.";
+"lng_boost_channel_reached_more#other" = "This channel reached **Level {count}** and can now {post}.";
+"lng_boost_channel_post_stories#one" = "post **{count} story** per day";
+"lng_boost_channel_post_stories#other" = "post **{count} stories** per day";
+"lng_boost_error_gifted_title" = "Can't boost with gifted Premium!";
+"lng_boost_error_gifted_text" = "Because your **Telegram Premium** subscription was gifted to you, you can't use it to boost channels.";
+"lng_boost_error_already_title" = "Already Boosted!";
+"lng_boost_error_already_text" = "You are already boosting this channel.";
+"lng_boost_error_premium_title" = "Premium needed!";
+"lng_boost_error_premium_text" = "Only **Telegram Premium** subscribers can boost channels. Do you want to subscribe to **Telegram Premium**?";
+"lng_boost_error_premium_yes" = "Yes";
+"lng_boost_error_flood_title" = "Can't boost too often!";
+"lng_boost_error_flood_text" = "You can change the channel you boost only once a day. Next time you can boost is in {left}.";
+"lng_boost_now_instead" = "You currently boost {channel}. Do you want to boost {other} instead?";
+"lng_boost_now_replace" = "Replace";
+
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected accounts.";
 "lng_accounts_limit1#other" = "You have reached the limit of **{count}** connected accounts.";
@@ -2382,6 +2417,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_open_gif" = "Open GIF";
 "lng_context_save_gif" = "Save GIF";
 "lng_context_delete_gif" = "Delete GIF";
+"lng_context_open_channel" = "Open Channel";
 "lng_context_attached_stickers" = "Attached Stickers";
 "lng_context_to_msg" = "Go To Message";
 "lng_context_reply_msg" = "Reply";
@@ -2759,6 +2795,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_payments_terms_title" = "Terms of Service";
 "lng_payments_terms_text" = "Subscribe and accept terms of service of {bot}?";
+"lng_payments_terms_text_once" = "Are you accepting terms of service of {bot}?";
 "lng_payments_terms_agree" = "I agree to {link}";
 "lng_payments_terms_link" = "Terms of Service";
 "lng_payments_terms_accept" = "Accept";
@@ -3091,9 +3128,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gigagroup_suggest_more" = "Learn more";
 
 "lng_rights_channel_info" = "Change channel info";
+"lng_rights_channel_manage" = "Manage messages";
 "lng_rights_channel_post" = "Post messages";
 "lng_rights_channel_edit" = "Edit messages of others";
 "lng_rights_channel_delete" = "Delete messages of others";
+"lng_rights_channel_manage_stories" = "Manage stories";
+"lng_rights_channel_post_stories" = "Post stories";
+"lng_rights_channel_edit_stories" = "Edit stories of others";
+"lng_rights_channel_delete_stories" = "Delete stories of others";
 "lng_rights_channel_manage_calls" = "Manage live streams";
 "lng_rights_group_info" = "Change group info";
 "lng_rights_group_ban" = "Ban users";
@@ -3352,6 +3394,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_post_messages" = "Post messages";
 "lng_admin_log_admin_edit_messages" = "Edit messages";
 "lng_admin_log_admin_delete_messages" = "Delete messages";
+"lng_admin_log_admin_post_stories" = "Post stories";
+"lng_admin_log_admin_edit_stories" = "Edit stories";
+"lng_admin_log_admin_delete_stories" = "Delete stories";
 "lng_admin_log_admin_remain_anonymous" = "Remain anonymous";
 "lng_admin_log_admin_ban_users" = "Ban users";
 "lng_admin_log_admin_invite_users" = "Add members";
@@ -3832,6 +3877,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_voice_chat_channel" = "Live stream";
 "lng_view_button_request_join" = "Request to Join";
 "lng_view_button_external_link" = "Open link";
+"lng_view_button_boost" = "Boost";
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";
@@ -3965,6 +4011,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_recent_button" = "Recent Stories";
 "lng_stories_archive_title" = "Stories Archive";
 "lng_stories_archive_about" = "Only you can see archived stories unless you choose to save them to your profile.";
+"lng_stories_channel_archive_about" = "Only admins of the channel can see archived stories unless they are saved to the channel page.";
 "lng_stories_reply_sent" = "Message Sent";
 "lng_stories_hidden_to_contacts" = "Stories from {user} will now be shown in **Archived Chats**.";
 "lng_stories_shown_in_chats" = "Stories from {user} will now be shown in the **Chats List**.";
@@ -3984,6 +4031,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_archive_done" = "This story is hidden from your profile.";
 "lng_stories_archive_done_many#one" = "{count} story is hidden from your profile.";
 "lng_stories_archive_done_many#other" = "{count} stories are hidden from your profile.";
+"lng_stories_channel_save_sure" = "Do you want to save this story to the channel page?";
+"lng_stories_channel_save_sure_many#one" = "Do you want to save {count} story to the channel page?";
+"lng_stories_channel_save_sure_many#other" = "Do you want to save {count} stories to the channel page?";
+"lng_stories_channel_save_done" = "This story is saved to the channel page.";
+"lng_stories_channel_save_done_many#one" = "{count} story is saved to the channel page.";
+"lng_stories_channel_save_done_many#other" = "{count} stories are saved to the channel page.";
+"lng_stories_channel_save_done_about" = "Saved stories can be viewed by others on the channel page until they are removed.";
+"lng_stories_channel_archive_sure" = "Do you want to hide this story from the channel page?";
+"lng_stories_channel_archive_sure_many#one" = "Do you want to hide {count} story from the channel page?";
+"lng_stories_channel_archive_sure_many#other" = "Do you want to hide {count} stories from the channel page?";
+"lng_stories_channel_archive_done" = "This story is hidden from the channel page.";
+"lng_stories_channel_archive_done_many#one" = "{count} story is hidden from the channel page.";
+"lng_stories_channel_archive_done_many#other" = "{count} stories are hidden from the channel page.";
 "lng_stories_save_promo" = "Subscribe to {link} to download other people's unprotected stories to disk.";
 
 "lng_stealth_mode_menu_item" = "Stealth Mode";

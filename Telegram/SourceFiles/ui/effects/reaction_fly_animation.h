@@ -29,6 +29,7 @@ struct ReactionFlyAnimationArgs {
 	QRect flyFrom;
 	crl::time scaleOutDuration = 0;
 	float64 scaleOutTarget = 0.;
+	float64 miniCopyMultiplier = 1.;
 	bool effectOnly = false;
 
 	[[nodiscard]] ReactionFlyAnimationArgs translated(QPoint point) const;
@@ -102,7 +103,7 @@ private:
 		QPoint center,
 		const QColor &colored,
 		crl::time now) const;
-	void generateMiniCopies(int size);
+	void generateMiniCopies(int size, float64 miniCopyMultiplier);
 
 	const not_null<::Data::Reactions*> _owner;
 	Fn<void()> _repaint;
@@ -120,6 +121,7 @@ private:
 	crl::time _scaleOutDuration = 0;
 	float64 _scaleOutTarget = 0.;
 	bool _noEffectScaleStarted = false;
+	bool _effectOnly = false;
 	bool _valid = false;
 
 	mutable Parabolic _cached;

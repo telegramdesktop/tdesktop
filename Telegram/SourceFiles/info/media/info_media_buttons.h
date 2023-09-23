@@ -129,24 +129,27 @@ inline auto AddCommonGroupsButton(
 inline auto AddStoriesButton(
 		Ui::VerticalLayout *parent,
 		not_null<Window::SessionNavigation*> navigation,
-		not_null<UserData*> user,
+		not_null<PeerData*> peer,
 		Ui::MultiSlideTracker &tracker) {
 	auto count = rpl::single(0) | rpl::then(Data::SavedStoriesIds(
-		user,
+		peer,
 		ServerMaxStoryId - 1,
 		0
 	) | rpl::map([](const Data::StoriesIdsSlice &slice) {
 		return slice.fullCount().value_or(0);
 	}));
+	const auto phrase = peer->isChannel() ? (+[](int count) {
+		return tr::lng_profile_posts(tr::now, lt_count, count);
+	}) : (+[](int count) {
+		return tr::lng_profile_saved_stories(tr::now, lt_count, count);
+	});
 	auto result = AddCountedButton(
 		parent,
 		std::move(count),
-		[](int count) {
-			return tr::lng_profile_saved_stories(tr::now, lt_count, count);
-		},
+		phrase,
 		tracker)->entity();
 	result->addClickHandler([=] {
-		navigation->showSection(Info::Stories::Make(user));
+		navigation->showSection(Info::Stories::Make(peer));
 	});
 	return result;
 };

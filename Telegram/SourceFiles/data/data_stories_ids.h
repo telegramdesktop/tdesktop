@@ -25,7 +25,7 @@ using StoriesIdsSlice = AbstractSparseIds<base::flat_set<StoryId>>;
 	int limit);
 
 [[nodiscard]] rpl::producer<StoriesIdsSlice> ArchiveStoriesIds(
-	not_null<Main::Session*> session,
+	not_null<PeerData*> peer,
 	StoryId aroundId,
 	int limit);
 

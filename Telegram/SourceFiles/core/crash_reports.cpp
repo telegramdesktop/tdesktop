@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <new>
 #include <mutex>
 
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 #ifdef Q_OS_WIN
 
 #include <new.h>
@@ -50,7 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // Q_OS_MAC
 
 #endif // Q_OS_WIN
-#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 
 namespace CrashReports {
 namespace {
@@ -61,7 +61,7 @@ using AnnotationRefs = std::map<std::string, const QString*>;
 Annotations ProcessAnnotations;
 AnnotationRefs ProcessAnnotationRefs;
 
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 
 QString ReportPath;
 FILE *ReportFile = nullptr;
@@ -293,7 +293,7 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, 
 }
 #endif // !Q_OS_MAC || MAC_USE_BREAKPAD
 
-#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 
 } // namespace
 
@@ -317,7 +317,7 @@ QString PlatformString() {
 }
 
 void StartCatching() {
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
 	ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
 	ProcessAnnotations["Version"] = (cAlphaVersion()
@@ -383,21 +383,21 @@ void StartCatching() {
 		-1
 	);
 #endif // else for Q_OS_WIN || Q_OS_MAC
-#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 void FinishCatching() {
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 #if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
 
 	delete base::take(BreakpadExceptionHandler);
 
 #endif // !Q_OS_MAC || MAC_USE_BREAKPAD
-#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 StartResult Start() {
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	ReportPath = cWorkingDir() + u"tdata/working"_q;
 
 #ifdef Q_OS_WIN
@@ -423,12 +423,12 @@ StartResult Start() {
 		return lastdump;
 	}
 
-#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 	return Restart();
 }
 
 Status Restart() {
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	if (ReportFile) {
 		return Started;
 	}
@@ -473,13 +473,13 @@ Status Restart() {
 	LOG(("FATAL: Could not open '%1' for writing!").arg(ReportPath));
 
 	return CantOpen;
-#else // !DESKTOP_APP_DISABLE_CRASH_REPORTS
+#else // !TDESKTOP_DISABLE_CRASH_REPORTS
 	return Started;
-#endif // else for !DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // else for !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 void Finish() {
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	FinishCatching();
 
 	if (ReportFile) {
@@ -492,7 +492,7 @@ void Finish() {
 		unlink(ReportPath.toUtf8().constData());
 #endif // else for Q_OS_WIN
 	}
-#endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 void SetAnnotation(const std::string &key, const QString &value) {
@@ -542,7 +542,7 @@ void SetAnnotationRef(const std::string &key, const QString *valuePtr) {
 	}
 }
 
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 
 dump::~dump() {
 	if (ReportFile) {
@@ -607,6 +607,6 @@ const dump &operator<<(const dump &stream, double num) {
 	return stream;
 }
 
-#endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
+#endif // TDESKTOP_DISABLE_CRASH_REPORTS
 
 } // namespace CrashReports

@@ -52,7 +52,7 @@ struct StoriesSourceInfo {
 };
 
 struct StoriesSource {
-	not_null<UserData*> user;
+	not_null<PeerData*> peer;
 	base::flat_set<StoryIdDates> ids;
 	StoryId readTill = 0;
 	bool hidden = false;
@@ -148,7 +148,7 @@ public:
 	void apply(const MTPDupdateStory &data);
 	void apply(const MTPDupdateReadStories &data);
 	void apply(const MTPStoriesStealthMode &stealthMode);
-	void apply(not_null<PeerData*> peer, const MTPUserStories *data);
+	void apply(not_null<PeerData*> peer, const MTPPeerStories *data);
 	Story *applyFromWebpage(PeerId peerId, const MTPstoryItem &story);
 	void loadAround(FullStoryId id, StoriesContext context);
 
@@ -178,18 +178,21 @@ public:
 
 	static constexpr auto kViewsPerPage = 50;
 	void loadViewsSlice(
+		not_null<PeerData*> peer,
 		StoryId id,
 		QString offset,
 		Fn<void(StoryViews)> done);
 
-	[[nodiscard]] const StoriesIds &archive() const;
-	[[nodiscard]] rpl::producer<> archiveChanged() const;
-	[[nodiscard]] int archiveCount() const;
-	[[nodiscard]] bool archiveCountKnown() const;
-	[[nodiscard]] bool archiveLoaded() const;
-	void archiveLoadMore();
+	[[nodiscard]] bool hasArchive(not_null<PeerData*> peer) const;
 
-	[[nodiscard]] const StoriesIds *saved(PeerId peerId) const;
+	[[nodiscard]] const StoriesIds &archive(PeerId peerId) const;
+	[[nodiscard]] rpl::producer<PeerId> archiveChanged() const;
+	[[nodiscard]] int archiveCount(PeerId peerId) const;
+	[[nodiscard]] bool archiveCountKnown(PeerId peerId) const;
+	[[nodiscard]] bool archiveLoaded(PeerId peerId) const;
+	void archiveLoadMore(PeerId peerId);
+
+	[[nodiscard]] const StoriesIds &saved(PeerId peerId) const;
 	[[nodiscard]] rpl::producer<PeerId> savedChanged() const;
 	[[nodiscard]] int savedCount(PeerId peerId) const;
 	[[nodiscard]] bool savedCountKnown(PeerId peerId) const;
@@ -228,8 +231,8 @@ public:
 
 	[[nodiscard]] bool registerPolling(FullStoryId id, Polling polling);
 	void unregisterPolling(FullStoryId id, Polling polling);
-	void requestUserStories(
-		not_null<UserData*> user,
+	void requestPeerStories(
+		not_null<PeerData*> peer,
 		Fn<void()> done = nullptr);
 
 	void savedStateChanged(not_null<Story*> story);
@@ -243,19 +246,20 @@ public:
 	void sendReaction(FullStoryId id, Data::ReactionId reaction);
 
 private:
-	struct Saved {
+	struct Set {
 		StoriesIds ids;
 		int total = -1;
 		StoryId lastId = 0;
 		bool loaded = false;
 		mtpRequestId requestId = 0;
 	};
+
 	struct PollingSettings {
 		int chat = 0;
 		int viewer = 0;
 	};
 
-	void parseAndApply(const MTPUserStories &stories);
+	void parseAndApply(const MTPPeerStories &stories);
 	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPDstoryItem &data,
@@ -269,9 +273,12 @@ private:
 		const QVector<MTPStoryItem> &list);
 	void sendResolveRequests();
 	void finalizeResolve(FullStoryId id);
-	void updateUserStoriesState(not_null<PeerData*> peer);
+	void updatePeerStoriesState(not_null<PeerData*> peer);
 
-	void applyDeleted(FullStoryId id);
+	[[nodiscard]] Set *lookupArchive(not_null<PeerData*> peer);
+	void clearArchive(not_null<PeerData*> peer);
+
+	void applyDeleted(not_null<PeerData*> peer, StoryId id);
 	void applyExpired(FullStoryId id);
 	void applyRemovedFromActive(FullStoryId id);
 	void applyDeletedFromSources(PeerId id, StorySourcesList list);
@@ -309,6 +316,8 @@ private:
 		TimeId now);
 	void sendPollingRequests();
 	void sendPollingViewsRequests();
+	void sendViewsSliceRequest();
+	void sendViewsCountsRequest();
 
 	const not_null<Session*> _owner;
 	std::unordered_map<
@@ -319,6 +328,7 @@ private:
 		PeerId,
 		base::flat_map<StoryId, std::weak_ptr<HistoryItem>>> _items;
 	base::flat_multi_map<TimeId, FullStoryId> _expiring;
+	base::flat_set<PeerId> _peersWithDeletedStories;
 	base::flat_set<FullStoryId> _deleted;
 	base::Timer _expireTimer;
 	bool _expireSchedulePosted = false;
@@ -346,27 +356,24 @@ private:
 	rpl::event_stream<PeerId> _sourceChanged;
 	rpl::event_stream<PeerId> _itemsChanged;
 
-	StoriesIds _archive;
-	int _archiveTotal = -1;
-	StoryId _archiveLastId = 0;
-	bool _archiveLoaded = false;
-	rpl::event_stream<> _archiveChanged;
-	mtpRequestId _archiveRequestId = 0;
+	std::unordered_map<PeerId, Set> _archive;
+	rpl::event_stream<PeerId> _archiveChanged;
 
-	std::unordered_map<PeerId, Saved> _saved;
+	std::unordered_map<PeerId, Set> _saved;
 	rpl::event_stream<PeerId> _savedChanged;
 
 	base::flat_set<PeerId> _markReadPending;
 	base::Timer _markReadTimer;
 	base::flat_set<PeerId> _markReadRequests;
 	base::flat_map<
-		not_null<UserData*>,
-		std::vector<Fn<void()>>> _requestingUserStories;
+		not_null<PeerData*>,
+		std::vector<Fn<void()>>> _requestingPeerStories;
 
 	base::flat_map<PeerId, base::flat_set<StoryId>> _incrementViewsPending;
 	base::Timer _incrementViewsTimer;
 	base::flat_set<PeerId> _incrementViewsRequests;
 
+	PeerData *_viewsStoryPeer = nullptr;
 	StoryId _viewsStoryId = 0;
 	QString _viewsOffset;
 	Fn<void(StoryViews)> _viewsDone;
@@ -381,7 +388,7 @@ private:
 
 	base::flat_map<PeerId, StoryId> _readTill;
 	base::flat_set<FullStoryId> _pendingReadTillItems;
-	base::flat_map<not_null<PeerData*>, StoryId> _pendingUserStateMaxId;
+	base::flat_map<not_null<PeerData*>, StoryId> _pendingPeerStateMaxId;
 	mtpRequestId _readTillsRequestId = 0;
 	bool _readTillReceived = false;
 
@@ -391,6 +398,8 @@ private:
 	base::Timer _pollingViewsTimer;
 
 	rpl::variable<StealthMode> _stealthMode;
+
+	rpl::lifetime _lifetime;
 
 };
 

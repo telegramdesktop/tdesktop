@@ -25,6 +25,9 @@ enum class ChatAdminRight {
 	ManageCall = (1 << 11),
 	Other = (1 << 12),
 	ManageTopics = (1 << 13),
+	PostStories = (1 << 14),
+	EditStories = (1 << 15),
+	DeleteStories = (1 << 16),
 };
 inline constexpr bool is_flag_type(ChatAdminRight) { return true; }
 using ChatAdminRights = base::flags<ChatAdminRight>;

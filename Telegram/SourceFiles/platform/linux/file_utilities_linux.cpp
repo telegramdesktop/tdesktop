@@ -26,8 +26,7 @@ void UnsafeOpenUrl(const QString &url) {
 			base::Platform::AppLaunchContext());
 
 		if (!result) {
-			LOG(("App Error: %1").arg(
-				QString::fromStdString(result.error().what())));
+			LOG(("App Error: %1").arg(result.error().what()));
 		} else if (*result) {
 			return;
 		}
@@ -52,8 +51,7 @@ void UnsafeLaunch(const QString &filepath) {
 	if ([&] {
 		const auto filename = GLib::filename_to_uri(filepath.toStdString());
 		if (!filename) {
-			LOG(("App Error: %1").arg(
-				QString::fromStdString(filename.error().what())));
+			LOG(("App Error: %1").arg(filename.error().what()));
 
 			return false;
 		}
@@ -63,8 +61,7 @@ void UnsafeLaunch(const QString &filepath) {
 			base::Platform::AppLaunchContext());
 
 		if (!result) {
-			LOG(("App Error: %1").arg(
-				QString::fromStdString(result.error().what())));
+			LOG(("App Error: %1").arg(result.error().what()));
 
 			return false;
 		}
@@ -95,11 +92,6 @@ bool Get(
 		QString startFile) {
 	if (parent) {
 		parent = parent->window();
-	}
-	// Workaround for sandboxed paths
-	static const auto docRegExp = QRegularExpression("^/run/user/\\d+/doc");
-	if (cDialogLastPath().contains(docRegExp)) {
-		InitLastPath();
 	}
 	return ::FileDialog::internal::GetDefault(
 		parent,

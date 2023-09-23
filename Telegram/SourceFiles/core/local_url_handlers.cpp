@@ -378,6 +378,8 @@ bool ResolveUsernameOrPhone(
 		startToken = params.value(u"startgroup"_q);
 	} else if (params.contains(u"startchannel"_q)) {
 		resolveType = ResolveType::AddToChannel;
+	} else if (params.contains(u"boost"_q)) {
+		resolveType = ResolveType::Boost;
 	}
 	auto post = ShowAtUnreadMsgId;
 	auto adminRights = ChatAdminRights();
@@ -842,6 +844,32 @@ bool ResolveLoginCode(
 	return true;
 }
 
+bool ResolveBoost(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	const auto domainParam = params.value(u"domain"_q);
+	const auto channelParam = params.value(u"channel"_q);
+
+	const auto myContext = context.value<ClickHandlerContext>();
+	using Navigation = Window::SessionNavigation;
+	controller->window().activate();
+	controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		.usernameOrId = (!domainParam.isEmpty()
+			? std::variant<QString, ChannelId>(domainParam)
+			: ChannelId(BareId(channelParam.toULongLong()))),
+		.resolveType = Window::ResolveType::Boost,
+		.clickFromMessageId = myContext.itemId,
+	});
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -921,6 +949,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^login/?(\\?code=([0-9]+))(&|$)"_q,
 			ResolveLoginCode
+		},
+		{
+			u"^boost/?\\?(.+)(#|$)"_q,
+			ResolveBoost,
 		},
 		{
 			u"^([^\\?]+)(\\?|#|$)"_q,
@@ -1025,8 +1057,13 @@ QString TryConvertUrlToLocal(QString url) {
 				"/\\d+/?(\\?|$)|"
 				"/\\d+/\\d+/?(\\?|$)"
 			")"_q, query, matchOptions)) {
+			const auto channel = privateMatch->captured(1);
 			const auto params = query.mid(privateMatch->captured(0).size()).toString();
-			const auto base = u"tg://privatepost?channel="_q + privateMatch->captured(1);
+			if (params.indexOf("boost", 0, Qt::CaseInsensitive) >= 0
+				&& params.toLower().split('&').contains(u"boost"_q)) {
+				return u"tg://boost?channel="_q + channel;
+			}
+			const auto base = u"tg://privatepost?channel="_q + channel;
 			auto added = QString();
 			if (const auto threadPostMatch = regex_match(u"^/(\\d+)/(\\d+)(/?\\?|/?$)"_q, privateMatch->captured(2))) {
 				added = u"&topic=%1&post=%2"_q.arg(threadPostMatch->captured(1)).arg(threadPostMatch->captured(2));
@@ -1044,7 +1081,12 @@ QString TryConvertUrlToLocal(QString url) {
 				"/s/\\d+/?(\\?|$)|"
 				"/\\d+/\\d+/?(\\?|$)"
 			")"_q, query, matchOptions)) {
+			const auto domain = usernameMatch->captured(1);
 			const auto params = query.mid(usernameMatch->captured(0).size()).toString();
+			if (params.indexOf("boost", 0, Qt::CaseInsensitive) >= 0
+				&& params.toLower().split('&').contains(u"boost"_q)) {
+				return u"tg://boost?domain="_q + domain;
+			}
 			const auto base = u"tg://resolve?domain="_q + url_encode(usernameMatch->captured(1));
 			auto added = QString();
 			if (const auto threadPostMatch = regex_match(u"^/(\\d+)/(\\d+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {

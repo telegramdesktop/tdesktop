@@ -898,6 +898,33 @@ bool PeerData::isRepliesChat() const {
 		: kTestId) == id;
 }
 
+bool PeerData::sharedMediaInfo() const {
+	return isSelf() || isRepliesChat();
+}
+
+bool PeerData::hasStoriesHidden() const {
+	if (const auto user = asUser()) {
+		return user->hasStoriesHidden();
+	} else if (const auto channel = asChannel()) {
+		return channel->hasStoriesHidden();
+	}
+	return false;
+}
+
+void PeerData::setStoriesHidden(bool hidden) {
+	if (const auto user = asUser()) {
+		user->setFlags(hidden
+			? (user->flags() | UserDataFlag::StoriesHidden)
+			: (user->flags() & ~UserDataFlag::StoriesHidden));
+	} else if (const auto channel = asChannel()) {
+		channel->setFlags(hidden
+			? (channel->flags() | ChannelDataFlag::StoriesHidden)
+			: (channel->flags() & ~ChannelDataFlag::StoriesHidden));
+	} else {
+		Unexpected("PeerData::setStoriesHidden for non-user/non-channel.");
+	}
+}
+
 Data::Forum *PeerData::forum() const {
 	if (const auto channel = asChannel()) {
 		return channel->forum();
@@ -1106,6 +1133,34 @@ void PeerData::setWallPaper(std::optional<Data::WallPaper> paper) {
 
 const Data::WallPaper *PeerData::wallPaper() const {
 	return _wallPaper.get();
+}
+
+bool PeerData::hasActiveStories() const {
+	if (const auto user = asUser()) {
+		return user->hasActiveStories();
+	} else if (const auto channel = asChannel()) {
+		return channel->hasActiveStories();
+	}
+	return false;
+}
+
+bool PeerData::hasUnreadStories() const {
+	if (const auto user = asUser()) {
+		return user->hasUnreadStories();
+	} else if (const auto channel = asChannel()) {
+		return channel->hasUnreadStories();
+	}
+	return false;
+}
+
+void PeerData::setStoriesState(StoriesState state) {
+	if (const auto user = asUser()) {
+		return user->setStoriesState(state);
+	} else if (const auto channel = asChannel()) {
+		return channel->setStoriesState(state);
+	} else {
+		Unexpected("PeerData::setStoriesState for non-user/non-channel.");
+	}
 }
 
 void PeerData::setIsBlocked(bool is) {

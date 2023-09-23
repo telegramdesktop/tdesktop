@@ -65,8 +65,6 @@ inline void(__stdcall *SHChangeNotify)(
 	UINT uFlags,
 	__in_opt LPCVOID dwItem1,
 	__in_opt LPCVOID dwItem2);
-inline HRESULT(__stdcall *SetCurrentProcessExplicitAppUserModelID)(
-	__in PCWSTR AppID);
 
 // PROPSYS.DLL
 

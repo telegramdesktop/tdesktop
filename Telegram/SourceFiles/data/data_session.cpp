@@ -909,7 +909,17 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::NoForwards
 			| Flag::JoinToWrite
 			| Flag::RequestToJoin
-			| Flag::Forum;
+			| Flag::Forum
+			| ((!minimal && !data.is_stories_hidden_min())
+				? Flag::StoriesHidden
+				: Flag());
+		const auto storiesState = minimal
+			? std::optional<Data::Stories::PeerSourceState>()
+			: data.is_stories_unavailable()
+			? Data::Stories::PeerSourceState()
+			: !data.vstories_max_id()
+			? std::optional<Data::Stories::PeerSourceState>()
+			: stories().peerSourceState(channel, data.vstories_max_id()->v);
 		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
 			| (data.is_scam() ? Flag::Scam : Flag())
@@ -935,8 +945,20 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| (data.is_join_request() ? Flag::RequestToJoin : Flag())
 			| ((data.is_forum() && data.is_megagroup())
 				? Flag::Forum
+				: Flag())
+			| ((!minimal
+				&& !data.is_stories_hidden_min()
+				&& data.is_stories_hidden())
+				? Flag::StoriesHidden
 				: Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
+		if (!minimal && storiesState) {
+			result->setStoriesState(!storiesState->maxId
+				? UserData::StoriesState::None
+				: (storiesState->maxId > storiesState->readTill)
+				? UserData::StoriesState::HasUnread
+				: UserData::StoriesState::HasRead);
+		}
 
 		channel->setPhoto(data.vphoto());
 
@@ -3345,12 +3367,12 @@ void Session::webpageApplyFields(
 		for (const auto &attribute : attributes->v) {
 			attribute.match([&](const MTPDwebPageAttributeStory &data) {
 				storyId = FullStoryId{
-					peerFromUser(data.vuser_id()),
+					peerFromMTP(data.vpeer()),
 					data.vid().v,
 				};
 				if (const auto embed = data.vstory()) {
 					story = stories().applyFromWebpage(
-						peerFromUser(data.vuser_id()),
+						peerFromMTP(data.vpeer()),
 						*embed);
 				} else if (const auto maybe = stories().lookup(storyId)) {
 					story = *maybe;

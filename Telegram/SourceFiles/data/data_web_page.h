@@ -23,6 +23,7 @@ enum class WebPageType {
 	GroupWithRequest,
 	Channel,
 	ChannelWithRequest,
+	ChannelBoost,
 
 	Photo,
 	Video,

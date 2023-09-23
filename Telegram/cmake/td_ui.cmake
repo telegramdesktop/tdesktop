@@ -160,6 +160,8 @@ PRIVATE
 
     ui/boxes/auto_delete_settings.cpp
     ui/boxes/auto_delete_settings.h
+    ui/boxes/boost_box.cpp
+    ui/boxes/boost_box.h
     ui/boxes/calendar_box.cpp
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
@@ -261,6 +263,7 @@ PRIVATE
     ui/controls/who_reacted_context_action.cpp
     ui/controls/who_reacted_context_action.h
     ui/controls/window_outdated_bar.cpp
+    ui/controls/window_outdated_bar_dummy.cpp
     ui/controls/window_outdated_bar.h
     ui/effects/fireworks_animation.cpp
     ui/effects/fireworks_animation.h
@@ -330,6 +333,16 @@ PRIVATE
 
     ui/ui_pch.h
 )
+
+if (DESKTOP_APP_SPECIAL_TARGET)
+    remove_target_sources(td_ui ${src_loc}
+        ui/controls/window_outdated_bar_dummy.cpp
+    )
+else()
+    remove_target_sources(td_ui ${src_loc}
+        ui/controls/window_outdated_bar.cpp
+    )
+endif()
 
 target_include_directories(td_ui
 PUBLIC

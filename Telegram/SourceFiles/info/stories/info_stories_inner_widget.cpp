@@ -103,11 +103,11 @@ void InnerWidget::setupTop() {
 	const auto key = _controller->key();
 	const auto peer = key.storiesPeer();
 	if (peer
-		&& peer->isSelf()
 		&& key.storiesTab() == Stories::Tab::Saved
+		&& peer->owner().stories().hasArchive(peer)
 		&& _isStackBottom) {
 		createButtons();
-	} else if (key.storiesTab() == Stories::Tab::Archive) {
+	} else if (peer && key.storiesTab() == Stories::Tab::Archive) {
 		createAboutArchive();
 	} else {
 		_top.destroy();
@@ -120,8 +120,9 @@ void InnerWidget::createButtons() {
 	_top->show();
 	_topHeight = _top->heightValue();
 
-	const auto stories = &_controller->session().data().stories();
-	const auto self = _controller->session().user();
+	const auto key = _controller->key();
+	const auto peer = key.storiesPeer();
+	const auto stories = &peer->owner().stories();
 	const auto archive = ::Settings::AddButton(
 		_top,
 		tr::lng_stories_archive_button(),
@@ -133,8 +134,13 @@ void InnerWidget::createButtons() {
 	});
 	auto count = rpl::single(
 		rpl::empty
-	) | rpl::then(stories->archiveChanged()) | rpl::map([=] {
-		const auto value = stories->archiveCount();
+	) | rpl::then(
+		stories->archiveChanged(
+		) | rpl::filter(
+			rpl::mappers::_1 == peer->id
+		) | rpl::to_empty
+	) | rpl::map([=] {
+		const auto value = stories->archiveCount(peer->id);
 		return (value > 0) ? QString::number(value) : QString();
 	});
 	::Settings::CreateRightLabel(
@@ -157,7 +163,7 @@ void InnerWidget::createButtons() {
 
 	using namespace Dialogs::Stories;
 	auto last = LastForPeer(
-		self
+		peer
 	) | rpl::map([=](Content &&content) {
 		for (auto &element : content.elements) {
 			element.unreadCount = 0;
@@ -190,7 +196,7 @@ void InnerWidget::createButtons() {
 	}, thumbs->lifetime());
 	thumbs->setAttribute(Qt::WA_TransparentForMouseEvents);
 	recent->addClickHandler([=] {
-		_controller->parentController()->openPeerStories(self->id);
+		_controller->parentController()->openPeerStories(peer->id);
 	});
 	object_ptr<Profile::FloatingIcon>(
 		recent,
@@ -219,11 +225,14 @@ void InnerWidget::createAboutArchive() {
 	_top->show();
 	_topHeight = _top->heightValue();
 
+	const auto peer = _controller->key().storiesPeer();
 	_top->add(object_ptr<Ui::DividerLabel>(
 		_top,
 		object_ptr<Ui::FlatLabel>(
 			_top,
-			tr::lng_stories_archive_about(),
+			(peer->isChannel()
+				? tr::lng_stories_channel_archive_about
+				: tr::lng_stories_archive_about)(),
 			st::infoStoriesAboutArchive),
 		st::infoStoriesAboutArchivePadding));
 
