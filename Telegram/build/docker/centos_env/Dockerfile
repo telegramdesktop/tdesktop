@@ -1,7 +1,7 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6.5.2" -%}
-{%- set QT_TAG = "v" ~ QT -%}
+{%- set QT = "6.6.0" -%}
+{%- set QT_TAG = "v" ~ QT ~ "-beta4" -%}
 {%- set QT_PREFIX = "/usr/local/desktop-app/Qt-" ~ QT -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
@@ -54,7 +54,7 @@ FROM builder AS patches
 RUN git init patches \
 	&& cd patches \
 	&& git remote add origin {{ GIT }}/desktop-app/patches.git \
-	&& git fetch --depth=1 origin 2c464cfbd9fa3c1d88335cf9462c8ef96542f87c \
+	&& git fetch --depth=1 origin 6442ae042bb6d43391747f7413c7a88a6a37c7ef \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git
 

@@ -460,9 +460,9 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6.5.2
+      QT=6.6.0
 
-      git clone -b v${QT} --depth=1 https://code.qt.io/qt/qt5.git .
+      git clone -b v${QT}-beta4 --depth=1 https://code.qt.io/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 
       cd qtbase
