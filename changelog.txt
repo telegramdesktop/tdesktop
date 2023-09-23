@@ -1,3 +1,7 @@
+4.10.1 (23.09.23)
+
+- Rebuild macOS version with Xcode 14.0.1.
+
 4.10 (22.09.23)
 
 - Stories for Channels.
