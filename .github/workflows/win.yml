@@ -21,6 +21,9 @@ on:
       - 'Telegram/Telegram.plist'
     branches-ignore:
       - 'compare/**'
+  pull_request:
+    branches-ignore:
+      - 'compare/**'
   workflow_dispatch:
     inputs:
       buildCommit:
