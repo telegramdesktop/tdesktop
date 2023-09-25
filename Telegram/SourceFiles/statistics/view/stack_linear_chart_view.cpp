@@ -972,7 +972,7 @@ auto StackLinearChartView::maybeLocalZoom(
 			_transition.zoomedInLimit.max,
 			_transition.zoomedInRange.max),
 	};
-	return { true, _transition.zoomedInLimit, resultRange };
+	return { true, _transition.zoomedInLimitXIndices, resultRange };
 }
 
 void StackLinearChartView::tick(crl::time now) {

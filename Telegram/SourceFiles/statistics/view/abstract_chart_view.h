@@ -62,7 +62,7 @@ public:
 
 	struct LocalZoomResult final {
 		bool hasZoom = false;
-		Limits limit;
+		Limits limitIndices;
 		Limits range;
 	};
 

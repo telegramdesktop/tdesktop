@@ -1267,15 +1267,31 @@ void ChartWidget::processLocalZoom(int xIndex) {
 
 	zoomOutButton->moveToLeft(0, 0);
 
-	const auto finish = [=](const Limits &zoomLimit) {
+	const auto finish = [=](const Limits &zoomLimitIndices) {
 		_footer->xPercentageLimitsChange(
 		) | rpl::start_with_next([=](const Limits &l) {
-			const auto result = FindNearestElements(
+			const auto zoomLimit = Limits{
+				_chartData.xPercentage[zoomLimitIndices.min],
+				_chartData.xPercentage[zoomLimitIndices.max],
+			};
+			const auto offset = (zoomLimit.max == 1.) ? 0 : -1;
+			const auto minIt = ranges::upper_bound(
 				_chartData.xPercentage,
-				Limits{
-					anim::interpolateF(zoomLimit.min, zoomLimit.max, l.min),
-					anim::interpolateF(zoomLimit.min, zoomLimit.max, l.max),
-				});
+				anim::interpolateF(zoomLimit.min, zoomLimit.max, l.min));
+			const auto maxIt = ranges::upper_bound(
+				_chartData.xPercentage,
+				anim::interpolateF(zoomLimit.min, zoomLimit.max, l.max));
+			const auto start = begin(_chartData.xPercentage);
+			const auto result = Limits{
+				.min = std::clamp(
+					float64(std::distance(start, minIt) + offset),
+					zoomLimitIndices.min,
+					zoomLimitIndices.max),
+				.max = std::clamp(
+					float64(std::distance(start, maxIt) + offset),
+					zoomLimitIndices.min,
+					zoomLimitIndices.max),
+			};
 			header->setRightInfo(HeaderRightInfo(_chartData, result));
 			header->update();
 		}, header->lifetime());
@@ -1301,7 +1317,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 				if (lifetime) {
 					lifetime->destroy();
 				}
-				finish(zoom.limit);
+				finish(zoom.limitIndices);
 			}
 		}, 0., 1., kFooterZoomDuration, anim::easeOutCirc);
 	}
