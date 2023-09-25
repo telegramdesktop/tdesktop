@@ -494,7 +494,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 			auto o = ScopedPainterOpacity(p, progress);
 			paintPieText(p, c);
 		}
-	} else {
+	} else if (_transition.progress) {
 		paintZoomedFooter(p, c);
 	}
 
@@ -585,14 +585,12 @@ void StackLinearChartView::paintZoomedFooter(
 	auto o = ScopedPainterOpacity(p, _transition.progress);
 	auto hq = PainterHighQualityEnabler(p);
 	const auto &[zoomedStart, zoomedEnd] = _transition.zoomedInLimitXIndices;
-	const auto &[leftStart, w] = ComputeLeftStartAndStep(
-		c.chartData,
-		{
-			c.chartData.xPercentage[zoomedStart],
-			c.chartData.xPercentage[zoomedEnd],
-		},
-		c.rect,
-		zoomedStart);
+	const auto sideW = st::statisticsChartFooterSideWidth;
+	const auto width = c.rect.width() - sideW * 2.;
+	const auto leftStart = c.rect.x() + sideW;
+	const auto &xPercentage = c.chartData.xPercentage;
+	auto previousX = leftStart;
+	const auto offset = (xPercentage[zoomedEnd] == 1.) ? 0 : 1;
 	for (auto i = zoomedStart; i <= zoomedEnd; i++) {
 		auto sum = 0.;
 		auto lastEnabledId = int(0);
@@ -603,6 +601,18 @@ void StackLinearChartView::paintZoomedFooter(
 			sum += line.y[i] * alpha(line.id);
 			lastEnabledId = line.id;
 		}
+
+		const auto columnMargins = QMarginsF(
+			(i == zoomedStart) ? sideW : 0,
+			0,
+			(i == zoomedEnd - offset) ? sideW : 0,
+			0);
+
+		const auto next = std::clamp(i + offset, zoomedStart, zoomedEnd);
+		const auto xPointPercentage =
+			(xPercentage[next] - xPercentage[zoomedStart])
+				/ (xPercentage[zoomedEnd] - xPercentage[zoomedStart]);
+		const auto xPoint = leftStart + width * xPointPercentage;
 
 		auto stack = 0.;
 		for (auto k = int(c.chartData.lines.size() - 1); k >= 0; k--) {
@@ -615,16 +625,17 @@ void StackLinearChartView::paintZoomedFooter(
 				? c.rect.height()
 				: visibleHeight;
 
-			const auto column = QRectF(
-				leftStart + (i - zoomedStart) * w,
+			const auto column = columnMargins + QRectF(
+				previousX,
 				stack,
-				w,
+				xPoint - previousX,
 				height);
 
 			p.setPen(Qt::NoPen);
 			p.fillRect(column, line.color);
 			stack += visibleHeight;
 		}
+		previousX = xPoint;
 	}
 }
 
