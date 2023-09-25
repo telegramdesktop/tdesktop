@@ -2911,7 +2911,7 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		&& !showCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
-	} else if (e == QKeySequence::Delete) {
+	} else if (e == QKeySequence::Delete || e->key() == Qt::Key_Backspace) {
 		auto selectedState = getSelectionState();
 		if (selectedState.count > 0
 			&& selectedState.canDeleteCount == selectedState.count) {

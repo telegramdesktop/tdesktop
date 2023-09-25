@@ -2451,7 +2451,7 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		&& !hasCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
-	} else if (e == QKeySequence::Delete) {
+	} else if (e == QKeySequence::Delete || e->key() == Qt::Key_Backspace) {
 		_delegate->listDeleteRequest();
 	} else if (!(e->modifiers() & ~Qt::ShiftModifier)
 		&& e->key() != Qt::Key_Shift) {
