@@ -855,7 +855,9 @@ bool ResolveBoost(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto domainParam = params.value(u"domain"_q);
-	const auto channelParam = params.value(u"channel"_q);
+	const auto channelParam = params.contains(u"c"_q)
+		? params.value(u"c"_q)
+		: params.value(u"channel"_q);
 
 	const auto myContext = context.value<ClickHandlerContext>();
 	using Navigation = Window::SessionNavigation;
@@ -1086,6 +1088,12 @@ QString TryConvertUrlToLocal(QString url) {
 			if (params.indexOf("boost", 0, Qt::CaseInsensitive) >= 0
 				&& params.toLower().split('&').contains(u"boost"_q)) {
 				return u"tg://boost?domain="_q + domain;
+			} else if (domain == u"boost"_q) {
+				if (const auto domainMatch = regex_match(u"^/([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$)"_q, usernameMatch->captured(2))) {
+					return u"tg://boost?domain="_q + domainMatch->captured(1);
+				} else if (params.indexOf("c=", 0, Qt::CaseInsensitive) >= 0) {
+					return u"tg://boost?"_q + params;
+				}
 			}
 			const auto base = u"tg://resolve?domain="_q + url_encode(usernameMatch->captured(1));
 			auto added = QString();
