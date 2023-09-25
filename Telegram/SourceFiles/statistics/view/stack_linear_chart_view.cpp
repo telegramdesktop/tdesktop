@@ -168,7 +168,7 @@ auto StackLinearChartView::partsPercentage(
 	result.reserve(chartData.lines.size());
 	auto sums = std::vector<float64>();
 	sums.reserve(chartData.lines.size());
-	auto totalSum = 0;
+	auto totalSum = 0.;
 	for (const auto &line : chartData.lines) {
 		auto sum = 0;
 		for (auto i = xIndices.min; i <= xIndices.max; i++) {
@@ -179,11 +179,44 @@ auto StackLinearChartView::partsPercentage(
 		sums.push_back(sum);
 	}
 	auto stackedPercentage = 0.;
+
+	auto sumPercDiffs = 0.;
+	auto maxPercDiff = 0.;
+	auto minPercDiff = 0.;
+	auto maxPercDiffIndex = int(-1);
+	auto minPercDiffIndex = int(-1);
+	auto roundedPercentagesSum = 0.;
+
 	for (auto k = 0; k < sums.size(); k++) {
-		const auto percentage = 0.01
-			* std::round((sums[k] / float64(totalSum)) * 100.);
-		stackedPercentage += percentage;
-		result.push_back({ percentage, stackedPercentage * 360. - 180. });
+		const auto rawPercentage = sums[k] / totalSum;
+		const auto rounded = 0.01 * std::round(rawPercentage * 100.);
+		roundedPercentagesSum += rounded;
+		const auto diff = rawPercentage - rounded;
+		sumPercDiffs += diff;
+		const auto diffAbs = std::abs(diff);
+		if (maxPercDiff < diffAbs) {
+			maxPercDiff = diffAbs;
+			maxPercDiffIndex = k;
+		}
+		if (minPercDiff < diffAbs) {
+			minPercDiff = diffAbs;
+			minPercDiffIndex = k;
+		}
+
+		stackedPercentage += rounded;
+		result.push_back({ rounded, stackedPercentage * 360. - 180. });
+	}
+	{
+		const auto index = (roundedPercentagesSum > 1.)
+			? maxPercDiffIndex
+			: minPercDiffIndex;
+		if (index >= 0) {
+			result[index].roundedPercentage += sumPercDiffs;
+			const auto angleShrink = (sumPercDiffs) * 360.;
+			for (auto i = index; i < result.size(); i++) {
+				result[i].stackedAngle += angleShrink;
+			}
+		}
 	}
 	return result;
 }
@@ -623,8 +656,7 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 			+ (now - previous) / 2.;
 		const auto textRadians = textAngle * M_PI / 180.;
 		const auto scale = (minScale) + percentage * (maxScale - minScale);
-		const auto text = QString::number(std::round(percentage * 100))
-			+ u"%"_q;
+		const auto text = QString::number(int(percentage * 100)) + u"%"_q;
 		const auto textW = font->width(text);
 		const auto textH = font->height;
 		const auto textXShift = textW / 2.;
