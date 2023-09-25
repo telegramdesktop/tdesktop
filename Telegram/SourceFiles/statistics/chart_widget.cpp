@@ -223,6 +223,9 @@ private:
 	Ui::Animations::Simple _moveCenterAnimation;
 	bool _draggedAfterPress = false;
 
+	float64 _width = 0.;
+	float64 _widthBetweenSides = 0.;
+
 	PaintCallback _paintChartCallback;
 
 	QImage _frame;
@@ -240,6 +243,9 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 : RpMouseWidget(parent) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
+		const auto w = float64(st::statisticsChartFooterSideWidth);
+		_width = s.width() - w;
+		_widthBetweenSides = s.width() - w * 2.;
 		_mask = Ui::RippleAnimation::RoundRectMask(
 			s - QSize(0, st::statisticsChartLineWidth * 2),
 			st::boxRadius);
@@ -278,7 +284,9 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 			} else if (_dragArea == DragArea::Left) {
 				moveSide(true, resultX);
 			} else if (_dragArea == DragArea::Middle) {
-				const auto toLeft = posX <= start().x();
+				const auto toLeft = (posX
+					- _diffBetweenStartAndSide
+					- _leftSide.min) <= 0;
 				moveCenter(toLeft, posX, _diffBetweenStartAndSide);
 			}
 			fire();
@@ -332,8 +340,9 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 
 Limits ChartWidget::Footer::xPercentageLimits() const {
 	return {
-		.min = _leftSide.min / float64(width()),
-		.max = _rightSide.max / float64(width()),
+		.min = _leftSide.min / _widthBetweenSides,
+		.max = (_rightSide.min - st::statisticsChartFooterSideWidth)
+			/ _widthBetweenSides,
 	};
 }
 
@@ -346,7 +355,9 @@ void ChartWidget::Footer::moveCenter(
 		float64 x,
 		float64 diffBetweenStartAndLeft) {
 	const auto resultX = x - diffBetweenStartAndLeft;
-	const auto diffBetweenSides = _rightSide.min - _leftSide.min;
+	const auto diffBetweenSides = std::max(
+		_rightSide.min - _leftSide.min,
+		float64(st::statisticsChartFooterBetweenSide));
 	if (isDirectionToLeft) {
 		moveSide(true, resultX);
 		moveSide(false, _leftSide.min + diffBetweenSides);
@@ -358,11 +369,12 @@ void ChartWidget::Footer::moveCenter(
 
 void ChartWidget::Footer::moveSide(bool left, float64 x) {
 	const auto w = float64(st::statisticsChartFooterSideWidth);
+	const auto mid = float64(st::statisticsChartFooterBetweenSide);
 	if (left) {
-		const auto min = std::clamp(x, 0., _rightSide.min - w);
+		const auto min = std::clamp(x, 0., _rightSide.min - w - mid);
 		_leftSide = Limits{ .min = min, .max = min + w };
 	} else if (!left) {
-		const auto min = std::clamp(x, _leftSide.max, width() - w);
+		const auto min = std::clamp(x, _leftSide.max + mid, _width);
 		_rightSide = Limits{ .min = min, .max = min + w };
 	}
 }
@@ -467,8 +479,7 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 
 void ChartWidget::Footer::setXPercentageLimits(const Limits &xLimits) {
 	const auto left = xLimits.min * width();
-	const auto w = float64(st::statisticsChartFooterSideWidth);
-	const auto right = xLimits.max * width() - w;
+	const auto right = xLimits.max * _width;
 	moveSide(true, left);
 	moveSide(false, right);
 	fire();
