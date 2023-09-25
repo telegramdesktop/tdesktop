@@ -33,12 +33,18 @@ namespace Media::Stories {
 
 class Controller;
 
+enum class RecentViewsType {
+	Other,
+	Self,
+	Channel,
+	Changelog,
+};
+
 struct RecentViewsData {
 	std::vector<not_null<PeerData*>> list;
 	int reactions = 0;
 	int total = 0;
-	bool self = false;
-	bool channel = false;
+	RecentViewsType type = RecentViewsType::Other;
 
 	friend inline auto operator<=>(
 		const RecentViewsData &,
@@ -47,6 +53,8 @@ struct RecentViewsData {
 		const RecentViewsData &,
 		const RecentViewsData &) = default;
 };
+
+[[nodiscard]] RecentViewsType RecentViewsTypeFor(not_null<PeerData*> peer);
 
 class RecentViews final {
 public:

@@ -123,6 +123,16 @@ constexpr auto kLoadViewsPages = 2;
 
 } // namespace
 
+RecentViewsType RecentViewsTypeFor(not_null<PeerData*> peer) {
+	return peer->isSelf()
+		? RecentViewsType::Self
+		: peer->isChannel()
+		? RecentViewsType::Channel
+		: peer->isServiceUser()
+		? RecentViewsType::Changelog
+		: RecentViewsType::Other;
+}
+
 RecentViews::RecentViews(not_null<Controller*> controller)
 : _controller(controller) {
 }
@@ -155,7 +165,7 @@ void RecentViews::show(
 		|| (_data.reactions != data.reactions);
 	const auto usersChanged = !_userpics || (_data.list != data.list);
 	_data = data;
-	if (!_data.self) {
+	if (_data.type != RecentViewsType::Self) {
 		_text = {};
 		_clickHandlerLifetime.destroy();
 		_userpicsLifetime.destroy();
@@ -177,13 +187,17 @@ void RecentViews::show(
 		refreshClickHandler();
 	}
 
-	if (!_data.channel) {
+	if (_data.type != RecentViewsType::Channel
+		&& _data.type != RecentViewsType::Changelog) {
 		_likeIcon = nullptr;
 		_likeWrap = nullptr;
 		_viewsWrap = nullptr;
 	} else {
-		_viewsCounter = Lang::FormatCountDecimal(std::max(_data.total, 1));
-		_likesCounter = _data.reactions
+		_viewsCounter = (_data.type == RecentViewsType::Channel)
+			? Lang::FormatCountDecimal(std::max(_data.total, 1))
+			: tr::lng_stories_cant_reply(tr::now);
+		_likesCounter = ((_data.type == RecentViewsType::Channel)
+			&& _data.reactions)
 			? Lang::FormatCountDecimal(_data.reactions)
 			: QString();
 		if (!_likeWrap || !_likeIcon || !_viewsWrap) {
@@ -300,14 +314,19 @@ void RecentViews::setupViewsReactions() {
 		st::storiesViewsText);
 	views->show();
 	views->setAttribute(Qt::WA_TransparentForMouseEvents);
-	views->move(st::storiesViewsTextPosition);
 
 	views->widthValue(
 	) | rpl::start_with_next([=](int width) {
-		_viewsWrap->resize(views->x() + width, _likeIcon->height());
+		const auto left = (_data.type == RecentViewsType::Changelog)
+			? st::mediaviewCaptionPadding.left()
+			: st::storiesViewsTextPosition.x();
+		views->move(left, st::storiesViewsTextPosition.y());
+		_viewsWrap->resize(left + width, _likeIcon->height());
 		updateViewsReactionsGeometry();
 	}, _viewsWrap->lifetime());
-	_viewsWrap->paintRequest() | rpl::start_with_next([=] {
+	_viewsWrap->paintRequest() | rpl::filter([=] {
+		return (_data.type != RecentViewsType::Changelog);
+	}) | rpl::start_with_next([=] {
 		auto p = QPainter(_viewsWrap.get());
 		const auto &icon = st::storiesViewsIcon;
 		const auto top = (_viewsWrap->height() - icon.height()) / 2;
@@ -342,9 +361,14 @@ void RecentViews::setupViewsReactions() {
 }
 
 void RecentViews::updateViewsReactionsGeometry() {
-	_viewsWrap->move(_outer.topLeft() + st::storiesViewsPosition);
-	_likeWrap->move(_outer.topLeft()
-		+ QPoint(_outer.width() - _likeWrap->width(), 0)
+	const auto outerWidth = (_data.type == RecentViewsType::Changelog)
+		? std::max(_outer.width(), st::storiesChangelogFooterWidthMin)
+		: _outer.width();
+	const auto outerOrigin = _outer.topLeft()
+		+ QPoint((_outer.width() - outerWidth) / 2, 0);
+	_viewsWrap->move(outerOrigin + st::storiesViewsPosition);
+	_likeWrap->move(outerOrigin
+		+ QPoint(outerWidth - _likeWrap->width(), 0)
 		+ st::storiesLikesPosition);
 }
 

@@ -675,8 +675,9 @@ void ReplyArea::show(
 		}),
 	});
 	_controls->clear();
-	const auto hidden = peer && (!peer->isUser() || peer->isSelf());
-	const auto cant = !peer || peer->isServiceUser();
+	const auto hidden = peer
+		&& (!peer->isUser() || peer->isSelf() || peer->isServiceUser());
+	const auto cant = !peer;
 	if (!hidden && !cant) {
 		_controls->show();
 	} else {
