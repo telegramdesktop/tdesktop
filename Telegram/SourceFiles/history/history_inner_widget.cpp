@@ -2374,7 +2374,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->confirmDeleteSelected();
 				}, &st::menuIconDelete);
 			}
-			if (selectedState.count > 0) {
+			if (selectedState.count > 0 && !hasCopyRestrictionForSelected()) {
 				Menu::AddDownloadFilesAction(_menu, controller, _selected, this);
 			}
 			_menu->addAction(tr::lng_context_clear_selection(tr::now), [=] {
@@ -2572,7 +2572,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_widget->confirmDeleteSelected();
 				}, &st::menuIconDelete);
 			}
-			if (selectedState.count > 0) {
+			if (selectedState.count > 0 && !hasCopyRestrictionForSelected()) {
 				Menu::AddDownloadFilesAction(_menu, controller, _selected, this);
 			}
 			_menu->addAction(tr::lng_context_clear_selection(tr::now), [=] {
