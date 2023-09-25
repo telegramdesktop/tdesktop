@@ -53,11 +53,11 @@ StackLinearChartView::StackLinearChartView() = default;
 StackLinearChartView::~StackLinearChartView() = default;
 
 void StackLinearChartView::paint(QPainter &p, const PaintContext &c) {
-	if (!_transitionProgress && !c.footer) {
+	if (!_transition.progress && !c.footer) {
 		prepareZoom(c, TransitionStep::ZoomedOut);
 	}
-	if (_pendingPrepareCachedTransition) {
-		_pendingPrepareCachedTransition = false;
+	if (_transition.pendingPrepareToZoomIn) {
+		_transition.pendingPrepareToZoomIn = false;
 		prepareZoom(c, TransitionStep::PrepareToZoomIn);
 	}
 
@@ -69,7 +69,7 @@ void StackLinearChartView::prepareZoom(
 		TransitionStep step) {
 	if (step == TransitionStep::ZoomedOut) {
 		constexpr auto kOffset = float64(2);
-		_cachedTransition.zoomedOutXIndices = {
+		_transition.zoomedOutXIndices = {
 			float64(std::max(0., c.xIndices.min - kOffset)),
 			float64(std::min(
 				float64(c.chartData.xPercentage.size() - 1),
@@ -77,14 +77,14 @@ void StackLinearChartView::prepareZoom(
 		};
 	} else if (step == TransitionStep::PrepareToZoomIn) {
 		const auto &[zoomedStart, zoomedEnd] =
-			_cachedTransition.zoomedOutXIndices;
-		_cachedTransition.lines = std::vector<Transition::TransitionLine>(
+			_transition.zoomedOutXIndices;
+		_transition.lines = std::vector<Transition::TransitionLine>(
 			c.chartData.lines.size(),
 			Transition::TransitionLine());
 
 		const auto xPercentageLimits = Limits{
-			c.chartData.xPercentage[_cachedTransition.zoomedOutXIndices.min],
-			c.chartData.xPercentage[_cachedTransition.zoomedOutXIndices.max],
+			c.chartData.xPercentage[_transition.zoomedOutXIndices.min],
+			c.chartData.xPercentage[_transition.zoomedOutXIndices.max],
 		};
 
 		for (auto j = 0; j < 2; j++) {
@@ -104,8 +104,8 @@ void StackLinearChartView::prepareZoom(
 
 			for (auto k = 0; k < c.chartData.lines.size(); k++) {
 				auto &linePoint = (j
-					? _cachedTransition.lines[k].end
-					: _cachedTransition.lines[k].start);
+					? _transition.lines[k].end
+					: _transition.lines[k].start);
 				const auto &line = c.chartData.lines[k];
 				if (!isEnabled(line.id)) {
 					continue;
@@ -127,38 +127,38 @@ void StackLinearChartView::prepareZoom(
 		}
 
 		savePieTextParts(c);
-		applyParts(_cachedTransition.textParts);
+		applyParts(_transition.textParts);
 	}
 }
 
 void StackLinearChartView::applyParts(const std::vector<PiePartData> &parts) {
 	for (auto k = 0; k < parts.size(); k++) {
-		_cachedTransition.lines[k].angle = parts[k].stackedAngle;
+		_transition.lines[k].angle = parts[k].stackedAngle;
 	}
 }
 
 void StackLinearChartView::saveZoomRange(const PaintContext &c) {
 	const auto zoomedXPercentage = Limits{
 		anim::interpolateF(
-			_localZoom.limit.min,
-			_localZoom.limit.max,
+			_transition.zoomedInLimit.min,
+			_transition.zoomedInLimit.max,
 			c.xPercentageLimits.min),
 		anim::interpolateF(
-			_localZoom.limit.min,
-			_localZoom.limit.max,
+			_transition.zoomedInLimit.min,
+			_transition.zoomedInLimit.max,
 			c.xPercentageLimits.max),
 	};
 	const auto zoomedXIndices = FindNearestElements(
 		c.chartData.xPercentage,
 		zoomedXPercentage);
-	_localZoom.rangeIndices = zoomedXIndices;
-	_localZoom.range = zoomedXPercentage;
+	_transition.zoomedInRangeXIndices = zoomedXIndices;
+	_transition.zoomedInRange = zoomedXPercentage;
 }
 
 void StackLinearChartView::savePieTextParts(const PaintContext &c) {
-	_cachedTransition.textParts = partsPercentage(
+	_transition.textParts = partsPercentage(
 		c.chartData,
-		_localZoom.rangeIndices);
+		_transition.zoomedInRangeXIndices);
 }
 
 auto StackLinearChartView::partsPercentage(
@@ -224,7 +224,7 @@ auto StackLinearChartView::partsPercentage(
 void StackLinearChartView::paintChartOrZoomAnimation(
 		QPainter &p,
 		const PaintContext &c) {
-	if (_transitionProgress == 1.) {
+	if (_transition.progress == 1.) {
 		if (c.footer) {
 			paintZoomedFooter(p, c);
 		} else {
@@ -232,10 +232,10 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		}
 		return p.setOpacity(0.);
 	}
-	const auto hasTransitionAnimation = _transitionProgress && !c.footer;
+	const auto hasTransitionAnimation = _transition.progress && !c.footer;
 	const auto &[localStart, localEnd] = c.footer
 		? Limits{ 0., float64(c.chartData.xPercentage.size() - 1) }
-		: _cachedTransition.zoomedOutXIndices;
+		: _transition.zoomedOutXIndices;
 	_skipPoints = std::vector<bool>(c.chartData.lines.size(), false);
 	auto paths = std::vector<QPainterPath>(
 		c.chartData.lines.size(),
@@ -263,7 +263,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 	if (hasTransitionAnimation) {
 		constexpr auto kStraightLinePart = 0.6;
 		straightLineProgress = std::clamp(
-			_transitionProgress / kStraightLinePart,
+			_transition.progress / kStraightLinePart,
 			0.,
 			1.);
 		auto rectPath = QPainterPath();
@@ -271,8 +271,8 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		const auto r = anim::interpolateF(
 			1.,
 			kCircleSizeRatio,
-			_transitionProgress);
-		const auto per = anim::interpolateF(0., 100., _transitionProgress);
+			_transition.progress);
+		const auto per = anim::interpolateF(0., 100., _transition.progress);
 		const auto side = (c.rect.width() / 2.) * r;
 		const auto rectF = QRectF(
 			center - QPointF(side, side),
@@ -303,7 +303,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		for (auto k = 0; k < c.chartData.lines.size(); k++) {
 			const auto &line = c.chartData.lines[k];
 			const auto isLastLine = (k == lastEnabled);
-			const auto &transitionLine = _cachedTransition.lines[k];
+			const auto &transitionLine = _transition.lines[k];
 			if (!isEnabled(line.id)) {
 				continue;
 			}
@@ -358,7 +358,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 				}
 
 				if (resultPoint.x() >= center.x()) {
-					const auto resultAngle = _transitionProgress * angle;
+					const auto resultAngle = _transition.progress * angle;
 					const auto rotated = rotate(resultAngle, resultPoint);
 					resultPoint = QPointF(
 						std::max(rotated.x(), center.x()),
@@ -379,8 +379,8 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 							+ center * straightLineProgress
 							+ resultPoint * revProgress;
 					} else {
-						const auto resultAngle = _transitionProgress * angle
-							+ _transitionProgress * transitionLine.angle;
+						const auto resultAngle = _transition.progress * angle
+							+ _transition.progress * transitionLine.angle;
 						resultPoint = rotate(resultAngle, resultPoint);
 						pointZero = rotate(resultAngle, pointZero);
 					}
@@ -391,8 +391,8 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 				const auto bottomLeft = QPointF(c.rect.x(), rect::bottom(c.rect));
 				const auto local = (hasTransitionAnimation && !isLastLine)
 					? rotate(
-						_transitionProgress * angle
-							+ _transitionProgress * transitionLine.angle,
+						_transition.progress * angle
+							+ _transition.progress * transitionLine.angle,
 						bottomLeft - QPointF(center.x(), 0))
 					: bottomLeft;
 				chartPath.setFillRule(Qt::WindingFill);
@@ -400,7 +400,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 				_skipPoints[k] = false;
 			}
 
-			const auto yRatio = 1. - (isLastLine ? _transitionProgress : 0.);
+			const auto yRatio = 1. - (isLastLine ? _transition.progress : 0.);
 			if ((!yPercentage)
 				&& (i > 0 && (y[i - 1] == 0))
 				&& (i < localEnd && (y[i + 1] == 0))
@@ -429,8 +429,8 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 					}
 
 					const auto local = rotate(
-						_transitionProgress * angle
-							+ _transitionProgress * transitionLine.angle,
+						_transition.progress * angle
+							+ _transition.progress * transitionLine.angle,
 						transitionLine.start);
 
 					const auto ending = true
@@ -473,7 +473,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		p.setClipPath(ovalPath);
 	}
 
-	const auto opacity = c.footer ? (1. - _transitionProgress) : 1.;
+	const auto opacity = c.footer ? (1. - _transition.progress) : 1.;
 	for (auto k = int(c.chartData.lines.size() - 1); k >= 0; k--) {
 		if (paths[k].isEmpty()) {
 			continue;
@@ -487,7 +487,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 	if (!c.footer) {
 		constexpr auto kAlphaTextPart = 0.6;
 		const auto progress = std::clamp(
-			(_transitionProgress - kAlphaTextPart) / (1. - kAlphaTextPart),
+			(_transition.progress - kAlphaTextPart) / (1. - kAlphaTextPart),
 			0.,
 			1.);
 		if (progress > 0) {
@@ -499,7 +499,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 	}
 
 	// Fix ugly outline.
-	if (!c.footer || !_transitionProgress) {
+	if (!c.footer || !_transition.progress) {
 		p.setBrush(Qt::transparent);
 		p.setPen(st::boxBg);
 		p.drawPath(ovalPath);
@@ -508,7 +508,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 	if (!ovalPath.isEmpty()) {
 		p.setClipRect(c.rect, Qt::NoClip);
 	}
-	p.setOpacity(1. - _transitionProgress);
+	p.setOpacity(1. - _transition.progress);
 }
 
 void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
@@ -517,7 +517,9 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 	}
 
 	saveZoomRange(c);
-	const auto parts = partsPercentage(c.chartData, _localZoom.rangeIndices);
+	const auto parts = partsPercentage(
+		c.chartData,
+		_transition.zoomedInRangeXIndices);
 	applyParts(parts);
 
 	p.fillRect(c.rect + QMargins(0, 0, 0, st::lineWidth), st::boxBg);
@@ -560,7 +562,8 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 	paintPieText(p, c);
 
 	if (selectedLineIndex >= 0) {
-		const auto &[zoomedStart, zoomedEnd] = _localZoom.rangeIndices;
+		const auto &[zoomedStart, zoomedEnd] =
+			_transition.zoomedInRangeXIndices;
 		const auto &line = c.chartData.lines[selectedLineIndex];
 		auto sum = 0;
 		for (auto i = zoomedStart; i <= zoomedEnd; i++) {
@@ -579,9 +582,9 @@ void StackLinearChartView::paintZoomedFooter(
 	if (!c.footer) {
 		return;
 	}
-	auto o = ScopedPainterOpacity(p, _transitionProgress);
+	auto o = ScopedPainterOpacity(p, _transition.progress);
 	auto hq = PainterHighQualityEnabler(p);
-	const auto &[zoomedStart, zoomedEnd] = _localZoom.limitIndices;
+	const auto &[zoomedStart, zoomedEnd] = _transition.zoomedInLimitXIndices;
 	const auto &[leftStart, w] = ComputeLeftStartAndStep(
 		c.chartData,
 		{
@@ -626,10 +629,10 @@ void StackLinearChartView::paintZoomedFooter(
 }
 
 void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
-	if (_transitionProgress == 1.) {
+	if (_transition.progress == 1.) {
 		savePieTextParts(c);
 	}
-	const auto &parts = _cachedTransition.textParts;
+	const auto &parts = _transition.textParts;
 
 	const auto center = QPointF(c.rect.center());
 	const auto side = (c.rect.width() / 2.) * kCircleSizeRatio;
@@ -748,7 +751,7 @@ void StackLinearChartView::handleMouseMove(
 		const Data::StatisticalChart &chartData,
 		const QPoint &center,
 		const QPoint &p) {
-	if (_transitionProgress < 1) {
+	if (_transition.progress < 1) {
 		return;
 	}
 	const auto theta = std::atan2(center.y() - p.y(), (center.x() - p.x()));
@@ -758,9 +761,9 @@ void StackLinearChartView::handleMouseMove(
 	}();
 	for (auto k = 0; k < chartData.lines.size(); k++) {
 		const auto previous = k
-			? _cachedTransition.lines[k - 1].angle
+			? _transition.lines[k - 1].angle
 			: -180;
-		const auto now = _cachedTransition.lines[k].angle;
+		const auto now = _transition.lines[k].angle;
 		if (angle > previous && angle <= now) {
 			const auto id = p.isNull()
 				? -1
@@ -776,7 +779,7 @@ void StackLinearChartView::handleMouseMove(
 }
 
 bool StackLinearChartView::skipSelectedTranslation() const {
-	return (_entries.size() == (_cachedTransition.lines.size() - 1));
+	return (_entries.size() == (_transition.lines.size() - 1));
 }
 
 void StackLinearChartView::paintSelectedXIndex(
@@ -831,7 +834,7 @@ int StackLinearChartView::findXIndexByPosition(
 		const Limits &xPercentageLimits,
 		const QRect &rect,
 		float64 x) {
-	if (_transitionProgress == 1.) {
+	if (_transition.progress == 1.) {
 		return -1;
 	} else if (x < rect.x()) {
 		return 0;
@@ -907,13 +910,13 @@ auto StackLinearChartView::maybeLocalZoom(
 	constexpr auto kLeftSide = int(kLimitLength / 2);
 	constexpr auto kRightSide = int(kLimitLength / 2 + kRangeLength);
 
-	_transitionProgress = args.progress;
+	_transition.progress = args.progress;
 	if (args.type == LocalZoomArgs::Type::SkipCalculation) {
-		return { true, _localZoom.limit, _localZoom.range };
+		return { true, _transition.zoomedInLimit, _transition.zoomedInRange };
 	} else if (args.type == LocalZoomArgs::Type::CheckAvailability) {
 		return { .hasZoom = true };
 	} else if (args.type == LocalZoomArgs::Type::Prepare) {
-		_pendingPrepareCachedTransition = true;
+		_transition.pendingPrepareToZoomIn = true;
 	}
 	const auto xIndex = args.xIndex;
 	const auto &xPercentage = args.chartData.xPercentage;
@@ -921,48 +924,40 @@ auto StackLinearChartView::maybeLocalZoom(
 	const auto localRangeIndex = (xIndex == backIndex)
 		? (backIndex - kRangeLength)
 		: xIndex;
-	_localZoom.range = {
+	_transition.zoomedInRange = {
 		xPercentage[localRangeIndex],
 		xPercentage[localRangeIndex + kRangeLength],
 	};
-	_localZoom.rangeIndices = {
+	_transition.zoomedInRangeXIndices = {
 		float64(localRangeIndex),
 		float64(localRangeIndex + kRangeLength),
 	};
-	if (xIndex < kLeftSide) {
-		_localZoom.limitIndices = { 0, kLimitLength };
-	} else if (xIndex > (backIndex - kRightSide)) {
-		_localZoom.limitIndices = {
-			float64(backIndex - kLimitLength),
-			float64(backIndex),
-		};
-	} else {
-		_localZoom.limitIndices = {
-			float64(xIndex - kLeftSide),
-			float64(xIndex + kRightSide),
-		};
-	}
-	_localZoom.limit = {
+	_transition.zoomedInLimitXIndices = (xIndex < kLeftSide)
+		? Limits{ 0, kLimitLength }
+		: (xIndex > (backIndex - kRightSide))
+		? Limits{ float64(backIndex - kLimitLength), float64(backIndex) }
+		: Limits{ float64(xIndex - kLeftSide), float64(xIndex + kRightSide) };
+	_transition.zoomedInLimit = {
 		anim::interpolateF(
 			0.,
-			xPercentage[_localZoom.limitIndices.min],
+			xPercentage[_transition.zoomedInLimitXIndices.min],
 			args.progress),
 		anim::interpolateF(
 			1.,
-			xPercentage[_localZoom.limitIndices.max],
+			xPercentage[_transition.zoomedInLimitXIndices.max],
 			args.progress),
 	};
 	const auto resultRange = Limits{
 		InterpolationRatio(
-			_localZoom.limit.min,
-			_localZoom.limit.max,
-			_localZoom.range.min),
+			_transition.zoomedInLimit.min,
+			_transition.zoomedInLimit.max,
+			_transition.zoomedInRange.min),
 		InterpolationRatio(
-			_localZoom.limit.min,
-			_localZoom.limit.max,
-			_localZoom.range.max),
+			_transition.zoomedInLimit.min,
+			_transition.zoomedInLimit.max,
+			_transition.zoomedInRange.max),
 	};
-	return { true, _localZoom.limit, resultRange };
+	return { true, _transition.zoomedInLimit, resultRange };
 }
 
 void StackLinearChartView::tick(crl::time now) {

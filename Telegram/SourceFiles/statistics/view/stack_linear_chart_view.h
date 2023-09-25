@@ -107,7 +107,6 @@ private:
 	base::flat_map<int, Entry> _entries;
 	bool _isFinished = true;
 
-	float64 _transitionProgress = 0;
 	struct Transition {
 		struct TransitionLine {
 			QPointF start;
@@ -116,19 +115,20 @@ private:
 			float64 sum = 0.;
 		};
 		std::vector<TransitionLine> lines;
+		float64 progress = 0;
+
+		bool pendingPrepareToZoomIn = false;
+
 		Limits zoomedOutXIndices;
+		Limits zoomedInLimit;
+		Limits zoomedInLimitXIndices;
+		Limits zoomedInRange;
+		Limits zoomedInRangeXIndices;
+
 		std::vector<PiePartData> textParts;
-	} _cachedTransition;
+	} _transition;
 
 	std::vector<bool> _skipPoints;
-
-	struct {
-		Limits limit;
-		Limits limitIndices;
-		Limits range;
-		Limits rangeIndices;
-	} _localZoom;
-	bool _pendingPrepareCachedTransition = false;
 
 	class PiePartController final {
 	public:
