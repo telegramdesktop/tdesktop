@@ -82,19 +82,33 @@ for singlePrefix in pathPrefixes:
     pathPrefix = pathPrefix + os.path.join(rootDir, singlePrefix) + pathSep
 
 environment = {
-    'MAKE_THREADS_CNT': '-j8',
-    'MACOSX_DEPLOYMENT_TARGET': '10.13',
-    'UNGUARDED': '-Werror=unguarded-availability-new',
-    'MIN_VER': '-mmacosx-version-min=10.13',
     'USED_PREFIX': usedPrefix,
     'ROOT_DIR': rootDir,
     'LIBS_DIR': libsDir,
     'THIRDPARTY_DIR': thirdPartyDir,
-    'SPECIAL_TARGET': 'win' if win32 else 'win64' if win64 else 'mac',
-    'X8664': 'x86' if win32 else 'x64',
-    'WIN32X64': 'Win32' if win32 else 'x64',
     'PATH_PREFIX': pathPrefix,
 }
+if (win32):
+    environment.update({
+        'SPECIAL_TARGET': 'win',
+        'X8664': 'x86',
+        'WIN32X64': 'Win32',
+    })
+elif (win64):
+    environment.update({
+        'SPECIAL_TARGET': 'win64',
+        'X8664': 'x64',
+        'WIN32X64': 'x64',
+    })
+elif (mac):
+    environment.update({
+        'SPECIAL_TARGET': 'mac',
+        'MAKE_THREADS_CNT': '-j8',
+        'MACOSX_DEPLOYMENT_TARGET': '10.13',
+        'UNGUARDED': '-Werror=unguarded-availability-new',
+        'MIN_VER': '-mmacosx-version-min=10.13',
+    })
+
 ignoreInCacheForThirdParty = [
     'USED_PREFIX',
     'LIBS_DIR',
