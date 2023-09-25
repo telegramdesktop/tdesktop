@@ -399,6 +399,15 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	struct GradientParams {
+		int left = 0;
+		int width = 0;
+		int outer = 0;
+
+		friend inline constexpr bool operator==(
+			GradientParams,
+			GradientParams) = default;
+	};
 	void animateTo(BubbleRowState state);
 
 	const style::PremiumBubble &_st;
@@ -414,6 +423,7 @@ private:
 	QSize _spaceForDeflection;
 
 	QLinearGradient _cachedGradient;
+	std::optional<GradientParams> _cachedGradientParams;
 
 	float64 _deflection;
 
@@ -580,13 +590,19 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 		0);
 	const auto bubbleRect = rect() - padding;
 
-	if (_appearanceAnimation.animating()) {
-		auto gradient = ComputeGradient(
+	const auto params = GradientParams{
+		.left = x(),
+		.width = bubbleRect.width(),
+		.outer = parentWidget()->parentWidget()->width(),
+	};
+	if (_cachedGradientParams != params) {
+		_cachedGradient = ComputeGradient(
 			parentWidget(),
-			x(),
-			bubbleRect.width());
-		_cachedGradient = std::move(gradient);
-
+			params.left,
+			params.width);
+		_cachedGradientParams = params;
+	}
+	if (_appearanceAnimation.animating()) {
 		const auto progress = _appearanceAnimation.value(1.);
 		const auto finalScale = (_animatingFromResultRatio > 0.)
 			|| (_state.current().ratio < 0.001);
