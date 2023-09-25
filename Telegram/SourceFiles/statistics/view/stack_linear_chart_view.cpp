@@ -907,12 +907,12 @@ AbstractChartView::HeightLimits StackLinearChartView::heightLimits(
 
 auto StackLinearChartView::maybeLocalZoom(
 		const LocalZoomArgs &args) -> LocalZoomResult {
-	// 7 days.
-	constexpr auto kLimitLength = int(27);
+	// 8 days.
+	constexpr auto kLimitLength = int(8);
 	// 1 day in middle of limits.
-	constexpr auto kRangeLength = int(1);
-	constexpr auto kLeftSide = int(kLimitLength / 2);
-	constexpr auto kRightSide = int(kLimitLength / 2 + kRangeLength);
+	constexpr auto kRangeLength = int(0);
+	constexpr auto kLeftSide = int(kLimitLength / 2 + kRangeLength);
+	constexpr auto kRightSide = int(kLimitLength / 2);
 
 	_transition.progress = args.progress;
 	if (args.type == LocalZoomArgs::Type::SkipCalculation) {
@@ -937,8 +937,8 @@ auto StackLinearChartView::maybeLocalZoom(
 		float64(localRangeIndex + kRangeLength),
 	};
 	_transition.zoomedInLimitXIndices = (xIndex < kLeftSide)
-		? Limits{ 0, kLimitLength }
-		: (xIndex > (backIndex - kRightSide))
+		? Limits{ 0, kLimitLength + kRangeLength }
+		: (xIndex > (backIndex - kRightSide - kRangeLength))
 		? Limits{ float64(backIndex - kLimitLength), float64(backIndex) }
 		: Limits{ float64(xIndex - kLeftSide), float64(xIndex + kRightSide) };
 	_transition.zoomedInLimit = {
