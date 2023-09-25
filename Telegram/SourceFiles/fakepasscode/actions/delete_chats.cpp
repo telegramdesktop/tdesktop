@@ -38,6 +38,7 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         auto always = rules.always();
         auto pinned = rules.pinned();
         auto never = rules.never();
+        bool filter_updated = false;
         for (quint64 id : data.peer_ids) {
             auto peer_id = PeerId(id);
             auto peer = data_session.peer(peer_id);
@@ -52,12 +53,25 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
                 FAKE_LOG(qsl("Remove from folder"));
             });
             if (rules.contains(history) || never.contains(history)) {
-                always.remove(history);
+                if (always.remove(history)) {
+                    filter_updated = true;
+                }
                 pinned.erase(ranges::remove(pinned, history), end(pinned));
-                never.remove(history);
+                if (never.remove(history)) {
+                    filter_updated = true;
+                }
             }
         }
-        if ((always.size() + pinned.size() + never.size()) == 0 && rules.id() > 0) {
+        if (!filter_updated) {
+            continue;
+        }
+        if ((always.size() + pinned.size() + never.size()) == 0 
+            // Don't delete "All chats"
+            && rules.id() > 0
+            // zero first 5 bits of flags indicate that there are no inclusion filters. 
+            // Don't delete such folders even if empty
+            && (rules.flags() & 31) == 0) 
+        {
             // We don't have any chats in filters after action, clear
             data_session.chatsFilters().apply(MTP_updateDialogFilter(
                     MTP_flags(MTPDupdateDialogFilter::Flag(0)),
