@@ -31,7 +31,7 @@ on:
         description: 'Docker image to use'
         required: false
         type: string
-        default: 'ghcr.io/${{ github.repository }}/centos_env'
+        default: 'ghcr.io/wrwrabbit/centos_env'
 
 jobs:
 
