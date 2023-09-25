@@ -27,6 +27,11 @@ on:
         required: false
         type: string
         default: ''
+      dockerImage:
+        description: 'Docker image to use'
+        required: false
+        type: string
+        default: 'ghcr.io/${{ github.repository }}/centos_env'
 
 jobs:
 
@@ -35,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     container:
-      image: ghcr.io/${{ github.repository }}/centos_env
+      image: ${{ github.event.inputs.dockerImage }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
