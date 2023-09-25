@@ -254,7 +254,9 @@ FrameGenerator::Frame FrameGenerator::Impl::renderNext(
 		QImage storage,
 		QSize size,
 		Qt::AspectRatioMode mode) {
-	if (!_current.frame) {
+	if (!_codec) {
+		return {};
+	} else if (!_current.frame) {
 		readNextFrame();
 	}
 	std::swap(_current, _next);
@@ -266,6 +268,9 @@ FrameGenerator::Frame FrameGenerator::Impl::renderNext(
 }
 
 void FrameGenerator::Impl::jumpToStart() {
+	if (!_codec) {
+		return;
+	}
 	auto result = 0;
 	if ((result = avformat_seek_file(_format.get(), _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {
 		if ((result = av_seek_frame(_format.get(), _streamId, 0, AVSEEK_FLAG_BYTE)) < 0) {
