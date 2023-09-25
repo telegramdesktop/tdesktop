@@ -38,6 +38,22 @@ inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 	return (result - from) / (to - from);
 };
 
+[[nodiscard]] QString HeaderRightInfo(
+		const Data::StatisticalChart &chartData,
+		const Limits &limits) {
+	return (limits.min == limits.max)
+		? chartData.getDayString(limits.min)
+		: chartData.getDayString(limits.min)
+			+ ' '
+			+ QChar(8212)
+			+ ' '
+			+ chartData.getDayString(limits.max);
+}
+
+[[nodiscard]] bool IsChartHasLocalZoom(ChartViewType type) {
+	return type == ChartViewType::StackLinear;
+}
+
 void PaintBottomLine(
 		QPainter &p,
 		const std::vector<ChartWidget::BottomCaptionLineData> &dates,
@@ -1014,11 +1030,7 @@ void ChartWidget::updateHeader() {
 		return;
 	}
 	const auto indices = _animationController.currentXIndices();
-	_header->setRightInfo(_chartData.getDayString(indices.min)
-		+ ' '
-		+ QChar(8212)
-		+ ' '
-		+ _chartData.getDayString(indices.max));
+	_header->setRightInfo(HeaderRightInfo(_chartData, indices));
 	_header->update();
 }
 
@@ -1091,13 +1103,22 @@ void ChartWidget::setupDetails() {
 		}
 		return maxValue;
 	}();
+	if (hasLocalZoom()) {
+		_zoomEnabled = true;
+	}
 	_details.widget = base::make_unique_q<PointDetailsWidget>(
 		this,
 		_chartData,
 		maxAbsoluteValue,
 		_zoomEnabled);
 	_details.widget->setClickedCallback([=] {
-		if (const auto index = _details.widget->xIndex(); index >= 0) {
+		const auto index = _details.widget->xIndex();
+		if (index < 0) {
+			return;
+		}
+		if (hasLocalZoom()) {
+			processLocalZoom(index);
+		} else {
 			_zoomRequests.fire_copy(_chartData.x[index]);
 		}
 	});
@@ -1176,6 +1197,103 @@ void ChartWidget::setupDetails() {
 		}
 		_chartArea->update();
 	});
+}
+
+bool ChartWidget::hasLocalZoom() const {
+	return _chartData
+		&& _chartView->maybeLocalZoom({
+			_chartData,
+			AbstractChartView::LocalZoomArgs::Type::CheckAvailability,
+		}).hasZoom;
+}
+
+void ChartWidget::processLocalZoom(int xIndex) {
+	using Type = AbstractChartView::LocalZoomArgs::Type;
+	constexpr auto kFooterZoomDuration = crl::time(400);
+	const auto wasZoom = _footer->xPercentageLimits();
+
+	const auto header = Ui::CreateChild<Header>(this);
+	header->show();
+	_header->geometryValue(
+	) | rpl::start_with_next([=](const QRect &g) {
+		header->setGeometry(g);
+	}, header->lifetime());
+	header->setRightInfo(_chartData.getDayString(xIndex));
+
+	const auto zoomOutButton = Ui::CreateChild<Ui::RoundButton>(
+		header,
+		tr::lng_stats_zoom_out(),
+		st::statisticsHeaderButton);
+	zoomOutButton->show();
+	zoomOutButton->setTextTransform(
+		Ui::RoundButton::TextTransform::NoTransform);
+	zoomOutButton->setClickedCallback([=] {
+		auto lifetime = std::make_shared<rpl::lifetime>();
+		const auto animation = lifetime->make_state<Ui::Animations::Simple>();
+		const auto currentXPercentage = _footer->xPercentageLimits();
+		animation->start([=](float64 value) {
+			_chartView->maybeLocalZoom({
+				_chartData,
+				Type::SkipCalculation,
+				value,
+			});
+			const auto p = value;
+			_footer->setXPercentageLimits({
+				anim::interpolateF(wasZoom.min, currentXPercentage.min, p),
+				anim::interpolateF(wasZoom.max, currentXPercentage.max, p),
+			});
+			if (value == 0.) {
+				if (lifetime) {
+					lifetime->destroy();
+				}
+			}
+		}, 1., 0., kFooterZoomDuration, anim::easeOutCirc);
+
+		Ui::Animations::HideWidgets({ header });
+	});
+
+	Ui::Animations::ShowWidgets({ header });
+
+	zoomOutButton->moveToLeft(0, 0);
+
+	const auto finish = [=](const Limits &zoomLimit) {
+		_footer->xPercentageLimitsChange(
+		) | rpl::start_with_next([=](const Limits &l) {
+			const auto result = FindNearestElements(
+				_chartData.xPercentage,
+				Limits{
+					anim::interpolateF(zoomLimit.min, zoomLimit.max, l.min),
+					anim::interpolateF(zoomLimit.min, zoomLimit.max, l.max),
+				});
+			header->setRightInfo(HeaderRightInfo(_chartData, result));
+			header->update();
+		}, header->lifetime());
+	};
+
+	{
+		auto lifetime = std::make_shared<rpl::lifetime>();
+		const auto animation = lifetime->make_state<Ui::Animations::Simple>();
+		_chartView->maybeLocalZoom({ _chartData, Type::Prepare });
+		animation->start([=](float64 value) {
+			const auto zoom = _chartView->maybeLocalZoom({
+				_chartData,
+				Type::Process,
+				value,
+				xIndex,
+			});
+			const auto result = Limits{
+				anim::interpolateF(wasZoom.min, zoom.range.min, value),
+				anim::interpolateF(wasZoom.max, zoom.range.max, value),
+			};
+			_footer->setXPercentageLimits(result);
+			if (value == 1.) {
+				if (lifetime) {
+					lifetime->destroy();
+				}
+				finish(zoom.limit);
+			}
+		}, 0., 1., kFooterZoomDuration, anim::easeOutCirc);
+	}
 }
 
 void ChartWidget::setupFilterButtons() {

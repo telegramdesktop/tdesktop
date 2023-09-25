@@ -134,6 +134,9 @@ private:
 
 	void updateChartFullWidth(int w);
 
+	[[nodiscard]] bool hasLocalZoom() const;
+	void processLocalZoom(int xIndex);
+
 	const base::unique_qptr<RpMouseWidget> _chartArea;
 	const std::unique_ptr<Header> _header;
 	const std::unique_ptr<Footer> _footer;
