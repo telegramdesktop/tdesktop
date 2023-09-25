@@ -502,7 +502,7 @@ void SessionNavigation::showPeerByLinkResolved(
 				info.messageId,
 				callback);
 		}
-	} else if (peer->isUser() && info.storyId) {
+	} else if (info.storyId) {
 		const auto storyId = FullStoryId{ peer->id, info.storyId };
 		peer->owner().stories().resolve(storyId, crl::guard(this, [=] {
 			if (peer->owner().stories().lookup(storyId)) {

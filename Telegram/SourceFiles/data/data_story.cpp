@@ -370,8 +370,7 @@ bool Story::hasDirectLink() const {
 	if (!_privacyPublic || (!_pinned && expired())) {
 		return false;
 	}
-	const auto user = _peer->asUser();
-	return user && !user->username().isEmpty();
+	return !_peer->userName().isEmpty();
 }
 
 std::optional<QString> Story::errorTextForForward(
