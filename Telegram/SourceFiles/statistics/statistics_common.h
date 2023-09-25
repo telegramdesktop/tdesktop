@@ -21,4 +21,19 @@ enum class ChartViewType {
 	StackLinear,
 };
 
+[[nodiscard]] inline Limits FindNearestElements(
+		const std::vector<float64> &vector,
+		const Limits &limit) {
+	const auto find = [&](float64 raw) -> float64 {
+		const auto it = ranges::lower_bound(vector, raw);
+		const auto left = raw - (*(it - 1));
+		const auto right = (*it) - raw;
+		const auto nearestXPercentageIt = ((right) > (left)) ? (it - 1) : it;
+		return std::distance(
+			begin(vector),
+			nearestXPercentageIt);
+	};
+	return { find(limit.min), find(limit.max) };
+}
+
 } // namespace Statistic

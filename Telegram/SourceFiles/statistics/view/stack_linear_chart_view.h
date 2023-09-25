@@ -52,6 +52,8 @@ public:
 	void tick(crl::time now) override;
 	void update(float64 dt) override;
 
+	LocalZoomResult maybeLocalZoom(const LocalZoomArgs &args) override final;
+
 	void setUpdateCallback(Fn<void()> callback);
 	void handleMouseMove(
 		const Data::StatisticalChart &chartData,
@@ -59,6 +61,11 @@ public:
 		const QPoint &p);
 
 private:
+	enum class TransitionStep {
+		PrepareToZoomIn,
+		PrepareToZoomOut,
+		ZoomedOut,
+	};
 	void paintChartOrZoomAnimation(QPainter &p, const PaintContext &c);
 
 	void paintZoomed(QPainter &p, const PaintContext &c);
@@ -66,6 +73,20 @@ private:
 	void paintPieText(QPainter &p, const PaintContext &c);
 
 	[[nodiscard]] bool skipSelectedTranslation() const;
+
+	struct PiePartData {
+		float64 roundedPercentage = 0; // 0.XX.
+		float64 stackedAngle = 0.;
+	};
+
+	void prepareZoom(const PaintContext &c, TransitionStep step);
+
+	void saveZoomRange(const PaintContext &c);
+	void savePieTextParts(const PaintContext &c);
+	void applyParts(const std::vector<PiePartData> &parts);
+	[[nodiscard]] std::vector<PiePartData> partsPercentage(
+		const Data::StatisticalChart &chartData,
+		const Limits &xIndices);
 
 	struct SelectedPoints final {
 		int lastXIndex = -1;
@@ -95,11 +116,19 @@ private:
 			float64 sum = 0.;
 		};
 		std::vector<TransitionLine> lines;
+		Limits zoomedOutXIndices;
+		std::vector<PiePartData> textParts;
 	} _cachedTransition;
 
-	Limits _lastPaintedXIndices;
-
 	std::vector<bool> _skipPoints;
+
+	struct {
+		Limits limit;
+		Limits limitIndices;
+		Limits range;
+		Limits rangeIndices;
+	} _localZoom;
+	bool _pendingPrepareCachedTransition = false;
 
 	class PiePartController final {
 	public:

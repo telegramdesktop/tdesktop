@@ -60,6 +60,30 @@ public:
 	virtual void update(float64 dt) {
 	};
 
+	struct LocalZoomResult final {
+		bool hasZoom = false;
+		Limits limit;
+		Limits range;
+	};
+
+	struct LocalZoomArgs final {
+		enum class Type {
+			Prepare,
+			SkipCalculation,
+			CheckAvailability,
+			Process,
+			SaveZoomFromFooter,
+		};
+		const Data::StatisticalChart &chartData;
+		Type type;
+		float64 progress = 0.;
+		int xIndex = 0;
+	};
+
+	virtual LocalZoomResult maybeLocalZoom(const LocalZoomArgs &args) {
+		return {};
+	}
+
 };
 
 } // namespace Statistic
