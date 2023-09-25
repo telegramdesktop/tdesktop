@@ -629,6 +629,7 @@ void StackLinearChartView::paintZoomedFooter(
 }
 
 void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
+	constexpr auto kMinPercentage = 0.03;
 	if (_transition.progress == 1.) {
 		savePieTextParts(c);
 	}
@@ -653,6 +654,9 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 			: -180;
 		const auto now = parts[k].stackedAngle;
 		const auto percentage = parts[k].roundedPercentage;
+		if (percentage <= kMinPercentage) {
+			continue;
+		}
 
 		const auto rText = side * std::sqrt(1. - percentage);
 		const auto textAngle = (previous + kPieAngleOffset)
