@@ -148,6 +148,7 @@ private:
 	};
 	PiePartController _piePartController;
 	Ui::Animations::Basic _piePartAnimation;
+	bool _pieHasSinglePart = false;
 
 };
 

@@ -180,6 +180,7 @@ auto StackLinearChartView::partsPercentage(
 	auto minPercDiffIndex = int(-1);
 	auto roundedPercentagesSum = 0.;
 
+	_pieHasSinglePart = false;
 	for (auto k = 0; k < sums.size(); k++) {
 		const auto rawPercentage = sums[k] / totalSum;
 		const auto rounded = 0.01 * std::round(rawPercentage * 100.);
@@ -198,6 +199,7 @@ auto StackLinearChartView::partsPercentage(
 
 		stackedPercentage += rounded;
 		result.push_back({ rounded, stackedPercentage * 360. - 180. });
+		_pieHasSinglePart |= (rounded == 1.);
 	}
 	{
 		const auto index = (roundedPercentagesSum > 1.)
@@ -787,7 +789,8 @@ void StackLinearChartView::handleMouseMove(
 }
 
 bool StackLinearChartView::skipSelectedTranslation() const {
-	return (_entries.size() == (_transition.lines.size() - 1));
+	return _pieHasSinglePart
+		|| (_entries.size() == (_transition.lines.size() - 1));
 }
 
 void StackLinearChartView::paintSelectedXIndex(
