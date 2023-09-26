@@ -84,6 +84,24 @@ public:
 		return {};
 	}
 
+	virtual void handleMouseMove(
+		const Data::StatisticalChart &chartData,
+		const QRect &rect,
+		const QPoint &p) {
+	}
+
+	void setUpdateCallback(Fn<void()> callback) {
+		_updateCallback = std::move(callback);
+	}
+	void update() {
+		if (_updateCallback) {
+			_updateCallback();
+		}
+	}
+
+private:
+	Fn<void()> _updateCallback;
+
 };
 
 } // namespace Statistic

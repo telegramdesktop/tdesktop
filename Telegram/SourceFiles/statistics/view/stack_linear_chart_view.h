@@ -54,11 +54,10 @@ public:
 
 	LocalZoomResult maybeLocalZoom(const LocalZoomArgs &args) override final;
 
-	void setUpdateCallback(Fn<void()> callback);
 	void handleMouseMove(
 		const Data::StatisticalChart &chartData,
-		const QPoint &center,
-		const QPoint &p);
+		const QRect &rect,
+		const QPoint &p) override;
 
 private:
 	enum class TransitionStep {

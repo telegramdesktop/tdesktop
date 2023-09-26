@@ -87,7 +87,9 @@ inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 
 } // namespace
 
-StackLinearChartView::StackLinearChartView() = default;
+StackLinearChartView::StackLinearChartView() {
+	_piePartAnimation.init([=] { AbstractChartView::update(); });
+}
 
 StackLinearChartView::~StackLinearChartView() = default;
 
@@ -732,12 +734,6 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 	p.resetTransform();
 }
 
-void StackLinearChartView::setUpdateCallback(Fn<void()> callback) {
-	if (callback) {
-		_piePartAnimation.init([=] { callback(); });
-	}
-}
-
 bool StackLinearChartView::PiePartController::set(int id) {
 	if (_selected != id) {
 		update(_selected);
@@ -795,11 +791,12 @@ bool StackLinearChartView::PiePartController::isFinished() const {
 
 void StackLinearChartView::handleMouseMove(
 		const Data::StatisticalChart &chartData,
-		const QPoint &center,
+		const QRect &rect,
 		const QPoint &p) {
 	if (_transition.progress < 1) {
 		return;
 	}
+	const auto center = rect.center();
 	const auto theta = std::atan2(center.y() - p.y(), (center.x() - p.x()));
 	const auto angle = [&] {
 		const auto a = theta * (180. / M_PI) + 90.;

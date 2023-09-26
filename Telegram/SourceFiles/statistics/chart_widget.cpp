@@ -1233,6 +1233,31 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	}, header->lifetime());
 	header->setRightInfo(_chartData.getDayString(xIndex));
 
+	const auto enableMouse = [=](bool value) {
+		setAttribute(Qt::WA_TransparentForMouseEvents, !value);
+	};
+
+	const auto mouseTrackingLifetime = std::make_shared<rpl::lifetime>();
+	_chartView->setUpdateCallback([=] { _chartArea->update(); });
+	const auto createMouseTracking = [=] {
+		_chartArea->setMouseTracking(true);
+		*mouseTrackingLifetime = _chartArea->events(
+		) | rpl::filter([](not_null<QEvent*> event) {
+			return (event->type() == QEvent::MouseMove)
+				|| (event->type() == QEvent::Leave);
+		}) | rpl::start_with_next([=](not_null<QEvent*> event) {
+			auto pos = QPoint();
+			if (event->type() == QEvent::MouseMove) {
+				const auto e = static_cast<QMouseEvent*>(event.get());
+				pos = e->pos();
+			}
+			_chartView->handleMouseMove(_chartData, _chartArea->rect(), pos);
+		});
+		mouseTrackingLifetime->add([=] {
+			_chartArea->setMouseTracking(false);
+		});
+	};
+
 	const auto zoomOutButton = Ui::CreateChild<Ui::RoundButton>(
 		header,
 		tr::lng_stats_zoom_out(),
@@ -1259,8 +1284,11 @@ void ChartWidget::processLocalZoom(int xIndex) {
 				if (lifetime) {
 					lifetime->destroy();
 				}
+				mouseTrackingLifetime->destroy();
+				enableMouse(true);
 			}
 		}, 1., 0., kFooterZoomDuration, anim::easeOutCirc);
+		enableMouse(false);
 
 		Ui::Animations::HideWidgets({ header });
 	});
@@ -1270,6 +1298,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	zoomOutButton->moveToLeft(0, 0);
 
 	const auto finish = [=](const Limits &zoomLimitIndices) {
+		createMouseTracking();
 		_footer->xPercentageLimitsChange(
 		) | rpl::start_with_next([=](const Limits &l) {
 			const auto result = FindStackXIndicesFromRawXPercentages(
@@ -1302,8 +1331,10 @@ void ChartWidget::processLocalZoom(int xIndex) {
 					lifetime->destroy();
 				}
 				finish(zoom.limitIndices);
+				enableMouse(true);
 			}
 		}, 0., 1., kFooterZoomDuration, anim::easeOutCirc);
+		enableMouse(false);
 	}
 }
 
