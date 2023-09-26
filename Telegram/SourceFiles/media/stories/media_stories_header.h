@@ -31,7 +31,7 @@ class Controller;
 enum class PauseState;
 
 struct HeaderData {
-	not_null<UserData*> user;
+	not_null<PeerData*> peer;
 	TimeId date = 0;
 	int fullIndex = 0;
 	int fullCount = 0;

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 
 #include <QtCore/QLoggingCategory>
+#include <QtCore/QStandardPaths>
 
 namespace Core {
 namespace {
@@ -115,16 +116,26 @@ void ComputeDebugMode() {
 }
 
 void ComputeExternalUpdater() {
-	QFile file(u"/etc/tdesktop/externalupdater"_q);
-
-	if (file.exists() && file.open(QIODevice::ReadOnly)) {
-		QTextStream fileStream(&file);
-		while (!fileStream.atEnd()) {
-			const auto path = fileStream.readLine();
-
-			if (path == (cExeDir() + cExeName())) {
-				SetUpdaterDisabledAtStartup();
-				return;
+	auto locations = QStandardPaths::standardLocations(
+		QStandardPaths::AppDataLocation);
+	if (locations.isEmpty()) {
+		locations << QString();
+	}
+	locations[0] = QDir::cleanPath(cWorkingDir());
+	locations << QDir::cleanPath(cExeDir());
+	for (const auto &location : locations) {
+		const auto dir = location + u"/externalupdater.d"_q;
+		for (const auto &info : QDir(dir).entryInfoList(QDir::Files)) {
+			QFile file(info.absoluteFilePath());
+			if (file.open(QIODevice::ReadOnly)) {
+				QTextStream fileStream(&file);
+				while (!fileStream.atEnd()) {
+					const auto path = fileStream.readLine();
+					if (path == (cExeDir() + cExeName())) {
+						SetUpdaterDisabledAtStartup();
+						return;
+					}
+				}
 			}
 		}
 	}
@@ -223,7 +234,7 @@ bool CheckPortableVersionFolder() {
 	if (cAlphaVersion()) {
 		Assert(*AlphaPrivateKey != 0);
 
-		cForceWorkingDir(portable + '/');
+		cForceWorkingDir(portable);
 		QDir().mkpath(cWorkingDir() + u"tdata"_q);
 		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
 		if (!key.open(QIODevice::WriteOnly)) {
@@ -239,7 +250,7 @@ bool CheckPortableVersionFolder() {
 	if (!QDir(portable).exists()) {
 		return true;
 	}
-	cForceWorkingDir(portable + '/');
+	cForceWorkingDir(portable);
 	if (!key.exists()) {
 		return true;
 	}
@@ -291,7 +302,8 @@ Launcher::Launcher(int argc, char *argv[])
 : _argc(argc)
 , _argv(argv)
 , _arguments(readArguments(_argc, _argv))
-, _baseIntegration(_argc, _argv) {
+, _baseIntegration(_argc, _argv)
+, _initialWorkingDir(QDir::currentPath() + '/') {
 	crl::toggle_fp_exceptions(true);
 
 	base::Integration::Set(&_baseIntegration);
@@ -444,6 +456,10 @@ QStringList Launcher::readArguments(int argc, char *argv[]) const {
 
 const QStringList &Launcher::arguments() const {
 	return _arguments;
+}
+
+QString Launcher::initialWorkingDir() const {
+	return _initialWorkingDir;
 }
 
 bool Launcher::customWorkingDir() const {

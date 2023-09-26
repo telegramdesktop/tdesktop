@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_section.h"
 #include "info/info_controller.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
@@ -74,6 +75,9 @@ Type Provider::type() {
 }
 
 bool Provider::hasSelectRestriction() {
+	if (const auto channel = _peer->asChannel()) {
+		return !channel->canEditStories() && !channel->canDeleteStories();
+	}
 	return !_peer->isSelf();
 }
 
@@ -174,10 +178,9 @@ void Provider::setSearchQuery(QString query) {
 void Provider::refreshViewer() {
 	_viewerLifetime.destroy();
 	const auto idForViewer = _aroundId;
-	const auto session = &_peer->session();
 	auto ids = (_tab == Tab::Saved)
 		? Data::SavedStoriesIds(_peer, idForViewer, _idsLimit)
-		: Data::ArchiveStoriesIds(session, idForViewer, _idsLimit);
+		: Data::ArchiveStoriesIds(_peer, idForViewer, _idsLimit);
 	std::move(
 		ids
 	) | rpl::start_with_next([=](Data::StoriesIdsSlice &&slice) {
@@ -346,24 +349,21 @@ ListItemSelectionData Provider::computeSelectionData(
 		not_null<const HistoryItem*> item,
 		TextSelection selection) {
 	auto result = ListItemSelectionData(selection);
+	const auto id = item->id;
+	if (!IsStoryMsgId(id)) {
+		return result;
+	}
 	const auto peer = item->history()->peer;
-	result.canDelete = peer->isSelf();
-	result.canForward = [&] {
-		if (!peer->isSelf()) {
-			return false;
-		}
-		const auto id = item->id;
-		if (!IsStoryMsgId(id)) {
-			return false;
-		}
-		const auto maybeStory = peer->owner().stories().lookup(
-			{ peer->id, StoryIdFromMsgId(id) });
-		if (!maybeStory) {
-			return false;
-		}
-		return (*maybeStory)->canShare();
-	}();
-	result.canToggleStoryPin = peer->isSelf();
+	const auto channel = peer->asChannel();
+	const auto maybeStory = peer->owner().stories().lookup(
+		{ peer->id, StoryIdFromMsgId(id) });
+	if (maybeStory) {
+		const auto story = *maybeStory;
+		result.canForward = peer->isSelf() && story->canShare();
+		result.canDelete = story->canDelete();
+	}
+	result.canToggleStoryPin = peer->isSelf()
+		|| (channel && channel->canEditStories());
 	return result;
 }
 

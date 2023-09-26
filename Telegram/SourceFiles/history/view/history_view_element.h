@@ -117,13 +117,8 @@ public:
 	not_null<const Ui::ChatStyle*> st,
 	Fn<void()> update);
 
-class SimpleElementDelegate : public ElementDelegate {
+class DefaultElementDelegate : public ElementDelegate {
 public:
-	SimpleElementDelegate(
-		not_null<Window::SessionController*> controller,
-		Fn<void()> update);
-	~SimpleElementDelegate();
-
 	bool elementUnderCursor(not_null<const Element*> view) override;
 	[[nodiscard]] float64 elementHighlightOpacity(
 		not_null<const HistoryItem*> item) const override;
@@ -147,7 +142,6 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
-	bool elementAnimationsPaused() override;
 	bool elementHideReply(not_null<const Element*> view) override;
 	bool elementShownUnread(not_null<const Element*> view) override;
 	void elementSendBotCommand(
@@ -155,7 +149,6 @@ public:
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
-	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementStartPremium(
@@ -164,6 +157,17 @@ public:
 	void elementCancelPremium(not_null<const Element*> view) override;
 	QString elementAuthorRank(not_null<const Element*> view) override;
 
+};
+
+class SimpleElementDelegate : public DefaultElementDelegate {
+public:
+	SimpleElementDelegate(
+		not_null<Window::SessionController*> controller,
+		Fn<void()> update);
+	~SimpleElementDelegate();
+
+	bool elementAnimationsPaused() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {
@@ -264,6 +268,7 @@ public:
 		CustomEmojiRepainting = 0x0100,
 		ScheduledUntilOnline = 0x0200,
 		TopicRootReply = 0x0400,
+		MediaOverriden = 0x0800,
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -479,6 +484,8 @@ public:
 	-> base::flat_map<
 		Data::ReactionId,
 		std::unique_ptr<Ui::ReactionFlyAnimation>>;
+
+	void overrideMedia(std::unique_ptr<Media> media);
 
 	virtual ~Element();
 

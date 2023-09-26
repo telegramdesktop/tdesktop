@@ -56,7 +56,7 @@ struct Invoice {
 	bool isTest = false;
 
 	QString provider;
-	QString recurringTermsUrl;
+	QString termsUrl;
 	bool phoneSentToProvider = false;
 	bool emailSentToProvider = false;
 

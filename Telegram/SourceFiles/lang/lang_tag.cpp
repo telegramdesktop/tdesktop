@@ -937,6 +937,10 @@ ShortenedCount FormatCountToShort(int64 number) {
 	return result;
 }
 
+QString FormatCountDecimal(int64 number) {
+	return QString("%L1").arg(number);
+}
+
 PluralResult Plural(
 		ushort keyBase,
 		float64 value,
@@ -973,7 +977,7 @@ PluralResult Plural(
 		if (type == lt_count_short) {
 			return { shift, shortened.string };
 		} else if (type == lt_count_decimal) {
-			return { shift, QString("%L1").arg(round) };
+			return { shift, FormatCountDecimal(round) };
 		}
 		return { shift, QString::number(round) };
 	}

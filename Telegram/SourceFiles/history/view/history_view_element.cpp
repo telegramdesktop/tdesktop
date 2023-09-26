@@ -106,6 +106,99 @@ std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
 		st->paletteChanged());
 }
 
+bool DefaultElementDelegate::elementUnderCursor(
+		not_null<const Element*> view) {
+	return false;
+}
+
+float64 DefaultElementDelegate::elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const {
+	return 0.;
+}
+
+bool DefaultElementDelegate::elementInSelectionMode() {
+	return false;
+}
+
+bool DefaultElementDelegate::elementIntersectsRange(
+		not_null<const Element*> view,
+		int from,
+		int till) {
+	return true;
+}
+
+void DefaultElementDelegate::elementStartStickerLoop(
+	not_null<const Element*> view) {
+}
+
+void DefaultElementDelegate::elementShowPollResults(
+	not_null<PollData*> poll,
+	FullMsgId context) {
+}
+
+void DefaultElementDelegate::elementOpenPhoto(
+	not_null<PhotoData*> photo,
+	FullMsgId context) {
+}
+
+void DefaultElementDelegate::elementOpenDocument(
+	not_null<DocumentData*> document,
+	FullMsgId context,
+	bool showInMediaView) {
+}
+
+void DefaultElementDelegate::elementCancelUpload(const FullMsgId &context) {
+}
+
+void DefaultElementDelegate::elementShowTooltip(
+	const TextWithEntities &text,
+	Fn<void()> hiddenCallback) {
+}
+
+bool DefaultElementDelegate::elementHideReply(
+		not_null<const Element*> view) {
+	return false;
+}
+
+bool DefaultElementDelegate::elementShownUnread(
+		not_null<const Element*> view) {
+	return view->data()->unread(view->data()->history());
+}
+
+void DefaultElementDelegate::elementSendBotCommand(
+	const QString &command,
+	const FullMsgId &context) {
+}
+
+void DefaultElementDelegate::elementHandleViaClick(
+	not_null<UserData*> bot) {
+}
+
+bool DefaultElementDelegate::elementIsChatWide() {
+	return false;
+}
+
+void DefaultElementDelegate::elementReplyTo(const FullMsgId &to) {
+}
+
+void DefaultElementDelegate::elementStartInteraction(
+	not_null<const Element*> view) {
+}
+
+void DefaultElementDelegate::elementStartPremium(
+	not_null<const Element*> view,
+	Element *replacing) {
+}
+
+void DefaultElementDelegate::elementCancelPremium(
+	not_null<const Element*> view) {
+}
+
+QString DefaultElementDelegate::elementAuthorRank(
+	not_null<const Element*> view) {
+	return {};
+}
+
 SimpleElementDelegate::SimpleElementDelegate(
 	not_null<Window::SessionController*> controller,
 	Fn<void()> update)
@@ -118,104 +211,13 @@ SimpleElementDelegate::SimpleElementDelegate(
 
 SimpleElementDelegate::~SimpleElementDelegate() = default;
 
-bool SimpleElementDelegate::elementUnderCursor(
-		not_null<const Element*> view) {
-	return false;
-}
-
-float64 SimpleElementDelegate::elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const {
-	return 0.;
-}
-
-bool SimpleElementDelegate::elementInSelectionMode() {
-	return false;
-}
-
-bool SimpleElementDelegate::elementIntersectsRange(
-		not_null<const Element*> view,
-		int from,
-		int till) {
-	return true;
-}
-
-void SimpleElementDelegate::elementStartStickerLoop(
-	not_null<const Element*> view) {
-}
-
-void SimpleElementDelegate::elementShowPollResults(
-	not_null<PollData*> poll,
-	FullMsgId context) {
-}
-
-void SimpleElementDelegate::elementOpenPhoto(
-	not_null<PhotoData*> photo,
-	FullMsgId context) {
-}
-
-void SimpleElementDelegate::elementOpenDocument(
-	not_null<DocumentData*> document,
-	FullMsgId context,
-	bool showInMediaView) {
-}
-
-void SimpleElementDelegate::elementCancelUpload(const FullMsgId &context) {
-}
-
-void SimpleElementDelegate::elementShowTooltip(
-	const TextWithEntities &text,
-	Fn<void()> hiddenCallback) {
-}
-
 bool SimpleElementDelegate::elementAnimationsPaused() {
 	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
-}
-
-bool SimpleElementDelegate::elementHideReply(not_null<const Element*> view) {
-	return false;
-}
-
-bool SimpleElementDelegate::elementShownUnread(
-		not_null<const Element*> view) {
-	return view->data()->unread(view->data()->history());
-}
-
-void SimpleElementDelegate::elementSendBotCommand(
-	const QString &command,
-	const FullMsgId &context) {
-}
-
-void SimpleElementDelegate::elementHandleViaClick(not_null<UserData*> bot) {
-}
-
-bool SimpleElementDelegate::elementIsChatWide() {
-	return false;
 }
 
 auto SimpleElementDelegate::elementPathShiftGradient()
 -> not_null<Ui::PathShiftGradient*> {
 	return _pathGradient.get();
-}
-
-void SimpleElementDelegate::elementReplyTo(const FullMsgId &to) {
-}
-
-void SimpleElementDelegate::elementStartInteraction(
-	not_null<const Element*> view) {
-}
-
-void SimpleElementDelegate::elementStartPremium(
-	not_null<const Element*> view,
-	Element *replacing) {
-}
-
-void SimpleElementDelegate::elementCancelPremium(
-	not_null<const Element*> view) {
-}
-
-QString SimpleElementDelegate::elementAuthorRank(
-		not_null<const Element*> view) {
-	return {};
 }
 
 TextSelection UnshiftItemSelection(
@@ -611,7 +613,24 @@ bool Element::isHidden() const {
 	return isHiddenByGroup();
 }
 
+void Element::overrideMedia(std::unique_ptr<Media> media) {
+	Expects(!history()->owner().groups().find(data()));
+
+	_text = Ui::Text::String(st::msgMinWidth);
+	_textWidth = -1;
+	_textHeight = 0;
+
+	_media = std::move(media);
+	if (!pendingResize()) {
+		history()->owner().requestViewResize(this);
+	}
+	_flags |= Flag::MediaOverriden;
+}
+
 void Element::refreshMedia(Element *replacing) {
+	if (_flags & Flag::MediaOverriden) {
+		return;
+	}
 	_flags &= ~Flag::HiddenByGroup;
 
 	const auto item = data();

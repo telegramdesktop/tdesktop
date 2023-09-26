@@ -176,6 +176,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::User;
 	} else if (type == u"telegram_botapp"_q) {
 		return WebPageType::BotApp;
+	} else if (type == u"telegram_channel_boost"_q) {
+		return WebPageType::ChannelBoost;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;
 	} else {

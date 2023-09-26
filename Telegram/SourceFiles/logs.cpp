@@ -279,7 +279,10 @@ namespace {
 
 bool DebugModeEnabled = false;
 
-void MoveOldDataFiles(const QString &wasDir) {
+[[maybe_unused]] void MoveOldDataFiles(const QString &wasDir) {
+	if (wasDir.isEmpty()) {
+		return;
+	}
 	QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
 	if (data.exists() && dataConfig.exists() && !QFileInfo::exists(cWorkingDir() + "data") && !QFileInfo::exists(cWorkingDir() + "data_config")) { // move to home dir
 		LOG(("Copying data to home dir '%1' from '%2'").arg(cWorkingDir(), wasDir));
@@ -351,59 +354,16 @@ void start() {
 		return;
 	}
 
-	auto initialWorkingDir = QDir(cWorkingDir()).absolutePath() + '/';
-	auto moveOldDataFrom = QString();
-	auto workingDirChosen = false;
-
-	if (cAlphaVersion()) {
-		workingDirChosen = true;
-	} else {
-
-#ifdef Q_OS_UNIX
-
-		if (!cWorkingDir().isEmpty()) {
-			// This value must come from TelegramForcePortable
-			cForceWorkingDir(cWorkingDir());
-			workingDirChosen = true;
-		} else {
-#if !defined _DEBUG || defined OS_MAC_STORE
-			cForceWorkingDir(psAppDataPath());
-			workingDirChosen = true;
-#endif // !_DEBUG || OS_MAC_STORE
-		}
-
-#if !defined Q_OS_MAC && !defined _DEBUG // fix first version
-		moveOldDataFrom = initialWorkingDir;
-#endif // !Q_OS_MAC && !_DEBUG
-
-#elif defined Q_OS_WINRT // Q_OS_UNIX
-
-		cForceWorkingDir(psAppDataPath());
-		workingDirChosen = true;
-
-#elif defined OS_WIN_STORE // Q_OS_UNIX || Q_OS_WINRT
-
-		cForceWorkingDir(psAppDataPath());
-		workingDirChosen = true;
-
-#elif defined Q_OS_WIN
-
-		if (!cWorkingDir().isEmpty()) {
-			// This value must come from TelegramForcePortable
-			cForceWorkingDir(cWorkingDir());
-			workingDirChosen = true;
-		}
-
-#endif // Q_OS_UNIX || Q_OS_WINRT || OS_WIN_STORE
-
-	}
-
 	LogsData = new LogsDataFields();
-	if (!workingDirChosen) {
+	if (cWorkingDir().isEmpty()) {
+#if (!defined Q_OS_WIN && !defined _DEBUG) || defined Q_OS_WINRT || defined OS_WIN_STORE || defined OS_MAC_STORE
+		cForceWorkingDir(psAppDataPath());
+#else // (!Q_OS_WIN && !_DEBUG) || Q_OS_WINRT || OS_WIN_STORE || OS_MAC_STORE
 		cForceWorkingDir(cExeDir());
 		if (!LogsData->openMain()) {
 			cForceWorkingDir(psAppDataPath());
 		}
+#endif // (!Q_OS_WIN && !_DEBUG) || Q_OS_WINRT || OS_WIN_STORE || OS_MAC_STORE
 	}
 
 	if (launcher.validateCustomWorkingDir()) {
@@ -413,7 +373,7 @@ void start() {
 
 // WinRT build requires the working dir to stay the same for plugin loading.
 #ifndef Q_OS_WINRT
-	QDir().setCurrent(cWorkingDir());
+	QDir::setCurrent(cWorkingDir());
 #endif // !Q_OS_WINRT
 
 	QDir().mkpath(cWorkingDir() + u"tdata"_q);
@@ -432,7 +392,7 @@ void start() {
 		).arg(cAlphaVersion()
 		).arg(Logs::b(DebugEnabled())));
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir(), cExeName()));
-	LOG(("Initial working dir: %1").arg(initialWorkingDir));
+	LOG(("Initial working dir: %1").arg(launcher.initialWorkingDir()));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
 	LOG(("Command line: %1").arg(launcher.arguments().join(' ')));
 
@@ -444,12 +404,11 @@ void start() {
 
 #ifdef Q_OS_WIN
 	if (cWorkingDir() == psAppDataPath()) { // fix old "Telegram Win (Unofficial)" version
-		moveOldDataFrom = psAppDataPathOld();
+		MoveOldDataFiles(psAppDataPathOld());
 	}
+#elif !defined Q_OS_MAC && !defined _DEBUG // fix first version
+	MoveOldDataFiles(launcher.initialWorkingDir());
 #endif
-	if (!moveOldDataFrom.isEmpty()) {
-		MoveOldDataFiles(moveOldDataFrom);
-	}
 
 	if (LogsInMemory) {
 		Assert(LogsInMemory != DeletedLogsInMemory);

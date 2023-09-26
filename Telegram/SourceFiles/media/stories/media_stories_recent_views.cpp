@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/group_call_userpics.h"
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/layers/box_content.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
@@ -128,7 +129,24 @@ RecentViews::RecentViews(not_null<Controller*> controller)
 
 RecentViews::~RecentViews() = default;
 
-void RecentViews::show(RecentViewsData data) {
+void RecentViews::show(
+		RecentViewsData data,
+		rpl::producer<Data::ReactionId> likedValue) {
+	const auto guard = gsl::finally([&] {
+		if (_likeIcon && likedValue) {
+			std::move(
+				likedValue
+			) | rpl::map([](const Data::ReactionId &id) {
+				return !id.empty();
+			}) | rpl::start_with_next([=](bool liked) {
+				const auto icon = liked
+					? &st::storiesComposeControls.liked
+					: &st::storiesLikesIcon;
+				_likeIcon->setIconOverride(icon, icon);
+			}, _likeIcon->lifetime());
+		}
+	});
+
 	if (_data == data) {
 		return;
 	}
@@ -137,27 +155,49 @@ void RecentViews::show(RecentViewsData data) {
 		|| (_data.reactions != data.reactions);
 	const auto usersChanged = !_userpics || (_data.list != data.list);
 	_data = data;
-	if (!_data.valid) {
+	if (!_data.self) {
 		_text = {};
 		_clickHandlerLifetime.destroy();
 		_userpicsLifetime.destroy();
 		_userpics = nullptr;
 		_widget = nullptr;
-		return;
+	} else {
+		if (!_widget) {
+			setupWidget();
+		}
+		if (!_userpics) {
+			setupUserpics();
+		}
+		if (countersChanged) {
+			updateText();
+		}
+		if (usersChanged) {
+			updateUserpics();
+		}
+		refreshClickHandler();
 	}
-	if (!_widget) {
-		setupWidget();
+
+	if (!_data.channel) {
+		_likeIcon = nullptr;
+		_likeWrap = nullptr;
+		_viewsWrap = nullptr;
+	} else {
+		_viewsCounter = Lang::FormatCountDecimal(std::max(_data.total, 1));
+		_likesCounter = _data.reactions
+			? Lang::FormatCountDecimal(_data.reactions)
+			: QString();
+		if (!_likeWrap || !_likeIcon || !_viewsWrap) {
+			setupViewsReactions();
+		}
 	}
-	if (!_userpics) {
-		setupUserpics();
-	}
-	if (countersChanged) {
-		updateText();
-	}
-	if (usersChanged) {
-		updateUserpics();
-	}
-	refreshClickHandler();
+}
+
+Ui::RpWidget *RecentViews::likeButton() const {
+	return _likeWrap.get();
+}
+
+Ui::RpWidget *RecentViews::likeIconWidget() const {
+	return _likeIcon.get();
 }
 
 void RecentViews::refreshClickHandler() {
@@ -234,6 +274,78 @@ void RecentViews::setupWidget() {
 			_textPosition.y(),
 			raw->width() - _userpicsWidth - st::storiesRecentViewsSkip);
 	}, raw->lifetime());
+}
+
+void RecentViews::setupViewsReactions() {
+	_viewsWrap = std::make_unique<Ui::RpWidget>(_controller->wrap());
+	_likeWrap = std::make_unique<Ui::AbstractButton>(_controller->wrap());
+	_likeIcon = std::make_unique<Ui::IconButton>(
+		_likeWrap.get(),
+		st::storiesComposeControls.like);
+	_likeIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	_controller->layoutValue(
+	) | rpl::start_with_next([=](const Layout &layout) {
+		_outer = QRect(
+			layout.content.x(),
+			layout.views.y(),
+			layout.content.width(),
+			layout.views.height());
+		updateViewsReactionsGeometry();
+	}, _likeWrap->lifetime());
+
+	const auto views = Ui::CreateChild<Ui::FlatLabel>(
+		_viewsWrap.get(),
+		_viewsCounter.value(),
+		st::storiesViewsText);
+	views->show();
+	views->setAttribute(Qt::WA_TransparentForMouseEvents);
+	views->move(st::storiesViewsTextPosition);
+
+	views->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_viewsWrap->resize(views->x() + width, _likeIcon->height());
+		updateViewsReactionsGeometry();
+	}, _viewsWrap->lifetime());
+	_viewsWrap->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(_viewsWrap.get());
+		const auto &icon = st::storiesViewsIcon;
+		const auto top = (_viewsWrap->height() - icon.height()) / 2;
+		icon.paint(p, 0, top, _viewsWrap->width());
+	}, _viewsWrap->lifetime());
+
+	_likeIcon->move(0, 0);
+	const auto likes = Ui::CreateChild<Ui::FlatLabel>(
+		_likeWrap.get(),
+		_likesCounter.value(),
+		st::storiesLikesText);
+	likes->show();
+	likes->setAttribute(Qt::WA_TransparentForMouseEvents);
+	likes->move(st::storiesLikesTextPosition);
+
+	likes->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		width += width
+			? st::storiesLikesTextRightSkip
+			: st::storiesLikesEmptyRightSkip;
+		_likeWrap->resize(likes->x() + width, _likeIcon->height());
+		updateViewsReactionsGeometry();
+	}, _likeWrap->lifetime());
+
+	_viewsWrap->show();
+	_likeIcon->show();
+	_likeWrap->show();
+
+	_likeWrap->setClickedCallback([=] {
+		_controller->toggleLiked();
+	});
+}
+
+void RecentViews::updateViewsReactionsGeometry() {
+	_viewsWrap->move(_outer.topLeft() + st::storiesViewsPosition);
+	_likeWrap->move(_outer.topLeft()
+		+ QPoint(_outer.width() - _likeWrap->width(), 0)
+		+ st::storiesLikesPosition);
 }
 
 void RecentViews::updatePartsGeometry() {

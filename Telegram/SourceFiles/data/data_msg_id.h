@@ -73,7 +73,7 @@ struct FullReplyTo {
 	FullStoryId storyId;
 
 	[[nodiscard]] bool valid() const {
-		return msgId || storyId;
+		return msgId || (storyId && peerIsUser(storyId.peer));
 	}
 	explicit operator bool() const {
 		return valid();

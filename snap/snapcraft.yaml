@@ -249,7 +249,7 @@ parts:
   glibmm:
     source: https://github.com/GNOME/glibmm.git
     source-depth: 1
-    source-tag: 2.77.0
+    source-tag: 2.78.0
     plugin: meson
     build-packages:
       - meson
@@ -306,7 +306,7 @@ parts:
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
     source-depth: 1
-    source-tag: v4.0.3
+    source-tag: v4.1.4
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
@@ -327,7 +327,7 @@ parts:
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
-    source-tag: 1.23.0
+    source-tag: 1.23.1
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
@@ -357,7 +357,7 @@ parts:
   protobuf:
     source: https://github.com/protocolbuffers/protobuf.git
     source-depth: 1
-    source-tag: v21.9
+    source-tag: v24.3
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s
@@ -540,7 +540,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 0532942ac6176a66ef184fb728a4cbb02958fc0b
+    source-commit: 3bb3d757681e6cc5135aec6529a753dc3dcdcfb9
     plugin: cmake
     build-environment:
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -s

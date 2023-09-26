@@ -221,14 +221,14 @@ struct StoryUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		Edited      = (1U << 0),
-		Destroyed   = (1U << 1),
-		NewAdded    = (1U << 2),
-		ViewsAdded  = (1U << 3),
-		MarkRead    = (1U << 4),
-		Reaction    = (1U << 5),
+		Edited       = (1U << 0),
+		Destroyed    = (1U << 1),
+		NewAdded     = (1U << 2),
+		ViewsChanged = (1U << 3),
+		MarkRead     = (1U << 4),
+		Reaction     = (1U << 5),
 
-		LastUsedBit = (1U << 5),
+		LastUsedBit  = (1U << 5),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

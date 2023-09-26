@@ -409,7 +409,9 @@ void SetupWindowTitleContent(
 
 	if (Ui::Platform::NativeWindowFrameSupported()) {
 		const auto nativeFrame = addCheckbox(
-			tr::lng_settings_native_frame(),
+			Platform::IsWayland()
+				? tr::lng_settings_qt_frame()
+				: tr::lng_settings_native_frame(),
 			Core::App().settings().nativeWindowFrame());
 
 		nativeFrame->checkedChanges(

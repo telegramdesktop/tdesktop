@@ -174,7 +174,7 @@ gi::ref_ptr<Application> MakeApplication() {
 	const auto result = gi::make_ref<Application>();
 	if (const auto registered = result->register_(); !registered) {
 		LOG(("App Error: Failed to register: %1").arg(
-			QString::fromStdString(registered.error().message_())));
+			registered.error().message_().c_str()));
 		return nullptr;
 	}
 	return result;

@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
+using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
 using "ui/layers/layers.style";
 
@@ -13,6 +14,17 @@ PremiumLimits {
 	boxLabel: FlatLabel;
 	nonPremiumBg: color;
 	nonPremiumFg: color;
+	gradientFromLeft: bool;
+}
+PremiumBubble {
+	widthLimit: pixels;
+	height: pixels;
+	padding: margins;
+	skip: pixels;
+	penWidth: pixels;
+	textSkip: pixels;
+	tailSize: size;
+	font: font;
 }
 
 defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {
@@ -26,6 +38,7 @@ defaultPremiumLimits: PremiumLimits {
 	boxLabel: defaultPremiumBoxLabel;
 	nonPremiumBg: windowBgOver;
 	nonPremiumFg: windowFg;
+	gradientFromLeft: false;
 }
 
 // Preview.
@@ -74,15 +87,16 @@ premiumVideoWidth: 182px;
 
 // Graphics.
 
-premiumBubblePadding: margins(14px, 0px, 14px, 0px);
-premiumBubblePenWidth: 6;
-premiumBubbleHeight: 40px;
-premiumBubbleSkip: 8px;
-premiumBubbleWidthLimit: 80px;
-premiumBubbleTextSkip: 3px;
-premiumBubbleSlideDuration: 1000;
-premiumBubbleTailSize: size(21px, 7px);
-premiumBubbleFont: font(19px);
+defaultPremiumBubble: PremiumBubble {
+	widthLimit: 80px;
+	height: 40px;
+	padding: margins(14px, 0px, 14px, 0px);
+	skip: 8px;
+	penWidth: 6px;
+	textSkip: 3px;
+	tailSize: size(21px, 7px);
+	font: font(19px);
+}
 premiumLineTextSkip: 11px;
 premiumInfographicPadding: margins(0px, 10px, 0px, 15px);
 
@@ -93,6 +107,7 @@ premiumIconGroups: icon {{ "limits/groups", settingsIconFg }};
 premiumIconLinks: icon {{ "limits/links", settingsIconFg }};
 premiumIconPins: icon {{ "limits/pins", settingsIconFg }};
 premiumIconAccounts: icon {{ "limits/accounts", settingsIconFg }};
+premiumIconBoost: icon {{ "limits/boost", settingsIconFg }};
 
 premiumAccountsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
 	imageRadius: 27px;
@@ -176,3 +191,55 @@ premiumGiftTerms: FlatLabel(defaultFlatLabel) {
 premiumGiftBox: Box(premiumPreviewBox) {
 	buttonPadding: margins(12px, 12px, 12px, 12px);
 }
+
+boostSkipTop: 37px;
+boostLimits: PremiumLimits(defaultPremiumLimits) {
+	gradientFromLeft: true;
+}
+boostBubble: PremiumBubble(defaultPremiumBubble) {
+	height: 32px;
+	padding: margins(7px, 0px, 11px, 0px);
+	skip: 5px;
+	textSkip: 2px;
+	tailSize: size(14px, 6px);
+	font: font(16px);
+}
+boostTitleSkip: 32px;
+boostTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	textFg: windowBoldFg;
+	align: align(top);
+	maxHeight: 24px;
+	style: TextStyle(boxTextStyle) {
+		font: font(17px semibold);
+		linkFont: font(17px semibold);
+		linkFontOver: font(17px semibold);
+	}
+}
+boostTextSkip: 5px;
+boostText: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	align: align(top);
+}
+boostBottomSkip: 6px;
+boostBox: Box(premiumPreviewDoubledLimitsBox) {
+	buttonPadding: margins(22px, 22px, 22px, 22px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+}
+
+boostReplaceUserpicsPadding: margins(0px, 18px, 0px, 20px);
+boostReplaceUserpicsSkip: 42px;
+boostReplaceUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(60px, 60px);
+	photoSize: 60px;
+}
+boostReplaceIcon: icon{{ "stories/boost_mini", windowBg }};
+boostReplaceIconSkip: 3px;
+boostReplaceIconOutline: 2px;
+boostReplaceIconAdd: point(4px, 2px);
+boostReplaceArrow: icon{{ "mediaview/next", windowSubTextFg }};

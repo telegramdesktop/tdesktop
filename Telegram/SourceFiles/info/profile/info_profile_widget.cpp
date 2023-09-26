@@ -110,10 +110,8 @@ rpl::producer<QString> Widget::title() {
 
 rpl::producer<Dialogs::Stories::Content> Widget::titleStories() {
 	const auto peer = controller()->key().peer();
-	if (const auto user = peer->asUser()) {
-		if (!user->isBot()) {
-			return Dialogs::Stories::LastForPeer(user);
-		}
+	if (peer && !peer->isChat()) {
+		return Dialogs::Stories::LastForPeer(peer);
 	}
 	return nullptr;
 }

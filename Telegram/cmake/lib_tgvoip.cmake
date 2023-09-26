@@ -128,6 +128,11 @@ PRIVATE
     TGVOIP_USE_DESKTOP_DSP
 )
 
+target_compile_options_if_exists(lib_tgvoip_bundled
+PRIVATE
+    -Wno-unqualified-std-cast-call
+)
+
 if (WIN32)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(lib_tgvoip_bundled

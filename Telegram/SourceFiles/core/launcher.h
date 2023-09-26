@@ -29,6 +29,7 @@ public:
 	virtual int exec();
 
 	const QStringList &arguments() const;
+	QString initialWorkingDir() const;
 	bool customWorkingDir() const;
 
 	uint64 installationTag() const;
@@ -84,6 +85,7 @@ private:
 	QStringList _arguments;
 	BaseIntegration _baseIntegration;
 
+	QString _initialWorkingDir;
 	QString _customWorkingDir;
 
 };

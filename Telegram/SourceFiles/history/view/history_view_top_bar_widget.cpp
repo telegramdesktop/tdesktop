@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h" // GroupCall::input.
 #include "data/data_folder.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -758,6 +759,14 @@ void TopBarWidget::setActiveChat(
 				updateControlsVisibility();
 				updateControlsGeometry();
 			}, _activeChatLifetime);
+
+			if (const auto channel = peer->asChannel()) {
+				if (channel->canEditStories()
+					&& !channel->owner().stories().archiveCountKnown(
+						channel->id)) {
+					channel->owner().stories().archiveLoadMore(channel->id);
+				}
+			}
 		}
 
 		if (const auto history = _activeChat.key.history()) {

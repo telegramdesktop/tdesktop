@@ -316,7 +316,10 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		if (_reordering) {
 			return;
 		} else if (raw->locked()) {
-			_session->show(Box(FiltersLimitBox, &_session->session()));
+			_session->show(Box(
+				FiltersLimitBox,
+				&_session->session(),
+				std::nullopt));
 		} else if (id >= 0) {
 			_session->setActiveChatsFilter(id);
 		} else {

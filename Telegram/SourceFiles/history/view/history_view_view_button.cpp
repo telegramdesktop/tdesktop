@@ -68,6 +68,8 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 		: (type == WebPageType::GroupWithRequest
 			|| type == WebPageType::ChannelWithRequest)
 		? tr::lng_view_button_request_join(tr::now)
+		: (type == WebPageType::ChannelBoost)
+		? tr::lng_view_button_boost(tr::now)
 		: (type == WebPageType::VoiceChat)
 		? tr::lng_view_button_voice_chat(tr::now)
 		: (type == WebPageType::Livestream)
@@ -177,6 +179,7 @@ bool ViewButton::MediaHasViewButton(
 	return (type == WebPageType::Message)
 		|| (type == WebPageType::Group)
 		|| (type == WebPageType::Channel)
+		|| (type == WebPageType::ChannelBoost)
 		// || (type == WebPageType::Bot)
 		|| (type == WebPageType::User)
 		|| (type == WebPageType::VoiceChat)

@@ -15,6 +15,7 @@ class DocumentMedia;
 struct ReactionId;
 class Session;
 class Story;
+struct SuggestedReaction;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -38,6 +39,15 @@ class Controller;
 enum class ReactionsMode {
 	Message,
 	Reaction,
+};
+
+class SuggestedReactionView {
+public:
+	virtual ~SuggestedReactionView() = default;
+
+	virtual void setAreaGeometry(QRect geometry) = 0;
+	virtual void updateCount(int count) = 0;
+	virtual void playEffect() = 0;
 };
 
 class Reactions final {
@@ -64,12 +74,18 @@ public:
 	void hide();
 	void outsidePressed();
 	void toggleLiked();
+	void applyLike(Data::ReactionId id);
 	void ready();
+
+	[[nodiscard]] auto makeSuggestedReactionWidget(
+		const Data::SuggestedReaction &reaction)
+	-> std::unique_ptr<SuggestedReactionView>;
 
 	void setReplyFieldState(
 		rpl::producer<bool> focused,
 		rpl::producer<bool> hasSendText);
 	void attachToReactionButton(not_null<Ui::RpWidget*> button);
+	void setReactionIconWidget(Ui::RpWidget *widget);
 
 	using AttachStripResult = HistoryView::Reactions::AttachSelectorResult;
 	[[nodiscard]] AttachStripResult attachToMenu(
@@ -110,7 +126,7 @@ private:
 	bool _replyFocused = false;
 	bool _hasSendText = false;
 
-	Ui::RpWidget *_likeButton = nullptr;
+	Ui::RpWidget *_likeIconWidget = nullptr;
 	rpl::variable<Data::ReactionId> _liked;
 	base::has_weak_ptr _likeIconGuard;
 	std::unique_ptr<Ui::RpWidget> _likeIcon;

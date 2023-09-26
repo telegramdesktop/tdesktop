@@ -30,22 +30,27 @@ on:
         required: false
         type: string
         default: ''
+      dockerImage:
+        description: 'Docker image to use'
+        required: false
+        type: string
+        default: 'ghcr.io/wrwrabbit/centos_env'
 
 jobs:
 
   linux:
-    name: CentOS 7
+    name: Rocky Linux 8
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     container:
-      image: ghcr.io/${{ github.repository }}/centos_env
+      image: ${{ github.event.inputs.dockerImage }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
     defaults:
       run:
-        shell: scl enable rh-python38 -- scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- bash --noprofile --norc -eo pipefail {0}
+        shell: scl enable gcc-toolset-12 -- bash --noprofile --norc -eo pipefail {0}
 
     strategy:
       matrix:
@@ -86,20 +91,33 @@ jobs:
         run: |
           cd $REPO_NAME/Telegram
 
+          ARTIFACT_PREFIX=""
+          
+          if [ "${{ github.event.inputs.dockerImage }}" != 'ghcr.io/wrwrabbit/centos_env' ]; then
+            echo Dev build: using custom docker image: ${{ github.event.inputs.dockerImage }}
+            ARTIFACT_PREFIX="dev"
+          fi
+          if [ "${{ github.ref_name }}" != "${{ github.event.repository.default_branch }}" ]; then
+            echo Dev build: using non master branch: ${{ github.ref_name }}
+            ARTIFACT_PREFIX="dev"
+          fi
+
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
-            echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
+            echo "ARTIFACT_NAME=${ARTIFACT_PREFIX}Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
           else
-            echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
+            echo "ARTIFACT_NAME=${ARTIFACT_PREFIX}Telegram" >> $GITHUB_ENV
           fi
+          
+          #          -D CMAKE_C_FLAGS="-Werror" 
+          #          -D CMAKE_CXX_FLAGS="-Werror" 
+          # not used in actual Release build
 
           ./configure.sh \
           -D CMAKE_C_FLAGS_DEBUG="" \
           -D CMAKE_CXX_FLAGS_DEBUG="" \
-          -D CMAKE_C_FLAGS="-Werror" \
-          -D CMAKE_CXX_FLAGS="-Werror" \
           -D CMAKE_EXE_LINKER_FLAGS="-s" \
           -D TDESKTOP_API_TEST=OFF \
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} \

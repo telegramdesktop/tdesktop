@@ -514,7 +514,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
 		if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];
 		[openPanel beginWithCompletionHandler:^(NSInteger result){
-			if (result == NSFileHandlingPanelOKButton) {
+			if (result == NSModalResponseOK) {
 				if ([[openPanel URLs] count] > 0) {
 					NSURL *app = [[openPanel URLs] objectAtIndex:0];
 					NSString *path = [app path];
