@@ -11,6 +11,8 @@ on:
     paths:
       - '.github/workflows/docker.yml'
       - 'Telegram/build/docker/centos_env/**'
+    branches-ignore:
+      - 'compare/**'
   workflow_dispatch:
     inputs:
       upload:

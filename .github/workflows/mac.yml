@@ -19,6 +19,9 @@ on:
       - 'Telegram/SourceFiles/platform/win/**'
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/configure.bat'
+  pull_request:
+    branches-ignore:
+      - 'compare/**'
   workflow_dispatch:
     inputs:
       buildCommit:

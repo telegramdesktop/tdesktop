@@ -20,6 +20,9 @@ on:
       - 'Telegram/Telegram/**'
       - 'Telegram/configure.bat'
       - 'Telegram/Telegram.plist'
+  pull_request:
+    branches-ignore:
+      - 'compare/**'
   workflow_dispatch:
     inputs:
       buildCommit:
