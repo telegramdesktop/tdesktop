@@ -92,7 +92,7 @@ private:
 		int lastXIndex = -1;
 		Limits lastHeightLimits;
 		Limits lastXLimits;
-		base::flat_map<int, QPointF> points;
+		float64 xPoint = 0.;
 	};
 	SelectedPoints _selectedPoints;
 

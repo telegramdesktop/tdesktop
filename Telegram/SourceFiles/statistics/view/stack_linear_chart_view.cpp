@@ -799,37 +799,38 @@ void StackLinearChartView::paintSelectedXIndex(
 		const PaintContext &c,
 		int selectedXIndex,
 		float64 progress) {
-	if (selectedXIndex < 0) {
+	if ((selectedXIndex < 0) || c.footer) {
 		return;
 	}
+	const auto &[localStart, localEnd] = _transition.zoomedOutXIndices;
+	const auto xPercentageLimits = Limits{
+		c.chartData.xPercentage[localStart],
+		c.chartData.xPercentage[localEnd],
+	};
 	p.setBrush(st::boxBg);
 	const auto r = st::statisticsDetailsDotRadius;
 	const auto i = selectedXIndex;
 	const auto isSameToken = (_selectedPoints.lastXIndex == selectedXIndex)
 		&& (_selectedPoints.lastHeightLimits.min == c.heightLimits.min)
 		&& (_selectedPoints.lastHeightLimits.max == c.heightLimits.max)
-		&& (_selectedPoints.lastXLimits.min == c.xPercentageLimits.min)
-		&& (_selectedPoints.lastXLimits.max == c.xPercentageLimits.max);
-	for (const auto &line : c.chartData.lines) {
-		const auto lineAlpha = alpha(line.id);
-		const auto useCache = isSameToken
-			|| (lineAlpha < 1. && !isEnabled(line.id));
+		&& (_selectedPoints.lastXLimits.min == xPercentageLimits.min)
+		&& (_selectedPoints.lastXLimits.max == xPercentageLimits.max);
+	{
+		const auto useCache = isSameToken;
 		if (!useCache) {
 			// Calculate.
 			const auto xPoint = c.rect.width()
-				* ((c.chartData.xPercentage[i] - c.xPercentageLimits.min)
-					/ (c.xPercentageLimits.max - c.xPercentageLimits.min));
-			const auto yPercentage = (line.y[i] - c.heightLimits.min)
-				/ float64(c.heightLimits.max - c.heightLimits.min);
-			_selectedPoints.points[line.id] = QPointF(xPoint, 0)
-				+ c.rect.topLeft();
+				* ((c.chartData.xPercentage[i] - xPercentageLimits.min)
+					/ (xPercentageLimits.max - xPercentageLimits.min));
+			_selectedPoints.xPoint = xPoint;
 		}
 
 		{
+			[[maybe_unused]] const auto o = ScopedPainterOpacity(
+				p,
+				p.opacity() * progress);
 			const auto lineRect = QRectF(
-				c.rect.x()
-					+ begin(_selectedPoints.points)->second.x()
-					- (st::lineWidth / 2.),
+				_selectedPoints.xPoint - (st::lineWidth / 2.),
 				c.rect.y(),
 				st::lineWidth,
 				c.rect.height());
@@ -838,7 +839,7 @@ void StackLinearChartView::paintSelectedXIndex(
 	}
 	_selectedPoints.lastXIndex = selectedXIndex;
 	_selectedPoints.lastHeightLimits = c.heightLimits;
-	_selectedPoints.lastXLimits = c.xPercentageLimits;
+	_selectedPoints.lastXLimits = xPercentageLimits;
 }
 
 int StackLinearChartView::findXIndexByPosition(
