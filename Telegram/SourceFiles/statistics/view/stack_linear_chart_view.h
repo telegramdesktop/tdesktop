@@ -120,6 +120,8 @@ private:
 		bool pendingPrepareToZoomIn = false;
 
 		Limits zoomedOutXIndices;
+		Limits zoomedOutXIndicesAdditional;
+		Limits zoomedOutXPercentage;
 		Limits zoomedInLimit;
 		Limits zoomedInLimitXIndices;
 		Limits zoomedInRange;

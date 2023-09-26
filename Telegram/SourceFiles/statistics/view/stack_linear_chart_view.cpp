@@ -46,6 +46,45 @@ inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 	return (result - from) / (to - from);
 };
 
+[[nodiscard]] Limits FindAdditionalZoomedOutXIndices(const PaintContext &c) {
+	constexpr auto kOffset = int(1);
+	auto &xPercentage = c.chartData.xPercentage;
+	auto leftResult = 0.;
+	{
+		auto i = std::max(int(c.xIndices.min) - kOffset, 0);
+		if (xPercentage[i] > c.xPercentageLimits.min) {
+			while (true) {
+				i--;
+				if (i < 0) {
+					leftResult = 0;
+					break;
+				} else if (!(xPercentage[i] > c.xPercentageLimits.min)) {
+					leftResult = i;
+					break;
+				}
+			}
+		} else {
+			leftResult = i;
+		}
+	}
+	{
+		const auto lastIndex = float64(xPercentage.size() - 1);
+		auto i = std::min(lastIndex, float64(c.xIndices.max) + kOffset);
+		if (xPercentage[i] < c.xPercentageLimits.max) {
+			while (true) {
+				i++;
+				if (i > lastIndex) {
+					return { leftResult, lastIndex };
+				} else if (!(xPercentage[i] < c.xPercentageLimits.max)) {
+					return { leftResult, i };
+				}
+			}
+		} else {
+			return { leftResult, i };
+		}
+	}
+}
+
 } // namespace
 
 StackLinearChartView::StackLinearChartView() = default;
@@ -68,13 +107,10 @@ void StackLinearChartView::prepareZoom(
 		const PaintContext &c,
 		TransitionStep step) {
 	if (step == TransitionStep::ZoomedOut) {
-		constexpr auto kOffset = float64(2);
-		_transition.zoomedOutXIndices = {
-			float64(std::max(0., c.xIndices.min - kOffset)),
-			float64(std::min(
-				float64(c.chartData.xPercentage.size() - 1),
-				c.xIndices.max + kOffset)),
-		};
+		_transition.zoomedOutXIndicesAdditional
+			= FindAdditionalZoomedOutXIndices(c);
+		_transition.zoomedOutXIndices = c.xIndices;
+		_transition.zoomedOutXPercentage = c.xPercentageLimits;
 	} else if (step == TransitionStep::PrepareToZoomIn) {
 		const auto &[zoomedStart, zoomedEnd] =
 			_transition.zoomedOutXIndices;
@@ -82,10 +118,7 @@ void StackLinearChartView::prepareZoom(
 			c.chartData.lines.size(),
 			Transition::TransitionLine());
 
-		const auto xPercentageLimits = Limits{
-			c.chartData.xPercentage[_transition.zoomedOutXIndices.min],
-			c.chartData.xPercentage[_transition.zoomedOutXIndices.max],
-		};
+		const auto xPercentageLimits = _transition.zoomedOutXPercentage;
 
 		for (auto j = 0; j < 2; j++) {
 			const auto i = int((j == 1) ? zoomedEnd : zoomedStart);
@@ -230,7 +263,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 	const auto hasTransitionAnimation = _transition.progress && !c.footer;
 	const auto &[localStart, localEnd] = c.footer
 		? Limits{ 0., float64(c.chartData.xPercentage.size() - 1) }
-		: _transition.zoomedOutXIndices;
+		: _transition.zoomedOutXIndicesAdditional;
 	_skipPoints = std::vector<bool>(c.chartData.lines.size(), false);
 	auto paths = std::vector<QPainterPath>(
 		c.chartData.lines.size(),
@@ -246,10 +279,12 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 			.map(p);
 	};
 
-	const auto xPercentageLimits = Limits{
-		c.chartData.xPercentage[localStart],
-		c.chartData.xPercentage[localEnd],
-	};
+	const auto xPercentageLimits = !c.footer
+		? _transition.zoomedOutXPercentage
+		: Limits{
+			c.chartData.xPercentage[localStart],
+			c.chartData.xPercentage[localEnd],
+		};
 
 	auto straightLineProgress = 0.;
 	auto hasEmptyPoint = false;
@@ -283,6 +318,10 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 
 		auto drawingLinesCount = int(0);
 
+		const auto xPoint = c.rect.width()
+			* ((c.chartData.xPercentage[i] - xPercentageLimits.min)
+				/ (xPercentageLimits.max - xPercentageLimits.min));
+
 		for (auto k = 0; k < c.chartData.lines.size(); k++) {
 			const auto &line = c.chartData.lines[k];
 			if (!isEnabled(line.id)) {
@@ -310,10 +349,6 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 			const auto yPercentage = (drawingLinesCount == 1)
 				? float64(y[i] ? lineAlpha : 0.)
 				: float64(sum ? (y[i] * lineAlpha / sum) : 0.);
-
-			const auto xPoint = c.rect.width()
-				* ((c.chartData.xPercentage[i] - xPercentageLimits.min)
-					/ (xPercentageLimits.max - xPercentageLimits.min));
 
 			if (!yPercentage && isLastLine) {
 				hasEmptyPoint = true;
@@ -803,10 +838,7 @@ void StackLinearChartView::paintSelectedXIndex(
 		return;
 	}
 	const auto &[localStart, localEnd] = _transition.zoomedOutXIndices;
-	const auto xPercentageLimits = Limits{
-		c.chartData.xPercentage[localStart],
-		c.chartData.xPercentage[localEnd],
-	};
+	const auto xPercentageLimits = _transition.zoomedOutXPercentage;
 	p.setBrush(st::boxBg);
 	const auto r = st::statisticsDetailsDotRadius;
 	const auto i = selectedXIndex;
@@ -858,9 +890,10 @@ int StackLinearChartView::findXIndexByPosition(
 		(x - rect.x()) / rect.width(),
 		0.,
 		1.);
+	const auto &[localStart, localEnd] = _transition.zoomedOutXIndices;
 	const auto rawXPercentage = anim::interpolateF(
-		xPercentageLimits.min,
-		xPercentageLimits.max,
+		_transition.zoomedOutXPercentage.min,
+		_transition.zoomedOutXPercentage.max,
 		pointerRatio);
 	const auto it = ranges::lower_bound(
 		chartData.xPercentage,
@@ -868,9 +901,10 @@ int StackLinearChartView::findXIndexByPosition(
 	const auto left = rawXPercentage - (*(it - 1));
 	const auto right = (*it) - rawXPercentage;
 	const auto nearestXPercentageIt = ((right) > (left)) ? (it - 1) : it;
-	return std::distance(
-		begin(chartData.xPercentage),
-		nearestXPercentageIt);
+	return std::clamp(
+		std::distance(begin(chartData.xPercentage), nearestXPercentageIt),
+		long(localStart),
+		long(localEnd));
 }
 
 void StackLinearChartView::setEnabled(int id, bool enabled, crl::time now) {
