@@ -479,8 +479,9 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 }
 
 void ChartWidget::Footer::setXPercentageLimits(const Limits &xLimits) {
-	const auto left = xLimits.min * width();
-	const auto right = xLimits.max * _width;
+	const auto left = xLimits.min * _widthBetweenSides;
+	const auto right = xLimits.max * _widthBetweenSides
+		+ st::statisticsChartFooterSideWidth;
 	moveSide(true, left);
 	moveSide(false, right);
 	fire();

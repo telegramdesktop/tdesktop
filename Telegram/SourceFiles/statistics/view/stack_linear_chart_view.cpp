@@ -585,6 +585,7 @@ void StackLinearChartView::paintZoomedFooter(
 	const auto leftStart = c.rect.x() + sideW;
 	const auto &xPercentage = c.chartData.xPercentage;
 	auto previousX = leftStart;
+	// Read FindStackXIndicesFromRawXPercentages.
 	const auto offset = (xPercentage[zoomedEnd] == 1.) ? 0 : 1;
 	for (auto i = zoomedStart; i <= zoomedEnd; i++) {
 		auto sum = 0.;
@@ -958,15 +959,21 @@ auto StackLinearChartView::maybeLocalZoom(
 			xPercentage[_transition.zoomedInLimitXIndices.max],
 			args.progress),
 	};
+	const auto oneDay = std::abs(xPercentage[localRangeIndex]
+		- xPercentage[localRangeIndex + ((xIndex == backIndex) ? -1 : 1)]);
+	// Read FindStackXIndicesFromRawXPercentages.
+	const auto offset = (_transition.zoomedInLimitXIndices.max == backIndex)
+		? -oneDay
+		: 0.;
 	const auto resultRange = Limits{
 		InterpolationRatio(
 			_transition.zoomedInLimit.min,
 			_transition.zoomedInLimit.max,
-			_transition.zoomedInRange.min),
+			_transition.zoomedInRange.min + oneDay * 0.25 + offset),
 		InterpolationRatio(
 			_transition.zoomedInLimit.min,
 			_transition.zoomedInLimit.max,
-			_transition.zoomedInRange.max),
+			_transition.zoomedInRange.max + oneDay * 0.75 + offset),
 	};
 	return { true, _transition.zoomedInLimitXIndices, resultRange };
 }

@@ -39,6 +39,10 @@ Limits FindStackXIndicesFromRawXPercentages(
 		chartData.xPercentage[zoomedInLimitXIndices.min],
 		chartData.xPercentage[zoomedInLimitXIndices.max],
 	};
+	// Due to a specificity of the stack chart plotting,
+	// the right edge has a special offset to the left.
+	// This reduces the number of displayed points by 1,
+	// but allows the last point to be displayed.
 	const auto offset = (zoomLimit.max == 1.) ? 0 : -1;
 	const auto minIt = ranges::upper_bound(
 		chartData.xPercentage,
