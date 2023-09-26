@@ -500,6 +500,7 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.la
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.prl
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
+      - -./usr/plugins/imageformats/libqsvg.so
       - -./usr/libexec
       - -./usr/mkspecs
       - -./usr/modules
