@@ -88,15 +88,26 @@ jobs:
         run: |
           cd $REPO_NAME/Telegram
 
+          ARTIFACT_PREFIX=""
+          
+          if [ "${{ github.event.inputs.dockerImage }}" != 'ghcr.io/wrwrabbit/centos_env' ]; then
+            echo Dev build: using custom docker image: ${{ github.event.inputs.dockerImage }}
+            ARTIFACT_PREFIX="dev"
+          fi
+          if [ "${{ github.ref_name }}" != "${{ github.event.repository.default_branch }}" ]; then
+            echo Dev build: using non master branch: ${{ github.ref_name }}
+            ARTIFACT_PREFIX="dev"
+          fi
+
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
             echo Define from matrix: $DEFINE
-            echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
+            echo "ARTIFACT_NAME=${ARTIFACT_PREFIX}Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
           else
-            echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
+            echo "ARTIFACT_NAME=${ARTIFACT_PREFIX}Telegram" >> $GITHUB_ENV
           fi
-
+          
           #          -D CMAKE_C_FLAGS="-Werror" 
           #          -D CMAKE_CXX_FLAGS="-Werror" 
           # not used in actual Release build
