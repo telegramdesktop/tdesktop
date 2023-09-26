@@ -274,14 +274,14 @@ void GetInhibited(Fn<void(bool)> callback) {
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						const auto value = connection->call_finish(
-							result
-						).get_child(
-							0
-						).get_dynamic<Glib::Variant<bool>>(
-						).get();
-
-						callback(value);
+						callback(
+							connection->call_finish(
+								result
+							).get_child(
+								0
+							).get_dynamic<Glib::Variant<bool>>(
+							).get()
+						);
 					}, [&] {
 						callback(false);
 					});
