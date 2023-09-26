@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/point_details_widget.h"
 #include "statistics/view/abstract_chart_view.h"
 #include "statistics/view/chart_view_factory.h"
+#include "statistics/view/stack_chart_common.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
@@ -1270,28 +1271,10 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	const auto finish = [=](const Limits &zoomLimitIndices) {
 		_footer->xPercentageLimitsChange(
 		) | rpl::start_with_next([=](const Limits &l) {
-			const auto zoomLimit = Limits{
-				_chartData.xPercentage[zoomLimitIndices.min],
-				_chartData.xPercentage[zoomLimitIndices.max],
-			};
-			const auto offset = (zoomLimit.max == 1.) ? 0 : -1;
-			const auto minIt = ranges::upper_bound(
-				_chartData.xPercentage,
-				anim::interpolateF(zoomLimit.min, zoomLimit.max, l.min));
-			const auto maxIt = ranges::upper_bound(
-				_chartData.xPercentage,
-				anim::interpolateF(zoomLimit.min, zoomLimit.max, l.max));
-			const auto start = begin(_chartData.xPercentage);
-			const auto result = Limits{
-				.min = std::clamp(
-					float64(std::distance(start, minIt) + offset),
-					zoomLimitIndices.min,
-					zoomLimitIndices.max),
-				.max = std::clamp(
-					float64(std::distance(start, maxIt) + offset),
-					zoomLimitIndices.min,
-					zoomLimitIndices.max),
-			};
+			const auto result = FindStackXIndicesFromRawXPercentages(
+				_chartData,
+				l,
+				zoomLimitIndices);
 			header->setRightInfo(HeaderRightInfo(_chartData, result));
 			header->update();
 		}, header->lifetime());

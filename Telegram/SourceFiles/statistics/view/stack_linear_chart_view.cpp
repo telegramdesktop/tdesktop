@@ -138,21 +138,14 @@ void StackLinearChartView::applyParts(const std::vector<PiePartData> &parts) {
 }
 
 void StackLinearChartView::saveZoomRange(const PaintContext &c) {
-	const auto zoomedXPercentage = Limits{
-		anim::interpolateF(
-			_transition.zoomedInLimit.min,
-			_transition.zoomedInLimit.max,
-			c.xPercentageLimits.min),
-		anim::interpolateF(
-			_transition.zoomedInLimit.min,
-			_transition.zoomedInLimit.max,
-			c.xPercentageLimits.max),
+	_transition.zoomedInRangeXIndices = FindStackXIndicesFromRawXPercentages(
+		c.chartData,
+		c.xPercentageLimits,
+		_transition.zoomedInLimitXIndices);
+	_transition.zoomedInRange = {
+		c.chartData.xPercentage[_transition.zoomedInRangeXIndices.min],
+		c.chartData.xPercentage[_transition.zoomedInRangeXIndices.max],
 	};
-	const auto zoomedXIndices = FindNearestElements(
-		c.chartData.xPercentage,
-		zoomedXPercentage);
-	_transition.zoomedInRangeXIndices = zoomedXIndices;
-	_transition.zoomedInRange = zoomedXPercentage;
 }
 
 void StackLinearChartView::savePieTextParts(const PaintContext &c) {

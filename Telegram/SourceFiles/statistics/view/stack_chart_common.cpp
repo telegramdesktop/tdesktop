@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_statistics.h"
 #include "statistics/statistics_common.h"
+#include "ui/effects/animation_value_f.h"
 
 namespace Statistic {
 
@@ -28,6 +29,40 @@ LeftStartAndStep ComputeLeftStartAndStep(
 		+ chartData.xPercentage[xIndexStart] * (fullWidth - p)
 		- offset;
 	return { leftStart, w };
+}
+
+Limits FindStackXIndicesFromRawXPercentages(
+		const Data::StatisticalChart &chartData,
+		const Limits &rawXPercentageLimits,
+		const Limits &zoomedInLimitXIndices) {
+	const auto zoomLimit = Limits{
+		chartData.xPercentage[zoomedInLimitXIndices.min],
+		chartData.xPercentage[zoomedInLimitXIndices.max],
+	};
+	const auto offset = (zoomLimit.max == 1.) ? 0 : -1;
+	const auto minIt = ranges::upper_bound(
+		chartData.xPercentage,
+		anim::interpolateF(
+			zoomLimit.min,
+			zoomLimit.max,
+			rawXPercentageLimits.min));
+	const auto maxIt = ranges::upper_bound(
+		chartData.xPercentage,
+		anim::interpolateF(
+			zoomLimit.min,
+			zoomLimit.max,
+			rawXPercentageLimits.max));
+	const auto start = begin(chartData.xPercentage);
+	return {
+		.min = std::clamp(
+			float64(std::distance(start, minIt) + offset),
+			zoomedInLimitXIndices.min,
+			zoomedInLimitXIndices.max),
+		.max = std::clamp(
+			float64(std::distance(start, maxIt) + offset),
+			zoomedInLimitXIndices.min,
+			zoomedInLimitXIndices.max),
+	};
 }
 
 } // namespace Statistic

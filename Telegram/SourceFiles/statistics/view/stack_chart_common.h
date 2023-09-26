@@ -26,4 +26,9 @@ struct LeftStartAndStep final {
 	const QRect &rect,
 	float64 xIndexStart);
 
+[[nodiscard]] Limits FindStackXIndicesFromRawXPercentages(
+	const Data::StatisticalChart &chartData,
+	const Limits &rawXPercentageLimits,
+	const Limits &zoomedInLimitXIndices);
+
 } // namespace Statistic
