@@ -129,12 +129,12 @@ void StackLinearChartView::prepareZoom(
 			auto sum = 0.;
 			auto drawingLinesCount = 0;
 			for (const auto &line : c.chartData.lines) {
-				if (!linesFilter->isEnabled(line.id)) {
-					continue;
-				}
 				if (line.y[i] > 0) {
-					sum += line.y[i] * linesFilter->alpha(line.id);
-					drawingLinesCount++;
+					const auto alpha = linesFilter->alpha(line.id);
+					sum += line.y[i] * alpha;
+					if (alpha > 0.) {
+						drawingLinesCount++;
+					}
 				}
 			}
 
@@ -143,9 +143,6 @@ void StackLinearChartView::prepareZoom(
 					? _transition.lines[k].end
 					: _transition.lines[k].start);
 				const auto &line = c.chartData.lines[k];
-				if (!linesFilter->isEnabled(line.id)) {
-					continue;
-				}
 				const auto yPercentage = (drawingLinesCount == 1)
 					? (line.y[i] ? linesFilter->alpha(line.id) : 0)
 					: (sum
@@ -331,11 +328,12 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 
 		for (auto k = 0; k < c.chartData.lines.size(); k++) {
 			const auto &line = c.chartData.lines[k];
-			if (!linesFilter->isEnabled(line.id)) {
+			const auto alpha = linesFilter->alpha(line.id);
+			if (!alpha) {
 				continue;
 			}
 			if (line.y[i] > 0) {
-				sum += line.y[i] * linesFilter->alpha(line.id);
+				sum += line.y[i] * alpha;
 				drawingLinesCount++;
 			}
 			lastEnabled = k;
@@ -345,11 +343,11 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 			const auto &line = c.chartData.lines[k];
 			const auto isLastLine = (k == lastEnabled);
 			const auto &transitionLine = _transition.lines[k];
-			if (!linesFilter->isEnabled(line.id)) {
+			const auto lineAlpha = linesFilter->alpha(line.id);
+			if (!lineAlpha) {
 				continue;
 			}
 			const auto &y = line.y;
-			const auto lineAlpha = linesFilter->alpha(line.id);
 
 			auto &chartPath = paths[k];
 
@@ -516,7 +514,6 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 			continue;
 		}
 		const auto &line = c.chartData.lines[k];
-		p.setOpacity(linesFilter->alpha(line.id) * opacity);
 		p.setPen(Qt::NoPen);
 		p.fillPath(paths[k], line.color);
 	}
@@ -633,11 +630,11 @@ void StackLinearChartView::paintZoomedFooter(
 		auto sum = 0.;
 		auto lastEnabledId = int(0);
 		for (const auto &line : c.chartData.lines) {
-			if (!linesFilterController()->isEnabled(line.id)) {
-				continue;
+			const auto alpha = linesFilterController()->alpha(line.id);
+			sum += line.y[i] * alpha;
+			if (alpha > 0.) {
+				lastEnabledId = line.id;
 			}
-			sum += line.y[i] * linesFilterController()->alpha(line.id);
-			lastEnabledId = line.id;
 		}
 
 		const auto columnMargins = QMarginsF(
@@ -655,10 +652,11 @@ void StackLinearChartView::paintZoomedFooter(
 		auto stack = 0.;
 		for (auto k = int(c.chartData.lines.size() - 1); k >= 0; k--) {
 			const auto &line = c.chartData.lines[k];
-			if (!linesFilterController()->isEnabled(line.id)) {
+			const auto visibleHeight = c.rect.height()
+				* (line.y[i] * linesFilterController()->alpha(line.id) / sum);
+			if (!visibleHeight) {
 				continue;
 			}
-			const auto visibleHeight = c.rect.height() * (line.y[i] / sum);
 			const auto height = (line.id == lastEnabledId)
 				? c.rect.height()
 				: visibleHeight;
