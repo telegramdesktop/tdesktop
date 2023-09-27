@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/view/linear_chart_view.h"
 
 #include "data/data_statistics.h"
+#include "statistics/chart_lines_filter_controller.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
@@ -16,8 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 namespace {
-
-constexpr auto kAlphaDuration = float64(350);
 
 float64 Ratio(const LinearChartView::CachedLineRatios &ratios, int id) {
 	return (id == 1) ? ratios.first : ratios.second;
@@ -72,13 +71,14 @@ void LinearChartView::paint(QPainter &p, const PaintContext &c) {
 		c.rect.size());
 
 	const auto opacity = p.opacity();
+	const auto linesFilter = linesFilterController();
 	const auto imageSize = c.rect.size() * style::DevicePixelRatio();
 	const auto cacheScale = 1. / style::DevicePixelRatio();
 	auto &caches = (c.footer ? _footerCaches : _mainCaches);
 
 	for (auto i = 0; i < c.chartData.lines.size(); i++) {
 		const auto &line = c.chartData.lines[i];
-		p.setOpacity(alpha(line.id));
+		p.setOpacity(linesFilter->alpha(line.id));
 		if (!p.opacity()) {
 			continue;
 		}
@@ -87,7 +87,7 @@ void LinearChartView::paint(QPainter &p, const PaintContext &c) {
 
 		const auto isSameToken = (cache.lastToken == cacheToken);
 		if ((isSameToken && cache.hq)
-			|| (p.opacity() < 1. && !isEnabled(line.id))) {
+			|| (p.opacity() < 1. && !linesFilter->isEnabled(line.id))) {
 			p.drawImage(c.rect.topLeft(), cache.image);
 			continue;
 		}
@@ -129,6 +129,7 @@ void LinearChartView::paintSelectedXIndex(
 	if (selectedXIndex < 0) {
 		return;
 	}
+	const auto linesFilter = linesFilterController();
 	auto hq = PainterHighQualityEnabler(p);
 	auto o = ScopedPainterOpacity(p, progress);
 	p.setBrush(st::boxBg);
@@ -141,9 +142,9 @@ void LinearChartView::paintSelectedXIndex(
 		&& (_selectedPoints.lastXLimits.max == c.xPercentageLimits.max);
 	auto linePainted = false;
 	for (const auto &line : c.chartData.lines) {
-		const auto lineAlpha = alpha(line.id);
+		const auto lineAlpha = linesFilter->alpha(line.id);
 		const auto useCache = isSameToken
-			|| (lineAlpha < 1. && !isEnabled(line.id));
+			|| (lineAlpha < 1. && !linesFilter->isEnabled(line.id));
 		if (!useCache) {
 			// Calculate.
 			const auto r = Ratio(_cachedLineRatios, line.id);
@@ -208,33 +209,6 @@ int LinearChartView::findXIndexByPosition(
 		nearestXPercentageIt);
 }
 
-void LinearChartView::setEnabled(int id, bool enabled, crl::time now) {
-	const auto it = _entries.find(id);
-	if (it == end(_entries)) {
-		_entries[id] = Entry{ .enabled = enabled, .startedAt = now };
-	} else if (it->second.enabled != enabled) {
-		auto &entry = it->second;
-		entry.enabled = enabled;
-		entry.startedAt = now
-			- kAlphaDuration * (enabled ? entry.alpha : (1. - entry.alpha));
-	}
-	_isFinished = false;
-}
-
-bool LinearChartView::isFinished() const {
-	return _isFinished;
-}
-
-bool LinearChartView::isEnabled(int id) const {
-	const auto it = _entries.find(id);
-	return (it == end(_entries)) ? true : it->second.enabled;
-}
-
-float64 LinearChartView::alpha(int id) const {
-	const auto it = _entries.find(id);
-	return (it == end(_entries)) ? 1. : it->second.alpha;
-}
-
 AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) {
@@ -262,7 +236,7 @@ AbstractChartView::HeightLimits LinearChartView::heightLimits(
 	auto minValueFull = std::numeric_limits<int>::max();
 	auto maxValueFull = 0;
 	for (auto &l : chartData.lines) {
-		if (!isEnabled(l.id)) {
+		if (!linesFilterController()->isEnabled(l.id)) {
 			continue;
 		}
 		const auto r = Ratio(_cachedLineRatios, l.id);
@@ -278,31 +252,6 @@ AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		.full = Limits{ float64(minValueFull), float64(maxValueFull) },
 		.ranged = Limits{ float64(minValue), float64(maxValue) },
 	};
-}
-
-void LinearChartView::tick(crl::time now) {
-	auto finishedCount = 0;
-	auto idsToRemove = std::vector<int>();
-	for (auto &[id, entry] : _entries) {
-		if (!entry.startedAt) {
-			continue;
-		}
-		const auto progress = (now - entry.startedAt) / kAlphaDuration;
-		entry.alpha = std::clamp(
-			entry.enabled ? progress : (1. - progress),
-			0.,
-			1.);
-		if (entry.alpha == 1.) {
-			idsToRemove.push_back(id);
-		}
-		if (progress >= 1.) {
-			finishedCount++;
-		}
-	}
-	_isFinished = (finishedCount == _entries.size());
-	for (const auto &id : idsToRemove) {
-		_entries.remove(id);
-	}
 }
 
 } // namespace Statistic

@@ -21,6 +21,7 @@ class PointDetailsWidget;
 class ChartLinesFilterWidget;
 class AbstractChartView;
 class Header;
+class LinesFilterController;
 
 class ChartWidget : public Ui::RpWidget {
 public:
@@ -60,7 +61,8 @@ private:
 		void setXPercentageLimits(
 			Data::StatisticalChart &chartData,
 			Limits xPercentageLimits,
-			const std::unique_ptr<AbstractChartView> &AbstractChartView,
+			const std::unique_ptr<AbstractChartView> &chartView,
+			const std::shared_ptr<LinesFilterController> &linesFilter,
 			crl::time now);
 		void start();
 		void finish();
@@ -70,7 +72,8 @@ private:
 			crl::time now,
 			ChartHorizontalLinesView &horizontalLinesView,
 			std::vector<BottomCaptionLineData> &dateLines,
-			const std::unique_ptr<AbstractChartView> &AbstractChartView);
+			const std::unique_ptr<AbstractChartView> &chartView,
+			const std::shared_ptr<LinesFilterController> &linesFilter);
 
 		[[nodiscard]] Limits currentXLimits() const;
 		[[nodiscard]] Limits currentXIndices() const;
@@ -161,6 +164,8 @@ private:
 	} _bottomLine;
 
 	bool _useMinHeight = false;
+
+	std::shared_ptr<LinesFilterController> _linesFilterController;
 
 	ChartAnimationController _animationController;
 	crl::time _lastHeightLimitsChanged = 0;

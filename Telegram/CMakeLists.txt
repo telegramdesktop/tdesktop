@@ -1286,6 +1286,8 @@ PRIVATE
     statistics/chart_header_widget.h
     statistics/chart_horizontal_lines_data.cpp
     statistics/chart_horizontal_lines_data.h
+    statistics/chart_lines_filter_controller.cpp
+    statistics/chart_lines_filter_controller.h
     statistics/chart_widget.cpp
     statistics/chart_widget.h
     statistics/point_details_widget.cpp

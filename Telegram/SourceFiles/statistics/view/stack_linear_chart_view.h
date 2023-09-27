@@ -40,17 +40,9 @@ public:
 		const QRect &rect,
 		float64 x) override;
 
-	void setEnabled(int id, bool enabled, crl::time now) override;
-	[[nodiscard]] bool isEnabled(int id) const override;
-	[[nodiscard]] bool isFinished() const override;
-	[[nodiscard]] float64 alpha(int id) const override;
-
 	[[nodiscard]] HeightLimits heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) override;
-
-	void tick(crl::time now) override;
-	void update(float64 dt) override;
 
 	LocalZoomResult maybeLocalZoom(const LocalZoomArgs &args) override final;
 
@@ -94,17 +86,6 @@ private:
 		float64 xPoint = 0.;
 	};
 	SelectedPoints _selectedPoints;
-
-	struct Entry final {
-		bool enabled = false;
-		crl::time startedAt = 0;
-		float64 alpha = 1.;
-		anim::value anim;
-		bool disabled = false;
-	};
-
-	base::flat_map<int, Entry> _entries;
-	bool _isFinished = true;
 
 	struct Transition {
 		struct TransitionLine {

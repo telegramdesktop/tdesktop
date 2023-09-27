@@ -14,6 +14,7 @@ struct StatisticalChart;
 namespace Statistic {
 
 struct Limits;
+class LinesFilterController;
 
 struct PaintContext final {
 	const Data::StatisticalChart &chartData;
@@ -42,11 +43,6 @@ public:
 		const QRect &rect,
 		float64 x) = 0;
 
-	virtual void setEnabled(int id, bool enabled, crl::time now) = 0;
-	[[nodiscard]] virtual bool isEnabled(int id) const = 0;
-	[[nodiscard]] virtual bool isFinished() const = 0;
-	[[nodiscard]] virtual float64 alpha(int id) const = 0;
-
 	struct HeightLimits final {
 		Limits full;
 		Limits ranged;
@@ -55,10 +51,6 @@ public:
 	[[nodiscard]] virtual HeightLimits heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) = 0;
-
-	virtual void tick(crl::time now) = 0;
-	virtual void update(float64 dt) {
-	};
 
 	struct LocalZoomResult final {
 		bool hasZoom = false;
@@ -99,7 +91,18 @@ public:
 		}
 	}
 
+	void setLinesFilterController(std::shared_ptr<LinesFilterController> c) {
+		_linesFilterController = std::move(c);
+	}
+
+protected:
+	using LinesFilterControllerPtr = std::shared_ptr<LinesFilterController>;
+	[[nodiscard]] LinesFilterControllerPtr linesFilterController() {
+		return _linesFilterController;
+	}
+
 private:
+	LinesFilterControllerPtr _linesFilterController;
 	Fn<void()> _updateCallback;
 
 };

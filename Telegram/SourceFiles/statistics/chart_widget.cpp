@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "lang/lang_keys.h"
 #include "statistics/chart_header_widget.h"
+#include "statistics/chart_lines_filter_controller.h"
 #include "statistics/chart_lines_filter_widget.h"
 #include "statistics/point_details_widget.h"
 #include "statistics/view/abstract_chart_view.h"
@@ -505,10 +506,11 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		Data::StatisticalChart &chartData,
 		Limits xPercentageLimits,
 		const std::unique_ptr<AbstractChartView> &chartView,
+		const std::shared_ptr<LinesFilterController> &linesFilter,
 		crl::time now) {
 	if ((_animationValueXMin.to() == xPercentageLimits.min)
 		&& (_animationValueXMax.to() == xPercentageLimits.max)
-		&& chartView->isFinished()) {
+		&& linesFilter->isFinished()) {
 		return;
 	}
 	start();
@@ -535,7 +537,7 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 		if (!_previousFullHeightLimits.max) {
 			_previousFullHeightLimits = _finalHeightLimits;
 		}
-		if (!chartView->isFinished()) {
+		if (!linesFilter->isFinished()) {
 			_animationValueFooterHeightMin = anim::value(
 				_animationValueFooterHeightMin.current(),
 				heightLimits.full.min);
@@ -583,7 +585,7 @@ void ChartWidget::ChartAnimationController::setXPercentageLimits(
 			_dtHeight.currentAlpha = 0.;
 			_addHorizontalLineRequests.fire({});
 		}
-		_dtHeight.speed = (!chartView->isFinished())
+		_dtHeight.speed = (!linesFilter->isFinished())
 			? kDtHeightSpeedFilter
 			: (k > kDtHeightSpeedThreshold1)
 			? kDtHeightSpeed1
@@ -629,7 +631,8 @@ void ChartWidget::ChartAnimationController::tick(
 		crl::time now,
 		ChartHorizontalLinesView &horizontalLinesView,
 		std::vector<BottomCaptionLineData> &dateLines,
-		const std::unique_ptr<AbstractChartView> &chartView) {
+		const std::unique_ptr<AbstractChartView> &chartView,
+		const std::shared_ptr<LinesFilterController> &linesFilter) {
 	if (!_animation.animating()) {
 		return;
 	}
@@ -652,6 +655,7 @@ void ChartWidget::ChartAnimationController::tick(
 			// Speed up to reduce ugly frames count.
 			* (_benchmark.lastFPSSlow ? 2. : 1.);
 		const auto speed = _dtHeight.speed * k;
+		linesFilter->tick(speed);
 		_dtHeight.current.min = std::min(_dtHeight.current.min + speed, 1.);
 		_dtHeight.current.max = std::min(_dtHeight.current.max + speed, 1.);
 		_dtHeight.currentAlpha = std::min(_dtHeight.currentAlpha + speed, 1.);
@@ -680,25 +684,13 @@ void ChartWidget::ChartAnimationController::tick(
 	const auto footerMinFinished = isFinished(_animationValueFooterHeightMin);
 	const auto footerMaxFinished = isFinished(_animationValueFooterHeightMax);
 
-	// chartView->tick(now);
-	{
-		constexpr auto kDtHeightSpeed1 = 0.03 * 2;
-		constexpr auto kDtHeightSpeed2 = 0.03 * 2;
-		constexpr auto kDtHeightSpeed3 = 0.045 * 2;
-		if (_dtHeight.current.max > 0 && _dtHeight.current.max < 1) {
-			chartView->update(_dtHeight.current.max);
-		} else {
-			chartView->tick(now);
-		}
-	}
-
 	if (xFinished
 			&& yFinished
 			&& alphaFinished
 			&& bottomLineAlphaFinished
 			&& footerMinFinished
 			&& footerMaxFinished
-			&& chartView->isFinished()) {
+			&& linesFilter->isFinished()) {
 		if ((_finalHeightLimits.min == _animationValueHeightMin.to())
 			&& _finalHeightLimits.max == _animationValueHeightMax.to()) {
 			_animation.stop();
@@ -735,12 +727,12 @@ void ChartWidget::ChartAnimationController::tick(
 	if (!footerMinFinished) {
 		_animationValueFooterHeightMin.update(
 			_dtHeight.current.min,
-			anim::sineInOut);
+			anim::easeInCubic);
 	}
 	if (!footerMaxFinished) {
 		_animationValueFooterHeightMax.update(
 			_dtHeight.current.max,
-			anim::sineInOut);
+			anim::easeInCubic);
 	}
 
 	if (!alphaFinished) {
@@ -816,9 +808,11 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 , _chartArea(base::make_unique_q<RpMouseWidget>(this))
 , _header(std::make_unique<Header>(this))
 , _footer(std::make_unique<Footer>(this))
+, _linesFilterController(std::make_shared<LinesFilterController>())
 , _animationController([=] {
 	_chartArea->update();
-	if (_animationController.footerAnimating() || !_chartView->isFinished()) {
+	if (_animationController.footerAnimating()
+		|| !_linesFilterController->isFinished()) {
 		_footer->update();
 	}
 }) {
@@ -906,7 +900,8 @@ void ChartWidget::setupChartArea() {
 			now,
 			_horizontalLinesView,
 			_bottomLine.dates,
-			_chartView);
+			_chartView,
+			_linesFilterController);
 
 		const auto chartRect = chartAreaRect();
 
@@ -947,7 +942,7 @@ void ChartWidget::setupChartArea() {
 			for (const auto &line : _chartData.lines) {
 				_details.widget->setLineAlpha(
 					line.id,
-					_chartView->alpha(line.id));
+					_linesFilterController->alpha(line.id));
 			}
 			_chartView->paintSelectedXIndex(
 				p,
@@ -1089,6 +1084,7 @@ void ChartWidget::setupFooter() {
 			_chartData,
 			xPercentageLimits,
 			_chartView,
+			_linesFilterController,
 			now);
 		updateChartFullWidth(_chartArea->width());
 		updateBottomDates();
@@ -1349,12 +1345,13 @@ void ChartWidget::setupFilterButtons() {
 	_filterButtons->buttonEnabledChanges(
 	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
 		const auto now = crl::now();
-		_chartView->setEnabled(e.id, e.enabled, now);
+		_linesFilterController->setEnabled(e.id, e.enabled, now);
 
 		_animationController.setXPercentageLimits(
 			_chartData,
 			_animationController.currentXLimits(),
 			_chartView,
+			_linesFilterController,
 			now);
 	}, _filterButtons->lifetime());
 }
@@ -1365,6 +1362,7 @@ void ChartWidget::setChartData(
 	_chartData = std::move(chartData);
 
 	_chartView = CreateChartView(type);
+	_chartView->setLinesFilterController(_linesFilterController);
 	_horizontalLinesView.setChartData(_chartData, type);
 
 	setupDetails();
@@ -1374,6 +1372,7 @@ void ChartWidget::setChartData(
 		_chartData,
 		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() },
 		_chartView,
+		_linesFilterController,
 		0);
 	updateChartFullWidth(_chartArea->width());
 	updateHeader();

@@ -39,17 +39,9 @@ public:
 		const QRect &rect,
 		float64 x) override;
 
-	void setEnabled(int id, bool enabled, crl::time now) override;
-	[[nodiscard]] bool isEnabled(int id) const override;
-	[[nodiscard]] bool isFinished() const override;
-	[[nodiscard]] float64 alpha(int id) const override;
-
 	[[nodiscard]] HeightLimits heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) override;
-
-	void tick(crl::time now) override;
-	void update(float64 dt) override;
 
 private:
 	void paintChartAndSelected(QPainter &p, const PaintContext &c);
@@ -63,17 +55,6 @@ private:
 	Limits _lastPaintedXIndices;
 	int _lastSelectedXIndex = -1;
 	float64 _lastSelectedXProgress = 0;
-
-	struct Entry final {
-		bool enabled = false;
-		crl::time startedAt = 0;
-		float64 alpha = 1.;
-		anim::value anim;
-		bool disabled = false;
-	};
-
-	base::flat_map<int, Entry> _entries;
-	bool _isFinished = true;
 
 };
 

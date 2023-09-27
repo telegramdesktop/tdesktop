@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/view/stack_linear_chart_view.h"
 
 #include "data/data_statistics.h"
+#include "statistics/chart_lines_filter_controller.h"
 #include "statistics/point_details_widget.h"
 #include "statistics/view/stack_chart_common.h"
 #include "ui/effects/animation_value_f.h"
@@ -20,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 namespace {
 
-constexpr auto kAlphaDuration = float64(200);
 constexpr auto kCircleSizeRatio = 0.42;
 constexpr auto kMinTextScaleRatio = 0.3;
 constexpr auto kPieAngleOffset = 90;
@@ -121,6 +121,7 @@ void StackLinearChartView::prepareZoom(
 			Transition::TransitionLine());
 
 		const auto xPercentageLimits = _transition.zoomedOutXPercentage;
+		const auto &linesFilter = linesFilterController();
 
 		for (auto j = 0; j < 2; j++) {
 			const auto i = int((j == 1) ? zoomedEnd : zoomedStart);
@@ -128,11 +129,11 @@ void StackLinearChartView::prepareZoom(
 			auto sum = 0.;
 			auto drawingLinesCount = 0;
 			for (const auto &line : c.chartData.lines) {
-				if (!isEnabled(line.id)) {
+				if (!linesFilter->isEnabled(line.id)) {
 					continue;
 				}
 				if (line.y[i] > 0) {
-					sum += line.y[i] * alpha(line.id);
+					sum += line.y[i] * linesFilter->alpha(line.id);
 					drawingLinesCount++;
 				}
 			}
@@ -142,12 +143,14 @@ void StackLinearChartView::prepareZoom(
 					? _transition.lines[k].end
 					: _transition.lines[k].start);
 				const auto &line = c.chartData.lines[k];
-				if (!isEnabled(line.id)) {
+				if (!linesFilter->isEnabled(line.id)) {
 					continue;
 				}
 				const auto yPercentage = (drawingLinesCount == 1)
-					? (line.y[i] ? alpha(line.id) : 0)
-					: (sum ? (line.y[i] * alpha(line.id) / sum) : 0);
+					? (line.y[i] ? linesFilter->alpha(line.id) : 0)
+					: (sum
+						? (line.y[i] * linesFilter->alpha(line.id) / sum)
+						: 0);
 
 				const auto xPoint = c.rect.width()
 					* ((c.chartData.xPercentage[i] - xPercentageLimits.min)
@@ -197,12 +200,13 @@ auto StackLinearChartView::partsPercentage(
 	auto sums = std::vector<float64>();
 	sums.reserve(chartData.lines.size());
 	auto totalSum = 0.;
+	const auto &linesFilter = linesFilterController();
 	for (const auto &line : chartData.lines) {
 		auto sum = 0;
 		for (auto i = xIndices.min; i <= xIndices.max; i++) {
 			sum += line.y[i];
 		}
-		sum *= alpha(line.id);
+		sum *= linesFilter->alpha(line.id);
 		totalSum += sum;
 		sums.push_back(sum);
 	}
@@ -262,6 +266,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		}
 		return p.setOpacity(0.);
 	}
+	const auto &linesFilter = linesFilterController();
 	const auto hasTransitionAnimation = _transition.progress && !c.footer;
 	const auto &[localStart, localEnd] = c.footer
 		? Limits{ 0., float64(c.chartData.xPercentage.size() - 1) }
@@ -326,11 +331,11 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 
 		for (auto k = 0; k < c.chartData.lines.size(); k++) {
 			const auto &line = c.chartData.lines[k];
-			if (!isEnabled(line.id)) {
+			if (!linesFilter->isEnabled(line.id)) {
 				continue;
 			}
 			if (line.y[i] > 0) {
-				sum += line.y[i] * alpha(line.id);
+				sum += line.y[i] * linesFilter->alpha(line.id);
 				drawingLinesCount++;
 			}
 			lastEnabled = k;
@@ -340,11 +345,11 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 			const auto &line = c.chartData.lines[k];
 			const auto isLastLine = (k == lastEnabled);
 			const auto &transitionLine = _transition.lines[k];
-			if (!isEnabled(line.id)) {
+			if (!linesFilter->isEnabled(line.id)) {
 				continue;
 			}
 			const auto &y = line.y;
-			const auto lineAlpha = alpha(line.id);
+			const auto lineAlpha = linesFilter->alpha(line.id);
 
 			auto &chartPath = paths[k];
 
@@ -511,7 +516,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 			continue;
 		}
 		const auto &line = c.chartData.lines[k];
-		p.setOpacity(alpha(line.id) * opacity);
+		p.setOpacity(linesFilter->alpha(line.id) * opacity);
 		p.setPen(Qt::NoPen);
 		p.fillPath(paths[k], line.color);
 	}
@@ -601,7 +606,7 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 		for (auto i = zoomedStart; i <= zoomedEnd; i++) {
 			sum += line.y[i];
 		}
-		sum *= alpha(line.id);
+		sum *= linesFilterController()->alpha(line.id);
 		if (sum > 0) {
 			PaintDetails(p, line, sum, c.rect);
 		}
@@ -628,10 +633,10 @@ void StackLinearChartView::paintZoomedFooter(
 		auto sum = 0.;
 		auto lastEnabledId = int(0);
 		for (const auto &line : c.chartData.lines) {
-			if (!isEnabled(line.id)) {
+			if (!linesFilterController()->isEnabled(line.id)) {
 				continue;
 			}
-			sum += line.y[i] * alpha(line.id);
+			sum += line.y[i] * linesFilterController()->alpha(line.id);
 			lastEnabledId = line.id;
 		}
 
@@ -650,7 +655,7 @@ void StackLinearChartView::paintZoomedFooter(
 		auto stack = 0.;
 		for (auto k = int(c.chartData.lines.size() - 1); k >= 0; k--) {
 			const auto &line = c.chartData.lines[k];
-			if (!isEnabled(line.id)) {
+			if (!linesFilterController()->isEnabled(line.id)) {
 				continue;
 			}
 			const auto visibleHeight = c.rect.height() * (line.y[i] / sum);
@@ -728,7 +733,8 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 					textRectCenter.y() + partOffset.y())
 				.scale(scale, scale)
 				.translate(-textRectCenter.x(), -textRectCenter.y()));
-		p.setOpacity(opacity * alpha(c.chartData.lines[k].id));
+		p.setOpacity(opacity
+			* linesFilterController()->alpha(c.chartData.lines[k].id));
 		p.drawText(textRect, text, style::al_center);
 	}
 	p.resetTransform();
@@ -822,8 +828,7 @@ void StackLinearChartView::handleMouseMove(
 }
 
 bool StackLinearChartView::skipSelectedTranslation() const {
-	return _pieHasSinglePart
-		|| (_entries.size() == (_transition.lines.size() - 1));
+	return _pieHasSinglePart;
 }
 
 void StackLinearChartView::paintSelectedXIndex(
@@ -904,37 +909,6 @@ int StackLinearChartView::findXIndexByPosition(
 		long(localEnd));
 }
 
-void StackLinearChartView::setEnabled(int id, bool enabled, crl::time now) {
-	const auto it = _entries.find(id);
-	if (it == end(_entries)) {
-		_entries[id] = Entry{
-			.enabled = enabled,
-			.startedAt = now,
-			.anim = anim::value(enabled ? 0. : 1., enabled ? 1. : 0.),
-		};
-	} else if (it->second.enabled != enabled) {
-		auto &entry = it->second;
-		entry.enabled = enabled;
-		entry.startedAt = now;
-		entry.anim.start(enabled ? 1. : 0.);
-	}
-	_isFinished = false;
-}
-
-bool StackLinearChartView::isFinished() const {
-	return _isFinished;
-}
-
-bool StackLinearChartView::isEnabled(int id) const {
-	const auto it = _entries.find(id);
-	return (it == end(_entries)) ? true : it->second.enabled;
-}
-
-float64 StackLinearChartView::alpha(int id) const {
-	const auto it = _entries.find(id);
-	return (it == end(_entries)) ? 1. : it->second.alpha;
-}
-
 AbstractChartView::HeightLimits StackLinearChartView::heightLimits(
 		Data::StatisticalChart &chartData,
 		Limits xIndices) {
@@ -1008,45 +982,6 @@ auto StackLinearChartView::maybeLocalZoom(
 			_transition.zoomedInRange.max + oneDay * 0.75 + offset),
 	};
 	return { true, _transition.zoomedInLimitXIndices, resultRange };
-}
-
-void StackLinearChartView::tick(crl::time now) {
-	for (auto &[id, entry] : _entries) {
-		const auto dt = std::min(
-			(now - entry.startedAt) / kAlphaDuration,
-			1.);
-		if (dt > 1.) {
-			continue;
-		}
-		return update(dt);
-	}
-}
-
-void StackLinearChartView::update(float64 dt) {
-	auto finishedCount = 0;
-	auto idsToRemove = std::vector<int>();
-	for (auto &[id, entry] : _entries) {
-		if (!entry.startedAt) {
-			continue;
-		}
-		entry.anim.update(dt, anim::linear);
-		const auto progress = entry.anim.current();
-		entry.alpha = std::clamp(
-			progress,
-			0.,
-			1.);
-		if (entry.alpha == 1.) {
-			idsToRemove.push_back(id);
-		}
-		if (entry.anim.current() == entry.anim.to()) {
-			finishedCount++;
-			entry.anim.finish();
-		}
-	}
-	_isFinished = (finishedCount == _entries.size());
-	for (const auto &id : idsToRemove) {
-		_entries.remove(id);
-	}
 }
 
 } // namespace Statistic
