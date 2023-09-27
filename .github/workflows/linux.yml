@@ -30,11 +30,6 @@ on:
         required: false
         type: string
         default: ''
-      dockerImage:
-        description: 'Docker image to use'
-        required: false
-        type: string
-        default: 'ghcr.io/wrwrabbit/centos_env'
 
 jobs:
 
@@ -43,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     container:
-      image: ${{ github.event.inputs.dockerImage }}
+      image: ghcr.io/wrwrabbit/centos_env
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -93,10 +88,6 @@ jobs:
 
           ARTIFACT_PREFIX=""
           
-          if [ "${{ github.event.inputs.dockerImage }}" != 'ghcr.io/wrwrabbit/centos_env' ]; then
-            echo Dev build: using custom docker image: ${{ github.event.inputs.dockerImage }}
-            ARTIFACT_PREFIX="dev"
-          fi
           if [ "${{ github.ref_name }}" != "${{ github.event.repository.default_branch }}" ]; then
             echo Dev build: using non master branch: ${{ github.ref_name }}
             ARTIFACT_PREFIX="dev"
