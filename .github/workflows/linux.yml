@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     container:
-      image: ghcr.io/wrwrabbit/centos_env
+      image: ghcr.io/${{ github.repository }}/centos_env
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
