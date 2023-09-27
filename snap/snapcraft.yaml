@@ -173,6 +173,7 @@ parts:
 
   patches:
     source: https://github.com/desktop-app/patches.git
+    source-commit: 2c464cfbd9fa3c1d88335cf9462c8ef96542f87c
     source-depth: 1
     plugin: dump
     override-pull: |
