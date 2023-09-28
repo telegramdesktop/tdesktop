@@ -271,6 +271,9 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 : RpMouseWidget(parent) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
+		if (s.isNull()) {
+			return;
+		}
 		const auto w = float64(st::statisticsChartFooterSideWidth);
 		_width = s.width() - w;
 		_widthBetweenSides = s.width() - w * 2.;
@@ -1105,6 +1108,9 @@ void ChartWidget::setupFooter() {
 
 	_footer->xPercentageLimitsChange(
 	) | rpl::start_with_next([=](Limits xPercentageLimits) {
+		if (!_chartView) {
+			return;
+		}
 		const auto now = crl::now();
 		if (_details.widget
 			&& (_details.widget->xIndex() >= 0)
@@ -1407,9 +1413,14 @@ void ChartWidget::setChartData(
 	setupDetails();
 	setupFilterButtons();
 
+	const auto defaultZoom = Limits{
+		_chartData.xPercentage[_chartData.defaultZoomXIndex.min],
+		_chartData.xPercentage[_chartData.defaultZoomXIndex.max],
+	};
+	_footer->setXPercentageLimits(defaultZoom);
 	_animationController.setXPercentageLimits(
 		_chartData,
-		{ _chartData.xPercentage.front(), _chartData.xPercentage.back() },
+		defaultZoom,
 		_chartView,
 		_linesFilterController,
 		0);
@@ -1440,13 +1451,13 @@ void ChartWidget::setZoomedChartData(
 		ChartViewType type) {
 	_zoomedChartWidget = base::make_unique_q<ChartWidget>(
 		dynamic_cast<Ui::RpWidget*>(parentWidget()));
-	_zoomedChartWidget->setChartData(std::move(chartData), type);
 	geometryValue(
 	) | rpl::start_with_next([=](const QRect &geometry) {
 		_zoomedChartWidget->moveToLeft(geometry.x(), geometry.y());
 	}, _zoomedChartWidget->lifetime());
 	_zoomedChartWidget->show();
 	_zoomedChartWidget->resizeToWidth(width());
+	_zoomedChartWidget->setChartData(std::move(chartData), type);
 
 	const auto customHeader = Ui::CreateChild<Header>(
 		_zoomedChartWidget.get());

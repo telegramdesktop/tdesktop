@@ -70,6 +70,30 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		}
 		result.measure();
 	}
+
+	{
+		const auto subchart = root.value(u"subchart"_q).toObject();
+		const auto defaultZoomIt = subchart.constFind(u"defaultZoom"_q);
+		auto min = int(0);
+		auto max = int(result.x.size() - 1);
+		if (defaultZoomIt != subchart.constEnd()) {
+			if (const auto array = defaultZoomIt->toArray(); !array.empty()) {
+				const auto minValue = array.first().toDouble();
+				const auto maxValue = array.last().toDouble();
+				for (auto i = 0; i < result.x.size(); i++) {
+					if (result.x[i] == minValue) {
+						min = i;
+					}
+					if (result.x[i] == maxValue) {
+						max = i;
+					}
+				}
+			}
+		}
+		result.defaultZoomXIndex.min = std::min(min, max);
+		result.defaultZoomXIndex.max = std::max(min, max);
+	}
+
 	const auto colors = root.value(u"colors"_q).toObject();
 	const auto names = root.value(u"names"_q).toObject();
 

@@ -73,6 +73,11 @@ struct StatisticalChart {
 
 	std::vector<Line> lines;
 
+	struct {
+		float64 min = 0.;
+		float64 max = 0.;
+	} defaultZoomXIndex;
+
 	int maxValue = 0;
 	int minValue = std::numeric_limits<int>::max();
 
