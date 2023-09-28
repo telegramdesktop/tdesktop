@@ -43,6 +43,19 @@ using UpdateFlag = StoryUpdate::Flag;
 	};
 }
 
+[[nodiscard]] TextWithEntities StripLinks(TextWithEntities text) {
+	const auto link = [&](const EntityInText &entity) {
+		return (entity.type() == EntityType::CustomUrl)
+			|| (entity.type() == EntityType::Url)
+			|| (entity.type() == EntityType::Mention)
+			|| (entity.type() == EntityType::Hashtag);
+	};
+	text.entities.erase(
+		ranges::remove_if(text.entities, link),
+		text.entities.end());
+	return text;
+}
+
 [[nodiscard]] auto ParseLocation(const MTPMediaArea &area)
 -> std::optional<StoryLocation> {
 	auto result = std::optional<StoryLocation>();
@@ -586,6 +599,11 @@ void Story::applyFields(
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
+	if (const auto user = _peer->asUser()) {
+		if (!user->isVerified() && !user->isPremium()) {
+			caption = StripLinks(std::move(caption));
+		}
+	}
 	auto counts = ViewsCounts();
 	auto viewsKnown = _views.known;
 	if (const auto info = data.vviews()) {
