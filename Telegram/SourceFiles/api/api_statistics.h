@@ -27,9 +27,11 @@ public:
 		float64 x);
 
 	[[nodiscard]] Data::ChannelStatistics channelStats() const;
+	[[nodiscard]] Data::SupergroupStatistics supergroupStats() const;
 
 private:
 	Data::ChannelStatistics _channelStats;
+	Data::SupergroupStatistics _supergroupStats;
 	MTP::Sender _api;
 
 };

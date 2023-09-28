@@ -110,6 +110,79 @@ namespace {
 	};
 }
 
+[[nodiscard]] Data::SupergroupStatistics SupergroupStatisticsFromTL(
+		const MTPDstats_megagroupStats &data) {
+	using Senders = MTPStatsGroupTopPoster;
+	using Administrators = MTPStatsGroupTopAdmin;
+	using Inviters = MTPStatsGroupTopInviter;
+
+	auto topSenders = ranges::views::all(
+		data.vtop_posters().v
+	) | ranges::views::transform([&](const Senders &tl) {
+		return Data::StatisticsMessageSenderInfo{
+			.userId = UserId(tl.data().vuser_id().v),
+			.sentMessageCount = tl.data().vmessages().v,
+			.averageCharacterCount = tl.data().vavg_chars().v,
+		};
+	}) | ranges::to_vector;
+	auto topAdministrators = ranges::views::all(
+		data.vtop_admins().v
+	) | ranges::views::transform([&](const Administrators &tl) {
+		return Data::StatisticsAdministratorActionsInfo{
+			.userId = UserId(tl.data().vuser_id().v),
+			.deletedMessageCount = tl.data().vdeleted().v,
+			.bannedUserCount = tl.data().vkicked().v,
+			.restrictedUserCount = tl.data().vbanned().v,
+		};
+	}) | ranges::to_vector;
+	auto topInviters = ranges::views::all(
+		data.vtop_inviters().v
+	) | ranges::views::transform([&](const Inviters &tl) {
+		return Data::StatisticsInviterInfo{
+			.userId = UserId(tl.data().vuser_id().v),
+			.addedMemberCount = tl.data().vinvitations().v,
+		};
+	}) | ranges::to_vector;
+
+	return {
+		.startDate = data.vperiod().data().vmin_date().v,
+		.endDate = data.vperiod().data().vmax_date().v,
+
+		.memberCount = StatisticalValueFromTL(data.vmembers()),
+		.messageCount = StatisticalValueFromTL(data.vmessages()),
+		.viewerCount = StatisticalValueFromTL(data.vviewers()),
+		.senderCount = StatisticalValueFromTL(data.vposters()),
+
+		.memberCountGraph = StatisticalGraphFromTL(
+			data.vgrowth_graph()),
+
+		.joinGraph = StatisticalGraphFromTL(
+			data.vmembers_graph()),
+
+		.joinBySourceGraph = StatisticalGraphFromTL(
+			data.vnew_members_by_source_graph()),
+
+		.languageGraph = StatisticalGraphFromTL(
+			data.vlanguages_graph()),
+
+		.messageContentGraph = StatisticalGraphFromTL(
+			data.vmessages_graph()),
+
+		.actionGraph = StatisticalGraphFromTL(
+			data.vactions_graph()),
+
+		.dayGraph = StatisticalGraphFromTL(
+			data.vtop_hours_graph()),
+
+		.weekGraph = StatisticalGraphFromTL(
+			data.vweekdays_graph()),
+
+		.topSenders = std::move(topSenders),
+		.topAdministrators = std::move(topAdministrators),
+		.topInviters = std::move(topInviters),
+	};
+}
+
 } // namespace
 
 Statistics::Statistics(not_null<ApiWrap*> api)
@@ -131,6 +204,17 @@ rpl::producer<rpl::no_value, QString> Statistics::request(
 				channel->inputChannel
 			)).done([=](const MTPstats_BroadcastStats &result) {
 				_channelStats = ChannelStatisticsFromTL(result.data());
+				consumer.put_done();
+			}).fail([=](const MTP::Error &error) {
+				consumer.put_error_copy(error.type());
+			}).send();
+		} else {
+			_api.request(MTPstats_GetMegagroupStats(
+				MTP_flags(MTPstats_GetMegagroupStats::Flags(0)),
+				channel->inputChannel
+			)).done([=](const MTPstats_MegagroupStats &result) {
+				_supergroupStats = SupergroupStatisticsFromTL(result.data());
+				peer->owner().processUsers(result.data().vusers());
 				consumer.put_done();
 			}).fail([=](const MTP::Error &error) {
 				consumer.put_error_copy(error.type());
@@ -171,6 +255,10 @@ rpl::producer<Data::StatisticalGraph, QString> Statistics::requestZoom(
 
 Data::ChannelStatistics Statistics::channelStats() const {
 	return _channelStats;
+}
+
+Data::SupergroupStatistics Statistics::supergroupStats() const {
+	return _supergroupStats;
 }
 
 } // namespace Api
