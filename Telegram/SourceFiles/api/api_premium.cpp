@@ -17,6 +17,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 namespace Api {
+namespace {
+
+[[nodiscard]] GiftCode Parse(const MTPDpayments_checkedGiftCode &data) {
+	return {
+		.from = peerFromMTP(data.vfrom_id()),
+		.to = data.vto_id() ? peerFromUser(*data.vto_id()) : PeerId(),
+		.date = data.vdate().v,
+		.used = false,// data.vused_date().value_or_empty(),
+		.months = data.vmonths().v,
+	};
+}
+
+} // namespace
 
 Premium::Premium(not_null<ApiWrap*> api)
 : _session(&api->session())
@@ -181,6 +194,52 @@ void Premium::reloadCloudSet() {
 	}).fail([=] {
 		_cloudSetRequestId = 0;
 	}).send();
+}
+
+void Premium::checkGiftCode(
+		const QString &slug,
+		Fn<void(GiftCode)> done) {
+	if (_giftCodeRequestId) {
+		if (_giftCodeSlug == slug) {
+			return;
+		}
+		_api.request(_giftCodeRequestId).cancel();
+	}
+	_giftCodeSlug = slug;
+	_giftCodeRequestId = _api.request(MTPpayments_CheckGiftCode(
+		MTP_string(slug)
+	)).done([=](const MTPpayments_CheckedGiftCode &result) {
+		_giftCodeRequestId = 0;
+
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+		done(updateGiftCode(slug, Parse(data)));
+	}).fail([=](const MTP::Error &error) {
+		_giftCodeRequestId = 0;
+
+		done(updateGiftCode(slug, {}));
+	}).send();
+}
+
+GiftCode Premium::updateGiftCode(
+		const QString &slug,
+		const GiftCode &code) {
+	auto &now = _giftCodes[slug];
+	if (now != code) {
+		now = code;
+		_giftCodeUpdated.fire_copy(slug);
+	}
+	return code;
+}
+
+rpl::producer<GiftCode> Premium::giftCodeValue(const QString &slug) const {
+	return _giftCodeUpdated.events_starting_with_copy(
+		slug
+	) | rpl::filter(rpl::mappers::_1 == slug) | rpl::map([=] {
+		const auto i = _giftCodes.find(slug);
+		return (i != end(_giftCodes)) ? i->second : GiftCode();
+	});
 }
 
 const Data::SubscriptionOptions &Premium::subscriptionOptions() const {

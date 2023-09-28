@@ -18,6 +18,22 @@ class Session;
 
 namespace Api {
 
+struct GiftCode {
+	PeerId from = 0;
+	PeerId to = 0;
+	TimeId date = 0;
+	TimeId used = 0; // 0 if not used.
+	int months = 0;
+
+	explicit operator bool() const {
+		return months != 0;
+	}
+
+	friend inline bool operator==(
+		const GiftCode&,
+		const GiftCode&) = default;
+};
+
 class Premium final {
 public:
 	explicit Premium(not_null<ApiWrap*> api);
@@ -39,6 +55,13 @@ public:
 
 	[[nodiscard]] int64 monthlyAmount() const;
 	[[nodiscard]] QString monthlyCurrency() const;
+
+	void checkGiftCode(
+		const QString &slug,
+		Fn<void(GiftCode)> done);
+	GiftCode updateGiftCode(const QString &slug, const GiftCode &code);
+	[[nodiscard]] rpl::producer<GiftCode> giftCodeValue(
+		const QString &slug) const;
 
 	[[nodiscard]] auto subscriptionOptions() const
 		-> const Data::SubscriptionOptions &;
@@ -70,6 +93,11 @@ private:
 
 	int64 _monthlyAmount = 0;
 	QString _monthlyCurrency;
+
+	mtpRequestId _giftCodeRequestId = 0;
+	QString _giftCodeSlug;
+	base::flat_map<QString, GiftCode> _giftCodes;
+	rpl::event_stream<QString> _giftCodeUpdated;
 
 	Data::SubscriptionOptions _subscriptionOptions;
 

@@ -424,8 +424,6 @@ notifyPreviewBottomSkip: 9px;
 settingsPremiumButtonPadding: margins(11px, 11px, 11px, 3px);
 settingsPremiumTopBarBackIcon: icon {{ "info/info_back", premiumButtonFg }};
 settingsPremiumTopBarBackIconOver: icon {{ "info/info_back", premiumButtonFg }};
-settingsPremiumStarSize: size(84px, 81px);
-settingsPremiumStarTopSkip: 37px;
 settingsPremiumTopBarBack: IconButton(infoTopBarBack) {
 	icon: settingsPremiumTopBarBackIcon;
 	iconOver: settingsPremiumTopBarBackIconOver;
@@ -467,21 +465,6 @@ settingsPremiumPreviewIconTitlePadding: margins(62px, 13px, 24px, 1px);
 settingsPremiumPreviewIconAboutPadding: margins(62px, 0px, 24px, 0px);
 settingsPremiumPreviewIconPosition: point(20px, 7px);
 
-settingsPremiumTitlePadding: margins(0px, 18px, 0px, 11px);
-settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {
-	font: font(12px);
-	linkUnderline: kLinkUnderlineAlways;
-	lineHeight: 18px;
-}
-settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
-	style: settingsPremiumAboutTextStyle;
-	palette: TextPalette(defaultTextPalette) {
-		linkFg: premiumButtonFg;
-	}
-	align: align(top);
-	textFg: premiumButtonFg;
-	minWidth: 190px;
-}
 settingsPremiumArrowShift: point(-5px, -1px);
 settingsPremiumArrow: icon{{ "settings/premium/arrow", menuIconFg }};
 settingsPremiumArrowOver: icon{{ "settings/premium/arrow", menuIconFgOver }};
@@ -496,12 +479,6 @@ settingsPremiumUserTitle: FlatLabel(boxTitle) {
 		lineHeight: 14px;
 	}
 	minWidth: 300px;
-	maxHeight: 0px;
-	align: align(top);
-}
-settingsPremiumUserAbout: FlatLabel(boxDividerLabel) {
-	style: settingsPremiumAboutTextStyle;
-	minWidth: 315px;
 	maxHeight: 0px;
 	align: align(top);
 }

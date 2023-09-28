@@ -60,8 +60,8 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 
 [[nodiscard]] bool HasCustomTopBar(not_null<const Controller*> controller) {
 	const auto section = controller->section();
-	return (section.type() == Section::Type::Settings
-		&& (section.settingsType() == ::Settings::PremiumId()));
+	return (section.type() == Section::Type::Settings)
+		&& section.settingsType()->hasCustomTopBar();
 }
 
 } // namespace
@@ -788,8 +788,8 @@ void WrapWidget::showNewContent(
 		newController->takeStepData(_controller.get());
 	}
 	auto newContent = object_ptr<ContentWidget>(nullptr);
-	const auto enableBackButton = hasBackButton();
-	const auto createInAdvance = needAnimation || enableBackButton;
+	const auto withBackButton = willHaveBackButton(params);
+	const auto createInAdvance = needAnimation || withBackButton;
 	if (createInAdvance) {
 		newContent = createContent(memento, newController.get());
 	}
@@ -823,7 +823,7 @@ void WrapWidget::showNewContent(
 		_historyStack.clear();
 	}
 
-	if (enableBackButton) {
+	if (withBackButton) {
 		newContent->enableBackButton();
 	}
 
@@ -967,6 +967,17 @@ const Ui::RoundRect *WrapWidget::bottomSkipRounding() const {
 
 bool WrapWidget::hasBackButton() const {
 	return (wrap() == Wrap::Narrow || hasStackHistory());
+}
+
+bool WrapWidget::willHaveBackButton(
+		const Window::SectionShow &params) const {
+	using Way = Window::SectionShow::Way;
+	const auto willSaveToStack = (_content != nullptr)
+		&& (params.way == Way::Forward);
+	const auto willClearStack = (params.way == Way::ClearStack);
+	const auto willHaveStack = !willClearStack
+		&& (hasStackHistory() || willSaveToStack);
+	return (wrap() == Wrap::Narrow) || willHaveStack;
 }
 
 WrapWidget::~WrapWidget() = default;

@@ -11,6 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class UserData;
 
+namespace Api {
+struct GiftCode;
+} // namespace Api
+
+namespace Ui {
+class GenericBox;
+} // namespace Ui
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -29,3 +37,8 @@ private:
 	mtpRequestId _requestId = 0;
 
 };
+
+void GiftCodeBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	const QString &slug);

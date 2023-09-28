@@ -56,6 +56,9 @@ struct AbstractSectionFactory {
 	[[nodiscard]] virtual object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller) const = 0;
+	[[nodiscard]] virtual bool hasCustomTopBar() const {
+		return false;
+	}
 
 	virtual ~AbstractSectionFactory() = default;
 };

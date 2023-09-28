@@ -518,10 +518,10 @@ TopBarUser::TopBarUser(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	rpl::producer<> showFinished)
-: TopBarAbstract(parent)
+: TopBarAbstract(parent, st::userPremiumCover)
 , _content(this)
 , _title(_content, st::settingsPremiumUserTitle)
-, _about(_content, st::settingsPremiumUserAbout)
+, _about(_content, st::userPremiumCover.about)
 , _ministars(_content)
 , _smallTop({
 	.widget = object_ptr<Ui::RpWidget>(this),
@@ -1173,6 +1173,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		};
 		return Ui::CreateChild<Ui::Premium::TopBar>(
 			parent.get(),
+			st::defaultPremiumCover,
 			clickContextOther,
 			std::move(title),
 			std::move(about));
@@ -1370,6 +1371,24 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 }
 
 } // namespace
+
+template <>
+struct SectionFactory<Premium> : AbstractSectionFactory {
+	object_ptr<AbstractSection> create(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller
+	) const final override {
+		return object_ptr<Premium>(parent, controller);
+	}
+	bool hasCustomTopBar() const final override {
+		return true;
+	}
+
+	[[nodiscard]] static const std::shared_ptr<SectionFactory> &Instance() {
+		static const auto result = std::make_shared<SectionFactory>();
+		return result;
+	}
+};
 
 Type PremiumId() {
 	return Premium::Id();

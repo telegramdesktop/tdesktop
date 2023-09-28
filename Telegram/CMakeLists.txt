@@ -816,20 +816,6 @@ PRIVATE
     history/history_view_highlight_manager.h
     history/history_widget.cpp
     history/history_widget.h
-    info/info_content_widget.cpp
-    info/info_content_widget.h
-    info/info_controller.cpp
-    info/info_controller.h
-    info/info_layer_widget.cpp
-    info/info_layer_widget.h
-    info/info_memento.cpp
-    info/info_memento.h
-    info/info_section_widget.cpp
-    info/info_section_widget.h
-    info/info_top_bar.cpp
-    info/info_top_bar.h
-    info/info_wrap_widget.cpp
-    info/info_wrap_widget.h
     info/boosts/info_boosts_inner_widget.cpp
     info/boosts/info_boosts_inner_widget.h
     info/boosts/info_boosts_widget.cpp
@@ -916,6 +902,20 @@ PRIVATE
     info/userpic/info_userpic_emoji_builder_preview.h
     info/userpic/info_userpic_emoji_builder_widget.cpp
     info/userpic/info_userpic_emoji_builder_widget.h
+    info/info_content_widget.cpp
+    info/info_content_widget.h
+    info/info_controller.cpp
+    info/info_controller.h
+    info/info_layer_widget.cpp
+    info/info_layer_widget.h
+    info/info_memento.cpp
+    info/info_memento.h
+    info/info_section_widget.cpp
+    info/info_section_widget.h
+    info/info_top_bar.cpp
+    info/info_top_bar.h
+    info/info_wrap_widget.cpp
+    info/info_wrap_widget.h
     inline_bots/bot_attach_web_view.cpp
     inline_bots/bot_attach_web_view.h
     inline_bots/inline_bot_layout_internal.cpp

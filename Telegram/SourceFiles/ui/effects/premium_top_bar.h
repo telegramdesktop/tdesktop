@@ -11,6 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/premium_stars_colored.h"
 
+namespace style {
+struct PremiumCover;
+} // namespace style
+
+namespace st {
+extern const style::PremiumCover &defaultPremiumCover;
+} // namespace st
+
 namespace Ui {
 class FlatLabel;
 } // namespace Ui
@@ -23,7 +31,9 @@ namespace Ui::Premium {
 
 class TopBarAbstract : public RpWidget {
 public:
-	using RpWidget::RpWidget;
+	TopBarAbstract(
+		QWidget *parent = nullptr,
+		const style::PremiumCover &st = st::defaultPremiumCover);
 
 	void setRoundEdges(bool value);
 
@@ -31,6 +41,10 @@ public:
 	virtual void setTextPosition(int x, int y) = 0;
 
 	[[nodiscard]] virtual rpl::producer<int> additionalHeight() const = 0;
+
+	[[nodiscard]] const style::PremiumCover &st() const {
+		return _st;
+	}
 
 protected:
 	void paintEdges(QPainter &p, const QBrush &brush) const;
@@ -44,6 +58,7 @@ protected:
 	void computeIsDark();
 
 private:
+	const style::PremiumCover &_st;
 	bool _roundEdges = true;
 	bool _isDark = false;
 
@@ -53,6 +68,7 @@ class TopBar final : public TopBarAbstract {
 public:
 	TopBar(
 		not_null<QWidget*> parent,
+		const style::PremiumCover &st,
 		Fn<QVariant()> clickContextOther,
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> about,
