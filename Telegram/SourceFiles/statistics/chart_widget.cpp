@@ -40,6 +40,32 @@ inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 	return (result - from) / (to - from);
 };
 
+void FillLineColorsByKey(Data::StatisticalChart &chartData) {
+	for (auto &line : chartData.lines) {
+		if (line.colorKey == u"BLUE"_q) {
+			line.color = st::statisticsChartLineBlue->c;
+		} else if (line.colorKey == u"GREEN"_q) {
+			line.color = st::statisticsChartLineGreen->c;
+		} else if (line.colorKey == u"RED"_q) {
+			line.color = st::statisticsChartLineRed->c;
+		} else if (line.colorKey == u"GOLDEN"_q) {
+			line.color = st::statisticsChartLineGolden->c;
+		} else if (line.colorKey == u"LIGHTBLUE"_q) {
+			line.color = st::statisticsChartLineLightblue->c;
+		} else if (line.colorKey == u"LIGHTGREEN"_q) {
+			line.color = st::statisticsChartLineLightgreen->c;
+		} else if (line.colorKey == u"ORANGE"_q) {
+			line.color = st::statisticsChartLineOrange->c;
+		} else if (line.colorKey == u"INDIGO"_q) {
+			line.color = st::statisticsChartLineIndigo->c;
+		} else if (line.colorKey == u"PURPLE"_q) {
+			line.color = st::statisticsChartLinePurple->c;
+		} else if (line.colorKey == u"CYAN"_q) {
+			line.color = st::statisticsChartLineCyan->c;
+		}
+	}
+}
+
 [[nodiscard]] QString HeaderRightInfo(
 		const Data::StatisticalChart &chartData,
 		const Limits &limits) {
@@ -816,6 +842,12 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		_footer->update();
 	}
 }) {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		if (_chartData) {
+			FillLineColorsByKey(_chartData);
+		}
+	}, lifetime());
 	setupChartArea();
 	setupFooter();
 }
@@ -1366,6 +1398,7 @@ void ChartWidget::setChartData(
 		Data::StatisticalChart chartData,
 		ChartViewType type) {
 	_chartData = std::move(chartData);
+	FillLineColorsByKey(_chartData);
 
 	_chartView = CreateChartView(type);
 	_chartView->setLinesFilterController(_linesFilterController);

@@ -62,7 +62,7 @@ struct StatisticalChart {
 		QString name;
 		int maxValue = 0;
 		int minValue = std::numeric_limits<int>::max();
-		int colorKey = 0;
+		QString colorKey;
 		QColor color;
 		QColor colorDark;
 	};

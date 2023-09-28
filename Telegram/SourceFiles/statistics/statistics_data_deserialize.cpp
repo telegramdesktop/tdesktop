@@ -80,7 +80,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 			const auto match = QRegularExpression(colorPattern).match(
 				colorIt->toString());
 			if (match.hasMatch()) {
-				// const auto colorKey = match.captured(1);
+				line.colorKey = match.captured(1);
 				line.color = QColor(match.captured(2));
 			}
 		}
