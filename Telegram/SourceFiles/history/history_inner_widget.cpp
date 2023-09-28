@@ -2326,8 +2326,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
 		if (isUponSelected > 0) {
+			const auto selectedText = getSelectedText();
 			if (!hasCopyRestrictionForSelected()
-				&& !getSelectedText().empty()) {
+				&& !selectedText.empty()) {
 				_menu->addAction(
 					(isUponSelected > 1
 						? tr::lng_context_copy_selected_items(tr::now)
@@ -2335,11 +2336,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					[=] { copySelectedText(); },
 					&st::menuIconCopy);
 			}
-			if (!Ui::SkipTranslate(getSelectedText().rich)) {
+			if (item && !Ui::SkipTranslate(selectedText.rich)) {
+				const auto peer = item->history()->peer;
 				_menu->addAction(tr::lng_context_translate_selected({}), [=] {
 					_controller->show(Box(
 						Ui::TranslateBox,
-						item->history()->peer,
+						peer,
 						MsgId(),
 						getSelectedText().rich,
 						hasCopyRestrictionForSelected()));
@@ -2442,7 +2444,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					[=] { copySelectedText(); },
 					&st::menuIconCopy);
 			}
-			if (!Ui::SkipTranslate(selectedText.rich)) {
+			if (item && !Ui::SkipTranslate(selectedText.rich)) {
 				const auto peer = item->history()->peer;
 				_menu->addAction(tr::lng_context_translate_selected({}), [=] {
 					_controller->show(Box(
