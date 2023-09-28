@@ -1155,6 +1155,12 @@ void ChartWidget::setupDetails() {
 				currentXLimits,
 				chartRect,
 				state.point.x());
+			if (nearestXIndex < 0) {
+				_details.widget->setXIndex(nearestXIndex);
+				_details.widget->hide();
+				_chartArea->update();
+				return;
+			}
 			const auto currentX = 0
 				+ chartRect.width() * InterpolationRatio(
 					currentXLimits.min,

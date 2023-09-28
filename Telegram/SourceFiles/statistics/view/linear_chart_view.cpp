@@ -31,10 +31,11 @@ void PaintChartLine(
 
 	auto chartPoints = QPolygonF();
 
-	const auto localStart = std::max(0, int(c.xIndices.min));
-	const auto localEnd = std::min(
-		int(c.chartData.xPercentage.size() - 1),
-		int(c.xIndices.max));
+	constexpr auto kOffset = float64(2);
+	const auto localStart = int(std::max(0., c.xIndices.min - kOffset));
+	const auto localEnd = int(std::min(
+		float64(c.chartData.xPercentage.size() - 1),
+		c.xIndices.max + kOffset));
 
 	const auto ratio = Ratio(ratios, line.id);
 
@@ -185,10 +186,8 @@ int LinearChartView::findXIndexByPosition(
 		const Limits &xPercentageLimits,
 		const QRect &rect,
 		float64 x) {
-	if (x < rect.x()) {
-		return 0;
-	} else if (x > (rect.x() + rect.width())) {
-		return chartData.xPercentage.size() - 1;
+	if ((x < rect.x()) || (x > (rect.x() + rect.width()))) {
+		return -1;
 	}
 	const auto pointerRatio = std::clamp(
 		(x - rect.x()) / rect.width(),
@@ -203,10 +202,13 @@ int LinearChartView::findXIndexByPosition(
 		rawXPercentage);
 	const auto left = rawXPercentage - (*(it - 1));
 	const auto right = (*it) - rawXPercentage;
-	const auto nearestXPercentageIt = ((right) > (left)) ? (it - 1) : it;
-	return std::distance(
-		begin(chartData.xPercentage),
-		nearestXPercentageIt);
+	const auto nearest = ((right) > (left)) ? (it - 1) : it;
+	const auto resultXPercentageIt = ((*nearest) > xPercentageLimits.max)
+		? (nearest - 1)
+		: ((*nearest) < xPercentageLimits.min)
+		? (nearest + 1)
+		: nearest;
+	return std::distance(begin(chartData.xPercentage), resultXPercentageIt);
 }
 
 AbstractChartView::HeightLimits LinearChartView::heightLimits(
