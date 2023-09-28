@@ -1,3 +1,7 @@
+4.10.2 (28.09.23)
+
+- Bug fixes and other minor improvements.
+
 4.10.1 (23.09.23)
 
 - Rebuild macOS version with Xcode 14.0.1.
