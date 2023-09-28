@@ -63,3 +63,7 @@ statisticsHeaderButton: RoundButton(defaultLightButton) {
 	textTop: 2px;
 	font: font(11px semibold);
 }
+
+statisticsLoadingSubtext: FlatLabel(changePhoneDescription) {
+	minWidth: 256px;
+}

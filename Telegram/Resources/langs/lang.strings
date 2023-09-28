@@ -4068,6 +4068,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stats_title" = "Statistics";
 "lng_stats_zoom_out" = "Zoom Out";
 
+"lng_stats_loading" = "Loading stats...";
+"lng_stats_loading_subtext" = "Please wait a few moments while we generate your stats.";
+
 "lng_chart_title_member_count" = "Growth";
 "lng_chart_title_join" = "Followers";
 "lng_chart_title_mute" = "Notifications";

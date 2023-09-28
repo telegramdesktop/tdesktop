@@ -10,16 +10,71 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_statistics.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
+#include "settings/settings_common.h"
 #include "statistics/chart_widget.h"
 #include "statistics/statistics_common.h"
-#include "ui/toast/toast.h"
 #include "ui/layers/generic_box.h"
+#include "ui/rect.h"
+#include "ui/toast/toast.h"
+#include "ui/wrap/slide_wrap.h"
+#include "styles/style_boxes.h"
+#include "styles/style_settings.h"
+#include "styles/style_statistics.h"
 
 namespace {
+
+void FillLoading(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<bool> toggleOn) {
+	const auto emptyWrap = box->verticalLayout()->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box->verticalLayout(),
+			object_ptr<Ui::VerticalLayout>(box->verticalLayout())));
+	emptyWrap->toggleOn(std::move(toggleOn), anim::type::instant);
+
+	const auto content = emptyWrap->entity();
+	auto icon = Settings::CreateLottieIcon(
+		content,
+		{ .name = u"stats"_q, .sizeOverride = Size(st::changePhoneIconSize) },
+		st::settingsBlockedListIconPadding);
+	content->add(std::move(icon.widget));
+
+	box->setShowFinishedCallback([animate = std::move(icon.animate)] {
+		animate(anim::repeat::loop);
+	});
+
+	content->add(
+		object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_stats_loading(),
+				st::changePhoneTitle)),
+		st::changePhoneTitlePadding + st::boxRowPadding);
+
+	content->add(
+		object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_stats_loading_subtext(),
+				st::statisticsLoadingSubtext)),
+		st::changePhoneDescriptionPadding + st::boxRowPadding);
+
+	Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
+}
+
 } // namespace
 
 void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
+
+	const auto loaded = box->lifetime().make_state<rpl::event_stream<bool>>();
+	FillLoading(
+		box,
+		loaded->events_starting_with(false) | rpl::map(!rpl::mappers::_1));
+
 	const auto chartWidget = box->addRow(
 		object_ptr<Statistic::ChartWidget>(box));
 	const auto chartWidget2 = box->addRow(
@@ -98,6 +153,7 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 		if (!stats) {
 			return;
 		}
+		loaded->fire(true);
 		using Type = Statistic::ChartViewType;
 		processChart(
 			chartWidget,
