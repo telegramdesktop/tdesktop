@@ -4087,6 +4087,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chart_title_message_interaction" = "Interactions";
 "lng_chart_title_instant_view_interaction" = "IV Interactions";
 
+"lng_chart_title_group_join" = "Group members";
+"lng_chart_title_group_join_by_source" = "New members by source";
+"lng_chart_title_group_language" = "Members's primary language";
+"lng_chart_title_group_message_content" = "Messages";
+"lng_chart_title_group_action" = "Actions";
+"lng_chart_title_group_day" = "Views by hours";
+"lng_chart_title_group_week" = "Top days of week";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

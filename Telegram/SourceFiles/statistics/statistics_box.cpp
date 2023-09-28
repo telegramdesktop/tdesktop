@@ -166,6 +166,76 @@ void FillChannelStatistic(
 	addSkip();
 }
 
+void FillSupergroupStatistic(
+		not_null<Ui::GenericBox*> box,
+		const Descriptor &descriptor,
+		const Data::SupergroupStatistics &stats) {
+	using Type = Statistic::ChartViewType;
+	const auto &padding = st::statisticsChartEntryPadding;
+	const auto addSkip = [&] {
+		Settings::AddSkip(box->verticalLayout(), padding.bottom());
+		Settings::AddDivider(box->verticalLayout());
+		Settings::AddSkip(box->verticalLayout(), padding.top());
+	};
+	addSkip();
+	ProcessChart(
+		descriptor,
+		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
+		stats.memberCountGraph,
+		tr::lng_chart_title_member_count(),
+		Type::Linear);
+	addSkip();
+	ProcessChart(
+		descriptor,
+		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
+		stats.joinGraph,
+		tr::lng_chart_title_group_join(),
+		Type::Linear);
+	addSkip();
+	ProcessChart(
+		descriptor,
+		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
+		stats.joinBySourceGraph,
+		tr::lng_chart_title_group_join_by_source(),
+		Type::Stack);
+	addSkip();
+	ProcessChart(
+		descriptor,
+		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
+		stats.languageGraph,
+		tr::lng_chart_title_group_language(),
+		Type::StackLinear);
+	addSkip();
+	ProcessChart(
+		descriptor,
+		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
+		stats.messageContentGraph,
+		tr::lng_chart_title_group_message_content(),
+		Type::Stack);
+	addSkip();
+	ProcessChart(
+		descriptor,
+		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
+		stats.actionGraph,
+		tr::lng_chart_title_group_action(),
+		Type::DoubleLinear);
+	addSkip();
+	ProcessChart(
+		descriptor,
+		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
+		stats.dayGraph,
+		tr::lng_chart_title_group_day(),
+		Type::Linear);
+	addSkip();
+	// ProcessChart(
+	// 	descriptor,
+	// 	box->addRow(object_ptr<Statistic::ChartWidget>(box)),
+	// 	stats.weekGraph,
+	// 	tr::lng_chart_title_group_week(),
+	// 	Type::StackLinear);
+	// addSkip();
+}
+
 void FillLoading(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<bool> toggleOn) {
@@ -338,12 +408,15 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	descriptor.api->request(
 		descriptor.peer
 	) | rpl::start_with_done([=] {
-		const auto stats = descriptor.api->channelStats();
-		if (!stats) {
+		if (const auto stats = descriptor.api->supergroupStats(); stats) {
+			// FillSupergroupOverview(box, descriptor, stats);
+			FillSupergroupStatistic(box, descriptor, stats);
+		} else if (const auto stats = descriptor.api->channelStats(); stats) {
+			FillChannelOverview(box, descriptor, stats);
+			FillChannelStatistic(box, descriptor, stats);
+		} else {
 			return;
 		}
-		FillChannelOverview(box, descriptor, stats);
-		FillChannelStatistic(box, descriptor, stats);
 		loaded->fire(true);
 		box->verticalLayout()->resizeToWidth(box->width());
 		box->showChildren();
