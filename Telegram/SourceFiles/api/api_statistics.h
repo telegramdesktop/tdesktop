@@ -21,10 +21,14 @@ public:
 
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> request(
 		not_null<PeerData*> peer);
-	[[nodiscard]] rpl::producer<Data::StatisticalGraph, QString> requestZoom(
+	using GraphResult = rpl::producer<Data::StatisticalGraph, QString>;
+	[[nodiscard]] GraphResult requestZoom(
 		not_null<PeerData*> peer,
 		const QString &token,
 		float64 x);
+	[[nodiscard]] GraphResult requestMessage(
+		not_null<PeerData*> peer,
+		MsgId msgId);
 
 	[[nodiscard]] Data::ChannelStatistics channelStats() const;
 	[[nodiscard]] Data::SupergroupStatistics supergroupStats() const;

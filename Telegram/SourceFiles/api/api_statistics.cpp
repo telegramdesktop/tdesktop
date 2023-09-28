@@ -225,7 +225,7 @@ rpl::producer<rpl::no_value, QString> Statistics::request(
 	};
 }
 
-rpl::producer<Data::StatisticalGraph, QString> Statistics::requestZoom(
+Statistics::GraphResult Statistics::requestZoom(
 		not_null<PeerData*> peer,
 		const QString &token,
 		float64 x) {
@@ -244,6 +244,32 @@ rpl::producer<Data::StatisticalGraph, QString> Statistics::requestZoom(
 			MTP_long(x)
 		)).done([=](const MTPStatsGraph &result) {
 			consumer.put_next(StatisticalGraphFromTL(result));
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+Statistics::GraphResult Statistics::requestMessage(
+		not_null<PeerData*> peer,
+		MsgId msgId) {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto channel = peer->asChannel();
+		if (!channel) {
+			return lifetime;
+		}
+
+		_api.request(MTPstats_GetMessageStats(
+			MTP_flags(MTPstats_GetMessageStats::Flags(0)),
+			channel->inputChannel,
+			MTP_int(msgId.bare)
+		)).done([=](const MTPstats_MessageStats &result) {
+			consumer.put_next(
+				StatisticalGraphFromTL(result.data().vviews_graph()));
 			consumer.put_done();
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
