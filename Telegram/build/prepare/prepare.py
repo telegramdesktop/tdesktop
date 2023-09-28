@@ -837,7 +837,7 @@ stage('libvpx', """
     git clone https://github.com/webmproject/libvpx.git
 depends:patches/libvpx/*.patch
     cd libvpx
-    git checkout e1c124f89
+    git checkout 51057f4ba8
 win:
     for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
 
