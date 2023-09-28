@@ -444,10 +444,12 @@ void Row::paintUserpic(
 	const auto cornerBadgeShown = !_cornerBadgeUserpic
 		? _cornerBadgeShown
 		: !_cornerBadgeUserpic->layersManager.isDisplayedNone();
-	const auto storiesUser = peer ? peer->asUser() : nullptr;
+	const auto storiesPeer = peer
+		? ((peer->isUser() || peer->isBroadcast()) ? peer : nullptr)
+		: nullptr;
 	const auto storiesFolder = peer ? nullptr : _id.folder();
-	const auto storiesHas = storiesUser
-		? storiesUser->hasActiveStories()
+	const auto storiesHas = storiesPeer
+		? storiesPeer->hasActiveStories()
 		: storiesFolder
 		? storiesFolder->storiesCount()
 		: false;
@@ -467,8 +469,8 @@ void Row::paintUserpic(
 	const auto frameSide = (2 * framePadding + context.st->photoSize)
 		* ratio;
 	const auto frameSize = QSize(frameSide, frameSide);
-	const auto storiesSource = (storiesHas && storiesUser)
-		? storiesUser->owner().stories().source(storiesUser->id)
+	const auto storiesSource = (storiesHas && storiesPeer)
+		? storiesPeer->owner().stories().source(storiesPeer->id)
 		: nullptr;
 	const auto storiesCountReal = storiesSource
 		? int(storiesSource->ids.size())
@@ -481,7 +483,7 @@ void Row::paintUserpic(
 		? storiesSource->unreadCount()
 		: storiesFolder
 		? storiesFolder->storiesUnreadCount()
-		: (storiesUser && storiesUser->hasUnreadStories())
+		: (storiesPeer && storiesPeer->hasUnreadStories())
 		? 1
 		: 0;
 	const auto limit = Ui::kOutlineSegmentsMax;
