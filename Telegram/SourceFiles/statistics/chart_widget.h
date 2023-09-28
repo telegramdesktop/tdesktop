@@ -175,6 +175,8 @@ private:
 	bool _zoomEnabled = false;
 	rpl::event_stream<float64> _zoomRequests;
 
+	rpl::lifetime _waitingSizeLifetime;
+
 };
 
 } // namespace Statistic

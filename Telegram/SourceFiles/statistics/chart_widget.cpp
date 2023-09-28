@@ -871,14 +871,17 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 
 		_filterButtons->fillButtons(texts, colors, ids, newWidth);
 	}
+	const auto filtersTopSkip = st::statisticsFilterButtonsPadding.top();
 	const auto filtersHeight = _filterButtons
-		? _filterButtons->height()
+		? (_filterButtons->height()
+			+ st::statisticsFilterButtonsPadding.bottom())
 		: 0;
-	const auto resultHeight = st::statisticsChartHeight
+	const auto resultHeight = st::statisticsChartHeaderHeight
+		+ st::statisticsChartHeight
 		+ st::statisticsChartFooterHeight
 		+ st::statisticsChartFooterSkip
-		+ filtersHeight
-		+ st::statisticsChartHeaderHeight;
+		+ filtersTopSkip
+		+ filtersHeight;
 	{
 		_header->setGeometry(
 			0,
@@ -887,7 +890,10 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 			st::statisticsChartHeaderHeight);
 		_footer->setGeometry(
 			0,
-			resultHeight - st::statisticsChartFooterHeight - filtersHeight,
+			resultHeight
+				- st::statisticsChartFooterHeight
+				- filtersTopSkip
+				- filtersHeight,
 			newWidth,
 			st::statisticsChartFooterHeight);
 		if (_filterButtons) {
@@ -899,6 +905,7 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 			newWidth,
 			resultHeight
 				- st::statisticsChartFooterHeight
+				- filtersTopSkip
 				- filtersHeight
 				- st::statisticsChartFooterSkip);
 
@@ -1403,6 +1410,16 @@ void ChartWidget::setupFilterButtons() {
 void ChartWidget::setChartData(
 		Data::StatisticalChart chartData,
 		ChartViewType type) {
+	if (width() < st::statisticsChartHeight) {
+		sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			if (s.width() > st::statisticsChartHeight) {
+				setChartData(chartData, type);
+				_waitingSizeLifetime.destroy();
+			}
+		}, _waitingSizeLifetime);
+		return;
+	}
 	_chartData = std::move(chartData);
 	FillLineColorsByKey(_chartData);
 
