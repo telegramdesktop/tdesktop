@@ -32,6 +32,11 @@ struct Descriptor final {
 	not_null<QWidget*> toastParent;
 };
 
+struct AnyStats final {
+	Data::ChannelStatistics channel;
+	Data::SupergroupStatistics supergroup;
+};
+
 void ProcessZoom(
 		const Descriptor &d,
 		not_null<Statistic::ChartWidget*> widget,
@@ -61,12 +66,15 @@ void ProcessZoom(
 
 void ProcessChart(
 		const Descriptor &d,
+		not_null<Ui::SlideWrap<Ui::VerticalLayout>*> wrap,
 		not_null<Statistic::ChartWidget*> widget,
 		const Data::StatisticalGraph &graphData,
 		rpl::producer<QString> &&title,
 		Statistic::ChartViewType type) {
+	wrap->toggle(false, anim::type::instant);
 	if (graphData.chart) {
 		widget->setChartData(graphData.chart, type);
+		wrap->toggle(true, anim::type::instant);
 		ProcessZoom(d, widget, graphData.zoomToken, type);
 		widget->setTitle(std::move(title));
 	} else if (!graphData.zoomToken.isEmpty()) {
@@ -78,6 +86,7 @@ void ProcessChart(
 				const Data::StatisticalGraph &graph) {
 			if (graph.chart) {
 				widget->setChartData(graph.chart, type);
+				wrap->toggle(true, anim::type::normal);
 				ProcessZoom(d, widget, graph.zoomToken, type);
 				widget->setTitle(rpl::duplicate(title));
 			} else if (!graph.error.isEmpty()) {
@@ -89,151 +98,108 @@ void ProcessChart(
 	}
 }
 
-void FillChannelStatistic(
+void FillStatistic(
 		not_null<Ui::GenericBox*> box,
 		const Descriptor &descriptor,
-		const Data::ChannelStatistics &stats) {
+		const AnyStats &stats) {
 	using Type = Statistic::ChartViewType;
 	const auto &padding = st::statisticsChartEntryPadding;
-	const auto addSkip = [&] {
-		Settings::AddSkip(box->verticalLayout(), padding.bottom());
-		Settings::AddDivider(box->verticalLayout());
-		Settings::AddSkip(box->verticalLayout(), padding.top());
+	const auto &m = st::boxRowPadding;
+	const auto addSkip = [&](not_null<Ui::VerticalLayout*> c) {
+		Settings::AddSkip(c, padding.bottom());
+		Settings::AddDivider(c);
+		Settings::AddSkip(c, padding.top());
 	};
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.memberCountGraph,
-		tr::lng_chart_title_member_count(),
-		Type::Linear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.joinGraph,
-		tr::lng_chart_title_join(),
-		Type::Linear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.muteGraph,
-		tr::lng_chart_title_mute(),
-		Type::Linear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.viewCountByHourGraph,
-		tr::lng_chart_title_view_count_by_hour(),
-		Type::Linear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.viewCountBySourceGraph,
-		tr::lng_chart_title_view_count_by_source(),
-		Type::Stack);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.joinBySourceGraph,
-		tr::lng_chart_title_join_by_source(),
-		Type::Stack);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.languageGraph,
-		tr::lng_chart_title_language(),
-		Type::StackLinear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.messageInteractionGraph,
-		tr::lng_chart_title_message_interaction(),
-		Type::DoubleLinear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.instantViewInteractionGraph,
-		tr::lng_chart_title_instant_view_interaction(),
-		Type::DoubleLinear);
-	addSkip();
-}
-
-void FillSupergroupStatistic(
-		not_null<Ui::GenericBox*> box,
-		const Descriptor &descriptor,
-		const Data::SupergroupStatistics &stats) {
-	using Type = Statistic::ChartViewType;
-	const auto &padding = st::statisticsChartEntryPadding;
-	const auto addSkip = [&] {
-		Settings::AddSkip(box->verticalLayout(), padding.bottom());
-		Settings::AddDivider(box->verticalLayout());
-		Settings::AddSkip(box->verticalLayout(), padding.top());
+	const auto addChart = [&](
+			const Data::StatisticalGraph &graphData,
+			rpl::producer<QString> &&title,
+			Statistic::ChartViewType type) {
+		const auto wrap = box->addRow(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				box,
+				object_ptr<Ui::VerticalLayout>(box)),
+			{});
+		ProcessChart(
+			descriptor,
+			wrap,
+			wrap->entity()->add(object_ptr<Statistic::ChartWidget>(box), m),
+			graphData,
+			std::move(title),
+			type);
+		addSkip(wrap->entity());
 	};
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.memberCountGraph,
-		tr::lng_chart_title_member_count(),
-		Type::Linear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.joinGraph,
-		tr::lng_chart_title_group_join(),
-		Type::Linear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.joinBySourceGraph,
-		tr::lng_chart_title_group_join_by_source(),
-		Type::Stack);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.languageGraph,
-		tr::lng_chart_title_group_language(),
-		Type::StackLinear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.messageContentGraph,
-		tr::lng_chart_title_group_message_content(),
-		Type::Stack);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.actionGraph,
-		tr::lng_chart_title_group_action(),
-		Type::DoubleLinear);
-	addSkip();
-	ProcessChart(
-		descriptor,
-		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-		stats.dayGraph,
-		tr::lng_chart_title_group_day(),
-		Type::Linear);
-	addSkip();
-	// ProcessChart(
-	// 	descriptor,
-	// 	box->addRow(object_ptr<Statistic::ChartWidget>(box)),
-	// 	stats.weekGraph,
-	// 	tr::lng_chart_title_group_week(),
-	// 	Type::StackLinear);
-	// addSkip();
+	addSkip(box->verticalLayout());
+	if (const auto s = stats.channel) {
+		addChart(
+			s.memberCountGraph,
+			tr::lng_chart_title_member_count(),
+			Type::Linear);
+		addChart(
+			s.joinGraph,
+			tr::lng_chart_title_join(),
+			Type::Linear);
+		addChart(
+			s.muteGraph,
+			tr::lng_chart_title_mute(),
+			Type::Linear);
+		addChart(
+			s.viewCountByHourGraph,
+			tr::lng_chart_title_view_count_by_hour(),
+			Type::Linear);
+		addChart(
+			s.viewCountBySourceGraph,
+			tr::lng_chart_title_view_count_by_source(),
+			Type::Stack);
+		addChart(
+			s.joinBySourceGraph,
+			tr::lng_chart_title_join_by_source(),
+			Type::Stack);
+		addChart(
+			s.languageGraph,
+			tr::lng_chart_title_language(),
+			Type::StackLinear);
+		addChart(
+			s.messageInteractionGraph,
+			tr::lng_chart_title_message_interaction(),
+			Type::DoubleLinear);
+		addChart(
+			s.instantViewInteractionGraph,
+			tr::lng_chart_title_instant_view_interaction(),
+			Type::DoubleLinear);
+	} else if (const auto s = stats.supergroup) {
+		addChart(
+			s.memberCountGraph,
+			tr::lng_chart_title_member_count(),
+			Type::Linear);
+		addChart(
+			s.joinGraph,
+			tr::lng_chart_title_group_join(),
+			Type::Linear);
+		addChart(
+			s.joinBySourceGraph,
+			tr::lng_chart_title_group_join_by_source(),
+			Type::Stack);
+		addChart(
+			s.languageGraph,
+			tr::lng_chart_title_group_language(),
+			Type::StackLinear);
+		addChart(
+			s.messageContentGraph,
+			tr::lng_chart_title_group_message_content(),
+			Type::Stack);
+		addChart(
+			s.actionGraph,
+			tr::lng_chart_title_group_action(),
+			Type::DoubleLinear);
+		addChart(
+			s.dayGraph,
+			tr::lng_chart_title_group_day(),
+			Type::Linear);
+		// addChart(
+		// 	s.weekGraph,
+		// 	tr::lng_chart_title_group_week(),
+		// 	Type::StackLinear);
+	}
 }
 
 void FillLoading(
@@ -277,13 +243,11 @@ void FillLoading(
 	Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
 }
 
-void FillOverview(
-		not_null<Ui::GenericBox*> box,
-		const Descriptor &descriptor,
-		const Data::ChannelStatistics &channel,
-		const Data::SupergroupStatistics &supergroup) {
+void FillOverview(not_null<Ui::GenericBox*> box, const AnyStats &stats) {
 	using Value = Data::StatisticalValue;
 
+	const auto &channel = stats.channel;
+	const auto &supergroup = stats.supergroup;
 	const auto startDate = channel ? channel.startDate : supergroup.startDate;
 	const auto endDate = channel ? channel.endDate : supergroup.endDate;
 
@@ -357,7 +321,7 @@ void FillOverview(
 	};
 
 	auto height = 0;
-	if (const auto s = channel; s) {
+	if (const auto &s = channel) {
 		const auto memberCount = addPrimary(s.memberCount);
 		const auto enabledNotifications = Ui::CreateChild<Ui::FlatLabel>(
 			container,
@@ -393,7 +357,7 @@ void FillOverview(
 		}, container->lifetime());
 
 		height = memberCount->height() * 5;
-	} else if (const auto s = supergroup; s) {
+	} else if (const auto &s = supergroup) {
 		const auto memberCount = addPrimary(s.memberCount);
 		const auto messageCount = addPrimary(s.messageCount);
 		const auto viewerCount = addPrimary(s.viewerCount);
@@ -449,15 +413,15 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	descriptor.api->request(
 		descriptor.peer
 	) | rpl::start_with_done([=] {
-		if (const auto stats = descriptor.api->supergroupStats(); stats) {
-			FillOverview(box, descriptor, {}, stats);
-			FillSupergroupStatistic(box, descriptor, stats);
-		} else if (const auto stats = descriptor.api->channelStats(); stats) {
-			FillOverview(box, descriptor, stats, {});
-			FillChannelStatistic(box, descriptor, stats);
-		} else {
+		const auto anyStats = AnyStats{
+			descriptor.api->channelStats(),
+			descriptor.api->supergroupStats(),
+		};
+		if (!anyStats.channel && !anyStats.supergroup) {
 			return;
 		}
+		FillOverview(box, anyStats);
+		FillStatistic(box, descriptor, anyStats);
 		loaded->fire(true);
 		box->verticalLayout()->resizeToWidth(box->width());
 		box->showChildren();
