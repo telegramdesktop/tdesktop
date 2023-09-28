@@ -2435,7 +2435,13 @@ void ApiWrap::refreshFileReference(
 	};
 	v::match(origin.data, [&](Data::FileOriginMessage data) {
 		if (const auto item = _session->data().message(data)) {
-			if (item->isScheduled()) {
+			const auto media = item->media();
+			const auto storyId = media ? media->storyId() : FullStoryId();
+			if (storyId) {
+				request(MTPstories_GetStoriesByID(
+					_session->data().peer(storyId.peer)->input,
+					MTP_vector<MTPint>(1, MTP_int(storyId.story))));
+			} else if (item->isScheduled()) {
 				const auto &scheduled = _session->data().scheduledMessages();
 				const auto realId = scheduled.lookupId(item);
 				request(MTPmessages_GetScheduledMessages(
