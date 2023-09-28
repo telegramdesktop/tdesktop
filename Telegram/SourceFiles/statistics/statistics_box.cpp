@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "statistics/chart_header_widget.h"
 #include "statistics/chart_widget.h"
 #include "statistics/statistics_common.h"
 #include "ui/layers/generic_box.h"
@@ -99,7 +100,7 @@ void FillChannelStatistic(
 		Settings::AddDivider(box->verticalLayout());
 		Settings::AddSkip(box->verticalLayout(), padding.top());
 	};
-	Settings::AddSkip(box->verticalLayout(), padding.top());
+	addSkip();
 	ProcessChart(
 		descriptor,
 		box->addRow(object_ptr<Statistic::ChartWidget>(box)),
@@ -163,9 +164,6 @@ void FillChannelStatistic(
 		tr::lng_chart_title_instant_view_interaction(),
 		Type::DoubleLinear);
 	addSkip();
-
-	box->verticalLayout()->resizeToWidth(box->width());
-	box->showChildren();
 }
 
 void FillLoading(
@@ -209,6 +207,119 @@ void FillLoading(
 	Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
 }
 
+void FillChannelOverview(
+		not_null<Ui::GenericBox*> box,
+		const Descriptor &descriptor,
+		const Data::ChannelStatistics &stats) {
+	using Value = Data::StatisticalValue;
+
+	Settings::AddSkip(box->verticalLayout());
+	{
+		const auto header = box->addRow(object_ptr<Statistic::Header>(box));
+		header->resize(header->width(), st::statisticsChartHeaderHeight);
+		header->setTitle(tr::lng_stats_overview_title(tr::now));
+		const auto formatter = u"MMM d"_q;
+		const auto from = QDateTime::fromSecsSinceEpoch(stats.startDate);
+		const auto to = QDateTime::fromSecsSinceEpoch(stats.endDate);
+		header->setRightInfo(QLocale().toString(from.date(), formatter)
+			+ ' '
+			+ QChar(8212)
+			+ ' '
+			+ QLocale().toString(to.date(), formatter));
+	}
+	Settings::AddSkip(box->verticalLayout());
+
+	struct Second final {
+		QColor color;
+		QString text;
+	};
+
+	const auto parseSecond = [&](const Value &v) -> Second {
+		const auto diff = v.value - v.previousValue;
+		if (!diff) {
+			return {};
+		}
+		return {
+			(diff < 0 ? st::menuIconAttentionColor : st::settingsIconBg2)->c,
+			QString("%1%2 (%3%)")
+				.arg((diff < 0) ? QChar(0x2212) : QChar(0x002B))
+				.arg(Lang::FormatCountToShort(std::abs(diff)).string)
+				.arg(std::abs(std::round(v.growthRatePercentage * 10.) / 10.))
+		};
+	};
+
+	const auto container = box->addRow(object_ptr<Ui::RpWidget>(box));
+
+	const auto addPrimary = [&](const Value &v) {
+		return Ui::CreateChild<Ui::FlatLabel>(
+			container,
+			Lang::FormatCountToShort(v.value).string,
+			st::statisticsOverviewValue);
+	};
+	const auto addSub = [&](
+			not_null<Ui::RpWidget*> primary,
+			const Value &v,
+			tr::phrase<> text) {
+		const auto data = parseSecond(v);
+		const auto second = Ui::CreateChild<Ui::FlatLabel>(
+			container,
+			data.text,
+			st::statisticsOverviewSecondValue);
+		second->setTextColorOverride(data.color);
+		const auto sub = Ui::CreateChild<Ui::FlatLabel>(
+			container,
+			text(),
+			st::statisticsOverviewSecondValue);
+
+		primary->geometryValue(
+		) | rpl::start_with_next([=](const QRect &g) {
+			second->moveToLeft(
+				rect::right(g) + st::statisticsOverviewSecondValueSkip,
+				g.y() + st::statisticsOverviewSecondValueSkip);
+			sub->moveToLeft(
+				g.x(),
+				rect::bottom(g));
+		}, primary->lifetime());
+	};
+
+	const auto memberCount = addPrimary(stats.memberCount);
+	const auto enabledNotifications = Ui::CreateChild<Ui::FlatLabel>(
+		container,
+		QString("%1%").arg(
+			std::round(stats.enabledNotificationsPercentage * 100.) / 100.),
+		st::statisticsOverviewValue);
+	const auto meanViewCount = addPrimary(stats.meanViewCount);
+	const auto meanShareCount = addPrimary(stats.meanShareCount);
+
+	addSub(
+		memberCount,
+		stats.memberCount,
+		tr::lng_stats_overview_member_count);
+	addSub(
+		enabledNotifications,
+		{},
+		tr::lng_stats_overview_enabled_notifications);
+	addSub(
+		meanViewCount,
+		stats.meanViewCount,
+		tr::lng_stats_overview_mean_view_count);
+	addSub(
+		meanShareCount,
+		stats.meanShareCount,
+		tr::lng_stats_overview_mean_share_count);
+
+	container->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		const auto halfWidth = s.width() / 2;
+		enabledNotifications->moveToLeft(halfWidth, 0);
+		meanViewCount->moveToLeft(0, meanViewCount->height() * 3);
+		meanShareCount->moveToLeft(halfWidth, meanViewCount->y());
+	}, container->lifetime());
+
+	container->showChildren();
+	container->resize(container->width(), meanViewCount->height() * 5);
+}
+
 } // namespace
 
 void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
@@ -231,7 +342,10 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 		if (!stats) {
 			return;
 		}
+		FillChannelOverview(box, descriptor, stats);
 		FillChannelStatistic(box, descriptor, stats);
 		loaded->fire(true);
+		box->verticalLayout()->resizeToWidth(box->width());
+		box->showChildren();
 	}, box->lifetime());
 }

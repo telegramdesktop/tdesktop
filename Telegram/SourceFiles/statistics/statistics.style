@@ -71,3 +71,20 @@ statisticsHeaderButton: RoundButton(defaultLightButton) {
 statisticsLoadingSubtext: FlatLabel(changePhoneDescription) {
 	minWidth: 256px;
 }
+
+statisticsOverviewValue: FlatLabel(boxLabel) {
+	minWidth: 0px;
+	maxHeight: 60px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+}
+statisticsOverviewSecondValueSkip: 2px;
+statisticsOverviewSecondValue: FlatLabel(boxLabel) {
+	minWidth: 152px;
+	maxHeight: 32px;
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(10px semibold);
+	}
+}
