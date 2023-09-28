@@ -4073,6 +4073,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stats_overview_mean_view_count" = "Views Per Post";
 "lng_stats_overview_mean_share_count" = "Shared Per Post";
 "lng_stats_overview_enabled_notifications" = "Enabled Notifications";
+"lng_stats_overview_messages" = "Messages";
+"lng_stats_overview_group_mean_view_count" = "Viewing Members";
+"lng_stats_overview_group_mean_post_count" = "Posting Members";
 
 "lng_stats_loading" = "Loading stats...";
 "lng_stats_loading_subtext" = "Please wait a few moments while we generate your stats.";

@@ -277,11 +277,15 @@ void FillLoading(
 	Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
 }
 
-void FillChannelOverview(
+void FillOverview(
 		not_null<Ui::GenericBox*> box,
 		const Descriptor &descriptor,
-		const Data::ChannelStatistics &stats) {
+		const Data::ChannelStatistics &channel,
+		const Data::SupergroupStatistics &supergroup) {
 	using Value = Data::StatisticalValue;
+
+	const auto startDate = channel ? channel.startDate : supergroup.startDate;
+	const auto endDate = channel ? channel.endDate : supergroup.endDate;
 
 	Settings::AddSkip(box->verticalLayout());
 	{
@@ -289,8 +293,8 @@ void FillChannelOverview(
 		header->resize(header->width(), st::statisticsChartHeaderHeight);
 		header->setTitle(tr::lng_stats_overview_title(tr::now));
 		const auto formatter = u"MMM d"_q;
-		const auto from = QDateTime::fromSecsSinceEpoch(stats.startDate);
-		const auto to = QDateTime::fromSecsSinceEpoch(stats.endDate);
+		const auto from = QDateTime::fromSecsSinceEpoch(startDate);
+		const auto to = QDateTime::fromSecsSinceEpoch(endDate);
 		header->setRightInfo(QLocale().toString(from.date(), formatter)
 			+ ' '
 			+ QChar(8212)
@@ -352,42 +356,79 @@ void FillChannelOverview(
 		}, primary->lifetime());
 	};
 
-	const auto memberCount = addPrimary(stats.memberCount);
-	const auto enabledNotifications = Ui::CreateChild<Ui::FlatLabel>(
-		container,
-		QString("%1%").arg(
-			std::round(stats.enabledNotificationsPercentage * 100.) / 100.),
-		st::statisticsOverviewValue);
-	const auto meanViewCount = addPrimary(stats.meanViewCount);
-	const auto meanShareCount = addPrimary(stats.meanShareCount);
+	auto height = 0;
+	if (const auto s = channel; s) {
+		const auto memberCount = addPrimary(s.memberCount);
+		const auto enabledNotifications = Ui::CreateChild<Ui::FlatLabel>(
+			container,
+			QString("%1%").arg(
+				std::round(s.enabledNotificationsPercentage * 100.) / 100.),
+			st::statisticsOverviewValue);
+		const auto meanViewCount = addPrimary(s.meanViewCount);
+		const auto meanShareCount = addPrimary(s.meanShareCount);
 
-	addSub(
-		memberCount,
-		stats.memberCount,
-		tr::lng_stats_overview_member_count);
-	addSub(
-		enabledNotifications,
-		{},
-		tr::lng_stats_overview_enabled_notifications);
-	addSub(
-		meanViewCount,
-		stats.meanViewCount,
-		tr::lng_stats_overview_mean_view_count);
-	addSub(
-		meanShareCount,
-		stats.meanShareCount,
-		tr::lng_stats_overview_mean_share_count);
+		addSub(
+			memberCount,
+			s.memberCount,
+			tr::lng_stats_overview_member_count);
+		addSub(
+			enabledNotifications,
+			{},
+			tr::lng_stats_overview_enabled_notifications);
+		addSub(
+			meanViewCount,
+			s.meanViewCount,
+			tr::lng_stats_overview_mean_view_count);
+		addSub(
+			meanShareCount,
+			s.meanShareCount,
+			tr::lng_stats_overview_mean_share_count);
 
-	container->sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		const auto halfWidth = s.width() / 2;
-		enabledNotifications->moveToLeft(halfWidth, 0);
-		meanViewCount->moveToLeft(0, meanViewCount->height() * 3);
-		meanShareCount->moveToLeft(halfWidth, meanViewCount->y());
-	}, container->lifetime());
+		container->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			const auto halfWidth = s.width() / 2;
+			enabledNotifications->moveToLeft(halfWidth, 0);
+			meanViewCount->moveToLeft(0, meanViewCount->height() * 3);
+			meanShareCount->moveToLeft(halfWidth, meanViewCount->y());
+		}, container->lifetime());
+
+		height = memberCount->height() * 5;
+	} else if (const auto s = supergroup; s) {
+		const auto memberCount = addPrimary(s.memberCount);
+		const auto messageCount = addPrimary(s.messageCount);
+		const auto viewerCount = addPrimary(s.viewerCount);
+		const auto senderCount = addPrimary(s.senderCount);
+
+		addSub(
+			memberCount,
+			s.memberCount,
+			tr::lng_manage_peer_members);
+		addSub(
+			messageCount,
+			s.messageCount,
+			tr::lng_stats_overview_messages);
+		addSub(
+			viewerCount,
+			s.viewerCount,
+			tr::lng_stats_overview_group_mean_view_count);
+		addSub(
+			senderCount,
+			s.senderCount,
+			tr::lng_stats_overview_group_mean_post_count);
+
+		container->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			const auto halfWidth = s.width() / 2;
+			messageCount->moveToLeft(halfWidth, 0);
+			viewerCount->moveToLeft(0, memberCount->height() * 3);
+			senderCount->moveToLeft(halfWidth, viewerCount->y());
+		}, container->lifetime());
+
+		height = memberCount->height() * 5;
+	}
 
 	container->showChildren();
-	container->resize(container->width(), meanViewCount->height() * 5);
+	container->resize(container->width(), height);
 }
 
 } // namespace
@@ -409,10 +450,10 @@ void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 		descriptor.peer
 	) | rpl::start_with_done([=] {
 		if (const auto stats = descriptor.api->supergroupStats(); stats) {
-			// FillSupergroupOverview(box, descriptor, stats);
+			FillOverview(box, descriptor, {}, stats);
 			FillSupergroupStatistic(box, descriptor, stats);
 		} else if (const auto stats = descriptor.api->channelStats(); stats) {
-			FillChannelOverview(box, descriptor, stats);
+			FillOverview(box, descriptor, stats, {});
 			FillChannelStatistic(box, descriptor, stats);
 		} else {
 			return;
