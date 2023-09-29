@@ -1281,34 +1281,8 @@ PRIVATE
     settings/settings_type.h
     settings/settings_websites.cpp
     settings/settings_websites.h
-    statistics/chart_header_widget.cpp
-    statistics/chart_header_widget.h
-    statistics/chart_horizontal_lines_data.cpp
-    statistics/chart_horizontal_lines_data.h
-    statistics/chart_lines_filter_controller.cpp
-    statistics/chart_lines_filter_controller.h
-    statistics/chart_widget.cpp
-    statistics/chart_widget.h
-    statistics/point_details_widget.cpp
-    statistics/point_details_widget.h
     statistics/statistics_box.cpp
     statistics/statistics_box.h
-    statistics/statistics_common.h
-    statistics/statistics_data_deserialize.cpp
-    statistics/statistics_data_deserialize.h
-    statistics/view/abstract_chart_view.h
-    statistics/view/chart_horizontal_lines_view.cpp
-    statistics/view/chart_horizontal_lines_view.h
-    statistics/view/chart_view_factory.cpp
-    statistics/view/chart_view_factory.h
-    statistics/view/linear_chart_view.cpp
-    statistics/view/linear_chart_view.h
-    statistics/view/stack_chart_common.cpp
-    statistics/view/stack_chart_common.h
-    statistics/view/stack_chart_view.cpp
-    statistics/view/stack_chart_view.h
-    statistics/view/stack_linear_chart_view.cpp
-    statistics/view/stack_linear_chart_view.h
     storage/details/storage_file_utilities.cpp
     storage/details/storage_file_utilities.h
     storage/details/storage_settings_scheme.cpp

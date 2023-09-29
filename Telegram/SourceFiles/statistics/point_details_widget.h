@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_statistics.h"
+#include "data/data_statistics_chart.h"
 #include "ui/widgets/buttons.h"
 
 namespace Statistic {

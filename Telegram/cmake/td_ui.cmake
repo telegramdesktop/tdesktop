@@ -161,10 +161,36 @@ PRIVATE
     platform/mac/file_bookmark_mac.mm
     platform/platform_file_bookmark.h
 
+    statistics/chart_header_widget.cpp
+    statistics/chart_header_widget.h
+    statistics/chart_horizontal_lines_data.cpp
+    statistics/chart_horizontal_lines_data.h
+    statistics/chart_lines_filter_controller.cpp
+    statistics/chart_lines_filter_controller.h
     statistics/chart_lines_filter_widget.cpp
     statistics/chart_lines_filter_widget.h
+    statistics/chart_widget.cpp
+    statistics/chart_widget.h
+    statistics/point_details_widget.cpp
+    statistics/point_details_widget.h
     statistics/segment_tree.cpp
     statistics/segment_tree.h
+    statistics/statistics_common.h
+    statistics/statistics_data_deserialize.cpp
+    statistics/statistics_data_deserialize.h
+    statistics/view/abstract_chart_view.h
+    statistics/view/chart_horizontal_lines_view.cpp
+    statistics/view/chart_horizontal_lines_view.h
+    statistics/view/chart_view_factory.cpp
+    statistics/view/chart_view_factory.h
+    statistics/view/linear_chart_view.cpp
+    statistics/view/linear_chart_view.h
+    statistics/view/stack_chart_common.cpp
+    statistics/view/stack_chart_common.h
+    statistics/view/stack_chart_view.cpp
+    statistics/view/stack_chart_view.h
+    statistics/view/stack_linear_chart_view.cpp
+    statistics/view/stack_linear_chart_view.h
 
     ui/boxes/auto_delete_settings.cpp
     ui/boxes/auto_delete_settings.h

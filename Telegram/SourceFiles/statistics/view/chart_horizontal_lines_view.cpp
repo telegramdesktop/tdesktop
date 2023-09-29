@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/view/chart_horizontal_lines_view.h"
 
-#include "data/data_statistics.h"
+#include "data/data_statistics_chart.h"
 #include "statistics/statistics_common.h"
+#include "styles/style_basic.h"
 #include "styles/style_statistics.h"
 
 namespace Statistic {

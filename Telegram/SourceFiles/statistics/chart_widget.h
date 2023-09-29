@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_statistics.h"
+#include "data/data_statistics_chart.h"
 #include "statistics/view/chart_horizontal_lines_view.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value.h"

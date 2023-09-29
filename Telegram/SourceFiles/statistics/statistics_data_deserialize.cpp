@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/statistics_data_deserialize.h"
 
-#include "data/data_statistics.h"
+#include "base/debug_log.h"
+#include "data/data_statistics_chart.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>

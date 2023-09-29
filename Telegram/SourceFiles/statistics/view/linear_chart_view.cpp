@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/view/linear_chart_view.h"
 
-#include "data/data_statistics.h"
+#include "data/data_statistics_chart.h"
 #include "statistics/chart_lines_filter_controller.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value_f.h"
