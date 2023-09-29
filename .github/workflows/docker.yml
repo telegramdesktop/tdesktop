@@ -30,7 +30,7 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
 
       - name: Free up some disk space.
-        uses: jlumbroso/free-disk-space@76866dbe54312617f00798d1762df7f43def6e5c
+        uses: jlumbroso/free-disk-space@f68fdb76e2ea636224182cfb7377ff9a1708f9b8
 
       - name: Docker image build.
         run: |
