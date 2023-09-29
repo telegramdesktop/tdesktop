@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_file_utilities.h"
 
+#include "platform/linux/linux_xdp_open_with_dialog.h"
+
 namespace Platform {
 namespace File {
 
@@ -26,6 +28,10 @@ inline void UnsafeOpenEmailLink(const QString &email) {
 
 inline bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 	return false;
+}
+
+inline bool UnsafeShowOpenWith(const QString &filepath) {
+	return internal::ShowXDPOpenWithDialog(filepath);
 }
 
 inline void UnsafeLaunch(const QString &filepath) {
