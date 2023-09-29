@@ -342,7 +342,9 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		for (auto k = 0; k < c.chartData.lines.size(); k++) {
 			const auto &line = c.chartData.lines[k];
 			const auto isLastLine = (k == lastEnabled);
-			const auto &transitionLine = _transition.lines[k];
+			const auto &transitionLine = hasTransitionAnimation
+				? _transition.lines[k]
+				: Transition::TransitionLine();
 			const auto lineAlpha = linesFilter->alpha(line.id);
 			if (!lineAlpha) {
 				continue;
