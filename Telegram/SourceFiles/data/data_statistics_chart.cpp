@@ -5,11 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "data/data_statistics.h"
+#include "data/data_statistics_chart.h"
+
+#include <QtCore/QDateTime>
 
 namespace Data {
-namespace {
-} // namespace
 
 void StatisticalChart::measure() {
 	if (x.empty()) {

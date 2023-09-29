@@ -69,6 +69,8 @@ PRIVATE
     countries/countries_instance.cpp
     countries/countries_instance.h
 
+    data/data_statistics_chart.cpp
+    data/data_statistics_chart.h
     data/data_subscription_option.h
 
     dialogs/dialogs_three_state_icon.h
@@ -161,6 +163,8 @@ PRIVATE
 
     statistics/chart_lines_filter_widget.cpp
     statistics/chart_lines_filter_widget.h
+    statistics/segment_tree.cpp
+    statistics/segment_tree.h
 
     ui/boxes/auto_delete_settings.cpp
     ui/boxes/auto_delete_settings.h

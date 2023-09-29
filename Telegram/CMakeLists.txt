@@ -555,7 +555,6 @@ PRIVATE
     data/data_sparse_ids.h
     data/data_sponsored_messages.cpp
     data/data_sponsored_messages.h
-    data/data_statistics.cpp
     data/data_statistics.h
     data/data_stories.cpp
     data/data_stories.h
@@ -1292,8 +1291,6 @@ PRIVATE
     statistics/chart_widget.h
     statistics/point_details_widget.cpp
     statistics/point_details_widget.h
-    statistics/segment_tree.cpp
-    statistics/segment_tree.h
     statistics/statistics_box.cpp
     statistics/statistics_box.h
     statistics/statistics_common.h
