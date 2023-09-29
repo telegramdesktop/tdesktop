@@ -1302,9 +1302,9 @@ void ChartWidget::processLocalZoom(int xIndex) {
 			}
 			_chartView->handleMouseMove(_chartData, _chartArea->rect(), pos);
 		});
-		mouseTrackingLifetime->add([=] {
+		mouseTrackingLifetime->add(crl::guard(_chartArea.get(), [=] {
 			_chartArea->setMouseTracking(false);
-		});
+		}));
 	};
 
 	const auto zoomOutButton = Ui::CreateChild<Ui::RoundButton>(
