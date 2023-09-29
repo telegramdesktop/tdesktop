@@ -61,7 +61,7 @@ jobs:
           sudo snap run lxd waitready
 
       - name: Free up some disk space.
-        uses: jlumbroso/free-disk-space@76866dbe54312617f00798d1762df7f43def6e5c
+        uses: jlumbroso/free-disk-space@f68fdb76e2ea636224182cfb7377ff9a1708f9b8
 
       - name: Telegram Desktop snap build.
         run: sg lxd -c 'snap run snapcraft -v'
