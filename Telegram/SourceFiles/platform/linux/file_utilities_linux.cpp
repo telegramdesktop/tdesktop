@@ -17,29 +17,4 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 }
 
 } // namespace File
-
-namespace FileDialog {
-
-bool Get(
-		QPointer<QWidget> parent,
-		QStringList &files,
-		QByteArray &remoteContent,
-		const QString &caption,
-		const QString &filter,
-		::FileDialog::internal::Type type,
-		QString startFile) {
-	if (parent) {
-		parent = parent->window();
-	}
-	return ::FileDialog::internal::GetDefault(
-		parent,
-		files,
-		remoteContent,
-		caption,
-		filter,
-		type,
-		startFile);
-}
-
-} // namespace FileDialog
 } // namespace Platform
