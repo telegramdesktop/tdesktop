@@ -263,11 +263,13 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 		const auto valueWidth = line.value.maxWidth();
 		const auto valueContext = Ui::Text::PaintContext{
 			.position = QPoint(rect::right(_textRect) - valueWidth, lineY),
+			.outerWidth = _textRect.width(),
+			.availableWidth = valueWidth,
 		};
 		const auto nameContext = Ui::Text::PaintContext{
 			.position = QPoint(_textRect.x(), lineY),
-			.outerWidth = _textRect.width() - valueWidth,
-			.availableWidth = _textRect.width(),
+			.outerWidth = _textRect.width(),
+			.availableWidth = _textRect.width() - valueWidth,
 		};
 		p.setOpacity(line.alpha * line.alpha * _alpha);
 		p.setPen(st::boxTextFg);
