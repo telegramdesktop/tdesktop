@@ -905,8 +905,8 @@ int StackLinearChartView::findXIndexByPosition(
 	const auto nearestXPercentageIt = ((right) > (left)) ? (it - 1) : it;
 	return std::clamp(
 		std::distance(begin(chartData.xPercentage), nearestXPercentageIt),
-		long(localStart),
-		long(localEnd));
+		std::ptrdiff_t(localStart),
+		std::ptrdiff_t(localEnd));
 }
 
 AbstractChartView::HeightLimits StackLinearChartView::heightLimits(

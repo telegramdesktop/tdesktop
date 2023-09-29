@@ -401,7 +401,9 @@ void ChartWidget::Footer::moveCenter(
 void ChartWidget::Footer::moveSide(bool left, float64 x) {
 	const auto w = float64(st::statisticsChartFooterSideWidth);
 	const auto mid = float64(st::statisticsChartFooterBetweenSide);
-	if (left) {
+	if (_width < (2 * w + mid)) {
+		return;
+	} else if (left) {
 		const auto min = std::clamp(x, 0., _rightSide.min - w - mid);
 		_leftSide = Limits{ .min = min, .max = min + w };
 	} else if (!left) {
