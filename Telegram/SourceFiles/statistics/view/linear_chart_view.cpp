@@ -18,7 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 namespace {
 
-float64 Ratio(const LinearChartView::CachedLineRatios &ratios, int id) {
+[[nodiscard]] float64 Ratio(
+		const LinearChartView::CachedLineRatios &ratios,
+		int id) {
 	return (id == 1) ? ratios.first : ratios.second;
 }
 

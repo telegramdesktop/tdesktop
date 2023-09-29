@@ -83,7 +83,6 @@ private:
 		[[nodiscard]] Limits finalHeightLimits() const;
 		[[nodiscard]] bool animating() const;
 		[[nodiscard]] bool footerAnimating() const;
-		[[nodiscard]] bool isFPSSlow() const;
 
 		[[nodiscard]] rpl::producer<> addHorizontalLineRequests() const;
 

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/chart_widget.h"
 
-#include "ui/effects/show_animation.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "lang/lang_keys.h"
 #include "statistics/chart_header_widget.h"
@@ -19,14 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/view/stack_chart_common.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animation_value_f.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/effects/show_animation.h"
+#include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/round_rect.h"
-#include "ui/effects/ripple_animation.h"
-#include "ui/image/image_prepare.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 #include "styles/style_statistics.h"
 
 namespace Statistic {
@@ -34,7 +32,6 @@ namespace Statistic {
 namespace {
 
 constexpr auto kHeightLimitsUpdateTimeout = crl::time(320);
-constexpr auto kExpandingDelay = crl::time(1);
 
 inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 	return (result - from) / (to - from);
@@ -76,10 +73,6 @@ void FillLineColorsByKey(Data::StatisticalChart &chartData) {
 			+ QChar(8212)
 			+ ' '
 			+ chartData.getDayString(limits.max);
-}
-
-[[nodiscard]] bool IsChartHasLocalZoom(ChartViewType type) {
-	return type == ChartViewType::StackLinear;
 }
 
 void PaintBottomLine(
@@ -213,13 +206,12 @@ class ChartWidget::Footer final : public RpMouseWidget {
 public:
 	using PaintCallback = Fn<void(QPainter &, const QRect &)>;
 
-	Footer(not_null<Ui::RpWidget*> parent);
+	explicit Footer(not_null<Ui::RpWidget*> parent);
 
 	void setXPercentageLimits(const Limits &xLimits);
 
 	[[nodiscard]] Limits xPercentageLimits() const;
 	[[nodiscard]] rpl::producer<Limits> xPercentageLimitsChange() const;
-	[[nodiscard]] rpl::producer<> userInteractionFinished() const;
 
 	void setPaintChartCallback(PaintCallback paintChartCallback);
 
@@ -228,7 +220,6 @@ protected:
 
 private:
 	rpl::event_stream<Limits> _xPercentageLimitsChange;
-	rpl::event_stream<> _userInteractionFinished;
 
 	void prepareCache(int height);
 
@@ -338,7 +329,6 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 		case QEvent::MouseButtonRelease: {
 			const auto finish = [=] {
 				_dragArea = DragArea::None;
-				_userInteractionFinished.fire({});
 				fire();
 			};
 			if ((_dragArea == DragArea::None) && !_draggedAfterPress) {
@@ -456,11 +446,6 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 	const auto innerMargins = QMargins{ 0, lineWidth, 0, lineWidth };
 	const auto r = rect();
 	const auto innerRect = r - innerMargins;
-	const auto inactiveLeftRect = Rect(QSizeF(_leftSide.max, r.height()))
-		- innerMargins;
-	const auto inactiveRightRect = r
-		- QMarginsF{ _rightSide.min, 0, 0, 0 }
-		- innerMargins;
 	const auto &inactiveColor = st::statisticsChartInactive;
 
 	_frame.fill(Qt::transparent);
@@ -522,10 +507,6 @@ void ChartWidget::Footer::setXPercentageLimits(const Limits &xLimits) {
 
 rpl::producer<Limits> ChartWidget::Footer::xPercentageLimitsChange() const {
 	return _xPercentageLimitsChange.events();
-}
-
-rpl::producer<> ChartWidget::Footer::userInteractionFinished() const {
-	return _userInteractionFinished.events();
 }
 
 ChartWidget::ChartAnimationController::ChartAnimationController(
@@ -828,10 +809,6 @@ bool ChartWidget::ChartAnimationController::footerAnimating() const {
 			!= _animationValueFooterHeightMin.to())
 		|| (_animationValueFooterHeightMax.current()
 			!= _animationValueFooterHeightMax.to());
-}
-
-bool ChartWidget::ChartAnimationController::isFPSSlow() const {
-	return _benchmark.lastFPSSlow;
 }
 
 ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)

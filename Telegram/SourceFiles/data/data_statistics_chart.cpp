@@ -29,14 +29,14 @@ void StatisticalChart::measure() {
 		}
 	}
 
-	for (auto i = 0; i < lines.size(); i++) {
-		if (lines[i].maxValue > maxValue) {
-			maxValue = lines[i].maxValue;
+	for (auto &line : lines) {
+		if (line.maxValue > maxValue) {
+			maxValue = line.maxValue;
 		}
-		if (lines[i].minValue < minValue) {
-			minValue = lines[i].minValue;
+		if (line.minValue < minValue) {
+			minValue = line.minValue;
 		}
-		lines[i].segmentTree = Statistic::SegmentTree(lines[i].y);
+		line.segmentTree = Statistic::SegmentTree(line.y);
 	}
 
 	daysLookup.clear();

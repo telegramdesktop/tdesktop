@@ -37,7 +37,7 @@ void SegmentTree::build(int v, int from, int size) {
 		_heap[v].max = _array[from];
 		_heap[v].min = _array[from];
 	} else {
-		// Build childs.
+		// Build children.
 		build(2 * v, from, size / 2);
 		build(2 * v + 1, from + size / 2, size - size / 2);
 

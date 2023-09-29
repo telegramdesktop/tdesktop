@@ -218,7 +218,7 @@ auto StackLinearChartView::partsPercentage(
 
 	_pieHasSinglePart = false;
 	for (auto k = 0; k < sums.size(); k++) {
-		const auto rawPercentage = sums[k] / totalSum;
+		const auto rawPercentage = totalSum ? (sums[k] / totalSum) : 0.;
 		const auto rounded = 0.01 * std::round(rawPercentage * 100.);
 		roundedPercentagesSum += rounded;
 		const auto diff = rawPercentage - rounded;
@@ -342,13 +342,16 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 		for (auto k = 0; k < c.chartData.lines.size(); k++) {
 			const auto &line = c.chartData.lines[k];
 			const auto isLastLine = (k == lastEnabled);
-			const auto &transitionLine = hasTransitionAnimation
-				? _transition.lines[k]
-				: Transition::TransitionLine();
 			const auto lineAlpha = linesFilter->alpha(line.id);
+			if (isLastLine && (lineAlpha < 1.)) {
+				hasEmptyPoint = true;
+			}
 			if (!lineAlpha) {
 				continue;
 			}
+			const auto &transitionLine = hasTransitionAnimation
+				? _transition.lines[k]
+				: Transition::TransitionLine();
 			const auto &y = line.y;
 
 			auto &chartPath = paths[k];
@@ -357,7 +360,7 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 				? float64(y[i] ? lineAlpha : 0.)
 				: float64(sum ? (y[i] * lineAlpha / sum) : 0.);
 
-			if (!yPercentage && isLastLine) {
+			if (isLastLine && !yPercentage) {
 				hasEmptyPoint = true;
 			}
 			const auto height = yPercentage * c.rect.height();
@@ -425,7 +428,9 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 			}
 
 			if (i == localStart) {
-				const auto bottomLeft = QPointF(c.rect.x(), rect::bottom(c.rect));
+				const auto bottomLeft = QPointF(
+					c.rect.x(),
+					rect::bottom(c.rect));
 				const auto local = (hasTransitionAnimation && !isLastLine)
 					? rotate(
 						_transition.progress * angle
@@ -495,7 +500,9 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 								: rect::right(c.rect));
 					}
 				} else {
-					chartPath.lineTo(rect::right(c.rect), rect::bottom(c.rect));
+					chartPath.lineTo(
+						rect::right(c.rect),
+						rect::bottom(c.rect));
 				}
 			}
 
@@ -508,6 +515,10 @@ void StackLinearChartView::paintChartOrZoomAnimation(
 	p.fillRect(c.rect + QMargins(0, 0, 0, st::lineWidth), st::boxBg);
 	if (!ovalPath.isEmpty()) {
 		p.setClipPath(ovalPath);
+	}
+
+	if (hasEmptyPoint) {
+		p.fillRect(c.rect, st::boxDividerBg);
 	}
 
 	const auto opacity = c.footer ? (1. - _transition.progress) : 1.;
@@ -708,10 +719,13 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 		}
 
 		const auto rText = side * std::sqrt(1. - percentage);
-		const auto textAngle = (previous + kPieAngleOffset)
-			+ (now - previous) / 2.;
+		const auto textAngle = (now == previous)
+			? 0.
+			: ((previous + kPieAngleOffset) + (now - previous) / 2.);
 		const auto textRadians = textAngle * M_PI / 180.;
-		const auto scale = (minScale) + percentage * (maxScale - minScale);
+		const auto scale = (maxScale == minScale)
+			? 0.
+			: (minScale) + percentage * (maxScale - minScale);
 		const auto text = QString::number(int(percentage * 100)) + u"%"_q;
 		const auto textW = font->width(text);
 		const auto textH = font->height;
@@ -753,7 +767,7 @@ bool StackLinearChartView::PiePartController::set(int id) {
 void StackLinearChartView::PiePartController::update(int id) {
 	if (id >= 0) {
 		const auto was = _startedAt[id];
-		const auto p = (crl::now() - was) / st::slideWrapDuration;
+		const auto p = (crl::now() - was) / float64(st::slideWrapDuration);
 		const auto progress = ((p > 0) && (p < 1)) ? (1. - p) : 0.;
 		_startedAt[id] = crl::now() - (st::slideWrapDuration * progress);
 	}
@@ -804,10 +818,8 @@ void StackLinearChartView::handleMouseMove(
 	}
 	const auto center = rect.center();
 	const auto theta = std::atan2(center.y() - p.y(), (center.x() - p.x()));
-	const auto angle = [&] {
-		const auto a = theta * (180. / M_PI) + 90.;
-		return (a > 180.) ? (a - 360.) : a;
-	}();
+	const auto rawAngle = theta * (180. / M_PI) + 90.;
+	const auto angle = (rawAngle > 180.) ? (rawAngle - 360.) : rawAngle;
 	for (auto k = 0; k < chartData.lines.size(); k++) {
 		const auto previous = k
 			? _transition.lines[k - 1].angle
