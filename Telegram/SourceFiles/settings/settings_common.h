@@ -52,14 +52,16 @@ using Button = Ui::SettingsButton;
 
 class AbstractSection;
 
-struct SectionMeta {
+struct AbstractSectionFactory {
 	[[nodiscard]] virtual object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller) const = 0;
+
+	virtual ~AbstractSectionFactory() = default;
 };
 
 template <typename SectionType>
-struct SectionMetaImplementation : SectionMeta {
+struct SectionFactory : AbstractSectionFactory {
 	object_ptr<AbstractSection> create(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller
@@ -67,9 +69,9 @@ struct SectionMetaImplementation : SectionMeta {
 		return object_ptr<SectionType>(parent, controller);
 	}
 
-	[[nodiscard]] static not_null<SectionMeta*> Meta() {
-		static SectionMetaImplementation result;
-		return &result;
+	[[nodiscard]] static const std::shared_ptr<SectionFactory> &Instance() {
+		static const auto result = std::make_shared<SectionFactory>();
+		return result;
 	}
 };
 
@@ -120,7 +122,7 @@ public:
 	using AbstractSection::AbstractSection;
 
 	[[nodiscard]] static Type Id() {
-		return &SectionMetaImplementation<SectionType>::Meta;
+		return SectionFactory<SectionType>::Instance();
 	}
 	[[nodiscard]] Type id() const final override {
 		return Id();

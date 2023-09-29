@@ -45,7 +45,7 @@ Widget::Widget(
 , _self(controller->key().settingsSelf())
 , _type(controller->section().settingsType())
 , _inner([&] {
-	auto inner = _type()->create(this, controller->parentController());
+	auto inner = _type->create(this, controller->parentController());
 	if (inner->hasFlexibleTopBar()) {
 		auto filler = setInnerWidget(object_ptr<Ui::RpWidget>(this));
 		filler->resize(1, 1);
