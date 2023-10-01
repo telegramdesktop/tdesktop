@@ -767,6 +767,7 @@ RUN git clone -b {{ QT_TAG }} --depth=1 https://code.qt.io/qt/qt5.git qt_{{ QT }
 		-qt-harfbuzz \
 		-qt-pcre \
 		-no-icu \
+		INPUT_forkfd_pidfd=no \
 		-no-feature-xcb-sm \
 		-static \
 		-dbus-runtime \
