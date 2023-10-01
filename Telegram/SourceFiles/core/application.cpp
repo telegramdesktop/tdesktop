@@ -512,14 +512,16 @@ void Application::startMediaView() {
 	InvokeQueued(this, [=] {
 		_mediaView = std::make_unique<Media::View::OverlayWidget>();
 	});
-#else // Q_OS_MAC
+#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_WIN
 	// On Windows we needed such hack for the main window, otherwise
 	// somewhere inside the media viewer creating code its geometry
 	// was broken / lost to some invalid values.
 	const auto current = _lastActivePrimaryWindow->widget()->geometry();
 	_mediaView = std::make_unique<Media::View::OverlayWidget>();
 	_lastActivePrimaryWindow->widget()->Ui::RpWidget::setGeometry(current);
-#endif // Q_OS_MAC
+#else
+	_mediaView = std::make_unique<Media::View::OverlayWidget>();
+#endif // Q_OS_MAC || Q_OS_WIN
 }
 
 void Application::startTray() {
