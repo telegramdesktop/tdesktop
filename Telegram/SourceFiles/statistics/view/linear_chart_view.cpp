@@ -162,14 +162,16 @@ void LinearChartView::paintSelectedXIndex(
 		}
 
 		if (!linePainted) {
+			[[maybe_unused]] const auto o = ScopedPainterOpacity(
+				p,
+				p.opacity() * progress * kRulerLineAlpha);
 			const auto lineRect = QRectF(
-				c.rect.x()
-					+ begin(_selectedPoints.points)->second.x()
+				begin(_selectedPoints.points)->second.x()
 					- (st::lineWidth / 2.),
 				c.rect.y(),
 				st::lineWidth,
 				c.rect.height());
-			p.fillRect(lineRect, st::windowSubTextFg);
+			p.fillRect(lineRect, st::boxTextFg);
 			linePainted = true;
 		}
 

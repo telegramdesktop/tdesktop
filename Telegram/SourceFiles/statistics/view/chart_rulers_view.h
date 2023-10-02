@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "statistics/chart_horizontal_lines_data.h"
+#include "statistics/chart_rulers_data.h"
 
 namespace Data {
 struct StatisticalChart;
@@ -18,17 +18,17 @@ namespace Statistic {
 enum class ChartViewType;
 struct Limits;
 
-struct ChartHorizontalLinesView final {
+struct ChartRulersView final {
 public:
-	ChartHorizontalLinesView();
+	ChartRulersView();
 
 	void setChartData(
 		const Data::StatisticalChart &chartData,
 		ChartViewType type);
 
-	void paintHorizontalLines(QPainter &p, const QRect &r);
+	void paintRulers(QPainter &p, const QRect &r);
 
-	void paintCaptionsToHorizontalLines(QPainter &p, const QRect &r);
+	void paintCaptionsToRulers(QPainter &p, const QRect &r);
 
 	void computeRelative(int newMaxHeight, int newMinHeight);
 	void setAlpha(float64 value);
@@ -39,7 +39,7 @@ private:
 	QPen _leftPen;
 	QPen _rightPen;
 
-	std::vector<ChartHorizontalLinesData> _horizontalLines;
+	std::vector<ChartRulersData> _rulers;
 
 	float64 _scaledLineRatio = 0.;
 	bool _isLeftLineScaled = false;

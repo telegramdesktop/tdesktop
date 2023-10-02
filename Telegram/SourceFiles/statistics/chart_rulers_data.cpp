@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "statistics/chart_horizontal_lines_data.h"
+#include "statistics/chart_rulers_data.h"
 
 #include "lang/lang_tag.h"
 
@@ -22,14 +22,15 @@ constexpr auto kStep = 5.;
 }
 
 [[nodiscard]] QString Format(int absoluteValue) {
-	return (absoluteValue >= 10'000)
+	constexpr auto kTooMuch = int(10'000);
+	return (absoluteValue >= kTooMuch)
 		? Lang::FormatCountToShort(absoluteValue).string
-		: QString("%L1").arg(absoluteValue);
+		: QString::number(absoluteValue);
 }
 
 } // namespace
 
-ChartHorizontalLinesData::ChartHorizontalLinesData(
+ChartRulersData::ChartRulersData(
 		int newMaxHeight,
 		int newMinHeight,
 		bool useMinHeight,
@@ -104,7 +105,7 @@ ChartHorizontalLinesData::ChartHorizontalLinesData(
 	}
 }
 
-void ChartHorizontalLinesData::computeRelative(
+void ChartRulersData::computeRelative(
 		int newMaxHeight,
 		int newMinHeight) {
 	for (auto &line : lines) {
@@ -114,7 +115,7 @@ void ChartHorizontalLinesData::computeRelative(
 	}
 }
 
-int ChartHorizontalLinesData::LookupHeight(int maxValue) {
+int ChartRulersData::LookupHeight(int maxValue) {
 	const auto v = (maxValue > 100) ? Round(maxValue) : maxValue;
 
 	const auto step = int(std::ceil(v / kStep));

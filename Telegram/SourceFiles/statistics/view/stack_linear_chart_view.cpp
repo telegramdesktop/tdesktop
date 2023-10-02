@@ -874,13 +874,13 @@ void StackLinearChartView::paintSelectedXIndex(
 		{
 			[[maybe_unused]] const auto o = ScopedPainterOpacity(
 				p,
-				p.opacity() * progress);
+				p.opacity() * progress * kRulerLineAlpha);
 			const auto lineRect = QRectF(
 				_selectedPoints.xPoint - (st::lineWidth / 2.),
 				c.rect.y(),
 				st::lineWidth,
 				c.rect.height());
-			p.fillRect(lineRect, st::windowSubTextFg);
+			p.fillRect(lineRect, st::boxTextFg);
 		}
 	}
 	_selectedPoints.lastXIndex = selectedXIndex;

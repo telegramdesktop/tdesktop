@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_statistics_chart.h"
-#include "statistics/view/chart_horizontal_lines_view.h"
+#include "statistics/view/chart_rulers_view.h"
 #include "statistics/statistics_common.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animations.h"
@@ -33,7 +33,7 @@ public:
 		Data::StatisticalChart chartData,
 		float64 x,
 		ChartViewType type);
-	void addHorizontalLine(Limits newHeight, bool animated);
+	void addRuler(Limits newHeight, bool animated);
 
 	[[nodiscard]] rpl::producer<float64> zoomRequests();
 
@@ -70,7 +70,7 @@ private:
 		void restartBottomLineAlpha();
 		void tick(
 			crl::time now,
-			ChartHorizontalLinesView &horizontalLinesView,
+			ChartRulersView &rulersView,
 			std::vector<BottomCaptionLineData> &dateLines,
 			const std::unique_ptr<AbstractChartView> &chartView,
 			const std::shared_ptr<LinesFilterController> &linesFilter);
@@ -84,7 +84,7 @@ private:
 		[[nodiscard]] bool animating() const;
 		[[nodiscard]] bool footerAnimating() const;
 
-		[[nodiscard]] rpl::producer<> addHorizontalLineRequests() const;
+		[[nodiscard]] rpl::producer<> addRulerRequests() const;
 
 	private:
 		Ui::Animations::Basic _animation;
@@ -120,7 +120,7 @@ private:
 			bool lastFPSSlow = false;
 		} _benchmark;
 
-		rpl::event_stream<> _addHorizontalLineRequests;
+		rpl::event_stream<> _addRulerRequests;
 
 	};
 
@@ -169,7 +169,7 @@ private:
 	ChartAnimationController _animationController;
 	crl::time _lastHeightLimitsChanged = 0;
 
-	ChartHorizontalLinesView _horizontalLinesView;
+	ChartRulersView _rulersView;
 
 	bool _zoomEnabled = false;
 	rpl::event_stream<float64> _zoomRequests;

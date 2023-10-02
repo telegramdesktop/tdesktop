@@ -163,12 +163,12 @@ PRIVATE
 
     statistics/chart_header_widget.cpp
     statistics/chart_header_widget.h
-    statistics/chart_horizontal_lines_data.cpp
-    statistics/chart_horizontal_lines_data.h
     statistics/chart_lines_filter_controller.cpp
     statistics/chart_lines_filter_controller.h
     statistics/chart_lines_filter_widget.cpp
     statistics/chart_lines_filter_widget.h
+    statistics/chart_rulers_data.cpp
+    statistics/chart_rulers_data.h
     statistics/chart_widget.cpp
     statistics/chart_widget.h
     statistics/point_details_widget.cpp
@@ -179,8 +179,8 @@ PRIVATE
     statistics/statistics_data_deserialize.cpp
     statistics/statistics_data_deserialize.h
     statistics/view/abstract_chart_view.h
-    statistics/view/chart_horizontal_lines_view.cpp
-    statistics/view/chart_horizontal_lines_view.h
+    statistics/view/chart_rulers_view.cpp
+    statistics/view/chart_rulers_view.h
     statistics/view/chart_view_factory.cpp
     statistics/view/chart_view_factory.h
     statistics/view/linear_chart_view.cpp

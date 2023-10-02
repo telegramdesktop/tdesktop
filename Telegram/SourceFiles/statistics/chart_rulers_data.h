@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 
-struct ChartHorizontalLinesData final {
+struct ChartRulersData final {
 public:
-	ChartHorizontalLinesData(
+	ChartRulersData(
 		int newMaxHeight,
 		int newMinHeight,
 		bool useMinHeight,

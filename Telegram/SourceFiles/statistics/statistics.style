@@ -22,17 +22,17 @@ statisticsDetailsArrowStroke: 1.5;
 statisticsDetailsPopupMargins: margins(8px, 8px, 8px, 8px);
 statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);
 statisticsDetailsPopupMidLineSpace: 4px;
-statisticsDetailsDotRadius: 4px;
+statisticsDetailsDotRadius: 5px;
 statisticsChartLineWidth: 2px;
 
 statisticsChartFooterBetweenSide: 5px;
 statisticsChartFooterSideWidth: 10px;
 statisticsChartFooterArrowSize: size(10px, 30px);
 
-statisticsChartHorizontalLineCaptionSkip: 4px;
+statisticsChartRulerCaptionSkip: 4px;
 
-statisticsChartBottomCaptionHeight: 14px;
-statisticsChartBottomCaptionSkip: 15px;
+statisticsChartBottomCaptionHeight: 15px;
+statisticsChartBottomCaptionSkip: 6px;
 
 statisticsChartBottomCaptionMaxWidth: 44px;
 

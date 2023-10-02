@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "statistics/view/chart_horizontal_lines_view.h"
+#include "statistics/view/chart_rulers_view.h"
 
 #include "data/data_statistics_chart.h"
 #include "statistics/statistics_common.h"
@@ -14,12 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 
-ChartHorizontalLinesView::ChartHorizontalLinesView() = default;
+ChartRulersView::ChartRulersView() = default;
 
-void ChartHorizontalLinesView::setChartData(
+void ChartRulersView::setChartData(
 		const Data::StatisticalChart &chartData,
 		ChartViewType type) {
-	_horizontalLines.clear();
+	_rulers.clear();
 	_isDouble = (type == ChartViewType::DoubleLinear);
 	if (_isDouble && (chartData.lines.size() == 2)) {
 		_leftPen = QPen(chartData.lines.front().color);
@@ -37,33 +37,33 @@ void ChartHorizontalLinesView::setChartData(
 	}
 }
 
-void ChartHorizontalLinesView::paintHorizontalLines(
+void ChartRulersView::paintRulers(
 		QPainter &p,
 		const QRect &r) {
 	const auto alpha = p.opacity();
-	for (auto &horizontalLine : _horizontalLines) {
-		p.setOpacity(alpha * horizontalLine.alpha);
-		for (const auto &line : horizontalLine.lines) {
+	for (auto &ruler : _rulers) {
+		p.setOpacity(alpha * ruler.alpha * kRulerLineAlpha);
+		for (const auto &line : ruler.lines) {
 			const auto lineRect = QRect(
 				0,
 				r.y() + r.height() * line.relativeValue,
 				r.x() + r.width(),
 				st::lineWidth);
-			p.fillRect(lineRect, st::windowSubTextFg);
+			p.fillRect(lineRect, st::boxTextFg);
 		}
 	}
 	p.setOpacity(alpha);
 }
 
-void ChartHorizontalLinesView::paintCaptionsToHorizontalLines(
+void ChartRulersView::paintCaptionsToRulers(
 		QPainter &p,
 		const QRect &r) {
-	const auto offset = r.y() - st::statisticsChartHorizontalLineCaptionSkip;
+	const auto offset = r.y() - st::statisticsChartRulerCaptionSkip;
 	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
 	const auto alpha = p.opacity();
-	for (auto &horizontalLine : _horizontalLines) {
-		p.setOpacity(alpha * horizontalLine.alpha);
-		for (const auto &line : horizontalLine.lines) {
+	for (auto &ruler : _rulers) {
+		p.setOpacity(alpha * ruler.alpha);
+		for (const auto &line : ruler.lines) {
 			const auto y = offset + r.height() * line.relativeValue;
 			p.setPen(_isDouble ? _leftPen : st::windowSubTextFg);
 			p.drawText(
@@ -88,24 +88,24 @@ void ChartHorizontalLinesView::paintCaptionsToHorizontalLines(
 	p.setOpacity(alpha);
 }
 
-void ChartHorizontalLinesView::computeRelative(
+void ChartRulersView::computeRelative(
 		int newMaxHeight,
 		int newMinHeight) {
-	for (auto &horizontalLine : _horizontalLines) {
-		horizontalLine.computeRelative(newMaxHeight, newMinHeight);
+	for (auto &ruler : _rulers) {
+		ruler.computeRelative(newMaxHeight, newMinHeight);
 	}
 }
 
-void ChartHorizontalLinesView::setAlpha(float64 value) {
-	for (auto &horizontalLine : _horizontalLines) {
-		horizontalLine.alpha = horizontalLine.fixedAlpha * (1. - value);
+void ChartRulersView::setAlpha(float64 value) {
+	for (auto &ruler : _rulers) {
+		ruler.alpha = ruler.fixedAlpha * (1. - value);
 	}
-	_horizontalLines.back().alpha = value;
+	_rulers.back().alpha = value;
 	if (value == 1.) {
-		while (_horizontalLines.size() > 1) {
-			const auto startIt = begin(_horizontalLines);
+		while (_rulers.size() > 1) {
+			const auto startIt = begin(_rulers);
 			if (!startIt->alpha) {
-				_horizontalLines.erase(startIt);
+				_rulers.erase(startIt);
 			} else {
 				break;
 			}
@@ -113,8 +113,8 @@ void ChartHorizontalLinesView::setAlpha(float64 value) {
 	}
 }
 
-void ChartHorizontalLinesView::add(Limits newHeight, bool animated) {
-	auto newLinesData = ChartHorizontalLinesData(
+void ChartRulersView::add(Limits newHeight, bool animated) {
+	auto newLinesData = ChartRulersData(
 		newHeight.max,
 		newHeight.min,
 		true,
@@ -128,14 +128,14 @@ void ChartHorizontalLinesView::add(Limits newHeight, bool animated) {
 		}
 	}
 	if (!animated) {
-		_horizontalLines.clear();
+		_rulers.clear();
 	}
-	for (auto &horizontalLine : _horizontalLines) {
-		horizontalLine.fixedAlpha = horizontalLine.alpha;
+	for (auto &ruler : _rulers) {
+		ruler.fixedAlpha = ruler.alpha;
 	}
-	_horizontalLines.push_back(newLinesData);
+	_rulers.push_back(newLinesData);
 	if (!animated) {
-		_horizontalLines.back().alpha = 1.;
+		_rulers.back().alpha = 1.;
 	}
 }
 
