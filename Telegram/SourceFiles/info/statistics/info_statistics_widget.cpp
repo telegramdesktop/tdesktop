@@ -261,11 +261,11 @@ void FillOverview(
 	const auto startDate = channel ? channel.startDate : supergroup.startDate;
 	const auto endDate = channel ? channel.endDate : supergroup.endDate;
 
-	::Settings::AddSkip(content);
+	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.top());
 	{
 		const auto header = content->add(
 			object_ptr<Statistic::Header>(content),
-			st::statisticsLayerMargins);
+			st::statisticsLayerMargins + st::statisticsChartHeaderPadding);
 		header->resizeToWidth(header->width());
 		header->setTitle(tr::lng_stats_overview_title(tr::now));
 		const auto formatter = u"MMM d"_q;
@@ -289,14 +289,23 @@ void FillOverview(
 		if (!diff) {
 			return {};
 		}
+		constexpr auto kTooMuchDiff = int(1'000'000);
+		const auto diffAbs = std::abs(diff);
+		const auto diffText = diffAbs > kTooMuchDiff
+			? Lang::FormatCountToShort(std::abs(diff)).string
+			: QString::number(diffAbs);
 		return {
 			(diff < 0 ? st::menuIconAttentionColor : st::settingsIconBg2)->c,
 			QString("%1%2 (%3%)")
 				.arg((diff < 0) ? QChar(0x2212) : QChar(0x002B))
-				.arg(Lang::FormatCountToShort(std::abs(diff)).string)
+				.arg(diffText)
 				.arg(std::abs(std::round(v.growthRatePercentage * 10.) / 10.))
 		};
 	};
+
+	const auto diffBetweenHeaders = 0
+		+ st::statisticsOverviewValue.style.font->height
+		- st::statisticsHeaderTitleTextStyle.font->height;
 
 	const auto container = content->add(
 		object_ptr<Ui::RpWidget>(content),
@@ -321,92 +330,95 @@ void FillOverview(
 		const auto sub = Ui::CreateChild<Ui::FlatLabel>(
 			container,
 			text(),
-			st::statisticsOverviewSecondValue);
+			st::statisticsOverviewSubtext);
 
 		primary->geometryValue(
 		) | rpl::start_with_next([=](const QRect &g) {
+			const auto &padding = st::statisticsOverviewSecondValuePadding;
 			second->moveToLeft(
-				rect::right(g) + st::statisticsOverviewSecondValueSkip,
-				g.y() + st::statisticsOverviewSecondValueSkip);
+				rect::right(g) + padding.left(),
+				g.y() + padding.top());
 			sub->moveToLeft(
 				g.x(),
-				rect::bottom(g));
+				st::statisticsChartHeaderHeight
+					- st::statisticsOverviewSubtext.style.font->height
+					+ g.y()
+					+ diffBetweenHeaders);
 		}, primary->lifetime());
 	};
 
-	auto height = 0;
-	if (const auto &s = channel) {
-		const auto memberCount = addPrimary(s.memberCount);
-		const auto enabledNotifications = Ui::CreateChild<Ui::FlatLabel>(
+	const auto isChannel = (!!channel);
+	const auto topLeftLabel = isChannel
+		? addPrimary(channel.memberCount)
+		: addPrimary(supergroup.memberCount);
+	const auto topRightLabel = isChannel
+		? Ui::CreateChild<Ui::FlatLabel>(
 			container,
-			QString("%1%").arg(
-				std::round(s.enabledNotificationsPercentage * 100.) / 100.),
-			st::statisticsOverviewValue);
-		const auto meanViewCount = addPrimary(s.meanViewCount);
-		const auto meanShareCount = addPrimary(s.meanShareCount);
-
+			QString("%1%").arg(0.01
+				* std::round(channel.enabledNotificationsPercentage * 100.)),
+			st::statisticsOverviewValue)
+		: addPrimary(supergroup.messageCount);
+	const auto bottomLeftLabel = isChannel
+		? addPrimary(channel.meanViewCount)
+		: addPrimary(supergroup.viewerCount);
+	const auto bottomRightLabel = isChannel
+		? addPrimary(channel.meanShareCount)
+		: addPrimary(supergroup.senderCount);
+	if (const auto &s = channel) {
 		addSub(
-			memberCount,
+			topLeftLabel,
 			s.memberCount,
 			tr::lng_stats_overview_member_count);
 		addSub(
-			enabledNotifications,
+			topRightLabel,
 			{},
 			tr::lng_stats_overview_enabled_notifications);
 		addSub(
-			meanViewCount,
+			bottomLeftLabel,
 			s.meanViewCount,
 			tr::lng_stats_overview_mean_view_count);
 		addSub(
-			meanShareCount,
+			bottomRightLabel,
 			s.meanShareCount,
 			tr::lng_stats_overview_mean_share_count);
-
-		container->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
-			const auto halfWidth = s.width() / 2;
-			enabledNotifications->moveToLeft(halfWidth, 0);
-			meanViewCount->moveToLeft(0, meanViewCount->height() * 3);
-			meanShareCount->moveToLeft(halfWidth, meanViewCount->y());
-		}, container->lifetime());
-
-		height = memberCount->height() * 5;
 	} else if (const auto &s = supergroup) {
-		const auto memberCount = addPrimary(s.memberCount);
-		const auto messageCount = addPrimary(s.messageCount);
-		const auto viewerCount = addPrimary(s.viewerCount);
-		const auto senderCount = addPrimary(s.senderCount);
-
 		addSub(
-			memberCount,
+			topLeftLabel,
 			s.memberCount,
 			tr::lng_manage_peer_members);
 		addSub(
-			messageCount,
+			topRightLabel,
 			s.messageCount,
 			tr::lng_stats_overview_messages);
 		addSub(
-			viewerCount,
+			bottomLeftLabel,
 			s.viewerCount,
 			tr::lng_stats_overview_group_mean_view_count);
 		addSub(
-			senderCount,
+			bottomRightLabel,
 			s.senderCount,
 			tr::lng_stats_overview_group_mean_post_count);
-
-		container->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
-			const auto halfWidth = s.width() / 2;
-			messageCount->moveToLeft(halfWidth, 0);
-			viewerCount->moveToLeft(0, memberCount->height() * 3);
-			senderCount->moveToLeft(halfWidth, viewerCount->y());
-		}, container->lifetime());
-
-		height = memberCount->height() * 5;
 	}
-
 	container->showChildren();
-	container->resize(container->width(), height);
+	container->resize(container->width(), topLeftLabel->height() * 5);
+	container->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		const auto halfWidth = s.width() / 2;
+		{
+			const auto &p = st::statisticsOverviewValuePadding;
+			topLeftLabel->moveToLeft(p.left(), p.top());
+		}
+		topRightLabel->moveToLeft(
+			topLeftLabel->x() + halfWidth + st::statisticsOverviewRightSkip,
+			topLeftLabel->y());
+		bottomLeftLabel->moveToLeft(
+			topLeftLabel->x(),
+			topLeftLabel->y() + st::statisticsOverviewMidSkip);
+		bottomRightLabel->moveToLeft(
+			topRightLabel->x(),
+			bottomLeftLabel->y());
+	}, container->lifetime());
+	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.bottom());
 }
 
 } // namespace

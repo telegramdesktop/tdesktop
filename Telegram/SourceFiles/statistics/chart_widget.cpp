@@ -1493,8 +1493,11 @@ void ChartWidget::setZoomedChartData(
 	Ui::Animations::ShowWidgets({ _zoomedChartWidget.get(), customHeader });
 	Ui::Animations::HideWidgets({ this });
 
-	customHeader->moveToLeft(0, 0);
-	customHeader->resizeToWidth(width());
+	{
+		const auto &headerPadding = st::statisticsChartHeaderPadding;
+		customHeader->moveToLeft(headerPadding.left(), headerPadding.top());
+		customHeader->resizeToWidth(width() - rect::m::sum::h(headerPadding));
+	}
 	zoomOutButton->moveToLeft(0, 0);
 }
 

@@ -10,6 +10,7 @@ using "ui/basic.style";
 using "window/window.style";
 using "ui/widgets/widgets.style";
 
+statisticsLayerOverviewMargins: margins(0px, 17px, 0px, 3px);
 statisticsLayerMargins: margins(20px, 0px, 20px, 0px);
 
 statisticsChartHeight: 150px;
@@ -79,15 +80,20 @@ statisticsOverviewValue: FlatLabel(boxLabel) {
 	minWidth: 0px;
 	maxHeight: 60px;
 	style: TextStyle(defaultTextStyle) {
-		font: font(12px semibold);
+		font: font(14px);
 	}
 }
-statisticsOverviewSecondValueSkip: 2px;
+statisticsOverviewValuePadding: margins(2px, 1px, 0px, 0px);
+statisticsOverviewSecondValuePadding: margins(5px, 3px, 0px, 0px);
 statisticsOverviewSecondValue: FlatLabel(boxLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+statisticsOverviewSubtext: FlatLabel(boxLabel) {
 	minWidth: 152px;
 	maxHeight: 32px;
-	textFg: windowSubTextFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(10px semibold);
-	}
+	style: statisticsHeaderDatesTextStyle;
 }
+statisticsOverviewMidSkip: 50px;
+statisticsOverviewRightSkip: 14px;
