@@ -14,7 +14,7 @@ statisticsLayerMargins: margins(20px, 0px, 20px, 0px);
 
 statisticsChartHeight: 150px;
 
-statisticsChartEntryPadding: margins(0px, 8px, 0px, 8px);
+statisticsChartEntryPadding: margins(0px, 13px, 0px, 8px);
 
 statisticsDetailsArrowShift: 2px;
 statisticsDetailsArrowStroke: 1.5;
@@ -30,7 +30,7 @@ statisticsChartFooterArrowSize: size(10px, 30px);
 
 statisticsChartHorizontalLineCaptionSkip: 4px;
 
-statisticsChartBottomCaptionHeight: 30px;
+statisticsChartBottomCaptionHeight: 14px;
 statisticsChartBottomCaptionSkip: 15px;
 
 statisticsChartBottomCaptionMaxWidth: 44px;
@@ -56,12 +56,13 @@ statisticsDetailsBottomCaptionStyle: TextStyle(defaultTextStyle) {
 statisticsPieChartFont: font(20px);
 statisticsPieChartPartOffset: 8px;
 
-statisticsChartHeaderHeight: 20px;
+statisticsChartHeaderHeight: 36px;
+statisticsChartHeaderPadding: margins(2px, 0px, 0px, 10px);
 statisticsHeaderTitleTextStyle: TextStyle(defaultTextStyle) {
-	font: font(12px semibold);
+	font: font(13px);
 }
 statisticsHeaderDatesTextStyle: TextStyle(defaultTextStyle) {
-	font: font(11px semibold);
+	font: font(11px);
 }
 statisticsHeaderButton: RoundButton(defaultLightButton) {
 	width: -14px;

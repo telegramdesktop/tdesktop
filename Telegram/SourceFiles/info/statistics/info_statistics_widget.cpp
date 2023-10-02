@@ -266,7 +266,7 @@ void FillOverview(
 		const auto header = content->add(
 			object_ptr<Statistic::Header>(content),
 			st::statisticsLayerMargins);
-		header->resize(header->width(), st::statisticsChartHeaderHeight);
+		header->resizeToWidth(header->width());
 		header->setTitle(tr::lng_stats_overview_title(tr::now));
 		const auto formatter = u"MMM d"_q;
 		const auto from = QDateTime::fromSecsSinceEpoch(startDate);

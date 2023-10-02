@@ -20,11 +20,14 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+	int resizeGetHeight(int newWidth) override;
 
 private:
 	Ui::Text::String _title;
 	Ui::Text::String _rightInfo;
-	int _titleWidth = 0;
+	int _infoTop = 0;
 
 };
 

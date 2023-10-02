@@ -861,18 +861,20 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 		? (_filterButtons->height()
 			+ st::statisticsFilterButtonsPadding.bottom())
 		: 0;
-	const auto resultHeight = st::statisticsChartHeaderHeight
+	const auto &headerPadding = st::statisticsChartHeaderPadding;
+	{
+		_header->moveToLeft(headerPadding.left(), headerPadding.top());
+		_header->resizeToWidth(newWidth - rect::m::sum::h(headerPadding));
+	}
+	const auto headerHeight = rect::m::sum::v(headerPadding)
+		+ _header->height();
+	const auto resultHeight = headerHeight
 		+ st::statisticsChartHeight
 		+ st::statisticsChartFooterHeight
 		+ st::statisticsChartFooterSkip
 		+ filtersTopSkip
 		+ filtersHeight;
 	{
-		_header->setGeometry(
-			0,
-			0,
-			newWidth,
-			st::statisticsChartHeaderHeight);
 		_footer->setGeometry(
 			0,
 			resultHeight
@@ -886,9 +888,10 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 		}
 		_chartArea->setGeometry(
 			0,
-			st::statisticsChartHeaderHeight,
+			headerHeight,
 			newWidth,
 			resultHeight
+				- headerHeight
 				- st::statisticsChartFooterHeight
 				- filtersTopSkip
 				- filtersHeight
@@ -1490,7 +1493,8 @@ void ChartWidget::setZoomedChartData(
 	Ui::Animations::ShowWidgets({ _zoomedChartWidget.get(), customHeader });
 	Ui::Animations::HideWidgets({ this });
 
-	customHeader->setGeometry(0, 0, width(), st::statisticsChartHeaderHeight);
+	customHeader->moveToLeft(0, 0);
+	customHeader->resizeToWidth(width());
 	zoomOutButton->moveToLeft(0, 0);
 }
 

@@ -13,8 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 
 void Header::setTitle(QString title) {
-	_titleWidth = st::statisticsHeaderTitleTextStyle.font->width(title);
 	_title.setText(st::statisticsHeaderTitleTextStyle, std::move(title));
+}
+
+int Header::resizeGetHeight(int newWidth) {
+	return st::statisticsChartHeaderHeight;
 }
 
 void Header::setRightInfo(QString rightInfo) {
@@ -29,17 +32,15 @@ void Header::paintEvent(QPaintEvent *e) {
 	p.fillRect(rect(), st::boxBg);
 
 	p.setPen(st::boxTextFg);
-	const auto top = (height()
-		- st::statisticsHeaderTitleTextStyle.font->height) / 2;
-	_title.drawLeftElided(p, 0, top, width(), width());
-	_rightInfo.drawRightElided(
-		p,
-		0,
-		top,
-		width() - _titleWidth,
-		width(),
-		1,
-		style::al_right);
+	_title.drawLeftElided(p, 0, 0, width(), width());
+
+	p.setPen(st::windowSubTextFg);
+	_rightInfo.drawLeftElided(p, 0, _infoTop, width(), width());
+}
+
+void Header::resizeEvent(QResizeEvent *e) {
+	_infoTop = e->size().height()
+		- st::statisticsHeaderDatesTextStyle.font->height;
 }
 
 } // namespace Statistic
