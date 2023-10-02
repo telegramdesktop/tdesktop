@@ -42,6 +42,8 @@ constexpr auto kObjectPath = "/org/freedesktop/Notifications";
 constexpr auto kInterface = kService;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
 
+using PropertyMap = std::map<Glib::ustring, Glib::VariantBase>;
+
 struct ServerInformation {
 	Glib::ustring name;
 	Glib::ustring vendor;
@@ -123,7 +125,8 @@ void StartServiceAsync(Fn<void()> callback) {
 							};
 
 							const auto errorName =
-								Gio::DBus::ErrorUtils::get_remote_error(e).raw();
+								Gio::DBus::ErrorUtils::get_remote_error(e)
+									.raw();
 
 							if (!ranges::contains(
 									NotSupportedErrors,
@@ -192,21 +195,21 @@ void GetServerInformation(Fn<void(const ServerInformation &)> callback) {
 					Noexcept([&] {
 						const auto reply = connection->call_finish(result);
 
-						const auto name = reply.get_child(
-							0
-						).get_dynamic<Glib::ustring>();
+						const auto name = reply
+							.get_child(0)
+							.get_dynamic<Glib::ustring>();
 
-						const auto vendor = reply.get_child(
-							1
-						).get_dynamic<Glib::ustring>();
+						const auto vendor = reply
+							.get_child(1)
+							.get_dynamic<Glib::ustring>();
 
-						const auto version = reply.get_child(
-							2
-						).get_dynamic<Glib::ustring>();
+						const auto version = reply
+							.get_child(2)
+							.get_dynamic<Glib::ustring>();
 
-						const auto specVersion = reply.get_child(
-							3
-						).get_dynamic<Glib::ustring>();
+						const auto specVersion = reply
+							.get_child(3)
+							.get_dynamic<Glib::ustring>();
 
 						callback(ServerInformation{
 							name,
@@ -241,11 +244,9 @@ void GetCapabilities(Fn<void(const std::vector<Glib::ustring> &)> callback) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
 						callback(
-							connection->call_finish(
-								result
-							).get_child(
-								0
-							).get_dynamic<std::vector<Glib::ustring>>()
+							connection->call_finish(result)
+								.get_child(0)
+								.get_dynamic<std::vector<Glib::ustring>>()
 						);
 					}, [&] {
 						callback({});
@@ -275,12 +276,10 @@ void GetInhibited(Fn<void(bool)> callback) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
 						callback(
-							connection->call_finish(
-								result
-							).get_child(
-								0
-							).get_dynamic<Glib::Variant<bool>>(
-							).get()
+							connection->call_finish(result)
+								.get_child(0)
+								.get_dynamic<Glib::Variant<bool>>()
+								.get()
 						);
 					}, [&] {
 						callback(false);
@@ -458,35 +457,43 @@ bool NotificationData::init(
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			Noexcept([&] {
 				if (signal_name == "ActionInvoked") {
-					const auto id = parameters.get_child(0).get_dynamic<uint>();
+					const auto id = parameters
+						.get_child(0)
+						.get_dynamic<uint>();
 
-					const auto actionName = parameters.get_child(
-						1
-					).get_dynamic<Glib::ustring>();
+					const auto actionName = parameters
+						.get_child(1)
+						.get_dynamic<Glib::ustring>();
 
 					actionInvoked(id, actionName);
 				} else if (signal_name == "ActivationToken") {
-					const auto id = parameters.get_child(0).get_dynamic<uint>();
+					const auto id = parameters
+						.get_child(0)
+						.get_dynamic<uint>();
 
-					const auto token = parameters.get_child(
-						1
-					).get_dynamic<Glib::ustring>();
+					const auto token = parameters
+						.get_child(1)
+						.get_dynamic<Glib::ustring>();
 
 					activationToken(id, token);
 				} else if (signal_name == "NotificationReplied") {
-					const auto id = parameters.get_child(0).get_dynamic<uint>();
+					const auto id = parameters
+						.get_child(0)
+						.get_dynamic<uint>();
 
-					const auto text = parameters.get_child(
-						1
-					).get_dynamic<Glib::ustring>();
+					const auto text = parameters
+						.get_child(1)
+						.get_dynamic<Glib::ustring>();
 
 					notificationReplied(id, text);
 				} else if (signal_name == "NotificationClosed") {
-					const auto id = parameters.get_child(0).get_dynamic<uint>();
+					const auto id = parameters
+						.get_child(0)
+						.get_dynamic<uint>();
 
-					const auto reason = parameters.get_child(
-						1
-					).get_dynamic<uint>();
+					const auto reason = parameters
+						.get_child(1)
+						.get_dynamic<uint>();
 
 					notificationClosed(id, reason);
 				}
@@ -637,14 +644,13 @@ void NotificationData::show() {
 				_hints,
 				-1,
 			}),
-			crl::guard(weak, [=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+			crl::guard(weak, [=](
+					const Glib::RefPtr<Gio::AsyncResult> &result) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						_notificationId = connection->call_finish(
-							result
-						).get_child(
-							0
-						).get_dynamic<uint>();
+						_notificationId = connection->call_finish(result)
+							.get_child(0)
+							.get_dynamic<uint>();
 					}, [&] {
 						_manager->clearNotification(_id);
 					});
@@ -966,20 +972,19 @@ Manager::Private::Private(not_null<Manager*> manager)
 					const Glib::VariantContainerBase &parameters) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						const auto interface = parameters.get_child(
-							0
-						).get_dynamic<Glib::ustring>();
+						const auto interface = parameters
+							.get_child(0)
+							.get_dynamic<Glib::ustring>();
 
 						if (interface != kInterface) {
 							return;
 						}
 
-						_inhibited = parameters.get_child(
-							1
-						).get_dynamic<std::map<Glib::ustring, Glib::VariantBase>>(
-						).at(
-							"Inhibited"
-						).get_dynamic<bool>();
+						_inhibited = parameters
+							.get_child(1)
+							.get_dynamic<PropertyMap>()
+							.at("Inhibited")
+							.get_dynamic<bool>();
 					});
 				});
 			}),
