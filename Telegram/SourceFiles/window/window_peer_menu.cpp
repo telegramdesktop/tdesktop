@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h"
+#include "info/statistics/info_statistics_widget.h"
 #include "info/stories/info_stories_widget.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
@@ -85,7 +86,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "export/export_manager.h"
 #include "boxes/peers/edit_peer_info_box.h"
-#include "statistics/statistics_box.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -1003,10 +1003,13 @@ void Filler::addViewStatistics() {
 #ifdef _DEBUG
 	if (const auto channel = _peer->asChannel()) {
 		if (channel->flags() & ChannelDataFlag::CanGetStatistics) {
-			const auto navigation = _controller;
+			const auto controller = _controller;
+			const auto weak = base::make_weak(_thread);
 			const auto peer = _peer;
 			_addAction(tr::lng_stats_title(tr::now), [=] {
-				navigation->show(Box(StatisticsBox, peer));
+				if (const auto strong = weak.get()) {
+					controller->showSection(Info::Statistics::Make(peer));
+				}
 			}, nullptr);
 		}
 	}

@@ -884,6 +884,8 @@ PRIVATE
     info/profile/info_profile_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
+    info/statistics/info_statistics_widget.cpp
+    info/statistics/info_statistics_widget.h
     info/stories/info_stories_inner_widget.cpp
     info/stories/info_stories_inner_widget.h
     info/stories/info_stories_provider.cpp
@@ -1281,8 +1283,6 @@ PRIVATE
     settings/settings_type.h
     settings/settings_websites.cpp
     settings/settings_websites.h
-    statistics/statistics_box.cpp
-    statistics/statistics_box.h
     storage/details/storage_file_utilities.cpp
     storage/details/storage_file_utilities.h
     storage/details/storage_settings_scheme.cpp

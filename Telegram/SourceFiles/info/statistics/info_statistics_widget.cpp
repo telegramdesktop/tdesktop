@@ -5,10 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "statistics/statistics_box.h"
+#include "info/statistics/info_statistics_widget.h"
 
 #include "api/api_statistics.h"
 #include "data/data_peer.h"
+#include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
@@ -19,11 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
+namespace Info::Statistics {
 namespace {
 
 struct Descriptor final {
@@ -99,36 +103,37 @@ void ProcessChart(
 }
 
 void FillStatistic(
-		not_null<Ui::GenericBox*> box,
+		not_null<Ui::VerticalLayout*> content,
 		const Descriptor &descriptor,
 		const AnyStats &stats) {
 	using Type = Statistic::ChartViewType;
 	const auto &padding = st::statisticsChartEntryPadding;
-	const auto &m = st::boxRowPadding;
+	const auto &m = st::statisticsLayerMargins;
 	const auto addSkip = [&](not_null<Ui::VerticalLayout*> c) {
-		Settings::AddSkip(c, padding.bottom());
-		Settings::AddDivider(c);
-		Settings::AddSkip(c, padding.top());
+		::Settings::AddSkip(c, padding.bottom());
+		::Settings::AddDivider(c);
+		::Settings::AddSkip(c, padding.top());
 	};
 	const auto addChart = [&](
 			const Data::StatisticalGraph &graphData,
 			rpl::producer<QString> &&title,
 			Statistic::ChartViewType type) {
-		const auto wrap = box->addRow(
+		const auto wrap = content->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				box,
-				object_ptr<Ui::VerticalLayout>(box)),
-			{});
+				content,
+				object_ptr<Ui::VerticalLayout>(content)));
 		ProcessChart(
 			descriptor,
 			wrap,
-			wrap->entity()->add(object_ptr<Statistic::ChartWidget>(box), m),
+			wrap->entity()->add(
+				object_ptr<Statistic::ChartWidget>(content),
+				m),
 			graphData,
 			std::move(title),
 			type);
 		addSkip(wrap->entity());
 	};
-	addSkip(box->verticalLayout());
+	addSkip(content);
 	if (const auto s = stats.channel) {
 		addChart(
 			s.memberCountGraph,
@@ -203,24 +208,27 @@ void FillStatistic(
 }
 
 void FillLoading(
-		not_null<Ui::GenericBox*> box,
-		rpl::producer<bool> toggleOn) {
-	const auto emptyWrap = box->verticalLayout()->add(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<bool> toggleOn,
+		rpl::producer<> showFinished) {
+	const auto emptyWrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			box->verticalLayout(),
-			object_ptr<Ui::VerticalLayout>(box->verticalLayout())));
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
 	emptyWrap->toggleOn(std::move(toggleOn), anim::type::instant);
 
 	const auto content = emptyWrap->entity();
-	auto icon = Settings::CreateLottieIcon(
+	auto icon = ::Settings::CreateLottieIcon(
 		content,
 		{ .name = u"stats"_q, .sizeOverride = Size(st::changePhoneIconSize) },
 		st::settingsBlockedListIconPadding);
-	content->add(std::move(icon.widget));
 
-	box->setShowFinishedCallback([animate = std::move(icon.animate)] {
+	(
+		std::move(showFinished) | rpl::take(1)
+	) | rpl::start_with_next([animate = std::move(icon.animate)] {
 		animate(anim::repeat::loop);
-	});
+	}, icon.widget->lifetime());
+	content->add(std::move(icon.widget));
 
 	content->add(
 		object_ptr<Ui::CenterWrap<>>(
@@ -240,10 +248,12 @@ void FillLoading(
 				st::statisticsLoadingSubtext)),
 		st::changePhoneDescriptionPadding + st::boxRowPadding);
 
-	Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
+	::Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
 }
 
-void FillOverview(not_null<Ui::GenericBox*> box, const AnyStats &stats) {
+void FillOverview(
+		not_null<Ui::VerticalLayout*> content,
+		const AnyStats &stats) {
 	using Value = Data::StatisticalValue;
 
 	const auto &channel = stats.channel;
@@ -251,9 +261,11 @@ void FillOverview(not_null<Ui::GenericBox*> box, const AnyStats &stats) {
 	const auto startDate = channel ? channel.startDate : supergroup.startDate;
 	const auto endDate = channel ? channel.endDate : supergroup.endDate;
 
-	Settings::AddSkip(box->verticalLayout());
+	::Settings::AddSkip(content);
 	{
-		const auto header = box->addRow(object_ptr<Statistic::Header>(box));
+		const auto header = content->add(
+			object_ptr<Statistic::Header>(content),
+			st::statisticsLayerMargins);
 		header->resize(header->width(), st::statisticsChartHeaderHeight);
 		header->setTitle(tr::lng_stats_overview_title(tr::now));
 		const auto formatter = u"MMM d"_q;
@@ -265,7 +277,7 @@ void FillOverview(not_null<Ui::GenericBox*> box, const AnyStats &stats) {
 			+ ' '
 			+ QLocale().toString(to.date(), formatter));
 	}
-	Settings::AddSkip(box->verticalLayout());
+	::Settings::AddSkip(content);
 
 	struct Second final {
 		QColor color;
@@ -286,7 +298,9 @@ void FillOverview(not_null<Ui::GenericBox*> box, const AnyStats &stats) {
 		};
 	};
 
-	const auto container = box->addRow(object_ptr<Ui::RpWidget>(box));
+	const auto container = content->add(
+		object_ptr<Ui::RpWidget>(content),
+		st::statisticsLayerMargins);
 
 	const auto addPrimary = [&](const Value &v) {
 		return Ui::CreateChild<Ui::FlatLabel>(
@@ -397,33 +411,98 @@ void FillOverview(not_null<Ui::GenericBox*> box, const AnyStats &stats) {
 
 } // namespace
 
-void StatisticsBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
-	box->setTitle(tr::lng_stats_title());
-	const auto loaded = box->lifetime().make_state<rpl::event_stream<bool>>();
+Memento::Memento(not_null<Controller*> controller)
+: Memento(controller->peer()) {
+}
+
+Memento::Memento(not_null<PeerData*> peer)
+: ContentMemento(peer, nullptr, {}) {
+}
+
+Memento::~Memento() = default;
+
+Section Memento::section() const {
+	return Section(Section::Type::Statistics);
+}
+
+object_ptr<ContentWidget> Memento::createWidget(
+		QWidget *parent,
+		not_null<Controller*> controller,
+		const QRect &geometry) {
+	auto result = object_ptr<Widget>(parent, controller);
+	return result;
+}
+
+Widget::Widget(
+	QWidget *parent,
+	not_null<Controller*> controller)
+: ContentWidget(parent, controller) {
+	const auto peer = controller->peer();
+	if (!peer) {
+		return;
+	}
+	const auto inner = setInnerWidget(object_ptr<Ui::VerticalLayout>(this));
+	auto &lifetime = inner->lifetime();
+	const auto loaded = lifetime.make_state<rpl::event_stream<bool>>();
 	FillLoading(
-		box,
-		loaded->events_starting_with(false) | rpl::map(!rpl::mappers::_1));
+		inner,
+		loaded->events_starting_with(false) | rpl::map(!rpl::mappers::_1),
+		_showFinished.events());
 
 	const auto descriptor = Descriptor{
 		peer,
-		box->lifetime().make_state<Api::Statistics>(&peer->session().api()),
-		box->uiShow()->toastParent(),
+		lifetime.make_state<Api::Statistics>(&peer->session().api()),
+		controller->uiShow()->toastParent(),
 	};
 
-	descriptor.api->request(
-		descriptor.peer
-	) | rpl::start_with_done([=] {
-		const auto anyStats = AnyStats{
-			descriptor.api->channelStats(),
-			descriptor.api->supergroupStats(),
-		};
-		if (!anyStats.channel && !anyStats.supergroup) {
-			return;
-		}
-		FillOverview(box, anyStats);
-		FillStatistic(box, descriptor, anyStats);
-		loaded->fire(true);
-		box->verticalLayout()->resizeToWidth(box->width());
-		box->showChildren();
-	}, box->lifetime());
+	_showFinished.events(
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		descriptor.api->request(
+			descriptor.peer
+		) | rpl::start_with_done([=] {
+			const auto anyStats = AnyStats{
+				descriptor.api->channelStats(),
+				descriptor.api->supergroupStats(),
+			};
+			if (!anyStats.channel && !anyStats.supergroup) {
+				return;
+			}
+			FillOverview(inner, anyStats);
+			FillStatistic(inner, descriptor, anyStats);
+			loaded->fire(true);
+			inner->resizeToWidth(width());
+			inner->showChildren();
+		}, inner->lifetime());
+	}, lifetime);
 }
+
+bool Widget::showInternal(not_null<ContentMemento*> memento) {
+	return false;
+}
+
+rpl::producer<QString> Widget::title() {
+	return tr::lng_stats_title();
+}
+
+rpl::producer<bool> Widget::desiredShadowVisibility() const {
+	return rpl::single<bool>(true);
+}
+
+void Widget::showFinished() {
+	_showFinished.fire({});
+}
+
+std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
+	auto result = std::make_shared<Memento>(controller());
+	return result;
+}
+
+std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
+	return std::make_shared<Info::Memento>(
+		std::vector<std::shared_ptr<ContentMemento>>(
+			1,
+			std::make_shared<Memento>(peer)));
+}
+
+} // namespace Info::Statistics
+

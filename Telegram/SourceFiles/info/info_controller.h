@@ -106,6 +106,7 @@ public:
 		Downloads,
 		Stories,
 		PollResults,
+		Statistics,
 	};
 	using SettingsType = ::Settings::Type;
 	using MediaType = Storage::SharedMediaType;

@@ -265,6 +265,7 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 		if (s.isNull()) {
 			return;
 		}
+		const auto was = xPercentageLimits();
 		const auto w = float64(st::statisticsChartFooterSideWidth);
 		_width = s.width() - w;
 		_widthBetweenSides = s.width() - w * 2.;
@@ -272,6 +273,9 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 			s - QSize(0, st::statisticsChartLineWidth * 2),
 			st::boxRadius);
 		_frame = _mask;
+		if (_widthBetweenSides && was.max) {
+			setXPercentageLimits(was);
+		}
 		prepareCache(s.height());
 	}, lifetime());
 
@@ -361,9 +365,11 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 
 Limits ChartWidget::Footer::xPercentageLimits() const {
 	return {
-		.min = _leftSide.min / _widthBetweenSides,
-		.max = (_rightSide.min - st::statisticsChartFooterSideWidth)
-			/ _widthBetweenSides,
+		.min = _widthBetweenSides ? _leftSide.min / _widthBetweenSides : 0.,
+		.max = _widthBetweenSides
+			? (_rightSide.min - st::statisticsChartFooterSideWidth)
+				/ _widthBetweenSides
+			: 0.,
 	};
 }
 

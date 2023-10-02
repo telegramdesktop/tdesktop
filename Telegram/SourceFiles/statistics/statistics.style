@@ -10,6 +10,8 @@ using "ui/basic.style";
 using "window/window.style";
 using "ui/widgets/widgets.style";
 
+statisticsLayerMargins: margins(20px, 0px, 20px, 0px);
+
 statisticsChartHeight: 150px;
 
 statisticsChartEntryPadding: margins(0px, 8px, 0px, 8px);
