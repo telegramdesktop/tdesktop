@@ -25,9 +25,9 @@ struct StatisticalChart {
 
 	[[nodiscard]] QString getDayString(int i) const;
 
-	[[nodiscard]] int findStartIndex(float v) const;
-	[[nodiscard]] int findEndIndex(int left, float v) const;
-	[[nodiscard]] int findIndex(int left, int right, float v) const;
+	[[nodiscard]] int findStartIndex(float64 v) const;
+	[[nodiscard]] int findEndIndex(int left, float64 v) const;
+	[[nodiscard]] int findIndex(int left, int right, float64 v) const;
 
 	struct Line final {
 		std::vector<int> y;

@@ -67,8 +67,8 @@ QString StatisticalChart::getDayString(int i) const {
 	return daysLookup[int((x[i] - x[0]) / timeStep)];
 }
 
-int StatisticalChart::findStartIndex(float v) const {
-	if (v == 0) {
+int StatisticalChart::findStartIndex(float64 v) const {
+	if (!v) {
 		return 0;
 	}
 	const auto n = int(xPercentage.size());
@@ -82,7 +82,7 @@ int StatisticalChart::findStartIndex(float v) const {
 	while (left <= right) {
 		const auto middle = (right + left) >> 1;
 		if (v < xPercentage[middle]
-			&& (middle == 0 || v > xPercentage[middle - 1])) {
+			&& (!middle || (v > xPercentage[middle - 1]))) {
 			return middle;
 		}
 		if (v == xPercentage[middle]) {
@@ -97,7 +97,7 @@ int StatisticalChart::findStartIndex(float v) const {
 	return left;
 }
 
-int StatisticalChart::findEndIndex(int left, float v) const {
+int StatisticalChart::findEndIndex(int left, float64 v) const {
 	const auto n = int(xPercentage.size());
 	if (v == 1.) {
 		return n - 1;
@@ -107,7 +107,7 @@ int StatisticalChart::findEndIndex(int left, float v) const {
 	while (left <= right) {
 		const auto middle = (right + left) >> 1;
 		if (v > xPercentage[middle]
-			&& (middle == n - 1 || v < xPercentage[middle + 1])) {
+			&& ((middle == n - 1) || (v < xPercentage[middle + 1]))) {
 			return middle;
 		}
 		if (v == xPercentage[middle]) {
@@ -123,7 +123,7 @@ int StatisticalChart::findEndIndex(int left, float v) const {
 }
 
 
-int StatisticalChart::findIndex(int left, int right, float v) const {
+int StatisticalChart::findIndex(int left, int right, float64 v) const {
 	const auto n = int(xPercentage.size());
 
 	if (v <= xPercentage[left]) {
@@ -136,7 +136,7 @@ int StatisticalChart::findIndex(int left, int right, float v) const {
 	while (left <= right) {
 		const auto middle = (right + left) >> 1;
 		if (v > xPercentage[middle]
-			&& (middle == n - 1 || v < xPercentage[middle + 1])) {
+			&& ((middle == n - 1) || (v < xPercentage[middle + 1]))) {
 			return middle;
 		}
 
