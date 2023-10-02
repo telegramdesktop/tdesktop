@@ -219,10 +219,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	rpl::event_stream<Limits> _xPercentageLimitsChange;
-
-	void prepareCache(int height);
-
 	void moveSide(bool left, float64 x);
 	void moveCenter(
 		bool isDirectionToLeft,
@@ -242,6 +238,8 @@ private:
 	Ui::Animations::Simple _moveCenterAnimation;
 	bool _draggedAfterPress = false;
 
+	const QPen _sidePen;
+
 	float64 _width = 0.;
 	float64 _widthBetweenSides = 0.;
 
@@ -250,16 +248,20 @@ private:
 	QImage _frame;
 	QImage _mask;
 
-	QImage _leftCache;
-	QImage _rightCache;
-
 	Limits _leftSide;
 	Limits _rightSide;
+
+	rpl::event_stream<Limits> _xPercentageLimitsChange;
 
 };
 
 ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
-: RpMouseWidget(parent) {
+: RpMouseWidget(parent)
+, _sidePen(
+	st::premiumButtonFg,
+	st::statisticsChartLineWidth,
+	Qt::SolidLine,
+	Qt::RoundCap) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
 		if (s.isNull()) {
@@ -270,13 +272,12 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 		_width = s.width() - w;
 		_widthBetweenSides = s.width() - w * 2.;
 		_mask = Ui::RippleAnimation::RoundRectMask(
-			s - QSize(0, st::statisticsChartLineWidth * 2),
+			s - QSize(0, st::lineWidth * 2),
 			st::boxRadius);
 		_frame = _mask;
 		if (_widthBetweenSides && was.max) {
 			setXPercentageLimits(was);
 		}
-		prepareCache(s.height());
 	}, lifetime());
 
 	sizeValue(
@@ -408,36 +409,6 @@ void ChartWidget::Footer::moveSide(bool left, float64 x) {
 	}
 }
 
-void ChartWidget::Footer::prepareCache(int height) {
-	const auto s = QSize(st::statisticsChartFooterSideWidth, height);
-
-	_leftCache = QImage(
-		s * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	_leftCache.setDevicePixelRatio(style::DevicePixelRatio());
-
-	_leftCache.fill(Qt::transparent);
-	{
-		auto p = QPainter(&_leftCache);
-
-		auto path = QPainterPath();
-		const auto halfArrow = st::statisticsChartFooterArrowSize
-			/ style::DevicePixelRatio()
-			/ 2.;
-		const auto c = Rect(s).center();
-		path.moveTo(c.x() + halfArrow.width(), c.y() - halfArrow.height());
-		path.lineTo(c.x() - halfArrow.width(), c.y());
-		path.lineTo(c.x() + halfArrow.width(), c.y() + halfArrow.height());
-		{
-			auto hq = PainterHighQualityEnabler(p);
-			p.setPen(QPen(st::windowSubTextFg, st::statisticsChartLineWidth));
-			p.drawPath(path);
-		}
-
-	}
-	_rightCache = _leftCache.mirrored(true, false);
-}
-
 void ChartWidget::Footer::setPaintChartCallback(
 		PaintCallback paintChartCallback) {
 	_paintChartCallback = std::move(paintChartCallback);
@@ -448,7 +419,7 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 
 	auto hq = PainterHighQualityEnabler(p);
 
-	const auto lineWidth = st::statisticsChartLineWidth;
+	const auto lineWidth = st::lineWidth;
 	const auto innerMargins = QMargins{ 0, lineWidth, 0, lineWidth };
 	const auto r = rect();
 	const auto innerRect = r - innerMargins;
@@ -473,8 +444,8 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 	auto inactivePath = QPainterPath();
 	inactivePath.addRoundedRect(
 		innerRect,
-		st::boxRadius,
-		st::boxRadius);
+		st::statisticsChartFooterSideRadius,
+		st::statisticsChartFooterSideRadius);
 
 	auto sidesPath = QPainterPath();
 	sidesPath.addRoundedRect(
@@ -482,8 +453,8 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 		0,
 		_rightSide.max - _leftSide.min,
 		r.height(),
-		st::boxRadius,
-		st::boxRadius);
+		st::statisticsChartFooterSideRadius,
+		st::statisticsChartFooterSideRadius);
 	inactivePath = inactivePath.subtracted(sidesPath);
 	sidesPath.addRect(
 		_leftSide.max,
@@ -497,8 +468,22 @@ void ChartWidget::Footer::paintEvent(QPaintEvent *e) {
 	p.setBrush(inactiveColor);
 	p.drawPath(inactivePath);
 
-	p.drawImage(_leftSide.min, 0, _leftCache);
-	p.drawImage(_rightSide.min, 0, _rightCache);
+	{
+		p.setPen(_sidePen);
+		const auto halfWidth = st::statisticsChartLineWidth / 2.;
+		const auto left = _leftSide.min
+			+ (_leftSide.max - _leftSide.min) / 2.
+			+ halfWidth;
+		const auto right = _rightSide.min
+			+ (_rightSide.max - _rightSide.min) / 2.;
+		const auto halfHeight = st::statisticsChartFooterArrowHeight / 2.
+			- halfWidth;
+		const auto center = r.height() / 2.;
+		const auto top = center - halfHeight;
+		const auto bottom = center + halfHeight;
+		p.drawLine(left, top, left, bottom);
+		p.drawLine(right, top, right, bottom);
+	}
 }
 
 void ChartWidget::Footer::setXPercentageLimits(const Limits &xLimits) {

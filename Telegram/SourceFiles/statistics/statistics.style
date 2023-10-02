@@ -25,9 +25,12 @@ statisticsDetailsPopupMidLineSpace: 4px;
 statisticsDetailsDotRadius: 5px;
 statisticsChartLineWidth: 2px;
 
+statisticsChartFooterSkip: 10px;
+statisticsChartFooterHeight: 42px;
 statisticsChartFooterBetweenSide: 5px;
 statisticsChartFooterSideWidth: 10px;
-statisticsChartFooterArrowSize: size(10px, 30px);
+statisticsChartFooterArrowHeight: 10px;
+statisticsChartFooterSideRadius: 6px;
 
 statisticsChartRulerCaptionSkip: 4px;
 
@@ -35,9 +38,6 @@ statisticsChartBottomCaptionHeight: 15px;
 statisticsChartBottomCaptionSkip: 6px;
 
 statisticsChartBottomCaptionMaxWidth: 44px;
-
-statisticsChartFooterSkip: 10px;
-statisticsChartFooterHeight: 52px;
 
 statisticsChartFlatCheckboxMargins: margins(4px, 4px, 4px, 4px);
 statisticsChartFlatCheckboxCheckWidth: 4px;
