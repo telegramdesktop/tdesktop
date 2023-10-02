@@ -44,28 +44,43 @@ Limits FindStackXIndicesFromRawXPercentages(
 	// This reduces the number of displayed points by 1,
 	// but allows the last point to be displayed.
 	const auto offset = (zoomLimit.max == 1.) ? 0 : -1;
-	const auto minIt = ranges::upper_bound(
-		chartData.xPercentage,
+	const auto rightShrink = (rawXPercentageLimits.max == 1.)
+		? ((zoomLimit.max == 1.) ? 0 : 1)
+		: 0;
+	const auto n = chartData.xPercentage.size();
+	auto minIt = -1;
+	auto maxIt = n;
+	const auto zoomedIn = Limits{
 		anim::interpolateF(
 			zoomLimit.min,
 			zoomLimit.max,
-			rawXPercentageLimits.min));
-	const auto maxIt = ranges::upper_bound(
-		chartData.xPercentage,
+			rawXPercentageLimits.min),
 		anim::interpolateF(
 			zoomLimit.min,
 			zoomLimit.max,
-			rawXPercentageLimits.max));
-	const auto start = begin(chartData.xPercentage);
+			rawXPercentageLimits.max),
+	};
+	for (auto i = int(0); i < n; i++) {
+		if (minIt < 0) {
+			if (chartData.xPercentage[i] > zoomedIn.min) {
+				minIt = i;
+			}
+		}
+		if (maxIt >= n) {
+			if (chartData.xPercentage[i] > zoomedIn.max) {
+				maxIt = i;
+			}
+		}
+	}
 	return {
 		.min = std::clamp(
-			float64(std::distance(start, minIt) + offset),
+			float64(minIt + offset),
 			zoomedInLimitXIndices.min,
-			zoomedInLimitXIndices.max),
+			zoomedInLimitXIndices.max - rightShrink),
 		.max = std::clamp(
-			float64(std::distance(start, maxIt) + offset),
+			float64(maxIt + offset),
 			zoomedInLimitXIndices.min,
-			zoomedInLimitXIndices.max),
+			zoomedInLimitXIndices.max - rightShrink),
 	};
 }
 
