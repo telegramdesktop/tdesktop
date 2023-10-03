@@ -196,6 +196,7 @@ parts:
     stage-packages:
       - libc-bin
       - libgdk-pixbuf-2.0-0
+      - libnvidia-egl-wayland1
       - libxkbcommon0
       - locales-all
       - shared-mime-info
