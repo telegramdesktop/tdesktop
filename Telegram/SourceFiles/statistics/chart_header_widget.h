@@ -15,6 +15,7 @@ class Header final : public Ui::RpWidget {
 public:
 	using Ui::RpWidget::RpWidget;
 
+	[[nodiscard]] QString title() const;
 	void setTitle(QString title);
 	void setRightInfo(QString rightInfo);
 

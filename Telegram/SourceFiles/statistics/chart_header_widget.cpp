@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Statistic {
 
+QString Header::title() const {
+	return _title.toString();
+}
+
 void Header::setTitle(QString title) {
 	_title.setText(st::statisticsHeaderTitleTextStyle, std::move(title));
 }

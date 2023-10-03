@@ -68,7 +68,7 @@ statisticsHeaderDatesTextStyle: TextStyle(defaultTextStyle) {
 }
 statisticsHeaderButton: RoundButton(defaultLightButton) {
 	width: -14px;
-	height: statisticsChartHeaderHeight;
+	height: 20px;
 	textTop: 2px;
 	font: font(11px semibold);
 }

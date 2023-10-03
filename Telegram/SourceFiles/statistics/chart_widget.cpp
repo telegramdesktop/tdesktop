@@ -1260,6 +1260,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	) | rpl::start_with_next([=](const QRect &g) {
 		header->setGeometry(g);
 	}, header->lifetime());
+	header->setTitle(_header->title());
 	header->setRightInfo(_chartData.getDayString(xIndex));
 
 	const auto enableMouse = [=](bool value) {
@@ -1291,6 +1292,9 @@ void ChartWidget::processLocalZoom(int xIndex) {
 		header,
 		tr::lng_stats_zoom_out(),
 		st::statisticsHeaderButton);
+	zoomOutButton->moveToRight(
+		0,
+		(st::statisticsChartHeaderHeight - zoomOutButton->height()) / 2);
 	zoomOutButton->show();
 	zoomOutButton->setTextTransform(
 		Ui::RoundButton::TextTransform::NoTransform);
@@ -1323,8 +1327,6 @@ void ChartWidget::processLocalZoom(int xIndex) {
 	});
 
 	Ui::Animations::ShowWidgets({ header });
-
-	zoomOutButton->moveToLeft(0, 0);
 
 	const auto finish = [=](const Limits &zoomLimitIndices) {
 		createMouseTracking();
@@ -1460,11 +1462,17 @@ void ChartWidget::setZoomedChartData(
 
 	const auto customHeader = Ui::CreateChild<Header>(
 		_zoomedChartWidget.get());
-	const auto xIndex = std::distance(
-		begin(_chartData.x),
-		ranges::find(_chartData.x, x));
-	if ((xIndex >= 0) && (xIndex < _chartData.x.size())) {
-		customHeader->setRightInfo(_chartData.getDayString(xIndex));
+	{
+		const auto xIndex = std::distance(
+			begin(_chartData.x),
+			ranges::find(_chartData.x, x));
+		customHeader->setTitle(_header->title());
+		if ((xIndex >= 0) && (xIndex < _chartData.x.size())) {
+			customHeader->setRightInfo(_chartData.getDayString(xIndex));
+		}
+		const auto &headerPadding = st::statisticsChartHeaderPadding;
+		customHeader->moveToLeft(headerPadding.left(), headerPadding.top());
+		customHeader->resizeToWidth(width() - rect::m::sum::h(headerPadding));
 	}
 
 	const auto zoomOutButton = Ui::CreateChild<Ui::RoundButton>(
@@ -1473,6 +1481,9 @@ void ChartWidget::setZoomedChartData(
 		st::statisticsHeaderButton);
 	zoomOutButton->setTextTransform(
 		Ui::RoundButton::TextTransform::NoTransform);
+	zoomOutButton->moveToRight(
+		0,
+		(st::statisticsChartHeaderHeight - zoomOutButton->height()) / 2);
 	zoomOutButton->setClickedCallback([=] {
 		shownValue(
 		) | rpl::start_with_next([=](bool shown) {
@@ -1486,13 +1497,6 @@ void ChartWidget::setZoomedChartData(
 
 	Ui::Animations::ShowWidgets({ _zoomedChartWidget.get(), customHeader });
 	Ui::Animations::HideWidgets({ this });
-
-	{
-		const auto &headerPadding = st::statisticsChartHeaderPadding;
-		customHeader->moveToLeft(headerPadding.left(), headerPadding.top());
-		customHeader->resizeToWidth(width() - rect::m::sum::h(headerPadding));
-	}
-	zoomOutButton->moveToLeft(0, 0);
 }
 
 rpl::producer<float64> ChartWidget::zoomRequests() {
