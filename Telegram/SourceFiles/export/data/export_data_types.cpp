@@ -576,6 +576,18 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 	return result;
 }
 
+Giveaway ParseGiveaway(const MTPDmessageMediaGiveaway &data) {
+	auto result = Giveaway{
+		.untilDate = data.vuntil_date().v,
+		.quantity = data.vquantity().v,
+		.months = data.vmonths().v,
+	};
+	for (const auto &id : data.vchannels().v) {
+		result.channels.push_back(ChannelId(id));
+	}
+	return result;
+}
+
 UserpicsSlice ParseUserpicsSlice(
 		const MTPVector<MTPPhoto> &data,
 		int baseIndex) {
@@ -1057,7 +1069,9 @@ Media ParseMedia(
 	}, [](const MTPDmessageMediaDice &data) {
 		// #TODO dice
 	}, [](const MTPDmessageMediaStory &data) {
-		// #TODO stories export
+		// #TODO export stories
+	}, [&](const MTPDmessageMediaGiveaway &data) {
+		result.content = ParseGiveaway(data);
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }
@@ -1298,6 +1312,14 @@ ServiceAction ParseServiceAction(
 		content.peerId = ParsePeerId(data.vpeer());
 		content.buttonId = data.vbutton_id().v;
 		result.content = content;
+	}, [&](const MTPDmessageActionGiftCode &data) {
+		auto content = ActionGiftCode();
+		content.boostPeerId = data.vboost_peer()
+			? peerFromMTP(*data.vboost_peer())
+			: PeerId();
+		content.viaGiveaway = data.is_via_giveaway();
+		content.months = data.vmonths().v;
+		content.code = data.vslug().v;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
@@ -1358,15 +1380,19 @@ Message ParseMessage(
 			}
 			if (const auto replyTo = data.vreply_to()) {
 				replyTo->match([&](const MTPDmessageReplyHeader &data) {
-					result.replyToMsgId = data.vreply_to_msg_id().v;
-					result.replyToPeerId = data.vreply_to_peer_id()
-						? ParsePeerId(*data.vreply_to_peer_id())
-						: 0;
-					if (result.replyToPeerId == result.peerId) {
-						result.replyToPeerId = 0;
+					if (const auto replyToMsg = data.vreply_to_msg_id()) {
+						result.replyToMsgId = replyToMsg->v;
+						result.replyToPeerId = data.vreply_to_peer_id()
+							? ParsePeerId(*data.vreply_to_peer_id())
+							: 0;
+						if (result.replyToPeerId == result.peerId) {
+							result.replyToPeerId = 0;
+						}
+					} else {
+						// #TODO export replies
 					}
 				}, [&](const MTPDmessageReplyStoryHeader &data) {
-					// #TODO stories export
+					// #TODO export stories
 				});
 			}
 		}
@@ -1410,12 +1436,16 @@ Message ParseMessage(
 		}
 		if (const auto replyTo = data.vreply_to()) {
 			replyTo->match([&](const MTPDmessageReplyHeader &data) {
-				result.replyToMsgId = data.vreply_to_msg_id().v;
-				result.replyToPeerId = data.vreply_to_peer_id()
-					? ParsePeerId(*data.vreply_to_peer_id())
-					: PeerId(0);
+				if (const auto replyToMsg = data.vreply_to_msg_id()) {
+					result.replyToMsgId = replyToMsg->v;
+					result.replyToPeerId = data.vreply_to_peer_id()
+						? ParsePeerId(*data.vreply_to_peer_id())
+						: PeerId(0);
+				} else {
+					// #TODO export replies
+				}
 			}, [&](const MTPDmessageReplyStoryHeader &data) {
-				// #TODO stories export
+				// #TODO export stories
 			});
 		}
 		if (const auto viaBotId = data.vvia_bot_id()) {

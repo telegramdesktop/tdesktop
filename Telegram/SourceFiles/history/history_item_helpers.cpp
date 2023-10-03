@@ -370,13 +370,19 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 						: Flag(0))),
 				MTP_int(replyTo.msgId),
 				MTPPeer(),
-				MTP_int(replyToTop));
+				MTPMessageFwdHeader(), // reply_header
+				MTP_int(replyToTop),
+				MTPstring(), // quote_text
+				MTPVector<MTPMessageEntity>()); // quote_entities
 		}
 		return MTP_messageReplyHeader(
 			MTP_flags(0),
 			MTP_int(replyTo.msgId),
-			MTPPeer(),
-			MTPint());
+			MTPPeer(), // reply_to_peer_id
+			MTPMessageFwdHeader(), // reply_header
+			MTPint(), // reply_to_top_id
+			MTPstring(), // quote_text
+			MTPVector<MTPMessageEntity>()); // quote_entities
 	}
 	return MTPMessageReplyHeader();
 }
@@ -453,6 +459,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 		return data.is_via_mention()
 			? Result::HasStoryMention
 			: Result::Good;
+	}, [](const MTPDmessageMediaGiveaway &) {
+		return Result::Good;
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;
 	});

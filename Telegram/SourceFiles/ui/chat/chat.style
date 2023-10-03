@@ -931,3 +931,10 @@ storyMentionUnreadStrokeTwice: 6px;
 storyMentionReadSkipTwice: 7px;
 storyMentionReadStrokeTwice: 3px;
 storyMentionButtonSkip: 5px;
+
+chatGiveawayPrizesTop: 4px;
+chatGiveawayPrizesSkip: 4px;
+chatGiveawayParticipantsTop: 16px;
+chatGiveawayParticipantsSkip: 4px;
+chatGiveawayDateTop: 16px;
+chatGiveawayDateSkip: 4px;

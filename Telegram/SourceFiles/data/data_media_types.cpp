@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_contact.h"
 #include "history/view/media/history_view_location.h"
 #include "history/view/media/history_view_game.h"
+#include "history/view/media/history_view_giveaway.h"
 #include "history/view/media/history_view_invoice.h"
 #include "history/view/media/history_view_call.h"
 #include "history/view/media/history_view_web_page.h"
@@ -361,6 +362,22 @@ Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	return result;
 }
 
+Giveaway ComputeGiveawayData(
+		not_null<HistoryItem*> item,
+		const MTPDmessageMediaGiveaway &data) {
+	auto result = Giveaway{
+		.untilDate = data.vuntil_date().v,
+		.quantity = data.vquantity().v,
+		.months = data.vmonths().v,
+	};
+	result.channels.reserve(data.vchannels().v.size());
+	const auto owner = &item->history()->owner();
+	for (const auto &id : data.vchannels().v) {
+		result.channels.push_back(owner->channel(ChannelId(id)));
+	}
+	return result;
+}
+
 Media::Media(not_null<HistoryItem*> parent) : _parent(parent) {
 }
 
@@ -418,6 +435,10 @@ bool Media::storyExpired(bool revalidate) {
 
 bool Media::storyMention() const {
 	return false;
+}
+
+const Giveaway *Media::giveaway() const {
+	return nullptr;
 }
 
 bool Media::uploading() const {
@@ -2142,6 +2163,52 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 				spoiler);
 		}
 	}
+}
+
+MediaGiveaway::MediaGiveaway(
+	not_null<HistoryItem*> parent,
+	const Giveaway &data)
+: Media(parent)
+, _giveaway(data) {
+}
+
+std::unique_ptr<Media> MediaGiveaway::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaGiveaway>(parent, _giveaway);
+}
+
+const Giveaway *MediaGiveaway::giveaway() const {
+	return &_giveaway;
+}
+
+TextWithEntities MediaGiveaway::notificationText() const {
+	return {
+		.text = tr::lng_prizes_title(tr::now, lt_count, _giveaway.quantity),
+	};
+}
+
+QString MediaGiveaway::pinnedTextSubstring() const {
+	return QString::fromUtf8("\xC2\xAB")
+		+ notificationText().text
+		+ QString::fromUtf8("\xC2\xBB");
+}
+
+TextForMimeData MediaGiveaway::clipboardText() const {
+	return TextForMimeData();
+}
+
+bool MediaGiveaway::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return true;
+}
+
+bool MediaGiveaway::updateSentMedia(const MTPMessageMedia &media) {
+	return true;
+}
+
+std::unique_ptr<HistoryView::Media> MediaGiveaway::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
+	return std::make_unique<HistoryView::Giveaway>(message, &_giveaway);
 }
 
 } // namespace Data

@@ -45,12 +45,15 @@ MTPInputReplyTo ReplyToForMTP(
 		}
 	} else if (replyTo.msgId || replyTo.topicRootId) {
 		using Flag = MTPDinputReplyToMessage::Flag;
-		return MTP_inputReplyToMessage(
+		return MTP_inputReplyToMessage( // #TODO replies
 			(replyTo.topicRootId
 				? MTP_flags(Flag::f_top_msg_id)
 				: MTP_flags(0)),
 			MTP_int(replyTo.msgId ? replyTo.msgId : replyTo.topicRootId),
-			MTP_int(replyTo.topicRootId));
+			MTP_int(replyTo.topicRootId),
+			MTPInputPeer(), // reply_to_peer_id
+			MTPstring(), // quote_text
+			MTPVector<MTPMessageEntity>()); // quote_entities
 	}
 	return MTPInputReplyTo();
 }

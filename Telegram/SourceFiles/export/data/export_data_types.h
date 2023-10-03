@@ -196,6 +196,13 @@ struct Poll {
 	bool closed = false;
 };
 
+struct Giveaway {
+	std::vector<ChannelId> channels;
+	TimeId untilDate = 0;
+	int quantity = 0;
+	int months = 0;
+};
+
 struct UserpicsSlice {
 	std::vector<Photo> list;
 };
@@ -325,6 +332,7 @@ struct Media {
 		Game,
 		Invoice,
 		Poll,
+		Giveaway,
 		UnsupportedMedia> content;
 	TimeId ttl = 0;
 
@@ -527,6 +535,13 @@ struct ActionSetChatWallPaper {
 struct ActionSetSameChatWallPaper {
 };
 
+struct ActionGiftCode {
+	QByteArray code;
+	PeerId boostPeerId = 0;
+	int months = 0;
+	bool viaGiveaway = false;
+};
+
 struct ActionRequestedPeer {
 	PeerId peerId = 0;
 	int buttonId = 0;
@@ -570,7 +585,8 @@ struct ServiceAction {
 		ActionSuggestProfilePhoto,
 		ActionRequestedPeer,
 		ActionSetChatWallPaper,
-		ActionSetSameChatWallPaper> content;
+		ActionSetSameChatWallPaper,
+		ActionGiftCode> content;
 };
 
 ServiceAction ParseServiceAction(

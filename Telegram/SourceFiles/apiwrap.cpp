@@ -2134,15 +2134,16 @@ void ApiWrap::saveDraftsToCloud() {
 		}
 
 		auto flags = MTPmessages_SaveDraft::Flags(0);
+		auto replyFlags = MTPDinputReplyToMessage::Flags(0);
 		auto &textWithTags = cloudDraft->textWithTags;
 		if (cloudDraft->previewState != Data::PreviewState::Allowed) {
 			flags |= MTPmessages_SaveDraft::Flag::f_no_webpage;
 		}
-		if (cloudDraft->msgId) {
-			flags |= MTPmessages_SaveDraft::Flag::f_reply_to_msg_id;
-		}
-		if (cloudDraft->topicRootId) {
-			flags |= MTPmessages_SaveDraft::Flag::f_top_msg_id;
+		if (cloudDraft->msgId || cloudDraft->topicRootId) {
+			flags |= MTPmessages_SaveDraft::Flag::f_reply_to;
+			if (cloudDraft->topicRootId) {
+				replyFlags |= MTPDinputReplyToMessage::Flag::f_top_msg_id;
+			}
 		}
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
@@ -2155,8 +2156,15 @@ void ApiWrap::saveDraftsToCloud() {
 		history->startSavingCloudDraft(topicRootId);
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
 			MTP_flags(flags),
-			MTP_int(cloudDraft->msgId),
-			MTP_int(cloudDraft->topicRootId),
+			MTP_inputReplyToMessage(
+				MTP_flags(replyFlags),
+				MTP_int(cloudDraft->msgId
+					? cloudDraft->msgId
+					: cloudDraft->topicRootId),
+				MTP_int(cloudDraft->topicRootId),
+				MTPInputPeer(), // reply_to_peer_id
+				MTPstring(), // quote_text
+				MTPVector<MTPMessageEntity>()), // quote_entities
 			history->peer->input,
 			MTP_string(textWithTags.text),
 			entities

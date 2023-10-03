@@ -64,7 +64,18 @@ void ApplyPeerCloudDraft(
 				session,
 				draft.ventities().value_or_empty()))
 	};
-	const auto replyTo = draft.vreply_to_msg_id().value_or_empty();
+	auto replyTo = MsgId();
+	if (const auto reply = draft.vreply_to()) {
+		reply->match([&](const MTPDmessageReplyHeader &data) {
+			if (!data.vreply_to_peer_id()
+				|| (peerFromMTP(*data.vreply_to_peer_id()) == peerId)) {
+				replyTo = data.vreply_to_msg_id().value_or_empty();
+			} else {
+				// #TODO replies
+			}
+		}, [&](const MTPDmessageReplyStoryHeader &data) {
+		});
+	}
 	auto cloudDraft = std::make_unique<Draft>(
 		textWithTags,
 		replyTo,

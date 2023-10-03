@@ -1127,8 +1127,8 @@ void History::applyServiceChanges(
 	}, [&](const MTPDmessageActionPinMessage &data) {
 		if (replyTo) {
 			replyTo->match([&](const MTPDmessageReplyHeader &data) {
-				const auto id = data.vreply_to_msg_id().v;
-				if (item) {
+				const auto id = data.vreply_to_msg_id().value_or_empty();
+				if (id && item) {
 					session().storage().add(Storage::SharedMediaAddSlice(
 						peer->id,
 						MsgId(0),

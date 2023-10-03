@@ -291,6 +291,10 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			peerFromMTP(media.vpeer()),
 			media.vid().v,
 		}, media.is_via_mention());
+	}, [&](const MTPDmessageMediaGiveaway &media) -> Result {
+		return std::make_unique<Data::MediaGiveaway>(
+			item,
+			Data::ComputeGiveawayData(item, media));
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {
@@ -1621,11 +1625,18 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	setForwardsCount(data.vforwards().value_or(-1));
 	if (const auto reply = data.vreply_to()) {
 		reply->match([&](const MTPDmessageReplyHeader &data) {
-			setReplyFields(
-				data.vreply_to_msg_id().v,
-				data.vreply_to_top_id().value_or(
-					data.vreply_to_msg_id().v),
-				data.is_forum_topic());
+			// #TODO replies
+			const auto replyToPeer = data.vreply_to_peer_id()
+				? peerFromMTP(*data.vreply_to_peer_id())
+				: PeerId();
+			if (!replyToPeer || replyToPeer == history()->peer->id) {
+				if (const auto replyToId = data.vreply_to_msg_id()) {
+					setReplyFields(
+						replyToId->v,
+						data.vreply_to_top_id().value_or(replyToId->v),
+						data.is_forum_topic());
+				}
+			}
 		}, [](const MTPDmessageReplyStoryHeader &data) {
 		});
 	}
@@ -3382,18 +3393,21 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 	}
 	if (const auto reply = data.vreply_to()) {
 		reply->match([&](const MTPDmessageReplyHeader &data) {
-			if (const auto peer = data.vreply_to_peer_id()) {
-				config.replyToPeer = peerFromMTP(*peer);
-				if (config.replyToPeer == _history->peer->id) {
-					config.replyToPeer = 0;
+			// #TODO replies
+			if (const auto id = data.vreply_to_msg_id().value_or_empty()) {
+				if (const auto peer = data.vreply_to_peer_id()) {
+					config.replyToPeer = peerFromMTP(*peer);
+					if (config.replyToPeer == _history->peer->id) {
+						config.replyToPeer = 0;
+					}
 				}
+				const auto owner = &_history->owner();
+				config.replyTo = data.is_reply_to_scheduled()
+					? owner->scheduledMessages().localMessageId(id)
+					: id;
+				config.replyToTop = data.vreply_to_top_id().value_or(id);
+				config.replyIsTopicPost = data.is_forum_topic();
 			}
-			const auto id = data.vreply_to_msg_id().v;
-			config.replyTo = data.is_reply_to_scheduled()
-				? _history->owner().scheduledMessages().localMessageId(id)
-				: id;
-			config.replyToTop = data.vreply_to_top_id().value_or(id);
-			config.replyIsTopicPost = data.is_forum_topic();
 		}, [&](const MTPDmessageReplyStoryHeader &data) {
 			config.replyToPeer = peerFromUser(data.vuser_id());
 			config.replyToStory = data.vstory_id().v;
@@ -3631,21 +3645,23 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 				? peerFromMTP(*data.vreply_to_peer_id())
 				: _history->peer->id;
 			if (const auto dependent = GetServiceDependentData()) {
-				dependent->peerId = (peerId != _history->peer->id)
-					? peerId
-					: 0;
-				const auto id = data.vreply_to_msg_id().v;
-				dependent->msgId = id;
-				dependent->topId = data.vreply_to_top_id().value_or(id);
-				dependent->topicPost = data.is_forum_topic()
-					|| Has<HistoryServiceTopicInfo>();
-				if (!updateServiceDependent()) {
-					RequestDependentMessageItem(
-						this,
-						(dependent->peerId
-							? dependent->peerId
-							: _history->peer->id),
-						dependent->msgId);
+				const auto id = data.vreply_to_msg_id().value_or_empty();
+				if (id) {
+					dependent->peerId = (peerId != _history->peer->id)
+						? peerId
+						: 0;
+					dependent->msgId = id;
+					dependent->topId = data.vreply_to_top_id().value_or(id);
+					dependent->topicPost = data.is_forum_topic()
+						|| Has<HistoryServiceTopicInfo>();
+					if (!updateServiceDependent()) {
+						RequestDependentMessageItem(
+							this,
+							(dependent->peerId
+								? dependent->peerId
+								: _history->peer->id),
+							dependent->msgId);
+					}
 				}
 			}
 		}, [](const MTPDmessageReplyStoryHeader &data) {
@@ -4426,6 +4442,25 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareGiftCode = [&](const MTPDmessageActionGiftCode &action) {
+		auto result = PreparedServiceText();
+		_history->session().giftBoxStickersPacks().load();
+		const auto months = action.vmonths().v;
+
+		result.text = {
+			(action.is_via_giveaway()
+				? tr::lng_prize_about
+				: tr::lng_prize_gift_about)(
+					tr::now,
+					lt_channel,
+					(action.vboost_peer()
+						? _from->owner().peer(
+							peerFromMTP(*action.vboost_peer()))->name()
+						: "a channel")),
+		};
+		return result;
+	};
+
 	setServiceText(action.match([&](
 			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -4506,6 +4541,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return prepareSetChatWallPaper(data);
 	}, [&](const MTPDmessageActionSetSameChatWallPaper &data) {
 		return prepareSetSameChatWallPaper(data);
+	}, [&](const MTPDmessageActionGiftCode &data) {
+		return prepareGiftCode(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}));

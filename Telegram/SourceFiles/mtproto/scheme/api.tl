@@ -130,6 +130,7 @@ messageMediaGeoLive#b940c666 flags:# geo:GeoPoint heading:flags.0?int period:int
 messageMediaPoll#4bd6e798 poll:Poll results:PollResults = MessageMedia;
 messageMediaDice#3f7ee58b value:int emoticon:string = MessageMedia;
 messageMediaStory#68cb6283 flags:# via_mention:flags.1?true peer:Peer id:int story:flags.0?StoryItem = MessageMedia;
+messageMediaGiveaway#4291677c flags:# only_new_subscribers:flags.0?true channels:Vector<long> quantity:int months:int until_date:int = MessageMedia;
 
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#bd47cbad title:string users:Vector<long> = MessageAction;
@@ -170,6 +171,7 @@ messageActionSuggestProfilePhoto#57de635e photo:Photo = MessageAction;
 messageActionRequestedPeer#fe77345d button_id:int peer:Peer = MessageAction;
 messageActionSetChatWallPaper#bc44a927 wallpaper:WallPaper = MessageAction;
 messageActionSetSameChatWallPaper#c0787d6d wallpaper:WallPaper = MessageAction;
+messageActionGiftCode#d2cfdb0e flags:# via_giveaway:flags.0?true boost_peer:flags.1?Peer months:int slug:string = MessageAction;
 
 dialog#d58a08c6 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int ttl_period:flags.5?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -755,7 +757,7 @@ contacts.topPeers#70b772a8 categories:Vector<TopPeerCategoryPeers> chats:Vector<
 contacts.topPeersDisabled#b52c939d = contacts.TopPeers;
 
 draftMessageEmpty#1b0c841a flags:# date:flags.0?int = DraftMessage;
-draftMessage#fd8e711f flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?int message:string entities:flags.3?Vector<MessageEntity> date:int = DraftMessage;
+draftMessage#95b0528b flags:# no_webpage:flags.1?true reply_to:flags.4?MessageReplyHeader message:string entities:flags.3?Vector<MessageEntity> date:int = DraftMessage;
 
 messages.featuredStickersNotModified#c6dc0c66 count:int = messages.FeaturedStickers;
 messages.featuredStickers#be382906 flags:# premium:flags.0?true hash:long count:int sets:Vector<StickerSetCovered> unread:Vector<long> = messages.FeaturedStickers;
@@ -1256,7 +1258,7 @@ messages.messageViews#b6c4f543 views:Vector<MessageViews> chats:Vector<Chat> use
 
 messages.discussionMessage#a6341782 flags:# messages:Vector<Message> max_id:flags.0?int read_inbox_max_id:flags.1?int read_outbox_max_id:flags.2?int unread_count:int chats:Vector<Chat> users:Vector<User> = messages.DiscussionMessage;
 
-messageReplyHeader#a6d57763 flags:# reply_to_scheduled:flags.2?true forum_topic:flags.3?true reply_to_msg_id:int reply_to_peer_id:flags.0?Peer reply_to_top_id:flags.1?int = MessageReplyHeader;
+messageReplyHeader#3d5c1693 flags:# reply_to_scheduled:flags.2?true forum_topic:flags.3?true reply_to_msg_id:flags.4?int reply_to_peer_id:flags.0?Peer reply_header:flags.5?MessageFwdHeader reply_to_top_id:flags.1?int quote_text:flags.6?string quote_entities:flags.7?Vector<MessageEntity> = MessageReplyHeader;
 messageReplyStoryHeader#9c98bfc1 user_id:long story_id:int = MessageReplyHeader;
 
 messageReplies#83d60fc2 flags:# comments:flags.0?true replies:int replies_pts:int recent_repliers:flags.1?Vector<Peer> channel_id:flags.0?long max_id:flags.2?int read_max_id:flags.3?int = MessageReplies;
@@ -1406,6 +1408,7 @@ attachMenuPeerTypeBroadcast#7bfbdefc = AttachMenuPeerType;
 
 inputInvoiceMessage#c5b56859 peer:InputPeer msg_id:int = InputInvoice;
 inputInvoiceSlug#c326caef slug:string = InputInvoice;
+inputInvoicePremiumGiftCode#98986c0d purpose:InputStorePaymentPurpose option:PremiumGiftCodeOption = InputInvoice;
 
 payments.exportedInvoice#aed0cbd9 url:string = payments.ExportedInvoice;
 
@@ -1416,6 +1419,7 @@ help.premiumPromo#5334759c status_text:string status_entities:Vector<MessageEnti
 inputStorePaymentPremiumSubscription#a6751e66 flags:# restore:flags.0?true upgrade:flags.1?true = InputStorePaymentPurpose;
 inputStorePaymentGiftPremium#616f7fe8 user_id:InputUser currency:string amount:long = InputStorePaymentPurpose;
 inputStorePaymentPremiumGiftCode#a3805f3f flags:# users:Vector<InputUser> boost_peer:flags.0?InputPeer currency:string amount:long = InputStorePaymentPurpose;
+inputStorePaymentPremiumGiveaway#e94a2529 flags:# only_new_subscribers:flags.0?true boost_peer:InputPeer additional_peers:flags.1?Vector<InputPeer> random_id:long until_date:int currency:string amount:long = InputStorePaymentPurpose;
 
 premiumGiftOption#74c34319 flags:# months:int currency:string amount:long bot_url:string store_product:flags.0?string = PremiumGiftOption;
 
@@ -1547,7 +1551,7 @@ stories.storyViewsList#46e9b9ec flags:# count:int reactions_count:int views:Vect
 
 stories.storyViews#de9eed1d views:Vector<StoryViews> users:Vector<User> = stories.StoryViews;
 
-inputReplyToMessage#9c5386e4 flags:# reply_to_msg_id:int top_msg_id:flags.0?int = InputReplyTo;
+inputReplyToMessage#73ec805 flags:# reply_to_msg_id:int top_msg_id:flags.0?int reply_to_peer_id:flags.1?InputPeer quote_text:flags.2?string quote_entities:flags.3?Vector<MessageEntity> = InputReplyTo;
 inputReplyToStory#15b0f283 user_id:InputUser story_id:int = InputReplyTo;
 
 exportedStoryLink#3fc9053b link:string = ExportedStoryLink;
@@ -1576,9 +1580,12 @@ stories.boostersList#f3dd3d1d flags:# count:int boosters:Vector<Booster> next_of
 
 messages.webPage#fd5e12bd webpage:WebPage chats:Vector<Chat> users:Vector<User> = messages.WebPage;
 
-premiumGiftCodeOption#d579436c flags:# users:int months:int store_product:flags.0?string = PremiumGiftCodeOption;
+premiumGiftCodeOption#257e962b flags:# users:int months:int store_product:flags.0?string store_quantity:flags.1?int currency:string amount:long = PremiumGiftCodeOption;
 
-payments.checkedGiftCode#ff70298c flags:# from_id:Peer to_id:flags.0?long date:int months:int used_date:flags.1?int chats:Vector<Chat> users:Vector<User> = payments.CheckedGiftCode;
+payments.checkedGiftCode#b722f158 flags:# via_giveaway:flags.2?true from_id:Peer giveaway_msg_id:flags.3?int to_id:flags.0?long date:int months:int used_date:flags.1?int chats:Vector<Chat> users:Vector<User> = payments.CheckedGiftCode;
+
+payments.giveawayInfo#7a7bdc5a flags:# participating:flags.0?true preparing_results:flags.3?true joined_too_early_date:flags.1?int admin_disallowed_chat_id:flags.2?long = payments.GiveawayInfo;
+payments.giveawayInfoResults#38c32424 flags:# winner:flags.0?true refunded:flags.1?true gift_code_slug:flags.0?string finish_date:int winners_count:int activated_count:int = payments.GiveawayInfo;
 
 ---functions---
 
@@ -1793,7 +1800,7 @@ messages.editInlineBotMessage#83557dba flags:# no_webpage:flags.1?true id:InputB
 messages.getBotCallbackAnswer#9342ca07 flags:# game:flags.1?true peer:InputPeer msg_id:int data:flags.0?bytes password:flags.2?InputCheckPasswordSRP = messages.BotCallbackAnswer;
 messages.setBotCallbackAnswer#d58f130a flags:# alert:flags.1?true query_id:long message:flags.0?string url:flags.2?string cache_time:int = Bool;
 messages.getPeerDialogs#e470bcfd peers:Vector<InputDialogPeer> = messages.PeerDialogs;
-messages.saveDraft#b4331e3f flags:# no_webpage:flags.1?true reply_to_msg_id:flags.0?int top_msg_id:flags.2?int peer:InputPeer message:string entities:flags.3?Vector<MessageEntity> = Bool;
+messages.saveDraft#64a3026c flags:# no_webpage:flags.1?true reply_to:flags.0?InputReplyTo peer:InputPeer message:string entities:flags.3?Vector<MessageEntity> = Bool;
 messages.getAllDrafts#6a3f8d65 = Updates;
 messages.getFeaturedStickers#64780b14 hash:long = messages.FeaturedStickers;
 messages.readFeaturedStickers#5b118126 id:Vector<long> = Bool;
@@ -2051,6 +2058,7 @@ payments.canPurchasePremium#9fc19eb6 purpose:InputStorePaymentPurpose = Bool;
 payments.getPremiumGiftCodeOptions#2757ba54 flags:# boost_peer:flags.0?InputPeer = Vector<PremiumGiftCodeOption>;
 payments.checkGiftCode#8e51b4c1 slug:string = payments.CheckedGiftCode;
 payments.applyGiftCode#f6e26854 slug:string = Updates;
+payments.getGiveawayInfo#f4239425 peer:InputPeer msg_id:int = payments.GiveawayInfo;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;

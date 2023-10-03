@@ -90,6 +90,14 @@ struct Invoice {
 	bool isTest = false;
 };
 
+struct Giveaway {
+	std::vector<not_null<ChannelData*>> channels;
+	TimeId untilDate = 0;
+	int quantity = 0;
+	int months = 0;
+	bool all = false;
+};
+
 class Media {
 public:
 	Media(not_null<HistoryItem*> parent);
@@ -116,6 +124,7 @@ public:
 	virtual FullStoryId storyId() const;
 	virtual bool storyExpired(bool revalidate = false);
 	virtual bool storyMention() const;
+	virtual const Giveaway *giveaway() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -605,6 +614,32 @@ private:
 
 };
 
+class MediaGiveaway final : public Media {
+public:
+	MediaGiveaway(
+		not_null<HistoryItem*> parent,
+		const Giveaway &data);
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	const Giveaway *giveaway() const override;
+
+	TextWithEntities notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
+
+private:
+	Giveaway _giveaway;
+
+};
+
 [[nodiscard]] TextForMimeData WithCaptionClipboardText(
 	const QString &attachType,
 	TextForMimeData &&caption);
@@ -614,5 +649,9 @@ private:
 	const MTPDmessageMediaInvoice &data);
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);
+
+[[nodiscard]] Giveaway ComputeGiveawayData(
+	not_null<HistoryItem*> item,
+	const MTPDmessageMediaGiveaway &data);
 
 } // namespace Data
