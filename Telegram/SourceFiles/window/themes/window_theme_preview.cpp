@@ -47,7 +47,7 @@ namespace {
 			}
 		} else if (!letterFound && ch->isLetterOrNumber()) {
 			letterFound = true;
-			if (ch + 1 != end && Ui::Text::IsDiac(*(ch + 1))) {
+			if (ch + 1 != end && Ui::Text::IsDiacritic(*(ch + 1))) {
 				letters.push_back(QString(ch, 2));
 				levels.push_back(level);
 				++ch;
@@ -353,25 +353,25 @@ void Generator::generateData() {
 		"Mike Apple",
 		2,
 		"9:00",
-		Ui::Text::PlainLink(QChar(55357)
+		Ui::Text::Colorized(QChar(55357)
 			+ QString()
 			+ QChar(56836)
 			+ " Sticker"));
 	_rows.back().unreadCounter = 2;
 	_rows.back().muted = true;
-	addRow("Evening Club", 1, "8:00", Ui::Text::PlainLink("Eva: Photo"));
+	addRow("Evening Club", 1, "8:00", Ui::Text::Colorized("Eva: Photo"));
 	_rows.back().type = Row::Type::Group;
 	addRow(
 		"Old Pirates",
 		6,
 		"7:00",
-		Ui::Text::PlainLink("Max:").append(" Yo-ho-ho!"));
+		Ui::Text::Colorized("Max:").append(" Yo-ho-ho!"));
 	_rows.back().type = Row::Type::Group;
 	addRow("Max Bright", 3, "6:00", { .text = "How about some coffee?" });
 	_rows.back().status = Status::Received;
 	addRow("Natalie Parker", 4, "5:00", { .text = "OK, great)" });
 	_rows.back().status = Status::Received;
-	addRow("Davy Jones", 5, "4:00", Ui::Text::PlainLink("Keynote.pdf"));
+	addRow("Davy Jones", 5, "4:00", Ui::Text::Colorized("Keynote.pdf"));
 
 	_topBarName.setText(st::msgNameStyle, "Eva Summer", Ui::NameTextOptions());
 	_topBarStatus = "online";

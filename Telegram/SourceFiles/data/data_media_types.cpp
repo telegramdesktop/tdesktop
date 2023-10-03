@@ -85,7 +85,7 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 		const TextWithEntities &caption,
 		bool hasMiniImages = false) {
 	if (caption.text.isEmpty()) {
-		return Ui::Text::PlainLink(attachType);
+		return Ui::Text::Colorized(attachType);
 	}
 
 	return hasMiniImages
@@ -96,7 +96,7 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 			tr::lng_dialogs_text_media_wrapped(
 				tr::now,
 				lt_media,
-				Ui::Text::PlainLink(attachType),
+				Ui::Text::Colorized(attachType),
 				Ui::Text::WithEntities),
 			lt_caption,
 			caption,
@@ -558,7 +558,7 @@ ItemPreview Media::toGroupPreview(
 			: fileCount
 			? tr::lng_in_dlg_file_count(tr::now, lt_count, fileCount)
 			: tr::lng_in_dlg_album(tr::now);
-		result.text = Ui::Text::PlainLink(genericText);
+		result.text = Ui::Text::Colorized(genericText);
 	}
 	if (!loadingContext.empty()) {
 		result.loadingContext = std::move(loadingContext);
@@ -937,7 +937,7 @@ TextWithEntities MediaFile::notificationText() const {
 		const auto text = _emoji.isEmpty()
 			? tr::lng_in_dlg_sticker(tr::now)
 			: tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, _emoji);
-		return Ui::Text::PlainLink(text);
+		return Ui::Text::Colorized(text);
 	}
 	const auto type = [&] {
 		if (_document->isVideoMessage()) {
@@ -1719,7 +1719,7 @@ PollData *MediaPoll::poll() const {
 }
 
 TextWithEntities MediaPoll::notificationText() const {
-	return Ui::Text::PlainLink(_poll->question);
+	return Ui::Text::Colorized(_poll->question);
 }
 
 QString MediaPoll::pinnedTextSubstring() const {

@@ -5014,7 +5014,7 @@ void OverlayWidget::paintCaptionContent(
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.pausedEmoji = On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = On(PowerSaving::kChatSpoiler),
-			.elisionLines = inner.height() / lineHeight,
+			.elisionHeight = inner.height(),
 			.elisionRemoveFromEnd = _captionSkipBlockWidth,
 		});
 

@@ -2932,9 +2932,7 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		// Because larger version is shown exactly to the left of the small.
 		//auto media = _media ? _media->toPreview(options) : ItemPreview();
 		return {
-			.text = Ui::Text::Wrapped(
-				notificationText(),
-				EntityType::PlainLink),
+			.text = Ui::Text::Colorized(notificationText()),
 			//.images = std::move(media.images),
 			//.loadingContext = std::move(media.loadingContext),
 		};
@@ -3011,7 +3009,7 @@ TextWithEntities HistoryItem::inReplyText() const {
 		result = Ui::Text::Mid(result, name.size());
 		TextUtilities::Trim(result);
 	}
-	return Ui::Text::Wrapped(result, EntityType::PlainLink);
+	return Ui::Text::Colorized(result);
 }
 
 const std::vector<ClickHandlerPtr> &HistoryItem::customTextLinks() const {

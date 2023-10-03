@@ -469,9 +469,9 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	}
 
 	for (auto &stm : _messageStyles) {
-		const auto same = (stm.textPalette.linkFg->c == stm.historyTextFg->c);
-		stm.textPalette.linkAlwaysActive = same ? 1 : 0;
-		stm.semiboldPalette.linkAlwaysActive = same ? 1 : 0;
+		stm.textPalette.linkAlwaysActive
+			= stm.semiboldPalette.linkAlwaysActive
+			= (stm.textPalette.linkFg->c == stm.historyTextFg->c);
 	}
 
 	_paletteChanged.fire({});

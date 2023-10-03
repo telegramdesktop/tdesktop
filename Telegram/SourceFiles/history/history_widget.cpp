@@ -7949,7 +7949,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					.now = now,
 					.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
 					.pausedSpoiler = pausedSpoiler,
-					.elisionLines = 1,
+					.elisionOneLine = true,
 				});
 			} else {
 				p.setFont(st::msgDateFont);

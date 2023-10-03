@@ -583,7 +583,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = toDescriptionSelection(context.selection),
-			.elisionLines = std::max(_descriptionLines, 0),
+			.elisionHeight = ((_descriptionLines > 0)
+				? (_descriptionLines * lineHeight)
+				: 0),
 			.elisionRemoveFromEnd = (_descriptionLines > 0) ? endskip : 0,
 		});
 		tshift += (_descriptionLines > 0)

@@ -902,7 +902,7 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 		.now = crl::now(),
 		.pausedEmoji = p.inactive() || On(PowerSaving::kEmojiChat),
 		.pausedSpoiler = p.inactive() || On(PowerSaving::kChatSpoiler),
-		.elisionLines = 1,
+		.elisionOneLine = true,
 	});
 }
 

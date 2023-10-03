@@ -113,7 +113,7 @@ public:
 		const QRect &textRect);
 
 private:
-	static QVector<int> CountLineWidths(
+	static std::vector<int> CountLineWidths(
 		const Ui::Text::String &text,
 		const QRect &textRect);
 

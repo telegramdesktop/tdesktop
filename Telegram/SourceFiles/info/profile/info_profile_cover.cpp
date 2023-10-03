@@ -524,7 +524,7 @@ void Cover::refreshStatusText() {
 				_refreshStatusTimer.callOnce(updateIn);
 			}
 			return showOnline
-				? PlainLink(result)
+				? Ui::Text::Colorized(result)
 				: TextWithEntities{ .text = result };
 		} else if (auto chat = _peer->asChat()) {
 			if (!chat->amIn()) {
@@ -543,7 +543,7 @@ void Cover::refreshStatusText() {
 				onlineCount,
 				channel->isMegagroup());
 			return hasMembersLink
-				? PlainLink(result)
+				? Ui::Text::Colorized(result)
 				: TextWithEntities{ .text = result };
 		}
 		return tr::lng_chat_status_unaccessible(tr::now, WithEntities);

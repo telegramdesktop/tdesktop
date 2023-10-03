@@ -45,7 +45,7 @@ void TopBar::updateData(Content &&content) {
 			.append(" \xe2\x80\x93 ")
 			.append(row.label)
 			.append(' ')
-			.append(Ui::Text::PlainLink(row.info)));
+			.append(Ui::Text::Colorized(row.info)));
 	_progress->setValue(row.progress);
 }
 

@@ -76,7 +76,7 @@ TextParseOptions TextNameOptions = {
 };
 
 TextParseOptions TextDialogOptions = {
-	TextParsePlainLinks | TextParseMarkdown, // flags
+	TextParseColorized | TextParseMarkdown, // flags
 	0, // maxw is style-dependent
 	1, // maxh
 	Qt::LayoutDirectionAuto, // lang-dependent

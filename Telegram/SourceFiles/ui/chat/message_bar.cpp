@@ -457,7 +457,7 @@ void MessageBar::paint(Painter &p) {
 				.now = now,
 				.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
 				.pausedSpoiler = pausedSpoiler,
-				.elisionLines = 1,
+				.elisionOneLine = true,
 			});
 		}
 	} else if (_animation->bodyAnimation == BodyAnimation::Text) {

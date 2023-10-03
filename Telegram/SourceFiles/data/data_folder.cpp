@@ -75,7 +75,7 @@ constexpr auto kShowChatNamesCount = 8;
 			.entities = (history->chatListBadgesState().unread
 				? EntitiesInText{
 					{ EntityType::Semibold, 0, int(name.size()), QString() },
-					{ EntityType::PlainLink, 0, int(name.size()), QString() },
+					{ EntityType::Colorized, 0, int(name.size()), QString() },
 				}
 				: EntitiesInText{}),
 		};

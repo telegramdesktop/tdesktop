@@ -630,7 +630,7 @@ void HistoryMessageReply::paint(
 					.pausedEmoji = (context.paused
 						|| On(PowerSaving::kEmojiChat)),
 					.pausedSpoiler = pausedSpoiler,
-					.elisionLines = 1,
+					.elisionOneLine = true,
 				});
 				p.setTextPalette(stm->textPalette);
 			}

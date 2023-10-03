@@ -308,14 +308,14 @@ Image *Story::replyPreview() const {
 TextWithEntities Story::inReplyText() const {
 	const auto type = tr::lng_in_dlg_story(tr::now);
 	return _caption.text.isEmpty()
-		? Ui::Text::PlainLink(type)
+		? Ui::Text::Colorized(type)
 		: tr::lng_dialogs_text_media(
 			tr::now,
 			lt_media_part,
 			tr::lng_dialogs_text_media_wrapped(
 				tr::now,
 				lt_media,
-				Ui::Text::PlainLink(type),
+				Ui::Text::Colorized(type),
 				Ui::Text::WithEntities),
 			lt_caption,
 			_caption,

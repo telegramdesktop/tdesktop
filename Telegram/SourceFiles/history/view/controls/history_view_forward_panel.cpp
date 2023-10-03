@@ -181,7 +181,7 @@ void ForwardPanel::updateTexts() {
 				text = DropCustomEmoji(std::move(text));
 			}
 		} else {
-			text = Ui::Text::PlainLink(
+			text = Ui::Text::Colorized(
 				tr::lng_forward_messages(tr::now, lt_count, count));
 		}
 	}
@@ -364,7 +364,7 @@ void ForwardPanel::paint(
 		.now = now,
 		.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
 		.pausedSpoiler = pausedSpoiler,
-		.elisionLines = 1,
+		.elisionOneLine = true,
 	});
 }
 
