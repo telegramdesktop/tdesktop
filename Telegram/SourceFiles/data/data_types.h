@@ -303,6 +303,8 @@ enum class MessageFlag : uint64 {
 	FakeBotAbout          = (1ULL << 36),
 
 	StoryItem             = (1ULL << 37),
+
+	InHighlightProcess    = (1ULL << 38),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

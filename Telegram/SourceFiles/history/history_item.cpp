@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "payments/payments_checkout_process.h" // CheckoutProcess::Start.
+#include "spellcheck/spellcheck_highlight_syntax.h"
 #include "styles/style_dialogs.h"
 
 namespace {
@@ -2871,12 +2872,29 @@ void HistoryItem::setText(const TextWithEntities &textWithEntities) {
 		: std::move(textWithEntities));
 }
 
-void HistoryItem::setTextValue(TextWithEntities text) {
+void HistoryItem::setTextValue(TextWithEntities text, bool force) {
+	if (const auto processId = Spellchecker::TryHighlightSyntax(text)) {
+		_flags |= MessageFlag::InHighlightProcess;
+		history()->owner().registerHighlightProcess(processId, this);
+	}
 	const auto had = !_text.empty();
 	_text = std::move(text);
 	RemoveComponents(HistoryMessageTranslation::Bit());
-	if (had) {
+	if (had || force) {
 		history()->owner().requestItemTextRefresh(this);
+	}
+}
+
+bool HistoryItem::inHighlightProcess() const {
+	return _flags & MessageFlag::InHighlightProcess;
+}
+
+void HistoryItem::highlightProcessDone() {
+	Expects(inHighlightProcess());
+
+	_flags &= ~MessageFlag::InHighlightProcess;
+	if (!_text.empty()) {
+		setTextValue(base::take(_text), true);
 	}
 }
 

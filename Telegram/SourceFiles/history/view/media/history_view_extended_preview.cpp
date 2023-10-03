@@ -235,6 +235,7 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 				painty + painth + st::mediaCaptionSkip),
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
+			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),

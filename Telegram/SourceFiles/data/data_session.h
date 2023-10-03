@@ -299,6 +299,10 @@ public:
 	void notifyPinnedDialogsOrderUpdated();
 	[[nodiscard]] rpl::producer<> pinnedDialogsOrderUpdated() const;
 
+	void registerHighlightProcess(
+		uint64 processId,
+		not_null<HistoryItem*> item);
+
 	void registerHeavyViewPart(not_null<ViewElement*> view);
 	void unregisterHeavyViewPart(not_null<ViewElement*> view);
 	void unloadHeavyViewParts(
@@ -845,6 +849,7 @@ private:
 		TimeId date);
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
+	void highlightProcessDone(uint64 processId);
 
 	void checkPollsClosings();
 
@@ -955,6 +960,7 @@ private:
 	std::unordered_map<
 		FullStoryId,
 		base::flat_set<not_null<HistoryItem*>>> _storyItems;
+	base::flat_map<uint64, not_null<HistoryItem*>> _highlightings;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;

@@ -446,6 +446,41 @@ void ChatStyle::applyAdjustedServiceBg(QColor serviceBg) {
 	msgServiceBg().set(uchar(r), uchar(g), uchar(b), uchar(a));
 }
 
+std::span<Ui::Text::SpecialColor> ChatStyle::highlightColors() const {
+	if (_highlightColors.empty()) {
+		const auto push = [&](const style::color &color) {
+			_highlightColors.push_back({ &color->p, &color->p });
+		};
+
+		// comment, block-comment, prolog, doctype, cdata
+		push(statisticsChartLineLightblue());
+
+		// punctuation
+		push(statisticsChartLineRed());
+
+		// property, tag, boolean, number,
+		// constant, symbol, deleted
+		push(statisticsChartLineRed());
+
+		// selector, attr-name, string, char, builtin, inserted
+		push(statisticsChartLineOrange());
+
+		// operator, entity, url
+		push(statisticsChartLineRed());
+
+		// atrule, attr-value, keyword, function
+		push(statisticsChartLineBlue());
+
+		// class-name
+		push(statisticsChartLinePurple());
+
+		//push(statisticsChartLineLightgreen());
+		//push(statisticsChartLineGreen());
+		//push(statisticsChartLineGolden());
+	}
+	return _highlightColors;
+}
+
 void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	*static_cast<style::palette*>(this) = *palette;
 	style::internal::resetIcons();

@@ -80,6 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "base/random.h"
+#include "spellcheck/spellcheck_highlight_syntax.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
 namespace Data {
@@ -298,6 +299,11 @@ Session::Session(not_null<Main::Session*> session)
 			session->settings().setDialogsFiltersEnabled(enabled);
 			session->saveSettingsDelayed();
 		}
+	}, _lifetime);
+
+	Spellchecker::HighlightReady(
+	) | rpl::start_with_next([=](uint64 processId) {
+		highlightProcessDone(processId);
 	}, _lifetime);
 
 	subscribeForTopicRepliesLists();
@@ -1760,6 +1766,27 @@ void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
 	}
 }
 
+void Session::registerHighlightProcess(
+		uint64 processId,
+		not_null<HistoryItem*> item) {
+	Expects(item->inHighlightProcess());
+
+	const auto [i, ok] = _highlightings.emplace(processId, item);
+
+	Ensures(ok);
+}
+
+void Session::highlightProcessDone(uint64 processId) {
+	if (const auto done = _highlightings.take(processId)) {
+		for (const auto &[id, item] : _highlightings) {
+			if (item == *done) {
+				return;
+			}
+		}
+		(*done)->highlightProcessDone();
+	}
+}
+
 void Session::requestUnreadReactionsAnimation(not_null<HistoryItem*> item) {
 	enumerateItemViews(item, [&](not_null<ViewElement*> view) {
 		view->animateUnreadReactions();
@@ -2415,6 +2442,13 @@ void Session::unregisterMessage(not_null<HistoryItem*> item) {
 		Data::MessageUpdate::Flag::Destroyed);
 	groups().unregisterMessage(item);
 	removeDependencyMessage(item);
+	for (auto i = begin(_highlightings); i != end(_highlightings);) {
+		if (i->second == item) {
+			i = _highlightings.erase(i);
+		} else {
+			++i;
+		}
+	}
 	messagesListForInsert(peerId)->erase(itemId);
 
 	if (!peerIsChannel(peerId) && IsServerMsgId(itemId)) {

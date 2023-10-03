@@ -322,6 +322,8 @@ public:
 	[[nodiscard]] bool repliesAreComments() const;
 	[[nodiscard]] bool externalReply() const;
 	[[nodiscard]] bool hasExtendedMediaPreview() const;
+	[[nodiscard]] bool inHighlightProcess() const;
+	void highlightProcessDone();
 
 	void setCommentsInboxReadTill(MsgId readTillId);
 	void setCommentsMaxId(MsgId maxId);
@@ -537,7 +539,7 @@ private:
 	[[nodiscard]] bool generateLocalEntitiesByReply() const;
 	[[nodiscard]] TextWithEntities withLocalEntities(
 		const TextWithEntities &textWithEntities) const;
-	void setTextValue(TextWithEntities text);
+	void setTextValue(TextWithEntities text, bool force = false);
 	[[nodiscard]] bool isTooOldForEdit(TimeId now) const;
 	[[nodiscard]] bool isLegacyMessage() const {
 		return _flags & MessageFlag::Legacy;
