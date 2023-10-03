@@ -127,8 +127,8 @@ PointDetailsWidget::PointDetailsWidget(
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
 , _headerStyle(st::statisticsDetailsPopupHeaderStyle)
-, _longFormat(u"ddd, MMM d hh:mm"_q)
-, _shortFormat(u"ddd, MMM d"_q) {
+, _longFormat(u"ddd, d MMM hh:mm"_q)
+, _shortFormat(u"ddd, d MMM yyyy"_q) {
 
 	if (zoomEnabled) {
 		rpl::single(rpl::empty_value()) | rpl::then(
@@ -232,9 +232,15 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 	if (xIndex < 0) {
 		return;
 	}
-	_header.setText(
-		_headerStyle,
-		FormatTimestamp(_chartData.x[xIndex], _longFormat, _shortFormat));
+	{
+		constexpr auto kOneDay = 3600 * 24 * 1000;
+		const auto timestamp = _chartData.x[xIndex];
+		_header.setText(
+			_headerStyle,
+			(timestamp < kOneDay)
+				? _chartData.getDayString(xIndex)
+				: FormatTimestamp(timestamp, _longFormat, _shortFormat));
+	}
 
 	_lines.clear();
 	_lines.reserve(_chartData.lines.size());

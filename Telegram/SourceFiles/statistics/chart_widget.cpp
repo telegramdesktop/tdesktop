@@ -65,14 +65,28 @@ void FillLineColorsByKey(Data::StatisticalChart &chartData) {
 
 [[nodiscard]] QString HeaderRightInfo(
 		const Data::StatisticalChart &chartData,
-		const Limits &limits) {
-	return (limits.min == limits.max)
-		? chartData.getDayString(limits.min)
-		: chartData.getDayString(limits.min)
+		int xIndexMin,
+		int xIndexMax) {
+	constexpr auto kOneDay = 3600 * 24 * 1000;
+	const auto leftTimestamp = chartData.x[xIndexMin];
+	if (leftTimestamp < kOneDay) {
+		return {};
+	}
+	const auto formatter = u"d MMM yyyy"_q;
+	const auto leftDateTime = QDateTime::fromSecsSinceEpoch(
+		leftTimestamp / 1000);
+	const auto leftText = QLocale().toString(leftDateTime.date(), formatter);
+	if (xIndexMin == xIndexMax) {
+		return leftText;
+	} else {
+		const auto rightDateTime = QDateTime::fromSecsSinceEpoch(
+			chartData.x[xIndexMax] / 1000);
+		return leftText
 			+ ' '
 			+ QChar(8212)
 			+ ' '
-			+ chartData.getDayString(limits.max);
+			+ QLocale().toString(rightDateTime.date(), formatter);
+	}
 }
 
 void PaintBottomLine(
@@ -1057,8 +1071,8 @@ void ChartWidget::updateHeader() {
 	if (!_chartData) {
 		return;
 	}
-	const auto indices = _animationController.currentXIndices();
-	_header->setRightInfo(HeaderRightInfo(_chartData, indices));
+	const auto i = _animationController.currentXIndices();
+	_header->setRightInfo(HeaderRightInfo(_chartData, i.min, i.max));
 	_header->update();
 }
 
@@ -1261,7 +1275,7 @@ void ChartWidget::processLocalZoom(int xIndex) {
 		header->setGeometry(g);
 	}, header->lifetime());
 	header->setTitle(_header->title());
-	header->setRightInfo(_chartData.getDayString(xIndex));
+	header->setRightInfo(HeaderRightInfo(_chartData, xIndex, xIndex));
 
 	const auto enableMouse = [=](bool value) {
 		setAttribute(Qt::WA_TransparentForMouseEvents, !value);
@@ -1332,11 +1346,11 @@ void ChartWidget::processLocalZoom(int xIndex) {
 		createMouseTracking();
 		_footer->xPercentageLimitsChange(
 		) | rpl::start_with_next([=](const Limits &l) {
-			const auto result = FindStackXIndicesFromRawXPercentages(
+			const auto r = FindStackXIndicesFromRawXPercentages(
 				_chartData,
 				l,
 				zoomLimitIndices);
-			header->setRightInfo(HeaderRightInfo(_chartData, result));
+			header->setRightInfo(HeaderRightInfo(_chartData, r.min, r.max));
 			header->update();
 		}, header->lifetime());
 	};
@@ -1468,7 +1482,8 @@ void ChartWidget::setZoomedChartData(
 			ranges::find(_chartData.x, x));
 		customHeader->setTitle(_header->title());
 		if ((xIndex >= 0) && (xIndex < _chartData.x.size())) {
-			customHeader->setRightInfo(_chartData.getDayString(xIndex));
+			customHeader->setRightInfo(
+				HeaderRightInfo(_chartData, xIndex, xIndex));
 		}
 		const auto &headerPadding = st::statisticsChartHeaderPadding;
 		customHeader->moveToLeft(headerPadding.left(), headerPadding.top());

@@ -268,7 +268,7 @@ void FillOverview(
 			st::statisticsLayerMargins + st::statisticsChartHeaderPadding);
 		header->resizeToWidth(header->width());
 		header->setTitle(tr::lng_stats_overview_title(tr::now));
-		const auto formatter = u"MMM d"_q;
+		const auto formatter = u"d MMM yyyy"_q;
 		const auto from = QDateTime::fromSecsSinceEpoch(startDate);
 		const auto to = QDateTime::fromSecsSinceEpoch(endDate);
 		header->setRightInfo(QLocale().toString(from.date(), formatter)

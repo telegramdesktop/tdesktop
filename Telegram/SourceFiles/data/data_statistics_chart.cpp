@@ -43,7 +43,7 @@ void StatisticalChart::measure() {
 	const auto dateCount = int((end - start) / timeStep) + 10;
 	daysLookup.reserve(dateCount);
 	constexpr auto kOneDay = 3600 * 24 * 1000;
-	const auto formatter = u"MMM d"_q;
+	const auto formatter = u"d MMM"_q;
 	for (auto i = 0; i < dateCount; i++) {
 		const auto r = (start + (i * timeStep)) / 1000;
 		const auto dateTime = QDateTime::fromSecsSinceEpoch(r);
