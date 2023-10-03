@@ -135,7 +135,7 @@ void StartServiceAsync(Fn<void()> callback) {
 							if (!ranges::contains(
 									NotSupportedErrors,
 									errorName)) {
-								throw e;
+								throw;
 							}
 						}
 					});
