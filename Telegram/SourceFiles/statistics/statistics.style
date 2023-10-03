@@ -10,12 +10,12 @@ using "ui/basic.style";
 using "window/window.style";
 using "ui/widgets/widgets.style";
 
-statisticsLayerOverviewMargins: margins(0px, 17px, 0px, 3px);
+statisticsLayerOverviewMargins: margins(0px, 17px, 0px, 9px);
 statisticsLayerMargins: margins(20px, 0px, 20px, 0px);
 
 statisticsChartHeight: 200px;
 
-statisticsChartEntryPadding: margins(0px, 13px, 0px, 8px);
+statisticsChartEntryPadding: margins(0px, 13px, 0px, 2px);
 
 statisticsDetailsArrowShift: 2px;
 statisticsDetailsArrowStroke: 1.5;
@@ -25,7 +25,7 @@ statisticsDetailsPopupMidLineSpace: 4px;
 statisticsDetailsDotRadius: 5px;
 statisticsChartLineWidth: 2px;
 
-statisticsChartFooterSkip: 10px;
+statisticsChartFooterSkip: 11px;
 statisticsChartFooterHeight: 42px;
 statisticsChartFooterBetweenSide: 5px;
 statisticsChartFooterSideWidth: 10px;
@@ -39,10 +39,11 @@ statisticsChartBottomCaptionSkip: 6px;
 
 statisticsChartBottomCaptionMaxWidth: 44px;
 
-statisticsChartFlatCheckboxMargins: margins(4px, 4px, 4px, 4px);
-statisticsChartFlatCheckboxCheckWidth: 4px;
+statisticsChartFlatCheckboxMargins: margins(4px, 3px, 4px, 5px);
+statisticsChartFlatCheckboxCheckWidth: 3px;
+statisticsChartFlatCheckboxShrinkkWidth: 4px;
 
-statisticsFilterButtonsPadding: margins(0px, 6px, 0px, 0px);
+statisticsFilterButtonsPadding: margins(0px, 12px, 0px, 8px);
 
 statisticsDetailsPopupHeaderStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);

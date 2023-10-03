@@ -57,14 +57,15 @@ ChartLinesFilterWidget::FlatCheckbox::FlatCheckbox(
 : Ui::AbstractButton(parent)
 , _activeColor(activeColor)
 , _inactiveColor(st::boxBg->c)
-, _text(st::statisticsDetailsBottomCaptionStyle, text) {
+, _text(st::statisticsDetailsPopupStyle, text) {
 	const auto &margins = st::statisticsChartFlatCheckboxMargins;
 	const auto h = _text.minHeight() + rect::m::sum::v(margins) * 2;
 	resize(
 		_text.maxWidth()
 			+ rect::m::sum::h(margins)
 			+ h
-			+ st::statisticsChartFlatCheckboxCheckWidth * 3,
+			+ st::statisticsChartFlatCheckboxCheckWidth * 3
+			- st::statisticsChartFlatCheckboxShrinkkWidth,
 		h);
 }
 
@@ -160,6 +161,7 @@ void ChartLinesFilterWidget::FlatCheckbox::paintEvent(QPaintEvent *e) {
 	_text.draw(p, textContext);
 
 	if (progress > kCheckPartProgress) {
+		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(QPen(textColor, st::statisticsChartLineWidth));
 		const auto bounceProgress = checkProgress - 1.;
 		const auto start = QPoint(
