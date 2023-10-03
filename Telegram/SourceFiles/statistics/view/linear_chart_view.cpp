@@ -53,7 +53,9 @@ void PaintChartLine(
 		const auto yPoint = (1. - yPercentage) * c.rect.height();
 		chartPoints << QPointF(xPoint, yPoint);
 	}
-	p.setPen(QPen(line.color, st::statisticsChartLineWidth));
+	p.setPen(QPen(
+		line.color,
+		c.footer ? st::lineWidth : st::statisticsChartLineWidth));
 	p.setBrush(Qt::NoBrush);
 	p.drawPolyline(chartPoints);
 }
