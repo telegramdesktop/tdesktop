@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/widgets/shadow.h"
 #include "styles/style_layers.h"
 #include "styles/style_statistics.h"
 
@@ -30,6 +29,37 @@ namespace {
 	} else {
 		return QLocale().toString(dateTime.date(), shortFormat);
 	}
+}
+
+void PaintShadow(QPainter &p, int radius, const QRect &r) {
+	constexpr auto kHorizontalOffset = 1;
+	constexpr auto kHorizontalOffset2 = 2;
+	constexpr auto kVerticalOffset = 2;
+	constexpr auto kVerticalOffset2 = 3;
+	constexpr auto kOpacityStep = 0.2;
+	constexpr auto kOpacityStep2 = 0.4;
+	const auto hOffset = style::ConvertScale(kHorizontalOffset);
+	const auto hOffset2 = style::ConvertScale(kHorizontalOffset2);
+	const auto vOffset = style::ConvertScale(kVerticalOffset);
+	const auto vOffset2 = style::ConvertScale(kVerticalOffset2);
+	const auto opacity = p.opacity();
+	auto hq = PainterHighQualityEnabler(p);
+
+	p.setOpacity(opacity);
+	p.drawRoundedRect(r + QMarginsF(0, hOffset, 0, hOffset), radius, radius);
+
+	p.setOpacity(opacity * kOpacityStep);
+	p.drawRoundedRect(r + QMarginsF(hOffset, 0, hOffset, 0), radius, radius);
+	p.setOpacity(opacity * kOpacityStep2);
+	p.drawRoundedRect(r
+		+ QMarginsF(hOffset2, 0, hOffset2, 0), radius, radius);
+
+	p.setOpacity(opacity * kOpacityStep);
+	p.drawRoundedRect(r + QMarginsF(0, 0, 0, vOffset), radius, radius);
+	p.setOpacity(opacity * kOpacityStep2);
+	p.drawRoundedRect(r + QMarginsF(0, 0, 0, vOffset2), radius, radius);
+
+	p.setOpacity(opacity);
 }
 
 } // namespace
@@ -67,7 +97,9 @@ void PaintDetails(
 	const auto innerRect = fullRect - st::statisticsDetailsPopupPadding;
 	const auto textRect = innerRect - st::statisticsDetailsPopupMargins;
 
-	Ui::Shadow::paint(p, innerRect, rect.width(), st::boxRoundShadow);
+	p.setBrush(st::shadowFg);
+	p.setPen(Qt::NoPen);
+	PaintShadow(p, st::boxRadius, innerRect);
 	Ui::FillRoundRect(p, innerRect, st::boxBg, Ui::BoxCorners);
 
 	const auto lineY = textRect.y();
@@ -90,7 +122,7 @@ PointDetailsWidget::PointDetailsWidget(
 	const Data::StatisticalChart &chartData,
 	float64 maxAbsoluteValue,
 	bool zoomEnabled)
-: Ui::RippleButton(parent, st::defaultRippleAnimation)
+: Ui::AbstractButton(parent)
 , _zoomEnabled(zoomEnabled)
 , _chartData(chartData)
 , _textStyle(st::statisticsDetailsPopupStyle)
@@ -119,6 +151,7 @@ PointDetailsWidget::PointDetailsWidget(
 				p.drawLine(QLineF(s, s, w, w + s));
 				p.drawLine(QLineF(s, s + w * 2, w, w + s));
 			}
+			invalidateCache();
 		}, lifetime());
 	}
 
@@ -162,6 +195,7 @@ PointDetailsWidget::PointDetailsWidget(
 			: Rect(s);
 		_innerRect = fullRect - st::statisticsDetailsPopupPadding;
 		_textRect = _innerRect - st::statisticsDetailsPopupMargins;
+		invalidateCache();
 	}, lifetime());
 
 	resize(calculatedWidth, height());
@@ -171,11 +205,15 @@ PointDetailsWidget::PointDetailsWidget(
 void PointDetailsWidget::setLineAlpha(int lineId, float64 alpha) {
 	for (auto &line : _lines) {
 		if (line.id == lineId) {
-			line.alpha = alpha;
+			if (line.alpha != alpha) {
+				line.alpha = alpha;
+				resizeHeight();
+				invalidateCache();
+				update();
+			}
+			return;
 		}
 	}
-	update();
-	resizeHeight();
 }
 
 void PointDetailsWidget::resizeHeight() {
@@ -216,6 +254,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 	setAttribute(
 		Qt::WA_TransparentForMouseEvents,
 		!clickable);
+	invalidateCache();
 }
 
 void PointDetailsWidget::setAlpha(float64 alpha) {
@@ -242,61 +281,98 @@ int PointDetailsWidget::lineYAt(int index) const {
 		+ std::ceil(linesHeight);
 }
 
+void PointDetailsWidget::invalidateCache() {
+	_cache = QImage();
+}
+
+void PointDetailsWidget::mousePressEvent(QMouseEvent *e) {
+	AbstractButton::mousePressEvent(e);
+	const auto position = e->pos() - _innerRect.topLeft();
+	if (!_ripple) {
+		_ripple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			Ui::RippleAnimation::RoundRectMask(
+				_innerRect.size(),
+				st::boxRadius),
+			[=] { update(); });
+	}
+	_ripple->add(position);
+}
+
+void PointDetailsWidget::mouseReleaseEvent(QMouseEvent *e) {
+	AbstractButton::mouseReleaseEvent(e);
+	if (_ripple) {
+		_ripple->lastStop();
+	}
+}
+
 void PointDetailsWidget::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
+	auto painter = QPainter(this);
 
-	p.setOpacity(_alpha);
+	if (_cache.isNull()) {
+		_cache = QImage(
+			size() * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		_cache.fill(Qt::transparent);
 
-	const auto fullRect = rect();
+		auto p = QPainter(&_cache);
 
-	Ui::Shadow::paint(p, _innerRect, width(), st::boxRoundShadow);
-	Ui::FillRoundRect(p, _innerRect, st::boxBg, Ui::BoxCorners);
-	Ui::RippleButton::paintRipple(p, _innerRect.topLeft());
+		p.setBrush(st::shadowFg);
+		p.setPen(Qt::NoPen);
+		PaintShadow(p, st::boxRadius, _innerRect);
+		Ui::FillRoundRect(p, _innerRect, st::boxBg, Ui::BoxCorners);
 
-	p.setPen(st::boxTextFg);
-	const auto headerContext = Ui::Text::PaintContext{
-		.position = _textRect.topLeft(),
-		.availableWidth = _textRect.width(),
-	};
-	_header.draw(p, headerContext);
-	for (auto i = 0; i < _lines.size(); i++) {
-		const auto &line = _lines[i];
-		const auto lineY = lineYAt(i);
-		const auto valueWidth = line.value.maxWidth();
-		const auto valueContext = Ui::Text::PaintContext{
-			.position = QPoint(rect::right(_textRect) - valueWidth, lineY),
-			.outerWidth = _textRect.width(),
-			.availableWidth = valueWidth,
-		};
-		const auto nameContext = Ui::Text::PaintContext{
-			.position = QPoint(_textRect.x(), lineY),
-			.outerWidth = _textRect.width(),
-			.availableWidth = _textRect.width() - valueWidth,
-		};
-		p.setOpacity(line.alpha * line.alpha * _alpha);
+		if (_ripple) {
+			_ripple->paint(p, _innerRect.left(), _innerRect.top(), width());
+			if (_ripple->empty()) {
+				_ripple.reset();
+			}
+		}
+
 		p.setPen(st::boxTextFg);
-		line.name.draw(p, nameContext);
-		p.setPen(line.valueColor);
-		line.value.draw(p, valueContext);
+		const auto headerContext = Ui::Text::PaintContext{
+			.position = _textRect.topLeft(),
+			.availableWidth = _textRect.width(),
+		};
+		_header.draw(p, headerContext);
+		for (auto i = 0; i < _lines.size(); i++) {
+			const auto &line = _lines[i];
+			const auto lineY = lineYAt(i);
+			const auto valueWidth = line.value.maxWidth();
+			const auto valueContext = Ui::Text::PaintContext{
+				.position = QPoint(
+					rect::right(_textRect) - valueWidth,
+					lineY),
+				.outerWidth = _textRect.width(),
+				.availableWidth = valueWidth,
+			};
+			const auto nameContext = Ui::Text::PaintContext{
+				.position = QPoint(_textRect.x(), lineY),
+				.outerWidth = _textRect.width(),
+				.availableWidth = _textRect.width() - valueWidth,
+			};
+			p.setOpacity(line.alpha * line.alpha);
+			p.setPen(st::boxTextFg);
+			line.name.draw(p, nameContext);
+			p.setPen(line.valueColor);
+			line.value.draw(p, valueContext);
+		}
+
+		if (_zoomEnabled) {
+			const auto s = _arrow.size() / style::DevicePixelRatio();
+			const auto x = rect::right(_textRect) - s.width();
+			const auto y = _textRect.y()
+				+ (_headerStyle.font->height - s.height()) / 2.;
+			p.drawImage(x, y, _arrow);
+		}
 	}
-
-	if (_zoomEnabled) {
-		const auto s = _arrow.size() / style::DevicePixelRatio();
-		const auto x = rect::right(_textRect) - s.width();
-		const auto y = _textRect.y()
-			+ (_headerStyle.font->height - s.height()) / 2.;
-		p.drawImage(x, y, _arrow);
+	if (_alpha < 1.) {
+		painter.setOpacity(_alpha);
 	}
-}
-
-QPoint PointDetailsWidget::prepareRippleStartPosition() const {
-	return mapFromGlobal(QCursor::pos()) - _innerRect.topLeft();
-}
-
-QImage PointDetailsWidget::prepareRippleMask() const {
-	return Ui::RippleAnimation::RoundRectMask(
-		_innerRect.size(),
-		st::boxRadius);
+	painter.drawImage(0, 0, _cache);
+	if (_ripple) {
+		invalidateCache();
+	}
 }
 
 } // namespace Statistic

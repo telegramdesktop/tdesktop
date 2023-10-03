@@ -13,13 +13,13 @@ using "ui/widgets/widgets.style";
 statisticsLayerOverviewMargins: margins(0px, 17px, 0px, 3px);
 statisticsLayerMargins: margins(20px, 0px, 20px, 0px);
 
-statisticsChartHeight: 150px;
+statisticsChartHeight: 200px;
 
 statisticsChartEntryPadding: margins(0px, 13px, 0px, 8px);
 
 statisticsDetailsArrowShift: 2px;
 statisticsDetailsArrowStroke: 1.5;
-statisticsDetailsPopupMargins: margins(8px, 8px, 8px, 8px);
+statisticsDetailsPopupMargins: margins(12px, 8px, 12px, 11px);
 statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);
 statisticsDetailsPopupMidLineSpace: 4px;
 statisticsDetailsDotRadius: 5px;
@@ -45,10 +45,10 @@ statisticsChartFlatCheckboxCheckWidth: 4px;
 statisticsFilterButtonsPadding: margins(0px, 6px, 0px, 0px);
 
 statisticsDetailsPopupHeaderStyle: TextStyle(defaultTextStyle) {
-	font: font(9px semibold);
+	font: font(12px semibold);
 }
 statisticsDetailsPopupStyle: TextStyle(defaultTextStyle) {
-	font: font(8px);
+	font: font(12px);
 }
 statisticsDetailsBottomCaptionStyle: TextStyle(defaultTextStyle) {
 	font: font(10px);

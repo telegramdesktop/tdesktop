@@ -8,7 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_statistics_chart.h"
-#include "ui/widgets/buttons.h"
+#include "ui/abstract_button.h"
+
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
 
 namespace Statistic {
 
@@ -18,7 +22,7 @@ void PaintDetails(
 	int absoluteValue,
 	const QRect &rect);
 
-class PointDetailsWidget : public Ui::RippleButton {
+class PointDetailsWidget : public Ui::AbstractButton {
 public:
 	PointDetailsWidget(
 		not_null<Ui::RpWidget*> parent,
@@ -34,9 +38,8 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
 	const bool _zoomEnabled;
@@ -46,6 +49,8 @@ private:
 	const QString _longFormat;
 	const QString _shortFormat;
 	Ui::Text::String _header;
+
+	void invalidateCache();
 
 	[[nodiscard]] int lineYAt(int index) const;
 
@@ -63,10 +68,14 @@ private:
 	QRect _textRect;
 	QImage _arrow;
 
+	QImage _cache;
+
 	int _xIndex = -1;
 	float64 _alpha = 1.;
 
 	std::vector<Line> _lines;
+
+	std::unique_ptr<Ui::RippleAnimation> _ripple;
 
 };
 

@@ -1189,16 +1189,20 @@ void ChartWidget::setupDetails() {
 					currentXLimits.min,
 					currentXLimits.max,
 					_chartData.xPercentage[nearestXIndex]);
-			const auto xLeft = currentX
-				- _details.widget->width();
+			const auto widgetArea = _details.widget->width()
+				+ st::statisticsDetailsPopupPadding.left();
+			const auto xLeft = currentX - widgetArea;
 			const auto x = (xLeft >= 0)
 				? xLeft
-				: ((currentX
-					+ _details.widget->width()
-					- _chartArea->width()) > 0)
+				: ((currentX + widgetArea - _chartArea->width()) > 0)
 				? 0
 				: currentX;
-			_details.widget->moveToLeft(x, _chartArea->y());
+			_details.widget->moveToLeft(
+				std::clamp(
+					int(x),
+					_chartArea->x(),
+					rect::right(_chartArea) - widgetArea),
+				_chartArea->y());
 			_details.widget->setXIndex(nearestXIndex);
 			if (_details.widget->isHidden()) {
 				_details.hideOnAnimationEnd = false;
