@@ -3509,10 +3509,10 @@ void Session::webpageApplyFields(
 		}
 	}
 	if (const auto page = data.vcached_page()) {
-		for (const auto photo : page->data().vphotos().v) {
+		for (const auto &photo : page->data().vphotos().v) {
 			processPhoto(photo);
 		}
-		for (const auto document : page->data().vdocuments().v) {
+		for (const auto &document : page->data().vdocuments().v) {
 			processDocument(document);
 		}
 	}

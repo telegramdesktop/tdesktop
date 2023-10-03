@@ -29,7 +29,7 @@ void Controller::show(const QString &dataPath, Prepared page) {
 	_window = std::make_unique<Ui::RpWindow>();
 	const auto window = _window.get();
 
-	window->setGeometry({ 200, 200, 800, 600 });
+	window->setGeometry({ 200, 200, 600, 800 });
 
 	const auto container = Ui::CreateChild<Ui::RpWidget>(
 		window->body().get());

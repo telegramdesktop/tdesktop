@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/history_unread_things.h"
 #include "history/history.h"
+#include "iv/iv_data.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_isolated_emoji.h"
@@ -668,6 +669,7 @@ HistoryItem::HistoryItem(
 			: nullptr),
 		nullptr,
 		WebPageCollage(),
+		nullptr,
 		0,
 		QString(),
 		false,

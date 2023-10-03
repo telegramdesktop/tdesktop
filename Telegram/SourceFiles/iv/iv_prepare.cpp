@@ -132,13 +132,11 @@ private:
 
 	const Options _options;
 
-	const QByteArray _resourcePrefix;
 	base::flat_set<QByteArray> _resources;
 
 	Prepared _result;
 
 	bool _rtl = false;
-	bool _imageAsBackground = false;
 	bool _captionAsTitle = false;
 	bool _captionWrapped = false;
 	base::flat_map<uint64, Photo> _photosById;
@@ -171,9 +169,6 @@ private:
 
 Parser::Parser(const Source &source, const Options &options)
 : _options(options)
-, _resourcePrefix(options.saveToFolder.isEmpty()
-	? "http://desktop-app-resource/"
-	: QByteArray())
 , _rtl(source.page.data().is_rtl()) {
 	process(source);
 	_result.html = prepare(page(source.page.data()));
@@ -968,10 +963,11 @@ QByteArray Parser::mapUrl(const Geo &geo, int width, int height, int zoom) {
 }
 
 QByteArray Parser::resource(QByteArray id) {
-	if (!_options.saveToFolder.isEmpty() && _resources.emplace(id).second) {
+	const auto toFolder = !_options.saveToFolder.isEmpty();
+	if (toFolder && _resources.emplace(id).second) {
 		_result.resources.push_back(id);
 	}
-	return _resourcePrefix + id;
+	return toFolder ? id : ('/' + id);
 }
 
 QByteArray Parser::page(const MTPDpage &data) {
