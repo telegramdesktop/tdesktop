@@ -836,6 +836,8 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 		}
 	}, lifetime());
 	setupChartArea();
+	// We have to create the footer,
+	// even if it has to be hidden, otherwise it breaks some things.
 	setupFooter();
 }
 
@@ -865,36 +867,39 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 		_header->moveToLeft(headerPadding.left(), headerPadding.top());
 		_header->resizeToWidth(newWidth - rect::m::sum::h(headerPadding));
 	}
-	const auto headerHeight = rect::m::sum::v(headerPadding)
+	const auto headerArea = rect::m::sum::v(headerPadding)
 		+ _header->height();
-	const auto resultHeight = headerHeight
+	const auto footerArea = (!_footer->isHidden())
+		? (st::statisticsChartFooterHeight + st::statisticsChartFooterSkip)
+		: 0;
+	const auto resultHeight = headerArea
 		+ st::statisticsChartHeight
-		+ st::statisticsChartFooterHeight
-		+ st::statisticsChartFooterSkip
+		+ footerArea
 		+ filtersTopSkip
 		+ filtersHeight;
 	{
-		_footer->setGeometry(
-			0,
-			resultHeight
-				- st::statisticsChartFooterHeight
-				- filtersTopSkip
-				- filtersHeight,
-			newWidth,
-			st::statisticsChartFooterHeight);
+		if (footerArea) {
+			_footer->setGeometry(
+				0,
+				resultHeight
+					- st::statisticsChartFooterHeight
+					- filtersTopSkip
+					- filtersHeight,
+				newWidth,
+				st::statisticsChartFooterHeight);
+		}
 		if (_filterButtons) {
 			_filterButtons->moveToLeft(0, resultHeight - filtersHeight);
 		}
 		_chartArea->setGeometry(
 			0,
-			headerHeight,
+			headerArea,
 			newWidth,
 			resultHeight
-				- headerHeight
-				- st::statisticsChartFooterHeight
+				- headerArea
+				- footerArea
 				- filtersTopSkip
-				- filtersHeight
-				- st::statisticsChartFooterSkip);
+				- filtersHeight);
 
 		{
 			updateChartFullWidth(newWidth);
@@ -906,7 +911,9 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 
 void ChartWidget::updateChartFullWidth(int w) {
 	const auto finalXLimits = _animationController.finalXLimits();
-	_bottomLine.chartFullWidth = w / (finalXLimits.max - finalXLimits.min);
+	_bottomLine.chartFullWidth = (finalXLimits.max == finalXLimits.min)
+		? 0
+		: (w / (finalXLimits.max - finalXLimits.min));
 }
 
 QRect ChartWidget::chartAreaRect() const {
@@ -1266,6 +1273,9 @@ bool ChartWidget::hasLocalZoom() const {
 void ChartWidget::processLocalZoom(int xIndex) {
 	using Type = AbstractChartView::LocalZoomArgs::Type;
 	constexpr auto kFooterZoomDuration = crl::time(400);
+	if (_footer->isHidden()) {
+		return;
+	}
 	const auto wasZoom = _footer->xPercentageLimits();
 
 	const auto header = Ui::CreateChild<Header>(this);
@@ -1390,6 +1400,7 @@ void ChartWidget::setupFilterButtons() {
 		return;
 	}
 	_filterButtons = base::make_unique_q<ChartLinesFilterWidget>(this);
+	_filterButtons->show();
 
 	_filterButtons->buttonEnabledChanges(
 	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {
@@ -1418,12 +1429,20 @@ void ChartWidget::setChartData(
 		}, _waitingSizeLifetime);
 		return;
 	}
+	if (_chartData) {
+		// We don't really support a replacement of chart data in runtime.
+		return;
+	}
 	_chartData = std::move(chartData);
 	FillLineColorsByKey(_chartData);
 
 	_chartView = CreateChartView(type);
 	_chartView->setLinesFilterController(_linesFilterController);
 	_rulersView.setChartData(_chartData, type, _linesFilterController);
+
+	if (_chartData.isFooterHidden) {
+		_footer->hide();
+	}
 
 	setupDetails();
 	setupFilterButtons();
@@ -1439,15 +1458,13 @@ void ChartWidget::setChartData(
 		_chartView,
 		_linesFilterController,
 		0);
-	updateChartFullWidth(_chartArea->width());
 	updateHeader();
-	updateBottomDates();
 	_animationController.finish();
 	_rulersView.add(_animationController.finalHeightLimits(), false);
 
-	RpWidget::showChildren();
 	_chartArea->update();
 	_footer->update();
+
 	RpWidget::resizeToWidth(width());
 }
 

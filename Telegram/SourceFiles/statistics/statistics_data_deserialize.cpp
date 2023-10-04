@@ -74,6 +74,12 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 
 	{
 		const auto subchart = root.value(u"subchart"_q).toObject();
+		const auto subchartShowIt = subchart.constFind(u"show"_q);
+		if (subchartShowIt != subchart.constEnd()) {
+			if (subchartShowIt->isBool()) {
+				result.isFooterHidden = !(subchartShowIt->toBool());
+			}
+		}
 		const auto defaultZoomIt = subchart.constFind(u"defaultZoom"_q);
 		auto min = int(0);
 		auto max = int(result.x.size() - 1);

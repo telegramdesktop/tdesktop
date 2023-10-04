@@ -61,6 +61,8 @@ struct StatisticalChart {
 
 	float64 timeStep = 0.;
 
+	bool isFooterHidden = false;
+
 };
 
 struct StatisticalGraph final {
