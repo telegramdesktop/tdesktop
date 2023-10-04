@@ -178,32 +178,41 @@ ChartLinesFilterWidget::ChartLinesFilterWidget(
 : Ui::RpWidget(parent) {
 }
 
+void ChartLinesFilterWidget::resizeToWidth(int outerWidth) {
+	auto maxRight = 0;
+	for (auto i = 0; i < _buttons.size(); i++) {
+		const auto raw = _buttons[i].get();
+		if (!i) {
+			raw->move(0, 0);
+		} else {
+			const auto prevRaw = _buttons[i - 1].get();
+			const auto prevLeft = rect::right(prevRaw);
+			const auto isOut = (prevLeft + raw->width() > outerWidth);
+			const auto left = isOut ? 0 : prevLeft;
+			const auto top = isOut ? rect::bottom(prevRaw) : prevRaw->y();
+			raw->move(left, top);
+		}
+		maxRight = std::max(maxRight, rect::right(raw));
+	}
+	if (!_buttons.empty()) {
+		resize(maxRight, rect::bottom(_buttons.back().get()));
+	}
+}
+
 void ChartLinesFilterWidget::fillButtons(
 		const std::vector<QString> &texts,
 		const std::vector<QColor> &colors,
-		const std::vector<int> &ids,
-		int outerWidth) {
+		const std::vector<int> &ids) {
 	Expects(texts.size() == colors.size());
 	_buttons.clear();
 
 	_buttons.reserve(texts.size());
-	auto maxRight = 0;
 	for (auto i = 0; i < texts.size(); i++) {
 		auto button = base::make_unique_q<FlatCheckbox>(
 			this,
 			texts[i],
 			colors[i]);
 		button->show();
-		if (!i) {
-			button->move(0, 0);
-		} else {
-			const auto lastRaw = _buttons.back().get();
-			const auto lastLeft = rect::right(lastRaw);
-			const auto isOut = (lastLeft + button->width() > outerWidth);
-			const auto left = isOut ? 0 : lastLeft;
-			const auto top = isOut ? rect::bottom(lastRaw) : lastRaw->y();
-			button->move(left, top);
-		}
 		const auto id = ids[i];
 		button->setClickedCallback([=, raw = button.get()] {
 			const auto checked = !raw->checked();
@@ -227,12 +236,9 @@ void ChartLinesFilterWidget::fillButtons(
 			raw->setChecked(checked, true);
 			_buttonEnabledChanges.fire({ .id = id, .enabled = checked });
 		});
-		maxRight = std::max(maxRight, rect::right(button.get()));
 
 		_buttons.push_back(std::move(button));
 	}
-
-	resize(maxRight, rect::bottom(_buttons.back().get()));
 }
 
 auto ChartLinesFilterWidget::buttonEnabledChanges() const

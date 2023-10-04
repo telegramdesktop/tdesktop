@@ -843,19 +843,7 @@ ChartWidget::ChartWidget(not_null<Ui::RpWidget*> parent)
 
 int ChartWidget::resizeGetHeight(int newWidth) {
 	if (_filterButtons) {
-		auto texts = std::vector<QString>();
-		auto colors = std::vector<QColor>();
-		auto ids = std::vector<int>();
-		texts.reserve(_chartData.lines.size());
-		colors.reserve(_chartData.lines.size());
-		ids.reserve(_chartData.lines.size());
-		for (const auto &line : _chartData.lines) {
-			texts.push_back(line.name);
-			colors.push_back(line.color);
-			ids.push_back(line.id);
-		}
-
-		_filterButtons->fillButtons(texts, colors, ids, newWidth);
+		_filterButtons->resizeToWidth(newWidth);
 	}
 	const auto filtersTopSkip = st::statisticsFilterButtonsPadding.top();
 	const auto filtersHeight = _filterButtons
@@ -1401,6 +1389,21 @@ void ChartWidget::setupFilterButtons() {
 	}
 	_filterButtons = base::make_unique_q<ChartLinesFilterWidget>(this);
 	_filterButtons->show();
+	{
+		auto texts = std::vector<QString>();
+		auto colors = std::vector<QColor>();
+		auto ids = std::vector<int>();
+		texts.reserve(_chartData.lines.size());
+		colors.reserve(_chartData.lines.size());
+		ids.reserve(_chartData.lines.size());
+		for (const auto &line : _chartData.lines) {
+			texts.push_back(line.name);
+			colors.push_back(line.color);
+			ids.push_back(line.id);
+		}
+
+		_filterButtons->fillButtons(texts, colors, ids);
+	}
 
 	_filterButtons->buttonEnabledChanges(
 	) | rpl::start_with_next([=](const ChartLinesFilterWidget::Entry &e) {

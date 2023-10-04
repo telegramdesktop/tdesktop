@@ -18,8 +18,9 @@ public:
 	void fillButtons(
 		const std::vector<QString> &texts,
 		const std::vector<QColor> &colors,
-		const std::vector<int> &ids,
-		int outerWidth);
+		const std::vector<int> &ids);
+
+	void resizeToWidth(int outerWidth);
 
 	struct Entry final {
 		int id = 0;
