@@ -41,6 +41,7 @@ struct StatisticalChart {
 		QString colorKey;
 		QColor color;
 		QColor colorDark;
+		bool isHiddenOnStart = false;
 	};
 
 	std::vector<float64> x;

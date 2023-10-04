@@ -15,10 +15,14 @@ class ChartLinesFilterWidget final : public Ui::RpWidget {
 public:
 	ChartLinesFilterWidget(not_null<Ui::RpWidget*> parent);
 
-	void fillButtons(
-		const std::vector<QString> &texts,
-		const std::vector<QColor> &colors,
-		const std::vector<int> &ids);
+	struct ButtonData final {
+		QString text;
+		QColor color;
+		int id = 0;
+		bool disabled = false;
+	};
+
+	void fillButtons(const std::vector<ButtonData> &buttonsData);
 
 	void resizeToWidth(int outerWidth);
 

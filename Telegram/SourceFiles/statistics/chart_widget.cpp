@@ -1390,19 +1390,22 @@ void ChartWidget::setupFilterButtons() {
 	_filterButtons = base::make_unique_q<ChartLinesFilterWidget>(this);
 	_filterButtons->show();
 	{
-		auto texts = std::vector<QString>();
-		auto colors = std::vector<QColor>();
-		auto ids = std::vector<int>();
-		texts.reserve(_chartData.lines.size());
-		colors.reserve(_chartData.lines.size());
-		ids.reserve(_chartData.lines.size());
+		auto data = std::vector<ChartLinesFilterWidget::ButtonData>();
+		data.reserve(_chartData.lines.size());
 		for (const auto &line : _chartData.lines) {
-			texts.push_back(line.name);
-			colors.push_back(line.color);
-			ids.push_back(line.id);
+			data.push_back({
+				line.name,
+				line.color,
+				line.id,
+				line.isHiddenOnStart,
+			});
+			if (line.isHiddenOnStart) {
+				_linesFilterController->setEnabled(line.id, false, 1);
+			}
 		}
 
-		_filterButtons->fillButtons(texts, colors, ids);
+		_filterButtons->fillButtons(data);
+		_linesFilterController->tick(1.);
 	}
 
 	_filterButtons->buttonEnabledChanges(

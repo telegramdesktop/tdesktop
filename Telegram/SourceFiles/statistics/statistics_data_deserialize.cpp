@@ -30,6 +30,14 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		LOG(("API Error: Empty columns list from stats graph received."));
 		return {};
 	}
+
+	const auto hiddenLinesRaw = root.value(u"hidden"_q).toArray();
+	const auto hiddenLines = ranges::views::all(
+		hiddenLinesRaw
+	) | ranges::views::transform([](const auto &q) {
+		return q.toString();
+	}) | ranges::to_vector;
+
 	auto result = Data::StatisticalChart();
 	auto columnIdCount = 0;
 	for (const auto &column : columns) {
@@ -50,6 +58,7 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 			const auto length = array.size() - 1;
 			line.id = (++columnIdCount);
 			line.idString = columnId;
+			line.isHiddenOnStart = ranges::contains(hiddenLines, columnId);
 			line.y.resize(length);
 			for (auto i = 0; i < length; i++) {
 				const auto value = array.at(i + 1).toInt();

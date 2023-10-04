@@ -200,20 +200,21 @@ void ChartLinesFilterWidget::resizeToWidth(int outerWidth) {
 }
 
 void ChartLinesFilterWidget::fillButtons(
-		const std::vector<QString> &texts,
-		const std::vector<QColor> &colors,
-		const std::vector<int> &ids) {
-	Expects(texts.size() == colors.size());
+		const std::vector<ButtonData> &buttonsData) {
 	_buttons.clear();
 
-	_buttons.reserve(texts.size());
-	for (auto i = 0; i < texts.size(); i++) {
+	_buttons.reserve(buttonsData.size());
+	for (auto i = 0; i < buttonsData.size(); i++) {
+		const auto &buttonData = buttonsData[i];
 		auto button = base::make_unique_q<FlatCheckbox>(
 			this,
-			texts[i],
-			colors[i]);
+			buttonData.text,
+			buttonData.color);
 		button->show();
-		const auto id = ids[i];
+		if (buttonData.disabled) {
+			button->setChecked(false, false);
+		}
+		const auto id = buttonData.id;
 		button->setClickedCallback([=, raw = button.get()] {
 			const auto checked = !raw->checked();
 			if (!checked) {
