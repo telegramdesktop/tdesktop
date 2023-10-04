@@ -947,6 +947,10 @@ win:
     git checkout n11.1.5.1
 """)
 
+stage('regex', """
+    git clone -b boost-1.83.0 https://github.com/boostorg/regex.git
+""")
+
 stage('ffmpeg', """
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
