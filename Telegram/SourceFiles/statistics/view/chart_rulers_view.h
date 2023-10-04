@@ -17,6 +17,7 @@ namespace Statistic {
 
 enum class ChartViewType;
 struct Limits;
+class LinesFilterController;
 
 struct ChartRulersView final {
 public:
@@ -24,7 +25,8 @@ public:
 
 	void setChartData(
 		const Data::StatisticalChart &chartData,
-		ChartViewType type);
+		ChartViewType type,
+		std::shared_ptr<LinesFilterController> linesFilter);
 
 	void paintRulers(QPainter &p, const QRect &r);
 
@@ -38,8 +40,12 @@ private:
 	bool _isDouble = false;
 	QPen _leftPen;
 	QPen _rightPen;
+	int _leftLineId = 0;
+	int _rightLineId = 0;
 
 	std::vector<ChartRulersData> _rulers;
+
+	std::shared_ptr<LinesFilterController> _linesFilter;
 
 	float64 _scaledLineRatio = 0.;
 	bool _isLeftLineScaled = false;

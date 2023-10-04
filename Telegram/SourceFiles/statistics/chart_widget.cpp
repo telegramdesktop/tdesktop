@@ -1423,7 +1423,7 @@ void ChartWidget::setChartData(
 
 	_chartView = CreateChartView(type);
 	_chartView->setLinesFilterController(_linesFilterController);
-	_rulersView.setChartData(_chartData, type);
+	_rulersView.setChartData(_chartData, type, _linesFilterController);
 
 	setupDetails();
 	setupFilterButtons();

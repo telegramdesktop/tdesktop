@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/view/chart_rulers_view.h"
 
 #include "data/data_statistics_chart.h"
+#include "statistics/chart_lines_filter_controller.h"
 #include "statistics/statistics_common.h"
 #include "styles/style_basic.h"
 #include "styles/style_statistics.h"
@@ -18,12 +19,16 @@ ChartRulersView::ChartRulersView() = default;
 
 void ChartRulersView::setChartData(
 		const Data::StatisticalChart &chartData,
-		ChartViewType type) {
+		ChartViewType type,
+		std::shared_ptr<LinesFilterController> linesFilter) {
 	_rulers.clear();
 	_isDouble = (type == ChartViewType::DoubleLinear);
 	if (_isDouble && (chartData.lines.size() == 2)) {
+		_linesFilter = std::move(linesFilter);
 		_leftPen = QPen(chartData.lines.front().color);
 		_rightPen = QPen(chartData.lines.back().color);
+		_leftLineId = chartData.lines.front().id;
+		_rightLineId = chartData.lines.back().id;
 
 		const auto firstMax = chartData.lines.front().maxValue;
 		const auto secondMax = chartData.lines.back().maxValue;
@@ -62,10 +67,17 @@ void ChartRulersView::paintCaptionsToRulers(
 	p.setFont(st::statisticsDetailsBottomCaptionStyle.font);
 	const auto alpha = p.opacity();
 	for (auto &ruler : _rulers) {
-		p.setOpacity(alpha * ruler.alpha);
+		const auto rulerAlpha = alpha * ruler.alpha;
+		p.setOpacity(rulerAlpha);
 		for (const auto &line : ruler.lines) {
 			const auto y = offset + r.height() * line.relativeValue;
-			p.setPen(_isDouble ? _leftPen : st::windowSubTextFg);
+			const auto hasLinesFilter = _isDouble && _linesFilter;
+			if (hasLinesFilter) {
+				p.setPen(_leftPen);
+				p.setOpacity(rulerAlpha * _linesFilter->alpha(_leftLineId));
+			} else {
+				p.setPen(st::windowSubTextFg);
+			}
 			p.drawText(
 				0,
 				y,
@@ -74,7 +86,8 @@ void ChartRulersView::paintCaptionsToRulers(
 					: _isLeftLineScaled
 					? line.scaledLineCaption
 					: line.caption);
-			if (_isDouble) {
+			if (hasLinesFilter) {
+				p.setOpacity(rulerAlpha * _linesFilter->alpha(_rightLineId));
 				p.setPen(_rightPen);
 				p.drawText(
 					r.width() - line.rightCaptionWidth,
