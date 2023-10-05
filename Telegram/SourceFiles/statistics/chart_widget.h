@@ -162,7 +162,7 @@ private:
 		int captionIndicesOffset = 0;
 	} _bottomLine;
 
-	bool _useMinHeight = false;
+	bool _areRulersAbove = false;
 
 	std::shared_ptr<LinesFilterController> _linesFilterController;
 

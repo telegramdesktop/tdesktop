@@ -937,7 +937,9 @@ void ChartWidget::setupChartArea() {
 			return;
 		}
 
-		_rulersView.paintRulers(p, chartRect);
+		if (!_areRulersAbove) {
+			_rulersView.paintRulers(p, chartRect);
+		}
 
 		const auto context = PaintContext{
 			_chartData,
@@ -953,7 +955,9 @@ void ChartWidget::setupChartArea() {
 			_chartView->paint(p, context);
 		}
 
-		_rulersView.paintCaptionsToRulers(p, chartRect);
+		if (!_areRulersAbove) {
+			_rulersView.paintCaptionsToRulers(p, chartRect);
+		}
 		{
 			[[maybe_unused]] const auto o = ScopedPainterOpacity(
 				p,
@@ -978,6 +982,10 @@ void ChartWidget::setupChartArea() {
 				context,
 				_details.widget->xIndex(),
 				detailsAlpha);
+		}
+		if (_areRulersAbove) {
+			_rulersView.paintRulers(p, chartRect);
+			_rulersView.paintCaptionsToRulers(p, chartRect);
 		}
 
 		p.setPen(st::windowSubTextFg);
@@ -1445,6 +1453,7 @@ void ChartWidget::setChartData(
 	_chartView = CreateChartView(type);
 	_chartView->setLinesFilterController(_linesFilterController);
 	_rulersView.setChartData(_chartData, type, _linesFilterController);
+	_areRulersAbove = (type == ChartViewType::Stack);
 
 	if (_chartData.isFooterHidden) {
 		_footer->hide();
