@@ -13,11 +13,11 @@ namespace Statistic {
 
 class Header final : public Ui::RpWidget {
 public:
-	using Ui::RpWidget::RpWidget;
+	explicit Header(not_null<Ui::RpWidget*> parent);
 
 	[[nodiscard]] QString title() const;
 	void setTitle(QString title);
-	void setRightInfo(QString rightInfo);
+	void setSubTitle(QString subTitle);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -27,8 +27,9 @@ protected:
 
 private:
 	Ui::Text::String _title;
-	Ui::Text::String _rightInfo;
+	Ui::Text::String _subTitle;
 	int _infoTop = 0;
+	int _height = 0;
 
 };
 

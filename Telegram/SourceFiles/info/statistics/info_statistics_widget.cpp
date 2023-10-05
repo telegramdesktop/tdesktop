@@ -271,7 +271,7 @@ void FillOverview(
 		const auto formatter = u"d MMM yyyy"_q;
 		const auto from = QDateTime::fromSecsSinceEpoch(startDate);
 		const auto to = QDateTime::fromSecsSinceEpoch(endDate);
-		header->setRightInfo(QLocale().toString(from.date(), formatter)
+		header->setSubTitle(QLocale().toString(from.date(), formatter)
 			+ ' '
 			+ QChar(8212)
 			+ ' '
