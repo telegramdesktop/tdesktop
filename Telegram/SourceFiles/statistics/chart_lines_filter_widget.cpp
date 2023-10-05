@@ -35,6 +35,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	const QColor _inactiveTextColor;
 	const QColor _activeColor;
 	const QColor _inactiveColor;
 	Ui::Text::String _text;
@@ -55,6 +56,7 @@ ChartLinesFilterWidget::FlatCheckbox::FlatCheckbox(
 	const QString &text,
 	QColor activeColor)
 : Ui::AbstractButton(parent)
+, _inactiveTextColor(st::premiumButtonFg->c)
 , _activeColor(activeColor)
 , _inactiveColor(st::boxBg->c)
 , _text(st::statisticsDetailsPopupStyle, text) {
@@ -139,8 +141,8 @@ void ChartLinesFilterWidget::FlatCheckbox::paintEvent(QPaintEvent *e) {
 	constexpr auto kCheckPartProgress = 0.5;
 	const auto checkProgress = progress / kCheckPartProgress;
 	const auto textColor = (progress <= kCheckPartProgress)
-		? anim::color(_activeColor, _inactiveColor, checkProgress)
-		: _inactiveColor;
+		? anim::color(_activeColor, _inactiveTextColor, checkProgress)
+		: _inactiveTextColor;
 	const auto fillColor = (progress <= kCheckPartProgress)
 		? anim::color(_inactiveColor, _activeColor, checkProgress)
 		: _activeColor;
