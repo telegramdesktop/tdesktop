@@ -373,6 +373,15 @@ void MainWindow::createGlobalMenu() {
 		},
 		Ui::kStrikeOutSequence);
 
+	psBlockquote = edit->addAction(
+		tr::lng_menu_formatting_blockquote(tr::now),
+		[] {
+			SendKeySequence(
+				Qt::Key_Period,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kBlockquoteSequence);
+
 	psMonospace = edit->addAction(
 		tr::lng_menu_formatting_monospace(tr::now),
 		[] {
@@ -534,6 +543,7 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psItalic, !markdownEnabled);
 	ForceDisabled(psUnderline, !markdownEnabled);
 	ForceDisabled(psStrikeOut, !markdownEnabled);
+	ForceDisabled(psBlockquote, !markdownEnabled);
 	ForceDisabled(psMonospace, !markdownEnabled);
 	ForceDisabled(psClearFormat, !markdownEnabled);
 }

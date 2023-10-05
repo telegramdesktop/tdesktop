@@ -2759,6 +2759,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_menu_formatting_italic" = "Italic";
 "lng_menu_formatting_underline" = "Underline";
 "lng_menu_formatting_strike_out" = "Strike-through";
+"lng_menu_formatting_blockquote" = "Quote";
 "lng_menu_formatting_monospace" = "Monospace";
 "lng_menu_formatting_spoiler" = "Spoiler";
 "lng_menu_formatting_link_create" = "Create link";
