@@ -76,9 +76,8 @@ void StackChartView::paintChartAndSelected(
 				yPoint);
 			if (hasSelectedXIndex && (x == _lastSelectedXIndex)) {
 				selectedBottoms[i] = column.y();
-			} else {
-				path.addRect(column);
 			}
+			path.addRect(column);
 			bottoms[bottomIndex] += yPoint;
 		}
 		p.fillPath(path, line.color);
@@ -111,10 +110,12 @@ void StackChartView::paintSelectedXIndex(
 		const PaintContext &c,
 		int selectedXIndex,
 		float64 progress) {
+	const auto was = _lastSelectedXIndex;
 	_lastSelectedXIndex = selectedXIndex;
 	_lastSelectedXProgress = progress;
-	[[maybe_unused]] const auto o = ScopedPainterOpacity(p, progress);
-	StackChartView::paintChartAndSelected(p, c);
+	if ((_lastSelectedXIndex >= 0) || (was >= 0)) {
+		StackChartView::paintChartAndSelected(p, c);
+	}
 }
 
 int StackChartView::findXIndexByPosition(
@@ -122,10 +123,8 @@ int StackChartView::findXIndexByPosition(
 		const Limits &xPercentageLimits,
 		const QRect &rect,
 		float64 xPos) {
-	if (xPos < rect.x()) {
-		return 0;
-	} else if (xPos > (rect.x() + rect.width())) {
-		return chartData.xPercentage.size() - 1;
+	if ((xPos < rect.x()) || (xPos > (rect.x() + rect.width()))) {
+		return _lastSelectedXIndex = -1;
 	}
 	const auto &[localStart, localEnd] = _lastPaintedXIndices;
 	const auto &[leftStart, w] = ComputeLeftStartAndStep(
@@ -135,7 +134,6 @@ int StackChartView::findXIndexByPosition(
 		localStart);
 
 	for (auto i = 0; i < chartData.lines.size(); i++) {
-		const auto &line = chartData.lines[i];
 		for (auto x = localStart; x <= localEnd; x++) {
 			const auto left = leftStart + (x - localStart) * w;
 			if ((xPos >= left) && (xPos < (left + w))) {
@@ -143,7 +141,7 @@ int StackChartView::findXIndexByPosition(
 			}
 		}
 	}
-	return _lastSelectedXIndex = 0;
+	return _lastSelectedXIndex = -1;
 }
 
 AbstractChartView::HeightLimits StackChartView::heightLimits(
