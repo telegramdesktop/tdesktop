@@ -189,6 +189,8 @@ PRIVATE
     statistics/view/stack_chart_common.h
     statistics/view/stack_chart_view.cpp
     statistics/view/stack_chart_view.h
+    statistics/view/stack_linear_chart_common.cpp
+    statistics/view/stack_linear_chart_common.h
     statistics/view/stack_linear_chart_view.cpp
     statistics/view/stack_linear_chart_view.h
 

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/segment_tree.h"
 #include "statistics/statistics_common.h"
 #include "statistics/view/abstract_chart_view.h"
+#include "statistics/view/stack_linear_chart_common.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/animation_value.h"
 
@@ -65,19 +66,11 @@ private:
 
 	[[nodiscard]] bool skipSelectedTranslation() const;
 
-	struct PiePartData {
-		float64 roundedPercentage = 0; // 0.XX.
-		float64 stackedAngle = 0.;
-	};
-
 	void prepareZoom(const PaintContext &c, TransitionStep step);
 
 	void saveZoomRange(const PaintContext &c);
 	void savePieTextParts(const PaintContext &c);
-	void applyParts(const std::vector<PiePartData> &parts);
-	[[nodiscard]] std::vector<PiePartData> partsPercentage(
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices);
+	void applyParts(const std::vector<PiePartData::Part> &parts);
 
 	struct SelectedPoints final {
 		int lastXIndex = -1;
@@ -107,7 +100,7 @@ private:
 		Limits zoomedInRange;
 		Limits zoomedInRangeXIndices;
 
-		std::vector<PiePartData> textParts;
+		std::vector<PiePartData::Part> textParts;
 	} _transition;
 
 	std::vector<bool> _skipPoints;

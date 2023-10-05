@@ -109,6 +109,15 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		result.defaultZoomXIndex.min = std::min(min, max);
 		result.defaultZoomXIndex.max = std::max(min, max);
 	}
+	{
+
+		const auto percentageShowIt = root.constFind(u"percentage"_q);
+		if (percentageShowIt != root.constEnd()) {
+			if (percentageShowIt->isBool()) {
+				result.hasPercentages = (percentageShowIt->toBool());
+			}
+		}
+	}
 
 	const auto colors = root.value(u"colors"_q).toObject();
 	const auto names = root.value(u"names"_q).toObject();

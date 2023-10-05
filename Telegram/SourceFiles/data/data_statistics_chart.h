@@ -63,6 +63,7 @@ struct StatisticalChart {
 	float64 timeStep = 0.;
 
 	bool isFooterHidden = false;
+	bool hasPercentages = false;
 
 };
 

@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/point_details_widget.h"
 
 #include "ui/cached_round_corners.h"
+#include "statistics/statistics_common.h"
+#include "statistics/view/stack_linear_chart_common.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -155,6 +157,16 @@ PointDetailsWidget::PointDetailsWidget(
 		}, lifetime());
 	}
 
+	_maxPercentageWidth = [&] {
+		if (_chartData.hasPercentages) {
+			const auto maxPercentageText = Ui::Text::String(
+				_textStyle,
+				u"10000%"_q);
+			return maxPercentageText.maxWidth();
+		}
+		return 0;
+	}();
+
 	const auto calculatedWidth = [&]{
 		const auto maxValueText = Ui::Text::String(
 			_textStyle,
@@ -186,7 +198,8 @@ PointDetailsWidget::PointDetailsWidget(
 			+ rect::m::sum::h(st::statisticsDetailsPopupMargins)
 			+ rect::m::sum::h(st::statisticsDetailsPopupPadding)
 			+ st::statisticsDetailsPopupPadding.left() // Between strings.
-			+ maxNameTextWidth;
+			+ maxNameTextWidth
+			+ _maxPercentageWidth;
 	}();
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
@@ -245,9 +258,19 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 	_lines.clear();
 	_lines.reserve(_chartData.lines.size());
 	auto hasPositiveValues = false;
-	for (const auto &dataLine : _chartData.lines) {
+	const auto parts = _maxPercentageWidth
+		? PiePartsPercentage(
+			_chartData,
+			nullptr,
+			{ float64(xIndex), float64(xIndex) }).parts
+		: std::vector<PiePartData::Part>();
+	for (auto i = 0; i < _chartData.lines.size(); i++) {
+		const auto &dataLine = _chartData.lines[i];
 		auto textLine = Line();
 		textLine.id = dataLine.id;
+		if (_maxPercentageWidth) {
+			textLine.percentage.setText(_textStyle, parts[i].percentageText);
+		}
 		textLine.name.setText(_textStyle, dataLine.name);
 		textLine.value.setText(
 			_textStyle,
@@ -353,12 +376,22 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 				.availableWidth = valueWidth,
 			};
 			const auto nameContext = Ui::Text::PaintContext{
-				.position = QPoint(_textRect.x(), lineY),
+				.position = QPoint(
+					_textRect.x() + _maxPercentageWidth,
+					lineY),
 				.outerWidth = _textRect.width(),
 				.availableWidth = _textRect.width() - valueWidth,
 			};
 			p.setOpacity(line.alpha * line.alpha);
 			p.setPen(st::boxTextFg);
+			if (_maxPercentageWidth) {
+				const auto percentageContext = Ui::Text::PaintContext{
+					.position = QPoint(_textRect.x(), lineY),
+					.outerWidth = _textRect.width(),
+					.availableWidth = _textRect.width() - valueWidth,
+				};
+				line.percentage.draw(p, percentageContext);
+			}
 			line.name.draw(p, nameContext);
 			p.setPen(line.valueColor);
 			line.value.draw(p, valueContext);

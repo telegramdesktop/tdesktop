@@ -60,9 +60,12 @@ private:
 		int id = 0;
 		Ui::Text::String name;
 		Ui::Text::String value;
+		Ui::Text::String percentage;
 		QColor valueColor;
 		float64 alpha = 1.;
 	};
+
+	int _maxPercentageWidth = 0;
 
 	QRect _innerRect;
 	QRect _textRect;

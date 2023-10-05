@@ -166,7 +166,8 @@ void StackLinearChartView::prepareZoom(
 	}
 }
 
-void StackLinearChartView::applyParts(const std::vector<PiePartData> &parts) {
+void StackLinearChartView::applyParts(
+		const std::vector<PiePartData::Part> &parts) {
 	for (auto k = 0; k < parts.size(); k++) {
 		_transition.lines[k].angle = parts[k].stackedAngle;
 	}
@@ -184,72 +185,12 @@ void StackLinearChartView::saveZoomRange(const PaintContext &c) {
 }
 
 void StackLinearChartView::savePieTextParts(const PaintContext &c) {
-	_transition.textParts = partsPercentage(
+	auto data = PiePartsPercentage(
 		c.chartData,
+		linesFilterController(),
 		_transition.zoomedInRangeXIndices);
-}
-
-auto StackLinearChartView::partsPercentage(
-		const Data::StatisticalChart &chartData,
-		const Limits &xIndices) -> std::vector<PiePartData> {
-	auto result = std::vector<PiePartData>();
-	result.reserve(chartData.lines.size());
-	auto sums = std::vector<float64>();
-	sums.reserve(chartData.lines.size());
-	auto totalSum = 0.;
-	const auto &linesFilter = linesFilterController();
-	for (const auto &line : chartData.lines) {
-		auto sum = 0;
-		for (auto i = xIndices.min; i <= xIndices.max; i++) {
-			sum += line.y[i];
-		}
-		sum *= linesFilter->alpha(line.id);
-		totalSum += sum;
-		sums.push_back(sum);
-	}
-	auto stackedPercentage = 0.;
-
-	auto sumPercDiffs = 0.;
-	auto maxPercDiff = 0.;
-	auto minPercDiff = 0.;
-	auto maxPercDiffIndex = int(-1);
-	auto minPercDiffIndex = int(-1);
-	auto roundedPercentagesSum = 0.;
-
-	_pieHasSinglePart = false;
-	for (auto k = 0; k < sums.size(); k++) {
-		const auto rawPercentage = totalSum ? (sums[k] / totalSum) : 0.;
-		const auto rounded = 0.01 * std::round(rawPercentage * 100.);
-		roundedPercentagesSum += rounded;
-		const auto diff = rawPercentage - rounded;
-		sumPercDiffs += diff;
-		const auto diffAbs = std::abs(diff);
-		if (maxPercDiff < diffAbs) {
-			maxPercDiff = diffAbs;
-			maxPercDiffIndex = k;
-		}
-		if (minPercDiff < diffAbs) {
-			minPercDiff = diffAbs;
-			minPercDiffIndex = k;
-		}
-
-		stackedPercentage += rounded;
-		result.push_back({ rounded, stackedPercentage * 360. - 180. });
-		_pieHasSinglePart |= (rounded == 1.);
-	}
-	{
-		const auto index = (roundedPercentagesSum > 1.)
-			? maxPercDiffIndex
-			: minPercDiffIndex;
-		if (index >= 0) {
-			result[index].roundedPercentage += sumPercDiffs;
-			const auto angleShrink = (sumPercDiffs) * 360.;
-			for (auto i = index; i < result.size(); i++) {
-				result[i].stackedAngle += angleShrink;
-			}
-		}
-	}
-	return result;
+	_transition.textParts = std::move(data.parts);
+	_pieHasSinglePart = data.pieHasSinglePart;
 }
 
 void StackLinearChartView::paintChartOrZoomAnimation(
@@ -564,9 +505,12 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 	}
 
 	saveZoomRange(c);
-	const auto parts = partsPercentage(
+	const auto partsData = PiePartsPercentage(
 		c.chartData,
+		linesFilterController(),
 		_transition.zoomedInRangeXIndices);
+	_pieHasSinglePart = partsData.pieHasSinglePart;
+	const auto &parts = partsData.parts;
 	applyParts(parts);
 
 	p.fillRect(c.rect + QMargins(0, 0, 0, st::lineWidth), st::boxBg);
@@ -726,7 +670,7 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 		const auto scale = (maxScale == minScale)
 			? 0.
 			: (minScale) + percentage * (maxScale - minScale);
-		const auto text = QString::number(int(percentage * 100)) + u"%"_q;
+		const auto text = parts[k].percentageText;
 		const auto textW = font->width(text);
 		const auto textH = font->height;
 		const auto textXShift = textW / 2.;
