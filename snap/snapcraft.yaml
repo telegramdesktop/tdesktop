@@ -468,6 +468,9 @@ parts:
 
       cd qtbase
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ../qtsvg
+      git fetch origin v6.5.3
+      git checkout FETCH_HEAD
       cd ../qtwayland
       sed -i 's/qMin(version, 8)/qMin(version, 7)/' src/client/qwaylandinputdevice.cpp
       cd ..
@@ -501,7 +504,6 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.la
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.prl
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
-      - -./usr/plugins/imageformats/libqsvg.so
       - -./usr/libexec
       - -./usr/mkspecs
       - -./usr/modules
