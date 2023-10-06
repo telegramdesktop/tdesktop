@@ -102,7 +102,8 @@ parts:
       - python3
       - libasound2-dev
       - libavif-dev
-      - libboost-program-options-dev
+      - libboost-program-options1.74-dev
+      - libboost-regex1.74-dev
       - libfmt-dev
       - libgirepository1.0-dev
       - libheif-dev
@@ -118,6 +119,7 @@ parts:
     stage-packages:
       - libasound2
       - libavif13
+      - libboost-regex1.74.0
       - libheif1
       - libopus0
       - libpulse0
