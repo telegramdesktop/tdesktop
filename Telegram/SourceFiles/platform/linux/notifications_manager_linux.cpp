@@ -415,7 +415,7 @@ bool NotificationData::init(
 		static const auto set_category = [] {
 			// reset dlerror after dlsym call
 			const auto guard = gsl::finally([] { dlerror(); });
-			return reinterpret_cast<decltype(&g_notification_set_category)>(
+			return reinterpret_cast<void(*)(GNotification*, const gchar*)>(
 				dlsym(RTLD_DEFAULT, "g_notification_set_category"));
 		}();
 
