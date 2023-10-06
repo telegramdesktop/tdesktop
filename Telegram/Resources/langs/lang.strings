@@ -2102,6 +2102,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_how_when_new_of_one#other" = "On {date}, Telegram will automatically select {count} random users that joined {channel} after {start_date}";
 "lng_prizes_how_when_new_of_many#one" = "On {date}, Telegram will automatically select {count} random user that joined {channel} or other listed channels after {start_date}";
 "lng_prizes_how_when_new_of_many#other" = "On {date}, Telegram will automatically select {count} random users that joined {channel} or other listed channels after {start_date}";
+"lng_prizes_badge" = "x{amount}";
 
 "lng_gift_link_title" = "Gift Link";
 "lng_gift_link_about" = "This link allows you to activate\na **Telegram Premium** subscription.";

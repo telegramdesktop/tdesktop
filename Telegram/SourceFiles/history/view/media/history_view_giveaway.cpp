@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/painter.h"
@@ -83,21 +84,22 @@ Giveaway::~Giveaway() {
 
 void Giveaway::fillFromData(not_null<Data::Giveaway*> giveaway) {
 	_months = giveaway->months;
+	_quantity = giveaway->quantity;
 
 	_prizesTitle.setText(
 		st::semiboldTextStyle,
-		tr::lng_prizes_title(tr::now, lt_count, giveaway->quantity),
+		tr::lng_prizes_title(tr::now, lt_count, _quantity),
 		kDefaultTextOptions);
 
-	const auto duration = (giveaway->months < 12)
-		? tr::lng_months(tr::now, lt_count, giveaway->months)
-		: tr::lng_years(tr::now, lt_count, giveaway->months / 12);
+	const auto duration = (_months < 12)
+		? tr::lng_months(tr::now, lt_count, _months)
+		: tr::lng_years(tr::now, lt_count, _months / 12);
 	_prizes.setMarkedText(
 		st::defaultTextStyle,
 		tr::lng_prizes_about(
 			tr::now,
 			lt_count,
-			giveaway->quantity,
+			_quantity,
 			lt_duration,
 			Ui::Text::Bold(duration),
 			Ui::Text::RichLangValue),
@@ -242,6 +244,7 @@ void Giveaway::draw(Painter &p, const PaintContext &context) const {
 
 	if (_sticker) {
 		_sticker->draw(p, context, sticker);
+		paintBadge(p, context);
 	} else {
 		ensureStickerCreated();
 	}
@@ -266,6 +269,41 @@ void Giveaway::draw(Painter &p, const PaintContext &context) const {
 	paintText(_winnersTitle, _winnersTitleTop, paintw);
 	paintText(_winners, _winnersTop, paintw);
 	paintChannels(p, context);
+}
+
+void Giveaway::paintBadge(Painter &p, const PaintContext &context) const {
+	validateBadge(context);
+
+	const auto badge = _badge.size() / _badge.devicePixelRatio();
+	const auto left = (width() - badge.width()) / 2;
+	const auto top = st::chatGiveawayBadgeTop;
+	const auto rect = QRect(left, top, badge.width(), badge.height());
+	const auto paintContent = [&](QPainter &q) {
+		q.drawImage(rect.topLeft(), _badge);
+	};
+
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(context.messageStyle()->msgFileBg);
+		const auto half = st::chatGiveawayBadgeStroke / 2.;
+		const auto inner = QRectF(rect).marginsRemoved(
+			{ half, half, half, half });
+		const auto radius = inner.height() / 2.;
+		p.drawRoundedRect(inner, radius, radius);
+	}
+
+	if (!usesBubblePattern(context)) {
+		paintContent(p);
+	} else {
+		Ui::PaintPatternBubblePart(
+			p,
+			context.viewport,
+			context.bubblesPattern->pixmap,
+			rect,
+			paintContent,
+			_badgeCache);
+	}
 }
 
 void Giveaway::paintChannels(
@@ -331,6 +369,49 @@ void Giveaway::ensureStickerCreated() const {
 			_sticker->initSize();
 		}
 	}
+}
+
+void Giveaway::validateBadge(const PaintContext &context) const {
+	const auto stm = context.messageStyle();
+	const auto &badgeFg = stm->historyFileRadialFg->c;
+	const auto &badgeBorder = stm->msgBg->c;
+	if (!_badge.isNull()
+		&& _badgeFg == badgeFg
+		&& _badgeBorder == badgeBorder) {
+		return;
+	}
+	const auto &font = st::chatGiveawayBadgeFont;
+	_badgeFg = badgeFg;
+	_badgeBorder = badgeBorder;
+	const auto text = tr::lng_prizes_badge(
+		tr::now,
+		lt_amount,
+		QString::number(_quantity));
+	const auto width = font->width(text);
+	const auto inner = QRect(0, 0, width, font->height);
+	const auto rect = inner.marginsAdded(st::chatGiveawayBadgePadding);
+	const auto size = rect.size();
+	const auto ratio = style::DevicePixelRatio();
+	_badge = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	_badge.setDevicePixelRatio(ratio);
+	_badge.fill(Qt::transparent);
+
+	auto p = QPainter(&_badge);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(QPen(_badgeBorder, st::chatGiveawayBadgeStroke * 1.));
+	p.setBrush(Qt::NoBrush);
+	const auto half = st::chatGiveawayBadgeStroke / 2.;
+	const auto smaller = QRectF(
+		rect.translated(-rect.topLeft())
+	).marginsRemoved({ half, half, half, half });
+	const auto radius = smaller.height() / 2.;
+	p.drawRoundedRect(smaller, radius, radius);
+	p.setPen(_badgeFg);
+	p.setFont(font);
+	p.drawText(
+		st::chatGiveawayBadgePadding.left(),
+		st::chatGiveawayBadgePadding.top() + font->ascent,
+		text);
 }
 
 TextState Giveaway::textState(QPoint point, StateRequest request) const {

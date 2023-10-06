@@ -59,6 +59,7 @@ private:
 		ClickHandlerPtr link;
 	};
 
+	void paintBadge(Painter &p, const PaintContext &context) const;
 	void paintChannels(Painter &p, const PaintContext &context) const;
 	int layoutChannels(int x, int y, int available);
 	QSize countOptimalSize() override;
@@ -66,6 +67,7 @@ private:
 
 	void fillFromData(not_null<Data::Giveaway*> giveaway);
 	void ensureStickerCreated() const;
+	void validateBadge(const PaintContext &context) const;
 
 	[[nodiscard]] QMargins inBubblePadding() const;
 
@@ -80,9 +82,14 @@ private:
 	Ui::Text::String _winners;
 
 	mutable QColor _channelBg;
+	mutable QColor _badgeFg;
+	mutable QColor _badgeBorder;
 	mutable std::array<QImage, 4> _channelCorners;
+	mutable QImage _badge;
+	mutable QImage _badgeCache;
 
 	int _months = 0;
+	int _quantity = 0;
 	int _stickerTop = 0;
 	int _prizesTitleTop = 0;
 	int _prizesTop = 0;
