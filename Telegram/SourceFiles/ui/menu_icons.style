@@ -51,6 +51,7 @@ menuIconExport: icon {{ "menu/export", menuIconColor }};
 menuIconClear: icon {{ "menu/clear", menuIconColor }};
 menuIconManage: icon {{ "menu/manage", menuIconColor }};
 menuIconDiscussion: icon {{ "menu/discussion", menuIconColor }};
+menuIconStats: icon {{ "menu/stats", menuIconColor }};
 menuIconCreatePoll: icon {{ "menu/create_poll", menuIconColor }};
 menuIconQrCode: icon {{ "menu/qr_code", menuIconColor }};
 menuIconExpand: icon {{ "menu/expand", menuIconColor }};

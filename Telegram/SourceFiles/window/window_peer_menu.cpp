@@ -1000,7 +1000,6 @@ void Filler::addManageChat() {
 }
 
 void Filler::addViewStatistics() {
-#ifdef _DEBUG
 	if (const auto channel = _peer->asChannel()) {
 		if (channel->flags() & ChannelDataFlag::CanGetStatistics) {
 			const auto controller = _controller;
@@ -1010,10 +1009,9 @@ void Filler::addViewStatistics() {
 				if (const auto strong = weak.get()) {
 					controller->showSection(Info::Statistics::Make(peer));
 				}
-			}, nullptr);
+			}, &st::menuIconStats);
 		}
 	}
-#endif
 }
 
 void Filler::addCreatePoll() {
