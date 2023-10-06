@@ -1908,21 +1908,28 @@ MediaGiftBox::MediaGiftBox(
 	not_null<HistoryItem*> parent,
 	not_null<PeerData*> from,
 	int months)
+: MediaGiftBox(parent, from, GiftCode{ .months = months }) {
+}
+
+MediaGiftBox::MediaGiftBox(
+	not_null<HistoryItem*> parent,
+	not_null<PeerData*> from,
+	GiftCode data)
 : Media(parent)
 , _from(from)
-, _months(months) {
+, _data(std::move(data)) {
 }
 
 std::unique_ptr<Media> MediaGiftBox::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaGiftBox>(parent, _from, _months);
+	return std::make_unique<MediaGiftBox>(parent, _from, _data);
 }
 
 not_null<PeerData*> MediaGiftBox::from() const {
 	return _from;
 }
 
-int MediaGiftBox::months() const {
-	return _months;
+const GiftCode &MediaGiftBox::data() const {
+	return _data;
 }
 
 TextWithEntities MediaGiftBox::notificationText() const {
@@ -1952,14 +1959,6 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 	return std::make_unique<HistoryView::ServiceBox>(
 		message,
 		std::make_unique<HistoryView::PremiumGift>(message, this));
-}
-
-bool MediaGiftBox::activated() const {
-	return _activated;
-}
-
-void MediaGiftBox::setActivated(bool activated) {
-	_activated = activated;
 }
 
 MediaWallPaper::MediaWallPaper(

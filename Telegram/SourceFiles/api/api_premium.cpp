@@ -24,7 +24,7 @@ namespace {
 		.from = peerFromMTP(data.vfrom_id()),
 		.to = data.vto_id() ? peerFromUser(*data.vto_id()) : PeerId(),
 		.date = data.vdate().v,
-		.used = false,// data.vused_date().value_or_empty(),
+		.used = data.vused_date().value_or_empty(),
 		.months = data.vmonths().v,
 	};
 }

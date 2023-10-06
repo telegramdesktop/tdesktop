@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class MediaGiftBox;
+struct GiftCode;
 } // namespace Data
 
 namespace HistoryView {
@@ -35,10 +36,7 @@ public:
 		const QRect &geometry) override;
 	ClickHandlerPtr createViewLink() override;
 
-	bool hideServiceText() override {
-		return false;
-	}
-
+	bool hideServiceText() override;
 	void stickerClearLoopPlayed() override;
 	std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
@@ -52,6 +50,7 @@ private:
 
 	const not_null<Element*> _parent;
 	const not_null<Data::MediaGiftBox*> _gift;
+	const Data::GiftCode &_data;
 	mutable std::optional<Sticker> _sticker;
 
 };

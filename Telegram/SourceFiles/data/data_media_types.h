@@ -98,6 +98,13 @@ struct Giveaway {
 	bool all = false;
 };
 
+struct GiftCode {
+	QString slug;
+	ChannelData *channel = nullptr;
+	int months = 0;
+	bool viaGiveaway = false;
+};
+
 class Media {
 public:
 	Media(not_null<HistoryItem*> parent);
@@ -526,14 +533,15 @@ public:
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> from,
 		int months);
+	MediaGiftBox(
+		not_null<HistoryItem*> parent,
+		not_null<PeerData*> from,
+		GiftCode data);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	[[nodiscard]] not_null<PeerData*> from() const;
-	[[nodiscard]] int months() const;
-
-	[[nodiscard]] bool activated() const;
-	void setActivated(bool activated);
+	[[nodiscard]] const GiftCode &data() const;
 
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -548,8 +556,7 @@ public:
 
 private:
 	not_null<PeerData*> _from;
-	int _months = 0;
-	bool _activated = false;
+	GiftCode _data;
 
 };
 

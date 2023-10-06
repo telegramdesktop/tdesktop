@@ -287,10 +287,7 @@ struct GiftCodeLink {
 		const auto available = outer - skipRight - skipLeft;
 		const auto use = std::min(textWidth, available);
 		state->label.resizeToWidth(use);
-		const auto left = (outer >= 2 * skipRight + textWidth)
-			? ((outer - textWidth) / 2)
-			: (outer - skipRight - use - skipLeft);
-		state->label.move(left, 0);
+		state->label.move(outer - skipRight - use - skipLeft, 0);
 	}, raw->lifetime());
 
 	raw->paintRequest() | rpl::start_with_next([=] {
@@ -516,10 +513,12 @@ void GiftCodeBox(
 		table,
 		tr::lng_gift_link_label_reason(),
 		tr::lng_gift_link_reason_giveaway());
-	AddTableRow(
-		table,
-		tr::lng_gift_link_label_date(),
-		rpl::single(langDateTime(base::unixtime::parse(current.date))));
+	if (current.date) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_date(),
+			rpl::single(langDateTime(base::unixtime::parse(current.date))));
+	}
 
 	auto shareLink = tr::lng_gift_link_also_send_link(
 	) | rpl::map([](const QString &text) {
@@ -583,4 +582,19 @@ void GiftCodeBox(
 	}) | rpl::start_with_next([=] {
 		button->resizeToWidth(buttonWidth);
 	}, button->lifetime());
+}
+
+void ResolveGiftCode(
+		not_null<Window::SessionController*> controller,
+		const QString &slug) {
+	const auto done = [=](Api::GiftCode code) {
+		if (!code) {
+			controller->showToast(tr::lng_gift_link_expired(tr::now));
+		} else {
+			controller->show(Box(GiftCodeBox, controller, slug));
+		}
+	};
+	controller->session().api().premium().checkGiftCode(
+		slug,
+		crl::guard(controller, done));
 }

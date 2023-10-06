@@ -4612,6 +4612,21 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 		if (const auto paper = Data::WallPaper::Create(session, attached)) {
 			_media = std::make_unique<Data::MediaWallPaper>(this, *paper);
 		}
+	}, [&](const MTPDmessageActionGiftCode &data) {
+		const auto boostedId = data.vboost_peer()
+			? peerToChannel(peerFromMTP(*data.vboost_peer()))
+			: ChannelId();
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftCode{
+				.slug = qs(data.vslug()),
+				.channel = (peerIsChannel(boostedId)
+					? history()->owner().channel(boostedId).get()
+					: nullptr),
+				.months = data.vmonths().v,
+				.viaGiveaway = data.is_via_giveaway(),
+			});
 	}, [](const auto &) {
 	});
 }

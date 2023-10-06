@@ -42,3 +42,6 @@ void GiftCodeBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
 	const QString &slug);
+void ResolveGiftCode(
+	not_null<Window::SessionController*> controller,
+	const QString &slug);

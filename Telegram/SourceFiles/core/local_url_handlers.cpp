@@ -351,17 +351,7 @@ bool ResolveUsernameOrPhone(
 	const auto appnameParam = params.value(u"appname"_q);
 
 	if (domainParam == u"giftcode"_q && !appnameParam.isEmpty()) {
-		const auto done = [=](Api::GiftCode code) {
-			if (!code) {
-				controller->showToast(u"Gift code link expired"_q);
-			} else {
-				controller->show(
-					Box(GiftCodeBox, controller, appnameParam));
-			}
-		};
-		controller->session().api().premium().checkGiftCode(
-			appnameParam,
-			crl::guard(controller, done));
+		ResolveGiftCode(controller, appnameParam);
 		return true;
 	}
 
