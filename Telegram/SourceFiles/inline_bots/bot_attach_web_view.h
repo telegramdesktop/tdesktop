@@ -66,7 +66,6 @@ struct AttachWebViewBot {
 	bool inMainMenu : 1 = false;
 	bool inAttachMenu : 1 = false;
 	bool disclaimerRequired : 1 = false;
-	bool hasSettings : 1 = false;
 	bool requestWriteAccess : 1 = false;
 };
 

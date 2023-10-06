@@ -522,7 +522,7 @@ bool Panel::showWebview(
 		_webviewBottom->resize(_webviewBottom->width(), height);
 	}
 	_widget->setMenuAllowed([=](const Ui::Menu::MenuCallback &callback) {
-		if (_menuButtons & MenuButton::Settings) {
+		if (_hasSettingsButton) {
 			callback(tr::lng_bot_settings(tr::now), [=] {
 				postEvent("settings_button_pressed");
 			}, &st::menuIconSettings);
@@ -628,6 +628,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			processMainButtonMessage(arguments);
 		} else if (command == "web_app_setup_back_button") {
 			processBackButtonMessage(arguments);
+		} else if (command == "web_app_setup_settings_button") {
+			processSettingsButtonMessage(arguments);
 		} else if (command == "web_app_request_theme") {
 			_themeUpdateForced.fire({});
 		} else if (command == "web_app_request_viewport") {
@@ -1102,6 +1104,10 @@ void Panel::processMainButtonMessage(const QJsonObject &args) {
 
 void Panel::processBackButtonMessage(const QJsonObject &args) {
 	_widget->setBackAllowed(args["is_visible"].toBool());
+}
+
+void Panel::processSettingsButtonMessage(const QJsonObject &args) {
+	_hasSettingsButton = args["is_visible"].toBool();
 }
 
 void Panel::processHeaderColor(const QJsonObject &args) {
