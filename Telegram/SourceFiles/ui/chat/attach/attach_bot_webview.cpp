@@ -323,7 +323,7 @@ Panel::Panel(
 , _menuButtons(menuButtons)
 , _widget(std::make_unique<SeparatePanel>())
 , _allowClipboardRead(allowClipboardRead) {
-	_widget->setInnerSize(st::paymentsPanelSize);
+	_widget->setInnerSize(st::botWebViewPanelSize);
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 
 	_widget->closeRequests(
