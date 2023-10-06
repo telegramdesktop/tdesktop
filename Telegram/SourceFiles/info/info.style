@@ -582,12 +582,11 @@ manageGroupButtonInner: SettingsButton(infoProfileButton) {
 }
 manageGroupButton: SettingsCountButton(managePeerButton) {
 	button: manageGroupButtonInner;
-	labelPosition: point(22px, 12px);
+	labelPosition: point(22px, 10px);
 	iconPosition: point(20px, 4px);
 }
 
 manageGroupTopButtonWithText: SettingsCountButton(manageGroupButton) {
-	labelPosition: point(22px, 10px);
 	iconPosition: point(0px, 0px);
 }
 manageGroupTopicsButton: SettingsCountButton(manageGroupTopButtonWithText) {
