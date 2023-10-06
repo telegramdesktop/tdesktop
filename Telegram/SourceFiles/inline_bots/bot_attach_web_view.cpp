@@ -555,14 +555,16 @@ Webview::ThemeParams AttachWebView::botThemeParams() {
 	return Window::Theme::WebViewParams();
 }
 
-bool AttachWebView::botHandleLocalUri(QString uri) {
+bool AttachWebView::botHandleLocalUri(QString uri, bool keepOpen) {
 	const auto local = Core::TryConvertUrlToLocal(uri);
 	if (uri == local || Core::InternalPassportLink(local)) {
 		return local.startsWith(u"tg://"_q);
 	} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 		return false;
 	}
-	botClose();
+	if (!keepOpen) {
+		botClose();
+	}
 	crl::on_main([=, shownUrl = _lastShownUrl] {
 		const auto variant = QVariant::fromValue(ClickHandlerContext{
 			.attachBotWebviewUrl = shownUrl,

@@ -159,7 +159,7 @@ private:
 
 
 	Webview::ThemeParams botThemeParams() override;
-	bool botHandleLocalUri(QString uri) override;
+	bool botHandleLocalUri(QString uri, bool keepOpen) override;
 	void botHandleInvoice(QString slug) override;
 	void botHandleMenuButton(Ui::BotWebView::MenuButton button) override;
 	void botSendData(QByteArray data) override;

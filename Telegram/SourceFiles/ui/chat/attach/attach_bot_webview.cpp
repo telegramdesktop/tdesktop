@@ -658,7 +658,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	});
 
 	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
-		if (_delegate->botHandleLocalUri(uri)) {
+		if (_delegate->botHandleLocalUri(uri, false)) {
 			return false;
 		} else if (newWindow) {
 			return true;
@@ -743,16 +743,17 @@ void Panel::switchInlineQueryMessage(const QJsonObject &args) {
 
 void Panel::openTgLink(const QJsonObject &args) {
 	if (args.isEmpty()) {
+		LOG(("BotWebView Error: Bad arguments in 'web_app_open_tg_link'."));
 		_delegate->botClose();
 		return;
 	}
 	const auto path = args["path_full"].toString();
 	if (path.isEmpty()) {
-		LOG(("BotWebView Error: Bad 'path_full' in openTgLink."));
+		LOG(("BotWebView Error: Bad 'path_full' in 'web_app_open_tg_link'."));
 		_delegate->botClose();
 		return;
 	}
-	_delegate->botHandleLocalUri("https://t.me" + path);
+	_delegate->botHandleLocalUri("https://t.me" + path, true);
 }
 
 void Panel::openExternalLink(const QJsonObject &args) {

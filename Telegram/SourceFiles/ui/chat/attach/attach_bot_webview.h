@@ -54,7 +54,7 @@ struct CustomMethodRequest {
 class Delegate {
 public:
 	virtual Webview::ThemeParams botThemeParams() = 0;
-	virtual bool botHandleLocalUri(QString uri) = 0;
+	virtual bool botHandleLocalUri(QString uri, bool keepOpen) = 0;
 	virtual void botHandleInvoice(QString slug) = 0;
 	virtual void botHandleMenuButton(MenuButton button) = 0;
 	virtual void botSendData(QByteArray data) = 0;
