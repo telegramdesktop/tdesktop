@@ -1496,6 +1496,12 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		{ "link_color", st::windowActiveTextFg },
 		{ "button_color", st::windowBgActive },
 		{ "button_text_color", st::windowFgActive },
+		{ "header_bg_color", st::windowBg },
+		{ "accent_text_color", st::lightButtonFg },
+		{ "section_bg_color", st::lightButtonBg },
+		{ "section_header_text_color", st::windowActiveTextFg },
+		{ "subtitle_text_color", st::windowSubTextFg },
+		{ "destructive_text_color", st::attentionButtonFg },
 	};
 	auto object = QJsonObject();
 	for (const auto &[name, color] : colors) {
