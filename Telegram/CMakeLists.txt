@@ -884,6 +884,8 @@ PRIVATE
     info/profile/info_profile_widget.h
     info/settings/info_settings_widget.cpp
     info/settings/info_settings_widget.h
+    info/statistics/info_statistics_recent_message.cpp
+    info/statistics/info_statistics_recent_message.h
     info/statistics/info_statistics_widget.cpp
     info/statistics/info_statistics_widget.h
     info/stories/info_stories_inner_widget.cpp

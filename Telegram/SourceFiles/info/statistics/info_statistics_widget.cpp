@@ -8,9 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/statistics/info_statistics_widget.h"
 
 #include "api/api_statistics.h"
+#include "apiwrap.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "info/statistics/info_statistics_recent_message.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
@@ -251,6 +254,31 @@ void FillLoading(
 	::Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
 }
 
+void AddHeader(
+		not_null<Ui::VerticalLayout*> content,
+		tr::phrase<> text,
+		const AnyStats &stats) {
+	const auto startDate = stats.channel
+		? stats.channel.startDate
+		: stats.supergroup.startDate;
+	const auto endDate = stats.channel
+		? stats.channel.endDate
+		: stats.supergroup.endDate;
+	const auto header = content->add(
+		object_ptr<Statistic::Header>(content),
+		st::statisticsLayerMargins + st::statisticsChartHeaderPadding);
+	header->resizeToWidth(header->width());
+	header->setTitle(text(tr::now));
+	const auto formatter = u"d MMM yyyy"_q;
+	const auto from = QDateTime::fromSecsSinceEpoch(startDate);
+	const auto to = QDateTime::fromSecsSinceEpoch(endDate);
+	header->setSubTitle(QLocale().toString(from.date(), formatter)
+		+ ' '
+		+ QChar(8212)
+		+ ' '
+		+ QLocale().toString(to.date(), formatter));
+}
+
 void FillOverview(
 		not_null<Ui::VerticalLayout*> content,
 		const AnyStats &stats) {
@@ -258,25 +286,9 @@ void FillOverview(
 
 	const auto &channel = stats.channel;
 	const auto &supergroup = stats.supergroup;
-	const auto startDate = channel ? channel.startDate : supergroup.startDate;
-	const auto endDate = channel ? channel.endDate : supergroup.endDate;
 
 	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.top());
-	{
-		const auto header = content->add(
-			object_ptr<Statistic::Header>(content),
-			st::statisticsLayerMargins + st::statisticsChartHeaderPadding);
-		header->resizeToWidth(header->width());
-		header->setTitle(tr::lng_stats_overview_title(tr::now));
-		const auto formatter = u"d MMM yyyy"_q;
-		const auto from = QDateTime::fromSecsSinceEpoch(startDate);
-		const auto to = QDateTime::fromSecsSinceEpoch(endDate);
-		header->setSubTitle(QLocale().toString(from.date(), formatter)
-			+ ' '
-			+ QChar(8212)
-			+ ' '
-			+ QLocale().toString(to.date(), formatter));
-	}
+	AddHeader(content, tr::lng_stats_overview_title, stats);
 	::Settings::AddSkip(content);
 
 	struct Second final {
@@ -421,6 +433,54 @@ void FillOverview(
 	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.bottom());
 }
 
+void FillRecentPosts(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<PeerData*> peer,
+		const Data::ChannelStatistics &stats) {
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	wrap->toggle(false, anim::type::instant);
+	const auto content = wrap->entity();
+	AddHeader(content, tr::lng_stats_recent_messages_title, { stats, {} });
+	::Settings::AddSkip(content);
+
+	const auto addMessage = [=](
+			not_null<Ui::VerticalLayout*> messageWrap,
+			not_null<HistoryItem*> item,
+			const Data::StatisticsMessageInteractionInfo &info) {
+		const auto row = messageWrap->add(
+			object_ptr<MessagePreview>(
+				messageWrap,
+				item,
+				info.viewsCount,
+				info.forwardsCount),
+			st::boxRowPadding);
+		::Settings::AddSkip(messageWrap);
+		content->resizeToWidth(content->width());
+		if (!wrap->toggled()) {
+			wrap->toggle(true, anim::type::normal);
+		}
+	};
+
+	for (const auto &recent : stats.recentMessageInteractions) {
+		const auto messageWrap = content->add(
+			object_ptr<Ui::VerticalLayout>(content));
+		const auto msgId = recent.messageId;
+		if (const auto item = peer->owner().message(peer, msgId)) {
+			addMessage(messageWrap, item, recent);
+			continue;
+		}
+		const auto callback = [=] {
+			if (const auto item = peer->owner().message(peer, msgId)) {
+				addMessage(messageWrap, item, recent);
+			}
+		};
+		peer->session().api().requestMessageData(peer, msgId, callback);
+	}
+}
+
 } // namespace
 
 Memento::Memento(not_null<Controller*> controller)
@@ -481,6 +541,9 @@ Widget::Widget(
 			}
 			FillOverview(inner, anyStats);
 			FillStatistic(inner, descriptor, anyStats);
+			if (anyStats.channel) {
+				FillRecentPosts(inner, descriptor.peer, anyStats.channel);
+			}
 			loaded->fire(true);
 			inner->resizeToWidth(width());
 			inner->showChildren();

@@ -4077,6 +4077,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stats_overview_group_mean_view_count" = "Viewing Members";
 "lng_stats_overview_group_mean_post_count" = "Posting Members";
 
+"lng_stats_recent_messages_title" = "Recent posts";
+"lng_stats_recent_messages_views#one" = "{count} view";
+"lng_stats_recent_messages_views#other" = "{count} views";
+"lng_stats_recent_messages_shares#one" = "{count} share";
+"lng_stats_recent_messages_shares#other" = "{count} shares";
+
 "lng_stats_loading" = "Loading stats...";
 "lng_stats_loading_subtext" = "Please wait a few moments while we generate your stats.";
 

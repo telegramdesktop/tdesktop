@@ -98,3 +98,5 @@ statisticsOverviewSubtext: FlatLabel(boxLabel) {
 }
 statisticsOverviewMidSkip: 50px;
 statisticsOverviewRightSkip: 14px;
+
+statisticsRecentPostRowHeight: 40px;
