@@ -83,12 +83,23 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 		: QString());
 }
 
-[[nodiscard]] ClickHandlerPtr MakeWebPageButtonClickHandler(
+[[nodiscard]] ClickHandlerPtr MakeMediaButtonClickHandler(
 		not_null<Data::Media*> media) {
-	Expects(media->webpage() != nullptr);
+	if (const auto giveaway = media->giveaway()) {
+		return std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto controller = my.sessionWindow.get();
+			if (!controller) {
+				return;
+			}
+		});
+	}
+	const auto webpage = media->webpage();
+	Assert(webpage != nullptr);
 
-	const auto url = media->webpage()->url;
-	const auto type = media->webpage()->type;
+	const auto url = webpage->url;
+	const auto type = webpage->type;
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
@@ -103,6 +114,15 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 			}
 		}
 	});
+}
+
+[[nodiscard]] QString MakeMediaButtonText(not_null<Data::Media*> media) {
+	if (const auto giveaway = media->giveaway()) {
+		return Ui::Text::Upper(tr::lng_prizes_how_works(tr::now));
+	}
+	const auto webpage = media->webpage();
+	Assert(webpage != nullptr);
+	return WebPageToPhrase(webpage);
 }
 
 [[nodiscard]] ClickHandlerPtr SponsoredLink(
@@ -170,7 +190,7 @@ struct ViewButton::Inner {
 bool ViewButton::MediaHasViewButton(not_null<Data::Media*> media) {
 	return media->webpage()
 		? MediaHasViewButton(media->webpage())
-		: false;
+		: (media->giveaway() != nullptr);
 }
 
 bool ViewButton::MediaHasViewButton(
@@ -209,10 +229,10 @@ ViewButton::Inner::Inner(
 	not_null<Data::Media*> media,
 	Fn<void()> updateCallback)
 : margins(st::historyViewButtonMargins)
-, link(MakeWebPageButtonClickHandler(media))
+, link(MakeMediaButtonClickHandler(media))
 , updateCallback(std::move(updateCallback))
 , belowInfo(false)
-, text(st::historyViewButtonTextStyle, WebPageToPhrase(media->webpage())) {
+, text(st::historyViewButtonTextStyle, MakeMediaButtonText(media)) {
 }
 
 void ViewButton::Inner::updateMask(int height) {

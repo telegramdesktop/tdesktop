@@ -2091,7 +2091,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_participants_new#one" = "All users who joined the channel below after this date:";
 "lng_prizes_participants_new#other" = "All users who joined the channels below after this date:";
 "lng_prizes_date" = "Winners Selection Date";
-"lng_prizes_how_works" = "How does it work?";
+"lng_prizes_how_works" = "Learn more";
 "lng_prizes_how_text#one" = "This giveaway is sponsored by the admins of {channel}, who aquired **{count} Telegram Premium** subscription for {duration} for its followers.";
 "lng_prizes_how_text#other" = "This giveaway is sponsored by the admins of {channel}, who aquired **{count} Telegram Premium** subscriptions for {duration} for its followers.";
 "lng_prizes_how_when_all_of_one#one" = "On {date}, Telegram will automatically select {count} random subscribers of {channel}.";

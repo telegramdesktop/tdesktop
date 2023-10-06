@@ -338,7 +338,6 @@ void UnreadBar::paint(
 		text);
 }
 
-
 void DateBadge::init(const QString &date) {
 	text = date;
 	width = st::msgServiceFont->width(text);
@@ -359,6 +358,81 @@ void DateBadge::paint(
 		int w,
 		bool chatWide) const {
 	ServiceMessagePainter::PaintDate(p, st, text, width, y, w, chatWide);
+}
+
+void ServicePreMessage::init(TextWithEntities string) {
+	text = Ui::Text::String(
+		st::serviceTextStyle,
+		string,
+		kMarkupTextOptions,
+		st::msgMinWidth);
+}
+
+int ServicePreMessage::resizeToWidth(int newWidth, bool chatWide) {
+	width = newWidth;
+	if (chatWide) {
+		accumulate_min(
+			width,
+			st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
+	}
+	auto contentWidth = width;
+	contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
+	if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
+		contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+	}
+
+	auto maxWidth = text.maxWidth()
+		+ st::msgServicePadding.left()
+		+ st::msgServicePadding.right();
+	auto minHeight = text.minHeight();
+
+	auto nwidth = qMax(contentWidth
+		- st::msgServicePadding.left()
+		- st::msgServicePadding.right(), 0);
+	height = (contentWidth >= maxWidth)
+		? minHeight
+		: text.countHeight(nwidth);
+	height += st::msgServicePadding.top()
+		+ st::msgServicePadding.bottom()
+		+ st::msgServiceMargin.top()
+		+ st::msgServiceMargin.bottom();
+	return height;
+}
+
+void ServicePreMessage::paint(
+		Painter &p,
+		const PaintContext &context,
+		QRect g,
+		bool chatWide) const {
+	const auto top = g.top() - height - st::msgMargin.top();
+	p.translate(0, top);
+
+	const auto rect = QRect(0, 0, width, height)
+		- st::msgServiceMargin;
+	const auto trect = rect - st::msgServicePadding;
+
+	ServiceMessagePainter::PaintComplexBubble(
+		p,
+		context.st,
+		rect.left(),
+		rect.width(),
+		text,
+		trect);
+
+	p.setBrush(Qt::NoBrush);
+	p.setPen(context.st->msgServiceFg());
+	p.setFont(st::msgServiceFont);
+	text.draw(p, {
+		.position = trect.topLeft(),
+		.availableWidth = trect.width(),
+		.align = style::al_top,
+		.palette = &context.st->serviceTextPalette(),
+		.now = context.now,
+		//.selection = context.selection,
+		.fullWidthSelection = false,
+	});
+
+	p.translate(0, -top);
 }
 
 void FakeBotAboutTop::init() {
@@ -971,7 +1045,9 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 				|| !item->from()->isChannel());
 	};
 	const auto item = data();
-	if (!Has<DateBadge>() && !Has<UnreadBar>()) {
+	if (!Has<DateBadge>()
+		&& !Has<UnreadBar>()
+		&& !Has<ServicePreMessage>()) {
 		const auto prev = previous->data();
 		const auto previousMarkup = prev->inlineReplyMarkup();
 		const auto possible = (std::abs(prev->date() - item->date())
@@ -1179,6 +1255,18 @@ void Element::setDisplayDate(bool displayDate) {
 		setPendingResize();
 	} else if (!displayDate && Has<DateBadge>()) {
 		RemoveComponents(DateBadge::Bit());
+		setPendingResize();
+	}
+}
+
+void Element::setServicePreMessage(TextWithEntities text) {
+	if (!text.empty()) {
+		AddComponents(ServicePreMessage::Bit());
+		const auto service = Get<ServicePreMessage>();
+		service->init(std::move(text));
+		setPendingResize();
+	} else if (Has<ServicePreMessage>()) {
+		RemoveComponents(ServicePreMessage::Bit());
 		setPendingResize();
 	}
 }

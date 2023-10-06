@@ -874,6 +874,9 @@ int Message::marginTop() const {
 	if (const auto bar = Get<UnreadBar>()) {
 		result += bar->height();
 	}
+	if (const auto service = Get<ServicePreMessage>()) {
+		result += service->height;
+	}
 	return result;
 }
 
@@ -909,6 +912,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				delegate()->elementIsChatWide());
 			p.translate(0, -dateh);
 		}
+	}
+
+	if (const auto service = Get<ServicePreMessage>()) {
+		service->paint(p, context, g, delegate()->elementIsChatWide());
 	}
 
 	if (isHidden()) {
@@ -3043,6 +3050,9 @@ bool Message::hasFromName() const {
 		if (hasOutLayout() && !item->from()->isChannel()) {
 			return false;
 		} else if (!peer->isUser()) {
+			if (const auto media = this->media()) {
+				return !media->hideFromName();
+			}
 			return true;
 		}
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
@@ -3702,6 +3712,10 @@ int Message::resizeContentGetHeight(int newWidth) {
 	}
 
 	auto newHeight = minHeight();
+
+	if (const auto service = Get<ServicePreMessage>()) {
+		service->resizeToWidth(newWidth, delegate()->elementIsChatWide());
+	}
 
 	const auto item = data();
 	const auto botTop = item->isFakeBotAbout()

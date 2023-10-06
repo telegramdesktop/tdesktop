@@ -101,6 +101,9 @@ public:
 	[[nodiscard]] virtual bool hideServiceText() const {
 		return false;
 	}
+	[[nodiscard]] virtual bool hideFromName() const {
+		return false;
+	}
 	[[nodiscard]] virtual bool allowsFastShare() const {
 		return false;
 	}

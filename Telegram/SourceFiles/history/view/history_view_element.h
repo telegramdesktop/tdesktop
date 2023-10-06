@@ -234,6 +234,26 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
+// Any HistoryView::Element can have this Component for
+// displaying some text in layout of a service message above the message.
+struct ServicePreMessage
+	: public RuntimeComponent<ServicePreMessage, Element> {
+	void init(TextWithEntities string);
+
+	int resizeToWidth(int newWidth, bool chatWide);
+
+	void paint(
+		Painter &p,
+		const PaintContext &context,
+		QRect g,
+		bool chatWide) const;
+
+	Ui::Text::String text;
+	int width = 0;
+	int height = 0;
+
+};
+
 struct FakeBotAboutTop : public RuntimeComponent<FakeBotAboutTop, Element> {
 	void init();
 
@@ -339,6 +359,7 @@ public:
 
 	// For blocks context this should be called only from recountDisplayDate().
 	void setDisplayDate(bool displayDate);
+	void setServicePreMessage(TextWithEntities text);
 
 	bool computeIsAttachToPrevious(not_null<Element*> previous);
 

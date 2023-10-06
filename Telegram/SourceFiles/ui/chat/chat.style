@@ -932,9 +932,16 @@ storyMentionReadSkipTwice: 7px;
 storyMentionReadStrokeTwice: 3px;
 storyMentionButtonSkip: 5px;
 
-chatGiveawayPrizesTop: 4px;
+chatGiveawayWidth: 292px;
+chatGiveawayStickerTop: -16px;
+chatGiveawayPrizesTop: 16px;
 chatGiveawayPrizesSkip: 4px;
 chatGiveawayParticipantsTop: 16px;
 chatGiveawayParticipantsSkip: 4px;
-chatGiveawayDateTop: 16px;
+chatGiveawayChannelTop: 6px;
+chatGiveawayChannelSize: 32px;
+chatGiveawayChannelPadding: margins(5px, 7px, 12px, 0px);
+chatGiveawayChannelSkip: 8px;
+chatGiveawayDateTop: 6px;
 chatGiveawayDateSkip: 4px;
+chatGiveawayBottomSkip: 16px;
