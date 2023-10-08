@@ -7,6 +7,7 @@ Based on Telegram 4.10.1
 - Warn user if PTG version is earlier than current TG data
 - UI/UX improvements
 - Spelling fixes
+- Minimum macOS version is 10.13 (was 10.12)
 
 v. 1.4.0
 
