@@ -484,11 +484,14 @@ void FillRecentPosts(
 } // namespace
 
 Memento::Memento(not_null<Controller*> controller)
-: Memento(controller->peer()) {
+: ContentMemento(Tag{
+	controller->statisticsPeer(),
+	controller->statisticsContextId(),
+}) {
 }
 
-Memento::Memento(not_null<PeerData*> peer)
-: ContentMemento(peer, nullptr, {}) {
+Memento::Memento(not_null<PeerData*> peer, FullMsgId contextId)
+: ContentMemento(Tag{ peer, contextId }) {
 }
 
 Memento::~Memento() = default;
@@ -509,7 +512,7 @@ Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : ContentWidget(parent, controller) {
-	const auto peer = controller->peer();
+	const auto peer = controller->statisticsPeer();
 	if (!peer) {
 		return;
 	}
@@ -556,7 +559,9 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 }
 
 rpl::producer<QString> Widget::title() {
-	return tr::lng_stats_title();
+	return controller()->key().statisticsContextId()
+		? tr::lng_stats_message_title()
+		: tr::lng_stats_title();
 }
 
 rpl::producer<bool> Widget::desiredShadowVisibility() const {
@@ -572,11 +577,13 @@ std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 	return result;
 }
 
-std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
+std::shared_ptr<Info::Memento> Make(
+		not_null<PeerData*> peer,
+		FullMsgId contextId) {
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(
 			1,
-			std::make_shared<Memento>(peer)));
+			std::make_shared<Memento>(peer, contextId)));
 }
 
 } // namespace Info::Statistics

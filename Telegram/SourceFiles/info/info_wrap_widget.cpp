@@ -250,7 +250,10 @@ Dialogs::RowDescriptor WrapWidget::activeChat() const {
 				storiesPeer->owner().history(storiesPeer),
 				FullMsgId())
 			: Dialogs::RowDescriptor();
-	} else if (key().settingsSelf() || key().isDownloads() || key().poll()) {
+	} else if (key().settingsSelf()
+			|| key().isDownloads()
+			|| key().poll()
+			|| key().statisticsPeer()) {
 		return Dialogs::RowDescriptor();
 	}
 	Unexpected("Owner in WrapWidget::activeChat().");

@@ -1007,7 +1007,7 @@ void Filler::addViewStatistics() {
 			const auto peer = _peer;
 			_addAction(tr::lng_stats_title(tr::now), [=] {
 				if (const auto strong = weak.get()) {
-					controller->showSection(Info::Statistics::Make(peer));
+					controller->showSection(Info::Statistics::Make(peer, {}));
 				}
 			}, &st::menuIconStats);
 		}
