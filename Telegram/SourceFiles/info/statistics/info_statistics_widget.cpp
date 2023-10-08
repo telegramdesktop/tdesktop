@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "history/history_item.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/statistics/info_statistics_recent_message.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
@@ -42,6 +44,7 @@ struct Descriptor final {
 struct AnyStats final {
 	Data::ChannelStatistics channel;
 	Data::SupergroupStatistics supergroup;
+	Data::StatisticalGraph message;
 };
 
 void ProcessZoom(
@@ -207,6 +210,11 @@ void FillStatistic(
 		// 	s.weekGraph,
 		// 	tr::lng_chart_title_group_week(),
 		// 	Type::StackLinear);
+	} else if (const auto graph = stats.message; graph.chart) {
+		addChart(
+			graph,
+			tr::lng_chart_title_message_interaction(),
+			Type::DoubleLinear);
 	}
 }
 
@@ -435,8 +443,9 @@ void FillOverview(
 
 void FillRecentPosts(
 		not_null<Ui::VerticalLayout*> container,
-		not_null<PeerData*> peer,
-		const Data::ChannelStatistics &stats) {
+		const Descriptor &descriptor,
+		const Data::ChannelStatistics &stats,
+		Fn<void(std::shared_ptr<Window::SectionMemento>)> showSection) {
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
@@ -450,13 +459,25 @@ void FillRecentPosts(
 			not_null<Ui::VerticalLayout*> messageWrap,
 			not_null<HistoryItem*> item,
 			const Data::StatisticsMessageInteractionInfo &info) {
-		const auto row = messageWrap->add(
-			object_ptr<MessagePreview>(
-				messageWrap,
-				item,
-				info.viewsCount,
-				info.forwardsCount),
-			st::boxRowPadding);
+		const auto button = ::Settings::AddButton(
+			messageWrap,
+			nullptr,
+			st::settingsButton);
+		const auto raw = Ui::CreateChild<MessagePreview>(
+			button.get(),
+			item,
+			info.viewsCount,
+			info.forwardsCount);
+		raw->show();
+		button->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			if (!s.isNull()) {
+				raw->setGeometry(Rect(s) - st::boxRowPadding);
+			}
+		}, raw->lifetime());
+		button->setClickedCallback([=, fullId = item->fullId()] {
+			showSection(Info::Statistics::Make(descriptor.peer, fullId));
+		});
 		::Settings::AddSkip(messageWrap);
 		content->resizeToWidth(content->width());
 		if (!wrap->toggled()) {
@@ -464,6 +485,7 @@ void FillRecentPosts(
 		}
 	};
 
+	const auto &peer = descriptor.peer;
 	for (const auto &recent : stats.recentMessageInteractions) {
 		const auto messageWrap = content->add(
 			object_ptr<Ui::VerticalLayout>(content));
@@ -513,16 +535,13 @@ Widget::Widget(
 	not_null<Controller*> controller)
 : ContentWidget(parent, controller) {
 	const auto peer = controller->statisticsPeer();
+	const auto contextId = controller->statisticsContextId();
 	if (!peer) {
 		return;
 	}
 	const auto inner = setInnerWidget(object_ptr<Ui::VerticalLayout>(this));
 	auto &lifetime = inner->lifetime();
 	const auto loaded = lifetime.make_state<rpl::event_stream<bool>>();
-	FillLoading(
-		inner,
-		loaded->events_starting_with(false) | rpl::map(!rpl::mappers::_1),
-		_showFinished.events());
 
 	const auto descriptor = Descriptor{
 		peer,
@@ -530,27 +549,55 @@ Widget::Widget(
 		controller->uiShow()->toastParent(),
 	};
 
-	_showFinished.events(
-	) | rpl::take(1) | rpl::start_with_next([=] {
-		descriptor.api->request(
-			descriptor.peer
-		) | rpl::start_with_done([=] {
-			const auto anyStats = AnyStats{
-				descriptor.api->channelStats(),
-				descriptor.api->supergroupStats(),
-			};
-			if (!anyStats.channel && !anyStats.supergroup) {
-				return;
-			}
+	FillLoading(
+		inner,
+		loaded->events_starting_with(false) | rpl::map(!rpl::mappers::_1),
+		_showFinished.events());
+
+	const auto applyStats = [=](const AnyStats &anyStats) {
+		const auto isMessage = !anyStats.message.chart.empty();
+		if (!anyStats.channel && !anyStats.supergroup && !isMessage) {
+			return;
+		}
+		if (!isMessage) {
 			FillOverview(inner, anyStats);
 			FillStatistic(inner, descriptor, anyStats);
-			if (anyStats.channel) {
-				FillRecentPosts(inner, descriptor.peer, anyStats.channel);
+			if (const auto channel = anyStats.channel) {
+				const auto showSection = [controller](
+						std::shared_ptr<Window::SectionMemento> memento) {
+					controller->showSection(std::move(memento));
+				};
+				FillRecentPosts(inner, descriptor, channel, showSection);
 			}
-			loaded->fire(true);
-			inner->resizeToWidth(width());
-			inner->showChildren();
-		}, inner->lifetime());
+		} else {
+			FillStatistic(inner, descriptor, anyStats);
+		}
+		loaded->fire(true);
+		inner->resizeToWidth(width());
+		inner->showChildren();
+	};
+
+	_showFinished.events(
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		if (!contextId) {
+			descriptor.api->request(
+				descriptor.peer
+			) | rpl::start_with_done([=] {
+				applyStats({
+					descriptor.api->channelStats(),
+					descriptor.api->supergroupStats(),
+				});
+			}, inner->lifetime());
+		} else {
+			descriptor.api->requestMessage(
+				descriptor.peer,
+				contextId.msg
+			) | rpl::take(
+				1
+			) | rpl::start_with_next([=](const Data::StatisticalGraph &data) {
+				applyStats({ .message = data });
+			}, inner->lifetime());
+		}
 	}, lifetime);
 }
 
