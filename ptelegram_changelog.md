@@ -1,3 +1,18 @@
+v. 1.5.0
+
+Based on Telegram 4.10.1
+- Fix bugs on logging out from multiple accounts via fake password
+- Fix bug with disappearing folders on chat deletion via fake password
+- Make some PTG functions available in passwordless mode
+- Warn user if PTG version is earlier than current TG data
+- UI/UX improvements
+- Spelling fixes
+- Minimum macOS version is 10.13 (was 10.12)
+
+v. 1.4.0
+
+...
+
 v. 1.2.8
 
 - Fix bug with proxy clearing.
