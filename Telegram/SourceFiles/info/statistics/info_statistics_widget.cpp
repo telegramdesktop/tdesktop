@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
-#include "info/statistics/info_statistics_public_forwards.h"
+#include "info/statistics/info_statistics_list_controllers.h"
 #include "info/statistics/info_statistics_recent_message.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
