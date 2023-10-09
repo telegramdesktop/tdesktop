@@ -388,4 +388,70 @@ void PublicForwards::request(
 	}).send();
 }
 
+MessageStatistics::MessageStatistics(
+	not_null<ChannelData*> channel,
+	FullMsgId fullId)
+: _publicForwards(channel, fullId)
+, _channel(channel)
+, _fullId(fullId)
+, _api(&channel->session().api().instance()) {
+}
+
+PublicForwards::Slice MessageStatistics::firstSlice() const {
+	return _firstSlice;
+}
+
+void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
+	if (_channel->isMegagroup()) {
+		return;
+	}
+
+	const auto requestFirstPublicForwards = [=](
+			const Data::StatisticalGraph &messageGraph,
+			const Data::StatisticsMessageInteractionInfo &info) {
+		_publicForwards.request({}, [=](PublicForwards::Slice slice) {
+			const auto total = slice.total;
+			_firstSlice = std::move(slice);
+			done({
+				.messageInteractionGraph = messageGraph,
+				.publicForwards = total,
+				.privateForwards = info.forwardsCount - total,
+				.views = info.viewsCount,
+			});
+		});
+	};
+
+	const auto requestPrivateForwards = [=](
+			const Data::StatisticalGraph &messageGraph) {
+		_api.request(MTPstats_GetBroadcastStats(
+			MTP_flags(MTPstats_GetBroadcastStats::Flags(0)),
+			_channel->inputChannel
+		)).done([=](const MTPstats_BroadcastStats &result) {
+			const auto channelStats = ChannelStatisticsFromTL(result.data());
+			auto info = Data::StatisticsMessageInteractionInfo();
+			for (const auto &r : channelStats.recentMessageInteractions) {
+				if (r.messageId == _fullId.msg) {
+					info = r;
+					break;
+				}
+			}
+			requestFirstPublicForwards(messageGraph, info);
+		}).fail([=](const MTP::Error &error) {
+			requestFirstPublicForwards(messageGraph, {});
+		}).send();
+	};
+
+	_api.request(MTPstats_GetMessageStats(
+		MTP_flags(MTPstats_GetMessageStats::Flags(0)),
+		_channel->inputChannel,
+		MTP_int(_fullId.msg.bare)
+	)).done([=](const MTPstats_MessageStats &result) {
+		requestPrivateForwards(
+			StatisticalGraphFromTL(result.data().vviews_graph()));
+	}).fail([=](const MTP::Error &error) {
+		requestPrivateForwards({});
+	}).send();
+
+}
+
 } // namespace Api

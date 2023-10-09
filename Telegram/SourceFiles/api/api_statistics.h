@@ -69,4 +69,26 @@ private:
 
 };
 
+class MessageStatistics final {
+public:
+	explicit MessageStatistics(
+		not_null<ChannelData*> channel,
+		FullMsgId fullId);
+
+	void request(Fn<void(Data::MessageStatistics)> done);
+
+	[[nodiscard]] PublicForwards::Slice firstSlice() const;
+
+private:
+	PublicForwards _publicForwards;
+	const not_null<ChannelData*> _channel;
+	const FullMsgId _fullId;
+
+	PublicForwards::Slice _firstSlice;
+
+	mtpRequestId _requestId = 0;
+	MTP::Sender _api;
+
+};
+
 } // namespace Api

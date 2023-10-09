@@ -103,4 +103,14 @@ struct SupergroupStatistics final {
 
 };
 
+struct MessageStatistics final {
+	explicit operator bool() const {
+		return !messageInteractionGraph.chart.empty();
+	}
+	Data::StatisticalGraph messageInteractionGraph;
+	int publicForwards = 0;
+	int privateForwards = 0;
+	int views = 0;
+};
+
 } // namespace Data
