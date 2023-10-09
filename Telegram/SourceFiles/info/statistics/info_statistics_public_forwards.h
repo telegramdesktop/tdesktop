@@ -17,6 +17,10 @@ namespace Api {
 class MessageStatistics;
 } // namespace Api
 
+namespace Data {
+struct SupergroupStatistics;
+} // namespace Data
+
 namespace Info::Statistics {
 
 void AddPublicForwards(
@@ -25,5 +29,12 @@ void AddPublicForwards(
 	Fn<void(FullMsgId)> showPeerHistory,
 	not_null<PeerData*> peer,
 	FullMsgId contextId);
+
+void AddMembersList(
+	Data::SupergroupStatistics data,
+	not_null<Ui::VerticalLayout*> container,
+	Fn<void(not_null<PeerData*>)> showPeerInfo,
+	not_null<PeerData*> peer,
+	rpl::producer<QString> title);
 
 } // namespace Info::Statistics

@@ -11,21 +11,64 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/widgets/buttons.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_settings.h"
 
 namespace Info::Statistics {
 namespace {
 
+void AddSubsectionTitle(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> title) {
+	const auto &subtitlePadding = st::settingsButton.padding;
+	::Settings::AddSubsectionTitle(
+		container,
+		std::move(title),
+		{ 0, -subtitlePadding.top(), 0, -subtitlePadding.bottom() });
+}
+
+[[nodiscard]] QString FormatText(
+		int value1, tr::phrase<lngtag_count> phrase1,
+		int value2, tr::phrase<lngtag_count> phrase2,
+		int value3, tr::phrase<lngtag_count> phrase3) {
+	const auto separator = u", "_q;
+	auto resultText = QString();
+	if (value1 > 0) {
+		resultText += phrase1(tr::now, lt_count, value1);
+	}
+	if (value2 > 0) {
+		if (!resultText.isEmpty()) {
+			resultText += separator;
+		}
+		resultText += phrase2(tr::now, lt_count, value2);
+	}
+	if (value3 > 0) {
+		if (!resultText.isEmpty()) {
+			resultText += separator;
+		}
+		resultText += phrase3(tr::now, lt_count, value3);
+	}
+	return resultText;
+}
+
 struct Descriptor final {
 	Api::PublicForwards::Slice firstSlice;
 	Fn<void(FullMsgId)> showPeerHistory;
 	not_null<PeerData*> peer;
 	FullMsgId contextId;
+};
+
+struct MembersDescriptor final {
+	not_null<Main::Session*> session;
+	Fn<void(not_null<PeerData*>)> showPeerInfo;
+	Data::SupergroupStatistics data;
 };
 
 class PeerListRowWithMsgId : public PeerListRow {
@@ -48,6 +91,103 @@ MsgId PeerListRowWithMsgId::msgId() const {
 	return _msgId;
 }
 
+class MembersController final : public PeerListController {
+public:
+	MembersController(MembersDescriptor d);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void loadMoreRows() override;
+
+	void setLimit(int limit);
+
+private:
+	void addRows(int from, int to);
+
+	const not_null<Main::Session*> _session;
+	Fn<void(not_null<PeerData*>)> _showPeerInfo;
+	Data::SupergroupStatistics _data;
+	int _limit = 0;
+
+};
+
+MembersController::MembersController(MembersDescriptor d)
+: _session(std::move(d.session))
+, _showPeerInfo(std::move(d.showPeerInfo))
+, _data(std::move(d.data)) {
+}
+
+Main::Session &MembersController::session() const {
+	return *_session;
+}
+
+void MembersController::setLimit(int limit) {
+	addRows(_limit, limit);
+	_limit = limit;
+}
+
+void MembersController::addRows(int from, int to) {
+	const auto addRow = [&](UserId userId, QString text) {
+		const auto user = _session->data().user(userId);
+		auto row = std::make_unique<PeerListRow>(user);
+		row->setCustomStatus(std::move(text));
+		delegate()->peerListAppendRow(std::move(row));
+	};
+	if (!_data.topSenders.empty()) {
+		for (auto i = from; i < to; i++) {
+			const auto &member = _data.topSenders[i];
+			addRow(
+				member.userId,
+				FormatText(
+					member.sentMessageCount,
+					tr::lng_stats_member_messages,
+					member.averageCharacterCount,
+					tr::lng_stats_member_characters,
+					0,
+					{}));
+		}
+	} else if (!_data.topAdministrators.empty()) {
+		for (auto i = from; i < to; i++) {
+			const auto &admin = _data.topAdministrators[i];
+			addRow(
+				admin.userId,
+				FormatText(
+					admin.deletedMessageCount,
+					tr::lng_stats_member_deletions,
+					admin.bannedUserCount,
+					tr::lng_stats_member_bans,
+					admin.restrictedUserCount,
+					tr::lng_stats_member_restrictions));
+		}
+	} else if (!_data.topInviters.empty()) {
+		for (auto i = from; i < to; i++) {
+			const auto &inviter = _data.topInviters[i];
+			addRow(
+				inviter.userId,
+				FormatText(
+					inviter.addedMemberCount,
+					tr::lng_stats_member_invitations,
+					0,
+					{},
+					0,
+					{}));
+		}
+	}
+}
+
+void MembersController::prepare() {
+}
+
+void MembersController::loadMoreRows() {
+}
+
+void MembersController::rowClicked(not_null<PeerListRow*> row) {
+	crl::on_main([=, peer = row->peer()] {
+		_showPeerInfo(peer);
+	});
+}
+
 class PublicForwardsController final : public PeerListController {
 public:
 	explicit PublicForwardsController(Descriptor d);
@@ -56,8 +196,6 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
-
-	[[nodiscard]] rpl::producer<int> totalCountChanges() const;
 
 private:
 	bool appendRow(not_null<PeerData*> peer, MsgId msgId);
@@ -71,8 +209,6 @@ private:
 	Api::PublicForwards::OffsetToken _apiToken;
 
 	bool _allLoaded = false;
-
-	rpl::event_stream<int> _totalCountChanges;
 
 };
 
@@ -105,7 +241,6 @@ void PublicForwardsController::applySlice(
 		const Api::PublicForwards::Slice &slice) {
 	_allLoaded = slice.allLoaded;
 	_apiToken = slice.token;
-	_totalCountChanges.fire_copy(slice.total);
 
 	for (const auto &item : slice.list) {
 		if (const auto peer = session().data().peerLoaded(item.peer)) {
@@ -153,10 +288,6 @@ bool PublicForwardsController::appendRow(
 	return true;
 }
 
-rpl::producer<int> PublicForwardsController::totalCountChanges() const {
-	return _totalCountChanges.events();
-}
-
 } // namespace
 
 void AddPublicForwards(
@@ -183,18 +314,78 @@ void AddPublicForwards(
 	});
 
 	if (const auto total = firstSliceHolder.firstSlice().total; total > 0) {
-		const auto &subtitlePadding = st::settingsButton.padding;
-		::Settings::AddSubsectionTitle(
+		AddSubsectionTitle(
 			container,
 			tr::lng_stats_overview_message_public_share(
 				lt_count_decimal,
-				rpl::single<float64>(total)),
-			{ 0, -subtitlePadding.top(), 0, -subtitlePadding.bottom() });
+				rpl::single<float64>(total)));
 	}
 
 	state->delegate.setContent(container->add(
 		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
+}
+
+void AddMembersList(
+		Data::SupergroupStatistics data,
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(not_null<PeerData*>)> showPeerInfo,
+		not_null<PeerData*> peer,
+		rpl::producer<QString> title) {
+	if (!peer->isMegagroup()) {
+		return;
+	}
+	const auto max = !data.topSenders.empty()
+		? data.topSenders.size()
+		: !data.topAdministrators.empty()
+		? data.topAdministrators.size()
+		: !data.topInviters.empty()
+		? data.topInviters.size()
+		: 0;
+	if (!max) {
+		return;
+	}
+
+	constexpr auto kPerPage = 40;
+	struct State final {
+		State(MembersDescriptor d) : controller(std::move(d)) {
+		}
+		PeerListContentDelegateSimple delegate;
+		MembersController controller;
+		int limit = 0;
+	};
+	auto d = MembersDescriptor{
+		&peer->session(),
+		std::move(showPeerInfo),
+		std::move(data),
+	};
+	const auto state = container->lifetime().make_state<State>(std::move(d));
+
+	AddSubsectionTitle(container, std::move(title));
+
+	state->delegate.setContent(container->add(
+		object_ptr<PeerListContent>(container, &state->controller)));
+	state->controller.setDelegate(&state->delegate);
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			object_ptr<Ui::SettingsButton>(
+				container,
+				tr::lng_stories_show_more())),
+		{ 0, -st::settingsButton.padding.top(), 0, 0 });
+	const auto button = wrap->entity();
+
+	const auto showMore = [=] {
+		state->limit = std::min(int(max), state->limit + kPerPage);
+		state->controller.setLimit(state->limit);
+		if (state->limit == max) {
+			wrap->toggle(false, anim::type::instant);
+		}
+		container->resizeToWidth(container->width());
+	};
+	button->setClickedCallback(showMore);
+	showMore();
 }
 
 } // namespace Info::Statistics

@@ -609,12 +609,54 @@ Widget::Widget(
 
 				FillOverview(inner, anyStats);
 				FillStatistic(inner, descriptor, anyStats);
-				if (const auto channel = anyStats.channel) {
+				const auto &channel = anyStats.channel;
+				const auto &supergroup = anyStats.supergroup;
+				if (channel) {
 					const auto showSection = [controller](
 							std::shared_ptr<Window::SectionMemento> memento) {
 						controller->showSection(std::move(memento));
 					};
 					FillRecentPosts(inner, descriptor, channel, showSection);
+				} else if (supergroup) {
+					const auto showPeerInfo = [controller](
+							not_null<PeerData*> peer) {
+						controller->showSection(
+							std::make_shared<Info::Memento>(peer));
+					};
+					const auto addSkip = [&](
+							not_null<Ui::VerticalLayout*> c) {
+						::Settings::AddSkip(c);
+						::Settings::AddDivider(c);
+						::Settings::AddSkip(c);
+						::Settings::AddSkip(c);
+					};
+					if (!supergroup.topSenders.empty()) {
+						AddMembersList(
+							{ .topSenders = supergroup.topSenders },
+							inner,
+							showPeerInfo,
+							descriptor.peer,
+							tr::lng_stats_members_title());
+					}
+					if (!supergroup.topAdministrators.empty()) {
+						addSkip(inner);
+						AddMembersList(
+							{ .topAdministrators
+								= supergroup.topAdministrators },
+							inner,
+							showPeerInfo,
+							descriptor.peer,
+							tr::lng_stats_admins_title());
+					}
+					if (!supergroup.topInviters.empty()) {
+						addSkip(inner);
+						AddMembersList(
+							{ .topInviters = supergroup.topInviters },
+							inner,
+							showPeerInfo,
+							descriptor.peer,
+							tr::lng_stats_inviters_title());
+					}
 				}
 				finishLoading();
 			}, inner->lifetime());
