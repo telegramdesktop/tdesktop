@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 
 class ApiWrap;
+class ChannelData;
 class PeerData;
 
 namespace Api {
@@ -36,6 +37,34 @@ public:
 private:
 	Data::ChannelStatistics _channelStats;
 	Data::SupergroupStatistics _supergroupStats;
+	MTP::Sender _api;
+
+};
+
+class PublicForwards final {
+public:
+	struct OffsetToken final {
+		int rate = 0;
+		FullMsgId fullId;
+	};
+
+	struct Slice {
+		QVector<FullMsgId> list;
+		int total = 0;
+		bool allLoaded = false;
+		OffsetToken token;
+	};
+
+	explicit PublicForwards(not_null<ChannelData*> channel, FullMsgId fullId);
+
+	void request(const OffsetToken &token, Fn<void(Slice)> done);
+
+private:
+	const not_null<ChannelData*> _channel;
+	const FullMsgId _fullId;
+	mtpRequestId _requestId = 0;
+	int _lastTotal = 0;
+
 	MTP::Sender _api;
 
 };
