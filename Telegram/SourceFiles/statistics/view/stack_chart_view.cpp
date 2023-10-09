@@ -167,9 +167,11 @@ AbstractChartView::HeightLimits StackChartView::heightLimits(
 			_cachedHeightLimits.ySum);
 		_cachedHeightLimits.full = { 0., float64(maxValueFull) };
 	}
-	const auto max = _cachedHeightLimits.ySumSegmentTree.rMaxQ(
-		xIndices.min,
-		xIndices.max);
+	const auto max = std::max(
+		_cachedHeightLimits.ySumSegmentTree.rMaxQ(
+			xIndices.min,
+			xIndices.max),
+		1);
 	return {
 		.full = _cachedHeightLimits.full,
 		.ranged = { 0., float64(max) },

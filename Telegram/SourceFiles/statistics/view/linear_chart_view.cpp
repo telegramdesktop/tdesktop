@@ -256,6 +256,10 @@ AbstractChartView::HeightLimits LinearChartView::heightLimits(
 		maxValueFull = std::max(int(l.maxValue * r), maxValueFull);
 		minValueFull = std::min(int(l.minValue * r), minValueFull);
 	}
+	if (maxValue == minValue) {
+		maxValue = chartData.maxValue;
+		minValue = chartData.minValue;
+	}
 	return {
 		.full = Limits{ float64(minValueFull), float64(maxValueFull) },
 		.ranged = Limits{ float64(minValue), float64(maxValue) },

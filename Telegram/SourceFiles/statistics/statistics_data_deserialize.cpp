@@ -80,6 +80,13 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 		}
 		result.measure();
 	}
+	if (result.maxValue == result.minValue) {
+		if (result.minValue) {
+			result.minValue = 0;
+		} else {
+			result.maxValue = 1;
+		}
+	}
 
 	{
 		const auto subchart = root.value(u"subchart"_q).toObject();
