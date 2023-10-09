@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "info/statistics/info_statistics_public_forwards.h"
 #include "info/statistics/info_statistics_recent_message.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
@@ -596,6 +597,27 @@ Widget::Widget(
 				1
 			) | rpl::start_with_next([=](const Data::StatisticalGraph &data) {
 				applyStats({ .message = data });
+
+				{
+					const auto weak = base::make_weak(controller);
+					auto showPeerHistory = [=](FullMsgId fullId) {
+						if (const auto strong = weak.get()) {
+							controller->showPeerHistory(
+								fullId.peer,
+								Window::SectionShow::Way::Forward,
+								fullId.msg);
+						}
+					};
+					AddPublicForwards(
+						inner,
+						std::move(showPeerHistory),
+						descriptor.peer,
+						contextId);
+				}
+
+
+				inner->resizeToWidth(width());
+
 			}, inner->lifetime());
 		}
 	}, lifetime);

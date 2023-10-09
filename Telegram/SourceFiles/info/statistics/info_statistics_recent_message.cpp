@@ -224,4 +224,3 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 }
 
 } // namespace Info::Statistics
-
