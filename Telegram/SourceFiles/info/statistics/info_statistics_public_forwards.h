@@ -13,11 +13,14 @@ namespace Ui {
 class VerticalLayout;
 } // namespace Ui
 
+namespace Api {
+class MessageStatistics;
+} // namespace Api
+
 namespace Info::Statistics {
 
-using PublicShares = rpl::producer<int>;
-
-[[nodiscard]] PublicShares AddPublicForwards(
+void AddPublicForwards(
+	const Api::MessageStatistics &firstSliceHolder,
 	not_null<Ui::VerticalLayout*> container,
 	Fn<void(FullMsgId)> showPeerHistory,
 	not_null<PeerData*> peer,

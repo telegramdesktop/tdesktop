@@ -21,6 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Statistics {
 namespace {
 
+struct Descriptor final {
+	Api::PublicForwards::Slice firstSlice;
+	Fn<void(FullMsgId)> showPeerHistory;
+	not_null<PeerData*> peer;
+	FullMsgId contextId;
+};
+
 class PeerListRowWithMsgId : public PeerListRow {
 public:
 	using PeerListRow::PeerListRow;
@@ -43,10 +50,7 @@ MsgId PeerListRowWithMsgId::msgId() const {
 
 class PublicForwardsController final : public PeerListController {
 public:
-	explicit PublicForwardsController(
-		Fn<void(FullMsgId)> showPeerHistory,
-		not_null<PeerData*> peer,
-		FullMsgId contextId);
+	explicit PublicForwardsController(Descriptor d);
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -57,11 +61,13 @@ public:
 
 private:
 	bool appendRow(not_null<PeerData*> peer, MsgId msgId);
+	void applySlice(const Api::PublicForwards::Slice &slice);
 
 	const not_null<Main::Session*> _session;
 	Fn<void(FullMsgId)> _showPeerHistory;
 
 	Api::PublicForwards _api;
+	Api::PublicForwards::Slice _firstSlice;
 	Api::PublicForwards::OffsetToken _apiToken;
 
 	bool _allLoaded = false;
@@ -70,13 +76,11 @@ private:
 
 };
 
-PublicForwardsController::PublicForwardsController(
-	Fn<void(FullMsgId)> showPeerHistory,
-	not_null<PeerData*> peer,
-	FullMsgId contextId)
-: _session(&peer->session())
-, _showPeerHistory(std::move(showPeerHistory))
-, _api(peer->asChannel(), contextId) {
+PublicForwardsController::PublicForwardsController(Descriptor d)
+: _session(&d.peer->session())
+, _showPeerHistory(std::move(d.showPeerHistory))
+, _api(d.peer->asChannel(), d.contextId)
+, _firstSlice(std::move(d.firstSlice)) {
 }
 
 Main::Session &PublicForwardsController::session() const {
@@ -84,7 +88,7 @@ Main::Session &PublicForwardsController::session() const {
 }
 
 void PublicForwardsController::prepare() {
-	loadMoreRows();
+	applySlice(base::take(_firstSlice));
 	delegate()->peerListRefreshRows();
 }
 
@@ -93,17 +97,22 @@ void PublicForwardsController::loadMoreRows() {
 		return;
 	}
 	_api.request(_apiToken, [=](const Api::PublicForwards::Slice &slice) {
-		_allLoaded = slice.allLoaded;
-		_apiToken = slice.token;
-		_totalCountChanges.fire_copy(slice.total);
-
-		for (const auto &item : slice.list) {
-			if (const auto peer = session().data().peerLoaded(item.peer)) {
-				appendRow(peer, item.msg);
-			}
-		}
-		delegate()->peerListRefreshRows();
+		applySlice(slice);
 	});
+}
+
+void PublicForwardsController::applySlice(
+		const Api::PublicForwards::Slice &slice) {
+	_allLoaded = slice.allLoaded;
+	_apiToken = slice.token;
+	_totalCountChanges.fire_copy(slice.total);
+
+	for (const auto &item : slice.list) {
+		if (const auto peer = session().data().peerLoaded(item.peer)) {
+			appendRow(peer, item.msg);
+		}
+	}
+	delegate()->peerListRefreshRows();
 }
 
 void PublicForwardsController::rowClicked(not_null<PeerListRow*> row) {
@@ -150,53 +159,42 @@ rpl::producer<int> PublicForwardsController::totalCountChanges() const {
 
 } // namespace
 
-PublicShares AddPublicForwards(
+void AddPublicForwards(
+		const Api::MessageStatistics &firstSliceHolder,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(FullMsgId)> showPeerHistory,
 		not_null<PeerData*> peer,
 		FullMsgId contextId) {
 	if (!peer->isChannel()) {
-		return rpl::never<int>();
+		return;
 	}
 
 	struct State final {
-		State(
-			Fn<void(FullMsgId)> c,
-			not_null<PeerData*> p,
-			FullMsgId i) : controller(std::move(c), p, i) {
+		State(Descriptor d) : controller(std::move(d)) {
 		}
 		PeerListContentDelegateSimple delegate;
 		PublicForwardsController controller;
 	};
-	const auto state = container->lifetime().make_state<State>(
+	const auto state = container->lifetime().make_state<State>(Descriptor{
+		firstSliceHolder.firstSlice(),
 		std::move(showPeerHistory),
 		peer,
-		contextId);
-
-	auto title = state->controller.totalCountChanges(
-	) | rpl::distinct_until_changed(
-	) | rpl::map([=](int total) {
-		return total
-			? tr::lng_stats_overview_message_public_share(
-				tr::now,
-				lt_count_decimal,
-				total)
-			: QString();
+		contextId,
 	});
 
-	{
+	if (const auto total = firstSliceHolder.firstSlice().total; total > 0) {
 		const auto &subtitlePadding = st::settingsButton.padding;
 		::Settings::AddSubsectionTitle(
 			container,
-			std::move(title),
+			tr::lng_stats_overview_message_public_share(
+				lt_count_decimal,
+				rpl::single<float64>(total)),
 			{ 0, -subtitlePadding.top(), 0, -subtitlePadding.bottom() });
 	}
+
 	state->delegate.setContent(container->add(
 		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
-
-	return state->controller.totalCountChanges(
-	) | rpl::distinct_until_changed();
 }
 
 } // namespace Info::Statistics

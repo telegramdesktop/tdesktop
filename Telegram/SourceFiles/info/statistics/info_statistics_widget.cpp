@@ -45,15 +45,7 @@ struct Descriptor final {
 struct AnyStats final {
 	Data::ChannelStatistics channel;
 	Data::SupergroupStatistics supergroup;
-	struct Message {
-		explicit operator bool() const {
-			return !graph.chart.empty();
-		}
-		Data::StatisticalGraph graph;
-		int publicForwards = 0;
-		int privateForwards = 0;
-		int views = 0;
-	} message;
+	Data::MessageStatistics message;
 };
 
 void ProcessZoom(
@@ -221,7 +213,7 @@ void FillStatistic(
 		// 	Type::StackLinear);
 	} else if (const auto message = stats.message) {
 		addChart(
-			message.graph,
+			message.messageInteractionGraph,
 			tr::lng_chart_title_message_interaction(),
 			Type::DoubleLinear);
 	}
@@ -628,72 +620,34 @@ Widget::Widget(
 			}, inner->lifetime());
 		} else {
 			const auto weak = base::make_weak(controller);
+			const auto lifetime = inner->lifetime(
+			).make_state<rpl::lifetime>();
+			const auto api = lifetime->make_state<Api::MessageStatistics>(
+				descriptor.peer->asChannel(),
+				contextId);
 
-			descriptor.api->requestMessage(
-				descriptor.peer,
-				contextId.msg
-			) | rpl::take(
-				1
-			) | rpl::start_with_next([=](const Data::StatisticalGraph &data) {
-				descriptor.api->request(
-					descriptor.peer
-				) | rpl::start_with_done([=] {
-					const auto channel = descriptor.api->channelStats();
-					auto info = Data::StatisticsMessageInteractionInfo();
-					for (const auto &r : channel.recentMessageInteractions) {
-						if (r.messageId == contextId.msg) {
-							info = r;
-							break;
-						}
+			api->request([=](const Data::MessageStatistics &data) {
+				const auto stats = AnyStats{ .message = data };
+				FillOverview(inner, stats);
+				FillStatistic(inner, descriptor, stats);
+				auto showPeerHistory = [=](FullMsgId fullId) {
+					if (const auto strong = weak.get()) {
+						controller->showPeerHistory(
+							fullId.peer,
+							Window::SectionShow::Way::Forward,
+							fullId.msg);
 					}
+				};
+				AddPublicForwards(
+					*api,
+					inner,
+					std::move(showPeerHistory),
+					descriptor.peer,
+					contextId);
 
-					const auto wrapAbove = inner->add(
-						object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-							inner,
-							object_ptr<Ui::VerticalLayout>(inner)));
-					wrapAbove->toggle(false, anim::type::instant);
-
-					const auto wrapBelow = inner->add(
-						object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-							inner,
-							object_ptr<Ui::VerticalLayout>(inner)));
-					wrapBelow->toggle(false, anim::type::instant);
-
-					auto showPeerHistory = [=](FullMsgId fullId) {
-						if (const auto strong = weak.get()) {
-							controller->showPeerHistory(
-								fullId.peer,
-								Window::SectionShow::Way::Forward,
-								fullId.msg);
-						}
-					};
-					auto sharesCount = AddPublicForwards(
-						wrapBelow->entity(),
-						std::move(showPeerHistory),
-						descriptor.peer,
-						contextId);
-
-					std::move(sharesCount) | rpl::take(
-						1
-					) | rpl::start_with_next([=](int count) {
-						const auto stats = AnyStats{
-							.message = {
-								.graph = data,
-								.publicForwards = count,
-								.privateForwards = info.forwardsCount - count,
-								.views = info.viewsCount,
-							}
-						};
-						FillOverview(wrapAbove->entity(), stats);
-						FillStatistic(wrapAbove->entity(), descriptor, stats);
-
-						wrapAbove->toggle(true, anim::type::instant);
-						wrapBelow->toggle(true, anim::type::instant);
-
-						finishLoading();
-					}, inner->lifetime());
-				}, inner->lifetime());
-			}, inner->lifetime());
+				finishLoading();
+				lifetime->destroy();
+			});
 		}
 	}, lifetime);
 }
