@@ -45,7 +45,15 @@ struct Descriptor final {
 struct AnyStats final {
 	Data::ChannelStatistics channel;
 	Data::SupergroupStatistics supergroup;
-	Data::StatisticalGraph message;
+	struct Message {
+		explicit operator bool() const {
+			return !graph.chart.empty();
+		}
+		Data::StatisticalGraph graph;
+		int publicForwards = 0;
+		int privateForwards = 0;
+		int views = 0;
+	} message;
 };
 
 void ProcessZoom(
@@ -211,9 +219,9 @@ void FillStatistic(
 		// 	s.weekGraph,
 		// 	tr::lng_chart_title_group_week(),
 		// 	Type::StackLinear);
-	} else if (const auto graph = stats.message; graph.chart) {
+	} else if (const auto message = stats.message) {
 		addChart(
-			graph,
+			message.graph,
 			tr::lng_chart_title_message_interaction(),
 			Type::DoubleLinear);
 	}
@@ -278,6 +286,10 @@ void AddHeader(
 		st::statisticsLayerMargins + st::statisticsChartHeaderPadding);
 	header->resizeToWidth(header->width());
 	header->setTitle(text(tr::now));
+	if (!endDate || !startDate) {
+		header->setSubTitle({});
+		return;
+	}
 	const auto formatter = u"d MMM yyyy"_q;
 	const auto from = QDateTime::fromSecsSinceEpoch(startDate);
 	const auto to = QDateTime::fromSecsSinceEpoch(endDate);
@@ -335,7 +347,9 @@ void FillOverview(
 	const auto addPrimary = [&](const Value &v) {
 		return Ui::CreateChild<Ui::FlatLabel>(
 			container,
-			Lang::FormatCountToShort(v.value).string,
+			(v.value >= 0)
+				? Lang::FormatCountToShort(v.value).string
+				: QString(),
 			st::statisticsOverviewValue);
 	};
 	const auto addSub = [&](
@@ -352,6 +366,7 @@ void FillOverview(
 			container,
 			text(),
 			st::statisticsOverviewSubtext);
+		sub->setTextColorOverride(st::windowSubTextFg->c);
 
 		primary->geometryValue(
 		) | rpl::start_with_next([=](const QRect &g) {
@@ -369,8 +384,11 @@ void FillOverview(
 	};
 
 	const auto isChannel = (!!channel);
+	const auto isMessage = (!!stats.message);
 	const auto topLeftLabel = isChannel
 		? addPrimary(channel.memberCount)
+		: isMessage
+		? addPrimary({ .value = float64(stats.message.views) })
 		: addPrimary(supergroup.memberCount);
 	const auto topRightLabel = isChannel
 		? Ui::CreateChild<Ui::FlatLabel>(
@@ -378,12 +396,18 @@ void FillOverview(
 			QString("%1%").arg(0.01
 				* std::round(channel.enabledNotificationsPercentage * 100.)),
 			st::statisticsOverviewValue)
+		: isMessage
+		? addPrimary({ .value = float64(stats.message.publicForwards) })
 		: addPrimary(supergroup.messageCount);
 	const auto bottomLeftLabel = isChannel
 		? addPrimary(channel.meanViewCount)
+		: isMessage
+		? addPrimary({ .value = float64(stats.message.privateForwards) })
 		: addPrimary(supergroup.viewerCount);
 	const auto bottomRightLabel = isChannel
 		? addPrimary(channel.meanShareCount)
+		: isMessage
+		? addPrimary({ .value = -1. })
 		: addPrimary(supergroup.senderCount);
 	if (const auto &s = channel) {
 		addSub(
@@ -419,6 +443,25 @@ void FillOverview(
 			bottomRightLabel,
 			s.senderCount,
 			tr::lng_stats_overview_group_mean_post_count);
+	} else if (const auto &s = stats.message) {
+		if (s.views >= 0) {
+			addSub(
+				topLeftLabel,
+				{},
+				tr::lng_stats_overview_message_views);
+		}
+		if (s.publicForwards >= 0) {
+			addSub(
+				topRightLabel,
+				{},
+				tr::lng_stats_overview_message_public_shares);
+		}
+		if (s.privateForwards >= 0) {
+			addSub(
+				bottomLeftLabel,
+				{},
+				tr::lng_stats_overview_message_private_shares);
+		}
 	}
 	container->showChildren();
 	container->resize(container->width(), topLeftLabel->height() * 5);
@@ -555,24 +598,7 @@ Widget::Widget(
 		loaded->events_starting_with(false) | rpl::map(!rpl::mappers::_1),
 		_showFinished.events());
 
-	const auto applyStats = [=](const AnyStats &anyStats) {
-		const auto isMessage = !anyStats.message.chart.empty();
-		if (!anyStats.channel && !anyStats.supergroup && !isMessage) {
-			return;
-		}
-		if (!isMessage) {
-			FillOverview(inner, anyStats);
-			FillStatistic(inner, descriptor, anyStats);
-			if (const auto channel = anyStats.channel) {
-				const auto showSection = [controller](
-						std::shared_ptr<Window::SectionMemento> memento) {
-					controller->showSection(std::move(memento));
-				};
-				FillRecentPosts(inner, descriptor, channel, showSection);
-			}
-		} else {
-			FillStatistic(inner, descriptor, anyStats);
-		}
+	const auto finishLoading = [=] {
 		loaded->fire(true);
 		inner->resizeToWidth(width());
 		inner->showChildren();
@@ -584,22 +610,55 @@ Widget::Widget(
 			descriptor.api->request(
 				descriptor.peer
 			) | rpl::start_with_done([=] {
-				applyStats({
+				const auto anyStats = AnyStats{
 					descriptor.api->channelStats(),
 					descriptor.api->supergroupStats(),
-				});
+				};
+
+				FillOverview(inner, anyStats);
+				FillStatistic(inner, descriptor, anyStats);
+				if (const auto channel = anyStats.channel) {
+					const auto showSection = [controller](
+							std::shared_ptr<Window::SectionMemento> memento) {
+						controller->showSection(std::move(memento));
+					};
+					FillRecentPosts(inner, descriptor, channel, showSection);
+				}
+				finishLoading();
 			}, inner->lifetime());
 		} else {
+			const auto weak = base::make_weak(controller);
+
 			descriptor.api->requestMessage(
 				descriptor.peer,
 				contextId.msg
 			) | rpl::take(
 				1
 			) | rpl::start_with_next([=](const Data::StatisticalGraph &data) {
-				applyStats({ .message = data });
+				descriptor.api->request(
+					descriptor.peer
+				) | rpl::start_with_done([=] {
+					const auto channel = descriptor.api->channelStats();
+					auto info = Data::StatisticsMessageInteractionInfo();
+					for (const auto &r : channel.recentMessageInteractions) {
+						if (r.messageId == contextId.msg) {
+							info = r;
+							break;
+						}
+					}
 
-				{
-					const auto weak = base::make_weak(controller);
+					const auto wrapAbove = inner->add(
+						object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+							inner,
+							object_ptr<Ui::VerticalLayout>(inner)));
+					wrapAbove->toggle(false, anim::type::instant);
+
+					const auto wrapBelow = inner->add(
+						object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+							inner,
+							object_ptr<Ui::VerticalLayout>(inner)));
+					wrapBelow->toggle(false, anim::type::instant);
+
 					auto showPeerHistory = [=](FullMsgId fullId) {
 						if (const auto strong = weak.get()) {
 							controller->showPeerHistory(
@@ -608,16 +667,32 @@ Widget::Widget(
 								fullId.msg);
 						}
 					};
-					AddPublicForwards(
-						inner,
+					auto sharesCount = AddPublicForwards(
+						wrapBelow->entity(),
 						std::move(showPeerHistory),
 						descriptor.peer,
 						contextId);
-				}
 
+					std::move(sharesCount) | rpl::take(
+						1
+					) | rpl::start_with_next([=](int count) {
+						const auto stats = AnyStats{
+							.message = {
+								.graph = data,
+								.publicForwards = count,
+								.privateForwards = info.forwardsCount - count,
+								.views = info.viewsCount,
+							}
+						};
+						FillOverview(wrapAbove->entity(), stats);
+						FillStatistic(wrapAbove->entity(), descriptor, stats);
 
-				inner->resizeToWidth(width());
+						wrapAbove->toggle(true, anim::type::instant);
+						wrapBelow->toggle(true, anim::type::instant);
 
+						finishLoading();
+					}, inner->lifetime());
+				}, inner->lifetime());
 			}, inner->lifetime());
 		}
 	}, lifetime);

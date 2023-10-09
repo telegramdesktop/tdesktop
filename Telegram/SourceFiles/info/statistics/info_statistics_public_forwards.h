@@ -15,7 +15,9 @@ class VerticalLayout;
 
 namespace Info::Statistics {
 
-void AddPublicForwards(
+using PublicShares = rpl::producer<int>;
+
+[[nodiscard]] PublicShares AddPublicForwards(
 	not_null<Ui::VerticalLayout*> container,
 	Fn<void(FullMsgId)> showPeerHistory,
 	not_null<PeerData*> peer,

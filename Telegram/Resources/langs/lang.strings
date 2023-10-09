@@ -4079,6 +4079,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stats_overview_group_mean_post_count" = "Posting Members";
 "lng_stats_overview_message_private_shares" = "Private Shares";
 "lng_stats_overview_message_public_shares" = "Public Shares";
+"lng_stats_overview_message_views" = "Views";
 "lng_stats_overview_message_public_share#one" = "{count} public share";
 "lng_stats_overview_message_public_share#other" = "{count} public shares";
 

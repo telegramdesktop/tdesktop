@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
-#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_settings.h"
 
@@ -151,13 +150,13 @@ rpl::producer<int> PublicForwardsController::totalCountChanges() const {
 
 } // namespace
 
-void AddPublicForwards(
+PublicShares AddPublicForwards(
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(FullMsgId)> showPeerHistory,
 		not_null<PeerData*> peer,
 		FullMsgId contextId) {
 	if (!peer->isChannel()) {
-		return;
+		return rpl::never<int>();
 	}
 
 	struct State final {
@@ -174,18 +173,9 @@ void AddPublicForwards(
 		peer,
 		contextId);
 
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
-	wrap->toggle(false, anim::type::instant);
-
 	auto title = state->controller.totalCountChanges(
 	) | rpl::distinct_until_changed(
 	) | rpl::map([=](int total) {
-		if (total && !wrap->toggled()) {
-			wrap->toggle(true, anim::type::normal);
-		}
 		return total
 			? tr::lng_stats_overview_message_public_share(
 				tr::now,
@@ -197,13 +187,16 @@ void AddPublicForwards(
 	{
 		const auto &subtitlePadding = st::settingsButton.padding;
 		::Settings::AddSubsectionTitle(
-			wrap->entity(),
+			container,
 			std::move(title),
 			{ 0, -subtitlePadding.top(), 0, -subtitlePadding.bottom() });
 	}
-	state->delegate.setContent(wrap->entity()->add(
-		object_ptr<PeerListContent>(wrap->entity(), &state->controller)));
+	state->delegate.setContent(container->add(
+		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
+
+	return state->controller.totalCountChanges(
+	) | rpl::distinct_until_changed();
 }
 
 } // namespace Info::Statistics
