@@ -42,7 +42,7 @@ namespace {
 		return QImage();
 	}
 	const auto factor = style::DevicePixelRatio();
-	const auto size = st::statisticsRecentPostRowHeight * factor;
+	const auto size = st::peerListBoxItem.photoSize * factor;
 	const auto scaled = original.scaled(
 		QSize(size, size),
 		Qt::KeepAspectRatioByExpanding,
@@ -73,16 +73,16 @@ MessagePreview::MessagePreview(
 : Ui::RpWidget(parent)
 , _item(item)
 , _date(
-	st::statisticsHeaderDatesTextStyle,
+	st::statisticsHeaderTitleTextStyle,
 	Ui::FormatDateTime(ItemDateTime(item)))
 , _views(
-	st::statisticsDetailsPopupHeaderStyle,
+	st::defaultPeerListItem.nameStyle,
 	tr::lng_stats_recent_messages_views(
 		tr::now,
 		lt_count_decimal,
 		views))
 , _shares(
-	st::statisticsHeaderDatesTextStyle,
+	st::statisticsHeaderTitleTextStyle,
 	tr::lng_stats_recent_messages_shares(
 		tr::now,
 		lt_count_decimal,
@@ -90,7 +90,7 @@ MessagePreview::MessagePreview(
 , _viewsWidth(_views.maxWidth())
 , _sharesWidth(_shares.maxWidth()) {
 	_text.setMarkedText(
-		st::statisticsDetailsPopupHeaderStyle,
+		st::defaultPeerListItem.nameStyle,
 		_item->toPreview({ .generateImages = false }).text,
 		Ui::DialogTextOptions(),
 		Core::MarkedTextContext{
@@ -166,7 +166,7 @@ void MessagePreview::processPreview(not_null<HistoryItem*> item) {
 }
 
 int MessagePreview::resizeGetHeight(int newWidth) {
-	return st::statisticsRecentPostRowHeight;
+	return st::peerListBoxItem.height;
 }
 
 void MessagePreview::paintEvent(QPaintEvent *e) {
@@ -175,13 +175,14 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 	const auto padding = st::boxRowPadding.left() / 2;
 	const auto rightWidth = std::max(_viewsWidth, _sharesWidth) + padding;
 	const auto left = _preview.isNull()
-		? 0
-		: (_preview.width() / style::DevicePixelRatio()) + padding;
+		? st::peerListBoxItem.photoPosition.x()
+		: st::peerListBoxItem.namePosition.x();
 	if (left) {
-		p.drawImage(0, 0, _preview);
+		p.drawImage(st::peerListBoxItem.photoPosition, _preview);
 		if (_spoiler) {
-			const auto rect = Rect(
-				_preview.size() / _preview.devicePixelRatio());
+			const auto rect = QRect(
+				st::peerListBoxItem.photoPosition,
+				Size(st::peerListBoxItem.photoSize));
 			const auto paused = On(PowerSaving::kChatSpoiler);
 			FillSpoilerRect(
 				p,
@@ -193,11 +194,13 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 				_cornerCache);
 		}
 	}
+	const auto topTextTop = st::peerListBoxItem.namePosition.y();
+	const auto bottomTextTop = st::peerListBoxItem.statusPosition.y();
 
 	p.setBrush(Qt::NoBrush);
 	p.setPen(st::boxTextFg);
 	_text.draw(p, {
-		.position = { left, 0 },
+		.position = { left, topTextTop },
 		.outerWidth = width() - left,
 		.availableWidth = width() - rightWidth - left,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
@@ -205,19 +208,19 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 		.elisionHeight = st::statisticsDetailsPopupHeaderStyle.font->height,
 	});
 	_views.draw(p, {
-		.position = { width() - _viewsWidth, 0 },
+		.position = { width() - _viewsWidth, topTextTop },
 		.outerWidth = _viewsWidth,
 		.availableWidth = _viewsWidth,
 	});
 
 	p.setPen(st::windowSubTextFg);
 	_date.draw(p, {
-		.position = { left, height() / 2 },
+		.position = { left, bottomTextTop },
 		.outerWidth = width() - left,
 		.availableWidth = width() - rightWidth - left,
 	});
 	_shares.draw(p, {
-		.position = { width() - _sharesWidth, height() / 2 },
+		.position = { width() - _sharesWidth, bottomTextTop },
 		.outerWidth = _sharesWidth,
 		.availableWidth = _sharesWidth,
 	});

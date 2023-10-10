@@ -495,12 +495,13 @@ void FillRecentPosts(
 			not_null<Ui::VerticalLayout*> messageWrap,
 			not_null<HistoryItem*> item,
 			const Data::StatisticsMessageInteractionInfo &info) {
-		const auto button = ::Settings::AddButton(
-			messageWrap,
-			nullptr,
-			st::settingsButton);
+		const auto button = messageWrap->add(
+			object_ptr<Ui::SettingsButton>(
+				messageWrap,
+				rpl::never<QString>(),
+				st::statisticsRecentPostButton));
 		const auto raw = Ui::CreateChild<MessagePreview>(
-			button.get(),
+			button,
 			item,
 			info.viewsCount,
 			info.forwardsCount);
@@ -508,7 +509,8 @@ void FillRecentPosts(
 		button->sizeValue(
 		) | rpl::start_with_next([=](const QSize &s) {
 			if (!s.isNull()) {
-				raw->setGeometry(Rect(s) - st::boxRowPadding);
+				raw->setGeometry(Rect(s)
+					- st::statisticsRecentPostButton.padding);
 			}
 		}, raw->lifetime());
 		button->setClickedCallback([=, fullId = item->fullId()] {

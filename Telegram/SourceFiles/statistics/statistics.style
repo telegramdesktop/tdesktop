@@ -100,3 +100,7 @@ statisticsOverviewMidSkip: 50px;
 statisticsOverviewRightSkip: 14px;
 
 statisticsRecentPostRowHeight: 40px;
+statisticsRecentPostButton: SettingsButton(defaultSettingsButton) {
+	height: 56px;
+	padding: margins(7px, 0px, 24px, 0px);
+}
