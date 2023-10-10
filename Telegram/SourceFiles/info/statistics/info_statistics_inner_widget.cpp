@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/statistics/info_statistics_inner_widget.h"
 
+#include "info/statistics/info_statistics_widget.h"
 #include "api/api_statistics.h"
 #include "apiwrap.h"
 #include "data/data_peer.h"
@@ -40,12 +41,6 @@ struct Descriptor final {
 	not_null<PeerData*> peer;
 	not_null<Api::Statistics*> api;
 	not_null<QWidget*> toastParent;
-};
-
-struct AnyStats final {
-	Data::ChannelStatistics channel;
-	Data::SupergroupStatistics supergroup;
-	Data::MessageStatistics message;
 };
 
 void ProcessZoom(
@@ -112,7 +107,7 @@ void ProcessChart(
 void FillStatistic(
 		not_null<Ui::VerticalLayout*> content,
 		const Descriptor &descriptor,
-		const AnyStats &stats) {
+		const Data::AnyStatistics &stats) {
 	using Type = Statistic::ChartViewType;
 	const auto &padding = st::statisticsChartEntryPadding;
 	const auto &m = st::statisticsLayerMargins;
@@ -266,7 +261,7 @@ void FillLoading(
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
 		tr::phrase<> text,
-		const AnyStats &stats) {
+		const Data::AnyStatistics &stats) {
 	const auto startDate = stats.channel
 		? stats.channel.startDate
 		: stats.supergroup.startDate;
@@ -294,7 +289,7 @@ void AddHeader(
 
 void FillOverview(
 		not_null<Ui::VerticalLayout*> content,
-		const AnyStats &stats) {
+		const Data::AnyStatistics &stats) {
 	using Value = Data::StatisticalValue;
 
 	const auto &channel = stats.channel;
@@ -552,11 +547,14 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _peer(peer)
 , _contextId(contextId) {
+}
+
+void InnerWidget::load() {
 	const auto inner = this;
 
 	const auto descriptor = Descriptor{
-		peer,
-		lifetime().make_state<Api::Statistics>(&peer->session().api()),
+		_peer,
+		lifetime().make_state<Api::Statistics>(&_peer->session().api()),
 		_controller->uiShow()->toastParent(),
 	};
 
@@ -573,90 +571,120 @@ InnerWidget::InnerWidget(
 
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
-		if (!contextId) {
+		if (!_contextId) {
 			descriptor.api->request(
 				descriptor.peer
 			) | rpl::start_with_done([=] {
-				const auto anyStats = AnyStats{
+				_loadedStats = Data::AnyStatistics{
 					descriptor.api->channelStats(),
 					descriptor.api->supergroupStats(),
 				};
+				fill();
 
-				FillOverview(inner, anyStats);
-				FillStatistic(inner, descriptor, anyStats);
-				const auto &channel = anyStats.channel;
-				const auto &supergroup = anyStats.supergroup;
-				if (channel) {
-					auto showMessage = [=](FullMsgId fullId) {
-						_showRequests.fire({ .messageStatistic = fullId });
-					};
-					FillRecentPosts(inner, descriptor, channel, showMessage);
-				} else if (supergroup) {
-					const auto showPeerInfo = [=](not_null<PeerData*> peer) {
-						_showRequests.fire({ .info = peer->id });
-					};
-					const auto addSkip = [&](
-							not_null<Ui::VerticalLayout*> c) {
-						::Settings::AddSkip(c);
-						::Settings::AddDivider(c);
-						::Settings::AddSkip(c);
-						::Settings::AddSkip(c);
-					};
-					if (!supergroup.topSenders.empty()) {
-						AddMembersList(
-							{ .topSenders = supergroup.topSenders },
-							inner,
-							showPeerInfo,
-							descriptor.peer,
-							tr::lng_stats_members_title());
-					}
-					if (!supergroup.topAdministrators.empty()) {
-						addSkip(inner);
-						AddMembersList(
-							{ .topAdministrators
-								= supergroup.topAdministrators },
-							inner,
-							showPeerInfo,
-							descriptor.peer,
-							tr::lng_stats_admins_title());
-					}
-					if (!supergroup.topInviters.empty()) {
-						addSkip(inner);
-						AddMembersList(
-							{ .topInviters = supergroup.topInviters },
-							inner,
-							showPeerInfo,
-							descriptor.peer,
-							tr::lng_stats_inviters_title());
-					}
-				}
 				finishLoading();
 			}, lifetime());
 		} else {
 			const auto lifetimeApi = lifetime().make_state<rpl::lifetime>();
 			const auto api = lifetimeApi->make_state<Api::MessageStatistics>(
 				descriptor.peer->asChannel(),
-				contextId);
+				_contextId);
 
 			api->request([=](const Data::MessageStatistics &data) {
-				const auto stats = AnyStats{ .message = data };
-				FillOverview(inner, stats);
-				FillStatistic(inner, descriptor, stats);
-				auto showPeerHistory = [=](FullMsgId fullId) {
-					_showRequests.fire({ .history = fullId });
-				};
-				AddPublicForwards(
-					*api,
-					inner,
-					std::move(showPeerHistory),
-					descriptor.peer,
-					contextId);
+				_loadedStats = Data::AnyStatistics{ .message = data };
+				fill();
 
 				finishLoading();
 				lifetimeApi->destroy();
 			});
 		}
 	}, lifetime());
+}
+
+void InnerWidget::fill() {
+	const auto inner = this;
+	const auto descriptor = Descriptor{
+		_peer,
+		lifetime().make_state<Api::Statistics>(&_peer->session().api()),
+		_controller->uiShow()->toastParent(),
+	};
+	FillOverview(inner, _loadedStats);
+	FillStatistic(inner, descriptor, _loadedStats);
+	const auto &channel = _loadedStats.channel;
+	const auto &supergroup = _loadedStats.supergroup;
+	const auto &message = _loadedStats.message;
+	if (channel) {
+		auto showMessage = [=](FullMsgId fullId) {
+			_showRequests.fire({ .messageStatistic = fullId });
+		};
+		FillRecentPosts(inner, descriptor, channel, showMessage);
+	} else if (supergroup) {
+		const auto showPeerInfo = [=](not_null<PeerData*> peer) {
+			_showRequests.fire({ .info = peer->id });
+		};
+		const auto addSkip = [&](
+				not_null<Ui::VerticalLayout*> c) {
+			::Settings::AddSkip(c);
+			::Settings::AddDivider(c);
+			::Settings::AddSkip(c);
+			::Settings::AddSkip(c);
+		};
+		if (!supergroup.topSenders.empty()) {
+			AddMembersList(
+				{ .topSenders = supergroup.topSenders },
+				inner,
+				showPeerInfo,
+				descriptor.peer,
+				tr::lng_stats_members_title());
+		}
+		if (!supergroup.topAdministrators.empty()) {
+			addSkip(inner);
+			AddMembersList(
+				{ .topAdministrators
+					= supergroup.topAdministrators },
+				inner,
+				showPeerInfo,
+				descriptor.peer,
+				tr::lng_stats_admins_title());
+		}
+		if (!supergroup.topInviters.empty()) {
+			addSkip(inner);
+			AddMembersList(
+				{ .topInviters = supergroup.topInviters },
+				inner,
+				showPeerInfo,
+				descriptor.peer,
+				tr::lng_stats_inviters_title());
+		}
+	} else if (message) {
+		auto showPeerHistory = [=](FullMsgId fullId) {
+			_showRequests.fire({ .history = fullId });
+		};
+		const auto api = lifetime().make_state<Api::MessageStatistics>(
+			descriptor.peer->asChannel(),
+			_contextId);
+		AddPublicForwards(
+			*api,
+			inner,
+			std::move(showPeerHistory),
+			descriptor.peer,
+			_contextId);
+	}
+}
+
+void InnerWidget::saveState(not_null<Memento*> memento) {
+	memento->setStates(base::take(_loadedStats));
+}
+
+void InnerWidget::restoreState(not_null<Memento*> memento) {
+	_loadedStats = memento->states();
+	if (_loadedStats.channel
+		|| _loadedStats.supergroup
+		|| _loadedStats.message) {
+		fill();
+	} else {
+		load();
+	}
+	Ui::RpWidget::resizeToWidth(width());
 }
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {

@@ -113,4 +113,10 @@ struct MessageStatistics final {
 	int views = 0;
 };
 
+struct AnyStatistics final {
+	Data::ChannelStatistics channel;
+	Data::SupergroupStatistics supergroup;
+	Data::MessageStatistics message;
+};
+
 } // namespace Data

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "info/info_content_widget.h"
+#include "data/data_statistics.h"
 
 namespace Info::Statistics {
 
@@ -26,6 +27,14 @@ public:
 
 	Section section() const override;
 
+	using States = Data::AnyStatistics;
+
+	void setStates(States states);
+	[[nodiscard]] States states();
+
+private:
+	States _states;
+
 };
 
 class Widget final : public ContentWidget {
@@ -40,7 +49,14 @@ public:
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] FullMsgId contextId() const;
 
+	void setInternalState(
+		const QRect &geometry,
+		not_null<Memento*> memento);
+
 private:
+	void saveState(not_null<Memento*> memento);
+	void restoreState(not_null<Memento*> memento);
+
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	const not_null<InnerWidget*> _inner;

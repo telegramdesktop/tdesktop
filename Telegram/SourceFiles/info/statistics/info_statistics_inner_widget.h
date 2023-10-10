@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "data/data_statistics.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
 
@@ -16,6 +17,8 @@ class Controller;
 } // namespace Info
 
 namespace Info::Statistics {
+
+class Memento;
 
 class InnerWidget final : public Ui::VerticalLayout {
 public:
@@ -39,10 +42,18 @@ public:
 
 	void showFinished();
 
+	void saveState(not_null<Memento*> memento);
+	void restoreState(not_null<Memento*> memento);
+
 private:
+	void load();
+	void fill();
+
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 	FullMsgId _contextId;
+
+	Data::AnyStatistics _loadedStats;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<ShowRequest> _showRequests;
