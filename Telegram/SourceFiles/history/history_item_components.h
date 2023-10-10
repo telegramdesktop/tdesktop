@@ -344,7 +344,7 @@ private:
 	mutable PeerData *_externalSender = nullptr;
 	mutable int _maxWidth = 0;
 	mutable int _nameVersion = 0;
-	bool _deleted = false;
+	bool _unavailable = false;
 
 };
 

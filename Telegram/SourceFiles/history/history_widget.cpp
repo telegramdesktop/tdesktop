@@ -1656,7 +1656,9 @@ void HistoryWidget::saveDraft(bool delayed) {
 }
 
 void HistoryWidget::saveFieldToHistoryLocalDraft() {
-	if (!_history) return;
+	if (!_history) {
+		return;
+	}
 
 	const auto topicRootId = MsgId();
 	if (_editMsgId) {
@@ -6219,13 +6221,16 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			} else {
 				_forwardPanel->editOptions(controller()->uiShow());
 			}
-		} else if (replyTo() && replyTo().messageId.peer != _peer->id) {
-			// edit options
-		} else {
+		} else if (const auto reply = replyTo()) {
+			HistoryView::Controls::EditReplyOptions(
+				controller(),
+				reply,
+				_history);
+		} else if (_editMsgId) {
 			controller()->showPeerHistory(
 				_peer,
 				Window::SectionShow::Way::Forward,
-				_editMsgId ? _editMsgId : replyTo().messageId.msg);
+				_editMsgId);
 		}
 	}
 }
@@ -7096,6 +7101,7 @@ void HistoryWidget::processReply() {
 			_processingReplyTo.messageId.msg,
 			processContinue());
 		return;
+#if 0 // Now we can "reply" to old legacy group messages.
 	} else if (_processingReplyItem->history() == _migrated) {
 		if (_processingReplyItem->isService()) {
 			controller()->showToast(tr::lng_reply_cant(tr::now));
@@ -7113,10 +7119,11 @@ void HistoryWidget::processReply() {
 					}));
 		}
 		return processCancel();
-	} else if (_processingReplyItem->history() != _history
-		|| !_processingReplyItem->isRegular()) {
+#endif
+	} else if (!_processingReplyItem->isRegular()) {
 		return processCancel();
-	} else if (const auto forum = _peer->forum()) {
+	} else if (const auto forum = _peer->forum()
+		; forum && _processingReplyItem->history() == _history) {
 		const auto topicRootId = _processingReplyItem->topicRootId();
 		if (forum->topicDeleted(topicRootId)) {
 			return processCancel();

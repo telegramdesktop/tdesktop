@@ -29,6 +29,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
+#include "apiwrap.h"
+#include "boxes/peer_list_controllers.h"
+#include "data/data_changes.h"
+#include "settings/settings_common.h"
+#include "ui/widgets/buttons.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
+
 namespace HistoryView::Controls {
 namespace {
 
@@ -393,6 +401,139 @@ void ForwardPanel::paint(
 		.pausedSpoiler = pausedSpoiler,
 		.elisionOneLine = true,
 	});
+}
+
+void ShowReplyToChatBox(
+		not_null<Window::SessionController*> window,
+		FullReplyTo reply,
+		base::weak_ptr<Data::Thread> oldThread) {
+	class Controller final : public ChooseRecipientBoxController {
+	public:
+		using Chosen = not_null<Data::Thread*>;
+
+		Controller(not_null<Main::Session*> session)
+		: ChooseRecipientBoxController(
+			session,
+			[=](Chosen thread) mutable { _singleChosen.fire_copy(thread); },
+			nullptr) {
+		}
+
+		void rowClicked(not_null<PeerListRow*> row) override final {
+			ChooseRecipientBoxController::rowClicked(row);
+		}
+
+		[[nodiscard]] rpl::producer<Chosen> singleChosen() const{
+			return _singleChosen.events();
+		}
+
+	private:
+		rpl::event_stream<Chosen> _singleChosen;
+
+	};
+
+	struct State {
+		not_null<PeerListBox*> box;
+		not_null<Controller*> controller;
+		base::unique_qptr<Ui::PopupMenu> menu;
+	};
+	const auto session = &window->session();
+	const auto state = [&] {
+		auto controller = std::make_unique<Controller>(session);
+		const auto controllerRaw = controller.get();
+		auto box = Box<PeerListBox>(std::move(controller), nullptr);
+		const auto boxRaw = box.data();
+		window->uiShow()->show(std::move(box));
+		auto state = State{ boxRaw, controllerRaw };
+		return boxRaw->lifetime().make_state<State>(std::move(state));
+	}();
+
+	auto chosen = [=](not_null<Data::Thread*> thread) mutable {
+		const auto history = thread->owningHistory();
+		const auto topicRootId = thread->topicRootId();
+		const auto draft = history->localDraft(topicRootId);
+		const auto textWithTags = draft
+			? draft->textWithTags
+			: TextWithTags();
+		const auto cursor = draft ? draft->cursor : MessageCursor();
+		reply.topicRootId = topicRootId;
+		history->setLocalDraft(std::make_unique<Data::Draft>(
+			textWithTags,
+			reply,
+			cursor,
+			Data::PreviewState::Allowed));
+		history->clearLocalEditDraft(topicRootId);
+		history->session().changes().entryUpdated(
+			thread,
+			Data::EntryUpdate::Flag::LocalDraftSet);
+
+		// Clear old one.
+		crl::on_main(oldThread, [=] {
+			const auto old = oldThread.get();
+			const auto history = old->owningHistory();
+			const auto topicRootId = old->topicRootId();
+			if (const auto local = history->localDraft(topicRootId)) {
+				if (local->reply.messageId == reply.messageId) {
+					auto draft = *local;
+					draft.reply = { .topicRootId = topicRootId };
+					if (Data::DraftIsNull(&draft)) {
+						history->clearLocalDraft(topicRootId);
+					} else {
+						history->setLocalDraft(
+							std::make_unique<Data::Draft>(
+								std::move(draft)));
+					}
+					old->session().api().saveDraftToCloudDelayed(old);
+				}
+			}
+		});
+		return true;
+	};
+	auto callback = [=, chosen = std::move(chosen)](
+			Controller::Chosen thread) mutable {
+		const auto weak = Ui::MakeWeak(state->box);
+		if (!chosen(thread)) {
+			return;
+		} else if (const auto strong = weak.data()) {
+			strong->closeBox();
+		}
+	};
+	state->controller->singleChosen(
+	) | rpl::start_with_next(std::move(callback), state->box->lifetime());
+}
+
+void EditReplyOptions(
+		not_null<Window::SessionController*> controller,
+		FullReplyTo reply,
+		not_null<Data::Thread*> thread) {
+	const auto weak = base::make_weak(thread);
+	controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(rpl::single(u"Reply to Message"_q));
+
+		Settings::AddButton(
+			box->verticalLayout(),
+			rpl::single(u"Reply in another chat"_q),
+			st::settingsButton,
+			{ &st::menuIconReply }
+		)->setClickedCallback([=] {
+			ShowReplyToChatBox(controller, reply, weak);
+		});
+
+		Settings::AddButton(
+			box->verticalLayout(),
+			rpl::single(u"Show message"_q),
+			st::settingsButton,
+			{ &st::menuIconShowInChat }
+		)->setClickedCallback([=] {
+			controller->showPeerHistory(
+				reply.messageId.peer,
+				Window::SectionShow::Way::Forward,
+				reply.messageId.msg);
+		});
+
+		box->addButton(tr::lng_box_ok(), [=] {
+			box->closeBox();
+		});
+	}));
 }
 
 } // namespace HistoryView::Controls

@@ -71,4 +71,9 @@ private:
 
 };
 
+void EditReplyOptions(
+	not_null<Window::SessionController*> controller,
+	FullReplyTo reply,
+	not_null<Data::Thread*> thread);
+
 } // namespace HistoryView::Controls

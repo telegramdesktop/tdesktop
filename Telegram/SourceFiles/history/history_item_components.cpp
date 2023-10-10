@@ -325,7 +325,7 @@ bool HistoryMessageReply::updateData(
 		bool force) {
 	const auto guard = gsl::finally([&] { refreshReplyToMedia(); });
 	if (!force) {
-		if (resolvedMessage || resolvedStory || _deleted) {
+		if (resolvedMessage || resolvedStory || _unavailable) {
 			return true;
 		}
 	}
@@ -365,7 +365,9 @@ bool HistoryMessageReply::updateData(
 
 	const auto external = _fields.externalSenderId
 		|| !_fields.externalSenderName.isEmpty();
-	if (resolvedMessage || resolvedStory || (external && force)) {
+	if (resolvedMessage
+		|| resolvedStory
+		|| (external && (!_fields.messageId || force))) {
 		const auto repaint = [=] { holder->customEmojiRepaint(); };
 		const auto context = Core::MarkedTextContext{
 			.session = &holder->history()->session(),
@@ -403,8 +405,8 @@ bool HistoryMessageReply::updateData(
 					&& resolvedMessage->from()->isUser())
 				? resolvedMessage->from()->id
 				: PeerId();
-		} else {
-			resolvedMessage = 0;
+		} else if (!resolvedStory) {
+			_unavailable = true;
 		}
 
 		const auto media = resolvedMessage
@@ -417,7 +419,7 @@ bool HistoryMessageReply::updateData(
 		}
 	} else if (force) {
 		if (_fields.messageId || _fields.storyId) {
-			_deleted = true;
+			_unavailable = true;
 		}
 		_colorKey = 0;
 		spoiler = nullptr;
@@ -428,7 +430,7 @@ bool HistoryMessageReply::updateData(
 	return resolvedMessage
 		|| resolvedStory
 		|| (external && !_fields.messageId)
-		|| _deleted;
+		|| _unavailable;
 }
 
 void HistoryMessageReply::set(ReplyFields fields) {
@@ -500,7 +502,7 @@ void HistoryMessageReply::clearData(not_null<HistoryItem*> holder) {
 			resolvedStory.get());
 		resolvedStory = nullptr;
 	}
-	_deleted = true;
+	_unavailable = true;
 	refreshReplyToMedia();
 }
 
@@ -693,7 +695,7 @@ void HistoryMessageReply::paint(
 	const auto pausedSpoiler = context.paused
 		|| On(PowerSaving::kChatSpoiler);
 	if (w > st::msgReplyBarSkip) {
-		if (resolvedMessage || resolvedStory) {
+		if (resolvedMessage || resolvedStory || !_text.isEmpty()) {
 			const auto media = resolvedMessage ? resolvedMessage->media() : nullptr;
 			auto hasPreview = (media && media->hasReplyPreview())
 				|| (resolvedStory && resolvedStory->hasReplyPreview());
@@ -791,7 +793,7 @@ void HistoryMessageReply::unloadPersistentAnimation() {
 }
 
 QString HistoryMessageReply::statePhrase() const {
-	return ((_fields.messageId || _fields.storyId) && !_deleted)
+	return ((_fields.messageId || _fields.storyId) && !_unavailable)
 		? tr::lng_profile_loading(tr::now)
 		: _fields.storyId
 		? tr::lng_deleted_story(tr::now)
