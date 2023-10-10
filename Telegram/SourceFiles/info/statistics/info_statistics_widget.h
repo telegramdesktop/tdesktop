@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info::Statistics {
 
+class InnerWidget;
+
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
@@ -35,10 +37,13 @@ public:
 	rpl::producer<bool> desiredShadowVisibility() const override;
 	void showFinished() override;
 
+	[[nodiscard]] not_null<PeerData*> peer() const;
+	[[nodiscard]] FullMsgId contextId() const;
+
 private:
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
-	rpl::event_stream<> _showFinished;
+	const not_null<InnerWidget*> _inner;
 
 };
 
