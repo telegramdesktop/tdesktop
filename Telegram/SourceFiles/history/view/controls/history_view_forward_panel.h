@@ -71,9 +71,21 @@ private:
 
 };
 
-void EditReplyOptions(
-	not_null<Window::SessionController*> controller,
+void ClearDraftReplyTo(not_null<Data::Thread*> thread, FullMsgId equalTo);
+void ClearDraftReplyTo(
+	not_null<History*> history,
+	MsgId topicRootId,
+	FullMsgId equalTo);
+
+void ShowReplyToChatBox(
+	std::shared_ptr<ChatHelpers::Show> show,
 	FullReplyTo reply,
-	not_null<Data::Thread*> thread);
+	Fn<void()> clearOldDraft = nullptr);
+
+void EditReplyOptions(
+	std::shared_ptr<ChatHelpers::Show> show,
+	FullReplyTo reply,
+	Fn<void()> highlight,
+	Fn<void()> clearOldDraft = nullptr);
 
 } // namespace HistoryView::Controls

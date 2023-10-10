@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
+#include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
@@ -2196,7 +2197,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return;
 		}
 		const auto itemId = item->fullId();
-		const auto canReply = [&] {
+		const auto canSendReply = [&] {
 			const auto peer = item->history()->peer;
 			const auto topic = item->topic();
 			return topic
@@ -2204,9 +2205,24 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				: (Data::CanSendAnything(peer)
 					&& (!peer->isChannel() || peer->asChannel()->amIn()));
 		}();
+		const auto canReply = canSendReply || [&] {
+			const auto peer = item->history()->peer;
+			if (const auto chat = peer->asChat()) {
+				return !chat->isForbidden();
+			} else if (const auto channel = peer->asChannel()) {
+				return !channel->isForbidden();
+			}
+			return true;
+		}();
 		if (canReply) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
-				_widget->replyToMessage({ itemId });
+				if (canSendReply) {
+					_widget->replyToMessage({ itemId });
+				} else {
+					HistoryView::Controls::ShowReplyToChatBox(
+						controller->uiShow(),
+						{ itemId });
+				}
 			}, &st::menuIconReply);
 		}
 		const auto repliesCount = item->repliesCount();

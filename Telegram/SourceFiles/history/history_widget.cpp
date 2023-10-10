@@ -6222,10 +6222,19 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 				_forwardPanel->editOptions(controller()->uiShow());
 			}
 		} else if (const auto reply = replyTo()) {
-			HistoryView::Controls::EditReplyOptions(
-				controller(),
+			const auto highlight = [=] {
+				controller()->showPeerHistory(
+					reply.messageId.peer,
+					Window::SectionShow::Way::Forward,
+					reply.messageId.msg);
+			};
+			const auto history = _history;
+			using namespace HistoryView::Controls;
+			EditReplyOptions(
+				controller()->uiShow(),
 				reply,
-				_history);
+				highlight,
+				[=] { ClearDraftReplyTo(history, reply.messageId); });
 		} else if (_editMsgId) {
 			controller()->showPeerHistory(
 				_peer,
@@ -7611,7 +7620,10 @@ bool HistoryWidget::updateCanSendMessage() {
 	if (!_peer) {
 		return false;
 	}
-	const auto replyTo = (_replyTo && !_editMsgId) ? _replyEditMsg : 0;
+	const auto checkTopicFromReplyTo = _replyTo
+		&& !_editMsgId
+		&& (_replyTo.messageId.peer == _peer->id);
+	const auto replyTo = checkTopicFromReplyTo ? _replyEditMsg : 0;
 	const auto topic = replyTo ? replyTo->topic() : nullptr;
 	const auto allWithoutPolls = Data::AllSendRestrictions()
 		& ~ChatRestriction::SendPolls;

@@ -403,10 +403,38 @@ void ForwardPanel::paint(
 	});
 }
 
+void ClearDraftReplyTo(not_null<Data::Thread*> thread, FullMsgId equalTo) {
+	ClearDraftReplyTo(
+		thread->owningHistory(),
+		thread->topicRootId(),
+		equalTo);
+}
+
+void ClearDraftReplyTo(
+		not_null<History*> history,
+		MsgId topicRootId,
+		FullMsgId equalTo) {
+	const auto local = history->localDraft(topicRootId);
+	if (!local || (equalTo && local->reply.messageId != equalTo)) {
+		return;
+	}
+	auto draft = *local;
+	draft.reply = { .topicRootId = topicRootId };
+	if (Data::DraftIsNull(&draft)) {
+		history->clearLocalDraft(topicRootId);
+	} else {
+		history->setLocalDraft(
+			std::make_unique<Data::Draft>(std::move(draft)));
+	}
+	if (const auto thread = history->threadFor(topicRootId)) {
+		history->session().api().saveDraftToCloudDelayed(thread);
+	}
+}
+
 void ShowReplyToChatBox(
-		not_null<Window::SessionController*> window,
+		std::shared_ptr<ChatHelpers::Show> show,
 		FullReplyTo reply,
-		base::weak_ptr<Data::Thread> oldThread) {
+		Fn<void()> clearOldDraft) {
 	class Controller final : public ChooseRecipientBoxController {
 	public:
 		using Chosen = not_null<Data::Thread*>;
@@ -426,7 +454,15 @@ void ShowReplyToChatBox(
 			return _singleChosen.events();
 		}
 
+		bool respectSavedMessagesChat() const override {
+			return false;
+		}
+
 	private:
+		void prepareViewHook() override {
+			delegate()->peerListSetTitle(rpl::single(u"Reply in..."_q));
+		}
+
 		rpl::event_stream<Chosen> _singleChosen;
 
 	};
@@ -436,13 +472,13 @@ void ShowReplyToChatBox(
 		not_null<Controller*> controller;
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
-	const auto session = &window->session();
+	const auto session = &show->session();
 	const auto state = [&] {
 		auto controller = std::make_unique<Controller>(session);
 		const auto controllerRaw = controller.get();
 		auto box = Box<PeerListBox>(std::move(controller), nullptr);
 		const auto boxRaw = box.data();
-		window->uiShow()->show(std::move(box));
+		show->show(std::move(box));
 		auto state = State{ boxRaw, controllerRaw };
 		return boxRaw->lifetime().make_state<State>(std::move(state));
 	}();
@@ -466,26 +502,9 @@ void ShowReplyToChatBox(
 			thread,
 			Data::EntryUpdate::Flag::LocalDraftSet);
 
-		// Clear old one.
-		crl::on_main(oldThread, [=] {
-			const auto old = oldThread.get();
-			const auto history = old->owningHistory();
-			const auto topicRootId = old->topicRootId();
-			if (const auto local = history->localDraft(topicRootId)) {
-				if (local->reply.messageId == reply.messageId) {
-					auto draft = *local;
-					draft.reply = { .topicRootId = topicRootId };
-					if (Data::DraftIsNull(&draft)) {
-						history->clearLocalDraft(topicRootId);
-					} else {
-						history->setLocalDraft(
-							std::make_unique<Data::Draft>(
-								std::move(draft)));
-					}
-					old->session().api().saveDraftToCloudDelayed(old);
-				}
-			}
-		});
+		if (clearOldDraft) {
+			crl::on_main(&history->session(), clearOldDraft);
+		}
 		return true;
 	};
 	auto callback = [=, chosen = std::move(chosen)](
@@ -502,11 +521,11 @@ void ShowReplyToChatBox(
 }
 
 void EditReplyOptions(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		FullReplyTo reply,
-		not_null<Data::Thread*> thread) {
-	const auto weak = base::make_weak(thread);
-	controller->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
+		Fn<void()> highlight,
+		Fn<void()> clearOldDraft) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(rpl::single(u"Reply to Message"_q));
 
 		Settings::AddButton(
@@ -515,7 +534,7 @@ void EditReplyOptions(
 			st::settingsButton,
 			{ &st::menuIconReply }
 		)->setClickedCallback([=] {
-			ShowReplyToChatBox(controller, reply, weak);
+			ShowReplyToChatBox(show, reply, clearOldDraft);
 		});
 
 		Settings::AddButton(
@@ -523,12 +542,7 @@ void EditReplyOptions(
 			rpl::single(u"Show message"_q),
 			st::settingsButton,
 			{ &st::menuIconShowInChat }
-		)->setClickedCallback([=] {
-			controller->showPeerHistory(
-				reply.messageId.peer,
-				Window::SectionShow::Way::Forward,
-				reply.messageId.msg);
-		});
+		)->setClickedCallback(highlight);
 
 		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();

@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "data/data_groups.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_message_reactions.h"
@@ -588,20 +589,33 @@ bool AddReplyToMessageAction(
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
 		|| !item->isRegular()
-		|| !(topic
-			? Data::CanSendAnything(topic)
-			: Data::CanSendAnything(peer))
 		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}
+	const auto canSendReply = topic
+		? Data::CanSendAnything(topic)
+		: Data::CanSendAnything(peer);
+	const auto canReply = canSendReply || [&] {
+		const auto peer = item->history()->peer;
+		if (const auto chat = peer->asChat()) {
+			return !chat->isForbidden();
+		} else if (const auto channel = peer->asChannel()) {
+			return !channel->isForbidden();
+		}
+		return true;
+	}();
+	if (!canReply) {
+		return false;
+	}
+
 	const auto owner = &item->history()->owner();
 	const auto itemId = item->fullId();
 	menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
-		const auto item = owner->message(itemId);
 		if (!item) {
 			return;
+		} else {
+			list->replyToMessageRequestNotify({ itemId });
 		}
-		list->replyToMessageRequestNotify({ item->fullId() });
 	}, &st::menuIconReply);
 	return true;
 }

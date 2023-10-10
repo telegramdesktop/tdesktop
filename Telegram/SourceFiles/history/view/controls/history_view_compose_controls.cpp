@@ -414,6 +414,7 @@ private:
 
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	History *_history = nullptr;
+	MsgId _topicRootId = 0;
 	rpl::variable<QString> _title;
 	rpl::variable<QString> _description;
 
@@ -468,6 +469,7 @@ FieldHeader::FieldHeader(
 
 void FieldHeader::setHistory(const SetHistoryArgs &args) {
 	_history = *args.history;
+	_topicRootId = args.topicRootId;
 }
 
 void FieldHeader::init() {
@@ -619,8 +621,24 @@ void FieldHeader::init() {
 			} else if (isLeftButton && inPhotoEdit) {
 				_editPhotoRequests.fire({});
 			} else if (isLeftButton && inPreviewRect) {
+				const auto reply = replyingToMessage();
 				if (!isEditingMessage() && readyToForward()) {
 					_forwardPanel->editOptions(_show);
+				} else if (!isEditingMessage() && reply) {
+					using namespace Controls;
+					const auto highlight = [=] {
+						_scrollToItemRequests.fire_copy(reply.messageId);
+					};
+					const auto history = _history;
+					const auto topicRootId = _topicRootId;
+					const auto clearOldReplyTo = [=, id = reply.messageId] {
+						ClearDraftReplyTo(history, topicRootId, id);
+					};
+					EditReplyOptions(
+						_show,
+						reply,
+						highlight,
+						clearOldReplyTo);
 				} else {
 					auto id = isEditingMessage()
 						? _editMsgId.current()
