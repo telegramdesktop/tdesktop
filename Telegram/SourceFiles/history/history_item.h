@@ -465,6 +465,7 @@ public:
 	void setText(const TextWithEntities &textWithEntities);
 
 	[[nodiscard]] MsgId replyToId() const;
+	[[nodiscard]] FullMsgId replyToFullId() const;
 	[[nodiscard]] MsgId replyToTop() const;
 	[[nodiscard]] MsgId topicRootId() const;
 	[[nodiscard]] FullStoryId replyToStory() const;
@@ -473,12 +474,12 @@ public:
 
 	[[nodiscard]] not_null<PeerData*> author() const;
 
-	[[nodiscard]] TimeId dateOriginal() const;
-	[[nodiscard]] PeerData *senderOriginal() const;
+	[[nodiscard]] TimeId originalDate() const;
+	[[nodiscard]] PeerData *originalSender() const;
 	[[nodiscard]] const HiddenSenderInfo *hiddenSenderInfo() const;
 	[[nodiscard]] not_null<PeerData*> fromOriginal() const;
-	[[nodiscard]] QString authorOriginal() const;
-	[[nodiscard]] MsgId idOriginal() const;
+	[[nodiscard]] QString originalPostAuthor() const;
+	[[nodiscard]] MsgId originalId() const;
 
 	[[nodiscard]] bool isEmpty() const;
 

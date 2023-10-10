@@ -368,9 +368,9 @@ void SendConfirmedFile(
 
 	if (!isEditing) {
 		const auto histories = &session->data().histories();
-		file->to.replyTo.msgId = histories->convertTopicReplyToId(
+		file->to.replyTo.messageId = histories->convertTopicReplyToId(
 			history,
-			file->to.replyTo.msgId);
+			file->to.replyTo.messageId);
 		file->to.replyTo.topicRootId = histories->convertTopicReplyToId(
 			history,
 			file->to.replyTo.topicRootId);

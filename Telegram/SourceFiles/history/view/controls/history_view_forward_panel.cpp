@@ -117,7 +117,7 @@ void ForwardPanel::checkTexts() {
 		: kNameNoCaptionsVersion;
 	if (keepNames) {
 		for (const auto item : _data.items) {
-			if (const auto from = item->senderOriginal()) {
+			if (const auto from = item->originalSender()) {
 				version += from->nameVersion();
 			} else if (const auto info = item->hiddenSenderInfo()) {
 				++version;
@@ -154,7 +154,7 @@ void ForwardPanel::updateTexts() {
 		auto names = std::vector<QString>();
 		names.reserve(_data.items.size());
 		for (const auto item : _data.items) {
-			if (const auto from = item->senderOriginal()) {
+			if (const auto from = item->originalSender()) {
 				if (!insertedPeers.contains(from)) {
 					insertedPeers.emplace(from);
 					names.push_back(from->shortName());

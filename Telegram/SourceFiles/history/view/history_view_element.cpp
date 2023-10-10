@@ -68,10 +68,10 @@ Element *MousedElement/* = nullptr*/;
 		HistoryMessageForwarded *prevForwarded,
 		not_null<HistoryItem*> item,
 		HistoryMessageForwarded *forwarded) {
-	const auto sender = previous->senderOriginal();
+	const auto sender = previous->originalSender();
 	if ((prevForwarded != nullptr) != (forwarded != nullptr)) {
 		return false;
-	} else if (sender != item->senderOriginal()) {
+	} else if (sender != item->originalSender()) {
 		return false;
 	} else if (!prevForwarded || sender) {
 		return true;
@@ -178,7 +178,7 @@ bool DefaultElementDelegate::elementIsChatWide() {
 	return false;
 }
 
-void DefaultElementDelegate::elementReplyTo(const FullMsgId &to) {
+void DefaultElementDelegate::elementReplyTo(const FullReplyTo &to) {
 }
 
 void DefaultElementDelegate::elementStartInteraction(
@@ -275,8 +275,10 @@ QString DateTooltipText(not_null<Element*> view) {
 	}
 	if (view->isSignedAuthorElided()) {
 		if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
-			dateText += '\n'
-				+ tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
+			dateText += '\n' + tr::lng_signed_author(
+				tr::now,
+				lt_user,
+				msgsigned->postAuthor);
 		}
 	}
 	return dateText;
@@ -1447,7 +1449,7 @@ void Element::unloadHeavyPart() {
 		_heavyCustomEmoji = false;
 		_text.unloadPersistentAnimation();
 		if (const auto reply = data()->Get<HistoryMessageReply>()) {
-			reply->replyToText.unloadPersistentAnimation();
+			reply->unloadPersistentAnimation();
 		}
 	}
 }

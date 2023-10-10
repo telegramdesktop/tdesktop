@@ -177,8 +177,7 @@ void History::takeLocalDraft(not_null<History*> from) {
 		&& !_drafts.contains(Data::DraftKey::Local(topicRootId))) {
 		// Edit and reply to drafts can't migrate.
 		// Cloud drafts do not migrate automatically.
-		draft->msgId = 0;
-
+		draft->reply = FullReplyTo();
 		setLocalDraft(std::move(draft));
 	}
 	from->clearLocalDraft(topicRootId);
@@ -194,6 +193,7 @@ void History::createLocalDraftFromCloud(MsgId topicRootId) {
 		return;
 	}
 
+	draft->reply.topicRootId = topicRootId;
 	auto existing = localDraft(topicRootId);
 	if (Data::DraftIsNull(existing)
 		|| !existing->date
@@ -201,15 +201,13 @@ void History::createLocalDraftFromCloud(MsgId topicRootId) {
 		if (!existing) {
 			setLocalDraft(std::make_unique<Data::Draft>(
 				draft->textWithTags,
-				draft->msgId,
-				topicRootId,
+				draft->reply,
 				draft->cursor,
 				draft->previewState));
 			existing = localDraft(topicRootId);
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
-			existing->msgId = draft->msgId;
-			existing->topicRootId = draft->topicRootId;
+			existing->reply = draft->reply;
 			existing->cursor = draft->cursor;
 			existing->previewState = draft->previewState;
 		}
@@ -277,8 +275,7 @@ Data::Draft *History::createCloudDraft(
 	if (Data::DraftIsNull(fromDraft)) {
 		setCloudDraft(std::make_unique<Data::Draft>(
 			TextWithTags(),
-			0,
-			topicRootId,
+			FullReplyTo(),
 			MessageCursor(),
 			Data::PreviewState::Allowed));
 		cloudDraft(topicRootId)->date = TimeId(0);
@@ -287,18 +284,18 @@ Data::Draft *History::createCloudDraft(
 		if (!existing) {
 			setCloudDraft(std::make_unique<Data::Draft>(
 				fromDraft->textWithTags,
-				fromDraft->msgId,
-				topicRootId,
+				fromDraft->reply,
 				fromDraft->cursor,
 				fromDraft->previewState));
 			existing = cloudDraft(topicRootId);
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
-			existing->msgId = fromDraft->msgId;
+			existing->reply = fromDraft->reply;
 			existing->cursor = fromDraft->cursor;
 			existing->previewState = fromDraft->previewState;
 		}
 		existing->date = base::unixtime::now();
+		existing->reply.topicRootId = topicRootId;
 	}
 
 	if (const auto thread = threadFor(topicRootId)) {

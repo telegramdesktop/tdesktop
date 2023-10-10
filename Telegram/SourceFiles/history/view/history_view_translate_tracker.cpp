@@ -112,7 +112,7 @@ bool TranslateTracker::add(
 	}
 	if (!skipDependencies) {
 		if (const auto reply = item->Get<HistoryMessageReply>()) {
-			if (const auto to = reply->replyToMsg.get()) {
+			if (const auto to = reply->resolvedMessage.get()) {
 				add(to, true);
 			}
 		}

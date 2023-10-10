@@ -188,7 +188,7 @@ public:
 		not_null<const QMimeData*> data);
 
 	void sendBotCommand(Bot::SendCommandRequest request);
-	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
+	void hideSingleUseKeyboard(FullMsgId replyToId);
 
 	void searchMessages(const QString &query, Dialogs::Key inChat);
 

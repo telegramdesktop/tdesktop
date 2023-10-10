@@ -243,7 +243,7 @@ private:
 		mtpRequestId *const saveEditMsgRequestId);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
-	[[nodiscard]] MsgId replyToId() const;
+	[[nodiscard]] FullReplyTo replyTo() const;
 	[[nodiscard]] HistoryItem *lookupRoot() const;
 	[[nodiscard]] Data::ForumTopic *lookupTopic();
 	[[nodiscard]] bool computeAreComments() const;
@@ -252,7 +252,7 @@ private:
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	void checkReplyReturns();
 	void recountChatWidth();
-	void replyToMessage(FullMsgId itemId);
+	void replyToMessage(FullReplyTo id);
 	void refreshTopBarActiveChat();
 	void refreshUnreadCountBadge(std::optional<int> count);
 

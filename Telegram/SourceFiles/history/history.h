@@ -329,17 +329,17 @@ public:
 	}
 	void setLocalDraft(std::unique_ptr<Data::Draft> &&draft) {
 		setDraft(
-			Data::DraftKey::Local(draft->topicRootId),
+			Data::DraftKey::Local(draft->reply.topicRootId),
 			std::move(draft));
 	}
 	void setLocalEditDraft(std::unique_ptr<Data::Draft> &&draft) {
 		setDraft(
-			Data::DraftKey::LocalEdit(draft->topicRootId),
+			Data::DraftKey::LocalEdit(draft->reply.topicRootId),
 			std::move(draft));
 	}
 	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
 		setDraft(
-			Data::DraftKey::Cloud(draft->topicRootId),
+			Data::DraftKey::Cloud(draft->reply.topicRootId),
 			std::move(draft));
 	}
 	void clearLocalDraft(MsgId topicRootId) {

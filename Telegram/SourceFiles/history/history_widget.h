@@ -182,12 +182,14 @@ public:
 	MessageIdsList getSelectedItems() const;
 	void itemEdited(not_null<HistoryItem*> item);
 
-	void replyToMessage(FullMsgId itemId);
-	void replyToMessage(not_null<HistoryItem*> item);
+	void replyToMessage(FullReplyTo id);
+	void replyToMessage(
+		not_null<HistoryItem*> item,
+		TextWithTags quote = {});
 	void editMessage(FullMsgId itemId);
 	void editMessage(not_null<HistoryItem*> item);
 
-	MsgId replyToId() const;
+	[[nodiscard]] FullReplyTo replyTo() const;
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	bool lastForceReplyReplied() const;
 	bool cancelReply(bool lastKeyboardUsed = false);
@@ -204,7 +206,7 @@ public:
 	void escape();
 
 	void sendBotCommand(const Bot::SendCommandRequest &request);
-	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
+	void hideSingleUseKeyboard(FullMsgId replyToId);
 	bool insertBotCommand(const QString &cmd);
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
@@ -633,11 +635,11 @@ private:
 	void searchInChat();
 
 	MTP::Sender _api;
-	MsgId _replyToId = 0;
+	FullReplyTo _replyTo;
 	Ui::Text::String _replyToName;
 	int _replyToNameVersion = 0;
 
-	MsgId _processingReplyId = 0;
+	FullReplyTo _processingReplyTo;
 	HistoryItem *_processingReplyItem = nullptr;
 
 	MsgId _editMsgId = 0;

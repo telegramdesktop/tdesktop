@@ -2134,16 +2134,12 @@ void ApiWrap::saveDraftsToCloud() {
 		}
 
 		auto flags = MTPmessages_SaveDraft::Flags(0);
-		auto replyFlags = MTPDinputReplyToMessage::Flags(0);
 		auto &textWithTags = cloudDraft->textWithTags;
 		if (cloudDraft->previewState != Data::PreviewState::Allowed) {
 			flags |= MTPmessages_SaveDraft::Flag::f_no_webpage;
 		}
-		if (cloudDraft->msgId || cloudDraft->topicRootId) {
+		if (cloudDraft->reply.messageId || cloudDraft->reply.topicRootId) {
 			flags |= MTPmessages_SaveDraft::Flag::f_reply_to;
-			if (cloudDraft->topicRootId) {
-				replyFlags |= MTPDinputReplyToMessage::Flag::f_top_msg_id;
-			}
 		}
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
@@ -2156,15 +2152,7 @@ void ApiWrap::saveDraftsToCloud() {
 		history->startSavingCloudDraft(topicRootId);
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
 			MTP_flags(flags),
-			MTP_inputReplyToMessage(
-				MTP_flags(replyFlags),
-				MTP_int(cloudDraft->msgId
-					? cloudDraft->msgId
-					: cloudDraft->topicRootId),
-				MTP_int(cloudDraft->topicRootId),
-				MTPInputPeer(), // reply_to_peer_id
-				MTPstring(), // quote_text
-				MTPVector<MTPMessageEntity>()), // quote_entities
+			ReplyToForMTP(history, cloudDraft->reply),
 			history->peer->input,
 			MTP_string(textWithTags.text),
 			entities
@@ -3586,9 +3574,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	action.generateLocal = true;
 	sendAction(action);
 
-	const auto replyToId = action.replyTo.msgId;
-	const auto replyTo = replyToId
-		? peer->owner().message(peer, replyToId)
+	const auto replyTo = action.replyTo.messageId
+		? peer->owner().message(action.replyTo.messageId)
 		: nullptr;
 	const auto topicRootId = replyTo
 		? replyTo->topicRootId()
@@ -3789,7 +3776,7 @@ void ApiWrap::sendInlineResult(
 			? (*localMessageId)
 			: _session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
-	const auto topicRootId = action.replyTo.msgId
+	const auto topicRootId = action.replyTo.messageId
 		? action.replyTo.topicRootId
 		: 0;
 

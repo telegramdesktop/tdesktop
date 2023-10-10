@@ -1526,8 +1526,7 @@ bool SessionController::switchInlineQuery(
 	};
 	auto draft = std::make_unique<Data::Draft>(
 		textWithTags,
-		to.currentReplyToId,
-		to.rootId,
+		to.currentReplyTo,
 		cursor,
 		Data::PreviewState::Allowed);
 
@@ -1539,11 +1538,12 @@ bool SessionController::switchInlineQuery(
 			std::make_shared<HistoryView::ScheduledMemento>(history),
 			params);
 	} else {
+		const auto topicRootId = to.currentReplyTo.topicRootId;
 		history->setLocalDraft(std::move(draft));
-		history->clearLocalEditDraft(to.rootId);
+		history->clearLocalEditDraft(topicRootId);
 		if (to.section == Section::Replies) {
 			const auto commentId = MsgId();
-			showRepliesForMessage(history, to.rootId, commentId, params);
+			showRepliesForMessage(history, topicRootId, commentId, params);
 		} else {
 			showPeerHistory(history->peer, params);
 		}
@@ -1560,7 +1560,7 @@ bool SessionController::switchInlineQuery(
 		.section = (thread->asTopic()
 			? Dialogs::EntryState::Section::Replies
 			: Dialogs::EntryState::Section::History),
-		.rootId = thread->topicRootId(),
+		.currentReplyTo = { .topicRootId = thread->topicRootId() },
 	};
 	return switchInlineQuery(entryState, bot, query);
 }

@@ -59,6 +59,7 @@ constexpr auto kMultiDraftTagOld = quint64(0xFFFF'FFFF'FFFF'FF01ULL);
 constexpr auto kMultiDraftCursorsTagOld = quint64(0xFFFF'FFFF'FFFF'FF02ULL);
 constexpr auto kMultiDraftTag = quint64(0xFFFF'FFFF'FFFF'FF03ULL);
 constexpr auto kMultiDraftCursorsTag = quint64(0xFFFF'FFFF'FFFF'FF04ULL);
+constexpr auto kRichDraftsTag = quint64(0xFFFF'FFFF'FFFF'FF05ULL);
 
 enum { // Local Storage Keys
 	lskUserMap = 0x00,
@@ -1041,7 +1042,7 @@ void EnumerateDrafts(
 		}
 		callback(
 			key,
-			draft->msgId,
+			draft->reply,
 			draft->textWithTags,
 			draft->previewState,
 			draft->cursor);
@@ -1049,12 +1050,12 @@ void EnumerateDrafts(
 	for (const auto &[key, source] : sources) {
 		const auto draft = source.draft();
 		const auto cursor = source.cursor();
-		if (draft.msgId
+		if (draft.reply.messageId
 			|| !draft.textWithTags.text.isEmpty()
 			|| cursor != MessageCursor()) {
 			callback(
 				key,
-				draft.msgId,
+				draft.reply,
 				draft.textWithTags,
 				draft.previewState,
 				cursor);
@@ -1119,14 +1120,18 @@ void Account::writeDrafts(not_null<History*> history) {
 	auto size = int(sizeof(quint64) * 2 + sizeof(quint32));
 	const auto sizeCallback = [&](
 			auto&&, // key
-			MsgId, // msgId
+			const FullReplyTo &reply,
 			const TextWithTags &text,
 			Data::PreviewState,
 			auto&&) { // cursor
 		size += sizeof(qint64) // key
 			+ Serialize::stringSize(text.text)
 			+ sizeof(qint64) + TextUtilities::SerializeTagsSize(text.tags)
-			+ sizeof(qint64) + sizeof(qint32); // msgId, previewState
+			+ sizeof(qint64) + sizeof(qint64) // messageId
+			+ Serialize::stringSize(reply.quote.text)
+			+ sizeof(qint64)
+			+ TextUtilities::SerializeTagsSize(reply.quote.tags)
+			+ sizeof(qint32); // previewState
 	};
 	EnumerateDrafts(
 		map,
@@ -1136,13 +1141,13 @@ void Account::writeDrafts(not_null<History*> history) {
 
 	EncryptedDescriptor data(size);
 	data.stream
-		<< quint64(kMultiDraftTag)
+		<< quint64(kRichDraftsTag)
 		<< SerializePeerId(peerId)
 		<< quint32(count);
 
 	const auto writeCallback = [&](
 			const Data::DraftKey &key,
-			MsgId msgId,
+			const FullReplyTo &reply,
 			const TextWithTags &text,
 			Data::PreviewState previewState,
 			auto&&) { // cursor
@@ -1150,7 +1155,10 @@ void Account::writeDrafts(not_null<History*> history) {
 			<< key.serialize()
 			<< text.text
 			<< TextUtilities::SerializeTags(text.tags)
-			<< qint64(msgId.bare)
+			<< qint64(reply.messageId.peer.value)
+			<< qint64(reply.messageId.msg.bare)
+			<< reply.quote.text
+			<< TextUtilities::SerializeTags(reply.quote.tags)
 			<< qint32(previewState);
 	};
 	EnumerateDrafts(
@@ -1201,7 +1209,7 @@ void Account::writeDraftCursors(not_null<History*> history) {
 
 	const auto writeCallback = [&](
 			const Data::DraftKey &key,
-			MsgId, // msgId
+			auto&&, // reply
 			auto&&, // text
 			Data::PreviewState,
 			const MessageCursor &cursor) { // cursor
@@ -1343,7 +1351,9 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 
 	quint64 tag = 0;
 	draft.stream >> tag;
-	if (tag != kMultiDraftTag && tag != kMultiDraftTagOld) {
+	if (tag != kRichDraftsTag
+		&& tag != kMultiDraftTag
+		&& tag != kMultiDraftTagOld) {
 		readDraftsWithCursorsLegacy(history, draft, tag);
 		return;
 	}
@@ -1359,24 +1369,43 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	}
 	auto map = Data::HistoryDrafts();
 	const auto keysOld = (tag == kMultiDraftTagOld);
+	const auto rich = (tag == kRichDraftsTag);
 	for (auto i = 0; i != count; ++i) {
-		TextWithTags data;
-		QByteArray tagsSerialized;
-		qint64 keyValue = 0, messageId = 0;
+		TextWithTags quote;
+		TextWithTags text;
+		QByteArray textTagsSerialized;
+		QByteArray quoteTagsSerialized;
+		qint64 keyValue = 0;
+		qint64 messageIdPeer = 0, messageIdMsg = 0;
 		qint32 keyValueOld = 0, uncheckedPreviewState = 0;
 		if (keysOld) {
 			draft.stream >> keyValueOld;
 		} else {
 			draft.stream >> keyValue;
 		}
-		draft.stream
-			>> data.text
-			>> tagsSerialized
-			>> messageId
-			>> uncheckedPreviewState;
-		data.tags = TextUtilities::DeserializeTags(
-			tagsSerialized,
-			data.text.size());
+		if (!rich) {
+			draft.stream
+				>> text.text
+				>> textTagsSerialized
+				>> messageIdMsg
+				>> uncheckedPreviewState;
+			messageIdPeer = peerId.value;
+		} else {
+			draft.stream
+				>> text.text
+				>> textTagsSerialized
+				>> messageIdPeer
+				>> messageIdMsg
+				>> quote.text
+				>> quoteTagsSerialized
+				>> uncheckedPreviewState;
+			quote.tags = TextUtilities::DeserializeTags(
+				quoteTagsSerialized,
+				quote.text.size());
+		}
+		text.tags = TextUtilities::DeserializeTags(
+			textTagsSerialized,
+			text.text.size());
 		auto previewState = Data::PreviewState::Allowed;
 		switch (static_cast<Data::PreviewState>(uncheckedPreviewState)) {
 		case Data::PreviewState::Cancelled:
@@ -1388,9 +1417,14 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 			: Data::DraftKey::FromSerialized(keyValue);
 		if (key && !key.isCloud()) {
 			map.emplace(key, std::make_unique<Data::Draft>(
-				data,
-				messageId,
-				key.topicRootId(),
+				text,
+				FullReplyTo{
+					.messageId = FullMsgId(
+						PeerId(messageIdPeer),
+						MsgId(messageIdMsg)),
+					.quote = quote,
+					.topicRootId = key.topicRootId(),
+				},
 				MessageCursor(),
 				previewState));
 		}
@@ -1455,8 +1489,7 @@ void Account::readDraftsWithCursorsLegacy(
 			Data::DraftKey::Local(topicRootId),
 			std::make_unique<Data::Draft>(
 				msgData,
-				msgReplyTo,
-				topicRootId,
+				FullReplyTo{ FullMsgId(peerId, MsgId(msgReplyTo)) },
 				MessageCursor(),
 				(msgPreviewCancelled
 					? Data::PreviewState::Cancelled
@@ -1467,8 +1500,7 @@ void Account::readDraftsWithCursorsLegacy(
 			Data::DraftKey::LocalEdit(topicRootId),
 			std::make_unique<Data::Draft>(
 				editData,
-				editMsgId,
-				topicRootId,
+				FullReplyTo{ FullMsgId(peerId, editMsgId) },
 				MessageCursor(),
 				(editPreviewCancelled
 					? Data::PreviewState::Cancelled

@@ -3037,7 +3037,7 @@ void OverlayWidget::refreshMediaViewer() {
 
 void OverlayWidget::refreshFromLabel() {
 	if (_message) {
-		_from = _message->senderOriginal();
+		_from = _message->originalSender();
 		if (const auto info = _message->hiddenSenderInfo()) {
 			_fromName = info->name;
 		} else {

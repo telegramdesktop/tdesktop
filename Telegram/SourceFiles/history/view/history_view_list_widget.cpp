@@ -1735,7 +1735,7 @@ not_null<Ui::PathShiftGradient*> ListWidget::elementPathShiftGradient() {
 	return _pathGradient.get();
 }
 
-void ListWidget::elementReplyTo(const FullMsgId &to) {
+void ListWidget::elementReplyTo(const FullReplyTo &to) {
 	replyToMessageRequestNotify(to);
 }
 
@@ -2474,7 +2474,7 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 		mouseActionCancel();
 		switch (CurrentQuickAction()) {
 		case DoubleClickQuickAction::Reply: {
-			replyToMessageRequestNotify(_overElement->data()->fullId());
+			replyToMessageRequestNotify({ _overElement->data()->fullId() });
 		} break;
 		case DoubleClickQuickAction::React: {
 			toggleFavoriteReaction(_overElement);
@@ -3855,12 +3855,12 @@ bool ListWidget::lastMessageEditRequestNotify() const {
 	}
 }
 
-rpl::producer<FullMsgId> ListWidget::replyToMessageRequested() const {
+rpl::producer<FullReplyTo> ListWidget::replyToMessageRequested() const {
 	return _requestedToReplyToMessage.events();
 }
 
-void ListWidget::replyToMessageRequestNotify(FullMsgId item) {
-	_requestedToReplyToMessage.fire(std::move(item));
+void ListWidget::replyToMessageRequestNotify(FullReplyTo id) {
+	_requestedToReplyToMessage.fire(std::move(id));
 }
 
 rpl::producer<FullMsgId> ListWidget::readMessageRequested() const {
@@ -3878,10 +3878,10 @@ void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
 			if (!view->data()->isRegular()) {
 				return replyNextMessage(newFullId, next);
 			}
-			replyToMessageRequestNotify(newFullId);
+			replyToMessageRequestNotify({ newFullId });
 			_requestedToShowMessage.fire_copy(newFullId);
 		} else {
-			replyToMessageRequestNotify(FullMsgId());
+			replyToMessageRequestNotify({});
 			_highlighter.clear();
 		}
 	};

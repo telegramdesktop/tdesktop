@@ -51,7 +51,7 @@ using FileKey = quint64;
 enum class StartResult : uchar;
 
 struct MessageDraft {
-	MsgId msgId = 0;
+	FullReplyTo reply;
 	TextWithTags textWithTags;
 	Data::PreviewState previewState = Data::PreviewState::Allowed;
 };

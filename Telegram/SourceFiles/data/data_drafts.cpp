@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
 #include "history/history_widget.h"
+#include "history/history_item_components.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "mainwidget.h"
@@ -21,14 +22,12 @@ namespace Data {
 
 Draft::Draft(
 	const TextWithTags &textWithTags,
-	MsgId msgId,
-	MsgId topicRootId,
+	FullReplyTo reply,
 	const MessageCursor &cursor,
 	PreviewState previewState,
 	mtpRequestId saveRequestId)
 : textWithTags(textWithTags)
-, msgId(msgId)
-, topicRootId(topicRootId)
+, reply(std::move(reply))
 , cursor(cursor)
 , previewState(previewState)
 , saveRequestId(saveRequestId) {
@@ -36,13 +35,11 @@ Draft::Draft(
 
 Draft::Draft(
 	not_null<const Ui::InputField*> field,
-	MsgId msgId,
-	MsgId topicRootId,
+	FullReplyTo reply,
 	PreviewState previewState,
 	mtpRequestId saveRequestId)
 : textWithTags(field->getTextWithTags())
-, msgId(msgId)
-, topicRootId(topicRootId)
+, reply(std::move(reply))
 , cursor(field)
 , previewState(previewState) {
 }
@@ -64,22 +61,26 @@ void ApplyPeerCloudDraft(
 				session,
 				draft.ventities().value_or_empty()))
 	};
-	auto replyTo = MsgId();
-	if (const auto reply = draft.vreply_to()) {
-		reply->match([&](const MTPDmessageReplyHeader &data) {
-			if (!data.vreply_to_peer_id()
-				|| (peerFromMTP(*data.vreply_to_peer_id()) == peerId)) {
-				replyTo = data.vreply_to_msg_id().value_or_empty();
-			} else {
-				// #TODO replies
-			}
-		}, [&](const MTPDmessageReplyStoryHeader &data) {
-		});
-	}
+	const auto reply = draft.vreply_to()
+		? ReplyFieldsFromMTP(history, *draft.vreply_to())
+		: ReplyFields();
+	const auto replyPeerId = reply.externalPeerId
+		? reply.externalPeerId
+		: peerId;
 	auto cloudDraft = std::make_unique<Draft>(
 		textWithTags,
-		replyTo,
-		topicRootId,
+		FullReplyTo{
+			.messageId = FullMsgId(replyPeerId, reply.messageId),
+			.quote = TextWithTags{
+				reply.quote.text,
+				TextUtilities::ConvertEntitiesToTextTags(
+					reply.quote.entities),
+			},
+			.storyId = (reply.storyId
+				? FullStoryId(replyPeerId, reply.storyId)
+				: FullStoryId()),
+			.topicRootId = topicRootId,
+		},
 		MessageCursor(Ui::kQFixedMax, Ui::kQFixedMax, Ui::kQFixedMax),
 		(draft.is_no_webpage()
 			? Data::PreviewState::Cancelled

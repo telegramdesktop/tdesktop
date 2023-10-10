@@ -353,7 +353,7 @@ public:
 	void init();
 
 	void editMessage(FullMsgId id, bool photoEditAllowed = false);
-	void replyToMessage(FullMsgId id);
+	void replyToMessage(FullReplyTo id);
 	void updateForwarding(
 		Data::Thread *thread,
 		Data::ResolvedForwardDraft items);
@@ -367,7 +367,7 @@ public:
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
-	[[nodiscard]] FullMsgId replyingToMessage() const;
+	[[nodiscard]] FullReplyTo replyingToMessage() const;
 	[[nodiscard]] FullMsgId editMsgId() const;
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
 	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
@@ -375,7 +375,7 @@ public:
 	[[nodiscard]] MessageToEdit queryToEdit();
 	[[nodiscard]] WebPageId webPageId() const;
 
-	[[nodiscard]] MsgId getDraftMessageId() const;
+	[[nodiscard]] FullReplyTo getDraftReply() const;
 	[[nodiscard]] rpl::producer<> editCancelled() const {
 		return _editCancelled.events();
 	}
@@ -425,7 +425,7 @@ private:
 	rpl::lifetime _previewLifetime;
 
 	rpl::variable<FullMsgId> _editMsgId;
-	rpl::variable<FullMsgId> _replyToId;
+	rpl::variable<FullReplyTo> _replyTo;
 	std::unique_ptr<ForwardPanel> _forwardPanel;
 	rpl::producer<> _toForwardUpdated;
 
@@ -508,14 +508,14 @@ void FieldHeader::init() {
 
 	_editMsgId.value(
 	) | rpl::start_with_next([=](FullMsgId value) {
-		const auto shown = value ? value : _replyToId.current();
+		const auto shown = value ? value : _replyTo.current().messageId;
 		setShownMessage(_data->message(shown));
 	}, lifetime());
 
-	_replyToId.value(
-	) | rpl::start_with_next([=](FullMsgId value) {
+	_replyTo.value(
+	) | rpl::start_with_next([=](const FullReplyTo &value) {
 		if (!_editMsgId.current()) {
-			setShownMessage(_data->message(value));
+			setShownMessage(_data->message(value.messageId));
 		}
 	}, lifetime());
 
@@ -529,7 +529,7 @@ void FieldHeader::init() {
 			if (_editMsgId.current() == update.item->fullId()) {
 				_editCancelled.fire({});
 			}
-			if (_replyToId.current() == update.item->fullId()) {
+			if (_replyTo.current().messageId == update.item->fullId()) {
 				_replyCancelled.fire({});
 			}
 		} else {
@@ -545,7 +545,7 @@ void FieldHeader::init() {
 			_editCancelled.fire({});
 		} else if (readyToForward()) {
 			_forwardCancelled.fire({});
-		} else if (_replyToId.current()) {
+		} else if (_replyTo.current()) {
 			_replyCancelled.fire({});
 		}
 		updateVisible();
@@ -624,7 +624,7 @@ void FieldHeader::init() {
 				} else {
 					auto id = isEditingMessage()
 						? _editMsgId.current()
-						: replyingToMessage();
+						: replyingToMessage().messageId;
 					_scrollToItemRequests.fire(std::move(id));
 				}
 			}
@@ -692,16 +692,18 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 }
 
 void FieldHeader::resolveMessageData() {
-	const auto id = (isEditingMessage() ? _editMsgId : _replyToId).current();
+	const auto id = isEditingMessage()
+		? _editMsgId.current()
+		: _replyTo.current().messageId;
 	if (!id) {
 		return;
 	}
 	const auto peer = _data->peer(id.peer);
 	const auto itemId = id.msg;
 	const auto callback = crl::guard(this, [=] {
-		const auto now = (isEditingMessage()
-			? _editMsgId
-			: _replyToId).current();
+		const auto now = isEditingMessage()
+			? _editMsgId.current()
+			: _replyTo.current().messageId;
 		if (now == id && !_shownMessage) {
 			if (const auto message = _data->message(peer, itemId)) {
 				setShownMessage(message);
@@ -950,8 +952,8 @@ const HistoryItemsList &FieldHeader::forwardItems() const {
 	return _forwardPanel->items();
 }
 
-FullMsgId FieldHeader::replyingToMessage() const {
-	return _replyToId.current();
+FullReplyTo FieldHeader::replyingToMessage() const {
+	return _replyTo.current();
 }
 
 bool FieldHeader::hasPreview() const {
@@ -962,8 +964,10 @@ WebPageId FieldHeader::webPageId() const {
 	return hasPreview() ? _preview.data->id : CancelledWebPageId;
 }
 
-MsgId FieldHeader::getDraftMessageId() const {
-	return (isEditingMessage() ? _editMsgId : _replyToId).current().msg;
+FullReplyTo FieldHeader::getDraftReply() const {
+	return isEditingMessage()
+		? FullReplyTo{ _editMsgId.current() }
+		: _replyTo.current();
 }
 
 void FieldHeader::updateControlsGeometry(QSize size) {
@@ -992,8 +996,8 @@ void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {
 	update();
 }
 
-void FieldHeader::replyToMessage(FullMsgId id) {
-	_replyToId = id;
+void FieldHeader::replyToMessage(FullReplyTo id) {
+	_replyTo = id;
 }
 
 void FieldHeader::updateForwarding(
@@ -1156,6 +1160,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	}
 	unregisterDraftSources();
 	_history = history;
+	_topicRootId = args.topicRootId;
 	_historyLifetime.destroy();
 	_header->setHistory(args);
 	registerDraftSource();
@@ -1193,8 +1198,10 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	orderControls();
 }
 
-void ComposeControls::setCurrentDialogsEntryState(Dialogs::EntryState state) {
+void ComposeControls::setCurrentDialogsEntryState(
+		Dialogs::EntryState state) {
 	unregisterDraftSources();
+	state.currentReplyTo.topicRootId = _topicRootId;
 	_currentDialogsEntryState = state;
 	updateForwarding();
 	registerDraftSource();
@@ -1472,16 +1479,12 @@ void ComposeControls::saveFieldToHistoryLocalDraft() {
 	if (!_history || !key) {
 		return;
 	}
-	const auto id = _header->getDraftMessageId();
+	const auto id = _header->getDraftReply();
 	if (_preview && (id || !_field->empty())) {
 		const auto key = draftKeyCurrent();
 		_history->setDraft(
 			key,
-			std::make_unique<Data::Draft>(
-				_field,
-				_header->getDraftMessageId(),
-				key.topicRootId(),
-				_preview->state()));
+			std::make_unique<Data::Draft>(_field, id, _preview->state()));
 	} else {
 		_history->clearDraft(draftKeyCurrent());
 	}
@@ -1757,7 +1760,7 @@ void ComposeControls::initKeyHandler() {
 					}
 				}
 				_replyNextRequests.fire({
-					.replyId = replyingToMessage(),
+					.replyId = replyingToMessage().messageId,
 					.direction = (isDown
 						? ReplyNextRequest::Direction::Next
 						: ReplyNextRequest::Direction::Previous)
@@ -2037,8 +2040,8 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 	case Section::History:
 	case Section::Replies:
 		return (type == DraftType::Edit)
-			? Key::LocalEdit(_currentDialogsEntryState.rootId)
-			: Key::Local(_currentDialogsEntryState.rootId);
+			? Key::LocalEdit(_topicRootId)
+			: Key::Local(_topicRootId);
 	case Section::Scheduled:
 		return (type == DraftType::Edit)
 			? Key::ScheduledEdit()
@@ -2102,7 +2105,7 @@ void ComposeControls::registerDraftSource() {
 	if (key != Data::DraftKey::None()) {
 		const auto draft = [=] {
 			return Storage::MessageDraft{
-				_header->getDraftMessageId(),
+				_header->getDraftReply(),
 				_field->getTextWithTags(),
 				_preview->state(),
 			};
@@ -2150,8 +2153,8 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	const auto draft = editDraft
 		? editDraft
 		: _history->draft(draftKey(DraftType::Normal));
-	const auto editingId = (draft == editDraft)
-		? FullMsgId{ _history->peer->id, draft ? draft->msgId : 0 }
+	const auto editingId = (draft && draft == editDraft)
+		? draft->reply.messageId
 		: FullMsgId();
 
 	InvokeQueued(_autocomplete.get(), [=] { updateStickersByEmoji(); });
@@ -2232,7 +2235,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	} else {
 		_canReplaceMedia = false;
 		_photoEditMedia = nullptr;
-		_header->replyToMessage({ _history->peer->id, draft->msgId });
+		_header->replyToMessage(draft->reply);
 		if (_header->replyingToMessage()) {
 			cancelForward();
 		}
@@ -2241,9 +2244,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 }
 
 void ComposeControls::cancelForward() {
-	_history->setForwardDraft(
-		_currentDialogsEntryState.rootId,
-		{});
+	_history->setForwardDraft(_topicRootId, {});
 	updateForwarding();
 }
 
@@ -2840,8 +2841,7 @@ void ComposeControls::toggleTabbedSelectorMode() {
 				&& !_regularWindow->adaptive().isOneColumn()) {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
-			const auto topic = _history->peer->forumTopicFor(
-				_currentDialogsEntryState.rootId);
+			const auto topic = _history->peer->forumTopicFor(_topicRootId);
 			pushTabbedSelectorToThirdSection(
 				(topic ? topic : (Data::Thread*)_history),
 				Window::SectionShow::Way::ClearStack);
@@ -2900,8 +2900,10 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 		key,
 		std::make_unique<Data::Draft>(
 			editData,
-			item->id,
-			key.topicRootId(),
+			FullReplyTo{
+				.messageId = item->fullId(),
+				.topicRootId = key.topicRootId(),
+			},
 			cursor,
 			previewState));
 	applyDraft();
@@ -2968,25 +2970,26 @@ void ComposeControls::maybeCancelEditMessage() {
 	}
 }
 
-void ComposeControls::replyToMessage(FullMsgId id) {
+void ComposeControls::replyToMessage(FullReplyTo id) {
 	Expects(_history != nullptr);
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
+	id.topicRootId = _topicRootId;
 	if (!id) {
 		cancelReplyMessage();
 		return;
 	}
 	if (isEditingMessage()) {
 		const auto key = draftKey(DraftType::Normal);
+		Assert(key.topicRootId() == id.topicRootId);
 		if (const auto localDraft = _history->draft(key)) {
-			localDraft->msgId = id.msg;
+			localDraft->reply = id;
 		} else {
 			_history->setDraft(
 				key,
 				std::make_unique<Data::Draft>(
 					TextWithTags(),
-					id.msg,
-					key.topicRootId(),
+					id,
 					MessageCursor(),
 					Data::PreviewState::Allowed));
 		}
@@ -3008,11 +3011,11 @@ void ComposeControls::cancelReplyMessage() {
 	if (_history) {
 		const auto key = draftKey(DraftType::Normal);
 		if (const auto localDraft = _history->draft(key)) {
-			if (localDraft->msgId) {
+			if (localDraft->reply.messageId) {
 				if (localDraft->textWithTags.text.isEmpty()) {
 					_history->clearDraft(key);
 				} else {
-					localDraft->msgId = 0;
+					localDraft->reply = {};
 				}
 			}
 		}
@@ -3025,7 +3028,7 @@ void ComposeControls::cancelReplyMessage() {
 }
 
 void ComposeControls::updateForwarding() {
-	const auto rootId = _currentDialogsEntryState.rootId;
+	const auto rootId = _topicRootId;
 	const auto thread = (_history && rootId)
 		? _history->peer->forumTopicFor(rootId)
 		: (Data::Thread*)_history;
@@ -3118,7 +3121,7 @@ void ComposeControls::initForwardProcess() {
 	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
 		if (const auto topic = update.entry->asTopic()) {
 			if (topic->history() == _history
-				&& topic->rootId() == _currentDialogsEntryState.rootId) {
+				&& topic->rootId() == _topicRootId) {
 				updateForwarding();
 			}
 		}
@@ -3145,8 +3148,10 @@ bool ComposeControls::isEditingMessage() const {
 	return _header->isEditingMessage();
 }
 
-FullMsgId ComposeControls::replyingToMessage() const {
-	return _header->replyingToMessage();
+FullReplyTo ComposeControls::replyingToMessage() const {
+	auto result = _header->replyingToMessage();
+	result.topicRootId = _topicRootId;
+	return result;
 }
 
 bool ComposeControls::readyToForward() const {

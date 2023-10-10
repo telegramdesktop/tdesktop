@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_msg_id.h"
+
 namespace Ui {
 class InputField;
 } // namespace Ui
@@ -38,22 +40,19 @@ struct Draft {
 	Draft() = default;
 	Draft(
 		const TextWithTags &textWithTags,
-		MsgId msgId,
-		MsgId topicRootId,
+		FullReplyTo reply,
 		const MessageCursor &cursor,
 		PreviewState previewState,
 		mtpRequestId saveRequestId = 0);
 	Draft(
 		not_null<const Ui::InputField*> field,
-		MsgId msgId,
-		MsgId topicRootId,
+		FullReplyTo reply,
 		PreviewState previewState,
 		mtpRequestId saveRequestId = 0);
 
 	TimeId date = 0;
 	TextWithTags textWithTags;
-	MsgId msgId = 0; // replyToId for message draft, editMsgId for edit draft
-	MsgId topicRootId = 0;
+	FullReplyTo reply; // reply.messageId.msg is editMsgId for edit draft.
 	MessageCursor cursor;
 	PreviewState previewState = PreviewState::Allowed;
 	mtpRequestId saveRequestId = 0;
@@ -167,7 +166,8 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 
 [[nodiscard]] inline bool DraftIsNull(const Draft *draft) {
 	return !draft
-		|| (!draft->msgId && DraftStringIsEmpty(draft->textWithTags.text));
+		|| (!draft->reply.messageId
+			&& DraftStringIsEmpty(draft->textWithTags.text));
 }
 
 [[nodiscard]] inline bool DraftsAreEqual(const Draft *a, const Draft *b) {
@@ -179,7 +179,7 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 		return false;
 	}
 	return (a->textWithTags == b->textWithTags)
-		&& (a->msgId == b->msgId)
+		&& (a->reply == b->reply)
 		&& (a->previewState == b->previewState);
 }
 

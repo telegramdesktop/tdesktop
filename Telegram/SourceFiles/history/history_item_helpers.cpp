@@ -192,13 +192,14 @@ bool ShouldSendSilent(
 			&& peer->session().settings().supportAllSilent());
 }
 
-HistoryItem *LookupReplyTo(not_null<History*> history, MsgId replyToId) {
-	const auto &owner = history->owner();
-	return owner.message(history->peer, replyToId);
+HistoryItem *LookupReplyTo(not_null<History*> history, FullMsgId replyTo) {
+	return history->owner().message(replyTo);
 }
 
-MsgId LookupReplyToTop(HistoryItem *replyTo) {
-	return replyTo ? replyTo->replyToTop() : 0;
+MsgId LookupReplyToTop(not_null<History*> history, HistoryItem *replyTo) {
+	return (replyTo && replyTo->history() == history)
+		? replyTo->replyToTop()
+		: 0;
 }
 
 bool LookupReplyIsTopicPost(HistoryItem *replyTo) {
@@ -360,27 +361,21 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 				MTP_long(peerToUser(replyTo.storyId.peer).bare),
 				MTP_int(replyTo.storyId.story));
 		}
-		const auto to = LookupReplyTo(action.history, replyTo.msgId);
-		if (const auto replyToTop = LookupReplyToTop(to)) {
-			using Flag = MTPDmessageReplyHeader::Flag;
-			return MTP_messageReplyHeader(
-				MTP_flags(Flag::f_reply_to_top_id
-					| (LookupReplyIsTopicPost(to)
-						? Flag::f_forum_topic
-						: Flag(0))),
-				MTP_int(replyTo.msgId),
-				MTPPeer(),
-				MTPMessageFwdHeader(), // reply_header
-				MTP_int(replyToTop),
-				MTPstring(), // quote_text
-				MTPVector<MTPMessageEntity>()); // quote_entities
-		}
+		using Flag = MTPDmessageReplyHeader::Flag;
+		const auto historyPeer = action.history->peer->id;
+		const auto externalPeerId = (replyTo.messageId.peer == historyPeer)
+			? PeerId()
+			: replyTo.messageId.peer;
+		const auto to = LookupReplyTo(action.history, replyTo.messageId);
+		const auto replyToTop = LookupReplyToTop(action.history, to);
 		return MTP_messageReplyHeader(
-			MTP_flags(0),
-			MTP_int(replyTo.msgId),
-			MTPPeer(), // reply_to_peer_id
+			MTP_flags(Flag::f_reply_to_msg_id
+				| (replyToTop ? Flag::f_reply_to_top_id : Flag())
+				| (externalPeerId ? Flag::f_reply_to_peer_id : Flag())),
+			MTP_int(replyTo.messageId.msg),
+			peerToMTP(externalPeerId),
 			MTPMessageFwdHeader(), // reply_header
-			MTPint(), // reply_to_top_id
+			MTP_int(replyToTop), // reply_to_top_id
 			MTPstring(), // quote_text
 			MTPVector<MTPMessageEntity>()); // quote_entities
 	}

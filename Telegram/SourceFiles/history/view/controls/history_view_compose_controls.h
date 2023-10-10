@@ -185,7 +185,7 @@ public:
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
-	[[nodiscard]] FullMsgId replyingToMessage() const;
+	[[nodiscard]] FullReplyTo replyingToMessage() const;
 
 	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;
 
@@ -198,7 +198,7 @@ public:
 	void cancelEditMessage();
 	void maybeCancelEditMessage(); // Confirm if changed and cancel.
 
-	void replyToMessage(FullMsgId id);
+	void replyToMessage(FullReplyTo id);
 	void cancelReplyMessage();
 
 	void updateForwarding();
@@ -345,6 +345,7 @@ private:
 	rpl::event_stream<ChatHelpers::FileChosen> _stickerOrEmojiChosen;
 
 	History *_history = nullptr;
+	MsgId _topicRootId = 0;
 	Fn<bool()> _showSlowmodeError;
 	Fn<Api::SendAction()> _sendActionFactory;
 	rpl::variable<int> _slowmodeSecondsLeft;

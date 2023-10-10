@@ -601,7 +601,7 @@ bool AddReplyToMessageAction(
 		if (!item) {
 			return;
 		}
-		list->replyToMessageRequestNotify(item->fullId());
+		list->replyToMessageRequestNotify({ item->fullId() });
 	}, &st::menuIconReply);
 	return true;
 }

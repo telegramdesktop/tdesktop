@@ -71,7 +71,7 @@ AdminLog::OwnedItem GenerateItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		PeerId from,
-		MsgId replyTo,
+		FullMsgId replyTo,
 		const QString &text) {
 	Expects(history->peer->isUser());
 
@@ -81,7 +81,7 @@ AdminLog::OwnedItem GenerateItem(
 			| MessageFlag::HasFromId
 			| MessageFlag::HasReplyInfo),
 		UserId(), // via
-		FullReplyTo{ .msgId = replyTo },
+		FullReplyTo{ .messageId = replyTo },
 		base::unixtime::now(), // date
 		from,
 		QString(), // postAuthor
@@ -143,13 +143,13 @@ void AddMessage(
 		GenerateUser(
 			history,
 			tr::lng_settings_chat_message_reply_from(tr::now)),
-		0,
+		FullMsgId(),
 		tr::lng_settings_chat_message_reply(tr::now));
 	auto message = GenerateItem(
 		state->delegate.get(),
 		history,
 		history->peer->id,
-		state->reply->data()->fullId().msg,
+		state->reply->data()->fullId(),
 		tr::lng_settings_chat_message(tr::now));
 	const auto view = message.get();
 	state->item = std::move(message);

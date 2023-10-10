@@ -464,7 +464,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 				if (reply) {
 					const auto replyRect = QRect(rectx, recty, rectw, recth);
 					if (replyRect.contains(point)) {
-						result.link = reply->replyToLink();
+						result.link = reply->link();
 						reply->ripple.lastPoint = point - replyRect.topLeft();
 						if (!reply->ripple.animation) {
 							reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
@@ -519,10 +519,9 @@ bool UnwrappedMedia::hasTextForCopy() const {
 	return _content->hasTextForCopy();
 }
 
-bool UnwrappedMedia::dragItemByHandler(
-		const ClickHandlerPtr &p) const {
+bool UnwrappedMedia::dragItemByHandler(const ClickHandlerPtr &p) const {
 	const auto reply = _parent->displayedReply();
-	return !(reply && (reply->replyToLink() == p));
+	return !reply || (reply->link() != p);
 }
 
 QRect UnwrappedMedia::contentRectForReactions() const {
@@ -642,7 +641,7 @@ int UnwrappedMedia::additionalWidth(
 		accumulate_max(result, 2 * st::msgReplyPadding.left() + via->maxWidth + st::msgReplyPadding.right());
 	}
 	if (reply) {
-		accumulate_max(result, st::msgReplyPadding.left() + reply->replyToWidth());
+		accumulate_max(result, st::msgReplyPadding.left() + reply->maxWidth());
 	}
 	return result;
 }

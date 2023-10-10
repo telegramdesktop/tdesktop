@@ -43,7 +43,7 @@ void Polls::create(
 
 	const auto history = action.history;
 	const auto peer = history->peer;
-	const auto topicRootId = action.replyTo.msgId
+	const auto topicRootId = action.replyTo.messageId
 		? action.replyTo.topicRootId
 		: 0;
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);

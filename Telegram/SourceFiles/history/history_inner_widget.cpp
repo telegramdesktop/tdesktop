@@ -287,7 +287,7 @@ public:
 
 		return _widget->elementPathShiftGradient();
 	}
-	void elementReplyTo(const FullMsgId &to) override {
+	void elementReplyTo(const FullReplyTo &to) override {
 		if (_widget) {
 			_widget->elementReplyTo(to);
 		}
@@ -2206,7 +2206,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}();
 		if (canReply) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
-				_widget->replyToMessage(itemId);
+				_widget->replyToMessage({ itemId });
 			}, &st::menuIconReply);
 		}
 		const auto repliesCount = item->repliesCount();
@@ -3481,7 +3481,7 @@ not_null<Ui::PathShiftGradient*> HistoryInner::elementPathShiftGradient() {
 	return _pathGradient.get();
 }
 
-void HistoryInner::elementReplyTo(const FullMsgId &to) {
+void HistoryInner::elementReplyTo(const FullReplyTo &to) {
 	return _widget->replyToMessage(to);
 }
 

@@ -86,8 +86,7 @@ void PeerMenuAddChannelMembers(
 void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
-	MsgId replyToId = 0,
-	MsgId topicRootId = 0,
+	FullReplyTo replyTo = FullReplyTo(),
 	PollData::Flags chosen = PollData::Flags(),
 	PollData::Flags disabled = PollData::Flags(),
 	Api::SendType sendType = Api::SendType::Normal,

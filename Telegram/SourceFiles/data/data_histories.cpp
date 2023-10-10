@@ -33,8 +33,9 @@ constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
 } // namespace
 
 MTPInputReplyTo ReplyToForMTP(
-		not_null<Session*> owner,
+		not_null<History*> history,
 		FullReplyTo replyTo) {
+	const auto owner = &history->owner();
 	if (replyTo.storyId) {
 		if (const auto peer = owner->peerLoaded(replyTo.storyId.peer)) {
 			if (const auto user = peer->asUser()) {
@@ -43,15 +44,19 @@ MTPInputReplyTo ReplyToForMTP(
 					MTP_int(replyTo.storyId.story));
 			}
 		}
-	} else if (replyTo.msgId || replyTo.topicRootId) {
+	} else if (replyTo.messageId || replyTo.topicRootId) {
+		const auto external = (replyTo.messageId.peer != history->peer->id);
 		using Flag = MTPDinputReplyToMessage::Flag;
-		return MTP_inputReplyToMessage( // #TODO replies
-			(replyTo.topicRootId
-				? MTP_flags(Flag::f_top_msg_id)
-				: MTP_flags(0)),
-			MTP_int(replyTo.msgId ? replyTo.msgId : replyTo.topicRootId),
+		return MTP_inputReplyToMessage(
+			MTP_flags((replyTo.topicRootId ? Flag::f_top_msg_id : Flag())
+				| (external ? Flag::f_reply_to_peer_id : Flag())),
+			MTP_int(replyTo.messageId
+				? replyTo.messageId.msg
+				: replyTo.topicRootId),
 			MTP_int(replyTo.topicRootId),
-			MTPInputPeer(), // reply_to_peer_id
+			(external
+				? owner->peer(replyTo.messageId.peer)->input
+				: MTPInputPeer()),
 			MTPstring(), // quote_text
 			MTPVector<MTPMessageEntity>()); // quote_entities
 	}
@@ -914,7 +919,7 @@ int Histories::sendPreparedMessage(
 		not_null<History*> history,
 		FullReplyTo replyTo,
 		uint64 randomId,
-		Fn<PreparedMessage(not_null<Session*>, FullReplyTo)> message,
+		Fn<PreparedMessage(not_null<History*>, FullReplyTo)> message,
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail) {
 	if (isCreatingTopic(history, replyTo.topicRootId)) {
@@ -929,7 +934,7 @@ int Histories::sendPreparedMessage(
 		}
 		i->second.push_back({
 			.randomId = randomId,
-			.replyTo = replyTo.msgId,
+			.replyTo = replyTo.messageId,
 			.message = std::move(message),
 			.done = std::move(done),
 			.fail = std::move(fail),
@@ -939,11 +944,11 @@ int Histories::sendPreparedMessage(
 		return id;
 	}
 	const auto realReplyTo = FullReplyTo{
-		.msgId = convertTopicReplyToId(history, replyTo.msgId),
-		.topicRootId = convertTopicReplyToId(history, replyTo.topicRootId),
+		.messageId = convertTopicReplyToId(history, replyTo.messageId),
 		.storyId = replyTo.storyId,
+		.topicRootId = convertTopicReplyToId(history, replyTo.topicRootId),
 	};
-	return v::match(message(_owner, realReplyTo), [&](const auto &request) {
+	return v::match(message(history, realReplyTo), [&](const auto &request) {
 		const auto type = RequestType::Send;
 		return sendRequest(history, type, [=](Fn<void()> finish) {
 			const auto session = &_owner->session();
@@ -987,7 +992,7 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 			sendPreparedMessage(
 				history,
 				FullReplyTo{
-					.msgId = entry.replyTo,
+					.messageId = entry.replyTo,
 					.topicRootId = realRoot,
 				},
 				entry.randomId,
@@ -1007,6 +1012,15 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 			}
 		}
 	}
+}
+
+FullMsgId Histories::convertTopicReplyToId(
+		not_null<History*> history,
+		FullMsgId replyToId) const {
+	const auto id = (history->peer->id == replyToId.peer)
+		? convertTopicReplyToId(history, replyToId.msg)
+		: replyToId.msg;
+	return { replyToId.peer, id };
 }
 
 MsgId Histories::convertTopicReplyToId(

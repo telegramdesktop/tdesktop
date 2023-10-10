@@ -477,7 +477,7 @@ void Message::refreshRightBadge() {
 		} else if (data()->author()->isMegagroup()) {
 			if (const auto msgsigned = data()->Get<HistoryMessageSigned>()) {
 				Assert(msgsigned->isAnonymousRank);
-				return msgsigned->author;
+				return msgsigned->postAuthor;
 			}
 		}
 		const auto channel = data()->history()->peer->asMegagroup();
@@ -801,9 +801,9 @@ QSize Message::performCountOptimalSize() {
 				accumulate_max(maxWidth, namew);
 			}
 			if (reply) {
-				auto replyw = st::msgPadding.left() + reply->maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
-				if (reply->replyToVia) {
-					replyw += st::msgServiceFont->spacew + reply->replyToVia->maxWidth;
+				auto replyw = st::msgPadding.left() + reply->maxWidth() - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
+				if (reply->originalVia) {
+					replyw += st::msgServiceFont->spacew + reply->originalVia->maxWidth;
 				}
 				accumulate_max(maxWidth, replyw);
 			}
@@ -1736,8 +1736,8 @@ void Message::clickHandlerPressedChanged(
 		toggleTopicButtonRipple(pressed);
 	} else if (_viewButton) {
 		_viewButton->checkLink(handler, pressed);
-	} else if (const auto reply = displayedReply();
-			reply && (handler == reply->replyToLink())) {
+	} else if (const auto reply = displayedReply()
+		; reply && (handler == reply->link())) {
 		toggleReplyRipple(pressed);
 	}
 }
@@ -2469,10 +2469,11 @@ bool Message::getStateReplyInfo(
 				trect.y() + st::msgReplyPadding.top(),
 				trect.width(),
 				st::msgReplyBarSize.height());
-			if ((reply->replyToMsg || reply->replyToStory)
-				&& g.contains(point)) {
-				outResult->link = reply->replyToLink();
-				reply->ripple.lastPoint = point - g.topLeft();
+			if (g.contains(point)) {
+				if (const auto link = reply->link()) {
+					outResult->link = reply->link();
+					reply->ripple.lastPoint = point - g.topLeft();
+				}
 			}
 			return true;
 		}
@@ -3439,7 +3440,7 @@ ClickHandlerPtr Message::fastReplyLink() const {
 	}
 	const auto itemId = data()->fullId();
 	_fastReplyLink = std::make_shared<LambdaClickHandler>([=] {
-		delegate()->elementReplyTo(itemId);
+		delegate()->elementReplyTo({ itemId });
 	});
 	return _fastReplyLink;
 }

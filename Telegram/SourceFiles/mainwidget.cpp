@@ -602,8 +602,7 @@ bool MainWidget::shareUrl(
 	const auto topicRootId = thread->topicRootId();
 	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
-		0, // replyTo
-		topicRootId,
+		FullReplyTo{ .topicRootId = topicRootId },
 		cursor,
 		Data::PreviewState::Allowed));
 	history->clearLocalEditDraft(topicRootId);
@@ -746,8 +745,8 @@ void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
 	}
 }
 
-void MainWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
-	_history->hideSingleUseKeyboard(peer, replyTo);
+void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
+	_history->hideSingleUseKeyboard(replyToId);
 }
 
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
