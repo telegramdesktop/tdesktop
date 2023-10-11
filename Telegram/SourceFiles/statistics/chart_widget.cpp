@@ -232,6 +232,8 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
+	int resizeGetHeight(int newWidth) override;
+
 private:
 	void moveSide(bool left, float64 x);
 	void moveCenter(
@@ -276,24 +278,6 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 	st::statisticsChartLineWidth,
 	Qt::SolidLine,
 	Qt::RoundCap) {
-	sizeValue(
-	) | rpl::start_with_next([=](const QSize &s) {
-		if (s.isNull()) {
-			return;
-		}
-		const auto was = xPercentageLimits();
-		const auto w = float64(st::statisticsChartFooterSideWidth);
-		_width = s.width() - w;
-		_widthBetweenSides = s.width() - w * 2.;
-		_mask = Ui::RippleAnimation::RoundRectMask(
-			s - QSize(0, st::lineWidth * 2),
-			st::boxRadius);
-		_frame = _mask;
-		if (_widthBetweenSides && was.max) {
-			setXPercentageLimits(was);
-		}
-	}, lifetime());
-
 	sizeValue(
 	) | rpl::take(2) | rpl::start_with_next([=](const QSize &s) {
 		moveSide(false, s.width());
@@ -376,6 +360,25 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 		}
 		update();
 	}, lifetime());
+}
+
+int ChartWidget::Footer::resizeGetHeight(int newWidth) {
+	const auto h = st::statisticsChartFooterHeight;
+	if (!newWidth) {
+		return h;
+	}
+	const auto was = xPercentageLimits();
+	const auto w = float64(st::statisticsChartFooterSideWidth);
+	_width = newWidth - w;
+	_widthBetweenSides = newWidth - w * 2.;
+	_mask = Ui::RippleAnimation::RoundRectMask(
+		QSize(newWidth, h - st::lineWidth * 2),
+		st::boxRadius);
+	_frame = _mask;
+	if (_widthBetweenSides && was.max) {
+		setXPercentageLimits(was);
+	}
+	return h;
 }
 
 Limits ChartWidget::Footer::xPercentageLimits() const {
@@ -867,14 +870,13 @@ int ChartWidget::resizeGetHeight(int newWidth) {
 		+ filtersHeight;
 	{
 		if (footerArea) {
-			_footer->setGeometry(
+			_footer->resizeToWidth(newWidth);
+			_footer->moveToLeft(
 				0,
 				resultHeight
 					- st::statisticsChartFooterHeight
 					- filtersTopSkip
-					- filtersHeight,
-				newWidth,
-				st::statisticsChartFooterHeight);
+					- filtersHeight);
 		}
 		if (_filterButtons) {
 			_filterButtons->moveToLeft(0, resultHeight - filtersHeight);
