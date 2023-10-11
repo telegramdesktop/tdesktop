@@ -317,7 +317,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			.peer = item->history()->peer,
 			.command = QString(button->text),
 			.context = item->fullId(),
-			.replyTo = replyTo,
+			.replyTo = { replyTo },
 		});
 	} break;
 

@@ -110,7 +110,7 @@ struct EntryState {
 	FilterId filterId = 0;
 	FullReplyTo currentReplyTo;
 
-	friend inline constexpr auto operator<=>(EntryState, EntryState) noexcept
+	friend inline auto operator<=>(EntryState, EntryState) noexcept
 		= default;
 };
 

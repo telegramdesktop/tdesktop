@@ -77,7 +77,7 @@ void ApplyPeerCloudDraft(
 					reply.quote.entities),
 			},
 			.storyId = (reply.storyId
-				? FullStoryId(replyPeerId, reply.storyId)
+				? FullStoryId{ replyPeerId, reply.storyId }
 				: FullStoryId()),
 			.topicRootId = topicRootId,
 		},
