@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/statistics/info_statistics_inner_widget.h"
 
-#include "info/statistics/info_statistics_widget.h"
 #include "api/api_statistics.h"
 #include "apiwrap.h"
 #include "data/data_peer.h"
@@ -17,13 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "info/statistics/info_statistics_recent_message.h"
+#include "info/statistics/info_statistics_widget.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
-#include "statistics/chart_header_widget.h"
 #include "statistics/chart_widget.h"
 #include "statistics/statistics_common.h"
+#include "statistics/widgets/chart_header_widget.h"
 #include "ui/layers/generic_box.h"
 #include "ui/rect.h"
 #include "ui/toast/toast.h"

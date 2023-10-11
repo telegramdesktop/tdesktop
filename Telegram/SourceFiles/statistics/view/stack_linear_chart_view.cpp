@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_statistics_chart.h"
 #include "statistics/chart_lines_filter_controller.h"
-#include "statistics/point_details_widget.h"
 #include "statistics/view/stack_chart_common.h"
+#include "statistics/widgets/point_details_widget.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
