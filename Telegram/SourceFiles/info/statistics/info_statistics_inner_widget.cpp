@@ -475,11 +475,14 @@ void FillRecentPosts(
 		const Descriptor &descriptor,
 		const Data::ChannelStatistics &stats,
 		Fn<void(FullMsgId)> showMessageStatistic) {
+	if (stats.recentMessageInteractions.empty()) {
+		return;
+	}
+
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
-	wrap->toggle(false, anim::type::instant);
 	const auto content = wrap->entity();
 	AddHeader(content, tr::lng_stats_recent_messages_title, { stats, {} });
 	::Settings::AddSkip(content);
@@ -510,12 +513,12 @@ void FillRecentPosts(
 			showMessageStatistic(fullId);
 		});
 		::Settings::AddSkip(messageWrap);
-		content->resizeToWidth(content->width());
 		if (!wrap->toggled()) {
 			wrap->toggle(true, anim::type::normal);
 		}
 	};
 
+	auto foundLoaded = false;
 	const auto &peer = descriptor.peer;
 	for (const auto &recent : stats.recentMessageInteractions) {
 		const auto messageWrap = content->add(
@@ -523,14 +526,19 @@ void FillRecentPosts(
 		const auto msgId = recent.messageId;
 		if (const auto item = peer->owner().message(peer, msgId)) {
 			addMessage(messageWrap, item, recent);
+			foundLoaded = true;
 			continue;
 		}
-		const auto callback = [=] {
+		const auto callback = crl::guard(content, [=] {
 			if (const auto item = peer->owner().message(peer, msgId)) {
 				addMessage(messageWrap, item, recent);
+				content->resizeToWidth(content->width());
 			}
-		};
+		});
 		peer->session().api().requestMessageData(peer, msgId, callback);
+	}
+	if (!foundLoaded) {
+		wrap->toggle(false, anim::type::instant);
 	}
 }
 
