@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
+#include "ui/boxes/boost_box.h" // StartFireworks.
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
@@ -371,18 +372,21 @@ void AddTableRow(
 		valueMargins);
 }
 
-void AddTableRow(
+not_null<Ui::FlatLabel*> AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
-		rpl::producer<QString> value) {
+		rpl::producer<TextWithEntities> value) {
+	auto widget = object_ptr<Ui::FlatLabel>(
+		table,
+		std::move(value),
+		st::giveawayGiftCodeValue);
+	const auto result = widget.data();
 	AddTableRow(
 		table,
 		std::move(label),
-		object_ptr<Ui::FlatLabel>(
-			table,
-			std::move(value),
-			st::giveawayGiftCodeValue),
+		std::move(widget),
 		st::giveawayGiftCodeValueMargin);
+	return result;
 }
 
 void AddTableRow(
@@ -524,16 +528,31 @@ void GiftCodeBox(
 		tr::lng_gift_link_label_gift(),
 		tr::lng_gift_link_gift_premium(
 			lt_duration,
-			GiftDurationValue(current.months)));
-	AddTableRow(
+			GiftDurationValue(current.months) | Ui::Text::ToWithEntities(),
+			Ui::Text::WithEntities));
+	const auto reason = AddTableRow(
 		table,
 		tr::lng_gift_link_label_reason(),
-		tr::lng_gift_link_reason_giveaway());
+		(current.giveawayId
+			? (tr::lng_gift_link_reason_giveaway() | Ui::Text::ToLink())
+			: current.giveaway
+			? (tr::lng_gift_link_reason_giveaway(
+				Ui::Text::WithEntities
+			) | rpl::type_erased())
+			: tr::lng_gift_link_reason_chosen(Ui::Text::WithEntities)));
+	reason->setClickHandlerFilter([=](const auto &...) {
+		controller->showPeerHistory(
+			current.from,
+			Window::SectionShow::Way::Forward,
+			current.giveawayId);
+		return false;
+	});
 	if (current.date) {
 		AddTableRow(
 			table,
 			tr::lng_gift_link_label_date(),
-			rpl::single(langDateTime(base::unixtime::parse(current.date))));
+			rpl::single(Ui::Text::WithEntities(
+				langDateTime(base::unixtime::parse(current.date)))));
 	}
 
 	auto shareLink = tr::lng_gift_link_also_send_link(
@@ -590,6 +609,8 @@ void GiftCodeBox(
 					auto copy = state->data.current();
 					copy.used = base::unixtime::now();
 					state->data = std::move(copy);
+
+					Ui::StartFireworks(box->parentWidget());
 				} else {
 					box->uiShow()->showToast(error);
 				}

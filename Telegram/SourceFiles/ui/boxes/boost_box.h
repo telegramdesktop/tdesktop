@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+void StartFireworks(not_null<QWidget*> parent);
+
 class GenericBox;
 class VerticalLayout;
 

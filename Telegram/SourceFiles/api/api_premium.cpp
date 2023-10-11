@@ -23,9 +23,11 @@ namespace {
 	return {
 		.from = peerFromMTP(data.vfrom_id()),
 		.to = data.vto_id() ? peerFromUser(*data.vto_id()) : PeerId(),
+		.giveawayId = data.vgiveaway_msg_id().value_or_empty(),
 		.date = data.vdate().v,
 		.used = data.vused_date().value_or_empty(),
 		.months = data.vmonths().v,
+		.giveaway = data.is_via_giveaway(),
 	};
 }
 

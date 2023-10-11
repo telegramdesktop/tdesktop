@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_premium.h"
 
 namespace Ui {
-namespace {
 
 void StartFireworks(not_null<QWidget*> parent) {
 	const auto result = Ui::CreateChild<RpWidget>(parent.get());
@@ -36,8 +35,6 @@ void StartFireworks(not_null<QWidget*> parent) {
 		}
 	}, lifetime);
 }
-
-} // namespace
 
 void BoostBox(
 		not_null<GenericBox*> box,

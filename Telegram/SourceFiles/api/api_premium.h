@@ -21,9 +21,11 @@ namespace Api {
 struct GiftCode {
 	PeerId from = 0;
 	PeerId to = 0;
+	MsgId giveawayId = 0;
 	TimeId date = 0;
 	TimeId used = 0; // 0 if not used.
 	int months = 0;
+	bool giveaway = false;
 
 	explicit operator bool() const {
 		return months != 0;
