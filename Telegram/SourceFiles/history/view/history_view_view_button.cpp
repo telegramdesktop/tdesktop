@@ -89,6 +89,9 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 	if (const auto giveaway = media->giveaway()) {
 		const auto peer = media->parent()->history()->peer;
 		const auto messageId = media->parent()->id;
+		if (media->parent()->isSending() || media->parent()->hasFailed()) {
+			return nullptr;
+		}
 		const auto info = *giveaway;
 		return std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {

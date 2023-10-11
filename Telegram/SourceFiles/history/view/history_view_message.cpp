@@ -2955,6 +2955,10 @@ void Message::refreshDataIdHook() {
 	if (base::take(_fastReplyLink)) {
 		_fastReplyLink = fastReplyLink();
 	}
+	if (_viewButton) {
+		_viewButton = nullptr;
+		updateViewButtonExistence();
+	}
 	if (_comments) {
 		_comments->link = nullptr;
 	}
