@@ -2076,15 +2076,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_prize_title" = "Congratulations!";
 "lng_prize_about" = "You won a prize in a giveaway organized by {channel}.";
-"lng_prize_duration" = "Your prize is a **Telegram Premium** subscription for {duration}.";
+"lng_prize_duration" = "Your prize is a **Telegram Premium** subscription {duration}.";
 "lng_prize_gift_about" = "You've received a gift from {channel}.";
-"lng_prize_gift_duration" = "Your gift is a **Telegram Premium** subscription for {duration}.";
+"lng_prize_gift_duration" = "Your gift is a **Telegram Premium** subscription {duration}.";
 "lng_prize_open" = "Open Gift Link";
 
 "lng_prizes_title#one" = "Giveaway Prize";
 "lng_prizes_title#other" = "Giveaway Prizes";
-"lng_prizes_about#one" = "**{count}** Telegram Premium Subscription for {duration}.";
-"lng_prizes_about#other" = "**{count}** Telegram Premium Subscriptions for {duration}.";
+"lng_prizes_about#one" = "**{count}** Telegram Premium Subscription {duration}.";
+"lng_prizes_about#other" = "**{count}** Telegram Premium Subscriptions {duration}.";
 "lng_prizes_participants" = "Participants";
 "lng_prizes_participants_all#one" = "All subscribers of the channel:";
 "lng_prizes_participants_all#other" = "All subscribers of the channels:";
@@ -2096,10 +2096,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_end_title" = "Giveaway ended";
 "lng_prizes_how_text" = "This giveaway is sponsored by {admins}.";
 "lng_prizes_end_text" = "This giveaway was sponsored by {admins}.";
-"lng_prizes_admins#one" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscription for {duration} for its followers";
-"lng_prizes_admins#other" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscriptions for {duration} for its followers.";
+"lng_prizes_admins#one" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscription {duration} for its followers";
+"lng_prizes_admins#other" = "the admins of {channel}, who aquired **{count} Telegram Premium** subscriptions {duration} for its followers.";
 "lng_prizes_how_when_finish" = "On {date}, Telegram will automatically select {winners}.";
 "lng_prizes_end_when_finish" = "On {date}, Telegram automatically selected {winners}.";
+"lng_prizes_end_activated#one" = "**{count}** of the winners already used their gift link.";
+"lng_prizes_end_activated#other" = "**{count}** of the winners already used their gift links.";
 "lng_prizes_winners_all_of_one#one" = "{count} random subscribers of {channel}.";
 "lng_prizes_winners_all_of_one#other" = "{count} random subscribers of {channel}.";
 "lng_prizes_winners_all_of_many#one" = "{count} random subscribers of {channel} and other listed channels.";
@@ -2112,8 +2114,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_how_participate_many" = "To take part in this giveaway please join channel {channel} and other listed channels before {date}.";
 "lng_prizes_how_no_admin" = "You are not eligible to participate in this giveaway, because you are an admin of participating channel ({channel}).";
 "lng_prizes_how_no_joined" = "You are not eligible to participate in this giveaway, because you joined this channel on {date}, which is before the contest started.";
-"lng_prizes_how_yes_joined" = "You are participating in this giveaway, because you have joined channel {channel} (and other listed channels).";
+"lng_prizes_how_yes_joined_one" = "You are participating in this giveaway, because you have joined channel {channel}.";
+"lng_prizes_how_yes_joined_many" = "You are participating in this giveaway, because you have joined channel {channel} (and other listed channels).";
 "lng_prizes_you_won" = "You won a prize in this giveaway {cup}";
+"lng_prizes_view_prize" = "View my prize";
 "lng_prizes_you_didnt" = "You didn't win a prize in this giveaway.";
 "lng_prizes_cancelled" = "The channel cancelled the prizes by reversing the payment for them.";
 "lng_prizes_badge" = "x{amount}";
@@ -2123,7 +2127,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_link_label_from" = "From";
 "lng_gift_link_label_to" = "To";
 "lng_gift_link_label_gift" = "Gift";
-"lng_gift_link_gift_premium" = "Telegram Premium for {duration}";
+"lng_gift_link_gift_premium" = "Telegram Premium {duration}";
 "lng_gift_link_label_reason" = "Reason";
 "lng_gift_link_reason_giveaway" = "Giveaway";
 "lng_gift_link_label_date" = "Date";

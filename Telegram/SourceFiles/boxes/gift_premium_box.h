@@ -15,6 +15,10 @@ namespace Api {
 struct GiftCode;
 } // namespace Api
 
+namespace Data {
+struct Giveaway;
+} // namespace Data
+
 namespace Ui {
 class GenericBox;
 } // namespace Ui
@@ -38,6 +42,9 @@ private:
 
 };
 
+[[nodiscard]] rpl::producer<QString> GiftDurationValue(int months);
+[[nodiscard]] QString GiftDuration(int months);
+
 void GiftCodeBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Window::SessionController*> controller,
@@ -45,3 +52,9 @@ void GiftCodeBox(
 void ResolveGiftCode(
 	not_null<Window::SessionController*> controller,
 	const QString &slug);
+
+void ResolveGiveawayInfo(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	MsgId messageId,
+	Data::Giveaway giveaway);

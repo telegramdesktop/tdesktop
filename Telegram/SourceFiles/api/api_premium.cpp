@@ -242,6 +242,65 @@ rpl::producer<GiftCode> Premium::giftCodeValue(const QString &slug) const {
 	});
 }
 
+void Premium::applyGiftCode(const QString &slug, Fn<void(QString)> done) {
+	_api.request(MTPpayments_ApplyGiftCode(
+		MTP_string(slug)
+	)).done([=](const MTPUpdates &result) {
+		_session->api().applyUpdates(result);
+		done({});
+	}).fail([=](const MTP::Error &error) {
+		done(error.type());
+	}).send();
+}
+
+void Premium::resolveGiveawayInfo(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		Fn<void(GiveawayInfo)> done) {
+	Expects(done != nullptr);
+
+	_giveawayInfoDone = std::move(done);
+	if (_giveawayInfoRequestId) {
+		if (_giveawayInfoPeer == peer
+			&& _giveawayInfoMessageId == messageId) {
+			return;
+		}
+		_api.request(_giveawayInfoRequestId).cancel();
+	}
+	_giveawayInfoPeer = peer;
+	_giveawayInfoMessageId = messageId;
+	_giveawayInfoRequestId = _api.request(MTPpayments_GetGiveawayInfo(
+		_giveawayInfoPeer->input,
+		MTP_int(_giveawayInfoMessageId.bare)
+	)).done([=](const MTPpayments_GiveawayInfo &result) {
+		_giveawayInfoRequestId = 0;
+
+		auto info = GiveawayInfo();
+		result.match([&](const MTPDpayments_giveawayInfo &data) {
+			info.participating = data.is_participating();
+			info.state = data.is_preparing_results()
+				? GiveawayState::Preparing
+				: GiveawayState::Running;
+			info.adminChannelId = data.vadmin_disallowed_chat_id()
+				? ChannelId(*data.vadmin_disallowed_chat_id())
+				: ChannelId();
+			info.tooEarlyDate
+				= data.vjoined_too_early_date().value_or_empty();
+		}, [&](const MTPDpayments_giveawayInfoResults &data) {
+			info.state = data.is_refunded()
+				? GiveawayState::Refunded
+				: GiveawayState::Finished;
+			info.giftCode = qs(data.vgift_code_slug().value_or_empty());
+			info.activatedCount = data.vactivated_count().v;
+			info.finishDate = data.vfinish_date().v;
+		});
+		_giveawayInfoDone(std::move(info));
+	}).fail([=] {
+		_giveawayInfoRequestId = 0;
+		_giveawayInfoDone({});
+	}).send();
+}
+
 const Data::SubscriptionOptions &Premium::subscriptionOptions() const {
 	return _subscriptionOptions;
 }

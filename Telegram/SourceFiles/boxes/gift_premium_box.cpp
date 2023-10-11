@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "boxes/peers/prepare_short_info_box.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_media_types.h" // Data::Giveaway
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
 #include "data/data_subscription_option.h"
@@ -312,10 +314,10 @@ struct GiftCodeLink {
 	return result;
 }
 
-[[nodiscard]] rpl::producer<QString> DurationValue(int months) {
+[[nodiscard]] tr::phrase<lngtag_count> GiftDurationPhrase(int months) {
 	return (months < 12)
-		? tr::lng_months(lt_count, rpl::single(float64(months)))
-		: tr::lng_years(lt_count, rpl::single(float64(months / 12)));
+		? tr::lng_premium_gift_duration_months
+		: tr::lng_premium_gift_duration_years;
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePeerTableValue(
@@ -437,6 +439,19 @@ void GiftPremiumValidator::showBox(not_null<UserData*> user) {
 	}).send();
 }
 
+rpl::producer<QString> GiftDurationValue(int months) {
+	return GiftDurationPhrase(months)(
+		lt_count,
+		rpl::single(float64((months < 12) ? months : (months / 12))));
+}
+
+QString GiftDuration(int months) {
+	return GiftDurationPhrase(months)(
+		tr::now,
+		lt_count,
+		(months < 12) ? months : (months / 12));
+}
+
 void GiftCodeBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -444,6 +459,7 @@ void GiftCodeBox(
 	struct State {
 		rpl::variable<Api::GiftCode> data;
 		rpl::variable<bool> used;
+		bool sent = false;
 	};
 	const auto session = &controller->session();
 	const auto state = box->lifetime().make_state<State>(State{});
@@ -508,7 +524,7 @@ void GiftCodeBox(
 		tr::lng_gift_link_label_gift(),
 		tr::lng_gift_link_gift_premium(
 			lt_duration,
-			DurationValue(current.months)));
+			GiftDurationValue(current.months)));
 	AddTableRow(
 		table,
 		tr::lng_gift_link_label_reason(),
@@ -567,10 +583,18 @@ void GiftCodeBox(
 	), [=] {
 		if (state->used.current()) {
 			box->closeBox();
-		} else {
-			auto copy = state->data.current();
-			copy.used = base::unixtime::now();
-			state->data = std::move(copy);
+		} else if (!state->sent) {
+			state->sent = true;
+			const auto done = crl::guard(box, [=](const QString &error) {
+				if (error.isEmpty()) {
+					auto copy = state->data.current();
+					copy.used = base::unixtime::now();
+					state->data = std::move(copy);
+				} else {
+					box->uiShow()->showToast(error);
+				}
+			});
+			controller->session().api().premium().applyGiftCode(slug, done);
 		}
 	});
 	const auto buttonPadding = st::giveawayGiftCodeBox.buttonPadding;
@@ -597,4 +621,180 @@ void ResolveGiftCode(
 	controller->session().api().premium().checkGiftCode(
 		slug,
 		crl::guard(controller, done));
+}
+
+void GiveawayInfoBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> controller,
+		Data::Giveaway giveaway,
+		Api::GiveawayInfo info) {
+	using State = Api::GiveawayState;
+	const auto finished = (info.state == State::Finished)
+		|| (info.state == State::Refunded);
+
+	box->setTitle((finished
+		? tr::lng_prizes_end_title
+		: tr::lng_prizes_how_title)());
+
+	const auto first = !giveaway.channels.empty()
+		? giveaway.channels.front()->name()
+		: u"channel"_q;
+	auto text = (finished
+		? tr::lng_prizes_end_text
+		: tr::lng_prizes_how_text)(
+			tr::now,
+			lt_admins,
+			tr::lng_prizes_admins(
+				tr::now,
+				lt_count,
+				giveaway.quantity,
+				lt_channel,
+				Ui::Text::Bold(first),
+				lt_duration,
+				TextWithEntities{ GiftDuration(giveaway.months) },
+				Ui::Text::RichLangValue),
+			Ui::Text::RichLangValue);
+	const auto many = (giveaway.channels.size() > 1);
+	const auto count = info.winnersCount
+		? info.winnersCount
+		: giveaway.quantity;
+	auto winners = giveaway.all
+		? (many
+			? tr::lng_prizes_winners_all_of_many
+			: tr::lng_prizes_winners_all_of_one)(
+				tr::now,
+				lt_count,
+				count,
+				lt_channel,
+				Ui::Text::Bold(first),
+				Ui::Text::RichLangValue)
+		: (many
+			? tr::lng_prizes_winners_new_of_many
+			: tr::lng_prizes_winners_new_of_one)(
+				tr::now,
+				lt_count,
+				count,
+				lt_channel,
+				Ui::Text::Bold(first),
+				lt_start_date,
+				Ui::Text::Bold("some date"),
+				Ui::Text::RichLangValue);
+	text.append("\n\n").append((finished
+		? tr::lng_prizes_end_when_finish
+		: tr::lng_prizes_how_when_finish)(
+			tr::now,
+			lt_date,
+			Ui::Text::Bold(langDayOfMonthFull(
+				base::unixtime::parse(giveaway.untilDate).date())),
+			lt_winners,
+			winners,
+			Ui::Text::RichLangValue));
+	if (info.activatedCount > 0) {
+		text.append(' ').append(tr::lng_prizes_end_activated(
+			tr::now,
+			lt_count,
+			info.activatedCount));
+	}
+	if (!info.giftCode.isEmpty()) {
+		text.append("\n\n");
+		text.append(tr::lng_prizes_you_won(
+			tr::now,
+			lt_cup,
+			QString::fromUtf8("\xf0\x9f\x8f\x86")));
+	} else if (info.state == State::Finished) {
+		text.append("\n\n");
+		text.append(tr::lng_prizes_you_didnt(tr::now));
+	} else if (info.state == State::Preparing) {
+
+	} else if (info.state != State::Refunded) {
+		if (info.adminChannelId) {
+			const auto channel = controller->session().data().channel(
+				info.adminChannelId);
+			text.append("\n\n").append(tr::lng_prizes_how_no_admin(
+				tr::now,
+				lt_channel,
+				Ui::Text::Bold(channel->name()),
+				Ui::Text::RichLangValue));
+		} else if (info.tooEarlyDate) {
+			text.append("\n\n").append(tr::lng_prizes_how_no_joined(
+				tr::now,
+				lt_date,
+				Ui::Text::Bold(
+					langDateTime(base::unixtime::parse(info.tooEarlyDate))),
+				Ui::Text::RichLangValue));
+		} else if (info.participating) {
+			text.append("\n\n").append((many
+				? tr::lng_prizes_how_yes_joined_many
+				: tr::lng_prizes_how_yes_joined_one)(
+					tr::now,
+					lt_channel,
+					Ui::Text::Bold(first),
+					Ui::Text::RichLangValue));
+		} else {
+			text.append("\n\n").append((many
+				? tr::lng_prizes_how_participate_many
+				: tr::lng_prizes_how_participate_one)(
+					tr::now,
+					lt_channel,
+					Ui::Text::Bold(first),
+					lt_date,
+					Ui::Text::Bold(langDayOfMonthFull(
+						base::unixtime::parse(giveaway.untilDate).date())),
+					Ui::Text::RichLangValue));
+		}
+	}
+	const auto padding = st::boxPadding;
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box.get(),
+			rpl::single(std::move(text)),
+			st::boxLabel),
+		{ padding.left(), 0, padding.right(), padding.bottom() });
+
+	if (info.state == State::Refunded) {
+		const auto wrap = box->addRow(
+			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+				box.get(),
+				object_ptr<Ui::FlatLabel>(
+					box.get(),
+					tr::lng_prizes_cancelled(),
+					st::giveawayRefundedLabel),
+				st::giveawayRefundedPadding),
+			{ padding.left(), 0, padding.right(), padding.bottom() });
+		const auto bg = wrap->lifetime().make_state<Ui::RoundRect>(
+			st::boxRadius,
+			st::attentionBoxButton.textBgOver);
+		wrap->paintRequest() | rpl::start_with_next([=] {
+			auto p = QPainter(wrap);
+			bg->paint(p, wrap->rect());
+		}, wrap->lifetime());
+	}
+	if (const auto slug = info.giftCode; !slug.isEmpty()) {
+		box->addButton(tr::lng_prizes_view_prize(), [=] {
+			ResolveGiftCode(controller, slug);
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	} else {
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	}
+}
+
+void ResolveGiveawayInfo(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		Data::Giveaway giveaway) {
+	const auto show = [=](Api::GiveawayInfo info) {
+		if (!info) {
+			controller->showToast(
+				tr::lng_confirm_phone_link_invalid(tr::now));
+		} else {
+			controller->show(
+				Box(GiveawayInfoBox, controller, giveaway, info));
+		}
+	};
+	controller->session().api().premium().resolveGiveawayInfo(
+		peer,
+		messageId,
+		crl::guard(controller, show));
 }

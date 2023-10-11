@@ -23,18 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 namespace HistoryView {
-namespace {
-
-[[nodiscard]] QString FormatGiftMonths(int months) {
-	return (months < 12)
-		? tr::lng_premium_gift_duration_months(tr::now, lt_count, months)
-		: tr::lng_premium_gift_duration_years(
-			tr::now,
-			lt_count,
-			std::round(months / 12.));
-}
-
-} // namespace
 
 PremiumGift::PremiumGift(
 	not_null<Element*> parent,
@@ -62,11 +50,8 @@ QString PremiumGift::title() {
 
 TextWithEntities PremiumGift::subtitle() {
 	if (_data.slug.isEmpty()) {
-		return { FormatGiftMonths(_data.months) };
+		return { GiftDuration(_data.months) };
 	}
-	const auto duration = (_data.months < 12)
-		? tr::lng_months(tr::now, lt_count, _data.months)
-		: tr::lng_years(tr::now, lt_count, _data.months / 12);
 	const auto name = _data.channel ? _data.channel->name() : "channel";
 	auto result = (_data.viaGiveaway
 		? tr::lng_prize_about
@@ -81,7 +66,7 @@ TextWithEntities PremiumGift::subtitle() {
 		: tr::lng_prize_gift_duration)(
 			tr::now,
 			lt_duration,
-			Ui::Text::Bold(duration),
+			Ui::Text::Bold(GiftDuration(_data.months)),
 			Ui::Text::RichLangValue));
 	return result;
 }

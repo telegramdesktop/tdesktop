@@ -342,3 +342,9 @@ giveawayGiftCodeBox: Box(defaultBox) {
 	}
 	shadowIgnoreTopSkip: true;
 }
+giveawayRefundedLabel: FlatLabel(boxLabel) {
+	align: align(top);
+	style: semiboldTextStyle;
+	textFg: attentionButtonFg;
+}
+giveawayRefundedPadding: margins(8px, 10px, 8px, 10px);

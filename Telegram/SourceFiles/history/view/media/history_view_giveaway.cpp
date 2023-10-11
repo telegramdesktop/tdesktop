@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_giveaway.h"
 
 #include "base/unixtime.h"
+#include "boxes/gift_premium_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
@@ -91,9 +92,6 @@ void Giveaway::fillFromData(not_null<Data::Giveaway*> giveaway) {
 		tr::lng_prizes_title(tr::now, lt_count, _quantity),
 		kDefaultTextOptions);
 
-	const auto duration = (_months < 12)
-		? tr::lng_months(tr::now, lt_count, _months)
-		: tr::lng_years(tr::now, lt_count, _months / 12);
 	_prizes.setMarkedText(
 		st::defaultTextStyle,
 		tr::lng_prizes_about(
@@ -101,7 +99,7 @@ void Giveaway::fillFromData(not_null<Data::Giveaway*> giveaway) {
 			lt_count,
 			_quantity,
 			lt_duration,
-			Ui::Text::Bold(duration),
+			Ui::Text::Bold(GiftDuration(_months)),
 			Ui::Text::RichLangValue),
 		kDefaultTextOptions);
 	_participantsTitle.setText(

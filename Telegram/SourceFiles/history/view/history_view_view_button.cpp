@@ -16,8 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_sponsored_messages.h"
 #include "data/data_user.h"
 #include "data/data_web_page.h"
-#include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/history_item_components.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/click_handler.h"
@@ -86,6 +87,9 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 [[nodiscard]] ClickHandlerPtr MakeMediaButtonClickHandler(
 		not_null<Data::Media*> media) {
 	if (const auto giveaway = media->giveaway()) {
+		const auto peer = media->parent()->history()->peer;
+		const auto messageId = media->parent()->id;
+		const auto info = *giveaway;
 		return std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {
 			const auto my = context.other.value<ClickHandlerContext>();
@@ -93,6 +97,7 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 			if (!controller) {
 				return;
 			}
+			ResolveGiveawayInfo(controller, peer, messageId, info);
 		});
 	}
 	const auto webpage = media->webpage();
