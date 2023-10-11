@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "mainwidget.h"
 #include "settings/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/boxes/boost_box.h" // StartFireworks.
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/table_layout.h"
+#include "window/window_peer_menu.h" // ShowChooseRecipientBox.
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
@@ -580,7 +582,14 @@ void GiftCodeBox(
 			st::giveawayGiftCodeFooter),
 		st::giveawayGiftCodeFooterMargin);
 	footer->setClickHandlerFilter([=](const auto &...) {
-		box->uiShow()->showToast(u"Sharing..."_q);
+		const auto chosen = [=](not_null<Data::Thread*> thread) {
+			const auto content = controller->content();
+			return content->shareUrl(
+				thread,
+				MakeGiftCodeLink(&controller->session(), slug).link,
+				QString());
+		};
+		Window::ShowChooseRecipientBox(controller, chosen);
 		return false;
 	});
 
