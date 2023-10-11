@@ -33,6 +33,22 @@ namespace {
 	}
 }
 
+[[nodiscard]] QString FormatWeek(float64 timestamp) {
+	constexpr auto kSevenDays = 3600 * 24 * 7;
+	const auto leftFormatter = u"d MMM"_q;
+	const auto rightFormatter = u"d MMM yyyy"_q;
+	timestamp /= 1000;
+	return QLocale().toString(
+			QDateTime::fromSecsSinceEpoch(timestamp).date(),
+			leftFormatter)
+		+ ' '
+		+ QChar(8212)
+		+ ' '
+		+ QLocale().toString(
+			QDateTime::fromSecsSinceEpoch(timestamp + kSevenDays).date(),
+			rightFormatter);
+}
+
 void PaintShadow(QPainter &p, int radius, const QRect &r) {
 	constexpr auto kHorizontalOffset = 1;
 	constexpr auto kHorizontalOffset2 = 2;
@@ -185,10 +201,12 @@ PointDetailsWidget::PointDetailsWidget(
 		{
 			const auto maxHeaderText = Ui::Text::String(
 				_headerStyle,
-				FormatTimestamp(
-					_chartData.x.front(),
-					_longFormat,
-					_shortFormat));
+				_chartData.weekFormat
+					? FormatWeek(_chartData.x.front())
+					: FormatTimestamp(
+						_chartData.x.front(),
+						_longFormat,
+						_shortFormat));
 			maxNameTextWidth = std::max(
 				maxHeaderText.maxWidth()
 					+ st::statisticsDetailsPopupPadding.left(),
@@ -252,6 +270,8 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 			_headerStyle,
 			(timestamp < kOneDay)
 				? _chartData.getDayString(xIndex)
+				: _chartData.weekFormat
+				? FormatWeek(timestamp)
 				: FormatTimestamp(timestamp, _longFormat, _shortFormat));
 	}
 

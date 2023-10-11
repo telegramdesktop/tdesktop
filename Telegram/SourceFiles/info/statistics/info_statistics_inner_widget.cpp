@@ -200,10 +200,10 @@ void FillStatistic(
 			stats.supergroup.dayGraph,
 			tr::lng_chart_title_group_day(),
 			Type::Linear);
-		// addChart(
-		// 	stats.supergroup.weekGraph,
-		// 	tr::lng_chart_title_group_week(),
-		// 	Type::StackLinear);
+		addChart(
+			stats.supergroup.weekGraph,
+			tr::lng_chart_title_group_week(),
+			Type::StackLinear);
 	} else if (stats.message) {
 		addChart(
 			stats.message.messageInteractionGraph,

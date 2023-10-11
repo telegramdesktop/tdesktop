@@ -64,6 +64,7 @@ struct StatisticalChart {
 
 	bool isFooterHidden = false;
 	bool hasPercentages = false;
+	bool weekFormat = false;
 
 };
 

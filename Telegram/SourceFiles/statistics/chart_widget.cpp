@@ -76,11 +76,13 @@ void FillLineColorsByKey(Data::StatisticalChart &chartData) {
 	const auto leftDateTime = QDateTime::fromSecsSinceEpoch(
 		leftTimestamp / 1000);
 	const auto leftText = QLocale().toString(leftDateTime.date(), formatter);
-	if (xIndexMin == xIndexMax) {
+	if ((xIndexMin == xIndexMax) && !chartData.weekFormat) {
 		return leftText;
 	} else {
-		const auto rightDateTime = QDateTime::fromSecsSinceEpoch(
-			chartData.x[xIndexMax] / 1000);
+		constexpr auto kSevenDays = 3600 * 24 * 7;
+		const auto rightDateTime = QDateTime::fromSecsSinceEpoch(0
+			+ (chartData.x[xIndexMax] / 1000)
+			+ (chartData.weekFormat ? kSevenDays : 0));
 		return leftText
 			+ ' '
 			+ QChar(8212)

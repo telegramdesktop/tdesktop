@@ -125,6 +125,13 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 			}
 		}
 	}
+	{
+		const auto tooltipFormatIt = root.constFind(u"xTooltipFormatter"_q);
+		if (tooltipFormatIt != root.constEnd()) {
+			const auto tooltipFormat = tooltipFormatIt->toString();
+			result.weekFormat = tooltipFormat.contains(u"'week'"_q);
+		}
+	}
 
 	const auto colors = root.value(u"colors"_q).toObject();
 	const auto names = root.value(u"names"_q).toObject();
