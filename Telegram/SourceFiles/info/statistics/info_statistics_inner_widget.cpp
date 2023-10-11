@@ -70,44 +70,10 @@ void ProcessZoom(
 	}, widget->lifetime());
 }
 
-void ProcessChart(
-		const Descriptor &d,
-		not_null<Ui::SlideWrap<Ui::VerticalLayout>*> wrap,
-		not_null<Statistic::ChartWidget*> widget,
-		const Data::StatisticalGraph &graphData,
-		rpl::producer<QString> &&title,
-		Statistic::ChartViewType type) {
-	wrap->toggle(false, anim::type::instant);
-	if (graphData.chart) {
-		widget->setChartData(graphData.chart, type);
-		wrap->toggle(true, anim::type::instant);
-		ProcessZoom(d, widget, graphData.zoomToken, type);
-		widget->setTitle(std::move(title));
-	} else if (!graphData.zoomToken.isEmpty()) {
-		d.api->requestZoom(
-			d.peer,
-			graphData.zoomToken,
-			0
-		) | rpl::start_with_next_error_done([=](
-				const Data::StatisticalGraph &graph) {
-			if (graph.chart) {
-				widget->setChartData(graph.chart, type);
-				wrap->toggle(true, anim::type::normal);
-				ProcessZoom(d, widget, graph.zoomToken, type);
-				widget->setTitle(rpl::duplicate(title));
-			} else if (!graph.error.isEmpty()) {
-				Ui::Toast::Show(d.toastParent, graph.error);
-			}
-		}, [=](const QString &error) {
-		}, [=] {
-		}, widget->lifetime());
-	}
-}
-
 void FillStatistic(
 		not_null<Ui::VerticalLayout*> content,
 		const Descriptor &descriptor,
-		const Data::AnyStatistics &stats) {
+		Data::AnyStatistics &stats) {
 	using Type = Statistic::ChartViewType;
 	const auto &padding = st::statisticsChartEntryPadding;
 	const auto &m = st::statisticsLayerMargins;
@@ -117,98 +83,130 @@ void FillStatistic(
 		::Settings::AddSkip(c, padding.top());
 	};
 	const auto addChart = [&](
-			const Data::StatisticalGraph &graphData,
+			Data::StatisticalGraph &graphData,
 			rpl::producer<QString> &&title,
 			Statistic::ChartViewType type) {
-		const auto wrap = content->add(
-			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-				content,
-				object_ptr<Ui::VerticalLayout>(content)));
-		ProcessChart(
-			descriptor,
-			wrap,
-			wrap->entity()->add(
+		if (graphData.chart) {
+			const auto widget = content->add(
 				object_ptr<Statistic::ChartWidget>(content),
-				m),
-			graphData,
-			std::move(title),
-			type);
-		addSkip(wrap->entity());
+				m);
+
+			widget->setChartData(graphData.chart, type);
+			ProcessZoom(descriptor, widget, graphData.zoomToken, type);
+			widget->setTitle(std::move(title));
+
+			addSkip(content);
+		} else if (!graphData.zoomToken.isEmpty()) {
+			const auto wrap = content->add(
+				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+					content,
+					object_ptr<Ui::VerticalLayout>(content)));
+			wrap->toggle(false, anim::type::instant);
+			const auto widget = wrap->entity()->add(
+				object_ptr<Statistic::ChartWidget>(content),
+				m);
+
+			descriptor.api->requestZoom(
+				descriptor.peer,
+				graphData.zoomToken,
+				0
+			) | rpl::start_with_next_error_done([=, graphPtr = &graphData](
+					const Data::StatisticalGraph &graph) mutable {
+				{
+					// Save the loaded async data to cache.
+					// Guarded by content->lifetime().
+					*graphPtr = graph;
+				}
+
+				if (graph.chart) {
+					widget->setChartData(graph.chart, type);
+					wrap->toggle(true, anim::type::normal);
+					ProcessZoom(descriptor, widget, graph.zoomToken, type);
+					widget->setTitle(rpl::duplicate(title));
+				} else if (!graph.error.isEmpty()) {
+					Ui::Toast::Show(descriptor.toastParent, graph.error);
+				}
+			}, [=](const QString &error) {
+			}, [=] {
+			}, content->lifetime());
+
+			addSkip(wrap->entity());
+		}
 	};
 	addSkip(content);
-	if (const auto s = stats.channel) {
+	if (stats.channel) {
 		addChart(
-			s.memberCountGraph,
+			stats.channel.memberCountGraph,
 			tr::lng_chart_title_member_count(),
 			Type::Linear);
 		addChart(
-			s.joinGraph,
+			stats.channel.joinGraph,
 			tr::lng_chart_title_join(),
 			Type::Linear);
 		addChart(
-			s.muteGraph,
+			stats.channel.muteGraph,
 			tr::lng_chart_title_mute(),
 			Type::Linear);
 		addChart(
-			s.viewCountByHourGraph,
+			stats.channel.viewCountByHourGraph,
 			tr::lng_chart_title_view_count_by_hour(),
 			Type::Linear);
 		addChart(
-			s.viewCountBySourceGraph,
+			stats.channel.viewCountBySourceGraph,
 			tr::lng_chart_title_view_count_by_source(),
 			Type::Stack);
 		addChart(
-			s.joinBySourceGraph,
+			stats.channel.joinBySourceGraph,
 			tr::lng_chart_title_join_by_source(),
 			Type::Stack);
 		addChart(
-			s.languageGraph,
+			stats.channel.languageGraph,
 			tr::lng_chart_title_language(),
 			Type::StackLinear);
 		addChart(
-			s.messageInteractionGraph,
+			stats.channel.messageInteractionGraph,
 			tr::lng_chart_title_message_interaction(),
 			Type::DoubleLinear);
 		addChart(
-			s.instantViewInteractionGraph,
+			stats.channel.instantViewInteractionGraph,
 			tr::lng_chart_title_instant_view_interaction(),
 			Type::DoubleLinear);
-	} else if (const auto s = stats.supergroup) {
+	} else if (stats.supergroup) {
 		addChart(
-			s.memberCountGraph,
+			stats.supergroup.memberCountGraph,
 			tr::lng_chart_title_member_count(),
 			Type::Linear);
 		addChart(
-			s.joinGraph,
+			stats.supergroup.joinGraph,
 			tr::lng_chart_title_group_join(),
 			Type::Linear);
 		addChart(
-			s.joinBySourceGraph,
+			stats.supergroup.joinBySourceGraph,
 			tr::lng_chart_title_group_join_by_source(),
 			Type::Stack);
 		addChart(
-			s.languageGraph,
+			stats.supergroup.languageGraph,
 			tr::lng_chart_title_group_language(),
 			Type::StackLinear);
 		addChart(
-			s.messageContentGraph,
+			stats.supergroup.messageContentGraph,
 			tr::lng_chart_title_group_message_content(),
 			Type::Stack);
 		addChart(
-			s.actionGraph,
+			stats.supergroup.actionGraph,
 			tr::lng_chart_title_group_action(),
 			Type::DoubleLinear);
 		addChart(
-			s.dayGraph,
+			stats.supergroup.dayGraph,
 			tr::lng_chart_title_group_day(),
 			Type::Linear);
 		// addChart(
-		// 	s.weekGraph,
+		// 	stats.supergroup.weekGraph,
 		// 	tr::lng_chart_title_group_week(),
 		// 	Type::StackLinear);
-	} else if (const auto message = stats.message) {
+	} else if (stats.message) {
 		addChart(
-			message.messageInteractionGraph,
+			stats.message.messageInteractionGraph,
 			tr::lng_chart_title_message_interaction(),
 			Type::DoubleLinear);
 	}
