@@ -465,4 +465,106 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 
 }
 
+Boosts::Boosts(not_null<PeerData*> peer)
+: _peer(peer)
+, _api(&peer->session().api().instance()) {
+}
+
+rpl::producer<rpl::no_value, QString> Boosts::request() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto channel = _peer->asChannel();
+		if (!channel || channel->isMegagroup()) {
+			return lifetime;
+		}
+
+		_api.request(MTPstories_GetBoostsStatus(
+			_peer->input
+		)).done([=](const MTPstories_BoostsStatus &result) {
+			const auto &data = result.data();
+			const auto hasPremium = !!data.vpremium_audience();
+			const auto premiumMemberCount = hasPremium
+				? std::max(0, int(data.vpremium_audience()->data().vpart().v))
+				: 0;
+			const auto participantCount = hasPremium
+				? std::max(
+					int(data.vpremium_audience()->data().vtotal().v),
+					premiumMemberCount)
+				: 0;
+			const auto premiumMemberPercentage = (participantCount > 0)
+				? (100. * premiumMemberCount / participantCount)
+				: 0;
+
+			_boostStatus.overview = Data::BoostsOverview{
+				.isBoosted = data.is_my_boost(),
+				.level = std::max(data.vlevel().v, 0),
+				.boostCount = std::max(
+					data.vboosts().v,
+					data.vcurrent_level_boosts().v),
+				.currentLevelBoostCount = data.vcurrent_level_boosts().v,
+				.nextLevelBoostCount = data.vnext_level_boosts()
+					? data.vnext_level_boosts()->v
+					: 0,
+				.premiumMemberCount = premiumMemberCount,
+				.premiumMemberPercentage = premiumMemberPercentage,
+			};
+			_boostStatus.link = qs(data.vboost_url());
+
+			requestBoosts({}, [=](Data::BoostsListSlice &&slice) {
+				_boostStatus.firstSlice = std::move(slice);
+				consumer.put_done();
+			});
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+void Boosts::requestBoosts(
+		const Data::BoostsListSlice::OffsetToken &token,
+		Fn<void(Data::BoostsListSlice)> done) {
+	if (_requestId) {
+		return;
+	}
+	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
+	constexpr auto kTlLimit = tl::make_int(kLimit);
+	_requestId = _api.request(MTPstories_GetBoostersList(
+		_peer->input,
+		MTP_string(token.next),
+		token.next.isEmpty() ? kTlFirstSlice : kTlLimit
+	)).done([=](const MTPstories_BoostersList &result) {
+		_requestId = 0;
+
+		const auto &data = result.data();
+		_peer->owner().processUsers(data.vusers());
+
+		auto list = std::vector<Data::Boost>();
+		list.reserve(data.vboosters().v.size());
+		for (const auto &boost : data.vboosters().v) {
+			list.push_back({
+				boost.data().vuser_id().v,
+				QDateTime::fromSecsSinceEpoch(boost.data().vexpires().v),
+			});
+		}
+		done(Data::BoostsListSlice{
+			.list = std::move(list),
+			.total = data.vcount().v,
+			.allLoaded = (data.vcount().v == data.vboosters().v.size()),
+			.token = Data::BoostsListSlice::OffsetToken{
+				data.vnext_offset()
+					? qs(*data.vnext_offset())
+					: QString()
+			},
+		});
+	}).fail([=] {
+		_requestId = 0;
+	}).send();
+}
+
+Data::BoostStatus Boosts::boostStatus() const {
+	return _boostStatus;
+}
+
 } // namespace Api
