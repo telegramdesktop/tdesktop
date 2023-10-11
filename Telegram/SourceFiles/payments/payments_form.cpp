@@ -316,12 +316,20 @@ MTPInputInvoice Form::inputInvoice() const {
 						: Flag())
 					| (giveaway.additionalChannels.empty()
 						? Flag()
-						: Flag::f_additional_peers)),
+						: Flag::f_additional_peers)
+					| (giveaway.countries.empty()
+						? Flag()
+						: Flag::f_countries_iso2)),
 				giveaway.boostPeer->input,
 				MTP_vector<MTPInputPeer>(ranges::views::all(
 					giveaway.additionalChannels
 				) | ranges::views::transform([](not_null<ChannelData*> c) {
 					return MTPInputPeer(c->input);
+				}) | ranges::to<QVector>()),
+				MTP_vector<MTPstring>(ranges::views::all(
+					giveaway.countries
+				) | ranges::views::transform([](QString value) {
+					return MTP_string(value);
 				}) | ranges::to<QVector>()),
 				MTP_long(giftCode.randomId),
 				MTP_int(giveaway.untilDate),

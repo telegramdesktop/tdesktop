@@ -130,7 +130,7 @@ messageMediaGeoLive#b940c666 flags:# geo:GeoPoint heading:flags.0?int period:int
 messageMediaPoll#4bd6e798 poll:Poll results:PollResults = MessageMedia;
 messageMediaDice#3f7ee58b value:int emoticon:string = MessageMedia;
 messageMediaStory#68cb6283 flags:# via_mention:flags.1?true peer:Peer id:int story:flags.0?StoryItem = MessageMedia;
-messageMediaGiveaway#4291677c flags:# only_new_subscribers:flags.0?true channels:Vector<long> quantity:int months:int until_date:int = MessageMedia;
+messageMediaGiveaway#58260664 flags:# only_new_subscribers:flags.0?true channels:Vector<long> countries_iso2:flags.1?Vector<string> quantity:int months:int until_date:int = MessageMedia;
 
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#bd47cbad title:string users:Vector<long> = MessageAction;
@@ -1419,7 +1419,7 @@ help.premiumPromo#5334759c status_text:string status_entities:Vector<MessageEnti
 inputStorePaymentPremiumSubscription#a6751e66 flags:# restore:flags.0?true upgrade:flags.1?true = InputStorePaymentPurpose;
 inputStorePaymentGiftPremium#616f7fe8 user_id:InputUser currency:string amount:long = InputStorePaymentPurpose;
 inputStorePaymentPremiumGiftCode#a3805f3f flags:# users:Vector<InputUser> boost_peer:flags.0?InputPeer currency:string amount:long = InputStorePaymentPurpose;
-inputStorePaymentPremiumGiveaway#e94a2529 flags:# only_new_subscribers:flags.0?true boost_peer:InputPeer additional_peers:flags.1?Vector<InputPeer> random_id:long until_date:int currency:string amount:long = InputStorePaymentPurpose;
+inputStorePaymentPremiumGiveaway#7c9375e6 flags:# only_new_subscribers:flags.0?true boost_peer:InputPeer additional_peers:flags.1?Vector<InputPeer> countries_iso2:flags.2?Vector<string> random_id:long until_date:int currency:string amount:long = InputStorePaymentPurpose;
 
 premiumGiftOption#74c34319 flags:# months:int currency:string amount:long bot_url:string store_product:flags.0?string = PremiumGiftOption;
 
@@ -1569,7 +1569,7 @@ peerStories#9a35e999 flags:# peer:Peer max_read_id:flags.0?int stories:Vector<St
 
 stories.peerStories#cae68768 stories:PeerStories chats:Vector<Chat> users:Vector<User> = stories.PeerStories;
 
-stories.boostsStatus#e5c1aa5c flags:# my_boost:flags.2?true level:int current_level_boosts:int boosts:int next_level_boosts:flags.0?int premium_audience:flags.1?StatsPercentValue boost_url:string = stories.BoostsStatus;
+stories.boostsStatus#71f2770d flags:# my_boost:flags.2?true level:int current_level_boosts:int boosts:int next_level_boosts:flags.0?int premium_audience:flags.1?StatsPercentValue boost_url:string prepaid_giveaways:flags.3?Vector<PrepaidGiveaway> = stories.BoostsStatus;
 
 stories.canApplyBoostOk#c3173587 = stories.CanApplyBoostResult;
 stories.canApplyBoostReplace#712c4655 current_boost:Peer chats:Vector<Chat> = stories.CanApplyBoostResult;
@@ -1586,6 +1586,8 @@ payments.checkedGiftCode#b722f158 flags:# via_giveaway:flags.2?true from_id:Peer
 
 payments.giveawayInfo#7a7bdc5a flags:# participating:flags.0?true preparing_results:flags.3?true joined_too_early_date:flags.1?int admin_disallowed_chat_id:flags.2?long = payments.GiveawayInfo;
 payments.giveawayInfoResults#38c32424 flags:# winner:flags.0?true refunded:flags.1?true gift_code_slug:flags.0?string finish_date:int winners_count:int activated_count:int = payments.GiveawayInfo;
+
+prepaidGiveaway#b2539d54 id:long months:int quantity:int date:int = PrepaidGiveaway;
 
 ---functions---
 
@@ -2059,6 +2061,7 @@ payments.getPremiumGiftCodeOptions#2757ba54 flags:# boost_peer:flags.0?InputPeer
 payments.checkGiftCode#8e51b4c1 slug:string = payments.CheckedGiftCode;
 payments.applyGiftCode#f6e26854 slug:string = Updates;
 payments.getGiveawayInfo#f4239425 peer:InputPeer msg_id:int = payments.GiveawayInfo;
+payments.launchPrepaidGiveaway#5ff58f20 peer:InputPeer giveaway_id:long purpose:InputStorePaymentPurpose = Updates;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
