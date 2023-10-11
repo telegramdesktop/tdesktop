@@ -43,21 +43,11 @@ private:
 
 class PublicForwards final {
 public:
-	struct OffsetToken final {
-		int rate = 0;
-		FullMsgId fullId;
-	};
-
-	struct Slice {
-		QVector<FullMsgId> list;
-		int total = 0;
-		bool allLoaded = false;
-		OffsetToken token;
-	};
-
 	explicit PublicForwards(not_null<ChannelData*> channel, FullMsgId fullId);
 
-	void request(const OffsetToken &token, Fn<void(Slice)> done);
+	void request(
+		const Data::PublicForwardsSlice::OffsetToken &token,
+		Fn<void(Data::PublicForwardsSlice)> done);
 
 private:
 	const not_null<ChannelData*> _channel;
@@ -77,14 +67,14 @@ public:
 
 	void request(Fn<void(Data::MessageStatistics)> done);
 
-	[[nodiscard]] PublicForwards::Slice firstSlice() const;
+	[[nodiscard]] Data::PublicForwardsSlice firstSlice() const;
 
 private:
 	PublicForwards _publicForwards;
 	const not_null<ChannelData*> _channel;
 	const FullMsgId _fullId;
 
-	PublicForwards::Slice _firstSlice;
+	Data::PublicForwardsSlice _firstSlice;
 
 	mtpRequestId _requestId = 0;
 	MTP::Sender _api;

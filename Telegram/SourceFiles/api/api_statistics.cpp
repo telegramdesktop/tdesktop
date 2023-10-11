@@ -298,8 +298,8 @@ PublicForwards::PublicForwards(
 }
 
 void PublicForwards::request(
-		const OffsetToken &token,
-		Fn<void(Slice)> done) {
+		const Data::PublicForwardsSlice::OffsetToken &token,
+		Fn<void(Data::PublicForwardsSlice)> done) {
 	if (_requestId) {
 		return;
 	}
@@ -319,7 +319,7 @@ void PublicForwards::request(
 		using Messages = QVector<FullMsgId>;
 		_requestId = 0;
 
-		auto nextToken = OffsetToken();
+		auto nextToken = Data::PublicForwardsSlice::OffsetToken();
 		const auto process = [&](const MTPVector<MTPMessage> &messages) {
 			auto result = Messages();
 			for (const auto &message : messages.v) {
@@ -397,7 +397,7 @@ MessageStatistics::MessageStatistics(
 , _api(&channel->session().api().instance()) {
 }
 
-PublicForwards::Slice MessageStatistics::firstSlice() const {
+Data::PublicForwardsSlice MessageStatistics::firstSlice() const {
 	return _firstSlice;
 }
 
@@ -409,7 +409,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 	const auto requestFirstPublicForwards = [=](
 			const Data::StatisticalGraph &messageGraph,
 			const Data::StatisticsMessageInteractionInfo &info) {
-		_publicForwards.request({}, [=](PublicForwards::Slice slice) {
+		_publicForwards.request({}, [=](Data::PublicForwardsSlice slice) {
 			const auto total = slice.total;
 			_firstSlice = std::move(slice);
 			done({

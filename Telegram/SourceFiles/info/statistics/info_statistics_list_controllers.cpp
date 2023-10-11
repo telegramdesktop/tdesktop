@@ -59,7 +59,7 @@ void AddSubsectionTitle(
 }
 
 struct Descriptor final {
-	Api::PublicForwards::Slice firstSlice;
+	Data::PublicForwardsSlice firstSlice;
 	Fn<void(FullMsgId)> showPeerHistory;
 	not_null<PeerData*> peer;
 	FullMsgId contextId;
@@ -199,14 +199,14 @@ public:
 
 private:
 	bool appendRow(not_null<PeerData*> peer, MsgId msgId);
-	void applySlice(const Api::PublicForwards::Slice &slice);
+	void applySlice(const Data::PublicForwardsSlice &slice);
 
 	const not_null<Main::Session*> _session;
 	Fn<void(FullMsgId)> _showPeerHistory;
 
 	Api::PublicForwards _api;
-	Api::PublicForwards::Slice _firstSlice;
-	Api::PublicForwards::OffsetToken _apiToken;
+	Data::PublicForwardsSlice _firstSlice;
+	Data::PublicForwardsSlice::OffsetToken _apiToken;
 
 	bool _allLoaded = false;
 
@@ -232,13 +232,13 @@ void PublicForwardsController::loadMoreRows() {
 	if (_allLoaded) {
 		return;
 	}
-	_api.request(_apiToken, [=](const Api::PublicForwards::Slice &slice) {
+	_api.request(_apiToken, [=](const Data::PublicForwardsSlice &slice) {
 		applySlice(slice);
 	});
 }
 
 void PublicForwardsController::applySlice(
-		const Api::PublicForwards::Slice &slice) {
+		const Data::PublicForwardsSlice &slice) {
 	_allLoaded = slice.allLoaded;
 	_apiToken = slice.token;
 
@@ -291,7 +291,7 @@ bool PublicForwardsController::appendRow(
 } // namespace
 
 void AddPublicForwards(
-		const Api::MessageStatistics &firstSliceHolder,
+		const Data::PublicForwardsSlice &firstSlice,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(FullMsgId)> showPeerHistory,
 		not_null<PeerData*> peer,
@@ -307,13 +307,13 @@ void AddPublicForwards(
 		PublicForwardsController controller;
 	};
 	const auto state = container->lifetime().make_state<State>(Descriptor{
-		firstSliceHolder.firstSlice(),
+		firstSlice,
 		std::move(showPeerHistory),
 		peer,
 		contextId,
 	});
 
-	if (const auto total = firstSliceHolder.firstSlice().total; total > 0) {
+	if (const auto total = firstSlice.total; total > 0) {
 		AddSubsectionTitle(
 			container,
 			tr::lng_stats_overview_message_public_share(

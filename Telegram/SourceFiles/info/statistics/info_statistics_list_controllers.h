@@ -13,18 +13,15 @@ namespace Ui {
 class VerticalLayout;
 } // namespace Ui
 
-namespace Api {
-class MessageStatistics;
-} // namespace Api
-
 namespace Data {
+struct PublicForwardsSlice;
 struct SupergroupStatistics;
 } // namespace Data
 
 namespace Info::Statistics {
 
 void AddPublicForwards(
-	const Api::MessageStatistics &firstSliceHolder,
+	const Data::PublicForwardsSlice &firstSlice,
 	not_null<Ui::VerticalLayout*> container,
 	Fn<void(FullMsgId)> showPeerHistory,
 	not_null<PeerData*> peer,

@@ -525,6 +525,7 @@ void InnerWidget::load() {
 
 			api->request([=](const Data::MessageStatistics &data) {
 				_state.stats = Data::AnyStatistics{ .message = data };
+				_state.publicForwardsFirstSlice = api->firstSlice();
 				fill();
 
 				finishLoading();
@@ -587,16 +588,10 @@ void InnerWidget::fill() {
 				tr::lng_stats_inviters_title());
 		}
 	} else if (message) {
-		auto showPeerHistory = [=](FullMsgId fullId) {
-			_showRequests.fire({ .history = fullId });
-		};
-		const auto api = lifetime().make_state<Api::MessageStatistics>(
-			descriptor.peer->asChannel(),
-			_contextId);
 		AddPublicForwards(
-			*api,
+			_state.publicForwardsFirstSlice,
 			inner,
-			std::move(showPeerHistory),
+			[=](FullMsgId id) { _showRequests.fire({ .history = id }); },
 			descriptor.peer,
 			_contextId);
 	}

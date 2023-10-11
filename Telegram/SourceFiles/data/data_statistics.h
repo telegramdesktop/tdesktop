@@ -119,4 +119,15 @@ struct AnyStatistics final {
 	Data::MessageStatistics message;
 };
 
+struct PublicForwardsSlice final {
+	struct OffsetToken final {
+		int rate = 0;
+		FullMsgId fullId;
+	};
+	QVector<FullMsgId> list;
+	int total = 0;
+	bool allLoaded = false;
+	OffsetToken token;
+};
+
 } // namespace Data
