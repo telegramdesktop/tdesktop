@@ -470,78 +470,6 @@ void FillOverview(
 	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.bottom());
 }
 
-void FillRecentPosts(
-		not_null<Ui::VerticalLayout*> container,
-		const Descriptor &descriptor,
-		const Data::ChannelStatistics &stats,
-		Fn<void(FullMsgId)> showMessageStatistic) {
-	if (stats.recentMessageInteractions.empty()) {
-		return;
-	}
-
-	const auto wrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
-	const auto content = wrap->entity();
-	AddHeader(content, tr::lng_stats_recent_messages_title, { stats, {} });
-	::Settings::AddSkip(content);
-
-	const auto addMessage = [=](
-			not_null<Ui::VerticalLayout*> messageWrap,
-			not_null<HistoryItem*> item,
-			const Data::StatisticsMessageInteractionInfo &info) {
-		const auto button = messageWrap->add(
-			object_ptr<Ui::SettingsButton>(
-				messageWrap,
-				rpl::never<QString>(),
-				st::statisticsRecentPostButton));
-		const auto raw = Ui::CreateChild<MessagePreview>(
-			button,
-			item,
-			info.viewsCount,
-			info.forwardsCount);
-		raw->show();
-		button->sizeValue(
-		) | rpl::start_with_next([=](const QSize &s) {
-			if (!s.isNull()) {
-				raw->setGeometry(Rect(s)
-					- st::statisticsRecentPostButton.padding);
-			}
-		}, raw->lifetime());
-		button->setClickedCallback([=, fullId = item->fullId()] {
-			showMessageStatistic(fullId);
-		});
-		::Settings::AddSkip(messageWrap);
-		if (!wrap->toggled()) {
-			wrap->toggle(true, anim::type::normal);
-		}
-	};
-
-	auto foundLoaded = false;
-	const auto &peer = descriptor.peer;
-	for (const auto &recent : stats.recentMessageInteractions) {
-		const auto messageWrap = content->add(
-			object_ptr<Ui::VerticalLayout>(content));
-		const auto msgId = recent.messageId;
-		if (const auto item = peer->owner().message(peer, msgId)) {
-			addMessage(messageWrap, item, recent);
-			foundLoaded = true;
-			continue;
-		}
-		const auto callback = crl::guard(content, [=] {
-			if (const auto item = peer->owner().message(peer, msgId)) {
-				addMessage(messageWrap, item, recent);
-				content->resizeToWidth(content->width());
-			}
-		});
-		peer->session().api().requestMessageData(peer, msgId, callback);
-	}
-	if (!foundLoaded) {
-		wrap->toggle(false, anim::type::instant);
-	}
-}
-
 } // namespace
 
 InnerWidget::InnerWidget(
@@ -581,7 +509,7 @@ void InnerWidget::load() {
 			descriptor.api->request(
 				descriptor.peer
 			) | rpl::start_with_done([=] {
-				_loadedStats = Data::AnyStatistics{
+				_state.stats = Data::AnyStatistics{
 					descriptor.api->channelStats(),
 					descriptor.api->supergroupStats(),
 				};
@@ -596,7 +524,7 @@ void InnerWidget::load() {
 				_contextId);
 
 			api->request([=](const Data::MessageStatistics &data) {
-				_loadedStats = Data::AnyStatistics{ .message = data };
+				_state.stats = Data::AnyStatistics{ .message = data };
 				fill();
 
 				finishLoading();
@@ -613,16 +541,13 @@ void InnerWidget::fill() {
 		lifetime().make_state<Api::Statistics>(&_peer->session().api()),
 		_controller->uiShow()->toastParent(),
 	};
-	FillOverview(inner, _loadedStats);
-	FillStatistic(inner, descriptor, _loadedStats);
-	const auto &channel = _loadedStats.channel;
-	const auto &supergroup = _loadedStats.supergroup;
-	const auto &message = _loadedStats.message;
+	FillOverview(inner, _state.stats);
+	FillStatistic(inner, descriptor, _state.stats);
+	const auto &channel = _state.stats.channel;
+	const auto &supergroup = _state.stats.supergroup;
+	const auto &message = _state.stats.message;
 	if (channel) {
-		auto showMessage = [=](FullMsgId fullId) {
-			_showRequests.fire({ .messageStatistic = fullId });
-		};
-		FillRecentPosts(inner, descriptor, channel, showMessage);
+		fillRecentPosts();
 	} else if (supergroup) {
 		const auto showPeerInfo = [=](not_null<PeerData*> peer) {
 			_showRequests.fire({ .info = peer->id });
@@ -677,15 +602,95 @@ void InnerWidget::fill() {
 	}
 }
 
+void InnerWidget::fillRecentPosts() {
+	const auto &stats = _state.stats.channel;
+	if (!stats || stats.recentMessageInteractions.empty()) {
+		return;
+	}
+	_messagePreviews.reserve(stats.recentMessageInteractions.size());
+	const auto container = this;
+
+	const auto wrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto content = wrap->entity();
+	AddHeader(content, tr::lng_stats_recent_messages_title, { stats, {} });
+	::Settings::AddSkip(content);
+
+	const auto addMessage = [=](
+			not_null<Ui::VerticalLayout*> messageWrap,
+			not_null<HistoryItem*> item,
+			const Data::StatisticsMessageInteractionInfo &info) {
+		const auto button = messageWrap->add(
+			object_ptr<Ui::SettingsButton>(
+				messageWrap,
+				rpl::never<QString>(),
+				st::statisticsRecentPostButton));
+		auto it = _state.recentPostPreviews.find(item->fullId().msg);
+		auto cachedPreview = (it != end(_state.recentPostPreviews))
+			? base::take(it->second)
+			: QImage();
+		const auto raw = Ui::CreateChild<MessagePreview>(
+			button,
+			item,
+			info.viewsCount,
+			info.forwardsCount,
+			std::move(cachedPreview));
+
+		_messagePreviews.push_back(raw);
+		raw->show();
+		button->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			if (!s.isNull()) {
+				raw->setGeometry(Rect(s)
+					- st::statisticsRecentPostButton.padding);
+			}
+		}, raw->lifetime());
+		button->setClickedCallback([=, fullId = item->fullId()] {
+			_showRequests.fire({ .messageStatistic = fullId });
+		});
+		::Settings::AddSkip(messageWrap);
+		if (!wrap->toggled()) {
+			wrap->toggle(true, anim::type::normal);
+		}
+	};
+
+	auto foundLoaded = false;
+	for (const auto &recent : stats.recentMessageInteractions) {
+		const auto messageWrap = content->add(
+			object_ptr<Ui::VerticalLayout>(content));
+		const auto msgId = recent.messageId;
+		if (const auto item = _peer->owner().message(_peer, msgId)) {
+			addMessage(messageWrap, item, recent);
+			foundLoaded = true;
+			continue;
+		}
+		const auto callback = crl::guard(content, [=] {
+			if (const auto item = _peer->owner().message(_peer, msgId)) {
+				addMessage(messageWrap, item, recent);
+				content->resizeToWidth(content->width());
+			}
+		});
+		_peer->session().api().requestMessageData(_peer, msgId, callback);
+	}
+	if (!foundLoaded) {
+		wrap->toggle(false, anim::type::instant);
+	}
+}
+
 void InnerWidget::saveState(not_null<Memento*> memento) {
-	memento->setStates(base::take(_loadedStats));
+	for (const auto &message : _messagePreviews) {
+		message->saveState(_state);
+	}
+	memento->setState(base::take(_state));
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
-	_loadedStats = memento->states();
-	if (_loadedStats.channel
-		|| _loadedStats.supergroup
-		|| _loadedStats.message) {
+	_state = memento->state();
+	if (_state.stats.channel
+		|| _state.stats.supergroup
+		|| _state.stats.message) {
 		fill();
 	} else {
 		load();

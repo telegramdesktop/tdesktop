@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
 #include "history/view/history_view_item_preview.h"
+#include "info/statistics/info_statistics_common.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/effects/ripple_animation.h"
@@ -69,7 +70,8 @@ MessagePreview::MessagePreview(
 	not_null<Ui::RpWidget*> parent,
 	not_null<HistoryItem*> item,
 	int views,
-	int shares)
+	int shares,
+	QImage cachedPreview)
 : Ui::RpWidget(parent)
 , _item(item)
 , _date(
@@ -88,7 +90,8 @@ MessagePreview::MessagePreview(
 		lt_count_decimal,
 		shares))
 , _viewsWidth(_views.maxWidth())
-, _sharesWidth(_shares.maxWidth()) {
+, _sharesWidth(_shares.maxWidth())
+, _preview(std::move(cachedPreview)) {
 	_text.setMarkedText(
 		st::defaultPeerListItem.nameStyle,
 		_item->toPreview({ .generateImages = false }).text,
@@ -97,7 +100,9 @@ MessagePreview::MessagePreview(
 			.session = &item->history()->session(),
 			.customEmojiRepaint = [=] { update(); },
 		});
-	processPreview(item);
+	if (_preview.isNull()) {
+		processPreview(item);
+	}
 }
 
 void MessagePreview::processPreview(not_null<HistoryItem*> item) {
@@ -224,6 +229,12 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 		.outerWidth = _sharesWidth,
 		.availableWidth = _sharesWidth,
 	});
+}
+
+void MessagePreview::saveState(SavedState &state) const {
+	if (!_lifetimeDownload) {
+		state.recentPostPreviews[_item->fullId().msg] = _preview;
+	}
 }
 
 } // namespace Info::Statistics

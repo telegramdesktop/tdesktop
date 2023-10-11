@@ -22,13 +22,18 @@ class SpoilerAnimation;
 
 namespace Info::Statistics {
 
+struct SavedState;
+
 class MessagePreview final : public Ui::RpWidget {
 public:
 	MessagePreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<HistoryItem*> item,
 		int views,
-		int shares);
+		int shares,
+		QImage cachedPreview);
+
+	void saveState(SavedState &state) const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

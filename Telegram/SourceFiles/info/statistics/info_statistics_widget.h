@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "info/info_content_widget.h"
-#include "data/data_statistics.h"
+#include "info/statistics/info_statistics_common.h"
 
 namespace Info::Statistics {
 
@@ -27,13 +27,11 @@ public:
 
 	Section section() const override;
 
-	using States = Data::AnyStatistics;
-
-	void setStates(States states);
-	[[nodiscard]] States states();
+	void setState(SavedState states);
+	[[nodiscard]] SavedState state();
 
 private:
-	States _states;
+	SavedState _state;
 
 };
 

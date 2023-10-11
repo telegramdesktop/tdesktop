@@ -31,12 +31,12 @@ Section Memento::section() const {
 	return Section(Section::Type::Statistics);
 }
 
-void Memento::setStates(Memento::States states) {
-	_states = std::move(states);
+void Memento::setState(SavedState state) {
+	_state = std::move(state);
 }
 
-Memento::States Memento::states() {
-	return base::take(_states);
+SavedState Memento::state() {
+	return base::take(_state);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
