@@ -48,25 +48,6 @@ void BoostBox(
 
 	const auto full = !data.boost.nextLevelBoosts;
 
-	if (data.boost.mine && data.boost.boosts > 0) {
-		--data.boost.boosts;
-	}
-
-	if (full) {
-		data.boost.nextLevelBoosts = data.boost.boosts
-			+ (data.boost.mine ? 1 : 0);
-		data.boost.thisLevelBoosts = 0;
-		if (data.boost.level > 0) {
-			--data.boost.level;
-		}
-	} else if (data.boost.mine
-		&& data.boost.level > 0
-		&& data.boost.boosts < data.boost.thisLevelBoosts) {
-		--data.boost.level;
-		data.boost.nextLevelBoosts = data.boost.thisLevelBoosts;
-		data.boost.thisLevelBoosts = 0;
-	}
-
 	struct State {
 		rpl::variable<bool> you = false;
 		bool submitted = false;
@@ -74,98 +55,14 @@ void BoostBox(
 	const auto state = box->lifetime().make_state<State>(State{
 		.you = data.boost.mine,
 	});
-	box->addTopButton(st::boxTitleClose, [=] {
-		box->closeBox();
-	});
 
-	const auto addSkip = [&](int skip) {
-		box->addRow(object_ptr<Ui::FixedHeightWidget>(box, skip));
-	};
-
-	addSkip(st::boostSkipTop);
-
-	const auto levelWidth = [&](int add) {
-		return st::normalFont->width(
-			tr::lng_boost_level(tr::now, lt_count, data.boost.level + add));
-	};
-	const auto paddings = 2 * st::premiumLineTextSkip;
-	const auto labelLeftWidth = paddings + levelWidth(0);
-	const auto labelRightWidth = paddings + levelWidth(1);
-	const auto ratio = [=](int boosts) {
-		const auto min = std::min(
-			data.boost.boosts,
-			data.boost.thisLevelBoosts);
-		const auto max = std::max({
-			data.boost.boosts,
-			data.boost.nextLevelBoosts,
-			1,
-		});
-		Assert(boosts >= min && boosts <= max);
-		const auto count = (max - min);
-		const auto index = (boosts - min);
-		if (!index) {
-			return 0.;
-		} else if (index == count) {
-			return 1.;
-		} else if (count == 2) {
-			return 0.5;
-		}
-		const auto available = st::boxWideWidth
-			- st::boxPadding.left()
-			- st::boxPadding.right();
-		const auto average = available / float64(count);
-		const auto first = std::max(average, labelLeftWidth * 1.);
-		const auto last = std::max(average, labelRightWidth * 1.);
-		const auto other = (available - first - last) / (count - 2);
-		return (first + (index - 1) * other) / available;
-	};
-
-	const auto min = std::min(
-		data.boost.boosts,
-		data.boost.thisLevelBoosts);
-	const auto now = data.boost.boosts;
-	const auto max = (data.boost.nextLevelBoosts > min)
-		? (data.boost.nextLevelBoosts)
-		: (data.boost.boosts > 0)
-		? data.boost.boosts
-		: 1;
-	auto bubbleRowState = state->you.value(
-	) | rpl::map([=](bool mine) {
-		const auto index = mine ? (now + 1) : now;
-		return Premium::BubbleRowState{
-			.counter = index,
-			.ratio = ratio(index),
-			.dynamic = true,
-		};
-	});
-	Premium::AddBubbleRow(
-		box->verticalLayout(),
-		st::boostBubble,
+	FillBoostLimit(
 		BoxShowFinishes(box),
-		rpl::duplicate(bubbleRowState),
-		max,
-		true,
-		nullptr,
-		&st::premiumIconBoost);
-	addSkip(st::premiumLineTextSkip);
-
-	const auto level = [](int level) {
-		return tr::lng_boost_level(tr::now, lt_count, level);
-	};
-	auto ratioValue = std::move(
-		bubbleRowState
-	) | rpl::map([](const Premium::BubbleRowState &state) {
-		return state.ratio;
-	});
-	Premium::AddLimitRow(
+		state->you.value(),
 		box->verticalLayout(),
-		st::boostLimits,
-		Premium::LimitRowLabels{
-			.leftLabel = level(data.boost.level),
-			.rightLabel = level(data.boost.level + 1),
-			.dynamic = true,
-		},
-		std::move(ratioValue));
+		data);
+
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
 	const auto name = data.name;
 	auto title = state->you.value() | rpl::map([=](bool your) {
@@ -273,6 +170,121 @@ void BoostBox(
 			- padding.right());
 		button->moveToLeft(padding.left(), button->y());
 	}, button->lifetime());
+}
+
+void FillBoostLimit(
+		rpl::producer<> showFinished,
+		rpl::producer<bool> you,
+		not_null<VerticalLayout*> container,
+		BoostBoxData data) {
+	const auto full = !data.boost.nextLevelBoosts;
+
+	if (data.boost.mine && data.boost.boosts > 0) {
+		--data.boost.boosts;
+	}
+
+	if (full) {
+		data.boost.nextLevelBoosts = data.boost.boosts
+			+ (data.boost.mine ? 1 : 0);
+		data.boost.thisLevelBoosts = 0;
+		if (data.boost.level > 0) {
+			--data.boost.level;
+		}
+	} else if (data.boost.mine
+			&& data.boost.level > 0
+			&& data.boost.boosts < data.boost.thisLevelBoosts) {
+		--data.boost.level;
+		data.boost.nextLevelBoosts = data.boost.thisLevelBoosts;
+		data.boost.thisLevelBoosts = 0;
+	}
+
+	const auto addSkip = [&](int skip) {
+		container->add(object_ptr<Ui::FixedHeightWidget>(container, skip));
+	};
+
+	addSkip(st::boostSkipTop);
+
+	const auto levelWidth = [&](int add) {
+		return st::normalFont->width(
+			tr::lng_boost_level(tr::now, lt_count, data.boost.level + add));
+	};
+	const auto paddings = 2 * st::premiumLineTextSkip;
+	const auto labelLeftWidth = paddings + levelWidth(0);
+	const auto labelRightWidth = paddings + levelWidth(1);
+	const auto ratio = [=](int boosts) {
+		const auto min = std::min(
+			data.boost.boosts,
+			data.boost.thisLevelBoosts);
+		const auto max = std::max({
+			data.boost.boosts,
+			data.boost.nextLevelBoosts,
+			1,
+		});
+		Assert(boosts >= min && boosts <= max);
+		const auto count = (max - min);
+		const auto index = (boosts - min);
+		if (!index) {
+			return 0.;
+		} else if (index == count) {
+			return 1.;
+		} else if (count == 2) {
+			return 0.5;
+		}
+		const auto available = st::boxWideWidth
+			- st::boxPadding.left()
+			- st::boxPadding.right();
+		const auto average = available / float64(count);
+		const auto first = std::max(average, labelLeftWidth * 1.);
+		const auto last = std::max(average, labelRightWidth * 1.);
+		const auto other = (available - first - last) / (count - 2);
+		return (first + (index - 1) * other) / available;
+	};
+
+	const auto min = std::min(data.boost.boosts, data.boost.thisLevelBoosts);
+	const auto now = data.boost.boosts;
+	const auto max = (data.boost.nextLevelBoosts > min)
+		? (data.boost.nextLevelBoosts)
+		: (data.boost.boosts > 0)
+		? data.boost.boosts
+		: 1;
+	auto bubbleRowState = (
+		std::move(you)
+	) | rpl::map([=](bool mine) {
+		const auto index = mine ? (now + 1) : now;
+		return Premium::BubbleRowState{
+			.counter = index,
+			.ratio = ratio(index),
+			.dynamic = true,
+		};
+	});
+	Premium::AddBubbleRow(
+		container,
+		st::boostBubble,
+		std::move(showFinished),
+		rpl::duplicate(bubbleRowState),
+		max,
+		true,
+		nullptr,
+		&st::premiumIconBoost);
+	addSkip(st::premiumLineTextSkip);
+
+	const auto level = [](int level) {
+		return tr::lng_boost_level(tr::now, lt_count, level);
+	};
+	auto ratioValue = std::move(
+		bubbleRowState
+	) | rpl::map([](const Premium::BubbleRowState &state) {
+		return state.ratio;
+	});
+	Premium::AddLimitRow(
+		container,
+		st::boostLimits,
+		Premium::LimitRowLabels{
+			.leftLabel = level(data.boost.level),
+			.rightLabel = level(data.boost.level + 1),
+			.dynamic = true,
+		},
+		std::move(ratioValue));
 }
 
 } // namespace Ui

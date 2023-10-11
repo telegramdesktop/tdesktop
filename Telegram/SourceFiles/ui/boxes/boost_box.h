@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 class GenericBox;
+class VerticalLayout;
 
 struct BoostCounters {
 	int level = 0;
@@ -28,5 +29,11 @@ void BoostBox(
 	not_null<GenericBox*> box,
 	BoostBoxData data,
 	Fn<void(Fn<void(bool)>)> boost);
+
+void FillBoostLimit(
+	rpl::producer<> showFinished,
+	rpl::producer<bool> you,
+	not_null<VerticalLayout*> container,
+	BoostBoxData data);
 
 } // namespace Ui
