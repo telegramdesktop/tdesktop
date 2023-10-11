@@ -388,7 +388,10 @@ public:
 		int bottom,
 		QPoint point,
 		InfoDisplayType type) const;
-	virtual TextForMimeData selectedText(
+	virtual TextForMimeData selectedText(TextSelection selection) const = 0;
+	virtual TextWithEntities selectedQuote(TextSelection selection) const = 0;
+	virtual TextWithEntities selectedQuote(
+		const Ui::Text::String &text,
 		TextSelection selection) const = 0;
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,

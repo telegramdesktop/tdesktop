@@ -1126,11 +1126,8 @@ void Account::writeDrafts(not_null<History*> history) {
 			auto&&) { // cursor
 		size += sizeof(qint64) // key
 			+ Serialize::stringSize(text.text)
-			+ sizeof(qint64) + TextUtilities::SerializeTagsSize(text.tags)
+			+ TextUtilities::SerializeTagsSize(text.tags)
 			+ sizeof(qint64) + sizeof(qint64) // messageId
-			+ Serialize::stringSize(reply.quote.text)
-			+ sizeof(qint64)
-			+ TextUtilities::SerializeTagsSize(reply.quote.tags)
 			+ sizeof(qint32); // previewState
 	};
 	EnumerateDrafts(
@@ -1157,8 +1154,6 @@ void Account::writeDrafts(not_null<History*> history) {
 			<< TextUtilities::SerializeTags(text.tags)
 			<< qint64(reply.messageId.peer.value)
 			<< qint64(reply.messageId.msg.bare)
-			<< reply.quote.text
-			<< TextUtilities::SerializeTags(reply.quote.tags)
 			<< qint32(previewState);
 	};
 	EnumerateDrafts(
@@ -1371,10 +1366,8 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	const auto keysOld = (tag == kMultiDraftTagOld);
 	const auto rich = (tag == kRichDraftsTag);
 	for (auto i = 0; i != count; ++i) {
-		TextWithTags quote;
 		TextWithTags text;
 		QByteArray textTagsSerialized;
-		QByteArray quoteTagsSerialized;
 		qint64 keyValue = 0;
 		qint64 messageIdPeer = 0, messageIdMsg = 0;
 		qint32 keyValueOld = 0, uncheckedPreviewState = 0;
@@ -1396,12 +1389,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 				>> textTagsSerialized
 				>> messageIdPeer
 				>> messageIdMsg
-				>> quote.text
-				>> quoteTagsSerialized
 				>> uncheckedPreviewState;
-			quote.tags = TextUtilities::DeserializeTags(
-				quoteTagsSerialized,
-				quote.text.size());
 		}
 		text.tags = TextUtilities::DeserializeTags(
 			textTagsSerialized,
@@ -1422,7 +1410,6 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 					.messageId = FullMsgId(
 						PeerId(messageIdPeer),
 						MsgId(messageIdMsg)),
-					.quote = quote,
 					.topicRootId = key.topicRootId(),
 				},
 				MessageCursor(),

@@ -86,7 +86,11 @@ public:
 
 	[[nodiscard]] virtual TextForMimeData selectedText(
 			TextSelection selection) const {
-		return TextForMimeData();
+		return {};
+	}
+	[[nodiscard]] virtual TextWithEntities selectedQuote(
+			TextSelection selection) const {
+		return {};
 	}
 
 	[[nodiscard]] virtual bool isDisplayed() const;

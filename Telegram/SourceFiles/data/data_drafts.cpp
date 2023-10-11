@@ -71,11 +71,7 @@ void ApplyPeerCloudDraft(
 		textWithTags,
 		FullReplyTo{
 			.messageId = FullMsgId(replyPeerId, reply.messageId),
-			.quote = TextWithTags{
-				reply.quote.text,
-				TextUtilities::ConvertEntitiesToTextTags(
-					reply.quote.entities),
-			},
+			.quote = reply.quote,
 			.storyId = (reply.storyId
 				? FullStoryId{ replyPeerId, reply.storyId }
 				: FullStoryId()),

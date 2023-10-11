@@ -1181,6 +1181,10 @@ TextForMimeData Gif::selectedText(TextSelection selection) const {
 	return _caption.toTextForMimeData(selection);
 }
 
+TextWithEntities Gif::selectedQuote(TextSelection selection) const {
+	return parent()->selectedQuote(_caption, selection);
+}
+
 bool Gif::fullFeaturedGrouped(RectParts sides) const {
 	return (sides & RectPart::Left) && (sides & RectPart::Right);
 }

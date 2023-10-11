@@ -1210,6 +1210,22 @@ TextForMimeData Document::selectedText(TextSelection selection) const {
 	return result;
 }
 
+TextWithEntities Document::selectedQuote(TextSelection selection) const {
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
+		const auto length = voice->transcribeText.length();
+		if (selection.from < length) {
+			return {};
+		}
+		selection = HistoryView::UnshiftItemSelection(
+			selection,
+			voice->transcribeText);
+	}
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		return parent()->selectedQuote(captioned->caption, selection);
+	}
+	return {};
+}
+
 bool Document::uploading() const {
 	return _data->uploading();
 }

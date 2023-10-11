@@ -669,6 +669,16 @@ TextForMimeData Service::selectedText(TextSelection selection) const {
 	return text().toTextForMimeData(selection);
 }
 
+TextWithEntities Service::selectedQuote(TextSelection selection) const {
+	return {};
+}
+
+TextWithEntities Service::selectedQuote(
+		const Ui::Text::String &text,
+		TextSelection selection) const {
+	return {};
+}
+
 TextSelection Service::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {

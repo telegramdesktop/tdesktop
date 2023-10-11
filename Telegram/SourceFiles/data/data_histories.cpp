@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_histories.h"
 
+#include "api/api_text_entities.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -46,10 +47,20 @@ MTPInputReplyTo ReplyToForMTP(
 		}
 	} else if (replyTo.messageId || replyTo.topicRootId) {
 		const auto external = (replyTo.messageId.peer != history->peer->id);
+		const auto quoteEntities = Api::EntitiesToMTP(
+			&history->session(),
+			replyTo.quote.entities,
+			Api::ConvertOption::SkipLocal);
 		using Flag = MTPDinputReplyToMessage::Flag;
 		return MTP_inputReplyToMessage(
 			MTP_flags((replyTo.topicRootId ? Flag::f_top_msg_id : Flag())
-				| (external ? Flag::f_reply_to_peer_id : Flag())),
+				| (external ? Flag::f_reply_to_peer_id : Flag())
+				| (replyTo.quote.text.isEmpty()
+					? Flag()
+					: Flag::f_quote_text)
+				| (quoteEntities.v.isEmpty()
+					? Flag()
+					: Flag::f_quote_entities)),
 			MTP_int(replyTo.messageId
 				? replyTo.messageId.msg
 				: replyTo.topicRootId),
@@ -57,8 +68,8 @@ MTPInputReplyTo ReplyToForMTP(
 			(external
 				? owner->peer(replyTo.messageId.peer)->input
 				: MTPInputPeer()),
-			MTPstring(), // quote_text
-			MTPVector<MTPMessageEntity>()); // quote_entities
+			MTP_string(replyTo.quote.text),
+			quoteEntities);
 	}
 	return MTPInputReplyTo();
 }
@@ -945,6 +956,7 @@ int Histories::sendPreparedMessage(
 	}
 	const auto realReplyTo = FullReplyTo{
 		.messageId = convertTopicReplyToId(history, replyTo.messageId),
+		.quote = replyTo.quote,
 		.storyId = replyTo.storyId,
 		.topicRootId = convertTopicReplyToId(history, replyTo.topicRootId),
 	};

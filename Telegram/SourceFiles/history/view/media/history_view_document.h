@@ -46,6 +46,7 @@ public:
 	bool hasTextForCopy() const override;
 
 	TextForMimeData selectedText(TextSelection selection) const override;
+	TextWithEntities selectedQuote(TextSelection selection) const override;
 
 	bool uploading() const override;
 

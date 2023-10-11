@@ -1049,6 +1049,10 @@ TextForMimeData Photo::selectedText(TextSelection selection) const {
 	return _caption.toTextForMimeData(selection);
 }
 
+TextWithEntities Photo::selectedQuote(TextSelection selection) const {
+	return parent()->selectedQuote(_caption, selection);
+}
+
 void Photo::hideSpoilers() {
 	_caption.setSpoilerRevealed(false, anim::type::instant);
 	if (_spoiler) {

@@ -158,7 +158,7 @@ Q_DECLARE_METATYPE(FullMsgId);
 
 struct FullReplyTo {
 	FullMsgId messageId;
-	TextWithTags quote;
+	TextWithEntities quote;
 	FullStoryId storyId;
 	MsgId topicRootId = 0;
 

@@ -43,6 +43,10 @@ public:
 		StateRequest request) const override;
 	void updatePressed(QPoint point) override;
 	TextForMimeData selectedText(TextSelection selection) const override;
+	TextWithEntities selectedQuote(TextSelection selection) const override;
+	TextWithEntities selectedQuote(
+		const Ui::Text::String &text,
+		TextSelection selection) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;

@@ -185,7 +185,7 @@ public:
 	void replyToMessage(FullReplyTo id);
 	void replyToMessage(
 		not_null<HistoryItem*> item,
-		TextWithTags quote = {});
+		TextWithEntities quote = {});
 	void editMessage(FullMsgId itemId);
 	void editMessage(not_null<HistoryItem*> item);
 

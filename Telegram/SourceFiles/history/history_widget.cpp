@@ -7072,7 +7072,7 @@ void HistoryWidget::replyToMessage(FullReplyTo id) {
 
 void HistoryWidget::replyToMessage(
 		not_null<HistoryItem*> item,
-		TextWithTags quote) {
+		TextWithEntities quote) {
 	if (isJoinChannel()) {
 		return;
 	}

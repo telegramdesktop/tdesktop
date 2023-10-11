@@ -2101,6 +2101,20 @@ void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 	item->toggleReaction(favorite, HistoryItem::ReactionSource::Quick);
 }
 
+TextWithEntities HistoryInner::selectedQuote(
+		not_null<HistoryItem*> item) const {
+	if (_selected.size() != 1
+		|| _selected.begin()->first != item
+		|| _selected.begin()->second == FullSelection) {
+		return {};
+	}
+	const auto view = item->mainView();
+	if (!view) {
+		return {};
+	}
+	return view->selectedQuote(_selected.begin()->second);
+}
+
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
 	showContextMenu(e);
 }
@@ -2215,13 +2229,14 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return true;
 		}();
 		if (canReply) {
+			const auto quote = selectedQuote(item);
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
 				if (canSendReply) {
-					_widget->replyToMessage({ itemId });
+					_widget->replyToMessage({ itemId, quote });
 				} else {
 					HistoryView::Controls::ShowReplyToChatBox(
 						controller->uiShow(),
-						{ itemId });
+						{ itemId, quote });
 				}
 			}, &st::menuIconReply);
 		}

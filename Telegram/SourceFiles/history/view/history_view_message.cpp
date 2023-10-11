@@ -2611,6 +2611,80 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 	return result;
 }
 
+TextWithEntities Message::selectedQuote(TextSelection selection) const {
+	const auto item = data();
+	const auto &translated = item->translatedText();
+	const auto &original = item->originalText();
+	if (&translated != &original
+		|| selection.empty()
+		|| selection == FullSelection) {
+		return {};
+	} else if (hasVisibleText()) {
+		return selectedQuote(text(), selection);
+	} else if (const auto media = this->media()) {
+		if (media->isDisplayed() || isHiddenByGroup()) {
+			return media->selectedQuote(selection);
+		}
+	}
+	return {};
+}
+
+TextWithEntities Message::selectedQuote(
+		const Ui::Text::String &text,
+		TextSelection selection) const {
+	if (selection.to > text.length()) {
+		return {};
+	}
+	auto modified = selection;
+	const auto &modifications = text.modifications();
+	for (const auto &modification : text.modifications()) {
+		if (modification.position >= selection.to) {
+			break;
+		} else if (modification.position <= selection.from) {
+			modified.from += modification.skipped;
+			if (modification.added
+				&& modification.position < selection.from) {
+				--modified.from;
+			}
+		}
+		modified.to += modification.skipped;
+		if (modification.added && modified.to > modified.from) {
+			--modified.to;
+		}
+	}
+	auto result = data()->originalText();
+	if (modified.empty() || modified.to > result.text.size()) {
+		return {};
+	}
+	result.text = result.text.mid(
+		modified.from,
+		modified.to - modified.from);
+	const auto allowed = std::array{
+		EntityType::Bold,
+		EntityType::Italic,
+		EntityType::Underline,
+		EntityType::StrikeOut,
+		EntityType::Spoiler,
+		EntityType::CustomEmoji,
+	};
+	for (auto i = result.entities.begin(); i != result.entities.end();) {
+		const auto offset = i->offset();
+		const auto till = offset + i->length();
+		if ((till <= modified.from)
+			|| (offset >= modified.to)
+			|| !ranges::contains(allowed, i->type())) {
+			i = result.entities.erase(i);
+		} else {
+			if (till > modified.to) {
+				i->shrinkFromRight(till - modified.to);
+			}
+			i->shiftLeft(modified.from);
+			++i;
+		}
+	}
+	return result;
+}
+
 TextSelection Message::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
