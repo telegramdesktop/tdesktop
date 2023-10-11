@@ -47,6 +47,7 @@ public:
 	[[nodiscard]] rpl::producer<> itemsUpdated() const;
 
 	void editOptions(std::shared_ptr<ChatHelpers::Show> show);
+	void editToNextOption();
 
 	[[nodiscard]] const HistoryItemsList &items() const;
 	[[nodiscard]] bool empty() const;

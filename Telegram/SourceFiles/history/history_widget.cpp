@@ -6195,7 +6195,11 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			crl::guard(_list, [=] { cancelEdit(); }));
 	} else if (_inReplyEditForward) {
 		if (isReadyToForward) {
-			_forwardPanel->editOptions(controller()->uiShow());
+			if (e->button() != Qt::LeftButton) {
+				_forwardPanel->editToNextOption();
+			} else {
+				_forwardPanel->editOptions(controller()->uiShow());
+			}
 		} else {
 			controller()->showPeerHistory(
 				_peer,
