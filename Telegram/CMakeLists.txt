@@ -829,6 +829,10 @@ PRIVATE
     info/info_top_bar.h
     info/info_wrap_widget.cpp
     info/info_wrap_widget.h
+    info/boosts/info_boosts_inner_widget.cpp
+    info/boosts/info_boosts_inner_widget.h
+    info/boosts/info_boosts_widget.cpp
+    info/boosts/info_boosts_widget.h
     info/common_groups/info_common_groups_inner_widget.cpp
     info/common_groups/info_common_groups_inner_widget.h
     info/common_groups/info_common_groups_widget.cpp

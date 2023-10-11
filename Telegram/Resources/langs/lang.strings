@@ -4127,6 +4127,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chart_title_group_day" = "Views by hours";
 "lng_chart_title_group_week" = "Top days of week";
 
+"lng_boosts_title" = "Boosts";
+"lng_boosts_level" = "Level";
+"lng_boosts_existing" = "Existing boosts";
+"lng_boosts_premium_audience" = "Premium subscribers";
+"lng_boosts_next_level" = "Boosts to level up";
+"lng_boosts_list_title#one" = "{count} booster";
+"lng_boosts_list_title#other" = "{count} boosters";
+"lng_boosts_list_subtext" = "Your channel is currently boosted by these users.";
+"lng_boosts_show_more" = "Show More Boosts";
+"lng_boosts_list_status" = "boost expires on {date}";
+"lng_boosts_link_title" = "Link for boosting";
+"lng_boosts_link_subtext" = "Share this link with your subscribers to get more boosts.";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
