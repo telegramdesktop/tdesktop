@@ -121,8 +121,28 @@ private:
 		LineId _selected = -1;
 
 	};
+
+	class ChangingPiePartController final {
+	public:
+		void setParts(
+			const std::vector<PiePartData::Part> &was,
+			const std::vector<PiePartData::Part> &now);
+		void update();
+		[[nodiscard]] PiePartData current() const;
+		[[nodiscard]] bool isFinished() const;
+
+	private:
+		crl::time _startedAt = 0;;
+		std::vector<anim::value> _animValues;
+		PiePartData _current;
+		bool _isFinished = true;
+
+	};
+
 	PiePartController _piePartController;
+	ChangingPiePartController _changingPieController;
 	Ui::Animations::Basic _piePartAnimation;
+
 	bool _pieHasSinglePart = false;
 
 };

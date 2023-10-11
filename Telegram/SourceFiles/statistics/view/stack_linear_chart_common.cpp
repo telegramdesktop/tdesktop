@@ -14,25 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Statistic {
 
 PiePartData PiePartsPercentage(
-		const Data::StatisticalChart &chartData,
-		const std::shared_ptr<LinesFilterController> &linesFilter,
-		const Limits &xIndices) {
+		const std::vector<float64> &sums,
+		float64 totalSum,
+		bool round) {
 	auto result = PiePartData();
-	result.parts.reserve(chartData.lines.size());
-	auto sums = std::vector<float64>();
-	sums.reserve(chartData.lines.size());
-	auto totalSum = 0.;
-	for (const auto &line : chartData.lines) {
-		auto sum = 0;
-		for (auto i = xIndices.min; i <= xIndices.max; i++) {
-			sum += line.y[i];
-		}
-		if (linesFilter) {
-			sum *= linesFilter->alpha(line.id);
-		}
-		totalSum += sum;
-		sums.push_back(sum);
-	}
+	result.parts.reserve(sums.size());
 	auto stackedPercentage = 0.;
 
 	auto sumPercDiffs = 0.;
@@ -46,7 +32,9 @@ PiePartData PiePartsPercentage(
 	constexpr auto kPerChar = '%';
 	for (auto k = 0; k < sums.size(); k++) {
 		const auto rawPercentage = totalSum ? (sums[k] / totalSum) : 0.;
-		const auto rounded = 0.01 * std::round(rawPercentage * 100.);
+		const auto rounded = round
+			? (0.01 * std::round(rawPercentage * 100.))
+			: rawPercentage;
 		roundedPercentagesSum += rounded;
 		const auto diff = rawPercentage - rounded;
 		sumPercDiffs += diff;
@@ -68,7 +56,7 @@ PiePartData PiePartsPercentage(
 		});
 		result.pieHasSinglePart |= (rounded == 1.);
 	}
-	{
+	if (round) {
 		const auto index = (roundedPercentagesSum > 1.)
 			? maxPercDiffIndex
 			: minPercDiffIndex;
@@ -83,6 +71,27 @@ PiePartData PiePartsPercentage(
 		}
 	}
 	return result;
+}
+
+PiePartData PiePartsPercentageByIndices(
+		const Data::StatisticalChart &chartData,
+		const std::shared_ptr<LinesFilterController> &linesFilter,
+		const Limits &xIndices) {
+	auto sums = std::vector<float64>();
+	sums.reserve(chartData.lines.size());
+	auto totalSum = 0.;
+	for (const auto &line : chartData.lines) {
+		auto sum = 0;
+		for (auto i = xIndices.min; i <= xIndices.max; i++) {
+			sum += line.y[i];
+		}
+		if (linesFilter) {
+			sum *= linesFilter->alpha(line.id);
+		}
+		totalSum += sum;
+		sums.push_back(sum);
+	}
+	return PiePartsPercentage(sums, totalSum, true);
 }
 
 } // namespace Statistic

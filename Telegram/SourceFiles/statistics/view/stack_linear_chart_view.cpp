@@ -87,6 +87,57 @@ inline float64 InterpolationRatio(float64 from, float64 to, float64 result) {
 
 } // namespace
 
+void StackLinearChartView::ChangingPiePartController::setParts(
+		const std::vector<PiePartData::Part> &was,
+		const std::vector<PiePartData::Part> &now) {
+	if (_animValues.size() != was.size()) {
+		_animValues = std::vector<anim::value>(was.size(), anim::value());
+		for (auto i = 0; i < was.size(); i++) {
+			_animValues[i] = anim::value(
+				was[i].roundedPercentage,
+				now[i].roundedPercentage);
+		}
+	} else {
+		for (auto i = 0; i < was.size(); i++) {
+			_animValues[i] = anim::value(
+				_animValues[i].current(),
+				now[i].roundedPercentage);
+		}
+	}
+	_startedAt = crl::now();
+	_isFinished = false;
+}
+
+void StackLinearChartView::ChangingPiePartController::update() {
+	const auto progress = std::clamp(
+		(crl::now() - _startedAt) / float64(st::slideWrapDuration),
+		0.,
+		1.);
+	auto totalSum = 0.;
+	auto finished = true;
+	auto result = std::vector<float64>();
+	result.reserve(_animValues.size());
+	for (auto &anim : _animValues) {
+		anim.update(progress, anim::easeOutCubic);
+		if (finished && (anim.current() != anim.to())) {
+			finished = false;
+		}
+		const auto value = anim.current();
+		result.push_back(value);
+		totalSum += value;
+	}
+	_isFinished = finished;
+	_current = PiePartsPercentage(result, totalSum, false);
+}
+
+PiePartData StackLinearChartView::ChangingPiePartController::current() const {
+	return _current;
+}
+
+bool StackLinearChartView::ChangingPiePartController::isFinished() const {
+	return _isFinished;
+}
+
 StackLinearChartView::StackLinearChartView() {
 	_piePartAnimation.init([=] { AbstractChartView::update(); });
 }
@@ -185,7 +236,7 @@ void StackLinearChartView::saveZoomRange(const PaintContext &c) {
 }
 
 void StackLinearChartView::savePieTextParts(const PaintContext &c) {
-	auto data = PiePartsPercentage(
+	auto data = PiePartsPercentageByIndices(
 		c.chartData,
 		linesFilterController(),
 		_transition.zoomedInRangeXIndices);
@@ -504,14 +555,33 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 		return;
 	}
 
+	const auto wasZoomedInRangeXIndices = _transition.zoomedInRangeXIndices;
 	saveZoomRange(c);
-	const auto partsData = PiePartsPercentage(
+	const auto &[zoomedStart, zoomedEnd] = _transition.zoomedInRangeXIndices;
+	const auto partsData = PiePartsPercentageByIndices(
 		c.chartData,
 		linesFilterController(),
 		_transition.zoomedInRangeXIndices);
+	const auto xIndicesChanged = (wasZoomedInRangeXIndices.min != zoomedStart)
+		|| (wasZoomedInRangeXIndices.max != zoomedEnd);
+	if (xIndicesChanged) {
+		const auto wasParts = PiePartsPercentageByIndices(
+			c.chartData,
+			linesFilterController(),
+			wasZoomedInRangeXIndices);
+		_changingPieController.setParts(wasParts.parts, partsData.parts);
+		if (!_piePartAnimation.animating()) {
+			_piePartAnimation.start();
+		}
+	}
+	if (!_changingPieController.isFinished()) {
+		_changingPieController.update();
+	}
 	_pieHasSinglePart = partsData.pieHasSinglePart;
-	const auto &parts = partsData.parts;
-	applyParts(parts);
+	applyParts(partsData.parts);
+	const auto &parts = _changingPieController.isFinished()
+		? partsData.parts
+		: _changingPieController.current().parts;
 
 	p.fillRect(c.rect + QMargins(0, 0, 0, st::lineWidth), st::boxBg);
 	const auto center = QPointF(c.rect.center());
@@ -547,14 +617,12 @@ void StackLinearChartView::paintZoomed(QPainter &p, const PaintContext &c) {
 			selectedLineIndex = k;
 		}
 	}
-	if (_piePartController.isFinished()) {
+	if (_piePartController.isFinished() && _changingPieController.isFinished()) {
 		_piePartAnimation.stop();
 	}
 	paintPieText(p, c);
 
 	if (selectedLineIndex >= 0) {
-		const auto &[zoomedStart, zoomedEnd] =
-			_transition.zoomedInRangeXIndices;
 		const auto &line = c.chartData.lines[selectedLineIndex];
 		auto sum = 0;
 		for (auto i = zoomedStart; i <= zoomedEnd; i++) {
@@ -633,11 +701,13 @@ void StackLinearChartView::paintZoomedFooter(
 }
 
 void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
-	constexpr auto kMinPercentage = 0.03;
+	constexpr auto kMinPercentage = 0.039;
 	if (_transition.progress == 1.) {
 		savePieTextParts(c);
 	}
-	const auto &parts = _transition.textParts;
+	const auto &parts = _changingPieController.isFinished()
+		? _transition.textParts
+		: _changingPieController.current().parts;
 
 	const auto center = QPointF(c.rect.center());
 	const auto side = (c.rect.width() / 2.) * kCircleSizeRatio;

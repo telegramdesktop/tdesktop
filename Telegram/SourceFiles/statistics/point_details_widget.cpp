@@ -279,7 +279,7 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 	_lines.reserve(_chartData.lines.size());
 	auto hasPositiveValues = false;
 	const auto parts = _maxPercentageWidth
-		? PiePartsPercentage(
+		? PiePartsPercentageByIndices(
 			_chartData,
 			nullptr,
 			{ float64(xIndex), float64(xIndex) }).parts

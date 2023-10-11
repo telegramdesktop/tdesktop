@@ -27,6 +27,11 @@ struct PiePartData final {
 };
 
 [[nodiscard]] PiePartData PiePartsPercentage(
+	const std::vector<float64> &sums,
+	float64 totalSum,
+	bool round);
+
+[[nodiscard]] PiePartData PiePartsPercentageByIndices(
 	const Data::StatisticalChart &chartData,
 	const std::shared_ptr<LinesFilterController> &linesFilter,
 	const Limits &xIndices);
