@@ -39,6 +39,8 @@ private:
 	Data::SupergroupStatistics _supergroupStats;
 	MTP::Sender _api;
 
+	std::deque<Fn<void()>> _zoomDeque;
+
 };
 
 class PublicForwards final {

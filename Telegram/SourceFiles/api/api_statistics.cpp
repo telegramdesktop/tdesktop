@@ -237,19 +237,30 @@ Statistics::GraphResult Statistics::requestZoom(
 		if (!channel) {
 			return lifetime;
 		}
-
-		_api.request(MTPstats_LoadAsyncGraph(
-			MTP_flags(x
-				? MTPstats_LoadAsyncGraph::Flag::f_x
-				: MTPstats_LoadAsyncGraph::Flag(0)),
-			MTP_string(token),
-			MTP_long(x)
-		)).done([=](const MTPStatsGraph &result) {
-			consumer.put_next(StatisticalGraphFromTL(result));
-			consumer.put_done();
-		}).fail([=](const MTP::Error &error) {
-			consumer.put_error_copy(error.type());
-		}).send();
+		const auto wasEmpty = _zoomDeque.empty();
+		_zoomDeque.push_back([=] {
+			_api.request(MTPstats_LoadAsyncGraph(
+				MTP_flags(x
+					? MTPstats_LoadAsyncGraph::Flag::f_x
+					: MTPstats_LoadAsyncGraph::Flag(0)),
+				MTP_string(token),
+				MTP_long(x)
+			)).done([=](const MTPStatsGraph &result) {
+				consumer.put_next(StatisticalGraphFromTL(result));
+				consumer.put_done();
+				if (!_zoomDeque.empty()) {
+					_zoomDeque.pop_front();
+					if (!_zoomDeque.empty()) {
+						_zoomDeque.front()();
+					}
+				}
+			}).fail([=](const MTP::Error &error) {
+				consumer.put_error_copy(error.type());
+			}).send();
+		});
+		if (wasEmpty) {
+			_zoomDeque.front()();
+		}
 
 		return lifetime;
 	};
