@@ -931,6 +931,7 @@ void AddBubbleRow(
 	) | rpl::start_with_next([=](const QSize &parentSize, const QSize &size) {
 		container->resize(parentSize.width(), size.height());
 	}, bubble->lifetime());
+	bubble->show();
 }
 
 void AddLimitRow(
