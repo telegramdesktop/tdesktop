@@ -162,6 +162,7 @@ PointDetailsWidget::PointDetailsWidget(
 			_arrow = QImage(
 				QSize(w + stroke, w * 2 + stroke) * style::DevicePixelRatio(),
 				QImage::Format_ARGB32_Premultiplied);
+			_arrow.setDevicePixelRatio(style::DevicePixelRatio());
 			_arrow.fill(Qt::transparent);
 			{
 				auto p = QPainter(&_arrow);
@@ -366,6 +367,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 		_cache = QImage(
 			size() * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
+		_cache.setDevicePixelRatio(style::DevicePixelRatio());
 		_cache.fill(Qt::transparent);
 
 		auto p = QPainter(&_cache);
