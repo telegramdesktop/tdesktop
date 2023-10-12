@@ -20,8 +20,6 @@ passportPasswordLabel: FlatLabel(boxLabel) {
 passportPasswordLabelBold: FlatLabel(passportPasswordLabel) {
 	style: TextStyle(boxLabelStyle) {
 		font: font(boxFontSize semibold);
-		linkFont: font(boxFontSize semibold);
-		linkFontOver: font(boxFontSize semibold underline);
 	}
 }
 passportPasswordSetupLabel: FlatLabel(passportPasswordLabel) {
@@ -93,8 +91,7 @@ passportFormDividerHeight: 13px;
 passportFormLabelPadding: margins(22px, 7px, 22px, 14px);
 passportFormPolicy: FlatLabel(boxDividerLabel) {
 	style: TextStyle(defaultTextStyle) {
-		linkFont: font(fsize semibold underline);
-		linkFontOver: font(fsize semibold underline);
+		linkUnderline: kLinkUnderlineAlways;
 	}
 	palette: TextPalette(defaultTextPalette) {
 		linkFg: windowSubTextFg;

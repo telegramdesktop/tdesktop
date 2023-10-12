@@ -509,8 +509,6 @@ emojiPanColorAllLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px);
-		linkFont: font(12px);
-		linkFontOver: font(12px);
 	}
 }
 emojiPanColorAllPadding: margins(10px, 6px, 10px, -1px);

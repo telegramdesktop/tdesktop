@@ -543,7 +543,7 @@ void Cover::refreshStatusText() {
 				onlineCount,
 				channel->isMegagroup());
 			return hasMembersLink
-				? Ui::Text::Colorized(result)
+				? Ui::Text::Link(result)
 				: TextWithEntities{ .text = result };
 		}
 		return tr::lng_chat_status_unaccessible(tr::now, WithEntities);

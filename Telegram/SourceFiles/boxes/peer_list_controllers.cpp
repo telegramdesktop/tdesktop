@@ -170,7 +170,7 @@ void PeerListRowWithLink::rightActionPaint(
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
-	p.setFont(actionSelected ? st::linkOverFont : st::linkFont);
+	p.setFont(actionSelected ? st::linkFontOver : st::linkFont);
 	p.setPen(actionSelected ? st::defaultLinkButton.overColor : st::defaultLinkButton.color);
 	p.drawTextLeft(x, y, outerWidth, _action, _actionWidth);
 }

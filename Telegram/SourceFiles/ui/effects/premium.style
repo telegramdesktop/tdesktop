@@ -61,8 +61,6 @@ premiumPreviewAboutTitle: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	style: TextStyle(defaultTextStyle) {
 		font: font(17px semibold);
-		linkFont: font(17px semibold);
-		linkFontOver: font(17px semibold);
 	}
 }
 premiumPreviewAbout: FlatLabel(defaultFlatLabel) {
@@ -184,8 +182,6 @@ premiumGiftTerms: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px);
-		linkFont: font(11px);
-		linkFontOver: font(11px underline);
 	}
 }
 premiumGiftBox: Box(premiumPreviewBox) {
@@ -212,8 +208,6 @@ boostTitle: FlatLabel(defaultFlatLabel) {
 	maxHeight: 24px;
 	style: TextStyle(boxTextStyle) {
 		font: font(17px semibold);
-		linkFont: font(17px semibold);
-		linkFontOver: font(17px semibold);
 	}
 }
 boostTextSkip: 5px;

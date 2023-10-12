@@ -38,8 +38,6 @@ photoEditorTextButtonPadding: margins(22px, 0px, 22px, 0px);
 
 photoEditorButtonStyle: TextStyle(semiboldTextStyle) {
 	font: font(14px semibold);
-	linkFont: font(14px semibold);
-	linkFontOver: font(14px semibold underline);
 }
 photoEditorButtonTextTop: 15px;
 

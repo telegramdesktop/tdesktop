@@ -55,8 +55,6 @@ serviceTextPalette: TextPalette(defaultTextPalette) {
 }
 serviceTextStyle: TextStyle(defaultTextStyle) {
 	font: msgServiceFont;
-	linkFont: msgServiceFont;
-	linkFontOver: font(fsize semibold underline);
 }
 inTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: historyLinkInFg;
@@ -91,7 +89,7 @@ outTextPaletteSelected: TextPalette(outTextPalette) {
 	spoilerFg: msgOutDateFgSelected;
 }
 fwdTextStyle: TextStyle(semiboldTextStyle) {
-	linkFontOver: semiboldFont;
+	linkUnderline: kLinkUnderlineNever;
 }
 inFwdTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgInServiceFg;
@@ -319,8 +317,6 @@ msgBotKbButton: BotKeyboardButton {
 botKbDuration: 200;
 botKbStyle: TextStyle(defaultTextStyle) {
 	font: font(15px semibold);
-	linkFont: font(15px semibold);
-	linkFontOver: font(15px semibold);
 }
 botKbButton: BotKeyboardButton {
 	margin: 10px;
@@ -553,8 +549,6 @@ webPagePhotoDelta: 8px;
 historyPollQuestionFont: semiboldFont;
 historyPollQuestionStyle: TextStyle(defaultTextStyle) {
 	font: historyPollQuestionFont;
-	linkFont: historyPollQuestionFont;
-	linkFontOver: historyPollQuestionFont;
 }
 historyPollAnswerStyle: defaultTextStyle;
 historyPollQuestionTop: 7px;
@@ -741,8 +735,6 @@ whoLikedDateHeartOver: icon{{ "menu/read_react_s", windowSubTextFgOver }};
 whoReadDateChecksPosition: point(-7px, -4px);
 whoReadDateStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
-	linkFont: font(12px);
-	linkFontOver: font(12px underline);
 }
 whoReadChecks: icon{{ "menu/read_ticks", windowBoldFg }};
 whoReadChecksOver: icon{{ "menu/read_ticks", windowBoldFg }};
@@ -860,8 +852,6 @@ historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px);
-		linkFont: font(11px underline);
-		linkFontOver: font(11px underline);
 	}
 	minWidth: 80px;
 }

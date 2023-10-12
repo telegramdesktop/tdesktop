@@ -326,8 +326,10 @@ style::TextStyle Preview::scaled(
 		int lineHeight) const {
 	return {
 		.font = scaled(value.font, fontSize),
-		.linkFont = scaled(value.linkFont, fontSize),
-		.linkFontOver = scaled(value.linkFontOver, fontSize),
+		.linkUnderline = value.linkUnderline,
+		.blockPadding = scaled(value.blockPadding),
+		.blockOutline = scaled(value.blockOutline),
+		.preScrollable = value.preScrollable,
 		.lineHeight = scaled(value.lineHeight),
 	};
 }

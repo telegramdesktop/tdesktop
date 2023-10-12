@@ -131,8 +131,6 @@ infoTopBarTitle: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 }
 infoTopBarMediaCancel: IconButton(infoTopBarBack) {
@@ -301,11 +299,6 @@ infoProfilePhotoSize: size(
 infoProfileStatus: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: windowSubTextFg;
-	style: TextStyle(defaultTextStyle) {
-		font: normalFont;
-		linkFont: normalFont;
-		linkFontOver: normalFont;
-	}
 }
 infoProfileCover: InfoProfileCover {
 	height: 108px;
@@ -320,8 +313,6 @@ infoProfileCover: InfoProfileCover {
 		textFg: windowBoldFg;
 		style: TextStyle(defaultTextStyle) {
 			font: font(16px semibold);
-			linkFont: font(16px semibold);
-			linkFontOver: font(16px semibold underline);
 		}
 	}
 	nameLeft: 109px;
@@ -333,7 +324,6 @@ infoProfileCover: InfoProfileCover {
 }
 infoProfileMegagroupCover: InfoProfileCover(infoProfileCover) {
 	status: FlatLabel(infoProfileStatus) {
-		style: defaultTextStyle;
 		palette: TextPalette(defaultTextPalette) {
 			linkFg: windowSubTextFg;
 		}
@@ -427,8 +417,6 @@ infoBlockHeaderLabel: FlatLabel(infoProfileStatus) {
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
 		font: semiboldFont;
-		linkFont: semiboldFont;
-		linkFontOver: semiboldFont;
 	}
 }
 infoBlockHeaderPosition: point(79px, 17px);
@@ -550,8 +538,6 @@ infoCommonGroupsListItem: PeerListItem(defaultPeerListItem) {
 	namePosition: point(71px, 15px);
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 	statusPosition: point(79px, 31px);
 }
@@ -924,8 +910,6 @@ shortInfoCover: ShortInfoCover {
 		maxHeight: 19px;
 		style: TextStyle(defaultTextStyle) {
 			font: font(15px semibold);
-			linkFont: font(15px semibold);
-			linkFontOver: font(15px semibold underline);
 		}
 	}
 	namePosition: point(25px, 37px);

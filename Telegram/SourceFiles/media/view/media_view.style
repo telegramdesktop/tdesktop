@@ -194,8 +194,6 @@ mediaviewSaveMsgShown: 2000;
 mediaviewSaveMsgHiding: 2500;
 mediaviewSaveMsgStyle: TextStyle(defaultTextStyle) {
 	font: font(16px);
-	linkFont: font(16px);
-	linkFontOver: font(16px underline);
 }
 mediaviewTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaviewTextLinkFg;
@@ -815,8 +813,6 @@ storiesUnsupportedLabel: FlatLabel(defaultFlatLabel) {
 	textFg: mediaviewControlFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px);
-		linkFont: font(14px);
-		linkFontOver: font(14px underline);
 		lineHeight: 21px;
 	}
 	align: align(top);
@@ -1011,7 +1007,5 @@ storiesLikesEmptyRightSkip: 2px;
 
 storiesLikeCountStyle: TextStyle(defaultTextStyle) {
 	font: font(32px semibold);
-	linkFont: font(32px semibold);
-	linkFontOver: font(32px semibold underline);
 }
 storiesChangelogFooterWidthMin: 240px;
