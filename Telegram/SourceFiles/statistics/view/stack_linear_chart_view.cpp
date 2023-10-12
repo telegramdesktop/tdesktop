@@ -742,7 +742,6 @@ void StackLinearChartView::paintPieText(QPainter &p, const PaintContext &c) {
 			: (minScale) + percentage * (maxScale - minScale);
 		const auto text = parts[k].percentageText;
 		const auto textW = font->width(text);
-		const auto textH = font->height;
 		const auto textXShift = textW / 2.;
 		const auto textYShift = textW / 2.;
 		const auto textRectCenter = rectF.center() + QPointF(
