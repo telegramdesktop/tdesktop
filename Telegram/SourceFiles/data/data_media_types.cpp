@@ -1719,7 +1719,11 @@ PollData *MediaPoll::poll() const {
 }
 
 TextWithEntities MediaPoll::notificationText() const {
-	return Ui::Text::Colorized(_poll->question);
+	return TextWithEntities()
+		.append(QChar(0xD83D))
+		.append(QChar(0xDCCA))
+		.append(QChar(' '))
+		.append(Ui::Text::Colorized(_poll->question));
 }
 
 QString MediaPoll::pinnedTextSubstring() const {
