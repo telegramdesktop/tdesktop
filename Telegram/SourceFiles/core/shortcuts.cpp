@@ -94,9 +94,10 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"read_chat"_q         , Command::ReadChat },
 
 	// Shortcuts that have no default values.
-	{ u"message"_q           , Command::JustSendMessage },
-	{ u"message_silently"_q  , Command::SendSilentMessage },
-	{ u"message_scheduled"_q , Command::ScheduleMessage },
+	{ u"message"_q                       , Command::JustSendMessage },
+	{ u"message_silently"_q              , Command::SendSilentMessage },
+	{ u"message_scheduled"_q             , Command::ScheduleMessage },
+	{ u"mevia_viewer_video_fullscreen"_q , Command::MediaViewerFullscreen },
 	//
 };
 
