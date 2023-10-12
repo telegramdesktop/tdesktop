@@ -69,8 +69,10 @@ void PaintShadow(QPainter &p, int radius, const QRect &r) {
 	p.setOpacity(opacity * kOpacityStep);
 	p.drawRoundedRect(r + QMarginsF(hOffset, 0, hOffset, 0), radius, radius);
 	p.setOpacity(opacity * kOpacityStep2);
-	p.drawRoundedRect(r
-		+ QMarginsF(hOffset2, 0, hOffset2, 0), radius, radius);
+	p.drawRoundedRect(
+		r + QMarginsF(hOffset2, 0, hOffset2, 0),
+		radius,
+		radius);
 
 	p.setOpacity(opacity * kOpacityStep);
 	p.drawRoundedRect(r + QMarginsF(0, 0, 0, vOffset), radius, radius);
@@ -123,11 +125,13 @@ void PaintDetails(
 	const auto lineY = textRect.y();
 	const auto valueContext = Ui::Text::PaintContext{
 		.position = QPoint(rect::right(textRect) - valueWidth, lineY),
+		.outerWidth = textRect.width(),
+		.availableWidth = valueWidth,
 	};
 	const auto nameContext = Ui::Text::PaintContext{
 		.position = QPoint(textRect.x(), lineY),
-		.outerWidth = textRect.width() - valueWidth,
-		.availableWidth = textRect.width(),
+		.outerWidth = textRect.width(),
+		.availableWidth = textRect.width() - valueWidth,
 	};
 	p.setPen(st::boxTextFg);
 	name.draw(p, nameContext);
