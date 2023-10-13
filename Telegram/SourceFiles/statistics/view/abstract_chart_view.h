@@ -18,9 +18,9 @@ class LinesFilterController;
 
 struct PaintContext final {
 	const Data::StatisticalChart &chartData;
-	const Limits &xIndices;
-	const Limits &xPercentageLimits;
-	const Limits &heightLimits;
+	const Limits xIndices;
+	const Limits xPercentageLimits;
+	const Limits heightLimits;
 	const QRect &rect;
 	bool footer = false;
 };
