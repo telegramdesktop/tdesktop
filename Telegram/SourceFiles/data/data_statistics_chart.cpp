@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics_chart.h"
 
 #include <QtCore/QDateTime>
+#include <QtCore/QLocale>
 
 namespace Data {
 

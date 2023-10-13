@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/palette.h"
 
 #include <QtGui/QtEvents>
+#include <QtCore/QLocale>
 
 namespace Ui {
 

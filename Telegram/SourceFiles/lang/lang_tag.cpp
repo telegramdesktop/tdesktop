@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/text/text.h"
 #include "base/qt/qt_common_adapters.h"
+#include "base/qt/qt_string_view.h"
 
 namespace Lang {
 namespace {

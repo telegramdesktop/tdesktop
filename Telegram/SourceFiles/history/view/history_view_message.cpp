@@ -1622,6 +1622,8 @@ void Message::paintText(
 		.position = trect.topLeft(),
 		.availableWidth = trect.width(),
 		.palette = &stm->textPalette,
+		.pre = stm->preBlockCache.get(),
+		.blockquote = stm->blockquoteBlockCache.get(),
 		.colors = context.st->highlightColors(),
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = context.now,

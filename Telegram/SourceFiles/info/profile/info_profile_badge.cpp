@@ -76,6 +76,8 @@ Badge::Badge(
 	}, _lifetime);
 }
 
+Badge::~Badge() = default;
+
 Ui::RpWidget *Badge::widget() const {
 	return _view.data();
 }

@@ -748,6 +748,8 @@ void Document::draw(
 			.position = { st::msgPadding.left(), captiontop },
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
+			.pre = stm->preBlockCache.get(),
+			.blockquote = stm->blockquoteBlockCache.get(),
 			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,

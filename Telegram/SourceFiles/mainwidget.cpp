@@ -596,7 +596,7 @@ bool MainWidget::shareUrl(
 	const auto cursor = MessageCursor{
 		int(url.size()) + 1,
 		int(url.size()) + 1 + int(text.size()),
-		QFIXED_MAX
+		Ui::kQFixedMax
 	};
 	const auto history = thread->owningHistory();
 	const auto topicRootId = thread->topicRootId();

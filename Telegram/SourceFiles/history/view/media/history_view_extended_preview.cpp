@@ -235,6 +235,8 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 				painty + painth + st::mediaCaptionSkip),
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
+			.pre = stm->preBlockCache.get(),
+			.blockquote = stm->blockquoteBlockCache.get(),
 			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,

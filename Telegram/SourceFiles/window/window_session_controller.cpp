@@ -1519,7 +1519,11 @@ bool SessionController::switchInlineQuery(
 		'@' + bot->username() + ' ' + query,
 		TextWithTags::Tags(),
 	};
-	MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
+	MessageCursor cursor = {
+		int(textWithTags.text.size()),
+		int(textWithTags.text.size()),
+		Ui::kQFixedMax
+	};
 	auto draft = std::make_unique<Data::Draft>(
 		textWithTags,
 		to.currentReplyToId,

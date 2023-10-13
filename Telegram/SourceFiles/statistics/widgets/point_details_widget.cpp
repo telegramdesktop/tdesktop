@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_statistics.h"
 
 #include <QtCore/QDateTime>
+#include <QtCore/QLocale>
 
 namespace Statistic {
 namespace {

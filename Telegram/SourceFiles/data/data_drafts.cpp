@@ -69,7 +69,7 @@ void ApplyPeerCloudDraft(
 		textWithTags,
 		replyTo,
 		topicRootId,
-		MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
+		MessageCursor(Ui::kQFixedMax, Ui::kQFixedMax, Ui::kQFixedMax),
 		(draft.is_no_webpage()
 			? Data::PreviewState::Cancelled
 			: Data::PreviewState::Allowed));

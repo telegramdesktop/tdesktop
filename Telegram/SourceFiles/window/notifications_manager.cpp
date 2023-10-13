@@ -1069,7 +1069,7 @@ void Manager::notificationActivated(
 					MessageCursor{
 						int(reply.text.size()),
 						int(reply.text.size()),
-						QFIXED_MAX,
+						Ui::kQFixedMax,
 					},
 					Data::PreviewState::Allowed);
 				history->setLocalDraft(std::move(draft));

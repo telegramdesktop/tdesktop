@@ -216,7 +216,7 @@ void ForwardPanel::updateTexts() {
 		.customEmojiRepaint = _repaint,
 	};
 	_text.setMarkedText(
-		st::messageTextStyle,
+		st::defaultTextStyle,
 		text,
 		Ui::DialogTextOptions(),
 		context);

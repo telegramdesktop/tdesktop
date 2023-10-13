@@ -709,6 +709,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			.position = QPoint(st::msgPadding.left(), top),
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
+			.pre = stm->preBlockCache.get(),
+			.blockquote = stm->blockquoteBlockCache.get(),
 			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,

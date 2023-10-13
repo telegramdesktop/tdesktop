@@ -40,7 +40,15 @@ msgDateDelta: point(2px, 5px);
 msgDateImgDelta: 4px;
 msgDateImgPadding: point(8px, 2px);
 
-messageTextStyle: defaultTextStyle;
+messageTextStyle: TextStyle(defaultTextStyle) {
+	blockPadding: margins(10px, 4px, 6px, 4px);
+	blockVerticalSkip: 4px;
+	blockHeader: 20px;
+	blockHeaderPosition: point(10px, 2px);
+	blockOutline: 3px;
+	blockRadius: 5px;
+	preScrollable: true;
+}
 msgDateTextStyle: defaultTextStyle;
 serviceTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgServiceFg;

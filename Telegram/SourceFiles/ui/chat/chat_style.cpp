@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/chat_theme.h"
 #include "ui/image/image_prepare.h" // ImageRoundRadius
+#include "ui/color_contrast.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
@@ -26,6 +27,39 @@ void EnsureCorners(
 	if (corners.p[0].isNull()) {
 		corners = Ui::PrepareCornerPixmaps(radius, color, shadow);
 	}
+}
+
+void EnsureBlockquoteCache(
+		std::unique_ptr<Text::BlockPaintCache> &cache,
+		const style::color &color) {
+	if (cache) {
+		return;
+	}
+	cache = std::make_unique<Text::BlockPaintCache>();
+	cache->bg = color->c;
+	cache->bg.setAlphaF(0.12);
+	cache->outline = color->c;
+	cache->outline.setAlphaF(0.9);
+}
+
+void EnsurePreCache(
+		std::unique_ptr<Text::BlockPaintCache> &cache,
+		const style::color &color,
+		Fn<std::optional<QColor>()> bgOverride) {
+	if (cache) {
+		return;
+	}
+	cache = std::make_unique<Text::BlockPaintCache>();
+	const auto bg = bgOverride();
+	cache->bg = bg.value_or(color->c);
+	if (!bg) {
+		cache->bg.setAlphaF(0.12);
+	}
+	cache->outline = color->c;
+	cache->outline.setAlphaF(0.9);
+	cache->withHeader = true;
+	cache->header = color->c;
+	cache->header.setAlphaF(0.25);
 }
 
 } // namespace
@@ -487,6 +521,8 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	for (auto &style : _messageStyles) {
 		style.msgBgCornersSmall = {};
 		style.msgBgCornersLarge = {};
+		style.blockquoteBlockCache = nullptr;
+		style.preBlockCache = nullptr;
 	}
 	for (auto &style : _imageStyles) {
 		style.msgDateImgBgCorners = {};
@@ -541,6 +577,23 @@ const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 		BubbleRadiusLarge(),
 		result.msgBg,
 		&result.msgShadow);
+	EnsureBlockquoteCache(
+		result.blockquoteBlockCache,
+		result.msgReplyBarColor);
+
+	const auto preBgOverride = [&] {
+		const auto withBg = [&](const QColor &color) {
+			return Ui::CountContrast(windowBg()->c, color);
+		};
+		const auto dark = (withBg({ 0, 0, 0 }) < withBg({ 255, 255, 255 }));
+		return dark ? QColor(0, 0, 0, 192) : std::optional<QColor>();
+	};
+	EnsurePreCache(
+		result.preBlockCache,
+		(selected
+			? result.textPalette.selectMonoFg
+			: result.textPalette.monoFg),
+		preBgOverride);
 	return result;
 }
 

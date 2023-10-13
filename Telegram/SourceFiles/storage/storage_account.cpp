@@ -1272,7 +1272,7 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 			: keysOld
 			? Data::DraftKey::FromSerializedOld(keyValueOld)
 			: Data::DraftKey::Local(0);
-		qint32 position = 0, anchor = 0, scroll = QFIXED_MAX;
+		qint32 position = 0, anchor = 0, scroll = Ui::kQFixedMax;
 		draft.stream >> position >> anchor >> scroll;
 		if (const auto i = map.find(key); i != end(map)) {
 			i->second->cursor = MessageCursor(position, anchor, scroll);
@@ -1285,8 +1285,8 @@ void Account::readDraftCursorsLegacy(
 		details::FileReadDescriptor &draft,
 		quint64 draftPeerSerialized,
 		Data::HistoryDrafts &map) {
-	qint32 localPosition = 0, localAnchor = 0, localScroll = QFIXED_MAX;
-	qint32 editPosition = 0, editAnchor = 0, editScroll = QFIXED_MAX;
+	qint32 localPosition = 0, localAnchor = 0, localScroll = Ui::kQFixedMax;
+	qint32 editPosition = 0, editAnchor = 0, editScroll = Ui::kQFixedMax;
 	draft.stream >> localPosition >> localAnchor >> localScroll;
 	if (!draft.stream.atEnd()) {
 		draft.stream >> editPosition >> editAnchor >> editScroll;

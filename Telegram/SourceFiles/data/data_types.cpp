@@ -102,7 +102,7 @@ void MessageCursor::fillFrom(not_null<const Ui::InputField*> field) {
 	position = cursor.position();
 	anchor = cursor.anchor();
 	const auto top = field->scrollTop().current();
-	scroll = (top != field->scrollTopMax()) ? top : QFIXED_MAX;
+	scroll = (top != field->scrollTopMax()) ? top : Ui::kQFixedMax;
 }
 
 void MessageCursor::applyTo(not_null<Ui::InputField*> field) {

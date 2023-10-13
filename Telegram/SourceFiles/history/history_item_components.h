@@ -22,6 +22,7 @@ namespace Ui {
 struct ChatPaintContext;
 class ChatStyle;
 struct PeerUserpicView;
+class SpoilerAnimation;
 } // namespace Ui
 
 namespace Data {
@@ -227,17 +228,13 @@ private:
 
 struct HistoryMessageReply
 	: public RuntimeComponent<HistoryMessageReply, HistoryItem> {
-	HistoryMessageReply() = default;
+	HistoryMessageReply();
 	HistoryMessageReply(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply(HistoryMessageReply &&other) = delete;
 	HistoryMessageReply &operator=(
 		const HistoryMessageReply &other) = delete;
-	HistoryMessageReply &operator=(HistoryMessageReply &&other) = default;
-	~HistoryMessageReply() {
-		// clearData() should be called by holder.
-		Expects(replyToMsg.empty());
-		Expects(replyToVia == nullptr);
-	}
+	HistoryMessageReply &operator=(HistoryMessageReply &&other);
+	~HistoryMessageReply();
 
 	static constexpr auto kBarAlpha = 230. / 255.;
 

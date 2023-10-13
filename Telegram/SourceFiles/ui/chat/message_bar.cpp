@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/message_bar.h"
 
-#include "ui/text/text_options.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/image/image_prepare.h"
+#include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "styles/style_chat.h"

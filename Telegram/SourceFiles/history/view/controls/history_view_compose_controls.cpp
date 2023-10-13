@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/send_as_button.h"
 #include "ui/controls/silent_toggle.h"
 #include "ui/chat/choose_send_as.h"
+#include "ui/effects/spoiler_mess.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
@@ -2883,7 +2884,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	const auto cursor = MessageCursor{
 		int(editData.text.size()),
 		int(editData.text.size()),
-		QFIXED_MAX
+		Ui::kQFixedMax
 	};
 	const auto previewPage = [&]() -> WebPageData* {
 		if (const auto media = item->media()) {
