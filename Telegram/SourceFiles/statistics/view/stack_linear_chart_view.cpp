@@ -864,10 +864,8 @@ void StackLinearChartView::paintSelectedXIndex(
 	if ((selectedXIndex < 0) || c.footer) {
 		return;
 	}
-	const auto &[localStart, localEnd] = _transition.zoomedOutXIndices;
 	const auto xPercentageLimits = _transition.zoomedOutXPercentage;
 	p.setBrush(st::boxBg);
-	const auto r = st::statisticsDetailsDotRadius;
 	const auto i = selectedXIndex;
 	const auto isSameToken = (_selectedPoints.lastXIndex == selectedXIndex)
 		&& (_selectedPoints.lastHeightLimits.min == c.heightLimits.min)

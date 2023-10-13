@@ -23,7 +23,7 @@ SegmentTree::SegmentTree(std::vector<int> array)
 	// The max size of this array is about 2 * 2 ^ log2(n) + 1.
 	const auto size = 2 * std::pow(
 		2.,
-		std::floor((std::logf(_array.size()) / std::logf(2.)) + 1));
+		std::floor((std::log(_array.size()) / std::log(2.)) + 1));
 	_heap.resize(int(size));
 	build(1, 0, _array.size());
 }
