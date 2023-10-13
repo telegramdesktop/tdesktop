@@ -76,11 +76,13 @@ private:
 	[[nodiscard]] QPoint scaled(QPoint value) const;
 	[[nodiscard]] QMargins scaled(QMargins value) const;
 	[[nodiscard]] style::font scaled(
-		const style::font &value, int size) const;
+		const style::font &value,
+		int size) const;
+	[[nodiscard]] style::ParagraphStyle scaled(
+		const style::ParagraphStyle &value) const;
 	[[nodiscard]] style::TextStyle scaled(
 		const style::TextStyle &value,
-		int fontSize,
-		int lineHeight) const;
+		int fontSize) const;
 	[[nodiscard]] QImage scaled(
 		const style::icon &icon,
 		const QColor &color) const;
@@ -325,21 +327,30 @@ style::font Preview::scaled(const style::font &font, int size) const {
 	return style::font(scaled(size), font->flags(), font->family());
 }
 
+style::ParagraphStyle Preview::scaled(
+		const style::ParagraphStyle &value) const {
+	return {
+		.padding = scaled(value.padding),
+		.verticalSkip = scaled(value.verticalSkip),
+		.header = scaled(value.header),
+		.headerPosition = scaled(value.headerPosition),
+		.icon = value.icon,
+		.iconPosition = scaled(value.iconPosition),
+		.outline = scaled(value.outline),
+		.radius = scaled(value.radius),
+		.scrollable = value.scrollable,
+	};
+}
+
 style::TextStyle Preview::scaled(
 		const style::TextStyle &value,
-		int fontSize,
-		int lineHeight) const {
+		int fontSize) const {
 	return {
 		.font = scaled(value.font, fontSize),
 		.linkUnderline = value.linkUnderline,
-		.blockPadding = scaled(value.blockPadding),
-		.blockVerticalSkip = scaled(value.blockVerticalSkip),
-		.blockHeader = scaled(value.blockHeader),
-		.blockHeaderPosition = scaled(value.blockHeaderPosition),
-		.blockOutline = scaled(value.blockOutline),
-		.blockRadius = scaled(value.blockRadius),
-		.preScrollable = value.preScrollable,
 		.lineHeight = scaled(value.lineHeight),
+		.blockquote = scaled(value.blockquote),
+		.pre = scaled(value.pre),
 	};
 }
 
@@ -356,8 +367,8 @@ void Preview::updateToScale(int scale) {
 		return;
 	}
 	_scale = scale;
-	_nameStyle = scaled(_nameStyle, 13, 0);
-	_textStyle = scaled(_textStyle, 13, 0);
+	_nameStyle = scaled(_nameStyle, 13);
+	_textStyle = scaled(_textStyle, 13);
 	_nameText.setText(
 		_nameStyle,
 		u"Bob Harris"_q,

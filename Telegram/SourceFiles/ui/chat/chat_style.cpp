@@ -40,6 +40,7 @@ void EnsureBlockquoteCache(
 	cache->bg.setAlphaF(0.12);
 	cache->outline = color->c;
 	cache->outline.setAlphaF(0.9);
+	cache->icon = cache->outline;
 }
 
 void EnsurePreCache(
@@ -57,7 +58,6 @@ void EnsurePreCache(
 	}
 	cache->outline = color->c;
 	cache->outline.setAlphaF(0.9);
-	cache->withHeader = true;
 	cache->header = color->c;
 	cache->header.setAlphaF(0.25);
 }
