@@ -547,6 +547,9 @@ struct ActionRequestedPeer {
 	int buttonId = 0;
 };
 
+struct ActionGiveawayLaunch {
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -586,7 +589,8 @@ struct ServiceAction {
 		ActionRequestedPeer,
 		ActionSetChatWallPaper,
 		ActionSetSameChatWallPaper,
-		ActionGiftCode> content;
+		ActionGiftCode,
+		ActionGiveawayLaunch> content;
 };
 
 ServiceAction ParseServiceAction(

@@ -1289,6 +1289,9 @@ auto HtmlWriter::Wrap::pushMessage(
 				+ NumberToString(data.months)
 				+ (data.months > 1 ? " months" : "month")
 				+ " gift from a channel.");
+	}, [&](const ActionGiveawayLaunch &data) {
+		return serviceFrom + " just started a giveaway "
+			"of Telegram Premium subscriptions to its followers.";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

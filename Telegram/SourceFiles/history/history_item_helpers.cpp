@@ -374,7 +374,8 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 				| (externalPeerId ? Flag::f_reply_to_peer_id : Flag())),
 			MTP_int(replyTo.messageId.msg),
 			peerToMTP(externalPeerId),
-			MTPMessageFwdHeader(), // reply_header
+			MTPMessageFwdHeader(), // reply_from
+			MTPMessageMedia(), // reply_media
 			MTP_int(replyToTop), // reply_to_top_id
 			MTPstring(), // quote_text
 			MTPVector<MTPMessageEntity>()); // quote_entities

@@ -767,6 +767,8 @@ void GenerateItems(
 	using LogDeleteTopic = MTPDchannelAdminLogEventActionDeleteTopic;
 	using LogPinTopic = MTPDchannelAdminLogEventActionPinTopic;
 	using LogToggleAntiSpam = MTPDchannelAdminLogEventActionToggleAntiSpam;
+	using LogChangeColor = MTPDchannelAdminLogEventActionChangeColor;
+	using LogChangeBackgroundEmoji = MTPDchannelAdminLogEventActionChangeBackgroundEmoji;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1815,6 +1817,24 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
+	const auto createChangeColor = [&](const LogChangeColor &data) {
+		const auto text = tr::lng_admin_log_change_color(
+			tr::now,
+			lt_from,
+			fromLinkText,
+			Ui::Text::WithEntities);
+		addSimpleServiceMessage(text);
+	};
+
+	const auto createChangeBackgroundEmoji = [&](const LogChangeBackgroundEmoji &data) {
+		const auto text = tr::lng_admin_log_change_background_emoji(
+			tr::now,
+			lt_from,
+			fromLinkText,
+			Ui::Text::WithEntities);
+		addSimpleServiceMessage(text);
+	};
+
 	action.match(
 		createChangeTitle,
 		createChangeAbout,
@@ -1858,7 +1878,9 @@ void GenerateItems(
 		createEditTopic,
 		createDeleteTopic,
 		createPinTopic,
-		createToggleAntiSpam);
+		createToggleAntiSpam,
+		createChangeColor,
+		createChangeBackgroundEmoji);
 }
 
 } // namespace AdminLog

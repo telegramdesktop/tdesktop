@@ -286,8 +286,11 @@ void Premium::resolveGiveawayInfo(
 			info.adminChannelId = data.vadmin_disallowed_chat_id()
 				? ChannelId(*data.vadmin_disallowed_chat_id())
 				: ChannelId();
+			info.disallowedCountry = qs(
+				data.vdisallowed_country().value_or_empty());
 			info.tooEarlyDate
 				= data.vjoined_too_early_date().value_or_empty();
+			info.startDate = data.vstart_date().v;
 		}, [&](const MTPDpayments_giveawayInfoResults &data) {
 			info.state = data.is_refunded()
 				? GiveawayState::Refunded
@@ -295,6 +298,7 @@ void Premium::resolveGiveawayInfo(
 			info.giftCode = qs(data.vgift_code_slug().value_or_empty());
 			info.activatedCount = data.vactivated_count().v;
 			info.finishDate = data.vfinish_date().v;
+			info.startDate = data.vstart_date().v;
 		});
 		_giveawayInfoDone(std::move(info));
 	}).fail([=] {

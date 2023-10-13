@@ -707,7 +707,8 @@ void GiveawayInfoBox(
 				lt_channel,
 				Ui::Text::Bold(first),
 				lt_start_date,
-				Ui::Text::Bold("some date"),
+				Ui::Text::Bold(
+					langDateTime(base::unixtime::parse(info.startDate))),
 				Ui::Text::RichLangValue);
 	text.append("\n\n").append((finished
 		? tr::lng_prizes_end_when_finish
@@ -751,6 +752,10 @@ void GiveawayInfoBox(
 				lt_date,
 				Ui::Text::Bold(
 					langDateTime(base::unixtime::parse(info.tooEarlyDate))),
+				Ui::Text::RichLangValue));
+		} else if (!info.disallowedCountry.isEmpty()) {
+			text.append("\n\n").append(tr::lng_prizes_how_no_country(
+				tr::now,
 				Ui::Text::RichLangValue));
 		} else if (info.participating) {
 			text.append("\n\n").append((many

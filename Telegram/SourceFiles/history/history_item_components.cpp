@@ -284,7 +284,7 @@ ReplyFields ReplyFieldsFromMTP(
 				= data.vreply_to_top_id().value_or(id);
 			result.topicPost = data.is_forum_topic();
 		}
-		if (const auto header = data.vreply_header()) {
+		if (const auto header = data.vreply_from()) {
 			const auto &data = header->data();
 			result.externalPostAuthor
 				= qs(data.vpost_author().value_or_empty());

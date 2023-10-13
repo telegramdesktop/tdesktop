@@ -62,18 +62,6 @@ Giveaway::Giveaway(
 , _winnersTitle(st::msgMinWidth)
 , _winners(st::msgMinWidth) {
 	fillFromData(giveaway);
-
-	if (!parent->data()->Has<HistoryMessageForwarded>()
-		&& ranges::contains(
-			giveaway->channels,
-			parent->data()->history()->peer)) {
-		parent->setServicePreMessage({
-			tr::lng_action_giveaway_started(
-				tr::now,
-				lt_from,
-				parent->data()->history()->peer->name()),
-		});
-	}
 }
 
 Giveaway::~Giveaway() {

@@ -2155,7 +2155,8 @@ void ApiWrap::saveDraftsToCloud() {
 			ReplyToForMTP(history, cloudDraft->reply),
 			history->peer->input,
 			MTP_string(textWithTags.text),
-			entities
+			entities,
+			MTPInputMedia()
 		)).done([=](const MTPBool &result, const MTP::Response &response) {
 			const auto requestId = response.requestId;
 			history->finishSavingCloudDraft(
@@ -3628,8 +3629,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		} else if (message.webPageId) {
 			auto page = _session->data().webpage(message.webPageId);
 			media = MTP_messageMediaWebPage(
+				MTP_flags(0),
 				MTP_webPagePending(
+					MTP_flags(0),
 					MTP_long(page->id),
+					MTPstring(), // url
 					MTP_int(page->pendingTill)));
 		}
 		const auto anonymousPost = peer->amAnonymous();

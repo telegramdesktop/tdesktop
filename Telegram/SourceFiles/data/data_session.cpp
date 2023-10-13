@@ -4335,7 +4335,9 @@ void Session::serviceNotification(
 			MTPstring(), // lang_code
 			MTPEmojiStatus(),
 			MTPVector<MTPUsername>(),
-			MTPint())); // stories_max_id
+			MTPint(), // stories_max_id
+			MTP_int(0), // color
+			MTPlong())); // background_emoji_id
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	if (!history->folderKnown()) {

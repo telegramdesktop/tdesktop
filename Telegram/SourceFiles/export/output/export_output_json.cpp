@@ -601,6 +601,8 @@ QByteArray SerializeMessage(
 		}
 		push("months", data.months);
 		push("via_giveaway", data.viaGiveaway);
+	}, [&](const ActionGiveawayLaunch &data) {
+		pushAction("giveaway_launch");
 	}, [&](const ActionSetChatWallPaper &data) {
 		pushActor();
 		pushAction("set_chat_wallpaper");

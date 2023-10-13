@@ -46,10 +46,12 @@ enum class GiveawayState {
 
 struct GiveawayInfo {
 	QString giftCode;
+	QString disallowedCountry;
 	ChannelId adminChannelId = 0;
 	GiveawayState state = GiveawayState::Invalid;
 	TimeId tooEarlyDate = 0;
 	TimeId finishDate = 0;
+	TimeId startDate = 0;
 	int winnersCount = 0;
 	int activatedCount = 0;
 	bool participating = false;

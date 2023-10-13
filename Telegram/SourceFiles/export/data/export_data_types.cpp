@@ -1320,6 +1320,10 @@ ServiceAction ParseServiceAction(
 		content.viaGiveaway = data.is_via_giveaway();
 		content.months = data.vmonths().v;
 		content.code = data.vslug().v;
+		result.content = content;
+	}, [&](const MTPDmessageActionGiveawayLaunch &) {
+		auto content = ActionGiveawayLaunch();
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

@@ -4447,6 +4447,17 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareGiveawayLaunch = [&](const MTPDmessageActionGiveawayLaunch &action) {
+		auto result = PreparedServiceText();
+		result.links.push_back(fromLink());
+		result.text = tr::lng_action_giveaway_started(
+			tr::now,
+			lt_from,
+			fromLinkText(), // Link 1.
+			Ui::Text::WithEntities);
+		return result;
+	};
+
 	setServiceText(action.match([&](
 			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -4529,6 +4540,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return prepareSetSameChatWallPaper(data);
 	}, [&](const MTPDmessageActionGiftCode &data) {
 		return prepareGiftCode(data);
+	}, [&](const MTPDmessageActionGiveawayLaunch &data) {
+		return prepareGiveawayLaunch(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}));
