@@ -30,12 +30,12 @@ void EnsureCorners(
 }
 
 void EnsureBlockquoteCache(
-		std::unique_ptr<Text::BlockPaintCache> &cache,
+		std::unique_ptr<Text::QuotePaintCache> &cache,
 		const style::color &color) {
 	if (cache) {
 		return;
 	}
-	cache = std::make_unique<Text::BlockPaintCache>();
+	cache = std::make_unique<Text::QuotePaintCache>();
 	cache->bg = color->c;
 	cache->bg.setAlphaF(0.12);
 	cache->outline = color->c;
@@ -44,13 +44,13 @@ void EnsureBlockquoteCache(
 }
 
 void EnsurePreCache(
-		std::unique_ptr<Text::BlockPaintCache> &cache,
+		std::unique_ptr<Text::QuotePaintCache> &cache,
 		const style::color &color,
 		Fn<std::optional<QColor>()> bgOverride) {
 	if (cache) {
 		return;
 	}
-	cache = std::make_unique<Text::BlockPaintCache>();
+	cache = std::make_unique<Text::QuotePaintCache>();
 	const auto bg = bgOverride();
 	cache->bg = bg.value_or(color->c);
 	if (!bg) {
@@ -521,8 +521,8 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	for (auto &style : _messageStyles) {
 		style.msgBgCornersSmall = {};
 		style.msgBgCornersLarge = {};
-		style.blockquoteBlockCache = nullptr;
-		style.preBlockCache = nullptr;
+		style.blockquoteCache = nullptr;
+		style.preCache = nullptr;
 	}
 	for (auto &style : _imageStyles) {
 		style.msgDateImgBgCorners = {};
@@ -578,7 +578,7 @@ const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 		result.msgBg,
 		&result.msgShadow);
 	EnsureBlockquoteCache(
-		result.blockquoteBlockCache,
+		result.blockquoteCache,
 		result.msgReplyBarColor);
 
 	const auto preBgOverride = [&] {
@@ -589,7 +589,7 @@ const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 		return dark ? QColor(0, 0, 0, 192) : std::optional<QColor>();
 	};
 	EnsurePreCache(
-		result.preBlockCache,
+		result.preCache,
 		(selected
 			? result.textPalette.selectMonoFg
 			: result.textPalette.monoFg),

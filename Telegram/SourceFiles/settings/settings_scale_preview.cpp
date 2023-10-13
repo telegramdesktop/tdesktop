@@ -78,8 +78,8 @@ private:
 	[[nodiscard]] style::font scaled(
 		const style::font &value,
 		int size) const;
-	[[nodiscard]] style::ParagraphStyle scaled(
-		const style::ParagraphStyle &value) const;
+	[[nodiscard]] style::QuoteStyle scaled(
+		const style::QuoteStyle &value) const;
 	[[nodiscard]] style::TextStyle scaled(
 		const style::TextStyle &value,
 		int fontSize) const;
@@ -327,8 +327,7 @@ style::font Preview::scaled(const style::font &font, int size) const {
 	return style::font(scaled(size), font->flags(), font->family());
 }
 
-style::ParagraphStyle Preview::scaled(
-		const style::ParagraphStyle &value) const {
+style::QuoteStyle Preview::scaled(const style::QuoteStyle &value) const {
 	return {
 		.padding = scaled(value.padding),
 		.verticalSkip = scaled(value.verticalSkip),

@@ -40,19 +40,19 @@ msgDateDelta: point(2px, 5px);
 msgDateImgDelta: 4px;
 msgDateImgPadding: point(8px, 2px);
 
-messageParagraphStyle: ParagraphStyle(defaultParagraphStyle) {
+messageQuoteStyle: QuoteStyle(defaultQuoteStyle) {
 	padding: margins(10px, 2px, 4px, 2px);
 	verticalSkip: 4px;
 	outline: 3px;
 	radius: 5px;
 }
 messageTextStyle: TextStyle(defaultTextStyle) {
-	blockquote: ParagraphStyle(messageParagraphStyle) {
+	blockquote: QuoteStyle(messageQuoteStyle) {
 		padding: margins(10px, 2px, 20px, 2px);
 		icon: icon{{ "chat/mini_quote", windowFg }};
 		iconPosition: point(4px, 2px);
 	}
-	pre: ParagraphStyle(messageParagraphStyle) {
+	pre: QuoteStyle(messageQuoteStyle) {
 		header: 20px;
 		headerPosition: point(10px, 2px);
 		scrollable: true;
