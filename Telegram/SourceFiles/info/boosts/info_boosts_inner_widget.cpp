@@ -8,13 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/boosts/info_boosts_inner_widget.h"
 
 #include "api/api_statistics.h"
+#include "boxes/peers/edit_peer_invite_link.h"
+#include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h"
+#include "ui/controls/invite_link_buttons.h"
+#include "ui/controls/invite_link_label.h"
 #include "ui/rect.h"
 #include "ui/widgets/labels.h"
+#include "styles/style_info.h"
 #include "styles/style_statistics.h"
+
+#include <QtGui/QGuiApplication>
 
 namespace Info::Boosts {
 namespace {
@@ -133,6 +140,37 @@ void FillOverview(
 	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.bottom());
 }
 
+void FillShareLink(
+		not_null<Ui::VerticalLayout*> content,
+		std::shared_ptr<Ui::Show> show,
+		const QString &link,
+		not_null<PeerData*> peer) {
+	const auto weak = Ui::MakeWeak(content);
+	const auto copyLink = crl::guard(weak, [=] {
+		QGuiApplication::clipboard()->setText(link);
+		show->showToast(tr::lng_channel_public_link_copied(tr::now));
+	});
+	const auto shareLink = crl::guard(weak, [=] {
+		show->showBox(ShareInviteLinkBox(peer, link));
+	});
+
+	const auto label = content->lifetime().make_state<Ui::InviteLinkLabel>(
+		content,
+		rpl::single(link),
+		nullptr);
+	content->add(
+		label->take(),
+		st::inviteLinkFieldPadding);
+
+	label->clicks(
+	) | rpl::start_with_next(copyLink, label->lifetime());
+	const auto copyShareWrap = content->add(
+		object_ptr<Ui::VerticalLayout>(content));
+	Ui::AddCopyShareLinkButtons(copyShareWrap, copyLink, shareLink);
+	copyShareWrap->widgetAt(0)->showChildren();
+	::Settings::AddSkip(content, st::inviteLinkFieldPadding.bottom());
+}
+
 } // namespace
 
 InnerWidget::InnerWidget(
@@ -141,7 +179,8 @@ InnerWidget::InnerWidget(
 	not_null<PeerData*> peer)
 : VerticalLayout(parent)
 , _controller(controller)
-, _peer(peer) {
+, _peer(peer)
+, _show(controller->uiShow()) {
 	const auto api = lifetime().make_state<Api::Boosts>(peer);
 
 	const auto fakeShowed = lifetime().make_state<rpl::event_stream<>>();
@@ -152,11 +191,12 @@ InnerWidget::InnerWidget(
 		) | rpl::start_with_error_done([](const QString &error) {
 		}, [=] {
 			const auto status = api->boostStatus();
+			const auto inner = this;
 
 			Ui::FillBoostLimit(
 				fakeShowed->events(),
 				rpl::single(status.overview.isBoosted),
-				this,
+				inner,
 				Ui::BoostBoxData{
 					.boost = Ui::BoostCounters{
 						.level = status.overview.level,
@@ -169,7 +209,13 @@ InnerWidget::InnerWidget(
 					}
 				});
 
-			FillOverview(this, status);
+			FillOverview(inner, status);
+
+			::Settings::AddSkip(inner);
+			AddHeader(inner, tr::lng_boosts_link_title);
+			FillShareLink(inner, _show, status.link, peer);
+			::Settings::AddSkip(inner);
+			::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());
 
 			resizeToWidth(width());
 			crl::on_main([=]{ fakeShowed->fire({}); });

@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
 
+namespace Ui {
+class Show;
+} // namespace Ui
+
 namespace Info {
 class Controller;
 } // namespace Info
@@ -38,6 +42,7 @@ public:
 private:
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
+	std::shared_ptr<Ui::Show> _show;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<ShowRequest> _showRequests;
