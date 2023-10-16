@@ -758,7 +758,8 @@ topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimatio
 	size: size(8px, 8px);
 }
 
-inviteLinkFieldHeight: 44px;
+inviteLinkFieldRadius: 5px;
+inviteLinkFieldHeight: 42px;
 inviteLinkFieldMargin: margins(14px, 12px, 36px, 9px);
 inviteLinkThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
 inviteLinkThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
@@ -773,10 +774,14 @@ inviteLinkThreeDots: IconButton(defaultIconButton) {
 	rippleAreaSize: 0px;
 }
 inviteLinkFieldPadding: margins(22px, 7px, 22px, 14px);
+inviteLinkFieldLabel: FlatLabel(defaultFlatLabel) {
+	align: align(center);
+}
 
 inviteLinkButton: RoundButton(defaultActiveButton) {
 	height: 36px;
 	textTop: 9px;
+	radius: 6px;
 }
 inviteLinkButtonsPadding: margins(22px, 0px, 22px, 0px);
 inviteLinkButtonsSkip: 10px;
