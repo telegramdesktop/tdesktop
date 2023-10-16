@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_statistics.h"
 #include "boxes/peers/edit_peer_invite_link.h"
 #include "info/info_controller.h"
+#include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
 #include "statistics/widgets/chart_header_widget.h"
@@ -210,6 +211,35 @@ InnerWidget::InnerWidget(
 				});
 
 			FillOverview(inner, status);
+
+			::Settings::AddSkip(inner);
+			::Settings::AddDivider(inner);
+			::Settings::AddSkip(inner);
+
+			if (status.firstSlice.total > 0) {
+				::Settings::AddSkip(inner);
+				using PeerPtr = not_null<PeerData*>;
+				const auto header = inner->add(
+					object_ptr<Statistic::Header>(inner),
+					st::statisticsLayerMargins);
+				header->resizeToWidth(header->width());
+				header->setTitle(tr::lng_boosts_list_title(
+					tr::now,
+					lt_count,
+					status.firstSlice.total));
+				header->setSubTitle({});
+				Statistics::AddBoostsList(
+					status.firstSlice,
+					inner,
+					[=](PeerPtr p) { controller->showPeerInfo(p); },
+					peer,
+					tr::lng_boosts_title());
+				::Settings::AddSkip(inner);
+				::Settings::AddDividerText(
+					inner,
+					tr::lng_boosts_list_subtext());
+				::Settings::AddSkip(inner);
+			}
 
 			::Settings::AddSkip(inner);
 			AddHeader(inner, tr::lng_boosts_link_title);

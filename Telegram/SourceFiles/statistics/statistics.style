@@ -104,6 +104,17 @@ statisticsRecentPostButton: SettingsButton(defaultSettingsButton) {
 	height: 56px;
 	padding: margins(7px, 0px, 24px, 0px);
 }
+
+statisticsShowMoreButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+
+	padding: margins(73px, 10px, 22px, 8px);
+}
+
+statisticsShowMoreButtonArrowPosition: point(29px, 13px);
+statisticsShowMoreButtonArrowSize: 7px;
+
 boostsButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
