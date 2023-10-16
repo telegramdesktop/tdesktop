@@ -90,7 +90,7 @@ public:
 	QString name;
 	QString firstName;
 	QString lastName;
-	PeerId colorPeerId = 0;
+	uint8 colorIndex = 0;
 	Ui::EmptyUserpic emptyUserpic;
 	mutable Data::CloudImage customUserpic;
 
@@ -291,9 +291,6 @@ struct HistoryMessageReply
 		bool inBubble) const;
 	void unloadPersistentAnimation();
 
-	[[nodiscard]] PeerId colorKey() const {
-		return _colorKey;
-	}
 	[[nodiscard]] PeerId externalPeerId() const {
 		return _fields.externalPeerId;
 	}
@@ -337,14 +334,14 @@ struct HistoryMessageReply
 
 private:
 	ReplyFields _fields;
-	PeerId _colorKey = 0;
 	ClickHandlerPtr _link;
 	mutable Ui::Text::String _name;
 	mutable Ui::Text::String _text;
 	mutable PeerData *_externalSender = nullptr;
 	mutable int _maxWidth = 0;
 	mutable int _nameVersion = 0;
-	bool _unavailable = false;
+	uint8 _colorIndexPlusOne : 7 = 0;
+	uint8 _unavailable : 1 = 0;
 
 };
 

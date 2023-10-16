@@ -110,9 +110,9 @@ void HistoryMessageVia::resize(int32 availw) const {
 
 HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 : name(name)
-, colorPeerId(Data::FakePeerIdForJustName(name))
+, colorIndex(Data::DecideColorIndex(Data::FakePeerIdForJustName(name)))
 , emptyUserpic(
-	Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(colorPeerId)),
+	Ui::EmptyUserpic::UserpicColor(colorIndex),
 	(external
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {
@@ -400,13 +400,13 @@ bool HistoryMessageReply::updateData(
 
 		if (resolvedMessage) {
 			const auto peer = resolvedMessage->history()->peer;
-			_colorKey = (!holder->out()
+			_colorIndexPlusOne = (!holder->out()
 					&& (peer->isMegagroup() || peer->isChat())
 					&& resolvedMessage->from()->isUser())
-				? resolvedMessage->from()->id
-				: PeerId();
+				? (resolvedMessage->from()->colorIndex() + 1)
+				: uint8();
 		} else if (!resolvedStory) {
-			_unavailable = true;
+			_unavailable = 1;
 		}
 
 		const auto media = resolvedMessage
@@ -419,9 +419,9 @@ bool HistoryMessageReply::updateData(
 		}
 	} else if (force) {
 		if (_fields.messageId || _fields.storyId) {
-			_unavailable = true;
+			_unavailable = 1;
 		}
-		_colorKey = 0;
+		_colorIndexPlusOne = 0;
 		spoiler = nullptr;
 	}
 	if (force) {
@@ -502,7 +502,7 @@ void HistoryMessageReply::clearData(not_null<HistoryItem*> holder) {
 			resolvedStory.get());
 		resolvedStory = nullptr;
 	}
-	_unavailable = true;
+	_unavailable = 1;
 	refreshReplyToMedia();
 }
 
@@ -663,8 +663,8 @@ void HistoryMessageReply::paint(
 		const auto outerWidth = w + 2 * x;
 		const auto &bar = !inBubble
 			? st->msgImgReplyBarColor()
-			: _colorKey
-			? HistoryView::FromNameFg(context, _colorKey)
+			: _colorIndexPlusOne
+			? HistoryView::FromNameFg(context, _colorIndexPlusOne - 1)
 			: stm->msgReplyBarColor;
 		const auto rbar = style::rtlrect(
 			x + st::msgReplyBarPos.x(),
@@ -735,8 +735,10 @@ void HistoryMessageReply::paint(
 			if (w > st::msgReplyBarSkip + previewSkip) {
 				p.setPen(!inBubble
 					? st->msgImgReplyBarColor()
-					: _colorKey
-					? HistoryView::FromNameFg(context, _colorKey)
+					: _colorIndexPlusOne
+					? HistoryView::FromNameFg(
+						context,
+						_colorIndexPlusOne - 1)
 					: stm->msgServiceFg);
 				_name.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 				if (originalVia && w > st::msgReplyBarSkip + previewSkip + _name.maxWidth() + st::msgServiceFont->spacew) {

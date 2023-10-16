@@ -986,7 +986,7 @@ void Generator::paintService(QString text) {
 }
 
 void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString letters) {
-	const auto colorIndex = Ui::EmptyUserpic::ColorIndex(index);
+	const auto colorIndex = Ui::DecideColorIndex(index);
 	const auto colors = Ui::EmptyUserpic::UserpicColor(colorIndex);
 	auto userpic = Ui::EmptyUserpic(colors, letters);
 

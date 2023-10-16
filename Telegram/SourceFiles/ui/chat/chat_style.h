@@ -27,6 +27,8 @@ class ChatTheme;
 class ChatStyle;
 struct BubblePattern;
 
+inline constexpr auto kColorIndexCount = uint8(7);
+
 struct MessageStyle {
 	CornersPixmaps msgBgCornersSmall;
 	CornersPixmaps msgBgCornersLarge;
@@ -76,9 +78,9 @@ struct MessageStyle {
 	style::icon historyPollChoiceRight = { Qt::Uninitialized };
 	style::icon historyTranscribeIcon = { Qt::Uninitialized };
 	style::icon historyTranscribeHide = { Qt::Uninitialized };
-	std::unique_ptr<Text::QuotePaintCache> blockquoteCache;
+	std::unique_ptr<Text::QuotePaintCache> quoteCache;
+	std::unique_ptr<Text::QuotePaintCache> replyCache;
 	std::unique_ptr<Text::QuotePaintCache> preCache;
-
 };
 
 struct MessageImageStyle {
@@ -170,7 +172,7 @@ public:
 	void applyCustomPalette(const style::palette *palette);
 	void applyAdjustedServiceBg(QColor serviceBg);
 
-	[[nodiscard]] std::span<Ui::Text::SpecialColor> highlightColors() const;
+	[[nodiscard]] std::span<Text::SpecialColor> highlightColors() const;
 
 	[[nodiscard]] rpl::producer<> paletteChanged() const {
 		return _paletteChanged.events();
@@ -199,6 +201,17 @@ public:
 		bool outbg,
 		bool selected) const;
 	[[nodiscard]] const MessageImageStyle &imageStyle(bool selected) const;
+
+	[[nodiscard]] auto serviceQuoteCache() const
+		-> not_null<Text::QuotePaintCache*>;
+	[[nodiscard]] auto serviceReplyCache() const
+		-> not_null<Text::QuotePaintCache*>;
+	[[nodiscard]] not_null<Text::QuotePaintCache*> coloredQuoteCache(
+		bool selected,
+		uint8 colorIndex) const;
+	[[nodiscard]] not_null<Text::QuotePaintCache*> coloredReplyCache(
+		bool selected,
+		uint8 colorIndex) const;
 
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersSmall() const;
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersLarge() const;
@@ -285,7 +298,15 @@ public:
 	}
 
 private:
+	using ColoredQuotePaintCaches = std::array<
+		std::unique_ptr<Text::QuotePaintCache>,
+		kColorIndexCount * 2>;
 	void assignPalette(not_null<const style::palette*> palette);
+
+	[[nodiscard]] not_null<Text::QuotePaintCache*> coloredCache(
+		ColoredQuotePaintCaches &caches,
+		bool selected,
+		uint8 colorIndex) const;
 
 	void make(style::color &my, const style::color &original) const;
 	void make(style::icon &my, const style::icon &original) const;
@@ -336,7 +357,11 @@ private:
 	mutable CornersPixmaps _msgSelectOverlayCorners[
 		int(CachedCornerRadius::kCount)];
 
-	mutable std::vector<Ui::Text::SpecialColor> _highlightColors;
+	mutable std::vector<Text::SpecialColor> _highlightColors;
+	mutable std::unique_ptr<Text::QuotePaintCache> _serviceQuoteCache;
+	mutable std::unique_ptr<Text::QuotePaintCache> _serviceReplyCache;
+	mutable ColoredQuotePaintCaches _coloredQuoteCaches;
+	mutable ColoredQuotePaintCaches _coloredReplyCaches;
 
 	style::TextPalette _historyPsaForwardPalette;
 	style::TextPalette _imgReplyTextPalette;
@@ -370,6 +395,14 @@ private:
 	rpl::lifetime _defaultPaletteChangeLifetime;
 
 };
+
+[[nodiscard]] uint8 DecideColorIndex(uint64 id);
+[[nodiscard]] uint8 ColorIndexToPaletteIndex(uint8 colorIndex);
+
+[[nodiscard]] style::color FromNameFg(
+	not_null<const ChatStyle*> st,
+	bool selected,
+	uint8 colorIndex);
 
 void FillComplexOverlayRect(
 	QPainter &p,

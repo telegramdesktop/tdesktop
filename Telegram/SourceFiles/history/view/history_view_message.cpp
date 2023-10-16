@@ -368,33 +368,8 @@ QString FastReplyText() {
 
 style::color FromNameFg(
 		const Ui::ChatPaintContext &context,
-		PeerId peerId) {
-	const auto st = context.st;
-	if (context.selected()) {
-		const style::color colors[] = {
-			st->historyPeer1NameFgSelected(),
-			st->historyPeer2NameFgSelected(),
-			st->historyPeer3NameFgSelected(),
-			st->historyPeer4NameFgSelected(),
-			st->historyPeer5NameFgSelected(),
-			st->historyPeer6NameFgSelected(),
-			st->historyPeer7NameFgSelected(),
-			st->historyPeer8NameFgSelected(),
-		};
-		return colors[Data::PeerColorIndex(peerId)];
-	} else {
-		const style::color colors[] = {
-			st->historyPeer1NameFg(),
-			st->historyPeer2NameFg(),
-			st->historyPeer3NameFg(),
-			st->historyPeer4NameFg(),
-			st->historyPeer5NameFg(),
-			st->historyPeer6NameFg(),
-			st->historyPeer7NameFg(),
-			st->historyPeer8NameFg(),
-		};
-		return colors[Data::PeerColorIndex(peerId)];
-	}
+		uint8 colorIndex) {
+	return Ui::FromNameFg(context.st, context.selected(), colorIndex);
 }
 
 struct Message::CommentsButton {
@@ -1355,7 +1330,7 @@ void Message::paintFromName(
 	const auto service = (context.outbg || item->isPost());
 	const auto st = context.st;
 	const auto nameFg = !service
-		? FromNameFg(context, from ? from->id : info->colorPeerId)
+		? FromNameFg(context, from ? from->colorIndex() : info->colorIndex)
 		: item->isSponsored()
 		? st->boxTextFgGood()
 		: stm->msgServiceFg;
@@ -1630,7 +1605,7 @@ void Message::paintText(
 		.availableWidth = trect.width(),
 		.palette = &stm->textPalette,
 		.pre = stm->preCache.get(),
-		.blockquote = stm->blockquoteCache.get(),
+		.blockquote = stm->quoteCache.get(),
 		.colors = context.st->highlightColors(),
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = context.now,

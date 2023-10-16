@@ -39,7 +39,7 @@ class GroupCall;
 struct ReactionId;
 class WallPaper;
 
-[[nodiscard]] int PeerColorIndex(PeerId peerId);
+[[nodiscard]] uint8 DecideColorIndex(PeerId peerId);
 
 // Must be used only for PeerColor-s.
 [[nodiscard]] PeerId FakePeerIdForJustName(const QString &name);
@@ -164,6 +164,11 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Main::Account &account() const;
 
+	[[nodiscard]] uint8 colorIndex() const {
+		return _colorIndex;
+	}
+	bool changeColorIndex(uint8 index);
+
 	[[nodiscard]] bool isUser() const {
 		return peerIsUser(id);
 	}
@@ -285,20 +290,12 @@ public:
 		Ui::PeerUserpicView &view,
 		int size,
 		std::optional<int> radius = {}) const;
-	[[nodiscard]] ImageLocation userpicLocation() const {
-		return _userpic.location();
-	}
+	[[nodiscard]] ImageLocation userpicLocation() const;
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
-	[[nodiscard]] bool userpicPhotoUnknown() const {
-		return (_userpicPhotoId == kUnknownPhotoId);
-	}
-	[[nodiscard]] PhotoId userpicPhotoId() const {
-		return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
-	}
-	[[nodiscard]] bool userpicHasVideo() const {
-		return _userpicHasVideo;
-	}
+	[[nodiscard]] bool userpicPhotoUnknown() const;
+	[[nodiscard]] PhotoId userpicPhotoId() const;
+	[[nodiscard]] bool userpicHasVideo() const;
 	[[nodiscard]] Data::FileOrigin userpicOrigin() const;
 	[[nodiscard]] Data::FileOrigin userpicPhotoOrigin() const;
 
@@ -460,14 +457,15 @@ private:
 
 	TimeId _ttlPeriod = 0;
 
+	QString _requestChatTitle;
+	TimeId _requestChatDate = 0;
+
 	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 	TranslationFlag _translationFlag = TranslationFlag::Unknown;
-	bool _userpicHasVideo = false;
-
-	QString _requestChatTitle;
-	TimeId _requestChatDate = 0;
+	uint8 _colorIndex : 7 = 0;
+	uint8 _userpicHasVideo : 1 = 0;
 
 	QString _about;
 	QString _themeEmoticon;

@@ -25,7 +25,7 @@ void EnsureCorners(
 		const style::color &color,
 		const style::color *shadow = nullptr) {
 	if (corners.p[0].isNull()) {
-		corners = Ui::PrepareCornerPixmaps(radius, color, shadow);
+		corners = PrepareCornerPixmaps(radius, color, shadow);
 	}
 }
 
@@ -482,7 +482,7 @@ void ChatStyle::applyAdjustedServiceBg(QColor serviceBg) {
 	msgServiceBg().set(uchar(r), uchar(g), uchar(b), uchar(a));
 }
 
-std::span<Ui::Text::SpecialColor> ChatStyle::highlightColors() const {
+std::span<Text::SpecialColor> ChatStyle::highlightColors() const {
 	if (_highlightColors.empty()) {
 		const auto push = [&](const style::color &color) {
 			_highlightColors.push_back({ &color->p, &color->p });
@@ -523,7 +523,8 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	for (auto &style : _messageStyles) {
 		style.msgBgCornersSmall = {};
 		style.msgBgCornersLarge = {};
-		style.blockquoteCache = nullptr;
+		style.quoteCache = nullptr;
+		style.replyCache = nullptr;
 		style.preCache = nullptr;
 	}
 	for (auto &style : _imageStyles) {
@@ -560,7 +561,7 @@ const CornersPixmaps &ChatStyle::serviceBgCornersNormal() const {
 
 const CornersPixmaps &ChatStyle::serviceBgCornersInverted() const {
 	if (_serviceBgCornersInverted.p[0].isNull()) {
-		_serviceBgCornersInverted = Ui::PrepareInvertedCornerPixmaps(
+		_serviceBgCornersInverted = PrepareInvertedCornerPixmaps(
 			HistoryServiceMsgInvertedRadius(),
 			msgServiceBg());
 	}
@@ -580,12 +581,12 @@ const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 		result.msgBg,
 		&result.msgShadow);
 	EnsureBlockquoteCache(
-		result.blockquoteCache,
+		result.replyCache,
 		result.msgReplyBarColor);
 
 	const auto preBgOverride = [&] {
 		const auto withBg = [&](const QColor &color) {
-			return Ui::CountContrast(windowBg()->c, color);
+			return CountContrast(windowBg()->c, color);
 		};
 		const auto dark = (withBg({ 0, 0, 0 }) < withBg({ 255, 255, 255 }));
 		return dark ? QColor(0, 0, 0, 192) : std::optional<QColor>();
@@ -621,7 +622,42 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 		result.msgShadowCornersLarge,
 		BubbleRadiusLarge(),
 		result.msgShadow);
+
 	return result;
+}
+
+not_null<Text::QuotePaintCache*> ChatStyle::serviceQuoteCache() const {
+	EnsureBlockquoteCache(_serviceQuoteCache, msgServiceFg());
+	return _serviceQuoteCache.get();
+}
+
+not_null<Text::QuotePaintCache*> ChatStyle::serviceReplyCache() const {
+	EnsureBlockquoteCache(_serviceReplyCache, msgServiceFg());
+	return _serviceReplyCache.get();
+}
+
+not_null<Text::QuotePaintCache*> ChatStyle::coloredQuoteCache(
+		bool selected,
+		uint8 colorIndex) const {
+	return coloredCache(_coloredQuoteCaches, selected, colorIndex);
+}
+
+not_null<Text::QuotePaintCache*> ChatStyle::coloredReplyCache(
+		bool selected,
+		uint8 colorIndex) const {
+	return coloredCache(_coloredReplyCaches, selected, colorIndex);
+}
+
+not_null<Text::QuotePaintCache*> ChatStyle::coloredCache(
+		ColoredQuotePaintCaches &caches,
+		bool selected,
+		uint8 colorIndex) const {
+	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
+
+	const auto shift = (selected ? kColorIndexCount : 0);
+	auto &cache = caches[shift + colorIndex];
+	EnsureBlockquoteCache(cache, FromNameFg(this, selected, colorIndex));
+	return cache.get();
 }
 
 const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersSmall() const {
@@ -749,6 +785,50 @@ void ChatStyle::make(
 		const Type &originalSelected) {
 	make(image().*my, original);
 	make(imageSelected().*my, originalSelected);
+}
+
+uint8 DecideColorIndex(uint64 id) {
+	return id % kColorIndexCount;
+}
+
+uint8 ColorIndexToPaletteIndex(uint8 colorIndex) {
+	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
+
+	const int8 map[] = { 0, 7, 4, 1, 6, 3, 5 };
+	return map[colorIndex];
+}
+
+style::color FromNameFg(
+		not_null<const ChatStyle*> st,
+		bool selected,
+		uint8 colorIndex) {
+	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
+
+	if (selected) {
+		const style::color colors[] = {
+			st->historyPeer1NameFgSelected(),
+			st->historyPeer2NameFgSelected(),
+			st->historyPeer3NameFgSelected(),
+			st->historyPeer4NameFgSelected(),
+			st->historyPeer5NameFgSelected(),
+			st->historyPeer6NameFgSelected(),
+			st->historyPeer7NameFgSelected(),
+			st->historyPeer8NameFgSelected(),
+		};
+		return colors[ColorIndexToPaletteIndex(colorIndex)];
+	} else {
+		const style::color colors[] = {
+			st->historyPeer1NameFg(),
+			st->historyPeer2NameFg(),
+			st->historyPeer3NameFg(),
+			st->historyPeer4NameFg(),
+			st->historyPeer5NameFg(),
+			st->historyPeer6NameFg(),
+			st->historyPeer7NameFg(),
+			st->historyPeer8NameFg(),
+		};
+		return colors[ColorIndexToPaletteIndex(colorIndex)];
+	}
 }
 
 void FillComplexOverlayRect(

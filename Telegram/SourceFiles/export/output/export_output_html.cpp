@@ -25,7 +25,7 @@ constexpr auto kPersonalUserpicSize = 90;
 constexpr auto kEntryUserpicSize = 48;
 constexpr auto kServiceMessagePhotoSize = 60;
 constexpr auto kHistoryUserpicSize = 42;
-constexpr auto kSavedMessagesColorIndex = 3;
+constexpr auto kSavedMessagesColorIndex = uint8(3);
 constexpr auto kJoinWithinSeconds = 900;
 constexpr auto kPhotoMaxWidth = 520;
 constexpr auto kPhotoMaxHeight = 520;
@@ -351,7 +351,7 @@ QByteArray FormatTimeText(TimeId date) {
 namespace details {
 
 struct UserpicData {
-	int colorIndex = 0;
+	uint8 colorIndex = 0;
 	int pixelSize = 0;
 	QString imageLink;
 	QString largeLink;
@@ -991,7 +991,7 @@ QByteArray HtmlWriter::Wrap::pushServiceMessage(
 	result.append(popTag());
 	if (photo) {
 		auto userpic = UserpicData();
-		userpic.colorIndex = Data::PeerColorIndex(dialog.peerId);
+		userpic.colorIndex = dialog.colorIndex;
 		userpic.firstName = dialog.name;
 		userpic.lastName = dialog.lastName;
 		userpic.pixelSize = kServiceMessagePhotoSize;
@@ -2170,7 +2170,7 @@ Result HtmlWriter::start(
 Result HtmlWriter::writePersonal(const Data::PersonalInfo &data) {
 	Expects(_summary != nullptr);
 
-	_selfColorIndex = Data::PeerColorIndex(data.user.info.userId);
+	_selfColorIndex = data.user.info.colorIndex;
 	if (_settings.types & Settings::Type::Userpics) {
 		_delayedPersonalInfo = std::make_unique<Data::PersonalInfo>(data);
 		return Result::Success();

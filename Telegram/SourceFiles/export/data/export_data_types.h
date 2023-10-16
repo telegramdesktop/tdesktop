@@ -24,10 +24,10 @@ namespace Data {
 
 using Utf8String = QByteArray;
 
-int PeerColorIndex(BareId bareId);
+uint8 PeerColorIndex(BareId bareId);
 BareId PeerToBareId(PeerId peerId);
-int PeerColorIndex(PeerId peerId);
-int ApplicationColorIndex(int applicationId);
+uint8 PeerColorIndex(PeerId peerId);
+uint8 ApplicationColorIndex(int applicationId);
 int DomainApplicationId(const Utf8String &data);
 
 Utf8String ParseString(const MTPstring &data);
@@ -108,12 +108,13 @@ struct ContactInfo {
 	Utf8String lastName;
 	Utf8String phoneNumber;
 	TimeId date = 0;
+	uint8 colorIndex = 0;
 
 	Utf8String name() const;
 };
 
 ContactInfo ParseContactInfo(const MTPUser &data);
-int ContactColorIndex(const ContactInfo &data);
+uint8 ContactColorIndex(const ContactInfo &data);
 
 struct Photo {
 	uint64 id = 0;
@@ -217,6 +218,7 @@ struct User {
 	BareId bareId = 0;
 	ContactInfo info;
 	Utf8String username;
+	uint8 colorIndex = 0;
 	bool isBot = false;
 	bool isSelf = false;
 	bool isReplies = false;
@@ -236,6 +238,7 @@ struct Chat {
 	ChannelId migratedToChannelId = 0;
 	Utf8String title;
 	Utf8String username;
+	uint8 colorIndex = 0;
 	bool isBroadcast = false;
 	bool isSupergroup = false;
 
@@ -249,6 +252,7 @@ struct Peer {
 	PeerId id() const;
 	Utf8String name() const;
 	MTPInputPeer input() const;
+	uint8 colorIndex() const;
 
 	const User *user() const;
 	const Chat *chat() const;
@@ -746,6 +750,7 @@ struct DialogInfo {
 	int32 topMessageId = 0;
 	TimeId topMessageDate = 0;
 	PeerId peerId = 0;
+	uint8 colorIndex = 0;
 
 	MTPInputPeer migratedFromInput = MTP_inputPeerEmpty();
 	ChannelId migratedToChannelId = 0;

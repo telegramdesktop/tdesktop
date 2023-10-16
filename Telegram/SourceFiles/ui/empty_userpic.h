@@ -18,8 +18,9 @@ public:
 		const style::color color2;
 	};
 
-	[[nodiscard]] static int ColorIndex(uint64 id);
-	[[nodiscard]] static EmptyUserpic::BgColors UserpicColor(int id);
+	[[nodiscard]] static uint8 ColorIndex(uint64 id);
+	[[nodiscard]] static EmptyUserpic::BgColors UserpicColor(
+		uint8 colorIndex);
 
 	[[nodiscard]] static QString ExternalName();
 	[[nodiscard]] static QString InaccessibleName();
