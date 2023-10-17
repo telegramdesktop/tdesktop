@@ -99,19 +99,26 @@ private:
 
 	void ensurePhotoMediaCreated() const;
 
-	TextSelection toTitleSelection(TextSelection selection) const;
-	TextSelection fromTitleSelection(TextSelection selection) const;
-	TextSelection toDescriptionSelection(TextSelection selection) const;
-	TextSelection fromDescriptionSelection(TextSelection selection) const;
-	QMargins inBubblePadding() const;
-	int bottomInfoPadding() const;
-	bool isLogEntryOriginal() const;
+	[[nodiscard]] TextSelection toTitleSelection(
+		TextSelection selection) const;
+	[[nodiscard]] TextSelection fromTitleSelection(
+		TextSelection selection) const;
+	[[nodiscard]] TextSelection toDescriptionSelection(
+		TextSelection selection) const;
+	[[nodiscard]] TextSelection fromDescriptionSelection(
+		TextSelection selection) const;
+	[[nodiscard]] QMargins inBubblePadding() const;
+	[[nodiscard]] QMargins innerMargin() const;
+	[[nodiscard]] int bottomInfoPadding() const;
+	[[nodiscard]] bool isLogEntryOriginal() const;
 
-	QString displayedSiteName() const;
-	ClickHandlerPtr replaceAttachLink(const ClickHandlerPtr &link) const;
-	bool asArticle() const;
+	[[nodiscard]] QString displayedSiteName() const;
+	[[nodiscard]] ClickHandlerPtr replaceAttachLink(
+		const ClickHandlerPtr &link) const;
+	[[nodiscard]] bool asArticle() const;
 
-	not_null<WebPageData*> _data;
+	const style::QuoteStyle &_st;
+	const not_null<WebPageData*> _data;
 	std::vector<std::unique_ptr<Data::Media>> _collage;
 	ClickHandlerPtr _openl;
 	std::unique_ptr<Media> _attach;
@@ -121,8 +128,9 @@ private:
 	bool _hasViewButton = false;
 	int _dataVersion = -1;
 	int _siteNameLines = 0;
-	int _titleLines = 0;
 	int _descriptionLines = 0;
+	int _titleLines : 24 = 0;
+	int _colorIndexPlusOne : 8 = 0;
 
 	Ui::Text::String _siteName, _title, _description;
 

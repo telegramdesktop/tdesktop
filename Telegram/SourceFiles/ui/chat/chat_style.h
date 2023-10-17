@@ -213,6 +213,10 @@ public:
 		bool selected,
 		uint8 colorIndex) const;
 
+	[[nodiscard]] const style::TextPalette &coloredTextPalette(
+		bool selected,
+		uint8 colorIndex) const;
+
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersSmall() const;
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersLarge() const;
 	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCorners(
@@ -301,6 +305,12 @@ private:
 	using ColoredQuotePaintCaches = std::array<
 		std::unique_ptr<Text::QuotePaintCache>,
 		kColorIndexCount * 2>;
+
+	struct ColoredPalette {
+		style::TextPalette data;
+		bool inited = false;
+	};
+
 	void assignPalette(not_null<const style::palette*> palette);
 
 	[[nodiscard]] not_null<Text::QuotePaintCache*> coloredCache(
@@ -362,6 +372,9 @@ private:
 	mutable std::unique_ptr<Text::QuotePaintCache> _serviceReplyCache;
 	mutable ColoredQuotePaintCaches _coloredQuoteCaches;
 	mutable ColoredQuotePaintCaches _coloredReplyCaches;
+	mutable std::array<
+		ColoredPalette,
+		2 * kColorIndexCount> _coloredTextPalettes;
 
 	style::TextPalette _historyPsaForwardPalette;
 	style::TextPalette _imgReplyTextPalette;

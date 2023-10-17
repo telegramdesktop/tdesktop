@@ -775,7 +775,7 @@ void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
 	Expects(ShowWebPagePreview(_preview.data));
 
 	const auto textTop = st::msgReplyPadding.top();
-	auto previewLeft = st::historyReplySkip + st::webPageLeft;
+	auto previewLeft = st::historyReplySkip + st::msgReplyBarSkip;
 
 	const QRect to(
 		previewLeft,

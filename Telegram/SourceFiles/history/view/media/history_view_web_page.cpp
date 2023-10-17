@@ -90,26 +90,38 @@ WebPage::WebPage(
 	not_null<Element*> parent,
 	not_null<WebPageData*> data)
 : Media(parent)
+, _st(st::historyPagePreview)
 , _data(data)
-, _siteName(st::msgMinWidth - st::webPageLeft)
-, _title(st::msgMinWidth - st::webPageLeft)
-, _description(st::msgMinWidth - st::webPageLeft) {
+, _siteName(st::msgMinWidth - _st.padding.left() - _st.padding.right())
+, _title(st::msgMinWidth - _st.padding.left() - _st.padding.right())
+, _description(st::msgMinWidth - _st.padding.left() - _st.padding.right()) {
 	history()->owner().registerWebPageView(_data, _parent);
+
+	const auto from = parent->data()->displayFrom();
+	const auto info = from ? nullptr : parent->data()->hiddenSenderInfo();
+	Assert(from || info);
+	_colorIndexPlusOne = !parent->data()->isPost()
+		? ((from ? from->colorIndex() : info->colorIndex) + 1)
+		: 0;
 }
 
 QSize WebPage::countOptimalSize() {
 	if (_data->pendingTill) {
 		return { 0, 0 };
 	}
+	const auto padding = inBubblePadding() + innerMargin();
 	const auto versionChanged = (_dataVersion != _data->version);
 	if (versionChanged) {
 		_dataVersion = _data->version;
 		_openl = nullptr;
 		_attach = nullptr;
 		_collage = PrepareCollageMedia(_parent->data(), _data->collage);
-		_siteName = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
-		_title = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
-		_description = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
+		const auto min = st::msgMinWidth
+			- _st.padding.left()
+			- _st.padding.right();
+		_siteName = Ui::Text::String(min);
+		_title = Ui::Text::String(min);
+		_description = Ui::Text::String(min);
 	}
 	auto lineHeight = UnitedLineHeight();
 
@@ -201,11 +213,6 @@ QSize WebPage::countOptimalSize() {
 
 	_hasViewButton = ViewButton::MediaHasViewButton(_data);
 
-	const auto textFloatsAroundInfo = !_asArticle
-		&& !_attach
-		&& isBubbleBottom()
-		&& !_hasViewButton;
-
 	// init strings
 	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
 		auto text = _data->description;
@@ -213,9 +220,8 @@ QSize WebPage::countOptimalSize() {
 		if (isLogEntryOriginal()) {
 			// Fix layout for small bubbles (narrow media caption edit log entries).
 			_description = Ui::Text::String(st::minPhotoSize
-				- st::msgPadding.left()
-				- st::msgPadding.right()
-				- st::webPageLeft);
+				- padding.left()
+				- padding.right());
 		}
 		using MarkedTextContext = Core::MarkedTextContext;
 		auto context = MarkedTextContext{
@@ -232,11 +238,6 @@ QSize WebPage::countOptimalSize() {
 			text,
 			Ui::WebpageTextDescriptionOptions(),
 			context);
-		if (textFloatsAroundInfo) {
-			_description.updateSkipBlock(
-				_parent->skipBlockWidth(),
-				_parent->skipBlockHeight());
-		}
 	}
 	if (!displayedSiteName().isEmpty()) {
 		_siteNameLines = 1;
@@ -259,11 +260,6 @@ QSize WebPage::countOptimalSize() {
 				title,
 				Ui::WebpageTextTitleOptions());
 		}
-		if (textFloatsAroundInfo && _description.isEmpty()) {
-			_title.updateSkipBlock(
-				_parent->skipBlockWidth(),
-				_parent->skipBlockHeight());
-		}
 	}
 
 	// init dimensions
@@ -282,11 +278,7 @@ QSize WebPage::countOptimalSize() {
 	}
 
 	if (!_siteName.isEmpty()) {
-		if (_title.isEmpty() && _description.isEmpty() && textFloatsAroundInfo) {
-			accumulate_max(maxWidth, _siteName.maxWidth() + _parent->skipBlockWidth());
-		} else {
-			accumulate_max(maxWidth, _siteName.maxWidth() + articlePhotoMaxWidth);
-		}
+		accumulate_max(maxWidth, _siteName.maxWidth() + articlePhotoMaxWidth);
 		minHeight += lineHeight;
 	}
 	if (!_title.isEmpty()) {
@@ -309,16 +301,12 @@ QSize WebPage::countOptimalSize() {
 		}
 		accumulate_max(maxWidth, maxMediaWidth);
 		minHeight += _attach->minHeight() - bubble.top() - bubble.bottom();
-		if (!_attach->additionalInfoString().isEmpty()) {
-			minHeight += bottomInfoPadding();
-		}
 	}
 	if (_data->type == WebPageType::Video && _data->duration) {
 		_duration = Ui::FormatDurationText(_data->duration);
 		_durationWidth = st::msgDateFont->width(_duration);
 	}
-	maxWidth += st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
-	auto padding = inBubblePadding();
+	maxWidth += padding.left() + padding.right();
 	minHeight += padding.top() + padding.bottom();
 
 	if (_asArticle) {
@@ -332,7 +320,8 @@ QSize WebPage::countCurrentSize(int newWidth) {
 		return { newWidth, minHeight() };
 	}
 
-	auto innerWidth = newWidth - st::msgPadding.left() - st::webPageLeft - st::msgPadding.right();
+	auto padding = inBubblePadding() + innerMargin();
+	auto innerWidth = newWidth - padding.left() - padding.right();
 	auto newHeight = 0;
 
 	auto lineHeight = UnitedLineHeight();
@@ -373,7 +362,6 @@ QSize WebPage::countCurrentSize(int newWidth) {
 
 			_pixh -= lineHeight;
 		} while (_pixh > lineHeight);
-		newHeight += bottomInfoPadding();
 	} else {
 		newHeight = siteNameHeight;
 
@@ -410,16 +398,8 @@ QSize WebPage::countCurrentSize(int newWidth) {
 
 			_attach->resizeGetHeight(innerWidth + bubble.left() + bubble.right());
 			newHeight += _attach->height() - bubble.top() - bubble.bottom();
-			if (!_attach->additionalInfoString().isEmpty()) {
-				newHeight += bottomInfoPadding();
-			} else if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > innerWidth + bubble.left() + bubble.right()) {
-				newHeight += bottomInfoPadding();
-			}
-		} else if (_hasViewButton) {
-			newHeight += bottomInfoPadding();
 		}
 	}
-	auto padding = inBubblePadding();
 	newHeight += padding.top() + padding.bottom();
 
 	return { newWidth, newHeight };
@@ -476,34 +456,28 @@ void WebPage::unloadHeavyPart() {
 }
 
 void WebPage::draw(Painter &p, const PaintContext &context) const {
-	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
-	auto paintw = width();
-
+	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
+		return;
+	}
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
-	const auto &barfg = stm->msgReplyBarColor;
-	const auto &semibold = stm->msgServiceFg;
-
-	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
-	auto padding = inBubblePadding();
-	auto tshift = padding.top();
-	auto bshift = padding.bottom();
-	paintw -= padding.left() + padding.right();
+	const auto bubble = _attach ? _attach->bubbleMargins() : QMargins();
+	const auto full = QRect(0, 0, width(), height());
+	auto outer = full.marginsRemoved(inBubblePadding());
+	auto inner = outer.marginsRemoved(innerMargin());
+	auto tshift = inner.top();
+	auto paintw = inner.width();
 	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
-	if (asArticle()) {
-		bshift += bottomInfoPadding();
-	} else if (!attachAdditionalInfoText.isEmpty()) {
-		bshift += bottomInfoPadding();
-	} else if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right()) {
-		bshift += bottomInfoPadding();
-	} else if (_hasViewButton) {
-		bshift += bottomInfoPadding();
-	}
 
-	QRect bar(style::rtlrect(st::msgPadding.left(), tshift, st::webPageBar, height() - tshift - bshift, width()));
-	p.fillRect(bar, barfg);
+	const auto selected = context.selected();
+	const auto useColorIndex = context.outbg ? 0 : _colorIndexPlusOne;
+	const auto cache = useColorIndex
+		? st->coloredReplyCache(selected, useColorIndex - 1).get()
+		: stm->replyCache.get();
+	Ui::Text::ValidateQuotePaintCache(*cache, _st);
+	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
 
 	auto lineHeight = UnitedLineHeight();
 	if (asArticle()) {
@@ -535,26 +509,28 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		} else if (const auto blurred = _photoMedia->thumbnailInline()) {
 			pix = blurred->pixSingle(size, args.blurred());
 		}
-		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
+		p.drawPixmapLeft(inner.left() + paintw - pw, tshift, width(), pix);
 		if (context.selected()) {
 			const auto st = context.st;
 			Ui::FillRoundRect(
 				p,
-				style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()),
+				style::rtlrect(inner.left() + paintw - pw, tshift, pw, _pixh, width()),
 				st->msgSelectOverlay(),
 				st->msgSelectOverlayCorners(Ui::CachedCornerRadius::Small));
 		}
 		paintw -= pw + st::webPagePhotoDelta;
 	}
 	if (_siteNameLines) {
-		p.setPen(semibold);
-		p.setTextPalette(stm->semiboldPalette);
+		p.setPen(cache->outline);
+		p.setTextPalette(useColorIndex
+			? st->coloredTextPalette(selected, useColorIndex - 1)
+			: stm->semiboldPalette);
 
 		auto endskip = 0;
 		if (_siteName.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_siteName.drawLeftElided(p, padding.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, context.selection);
+		_siteName.drawLeftElided(p, inner.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, context.selection);
 		tshift += lineHeight;
 
 		p.setTextPalette(stm->textPalette);
@@ -565,7 +541,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(context.selection));
+		_title.drawLeftElided(p, inner.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(context.selection));
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
@@ -575,7 +551,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		}
 		_parent->prepareCustomEmojiPaint(p, context, _description);
 		_description.draw(p, {
-			.position = { padding.left(), tshift },
+			.position = { inner.left(), tshift },
 			.outerWidth = width(),
 			.availableWidth = paintw,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
@@ -596,7 +572,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		auto attachAtTop = !_siteNameLines && !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
-		auto attachLeft = padding.left() - bubble.left();
+		auto attachLeft = inner.left() - bubble.left();
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 
@@ -641,7 +617,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		if (!attachAdditionalInfoText.isEmpty()) {
 			p.setFont(st::msgDateFont);
 			p.setPen(stm->msgDateFg);
-			p.drawTextLeft(st::msgPadding.left(), bar.y() + bar.height() + st::mediaInBubbleSkip, width(), attachAdditionalInfoText);
+			p.drawTextLeft(st::msgPadding.left(), outer.y() + outer.height() + st::mediaInBubbleSkip, width(), attachAdditionalInfoText);
 		}
 	}
 }
@@ -656,22 +632,19 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
 	}
-	auto paintw = width();
-
-	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
-	auto padding = inBubblePadding();
-	auto tshift = padding.top();
-	auto bshift = padding.bottom();
-	if (asArticle() || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right())) {
-		bshift += bottomInfoPadding();
-	}
-	paintw -= padding.left() + padding.right();
+	const auto bubble = _attach ? _attach->bubbleMargins() : QMargins();
+	const auto full = QRect(0, 0, width(), height());
+	auto outer = full.marginsRemoved(inBubblePadding());
+	auto inner = outer.marginsRemoved(innerMargin());
+	auto tshift = inner.top();
+	auto paintw = inner.width();
+	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
 
 	auto lineHeight = UnitedLineHeight();
 	auto inThumb = false;
 	if (asArticle()) {
 		auto pw = qMax(_pixw, lineHeight);
-		if (style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()).contains(point)) {
+		if (style::rtlrect(inner.left() + paintw - pw, tshift, pw, _pixh, width()).contains(point)) {
 			inThumb = true;
 		}
 		paintw -= pw + st::webPagePhotoDelta;
@@ -682,7 +655,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			Ui::Text::StateRequestElided siteNameRequest = request.forText();
 			siteNameRequest.lines = _siteNameLines;
 			result = TextState(_parent, _siteName.getStateElidedLeft(
-				point - QPoint(padding.left(), tshift),
+				point - QPoint(inner.left(), tshift),
 				paintw,
 				width(),
 				siteNameRequest));
@@ -696,7 +669,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			Ui::Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
 			result = TextState(_parent, _title.getStateElidedLeft(
-				point - QPoint(padding.left(), tshift),
+				point - QPoint(inner.left(), tshift),
 				paintw,
 				width(),
 				titleRequest));
@@ -712,13 +685,13 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 				Ui::Text::StateRequestElided descriptionRequest = request.forText();
 				descriptionRequest.lines = _descriptionLines;
 				result = TextState(_parent, _description.getStateElidedLeft(
-					point - QPoint(padding.left(), tshift),
+					point - QPoint(inner.left(), tshift),
 					paintw,
 					width(),
 					descriptionRequest));
 			} else {
 				result = TextState(_parent, _description.getStateLeft(
-					point - QPoint(padding.left(), tshift),
+					point - QPoint(inner.left(), tshift),
 					paintw,
 					width(),
 					request.forText()));
@@ -734,13 +707,16 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 		auto attachAtTop = !_siteNameLines && !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
-		if (QRect(padding.left(), tshift, paintw, height() - tshift - bshift).contains(point)) {
-			auto attachLeft = padding.left() - bubble.left();
+		if (QRect(inner.left(), tshift, paintw, inner.top() + inner.height() - tshift).contains(point)) {
+			auto attachLeft = inner.left() - bubble.left();
 			auto attachTop = tshift - bubble.top();
 			if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 			result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
 			result.link = replaceAttachLink(result.link);
 		}
+	}
+	if (!result.link && inner.contains(point)) {
+		result.link = _openl;
 	}
 
 	result.symbol += symbolAdd;
@@ -859,11 +835,18 @@ TextForMimeData WebPage::selectedText(TextSelection selection) const {
 }
 
 QMargins WebPage::inBubblePadding() const {
-	auto lshift = st::msgPadding.left() + st::webPageLeft;
-	auto rshift = st::msgPadding.right();
-	auto bshift = isBubbleBottom() ? st::msgPadding.left() : st::mediaInBubbleSkip;
-	auto tshift = isBubbleTop() ? st::msgPadding.left() : st::mediaInBubbleSkip;
-	return QMargins(lshift, tshift, rshift, bshift);
+	return {
+		st::msgPadding.left(),
+		isBubbleTop() ? st::msgPadding.left() : st::mediaInBubbleSkip,
+		st::msgPadding.right(),
+		(isBubbleBottom()
+			? (st::msgPadding.left() + bottomInfoPadding())
+			: st::mediaInBubbleSkip),
+	};
+}
+
+QMargins WebPage::innerMargin() const {
+	return _st.padding;
 }
 
 bool WebPage::isLogEntryOriginal() const {
@@ -871,7 +854,9 @@ bool WebPage::isLogEntryOriginal() const {
 }
 
 int WebPage::bottomInfoPadding() const {
-	if (!isBubbleBottom()) return 0;
+	if (!isBubbleBottom()) {
+		return 0;
+	}
 
 	auto result = st::msgDateFont->height;
 

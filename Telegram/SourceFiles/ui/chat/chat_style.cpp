@@ -548,6 +548,10 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 			= (stm.textPalette.linkFg->c == stm.historyTextFg->c);
 	}
 
+	for (auto &palette : _coloredTextPalettes) {
+		palette.inited = false;
+	}
+
 	_paletteChanged.fire({});
 }
 
@@ -638,6 +642,26 @@ not_null<Text::QuotePaintCache*> ChatStyle::serviceQuoteCache() const {
 not_null<Text::QuotePaintCache*> ChatStyle::serviceReplyCache() const {
 	EnsureBlockquoteCache(_serviceReplyCache, msgServiceFg());
 	return _serviceReplyCache.get();
+}
+
+const style::TextPalette &ChatStyle::coloredTextPalette(
+		bool selected,
+		uint8 colorIndex) const {
+	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
+
+	const auto shift = (selected ? kColorIndexCount : 0);
+	auto &result = _coloredTextPalettes[shift + colorIndex];
+	if (!result.inited) {
+		result.inited = true;
+		make(
+			result.data,
+			(selected
+				? st::inReplyTextPaletteSelected
+				: st::inReplyTextPalette));
+		result.data.linkFg = FromNameFg(this, selected, colorIndex);
+		result.data.selectLinkFg = result.data.linkFg;
+	}
+	return result.data;
 }
 
 not_null<Text::QuotePaintCache*> ChatStyle::coloredQuoteCache(

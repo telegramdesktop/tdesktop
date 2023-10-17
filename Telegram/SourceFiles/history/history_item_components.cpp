@@ -780,9 +780,11 @@ void HistoryMessageReply::paint(
 				auto replyToTextPosition = QPoint(
 					x + textLeft,
 					y + st::historyReplyPadding.top() + st::msgServiceNameFont->height);
-				const auto replyToTextPalette = &(inBubble
-					? stm->replyTextPalette
-					: st->imgReplyTextPalette());
+				auto replyToTextPalette = &(!inBubble
+					? st->imgReplyTextPalette()
+					: _colorIndexPlusOne
+					? st->coloredTextPalette(selected, _colorIndexPlusOne - 1)
+					: stm->replyTextPalette);
 				if (_fields.storyId) {
 					st::dialogsMiniReplyStory.icon.icon.paint(
 						p,
@@ -793,6 +795,14 @@ void HistoryMessageReply::paint(
 						st::dialogsMiniReplyStory.skipText
 							+ st::dialogsMiniReplyStory.icon.icon.width(),
 						0);
+				}
+				auto owned = std::optional<style::owned_color>();
+				auto copy = std::optional<style::TextPalette>();
+				if (inBubble && _colorIndexPlusOne) {
+					copy.emplace(*replyToTextPalette);
+					owned.emplace(cache->outline);
+					copy->linkFg = owned->color();
+					replyToTextPalette = &*copy;
 				}
 				_text.draw(p, {
 					.position = replyToTextPosition,

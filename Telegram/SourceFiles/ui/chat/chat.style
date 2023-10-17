@@ -66,6 +66,9 @@ messageTextStyle: TextStyle(defaultTextStyle) {
 		iconPosition: point(4px, 2px);
 	}
 }
+historyPagePreview: QuoteStyle(messageQuoteStyle) {
+	padding: margins(10px, 5px, 7px, 7px);
+}
 msgDateTextStyle: defaultTextStyle;
 serviceTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgServiceFg;
@@ -563,8 +566,6 @@ historyPsaForwardPalette: TextPalette(defaultTextPalette) {
 	linkFg: boxTextFgGood;
 }
 
-webPageLeft: 10px;
-webPageBar: 2px;
 webPageTitleFont: semiboldFont;
 webPageTitleStyle: semiboldTextStyle;
 webPageDescriptionFont: normalFont;

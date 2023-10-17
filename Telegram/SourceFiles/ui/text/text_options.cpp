@@ -113,7 +113,8 @@ void InitTextOptions() {
 		= WebpageDescriptionOptions.maxw
 		= st::msgMaxWidth
 		- st::msgPadding.left()
-		- st::webPageLeft
+		- st::messageQuoteStyle.padding.left()
+		- st::messageQuoteStyle.padding.right()
 		- st::msgPadding.right();
 	WebpageDescriptionOptions.maxh = st::webPageDescriptionFont->height * 3;
 }
