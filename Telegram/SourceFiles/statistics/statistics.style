@@ -115,6 +115,7 @@ statisticsShowMoreButton: SettingsButton(defaultSettingsButton) {
 statisticsShowMoreButtonArrowPosition: point(29px, 13px);
 statisticsShowMoreButtonArrowSize: 7px;
 
+statisticsLimitsDividerPadding: margins(22px, -26px, 22px, 16px);
 boostsButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;

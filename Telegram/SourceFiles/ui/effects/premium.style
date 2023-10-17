@@ -191,6 +191,7 @@ premiumGiftBox: Box(premiumPreviewBox) {
 boostSkipTop: 37px;
 boostLimits: PremiumLimits(defaultPremiumLimits) {
 	gradientFromLeft: true;
+	nonPremiumBg: windowBgRipple;
 }
 boostBubble: PremiumBubble(defaultPremiumBubble) {
 	height: 32px;

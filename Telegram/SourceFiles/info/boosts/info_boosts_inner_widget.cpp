@@ -194,21 +194,28 @@ InnerWidget::InnerWidget(
 			const auto status = api->boostStatus();
 			const auto inner = this;
 
-			Ui::FillBoostLimit(
-				fakeShowed->events(),
-				rpl::single(status.overview.isBoosted),
-				inner,
-				Ui::BoostBoxData{
-					.boost = Ui::BoostCounters{
-						.level = status.overview.level,
-						.boosts = status.overview.boostCount,
-						.thisLevelBoosts
-							= status.overview.currentLevelBoostCount,
-						.nextLevelBoosts
-							= status.overview.nextLevelBoostCount,
-						.mine = status.overview.isBoosted,
-					}
-				});
+			{
+				auto dividerContent = object_ptr<Ui::VerticalLayout>(inner);
+				Ui::FillBoostLimit(
+					fakeShowed->events(),
+					rpl::single(status.overview.isBoosted),
+					dividerContent.data(),
+					Ui::BoostBoxData{
+						.boost = Ui::BoostCounters{
+							.level = status.overview.level,
+							.boosts = status.overview.boostCount,
+							.thisLevelBoosts
+								= status.overview.currentLevelBoostCount,
+							.nextLevelBoosts
+								= status.overview.nextLevelBoostCount,
+							.mine = status.overview.isBoosted,
+						}
+					});
+				inner->add(object_ptr<Ui::DividerLabel>(
+					inner,
+					std::move(dividerContent),
+					st::statisticsLimitsDividerPadding));
+			}
 
 			FillOverview(inner, status);
 

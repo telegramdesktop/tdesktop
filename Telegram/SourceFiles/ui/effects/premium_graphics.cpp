@@ -737,10 +737,12 @@ Line::Line(
 		_ratio = ratio;
 	}, lifetime());
 
-	sizeValue(
-	) | rpl::filter([](QSize size) {
-		return !size.isEmpty();
-	}) | rpl::start_with_next([=](QSize size) {
+	rpl::combine(
+		sizeValue(),
+		parent->widthValue()
+	) | rpl::filter([](const QSize &size, int parentWidth) {
+		return !size.isEmpty() && parentWidth;
+	}) | rpl::start_with_next([=](const QSize &size, int) {
 		recache(size);
 		update();
 	}, lifetime());
