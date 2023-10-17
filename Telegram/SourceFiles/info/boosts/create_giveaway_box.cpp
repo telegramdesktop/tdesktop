@@ -230,7 +230,8 @@ void CreateGiveawayBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Info::Controller*> controller,
 		not_null<PeerData*> peer,
-		Fn<void()> reloadOnDone) {
+		Fn<void()> reloadOnDone,
+		std::optional<Data::BoostPrepaidGiveaway> prepaid) {
 	box->setWidth(st::boxWideWidth);
 
 	const auto weakWindow = base::make_weak(controller->parentController());
@@ -298,7 +299,23 @@ void CreateGiveawayBox(
 			object_ptr<Ui::VerticalLayout>(box)));
 	contentWrap->toggle(false, anim::type::instant);
 
-	{
+	if (prepaid) {
+		contentWrap->entity()->add(
+			object_ptr<Giveaway::GiveawayTypeRow>(
+				box,
+				GiveawayType::Prepaid,
+				prepaid->id,
+				tr::lng_boosts_prepaid_giveaway_single(),
+				tr::lng_boosts_prepaid_giveaway_status(
+					lt_count,
+					rpl::single(prepaid->quantity) | tr::to_count(),
+					lt_duration,
+					tr::lng_premium_gift_duration_months(
+						lt_count,
+						rpl::single(prepaid->months) | tr::to_count())))
+		)->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+	if (!prepaid) {
 		const auto row = contentWrap->entity()->add(
 			object_ptr<Giveaway::GiveawayTypeRow>(
 				box,
@@ -309,7 +326,7 @@ void CreateGiveawayBox(
 			state->typeValue.force_assign(GiveawayType::Random);
 		});
 	}
-	{
+	if (!prepaid) {
 		const auto row = contentWrap->entity()->add(
 			object_ptr<Giveaway::GiveawayTypeRow>(
 				box,
@@ -387,6 +404,10 @@ void CreateGiveawayBox(
 		object_ptr<Ui::VerticalLayout>(randomWrap));
 	const auto fillSliderContainer = [=] {
 		const auto availablePresets = state->apiOptions.availablePresets();
+		if (prepaid) {
+			state->sliderValue = prepaid->quantity;
+			return;
+		}
 		if (availablePresets.empty()) {
 			return;
 		}
@@ -675,6 +696,9 @@ void CreateGiveawayBox(
 	const auto listOptions = contentWrap->entity()->add(
 		object_ptr<Ui::VerticalLayout>(box));
 	const auto rebuildListOptions = [=](int amountUsers) {
+		if (prepaid) {
+			return;
+		}
 		while (listOptions->count()) {
 			delete listOptions->widgetAt(0);
 		}
@@ -714,8 +738,7 @@ void CreateGiveawayBox(
 
 		box->verticalLayout()->resizeToWidth(box->width());
 	};
-	{
-
+	if (!prepaid) {
 		rpl::combine(
 			state->sliderValue.value(),
 			state->typeValue.value()
@@ -725,6 +748,8 @@ void CreateGiveawayBox(
 				? state->selectedToAward.size()
 				: users);
 		}, box->lifetime());
+	} else {
+		typeGroup->setValue(GiveawayType::Random);
 	}
 	{
 		using namespace Info::Statistics;
@@ -783,7 +808,10 @@ void CreateGiveawayBox(
 				isSpecific
 					? state->selectedToAward.size()
 					: state->sliderValue.current(),
-				durationGroup->value());
+				prepaid
+					? prepaid->months
+					: state->apiOptions.monthsFromPreset(
+						durationGroup->value()));
 			if (isSpecific) {
 				if (state->selectedToAward.empty()) {
 					return;
@@ -855,7 +883,21 @@ void CreateGiveawayBox(
 					state->confirmButtonBusy = false;
 				}
 			};
-			Payments::CheckoutProcess::Start(std::move(invoice), done);
+			if (prepaid) {
+				state->apiOptions.applyPrepaid(
+					invoice,
+					prepaid->id
+				) | rpl::start_with_error_done([=](const QString &error) {
+					if (const auto window = weakWindow.get()) {
+						window->uiShow()->showToast(error);
+						done(Payments::CheckoutResult::Cancelled);
+					}
+				}, [=] {
+					done(Payments::CheckoutResult::Paid);
+				}, box->lifetime());
+			} else {
+				Payments::CheckoutProcess::Start(std::move(invoice), done);
+			}
 		});
 		box->addButton(std::move(button));
 	}
@@ -867,9 +909,7 @@ void CreateGiveawayBox(
 		if (!loading->toggled()) {
 			return;
 		}
-		state->lifetimeApi = state->apiOptions.request(
-		) | rpl::start_with_error_done([=](const QString &error) {
-		}, [=] {
+		const auto done = [=] {
 			state->lifetimeApi.destroy();
 			loading->toggle(false, anim::type::instant);
 			state->confirmButtonBusy = false;
@@ -877,6 +917,14 @@ void CreateGiveawayBox(
 			rebuildListOptions(1);
 			contentWrap->toggle(true, anim::type::instant);
 			contentWrap->resizeToWidth(box->width());
-		});
+		};
+		if (prepaid) {
+			return done();
+		}
+		state->lifetimeApi = state->apiOptions.request(
+		) | rpl::start_with_error_done([=](const QString &error) {
+			box->uiShow()->showToast(error);
+			box->closeBox();
+		}, done);
 	}, box->lifetime());
 }

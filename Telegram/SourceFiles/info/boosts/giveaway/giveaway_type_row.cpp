@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "styles/style_boxes.h"
 #include "styles/style_giveaway.h"
+#include "styles/style_statistics.h"
 
 namespace Giveaway {
 
@@ -24,30 +25,45 @@ GiveawayTypeRow::GiveawayTypeRow(
 	not_null<Ui::RpWidget*> parent,
 	Type type,
 	rpl::producer<QString> subtitle)
+: GiveawayTypeRow(
+	parent,
+	type,
+	(type == Type::SpecificUsers) ? kColorIndexSpecific : kColorIndexRandom,
+	(type == Type::SpecificUsers)
+		? tr::lng_giveaway_award_option()
+		: (type == Type::Random)
+		? tr::lng_giveaway_create_option()
+		: (type == Type::AllMembers)
+		? tr::lng_giveaway_users_all()
+		: tr::lng_giveaway_users_new(),
+	std::move(subtitle)) {
+}
+
+GiveawayTypeRow::GiveawayTypeRow(
+	not_null<Ui::RpWidget*> parent,
+	Type type,
+	int colorIndex,
+	rpl::producer<QString> title,
+	rpl::producer<QString> subtitle)
 : RippleButton(parent, st::defaultRippleAnimation)
 , _type(type)
 , _st((_type == Type::SpecificUsers || _type == Type::Random)
 	? st::giveawayTypeListItem
+	: (_type == Type::Prepaid)
+	? st::boostsListBox.item
 	: st::giveawayGiftCodeMembersPeerList.item)
 , _userpic(
-	Ui::EmptyUserpic::UserpicColor((_type == Type::SpecificUsers)
-		? kColorIndexSpecific
-		: kColorIndexRandom),
-	QString())
-, _name(
-	_st.nameStyle,
-	(type == Type::SpecificUsers)
-		? tr::lng_giveaway_award_option(tr::now)
-		: (type == Type::Random)
-		? tr::lng_giveaway_create_option(tr::now)
-		: (type == Type::AllMembers)
-		? tr::lng_giveaway_users_all(tr::now)
-		: tr::lng_giveaway_users_new(tr::now),
-	Ui::NameTextOptions()) {
+	Ui::EmptyUserpic::UserpicColor(Ui::EmptyUserpic::ColorIndex(colorIndex)),
+	QString()) {
 	std::move(
 		subtitle
 	) | rpl::start_with_next([=] (const QString &s) {
 		_status.setText(st::defaultTextStyle, s, Ui::NameTextOptions());
+	}, lifetime());
+	std::move(
+		title
+	) | rpl::start_with_next([=] (const QString &s) {
+		_name.setText(_st.nameStyle, s, Ui::NameTextOptions());
 	}, lifetime());
 }
 
@@ -62,7 +78,10 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 	const auto skipRight = _st.photoPosition.x();
 	const auto outerWidth = width();
 	const auto isSpecific = (_type == Type::SpecificUsers);
-	const auto hasUserpic = (_type == Type::Random) || isSpecific;
+	const auto isPrepaid = (_type == Type::Prepaid);
+	const auto hasUserpic = (_type == Type::Random)
+		|| isSpecific
+		|| isPrepaid;
 
 	if (paintOver) {
 		p.fillRect(e->rect(), _st.button.textBgOver);
