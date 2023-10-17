@@ -776,9 +776,12 @@ QSize Message::performCountOptimalSize() {
 				accumulate_max(maxWidth, namew);
 			}
 			if (reply) {
-				auto replyw = st::msgPadding.left() + reply->maxWidth() - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
+				auto replyw = st::msgPadding.left()
+					+ reply->maxWidth()
+					+ st::msgPadding.right();
 				if (reply->originalVia) {
-					replyw += st::msgServiceFont->spacew + reply->originalVia->maxWidth;
+					replyw += st::msgServiceFont->spacew
+						+ reply->originalVia->maxWidth;
 				}
 				accumulate_max(maxWidth, replyw);
 			}
@@ -1558,9 +1561,8 @@ void Message::paintReplyInfo(
 		QRect &trect,
 		const PaintContext &context) const {
 	if (const auto reply = displayedReply()) {
-		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		reply->paint(p, this, context, trect.x(), trect.y(), trect.width(), true);
-		trect.setY(trect.y() + h);
+		trect.setY(trect.y() + reply->height());
 	}
 }
 
@@ -1761,41 +1763,18 @@ void Message::toggleReplyRipple(bool pressed) {
 
 	if (pressed) {
 		if (!reply->ripple.animation && !unwrapped()) {
-			const auto smallTop = displayFromName()
-				|| displayedTopicButton()
-				|| displayForwardedFrom();
-			const auto rounding = countBubbleRounding();
-
-			using Corner = Ui::BubbleCornerRounding;
-			using Radius = Ui::CachedCornerRadius;
-			const auto &small = Ui::CachedCornersMasks(Radius::ThumbSmall);
-			const auto &large = Ui::CachedCornersMasks(Radius::ThumbLarge);
-			const auto corners = std::array<QImage, 4>{{
-				((smallTop || (rounding.topLeft == Corner::Small))
-					? small
-					: large)[0],
-				((smallTop || (rounding.topRight == Corner::Small))
-					? small
-					: large)[1],
-				small[2],
-				small[3],
-			}};
-
-			const auto &padding = st::msgReplyPadding;
+			const auto &padding = st::msgPadding;
 			const auto geometry = countGeometry();
 			const auto item = data();
+			const auto margins = reply->margins();
 			const auto size = QSize(
-				geometry.width()
-					- padding.left() / 2
-					- padding.right(),
-				st::msgReplyBarSize.height()
-					+ padding.top()
-					+ padding.bottom());
+				geometry.width() - padding.left() - padding.right(),
+				reply->height() - margins.top() - margins.bottom());
 			reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
 				st::defaultRippleAnimation,
-				Images::Round(
-					Ui::RippleAnimation::MaskByDrawer(size, true, nullptr),
-					corners),
+				Ui::RippleAnimation::RoundRectMask(
+					size,
+					st::messageQuoteStyle.radius),
 				[=] { item->history()->owner().requestItemRepaint(item); });
 		}
 		if (reply->ripple.animation) {
@@ -2436,14 +2415,15 @@ bool Message::getStateReplyInfo(
 		QPoint point,
 		QRect &trect,
 		not_null<TextState*> outResult) const {
-	if (auto reply = displayedReply()) {
-		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-		if (point.y() >= trect.top() && point.y() < trect.top() + h) {
+	if (const auto reply = displayedReply()) {
+		const auto margins = reply->margins();
+		const auto height = reply->height();
+		if (point.y() >= trect.top() && point.y() < trect.top() + height) {
 			const auto g = QRect(
 				trect.x(),
-				trect.y() + st::msgReplyPadding.top(),
+				trect.y() + margins.top(),
 				trect.width(),
-				st::msgReplyBarSize.height());
+				height - margins.top() - margins.bottom());
 			if (g.contains(point)) {
 				if (const auto link = reply->link()) {
 					outResult->link = reply->link();
@@ -2452,7 +2432,7 @@ bool Message::getStateReplyInfo(
 			}
 			return true;
 		}
-		trect.setTop(trect.top() + h);
+		trect.setTop(trect.top() + height);
 	}
 	return false;
 }
@@ -2530,9 +2510,8 @@ void Message::updatePressed(QPoint point) {
 				auto fwdheight = ((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
 				trect.setTop(trect.top() + fwdheight);
 			}
-			if (item->Get<HistoryMessageReply>()) {
-				auto h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-				trect.setTop(trect.top() + h);
+			if (const auto reply = item->Get<HistoryMessageReply>()) {
+				trect.setTop(trect.top() + reply->height());
 			}
 			if (const auto via = item->Get<HistoryMessageVia>()) {
 				if (!displayFromName() && !displayForwardedFrom()) {
@@ -3642,13 +3621,9 @@ QRect Message::innerGeometry() const {
 				+ st::topicButtonSkip);
 		}
 		// Skip displayForwardedFrom() until there are no animations for it.
-		if (displayedReply()) {
+		if (const auto reply = displayedReply()) {
 			// See paintReplyInfo().
-			result.translate(
-				0,
-				st::msgReplyPadding.top()
-					+ st::msgReplyBarSize.height()
-					+ st::msgReplyPadding.bottom());
+			result.translate(0, reply->height());
 		}
 		if (!displayFromName() && !displayForwardedFrom()) {
 			// See paintViaBotIdInfo().
@@ -3900,9 +3875,10 @@ int Message::resizeContentGetHeight(int newWidth) {
 		}
 
 		if (reply) {
-			reply->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
+			newHeight += reply->resizeToWidth(contentWidth
+				- st::msgPadding.left()
+				- st::msgPadding.right());
 			reply->ripple.animation = nullptr;
-			newHeight += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}
 		if (needInfoDisplay()) {
 			newHeight += (bottomInfoHeight - st::msgDateFont->height);

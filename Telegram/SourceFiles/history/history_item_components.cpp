@@ -570,31 +570,32 @@ void HistoryMessageReply::updateName(
 		std::optional<PeerData*> resolvedSender) const {
 	const auto peer = resolvedSender.value_or(sender(holder));
 	const auto name = peer ? senderName(peer) : senderName(holder);
+	const auto hasPreview = (resolvedStory
+		&& resolvedStory->hasReplyPreview())
+		|| (resolvedMessage
+			&& resolvedMessage->media()
+			&& resolvedMessage->media()->hasReplyPreview());
+	const auto textLeft = hasPreview
+		? (st::messageQuoteStyle.outline
+			+ st::historyReplyPreviewMargin.left()
+			+ st::historyReplyPreview
+			+ st::historyReplyPreviewMargin.right())
+		: st::historyReplyPadding.left();
 	if (!name.isEmpty()) {
 		_name.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		if (peer) {
 			_nameVersion = peer->nameVersion();
 		}
-		bool hasPreview = (resolvedStory
-			&& resolvedStory->hasReplyPreview())
-			|| (resolvedMessage
-				&& resolvedMessage->media()
-				&& resolvedMessage->media()->hasReplyPreview());
-		int32 previewSkip = hasPreview
-			? (st::msgReplyBarSize.height()
-				+ st::msgReplyBarSkip
-				- st::msgReplyBarSize.width()
-				- st::msgReplyBarPos.x())
-			: 0;
-		int32 w = _name.maxWidth();
-		if (originalVia) {
-			w += st::msgServiceFont->spacew + originalVia->maxWidth;
-		}
-
-		_maxWidth = previewSkip
-			+ std::max(
-				w,
-				std::min(_text.maxWidth(), st::maxSignatureSize))
+		const auto w = _name.maxWidth()
+			+ (originalVia
+				? (st::msgServiceFont->spacew + originalVia->maxWidth)
+				: 0)
+			+ (_fields.quote.empty()
+				? 0
+				: st::messageTextStyle.blockquote.icon.width());
+		_maxWidth = std::max(
+			w,
+			std::min(_text.maxWidth(), st::maxSignatureSize))
 			+ (_fields.storyId
 				? (st::dialogsMiniReplyStory.skipText
 					+ st::dialogsMiniReplyStory.icon.icon.width())
@@ -602,31 +603,48 @@ void HistoryMessageReply::updateName(
 	} else {
 		_maxWidth = st::msgDateFont->width(statePhrase());
 	}
-	_maxWidth = st::msgReplyPadding.left()
-		+ st::msgReplyBarSkip
+	_maxWidth = textLeft
 		+ _maxWidth
-		+ st::msgReplyPadding.right();
+		+ st::historyReplyPadding.right();
+	_minHeight = st::historyReplyPadding.top()
+		+ st::msgServiceNameFont->height
+		+ st::normalFont->height
+		+ st::historyReplyPadding.bottom();
 }
 
-void HistoryMessageReply::resize(int width) const {
+int HistoryMessageReply::resizeToWidth(int width) const {
+	const auto hasPreview = (resolvedStory
+		&& resolvedStory->hasReplyPreview())
+		|| (resolvedMessage
+			&& resolvedMessage->media()
+			&& resolvedMessage->media()->hasReplyPreview());
+	const auto textLeft = hasPreview
+		? (st::messageQuoteStyle.outline
+			+ st::historyReplyPreviewMargin.left()
+			+ st::historyReplyPreview
+			+ st::historyReplyPreviewMargin.right())
+		: st::historyReplyPadding.left();
 	if (originalVia) {
-		bool hasPreview = (resolvedStory
-			&& resolvedStory->hasReplyPreview())
-			|| (resolvedMessage
-				&& resolvedMessage->media()
-				&& resolvedMessage->media()->hasReplyPreview());
-		int previewSkip = hasPreview
-			? (st::msgReplyBarSize.height()
-				+ st::msgReplyBarSkip
-				- st::msgReplyBarSize.width()
-				- st::msgReplyBarPos.x())
-			: 0;
 		originalVia->resize(width
-			- st::msgReplyBarSkip
-			- previewSkip
+			- textLeft
+			- st::historyReplyPadding.right()
 			- _name.maxWidth()
 			- st::msgServiceFont->spacew);
 	}
+	if (width >= _maxWidth) {
+		_height = _minHeight;
+		return height();
+	}
+	_height = _minHeight;
+	return height();
+}
+
+int HistoryMessageReply::height() const {
+	return  _height + st::historyReplyTop + st::historyReplyBottom;
+}
+
+QMargins HistoryMessageReply::margins() const {
+	return QMargins(0, st::historyReplyTop, 0, st::historyReplyBottom);
 }
 
 void HistoryMessageReply::itemRemoved(
@@ -658,58 +676,66 @@ void HistoryMessageReply::paint(
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 
-	{
-		const auto opacity = p.opacity();
-		const auto outerWidth = w + 2 * x;
-		const auto &bar = !inBubble
-			? st->msgImgReplyBarColor()
-			: _colorIndexPlusOne
-			? HistoryView::FromNameFg(context, _colorIndexPlusOne - 1)
-			: stm->msgReplyBarColor;
-		const auto rbar = style::rtlrect(
-			x + st::msgReplyBarPos.x(),
-			y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(),
-			st::msgReplyBarSize.width(),
-			st::msgReplyBarSize.height(),
-			outerWidth);
-
-		if (ripple.animation) {
-			const auto colorOverride = &stm->msgWaveformInactive->c;
-			p.setOpacity(st::historyPollRippleOpacity);
-			ripple.animation->paint(
-				p,
-				x - st::msgReplyPadding.left(),
-				y,
-				outerWidth,
-				colorOverride);
-			if (ripple.animation->empty()) {
-				ripple.animation.reset();
-			}
-		}
-
-		p.setOpacity(opacity * kBarAlpha);
-		p.fillRect(rbar, bar);
-		p.setOpacity(opacity);
+	y += st::historyReplyTop;
+	const auto rect = QRect(x, y, w, _height);
+	const auto hasQuote = !_fields.quote.empty();
+	const auto selected = context.selected();
+	const auto cache = !inBubble
+		? (hasQuote
+			? st->serviceQuoteCache()
+			: st->serviceReplyCache()).get()
+		: _colorIndexPlusOne
+		? (hasQuote
+			? st->coloredQuoteCache(selected, _colorIndexPlusOne - 1)
+			: st->coloredReplyCache(selected, _colorIndexPlusOne - 1)).get()
+		: (hasQuote ? stm->quoteCache : stm->replyCache).get();
+	const auto &quoteSt = hasQuote
+		? st::messageTextStyle.blockquote
+		: st::messageQuoteStyle;
+	const auto rippleColor = cache->bg;
+	if (!inBubble) {
+		cache->bg = QColor(0, 0, 0, 0);
+	}
+	Ui::Text::ValidateQuotePaintCache(*cache, quoteSt);
+	Ui::Text::FillQuotePaint(p, rect, *cache, quoteSt);
+	if (!inBubble) {
+		cache->bg = rippleColor;
 	}
 
+	if (ripple.animation) {
+		ripple.animation->paint(p, x, y, w, &rippleColor);
+		if (ripple.animation->empty()) {
+			ripple.animation.reset();
+		}
+	}
+
+	const auto withPreviewLeft = st::messageQuoteStyle.outline
+		+ st::historyReplyPreviewMargin.left()
+		+ st::historyReplyPreview
+		+ st::historyReplyPreviewMargin.right();
+	auto textLeft = st::historyReplyPadding.left();
 	const auto pausedSpoiler = context.paused
 		|| On(PowerSaving::kChatSpoiler);
-	if (w > st::msgReplyBarSkip) {
+	if (w > textLeft) {
 		if (resolvedMessage || resolvedStory || !_text.isEmpty()) {
 			const auto media = resolvedMessage ? resolvedMessage->media() : nullptr;
 			auto hasPreview = (media && media->hasReplyPreview())
 				|| (resolvedStory && resolvedStory->hasReplyPreview());
-			if (hasPreview && w < st::msgReplyBarSkip + st::msgReplyBarSize.height()) {
+			if (hasPreview && w <= withPreviewLeft) {
 				hasPreview = false;
 			}
-			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
-
 			if (hasPreview) {
+				textLeft = withPreviewLeft;
 				const auto image = media
 					? media->replyPreview()
 					: resolvedStory->replyPreview();
 				if (image) {
-					auto to = style::rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
+					auto to = style::rtlrect(
+						x + st::historyReplyPreviewMargin.left(),
+						y + st::historyReplyPreviewMargin.top(),
+						st::historyReplyPreview,
+						st::historyReplyPreview,
+						w + 2 * x);
 					const auto preview = image->pixSingle(
 						image->size() / style::DevicePixelRatio(),
 						{
@@ -732,7 +758,8 @@ void HistoryMessageReply::paint(
 					}
 				}
 			}
-			if (w > st::msgReplyBarSkip + previewSkip) {
+			if (w > textLeft + st::historyReplyPadding.right()) {
+				w -= textLeft + st::historyReplyPadding.right();
 				p.setPen(!inBubble
 					? st->msgImgReplyBarColor()
 					: _colorIndexPlusOne
@@ -740,10 +767,10 @@ void HistoryMessageReply::paint(
 						context,
 						_colorIndexPlusOne - 1)
 					: stm->msgServiceFg);
-				_name.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
-				if (originalVia && w > st::msgReplyBarSkip + previewSkip + _name.maxWidth() + st::msgServiceFont->spacew) {
+				_name.drawLeftElided(p, x + textLeft, y + st::historyReplyPadding.top(), w, w + 2 * x + 2 * textLeft);
+				if (originalVia && w > _name.maxWidth() + st::msgServiceFont->spacew) {
 					p.setFont(st::msgServiceFont);
-					p.drawText(x + st::msgReplyBarSkip + previewSkip + _name.maxWidth() + st::msgServiceFont->spacew, y + st::msgReplyPadding.top() + st::msgServiceFont->ascent, originalVia->text);
+					p.drawText(x + textLeft + _name.maxWidth() + st::msgServiceFont->spacew, y + st::historyReplyPadding.top() + st::msgServiceFont->ascent, originalVia->text);
 				}
 
 				p.setPen(inBubble
@@ -751,8 +778,8 @@ void HistoryMessageReply::paint(
 					: st->msgImgReplyBarColor());
 				holder->prepareCustomEmojiPaint(p, context, _text);
 				auto replyToTextPosition = QPoint(
-					x + st::msgReplyBarSkip + previewSkip,
-					y + st::msgReplyPadding.top() + st::msgServiceNameFont->height);
+					x + textLeft,
+					y + st::historyReplyPadding.top() + st::msgServiceNameFont->height);
 				const auto replyToTextPalette = &(inBubble
 					? stm->replyTextPalette
 					: st->imgReplyTextPalette());
@@ -760,7 +787,7 @@ void HistoryMessageReply::paint(
 					st::dialogsMiniReplyStory.icon.icon.paint(
 						p,
 						replyToTextPosition,
-						w - st::msgReplyBarSkip - previewSkip,
+						w + 2 * x + 2 * textLeft,
 						replyToTextPalette->linkFg->c);
 					replyToTextPosition += QPoint(
 						st::dialogsMiniReplyStory.skipText
@@ -769,7 +796,7 @@ void HistoryMessageReply::paint(
 				}
 				_text.draw(p, {
 					.position = replyToTextPosition,
-					.availableWidth = w - st::msgReplyBarSkip - previewSkip,
+					.availableWidth = w,
 					.palette = replyToTextPalette,
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
 					.now = context.now,
@@ -782,10 +809,14 @@ void HistoryMessageReply::paint(
 			}
 		} else {
 			p.setFont(st::msgDateFont);
-			p.setPen(inBubble
-				? stm->msgDateFg
-				: st->msgDateImgFg());
-			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(statePhrase(), w - st::msgReplyBarSkip));
+			p.setPen(cache->outline);
+			p.drawTextLeft(
+				x + textLeft,
+				(y + (_height - st::msgDateFont->height) / 2),
+				w + 2 * x + 2 * textLeft,
+				st::msgDateFont->elided(
+					statePhrase(),
+					w - textLeft - st::historyReplyPadding.right()));
 		}
 	}
 }

@@ -362,9 +362,9 @@ void ForwardPanel::paint(
 	if (preview) {
 		auto to = QRect(
 			x,
-			y + st::msgReplyPadding.top(),
-			st::msgReplyBarSize.height(),
-			st::msgReplyBarSize.height());
+			y + (st::historyReplyHeight - st::historyReplyPreview) / 2,
+			st::historyReplyPreview,
+			st::historyReplyPreview);
 		p.drawPixmap(to.x(), to.y(), preview->pixSingle(
 			preview->size() / style::DevicePixelRatio(),
 			{
@@ -375,10 +375,7 @@ void ForwardPanel::paint(
 			Ui::FillSpoilerRect(p, to, Ui::DefaultImageSpoiler().frame(
 				_spoiler->index(now, pausedSpoiler)));
 		}
-		const auto skip = st::msgReplyBarSize.height()
-			+ st::msgReplyBarSkip
-			- st::msgReplyBarSize.width()
-			- st::msgReplyBarPos.x();
+		const auto skip = st::historyReplyPreview + st::msgReplyBarSkip;
 		x += skip;
 		available -= skip;
 	}

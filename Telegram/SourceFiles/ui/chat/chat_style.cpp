@@ -583,6 +583,10 @@ const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 	EnsureBlockquoteCache(
 		result.replyCache,
 		result.msgReplyBarColor);
+	if (!result.quoteCache) {
+		result.quoteCache = std::make_unique<Text::QuotePaintCache>(
+			*result.replyCache);
+	}
 
 	const auto preBgOverride = [&] {
 		const auto withBg = [&](const QColor &color) {

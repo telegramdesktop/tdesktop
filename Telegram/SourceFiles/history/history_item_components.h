@@ -273,7 +273,9 @@ struct HistoryMessageReply
 	void updateName(
 		not_null<HistoryItem*> holder,
 		std::optional<PeerData*> resolvedSender = std::nullopt) const;
-	void resize(int width) const;
+	[[nodiscard]] int resizeToWidth(int width) const;
+	[[nodiscard]] int height() const;
+	[[nodiscard]] QMargins margins() const;
 	void itemRemoved(
 		not_null<HistoryItem*> holder,
 		not_null<HistoryItem*> removed);
@@ -325,7 +327,6 @@ struct HistoryMessageReply
 	ReplyToStoryPointer resolvedStory;
 	std::unique_ptr<HistoryMessageVia> originalVia;
 	std::unique_ptr<Ui::SpoilerAnimation> spoiler;
-	int toWidth = 0;
 
 	struct {
 		mutable std::unique_ptr<Ui::RippleAnimation> animation;
@@ -339,8 +340,10 @@ private:
 	mutable Ui::Text::String _text;
 	mutable PeerData *_externalSender = nullptr;
 	mutable int _maxWidth = 0;
+	mutable int _minHeight = 0;
+	mutable int _height = 0;
 	mutable int _nameVersion = 0;
-	uint8 _colorIndexPlusOne : 7 = 0;
+	uint8 _colorIndexPlusOne : 6 = 0;
 	uint8 _unavailable : 1 = 0;
 
 };

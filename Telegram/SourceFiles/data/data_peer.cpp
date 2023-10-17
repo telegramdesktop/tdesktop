@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/main_window.h" // Window::LogoNoMargin.
 #include "ui/image/image.h"
+#include "ui/chat/chat_style.h"
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"

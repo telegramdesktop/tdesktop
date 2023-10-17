@@ -3305,6 +3305,7 @@ void HistoryItem::createComponentsHelper(
 		config.reply.topicPost = LookupReplyIsTopicPost(to)
 			|| (to && to->Has<HistoryServiceTopicInfo>())
 			|| (forum && forum->creating(config.reply.topMessageId));
+		config.reply.quote = std::move(replyTo.quote);
 	}
 	config.markup = std::move(markup);
 	if (flags & MessageFlag::HasPostAuthor) config.postAuthor = postAuthor;

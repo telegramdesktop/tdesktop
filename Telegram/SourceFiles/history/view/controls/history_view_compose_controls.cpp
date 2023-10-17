@@ -776,23 +776,14 @@ void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
 
 	const auto textTop = st::msgReplyPadding.top();
 	auto previewLeft = st::historyReplySkip + st::webPageLeft;
-	p.fillRect(
-		st::historyReplySkip,
-		textTop,
-		st::webPageBar,
-		st::msgReplyBarSize.height(),
-		st::msgInReplyBarColor);
 
 	const QRect to(
 		previewLeft,
-		textTop,
-		st::msgReplyBarSize.height(),
-		st::msgReplyBarSize.height());
+		(st::historyReplyHeight - st::historyReplyPreview) / 2,
+		st::historyReplyPreview,
+		st::historyReplyPreview);
 	if (HistoryView::DrawWebPageDataPreview(p, _preview.data, context, to)) {
-		previewLeft += st::msgReplyBarSize.height()
-			+ st::msgReplyBarSkip
-			- st::msgReplyBarSize.width()
-			- st::msgReplyBarPos.x();
+		previewLeft += st::historyReplyPreview + st::msgReplyBarSkip;
 	}
 	const auto elidedWidth = width()
 		- previewLeft
@@ -826,8 +817,7 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 	if (!_shownMessage) {
 		p.setFont(st::msgDateFont);
 		p.setPen(st::historyComposeAreaFgService);
-		const auto top = (st::msgReplyPadding.top()
-			+ (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2);
+		const auto top = (st::historyReplyHeight - st::msgDateFont->height) / 2;
 		p.drawText(
 			replySkip,
 			top + st::msgDateFont->ascent,
@@ -863,10 +853,8 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 			update();
 		});
 	}
-	const auto previewSkipValue = st::msgReplyBarSize.height()
-		+ st::msgReplyBarSkip
-		- st::msgReplyBarSize.width()
-		- st::msgReplyBarPos.x();
+	const auto previewSkipValue = st::historyReplyPreview
+		+ st::msgReplyBarSkip;
 	const auto previewSkip = _shownMessageHasPreview ? previewSkipValue : 0;
 	const auto textLeft = replySkip + previewSkip;
 	const auto textAvailableWidth = availableWidth - previewSkip;
@@ -876,9 +864,9 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 			: 0.;
 		const auto to = QRect(
 			replySkip,
-			st::msgReplyPadding.top(),
-			st::msgReplyBarSize.height(),
-			st::msgReplyBarSize.height());
+			(st::historyReplyHeight - st::historyReplyPreview) / 2,
+			st::historyReplyPreview,
+			st::historyReplyPreview);
 		p.drawPixmap(to.x(), to.y(), preview->pixSingle(
 			preview->size() / style::DevicePixelRatio(),
 			{
@@ -999,9 +987,9 @@ void FieldHeader::updateControlsGeometry(QSize size) {
 		height());
 	_shownMessagePreviewRect = QRect(
 		st::historyReplySkip,
-		st::msgReplyPadding.top(),
-		st::msgReplyBarSize.height(),
-		st::msgReplyBarSize.height());
+		(st::historyReplyHeight - st::historyReplyPreview) / 2,
+		st::historyReplyPreview,
+		st::historyReplyPreview);
 }
 
 void FieldHeader::editMessage(FullMsgId id, bool photoEditAllowed) {

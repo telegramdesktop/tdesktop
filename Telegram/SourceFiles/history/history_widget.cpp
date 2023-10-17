@@ -4352,9 +4352,11 @@ void HistoryWidget::updateOverStates(QPoint pos) {
 		&& _photoEditMedia
 		&& QRect(
 			replyEditForwardInfoRect.x(),
-			replyEditForwardInfoRect.y() + st::msgReplyPadding.top(),
-			st::msgReplyBarSize.height(),
-			st::msgReplyBarSize.height()).contains(pos);
+			(replyEditForwardInfoRect.y()
+				+ (replyEditForwardInfoRect.height()
+					- st::historyReplyPreview) / 2),
+			st::historyReplyPreview,
+			st::historyReplyPreview).contains(pos);
 	auto inClickable = inReplyEditForward;
 	if (_inPhotoEdit != inPhotoEdit) {
 		_inPhotoEdit = inPhotoEdit;
@@ -7809,7 +7811,9 @@ void HistoryWidget::updateReplyEditText(not_null<HistoryItem*> item) {
 	};
 	_replyEditMsgText.setMarkedText(
 		st::defaultTextStyle,
-		item->inReplyText(),
+		((_editMsgId || _replyTo.quote.empty())
+			? item->inReplyText()
+			: _replyTo.quote),
 		Ui::DialogTextOptions(),
 		context);
 	if (fieldOrDisabledShown() || isRecording()) {
@@ -7956,7 +7960,11 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 						const auto overEdit = _photoEditMedia
 							? _inPhotoEditOver.value(_inPhotoEdit ? 1. : 0.)
 							: 0.;
-						auto to = QRect(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
+						auto to = QRect(
+							replyLeft,
+							backy + (st::historyReplyHeight - st::historyReplyPreview) / 2,
+							st::historyReplyPreview,
+							st::historyReplyPreview);
 						p.drawPixmap(to.x(), to.y(), preview->pixSingle(
 							preview->size() / style::DevicePixelRatio(),
 							{
@@ -7980,7 +7988,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 							p.setOpacity(1.);
 						}
 					}
-					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
+					replyLeft += st::historyReplyPreview + st::msgReplyBarSkip;
 				}
 				p.setPen(st::historyReplyNameFg);
 				if (_editMsgId) {
@@ -8004,7 +8012,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			} else {
 				p.setFont(st::msgDateFont);
 				p.setPen(st::historyComposeAreaFgService);
-				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(tr::lng_profile_loading(tr::now), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right()));
+				p.drawText(replyLeft, backy + (st::historyReplyHeight - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(tr::lng_profile_loading(tr::now), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right()));
 			}
 		}
 	} else if (hasForward) {
@@ -8020,24 +8028,15 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	}
 	if (drawWebPagePreview) {
 		const auto textTop = backy + st::msgReplyPadding.top();
-		auto previewLeft = st::historyReplySkip + st::webPageLeft;
-		p.fillRect(
-			st::historyReplySkip,
-			textTop,
-			st::webPageBar,
-			st::msgReplyBarSize.height(),
-			st::msgInReplyBarColor);
+		auto previewLeft = st::historyReplySkip;
 
 		const auto to = QRect(
 			previewLeft,
-			textTop,
-			st::msgReplyBarSize.height(),
-			st::msgReplyBarSize.height());
+			backy + (st::historyReplyHeight - st::historyReplyPreview) / 2,
+			st::historyReplyPreview,
+			st::historyReplyPreview);
 		if (HistoryView::DrawWebPageDataPreview(p, _previewData, _peer, to)) {
-			previewLeft += st::msgReplyBarSize.height()
-				+ st::msgReplyBarSkip
-				- st::msgReplyBarSize.width()
-				- st::msgReplyBarPos.x();
+			previewLeft += st::historyReplyPreview + st::msgReplyBarSkip;
 		}
 		p.setPen(st::historyReplyNameFg);
 		const auto elidedWidth = width()
