@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "data/data_session.h"
@@ -84,6 +85,38 @@ std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
 	return result;
 }
 
+[[nodiscard]] QString PageToPhrase(not_null<WebPageData*> webpage) {
+	const auto type = webpage->type;
+	return Ui::Text::Upper((type == WebPageType::Theme)
+		? tr::lng_view_button_theme(tr::now)
+		: (type == WebPageType::Story)
+		? tr::lng_view_button_story(tr::now)
+		: (type == WebPageType::Message)
+		? tr::lng_view_button_message(tr::now)
+		: (type == WebPageType::Group)
+		? tr::lng_view_button_group(tr::now)
+		: (type == WebPageType::WallPaper)
+		? tr::lng_view_button_background(tr::now)
+		: (type == WebPageType::Channel)
+		? tr::lng_view_button_channel(tr::now)
+		: (type == WebPageType::GroupWithRequest
+			|| type == WebPageType::ChannelWithRequest)
+		? tr::lng_view_button_request_join(tr::now)
+		: (type == WebPageType::ChannelBoost)
+		? tr::lng_view_button_boost(tr::now)
+		: (type == WebPageType::VoiceChat)
+		? tr::lng_view_button_voice_chat(tr::now)
+		: (type == WebPageType::Livestream)
+		? tr::lng_view_button_voice_chat_channel(tr::now)
+		: (type == WebPageType::Bot)
+		? tr::lng_view_button_bot(tr::now)
+		: (type == WebPageType::User)
+		? tr::lng_view_button_user(tr::now)
+		: (type == WebPageType::BotApp)
+		? tr::lng_view_button_bot_app(tr::now)
+		: QString());
+}
+
 } // namespace
 
 WebPage::WebPage(
@@ -92,23 +125,47 @@ WebPage::WebPage(
 : Media(parent)
 , _st(st::historyPagePreview)
 , _data(data)
+, _colorIndex(parent->data()->computeColorIndex())
 , _siteName(st::msgMinWidth - _st.padding.left() - _st.padding.right())
 , _title(st::msgMinWidth - _st.padding.left() - _st.padding.right())
 , _description(st::msgMinWidth - _st.padding.left() - _st.padding.right()) {
 	history()->owner().registerWebPageView(_data, _parent);
+}
 
-	const auto from = parent->data()->displayFrom();
-	const auto info = from ? nullptr : parent->data()->hiddenSenderInfo();
-	Assert(from || info);
-	_colorIndexPlusOne = !parent->data()->isPost()
-		? ((from ? from->colorIndex() : info->colorIndex) + 1)
-		: 0;
+bool WebPage::HasButton(not_null<WebPageData*> webpage) {
+	const auto type = webpage->type;
+	return (type == WebPageType::Message)
+		|| (type == WebPageType::Group)
+		|| (type == WebPageType::Channel)
+		|| (type == WebPageType::ChannelBoost)
+		// || (type == WebPageType::Bot)
+		|| (type == WebPageType::User)
+		|| (type == WebPageType::VoiceChat)
+		|| (type == WebPageType::Livestream)
+		|| (type == WebPageType::BotApp)
+		|| ((type == WebPageType::Theme)
+			&& webpage->document
+			&& webpage->document->isTheme())
+		|| ((type == WebPageType::Story)
+			&& (webpage->photo || webpage->document))
+		|| ((type == WebPageType::WallPaper)
+			&& webpage->document
+			&& webpage->document->isWallPaper());
 }
 
 QSize WebPage::countOptimalSize() {
 	if (_data->pendingTill) {
 		return { 0, 0 };
 	}
+
+	// Detect _openButtonWidth before counting paddings.
+	_openButton = QString();
+	_openButtonWidth = 0;
+	if (HasButton(_data)) {
+		_openButton = PageToPhrase(_data);
+		_openButtonWidth = st::semiboldFont->width(_openButton);
+	}
+
 	const auto padding = inBubblePadding() + innerMargin();
 	const auto versionChanged = (_dataVersion != _data->version);
 	if (versionChanged) {
@@ -127,6 +184,13 @@ QSize WebPage::countOptimalSize() {
 
 	if (!_openl && !_data->url.isEmpty()) {
 		const auto previewOfHiddenUrl = [&] {
+			if (_data->type == WebPageType::BotApp) {
+				// Bot Web Apps always show confirmation on hidden urls.
+				//
+				// But from the dedicated "Open App" button we don't want
+				// to request users confirmation on non-first app opening.
+				return false;
+			}
 			const auto simplify = [](const QString &url) {
 				auto result = url.toLower();
 				if (result.endsWith('/')) {
@@ -175,7 +239,7 @@ QSize WebPage::countOptimalSize() {
 		? _data->author
 		: _data->title);
 	if (!_collage.empty()) {
-		_asArticle = false;
+		_asArticle = 0;
 	} else if (!_data->document
 		&& _data->photo
 		&& _data->type != WebPageType::Photo
@@ -183,22 +247,22 @@ QSize WebPage::countOptimalSize() {
 		&& _data->type != WebPageType::Story
 		&& _data->type != WebPageType::Video) {
 		if (_data->type == WebPageType::Profile) {
-			_asArticle = true;
+			_asArticle = 1;
 		} else if (_data->siteName == u"Twitter"_q
 			|| _data->siteName == u"Facebook"_q
 			|| _data->type == WebPageType::ArticleWithIV) {
-			_asArticle = false;
+			_asArticle = 0;
 		} else {
-			_asArticle = true;
+			_asArticle = 1;
 		}
 		if (_asArticle
 			&& _data->description.text.isEmpty()
 			&& title.isEmpty()
 			&& _data->siteName.isEmpty()) {
-			_asArticle = false;
+			_asArticle = 0;
 		}
 	} else {
-		_asArticle = false;
+		_asArticle = 0;
 	}
 
 	// init attach
@@ -210,8 +274,6 @@ QSize WebPage::countOptimalSize() {
 			_collage,
 			_data->url);
 	}
-
-	_hasViewButton = ViewButton::MediaHasViewButton(_data);
 
 	// init strings
 	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
@@ -305,6 +367,10 @@ QSize WebPage::countOptimalSize() {
 	if (_data->type == WebPageType::Video && _data->duration) {
 		_duration = Ui::FormatDurationText(_data->duration);
 		_durationWidth = st::msgDateFont->width(_duration);
+	}
+	if (_openButtonWidth) {
+		const auto &margins = st::historyPageButtonPadding;
+		maxWidth += margins.left() + _openButtonWidth + margins.right();
 	}
 	maxWidth += padding.left() + padding.right();
 	minHeight += padding.top() + padding.bottom();
@@ -472,12 +538,18 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
 
 	const auto selected = context.selected();
-	const auto useColorIndex = context.outbg ? 0 : _colorIndexPlusOne;
-	const auto cache = useColorIndex
-		? st->coloredReplyCache(selected, useColorIndex - 1).get()
-		: stm->replyCache.get();
+	const auto cache = context.outbg
+		? stm->replyCache.get()
+		: st->coloredReplyCache(selected, _colorIndex).get();
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
+
+	if (_ripple) {
+		_ripple->paint(p, outer.x(), outer.y(), width(), &cache->bg);
+		if (_ripple->empty()) {
+			_ripple = nullptr;
+		}
+	}
 
 	auto lineHeight = UnitedLineHeight();
 	if (asArticle()) {
@@ -522,9 +594,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	}
 	if (_siteNameLines) {
 		p.setPen(cache->outline);
-		p.setTextPalette(useColorIndex
-			? st->coloredTextPalette(selected, useColorIndex - 1)
-			: stm->semiboldPalette);
+		p.setTextPalette(context.outbg
+			? stm->semiboldPalette
+			: st->coloredTextPalette(selected, _colorIndex));
 
 		auto endskip = 0;
 		if (_siteName.hasSkipBlock()) {
@@ -619,6 +691,21 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			p.setPen(stm->msgDateFg);
 			p.drawTextLeft(st::msgPadding.left(), outer.y() + outer.height() + st::mediaInBubbleSkip, width(), attachAdditionalInfoText);
 		}
+	}
+
+	if (_openButtonWidth) {
+		p.setFont(st::semiboldFont);
+		p.setPen(cache->outline);
+		const auto end = inner.y() + inner.height() + _st.padding.bottom();
+		const auto line = st::historyPageButtonLine;
+		auto color = cache->outline;
+		color.setAlphaF(color.alphaF() * 0.3);
+		p.fillRect(inner.x(), end, inner.width(), line, color);
+		const auto top = end + st::historyPageButtonPadding.top();
+		p.drawText(
+			inner.x() + (inner.width() - _openButtonWidth) / 2,
+			top + st::semiboldFont->ascent,
+			_openButton);
 	}
 }
 
@@ -715,9 +802,10 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			result.link = replaceAttachLink(result.link);
 		}
 	}
-	if (!result.link && inner.contains(point)) {
+	if (!result.link && outer.contains(point)) {
 		result.link = _openl;
 	}
+	_lastPoint = point - outer.topLeft();
 
 	result.symbol += symbolAdd;
 	return result;
@@ -773,13 +861,35 @@ TextSelection WebPage::adjustSelection(TextSelection selection, TextSelectType t
 	return { siteNameSelection.from, fromDescriptionSelection(descriptionSelection).to };
 }
 
-void WebPage::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+void WebPage::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
 	if (_attach) {
 		_attach->clickHandlerActiveChanged(p, active);
 	}
 }
 
-void WebPage::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+void WebPage::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	if (p == _openl) {
+		if (pressed) {
+			if (!_ripple) {
+				const auto full = QRect(0, 0, width(), height());
+				const auto outer = full.marginsRemoved(inBubblePadding());
+				const auto owner = &parent()->history()->owner();
+				_ripple = std::make_unique<Ui::RippleAnimation>(
+					st::defaultRippleAnimation,
+					Ui::RippleAnimation::RoundRectMask(
+						outer.size(),
+						_st.radius),
+					[=] { owner->requestViewRepaint(parent()); });
+			}
+			_ripple->add(_lastPoint);
+		} else if (_ripple) {
+			_ripple->lastStop();
+		}
+	}
 	if (_attach) {
 		_attach->clickHandlerPressedChanged(p, pressed);
 	}
@@ -809,6 +919,15 @@ bool WebPage::isDisplayed() const {
 
 QString WebPage::additionalInfoString() const {
 	return _attach ? _attach->additionalInfoString() : QString();
+}
+
+bool WebPage::toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const {
+	return _attach && _attach->toggleSelectionByHandlerClick(p);
+}
+
+bool WebPage::dragItemByHandler(const ClickHandlerPtr &p) const {
+	return _attach && _attach->dragItemByHandler(p);
 }
 
 TextForMimeData WebPage::selectedText(TextSelection selection) const {
@@ -846,7 +965,8 @@ QMargins WebPage::inBubblePadding() const {
 }
 
 QMargins WebPage::innerMargin() const {
-	return _st.padding;
+	const auto button = _openButtonWidth ? st::historyPageButtonHeight : 0;
+	return _st.padding + QMargins(0, 0, 0, button);
 }
 
 bool WebPage::isLogEntryOriginal() const {

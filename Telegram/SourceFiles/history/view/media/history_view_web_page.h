@@ -14,6 +14,10 @@ class Media;
 class PhotoMedia;
 } // namespace Data
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace HistoryView {
 
 class WebPage : public Media {
@@ -21,6 +25,8 @@ public:
 	WebPage(
 		not_null<Element*> parent,
 		not_null<WebPageData*> data);
+
+	[[nodiscard]] static bool HasButton(not_null<WebPageData*> data);
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
@@ -38,21 +44,21 @@ public:
 		return _title.length() + _description.length();
 	}
 	bool hasTextForCopy() const override {
-		return false; // we do not add _title and _description in FullSelection text copy.
+		// We do not add _title and _description in FullSelection text copy.
+		return false;
 	}
 	QString additionalInfoString() const override;
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
-		return _attach && _attach->toggleSelectionByHandlerClick(p);
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
-		return _attach && _attach->dragItemByHandler(p);
-	}
+	bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const override;
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override;
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p, bool pressed) override;
 
 	bool isDisplayed() const override;
 	PhotoData *getPhoto() const override {
@@ -123,20 +129,25 @@ private:
 	ClickHandlerPtr _openl;
 	std::unique_ptr<Media> _attach;
 	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
+	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
-	bool _asArticle = false;
-	bool _hasViewButton = false;
 	int _dataVersion = -1;
 	int _siteNameLines = 0;
 	int _descriptionLines = 0;
-	int _titleLines : 24 = 0;
-	int _colorIndexPlusOne : 8 = 0;
+	uint32 _titleLines : 24 = 0;
+	uint32 _colorIndex : 7 = 0;
+	uint32 _asArticle : 1 = 0;
 
-	Ui::Text::String _siteName, _title, _description;
+	Ui::Text::String _siteName;
+	Ui::Text::String _title;
+	Ui::Text::String _description;
 
+	QString _openButton;
 	QString _duration;
+	int _openButtonWidth = 0;
 	int _durationWidth = 0;
 
+	mutable QPoint _lastPoint;
 	int _pixw = 0;
 	int _pixh = 0;
 

@@ -624,9 +624,13 @@ historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgS
 historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
 historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
-historyViewButtonHeight: 42px;
-historyViewButtonMargins: margins(13px, 5px, 13px, 5px);
+historyViewButtonHeight: 48px;
+historyViewButtonMargins: margins(10px, 5px, 10px, 10px);
 historyViewButtonTextStyle: semiboldTextStyle;
+
+historyPageButtonLine: 1px;
+historyPageButtonHeight: 36px;
+historyPageButtonPadding: margins(13px, 8px, 13px, 8px);
 
 historyCommentsButtonHeight: 40px;
 historyCommentsSkipLeft: 9px;

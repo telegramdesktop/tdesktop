@@ -105,8 +105,8 @@ private:
 
 	int _gameTagWidth = 0;
 	int _descriptionLines = 0;
-	int _titleLines : 24 = 0;
-	int _colorIndexPlusOne : 8 = 0;
+	uint32 _titleLines : 24 = 0;
+	uint32 _colorIndex : 8 = 0;
 
 	Ui::Text::String _title;
 	Ui::Text::String _description;

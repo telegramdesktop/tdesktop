@@ -85,7 +85,10 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, Hist
 
 class HiddenSenderInfo {
 public:
-	HiddenSenderInfo(const QString &name, bool external);
+	HiddenSenderInfo(
+		const QString &name,
+		bool external,
+		std::optional<uint8> colorIndex = {});
 
 	QString name;
 	QString firstName;

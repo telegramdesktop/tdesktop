@@ -1126,6 +1126,15 @@ PeerData *HistoryItem::displayFrom() const {
 	return author().get();
 }
 
+uint8 HistoryItem::computeColorIndex() const {
+	if (const auto from = displayFrom()) {
+		return from->colorIndex();
+	} else if (const auto info = hiddenSenderInfo()) {
+		return info->colorIndex;
+	}
+	Unexpected("No displayFrom and no hiddenSenderInfo.");
+}
+
 std::unique_ptr<HistoryView::Element> HistoryItem::createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		HistoryView::Element *replacing) {
@@ -3253,7 +3262,8 @@ void HistoryItem::setSponsoredFrom(const Data::SponsoredFrom &from) {
 	const auto sponsored = Get<HistoryMessageSponsored>();
 	sponsored->sender = std::make_unique<HiddenSenderInfo>(
 		from.title,
-		false);
+		false,
+		from.peer ? from.peer->colorIndex() : std::optional<uint8>());
 	sponsored->recommended = from.isRecommended;
 	sponsored->isForceUserpicDisplay = from.isForceUserpicDisplay;
 	if (from.userpic.location.valid()) {

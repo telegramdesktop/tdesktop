@@ -1330,12 +1330,9 @@ void Message::paintFromName(
 	const auto from = item->displayFrom();
 	const auto info = from ? nullptr : item->hiddenSenderInfo();
 	Assert(from || info);
-	const auto service = (context.outbg || item->isPost());
 	const auto st = context.st;
-	const auto nameFg = !service
+	const auto nameFg = !context.outbg
 		? FromNameFg(context, from ? from->colorIndex() : info->colorIndex)
-		: item->isSponsored()
-		? st->boxTextFgGood()
 		: stm->msgServiceFg;
 	const auto nameText = [&] {
 		if (from) {
@@ -3021,9 +3018,13 @@ void Message::updateViewButtonExistence() {
 		return;
 	}
 	auto repainter = [=] { repaint(); };
+	const auto index = item->computeColorIndex();
 	_viewButton = sponsored
-		? std::make_unique<ViewButton>(sponsored, std::move(repainter))
-		: std::make_unique<ViewButton>(media, std::move(repainter));
+		? std::make_unique<ViewButton>(
+			sponsored,
+			index,
+			std::move(repainter))
+		: std::make_unique<ViewButton>(media, index, std::move(repainter));
 }
 
 void Message::initLogEntryOriginal() {

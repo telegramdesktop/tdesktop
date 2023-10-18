@@ -34,6 +34,7 @@ Game::Game(
 : Media(parent)
 , _st(st::historyPagePreview)
 , _data(data)
+, _colorIndex(parent->data()->computeColorIndex())
 , _title(st::msgMinWidth - _st.padding.left() - _st.padding.right())
 , _description(st::msgMinWidth - _st.padding.left() - _st.padding.right()) {
 	if (!consumed.text.isEmpty()) {
@@ -48,13 +49,6 @@ Game::Game(
 			context);
 	}
 	history()->owner().registerGameView(_data, _parent);
-
-	const auto from = parent->data()->displayFrom();
-	const auto info = from ? nullptr : parent->data()->hiddenSenderInfo();
-	Assert(from || info);
-	_colorIndexPlusOne = !parent->data()->isPost()
-		? ((from ? from->colorIndex() : info->colorIndex) + 1)
-		: 0;
 }
 
 QSize Game::countOptimalSize() {
@@ -226,25 +220,36 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 	auto paintw = inner.width();
 
 	const auto selected = context.selected();
-	const auto useColorIndex = context.outbg ? 0 : _colorIndexPlusOne;
-	const auto cache = useColorIndex
-		? st->coloredReplyCache(selected, useColorIndex - 1).get()
-		: stm->replyCache.get();
+	const auto cache = context.outbg
+		? stm->replyCache.get()
+		: st->coloredReplyCache(selected, _colorIndex).get();
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
 
 	auto lineHeight = UnitedLineHeight();
 	if (_titleLines) {
 		p.setPen(cache->outline);
-		p.setTextPalette(useColorIndex
-			? st->coloredTextPalette(selected, useColorIndex - 1)
-			: stm->semiboldPalette);
+		p.setTextPalette(context.outbg
+			? stm->semiboldPalette
+			: st->coloredTextPalette(selected, _colorIndex));
 
 		auto endskip = 0;
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_title.drawLeftElided(p, inner.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, context.selection);
+		_title.drawLeftElided(
+			p,
+			inner.left(),
+			tshift,
+			paintw,
+			width(),
+			_titleLines,
+			style::al_left,
+			0,
+			-1,
+			endskip,
+			false,
+			context.selection);
 		tshift += _titleLines * lineHeight;
 
 		p.setTextPalette(stm->textPalette);

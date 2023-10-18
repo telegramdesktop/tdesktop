@@ -108,11 +108,15 @@ void HistoryMessageVia::resize(int32 availw) const {
 	}
 }
 
-HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
+HiddenSenderInfo::HiddenSenderInfo(
+	const QString &name,
+	bool external,
+	std::optional<uint8> colorIndex)
 : name(name)
-, colorIndex(Data::DecideColorIndex(Data::FakePeerIdForJustName(name)))
+, colorIndex(colorIndex.value_or(
+	Data::DecideColorIndex(Data::FakePeerIdForJustName(name))))
 , emptyUserpic(
-	Ui::EmptyUserpic::UserpicColor(colorIndex),
+	Ui::EmptyUserpic::UserpicColor(this->colorIndex),
 	(external
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {
@@ -399,13 +403,10 @@ bool HistoryMessageReply::updateData(
 		}
 
 		if (resolvedMessage) {
-			const auto peer = resolvedMessage->history()->peer;
-			_colorIndexPlusOne = (!holder->out()
-					&& (peer->isMegagroup() || peer->isChat())
-					&& resolvedMessage->from()->isUser())
-				? (resolvedMessage->from()->colorIndex() + 1)
-				: uint8();
-		} else if (!resolvedStory) {
+			_colorIndexPlusOne = resolvedMessage->computeColorIndex() + 1;
+		} else if (resolvedStory) {
+			_colorIndexPlusOne = resolvedStory->peer()->colorIndex() + 1;
+		} else {
 			_unavailable = 1;
 		}
 
@@ -680,14 +681,15 @@ void HistoryMessageReply::paint(
 	const auto rect = QRect(x, y, w, _height);
 	const auto hasQuote = !_fields.quote.empty();
 	const auto selected = context.selected();
+	const auto colorIndexPlusOne = context.outbg ? 0 : _colorIndexPlusOne;
 	const auto cache = !inBubble
 		? (hasQuote
 			? st->serviceQuoteCache()
 			: st->serviceReplyCache()).get()
-		: _colorIndexPlusOne
+		: colorIndexPlusOne
 		? (hasQuote
-			? st->coloredQuoteCache(selected, _colorIndexPlusOne - 1)
-			: st->coloredReplyCache(selected, _colorIndexPlusOne - 1)).get()
+			? st->coloredQuoteCache(selected, colorIndexPlusOne - 1)
+			: st->coloredReplyCache(selected, colorIndexPlusOne - 1)).get()
 		: (hasQuote ? stm->quoteCache : stm->replyCache).get();
 	const auto &quoteSt = hasQuote
 		? st::messageTextStyle.blockquote
@@ -762,10 +764,10 @@ void HistoryMessageReply::paint(
 				w -= textLeft + st::historyReplyPadding.right();
 				p.setPen(!inBubble
 					? st->msgImgReplyBarColor()
-					: _colorIndexPlusOne
+					: colorIndexPlusOne
 					? HistoryView::FromNameFg(
 						context,
-						_colorIndexPlusOne - 1)
+						colorIndexPlusOne - 1)
 					: stm->msgServiceFg);
 				_name.drawLeftElided(p, x + textLeft, y + st::historyReplyPadding.top(), w, w + 2 * x + 2 * textLeft);
 				if (originalVia && w > _name.maxWidth() + st::msgServiceFont->spacew) {
@@ -782,8 +784,8 @@ void HistoryMessageReply::paint(
 					y + st::historyReplyPadding.top() + st::msgServiceNameFont->height);
 				auto replyToTextPalette = &(!inBubble
 					? st->imgReplyTextPalette()
-					: _colorIndexPlusOne
-					? st->coloredTextPalette(selected, _colorIndexPlusOne - 1)
+					: colorIndexPlusOne
+					? st->coloredTextPalette(selected, colorIndexPlusOne - 1)
 					: stm->replyTextPalette);
 				if (_fields.storyId) {
 					st::dialogsMiniReplyStory.icon.icon.paint(
