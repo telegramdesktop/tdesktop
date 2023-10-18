@@ -1421,7 +1421,7 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 592b14d13b
+    git checkout be153adaa3
     git submodule init
     git submodule update
 win:
