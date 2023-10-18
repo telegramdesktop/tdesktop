@@ -43,25 +43,26 @@ public:
 	using Map = QHash<QString, const Info *>;
 
 	CountriesInstance();
-	[[nodiscard]] const std::vector<Info> &list();
+	[[nodiscard]] const std::vector<Info> &list() const;
 	void setList(std::vector<Info> &&infos);
 
-	[[nodiscard]] const Map &byCode();
-	[[nodiscard]] const Map &byISO2();
+	[[nodiscard]] const Map &byCode() const;
+	[[nodiscard]] const Map &byISO2() const;
 
-	[[nodiscard]] QString validPhoneCode(QString fullCode);
-	[[nodiscard]] QString countryNameByISO2(const QString &iso);
-	[[nodiscard]] QString countryISO2ByPhone(const QString &phone);
+	[[nodiscard]] QString validPhoneCode(QString fullCode) const;
+	[[nodiscard]] QString countryNameByISO2(const QString &iso) const;
+	[[nodiscard]] QString countryISO2ByPhone(const QString &phone) const;
+	[[nodiscard]] QString flagEmojiByISO2(const QString &iso) const;
 
-	[[nodiscard]] FormatResult format(FormatArgs args);
+	[[nodiscard]] FormatResult format(FormatArgs args) const;
 
 	[[nodiscard]] rpl::producer<> updated() const;
 
 private:
-	std::vector<Info> _list;
+	mutable std::vector<Info> _list;
 
-	Map _byCode;
-	Map _byISO2;
+	mutable Map _byCode;
+	mutable Map _byISO2;
 
 	rpl::event_stream<> _updated;
 

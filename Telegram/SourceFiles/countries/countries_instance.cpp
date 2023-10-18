@@ -254,7 +254,7 @@ const std::array<Info, 231> FallbackList = { {
 CountriesInstance::CountriesInstance() {
 }
 
-const std::vector<Info> &CountriesInstance::list() {
+const std::vector<Info> &CountriesInstance::list() const {
 	if (_list.empty()) {
 		_list = (FallbackList | ranges::to_vector);
 	}
@@ -268,7 +268,7 @@ void CountriesInstance::setList(std::vector<Info> &&infos) {
 	_updated.fire({});
 }
 
-const CountriesInstance::Map &CountriesInstance::byCode() {
+const CountriesInstance::Map &CountriesInstance::byCode() const {
 	if (_byCode.empty()) {
 		_byCode.reserve(list().size());
 		for (const auto &entry : list()) {
@@ -280,7 +280,7 @@ const CountriesInstance::Map &CountriesInstance::byCode() {
 	return _byCode;
 }
 
-const CountriesInstance::Map &CountriesInstance::byISO2() {
+const CountriesInstance::Map &CountriesInstance::byISO2() const {
 	if (_byISO2.empty()) {
 		_byISO2.reserve(list().size());
 		for (const auto &entry : list()) {
@@ -290,7 +290,7 @@ const CountriesInstance::Map &CountriesInstance::byISO2() {
 	return _byISO2;
 }
 
-QString CountriesInstance::validPhoneCode(QString fullCode) {
+QString CountriesInstance::validPhoneCode(QString fullCode) const {
 	const auto &listByCode = byCode();
 	while (fullCode.length()) {
 		const auto i = listByCode.constFind(fullCode);
@@ -302,20 +302,34 @@ QString CountriesInstance::validPhoneCode(QString fullCode) {
 	return QString();
 }
 
-QString CountriesInstance::countryNameByISO2(const QString &iso) {
+QString CountriesInstance::countryNameByISO2(const QString &iso) const {
 	const auto &listByISO2 = byISO2();
 	const auto i = listByISO2.constFind(iso);
 	return (i != listByISO2.cend()) ? (*i)->name : QString();
 }
 
-QString CountriesInstance::countryISO2ByPhone(const QString &phone) {
+QString CountriesInstance::countryISO2ByPhone(const QString &phone) const {
 	const auto &listByCode = byCode();
 	const auto code = validPhoneCode(phone);
 	const auto i = listByCode.find(code);
 	return (i != listByCode.cend()) ? (*i)->iso2 : QString();
 }
 
-FormatResult CountriesInstance::format(FormatArgs args) {
+QString CountriesInstance::flagEmojiByISO2(const QString &iso) const {
+	if (iso.size() != 2
+		|| iso.front() < 'A'
+		|| iso.front() > 'Z'
+		|| iso.back() < 'A'
+		|| iso.back() > 'Z') {
+		return QString();
+	}
+	auto result = QString(4, QChar(0xD83C));
+	result[1] = QChar(iso.front().unicode() - 'A' + 0xDDE6);
+	result[3] = QChar(iso.back().unicode() - 'A' + 0xDDE6);
+	return result;
+}
+
+FormatResult CountriesInstance::format(FormatArgs args) const {
 	// Ported from TDLib.
 	if (args.phone.isEmpty()) {
 		return FormatResult();
