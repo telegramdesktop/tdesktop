@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
+#include "countries/countries_instance.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/painter.h"
@@ -33,8 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 namespace {
-
-constexpr auto kChannelBgAlpha = 32;
 
 [[nodiscard]] QSize CountOptimalTextSize(
 		const Ui::Text::String &text,
@@ -59,8 +59,10 @@ Giveaway::Giveaway(
 , _prizes(st::msgMinWidth)
 , _participantsTitle(st::msgMinWidth)
 , _participants(st::msgMinWidth)
+, _countries(st::msgMinWidth)
 , _winnersTitle(st::msgMinWidth)
-, _winners(st::msgMinWidth) {
+, _winners(st::msgMinWidth)
+, _colorIndex(parent->data()->computeColorIndex()) {
 	fillFromData(giveaway);
 }
 
@@ -107,6 +109,33 @@ void Giveaway::fillFromData(not_null<Data::Giveaway*> giveaway) {
 		});
 	}
 	const auto channels = int(_channels.size());
+
+	const auto &instance = Countries::Instance(); ;
+	auto countries = QStringList();
+	for (const auto &country : giveaway->countries) {
+		const auto name = instance.countryNameByISO2(country);
+		const auto flag = instance.flagEmojiByISO2(country);
+		countries.push_back(flag + QChar(0xA0) + name);
+	}
+	if (const auto count = countries.size()) {
+		auto united = countries.front();
+		for (auto i = 1; i != count; ++i) {
+			united = ((i + 1 == count)
+				? tr::lng_prizes_countries_and_last
+				: tr::lng_prizes_countries_and_one)(
+					tr::now,
+					lt_countries,
+					united,
+					lt_country,
+					countries[i]);
+		}
+		_countries.setText(
+			st::defaultTextStyle,
+			tr::lng_prizes_countries(tr::now, lt_countries, united),
+			kDefaultTextOptions);
+	} else {
+		_countries.clear();
+	}
 
 	_participants.setText(
 		st::defaultTextStyle,
@@ -161,7 +190,19 @@ QSize Giveaway::countOptimalSize() {
 		padding.left(),
 		channelsTop,
 		available);
-	_winnersTitleTop = channelsBottom + st::chatGiveawayDateTop;
+	_countriesTop = channelsBottom;
+	if (_countries.isEmpty()) {
+		_winnersTitleTop = _countriesTop + st::chatGiveawayDateTop;
+	} else {
+		const auto countriesSize = CountOptimalTextSize(
+			_countries,
+			st::msgMinWidth,
+			available);
+		_countriesWidth = countriesSize.width();
+		_winnersTitleTop = _countriesTop
+			+ _countries.countHeight(available)
+			+ st::chatGiveawayCountriesSkip;
+	}
 	_winnersTop = _winnersTitleTop
 		+ _winnersTitle.countHeight(available)
 		+ st::chatGiveawayDateSkip;
@@ -252,6 +293,9 @@ void Giveaway::draw(Painter &p, const PaintContext &context) const {
 	paintText(_prizes, _prizesTop, _prizesWidth);
 	paintText(_participantsTitle, _participantsTitleTop, paintw);
 	paintText(_participants, _participantsTop, _participantsWidth);
+	if (!_countries.isEmpty()) {
+		paintText(_countries, _countriesTop, _countriesWidth);
+	}
 	paintText(_winnersTitle, _winnersTitleTop, paintw);
 	paintText(_winners, _winnersTop, paintw);
 	paintChannels(p, context);
@@ -302,16 +346,18 @@ void Giveaway::paintChannels(
 	const auto size = _channels[0].geometry.height();
 	const auto ratio = style::DevicePixelRatio();
 	const auto stm = context.messageStyle();
-	auto bg = stm->msgReplyBarColor->c;
-	bg.setAlpha(kChannelBgAlpha);
-	if (_channelCorners[0].isNull() || _channelBg != bg) {
-		_channelBg = bg;
+	const auto selected = context.selected();
+	const auto cache = context.outbg
+		? stm->replyCache.get()
+		: context.st->coloredReplyCache(selected, _colorIndex).get();
+	if (_channelCorners[0].isNull() || _channelBg != cache->bg) {
+		_channelBg = cache->bg;
 		_channelCorners = Images::CornersMask(size / 2);
 		for (auto &image : _channelCorners) {
-			style::colorizeImage(image, bg, &image);
+			style::colorizeImage(image, cache->bg, &image);
 		}
 	}
-	p.setPen(stm->msgReplyBarColor);
+	p.setPen(cache->outline);
 	const auto padding = st::chatGiveawayChannelPadding;
 	for (const auto &channel : _channels) {
 		const auto &thumbnail = channel.thumbnail;
@@ -321,7 +367,20 @@ void Giveaway::paintChannels(
 				view->history()->owner().requestViewRepaint(view);
 			});
 		}
+
 		Ui::DrawRoundedRect(p, geometry, _channelBg, _channelCorners);
+		if (channel.ripple) {
+			channel.ripple->paint(
+				p,
+				geometry.x(),
+				geometry.y(),
+				width(),
+				&cache->bg);
+			if (channel.ripple->empty()) {
+				channel.ripple = nullptr;
+			}
+		}
+
 		p.drawImage(geometry.topLeft(), thumbnail->image(size));
 		const auto left = size + padding.left();
 		const auto top = padding.top();
@@ -337,7 +396,7 @@ void Giveaway::paintChannels(
 			.elisionBreakEverywhere = true,
 		});
 	}
-	_subscribedToThumbnails = true;
+	_subscribedToThumbnails = 1;
 }
 
 void Giveaway::ensureStickerCreated() const {
@@ -410,10 +469,43 @@ TextState Giveaway::textState(QPoint point, StateRequest request) const {
 	for (const auto &channel : _channels) {
 		if (channel.geometry.contains(point)) {
 			result.link = channel.link;
+			_lastPoint = point;
 			return result;
 		}
 	}
 	return result;
+}
+
+void Giveaway::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
+}
+
+void Giveaway::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	for (auto &channel : _channels) {
+		if (channel.link != p) {
+			continue;
+		}
+		if (pressed) {
+			if (!channel.ripple) {
+				const auto full = QRect(0, 0, width(), height());
+				const auto outer = full.marginsRemoved(inBubblePadding());
+				const auto owner = &parent()->history()->owner();
+				channel.ripple = std::make_unique<Ui::RippleAnimation>(
+					st::defaultRippleAnimation,
+					Ui::RippleAnimation::RoundRectMask(
+						channel.geometry.size(),
+						channel.geometry.height() / 2),
+					[=] { owner->requestViewRepaint(parent()); });
+			}
+			channel.ripple->add(_lastPoint - channel.geometry.topLeft());
+		} else if (channel.ripple) {
+			channel.ripple->lastStop();
+		}
+		break;
+	}
 }
 
 bool Giveaway::hideFromName() const {
@@ -425,7 +517,8 @@ bool Giveaway::hasHeavyPart() const {
 }
 
 void Giveaway::unloadHeavyPart() {
-	if (base::take(_subscribedToThumbnails)) {
+	if (_subscribedToThumbnails) {
+		_subscribedToThumbnails = 0;
 		for (const auto &channel : _channels) {
 			channel.thumbnail->subscribeToUpdates(nullptr);
 		}

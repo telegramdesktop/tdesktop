@@ -18,6 +18,10 @@ namespace Dialogs::Stories {
 class Thumbnail;
 } // namespace Dialogs::Stories
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace HistoryView {
 
 class Giveaway final : public Media {
@@ -29,6 +33,13 @@ public:
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
+
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) override;
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) override;
 
 	bool needsBubble() const override {
 		return true;
@@ -57,6 +68,7 @@ private:
 		std::shared_ptr<Thumbnail> thumbnail;
 		QRect geometry;
 		ClickHandlerPtr link;
+		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
 
 	void paintBadge(Painter &p, const PaintContext &context) const;
@@ -78,6 +90,7 @@ private:
 	Ui::Text::String _participantsTitle;
 	Ui::Text::String _participants;
 	std::vector<Channel> _channels;
+	Ui::Text::String _countries;
 	Ui::Text::String _winnersTitle;
 	Ui::Text::String _winners;
 
@@ -88,6 +101,7 @@ private:
 	mutable QImage _badge;
 	mutable QImage _badgeCache;
 
+	mutable QPoint _lastPoint;
 	int _months = 0;
 	int _quantity = 0;
 	int _stickerTop = 0;
@@ -97,9 +111,12 @@ private:
 	int _participantsTitleTop = 0;
 	int _participantsTop = 0;
 	int _participantsWidth = 0;
+	int _countriesTop = 0;
+	int _countriesWidth = 0;
 	int _winnersTitleTop = 0;
 	int _winnersTop = 0;
-	mutable bool _subscribedToThumbnails = false;
+	uint8 _colorIndex : 7 = 0;
+	mutable uint8 _subscribedToThumbnails : 1 = 0;
 
 };
 

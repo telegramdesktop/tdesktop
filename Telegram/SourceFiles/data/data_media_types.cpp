@@ -375,6 +375,13 @@ Giveaway ComputeGiveawayData(
 	for (const auto &id : data.vchannels().v) {
 		result.channels.push_back(owner->channel(ChannelId(id)));
 	}
+	if (const auto countries = data.vcountries_iso2()) {
+		result.countries.reserve(countries->v.size());
+		for (const auto &country : countries->v) {
+			result.countries.push_back(qs(country));
+		}
+	}
+	result.countries = { u"FR"_q, u"FI"_q, u"UA"_q, u"IT"_q };
 	return result;
 }
 

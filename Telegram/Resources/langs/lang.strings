@@ -2090,6 +2090,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_participants_all#other" = "All subscribers of the channels:";
 "lng_prizes_participants_new#one" = "All users who joined the channel below after this date:";
 "lng_prizes_participants_new#other" = "All users who joined the channels below after this date:";
+"lng_prizes_countries" = "from {countries}";
+"lng_prizes_countries_and_one" = "{countries}, {country}";
+"lng_prizes_countries_and_last" = "{countries} and {country}";
 "lng_prizes_date" = "Winners Selection Date";
 "lng_prizes_how_works" = "Learn more";
 "lng_prizes_how_title" = "About this giveaway";

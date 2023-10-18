@@ -957,6 +957,7 @@ chatGiveawayChannelTop: 6px;
 chatGiveawayChannelSize: 32px;
 chatGiveawayChannelPadding: margins(5px, 7px, 12px, 0px);
 chatGiveawayChannelSkip: 8px;
+chatGiveawayCountriesSkip: 16px;
 chatGiveawayDateTop: 6px;
 chatGiveawayDateSkip: 4px;
 chatGiveawayBottomSkip: 16px;
