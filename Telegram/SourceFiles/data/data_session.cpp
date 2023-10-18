@@ -705,7 +705,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (canShareThisContact != result->canShareThisContactFast()) {
 			flags |= UpdateFlag::CanShareContact;
 		}
-		if (result->changeColorIndex(uint8(data.vcolor().v))) {
+		if (result->changeColorIndex(data.vcolor())) {
 			flags |= UpdateFlag::Color;
 		}
 	});
@@ -982,7 +982,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (wasCallNotEmpty != Data::ChannelHasActiveCall(channel)) {
 			flags |= UpdateFlag::GroupCall;
 		}
-		if (result->changeColorIndex(uint8(data.vcolor().v))) {
+		if (result->changeColorIndex(data.vcolor())) {
 			flags |= UpdateFlag::Color;
 		}
 	}, [&](const MTPDchannelForbidden &data) {

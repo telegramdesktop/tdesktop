@@ -158,7 +158,8 @@ void PeerClickHandler::onClick(ClickContext context) const {
 
 PeerData::PeerData(not_null<Data::Session*> owner, PeerId id)
 : id(id)
-, _owner(owner) {
+, _owner(owner)
+, _colorIndex(Data::DecideColorIndex(id)) {
 }
 
 Data::Session &PeerData::owner() const {
@@ -619,6 +620,13 @@ void PeerData::setSettings(const MTPPeerSettings &data) {
 	});
 }
 
+bool PeerData::changeColorIndex(
+		const tl::conditional<MTPint> &cloudColorIndex) {
+	return cloudColorIndex
+		? changeColorIndex(cloudColorIndex->v)
+		: clearColorIndex();
+}
+
 void PeerData::fillNames() {
 	_nameWords.clear();
 	_nameFirstLetters.clear();
@@ -837,10 +845,20 @@ QString PeerData::userName() const {
 
 bool PeerData::changeColorIndex(uint8 index) {
 	index %= Ui::kColorIndexCount;
-	if (_colorIndex == index) {
+	if (_colorIndexCloud && _colorIndex == index) {
 		return false;
 	}
+	_colorIndexCloud = true;
 	_colorIndex = index;
+	return true;
+}
+
+bool PeerData::clearColorIndex() {
+	if (!_colorIndexCloud) {
+		return false;
+	}
+	_colorIndexCloud = false;
+	_colorIndex = Data::DecideColorIndex(id);
 	return true;
 }
 

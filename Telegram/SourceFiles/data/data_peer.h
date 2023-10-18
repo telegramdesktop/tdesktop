@@ -168,6 +168,7 @@ public:
 		return _colorIndex;
 	}
 	bool changeColorIndex(uint8 index);
+	bool clearColorIndex();
 
 	[[nodiscard]] bool isUser() const {
 		return peerIsUser(id);
@@ -358,6 +359,7 @@ public:
 	void saveTranslationDisabled(bool disabled);
 
 	void setSettings(const MTPPeerSettings &data);
+	bool changeColorIndex(const tl::conditional<MTPint> &cloudColorIndex);
 
 	enum class BlockStatus : char {
 		Unknown,
@@ -464,7 +466,8 @@ private:
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 	TranslationFlag _translationFlag = TranslationFlag::Unknown;
-	uint8 _colorIndex : 7 = 0;
+	uint8 _colorIndex : 6 = 0;
+	uint8 _colorIndexCloud : 1 = 0;
 	uint8 _userpicHasVideo : 1 = 0;
 
 	QString _about;
