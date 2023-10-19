@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
@@ -16,7 +17,7 @@ namespace Data {
 class Session;
 } // namespace Data
 
-enum class WebPageType {
+enum class WebPageType : uint8 {
 	Message,
 
 	Group,
@@ -44,8 +45,7 @@ enum class WebPageType {
 	VoiceChat,
 	Livestream,
 };
-
-WebPageType ParseWebPageType(const MTPDwebPage &type);
+[[nodiscard]] WebPageType ParseWebPageType(const MTPDwebPage &type);
 
 struct WebPageCollage {
 	using Item = std::variant<PhotoData*, DocumentData*>;
@@ -67,6 +67,7 @@ struct WebPageData {
 
 	bool applyChanges(
 		WebPageType newType,
+		bool newHasLargeMedia,
 		const QString &newUrl,
 		const QString &newDisplayUrl,
 		const QString &newSiteName,
@@ -87,17 +88,18 @@ struct WebPageData {
 
 	WebPageId id = 0;
 	WebPageType type = WebPageType::Article;
+	bool hasLargeMedia = false;
 	QString url;
 	QString displayUrl;
 	QString siteName;
 	QString title;
 	TextWithEntities description;
 	FullStoryId storyId;
-	int duration = 0;
 	QString author;
 	PhotoData *photo = nullptr;
 	DocumentData *document = nullptr;
 	WebPageCollage collage;
+	int duration = 0;
 	int pendingTill = 0;
 	int version = 0;
 

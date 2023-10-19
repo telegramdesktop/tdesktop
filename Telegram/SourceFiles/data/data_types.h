@@ -246,65 +246,75 @@ enum class MessageFlag : uint64 {
 	MentionsMe            = (1ULL << 15),
 	IsOrWasScheduled      = (1ULL << 16),
 	NoForwards            = (1ULL << 17),
+	InvertMedia           = (1ULL << 18),
 
 	// Needs to return back to inline mode.
-	HasSwitchInlineButton = (1ULL << 18),
+	HasSwitchInlineButton = (1ULL << 19),
 
 	// For "shared links" indexing.
-	HasTextLinks          = (1ULL << 19),
+	HasTextLinks          = (1ULL << 20),
 
 	// Group / channel create or migrate service message.
-	IsGroupEssential      = (1ULL << 20),
+	IsGroupEssential      = (1ULL << 21),
 
 	// Edited media is generated on the client
 	// and should not update media from server.
-	IsLocalUpdateMedia    = (1ULL << 21),
+	IsLocalUpdateMedia    = (1ULL << 22),
 
 	// Sent from inline bot, need to re-set media when sent.
-	FromInlineBot         = (1ULL << 22),
+	FromInlineBot         = (1ULL << 23),
 
 	// Generated on the client side and should be unread.
-	ClientSideUnread      = (1ULL << 23),
+	ClientSideUnread      = (1ULL << 24),
 
 	// In a supergroup.
-	HasAdminBadge         = (1ULL << 24),
+	HasAdminBadge         = (1ULL << 25),
 
 	// Outgoing message that is being sent.
-	BeingSent             = (1ULL << 25),
+	BeingSent             = (1ULL << 26),
 
 	// Outgoing message and failed to be sent.
-	SendingFailed         = (1ULL << 26),
+	SendingFailed         = (1ULL << 27),
 
 	// No media and only a several emoji or an only custom emoji text.
-	SpecialOnlyEmoji      = (1ULL << 27),
+	SpecialOnlyEmoji      = (1ULL << 28),
 
 	// Message existing in the message history.
-	HistoryEntry          = (1ULL << 28),
+	HistoryEntry          = (1ULL << 29),
 
 	// Local message, not existing on the server.
-	Local                 = (1ULL << 29),
+	Local                 = (1ULL << 30),
 
 	// Fake message for some UI element.
-	FakeHistoryItem       = (1ULL << 30),
+	FakeHistoryItem       = (1ULL << 31),
 
 	// Contact sign-up message, notification should be skipped for Silent.
-	IsContactSignUp       = (1ULL << 31),
+	IsContactSignUp       = (1ULL << 32),
 
 	// Optimization for item text custom emoji repainting.
-	CustomEmojiRepainting = (1ULL << 32),
+	CustomEmojiRepainting = (1ULL << 33),
 
 	// Profile photo suggestion, views have special media type.
-	IsUserpicSuggestion   = (1ULL << 33),
+	IsUserpicSuggestion   = (1ULL << 34),
 
-	OnlyEmojiAndSpaces    = (1ULL << 34),
-	OnlyEmojiAndSpacesSet = (1ULL << 35),
+	OnlyEmojiAndSpaces    = (1ULL << 35),
+	OnlyEmojiAndSpacesSet = (1ULL << 36),
 
 	// Fake message with bot cover and information.
-	FakeBotAbout          = (1ULL << 36),
+	FakeBotAbout          = (1ULL << 37),
 
-	StoryItem             = (1ULL << 37),
+	StoryItem             = (1ULL << 38),
 
-	InHighlightProcess    = (1ULL << 38),
+	InHighlightProcess    = (1ULL << 39),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;
+
+enum class MediaWebPageFlag : uint8 {
+	ForceLargeMedia = (1 << 0),
+	ForceSmallMedia = (1 << 1),
+	Manual = (1 << 2),
+	Safe = (1 << 3),
+};
+inline constexpr bool is_flag_type(MediaWebPageFlag) { return true; }
+using MediaWebPageFlags = base::flags<MediaWebPageFlag>;

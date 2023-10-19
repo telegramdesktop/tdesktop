@@ -252,16 +252,28 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			return nullptr;
 		});
 	}, [&](const MTPDmessageMediaWebPage &media) {
+		using Flag = MediaWebPageFlag;
+		const auto flags = Flag()
+			| (media.is_force_large_media()
+				? Flag::ForceLargeMedia
+				: Flag())
+			| (media.is_force_small_media()
+				? Flag::ForceSmallMedia
+				: Flag())
+			| (media.is_manual() ? Flag::Manual : Flag())
+			| (media.is_safe() ? Flag::Safe : Flag());
 		return media.vwebpage().match([](const MTPDwebPageEmpty &) -> Result {
 			return nullptr;
 		}, [&](const MTPDwebPagePending &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				item->history()->owner().processWebpage(webpage));
+				item->history()->owner().processWebpage(webpage),
+				flags);
 		}, [&](const MTPDwebPage &webpage) -> Result {
 			return std::make_unique<Data::MediaWebPage>(
 				item,
-				item->history()->owner().processWebpage(webpage));
+				item->history()->owner().processWebpage(webpage),
+				flags);
 		}, [](const MTPDwebPageNotModified &) -> Result {
 			LOG(("API Error: "
 				"webPageNotModified is unexpected in message media."));
@@ -503,6 +515,9 @@ HistoryItem::HistoryItem(
 	};
 	if (mediaOriginal && !ignoreMedia()) {
 		_media = mediaOriginal->clone(this);
+		if (original->invertMedia()) {
+			_flags |= MessageFlag::InvertMedia;
+		}
 	}
 
 	const auto dropCustomEmoji = dropForwardInfo

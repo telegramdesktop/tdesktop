@@ -121,14 +121,16 @@ std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
 
 WebPage::WebPage(
 	not_null<Element*> parent,
-	not_null<WebPageData*> data)
+	not_null<WebPageData*> data,
+	MediaWebPageFlags flags)
 : Media(parent)
 , _st(st::historyPagePreview)
 , _data(data)
 , _colorIndex(parent->data()->computeColorIndex())
 , _siteName(st::msgMinWidth - _st.padding.left() - _st.padding.right())
 , _title(st::msgMinWidth - _st.padding.left() - _st.padding.right())
-, _description(st::msgMinWidth - _st.padding.left() - _st.padding.right()) {
+, _description(st::msgMinWidth - _st.padding.left() - _st.padding.right())
+, _flags(flags) {
 	history()->owner().registerWebPageView(_data, _parent);
 }
 
@@ -238,7 +240,12 @@ QSize WebPage::countOptimalSize() {
 	auto title = TextUtilities::SingleLine(_data->title.isEmpty()
 		? _data->author
 		: _data->title);
-	if (!_collage.empty()) {
+	using Flag = MediaWebPageFlag;
+	if (_data->hasLargeMedia && (_flags & Flag::ForceLargeMedia)) {
+		_asArticle = 0;
+	} else if (_data->photo && (_flags & Flag::ForceSmallMedia)) {
+		_asArticle = 1;
+	} else if (!_collage.empty()) {
 		_asArticle = 0;
 	} else if (!_data->document
 		&& _data->photo
@@ -956,11 +963,9 @@ TextForMimeData WebPage::selectedText(TextSelection selection) const {
 QMargins WebPage::inBubblePadding() const {
 	return {
 		st::msgPadding.left(),
-		isBubbleTop() ? st::msgPadding.left() : st::mediaInBubbleSkip,
+		isBubbleTop() ? st::msgPadding.left() : 0,
 		st::msgPadding.right(),
-		(isBubbleBottom()
-			? (st::msgPadding.left() + bottomInfoPadding())
-			: st::mediaInBubbleSkip),
+		isBubbleBottom() ? (st::msgPadding.left() + bottomInfoPadding()) : 0
 	};
 }
 

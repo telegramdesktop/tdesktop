@@ -240,6 +240,9 @@ public:
 	[[nodiscard]] bool isPinned() const {
 		return _flags & MessageFlag::Pinned;
 	}
+	[[nodiscard]] bool invertMedia() const {
+		return _flags & MessageFlag::InvertMedia;
+	}
 	[[nodiscard]] bool unread(not_null<Data::Thread*> thread) const;
 	[[nodiscard]] bool showNotification() const;
 	void markClientSideAsRead();

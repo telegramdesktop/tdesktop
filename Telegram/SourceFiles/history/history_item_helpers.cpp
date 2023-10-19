@@ -331,9 +331,12 @@ MessageFlags FlagsFromMTP(
 		| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag())
 		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag())
 		| ((flags & MTP::f_reply_markup) ? Flag::HasReplyMarkup : Flag())
-		| ((flags & MTP::f_from_scheduled) ? Flag::IsOrWasScheduled : Flag())
+		| ((flags & MTP::f_from_scheduled)
+			? Flag::IsOrWasScheduled
+			: Flag())
 		| ((flags & MTP::f_views) ? Flag::HasViews : Flag())
-		| ((flags & MTP::f_noforwards) ? Flag::NoForwards : Flag());
+		| ((flags & MTP::f_noforwards) ? Flag::NoForwards : Flag())
+		| ((flags & MTP::f_invert_media) ? Flag::InvertMedia : Flag());
 }
 
 MessageFlags FlagsFromMTP(

@@ -1434,9 +1434,11 @@ QString MediaCall::Text(
 
 MediaWebPage::MediaWebPage(
 	not_null<HistoryItem*> parent,
-	not_null<WebPageData*> page)
+	not_null<WebPageData*> page,
+	MediaWebPageFlags flags)
 : Media(parent)
-, _page(page) {
+, _page(page)
+, _flags(flags) {
 	parent->history()->owner().registerWebPageItem(_page, parent);
 }
 
@@ -1445,7 +1447,7 @@ MediaWebPage::~MediaWebPage() {
 }
 
 std::unique_ptr<Media> MediaWebPage::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaWebPage>(parent, _page);
+	return std::make_unique<MediaWebPage>(parent, _page, _flags);
 }
 
 DocumentData *MediaWebPage::document() const {
@@ -1524,7 +1526,7 @@ std::unique_ptr<HistoryView::Media> MediaWebPage::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	return std::make_unique<HistoryView::WebPage>(message, _page);
+	return std::make_unique<HistoryView::WebPage>(message, _page, _flags);
 }
 
 MediaGame::MediaGame(

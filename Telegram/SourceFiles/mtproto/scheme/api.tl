@@ -2168,5 +2168,5 @@ stories.togglePeerStoriesHidden#bd0415c4 peer:InputPeer hidden:Bool = Bool;
 
 premium.getBoostsList#60f67660 flags:# gifts:flags.0?true peer:InputPeer offset:string limit:int = premium.BoostsList;
 premium.getMyBoosts#be77b4a = premium.MyBoosts;
-premium.applyBoost#46b6a16b flags:# slot:flags.0?int peer:InputPeer = Bool;
+premium.applyBoost#184bc3b9 flags:# slots:flags.0?Vector<int> peer:InputPeer = Bool;
 premium.getBoostsStatus#42f1f61 peer:InputPeer = premium.BoostsStatus;

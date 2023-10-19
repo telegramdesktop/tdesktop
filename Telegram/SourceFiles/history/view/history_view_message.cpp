@@ -411,6 +411,7 @@ Message::Message(
 	not_null<HistoryItem*> data,
 	Element *replacing)
 : Element(delegate, data, replacing, Flag(0))
+, _invertMedia(data->invertMedia() && !data->emptyText())
 , _bottomInfo(
 		&data->history()->owner().reactions(),
 		BottomInfoDataFromMessage(this)) {
@@ -1078,16 +1079,20 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			trect.setHeight(trect.height()
 				- (_bottomInfo.height() - st::msgDateFont->height));
 		}
-		paintText(p, trect, context);
-		if (mediaDisplayed) {
-			auto mediaHeight = media->height();
-			auto mediaPosition = QPoint(
-				inner.left(),
-				trect.y() + trect.height() - mediaHeight);
+		auto textSelection = context.selection;
+		const auto mediaHeight = mediaDisplayed ? media->height() : 0;
+		const auto paintMedia = [&](int top) {
+			if (!mediaDisplayed) {
+				return;
+			}
+			const auto mediaSelection = _invertMedia
+				? context.selection
+				: skipTextSelection(context.selection);
+			auto mediaPosition = QPoint(inner.left(), top);
 			p.translate(mediaPosition);
 			media->draw(p, context.translated(
 				-mediaPosition
-			).withSelection(skipTextSelection(context.selection)));
+			).withSelection(mediaSelection));
 			if (context.reactionInfo && !displayInfo && !_reactions) {
 				const auto add = QPoint(0, mediaHeight);
 				context.reactionInfo->position = mediaPosition + add;
@@ -1096,6 +1101,27 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				}
 			}
 			p.translate(-mediaPosition);
+		};
+		if (mediaDisplayed && _invertMedia) {
+			if (!mediaOnTop) {
+				trect.setY(trect.y() + st::mediaInBubbleSkip);
+			}
+			paintMedia(trect.y());
+			trect.setY(trect.y()
+				+ mediaHeight
+				+ (mediaOnBottom ? 0 : st::mediaInBubbleSkip));
+			textSelection = media->skipSelection(textSelection);
+		}
+		paintText(p, trect, context.withSelection(textSelection));
+		if (mediaDisplayed && !_invertMedia) {
+			paintMedia(trect.y() + trect.height() - mediaHeight);
+			if (context.reactionInfo && !displayInfo && !_reactions) {
+				context.reactionInfo->position
+					= QPoint(inner.left(), trect.y() + trect.height());
+				if (context.reactionInfo->effectPaint) {
+					context.reactionInfo->effectOffset -= QPoint(0, mediaHeight);
+				}
+			}
 		}
 		if (entry) {
 			auto entryLeft = inner.left();
@@ -2106,25 +2132,33 @@ TextState Message::textState(
 			}
 		};
 		if (!result.symbol && inBubble) {
-			if (mediaDisplayed) {
-				auto mediaHeight = media->height();
-				auto mediaLeft = trect.x() - st::msgPadding.left();
-				auto mediaTop = (trect.y() + trect.height() - mediaHeight);
-
-				if (point.y() >= mediaTop && point.y() < mediaTop + mediaHeight) {
-					result = media->textState(point - QPoint(mediaLeft, mediaTop), request);
+			const auto mediaHeight = mediaDisplayed ? media->height() : 0;
+			const auto mediaLeft = trect.x() - st::msgPadding.left();
+			const auto mediaTop = (!mediaDisplayed || _invertMedia)
+				? (trect.y() + (mediaOnTop ? 0 : st::mediaInBubbleSkip))
+				: (trect.y() + trect.height() - mediaHeight);
+			if (mediaDisplayed && _invertMedia) {
+				trect.setY(mediaTop
+					+ mediaHeight
+					+ (mediaOnBottom ? 0 : st::mediaInBubbleSkip));
+			}
+			if (point.y() >= mediaTop
+				&& point.y() < mediaTop + mediaHeight) {
+				result = media->textState(
+					point - QPoint(mediaLeft, mediaTop),
+					request);
+				if (!_invertMedia) {
 					result.symbol += visibleTextLength();
-				} else if (getStateText(point, trect, &result, request)) {
-					checkBottomInfoState();
-					return result;
-				} else if (point.y() >= trect.y() + trect.height()) {
-					result.symbol = visibleTextLength();
 				}
 			} else if (getStateText(point, trect, &result, request)) {
+				if (_invertMedia) {
+					result.symbol += visibleMediaTextLength();
+				}
 				checkBottomInfoState();
 				return result;
 			} else if (point.y() >= trect.y() + trect.height()) {
-				result.symbol = visibleTextLength();
+				result.symbol = visibleTextLength()
+					+ visibleMediaTextLength();
 			}
 		}
 		checkBottomInfoState();
@@ -3031,7 +3065,8 @@ void Message::initLogEntryOriginal() {
 	if (const auto log = data()->Get<HistoryMessageLogEntryOriginal>()) {
 		AddComponents(LogEntryOriginal::Bit());
 		const auto entry = Get<LogEntryOriginal>();
-		entry->page = std::make_unique<WebPage>(this, log->page);
+		using Flags = MediaWebPageFlags;
+		entry->page = std::make_unique<WebPage>(this, log->page, Flags());
 	}
 }
 
@@ -3491,7 +3526,8 @@ void Message::updateMediaInBubbleState() {
 	}
 	const auto reactionsInBubble = (_reactions && embedReactionsInBubble());
 	auto mediaHasSomethingBelow = (_viewButton != nullptr)
-		|| reactionsInBubble;
+		|| reactionsInBubble
+		|| (invertMedia() && hasVisibleText());
 	auto mediaHasSomethingAbove = false;
 	auto getMediaHasSomethingAbove = [&] {
 		return displayFromName()
@@ -3529,7 +3565,7 @@ void Message::updateMediaInBubbleState() {
 	if (!entry) {
 		mediaHasSomethingAbove = getMediaHasSomethingAbove();
 	}
-	if (hasVisibleText()) {
+	if (!invertMedia() && hasVisibleText()) {
 		mediaHasSomethingAbove = true;
 	}
 	const auto state = [&] {
@@ -3661,7 +3697,7 @@ QRect Message::countGeometry() const {
 	//	contentLeft += st::msgPhotoSkip - (hmaxwidth - hwidth);
 	}
 	accumulate_min(contentWidth, maxWidth());
-	accumulate_min(contentWidth, _bubbleWidthLimit);
+	accumulate_min(contentWidth, int(_bubbleWidthLimit));
 	if (mediaWidth < contentWidth) {
 		const auto textualWidth = plainMaxWidth();
 		if (mediaWidth < textualWidth
@@ -3768,7 +3804,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 	}
 	accumulate_min(contentWidth, maxWidth());
 	_bubbleWidthLimit = std::max(st::msgMaxWidth, monospaceMaxWidth());
-	accumulate_min(contentWidth, _bubbleWidthLimit);
+	accumulate_min(contentWidth, int(_bubbleWidthLimit));
 	if (mediaDisplayed) {
 		media->resizeGetHeight(contentWidth);
 		if (media->width() < contentWidth) {
@@ -3924,9 +3960,13 @@ bool Message::needInfoDisplay() const {
 	const auto entry = logEntryOriginal();
 	return entry
 		? !entry->customInfoLayout()
-		: (mediaDisplayed
+		: ((mediaDisplayed && media->isBubbleBottom())
 			? !media->customInfoLayout()
 			: true);
+}
+
+bool Message::invertMedia() const {
+	return _invertMedia;
 }
 
 bool Message::hasVisibleText() const {

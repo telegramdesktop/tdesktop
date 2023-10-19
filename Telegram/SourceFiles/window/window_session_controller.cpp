@@ -785,7 +785,7 @@ void SessionNavigation::applyBoostChecked(
 		Fn<void(bool)> done) {
 	_api.request(MTPpremium_ApplyBoost(
 		MTP_flags(0),
-		MTPint(), // slot
+		MTPVector<MTPint>(), // slots
 		channel->input
 	)).done([=](const MTPBool &result) {
 		done(true);

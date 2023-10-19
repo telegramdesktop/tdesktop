@@ -3288,6 +3288,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
 	webpageApplyFields(
 		result,
 		WebPageType::Article,
+		false,
 		QString(),
 		QString(),
 		QString(),
@@ -3312,6 +3313,7 @@ not_null<WebPageData*> Session::webpage(
 	return webpage(
 		id,
 		WebPageType::Article,
+		false,
 		QString(),
 		QString(),
 		siteName,
@@ -3328,6 +3330,7 @@ not_null<WebPageData*> Session::webpage(
 not_null<WebPageData*> Session::webpage(
 		WebPageId id,
 		WebPageType type,
+		bool hasLargeMedia,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -3343,6 +3346,7 @@ not_null<WebPageData*> Session::webpage(
 	webpageApplyFields(
 		result,
 		type,
+		hasLargeMedia,
 		url,
 		displayUrl,
 		siteName,
@@ -3434,6 +3438,7 @@ void Session::webpageApplyFields(
 	webpageApplyFields(
 		page,
 		(story ? WebPageType::Story : ParseWebPageType(data)),
+		data.is_has_large_media(),
 		qs(data.vurl()),
 		qs(data.vdisplay_url()),
 		siteName,
@@ -3459,6 +3464,7 @@ void Session::webpageApplyFields(
 void Session::webpageApplyFields(
 		not_null<WebPageData*> page,
 		WebPageType type,
+		bool hasLargeMedia,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -3474,6 +3480,7 @@ void Session::webpageApplyFields(
 	const auto requestPending = (!page->pendingTill && pendingTill > 0);
 	const auto changed = page->applyChanges(
 		type,
+		hasLargeMedia,
 		url,
 		displayUrl,
 		siteName,

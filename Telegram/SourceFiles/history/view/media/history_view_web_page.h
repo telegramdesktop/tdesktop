@@ -24,7 +24,8 @@ class WebPage : public Media {
 public:
 	WebPage(
 		not_null<Element*> parent,
-		not_null<WebPageData*> data);
+		not_null<WebPageData*> data,
+		MediaWebPageFlags flags);
 
 	[[nodiscard]] static bool HasButton(not_null<WebPageData*> data);
 
@@ -150,6 +151,8 @@ private:
 	mutable QPoint _lastPoint;
 	int _pixw = 0;
 	int _pixh = 0;
+
+	const MediaWebPageFlags _flags;
 
 };
 

@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 class HistoryItem;
 struct WebPageCollage;
-enum class WebPageType;
+enum class WebPageType : uint8;
 enum class NewMessageType;
 
 namespace HistoryView {
@@ -552,6 +552,7 @@ public:
 	[[nodiscard]] not_null<WebPageData*> webpage(
 		WebPageId id,
 		WebPageType type,
+		bool hasLargeMedia,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -813,6 +814,7 @@ private:
 	void webpageApplyFields(
 		not_null<WebPageData*> page,
 		WebPageType type,
+		bool hasLargeMedia,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,

@@ -213,6 +213,7 @@ Main::Session &WebPageData::session() const {
 
 bool WebPageData::applyChanges(
 		WebPageType newType,
+		bool newHasLargeMedia,
 		const QString &newUrl,
 		const QString &newDisplayUrl,
 		const QString &newSiteName,
@@ -254,6 +255,7 @@ bool WebPageData::applyChanges(
 	}();
 
 	if (type == newType
+		&& hasLargeMedia == newHasLargeMedia
 		&& url == resultUrl
 		&& displayUrl == resultDisplayUrl
 		&& siteName == resultSiteName
@@ -272,6 +274,7 @@ bool WebPageData::applyChanges(
 		_owner->session().api().clearWebPageRequest(this);
 	}
 	type = newType;
+	hasLargeMedia = newHasLargeMedia;
 	url = resultUrl;
 	displayUrl = resultDisplayUrl;
 	siteName = resultSiteName;

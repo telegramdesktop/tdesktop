@@ -372,7 +372,8 @@ class MediaWebPage final : public Media {
 public:
 	MediaWebPage(
 		not_null<HistoryItem*> parent,
-		not_null<WebPageData*> page);
+		not_null<WebPageData*> page,
+		MediaWebPageFlags flags);
 	~MediaWebPage();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -398,7 +399,8 @@ public:
 		HistoryView::Element *replacing = nullptr) override;
 
 private:
-	not_null<WebPageData*> _page;
+	const not_null<WebPageData*> _page;
+	const MediaWebPageFlags _flags;
 
 };
 
