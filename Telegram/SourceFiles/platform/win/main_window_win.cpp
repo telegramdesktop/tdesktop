@@ -509,10 +509,12 @@ void MainWindow::updateTaskbarAndIconCounters() {
 	auto iconSmallPixmap16 = Tray::IconWithCounter(
 		Tray::CounterLayerArgs(16, counter, muted),
 		true,
+		false,
 		supportMode);
 	auto iconSmallPixmap32 = Tray::IconWithCounter(
 		Tray::CounterLayerArgs(32, counter, muted),
 		true,
+		false,
 		supportMode);
 	QIcon iconSmall, iconBig;
 	iconSmall.addPixmap(iconSmallPixmap16);
@@ -523,9 +525,11 @@ void MainWindow::updateTaskbarAndIconCounters() {
 	iconBig.addPixmap(Tray::IconWithCounter(
 		Tray::CounterLayerArgs(32, bigCounter, muted),
 		false,
+		false,
 		supportMode));
 	iconBig.addPixmap(Tray::IconWithCounter(
 		Tray::CounterLayerArgs(64, bigCounter, muted),
+		false,
 		false,
 		supportMode));
 
