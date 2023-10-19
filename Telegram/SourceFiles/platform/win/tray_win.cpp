@@ -30,13 +30,47 @@ namespace {
 
 constexpr auto kTooltipDelay = crl::time(10000);
 
+[[nodiscard]] std::optional<bool> IsDarkTaskbar() {
+	static const auto kSystemVersion = QOperatingSystemVersion::current();
+	static const auto kDarkModeAddedVersion = QOperatingSystemVersion(
+		QOperatingSystemVersion::Windows,
+		10,
+		0,
+		17763);
+	static const auto kSupported = (kSystemVersion >= kDarkModeAddedVersion);
+	if (!kSupported) {
+		return std::nullopt;
+	}
+
+	const auto keyName = L""
+		"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+	const auto valueName = L"SystemUsesLightTheme";
+	auto key = HKEY();
+	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, keyName, 0, KEY_READ, &key);
+	if (result != ERROR_SUCCESS) {
+		return std::nullopt;
+	}
+
+	DWORD value = 0, type = 0, size = sizeof(value);
+	result = RegQueryValueEx(key, valueName, 0, &type, (LPBYTE)&value, &size);
+	RegCloseKey(key);
+	if (result != ERROR_SUCCESS) {
+		return std::nullopt;
+	}
+
+	return (value == 0);
+}
+
 [[nodiscard]] QImage ImageIconWithCounter(
 		Window::CounterLayerArgs &&args,
 		bool supportMode,
-		bool smallIcon) {
+		bool smallIcon,
+		bool monochrome) {
 	static constexpr auto kCount = 3;
 	static auto ScaledLogo = std::array<QImage, kCount>();
 	static auto ScaledLogoNoMargin = std::array<QImage, kCount>();
+	static auto ScaledLogoDark = std::array<QImage, kCount>();
+	static auto ScaledLogoLight = std::array<QImage, kCount>();
 
 	struct Dimensions {
 		int index = 0;
@@ -63,19 +97,49 @@ constexpr auto kTooltipDelay = crl::time(10000);
 	}();
 	Assert(d.index < kCount);
 
-	auto &scaled = smallIcon ? ScaledLogoNoMargin : ScaledLogo;
+	const auto darkMode = IsDarkTaskbar();
+	auto &scaled = (monochrome && darkMode)
+		? (*darkMode
+			? ScaledLogoDark
+			: ScaledLogoLight)
+		: smallIcon
+		? ScaledLogoNoMargin
+		: ScaledLogo;
+
 	auto result = [&] {
 		auto &image = scaled[d.index];
 		if (image.isNull()) {
-			image = (smallIcon
-				? Window::LogoNoMargin()
-				: Window::Logo()).scaledToWidth(
-					d.size,
-					Qt::SmoothTransformation);
+			if (monochrome && darkMode) {
+				const auto withColor = [&](QColor color) {
+					switch (d.size) {
+					case 16:
+						return st::macTrayIcon.instance(color, 100 / cIntRetinaFactor());
+					case 32:
+						return st::macTrayIcon.instance(color, 200 / cIntRetinaFactor());
+					default:
+						return st::macTrayIcon.instance(color, 300 / cIntRetinaFactor());
+					}
+				};
+				const auto darkModeResult = withColor({ 255, 255, 255 });
+				const auto lightModeResult = withColor({ 0, 0, 0, 228 });
+				image = *darkMode ? darkModeResult : lightModeResult;
+				const auto monochromeMargin = QPoint(
+					(image.width() - d.size) / 2,
+					(image.height() - d.size) / 2);
+				image = image.copy(
+					QRect(monochromeMargin, QSize(d.size, d.size)));
+				image.setDevicePixelRatio(1);
+			} else {
+				image = (smallIcon
+					? Window::LogoNoMargin()
+					: Window::Logo()).scaledToWidth(
+						d.size,
+						Qt::SmoothTransformation);
+			}
 		}
 		return image;
 	}();
-	if (supportMode) {
+	if ((!monochrome || !darkMode) && supportMode) {
 		Window::ConvertIconToBlack(result);
 	}
 	if (!args.count) {
@@ -163,9 +227,11 @@ void Tray::updateIcon() {
 	auto iconSmallPixmap16 = Tray::IconWithCounter(
 		CounterLayerArgs(16, counter, muted),
 		true,
+		true,
 		supportMode);
 	auto iconSmallPixmap32 = Tray::IconWithCounter(
 		CounterLayerArgs(32, counter, muted),
+		true,
 		true,
 		supportMode);
 	auto iconSmall = QIcon();
@@ -271,9 +337,10 @@ Window::CounterLayerArgs Tray::CounterLayerArgs(
 QPixmap Tray::IconWithCounter(
 		Window::CounterLayerArgs &&args,
 		bool smallIcon,
+		bool monochrome,
 		bool supportMode) {
 	return Ui::PixmapFromImage(
-		ImageIconWithCounter(std::move(args), supportMode, smallIcon));
+		ImageIconWithCounter(std::move(args), supportMode, smallIcon, monochrome));
 }
 
 } // namespace Platform
