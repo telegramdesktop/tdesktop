@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "chat_helpers/bot_command.h"
 #include "chat_helpers/field_autocomplete.h"
+#include "data/data_drafts.h"
 #include "window/section_widget.h"
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
@@ -30,7 +31,6 @@ class Error;
 } // namespace MTP
 
 namespace Data {
-enum class PreviewState : char;
 class PhotoMedia;
 } // namespace Data
 
@@ -682,7 +682,7 @@ private:
 	Ui::Text::String _previewTitle;
 	Ui::Text::String _previewDescription;
 	base::Timer _previewTimer;
-	Data::PreviewState _previewState = Data::PreviewState();
+	Data::WebPageDraft _previewDraft;
 
 	bool _replyForwardPressed = false;
 

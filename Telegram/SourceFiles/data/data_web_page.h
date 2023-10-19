@@ -100,8 +100,9 @@ struct WebPageData {
 	DocumentData *document = nullptr;
 	WebPageCollage collage;
 	int duration = 0;
-	int pendingTill = 0;
-	int version = 0;
+	TimeId pendingTill = 0;
+	uint32 version : 31 = 0;
+	uint32 failed : 1 = 0;
 
 private:
 	void replaceDocumentGoodThumbnail();

@@ -493,7 +493,7 @@ void ShowReplyToChatBox(
 			textWithTags,
 			reply,
 			cursor,
-			Data::PreviewState::Allowed));
+			Data::WebPageDraft()));
 		history->clearLocalEditDraft(topicRootId);
 		history->session().changes().entryUpdated(
 			thread,

@@ -122,6 +122,7 @@ public:
 	virtual DocumentData *document() const;
 	virtual PhotoData *photo() const;
 	virtual WebPageData *webpage() const;
+	virtual MediaWebPageFlags webpageFlags() const;
 	virtual const SharedContact *sharedContact() const;
 	virtual const Call *call() const;
 	virtual GameData *game() const;
@@ -381,6 +382,7 @@ public:
 	DocumentData *document() const override;
 	PhotoData *photo() const override;
 	WebPageData *webpage() const override;
+	MediaWebPageFlags webpageFlags() const override;
 
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;

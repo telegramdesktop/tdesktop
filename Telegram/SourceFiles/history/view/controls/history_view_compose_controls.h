@@ -43,7 +43,6 @@ namespace Data {
 struct MessagePosition;
 struct Draft;
 class DraftKey;
-enum class PreviewState : char;
 class PhotoMedia;
 } // namespace Data
 

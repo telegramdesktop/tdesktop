@@ -1073,7 +1073,7 @@ void Manager::notificationActivated(
 						int(reply.text.size()),
 						Ui::kQFixedMax,
 					},
-					Data::PreviewState::Allowed);
+					Data::WebPageDraft());
 				history->setLocalDraft(std::move(draft));
 			}
 			window->widget()->showFromTray();

@@ -2135,8 +2135,10 @@ void ApiWrap::saveDraftsToCloud() {
 
 		auto flags = MTPmessages_SaveDraft::Flags(0);
 		auto &textWithTags = cloudDraft->textWithTags;
-		if (cloudDraft->previewState != Data::PreviewState::Allowed) {
+		if (cloudDraft->webpage.removed) {
 			flags |= MTPmessages_SaveDraft::Flag::f_no_webpage;
+		} else if (!cloudDraft->webpage.url.isEmpty()) {
+			flags |= MTPmessages_SaveDraft::Flag::f_media;
 		}
 		if (cloudDraft->reply.messageId || cloudDraft->reply.topicRootId) {
 			flags |= MTPmessages_SaveDraft::Flag::f_reply_to;
@@ -2149,6 +2151,7 @@ void ApiWrap::saveDraftsToCloud() {
 			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags),
 			Api::ConvertOption::SkipLocal);
 
+		using PageFlag = MTPDinputMediaWebPage::Flag;
 		history->startSavingCloudDraft(topicRootId);
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
 			MTP_flags(flags),
@@ -2156,7 +2159,15 @@ void ApiWrap::saveDraftsToCloud() {
 			history->peer->input,
 			MTP_string(textWithTags.text),
 			entities,
-			MTPInputMedia()
+			MTP_inputMediaWebPage(
+				MTP_flags(PageFlag::f_optional
+					| (cloudDraft->webpage.forceLargeMedia
+						? PageFlag::f_force_large_media
+						: PageFlag())
+					| (cloudDraft->webpage.forceSmallMedia
+						? PageFlag::f_force_small_media
+						: PageFlag())),
+				MTP_string(cloudDraft->webpage.url))
 		)).done([=](const MTPBool &result, const MTP::Response &response) {
 			const auto requestId = response.requestId;
 			history->finishSavingCloudDraft(
@@ -2243,7 +2254,7 @@ void ApiWrap::gotStickerSet(
 }
 
 void ApiWrap::requestWebPageDelayed(not_null<WebPageData*> page) {
-	if (page->pendingTill <= 0) {
+	if (page->failed || !page->pendingTill) {
 		return;
 	}
 	_webPagesPending.emplace(page, 0);
@@ -2548,7 +2559,8 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &resu
 	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
 		if (i->second == req) {
 			if (i->first->pendingTill > 0) {
-				i->first->pendingTill = -1;
+				i->first->pendingTill = 0;
+				i->first->failed = 1;
 				_session->data().notifyWebPageUpdateDelayed(i->first);
 			}
 			i = _webPagesPending.erase(i);

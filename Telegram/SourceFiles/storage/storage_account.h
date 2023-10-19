@@ -53,7 +53,7 @@ enum class StartResult : uchar;
 struct MessageDraft {
 	FullReplyTo reply;
 	TextWithTags textWithTags;
-	Data::PreviewState previewState = Data::PreviewState::Allowed;
+	Data::WebPageDraft webpage;
 };
 
 struct MessageDraftSource {

@@ -1044,7 +1044,7 @@ void EnumerateDrafts(
 			key,
 			draft->reply,
 			draft->textWithTags,
-			draft->previewState,
+			draft->webpage,
 			draft->cursor);
 	}
 	for (const auto &[key, source] : sources) {
@@ -1057,7 +1057,7 @@ void EnumerateDrafts(
 				key,
 				draft.reply,
 				draft.textWithTags,
-				draft.previewState,
+				draft.webpage,
 				cursor);
 		}
 	}
@@ -1122,13 +1122,18 @@ void Account::writeDrafts(not_null<History*> history) {
 			auto&&, // key
 			const FullReplyTo &reply,
 			const TextWithTags &text,
-			Data::PreviewState,
+			const Data::WebPageDraft &webpage,
 			auto&&) { // cursor
 		size += sizeof(qint64) // key
 			+ Serialize::stringSize(text.text)
 			+ TextUtilities::SerializeTagsSize(text.tags)
 			+ sizeof(qint64) + sizeof(qint64) // messageId
-			+ sizeof(qint32); // previewState
+			+ Serialize::stringSize(webpage.url)
+			+ sizeof(qint32) // webpage.forceLargeMedia
+			+ sizeof(qint32) // webpage.forceSmallMedia
+			+ sizeof(qint32) // webpage.invert
+			+ sizeof(qint32) // webpage.manual
+			+ sizeof(qint32); // webpage.removed
 	};
 	EnumerateDrafts(
 		map,
@@ -1146,7 +1151,7 @@ void Account::writeDrafts(not_null<History*> history) {
 			const Data::DraftKey &key,
 			const FullReplyTo &reply,
 			const TextWithTags &text,
-			Data::PreviewState previewState,
+			const Data::WebPageDraft &webpage,
 			auto&&) { // cursor
 		data.stream
 			<< key.serialize()
@@ -1154,7 +1159,12 @@ void Account::writeDrafts(not_null<History*> history) {
 			<< TextUtilities::SerializeTags(text.tags)
 			<< qint64(reply.messageId.peer.value)
 			<< qint64(reply.messageId.msg.bare)
-			<< qint32(previewState);
+			<< webpage.url
+			<< qint32(webpage.forceLargeMedia ? 1 : 0)
+			<< qint32(webpage.forceSmallMedia ? 1 : 0)
+			<< qint32(webpage.invert ? 1 : 0)
+			<< qint32(webpage.manual ? 1 : 0)
+			<< qint32(webpage.removed ? 1 : 0);
 	};
 	EnumerateDrafts(
 		map,
@@ -1206,7 +1216,7 @@ void Account::writeDraftCursors(not_null<History*> history) {
 			const Data::DraftKey &key,
 			auto&&, // reply
 			auto&&, // text
-			Data::PreviewState,
+			auto&&, // webpage
 			const MessageCursor &cursor) { // cursor
 		data.stream
 			<< key.serialize()
@@ -1370,18 +1380,33 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		QByteArray textTagsSerialized;
 		qint64 keyValue = 0;
 		qint64 messageIdPeer = 0, messageIdMsg = 0;
-		qint32 keyValueOld = 0, uncheckedPreviewState = 0;
+		qint32 keyValueOld = 0;
+		QString webpageUrl;
+		qint32 webpageForceLargeMedia = 0;
+		qint32 webpageForceSmallMedia = 0;
+		qint32 webpageInvert = 0;
+		qint32 webpageManual = 0;
+		qint32 webpageRemoved = 0;
 		if (keysOld) {
 			draft.stream >> keyValueOld;
 		} else {
 			draft.stream >> keyValue;
 		}
 		if (!rich) {
+			qint32 uncheckedPreviewState = 0;
 			draft.stream
 				>> text.text
 				>> textTagsSerialized
 				>> messageIdMsg
 				>> uncheckedPreviewState;
+			enum class PreviewState : char {
+				Allowed,
+				Cancelled,
+				EmptyOnEdit,
+			};
+			if (uncheckedPreviewState == int(PreviewState::Cancelled)) {
+				webpageRemoved = 1;
+			}
 			messageIdPeer = peerId.value;
 		} else {
 			draft.stream
@@ -1389,17 +1414,16 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 				>> textTagsSerialized
 				>> messageIdPeer
 				>> messageIdMsg
-				>> uncheckedPreviewState;
+				>> webpageUrl
+				>> webpageForceLargeMedia
+				>> webpageForceSmallMedia
+				>> webpageInvert
+				>> webpageManual
+				>> webpageRemoved;
 		}
 		text.tags = TextUtilities::DeserializeTags(
 			textTagsSerialized,
 			text.text.size());
-		auto previewState = Data::PreviewState::Allowed;
-		switch (static_cast<Data::PreviewState>(uncheckedPreviewState)) {
-		case Data::PreviewState::Cancelled:
-		case Data::PreviewState::EmptyOnEdit:
-			previewState = Data::PreviewState(uncheckedPreviewState);
-		}
 		const auto key = keysOld
 			? Data::DraftKey::FromSerializedOld(keyValueOld)
 			: Data::DraftKey::FromSerialized(keyValue);
@@ -1413,7 +1437,14 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 					.topicRootId = key.topicRootId(),
 				},
 				MessageCursor(),
-				previewState));
+				Data::WebPageDraft{
+					.url = webpageUrl,
+					.forceLargeMedia = (webpageForceLargeMedia == 1),
+					.forceSmallMedia = (webpageForceSmallMedia == 1),
+					.invert = (webpageInvert == 1),
+					.manual = (webpageManual == 1),
+					.removed = (webpageRemoved == 1),
+				}));
 		}
 	}
 	if (draft.stream.status() != QDataStream::Ok) {
@@ -1478,9 +1509,9 @@ void Account::readDraftsWithCursorsLegacy(
 				msgData,
 				FullReplyTo{ FullMsgId(peerId, MsgId(msgReplyTo)) },
 				MessageCursor(),
-				(msgPreviewCancelled
-					? Data::PreviewState::Cancelled
-					: Data::PreviewState::Allowed)));
+				Data::WebPageDraft{
+					.removed = (msgPreviewCancelled == 1),
+				}));
 	}
 	if (editMsgId) {
 		map.emplace(
@@ -1489,9 +1520,9 @@ void Account::readDraftsWithCursorsLegacy(
 				editData,
 				FullReplyTo{ FullMsgId(peerId, editMsgId) },
 				MessageCursor(),
-				(editPreviewCancelled
-					? Data::PreviewState::Cancelled
-					: Data::PreviewState::Allowed)));
+				Data::WebPageDraft{
+					.removed = (editPreviewCancelled == 1),
+				}));
 	}
 	readDraftCursors(peerId, map);
 	history->setDraftsMap(std::move(map));

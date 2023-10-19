@@ -787,7 +787,7 @@ void SessionNavigation::applyBoostChecked(
 		MTP_flags(0),
 		MTPVector<MTPint>(), // slots
 		channel->input
-	)).done([=](const MTPBool &result) {
+	)).done([=](const MTPpremium_MyBoosts &result) {
 		done(true);
 	}).fail([=](const MTP::Error &error) {
 		showToast(u"Error: "_q + error.type());
@@ -1556,7 +1556,7 @@ bool SessionController::switchInlineQuery(
 		textWithTags,
 		to.currentReplyTo,
 		cursor,
-		Data::PreviewState::Allowed);
+		Data::WebPageDraft());
 
 	auto params = Window::SectionShow();
 	params.reapplyLocalDraft = true;

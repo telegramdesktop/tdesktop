@@ -404,6 +404,10 @@ WebPageData *Media::webpage() const {
 	return nullptr;
 }
 
+MediaWebPageFlags Media::webpageFlags() const {
+	return {};
+}
+
 const SharedContact *Media::sharedContact() const {
 	return nullptr;
 }
@@ -1460,6 +1464,10 @@ PhotoData *MediaWebPage::photo() const {
 
 WebPageData *MediaWebPage::webpage() const {
 	return _page;
+}
+
+MediaWebPageFlags MediaWebPage::webpageFlags() const {
+	return _flags;
 }
 
 bool MediaWebPage::hasReplyPreview() const {

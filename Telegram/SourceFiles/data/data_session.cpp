@@ -3261,7 +3261,8 @@ not_null<WebPageData*> Session::processWebpage(const MTPWebPage &data) {
 	case mtpc_webPageEmpty: {
 		const auto result = webpage(data.c_webPageEmpty().vid().v);
 		if (result->pendingTill > 0) {
-			result->pendingTill = -1; // failed
+			result->pendingTill = 0;
+			result->failed = 1;
 			notifyWebPageUpdateDelayed(result);
 		}
 		return result;

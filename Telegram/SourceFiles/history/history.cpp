@@ -203,13 +203,13 @@ void History::createLocalDraftFromCloud(MsgId topicRootId) {
 				draft->textWithTags,
 				draft->reply,
 				draft->cursor,
-				draft->previewState));
+				draft->webpage));
 			existing = localDraft(topicRootId);
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
 			existing->reply = draft->reply;
 			existing->cursor = draft->cursor;
-			existing->previewState = draft->previewState;
+			existing->webpage = draft->webpage;
 		}
 		existing->date = draft->date;
 	}
@@ -277,7 +277,7 @@ Data::Draft *History::createCloudDraft(
 			TextWithTags(),
 			FullReplyTo(),
 			MessageCursor(),
-			Data::PreviewState::Allowed));
+			Data::WebPageDraft()));
 		cloudDraft(topicRootId)->date = TimeId(0);
 	} else {
 		auto existing = cloudDraft(topicRootId);
@@ -286,13 +286,13 @@ Data::Draft *History::createCloudDraft(
 				fromDraft->textWithTags,
 				fromDraft->reply,
 				fromDraft->cursor,
-				fromDraft->previewState));
+				fromDraft->webpage));
 			existing = cloudDraft(topicRootId);
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
 			existing->reply = fromDraft->reply;
 			existing->cursor = fromDraft->cursor;
-			existing->previewState = fromDraft->previewState;
+			existing->webpage = fromDraft->webpage;
 		}
 		existing->date = base::unixtime::now();
 		existing->reply.topicRootId = topicRootId;

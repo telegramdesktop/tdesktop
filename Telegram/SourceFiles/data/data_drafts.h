@@ -30,10 +30,19 @@ void ClearPeerCloudDraft(
 	MsgId topicRootId,
 	TimeId date);
 
-enum class PreviewState : char {
-	Allowed,
-	Cancelled,
-	EmptyOnEdit,
+struct WebPageDraft {
+	[[nodiscard]] static WebPageDraft FromItem(not_null<HistoryItem*> item);
+
+	WebPageId id = 0;
+	QString url;
+	bool forceLargeMedia : 1 = false;
+	bool forceSmallMedia : 1 = false;
+	bool invert : 1 = false;
+	bool manual : 1 = false;
+	bool removed : 1 = false;
+
+	friend inline bool operator==(const WebPageDraft&, const WebPageDraft&)
+		= default;
 };
 
 struct Draft {
@@ -42,19 +51,19 @@ struct Draft {
 		const TextWithTags &textWithTags,
 		FullReplyTo reply,
 		const MessageCursor &cursor,
-		PreviewState previewState,
+		WebPageDraft webpage,
 		mtpRequestId saveRequestId = 0);
 	Draft(
 		not_null<const Ui::InputField*> field,
 		FullReplyTo reply,
-		PreviewState previewState,
+		WebPageDraft webpage,
 		mtpRequestId saveRequestId = 0);
 
 	TimeId date = 0;
 	TextWithTags textWithTags;
 	FullReplyTo reply; // reply.messageId.msg is editMsgId for edit draft.
 	MessageCursor cursor;
-	PreviewState previewState = PreviewState::Allowed;
+	WebPageDraft webpage;
 	mtpRequestId saveRequestId = 0;
 };
 
@@ -180,7 +189,7 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 	}
 	return (a->textWithTags == b->textWithTags)
 		&& (a->reply == b->reply)
-		&& (a->previewState == b->previewState);
+		&& (a->webpage == b->webpage);
 }
 
 } // namespace Data

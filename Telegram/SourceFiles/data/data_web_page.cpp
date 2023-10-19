@@ -227,7 +227,7 @@ bool WebPageData::applyChanges(
 		const QString &newAuthor,
 		int newPendingTill) {
 	if (newPendingTill != 0
-		&& (!url.isEmpty() || pendingTill < 0)
+		&& (!url.isEmpty() || failed)
 		&& (!pendingTill
 			|| pendingTill == newPendingTill
 			|| newPendingTill < -1)) {

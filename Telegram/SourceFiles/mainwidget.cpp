@@ -604,7 +604,7 @@ bool MainWidget::shareUrl(
 		textWithTags,
 		FullReplyTo{ .topicRootId = topicRootId },
 		cursor,
-		Data::PreviewState::Allowed));
+		Data::WebPageDraft()));
 	history->clearLocalEditDraft(topicRootId);
 	history->session().changes().entryUpdated(
 		thread,

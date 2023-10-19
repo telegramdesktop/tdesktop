@@ -102,7 +102,7 @@ using VoiceRecordBar = Controls::VoiceRecordBar;
 using ForwardPanel = Controls::ForwardPanel;
 
 [[nodiscard]] auto ShowWebPagePreview(WebPageData *page) {
-	return page && (page->pendingTill >= 0);
+	return page && !page->failed;
 }
 
 WebPageText ProcessWebPageData(WebPageData *page) {
@@ -128,9 +128,9 @@ public:
 	void cancel();
 	void checkPreview();
 
-	[[nodiscard]] Data::PreviewState state() const;
-	void setState(Data::PreviewState value);
-	void refreshState(Data::PreviewState value, bool disable);
+	[[nodiscard]] Data::WebPageDraft draft() const;
+	void setAllowed(bool allowed);
+	void refreshDraft(Data::WebPageDraft draft, bool disable);
 
 	[[nodiscard]] rpl::producer<> paintRequests() const;
 	[[nodiscard]] rpl::producer<QString> titleChanges() const;
@@ -145,7 +145,7 @@ private:
 	MTP::Sender _api;
 	MessageLinksParser _fieldLinksParser;
 
-	Data::PreviewState _previewState = Data::PreviewState();
+	Data::WebPageDraft _previewDraft;
 
 	QStringList _parsedLinks;
 	QString _previewLinks;
@@ -172,7 +172,6 @@ WebpageProcessor::WebpageProcessor(
 : _history(history)
 , _api(&history->session().mtp())
 , _fieldLinksParser(field)
-, _previewState(Data::PreviewState::Allowed)
 , _timer([=] {
 	if (!ShowWebPagePreview(_previewData)
 		|| _previewLinks.isEmpty()) {
@@ -198,12 +197,7 @@ WebpageProcessor::WebpageProcessor(
 
 	_fieldLinksParser.list().changes(
 	) | rpl::start_with_next([=](QStringList &&parsed) {
-		if (_previewState == Data::PreviewState::EmptyOnEdit
-			&& _parsedLinks != parsed) {
-			_previewState = Data::PreviewState::Allowed;
-		}
 		_parsedLinks = std::move(parsed);
-
 		checkPreview();
 	}, _lifetime);
 }
@@ -212,23 +206,23 @@ rpl::producer<> WebpageProcessor::paintRequests() const {
 	return _paintRequests.events();
 }
 
-Data::PreviewState WebpageProcessor::state() const {
-	return _previewState;
+Data::WebPageDraft WebpageProcessor::draft() const {
+	return _previewDraft;
 }
 
-void WebpageProcessor::setState(Data::PreviewState value) {
-	_previewState = value;
+void WebpageProcessor::setAllowed(bool allowed) {
+	_previewDraft.removed = !allowed;
 }
 
-void WebpageProcessor::refreshState(
-		Data::PreviewState value,
+void WebpageProcessor::refreshDraft(
+		Data::WebPageDraft draft,
 		bool disable) {
 	// Save links from _field to _parsedLinks without generating preview.
-	_previewState = Data::PreviewState::Cancelled;
+	_previewDraft = { .removed = true };
 	_fieldLinksParser.setDisabled(disable);
 	_fieldLinksParser.parseNow();
 	_parsedLinks = _fieldLinksParser.list().current();
-	_previewState = value;
+	_previewDraft = draft;
 	checkPreview();
 }
 
@@ -275,21 +269,20 @@ void WebpageProcessor::getWebPagePreview() {
 		result.match([=](const MTPDmessageMediaWebPage &d) {
 			const auto page = _history->owner().processWebpage(d.vwebpage());
 			_previewCache.insert({ links, page->id });
-			auto &till = page->pendingTill;
-			if (till > 0 && till <= base::unixtime::now()) {
-				till = -1;
+			if (page->pendingTill > 0
+				&& page->pendingTill <= base::unixtime::now()) {
+				page->pendingTill = 0;
+				page->failed = true;
 			}
-			if (links == _previewLinks
-				&& _previewState == Data::PreviewState::Allowed) {
-				_previewData = (page->id && page->pendingTill >= 0)
+			if (links == _previewLinks && !_previewDraft.removed) {
+				_previewData = (page->id && !page->failed)
 					? page.get()
 					: nullptr;
 				updatePreview();
 			}
 		}, [=](const MTPDmessageMediaEmpty &d) {
 			_previewCache.insert({ links, 0 });
-			if (links == _previewLinks
-				&& _previewState == Data::PreviewState::Allowed) {
+			if (links == _previewLinks && !_previewDraft.removed) {
 				_previewData = nullptr;
 				updatePreview();
 			}
@@ -303,8 +296,7 @@ void WebpageProcessor::getWebPagePreview() {
 void WebpageProcessor::checkPreview() {
 	const auto previewRestricted = _history->peer
 		&& _history->peer->amRestricted(ChatRestriction::EmbedLinks);
-	if (_previewState != Data::PreviewState::Allowed
-		|| previewRestricted) {
+	if (_previewDraft.removed || previewRestricted) {
 		cancel();
 		return;
 	}
@@ -1476,7 +1468,7 @@ void ComposeControls::setFieldText(
 
 	if (_preview) {
 		_preview->cancel();
-		_preview->setState(Data::PreviewState::Allowed);
+		_preview->setAllowed(true);
 	}
 }
 
@@ -1490,7 +1482,7 @@ void ComposeControls::saveFieldToHistoryLocalDraft() {
 		const auto key = draftKeyCurrent();
 		_history->setDraft(
 			key,
-			std::make_unique<Data::Draft>(_field, id, _preview->state()));
+			std::make_unique<Data::Draft>(_field, id, _preview->draft()));
 	} else {
 		_history->clearDraft(draftKeyCurrent());
 	}
@@ -1625,7 +1617,7 @@ void ComposeControls::init() {
 	_header->previewCancelled(
 	) | rpl::start_with_next([=] {
 		if (_preview) {
-			_preview->setState(Data::PreviewState::Cancelled);
+			_preview->setAllowed(false);
 		}
 		_saveDraftText = true;
 		_saveDraftStart = crl::now();
@@ -2009,7 +2001,7 @@ void ComposeControls::fieldChanged() {
 	updateSendButtonType();
 	_hasSendText = HasSendText(_field);
 	if (!_hasSendText.current() && _preview) {
-		_preview->setState(Data::PreviewState::Allowed);
+		_preview->setAllowed(true);
 	}
 	if (updateBotCommandShown() || updateLikeShown()) {
 		updateControlsVisibility();
@@ -2113,7 +2105,7 @@ void ComposeControls::registerDraftSource() {
 			return Storage::MessageDraft{
 				_header->getDraftReply(),
 				_field->getTextWithTags(),
-				_preview->state(),
+				_preview->draft(),
 			};
 		};
 		auto draftSource = Storage::MessageDraftSource{
@@ -2179,7 +2171,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		}
 		_header->editMessage({});
 		_header->replyToMessage({});
-		_preview->refreshState(Data::PreviewState::Allowed, false);
+		_preview->refreshDraft({}, false);
 		_canReplaceMedia = false;
 		_photoEditMedia = nullptr;
 		return;
@@ -2194,7 +2186,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
 	if (_preview) {
 		const auto disablePreview = (editDraft != nullptr);
-		_preview->refreshState(draft->previewState, disablePreview);
+		_preview->refreshDraft(draft->webpage, disablePreview);
 	}
 
 	if (draft == editDraft) {
@@ -2215,7 +2207,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 						item->fullId());
 				}
 				_header->editMessage(editingId, _photoEditMedia != nullptr);
-				_preview->refreshState(_preview->state(), disablePreview);
+				_preview->refreshDraft(_preview->draft(), disablePreview);
 				return true;
 			}
 			_canReplaceMedia = false;
@@ -2892,15 +2884,6 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 		int(editData.text.size()),
 		Ui::kQFixedMax
 	};
-	const auto previewPage = [&]() -> WebPageData* {
-		if (const auto media = item->media()) {
-			return media->webpage();
-		}
-		return nullptr;
-	}();
-	const auto previewState = previewPage
-		? Data::PreviewState::Allowed
-		: Data::PreviewState::EmptyOnEdit;
 	const auto key = draftKey(DraftType::Edit);
 	_history->setDraft(
 		key,
@@ -2911,7 +2894,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 				.topicRootId = key.topicRootId(),
 			},
 			cursor,
-			previewState));
+			Data::WebPageDraft::FromItem(item)));
 	applyDraft();
 	if (updateReplaceMediaButton()) {
 		updateControlsVisibility();
@@ -2997,7 +2980,7 @@ void ComposeControls::replyToMessage(FullReplyTo id) {
 					TextWithTags(),
 					id,
 					MessageCursor(),
-					Data::PreviewState::Allowed));
+					Data::WebPageDraft()));
 		}
 	} else {
 		_header->replyToMessage(id);
