@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_statistics.h"
 #include "boxes/peers/edit_peer_invite_link.h"
+#include "info/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
@@ -182,85 +183,106 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _peer(peer)
 , _show(controller->uiShow()) {
-	const auto api = lifetime().make_state<Api::Boosts>(peer);
+}
 
-	const auto fakeShowed = lifetime().make_state<rpl::event_stream<>>();
+void InnerWidget::load() {
+	const auto api = lifetime().make_state<Api::Boosts>(_peer);
 
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
 		api->request(
 		) | rpl::start_with_error_done([](const QString &error) {
 		}, [=] {
-			const auto status = api->boostStatus();
-			const auto inner = this;
-
-			{
-				auto dividerContent = object_ptr<Ui::VerticalLayout>(inner);
-				Ui::FillBoostLimit(
-					fakeShowed->events(),
-					rpl::single(status.overview.isBoosted),
-					dividerContent.data(),
-					Ui::BoostBoxData{
-						.boost = Ui::BoostCounters{
-							.level = status.overview.level,
-							.boosts = status.overview.boostCount,
-							.thisLevelBoosts
-								= status.overview.currentLevelBoostCount,
-							.nextLevelBoosts
-								= status.overview.nextLevelBoostCount,
-							.mine = status.overview.isBoosted,
-						}
-					},
-					st::statisticsLimitsLinePadding);
-				inner->add(object_ptr<Ui::DividerLabel>(
-					inner,
-					std::move(dividerContent),
-					st::statisticsLimitsDividerPadding));
-			}
-
-			FillOverview(inner, status);
-
-			::Settings::AddSkip(inner);
-			::Settings::AddDivider(inner);
-			::Settings::AddSkip(inner);
-
-			if (status.firstSlice.total > 0) {
-				::Settings::AddSkip(inner);
-				using PeerPtr = not_null<PeerData*>;
-				const auto header = inner->add(
-					object_ptr<Statistic::Header>(inner),
-					st::statisticsLayerMargins
-						+ st::boostsChartHeaderPadding);
-				header->resizeToWidth(header->width());
-				header->setTitle(tr::lng_boosts_list_title(
-					tr::now,
-					lt_count,
-					status.firstSlice.total));
-				header->setSubTitle({});
-				Statistics::AddBoostsList(
-					status.firstSlice,
-					inner,
-					[=](PeerPtr p) { controller->showPeerInfo(p); },
-					peer,
-					tr::lng_boosts_title());
-				::Settings::AddSkip(inner);
-				::Settings::AddDividerText(
-					inner,
-					tr::lng_boosts_list_subtext());
-				::Settings::AddSkip(inner);
-			}
-
-			::Settings::AddSkip(inner);
-			AddHeader(inner, tr::lng_boosts_link_title);
-			::Settings::AddSkip(inner, st::boostsLinkSkip);
-			FillShareLink(inner, _show, status.link, peer);
-			::Settings::AddSkip(inner);
-			::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());
-
-			resizeToWidth(width());
-			crl::on_main([=]{ fakeShowed->fire({}); });
+			_state = api->boostStatus();
+			fill();
 		}, lifetime());
 	}, lifetime());
+}
+
+void InnerWidget::fill() {
+	const auto fakeShowed = lifetime().make_state<rpl::event_stream<>>();
+	const auto &status = _state;
+	const auto inner = this;
+
+	{
+		auto dividerContent = object_ptr<Ui::VerticalLayout>(inner);
+		Ui::FillBoostLimit(
+			fakeShowed->events(),
+			rpl::single(status.overview.isBoosted),
+			dividerContent.data(),
+			Ui::BoostBoxData{
+				.boost = Ui::BoostCounters{
+					.level = status.overview.level,
+					.boosts = status.overview.boostCount,
+					.thisLevelBoosts
+						= status.overview.currentLevelBoostCount,
+					.nextLevelBoosts
+						= status.overview.nextLevelBoostCount,
+					.mine = status.overview.isBoosted,
+				}
+			},
+			st::statisticsLimitsLinePadding);
+		inner->add(object_ptr<Ui::DividerLabel>(
+			inner,
+			std::move(dividerContent),
+			st::statisticsLimitsDividerPadding));
+	}
+
+	FillOverview(inner, status);
+
+	::Settings::AddSkip(inner);
+	::Settings::AddDivider(inner);
+	::Settings::AddSkip(inner);
+
+	if (status.firstSlice.total > 0) {
+		::Settings::AddSkip(inner);
+		using PeerPtr = not_null<PeerData*>;
+		const auto header = inner->add(
+			object_ptr<Statistic::Header>(inner),
+			st::statisticsLayerMargins
+				+ st::boostsChartHeaderPadding);
+		header->resizeToWidth(header->width());
+		header->setTitle(tr::lng_boosts_list_title(
+			tr::now,
+			lt_count,
+			status.firstSlice.total));
+		header->setSubTitle({});
+		Statistics::AddBoostsList(
+			status.firstSlice,
+			inner,
+			[=](PeerPtr p) { _controller->showPeerInfo(p); },
+			_peer,
+			tr::lng_boosts_title());
+		::Settings::AddSkip(inner);
+		::Settings::AddDividerText(
+			inner,
+			tr::lng_boosts_list_subtext());
+		::Settings::AddSkip(inner);
+	}
+
+	::Settings::AddSkip(inner);
+	AddHeader(inner, tr::lng_boosts_link_title);
+	::Settings::AddSkip(inner, st::boostsLinkSkip);
+	FillShareLink(inner, _show, status.link, _peer);
+	::Settings::AddSkip(inner);
+	::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());
+
+	resizeToWidth(width());
+	crl::on_main([=]{ fakeShowed->fire({}); });
+}
+
+void InnerWidget::saveState(not_null<Memento*> memento) {
+	memento->setState(base::take(_state));
+}
+
+void InnerWidget::restoreState(not_null<Memento*> memento) {
+	_state = memento->state();
+	if (!_state.link.isEmpty()) {
+		fill();
+	} else {
+		load();
+	}
+	Ui::RpWidget::resizeToWidth(width());
 }
 
 rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {

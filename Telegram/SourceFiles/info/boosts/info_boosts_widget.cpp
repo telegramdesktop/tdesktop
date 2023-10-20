@@ -31,6 +31,14 @@ Section Memento::section() const {
 	return Section(Section::Type::Boosts);
 }
 
+void Memento::setState(SavedState state) {
+	_state = std::move(state);
+}
+
+Memento::SavedState Memento::state() {
+	return base::take(_state);
+}
+
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
@@ -75,7 +83,7 @@ void Widget::setInternalState(
 		not_null<Memento*> memento) {
 	setGeometry(geometry);
 	Ui::SendPendingMoveResizeEvents(this);
-	// restoreState(memento);
+	restoreState(memento);
 }
 
 rpl::producer<bool> Widget::desiredShadowVisibility() const {
@@ -88,8 +96,18 @@ void Widget::showFinished() {
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_shared<Memento>(controller());
-	// saveState(result.get());
+	saveState(result.get());
 	return result;
+}
+
+void Widget::saveState(not_null<Memento*> memento) {
+	memento->setScrollTop(scrollTopSave());
+	_inner->saveState(memento);
+}
+
+void Widget::restoreState(not_null<Memento*> memento) {
+	_inner->restoreState(memento);
+	scrollTopRestore(memento->scrollTop());
 }
 
 std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {

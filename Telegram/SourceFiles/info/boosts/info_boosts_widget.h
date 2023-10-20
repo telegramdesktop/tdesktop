@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_boosts.h"
 #include "info/info_content_widget.h"
 
 namespace Info::Boosts {
@@ -25,6 +26,14 @@ public:
 		const QRect &geometry) override;
 
 	Section section() const override;
+
+	using SavedState = Data::BoostStatus;
+
+	void setState(SavedState states);
+	[[nodiscard]] SavedState state();
+
+private:
+	SavedState _state;
 
 };
 

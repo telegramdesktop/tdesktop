@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_boosts.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
 
@@ -39,10 +40,18 @@ public:
 
 	void showFinished();
 
+	void saveState(not_null<Memento*> memento);
+	void restoreState(not_null<Memento*> memento);
+
 private:
+	void load();
+	void fill();
+
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 	std::shared_ptr<Ui::Show> _show;
+
+	Data::BoostStatus _state;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<ShowRequest> _showRequests;
