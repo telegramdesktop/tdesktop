@@ -56,6 +56,8 @@ messageTextStyle: TextStyle(defaultTextStyle) {
 		header: 20px;
 		headerPosition: point(10px, 2px);
 		scrollable: true;
+		icon: icon{{ "chat/mini_copy", windowFg }};
+		iconPosition: point(4px, 2px);
 	}
 }
 msgDateTextStyle: defaultTextStyle;

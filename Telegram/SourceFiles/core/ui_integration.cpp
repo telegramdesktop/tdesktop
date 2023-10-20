@@ -243,6 +243,16 @@ bool UiIntegration::handleUrlClick(
 	return true;
 }
 
+bool UiIntegration::copyPreOnClick(const QVariant &context) {
+	const auto my = context.value<ClickHandlerContext>();
+	if (const auto window = my.sessionWindow.get()) {
+		window->showToast(tr::lng_code_copied(tr::now));
+	} else if (my.show) {
+		my.show->showToast(tr::lng_code_copied(tr::now));
+	}
+	return true;
+}
+
 std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 		const QString &data,
 		const std::any &context) {

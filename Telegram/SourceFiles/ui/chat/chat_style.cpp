@@ -60,6 +60,8 @@ void EnsurePreCache(
 	cache->outline.setAlphaF(0.9);
 	cache->header = color->c;
 	cache->header.setAlphaF(0.25);
+	cache->icon = cache->outline;
+	cache->icon.setAlphaF(0.6);
 }
 
 } // namespace

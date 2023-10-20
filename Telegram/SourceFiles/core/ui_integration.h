@@ -53,6 +53,7 @@ public:
 	bool handleUrlClick(
 		const QString &url,
 		const QVariant &context) override;
+	bool copyPreOnClick(const QVariant &context) override;
 	rpl::producer<> forcePopupMenuHideRequests() override;
 	const Ui::Emoji::One *defaultEmojiVariant(
 		const Ui::Emoji::One *emoji) override;
