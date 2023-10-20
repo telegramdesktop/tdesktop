@@ -1500,10 +1500,13 @@ bool MediaWebPage::replyPreviewLoaded() const {
 }
 
 ItemPreview MediaWebPage::toPreview(ToPreviewOptions options) const {
-	return { .text = options.translated
+	auto text = options.translated
 		? parent()->translatedText()
-		: parent()->originalText()
-	};
+		: parent()->originalText();
+	if (text.empty()) {
+		text = Ui::Text::Colorized(_page->url);
+	}
+	return { .text = text };
 }
 
 TextWithEntities MediaWebPage::notificationText() const {

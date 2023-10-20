@@ -2568,25 +2568,38 @@ void Message::updatePressed(QPoint point) {
 TextForMimeData Message::selectedText(TextSelection selection) const {
 	const auto media = this->media();
 	auto logEntryOriginalResult = TextForMimeData();
+	const auto mediaDisplayed = (media && media->isDisplayed());
+	const auto textSelection = (mediaDisplayed && invertMedia())
+		? media->skipSelection(selection)
+		: selection;
+	const auto mediaSelection = !invertMedia()
+		? skipTextSelection(selection)
+		: selection;
 	auto textResult = hasVisibleText()
-		? text().toTextForMimeData(selection)
+		? text().toTextForMimeData(textSelection)
 		: TextForMimeData();
-	auto skipped = skipTextSelection(selection);
-	auto mediaDisplayed = (media && media->isDisplayed());
 	auto mediaResult = (mediaDisplayed || isHiddenByGroup())
-		? media->selectedText(skipped)
+		? media->selectedText(mediaSelection)
 		: TextForMimeData();
 	if (auto entry = logEntryOriginal()) {
-		const auto originalSelection = mediaDisplayed
-			? media->skipSelection(skipped)
-			: skipped;
+		const auto originalSelection = (mediaDisplayed && invertMedia())
+			? skipTextSelection(textSelection)
+			: mediaDisplayed
+			? media->skipSelection(mediaSelection)
+			: skipTextSelection(selection);
 		logEntryOriginalResult = entry->selectedText(originalSelection);
 	}
-	auto result = textResult;
+	auto &first = (mediaDisplayed && invertMedia())
+		? mediaResult
+		: textResult;
+	auto &second = (mediaDisplayed && invertMedia())
+		? textResult
+		: mediaResult;
+	auto result = first;
 	if (result.empty()) {
-		result = std::move(mediaResult);
-	} else if (!mediaResult.empty()) {
-		result.append(u"\n\n"_q).append(std::move(mediaResult));
+		result = std::move(second);
+	} else if (!second.empty()) {
+		result.append(u"\n\n"_q).append(std::move(second));
 	}
 	if (result.empty()) {
 		result = std::move(logEntryOriginalResult);

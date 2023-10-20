@@ -20,6 +20,7 @@ class SpoilerAnimation;
 
 namespace Data {
 class Thread;
+struct WebPageDraft;
 } // namespace Data
 
 namespace Window {
@@ -87,5 +88,11 @@ void EditReplyOptions(
 	FullReplyTo reply,
 	Fn<void()> highlight,
 	Fn<void()> clearOldDraft = nullptr);
+
+void EditWebPageOptions(
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<WebPageData*> webpage,
+	Data::WebPageDraft draft,
+	Fn<void(Data::WebPageDraft)> done);
 
 } // namespace HistoryView::Controls

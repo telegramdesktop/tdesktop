@@ -539,9 +539,6 @@ bool AddRescheduleAction(
 				if (!item || !item->isScheduled()) {
 					continue;
 				}
-				if (!item->media() || !item->media()->webpage()) {
-					options.removeWebPageId = true;
-				}
 				Api::RescheduleMessage(item, options);
 				// Increase the scheduled date by 1s to keep the order.
 				options.scheduled += 1;

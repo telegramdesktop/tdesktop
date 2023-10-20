@@ -365,7 +365,7 @@ public:
 	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
 	[[nodiscard]] rpl::producer<> editPhotoRequests() const;
 	[[nodiscard]] MessageToEdit queryToEdit();
-	[[nodiscard]] WebPageId webPageId() const;
+	[[nodiscard]] Data::WebPageDraft webPageDraft() const;
 
 	[[nodiscard]] FullReplyTo getDraftReply() const;
 	[[nodiscard]] rpl::producer<> editCancelled() const {
@@ -399,6 +399,7 @@ private:
 
 	struct Preview {
 		WebPageData *data = nullptr;
+		Data::WebPageDraft draft;
 		Ui::Text::String title;
 		Ui::Text::String description;
 		bool cancelled = false;
@@ -958,8 +959,10 @@ bool FieldHeader::hasPreview() const {
 	return ShowWebPagePreview(_preview.data);
 }
 
-WebPageId FieldHeader::webPageId() const {
-	return hasPreview() ? _preview.data->id : CancelledWebPageId;
+Data::WebPageDraft FieldHeader::webPageDraft() const {
+	return hasPreview()
+		? Data::WebPageDraft{ .id = _preview.data->id }
+		: Data::WebPageDraft{ .removed = true };
 }
 
 FullReplyTo FieldHeader::getDraftReply() const {
@@ -1027,10 +1030,7 @@ MessageToEdit FieldHeader::queryToEdit() {
 	}
 	return {
 		.fullId = item->fullId(),
-		.options = {
-			.scheduled = item->isScheduled() ? item->date() : 0,
-			.removeWebPageId = !hasPreview(),
-		},
+		.options = { .scheduled = item->isScheduled() ? item->date() : 0 },
 	};
 }
 
@@ -3119,8 +3119,8 @@ void ComposeControls::initForwardProcess() {
 	updateForwarding();
 }
 
-WebPageId ComposeControls::webPageId() const {
-	return _header->webPageId();
+Data::WebPageDraft ComposeControls::webPageDraft() const {
+	return _header->webPageDraft();
 }
 
 rpl::producer<Data::MessagePosition> ComposeControls::scrollRequests() const {

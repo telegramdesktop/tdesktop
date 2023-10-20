@@ -41,9 +41,7 @@ public:
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
-	uint16 fullSelectionLength() const override {
-		return _title.length() + _description.length();
-	}
+	uint16 fullSelectionLength() const override;
 	bool hasTextForCopy() const override {
 		// We do not add _title and _description in FullSelection text copy.
 		return false;
@@ -119,7 +117,6 @@ private:
 	[[nodiscard]] int bottomInfoPadding() const;
 	[[nodiscard]] bool isLogEntryOriginal() const;
 
-	[[nodiscard]] QString displayedSiteName() const;
 	[[nodiscard]] ClickHandlerPtr replaceAttachLink(
 		const ClickHandlerPtr &link) const;
 	[[nodiscard]] bool asArticle() const;

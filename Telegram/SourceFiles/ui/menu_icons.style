@@ -202,3 +202,7 @@ mediaSpeedVeryFast: icon {{ "player/speed/audiospeed_menu_1.7", mediaviewMenuFg 
 mediaSpeedVeryFastActive: icon {{ "player/speed/audiospeed_menu_1.7", mediaviewTextLinkFg }};
 mediaSpeedSuperFast: icon {{ "player/speed/audiospeed_menu_2.0", mediaviewMenuFg }};
 mediaSpeedSuperFastActive: icon {{ "player/speed/audiospeed_menu_2.0", mediaviewTextLinkFg }};
+
+menuIconMakeBig: icon {{ "player/player_fullscreen", menuIconColor }};
+menuIconMakeSmall: icon {{ "player/player_minimize", menuIconColor }};
+menuIconChangeOrder: icon {{ "player/player_order", menuIconColor }};

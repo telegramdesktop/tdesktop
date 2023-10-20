@@ -2159,15 +2159,7 @@ void ApiWrap::saveDraftsToCloud() {
 			history->peer->input,
 			MTP_string(textWithTags.text),
 			entities,
-			MTP_inputMediaWebPage(
-				MTP_flags(PageFlag::f_optional
-					| (cloudDraft->webpage.forceLargeMedia
-						? PageFlag::f_force_large_media
-						: PageFlag())
-					| (cloudDraft->webpage.forceSmallMedia
-						? PageFlag::f_force_small_media
-						: PageFlag())),
-				MTP_string(cloudDraft->webpage.url))
+			Data::WebPageForMTP(cloudDraft->webpage)
 		)).done([=](const MTPBool &result, const MTP::Response &response) {
 			const auto requestId = response.requestId;
 			history->finishSavingCloudDraft(
@@ -3630,29 +3622,48 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		MTPstring msgText(MTP_string(sending.text));
 		auto flags = NewMessageFlags(peer);
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
+		auto mediaFlags = MTPmessages_SendMedia::Flags(0);
 		if (action.replyTo) {
 			flags |= MessageFlag::HasReplyInfo;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 		}
 		const auto replyHeader = NewMessageReplyHeader(action);
 		MTPMessageMedia media = MTP_messageMediaEmpty();
-		if (message.webPageId == CancelledWebPageId) {
+		if (message.webPage.removed) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
-		} else if (message.webPageId) {
-			auto page = _session->data().webpage(message.webPageId);
+		} else if (const auto fields = message.webPage; fields.id) {
+			using PageFlag = MTPDmessageMediaWebPage::Flag;
+			using PendingFlag = MTPDwebPagePending::Flag;
+			const auto page = _session->data().webpage(fields.id);
 			media = MTP_messageMediaWebPage(
-				MTP_flags(0),
+				MTP_flags(PageFlag()
+					| (fields.manual ? PageFlag::f_manual : PageFlag())
+					| (fields.forceLargeMedia
+						? PageFlag::f_force_large_media
+						: PageFlag())
+					| (fields.forceSmallMedia
+						? PageFlag::f_force_small_media
+						: PageFlag())),
 				MTP_webPagePending(
-					MTP_flags(0),
+					MTP_flags(page->url.isEmpty()
+						? PendingFlag()
+						: PendingFlag::f_url),
 					MTP_long(page->id),
-					MTPstring(), // url
+					MTP_string(page->url),
 					MTP_int(page->pendingTill)));
 		}
 		const auto anonymousPost = peer->amAnonymous();
 		const auto silentPost = ShouldSendSilent(peer, action.options);
 		FillMessagePostFlags(action, peer, flags);
+		if (message.webPage.id && message.webPage.invert) {
+			flags |= MessageFlag::InvertMedia;
+			sendFlags |= MTPmessages_SendMessage::Flag::f_invert_media;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+		}
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_silent;
 		}
 		const auto sentEntities = Api::EntitiesToMTP(
 			_session,
@@ -3665,6 +3676,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		const auto topicRootId = action.replyTo.topicRootId;
 		if (clearCloudDraft) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
 			history->clearCloudDraft(topicRootId);
 			history->startSavingCloudDraft(topicRootId);
 		}
@@ -3676,6 +3688,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			: _session->userPeerId();
 		if (sendAs) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_send_as;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 		}
 		const auto messagePostAuthor = peer->isBroadcast()
 			? _session->user()->name()
@@ -3683,6 +3696,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (action.options.scheduled) {
 			flags |= MessageFlag::IsOrWasScheduled;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_schedule_date;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
 		}
 		const auto viaBotId = UserId();
 		lastMessage = history->addNewLocalMessage(
@@ -3696,27 +3710,18 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sending,
 			media,
 			HistoryMessageMarkupData());
-		histories.sendPreparedMessage(
-			history,
-			action.replyTo,
-			randomId,
-			Data::Histories::PrepareMessage<MTPmessages_SendMessage>(
-				MTP_flags(sendFlags),
-				peer->input,
-				Data::Histories::ReplyToPlaceholder(),
-				msgText,
-				MTP_long(randomId),
-				MTPReplyMarkup(),
-				sentEntities,
-				MTP_int(action.options.scheduled),
-				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-			), [=](const MTPUpdates &result, const MTP::Response &response) {
+		const auto done = [=](
+				const MTPUpdates &result,
+				const MTP::Response &response) {
 			if (clearCloudDraft) {
 				history->finishSavingCloudDraft(
 					topicRootId,
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
-		}, [=](const MTP::Error &error, const MTP::Response &response) {
+		};
+		const auto fail = [=](
+				const MTP::Error &error,
+				const MTP::Response &response) {
 			if (error.type() == u"MESSAGE_EMPTY"_q) {
 				lastMessage->destroy();
 			} else {
@@ -3727,7 +3732,44 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					topicRootId,
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
-		});
+		};
+		if (!message.webPage.removed
+			&& (message.webPage.manual || sending.empty())
+			&& !message.webPage.url.isEmpty()) {
+			using PageFlag = MTPDinputMediaWebPage::Flag;
+			histories.sendPreparedMessage(
+				history,
+				action.replyTo,
+				randomId,
+				Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
+					MTP_flags(mediaFlags),
+					peer->input,
+					Data::Histories::ReplyToPlaceholder(),
+					Data::WebPageForMTP(message.webPage),
+					msgText,
+					MTP_long(randomId),
+					MTPReplyMarkup(),
+					sentEntities,
+					MTP_int(message.action.options.scheduled),
+					(sendAs ? sendAs->input : MTP_inputPeerEmpty())
+				), done, fail);
+		} else {
+			histories.sendPreparedMessage(
+				history,
+				action.replyTo,
+				randomId,
+				Data::Histories::PrepareMessage<MTPmessages_SendMessage>(
+					MTP_flags(sendFlags),
+					peer->input,
+					Data::Histories::ReplyToPlaceholder(),
+					msgText,
+					MTP_long(randomId),
+					MTPReplyMarkup(),
+					sentEntities,
+					MTP_int(action.options.scheduled),
+					(sendAs ? sendAs->input : MTP_inputPeerEmpty())
+				), done, fail);
+		}
 	}
 
 	finishForwarding(action);

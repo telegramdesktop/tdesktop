@@ -2149,6 +2149,7 @@ void HistoryWidget::showHistory(
 	_photoEditMedia = nullptr;
 	updateReplaceMediaButton();
 	_previewData = nullptr;
+	_previewDraft = {};
 	_previewCache.clear();
 	_fieldBarCancel->hide();
 
@@ -3761,12 +3762,6 @@ void HistoryWidget::saveEditMsg() {
 		cancelEdit();
 		return;
 	}
-	const auto webPageId = _previewDraft.removed
-		? CancelledWebPageId
-		: (_previewData && !_previewData->failed)
-		? _previewData->id
-		: WebPageId();
-
 	const auto textWithTags = _field->getTextWithAppliedMarkdown();
 	const auto prepareFlags = Ui::ItemTextOptions(
 		_history,
@@ -3833,10 +3828,10 @@ void HistoryWidget::saveEditMsg() {
 	};
 
 	auto options = Api::SendOptions();
-	options.removeWebPageId = (webPageId == CancelledWebPageId);
 	_saveEditMsgRequestId = Api::EditTextMessage(
 		item,
 		sending,
+		_previewDraft,
 		options,
 		done,
 		fail);
@@ -3920,15 +3915,9 @@ void HistoryWidget::send(Api::SendOptions options) {
 		_cornerButtons.clearReplyReturns();
 	}
 
-	const auto webPageId = _previewDraft.removed
-		? CancelledWebPageId
-		: (_previewData && !_previewData->failed)
-		? _previewData->id
-		: WebPageId();
-
 	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
-	message.webPageId = webPageId;
+	message.webPage = _previewDraft;
 
 	const auto ignoreSlowmodeCountdown = (options.scheduled != 0);
 	if (showSendMessageError(
@@ -4338,23 +4327,23 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 void HistoryWidget::updateOverStates(QPoint pos) {
 	const auto isReadyToForward = readyToForward();
 	const auto skip = isReadyToForward ? 0 : st::historyReplySkip;
-	const auto replyEditForwardInfoRect = QRect(
+	const auto detailsRect = QRect(
 		skip,
 		_field->y() - st::historySendPadding - st::historyReplyHeight,
 		width() - skip - _fieldBarCancel->width(),
 		st::historyReplyHeight);
-	auto inReplyEditForward = (_editMsgId || replyTo() || isReadyToForward)
-		&& replyEditForwardInfoRect.contains(pos);
-	auto inPhotoEdit = inReplyEditForward
+	const auto hasWebPage = _previewData && !_previewData->failed;
+	const auto inDetails = detailsRect.contains(pos)
+		&& (_editMsgId || replyTo() || isReadyToForward || hasWebPage);
+	const auto inPhotoEdit = inDetails
 		&& _photoEditMedia
 		&& QRect(
-			replyEditForwardInfoRect.x(),
-			(replyEditForwardInfoRect.y()
-				+ (replyEditForwardInfoRect.height()
-					- st::historyReplyPreview) / 2),
+			detailsRect.x(),
+			(detailsRect.y()
+				+ (detailsRect.height() - st::historyReplyPreview) / 2),
 			st::historyReplyPreview,
 			st::historyReplyPreview).contains(pos);
-	auto inClickable = inReplyEditForward;
+	const auto inClickable = inDetails;
 	if (_inPhotoEdit != inPhotoEdit) {
 		_inPhotoEdit = inPhotoEdit;
 		if (_photoEditMedia) {
@@ -4367,7 +4356,7 @@ void HistoryWidget::updateOverStates(QPoint pos) {
 			_inPhotoEditOver.stop();
 		}
 	}
-	_inReplyEditForward = inReplyEditForward && !inPhotoEdit;
+	_inDetails = inDetails && !inPhotoEdit;
 	if (inClickable != _inClickable) {
 		_inClickable = inClickable;
 		setCursor(_inClickable ? style::cur_pointer : style::cur_default);
@@ -4605,6 +4594,9 @@ bool HistoryWidget::showRecordButton() const {
 		&& !_voiceRecordBar->isListenState()
 		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !HasSendText(_field)
+		&& (!_previewData
+			|| _previewData->failed
+			|| _previewData->pendingTill)
 		&& !readyToForward()
 		&& !_editMsgId;
 }
@@ -6224,42 +6216,43 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			{ _history->peer->id, _editMsgId },
 			_field->getTextWithTags(),
 			crl::guard(_list, [=] { cancelEdit(); }));
-	} else if (_inReplyEditForward) {
-		if (isReadyToForward) {
-			if (e->button() != Qt::LeftButton) {
-				_forwardPanel->editToNextOption();
-			} else {
-				_forwardPanel->editOptions(controller()->uiShow());
-			}
-		} else if (const auto reply = replyTo()) {
-			const auto highlight = [=] {
-				controller()->showPeerHistory(
-					reply.messageId.peer,
-					Window::SectionShow::Way::Forward,
-					reply.messageId.msg);
-			};
-			const auto history = _history;
-			using namespace HistoryView::Controls;
-			EditReplyOptions(
-				controller()->uiShow(),
-				reply,
-				highlight,
-				[=] { ClearDraftReplyTo(history, reply.messageId); });
-		} else if (_editMsgId) {
-			controller()->showPeerHistory(
-				_peer,
-				Window::SectionShow::Way::Forward,
-				_editMsgId);
-		} else if (_previewData
-			&& !_previewData->failed
-			&& !_previewData->pendingTill) {
-			//const auto history = _history;
-			//using namespace HistoryView::Controls;
-			//EditWebPageOptions(
-			//	controller()->uiShow(),
-			//	_previewData,
-			//	_previewDraft);
+	} else if (!_inDetails) {
+		return;
+	} else if (_previewData
+		&& !_previewData->failed
+		&& !_previewData->pendingTill) {
+		const auto history = _history;
+		using namespace HistoryView::Controls;
+		EditWebPageOptions(
+			controller()->uiShow(),
+			_previewData,
+			_previewDraft,
+			[=](Data::WebPageDraft draft) { applyPreview(draft); });
+	} else if (isReadyToForward) {
+		if (e->button() != Qt::LeftButton) {
+			_forwardPanel->editToNextOption();
+		} else {
+			_forwardPanel->editOptions(controller()->uiShow());
 		}
+	} else if (const auto reply = replyTo()) {
+		const auto highlight = [=] {
+			controller()->showPeerHistory(
+				reply.messageId.peer,
+				Window::SectionShow::Way::Forward,
+				reply.messageId.msg);
+		};
+		const auto history = _history;
+		using namespace HistoryView::Controls;
+		EditReplyOptions(
+			controller()->uiShow(),
+			reply,
+			highlight,
+			[=] { ClearDraftReplyTo(history, reply.messageId); });
+	} else if (_editMsgId) {
+		controller()->showPeerHistory(
+			_peer,
+			Window::SectionShow::Way::Forward,
+			_editMsgId);
 	}
 }
 
@@ -7073,8 +7066,10 @@ void HistoryWidget::setFieldText(
 	_textUpdateEvents = TextUpdateEvent::SaveDraft
 		| TextUpdateEvent::SendTyping;
 
-	previewCancel();
-	_previewDraft = {};
+	if (!_previewDraft.manual) {
+		previewCancel();
+		_previewDraft = {};
+	}
 }
 
 void HistoryWidget::clearFieldText(
@@ -7424,12 +7419,7 @@ void HistoryWidget::cancelFieldAreaState() {
 	controller()->hideLayer();
 	_replyForwardPressed = false;
 	if (_previewData && !_previewData->failed) {
-		_previewDraft = { .removed = true };
-		previewCancel();
-
-		_saveDraftText = true;
-		_saveDraftStart = crl::now();
-		saveDraft();
+		applyPreview({ .removed = true });
 	} else if (_editMsgId) {
 		cancelEdit();
 	} else if (readyToForward()) {
@@ -7439,6 +7429,20 @@ void HistoryWidget::cancelFieldAreaState() {
 	} else if (_kbReplyTo) {
 		toggleKeyboard();
 	}
+}
+
+void HistoryWidget::applyPreview(Data::WebPageDraft draft) {
+	_previewDraft = draft;
+	if (draft.removed) {
+		previewCancel();
+	} else if (draft.id) {
+		_previewData = session().data().webpage(draft.id).get();
+		requestPreview();
+	}
+
+	_saveDraftText = true;
+	_saveDraftStart = crl::now();
+	saveDraft();
 }
 
 void HistoryWidget::previewCancel() {
@@ -7454,6 +7458,8 @@ void HistoryWidget::checkPreview() {
 	}();
 	if (_previewDraft.removed || previewRestricted) {
 		previewCancel();
+		return;
+	} else if (_previewDraft.manual) {
 		return;
 	}
 	const auto links = _parsedLinks.join(' ');
@@ -7476,6 +7482,8 @@ void HistoryWidget::checkPreview() {
 				}).send();
 			} else if (i.value()) {
 				_previewData = session().data().webpage(i.value());
+				_previewDraft.id = _previewData->id;
+				_previewDraft.url = _previewData->url;
 				updatePreview();
 			} else if (_previewData && !_previewData->failed) {
 				previewCancel();
@@ -7518,6 +7526,12 @@ void HistoryWidget::gotPreview(
 			_previewData = (page->id && !page->failed)
 				? page.get()
 				: nullptr;
+			if (_previewData) {
+				_previewDraft.id = _previewData->id;
+				_previewDraft.url = _previewData->url;
+			} else {
+				_previewDraft = {};
+			}
 			updatePreview();
 		}
 		session().data().sendWebPageGamePollNotifications();
@@ -7525,6 +7539,7 @@ void HistoryWidget::gotPreview(
 		_previewCache.insert(links, 0);
 		if (links == _previewLinks && !_previewDraft.removed) {
 			_previewData = nullptr;
+			_previewDraft = {};
 			updatePreview();
 		}
 	}

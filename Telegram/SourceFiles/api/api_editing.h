@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
+namespace Data {
+struct WebPageDraft;
+} // namespace Data
+
 namespace MTP {
 class Error;
 } // namespace MTP
@@ -48,6 +52,7 @@ mtpRequestId EditCaption(
 mtpRequestId EditTextMessage(
 	not_null<HistoryItem*> item,
 	const TextWithEntities &caption,
+	Data::WebPageDraft webpage,
 	SendOptions options,
 	Fn<void(mtpRequestId requestId)> done,
 	Fn<void(const QString &error, mtpRequestId requestId)> fail);

@@ -1170,11 +1170,9 @@ void RepliesWidget::send(Api::SendOptions options) {
 		_cornerButtons.clearReplyReturns();
 	}
 
-	const auto webPageId = _composeControls->webPageId();
-
 	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();
-	message.webPageId = webPageId;
+	message.webPage = _composeControls->webPageDraft();
 
 	const auto error = GetErrorTextForSending(
 		_history->peer,
@@ -1213,6 +1211,7 @@ void RepliesWidget::edit(
 		return;
 	}
 	const auto textWithTags = _composeControls->getTextWithAppliedMarkdown();
+	const auto webpage = _composeControls->webPageDraft();
 	const auto prepareFlags = Ui::ItemTextOptions(
 		_history,
 		session().user()).flags;
@@ -1274,6 +1273,7 @@ void RepliesWidget::edit(
 	*saveEditMsgRequestId = Api::EditTextMessage(
 		item,
 		sending,
+		webpage,
 		options,
 		crl::guard(this, done),
 		crl::guard(this, fail));

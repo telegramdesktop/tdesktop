@@ -3260,6 +3260,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPWebPage &data) {
 		return processWebpage(data.c_webPage());
 	case mtpc_webPageEmpty: {
 		const auto result = webpage(data.c_webPageEmpty().vid().v);
+		result->type = WebPageType::None;
 		if (result->pendingTill > 0) {
 			result->pendingTill = 0;
 			result->failed = 1;
@@ -3283,13 +3284,13 @@ not_null<WebPageData*> Session::processWebpage(const MTPDwebPage &data) {
 	return result;
 }
 
-not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
+not_null<WebPageData*> Session::processWebpage(
+		const MTPDwebPagePending &data) {
 	constexpr auto kDefaultPendingTimeout = 60;
 	const auto result = webpage(data.vid().v);
 	webpageApplyFields(
 		result,
-		WebPageType::Article,
-		false,
+		WebPageType::None,
 		QString(),
 		QString(),
 		QString(),
@@ -3301,6 +3302,7 @@ not_null<WebPageData*> Session::processWebpage(const MTPDwebPagePending &data) {
 		WebPageCollage(),
 		0,
 		QString(),
+		false,
 		data.vdate().v
 			? data.vdate().v
 			: (base::unixtime::now() + kDefaultPendingTimeout));
@@ -3314,7 +3316,6 @@ not_null<WebPageData*> Session::webpage(
 	return webpage(
 		id,
 		WebPageType::Article,
-		false,
 		QString(),
 		QString(),
 		siteName,
@@ -3325,13 +3326,13 @@ not_null<WebPageData*> Session::webpage(
 		WebPageCollage(),
 		0,
 		QString(),
+		false,
 		TimeId(0));
 }
 
 not_null<WebPageData*> Session::webpage(
 		WebPageId id,
 		WebPageType type,
-		bool hasLargeMedia,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -3342,12 +3343,12 @@ not_null<WebPageData*> Session::webpage(
 		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
+		bool hasLargeMedia,
 		TimeId pendingTill) {
 	const auto result = webpage(id);
 	webpageApplyFields(
 		result,
 		type,
-		hasLargeMedia,
 		url,
 		displayUrl,
 		siteName,
@@ -3359,6 +3360,7 @@ not_null<WebPageData*> Session::webpage(
 		std::move(collage),
 		duration,
 		author,
+		hasLargeMedia,
 		pendingTill);
 	return result;
 }
@@ -3439,7 +3441,6 @@ void Session::webpageApplyFields(
 	webpageApplyFields(
 		page,
 		(story ? WebPageType::Story : ParseWebPageType(data)),
-		data.is_has_large_media(),
 		qs(data.vurl()),
 		qs(data.vdisplay_url()),
 		siteName,
@@ -3459,13 +3460,13 @@ void Session::webpageApplyFields(
 		WebPageCollage(this, data),
 		data.vduration().value_or_empty(),
 		qs(data.vauthor().value_or_empty()),
+		data.is_has_large_media(),
 		pendingTill);
 }
 
 void Session::webpageApplyFields(
 		not_null<WebPageData*> page,
 		WebPageType type,
-		bool hasLargeMedia,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -3477,11 +3478,11 @@ void Session::webpageApplyFields(
 		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
+		bool hasLargeMedia,
 		TimeId pendingTill) {
 	const auto requestPending = (!page->pendingTill && pendingTill > 0);
 	const auto changed = page->applyChanges(
 		type,
-		hasLargeMedia,
 		url,
 		displayUrl,
 		siteName,
@@ -3493,6 +3494,7 @@ void Session::webpageApplyFields(
 		std::move(collage),
 		duration,
 		author,
+		hasLargeMedia,
 		pendingTill);
 	if (requestPending) {
 		_session->api().requestWebPageDelayed(page);

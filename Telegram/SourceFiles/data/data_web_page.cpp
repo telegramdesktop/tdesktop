@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "lang/lang_keys.h"
 #include "ui/image/image.h"
 #include "ui/text/text_entity.h"
 
@@ -213,7 +214,6 @@ Main::Session &WebPageData::session() const {
 
 bool WebPageData::applyChanges(
 		WebPageType newType,
-		bool newHasLargeMedia,
 		const QString &newUrl,
 		const QString &newDisplayUrl,
 		const QString &newSiteName,
@@ -225,6 +225,7 @@ bool WebPageData::applyChanges(
 		WebPageCollage &&newCollage,
 		int newDuration,
 		const QString &newAuthor,
+		bool newHasLargeMedia,
 		int newPendingTill) {
 	if (newPendingTill != 0
 		&& (!url.isEmpty() || failed)
@@ -255,7 +256,6 @@ bool WebPageData::applyChanges(
 	}();
 
 	if (type == newType
-		&& hasLargeMedia == newHasLargeMedia
 		&& url == resultUrl
 		&& displayUrl == resultDisplayUrl
 		&& siteName == resultSiteName
@@ -267,6 +267,7 @@ bool WebPageData::applyChanges(
 		&& collage.items == newCollage.items
 		&& duration == newDuration
 		&& author == resultAuthor
+		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
 		&& pendingTill == newPendingTill) {
 		return false;
 	}
@@ -274,7 +275,7 @@ bool WebPageData::applyChanges(
 		_owner->session().api().clearWebPageRequest(this);
 	}
 	type = newType;
-	hasLargeMedia = newHasLargeMedia;
+	hasLargeMedia = newHasLargeMedia ? 1 : 0;
 	url = resultUrl;
 	displayUrl = resultDisplayUrl;
 	siteName = resultSiteName;
@@ -345,4 +346,12 @@ void WebPageData::ApplyChanges(
 		});
 	}
 	session->data().sendWebPageGamePollNotifications();
+}
+
+QString WebPageData::displayedSiteName() const {
+	return (document && document->isWallPaper())
+		? tr::lng_media_chat_background(tr::now)
+		: (document && document->isTheme())
+		? tr::lng_media_color_theme(tr::now)
+		: siteName;
 }

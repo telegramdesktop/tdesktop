@@ -18,6 +18,8 @@ class Session;
 } // namespace Data
 
 enum class WebPageType : uint8 {
+	None,
+
 	Message,
 
 	Group,
@@ -67,7 +69,6 @@ struct WebPageData {
 
 	bool applyChanges(
 		WebPageType newType,
-		bool newHasLargeMedia,
 		const QString &newUrl,
 		const QString &newDisplayUrl,
 		const QString &newSiteName,
@@ -79,6 +80,7 @@ struct WebPageData {
 		WebPageCollage &&newCollage,
 		int newDuration,
 		const QString &newAuthor,
+		bool newHasLargeMedia,
 		int newPendingTill);
 
 	static void ApplyChanges(
@@ -86,9 +88,10 @@ struct WebPageData {
 		ChannelData *channel,
 		const MTPmessages_Messages &result);
 
-	WebPageId id = 0;
-	WebPageType type = WebPageType::Article;
-	bool hasLargeMedia = false;
+	[[nodiscard]] QString displayedSiteName() const;
+
+	const WebPageId id = 0;
+	WebPageType type = WebPageType::None;
 	QString url;
 	QString displayUrl;
 	QString siteName;
@@ -101,7 +104,8 @@ struct WebPageData {
 	WebPageCollage collage;
 	int duration = 0;
 	TimeId pendingTill = 0;
-	uint32 version : 31 = 0;
+	uint32 version : 30 = 0;
+	uint32 hasLargeMedia : 1 = 0;
 	uint32 failed : 1 = 0;
 
 private:

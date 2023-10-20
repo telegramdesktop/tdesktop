@@ -406,6 +406,7 @@ private:
 	void startBotCommand();
 	void hidePinnedMessage();
 	void cancelFieldAreaState();
+	void applyPreview(Data::WebPageDraft draft);
 	void unblockUser();
 	void sendBotStartCommand();
 	void joinChannel();
@@ -759,7 +760,7 @@ private:
 	object_ptr<Ui::InputField> _field;
 	base::unique_qptr<Ui::RpWidget> _fieldDisabled;
 	Ui::Animations::Simple _inPhotoEditOver;
-	bool _inReplyEditForward = false;
+	bool _inDetails = false;
 	bool _inPhotoEdit = false;
 	bool _inClickable = false;
 

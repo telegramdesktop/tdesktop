@@ -1509,6 +1509,11 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	} else {
 		_flags &= ~MessageFlag::HideEdited;
 	}
+	if (edition.invertMedia) {
+		_flags |= MessageFlag::InvertMedia;
+	} else {
+		_flags &= ~MessageFlag::InvertMedia;
+	}
 
 	if (edition.editDate != -1) {
 		//_flags |= MTPDmessage::Flag::f_edit_date;

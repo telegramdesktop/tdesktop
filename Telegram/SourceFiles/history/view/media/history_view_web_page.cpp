@@ -308,11 +308,12 @@ QSize WebPage::countOptimalSize() {
 			Ui::WebpageTextDescriptionOptions(),
 			context);
 	}
-	if (!displayedSiteName().isEmpty()) {
+	const auto siteName = _data->displayedSiteName();
+	if (!siteName.isEmpty()) {
 		_siteNameLines = 1;
 		_siteName.setMarkedText(
 			st::webPageTitleStyle,
-			Ui::Text::Link(displayedSiteName(), _data->url),
+			Ui::Text::Link(siteName, _data->url),
 			Ui::WebpageTextTitleOptions());
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
@@ -868,6 +869,10 @@ TextSelection WebPage::adjustSelection(TextSelection selection, TextSelectType t
 	return { siteNameSelection.from, fromDescriptionSelection(descriptionSelection).to };
 }
 
+uint16 WebPage::fullSelectionLength() const {
+	return _siteName.length() + _title.length() + _description.length();
+}
+
 void WebPage::clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
 		bool active) {
@@ -992,14 +997,6 @@ int WebPage::bottomInfoPadding() const {
 	// back with st::msgPadding.bottom() instead of left().
 	result += st::msgPadding.bottom() - st::msgPadding.left();
 	return result;
-}
-
-QString WebPage::displayedSiteName() const {
-	return (_data->document && _data->document->isWallPaper())
-		? tr::lng_media_chat_background(tr::now)
-		: (_data->document && _data->document->isTheme())
-		? tr::lng_media_color_theme(tr::now)
-		: _data->siteName;
 }
 
 WebPage::~WebPage() {

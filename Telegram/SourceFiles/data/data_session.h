@@ -552,7 +552,6 @@ public:
 	[[nodiscard]] not_null<WebPageData*> webpage(
 		WebPageId id,
 		WebPageType type,
-		bool hasLargeMedia,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -563,6 +562,7 @@ public:
 		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
+		bool hasLargeMedia,
 		TimeId pendingTill);
 
 	[[nodiscard]] not_null<GameData*> game(GameId id);
@@ -814,7 +814,6 @@ private:
 	void webpageApplyFields(
 		not_null<WebPageData*> page,
 		WebPageType type,
-		bool hasLargeMedia,
 		const QString &url,
 		const QString &displayUrl,
 		const QString &siteName,
@@ -826,6 +825,7 @@ private:
 		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
+		bool hasLargeMedia,
 		TimeId pendingTill);
 
 	void gameApplyFields(

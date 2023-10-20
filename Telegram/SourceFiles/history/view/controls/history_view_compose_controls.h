@@ -44,6 +44,7 @@ struct MessagePosition;
 struct Draft;
 class DraftKey;
 class PhotoMedia;
+struct WebPageDraft;
 } // namespace Data
 
 namespace InlineBots {
@@ -207,7 +208,7 @@ public:
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
-	[[nodiscard]] WebPageId webPageId() const;
+	[[nodiscard]] Data::WebPageDraft webPageDraft() const;
 	void setText(const TextWithTags &text);
 	void clear();
 	void hidePanelsAnimated();

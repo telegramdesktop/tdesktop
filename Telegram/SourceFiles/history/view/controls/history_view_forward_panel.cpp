@@ -547,4 +547,87 @@ void EditReplyOptions(
 	}));
 }
 
+void EditWebPageOptions(
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<WebPageData*> webpage,
+		Data::WebPageDraft draft,
+		Fn<void(Data::WebPageDraft)> done) {
+	show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(rpl::single(u"Link Preview"_q));
+
+		struct State {
+			rpl::variable<Data::WebPageDraft> result;
+			Ui::SettingsButton *large = nullptr;
+			Ui::SettingsButton *small = nullptr;
+		};
+		const auto state = box->lifetime().make_state<State>(State{
+			.result = draft,
+			});
+
+		state->large = Settings::AddButton(
+			box->verticalLayout(),
+			rpl::single(u"Force large media"_q),
+			st::settingsButton,
+			{ &st::menuIconMakeBig });
+		state->large->setClickedCallback([=] {
+			auto copy = state->result.current();
+			copy.forceLargeMedia = true;
+			copy.forceSmallMedia = false;
+			state->result = copy;
+		});
+
+		state->small = Settings::AddButton(
+			box->verticalLayout(),
+			rpl::single(u"Force small media"_q),
+			st::settingsButton,
+			{ &st::menuIconMakeSmall });
+		state->small->setClickedCallback([=] {
+			auto copy = state->result.current();
+			copy.forceSmallMedia = true;
+			copy.forceLargeMedia = false;
+			state->result = copy;
+		});
+
+		state->result.value(
+		) | rpl::start_with_next([=](const Data::WebPageDraft &draft) {
+			state->large->setColorOverride(draft.forceLargeMedia
+				? st::windowActiveTextFg->c
+				: std::optional<QColor>());
+			state->small->setColorOverride(draft.forceSmallMedia
+				? st::windowActiveTextFg->c
+				: std::optional<QColor>());
+		}, box->lifetime());
+
+		Settings::AddButton(
+			box->verticalLayout(),
+			state->result.value(
+			) | rpl::map([=](const Data::WebPageDraft &draft) {
+				return draft.invert
+					? u"Above message"_q
+					: u"Below message"_q;
+			}),
+			st::settingsButton,
+			{ &st::menuIconChangeOrder }
+		)->setClickedCallback([=] {
+			auto copy = state->result.current();
+			copy.invert = !copy.invert;
+			state->result = copy;
+		});
+
+		box->addButton(tr::lng_settings_save(), [=] {
+			const auto weak = Ui::MakeWeak(box.get());
+			auto result = state->result.current();
+			result.manual = true;
+			done(result);
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		});
+		box->addButton(tr::lng_cancel(), [=] {
+			box->closeBox();
+		});
+	}));
+
+}
+
 } // namespace HistoryView::Controls
