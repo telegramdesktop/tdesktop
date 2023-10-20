@@ -355,6 +355,7 @@ BoostsController::BoostsController(BoostsDescriptor d)
 , _showPeerInfo(std::move(d.showPeerInfo))
 , _api(d.peer)
 , _firstSlice(std::move(d.firstSlice)) {
+	PeerListController::setStyleOverrides(&st::boostsListBox);
 }
 
 Main::Session &BoostsController::session() const {

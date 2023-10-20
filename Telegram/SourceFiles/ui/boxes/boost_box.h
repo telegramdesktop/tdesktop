@@ -34,6 +34,7 @@ void FillBoostLimit(
 	rpl::producer<> showFinished,
 	rpl::producer<bool> you,
 	not_null<VerticalLayout*> container,
-	BoostBoxData data);
+	BoostBoxData data,
+	style::margins limitLinePadding);
 
 } // namespace Ui

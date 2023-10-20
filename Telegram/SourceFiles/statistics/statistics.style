@@ -109,13 +109,35 @@ statisticsShowMoreButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 
-	padding: margins(73px, 10px, 22px, 8px);
+	padding: margins(70px, 10px, 22px, 8px);
 }
 
 statisticsShowMoreButtonArrowPosition: point(29px, 13px);
 statisticsShowMoreButtonArrowSize: 7px;
 
-statisticsLimitsDividerPadding: margins(22px, -26px, 22px, 16px);
+statisticsLimitsDividerPadding: margins(22px, -26px, 22px, 22px);
+statisticsLimitsLinePadding: margins(0px, -2px, 0px, 0px);
+
+boostsLayerOverviewMargins: margins(0px, 12px, 0px, 4px);
+boostsOverviewValuePadding: margins(2px, 0px, 0px, 0px);
+boostsChartHeaderPadding: margins(2px, 1px, 0px, 1px);
+
+boostsListBox: PeerList(defaultPeerList) {
+	padding: margins(
+		0px,
+		7px,
+		0px,
+		7px);
+	item: PeerListItem(defaultPeerListItem) {
+		height: 52px;
+		photoPosition: point(18px, 4px);
+		namePosition: point(70px, 6px);
+		statusPosition: point(70px, 26px);
+		photoSize: 42px;
+	}
+}
+boostsLinkSkip: 5px;
+boostsLinkFieldPadding: margins(22px, 7px, 22px, 12px);
 boostsButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;

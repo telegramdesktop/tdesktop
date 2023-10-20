@@ -32,7 +32,7 @@ void AddHeader(
 		tr::phrase<> text) {
 	const auto header = content->add(
 		object_ptr<Statistic::Header>(content),
-		st::statisticsLayerMargins + st::statisticsChartHeaderPadding);
+		st::statisticsLayerMargins + st::boostsChartHeaderPadding);
 	header->resizeToWidth(header->width());
 	header->setTitle(text(tr::now));
 	header->setSubTitle({});
@@ -43,7 +43,7 @@ void FillOverview(
 		const Data::BoostStatus &status) {
 	const auto &stats = status.overview;
 
-	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.top());
+	::Settings::AddSkip(content, st::boostsLayerOverviewMargins.top());
 	AddHeader(content, tr::lng_stats_overview_title);
 	::Settings::AddSkip(content);
 
@@ -125,7 +125,7 @@ void FillOverview(
 	) | rpl::start_with_next([=](const QSize &s) {
 		const auto halfWidth = s.width() / 2;
 		{
-			const auto &p = st::statisticsOverviewValuePadding;
+			const auto &p = st::boostsOverviewValuePadding;
 			topLeftLabel->moveToLeft(p.left(), p.top());
 		}
 		topRightLabel->moveToLeft(
@@ -138,7 +138,7 @@ void FillOverview(
 			topRightLabel->x(),
 			bottomLeftLabel->y());
 	}, container->lifetime());
-	::Settings::AddSkip(content, st::statisticsLayerOverviewMargins.bottom());
+	::Settings::AddSkip(content, st::boostsLayerOverviewMargins.bottom());
 }
 
 void FillShareLink(
@@ -161,7 +161,7 @@ void FillShareLink(
 		nullptr);
 	content->add(
 		label->take(),
-		st::inviteLinkFieldPadding);
+		st::boostsLinkFieldPadding);
 
 	label->clicks(
 	) | rpl::start_with_next(copyLink, label->lifetime());
@@ -169,7 +169,7 @@ void FillShareLink(
 		object_ptr<Ui::VerticalLayout>(content));
 	Ui::AddCopyShareLinkButtons(copyShareWrap, copyLink, shareLink);
 	copyShareWrap->widgetAt(0)->showChildren();
-	::Settings::AddSkip(content, st::inviteLinkFieldPadding.bottom());
+	::Settings::AddSkip(content, st::boostsLinkFieldPadding.bottom());
 }
 
 } // namespace
@@ -210,7 +210,8 @@ InnerWidget::InnerWidget(
 								= status.overview.nextLevelBoostCount,
 							.mine = status.overview.isBoosted,
 						}
-					});
+					},
+					st::statisticsLimitsLinePadding);
 				inner->add(object_ptr<Ui::DividerLabel>(
 					inner,
 					std::move(dividerContent),
@@ -228,7 +229,8 @@ InnerWidget::InnerWidget(
 				using PeerPtr = not_null<PeerData*>;
 				const auto header = inner->add(
 					object_ptr<Statistic::Header>(inner),
-					st::statisticsLayerMargins);
+					st::statisticsLayerMargins
+						+ st::boostsChartHeaderPadding);
 				header->resizeToWidth(header->width());
 				header->setTitle(tr::lng_boosts_list_title(
 					tr::now,
@@ -250,6 +252,7 @@ InnerWidget::InnerWidget(
 
 			::Settings::AddSkip(inner);
 			AddHeader(inner, tr::lng_boosts_link_title);
+			::Settings::AddSkip(inner, st::boostsLinkSkip);
 			FillShareLink(inner, _show, status.link, peer);
 			::Settings::AddSkip(inner);
 			::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());

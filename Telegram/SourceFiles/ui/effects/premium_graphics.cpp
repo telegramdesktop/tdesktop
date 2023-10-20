@@ -20,11 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
-#include "styles/style_premium.h"
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
 #include "styles/style_layers.h"
-#include "styles/style_widgets.h"
+#include "styles/style_premium.h"
+#include "styles/style_settings.h"
 #include "styles/style_window.h"
 
 #include <QtGui/QBrush>
@@ -393,7 +392,8 @@ public:
 		int maxCounter,
 		bool premiumPossible,
 		rpl::producer<> showFinishes,
-		const style::icon *icon);
+		const style::icon *icon,
+		const style::margins &outerPadding);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -418,6 +418,7 @@ private:
 	Bubble _bubble;
 	const int _maxBubbleWidth;
 	const bool _premiumPossible;
+	const style::margins _outerPadding;
 
 	Ui::Animations::Simple _appearanceAnimation;
 	QSize _spaceForDeflection;
@@ -441,7 +442,8 @@ BubbleWidget::BubbleWidget(
 	int maxCounter,
 	bool premiumPossible,
 	rpl::producer<> showFinishes,
-	const style::icon *icon)
+	const style::icon *icon,
+	const style::margins &outerPadding)
 : RpWidget(parent)
 , _st(st)
 , _state(std::move(state))
@@ -454,6 +456,7 @@ BubbleWidget::BubbleWidget(
 	premiumPossible)
 , _maxBubbleWidth(_bubble.countMaxWidth(_maxCounter))
 , _premiumPossible(premiumPossible)
+, _outerPadding(outerPadding)
 , _deflection(kDeflection)
 , _stepBeforeDeflection(kStepBeforeDeflection)
 , _stepAfterDeflection(kStepAfterDeflection) {
@@ -484,10 +487,9 @@ BubbleWidget::BubbleWidget(
 void BubbleWidget::animateTo(BubbleRowState state) {
 	const auto parent = parentWidget();
 	const auto computeLeft = [=](float64 pointRatio, float64 animProgress) {
-		const auto &padding = st::boxRowPadding;
 		const auto halfWidth = (_maxBubbleWidth / 2);
-		const auto left = padding.left();
-		const auto right = padding.right();
+		const auto left = _outerPadding.left();
+		const auto right = _outerPadding.right();
 		const auto available = parent->width() - left - right;
 		const auto delta = (pointRatio - _animatingFromResultRatio);
 		const auto center = available
@@ -497,7 +499,7 @@ void BubbleWidget::animateTo(BubbleRowState state) {
 	const auto moveEndPoint = state.ratio;
 	const auto computeEdge = [=] {
 		return parent->width()
-			- st::boxRowPadding.right()
+			- _outerPadding.right()
 			- _maxBubbleWidth;
 	};
 	struct LeftEdge final {
@@ -506,7 +508,7 @@ void BubbleWidget::animateTo(BubbleRowState state) {
 	};
 	const auto leftEdge = [&]() -> LeftEdge {
 		const auto finish = computeLeft(moveEndPoint, 1.);
-		const auto &padding = st::boxRowPadding;
+		const auto &padding = _outerPadding;
 		if (finish <= padding.left()) {
 			const auto halfWidth = (_maxBubbleWidth / 2);
 			const auto goodPointRatio = float64(halfWidth)
@@ -834,7 +836,10 @@ void Line::recache(const QSize &s) {
 
 	const auto pathRound = [&](int width) {
 		auto result = QPainterPath();
-		result.addRoundedRect(r(width), st::buttonRadius, st::buttonRadius);
+		result.addRoundedRect(
+			r(width),
+			st::premiumLineRadius,
+			st::premiumLineRadius);
 		return result;
 	};
 	const auto width = s.width();
@@ -904,7 +909,8 @@ void AddBubbleRow(
 		max,
 		premiumPossible,
 		ProcessTextFactory(phrase),
-		icon);
+		icon,
+		st::boxRowPadding);
 }
 
 void AddBubbleRow(
@@ -915,7 +921,8 @@ void AddBubbleRow(
 		int max,
 		bool premiumPossible,
 		Fn<QString(int)> text,
-		const style::icon *icon) {
+		const style::icon *icon,
+		const style::margins &outerPadding) {
 	const auto container = parent->add(
 		object_ptr<Ui::FixedHeightWidget>(parent, 0));
 	const auto bubble = Ui::CreateChild<BubbleWidget>(
@@ -926,7 +933,8 @@ void AddBubbleRow(
 		max,
 		premiumPossible,
 		std::move(showFinishes),
-		icon);
+		icon,
+		outerPadding);
 	rpl::combine(
 		container->sizeValue(),
 		bubble->sizeValue()
@@ -967,10 +975,11 @@ void AddLimitRow(
 		not_null<Ui::VerticalLayout*> parent,
 		const style::PremiumLimits &st,
 		LimitRowLabels labels,
-		rpl::producer<float64> ratio) {
+		rpl::producer<float64> ratio,
+		const style::margins &padding) {
 	parent->add(
 		object_ptr<Line>(parent, st, std::move(labels), std::move(ratio)),
-		st::boxRowPadding);
+		padding);
 }
 
 void AddAccountsRow(

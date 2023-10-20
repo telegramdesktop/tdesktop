@@ -95,6 +95,7 @@ defaultPremiumBubble: PremiumBubble {
 	tailSize: size(21px, 7px);
 	font: font(19px);
 }
+premiumLineRadius: 5px;
 premiumLineTextSkip: 11px;
 premiumInfographicPadding: margins(0px, 10px, 0px, 15px);
 

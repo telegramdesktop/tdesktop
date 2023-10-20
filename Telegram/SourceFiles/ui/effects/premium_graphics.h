@@ -65,7 +65,8 @@ void AddBubbleRow(
 	int max,
 	bool premiumPossible,
 	Fn<QString(int)> text,
-	const style::icon *icon);
+	const style::icon *icon,
+	const style::margins &outerPadding);
 
 void AddLimitRow(
 	not_null<Ui::VerticalLayout*> parent,
@@ -93,7 +94,8 @@ void AddLimitRow(
 	not_null<Ui::VerticalLayout*> parent,
 	const style::PremiumLimits &st,
 	LimitRowLabels labels,
-	rpl::producer<float64> ratio);
+	rpl::producer<float64> ratio,
+	const style::margins &padding);
 
 struct AccountsRowArgs final {
 	std::shared_ptr<Ui::RadiobuttonGroup> group;

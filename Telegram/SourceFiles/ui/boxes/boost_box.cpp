@@ -60,7 +60,8 @@ void BoostBox(
 		BoxShowFinishes(box),
 		state->you.value(),
 		box->verticalLayout(),
-		data);
+		data,
+		st::boxRowPadding);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
@@ -176,7 +177,8 @@ void FillBoostLimit(
 		rpl::producer<> showFinished,
 		rpl::producer<bool> you,
 		not_null<VerticalLayout*> container,
-		BoostBoxData data) {
+		BoostBoxData data,
+		style::margins limitLinePadding) {
 	const auto full = !data.boost.nextLevelBoosts;
 
 	if (data.boost.mine && data.boost.boosts > 0) {
@@ -265,7 +267,8 @@ void FillBoostLimit(
 		max,
 		true,
 		nullptr,
-		&st::premiumIconBoost);
+		&st::premiumIconBoost,
+		limitLinePadding);
 	addSkip(st::premiumLineTextSkip);
 
 	const auto level = [](int level) {
@@ -284,7 +287,8 @@ void FillBoostLimit(
 			.rightLabel = level(data.boost.level + 1),
 			.dynamic = true,
 		},
-		std::move(ratioValue));
+		std::move(ratioValue),
+		limitLinePadding);
 }
 
 } // namespace Ui
