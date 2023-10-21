@@ -1,3 +1,10 @@
+4.10.4 beta (21.10.23)
+
+- Statistics in channels and group chats.
+- Nice looking code blocks with syntax highlight.
+- Copy full code block by click on its header.
+- Send a highlighted code block using ```language syntax.
+
 4.10.3 (02.10.23)
 
 - Fix crash on external link opening. (Linux only)
