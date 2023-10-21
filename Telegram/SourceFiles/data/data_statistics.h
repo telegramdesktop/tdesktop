@@ -105,7 +105,7 @@ struct SupergroupStatistics final {
 
 struct MessageStatistics final {
 	explicit operator bool() const {
-		return !messageInteractionGraph.chart.empty();
+		return !messageInteractionGraph.chart.empty() || views;
 	}
 	Data::StatisticalGraph messageInteractionGraph;
 	int publicForwards = 0;
