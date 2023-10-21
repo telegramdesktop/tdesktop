@@ -34,7 +34,7 @@ namespace {
 			.zoomToken = qs(data.vtoken()).toUtf8(),
 		};
 	}, [&](const MTPDstatsGraphError &data) {
-		return Data::StatisticalGraph{ Data::StatisticalChart() };
+		return Data::StatisticalGraph{ .error = qs(data.verror()) };
 	});
 }
 
