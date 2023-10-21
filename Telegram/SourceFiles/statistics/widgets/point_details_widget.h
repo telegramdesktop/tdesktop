@@ -65,6 +65,8 @@ private:
 		float64 alpha = 1.;
 	};
 
+	bool _hasPositiveValues = true;
+
 	int _maxPercentageWidth = 0;
 
 	QRect _innerRect;

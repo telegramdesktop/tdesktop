@@ -306,7 +306,8 @@ void PointDetailsWidget::setXIndex(int xIndex) {
 		_lines.push_back(std::move(textLine));
 	}
 	const auto clickable = _zoomEnabled && hasPositiveValues;
-	setAttribute(
+	_hasPositiveValues = hasPositiveValues;
+	QWidget::setAttribute(
 		Qt::WA_TransparentForMouseEvents,
 		!clickable);
 	invalidateCache();
@@ -424,7 +425,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 			line.value.draw(p, valueContext);
 		}
 
-		if (_zoomEnabled) {
+		if (_zoomEnabled && _hasPositiveValues) {
 			const auto s = _arrow.size() / style::DevicePixelRatio();
 			const auto x = rect::right(_textRect) - s.width();
 			const auto y = _textRect.y()
