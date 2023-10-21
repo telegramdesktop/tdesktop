@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
-#include "info/boosts/info_boosts_widget.h"
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "info/statistics/info_statistics_recent_message.h"
 #include "info/statistics/info_statistics_widget.h"
@@ -514,20 +513,6 @@ void InnerWidget::load() {
 					descriptor.api->channelStats(),
 					descriptor.api->supergroupStats(),
 				};
-				if (_state.stats.channel) {
-					::Settings::AddSkip(inner);
-					const auto button = ::Settings::AddButton(
-						inner,
-						tr::lng_boosts_title(),
-						st::boostsButton);
-					const auto controller = _controller;
-					button->setClickedCallback([=, peer = descriptor.peer] {
-						controller->showSection(Info::Boosts::Make(peer));
-					});
-					::Settings::AddSkip(inner);
-					::Settings::AddDivider(inner);
-					::Settings::AddSkip(inner);
-				}
 				fill();
 
 				finishLoading();
