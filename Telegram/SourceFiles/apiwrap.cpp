@@ -2151,7 +2151,6 @@ void ApiWrap::saveDraftsToCloud() {
 			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags),
 			Api::ConvertOption::SkipLocal);
 
-		using PageFlag = MTPDinputMediaWebPage::Flag;
 		history->startSavingCloudDraft(topicRootId);
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
 			MTP_flags(flags),
@@ -3736,7 +3735,6 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (!message.webPage.removed
 			&& (message.webPage.manual || sending.empty())
 			&& !message.webPage.url.isEmpty()) {
-			using PageFlag = MTPDinputMediaWebPage::Flag;
 			histories.sendPreparedMessage(
 				history,
 				action.replyTo,
