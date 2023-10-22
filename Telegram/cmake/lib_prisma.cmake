@@ -30,8 +30,6 @@ PRIVATE
 )
 
 target_include_directories(lib_prisma
-PRIVATE
-    ${libs_loc}/regex/include
 PUBLIC
     ${prisma_loc}
 )
