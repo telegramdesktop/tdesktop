@@ -124,10 +124,9 @@ void FillStatistic(
 					ProcessZoom(descriptor, widget, graph.zoomToken, type);
 					widget->setTitle(rpl::duplicate(title));
 				} else if (!graph.error.isEmpty()) {
-					Ui::Toast::Show(descriptor.toastParent, graph.error);
 				}
-			}, [=](const QString &error) {
-			}, [=] {
+			}, [](const QString &error) {
+			}, [] {
 			}, content->lifetime());
 
 			addSkip(wrap->entity());
