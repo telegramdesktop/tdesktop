@@ -17,7 +17,7 @@ statisticsChartHeight: 200px;
 
 statisticsChartEntryPadding: margins(0px, 13px, 0px, 2px);
 
-statisticsDetailsArrowShift: 2px;
+statisticsDetailsArrowShift: 3px;
 statisticsDetailsArrowStroke: 1.5;
 statisticsDetailsPopupMargins: margins(12px, 8px, 12px, 11px);
 statisticsDetailsPopupPadding: margins(6px, 6px, 6px, 6px);

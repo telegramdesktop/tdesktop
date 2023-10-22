@@ -429,7 +429,7 @@ void PointDetailsWidget::paintEvent(QPaintEvent *e) {
 			const auto s = _arrow.size() / style::DevicePixelRatio();
 			const auto x = rect::right(_textRect) - s.width();
 			const auto y = _textRect.y()
-				+ (_headerStyle.font->height - s.height()) / 2.;
+				+ (_headerStyle.font->ascent - s.height());
 			p.drawImage(x, y, _arrow);
 		}
 	}
