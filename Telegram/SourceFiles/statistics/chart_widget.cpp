@@ -282,9 +282,10 @@ ChartWidget::Footer::Footer(not_null<Ui::RpWidget*> parent)
 	Qt::RoundCap) {
 	sizeValue(
 	) | rpl::take(2) | rpl::start_with_next([=](const QSize &s) {
-		moveSide(false, s.width());
-		moveSide(true, 0);
-		update();
+		const auto current = xPercentageLimits();
+		if (current.min == current.max) {
+			setXPercentageLimits({ 0., 1. });
+		}
 	}, lifetime());
 
 	mouseStateChanged(
