@@ -817,7 +817,7 @@ void OverlayWidget::moveToScreen(bool inMove) {
 		? Core::App().activeWindow()->widget().get()
 		: nullptr;
 	const auto activeWindowScreen = widgetScreen(applicationWindow);
-	const auto myScreen = widgetScreen(_window);
+	const auto myScreen = _window->screen();
 	if (activeWindowScreen && myScreen != activeWindowScreen) {
 		const auto screenList = QGuiApplication::screens();
 		DEBUG_LOG(("Viewer Pos: Currently on screen %1, moving to screen %2")

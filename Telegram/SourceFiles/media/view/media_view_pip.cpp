@@ -514,8 +514,8 @@ void PipPanel::setPositionDefault() {
 		return widget->screen();
 	};
 	const auto parentScreen = widgetScreen(_parent);
-	const auto myScreen = widgetScreen(widget());
-	if (parentScreen && myScreen && myScreen != parentScreen) {
+	const auto myScreen = widget()->screen();
+	if (parentScreen && myScreen != parentScreen) {
 		widget()->windowHandle()->setScreen(parentScreen);
 	}
 	auto position = Position();
