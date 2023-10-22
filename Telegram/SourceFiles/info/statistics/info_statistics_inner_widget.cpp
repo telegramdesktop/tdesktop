@@ -542,6 +542,14 @@ void InnerWidget::fill() {
 		lifetime().make_state<Api::Statistics>(&_peer->session().api()),
 		_controller->uiShow()->toastParent(),
 	};
+	if (_state.stats.message) {
+		if (const auto i = _peer->owner().message(_contextId)) {
+			::Settings::AddSkip(inner);
+			inner->add(object_ptr<MessagePreview>(this, i, -1, -1, QImage()));
+			::Settings::AddSkip(inner);
+			::Settings::AddDivider(inner);
+		}
+	}
 	FillOverview(inner, _state.stats);
 	FillStatistic(inner, descriptor, _state.stats);
 	const auto &channel = _state.stats.channel;
@@ -553,8 +561,7 @@ void InnerWidget::fill() {
 		const auto showPeerInfo = [=](not_null<PeerData*> peer) {
 			_showRequests.fire({ .info = peer->id });
 		};
-		const auto addSkip = [&](
-				not_null<Ui::VerticalLayout*> c) {
+		const auto addSkip = [&](not_null<Ui::VerticalLayout*> c) {
 			::Settings::AddSkip(c);
 			::Settings::AddDivider(c);
 			::Settings::AddSkip(c);

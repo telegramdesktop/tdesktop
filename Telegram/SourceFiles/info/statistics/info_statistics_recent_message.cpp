@@ -79,16 +79,20 @@ MessagePreview::MessagePreview(
 	Ui::FormatDateTime(ItemDateTime(item)))
 , _views(
 	st::defaultPeerListItem.nameStyle,
-	tr::lng_stats_recent_messages_views(
-		tr::now,
-		lt_count_decimal,
-		views))
+	(views >= 0)
+		? tr::lng_stats_recent_messages_views(
+			tr::now,
+			lt_count_decimal,
+			views)
+		: QString())
 , _shares(
 	st::statisticsHeaderTitleTextStyle,
-	tr::lng_stats_recent_messages_shares(
-		tr::now,
-		lt_count_decimal,
-		shares))
+	(shares >= 0)
+		? tr::lng_stats_recent_messages_shares(
+			tr::now,
+			lt_count_decimal,
+			shares)
+		: QString())
 , _viewsWidth(_views.maxWidth())
 , _sharesWidth(_shares.maxWidth())
 , _preview(std::move(cachedPreview)) {
