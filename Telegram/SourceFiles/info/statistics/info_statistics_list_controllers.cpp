@@ -530,6 +530,9 @@ void AddBoostsList(
 		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
 
+	if (max <= state->limit) {
+		return;
+	}
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
