@@ -434,19 +434,42 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 
 	const auto requestPrivateForwards = [=](
 			const Data::StatisticalGraph &messageGraph) {
-		_api.request(MTPstats_GetBroadcastStats(
-			MTP_flags(MTPstats_GetBroadcastStats::Flags(0)),
-			_channel->inputChannel
-		)).done([=](const MTPstats_BroadcastStats &result) {
-			const auto channelStats = ChannelStatisticsFromTL(result.data());
-			auto info = Data::StatisticsMessageInteractionInfo();
-			for (const auto &r : channelStats.recentMessageInteractions) {
-				if (r.messageId == _fullId.msg) {
-					info = r;
-					break;
-				}
-			}
-			requestFirstPublicForwards(messageGraph, info);
+		_api.request(MTPchannels_GetMessages(
+			_channel->inputChannel,
+			MTP_vector<MTPInputMessage>(
+				1,
+				MTP_inputMessageID(MTP_int(_fullId.msg))))
+		).done([=](const MTPmessages_Messages &result) {
+			const auto process = [&](const MTPVector<MTPMessage> &messages) {
+				const auto &message = messages.v.front();
+				return message.match([&](const MTPDmessage &data) {
+					return Data::StatisticsMessageInteractionInfo{
+						.messageId = IdFromMessage(message),
+						.viewsCount = data.vviews()
+							? data.vviews()->v
+							: 0,
+						.forwardsCount = data.vforwards()
+							? data.vforwards()->v
+							: 0,
+					};
+				}, [](const MTPDmessageEmpty &) {
+					return Data::StatisticsMessageInteractionInfo();
+				}, [](const MTPDmessageService &) {
+					return Data::StatisticsMessageInteractionInfo();
+				});
+			};
+
+			auto info = result.match([&](const MTPDmessages_messages &data) {
+				return process(data.vmessages());
+			}, [&](const MTPDmessages_messagesSlice &data) {
+				return process(data.vmessages());
+			}, [&](const MTPDmessages_channelMessages &data) {
+				return process(data.vmessages());
+			}, [](const MTPDmessages_messagesNotModified &) {
+				return Data::StatisticsMessageInteractionInfo();
+			});
+
+			requestFirstPublicForwards(messageGraph, std::move(info));
 		}).fail([=](const MTP::Error &error) {
 			requestFirstPublicForwards(messageGraph, {});
 		}).send();
