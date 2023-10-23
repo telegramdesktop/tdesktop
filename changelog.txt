@@ -1,3 +1,8 @@
+4.10.5 beta (23.10.23)
+
+- Fix crash in replies to messages with spoilers.
+- Enter boosts stats from three-dot menu.
+
 4.10.4 beta (21.10.23)
 
 - Statistics in channels and group chats.
