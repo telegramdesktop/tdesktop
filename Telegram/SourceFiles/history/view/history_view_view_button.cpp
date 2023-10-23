@@ -235,8 +235,9 @@ void ViewButton::draw(
 	const auto stm = context.messageStyle();
 
 	const auto selected = context.selected();
+	const auto twoColored = Ui::ColorIndexTwoColored(_inner->colorIndex);
 	const auto cache = context.outbg
-		? stm->replyCache.get()
+		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
 		: context.st->coloredReplyCache(selected, _inner->colorIndex).get();
 	const auto radius = st::historyPagePreview.radius;
 
@@ -249,7 +250,7 @@ void ViewButton::draw(
 	p.setBrush(cache->bg);
 	p.drawRoundedRect(r, radius, radius);
 
-	p.setPen(cache->outline);
+	p.setPen(cache->icon);
 	_inner->text.drawElided(
 		p,
 		r.left(),
@@ -266,7 +267,7 @@ void ViewButton::draw(
 			r.left() + r.width() - icon.width() - padding,
 			r.top() + padding,
 			r.width(),
-			cache->outline);
+			cache->icon);
 	}
 	if (_inner->lastWidth != r.width()) {
 		_inner->lastWidth = r.width();

@@ -467,6 +467,7 @@ Element::Element(
 	| (IsItemScheduledUntilOnline(data)
 		? Flag::ScheduledUntilOnline
 		: Flag()))
+, _colorIndex(data->computeColorIndex())
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia(replacing);
@@ -488,6 +489,10 @@ not_null<HistoryItem*> Element::data() const {
 
 not_null<History*> Element::history() const {
 	return _data->history();
+}
+
+uint8 Element::colorIndex() const {
+	return _colorIndex;
 }
 
 QDateTime Element::dateTime() const {
@@ -557,8 +562,8 @@ void Element::prepareCustomEmojiPaint(
 	}
 	clearCustomEmojiRepaint();
 	p.setInactive(context.paused);
-	if (!_heavyCustomEmoji) {
-		_heavyCustomEmoji = true;
+	if (!(_flags & Flag::HeavyCustomEmoji)) {
+		_flags |= Flag::HeavyCustomEmoji;
 		history()->owner().registerHeavyViewPart(const_cast<Element*>(this));
 	}
 }
@@ -572,8 +577,8 @@ void Element::prepareCustomEmojiPaint(
 	}
 	clearCustomEmojiRepaint();
 	p.setInactive(context.paused);
-	if (!_heavyCustomEmoji) {
-		_heavyCustomEmoji = true;
+	if (!(_flags & Flag::HeavyCustomEmoji)) {
+		_flags |= Flag::HeavyCustomEmoji;
 		history()->owner().registerHeavyViewPart(const_cast<Element*>(this));
 	}
 }
@@ -1411,7 +1416,7 @@ auto Element::verticalRepaintRange() const -> VerticalRepaintRange {
 }
 
 bool Element::hasHeavyPart() const {
-	return _heavyCustomEmoji;
+	return (_flags & Flag::HeavyCustomEmoji);
 }
 
 void Element::checkHeavyPart() {
@@ -1445,8 +1450,8 @@ void Element::unloadHeavyPart() {
 	if (_media) {
 		_media->unloadHeavyPart();
 	}
-	if (_heavyCustomEmoji) {
-		_heavyCustomEmoji = false;
+	if (_flags & Flag::HeavyCustomEmoji) {
+		_flags &= ~Flag::HeavyCustomEmoji;
 		_text.unloadPersistentAnimation();
 		if (const auto reply = data()->Get<HistoryMessageReply>()) {
 			reply->unloadPersistentAnimation();
@@ -1623,8 +1628,8 @@ Element::~Element() {
 	// Delete media while owner still exists.
 	clearSpecialOnlyEmoji();
 	base::take(_media);
-	if (_heavyCustomEmoji) {
-		_heavyCustomEmoji = false;
+	if (_flags & Flag::HeavyCustomEmoji) {
+		_flags &= ~Flag::HeavyCustomEmoji;
 		_text.unloadPersistentAnimation();
 		checkHeavyPart();
 	}

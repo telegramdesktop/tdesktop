@@ -347,8 +347,9 @@ void Giveaway::paintChannels(
 	const auto ratio = style::DevicePixelRatio();
 	const auto stm = context.messageStyle();
 	const auto selected = context.selected();
+	const auto twoColored = Ui::ColorIndexTwoColored(_colorIndex);
 	const auto cache = context.outbg
-		? stm->replyCache.get()
+		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
 		: context.st->coloredReplyCache(selected, _colorIndex).get();
 	if (_channelCorners[0].isNull() || _channelBg != cache->bg) {
 		_channelBg = cache->bg;
@@ -357,7 +358,7 @@ void Giveaway::paintChannels(
 			style::colorizeImage(image, cache->bg, &image);
 		}
 	}
-	p.setPen(cache->outline);
+	p.setPen(cache->icon);
 	const auto padding = st::chatGiveawayChannelPadding;
 	for (const auto &channel : _channels) {
 		const auto &thumbnail = channel.thumbnail;

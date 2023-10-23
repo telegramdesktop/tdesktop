@@ -220,15 +220,16 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 	auto paintw = inner.width();
 
 	const auto selected = context.selected();
+	const auto twoColored = Ui::ColorIndexTwoColored(_colorIndex);
 	const auto cache = context.outbg
-		? stm->replyCache.get()
+		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
 		: st->coloredReplyCache(selected, _colorIndex).get();
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
 
 	auto lineHeight = UnitedLineHeight();
 	if (_titleLines) {
-		p.setPen(cache->outline);
+		p.setPen(cache->icon);
 		p.setTextPalette(context.outbg
 			? stm->semiboldPalette
 			: st->coloredTextPalette(selected, _colorIndex));

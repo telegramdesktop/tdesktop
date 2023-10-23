@@ -546,8 +546,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
 
 	const auto selected = context.selected();
+	const auto twoColored = Ui::ColorIndexTwoColored(_colorIndex);
 	const auto cache = context.outbg
-		? stm->replyCache.get()
+		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
 		: st->coloredReplyCache(selected, _colorIndex).get();
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
@@ -601,7 +602,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		paintw -= pw + st::webPagePhotoDelta;
 	}
 	if (_siteNameLines) {
-		p.setPen(cache->outline);
+		p.setPen(cache->icon);
 		p.setTextPalette(context.outbg
 			? stm->semiboldPalette
 			: st->coloredTextPalette(selected, _colorIndex));
@@ -703,10 +704,10 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 
 	if (_openButtonWidth) {
 		p.setFont(st::semiboldFont);
-		p.setPen(cache->outline);
+		p.setPen(cache->icon);
 		const auto end = inner.y() + inner.height() + _st.padding.bottom();
 		const auto line = st::historyPageButtonLine;
-		auto color = cache->outline;
+		auto color = cache->icon;
 		color.setAlphaF(color.alphaF() * 0.3);
 		p.fillRect(inner.x(), end, inner.width(), line, color);
 		const auto top = end + st::historyPageButtonPadding.top();

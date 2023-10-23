@@ -366,12 +366,6 @@ QString FastReplyText() {
 
 } // namespace
 
-style::color FromNameFg(
-		const Ui::ChatPaintContext &context,
-		uint8 colorIndex) {
-	return Ui::FromNameFg(context.st, context.selected(), colorIndex);
-}
-
 struct Message::CommentsButton {
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	std::vector<UserpicInRow> userpics;
@@ -1358,8 +1352,8 @@ void Message::paintFromName(
 	Assert(from || info);
 	const auto st = context.st;
 	const auto nameFg = !context.outbg
-		? FromNameFg(context, from ? from->colorIndex() : info->colorIndex)
-		: stm->msgServiceFg;
+		? FromNameFg(context, colorIndex())
+		: stm->msgServiceFg->c;
 	const auto nameText = [&] {
 		if (from) {
 			validateFromNameText(from);
@@ -1374,11 +1368,8 @@ void Message::paintFromName(
 		const auto x = availableLeft
 			+ std::min(availableWidth - statusWidth, nameText->maxWidth());
 		const auto y = trect.top();
-		const auto color = QColor(
-			nameFg->c.red(),
-			nameFg->c.green(),
-			nameFg->c.blue(),
-			nameFg->c.alpha() * 115 / 255);
+		auto color = nameFg;
+		color.setAlpha(115);
 		const auto user = from->asUser();
 		const auto id = user ? user->emojiStatusId() : 0;
 		if (_fromNameStatus->id != id) {
@@ -1630,7 +1621,7 @@ void Message::paintText(
 		.availableWidth = trect.width(),
 		.palette = &stm->textPalette,
 		.pre = stm->preCache.get(),
-		.blockquote = stm->quoteCache.get(),
+		.blockquote = context.quoteCache(colorIndex()),
 		.colors = context.st->highlightColors(),
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = context.now,
@@ -3064,14 +3055,13 @@ void Message::updateViewButtonExistence() {
 	} else if (_viewButton) {
 		return;
 	}
-	auto repainter = [=] { repaint(); };
-	const auto index = item->computeColorIndex();
-	_viewButton = sponsored
-		? std::make_unique<ViewButton>(
-			sponsored,
-			index,
-			std::move(repainter))
-		: std::make_unique<ViewButton>(media, index, std::move(repainter));
+	auto make = [=](auto &&from) {
+		return std::make_unique<ViewButton>(
+			std::forward<decltype(from)>(from),
+			colorIndex(),
+			[=] { repaint(); });
+	};
+	_viewButton = sponsored ? make(sponsored) : make(media);
 }
 
 void Message::initLogEntryOriginal() {

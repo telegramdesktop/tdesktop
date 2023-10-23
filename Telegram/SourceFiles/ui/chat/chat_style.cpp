@@ -31,16 +31,16 @@ void EnsureCorners(
 
 void EnsureBlockquoteCache(
 		std::unique_ptr<Text::QuotePaintCache> &cache,
-		const style::color &color) {
+		Fn<ColorIndexValues()> values) {
 	if (cache) {
 		return;
 	}
 	cache = std::make_unique<Text::QuotePaintCache>();
-	cache->bg = color->c;
-	cache->bg.setAlphaF(0.12);
-	cache->outline = color->c;
-	cache->outline.setAlphaF(0.9);
-	cache->icon = cache->outline;
+	const auto &colors = values();
+	cache->bg = colors.bg;
+	cache->outline1 = colors.outline1;
+	cache->outline2 = colors.outline2;
+	cache->icon = colors.name;
 }
 
 void EnsurePreCache(
@@ -56,11 +56,12 @@ void EnsurePreCache(
 	if (!bg) {
 		cache->bg.setAlphaF(0.12);
 	}
-	cache->outline = color->c;
-	cache->outline.setAlphaF(0.9);
+	cache->outline1 = color->c;
+	cache->outline1.setAlphaF(0.9);
+	cache->outline2 = cache->outline1;
 	cache->header = color->c;
 	cache->header.setAlphaF(0.25);
-	cache->icon = cache->outline;
+	cache->icon = cache->outline1;
 	cache->icon.setAlphaF(0.6);
 }
 
@@ -72,6 +73,15 @@ not_null<const MessageStyle*> ChatPaintContext::messageStyle() const {
 
 not_null<const MessageImageStyle*> ChatPaintContext::imageStyle() const {
 	return &st->imageStyle(selected());
+}
+
+not_null<Text::QuotePaintCache*> ChatPaintContext::quoteCache(
+		uint8 colorIndex) const {
+	return !outbg
+		? st->coloredQuoteCache(selected(), colorIndex).get()
+		: ColorIndexTwoColored(colorIndex)
+		? messageStyle()->quoteCacheTwo.get()
+		: messageStyle()->quoteCache.get();
 }
 
 int HistoryServiceMsgRadius() {
@@ -97,6 +107,87 @@ int HistoryServiceMsgInvertedShrink() {
 		return (HistoryServiceMsgInvertedRadius() * 2) / 3;
 	}();
 	return result;
+}
+
+ColorIndexValues ComputeColorIndexValues(
+		not_null<const ChatStyle*> st,
+		bool selected,
+		uint8 colorIndex) {
+	if (colorIndex < kSimpleColorIndexCount) {
+		const style::color list[] = {
+			st->historyPeer1NameFg(),
+			st->historyPeer2NameFg(),
+			st->historyPeer3NameFg(),
+			st->historyPeer4NameFg(),
+			st->historyPeer5NameFg(),
+			st->historyPeer6NameFg(),
+			st->historyPeer7NameFg(),
+			st->historyPeer8NameFg(),
+		};
+		const style::color listSelected[] = {
+			st->historyPeer1NameFgSelected(),
+			st->historyPeer2NameFgSelected(),
+			st->historyPeer3NameFgSelected(),
+			st->historyPeer4NameFgSelected(),
+			st->historyPeer5NameFgSelected(),
+			st->historyPeer6NameFgSelected(),
+			st->historyPeer7NameFgSelected(),
+			st->historyPeer8NameFgSelected(),
+		};
+		const auto paletteIndex = ColorIndexToPaletteIndex(colorIndex);
+		auto result = ColorIndexValues{
+			.name = (selected ? listSelected : list)[paletteIndex]->c,
+		};
+		result.bg = result.name;
+		result.bg.setAlphaF(0.12);
+		result.outline1 = result.name;
+		result.outline1.setAlphaF(0.9);
+		result.outline2 = result.outline1;
+		return result;
+	}
+	struct Pair {
+		QColor outline1;
+		QColor outline2;
+	};
+	const Pair list[] = {
+		{ QColor(0xE1, 0x50, 0x52), QColor(0xF9, 0xAE, 0x63) }, // Red
+		{ QColor(0xE0, 0x80, 0x2B), QColor(0xFA, 0xC5, 0x34) }, // Orange
+		{ QColor(0xA0, 0x5F, 0xF3), QColor(0xF4, 0x8F, 0xFF) }, // Violet
+		{ QColor(0x27, 0xA9, 0x10), QColor(0xA7, 0xDC, 0x57) }, // Green
+		{ QColor(0x27, 0xAC, 0xCE), QColor(0x82, 0xE8, 0xD6) }, // Cyan
+		{ QColor(0x33, 0x91, 0xD4), QColor(0x7D, 0xD3, 0xF0) }, // Blue
+		{ QColor(0xD1, 0x48, 0x72), QColor(0xFF, 0xBE, 0xA0) }, // Pink
+	};
+	const auto &pair = list[colorIndex - kSimpleColorIndexCount];
+	auto bg = pair.outline1;
+	bg.setAlphaF(0.12);
+	return {
+		.name = st->dark() ? pair.outline2 : pair.outline1,
+		.bg = bg,
+		.outline1 = pair.outline1,
+		.outline2 = pair.outline2,
+	};
+}
+
+bool ColorIndexTwoColored(uint8 colorIndex) {
+	return (colorIndex >= kSimpleColorIndexCount);
+}
+
+ColorIndexValues SimpleColorIndexValues(QColor color, bool twoColored) {
+	auto bg = color;
+	bg.setAlphaF(0.12);
+	auto outline1 = color;
+	outline1.setAlphaF(0.9);
+	auto outline2 = outline1;
+	if (twoColored) {
+		outline2.setAlphaF(0.3);
+	}
+	return {
+		.name = color,
+		.bg = bg,
+		.outline1 = outline1,
+		.outline2 = outline2,
+	};
 }
 
 ChatStyle::ChatStyle() {
@@ -453,6 +544,8 @@ ChatStyle::ChatStyle() {
 		&MessageImageStyle::historyVideoMessageMute,
 		st::historyVideoMessageMute,
 		st::historyVideoMessageMuteSelected);
+
+	updateDarkValue();
 }
 
 ChatStyle::ChatStyle(not_null<const style::palette*> isolated)
@@ -462,6 +555,13 @@ ChatStyle::ChatStyle(not_null<const style::palette*> isolated)
 
 void ChatStyle::apply(not_null<ChatTheme*> theme) {
 	applyCustomPalette(theme->palette());
+}
+
+void ChatStyle::updateDarkValue() {
+	const auto withBg = [&](const QColor &color) {
+		return CountContrast(windowBg()->c, color);
+	};
+	_dark = (withBg({ 0, 0, 0 }) < withBg({ 255, 255, 255 }));
 }
 
 void ChatStyle::applyCustomPalette(const style::palette *palette) {
@@ -547,10 +647,13 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 			= stm.semiboldPalette.linkAlwaysActive
 			= (stm.textPalette.linkFg->c == stm.historyTextFg->c);
 	}
-
-	for (auto &palette : _coloredTextPalettes) {
-		palette.inited = false;
+	for (auto &values : _coloredValues) {
+		values.reset();
 	}
+	for (auto &palette : _coloredTextPalettes) {
+		palette.linkFg.reset();
+	}
+	updateDarkValue();
 
 	_paletteChanged.fire({});
 }
@@ -584,20 +687,24 @@ const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 		BubbleRadiusLarge(),
 		result.msgBg,
 		&result.msgShadow);
+	const auto &replyBar = result.msgReplyBarColor->c;
 	EnsureBlockquoteCache(
 		result.replyCache,
-		result.msgReplyBarColor);
+		[&] { return SimpleColorIndexValues(replyBar, false); });
+	EnsureBlockquoteCache(
+		result.replyCacheTwo,
+		[&] { return SimpleColorIndexValues(replyBar, true); });
 	if (!result.quoteCache) {
 		result.quoteCache = std::make_unique<Text::QuotePaintCache>(
 			*result.replyCache);
 	}
+	if (!result.quoteCacheTwo) {
+		result.quoteCacheTwo = std::make_unique<Text::QuotePaintCache>(
+			*result.replyCacheTwo);
+	}
 
 	const auto preBgOverride = [&] {
-		const auto withBg = [&](const QColor &color) {
-			return CountContrast(windowBg()->c, color);
-		};
-		const auto dark = (withBg({ 0, 0, 0 }) < withBg({ 255, 255, 255 }));
-		return dark ? QColor(0, 0, 0, 192) : std::optional<QColor>();
+		return _dark ? QColor(0, 0, 0, 192) : std::optional<QColor>();
 	};
 	EnsurePreCache(
 		result.preCache,
@@ -634,14 +741,37 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 	return result;
 }
 
-not_null<Text::QuotePaintCache*> ChatStyle::serviceQuoteCache() const {
-	EnsureBlockquoteCache(_serviceQuoteCache, msgServiceFg());
-	return _serviceQuoteCache.get();
+not_null<Text::QuotePaintCache*> ChatStyle::serviceQuoteCache(
+		bool twoColored) const {
+	const auto index = (twoColored ? 1 : 0);
+	const auto &service = msgServiceFg()->c;
+	EnsureBlockquoteCache(
+		_serviceQuoteCache[index],
+		[&] { return SimpleColorIndexValues(service, twoColored); });
+	return _serviceQuoteCache[index].get();
 }
 
-not_null<Text::QuotePaintCache*> ChatStyle::serviceReplyCache() const {
-	EnsureBlockquoteCache(_serviceReplyCache, msgServiceFg());
-	return _serviceReplyCache.get();
+not_null<Text::QuotePaintCache*> ChatStyle::serviceReplyCache(
+		bool twoColored) const {
+	const auto index = (twoColored ? 1 : 0);
+	const auto &service = msgServiceFg()->c;
+	EnsureBlockquoteCache(
+		_serviceReplyCache[index],
+		[&] { return SimpleColorIndexValues(service, twoColored); });
+	return _serviceReplyCache[index].get();
+}
+
+const ColorIndexValues &ChatStyle::coloredValues(
+		bool selected,
+		uint8 colorIndex) const {
+	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
+
+	const auto shift = (selected ? kColorIndexCount : 0);
+	auto &result = _coloredValues[shift + colorIndex];
+	if (!result) {
+		result.emplace(ComputeColorIndexValues(this, selected, colorIndex));
+	}
+	return *result;
 }
 
 const style::TextPalette &ChatStyle::coloredTextPalette(
@@ -651,14 +781,14 @@ const style::TextPalette &ChatStyle::coloredTextPalette(
 
 	const auto shift = (selected ? kColorIndexCount : 0);
 	auto &result = _coloredTextPalettes[shift + colorIndex];
-	if (!result.inited) {
-		result.inited = true;
+	if (!result.linkFg) {
+		result.linkFg.emplace(FromNameFg(this, selected, colorIndex));
 		make(
 			result.data,
 			(selected
 				? st::inReplyTextPaletteSelected
 				: st::inReplyTextPalette));
-		result.data.linkFg = FromNameFg(this, selected, colorIndex);
+		result.data.linkFg = result.linkFg->color();
 		result.data.selectLinkFg = result.data.linkFg;
 	}
 	return result.data;
@@ -684,7 +814,9 @@ not_null<Text::QuotePaintCache*> ChatStyle::coloredCache(
 
 	const auto shift = (selected ? kColorIndexCount : 0);
 	auto &cache = caches[shift + colorIndex];
-	EnsureBlockquoteCache(cache, FromNameFg(this, selected, colorIndex));
+	EnsureBlockquoteCache(cache, [&] {
+		return coloredValues(selected, colorIndex);
+	});
 	return cache.get();
 }
 
@@ -816,47 +948,21 @@ void ChatStyle::make(
 }
 
 uint8 DecideColorIndex(uint64 id) {
-	return id % kColorIndexCount;
+	return id % kSimpleColorIndexCount;
 }
 
 uint8 ColorIndexToPaletteIndex(uint8 colorIndex) {
 	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
 
 	const int8 map[] = { 0, 7, 4, 1, 6, 3, 5 };
-	return map[colorIndex];
+	return map[colorIndex % kSimpleColorIndexCount];
 }
 
-style::color FromNameFg(
+QColor FromNameFg(
 		not_null<const ChatStyle*> st,
 		bool selected,
 		uint8 colorIndex) {
-	Expects(colorIndex >= 0 && colorIndex < kColorIndexCount);
-
-	if (selected) {
-		const style::color colors[] = {
-			st->historyPeer1NameFgSelected(),
-			st->historyPeer2NameFgSelected(),
-			st->historyPeer3NameFgSelected(),
-			st->historyPeer4NameFgSelected(),
-			st->historyPeer5NameFgSelected(),
-			st->historyPeer6NameFgSelected(),
-			st->historyPeer7NameFgSelected(),
-			st->historyPeer8NameFgSelected(),
-		};
-		return colors[ColorIndexToPaletteIndex(colorIndex)];
-	} else {
-		const style::color colors[] = {
-			st->historyPeer1NameFg(),
-			st->historyPeer2NameFg(),
-			st->historyPeer3NameFg(),
-			st->historyPeer4NameFg(),
-			st->historyPeer5NameFg(),
-			st->historyPeer6NameFg(),
-			st->historyPeer7NameFg(),
-			st->historyPeer8NameFg(),
-		};
-		return colors[ColorIndexToPaletteIndex(colorIndex)];
-	}
+	return st->coloredValues(selected, colorIndex).name;
 }
 
 void FillComplexOverlayRect(

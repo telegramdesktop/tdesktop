@@ -489,8 +489,8 @@ ChatPaintContext ChatTheme::preparePaintContext(
 		.bubblesPattern = _bubblesBackgroundPattern.get(),
 		.viewport = viewport,
 		.clip = clip,
-		.paused = paused,
 		.now = now,
+		.paused = paused,
 	};
 }
 

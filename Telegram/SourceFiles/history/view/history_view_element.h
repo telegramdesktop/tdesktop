@@ -277,18 +277,19 @@ class Element
 	, public base::has_weak_ptr {
 public:
 	enum class Flag : uint16 {
-		ServiceMessage = 0x0001,
-		NeedsResize = 0x0002,
-		AttachedToPrevious = 0x0004,
-		AttachedToNext = 0x0008,
+		ServiceMessage           = 0x0001,
+		NeedsResize              = 0x0002,
+		AttachedToPrevious       = 0x0004,
+		AttachedToNext           = 0x0008,
 		BubbleAttachedToPrevious = 0x0010,
-		BubbleAttachedToNext = 0x0020,
-		HiddenByGroup = 0x0040,
-		SpecialOnlyEmoji = 0x0080,
-		CustomEmojiRepainting = 0x0100,
-		ScheduledUntilOnline = 0x0200,
-		TopicRootReply = 0x0400,
-		MediaOverriden = 0x0800,
+		BubbleAttachedToNext     = 0x0020,
+		HiddenByGroup            = 0x0040,
+		SpecialOnlyEmoji         = 0x0080,
+		CustomEmojiRepainting    = 0x0100,
+		ScheduledUntilOnline     = 0x0200,
+		TopicRootReply           = 0x0400,
+		MediaOverriden           = 0x0800,
+		HeavyCustomEmoji         = 0x1000,
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -306,6 +307,7 @@ public:
 	[[nodiscard]] Context context() const;
 	void refreshDataId();
 
+	[[nodiscard]] uint8 colorIndex() const;
 	[[nodiscard]] QDateTime dateTime() const;
 
 	[[nodiscard]] int y() const;
@@ -592,9 +594,11 @@ private:
 	int _indexInBlock = -1;
 
 	mutable Flags _flags = Flag(0);
-	mutable bool _heavyCustomEmoji = false;
+	uint8 _colorIndex = 0;
 	Context _context = Context();
 
 };
+
+constexpr auto size = sizeof(Element);
 
 } // namespace HistoryView

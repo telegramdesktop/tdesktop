@@ -749,7 +749,7 @@ void Document::draw(
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
 			.pre = stm->preCache.get(),
-			.blockquote = stm->quoteCache.get(),
+			.blockquote = context.quoteCache(parent()->colorIndex()),
 			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,

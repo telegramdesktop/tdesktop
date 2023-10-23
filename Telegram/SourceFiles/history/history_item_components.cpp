@@ -682,15 +682,19 @@ void HistoryMessageReply::paint(
 	const auto hasQuote = !_fields.quote.empty();
 	const auto selected = context.selected();
 	const auto colorIndexPlusOne = context.outbg ? 0 : _colorIndexPlusOne;
+	const auto twoColored = colorIndexPlusOne
+		&& Ui::ColorIndexTwoColored(colorIndexPlusOne - 1);
 	const auto cache = !inBubble
 		? (hasQuote
-			? st->serviceQuoteCache()
-			: st->serviceReplyCache()).get()
+			? st->serviceQuoteCache(twoColored)
+			: st->serviceReplyCache(twoColored)).get()
 		: colorIndexPlusOne
 		? (hasQuote
 			? st->coloredQuoteCache(selected, colorIndexPlusOne - 1)
 			: st->coloredReplyCache(selected, colorIndexPlusOne - 1)).get()
-		: (hasQuote ? stm->quoteCache : stm->replyCache).get();
+		: (hasQuote
+			? (twoColored ? stm->quoteCacheTwo : stm->quoteCache)
+			: (twoColored ? stm->replyCacheTwo : stm->replyCache)).get();
 	const auto &quoteSt = hasQuote
 		? st::messageTextStyle.blockquote
 		: st::messageQuoteStyle;
@@ -763,12 +767,10 @@ void HistoryMessageReply::paint(
 			if (w > textLeft + st::historyReplyPadding.right()) {
 				w -= textLeft + st::historyReplyPadding.right();
 				p.setPen(!inBubble
-					? st->msgImgReplyBarColor()
+					? st->msgImgReplyBarColor()->c
 					: colorIndexPlusOne
-					? HistoryView::FromNameFg(
-						context,
-						colorIndexPlusOne - 1)
-					: stm->msgServiceFg);
+					? FromNameFg(context, colorIndexPlusOne - 1)
+					: stm->msgServiceFg->c);
 				_name.drawLeftElided(p, x + textLeft, y + st::historyReplyPadding.top(), w, w + 2 * x + 2 * textLeft);
 				if (originalVia && w > _name.maxWidth() + st::msgServiceFont->spacew) {
 					p.setFont(st::msgServiceFont);
@@ -802,7 +804,7 @@ void HistoryMessageReply::paint(
 				auto copy = std::optional<style::TextPalette>();
 				if (inBubble && _colorIndexPlusOne) {
 					copy.emplace(*replyToTextPalette);
-					owned.emplace(cache->outline);
+					owned.emplace(cache->icon);
 					copy->linkFg = owned->color();
 					replyToTextPalette = &*copy;
 				}
@@ -821,7 +823,7 @@ void HistoryMessageReply::paint(
 			}
 		} else {
 			p.setFont(st::msgDateFont);
-			p.setPen(cache->outline);
+			p.setPen(cache->icon);
 			p.drawTextLeft(
 				x + textLeft,
 				(y + (_height - st::msgDateFont->height) / 2),
