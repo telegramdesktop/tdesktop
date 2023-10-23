@@ -346,7 +346,6 @@ private:
 	mutable int _minHeight = 0;
 	mutable int _height = 0;
 	mutable int _nameVersion = 0;
-	uint8 _colorIndexPlusOne : 6 = 0;
 	uint8 _unavailable : 1 = 0;
 
 };

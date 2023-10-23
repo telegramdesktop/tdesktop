@@ -180,7 +180,7 @@ ColorIndexValues SimpleColorIndexValues(QColor color, bool twoColored) {
 	outline1.setAlphaF(0.9);
 	auto outline2 = outline1;
 	if (twoColored) {
-		outline2.setAlphaF(0.3);
+		outline2.setAlphaF(0.5);
 	}
 	return {
 		.name = color,
@@ -624,7 +624,9 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 		style.msgBgCornersSmall = {};
 		style.msgBgCornersLarge = {};
 		style.quoteCache = nullptr;
+		style.quoteCacheTwo = nullptr;
 		style.replyCache = nullptr;
+		style.replyCacheTwo = nullptr;
 		style.preCache = nullptr;
 	}
 	for (auto &style : _imageStyles) {
@@ -652,6 +654,12 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	}
 	for (auto &palette : _coloredTextPalettes) {
 		palette.linkFg.reset();
+	}
+	for (auto &cache : _coloredReplyCaches) {
+		cache = nullptr;
+	}
+	for (auto &cache : _coloredQuoteCaches) {
+		cache = nullptr;
 	}
 	updateDarkValue();
 
@@ -782,7 +790,7 @@ const style::TextPalette &ChatStyle::coloredTextPalette(
 	const auto shift = (selected ? kColorIndexCount : 0);
 	auto &result = _coloredTextPalettes[shift + colorIndex];
 	if (!result.linkFg) {
-		result.linkFg.emplace(FromNameFg(this, selected, colorIndex));
+		result.linkFg.emplace(coloredValues(selected, colorIndex).name);
 		make(
 			result.data,
 			(selected

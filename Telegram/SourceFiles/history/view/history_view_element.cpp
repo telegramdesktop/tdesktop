@@ -467,7 +467,6 @@ Element::Element(
 	| (IsItemScheduledUntilOnline(data)
 		? Flag::ScheduledUntilOnline
 		: Flag()))
-, _colorIndex(data->computeColorIndex())
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia(replacing);
@@ -492,7 +491,7 @@ not_null<History*> Element::history() const {
 }
 
 uint8 Element::colorIndex() const {
-	return _colorIndex;
+	return data()->colorIndex();
 }
 
 QDateTime Element::dateTime() const {

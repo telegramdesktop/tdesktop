@@ -169,6 +169,7 @@ public:
 	}
 	bool changeColorIndex(uint8 index);
 	bool clearColorIndex();
+	bool changeBackgroundEmoji(uint64 id);
 
 	[[nodiscard]] bool isUser() const {
 		return peerIsUser(id);
@@ -360,6 +361,8 @@ public:
 
 	void setSettings(const MTPPeerSettings &data);
 	bool changeColorIndex(const tl::conditional<MTPint> &cloudColorIndex);
+	bool changeBackgroundEmoji(
+		const tl::conditional<MTPlong> &cloudBackgroundEmoji);
 
 	enum class BlockStatus : char {
 		Unknown,
@@ -452,6 +455,7 @@ private:
 	base::flat_set<QString> _nameWords; // for filtering
 	base::flat_set<QChar> _nameFirstLetters;
 
+	uint64 _backgroundEmojiId = 0;
 	crl::time _lastFullUpdate = 0;
 
 	QString _name;

@@ -402,11 +402,7 @@ bool HistoryMessageReply::updateData(
 			}
 		}
 
-		if (resolvedMessage) {
-			_colorIndexPlusOne = resolvedMessage->computeColorIndex() + 1;
-		} else if (resolvedStory) {
-			_colorIndexPlusOne = resolvedStory->peer()->colorIndex() + 1;
-		} else {
+		if (!resolvedMessage && !resolvedStory) {
 			_unavailable = 1;
 		}
 
@@ -422,7 +418,6 @@ bool HistoryMessageReply::updateData(
 		if (_fields.messageId || _fields.storyId) {
 			_unavailable = 1;
 		}
-		_colorIndexPlusOne = 0;
 		spoiler = nullptr;
 	}
 	if (force) {
@@ -681,14 +676,19 @@ void HistoryMessageReply::paint(
 	const auto rect = QRect(x, y, w, _height);
 	const auto hasQuote = !_fields.quote.empty();
 	const auto selected = context.selected();
-	const auto colorIndexPlusOne = context.outbg ? 0 : _colorIndexPlusOne;
+	const auto colorIndexPlusOne = resolvedMessage
+		? (resolvedMessage->colorIndex() + 1)
+		: resolvedStory
+		? (resolvedStory->peer()->colorIndex() + 1)
+		: 0;
+	const auto useColorIndex = colorIndexPlusOne && !context.outbg;
 	const auto twoColored = colorIndexPlusOne
 		&& Ui::ColorIndexTwoColored(colorIndexPlusOne - 1);
 	const auto cache = !inBubble
 		? (hasQuote
 			? st->serviceQuoteCache(twoColored)
 			: st->serviceReplyCache(twoColored)).get()
-		: colorIndexPlusOne
+		: useColorIndex
 		? (hasQuote
 			? st->coloredQuoteCache(selected, colorIndexPlusOne - 1)
 			: st->coloredReplyCache(selected, colorIndexPlusOne - 1)).get()
@@ -768,7 +768,7 @@ void HistoryMessageReply::paint(
 				w -= textLeft + st::historyReplyPadding.right();
 				p.setPen(!inBubble
 					? st->msgImgReplyBarColor()->c
-					: colorIndexPlusOne
+					: useColorIndex
 					? FromNameFg(context, colorIndexPlusOne - 1)
 					: stm->msgServiceFg->c);
 				_name.drawLeftElided(p, x + textLeft, y + st::historyReplyPadding.top(), w, w + 2 * x + 2 * textLeft);
@@ -786,7 +786,7 @@ void HistoryMessageReply::paint(
 					y + st::historyReplyPadding.top() + st::msgServiceNameFont->height);
 				auto replyToTextPalette = &(!inBubble
 					? st->imgReplyTextPalette()
-					: colorIndexPlusOne
+					: useColorIndex
 					? st->coloredTextPalette(selected, colorIndexPlusOne - 1)
 					: stm->replyTextPalette);
 				if (_fields.storyId) {
@@ -802,7 +802,7 @@ void HistoryMessageReply::paint(
 				}
 				auto owned = std::optional<style::owned_color>();
 				auto copy = std::optional<style::TextPalette>();
-				if (inBubble && _colorIndexPlusOne) {
+				if (inBubble && colorIndexPlusOne) {
 					copy.emplace(*replyToTextPalette);
 					owned.emplace(cache->icon);
 					copy->linkFg = owned->color();

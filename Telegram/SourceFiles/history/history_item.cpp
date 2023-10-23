@@ -1126,7 +1126,7 @@ HistoryItem *HistoryItem::lookupDiscussionPostOriginal() const {
 		forwarded->savedFromMsgId);
 }
 
-PeerData *HistoryItem::displayFrom() const {
+PeerData *HistoryItem::computeDisplayFrom() const {
 	if (const auto sender = discussionPostOriginalSender()) {
 		return sender;
 	} else if (const auto sponsored = Get<HistoryMessageSponsored>()) {
@@ -1134,14 +1134,24 @@ PeerData *HistoryItem::displayFrom() const {
 			return nullptr;
 		}
 	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-		if (_history->peer->isSelf() || _history->peer->isRepliesChat() || forwarded->imported) {
+		if (_history->peer->isSelf()
+			|| _history->peer->isRepliesChat()
+			|| forwarded->imported) {
 			return forwarded->originalSender;
 		}
 	}
 	return author().get();
 }
 
-uint8 HistoryItem::computeColorIndex() const {
+PeerData *HistoryItem::displayFrom() const {
+	if (!(_flags & MessageFlag::DisplayFromChecked)) {
+		_flags |= MessageFlag::DisplayFromChecked;
+		_displayFrom = computeDisplayFrom();
+	}
+	return _displayFrom;
+}
+
+uint8 HistoryItem::colorIndex() const {
 	if (const auto from = displayFrom()) {
 		return from->colorIndex();
 	} else if (const auto info = hiddenSenderInfo()) {
@@ -1615,6 +1625,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		createServiceFromMtp(message);
 		applyServiceDateEdition(message);
 		finishEditionToEmpty();
+		_flags &= ~MessageFlag::DisplayFromChecked;
 	} else if (isService()) {
 		if (const auto reply = Get<HistoryMessageReply>()) {
 			reply->clearData(this);
@@ -1624,6 +1635,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		createServiceFromMtp(message);
 		applyServiceDateEdition(message);
 		finishEdition(-1);
+		_flags &= ~MessageFlag::DisplayFromChecked;
 	}
 }
 

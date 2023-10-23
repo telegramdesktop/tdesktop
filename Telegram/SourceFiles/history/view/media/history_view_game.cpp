@@ -34,7 +34,6 @@ Game::Game(
 : Media(parent)
 , _st(st::historyPagePreview)
 , _data(data)
-, _colorIndex(parent->data()->computeColorIndex())
 , _title(st::msgMinWidth - _st.padding.left() - _st.padding.right())
 , _description(st::msgMinWidth - _st.padding.left() - _st.padding.right()) {
 	if (!consumed.text.isEmpty()) {
@@ -219,11 +218,12 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 	auto tshift = inner.top();
 	auto paintw = inner.width();
 
+	const auto colorIndex = parent()->colorIndex();
 	const auto selected = context.selected();
-	const auto twoColored = Ui::ColorIndexTwoColored(_colorIndex);
+	const auto twoColored = Ui::ColorIndexTwoColored(colorIndex);
 	const auto cache = context.outbg
 		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
-		: st->coloredReplyCache(selected, _colorIndex).get();
+		: st->coloredReplyCache(selected, colorIndex).get();
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
 
@@ -232,7 +232,7 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(cache->icon);
 		p.setTextPalette(context.outbg
 			? stm->semiboldPalette
-			: st->coloredTextPalette(selected, _colorIndex));
+			: st->coloredTextPalette(selected, colorIndex));
 
 		auto endskip = 0;
 		if (_title.hasSkipBlock()) {

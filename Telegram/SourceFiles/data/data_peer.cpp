@@ -627,6 +627,13 @@ bool PeerData::changeColorIndex(
 		: clearColorIndex();
 }
 
+bool PeerData::changeBackgroundEmoji(
+		const tl::conditional<MTPlong> &cloudBackgroundEmoji) {
+	return changeBackgroundEmoji(cloudBackgroundEmoji
+		? cloudBackgroundEmoji->v
+		: DocumentId());
+}
+
 void PeerData::fillNames() {
 	_nameWords.clear();
 	_nameFirstLetters.clear();
@@ -862,6 +869,13 @@ bool PeerData::clearColorIndex() {
 	return true;
 }
 
+bool PeerData::changeBackgroundEmoji(uint64 id) {
+	if (_backgroundEmojiId == id) {
+		return false;
+	}
+	_backgroundEmojiId = id;
+	return true;
+}
 bool PeerData::isSelf() const {
 	if (const auto user = asUser()) {
 		return (user->flags() & UserDataFlag::Self);

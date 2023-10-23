@@ -61,8 +61,7 @@ Giveaway::Giveaway(
 , _participants(st::msgMinWidth)
 , _countries(st::msgMinWidth)
 , _winnersTitle(st::msgMinWidth)
-, _winners(st::msgMinWidth)
-, _colorIndex(parent->data()->computeColorIndex()) {
+, _winners(st::msgMinWidth) {
 	fillFromData(giveaway);
 }
 
@@ -347,10 +346,11 @@ void Giveaway::paintChannels(
 	const auto ratio = style::DevicePixelRatio();
 	const auto stm = context.messageStyle();
 	const auto selected = context.selected();
-	const auto twoColored = Ui::ColorIndexTwoColored(_colorIndex);
+	const auto colorIndex = parent()->colorIndex();
+	const auto twoColored = Ui::ColorIndexTwoColored(colorIndex);
 	const auto cache = context.outbg
 		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
-		: context.st->coloredReplyCache(selected, _colorIndex).get();
+		: context.st->coloredReplyCache(selected, colorIndex).get();
 	if (_channelCorners[0].isNull() || _channelBg != cache->bg) {
 		_channelBg = cache->bg;
 		_channelCorners = Images::CornersMask(size / 2);

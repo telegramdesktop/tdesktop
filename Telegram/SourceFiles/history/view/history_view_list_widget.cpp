@@ -353,6 +353,11 @@ ListWidget::ListWidget(
 		update();
 	}, lifetime());
 
+	session().data().peerDecorationsUpdated(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
+
 	session().data().itemRemoved(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		itemRemoved(item);

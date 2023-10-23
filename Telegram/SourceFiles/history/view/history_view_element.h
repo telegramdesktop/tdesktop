@@ -594,7 +594,6 @@ private:
 	int _indexInBlock = -1;
 
 	mutable Flags _flags = Flag(0);
-	uint8 _colorIndex = 0;
 	Context _context = Context();
 
 };

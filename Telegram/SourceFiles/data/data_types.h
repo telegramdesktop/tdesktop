@@ -306,6 +306,9 @@ enum class MessageFlag : uint64 {
 	StoryItem             = (1ULL << 38),
 
 	InHighlightProcess    = (1ULL << 39),
+
+	// If not set then we need to refresh _displayFrom value.
+	DisplayFromChecked    = (1ULL << 40),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

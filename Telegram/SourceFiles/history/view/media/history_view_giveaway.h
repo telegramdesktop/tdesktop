@@ -115,7 +115,6 @@ private:
 	int _countriesWidth = 0;
 	int _winnersTitleTop = 0;
 	int _winnersTop = 0;
-	uint8 _colorIndex : 7 = 0;
 	mutable uint8 _subscribedToThumbnails : 1 = 0;
 
 };

@@ -501,7 +501,7 @@ public:
 	[[nodiscard]] bool isDiscussionPost() const;
 	[[nodiscard]] HistoryItem *lookupDiscussionPostOriginal() const;
 	[[nodiscard]] PeerData *displayFrom() const;
-	[[nodiscard]] uint8 computeColorIndex() const;
+	[[nodiscard]] uint8 colorIndex() const;
 
 	[[nodiscard]] std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
@@ -584,8 +584,8 @@ private:
 		bool used);
 	void setSelfDestruct(HistorySelfDestructType type, MTPint mtpTTLvalue);
 
-	TextWithEntities fromLinkText() const;
-	ClickHandlerPtr fromLink() const;
+	[[nodiscard]] TextWithEntities fromLinkText() const;
+	[[nodiscard]] ClickHandlerPtr fromLink() const;
 
 	void setGroupId(MessageGroupId groupId);
 
@@ -624,9 +624,12 @@ private:
 	[[nodiscard]] PreparedServiceText prepareCallScheduledText(
 		TimeId scheduleDate);
 
+	[[nodiscard]] PeerData *computeDisplayFrom() const;
+
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;
-	MessageFlags _flags = 0;
+	mutable PeerData *_displayFrom = nullptr;
+	mutable MessageFlags _flags = 0;
 
 	TextWithEntities _text;
 

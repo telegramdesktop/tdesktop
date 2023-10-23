@@ -705,8 +705,18 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (canShareThisContact != result->canShareThisContactFast()) {
 			flags |= UpdateFlag::CanShareContact;
 		}
+
+		auto decorationsUpdated = false;
 		if (result->changeColorIndex(data.vcolor())) {
 			flags |= UpdateFlag::Color;
+			decorationsUpdated = true;
+		}
+		if (result->changeBackgroundEmoji(data.vbackground_emoji_id())) {
+			flags |= UpdateFlag::BackgroundEmoji;
+			decorationsUpdated = true;
+		}
+		if (decorationsUpdated && result->isMinimalLoaded()) {
+			_peerDecorationsUpdated.fire_copy(result);
 		}
 	});
 
@@ -982,8 +992,17 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (wasCallNotEmpty != Data::ChannelHasActiveCall(channel)) {
 			flags |= UpdateFlag::GroupCall;
 		}
+		auto decorationsUpdated = false;
 		if (result->changeColorIndex(data.vcolor())) {
 			flags |= UpdateFlag::Color;
+			decorationsUpdated = true;
+		}
+		if (result->changeBackgroundEmoji(data.vbackground_emoji_id())) {
+			flags |= UpdateFlag::BackgroundEmoji;
+			decorationsUpdated = true;
+		}
+		if (decorationsUpdated && result->isMinimalLoaded()) {
+			_peerDecorationsUpdated.fire_copy(result);
 		}
 	}, [&](const MTPDchannelForbidden &data) {
 		const auto channel = result->asChannel();
@@ -4513,6 +4532,10 @@ void Session::webViewResultSent(WebViewResultSent &&sent) {
 
 auto Session::webViewResultSent() const -> rpl::producer<WebViewResultSent> {
 	return _webViewResultSent.events();
+}
+
+rpl::producer<not_null<PeerData*>> Session::peerDecorationsUpdated() const {
+	return _peerDecorationsUpdated.events();
 }
 
 void Session::clearLocalStorage() {
