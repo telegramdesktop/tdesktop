@@ -46,7 +46,8 @@ MTPInputReplyTo ReplyToForMTP(
 			}
 		}
 	} else if (replyTo.messageId || replyTo.topicRootId) {
-		const auto external = (replyTo.messageId.peer != history->peer->id);
+		const auto external = replyTo.messageId
+			&& (replyTo.messageId.peer != history->peer->id);
 		const auto quoteEntities = Api::EntitiesToMTP(
 			&history->session(),
 			replyTo.quote.entities,
@@ -61,9 +62,7 @@ MTPInputReplyTo ReplyToForMTP(
 				| (quoteEntities.v.isEmpty()
 					? Flag()
 					: Flag::f_quote_entities)),
-			MTP_int(replyTo.messageId
-				? replyTo.messageId.msg
-				: replyTo.topicRootId),
+			MTP_int(replyTo.messageId ? replyTo.messageId.msg : 0),
 			MTP_int(replyTo.topicRootId),
 			(external
 				? owner->peer(replyTo.messageId.peer)->input

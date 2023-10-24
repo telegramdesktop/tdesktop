@@ -275,7 +275,7 @@ Data::Draft *History::createCloudDraft(
 	if (Data::DraftIsNull(fromDraft)) {
 		setCloudDraft(std::make_unique<Data::Draft>(
 			TextWithTags(),
-			FullReplyTo(),
+			FullReplyTo{ .topicRootId = topicRootId },
 			MessageCursor(),
 			Data::WebPageDraft()));
 		cloudDraft(topicRootId)->date = TimeId(0);
