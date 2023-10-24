@@ -92,6 +92,10 @@ public:
 			TextSelection selection) const {
 		return {};
 	}
+	[[nodiscard]] virtual TextSelection selectionFromQuote(
+			const TextWithEntities &quote) const {
+		return {};
+	}
 
 	[[nodiscard]] virtual bool isDisplayed() const;
 	virtual void updateNeedBubbleState() {

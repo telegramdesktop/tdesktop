@@ -679,6 +679,17 @@ TextWithEntities Service::selectedQuote(
 	return {};
 }
 
+TextSelection Service::selectionFromQuote(
+		const TextWithEntities &quote) const {
+	return {};
+}
+
+TextSelection Service::selectionFromQuote(
+		const Ui::Text::String &text,
+		const TextWithEntities &quote) const {
+	return {};
+}
+
 TextSelection Service::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {

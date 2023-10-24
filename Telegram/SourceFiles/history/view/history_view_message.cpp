@@ -56,7 +56,7 @@ namespace {
 constexpr auto kPlayStatusLimit = 2;
 const auto kPsaTooltipPrefix = "cloud_lng_tooltip_psa_";
 
-std::optional<Window::SessionController*> ExtractController(
+[[nodiscard]] std::optional<Window::SessionController*> ExtractController(
 		const ClickContext &context) {
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto controller = my.sessionWindow.get()) {
@@ -64,6 +64,42 @@ std::optional<Window::SessionController*> ExtractController(
 	}
 	return std::nullopt;
 }
+
+[[nodiscard]] bool CheckQuoteEntities(
+		const EntitiesInText &quoteEntities,
+		const TextWithEntities &original,
+		TextSelection selection) {
+	auto left = quoteEntities;
+	const auto allowed = std::array{
+		EntityType::Bold,
+		EntityType::Italic,
+		EntityType::Underline,
+		EntityType::StrikeOut,
+		EntityType::Spoiler,
+		EntityType::CustomEmoji,
+	};
+	for (const auto &entity : original.entities) {
+		const auto from = entity.offset();
+		const auto till = from + entity.length();
+		if (till <= selection.from || from >= selection.to) {
+			continue;
+		}
+		const auto quoteFrom = std::max(from, int(selection.from));
+		const auto quoteTill = std::min(till, int(selection.to));
+		const auto cut = EntityInText(
+			entity.type(),
+			quoteFrom - int(selection.from),
+			quoteTill - quoteFrom,
+			entity.data());
+		const auto i = ranges::find(left, cut);
+		if (i != left.end()) {
+			left.erase(i);
+		} else if (!ranges::contains(allowed, cut.type())) {
+			return false;
+		}
+	}
+	return left.empty();
+};
 
 class KeyboardStyle : public ReplyKeyboard::Style {
 public:
@@ -2671,6 +2707,66 @@ TextWithEntities Message::selectedQuote(
 			++i;
 		}
 	}
+	return result;
+}
+
+TextSelection Message::selectionFromQuote(
+		const TextWithEntities &quote) const {
+	const auto item = data();
+	const auto &translated = item->translatedText();
+	const auto &original = item->originalText();
+	if (&translated != &original || quote.empty()) {
+		return {};
+	} else if (hasVisibleText()) {
+		return selectionFromQuote(text(), quote);
+	} else if (const auto media = this->media()) {
+		if (media->isDisplayed() || isHiddenByGroup()) {
+			return media->selectionFromQuote(quote);
+		}
+	}
+	return {};
+}
+
+TextSelection Message::selectionFromQuote(
+		const Ui::Text::String &text,
+		const TextWithEntities &quote) const {
+	if (quote.empty()) {
+		return {};
+	}
+	const auto &original = data()->originalText();
+	auto result = TextSelection();
+	auto offset = 0;
+	while (true) {
+		const auto i = original.text.indexOf(quote.text, offset);
+		if (i < 0) {
+			return {};
+		}
+		auto selection = TextSelection{
+			uint16(i),
+			uint16(i + quote.text.size()),
+		};
+		if (CheckQuoteEntities(quote.entities, original, selection)) {
+			result = selection;
+			break;
+		}
+		offset = i + 1;
+	}
+	const auto &modifications = text.modifications();
+	//for (const auto &modification : text.modifications()) {
+	//	if (modification.position >= selection.to) {
+	//		break;
+	//	} else if (modification.position <= selection.from) {
+	//		modified.from += modification.skipped;
+	//		if (modification.added
+	//			&& modification.position < selection.from) {
+	//			--modified.from;
+	//		}
+	//	}
+	//	modified.to += modification.skipped;
+	//	if (modification.added && modified.to > modified.from) {
+	//		--modified.to;
+	//	}
+	//}
 	return result;
 }
 

@@ -395,6 +395,11 @@ public:
 	virtual TextWithEntities selectedQuote(
 		const Ui::Text::String &text,
 		TextSelection selection) const = 0;
+	virtual TextSelection selectionFromQuote(
+		const TextWithEntities &quote) const = 0;
+	virtual TextSelection selectionFromQuote(
+		const Ui::Text::String &text,
+		const TextWithEntities &quote) const = 0;
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const;

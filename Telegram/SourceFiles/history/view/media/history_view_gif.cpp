@@ -1207,6 +1207,11 @@ TextWithEntities Gif::selectedQuote(TextSelection selection) const {
 	return parent()->selectedQuote(_caption, selection);
 }
 
+TextSelection Gif::selectionFromQuote(
+		const TextWithEntities &quote) const {
+	return parent()->selectionFromQuote(_caption, quote);
+}
+
 bool Gif::fullFeaturedGrouped(RectParts sides) const {
 	return (sides & RectPart::Left) && (sides & RectPart::Right);
 }

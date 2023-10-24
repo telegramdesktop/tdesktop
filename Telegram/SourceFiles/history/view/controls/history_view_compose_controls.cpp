@@ -46,9 +46,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/controls/history_view_forward_panel.h"
+#include "history/view/controls/history_view_reply_options.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
-#include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/history_view_webpage_preview.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "inline_bots/inline_results_widget.h"
@@ -624,12 +625,16 @@ void FieldHeader::init() {
 					};
 					const auto history = _history;
 					const auto topicRootId = _topicRootId;
+					const auto done = [=](FullReplyTo replyTo) {
+						replyToMessage(replyTo);
+					};
 					const auto clearOldReplyTo = [=, id = reply.messageId] {
 						ClearDraftReplyTo(history, topicRootId, id);
 					};
 					EditReplyOptions(
 						_show,
 						reply,
+						done,
 						highlight,
 						clearOldReplyTo);
 				} else {

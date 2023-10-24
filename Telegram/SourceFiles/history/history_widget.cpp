@@ -82,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_unread_things.h"
 #include "history/view/controls/history_view_compose_search.h"
 #include "history/view/controls/history_view_forward_panel.h"
+#include "history/view/controls/history_view_reply_options.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
 #include "history/view/reactions/history_view_reactions_button.h"
@@ -6235,6 +6236,9 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			_forwardPanel->editOptions(controller()->uiShow());
 		}
 	} else if (const auto reply = replyTo()) {
+		const auto done = [=](FullReplyTo replyTo) {
+			replyToMessage(replyTo);
+		};
 		const auto highlight = [=] {
 			controller()->showPeerHistory(
 				reply.messageId.peer,
@@ -6246,6 +6250,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		EditReplyOptions(
 			controller()->uiShow(),
 			reply,
+			done,
 			highlight,
 			[=] { ClearDraftReplyTo(history, reply.messageId); });
 	} else if (_editMsgId) {

@@ -78,17 +78,6 @@ void ClearDraftReplyTo(
 	MsgId topicRootId,
 	FullMsgId equalTo);
 
-void ShowReplyToChatBox(
-	std::shared_ptr<ChatHelpers::Show> show,
-	FullReplyTo reply,
-	Fn<void()> clearOldDraft = nullptr);
-
-void EditReplyOptions(
-	std::shared_ptr<ChatHelpers::Show> show,
-	FullReplyTo reply,
-	Fn<void()> highlight,
-	Fn<void()> clearOldDraft = nullptr);
-
 void EditWebPageOptions(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<WebPageData*> webpage,

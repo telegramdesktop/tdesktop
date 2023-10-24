@@ -1226,6 +1226,24 @@ TextWithEntities Document::selectedQuote(TextSelection selection) const {
 	return {};
 }
 
+TextSelection Document::selectionFromQuote(
+		const TextWithEntities &quote) const {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		const auto result = parent()->selectionFromQuote(
+			captioned->caption,
+			quote);
+		if (result.empty()) {
+			return {};
+		} else if (const auto voice = Get<HistoryDocumentVoice>()) {
+			return HistoryView::ShiftItemSelection(
+				result,
+				voice->transcribeText);
+		}
+		return result;
+	}
+	return {};
+}
+
 bool Document::uploading() const {
 	return _data->uploading();
 }

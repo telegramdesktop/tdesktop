@@ -47,6 +47,8 @@ public:
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 	TextWithEntities selectedQuote(TextSelection selection) const override;
+	TextSelection selectionFromQuote(
+		const TextWithEntities &quote) const override;
 
 	bool uploading() const override;
 

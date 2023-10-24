@@ -653,6 +653,8 @@ PRIVATE
     history/view/controls/history_view_compose_search.h
     history/view/controls/history_view_forward_panel.cpp
     history/view/controls/history_view_forward_panel.h
+    history/view/controls/history_view_reply_options.cpp
+    history/view/controls/history_view_reply_options.h
     history/view/controls/history_view_ttl_button.cpp
     history/view/controls/history_view_ttl_button.h
     history/view/controls/history_view_voice_record_bar.cpp

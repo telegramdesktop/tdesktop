@@ -99,6 +99,11 @@ public:
 	TextWithEntities selectedQuote(
 		const Ui::Text::String &text,
 		TextSelection selection) const override;
+	TextSelection selectionFromQuote(
+		const TextWithEntities &quote) const override;
+	TextSelection selectionFromQuote(
+		const Ui::Text::String &text,
+		const TextWithEntities &quote) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;

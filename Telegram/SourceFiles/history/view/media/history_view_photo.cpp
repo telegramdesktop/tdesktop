@@ -1053,6 +1053,11 @@ TextWithEntities Photo::selectedQuote(TextSelection selection) const {
 	return parent()->selectedQuote(_caption, selection);
 }
 
+TextSelection Photo::selectionFromQuote(
+		const TextWithEntities &quote) const {
+	return parent()->selectionFromQuote(_caption, quote);
+}
+
 void Photo::hideSpoilers() {
 	_caption.setSpoilerRevealed(false, anim::type::instant);
 	if (_spoiler) {
