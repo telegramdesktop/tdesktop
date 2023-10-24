@@ -118,4 +118,3 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 }
 
 } // namespace Info::Boosts
-

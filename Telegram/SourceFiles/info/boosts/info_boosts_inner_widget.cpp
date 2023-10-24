@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_statistics.h"
 #include "boxes/peers/edit_peer_invite_link.h"
+#include "info/boosts/create_giveaway_box.h"
 #include "info/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_icon.h"
@@ -178,6 +179,7 @@ void FillShareLink(
 
 void FillGetBoostsButton(
 		not_null<Ui::VerticalLayout*> content,
+		not_null<Controller*> controller,
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer) {
 	const auto &st = st::getBoostsButton;
@@ -188,6 +190,7 @@ void FillGetBoostsButton(
 			tr::lng_boosts_get_boosts(),
 			st));
 	button->setClickedCallback([=] {
+		show->showBox(Box(CreateGiveawayBox, controller, peer));
 	});
 	Ui::CreateChild<Info::Profile::FloatingIcon>(
 		button,
@@ -291,7 +294,7 @@ void InnerWidget::fill() {
 	::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());
 
 	::Settings::AddSkip(inner);
-	FillGetBoostsButton(inner, _show, _peer);
+	FillGetBoostsButton(inner, _controller, _show, _peer);
 	::Settings::AddSkip(inner);
 	::Settings::AddDividerText(inner, tr::lng_boosts_get_boosts_subtext());
 
