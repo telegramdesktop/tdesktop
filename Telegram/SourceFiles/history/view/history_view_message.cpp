@@ -2025,6 +2025,10 @@ TextState Message::textState(
 	const auto media = this->media();
 
 	auto result = TextState(item);
+	const auto minSymbol = (_invertMedia && request.onlyMessageText)
+		? visibleMediaTextLength()
+		: 0;
+	result.symbol = minSymbol;
 
 	auto g = countGeometry();
 	if (g.width() < 1 || isHidden()) {
@@ -2158,7 +2162,7 @@ TextState Message::textState(
 				result = bottomInfoResult;
 			}
 		};
-		if (!result.symbol && inBubble) {
+		if (result.symbol <= minSymbol && inBubble) {
 			const auto mediaHeight = mediaDisplayed ? media->height() : 0;
 			const auto mediaLeft = trect.x() - st::msgPadding.left();
 			const auto mediaTop = (!mediaDisplayed || _invertMedia)
@@ -2174,7 +2178,17 @@ TextState Message::textState(
 				result = media->textState(
 					point - QPoint(mediaLeft, mediaTop),
 					request);
-				if (!_invertMedia) {
+				if (_invertMedia) {
+					if (request.onlyMessageText) {
+						result.symbol = minSymbol;
+						result.afterSymbol = false;
+						result.cursor = CursorState::None;
+					}
+				} else if (request.onlyMessageText) {
+					result.symbol = visibleTextLength();
+					result.afterSymbol = false;
+					result.cursor = CursorState::None;
+				} else {
 					result.symbol += visibleTextLength();
 				}
 			} else if (getStateText(point, trect, &result, request)) {
@@ -2208,6 +2222,11 @@ TextState Message::textState(
 		}
 	} else if (media && media->isDisplayed()) {
 		result = media->textState(point - g.topLeft(), request);
+		if (request.onlyMessageText) {
+			result.symbol = 0;
+			result.afterSymbol = false;
+			result.cursor = CursorState::None;
+		}
 		result.symbol += visibleTextLength();
 	}
 
@@ -2220,7 +2239,6 @@ TextState Message::textState(
 				: 0);
 		if (QRect(g.left(), keyboardTop, g.width(), keyboardHeight).contains(point)) {
 			result.link = keyboard->getLink(point - QPoint(g.left(), keyboardTop));
-			return result;
 		}
 	}
 

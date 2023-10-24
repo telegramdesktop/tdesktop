@@ -63,6 +63,7 @@ struct StateRequest {
 		result.flags = flags;
 		return result;
 	}
+	bool onlyMessageText = false;
 };
 
 enum class InfoDisplayType : char {

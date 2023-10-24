@@ -176,14 +176,23 @@ private:
 		}
 		preview->update();
 	};
+	const auto media = item->media();
+	const auto onlyMessageText = media
+		&& (media->webpage()
+			|| media->game()
+			|| (!media->photo() && !media->document()));
 	preview->setMouseTracking(true);
 	preview->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		const auto mouse = static_cast<QMouseEvent*>(e.get());
 		if (type == QEvent::MouseMove) {
+			auto request = StateRequest{
+				.flags = Ui::Text::StateRequest::Flag::LookupSymbol,
+				.onlyMessageText = onlyMessageText,
+			};
 			auto resolved = state->element->textState(
 				mouse->pos() - state->position,
-				{ .flags = Ui::Text::StateRequest::Flag::LookupSymbol });
+				request);
 			state->over = true;
 			const auto text = (resolved.cursor == CursorState::Text);
 			if (state->textCursor != text) {
