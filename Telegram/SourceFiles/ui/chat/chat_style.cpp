@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/chat_theme.h"
 #include "ui/image/image_prepare.h" // ImageRoundRadius
+#include "ui/text/text_custom_emoji.h"
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
@@ -189,6 +190,17 @@ ColorIndexValues SimpleColorIndexValues(QColor color, bool twoColored) {
 		.outline2 = outline2,
 	};
 }
+
+int BackgroundEmojiData::CacheIndex(
+		bool selected,
+		bool outbg,
+		bool inbubble,
+		uint8 colorIndexPlusOne) {
+	const auto base = colorIndexPlusOne
+		? (colorIndexPlusOne - 1)
+		: (kColorIndexCount + (!inbubble ? 0 : outbg ? 1 : 2));
+	return (base * 2) + (selected ? 1 : 0);
+};
 
 ChatStyle::ChatStyle() {
 	finalize();
@@ -553,6 +565,8 @@ ChatStyle::ChatStyle(not_null<const style::palette*> isolated)
 	assignPalette(isolated);
 }
 
+ChatStyle::~ChatStyle() = default;
+
 void ChatStyle::apply(not_null<ChatTheme*> theme) {
 	applyCustomPalette(theme->palette());
 }
@@ -800,6 +814,11 @@ const style::TextPalette &ChatStyle::coloredTextPalette(
 		result.data.selectLinkFg = result.data.linkFg;
 	}
 	return result.data;
+}
+
+not_null<BackgroundEmojiData*> ChatStyle::backgroundEmojiData(
+		uint64 id) const {
+	return &_backgroundEmojis[id];
 }
 
 not_null<Text::QuotePaintCache*> ChatStyle::coloredQuoteCache(

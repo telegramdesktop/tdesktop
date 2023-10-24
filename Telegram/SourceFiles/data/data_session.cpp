@@ -711,7 +711,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			flags |= UpdateFlag::Color;
 			decorationsUpdated = true;
 		}
-		if (result->changeBackgroundEmoji(data.vbackground_emoji_id())) {
+		if (result->changeBackgroundEmojiId(data.vbackground_emoji_id())) {
 			flags |= UpdateFlag::BackgroundEmoji;
 			decorationsUpdated = true;
 		}
@@ -997,7 +997,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			flags |= UpdateFlag::Color;
 			decorationsUpdated = true;
 		}
-		if (result->changeBackgroundEmoji(data.vbackground_emoji_id())) {
+		if (result->changeBackgroundEmojiId(data.vbackground_emoji_id())) {
 			flags |= UpdateFlag::BackgroundEmoji;
 			decorationsUpdated = true;
 		}

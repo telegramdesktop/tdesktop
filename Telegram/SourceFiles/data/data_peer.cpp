@@ -627,9 +627,9 @@ bool PeerData::changeColorIndex(
 		: clearColorIndex();
 }
 
-bool PeerData::changeBackgroundEmoji(
+bool PeerData::changeBackgroundEmojiId(
 		const tl::conditional<MTPlong> &cloudBackgroundEmoji) {
-	return changeBackgroundEmoji(cloudBackgroundEmoji
+	return changeBackgroundEmojiId(cloudBackgroundEmoji
 		? cloudBackgroundEmoji->v
 		: DocumentId());
 }
@@ -869,7 +869,11 @@ bool PeerData::clearColorIndex() {
 	return true;
 }
 
-bool PeerData::changeBackgroundEmoji(uint64 id) {
+DocumentId PeerData::backgroundEmojiId() const {
+	return _backgroundEmojiId;
+}
+
+bool PeerData::changeBackgroundEmojiId(DocumentId id) {
 	if (_backgroundEmojiId == id) {
 		return false;
 	}

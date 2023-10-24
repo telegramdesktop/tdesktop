@@ -21,6 +21,10 @@ struct TwoIconButton;
 struct ScrollArea;
 } // namespace style
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Ui {
 
 class ChatTheme;
@@ -112,6 +116,23 @@ struct ReactionPaintInfo {
 	Fn<QRect(QPainter&)> effectPaint;
 };
 
+struct BackgroundEmojiCache {
+	QColor color;
+	std::array<QImage, 3> frames;
+};
+
+struct BackgroundEmojiData {
+	std::unique_ptr<Text::CustomEmoji> emoji;
+	QImage firstFrameMask;
+	std::array<BackgroundEmojiCache, 2 * (3 + kColorIndexCount)> caches;
+
+	[[nodiscard]] static int CacheIndex(
+		bool selected,
+		bool outbg,
+		bool inbubble,
+		uint8 colorIndexPlusOne);
+};
+
 struct ChatPaintContext {
 	not_null<const ChatStyle*> st;
 	const BubblePattern *bubblesPattern = nullptr;
@@ -185,6 +206,7 @@ class ChatStyle final : public style::palette {
 public:
 	ChatStyle();
 	explicit ChatStyle(not_null<const style::palette*> isolated);
+	~ChatStyle();
 
 	void apply(not_null<ChatTheme*> theme);
 	void applyCustomPalette(const style::palette *palette);
@@ -241,6 +263,9 @@ public:
 	[[nodiscard]] const style::TextPalette &coloredTextPalette(
 		bool selected,
 		uint8 colorIndex) const;
+
+	[[nodiscard]] not_null<BackgroundEmojiData*> backgroundEmojiData(
+		uint64 id) const;
 
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersSmall() const;
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersLarge() const;
@@ -408,6 +433,7 @@ private:
 	mutable std::array<
 		ColoredPalette,
 		2 * kColorIndexCount> _coloredTextPalettes;
+	mutable base::flat_map<uint64, BackgroundEmojiData> _backgroundEmojis;
 
 	style::TextPalette _historyPsaForwardPalette;
 	style::TextPalette _imgReplyTextPalette;

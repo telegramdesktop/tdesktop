@@ -169,7 +169,8 @@ public:
 	}
 	bool changeColorIndex(uint8 index);
 	bool clearColorIndex();
-	bool changeBackgroundEmoji(uint64 id);
+	[[nodiscard]] DocumentId backgroundEmojiId() const;
+	bool changeBackgroundEmojiId(DocumentId id);
 
 	[[nodiscard]] bool isUser() const {
 		return peerIsUser(id);
@@ -361,7 +362,7 @@ public:
 
 	void setSettings(const MTPPeerSettings &data);
 	bool changeColorIndex(const tl::conditional<MTPint> &cloudColorIndex);
-	bool changeBackgroundEmoji(
+	bool changeBackgroundEmojiId(
 		const tl::conditional<MTPlong> &cloudBackgroundEmoji);
 
 	enum class BlockStatus : char {

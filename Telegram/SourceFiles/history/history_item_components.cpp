@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -54,6 +55,127 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
+
+void ValidateBackgroundEmoji(
+		DocumentId backgroundEmojiId,
+		not_null<Ui::BackgroundEmojiData*> data,
+		not_null<Ui::BackgroundEmojiCache*> cache,
+		not_null<Ui::Text::QuotePaintCache*> quote,
+		not_null<const HistoryView::Element*> holder) {
+	if (data->firstFrameMask.isNull()) {
+		if (!cache->frames[0].isNull()) {
+			for (auto &frame : cache->frames) {
+				frame = QImage();
+			}
+		}
+		const auto tag = Data::CustomEmojiSizeTag::Isolated;
+		if (!data->emoji) {
+			const auto owner = &holder->history()->owner();
+			const auto repaint = crl::guard(holder, [=] {
+				holder->history()->owner().requestViewRepaint(holder);
+			});
+			data->emoji = owner->customEmojiManager().create(
+				backgroundEmojiId,
+				repaint,
+				tag);
+		}
+		if (!data->emoji->ready()) {
+			return;
+		}
+		const auto size = Data::FrameSizeFromTag(tag);
+		data->firstFrameMask = QImage(
+			QSize(size, size),
+			QImage::Format_ARGB32_Premultiplied);
+		data->firstFrameMask.fill(Qt::transparent);
+		data->firstFrameMask.setDevicePixelRatio(style::DevicePixelRatio());
+		auto p = Painter(&data->firstFrameMask);
+		data->emoji->paint(p, {
+			.textColor = QColor(255, 255, 255),
+			.position = QPoint(0, 0),
+			.internal = {
+				.forceFirstFrame = true,
+			},
+		});
+		p.end();
+
+		data->emoji = nullptr;
+	}
+	if (!cache->frames[0].isNull() && cache->color == quote->icon) {
+		return;
+	}
+	cache->color = quote->icon;
+	const auto ratio = style::DevicePixelRatio();
+	auto colorized = QImage(
+		data->firstFrameMask.size(),
+		QImage::Format_ARGB32_Premultiplied);
+	colorized.setDevicePixelRatio(ratio);
+	style::colorizeImage(
+		data->firstFrameMask,
+		cache->color,
+		&colorized,
+		QRect(), // src
+		QPoint(), // dst
+		true); // use alpha
+	const auto make = [&](int size) {
+		size = style::ConvertScale(size) * ratio;
+		auto result = colorized.scaled(
+			size,
+			size,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		result.setDevicePixelRatio(ratio);
+		return result;
+	};
+
+	constexpr auto kSize1 = 12;
+	constexpr auto kSize2 = 16;
+	constexpr auto kSize3 = 20;
+	cache->frames[0] = make(kSize1);
+	cache->frames[1] = make(kSize2);
+	cache->frames[2] = make(kSize3);
+}
+
+void FillBackgroundEmoji(
+		Painter &p,
+		const QRect &rect,
+		bool quote,
+		const Ui::BackgroundEmojiCache &cache) {
+	p.setClipRect(rect);
+
+	const auto &frames = cache.frames;
+	const auto right = rect.x() + rect.width();
+	const auto paint = [&](int x, int y, int index, float64 opacity) {
+		y = style::ConvertScale(y);
+		if (y >= rect.height()) {
+			return;
+		}
+		p.setOpacity(opacity);
+		p.drawImage(
+			right - style::ConvertScale(x + (quote ? 12 : 0)),
+			rect.y() + y,
+			frames[index]);
+	};
+
+	paint(28, 4, 2, 0.32);
+	paint(51, 15, 1, 0.32);
+	paint(64, -2, 0, 0.28);
+	paint(87, 11, 1, 0.24);
+	paint(125, -2, 2, 0.16);
+
+	paint(28, 31, 1, 0.24);
+	paint(72, 33, 2, 0.2);
+
+	paint(46, 52, 1, 0.24);
+	paint(24, 55, 2, 0.18);
+
+	if (quote) {
+		paint(4, 23, 1, 0.28);
+		paint(0, 48, 0, 0.24);
+	}
+
+	p.setClipping(false);
+	p.setOpacity(1.);
+}
 
 } // namespace
 
@@ -676,10 +798,18 @@ void HistoryMessageReply::paint(
 	const auto rect = QRect(x, y, w, _height);
 	const auto hasQuote = !_fields.quote.empty();
 	const auto selected = context.selected();
-	const auto colorIndexPlusOne = resolvedMessage
-		? (resolvedMessage->colorIndex() + 1)
+	const auto colorPeer = resolvedMessage
+		? resolvedMessage->displayFrom()
 		: resolvedStory
-		? (resolvedStory->peer()->colorIndex() + 1)
+		? resolvedStory->peer().get()
+		: nullptr;
+	const auto backgroundEmojiId = colorPeer
+		? colorPeer->backgroundEmojiId()
+		: DocumentId();
+	const auto colorIndexPlusOne = colorPeer
+		? (colorPeer->colorIndex() + 1)
+		: resolvedMessage
+		? (resolvedMessage->hiddenSenderInfo()->colorIndex + 1)
 		: 0;
 	const auto useColorIndex = colorIndexPlusOne && !context.outbg;
 	const auto twoColored = colorIndexPlusOne
@@ -698,12 +828,33 @@ void HistoryMessageReply::paint(
 	const auto &quoteSt = hasQuote
 		? st::messageTextStyle.blockquote
 		: st::messageQuoteStyle;
+	const auto backgroundEmoji = backgroundEmojiId
+		? st->backgroundEmojiData(backgroundEmojiId).get()
+		: nullptr;
+	const auto backgroundEmojiCache = backgroundEmoji
+		? &backgroundEmoji->caches[Ui::BackgroundEmojiData::CacheIndex(
+			selected,
+			context.outbg,
+			inBubble,
+			colorIndexPlusOne)]
+		: nullptr;
 	const auto rippleColor = cache->bg;
 	if (!inBubble) {
 		cache->bg = QColor(0, 0, 0, 0);
 	}
 	Ui::Text::ValidateQuotePaintCache(*cache, quoteSt);
 	Ui::Text::FillQuotePaint(p, rect, *cache, quoteSt);
+	if (backgroundEmoji) {
+		ValidateBackgroundEmoji(
+			backgroundEmojiId,
+			backgroundEmoji,
+			backgroundEmojiCache,
+			cache,
+			holder);
+		if (!backgroundEmojiCache->frames[0].isNull()) {
+			FillBackgroundEmoji(p, rect, hasQuote, *backgroundEmojiCache);
+		}
+	}
 	if (!inBubble) {
 		cache->bg = rippleColor;
 	}
