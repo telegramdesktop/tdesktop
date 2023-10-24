@@ -100,8 +100,9 @@ void FillOverview(
 	const auto topLeftLabel = addPrimary(stats.level);
 	const auto topRightLabel = addPrimary(stats.premiumMemberCount);
 	const auto bottomLeftLabel = addPrimary(stats.boostCount);
-	const auto bottomRightLabel = addPrimary(
-		stats.nextLevelBoostCount - stats.boostCount);
+	const auto bottomRightLabel = addPrimary(std::max(
+		stats.nextLevelBoostCount - stats.boostCount,
+		0));
 
 	addSub(
 		topLeftLabel,

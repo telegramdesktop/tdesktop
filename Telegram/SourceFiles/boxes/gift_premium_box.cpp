@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/weak_ptr.h"
 #include "boxes/peers/prepare_short_info_box.h"
+#include "data/data_boosts.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_media_types.h" // Data::Giveaway
@@ -237,11 +238,7 @@ void GiftBox(
 	}, box->lifetime());
 }
 
-struct GiftCodeLink {
-	QString text;
-	QString link;
-};
-[[nodiscard]] GiftCodeLink MakeGiftCodeLink(
+[[nodiscard]] Data::GiftCodeLink MakeGiftCodeLink(
 		not_null<Main::Session*> session,
 		const QString &slug) {
 	const auto path = u"giftcode/"_q + slug;

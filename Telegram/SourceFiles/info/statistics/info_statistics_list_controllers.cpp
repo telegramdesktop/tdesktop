@@ -397,7 +397,7 @@ void BoostsController::applySlice(const Data::BoostsListSlice &slice) {
 		row->setCustomStatus(tr::lng_boosts_list_status(
 			tr::now,
 			lt_date,
-			QLocale().toString(item.expirationDate, formatter)));
+			QLocale().toString(item.date, formatter)));
 		delegate()->peerListAppendRow(std::move(row));
 	}
 	delegate()->peerListRefreshRows();

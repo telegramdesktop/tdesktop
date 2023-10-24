@@ -567,9 +567,30 @@ void Boosts::requestBoosts(
 		auto list = std::vector<Data::Boost>();
 		list.reserve(data.vboosts().v.size());
 		for (const auto &boost : data.vboosts().v) {
+			const auto &data = boost.data();
+			const auto path = data.vused_gift_slug()
+				? (u"giftcode/"_q + qs(data.vused_gift_slug()->v))
+				: QString();
+			auto giftCodeLink = !path.isEmpty()
+				? Data::GiftCodeLink{
+					_peer->session().createInternalLink(path),
+					_peer->session().createInternalLinkFull(path),
+					qs(data.vused_gift_slug()->v),
+				}
+				: Data::GiftCodeLink();
 			list.push_back({
-				boost.data().vuser_id().value_or_empty(),
-				QDateTime::fromSecsSinceEpoch(boost.data().vexpires().v),
+				data.is_gift(),
+				data.is_giveaway(),
+				data.is_unclaimed(),
+				qs(data.vid()),
+				data.vuser_id().value_or_empty(),
+				data.vgiveaway_msg_id()
+					? FullMsgId{ _peer->id, data.vgiveaway_msg_id()->v }
+					: FullMsgId(),
+				QDateTime::fromSecsSinceEpoch(data.vdate().v),
+				data.vexpires().v,
+				std::move(giftCodeLink),
+				data.vmultiplier().value_or_empty(),
 			});
 		}
 		done(Data::BoostsListSlice{
