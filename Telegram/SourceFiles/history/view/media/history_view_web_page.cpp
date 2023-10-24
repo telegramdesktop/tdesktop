@@ -822,29 +822,13 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 
 ClickHandlerPtr WebPage::replaceAttachLink(
 		const ClickHandlerPtr &link) const {
-	if (!link || !_attach->isReadyForOpen() || !_collage.empty()) {
+	if (!_attach->isReadyForOpen()
+		|| (_siteName.isEmpty()
+			&& _title.isEmpty()
+			&& _description.isEmpty())) {
 		return link;
 	}
-	if (_data->document) {
-		if (_data->document->isWallPaper() || _data->document->isTheme()) {
-			return _openl;
-		}
-	} else if (_data->photo) {
-		if (_data->type == WebPageType::Profile
-			|| _data->type == WebPageType::Video) {
-			return _openl;
-		} else if (_data->type == WebPageType::Photo
-			|| _data->type == WebPageType::Document
-			|| _data->siteName == u"Twitter"_q
-			|| _data->siteName == u"Facebook"_q) {
-			// leave photo link
-		} else {
-			return _openl;
-		}
-	} else if (ThemeDocument::ParamsFromUrl(_data->url).has_value()) {
-		return _openl;
-	}
-	return link;
+	return _openl;
 }
 
 TextSelection WebPage::adjustSelection(TextSelection selection, TextSelectType type) const {
