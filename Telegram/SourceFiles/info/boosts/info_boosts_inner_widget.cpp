@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_invite_link.h"
 #include "info/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
+#include "info/profile/info_profile_icon.h"
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/invite_link_buttons.h"
 #include "ui/controls/invite_link_label.h"
 #include "ui/rect.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_info.h"
 #include "styles/style_statistics.h"
@@ -174,6 +176,28 @@ void FillShareLink(
 	::Settings::AddSkip(content, st::boostsLinkFieldPadding.bottom());
 }
 
+void FillGetBoostsButton(
+		not_null<Ui::VerticalLayout*> content,
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer) {
+	const auto &st = st::getBoostsButton;
+	const auto &icon = st::getBoostsButtonIcon;
+	const auto button = content->add(
+		::Settings::CreateButton(
+			content.get(),
+			tr::lng_boosts_get_boosts(),
+			st));
+	button->setClickedCallback([=] {
+	});
+	Ui::CreateChild<Info::Profile::FloatingIcon>(
+		button,
+		icon,
+		QPoint{
+			st::infoSharedMediaButtonIconPosition.x(),
+			(st.height + rect::m::sum::v(st.padding) - icon.height()) / 2,
+		})->show();
+}
+
 } // namespace
 
 InnerWidget::InnerWidget(
@@ -265,6 +289,11 @@ void InnerWidget::fill() {
 	FillShareLink(inner, _show, status.link, _peer);
 	::Settings::AddSkip(inner);
 	::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());
+
+	::Settings::AddSkip(inner);
+	FillGetBoostsButton(inner, _show, _peer);
+	::Settings::AddSkip(inner);
+	::Settings::AddDividerText(inner, tr::lng_boosts_get_boosts_subtext());
 
 	resizeToWidth(width());
 	crl::on_main([=]{ fakeShowed->fire({}); });

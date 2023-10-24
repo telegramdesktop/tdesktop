@@ -142,3 +142,9 @@ boostsButton: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 }
+
+getBoostsButton: SettingsButton(reportReasonButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFg;
+}
+getBoostsButtonIcon: icon {{ "menu/gift_premium", lightButtonFg }};
