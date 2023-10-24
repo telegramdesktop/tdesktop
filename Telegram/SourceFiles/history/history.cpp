@@ -282,9 +282,11 @@ Data::Draft *History::createCloudDraft(
 	} else {
 		auto existing = cloudDraft(topicRootId);
 		if (!existing) {
+			auto reply = fromDraft->reply;
+			reply.topicRootId = topicRootId;
 			setCloudDraft(std::make_unique<Data::Draft>(
 				fromDraft->textWithTags,
-				fromDraft->reply,
+				reply,
 				fromDraft->cursor,
 				fromDraft->webpage));
 			existing = cloudDraft(topicRootId);

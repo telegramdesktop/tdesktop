@@ -1845,8 +1845,10 @@ void HistoryItem::destroyHistoryEntry() {
 			topic->unreadReactions().erase(id);
 		}
 	}
-	if (const auto reply = Get<HistoryMessageReply>()) {
-		changeReplyToTopCounter(reply, -1);
+	if (isRegular() && _history->peer->isMegagroup()) {
+		if (const auto reply = Get<HistoryMessageReply>()) {
+			changeReplyToTopCounter(reply, -1);
+		}
 	}
 }
 
@@ -1905,21 +1907,19 @@ void HistoryItem::removeFromSharedMediaIndex() {
 }
 
 void HistoryItem::incrementReplyToTopCounter() {
-	if (const auto reply = Get<HistoryMessageReply>()) {
-		changeReplyToTopCounter(reply, 1);
+	if (isRegular() && _history->peer->isMegagroup()) {
+		_history->session().changes().messageUpdated(
+			this,
+			Data::MessageUpdate::Flag::ReplyToTopAdded);
+		if (const auto reply = Get<HistoryMessageReply>()) {
+			changeReplyToTopCounter(reply, 1);
+		}
 	}
 }
 
 void HistoryItem::changeReplyToTopCounter(
 		not_null<HistoryMessageReply*> reply,
 		int delta) {
-	if (!isRegular() || !_history->peer->isMegagroup()) {
-		return;
-	} else if (delta > 0) {
-		_history->session().changes().messageUpdated(
-			this,
-			Data::MessageUpdate::Flag::ReplyToTopAdded);
-	}
 	const auto topId = reply->topMessageId();
 	if (!topId) {
 		return;
@@ -1975,7 +1975,7 @@ void HistoryItem::setRealId(MsgId newId) {
 		if (reply->link()) {
 			reply->setLinkFrom(this);
 		}
-		changeReplyToTopCounter(reply, 1);
+		incrementReplyToTopCounter();
 	}
 }
 
@@ -2688,7 +2688,7 @@ void HistoryItem::setReplyFields(
 			&& !IsServerMsgId(reply->topMessageId());
 		reply->updateFields(this, replyTo, replyToTop, isForumPost);
 		if (increment) {
-			changeReplyToTopCounter(reply, 1);
+			incrementReplyToTopCounter();
 		}
 	}
 	if (const auto topic = this->topic()) {
