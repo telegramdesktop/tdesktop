@@ -761,7 +761,7 @@ contacts.topPeers#70b772a8 categories:Vector<TopPeerCategoryPeers> chats:Vector<
 contacts.topPeersDisabled#b52c939d = contacts.TopPeers;
 
 draftMessageEmpty#1b0c841a flags:# date:flags.0?int = DraftMessage;
-draftMessage#db074fa8 flags:# no_webpage:flags.1?true invert_media:flags.6?true reply_to:flags.4?MessageReplyHeader message:string entities:flags.3?Vector<MessageEntity> media:flags.5?MessageMedia date:int = DraftMessage;
+draftMessage#3fccf7ef flags:# no_webpage:flags.1?true invert_media:flags.6?true reply_to:flags.4?InputReplyTo message:string entities:flags.3?Vector<MessageEntity> media:flags.5?InputMedia date:int = DraftMessage;
 
 messages.featuredStickersNotModified#c6dc0c66 count:int = messages.FeaturedStickers;
 messages.featuredStickers#be382906 flags:# premium:flags.0?true hash:long count:int sets:Vector<StickerSetCovered> unread:Vector<long> = messages.FeaturedStickers;

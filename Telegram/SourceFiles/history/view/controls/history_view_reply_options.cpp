@@ -118,9 +118,7 @@ private:
 		bool selectionStartAfterSymbol = false;
 	};
 
-	const auto preview = box->addRow(
-		object_ptr<Ui::RpWidget>(box),
-		QMargins(0, 0, 0, st::settingsThemesTopSkip));
+	const auto preview = box->addRow(object_ptr<Ui::RpWidget>(box), {});
 	const auto state = preview->lifetime().make_state<State>();
 	state->theme = DefaultThemeOn(preview->lifetime());
 
@@ -246,14 +244,17 @@ private:
 		preview->resize(width, height);
 	}, preview->lifetime());
 
-	preview->paintRequest() | rpl::start_with_next([=](QRect clip) {
+	box->setAttribute(Qt::WA_OpaquePaintEvent, false);
+	box->paintRequest() | rpl::start_with_next([=](QRect clip) {
 		Window::SectionWidget::PaintBackground(
 			state->theme.get(),
-			preview,
-			preview->window()->height(),
+			box,
+			box->window()->height(),
 			0,
 			clip);
+	}, box->lifetime());
 
+	preview->paintRequest() | rpl::start_with_next([=](QRect clip) {
 		auto p = Painter(preview);
 		auto hq = PainterHighQualityEnabler(p);
 		p.translate(state->position);
@@ -366,7 +367,7 @@ void ShowReplyToChatBox(
 
 	private:
 		void prepareViewHook() override {
-			delegate()->peerListSetTitle(rpl::single(u"Reply in..."_q));
+			delegate()->peerListSetTitle(tr::lng_reply_in_another_title());
 		}
 
 		rpl::event_stream<Chosen> _singleChosen;
@@ -382,7 +383,10 @@ void ShowReplyToChatBox(
 	const auto state = [&] {
 		auto controller = std::make_unique<Controller>(session);
 		const auto controllerRaw = controller.get();
-		auto box = Box<PeerListBox>(std::move(controller), nullptr);
+		auto box = Box<PeerListBox>(std::move(controller), [=](
+				not_null<PeerListBox*> box) {
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		});
 		const auto boxRaw = box.data();
 		show->show(std::move(box));
 		auto state = State{ boxRaw, controllerRaw };
@@ -440,28 +444,31 @@ void EditReplyOptions(
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setWidth(st::boxWideWidth);
 
-		struct State {
-			rpl::variable<TextWithEntities> quote;
+		const auto bottom = box->setPinnedToBottomContent(
+			object_ptr<Ui::VerticalLayout>(box));
+		const auto addSkip = [&] {
+			const auto skip = bottom->add(object_ptr<Ui::FixedHeightWidget>(
+				bottom,
+				st::settingsPrivacySkipTop));
+			skip->paintRequest() | rpl::start_with_next([=](QRect clip) {
+				QPainter(skip).fillRect(clip, st::boxBg);
+			}, skip->lifetime());
 		};
-		const auto state = box->lifetime().make_state<State>();
-		state->quote = AddQuoteTracker(box, show, item, reply.quote);
 
-		box->setTitle(reply.quote.empty()
-			? rpl::single(u"Reply to Message"_q)
-			: rpl::single(u"Update Quote"_q));
+		addSkip();
 
 		Settings::AddButton(
-			box->verticalLayout(),
-			rpl::single(u"Reply in another chat"_q),
+			bottom,
+			tr::lng_reply_in_another_chat(),
 			st::settingsButton,
-			{ &st::menuIconReply }
+			{ &st::menuIconReplace }
 		)->setClickedCallback([=] {
 			ShowReplyToChatBox(show, reply, clearOldDraft);
 		});
 
 		Settings::AddButton(
-			box->verticalLayout(),
-			rpl::single(u"Show message"_q),
+			bottom,
+			tr::lng_reply_show_in_chat(),
 			st::settingsButton,
 			{ &st::menuIconShowInChat }
 		)->setClickedCallback(highlight);
@@ -475,15 +482,38 @@ void EditReplyOptions(
 		};
 
 		Settings::AddButton(
-			box->verticalLayout(),
-			rpl::single(u"Remove reply"_q),
+			bottom,
+			tr::lng_reply_remove(),
 			st::settingsAttentionButtonWithIcon,
 			{ &st::menuIconDeleteAttention }
 		)->setClickedCallback([=] {
 			finish({});
 		});
 
-		box->addButton(rpl::single(u"Apply"_q), [=] {
+		if (!item->originalText().empty()) {
+			addSkip();
+			Settings::AddDividerText(
+				bottom,
+				tr::lng_reply_about_quote());
+		}
+
+		struct State {
+			rpl::variable<TextWithEntities> quote;
+		};
+		const auto state = box->lifetime().make_state<State>();
+		state->quote = AddQuoteTracker(box, show, item, reply.quote);
+
+		box->setTitle(reply.quote.empty()
+			? tr::lng_reply_options_header()
+			: tr::lng_reply_options_quote());
+
+		auto save = state->quote.value(
+		) | rpl::map([=](const TextWithEntities &quote) {
+			return quote.empty()
+				? tr::lng_settings_save()
+				: tr::lng_reply_quote_selected();
+		}) | rpl::flatten_latest();
+		box->addButton(std::move(save), [=] {
 			auto result = reply;
 			result.quote = state->quote.current();
 			finish(result);

@@ -2216,35 +2216,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return;
 		}
 		const auto itemId = item->fullId();
-		const auto canSendReply = [&] {
-			const auto peer = item->history()->peer;
-			const auto topic = item->topic();
-			return topic
-				? Data::CanSendAnything(topic)
-				: (Data::CanSendAnything(peer)
-					&& (!peer->isChannel() || peer->asChannel()->amIn()));
-		}();
-		const auto canReply = canSendReply || [&] {
-			const auto peer = item->history()->peer;
-			if (const auto chat = peer->asChat()) {
-				return !chat->isForbidden();
-			} else if (const auto channel = peer->asChannel()) {
-				return !channel->isForbidden();
-			}
-			return true;
-		}();
-		if (canReply) {
-			const auto quote = selectedQuote(item);
-			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
-				if (canSendReply) {
-					_widget->replyToMessage({ itemId, quote });
-				} else {
-					HistoryView::Controls::ShowReplyToChatBox(
-						controller->uiShow(),
-						{ itemId, quote });
-				}
-			}, &st::menuIconReply);
-		}
 		const auto repliesCount = item->repliesCount();
 		const auto withReplies = (repliesCount > 0);
 		const auto topicRootId = item->history()->isForum()
@@ -2408,6 +2379,45 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
+	const auto addReplyAction = [&](HistoryItem *item) {
+		if (!item) {
+			return;
+		}
+		const auto canSendReply = [&] {
+			const auto peer = item->history()->peer;
+			const auto topic = item->topic();
+			return topic
+				? Data::CanSendAnything(topic)
+				: (Data::CanSendAnything(peer)
+					&& (!peer->isChannel() || peer->asChannel()->amIn()));
+		}();
+		const auto canReply = canSendReply || [&] {
+			const auto peer = item->history()->peer;
+			if (const auto chat = peer->asChat()) {
+				return !chat->isForbidden();
+			} else if (const auto channel = peer->asChannel()) {
+				return !channel->isForbidden();
+			}
+			return true;
+		}();
+		if (canReply) {
+			const auto itemId = item->fullId();
+			const auto quote = selectedQuote(item);
+			const auto text = quote.empty()
+				? tr::lng_context_reply_msg(tr::now)
+				: tr::lng_context_quote_and_reply(tr::now);
+			_menu->addAction(text, [=] {
+				if (canSendReply) {
+					_widget->replyToMessage({ itemId, quote });
+				} else {
+					HistoryView::Controls::ShowReplyToChatBox(
+						controller->uiShow(),
+						{ itemId, quote });
+				}
+			}, &st::menuIconReply);
+		}
+	};
+
 	const auto lnkPhoto = link
 		? reinterpret_cast<PhotoData*>(
 			link->property(kPhotoLinkMediaProperty).toULongLong())
@@ -2419,6 +2429,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
+		addReplyAction(item);
+
 		if (isUponSelected > 0) {
 			const auto selectedText = getSelectedText();
 			if (!hasCopyRestrictionForSelected()
@@ -2529,6 +2541,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			: QString();
 
 		if (isUponSelected > 0) {
+			addReplyAction(item);
 			const auto selectedText = getSelectedText();
 			if (!hasCopyRestrictionForSelected() && !selectedText.empty()) {
 				_menu->addAction(
@@ -2551,6 +2564,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 			addItemActions(item, item);
 		} else {
+			addReplyAction(item);
 			addItemActions(item, albumPartItem);
 			if (item && !isUponSelected) {
 				const auto media = (view ? view->media() : nullptr);

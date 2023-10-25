@@ -140,6 +140,11 @@ menuIconPremium: icon {{ "menu/premium", menuIconColor }};
 menuIconIpAddress: icon {{ "menu/ip_address", menuIconColor }};
 menuIconAddress: icon {{ "menu/payment_address", menuIconColor }};
 menuIconShowAll: icon {{ "menu/all_media", menuIconColor }};
+menuIconReplace: icon {{ "chat/input_replace", menuIconColor }};
+menuIconAbove: icon {{ "menu/link_above", menuIconColor }};
+menuIconBelow: icon {{ "menu/link_below", menuIconColor }};
+menuIconEnlarge: icon {{ "menu/link_enlarge", menuIconColor }};
+menuIconShrink: icon {{ "menu/link_shrink", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

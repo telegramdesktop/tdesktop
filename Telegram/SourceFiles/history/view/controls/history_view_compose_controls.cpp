@@ -626,7 +626,11 @@ void FieldHeader::init() {
 					const auto history = _history;
 					const auto topicRootId = _topicRootId;
 					const auto done = [=](FullReplyTo replyTo) {
-						replyToMessage(replyTo);
+						if (replyTo) {
+							replyToMessage(replyTo);
+						} else {
+							_replyCancelled.fire({});
+						}
 					};
 					const auto clearOldReplyTo = [=, id = reply.messageId] {
 						ClearDraftReplyTo(history, topicRootId, id);

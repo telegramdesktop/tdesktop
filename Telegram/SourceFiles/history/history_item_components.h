@@ -245,6 +245,10 @@ struct ReplyFields {
 	not_null<History*> history,
 	const MTPMessageReplyHeader &reply);
 
+[[nodiscard]] FullReplyTo ReplyToFromMTP(
+	not_null<History*> history,
+	const MTPInputReplyTo &reply);
+
 struct HistoryMessageReply
 	: public RuntimeComponent<HistoryMessageReply, HistoryItem> {
 	HistoryMessageReply();

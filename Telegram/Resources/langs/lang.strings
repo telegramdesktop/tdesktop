@@ -2530,6 +2530,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_attached_stickers" = "Attached Stickers";
 "lng_context_to_msg" = "Go To Message";
 "lng_context_reply_msg" = "Reply";
+"lng_context_quote_and_reply" = "Quote & Reply";
 "lng_context_edit_msg" = "Edit";
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_send_now_msg" = "Send now";
@@ -2633,6 +2634,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forwarding_from_two" = "{user} and {second_user}";
 "lng_inline_switch_choose" = "Choose conversation...";
 "lng_inline_switch_cant" = "Sorry, no way to write here :(";
+
+"lng_reply_in_another_title" = "Reply in...";
+"lng_reply_in_another_chat" = "Reply in Another Chat";
+"lng_reply_show_in_chat" = "Show in Chat";
+"lng_reply_remove" = "Do Not Reply";
+"lng_reply_about_quote" = "You can select specific part to quote.";
+"lng_reply_options_header" = "Reply to Message";
+"lng_reply_options_quote" = "Update Quote";
+"lng_reply_header_short" = "Reply";
+"lng_reply_quote_selected" = "Quote Selected";
+"lng_link_options_header" = "Link Preview Settings";
+"lng_link_header_short" = "Link";
+"lng_link_move_up" = "Move Up";
+"lng_link_move_down" = "Move Down";
+"lng_link_shrink_photo" = "Shrink Photo";
+"lng_link_enlarge_photo" = "Enlarge Photo";
+"lng_link_remove" = "Do Not Preview";
+"lng_link_about_choose" = "Click on a link to generate its preview.";
 
 "lng_share_cant" = "Sorry, no way to share here :(";
 "lng_reply_cant" = "Sorry, no way to reply to an old message in supergroup :(";

@@ -126,6 +126,40 @@ AllowedReactions Parse(const MTPChatReactions &value) {
 	});
 }
 
+PeerData *PeerFromInputMTP(
+		not_null<Session*> owner,
+		const MTPInputPeer &input) {
+	return input.match([&](const MTPDinputPeerUser &data) {
+		const auto user = owner->user(data.vuser_id().v);
+		user->setAccessHash(data.vaccess_hash().v);
+		return (PeerData*)user;
+	}, [&](const MTPDinputPeerChat &data) {
+		return (PeerData*)owner->chat(data.vchat_id().v);
+	}, [&](const MTPDinputPeerChannel &data) {
+		const auto channel = owner->channel(data.vchannel_id().v);
+		channel->setAccessHash(data.vaccess_hash().v);
+		return (PeerData*)channel;
+	}, [&](const MTPDinputPeerSelf &data) {
+		return (PeerData*)owner->session().user();
+	}, [&](const auto &data) {
+		return (PeerData*)nullptr;
+	});
+}
+
+UserData *UserFromInputMTP(
+		not_null<Session*> owner,
+		const MTPInputUser &input) {
+	return input.match([&](const MTPDinputUser &data) {
+		const auto user = owner->user(data.vuser_id().v);
+		user->setAccessHash(data.vaccess_hash().v);
+		return user.get();
+	}, [&](const MTPDinputUserSelf &data) {
+		return owner->session().user().get();
+	}, [](const auto &data) {
+		return (UserData*)nullptr;
+	});
+}
+
 } // namespace Data
 
 PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)

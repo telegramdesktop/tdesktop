@@ -6237,7 +6237,11 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		}
 	} else if (const auto reply = replyTo()) {
 		const auto done = [=](FullReplyTo replyTo) {
-			replyToMessage(replyTo);
+			if (replyTo) {
+				replyToMessage(replyTo);
+			} else {
+				cancelReply();
+			}
 		};
 		const auto highlight = [=] {
 			controller()->showPeerHistory(

@@ -435,6 +435,42 @@ ReplyFields ReplyFieldsFromMTP(
 	});
 }
 
+FullReplyTo ReplyToFromMTP(
+		not_null<History*> history,
+		const MTPInputReplyTo &reply) {
+	return reply.match([&](const MTPDinputReplyToMessage &data) {
+		auto result = FullReplyTo{
+			.messageId = { history->peer->id, data.vreply_to_msg_id().v },
+		};
+		if (const auto peer = data.vreply_to_peer_id()) {
+			const auto parsed = Data::PeerFromInputMTP(
+				&history->owner(),
+				*peer);
+			if (!parsed) {
+				return FullReplyTo();
+			}
+			result.messageId.peer = parsed->id;
+		}
+		result.topicRootId = data.vtop_msg_id().value_or_empty();
+		result.quote = TextWithEntities{
+			qs(data.vquote_text().value_or_empty()),
+			Api::EntitiesFromMTP(
+				&history->session(),
+				data.vquote_entities().value_or_empty()),
+		};
+		return result;
+	}, [&](const MTPDinputReplyToStory &data) {
+		if (const auto parsed = Data::UserFromInputMTP(
+				&history->owner(),
+				data.vuser_id())) {
+			return FullReplyTo{
+				.storyId = { parsed->id, data.vstory_id().v },
+			};
+		}
+		return FullReplyTo();
+	});
+}
+
 HistoryMessageReply::HistoryMessageReply() = default;
 
 HistoryMessageReply &HistoryMessageReply::operator=(

@@ -81,12 +81,10 @@ void ApplyPeerCloudDraft(
 				session,
 				draft.ventities().value_or_empty()))
 	};
-	const auto reply = draft.vreply_to()
-		? ReplyFieldsFromMTP(history, *draft.vreply_to())
-		: ReplyFields();
-	const auto replyPeerId = reply.externalPeerId
-		? reply.externalPeerId
-		: peerId;
+	auto replyTo = draft.vreply_to()
+		? ReplyToFromMTP(history, *draft.vreply_to())
+		: FullReplyTo();
+	replyTo.topicRootId = topicRootId;
 	auto webpage = WebPageDraft{
 		.invert = draft.is_invert_media(),
 		.removed = draft.is_no_webpage(),
@@ -106,14 +104,7 @@ void ApplyPeerCloudDraft(
 	}
 	auto cloudDraft = std::make_unique<Draft>(
 		textWithTags,
-		FullReplyTo{
-			.messageId = FullMsgId(replyPeerId, reply.messageId),
-			.quote = reply.quote,
-			.storyId = (reply.storyId
-				? FullStoryId{ replyPeerId, reply.storyId }
-				: FullStoryId()),
-			.topicRootId = topicRootId,
-		},
+		replyTo,
 		MessageCursor(Ui::kQFixedMax, Ui::kQFixedMax, Ui::kQFixedMax),
 		std::move(webpage));
 	cloudDraft->date = date;
