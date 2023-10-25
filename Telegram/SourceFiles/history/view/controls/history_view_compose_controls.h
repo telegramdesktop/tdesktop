@@ -79,15 +79,15 @@ namespace Api {
 enum class SendProgressType;
 } // namespace Api
 
-namespace HistoryView {
-
-namespace Controls {
+namespace HistoryView::Controls {
 class VoiceRecordBar;
 class TTLButton;
-} // namespace Controls
+class WebpageProcessor;
+} // namespace HistoryView::Controls
+
+namespace HistoryView {
 
 class FieldHeader;
-class WebpageProcessor;
 
 enum class ComposeControlsMode {
 	Normal,
@@ -422,7 +422,7 @@ private:
 	std::shared_ptr<Data::PhotoMedia> _photoEditMedia;
 	bool _canReplaceMedia = false;
 
-	std::unique_ptr<WebpageProcessor> _preview;
+	std::unique_ptr<Controls::WebpageProcessor> _preview;
 
 	Fn<void()> _raiseEmojiSuggestions;
 

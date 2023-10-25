@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/controls/history_view_compose_controls.h"
 #include "history/view/controls/history_view_forward_panel.h"
-#include "history/view/controls/history_view_reply_options.h"
+#include "history/view/controls/history_view_draft_options.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"

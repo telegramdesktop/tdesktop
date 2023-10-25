@@ -82,9 +82,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_unread_things.h"
 #include "history/view/controls/history_view_compose_search.h"
 #include "history/view/controls/history_view_forward_panel.h"
-#include "history/view/controls/history_view_reply_options.h"
+#include "history/view/controls/history_view_draft_options.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
+#include "history/view/controls/history_view_webpage_processor.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_service_message.h"
@@ -206,7 +207,6 @@ HistoryWidget::HistoryWidget(
 , _api(&controller->session().mtp())
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
-, _previewTimer([=] { requestPreview(); })
 , _topBar(this, controller)
 , _scroll(
 	this,
@@ -440,12 +440,6 @@ HistoryWidget::HistoryWidget(
 	if (_supportAutocomplete) {
 		supportInitAutocomplete();
 	}
-	_fieldLinksParser = std::make_unique<MessageLinksParser>(_field);
-	_fieldLinksParser->list().changes(
-	) | rpl::start_with_next([=](QStringList &&parsed) {
-		_parsedLinks = std::move(parsed);
-		checkPreview();
-	}, lifetime());
 	_field->rawTextEdit()->installEventFilter(this);
 	_field->rawTextEdit()->installEventFilter(_fieldAutocomplete);
 	_field->setMimeDataHook([=](
@@ -564,13 +558,6 @@ HistoryWidget::HistoryWidget(
 		crl::on_main(this, [=] {
 			updateHistoryGeometry();
 		});
-	}, lifetime());
-
-	session().data().webPageUpdates(
-	) | rpl::filter([=](not_null<WebPageData*> page) {
-		return (_previewData == page.get());
-	}) | rpl::start_with_next([=] {
-		updatePreview();
 	}, lifetime());
 
 	session().data().channelDifferenceTooLong(
@@ -723,9 +710,9 @@ HistoryWidget::HistoryWidget(
 		return update.flags;
 	}) | rpl::start_with_next([=](Data::PeerUpdate::Flags flags) {
 		if (flags & PeerUpdateFlag::Rights) {
-			checkPreview();
 			updateStickersByEmoji();
 			updateFieldPlaceholder();
+			_preview->checkNow(false);
 		}
 		if (flags & PeerUpdateFlag::Migration) {
 			handlePeerMigration();
@@ -1600,7 +1587,9 @@ void HistoryWidget::fieldChanged() {
 
 	updateSendButtonType();
 	if (!HasSendText(_field)) {
-		_previewDraft = {};
+		if (_preview) {
+			_preview->apply({});
+		}
 		_fieldIsEmpty = true;
 	} else if (_fieldIsEmpty) {
 		_fieldIsEmpty = false;
@@ -1664,14 +1653,14 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 				.messageId = FullMsgId(_history->peer->id, _editMsgId),
 				.topicRootId = topicRootId,
 			},
-			_previewDraft,
+			_preview->draft(),
 			_saveEditMsgRequestId));
 	} else {
 		if (_replyTo || !_field->empty()) {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				_field,
 				_replyTo,
-				_previewDraft));
+				_preview->draft()));
 		} else {
 			_history->clearLocalDraft(topicRootId);
 		}
@@ -1897,6 +1886,9 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_processingReplyItem = _replyEditMsg = nullptr;
 		_processingReplyTo = _replyTo = FullReplyTo();
 		setEditMsgId(0);
+		if (_preview) {
+			_preview->apply({});
+		}
 		if (fieldWillBeHiddenAfterEdit) {
 			updateControlsVisibility();
 			updateControlsGeometry();
@@ -1930,18 +1922,9 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		processReply();
 	}
 
-	// Save links from _field to _parsedLinks without generating preview.
-	_previewDraft = { .removed = true };
-	if (_editMsgId) {
-		_fieldLinksParser->setDisabled(!_replyEditMsg
-			|| (_replyEditMsg->media()
-				&& !_replyEditMsg->media()->webpage()));
+	if (_preview) {
+		_preview->apply(draft->webpage, !_editMsgId);
 	}
-	_fieldLinksParser->parseNow();
-	_parsedLinks = _fieldLinksParser->list().current();
-	_previewDraft = draft->webpage;
-	checkPreview();
-
 	return true;
 }
 
@@ -2149,9 +2132,6 @@ void HistoryWidget::showHistory(
 	_canReplaceMedia = false;
 	_photoEditMedia = nullptr;
 	updateReplaceMediaButton();
-	_previewData = nullptr;
-	_previewDraft = {};
-	_previewCache.clear();
 	_fieldBarCancel->hide();
 
 	_membersDropdownShowTimer.cancel();
@@ -2409,8 +2389,43 @@ void HistoryWidget::setHistory(History *history) {
 		_history = history;
 		_migrated = _history ? _history->migrateFrom() : nullptr;
 		registerDraftSource();
+		if (_history) {
+			setupPreview();
+		} else {
+			_previewDrawPreview = nullptr;
+			_preview = nullptr;
+		}
 	}
 	refreshAttachBotsMenu();
+}
+
+void HistoryWidget::setupPreview() {
+	Expects(_history != nullptr);
+
+	using namespace HistoryView::Controls;
+	_preview = std::make_unique<WebpageProcessor>(_history, _field);
+	_preview->repaintRequests() | rpl::start_with_next([=] {
+		updateField();
+	}, _preview->lifetime());
+
+	_preview->parsedValue(
+	) | rpl::start_with_next([=](WebpageParsed value) {
+		_previewTitle.setText(
+			st::msgNameStyle,
+			value.title,
+			Ui::NameTextOptions());
+		_previewDescription.setText(
+			st::defaultTextStyle,
+			value.description,
+			Ui::DialogTextOptions());
+		const auto changed = (!_previewDrawPreview != !value.drawPreview);
+		_previewDrawPreview = value.drawPreview;
+		if (changed) {
+			updateControlsGeometry();
+			updateControlsVisibility();
+		}
+		updateField();
+	}, _preview->lifetime());
 }
 
 void HistoryWidget::injectSponsoredMessages() const {
@@ -2468,7 +2483,7 @@ void HistoryWidget::registerDraftSource() {
 				? FullReplyTo{ FullMsgId(peerId, editMsgId) }
 				: _replyTo),
 			_field->getTextWithTags(),
-			_previewDraft,
+			_preview->draft(),
 		};
 	};
 	auto draftSource = Storage::MessageDraftSource{
@@ -2486,9 +2501,6 @@ void HistoryWidget::registerDraftSource() {
 void HistoryWidget::setEditMsgId(MsgId msgId) {
 	unregisterDraftSources();
 	_editMsgId = msgId;
-	if (_fieldLinksParser && !_editMsgId) {
-		_fieldLinksParser->setDisabled(false);
-	}
 	if (!msgId) {
 		_canReplaceMedia = false;
 	}
@@ -2906,7 +2918,7 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_editMsgId
 			|| _replyTo
 			|| readyToForward()
-			|| (_previewData && !_previewData->failed)
+			|| _previewDrawPreview
 			|| _kbReplyTo) {
 			if (_fieldBarCancel->isHidden()) {
 				_fieldBarCancel->show();
@@ -3832,7 +3844,7 @@ void HistoryWidget::saveEditMsg() {
 	_saveEditMsgRequestId = Api::EditTextMessage(
 		item,
 		sending,
-		_previewDraft,
+		_preview->draft(),
 		options,
 		done,
 		fail);
@@ -3918,7 +3930,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 
 	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _field->getTextWithAppliedMarkdown();
-	message.webPage = _previewDraft;
+	message.webPage = _preview->draft();
 
 	const auto ignoreSlowmodeCountdown = (options.scheduled != 0);
 	if (showSendMessageError(
@@ -3935,9 +3947,6 @@ void HistoryWidget::send(Api::SendOptions options) {
 
 	hideSelectorControlsAnimated();
 
-	if (_previewData && _previewData->pendingTill) {
-		previewCancel();
-	}
 	setInnerFocus();
 
 	if (!_keyboard->hasMarkup() && _keyboard->forceReply() && !_kbReplyTo) {
@@ -4333,7 +4342,7 @@ void HistoryWidget::updateOverStates(QPoint pos) {
 		_field->y() - st::historySendPadding - st::historyReplyHeight,
 		width() - skip - _fieldBarCancel->width(),
 		st::historyReplyHeight);
-	const auto hasWebPage = _previewData && !_previewData->failed;
+	const auto hasWebPage = !!_previewDrawPreview;
 	const auto inDetails = detailsRect.contains(pos)
 		&& (_editMsgId || replyTo() || isReadyToForward || hasWebPage);
 	const auto inPhotoEdit = inDetails
@@ -4595,9 +4604,7 @@ bool HistoryWidget::showRecordButton() const {
 		&& !_voiceRecordBar->isListenState()
 		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !HasSendText(_field)
-		&& (!_previewData
-			|| _previewData->failed
-			|| _previewData->pendingTill)
+		&& !_previewDrawPreview
 		&& !readyToForward()
 		&& !_editMsgId;
 }
@@ -4781,7 +4788,7 @@ void HistoryWidget::toggleKeyboard(bool manual) {
 
 			_kbReplyTo = nullptr;
 			if (!readyToForward()
-				&& (!_previewData || _previewData->failed)
+				&& !_previewDrawPreview
 				&& !_editMsgId
 				&& !_replyTo) {
 				_fieldBarCancel->hide();
@@ -5771,7 +5778,7 @@ void HistoryWidget::updateHistoryGeometry(
 		if (_editMsgId
 			|| replyTo()
 			|| readyToForward()
-			|| (_previewData && !_previewData->failed)) {
+			|| _previewDrawPreview) {
 			newScrollHeight -= st::historyReplyHeight;
 		}
 		if (_kbShown) {
@@ -6074,7 +6081,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_kbShown = false;
 			_kbReplyTo = nullptr;
 			if (!readyToForward()
-				&& (!_previewData || _previewData->failed)
+				&& !_previewDrawPreview
 				&& !_replyTo) {
 				_fieldBarCancel->hide();
 				updateMouseTracking();
@@ -6092,7 +6099,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 		_kbShown = false;
 		_kbReplyTo = nullptr;
 		if (!readyToForward()
-			&& (!_previewData || _previewData->failed)
+			&& !_previewDrawPreview
 			&& !_replyTo
 			&& !_editMsgId) {
 			_fieldBarCancel->hide();
@@ -6139,7 +6146,7 @@ int HistoryWidget::computeMaxFieldHeight() const {
 		- ((_editMsgId
 			|| replyTo()
 			|| readyToForward()
-			|| (_previewData && !_previewData->failed))
+			|| _previewDrawPreview)
 			? st::historyReplyHeight
 			: 0)
 		- (2 * st::historySendPadding)
@@ -6219,50 +6226,63 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			crl::guard(_list, [=] { cancelEdit(); }));
 	} else if (!_inDetails) {
 		return;
-	} else if (_previewData
-		&& !_previewData->failed
-		&& !_previewData->pendingTill) {
-		const auto history = _history;
-		using namespace HistoryView::Controls;
-		EditWebPageOptions(
-			controller()->uiShow(),
-			_previewData,
-			_previewDraft,
-			[=](Data::WebPageDraft draft) { applyPreview(draft); });
+	} else if (_previewDrawPreview) {
+		editDraftOptions();
 	} else if (isReadyToForward) {
 		if (e->button() != Qt::LeftButton) {
 			_forwardPanel->editToNextOption();
 		} else {
 			_forwardPanel->editOptions(controller()->uiShow());
 		}
-	} else if (const auto reply = replyTo()) {
-		const auto done = [=](FullReplyTo replyTo) {
-			if (replyTo) {
-				replyToMessage(replyTo);
-			} else {
-				cancelReply();
-			}
-		};
-		const auto highlight = [=] {
-			controller()->showPeerHistory(
-				reply.messageId.peer,
-				Window::SectionShow::Way::Forward,
-				reply.messageId.msg);
-		};
-		const auto history = _history;
-		using namespace HistoryView::Controls;
-		EditReplyOptions(
-			controller()->uiShow(),
-			reply,
-			done,
-			highlight,
-			[=] { ClearDraftReplyTo(history, reply.messageId); });
+	} else if (_replyTo) {
+		editDraftOptions();
+	} else if (_kbReplyTo) {
+		controller()->showPeerHistory(
+			_kbReplyTo->history()->peer->id,
+			Window::SectionShow::Way::Forward,
+			_kbReplyTo->id);
 	} else if (_editMsgId) {
 		controller()->showPeerHistory(
 			_peer,
 			Window::SectionShow::Way::Forward,
 			_editMsgId);
 	}
+}
+
+void HistoryWidget::editDraftOptions() {
+	Expects(_history != nullptr);
+
+	const auto history = _history;
+	const auto reply = _replyTo;
+	const auto webpage = _preview->draft();
+
+	const auto done = [=](
+			FullReplyTo replyTo,
+			Data::WebPageDraft webpage) {
+		if (replyTo) {
+			replyToMessage(replyTo);
+		} else {
+			cancelReply();
+		}
+		if (_preview->draft() != webpage) {
+			_preview->apply(webpage);
+		}
+	};
+	const auto highlight = [=] {
+		controller()->showPeerHistory(
+			reply.messageId.peer,
+			Window::SectionShow::Way::Forward,
+			reply.messageId.msg);
+	};
+
+	using namespace HistoryView::Controls;
+	EditDraftOptions(
+		controller()->uiShow(),
+		history,
+		Data::Draft(_field, reply, _preview->draft()),
+		done,
+		highlight,
+		[=] { ClearDraftReplyTo(history, reply.messageId); });
 }
 
 void HistoryWidget::keyPressEvent(QKeyEvent *e) {
@@ -7075,9 +7095,8 @@ void HistoryWidget::setFieldText(
 	_textUpdateEvents = TextUpdateEvent::SaveDraft
 		| TextUpdateEvent::SendTyping;
 
-	if (!_previewDraft.manual) {
-		previewCancel();
-		_previewDraft = {};
+	if (_preview) {
+		_preview->checkNow(false);
 	}
 }
 
@@ -7239,7 +7258,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				_field,
 				_replyTo,
-				_previewDraft));
+				_preview->draft()));
 		} else {
 			_history->clearLocalDraft({});
 		}
@@ -7258,13 +7277,6 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 		cursor,
 		previewDraft));
 	applyDraft();
-
-	_previewData = previewDraft.id
-		? session().data().webpage(previewDraft.id).get()
-		: nullptr;
-	if (_previewData) {
-		updatePreview();
-	}
 
 	updateBotKeyboard();
 
@@ -7332,7 +7344,7 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		_processingReplyTo = _replyTo = FullReplyTo();
 		mouseMoveEvent(0);
 		if (!readyToForward()
-			&& (!_previewData || _previewData->failed)
+			&& !_previewDrawPreview
 			&& !_kbReplyTo) {
 			_fieldBarCancel->hide();
 			updateMouseTracking();
@@ -7405,7 +7417,7 @@ void HistoryWidget::cancelEdit() {
 
 	mouseMoveEvent(nullptr);
 	if (!readyToForward()
-		&& (!_previewData || _previewData->failed)
+		&& !_previewDrawPreview
 		&& !replyTo()) {
 		_fieldBarCancel->hide();
 		updateMouseTracking();
@@ -7427,8 +7439,8 @@ void HistoryWidget::cancelEdit() {
 void HistoryWidget::cancelFieldAreaState() {
 	controller()->hideLayer();
 	_replyForwardPressed = false;
-	if (_previewData && !_previewData->failed) {
-		applyPreview({ .removed = true });
+	if (_previewDrawPreview) {
+		_preview->apply({ .removed = true });
 	} else if (_editMsgId) {
 		cancelEdit();
 	} else if (readyToForward()) {
@@ -7438,165 +7450,6 @@ void HistoryWidget::cancelFieldAreaState() {
 	} else if (_kbReplyTo) {
 		toggleKeyboard();
 	}
-}
-
-void HistoryWidget::applyPreview(Data::WebPageDraft draft) {
-	_previewDraft = draft;
-	if (draft.removed) {
-		previewCancel();
-	} else if (draft.id) {
-		_previewData = session().data().webpage(draft.id).get();
-		requestPreview();
-	}
-
-	_saveDraftText = true;
-	_saveDraftStart = crl::now();
-	saveDraft();
-}
-
-void HistoryWidget::previewCancel() {
-	_api.request(base::take(_previewRequest)).cancel();
-	_previewData = nullptr;
-	_previewLinks.clear();
-	updatePreview();
-}
-
-void HistoryWidget::checkPreview() {
-	const auto previewRestricted = [&] {
-		return _peer && _peer->amRestricted(ChatRestriction::EmbedLinks);
-	}();
-	if (_previewDraft.removed || previewRestricted) {
-		previewCancel();
-		return;
-	} else if (_previewDraft.manual) {
-		return;
-	}
-	const auto links = _parsedLinks.join(' ');
-	if (_previewLinks != links) {
-		_api.request(base::take(_previewRequest)).cancel();
-		_previewLinks = links;
-		if (_previewLinks.isEmpty()) {
-			if (_previewData && !_previewData->failed) {
-				previewCancel();
-			}
-		} else {
-			const auto i = _previewCache.constFind(links);
-			if (i == _previewCache.cend()) {
-				_previewRequest = _api.request(MTPmessages_GetWebPagePreview(
-					MTP_flags(0),
-					MTP_string(links),
-					MTPVector<MTPMessageEntity>()
-				)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
-					gotPreview(links, result, requestId);
-				}).send();
-			} else if (i.value()) {
-				_previewData = session().data().webpage(i.value());
-				_previewDraft.id = _previewData->id;
-				_previewDraft.url = _previewData->url;
-				updatePreview();
-			} else if (_previewData && !_previewData->failed) {
-				previewCancel();
-			}
-		}
-	}
-}
-
-void HistoryWidget::requestPreview() {
-	if (!_previewData || _previewData->failed || _previewLinks.isEmpty()) {
-		return;
-	}
-	const auto links = _previewLinks;
-	_previewRequest = _api.request(MTPmessages_GetWebPagePreview(
-		MTP_flags(0),
-		MTP_string(links),
-		MTPVector<MTPMessageEntity>()
-	)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
-		gotPreview(links, result, requestId);
-	}).send();
-}
-
-void HistoryWidget::gotPreview(
-		QString links,
-		const MTPMessageMedia &result,
-		mtpRequestId req) {
-	if (req == _previewRequest) {
-		_previewRequest = 0;
-	}
-	if (result.type() == mtpc_messageMediaWebPage) {
-		const auto &data = result.c_messageMediaWebPage().vwebpage();
-		const auto page = session().data().processWebpage(data);
-		_previewCache.insert(links, page->id);
-		if (page->pendingTill > 0
-			&& page->pendingTill <= base::unixtime::now()) {
-			page->pendingTill = 0;
-			page->failed = true;
-		}
-		if (links == _previewLinks && !_previewDraft.removed) {
-			_previewData = (page->id && !page->failed)
-				? page.get()
-				: nullptr;
-			if (_previewData) {
-				_previewDraft.id = _previewData->id;
-				_previewDraft.url = _previewData->url;
-			} else {
-				_previewDraft = {};
-			}
-			updatePreview();
-		}
-		session().data().sendWebPageGamePollNotifications();
-	} else if (result.type() == mtpc_messageMediaEmpty) {
-		_previewCache.insert(links, 0);
-		if (links == _previewLinks && !_previewDraft.removed) {
-			_previewData = nullptr;
-			_previewDraft = {};
-			updatePreview();
-		}
-	}
-}
-
-void HistoryWidget::updatePreview() {
-	_previewTimer.cancel();
-	if (_previewData && !_previewData->failed) {
-		_fieldBarCancel->show();
-		updateMouseTracking();
-		if (_previewData->pendingTill) {
-			_previewTitle.setText(
-				st::msgNameStyle,
-				tr::lng_preview_loading(tr::now),
-				Ui::NameTextOptions());
-			auto linkText = QStringView(_previewLinks).split(' ').at(0).toString();
-			_previewDescription.setText(
-				st::defaultTextStyle,
-				linkText,
-				Ui::DialogTextOptions());
-
-			const auto timeout = (_previewData->pendingTill - base::unixtime::now());
-			_previewTimer.callOnce(std::max(timeout, 0) * crl::time(1000));
-		} else {
-			auto preview =
-				HistoryView::TitleAndDescriptionFromWebPage(_previewData);
-			if (preview.title.isEmpty()) {
-				if (_previewData->document) {
-					preview.title = tr::lng_attach_file(tr::now);
-				} else if (_previewData->photo) {
-					preview.title = tr::lng_attach_photo(tr::now);
-				}
-			}
-			_previewTitle.setText(
-				st::msgNameStyle,
-				preview.title,
-				Ui::NameTextOptions());
-			_previewDescription.setText(
-				st::defaultTextStyle,
-				preview.description,
-				Ui::DialogTextOptions());
-		}
-	} else if (!readyToForward() && !replyTo() && !_editMsgId) {
-		_fieldBarCancel->hide();
-		updateMouseTracking();
-	}
-	updateControlsGeometry();
-	update();
 }
 
 void HistoryWidget::fullInfoUpdated() {
@@ -7960,12 +7813,11 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	} else if (hasForward) {
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
-	} else if (_previewData && !_previewData->failed) {
+	} else if (_previewDrawPreview) {
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
 	}
-	auto drawWebPagePreview = (_previewData && !_previewData->failed)
-		&& !_replyForwardPressed;
+	auto drawWebPagePreview = _previewDrawPreview && !_replyForwardPressed;
 	p.setInactive(
 		controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Any));
 	p.fillRect(myrtlrect(0, backy, width(), backh), st::historyReplyBg);
@@ -8072,7 +7924,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			backy + (st::historyReplyHeight - st::historyReplyPreview) / 2,
 			st::historyReplyPreview,
 			st::historyReplyPreview);
-		if (HistoryView::DrawWebPageDataPreview(p, _previewData, _peer, to)) {
+		if (_previewDrawPreview(p, to)) {
 			previewLeft += st::historyReplyPreview + st::msgReplyBarSkip;
 		}
 		p.setPen(st::historyReplyNameFg);

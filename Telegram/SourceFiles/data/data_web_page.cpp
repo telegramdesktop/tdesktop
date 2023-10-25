@@ -355,3 +355,30 @@ QString WebPageData::displayedSiteName() const {
 		? tr::lng_media_color_theme(tr::now)
 		: siteName;
 }
+
+bool WebPageData::computeDefaultSmallMedia() const {
+	if (!collage.items.empty()) {
+		return false;
+	} else if (siteName.isEmpty()
+		&& title.isEmpty()
+		&& description.empty()
+		&& author.isEmpty()) {
+		return false;
+	} else if (!document
+		&& photo
+		&& type != WebPageType::Photo
+		&& type != WebPageType::Document
+		&& type != WebPageType::Story
+		&& type != WebPageType::Video) {
+		if (type == WebPageType::Profile) {
+			return true;
+		} else if (siteName == u"Twitter"_q
+			|| siteName == u"Facebook"_q
+			|| type == WebPageType::ArticleWithIV) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+	return false;
+}

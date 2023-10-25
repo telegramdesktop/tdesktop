@@ -94,13 +94,15 @@ class Element;
 class PinnedTracker;
 class TranslateBar;
 class ComposeSearch;
-namespace Controls {
+} // namespace HistoryView
+
+namespace HistoryView::Controls {
 class RecordLock;
 class VoiceRecordBar;
 class ForwardPanel;
 class TTLButton;
-} // namespace Controls
-} // namespace HistoryView
+class WebpageProcessor;
+} // namespace HistoryView::Controls
 
 class BotKeyboard;
 class HistoryInner;
@@ -199,9 +201,6 @@ public:
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	[[nodiscard]] QVector<FullMsgId> replyReturns() const;
 	void setReplyReturns(PeerId peer, QVector<FullMsgId> replyReturns);
-
-	void updatePreview();
-	void previewCancel();
 
 	void escape();
 
@@ -406,7 +405,6 @@ private:
 	void startBotCommand();
 	void hidePinnedMessage();
 	void cancelFieldAreaState();
-	void applyPreview(Data::WebPageDraft draft);
 	void unblockUser();
 	void sendBotStartCommand();
 	void joinChannel();
@@ -540,9 +538,9 @@ private:
 
 	void saveEditMsg();
 
-	void checkPreview();
-	void requestPreview();
-	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
+	void setupPreview();
+	void editDraftOptions();
+
 	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
 	void addMessagesToFront(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
@@ -674,16 +672,10 @@ private:
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 
-	QStringList _parsedLinks;
-	QString _previewLinks;
-	WebPageData *_previewData = nullptr;
-	typedef QMap<QString, WebPageId> PreviewCache;
-	PreviewCache _previewCache;
-	mtpRequestId _previewRequest = 0;
+	std::unique_ptr<HistoryView::Controls::WebpageProcessor> _preview;
+	Fn<bool(QPainter &p, QRect to)> _previewDrawPreview;
 	Ui::Text::String _previewTitle;
 	Ui::Text::String _previewDescription;
-	base::Timer _previewTimer;
-	Data::WebPageDraft _previewDraft;
 
 	bool _replyForwardPressed = false;
 
@@ -725,7 +717,6 @@ private:
 
 	const object_ptr<FieldAutocomplete> _fieldAutocomplete;
 	object_ptr<Support::Autocomplete> _supportAutocomplete;
-	std::unique_ptr<MessageLinksParser> _fieldLinksParser;
 
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;

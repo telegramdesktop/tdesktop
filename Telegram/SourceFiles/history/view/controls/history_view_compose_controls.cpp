@@ -47,9 +47,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/controls/history_view_forward_panel.h"
-#include "history/view/controls/history_view_reply_options.h"
+#include "history/view/controls/history_view_draft_options.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
+#include "history/view/controls/history_view_webpage_processor.h"
 #include "history/view/history_view_webpage_preview.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "inline_bots/inline_results_widget.h"
@@ -120,222 +121,6 @@ WebPageText ProcessWebPageData(WebPageData *page) {
 
 } // namespace
 
-class WebpageProcessor final {
-public:
-	WebpageProcessor(
-		not_null<History*> history,
-		not_null<Ui::InputField*> field);
-
-	void cancel();
-	void checkPreview();
-
-	[[nodiscard]] Data::WebPageDraft draft() const;
-	void setAllowed(bool allowed);
-	void refreshDraft(Data::WebPageDraft draft, bool disable);
-
-	[[nodiscard]] rpl::producer<> paintRequests() const;
-	[[nodiscard]] rpl::producer<QString> titleChanges() const;
-	[[nodiscard]] rpl::producer<QString> descriptionChanges() const;
-	[[nodiscard]] rpl::producer<WebPageData*> pageDataChanges() const;
-
-private:
-	void updatePreview();
-	void getWebPagePreview();
-
-	const not_null<History*> _history;
-	MTP::Sender _api;
-	MessageLinksParser _fieldLinksParser;
-
-	Data::WebPageDraft _previewDraft;
-
-	QStringList _parsedLinks;
-	QString _previewLinks;
-
-	WebPageData *_previewData = nullptr;
-	std::map<QString, WebPageId> _previewCache;
-
-	mtpRequestId _previewRequest = 0;
-
-	rpl::event_stream<> _paintRequests;
-	rpl::event_stream<QString> _titleChanges;
-	rpl::event_stream<QString> _descriptionChanges;
-	rpl::event_stream<WebPageData*> _pageDataChanges;
-
-	base::Timer _timer;
-
-	rpl::lifetime _lifetime;
-
-};
-
-WebpageProcessor::WebpageProcessor(
-	not_null<History*> history,
-	not_null<Ui::InputField*> field)
-: _history(history)
-, _api(&history->session().mtp())
-, _fieldLinksParser(field)
-, _timer([=] {
-	if (!ShowWebPagePreview(_previewData)
-		|| _previewLinks.isEmpty()) {
-		return;
-	}
-	getWebPagePreview();
-}) {
-
-	_history->session().downloaderTaskFinished(
-	) | rpl::filter([=] {
-		return _previewData
-			&& (_previewData->document || _previewData->photo);
-	}) | rpl::start_with_next([=] {
-		_paintRequests.fire({});
-	}, _lifetime);
-
-	_history->owner().webPageUpdates(
-	) | rpl::filter([=](not_null<WebPageData*> page) {
-		return (_previewData == page.get());
-	}) | rpl::start_with_next([=] {
-		updatePreview();
-	}, _lifetime);
-
-	_fieldLinksParser.list().changes(
-	) | rpl::start_with_next([=](QStringList &&parsed) {
-		_parsedLinks = std::move(parsed);
-		checkPreview();
-	}, _lifetime);
-}
-
-rpl::producer<> WebpageProcessor::paintRequests() const {
-	return _paintRequests.events();
-}
-
-Data::WebPageDraft WebpageProcessor::draft() const {
-	return _previewDraft;
-}
-
-void WebpageProcessor::setAllowed(bool allowed) {
-	_previewDraft.removed = !allowed;
-}
-
-void WebpageProcessor::refreshDraft(
-		Data::WebPageDraft draft,
-		bool disable) {
-	// Save links from _field to _parsedLinks without generating preview.
-	_previewDraft = { .removed = true };
-	_fieldLinksParser.setDisabled(disable);
-	_fieldLinksParser.parseNow();
-	_parsedLinks = _fieldLinksParser.list().current();
-	_previewDraft = draft;
-	checkPreview();
-}
-
-void WebpageProcessor::cancel() {
-	_api.request(base::take(_previewRequest)).cancel();
-	_previewData = nullptr;
-	_previewLinks.clear();
-	updatePreview();
-}
-
-void WebpageProcessor::updatePreview() {
-	_timer.cancel();
-	auto t = QString();
-	auto d = QString();
-	if (ShowWebPagePreview(_previewData)) {
-		if (const auto till = _previewData->pendingTill) {
-			t = tr::lng_preview_loading(tr::now);
-			d = QStringView(_previewLinks).split(' ').at(0).toString();
-
-			const auto timeout = till - base::unixtime::now();
-			_timer.callOnce(
-				std::max(timeout, 0) * crl::time(1000));
-		} else {
-			const auto preview = ProcessWebPageData(_previewData);
-			t = preview.title;
-			d = preview.description;
-		}
-	}
-	_titleChanges.fire_copy(t);
-	_descriptionChanges.fire_copy(d);
-	_pageDataChanges.fire_copy(_previewData);
-	_paintRequests.fire({});
-}
-
-void WebpageProcessor::getWebPagePreview() {
-	const auto links = _previewLinks;
-	_previewRequest = _api.request(
-		MTPmessages_GetWebPagePreview(
-			MTP_flags(0),
-			MTP_string(links),
-			MTPVector<MTPMessageEntity>()
-	)).done([=](const MTPMessageMedia &result) {
-		_previewRequest = 0;
-		result.match([=](const MTPDmessageMediaWebPage &d) {
-			const auto page = _history->owner().processWebpage(d.vwebpage());
-			_previewCache.insert({ links, page->id });
-			if (page->pendingTill > 0
-				&& page->pendingTill <= base::unixtime::now()) {
-				page->pendingTill = 0;
-				page->failed = true;
-			}
-			if (links == _previewLinks && !_previewDraft.removed) {
-				_previewData = (page->id && !page->failed)
-					? page.get()
-					: nullptr;
-				updatePreview();
-			}
-		}, [=](const MTPDmessageMediaEmpty &d) {
-			_previewCache.insert({ links, 0 });
-			if (links == _previewLinks && !_previewDraft.removed) {
-				_previewData = nullptr;
-				updatePreview();
-			}
-		}, [](const auto &d) {
-		});
-	}).fail([=] {
-		_previewRequest = 0;
-	}).send();
-}
-
-void WebpageProcessor::checkPreview() {
-	const auto previewRestricted = _history->peer
-		&& _history->peer->amRestricted(ChatRestriction::EmbedLinks);
-	if (_previewDraft.removed || previewRestricted) {
-		cancel();
-		return;
-	}
-	const auto newLinks = _parsedLinks.join(' ');
-	if (_previewLinks == newLinks) {
-		return;
-	}
-	_api.request(base::take(_previewRequest)).cancel();
-	_previewLinks = newLinks;
-	if (_previewLinks.isEmpty()) {
-		if (ShowWebPagePreview(_previewData)) {
-			cancel();
-		}
-	} else {
-		const auto i = _previewCache.find(_previewLinks);
-		if (i == _previewCache.end()) {
-			getWebPagePreview();
-		} else if (i->second) {
-			_previewData = _history->owner().webpage(i->second);
-			updatePreview();
-		} else if (ShowWebPagePreview(_previewData)) {
-			cancel();
-		}
-	}
-}
-
-rpl::producer<QString> WebpageProcessor::titleChanges() const {
-	return _titleChanges.events();
-}
-
-rpl::producer<QString> WebpageProcessor::descriptionChanges() const {
-	return _descriptionChanges.events();
-}
-
-rpl::producer<WebPageData*> WebpageProcessor::pageDataChanges() const {
-	return _pageDataChanges.events();
-}
-
 class FieldHeader final : public Ui::RpWidget {
 public:
 	FieldHeader(
@@ -350,10 +135,7 @@ public:
 	void updateForwarding(
 		Data::Thread *thread,
 		Data::ResolvedForwardDraft items);
-	void previewRequested(
-		rpl::producer<QString> title,
-		rpl::producer<QString> description,
-		rpl::producer<WebPageData*> page);
+	void previewReady(rpl::producer<Controls::WebpageParsed> parsed);
 	void previewUnregister();
 
 	[[nodiscard]] bool isDisplayed() const;
@@ -366,7 +148,6 @@ public:
 	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
 	[[nodiscard]] rpl::producer<> editPhotoRequests() const;
 	[[nodiscard]] MessageToEdit queryToEdit();
-	[[nodiscard]] Data::WebPageDraft webPageDraft() const;
 
 	[[nodiscard]] FullReplyTo getDraftReply() const;
 	[[nodiscard]] rpl::producer<> editCancelled() const {
@@ -399,18 +180,14 @@ private:
 	bool hasPreview() const;
 
 	struct Preview {
-		WebPageData *data = nullptr;
-		Data::WebPageDraft draft;
+		Controls::WebpageParsed parsed;
 		Ui::Text::String title;
 		Ui::Text::String description;
-		bool cancelled = false;
 	};
 
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	History *_history = nullptr;
 	MsgId _topicRootId = 0;
-	rpl::variable<QString> _title;
-	rpl::variable<QString> _description;
 
 	Preview _preview;
 	rpl::event_stream<> _editCancelled;
@@ -493,7 +270,7 @@ void FieldHeader::init() {
 			st::historyReplyIcon.paint(p, position, width());
 		}
 
-		(ShowWebPagePreview(_preview.data) && !*leftIconPressed)
+		(_preview.parsed && !*leftIconPressed)
 			? paintWebPage(
 				p,
 				_history ? _history->peer : _data->session().user())
@@ -547,22 +324,6 @@ void FieldHeader::init() {
 		updateVisible();
 		update();
 	});
-
-	_title.value(
-	) | rpl::start_with_next([=](const auto &t) {
-		_preview.title.setText(
-			st::msgNameStyle,
-			t,
-			Ui::NameTextOptions());
-	}, lifetime());
-
-	_description.value(
-	) | rpl::start_with_next([=](const auto &d) {
-		_preview.description.setText(
-			st::messageTextStyle,
-			d,
-			Ui::DialogTextOptions());
-	}, lifetime());
 
 	setMouseTracking(true);
 	events(
@@ -619,28 +380,32 @@ void FieldHeader::init() {
 				if (!isEditingMessage() && readyToForward()) {
 					_forwardPanel->editOptions(_show);
 				} else if (!isEditingMessage() && reply) {
-					using namespace Controls;
-					const auto highlight = [=] {
-						_scrollToItemRequests.fire_copy(reply.messageId);
-					};
-					const auto history = _history;
-					const auto topicRootId = _topicRootId;
-					const auto done = [=](FullReplyTo replyTo) {
-						if (replyTo) {
-							replyToMessage(replyTo);
-						} else {
-							_replyCancelled.fire({});
-						}
-					};
-					const auto clearOldReplyTo = [=, id = reply.messageId] {
-						ClearDraftReplyTo(history, topicRootId, id);
-					};
-					EditReplyOptions(
-						_show,
-						reply,
-						done,
-						highlight,
-						clearOldReplyTo);
+					//using namespace Controls;
+					//const auto highlight = [=] {
+					//	_scrollToItemRequests.fire_copy(reply.messageId);
+					//};
+					//const auto history = _history;
+					//const auto topicRootId = _topicRootId;
+					//const auto done = [=](
+					//		FullReplyTo replyTo,
+					//		Data::WebPageDraft webpage) {
+					//	if (replyTo) {
+					//		replyToMessage(replyTo);
+					//	} else {
+					//		_replyCancelled.fire({});
+					//	}
+
+					//};
+					//const auto clearOldReplyTo = [=, id = reply.messageId] {
+					//	ClearDraftReplyTo(history, topicRootId, id);
+					//};
+					//EditDraftOptions(
+					//	_show,
+					//	_history,
+					//	Data::Draft( reply,
+					//	done,
+					//	highlight,
+					//	clearOldReplyTo);
 				} else {
 					auto id = isEditingMessage()
 						? _editMsgId.current()
@@ -683,17 +448,17 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 	_shownMessage = item;
 	if (item) {
 		updateShownMessageText();
-		if (item->fullId() == _editMsgId.current()) {
-			_preview = {};
-			if (const auto media = item->media()) {
-				if (const auto page = media->webpage()) {
-					const auto preview = ProcessWebPageData(page);
-					_title = preview.title;
-					_description = preview.description;
-					_preview.data = page;
-				}
-			}
-		}
+		//if (item->fullId() == _editMsgId.current()) {
+		//	_preview = {};
+		//	if (const auto media = item->media()) {
+		//		if (const auto page = media->webpage()) {
+		//			const auto preview = ProcessWebPageData(page);
+		//			_title = preview.title;
+		//			_description = preview.description;
+		//			_preview.data = page;
+		//		}
+		//	}
+		//}
 	} else {
 		_shownMessageText.clear();
 		resolveMessageData();
@@ -737,34 +502,22 @@ void FieldHeader::resolveMessageData() {
 	_data->session().api().requestMessageData(peer, itemId, callback);
 }
 
-void FieldHeader::previewRequested(
-		rpl::producer<QString> title,
-		rpl::producer<QString> description,
-		rpl::producer<WebPageData*> page) {
+void FieldHeader::previewReady(
+		rpl::producer<Controls::WebpageParsed> parsed) {
 	_previewLifetime.destroy();
 
 	std::move(
-		title
-	) | rpl::filter([=] {
-		return !_preview.cancelled;
-	}) | rpl::start_with_next([=](const QString &t) {
-		_title = t;
-	}, _previewLifetime);
-
-	std::move(
-		description
-	) | rpl::filter([=] {
-		return !_preview.cancelled;
-	}) | rpl::start_with_next([=](const QString &d) {
-		_description = d;
-	}, _previewLifetime);
-
-	std::move(
-		page
-	) | rpl::filter([=] {
-		return !_preview.cancelled;
-	}) | rpl::start_with_next([=](WebPageData *p) {
-		_preview.data = p;
+		parsed
+	) | rpl::start_with_next([=](Controls::WebpageParsed parsed) {
+		_preview.parsed = std::move(parsed);
+		_preview.title.setText(
+			st::msgNameStyle,
+			_preview.parsed.title,
+			Ui::NameTextOptions());
+		_preview.description.setText(
+			st::messageTextStyle,
+			_preview.parsed.description,
+			Ui::DialogTextOptions());
 		updateVisible();
 	}, _previewLifetime);
 }
@@ -774,7 +527,7 @@ void FieldHeader::previewUnregister() {
 }
 
 void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
-	Expects(ShowWebPagePreview(_preview.data));
+	Expects(!!_preview.parsed);
 
 	const auto textTop = st::msgReplyPadding.top();
 	auto previewLeft = st::historyReplySkip + st::msgReplyBarSkip;
@@ -784,7 +537,7 @@ void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
 		(st::historyReplyHeight - st::historyReplyPreview) / 2,
 		st::historyReplyPreview,
 		st::historyReplyPreview);
-	if (HistoryView::DrawWebPageDataPreview(p, _preview.data, context, to)) {
+	if (_preview.parsed.drawPreview(p, to)) {
 		previewLeft += st::historyReplyPreview + st::msgReplyBarSkip;
 	}
 	const auto elidedWidth = width()
@@ -965,13 +718,7 @@ FullReplyTo FieldHeader::replyingToMessage() const {
 }
 
 bool FieldHeader::hasPreview() const {
-	return ShowWebPagePreview(_preview.data);
-}
-
-Data::WebPageDraft FieldHeader::webPageDraft() const {
-	return hasPreview()
-		? Data::WebPageDraft{ .id = _preview.data->id }
-		: Data::WebPageDraft{ .removed = true };
+	return !!_preview.parsed;
 }
 
 FullReplyTo FieldHeader::getDraftReply() const {
@@ -1476,8 +1223,7 @@ void ComposeControls::setFieldText(
 		| TextUpdateEvent::SendTyping;
 
 	if (_preview) {
-		_preview->cancel();
-		_preview->setAllowed(true);
+		_preview->checkNow(false);
 	}
 }
 
@@ -1626,7 +1372,7 @@ void ComposeControls::init() {
 	_header->previewCancelled(
 	) | rpl::start_with_next([=] {
 		if (_preview) {
-			_preview->setAllowed(false);
+			_preview->apply({ .removed = true });
 		}
 		_saveDraftText = true;
 		_saveDraftStart = crl::now();
@@ -2010,7 +1756,7 @@ void ComposeControls::fieldChanged() {
 	updateSendButtonType();
 	_hasSendText = HasSendText(_field);
 	if (!_hasSendText.current() && _preview) {
-		_preview->setAllowed(true);
+		_preview->apply({});
 	}
 	if (updateBotCommandShown() || updateLikeShown()) {
 		updateControlsVisibility();
@@ -2180,7 +1926,9 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		}
 		_header->editMessage({});
 		_header->replyToMessage({});
-		_preview->refreshDraft({}, false);
+		if (_preview) {
+			_preview->apply({});
+		}
 		_canReplaceMedia = false;
 		_photoEditMedia = nullptr;
 		return;
@@ -2194,15 +1942,13 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	draft->cursor.applyTo(_field);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
 	if (_preview) {
-		const auto disablePreview = (editDraft != nullptr);
-		_preview->refreshDraft(draft->webpage, disablePreview);
+		_preview->apply(draft->webpage, draft != editDraft);
 	}
 
 	if (draft == editDraft) {
 		const auto resolve = [=] {
 			if (const auto item = _history->owner().message(editingId)) {
 				const auto media = item->media();
-				const auto disablePreview = media && !media->webpage();
 				_canReplaceMedia = media && media->allowsEditMedia();
 				_photoEditMedia = (_canReplaceMedia
 					&& _regularWindow
@@ -2216,7 +1962,11 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 						item->fullId());
 				}
 				_header->editMessage(editingId, _photoEditMedia != nullptr);
-				_preview->refreshDraft(_preview->draft(), disablePreview);
+				if (_preview) {
+					_preview->apply(
+						Data::WebPageDraft::FromItem(item),
+						false);
+				}
 				return true;
 			}
 			_canReplaceMedia = false;
@@ -3070,9 +2820,11 @@ void ComposeControls::initWebpageProcess() {
 		return;
 	}
 
-	_preview = std::make_unique<WebpageProcessor>(_history, _field);
+	_preview = std::make_unique<Controls::WebpageProcessor>(
+		_history,
+		_field);
 
-	_preview->paintRequests(
+	_preview->repaintRequests(
 	) | rpl::start_with_next(crl::guard(_header.get(), [=] {
 		_header->update();
 	}), _historyLifetime);
@@ -3088,7 +2840,7 @@ void ComposeControls::initWebpageProcess() {
 		return update.flags;
 	}) | rpl::start_with_next([=](Data::PeerUpdate::Flags flags) {
 		if (flags & Data::PeerUpdate::Flag::Rights) {
-			_preview->checkPreview();
+			_preview->checkNow(false);
 			updateStickersByEmoji();
 			updateFieldPlaceholder();
 		}
@@ -3106,10 +2858,7 @@ void ComposeControls::initWebpageProcess() {
 		}
 	}, _historyLifetime);
 
-	_header->previewRequested(
-		_preview->titleChanges(),
-		_preview->descriptionChanges(),
-		_preview->pageDataChanges());
+	_header->previewReady(_preview->parsedValue());
 }
 
 void ComposeControls::initForwardProcess() {
@@ -3129,7 +2878,7 @@ void ComposeControls::initForwardProcess() {
 }
 
 Data::WebPageDraft ComposeControls::webPageDraft() const {
-	return _header->webPageDraft();
+	return _preview ? _preview->draft() : Data::WebPageDraft();
 }
 
 rpl::producer<Data::MessagePosition> ComposeControls::scrollRequests() const {

@@ -89,6 +89,7 @@ struct WebPageData {
 		const MTPmessages_Messages &result);
 
 	[[nodiscard]] QString displayedSiteName() const;
+	[[nodiscard]] bool computeDefaultSmallMedia() const;
 
 	const WebPageId id = 0;
 	WebPageType type = WebPageType::None;

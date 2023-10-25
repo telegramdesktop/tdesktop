@@ -244,31 +244,8 @@ QSize WebPage::countOptimalSize() {
 		_asArticle = 0;
 	} else if (_data->photo && (_flags & Flag::ForceSmallMedia)) {
 		_asArticle = 1;
-	} else if (!_collage.empty()) {
-		_asArticle = 0;
-	} else if (!_data->document
-		&& _data->photo
-		&& _data->type != WebPageType::Photo
-		&& _data->type != WebPageType::Document
-		&& _data->type != WebPageType::Story
-		&& _data->type != WebPageType::Video) {
-		if (_data->type == WebPageType::Profile) {
-			_asArticle = 1;
-		} else if (_data->siteName == u"Twitter"_q
-			|| _data->siteName == u"Facebook"_q
-			|| _data->type == WebPageType::ArticleWithIV) {
-			_asArticle = 0;
-		} else {
-			_asArticle = 1;
-		}
-		if (_asArticle
-			&& _data->description.text.isEmpty()
-			&& title.isEmpty()
-			&& _data->siteName.isEmpty()) {
-			_asArticle = 0;
-		}
 	} else {
-		_asArticle = 0;
+		_asArticle = _data->computeDefaultSmallMedia();
 	}
 
 	// init attach

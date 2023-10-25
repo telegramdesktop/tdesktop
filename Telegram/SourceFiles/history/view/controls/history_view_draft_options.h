@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_drafts.h"
+
+class History;
+
 namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
@@ -17,10 +21,11 @@ class SessionController;
 
 namespace HistoryView::Controls {
 
-void EditReplyOptions(
+void EditDraftOptions(
 	std::shared_ptr<ChatHelpers::Show> show,
-	FullReplyTo reply,
-	Fn<void(FullReplyTo)> done,
+	not_null<History*> history,
+	Data::Draft draft,
+	Fn<void(FullReplyTo, Data::WebPageDraft)> done,
 	Fn<void()> highlight,
 	Fn<void()> clearOldDraft);
 

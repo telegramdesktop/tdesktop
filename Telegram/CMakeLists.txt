@@ -651,16 +651,18 @@ PRIVATE
     history/view/controls/history_view_compose_controls.h
     history/view/controls/history_view_compose_search.cpp
     history/view/controls/history_view_compose_search.h
+    history/view/controls/history_view_draft_options.cpp
+    history/view/controls/history_view_draft_options.h
     history/view/controls/history_view_forward_panel.cpp
     history/view/controls/history_view_forward_panel.h
-    history/view/controls/history_view_reply_options.cpp
-    history/view/controls/history_view_reply_options.h
     history/view/controls/history_view_ttl_button.cpp
     history/view/controls/history_view_ttl_button.h
     history/view/controls/history_view_voice_record_bar.cpp
     history/view/controls/history_view_voice_record_bar.h
     history/view/controls/history_view_voice_record_button.cpp
     history/view/controls/history_view_voice_record_button.h
+    history/view/controls/history_view_webpage_processor.cpp
+    history/view/controls/history_view_webpage_processor.h
     history/view/media/history_view_call.cpp
     history/view/media/history_view_call.h
     history/view/media/history_view_contact.cpp

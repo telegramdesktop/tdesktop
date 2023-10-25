@@ -37,6 +37,7 @@ WebPageDraft WebPageDraft::FromItem(not_null<HistoryItem*> item) {
 		.forceSmallMedia = !!(previewFlags & PageFlag::ForceSmallMedia),
 		.invert = item->invertMedia(),
 		.manual = !!(previewFlags & PageFlag::Manual),
+		.removed = !previewPage,
 	};
 }
 
