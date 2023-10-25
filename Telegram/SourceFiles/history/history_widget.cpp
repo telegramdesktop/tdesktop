@@ -6227,18 +6227,58 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_PageUp) {
 		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Down && !commonModifiers) {
-		_scroll->keyPressEvent(e);
-	} else if (e->key() == Qt::Key_Up && !commonModifiers) {
-		const auto item = _history
-			? _history->lastEditableMessage()
-			: nullptr;
-		if (item
-			&& _field->empty()
-			&& !_editMsgId
-			&& !_replyToId) {
-			editMessage(item);
+		// If we're in a message being edited, we want to handle the down key by editing the next message.
+		if (_editMsgId && !_replyToId) {
+			const auto item = _history ? _history->editableMessageAfter(_editMsgId) : nullptr;
+				// If a change has been made, show a dialog asking if the user wants to cancel the changes
+				if (_replyEditMsg && PrepareEditText(_replyEditMsg) != _field->getTextWithTags()) {
+					controller()->show(Ui::MakeConfirmBox({
+						.text = tr::lng_cancel_edit_post_sure(),
+						.confirmed = crl::guard(this, [this, item] {
+							item ? editMessage(item) : cancelEdit();
+							Ui::hideLayer();
+						}),
+						.confirmText = tr::lng_cancel_edit_post_yes(),
+						.cancelText = tr::lng_cancel_edit_post_no(),
+					}));
+				} else {
+					item ? editMessage(item) : cancelEdit();
+				}
 			return;
 		}
+
+		_scroll->keyPressEvent(e);
+	} else if (e->key() == Qt::Key_Up && !commonModifiers) {
+		if (_field->empty() && !_editMsgId && !_replyToId) {
+			// No message is currently being edited.
+			const auto item = _history ? _history->lastEditableMessage() : nullptr;
+			if(item) {
+				editMessage(item);
+			}
+			return;
+		}
+
+		// If we're in a message being edited, we want to handle the up key by instead editing the previous message.
+		if (_editMsgId && !_replyToId) {
+			const auto item = _history ? _history->editableMessageBefore(_editMsgId) : nullptr;
+			if(item) {
+				if (_replyEditMsg && PrepareEditText(_replyEditMsg) != _field->getTextWithTags()) {
+					controller()->show(Ui::MakeConfirmBox({
+						.text = tr::lng_cancel_edit_post_sure(),
+						.confirmed = crl::guard(this, [this, item] {
+							editMessage(item);
+							Ui::hideLayer();
+						}),
+						.confirmText = tr::lng_cancel_edit_post_yes(),
+						.cancelText = tr::lng_cancel_edit_post_no(),
+					}));
+				} else {
+					editMessage(item);
+				}
+			}
+			return;
+		}
+
 		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Up
 		&& commonModifiers == Qt::ControlModifier) {

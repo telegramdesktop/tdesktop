@@ -3023,6 +3023,51 @@ HistoryItem *History::lastEditableMessage() const {
 	return nullptr;
 }
 
+
+HistoryItem *History::editableMessageBefore(MsgId current) const {
+	if (!loadedAtBottom()) {
+		return nullptr;
+	}
+
+	bool found = false;
+	const auto now = base::unixtime::now();
+	for (const auto &block : ranges::views::reverse(blocks)) {
+		for (const auto &message : ranges::views::reverse(block->messages)) {
+			const auto item = message->data();
+			if (item->allowsEdit(now)) {
+				if(owner().groups().findItemToEdit(item)->id == current) {
+					found = true;
+				} else if(found) {
+					return owner().groups().findItemToEdit(item);
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+HistoryItem *History::editableMessageAfter(MsgId current) const {
+	if (!loadedAtBottom()) {
+		return nullptr;
+	}
+
+	HistoryItem * previous = nullptr;
+	const auto now = base::unixtime::now();
+	for (const auto &block : ranges::views::reverse(blocks)) {
+		for (const auto &message : ranges::views::reverse(block->messages)) {
+			const auto item = message->data();
+			if (item->allowsEdit(now)) {
+				if(owner().groups().findItemToEdit(item)->id == current) {
+					return previous;
+				} else {
+					previous = owner().groups().findItemToEdit(item);
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
 void History::resizeToWidth(int newWidth) {
 	using Request = HistoryBlock::ResizeRequest;
 	const auto request = (_flags & Flag::PendingAllItemsResize)
