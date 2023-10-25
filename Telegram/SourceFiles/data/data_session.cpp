@@ -4347,7 +4347,8 @@ auto Session::dialogsRowReplacements() const
 
 void Session::serviceNotification(
 		const TextWithEntities &message,
-		const MTPMessageMedia &media) {
+		const MTPMessageMedia &media,
+		bool invertMedia) {
 	const auto date = base::unixtime::now();
 	if (!peerLoaded(PeerData::kServiceNotificationsId)) {
 		processUser(MTP_user(
@@ -4375,22 +4376,27 @@ void Session::serviceNotification(
 			MTPlong())); // background_emoji_id
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
+	const auto insert = [=] {
+		insertCheckedServiceNotification(message, media, date, invertMedia);
+	};
 	if (!history->folderKnown()) {
-		histories().requestDialogEntry(history, [=] {
-			insertCheckedServiceNotification(message, media, date);
-		});
+		histories().requestDialogEntry(history, insert);
 	} else {
-		insertCheckedServiceNotification(message, media, date);
+		insert();
 	}
 }
 
 void Session::insertCheckedServiceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media,
-		TimeId date) {
+		TimeId date,
+		bool invertMedia) {
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
-		| MTPDmessage::Flag::f_media;
+		| MTPDmessage::Flag::f_media
+		| (invertMedia
+			? MTPDmessage::Flag::f_invert_media
+			: MTPDmessage::Flag());
 	const auto localFlags = MessageFlag::ClientSideUnread
 		| MessageFlag::Local;
 	auto sending = TextWithEntities(), left = message;

@@ -705,7 +705,8 @@ public:
 
 	void serviceNotification(
 		const TextWithEntities &message,
-		const MTPMessageMedia &media = MTP_messageMediaEmpty());
+		const MTPMessageMedia &media = MTP_messageMediaEmpty(),
+		bool invertMedia = false);
 
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
@@ -851,7 +852,8 @@ private:
 	void insertCheckedServiceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media,
-		TimeId date);
+		TimeId date,
+		bool invertMedia);
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
 	void highlightProcessDone(uint64 processId);

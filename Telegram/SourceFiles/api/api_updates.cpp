@@ -2071,7 +2071,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				windows.front()->window().show(Ui::MakeInformBox(text));
 			}
 		} else {
-			session().data().serviceNotification(text, d.vmedia());
+			session().data().serviceNotification(
+				text,
+				d.vmedia(),
+				d.is_invert_media());
 			session().api().authorizations().reload();
 		}
 	} break;
