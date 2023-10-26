@@ -530,7 +530,7 @@ void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
 	Expects(!!_preview.parsed);
 
 	const auto textTop = st::msgReplyPadding.top();
-	auto previewLeft = st::historyReplySkip + st::msgReplyBarSkip;
+	auto previewLeft = st::historyReplySkip;
 
 	const QRect to(
 		previewLeft,
@@ -1204,6 +1204,9 @@ void ComposeControls::clear() {
 		{},
 		saveTextDraft ? TextUpdateEvent::SaveDraft : TextUpdateEvent());
 	cancelReplyMessage();
+	if (_preview) {
+		_preview->apply({ .removed = true });
+	}
 }
 
 void ComposeControls::setText(const TextWithTags &textWithTags) {
@@ -1755,8 +1758,8 @@ void ComposeControls::fieldChanged() {
 		&& (_textUpdateEvents & TextUpdateEvent::SendTyping));
 	updateSendButtonType();
 	_hasSendText = HasSendText(_field);
-	if (!_hasSendText.current() && _preview) {
-		_preview->apply({});
+	if (!_hasSendText.current() && _preview && !_preview->draft().manual) {
+		_preview->apply({ .removed = true });
 	}
 	if (updateBotCommandShown() || updateLikeShown()) {
 		updateControlsVisibility();

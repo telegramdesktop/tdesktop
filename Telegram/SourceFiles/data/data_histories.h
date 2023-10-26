@@ -30,7 +30,9 @@ struct WebPageDraft;
 [[nodiscard]] MTPInputReplyTo ReplyToForMTP(
 	not_null<History*> history,
 	FullReplyTo replyTo);
-[[nodiscard]] MTPInputMedia WebPageForMTP(const Data::WebPageDraft &draft);
+[[nodiscard]] MTPInputMedia WebPageForMTP(
+	const Data::WebPageDraft &draft,
+	bool required = false);
 
 class Histories final {
 public:

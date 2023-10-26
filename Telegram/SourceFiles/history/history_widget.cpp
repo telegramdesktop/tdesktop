@@ -3941,6 +3941,9 @@ void HistoryWidget::send(Api::SendOptions options) {
 	session().api().sendMessage(std::move(message));
 
 	clearFieldText();
+	if (_preview) {
+		_preview->apply({ .removed = true });
+	}
 	_saveDraftText = true;
 	_saveDraftStart = crl::now();
 	saveDraft();

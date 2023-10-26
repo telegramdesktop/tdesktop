@@ -155,6 +155,9 @@ void WebpageProcessor::apply(Data::WebPageDraft draft, bool reparse) {
 	_api.request(base::take(_requestId)).cancel();
 	if (draft.removed) {
 		_draft = draft;
+		if (_parsedLinks.empty()) {
+			_draft.removed = false;
+		}
 		_data = nullptr;
 		_links = QStringList();
 		_link = QString();
@@ -272,6 +275,9 @@ void WebpageProcessor::checkNow(bool force) {
 void WebpageProcessor::checkPreview() {
 	const auto previewRestricted = _history->peer
 		&& _history->peer->amRestricted(ChatRestriction::EmbedLinks);
+	if (_parsedLinks.empty()) {
+		_draft.removed = false;
+	}
 	if (_draft.removed) {
 		return;
 	} else if (previewRestricted) {

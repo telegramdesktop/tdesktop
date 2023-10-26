@@ -96,38 +96,38 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 	not_null<const Ui::InputField*> field,
 	ChatHelpers::ComposeFeatures features);
 
-class MessageLinksParser : private QObject {
+class MessageLinksParser final : private QObject {
 public:
 	MessageLinksParser(not_null<Ui::InputField*> field);
 
 	void parseNow();
 	void setDisabled(bool disabled);
 
-	[[nodiscard]] const rpl::variable<QStringList> &list() const;
+	struct LinkRange {
+		int start = 0;
+		int length = 0;
+		QString custom;
 
-protected:
-	bool eventFilter(QObject *object, QEvent *event) override;
+		friend inline auto operator<=>(
+			const LinkRange&,
+			const LinkRange&) = default;
+		friend inline bool operator==(
+			const LinkRange&,
+			const LinkRange&) = default;
+	};
+
+	[[nodiscard]] const rpl::variable<QStringList> &list() const;
+	[[nodiscard]] const std::vector<LinkRange> &ranges() const;
 
 private:
-	struct LinkRange {
-		int start;
-		int length;
-		QString custom;
-	};
-	friend inline bool operator==(const LinkRange &a, const LinkRange &b) {
-		return (a.start == b.start)
-			&& (a.length == b.length)
-			&& (a.custom == b.custom);
-	}
-	friend inline bool operator!=(const LinkRange &a, const LinkRange &b) {
-		return !(a == b);
-	}
+	bool eventFilter(QObject *object, QEvent *event) override;
 
 	void parse();
-	void apply(const QString &text, const QVector<LinkRange> &ranges);
+	void applyRanges(const QString &text);
 
 	not_null<Ui::InputField*> _field;
 	rpl::variable<QStringList> _list;
+	std::vector<LinkRange> _ranges;
 	int _lastLength = 0;
 	bool _disabled = false;
 	base::Timer _timer;

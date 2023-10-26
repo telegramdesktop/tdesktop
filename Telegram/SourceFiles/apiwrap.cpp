@@ -3607,7 +3607,13 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 
 	auto &histories = history->owner().histories();
 
-	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+	const auto exactWebPage = !message.webPage.url.isEmpty();
+	auto isFirst = true;
+	while (TextUtilities::CutPart(sending, left, MaxMessageSize)
+		|| (isFirst && exactWebPage)) {
+		TextUtilities::Trim(left);
+		const auto isLast = left.empty();
+
 		auto newId = FullMsgId(
 			peer->id,
 			_session->data().nextLocalMessageId());
@@ -3627,17 +3633,23 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 		}
+		const auto ignoreWebPage = message.webPage.removed
+			|| (exactWebPage && !isLast);
+		const auto manualWebPage = exactWebPage
+			&& !ignoreWebPage
+			&& (message.webPage.manual || (isLast && !isFirst));
 		const auto replyHeader = NewMessageReplyHeader(action);
 		MTPMessageMedia media = MTP_messageMediaEmpty();
-		if (message.webPage.removed) {
+		if (ignoreWebPage) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
-		} else if (const auto fields = message.webPage; fields.id) {
+		} else if (exactWebPage) {
 			using PageFlag = MTPDmessageMediaWebPage::Flag;
 			using PendingFlag = MTPDwebPagePending::Flag;
+			const auto &fields = message.webPage;
 			const auto page = _session->data().webpage(fields.id);
 			media = MTP_messageMediaWebPage(
 				MTP_flags(PageFlag()
-					| (fields.manual ? PageFlag::f_manual : PageFlag())
+					| (manualWebPage ? PageFlag::f_manual : PageFlag())
 					| (fields.forceLargeMedia
 						? PageFlag::f_force_large_media
 						: PageFlag())
@@ -3645,17 +3657,15 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 						? PageFlag::f_force_small_media
 						: PageFlag())),
 				MTP_webPagePending(
-					MTP_flags(page->url.isEmpty()
-						? PendingFlag()
-						: PendingFlag::f_url),
-					MTP_long(page->id),
-					MTP_string(page->url),
+					MTP_flags(PendingFlag::f_url),
+					MTP_long(fields.id),
+					MTP_string(fields.url),
 					MTP_int(page->pendingTill)));
 		}
 		const auto anonymousPost = peer->amAnonymous();
 		const auto silentPost = ShouldSendSilent(peer, action.options);
 		FillMessagePostFlags(action, peer, flags);
-		if (message.webPage.id && message.webPage.invert) {
+		if (exactWebPage && !ignoreWebPage && message.webPage.invert) {
 			flags |= MessageFlag::InvertMedia;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_invert_media;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
@@ -3732,9 +3742,9 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
 		};
-		if (!message.webPage.removed
-			&& (message.webPage.manual || sending.empty())
-			&& !message.webPage.url.isEmpty()) {
+		if (exactWebPage
+			&& !ignoreWebPage
+			&& (manualWebPage || sending.empty())) {
 			histories.sendPreparedMessage(
 				history,
 				action.replyTo,
@@ -3743,7 +3753,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					MTP_flags(mediaFlags),
 					peer->input,
 					Data::Histories::ReplyToPlaceholder(),
-					Data::WebPageForMTP(message.webPage),
+					Data::WebPageForMTP(message.webPage, true),
 					msgText,
 					MTP_long(randomId),
 					MTPReplyMarkup(),
@@ -3768,6 +3778,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 				), done, fail);
 		}
+		isFirst = false;
 	}
 
 	finishForwarding(action);
