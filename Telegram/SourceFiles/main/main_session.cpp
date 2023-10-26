@@ -476,4 +476,9 @@ Window::SessionController *Session::tryResolveWindow() const {
 	return _windows.front();
 }
 
+auto Session::colorIndicesValue() const
+-> rpl::producer<Ui::ColorIndicesCompressed> {
+	return _account->appConfig().colorIndicesValue();
+}
+
 } // namespace Main

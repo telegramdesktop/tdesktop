@@ -344,13 +344,13 @@ void Giveaway::paintChannels(
 
 	const auto size = _channels[0].geometry.height();
 	const auto ratio = style::DevicePixelRatio();
+	const auto st = context.st;
 	const auto stm = context.messageStyle();
 	const auto selected = context.selected();
 	const auto colorIndex = parent()->colorIndex();
-	const auto twoColored = Ui::ColorIndexTwoColored(colorIndex);
 	const auto cache = context.outbg
-		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
-		: context.st->coloredReplyCache(selected, colorIndex).get();
+		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
+		: st->coloredReplyCache(selected, colorIndex).get();
 	if (_channelCorners[0].isNull() || _channelBg != cache->bg) {
 		_channelBg = cache->bg;
 		_channelCorners = Images::CornersMask(size / 2);

@@ -523,9 +523,8 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 
 	const auto selected = context.selected();
 	const auto colorIndex = parent()->colorIndex();
-	const auto twoColored = Ui::ColorIndexTwoColored(colorIndex);
 	const auto cache = context.outbg
-		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
+		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
 		: st->coloredReplyCache(selected, colorIndex).get();
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);

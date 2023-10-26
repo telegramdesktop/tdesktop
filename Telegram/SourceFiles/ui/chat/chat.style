@@ -50,6 +50,7 @@ messageQuoteStyle: QuoteStyle(defaultQuoteStyle) {
 	padding: margins(10px, 2px, 4px, 2px);
 	verticalSkip: 4px;
 	outline: 3px;
+	outlineShift: 2px;
 	radius: 5px;
 }
 messageTextStyle: TextStyle(defaultTextStyle) {

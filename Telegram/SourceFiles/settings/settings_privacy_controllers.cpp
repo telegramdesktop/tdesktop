@@ -839,7 +839,9 @@ ForwardsPrivacyController::ForwardsPrivacyController(
 	not_null<Window::SessionController*> controller)
 : SimpleElementDelegate(controller, [] {})
 , _controller(controller)
-, _chatStyle(std::make_unique<Ui::ChatStyle>()) {
+, _chatStyle(
+	std::make_unique<Ui::ChatStyle>(
+		controller->session().colorIndicesValue())) {
 	_chatStyle->apply(controller->defaultChatTheme().get());
 }
 

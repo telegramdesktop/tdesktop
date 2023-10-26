@@ -1088,7 +1088,7 @@ SessionController::SessionController(
 , _invitePeekTimer([=] { checkInvitePeek(); })
 , _activeChatsFilter(session->data().chatsFilters().defaultId())
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
-, _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _chatStyle(std::make_unique<Ui::ChatStyle>(session->colorIndicesValue()))
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _giftPremiumValidator(this) {
 	init();

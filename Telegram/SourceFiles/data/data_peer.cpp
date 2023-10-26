@@ -889,7 +889,7 @@ bool PeerData::changeColorIndex(uint8 index) {
 	if (_colorIndexCloud && _colorIndex == index) {
 		return false;
 	}
-	_colorIndexCloud = true;
+	_colorIndexCloud = 1;
 	_colorIndex = index;
 	return true;
 }
@@ -898,7 +898,7 @@ bool PeerData::clearColorIndex() {
 	if (!_colorIndexCloud) {
 		return false;
 	}
-	_colorIndexCloud = false;
+	_colorIndexCloud = 0;
 	_colorIndex = Data::DecideColorIndex(id);
 	return true;
 }

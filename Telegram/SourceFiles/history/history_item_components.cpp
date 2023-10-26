@@ -848,19 +848,20 @@ void HistoryMessageReply::paint(
 		? (resolvedMessage->hiddenSenderInfo()->colorIndex + 1)
 		: 0;
 	const auto useColorIndex = colorIndexPlusOne && !context.outbg;
-	const auto twoColored = colorIndexPlusOne
-		&& Ui::ColorIndexTwoColored(colorIndexPlusOne - 1);
+	const auto colorPattern = colorIndexPlusOne
+		? st->colorPatternIndex(colorIndexPlusOne - 1)
+		: 0;
 	const auto cache = !inBubble
 		? (hasQuote
-			? st->serviceQuoteCache(twoColored)
-			: st->serviceReplyCache(twoColored)).get()
+			? st->serviceQuoteCache(colorPattern)
+			: st->serviceReplyCache(colorPattern)).get()
 		: useColorIndex
 		? (hasQuote
 			? st->coloredQuoteCache(selected, colorIndexPlusOne - 1)
 			: st->coloredReplyCache(selected, colorIndexPlusOne - 1)).get()
 		: (hasQuote
-			? (twoColored ? stm->quoteCacheTwo : stm->quoteCache)
-			: (twoColored ? stm->replyCacheTwo : stm->replyCache)).get();
+			? stm->quoteCache[colorPattern]
+			: stm->replyCache[colorPattern]).get();
 	const auto &quoteSt = hasQuote
 		? st::messageTextStyle.blockquote
 		: st::messageQuoteStyle;

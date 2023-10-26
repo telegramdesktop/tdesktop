@@ -196,7 +196,8 @@ PreviewWrap::PreviewWrap(
 , _box(box)
 , _history(history)
 , _theme(DefaultThemeOn(lifetime()))
-, _style(std::make_unique<Ui::ChatStyle>())
+, _style(std::make_unique<Ui::ChatStyle>(
+	history->session().colorIndicesValue()))
 , _delegate(std::make_unique<PreviewDelegate>(
 	box,
 	_style.get(),

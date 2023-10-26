@@ -175,7 +175,8 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 , _controller(controller)
 , _forPeer(args.forPeer)
 , _fromMessageId(args.fromMessageId)
-, _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _chatStyle(std::make_unique<Ui::ChatStyle>(
+	controller->session().colorIndicesValue()))
 , _serviceHistory(_controller->session().data().history(
 	PeerData::kServiceNotificationsId))
 , _service(nullptr)

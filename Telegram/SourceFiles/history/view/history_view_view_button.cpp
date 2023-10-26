@@ -232,13 +232,12 @@ void ViewButton::draw(
 		Painter &p,
 		const QRect &r,
 		const Ui::ChatPaintContext &context) {
+	const auto st = context.st;
 	const auto stm = context.messageStyle();
-
 	const auto selected = context.selected();
-	const auto twoColored = Ui::ColorIndexTwoColored(_inner->colorIndex);
 	const auto cache = context.outbg
-		? (twoColored ? stm->replyCacheTwo : stm->replyCache).get()
-		: context.st->coloredReplyCache(selected, _inner->colorIndex).get();
+		? stm->replyCache[st->colorPatternIndex(_inner->colorIndex)].get()
+		: st->coloredReplyCache(selected, _inner->colorIndex).get();
 	const auto radius = st::historyPagePreview.radius;
 
 	if (_inner->ripple && !_inner->ripple->empty()) {

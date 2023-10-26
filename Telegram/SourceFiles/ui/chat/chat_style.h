@@ -31,7 +31,8 @@ class ChatTheme;
 class ChatStyle;
 struct BubblePattern;
 
-inline constexpr auto kColorIndexCount = uint8(14);
+inline constexpr auto kColorPatternsCount = Text::kMaxQuoteOutlines;
+inline constexpr auto kColorIndexCount = uint8(1 << 6);
 inline constexpr auto kSimpleColorIndexCount = uint8(7);
 
 struct MessageStyle {
@@ -83,10 +84,12 @@ struct MessageStyle {
 	style::icon historyPollChoiceRight = { Qt::Uninitialized };
 	style::icon historyTranscribeIcon = { Qt::Uninitialized };
 	style::icon historyTranscribeHide = { Qt::Uninitialized };
-	std::unique_ptr<Text::QuotePaintCache> quoteCache;
-	std::unique_ptr<Text::QuotePaintCache> quoteCacheTwo;
-	std::unique_ptr<Text::QuotePaintCache> replyCache;
-	std::unique_ptr<Text::QuotePaintCache> replyCacheTwo;
+	std::array<
+		std::unique_ptr<Text::QuotePaintCache>,
+		kColorPatternsCount> quoteCache;
+	std::array<
+		std::unique_ptr<Text::QuotePaintCache>,
+		kColorPatternsCount> replyCache;
 	std::unique_ptr<Text::QuotePaintCache> preCache;
 };
 
@@ -190,22 +193,31 @@ struct ChatPaintContext {
 [[nodiscard]] int HistoryServiceMsgInvertedRadius();
 [[nodiscard]] int HistoryServiceMsgInvertedShrink();
 
+struct ColorIndexData {
+	std::array<uint32, kColorPatternsCount> light = {};
+	std::array<uint32, kColorPatternsCount> dark = {};
+
+	friend inline bool operator==(
+		const ColorIndexData&,
+		const ColorIndexData&) = default;
+};
+
+struct ColorIndicesCompressed {
+	std::shared_ptr<std::array<ColorIndexData, kColorIndexCount>> colors;
+};
+
 struct ColorIndexValues {
+	std::array<QColor, kColorPatternsCount> outlines;
 	QColor name;
 	QColor bg;
-	QColor outline1;
-	QColor outline2;
 };
-[[nodiscard]] ColorIndexValues ComputeColorIndexValues(
-	not_null<const ChatStyle*> st,
-	bool selected,
-	uint8 colorIndex);
-[[nodiscard]] bool ColorIndexTwoColored(uint8 colorIndex);
 
 class ChatStyle final : public style::palette {
 public:
-	ChatStyle();
+	explicit ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices);
 	explicit ChatStyle(not_null<const style::palette*> isolated);
+	ChatStyle(const ChatStyle &other) = delete;
+	ChatStyle &operator=(const ChatStyle &other) = delete;
 	~ChatStyle();
 
 	void apply(not_null<ChatTheme*> theme);
@@ -245,6 +257,11 @@ public:
 		bool outbg,
 		bool selected) const;
 	[[nodiscard]] const MessageImageStyle &imageStyle(bool selected) const;
+
+	[[nodiscard]] int colorPatternIndex(uint8 colorIndex) const;
+	[[nodiscard]] ColorIndexValues computeColorIndexValues(
+		bool selected,
+		uint8 colorIndex) const;
 
 	[[nodiscard]] auto serviceQuoteCache(bool twoColored) const
 		-> not_null<Text::QuotePaintCache*>;
@@ -362,6 +379,7 @@ private:
 	};
 
 	void assignPalette(not_null<const style::palette*> palette);
+	void clearColorIndexCaches();
 	void updateDarkValue();
 
 	[[nodiscard]] not_null<Text::QuotePaintCache*> coloredCache(
@@ -462,11 +480,14 @@ private:
 	style::icon _historyPollChoiceRight = { Qt::Uninitialized };
 	style::icon _historyPollChoiceWrong = { Qt::Uninitialized };
 
+	ColorIndicesCompressed _colorIndices;
+
 	bool _dark = false;
 
 	rpl::event_stream<> _paletteChanged;
 
 	rpl::lifetime _defaultPaletteChangeLifetime;
+	rpl::lifetime _colorIndicesLifetime;
 
 };
 

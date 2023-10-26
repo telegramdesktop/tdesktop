@@ -133,7 +133,8 @@ void AddMessage(
 	state->delegate = std::make_unique<Delegate>(
 		controller,
 		crl::guard(widget, [=] { widget->update(); }));
-	state->style = std::make_unique<Ui::ChatStyle>();
+	state->style = std::make_unique<Ui::ChatStyle>(
+		controller->session().colorIndicesValue());
 	state->style->apply(controller->defaultChatTheme().get());
 	state->icons.lifetimes = std::vector<rpl::lifetime>(2);
 

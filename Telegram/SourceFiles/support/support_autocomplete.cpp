@@ -506,7 +506,8 @@ ConfirmContactBox::ConfirmContactBox(
 	const Contact &data,
 	Fn<void(Qt::KeyboardModifiers)> submit)
 : SimpleElementDelegate(controller, [=] { update(); })
-, _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _chatStyle(std::make_unique<Ui::ChatStyle>(
+	history->session().colorIndicesValue()))
 , _comment(GenerateCommentItem(this, history, data))
 , _contact(GenerateContactItem(this, history, data))
 , _submit(submit) {

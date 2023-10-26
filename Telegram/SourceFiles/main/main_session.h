@@ -57,6 +57,10 @@ namespace InlineBots {
 class AttachWebView;
 } // namespace InlineBots
 
+namespace Ui {
+struct ColorIndicesCompressed;
+} // namespace Ui
+
 namespace Main {
 
 class Account;
@@ -187,6 +191,9 @@ public:
 	[[nodiscard]] Support::Helper &supportHelper() const;
 	[[nodiscard]] Support::Templates &supportTemplates() const;
 
+	[[nodiscard]] auto colorIndicesValue() const
+		-> rpl::producer<Ui::ColorIndicesCompressed>;
+
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
 
@@ -226,6 +233,8 @@ private:
 
 	QByteArray _tmpPassword;
 	TimeId _tmpPasswordValidUntil = 0;
+
+	rpl::event_stream<Ui::ColorIndicesCompressed> _colorIndicesChanges;
 
 	rpl::lifetime _lifetime;
 
