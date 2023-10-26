@@ -6284,21 +6284,26 @@ void HistoryWidget::editDraftOptions() {
 		}
 		_preview->apply(webpage);
 	};
+	const auto replyToId = reply.messageId;
 	const auto highlight = [=] {
 		controller()->showPeerHistory(
-			reply.messageId.peer,
+			replyToId.peer,
 			Window::SectionShow::Way::Forward,
-			reply.messageId.msg);
+			replyToId.msg);
 	};
 
 	using namespace HistoryView::Controls;
-	EditDraftOptions(
-		controller()->uiShow(),
-		history,
-		Data::Draft(_field, reply, _preview->draft()),
-		done,
-		highlight,
-		[=] { ClearDraftReplyTo(history, reply.messageId); });
+	EditDraftOptions({
+		.show = controller()->uiShow(),
+		.history = history,
+		.draft = Data::Draft(_field, reply, _preview->draft()),
+		.usedLink = _preview->link(),
+		.links = _preview->links(),
+		.resolver = _preview->resolver(),
+		.done = done,
+		.highlight = highlight,
+		.clearOldDraft = [=] { ClearDraftReplyTo(history, replyToId); },
+	});
 }
 
 void HistoryWidget::keyPressEvent(QKeyEvent *e) {

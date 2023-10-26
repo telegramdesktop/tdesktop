@@ -2403,9 +2403,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (canReply) {
 			const auto itemId = item->fullId();
 			const auto quote = selectedQuote(item);
-			const auto text = quote.empty()
+			auto text = quote.empty()
 				? tr::lng_context_reply_msg(tr::now)
 				: tr::lng_context_quote_and_reply(tr::now);
+			text.replace('&', u"&&"_q);
 			_menu->addAction(text, [=] {
 				if (canSendReply) {
 					_widget->replyToMessage({ itemId, quote });

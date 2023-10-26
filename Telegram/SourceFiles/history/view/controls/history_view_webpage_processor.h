@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/weak_ptr.h"
 #include "data/data_drafts.h"
 #include "chat_helpers/message_field.h"
 #include "mtproto/sender.h"
 
 class History;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Ui {
 class InputField;
@@ -47,7 +50,33 @@ struct WebpageParsed {
 	}
 };
 
-class WebpageProcessor final : public base::has_weak_ptr {
+class WebpageResolver final {
+public:
+	explicit WebpageResolver(not_null<Main::Session*> session);
+
+	[[nodiscard]] std::optional<WebPageData*> lookup(
+			const QString &link) const;
+	[[nodiscard]] rpl::producer<QString> resolved() const {
+		return _resolved.events();
+	}
+
+	[[nodiscard]] QString find(not_null<WebPageData*> page) const;
+
+	void request(const QString &link);
+	void cancel(const QString &link);
+
+private:
+	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
+	base::flat_map<QString, WebPageData*> _cache;
+	rpl::event_stream<QString> _resolved;
+
+	QString _requestLink;
+	mtpRequestId _requestId = 0;
+
+};
+
+class WebpageProcessor final {
 public:
 	WebpageProcessor(
 		not_null<History*> history,
@@ -63,6 +92,9 @@ public:
 	// unless preview was removed in the draft or manual.
 	void apply(Data::WebPageDraft draft, bool reparse = true);
 	[[nodiscard]] Data::WebPageDraft draft() const;
+	[[nodiscard]] std::shared_ptr<WebpageResolver> resolver() const;
+	[[nodiscard]] const std::vector<MessageLinkRange> &links() const;
+	[[nodiscard]] QString link() const;
 
 	[[nodiscard]] rpl::producer<> repaintRequests() const;
 	[[nodiscard]] rpl::producer<WebpageParsed> parsedValue() const;
@@ -74,20 +106,16 @@ public:
 private:
 	void updateFromData();
 	void checkPreview();
-	void request();
 
 	const not_null<History*> _history;
-	MTP::Sender _api;
+	const std::shared_ptr<WebpageResolver> _resolver;
 	MessageLinksParser _parser;
 
 	QStringList _parsedLinks;
 	QStringList _links;
 	QString _link;
 	WebPageData *_data = nullptr;
-	base::flat_map<QString, WebPageData*> _cache;
 	Data::WebPageDraft _draft;
-
-	mtpRequestId _requestId = 0;
 
 	rpl::event_stream<> _repaintRequests;
 	rpl::variable<WebpageParsed> _parsed;

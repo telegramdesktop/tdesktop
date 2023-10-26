@@ -648,10 +648,6 @@ bool MessageLinksParser::eventFilter(QObject *object, QEvent *event) {
 	return QObject::eventFilter(object, event);
 }
 
-const rpl::variable<QStringList> &MessageLinksParser::list() const {
-	return _list;
-}
-
 void MessageLinksParser::parse() {
 	const auto &textWithTags = _field->getTextWithTags();
 	const auto &text = textWithTags.text;
@@ -781,7 +777,7 @@ void MessageLinksParser::parse() {
 				continue;
 			}
 		}
-		const auto range = LinkRange {
+		const auto range = MessageLinkRange{
 			int(domainOffset),
 			static_cast<int>(p - start - domainOffset),
 			QString()
@@ -802,7 +798,7 @@ void MessageLinksParser::parse() {
 void MessageLinksParser::applyRanges(const QString &text) {
 	const auto count = int(_ranges.size());
 	const auto current = _list.current();
-	const auto computeLink = [&](const LinkRange &range) {
+	const auto computeLink = [&](const MessageLinkRange &range) {
 		return range.custom.isEmpty()
 			? base::StringViewMid(text, range.start, range.length)
 			: QStringView(range.custom);

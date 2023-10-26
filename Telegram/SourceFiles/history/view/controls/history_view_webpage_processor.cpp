@@ -110,17 +110,88 @@ WebPageText ProcessWebPageData(WebPageData *page) {
 	return previewText;
 }
 
+WebpageResolver::WebpageResolver(not_null<Main::Session*> session)
+: _session(session)
+, _api(&session->mtp()) {
+}
+
+std::optional<WebPageData*> WebpageResolver::lookup(
+		const QString &link) const {
+	const auto i = _cache.find(link);
+	return (i == end(_cache))
+		? std::optional<WebPageData*>()
+		: (i->second && !i->second->failed)
+		? i->second
+		: nullptr;
+}
+
+QString WebpageResolver::find(not_null<WebPageData*> page) const {
+	for (const auto &[link, cached] : _cache) {
+		if (cached == page) {
+			return link;
+		}
+	}
+	return QString();
+}
+
+void WebpageResolver::request(const QString &link) {
+	if (_requestLink == link) {
+		return;
+	}
+	const auto done = [=](const MTPDmessageMediaWebPage &data) {
+		const auto page = _session->data().processWebpage(data.vwebpage());
+		if (page->pendingTill > 0
+			&& page->pendingTill < base::unixtime::now()) {
+			page->pendingTill = 0;
+			page->failed = true;
+		}
+		_cache.emplace(link, page->failed ? nullptr : page.get());
+		_resolved.fire_copy(link);
+	};
+	const auto fail = [=] {
+		_cache.emplace(link, nullptr);
+		_resolved.fire_copy(link);
+	};
+	_requestLink = link;
+	_requestId = _api.request(
+		MTPmessages_GetWebPagePreview(
+			MTP_flags(0),
+			MTP_string(link),
+			MTPVector<MTPMessageEntity>()
+	)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
+		if (_requestId == requestId) {
+			_requestId = 0;
+		}
+		result.match([=](const MTPDmessageMediaWebPage &data) {
+			done(data);
+		}, [&](const auto &d) {
+			fail();
+		});
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+		if (_requestId == requestId) {
+			_requestId = 0;
+		}
+		fail();
+	}).send();
+}
+
+void WebpageResolver::cancel(const QString &link) {
+	if (_requestLink == link) {
+		_api.request(base::take(_requestId)).cancel();
+	}
+}
+
 WebpageProcessor::WebpageProcessor(
 	not_null<History*> history,
 	not_null<Ui::InputField*> field)
 : _history(history)
-, _api(&history->session().mtp())
+, _resolver(std::make_shared<WebpageResolver>(&history->session()))
 , _parser(field)
 , _timer([=] {
 	if (!ShowWebPagePreview(_data) || _link.isEmpty()) {
 		return;
 	}
-	request();
+	_resolver->request(_link);
 }) {
 	_history->session().downloaderTaskFinished(
 	) | rpl::filter([=] {
@@ -141,6 +212,23 @@ WebpageProcessor::WebpageProcessor(
 		_parsedLinks = std::move(parsed);
 		checkPreview();
 	}, _lifetime);
+
+	_resolver->resolved() | rpl::start_with_next([=](QString link) {
+		if (_link != link
+			|| _draft.removed
+			|| (_draft.manual && _draft.url != link)) {
+			return;
+		}
+		_data = _resolver->lookup(link).value_or(nullptr);
+		if (_data) {
+			_draft.id = _data->id;
+			_draft.url = _data->url;
+			updateFromData();
+		} else {
+			_links = QStringList();
+			checkPreview();
+		}
+	}, _lifetime);
 }
 
 rpl::producer<> WebpageProcessor::repaintRequests() const {
@@ -151,8 +239,20 @@ Data::WebPageDraft WebpageProcessor::draft() const {
 	return _draft;
 }
 
+std::shared_ptr<WebpageResolver> WebpageProcessor::resolver() const {
+	return _resolver;
+}
+
+const std::vector<MessageLinkRange> &WebpageProcessor::links() const {
+	return _parser.ranges();
+}
+
+QString WebpageProcessor::link() const {
+	return _link;
+}
+
 void WebpageProcessor::apply(Data::WebPageDraft draft, bool reparse) {
-	_api.request(base::take(_requestId)).cancel();
+	const auto was = _link;
 	if (draft.removed) {
 		_draft = draft;
 		if (_parsedLinks.empty()) {
@@ -173,13 +273,20 @@ void WebpageProcessor::apply(Data::WebPageDraft draft, bool reparse) {
 			: nullptr;
 		if (page && page->url == draft.url) {
 			_data = page;
+			if (const auto link = _resolver->find(page); !link.isEmpty()) {
+				_link = link;
+			}
 			updateFromData();
 		} else {
-			request();
+			_resolver->request(_link);
+			return;
 		}
 	} else if (!draft.manual && !_draft.manual) {
 		_draft = draft;
 		checkNow(reparse);
+	}
+	if (_link != was) {
+		_resolver->cancel(was);
 	}
 }
 
@@ -210,56 +317,6 @@ void WebpageProcessor::updateFromData() {
 	}
 	_parsed = std::move(parsed);
 	_repaintRequests.fire({});
-}
-
-void WebpageProcessor::request() {
-	const auto link = _link;
-	const auto done = [=](const MTPDmessageMediaWebPage &data) {
-		const auto page = _history->owner().processWebpage(data.vwebpage());
-		if (page->pendingTill > 0
-			&& page->pendingTill < base::unixtime::now()) {
-			page->pendingTill = 0;
-			page->failed = true;
-		}
-		_cache.emplace(link, page->failed ? nullptr : page.get());
-		if (_link == link
-			&& !_draft.removed
-			&& (!_draft.manual || _draft.url == link)) {
-			_data = (page->id && !page->failed)
-				? page.get()
-				: nullptr;
-			_draft.id = page->id;
-			_draft.url = page->url;
-			updateFromData();
-		}
-	};
-	const auto fail = [=] {
-		_cache.emplace(link, nullptr);
-		if (_link == link && !_draft.removed && !_draft.manual) {
-			_links = QStringList();
-			checkPreview();
-		}
-	};
-	_requestId = _api.request(
-		MTPmessages_GetWebPagePreview(
-			MTP_flags(0),
-			MTP_string(_link),
-			MTPVector<MTPMessageEntity>()
-	)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
-		if (_requestId == requestId) {
-			_requestId = 0;
-		}
-		result.match([=](const MTPDmessageMediaWebPage &data) {
-			done(data);
-		}, [&](const auto &d) {
-			fail();
-		});
-	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
-		if (_requestId == requestId) {
-			_requestId = 0;
-		}
-		fail();
-	}).send();
 }
 
 void WebpageProcessor::setDisabled(bool disabled) {
@@ -307,25 +364,21 @@ void WebpageProcessor::checkPreview() {
 	auto page = (WebPageData*)nullptr;
 	auto chosen = QString();
 	for (const auto &link : _links) {
-		const auto i = _cache.find(link);
-		if (i == end(_cache)) {
+		const auto value = _resolver->lookup(link);
+		if (!value) {
 			chosen = link;
 			break;
-		} else if (i->second) {
-			if (i->second->failed) {
-				i->second = nullptr;
-			} else {
-				chosen = link;
-				page = i->second;
-				break;
-			}
+		} else if (*value) {
+			chosen = link;
+			page = *value;
+			break;
 		}
 	}
 	if (_link != chosen) {
+		_resolver->cancel(_link);
 		_link = chosen;
-		_api.request(base::take(_requestId)).cancel();
 		if (!page && !_link.isEmpty()) {
-			request();
+			_resolver->request(_link);
 		}
 	}
 	if (page) {

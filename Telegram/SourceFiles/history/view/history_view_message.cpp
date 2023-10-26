@@ -2195,6 +2195,7 @@ TextState Message::textState(
 				if (_invertMedia) {
 					result.symbol += visibleMediaTextLength();
 				}
+				result.overMessageText = true;
 				checkBottomInfoState();
 				return result;
 			} else if (point.y() >= trect.y() + trect.height()) {

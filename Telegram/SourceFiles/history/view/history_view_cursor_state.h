@@ -49,6 +49,7 @@ struct TextState {
 	FullMsgId itemId;
 	CursorState cursor = CursorState::None;
 	ClickHandlerPtr link;
+	bool overMessageText = false;
 	bool afterSymbol = false;
 	bool customTooltip = false;
 	uint16 symbol = 0;

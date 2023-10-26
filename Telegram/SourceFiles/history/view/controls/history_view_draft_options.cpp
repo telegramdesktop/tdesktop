@@ -18,11 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_thread.h"
 #include "data/data_user.h"
 #include "data/data_web_page.h"
+#include "history/view/controls/history_view_webpage_processor.h"
+#include "history/view/history_view_element.h"
+#include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_element.h"
-#include "history/view/history_view_cursor_state.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -102,6 +103,28 @@ private:
 	return result;
 }
 
+[[nodiscard]] TextWithEntities HighlightParsedLinks(
+		TextWithEntities text,
+		const std::vector<MessageLinkRange> &links) {
+	auto i = text.entities.begin();
+	for (const auto &range : links) {
+		if (range.custom.isEmpty()) {
+			while (i != text.entities.end()) {
+				if (i->offset() > range.start) {
+					break;
+				}
+				++i;
+			}
+			i = text.entities.insert(
+				i,
+				EntityInText(EntityType::Url, range.start, range.length));
+			++i;
+		}
+	}
+	return text;
+}
+
+
 class PreviewWrap final : public Ui::RpWidget {
 public:
 	PreviewWrap(
@@ -114,7 +137,9 @@ public:
 		const TextWithEntities &quote);
 	[[nodiscard]] rpl::producer<QString> showLinkSelector(
 		const TextWithTags &message,
-		Data::WebPageDraft webpage);
+		Data::WebPageDraft webpage,
+		const std::vector<MessageLinkRange> &links,
+		const QString &usedLink);
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -125,6 +150,10 @@ private:
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 	void initElement();
+	void highlightUsedLink(
+		const TextWithTags &message,
+		const QString &usedLink,
+		const std::vector<MessageLinkRange> &links);
 	void startSelection(TextSelectType type);
 	[[nodiscard]] TextSelection resolveNewSelection() const;
 
@@ -138,12 +167,15 @@ private:
 	HistoryItem *_draftItem = nullptr;
 	std::unique_ptr<Element> _element;
 	rpl::variable<TextSelection> _selection;
+	rpl::event_stream<QString> _chosenUrl;
 	Ui::PeerUserpicView _userpic;
 	rpl::lifetime _elementLifetime;
 
 	QPoint _position;
 
 	base::Timer _trippleClickTimer;
+	ClickHandlerPtr _link;
+	ClickHandlerPtr _pressedLink;
 	TextSelectType _selectType = TextSelectType::Letters;
 	uint16 _symbol = 0;
 	uint16 _selectionStartSymbol = 0;
@@ -219,6 +251,8 @@ rpl::producer<TextWithEntities> PreviewWrap::showQuoteSelector(
 	_selection.reset(element->selectionFromQuote(quote));
 	_element = std::move(element);
 
+	_link = _pressedLink = nullptr;
+
 	if (const auto was = base::take(_draftItem)) {
 		was->destroy();
 	}
@@ -240,7 +274,9 @@ rpl::producer<TextWithEntities> PreviewWrap::showQuoteSelector(
 
 rpl::producer<QString> PreviewWrap::showLinkSelector(
 		const TextWithTags &message,
-		Data::WebPageDraft webpage) {
+		Data::WebPageDraft webpage,
+		const std::vector<MessageLinkRange> &links,
+		const QString &usedLink) {
 	_selection.reset(TextSelection());
 
 	_element = nullptr;
@@ -259,10 +295,10 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 		base::unixtime::now(), // date
 		_history->session().userPeerId(),
 		QString(), // postAuthor
-		TextWithEntities{
+		HighlightParsedLinks({
 			message.text,
 			TextUtilities::ConvertTextTagsToEntities(message.tags),
-		},
+		}, links),
 		MTP_messageMediaWebPage(
 			MTP_flags(Flag()
 				| (webpage.forceLargeMedia
@@ -287,8 +323,50 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 	_section = Section::Link;
 
 	initElement();
+	highlightUsedLink(message, usedLink, links);
 
-	return rpl::never<QString>();
+	return _chosenUrl.events();
+}
+
+void PreviewWrap::highlightUsedLink(
+		const TextWithTags &message,
+		const QString &usedLink,
+		const std::vector<MessageLinkRange> &links) {
+	auto selection = TextSelection();
+	const auto view = QStringView(message.text);
+	for (const auto &range : links) {
+		auto text = view.mid(range.start, range.length);
+		if (range.custom == usedLink
+			|| (range.custom.isEmpty()
+				&& range.length == usedLink.size()
+				&& text == usedLink)) {
+			selection = {
+				uint16(range.start),
+				uint16(range.start + range.length),
+			};
+			const auto skip = [](QChar ch) {
+				return ch.isSpace() || Ui::Text::IsNewline(ch);
+			};
+			while (!text.isEmpty() && skip(text.front())) {
+				text = text.mid(1);
+				++selection.from;
+			}
+			while (!text.isEmpty() && skip(text.back())) {
+				text = text.mid(0, text.size() - 1);
+				--selection.to;
+			}
+			const auto basic = _element->textState(QPoint(0, 0), {
+				.flags = Ui::Text::StateRequest::Flag::LookupSymbol,
+				.onlyMessageText = true,
+			});
+			if (basic.symbol > 0) {
+				selection.from += basic.symbol;
+				selection.to += basic.symbol;
+			}
+			break;
+		}
+	}
+	_selection = selection;
 }
 
 void PreviewWrap::paintEvent(QPaintEvent *e) {
@@ -385,7 +463,10 @@ void PreviewWrap::mouseMoveEvent(QMouseEvent *e) {
 	_over = true;
 	const auto text = (_section == Section::Reply)
 		&& (resolved.cursor == CursorState::Text);
-	const auto link = (_section == Section::Link) && resolved.link;
+	_link = (_section == Section::Link && resolved.overMessageText)
+		? resolved.link
+		: nullptr;
+	const auto link = (_link != nullptr) || (_pressedLink != nullptr);
 	if (_textCursor != text || _linkCursor != link) {
 		_textCursor = text;
 		_linkCursor = link;
@@ -412,13 +493,16 @@ void PreviewWrap::mousePressEvent(QMouseEvent *e) {
 		startSelection(_trippleClickTimer.isActive()
 			? TextSelectType::Paragraphs
 			: TextSelectType::Letters);
+	} else {
+		_pressedLink = _link;
 	}
 }
 
 void PreviewWrap::mouseReleaseEvent(QMouseEvent *e) {
-	if (!_selecting) {
-		return;
-	} else if (_section == Section::Reply) {
+	if (_section == Section::Reply) {
+		if (!_selecting) {
+			return;
+		}
 		const auto result = resolveNewSelection();
 		_selecting = false;
 		_selectType = TextSelectType::Letters;
@@ -426,6 +510,12 @@ void PreviewWrap::mouseReleaseEvent(QMouseEvent *e) {
 			setCursor(style::cur_default);
 		}
 		_selection = result;
+	} else if (base::take(_pressedLink) == _link && _link) {
+		if (const auto url = _link->url(); !url.isEmpty()) {
+			_chosenUrl.fire_copy(url);
+		}
+	} else if (!_link) {
+		setCursor(style::cur_default);
 	}
 }
 
@@ -509,6 +599,276 @@ Context PreviewDelegate::elementContext() {
 	return Context::History;
 }
 
+void AddFilledSkip(not_null<Ui::VerticalLayout*> container) {
+	const auto skip = container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::settingsPrivacySkipTop));
+	skip->paintRequest() | rpl::start_with_next([=](QRect clip) {
+		QPainter(skip).fillRect(clip, st::boxBg);
+	}, skip->lifetime());
+};
+
+void DraftOptionsBox(
+		not_null<Ui::GenericBox*> box,
+		EditDraftOptionsArgs &&args,
+		HistoryItem *replyItem,
+		WebPageData *previewData) {
+	box->setWidth(st::boxWideWidth);
+
+	const auto &draft = args.draft;
+	struct State {
+		rpl::variable<Section> shown;
+		rpl::lifetime shownLifetime;
+		rpl::variable<TextWithEntities> quote;
+		Data::WebPageDraft webpage;
+		WebPageData *preview = nullptr;
+		QString link;
+		Ui::SettingsSlider *tabs = nullptr;
+		PreviewWrap *wrap = nullptr;
+		rpl::lifetime resolveLifetime;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->quote = draft.reply.quote;
+	state->webpage = draft.webpage;
+	state->preview = previewData;
+	state->shown = previewData ? Section::Link : Section::Reply;
+	if (replyItem && previewData) {
+		box->setNoContentMargin(true);
+		state->tabs = box->setPinnedToTopContent(
+			object_ptr<Ui::SettingsSlider>(
+				box.get(),
+				st::defaultTabsSlider));
+		state->tabs->resizeToWidth(st::boxWideWidth);
+		state->tabs->move(0, 0);
+		state->tabs->setRippleTopRoundRadius(st::boxRadius);
+		state->tabs->setSections({
+			tr::lng_reply_header_short(tr::now),
+			tr::lng_link_header_short(tr::now),
+		});
+		state->tabs->setActiveSectionFast(1);
+		state->tabs->sectionActivated(
+		) | rpl::start_with_next([=](int section) {
+			state->shown = section ? Section::Link : Section::Reply;
+		}, box->lifetime());
+	} else {
+		box->setTitle(previewData
+			? tr::lng_link_options_header()
+			: draft.reply.quote.empty()
+			? tr::lng_reply_options_header()
+			: tr::lng_reply_options_quote());
+	}
+
+	const auto bottom = box->setPinnedToBottomContent(
+		object_ptr<Ui::VerticalLayout>(box));
+
+	const auto &done = args.done;
+	const auto &show = args.show;
+	const auto &highlight = args.highlight;
+	const auto &clearOldDraft = args.clearOldDraft;
+	const auto resolveReply = [=] {
+		auto result = draft.reply;
+		result.quote = state->quote.current();
+		return result;
+	};
+	const auto finish = [=](
+			FullReplyTo result,
+			Data::WebPageDraft webpage) {
+		const auto weak = Ui::MakeWeak(box);
+		done(std::move(result), std::move(webpage));
+		if (const auto strong = weak.data()) {
+			strong->closeBox();
+		}
+	};
+	const auto setupReplyActions = [=] {
+		AddFilledSkip(bottom);
+
+		Settings::AddButton(
+			bottom,
+			tr::lng_reply_in_another_chat(),
+			st::settingsButton,
+			{ &st::menuIconReplace }
+		)->setClickedCallback([=] {
+			ShowReplyToChatBox(show, resolveReply(), clearOldDraft);
+		});
+
+		Settings::AddButton(
+			bottom,
+			tr::lng_reply_show_in_chat(),
+			st::settingsButton,
+			{ &st::menuIconShowInChat }
+		)->setClickedCallback(highlight);
+
+		Settings::AddButton(
+			bottom,
+			tr::lng_reply_remove(),
+			st::settingsAttentionButtonWithIcon,
+			{ &st::menuIconDeleteAttention }
+		)->setClickedCallback([=] {
+			finish({}, state->webpage);
+		});
+
+		if (!replyItem->originalText().empty()) {
+			AddFilledSkip(bottom);
+			Settings::AddDividerText(
+				bottom,
+				tr::lng_reply_about_quote());
+		}
+	};
+	const auto setupLinkActions = [=] {
+		AddFilledSkip(bottom);
+
+		if (!draft.textWithTags.empty()) {
+			Settings::AddButton(
+				bottom,
+				(state->webpage.invert
+					? tr::lng_link_move_down()
+					: tr::lng_link_move_up()),
+				st::settingsButton,
+				{ state->webpage.invert
+					? &st::menuIconBelow
+					: &st::menuIconAbove }
+			)->setClickedCallback([=] {
+				state->webpage.invert = !state->webpage.invert;
+				state->webpage.manual = true;
+				state->shown.force_assign(Section::Link);
+			});
+		}
+
+		if (state->preview->hasLargeMedia) {
+			const auto small = state->webpage.forceSmallMedia
+				|| (!state->webpage.forceLargeMedia
+					&& state->preview->computeDefaultSmallMedia());
+			Settings::AddButton(
+				bottom,
+				(small
+					? tr::lng_link_enlarge_photo()
+					: tr::lng_link_shrink_photo()),
+				st::settingsButton,
+				{ small ? &st::menuIconEnlarge : &st::menuIconShrink }
+			)->setClickedCallback([=] {
+				if (small) {
+					state->webpage.forceSmallMedia = false;
+					state->webpage.forceLargeMedia = true;
+				} else {
+					state->webpage.forceLargeMedia = false;
+					state->webpage.forceSmallMedia = true;
+				}
+				state->webpage.manual = true;
+				state->shown.force_assign(Section::Link);
+			});
+		}
+
+		Settings::AddButton(
+			bottom,
+			tr::lng_link_remove(),
+			st::settingsAttentionButtonWithIcon,
+			{ &st::menuIconDeleteAttention }
+		)->setClickedCallback([=] {
+			finish(resolveReply(), { .removed = true });
+		});
+
+		if (args.links.size() > 1) {
+			AddFilledSkip(bottom);
+			Settings::AddDividerText(
+				bottom,
+				tr::lng_link_about_choose());
+		}
+	};
+
+	const auto &resolver = args.resolver;
+	const auto performSwitch = [=](const QString &link, WebPageData *page) {
+		if (page) {
+			state->preview = page;
+			state->webpage.id = page->id;
+			state->webpage.url = page->url;
+			state->webpage.manual = true;
+			state->link = link;
+			state->shown.force_assign(Section::Link);
+		} else {
+			show->showToast(u"Could not generate preview for this link."_q);
+		}
+	};
+	const auto switchTo = [=](const QString &link) {
+		if (link == state->link) {
+			return;
+		}
+		if (const auto value = resolver->lookup(link)) {
+			performSwitch(link, *value);
+		} else {
+			resolver->request(link);
+			state->resolveLifetime = resolver->resolved(
+			) | rpl::start_with_next([=](const QString &resolved) {
+				if (resolved == link) {
+					state->resolveLifetime.destroy();
+					performSwitch(
+						link,
+						resolver->lookup(link).value_or(nullptr));
+				}
+			});
+		}
+	};
+
+	state->wrap = box->addRow(
+		object_ptr<PreviewWrap>(box, args.history),
+		{});
+	const auto &linkRanges = args.links;
+	state->shown.value() | rpl::start_with_next([=](Section shown) {
+		bottom->clear();
+		state->shownLifetime.destroy();
+		if (shown == Section::Reply) {
+			state->quote = state->wrap->showQuoteSelector(
+				replyItem,
+				state->quote.current());
+			setupReplyActions();
+		} else {
+			state->wrap->showLinkSelector(
+				draft.textWithTags,
+				state->webpage,
+				linkRanges,
+				state->link
+			) | rpl::start_with_next([=](QString link) {
+				switchTo(link);
+			}, state->shownLifetime);
+			setupLinkActions();
+		}
+	}, box->lifetime());
+
+	auto save = rpl::combine(
+		state->quote.value(),
+		state->shown.value()
+	) | rpl::map([=](const TextWithEntities &quote, Section shown) {
+		return (quote.empty() || shown != Section::Reply)
+			? tr::lng_settings_save()
+			: tr::lng_reply_quote_selected();
+	}) | rpl::flatten_latest();
+	box->addButton(std::move(save), [=] {
+		finish(resolveReply(), state->webpage);
+	});
+
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
+
+	if (replyItem) {
+		args.show->session().data().itemRemoved(
+		) | rpl::filter([=](not_null<const HistoryItem*> removed) {
+			return removed == replyItem;
+		}) | rpl::start_with_next([=] {
+			if (previewData) {
+				state->tabs = nullptr;
+				box->setPinnedToTopContent(
+					object_ptr<Ui::RpWidget>(nullptr));
+				box->setNoContentMargin(false);
+				box->setTitle(state->quote.current().empty()
+					? tr::lng_reply_options_header()
+					: tr::lng_reply_options_quote());
+				state->shown = Section::Link;
+			} else {
+				box->closeBox();
+			}
+		}, box->lifetime());
+	}
+}
 } // namespace
 
 void ShowReplyToChatBox(
@@ -603,14 +963,9 @@ void ShowReplyToChatBox(
 	) | rpl::start_with_next(std::move(callback), state->box->lifetime());
 }
 
-void EditDraftOptions(
-		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<History*> history,
-		Data::Draft draft,
-		Fn<void(FullReplyTo, Data::WebPageDraft)> done,
-		Fn<void()> highlight,
-		Fn<void()> clearOldDraft) {
-	const auto session = &show->session();
+void EditDraftOptions(EditDraftOptionsArgs &&args) {
+	const auto &draft = args.draft;
+	const auto session = &args.show->session();
 	const auto replyItem = session->data().message(draft.reply.messageId);
 	const auto previewDataRaw = draft.webpage.id
 		? session->data().webpage(draft.webpage.id).get()
@@ -623,225 +978,8 @@ void EditDraftOptions(
 	if (!replyItem && !previewData) {
 		return;
 	}
-	show->show(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setWidth(st::boxWideWidth);
-
-		struct State {
-			rpl::variable<Section> shown;
-			rpl::lifetime shownLifetime;
-			rpl::variable<TextWithEntities> quote;
-			Data::WebPageDraft webpage;
-			Ui::SettingsSlider *tabs = nullptr;
-			PreviewWrap *wrap = nullptr;
-		};
-		const auto state = box->lifetime().make_state<State>();
-		state->quote = draft.reply.quote;
-		state->webpage = draft.webpage;
-		state->shown = previewData ? Section::Link : Section::Reply;
-		if (replyItem && previewData) {
-			box->setNoContentMargin(true);
-			state->tabs = box->setPinnedToTopContent(
-				object_ptr<Ui::SettingsSlider>(
-					box.get(),
-					st::defaultTabsSlider));
-			state->tabs->resizeToWidth(st::boxWideWidth);
-			state->tabs->move(0, 0);
-			state->tabs->setRippleTopRoundRadius(st::boxRadius);
-			state->tabs->setSections({
-				tr::lng_reply_header_short(tr::now),
-				tr::lng_link_header_short(tr::now),
-			});
-			state->tabs->setActiveSectionFast(1);
-			state->tabs->sectionActivated(
-			) | rpl::start_with_next([=](int section) {
-				state->shown = section ? Section::Link : Section::Reply;
-			}, box->lifetime());
-		} else {
-			box->setTitle(previewData
-				? tr::lng_link_options_header()
-				: draft.reply.quote.empty()
-				? tr::lng_reply_options_header()
-				: tr::lng_reply_options_quote());
-		}
-
-		const auto bottom = box->setPinnedToBottomContent(
-			object_ptr<Ui::VerticalLayout>(box));
-		const auto addSkip = [=] {
-			const auto skip = bottom->add(object_ptr<Ui::FixedHeightWidget>(
-				bottom,
-				st::settingsPrivacySkipTop));
-			skip->paintRequest() | rpl::start_with_next([=](QRect clip) {
-				QPainter(skip).fillRect(clip, st::boxBg);
-			}, skip->lifetime());
-		};
-
-		const auto resolveReply = [=] {
-			auto result = draft.reply;
-			result.quote = state->quote.current();
-			return result;
-		};
-		const auto finish = [=](
-				FullReplyTo result,
-				Data::WebPageDraft webpage) {
-			const auto weak = Ui::MakeWeak(box);
-			done(std::move(result), std::move(webpage));
-			if (const auto strong = weak.data()) {
-				strong->closeBox();
-			}
-		};
-		const auto setupReplyActions = [=] {
-			addSkip();
-
-			Settings::AddButton(
-				bottom,
-				tr::lng_reply_in_another_chat(),
-				st::settingsButton,
-				{ &st::menuIconReplace }
-			)->setClickedCallback([=] {
-				ShowReplyToChatBox(show, resolveReply(), clearOldDraft);
-			});
-
-			Settings::AddButton(
-				bottom,
-				tr::lng_reply_show_in_chat(),
-				st::settingsButton,
-				{ &st::menuIconShowInChat }
-			)->setClickedCallback(highlight);
-
-			Settings::AddButton(
-				bottom,
-				tr::lng_reply_remove(),
-				st::settingsAttentionButtonWithIcon,
-				{ &st::menuIconDeleteAttention }
-			)->setClickedCallback([=] {
-				finish({}, state->webpage);
-			});
-
-			if (!replyItem->originalText().empty()) {
-				addSkip();
-				Settings::AddDividerText(
-					bottom,
-					tr::lng_reply_about_quote());
-			}
-		};
-		const auto setupLinkActions = [=] {
-			addSkip();
-
-			if (!draft.textWithTags.empty()) {
-				Settings::AddButton(
-					bottom,
-					(state->webpage.invert
-						? tr::lng_link_move_down()
-						: tr::lng_link_move_up()),
-					st::settingsButton,
-					{ state->webpage.invert
-						? &st::menuIconBelow
-						: &st::menuIconAbove }
-				)->setClickedCallback([=] {
-					state->webpage.invert = !state->webpage.invert;
-					state->webpage.manual = true;
-					state->shown.force_assign(Section::Link);
-				});
-			}
-
-			if (previewData->hasLargeMedia) {
-				const auto small = state->webpage.forceSmallMedia
-					|| (!state->webpage.forceLargeMedia
-						&& previewData->computeDefaultSmallMedia());
-				Settings::AddButton(
-					bottom,
-					(small
-						? tr::lng_link_enlarge_photo()
-						: tr::lng_link_shrink_photo()),
-					st::settingsButton,
-					{ small ? &st::menuIconEnlarge : &st::menuIconShrink }
-				)->setClickedCallback([=] {
-					if (small) {
-						state->webpage.forceSmallMedia = false;
-						state->webpage.forceLargeMedia = true;
-					} else {
-						state->webpage.forceLargeMedia = false;
-						state->webpage.forceSmallMedia = true;
-					}
-					state->webpage.manual = true;
-					state->shown.force_assign(Section::Link);
-				});
-			}
-
-			Settings::AddButton(
-				bottom,
-				tr::lng_link_remove(),
-				st::settingsAttentionButtonWithIcon,
-				{ &st::menuIconDeleteAttention }
-			)->setClickedCallback([=] {
-				finish(resolveReply(), { .removed = true });
-			});
-
-			if (true) {
-				addSkip();
-				Settings::AddDividerText(
-					bottom,
-					tr::lng_link_about_choose());
-			}
-		};
-
-		state->wrap = box->addRow(
-			object_ptr<PreviewWrap>(box, history),
-			{});
-		state->shown.value() | rpl::start_with_next([=](Section shown) {
-			bottom->clear();
-			state->shownLifetime.destroy();
-			if (shown == Section::Reply) {
-				state->quote = state->wrap->showQuoteSelector(
-					replyItem,
-					state->quote.current());
-				setupReplyActions();
-			} else {
-				state->wrap->showLinkSelector(
-					draft.textWithTags,
-					state->webpage
-				) | rpl::start_with_next([=](QString url) {
-				}, state->shownLifetime);
-				setupLinkActions();
-			}
-		}, box->lifetime());
-
-		auto save = rpl::combine(
-			state->quote.value(),
-			state->shown.value()
-		) | rpl::map([=](const TextWithEntities &quote, Section shown) {
-			return (quote.empty() || shown != Section::Reply)
-				? tr::lng_settings_save()
-				: tr::lng_reply_quote_selected();
-		}) | rpl::flatten_latest();
-		box->addButton(std::move(save), [=] {
-			finish(resolveReply(), state->webpage);
-		});
-
-		box->addButton(tr::lng_cancel(), [=] {
-			box->closeBox();
-		});
-
-		if (replyItem) {
-			session->data().itemRemoved(
-			) | rpl::filter([=](not_null<const HistoryItem*> removed) {
-				return removed == replyItem;
-			}) | rpl::start_with_next([=] {
-				if (previewData) {
-					state->tabs = nullptr;
-					box->setPinnedToTopContent(
-						object_ptr<Ui::RpWidget>(nullptr));
-					box->setNoContentMargin(false);
-					box->setTitle(state->quote.current().empty()
-						? tr::lng_reply_options_header()
-						: tr::lng_reply_options_quote());
-					state->shown = Section::Link;
-				} else {
-					box->closeBox();
-				}
-			}, box->lifetime());
-		}
-	}));
+	args.show->show(
+		Box(DraftOptionsBox, std::move(args), replyItem, previewData));
 }
 
 } // namespace HistoryView::Controls

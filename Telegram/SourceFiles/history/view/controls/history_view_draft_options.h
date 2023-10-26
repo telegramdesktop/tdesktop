@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 
 class History;
+struct MessageLinkRange;
 
 namespace ChatHelpers {
 class Show;
@@ -21,13 +22,21 @@ class SessionController;
 
 namespace HistoryView::Controls {
 
-void EditDraftOptions(
-	std::shared_ptr<ChatHelpers::Show> show,
-	not_null<History*> history,
-	Data::Draft draft,
-	Fn<void(FullReplyTo, Data::WebPageDraft)> done,
-	Fn<void()> highlight,
-	Fn<void()> clearOldDraft);
+class WebpageResolver;
+
+struct EditDraftOptionsArgs {
+	std::shared_ptr<ChatHelpers::Show> show;
+	not_null<History*> history;
+	Data::Draft draft;
+	QString usedLink;
+	std::vector<MessageLinkRange> links;
+	std::shared_ptr<WebpageResolver> resolver;
+	Fn<void(FullReplyTo, Data::WebPageDraft)> done;
+	Fn<void()> highlight;
+	Fn<void()> clearOldDraft;
+};
+
+void EditDraftOptions(EditDraftOptionsArgs &&args);
 
 void ShowReplyToChatBox(
 	std::shared_ptr<ChatHelpers::Show> show,
