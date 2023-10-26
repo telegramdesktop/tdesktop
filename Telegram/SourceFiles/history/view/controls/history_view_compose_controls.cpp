@@ -147,6 +147,7 @@ public:
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
 	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
 	[[nodiscard]] rpl::producer<> editPhotoRequests() const;
+	[[nodiscard]] rpl::producer<> editOptionsRequests() const;
 	[[nodiscard]] MessageToEdit queryToEdit();
 
 	[[nodiscard]] FullReplyTo getDraftReply() const;
@@ -221,6 +222,7 @@ private:
 
 	rpl::event_stream<bool> _visibleChanged;
 	rpl::event_stream<FullMsgId> _scrollToItemRequests;
+	rpl::event_stream<> _editOptionsRequests;
 	rpl::event_stream<> _editPhotoRequests;
 
 };
@@ -333,7 +335,8 @@ void FieldHeader::init() {
 		return (ranges::contains(kMouseEvents, type) || leaving)
 			&& (isEditingMessage()
 				|| readyToForward()
-				|| replyingToMessage());
+				|| replyingToMessage()
+				|| _preview.parsed);
 	}) | rpl::start_with_next([=](not_null<QEvent*> event) {
 		const auto updateOver = [&](bool inClickable, bool inPhotoEdit) {
 			if (_inClickable != inClickable) {
@@ -377,40 +380,14 @@ void FieldHeader::init() {
 				_editPhotoRequests.fire({});
 			} else if (isLeftButton && inPreviewRect) {
 				const auto reply = replyingToMessage();
-				if (!isEditingMessage() && readyToForward()) {
+				if (_preview.parsed) {
+					_editOptionsRequests.fire({});
+				} else if (isEditingMessage()) {
+					_scrollToItemRequests.fire(_editMsgId.current());
+				} else if (readyToForward()) {
 					_forwardPanel->editOptions(_show);
-				} else if (!isEditingMessage() && reply) {
-					//using namespace Controls;
-					//const auto highlight = [=] {
-					//	_scrollToItemRequests.fire_copy(reply.messageId);
-					//};
-					//const auto history = _history;
-					//const auto topicRootId = _topicRootId;
-					//const auto done = [=](
-					//		FullReplyTo replyTo,
-					//		Data::WebPageDraft webpage) {
-					//	if (replyTo) {
-					//		replyToMessage(replyTo);
-					//	} else {
-					//		_replyCancelled.fire({});
-					//	}
-
-					//};
-					//const auto clearOldReplyTo = [=, id = reply.messageId] {
-					//	ClearDraftReplyTo(history, topicRootId, id);
-					//};
-					//EditDraftOptions(
-					//	_show,
-					//	_history,
-					//	Data::Draft( reply,
-					//	done,
-					//	highlight,
-					//	clearOldReplyTo);
-				} else {
-					auto id = isEditingMessage()
-						? _editMsgId.current()
-						: replyingToMessage().messageId;
-					_scrollToItemRequests.fire(std::move(id));
+				} else if (reply) {
+					_editOptionsRequests.fire({});
 				}
 			}
 		} else if (type == QEvent::MouseButtonRelease) {
@@ -429,9 +406,12 @@ void FieldHeader::updateShownMessageText() {
 		.session = &_data->session(),
 		.customEmojiRepaint = [=] { customEmojiRepaint(); },
 	};
+	const auto reply = replyingToMessage();
 	_shownMessageText.setMarkedText(
 		st::messageTextStyle,
-		_shownMessage->inReplyText(),
+		((isEditingMessage() || reply.quote.empty())
+			? _shownMessage->inReplyText()
+			: reply.quote),
 		Ui::DialogTextOptions(),
 		context);
 }
@@ -777,6 +757,10 @@ rpl::producer<FullMsgId> FieldHeader::scrollToItemRequests() const {
 
 rpl::producer<> FieldHeader::editPhotoRequests() const {
 	return _editPhotoRequests.events();
+}
+
+rpl::producer<> FieldHeader::editOptionsRequests() const {
+	return _editOptionsRequests.events();
 }
 
 MessageToEdit FieldHeader::queryToEdit() {
@@ -1370,6 +1354,41 @@ void ComposeControls::init() {
 			_editingId,
 			_field->getTextWithTags(),
 			crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
+	}, _wrap->lifetime());
+
+	_header->editOptionsRequests(
+	) | rpl::start_with_next([=] {
+		const auto history = _history;
+		const auto reply = _header->replyingToMessage();
+		const auto webpage = _preview->draft();
+
+		const auto done = [=](
+				FullReplyTo replyTo,
+				Data::WebPageDraft webpage) {
+			if (replyTo) {
+				replyToMessage(replyTo);
+			} else {
+				cancelReplyMessage();
+			}
+			_preview->apply(webpage);
+		};
+		const auto replyToId = reply.messageId;
+		const auto highlight = crl::guard(_wrap.get(), [=] {
+			_scrollToItemRequests.fire_copy(replyToId);
+		});
+
+		using namespace HistoryView::Controls;
+		EditDraftOptions({
+			.show = _show,
+			.history = history,
+			.draft = Data::Draft(_field, reply, _preview->draft()),
+			.usedLink = _preview->link(),
+			.links = _preview->links(),
+			.resolver = _preview->resolver(),
+			.done = done,
+			.highlight = highlight,
+			.clearOldDraft = [=] { ClearDraftReplyTo(history, replyToId); },
+		});
 	}, _wrap->lifetime());
 
 	_header->previewCancelled(
@@ -2882,13 +2901,15 @@ Data::WebPageDraft ComposeControls::webPageDraft() const {
 }
 
 rpl::producer<Data::MessagePosition> ComposeControls::scrollRequests() const {
-	return _header->scrollToItemRequests(
-		) | rpl::map([=](FullMsgId id) -> Data::MessagePosition {
-			if (const auto item = session().data().message(id)) {
-				return item->position();
-			}
-			return {};
-		});
+	return rpl::merge(
+		_header->scrollToItemRequests(),
+		_scrollToItemRequests.events()
+	) | rpl::map([=](FullMsgId id) -> Data::MessagePosition {
+		if (const auto item = session().data().message(id)) {
+			return item->position();
+		}
+		return {};
+	});
 }
 
 bool ComposeControls::isEditingMessage() const {

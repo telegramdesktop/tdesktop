@@ -2576,6 +2576,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		: _overElement
 		? _overElement->data().get()
 		: nullptr;
+	const auto overItemView = viewForItem(overItem);
 	const auto clickedReaction = link
 		? link->property(
 			kReactionsCountEmojiProperty).value<Data::ReactionId>()
@@ -2602,6 +2603,9 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	request.view = _overElement;
 	request.item = overItem;
 	request.pointState = _overState.pointState;
+	request.quote = (overItemView && _selectedTextItem == overItem)
+		? overItemView->selectedQuote(_selectedTextRange)
+		: TextWithEntities();
 	request.selectedText = _selectedText;
 	request.selectedItems = collectSelectedItems();
 	const auto hasSelection = !request.selectedItems.empty()

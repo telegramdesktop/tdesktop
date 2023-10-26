@@ -247,10 +247,9 @@ PreviewWrap::~PreviewWrap() {
 rpl::producer<TextWithEntities> PreviewWrap::showQuoteSelector(
 		not_null<HistoryItem*> item,
 		const TextWithEntities &quote) {
-	auto element = item->createView(_delegate.get());
-	_selection.reset(element->selectionFromQuote(quote));
-	_element = std::move(element);
+	_selection.reset(TextSelection());
 
+	_element = item->createView(_delegate.get());
 	_link = _pressedLink = nullptr;
 
 	if (const auto was = base::take(_draftItem)) {
@@ -266,6 +265,7 @@ rpl::producer<TextWithEntities> PreviewWrap::showQuoteSelector(
 
 	initElement();
 
+	_selection = _element->selectionFromQuote(quote);
 	return _selection.value(
 	) | rpl::map([=](TextSelection selection) {
 		return _element->selectedQuote(selection);
@@ -596,7 +596,7 @@ auto PreviewDelegate::elementPathShiftGradient()
 }
 
 Context PreviewDelegate::elementContext() {
-	return Context::History;
+	return Context::Replies;
 }
 
 void AddFilledSkip(not_null<Ui::VerticalLayout*> container) {

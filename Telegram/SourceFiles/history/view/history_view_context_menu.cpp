@@ -605,13 +605,18 @@ bool AddReplyToMessageAction(
 		return false;
 	}
 
+	const auto &quote = request.quote;
+	auto text = quote.empty()
+		? tr::lng_context_reply_msg(tr::now)
+		: tr::lng_context_quote_and_reply(tr::now);
+	text.replace('&', u"&&"_q);
 	const auto owner = &item->history()->owner();
 	const auto itemId = item->fullId();
-	menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
+	menu->addAction(text, [=] {
 		if (!item) {
 			return;
 		} else {
-			list->replyToMessageRequestNotify({ itemId });
+			list->replyToMessageRequestNotify({ itemId, quote });
 		}
 	}, &st::menuIconReply);
 	return true;
@@ -936,7 +941,6 @@ void AddTopMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
-	AddReplyToMessageAction(menu, request, list);
 	AddGoToMessageAction(menu, request, list);
 	AddViewRepliesAction(menu, request, list);
 	AddEditMessageAction(menu, request, list);
@@ -1007,6 +1011,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		list,
 		st::popupMenuWithIcons);
+
+	AddReplyToMessageAction(result, request, list);
 
 	if (request.overSelection
 		&& !list->hasCopyRestrictionForSelected()

@@ -94,7 +94,7 @@ const auto kPsaTooltipPrefix = "cloud_lng_tooltip_psa_";
 		const auto i = ranges::find(left, cut);
 		if (i != left.end()) {
 			left.erase(i);
-		} else if (!ranges::contains(allowed, cut.type())) {
+		} else if (ranges::contains(allowed, cut.type())) {
 			return false;
 		}
 	}
@@ -2615,7 +2615,8 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 	const auto media = this->media();
 	auto logEntryOriginalResult = TextForMimeData();
 	const auto mediaDisplayed = (media && media->isDisplayed());
-	const auto textSelection = (mediaDisplayed && invertMedia())
+	const auto mediaBefore = mediaDisplayed && invertMedia();
+	const auto textSelection = mediaBefore
 		? media->skipSelection(selection)
 		: selection;
 	const auto mediaSelection = !invertMedia()
@@ -2628,19 +2629,15 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 		? media->selectedText(mediaSelection)
 		: TextForMimeData();
 	if (auto entry = logEntryOriginal()) {
-		const auto originalSelection = (mediaDisplayed && invertMedia())
+		const auto originalSelection = mediaBefore
 			? skipTextSelection(textSelection)
 			: mediaDisplayed
 			? media->skipSelection(mediaSelection)
 			: skipTextSelection(selection);
 		logEntryOriginalResult = entry->selectedText(originalSelection);
 	}
-	auto &first = (mediaDisplayed && invertMedia())
-		? mediaResult
-		: textResult;
-	auto &second = (mediaDisplayed && invertMedia())
-		? textResult
-		: mediaResult;
+	auto &first = mediaBefore ? mediaResult : textResult;
+	auto &second = mediaBefore ? textResult : mediaResult;
 	auto result = first;
 	if (result.empty()) {
 		result = std::move(second);
@@ -2664,7 +2661,13 @@ TextWithEntities Message::selectedQuote(TextSelection selection) const {
 		|| selection == FullSelection) {
 		return {};
 	} else if (hasVisibleText()) {
-		return selectedQuote(text(), selection);
+		const auto media = this->media();
+		const auto mediaDisplayed = media && media->isDisplayed();
+		const auto mediaBefore = mediaDisplayed && invertMedia();
+		const auto textSelection = mediaBefore
+			? media->skipSelection(selection)
+			: selection;
+		return selectedQuote(text(), textSelection);
 	} else if (const auto media = this->media()) {
 		if (media->isDisplayed() || isHiddenByGroup()) {
 			return media->selectedQuote(selection);
@@ -2737,7 +2740,11 @@ TextSelection Message::selectionFromQuote(
 	if (&translated != &original || quote.empty()) {
 		return {};
 	} else if (hasVisibleText()) {
-		return selectionFromQuote(text(), quote);
+		const auto media = this->media();
+		const auto mediaDisplayed = media && media->isDisplayed();
+		const auto mediaBefore = mediaDisplayed && invertMedia();
+		const auto result = selectionFromQuote(text(), quote);
+		return mediaBefore ? media->unskipSelection(result) : result;
 	} else if (const auto media = this->media()) {
 		if (media->isDisplayed() || isHiddenByGroup()) {
 			return media->selectionFromQuote(quote);
@@ -2793,42 +2800,52 @@ TextSelection Message::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
 	const auto media = this->media();
-
-	auto result = hasVisibleText()
-		? text().adjustSelection(selection, type)
+	const auto mediaDisplayed = media && media->isDisplayed();
+	const auto mediaBefore = mediaDisplayed && invertMedia();
+	const auto textSelection = mediaBefore
+		? media->skipSelection(selection)
 		: selection;
-	auto beforeMediaLength = visibleTextLength();
-	if (selection.to <= beforeMediaLength) {
-		return result;
-	}
-	auto mediaDisplayed = media && media->isDisplayed();
+	auto textAdjusted = hasVisibleText()
+		? text().adjustSelection(textSelection, type)
+		: textSelection;
+	auto textResult = mediaBefore
+		? media->unskipSelection(textAdjusted)
+		: textAdjusted;
+	auto mediaResult = TextSelection();
+	auto mediaSelection = mediaBefore
+		? selection
+		: skipTextSelection(selection);
 	if (mediaDisplayed) {
-		auto mediaSelection = unskipTextSelection(
-			media->adjustSelection(skipTextSelection(selection), type));
-		if (selection.from >= beforeMediaLength) {
-			result = mediaSelection;
-		} else {
-			result.to = mediaSelection.to;
-		}
+		auto mediaAdjusted = media->adjustSelection(mediaSelection, type);
+		mediaResult = mediaBefore
+			? mediaAdjusted
+			: unskipTextSelection(mediaAdjusted);
 	}
-	auto beforeEntryLength = beforeMediaLength + visibleMediaTextLength();
-	if (selection.to <= beforeEntryLength) {
-		return result;
-	}
+	auto entryResult = TextSelection();
 	if (const auto entry = logEntryOriginal()) {
-		auto entrySelection = mediaDisplayed
-			? media->skipSelection(skipTextSelection(selection))
-			: skipTextSelection(selection);
-		auto logEntryOriginalSelection = entry->adjustSelection(entrySelection, type);
+		auto entrySelection = !mediaDisplayed
+			? skipTextSelection(selection)
+			: mediaBefore
+			? skipTextSelection(textSelection)
+			: media->skipSelection(mediaSelection);
+		auto entryAdjusted = entry->adjustSelection(entrySelection, type);
+		entryResult = unskipTextSelection(entryAdjusted);
 		if (mediaDisplayed) {
-			logEntryOriginalSelection = media->unskipSelection(logEntryOriginalSelection);
+			entryResult = media->unskipSelection(entryResult);
 		}
-		logEntryOriginalSelection = unskipTextSelection(logEntryOriginalSelection);
-		if (selection.from >= beforeEntryLength) {
-			result = logEntryOriginalSelection;
-		} else {
-			result.to = logEntryOriginalSelection.to;
-		}
+	}
+	auto result = textResult;
+	if (!mediaResult.empty()) {
+		result = result.empty() ? mediaResult : TextSelection{
+			std::min(result.from, mediaResult.from),
+			std::max(result.to, mediaResult.to),
+		};
+	}
+	if (!entryResult.empty()) {
+		result = result.empty() ? entryResult : TextSelection{
+			std::min(result.from, entryResult.from),
+			std::max(result.to, entryResult.to),
+		};
 	}
 	return result;
 }

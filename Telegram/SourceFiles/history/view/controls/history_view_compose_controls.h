@@ -357,6 +357,7 @@ private:
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;
 	const std::unique_ptr<Ui::RpWidget> _writeRestricted;
+	rpl::event_stream<FullMsgId> _scrollToItemRequests;
 
 	std::optional<Ui::RoundRect> _backgroundRect;
 

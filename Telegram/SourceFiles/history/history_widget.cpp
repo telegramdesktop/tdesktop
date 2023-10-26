@@ -6246,6 +6246,11 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		return;
 	} else if (_previewDrawPreview) {
 		editDraftOptions();
+	} else if (_editMsgId) {
+		controller()->showPeerHistory(
+			_peer,
+			Window::SectionShow::Way::Forward,
+			_editMsgId);
 	} else if (isReadyToForward) {
 		if (e->button() != Qt::LeftButton) {
 			_forwardPanel->editToNextOption();
@@ -6259,11 +6264,6 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			_kbReplyTo->history()->peer->id,
 			Window::SectionShow::Way::Forward,
 			_kbReplyTo->id);
-	} else if (_editMsgId) {
-		controller()->showPeerHistory(
-			_peer,
-			Window::SectionShow::Way::Forward,
-			_editMsgId);
 	}
 }
 

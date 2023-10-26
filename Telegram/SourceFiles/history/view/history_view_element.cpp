@@ -802,7 +802,7 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 	if (!info) {
 		return {};
 	}
-	if (_delegate->elementContext() == Context::Replies) {
+	if (_context == Context::Replies) {
 		if (info->created()) {
 			return { { tr::lng_action_topic_created_inside(tr::now) } };
 		}
