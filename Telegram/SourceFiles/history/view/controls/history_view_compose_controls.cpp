@@ -1758,9 +1758,6 @@ void ComposeControls::fieldChanged() {
 		&& (_textUpdateEvents & TextUpdateEvent::SendTyping));
 	updateSendButtonType();
 	_hasSendText = HasSendText(_field);
-	if (!_hasSendText.current() && _preview && !_preview->draft().manual) {
-		_preview->apply({ .removed = true });
-	}
 	if (updateBotCommandShown() || updateLikeShown()) {
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
@@ -1930,7 +1927,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_header->editMessage({});
 		_header->replyToMessage({});
 		if (_preview) {
-			_preview->apply({});
+			_preview->apply({ .removed = true });
 		}
 		_canReplaceMedia = false;
 		_photoEditMedia = nullptr;

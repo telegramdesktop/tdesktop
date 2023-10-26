@@ -53,6 +53,7 @@ public:
 		not_null<History*> history,
 		not_null<Ui::InputField*> field);
 
+	void setDisabled(bool disabled);
 	void checkNow(bool force);
 
 	// If editing a message without a preview we don't want to show

@@ -252,6 +252,7 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 		_history->nextNonHistoryEntryId(),
 		(MessageFlag::FakeHistoryItem
 			| MessageFlag::Outgoing
+			| MessageFlag::HasFromId
 			| (webpage.invert ? MessageFlag::InvertMedia : MessageFlag())),
 		UserId(), // via
 		FullReplyTo(),

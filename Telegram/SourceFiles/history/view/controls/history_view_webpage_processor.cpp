@@ -163,13 +163,15 @@ void WebpageProcessor::apply(Data::WebPageDraft draft, bool reparse) {
 		_link = QString();
 		_parsed = WebpageParsed();
 		updateFromData();
-	} else if (draft.manual && draft.id && !draft.url.isEmpty()) {
+	} else if (draft.manual && !draft.url.isEmpty()) {
 		_draft = draft;
 		_parsedLinks = QStringList();
 		_links = QStringList();
 		_link = _draft.url;
-		const auto page = _history->owner().webpage(draft.id);
-		if (page->url == draft.url) {
+		const auto page = draft.id
+			? _history->owner().webpage(draft.id).get()
+			: nullptr;
+		if (page && page->url == draft.url) {
 			_data = page;
 			updateFromData();
 		} else {
@@ -220,7 +222,9 @@ void WebpageProcessor::request() {
 			page->failed = true;
 		}
 		_cache.emplace(link, page->failed ? nullptr : page.get());
-		if (_link == link && !_draft.removed && !_draft.manual) {
+		if (_link == link
+			&& !_draft.removed
+			&& (!_draft.manual || _draft.url == link)) {
 			_data = (page->id && !page->failed)
 				? page.get()
 				: nullptr;
@@ -256,6 +260,15 @@ void WebpageProcessor::request() {
 		}
 		fail();
 	}).send();
+}
+
+void WebpageProcessor::setDisabled(bool disabled) {
+	_parser.setDisabled(disabled);
+	if (disabled) {
+		apply({ .removed = true });
+	} else {
+		checkNow(false);
+	}
 }
 
 void WebpageProcessor::checkNow(bool force) {

@@ -68,7 +68,7 @@ mtpRequestId EditMessage(
 
 	const auto emptyFlag = MTPmessages_EditMessage::Flag(0);
 	const auto flags = emptyFlag
-	| (!text.isEmpty() || media
+	| ((!text.isEmpty() || media)
 		? MTPmessages_EditMessage::Flag::f_message
 		: emptyFlag)
 	| ((media && inputMedia.has_value())
@@ -98,7 +98,7 @@ mtpRequestId EditMessage(
 		item->history()->peer->input,
 		MTP_int(id),
 		MTP_string(text),
-		inputMedia.value_or(Data::WebPageForMTP(webpage)),
+		inputMedia.value_or(Data::WebPageForMTP(webpage, text.isEmpty())),
 		MTPReplyMarkup(),
 		sentEntities,
 		MTP_int(options.scheduled)

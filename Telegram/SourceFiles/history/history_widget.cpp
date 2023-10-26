@@ -1587,9 +1587,6 @@ void HistoryWidget::fieldChanged() {
 
 	updateSendButtonType();
 	if (!HasSendText(_field)) {
-		if (_preview) {
-			_preview->apply({});
-		}
 		_fieldIsEmpty = true;
 	} else if (_fieldIsEmpty) {
 		_fieldIsEmpty = false;
@@ -1887,7 +1884,7 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_processingReplyTo = _replyTo = FullReplyTo();
 		setEditMsgId(0);
 		if (_preview) {
-			_preview->apply({});
+			_preview->apply({ .removed = true });
 		}
 		if (fieldWillBeHiddenAfterEdit) {
 			updateControlsVisibility();
@@ -1923,7 +1920,17 @@ bool HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	}
 
 	if (_preview) {
-		_preview->apply(draft->webpage, !_editMsgId);
+		_preview->setDisabled(_editMsgId
+			&& _replyEditMsg
+			&& _replyEditMsg->media()
+			&& !_replyEditMsg->media()->webpage());
+		if (!_editMsgId) {
+			_preview->apply(draft->webpage, true);
+		} else if (!_replyEditMsg
+			|| !_replyEditMsg->media()
+			|| _replyEditMsg->media()->webpage()) {
+			_preview->apply(draft->webpage, false);
+		}
 	}
 	return true;
 }
@@ -2503,6 +2510,9 @@ void HistoryWidget::setEditMsgId(MsgId msgId) {
 	_editMsgId = msgId;
 	if (!msgId) {
 		_canReplaceMedia = false;
+		if (_preview) {
+			_preview->setDisabled(false);
+		}
 	}
 	if (_history) {
 		refreshSendAsToggle();
@@ -3775,6 +3785,7 @@ void HistoryWidget::saveEditMsg() {
 		cancelEdit();
 		return;
 	}
+	const auto webPageDraft = _preview->draft();
 	const auto textWithTags = _field->getTextWithAppliedMarkdown();
 	const auto prepareFlags = Ui::ItemTextOptions(
 		_history,
@@ -3785,8 +3796,12 @@ void HistoryWidget::saveEditMsg() {
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags) };
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
+	const auto media = item->media();
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)
-		&& (!item->media() || !item->media()->allowsEditCaption())) {
+		&& (webPageDraft.removed
+			|| webPageDraft.url.isEmpty()
+			|| !webPageDraft.manual)
+		&& (!media || !media->allowsEditCaption())) {
 		const auto suggestModerateActions = false;
 		controller()->show(
 			Box<DeleteMessagesBox>(item, suggestModerateActions));
@@ -3844,7 +3859,7 @@ void HistoryWidget::saveEditMsg() {
 	_saveEditMsgRequestId = Api::EditTextMessage(
 		item,
 		sending,
-		_preview->draft(),
+		webPageDraft,
 		options,
 		done,
 		fail);
@@ -6267,9 +6282,7 @@ void HistoryWidget::editDraftOptions() {
 		} else {
 			cancelReply();
 		}
-		if (_preview->draft() != webpage) {
-			_preview->apply(webpage);
-		}
+		_preview->apply(webpage);
 	};
 	const auto highlight = [=] {
 		controller()->showPeerHistory(
@@ -7693,6 +7706,12 @@ void HistoryWidget::messageDataReceived(
 	} else if (_editMsgId == msgId
 		|| (_replyTo.messageId == FullMsgId(peer->id, msgId))) {
 		updateReplyEditTexts(true);
+		if (_editMsgId == msgId) {
+			_preview->setDisabled(_editMsgId
+				&& _replyEditMsg
+				&& _replyEditMsg->media()
+				&& !_replyEditMsg->media()->webpage());
+		}
 	}
 }
 
