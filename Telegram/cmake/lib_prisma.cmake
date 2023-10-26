@@ -23,12 +23,6 @@ PRIVATE
     TokenList.h
 )
 
-target_compile_definitions(lib_prisma
-PRIVATE
-    BOOST_NO_INTRINSIC_WCHAR_T
-    BOOST_REGEX_NO_W32
-)
-
 target_include_directories(lib_prisma
 PUBLIC
     ${prisma_loc}
