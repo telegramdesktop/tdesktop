@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "settings/settings_advanced.h"
 #include "settings/settings_experimental.h"
+#include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/connection_box.h"
 #include "boxes/auto_download_box.h"
 #include "boxes/reactions_settings_box.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/chat/attach/attach_extensions.h"
+#include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/layers/generic_box.h"
 #include "ui/effects/radial_animation.h"
@@ -55,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_values.h"
+#include "data/data_user.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
@@ -1561,51 +1564,44 @@ void SetupCloudThemes(
 	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
 }
 
-void SetupAutoNightMode(
+void SetupThemeSettings(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
-	if (!Core::App().settings().systemDarkMode().has_value()) {
-		return;
-	}
-
 	AddDivider(container);
 	AddSkip(container, st::settingsPrivacySkip);
 
-	AddSubsectionTitle(container, tr::lng_settings_auto_night_mode());
+	AddSubsectionTitle(container, tr::lng_settings_theme_settings());
 
-	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	const auto autoNight = wrap->add(
-		object_ptr<Ui::Checkbox>(
-			wrap,
-			tr::lng_settings_auto_night_enabled(tr::now),
-			Core::App().settings().systemDarkModeEnabled(),
-			st::settingsCheckbox),
-		st::settingsCheckboxPadding);
-
-	autoNight->checkedChanges(
-	) | rpl::filter([=](bool checked) {
-		return (checked != Core::App().settings().systemDarkModeEnabled());
-	}) | rpl::start_with_next([=](bool checked) {
-		if (checked && Window::Theme::Background()->editingTheme()) {
-			autoNight->setChecked(false);
-			controller->show(Ui::MakeInformBox(
-				tr::lng_theme_editor_cant_change_theme()));
-		} else {
-			Core::App().settings().setSystemDarkModeEnabled(checked);
-			Core::App().saveSettingsDelayed();
-		}
-	}, autoNight->lifetime());
-
-	Core::App().settings().systemDarkModeEnabledChanges(
-	) | rpl::filter([=](bool value) {
-		return (value != autoNight->checked());
-	}) | rpl::start_with_next([=](bool value) {
-		autoNight->setChecked(value);
-	}, autoNight->lifetime());
-
-	container->add(object_ptr<Ui::OverrideMargins>(
+	AddPeerColorButton(
 		container,
-		std::move(wrap)));
+		controller->uiShow(),
+		controller->session().user());
+
+	const auto settings = &Core::App().settings();
+	if (settings->systemDarkMode().has_value()) {
+		auto label = settings->systemDarkModeEnabledValue(
+		) | rpl::map([=](bool enabled) {
+			return enabled
+				? tr::lng_settings_auto_night_mode_on()
+				: tr::lng_settings_auto_night_mode_off();
+		}) | rpl::flatten_latest();
+		AddButtonWithLabel(
+			container,
+			tr::lng_settings_auto_night_mode(),
+			std::move(label),
+			st::settingsButton,
+			{ &st::menuIconNightMode }
+		)->setClickedCallback([=] {
+			const auto now = !settings->systemDarkModeEnabled();
+			if (now && Window::Theme::Background()->editingTheme()) {
+				controller->show(Ui::MakeInformBox(
+					tr::lng_theme_editor_cant_change_theme()));
+			} else {
+				settings->setSystemDarkModeEnabled(now);
+				Core::App().saveSettingsDelayed();
+			}
+		});
+	}
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 }
@@ -1749,7 +1745,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupThemeOptions(controller, content);
-	SetupAutoNightMode(controller, content);
+	SetupThemeSettings(controller, content);
 	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);

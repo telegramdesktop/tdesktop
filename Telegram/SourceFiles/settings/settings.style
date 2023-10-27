@@ -565,3 +565,12 @@ filterLinkSubsectionTitlePadding: margins(0px, 5px, 0px, -4px);
 filterLinkChatsList: PeerList(peerListBox) {
 	padding: margins(0px, 0px, 0px, membersMarginBottom);
 }
+
+settingsColorSampleSize: 20px;
+settingsColorSampleCenter: 8px;
+settingsColorSampleCenterRadius: 2px;
+settingsColorSamplePadding: margins(8px, 2px, 8px, 2px);
+settingsColorSampleSkip: 6px;
+settingsColorButton: SettingsButton(settingsButton) {
+	padding: margins(60px, 10px, 48px, 10px);
+}

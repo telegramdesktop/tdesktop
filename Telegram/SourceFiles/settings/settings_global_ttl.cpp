@@ -377,7 +377,7 @@ void GlobalTTL::setupContent() {
 		auto controller = std::make_unique<TTLChatsBoxController>(session);
 		auto initBox = [=, controller = controller.get()](
 				not_null<PeerListBox*> box) {
-			box->addButton(tr::lng_background_apply(), crl::guard(this, [=] {
+			box->addButton(tr::lng_settings_apply(), crl::guard(this, [=] {
 				const auto &peers = box->collectSelectedRows();
 				if (peers.empty()) {
 					return;

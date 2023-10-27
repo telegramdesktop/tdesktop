@@ -435,7 +435,7 @@ void BackgroundPreviewBox::rebuildButtons(bool dark) {
 	clearButtons();
 	addButton(_forPeer
 		? tr::lng_background_apply_button()
-		: tr::lng_background_apply(), [=] { apply(); });
+		: tr::lng_settings_apply(), [=] { apply(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	if (!_forPeer && _paper.hasShareUrl()) {
 		addLeftButton(tr::lng_background_share(), [=] { share(); });

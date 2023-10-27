@@ -402,6 +402,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dlg_search_from" = "From: {user}";
 
 "lng_settings_save" = "Save";
+"lng_settings_apply" = "Apply";
 
 "lng_username_title" = "Username";
 "lng_username_description1" = "You can choose a username on Telegram. If you do, other people will be able to find you by this username and contact you without knowing your phone number.";
@@ -770,10 +771,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_clear_payment_info_clear" = "Clear";
 "lng_clear_payment_info_confirm" = "Delete your shipping info and instruct all payment providers to remove your saved credit cards? Note that Telegram never stores your credit card data.";
 
+"lng_settings_theme_settings" = "Theme settings";
+"lng_settings_theme_name_color" = "Your name color";
 "lng_settings_auto_night_mode" = "Auto-Night mode";
-"lng_settings_auto_night_enabled" = "Match the system settings";
+"lng_settings_auto_night_mode_off" = "Off";
+"lng_settings_auto_night_mode_on" = "System";
 "lng_settings_auto_night_warning" = "You have enabled auto-night mode. If you want to change the dark mode settings, you'll need to disable it first.";
 "lng_settings_auto_night_disable" = "Disable";
+
+"lng_settings_color_title" = "Color preview";
+"lng_settings_color_reply" = "Reply to your message";
+"lng_settings_color_reply_channel" = "Reply to your channel message";
+"lng_settings_color_text" = "Your name and replies to your messages will be shown in the selected color.";
+"lng_settings_color_text_channel" = "The name of the channel and replies to its messages will be shown in the selected color.";
+"lng_settings_color_link_name" = "Telegram";
+"lng_settings_color_link_title" = "Link Preview";
+"lng_settings_color_link_description" = "Your selected color will also tint the link preview.";
+"lng_settings_color_about" = "You can choose a color to tint your name, the links you send, and replies to your messages.";
+"lng_settings_color_about_channel" = "You can choose a color to tint your channel's name, the links it sends, and replies to its messages.";
+"lng_settings_color_emoji" = "Add icons to replies";
+"lng_settings_color_emoji_off" = "Off";
+"lng_settings_color_emoji_about" = "Make replies to your messages stand out by adding custom patterns to them.";
+"lng_settings_color_emoji_about_channel" = "Make replies to your channel's messages stand out by adding custom patterns to them.";
+"lng_settings_color_subscribe" = "Subscribe to {link} to choose a custom color for your name.";
 
 "lng_suggest_hide_new_title" = "Hide new chats?";
 "lng_suggest_hide_new_about" = "You are receiving lots of new chats from users who are not in your Contact List.\n\nDo you want to have such chats **automatically muted** and **archived**?";
@@ -802,7 +822,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_background_text1" = "Ah, you kids today with techno music! You should enjoy the classics, like Hasselhoff!";
 "lng_background_text2" = "I can't even take you seriously right now.";
 "lng_background_bad_link" = "This background link appears to be invalid.";
-"lng_background_apply" = "Apply";
 "lng_background_share" = "Share";
 "lng_background_link_copied" = "Link copied to clipboard";
 "lng_background_blur" = "Blurred";
@@ -2035,6 +2054,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_now_instead" = "You currently boost {channel}. Do you want to boost {other} instead?";
 "lng_boost_now_replace" = "Replace";
 
+"lng_boost_channel_title_color" = "Enable colors";
+"lng_boost_channel_needs_level_color#one" = "Your channel needs to reach **Level {count}** to change channel color.";
+"lng_boost_channel_needs_level_color#other" = "Your channel needs to reach **Level {count}** to change channel color.";
+"lng_boost_channel_ask" = "Ask your **Premium** subscribers to boost your channel with this link:";
+"lng_boost_channel_ask_button" = "Copy Link";
+"lng_boost_channel_or" = "or";
+"lng_boost_channel_gifting" = "Boost your channel by gifting your subscribers Telegram Premium. {link}";
+"lng_boost_channel_gifting_link" = "Get boosts >";
+
 "lng_giveaway_new_title" = "Boosts via Gifts";
 "lng_giveaway_new_about" = "Get more boosts for your channel by gifting Premium to your subscribers.";
 "lng_giveaway_create_option" = "Create Giveaway";
@@ -2675,6 +2703,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_bot_title" = "Edit bot";
 "lng_edit_sign_messages" = "Sign messages";
 "lng_edit_group" = "Edit group";
+"lng_edit_channel_color" = "Change name color";
 "lng_edit_self_title" = "Edit your name";
 "lng_confirm_contact_data" = "New Contact";
 "lng_add_contact" = "Create";
