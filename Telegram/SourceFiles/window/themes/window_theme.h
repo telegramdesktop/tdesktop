@@ -28,6 +28,7 @@ class Controller;
 
 namespace Ui {
 struct ChatThemeBackground;
+class ChatTheme;
 } // namespace Ui
 
 namespace Webview {
@@ -308,6 +309,9 @@ bool ReadPaletteValues(
 	Fn<bool(QLatin1String name, QLatin1String value)> callback);
 
 [[nodiscard]] Webview::ThemeParams WebViewParams();
+
+[[nodiscard]] std::unique_ptr<Ui::ChatTheme> DefaultChatThemeOn(
+	rpl::lifetime &lifetime);
 
 } // namespace Theme
 } // namespace Window

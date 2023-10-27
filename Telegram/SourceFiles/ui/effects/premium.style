@@ -288,6 +288,14 @@ giveawayGiftCodeLinkHeight: 42px;
 giveawayGiftCodeLinkCopyWidth: 40px;
 giveawayGiftCodeLinkMargin: margins(24px, 8px, 24px, 12px);
 
+boostLinkStatsButton: IconButton(defaultIconButton) {
+	width: giveawayGiftCodeLinkCopyWidth;
+	height: giveawayGiftCodeLinkHeight;
+	icon: icon{{ "menu/stats", menuIconColor }};
+	iconOver: icon{{ "menu/stats", menuIconColor }};
+	ripple: emptyRippleAnimation;
+}
+
 giveawayGiftCodeTable: Table(defaultTable) {
 	labelMinWidth: 91px;
 }

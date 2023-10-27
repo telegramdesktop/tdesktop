@@ -70,39 +70,6 @@ private:
 
 };
 
-[[nodiscard]] std::unique_ptr<Ui::ChatTheme> DefaultThemeOn(
-		rpl::lifetime &lifetime) {
-	auto result = std::make_unique<Ui::ChatTheme>();
-
-	using namespace Window::Theme;
-	const auto push = [=, raw = result.get()] {
-		const auto background = Background();
-		const auto &paper = background->paper();
-		raw->setBackground({
-			.prepared = background->prepared(),
-			.preparedForTiled = background->preparedForTiled(),
-			.gradientForFill = background->gradientForFill(),
-			.colorForFill = background->colorForFill(),
-			.colors = paper.backgroundColors(),
-			.patternOpacity = paper.patternOpacity(),
-			.gradientRotation = paper.gradientRotation(),
-			.isPattern = paper.isPattern(),
-			.tile = background->tile(),
-		});
-	};
-
-	push();
-	Background()->updates(
-	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
-		if (update.type == BackgroundUpdate::Type::New
-			|| update.type == BackgroundUpdate::Type::Changed) {
-			push();
-		}
-	}, lifetime);
-
-	return result;
-}
-
 [[nodiscard]] TextWithEntities HighlightParsedLinks(
 		TextWithEntities text,
 		const std::vector<MessageLinkRange> &links) {
@@ -123,7 +90,6 @@ private:
 	}
 	return text;
 }
-
 
 class PreviewWrap final : public Ui::RpWidget {
 public:
@@ -195,7 +161,7 @@ PreviewWrap::PreviewWrap(
 : RpWidget(box)
 , _box(box)
 , _history(history)
-, _theme(DefaultThemeOn(lifetime()))
+, _theme(Window::Theme::DefaultChatThemeOn(lifetime()))
 , _style(std::make_unique<Ui::ChatStyle>(
 	history->session().colorIndicesValue()))
 , _delegate(std::make_unique<PreviewDelegate>(
@@ -376,7 +342,6 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	}
 
 	auto p = Painter(this);
-	auto hq = PainterHighQualityEnabler(p);
 
 	auto context = _theme->preparePaintContext(
 		_style.get(),

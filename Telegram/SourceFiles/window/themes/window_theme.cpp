@@ -1591,5 +1591,36 @@ SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 		QByteArray());
 }
 
+std::unique_ptr<Ui::ChatTheme> DefaultChatThemeOn(rpl::lifetime &lifetime) {
+	auto result = std::make_unique<Ui::ChatTheme>();
+
+	const auto push = [=, raw = result.get()] {
+		const auto background = Background();
+		const auto &paper = background->paper();
+		raw->setBackground({
+			.prepared = background->prepared(),
+			.preparedForTiled = background->preparedForTiled(),
+			.gradientForFill = background->gradientForFill(),
+			.colorForFill = background->colorForFill(),
+			.colors = paper.backgroundColors(),
+			.patternOpacity = paper.patternOpacity(),
+			.gradientRotation = paper.gradientRotation(),
+			.isPattern = paper.isPattern(),
+			.tile = background->tile(),
+			});
+	};
+
+	push();
+	Background()->updates(
+	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
+		if (update.type == BackgroundUpdate::Type::New
+			|| update.type == BackgroundUpdate::Type::Changed) {
+			push();
+		}
+	}, lifetime);
+
+	return result;
+}
+
 } // namespace Theme
 } // namespace Window

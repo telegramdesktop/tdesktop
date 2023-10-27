@@ -210,16 +210,14 @@ void InnerWidget::fill() {
 			fakeShowed->events(),
 			rpl::single(status.overview.isBoosted),
 			dividerContent.data(),
-			Ui::BoostBoxData{
-				.boost = Ui::BoostCounters{
-					.level = status.overview.level,
-					.boosts = status.overview.boostCount,
-					.thisLevelBoosts
-						= status.overview.currentLevelBoostCount,
-					.nextLevelBoosts
-						= status.overview.nextLevelBoostCount,
-					.mine = status.overview.isBoosted,
-				}
+			Ui::BoostCounters{
+				.level = status.overview.level,
+				.boosts = status.overview.boostCount,
+				.thisLevelBoosts
+					= status.overview.currentLevelBoostCount,
+				.nextLevelBoosts
+					= status.overview.nextLevelBoostCount,
+				.mine = status.overview.isBoosted,
 			},
 			st::statisticsLimitsLinePadding);
 		inner->add(object_ptr<Ui::DividerLabel>(

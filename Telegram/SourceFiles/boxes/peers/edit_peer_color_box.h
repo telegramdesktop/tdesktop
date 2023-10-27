@@ -14,6 +14,7 @@ class Show;
 namespace Ui {
 class GenericBox;
 class ChatStyle;
+class ChatTheme;
 class VerticalLayout;
 } // namespace Ui
 
@@ -21,7 +22,8 @@ void EditPeerColorBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<PeerData*> peer,
-	std::shared_ptr<Ui::ChatStyle> st = nullptr);
+	std::shared_ptr<Ui::ChatStyle> style = nullptr,
+	std::shared_ptr<Ui::ChatTheme> theme = nullptr);
 
 void AddPeerColorButton(
 	not_null<Ui::VerticalLayout*> container,

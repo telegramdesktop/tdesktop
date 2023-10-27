@@ -251,68 +251,24 @@ struct GiftCodeLink {
 	};
 }
 
-[[nodiscard]] object_ptr<Ui::RpWidget> MakeLinkLabel(
-		not_null<QWidget*> parent,
-		rpl::producer<QString> text,
-		rpl::producer<QString> link,
-		std::shared_ptr<Ui::Show> show) {
-	auto result = object_ptr<Ui::AbstractButton>(parent);
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeLinkCopyIcon(
+		not_null<QWidget*> parent) {
+	auto result = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = result.data();
-
-	struct State {
-		State(
-			not_null<QWidget*> parent,
-			rpl::producer<QString> value,
-			rpl::producer<QString> link)
-		: text(std::move(value))
-		, link(std::move(link))
-		, label(parent, text.value(), st::giveawayGiftCodeLink)
-		, bg(st::roundRadiusLarge, st::windowBgOver) {
-		}
-
-		rpl::variable<QString> text;
-		rpl::variable<QString> link;
-		Ui::FlatLabel label;
-		Ui::RoundRect bg;
-	};
-
-	const auto state = raw->lifetime().make_state<State>(
-		raw,
-		rpl::duplicate(text),
-		std::move(link));
-	state->label.setSelectable(true);
-
-	rpl::combine(
-		raw->widthValue(),
-		std::move(text)
-	) | rpl::start_with_next([=](int outer, const auto&) {
-		const auto textWidth = state->label.textMaxWidth();
-		const auto skipLeft = st::giveawayGiftCodeLink.margin.left();
-		const auto skipRight = st::giveawayGiftCodeLinkCopyWidth;
-		const auto available = outer - skipRight - skipLeft;
-		const auto use = std::min(textWidth, available);
-		state->label.resizeToWidth(use);
-		state->label.move(outer - skipRight - use - skipLeft, 0);
-	}, raw->lifetime());
 
 	raw->paintRequest() | rpl::start_with_next([=] {
 		auto p = QPainter(raw);
-		state->bg.paint(p, raw->rect());
-		const auto outer = raw->width();
-		const auto width = st::giveawayGiftCodeLinkCopyWidth;
 		const auto &icon = st::giveawayGiftCodeLinkCopy;
-		const auto left = outer - width + (width - icon.width()) / 2;
+		const auto left = (raw->width() - icon.width()) / 2;
 		const auto top = (raw->height() - icon.height()) / 2;
 		icon.paint(p, left, top, raw->width());
 	}, raw->lifetime());
 
-	state->label.setAttribute(Qt::WA_TransparentForMouseEvents);
+	raw->resize(
+		st::giveawayGiftCodeLinkCopyWidth,
+		st::giveawayGiftCodeLinkHeight);
 
-	raw->resize(raw->width(), st::giveawayGiftCodeLinkHeight);
-	raw->setClickedCallback([=] {
-		QGuiApplication::clipboard()->setText(state->link.current());
-		show->showToast(tr::lng_username_copied(tr::now));
-	});
+	raw->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	return result;
 }
@@ -502,11 +458,12 @@ void GiftCodeBox(
 
 	const auto link = MakeGiftCodeLink(&controller->session(), slug);
 	box->addRow(
-		MakeLinkLabel(
+		Ui::MakeLinkLabel(
 			box,
 			rpl::single(link.text),
 			rpl::single(link.link),
-			box->uiShow()),
+			box->uiShow(),
+			MakeLinkCopyIcon(box)),
 		st::giveawayGiftCodeLinkMargin);
 
 	auto table = box->addRow(

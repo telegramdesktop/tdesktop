@@ -567,10 +567,13 @@ filterLinkChatsList: PeerList(peerListBox) {
 }
 
 settingsColorSampleSize: 20px;
-settingsColorSampleCenter: 8px;
+settingsColorSampleCenter: 6px;
 settingsColorSampleCenterRadius: 2px;
 settingsColorSamplePadding: margins(8px, 2px, 8px, 2px);
 settingsColorSampleSkip: 6px;
 settingsColorButton: SettingsButton(settingsButton) {
 	padding: margins(60px, 10px, 48px, 10px);
 }
+settingsColorRadioMargin: 17px;
+settingsColorRadioSkip: 13px;
+settingsColorRadioStroke: 2px;

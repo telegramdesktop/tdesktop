@@ -838,6 +838,8 @@ void HistoryMessageReply::paint(
 		? resolvedMessage->displayFrom()
 		: resolvedStory
 		? resolvedStory->peer().get()
+		: _externalSender
+		? _externalSender
 		: nullptr;
 	const auto backgroundEmojiId = colorPeer
 		? colorPeer->backgroundEmojiId()

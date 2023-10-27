@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
+#include <QtGui/QGuiApplication>
+
 namespace Ui {
 
 void StartFireworks(not_null<QWidget*> parent) {
@@ -57,7 +59,7 @@ void BoostBox(
 		BoxShowFinishes(box),
 		state->you.value(),
 		box->verticalLayout(),
-		data,
+		data.boost,
 		st::boxRowPadding);
 
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
@@ -170,31 +172,188 @@ void BoostBox(
 	}, button->lifetime());
 }
 
+object_ptr<Ui::RpWidget> MakeLinkLabel(
+		not_null<QWidget*> parent,
+		rpl::producer<QString> text,
+		rpl::producer<QString> link,
+		std::shared_ptr<Ui::Show> show,
+		object_ptr<Ui::RpWidget> right) {
+	auto result = object_ptr<Ui::AbstractButton>(parent);
+	const auto raw = result.data();
+
+	const auto rawRight = right.release();
+	if (rawRight) {
+		rawRight->setParent(raw);
+		rawRight->show();
+	}
+
+	struct State {
+		State(
+			not_null<QWidget*> parent,
+			rpl::producer<QString> value,
+			rpl::producer<QString> link)
+		: text(std::move(value))
+		, link(std::move(link))
+		, label(parent, text.value(), st::giveawayGiftCodeLink)
+		, bg(st::roundRadiusLarge, st::windowBgOver) {
+		}
+
+		rpl::variable<QString> text;
+		rpl::variable<QString> link;
+		Ui::FlatLabel label;
+		Ui::RoundRect bg;
+	};
+
+	const auto state = raw->lifetime().make_state<State>(
+		raw,
+		rpl::duplicate(text),
+		std::move(link));
+	state->label.setSelectable(true);
+
+	rpl::combine(
+		raw->widthValue(),
+		std::move(text)
+	) | rpl::start_with_next([=](int outer, const auto&) {
+		const auto textWidth = state->label.textMaxWidth();
+		const auto skipLeft = st::giveawayGiftCodeLink.margin.left();
+		const auto skipRight = rawRight
+			? rawRight->width()
+			: st::giveawayGiftCodeLink.margin.right();
+		const auto available = outer - skipRight - skipLeft;
+		const auto use = std::min(textWidth, available);
+		state->label.resizeToWidth(use);
+		const auto forCenter = (outer - use) / 2;
+		const auto x = (forCenter < skipLeft)
+			? skipLeft
+			: (forCenter > outer - skipRight - use)
+			? (outer - skipRight - use)
+			: forCenter;
+		state->label.moveToLeft(x, st::giveawayGiftCodeLink.margin.top());
+	}, raw->lifetime());
+
+	raw->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		state->bg.paint(p, raw->rect());
+	}, raw->lifetime());
+
+	state->label.setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	raw->resize(raw->width(), st::giveawayGiftCodeLinkHeight);
+	if (rawRight) {
+		raw->widthValue() | rpl::start_with_next([=](int width) {
+			rawRight->move(width - rawRight->width(), 0);
+		}, raw->lifetime());
+	}
+	raw->setClickedCallback([=] {
+		QGuiApplication::clipboard()->setText(state->link.current());
+		show->showToast(tr::lng_username_copied(tr::now));
+	});
+
+	return result;
+}
+
+void AskBoostBox(
+		not_null<GenericBox*> box,
+		AskBoostBoxData data,
+		Fn<void()> openStatistics,
+		Fn<void()> startGiveaway) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::boostBox);
+
+	const auto full = !data.boost.nextLevelBoosts;
+
+	struct State {
+		rpl::variable<bool> you = false;
+		bool submitted = false;
+	};
+	const auto state = box->lifetime().make_state<State>(State{
+		.you = data.boost.mine,
+	});
+
+	FillBoostLimit(
+		BoxShowFinishes(box),
+		state->you.value(),
+		box->verticalLayout(),
+		data.boost,
+		st::boxRowPadding);
+
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+
+	auto title = tr::lng_boost_channel_title_color();
+	auto text = rpl::combine(
+		tr::lng_boost_channel_needs_level_color(
+			lt_count,
+			rpl::single(float64(data.requiredLevel)),
+			Ui::Text::RichLangValue),
+		tr::lng_boost_channel_ask(Ui::Text::RichLangValue)
+	) | rpl::map([](TextWithEntities &&text, TextWithEntities &&ask) {
+		return text.append(u"\n\n"_q).append(std::move(ask));
+	});
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(title),
+			st::boostTitle),
+		st::boxRowPadding + QMargins(0, st::boostTitleSkip, 0, 0));
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(text),
+			st::boostText),
+		(st::boxRowPadding
+			+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
+
+	auto stats = object_ptr<Ui::IconButton>(box, st::boostLinkStatsButton);
+	stats->setClickedCallback(openStatistics);
+	box->addRow(MakeLinkLabel(
+		box,
+		rpl::single(data.link),
+		rpl::single(data.link),
+		box->uiShow(),
+		std::move(stats)));
+
+	auto submit = tr::lng_boost_channel_ask_button();
+	const auto button = box->addButton(rpl::duplicate(submit), [=] {
+		QGuiApplication::clipboard()->setText(data.link);
+		box->uiShow()->showToast(tr::lng_username_copied(tr::now));
+	});
+	rpl::combine(
+		std::move(submit),
+		box->widthValue()
+	) | rpl::start_with_next([=](const QString &, int width) {
+		const auto &padding = st::boostBox.buttonPadding;
+		button->resizeToWidth(width
+			- padding.left()
+			- padding.right());
+		button->moveToLeft(padding.left(), button->y());
+	}, button->lifetime());
+}
+
 void FillBoostLimit(
 		rpl::producer<> showFinished,
 		rpl::producer<bool> you,
 		not_null<VerticalLayout*> container,
-		BoostBoxData data,
+		BoostCounters data,
 		style::margins limitLinePadding) {
-	const auto full = !data.boost.nextLevelBoosts;
+	const auto full = !data.nextLevelBoosts;
 
-	if (data.boost.mine && data.boost.boosts > 0) {
-		--data.boost.boosts;
+	if (data.mine && data.boosts > 0) {
+		--data.boosts;
 	}
 
 	if (full) {
-		data.boost.nextLevelBoosts = data.boost.boosts
-			+ (data.boost.mine ? 1 : 0);
-		data.boost.thisLevelBoosts = 0;
-		if (data.boost.level > 0) {
-			--data.boost.level;
+		data.nextLevelBoosts = data.boosts
+			+ (data.mine ? 1 : 0);
+		data.thisLevelBoosts = 0;
+		if (data.level > 0) {
+			--data.level;
 		}
-	} else if (data.boost.mine
-			&& data.boost.level > 0
-			&& data.boost.boosts < data.boost.thisLevelBoosts) {
-		--data.boost.level;
-		data.boost.nextLevelBoosts = data.boost.thisLevelBoosts;
-		data.boost.thisLevelBoosts = 0;
+	} else if (data.mine
+			&& data.level > 0
+			&& data.boosts < data.thisLevelBoosts) {
+		--data.level;
+		data.nextLevelBoosts = data.thisLevelBoosts;
+		data.thisLevelBoosts = 0;
 	}
 
 	const auto addSkip = [&](int skip) {
@@ -205,18 +364,18 @@ void FillBoostLimit(
 
 	const auto levelWidth = [&](int add) {
 		return st::normalFont->width(
-			tr::lng_boost_level(tr::now, lt_count, data.boost.level + add));
+			tr::lng_boost_level(tr::now, lt_count, data.level + add));
 	};
 	const auto paddings = 2 * st::premiumLineTextSkip;
 	const auto labelLeftWidth = paddings + levelWidth(0);
 	const auto labelRightWidth = paddings + levelWidth(1);
 	const auto ratio = [=](int boosts) {
 		const auto min = std::min(
-			data.boost.boosts,
-			data.boost.thisLevelBoosts);
+			data.boosts,
+			data.thisLevelBoosts);
 		const auto max = std::max({
-			data.boost.boosts,
-			data.boost.nextLevelBoosts,
+			data.boosts,
+			data.nextLevelBoosts,
 			1,
 		});
 		Assert(boosts >= min && boosts <= max);
@@ -239,12 +398,12 @@ void FillBoostLimit(
 		return (first + (index - 1) * other) / available;
 	};
 
-	const auto min = std::min(data.boost.boosts, data.boost.thisLevelBoosts);
-	const auto now = data.boost.boosts;
-	const auto max = (data.boost.nextLevelBoosts > min)
-		? (data.boost.nextLevelBoosts)
-		: (data.boost.boosts > 0)
-		? data.boost.boosts
+	const auto min = std::min(data.boosts, data.thisLevelBoosts);
+	const auto now = data.boosts;
+	const auto max = (data.nextLevelBoosts > min)
+		? (data.nextLevelBoosts)
+		: (data.boosts > 0)
+		? data.boosts
 		: 1;
 	auto bubbleRowState = (
 		std::move(you)
@@ -280,8 +439,8 @@ void FillBoostLimit(
 		container,
 		st::boostLimits,
 		Premium::LimitRowLabels{
-			.leftLabel = level(data.boost.level),
-			.rightLabel = level(data.boost.level + 1),
+			.leftLabel = level(data.level),
+			.rightLabel = level(data.level + 1),
 			.dynamic = true,
 		},
 		std::move(ratioValue),
