@@ -53,7 +53,8 @@ StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
 		| (data.is_masks() ? Flag::Masks : Flag())
 		| (data.is_emojis() ? Flag::Emoji : Flag())
 		| (data.vinstalled_date() ? Flag::Installed : Flag())
-		| (data.is_videos() ? Flag::Webm : Flag());
+		| (data.is_videos() ? Flag::Webm : Flag())
+		| (data.is_text_color() ? Flag::TextColor : Flag());
 }
 
 StickersSet::StickersSet(
@@ -106,6 +107,10 @@ StickersType StickersSet::type() const {
 		: (flags & StickersSetFlag::Masks)
 		? StickersType::Masks
 		: StickersType::Stickers;
+}
+
+bool StickersSet::textColor() const {
+	return flags & StickersSetFlag::TextColor;
 }
 
 void StickersSet::setThumbnail(const ImageWithLocation &data) {

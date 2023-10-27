@@ -291,12 +291,14 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 	descriptor.parent,
 	descriptor.st ? *descriptor.st : st::defaultEmojiPan)
 , _session(descriptor.session)
-, _paused(descriptor.paused)
+, _customTextColor(std::move(descriptor.customTextColor))
+, _paused(std::move(descriptor.paused))
 , _features(descriptor.features)
 , _iconState([=] { update(); })
 , _subiconState([=] { update(); })
 , _selectionBg(st::emojiPanRadius, st().categoriesBgOver)
-, _subselectionBg(st().iconArea / 2, st().categoriesBgOver) {
+, _subselectionBg(st().iconArea / 2, st().categoriesBgOver)
+, _forceFirstFrame(descriptor.forceFirstFrame) {
 	setMouseTracking(true);
 
 	_iconsLeft = st().iconSkip
@@ -1345,13 +1347,16 @@ void StickersListFooter::paintSetIconToCache(
 		const auto y = (st().footer - icon.pixh) / 2;
 		if (icon.custom) {
 			icon.custom->paint(p, Ui::Text::CustomEmoji::Context{
-				.textColor = st().textFg->c,
+				.textColor = (_customTextColor
+					? _customTextColor()
+					: st().textFg->c),
 				.size = QSize(icon.pixw, icon.pixh),
 				.now = now,
 				.scale = context.progress,
 				.position = { x, y },
 				.paused = paused,
 				.scaled = context.expanding,
+				.internal = { .forceFirstFrame = _forceFirstFrame },
 			});
 		} else if (icon.lottie && icon.lottie->ready()) {
 			const auto frame = icon.lottie->frame();
@@ -1428,11 +1433,13 @@ void StickersListFooter::paintSetIconToCache(
 			return icons[index];
 		};
 		const auto paintOne = [&](int left, const style::icon *icon) {
-			icon->paint(
-				p,
-				left + (_singleWidth - icon->width()) / 2,
-				(st().footer - icon->height()) / 2,
-				width());
+			left += (_singleWidth - icon->width()) / 2;
+			const auto top = (st().footer - icon->height()) / 2;
+			if (_customTextColor) {
+				icon->paint(p, left, top, width(), _customTextColor());
+			} else {
+				icon->paint(p, left, top, width());
+			}
 		};
 		if (_icons[info.index].setId == AllEmojiSectionSetId()
 			&& info.width > _singleWidth) {

@@ -662,6 +662,9 @@ statusEmojiPan: EmojiPan(defaultEmojiPan) {
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
 	fadeRight: icon {{ "fade_horizontal", windowBg }};
 }
+backgroundEmojiPan: EmojiPan(defaultEmojiPan) {
+	padding: margins(7px, 7px, 4px, 0px);
+}
 
 inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltat: stickerPanPadding;

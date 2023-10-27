@@ -74,11 +74,13 @@ enum class EmojiListMode {
 	FullReactions,
 	RecentReactions,
 	UserpicBuilder,
+	BackgroundEmoji,
 };
 
 struct EmojiListDescriptor {
 	std::shared_ptr<Show> show;
 	EmojiListMode mode = EmojiListMode::Full;
+	Fn<QColor()> customTextColor;
 	Fn<bool()> paused;
 	std::vector<DocumentId> customRecentList;
 	Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
@@ -386,6 +388,7 @@ private:
 	base::flat_map<
 		DocumentId,
 		std::unique_ptr<Ui::Text::CustomEmoji>> _customRecent;
+	Fn<QColor()> _customTextColor;
 	int _customSingleSize = 0;
 	bool _allowWithoutPremium = false;
 	Ui::RoundRect _overBg;

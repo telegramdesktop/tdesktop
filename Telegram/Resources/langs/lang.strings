@@ -790,6 +790,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_color_about" = "You can choose a color to tint your name, the links you send, and replies to your messages.";
 "lng_settings_color_about_channel" = "You can choose a color to tint your channel's name, the links it sends, and replies to its messages.";
 "lng_settings_color_emoji" = "Add icons to replies";
+"lng_settings_color_emoji_remove" = "Remove icon";
 "lng_settings_color_emoji_off" = "Off";
 "lng_settings_color_emoji_about" = "Make replies to your messages stand out by adding custom patterns to them.";
 "lng_settings_color_emoji_about_channel" = "Make replies to your channel's messages stand out by adding custom patterns to them.";
