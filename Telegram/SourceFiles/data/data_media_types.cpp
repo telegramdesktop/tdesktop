@@ -381,7 +381,6 @@ Giveaway ComputeGiveawayData(
 			result.countries.push_back(qs(country));
 		}
 	}
-	result.countries = { u"FR"_q, u"FI"_q, u"UA"_q, u"IT"_q };
 	return result;
 }
 
