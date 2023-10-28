@@ -1386,7 +1386,6 @@ void Message::paintFromName(
 	const auto from = item->displayFrom();
 	const auto info = from ? nullptr : item->hiddenSenderInfo();
 	Assert(from || info);
-	const auto st = context.st;
 	const auto nameFg = !context.outbg
 		? FromNameFg(context, colorIndex())
 		: stm->msgServiceFg->c;
@@ -2683,7 +2682,6 @@ TextWithEntities Message::selectedQuote(
 		return {};
 	}
 	auto modified = selection;
-	const auto &modifications = text.modifications();
 	for (const auto &modification : text.modifications()) {
 		if (modification.position >= selection.to) {
 			break;
@@ -2777,7 +2775,6 @@ TextSelection Message::selectionFromQuote(
 		}
 		offset = i + 1;
 	}
-	const auto &modifications = text.modifications();
 	//for (const auto &modification : text.modifications()) {
 	//	if (modification.position >= selection.to) {
 	//		break;

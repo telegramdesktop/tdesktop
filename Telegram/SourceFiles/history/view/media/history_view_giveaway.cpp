@@ -251,11 +251,7 @@ QSize Giveaway::countCurrentSize(int newWidth) {
 void Giveaway::draw(Painter &p, const PaintContext &context) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
-	const auto st = context.st;
-	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
-
-	auto &semibold = stm->msgServiceFg;
 
 	auto padding = inBubblePadding();
 
@@ -343,7 +339,6 @@ void Giveaway::paintChannels(
 	}
 
 	const auto size = _channels[0].geometry.height();
-	const auto ratio = style::DevicePixelRatio();
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 	const auto selected = context.selected();
@@ -491,8 +486,6 @@ void Giveaway::clickHandlerPressedChanged(
 		}
 		if (pressed) {
 			if (!channel.ripple) {
-				const auto full = QRect(0, 0, width(), height());
-				const auto outer = full.marginsRemoved(inBubblePadding());
 				const auto owner = &parent()->history()->owner();
 				channel.ripple = std::make_unique<Ui::RippleAnimation>(
 					st::defaultRippleAnimation,

@@ -357,8 +357,6 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	_element->draw(p, context);
 
 	if (_element->displayFromPhoto()) {
-		auto userpicMinBottomSkip = st::historyPaddingBottom
-			+ st::msgMargin.bottom();
 		auto userpicBottom = height()
 			- _element->marginBottom()
 			- _element->marginTop();

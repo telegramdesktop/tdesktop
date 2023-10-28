@@ -685,7 +685,6 @@ void SessionNavigation::applyBoost(
 			done(false);
 			return;
 		}
-		auto already = false;
 		auto different = PeerId();
 		auto earliest = TimeId(-1);
 		const auto now = base::unixtime::now();

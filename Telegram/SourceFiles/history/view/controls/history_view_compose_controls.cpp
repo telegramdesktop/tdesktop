@@ -103,22 +103,6 @@ using SetHistoryArgs = ComposeControls::SetHistoryArgs;
 using VoiceRecordBar = Controls::VoiceRecordBar;
 using ForwardPanel = Controls::ForwardPanel;
 
-[[nodiscard]] auto ShowWebPagePreview(WebPageData *page) {
-	return page && !page->failed;
-}
-
-WebPageText ProcessWebPageData(WebPageData *page) {
-	auto previewText = HistoryView::TitleAndDescriptionFromWebPage(page);
-	if (previewText.title.isEmpty()) {
-		if (page->document) {
-			previewText.title = tr::lng_attach_file(tr::now);
-		} else if (page->photo) {
-			previewText.title = tr::lng_attach_photo(tr::now);
-		}
-	}
-	return previewText;
-}
-
 } // namespace
 
 class FieldHeader final : public Ui::RpWidget {
@@ -428,17 +412,6 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 	_shownMessage = item;
 	if (item) {
 		updateShownMessageText();
-		//if (item->fullId() == _editMsgId.current()) {
-		//	_preview = {};
-		//	if (const auto media = item->media()) {
-		//		if (const auto page = media->webpage()) {
-		//			const auto preview = ProcessWebPageData(page);
-		//			_title = preview.title;
-		//			_description = preview.description;
-		//			_preview.data = page;
-		//		}
-		//	}
-		//}
 	} else {
 		_shownMessageText.clear();
 		resolveMessageData();

@@ -376,12 +376,9 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 	_element->draw(p, context);
 
 	if (_element->displayFromPhoto()) {
-		auto userpicMinBottomSkip = st::historyPaddingBottom
-			+ st::msgMargin.bottom();
 		auto userpicBottom = height()
 			- _element->marginBottom()
 			- _element->marginTop();
-		const auto item = _element->data();
 		const auto userpicTop = userpicBottom - st::msgPhotoSize;
 		_peer->paintUserpicLeft(
 			p,
@@ -631,15 +628,12 @@ int ColorSelector::resizeGetHeight(int newWidth) {
 	}
 	const auto count = int(_samples.size());
 	const auto columns = Ui::kSimpleColorIndexCount;
-	const auto rows = (count + columns - 1) / columns;
 	const auto skip = st::settingsColorRadioSkip;
 	const auto size = (newWidth - skip * (columns - 1)) / float64(columns);
 	const auto isize = int(base::SafeRound(size));
 	auto top = 0;
 	auto left = 0.;
 	for (auto i = 0; i != count; ++i) {
-		const auto row = i / columns;
-		const auto column = i % columns;
 		_samples[i]->resize(isize, isize);
 		_samples[i]->move(int(base::SafeRound(left)), top);
 		left += size + skip;

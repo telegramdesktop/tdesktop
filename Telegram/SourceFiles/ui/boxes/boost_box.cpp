@@ -260,8 +260,6 @@ void AskBoostBox(
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::boostBox);
 
-	const auto full = !data.boost.nextLevelBoosts;
-
 	struct State {
 		rpl::variable<bool> you = false;
 		bool submitted = false;

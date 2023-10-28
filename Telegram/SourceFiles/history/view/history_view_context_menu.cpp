@@ -610,7 +610,6 @@ bool AddReplyToMessageAction(
 		? tr::lng_context_reply_msg(tr::now)
 		: tr::lng_context_quote_and_reply(tr::now);
 	text.replace('&', u"&&"_q);
-	const auto owner = &item->history()->owner();
 	const auto itemId = item->fullId();
 	menu->addAction(text, [=] {
 		if (!item) {

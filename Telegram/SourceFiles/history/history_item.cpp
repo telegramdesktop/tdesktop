@@ -4474,8 +4474,6 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareGiftCode = [&](const MTPDmessageActionGiftCode &action) {
 		auto result = PreparedServiceText();
 		_history->session().giftBoxStickersPacks().load();
-		const auto months = action.vmonths().v;
-
 		result.text = {
 			(action.is_unclaimed()
 				? tr::lng_prize_unclaimed_about
