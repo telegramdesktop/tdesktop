@@ -57,7 +57,7 @@ messageTextStyle: TextStyle(defaultTextStyle) {
 	blockquote: QuoteStyle(messageQuoteStyle) {
 		padding: margins(10px, 2px, 20px, 2px);
 		icon: icon{{ "chat/mini_quote", windowFg }};
-		iconPosition: point(4px, 2px);
+		iconPosition: point(4px, 4px);
 	}
 	pre: QuoteStyle(messageQuoteStyle) {
 		header: 20px;
