@@ -781,9 +781,7 @@ ColorIndexValues ChatStyle::computeColorIndexValues(
 	};
 	result.bg = result.outlines[0];
 	result.bg.setAlpha(0.12 * 255);
-	result.name = (_dark && colorPatternIndex(colorIndex) == 1)
-		? result.outlines[1]
-		: result.outlines[0];
+	result.name = result.outlines[0];
 	return result;
 }
 
