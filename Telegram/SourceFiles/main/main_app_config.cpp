@@ -260,7 +260,7 @@ void AppConfig::parseColorIndices() {
 			return colorIndex < Ui::kColorIndexCount;
 		}
 	};
-	constexpr auto parseColors = [](const MTPJSONObjectValue &element) {
+	const auto parseColors = [&](const MTPJSONObjectValue &element) {
 		const auto &data = element.data();
 		if (data.vvalue().type() != mtpc_jsonArray) {
 			LOG(("API Error: Bad value for peer_colors element."));
@@ -286,7 +286,7 @@ void AppConfig::parseColorIndices() {
 		}
 		return result;
 	};
-	constexpr auto checkColorsObjectType = [](const MTPJSONValue &value) {
+	const auto checkColorsObjectType = [&](const MTPJSONValue &value) {
 		if (value.type() != mtpc_jsonObject) {
 			if (value.type() != mtpc_jsonArray
 				|| !value.c_jsonArray().vvalue().v.empty()) {
