@@ -408,6 +408,10 @@ QString UiIntegration::phraseBotAllowWriteConfirm() {
 	return tr::lng_bot_allow_write_confirm(tr::now);
 }
 
+QString UiIntegration::phraseQuoteHeaderCopy() {
+	return tr::lng_code_block_header_copy(tr::now);
+}
+
 bool OpenGLLastCheckFailed() {
 	return QFile::exists(OpenGLCheckFilePath());
 }

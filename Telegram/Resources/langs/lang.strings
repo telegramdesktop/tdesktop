@@ -129,6 +129,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_reconnecting#other" = "Reconnect in {count} s...";
 "lng_reconnecting_try_now" = "Try now";
 
+"lng_code_block_header_copy" = "copy";
+
 "lng_status_service_notifications" = "service notifications";
 "lng_status_support" = "support";
 "lng_status_bot" = "bot";
@@ -2853,7 +2855,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_formatting_link_create" = "Create";
 
 "lng_text_copied" = "Text copied to clipboard.";
-"lng_code_copied" = "Code copied to clipboard.";
+"lng_code_copied" = "Block copied to clipboard.";
 
 "lng_spellchecker_submenu" = "Spelling";
 "lng_spellchecker_add" = "Add to Dictionary";
