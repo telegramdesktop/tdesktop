@@ -600,6 +600,7 @@ QByteArray SerializeMessage(
 			push("boost_peer_id", data.boostPeerId);
 		}
 		push("months", data.months);
+		push("unclaimed", data.unclaimed);
 		push("via_giveaway", data.viaGiveaway);
 	}, [&](const ActionGiveawayLaunch &data) {
 		pushAction("giveaway_launch");

@@ -477,11 +477,18 @@ void GiftCodeBox(
 		tr::lng_gift_link_label_from(),
 		controller,
 		current.from);
-	AddTableRow(
-		table,
-		tr::lng_gift_link_label_to(),
-		controller,
-		current.to);
+	if (current.to) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_to(),
+			controller,
+			current.to);
+	} else {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_to(),
+			tr::lng_gift_link_label_to_unclaimed(Ui::Text::WithEntities));
+	}
 	AddTableRow(
 		table,
 		tr::lng_gift_link_label_gift(),
@@ -493,11 +500,16 @@ void GiftCodeBox(
 		table,
 		tr::lng_gift_link_label_reason(),
 		(current.giveawayId
-			? (tr::lng_gift_link_reason_giveaway() | Ui::Text::ToLink())
+			? ((current.to
+				? tr::lng_gift_link_reason_giveaway
+				: tr::lng_gift_link_reason_unclaimed)(
+					) | Ui::Text::ToLink())
 			: current.giveaway
-			? (tr::lng_gift_link_reason_giveaway(
-				Ui::Text::WithEntities
-			) | rpl::type_erased())
+			? ((current.to
+				? tr::lng_gift_link_reason_giveaway
+				: tr::lng_gift_link_reason_unclaimed)(
+					Ui::Text::WithEntities
+				) | rpl::type_erased())
 			: tr::lng_gift_link_reason_chosen(Ui::Text::WithEntities)));
 	reason->setClickHandlerFilter([=](const auto &...) {
 		controller->showPeerHistory(

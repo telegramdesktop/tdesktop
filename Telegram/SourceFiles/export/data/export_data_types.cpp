@@ -1330,6 +1330,7 @@ ServiceAction ParseServiceAction(
 			? peerFromMTP(*data.vboost_peer())
 			: PeerId();
 		content.viaGiveaway = data.is_via_giveaway();
+		content.unclaimed = data.is_unclaimed();
 		content.months = data.vmonths().v;
 		content.code = data.vslug().v;
 		result.content = content;

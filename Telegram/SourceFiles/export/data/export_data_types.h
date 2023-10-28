@@ -544,6 +544,7 @@ struct ActionGiftCode {
 	PeerId boostPeerId = 0;
 	int months = 0;
 	bool viaGiveaway = false;
+	bool unclaimed = false;
 };
 
 struct ActionRequestedPeer {

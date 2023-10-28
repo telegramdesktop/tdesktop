@@ -4477,7 +4477,9 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		const auto months = action.vmonths().v;
 
 		result.text = {
-			(action.is_via_giveaway()
+			(action.is_unclaimed()
+				? tr::lng_prize_unclaimed_about
+				: action.is_via_giveaway()
 				? tr::lng_prize_about
 				: tr::lng_prize_gift_about)(
 					tr::now,
@@ -4668,6 +4670,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 					: nullptr),
 				.months = data.vmonths().v,
 				.viaGiveaway = data.is_via_giveaway(),
+				.unclaimed = data.is_unclaimed(),
 			});
 	}, [](const auto &) {
 	});

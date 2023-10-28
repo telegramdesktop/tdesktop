@@ -1280,7 +1280,12 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ wrapReplyToLink("the same background")
 			+ " for this chat";
 	}, [&](const ActionGiftCode &data) {
-		return data.viaGiveaway
+		return data.unclaimed
+			? ("This is an unclaimed Telegram Premium for "
+				+ NumberToString(data.months)
+				+ (data.months > 1 ? " months" : "month")
+				+ " prize in a giveaway organized by a channel.")
+			: data.viaGiveaway
 			? ("You won a Telegram Premium for "
 				+ NumberToString(data.months)
 				+ (data.months > 1 ? " months" : "month")

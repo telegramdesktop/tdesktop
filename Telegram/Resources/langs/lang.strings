@@ -2111,6 +2111,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prize_gift_about" = "You've received a gift from {channel}.";
 "lng_prize_gift_duration" = "Your gift is a **Telegram Premium** subscription {duration}.";
 "lng_prize_open" = "Open Gift Link";
+"lng_prize_unclaimed_title" = "Unclaimed Prize";
+"lng_prize_unclaimed_about" = "You have an unclaimed prize from a giveaway by {channel}.";
+"lng_prize_unclaimed_duration" = "This prize is a **Telegram Premium** subscription {duration}.";
 
 "lng_prizes_title#one" = "Giveaway Prize";
 "lng_prizes_title#other" = "Giveaway Prizes";
@@ -2161,10 +2164,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_link_about" = "This link allows you to activate\na **Telegram Premium** subscription.";
 "lng_gift_link_label_from" = "From";
 "lng_gift_link_label_to" = "To";
+"lng_gift_link_label_to_unclaimed" = "No recipient";
 "lng_gift_link_label_gift" = "Gift";
 "lng_gift_link_gift_premium" = "Telegram Premium {duration}";
 "lng_gift_link_label_reason" = "Reason";
 "lng_gift_link_reason_giveaway" = "Giveaway";
+"lng_gift_link_reason_unclaimed" = "Incomplete Giveaway";
 "lng_gift_link_reason_chosen" = "You were selected by the channel";
 "lng_gift_link_label_date" = "Date";
 "lng_gift_link_also_send" = "You can also {link} to a friend as a gift.";

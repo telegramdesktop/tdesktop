@@ -104,6 +104,7 @@ struct GiftCode {
 	ChannelData *channel = nullptr;
 	int months = 0;
 	bool viaGiveaway = false;
+	bool unclaimed = false;
 };
 
 class Media {

@@ -45,6 +45,8 @@ QSize PremiumGift::size() {
 QString PremiumGift::title() {
 	return _data.slug.isEmpty()
 		? tr::lng_premium_summary_title(tr::now)
+		: _data.unclaimed
+		? tr::lng_prize_unclaimed_title(tr::now)
 		: tr::lng_prize_title(tr::now);
 }
 
@@ -53,7 +55,9 @@ TextWithEntities PremiumGift::subtitle() {
 		return { GiftDuration(_data.months) };
 	}
 	const auto name = _data.channel ? _data.channel->name() : "channel";
-	auto result = (_data.viaGiveaway
+	auto result = (_data.unclaimed
+		? tr::lng_prize_unclaimed_about
+		: _data.viaGiveaway
 		? tr::lng_prize_about
 		: tr::lng_prize_gift_about)(
 			tr::now,
@@ -61,7 +65,9 @@ TextWithEntities PremiumGift::subtitle() {
 			Ui::Text::Bold(name),
 			Ui::Text::RichLangValue);
 	result.append("\n\n");
-	result.append((_data.viaGiveaway
+	result.append((_data.unclaimed
+		? tr::lng_prize_unclaimed_duration
+		: _data.viaGiveaway
 		? tr::lng_prize_duration
 		: tr::lng_prize_gift_duration)(
 			tr::now,
