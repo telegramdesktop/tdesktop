@@ -54,15 +54,15 @@ void EnsurePreCache(
 	const auto bg = bgOverride();
 	cache->bg = bg.value_or(color->c);
 	if (!bg) {
-		cache->bg.setAlpha(0.12 * 255);
+		cache->bg.setAlpha(kDefaultBgOpacity * 255);
 	}
 	cache->outlines[0] = color->c;
-	cache->outlines[0].setAlpha(0.9 * 255);
+	cache->outlines[0].setAlpha(kDefaultOutline1Opacity * 255);
 	cache->outlines[1] = cache->outlines[2] = QColor(0, 0, 0, 0);
 	cache->header = color->c;
-	cache->header.setAlpha(0.25 * 255);
+	cache->header.setAlpha(kDefaultOutline2Opacity * 255);
 	cache->icon = cache->outlines[0];
-	cache->icon.setAlpha(0.6 * 255);
+	cache->icon.setAlpha(kDefaultOutline3Opacity * 255);
 }
 
 } // namespace
@@ -110,21 +110,21 @@ int HistoryServiceMsgInvertedShrink() {
 
 ColorIndexValues SimpleColorIndexValues(QColor color, int patternIndex) {
 	auto bg = color;
-	bg.setAlpha(0.12 * 255);
+	bg.setAlpha(kDefaultBgOpacity * 255);
 	auto result = ColorIndexValues{
 		.name = color,
 		.bg = bg,
 	};
 	result.outlines[0] = color;
-	result.outlines[0].setAlpha(0.9 * 255);
+	result.outlines[0].setAlpha(kDefaultOutline1Opacity * 255);
 	if (patternIndex > 1) {
 		result.outlines[1] = result.outlines[0];
-		result.outlines[1].setAlpha(0.3 * 255);
+		result.outlines[1].setAlpha(kDefaultOutline2Opacity * 255);
 		result.outlines[2] = result.outlines[0];
-		result.outlines[2].setAlpha(0.6 * 255);
+		result.outlines[2].setAlpha(kDefaultOutline3Opacity * 255);
 	} else if (patternIndex > 0) {
 		result.outlines[1] = result.outlines[0];
-		result.outlines[1].setAlpha(0.5 * 255);
+		result.outlines[1].setAlpha(kDefaultOutlineOpacitySecond * 255);
 		result.outlines[2] = QColor(0, 0, 0, 0);
 	} else {
 		result.outlines[1] = result.outlines[2] = QColor(0, 0, 0, 0);
@@ -757,9 +757,9 @@ ColorIndexValues ChatStyle::computeColorIndexValues(
 			.name = (*(selected ? listSelected : list)[paletteIndex])->c,
 		};
 		result.bg = result.name;
-		result.bg.setAlphaF(0.12);
+		result.bg.setAlpha(kDefaultBgOpacity * 255);
 		result.outlines[0] = result.name;
-		result.outlines[0].setAlphaF(0.9);
+		result.outlines[0].setAlpha(kDefaultOutline1Opacity * 255);
 		result.outlines[1] = result.outlines[2] = QColor(0, 0, 0, 0);
 		return result;
 	}
@@ -780,7 +780,7 @@ ColorIndexValues ChatStyle::computeColorIndexValues(
 		.outlines = { color(0), color(1), color(2) }
 	};
 	result.bg = result.outlines[0];
-	result.bg.setAlpha(0.12 * 255);
+	result.bg.setAlpha(kDefaultBgOpacity * 255);
 	result.name = result.outlines[0];
 	return result;
 }

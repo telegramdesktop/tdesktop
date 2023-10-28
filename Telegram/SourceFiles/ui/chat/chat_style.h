@@ -35,6 +35,12 @@ inline constexpr auto kColorPatternsCount = Text::kMaxQuoteOutlines;
 inline constexpr auto kColorIndexCount = uint8(1 << 6);
 inline constexpr auto kSimpleColorIndexCount = uint8(7);
 
+inline constexpr auto kDefaultBgOpacity = 0.12;
+inline constexpr auto kDefaultOutline1Opacity = 0.9;
+inline constexpr auto kDefaultOutline2Opacity = 0.3;
+inline constexpr auto kDefaultOutline3Opacity = 0.6;
+inline constexpr auto kDefaultOutlineOpacitySecond = 0.5;
+
 struct MessageStyle {
 	CornersPixmaps msgBgCornersSmall;
 	CornersPixmaps msgBgCornersLarge;
