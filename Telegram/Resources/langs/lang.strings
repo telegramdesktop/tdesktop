@@ -3519,8 +3519,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_participant_volume_channel" = "{from} changed live stream volume for {user} to {percent}";
 "lng_admin_log_antispam_enabled" = "{from} enabled aggressive anti-spam";
 "lng_admin_log_antispam_disabled" = "{from} disabled aggressive anti-spam";
-"lng_admin_log_change_color" = "{from} changed color";
-"lng_admin_log_change_background_emoji" = "{from} changed background emoji";
+"lng_admin_log_change_color" = "{from} changed channel color from {previous} to {color}";
+"lng_admin_log_set_background_emoji" = "{from} set channel background emoji to {emoji}";
+"lng_admin_log_change_background_emoji" = "{from} changed channel background emoji from {previous} to {emoji}";
+"lng_admin_log_removed_background_emoji" = "{from} removed channel background emoji {emoji}";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_messages_ttl_set" = "{from} enabled messages auto-delete after {duration}";
 "lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";

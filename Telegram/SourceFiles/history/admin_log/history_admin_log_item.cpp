@@ -1822,16 +1822,46 @@ void GenerateItems(
 			tr::now,
 			lt_from,
 			fromLinkText,
+			lt_previous,
+			{ '#' + QString::number(data.vprev_value().v + 1) },
+			lt_color,
+			{ '#' + QString::number(data.vnew_value().v + 1) },
 			Ui::Text::WithEntities);
 		addSimpleServiceMessage(text);
 	};
 
 	const auto createChangeBackgroundEmoji = [&](const LogChangeBackgroundEmoji &data) {
-		const auto text = tr::lng_admin_log_change_background_emoji(
-			tr::now,
-			lt_from,
-			fromLinkText,
-			Ui::Text::WithEntities);
+		const auto was = data.vprev_value().v;
+		const auto now = data.vnew_value().v;
+		const auto text = !was
+			? tr::lng_admin_log_set_background_emoji(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_emoji,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(now)),
+				Ui::Text::WithEntities)
+			: !now
+			? tr::lng_admin_log_removed_background_emoji(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_emoji,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(was)),
+				Ui::Text::WithEntities)
+			: tr::lng_admin_log_change_background_emoji(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_previous,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(was)),
+				lt_emoji,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(now)),
+				Ui::Text::WithEntities);
 		addSimpleServiceMessage(text);
 	};
 
