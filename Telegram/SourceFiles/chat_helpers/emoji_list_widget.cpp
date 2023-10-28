@@ -1398,17 +1398,7 @@ void EmojiListWidget::drawRecent(
 		_emojiPaintContext->position = position
 			+ _innerPosition
 			+ _customPosition;
-		const auto isResetIcon = (_mode == Mode::BackgroundEmoji)
-			&& v::is<EmojiPtr>(recent.id.data);
-		if (isResetIcon) {
-			_emojiPaintContext->textColor = st::windowSubTextFg->c;
-		}
 		custom->paint(p, *_emojiPaintContext);
-		if (isResetIcon) {
-			_emojiPaintContext->textColor = _customTextColor
-				? _customTextColor()
-				: st().textFg->c;
-		}
 	} else if (const auto emoji = std::get_if<EmojiPtr>(&recent.id.data)) {
 		if (_mode == Mode::EmojiStatus) {
 			position += QPoint(
