@@ -254,6 +254,9 @@ bool WebPageData::applyChanges(
 		}
 		return QString();
 	}();
+	if (newDocument || !newCollage.items.empty() || !newPhoto) {
+		newHasLargeMedia = false;
+	}
 
 	if (type == newType
 		&& url == resultUrl

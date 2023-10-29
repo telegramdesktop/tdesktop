@@ -242,7 +242,7 @@ QSize WebPage::countOptimalSize() {
 	using Flag = MediaWebPageFlag;
 	if (_data->hasLargeMedia && (_flags & Flag::ForceLargeMedia)) {
 		_asArticle = 0;
-	} else if (_data->photo && (_flags & Flag::ForceSmallMedia)) {
+	} else if (_data->hasLargeMedia && (_flags & Flag::ForceSmallMedia)) {
 		_asArticle = 1;
 	} else {
 		_asArticle = _data->computeDefaultSmallMedia();
