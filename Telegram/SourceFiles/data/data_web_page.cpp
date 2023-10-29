@@ -254,7 +254,13 @@ bool WebPageData::applyChanges(
 		}
 		return QString();
 	}();
-	if (newDocument || !newCollage.items.empty() || !newPhoto) {
+	const auto hasSiteName = !resultSiteName.isEmpty() ? 1 : 0;
+	const auto hasTitle = !resultTitle.isEmpty() ? 1 : 0;
+	const auto hasDescription = !newDescription.text.isEmpty() ? 1 : 0;
+	if (newDocument
+		|| !newCollage.items.empty()
+		|| !newPhoto
+		|| (hasSiteName + hasTitle + hasDescription < 2)) {
 		newHasLargeMedia = false;
 	}
 
