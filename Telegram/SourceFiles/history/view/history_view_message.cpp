@@ -2802,7 +2802,11 @@ TextSelection Message::adjustSelection(
 	const auto textSelection = mediaBefore
 		? media->skipSelection(selection)
 		: selection;
-	auto textAdjusted = hasVisibleText()
+	const auto useSelection = [](TextSelection selection, bool skipped) {
+		return !skipped || (selection != TextSelection(uint16(), uint16()));
+	};
+	auto textAdjusted = (hasVisibleText()
+		&& useSelection(textSelection, mediaBefore))
 		? text().adjustSelection(textSelection, type)
 		: textSelection;
 	auto textResult = mediaBefore
@@ -2813,7 +2817,9 @@ TextSelection Message::adjustSelection(
 		? selection
 		: skipTextSelection(selection);
 	if (mediaDisplayed) {
-		auto mediaAdjusted = media->adjustSelection(mediaSelection, type);
+		auto mediaAdjusted = useSelection(mediaSelection, !mediaBefore)
+			? media->adjustSelection(mediaSelection, type)
+			: mediaSelection;
 		mediaResult = mediaBefore
 			? mediaAdjusted
 			: unskipTextSelection(mediaAdjusted);
@@ -2825,7 +2831,9 @@ TextSelection Message::adjustSelection(
 			: mediaBefore
 			? skipTextSelection(textSelection)
 			: media->skipSelection(mediaSelection);
-		auto entryAdjusted = entry->adjustSelection(entrySelection, type);
+		auto entryAdjusted = useSelection(entrySelection, true)
+			? entry->adjustSelection(entrySelection, type)
+			: entrySelection;
 		entryResult = unskipTextSelection(entryAdjusted);
 		if (mediaDisplayed) {
 			entryResult = media->unskipSelection(entryResult);
