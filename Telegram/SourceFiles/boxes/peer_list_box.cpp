@@ -456,7 +456,7 @@ int PeerListController::descriptionTopSkipMin() const {
 void PeerListBox::addSelectItem(
 		not_null<PeerData*> peer,
 		anim::type animated) {
-	const auto respect = _controller->respectSavedMessagesChat();
+	const auto respect = !_controller->savedMessagesChatStatus().isEmpty();
 	const auto text = (respect && peer->isSelf())
 		? tr::lng_saved_short(tr::now)
 		: (respect && peer->isRepliesChat())
@@ -579,8 +579,8 @@ void PeerListRow::refreshStatus() {
 	_statusType = StatusType::LastSeen;
 	_statusValidTill = 0;
 	if (auto user = peer()->asUser()) {
-		if (_isSavedMessagesChat) {
-			setStatusText(tr::lng_saved_forward_here(tr::now));
+		if (!_savedMessagesStatus.isEmpty()) {
+			setStatusText(_savedMessagesStatus);
 		} else {
 			auto time = base::unixtime::now();
 			setStatusText(Data::OnlineText(user, time));
@@ -613,7 +613,7 @@ void PeerListRow::refreshName(const style::PeerListItem &st) {
 	if (!_initialized) {
 		return;
 	}
-	const auto text = _isSavedMessagesChat
+	const auto text = !_savedMessagesStatus.isEmpty()
 		? tr::lng_saved_messages(tr::now)
 		: _isRepliesMessagesChat
 		? tr::lng_replies_messages(tr::now)
@@ -683,7 +683,7 @@ QString PeerListRow::generateName() {
 }
 
 QString PeerListRow::generateShortName() {
-	return _isSavedMessagesChat
+	return !_savedMessagesStatus.isEmpty()
 		? tr::lng_saved_short(tr::now)
 		: _isRepliesMessagesChat
 		? tr::lng_replies_messages(tr::now)
@@ -699,7 +699,7 @@ Ui::PeerUserpicView &PeerListRow::ensureUserpicView() {
 
 PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback(
 		bool forceRound) {
-	const auto saved = _isSavedMessagesChat;
+	const auto saved = !_savedMessagesStatus.isEmpty();
 	const auto replies = _isRepliesMessagesChat;
 	const auto peer = this->peer();
 	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
@@ -745,7 +745,9 @@ int PeerListRow::paintNameIconGetWidth(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	if (special() || _isSavedMessagesChat || _isRepliesMessagesChat) {
+	if (special()
+		|| !_savedMessagesStatus.isEmpty()
+		|| _isRepliesMessagesChat) {
 		return 0;
 	}
 	return _bagde.drawGetWidth(
@@ -855,7 +857,7 @@ void PeerListRow::paintDisabledCheckUserpic(
 	auto iconBorderPen = st.checkbox.check.border->p;
 	iconBorderPen.setWidth(st.checkbox.selectWidth);
 
-	if (_isSavedMessagesChat) {
+	if (!_savedMessagesStatus.isEmpty()) {
 		Ui::EmptyUserpic::PaintSavedMessages(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
 	} else if (_isRepliesMessagesChat) {
 		Ui::EmptyUserpic::PaintRepliesMessages(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
@@ -1046,9 +1048,10 @@ void PeerListContent::setRowHidden(not_null<PeerListRow*> row, bool hidden) {
 }
 
 void PeerListContent::addRowEntry(not_null<PeerListRow*> row) {
-	if (_controller->respectSavedMessagesChat() && !row->special()) {
+	const auto savedMessagesStatus = _controller->savedMessagesChatStatus();
+	if (!savedMessagesStatus.isEmpty() && !row->special()) {
 		if (row->peer()->isSelf()) {
-			row->setIsSavedMessagesChat(true);
+			row->setSavedMessagesChatStatus(savedMessagesStatus);
 		} else if (row->peer()->isRepliesChat()) {
 			row->setIsRepliesMessagesChat(true);
 		}

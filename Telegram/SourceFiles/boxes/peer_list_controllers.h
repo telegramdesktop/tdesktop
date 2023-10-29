@@ -218,9 +218,7 @@ public:
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	bool respectSavedMessagesChat() const override {
-		return true;
-	}
+	QString savedMessagesChatStatus() const override;
 
 protected:
 	void prepareViewHook() override;

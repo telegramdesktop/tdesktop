@@ -313,7 +313,7 @@ void ChatsListBoxController::rebuildRows() {
 		return count;
 	};
 	auto added = 0;
-	if (respectSavedMessagesChat()) {
+	if (!savedMessagesChatStatus().isEmpty()) {
 		if (appendRow(session().data().history(session().user()))) {
 			++added;
 		}
@@ -330,7 +330,7 @@ void ChatsListBoxController::rebuildRows() {
 			const auto history = static_cast<const Row&>(a).history();
 			return history->inChatList();
 		});
-		if (respectSavedMessagesChat()) {
+		if (!savedMessagesChatStatus().isEmpty()) {
 			delegate()->peerListPartitionRows([](const PeerListRow &a) {
 				return a.peer()->isSelf();
 			});
@@ -694,6 +694,10 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 	if (guard) {
 		_callback = std::move(callback);
 	}
+}
+
+QString ChooseRecipientBoxController::savedMessagesChatStatus() const {
+	return tr::lng_saved_forward_here(tr::now);
 }
 
 auto ChooseRecipientBoxController::createRow(

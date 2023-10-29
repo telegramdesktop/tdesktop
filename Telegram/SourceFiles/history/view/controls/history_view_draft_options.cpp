@@ -854,12 +854,12 @@ void ShowReplyToChatBox(
 			ChooseRecipientBoxController::rowClicked(row);
 		}
 
-		[[nodiscard]] rpl::producer<Chosen> singleChosen() const{
+		[[nodiscard]] rpl::producer<Chosen> singleChosen() const {
 			return _singleChosen.events();
 		}
 
-		bool respectSavedMessagesChat() const override {
-			return false;
+		QString savedMessagesChatStatus() const override {
+			return tr::lng_saved_quote_here(tr::now);
 		}
 
 	private:
