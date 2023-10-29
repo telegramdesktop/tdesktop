@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_draft_options.h"
 
+#include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -589,6 +590,9 @@ void DraftOptionsBox(
 		QString link;
 		Ui::SettingsSlider *tabs = nullptr;
 		PreviewWrap *wrap = nullptr;
+
+		Fn<void(const QString &link, WebPageData *page)> performSwitch;
+		Fn<void(const QString &link, bool force)> requestAndSwitch;
 		rpl::lifetime resolveLifetime;
 	};
 	const auto state = box->lifetime().make_state<State>();
@@ -740,35 +744,54 @@ void DraftOptionsBox(
 	};
 
 	const auto &resolver = args.resolver;
-	const auto performSwitch = [=](const QString &link, WebPageData *page) {
-		if (page) {
+	state->performSwitch = [=](const QString &link, WebPageData *page) {
+		const auto now = base::unixtime::now();
+		if (!page || page->pendingTill > 0 && page->pendingTill < now) {
+			show->showToast(tr::lng_preview_cant(tr::now));
+		} else if (page->pendingTill > 0) {
+			const auto delay = std::max(page->pendingTill - now, TimeId());
+			base::timer_once(
+				(delay + 1) * crl::time(1000)
+			) | rpl::start_with_next([=] {
+				state->requestAndSwitch(link, true);
+			}, state->resolveLifetime);
+
+			page->owner().webPageUpdates(
+			) | rpl::start_with_next([=](not_null<WebPageData*> updated) {
+				if (updated == page && !updated->pendingTill) {
+					state->resolveLifetime.destroy();
+					state->performSwitch(link, page);
+				}
+			}, state->resolveLifetime);
+		} else {
 			state->preview = page;
 			state->webpage.id = page->id;
 			state->webpage.url = page->url;
 			state->webpage.manual = true;
 			state->link = link;
 			state->shown.force_assign(Section::Link);
-		} else {
-			show->showToast(u"Could not generate preview for this link."_q);
 		}
+	};
+	state->requestAndSwitch = [=](const QString &link, bool force) {
+		resolver->request(link, force);
+
+		state->resolveLifetime = resolver->resolved(
+		) | rpl::start_with_next([=](const QString &resolved) {
+			if (resolved == link) {
+				state->resolveLifetime.destroy();
+				state->performSwitch(
+					link,
+					resolver->lookup(link).value_or(nullptr));
+			}
+		});
 	};
 	const auto switchTo = [=](const QString &link) {
 		if (link == state->link) {
 			return;
-		}
-		if (const auto value = resolver->lookup(link)) {
-			performSwitch(link, *value);
+		} else if (const auto value = resolver->lookup(link)) {
+			state->performSwitch(link, *value);
 		} else {
-			resolver->request(link);
-			state->resolveLifetime = resolver->resolved(
-			) | rpl::start_with_next([=](const QString &resolved) {
-				if (resolved == link) {
-					state->resolveLifetime.destroy();
-					performSwitch(
-						link,
-						resolver->lookup(link).value_or(nullptr));
-				}
-			});
+			state->requestAndSwitch(link, false);
 		}
 	};
 

@@ -62,7 +62,7 @@ public:
 
 	[[nodiscard]] QString find(not_null<WebPageData*> page) const;
 
-	void request(const QString &link);
+	void request(const QString &link, bool force = false);
 	void cancel(const QString &link);
 
 private:

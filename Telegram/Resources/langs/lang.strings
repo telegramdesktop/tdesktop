@@ -1166,6 +1166,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mute_box_title" = "Mute notifications for...";
 
 "lng_preview_loading" = "Getting Link Info...";
+"lng_preview_cant" = "Could not generate preview for this link.";
 
 "lng_profile_settings_section" = "Settings";
 "lng_profile_bot_settings" = "Bot Settings";

@@ -134,8 +134,8 @@ QString WebpageResolver::find(not_null<WebPageData*> page) const {
 	return QString();
 }
 
-void WebpageResolver::request(const QString &link) {
-	if (_requestLink == link) {
+void WebpageResolver::request(const QString &link, bool force) {
+	if (_requestLink == link && !force) {
 		return;
 	}
 	const auto done = [=](const MTPDmessageMediaWebPage &data) {
@@ -191,7 +191,7 @@ WebpageProcessor::WebpageProcessor(
 	if (!ShowWebPagePreview(_data) || _link.isEmpty()) {
 		return;
 	}
-	_resolver->request(_link);
+	_resolver->request(_link, true);
 }) {
 	_history->session().downloaderTaskFinished(
 	) | rpl::filter([=] {
