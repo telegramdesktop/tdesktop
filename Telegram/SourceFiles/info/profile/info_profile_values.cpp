@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_values.h"
 
+#include "base/options.h"
 #include "info/profile/info_profile_badge.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
@@ -36,6 +37,12 @@ namespace Profile {
 namespace {
 
 using UpdateFlag = Data::PeerUpdate::Flag;
+
+base::options::toggle ShowPeerIdBelowAbout({
+	.id = kOptionShowPeerIdBelowAbout,
+	.name = "Show Peer IDs in Profile",
+	.description = "Show peer IDs from API below their Bio / Description.",
+});
 
 auto PlainAboutValue(not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
@@ -86,6 +93,8 @@ void StripExternalLinks(TextWithEntities &text) {
 }
 
 } // namespace
+
+const char kOptionShowPeerIdBelowAbout[] = "show-peer-id-below-about";
 
 rpl::producer<QString> NameValue(not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
@@ -208,6 +217,16 @@ TextWithEntities AboutWithEntities(
 	TextUtilities::ParseEntities(result, flags);
 	if (stripExternal) {
 		StripExternalLinks(result);
+	}
+	if (ShowPeerIdBelowAbout.value()) {
+		using namespace Ui::Text;
+		if (!result.empty()) {
+			result.append("\n");
+		}
+		result.append(Italic(u"id: "_q));
+		const auto raw = peer->id.value & PeerId::kChatTypeMask;
+		const auto id = QString::number(raw);
+		result.append(Link(Italic(id), "internal:copy:" + id));
 	}
 	return result;
 }
