@@ -746,7 +746,7 @@ void DraftOptionsBox(
 	const auto &resolver = args.resolver;
 	state->performSwitch = [=](const QString &link, WebPageData *page) {
 		const auto now = base::unixtime::now();
-		if (!page || page->pendingTill > 0 && page->pendingTill < now) {
+		if (!page || (page->pendingTill > 0 && page->pendingTill < now)) {
 			show->showToast(tr::lng_preview_cant(tr::now));
 		} else if (page->pendingTill > 0) {
 			const auto delay = std::max(page->pendingTill - now, TimeId());
