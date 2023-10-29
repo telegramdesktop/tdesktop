@@ -801,7 +801,11 @@ ClickHandlerPtr WebPage::replaceAttachLink(
 	if (!_attach->isReadyForOpen()
 		|| (_siteName.isEmpty()
 			&& _title.isEmpty()
-			&& _description.isEmpty())) {
+			&& _description.isEmpty())
+		|| (_data->document
+			&& !_data->document->isWallPaper()
+			&& !_data->document->isTheme())
+		|| !_data->collage.items.empty()) {
 		return link;
 	}
 	return _openl;
