@@ -3682,6 +3682,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			Api::ConvertOption::SkipLocal);
 		if (!sentEntities.v.isEmpty()) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
+			mediaFlags |= MTPmessages_SendMedia::Flag::f_entities;
 		}
 		const auto clearCloudDraft = action.clearDraft;
 		const auto topicRootId = action.replyTo.topicRootId;
