@@ -16,12 +16,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
+#include "settings/settings_premium.h" // Settings::ShowPremium
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
+#include "styles/style_settings.h"
 
 namespace {
 
@@ -63,6 +66,8 @@ void CreateGiveawayBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Info::Controller*> controller,
 		not_null<PeerData*> peer) {
+	using GiveawayType = Giveaway::GiveawayTypeRow::Type;
+	using GiveawayGroup = Ui::RadioenumGroup<GiveawayType>;
 	struct State final {
 		State(not_null<PeerData*> p) : apiOptions(p) {
 		}
@@ -72,10 +77,10 @@ void CreateGiveawayBox(
 
 		std::vector<not_null<PeerData*>> selectedToAward;
 		rpl::event_stream<> toAwardAmountChanged;
+
+		rpl::variable<GiveawayType> typeValue;
 	};
 	const auto state = box->lifetime().make_state<State>(peer);
-	using GiveawayType = Giveaway::GiveawayTypeRow::Type;
-	using GiveawayGroup = Ui::RadioenumGroup<GiveawayType>;
 	const auto typeGroup = std::make_shared<GiveawayGroup>();
 
 	box->setWidth(st::boxWideWidth);
@@ -88,7 +93,7 @@ void CreateGiveawayBox(
 				tr::lng_giveaway_create_subtitle()));
 		row->addRadio(typeGroup);
 		row->setClickedCallback([=] {
-			typeGroup->setValue(GiveawayType::Random);
+			state->typeValue.force_assign(GiveawayType::Random);
 		});
 	}
 	{
@@ -122,9 +127,10 @@ void CreateGiveawayBox(
 				});
 				peersBox->boxClosing(
 				) | rpl::start_with_next([=] {
-					typeGroup->setValue(state->selectedToAward.empty()
-						? GiveawayType::Random
-						: GiveawayType::SpecificUsers);
+					state->typeValue.force_assign(
+						state->selectedToAward.empty()
+							? GiveawayType::Random
+							: GiveawayType::SpecificUsers);
 				}, peersBox->lifetime());
 			};
 
@@ -138,30 +144,56 @@ void CreateGiveawayBox(
 				Ui::LayerOption::KeepOther);
 		});
 	}
-	typeGroup->setValue(GiveawayType::Random);
 
 	Settings::AddSkip(box->verticalLayout());
 	Settings::AddDivider(box->verticalLayout());
 	Settings::AddSkip(box->verticalLayout());
 
+	const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);
 	{
 		const auto listOptions = box->verticalLayout()->add(
 			object_ptr<Ui::VerticalLayout>(box));
-		const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);
 		const auto rebuildListOptions = [=](int amountUsers) {
 			while (listOptions->count()) {
 				delete listOptions->widgetAt(0);
 			}
+			Settings::AddSubsectionTitle(
+				listOptions,
+				tr::lng_giveaway_duration_title(
+					lt_count,
+					rpl::single(amountUsers) | tr::to_count()));
 			Ui::Premium::AddGiftOptions(
 				listOptions,
 				durationGroup,
 				state->apiOptions.options(amountUsers),
 				st::giveawayGiftCodeGiftOption,
 				true);
+
+			auto terms = object_ptr<Ui::FlatLabel>(
+				listOptions,
+				tr::lng_premium_gift_terms(
+					lt_link,
+					tr::lng_premium_gift_terms_link(
+					) | rpl::map([](const QString &t) {
+						return Ui::Text::Link(t, 1);
+					}),
+					Ui::Text::WithEntities),
+				st::boxDividerLabel);
+			terms->setLink(1, std::make_shared<LambdaClickHandler>([=] {
+				box->closeBox();
+				Settings::ShowPremium(&peer->session(), QString());
+			}));
+			listOptions->add(object_ptr<Ui::DividerLabel>(
+				listOptions,
+				std::move(terms),
+				st::settingsDividerLabelPadding));
+
 			listOptions->resizeToWidth(box->width());
 		};
 
-		typeGroup->setChangedCallback([=](GiveawayType type) {
+		state->typeValue.value(
+		) | rpl::start_with_next([=](GiveawayType type) {
+			typeGroup->setValue(type);
 			const auto rebuild = [=] {
 				rebuildListOptions((type == GiveawayType::SpecificUsers)
 					? state->selectedToAward.size()
@@ -174,13 +206,14 @@ void CreateGiveawayBox(
 			} else {
 				rebuild();
 			}
-		});
+		}, box->lifetime());
 		state->lifetimeApi = state->apiOptions.request(
 		) | rpl::start_with_error_done([=](const QString &error) {
 		}, [=] {
 			rebuildListOptions(1);
 		});
 	}
+	state->typeValue.force_assign(GiveawayType::Random);
 
 	box->addButton(tr::lng_box_ok(), [=] {
 		box->closeBox();

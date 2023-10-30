@@ -2100,8 +2100,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_duration_title#one" = "Duration of Premium subscription";
 "lng_giveaway_duration_title#other" = "Duration of Premium subscriptions";
 "lng_giveaway_duration_price" = "{price} x {amount}";
-"lng_giveaway_duration_about" = "You can review the list of features and terms of use for Telegram Premium {link}.";
-"lng_giveaway_duration_about_link" = "here";
 "lng_giveaway_date_select" = "Select Date and Time";
 "lng_giveaway_date_confirm" = "Confirm";
 "lng_giveaway_channels_select#one" = "Select up to {count} channel";
