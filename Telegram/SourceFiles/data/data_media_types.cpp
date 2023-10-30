@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_contact.h"
 #include "history/view/media/history_view_location.h"
 #include "history/view/media/history_view_game.h"
+#include "history/view/media/history_view_giveaway.h"
 #include "history/view/media/history_view_invoice.h"
 #include "history/view/media/history_view_call.h"
 #include "history/view/media/history_view_web_page.h"
@@ -85,7 +86,7 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 		const TextWithEntities &caption,
 		bool hasMiniImages = false) {
 	if (caption.text.isEmpty()) {
-		return Ui::Text::PlainLink(attachType);
+		return Ui::Text::Colorized(attachType);
 	}
 
 	return hasMiniImages
@@ -96,7 +97,7 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 			tr::lng_dialogs_text_media_wrapped(
 				tr::now,
 				lt_media,
-				Ui::Text::PlainLink(attachType),
+				Ui::Text::Colorized(attachType),
 				Ui::Text::WithEntities),
 			lt_caption,
 			caption,
@@ -361,6 +362,28 @@ Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
 	return result;
 }
 
+Giveaway ComputeGiveawayData(
+		not_null<HistoryItem*> item,
+		const MTPDmessageMediaGiveaway &data) {
+	auto result = Giveaway{
+		.untilDate = data.vuntil_date().v,
+		.quantity = data.vquantity().v,
+		.months = data.vmonths().v,
+	};
+	result.channels.reserve(data.vchannels().v.size());
+	const auto owner = &item->history()->owner();
+	for (const auto &id : data.vchannels().v) {
+		result.channels.push_back(owner->channel(ChannelId(id)));
+	}
+	if (const auto countries = data.vcountries_iso2()) {
+		result.countries.reserve(countries->v.size());
+		for (const auto &country : countries->v) {
+			result.countries.push_back(qs(country));
+		}
+	}
+	return result;
+}
+
 Media::Media(not_null<HistoryItem*> parent) : _parent(parent) {
 }
 
@@ -378,6 +401,10 @@ PhotoData *Media::photo() const {
 
 WebPageData *Media::webpage() const {
 	return nullptr;
+}
+
+MediaWebPageFlags Media::webpageFlags() const {
+	return {};
 }
 
 const SharedContact *Media::sharedContact() const {
@@ -418,6 +445,10 @@ bool Media::storyExpired(bool revalidate) {
 
 bool Media::storyMention() const {
 	return false;
+}
+
+const Giveaway *Media::giveaway() const {
+	return nullptr;
 }
 
 bool Media::uploading() const {
@@ -558,7 +589,7 @@ ItemPreview Media::toGroupPreview(
 			: fileCount
 			? tr::lng_in_dlg_file_count(tr::now, lt_count, fileCount)
 			: tr::lng_in_dlg_album(tr::now);
-		result.text = Ui::Text::PlainLink(genericText);
+		result.text = Ui::Text::Colorized(genericText);
 	}
 	if (!loadingContext.empty()) {
 		result.loadingContext = std::move(loadingContext);
@@ -937,7 +968,7 @@ TextWithEntities MediaFile::notificationText() const {
 		const auto text = _emoji.isEmpty()
 			? tr::lng_in_dlg_sticker(tr::now)
 			: tr::lng_in_dlg_sticker_emoji(tr::now, lt_emoji, _emoji);
-		return Ui::Text::PlainLink(text);
+		return Ui::Text::Colorized(text);
 	}
 	const auto type = [&] {
 		if (_document->isVideoMessage()) {
@@ -1406,9 +1437,11 @@ QString MediaCall::Text(
 
 MediaWebPage::MediaWebPage(
 	not_null<HistoryItem*> parent,
-	not_null<WebPageData*> page)
+	not_null<WebPageData*> page,
+	MediaWebPageFlags flags)
 : Media(parent)
-, _page(page) {
+, _page(page)
+, _flags(flags) {
 	parent->history()->owner().registerWebPageItem(_page, parent);
 }
 
@@ -1417,7 +1450,7 @@ MediaWebPage::~MediaWebPage() {
 }
 
 std::unique_ptr<Media> MediaWebPage::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaWebPage>(parent, _page);
+	return std::make_unique<MediaWebPage>(parent, _page, _flags);
 }
 
 DocumentData *MediaWebPage::document() const {
@@ -1430,6 +1463,10 @@ PhotoData *MediaWebPage::photo() const {
 
 WebPageData *MediaWebPage::webpage() const {
 	return _page;
+}
+
+MediaWebPageFlags MediaWebPage::webpageFlags() const {
+	return _flags;
 }
 
 bool MediaWebPage::hasReplyPreview() const {
@@ -1462,10 +1499,13 @@ bool MediaWebPage::replyPreviewLoaded() const {
 }
 
 ItemPreview MediaWebPage::toPreview(ToPreviewOptions options) const {
-	return { .text = options.translated
+	auto text = options.translated
 		? parent()->translatedText()
-		: parent()->originalText()
-	};
+		: parent()->originalText();
+	if (text.empty()) {
+		text = Ui::Text::Colorized(_page->url);
+	}
+	return { .text = text };
 }
 
 TextWithEntities MediaWebPage::notificationText() const {
@@ -1496,7 +1536,7 @@ std::unique_ptr<HistoryView::Media> MediaWebPage::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	return std::make_unique<HistoryView::WebPage>(message, _page);
+	return std::make_unique<HistoryView::WebPage>(message, _page, _flags);
 }
 
 MediaGame::MediaGame(
@@ -1719,7 +1759,11 @@ PollData *MediaPoll::poll() const {
 }
 
 TextWithEntities MediaPoll::notificationText() const {
-	return Ui::Text::PlainLink(_poll->question);
+	return TextWithEntities()
+		.append(QChar(0xD83D))
+		.append(QChar(0xDCCA))
+		.append(QChar(' '))
+		.append(Ui::Text::Colorized(_poll->question));
 }
 
 QString MediaPoll::pinnedTextSubstring() const {
@@ -1883,21 +1927,28 @@ MediaGiftBox::MediaGiftBox(
 	not_null<HistoryItem*> parent,
 	not_null<PeerData*> from,
 	int months)
+: MediaGiftBox(parent, from, GiftCode{ .months = months }) {
+}
+
+MediaGiftBox::MediaGiftBox(
+	not_null<HistoryItem*> parent,
+	not_null<PeerData*> from,
+	GiftCode data)
 : Media(parent)
 , _from(from)
-, _months(months) {
+, _data(std::move(data)) {
 }
 
 std::unique_ptr<Media> MediaGiftBox::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaGiftBox>(parent, _from, _months);
+	return std::make_unique<MediaGiftBox>(parent, _from, _data);
 }
 
 not_null<PeerData*> MediaGiftBox::from() const {
 	return _from;
 }
 
-int MediaGiftBox::months() const {
-	return _months;
+const GiftCode &MediaGiftBox::data() const {
+	return _data;
 }
 
 TextWithEntities MediaGiftBox::notificationText() const {
@@ -1927,14 +1978,6 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 	return std::make_unique<HistoryView::ServiceBox>(
 		message,
 		std::make_unique<HistoryView::PremiumGift>(message, this));
-}
-
-bool MediaGiftBox::activated() const {
-	return _activated;
-}
-
-void MediaGiftBox::setActivated(bool activated) {
-	_activated = activated;
 }
 
 MediaWallPaper::MediaWallPaper(
@@ -2138,6 +2181,52 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 				spoiler);
 		}
 	}
+}
+
+MediaGiveaway::MediaGiveaway(
+	not_null<HistoryItem*> parent,
+	const Giveaway &data)
+: Media(parent)
+, _giveaway(data) {
+}
+
+std::unique_ptr<Media> MediaGiveaway::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaGiveaway>(parent, _giveaway);
+}
+
+const Giveaway *MediaGiveaway::giveaway() const {
+	return &_giveaway;
+}
+
+TextWithEntities MediaGiveaway::notificationText() const {
+	return {
+		.text = tr::lng_prizes_title(tr::now, lt_count, _giveaway.quantity),
+	};
+}
+
+QString MediaGiveaway::pinnedTextSubstring() const {
+	return QString::fromUtf8("\xC2\xAB")
+		+ notificationText().text
+		+ QString::fromUtf8("\xC2\xBB");
+}
+
+TextForMimeData MediaGiveaway::clipboardText() const {
+	return TextForMimeData();
+}
+
+bool MediaGiveaway::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return true;
+}
+
+bool MediaGiveaway::updateSentMedia(const MTPMessageMedia &media) {
+	return true;
+}
+
+std::unique_ptr<HistoryView::Media> MediaGiveaway::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
+	return std::make_unique<HistoryView::Giveaway>(message, &_giveaway);
 }
 
 } // namespace Data

@@ -186,8 +186,35 @@ struct InvoiceSlug {
 	QString slug;
 };
 
+struct InvoicePremiumGiftCodeGiveaway {
+	not_null<ChannelData*> boostPeer;
+	std::vector<not_null<ChannelData*>> additionalChannels;
+	std::vector<QString> countries;
+	TimeId untilDate = 0;
+	bool onlyNewSubscribers = false;
+};
+
+struct InvoicePremiumGiftCodeUsers {
+	std::vector<not_null<UserData*>> users;
+	ChannelData *boostPeer = nullptr;
+};
+
+struct InvoicePremiumGiftCode {
+	std::variant<
+		InvoicePremiumGiftCodeUsers,
+		InvoicePremiumGiftCodeGiveaway> purpose;
+
+	uint64 randomId = 0;
+	QString currency;
+	uint64 amount = 0;
+	QString storeProduct;
+	int storeQuantity = 0;
+	int users = 0;
+	int months = 0;
+};
+
 struct InvoiceId {
-	std::variant<InvoiceMessage, InvoiceSlug> value;
+	std::variant<InvoiceMessage, InvoiceSlug, InvoicePremiumGiftCode> value;
 };
 
 [[nodiscard]] not_null<Main::Session*> SessionFromId(const InvoiceId &id);

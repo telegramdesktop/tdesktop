@@ -43,6 +43,19 @@ using UpdateFlag = StoryUpdate::Flag;
 	};
 }
 
+[[nodiscard]] TextWithEntities StripLinks(TextWithEntities text) {
+	const auto link = [&](const EntityInText &entity) {
+		return (entity.type() == EntityType::CustomUrl)
+			|| (entity.type() == EntityType::Url)
+			|| (entity.type() == EntityType::Mention)
+			|| (entity.type() == EntityType::Hashtag);
+	};
+	text.entities.erase(
+		ranges::remove_if(text.entities, link),
+		text.entities.end());
+	return text;
+}
+
 [[nodiscard]] auto ParseLocation(const MTPMediaArea &area)
 -> std::optional<StoryLocation> {
 	auto result = std::optional<StoryLocation>();
@@ -295,14 +308,14 @@ Image *Story::replyPreview() const {
 TextWithEntities Story::inReplyText() const {
 	const auto type = tr::lng_in_dlg_story(tr::now);
 	return _caption.text.isEmpty()
-		? Ui::Text::PlainLink(type)
+		? Ui::Text::Colorized(type)
 		: tr::lng_dialogs_text_media(
 			tr::now,
 			lt_media_part,
 			tr::lng_dialogs_text_media_wrapped(
 				tr::now,
 				lt_media,
-				Ui::Text::PlainLink(type),
+				Ui::Text::Colorized(type),
 				Ui::Text::WithEntities),
 			lt_caption,
 			_caption,
@@ -370,8 +383,7 @@ bool Story::hasDirectLink() const {
 	if (!_privacyPublic || (!_pinned && expired())) {
 		return false;
 	}
-	const auto user = _peer->asUser();
-	return user && !user->username().isEmpty();
+	return !_peer->userName().isEmpty();
 }
 
 std::optional<QString> Story::errorTextForForward(
@@ -587,6 +599,11 @@ void Story::applyFields(
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
+	if (const auto user = _peer->asUser()) {
+		if (!user->isVerified() && !user->isPremium()) {
+			caption = StripLinks(std::move(caption));
+		}
+	}
 	auto counts = ViewsCounts();
 	auto viewsKnown = _views.known;
 	if (const auto info = data.vviews()) {

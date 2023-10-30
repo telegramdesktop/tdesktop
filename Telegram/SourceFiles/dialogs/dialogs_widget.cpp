@@ -536,14 +536,12 @@ void Widget::chosenRow(const ChosenRow &row) {
 		return;
 	} else if (history) {
 		const auto peer = history->peer;
-		if (const auto user = peer->asUser()) {
-			if (row.message.fullId.msg == ShowAtUnreadMsgId) {
-				if (row.userpicClick
-					&& user->hasActiveStories()
-					&& !user->isSelf()) {
-					controller()->openPeerStories(user->id);
-					return;
-				}
+		if (row.message.fullId.msg == ShowAtUnreadMsgId) {
+			if (row.userpicClick
+				&& peer->hasActiveStories()
+				&& !peer->isSelf()) {
+				controller()->openPeerStories(peer->id);
+				return;
 			}
 		}
 		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()

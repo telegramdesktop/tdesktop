@@ -35,6 +35,8 @@ enum class SharedMediaType : signed char;
 
 namespace Info::Profile {
 
+extern const char kOptionShowPeerIdBelowAbout[];
+
 inline auto ToSingleLine() {
 	return rpl::map([](const QString &text) {
 		return TextUtilities::SingleLine(text);

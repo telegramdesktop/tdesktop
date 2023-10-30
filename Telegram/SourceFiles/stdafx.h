@@ -109,29 +109,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/rpl.h>
 #include <crl/crl.h>
 
-#include "base/variant.h"
-#include "base/optional.h"
 #include "base/algorithm.h"
-#include "base/invoke_queued.h"
+#include "base/basic_types.h"
 #include "base/flat_set.h"
 #include "base/flat_map.h"
+#include "base/invoke_queued.h"
+#include "base/optional.h"
+#include "base/variant.h"
 #include "base/weak_ptr.h"
-
-#include "base/basic_types.h"
-#include "logs.h"
-#include "core/utils.h"
-#include "config.h"
 
 #include "scheme.h"
 #include "mtproto/type_utils.h"
 
+#include "ui/image/image_location.h"
 #include "ui/style/style_core.h"
+#include "ui/text/text.h"
+#include "ui/arc_angles.h"
+#include "ui/emoji_config.h"
+
 #include "styles/palette.h"
 #include "styles/style_basic.h"
 
-#include "ui/arc_angles.h"
-#include "ui/image/image_location.h"
-#include "ui/text/text.h"
+#include "core/utils.h"
+#include "logs.h"
+#include "config.h"
 
 #include "data/data_types.h"
 

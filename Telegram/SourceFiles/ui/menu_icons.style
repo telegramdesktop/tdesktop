@@ -51,6 +51,8 @@ menuIconExport: icon {{ "menu/export", menuIconColor }};
 menuIconClear: icon {{ "menu/clear", menuIconColor }};
 menuIconManage: icon {{ "menu/manage", menuIconColor }};
 menuIconDiscussion: icon {{ "menu/discussion", menuIconColor }};
+menuIconStats: icon {{ "menu/stats", menuIconColor }};
+menuIconBoosts: icon {{ "menu/boosts", menuIconColor }};
 menuIconCreatePoll: icon {{ "menu/create_poll", menuIconColor }};
 menuIconQrCode: icon {{ "menu/qr_code", menuIconColor }};
 menuIconExpand: icon {{ "menu/expand", menuIconColor }};
@@ -138,6 +140,11 @@ menuIconPremium: icon {{ "menu/premium", menuIconColor }};
 menuIconIpAddress: icon {{ "menu/ip_address", menuIconColor }};
 menuIconAddress: icon {{ "menu/payment_address", menuIconColor }};
 menuIconShowAll: icon {{ "menu/all_media", menuIconColor }};
+menuIconReplace: icon {{ "chat/input_replace", menuIconColor }};
+menuIconAbove: icon {{ "menu/link_above", menuIconColor }};
+menuIconBelow: icon {{ "menu/link_below", menuIconColor }};
+menuIconEnlarge: icon {{ "menu/link_enlarge", menuIconColor }};
+menuIconShrink: icon {{ "menu/link_shrink", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
@@ -200,3 +207,7 @@ mediaSpeedVeryFast: icon {{ "player/speed/audiospeed_menu_1.7", mediaviewMenuFg 
 mediaSpeedVeryFastActive: icon {{ "player/speed/audiospeed_menu_1.7", mediaviewTextLinkFg }};
 mediaSpeedSuperFast: icon {{ "player/speed/audiospeed_menu_2.0", mediaviewMenuFg }};
 mediaSpeedSuperFastActive: icon {{ "player/speed/audiospeed_menu_2.0", mediaviewTextLinkFg }};
+
+menuIconMakeBig: icon {{ "player/player_fullscreen", menuIconColor }};
+menuIconMakeSmall: icon {{ "player/player_minimize", menuIconColor }};
+menuIconChangeOrder: icon {{ "player/player_order", menuIconColor }};

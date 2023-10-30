@@ -49,6 +49,7 @@ struct TextState {
 	FullMsgId itemId;
 	CursorState cursor = CursorState::None;
 	ClickHandlerPtr link;
+	bool overMessageText = false;
 	bool afterSymbol = false;
 	bool customTooltip = false;
 	uint16 symbol = 0;
@@ -63,6 +64,7 @@ struct StateRequest {
 		result.flags = flags;
 		return result;
 	}
+	bool onlyMessageText = false;
 };
 
 enum class InfoDisplayType : char {

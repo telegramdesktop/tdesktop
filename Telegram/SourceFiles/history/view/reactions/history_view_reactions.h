@@ -20,6 +20,10 @@ struct ReactionFlyAnimationArgs;
 class ReactionFlyAnimation;
 } // namespace Ui
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 class Message;

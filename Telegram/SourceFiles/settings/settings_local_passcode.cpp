@@ -338,7 +338,7 @@ public:
 	}
 
 	[[nodiscard]] static Type Id() {
-		return &SectionMetaImplementation<SectionType>::Meta;
+		return SectionFactory<SectionType>::Instance();
 	}
 	[[nodiscard]] Type id() const final override {
 		return Id();

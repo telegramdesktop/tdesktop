@@ -7,37 +7,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_premium_gift.h"
 
+#include "boxes/gift_premium_box.h" // ResolveGiftCode
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "data/data_document.h"
+#include "data/data_channel.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_premium.h" // Settings::ShowGiftPremium
+#include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
-namespace {
-
-[[nodiscard]] QString FormatGiftMonths(int months) {
-	return (months < 12)
-		? tr::lng_premium_gift_duration_months(tr::now, lt_count, months)
-		: tr::lng_premium_gift_duration_years(
-			tr::now,
-			lt_count,
-			std::round(months / 12.));
-}
-
-} // namespace
 
 PremiumGift::PremiumGift(
 	not_null<Element*> parent,
 	not_null<Data::MediaGiftBox*> gift)
 : _parent(parent)
-, _gift(gift) {
+, _gift(gift)
+, _data(gift->data()) {
 }
 
 PremiumGift::~PremiumGift() = default;
@@ -51,27 +43,62 @@ QSize PremiumGift::size() {
 }
 
 QString PremiumGift::title() {
-	return tr::lng_premium_summary_title(tr::now);
+	return _data.slug.isEmpty()
+		? tr::lng_premium_summary_title(tr::now)
+		: _data.unclaimed
+		? tr::lng_prize_unclaimed_title(tr::now)
+		: tr::lng_prize_title(tr::now);
 }
 
 TextWithEntities PremiumGift::subtitle() {
-	return { FormatGiftMonths(_gift->months()) };
+	if (_data.slug.isEmpty()) {
+		return { GiftDuration(_data.months) };
+	}
+	const auto name = _data.channel ? _data.channel->name() : "channel";
+	auto result = (_data.unclaimed
+		? tr::lng_prize_unclaimed_about
+		: _data.viaGiveaway
+		? tr::lng_prize_about
+		: tr::lng_prize_gift_about)(
+			tr::now,
+			lt_channel,
+			Ui::Text::Bold(name),
+			Ui::Text::RichLangValue);
+	result.append("\n\n");
+	result.append((_data.unclaimed
+		? tr::lng_prize_unclaimed_duration
+		: _data.viaGiveaway
+		? tr::lng_prize_duration
+		: tr::lng_prize_gift_duration)(
+			tr::now,
+			lt_duration,
+			Ui::Text::Bold(GiftDuration(_data.months)),
+			Ui::Text::RichLangValue));
+	return result;
 }
 
 QString PremiumGift::button() {
-	return tr::lng_sticker_premium_view(tr::now);
+	return _data.slug.isEmpty()
+		? tr::lng_sticker_premium_view(tr::now)
+		: tr::lng_prize_open(tr::now);
 }
 
 ClickHandlerPtr PremiumGift::createViewLink() {
 	const auto from = _gift->from();
 	const auto to = _parent->history()->peer;
-	const auto months = _gift->months();
+	const auto data = _gift->data();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			const auto me = (from->id == controller->session().userPeerId());
-			const auto peer = me ? to : from;
-			Settings::ShowGiftPremium(controller, peer, months, me);
+			if (data.slug.isEmpty()) {
+				const auto selfId = controller->session().userPeerId();
+				const auto self = (from->id == selfId);
+				const auto peer = self ? to : from;
+				const auto months = data.months;
+				Settings::ShowGiftPremium(controller, peer, months, self);
+			} else {
+				ResolveGiftCode(controller, data.slug);
+			}
 		}
 	});
 }
@@ -89,6 +116,10 @@ void PremiumGift::draw(
 	} else {
 		ensureStickerCreated();
 	}
+}
+
+bool PremiumGift::hideServiceText() {
+	return !_data.slug.isEmpty();
 }
 
 void PremiumGift::stickerClearLoopPlayed() {
@@ -120,8 +151,9 @@ void PremiumGift::ensureStickerCreated() const {
 		return;
 	}
 	const auto &session = _parent->history()->session();
+	const auto months = _gift->data().months;
 	auto &packs = session.giftBoxStickersPacks();
-	if (const auto document = packs.lookup(_gift->months())) {
+	if (const auto document = packs.lookup(months)) {
 		if (const auto sticker = document->sticker()) {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);

@@ -37,6 +37,7 @@ class Form;
 struct FormUpdate;
 struct Error;
 struct InvoiceId;
+struct InvoicePremiumGiftCode;
 
 enum class Mode {
 	Payment,
@@ -67,6 +68,9 @@ public:
 	static void Start(
 		not_null<Main::Session*> session,
 		const QString &slug,
+		Fn<void(CheckoutResult)> reactivate);
+	static void Start(
+		InvoicePremiumGiftCode giftCodeInvoice,
 		Fn<void(CheckoutResult)> reactivate);
 	[[nodiscard]] static std::optional<PaidInvoice> InvoicePaid(
 		not_null<const HistoryItem*> item);

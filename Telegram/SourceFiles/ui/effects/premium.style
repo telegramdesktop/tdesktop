@@ -26,6 +26,43 @@ PremiumBubble {
 	tailSize: size;
 	font: font;
 }
+PremiumCover {
+	starSize: size;
+	starTopSkip: pixels;
+	titlePadding: margins;
+	titleFont: font;
+	about: FlatLabel;
+}
+
+premiumAboutTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkUnderline: kLinkUnderlineAlways;
+	lineHeight: 18px;
+}
+defaultPremiumCover: PremiumCover {
+	starSize: size(84px, 81px);
+	starTopSkip: 37px;
+	titlePadding: margins(0px, 18px, 0px, 11px);
+	titleFont: boxTitleFont;
+	about: FlatLabel(defaultFlatLabel) {
+		style: premiumAboutTextStyle;
+		palette: TextPalette(defaultTextPalette) {
+			linkFg: premiumButtonFg;
+		}
+		align: align(top);
+		textFg: premiumButtonFg;
+		minWidth: 190px;
+	}
+}
+userPremiumCoverAbout: FlatLabel(boxDividerLabel) {
+	style: premiumAboutTextStyle;
+	minWidth: 315px;
+	maxHeight: 0px;
+	align: align(top);
+}
+userPremiumCover: PremiumCover(defaultPremiumCover) {
+	about: userPremiumCoverAbout;
+}
 
 defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 220px;
@@ -61,8 +98,6 @@ premiumPreviewAboutTitle: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	style: TextStyle(defaultTextStyle) {
 		font: font(17px semibold);
-		linkFont: font(17px semibold);
-		linkFontOver: font(17px semibold);
 	}
 }
 premiumPreviewAbout: FlatLabel(defaultFlatLabel) {
@@ -97,6 +132,7 @@ defaultPremiumBubble: PremiumBubble {
 	tailSize: size(21px, 7px);
 	font: font(19px);
 }
+premiumLineRadius: 5px;
 premiumLineTextSkip: 11px;
 premiumInfographicPadding: margins(0px, 10px, 0px, 15px);
 
@@ -184,8 +220,6 @@ premiumGiftTerms: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px);
-		linkFont: font(11px);
-		linkFontOver: font(11px underline);
 	}
 }
 premiumGiftBox: Box(premiumPreviewBox) {
@@ -195,6 +229,7 @@ premiumGiftBox: Box(premiumPreviewBox) {
 boostSkipTop: 37px;
 boostLimits: PremiumLimits(defaultPremiumLimits) {
 	gradientFromLeft: true;
+	nonPremiumBg: windowBgRipple;
 }
 boostBubble: PremiumBubble(defaultPremiumBubble) {
 	height: 32px;
@@ -212,8 +247,6 @@ boostTitle: FlatLabel(defaultFlatLabel) {
 	maxHeight: 24px;
 	style: TextStyle(boxTextStyle) {
 		font: font(17px semibold);
-		linkFont: font(17px semibold);
-		linkFontOver: font(17px semibold);
 	}
 }
 boostTextSkip: 5px;
@@ -243,3 +276,83 @@ boostReplaceIconSkip: 3px;
 boostReplaceIconOutline: 2px;
 boostReplaceIconAdd: point(4px, 2px);
 boostReplaceArrow: icon{{ "mediaview/next", windowSubTextFg }};
+
+giveawayGiftCodeTopHeight: 195px;
+giveawayGiftCodeLink: FlatLabel(defaultFlatLabel) {
+	margin: margins(10px, 12px, 10px, 8px);
+	textFg: menuIconColor;
+	maxHeight: 24px;
+}
+giveawayGiftCodeLinkCopy: icon{{ "menu/copy", menuIconColor }};
+giveawayGiftCodeLinkHeight: 42px;
+giveawayGiftCodeLinkCopyWidth: 40px;
+giveawayGiftCodeLinkMargin: margins(24px, 8px, 24px, 12px);
+
+boostLinkStatsButton: IconButton(defaultIconButton) {
+	width: giveawayGiftCodeLinkCopyWidth;
+	height: giveawayGiftCodeLinkHeight;
+	icon: icon{{ "menu/stats", menuIconColor }};
+	iconOver: icon{{ "menu/stats", menuIconColor }};
+	ripple: emptyRippleAnimation;
+}
+
+giveawayGiftCodeTable: Table(defaultTable) {
+	labelMinWidth: 91px;
+}
+giveawayGiftCodeTableMargin: margins(24px, 4px, 24px, 4px);
+giveawayGiftCodeLabel: FlatLabel(defaultFlatLabel) {
+	textFg: menuIconColor;
+	maxHeight: 24px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(12px semibold);
+	}
+}
+giveawayGiftCodeLabelMargin: margins(13px, 10px, 13px, 10px);
+giveawayGiftCodeValue: FlatLabel(defaultFlatLabel) {
+	maxHeight: 24px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkUnderline: kLinkUnderlineNever;
+	}
+}
+giveawayGiftCodeValueMargin: margins(13px, 9px, 13px, 9px);
+giveawayGiftCodePeerMargin: margins(11px, 6px, 11px, 4px);
+giveawayGiftCodeUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(24px, 24px);
+	photoSize: 24px;
+	photoPosition: point(-1px, -1px);
+}
+giveawayGiftCodeNamePosition: point(32px, 4px);
+giveawayGiftCodeCover: PremiumCover(userPremiumCover) {
+	starSize: size(92px, 90px);
+	starTopSkip: 20px;
+	titlePadding: margins(0px, 15px, 0px, 17px);
+	titleFont: font(15px semibold);
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: windowBoldFg;
+		style: TextStyle(premiumAboutTextStyle) {
+			lineHeight: 17px;
+		}
+	}
+}
+giveawayGiftCodeFooter: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowBoldFg;
+}
+giveawayGiftCodeFooterMargin: margins(0px, 9px, 0px, 4px);
+giveawayGiftCodeBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 22px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+	shadowIgnoreTopSkip: true;
+}
+giveawayRefundedLabel: FlatLabel(boxLabel) {
+	align: align(top);
+	style: semiboldTextStyle;
+	textFg: attentionButtonFg;
+}
+giveawayRefundedPadding: margins(8px, 10px, 8px, 10px);

@@ -97,8 +97,6 @@ callButtonLabel: FlatLabel(defaultFlatLabel) {
 	textFg: callNameFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px);
-		linkFont: font(11px);
-		linkFontOver: font(11px underline);
 	}
 }
 
@@ -218,8 +216,6 @@ callMuteButtonLabel: FlatLabel(defaultFlatLabel) {
 	textFg: groupCallMembersFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px);
-		linkFont: font(14px);
-		linkFontOver: font(14px underline);
 	}
 }
 callMuteButtonActiveInner: IconButton {
@@ -294,8 +290,6 @@ callName: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	style: TextStyle(defaultTextStyle) {
 		font: font(21px semibold);
-		linkFont: font(21px semibold);
-		linkFontOver: font(21px semibold underline);
 	}
 }
 callStatus: FlatLabel(defaultFlatLabel) {
@@ -305,8 +299,6 @@ callStatus: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px);
-		linkFont: font(14px);
-		linkFontOver: font(14px underline);
 	}
 }
 callRemoteAudioMute: FlatLabel(callStatus) {
@@ -314,8 +306,6 @@ callRemoteAudioMute: FlatLabel(callStatus) {
 	textFg: videoPlayIconFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px);
-		linkFont: font(12px);
-		linkFontOver: font(12px underline);
 	}
 }
 callRemoteAudioMuteSkip: 12px;
@@ -746,8 +736,6 @@ groupCallShareBoxList: PeerList(groupCallMembersList) {
 	item: PeerListItem(groupCallMembersListItem) {
 		nameStyle: TextStyle(defaultTextStyle) {
 			font: font(11px);
-			linkFont: font(11px);
-			linkFontOver: font(11px);
 		}
 		checkbox: RoundImageCheckbox(groupCallMembersListCheckbox) {
 			imageRadius: 28px;
@@ -784,8 +772,6 @@ groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 	textFg: groupCallMembersFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(semibold 14px);
-		linkFont: font(semibold 14px);
-		linkFontOver: font(semibold 14px);
 	}
 }
 groupCallTitleSeparator: 4px;
@@ -1203,8 +1189,6 @@ callTopBarMuteCrossLine: CrossLineAnimation {
 groupCallStartsIn: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(20px semibold);
-		linkFont: font(20px semibold);
-		linkFontOver: font(20px semibold underline);
 	}
 	textFg: groupCallMembersFg;
 }

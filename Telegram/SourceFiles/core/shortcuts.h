@@ -59,6 +59,8 @@ enum class Command {
 
 	ReadChat,
 
+	MediaViewerFullscreen,
+
 	SupportReloadTemplates,
 	SupportToggleMuted,
 	SupportScrollToCurrent,

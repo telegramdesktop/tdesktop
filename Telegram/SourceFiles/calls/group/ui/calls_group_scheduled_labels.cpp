@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 
 #include <QtCore/QDateTime>
+#include <QtCore/QLocale>
 
 namespace Calls::Group::Ui {
 

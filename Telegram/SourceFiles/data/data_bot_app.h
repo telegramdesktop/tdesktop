@@ -24,5 +24,4 @@ struct BotAppData {
 
 	uint64 accessHash = 0;
 	uint64 hash = 0;
-	bool hasSettings = false;
 };

@@ -40,14 +40,14 @@ void ReplyPreview::prepare(
 	if (h <= 0) h = 1;
 	auto thumbSize = (w > h)
 		? QSize(
-			w * st::msgReplyBarSize.height() / h,
-			st::msgReplyBarSize.height())
+			w * st::historyReplyPreview / h,
+			st::historyReplyPreview)
 		: QSize(
-			st::msgReplyBarSize.height(),
-			h * st::msgReplyBarSize.height() / w);
+			st::historyReplyPreview,
+			h * st::historyReplyPreview / w);
 	thumbSize *= style::DevicePixelRatio();
 	options |= Option::TransparentBackground;
-	auto outerSize = st::msgReplyBarSize.height();
+	auto outerSize = st::historyReplyPreview;
 	auto original = spoiler
 		? image->original().scaled(
 			{ 40, 40 },

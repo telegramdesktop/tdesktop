@@ -25,7 +25,7 @@ constexpr auto kPersonalUserpicSize = 90;
 constexpr auto kEntryUserpicSize = 48;
 constexpr auto kServiceMessagePhotoSize = 60;
 constexpr auto kHistoryUserpicSize = 42;
-constexpr auto kSavedMessagesColorIndex = 3;
+constexpr auto kSavedMessagesColorIndex = uint8(3);
 constexpr auto kJoinWithinSeconds = 900;
 constexpr auto kPhotoMaxWidth = 520;
 constexpr auto kPhotoMaxHeight = 520;
@@ -351,7 +351,7 @@ QByteArray FormatTimeText(TimeId date) {
 namespace details {
 
 struct UserpicData {
-	int colorIndex = 0;
+	uint8 colorIndex = 0;
 	int pixelSize = 0;
 	QString imageLink;
 	QString largeLink;
@@ -611,6 +611,9 @@ private:
 		const Data::Photo &data,
 		const QString &basePath);
 	[[nodiscard]] QByteArray pushPoll(const Data::Poll &data);
+	[[nodiscard]] QByteArray pushGiveaway(
+		const PeersMap &peers,
+		const Data::Giveaway &data);
 
 	File _file;
 	QByteArray _composedStart;
@@ -988,7 +991,7 @@ QByteArray HtmlWriter::Wrap::pushServiceMessage(
 	result.append(popTag());
 	if (photo) {
 		auto userpic = UserpicData();
-		userpic.colorIndex = Data::PeerColorIndex(dialog.peerId);
+		userpic.colorIndex = dialog.colorIndex;
 		userpic.firstName = dialog.name;
 		userpic.lastName = dialog.lastName;
 		userpic.pixelSize = kServiceMessagePhotoSize;
@@ -1276,6 +1279,24 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " set "
 			+ wrapReplyToLink("the same background")
 			+ " for this chat";
+	}, [&](const ActionGiftCode &data) {
+		return data.unclaimed
+			? ("This is an unclaimed Telegram Premium for "
+				+ NumberToString(data.months)
+				+ (data.months > 1 ? " months" : "month")
+				+ " prize in a giveaway organized by a channel.")
+			: data.viaGiveaway
+			? ("You won a Telegram Premium for "
+				+ NumberToString(data.months)
+				+ (data.months > 1 ? " months" : "month")
+				+ " prize in a giveaway organized by a channel.")
+			: ("You've received a Telegram Premium for "
+				+ NumberToString(data.months)
+				+ (data.months > 1 ? " months" : "month")
+				+ " gift from a channel.");
+	}, [&](const ActionGiveawayLaunch &data) {
+		return serviceFrom + " just started a giveaway "
+			"of Telegram Premium subscriptions to its followers.";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
@@ -1459,8 +1480,9 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 	if (!data.classes.isEmpty()) {
 		return pushGenericMedia(data);
 	}
+	using namespace Data;
 	const auto &content = message.media.content;
-	if (const auto document = std::get_if<Data::Document>(&content)) {
+	if (const auto document = std::get_if<Document>(&content)) {
 		Assert(!message.media.ttl);
 		if (document->isSticker) {
 			return pushStickerMedia(*document, basePath);
@@ -1470,11 +1492,13 @@ QByteArray HtmlWriter::Wrap::pushMedia(
 			return pushVideoFileMedia(*document, basePath);
 		}
 		Unexpected("Non generic document in HtmlWriter::Wrap::pushMedia.");
-	} else if (const auto photo = std::get_if<Data::Photo>(&content)) {
+	} else if (const auto photo = std::get_if<Photo>(&content)) {
 		Assert(!message.media.ttl);
 		return pushPhotoMedia(*photo, basePath);
-	} else if (const auto poll = std::get_if<Data::Poll>(&content)) {
+	} else if (const auto poll = std::get_if<Poll>(&content)) {
 		return pushPoll(*poll);
+	} else if (const auto giveaway = std::get_if<Giveaway>(&content)) {
+		return pushGiveaway(peers, *giveaway);
 	}
 	Assert(v::is_null(content));
 	return QByteArray();
@@ -1796,6 +1820,52 @@ QByteArray HtmlWriter::Wrap::pushPoll(const Data::Poll &data) {
 	return result;
 }
 
+QByteArray HtmlWriter::Wrap::pushGiveaway(
+		const PeersMap &peers,
+		const Data::Giveaway &data) {
+	auto result = pushDiv("media_wrap clearfix");
+	result.append(pushDiv("media_giveaway"));
+
+	result.append(pushDiv("section_title bold"));
+	result.append(SerializeString("Giveaway Prizes"));
+	result.append(popTag());
+	result.append(pushDiv("section_body"));
+	result.append("<b>"
+		+ Data::NumberToString(data.quantity)
+		+ "</b> "
+		+ SerializeString((data.quantity > 1)
+			? "Telegram Premium Subscriptions"
+			: "Telegram Premium Subscription")
+		+ " for <b>" + Data::NumberToString(data.months) + "</b> "
+		+ (data.months > 1 ? "months." : "month."));
+	result.append(popTag());
+
+	result.append(pushDiv("section_title bold"));
+	result.append(SerializeString("Participants"));
+	result.append(popTag());
+	result.append(pushDiv("section_body"));
+	auto channels = QByteArrayList();
+	for (const auto &channel : data.channels) {
+		channels.append("<b>" + peers.wrapPeerName(channel) + "</b>");
+	}
+	result.append(SerializeString((channels.size() > 1)
+		? "All subscribers of those channels: "
+		: "All subscribers of the channel: ")
+		+ channels.join(", "));
+	result.append(popTag());
+
+	result.append(pushDiv("section_title bold"));
+	result.append(SerializeString("Winners Selection Date"));
+	result.append(popTag());
+	result.append(pushDiv("section_body"));
+	result.append(Data::FormatDateTime(data.untilDate));
+	result.append(popTag());
+
+	result.append(popTag());
+	result.append(popTag());
+	return result;
+}
+
 MediaData HtmlWriter::Wrap::prepareMediaData(
 		const Data::Message &message,
 		const QString &basePath,
@@ -1954,6 +2024,7 @@ MediaData HtmlWriter::Wrap::prepareMediaData(
 		result.description = data.description;
 		result.status = Data::FormatMoneyAmount(data.amount, data.currency);
 	}, [](const Poll &data) {
+	}, [](const Giveaway &data) {
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");
 	}, [](v::null_t) {});
@@ -2104,7 +2175,7 @@ Result HtmlWriter::start(
 Result HtmlWriter::writePersonal(const Data::PersonalInfo &data) {
 	Expects(_summary != nullptr);
 
-	_selfColorIndex = Data::PeerColorIndex(data.user.info.userId);
+	_selfColorIndex = data.user.info.colorIndex;
 	if (_settings.types & Settings::Type::Userpics) {
 		_delayedPersonalInfo = std::make_unique<Data::PersonalInfo>(data);
 		return Result::Success();

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_drafts.h"
+
 class History;
 
 namespace Data {
@@ -22,7 +24,6 @@ struct SendOptions {
 	TimeId scheduled = 0;
 	bool silent = false;
 	bool handleSupportSwitch = false;
-	bool removeWebPageId = false;
 	bool hideViaBot = false;
 
     std::optional<TimeId> ptgAutoDelete = std::nullopt;
@@ -56,7 +57,7 @@ struct MessageToSend {
 
 	SendAction action;
 	TextWithTags textWithTags;
-	WebPageId webPageId = 0;
+	Data::WebPageDraft webPage;
 };
 
 struct RemoteFileInfo {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
@@ -16,7 +17,9 @@ namespace Data {
 class Session;
 } // namespace Data
 
-enum class WebPageType {
+enum class WebPageType : uint8 {
+	None,
+
 	Message,
 
 	Group,
@@ -44,8 +47,7 @@ enum class WebPageType {
 	VoiceChat,
 	Livestream,
 };
-
-WebPageType ParseWebPageType(const MTPDwebPage &type);
+[[nodiscard]] WebPageType ParseWebPageType(const MTPDwebPage &type);
 
 struct WebPageCollage {
 	using Item = std::variant<PhotoData*, DocumentData*>;
@@ -78,6 +80,7 @@ struct WebPageData {
 		WebPageCollage &&newCollage,
 		int newDuration,
 		const QString &newAuthor,
+		bool newHasLargeMedia,
 		int newPendingTill);
 
 	static void ApplyChanges(
@@ -85,21 +88,26 @@ struct WebPageData {
 		ChannelData *channel,
 		const MTPmessages_Messages &result);
 
-	WebPageId id = 0;
-	WebPageType type = WebPageType::Article;
+	[[nodiscard]] QString displayedSiteName() const;
+	[[nodiscard]] bool computeDefaultSmallMedia() const;
+
+	const WebPageId id = 0;
+	WebPageType type = WebPageType::None;
 	QString url;
 	QString displayUrl;
 	QString siteName;
 	QString title;
 	TextWithEntities description;
 	FullStoryId storyId;
-	int duration = 0;
 	QString author;
 	PhotoData *photo = nullptr;
 	DocumentData *document = nullptr;
 	WebPageCollage collage;
-	int pendingTill = 0;
-	int version = 0;
+	int duration = 0;
+	TimeId pendingTill = 0;
+	uint32 version : 30 = 0;
+	uint32 hasLargeMedia : 1 = 0;
+	uint32 failed : 1 = 0;
 
 private:
 	void replaceDocumentGoodThumbnail();

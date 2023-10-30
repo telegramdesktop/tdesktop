@@ -202,8 +202,7 @@ void Userpic::createCache(Image *image) {
 		{
 			auto p = QPainter(&filled);
 			Ui::EmptyUserpic(
-				Ui::EmptyUserpic::UserpicColor(
-					Data::PeerColorIndex(_peer->id)),
+				Ui::EmptyUserpic::UserpicColor(_peer->colorIndex()),
 				_peer->name()
 			).paintCircle(p, 0, 0, size, size);
 		}

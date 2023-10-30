@@ -115,10 +115,12 @@ class StickersListFooter final : public TabbedSelector::InnerFooter {
 public:
 	struct Descriptor {
 		not_null<Main::Session*> session;
+		Fn<QColor()> customTextColor;
 		Fn<bool()> paused;
 		not_null<RpWidget*> parent;
 		const style::EmojiPan *st = nullptr;
 		ComposeFeatures features;
+		bool forceFirstFrame = false;
 	};
 	explicit StickersListFooter(Descriptor &&descriptor);
 
@@ -269,6 +271,7 @@ private:
 	void clipCallback(Media::Clip::Notification notification, uint64 setId);
 
 	const not_null<Main::Session*> _session;
+	const Fn<QColor()> _customTextColor;
 	const Fn<bool()> _paused;
 	const ComposeFeatures _features;
 
@@ -303,6 +306,7 @@ private:
 	int _subiconsWidth = 0;
 	bool _subiconsExpanded = false;
 	bool _repaintScheduled = false;
+	bool _forceFirstFrame = false;
 
 	rpl::event_stream<> _openSettingsRequests;
 	rpl::event_stream<uint64> _setChosen;

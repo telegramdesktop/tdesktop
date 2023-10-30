@@ -38,6 +38,7 @@ namespace {
 struct SessionProcesses {
 	base::flat_map<FullMsgId, std::unique_ptr<CheckoutProcess>> byItem;
 	base::flat_map<QString, std::unique_ptr<CheckoutProcess>> bySlug;
+	base::flat_map<uint64, std::unique_ptr<CheckoutProcess>> byRandomId;
 	base::flat_map<FullMsgId, PaidInvoice> paymentStartedByItem;
 	base::flat_map<QString, PaidInvoice> paymentStartedBySlug;
 	rpl::lifetime lifetime;
@@ -118,6 +119,28 @@ void CheckoutProcess::Start(
 	j->second->requestActivate();
 }
 
+void CheckoutProcess::Start(
+		InvoicePremiumGiftCode giftCodeInvoice,
+		Fn<void(CheckoutResult)> reactivate) {
+	const auto randomId = giftCodeInvoice.randomId;
+	auto id = InvoiceId{ std::move(giftCodeInvoice) };
+	auto &processes = LookupSessionProcesses(SessionFromId(id));
+	const auto i = processes.byRandomId.find(randomId);
+	if (i != end(processes.byRandomId)) {
+		i->second->setReactivateCallback(std::move(reactivate));
+		i->second->requestActivate();
+		return;
+	}
+	const auto j = processes.byRandomId.emplace(
+		randomId,
+		std::make_unique<CheckoutProcess>(
+			std::move(id),
+			Mode::Payment,
+			std::move(reactivate),
+			PrivateTag{})).first;
+	j->second->requestActivate();
+}
+
 std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 		not_null<const HistoryItem*> item) {
 	const auto session = &item->history()->session();
@@ -139,7 +162,8 @@ std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 	} else if (i->second.paymentStartedByItem.empty()
 		&& i->second.byItem.empty()
 		&& i->second.paymentStartedBySlug.empty()
-		&& i->second.bySlug.empty()) {
+		&& i->second.bySlug.empty()
+		&& i->second.byRandomId.empty()) {
 		Processes.erase(i);
 	}
 	return result;
@@ -165,7 +189,8 @@ std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 	} else if (i->second.paymentStartedByItem.empty()
 		&& i->second.byItem.empty()
 		&& i->second.paymentStartedBySlug.empty()
-		&& i->second.bySlug.empty()) {
+		&& i->second.bySlug.empty()
+		&& i->second.byRandomId.empty()) {
 		Processes.erase(i);
 	}
 	return result;
@@ -192,6 +217,11 @@ void CheckoutProcess::RegisterPaymentStart(
 			return;
 		}
 	}
+	for (const auto &[randomId, itemProcess] : i->second.byRandomId) {
+		if (itemProcess.get() == process) {
+			return;
+		}
+	}
 }
 
 void CheckoutProcess::UnregisterPaymentStart(
@@ -212,10 +242,16 @@ void CheckoutProcess::UnregisterPaymentStart(
 			break;
 		}
 	}
+	for (const auto &[randomId, itemProcess] : i->second.byRandomId) {
+		if (itemProcess.get() == process) {
+			break;
+		}
+	}
 	if (i->second.paymentStartedByItem.empty()
 		&& i->second.byItem.empty()
 		&& i->second.paymentStartedBySlug.empty()
-		&& i->second.bySlug.empty()) {
+		&& i->second.bySlug.empty()
+		&& i->second.byRandomId.empty()) {
 		Processes.erase(i);
 	}
 }
@@ -497,8 +533,16 @@ void CheckoutProcess::close() {
 	if (k != end(entry.bySlug)) {
 		entry.bySlug.erase(k);
 	}
+	const auto l = ranges::find(
+		entry.byRandomId,
+		this,
+		[](const auto &pair) { return pair.second.get(); });
+	if (l != end(entry.byRandomId)) {
+		entry.byRandomId.erase(l);
+	}
 	if (entry.byItem.empty()
 		&& entry.bySlug.empty()
+		&& i->second.byRandomId.empty()
 		&& entry.paymentStartedByItem.empty()
 		&& entry.paymentStartedBySlug.empty()) {
 		Processes.erase(i);

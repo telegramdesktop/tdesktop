@@ -63,7 +63,9 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPstring(), // lang code
 		MTPEmojiStatus(),
 		MTPVector<MTPUsername>(),
-		MTPint())); // stories_max_id
+		MTPint(), // stories_max_id
+		MTP_int(0), // color
+		MTPlong())); // background_emoji_id
 	return peerId;
 }
 
@@ -71,7 +73,7 @@ AdminLog::OwnedItem GenerateItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		PeerId from,
-		MsgId replyTo,
+		FullMsgId replyTo,
 		const QString &text) {
 	Expects(history->peer->isUser());
 
@@ -81,7 +83,7 @@ AdminLog::OwnedItem GenerateItem(
 			| MessageFlag::HasFromId
 			| MessageFlag::HasReplyInfo),
 		UserId(), // via
-		FullReplyTo{ .msgId = replyTo },
+		FullReplyTo{ .messageId = replyTo },
 		base::unixtime::now(), // date
 		from,
 		QString(), // postAuthor
@@ -131,7 +133,8 @@ void AddMessage(
 	state->delegate = std::make_unique<Delegate>(
 		controller,
 		crl::guard(widget, [=] { widget->update(); }));
-	state->style = std::make_unique<Ui::ChatStyle>();
+	state->style = std::make_unique<Ui::ChatStyle>(
+		controller->session().colorIndicesValue());
 	state->style->apply(controller->defaultChatTheme().get());
 	state->icons.lifetimes = std::vector<rpl::lifetime>(2);
 
@@ -143,13 +146,13 @@ void AddMessage(
 		GenerateUser(
 			history,
 			tr::lng_settings_chat_message_reply_from(tr::now)),
-		0,
+		FullMsgId(),
 		tr::lng_settings_chat_message_reply(tr::now));
 	auto message = GenerateItem(
 		state->delegate.get(),
 		history,
 		history->peer->id,
-		state->reply->data()->fullId().msg,
+		state->reply->data()->fullId(),
 		tr::lng_settings_chat_message(tr::now));
 	const auto view = message.get();
 	state->item = std::move(message);

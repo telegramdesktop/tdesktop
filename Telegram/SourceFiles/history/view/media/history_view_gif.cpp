@@ -286,7 +286,7 @@ QSize Gif::countCurrentSize(int newWidth) {
 				via->resize(availw);
 			}
 			if (reply) {
-				reply->resize(availw);
+				[[maybe_unused]] int height = reply->resizeToWidth(availw);
 			}
 		}
 	}
@@ -652,16 +652,21 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		if (via || reply || forwarded) {
 			auto rectw = width() - usew - st::msgReplyPadding.left();
 			auto innerw = rectw - (st::msgReplyPadding.left() + st::msgReplyPadding.right());
-			auto recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+			auto recth = 0;
 			auto forwardedHeightReal = forwarded ? forwarded->text.countHeight(innerw) : 0;
 			auto forwardedHeight = qMin(forwardedHeightReal, kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
 			if (forwarded) {
-				recth += forwardedHeight;
+				recth += st::msgReplyPadding.top() + forwardedHeight;
 			} else if (via) {
-				recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+				recth += st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 			}
 			if (reply) {
-				recth += st::msgReplyBarSize.height();
+				const auto replyMargins = reply->margins();
+				recth += reply->height()
+					- ((forwarded || via) ? 0 : replyMargins.top())
+					- replyMargins.bottom();
+			} else {
+				recth += st::msgReplyPadding.bottom();
 			}
 			int rectx = rightAligned ? 0 : (usew + st::msgReplyPadding.left());
 			int recty = painty;
@@ -669,25 +674,31 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 			Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCornersSmall);
 			p.setPen(st->msgServiceFg());
-			rectx += st::msgReplyPadding.left();
-			rectw = innerw;
+			const auto textx = rectx + st::msgReplyPadding.left();
+			const auto textw = rectw - st::msgReplyPadding.left() - st::msgReplyPadding.right();
 			if (forwarded) {
 				p.setTextPalette(st->serviceTextPalette());
 				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
-				forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxGifForwardedBarLines, style::al_left, 0, -1, 0, breakEverywhere);
+				forwarded->text.drawElided(p, textx, recty + st::msgReplyPadding.top(), textw, kMaxGifForwardedBarLines, style::al_left, 0, -1, 0, breakEverywhere);
 				p.restoreTextPalette();
 
 				const auto skip = std::min(
-					forwarded->text.countHeight(rectw),
+					forwarded->text.countHeight(textw),
 					kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
 				recty += skip;
 			} else if (via) {
 				p.setFont(st::msgServiceNameFont);
-				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
+				p.drawTextLeft(textx, recty + st::msgReplyPadding.top(), 2 * textx + textw, via->text);
 				int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 				recty += skip;
 			}
 			if (reply) {
+				if (forwarded || via) {
+					recty += st::msgReplyPadding.top();
+					recth -= st::msgReplyPadding.top();
+				} else {
+					recty -= reply->margins().top();
+				}
 				reply->paint(p, _parent, context, rectx, recty, rectw, false);
 			}
 		}
@@ -709,6 +720,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			.position = QPoint(st::msgPadding.left(), top),
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
+			.pre = stm->preCache.get(),
+			.blockquote = context.quoteCache(parent()->colorIndex()),
+			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
@@ -1016,16 +1030,21 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	if (via || reply || forwarded) {
 		auto rectw = paintw - usew - st::msgReplyPadding.left();
 		auto innerw = rectw - (st::msgReplyPadding.left() + st::msgReplyPadding.right());
-		auto recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+		auto recth = 0;
 		auto forwardedHeightReal = forwarded ? forwarded->text.countHeight(innerw) : 0;
 		auto forwardedHeight = qMin(forwardedHeightReal, kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
 		if (forwarded) {
-			recth += forwardedHeight;
+			recth += st::msgReplyPadding.top() + forwardedHeight;
 		} else if (via) {
-			recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+			recth += st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 		}
 		if (reply) {
-			recth += st::msgReplyBarSize.height();
+			const auto replyMargins = reply->margins();
+			recth += reply->height()
+				- ((forwarded || via) ? 0 : replyMargins.top())
+				- replyMargins.bottom();
+		} else {
+			recth += st::msgReplyPadding.bottom();
 		}
 		auto rectx = rightAligned ? 0 : (usew + st::msgReplyPadding.left());
 		auto recty = painty;
@@ -1064,16 +1083,22 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			recth -= skip;
 		}
 		if (reply) {
+			if (forwarded || via) {
+				recty += st::msgReplyPadding.top();
+				recth -= st::msgReplyPadding.top() + reply->margins().top();
+			} else {
+				recty -= reply->margins().top();
+			}
 			const auto replyRect = QRect(rectx, recty, rectw, recth);
 			if (replyRect.contains(point)) {
-				result.link = reply->replyToLink();
+				result.link = reply->link();
 				reply->ripple.lastPoint = point - replyRect.topLeft();
 				if (!reply->ripple.animation) {
 					reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
 						st::defaultRippleAnimation,
 						Ui::RippleAnimation::RoundRectMask(
 							replyRect.size(),
-							st::roundRadiusSmall),
+							st::messageQuoteStyle.radius),
 						[=] { item->history()->owner().requestItemRepaint(item); });
 				}
 				return result;
@@ -1176,6 +1201,15 @@ void Gif::clickHandlerPressedChanged(
 
 TextForMimeData Gif::selectedText(TextSelection selection) const {
 	return _caption.toTextForMimeData(selection);
+}
+
+TextWithEntities Gif::selectedQuote(TextSelection selection) const {
+	return parent()->selectedQuote(_caption, selection);
+}
+
+TextSelection Gif::selectionFromQuote(
+		const TextWithEntities &quote) const {
+	return parent()->selectionFromQuote(_caption, quote);
 }
 
 bool Gif::fullFeaturedGrouped(RectParts sides) const {
@@ -1734,7 +1768,7 @@ int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply
 		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->maxWidth + st::msgReplyPadding.left());
 	}
 	if (reply) {
-		accumulate_max(result, st::msgReplyPadding.left() + reply->replyToWidth());
+		accumulate_max(result, st::msgReplyPadding.left() + reply->maxWidth());
 	}
 	return result;
 }

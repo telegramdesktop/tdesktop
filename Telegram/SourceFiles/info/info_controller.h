@@ -55,6 +55,20 @@ struct Tag {
 
 } // namespace Info::Stories
 
+namespace Info::Statistics {
+
+struct Tag {
+	explicit Tag(not_null<PeerData*> peer, FullMsgId contextId)
+	: peer(peer)
+	, contextId(contextId) {
+	}
+
+	not_null<PeerData*> peer;
+	FullMsgId contextId;
+};
+
+} // namespace Info::Statistics
+
 namespace Info {
 
 class Key {
@@ -64,6 +78,7 @@ public:
 	Key(Settings::Tag settings);
 	Key(Downloads::Tag downloads);
 	Key(Stories::Tag stories);
+	Key(Statistics::Tag statistics);
 	Key(not_null<PollData*> poll, FullMsgId contextId);
 
 	PeerData *peer() const;
@@ -72,6 +87,8 @@ public:
 	bool isDownloads() const;
 	PeerData *storiesPeer() const;
 	Stories::Tab storiesTab() const;
+	PeerData *statisticsPeer() const;
+	FullMsgId statisticsContextId() const;
 	PollData *poll() const;
 	FullMsgId pollContextId() const;
 
@@ -86,6 +103,7 @@ private:
 		Settings::Tag,
 		Downloads::Tag,
 		Stories::Tag,
+		Statistics::Tag,
 		PollKey> _value;
 
 };
@@ -106,6 +124,8 @@ public:
 		Downloads,
 		Stories,
 		PollResults,
+		Statistics,
+		Boosts,
 	};
 	using SettingsType = ::Settings::Type;
 	using MediaType = Storage::SharedMediaType;
@@ -167,6 +187,12 @@ public:
 	}
 	[[nodiscard]] Stories::Tab storiesTab() const {
 		return key().storiesTab();
+	}
+	[[nodiscard]] PeerData *statisticsPeer() const {
+		return key().statisticsPeer();
+	}
+	[[nodiscard]] FullMsgId statisticsContextId() const {
+		return key().statisticsContextId();
 	}
 	[[nodiscard]] PollData *poll() const;
 	[[nodiscard]] FullMsgId pollContextId() const {

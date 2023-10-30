@@ -20,11 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
-#include "styles/style_premium.h"
 #include "styles/style_boxes.h"
-#include "styles/style_settings.h"
 #include "styles/style_layers.h"
-#include "styles/style_widgets.h"
+#include "styles/style_premium.h"
+#include "styles/style_settings.h"
 #include "styles/style_window.h"
 
 #include <QtGui/QBrush>
@@ -393,12 +392,22 @@ public:
 		int maxCounter,
 		bool premiumPossible,
 		rpl::producer<> showFinishes,
-		const style::icon *icon);
+		const style::icon *icon,
+		const style::margins &outerPadding);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	struct GradientParams {
+		int left = 0;
+		int width = 0;
+		int outer = 0;
+
+		friend inline constexpr bool operator==(
+			GradientParams,
+			GradientParams) = default;
+	};
 	void animateTo(BubbleRowState state);
 
 	const style::PremiumBubble &_st;
@@ -409,11 +418,13 @@ private:
 	Bubble _bubble;
 	const int _maxBubbleWidth;
 	const bool _premiumPossible;
+	const style::margins _outerPadding;
 
 	Ui::Animations::Simple _appearanceAnimation;
 	QSize _spaceForDeflection;
 
 	QLinearGradient _cachedGradient;
+	std::optional<GradientParams> _cachedGradientParams;
 
 	float64 _deflection;
 
@@ -431,7 +442,8 @@ BubbleWidget::BubbleWidget(
 	int maxCounter,
 	bool premiumPossible,
 	rpl::producer<> showFinishes,
-	const style::icon *icon)
+	const style::icon *icon,
+	const style::margins &outerPadding)
 : RpWidget(parent)
 , _st(st)
 , _state(std::move(state))
@@ -444,6 +456,7 @@ BubbleWidget::BubbleWidget(
 	premiumPossible)
 , _maxBubbleWidth(_bubble.countMaxWidth(_maxCounter))
 , _premiumPossible(premiumPossible)
+, _outerPadding(outerPadding)
 , _deflection(kDeflection)
 , _stepBeforeDeflection(kStepBeforeDeflection)
 , _stepAfterDeflection(kStepAfterDeflection) {
@@ -474,10 +487,9 @@ BubbleWidget::BubbleWidget(
 void BubbleWidget::animateTo(BubbleRowState state) {
 	const auto parent = parentWidget();
 	const auto computeLeft = [=](float64 pointRatio, float64 animProgress) {
-		const auto &padding = st::boxRowPadding;
 		const auto halfWidth = (_maxBubbleWidth / 2);
-		const auto left = padding.left();
-		const auto right = padding.right();
+		const auto left = _outerPadding.left();
+		const auto right = _outerPadding.right();
 		const auto available = parent->width() - left - right;
 		const auto delta = (pointRatio - _animatingFromResultRatio);
 		const auto center = available
@@ -487,7 +499,7 @@ void BubbleWidget::animateTo(BubbleRowState state) {
 	const auto moveEndPoint = state.ratio;
 	const auto computeEdge = [=] {
 		return parent->width()
-			- st::boxRowPadding.right()
+			- _outerPadding.right()
 			- _maxBubbleWidth;
 	};
 	struct LeftEdge final {
@@ -496,7 +508,7 @@ void BubbleWidget::animateTo(BubbleRowState state) {
 	};
 	const auto leftEdge = [&]() -> LeftEdge {
 		const auto finish = computeLeft(moveEndPoint, 1.);
-		const auto &padding = st::boxRowPadding;
+		const auto &padding = _outerPadding;
 		if (finish <= padding.left()) {
 			const auto halfWidth = (_maxBubbleWidth / 2);
 			const auto goodPointRatio = float64(halfWidth)
@@ -580,13 +592,19 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 		0);
 	const auto bubbleRect = rect() - padding;
 
-	if (_appearanceAnimation.animating()) {
-		auto gradient = ComputeGradient(
+	const auto params = GradientParams{
+		.left = x(),
+		.width = bubbleRect.width(),
+		.outer = parentWidget()->parentWidget()->width(),
+	};
+	if (_cachedGradientParams != params) {
+		_cachedGradient = ComputeGradient(
 			parentWidget(),
-			x(),
-			bubbleRect.width());
-		_cachedGradient = std::move(gradient);
-
+			params.left,
+			params.width);
+		_cachedGradientParams = params;
+	}
+	if (_appearanceAnimation.animating()) {
 		const auto progress = _appearanceAnimation.value(1.);
 		const auto finalScale = (_animatingFromResultRatio > 0.)
 			|| (_state.current().ratio < 0.001);
@@ -721,10 +739,12 @@ Line::Line(
 		_ratio = ratio;
 	}, lifetime());
 
-	sizeValue(
-	) | rpl::filter([](QSize size) {
-		return !size.isEmpty();
-	}) | rpl::start_with_next([=](QSize size) {
+	rpl::combine(
+		sizeValue(),
+		parent->widthValue()
+	) | rpl::filter([](const QSize &size, int parentWidth) {
+		return !size.isEmpty() && parentWidth;
+	}) | rpl::start_with_next([=](const QSize &size, int) {
 		recache(size);
 		update();
 	}, lifetime());
@@ -816,7 +836,10 @@ void Line::recache(const QSize &s) {
 
 	const auto pathRound = [&](int width) {
 		auto result = QPainterPath();
-		result.addRoundedRect(r(width), st::buttonRadius, st::buttonRadius);
+		result.addRoundedRect(
+			r(width),
+			st::premiumLineRadius,
+			st::premiumLineRadius);
 		return result;
 	};
 	const auto width = s.width();
@@ -886,7 +909,8 @@ void AddBubbleRow(
 		max,
 		premiumPossible,
 		ProcessTextFactory(phrase),
-		icon);
+		icon,
+		st::boxRowPadding);
 }
 
 void AddBubbleRow(
@@ -897,7 +921,8 @@ void AddBubbleRow(
 		int max,
 		bool premiumPossible,
 		Fn<QString(int)> text,
-		const style::icon *icon) {
+		const style::icon *icon,
+		const style::margins &outerPadding) {
 	const auto container = parent->add(
 		object_ptr<Ui::FixedHeightWidget>(parent, 0));
 	const auto bubble = Ui::CreateChild<BubbleWidget>(
@@ -908,13 +933,15 @@ void AddBubbleRow(
 		max,
 		premiumPossible,
 		std::move(showFinishes),
-		icon);
+		icon,
+		outerPadding);
 	rpl::combine(
 		container->sizeValue(),
 		bubble->sizeValue()
 	) | rpl::start_with_next([=](const QSize &parentSize, const QSize &size) {
 		container->resize(parentSize.width(), size.height());
 	}, bubble->lifetime());
+	bubble->show();
 }
 
 void AddLimitRow(
@@ -948,10 +975,11 @@ void AddLimitRow(
 		not_null<Ui::VerticalLayout*> parent,
 		const style::PremiumLimits &st,
 		LimitRowLabels labels,
-		rpl::producer<float64> ratio) {
+		rpl::producer<float64> ratio,
+		const style::margins &padding) {
 	parent->add(
 		object_ptr<Line>(parent, st, std::move(labels), std::move(ratio)),
-		st::boxRowPadding);
+		padding);
 }
 
 void AddAccountsRow(

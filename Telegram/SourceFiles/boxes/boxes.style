@@ -85,8 +85,6 @@ confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(18px semibold);
-		linkFont: font(18px semibold);
-		linkFontOver: font(18px semibold underline);
 	}
 }
 confirmInviteAbout: FlatLabel(boxLabel) {
@@ -143,8 +141,6 @@ contactsPadding: margins(16px, 7px, 16px, 7px);
 contactsNameTop: 2px;
 contactsNameStyle: TextStyle(defaultTextStyle) {
 	font: semiboldFont;
-	linkFont: semiboldFont;
-	linkFontOver: semiboldFont;
 }
 contactsStatusTop: 23px;
 contactsStatusFont: font(fsize);
@@ -199,8 +195,6 @@ localStorageRowTitle: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 }
 localStorageRowSize: FlatLabel(defaultFlatLabel) {
@@ -208,8 +202,6 @@ localStorageRowSize: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px);
-		linkFont: font(14px);
-		linkFontOver: font(14px);
 	}
 }
 localStorageClear: defaultBoxButton;
@@ -228,8 +220,6 @@ sharePhotoTop: 6px;
 shareBoxListItem: PeerListItem(defaultPeerListItem) {
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(11px);
-		linkFont: font(11px);
-		linkFontOver: font(11px);
 	}
 	nameFg: windowFg;
 	nameFgChecked: windowActiveTextFg;
@@ -537,8 +527,6 @@ adminLogFilterLittleSkip: 16px;
 adminLogFilterCheckbox: Checkbox(defaultBoxCheckbox) {
 	style: TextStyle(boxTextStyle) {
 		font: font(boxFontSize semibold);
-		linkFont: font(boxFontSize semibold);
-		linkFontOver: font(boxFontSize semibold underline);
 	}
 }
 adminLogFilterSkip: 32px;
@@ -580,16 +568,12 @@ rightsPhotoButton: UserpicButton(defaultUserpicButton) {
 rightsPhotoMargin: margins(20px, 0px, 15px, 18px);
 rightsNameStyle: TextStyle(semiboldTextStyle) {
 	font: font(15px semibold);
-	linkFont: font(15px semibold);
-	linkFontOver: font(15px semibold underline);
 }
 rightsNameTop: 8px;
 rightsStatusTop: 32px;
 rightsHeaderLabel: FlatLabel(boxLabel) {
 	style: TextStyle(semiboldTextStyle) {
 		font: font(boxFontSize semibold);
-		linkFont: font(boxFontSize semibold);
-		linkFontOver: font(boxFontSize semibold underline);
 	}
 	textFg: windowActiveTextFg;
 }
@@ -623,8 +607,6 @@ proxyRowTitlePalette: TextPalette(defaultTextPalette) {
 }
 proxyRowTitleStyle: TextStyle(defaultTextStyle) {
 	font: semiboldFont;
-	linkFont: normalFont;
-	linkFontOver: normalFont;
 }
 proxyRowStatusFg: windowSubTextFg;
 proxyRowStatusFgOnline: windowActiveTextFg;
@@ -807,8 +789,6 @@ pollResultsQuestion: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(16px semibold);
-		linkFont: font(16px semibold);
-		linkFontOver: font(16px semibold underline);
 	}
 }
 pollResultsVotesCount: FlatLabel(defaultFlatLabel) {
@@ -837,8 +817,6 @@ inviteViaLinkButton: SettingsButton(defaultSettingsButton) {
 
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold underline);
 	}
 
 	height: 20px;

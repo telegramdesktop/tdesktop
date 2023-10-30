@@ -287,11 +287,12 @@ QByteArray SerializeMessage(
 	}
 
 	const auto push = [&](const QByteArray &key, const auto &value) {
-		if constexpr (std::is_arithmetic_v<std::decay_t<decltype(value)>>) {
+		using V = std::decay_t<decltype(value)>;
+		if constexpr (std::is_same_v<V, bool>) {
+			pushBare(key, value ? "true" : "false");
+		} else if constexpr (std::is_arithmetic_v<V>) {
 			pushBare(key, Data::NumberToString(value));
-		} else if constexpr (std::is_same_v<
-				std::decay_t<decltype(value)>,
-				PeerId>) {
+		} else if constexpr (std::is_same_v<V, PeerId>) {
 			if (const auto chat = peerToChat(value)) {
 				pushBare(
 					key,
@@ -592,6 +593,17 @@ QByteArray SerializeMessage(
 		pushAction("requested_peer");
 		push("button_id", data.buttonId);
 		push("peer_id", data.peerId.value);
+	}, [&](const ActionGiftCode &data) {
+		pushAction("gift_code_prize");
+		push("gift_code", data.code);
+		if (data.boostPeerId) {
+			push("boost_peer_id", data.boostPeerId);
+		}
+		push("months", data.months);
+		push("unclaimed", data.unclaimed);
+		push("via_giveaway", data.viaGiveaway);
+	}, [&](const ActionGiveawayLaunch &data) {
+		pushAction("giveaway_launch");
 	}, [&](const ActionSetChatWallPaper &data) {
 		pushActor();
 		pushAction("set_chat_wallpaper");
@@ -737,6 +749,22 @@ QByteArray SerializeMessage(
 			{ "closed", data.closed ? "true" : "false" },
 			{ "total_voters", NumberToString(data.totalVotes) },
 			{ "answers", serialized }
+		}));
+	}, [&](const Giveaway &data) {
+		context.nesting.push_back(Context::kObject);
+		const auto channels = ranges::views::all(
+			data.channels
+		) | ranges::views::transform([&](ChannelId id) {
+			return NumberToString(id.bare);
+		}) | ranges::to_vector;
+		const auto serialized = SerializeArray(context, channels);
+		context.nesting.pop_back();
+
+		push("giveaway_information", SerializeObject(context, {
+			{ "quantity", NumberToString(data.quantity) },
+			{ "months", NumberToString(data.months) },
+			{ "until_date", SerializeDate(data.untilDate) },
+			{ "channels", serialized },
 		}));
 	}, [](const UnsupportedMedia &data) {
 		Unexpected("Unsupported message.");

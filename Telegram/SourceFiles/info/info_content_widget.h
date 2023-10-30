@@ -41,6 +41,10 @@ struct Tag;
 enum class Tab;
 } // namespace Info::Stories
 
+namespace Info::Statistics {
+struct Tag;
+} // namespace Info::Statistics
+
 namespace Info {
 
 class ContentMemento;
@@ -163,6 +167,7 @@ public:
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
 	explicit ContentMemento(Stories::Tag stories);
+	explicit ContentMemento(Statistics::Tag statistics);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
 	, _pollContextId(contextId) {
@@ -190,6 +195,12 @@ public:
 	}
 	Stories::Tab storiesTab() const {
 		return _storiesTab;
+	}
+	PeerData *statisticsPeer() const {
+		return _statisticsPeer;
+	}
+	FullMsgId statisticsContextId() const {
+		return _statisticsContextId;
 	}
 	PollData *poll() const {
 		return _poll;
@@ -235,6 +246,8 @@ private:
 	UserData * const _settingsSelf = nullptr;
 	PeerData * const _storiesPeer = nullptr;
 	Stories::Tab _storiesTab = {};
+	PeerData * const _statisticsPeer = nullptr;
+	const FullMsgId _statisticsContextId;
 	PollData * const _poll = nullptr;
 	const FullMsgId _pollContextId;
 

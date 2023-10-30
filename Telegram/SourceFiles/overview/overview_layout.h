@@ -195,6 +195,7 @@ public:
 		not_null<HistoryItem*> parent,
 		not_null<PhotoData*> photo,
 		MediaOptions options);
+	~Photo();
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;

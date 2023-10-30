@@ -55,11 +55,7 @@ public:
 	void unload();
 
 private:
-	struct EmojiStatus {
-		DocumentId id = 0;
-		std::unique_ptr<Ui::Text::CustomEmoji> emoji;
-		int skip = 0;
-	};
+	struct EmojiStatus;
 	std::unique_ptr<EmojiStatus> _emojiStatus;
 
 };

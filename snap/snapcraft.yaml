@@ -102,7 +102,8 @@ parts:
       - python3
       - libasound2-dev
       - libavif-dev
-      - libboost-program-options-dev
+      - libboost-program-options1.74-dev
+      - libboost-regex1.74-dev
       - libfmt-dev
       - libgirepository1.0-dev
       - libheif-dev
@@ -118,6 +119,7 @@ parts:
     stage-packages:
       - libasound2
       - libavif13
+      - libboost-regex1.74.0
       - libheif1
       - libopus0
       - libpulse0
@@ -199,6 +201,7 @@ parts:
     stage-packages:
       - libc-bin
       - libgdk-pixbuf-2.0-0
+      - libnvidia-egl-wayland1
       - libxkbcommon0
       - locales-all
       - shared-mime-info
@@ -463,14 +466,21 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6.5.2
+      QT=6.6.0
 
       git clone -b v${QT} --depth=1 https://code.qt.io/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 
       cd qtbase
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      cd ../qtsvg
+      git fetch origin v6.5.3
+      git checkout FETCH_HEAD
       cd ../qtwayland
+      git fetch origin v6.5.3
+      git checkout FETCH_HEAD
+      git fetch origin da4bb4885d91fad53a573bbeacf1b0705eb5b1a5
+      git cherry-pick -n FETCH_HEAD
       sed -i 's/qMin(version, 8)/qMin(version, 7)/' src/client/qwaylandinputdevice.cpp
       cd ..
     override-build: |

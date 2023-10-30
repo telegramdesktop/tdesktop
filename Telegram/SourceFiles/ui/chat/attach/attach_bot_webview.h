@@ -37,10 +37,9 @@ struct MainButtonArgs {
 
 enum class MenuButton {
 	None               = 0x00,
-	Settings           = 0x01,
-	OpenBot            = 0x02,
-	RemoveFromMenu     = 0x04,
-	RemoveFromMainMenu = 0x08,
+	OpenBot            = 0x01,
+	RemoveFromMenu     = 0x02,
+	RemoveFromMainMenu = 0x04,
 };
 inline constexpr bool is_flag_type(MenuButton) { return true; }
 using MenuButtons = base::flags<MenuButton>;
@@ -55,7 +54,7 @@ struct CustomMethodRequest {
 class Delegate {
 public:
 	virtual Webview::ThemeParams botThemeParams() = 0;
-	virtual bool botHandleLocalUri(QString uri) = 0;
+	virtual bool botHandleLocalUri(QString uri, bool keepOpen) = 0;
 	virtual void botHandleInvoice(QString slug) = 0;
 	virtual void botHandleMenuButton(MenuButton button) = 0;
 	virtual void botSendData(QByteArray data) = 0;
@@ -114,6 +113,7 @@ private:
 	void switchInlineQueryMessage(const QJsonObject &args);
 	void processMainButtonMessage(const QJsonObject &args);
 	void processBackButtonMessage(const QJsonObject &args);
+	void processSettingsButtonMessage(const QJsonObject &args);
 	void processHeaderColor(const QJsonObject &args);
 	void openTgLink(const QJsonObject &args);
 	void openExternalLink(const QJsonObject &args);
@@ -145,6 +145,7 @@ private:
 	QString _userDataPath;
 	const not_null<Delegate*> _delegate;
 	bool _closeNeedConfirmation = false;
+	bool _hasSettingsButton = false;
 	MenuButtons _menuButtons = {};
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<WebviewWithLifetime> _webview;

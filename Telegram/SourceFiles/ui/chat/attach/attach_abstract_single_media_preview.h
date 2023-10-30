@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_abstract_single_preview.h"
 #include "ui/chat/attach/attach_controls.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/abstract_button.h"
 
 namespace style {

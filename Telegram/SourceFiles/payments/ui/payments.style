@@ -136,6 +136,7 @@ paymentsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	thickness: 4px;
 }
 
+botWebViewPanelSize: size(384px, 694px);
 botWebViewBottomButton: RoundButton(paymentsPanelSubmit) {
 	height: 56px;
 	font: boxButtonFont;

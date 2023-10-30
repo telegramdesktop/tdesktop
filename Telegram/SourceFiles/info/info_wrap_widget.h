@@ -176,6 +176,8 @@ private:
 	void setupShortcuts();
 
 	[[nodiscard]] bool hasBackButton() const;
+	[[nodiscard]] bool willHaveBackButton(
+		const Window::SectionShow &params) const;
 
 	not_null<RpWidget*> topWidget() const;
 

@@ -12,39 +12,57 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "history/history.h"
 #include "history/history_widget.h"
+#include "history/history_item_components.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_web_page.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
 
 namespace Data {
 
+WebPageDraft WebPageDraft::FromItem(not_null<HistoryItem*> item) {
+	const auto previewMedia = item->media();
+	const auto previewPage = previewMedia
+		? previewMedia->webpage()
+		: nullptr;
+	using PageFlag = MediaWebPageFlag;
+	const auto previewFlags = previewMedia
+		? previewMedia->webpageFlags()
+		: PageFlag();
+	return {
+		.id = previewPage ? previewPage->id : 0,
+		.url = previewPage ? previewPage->url : QString(),
+		.forceLargeMedia = !!(previewFlags & PageFlag::ForceLargeMedia),
+		.forceSmallMedia = !!(previewFlags & PageFlag::ForceSmallMedia),
+		.invert = item->invertMedia(),
+		.manual = !!(previewFlags & PageFlag::Manual),
+		.removed = !previewPage,
+	};
+}
+
 Draft::Draft(
 	const TextWithTags &textWithTags,
-	MsgId msgId,
-	MsgId topicRootId,
+	FullReplyTo reply,
 	const MessageCursor &cursor,
-	PreviewState previewState,
+	WebPageDraft webpage,
 	mtpRequestId saveRequestId)
 : textWithTags(textWithTags)
-, msgId(msgId)
-, topicRootId(topicRootId)
+, reply(std::move(reply))
 , cursor(cursor)
-, previewState(previewState)
+, webpage(webpage)
 , saveRequestId(saveRequestId) {
 }
 
 Draft::Draft(
 	not_null<const Ui::InputField*> field,
-	MsgId msgId,
-	MsgId topicRootId,
-	PreviewState previewState,
+	FullReplyTo reply,
+	WebPageDraft webpage,
 	mtpRequestId saveRequestId)
 : textWithTags(field->getTextWithTags())
-, msgId(msgId)
-, topicRootId(topicRootId)
+, reply(std::move(reply))
 , cursor(field)
-, previewState(previewState) {
+, webpage(webpage) {
 }
 
 void ApplyPeerCloudDraft(
@@ -64,15 +82,32 @@ void ApplyPeerCloudDraft(
 				session,
 				draft.ventities().value_or_empty()))
 	};
-	const auto replyTo = draft.vreply_to_msg_id().value_or_empty();
+	auto replyTo = draft.vreply_to()
+		? ReplyToFromMTP(history, *draft.vreply_to())
+		: FullReplyTo();
+	replyTo.topicRootId = topicRootId;
+	auto webpage = WebPageDraft{
+		.invert = draft.is_invert_media(),
+		.removed = draft.is_no_webpage(),
+	};
+	if (const auto media = draft.vmedia()) {
+		media->match([&](const MTPDmessageMediaWebPage &data) {
+			const auto parsed = session->data().processWebpage(
+				data.vwebpage());
+			if (!parsed->failed) {
+				webpage.forceLargeMedia = data.is_force_large_media();
+				webpage.forceSmallMedia = data.is_force_small_media();
+				webpage.manual = data.is_manual();
+				webpage.url = parsed->url;
+				webpage.id = parsed->id;
+			}
+		}, [](const auto &) {});
+	}
 	auto cloudDraft = std::make_unique<Draft>(
 		textWithTags,
 		replyTo,
-		topicRootId,
-		MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
-		(draft.is_no_webpage()
-			? Data::PreviewState::Cancelled
-			: Data::PreviewState::Allowed));
+		MessageCursor(Ui::kQFixedMax, Ui::kQFixedMax, Ui::kQFixedMax),
+		std::move(webpage));
 	cloudDraft->date = date;
 
 	history->setCloudDraft(std::move(cloudDraft));

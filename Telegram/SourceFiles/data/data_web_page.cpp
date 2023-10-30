@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "lang/lang_keys.h"
 #include "ui/image/image.h"
 #include "ui/text/text_entity.h"
 
@@ -224,9 +225,10 @@ bool WebPageData::applyChanges(
 		WebPageCollage &&newCollage,
 		int newDuration,
 		const QString &newAuthor,
+		bool newHasLargeMedia,
 		int newPendingTill) {
 	if (newPendingTill != 0
-		&& (!url.isEmpty() || pendingTill < 0)
+		&& (!url.isEmpty() || failed)
 		&& (!pendingTill
 			|| pendingTill == newPendingTill
 			|| newPendingTill < -1)) {
@@ -252,6 +254,15 @@ bool WebPageData::applyChanges(
 		}
 		return QString();
 	}();
+	const auto hasSiteName = !resultSiteName.isEmpty() ? 1 : 0;
+	const auto hasTitle = !resultTitle.isEmpty() ? 1 : 0;
+	const auto hasDescription = !newDescription.text.isEmpty() ? 1 : 0;
+	if (newDocument
+		|| !newCollage.items.empty()
+		|| !newPhoto
+		|| (hasSiteName + hasTitle + hasDescription < 2)) {
+		newHasLargeMedia = false;
+	}
 
 	if (type == newType
 		&& url == resultUrl
@@ -265,6 +276,7 @@ bool WebPageData::applyChanges(
 		&& collage.items == newCollage.items
 		&& duration == newDuration
 		&& author == resultAuthor
+		&& hasLargeMedia == (newHasLargeMedia ? 1 : 0)
 		&& pendingTill == newPendingTill) {
 		return false;
 	}
@@ -272,6 +284,7 @@ bool WebPageData::applyChanges(
 		_owner->session().api().clearWebPageRequest(this);
 	}
 	type = newType;
+	hasLargeMedia = newHasLargeMedia ? 1 : 0;
 	url = resultUrl;
 	displayUrl = resultDisplayUrl;
 	siteName = resultSiteName;
@@ -342,4 +355,39 @@ void WebPageData::ApplyChanges(
 		});
 	}
 	session->data().sendWebPageGamePollNotifications();
+}
+
+QString WebPageData::displayedSiteName() const {
+	return (document && document->isWallPaper())
+		? tr::lng_media_chat_background(tr::now)
+		: (document && document->isTheme())
+		? tr::lng_media_color_theme(tr::now)
+		: siteName;
+}
+
+bool WebPageData::computeDefaultSmallMedia() const {
+	if (!collage.items.empty()) {
+		return false;
+	} else if (siteName.isEmpty()
+		&& title.isEmpty()
+		&& description.empty()
+		&& author.isEmpty()) {
+		return false;
+	} else if (!document
+		&& photo
+		&& type != WebPageType::Photo
+		&& type != WebPageType::Document
+		&& type != WebPageType::Story
+		&& type != WebPageType::Video) {
+		if (type == WebPageType::Profile) {
+			return true;
+		} else if (siteName == u"Twitter"_q
+			|| siteName == u"Facebook"_q
+			|| type == WebPageType::ArticleWithIV) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+	return false;
 }

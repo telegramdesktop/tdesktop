@@ -240,6 +240,9 @@ public:
 	[[nodiscard]] bool isPinned() const {
 		return _flags & MessageFlag::Pinned;
 	}
+	[[nodiscard]] bool invertMedia() const {
+		return _flags & MessageFlag::InvertMedia;
+	}
 	[[nodiscard]] bool unread(not_null<Data::Thread*> thread) const;
 	[[nodiscard]] bool showNotification() const;
 	void markClientSideAsRead();
@@ -322,6 +325,8 @@ public:
 	[[nodiscard]] bool repliesAreComments() const;
 	[[nodiscard]] bool externalReply() const;
 	[[nodiscard]] bool hasExtendedMediaPreview() const;
+	[[nodiscard]] bool inHighlightProcess() const;
+	void highlightProcessDone();
 
 	void setCommentsInboxReadTill(MsgId readTillId);
 	void setCommentsMaxId(MsgId maxId);
@@ -463,6 +468,7 @@ public:
 	void setText(const TextWithEntities &textWithEntities);
 
 	[[nodiscard]] MsgId replyToId() const;
+	[[nodiscard]] FullMsgId replyToFullId() const;
 	[[nodiscard]] MsgId replyToTop() const;
 	[[nodiscard]] MsgId topicRootId() const;
 	[[nodiscard]] FullStoryId replyToStory() const;
@@ -471,12 +477,12 @@ public:
 
 	[[nodiscard]] not_null<PeerData*> author() const;
 
-	[[nodiscard]] TimeId dateOriginal() const;
-	[[nodiscard]] PeerData *senderOriginal() const;
+	[[nodiscard]] TimeId originalDate() const;
+	[[nodiscard]] PeerData *originalSender() const;
 	[[nodiscard]] const HiddenSenderInfo *hiddenSenderInfo() const;
 	[[nodiscard]] not_null<PeerData*> fromOriginal() const;
-	[[nodiscard]] QString authorOriginal() const;
-	[[nodiscard]] MsgId idOriginal() const;
+	[[nodiscard]] QString originalPostAuthor() const;
+	[[nodiscard]] MsgId originalId() const;
 
 	[[nodiscard]] bool isEmpty() const;
 
@@ -495,6 +501,7 @@ public:
 	[[nodiscard]] bool isDiscussionPost() const;
 	[[nodiscard]] HistoryItem *lookupDiscussionPostOriginal() const;
 	[[nodiscard]] PeerData *displayFrom() const;
+	[[nodiscard]] uint8 colorIndex() const;
 
 	[[nodiscard]] std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
@@ -537,7 +544,7 @@ private:
 	[[nodiscard]] bool generateLocalEntitiesByReply() const;
 	[[nodiscard]] TextWithEntities withLocalEntities(
 		const TextWithEntities &textWithEntities) const;
-	void setTextValue(TextWithEntities text);
+	void setTextValue(TextWithEntities text, bool force = false);
 	[[nodiscard]] bool isTooOldForEdit(TimeId now) const;
 	[[nodiscard]] bool isLegacyMessage() const {
 		return _flags & MessageFlag::Legacy;
@@ -577,8 +584,8 @@ private:
 		bool used);
 	void setSelfDestruct(HistorySelfDestructType type, MTPint mtpTTLvalue);
 
-	TextWithEntities fromLinkText() const;
-	ClickHandlerPtr fromLink() const;
+	[[nodiscard]] TextWithEntities fromLinkText() const;
+	[[nodiscard]] ClickHandlerPtr fromLink() const;
 
 	void setGroupId(MessageGroupId groupId);
 
@@ -617,9 +624,12 @@ private:
 	[[nodiscard]] PreparedServiceText prepareCallScheduledText(
 		TimeId scheduleDate);
 
+	[[nodiscard]] PeerData *computeDisplayFrom() const;
+
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;
-	MessageFlags _flags = 0;
+	mutable PeerData *_displayFrom = nullptr;
+	mutable MessageFlags _flags = 0;
 
 	TextWithEntities _text;
 

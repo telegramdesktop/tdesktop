@@ -255,6 +255,18 @@ void OverlayWidget::RendererGL::deinit(
 	_fillProgram = std::nullopt;
 	_controlsProgram = std::nullopt;
 	_contentBuffer = std::nullopt;
+	_controlsFadeImage.destroy(f);
+	_radialImage.destroy(f);
+	_documentBubbleImage.destroy(f);
+	_themePreviewImage.destroy(f);
+	_saveMsgImage.destroy(f);
+	_footerImage.destroy(f);
+	_captionImage.destroy(f);
+	_groupThumbsImage.destroy(f);
+	_controlsImage.destroy(f);
+	for (auto &part : _storiesSiblingParts) {
+		part.destroy(f);
+	}
 }
 
 void OverlayWidget::RendererGL::paint(

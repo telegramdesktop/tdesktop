@@ -42,6 +42,8 @@ constexpr auto kObjectPath = "/org/freedesktop/Notifications";
 constexpr auto kInterface = kService;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties";
 
+using PropertyMap = std::map<Glib::ustring, Glib::VariantBase>;
+
 struct ServerInformation {
 	Glib::ustring name;
 	Glib::ustring vendor;
@@ -52,6 +54,10 @@ struct ServerInformation {
 bool ServiceRegistered = false;
 ServerInformation CurrentServerInformation;
 std::vector<Glib::ustring> CurrentCapabilities;
+
+[[nodiscard]] bool HasCapability(const char *value) {
+	return ranges::contains(CurrentCapabilities, value, &Glib::ustring::raw);
+}
 
 void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 	try {
@@ -123,12 +129,13 @@ void StartServiceAsync(Fn<void()> callback) {
 							};
 
 							const auto errorName =
-								Gio::DBus::ErrorUtils::get_remote_error(e).raw();
+								Gio::DBus::ErrorUtils::get_remote_error(e)
+									.raw();
 
 							if (!ranges::contains(
 									NotSupportedErrors,
 									errorName)) {
-								throw e;
+								throw;
 							}
 						}
 					});
@@ -192,21 +199,21 @@ void GetServerInformation(Fn<void(const ServerInformation &)> callback) {
 					Noexcept([&] {
 						const auto reply = connection->call_finish(result);
 
-						const auto name = reply.get_child(
-							0
-						).get_dynamic<Glib::ustring>();
+						const auto name = reply
+							.get_child(0)
+							.get_dynamic<Glib::ustring>();
 
-						const auto vendor = reply.get_child(
-							1
-						).get_dynamic<Glib::ustring>();
+						const auto vendor = reply
+							.get_child(1)
+							.get_dynamic<Glib::ustring>();
 
-						const auto version = reply.get_child(
-							2
-						).get_dynamic<Glib::ustring>();
+						const auto version = reply
+							.get_child(2)
+							.get_dynamic<Glib::ustring>();
 
-						const auto specVersion = reply.get_child(
-							3
-						).get_dynamic<Glib::ustring>();
+						const auto specVersion = reply
+							.get_child(3)
+							.get_dynamic<Glib::ustring>();
 
 						callback(ServerInformation{
 							name,
@@ -241,11 +248,9 @@ void GetCapabilities(Fn<void(const std::vector<Glib::ustring> &)> callback) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
 						callback(
-							connection->call_finish(
-								result
-							).get_child(
-								0
-							).get_dynamic<std::vector<Glib::ustring>>()
+							connection->call_finish(result)
+								.get_child(0)
+								.get_dynamic<std::vector<Glib::ustring>>()
 						);
 					}, [&] {
 						callback({});
@@ -274,14 +279,12 @@ void GetInhibited(Fn<void(bool)> callback) {
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						const auto value = connection->call_finish(
-							result
-						).get_child(
-							0
-						).get_dynamic<Glib::Variant<bool>>(
-						).get();
-
-						callback(value);
+						callback(
+							connection->call_finish(result)
+								.get_child(0)
+								.get_dynamic<Glib::Variant<bool>>()
+								.get()
+						);
 					}, [&] {
 						callback(false);
 					});
@@ -412,7 +415,7 @@ bool NotificationData::init(
 		static const auto set_category = [] {
 			// reset dlerror after dlsym call
 			const auto guard = gsl::finally([] { dlerror(); });
-			return reinterpret_cast<decltype(&g_notification_set_category)>(
+			return reinterpret_cast<void(*)(GNotification*, const gchar*)>(
 				dlsym(RTLD_DEFAULT, "g_notification_set_category"));
 		}();
 
@@ -446,7 +449,6 @@ bool NotificationData::init(
 	}
 
 	const auto weak = base::make_weak(this);
-	const auto &capabilities = CurrentCapabilities;
 
 	const auto signalEmitted = crl::guard(weak, [=](
 			const Glib::RefPtr<Gio::DBus::Connection> &connection,
@@ -458,35 +460,43 @@ bool NotificationData::init(
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			Noexcept([&] {
 				if (signal_name == "ActionInvoked") {
-					const auto id = parameters.get_child(0).get_dynamic<uint>();
+					const auto id = parameters
+						.get_child(0)
+						.get_dynamic<uint>();
 
-					const auto actionName = parameters.get_child(
-						1
-					).get_dynamic<Glib::ustring>();
+					const auto actionName = parameters
+						.get_child(1)
+						.get_dynamic<Glib::ustring>();
 
 					actionInvoked(id, actionName);
 				} else if (signal_name == "ActivationToken") {
-					const auto id = parameters.get_child(0).get_dynamic<uint>();
+					const auto id = parameters
+						.get_child(0)
+						.get_dynamic<uint>();
 
-					const auto token = parameters.get_child(
-						1
-					).get_dynamic<Glib::ustring>();
+					const auto token = parameters
+						.get_child(1)
+						.get_dynamic<Glib::ustring>();
 
 					activationToken(id, token);
 				} else if (signal_name == "NotificationReplied") {
-					const auto id = parameters.get_child(0).get_dynamic<uint>();
+					const auto id = parameters
+						.get_child(0)
+						.get_dynamic<uint>();
 
-					const auto text = parameters.get_child(
-						1
-					).get_dynamic<Glib::ustring>();
+					const auto text = parameters
+						.get_child(1)
+						.get_dynamic<Glib::ustring>();
 
 					notificationReplied(id, text);
 				} else if (signal_name == "NotificationClosed") {
-					const auto id = parameters.get_child(0).get_dynamic<uint>();
+					const auto id = parameters
+						.get_child(0)
+						.get_dynamic<uint>();
 
-					const auto reason = parameters.get_child(
-						1
-					).get_dynamic<uint>();
+					const auto reason = parameters
+						.get_child(1)
+						.get_dynamic<uint>();
 
 					notificationClosed(id, reason);
 				}
@@ -496,7 +506,7 @@ bool NotificationData::init(
 
 	_imageKey = GetImageKey(CurrentServerInformation.specVersion);
 
-	if (ranges::contains(capabilities, "body-markup")) {
+	if (HasCapability("body-markup")) {
 		_title = title.toStdString();
 
 		_body = subtitle.isEmpty()
@@ -512,7 +522,7 @@ bool NotificationData::init(
 		_body = msg.toStdString();
 	}
 
-	if (ranges::contains(capabilities, "actions")) {
+	if (HasCapability("actions")) {
 		_actions.push_back("default");
 		_actions.push_back(tr::lng_open_link(tr::now).toStdString());
 
@@ -523,7 +533,7 @@ bool NotificationData::init(
 				tr::lng_context_mark_read(tr::now).toStdString());
 		}
 
-		if (ranges::contains(capabilities, "inline-reply")
+		if (HasCapability("inline-reply")
 			&& !options.hideReplyButton) {
 			_actions.push_back("inline-reply");
 			_actions.push_back(
@@ -553,13 +563,13 @@ bool NotificationData::init(
 			kObjectPath);
 	}
 
-	if (ranges::contains(capabilities, "action-icons")) {
+	if (HasCapability("action-icons")) {
 		_hints["action-icons"] = Glib::create_variant(true);
 	}
 
 	// suppress system sound if telegram sound activated,
 	// otherwise use system sound
-	if (ranges::contains(capabilities, "sound")) {
+	if (HasCapability("sound")) {
 		if (Core::App().settings().soundNotify()) {
 			_hints["suppress-sound"] = Glib::create_variant(true);
 		} else {
@@ -569,7 +579,7 @@ bool NotificationData::init(
 		}
 	}
 
-	if (ranges::contains(capabilities, "x-canonical-append")) {
+	if (HasCapability("x-canonical-append")) {
 		_hints["x-canonical-append"] = Glib::create_variant(
 			Glib::ustring("true"));
 	}
@@ -637,14 +647,13 @@ void NotificationData::show() {
 				_hints,
 				-1,
 			}),
-			crl::guard(weak, [=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+			crl::guard(weak, [=](
+					const Glib::RefPtr<Gio::AsyncResult> &result) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						_notificationId = connection->call_finish(
-							result
-						).get_child(
-							0
-						).get_dynamic<uint>();
+						_notificationId = connection->call_finish(result)
+							.get_child(0)
+							.get_dynamic<uint>();
 					}, [&] {
 						_manager->clearNotification(_id);
 					});
@@ -805,7 +814,7 @@ bool ByDefault() {
 
 	// A list of capabilities that offer feature parity
 	// with custom notifications
-	return ranges::all_of(std::initializer_list{
+	return ranges::all_of(std::array{
 		// To show message content
 		"body",
 		// To have buttons on notifications
@@ -816,7 +825,7 @@ bool ByDefault() {
 		// (no, using sound capability is not a way)
 		"inhibitions",
 	}, [](const auto *capability) {
-		return ranges::contains(CurrentCapabilities, capability);
+		return HasCapability(capability);
 	});
 }
 
@@ -909,7 +918,6 @@ private:
 Manager::Private::Private(not_null<Manager*> manager)
 : _manager(manager) {
 	const auto &serverInformation = CurrentServerInformation;
-	const auto &capabilities = CurrentCapabilities;
 
 	if (!serverInformation.name.empty()) {
 		LOG(("Notification daemon product name: %1")
@@ -931,17 +939,17 @@ Manager::Private::Private(not_null<Manager*> manager)
 			.arg(serverInformation.specVersion.toString()));
 	}
 
-	if (!capabilities.empty()) {
+	if (!CurrentCapabilities.empty()) {
 		LOG(("Notification daemon capabilities: %1").arg(
 			ranges::fold_left(
-				capabilities,
+				CurrentCapabilities,
 				"",
 				[](const Glib::ustring &a, const Glib::ustring &b) {
 					return a + (a.empty() ? "" : ", ") + b;
 				}).c_str()));
 	}
 
-	if (ranges::contains(capabilities, "inhibitions")) {
+	if (HasCapability("inhibitions")) {
 		Noexcept([&] {
 			_dbusConnection = Gio::DBus::Connection::get_sync(
 				Gio::DBus::BusType::SESSION);
@@ -966,20 +974,19 @@ Manager::Private::Private(not_null<Manager*> manager)
 					const Glib::VariantContainerBase &parameters) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 					Noexcept([&] {
-						const auto interface = parameters.get_child(
-							0
-						).get_dynamic<Glib::ustring>();
+						const auto interface = parameters
+							.get_child(0)
+							.get_dynamic<Glib::ustring>();
 
 						if (interface != kInterface) {
 							return;
 						}
 
-						_inhibited = parameters.get_child(
-							1
-						).get_dynamic<std::map<Glib::ustring, Glib::VariantBase>>(
-						).at(
-							"Inhibited"
-						).get_dynamic<bool>();
+						_inhibited = parameters
+							.get_child(1)
+							.get_dynamic<PropertyMap>()
+							.at("Inhibited")
+							.get_dynamic<bool>();
 					});
 				});
 			}),

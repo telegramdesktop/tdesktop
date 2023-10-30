@@ -10,5 +10,6 @@
     <file alias="cloud_password/email.tgs">../../animations/cloud_password/email.tgs</file>
     <file alias="ttl.tgs">../../animations/ttl.tgs</file>
     <file alias="discussion.tgs">../../animations/discussion.tgs</file>
+    <file alias="stats.tgs">../../animations/stats.tgs</file>
   </qresource>
 </RCC>

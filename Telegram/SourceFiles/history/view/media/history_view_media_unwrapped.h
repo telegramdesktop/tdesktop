@@ -145,8 +145,9 @@ private:
 
 	int calculateFullRight(const QRect &inner) const;
 	QPoint calculateFastActionPosition(
-		int fullBottom,
 		int replyRight,
+		int replyHeight,
+		int fullBottom,
 		int fullRight,
 		QSize size) const;
 

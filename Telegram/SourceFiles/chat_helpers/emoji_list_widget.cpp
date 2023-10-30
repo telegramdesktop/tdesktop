@@ -467,6 +467,7 @@ EmojiListWidget::EmojiListWidget(
 , _localSetsManager(
 	std::make_unique<LocalStickersManager>(&session()))
 , _customRecentFactory(std::move(descriptor.customRecentFactory))
+, _customTextColor(std::move(descriptor.customTextColor))
 , _overBg(st::emojiPanRadius, st().overBg)
 , _collapsedBg(st::emojiPanExpand.height / 2, st().headerFg)
 , _picker(this, st())
@@ -476,7 +477,7 @@ EmojiListWidget::EmojiListWidget(
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 
-	if (_mode != Mode::RecentReactions) {
+	if (_mode != Mode::RecentReactions && _mode != Mode::BackgroundEmoji) {
 		setupSearch();
 	}
 
@@ -791,10 +792,12 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	};
 	auto result = object_ptr<StickersListFooter>(FooterDescriptor{
 		.session = &session(),
+		.customTextColor = _customTextColor,
 		.paused = footerPaused,
 		.parent = this,
 		.st = &st(),
 		.features = { .stickersSettings = false },
+		.forceFirstFrame = (_mode == Mode::BackgroundEmoji),
 	});
 	_footer = result;
 
@@ -1027,6 +1030,14 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 		if (!id && _mode == Mode::EmojiStatus) {
 			const auto star = QString::fromUtf8("\xe2\xad\x90\xef\xb8\x8f");
 			_recent.push_back({ .id = { Ui::Emoji::Find(star) } });
+		} else if (!id && _mode == Mode::BackgroundEmoji) {
+			const auto fakeId = DocumentId(5246772116543512028ULL);
+			const auto no = QString::fromUtf8("\xe2\x9b\x94\xef\xb8\x8f");
+			_recent.push_back({
+				.custom = resolveCustomRecent(fakeId),
+				.id = { Ui::Emoji::Find(no) },
+			});
+			_recentCustomIds.emplace(fakeId);
 		} else {
 			_recent.push_back({
 				.custom = resolveCustomRecent(id),
@@ -1188,7 +1199,9 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 void EmojiListWidget::validateEmojiPaintContext(
 		const ExpandingContext &context) {
 	auto value = Ui::Text::CustomEmojiPaintContext{
-		.textColor = (_mode == Mode::EmojiStatus
+		.textColor = (_customTextColor
+			? _customTextColor()
+			: (_mode == Mode::EmojiStatus)
 			? anim::color(
 				st::stickerPanPremium1,
 				st::stickerPanPremium2,
@@ -1199,6 +1212,7 @@ void EmojiListWidget::validateEmojiPaintContext(
 		.scale = context.progress,
 		.paused = On(powerSavingFlag()) || paused(),
 		.scaled = context.expanding,
+		.internal = { .forceFirstFrame = (_mode == Mode::BackgroundEmoji) },
 	};
 	if (!_emojiPaintContext) {
 		_emojiPaintContext = std::make_unique<
@@ -1629,6 +1643,9 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			case Mode::TopicIcon:
 				Settings::ShowPremium(resolved, u"forum_topic_icon"_q);
 				break;
+			case Mode::BackgroundEmoji:
+				Settings::ShowPremium(resolved, u"name_color"_q);
+				break;
 			}
 		}
 	}
@@ -1995,7 +2012,10 @@ void EmojiListWidget::refreshCustom() {
 	const auto &sets = owner->stickers().sets();
 	const auto push = [&](uint64 setId, bool installed) {
 		auto it = sets.find(setId);
-		if (it == sets.cend() || it->second->stickers.isEmpty()) {
+		if (it == sets.cend()
+			|| it->second->stickers.isEmpty()
+			|| (_mode == Mode::BackgroundEmoji
+				&& !it->second->textColor())) {
 			return;
 		}
 		const auto canRemove = !!(it->second->flags

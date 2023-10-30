@@ -87,23 +87,28 @@ public:
 
 private:
 	void playAnimation(bool autoplay) override;
-	QSize countOptimalSize() override;
-	QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] QSize countOptimalSize() override;
+	[[nodiscard]] QSize countCurrentSize(int newWidth) override;
 
-	TextSelection toDescriptionSelection(TextSelection selection) const;
-	TextSelection fromDescriptionSelection(TextSelection selection) const;
-	QMargins inBubblePadding() const;
-	int bottomInfoPadding() const;
+	[[nodiscard]] TextSelection toDescriptionSelection(
+		TextSelection selection) const;
+	[[nodiscard]] TextSelection fromDescriptionSelection(
+		TextSelection selection) const;
+	[[nodiscard]] QMargins inBubblePadding() const;
+	[[nodiscard]] QMargins innerMargin() const;
+	[[nodiscard]] int bottomInfoPadding() const;
 
-	not_null<GameData*> _data;
+	const style::QuoteStyle &_st;
+	const not_null<GameData*> _data;
 	std::shared_ptr<ReplyMarkupClickHandler> _openl;
 	std::unique_ptr<Media> _attach;
 
-	int _titleLines, _descriptionLines;
-
-	Ui::Text::String _title, _description;
-
 	int _gameTagWidth = 0;
+	int _descriptionLines = 0;
+	int _titleLines = 0;
+
+	Ui::Text::String _title;
+	Ui::Text::String _description;
 
 };
 

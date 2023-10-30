@@ -65,12 +65,8 @@ dialogsRipple: RippleAnimation(defaultRippleAnimation) {
 	color: dialogsRippleBg;
 }
 
-dialogsTextFont: font(fsize);
-dialogsTextStyle: TextStyle(defaultTextStyle) {
-	font: dialogsTextFont;
-	linkFont: dialogsTextFont;
-	linkFontOver: dialogsTextFont;
-}
+dialogsTextFont: normalFont;
+dialogsTextStyle: defaultTextStyle;
 dialogsDateFont: font(13px);
 dialogsDateSkip: 5px;
 
@@ -447,11 +443,7 @@ dialogsSearchInHeight: 52px;
 dialogsSearchInPhotoSize: 36px;
 dialogsSearchInPhotoPadding: 10px;
 dialogsSearchInSkip: 7px;
-dialogsSearchFromStyle: TextStyle(defaultTextStyle) {
-	font: normalFont;
-	linkFont: semiboldFont;
-	linkFontOver: semiboldFont;
-}
+dialogsSearchFromStyle: defaultTextStyle;
 dialogsSearchFromPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsNameFg;
 }
@@ -507,8 +499,6 @@ downloadTitleLeft: 57px;
 downloadTitleTop: 4px;
 downloadInfoStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
-	linkFont: font(12px);
-	linkFontOver: font(12px underline);
 }
 downloadInfoLeft: 57px;
 downloadInfoTop: 23px;
@@ -541,8 +531,6 @@ chooseTopicListItem: PeerListItem(defaultPeerListItem) {
 	namePosition: point(55px, 11px);
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 }
 chooseTopicList: PeerList(defaultPeerList) {
@@ -599,8 +587,6 @@ dialogsStoriesFull: DialogsStories {
 	nameTop: 56px;
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(11px);
-		linkFont: font(11px);
-		linkFontOver: font(11px);
 	}
 }
 

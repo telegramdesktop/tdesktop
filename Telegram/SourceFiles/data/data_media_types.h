@@ -90,6 +90,23 @@ struct Invoice {
 	bool isTest = false;
 };
 
+struct Giveaway {
+	std::vector<not_null<ChannelData*>> channels;
+	std::vector<QString> countries;
+	TimeId untilDate = 0;
+	int quantity = 0;
+	int months = 0;
+	bool all = false;
+};
+
+struct GiftCode {
+	QString slug;
+	ChannelData *channel = nullptr;
+	int months = 0;
+	bool viaGiveaway = false;
+	bool unclaimed = false;
+};
+
 class Media {
 public:
 	Media(not_null<HistoryItem*> parent);
@@ -106,6 +123,7 @@ public:
 	virtual DocumentData *document() const;
 	virtual PhotoData *photo() const;
 	virtual WebPageData *webpage() const;
+	virtual MediaWebPageFlags webpageFlags() const;
 	virtual const SharedContact *sharedContact() const;
 	virtual const Call *call() const;
 	virtual GameData *game() const;
@@ -116,6 +134,7 @@ public:
 	virtual FullStoryId storyId() const;
 	virtual bool storyExpired(bool revalidate = false);
 	virtual bool storyMention() const;
+	virtual const Giveaway *giveaway() const;
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -355,7 +374,8 @@ class MediaWebPage final : public Media {
 public:
 	MediaWebPage(
 		not_null<HistoryItem*> parent,
-		not_null<WebPageData*> page);
+		not_null<WebPageData*> page,
+		MediaWebPageFlags flags);
 	~MediaWebPage();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -363,6 +383,7 @@ public:
 	DocumentData *document() const override;
 	PhotoData *photo() const override;
 	WebPageData *webpage() const override;
+	MediaWebPageFlags webpageFlags() const override;
 
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
@@ -381,7 +402,8 @@ public:
 		HistoryView::Element *replacing = nullptr) override;
 
 private:
-	not_null<WebPageData*> _page;
+	const not_null<WebPageData*> _page;
+	const MediaWebPageFlags _flags;
 
 };
 
@@ -517,14 +539,15 @@ public:
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> from,
 		int months);
+	MediaGiftBox(
+		not_null<HistoryItem*> parent,
+		not_null<PeerData*> from,
+		GiftCode data);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	[[nodiscard]] not_null<PeerData*> from() const;
-	[[nodiscard]] int months() const;
-
-	[[nodiscard]] bool activated() const;
-	void setActivated(bool activated);
+	[[nodiscard]] const GiftCode &data() const;
 
 	TextWithEntities notificationText() const override;
 	QString pinnedTextSubstring() const override;
@@ -539,8 +562,7 @@ public:
 
 private:
 	not_null<PeerData*> _from;
-	int _months = 0;
-	bool _activated = false;
+	GiftCode _data;
 
 };
 
@@ -605,6 +627,32 @@ private:
 
 };
 
+class MediaGiveaway final : public Media {
+public:
+	MediaGiveaway(
+		not_null<HistoryItem*> parent,
+		const Giveaway &data);
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	const Giveaway *giveaway() const override;
+
+	TextWithEntities notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
+
+private:
+	Giveaway _giveaway;
+
+};
+
 [[nodiscard]] TextForMimeData WithCaptionClipboardText(
 	const QString &attachType,
 	TextForMimeData &&caption);
@@ -614,5 +662,9 @@ private:
 	const MTPDmessageMediaInvoice &data);
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);
+
+[[nodiscard]] Giveaway ComputeGiveawayData(
+	not_null<HistoryItem*> item,
+	const MTPDmessageMediaGiveaway &data);
 
 } // namespace Data

@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/empty_userpic.h"
 
-#include "ui/emoji_config.h"
+#include "ui/chat/chat_style.h"
 #include "ui/effects/animation_value.h"
+#include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
@@ -221,13 +222,11 @@ QString EmptyUserpic::InaccessibleName() {
 	return QChar(0) + u"inaccessible"_q;
 }
 
-int EmptyUserpic::ColorIndex(uint64 id) {
-	const auto index = id % 7;
-	const int map[] = { 0, 7, 4, 1, 6, 3, 5 };
-	return map[index];
+uint8 EmptyUserpic::ColorIndex(uint64 id) {
+	return DecideColorIndex(id);
 }
 
-EmptyUserpic::BgColors EmptyUserpic::UserpicColor(int id) {
+EmptyUserpic::BgColors EmptyUserpic::UserpicColor(uint8 colorIndex) {
 	const EmptyUserpic::BgColors colors[] = {
 		{ st::historyPeer1UserpicBg, st::historyPeer1UserpicBg2 },
 		{ st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 },
@@ -238,7 +237,7 @@ EmptyUserpic::BgColors EmptyUserpic::UserpicColor(int id) {
 		{ st::historyPeer7UserpicBg, st::historyPeer7UserpicBg2 },
 		{ st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 },
 	};
-	return colors[id];
+	return colors[ColorIndexToPaletteIndex(colorIndex)];
 }
 
 void EmptyUserpic::paint(
@@ -444,7 +443,7 @@ void EmptyUserpic::fillString(const QString &name) {
 			}
 		} else if (!letterFound && ch->isLetterOrNumber()) {
 			letterFound = true;
-			if (ch + 1 != end && Ui::Text::IsDiac(*(ch + 1))) {
+			if (ch + 1 != end && Ui::Text::IsDiacritic(*(ch + 1))) {
 				letters.push_back(QString(ch, 2));
 				levels.push_back(level);
 				++ch;

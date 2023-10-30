@@ -11,7 +11,9 @@ jobs:
       SKIP: "0"
       to_branch: "master"
     steps:
-      - uses: actions/checkout@v3.1.0
+      - uses: actions/checkout@v4.1.0
+        with:
+          fetch-depth: 0
         if: env.SKIP == '0'
       - name: Push the code to the master branch.
         if: env.SKIP == '0'

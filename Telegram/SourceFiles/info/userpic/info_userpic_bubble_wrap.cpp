@@ -18,22 +18,26 @@ namespace Ui {
 namespace {
 
 void PaintExcludeTopShadow(QPainter &p, int radius, const QRect &r) {
-	constexpr auto kHorizontalOffset = 1;
-	constexpr auto kVerticalOffset = 2;
+	constexpr auto kHorizontalOffset = 1.;
+	constexpr auto kVerticalOffset = 2.;
+	constexpr auto kOpacityStep1 = 0.2;
+	constexpr auto kOpacityStep2 = 0.4;
 	const auto opacity = p.opacity();
-	p.setOpacity(opacity * 0.2);
+	const auto hOffset = style::ConvertScale(kHorizontalOffset);
+	const auto vOffset = style::ConvertScale(kVerticalOffset);
+	p.setOpacity(opacity * kOpacityStep1);
 	p.drawRoundedRect(
-		r + QMargins(kHorizontalOffset, -radius, kHorizontalOffset, 0),
+		r + QMarginsF(hOffset, -radius, hOffset, 0),
 		radius,
 		radius);
-	p.setOpacity(opacity * 0.2);
+	p.setOpacity(opacity * kOpacityStep1);
 	p.drawRoundedRect(
-		r + QMargins(0, 0, 0, kVerticalOffset),
+		r + QMarginsF(0, 0, 0, vOffset),
 		radius,
 		radius);
-	p.setOpacity(opacity * 0.4);
+	p.setOpacity(opacity * kOpacityStep2);
 	p.drawRoundedRect(
-		r + QMargins(0, 0, 0, kVerticalOffset / 2),
+		r + QMarginsF(0, 0, 0, vOffset / 2.),
 		radius,
 		radius);
 	p.setOpacity(opacity);

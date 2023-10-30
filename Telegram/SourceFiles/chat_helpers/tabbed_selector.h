@@ -81,6 +81,7 @@ enum class TabbedSelectorMode {
 	EmojiOnly,
 	MediaEditor,
 	EmojiStatus,
+	BackgroundEmoji,
 };
 
 struct TabbedSelectorDescriptor {
@@ -88,6 +89,7 @@ struct TabbedSelectorDescriptor {
 	const style::EmojiPan &st;
 	PauseReason level = {};
 	TabbedSelectorMode mode = TabbedSelectorMode::Full;
+	Fn<QColor()> customTextColor;
 	ComposeFeatures features;
 };
 
@@ -272,6 +274,7 @@ private:
 	const ComposeFeatures _features;
 	const std::shared_ptr<Show> _show;
 	const PauseReason _level = {};
+	const Fn<QColor()> _customTextColor;
 
 	Mode _mode = Mode::Full;
 	int _roundRadius = 0;

@@ -194,7 +194,7 @@ not_null<Ui::FlatLabel*> CreateWarningLabel(
 			if (value >= 0) {
 				result->setText(QString::number(value));
 			} else {
-				result->setMarkedText(Ui::Text::PlainLink(
+				result->setMarkedText(Ui::Text::Colorized(
 					QString::number(value)));
 			}
 			result->setVisible(shown);

@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/message_bar.h"
 
-#include "ui/text/text_options.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/image/image_prepare.h"
+#include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "styles/style_chat.h"
@@ -221,8 +222,8 @@ void MessageBar::updateFromContent(MessageBarContent &&content) {
 
 QRect MessageBar::imageRect() const {
 	const auto left = st::msgReplyBarSkip + st::msgReplyBarSkip;
-	const auto top = st::msgReplyPadding.top();
-	const auto size = st::msgReplyBarSize.height();
+	const auto top = (st::historyReplyHeight - st::historyReplyPreview) / 2;
+	const auto size = st::historyReplyPreview;
 	return QRect(left, top, size, size);
 }
 
@@ -242,14 +243,11 @@ QRect MessageBar::titleRangeRect(int from, int till) const {
 
 QRect MessageBar::bodyRect(bool withImage) const {
 	const auto innerLeft = st::msgReplyBarSkip + st::msgReplyBarSkip;
-	const auto imageSkip = st::msgReplyBarSize.height()
-		+ st::msgReplyBarSkip
-		- st::msgReplyBarSize.width()
-		- st::msgReplyBarPos.x();
+	const auto imageSkip = st::historyReplyPreview + st::msgReplyBarSkip;
 	const auto left = innerLeft + (withImage ? imageSkip : 0);
 	const auto top = st::msgReplyPadding.top();
 	const auto width = _widget.width() - left - st::msgReplyPadding.right();
-	const auto height = st::msgReplyBarSize.height();
+	const auto height = (st::historyReplyHeight - 2 * top);
 	return QRect(left, top, width, height) - _content.margins;
 }
 
@@ -457,7 +455,7 @@ void MessageBar::paint(Painter &p) {
 				.now = now,
 				.pausedEmoji = paused || On(PowerSaving::kEmojiChat),
 				.pausedSpoiler = pausedSpoiler,
-				.elisionLines = 1,
+				.elisionOneLine = true,
 			});
 		}
 	} else if (_animation->bodyAnimation == BodyAnimation::Text) {
