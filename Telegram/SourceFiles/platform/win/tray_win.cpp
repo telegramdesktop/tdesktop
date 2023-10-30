@@ -66,36 +66,10 @@ constexpr auto kTooltipDelay = crl::time(10000);
 		bool supportMode,
 		bool smallIcon,
 		bool monochrome) {
-	static constexpr auto kCount = 3;
-	static auto ScaledLogo = std::array<QImage, kCount>();
-	static auto ScaledLogoNoMargin = std::array<QImage, kCount>();
-	static auto ScaledLogoDark = std::array<QImage, kCount>();
-	static auto ScaledLogoLight = std::array<QImage, kCount>();
-
-	struct Dimensions {
-		int index = 0;
-		int size = 0;
-	};
-	const auto d = [&]() -> Dimensions {
-		switch (args.size) {
-		case 16:
-			return {
-				.index = 0,
-				.size = 16,
-			};
-		case 32:
-			return {
-				.index = 1,
-				.size = 32,
-			};
-		default:
-			return {
-				.index = 2,
-				.size = 64,
-			};
-		}
-	}();
-	Assert(d.index < kCount);
+	static auto ScaledLogo = base::flat_map<int, QImage>();
+	static auto ScaledLogoNoMargin = base::flat_map<int, QImage>();
+	static auto ScaledLogoDark = base::flat_map<int, QImage>();
+	static auto ScaledLogoLight = base::flat_map<int, QImage>();
 
 	const auto darkMode = IsDarkTaskbar();
 	auto &scaled = (monochrome && darkMode)
@@ -107,37 +81,44 @@ constexpr auto kTooltipDelay = crl::time(10000);
 		: ScaledLogo;
 
 	auto result = [&] {
-		auto &image = scaled[d.index];
-		if (image.isNull()) {
+		if (const auto it = scaled.find(args.size); it != scaled.end()) {
+			return it->second;
+		} else {
 			if (monochrome && darkMode) {
-				const auto withColor = [&](QColor color) {
-					switch (d.size) {
-					case 16:
-						return st::macTrayIcon.instance(color, 100 / cIntRetinaFactor());
-					case 32:
-						return st::macTrayIcon.instance(color, 200 / cIntRetinaFactor());
-					default:
-						return st::macTrayIcon.instance(color, 300 / cIntRetinaFactor());
+				const auto withColor = [&](QColor color) -> std::pair<QImage, int> {
+					if (args.size <= 16) {
+						return { st::macTrayIcon.instance(color, 100 / cIntRetinaFactor()), 3 };
+					} else if (args.size <= 32) {
+						return { st::macTrayIcon.instance(color, 200 / cIntRetinaFactor()), 6 };
+					} else {
+						return { st::macTrayIcon.instance(color, 300 / cIntRetinaFactor()), 9 };
 					}
 				};
-				const auto darkModeResult = withColor({ 255, 255, 255 });
-				const auto lightModeResult = withColor({ 0, 0, 0, 228 });
-				image = *darkMode ? darkModeResult : lightModeResult;
-				const auto monochromeMargin = QPoint(
-					(image.width() - d.size) / 2,
-					(image.height() - d.size) / 2);
-				image = image.copy(
-					QRect(monochromeMargin, QSize(d.size, d.size)));
+				const auto result = *darkMode
+					? withColor({ 255, 255, 255 })
+					: withColor({ 0, 0, 0, 228 });
+				auto &image = scaled.emplace(
+					args.size,
+					result.first.copy(
+						QRect(
+							QPoint(result.second, result.second),
+							result.first.size()
+								- QSize(result.second * 2, result.second * 2)
+						)
+					).scaledToWidth(args.size, Qt::SmoothTransformation)
+				).first->second;
 				image.setDevicePixelRatio(1);
+				return image;
 			} else {
-				image = (smallIcon
-					? Window::LogoNoMargin()
-					: Window::Logo()).scaledToWidth(
-						d.size,
-						Qt::SmoothTransformation);
+				return scaled.emplace(
+					args.size,
+					(smallIcon
+						? Window::LogoNoMargin()
+						: Window::Logo()
+					).scaledToWidth(args.size, Qt::SmoothTransformation)
+				).first->second;
 			}
 		}
-		return image;
 	}();
 	if ((!monochrome || !darkMode) && supportMode) {
 		Window::ConvertIconToBlack(result);
@@ -148,7 +129,7 @@ constexpr auto kTooltipDelay = crl::time(10000);
 		return Window::WithSmallCounter(std::move(result), std::move(args));
 	}
 	QPainter p(&result);
-	const auto half = d.size / 2;
+	const auto half = args.size / 2;
 	args.size = half;
 	p.drawPixmap(
 		half,
@@ -213,36 +194,24 @@ void Tray::updateIcon() {
 	if (!_icon) {
 		return;
 	}
-	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
 	const auto controller = Core::App().activePrimaryWindow();
 	const auto session = !controller
 		? nullptr
 		: !controller->sessionController()
 		? nullptr
 		: &controller->sessionController()->session();
-	const auto monochrome = Core::App().settings().trayIconMonochrome();
-	const auto supportMode = session && session->supportMode();
-	const auto iconSizeWidth = GetSystemMetrics(SM_CXSMICON);
 
-	auto iconSmallPixmap16 = Tray::IconWithCounter(
-		CounterLayerArgs(16, counter, muted),
-		true,
-		monochrome,
-		supportMode);
-	auto iconSmallPixmap32 = Tray::IconWithCounter(
-		CounterLayerArgs(32, counter, muted),
-		true,
-		monochrome,
-		supportMode);
-	auto iconSmall = QIcon();
-	iconSmall.addPixmap(iconSmallPixmap16);
-	iconSmall.addPixmap(iconSmallPixmap32);
 	// Force Qt to use right icon size, not the larger one.
 	QIcon forTrayIcon;
-	forTrayIcon.addPixmap(iconSizeWidth >= 20
-		? iconSmallPixmap32
-		: iconSmallPixmap16);
+	forTrayIcon.addPixmap(
+		Tray::IconWithCounter(
+			CounterLayerArgs(
+				GetSystemMetrics(SM_CXSMICON),
+				Core::App().unreadBadge(),
+				Core::App().unreadBadgeMuted()),
+			true,
+			Core::App().settings().trayIconMonochrome(),
+			session && session->supportMode()));
 	_icon->updateIcon(forTrayIcon);
 }
 

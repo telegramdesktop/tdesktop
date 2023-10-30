@@ -292,31 +292,12 @@ QImage WithSmallCounter(QImage image, CounterLayerArgs &&args) {
 		int delta = 0;
 		int radius = 0;
 	};
-	const auto d = [&]() -> Dimensions {
-		switch (args.size.value()) {
-		case 16:
-			return {
-				.size = 16,
-				.font = 8,
-				.delta = ((textSize < 2) ? 2 : 1),
-				.radius = ((textSize < 2) ? 4 : 3),
-			};
-		case 32:
-			return {
-				.size = 32,
-				.font = 12,
-				.delta = ((textSize < 2) ? 5 : 2),
-				.radius = ((textSize < 2) ? 8 : 7),
-			};
-		default:
-			return {
-				.size = 64,
-				.font = 22,
-				.delta = ((textSize < 2) ? 9 : 4),
-				.radius = ((textSize < 2) ? 16 : 14),
-			};
-		}
-	}();
+	const auto d = Dimensions{
+		.size = args.size.value(),
+		.font = args.size.value() / 2,
+		.delta = args.size.value() / ((textSize < 2) ? 8 : 16),
+		.radius = args.size.value() / ((textSize < 2) ? 4 : 5),
+	};
 
 	auto p = QPainter(&image);
 	auto hq = PainterHighQualityEnabler(p);
