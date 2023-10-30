@@ -151,9 +151,12 @@ public:
 
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
 	[[nodiscard]] Data::SubscriptionOptions options(int amount);
+	[[nodiscard]] const std::vector<int> &availablePresets() const;
 	[[nodiscard]] Payments::InvoicePremiumGiftCode invoice(
 		int users,
 		int monthsIndex);
+
+	[[nodiscard]] int giveawayBoostsPerPremium() const;
 
 private:
 	struct Token final {
@@ -176,6 +179,8 @@ private:
 		std::vector<float64> totalCosts;
 		QString currency;
 	} _optionsForOnePerson;
+
+	std::vector<int> _availablePresets;
 
 	base::flat_map<Token, Store> _stores;
 

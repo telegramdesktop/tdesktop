@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "payments/payments_form.h"
 #include "ui/text/format_values.h"
@@ -362,6 +364,9 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 					.product = qs(data.vstore_product().value_or_empty()),
 					.quantity = data.vstore_quantity().value_or_empty(),
 				};
+				if (!ranges::contains(_availablePresets, data.vusers().v)) {
+					_availablePresets.push_back(data.vusers().v);
+				}
 			}
 			for (const auto &[amount, tlOptions] : tlMapOptions) {
 				if (amount == 1 && _optionsForOnePerson.currency.isEmpty()) {
@@ -383,6 +388,10 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 
 		return lifetime;
 	};
+}
+
+const std::vector<int> &PremiumGiftCodeOptions::availablePresets() const {
+	return _availablePresets;
 }
 
 Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
@@ -424,6 +433,13 @@ Data::SubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
 		return _subscriptionOptions[amount];
 	}
+}
+
+[[nodiscard]] int PremiumGiftCodeOptions::giveawayBoostsPerPremium() const {
+	constexpr auto kFallbackCount = 4;
+	return _peer->session().account().appConfig().get<int>(
+		u"giveaway_boosts_per_premium"_q,
+		kFallbackCount);
 }
 
 } // namespace Api

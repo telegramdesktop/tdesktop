@@ -2078,9 +2078,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_award_subtitle" = "Select recipients >";
 "lng_giveaway_award_chosen#one" = "{count} recipient >";
 "lng_giveaway_award_chosen#other" = "{count} recipients >";
-"lng_giveaway_quantity_title" = "Quantity of prizes / boosts";
-"lng_giveaway_quantity#one" = "{count} Subscription / Boost";
-"lng_giveaway_quantity#other" = "{count} Subscriptions / Boosts";
+"lng_giveaway_quantity_title" = "Quantity of prizes";
+"lng_giveaway_quantity#one" = "{count} boost";
+"lng_giveaway_quantity#other" = "{count} boosts";
 "lng_giveaway_quantity_about" = "Choose how many Premium subscriptions to give away and boosts to receive.";
 "lng_giveaway_channels_title" = "Channels included in the giveaway";
 "lng_giveaway_channels_this#one" = "this channel will receive {count} boost";

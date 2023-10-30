@@ -23,7 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -81,6 +83,7 @@ void CreateGiveawayBox(
 		rpl::event_stream<> toAwardAmountChanged;
 
 		rpl::variable<GiveawayType> typeValue;
+		rpl::variable<int> sliderValue;
 
 		bool confirmButtonBusy = false;
 	};
@@ -153,11 +156,104 @@ void CreateGiveawayBox(
 	Settings::AddDivider(box->verticalLayout());
 	Settings::AddSkip(box->verticalLayout());
 
+	const auto randomWrap = box->verticalLayout()->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			box,
+			object_ptr<Ui::VerticalLayout>(box)));
+	state->typeValue.value(
+	) | rpl::start_with_next([=](GiveawayType type) {
+		randomWrap->toggle(type == GiveawayType::Random, anim::type::instant);
+	}, randomWrap->lifetime());
+
+	const auto sliderContainer = randomWrap->entity()->add(
+		object_ptr<Ui::VerticalLayout>(randomWrap));
+	const auto fillSliderContainer = [=] {
+		if (sliderContainer->count()) {
+			return;
+		}
+		const auto availablePresets = state->apiOptions.availablePresets();
+		if (availablePresets.empty()) {
+			return;
+		}
+		state->sliderValue = availablePresets.front();
+		const auto title = Settings::AddSubsectionTitle(
+			sliderContainer,
+			tr::lng_giveaway_quantity_title());
+		const auto rightLabel = Ui::CreateChild<Ui::FlatLabel>(
+			sliderContainer,
+			st::giveawayGiftCodeQuantitySubtitle);
+		rightLabel->show();
+
+		const auto floatLabel = Ui::CreateChild<Ui::FlatLabel>(
+			sliderContainer,
+			st::giveawayGiftCodeQuantityFloat);
+		floatLabel->show();
+
+		rpl::combine(
+			tr::lng_giveaway_quantity(
+				lt_count,
+				state->sliderValue.value(
+				) | rpl::map([=](int v) -> float64 {
+					return state->apiOptions.giveawayBoostsPerPremium() * v;
+				})),
+			title->positionValue(),
+			sliderContainer->geometryValue()
+		) | rpl::start_with_next([=](QString s, const QPoint &p, QRect) {
+			rightLabel->setText(std::move(s));
+			rightLabel->moveToRight(st::boxRowPadding.right(), p.y());
+		}, rightLabel->lifetime());
+
+		Settings::AddSkip(sliderContainer);
+		Settings::AddSkip(sliderContainer);
+		const auto slider = sliderContainer->add(
+			object_ptr<Ui::MediaSlider>(sliderContainer, st::settingsScale),
+			st::boxRowPadding);
+		Settings::AddSkip(sliderContainer);
+		slider->resize(slider->width(), st::settingsScale.seekSize.height());
+		slider->setPseudoDiscrete(
+			availablePresets.size(),
+			[=](int index) { return availablePresets[index]; },
+			availablePresets.front(),
+			[=](int boosts) { state->sliderValue = boosts; },
+			[](int) {});
+
+		state->sliderValue.value(
+		) | rpl::start_with_next([=](int boosts) {
+			floatLabel->setText(QString::number(boosts));
+
+			const auto count = availablePresets.size();
+			const auto sliderWidth = slider->width()
+				- st::settingsScale.seekSize.width();
+			for (auto i = 0; i < count; i++) {
+				if ((i + 1 == count || availablePresets[i + 1] > boosts)
+					&& availablePresets[i] <= boosts) {
+					const auto x = (sliderWidth * i) / (count - 1);
+					floatLabel->moveToLeft(
+						slider->x()
+							+ x
+							+ st::settingsScale.seekSize.width() / 2
+							- floatLabel->width() / 2,
+						slider->y() - floatLabel->height());
+					break;
+				}
+			}
+		}, floatLabel->lifetime());
+
+		Settings::AddSkip(sliderContainer);
+		Settings::AddDividerText(
+			sliderContainer,
+			tr::lng_giveaway_quantity_about());
+		Settings::AddSkip(sliderContainer);
+
+		sliderContainer->resizeToWidth(box->width());
+	};
+
 	const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);
 	{
 		const auto listOptions = box->verticalLayout()->add(
 			object_ptr<Ui::VerticalLayout>(box));
 		const auto rebuildListOptions = [=](int amountUsers) {
+			fillSliderContainer();
 			while (listOptions->count()) {
 				delete listOptions->widgetAt(0);
 			}
@@ -192,16 +288,18 @@ void CreateGiveawayBox(
 				std::move(terms),
 				st::settingsDividerLabelPadding));
 
-			listOptions->resizeToWidth(box->width());
+			box->verticalLayout()->resizeToWidth(box->width());
 		};
 
-		state->typeValue.value(
-		) | rpl::start_with_next([=](GiveawayType type) {
+		rpl::combine(
+			state->sliderValue.value(),
+			state->typeValue.value()
+		) | rpl::start_with_next([=](int users, GiveawayType type) {
 			typeGroup->setValue(type);
 			const auto rebuild = [=] {
 				rebuildListOptions((type == GiveawayType::SpecificUsers)
 					? state->selectedToAward.size()
-					: 1);
+					: users);
 			};
 			if (!listOptions->count()) {
 				state->lifetimeApi = state->apiOptions.request(

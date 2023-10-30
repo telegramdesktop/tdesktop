@@ -296,6 +296,22 @@ giveawayGiftCodeStartButton: RoundButton(defaultActiveButton) {
 	textTop: 12px;
 	radius: 6px;
 }
+giveawayGiftCodeQuantitySubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+	textFg: windowActiveTextFg;
+	minWidth: 240px;
+	align: align(right);
+}
+giveawayGiftCodeQuantityFloat: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(13px);
+	}
+	textFg: windowActiveTextFg;
+	minWidth: 50px;
+	align: align(center);
+}
 
 boostLinkStatsButton: IconButton(defaultIconButton) {
 	width: giveawayGiftCodeLinkCopyWidth;
