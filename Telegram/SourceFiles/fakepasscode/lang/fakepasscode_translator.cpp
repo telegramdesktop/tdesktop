@@ -87,7 +87,7 @@ bool TagParser::readTag() {
     _tagsUsed.insert(_currentTagIndex);
 
     if (_currentTagReplacer.isEmpty()) {
-        _currentTagReplacer = QString(4, TextCommand);
+        _currentTagReplacer = QString(4, kTextCommand);
         _currentTagReplacer[1] = kTextCommandLangTag;
     }
     _currentTagReplacer[2] = QChar(0x0020 + _currentTagIndex);
