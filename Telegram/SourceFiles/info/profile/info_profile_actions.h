@@ -23,6 +23,8 @@ class Controller;
 
 namespace Info::Profile {
 
+extern const char kOptionShowPeerIdBelowAbout[];
+
 object_ptr<Ui::RpWidget> SetupDetails(
 	not_null<Controller*> controller,
 	not_null<Ui::RpWidget*> parent,
