@@ -707,8 +707,15 @@ bool ListWidget::isBelowPosition(Data::MessagePosition position) const {
 	return _items.front()->data()->position() > position;
 }
 
-void ListWidget::highlightMessage(FullMsgId itemId) {
-	_highlighter.highlight(itemId);
+void ListWidget::highlightMessage(
+		FullMsgId itemId,
+		const TextWithEntities &highlightPart) {
+	const auto view = !highlightPart.empty()
+		? viewForItem(itemId)
+		: nullptr;
+	_highlighter.highlight(
+		itemId,
+		view ? view->selectionFromQuote(highlightPart) : TextSelection());
 }
 
 void ListWidget::showAroundPosition(
@@ -741,12 +748,12 @@ bool ListWidget::jumpToBottomInsteadOfUnread() const {
 
 void ListWidget::showAtPosition(
 		Data::MessagePosition position,
-		anim::type animated,
+		const Window::SectionShow &params,
 		Fn<void(bool found)> done) {
 	const auto showAtUnread = (position == Data::UnreadMessagePosition);
 
 	if (showAtUnread && jumpToBottomInsteadOfUnread()) {
-		showAtPosition(Data::MaxMessagePosition, animated, std::move(done));
+		showAtPosition(Data::MaxMessagePosition, params, std::move(done));
 		return;
 	}
 
@@ -766,24 +773,24 @@ void ListWidget::showAtPosition(
 				_bar = {};
 			}
 			checkUnreadBarCreation();
-			return showAtPositionNow(position, animated, done);
+			return showAtPositionNow(position, params, done);
 		});
-	} else if (!showAtPositionNow(position, animated, done)) {
+	} else if (!showAtPositionNow(position, params, done)) {
 		showAroundPosition(position, [=] {
-			return showAtPositionNow(position, animated, done);
+			return showAtPositionNow(position, params, done);
 		});
 	}
 }
 
 bool ListWidget::showAtPositionNow(
 		Data::MessagePosition position,
-		anim::type animated,
+		const Window::SectionShow &params,
 		Fn<void(bool found)> done) {
 	if (const auto scrollTop = scrollTopForPosition(position)) {
-		computeScrollTo(*scrollTop, position, animated);
+		computeScrollTo(*scrollTop, position, params.animated);
 		if (position != Data::MaxMessagePosition
 			&& position != Data::UnreadMessagePosition) {
-			highlightMessage(position.fullId);
+			highlightMessage(position.fullId, params.highlightPart);
 		}
 		if (done) {
 			const auto found = !position.fullId.peer
@@ -1655,11 +1662,6 @@ bool ListWidget::elementUnderCursor(
 	return (_overElement == view);
 }
 
-float64 ListWidget::elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const {
-	return _highlighter.progress(item);
-}
-
 bool ListWidget::elementInSelectionMode() {
 	return inSelectionMode();
 }
@@ -2108,6 +2110,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				= _reactionsManager->currentReactionPaintInfo();
 			context.outbg = view->hasOutLayout();
 			context.selection = itemRenderSelection(view);
+			context.highlight = _highlighter.state(item);
 			view->draw(p, context);
 		}
 		if (_translateTracker) {
@@ -2142,7 +2145,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			} else if (item->isUnreadMention()
 				&& !item->isUnreadMedia()) {
 				readContents.insert(item);
-				_highlighter.enqueue(view);
+				_highlighter.enqueue(view, {});
 			}
 		}
 		session->data().reactions().poll(item, context.now);

@@ -229,6 +229,7 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 	if (!_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, _caption);
+		auto highlightRequest = context.computeHighlightCache();
 		_caption.draw(p, {
 			.position = QPoint(
 				st::msgPadding.left(),
@@ -243,6 +244,7 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = context.selection,
+			.highlight = highlightRequest ? &*highlightRequest : nullptr,
 		});
 	} else if (!inWebPage) {
 		auto fullRight = paintx + paintw;

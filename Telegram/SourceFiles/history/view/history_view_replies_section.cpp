@@ -1861,14 +1861,20 @@ void RepliesWidget::finishSending() {
 
 void RepliesWidget::showAtPosition(
 		Data::MessagePosition position,
+		FullMsgId originItemId) {
+	showAtPosition(position, originItemId, {});
+}
+
+void RepliesWidget::showAtPosition(
+		Data::MessagePosition position,
 		FullMsgId originItemId,
-		anim::type animated) {
+		const Window::SectionShow &params) {
 	_lastShownAt = position.fullId;
 	controller()->setActiveChatEntry(activeChat());
 	const auto ignore = (position.fullId.msg == _rootId);
 	_inner->showAtPosition(
 		position,
-		animated,
+		params,
 		_cornerButtons.doneJumpFrom(position.fullId, originItemId, ignore));
 }
 
@@ -2030,7 +2036,7 @@ bool RepliesWidget::showMessage(
 	const auto originItemId = (_cornerButtons.replyReturn() != originMessage)
 		? originMessage->fullId()
 		: FullMsgId();
-	showAtPosition(message->position(), originItemId);
+	showAtPosition(message->position(), originItemId, params);
 	return true;
 }
 
@@ -2136,7 +2142,7 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 		showAtPosition(Data::MessagePosition{
 			.fullId = FullMsgId(_history->peer->id, highlight),
 			.date = TimeId(0),
-		}, {}, anim::type::instant);
+		}, {}, { Window::SectionShow::Way::Forward, anim::type::instant });
 	}
 }
 

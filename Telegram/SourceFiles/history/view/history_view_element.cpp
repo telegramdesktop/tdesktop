@@ -111,11 +111,6 @@ bool DefaultElementDelegate::elementUnderCursor(
 	return false;
 }
 
-float64 DefaultElementDelegate::elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const {
-	return 0.;
-}
-
 bool DefaultElementDelegate::elementInSelectionMode() {
 	return false;
 }
@@ -605,18 +600,13 @@ void Element::paintCustomHighlight(
 		int y,
 		int height,
 		not_null<const HistoryItem*> item) const {
-	const auto opacity = delegate()->elementHighlightOpacity(item);
+	const auto opacity = context.highlight.opacity;
 	if (opacity == 0.) {
 		return;
 	}
 	const auto o = p.opacity();
 	p.setOpacity(o * opacity);
-	p.fillRect(
-		0,
-		y,
-		width(),
-		height,
-		context.st->msgSelectOverlay());
+	p.fillRect(0, y, width(), height, context.st->msgSelectOverlay());
 	p.setOpacity(o);
 }
 

@@ -579,11 +579,6 @@ bool InnerWidget::elementUnderCursor(
 	return (Element::Hovered() == view);
 }
 
-float64 InnerWidget::elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const {
-	return 0.;
-}
-
 bool InnerWidget::elementInSelectionMode() {
 	return false;
 }

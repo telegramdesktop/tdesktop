@@ -259,17 +259,20 @@ bool IsItemScheduledUntilOnline(not_null<const HistoryItem*> item) {
 
 ClickHandlerPtr JumpToMessageClickHandler(
 		not_null<HistoryItem*> item,
-		FullMsgId returnToId) {
+		FullMsgId returnToId,
+		TextWithEntities highlightPart) {
 	return JumpToMessageClickHandler(
 		item->history()->peer,
 		item->id,
-		returnToId);
+		returnToId,
+		std::move(highlightPart));
 }
 
 ClickHandlerPtr JumpToMessageClickHandler(
 		not_null<PeerData*> peer,
 		MsgId msgId,
-		FullMsgId returnToId) {
+		FullMsgId returnToId,
+		TextWithEntities highlightPart) {
 	return std::make_shared<LambdaClickHandler>([=] {
 		const auto separate = Core::App().separateWindowForPeer(peer);
 		const auto controller = separate
@@ -279,6 +282,7 @@ ClickHandlerPtr JumpToMessageClickHandler(
 			auto params = Window::SectionShow{
 				Window::SectionShow::Way::Forward
 			};
+			params.highlightPart = highlightPart;
 			params.origin = Window::SectionShow::OriginMessage{
 				returnToId
 			};

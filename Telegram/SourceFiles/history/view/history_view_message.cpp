@@ -1018,6 +1018,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		p.translate(-reactionsPosition);
 	}
 
+	if (context.highlightPathCache) {
+		context.highlightInterpolateTo = g;
+		context.highlightPathCache->clear();
+	}
 	if (bubble) {
 		if (displayFromName()
 			&& item->displayFrom()
@@ -1110,6 +1114,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				- (_bottomInfo.height() - st::msgDateFont->height));
 		}
 		auto textSelection = context.selection;
+		auto highlightRange = context.highlight.range;
 		const auto mediaHeight = mediaDisplayed ? media->height() : 0;
 		const auto paintMedia = [&](int top) {
 			if (!mediaDisplayed) {
@@ -1130,6 +1135,10 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 					context.reactionInfo->effectOffset -= add;
 				}
 			}
+			if (context.highlightPathCache
+				&& !context.highlightPathCache->isEmpty()) {
+				context.highlightPathCache->translate(mediaPosition);
+			}
 			p.translate(-mediaPosition);
 		};
 		if (mediaDisplayed && _invertMedia) {
@@ -1141,8 +1150,12 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 				+ mediaHeight
 				+ (mediaOnBottom ? 0 : st::mediaInBubbleSkip));
 			textSelection = media->skipSelection(textSelection);
+			highlightRange = media->skipSelection(highlightRange);
 		}
-		paintText(p, trect, context.withSelection(textSelection));
+		auto copy = context;
+		copy.selection = textSelection;
+		copy.highlight.range = highlightRange;
+		paintText(p, trect, copy);
 		if (mediaDisplayed && !_invertMedia) {
 			paintMedia(trect.y() + trect.height() - mediaHeight);
 			if (context.reactionInfo && !displayInfo && !_reactions) {
@@ -1223,6 +1236,20 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	p.restoreTextPalette();
+
+	if (context.highlightPathCache
+		&& !context.highlightPathCache->isEmpty()) {
+		const auto alpha = int(0.25
+			* context.highlight.collapsion
+			* context.highlight.opacity
+			* 255);
+		if (alpha > 0) {
+			context.highlightPathCache->setFillRule(Qt::WindingFill);
+			auto color = context.messageStyle()->textPalette.linkFg->c;
+			color.setAlpha(alpha);
+			p.fillPath(*context.highlightPathCache, color);
+		}
+	}
 
 	if (roll) {
 		p.restore();
@@ -1651,6 +1678,7 @@ void Message::paintText(
 			width());
 		trect.setY(trect.y() + botTop->height);
 	}
+	auto highlightRequest = context.computeHighlightCache();
 	text().draw(p, {
 		.position = trect.topLeft(),
 		.availableWidth = trect.width(),
@@ -1663,6 +1691,7 @@ void Message::paintText(
 		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 		.selection = context.selection,
+		.highlight = highlightRequest ? &*highlightRequest : nullptr,
 	});
 }
 
@@ -2732,10 +2761,13 @@ TextWithEntities Message::selectedQuote(
 
 TextSelection Message::selectionFromQuote(
 		const TextWithEntities &quote) const {
+	if (quote.empty()) {
+		return {};
+	}
 	const auto item = data();
 	const auto &translated = item->translatedText();
 	const auto &original = item->originalText();
-	if (&translated != &original || quote.empty()) {
+	if (&translated != &original) {
 		return {};
 	} else if (hasVisibleText()) {
 		const auto media = this->media();

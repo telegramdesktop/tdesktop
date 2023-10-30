@@ -858,7 +858,7 @@ void ScheduledWidget::showAtPosition(
 		FullMsgId originId) {
 	_inner->showAtPosition(
 		position,
-		anim::type::normal,
+		{},
 		_cornerButtons.doneJumpFrom(position.fullId, originId));
 }
 

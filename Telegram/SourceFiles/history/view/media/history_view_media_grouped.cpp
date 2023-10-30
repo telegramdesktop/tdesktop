@@ -325,12 +325,13 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 			: IsGroupItemSelection(selection, i)
 			? FullSelection
 			: TextSelection());
+		const auto highlightOpacity = IsGroupItemSelection(
+			context.highlight.range,
+			i
+		) ? context.highlight.opacity : 0.;
 		if (textSelection) {
 			selection = part.content->skipSelection(selection);
 		}
-		const auto highlightOpacity = (_mode == Mode::Grid)
-			? _parent->delegate()->elementHighlightOpacity(part.item)
-			: 0.;
 		if (!part.cache.isNull()) {
 			wasCache = true;
 		}
@@ -361,6 +362,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		const auto stm = context.messageStyle();
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, _caption);
+		auto highlightRequest = context.computeHighlightCache();
 		_caption.draw(p, {
 			.position = QPoint(
 				st::msgPadding.left(),
@@ -375,6 +377,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = context.selection,
+			.highlight = highlightRequest ? &*highlightRequest : nullptr,
 		});
 	} else if (_parent->media() == this) {
 		auto fullRight = width();

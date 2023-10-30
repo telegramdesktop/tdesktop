@@ -401,6 +401,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 				_parent->width());
 			top += botTop->height;
 		}
+		auto highlightRequest = context.computeHighlightCache();
 		_caption.draw(p, {
 			.position = QPoint(st::msgPadding.left(), top),
 			.availableWidth = captionw,
@@ -413,6 +414,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = context.selection,
+			.highlight = highlightRequest ? &*highlightRequest : nullptr,
 		});
 	} else if (!inWebPage) {
 		auto fullRight = paintx + paintw;

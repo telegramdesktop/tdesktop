@@ -69,8 +69,6 @@ class ElementDelegate {
 public:
 	virtual Context elementContext() = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
-	[[nodiscard]] virtual float64 elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const = 0;
 	virtual bool elementInSelectionMode() = 0;
 	virtual bool elementIntersectsRange(
 		not_null<const Element*> view,
@@ -120,8 +118,6 @@ public:
 class DefaultElementDelegate : public ElementDelegate {
 public:
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	[[nodiscard]] float64 elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const override;
 	bool elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,

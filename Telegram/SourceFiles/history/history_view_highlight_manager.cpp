@@ -10,11 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "ui/chat/chat_style.h"
 
 namespace HistoryView {
-
-constexpr auto kAnimationFirstPart = st::activeFadeInDuration
-	/ float64(st::activeFadeInDuration + st::activeFadeOutDuration);
 
 ElementHighlighter::ElementHighlighter(
 	not_null<Data::Session*> data,
@@ -26,14 +24,15 @@ ElementHighlighter::ElementHighlighter(
 , _animation(*this) {
 }
 
-void ElementHighlighter::enqueue(not_null<Element*> view) {
+void ElementHighlighter::enqueue(
+		not_null<Element*> view,
+		TextSelection part) {
 	const auto item = view->data();
-	const auto fullId = item->fullId();
+	const auto data = Highlight{ item->fullId(), part };
 	if (_queue.empty() && !_animation.animating()) {
-		highlight(fullId);
-	} else if (_highlightedMessageId != fullId
-		&& !base::contains(_queue, fullId)) {
-		_queue.push_back(fullId);
+		highlight(data.itemId, data.part);
+	} else if (_highlighted != data && !base::contains(_queue, data)) {
+		_queue.push_back(data);
 		checkNextHighlight();
 	}
 }
@@ -42,47 +41,46 @@ void ElementHighlighter::checkNextHighlight() {
 	if (_animation.animating()) {
 		return;
 	}
-	const auto nextHighlight = [&] {
+	const auto next = [&] {
 		while (!_queue.empty()) {
-			const auto fullId = _queue.front();
+			const auto highlight = _queue.front();
 			_queue.pop_front();
-			if (const auto item = _data->message(fullId)) {
+			if (const auto item = _data->message(highlight.itemId)) {
 				if (_viewForItem(item)) {
-					return fullId;
+					return highlight;
 				}
 			}
 		}
-		return FullMsgId();
+		return Highlight();
 	}();
-	if (!nextHighlight) {
+	if (!next) {
 		return;
 	}
-	highlight(nextHighlight);
+	highlight(next.itemId, next.part);
 }
 
-float64 ElementHighlighter::progress(
+Ui::ChatPaintHighlight ElementHighlighter::state(
 		not_null<const HistoryItem*> item) const {
-	if (item->fullId() == _highlightedMessageId) {
-		const auto progress = _animation.progress();
-		return std::min(progress / kAnimationFirstPart, 1.)
-			- ((progress - kAnimationFirstPart) / (1. - kAnimationFirstPart));
+	if (item->fullId() == _highlighted.itemId) {
+		auto result = _animation.state();
+		result.range = _highlighted.part;
+		return result;
 	}
-	return 0.;
+	return {};
 }
 
-void ElementHighlighter::highlight(FullMsgId itemId) {
+void ElementHighlighter::highlight(FullMsgId itemId, TextSelection part) {
 	if (const auto item = _data->message(itemId)) {
 		if (const auto view = _viewForItem(item)) {
-			if (_highlightedMessageId
-				&& _highlightedMessageId != itemId) {
-				if (const auto was = _data->message(_highlightedMessageId)) {
+			if (_highlighted && _highlighted.itemId != itemId) {
+				if (const auto was = _data->message(_highlighted.itemId)) {
 					if (const auto view = _viewForItem(was)) {
 						repaintHighlightedItem(view);
 					}
 				}
 			}
-			_highlightedMessageId = itemId;
-			_animation.start();
+			_highlighted = { itemId, part };
+			_animation.start(!part.empty());
 
 			repaintHighlightedItem(view);
 		}
@@ -105,7 +103,7 @@ void ElementHighlighter::repaintHighlightedItem(
 }
 
 void ElementHighlighter::updateMessage() {
-	if (const auto item = _data->message(_highlightedMessageId)) {
+	if (const auto item = _data->message(_highlighted.itemId)) {
 		if (const auto view = _viewForItem(item)) {
 			repaintHighlightedItem(view);
 		}
@@ -114,7 +112,7 @@ void ElementHighlighter::updateMessage() {
 
 void ElementHighlighter::clear() {
 	_animation.cancel();
-	_highlightedMessageId = FullMsgId();
+	_highlighted = {};
 	_lastHighlightedMessageId = FullMsgId();
 	_queue.clear();
 }
@@ -125,60 +123,117 @@ ElementHighlighter::AnimationManager::AnimationManager(
 }
 
 bool ElementHighlighter::AnimationManager::animating() const {
-	if (anim::Disabled()) {
-		return (_timer && _timer->isActive());
-	} else {
+	if (_timer && _timer->isActive()) {
+		return true;
+	} else if (!anim::Disabled()) {
 		return _simple.animating();
 	}
+	return false;
 }
 
-float64 ElementHighlighter::AnimationManager::progress() const {
+Ui::ChatPaintHighlight ElementHighlighter::AnimationManager::state() const {
 	if (anim::Disabled()) {
-		return (_timer && _timer->isActive()) ? kAnimationFirstPart : 0.;
-	} else {
-		return _simple.value(0.);
+		return {
+			.opacity = !_timer ? 0. : 1.,
+			.collapsion = !_timer ? 0. : _fadingOut ? 1. : 0.,
+		};
 	}
+	return {
+		.opacity = ((!_fadingOut && _collapsing)
+			? 1.
+			: _simple.value(_fadingOut ? 0. : 1.)),
+		.collapsion = ((!_withTextPart || !_collapsing)
+			? 0.
+			: _fadingOut
+			? 1.
+			: _simple.value(1.)),
+	};
 }
 
 MsgId ElementHighlighter::latestSingleHighlightedMsgId() const {
-	return _highlightedMessageId
-		? _highlightedMessageId.msg
+	return _highlighted.itemId
+		? _highlighted.itemId.msg
 		: _lastHighlightedMessageId.msg;
 }
 
-void ElementHighlighter::AnimationManager::start() {
+void ElementHighlighter::AnimationManager::start(bool withTextPart) {
+	_withTextPart = withTextPart;
 	const auto finish = [=] {
 		cancel();
 		_parent._lastHighlightedMessageId = base::take(
-			_parent._highlightedMessageId);
+			_parent._highlighted.itemId);
 		_parent.checkNextHighlight();
 	};
 	cancel();
 	if (anim::Disabled()) {
 		_timer.emplace([=] {
 			_parent.updateMessage();
-			finish();
+			if (_withTextPart && !_fadingOut) {
+				_fadingOut = true;
+				_timer->callOnce(st::activeFadeOutDuration);
+			} else {
+				finish();
+			}
 		});
-		_timer->callOnce(st::activeFadeOutDuration);
+		_timer->callOnce(_withTextPart
+			? st::activeFadeInDuration
+			: st::activeFadeOutDuration);
 		_parent.updateMessage();
 	} else {
-		const auto to = 1.;
 		_simple.start(
 			[=](float64 value) {
 				_parent.updateMessage();
-				if (value == to) {
-					finish();
+				if (value == 1.) {
+					if (_withTextPart) {
+						_timer.emplace([=] {
+							_parent.updateMessage();
+							if (_collapsing) {
+								_fadingOut = true;
+							} else {
+								_collapsing = true;
+							}
+							_simple.start([=](float64 value) {
+								_parent.updateMessage();
+								if (_fadingOut && value == 0.) {
+									finish();
+								} else if (!_fadingOut && value == 1.) {
+									_timer->callOnce(
+										st::activeFadeOutDuration);
+								}
+							},
+							_fadingOut ? 1. : 0.,
+							_fadingOut ? 0. : 1.,
+							(_fadingOut
+								? st::activeFadeInDuration
+								: st::fadeWrapDuration));
+						});
+						_timer->callOnce(st::activeFadeInDuration);
+					} else {
+						_fadingOut = true;
+						_simple.start([=](float64 value) {
+							_parent.updateMessage();
+							if (value == 0.) {
+								finish();
+							}
+						},
+						1.,
+						0.,
+						st::activeFadeOutDuration);
+					}
 				}
 			},
 			0.,
-			to,
-			st::activeFadeInDuration + st::activeFadeOutDuration);
+			1.,
+			st::activeFadeInDuration);
 	}
 }
 
 void ElementHighlighter::AnimationManager::cancel() {
 	_simple.stop();
 	_timer.reset();
+	_fadingOut = false;
+	_collapsed = false;
+	_collapsing = false;
 }
 
 } // namespace HistoryView

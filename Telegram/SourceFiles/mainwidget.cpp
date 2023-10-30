@@ -1411,7 +1411,7 @@ void MainWidget::showHistory(
 		&& way != Way::Forward) {
 		clearBotStartToken(_history->peer());
 	}
-	_history->showHistory(peerId, showAtMsgId);
+	_history->showHistory(peerId, showAtMsgId, params.highlightPart);
 	if (alreadyThatPeer && params.reapplyLocalDraft) {
 		_history->applyDraft(HistoryWidget::FieldHistoryAction::NewEntry);
 	}
@@ -1772,7 +1772,7 @@ void MainWidget::showNewSection(
 	} else {
 		_mainSection = std::move(newMainSection);
 		_history->finishAnimating();
-		_history->showHistory(0, 0);
+		_history->showHistory(0, 0, {});
 
 		if (const auto entry = _mainSection->activeChat(); entry.key) {
 			_controller->setActiveChatEntry(entry);

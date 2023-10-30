@@ -120,10 +120,12 @@ struct SendingErrorRequest {
 [[nodiscard]] ClickHandlerPtr JumpToMessageClickHandler(
 	not_null<PeerData*> peer,
 	MsgId msgId,
-	FullMsgId returnToId = FullMsgId());
+	FullMsgId returnToId = FullMsgId(),
+	TextWithEntities highlightPart = {});
 [[nodiscard]] ClickHandlerPtr JumpToMessageClickHandler(
 	not_null<HistoryItem*> item,
-	FullMsgId returnToId = FullMsgId());
+	FullMsgId returnToId = FullMsgId(),
+	TextWithEntities highlightPart = {});
 [[nodiscard]] ClickHandlerPtr JumpToStoryClickHandler(
 	not_null<Data::Story*> story);
 ClickHandlerPtr JumpToStoryClickHandler(

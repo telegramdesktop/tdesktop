@@ -166,6 +166,7 @@ struct SectionShow {
 		return copy;
 	}
 
+	TextWithEntities highlightPart;
 	Way way = Way::Forward;
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;

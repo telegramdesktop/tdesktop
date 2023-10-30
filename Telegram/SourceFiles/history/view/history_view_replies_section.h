@@ -208,8 +208,11 @@ private:
 	void showAtEnd();
 	void showAtPosition(
 		Data::MessagePosition position,
-		FullMsgId originItemId = {},
-		anim::type animated = anim::type::normal);
+		FullMsgId originItemId = {});
+	void showAtPosition(
+		Data::MessagePosition position,
+		FullMsgId originItemId,
+		const Window::SectionShow &params);
 	void finishSending();
 
 	void setupComposeControls();

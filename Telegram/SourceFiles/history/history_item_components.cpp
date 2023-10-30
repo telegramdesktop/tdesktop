@@ -630,7 +630,10 @@ void HistoryMessageReply::setLinkFrom(
 		}
 	};
 	_link = resolvedMessage
-		? JumpToMessageClickHandler(resolvedMessage.get(), holder->fullId())
+		? JumpToMessageClickHandler(
+			resolvedMessage.get(),
+			holder->fullId(),
+			_fields.quote)
 		: resolvedStory
 		? JumpToStoryClickHandler(resolvedStory.get())
 		: (external && !_fields.messageId)
