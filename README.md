@@ -23,6 +23,8 @@ The latest version is available for
 * [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
 
 ## Old system versions
+Version **4.10.2** with blue tray icon
+* (https://github.com/telegramdesktop/tdesktop/releases/tag/v4.10.2)
 
 Version **4.9.9** was the last that supports older systems
 
