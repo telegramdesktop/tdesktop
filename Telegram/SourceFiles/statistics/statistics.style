@@ -148,3 +148,15 @@ getBoostsButton: SettingsButton(reportReasonButton) {
 	textFgOver: lightButtonFg;
 }
 getBoostsButtonIcon: icon {{ "menu/gift_premium", lightButtonFg }};
+
+giveawayTypeListItem: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoPosition: point(58px, 6px);
+	namePosition: point(110px, 8px);
+	statusPosition: point(110px, 28px);
+	photoSize: 42px;
+}
+giveawayUserpic: icon {{ "boosts/filled_gift", windowFgActive }};
+giveawayUserpicSkip: 1px;
+giveawayUserpicGroup: icon {{ "limits/groups", windowFgActive }};
+giveawayRadioPosition: point(21px, 16px);

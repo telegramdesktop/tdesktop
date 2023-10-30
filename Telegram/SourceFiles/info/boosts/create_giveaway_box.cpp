@@ -10,10 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h" // ParticipantsBoxController
 #include "data/data_peer.h"
 #include "data/data_user.h"
+#include "info/boosts/giveaway/giveaway_type_row.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/layers/generic_box.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "styles/style_layers.h"
 
 namespace {
 
@@ -27,8 +30,6 @@ public:
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
-
-private:
 
 };
 
@@ -57,25 +58,78 @@ void CreateGiveawayBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Info::Controller*> controller,
 		not_null<PeerData*> peer) {
-	box->addButton(tr::lng_box_ok(), [=] {
-		auto initBox = [=](not_null<PeerListBox*> peersBox) {
-			peersBox->setTitle(tr::lng_giveaway_award_option());
-			peersBox->addButton(tr::lng_settings_save(), [=] {
-				const auto selected = peersBox->collectSelectedRows();
-				peersBox->closeBox();
-			});
-			peersBox->addButton(tr::lng_cancel(), [=] {
-				peersBox->closeBox();
-			});
-		};
+	struct State final {
+		std::vector<not_null<PeerData*>> selectedToAward;
+		rpl::event_stream<> toAwardAmountChanged;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	using GiveawayType = Giveaway::GiveawayTypeRow::Type;
+	using GiveawayGroup = Ui::RadioenumGroup<GiveawayType>;
+	const auto typeGroup = std::make_shared<GiveawayGroup>();
 
-		box->uiShow()->showBox(
-			Box<PeerListBox>(
-				std::make_unique<MembersListController>(
-					controller,
-					peer,
-					ParticipantsRole::Members),
-				std::move(initBox)),
-			Ui::LayerOption::KeepOther);
+	box->setWidth(st::boxWideWidth);
+
+	{
+		const auto row = box->verticalLayout()->add(
+			object_ptr<Giveaway::GiveawayTypeRow>(
+				box,
+				GiveawayType::Random,
+				tr::lng_giveaway_create_subtitle()));
+		row->addRadio(typeGroup);
+		row->setClickedCallback([=] {
+			typeGroup->setValue(GiveawayType::Random);
+		});
+	}
+	{
+		const auto row = box->verticalLayout()->add(
+			object_ptr<Giveaway::GiveawayTypeRow>(
+				box,
+				GiveawayType::SpecificUsers,
+				state->toAwardAmountChanged.events_starting_with(
+					rpl::empty_value()
+				) | rpl::map([=] {
+					const auto &selected = state->selectedToAward;
+					return selected.empty()
+						? tr::lng_giveaway_award_subtitle()
+						: (selected.size() == 1)
+						? rpl::single(selected.front()->name())
+						: tr::lng_giveaway_award_chosen(
+							lt_count,
+							rpl::single(selected.size()) | tr::to_count());
+				}) | rpl::flatten_latest()));
+		row->addRadio(typeGroup);
+		row->setClickedCallback([=] {
+			auto initBox = [=](not_null<PeerListBox*> peersBox) {
+				peersBox->setTitle(tr::lng_giveaway_award_option());
+				peersBox->addButton(tr::lng_settings_save(), [=] {
+					state->selectedToAward = peersBox->collectSelectedRows();
+					state->toAwardAmountChanged.fire({});
+					peersBox->closeBox();
+				});
+				peersBox->addButton(tr::lng_cancel(), [=] {
+					peersBox->closeBox();
+				});
+				peersBox->boxClosing(
+				) | rpl::start_with_next([=] {
+					typeGroup->setValue(state->selectedToAward.empty()
+						? GiveawayType::Random
+						: GiveawayType::SpecificUsers);
+				}, peersBox->lifetime());
+			};
+
+			box->uiShow()->showBox(
+				Box<PeerListBox>(
+					std::make_unique<MembersListController>(
+						controller,
+						peer,
+						ParticipantsRole::Members),
+					std::move(initBox)),
+				Ui::LayerOption::KeepOther);
+		});
+	}
+	typeGroup->setValue(GiveawayType::Random);
+
+	box->addButton(tr::lng_box_ok(), [=] {
+		box->closeBox();
 	});
 }

@@ -109,6 +109,9 @@ PRIVATE
     info/userpic/info_userpic_emoji_builder_layer.cpp
     info/userpic/info_userpic_emoji_builder_layer.h
 
+    info/boosts/giveaway/giveaway_type_row.cpp
+    info/boosts/giveaway/giveaway_type_row.h
+
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
     layout/layout_mosaic.cpp
