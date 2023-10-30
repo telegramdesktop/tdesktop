@@ -288,6 +288,10 @@ giveawayGiftCodeLinkHeight: 42px;
 giveawayGiftCodeLinkCopyWidth: 40px;
 giveawayGiftCodeLinkMargin: margins(24px, 8px, 24px, 12px);
 
+giveawayGiftCodeGiftOption: PremiumOption(premiumGiftOption) {
+	badgeShift: point(5px, 0px);
+}
+
 boostLinkStatsButton: IconButton(defaultIconButton) {
 	width: giveawayGiftCodeLinkCopyWidth;
 	height: giveawayGiftCodeLinkHeight;

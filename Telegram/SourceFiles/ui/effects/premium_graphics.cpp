@@ -1320,6 +1320,7 @@ void AddGiftOptions(
 			stCheckbox,
 			std::move(radioView));
 		radio->setAttribute(Qt::WA_TransparentForMouseEvents);
+		radio->show();
 		{ // Paint the last frame instantly for the layer animation.
 			group->setValue(0);
 			radio->finishAnimating();
