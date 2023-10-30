@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium_option.h"
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
+#include "base/random.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "payments/payments_form.h"
 #include "ui/text/format_values.h"
 
 namespace Api {
@@ -353,9 +355,16 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 			for (const auto &tlOption : result.v) {
 				const auto &data = tlOption.data();
 				tlMapOptions[data.vusers().v].push_back(tlOption);
+
+				const auto token = Token{ data.vusers().v, data.vmonths().v };
+				_stores[token] = Store{
+					.amount = data.vamount().v,
+					.product = qs(data.vstore_product().value_or_empty()),
+					.quantity = data.vstore_quantity().value_or_empty(),
+				};
 			}
 			for (const auto &[amount, tlOptions] : tlMapOptions) {
-				if (amount == 1) {
+				if (amount == 1 && _optionsForOnePerson.currency.isEmpty()) {
 					_optionsForOnePerson.currency = qs(
 						tlOptions.front().data().vcurrency());
 					for (const auto &option : tlOptions) {
@@ -373,6 +382,26 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 		}).send();
 
 		return lifetime;
+	};
+}
+
+Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
+		int users,
+		int monthsIndex) {
+	const auto randomId = base::RandomValue<uint64>();
+	const auto token = Token{
+		users,
+		_optionsForOnePerson.months[monthsIndex],
+	};
+	const auto &store = _stores[token];
+	return Payments::InvoicePremiumGiftCode{
+		.randomId = randomId,
+		.currency = _optionsForOnePerson.currency,
+		.amount = store.amount,
+		.storeProduct = store.product,
+		.storeQuantity = store.quantity,
+		.users = token.users,
+		.months = token.months,
 	};
 }
 

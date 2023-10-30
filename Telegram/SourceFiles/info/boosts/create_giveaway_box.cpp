@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/boosts/giveaway/giveaway_type_row.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
+#include "payments/payments_checkout_process.h" // Payments::CheckoutProcess
+#include "payments/payments_form.h" // Payments::InvoicePremiumGiftCode
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h" // Settings::ShowPremium
 #include "ui/effects/premium_graphics.h"
@@ -79,6 +81,8 @@ void CreateGiveawayBox(
 		rpl::event_stream<> toAwardAmountChanged;
 
 		rpl::variable<GiveawayType> typeValue;
+
+		bool confirmButtonBusy = false;
 	};
 	const auto state = box->lifetime().make_state<State>(peer);
 	const auto typeGroup = std::make_shared<GiveawayGroup>();
@@ -213,9 +217,54 @@ void CreateGiveawayBox(
 			rebuildListOptions(1);
 		});
 	}
+	{
+		// TODO mini-icon.
+		const auto &stButton = st::premiumGiftBox;
+		box->setStyle(stButton);
+		auto button = object_ptr<Ui::RoundButton>(
+			box,
+			state->toAwardAmountChanged.events_starting_with(
+				rpl::empty_value()
+			) | rpl::map([=] {
+				return (typeGroup->value() == GiveawayType::SpecificUsers)
+					? tr::lng_giveaway_award()
+					: tr::lng_giveaway_start();
+			}) | rpl::flatten_latest(),
+			st::giveawayGiftCodeStartButton);
+		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		button->resizeToWidth(box->width()
+			- stButton.buttonPadding.left()
+			- stButton.buttonPadding.right());
+		button->setClickedCallback([=] {
+			if (state->confirmButtonBusy) {
+				return;
+			}
+			if (typeGroup->value() == GiveawayType::SpecificUsers) {
+				if (state->selectedToAward.empty()) {
+					return;
+				}
+				auto invoice = state->apiOptions.invoice(
+					state->selectedToAward.size(),
+					durationGroup->value());
+				invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{
+					ranges::views::all(
+						state->selectedToAward
+					) | ranges::views::transform([](
+							const not_null<PeerData*> p) {
+						return not_null{ p->asUser() };
+					}) | ranges::to_vector,
+					peer->asChannel(),
+				};
+				state->confirmButtonBusy = true;
+				Payments::CheckoutProcess::Start(
+					std::move(invoice),
+					crl::guard(box, [=](auto) {
+						state->confirmButtonBusy = false;
+						box->window()->setFocus();
+					}));
+			}
+		});
+		box->addButton(std::move(button));
+	}
 	state->typeValue.force_assign(GiveawayType::Random);
-
-	box->addButton(tr::lng_box_ok(), [=] {
-		box->closeBox();
-	});
 }
