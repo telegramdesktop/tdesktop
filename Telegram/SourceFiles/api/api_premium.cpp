@@ -9,12 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_premium_option.h"
 #include "api/api_text_entities.h"
-#include "main/main_session.h"
-#include "data/data_peer_values.h"
-#include "data/data_document.h"
-#include "data/data_session.h"
-#include "data/data_peer.h"
 #include "apiwrap.h"
+#include "data/data_document.h"
+#include "data/data_peer.h"
+#include "data/data_peer_values.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
+#include "ui/text/format_values.h"
 
 namespace Api {
 namespace {
@@ -29,6 +30,24 @@ namespace {
 		.months = data.vmonths().v,
 		.giveaway = data.is_via_giveaway(),
 	};
+}
+
+[[nodiscard]] Data::SubscriptionOptions GiftCodesFromTL(
+		const QVector<MTPPremiumGiftCodeOption> &tlOptions) {
+	auto options = SubscriptionOptionsFromTL(tlOptions);
+	for (auto i = 0; i < options.size(); i++) {
+		const auto &tlOption = tlOptions[i].data();
+		const auto perUserText = Ui::FillAmountAndCurrency(
+			tlOption.vamount().v / float64(tlOption.vusers().v),
+			qs(tlOption.vcurrency()),
+			false);
+		options[i].costPerMonth = perUserText
+			+ ' '
+			+ QChar(0x00D7)
+			+ ' '
+			+ QString::number(tlOption.vusers().v);
+	}
+	return options;
 }
 
 } // namespace
@@ -309,6 +328,73 @@ void Premium::resolveGiveawayInfo(
 
 const Data::SubscriptionOptions &Premium::subscriptionOptions() const {
 	return _subscriptionOptions;
+}
+
+PremiumGiftCodeOptions::PremiumGiftCodeOptions(not_null<PeerData*> peer)
+: _peer(peer)
+, _api(&peer->session().api().instance()) {
+}
+
+rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto channel = _peer->asChannel();
+		if (!channel) {
+			return lifetime;
+		}
+
+		using TLOption = MTPPremiumGiftCodeOption;
+		_api.request(MTPpayments_GetPremiumGiftCodeOptions(
+			MTP_flags(
+				MTPpayments_GetPremiumGiftCodeOptions::Flag::f_boost_peer),
+			_peer->input
+		)).done([=](const MTPVector<TLOption> &result) {
+			auto tlMapOptions = base::flat_map<Amount, QVector<TLOption>>();
+			for (const auto &tlOption : result.v) {
+				const auto &data = tlOption.data();
+				tlMapOptions[data.vusers().v].push_back(tlOption);
+			}
+			for (const auto &[amount, tlOptions] : tlMapOptions) {
+				if (amount == 1) {
+					_optionsForOnePerson.currency = qs(
+						tlOptions.front().data().vcurrency());
+					for (const auto &option : tlOptions) {
+						_optionsForOnePerson.months.push_back(
+							option.data().vmonths().v);
+						_optionsForOnePerson.totalCosts.push_back(
+							option.data().vamount().v);
+					}
+				}
+				_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
+			}
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
+Data::SubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
+	const auto it = _subscriptionOptions.find(amount);
+	if (it != end(_subscriptionOptions)) {
+		return it->second;
+	} else {
+		auto tlOptions = QVector<MTPPremiumGiftCodeOption>();
+		for (auto i = 0; i < _optionsForOnePerson.months.size(); i++) {
+			tlOptions.push_back(MTP_premiumGiftCodeOption(
+				MTP_flags(MTPDpremiumGiftCodeOption::Flags(0)),
+				MTP_int(amount),
+				MTP_int(_optionsForOnePerson.months[i]),
+				MTPstring(),
+				MTPint(),
+				MTP_string(_optionsForOnePerson.currency),
+				MTP_long(_optionsForOnePerson.totalCosts[i] * amount)));
+		}
+		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
+		return _subscriptionOptions[amount];
+	}
 }
 
 } // namespace Api

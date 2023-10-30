@@ -141,4 +141,25 @@ private:
 
 };
 
+class PremiumGiftCodeOptions final {
+public:
+	PremiumGiftCodeOptions(not_null<PeerData*> peer);
+
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
+	[[nodiscard]] Data::SubscriptionOptions options(int amount);
+
+private:
+	const not_null<PeerData*> _peer;
+	using Amount = int;
+	base::flat_map<Amount, Data::SubscriptionOptions> _subscriptionOptions;
+	struct {
+		std::vector<int> months;
+		std::vector<float64> totalCosts;
+		QString currency;
+	} _optionsForOnePerson;
+
+	MTP::Sender _api;
+
+};
+
 } // namespace Api
