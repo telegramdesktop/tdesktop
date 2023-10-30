@@ -182,6 +182,18 @@ parts:
       rm -rf patches
     stage: [-./*]
 
+  meson-deps:
+    source: https://github.com/mesonbuild/meson.git
+    source-depth: 1
+    source-branch: 1.2.3
+    plugin: nil
+    build-packages:
+      - python3-pip
+      - ninja-build
+    override-build: |
+      pip install .
+    stage: [-./*]
+
   desktop-qt:
     source: https://github.com/desktop-app/snapcraft-desktop-helpers.git
     source-subdir: qt
@@ -253,7 +265,6 @@ parts:
     source-tag: 2.78.0
     plugin: meson
     build-packages:
-      - meson
       - mm-common
       - ninja-build
       - libxml-parser-perl
@@ -270,6 +281,8 @@ parts:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
+    after:
+      - meson-deps
 
   libjxl:
     source: https://github.com/libjxl/libjxl.git
