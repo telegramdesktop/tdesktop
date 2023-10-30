@@ -344,6 +344,8 @@ QByteArray Settings::serialize() const {
 		for (const auto &id : _recentEmojiSkip) {
 			stream << id;
 		}
+		stream
+			<< qint32(_trayIconMonochrome.current() ? 1 : 0);
 	}
 	return result;
 }
@@ -451,6 +453,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	quint64 macRoundIconDigest = _macRoundIconDigest.value_or(0);
 	qint32 storiesClickTooltipHidden = _storiesClickTooltipHidden.current() ? 1 : 0;
 	base::flat_set<QString> recentEmojiSkip;
+	qint32 trayIconMonochrome = (_trayIconMonochrome.current() ? 1 : 0);
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -701,6 +704,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> trayIconMonochrome;
+	} else {
+		// Let existing clients use the old value.
+		trayIconMonochrome = 0;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -894,6 +903,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_macRoundIconDigest = macRoundIconDigest ? macRoundIconDigest : std::optional<uint64>();
 	_storiesClickTooltipHidden = (storiesClickTooltipHidden == 1);
 	_recentEmojiSkip = std::move(recentEmojiSkip);
+	_trayIconMonochrome = (trayIconMonochrome == 1);
 }
 
 QString Settings::getSoundPath(const QString &key) const {

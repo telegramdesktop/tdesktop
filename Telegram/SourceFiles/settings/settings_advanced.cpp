@@ -453,18 +453,35 @@ void SetupSystemIntegrationContent(
 				st::settingsCheckboxPadding));
 	};
 
+	const auto settings = &Core::App().settings();
 	if (Platform::TrayIconSupported()) {
-		const auto trayEnabled = [] {
-			const auto workMode = Core::App().settings().workMode();
+		const auto trayEnabled = [=] {
+			const auto workMode = settings->workMode();
 			return (workMode == WorkMode::TrayOnly)
 				|| (workMode == WorkMode::WindowAndTray);
 		};
 		const auto tray = addCheckbox(
 			tr::lng_settings_workmode_tray(),
 			trayEnabled());
+		const auto monochrome = Platform::HasMonochromeSetting()
+			? addSlidingCheckbox(
+				tr::lng_settings_monochrome_icon(),
+				settings->trayIconMonochrome())
+			: nullptr;
+		if (monochrome) {
+			monochrome->toggle(tray->checked(), anim::type::instant);
 
-		const auto taskbarEnabled = [] {
-			const auto workMode = Core::App().settings().workMode();
+			monochrome->entity()->checkedChanges(
+			) | rpl::filter([=](bool value) {
+				return (value != settings->trayIconMonochrome());
+			}) | rpl::start_with_next([=](bool value) {
+				settings->setTrayIconMonochrome(value);
+				Core::App().saveSettingsDelayed();
+			}, monochrome->lifetime());
+		}
+
+		const auto taskbarEnabled = [=] {
+			const auto workMode = settings->workMode();
 			return (workMode == WorkMode::WindowOnly)
 				|| (workMode == WorkMode::WindowAndTray);
 		};
@@ -482,10 +499,10 @@ void SetupSystemIntegrationContent(
 				: WorkMode::WindowOnly;
 			if ((newMode == WorkMode::WindowAndTray
 				|| newMode == WorkMode::TrayOnly)
-				&& Core::App().settings().workMode() != newMode) {
+				&& settings->workMode() != newMode) {
 				cSetSeenTrayTooltip(false);
 			}
-			Core::App().settings().setWorkMode(newMode);
+			settings->setWorkMode(newMode);
 			Core::App().saveSettingsDelayed();
 		};
 
@@ -497,6 +514,9 @@ void SetupSystemIntegrationContent(
 				taskbar->setChecked(true);
 			} else {
 				updateWorkmode();
+			}
+			if (monochrome) {
+				monochrome->toggle(checked, anim::type::normal);
 			}
 		}, tray->lifetime());
 
@@ -519,19 +539,19 @@ void SetupSystemIntegrationContent(
 		tr::lng_settings_mac_warn_before_quit(
 			lt_text,
 			rpl::single(Platform::ConfirmQuit::QuitKeysString())),
-		Core::App().settings().macWarnBeforeQuit());
+		settings->macWarnBeforeQuit());
 	warnBeforeQuit->checkedChanges(
 	) | rpl::filter([=](bool checked) {
-		return (checked != Core::App().settings().macWarnBeforeQuit());
+		return (checked != settings->macWarnBeforeQuit());
 	}) | rpl::start_with_next([=](bool checked) {
-		Core::App().settings().setMacWarnBeforeQuit(checked);
+		settings->setMacWarnBeforeQuit(checked);
 		Core::App().saveSettingsDelayed();
 	}, warnBeforeQuit->lifetime());
 
 #ifndef OS_MAC_STORE
 	const auto enabled = [] {
 		const auto digest = base::Platform::CurrentCustomAppIconDigest();
-		return digest && (Core::App().settings().macRoundIconDigest() == digest);
+		return digest && (settings->macRoundIconDigest() == digest);
 	};
 	const auto roundIcon = addCheckbox(
 		tr::lng_settings_mac_round_icon(),
@@ -548,7 +568,7 @@ void SetupSystemIntegrationContent(
 		}
 		Window::OverrideApplicationIcon(checked ? IconMacRound() : QImage());
 		Core::App().refreshApplicationIcon();
-		Core::App().settings().setMacRoundIconDigest(digest);
+		settings->setMacRoundIconDigest(digest);
 		Core::App().saveSettings();
 	}, roundIcon->lifetime());
 #endif // OS_MAC_STORE
@@ -557,10 +577,10 @@ void SetupSystemIntegrationContent(
 	if (!Platform::RunInBackground()) {
 		const auto closeToTaskbar = addSlidingCheckbox(
 			tr::lng_settings_close_to_taskbar(),
-			Core::App().settings().closeToTaskbar());
+			settings->closeToTaskbar());
 
 		const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
-		Core::App().settings().workModeValue(
+		settings->workModeValue(
 		) | rpl::start_with_next([=](WorkMode workMode) {
 			*closeToTaskbarShown = !Core::App().tray().has();
 		}, closeToTaskbar->lifetime());
@@ -568,9 +588,9 @@ void SetupSystemIntegrationContent(
 		closeToTaskbar->toggleOn(closeToTaskbarShown->value());
 		closeToTaskbar->entity()->checkedChanges(
 		) | rpl::filter([=](bool checked) {
-			return (checked != Core::App().settings().closeToTaskbar());
+			return (checked != settings->closeToTaskbar());
 		}) | rpl::start_with_next([=](bool checked) {
-			Core::App().settings().setCloseToTaskbar(checked);
+			settings->setCloseToTaskbar(checked);
 			Local::writeSettings();
 		}, closeToTaskbar->lifetime());
 	}
