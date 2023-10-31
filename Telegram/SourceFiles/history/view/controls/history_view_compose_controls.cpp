@@ -1355,6 +1355,7 @@ void ComposeControls::init() {
 				cancelReplyMessage();
 			}
 			_preview->apply(webpage);
+			_field->setFocus();
 		};
 		const auto replyToId = reply.messageId;
 		const auto highlight = crl::guard(_wrap.get(), [=] {

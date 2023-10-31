@@ -2604,8 +2604,9 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	request.view = _overElement;
 	request.item = overItem;
 	request.pointState = _overState.pointState;
-	const auto quote = (overItemView && _selectedTextItem == overItem)
-		? overItemView->selectedQuote(_selectedTextRange)
+	const auto quote = (_overElement
+		&& _selectedTextItem == _overElement->data())
+		? _overElement->selectedQuote(_selectedTextRange)
 		: SelectedQuote();
 	request.quote = quote.text;
 	request.quoteItem = quote.item;
