@@ -286,6 +286,9 @@ void GroupedMedia::drawHighlight(
 		Painter &p,
 		const PaintContext &context,
 		int top) const {
+	if (context.highlight.opacity == 0.) {
+		return;
+	}
 	auto selection = context.highlight.range;
 	if (_mode != Mode::Column) {
 		if (!selection.empty() && !IsSubGroupSelection(selection)) {
@@ -305,9 +308,15 @@ void GroupedMedia::drawHighlight(
 		const auto &part = _parts[i];
 		const auto rect = part.geometry.translated(0, skip);
 		const auto full = (!i && empty)
-			|| (subpart && IsGroupItemSelection(selection, i));
-		auto copy = context;
+			|| (subpart && IsGroupItemSelection(selection, i))
+			|| (!subpart
+				&& !selection.empty()
+				&& (selection.from < part.content->fullSelectionLength()));
+		if (!subpart) {
+			selection = part.content->skipSelection(selection);
+		}
 		if (full) {
+			auto copy = context;
 			copy.highlight.range = {};
 			_parent->paintCustomHighlight(
 				p,
@@ -315,18 +324,7 @@ void GroupedMedia::drawHighlight(
 				rect.y(),
 				rect.height(),
 				part.item);
-		} else if (!selection.empty()) {
-			copy.highlight.range = selection;
-			selection = part.content->skipSelection(selection);
-		} else {
-			break;
 		}
-		_parent->paintCustomHighlight(
-			p,
-			copy,
-			rect.y(),
-			rect.height(),
-			part.item);
 	}
 }
 
@@ -344,10 +342,10 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 	const auto rounding = inWebPage
 		? Ui::BubbleRounding{ kSmall, kSmall, kSmall, kSmall }
 		: adjustedBubbleRoundingWithCaption(_caption);
-	const auto highlight = context.highlight.range;
+	auto highlight = context.highlight.range;
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
-		const auto partContext = context.withSelection(fullSelection
+		auto partContext = context.withSelection(fullSelection
 			? FullSelection
 			: textSelection
 			? selection
@@ -359,8 +357,14 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		const auto highlightOpacity = highlighted
 			? context.highlight.opacity
 			: 0.;
+		partContext.highlight.range = highlighted
+			? TextSelection()
+			: highlight;
 		if (textSelection) {
 			selection = part.content->skipSelection(selection);
+		}
+		if (!highlighted) {
+			highlight = part.content->skipSelection(highlight);
 		}
 		if (!part.cache.isNull()) {
 			wasCache = true;

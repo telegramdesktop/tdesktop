@@ -621,6 +621,9 @@ void Element::paintHighlight(
 		Painter &p,
 		const PaintContext &context,
 		int geometryHeight) const {
+	if (context.highlight.opacity == 0.) {
+		return;
+	}
 	const auto top = marginTop();
 	const auto bottom = marginBottom();
 	const auto fill = qMin(top, bottom);
@@ -636,12 +639,8 @@ void Element::paintCustomHighlight(
 		int y,
 		int height,
 		not_null<const HistoryItem*> item) const {
-	const auto opacity = context.highlight.opacity;
-	if (opacity == 0.) {
-		return;
-	}
 	const auto o = p.opacity();
-	p.setOpacity(o * opacity);
+	p.setOpacity(o * context.highlight.opacity);
 	p.fillRect(0, y, width(), height, context.st->msgSelectOverlay());
 	p.setOpacity(o);
 }
