@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_item_components.h"
 
+#include "api/api_text_entities.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -37,6 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_web_page.h"
 #include "data/data_file_click_handler.h"
+#include "data/data_scheduled_messages.h"
+#include "data/data_session.h"
 #include "data/data_stories.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
@@ -51,6 +56,127 @@ namespace {
 
 const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
 
+void ValidateBackgroundEmoji(
+		DocumentId backgroundEmojiId,
+		not_null<Ui::BackgroundEmojiData*> data,
+		not_null<Ui::BackgroundEmojiCache*> cache,
+		not_null<Ui::Text::QuotePaintCache*> quote,
+		not_null<const HistoryView::Element*> holder) {
+	if (data->firstFrameMask.isNull()) {
+		if (!cache->frames[0].isNull()) {
+			for (auto &frame : cache->frames) {
+				frame = QImage();
+			}
+		}
+		const auto tag = Data::CustomEmojiSizeTag::Isolated;
+		if (!data->emoji) {
+			const auto owner = &holder->history()->owner();
+			const auto repaint = crl::guard(holder, [=] {
+				holder->history()->owner().requestViewRepaint(holder);
+			});
+			data->emoji = owner->customEmojiManager().create(
+				backgroundEmojiId,
+				repaint,
+				tag);
+		}
+		if (!data->emoji->ready()) {
+			return;
+		}
+		const auto size = Data::FrameSizeFromTag(tag);
+		data->firstFrameMask = QImage(
+			QSize(size, size),
+			QImage::Format_ARGB32_Premultiplied);
+		data->firstFrameMask.fill(Qt::transparent);
+		data->firstFrameMask.setDevicePixelRatio(style::DevicePixelRatio());
+		auto p = Painter(&data->firstFrameMask);
+		data->emoji->paint(p, {
+			.textColor = QColor(255, 255, 255),
+			.position = QPoint(0, 0),
+			.internal = {
+				.forceFirstFrame = true,
+			},
+		});
+		p.end();
+
+		data->emoji = nullptr;
+	}
+	if (!cache->frames[0].isNull() && cache->color == quote->icon) {
+		return;
+	}
+	cache->color = quote->icon;
+	const auto ratio = style::DevicePixelRatio();
+	auto colorized = QImage(
+		data->firstFrameMask.size(),
+		QImage::Format_ARGB32_Premultiplied);
+	colorized.setDevicePixelRatio(ratio);
+	style::colorizeImage(
+		data->firstFrameMask,
+		cache->color,
+		&colorized,
+		QRect(), // src
+		QPoint(), // dst
+		true); // use alpha
+	const auto make = [&](int size) {
+		size = style::ConvertScale(size) * ratio;
+		auto result = colorized.scaled(
+			size,
+			size,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		result.setDevicePixelRatio(ratio);
+		return result;
+	};
+
+	constexpr auto kSize1 = 12;
+	constexpr auto kSize2 = 16;
+	constexpr auto kSize3 = 20;
+	cache->frames[0] = make(kSize1);
+	cache->frames[1] = make(kSize2);
+	cache->frames[2] = make(kSize3);
+}
+
+void FillBackgroundEmoji(
+		Painter &p,
+		const QRect &rect,
+		bool quote,
+		const Ui::BackgroundEmojiCache &cache) {
+	p.setClipRect(rect);
+
+	const auto &frames = cache.frames;
+	const auto right = rect.x() + rect.width();
+	const auto paint = [&](int x, int y, int index, float64 opacity) {
+		y = style::ConvertScale(y);
+		if (y >= rect.height()) {
+			return;
+		}
+		p.setOpacity(opacity);
+		p.drawImage(
+			right - style::ConvertScale(x + (quote ? 12 : 0)),
+			rect.y() + y,
+			frames[index]);
+	};
+
+	paint(28, 4, 2, 0.32);
+	paint(51, 15, 1, 0.32);
+	paint(64, -2, 0, 0.28);
+	paint(87, 11, 1, 0.24);
+	paint(125, -2, 2, 0.16);
+
+	paint(28, 31, 1, 0.24);
+	paint(72, 33, 2, 0.2);
+
+	paint(46, 52, 1, 0.24);
+	paint(24, 55, 2, 0.18);
+
+	if (quote) {
+		paint(4, 23, 1, 0.28);
+		paint(0, 48, 0, 0.24);
+	}
+
+	p.setClipping(false);
+	p.setOpacity(1.);
+}
+
 } // namespace
 
 void HistoryMessageVia::create(
@@ -63,7 +189,7 @@ void HistoryMessageVia::create(
 			lt_inline_bot,
 			'@' + bot->username()));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot](
-		ClickContext context) {
+			ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			if (base::IsCtrlPressed()) {
@@ -104,11 +230,15 @@ void HistoryMessageVia::resize(int32 availw) const {
 	}
 }
 
-HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
+HiddenSenderInfo::HiddenSenderInfo(
+	const QString &name,
+	bool external,
+	std::optional<uint8> colorIndex)
 : name(name)
-, colorPeerId(Data::FakePeerIdForJustName(name))
+, colorIndex(colorIndex.value_or(
+	Data::DecideColorIndex(Data::FakePeerIdForJustName(name))))
 , emptyUserpic(
-	Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(colorPeerId)),
+	Ui::EmptyUserpic::UserpicColor(this->colorIndex),
 	(external
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {
@@ -182,13 +312,13 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 			? originalSender->name()
 			: hiddenSenderInfo->name)
 	};
-	if (!originalAuthor.isEmpty()) {
+	if (!originalPostAuthor.isEmpty()) {
 		phrase = tr::lng_forwarded_signed(
 			tr::now,
 			lt_channel,
 			name,
 			lt_user,
-			{ .text = originalAuthor },
+			{ .text = originalPostAuthor },
 			Ui::Text::WithEntities);
 	} else {
 		phrase = name;
@@ -260,170 +390,319 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	}
 }
 
+ReplyFields ReplyFieldsFromMTP(
+		not_null<History*> history,
+		const MTPMessageReplyHeader &reply) {
+	return reply.match([&](const MTPDmessageReplyHeader &data) {
+		auto result = ReplyFields();
+		if (const auto peer = data.vreply_to_peer_id()) {
+			result.externalPeerId = peerFromMTP(*peer);
+			if (result.externalPeerId == history->peer->id) {
+				result.externalPeerId = 0;
+			}
+		}
+		const auto owner = &history->owner();
+		if (const auto id = data.vreply_to_msg_id().value_or_empty()) {
+			result.messageId = data.is_reply_to_scheduled()
+				? owner->scheduledMessages().localMessageId(id)
+				: id;
+			result.topMessageId
+				= data.vreply_to_top_id().value_or(id);
+			result.topicPost = data.is_forum_topic();
+		}
+		if (const auto header = data.vreply_from()) {
+			const auto &data = header->data();
+			result.externalPostAuthor
+				= qs(data.vpost_author().value_or_empty());
+			result.externalSenderId = data.vfrom_id()
+				? peerFromMTP(*data.vfrom_id())
+				: PeerId();
+			result.externalSenderName
+				= qs(data.vfrom_name().value_or_empty());
+		}
+		result.quote = TextWithEntities{
+			qs(data.vquote_text().value_or_empty()),
+			Api::EntitiesFromMTP(
+				&owner->session(),
+				data.vquote_entities().value_or_empty()),
+		};
+		return result;
+	}, [&](const MTPDmessageReplyStoryHeader &data) {
+		return ReplyFields{
+			.externalPeerId = peerFromUser(data.vuser_id()),
+			.storyId = data.vstory_id().v,
+		};
+	});
+}
+
+FullReplyTo ReplyToFromMTP(
+		not_null<History*> history,
+		const MTPInputReplyTo &reply) {
+	return reply.match([&](const MTPDinputReplyToMessage &data) {
+		auto result = FullReplyTo{
+			.messageId = { history->peer->id, data.vreply_to_msg_id().v },
+		};
+		if (const auto peer = data.vreply_to_peer_id()) {
+			const auto parsed = Data::PeerFromInputMTP(
+				&history->owner(),
+				*peer);
+			if (!parsed) {
+				return FullReplyTo();
+			}
+			result.messageId.peer = parsed->id;
+		}
+		result.topicRootId = data.vtop_msg_id().value_or_empty();
+		result.quote = TextWithEntities{
+			qs(data.vquote_text().value_or_empty()),
+			Api::EntitiesFromMTP(
+				&history->session(),
+				data.vquote_entities().value_or_empty()),
+		};
+		return result;
+	}, [&](const MTPDinputReplyToStory &data) {
+		if (const auto parsed = Data::UserFromInputMTP(
+				&history->owner(),
+				data.vuser_id())) {
+			return FullReplyTo{
+				.storyId = { parsed->id, data.vstory_id().v },
+			};
+		}
+		return FullReplyTo();
+	});
+}
+
+HistoryMessageReply::HistoryMessageReply() = default;
+
+HistoryMessageReply &HistoryMessageReply::operator=(
+	HistoryMessageReply &&other) = default;
+
+HistoryMessageReply::~HistoryMessageReply() {
+	// clearData() should be called by holder.
+	Expects(resolvedMessage.empty());
+	Expects(originalVia == nullptr);
+}
+
 bool HistoryMessageReply::updateData(
 		not_null<HistoryItem*> holder,
 		bool force) {
 	const auto guard = gsl::finally([&] { refreshReplyToMedia(); });
 	if (!force) {
-		if ((replyToMsg || !replyToMsgId)
-			&& (replyToStory || !replyToStoryId)) {
+		if (resolvedMessage || resolvedStory || _unavailable) {
 			return true;
 		}
 	}
-	const auto peerId = replyToPeerId
-		? replyToPeerId
+	const auto peerId = _fields.externalPeerId
+		? _fields.externalPeerId
 		: holder->history()->peer->id;
-	if (!replyToMsg && replyToMsgId) {
-		replyToMsg = holder->history()->owner().message(
+	if (!resolvedMessage && _fields.messageId) {
+		resolvedMessage = holder->history()->owner().message(
 			peerId,
-			replyToMsgId);
-		if (replyToMsg) {
-			if (replyToMsg->isEmpty()) {
+			_fields.messageId);
+		if (resolvedMessage) {
+			if (resolvedMessage->isEmpty()) {
 				// Really it is deleted.
-				replyToMsg = nullptr;
+				resolvedMessage = nullptr;
 				force = true;
 			} else {
 				holder->history()->owner().registerDependentMessage(
 					holder,
-					replyToMsg.get());
+					resolvedMessage.get());
 			}
 		}
 	}
-	if (!replyToStory && replyToStoryId) {
+	if (!resolvedStory && _fields.storyId) {
 		const auto maybe = holder->history()->owner().stories().lookup({
 			peerId,
-			replyToStoryId,
+			_fields.storyId,
 		});
 		if (maybe) {
-			replyToStory = *maybe;
+			resolvedStory = *maybe;
 			holder->history()->owner().stories().registerDependentMessage(
 				holder,
-				replyToStory.get());
+				resolvedStory.get());
 		} else if (maybe.error() == Data::NoStory::Deleted) {
 			force = true;
 		}
 	}
 
-	if (replyToMsg || replyToStory) {
+	const auto external = _fields.externalSenderId
+		|| !_fields.externalSenderName.isEmpty();
+	if (resolvedMessage
+		|| resolvedStory
+		|| (external && (!_fields.messageId || force))) {
 		const auto repaint = [=] { holder->customEmojiRepaint(); };
 		const auto context = Core::MarkedTextContext{
 			.session = &holder->history()->session(),
 			.customEmojiRepaint = repaint,
 		};
-		replyToText.setMarkedText(
-			st::messageTextStyle,
-			(replyToMsg
-				? replyToMsg->inReplyText()
-				: replyToStory->inReplyText()),
+		const auto text = !_fields.quote.empty()
+			? _fields.quote
+			: resolvedMessage
+			? resolvedMessage->inReplyText()
+			: resolvedStory
+			? resolvedStory->inReplyText()
+			: TextWithEntities{ u"..."_q };
+		_text.setMarkedText(
+			st::defaultTextStyle,
+			text,
 			Ui::DialogTextOptions(),
 			context);
 
 		updateName(holder);
-
-		setReplyToLinkFrom(holder);
-		if (replyToMsg && !replyToMsg->Has<HistoryMessageForwarded>()) {
-			if (auto bot = replyToMsg->viaBot()) {
-				replyToVia = std::make_unique<HistoryMessageVia>();
-				replyToVia->create(
+		setLinkFrom(holder);
+		if (resolvedMessage
+			&& !resolvedMessage->Has<HistoryMessageForwarded>()) {
+			if (const auto bot = resolvedMessage->viaBot()) {
+				originalVia = std::make_unique<HistoryMessageVia>();
+				originalVia->create(
 					&holder->history()->owner(),
 					peerToUser(bot->id));
 			}
 		}
 
-		if (replyToMsg) {
-			const auto peer = replyToMsg->history()->peer;
-			replyToColorKey = (!holder->out()
-					&& (peer->isMegagroup() || peer->isChat()))
-				? replyToMsg->from()->id
-				: PeerId(0);
-		} else {
-			replyToColorKey = PeerId(0);
+		if (!resolvedMessage && !resolvedStory) {
+			_unavailable = 1;
 		}
 
-		const auto media = replyToMsg ? replyToMsg->media() : nullptr;
+		const auto media = resolvedMessage
+			? resolvedMessage->media()
+			: nullptr;
 		if (!media || !media->hasReplyPreview() || !media->hasSpoiler()) {
 			spoiler = nullptr;
 		} else if (!spoiler) {
 			spoiler = std::make_unique<Ui::SpoilerAnimation>(repaint);
 		}
 	} else if (force) {
-		replyToMsgId = 0;
-		replyToStoryId = 0;
-		replyToColorKey = PeerId(0);
+		if (_fields.messageId || _fields.storyId) {
+			_unavailable = 1;
+		}
 		spoiler = nullptr;
 	}
 	if (force) {
 		holder->history()->owner().requestItemResize(holder);
 	}
-	return (replyToMsg || !replyToMsgId)
-		&& (replyToStory || !replyToStoryId);
+	return resolvedMessage
+		|| resolvedStory
+		|| (external && !_fields.messageId)
+		|| _unavailable;
 }
 
-void HistoryMessageReply::setReplyToLinkFrom(
+void HistoryMessageReply::set(ReplyFields fields) {
+	_fields = std::move(fields);
+}
+
+void HistoryMessageReply::updateFields(
+		not_null<HistoryItem*> holder,
+		MsgId messageId,
+		MsgId topMessageId,
+		bool topicPost) {
+	_fields.topicPost = topicPost;
+	if ((_fields.messageId != messageId)
+		&& !IsServerMsgId(_fields.messageId)) {
+		_fields.messageId = messageId;
+		if (!updateData(holder)) {
+			RequestDependentMessageItem(
+				holder,
+				_fields.externalPeerId,
+				_fields.messageId);
+		}
+	}
+	if ((_fields.topMessageId != topMessageId)
+		&& !IsServerMsgId(_fields.topMessageId)) {
+		_fields.topMessageId = topMessageId;
+	}
+}
+
+void HistoryMessageReply::setLinkFrom(
 		not_null<HistoryItem*> holder) {
-	replyToLnk = replyToMsg
-		? JumpToMessageClickHandler(replyToMsg.get(), holder->fullId())
-		: replyToStory
-		? JumpToStoryClickHandler(replyToStory.get())
+	const auto externalPeerId = _fields.externalSenderId;
+	const auto external = externalPeerId
+		|| !_fields.externalSenderName.isEmpty();
+	const auto externalLink = [=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (externalPeerId) {
+				controller->showPeerInfo(
+					controller->session().data().peer(externalPeerId));
+			} else {
+				controller->showToast(u"External reply"_q);
+			}
+		}
+	};
+	_link = resolvedMessage
+		? JumpToMessageClickHandler(resolvedMessage.get(), holder->fullId())
+		: resolvedStory
+		? JumpToStoryClickHandler(resolvedStory.get())
+		: (external && !_fields.messageId)
+		? std::make_shared<LambdaClickHandler>(externalLink)
 		: nullptr;
 }
 
+void HistoryMessageReply::setTopMessageId(MsgId topMessageId) {
+	_fields.topMessageId = topMessageId;
+}
+
 void HistoryMessageReply::clearData(not_null<HistoryItem*> holder) {
-	replyToVia = nullptr;
-	if (replyToMsg) {
+	originalVia = nullptr;
+	if (resolvedMessage) {
 		holder->history()->owner().unregisterDependentMessage(
 			holder,
-			replyToMsg.get());
-		replyToMsg = nullptr;
+			resolvedMessage.get());
+		resolvedMessage = nullptr;
 	}
-	if (replyToStory) {
+	if (resolvedStory) {
 		holder->history()->owner().stories().unregisterDependentMessage(
 			holder,
-			replyToStory.get());
-		replyToStory = nullptr;
+			resolvedStory.get());
+		resolvedStory = nullptr;
 	}
-	replyToMsgId = 0;
-	replyToStoryId = 0;
+	_unavailable = 1;
 	refreshReplyToMedia();
 }
 
-PeerData *HistoryMessageReply::replyToFrom(
-		not_null<HistoryItem*> holder) const {
-	if (!replyToMsg) {
-		return nullptr;
+PeerData *HistoryMessageReply::sender(not_null<HistoryItem*> holder) const {
+	if (resolvedStory) {
+		return resolvedStory->peer();
+	} else if (!resolvedMessage) {
+		if (!_externalSender && _fields.externalSenderId) {
+			_externalSender = holder->history()->owner().peer(
+				_fields.externalSenderId);
+		}
+		return _externalSender;
 	} else if (holder->Has<HistoryMessageForwarded>()) {
-		if (const auto fwd = replyToMsg->Get<HistoryMessageForwarded>()) {
-			return fwd->originalSender;
+		// Forward of a reply. Show reply-to original sender.
+		const auto forwarded
+			= resolvedMessage->Get<HistoryMessageForwarded>();
+		if (forwarded) {
+			return forwarded->originalSender;
 		}
 	}
-	if (const auto from = replyToMsg->displayFrom()) {
+	if (const auto from = resolvedMessage->displayFrom()) {
 		return from;
 	}
-	return replyToMsg->author().get();
+	return resolvedMessage->author().get();
 }
 
-QString HistoryMessageReply::replyToFromName(
+QString HistoryMessageReply::senderName(
 		not_null<HistoryItem*> holder) const {
-	if (replyToStory) {
-		return replyToFromName(replyToStory->peer());
-	} else if (!replyToMsg) {
-		return QString();
+	if (const auto peer = sender(holder)) {
+		return senderName(peer);
+	} else if (!resolvedMessage) {
+		return _fields.externalSenderName;
 	} else if (holder->Has<HistoryMessageForwarded>()) {
-		if (const auto fwd = replyToMsg->Get<HistoryMessageForwarded>()) {
-			return fwd->originalSender
-				? replyToFromName(fwd->originalSender)
-				: fwd->hiddenSenderInfo->name;
+		// Forward of a reply. Show reply-to original sender.
+		const auto forwarded
+			= resolvedMessage->Get<HistoryMessageForwarded>();
+		if (forwarded) {
+			Assert(forwarded->hiddenSenderInfo != nullptr);
+			return forwarded->hiddenSenderInfo->name;
 		}
 	}
-	if (const auto from = replyToMsg->displayFrom()) {
-		return replyToFromName(from);
-	}
-	return replyToFromName(replyToMsg->author());
+	return QString();
 }
 
-QString HistoryMessageReply::replyToFromName(
-		not_null<PeerData*> peer) const {
-	if (const auto user = replyToVia ? peer->asUser() : nullptr) {
+QString HistoryMessageReply::senderName(not_null<PeerData*> peer) const {
+	if (const auto user = originalVia ? peer->asUser() : nullptr) {
 		return user->firstName;
 	}
 	return peer->name();
@@ -431,9 +710,9 @@ QString HistoryMessageReply::replyToFromName(
 
 bool HistoryMessageReply::isNameUpdated(
 		not_null<HistoryItem*> holder) const {
-	if (const auto from = replyToFrom(holder)) {
-		if (replyToVersion < from->nameVersion()) {
-			updateName(holder);
+	if (const auto from = sender(holder)) {
+		if (_nameVersion < from->nameVersion()) {
+			updateName(holder, from);
 			return true;
 		}
 	}
@@ -441,55 +720,91 @@ bool HistoryMessageReply::isNameUpdated(
 }
 
 void HistoryMessageReply::updateName(
-		not_null<HistoryItem*> holder) const {
-	if (const auto name = replyToFromName(holder); !name.isEmpty()) {
-		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
-		if (const auto from = replyToFrom(holder)) {
-			replyToVersion = from->nameVersion();
-		} else if (replyToMsg) {
-			replyToVersion = replyToMsg->author()->nameVersion();
-		} else {
-			replyToVersion = replyToStory->peer()->nameVersion();
+		not_null<HistoryItem*> holder,
+		std::optional<PeerData*> resolvedSender) const {
+	const auto peer = resolvedSender.value_or(sender(holder));
+	const auto name = peer ? senderName(peer) : senderName(holder);
+	const auto hasPreview = (resolvedStory
+		&& resolvedStory->hasReplyPreview())
+		|| (resolvedMessage
+			&& resolvedMessage->media()
+			&& resolvedMessage->media()->hasReplyPreview());
+	const auto textLeft = hasPreview
+		? (st::messageQuoteStyle.outline
+			+ st::historyReplyPreviewMargin.left()
+			+ st::historyReplyPreview
+			+ st::historyReplyPreviewMargin.right())
+		: st::historyReplyPadding.left();
+	if (!name.isEmpty()) {
+		_name.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
+		if (peer) {
+			_nameVersion = peer->nameVersion();
 		}
-		bool hasPreview = (replyToStory && replyToStory->hasReplyPreview())
-			|| (replyToMsg
-				&& replyToMsg->media()
-				&& replyToMsg->media()->hasReplyPreview());
-		int32 previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
-		int32 w = replyToName.maxWidth();
-		if (replyToVia) {
-			w += st::msgServiceFont->spacew + replyToVia->maxWidth;
-		}
-
-		maxReplyWidth = previewSkip
-			+ std::max(
-				w,
-				std::min(replyToText.maxWidth(), st::maxSignatureSize))
-			+ (storyReply
+		const auto w = _name.maxWidth()
+			+ (originalVia
+				? (st::msgServiceFont->spacew + originalVia->maxWidth)
+				: 0)
+			+ (_fields.quote.empty()
+				? 0
+				: st::messageTextStyle.blockquote.icon.width());
+		_maxWidth = std::max(
+			w,
+			std::min(_text.maxWidth(), st::maxSignatureSize))
+			+ (_fields.storyId
 				? (st::dialogsMiniReplyStory.skipText
 					+ st::dialogsMiniReplyStory.icon.icon.width())
 				: 0);
 	} else {
-		maxReplyWidth = st::msgDateFont->width(statePhrase());
+		_maxWidth = st::msgDateFont->width(statePhrase());
 	}
-	maxReplyWidth = st::msgReplyPadding.left() + st::msgReplyBarSkip + maxReplyWidth + st::msgReplyPadding.right();
+	_maxWidth = textLeft
+		+ _maxWidth
+		+ st::historyReplyPadding.right();
+	_minHeight = st::historyReplyPadding.top()
+		+ st::msgServiceNameFont->height
+		+ st::normalFont->height
+		+ st::historyReplyPadding.bottom();
 }
 
-void HistoryMessageReply::resize(int width) const {
-	if (replyToVia) {
-		bool hasPreview = (replyToStory && replyToStory->hasReplyPreview())
-			|| (replyToMsg
-				&& replyToMsg->media()
-				&& replyToMsg->media()->hasReplyPreview());
-		int previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
-		replyToVia->resize(width - st::msgReplyBarSkip - previewSkip - replyToName.maxWidth() - st::msgServiceFont->spacew);
+int HistoryMessageReply::resizeToWidth(int width) const {
+	const auto hasPreview = (resolvedStory
+		&& resolvedStory->hasReplyPreview())
+		|| (resolvedMessage
+			&& resolvedMessage->media()
+			&& resolvedMessage->media()->hasReplyPreview());
+	const auto textLeft = hasPreview
+		? (st::messageQuoteStyle.outline
+			+ st::historyReplyPreviewMargin.left()
+			+ st::historyReplyPreview
+			+ st::historyReplyPreviewMargin.right())
+		: st::historyReplyPadding.left();
+	if (originalVia) {
+		originalVia->resize(width
+			- textLeft
+			- st::historyReplyPadding.right()
+			- _name.maxWidth()
+			- st::msgServiceFont->spacew);
 	}
+	if (width >= _maxWidth) {
+		_height = _minHeight;
+		return height();
+	}
+	_height = _minHeight;
+	return height();
+}
+
+int HistoryMessageReply::height() const {
+	return  _height + st::historyReplyTop + st::historyReplyBottom;
+}
+
+QMargins HistoryMessageReply::margins() const {
+	return QMargins(0, st::historyReplyTop, 0, st::historyReplyBottom);
 }
 
 void HistoryMessageReply::itemRemoved(
 		not_null<HistoryItem*> holder,
 		not_null<HistoryItem*> removed) {
-	if (replyToMsg.get() == removed) {
+	if (resolvedMessage.get() == removed) {
 		clearData(holder);
 		holder->history()->owner().requestItemResize(holder);
 	}
@@ -498,7 +813,7 @@ void HistoryMessageReply::itemRemoved(
 void HistoryMessageReply::storyRemoved(
 		not_null<HistoryItem*> holder,
 		not_null<Data::Story*> removed) {
-	if (replyToStory.get() == removed) {
+	if (resolvedStory.get() == removed) {
 		clearData(holder);
 		holder->history()->owner().requestItemResize(holder);
 	}
@@ -515,57 +830,108 @@ void HistoryMessageReply::paint(
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 
-	{
-		const auto opacity = p.opacity();
-		const auto outerWidth = w + 2 * x;
-		const auto &bar = !inBubble
-			? st->msgImgReplyBarColor()
-			: replyToColorKey
-			? HistoryView::FromNameFg(context, replyToColorKey)
-			: stm->msgReplyBarColor;
-		const auto rbar = style::rtlrect(
-			x + st::msgReplyBarPos.x(),
-			y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(),
-			st::msgReplyBarSize.width(),
-			st::msgReplyBarSize.height(),
-			outerWidth);
-
-		if (ripple.animation) {
-			const auto colorOverride = &stm->msgWaveformInactive->c;
-			p.setOpacity(st::historyPollRippleOpacity);
-			ripple.animation->paint(
-				p,
-				x - st::msgReplyPadding.left(),
-				y,
-				outerWidth,
-				colorOverride);
-			if (ripple.animation->empty()) {
-				ripple.animation.reset();
-			}
+	y += st::historyReplyTop;
+	const auto rect = QRect(x, y, w, _height);
+	const auto hasQuote = !_fields.quote.empty();
+	const auto selected = context.selected();
+	const auto colorPeer = resolvedMessage
+		? resolvedMessage->displayFrom()
+		: resolvedStory
+		? resolvedStory->peer().get()
+		: _externalSender
+		? _externalSender
+		: nullptr;
+	const auto backgroundEmojiId = colorPeer
+		? colorPeer->backgroundEmojiId()
+		: DocumentId();
+	const auto colorIndexPlusOne = colorPeer
+		? (colorPeer->colorIndex() + 1)
+		: resolvedMessage
+		? (resolvedMessage->hiddenSenderInfo()->colorIndex + 1)
+		: 0;
+	const auto useColorIndex = colorIndexPlusOne && !context.outbg;
+	const auto colorPattern = colorIndexPlusOne
+		? st->colorPatternIndex(colorIndexPlusOne - 1)
+		: 0;
+	const auto cache = !inBubble
+		? (hasQuote
+			? st->serviceQuoteCache(colorPattern)
+			: st->serviceReplyCache(colorPattern)).get()
+		: useColorIndex
+		? (hasQuote
+			? st->coloredQuoteCache(selected, colorIndexPlusOne - 1)
+			: st->coloredReplyCache(selected, colorIndexPlusOne - 1)).get()
+		: (hasQuote
+			? stm->quoteCache[colorPattern]
+			: stm->replyCache[colorPattern]).get();
+	const auto &quoteSt = hasQuote
+		? st::messageTextStyle.blockquote
+		: st::messageQuoteStyle;
+	const auto backgroundEmoji = backgroundEmojiId
+		? st->backgroundEmojiData(backgroundEmojiId).get()
+		: nullptr;
+	const auto backgroundEmojiCache = backgroundEmoji
+		? &backgroundEmoji->caches[Ui::BackgroundEmojiData::CacheIndex(
+			selected,
+			context.outbg,
+			inBubble,
+			colorIndexPlusOne)]
+		: nullptr;
+	const auto rippleColor = cache->bg;
+	if (!inBubble) {
+		cache->bg = QColor(0, 0, 0, 0);
+	}
+	Ui::Text::ValidateQuotePaintCache(*cache, quoteSt);
+	Ui::Text::FillQuotePaint(p, rect, *cache, quoteSt);
+	if (backgroundEmoji) {
+		ValidateBackgroundEmoji(
+			backgroundEmojiId,
+			backgroundEmoji,
+			backgroundEmojiCache,
+			cache,
+			holder);
+		if (!backgroundEmojiCache->frames[0].isNull()) {
+			FillBackgroundEmoji(p, rect, hasQuote, *backgroundEmojiCache);
 		}
-
-		p.setOpacity(opacity * kBarAlpha);
-		p.fillRect(rbar, bar);
-		p.setOpacity(opacity);
+	}
+	if (!inBubble) {
+		cache->bg = rippleColor;
 	}
 
+	if (ripple.animation) {
+		ripple.animation->paint(p, x, y, w, &rippleColor);
+		if (ripple.animation->empty()) {
+			ripple.animation.reset();
+		}
+	}
+
+	const auto withPreviewLeft = st::messageQuoteStyle.outline
+		+ st::historyReplyPreviewMargin.left()
+		+ st::historyReplyPreview
+		+ st::historyReplyPreviewMargin.right();
+	auto textLeft = st::historyReplyPadding.left();
 	const auto pausedSpoiler = context.paused
 		|| On(PowerSaving::kChatSpoiler);
-	if (w > st::msgReplyBarSkip) {
-		if (replyToMsg || replyToStory) {
-			const auto media = replyToMsg ? replyToMsg->media() : nullptr;
-			auto hasPreview = (replyToStory && replyToStory->hasReplyPreview()) || (media && media->hasReplyPreview());
-			if (hasPreview && w < st::msgReplyBarSkip + st::msgReplyBarSize.height()) {
+	if (w > textLeft) {
+		if (resolvedMessage || resolvedStory || !_text.isEmpty()) {
+			const auto media = resolvedMessage ? resolvedMessage->media() : nullptr;
+			auto hasPreview = (media && media->hasReplyPreview())
+				|| (resolvedStory && resolvedStory->hasReplyPreview());
+			if (hasPreview && w <= withPreviewLeft) {
 				hasPreview = false;
 			}
-			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
-
 			if (hasPreview) {
+				textLeft = withPreviewLeft;
 				const auto image = media
 					? media->replyPreview()
-					: replyToStory->replyPreview();
+					: resolvedStory->replyPreview();
 				if (image) {
-					auto to = style::rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
+					auto to = style::rtlrect(
+						x + st::historyReplyPreviewMargin.left(),
+						y + st::historyReplyPreviewMargin.top(),
+						st::historyReplyPreview,
+						st::historyReplyPreview,
+						w + 2 * x);
 					const auto preview = image->pixSingle(
 						image->size() / style::DevicePixelRatio(),
 						{
@@ -588,66 +954,85 @@ void HistoryMessageReply::paint(
 					}
 				}
 			}
-			if (w > st::msgReplyBarSkip + previewSkip) {
+			if (w > textLeft + st::historyReplyPadding.right()) {
+				w -= textLeft + st::historyReplyPadding.right();
 				p.setPen(!inBubble
-					? st->msgImgReplyBarColor()
-					: replyToColorKey
-					? HistoryView::FromNameFg(context, replyToColorKey)
-					: stm->msgServiceFg);
-				replyToName.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
-				if (replyToVia && w > st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew) {
+					? st->msgImgReplyBarColor()->c
+					: useColorIndex
+					? FromNameFg(context, colorIndexPlusOne - 1)
+					: stm->msgServiceFg->c);
+				_name.drawLeftElided(p, x + textLeft, y + st::historyReplyPadding.top(), w, w + 2 * x + 2 * textLeft);
+				if (originalVia && w > _name.maxWidth() + st::msgServiceFont->spacew) {
 					p.setFont(st::msgServiceFont);
-					p.drawText(x + st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew, y + st::msgReplyPadding.top() + st::msgServiceFont->ascent, replyToVia->text);
+					p.drawText(x + textLeft + _name.maxWidth() + st::msgServiceFont->spacew, y + st::historyReplyPadding.top() + st::msgServiceFont->ascent, originalVia->text);
 				}
 
 				p.setPen(inBubble
 					? stm->historyTextFg
 					: st->msgImgReplyBarColor());
-				holder->prepareCustomEmojiPaint(p, context, replyToText);
+				holder->prepareCustomEmojiPaint(p, context, _text);
 				auto replyToTextPosition = QPoint(
-					x + st::msgReplyBarSkip + previewSkip,
-					y + st::msgReplyPadding.top() + st::msgServiceNameFont->height);
-				const auto replyToTextPalette = &(inBubble
-					? stm->replyTextPalette
-					: st->imgReplyTextPalette());
-				if (storyReply) {
+					x + textLeft,
+					y + st::historyReplyPadding.top() + st::msgServiceNameFont->height);
+				auto replyToTextPalette = &(!inBubble
+					? st->imgReplyTextPalette()
+					: useColorIndex
+					? st->coloredTextPalette(selected, colorIndexPlusOne - 1)
+					: stm->replyTextPalette);
+				if (_fields.storyId) {
 					st::dialogsMiniReplyStory.icon.icon.paint(
 						p,
 						replyToTextPosition,
-						w - st::msgReplyBarSkip - previewSkip,
+						w + 2 * x + 2 * textLeft,
 						replyToTextPalette->linkFg->c);
 					replyToTextPosition += QPoint(
 						st::dialogsMiniReplyStory.skipText
 							+ st::dialogsMiniReplyStory.icon.icon.width(),
 						0);
 				}
-				replyToText.draw(p, {
+				auto owned = std::optional<style::owned_color>();
+				auto copy = std::optional<style::TextPalette>();
+				if (inBubble && colorIndexPlusOne) {
+					copy.emplace(*replyToTextPalette);
+					owned.emplace(cache->icon);
+					copy->linkFg = owned->color();
+					replyToTextPalette = &*copy;
+				}
+				_text.draw(p, {
 					.position = replyToTextPosition,
-					.availableWidth = w - st::msgReplyBarSkip - previewSkip,
+					.availableWidth = w,
 					.palette = replyToTextPalette,
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
 					.now = context.now,
 					.pausedEmoji = (context.paused
 						|| On(PowerSaving::kEmojiChat)),
 					.pausedSpoiler = pausedSpoiler,
-					.elisionLines = 1,
+					.elisionOneLine = true,
 				});
 				p.setTextPalette(stm->textPalette);
 			}
 		} else {
 			p.setFont(st::msgDateFont);
-			p.setPen(inBubble
-				? stm->msgDateFg
-				: st->msgDateImgFg());
-			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(statePhrase(), w - st::msgReplyBarSkip));
+			p.setPen(cache->icon);
+			p.drawTextLeft(
+				x + textLeft,
+				(y + (_height - st::msgDateFont->height) / 2),
+				w + 2 * x + 2 * textLeft,
+				st::msgDateFont->elided(
+					statePhrase(),
+					w - textLeft - st::historyReplyPadding.right()));
 		}
 	}
 }
 
+void HistoryMessageReply::unloadPersistentAnimation() {
+	_text.unloadPersistentAnimation();
+}
+
 QString HistoryMessageReply::statePhrase() const {
-	return (replyToMsgId || replyToStoryId)
+	return ((_fields.messageId || _fields.storyId) && !_unavailable)
 		? tr::lng_profile_loading(tr::now)
-		: storyReply
+		: _fields.storyId
 		? tr::lng_deleted_story(tr::now)
 		: tr::lng_deleted_message(tr::now);
 }
@@ -655,7 +1040,7 @@ QString HistoryMessageReply::statePhrase() const {
 void HistoryMessageReply::refreshReplyToMedia() {
 	replyToDocumentId = 0;
 	replyToWebPageId = 0;
-	if (const auto media = replyToMsg ? replyToMsg->media() : nullptr) {
+	if (const auto media = resolvedMessage ? resolvedMessage->media() : nullptr) {
 		if (const auto document = media->document()) {
 			replyToDocumentId = document->id;
 		} else if (const auto webpage = media->webpage()) {

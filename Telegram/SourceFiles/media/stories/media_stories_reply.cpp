@@ -193,11 +193,11 @@ void ReplyArea::sendReaction(const Data::ReactionId &id) {
 }
 
 void ReplyArea::send(Api::SendOptions options) {
-	const auto webPageId = _controls->webPageId();
+	const auto webPageDraft = _controls->webPageDraft();
 
 	auto message = Api::MessageToSend(prepareSendAction(options));
 	message.textWithTags = _controls->getTextWithAppliedMarkdown();
-	message.webPageId = webPageId;
+	message.webPage = webPageDraft;
 
 	send(std::move(message), options);
 }
@@ -675,8 +675,9 @@ void ReplyArea::show(
 		}),
 	});
 	_controls->clear();
-	const auto hidden = peer && (!peer->isUser() || peer->isSelf());
-	const auto cant = !peer || peer->isServiceUser();
+	const auto hidden = peer
+		&& (!peer->isUser() || peer->isSelf() || peer->isServiceUser());
+	const auto cant = !peer;
 	if (!hidden && !cant) {
 		_controls->show();
 	} else {

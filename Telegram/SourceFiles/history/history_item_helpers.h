@@ -85,8 +85,10 @@ void RequestDependentMessageStory(
 	const Api::SendOptions &options);
 [[nodiscard]] HistoryItem *LookupReplyTo(
 	not_null<History*> history,
-	MsgId replyToId);
-[[nodiscard]] MsgId LookupReplyToTop(HistoryItem *replyTo);
+	FullMsgId replyToId);
+[[nodiscard]] MsgId LookupReplyToTop(
+	not_null<History*> history,
+	HistoryItem *replyTo);
 [[nodiscard]] bool LookupReplyIsTopicPost(HistoryItem *replyTo);
 
 struct SendingErrorRequest {

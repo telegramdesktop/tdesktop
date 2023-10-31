@@ -1496,6 +1496,12 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		{ "link_color", st::windowActiveTextFg },
 		{ "button_color", st::windowBgActive },
 		{ "button_text_color", st::windowFgActive },
+		{ "header_bg_color", st::windowBg },
+		{ "accent_text_color", st::lightButtonFg },
+		{ "section_bg_color", st::lightButtonBg },
+		{ "section_header_text_color", st::windowActiveTextFg },
+		{ "subtitle_text_color", st::windowSubTextFg },
+		{ "destructive_text_color", st::attentionButtonFg },
 	};
 	auto object = QJsonObject();
 	for (const auto &[name, color] : colors) {
@@ -1583,6 +1589,37 @@ SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 		thumbnails,
 		document,
 		QByteArray());
+}
+
+std::unique_ptr<Ui::ChatTheme> DefaultChatThemeOn(rpl::lifetime &lifetime) {
+	auto result = std::make_unique<Ui::ChatTheme>();
+
+	const auto push = [=, raw = result.get()] {
+		const auto background = Background();
+		const auto &paper = background->paper();
+		raw->setBackground({
+			.prepared = background->prepared(),
+			.preparedForTiled = background->preparedForTiled(),
+			.gradientForFill = background->gradientForFill(),
+			.colorForFill = background->colorForFill(),
+			.colors = paper.backgroundColors(),
+			.patternOpacity = paper.patternOpacity(),
+			.gradientRotation = paper.gradientRotation(),
+			.isPattern = paper.isPattern(),
+			.tile = background->tile(),
+			});
+	};
+
+	push();
+	Background()->updates(
+	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
+		if (update.type == BackgroundUpdate::Type::New
+			|| update.type == BackgroundUpdate::Type::Changed) {
+			push();
+		}
+	}, lifetime);
+
+	return result;
 }
 
 } // namespace Theme

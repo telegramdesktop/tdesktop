@@ -260,7 +260,7 @@ void PaintFolderEntryText(
 		.now = context.now,
 		.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 		.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-		.elisionLines = rect.height() / st::dialogsTextFont->height,
+		.elisionHeight = rect.height(),
 	});
 }
 
@@ -420,7 +420,7 @@ void PaintRow(
 			.now = context.now,
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-			.elisionLines = 1,
+			.elisionOneLine = true,
 		});
 	} else if (draft
 		|| (supportMode
@@ -462,13 +462,13 @@ void PaintRow(
 			auto &cache = thread->cloudDraftTextCache();
 			if (cache.isEmpty()) {
 				using namespace TextUtilities;
-				auto draftWrapped = Text::PlainLink(
+				auto draftWrapped = Text::Colorized(
 					tr::lng_dialogs_text_from_wrapped(
 						tr::now,
 						lt_from,
 						tr::lng_from_draft(tr::now)));
 				auto draftText = supportMode
-					? Text::PlainLink(
+					? Text::Colorized(
 						Support::ChatOccupiedString(history))
 					: tr::lng_dialogs_text_with_from(
 						tr::now,
@@ -514,7 +514,7 @@ void PaintRow(
 				.now = context.now,
 				.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 				.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-				.elisionLines = 1,
+				.elisionOneLine = true,
 			});
 		}
 	} else if (!item) {

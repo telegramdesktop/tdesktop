@@ -262,6 +262,12 @@ std::unique_ptr<Result> Result::Create(
 		result->sendData = std::make_unique<internal::SendInvoice>(
 			session,
 			media);
+	}, [&](const MTPDbotInlineMessageMediaWebPage &data) {
+		result->sendData = std::make_unique<internal::SendText>(
+			session,
+			qs(data.vmessage()),
+			Api::EntitiesFromMTP(session, data.ventities().value_or_empty()),
+			false);
 	});
 
 	if (!result->sendData || !result->sendData->isValid()) {

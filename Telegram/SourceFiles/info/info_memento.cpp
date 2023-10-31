@@ -152,11 +152,16 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		not_null<Data::ForumTopic*> topic,
 		Section section) {
+	const auto peer = topic->peer();
+	const auto migrated = peer->migrateFrom();
+	const auto migratedPeerId = migrated ? migrated->id : PeerId(0);
 	switch (section.type()) {
 	case Section::Type::Profile:
 		return std::make_shared<Profile::Memento>(topic);
 	case Section::Type::Media:
 		return std::make_shared<Media::Memento>(topic, section.mediaType());
+	case Section::Type::Members:
+		return std::make_shared<Members::Memento>(peer, migratedPeerId);
 	}
 	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
 }

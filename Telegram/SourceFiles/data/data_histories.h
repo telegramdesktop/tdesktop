@@ -25,10 +25,14 @@ namespace Data {
 
 class Session;
 class Folder;
+struct WebPageDraft;
 
 [[nodiscard]] MTPInputReplyTo ReplyToForMTP(
-	not_null<Session*> owner,
+	not_null<History*> history,
 	FullReplyTo replyTo);
+[[nodiscard]] MTPInputMedia WebPageForMTP(
+	const Data::WebPageDraft &draft,
+	bool required = false);
 
 class Histories final {
 public:
@@ -108,7 +112,7 @@ public:
 		not_null<History*> history,
 		FullReplyTo replyTo,
 		uint64 randomId,
-		Fn<PreparedMessage(not_null<Session*>, FullReplyTo)> message,
+		Fn<PreparedMessage(not_null<History*>, FullReplyTo)> message,
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail);
 
@@ -116,14 +120,17 @@ public:
 	};
 	template <typename RequestType, typename ...Args>
 	static auto PrepareMessage(const Args &...args)
-	-> Fn<Histories::PreparedMessage(not_null<Session*>, FullReplyTo)> {
-		return [=](not_null<Session*> owner, FullReplyTo replyTo)
+	-> Fn<Histories::PreparedMessage(not_null<History*>, FullReplyTo)> {
+		return [=](not_null<History*> history, FullReplyTo replyTo)
 		-> RequestType {
-			return { ReplaceReplyIds(owner, args, replyTo)... };
+			return { ReplaceReplyIds(history, args, replyTo)... };
 		};
 	}
 
 	void checkTopicCreated(FullMsgId rootId, MsgId realRoot);
+	[[nodiscard]] FullMsgId convertTopicReplyToId(
+		not_null<History*> history,
+		FullMsgId replyToId) const;
 	[[nodiscard]] MsgId convertTopicReplyToId(
 		not_null<History*> history,
 		MsgId replyToId) const;
@@ -152,8 +159,8 @@ private:
 	};
 	struct DelayedByTopicMessage {
 		uint64 randomId = 0;
-		MsgId replyTo = 0;
-		Fn<PreparedMessage(not_null<Session*>, FullReplyTo)> message;
+		FullMsgId replyTo;
+		Fn<PreparedMessage(not_null<History*>, FullReplyTo)> message;
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done;
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail;
 		int requestId = 0;
@@ -169,11 +176,11 @@ private:
 
 	template <typename Arg>
 	static auto ReplaceReplyIds(
-			not_null<Session*> owner,
+			not_null<History*> history,
 			Arg arg,
 			FullReplyTo replyTo) {
 		if constexpr (std::is_same_v<Arg, ReplyToPlaceholder>) {
-			return ReplyToForMTP(owner, replyTo);
+			return ReplyToForMTP(history, replyTo);
 		} else {
 			return arg;
 		}

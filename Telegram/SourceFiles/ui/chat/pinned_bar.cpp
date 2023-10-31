@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/pinned_bar.h"
 
 #include "ui/chat/message_bar.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"

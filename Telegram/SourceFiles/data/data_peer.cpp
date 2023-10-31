@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/main_window.h" // Window::LogoNoMargin.
 #include "ui/image/image.h"
+#include "ui/chat/chat_style.h"
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
@@ -59,8 +60,8 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 namespace Data {
 
-int PeerColorIndex(PeerId peerId) {
-	return Ui::EmptyUserpic::ColorIndex(peerId.value & PeerId::kChatTypeMask);
+uint8 DecideColorIndex(PeerId peerId) {
+	return Ui::DecideColorIndex(peerId.value & PeerId::kChatTypeMask);
 }
 
 PeerId FakePeerIdForJustName(const QString &name) {
@@ -125,6 +126,40 @@ AllowedReactions Parse(const MTPChatReactions &value) {
 	});
 }
 
+PeerData *PeerFromInputMTP(
+		not_null<Session*> owner,
+		const MTPInputPeer &input) {
+	return input.match([&](const MTPDinputPeerUser &data) {
+		const auto user = owner->user(data.vuser_id().v);
+		user->setAccessHash(data.vaccess_hash().v);
+		return (PeerData*)user;
+	}, [&](const MTPDinputPeerChat &data) {
+		return (PeerData*)owner->chat(data.vchat_id().v);
+	}, [&](const MTPDinputPeerChannel &data) {
+		const auto channel = owner->channel(data.vchannel_id().v);
+		channel->setAccessHash(data.vaccess_hash().v);
+		return (PeerData*)channel;
+	}, [&](const MTPDinputPeerSelf &data) {
+		return (PeerData*)owner->session().user();
+	}, [&](const auto &data) {
+		return (PeerData*)nullptr;
+	});
+}
+
+UserData *UserFromInputMTP(
+		not_null<Session*> owner,
+		const MTPInputUser &input) {
+	return input.match([&](const MTPDinputUser &data) {
+		const auto user = owner->user(data.vuser_id().v);
+		user->setAccessHash(data.vaccess_hash().v);
+		return user.get();
+	}, [&](const MTPDinputUserSelf &data) {
+		return owner->session().user().get();
+	}, [](const auto &data) {
+		return (UserData*)nullptr;
+	});
+}
+
 } // namespace Data
 
 PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
@@ -157,7 +192,8 @@ void PeerClickHandler::onClick(ClickContext context) const {
 
 PeerData::PeerData(not_null<Data::Session*> owner, PeerId id)
 : id(id)
-, _owner(owner) {
+, _owner(owner)
+, _colorIndex(Data::DecideColorIndex(id)) {
 }
 
 Data::Session &PeerData::owner() const {
@@ -230,7 +266,7 @@ not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
 	if (!_userpicEmpty) {
 		const auto user = asUser();
 		_userpicEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(id)),
+			Ui::EmptyUserpic::UserpicColor(colorIndex()),
 			((user && user->isInaccessible())
 				? Ui::EmptyUserpic::InaccessibleName()
 				: name()));
@@ -251,7 +287,7 @@ void PeerData::setUserpic(
 		const ImageLocation &location,
 		bool hasVideo) {
 	_userpicPhotoId = photoId;
-	_userpicHasVideo = hasVideo;
+	_userpicHasVideo = hasVideo ? 1 : 0;
 	_userpic.set(&session(), ImageWithLocation{ .location = location });
 }
 
@@ -389,6 +425,22 @@ QImage PeerData::generateUserpicImage(
 	return result;
 }
 
+ImageLocation PeerData::userpicLocation() const {
+	return _userpic.location();
+}
+
+bool PeerData::userpicPhotoUnknown() const {
+	return (_userpicPhotoId == kUnknownPhotoId);
+}
+
+PhotoId PeerData::userpicPhotoId() const {
+	return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
+}
+
+bool PeerData::userpicHasVideo() const {
+	return _userpicHasVideo != 0;
+}
+
 Data::FileOrigin PeerData::userpicOrigin() const {
 	return Data::FileOriginPeerPhoto(id);
 }
@@ -428,7 +480,7 @@ void PeerData::setUserpicChecked(
 		bool hasVideo) {
 	if (_userpicPhotoId != photoId
 		|| _userpic.location() != location
-		|| _userpicHasVideo != hasVideo) {
+		|| _userpicHasVideo != (hasVideo ? 1 : 0)) {
 		const auto known = !userpicPhotoUnknown();
 		setUserpic(photoId, location, hasVideo);
 		session().changes().peerUpdated(this, UpdateFlag::Photo);
@@ -600,6 +652,20 @@ void PeerData::setSettings(const MTPPeerSettings &data) {
 				? Flag::RequestChatIsBroadcast
 				: Flag()));
 	});
+}
+
+bool PeerData::changeColorIndex(
+		const tl::conditional<MTPint> &cloudColorIndex) {
+	return cloudColorIndex
+		? changeColorIndex(cloudColorIndex->v)
+		: clearColorIndex();
+}
+
+bool PeerData::changeBackgroundEmojiId(
+		const tl::conditional<MTPlong> &cloudBackgroundEmoji) {
+	return changeBackgroundEmojiId(cloudBackgroundEmoji
+		? cloudBackgroundEmoji->v
+		: DocumentId());
 }
 
 void PeerData::fillNames() {
@@ -818,6 +884,36 @@ QString PeerData::userName() const {
 	return QString();
 }
 
+bool PeerData::changeColorIndex(uint8 index) {
+	index %= Ui::kColorIndexCount;
+	if (_colorIndexCloud && _colorIndex == index) {
+		return false;
+	}
+	_colorIndexCloud = 1;
+	_colorIndex = index;
+	return true;
+}
+
+bool PeerData::clearColorIndex() {
+	if (!_colorIndexCloud) {
+		return false;
+	}
+	_colorIndexCloud = 0;
+	_colorIndex = Data::DecideColorIndex(id);
+	return true;
+}
+
+DocumentId PeerData::backgroundEmojiId() const {
+	return _backgroundEmojiId;
+}
+
+bool PeerData::changeBackgroundEmojiId(DocumentId id) {
+	if (_backgroundEmojiId == id) {
+		return false;
+	}
+	_backgroundEmojiId = id;
+	return true;
+}
 bool PeerData::isSelf() const {
 	if (const auto user = asUser()) {
 		return (user->flags() & UserDataFlag::Self);

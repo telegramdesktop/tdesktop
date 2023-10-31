@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/algorithm.h"
 
+namespace Ui {
+struct ColorIndicesCompressed;
+} // namespace Ui
+
 namespace Main {
 
 class Account;
@@ -17,6 +21,7 @@ class Account;
 class AppConfig final {
 public:
 	explicit AppConfig(not_null<Account*> account);
+	~AppConfig();
 
 	void start();
 
@@ -30,6 +35,8 @@ public:
 			return getString(key, fallback);
 		} else if constexpr (std::is_same_v<Type, std::vector<QString>>) {
 			return getStringArray(key, std::move(fallback));
+		} else if constexpr (std::is_same_v<Type, std::vector<int>>) {
+			return getIntArray(key, std::move(fallback));
 		} else if constexpr (std::is_same_v<
 				Type,
 				std::vector<std::map<QString, QString>>>) {
@@ -47,10 +54,14 @@ public:
 		const QString &key) const;
 	void dismissSuggestion(const QString &key);
 
+	[[nodiscard]] auto colorIndicesValue() const
+		-> rpl::producer<Ui::ColorIndicesCompressed>;
+
 	void refresh();
 
 private:
 	void refreshDelayed();
+	void parseColorIndices();
 
 	template <typename Extractor>
 	[[nodiscard]] auto getValue(
@@ -72,6 +83,9 @@ private:
 	[[nodiscard]] std::vector<std::map<QString, QString>> getStringMapArray(
 		const QString &key,
 		std::vector<std::map<QString, QString>> &&fallback) const;
+	[[nodiscard]] std::vector<int> getIntArray(
+		const QString &key,
+		std::vector<int> &&fallback) const;
 
 	const not_null<Account*> _account;
 	std::optional<MTP::Sender> _api;
@@ -80,6 +94,10 @@ private:
 	base::flat_map<QString, MTPJSONValue> _data;
 	rpl::event_stream<> _refreshed;
 	base::flat_set<QString> _dismissedSuggestions;
+
+	rpl::event_stream<> _colorIndicesChanged;
+	std::unique_ptr<Ui::ColorIndicesCompressed> _colorIndicesCurrent;
+
 	rpl::lifetime _lifetime;
 
 };

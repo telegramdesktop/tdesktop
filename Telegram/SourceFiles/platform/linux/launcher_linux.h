@@ -21,6 +21,8 @@ private:
 	void initHook() override;
 	bool launchUpdater(UpdaterLaunch action) override;
 
+	bool _updating = false;
+
 };
 
 } // namespace Platform

@@ -27,6 +27,10 @@ class RpWidget;
 class AbstractButton;
 } // namespace Ui
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Info::Profile {
 
 class EmojiStatusPanel;
@@ -68,6 +72,8 @@ public:
 		int customStatusLoopsLimit = 0,
 		base::flags<BadgeType> allowed
 			= base::flags<BadgeType>::from_raw(-1));
+
+	~Badge();
 
 	[[nodiscard]] Ui::RpWidget *widget() const;
 

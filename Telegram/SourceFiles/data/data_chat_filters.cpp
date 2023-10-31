@@ -70,22 +70,8 @@ ChatFilter ChatFilter::FromTL(
 			| (data.is_exclude_read() ? Flag::NoRead : Flag(0))
 			| (data.is_exclude_archived() ? Flag::NoArchived : Flag(0));
 		auto &&to_histories = ranges::views::transform([&](
-				const MTPInputPeer &data) {
-			const auto peer = data.match([&](const MTPDinputPeerUser &data) {
-				const auto user = owner->user(data.vuser_id().v);
-				user->setAccessHash(data.vaccess_hash().v);
-				return (PeerData*)user;
-			}, [&](const MTPDinputPeerChat &data) {
-				return (PeerData*)owner->chat(data.vchat_id().v);
-			}, [&](const MTPDinputPeerChannel &data) {
-				const auto channel = owner->channel(data.vchannel_id().v);
-				channel->setAccessHash(data.vaccess_hash().v);
-				return (PeerData*)channel;
-			}, [&](const MTPDinputPeerSelf &data) {
-				return (PeerData*)owner->session().user();
-			}, [&](const auto &data) {
-				return (PeerData*)nullptr;
-			});
+				const MTPInputPeer &input) {
+			const auto peer = Data::PeerFromInputMTP(owner, input);
 			return peer ? owner->history(peer).get() : nullptr;
 		}) | ranges::views::filter([](History *history) {
 			return history != nullptr;

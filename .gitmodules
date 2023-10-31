@@ -100,3 +100,6 @@
 [submodule "Telegram/ThirdParty/wayland"]
 	path = Telegram/ThirdParty/wayland
 	url = https://github.com/gitlab-freedesktop-mirrors/wayland.git
+[submodule "Telegram/ThirdParty/libprisma"]
+	path = Telegram/ThirdParty/libprisma
+	url = https://github.com/desktop-app/libprisma.git

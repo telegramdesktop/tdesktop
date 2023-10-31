@@ -65,7 +65,7 @@ EmojiFlyAnimation::EmojiFlyAnimation(
 			QRect(
 				rect.topLeft() + QPoint(skipx, skipy),
 				QSize(_flySize, _flySize)),
-			_textColor(),
+			(_textColor ? _textColor() : st::infoPeerBadge.premiumFg->c),
 			clip,
 			crl::now());
 		if (_areaUpdated || _area.isEmpty()) {

@@ -601,6 +601,12 @@ MessageLinksParser::MessageLinksParser(not_null<Ui::InputField*> field)
 	_lifetime = _field->changes(
 	) | rpl::start_with_next([=] {
 		const auto length = _field->getTextWithTags().text.size();
+		if (!length) {
+			_lastLength = 0;
+			_timer.cancel();
+			parse();
+			return;
+		}
 		const auto timeout = (std::abs(length - _lastLength) > 2)
 			? 0
 			: kParseLinksTimeout;
@@ -642,16 +648,13 @@ bool MessageLinksParser::eventFilter(QObject *object, QEvent *event) {
 	return QObject::eventFilter(object, event);
 }
 
-const rpl::variable<QStringList> &MessageLinksParser::list() const {
-	return _list;
-}
-
 void MessageLinksParser::parse() {
 	const auto &textWithTags = _field->getTextWithTags();
 	const auto &text = textWithTags.text;
 	const auto &tags = textWithTags.tags;
 	const auto &markdownTags = _field->getMarkdownTags();
 	if (_disabled || text.isEmpty()) {
+		_ranges = {};
 		_list = QStringList();
 		return;
 	}
@@ -663,7 +666,7 @@ void MessageLinksParser::parse() {
 			|| (tag == Ui::InputField::kTagSpoiler);
 	};
 
-	auto ranges = QVector<LinkRange>();
+	_ranges.clear();
 
 	auto tag = tags.begin();
 	const auto tagsEnd = tags.end();
@@ -672,7 +675,7 @@ void MessageLinksParser::parse() {
 
 		if (Ui::InputField::IsValidMarkdownLink(tag->id)
 			&& !TextUtilities::IsMentionLink(tag->id)) {
-			ranges.push_back({ tag->offset, tag->length, tag->id });
+			_ranges.push_back({ tag->offset, tag->length, tag->id });
 		}
 		++tag;
 	};
@@ -774,7 +777,7 @@ void MessageLinksParser::parse() {
 				continue;
 			}
 		}
-		const auto range = LinkRange {
+		const auto range = MessageLinkRange{
 			int(domainOffset),
 			static_cast<int>(p - start - domainOffset),
 			QString()
@@ -782,22 +785,20 @@ void MessageLinksParser::parse() {
 		processTagsBefore(domainOffset);
 		if (!hasTagsIntersection(range.start + range.length)) {
 			if (markdownTagsAllow(range.start, range.length)) {
-				ranges.push_back(range);
+				_ranges.push_back(range);
 			}
 		}
 		offset = matchOffset = p - start;
 	}
-	processTagsBefore(QFIXED_MAX);
+	processTagsBefore(Ui::kQFixedMax);
 
-	apply(text, ranges);
+	applyRanges(text);
 }
 
-void MessageLinksParser::apply(
-		const QString &text,
-		const QVector<LinkRange> &ranges) {
-	const auto count = int(ranges.size());
+void MessageLinksParser::applyRanges(const QString &text) {
+	const auto count = int(_ranges.size());
 	const auto current = _list.current();
-	const auto computeLink = [&](const LinkRange &range) {
+	const auto computeLink = [&](const MessageLinkRange &range) {
 		return range.custom.isEmpty()
 			? base::StringViewMid(text, range.start, range.length)
 			: QStringView(range.custom);
@@ -807,7 +808,7 @@ void MessageLinksParser::apply(
 			return true;
 		}
 		for (auto i = 0; i != count; ++i) {
-			if (computeLink(ranges[i]) != current[i]) {
+			if (computeLink(_ranges[i]) != current[i]) {
 				return true;
 			}
 		}
@@ -818,7 +819,7 @@ void MessageLinksParser::apply(
 	}
 	auto parsed = QStringList();
 	parsed.reserve(count);
-	for (const auto &range : ranges) {
+	for (const auto &range : _ranges) {
 		parsed.push_back(computeLink(range).toString());
 	}
 	_list = std::move(parsed);

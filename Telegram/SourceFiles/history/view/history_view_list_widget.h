@@ -277,8 +277,8 @@ public:
 	[[nodiscard]] rpl::producer<FullMsgId> editMessageRequested() const;
 	void editMessageRequestNotify(FullMsgId item) const;
 	[[nodiscard]] bool lastMessageEditRequestNotify() const;
-	[[nodiscard]] rpl::producer<FullMsgId> replyToMessageRequested() const;
-	void replyToMessageRequestNotify(FullMsgId item);
+	[[nodiscard]] rpl::producer<FullReplyTo> replyToMessageRequested() const;
+	void replyToMessageRequestNotify(FullReplyTo id);
 	[[nodiscard]] rpl::producer<FullMsgId> readMessageRequested() const;
 	[[nodiscard]] rpl::producer<FullMsgId> showMessageRequested() const;
 	void replyNextMessage(FullMsgId fullId, bool next = true);
@@ -323,7 +323,7 @@ public:
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
-	void elementReplyTo(const FullMsgId &to) override;
+	void elementReplyTo(const FullReplyTo &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
 	void elementStartPremium(
 		not_null<const Element*> view,
@@ -735,7 +735,7 @@ private:
 	base::Timer _touchScrollTimer;
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
-	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;
+	rpl::event_stream<FullReplyTo> _requestedToReplyToMessage;
 	rpl::event_stream<FullMsgId> _requestedToReadMessage;
 	rpl::event_stream<FullMsgId> _requestedToShowMessage;
 

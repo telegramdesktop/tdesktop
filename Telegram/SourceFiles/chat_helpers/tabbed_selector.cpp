@@ -331,7 +331,7 @@ TabbedSelector::TabbedSelector(
 	Mode mode)
 : TabbedSelector(parent, {
 	.show = std::move(show),
-	.st = (mode == Mode::EmojiStatus
+	.st = ((mode == Mode::EmojiStatus || mode == Mode::BackgroundEmoji)
 		? st::statusEmojiPan
 		: st::defaultEmojiPan),
 	.level = level,
@@ -347,6 +347,7 @@ TabbedSelector::TabbedSelector(
 , _features(descriptor.features)
 , _show(std::move(descriptor.show))
 , _level(descriptor.level)
+, _customTextColor(std::move(descriptor.customTextColor))
 , _mode(descriptor.mode)
 , _panelRounding(Ui::PrepareCornerPixmaps(st::emojiPanRadius, _st.bg))
 , _categoriesRounding(
@@ -512,7 +513,10 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 				.show = _show,
 				.mode = (_mode == Mode::EmojiStatus
 					? EmojiMode::EmojiStatus
+					: _mode == Mode::BackgroundEmoji
+					? EmojiMode::BackgroundEmoji
 					: EmojiMode::Full),
+				.customTextColor = _customTextColor,
 				.paused = paused,
 				.st = &_st,
 				.features = _features,

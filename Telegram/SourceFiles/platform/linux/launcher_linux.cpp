@@ -43,6 +43,9 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	}
 
 	const auto justRelaunch = action == UpdaterLaunch::JustRelaunch;
+	if (action == UpdaterLaunch::PerformUpdate) {
+		_updating = true;
+	}
 
 	std::vector<std::string> argumentsList;
 
@@ -82,8 +85,10 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			argumentsList.push_back("-key");
 			argumentsList.push_back(cDataFile().toStdString());
 		}
-		argumentsList.push_back("-noupdate");
-		argumentsList.push_back("-tosettings");
+		if (!_updating) {
+			argumentsList.push_back("-noupdate");
+			argumentsList.push_back("-tosettings");
+		}
 		if (customWorkingDir()) {
 			argumentsList.push_back("-workdir");
 			argumentsList.push_back(cWorkingDir().toStdString());

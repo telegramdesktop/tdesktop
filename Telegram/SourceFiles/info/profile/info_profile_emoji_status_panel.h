@@ -47,10 +47,25 @@ public:
 		not_null<QWidget*> button,
 		Data::CustomEmojiSizeTag animationSizeTag = {});
 
+	struct Descriptor {
+		not_null<Window::SessionController*> controller;
+		not_null<QWidget*> button;
+		Data::CustomEmojiSizeTag animationSizeTag = {};
+		DocumentId currentBackgroundEmojiId = 0;
+		Fn<QColor()> customTextColor;
+		bool backgroundEmojiMode = false;
+	};
+	void show(Descriptor &&descriptor);
+	void repaint();
+
+	[[nodiscard]] rpl::producer<DocumentId> backgroundEmojiChosen() const {
+		return _backgroundEmojiChosen.events();
+	}
+
 	bool paintBadgeFrame(not_null<Ui::RpWidget*> widget);
 
 private:
-	void create(not_null<Window::SessionController*> controller);
+	void create(const Descriptor &descriptor);
 	[[nodiscard]] bool filter(
 		not_null<Window::SessionController*> controller,
 		DocumentId chosenId) const;
@@ -62,10 +77,13 @@ private:
 		Ui::MessageSendingAnimationFrom from);
 
 	base::unique_qptr<ChatHelpers::TabbedPanel> _panel;
+	Fn<QColor()> _customTextColor;
 	Fn<bool(DocumentId)> _chooseFilter;
 	QPointer<QWidget> _panelButton;
 	std::unique_ptr<Ui::EmojiFlyAnimation> _animation;
+	rpl::event_stream<DocumentId> _backgroundEmojiChosen;
 	Data::CustomEmojiSizeTag _animationSizeTag = {};
+	bool _backgroundEmojiMode = false;
 
 };
 

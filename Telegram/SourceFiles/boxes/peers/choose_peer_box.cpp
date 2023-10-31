@@ -45,8 +45,8 @@ public:
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	bool respectSavedMessagesChat() const override {
-		return true;
+	QString savedMessagesChatStatus() const override {
+		return tr::lng_saved_forward_here(tr::now);
 	}
 
 private:

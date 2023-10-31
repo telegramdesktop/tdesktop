@@ -114,6 +114,7 @@ EntitiesInText EntitiesFromMTP(
 			case mtpc_messageEntityStrike: { auto &d = entity.c_messageEntityStrike(); result.push_back({ EntityType::StrikeOut, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back({ EntityType::Code, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back({ EntityType::Pre, d.voffset().v, d.vlength().v, qs(d.vlanguage()) }); } break;
+			case mtpc_messageEntityBlockquote: { auto &d = entity.c_messageEntityBlockquote(); result.push_back({ EntityType::Blockquote, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityBankCard: break; // Skipping cards. // #TODO entities
 			case mtpc_messageEntitySpoiler: { auto &d = entity.c_messageEntitySpoiler(); result.push_back({ EntityType::Spoiler, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityCustomEmoji: {
@@ -142,6 +143,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 			&& entity.type() != EntityType::StrikeOut
 			&& entity.type() != EntityType::Code // #TODO entities
 			&& entity.type() != EntityType::Pre
+			&& entity.type() != EntityType::Blockquote
 			&& entity.type() != EntityType::Spoiler
 			&& entity.type() != EntityType::MentionName
 			&& entity.type() != EntityType::CustomUrl
@@ -170,6 +172,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		case EntityType::StrikeOut: v.push_back(MTP_messageEntityStrike(offset, length)); break;
 		case EntityType::Code: v.push_back(MTP_messageEntityCode(offset, length)); break; // #TODO entities
 		case EntityType::Pre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
+		case EntityType::Blockquote: v.push_back(MTP_messageEntityBlockquote(offset, length)); break;
 		case EntityType::Spoiler: v.push_back(MTP_messageEntitySpoiler(offset, length)); break;
 		case EntityType::CustomEmoji: {
 			if (const auto valid = CustomEmojiEntity(offset, length, entity.data())) {

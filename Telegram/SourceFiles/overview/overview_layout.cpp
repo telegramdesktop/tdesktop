@@ -346,6 +346,8 @@ Photo::Photo(
 	}
 }
 
+Photo::~Photo() = default;
+
 void Photo::initDimensions() {
 	_maxw = 2 * st::overviewPhotoMinSize;
 	_minh = _story ? qRound(_maxw * kStoryRatio) : _maxw;

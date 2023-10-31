@@ -30,6 +30,16 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix memory leak in Direct3D 11 media viewer on Windows.\n"
 	},
+	{
+		4010004,
+		"- Statistics in channels and group chats.\n"
+
+		"- Nice looking code blocks with syntax highlight.\n"
+
+		"- Copy full code block by click on its header.\n"
+		
+		"- Send a highlighted code block using ```language syntax.\n"
+	}
 	};
 };
 

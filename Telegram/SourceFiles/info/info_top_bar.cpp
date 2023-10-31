@@ -514,7 +514,7 @@ void TopBar::setStories(rpl::producer<Dialogs::Stories::Content> content) {
 		rpl::duplicate(
 			last
 		) | rpl::start_with_next([=](const Content &content) {
-			const auto count = int(content.elements.size());
+			const auto count = content.total;
 			if (_storiesCount != count) {
 				const auto was = (_storiesCount > 0);
 				_storiesCount = count;

@@ -1050,8 +1050,7 @@ void UserpicButton::prepareUserpicPixmap() {
 			} else {
 				const auto user = _peer->asUser();
 				auto empty = Ui::EmptyUserpic(
-					Ui::EmptyUserpic::UserpicColor(
-						Data::PeerColorIndex(_peer->id)),
+					Ui::EmptyUserpic::UserpicColor(_peer->colorIndex()),
 					((user && user->isInaccessible())
 						? Ui::EmptyUserpic::InaccessibleName()
 						: _peer->name()));

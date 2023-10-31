@@ -888,17 +888,13 @@ void Panel::showWebviewError(
 	rich.append("\n\n");
 	switch (information.error) {
 	case Error::NoWebview2: {
-		const auto command = QString(QChar(TextCommand));
-		const auto text = tr::lng_payments_webview_install_edge(
+		rich.append(tr::lng_payments_webview_install_edge(
 			tr::now,
 			lt_link,
-			command);
-		const auto parts = text.split(command);
-		rich.append(parts.value(0))
-			.append(Text::Link(
+			Text::Link(
 				"Microsoft Edge WebView2 Runtime",
-				"https://go.microsoft.com/fwlink/p/?LinkId=2124703"))
-			.append(parts.value(1));
+				"https://go.microsoft.com/fwlink/p/?LinkId=2124703"),
+			Ui::Text::WithEntities));
 	} break;
 	case Error::NoWebKitGTK:
 		rich.append(tr::lng_payments_webview_install_webkit(tr::now));

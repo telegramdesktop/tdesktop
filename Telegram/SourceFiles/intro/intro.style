@@ -33,8 +33,6 @@ introCoverTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	style: TextStyle(defaultTextStyle) {
 		font: font(22px semibold);
-		linkFont: font(22px semibold);
-		linkFontOver: font(22px semibold underline);
 	}
 }
 introCoverTitleTop: 136px;
@@ -43,8 +41,6 @@ introCoverDescription: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	style: TextStyle(defaultTextStyle) {
 		font: font(15px);
-		linkFont: font(15px);
-		linkFontOver: font(15px underline);
 		lineHeight: 24px;
 	}
 }
@@ -53,8 +49,6 @@ introTitle: FlatLabel(defaultFlatLabel) {
 	textFg: introTitleFg;
 	style: TextStyle(defaultTextStyle) {
 		font: font(17px semibold);
-		linkFont: font(17px semibold);
-		linkFontOver: font(17px semibold underline);
 	}
 }
 introTitleTop: 1px;
@@ -180,8 +174,6 @@ introQrTitle: FlatLabel(defaultFlatLabel) {
 	minWidth: introQrTitleWidth;
 	style: TextStyle(defaultTextStyle) {
 		font: font(20px semibold);
-		linkFont: font(20px semibold);
-		linkFontOver: font(20px semibold underline);
 	}
 }
 introQrErrorTop: 336px;

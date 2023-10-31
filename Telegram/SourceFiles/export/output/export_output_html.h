@@ -150,7 +150,7 @@ private:
 	bool _summaryNeedDivider = false;
 	bool _haveSections = false;
 
-	int _selfColorIndex = 0;
+	uint8 _selfColorIndex = 0;
 	std::unique_ptr<Data::PersonalInfo> _delayedPersonalInfo;
 
 	int _userpicsCount = 0;

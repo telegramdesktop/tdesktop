@@ -25,6 +25,12 @@ constexpr auto kPlayStatusLimit = 2;
 
 } // namespace
 
+struct PeerBadge::EmojiStatus {
+	DocumentId id = 0;
+	std::unique_ptr<Ui::Text::CustomEmoji> emoji;
+	int skip = 0;
+};
+
 void UnreadBadge::setText(const QString &text, bool active) {
 	_text = text;
 	_active = active;

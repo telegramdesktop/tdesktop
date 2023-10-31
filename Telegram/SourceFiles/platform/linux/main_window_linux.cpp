@@ -282,194 +282,203 @@ void MainWindow::updateUnityCounter() {
 }
 
 void MainWindow::createGlobalMenu() {
-    const auto ensureWindowShown = [=] {
-        if (isHidden()) {
-            showFromTray();
-        }
-    };
+	const auto ensureWindowShown = [=] {
+		if (isHidden()) {
+			showFromTray();
+		}
+	};
 
 	psMainMenu = new QMenuBar(this);
 	psMainMenu->hide();
 
-    auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
+	auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
 
-    psLogout = file->addAction(
-            tr::lng_mac_menu_logout(tr::now),
-            this,
-            [=] {
-                ensureWindowShown();
-                controller().showLogoutConfirmation();
-            });
+	psLogout = file->addAction(
+		tr::lng_mac_menu_logout(tr::now),
+		this,
+		[=] {
+			ensureWindowShown();
+			controller().showLogoutConfirmation();
+		});
 
-    auto quit = file->addAction(
-            tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, u"Telegram"_q),
-            this,
-            [=] { quitFromTray(); },
-            QKeySequence::Quit);
+	auto quit = file->addAction(
+		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, u"Telegram"_q),
+		this,
+		[=] { quitFromTray(); },
+		QKeySequence::Quit);
 
-    quit->setMenuRole(QAction::QuitRole);
+	quit->setMenuRole(QAction::QuitRole);
 
-    auto edit = psMainMenu->addMenu(tr::lng_mac_menu_edit(tr::now));
+	auto edit = psMainMenu->addMenu(tr::lng_mac_menu_edit(tr::now));
 
-    psUndo = edit->addAction(
-            tr::lng_linux_menu_undo(tr::now),
-            [] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
-            QKeySequence::Undo);
+	psUndo = edit->addAction(
+		tr::lng_linux_menu_undo(tr::now),
+		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
+		QKeySequence::Undo);
 
-    psRedo = edit->addAction(
-            tr::lng_linux_menu_redo(tr::now),
-            [] {
-                SendKeySequence(
-                        Qt::Key_Z,
-                        Qt::ControlModifier | Qt::ShiftModifier);
-            },
-            QKeySequence::Redo);
+	psRedo = edit->addAction(
+		tr::lng_linux_menu_redo(tr::now),
+		[] {
+			SendKeySequence(
+				Qt::Key_Z,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		QKeySequence::Redo);
 
-    edit->addSeparator();
+	edit->addSeparator();
 
-    psCut = edit->addAction(
-            tr::lng_mac_menu_cut(tr::now),
-            [] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
-            QKeySequence::Cut);
+	psCut = edit->addAction(
+		tr::lng_mac_menu_cut(tr::now),
+		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
+		QKeySequence::Cut);
 
-    psCopy = edit->addAction(
-            tr::lng_mac_menu_copy(tr::now),
-            [] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
-            QKeySequence::Copy);
+	psCopy = edit->addAction(
+		tr::lng_mac_menu_copy(tr::now),
+		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
+		QKeySequence::Copy);
 
-    psPaste = edit->addAction(
-            tr::lng_mac_menu_paste(tr::now),
-            [] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
-            QKeySequence::Paste);
+	psPaste = edit->addAction(
+		tr::lng_mac_menu_paste(tr::now),
+		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
+		QKeySequence::Paste);
 
-    psDelete = edit->addAction(
-            tr::lng_mac_menu_delete(tr::now),
-            [] { SendKeySequence(Qt::Key_Delete); },
-            QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
+	psDelete = edit->addAction(
+		tr::lng_mac_menu_delete(tr::now),
+		[] { SendKeySequence(Qt::Key_Delete); },
+		QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
 
-    edit->addSeparator();
+	edit->addSeparator();
 
-    psBold = edit->addAction(
-            tr::lng_menu_formatting_bold(tr::now),
-            [] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
-            QKeySequence::Bold);
+	psBold = edit->addAction(
+		tr::lng_menu_formatting_bold(tr::now),
+		[] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
+		QKeySequence::Bold);
 
-    psItalic = edit->addAction(
-            tr::lng_menu_formatting_italic(tr::now),
-            [] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
-            QKeySequence::Italic);
+	psItalic = edit->addAction(
+		tr::lng_menu_formatting_italic(tr::now),
+		[] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
+		QKeySequence::Italic);
 
-    psUnderline = edit->addAction(
-            tr::lng_menu_formatting_underline(tr::now),
-            [] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
-            QKeySequence::Underline);
+	psUnderline = edit->addAction(
+		tr::lng_menu_formatting_underline(tr::now),
+		[] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
+		QKeySequence::Underline);
 
-    psStrikeOut = edit->addAction(
-            tr::lng_menu_formatting_strike_out(tr::now),
-            [] {
-                SendKeySequence(
-                        Qt::Key_X,
-                        Qt::ControlModifier | Qt::ShiftModifier);
-            },
-            Ui::kStrikeOutSequence);
+	psStrikeOut = edit->addAction(
+		tr::lng_menu_formatting_strike_out(tr::now),
+		[] {
+			SendKeySequence(
+				Qt::Key_X,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kStrikeOutSequence);
 
-    psMonospace = edit->addAction(
-            tr::lng_menu_formatting_monospace(tr::now),
-            [] {
-                SendKeySequence(
-                        Qt::Key_M,
-                        Qt::ControlModifier | Qt::ShiftModifier);
-            },
-            Ui::kMonospaceSequence);
+	psBlockquote = edit->addAction(
+		tr::lng_menu_formatting_blockquote(tr::now),
+		[] {
+			SendKeySequence(
+				Qt::Key_Period,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kBlockquoteSequence);
 
-    psClearFormat = edit->addAction(
-            tr::lng_menu_formatting_clear(tr::now),
-            [] {
-                SendKeySequence(
-                        Qt::Key_N,
-                        Qt::ControlModifier | Qt::ShiftModifier);
-            },
-            Ui::kClearFormatSequence);
+	psMonospace = edit->addAction(
+		tr::lng_menu_formatting_monospace(tr::now),
+		[] {
+			SendKeySequence(
+				Qt::Key_M,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kMonospaceSequence);
 
-    edit->addSeparator();
+	psClearFormat = edit->addAction(
+		tr::lng_menu_formatting_clear(tr::now),
+		[] {
+			SendKeySequence(
+				Qt::Key_N,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kClearFormatSequence);
 
-    psSelectAll = edit->addAction(
-            tr::lng_mac_menu_select_all(tr::now),
-            [] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
-            QKeySequence::SelectAll);
+	edit->addSeparator();
 
-    edit->addSeparator();
+	psSelectAll = edit->addAction(
+		tr::lng_mac_menu_select_all(tr::now),
+		[] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
+		QKeySequence::SelectAll);
 
-    auto prefs = edit->addAction(
-            tr::lng_mac_menu_preferences(tr::now),
-            this,
-            [=] {
-                ensureWindowShown();
-                controller().showSettings();
-            },
-            QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
+	edit->addSeparator();
 
-    prefs->setMenuRole(QAction::PreferencesRole);
+	auto prefs = edit->addAction(
+		tr::lng_mac_menu_preferences(tr::now),
+		this,
+		[=] {
+			ensureWindowShown();
+			controller().showSettings();
+		},
+		QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 
-    auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
+	prefs->setMenuRole(QAction::PreferencesRole);
 
-    psContacts = tools->addAction(
-            tr::lng_mac_menu_contacts(tr::now),
-            crl::guard(this, [=] {
-                if (isHidden()) {
-                    showFromTray();
-                }
+	auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
 
-                if (!sessionController()) {
-                    return;
-                }
+	psContacts = tools->addAction(
+		tr::lng_mac_menu_contacts(tr::now),
+		crl::guard(this, [=] {
+			if (isHidden()) {
+				showFromTray();
+			}
 
-                sessionController()->show(
-                        PrepareContactsBox(sessionController()));
-            }));
+			if (!sessionController()) {
+				return;
+			}
 
-    psAddContact = tools->addAction(
-            tr::lng_mac_menu_add_contact(tr::now),
-            this,
-            [=] {
-                Expects(sessionController() != nullptr);
-                ensureWindowShown();
-                sessionController()->showAddContact();
-            });
+			sessionController()->show(
+				PrepareContactsBox(sessionController()));
+		}));
 
-    tools->addSeparator();
+	psAddContact = tools->addAction(
+		tr::lng_mac_menu_add_contact(tr::now),
+		this,
+		[=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showAddContact();
+		});
 
-    psNewGroup = tools->addAction(
-            tr::lng_mac_menu_new_group(tr::now),
-            this,
-            [=] {
-                Expects(sessionController() != nullptr);
-                ensureWindowShown();
-                sessionController()->showNewGroup();
-            });
+	tools->addSeparator();
 
-    psNewChannel = tools->addAction(
-            tr::lng_mac_menu_new_channel(tr::now),
-            this,
-            [=] {
-                Expects(sessionController() != nullptr);
-                ensureWindowShown();
-                sessionController()->showNewChannel();
-            });
+	psNewGroup = tools->addAction(
+		tr::lng_mac_menu_new_group(tr::now),
+		this,
+		[=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showNewGroup();
+		});
 
-    auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
+	psNewChannel = tools->addAction(
+		tr::lng_mac_menu_new_channel(tr::now),
+		this,
+		[=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showNewChannel();
+		});
 
-    auto about = help->addAction(
-            tr::lng_mac_menu_about_telegram(
-                    tr::now,
-                    lt_telegram,
-                    u"Telegram"_q),
-            [=] {
-                ensureWindowShown();
-                controller().show(Box<AboutBox>());
-            });
+	auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
 
-    about->setMenuRole(QAction::AboutQtRole);
+	auto about = help->addAction(
+		tr::lng_mac_menu_about_telegram(
+			tr::now,
+			lt_telegram,
+			u"Telegram"_q),
+		[=] {
+			ensureWindowShown();
+			controller().show(Box<AboutBox>());
+		});
+
+	about->setMenuRole(QAction::AboutQtRole);
 
 	updateGlobalMenu();
 }
@@ -534,6 +543,7 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psItalic, !markdownEnabled);
 	ForceDisabled(psUnderline, !markdownEnabled);
 	ForceDisabled(psStrikeOut, !markdownEnabled);
+	ForceDisabled(psBlockquote, !markdownEnabled);
 	ForceDisabled(psMonospace, !markdownEnabled);
 	ForceDisabled(psClearFormat, !markdownEnabled);
 }

@@ -47,7 +47,7 @@ namespace {
 			}
 		} else if (!letterFound && ch->isLetterOrNumber()) {
 			letterFound = true;
-			if (ch + 1 != end && Ui::Text::IsDiac(*(ch + 1))) {
+			if (ch + 1 != end && Ui::Text::IsDiacritic(*(ch + 1))) {
 				letters.push_back(QString(ch, 2));
 				levels.push_back(level);
 				++ch;
@@ -353,25 +353,25 @@ void Generator::generateData() {
 		"Mike Apple",
 		2,
 		"9:00",
-		Ui::Text::PlainLink(QChar(55357)
+		Ui::Text::Colorized(QChar(55357)
 			+ QString()
 			+ QChar(56836)
 			+ " Sticker"));
 	_rows.back().unreadCounter = 2;
 	_rows.back().muted = true;
-	addRow("Evening Club", 1, "8:00", Ui::Text::PlainLink("Eva: Photo"));
+	addRow("Evening Club", 1, "8:00", Ui::Text::Colorized("Eva: Photo"));
 	_rows.back().type = Row::Type::Group;
 	addRow(
 		"Old Pirates",
 		6,
 		"7:00",
-		Ui::Text::PlainLink("Max:").append(" Yo-ho-ho!"));
+		Ui::Text::Colorized("Max:").append(" Yo-ho-ho!"));
 	_rows.back().type = Row::Type::Group;
 	addRow("Max Bright", 3, "6:00", { .text = "How about some coffee?" });
 	_rows.back().status = Status::Received;
 	addRow("Natalie Parker", 4, "5:00", { .text = "OK, great)" });
 	_rows.back().status = Status::Received;
-	addRow("Davy Jones", 5, "4:00", Ui::Text::PlainLink("Keynote.pdf"));
+	addRow("Davy Jones", 5, "4:00", Ui::Text::Colorized("Keynote.pdf"));
 
 	_topBarName.setText(st::msgNameStyle, "Eva Summer", Ui::NameTextOptions());
 	_topBarStatus = "online";
@@ -794,7 +794,12 @@ void Generator::paintRow(const Row &row) {
 void Generator::paintBubble(const Bubble &bubble) {
 	auto height = bubble.height;
 	if (!bubble.replyName.isEmpty()) {
-		height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+		height += st::historyReplyTop
+			+ st::historyReplyPadding.top()
+			+ st::msgServiceNameFont->height
+			+ st::normalFont->height
+			+ st::historyReplyPadding.bottom()
+			+ st::historyReplyBottom;
 	}
 	auto isPhoto = !bubble.photo.isNull();
 
@@ -854,19 +859,45 @@ void Generator::paintBubble(const Bubble &bubble) {
 		trect = trect.marginsRemoved(st::msgPadding);
 	}
 	if (!bubble.replyName.isEmpty()) {
-		auto h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-
+		trect.setY(trect.y() + st::historyReplyTop);
 		auto bar = (bubble.outbg ? st::msgOutReplyBarColor[_palette] : st::msgInReplyBarColor[_palette]);
-		auto rbar = style::rtlrect(trect.x() + st::msgReplyBarPos.x(), trect.y() + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), _rect.width());
-		_p->fillRect(rbar, bar);
+		auto rbar = style::rtlrect(
+			trect.x(),
+			trect.y(),
+			trect.width(),
+			(st::historyReplyPadding.top()
+				+ st::msgServiceNameFont->height
+				+ st::normalFont->height
+				+ st::historyReplyPadding.bottom()),
+			_rect.width());
+		{
+			auto hq = PainterHighQualityEnabler(*_p);
+			_p->setPen(Qt::NoPen);
+			_p->setBrush(bar);
+
+			const auto outline = st::messageTextStyle.blockquote.outline;
+			const auto radius = st::messageTextStyle.blockquote.radius;
+			_p->setOpacity(Ui::kDefaultOutline1Opacity);
+			_p->setClipRect(rbar.x(), rbar.y(), outline, rbar.height());
+			_p->drawRoundedRect(rbar, radius, radius);
+			_p->setOpacity(Ui::kDefaultBgOpacity);
+			_p->setClipRect(
+				rbar.x() + outline,
+				rbar.y(),
+				rbar.width() - outline,
+				rbar.height());
+			_p->drawRoundedRect(rbar, radius, radius);
+		}
+		_p->setOpacity(1.);
+		_p->setClipping(false);
 
 		_p->setPen(bubble.outbg ? st::msgOutServiceFg[_palette] : st::msgInServiceFg[_palette]);
-		bubble.replyName.drawLeftElided(*_p, trect.x() + st::msgReplyBarSkip, trect.y() + st::msgReplyPadding.top(), bubble.width - st::msgReplyBarSkip, _rect.width());
+		bubble.replyName.drawLeftElided(*_p, trect.x() + st::historyReplyPadding.left(), trect.y() + st::historyReplyPadding.top(), bubble.width - st::historyReplyPadding.left() - st::historyReplyPadding.right(), _rect.width());
 
 		_p->setPen(bubble.outbg ? st::historyTextOutFg[_palette] : st::historyTextInFg[_palette]);
-		bubble.replyText.drawLeftElided(*_p, trect.x() + st::msgReplyBarSkip, trect.y() + st::msgReplyPadding.top() + st::msgServiceNameFont->height, bubble.width - st::msgReplyBarSkip, _rect.width());
+		bubble.replyText.drawLeftElided(*_p, trect.x() + st::historyReplyPadding.left(), trect.y() + st::historyReplyPadding.top() + st::msgServiceNameFont->height, bubble.width - st::historyReplyPadding.left() - st::historyReplyPadding.right(), _rect.width());
 
-		trect.setY(trect.y() + h);
+		trect.setY(trect.y() + rbar.height() + st::historyReplyBottom);
 	}
 
 	if (!bubble.text.isEmpty()) {
@@ -986,7 +1017,7 @@ void Generator::paintService(QString text) {
 }
 
 void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString letters) {
-	const auto colorIndex = Ui::EmptyUserpic::ColorIndex(index);
+	const auto colorIndex = Ui::DecideColorIndex(index);
 	const auto colors = Ui::EmptyUserpic::UserpicColor(colorIndex);
 	auto userpic = Ui::EmptyUserpic(colors, letters);
 

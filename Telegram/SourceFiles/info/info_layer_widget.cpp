@@ -149,6 +149,7 @@ void LayerWidget::setContentHeight(int height) {
 
 void LayerWidget::showFinished() {
 	floatPlayerShowVisible();
+	_content->showFast();
 }
 
 void LayerWidget::parentResized() {

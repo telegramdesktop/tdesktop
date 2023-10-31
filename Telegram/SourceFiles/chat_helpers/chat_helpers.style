@@ -509,8 +509,6 @@ emojiPanColorAllLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px);
-		linkFont: font(12px);
-		linkFontOver: font(12px);
 	}
 }
 emojiPanColorAllPadding: margins(10px, 6px, 10px, -1px);
@@ -663,6 +661,9 @@ statusEmojiPan: EmojiPan(defaultEmojiPan) {
 	categoriesBgOver: windowBgOver;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
 	fadeRight: icon {{ "fade_horizontal", windowBg }};
+}
+backgroundEmojiPan: EmojiPan(defaultEmojiPan) {
+	padding: margins(7px, 7px, 4px, 0px);
 }
 
 inlineBotsScroll: ScrollArea(defaultSolidScroll) {

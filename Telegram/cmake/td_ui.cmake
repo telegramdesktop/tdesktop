@@ -34,6 +34,7 @@ set(style_files
     overview/overview.style
     window/window.style
     editor/editor.style
+    statistics/statistics.style
 )
 
 set(dependent_style_files
@@ -68,6 +69,8 @@ PRIVATE
     countries/countries_instance.cpp
     countries/countries_instance.h
 
+    data/data_statistics_chart.cpp
+    data/data_statistics_chart.h
     data/data_subscription_option.h
 
     dialogs/dialogs_three_state_icon.h
@@ -157,6 +160,39 @@ PRIVATE
     platform/mac/file_bookmark_mac.h
     platform/mac/file_bookmark_mac.mm
     platform/platform_file_bookmark.h
+
+    statistics/chart_lines_filter_controller.cpp
+    statistics/chart_lines_filter_controller.h
+    statistics/chart_rulers_data.cpp
+    statistics/chart_rulers_data.h
+    statistics/chart_widget.cpp
+    statistics/chart_widget.h
+    statistics/segment_tree.cpp
+    statistics/segment_tree.h
+    statistics/statistics_common.h
+    statistics/statistics_data_deserialize.cpp
+    statistics/statistics_data_deserialize.h
+    statistics/view/abstract_chart_view.h
+    statistics/view/chart_rulers_view.cpp
+    statistics/view/chart_rulers_view.h
+    statistics/view/chart_view_factory.cpp
+    statistics/view/chart_view_factory.h
+    statistics/view/linear_chart_view.cpp
+    statistics/view/linear_chart_view.h
+    statistics/view/stack_chart_common.cpp
+    statistics/view/stack_chart_common.h
+    statistics/view/stack_chart_view.cpp
+    statistics/view/stack_chart_view.h
+    statistics/view/stack_linear_chart_common.cpp
+    statistics/view/stack_linear_chart_common.h
+    statistics/view/stack_linear_chart_view.cpp
+    statistics/view/stack_linear_chart_view.h
+    statistics/widgets/chart_header_widget.cpp
+    statistics/widgets/chart_header_widget.h
+    statistics/widgets/chart_lines_filter_widget.cpp
+    statistics/widgets/chart_lines_filter_widget.h
+    statistics/widgets/point_details_widget.cpp
+    statistics/widgets/point_details_widget.h
 
     ui/boxes/auto_delete_settings.cpp
     ui/boxes/auto_delete_settings.h
@@ -279,6 +315,8 @@ PRIVATE
     ui/effects/premium_stars.h
     ui/effects/premium_stars_colored.cpp
     ui/effects/premium_stars_colored.h
+    ui/effects/premium_top_bar.cpp
+    ui/effects/premium_top_bar.h
     ui/effects/round_checkbox.cpp
     ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp

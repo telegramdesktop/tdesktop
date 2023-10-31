@@ -29,6 +29,7 @@ HistoryMessageEdition::HistoryMessageEdition(
 	if (const auto mtpReplies = message.vreplies()) {
 		replies = HistoryMessageRepliesData(mtpReplies);
 	}
+	invertMedia = message.is_invert_media();
 
 	const auto period = message.vttl_period();
 	ttl = (period && period->v > 0) ? (message.vdate().v + period->v) : 0;

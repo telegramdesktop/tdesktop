@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/qt/qt_compare.h"
 #include "data/data_peer_id.h"
+#include "ui/text/text_entity.h"
 
 struct MsgId {
 	constexpr MsgId() noexcept = default;
@@ -65,21 +67,6 @@ struct FullStoryId {
 	}
 	friend inline auto operator<=>(FullStoryId, FullStoryId) = default;
 	friend inline bool operator==(FullStoryId, FullStoryId) = default;
-};
-
-struct FullReplyTo {
-	MsgId msgId = 0;
-	MsgId topicRootId = 0;
-	FullStoryId storyId;
-
-	[[nodiscard]] bool valid() const {
-		return msgId || (storyId && peerIsUser(storyId.peer));
-	}
-	explicit operator bool() const {
-		return valid();
-	}
-	friend inline auto operator<=>(FullReplyTo, FullReplyTo) = default;
-	friend inline bool operator==(FullReplyTo, FullReplyTo) = default;
 };
 
 constexpr auto StartClientMsgId = MsgId(0x01 - (1LL << 58));
@@ -168,6 +155,22 @@ struct FullMsgId {
 };
 
 Q_DECLARE_METATYPE(FullMsgId);
+
+struct FullReplyTo {
+	FullMsgId messageId;
+	TextWithEntities quote;
+	FullStoryId storyId;
+	MsgId topicRootId = 0;
+
+	[[nodiscard]] bool valid() const {
+		return messageId || (storyId && peerIsUser(storyId.peer));
+	}
+	explicit operator bool() const {
+		return valid();
+	}
+	friend inline auto operator<=>(FullReplyTo, FullReplyTo) = default;
+	friend inline bool operator==(FullReplyTo, FullReplyTo) = default;
+};
 
 struct GlobalMsgId {
 	FullMsgId itemId;

@@ -157,7 +157,7 @@ ReactionView::ReactionView(
 	const Data::SuggestedReaction &reaction)
 : RpWidget(parent)
 , _data(reaction)
-, _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _chatStyle(std::make_unique<Ui::ChatStyle>(session->colorIndicesValue()))
 , _pathGradient(
 	std::make_unique<Ui::PathShiftGradient>(
 		st::shadowFg,

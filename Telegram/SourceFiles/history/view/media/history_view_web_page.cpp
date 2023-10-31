@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "data/data_session.h"
@@ -84,37 +85,113 @@ std::vector<std::unique_ptr<Data::Media>> PrepareCollageMedia(
 	return result;
 }
 
+[[nodiscard]] QString PageToPhrase(not_null<WebPageData*> webpage) {
+	const auto type = webpage->type;
+	return Ui::Text::Upper((type == WebPageType::Theme)
+		? tr::lng_view_button_theme(tr::now)
+		: (type == WebPageType::Story)
+		? tr::lng_view_button_story(tr::now)
+		: (type == WebPageType::Message)
+		? tr::lng_view_button_message(tr::now)
+		: (type == WebPageType::Group)
+		? tr::lng_view_button_group(tr::now)
+		: (type == WebPageType::WallPaper)
+		? tr::lng_view_button_background(tr::now)
+		: (type == WebPageType::Channel)
+		? tr::lng_view_button_channel(tr::now)
+		: (type == WebPageType::GroupWithRequest
+			|| type == WebPageType::ChannelWithRequest)
+		? tr::lng_view_button_request_join(tr::now)
+		: (type == WebPageType::ChannelBoost)
+		? tr::lng_view_button_boost(tr::now)
+		: (type == WebPageType::VoiceChat)
+		? tr::lng_view_button_voice_chat(tr::now)
+		: (type == WebPageType::Livestream)
+		? tr::lng_view_button_voice_chat_channel(tr::now)
+		: (type == WebPageType::Bot)
+		? tr::lng_view_button_bot(tr::now)
+		: (type == WebPageType::User)
+		? tr::lng_view_button_user(tr::now)
+		: (type == WebPageType::BotApp)
+		? tr::lng_view_button_bot_app(tr::now)
+		: QString());
+}
+
 } // namespace
 
 WebPage::WebPage(
 	not_null<Element*> parent,
-	not_null<WebPageData*> data)
+	not_null<WebPageData*> data,
+	MediaWebPageFlags flags)
 : Media(parent)
+, _st(st::historyPagePreview)
 , _data(data)
-, _siteName(st::msgMinWidth - st::webPageLeft)
-, _title(st::msgMinWidth - st::webPageLeft)
-, _description(st::msgMinWidth - st::webPageLeft) {
+, _siteName(st::msgMinWidth - _st.padding.left() - _st.padding.right())
+, _title(st::msgMinWidth - _st.padding.left() - _st.padding.right())
+, _description(st::msgMinWidth - _st.padding.left() - _st.padding.right())
+, _flags(flags) {
 	history()->owner().registerWebPageView(_data, _parent);
+}
+
+bool WebPage::HasButton(not_null<WebPageData*> webpage) {
+	const auto type = webpage->type;
+	return (type == WebPageType::Message)
+		|| (type == WebPageType::Group)
+		|| (type == WebPageType::Channel)
+		|| (type == WebPageType::ChannelBoost)
+		// || (type == WebPageType::Bot)
+		|| (type == WebPageType::User)
+		|| (type == WebPageType::VoiceChat)
+		|| (type == WebPageType::Livestream)
+		|| (type == WebPageType::BotApp)
+		|| ((type == WebPageType::Theme)
+			&& webpage->document
+			&& webpage->document->isTheme())
+		|| ((type == WebPageType::Story)
+			&& (webpage->photo || webpage->document))
+		|| ((type == WebPageType::WallPaper)
+			&& webpage->document
+			&& webpage->document->isWallPaper());
 }
 
 QSize WebPage::countOptimalSize() {
 	if (_data->pendingTill) {
 		return { 0, 0 };
 	}
+
+	// Detect _openButtonWidth before counting paddings.
+	_openButton = QString();
+	_openButtonWidth = 0;
+	if (HasButton(_data)) {
+		_openButton = PageToPhrase(_data);
+		_openButtonWidth = st::semiboldFont->width(_openButton);
+	}
+
+	const auto padding = inBubblePadding() + innerMargin();
 	const auto versionChanged = (_dataVersion != _data->version);
 	if (versionChanged) {
 		_dataVersion = _data->version;
 		_openl = nullptr;
 		_attach = nullptr;
 		_collage = PrepareCollageMedia(_parent->data(), _data->collage);
-		_siteName = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
-		_title = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
-		_description = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
+		const auto min = st::msgMinWidth
+			- _st.padding.left()
+			- _st.padding.right();
+		_siteName = Ui::Text::String(min);
+		_title = Ui::Text::String(min);
+		_description = Ui::Text::String(min);
 	}
 	auto lineHeight = UnitedLineHeight();
 
 	if (!_openl && !_data->url.isEmpty()) {
 		const auto previewOfHiddenUrl = [&] {
+			if (_data->type == WebPageType::BotApp) {
+				// Bot Web Apps always show confirmation on hidden urls.
+				//
+				// But from the dedicated "Open App" button we don't want
+				// to request users confirmation on non-first app opening.
+				return false;
+			}
 			const auto simplify = [](const QString &url) {
 				auto result = url.toLower();
 				if (result.endsWith('/')) {
@@ -162,31 +239,13 @@ QSize WebPage::countOptimalSize() {
 	auto title = TextUtilities::SingleLine(_data->title.isEmpty()
 		? _data->author
 		: _data->title);
-	if (!_collage.empty()) {
-		_asArticle = false;
-	} else if (!_data->document
-		&& _data->photo
-		&& _data->type != WebPageType::Photo
-		&& _data->type != WebPageType::Document
-		&& _data->type != WebPageType::Story
-		&& _data->type != WebPageType::Video) {
-		if (_data->type == WebPageType::Profile) {
-			_asArticle = true;
-		} else if (_data->siteName == u"Twitter"_q
-			|| _data->siteName == u"Facebook"_q
-			|| _data->type == WebPageType::ArticleWithIV) {
-			_asArticle = false;
-		} else {
-			_asArticle = true;
-		}
-		if (_asArticle
-			&& _data->description.text.isEmpty()
-			&& title.isEmpty()
-			&& _data->siteName.isEmpty()) {
-			_asArticle = false;
-		}
+	using Flag = MediaWebPageFlag;
+	if (_data->hasLargeMedia && (_flags & Flag::ForceLargeMedia)) {
+		_asArticle = 0;
+	} else if (_data->hasLargeMedia && (_flags & Flag::ForceSmallMedia)) {
+		_asArticle = 1;
 	} else {
-		_asArticle = false;
+		_asArticle = _data->computeDefaultSmallMedia();
 	}
 
 	// init attach
@@ -199,13 +258,6 @@ QSize WebPage::countOptimalSize() {
 			_data->url);
 	}
 
-	_hasViewButton = ViewButton::MediaHasViewButton(_data);
-
-	const auto textFloatsAroundInfo = !_asArticle
-		&& !_attach
-		&& isBubbleBottom()
-		&& !_hasViewButton;
-
 	// init strings
 	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
 		auto text = _data->description;
@@ -213,9 +265,8 @@ QSize WebPage::countOptimalSize() {
 		if (isLogEntryOriginal()) {
 			// Fix layout for small bubbles (narrow media caption edit log entries).
 			_description = Ui::Text::String(st::minPhotoSize
-				- st::msgPadding.left()
-				- st::msgPadding.right()
-				- st::webPageLeft);
+				- padding.left()
+				- padding.right());
 		}
 		using MarkedTextContext = Core::MarkedTextContext;
 		auto context = MarkedTextContext{
@@ -232,17 +283,13 @@ QSize WebPage::countOptimalSize() {
 			text,
 			Ui::WebpageTextDescriptionOptions(),
 			context);
-		if (textFloatsAroundInfo) {
-			_description.updateSkipBlock(
-				_parent->skipBlockWidth(),
-				_parent->skipBlockHeight());
-		}
 	}
-	if (!displayedSiteName().isEmpty()) {
+	const auto siteName = _data->displayedSiteName();
+	if (!siteName.isEmpty()) {
 		_siteNameLines = 1;
 		_siteName.setMarkedText(
 			st::webPageTitleStyle,
-			Ui::Text::Link(displayedSiteName(), _data->url),
+			Ui::Text::Link(siteName, _data->url),
 			Ui::WebpageTextTitleOptions());
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
@@ -258,11 +305,6 @@ QSize WebPage::countOptimalSize() {
 				st::webPageTitleStyle,
 				title,
 				Ui::WebpageTextTitleOptions());
-		}
-		if (textFloatsAroundInfo && _description.isEmpty()) {
-			_title.updateSkipBlock(
-				_parent->skipBlockWidth(),
-				_parent->skipBlockHeight());
 		}
 	}
 
@@ -282,11 +324,7 @@ QSize WebPage::countOptimalSize() {
 	}
 
 	if (!_siteName.isEmpty()) {
-		if (_title.isEmpty() && _description.isEmpty() && textFloatsAroundInfo) {
-			accumulate_max(maxWidth, _siteName.maxWidth() + _parent->skipBlockWidth());
-		} else {
-			accumulate_max(maxWidth, _siteName.maxWidth() + articlePhotoMaxWidth);
-		}
+		accumulate_max(maxWidth, _siteName.maxWidth() + articlePhotoMaxWidth);
 		minHeight += lineHeight;
 	}
 	if (!_title.isEmpty()) {
@@ -309,16 +347,16 @@ QSize WebPage::countOptimalSize() {
 		}
 		accumulate_max(maxWidth, maxMediaWidth);
 		minHeight += _attach->minHeight() - bubble.top() - bubble.bottom();
-		if (!_attach->additionalInfoString().isEmpty()) {
-			minHeight += bottomInfoPadding();
-		}
 	}
 	if (_data->type == WebPageType::Video && _data->duration) {
 		_duration = Ui::FormatDurationText(_data->duration);
 		_durationWidth = st::msgDateFont->width(_duration);
 	}
-	maxWidth += st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
-	auto padding = inBubblePadding();
+	if (_openButtonWidth) {
+		const auto &margins = st::historyPageButtonPadding;
+		maxWidth += margins.left() + _openButtonWidth + margins.right();
+	}
+	maxWidth += padding.left() + padding.right();
 	minHeight += padding.top() + padding.bottom();
 
 	if (_asArticle) {
@@ -332,7 +370,8 @@ QSize WebPage::countCurrentSize(int newWidth) {
 		return { newWidth, minHeight() };
 	}
 
-	auto innerWidth = newWidth - st::msgPadding.left() - st::webPageLeft - st::msgPadding.right();
+	auto padding = inBubblePadding() + innerMargin();
+	auto innerWidth = newWidth - padding.left() - padding.right();
 	auto newHeight = 0;
 
 	auto lineHeight = UnitedLineHeight();
@@ -373,7 +412,6 @@ QSize WebPage::countCurrentSize(int newWidth) {
 
 			_pixh -= lineHeight;
 		} while (_pixh > lineHeight);
-		newHeight += bottomInfoPadding();
 	} else {
 		newHeight = siteNameHeight;
 
@@ -410,16 +448,8 @@ QSize WebPage::countCurrentSize(int newWidth) {
 
 			_attach->resizeGetHeight(innerWidth + bubble.left() + bubble.right());
 			newHeight += _attach->height() - bubble.top() - bubble.bottom();
-			if (!_attach->additionalInfoString().isEmpty()) {
-				newHeight += bottomInfoPadding();
-			} else if (isBubbleBottom() && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > innerWidth + bubble.left() + bubble.right()) {
-				newHeight += bottomInfoPadding();
-			}
-		} else if (_hasViewButton) {
-			newHeight += bottomInfoPadding();
 		}
 	}
-	auto padding = inBubblePadding();
 	newHeight += padding.top() + padding.bottom();
 
 	return { newWidth, newHeight };
@@ -476,34 +506,35 @@ void WebPage::unloadHeavyPart() {
 }
 
 void WebPage::draw(Painter &p, const PaintContext &context) const {
-	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
-	auto paintw = width();
-
+	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
+		return;
+	}
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
-	const auto &barfg = stm->msgReplyBarColor;
-	const auto &semibold = stm->msgServiceFg;
-
-	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
-	auto padding = inBubblePadding();
-	auto tshift = padding.top();
-	auto bshift = padding.bottom();
-	paintw -= padding.left() + padding.right();
+	const auto bubble = _attach ? _attach->bubbleMargins() : QMargins();
+	const auto full = QRect(0, 0, width(), height());
+	auto outer = full.marginsRemoved(inBubblePadding());
+	auto inner = outer.marginsRemoved(innerMargin());
+	auto tshift = inner.top();
+	auto paintw = inner.width();
 	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
-	if (asArticle()) {
-		bshift += bottomInfoPadding();
-	} else if (!attachAdditionalInfoText.isEmpty()) {
-		bshift += bottomInfoPadding();
-	} else if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right()) {
-		bshift += bottomInfoPadding();
-	} else if (_hasViewButton) {
-		bshift += bottomInfoPadding();
-	}
 
-	QRect bar(style::rtlrect(st::msgPadding.left(), tshift, st::webPageBar, height() - tshift - bshift, width()));
-	p.fillRect(bar, barfg);
+	const auto selected = context.selected();
+	const auto colorIndex = parent()->colorIndex();
+	const auto cache = context.outbg
+		? stm->replyCache[st->colorPatternIndex(colorIndex)].get()
+		: st->coloredReplyCache(selected, colorIndex).get();
+	Ui::Text::ValidateQuotePaintCache(*cache, _st);
+	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
+
+	if (_ripple) {
+		_ripple->paint(p, outer.x(), outer.y(), width(), &cache->bg);
+		if (_ripple->empty()) {
+			_ripple = nullptr;
+		}
+	}
 
 	auto lineHeight = UnitedLineHeight();
 	if (asArticle()) {
@@ -535,26 +566,28 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		} else if (const auto blurred = _photoMedia->thumbnailInline()) {
 			pix = blurred->pixSingle(size, args.blurred());
 		}
-		p.drawPixmapLeft(padding.left() + paintw - pw, tshift, width(), pix);
+		p.drawPixmapLeft(inner.left() + paintw - pw, tshift, width(), pix);
 		if (context.selected()) {
 			const auto st = context.st;
 			Ui::FillRoundRect(
 				p,
-				style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()),
+				style::rtlrect(inner.left() + paintw - pw, tshift, pw, _pixh, width()),
 				st->msgSelectOverlay(),
 				st->msgSelectOverlayCorners(Ui::CachedCornerRadius::Small));
 		}
 		paintw -= pw + st::webPagePhotoDelta;
 	}
 	if (_siteNameLines) {
-		p.setPen(semibold);
-		p.setTextPalette(stm->semiboldPalette);
+		p.setPen(cache->icon);
+		p.setTextPalette(context.outbg
+			? stm->semiboldPalette
+			: st->coloredTextPalette(selected, colorIndex));
 
 		auto endskip = 0;
 		if (_siteName.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_siteName.drawLeftElided(p, padding.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, context.selection);
+		_siteName.drawLeftElided(p, inner.left(), tshift, paintw, width(), _siteNameLines, style::al_left, 0, -1, endskip, false, context.selection);
 		tshift += lineHeight;
 
 		p.setTextPalette(stm->textPalette);
@@ -565,7 +598,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		if (_title.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_title.drawLeftElided(p, padding.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(context.selection));
+		_title.drawLeftElided(p, inner.left(), tshift, paintw, width(), _titleLines, style::al_left, 0, -1, endskip, false, toTitleSelection(context.selection));
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
@@ -575,7 +608,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		}
 		_parent->prepareCustomEmojiPaint(p, context, _description);
 		_description.draw(p, {
-			.position = { padding.left(), tshift },
+			.position = { inner.left(), tshift },
 			.outerWidth = width(),
 			.availableWidth = paintw,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
@@ -583,7 +616,9 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = toDescriptionSelection(context.selection),
-			.elisionLines = std::max(_descriptionLines, 0),
+			.elisionHeight = ((_descriptionLines > 0)
+				? (_descriptionLines * lineHeight)
+				: 0),
 			.elisionRemoveFromEnd = (_descriptionLines > 0) ? endskip : 0,
 		});
 		tshift += (_descriptionLines > 0)
@@ -594,7 +629,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		auto attachAtTop = !_siteNameLines && !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
-		auto attachLeft = padding.left() - bubble.left();
+		auto attachLeft = inner.left() - bubble.left();
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 
@@ -639,8 +674,23 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		if (!attachAdditionalInfoText.isEmpty()) {
 			p.setFont(st::msgDateFont);
 			p.setPen(stm->msgDateFg);
-			p.drawTextLeft(st::msgPadding.left(), bar.y() + bar.height() + st::mediaInBubbleSkip, width(), attachAdditionalInfoText);
+			p.drawTextLeft(st::msgPadding.left(), outer.y() + outer.height() + st::mediaInBubbleSkip, width(), attachAdditionalInfoText);
 		}
+	}
+
+	if (_openButtonWidth) {
+		p.setFont(st::semiboldFont);
+		p.setPen(cache->icon);
+		const auto end = inner.y() + inner.height() + _st.padding.bottom();
+		const auto line = st::historyPageButtonLine;
+		auto color = cache->icon;
+		color.setAlphaF(color.alphaF() * 0.3);
+		p.fillRect(inner.x(), end, inner.width(), line, color);
+		const auto top = end + st::historyPageButtonPadding.top();
+		p.drawText(
+			inner.x() + (inner.width() - _openButtonWidth) / 2,
+			top + st::semiboldFont->ascent,
+			_openButton);
 	}
 }
 
@@ -654,22 +704,19 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
 	}
-	auto paintw = width();
-
-	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
-	auto padding = inBubblePadding();
-	auto tshift = padding.top();
-	auto bshift = padding.bottom();
-	if (asArticle() || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->width() + _parent->skipBlockWidth() > paintw + bubble.left() + bubble.right())) {
-		bshift += bottomInfoPadding();
-	}
-	paintw -= padding.left() + padding.right();
+	const auto bubble = _attach ? _attach->bubbleMargins() : QMargins();
+	const auto full = QRect(0, 0, width(), height());
+	auto outer = full.marginsRemoved(inBubblePadding());
+	auto inner = outer.marginsRemoved(innerMargin());
+	auto tshift = inner.top();
+	auto paintw = inner.width();
+	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
 
 	auto lineHeight = UnitedLineHeight();
 	auto inThumb = false;
 	if (asArticle()) {
 		auto pw = qMax(_pixw, lineHeight);
-		if (style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()).contains(point)) {
+		if (style::rtlrect(inner.left() + paintw - pw, tshift, pw, _pixh, width()).contains(point)) {
 			inThumb = true;
 		}
 		paintw -= pw + st::webPagePhotoDelta;
@@ -680,7 +727,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			Ui::Text::StateRequestElided siteNameRequest = request.forText();
 			siteNameRequest.lines = _siteNameLines;
 			result = TextState(_parent, _siteName.getStateElidedLeft(
-				point - QPoint(padding.left(), tshift),
+				point - QPoint(inner.left(), tshift),
 				paintw,
 				width(),
 				siteNameRequest));
@@ -694,7 +741,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			Ui::Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
 			result = TextState(_parent, _title.getStateElidedLeft(
-				point - QPoint(padding.left(), tshift),
+				point - QPoint(inner.left(), tshift),
 				paintw,
 				width(),
 				titleRequest));
@@ -710,13 +757,13 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 				Ui::Text::StateRequestElided descriptionRequest = request.forText();
 				descriptionRequest.lines = _descriptionLines;
 				result = TextState(_parent, _description.getStateElidedLeft(
-					point - QPoint(padding.left(), tshift),
+					point - QPoint(inner.left(), tshift),
 					paintw,
 					width(),
 					descriptionRequest));
 			} else {
 				result = TextState(_parent, _description.getStateLeft(
-					point - QPoint(padding.left(), tshift),
+					point - QPoint(inner.left(), tshift),
 					paintw,
 					width(),
 					request.forText()));
@@ -732,14 +779,18 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 		auto attachAtTop = !_siteNameLines && !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
-		if (QRect(padding.left(), tshift, paintw, height() - tshift - bshift).contains(point)) {
-			auto attachLeft = padding.left() - bubble.left();
+		if (QRect(inner.left(), tshift, paintw, inner.top() + inner.height() - tshift).contains(point)) {
+			auto attachLeft = inner.left() - bubble.left();
 			auto attachTop = tshift - bubble.top();
 			if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 			result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
 			result.link = replaceAttachLink(result.link);
 		}
 	}
+	if (!result.link && outer.contains(point)) {
+		result.link = _openl;
+	}
+	_lastPoint = point - outer.topLeft();
 
 	result.symbol += symbolAdd;
 	return result;
@@ -747,29 +798,17 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 
 ClickHandlerPtr WebPage::replaceAttachLink(
 		const ClickHandlerPtr &link) const {
-	if (!link || !_attach->isReadyForOpen() || !_collage.empty()) {
+	if (!_attach->isReadyForOpen()
+		|| (_siteName.isEmpty()
+			&& _title.isEmpty()
+			&& _description.isEmpty())
+		|| (_data->document
+			&& !_data->document->isWallPaper()
+			&& !_data->document->isTheme())
+		|| !_data->collage.items.empty()) {
 		return link;
 	}
-	if (_data->document) {
-		if (_data->document->isWallPaper() || _data->document->isTheme()) {
-			return _openl;
-		}
-	} else if (_data->photo) {
-		if (_data->type == WebPageType::Profile
-			|| _data->type == WebPageType::Video) {
-			return _openl;
-		} else if (_data->type == WebPageType::Photo
-			|| _data->type == WebPageType::Document
-			|| _data->siteName == u"Twitter"_q
-			|| _data->siteName == u"Facebook"_q) {
-			// leave photo link
-		} else {
-			return _openl;
-		}
-	} else if (ThemeDocument::ParamsFromUrl(_data->url).has_value()) {
-		return _openl;
-	}
-	return link;
+	return _openl;
 }
 
 TextSelection WebPage::adjustSelection(TextSelection selection, TextSelectType type) const {
@@ -795,13 +834,39 @@ TextSelection WebPage::adjustSelection(TextSelection selection, TextSelectType t
 	return { siteNameSelection.from, fromDescriptionSelection(descriptionSelection).to };
 }
 
-void WebPage::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+uint16 WebPage::fullSelectionLength() const {
+	return _siteName.length() + _title.length() + _description.length();
+}
+
+void WebPage::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
 	if (_attach) {
 		_attach->clickHandlerActiveChanged(p, active);
 	}
 }
 
-void WebPage::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+void WebPage::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	if (p == _openl) {
+		if (pressed) {
+			if (!_ripple) {
+				const auto full = QRect(0, 0, width(), height());
+				const auto outer = full.marginsRemoved(inBubblePadding());
+				const auto owner = &parent()->history()->owner();
+				_ripple = std::make_unique<Ui::RippleAnimation>(
+					st::defaultRippleAnimation,
+					Ui::RippleAnimation::RoundRectMask(
+						outer.size(),
+						_st.radius),
+					[=] { owner->requestViewRepaint(parent()); });
+			}
+			_ripple->add(_lastPoint);
+		} else if (_ripple) {
+			_ripple->lastStop();
+		}
+	}
 	if (_attach) {
 		_attach->clickHandlerPressedChanged(p, pressed);
 	}
@@ -833,6 +898,15 @@ QString WebPage::additionalInfoString() const {
 	return _attach ? _attach->additionalInfoString() : QString();
 }
 
+bool WebPage::toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const {
+	return _attach && _attach->toggleSelectionByHandlerClick(p);
+}
+
+bool WebPage::dragItemByHandler(const ClickHandlerPtr &p) const {
+	return _attach && _attach->dragItemByHandler(p);
+}
+
 TextForMimeData WebPage::selectedText(TextSelection selection) const {
 	auto siteNameResult = _siteName.toTextForMimeData(selection);
 	auto titleResult = _title.toTextForMimeData(
@@ -857,11 +931,17 @@ TextForMimeData WebPage::selectedText(TextSelection selection) const {
 }
 
 QMargins WebPage::inBubblePadding() const {
-	auto lshift = st::msgPadding.left() + st::webPageLeft;
-	auto rshift = st::msgPadding.right();
-	auto bshift = isBubbleBottom() ? st::msgPadding.left() : st::mediaInBubbleSkip;
-	auto tshift = isBubbleTop() ? st::msgPadding.left() : st::mediaInBubbleSkip;
-	return QMargins(lshift, tshift, rshift, bshift);
+	return {
+		st::msgPadding.left(),
+		isBubbleTop() ? st::msgPadding.left() : 0,
+		st::msgPadding.right(),
+		isBubbleBottom() ? (st::msgPadding.left() + bottomInfoPadding()) : 0
+	};
+}
+
+QMargins WebPage::innerMargin() const {
+	const auto button = _openButtonWidth ? st::historyPageButtonHeight : 0;
+	return _st.padding + QMargins(0, 0, 0, button);
 }
 
 bool WebPage::isLogEntryOriginal() const {
@@ -869,7 +949,9 @@ bool WebPage::isLogEntryOriginal() const {
 }
 
 int WebPage::bottomInfoPadding() const {
-	if (!isBubbleBottom()) return 0;
+	if (!isBubbleBottom()) {
+		return 0;
+	}
 
 	auto result = st::msgDateFont->height;
 
@@ -880,14 +962,6 @@ int WebPage::bottomInfoPadding() const {
 	// back with st::msgPadding.bottom() instead of left().
 	result += st::msgPadding.bottom() - st::msgPadding.left();
 	return result;
-}
-
-QString WebPage::displayedSiteName() const {
-	return (_data->document && _data->document->isWallPaper())
-		? tr::lng_media_chat_background(tr::now)
-		: (_data->document && _data->document->isTheme())
-		? tr::lng_media_color_theme(tr::now)
-		: _data->siteName;
 }
 
 WebPage::~WebPage() {

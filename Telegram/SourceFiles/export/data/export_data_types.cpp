@@ -54,17 +54,16 @@ QString PrepareStoryFileName(
 
 } // namespace
 
-int PeerColorIndex(BareId bareId) {
-	const auto index = bareId % 7;
-	const int map[] = { 0, 7, 4, 1, 6, 3, 5 };
-	return map[index];
+uint8 PeerColorIndex(BareId bareId) {
+	const uint8 map[] = { 0, 7, 4, 1, 6, 3, 5 };
+	return map[bareId % base::array_size(map)];
 }
 
 BareId PeerToBareId(PeerId peerId) {
 	return (peerId.value & PeerId::kChatTypeMask);
 }
 
-int PeerColorIndex(PeerId peerId) {
+uint8 PeerColorIndex(PeerId peerId) {
 	return PeerColorIndex(PeerToBareId(peerId));
 }
 
@@ -78,7 +77,7 @@ BareId StringBarePeerId(const Utf8String &data) {
 	return result;
 }
 
-int ApplicationColorIndex(int applicationId) {
+uint8 ApplicationColorIndex(int applicationId) {
 	static const auto official = std::map<int, int> {
 		{ 1, 0 }, // iOS
 		{ 7, 0 }, // iOS X
@@ -576,6 +575,18 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 	return result;
 }
 
+Giveaway ParseGiveaway(const MTPDmessageMediaGiveaway &data) {
+	auto result = Giveaway{
+		.untilDate = data.vuntil_date().v,
+		.quantity = data.vquantity().v,
+		.months = data.vmonths().v,
+	};
+	for (const auto &id : data.vchannels().v) {
+		result.channels.push_back(ChannelId(id));
+	}
+	return result;
+}
+
 UserpicsSlice ParseUserpicsSlice(
 		const MTPVector<MTPPhoto> &data,
 		int baseIndex) {
@@ -755,6 +766,8 @@ ContactInfo ParseContactInfo(const MTPUser &data) {
 	auto result = ContactInfo();
 	data.match([&](const MTPDuser &data) {
 		result.userId = data.vid().v;
+		result.colorIndex = data.vcolor().value_or(
+			PeerColorIndex(result.userId));
 		if (const auto firstName = data.vfirst_name()) {
 			result.firstName = ParseString(*firstName);
 		}
@@ -766,15 +779,13 @@ ContactInfo ParseContactInfo(const MTPUser &data) {
 		}
 	}, [&](const MTPDuserEmpty &data) {
 		result.userId = data.vid().v;
+		result.colorIndex = PeerColorIndex(result.userId);
 	});
 	return result;
 }
 
-int ContactColorIndex(const ContactInfo &data) {
-	if (data.userId != 0) {
-		return PeerColorIndex(data.userId.bare);
-	}
-	return PeerColorIndex(StringBarePeerId(data.phoneNumber));
+uint8 ContactColorIndex(const ContactInfo &data) {
+	return data.colorIndex;
 }
 
 PeerId User::id() const {
@@ -786,6 +797,8 @@ User ParseUser(const MTPUser &data) {
 	result.info = ParseContactInfo(data);
 	data.match([&](const MTPDuser &data) {
 		result.bareId = data.vid().v;
+		result.colorIndex = data.vcolor().value_or(
+			PeerColorIndex(result.bareId));
 		if (const auto username = data.vusername()) {
 			result.username = ParseString(*username);
 		}
@@ -840,6 +853,8 @@ Chat ParseChat(const MTPChat &data) {
 		result.input = MTP_inputPeerChat(MTP_long(result.bareId));
 	}, [&](const MTPDchannel &data) {
 		result.bareId = data.vid().v;
+		result.colorIndex = data.vcolor().value_or(
+			PeerColorIndex(result.bareId));
 		result.isBroadcast = data.is_broadcast();
 		result.isSupergroup = data.is_megagroup();
 		result.title = ParseString(data.vtitle());
@@ -921,6 +936,15 @@ MTPInputPeer Peer::input() const {
 		return chat->input;
 	}
 	Unexpected("Variant in Peer::id.");
+}
+
+uint8 Peer::colorIndex() const {
+	if (const auto user = this->user()) {
+		return user->colorIndex;
+	} else if (const auto chat = this->chat()) {
+		return chat->colorIndex;
+	}
+	Unexpected("Variant in Peer::colorIndex.");
 }
 
 std::map<PeerId, Peer> ParsePeersLists(
@@ -1057,7 +1081,9 @@ Media ParseMedia(
 	}, [](const MTPDmessageMediaDice &data) {
 		// #TODO dice
 	}, [](const MTPDmessageMediaStory &data) {
-		// #TODO stories export
+		// #TODO export stories
+	}, [&](const MTPDmessageMediaGiveaway &data) {
+		result.content = ParseGiveaway(data);
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }
@@ -1298,6 +1324,19 @@ ServiceAction ParseServiceAction(
 		content.peerId = ParsePeerId(data.vpeer());
 		content.buttonId = data.vbutton_id().v;
 		result.content = content;
+	}, [&](const MTPDmessageActionGiftCode &data) {
+		auto content = ActionGiftCode();
+		content.boostPeerId = data.vboost_peer()
+			? peerFromMTP(*data.vboost_peer())
+			: PeerId();
+		content.viaGiveaway = data.is_via_giveaway();
+		content.unclaimed = data.is_unclaimed();
+		content.months = data.vmonths().v;
+		content.code = data.vslug().v;
+		result.content = content;
+	}, [&](const MTPDmessageActionGiveawayLaunch &) {
+		auto content = ActionGiveawayLaunch();
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
@@ -1358,15 +1397,19 @@ Message ParseMessage(
 			}
 			if (const auto replyTo = data.vreply_to()) {
 				replyTo->match([&](const MTPDmessageReplyHeader &data) {
-					result.replyToMsgId = data.vreply_to_msg_id().v;
-					result.replyToPeerId = data.vreply_to_peer_id()
-						? ParsePeerId(*data.vreply_to_peer_id())
-						: 0;
-					if (result.replyToPeerId == result.peerId) {
-						result.replyToPeerId = 0;
+					if (const auto replyToMsg = data.vreply_to_msg_id()) {
+						result.replyToMsgId = replyToMsg->v;
+						result.replyToPeerId = data.vreply_to_peer_id()
+							? ParsePeerId(*data.vreply_to_peer_id())
+							: 0;
+						if (result.replyToPeerId == result.peerId) {
+							result.replyToPeerId = 0;
+						}
+					} else {
+						// #TODO export replies
 					}
 				}, [&](const MTPDmessageReplyStoryHeader &data) {
-					// #TODO stories export
+					// #TODO export stories
 				});
 			}
 		}
@@ -1410,12 +1453,16 @@ Message ParseMessage(
 		}
 		if (const auto replyTo = data.vreply_to()) {
 			replyTo->match([&](const MTPDmessageReplyHeader &data) {
-				result.replyToMsgId = data.vreply_to_msg_id().v;
-				result.replyToPeerId = data.vreply_to_peer_id()
-					? ParsePeerId(*data.vreply_to_peer_id())
-					: PeerId(0);
+				if (const auto replyToMsg = data.vreply_to_msg_id()) {
+					result.replyToMsgId = replyToMsg->v;
+					result.replyToPeerId = data.vreply_to_peer_id()
+						? ParsePeerId(*data.vreply_to_peer_id())
+						: PeerId(0);
+				} else {
+					// #TODO export replies
+				}
 			}, [&](const MTPDmessageReplyStoryHeader &data) {
-				// #TODO stories export
+				// #TODO export stories
 			});
 		}
 		if (const auto viaBotId = data.vvia_bot_id()) {
@@ -1507,6 +1554,8 @@ ContactsList ParseContactsList(const MTPVector<MTPSavedContact> &data) {
 			info.lastName = ParseString(data.vlast_name());
 			info.phoneNumber = ParseString(data.vphone());
 			info.date = data.vdate().v;
+			info.colorIndex = PeerColorIndex(
+				StringBarePeerId(info.phoneNumber));
 			return info;
 		});
 		result.list.push_back(std::move(info));
@@ -1724,6 +1773,7 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 				info.lastName = peer.user()
 					? peer.user()->info.lastName
 					: Utf8String();
+				info.colorIndex = peer.colorIndex();
 				info.input = peer.input();
 				info.migratedToChannelId = peer.chat()
 					? peer.chat()->migratedToChannelId

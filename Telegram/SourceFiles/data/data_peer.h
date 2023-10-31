@@ -39,7 +39,7 @@ class GroupCall;
 struct ReactionId;
 class WallPaper;
 
-[[nodiscard]] int PeerColorIndex(PeerId peerId);
+[[nodiscard]] uint8 DecideColorIndex(PeerId peerId);
 
 // Must be used only for PeerColor-s.
 [[nodiscard]] PeerId FakePeerIdForJustName(const QString &name);
@@ -116,6 +116,12 @@ bool operator<(const AllowedReactions &a, const AllowedReactions &b);
 bool operator==(const AllowedReactions &a, const AllowedReactions &b);
 
 [[nodiscard]] AllowedReactions Parse(const MTPChatReactions &value);
+[[nodiscard]] PeerData *PeerFromInputMTP(
+	not_null<Session*> owner,
+	const MTPInputPeer &input);
+[[nodiscard]] UserData *UserFromInputMTP(
+	not_null<Session*> owner,
+	const MTPInputUser &input);
 
 } // namespace Data
 
@@ -163,6 +169,14 @@ public:
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Main::Account &account() const;
+
+	[[nodiscard]] uint8 colorIndex() const {
+		return _colorIndex;
+	}
+	bool changeColorIndex(uint8 index);
+	bool clearColorIndex();
+	[[nodiscard]] DocumentId backgroundEmojiId() const;
+	bool changeBackgroundEmojiId(DocumentId id);
 
 	[[nodiscard]] bool isUser() const {
 		return peerIsUser(id);
@@ -285,20 +299,12 @@ public:
 		Ui::PeerUserpicView &view,
 		int size,
 		std::optional<int> radius = {}) const;
-	[[nodiscard]] ImageLocation userpicLocation() const {
-		return _userpic.location();
-	}
+	[[nodiscard]] ImageLocation userpicLocation() const;
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
-	[[nodiscard]] bool userpicPhotoUnknown() const {
-		return (_userpicPhotoId == kUnknownPhotoId);
-	}
-	[[nodiscard]] PhotoId userpicPhotoId() const {
-		return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
-	}
-	[[nodiscard]] bool userpicHasVideo() const {
-		return _userpicHasVideo;
-	}
+	[[nodiscard]] bool userpicPhotoUnknown() const;
+	[[nodiscard]] PhotoId userpicPhotoId() const;
+	[[nodiscard]] bool userpicHasVideo() const;
 	[[nodiscard]] Data::FileOrigin userpicOrigin() const;
 	[[nodiscard]] Data::FileOrigin userpicPhotoOrigin() const;
 
@@ -361,6 +367,9 @@ public:
 	void saveTranslationDisabled(bool disabled);
 
 	void setSettings(const MTPPeerSettings &data);
+	bool changeColorIndex(const tl::conditional<MTPint> &cloudColorIndex);
+	bool changeBackgroundEmojiId(
+		const tl::conditional<MTPlong> &cloudBackgroundEmoji);
 
 	enum class BlockStatus : char {
 		Unknown,
@@ -453,6 +462,7 @@ private:
 	base::flat_set<QString> _nameWords; // for filtering
 	base::flat_set<QChar> _nameFirstLetters;
 
+	uint64 _backgroundEmojiId = 0;
 	crl::time _lastFullUpdate = 0;
 
 	QString _name;
@@ -460,14 +470,16 @@ private:
 
 	TimeId _ttlPeriod = 0;
 
+	QString _requestChatTitle;
+	TimeId _requestChatDate = 0;
+
 	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 	TranslationFlag _translationFlag = TranslationFlag::Unknown;
-	bool _userpicHasVideo = false;
-
-	QString _requestChatTitle;
-	TimeId _requestChatDate = 0;
+	uint8 _colorIndex : 6 = 0;
+	uint8 _colorIndexCloud : 1 = 0;
+	uint8 _userpicHasVideo : 1 = 0;
 
 	QString _about;
 	QString _themeEmoticon;

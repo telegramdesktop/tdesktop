@@ -76,7 +76,7 @@ TextParseOptions TextNameOptions = {
 };
 
 TextParseOptions TextDialogOptions = {
-	TextParsePlainLinks | TextParseMarkdown, // flags
+	TextParseColorized | TextParseMarkdown, // flags
 	0, // maxw is style-dependent
 	1, // maxh
 	Qt::LayoutDirectionAuto, // lang-dependent
@@ -113,7 +113,8 @@ void InitTextOptions() {
 		= WebpageDescriptionOptions.maxw
 		= st::msgMaxWidth
 		- st::msgPadding.left()
-		- st::webPageLeft
+		- st::messageQuoteStyle.padding.left()
+		- st::messageQuoteStyle.padding.right()
 		- st::msgPadding.right();
 	WebpageDescriptionOptions.maxh = st::webPageDescriptionFont->height * 3;
 }

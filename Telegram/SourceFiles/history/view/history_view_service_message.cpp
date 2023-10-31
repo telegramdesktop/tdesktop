@@ -358,15 +358,15 @@ void ServiceMessagePainter::PaintComplexBubble(
 	}
 }
 
-QVector<int> ServiceMessagePainter::CountLineWidths(
+std::vector<int> ServiceMessagePainter::CountLineWidths(
 		const Ui::Text::String &text,
 		const QRect &textRect) {
 	const auto linesCount = qMax(
 		textRect.height() / st::msgServiceFont->height,
 		1);
-	auto result = QVector<int>();
-	result.reserve(linesCount);
-	text.countLineWidths(textRect.width(), &result);
+	auto result = text.countLineWidths(textRect.width(), {
+		.reserve = linesCount,
+	});
 
 	const auto minDelta = 2 * (Ui::HistoryServiceMsgRadius()
 		+ Ui::HistoryServiceMsgInvertedRadius()
@@ -667,6 +667,27 @@ void Service::updatePressed(QPoint point) {
 
 TextForMimeData Service::selectedText(TextSelection selection) const {
 	return text().toTextForMimeData(selection);
+}
+
+TextWithEntities Service::selectedQuote(TextSelection selection) const {
+	return {};
+}
+
+TextWithEntities Service::selectedQuote(
+		const Ui::Text::String &text,
+		TextSelection selection) const {
+	return {};
+}
+
+TextSelection Service::selectionFromQuote(
+		const TextWithEntities &quote) const {
+	return {};
+}
+
+TextSelection Service::selectionFromQuote(
+		const Ui::Text::String &text,
+		const TextWithEntities &quote) const {
+	return {};
 }
 
 TextSelection Service::adjustSelection(

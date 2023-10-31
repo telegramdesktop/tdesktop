@@ -123,7 +123,7 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 			via->resize(availw);
 		}
 		if (reply) {
-			reply->resize(availw);
+			[[maybe_unused]] int height = reply->resizeToWidth(availw);
 		}
 	}
 	return { newWidth, newHeight };
@@ -211,11 +211,16 @@ UnwrappedMedia::SurroundingInfo UnwrappedMedia::surroundingInfo(
 		panelHeight += st::msgServiceNameFont->height
 			+ (reply ? st::msgReplyPadding.top() : 0);
 	}
-	if (reply) {
-		panelHeight += st::msgReplyBarSize.height();
-	}
 	if (panelHeight) {
-		panelHeight += st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+		panelHeight += st::msgReplyPadding.top();
+	}
+	if (reply) {
+		const auto replyMargins = reply->margins();
+		panelHeight += reply->height()
+			- ((forwarded || via) ? 0 : replyMargins.top())
+			- replyMargins.bottom();
+	} else {
+		panelHeight += st::msgReplyPadding.bottom();
 	}
 	const auto total = (topicSize.isEmpty() ? 0 : topicSize.height())
 		+ ((panelHeight || !topicSize.height()) ? st::topicButtonSkip : 0)
@@ -303,26 +308,32 @@ void UnwrappedMedia::drawSurrounding(
 
 			Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCornersSmall);
 			p.setPen(st->msgServiceFg());
-			rectx += st::msgReplyPadding.left();
-			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
+			const auto textx = rectx + st::msgReplyPadding.left();
+			const auto textw = rectw - st::msgReplyPadding.left() - st::msgReplyPadding.right();
 			if (forwarded) {
 				p.setTextPalette(st->serviceTextPalette());
-				forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxForwardedBarLines, style::al_left, 0, -1, 0, surrounding.forwardedBreakEverywhere);
+				forwarded->text.drawElided(p, textx, recty + st::msgReplyPadding.top(), textw, kMaxForwardedBarLines, style::al_left, 0, -1, 0, surrounding.forwardedBreakEverywhere);
 				p.restoreTextPalette();
 
 				const auto skip = std::min(
-					forwarded->text.countHeight(rectw),
+					forwarded->text.countHeight(textw),
 					kMaxForwardedBarLines * st::msgServiceNameFont->height);
 				recty += skip;
 			} else if (via) {
 				p.setFont(st::msgDateFont);
-				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
+				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * textx + textw, via->text);
 
 				const auto skip = st::msgServiceNameFont->height
 					+ (reply ? st::msgReplyPadding.top() : 0);
 				recty += skip;
 			}
 			if (reply) {
+				if (forwarded || via) {
+					recty += st::msgReplyPadding.top();
+					recth -= st::msgReplyPadding.top();
+				} else {
+					recty -= reply->margins().top();
+				}
 				reply->paint(p, _parent, context, rectx, recty, rectw, false);
 			}
 			replyRight = rectx + rectw;
@@ -330,8 +341,9 @@ void UnwrappedMedia::drawSurrounding(
 	}
 	if (rightActionSize) {
 		const auto position = calculateFastActionPosition(
-			fullBottom,
 			replyRight,
+			reply ? reply->height() : 0,
+			fullBottom,
 			fullRight,
 			*rightActionSize);
 		const auto outer = 2 * inner.x() + inner.width();
@@ -462,16 +474,22 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 					recth -= skip;
 				}
 				if (reply) {
+					if (forwarded || via) {
+						recty += st::msgReplyPadding.top();
+						recth -= st::msgReplyPadding.top() + reply->margins().top();
+					} else {
+						recty -= reply->margins().top();
+					}
 					const auto replyRect = QRect(rectx, recty, rectw, recth);
 					if (replyRect.contains(point)) {
-						result.link = reply->replyToLink();
+						result.link = reply->link();
 						reply->ripple.lastPoint = point - replyRect.topLeft();
 						if (!reply->ripple.animation) {
 							reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
 								st::defaultRippleAnimation,
 								Ui::RippleAnimation::RoundRectMask(
 									replyRect.size(),
-									st::roundRadiusSmall),
+									st::messageQuoteStyle.radius),
 								[=] { item->history()->owner().requestItemRepaint(item); });
 						}
 						return result;
@@ -495,8 +513,9 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		}
 		if (rightActionSize) {
 			const auto position = calculateFastActionPosition(
-				fullBottom,
 				replyRight,
+				reply ? reply->height() : 0,
+				fullBottom,
 				fullRight,
 				*rightActionSize);
 			if (QRect(position.x(), position.y(), rightActionSize->width(), rightActionSize->height()).contains(point)) {
@@ -519,10 +538,9 @@ bool UnwrappedMedia::hasTextForCopy() const {
 	return _content->hasTextForCopy();
 }
 
-bool UnwrappedMedia::dragItemByHandler(
-		const ClickHandlerPtr &p) const {
+bool UnwrappedMedia::dragItemByHandler(const ClickHandlerPtr &p) const {
 	const auto reply = _parent->displayedReply();
-	return !(reply && (reply->replyToLink() == p));
+	return !reply || (reply->link() != p);
 }
 
 QRect UnwrappedMedia::contentRectForReactions() const {
@@ -599,17 +617,16 @@ int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 }
 
 QPoint UnwrappedMedia::calculateFastActionPosition(
-		int fullBottom,
 		int replyRight,
+		int replyHeight,
+		int fullBottom,
 		int fullRight,
 		QSize size) const {
 	const auto fastShareTop = (fullBottom
 		- st::historyFastShareBottom
 		- size.height());
-	const auto doesRightActionHitReply = replyRight && (fastShareTop <
-		st::msgReplyBarSize.height()
-		+ st::msgReplyPadding.top()
-		+ st::msgReplyPadding.bottom());
+	const auto doesRightActionHitReply = replyRight
+		&& (fastShareTop < replyHeight);
 	const auto fastShareLeft = ((doesRightActionHitReply
 		? replyRight
 		: fullRight) + st::historyFastShareLeft);
@@ -642,7 +659,7 @@ int UnwrappedMedia::additionalWidth(
 		accumulate_max(result, 2 * st::msgReplyPadding.left() + via->maxWidth + st::msgReplyPadding.right());
 	}
 	if (reply) {
-		accumulate_max(result, st::msgReplyPadding.left() + reply->replyToWidth());
+		accumulate_max(result, reply->maxWidth());
 	}
 	return result;
 }

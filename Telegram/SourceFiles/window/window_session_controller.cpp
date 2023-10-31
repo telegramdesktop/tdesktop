@@ -498,7 +498,7 @@ void SessionNavigation::showPeerByLinkResolved(
 				info.messageId,
 				callback);
 		}
-	} else if (peer->isUser() && info.storyId) {
+	} else if (info.storyId) {
 		const auto storyId = FullStoryId{ peer->id, info.storyId };
 		peer->owner().stories().resolve(storyId, crl::guard(this, [=] {
 			if (peer->owner().stories().lookup(storyId)) {
@@ -621,9 +621,9 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 		return;
 	}
 	_boostStateResolving = channel;
-	_api.request(MTPstories_GetBoostsStatus(
+	_api.request(MTPpremium_GetBoostsStatus(
 		channel->input
-	)).done([=](const MTPstories_BoostsStatus &result) {
+	)).done([=](const MTPpremium_BoostsStatus &result) {
 		_boostStateResolving = nullptr;
 		const auto &data = result.data();
 		const auto submit = [=](Fn<void(bool)> done) {
@@ -649,69 +649,94 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 void SessionNavigation::applyBoost(
 		not_null<ChannelData*> channel,
 		Fn<void(bool)> done) {
-	_api.request(MTPstories_CanApplyBoost(
-		channel->input
-	)).done([=](const MTPstories_CanApplyBoostResult &result) {
-		result.match([&](const MTPDstories_canApplyBoostOk &) {
-			applyBoostChecked(channel, done);
-		}, [&](const MTPDstories_canApplyBoostReplace &data) {
-			_session->data().processChats(data.vchats());
-			const auto peer = _session->data().peer(
-				peerFromMTP(data.vcurrent_boost()));
-			replaceBoostConfirm(peer, channel, done);
-		});
-	}).fail([=](const MTP::Error &error) {
-		const auto type = error.type();
-		if (type == u"PREMIUM_ACCOUNT_REQUIRED"_q) {
-			const auto jumpToPremium = [=] {
-				const auto id = peerToChannel(channel->id).bare;
-				Settings::ShowPremium(
-					parentController(),
-					"channel_boost__" + QString::number(id));
-			};
-			uiShow()->show(Ui::MakeConfirmBox({
-				.text = tr::lng_boost_error_premium_text(
-					Ui::Text::RichLangValue),
-				.confirmed = jumpToPremium,
-				.confirmText = tr::lng_boost_error_premium_yes(),
-				.title = tr::lng_boost_error_premium_title(),
-			}));
-		} else if (type == u"PREMIUM_GIFTED_NOT_ALLOWED"_q) {
-			uiShow()->show(Ui::MakeConfirmBox({
-				.text = tr::lng_boost_error_gifted_text(
-					Ui::Text::RichLangValue),
-				.title = tr::lng_boost_error_gifted_title(),
-				.inform = true,
-			}));
-		} else if (type == u"BOOST_NOT_MODIFIED"_q) {
+	_api.request(MTPpremium_GetMyBoosts(
+	)).done([=](const MTPpremium_MyBoosts &result) {
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+		const auto &list = data.vmy_boosts().v;
+		if (list.isEmpty()) {
+			if (!_session->premium()) {
+				const auto jumpToPremium = [=] {
+					const auto id = peerToChannel(channel->id).bare;
+					Settings::ShowPremium(
+						parentController(),
+						"channel_boost__" + QString::number(id));
+				};
+				uiShow()->show(Ui::MakeConfirmBox({
+					.text = tr::lng_boost_error_premium_text(
+						Ui::Text::RichLangValue),
+					.confirmed = jumpToPremium,
+					.confirmText = tr::lng_boost_error_premium_yes(),
+					.title = tr::lng_boost_error_premium_title(),
+				}));
+			} else {
+				uiShow()->show(Ui::MakeConfirmBox({
+					.text = tr::lng_boost_error_gifted_text(
+						Ui::Text::RichLangValue),
+					.title = tr::lng_boost_error_gifted_title(),
+					.inform = true,
+				}));
+			}
+			done(false);
+			return;
+		}
+		auto different = PeerId();
+		auto earliest = TimeId(-1);
+		const auto now = base::unixtime::now();
+		for (const auto &my : list) {
+			const auto &data = my.data();
+			const auto cooldown = data.vcooldown_until_date().value_or(0);
+			const auto peerId = data.vpeer()
+				? peerFromMTP(*data.vpeer())
+				: PeerId();
+			if (!peerId && cooldown <= now) {
+				applyBoostChecked(channel, done);
+				return;
+			} else if (peerId != channel->id) {
+				different = peerId;
+				if (earliest < 0 || cooldown < earliest) {
+					earliest = cooldown;
+				}
+			}
+		}
+		if (different) {
+			if (earliest > now) {
+				const auto seconds = earliest - now;
+				const auto days = seconds / 86400;
+				const auto hours = seconds / 3600;
+				const auto minutes = seconds / 60;
+				uiShow()->show(Ui::MakeConfirmBox({
+					.text = tr::lng_boost_error_flood_text(
+						lt_left,
+						rpl::single(Ui::Text::Bold((days > 1)
+							? tr::lng_days(tr::now, lt_count, days)
+							: (hours > 1)
+							? tr::lng_hours(tr::now, lt_count, hours)
+							: (minutes > 1)
+							? tr::lng_minutes(tr::now, lt_count, minutes)
+							: tr::lng_seconds(tr::now, lt_count, seconds))),
+						Ui::Text::RichLangValue),
+					.title = tr::lng_boost_error_flood_title(),
+					.inform = true,
+				}));
+				done(false);
+			} else {
+				const auto peer = _session->data().peer(different);
+				replaceBoostConfirm(peer, channel, done);
+			}
+		} else {
 			uiShow()->show(Ui::MakeConfirmBox({
 				.text = tr::lng_boost_error_already_text(
 					Ui::Text::RichLangValue),
 				.title = tr::lng_boost_error_already_title(),
 				.inform = true,
 			}));
-		} else if (type.startsWith(u"FLOOD_WAIT_"_q)) {
-			const auto seconds = type.mid(u"FLOOD_WAIT_"_q.size()).toInt();
-			const auto days = seconds / 86400;
-			const auto hours = seconds / 3600;
-			const auto minutes = seconds / 60;
-			uiShow()->show(Ui::MakeConfirmBox({
-				.text = tr::lng_boost_error_flood_text(
-					lt_left,
-					rpl::single(Ui::Text::Bold((days > 1)
-						? tr::lng_days(tr::now, lt_count, days)
-						: (hours > 1)
-						? tr::lng_hours(tr::now, lt_count, hours)
-						: (minutes > 1)
-						? tr::lng_minutes(tr::now, lt_count, minutes)
-						: tr::lng_seconds(tr::now, lt_count, seconds))),
-					Ui::Text::RichLangValue),
-				.title = tr::lng_boost_error_flood_title(),
-				.inform = true,
-			}));
-		} else {
-			showToast(u"Error: "_q + type);
+			done(false);
 		}
+	}).fail([=](const MTP::Error &error) {
+		const auto type = error.type();
+		showToast(u"Error: "_q + type);
 		done(false);
 	}).handleFloodErrors().send();
 }
@@ -753,9 +778,11 @@ void SessionNavigation::replaceBoostConfirm(
 void SessionNavigation::applyBoostChecked(
 		not_null<ChannelData*> channel,
 		Fn<void(bool)> done) {
-	_api.request(MTPstories_ApplyBoost(
+	_api.request(MTPpremium_ApplyBoost(
+		MTP_flags(0),
+		MTPVector<MTPint>(), // slots
 		channel->input
-	)).done([=](const MTPBool &result) {
+	)).done([=](const MTPpremium_MyBoosts &result) {
 		done(true);
 	}).fail([=](const MTP::Error &error) {
 		showToast(u"Error: "_q + error.type());
@@ -1056,7 +1083,7 @@ SessionController::SessionController(
 , _invitePeekTimer([=] { checkInvitePeek(); })
 , _activeChatsFilter(session->data().chatsFilters().defaultId())
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
-, _chatStyle(std::make_unique<Ui::ChatStyle>())
+, _chatStyle(std::make_unique<Ui::ChatStyle>(session->colorIndicesValue()))
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
 , _giftPremiumValidator(this) {
 	init();
@@ -1515,13 +1542,16 @@ bool SessionController::switchInlineQuery(
 		'@' + bot->username() + ' ' + query,
 		TextWithTags::Tags(),
 	};
-	MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
+	MessageCursor cursor = {
+		int(textWithTags.text.size()),
+		int(textWithTags.text.size()),
+		Ui::kQFixedMax
+	};
 	auto draft = std::make_unique<Data::Draft>(
 		textWithTags,
-		to.currentReplyToId,
-		to.rootId,
+		to.currentReplyTo,
 		cursor,
-		Data::PreviewState::Allowed);
+		Data::WebPageDraft());
 
 	auto params = Window::SectionShow();
 	params.reapplyLocalDraft = true;
@@ -1531,11 +1561,12 @@ bool SessionController::switchInlineQuery(
 			std::make_shared<HistoryView::ScheduledMemento>(history),
 			params);
 	} else {
+		const auto topicRootId = to.currentReplyTo.topicRootId;
 		history->setLocalDraft(std::move(draft));
-		history->clearLocalEditDraft(to.rootId);
+		history->clearLocalEditDraft(topicRootId);
 		if (to.section == Section::Replies) {
 			const auto commentId = MsgId();
-			showRepliesForMessage(history, to.rootId, commentId, params);
+			showRepliesForMessage(history, topicRootId, commentId, params);
 		} else {
 			showPeerHistory(history->peer, params);
 		}
@@ -1552,7 +1583,7 @@ bool SessionController::switchInlineQuery(
 		.section = (thread->asTopic()
 			? Dialogs::EntryState::Section::Replies
 			: Dialogs::EntryState::Section::History),
-		.rootId = thread->topicRootId(),
+		.currentReplyTo = { .topicRootId = thread->topicRootId() },
 	};
 	return switchInlineQuery(entryState, bot, query);
 }

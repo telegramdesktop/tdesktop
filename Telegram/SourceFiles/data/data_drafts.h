@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_msg_id.h"
+
 namespace Ui {
 class InputField;
 } // namespace Ui
@@ -28,34 +30,40 @@ void ClearPeerCloudDraft(
 	MsgId topicRootId,
 	TimeId date);
 
-enum class PreviewState : char {
-	Allowed,
-	Cancelled,
-	EmptyOnEdit,
+struct WebPageDraft {
+	[[nodiscard]] static WebPageDraft FromItem(not_null<HistoryItem*> item);
+
+	WebPageId id = 0;
+	QString url;
+	bool forceLargeMedia : 1 = false;
+	bool forceSmallMedia : 1 = false;
+	bool invert : 1 = false;
+	bool manual : 1 = false;
+	bool removed : 1 = false;
+
+	friend inline bool operator==(const WebPageDraft&, const WebPageDraft&)
+		= default;
 };
 
 struct Draft {
 	Draft() = default;
 	Draft(
 		const TextWithTags &textWithTags,
-		MsgId msgId,
-		MsgId topicRootId,
+		FullReplyTo reply,
 		const MessageCursor &cursor,
-		PreviewState previewState,
+		WebPageDraft webpage,
 		mtpRequestId saveRequestId = 0);
 	Draft(
 		not_null<const Ui::InputField*> field,
-		MsgId msgId,
-		MsgId topicRootId,
-		PreviewState previewState,
+		FullReplyTo reply,
+		WebPageDraft webpage,
 		mtpRequestId saveRequestId = 0);
 
 	TimeId date = 0;
 	TextWithTags textWithTags;
-	MsgId msgId = 0; // replyToId for message draft, editMsgId for edit draft
-	MsgId topicRootId = 0;
+	FullReplyTo reply; // reply.messageId.msg is editMsgId for edit draft.
 	MessageCursor cursor;
-	PreviewState previewState = PreviewState::Allowed;
+	WebPageDraft webpage;
 	mtpRequestId saveRequestId = 0;
 };
 
@@ -167,7 +175,8 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 
 [[nodiscard]] inline bool DraftIsNull(const Draft *draft) {
 	return !draft
-		|| (!draft->msgId && DraftStringIsEmpty(draft->textWithTags.text));
+		|| (!draft->reply.messageId
+			&& DraftStringIsEmpty(draft->textWithTags.text));
 }
 
 [[nodiscard]] inline bool DraftsAreEqual(const Draft *a, const Draft *b) {
@@ -179,8 +188,8 @@ using HistoryDrafts = base::flat_map<DraftKey, std::unique_ptr<Draft>>;
 		return false;
 	}
 	return (a->textWithTags == b->textWithTags)
-		&& (a->msgId == b->msgId)
-		&& (a->previewState == b->previewState);
+		&& (a->reply == b->reply)
+		&& (a->webpage == b->webpage);
 }
 
 } // namespace Data

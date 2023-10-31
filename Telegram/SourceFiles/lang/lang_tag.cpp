@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/text/text.h"
 #include "base/qt/qt_common_adapters.h"
+#include "base/qt/qt_string_view.h"
 
 namespace Lang {
 namespace {
@@ -868,8 +869,10 @@ auto ChoosePlural = ChoosePluralDefault;
 
 int FindTagReplacementPosition(const QString &original, ushort tag) {
 	for (auto s = original.constData(), ch = s, e = ch + original.size(); ch != e;) {
-		if (*ch == TextCommand) {
-			if (ch + kTagReplacementSize <= e && (ch + 1)->unicode() == kTextCommandLangTag && *(ch + 3) == TextCommand) {
+		if (ch->unicode() == kTextCommand) {
+			if (ch + kTagReplacementSize <= e
+				&& (ch + 1)->unicode() == kTextCommandLangTag
+				&& (ch + 3)->unicode() == kTextCommand) {
 				if ((ch + 2)->unicode() == 0x0020 + tag) {
 					return ch - s;
 				} else {

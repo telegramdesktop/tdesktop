@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "ui/boxes/confirm_box.h"
-#include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/peers/edit_peer_common.h"
 #include "boxes/peers/edit_peer_type_box.h"
 #include "boxes/peers/edit_peer_history_visibility_box.h"
@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_linked_chat_box.h"
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "boxes/peers/edit_peer_reactions.h"
+#include "boxes/peer_list_controllers.h"
 #include "boxes/stickers_box.h"
 #include "boxes/username_box.h"
 #include "ui/boxes/single_choice_box.h"
@@ -302,6 +303,7 @@ private:
 	void fillLinkedChatButton();
 	//void fillInviteLinkButton();
 	void fillForumButton();
+	void fillColorIndexButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
@@ -905,6 +907,13 @@ void Controller::refreshForumToggleLocked() {
 	_controls.forumToggle->setToggleLocked(locked);
 }
 
+void Controller::fillColorIndexButton() {
+	Expects(_controls.buttonsLayout != nullptr);
+
+	const auto show = _navigation->uiShow();
+	AddPeerColorButton(_controls.buttonsLayout, show, _peer);
+}
+
 void Controller::fillSignaturesButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
@@ -1024,74 +1033,42 @@ void Controller::fillManageSection() {
 		return;
 	}
 
-	const auto canEditType = [&] {
-		return isChannel
-			? channel->amCreator()
-			: chat->amCreator();
-	}();
-	const auto canEditSignatures = [&] {
-		return isChannel
-			? (channel->canEditSignatures() && !channel->isMegagroup())
-			: false;
-	}();
-	const auto canEditPreHistoryHidden = [&] {
-		return isChannel
-			? channel->canEditPreHistoryHidden()
-			: chat->canEditPreHistoryHidden();
-	}();
+	const auto canEditType = isChannel
+		? channel->amCreator()
+		: chat->amCreator();
+	const auto canEditSignatures = isChannel
+		&& channel->canEditSignatures()
+		&& !channel->isMegagroup();
+	const auto canEditPreHistoryHidden = isChannel
+		? channel->canEditPreHistoryHidden()
+		: chat->canEditPreHistoryHidden();
 	const auto canEditForum = isChannel
 		? (channel->isMegagroup() && channel->amCreator())
 		: chat->amCreator();
-
-	const auto canEditPermissions = [&] {
-		return isChannel
-			? channel->canEditPermissions()
-			: chat->canEditPermissions();
-	}();
-	const auto canEditInviteLinks = [&] {
-		return isChannel
-			? channel->canHaveInviteLink()
-			: chat->canHaveInviteLink();
-	}();
-	const auto canViewAdmins = [&] {
-		return isChannel
-			? channel->canViewAdmins()
-			: chat->amIn();
-	}();
-	const auto canViewMembers = [&] {
-		return isChannel
-			? channel->canViewMembers()
-			: chat->amIn();
-	}();
-	const auto canViewKicked = [&] {
-		return isChannel
-			? (channel->isBroadcast() || channel->isGigagroup())
-			: false;
-	}();
-	const auto hasRecentActions = [&] {
-		return isChannel
-			? (channel->hasAdminRights() || channel->amCreator())
-			: false;
-	}();
-
-	const auto canEditStickers = [&] {
-		return isChannel
-			? channel->canEditStickers()
-			: false;
-	}();
-	const auto canDeleteChannel = [&] {
-		return isChannel
-			? channel->canDelete()
-			: false;
-	}();
-
-	const auto canViewOrEditLinkedChat = [&] {
-		return !isChannel
-			? false
-			: channel->linkedChat()
-			? true
-			: (channel->isBroadcast() && channel->canEditInformation());
-	}();
+	const auto canEditPermissions = isChannel
+		? channel->canEditPermissions()
+		: chat->canEditPermissions();
+	const auto canEditInviteLinks = isChannel
+		? channel->canHaveInviteLink()
+		: chat->canHaveInviteLink();
+	const auto canViewAdmins = isChannel
+		? channel->canViewAdmins()
+		: chat->amIn();
+	const auto canViewMembers = isChannel
+		? channel->canViewMembers()
+		: chat->amIn();
+	const auto canViewKicked = isChannel
+		&& (channel->isBroadcast() || channel->isGigagroup());
+	const auto hasRecentActions = isChannel
+		&& (channel->hasAdminRights() || channel->amCreator());
+	const auto canEditStickers = isChannel && channel->canEditStickers();
+	const auto canDeleteChannel = isChannel && channel->canDelete();
+	const auto canEditColorIndex = isChannel
+		&& !channel->isMegagroup()
+		&& channel->canEditInformation();
+	const auto canViewOrEditLinkedChat = isChannel
+		&& (channel->linkedChat()
+			|| (channel->isBroadcast() && channel->canEditInformation()));
 
 	AddSkip(_controls.buttonsLayout, 0);
 
@@ -1109,11 +1086,15 @@ void Controller::fillManageSection() {
 	if (canEditForum) {
 		fillForumButton();
 	}
+	if (canEditColorIndex) {
+		fillColorIndexButton();
+	}
 	if (canEditSignatures) {
 		fillSignaturesButton();
 	}
 	if (canEditPreHistoryHidden
 		|| canEditForum
+		|| canEditColorIndex
 		|| canEditSignatures
 		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat

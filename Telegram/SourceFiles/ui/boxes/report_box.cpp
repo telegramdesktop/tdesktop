@@ -7,19 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/report_box.h"
 
+#include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
+#include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
-#include "ui/wrap/vertical_layout.h"
+#include "ui/rect.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/toast/toast.h"
-#include "info/profile/info_profile_icon.h"
+#include "ui/wrap/vertical_layout.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
-#include "styles/style_profile.h"
 #include "styles/style_info.h"
-#include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 
 namespace Ui {
 namespace {
@@ -122,6 +123,21 @@ void ReportDetailsBox(
 		not_null<GenericBox*> box,
 		const style::ReportBox &st,
 		Fn<void(QString)> done) {
+	box->setTitle(tr::lng_profile_report());
+	{
+		auto icon = Settings::CreateLottieIcon(
+			box->verticalLayout(),
+			{
+				.name = u"blocked_peers_empty"_q,
+				.sizeOverride = Size(st::changePhoneIconSize),
+			},
+			st::settingsBlockedListIconPadding);
+		box->setShowFinishedCallback([animate = std::move(icon.animate)] {
+			animate(anim::repeat::once);
+		});
+		box->addRow(std::move(icon.widget));
+	}
+
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box, // #TODO reports
@@ -131,7 +147,8 @@ void ReportDetailsBox(
 			st::boxRowPadding.left(),
 			st::boxPadding.top(),
 			st::boxRowPadding.right(),
-			st::boxPadding.bottom() });
+			st::boxPadding.bottom(),
+		});
 	const auto details = box->addRow(
 		object_ptr<InputField>(
 			box,
@@ -148,8 +165,7 @@ void ReportDetailsBox(
 		const auto text = details->getLastText();
 		done(text);
 	};
-	details->submits(
-	) | rpl::start_with_next(submit, details->lifetime());
+	details->submits() | rpl::start_with_next(submit, details->lifetime());
 	box->addButton(tr::lng_report_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

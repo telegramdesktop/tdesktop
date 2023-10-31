@@ -767,6 +767,8 @@ void GenerateItems(
 	using LogDeleteTopic = MTPDchannelAdminLogEventActionDeleteTopic;
 	using LogPinTopic = MTPDchannelAdminLogEventActionPinTopic;
 	using LogToggleAntiSpam = MTPDchannelAdminLogEventActionToggleAntiSpam;
+	using LogChangeColor = MTPDchannelAdminLogEventActionChangeColor;
+	using LogChangeBackgroundEmoji = MTPDchannelAdminLogEventActionChangeBackgroundEmoji;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1815,6 +1817,54 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
+	const auto createChangeColor = [&](const LogChangeColor &data) {
+		const auto text = tr::lng_admin_log_change_color(
+			tr::now,
+			lt_from,
+			fromLinkText,
+			lt_previous,
+			{ '#' + QString::number(data.vprev_value().v + 1) },
+			lt_color,
+			{ '#' + QString::number(data.vnew_value().v + 1) },
+			Ui::Text::WithEntities);
+		addSimpleServiceMessage(text);
+	};
+
+	const auto createChangeBackgroundEmoji = [&](const LogChangeBackgroundEmoji &data) {
+		const auto was = data.vprev_value().v;
+		const auto now = data.vnew_value().v;
+		const auto text = !was
+			? tr::lng_admin_log_set_background_emoji(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_emoji,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(now)),
+				Ui::Text::WithEntities)
+			: !now
+			? tr::lng_admin_log_removed_background_emoji(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_emoji,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(was)),
+				Ui::Text::WithEntities)
+			: tr::lng_admin_log_change_background_emoji(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_previous,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(was)),
+				lt_emoji,
+				Ui::Text::SingleCustomEmoji(
+					Data::SerializeCustomEmojiId(now)),
+				Ui::Text::WithEntities);
+		addSimpleServiceMessage(text);
+	};
+
 	action.match(
 		createChangeTitle,
 		createChangeAbout,
@@ -1858,7 +1908,9 @@ void GenerateItems(
 		createEditTopic,
 		createDeleteTopic,
 		createPinTopic,
-		createToggleAntiSpam);
+		createToggleAntiSpam,
+		createChangeColor,
+		createChangeBackgroundEmoji);
 }
 
 } // namespace AdminLog

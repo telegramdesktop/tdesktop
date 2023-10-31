@@ -36,6 +36,20 @@ namespace {
 
 using Notify = Data::DefaultNotify;
 
+struct Factory : AbstractSectionFactory {
+	explicit Factory(Notify type) : type(type) {
+	}
+
+	object_ptr<AbstractSection> create(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller
+	) const final override {
+		return object_ptr<NotificationsType>(parent, controller, type);
+	}
+
+	const Notify type = {};
+};
+
 class AddExceptionBoxController final
 	: public ChatsListBoxController
 	, public base::has_weak_ptr {
@@ -351,11 +365,6 @@ void ExceptionsController::sort() {
 	delegate()->peerListSortRows(predicate);
 }
 
-template <Notify kType>
-[[nodiscard]] Type Id() {
-	return &NotificationsTypeMetaImplementation<kType>::Meta;
-}
-
 [[nodiscard]] rpl::producer<QString> Title(Notify type) {
 	switch (type) {
 	case Notify::User: return tr::lng_notification_title_private_chats();
@@ -562,15 +571,6 @@ void SetupExceptions(
 
 } // namespace
 
-Type NotificationsTypeId(Notify type) {
-	switch (type) {
-	case Notify::User: return Id<Notify::User>();
-	case Notify::Group: return Id<Notify::Group>();
-	case Notify::Broadcast: return Id<Notify::Broadcast>();
-	}
-	Unexpected("Type in NotificationTypeId.");
-}
-
 NotificationsType::NotificationsType(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
@@ -589,8 +589,8 @@ rpl::producer<QString> NotificationsType::title() {
 	Unexpected("Type in NotificationsType.");
 }
 
-Type NotificationsType::id() const {
-	return NotificationsTypeId(_type);
+Type NotificationsType::Id(Notify type) {
+	return std::make_shared<Factory>(type);
 }
 
 void NotificationsType::setupContent(

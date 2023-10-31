@@ -16,8 +16,6 @@ exportSubSettingPadding: margins(56px, 4px, 22px, 12px);
 exportHeaderLabel: FlatLabel(boxTitle) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(15px semibold);
-		linkFont: font(15px semibold);
-		linkFontOver: font(15px semibold underline);
 	}
 }
 exportHeaderPadding: margins(22px, 20px, 22px, 9px);
@@ -57,8 +55,6 @@ exportProgressLabel: FlatLabel(boxLabel) {
 	maxHeight: 20px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 }
 exportProgressInfoLabel: FlatLabel(boxLabel) {

@@ -748,6 +748,9 @@ void Document::draw(
 			.position = { st::msgPadding.left(), captiontop },
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
+			.pre = stm->preCache.get(),
+			.blockquote = context.quoteCache(parent()->colorIndex()),
+			.colors = context.st->highlightColors(),
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.now = context.now,
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
@@ -1205,6 +1208,40 @@ TextForMimeData Document::selectedText(TextSelection selection) const {
 		result.append(captioned->caption.toTextForMimeData(selection));
 	}
 	return result;
+}
+
+TextWithEntities Document::selectedQuote(TextSelection selection) const {
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
+		const auto length = voice->transcribeText.length();
+		if (selection.from < length) {
+			return {};
+		}
+		selection = HistoryView::UnshiftItemSelection(
+			selection,
+			voice->transcribeText);
+	}
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		return parent()->selectedQuote(captioned->caption, selection);
+	}
+	return {};
+}
+
+TextSelection Document::selectionFromQuote(
+		const TextWithEntities &quote) const {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		const auto result = parent()->selectionFromQuote(
+			captioned->caption,
+			quote);
+		if (result.empty()) {
+			return {};
+		} else if (const auto voice = Get<HistoryDocumentVoice>()) {
+			return HistoryView::ShiftItemSelection(
+				result,
+				voice->transcribeText);
+		}
+		return result;
+	}
+	return {};
 }
 
 bool Document::uploading() const {

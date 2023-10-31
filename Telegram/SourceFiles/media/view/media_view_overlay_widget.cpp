@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "core/crash_reports.h"
 #include "core/sandbox.h"
+#include "core/shortcuts.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image.h"
@@ -458,6 +459,19 @@ OverlayWidget::OverlayWidget()
 		QImage::Format_ARGB32_Premultiplied);
 	_docRectImage.setDevicePixelRatio(cIntRetinaFactor());
 
+	Shortcuts::Requests(
+	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		request->check(
+			Shortcuts::Command::MediaViewerFullscreen
+		) && request->handle([=] {
+			if (_streamed) {
+				playbackToggleFullScreen();
+				return true;
+			}
+			return false;
+		});
+	}, lifetime());
+
 	setupWindow();
 
 	const auto mousePosition = [](not_null<QEvent*> e) {
@@ -803,7 +817,7 @@ void OverlayWidget::moveToScreen(bool inMove) {
 		? Core::App().activeWindow()->widget().get()
 		: nullptr;
 	const auto activeWindowScreen = widgetScreen(applicationWindow);
-	const auto myScreen = widgetScreen(_window);
+	const auto myScreen = _window->screen();
 	if (activeWindowScreen && myScreen != activeWindowScreen) {
 		const auto screenList = QGuiApplication::screens();
 		DEBUG_LOG(("Viewer Pos: Currently on screen %1, moving to screen %2")
@@ -3023,7 +3037,7 @@ void OverlayWidget::refreshMediaViewer() {
 
 void OverlayWidget::refreshFromLabel() {
 	if (_message) {
-		_from = _message->senderOriginal();
+		_from = _message->originalSender();
 		if (const auto info = _message->hiddenSenderInfo()) {
 			_fromName = info->name;
 		} else {
@@ -5006,7 +5020,6 @@ void OverlayWidget::paintCaptionContent(
 	}
 	if (inner.intersects(clip)) {
 		p.setPen(st::mediaviewCaptionFg);
-		const auto lineHeight = st::mediaviewCaptionStyle.font->height;
 		_caption.draw(p, {
 			.position = inner.topLeft(),
 			.availableWidth = inner.width(),
@@ -5014,7 +5027,7 @@ void OverlayWidget::paintCaptionContent(
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
 			.pausedEmoji = On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = On(PowerSaving::kChatSpoiler),
-			.elisionLines = inner.height() / lineHeight,
+			.elisionHeight = inner.height(),
 			.elisionRemoveFromEnd = _captionSkipBlockWidth,
 		});
 

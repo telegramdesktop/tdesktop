@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "chat_helpers/bot_command.h"
 #include "chat_helpers/field_autocomplete.h"
+#include "data/data_drafts.h"
 #include "window/section_widget.h"
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
@@ -30,7 +31,6 @@ class Error;
 } // namespace MTP
 
 namespace Data {
-enum class PreviewState : char;
 class PhotoMedia;
 } // namespace Data
 
@@ -94,13 +94,15 @@ class Element;
 class PinnedTracker;
 class TranslateBar;
 class ComposeSearch;
-namespace Controls {
+} // namespace HistoryView
+
+namespace HistoryView::Controls {
 class RecordLock;
 class VoiceRecordBar;
 class ForwardPanel;
 class TTLButton;
-} // namespace Controls
-} // namespace HistoryView
+class WebpageProcessor;
+} // namespace HistoryView::Controls
 
 class BotKeyboard;
 class HistoryInner;
@@ -182,12 +184,14 @@ public:
 	MessageIdsList getSelectedItems() const;
 	void itemEdited(not_null<HistoryItem*> item);
 
-	void replyToMessage(FullMsgId itemId);
-	void replyToMessage(not_null<HistoryItem*> item);
+	void replyToMessage(FullReplyTo id);
+	void replyToMessage(
+		not_null<HistoryItem*> item,
+		TextWithEntities quote = {});
 	void editMessage(FullMsgId itemId);
 	void editMessage(not_null<HistoryItem*> item);
 
-	MsgId replyToId() const;
+	[[nodiscard]] FullReplyTo replyTo() const;
 	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
 	bool lastForceReplyReplied() const;
 	bool cancelReply(bool lastKeyboardUsed = false);
@@ -198,13 +202,10 @@ public:
 	[[nodiscard]] QVector<FullMsgId> replyReturns() const;
 	void setReplyReturns(PeerId peer, QVector<FullMsgId> replyReturns);
 
-	void updatePreview();
-	void previewCancel();
-
 	void escape();
 
 	void sendBotCommand(const Bot::SendCommandRequest &request);
-	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
+	void hideSingleUseKeyboard(FullMsgId replyToId);
 	bool insertBotCommand(const QString &cmd);
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
@@ -538,9 +539,9 @@ private:
 
 	void saveEditMsg();
 
-	void checkPreview();
-	void requestPreview();
-	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
+	void setupPreview();
+	void editDraftOptions();
+
 	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
 	void addMessagesToFront(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
@@ -634,11 +635,11 @@ private:
 	void searchInChat();
 
 	MTP::Sender _api;
-	MsgId _replyToId = 0;
+	FullReplyTo _replyTo;
 	Ui::Text::String _replyToName;
 	int _replyToNameVersion = 0;
 
-	MsgId _processingReplyId = 0;
+	FullReplyTo _processingReplyTo;
 	HistoryItem *_processingReplyItem = nullptr;
 
 	MsgId _editMsgId = 0;
@@ -672,16 +673,10 @@ private:
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 
-	QStringList _parsedLinks;
-	QString _previewLinks;
-	WebPageData *_previewData = nullptr;
-	typedef QMap<QString, WebPageId> PreviewCache;
-	PreviewCache _previewCache;
-	mtpRequestId _previewRequest = 0;
+	std::unique_ptr<HistoryView::Controls::WebpageProcessor> _preview;
+	Fn<bool(QPainter &p, QRect to)> _previewDrawPreview;
 	Ui::Text::String _previewTitle;
 	Ui::Text::String _previewDescription;
-	base::Timer _previewTimer;
-	Data::PreviewState _previewState = Data::PreviewState();
 
 	bool _replyForwardPressed = false;
 
@@ -723,7 +718,6 @@ private:
 
 	const object_ptr<FieldAutocomplete> _fieldAutocomplete;
 	object_ptr<Support::Autocomplete> _supportAutocomplete;
-	std::unique_ptr<MessageLinksParser> _fieldLinksParser;
 
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
@@ -758,7 +752,7 @@ private:
 	object_ptr<Ui::InputField> _field;
 	base::unique_qptr<Ui::RpWidget> _fieldDisabled;
 	Ui::Animations::Simple _inPhotoEditOver;
-	bool _inReplyEditForward = false;
+	bool _inDetails = false;
 	bool _inPhotoEdit = false;
 	bool _inClickable = false;
 

@@ -117,7 +117,6 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 				.inMainMenu = data.is_show_in_side_menu(),
 				.inAttachMenu = data.is_show_in_attach_menu(),
 				.disclaimerRequired = data.is_side_menu_disclaimer_needed(),
-				.hasSettings = data.is_has_settings(),
 				.requestWriteAccess = data.is_request_write_access(),
 			} : std::optional<AttachWebViewBot>();
 	});
@@ -556,14 +555,16 @@ Webview::ThemeParams AttachWebView::botThemeParams() {
 	return Window::Theme::WebViewParams();
 }
 
-bool AttachWebView::botHandleLocalUri(QString uri) {
+bool AttachWebView::botHandleLocalUri(QString uri, bool keepOpen) {
 	const auto local = Core::TryConvertUrlToLocal(uri);
 	if (uri == local || Core::InternalPassportLink(local)) {
 		return local.startsWith(u"tg://"_q);
 	} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 		return false;
 	}
-	botClose();
+	if (!keepOpen) {
+		botClose();
+	}
 	crl::on_main([=, shownUrl = _lastShownUrl] {
 		const auto variant = QVariant::fromValue(ClickHandlerContext{
 			.attachBotWebviewUrl = shownUrl,
@@ -1261,7 +1262,6 @@ void AttachWebView::requestApp(
 			_bot->id,
 			data.vapp());
 		_app = received ? received : already;
-		_app->hasSettings = data.is_has_settings();
 		if (!_app) {
 			cancel();
 			showToast(tr::lng_username_app_not_found(tr::now));
@@ -1433,19 +1433,13 @@ void AttachWebView::show(
 		_attachBots,
 		not_null{ _bot },
 		&AttachWebViewBot::user);
-	const auto hasSettings = app
-		? app->hasSettings
-		: ((attached != end(_attachBots))
-			&& !attached->inactive
-			&& attached->hasSettings);
 	const auto hasOpenBot = !_context
 		|| (_bot != _context->action.history->peer)
 		|| fromMainMenu;
 	const auto hasRemoveFromMenu = !app
 		&& (attached != end(_attachBots))
 		&& (!attached->inactive || attached->inMainMenu);
-	const auto buttons = (hasSettings ? Button::Settings : Button::None)
-		| (hasOpenBot ? Button::OpenBot : Button::None)
+	const auto buttons = (hasOpenBot ? Button::OpenBot : Button::None)
 		| (!hasRemoveFromMenu
 			? Button::None
 			: attached->inMainMenu

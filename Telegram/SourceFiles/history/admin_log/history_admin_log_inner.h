@@ -127,7 +127,7 @@ public:
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
-	void elementReplyTo(const FullMsgId &to) override;
+	void elementReplyTo(const FullReplyTo &to) override;
 	void elementStartInteraction(
 		not_null<const HistoryView::Element*> view) override;
 	void elementStartPremium(

@@ -151,8 +151,6 @@ mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
 		font: semiboldFont;
-		linkFont: semiboldFont;
-		linkFontOver: font(fsize semibold underline);
 	}
 	palette: TextPalette(defaultTextPalette) {
 		linkFg: windowSubTextFg;

@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 class HistoryItem;
 struct WebPageCollage;
-enum class WebPageType;
+enum class WebPageType : uint8;
 enum class NewMessageType;
 
 namespace HistoryView {
@@ -299,6 +299,10 @@ public:
 	void notifyPinnedDialogsOrderUpdated();
 	[[nodiscard]] rpl::producer<> pinnedDialogsOrderUpdated() const;
 
+	void registerHighlightProcess(
+		uint64 processId,
+		not_null<HistoryItem*> item);
+
 	void registerHeavyViewPart(not_null<ViewElement*> view);
 	void unregisterHeavyViewPart(not_null<ViewElement*> view);
 	void unloadHeavyViewParts(
@@ -558,6 +562,7 @@ public:
 		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
+		bool hasLargeMedia,
 		TimeId pendingTill);
 
 	[[nodiscard]] not_null<GameData*> game(GameId id);
@@ -700,7 +705,8 @@ public:
 
 	void serviceNotification(
 		const TextWithEntities &message,
-		const MTPMessageMedia &media = MTP_messageMediaEmpty());
+		const MTPMessageMedia &media = MTP_messageMediaEmpty(),
+		bool invertMedia = false);
 
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
@@ -720,6 +726,9 @@ public:
 	};
 	void webViewResultSent(WebViewResultSent &&sent);
 	[[nodiscard]] rpl::producer<WebViewResultSent> webViewResultSent() const;
+
+	[[nodiscard]] auto peerDecorationsUpdated() const
+		-> rpl::producer<not_null<PeerData*>>;
 
 	void clearLocalStorage();
 
@@ -824,6 +833,7 @@ private:
 		WebPageCollage &&collage,
 		int duration,
 		const QString &author,
+		bool hasLargeMedia,
 		TimeId pendingTill);
 
 	void gameApplyFields(
@@ -846,9 +856,11 @@ private:
 	void insertCheckedServiceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media,
-		TimeId date);
+		TimeId date,
+		bool invertMedia);
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
+	void highlightProcessDone(uint64 processId);
 
 	void checkPollsClosings();
 
@@ -959,6 +971,7 @@ private:
 	std::unordered_map<
 		FullStoryId,
 		base::flat_set<not_null<HistoryItem*>>> _storyItems;
+	base::flat_map<uint64, not_null<HistoryItem*>> _highlightings;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
@@ -1006,6 +1019,8 @@ private:
 	base::Timer _watchForOfflineTimer;
 
 	rpl::event_stream<WebViewResultSent> _webViewResultSent;
+
+	rpl::event_stream<not_null<PeerData*>> _peerDecorationsUpdated;
 
 	Groups _groups;
 	const std::unique_ptr<ChatFilters> _chatsFilters;

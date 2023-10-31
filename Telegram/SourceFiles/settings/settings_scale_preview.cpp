@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
+#include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/image/image_prepare.h"
 #include "ui/platform/ui_platform_utility.h"
@@ -73,13 +74,16 @@ private:
 	void validateShadowCache();
 
 	[[nodiscard]] int scaled(int value) const;
+	[[nodiscard]] QPoint scaled(QPoint value) const;
 	[[nodiscard]] QMargins scaled(QMargins value) const;
 	[[nodiscard]] style::font scaled(
-		const style::font &value, int size) const;
+		const style::font &value,
+		int size) const;
+	[[nodiscard]] style::QuoteStyle scaled(
+		const style::QuoteStyle &value) const;
 	[[nodiscard]] style::TextStyle scaled(
 		const style::TextStyle &value,
-		int fontSize,
-		int lineHeight) const;
+		int fontSize) const;
 	[[nodiscard]] QImage scaled(
 		const style::icon &icon,
 		const QColor &color) const;
@@ -100,7 +104,7 @@ private:
 	int _bubbleShadow = 0;
 	int _localShiftLeft = 0;
 	QImage _bubbleTail;
-	QRect _replyBar;
+	QRect _replyRect;
 	QRect _name;
 	QRect _reply;
 	QRect _message;
@@ -307,6 +311,10 @@ int Preview::scaled(int value) const {
 	return style::ConvertScale(value, _scale);
 }
 
+QPoint Preview::scaled(QPoint value) const {
+	return { scaled(value.x()), scaled(value.y()) };
+}
+
 QMargins Preview::scaled(QMargins value) const {
 	return {
 		scaled(value.left()),
@@ -320,15 +328,21 @@ style::font Preview::scaled(const style::font &font, int size) const {
 	return style::font(scaled(size), font->flags(), font->family());
 }
 
+style::QuoteStyle Preview::scaled(const style::QuoteStyle &value) const {
+	return {
+		.icon = value.icon,
+		.scrollable = value.scrollable,
+	};
+}
+
 style::TextStyle Preview::scaled(
 		const style::TextStyle &value,
-		int fontSize,
-		int lineHeight) const {
+		int fontSize) const {
 	return {
 		.font = scaled(value.font, fontSize),
-		.linkFont = scaled(value.linkFont, fontSize),
-		.linkFontOver = scaled(value.linkFontOver, fontSize),
-		.lineHeight = scaled(value.lineHeight),
+		.linkUnderline = value.linkUnderline,
+		.blockquote = scaled(value.blockquote),
+		.pre = scaled(value.pre),
 	};
 }
 
@@ -345,8 +359,22 @@ void Preview::updateToScale(int scale) {
 		return;
 	}
 	_scale = scale;
-	_nameStyle = scaled(_nameStyle, 13, 0);
-	_textStyle = scaled(_textStyle, 13, 0);
+	_nameStyle = scaled(st::fwdTextStyle, 13);
+	_textStyle = scaled(st::messageTextStyle, 13);
+	_textStyle.blockquote.verticalSkip = scaled(4);
+	_textStyle.blockquote.outline = scaled(3);
+	_textStyle.blockquote.outlineShift = scaled(2);
+	_textStyle.blockquote.radius = scaled(5);
+	_textStyle.blockquote.padding = scaled(QMargins{ 10, 2, 20, 2 });
+	_textStyle.blockquote.iconPosition = scaled(QPoint{ 4, 4 });
+	_textStyle.pre.verticalSkip = scaled(4);
+	_textStyle.pre.outline = scaled(3);
+	_textStyle.pre.outlineShift = scaled(2);
+	_textStyle.pre.radius = scaled(5);
+	_textStyle.pre.header = scaled(20);
+	_textStyle.pre.headerPosition = scaled(QPoint{ 10, 2 });
+	_textStyle.pre.padding = scaled(QMargins{ 10, 2, 4, 2 });
+	_textStyle.pre.iconPosition = scaled(QPoint{ 4, 2 });
 	_nameText.setText(
 		_nameStyle,
 		u"Bob Harris"_q,
@@ -360,21 +388,18 @@ void Preview::updateToScale(int scale) {
 		u"Do you know what time it is?"_q,
 		Ui::ItemTextDefaultOptions());
 
-	_replyBar = QRect(
-		scaled(1), // st::msgReplyBarPos.x(),
-		scaled(6) + 0,// st::msgReplyPadding.top() + st::msgReplyBarPos.y(),
-		scaled(2), //st::msgReplyBarSize.width(),
-		scaled(36)); // st::msgReplyBarSize.height(),
 	const auto namePosition = QPoint(
-		scaled(10), // st::msgReplyBarSkip
-		scaled(6)); // st::msgReplyPadding.top()
+		scaled(11), // st::historyReplyPadding.left()
+		scaled(2)); // st::historyReplyPadding.top()
 	const auto replyPosition = QPoint(
-		scaled(10), // st::msgReplyBarSkip
-		scaled(6) + _nameStyle.font->height); // st::msgReplyPadding.top()
+		scaled(11), // st::historyReplyPadding.left()
+		(scaled(2) // st::historyReplyPadding.top()
+			+ _nameStyle.font->height)); // + st::msgServiceNameFont->height
+	const auto paddingRight = scaled(6); // st::historyReplyPadding.right()
 
 	const auto wantedWidth = std::max({
-		namePosition.x() + _nameText.maxWidth(),
-		replyPosition.x() + _replyText.maxWidth(),
+		namePosition.x() + _nameText.maxWidth() + paddingRight,
+		replyPosition.x() + _replyText.maxWidth() + paddingRight,
 		_messageText.maxWidth(),
 	});
 
@@ -388,16 +413,25 @@ void Preview::updateToScale(int scale) {
 		_messageText.countHeight(maxTextWidth),
 		kMaxTextLines * _textStyle.font->height);
 
+	_replyRect = QRect(
+		0, // st::msgReplyBarPos.x(),
+		scaled(2),// st::historyReplyTop
+		messageWidth,
+		(scaled(2) // st::historyReplyPadding.top()
+			+ _nameStyle.font->height // + st::msgServiceNameFont->height
+			+ _textStyle.font->height // + st::normalFont->height
+			+ scaled(2))); // + st::historyReplyPadding.bottom()
+
 	_name = QRect(
-		namePosition,
+		_replyRect.topLeft() + namePosition,
 		QSize(messageWidth - namePosition.x(), _nameStyle.font->height));
 	_reply = QRect(
-		replyPosition,
+		_replyRect.topLeft() + replyPosition,
 		QSize(messageWidth - replyPosition.x(), _textStyle.font->height));
 	_message = QRect(0, 0, messageWidth, messageHeight);
 
-	// replyBar.bottom + st::msgReplyPadding.bottom();
-	const auto replySkip = _replyBar.y() + _replyBar.height() + scaled(6);
+	// replyRect.bottom + st::historyReplyBottom;
+	const auto replySkip = _replyRect.y() + _replyRect.height() + scaled(2);
 	_message.moveTop(replySkip);
 
 	_content = QRect(0, 0, messageWidth, replySkip + messageHeight);
@@ -655,9 +689,30 @@ void Preview::paintContent(Painter &p, QRect clip) {
 }
 
 void Preview::paintReply(Painter &p, QRect clip) {
-	p.setOpacity(HistoryMessageReply::kBarAlpha);
-	p.fillRect(_replyBar, st::msgInReplyBarColor);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::msgInReplyBarColor);
+
+		const auto outline = _textStyle.blockquote.outline;
+		const auto radius = _textStyle.blockquote.radius;
+		p.setOpacity(Ui::kDefaultOutline1Opacity);
+		p.setClipRect(
+			_replyRect.x(),
+			_replyRect.y(),
+			outline,
+			_replyRect.height());
+		p.drawRoundedRect(_replyRect, radius, radius);
+		p.setOpacity(Ui::kDefaultBgOpacity);
+		p.setClipRect(
+			_replyRect.x() + outline,
+			_replyRect.y(),
+			_replyRect.width() - outline,
+			_replyRect.height());
+		p.drawRoundedRect(_replyRect, radius, radius);
+	}
 	p.setOpacity(1.);
+	p.setClipping(false);
 
 	p.setPen(st::msgInServiceFg);
 	_nameText.drawLeftElided(

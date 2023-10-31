@@ -49,6 +49,7 @@ struct Element {
 
 struct Content {
 	std::vector<Element> elements;
+	int total = 0;
 
 	friend inline bool operator==(
 		const Content &a,

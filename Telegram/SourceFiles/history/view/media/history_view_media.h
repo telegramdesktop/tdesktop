@@ -86,7 +86,15 @@ public:
 
 	[[nodiscard]] virtual TextForMimeData selectedText(
 			TextSelection selection) const {
-		return TextForMimeData();
+		return {};
+	}
+	[[nodiscard]] virtual TextWithEntities selectedQuote(
+			TextSelection selection) const {
+		return {};
+	}
+	[[nodiscard]] virtual TextSelection selectionFromQuote(
+			const TextWithEntities &quote) const {
+		return {};
 	}
 
 	[[nodiscard]] virtual bool isDisplayed() const;
@@ -99,6 +107,9 @@ public:
 		return true;
 	}
 	[[nodiscard]] virtual bool hideServiceText() const {
+		return false;
+	}
+	[[nodiscard]] virtual bool hideFromName() const {
 		return false;
 	}
 	[[nodiscard]] virtual bool allowsFastShare() const {

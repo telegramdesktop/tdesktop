@@ -131,8 +131,6 @@ infoTopBarTitle: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 }
 infoTopBarMediaCancel: IconButton(infoTopBarBack) {
@@ -301,11 +299,6 @@ infoProfilePhotoSize: size(
 infoProfileStatus: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: windowSubTextFg;
-	style: TextStyle(defaultTextStyle) {
-		font: normalFont;
-		linkFont: normalFont;
-		linkFontOver: normalFont;
-	}
 }
 infoProfileCover: InfoProfileCover {
 	height: 108px;
@@ -320,8 +313,6 @@ infoProfileCover: InfoProfileCover {
 		textFg: windowBoldFg;
 		style: TextStyle(defaultTextStyle) {
 			font: font(16px semibold);
-			linkFont: font(16px semibold);
-			linkFontOver: font(16px semibold underline);
 		}
 	}
 	nameLeft: 109px;
@@ -333,7 +324,6 @@ infoProfileCover: InfoProfileCover {
 }
 infoProfileMegagroupCover: InfoProfileCover(infoProfileCover) {
 	status: FlatLabel(infoProfileStatus) {
-		style: defaultTextStyle;
 		palette: TextPalette(defaultTextPalette) {
 			linkFg: windowSubTextFg;
 		}
@@ -427,8 +417,6 @@ infoBlockHeaderLabel: FlatLabel(infoProfileStatus) {
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
 		font: semiboldFont;
-		linkFont: semiboldFont;
-		linkFontOver: semiboldFont;
 	}
 }
 infoBlockHeaderPosition: point(79px, 17px);
@@ -550,8 +538,6 @@ infoCommonGroupsListItem: PeerListItem(defaultPeerListItem) {
 	namePosition: point(71px, 15px);
 	nameStyle: TextStyle(defaultTextStyle) {
 		font: font(14px semibold);
-		linkFont: font(14px semibold);
-		linkFontOver: font(14px semibold);
 	}
 	statusPosition: point(79px, 31px);
 }
@@ -582,12 +568,11 @@ manageGroupButtonInner: SettingsButton(infoProfileButton) {
 }
 manageGroupButton: SettingsCountButton(managePeerButton) {
 	button: manageGroupButtonInner;
-	labelPosition: point(22px, 12px);
+	labelPosition: point(22px, 10px);
 	iconPosition: point(20px, 4px);
 }
 
 manageGroupTopButtonWithText: SettingsCountButton(manageGroupButton) {
-	labelPosition: point(22px, 10px);
 	iconPosition: point(0px, 0px);
 }
 manageGroupTopicsButton: SettingsCountButton(manageGroupTopButtonWithText) {
@@ -773,7 +758,8 @@ topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimatio
 	size: size(8px, 8px);
 }
 
-inviteLinkFieldHeight: 44px;
+inviteLinkFieldRadius: 5px;
+inviteLinkFieldHeight: 42px;
 inviteLinkFieldMargin: margins(14px, 12px, 36px, 9px);
 inviteLinkThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
 inviteLinkThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
@@ -788,10 +774,14 @@ inviteLinkThreeDots: IconButton(defaultIconButton) {
 	rippleAreaSize: 0px;
 }
 inviteLinkFieldPadding: margins(22px, 7px, 22px, 14px);
+inviteLinkFieldLabel: FlatLabel(defaultFlatLabel) {
+	align: align(center);
+}
 
 inviteLinkButton: RoundButton(defaultActiveButton) {
 	height: 36px;
 	textTop: 9px;
+	radius: 6px;
 }
 inviteLinkButtonsPadding: margins(22px, 0px, 22px, 0px);
 inviteLinkButtonsSkip: 10px;
@@ -925,8 +915,6 @@ shortInfoCover: ShortInfoCover {
 		maxHeight: 19px;
 		style: TextStyle(defaultTextStyle) {
 			font: font(15px semibold);
-			linkFont: font(15px semibold);
-			linkFontOver: font(15px semibold underline);
 		}
 	}
 	namePosition: point(25px, 37px);

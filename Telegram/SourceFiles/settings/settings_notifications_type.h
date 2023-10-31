@@ -25,31 +25,18 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	[[nodiscard]] Type id() const final override;
+	[[nodiscard]] static Type Id(Data::DefaultNotify type);
+
+	[[nodiscard]] Type id() const final override {
+		return Id(_type);
+	}
 
 private:
 	void setupContent(not_null<Window::SessionController*> controller);
 
-	Data::DefaultNotify _type;
+	const Data::DefaultNotify _type;
 
 };
-
-template <Data::DefaultNotify kType>
-struct NotificationsTypeMetaImplementation : SectionMeta {
-	object_ptr<AbstractSection> create(
-		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller
-	) const final override {
-		return object_ptr<NotificationsType>(parent, controller, kType);
-	}
-
-	[[nodiscard]] static not_null<SectionMeta*> Meta() {
-		static NotificationsTypeMetaImplementation result;
-		return &result;
-	}
-};
-
-[[nodiscard]] Type NotificationsTypeId(Data::DefaultNotify type);
 
 [[nodiscard]] bool NotificationsEnabledForType(
 	not_null<Main::Session*> session,

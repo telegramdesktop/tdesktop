@@ -549,16 +549,15 @@ bool MainWidget::shareUrl(
 	const auto cursor = MessageCursor{
 		int(url.size()) + 1,
 		int(url.size()) + 1 + int(text.size()),
-		QFIXED_MAX
+		Ui::kQFixedMax
 	};
 	const auto history = thread->owningHistory();
 	const auto topicRootId = thread->topicRootId();
 	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
-		0, // replyTo
-		topicRootId,
+		FullReplyTo{ .topicRootId = topicRootId },
 		cursor,
-		Data::PreviewState::Allowed));
+		Data::WebPageDraft()));
 	history->clearLocalEditDraft(topicRootId);
 	history->session().changes().entryUpdated(
 		thread,
@@ -699,8 +698,8 @@ void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
 	}
 }
 
-void MainWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
-	_history->hideSingleUseKeyboard(peer, replyTo);
+void MainWidget::hideSingleUseKeyboard(FullMsgId replyToId) {
+	_history->hideSingleUseKeyboard(replyToId);
 }
 
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {

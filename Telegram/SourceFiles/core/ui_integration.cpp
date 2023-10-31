@@ -243,6 +243,16 @@ bool UiIntegration::handleUrlClick(
 	return true;
 }
 
+bool UiIntegration::copyPreOnClick(const QVariant &context) {
+	const auto my = context.value<ClickHandlerContext>();
+	if (const auto window = my.sessionWindow.get()) {
+		window->showToast(tr::lng_code_copied(tr::now));
+	} else if (my.show) {
+		my.show->showToast(tr::lng_code_copied(tr::now));
+	}
+	return true;
+}
+
 std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 		const QString &data,
 		const std::any &context) {
@@ -338,6 +348,10 @@ QString UiIntegration::phraseFormattingStrikeOut() {
 	return tr::lng_menu_formatting_strike_out(tr::now);
 }
 
+QString UiIntegration::phraseFormattingBlockquote() {
+	return tr::lng_menu_formatting_blockquote(tr::now);
+}
+
 QString UiIntegration::phraseFormattingMonospace() {
 	return tr::lng_menu_formatting_monospace(tr::now);
 }
@@ -392,6 +406,10 @@ QString UiIntegration::phraseBotAllowWriteTitle() {
 
 QString UiIntegration::phraseBotAllowWriteConfirm() {
 	return tr::lng_bot_allow_write_confirm(tr::now);
+}
+
+QString UiIntegration::phraseQuoteHeaderCopy() {
+	return tr::lng_code_block_header_copy(tr::now);
 }
 
 bool OpenGLLastCheckFailed() {

@@ -31,6 +31,7 @@ struct ReactionFlyAnimationArgs {
 	float64 scaleOutTarget = 0.;
 	float64 miniCopyMultiplier = 1.;
 	bool effectOnly = false;
+	bool forceFirstFrame = false;
 
 	[[nodiscard]] ReactionFlyAnimationArgs translated(QPoint point) const;
 };
@@ -42,6 +43,7 @@ struct ReactionFlyCenter {
 	float64 centerSizeMultiplier = 0.;
 	int customSize = 0;
 	int size = 0;
+	bool forceFirstFrame = false;
 };
 
 class ReactionFlyAnimation final {
@@ -121,6 +123,7 @@ private:
 	crl::time _scaleOutDuration = 0;
 	float64 _scaleOutTarget = 0.;
 	bool _noEffectScaleStarted = false;
+	bool _forceFirstFrame = false;
 	bool _effectOnly = false;
 	bool _valid = false;
 

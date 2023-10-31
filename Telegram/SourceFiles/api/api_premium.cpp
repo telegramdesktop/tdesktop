@@ -17,6 +17,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 namespace Api {
+namespace {
+
+[[nodiscard]] GiftCode Parse(const MTPDpayments_checkedGiftCode &data) {
+	return {
+		.from = peerFromMTP(data.vfrom_id()),
+		.to = data.vto_id() ? peerFromUser(*data.vto_id()) : PeerId(),
+		.giveawayId = data.vgiveaway_msg_id().value_or_empty(),
+		.date = data.vdate().v,
+		.used = data.vused_date().value_or_empty(),
+		.months = data.vmonths().v,
+		.giveaway = data.is_via_giveaway(),
+	};
+}
+
+} // namespace
 
 Premium::Premium(not_null<ApiWrap*> api)
 : _session(&api->session())
@@ -180,6 +195,115 @@ void Premium::reloadCloudSet() {
 		});
 	}).fail([=] {
 		_cloudSetRequestId = 0;
+	}).send();
+}
+
+void Premium::checkGiftCode(
+		const QString &slug,
+		Fn<void(GiftCode)> done) {
+	if (_giftCodeRequestId) {
+		if (_giftCodeSlug == slug) {
+			return;
+		}
+		_api.request(_giftCodeRequestId).cancel();
+	}
+	_giftCodeSlug = slug;
+	_giftCodeRequestId = _api.request(MTPpayments_CheckGiftCode(
+		MTP_string(slug)
+	)).done([=](const MTPpayments_CheckedGiftCode &result) {
+		_giftCodeRequestId = 0;
+
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+		done(updateGiftCode(slug, Parse(data)));
+	}).fail([=](const MTP::Error &error) {
+		_giftCodeRequestId = 0;
+
+		done(updateGiftCode(slug, {}));
+	}).send();
+}
+
+GiftCode Premium::updateGiftCode(
+		const QString &slug,
+		const GiftCode &code) {
+	auto &now = _giftCodes[slug];
+	if (now != code) {
+		now = code;
+		_giftCodeUpdated.fire_copy(slug);
+	}
+	return code;
+}
+
+rpl::producer<GiftCode> Premium::giftCodeValue(const QString &slug) const {
+	return _giftCodeUpdated.events_starting_with_copy(
+		slug
+	) | rpl::filter(rpl::mappers::_1 == slug) | rpl::map([=] {
+		const auto i = _giftCodes.find(slug);
+		return (i != end(_giftCodes)) ? i->second : GiftCode();
+	});
+}
+
+void Premium::applyGiftCode(const QString &slug, Fn<void(QString)> done) {
+	_api.request(MTPpayments_ApplyGiftCode(
+		MTP_string(slug)
+	)).done([=](const MTPUpdates &result) {
+		_session->api().applyUpdates(result);
+		done({});
+	}).fail([=](const MTP::Error &error) {
+		done(error.type());
+	}).send();
+}
+
+void Premium::resolveGiveawayInfo(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		Fn<void(GiveawayInfo)> done) {
+	Expects(done != nullptr);
+
+	_giveawayInfoDone = std::move(done);
+	if (_giveawayInfoRequestId) {
+		if (_giveawayInfoPeer == peer
+			&& _giveawayInfoMessageId == messageId) {
+			return;
+		}
+		_api.request(_giveawayInfoRequestId).cancel();
+	}
+	_giveawayInfoPeer = peer;
+	_giveawayInfoMessageId = messageId;
+	_giveawayInfoRequestId = _api.request(MTPpayments_GetGiveawayInfo(
+		_giveawayInfoPeer->input,
+		MTP_int(_giveawayInfoMessageId.bare)
+	)).done([=](const MTPpayments_GiveawayInfo &result) {
+		_giveawayInfoRequestId = 0;
+
+		auto info = GiveawayInfo();
+		result.match([&](const MTPDpayments_giveawayInfo &data) {
+			info.participating = data.is_participating();
+			info.state = data.is_preparing_results()
+				? GiveawayState::Preparing
+				: GiveawayState::Running;
+			info.adminChannelId = data.vadmin_disallowed_chat_id()
+				? ChannelId(*data.vadmin_disallowed_chat_id())
+				: ChannelId();
+			info.disallowedCountry = qs(
+				data.vdisallowed_country().value_or_empty());
+			info.tooEarlyDate
+				= data.vjoined_too_early_date().value_or_empty();
+			info.startDate = data.vstart_date().v;
+		}, [&](const MTPDpayments_giveawayInfoResults &data) {
+			info.state = data.is_refunded()
+				? GiveawayState::Refunded
+				: GiveawayState::Finished;
+			info.giftCode = qs(data.vgift_code_slug().value_or_empty());
+			info.activatedCount = data.vactivated_count().v;
+			info.finishDate = data.vfinish_date().v;
+			info.startDate = data.vstart_date().v;
+		});
+		_giveawayInfoDone(std::move(info));
+	}).fail([=] {
+		_giveawayInfoRequestId = 0;
+		_giveawayInfoDone({});
 	}).send();
 }
 

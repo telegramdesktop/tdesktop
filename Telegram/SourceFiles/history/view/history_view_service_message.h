@@ -43,6 +43,15 @@ public:
 		StateRequest request) const override;
 	void updatePressed(QPoint point) override;
 	TextForMimeData selectedText(TextSelection selection) const override;
+	TextWithEntities selectedQuote(TextSelection selection) const override;
+	TextWithEntities selectedQuote(
+		const Ui::Text::String &text,
+		TextSelection selection) const override;
+	TextSelection selectionFromQuote(
+		const TextWithEntities &quote) const override;
+	TextSelection selectionFromQuote(
+		const Ui::Text::String &text,
+		const TextWithEntities &quote) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
@@ -113,7 +122,7 @@ public:
 		const QRect &textRect);
 
 private:
-	static QVector<int> CountLineWidths(
+	static std::vector<int> CountLineWidths(
 		const Ui::Text::String &text,
 		const QRect &textRect);
 

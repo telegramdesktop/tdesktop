@@ -308,7 +308,6 @@ void BotCommandClickHandler::onClick(ClickContext context) const {
 			.peer = peer,
 			.command = _cmd,
 			.context = my.itemId,
-			.replyTo = 0,
 		});
 	}
 }

@@ -68,10 +68,10 @@ Element *MousedElement/* = nullptr*/;
 		HistoryMessageForwarded *prevForwarded,
 		not_null<HistoryItem*> item,
 		HistoryMessageForwarded *forwarded) {
-	const auto sender = previous->senderOriginal();
+	const auto sender = previous->originalSender();
 	if ((prevForwarded != nullptr) != (forwarded != nullptr)) {
 		return false;
-	} else if (sender != item->senderOriginal()) {
+	} else if (sender != item->originalSender()) {
 		return false;
 	} else if (!prevForwarded || sender) {
 		return true;
@@ -178,7 +178,7 @@ bool DefaultElementDelegate::elementIsChatWide() {
 	return false;
 }
 
-void DefaultElementDelegate::elementReplyTo(const FullMsgId &to) {
+void DefaultElementDelegate::elementReplyTo(const FullReplyTo &to) {
 }
 
 void DefaultElementDelegate::elementStartInteraction(
@@ -275,8 +275,10 @@ QString DateTooltipText(not_null<Element*> view) {
 	}
 	if (view->isSignedAuthorElided()) {
 		if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
-			dateText += '\n'
-				+ tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
+			dateText += '\n' + tr::lng_signed_author(
+				tr::now,
+				lt_user,
+				msgsigned->postAuthor);
 		}
 	}
 	return dateText;
@@ -338,7 +340,6 @@ void UnreadBar::paint(
 		text);
 }
 
-
 void DateBadge::init(const QString &date) {
 	text = date;
 	width = st::msgServiceFont->width(text);
@@ -359,6 +360,81 @@ void DateBadge::paint(
 		int w,
 		bool chatWide) const {
 	ServiceMessagePainter::PaintDate(p, st, text, width, y, w, chatWide);
+}
+
+void ServicePreMessage::init(TextWithEntities string) {
+	text = Ui::Text::String(
+		st::serviceTextStyle,
+		string,
+		kMarkupTextOptions,
+		st::msgMinWidth);
+}
+
+int ServicePreMessage::resizeToWidth(int newWidth, bool chatWide) {
+	width = newWidth;
+	if (chatWide) {
+		accumulate_min(
+			width,
+			st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
+	}
+	auto contentWidth = width;
+	contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
+	if (contentWidth < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) {
+		contentWidth = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
+	}
+
+	auto maxWidth = text.maxWidth()
+		+ st::msgServicePadding.left()
+		+ st::msgServicePadding.right();
+	auto minHeight = text.minHeight();
+
+	auto nwidth = qMax(contentWidth
+		- st::msgServicePadding.left()
+		- st::msgServicePadding.right(), 0);
+	height = (contentWidth >= maxWidth)
+		? minHeight
+		: text.countHeight(nwidth);
+	height += st::msgServicePadding.top()
+		+ st::msgServicePadding.bottom()
+		+ st::msgServiceMargin.top()
+		+ st::msgServiceMargin.bottom();
+	return height;
+}
+
+void ServicePreMessage::paint(
+		Painter &p,
+		const PaintContext &context,
+		QRect g,
+		bool chatWide) const {
+	const auto top = g.top() - height - st::msgMargin.top();
+	p.translate(0, top);
+
+	const auto rect = QRect(0, 0, width, height)
+		- st::msgServiceMargin;
+	const auto trect = rect - st::msgServicePadding;
+
+	ServiceMessagePainter::PaintComplexBubble(
+		p,
+		context.st,
+		rect.left(),
+		rect.width(),
+		text,
+		trect);
+
+	p.setBrush(Qt::NoBrush);
+	p.setPen(context.st->msgServiceFg());
+	p.setFont(st::msgServiceFont);
+	text.draw(p, {
+		.position = trect.topLeft(),
+		.availableWidth = trect.width(),
+		.align = style::al_top,
+		.palette = &context.st->serviceTextPalette(),
+		.now = context.now,
+		//.selection = context.selection,
+		.fullWidthSelection = false,
+	});
+
+	p.translate(0, -top);
 }
 
 void FakeBotAboutTop::init() {
@@ -412,6 +488,10 @@ not_null<HistoryItem*> Element::data() const {
 
 not_null<History*> Element::history() const {
 	return _data->history();
+}
+
+uint8 Element::colorIndex() const {
+	return data()->colorIndex();
 }
 
 QDateTime Element::dateTime() const {
@@ -481,8 +561,8 @@ void Element::prepareCustomEmojiPaint(
 	}
 	clearCustomEmojiRepaint();
 	p.setInactive(context.paused);
-	if (!_heavyCustomEmoji) {
-		_heavyCustomEmoji = true;
+	if (!(_flags & Flag::HeavyCustomEmoji)) {
+		_flags |= Flag::HeavyCustomEmoji;
 		history()->owner().registerHeavyViewPart(const_cast<Element*>(this));
 	}
 }
@@ -496,8 +576,8 @@ void Element::prepareCustomEmojiPaint(
 	}
 	clearCustomEmojiRepaint();
 	p.setInactive(context.paused);
-	if (!_heavyCustomEmoji) {
-		_heavyCustomEmoji = true;
+	if (!(_flags & Flag::HeavyCustomEmoji)) {
+		_flags |= Flag::HeavyCustomEmoji;
 		history()->owner().registerHeavyViewPart(const_cast<Element*>(this));
 	}
 }
@@ -722,7 +802,7 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 	if (!info) {
 		return {};
 	}
-	if (_delegate->elementContext() == Context::Replies) {
+	if (_context == Context::Replies) {
 		if (info->created()) {
 			return { { tr::lng_action_topic_created_inside(tr::now) } };
 		}
@@ -971,7 +1051,9 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 				|| !item->from()->isChannel());
 	};
 	const auto item = data();
-	if (!Has<DateBadge>() && !Has<UnreadBar>()) {
+	if (!Has<DateBadge>()
+		&& !Has<UnreadBar>()
+		&& !Has<ServicePreMessage>()) {
 		const auto prev = previous->data();
 		const auto previousMarkup = prev->inlineReplyMarkup();
 		const auto possible = (std::abs(prev->date() - item->date())
@@ -1183,6 +1265,18 @@ void Element::setDisplayDate(bool displayDate) {
 	}
 }
 
+void Element::setServicePreMessage(TextWithEntities text) {
+	if (!text.empty()) {
+		AddComponents(ServicePreMessage::Bit());
+		const auto service = Get<ServicePreMessage>();
+		service->init(std::move(text));
+		setPendingResize();
+	} else if (Has<ServicePreMessage>()) {
+		RemoveComponents(ServicePreMessage::Bit());
+		setPendingResize();
+	}
+}
+
 void Element::setAttachToNext(bool attachToNext, Element *next) {
 	Expects(next || !attachToNext);
 
@@ -1321,7 +1415,7 @@ auto Element::verticalRepaintRange() const -> VerticalRepaintRange {
 }
 
 bool Element::hasHeavyPart() const {
-	return _heavyCustomEmoji;
+	return (_flags & Flag::HeavyCustomEmoji);
 }
 
 void Element::checkHeavyPart() {
@@ -1355,11 +1449,11 @@ void Element::unloadHeavyPart() {
 	if (_media) {
 		_media->unloadHeavyPart();
 	}
-	if (_heavyCustomEmoji) {
-		_heavyCustomEmoji = false;
+	if (_flags & Flag::HeavyCustomEmoji) {
+		_flags &= ~Flag::HeavyCustomEmoji;
 		_text.unloadPersistentAnimation();
 		if (const auto reply = data()->Get<HistoryMessageReply>()) {
-			reply->replyToText.unloadPersistentAnimation();
+			reply->unloadPersistentAnimation();
 		}
 	}
 }
@@ -1533,8 +1627,8 @@ Element::~Element() {
 	// Delete media while owner still exists.
 	clearSpecialOnlyEmoji();
 	base::take(_media);
-	if (_heavyCustomEmoji) {
-		_heavyCustomEmoji = false;
+	if (_flags & Flag::HeavyCustomEmoji) {
+		_flags &= ~Flag::HeavyCustomEmoji;
 		_text.unloadPersistentAnimation();
 		checkHeavyPart();
 	}

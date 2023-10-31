@@ -22,10 +22,16 @@ msgDateFont: font(13px);
 msgMinWidth: 160px;
 msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
-msgPadding: margins(13px, 7px, 13px, 8px);
+msgPadding: margins(11px, 8px, 11px, 8px);
 msgMargin: margins(16px, 6px, 56px, 2px);
 msgMarginTopAttached: 0px;
 msgShadow: 2px;
+
+historyReplyTop: 2px;
+historyReplyBottom: 2px;
+historyReplyPreview: 32px;
+historyReplyPreviewMargin: margins(7px, 4px, 4px, 4px);
+historyReplyPadding: margins(11px, 2px, 6px, 2px);
 
 msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
@@ -40,7 +46,30 @@ msgDateDelta: point(2px, 5px);
 msgDateImgDelta: 4px;
 msgDateImgPadding: point(8px, 2px);
 
-messageTextStyle: defaultTextStyle;
+messageQuoteStyle: QuoteStyle(defaultQuoteStyle) {
+	padding: margins(10px, 2px, 4px, 2px);
+	verticalSkip: 4px;
+	outline: 3px;
+	outlineShift: 2px;
+	radius: 5px;
+}
+messageTextStyle: TextStyle(defaultTextStyle) {
+	blockquote: QuoteStyle(messageQuoteStyle) {
+		padding: margins(10px, 2px, 20px, 2px);
+		icon: icon{{ "chat/mini_quote", windowFg }};
+		iconPosition: point(4px, 4px);
+	}
+	pre: QuoteStyle(messageQuoteStyle) {
+		header: 20px;
+		headerPosition: point(10px, 2px);
+		scrollable: true;
+		icon: icon{{ "chat/mini_copy", windowFg }};
+		iconPosition: point(4px, 2px);
+	}
+}
+historyPagePreview: QuoteStyle(messageQuoteStyle) {
+	padding: margins(10px, 5px, 7px, 7px);
+}
 msgDateTextStyle: defaultTextStyle;
 serviceTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgServiceFg;
@@ -55,8 +84,6 @@ serviceTextPalette: TextPalette(defaultTextPalette) {
 }
 serviceTextStyle: TextStyle(defaultTextStyle) {
 	font: msgServiceFont;
-	linkFont: msgServiceFont;
-	linkFontOver: font(fsize semibold underline);
 }
 inTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: historyLinkInFg;
@@ -91,7 +118,7 @@ outTextPaletteSelected: TextPalette(outTextPalette) {
 	spoilerFg: msgOutDateFgSelected;
 }
 fwdTextStyle: TextStyle(semiboldTextStyle) {
-	linkFontOver: semiboldFont;
+	linkUnderline: kLinkUnderlineNever;
 }
 inFwdTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgInServiceFg;
@@ -319,8 +346,6 @@ msgBotKbButton: BotKeyboardButton {
 botKbDuration: 200;
 botKbStyle: TextStyle(defaultTextStyle) {
 	font: font(15px semibold);
-	linkFont: font(15px semibold);
-	linkFontOver: font(15px semibold);
 }
 botKbButton: BotKeyboardButton {
 	margin: 10px;
@@ -542,8 +567,6 @@ historyPsaForwardPalette: TextPalette(defaultTextPalette) {
 	linkFg: boxTextFgGood;
 }
 
-webPageLeft: 10px;
-webPageBar: 2px;
 webPageTitleFont: semiboldFont;
 webPageTitleStyle: semiboldTextStyle;
 webPageDescriptionFont: normalFont;
@@ -553,8 +576,6 @@ webPagePhotoDelta: 8px;
 historyPollQuestionFont: semiboldFont;
 historyPollQuestionStyle: TextStyle(defaultTextStyle) {
 	font: historyPollQuestionFont;
-	linkFont: historyPollQuestionFont;
-	linkFontOver: historyPollQuestionFont;
 }
 historyPollAnswerStyle: defaultTextStyle;
 historyPollQuestionTop: 7px;
@@ -604,9 +625,13 @@ historyPollOutChosenSelected: icon {{ "poll_select_check", historyFileOutIconFgS
 historyPollInChosen: icon {{ "poll_select_check", historyFileInIconFg }};
 historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSelected }};
 
-historyViewButtonHeight: 42px;
-historyViewButtonMargins: margins(13px, 5px, 13px, 5px);
+historyViewButtonHeight: 48px;
+historyViewButtonMargins: margins(10px, 5px, 10px, 10px);
 historyViewButtonTextStyle: semiboldTextStyle;
+
+historyPageButtonLine: 1px;
+historyPageButtonHeight: 36px;
+historyPageButtonPadding: margins(13px, 8px, 13px, 8px);
 
 historyCommentsButtonHeight: 40px;
 historyCommentsSkipLeft: 9px;
@@ -741,8 +766,6 @@ whoLikedDateHeartOver: icon{{ "menu/read_react_s", windowSubTextFgOver }};
 whoReadDateChecksPosition: point(-7px, -4px);
 whoReadDateStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
-	linkFont: font(12px);
-	linkFontOver: font(12px underline);
 }
 whoReadChecks: icon{{ "menu/read_ticks", windowBoldFg }};
 whoReadChecksOver: icon{{ "menu/read_ticks", windowBoldFg }};
@@ -840,7 +863,7 @@ searchInChatPeerList: PeerList(defaultPeerList) {
 	item: searchInChatPeerListItem;
 }
 
-msgServiceGiftBoxSize: size(206px, 231px); // Plus msgServiceGiftBoxTopSkip.
+msgServiceGiftBoxSize: size(236px, 231px); // Plus msgServiceGiftBoxTopSkip.
 msgServiceGiftBoxRadius: 20px;
 msgServiceGiftBoxTopSkip: 4px;
 msgServiceGiftBoxButtonHeight: 32px;
@@ -860,8 +883,6 @@ historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(11px);
-		linkFont: font(11px underline);
-		linkFontOver: font(11px underline);
 	}
 	minWidth: 80px;
 }
@@ -922,3 +943,22 @@ storyMentionUnreadStrokeTwice: 6px;
 storyMentionReadSkipTwice: 7px;
 storyMentionReadStrokeTwice: 3px;
 storyMentionButtonSkip: 5px;
+
+chatGiveawayWidth: 292px;
+chatGiveawayStickerTop: -16px;
+chatGiveawayBadgeFont: font(12px bold);
+chatGiveawayBadgeTop: 106px;
+chatGiveawayBadgePadding: margins(7px, 1px, 5px, 3px);
+chatGiveawayBadgeStroke: 2px;
+chatGiveawayPrizesTop: 16px;
+chatGiveawayPrizesSkip: 4px;
+chatGiveawayParticipantsTop: 16px;
+chatGiveawayParticipantsSkip: 4px;
+chatGiveawayChannelTop: 6px;
+chatGiveawayChannelSize: 32px;
+chatGiveawayChannelPadding: margins(5px, 7px, 12px, 0px);
+chatGiveawayChannelSkip: 8px;
+chatGiveawayCountriesSkip: 16px;
+chatGiveawayDateTop: 6px;
+chatGiveawayDateSkip: 4px;
+chatGiveawayBottomSkip: 16px;
