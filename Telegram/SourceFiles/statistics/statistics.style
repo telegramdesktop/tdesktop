@@ -165,3 +165,6 @@ giveawayGiftCodeCountryButton: SettingsButton(reportReasonButton) {
 }
 giveawayGiftCodeCountrySelect: MultiSelect(defaultMultiSelect) {
 }
+
+giveawayGiftCodeChannelDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
+giveawayGiftCodeChannelDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};

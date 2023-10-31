@@ -12,11 +12,97 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
-#include "lang/lang_keys.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/painter.h"
+#include "styles/style_statistics.h"
 
 namespace Giveaway {
+namespace {
+
+class ChannelRow final : public PeerListRow {
+public:
+	using PeerListRow::PeerListRow;
+
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
+	void rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) override;
+	void rightActionStopLastRipple() override;
+
+private:
+	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
+
+};
+
+QSize ChannelRow::rightActionSize() const {
+	return QSize(
+		st::giveawayGiftCodeChannelDeleteIcon.width(),
+		st::giveawayGiftCodeChannelDeleteIcon.height()) * 2;
+}
+
+QMargins ChannelRow::rightActionMargins() const {
+	return QMargins(
+		0,
+		(st::defaultPeerListItem.height - rightActionSize().height()) / 2,
+		st::giveawayRadioPosition.x() / 2,
+		0);
+}
+
+void ChannelRow::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (_actionRipple) {
+		_actionRipple->paint(
+			p,
+			x,
+			y,
+			outerWidth);
+		if (_actionRipple->empty()) {
+			_actionRipple.reset();
+		}
+	}
+	const auto rect = QRect(QPoint(x, y), ChannelRow::rightActionSize());
+	(actionSelected
+		? st::giveawayGiftCodeChannelDeleteIconOver
+		: st::giveawayGiftCodeChannelDeleteIcon).paintInCenter(p, rect);
+}
+
+void ChannelRow::rightActionAddRipple(
+		QPoint point,
+		Fn<void()> updateCallback) {
+	if (!_actionRipple) {
+		auto mask = Ui::RippleAnimation::EllipseMask(rightActionSize());
+		_actionRipple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			std::move(mask),
+			std::move(updateCallback));
+	}
+	_actionRipple->add(point);
+}
+
+void ChannelRow::rightActionStopLastRipple() {
+	if (_actionRipple) {
+		_actionRipple->lastStop();
+	}
+}
+
+} // namespace
 
 AwardMembersListController::AwardMembersListController(
 	not_null<Window::SessionNavigation*> navigation,
@@ -147,6 +233,74 @@ std::unique_ptr<PeerListRow> MyChannelsListController::createRow(
 		tr::now,
 		lt_count,
 		channel->membersCount()));
+	return row;
+}
+
+SelectedChannelsListController::SelectedChannelsListController(
+	not_null<PeerData*> peer)
+: _peer(peer) {
+}
+
+void SelectedChannelsListController::setTopStatus(rpl::producer<QString> s) {
+	_statusLifetime = std::move(
+		s
+	) | rpl::start_with_next([=](const QString &t) {
+		if (delegate()->peerListFullRowsCount() > 0) {
+			delegate()->peerListRowAt(0)->setCustomStatus(t);
+		}
+	});
+}
+
+void SelectedChannelsListController::rebuild(
+		std::vector<not_null<PeerData*>> selected) {
+	while (delegate()->peerListFullRowsCount() > 1) {
+		delegate()->peerListRemoveRow(delegate()->peerListRowAt(1));
+	}
+	for (const auto &peer : selected) {
+		delegate()->peerListAppendRow(createRow(peer->asChannel()));
+	}
+	delegate()->peerListRefreshRows();
+}
+
+auto SelectedChannelsListController::channelRemoved() const
+-> rpl::producer<not_null<PeerData*>> {
+	return _channelRemoved.events();
+}
+
+void SelectedChannelsListController::rowClicked(not_null<PeerListRow*> row) {
+}
+
+void SelectedChannelsListController::rowRightActionClicked(
+		not_null<PeerListRow*> row) {
+	const auto peer = row->peer();
+	delegate()->peerListRemoveRow(row);
+	delegate()->peerListRefreshRows();
+	_channelRemoved.fire_copy(peer);
+}
+
+Main::Session &SelectedChannelsListController::session() const {
+	return _peer->session();
+}
+
+void SelectedChannelsListController::prepare() {
+	delegate()->peerListAppendRow(createRow(_peer->asChannel()));
+}
+
+std::unique_ptr<PeerListRow> SelectedChannelsListController::createRow(
+		not_null<ChannelData*> channel) const {
+	if (channel->isMegagroup()) {
+		return nullptr;
+	}
+	const auto isYourChannel = (_peer->asChannel() == channel);
+	auto row = isYourChannel
+		? std::make_unique<PeerListRow>(channel)
+		: std::make_unique<ChannelRow>(channel);
+	row->setCustomStatus(isYourChannel
+		? QString()
+		: tr::lng_chat_status_subscribers(
+			tr::now,
+			lt_count,
+			channel->membersCount()));
 	return row;
 }
 

@@ -67,4 +67,29 @@ private:
 
 };
 
+class SelectedChannelsListController : public PeerListController {
+public:
+	SelectedChannelsListController(not_null<PeerData*> peer);
+
+	void setTopStatus(rpl::producer<QString> status);
+
+	void rebuild(std::vector<not_null<PeerData*>> selected);
+	[[nodiscard]] rpl::producer<not_null<PeerData*>> channelRemoved() const;
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
+
+private:
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<ChannelData*> channel) const;
+
+	const not_null<PeerData*> _peer;
+
+	rpl::event_stream<not_null<PeerData*>> _channelRemoved;
+	rpl::lifetime _statusLifetime;
+
+};
+
 } // namespace Giveaway
