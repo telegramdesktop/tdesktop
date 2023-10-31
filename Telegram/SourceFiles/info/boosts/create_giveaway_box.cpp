@@ -65,6 +65,8 @@ void CreateGiveawayBox(
 		std::vector<not_null<PeerData*>> selectedToAward;
 		rpl::event_stream<> toAwardAmountChanged;
 
+		std::vector<not_null<PeerData*>> selectedToSubscribe;
+
 		rpl::variable<GiveawayType> typeValue;
 		rpl::variable<int> sliderValue;
 		rpl::variable<TimeId> dateValue;
@@ -231,6 +233,75 @@ void CreateGiveawayBox(
 
 		sliderContainer->resizeToWidth(box->width());
 	};
+
+	{
+		const auto channelsContainer = randomWrap->entity()->add(
+			object_ptr<Ui::VerticalLayout>(randomWrap));
+		Settings::AddSubsectionTitle(
+			channelsContainer,
+			tr::lng_giveaway_channels_title());
+
+		struct ListState final {
+			ListState(not_null<PeerData*> p) : controller(p) {
+			}
+			PeerListContentDelegateSimple delegate;
+			Giveaway::SelectedChannelsListController controller;
+		};
+		const auto listState = box->lifetime().make_state<ListState>(peer);
+
+		listState->delegate.setContent(channelsContainer->add(
+			object_ptr<PeerListContent>(
+				channelsContainer,
+				&listState->controller)));
+		listState->controller.setDelegate(&listState->delegate);
+		listState->controller.channelRemoved(
+		) | rpl::start_with_next([=](not_null<PeerData*> peer) {
+			auto &list = state->selectedToSubscribe;
+			list.erase(ranges::remove(list, peer), end(list));
+		}, box->lifetime());
+		listState->controller.setTopStatus(tr::lng_giveaway_channels_this(
+			lt_count,
+			state->sliderValue.value(
+			) | rpl::map([=](int v) -> float64 {
+				return state->apiOptions.giveawayBoostsPerPremium() * v;
+			})));
+
+		using IconType = Settings::IconType;
+		Settings::AddButton(
+			channelsContainer,
+			tr::lng_giveaway_channels_add(),
+			st::settingsButtonActive,
+			{ &st::settingsIconAdd, IconType::Round, &st::windowBgActive }
+		)->setClickedCallback([=] {
+			auto initBox = [=](not_null<PeerListBox*> peersBox) {
+				peersBox->setTitle(tr::lng_giveaway_channels_add());
+				peersBox->addButton(tr::lng_settings_save(), [=] {
+					const auto selected = peersBox->collectSelectedRows();
+					state->selectedToSubscribe = selected;
+					listState->controller.rebuild(selected);
+					peersBox->closeBox();
+				});
+				peersBox->addButton(tr::lng_cancel(), [=] {
+					peersBox->closeBox();
+				});
+			};
+
+			box->uiShow()->showBox(
+				Box<PeerListBox>(
+					std::make_unique<Giveaway::MyChannelsListController>(
+						peer,
+						box->uiShow(),
+						state->selectedToSubscribe),
+					std::move(initBox)),
+				Ui::LayerOption::KeepOther);
+		});
+
+		Settings::AddSkip(channelsContainer);
+		Settings::AddDividerText(
+			channelsContainer,
+			tr::lng_giveaway_channels_about());
+		Settings::AddSkip(channelsContainer);
+	}
 
 	{
 		const auto dateContainer = randomWrap->entity()->add(
