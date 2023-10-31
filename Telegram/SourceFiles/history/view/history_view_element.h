@@ -273,6 +273,7 @@ struct SelectedQuote {
 	explicit operator bool() const {
 		return item && !text.empty();
 	}
+	friend inline bool operator==(SelectedQuote, SelectedQuote) = default;
 };
 
 class Element

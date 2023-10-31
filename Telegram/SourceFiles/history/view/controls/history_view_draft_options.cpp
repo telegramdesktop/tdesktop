@@ -99,9 +99,8 @@ public:
 		not_null<History*> history);
 	~PreviewWrap();
 
-	[[nodiscard]] rpl::producer<TextWithEntities> showQuoteSelector(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote);
+	[[nodiscard]] rpl::producer<SelectedQuote> showQuoteSelector(
+		const SelectedQuote &quote);
 	[[nodiscard]] rpl::producer<QString> showLinkSelector(
 		const TextWithTags &message,
 		Data::WebPageDraft webpage,
@@ -212,13 +211,13 @@ PreviewWrap::~PreviewWrap() {
 	}
 }
 
-rpl::producer<TextWithEntities> PreviewWrap::showQuoteSelector(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) {
+rpl::producer<SelectedQuote> PreviewWrap::showQuoteSelector(
+		const SelectedQuote &quote) {
 	_selection.reset(TextSelection());
 
+	const auto item = quote.item;
 	const auto group = item->history()->owner().groups().find(item);
-	const auto leader = group ? group->items.front() : item;
+	const auto leader = group ? group->items.front().get() : item;
 	_element = leader->createView(_delegate.get());
 	_link = _pressedLink = nullptr;
 
@@ -235,10 +234,13 @@ rpl::producer<TextWithEntities> PreviewWrap::showQuoteSelector(
 
 	initElement();
 
-	_selection = _element->selectionFromQuote(item, quote);
+	_selection = _element->selectionFromQuote(item, quote.text);
 	return _selection.value(
 	) | rpl::map([=](TextSelection selection) {
-		return _element->selectedQuote(selection).text;
+		if (const auto result = _element->selectedQuote(selection)) {
+			return result;
+		}
+		return SelectedQuote{ item };
 	});
 }
 
@@ -586,7 +588,7 @@ void DraftOptionsBox(
 	struct State {
 		rpl::variable<Section> shown;
 		rpl::lifetime shownLifetime;
-		rpl::variable<TextWithEntities> quote;
+		rpl::variable<SelectedQuote> quote;
 		Data::WebPageDraft webpage;
 		WebPageData *preview = nullptr;
 		QString link;
@@ -598,7 +600,7 @@ void DraftOptionsBox(
 		rpl::lifetime resolveLifetime;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->quote = draft.reply.quote;
+	state->quote = SelectedQuote{ replyItem, draft.reply.quote };
 	state->webpage = draft.webpage;
 	state->preview = previewData;
 	state->shown = previewData ? Section::Link : Section::Reply;
@@ -636,8 +638,10 @@ void DraftOptionsBox(
 	const auto &highlight = args.highlight;
 	const auto &clearOldDraft = args.clearOldDraft;
 	const auto resolveReply = [=] {
+		const auto current = state->quote.current();
 		auto result = draft.reply;
-		result.quote = state->quote.current();
+		result.messageId = current.item->fullId();
+		result.quote = current.text;
 		return result;
 	};
 	const auto finish = [=](
@@ -652,7 +656,8 @@ void DraftOptionsBox(
 	const auto setupReplyActions = [=] {
 		AddFilledSkip(bottom);
 
-		if (replyItem->allowsForward()) {
+		const auto item = state->quote.current().item;
+		if (item->allowsForward()) {
 			Settings::AddButton(
 				bottom,
 				tr::lng_reply_in_another_chat(),
@@ -679,7 +684,7 @@ void DraftOptionsBox(
 			finish({}, state->webpage);
 		});
 
-		if (!replyItem->originalText().empty()) {
+		if (!item->originalText().empty()) {
 			AddFilledSkip(bottom);
 			Settings::AddDividerText(
 				bottom,
@@ -808,7 +813,6 @@ void DraftOptionsBox(
 		state->shownLifetime.destroy();
 		if (shown == Section::Reply) {
 			state->quote = state->wrap->showQuoteSelector(
-				replyItem,
 				state->quote.current());
 			setupReplyActions();
 		} else {
@@ -827,8 +831,8 @@ void DraftOptionsBox(
 	auto save = rpl::combine(
 		state->quote.value(),
 		state->shown.value()
-	) | rpl::map([=](const TextWithEntities &quote, Section shown) {
-		return (quote.empty() || shown != Section::Reply)
+	) | rpl::map([=](const SelectedQuote &quote, Section shown) {
+		return (quote.text.empty() || shown != Section::Reply)
 			? tr::lng_settings_save()
 			: tr::lng_reply_quote_selected();
 	}) | rpl::flatten_latest();
@@ -843,14 +847,20 @@ void DraftOptionsBox(
 	if (replyItem) {
 		args.show->session().data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> removed) {
-			return removed == replyItem;
+			const auto current = state->quote.current().item;
+			if ((removed == replyItem) || (removed == current)) {
+				return true;
+			}
+			const auto group = current->history()->owner().groups().find(
+				current);
+			return (group && ranges::contains(group->items, removed));
 		}) | rpl::start_with_next([=] {
 			if (previewData) {
 				state->tabs = nullptr;
 				box->setPinnedToTopContent(
 					object_ptr<Ui::RpWidget>(nullptr));
 				box->setNoContentMargin(false);
-				box->setTitle(state->quote.current().empty()
+				box->setTitle(state->quote.current().text.empty()
 					? tr::lng_reply_options_header()
 					: tr::lng_reply_options_quote());
 				state->shown = Section::Link;

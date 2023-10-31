@@ -343,6 +343,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		? Ui::BubbleRounding{ kSmall, kSmall, kSmall, kSmall }
 		: adjustedBubbleRoundingWithCaption(_caption);
 	auto highlight = context.highlight.range;
+	const auto subpartHighlight = IsSubGroupSelection(highlight);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		auto partContext = context.withSelection(fullSelection
@@ -363,7 +364,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		if (textSelection) {
 			selection = part.content->skipSelection(selection);
 		}
-		if (!highlighted) {
+		if (!subpartHighlight) {
 			highlight = part.content->skipSelection(highlight);
 		}
 		if (!part.cache.isNull()) {
