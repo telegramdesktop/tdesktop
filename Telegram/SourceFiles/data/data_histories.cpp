@@ -48,9 +48,17 @@ MTPInputReplyTo ReplyToForMTP(
 		}
 	} else if (replyTo.messageId || replyTo.topicRootId) {
 		const auto to = LookupReplyTo(history, replyTo.messageId);
+		const auto replyingToTopicId = replyTo.topicRootId
+			? replyTo.topicRootId
+			: Data::ForumTopic::kGeneralId;
+		const auto replyToTopicId = !to
+			? replyingToTopicId
+			: to->topicRootId()
+			? to->topicRootId()
+			: Data::ForumTopic::kGeneralId;
 		const auto external = replyTo.messageId
 			&& (replyTo.messageId.peer != history->peer->id
-				|| (replyTo.topicRootId != to->topicRootId()));
+				|| replyingToTopicId != replyToTopicId);
 		const auto quoteEntities = Api::EntitiesToMTP(
 			&history->session(),
 			replyTo.quote.entities,
