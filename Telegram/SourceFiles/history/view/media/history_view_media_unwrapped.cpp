@@ -104,6 +104,9 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		const auto surroundingWidth = _additionalOnTop
 			? std::min(newWidth - st::msgReplyPadding.left(), additional)
 			: (newWidth - _contentSize.width() - st::msgReplyPadding.left());
+		if (reply) {
+			[[maybe_unused]] auto h = reply->resizeToWidth(surroundingWidth);
+		}
 		const auto surrounding = surroundingInfo(topic, via, reply, forwarded, surroundingWidth);
 		if (_additionalOnTop) {
 			_topAdded = surrounding.height + st::msgMargin.bottom();
