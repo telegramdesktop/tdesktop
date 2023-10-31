@@ -8,12 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/boosts/create_giveaway_box.h"
 
 #include "api/api_premium.h"
+#include "base/call_delayed.h"
 #include "base/unixtime.h"
 #include "boxes/peers/edit_participants_box.h" // ParticipantsBoxController
 #include "data/data_peer.h"
 #include "data/data_subscription_option.h"
 #include "data/data_user.h"
 #include "info/boosts/giveaway/giveaway_type_row.h"
+#include "info/boosts/giveaway/select_countries_box.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "payments/payments_checkout_process.h" // Payments::CheckoutProcess
@@ -25,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
@@ -99,6 +102,7 @@ void CreateGiveawayBox(
 		rpl::variable<GiveawayType> typeValue;
 		rpl::variable<int> sliderValue;
 		rpl::variable<TimeId> dateValue;
+		rpl::variable<std::vector<QString>> countriesValue;
 
 		bool confirmButtonBusy = false;
 	};
@@ -306,6 +310,90 @@ void CreateGiveawayBox(
 				lt_count,
 				state->sliderValue.value() | tr::to_count()));
 		Settings::AddSkip(dateContainer);
+	}
+
+	const auto membersGroup = std::make_shared<GiveawayGroup>();
+	{
+		const auto countriesContainer = randomWrap->entity()->add(
+			object_ptr<Ui::VerticalLayout>(randomWrap));
+		Settings::AddSubsectionTitle(
+			countriesContainer,
+			tr::lng_giveaway_users_title());
+
+		membersGroup->setValue(GiveawayType::AllMembers);
+		auto subtitle = state->countriesValue.value(
+		) | rpl::map([=](const std::vector<QString> &list) {
+			return list.empty()
+				? tr::lng_giveaway_users_from_all_countries()
+				: (list.size() == 1)
+				? tr::lng_giveaway_users_from_one_country(
+					lt_country,
+					rpl::single(Countries::Instance().countryNameByISO2(
+						list.front())))
+				: tr::lng_giveaway_users_from_countries(
+					lt_count,
+					rpl::single(list.size()) | tr::to_count());
+		}) | rpl::flatten_latest();
+
+		const auto showBox = [=] {
+			auto done = [=](std::vector<QString> list) {
+				state->countriesValue = std::move(list);
+			};
+			auto error = [=](int count) {
+				const auto max = state->apiOptions.giveawayCountriesMax();
+				const auto error = (count >= max);
+				if (error) {
+					Ui::Toast::Show(tr::lng_giveaway_maximum_countries_error(
+						tr::now,
+						lt_count,
+						max));
+				}
+				return error;
+			};
+
+			box->uiShow()->showBox(Box(
+				Ui::SelectCountriesBox,
+				state->countriesValue.current(),
+				std::move(done),
+				std::move(error)));
+		};
+
+		const auto createCallback = [=](GiveawayType type) {
+			return [=] {
+				const auto was = membersGroup->value();
+				membersGroup->setValue(type);
+				const auto now = membersGroup->value();
+				if (was == now) {
+					base::call_delayed(
+						st::defaultRippleAnimation.hideDuration,
+						box,
+						showBox);
+				}
+			};
+		};
+
+		{
+			const auto row = countriesContainer->add(
+				object_ptr<Giveaway::GiveawayTypeRow>(
+					box,
+					GiveawayType::AllMembers,
+					rpl::duplicate(subtitle)));
+			row->addRadio(membersGroup);
+			row->setClickedCallback(createCallback(GiveawayType::AllMembers));
+		}
+		const auto row = countriesContainer->add(
+			object_ptr<Giveaway::GiveawayTypeRow>(
+				box,
+				GiveawayType::OnlyNewMembers,
+				std::move(subtitle)));
+		row->addRadio(membersGroup);
+		row->setClickedCallback(createCallback(GiveawayType::OnlyNewMembers));
+
+		Settings::AddSkip(countriesContainer);
+		Settings::AddDividerText(
+			countriesContainer,
+			tr::lng_giveaway_users_about());
+		Settings::AddSkip(countriesContainer);
 	}
 
 	const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);

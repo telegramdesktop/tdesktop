@@ -157,6 +157,7 @@ public:
 		int monthsIndex);
 
 	[[nodiscard]] int giveawayBoostsPerPremium() const;
+	[[nodiscard]] int giveawayCountriesMax() const;
 
 private:
 	struct Token final {

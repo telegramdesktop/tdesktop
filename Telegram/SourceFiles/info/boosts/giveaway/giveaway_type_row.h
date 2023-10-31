@@ -22,6 +22,9 @@ public:
 	enum class Type {
 		Random,
 		SpecificUsers,
+
+		AllMembers,
+		OnlyNewMembers,
 	};
 
 	GiveawayTypeRow(
@@ -37,8 +40,8 @@ protected:
 	int resizeGetHeight(int) override;
 
 private:
-	const style::PeerListItem _st;
 	const Type _type;
+	const style::PeerListItem _st;
 
 	Ui::EmptyUserpic _userpic;
 	Ui::Text::String _status;

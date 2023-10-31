@@ -442,4 +442,11 @@ Data::SubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 		kFallbackCount);
 }
 
+[[nodiscard]] int PremiumGiftCodeOptions::giveawayCountriesMax() const {
+	constexpr auto kFallbackCount = 10;
+	return _peer->session().account().appConfig().get<int>(
+		u"giveaway_countries_max"_q,
+		kFallbackCount);
+}
+
 } // namespace Api

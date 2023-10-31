@@ -25,8 +25,10 @@ GiveawayTypeRow::GiveawayTypeRow(
 	Type type,
 	rpl::producer<QString> subtitle)
 : RippleButton(parent, st::defaultRippleAnimation)
-, _st(st::giveawayTypeListItem)
 , _type(type)
+, _st((_type == Type::SpecificUsers || _type == Type::Random)
+	? st::giveawayTypeListItem
+	: st::defaultPeerListItem)
 , _userpic(
 	Ui::EmptyUserpic::UserpicColor((_type == Type::SpecificUsers)
 		? kColorIndexSpecific
@@ -36,7 +38,11 @@ GiveawayTypeRow::GiveawayTypeRow(
 	_st.nameStyle,
 	(type == Type::SpecificUsers)
 		? tr::lng_giveaway_award_option(tr::now)
-		: tr::lng_giveaway_create_option(tr::now),
+		: (type == Type::Random)
+		? tr::lng_giveaway_create_option(tr::now)
+		: (type == Type::AllMembers)
+		? tr::lng_giveaway_users_all(tr::now)
+		: tr::lng_giveaway_users_new(tr::now),
 	Ui::NameTextOptions()) {
 	std::move(
 		subtitle
@@ -56,18 +62,20 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 	const auto skipRight = _st.photoPosition.x();
 	const auto outerWidth = width();
 	const auto isSpecific = (_type == Type::SpecificUsers);
+	const auto hasUserpic = (_type == Type::Random) || isSpecific;
 
 	if (paintOver) {
 		p.fillRect(e->rect(), _st.button.textBgOver);
 	}
 	Ui::RippleButton::paintRipple(p, 0, 0);
-	_userpic.paintCircle(
-		p,
-		_st.photoPosition.x(),
-		_st.photoPosition.y(),
-		outerWidth,
-		_st.photoSize);
-	{
+	if (hasUserpic) {
+		_userpic.paintCircle(
+			p,
+			_st.photoPosition.x(),
+			_st.photoPosition.y(),
+			outerWidth,
+			_st.photoSize);
+
 		const auto &userpic = isSpecific
 			? st::giveawayUserpicGroup
 			: st::giveawayUserpic;
@@ -91,7 +99,7 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 	const auto statusy = _st.statusPosition.y();
 	const auto statusw = outerWidth - statusx - skipRight;
 	p.setFont(st::contactsStatusFont);
-	p.setPen(isSpecific ? st::lightButtonFg : _st.statusFg);
+	p.setPen((isSpecific || !hasUserpic) ? st::lightButtonFg : _st.statusFg);
 	_status.drawLeftElided(p, statusx, statusy, statusw, outerWidth);
 }
 
