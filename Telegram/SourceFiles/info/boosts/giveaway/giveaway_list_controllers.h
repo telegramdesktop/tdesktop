@@ -14,6 +14,7 @@ class PeerListRow;
 
 namespace Ui {
 class PopupMenu;
+class Show;
 } // namespace Ui
 
 namespace Window {
@@ -34,6 +35,35 @@ public:
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
+
+};
+
+class MyChannelsListController : public PeerListController {
+public:
+	MyChannelsListController(
+		not_null<PeerData*> peer,
+		std::shared_ptr<Ui::Show> show,
+		std::vector<not_null<PeerData*>> selected);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	std::unique_ptr<PeerListRow> createSearchRow(
+		not_null<PeerData*> peer) override;
+	std::unique_ptr<PeerListRow> createRestoredRow(
+		not_null<PeerData*> peer) override;
+
+private:
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<ChannelData*> channel) const;
+
+	const not_null<PeerData*> _peer;
+	const std::shared_ptr<Ui::Show> _show;
+
+	std::vector<not_null<PeerData*>> _selected;
+
+	rpl::lifetime _apiLifetime;
 
 };
 

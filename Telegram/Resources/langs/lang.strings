@@ -2114,6 +2114,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_maximum_countries_error#other" = "You can select maximum {count} countries.";
 "lng_giveaway_maximum_channels_error#one" = "You can select maximum {count} channel.";
 "lng_giveaway_maximum_channels_error#other" = "You can select maximum {count} channels.";
+"lng_giveaway_channels_confirm_title" = "Channel is Private";
+"lng_giveaway_channels_confirm_about" = "Are you sure you want to add a private channel? Users won't be able to join it without an invite link.";
 
 "lng_prize_title" = "Congratulations!";
 "lng_prize_about" = "You won a prize in a giveaway organized by {channel}.";
