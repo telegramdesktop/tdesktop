@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h" // Settings::ShowPremium
 #include "ui/boxes/choose_date_time.h"
 #include "ui/effects/premium_graphics.h"
+#include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -54,6 +56,35 @@ void CreateGiveawayBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Info::Controller*> controller,
 		not_null<PeerData*> peer) {
+	{
+		const auto bar = box->verticalLayout()->add(
+			object_ptr<Ui::Premium::TopBar>(
+				box,
+				st::giveawayGiftCodeCover,
+				nullptr,
+				tr::lng_giveaway_new_title(),
+				tr::lng_giveaway_new_about(Ui::Text::RichLangValue),
+				true));
+		bar->setMaximumHeight(st::giveawayGiftCodeTopHeight);
+		bar->setMinimumHeight(st::infoLayerTopBarHeight);
+		bar->resize(bar->width(), bar->maximumHeight());
+
+		Settings::AddSkip(box->verticalLayout());
+		Settings::AddDivider(box->verticalLayout());
+		Settings::AddSkip(box->verticalLayout());
+
+		const auto close = Ui::CreateChild<Ui::IconButton>(
+			box->verticalLayout().get(),
+			st::boxTitleClose);
+		close->setClickedCallback([=] {
+			box->closeBox();
+		});
+		box->widthValue(
+		) | rpl::start_with_next([=](int) {
+			close->moveToRight(0, 0);
+		}, box->lifetime());
+	}
+
 	using GiveawayType = Giveaway::GiveawayTypeRow::Type;
 	using GiveawayGroup = Ui::RadioenumGroup<GiveawayType>;
 	struct State final {
