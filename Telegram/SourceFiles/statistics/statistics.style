@@ -160,3 +160,8 @@ giveawayUserpic: icon {{ "boosts/filled_gift", windowFgActive }};
 giveawayUserpicSkip: 1px;
 giveawayUserpicGroup: icon {{ "limits/groups", windowFgActive }};
 giveawayRadioPosition: point(21px, 16px);
+
+giveawayGiftCodeCountryButton: SettingsButton(reportReasonButton) {
+}
+giveawayGiftCodeCountrySelect: MultiSelect(defaultMultiSelect) {
+}

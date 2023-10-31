@@ -111,6 +111,8 @@ PRIVATE
 
     info/boosts/giveaway/giveaway_type_row.cpp
     info/boosts/giveaway/giveaway_type_row.h
+    info/boosts/giveaway/select_countries_box.cpp
+    info/boosts/giveaway/select_countries_box.h
 
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
