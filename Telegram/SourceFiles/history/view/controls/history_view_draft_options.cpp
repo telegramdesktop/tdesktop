@@ -650,14 +650,16 @@ void DraftOptionsBox(
 	const auto setupReplyActions = [=] {
 		AddFilledSkip(bottom);
 
-		Settings::AddButton(
-			bottom,
-			tr::lng_reply_in_another_chat(),
-			st::settingsButton,
-			{ &st::menuIconReplace }
-		)->setClickedCallback([=] {
-			ShowReplyToChatBox(show, resolveReply(), clearOldDraft);
-		});
+		if (replyItem->allowsForward()) {
+			Settings::AddButton(
+				bottom,
+				tr::lng_reply_in_another_chat(),
+				st::settingsButton,
+				{ &st::menuIconReplace }
+			)->setClickedCallback([=] {
+				ShowReplyToChatBox(show, resolveReply(), clearOldDraft);
+			});
+		}
 
 		Settings::AddButton(
 			bottom,

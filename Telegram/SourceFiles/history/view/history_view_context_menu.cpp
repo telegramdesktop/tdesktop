@@ -592,15 +592,7 @@ bool AddReplyToMessageAction(
 	const auto canSendReply = topic
 		? Data::CanSendAnything(topic)
 		: Data::CanSendAnything(peer);
-	const auto canReply = canSendReply || [&] {
-		const auto peer = item->history()->peer;
-		if (const auto chat = peer->asChat()) {
-			return !chat->isForbidden();
-		} else if (const auto channel = peer->asChannel()) {
-			return !channel->isForbidden();
-		}
-		return true;
-	}();
+	const auto canReply = canSendReply || item->allowsForward();
 	if (!canReply) {
 		return false;
 	}

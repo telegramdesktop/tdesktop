@@ -2391,15 +2391,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				: (Data::CanSendAnything(peer)
 					&& (!peer->isChannel() || peer->asChannel()->amIn()));
 		}();
-		const auto canReply = canSendReply || [&] {
-			const auto peer = item->history()->peer;
-			if (const auto chat = peer->asChat()) {
-				return !chat->isForbidden();
-			} else if (const auto channel = peer->asChannel()) {
-				return !channel->isForbidden();
-			}
-			return true;
-		}();
+		const auto canReply = canSendReply || item->allowsForward();
 		if (canReply) {
 			const auto itemId = item->fullId();
 			const auto quote = selectedQuote(item);
