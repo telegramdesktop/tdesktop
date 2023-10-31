@@ -1,0 +1,117 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "boxes/boxes.style";
+using "ui/effects/premium.style";
+
+giveawayLoadingLabel: FlatLabel(membersAbout) {
+}
+giveawayGiftCodeTopHeight: 195px;
+giveawayGiftCodeLink: FlatLabel(defaultFlatLabel) {
+	margin: margins(10px, 12px, 10px, 8px);
+	textFg: menuIconColor;
+	maxHeight: 24px;
+}
+giveawayGiftCodeLinkCopy: icon{{ "menu/copy", menuIconColor }};
+giveawayGiftCodeLinkHeight: 42px;
+giveawayGiftCodeLinkCopyWidth: 40px;
+giveawayGiftCodeLinkMargin: margins(24px, 8px, 24px, 12px);
+
+giveawayGiftCodeGiftOption: PremiumOption(premiumGiftOption) {
+	badgeShift: point(5px, 0px);
+}
+giveawayGiftCodeStartButton: RoundButton(defaultActiveButton) {
+	height: 42px;
+	textTop: 12px;
+	radius: 6px;
+}
+giveawayGiftCodeQuantitySubtitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+	textFg: windowActiveTextFg;
+	minWidth: 240px;
+	align: align(right);
+}
+giveawayGiftCodeQuantityFloat: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(semiboldTextStyle) {
+		font: font(13px);
+	}
+	textFg: windowActiveTextFg;
+	minWidth: 50px;
+	align: align(center);
+}
+
+boostLinkStatsButton: IconButton(defaultIconButton) {
+	width: giveawayGiftCodeLinkCopyWidth;
+	height: giveawayGiftCodeLinkHeight;
+	icon: icon{{ "menu/stats", menuIconColor }};
+	iconOver: icon{{ "menu/stats", menuIconColor }};
+	ripple: emptyRippleAnimation;
+}
+
+giveawayGiftCodeTable: Table(defaultTable) {
+	labelMinWidth: 91px;
+}
+giveawayGiftCodeTableMargin: margins(24px, 4px, 24px, 4px);
+giveawayGiftCodeLabel: FlatLabel(defaultFlatLabel) {
+	textFg: menuIconColor;
+	maxHeight: 24px;
+	style: TextStyle(semiboldTextStyle) {
+		font: font(12px semibold);
+	}
+}
+giveawayGiftCodeLabelMargin: margins(13px, 10px, 13px, 10px);
+giveawayGiftCodeValue: FlatLabel(defaultFlatLabel) {
+	maxHeight: 24px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkUnderline: kLinkUnderlineNever;
+	}
+}
+giveawayGiftCodeValueMargin: margins(13px, 9px, 13px, 9px);
+giveawayGiftCodePeerMargin: margins(11px, 6px, 11px, 4px);
+giveawayGiftCodeUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(24px, 24px);
+	photoSize: 24px;
+	photoPosition: point(-1px, -1px);
+}
+giveawayGiftCodeNamePosition: point(32px, 4px);
+giveawayGiftCodeCover: PremiumCover(userPremiumCover) {
+	starSize: size(92px, 90px);
+	starTopSkip: 20px;
+	titlePadding: margins(0px, 15px, 0px, 17px);
+	titleFont: font(15px semibold);
+	about: FlatLabel(userPremiumCoverAbout) {
+		textFg: windowBoldFg;
+		style: TextStyle(premiumAboutTextStyle) {
+			lineHeight: 17px;
+		}
+	}
+}
+giveawayGiftCodeFooter: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowBoldFg;
+}
+giveawayGiftCodeFooterMargin: margins(0px, 9px, 0px, 4px);
+giveawayGiftCodeBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 22px);
+	buttonHeight: 42px;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+	shadowIgnoreTopSkip: true;
+}
+giveawayRefundedLabel: FlatLabel(boxLabel) {
+	align: align(top);
+	style: semiboldTextStyle;
+	textFg: attentionButtonFg;
+}
+giveawayRefundedPadding: margins(8px, 10px, 8px, 10px);

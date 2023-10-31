@@ -23,6 +23,7 @@ set(style_files
     calls/calls.style
     export/view/export.style
     info/info.style
+    info/boosts/giveaway/giveaway.style
     info/userpic/info_userpic_builder.style
     intro/intro.style
     media/player/media_player.style
