@@ -812,6 +812,7 @@ private:
 	int _itemsRevealHeight = 0;
 
 	bool _sponsoredMessagesStateKnown = false;
+	bool _justMarkingAsRead = false;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;

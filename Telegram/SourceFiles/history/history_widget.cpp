@@ -842,7 +842,9 @@ HistoryWidget::HistoryWidget(
 			});
 		} else {
 			fastShowAtEnd(action.history);
-			if (cancelReply(lastKeyboardUsed) && !action.clearDraft) {
+			if (!_justMarkingAsRead
+				&& cancelReply(lastKeyboardUsed)
+				&& !action.clearDraft) {
 				saveCloudDraft();
 			}
 		}
@@ -3963,7 +3965,12 @@ void HistoryWidget::send(Api::SendOptions options) {
 			ignoreSlowmodeCountdown)) {
 		return;
 	}
+
+	// Just a flag not to drop reply info if we're not sending anything.
+	_justMarkingAsRead = !HasSendText(_field)
+		&& message.webPage.url.isEmpty();
 	session().api().sendMessage(std::move(message));
+	_justMarkingAsRead = false;
 
 	clearFieldText();
 	if (_preview) {
