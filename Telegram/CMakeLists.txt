@@ -824,6 +824,8 @@ PRIVATE
     history/history_view_highlight_manager.h
     history/history_widget.cpp
     history/history_widget.h
+    info/boosts/giveaway/giveaway_list_controllers.cpp
+    info/boosts/giveaway/giveaway_list_controllers.h
     info/boosts/create_giveaway_box.cpp
     info/boosts/create_giveaway_box.h
     info/boosts/info_boosts_inner_widget.cpp

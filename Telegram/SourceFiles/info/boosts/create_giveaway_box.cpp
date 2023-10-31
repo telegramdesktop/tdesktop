@@ -10,10 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "base/call_delayed.h"
 #include "base/unixtime.h"
-#include "boxes/peers/edit_participants_box.h" // ParticipantsBoxController
 #include "data/data_peer.h"
-#include "data/data_subscription_option.h"
-#include "data/data_user.h"
+#include "info/boosts/giveaway/giveaway_list_controllers.h"
 #include "info/boosts/giveaway/giveaway_type_row.h"
 #include "info/boosts/giveaway/select_countries_box.h"
 #include "info/info_controller.h"
@@ -47,38 +45,6 @@ namespace {
 	}
 	dateNow.setTime(timeNow);
 	return dateNow;
-}
-
-class MembersListController : public ParticipantsBoxController {
-public:
-	using ParticipantsBoxController::ParticipantsBoxController;
-
-	void rowClicked(not_null<PeerListRow*> row) override;
-	std::unique_ptr<PeerListRow> createRow(
-		not_null<PeerData*> participant) const override;
-	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
-		QWidget *parent,
-		not_null<PeerListRow*> row) override;
-
-};
-
-void MembersListController::rowClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListSetRowChecked(row, !row->checked());
-}
-
-std::unique_ptr<PeerListRow> MembersListController::createRow(
-		not_null<PeerData*> participant) const {
-	const auto user = participant->asUser();
-	if (!user || user->isInaccessible() || user->isBot() || user->isSelf()) {
-		return nullptr;
-	}
-	return std::make_unique<PeerListRow>(participant);
-}
-
-base::unique_qptr<Ui::PopupMenu> MembersListController::rowContextMenu(
-		QWidget *parent,
-		not_null<PeerListRow*> row) {
-	return nullptr;
 }
 
 } // namespace
@@ -162,10 +128,9 @@ void CreateGiveawayBox(
 
 			box->uiShow()->showBox(
 				Box<PeerListBox>(
-					std::make_unique<MembersListController>(
+					std::make_unique<Giveaway::AwardMembersListController>(
 						controller,
-						peer,
-						ParticipantsRole::Members),
+						peer),
 					std::move(initBox)),
 				Ui::LayerOption::KeepOther);
 		});
