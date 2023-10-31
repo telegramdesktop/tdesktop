@@ -135,6 +135,7 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 	void setHistory(SetHistoryArgs &&args);
+	void updateTopicRootId(MsgId topicRootId);
 	void setCurrentDialogsEntryState(Dialogs::EntryState state);
 	[[nodiscard]] PeerData *sendAsPeer() const;
 

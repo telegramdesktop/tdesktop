@@ -112,6 +112,7 @@ public:
 		std::shared_ptr<ChatHelpers::Show> show);
 
 	void setHistory(const SetHistoryArgs &args);
+	void updateTopicRootId(MsgId topicRootId);
 	void init();
 
 	void editMessage(FullMsgId id, bool photoEditAllowed = false);
@@ -227,6 +228,10 @@ FieldHeader::FieldHeader(
 void FieldHeader::setHistory(const SetHistoryArgs &args) {
 	_history = *args.history;
 	_topicRootId = args.topicRootId;
+}
+
+void FieldHeader::updateTopicRootId(MsgId topicRootId) {
+	_topicRootId = topicRootId;
 }
 
 void FieldHeader::init() {
@@ -853,6 +858,11 @@ ComposeControls::~ComposeControls() {
 
 Main::Session &ComposeControls::session() const {
 	return _show->session();
+}
+
+void ComposeControls::updateTopicRootId(MsgId topicRootId) {
+	_topicRootId = topicRootId;
+	_header->updateTopicRootId(_topicRootId);
 }
 
 void ComposeControls::setHistory(SetHistoryArgs &&args) {
