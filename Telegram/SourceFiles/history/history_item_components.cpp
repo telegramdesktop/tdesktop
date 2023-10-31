@@ -660,6 +660,8 @@ void HistoryMessageReply::clearData(not_null<HistoryItem*> holder) {
 			resolvedStory.get());
 		resolvedStory = nullptr;
 	}
+	_name.clear();
+	_text.clear();
 	_unavailable = 1;
 	refreshReplyToMedia();
 }
