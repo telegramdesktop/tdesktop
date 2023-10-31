@@ -2090,6 +2090,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	});
 
 	auto context = preparePaintContext(clip);
+	context.highlightPathCache = &_highlightPathCache;
 	if (from == end(_items)) {
 		_delegate->listPaintEmpty(p, context);
 		return;

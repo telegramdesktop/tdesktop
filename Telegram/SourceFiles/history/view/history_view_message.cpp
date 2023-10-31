@@ -1123,6 +1123,8 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			const auto mediaSelection = _invertMedia
 				? context.selection
 				: skipTextSelection(context.selection);
+			const auto maybeMediaHighlight = context.highlightPathCache
+				&& context.highlightPathCache->isEmpty();
 			auto mediaPosition = QPoint(inner.left(), top);
 			p.translate(mediaPosition);
 			media->draw(p, context.translated(
@@ -1135,7 +1137,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 					context.reactionInfo->effectOffset -= add;
 				}
 			}
-			if (context.highlightPathCache
+			if (maybeMediaHighlight
 				&& !context.highlightPathCache->isEmpty()) {
 				context.highlightPathCache->translate(mediaPosition);
 			}

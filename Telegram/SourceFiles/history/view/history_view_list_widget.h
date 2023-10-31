@@ -649,6 +649,7 @@ private:
 	base::flat_map<MsgId, Ui::PeerUserpicView> _hiddenSenderUserpics;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	QPainterPath _highlightPathCache;
 
 	base::unique_qptr<Ui::RpWidget> _emptyInfo = nullptr;
 

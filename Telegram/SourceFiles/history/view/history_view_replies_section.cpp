@@ -128,10 +128,12 @@ rpl::producer<Ui::MessageBarContent> RootViewContent(
 RepliesMemento::RepliesMemento(
 	not_null<History*> history,
 	MsgId rootId,
-	MsgId highlightId)
+	MsgId highlightId,
+	const TextWithEntities &highlightPart)
 : _history(history)
 , _rootId(rootId)
-, _highlightId(highlightId) {
+, _highlightId(highlightId)
+, _highlightPart(highlightPart) {
 	if (highlightId) {
 		_list.setAroundPosition({
 			.fullId = FullMsgId(_history->peer->id, highlightId),
@@ -1966,7 +1968,7 @@ bool RepliesWidget::showInternal(
 		if (logMemento->getHistory() == history()
 			&& logMemento->getRootId() == _rootId) {
 			restoreState(logMemento);
-			if (!logMemento->getHighlightId()) {
+			if (!logMemento->highlightId()) {
 				showAtPosition(Data::UnreadMessagePosition);
 			}
 			if (params.reapplyLocalDraft) {
@@ -2033,7 +2035,8 @@ bool RepliesWidget::showMessage(
 	if (!originMessage) {
 		return false;
 	}
-	const auto originItemId = (_cornerButtons.replyReturn() != originMessage)
+	const auto currentReplyReturn = _cornerButtons.replyReturn();
+	const auto originItemId = (currentReplyReturn != originMessage)
 		? originMessage->fullId()
 		: FullMsgId();
 	showAtPosition(message->position(), originItemId, params);
@@ -2138,11 +2141,15 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	}
 	_cornerButtons.setReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());
-	if (const auto highlight = memento->getHighlightId()) {
+	if (const auto highlight = memento->highlightId()) {
+		auto params = Window::SectionShow(
+			Window::SectionShow::Way::Forward,
+			anim::type::instant);
+		params.highlightPart = memento->highlightPart();
 		showAtPosition(Data::MessagePosition{
 			.fullId = FullMsgId(_history->peer->id, highlight),
 			.date = TimeId(0),
-		}, {}, { Window::SectionShow::Way::Forward, anim::type::instant });
+		}, {}, params);
 	}
 }
 

@@ -850,7 +850,8 @@ void SessionNavigation::showRepliesForMessage(
 			auto memento = std::make_shared<HistoryView::RepliesMemento>(
 				history,
 				rootId,
-				commentId);
+				commentId,
+				params.highlightPart);
 			memento->setFromTopic(topic);
 			showSection(std::move(memento), params);
 			return;
