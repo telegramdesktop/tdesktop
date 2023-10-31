@@ -68,8 +68,9 @@ public:
 	}
 
 	TextForMimeData selectedText(TextSelection selection) const override;
-	TextWithEntities selectedQuote(TextSelection selection) const override;
+	SelectedQuote selectedQuote(TextSelection selection) const override;
 	TextSelection selectionFromQuote(
+		not_null<HistoryItem*> item,
 		const TextWithEntities &quote) const override;
 
 	bool uploading() const override;

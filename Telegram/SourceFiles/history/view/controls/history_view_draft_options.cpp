@@ -217,7 +217,9 @@ rpl::producer<TextWithEntities> PreviewWrap::showQuoteSelector(
 		const TextWithEntities &quote) {
 	_selection.reset(TextSelection());
 
-	_element = item->createView(_delegate.get());
+	const auto group = item->history()->owner().groups().find(item);
+	const auto leader = group ? group->items.front() : item;
+	_element = leader->createView(_delegate.get());
 	_link = _pressedLink = nullptr;
 
 	if (const auto was = base::take(_draftItem)) {
@@ -233,10 +235,10 @@ rpl::producer<TextWithEntities> PreviewWrap::showQuoteSelector(
 
 	initElement();
 
-	_selection = _element->selectionFromQuote(quote);
+	_selection = _element->selectionFromQuote(item, quote);
 	return _selection.value(
 	) | rpl::map([=](TextSelection selection) {
-		return _element->selectedQuote(selection);
+		return _element->selectedQuote(selection).text;
 	});
 }
 

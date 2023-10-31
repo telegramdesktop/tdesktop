@@ -189,6 +189,10 @@ not_null<History*> Media::history() const {
 	return _parent->history();
 }
 
+SelectedQuote Media::selectedQuote(TextSelection selection) const {
+	return {};
+}
+
 bool Media::isDisplayed() const {
 	return true;
 }

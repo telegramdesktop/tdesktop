@@ -266,6 +266,15 @@ struct TopicButton {
 	int nameVersion = 0;
 };
 
+struct SelectedQuote {
+	HistoryItem *item = nullptr;
+	TextWithEntities text;
+
+	explicit operator bool() const {
+		return item && !text.empty();
+	}
+};
+
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
@@ -387,18 +396,23 @@ public:
 		QPoint point,
 		InfoDisplayType type) const;
 	virtual TextForMimeData selectedText(TextSelection selection) const = 0;
-	virtual TextWithEntities selectedQuote(TextSelection selection) const = 0;
-	virtual TextWithEntities selectedQuote(
-		const Ui::Text::String &text,
+	virtual SelectedQuote selectedQuote(
 		TextSelection selection) const = 0;
 	virtual TextSelection selectionFromQuote(
-		const TextWithEntities &quote) const = 0;
-	virtual TextSelection selectionFromQuote(
-		const Ui::Text::String &text,
+		not_null<HistoryItem*> item,
 		const TextWithEntities &quote) const = 0;
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const;
+
+	[[nodiscard]] static SelectedQuote FindSelectedQuote(
+		const Ui::Text::String &text,
+		TextSelection selection,
+		not_null<HistoryItem*> item);
+	[[nodiscard]] static TextSelection FindSelectionFromQuote(
+		const Ui::Text::String &text,
+		not_null<HistoryItem*> item,
+		const TextWithEntities &quote);
 
 	[[nodiscard]] virtual auto reactionButtonParameters(
 		QPoint position,

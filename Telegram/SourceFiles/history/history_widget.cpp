@@ -1270,7 +1270,7 @@ void HistoryWidget::scrollToAnimationCallback(
 
 void HistoryWidget::enqueueMessageHighlight(
 		not_null<HistoryView::Element*> view,
-		TextSelection part) {
+		const TextWithEntities &part) {
 	_highlighter.enqueue(view, part);
 }
 
@@ -5709,8 +5709,7 @@ int HistoryWidget::countInitialScrollTop() {
 
 			enqueueMessageHighlight(
 				view,
-				view->selectionFromQuote(
-					base::take(_showAtMsgHighlightPart)));
+				base::take(_showAtMsgHighlightPart));
 			const auto result = itemTopForHighlight(view);
 			createUnreadBarIfBelowVisibleArea(result);
 			return result;

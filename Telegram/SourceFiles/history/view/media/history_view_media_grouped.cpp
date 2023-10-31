@@ -286,16 +286,44 @@ void GroupedMedia::drawHighlight(
 		Painter &p,
 		const PaintContext &context,
 		int top) const {
+	auto selection = context.highlight.range;
 	if (_mode != Mode::Column) {
+		if (!selection.empty() && !IsSubGroupSelection(selection)) {
+			_parent->paintCustomHighlight(
+				p,
+				context,
+				top,
+				height(),
+				_parent->data().get());
+		}
 		return;
 	}
+	const auto empty = selection.empty();
+	const auto subpart = IsSubGroupSelection(selection);
 	const auto skip = top + groupedPadding().top();
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		const auto rect = part.geometry.translated(0, skip);
+		const auto full = (!i && empty)
+			|| (subpart && IsGroupItemSelection(selection, i));
+		auto copy = context;
+		if (full) {
+			copy.highlight.range = {};
+			_parent->paintCustomHighlight(
+				p,
+				copy,
+				rect.y(),
+				rect.height(),
+				part.item);
+		} else if (!selection.empty()) {
+			copy.highlight.range = selection;
+			selection = part.content->skipSelection(selection);
+		} else {
+			break;
+		}
 		_parent->paintCustomHighlight(
 			p,
-			context,
+			copy,
 			rect.y(),
 			rect.height(),
 			part.item);
@@ -316,6 +344,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 	const auto rounding = inWebPage
 		? Ui::BubbleRounding{ kSmall, kSmall, kSmall, kSmall }
 		: adjustedBubbleRoundingWithCaption(_caption);
+	const auto highlight = context.highlight.range;
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		const auto partContext = context.withSelection(fullSelection
@@ -325,10 +354,11 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 			: IsGroupItemSelection(selection, i)
 			? FullSelection
 			: TextSelection());
-		const auto highlightOpacity = IsGroupItemSelection(
-			context.highlight.range,
-			i
-		) ? context.highlight.opacity : 0.;
+		const auto highlighted = (highlight.empty() && !i)
+			|| IsGroupItemSelection(highlight, i);
+		const auto highlightOpacity = highlighted
+			? context.highlight.opacity
+			: 0.;
 		if (textSelection) {
 			selection = part.content->skipSelection(selection);
 		}
@@ -517,6 +547,7 @@ TextSelection GroupedMedia::adjustSelection(
 			selection.to = modified.to;
 			return selection;
 		}
+		checked = till;
 	}
 	return selection;
 }
@@ -560,6 +591,50 @@ TextForMimeData GroupedMedia::selectedText(
 			}
 		}
 		selection = part.content->skipSelection(selection);
+	}
+	return result;
+}
+
+SelectedQuote GroupedMedia::selectedQuote(TextSelection selection) const {
+	if (_mode != Mode::Column) {
+		return _captionItem
+			? Element::FindSelectedQuote(_caption, selection, _captionItem)
+			: SelectedQuote();
+	}
+	for (const auto &part : _parts) {
+		const auto next = part.content->skipSelection(selection);
+		if (next.to - next.from != selection.to - selection.from) {
+			if (!next.empty()) {
+				return SelectedQuote();
+			}
+			auto result = part.content->selectedQuote(selection);
+			result.item = part.item;
+			return result;
+		}
+		selection = next;
+	}
+	return {};
+}
+
+TextSelection GroupedMedia::selectionFromQuote(
+		not_null<HistoryItem*> item,
+		const TextWithEntities &quote) const {
+	if (_mode != Mode::Column) {
+		return (_captionItem == item)
+			? Element::FindSelectionFromQuote(_caption, item, quote)
+			: TextSelection();
+	}
+	const auto i = ranges::find(_parts, item, &Part::item);
+	if (i == end(_parts)) {
+		return {};
+	}
+	const auto index = int(i - begin(_parts));
+	auto result = i->content->selectionFromQuote(item, quote);
+	if (result.empty()) {
+		return AddGroupItemSelection({}, index);
+	}
+	for (auto j = i; j != begin(_parts);) {
+		result = (--j)->content->unskipSelection(result);
 	}
 	return result;
 }
@@ -666,16 +741,15 @@ bool GroupedMedia::validateGroupParts(
 }
 
 void GroupedMedia::refreshCaption() {
-	using PartPtrOpt = std::optional<const Part*>;
-	const auto captionPart = [&]() -> PartPtrOpt {
+	const auto part = [&]() -> const Part* {
 		if (_mode == Mode::Column) {
-			return std::nullopt;
+			return nullptr;
 		}
-		auto result = PartPtrOpt();
+		auto result = (const Part*)nullptr;
 		for (const auto &part : _parts) {
 			if (!part.item->emptyText()) {
 				if (result) {
-					return std::nullopt;
+					return nullptr;
 				} else {
 					result = &part;
 				}
@@ -683,8 +757,7 @@ void GroupedMedia::refreshCaption() {
 		}
 		return result;
 	}();
-	if (captionPart) {
-		const auto &part = (*captionPart);
+	if (part) {
 		_caption = createCaption(part->item);
 		_captionItem = part->item;
 	} else {

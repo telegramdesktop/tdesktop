@@ -233,7 +233,7 @@ public:
 	bool isBelowPosition(Data::MessagePosition position) const;
 	void highlightMessage(
 		FullMsgId itemId,
-		const TextWithEntities &highlightPart);
+		const TextWithEntities &part);
 
 	void showAtPosition(
 		Data::MessagePosition position,

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_highlight_manager.h"
 
 #include "data/data_session.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
 #include "ui/chat/chat_style.h"
@@ -26,15 +27,20 @@ ElementHighlighter::ElementHighlighter(
 
 void ElementHighlighter::enqueue(
 		not_null<Element*> view,
-		TextSelection part) {
-	const auto item = view->data();
-	const auto data = Highlight{ item->fullId(), part };
+		const TextWithEntities &part) {
+	const auto data = computeHighlight(view, part);
 	if (_queue.empty() && !_animation.animating()) {
-		highlight(data.itemId, data.part);
+		highlight(data);
 	} else if (_highlighted != data && !base::contains(_queue, data)) {
 		_queue.push_back(data);
 		checkNextHighlight();
 	}
+}
+
+void ElementHighlighter::highlight(
+		not_null<Element*> view,
+		const TextWithEntities &part) {
+	highlight(computeHighlight(view, part));
 }
 
 void ElementHighlighter::checkNextHighlight() {
@@ -53,10 +59,9 @@ void ElementHighlighter::checkNextHighlight() {
 		}
 		return Highlight();
 	}();
-	if (!next) {
-		return;
+	if (next) {
+		highlight(next);
 	}
-	highlight(next.itemId, next.part);
 }
 
 Ui::ChatPaintHighlight ElementHighlighter::state(
@@ -69,18 +74,46 @@ Ui::ChatPaintHighlight ElementHighlighter::state(
 	return {};
 }
 
-void ElementHighlighter::highlight(FullMsgId itemId, TextSelection part) {
-	if (const auto item = _data->message(itemId)) {
+ElementHighlighter::Highlight ElementHighlighter::computeHighlight(
+		not_null<const Element*> view,
+		const TextWithEntities &part) {
+	const auto item = view->data();
+	const auto owner = &item->history()->owner();
+	if (const auto group = owner->groups().find(item)) {
+		const auto leader = group->items.front();
+		const auto leaderId = leader->fullId();
+		const auto i = ranges::find(group->items, item);
+		if (i != end(group->items)) {
+			const auto index = int(i - begin(group->items));
+			if (part.empty()) {
+				return { leaderId, AddGroupItemSelection({}, index) };
+			} else if (const auto leaderView = _viewForItem(leader)) {
+				return {
+					leaderId,
+					leaderView->selectionFromQuote(item, part),
+				};
+			}
+		}
+		return { leaderId };
+	} else if (part.empty()) {
+		return { item->fullId() };
+	}
+	return { item->fullId(), view->selectionFromQuote(item, part) };
+}
+
+void ElementHighlighter::highlight(Highlight data) {
+	if (const auto item = _data->message(data.itemId)) {
 		if (const auto view = _viewForItem(item)) {
-			if (_highlighted && _highlighted.itemId != itemId) {
+			if (_highlighted && _highlighted.itemId != data.itemId) {
 				if (const auto was = _data->message(_highlighted.itemId)) {
 					if (const auto view = _viewForItem(was)) {
 						repaintHighlightedItem(view);
 					}
 				}
 			}
-			_highlighted = { itemId, part };
-			_animation.start(!part.empty());
+			_highlighted = data;
+			_animation.start(!data.part.empty()
+				&& !IsSubGroupSelection(data.part));
 
 			repaintHighlightedItem(view);
 		}

@@ -2106,7 +2106,7 @@ void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 	item->toggleReaction(favorite, HistoryItem::ReactionSource::Quick);
 }
 
-TextWithEntities HistoryInner::selectedQuote(
+HistoryView::SelectedQuote HistoryInner::selectedQuote(
 		not_null<HistoryItem*> item) const {
 	if (_selected.size() != 1
 		|| _selected.begin()->first != item
@@ -2393,11 +2393,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}();
 		const auto canReply = canSendReply || item->allowsForward();
 		if (canReply) {
-			const auto itemId = item->fullId();
-			const auto quote = selectedQuote(item);
-			auto text = quote.empty()
-				? tr::lng_context_reply_msg(tr::now)
-				: tr::lng_context_quote_and_reply(tr::now);
+			const auto selected = selectedQuote(item);
+			auto text = selected
+				? tr::lng_context_quote_and_reply(tr::now)
+				: tr::lng_context_reply_msg(tr::now);
+			const auto replyToItem = selected.item ? selected.item : item;
+			const auto itemId = replyToItem->fullId();
+			const auto quote = selected.text;
 			text.replace('&', u"&&"_q);
 			_menu->addAction(text, [=] {
 				if (canSendReply) {

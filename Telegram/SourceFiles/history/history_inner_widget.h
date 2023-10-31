@@ -35,6 +35,7 @@ class EmptyPainter;
 class Element;
 class TranslateTracker;
 struct PinnedId;
+struct SelectedQuote;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
@@ -314,7 +315,7 @@ private:
 
 	QPoint mapPointToItem(QPoint p, const Element *view) const;
 	QPoint mapPointToItem(QPoint p, const HistoryItem *item) const;
-	[[nodiscard]] TextWithEntities selectedQuote(
+	[[nodiscard]] HistoryView::SelectedQuote selectedQuote(
 		not_null<HistoryItem*> item) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);

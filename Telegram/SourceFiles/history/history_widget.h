@@ -184,7 +184,7 @@ public:
 
 	void enqueueMessageHighlight(
 		not_null<HistoryView::Element*> view,
-		TextSelection part);
+		const TextWithEntities &part);
 	[[nodiscard]] Ui::ChatPaintHighlight itemHighlight(
 		not_null<const HistoryItem*> item) const;
 

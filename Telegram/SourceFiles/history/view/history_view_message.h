@@ -95,14 +95,9 @@ public:
 		QPoint point,
 		InfoDisplayType type) const override;
 	TextForMimeData selectedText(TextSelection selection) const override;
-	TextWithEntities selectedQuote(TextSelection selection) const override;
-	TextWithEntities selectedQuote(
-		const Ui::Text::String &text,
-		TextSelection selection) const override;
+	SelectedQuote selectedQuote(TextSelection selection) const override;
 	TextSelection selectionFromQuote(
-		const TextWithEntities &quote) const override;
-	TextSelection selectionFromQuote(
-		const Ui::Text::String &text,
+		not_null<HistoryItem*> item,
 		const TextWithEntities &quote) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
