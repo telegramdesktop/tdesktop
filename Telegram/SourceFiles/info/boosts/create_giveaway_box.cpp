@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/boosts/create_giveaway_box.h"
 
 #include "api/api_premium.h"
+#include "base/unixtime.h"
 #include "boxes/peers/edit_participants_box.h" // ParticipantsBoxController
 #include "data/data_peer.h"
 #include "data/data_subscription_option.h"
@@ -19,8 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_form.h" // Payments::InvoicePremiumGiftCode
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h" // Settings::ShowPremium
+#include "ui/boxes/choose_date_time.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
@@ -31,6 +34,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace {
+
+[[nodiscard]] QDateTime ThreeDaysAfterToday() {
+	auto dateNow = QDateTime::currentDateTime();
+	dateNow = dateNow.addDays(3);
+	auto timeNow = dateNow.time();
+	while (timeNow.minute() % 5) {
+		timeNow = timeNow.addSecs(60);
+	}
+	dateNow.setTime(timeNow);
+	return dateNow;
+}
 
 class MembersListController : public ParticipantsBoxController {
 public:
@@ -84,6 +98,7 @@ void CreateGiveawayBox(
 
 		rpl::variable<GiveawayType> typeValue;
 		rpl::variable<int> sliderValue;
+		rpl::variable<TimeId> dateValue;
 
 		bool confirmButtonBusy = false;
 	};
@@ -247,6 +262,51 @@ void CreateGiveawayBox(
 
 		sliderContainer->resizeToWidth(box->width());
 	};
+
+	{
+		const auto dateContainer = randomWrap->entity()->add(
+			object_ptr<Ui::VerticalLayout>(randomWrap));
+		Settings::AddSubsectionTitle(
+			dateContainer,
+			tr::lng_giveaway_date_title());
+
+		state->dateValue = ThreeDaysAfterToday().toSecsSinceEpoch();
+		const auto button = Settings::AddButtonWithLabel(
+			dateContainer,
+			tr::lng_giveaway_date(),
+			state->dateValue.value() | rpl::map(
+				base::unixtime::parse
+			) | rpl::map(Ui::FormatDateTime),
+			st::defaultSettingsButton);
+
+		button->setClickedCallback([=] {
+			constexpr auto kSevenDays = 3600 * 24 * 7;
+			box->uiShow()->showBox(Box([=](not_null<Ui::GenericBox*> b) {
+				Ui::ChooseDateTimeBox(b, {
+					.title = tr::lng_giveaway_date_select(),
+					.submit = tr::lng_settings_save(),
+					.done = [=](TimeId time) {
+						state->dateValue = time;
+						b->closeBox();
+					},
+					.min = QDateTime::currentSecsSinceEpoch,
+					.time = state->dateValue.current(),
+					.max = [=] {
+						return QDateTime::currentSecsSinceEpoch()
+							+ kSevenDays;
+					},
+				});
+			}));
+		});
+
+		Settings::AddSkip(dateContainer);
+		Settings::AddDividerText(
+			dateContainer,
+			tr::lng_giveaway_date_about(
+				lt_count,
+				state->sliderValue.value() | tr::to_count()));
+		Settings::AddSkip(dateContainer);
+	}
 
 	const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);
 	{
