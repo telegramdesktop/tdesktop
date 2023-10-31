@@ -685,6 +685,7 @@ void SessionNavigation::applyBoost(
 			done(false);
 			return;
 		}
+		auto slot = int();
 		auto different = PeerId();
 		auto earliest = TimeId(-1);
 		const auto now = base::unixtime::now();
@@ -695,13 +696,13 @@ void SessionNavigation::applyBoost(
 				? peerFromMTP(*data.vpeer())
 				: PeerId();
 			if (!peerId && cooldown <= now) {
-				applyBoostChecked(channel, done);
+				applyBoostChecked(channel, data.vslot().v, done);
 				return;
-			} else if (peerId != channel->id) {
+			} else if (peerId != channel->id
+				&& (earliest < 0 || cooldown < earliest)) {
+				slot = data.vslot().v;
 				different = peerId;
-				if (earliest < 0 || cooldown < earliest) {
-					earliest = cooldown;
-				}
+				earliest = cooldown;
 			}
 		}
 		if (different) {
@@ -727,7 +728,7 @@ void SessionNavigation::applyBoost(
 				done(false);
 			} else {
 				const auto peer = _session->data().peer(different);
-				replaceBoostConfirm(peer, channel, done);
+				replaceBoostConfirm(peer, channel, slot, done);
 			}
 		} else {
 			uiShow()->show(Ui::MakeConfirmBox({
@@ -748,11 +749,12 @@ void SessionNavigation::applyBoost(
 void SessionNavigation::replaceBoostConfirm(
 		not_null<PeerData*> from,
 		not_null<ChannelData*> channel,
+		int slot,
 		Fn<void(bool)> done) {
 	const auto forwarded = std::make_shared<bool>(false);
 	const auto confirmed = [=](Fn<void()> close) {
 		*forwarded = true;
-		applyBoostChecked(channel, done);
+		applyBoostChecked(channel, slot, done);
 		close();
 	};
 	const auto box = uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
@@ -781,10 +783,11 @@ void SessionNavigation::replaceBoostConfirm(
 
 void SessionNavigation::applyBoostChecked(
 		not_null<ChannelData*> channel,
+		int slot,
 		Fn<void(bool)> done) {
 	_api.request(MTPpremium_ApplyBoost(
-		MTP_flags(0),
-		MTPVector<MTPint>(), // slots
+		MTP_flags(MTPpremium_ApplyBoost::Flag::f_slots),
+		MTP_vector<MTPint>({ MTP_int(slot) }),
 		channel->input
 	)).done([=](const MTPpremium_MyBoosts &result) {
 		done(true);
