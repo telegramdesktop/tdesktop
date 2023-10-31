@@ -274,6 +274,7 @@ struct HistoryMessageReply
 	// Must be called before destructor.
 	void clearData(not_null<HistoryItem*> holder);
 
+	[[nodiscard]] bool external() const;
 	[[nodiscard]] PeerData *sender(not_null<HistoryItem*> holder) const;
 	[[nodiscard]] QString senderName(not_null<HistoryItem*> holder) const;
 	[[nodiscard]] QString senderName(not_null<PeerData*> peer) const;
@@ -301,6 +302,9 @@ struct HistoryMessageReply
 		bool inBubble) const;
 	void unloadPersistentAnimation();
 
+	[[nodiscard]] ReplyFields fields() const {
+		return _fields;
+	}
 	[[nodiscard]] PeerId externalPeerId() const {
 		return _fields.externalPeerId;
 	}

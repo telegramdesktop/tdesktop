@@ -2685,6 +2685,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_reply_options_quote" = "Update Quote";
 "lng_reply_header_short" = "Reply";
 "lng_reply_quote_selected" = "Quote Selected";
+"lng_reply_from_private_chat" = "This reply is from a private chat.";
 "lng_link_options_header" = "Link Preview Settings";
 "lng_link_header_short" = "Link";
 "lng_link_move_up" = "Move Up";

@@ -449,6 +449,14 @@ HistoryItem::HistoryItem(
 	const auto dropForwardInfo = original->computeDropForwardedInfo();
 	config.reply.messageId = config.reply.topMessageId = topicRootId;
 	config.reply.topicPost = (topicRootId != 0);
+	if (const auto originalReply = original->Get<HistoryMessageReply>()) {
+		if (originalReply->external()) {
+			config.reply = originalReply->fields();
+			if (!config.reply.externalPeerId) {
+				config.reply.messageId = 0;
+			}
+		}
+	}
 	if (!dropForwardInfo) {
 		config.originalDate = original->originalDate();
 		if (const auto info = original->hiddenSenderInfo()) {
