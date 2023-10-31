@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "base/call_delayed.h"
 #include "base/unixtime.h"
+#include "countries/countries_instance.h"
 #include "data/data_peer.h"
 #include "info/boosts/giveaway/giveaway_list_controllers.h"
 #include "info/boosts/giveaway/giveaway_type_row.h"
@@ -521,13 +522,21 @@ void CreateGiveawayBox(
 			if (state->confirmButtonBusy) {
 				return;
 			}
-			if (typeGroup->value() == GiveawayType::SpecificUsers) {
+			const auto type = typeGroup->value();
+			const auto isSpecific = (type == GiveawayType::SpecificUsers);
+			const auto isRandom = (type == GiveawayType::Random);
+			if (!isSpecific && !isRandom) {
+				return;
+			}
+			auto invoice = state->apiOptions.invoice(
+				isSpecific
+					? state->selectedToAward.size()
+					: state->sliderValue.current(),
+				durationGroup->value());
+			if (isSpecific) {
 				if (state->selectedToAward.empty()) {
 					return;
 				}
-				auto invoice = state->apiOptions.invoice(
-					state->selectedToAward.size(),
-					durationGroup->value());
 				invoice.purpose = Payments::InvoicePremiumGiftCodeUsers{
 					ranges::views::all(
 						state->selectedToAward
@@ -537,14 +546,28 @@ void CreateGiveawayBox(
 					}) | ranges::to_vector,
 					peer->asChannel(),
 				};
-				state->confirmButtonBusy = true;
-				Payments::CheckoutProcess::Start(
-					std::move(invoice),
-					crl::guard(box, [=](auto) {
-						state->confirmButtonBusy = false;
-						box->window()->setFocus();
-					}));
+			} else if (isRandom) {
+				invoice.purpose = Payments::InvoicePremiumGiftCodeGiveaway{
+					.boostPeer = peer->asChannel(),
+					.additionalChannels = ranges::views::all(
+						state->selectedToSubscribe
+					) | ranges::views::transform([](
+							const not_null<PeerData*> p) {
+						return not_null{ p->asChannel() };
+					}) | ranges::to_vector,
+					.countries = state->countriesValue.current(),
+					.untilDate = state->dateValue.current(),
+					.onlyNewSubscribers = (membersGroup->value()
+						== GiveawayType::OnlyNewMembers),
+				};
 			}
+			state->confirmButtonBusy = true;
+			Payments::CheckoutProcess::Start(
+				std::move(invoice),
+				crl::guard(box, [=](auto) {
+					state->confirmButtonBusy = false;
+					box->window()->setFocus();
+				}));
 		});
 		box->addButton(std::move(button));
 	}
