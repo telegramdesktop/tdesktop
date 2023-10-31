@@ -277,6 +277,8 @@ boostReplaceIconOutline: 2px;
 boostReplaceIconAdd: point(4px, 2px);
 boostReplaceArrow: icon{{ "mediaview/next", windowSubTextFg }};
 
+giveawayLoadingLabel: FlatLabel(membersAbout) {
+}
 giveawayGiftCodeTopHeight: 195px;
 giveawayGiftCodeLink: FlatLabel(defaultFlatLabel) {
 	margin: margins(10px, 12px, 10px, 8px);
