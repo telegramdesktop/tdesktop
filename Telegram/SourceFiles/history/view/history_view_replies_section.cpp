@@ -330,6 +330,7 @@ RepliesWidget::RepliesWidget(
 			Controls::ShowReplyToChatBox(controller->uiShow(), { fullId });
 		} else {
 			replyToMessage(fullId);
+			_composeControls->focus();
 		}
 	}, _inner->lifetime());
 
@@ -2016,7 +2017,7 @@ bool RepliesWidget::showMessage(
 	}
 	const auto id = FullMsgId(_history->peer->id, messageId);
 	const auto message = _history->owner().message(id);
-	if (!message) {
+	if (!message || !message->inThread(_rootId)) {
 		return false;
 	}
 	const auto originMessage = [&]() -> HistoryItem* {
@@ -2032,11 +2033,10 @@ bool RepliesWidget::showMessage(
 		}
 		return nullptr;
 	}();
-	if (!originMessage) {
-		return false;
-	}
 	const auto currentReplyReturn = _cornerButtons.replyReturn();
-	const auto originItemId = (currentReplyReturn != originMessage)
+	const auto originItemId = !originMessage
+		? FullMsgId()
+		: (currentReplyReturn != originMessage)
 		? originMessage->fullId()
 		: FullMsgId();
 	showAtPosition(message->position(), originItemId, params);

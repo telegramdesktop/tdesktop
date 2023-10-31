@@ -89,6 +89,9 @@ void RequestDependentMessageStory(
 [[nodiscard]] MsgId LookupReplyToTop(
 	not_null<History*> history,
 	HistoryItem *replyTo);
+[[nodiscard]] MsgId LookupReplyToTop(
+	not_null<History*> history,
+	FullReplyTo replyTo);
 [[nodiscard]] bool LookupReplyIsTopicPost(HistoryItem *replyTo);
 
 struct SendingErrorRequest {

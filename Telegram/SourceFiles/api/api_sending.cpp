@@ -270,7 +270,6 @@ bool SendDice(MessageToSend &message) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 	}
-	const auto replyHeader = NewMessageReplyHeader(message.action);
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, message.action.options);
 	InnerFillMessagePostFlags(message.action.options, peer, flags);
@@ -399,7 +398,6 @@ void SendConfirmedFile(
 	if (file->to.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
-	const auto replyHeader = NewMessageReplyHeader(action);
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, file->to.options);
 	FillMessagePostFlags(action, peer, flags);

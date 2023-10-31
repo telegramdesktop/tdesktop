@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_item_helpers.h"
 
+#include "api/api_text_entities.h"
 #include "calls/calls_instance.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_chat_participant_status.h"
@@ -202,6 +203,14 @@ MsgId LookupReplyToTop(not_null<History*> history, HistoryItem *replyTo) {
 		: 0;
 }
 
+MsgId LookupReplyToTop(not_null<History*> history, FullReplyTo replyTo) {
+	return replyTo.topicRootId
+		? replyTo.topicRootId
+		: LookupReplyToTop(
+			history,
+			LookupReplyTo(history, replyTo.messageId));
+}
+
 bool LookupReplyIsTopicPost(HistoryItem *replyTo) {
 	return replyTo
 		&& (replyTo->topicRootId() != Data::ForumTopic::kGeneralId);
@@ -373,19 +382,27 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 		const auto externalPeerId = (replyTo.messageId.peer == historyPeer)
 			? PeerId()
 			: replyTo.messageId.peer;
-		const auto to = LookupReplyTo(action.history, replyTo.messageId);
-		const auto replyToTop = LookupReplyToTop(action.history, to);
+		const auto replyToTop = LookupReplyToTop(action.history, replyTo);
+		auto quoteEntities = Api::EntitiesToMTP(
+			&action.history->session(),
+			replyTo.quote.entities,
+			Api::ConvertOption::SkipLocal);
 		return MTP_messageReplyHeader(
 			MTP_flags(Flag::f_reply_to_msg_id
 				| (replyToTop ? Flag::f_reply_to_top_id : Flag())
-				| (externalPeerId ? Flag::f_reply_to_peer_id : Flag())),
+				| (externalPeerId ? Flag::f_reply_to_peer_id : Flag())
+				| (replyTo.quote.empty() ? Flag() : Flag::f_quote)
+				| (replyTo.quote.empty() ? Flag() : Flag::f_quote_text)
+				| (quoteEntities.v.empty()
+					? Flag()
+					: Flag::f_quote_entities)),
 			MTP_int(replyTo.messageId.msg),
 			peerToMTP(externalPeerId),
 			MTPMessageFwdHeader(), // reply_from
 			MTPMessageMedia(), // reply_media
-			MTP_int(replyToTop), // reply_to_top_id
-			MTPstring(), // quote_text
-			MTPVector<MTPMessageEntity>()); // quote_entities
+			MTP_int(replyToTop),
+			MTP_string(replyTo.quote.text),
+			quoteEntities);
 	}
 	return MTPMessageReplyHeader();
 }

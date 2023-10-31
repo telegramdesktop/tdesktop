@@ -3337,16 +3337,28 @@ void HistoryItem::createComponentsHelper(
 			? replyTo.messageId.peer
 			: PeerId();
 		const auto to = LookupReplyTo(_history, replyTo.messageId);
-		const auto replyToTop = LookupReplyToTop(_history, to);
+		const auto replyToTop = replyTo.topicRootId
+			? replyTo.topicRootId
+			: LookupReplyToTop(_history, to);
 		config.reply.topMessageId = replyToTop
 			? replyToTop
 			: (replyTo.messageId.peer == history()->peer->id)
 			? replyTo.messageId.msg
 			: MsgId();
+		if (!config.reply.externalPeerId
+			&& to
+			&& config.reply.topicPost
+			&& replyTo.topicRootId != to->topicRootId()) {
+			config.reply.externalPeerId = replyTo.messageId.peer;
+		}
 		const auto forum = _history->asForum();
-		config.reply.topicPost = LookupReplyIsTopicPost(to)
-			|| (to && to->Has<HistoryServiceTopicInfo>())
-			|| (forum && forum->creating(config.reply.topMessageId));
+		config.reply.topicPost = config.reply.externalPeerId
+			? (replyTo.topicRootId
+				&& (replyTo.topicRootId != Data::ForumTopic::kGeneralId))
+			: (LookupReplyIsTopicPost(to)
+				|| (to && to->Has<HistoryServiceTopicInfo>())
+				|| (forum && forum->creating(config.reply.topMessageId)));
+		config.reply.manualQuote = !replyTo.quote.empty();
 		config.reply.quote = std::move(replyTo.quote);
 	}
 	config.markup = std::move(markup);

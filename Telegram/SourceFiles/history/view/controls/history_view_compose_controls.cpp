@@ -1332,6 +1332,7 @@ void ComposeControls::init() {
 	_header->editOptionsRequests(
 	) | rpl::start_with_next([=] {
 		const auto history = _history;
+		const auto topicRootId = _topicRootId;
 		const auto reply = _header->replyingToMessage();
 		const auto webpage = _preview->draft();
 
@@ -1360,7 +1361,10 @@ void ComposeControls::init() {
 			.resolver = _preview->resolver(),
 			.done = done,
 			.highlight = highlight,
-			.clearOldDraft = [=] { ClearDraftReplyTo(history, replyToId); },
+			.clearOldDraft = [=] { ClearDraftReplyTo(
+				history,
+				topicRootId,
+				replyToId); },
 		});
 	}, _wrap->lifetime());
 

@@ -239,6 +239,7 @@ struct ReplyFields {
 	MsgId topMessageId = 0;
 	StoryId storyId = 0;
 	bool topicPost = false;
+	bool manualQuote = false;
 };
 
 [[nodiscard]] ReplyFields ReplyFieldsFromMTP(
@@ -320,6 +321,9 @@ struct HistoryMessageReply
 	}
 	[[nodiscard]] bool topicPost() const {
 		return _fields.topicPost;
+	}
+	[[nodiscard]] bool manualQuote() const {
+		return _fields.manualQuote;
 	}
 	[[nodiscard]] QString statePhrase() const;
 

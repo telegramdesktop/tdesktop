@@ -6320,7 +6320,7 @@ void HistoryWidget::editDraftOptions() {
 		.resolver = _preview->resolver(),
 		.done = done,
 		.highlight = highlight,
-		.clearOldDraft = [=] { ClearDraftReplyTo(history, replyToId); },
+		.clearOldDraft = [=] { ClearDraftReplyTo(history, 0, replyToId); },
 	});
 }
 

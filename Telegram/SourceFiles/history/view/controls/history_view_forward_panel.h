@@ -72,7 +72,6 @@ private:
 
 };
 
-void ClearDraftReplyTo(not_null<Data::Thread*> thread, FullMsgId equalTo);
 void ClearDraftReplyTo(
 	not_null<History*> history,
 	MsgId topicRootId,

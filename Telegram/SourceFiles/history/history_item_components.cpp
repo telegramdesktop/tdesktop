@@ -426,6 +426,7 @@ ReplyFields ReplyFieldsFromMTP(
 				&owner->session(),
 				data.vquote_entities().value_or_empty()),
 		};
+		result.manualQuote = data.is_quote();
 		return result;
 	}, [&](const MTPDmessageReplyStoryHeader &data) {
 		return ReplyFields{
@@ -633,7 +634,7 @@ void HistoryMessageReply::setLinkFrom(
 		? JumpToMessageClickHandler(
 			resolvedMessage.get(),
 			holder->fullId(),
-			_fields.quote)
+			_fields.manualQuote ? _fields.quote : TextWithEntities())
 		: resolvedStory
 		? JumpToStoryClickHandler(resolvedStory.get())
 		: (external && !_fields.messageId)
@@ -835,7 +836,7 @@ void HistoryMessageReply::paint(
 
 	y += st::historyReplyTop;
 	const auto rect = QRect(x, y, w, _height);
-	const auto hasQuote = !_fields.quote.empty();
+	const auto hasQuote = _fields.manualQuote && !_fields.quote.empty();
 	const auto selected = context.selected();
 	const auto colorPeer = resolvedMessage
 		? resolvedMessage->displayFrom()

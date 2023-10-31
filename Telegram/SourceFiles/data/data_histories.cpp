@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_element.h"
 #include "core/application.h"
 #include "apiwrap.h"
@@ -46,8 +47,10 @@ MTPInputReplyTo ReplyToForMTP(
 			}
 		}
 	} else if (replyTo.messageId || replyTo.topicRootId) {
+		const auto to = LookupReplyTo(history, replyTo.messageId);
 		const auto external = replyTo.messageId
-			&& (replyTo.messageId.peer != history->peer->id);
+			&& (replyTo.messageId.peer != history->peer->id
+				|| (replyTo.topicRootId != to->topicRootId()));
 		const auto quoteEntities = Api::EntitiesToMTP(
 			&history->session(),
 			replyTo.quote.entities,

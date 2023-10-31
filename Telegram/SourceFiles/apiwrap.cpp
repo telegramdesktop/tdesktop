@@ -3376,7 +3376,6 @@ void ApiWrap::sendSharedContact(
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
-	const auto replyHeader = NewMessageReplyHeader(action);
 	FillMessagePostFlags(action, peer, flags);
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -3640,7 +3639,6 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		const auto manualWebPage = exactWebPage
 			&& !ignoreWebPage
 			&& (message.webPage.manual || (isLast && !isFirst));
-		const auto replyHeader = NewMessageReplyHeader(action);
 		MTPMessageMedia media = MTP_messageMediaEmpty();
 		if (ignoreWebPage) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
