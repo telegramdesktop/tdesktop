@@ -14,6 +14,7 @@ class VerticalLayout;
 } // namespace Ui
 
 namespace Data {
+struct Boost;
 struct BoostsListSlice;
 struct PublicForwardsSlice;
 struct SupergroupStatistics;
@@ -38,7 +39,7 @@ void AddMembersList(
 void AddBoostsList(
 	const Data::BoostsListSlice &firstSlice,
 	not_null<Ui::VerticalLayout*> container,
-	Fn<void(not_null<PeerData*>)> showPeerInfo,
+	Fn<void(const Data::Boost &)> boostClickedCallback,
 	not_null<PeerData*> peer,
 	rpl::producer<QString> title);
 

@@ -9,7 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_premium.h"
 #include "api/api_statistics.h"
+#include "boxes/gift_premium_box.h"
 #include "boxes/peers/edit_peer_invite_link.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "info/boosts/create_giveaway_box.h"
 #include "info/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
@@ -268,8 +272,20 @@ void InnerWidget::fill() {
 	::Settings::AddSkip(inner);
 
 	if (status.firstSlice.total > 0) {
+		auto boostClicked = [=](const Data::Boost &boost) {
+			if (!boost.giftCodeLink.slug.isEmpty()) {
+				ResolveGiftCode(_controller, boost.giftCodeLink.slug);
+			} else if (boost.userId) {
+				const auto user = _peer->owner().user(boost.userId);
+				crl::on_main(this, [=] {
+					_controller->showPeerInfo(user);
+				});
+			} else if (!boost.isUnclaimed) {
+				_show->showToast(tr::lng_boosts_list_pending_about(tr::now));
+			}
+		};
+
 		::Settings::AddSkip(inner);
-		using PeerPtr = not_null<PeerData*>;
 		const auto header = inner->add(
 			object_ptr<Statistic::Header>(inner),
 			st::statisticsLayerMargins
@@ -283,7 +299,7 @@ void InnerWidget::fill() {
 		Statistics::AddBoostsList(
 			status.firstSlice,
 			inner,
-			[=](PeerPtr p) { _controller->showPeerInfo(p); },
+			std::move(boostClicked),
 			_peer,
 			tr::lng_boosts_title());
 		::Settings::AddSkip(inner);

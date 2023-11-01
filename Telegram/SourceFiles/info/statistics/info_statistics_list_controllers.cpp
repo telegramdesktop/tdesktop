@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Statistics {
 namespace {
 
+using BoostCallback = Fn<void(const Data::Boost &)>;
 constexpr auto kColorIndexUnclaimed = int(3);
 constexpr auto kColorIndexPending = int(4);
 
@@ -104,7 +105,7 @@ struct MembersDescriptor final {
 
 struct BoostsDescriptor final {
 	Data::BoostsListSlice firstSlice;
-	Fn<void(not_null<PeerData*>)> showPeerInfo;
+	BoostCallback boostClickedCallback;
 	not_null<PeerData*> peer;
 };
 
@@ -501,7 +502,7 @@ private:
 	void applySlice(const Data::BoostsListSlice &slice);
 
 	const not_null<Main::Session*> _session;
-	Fn<void(not_null<PeerData*>)> _showPeerInfo;
+	BoostCallback _boostClickedCallback;
 
 	Api::Boosts _api;
 	Data::BoostsListSlice _firstSlice;
@@ -516,7 +517,7 @@ private:
 
 BoostsController::BoostsController(BoostsDescriptor d)
 : _session(&d.peer->session())
-, _showPeerInfo(std::move(d.showPeerInfo))
+, _boostClickedCallback(std::move(d.boostClickedCallback))
 , _api(d.peer)
 , _firstSlice(std::move(d.firstSlice)) {
 	PeerListController::setStyleOverrides(&st::boostsListBox);
@@ -566,11 +567,9 @@ void BoostsController::applySlice(const Data::BoostsListSlice &slice) {
 }
 
 void BoostsController::rowClicked(not_null<PeerListRow*> row) {
-	if (!row->special()) {
-		crl::on_main([=, peer = row->peer()] {
-			_showPeerInfo(peer);
-		});
-		return;
+	if (_boostClickedCallback) {
+		_boostClickedCallback(
+			static_cast<const BoostRow*>(row.get())->boost());
 	}
 }
 
@@ -677,7 +676,7 @@ void AddMembersList(
 void AddBoostsList(
 		const Data::BoostsListSlice &firstSlice,
 		not_null<Ui::VerticalLayout*> container,
-		Fn<void(not_null<PeerData*>)> showPeerInfo,
+		BoostCallback boostClickedCallback,
 		not_null<PeerData*> peer,
 		rpl::producer<QString> title) {
 	const auto max = firstSlice.total;
@@ -688,7 +687,7 @@ void AddBoostsList(
 		BoostsController controller;
 		int limit = Api::Boosts::kFirstSlice;
 	};
-	auto d = BoostsDescriptor{ firstSlice, std::move(showPeerInfo), peer };
+	auto d = BoostsDescriptor{ firstSlice, boostClickedCallback, peer };
 	const auto state = container->lifetime().make_state<State>(std::move(d));
 
 	state->delegate.setContent(container->add(
