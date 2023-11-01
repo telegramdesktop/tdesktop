@@ -2577,7 +2577,6 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		: _overElement
 		? _overElement->data().get()
 		: nullptr;
-	const auto overItemView = viewForItem(overItem);
 	const auto clickedReaction = link
 		? link->property(
 			kReactionsCountEmojiProperty).value<Data::ReactionId>()
