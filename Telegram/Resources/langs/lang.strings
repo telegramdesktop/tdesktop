@@ -4328,6 +4328,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boosts_link_subtext" = "Share this link with your subscribers to get more boosts.";
 "lng_boosts_get_boosts" = "Get Boosts via Gifts";
 "lng_boosts_get_boosts_subtext" = "Get more boosts for your channel by gifting Telegram Premium to your subscribers.";
+"lng_boosts_list_unclaimed" = "Unclaimed";
+"lng_boosts_list_pending" = "To be distributed";
+"lng_boosts_list_pending_about" = "The recipient will be selected when the giveaway ends.";
 
 // Wnd specific
 

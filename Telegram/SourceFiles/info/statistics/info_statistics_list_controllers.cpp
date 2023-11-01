@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "ui/effects/toggle_arrow.h"
+#include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/widgets/buttons.h"
@@ -29,6 +30,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info::Statistics {
 namespace {
+
+constexpr auto kColorIndexUnclaimed = int(3);
+constexpr auto kColorIndexPending = int(4);
 
 void AddArrow(not_null<Ui::RpWidget*> parent) {
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
@@ -323,9 +327,14 @@ void PublicForwardsController::appendRow(
 
 class BoostRow final : public PeerListRow {
 public:
-	using PeerListRow::PeerListRow;
+	BoostRow(not_null<PeerData*> peer, const Data::Boost &boost);
+	BoostRow(const Data::Boost &boost);
 
-	void setMultiplier(int multiplier);
+	[[nodiscard]] const Data::Boost &boost() const;
+	[[nodiscard]] QString generateName() override;
+
+	[[nodiscard]] PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
 
 	int paintNameIconGetWidth(
 		Painter &p,
@@ -339,9 +348,71 @@ public:
 		bool selected) override;
 
 private:
+	void init();
+	void setMultiplier(int multiplier);
+
+	const Data::Boost _boost;
+	Ui::EmptyUserpic _userpic;
 	QImage _badge;
 
 };
+
+BoostRow::BoostRow(not_null<PeerData*> peer, const Data::Boost &boost)
+: PeerListRow(peer, UniqueRowIdFromString(boost.id))
+, _boost(boost)
+, _userpic(Ui::EmptyUserpic::UserpicColor(0), QString()) {
+	init();
+}
+
+BoostRow::BoostRow(const Data::Boost &boost)
+: PeerListRow(UniqueRowIdFromString(boost.id))
+, _boost(boost)
+, _userpic(
+	Ui::EmptyUserpic::UserpicColor(boost.isUnclaimed
+		? kColorIndexUnclaimed
+		: kColorIndexPending),
+	QString()) {
+	init();
+}
+
+void BoostRow::init() {
+	setMultiplier(_boost.multiplier);
+	constexpr auto kMonthsDivider = int(30 * 86400);
+	const auto months = (_boost.expiresAt - _boost.date.toSecsSinceEpoch())
+		/ kMonthsDivider;
+	auto status = !PeerListRow::special()
+		? tr::lng_boosts_list_status(
+			tr::now,
+			lt_date,
+			langDateTime(_boost.date))
+		: tr::lng_months_tiny(tr::now, lt_count, months)
+			+ ' '
+			+ QChar(0x2022)
+			+ ' '
+			+ langDateTime(_boost.date);
+	PeerListRow::setCustomStatus(std::move(status));
+}
+
+const Data::Boost &BoostRow::boost() const {
+	return _boost;
+}
+
+QString BoostRow::generateName() {
+	return !PeerListRow::special()
+		? PeerListRow::generateName()
+		: _boost.isUnclaimed
+		? tr::lng_boosts_list_unclaimed(tr::now)
+		: tr::lng_boosts_list_pending(tr::now);
+}
+
+PaintRoundImageCallback BoostRow::generatePaintUserpicCallback(bool force) {
+	if (!PeerListRow::special()) {
+		return PeerListRow::generatePaintUserpicCallback(force);
+	}
+	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
+		_userpic.paintCircle(p, x, y, outerWidth, size);
+	};
+}
 
 void BoostRow::setMultiplier(int multiplier) {
 	if (!multiplier) {
@@ -480,27 +551,27 @@ void BoostsController::applySlice(const Data::BoostsListSlice &slice) {
 	_allLoaded = slice.allLoaded;
 	_apiToken = slice.token;
 
-	const auto formatter = u"MMM d, yyyy"_q;
 	for (const auto &item : slice.list) {
-		const auto user = session().data().user(item.userId);
-		if (delegate()->peerListFindRow(user->id.value)) {
-			continue;
-		}
-		auto row = std::make_unique<BoostRow>(user);
-		row->setMultiplier(item.multiplier);
-		row->setCustomStatus(tr::lng_boosts_list_status(
-			tr::now,
-			lt_date,
-			QLocale().toString(item.date, formatter)));
+		auto row = [&] {
+			if (item.userId && !item.isUnclaimed) {
+				const auto user = session().data().user(item.userId);
+				return std::make_unique<BoostRow>(user, item);
+			} else {
+				return std::make_unique<BoostRow>(item);
+			}
+		}();
 		delegate()->peerListAppendRow(std::move(row));
 	}
 	delegate()->peerListRefreshRows();
 }
 
 void BoostsController::rowClicked(not_null<PeerListRow*> row) {
-	crl::on_main([=, peer = row->peer()] {
-		_showPeerInfo(peer);
-	});
+	if (!row->special()) {
+		crl::on_main([=, peer = row->peer()] {
+			_showPeerInfo(peer);
+		});
+		return;
+	}
 }
 
 } // namespace

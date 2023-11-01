@@ -554,6 +554,7 @@ void Boosts::requestBoosts(
 	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
 	constexpr auto kTlLimit = tl::make_int(kLimit);
 	_requestId = _api.request(MTPpremium_GetBoostsList(
+		// MTP_flags(MTPpremium_GetBoostsList::Flag::f_gifts),
 		MTP_flags(0),
 		_peer->input,
 		MTP_string(token.next),
