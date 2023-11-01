@@ -159,7 +159,7 @@ public:
 	[[nodiscard]] rpl::producer<std::optional<bool>> attachRequests() const;
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
-	[[nodiscard]] rpl::producer<Data::MessagePosition> scrollRequests() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> jumpToItemRequests() const;
 	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> viewportEvents() const;
@@ -358,7 +358,7 @@ private:
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;
 	const std::unique_ptr<Ui::RpWidget> _writeRestricted;
-	rpl::event_stream<FullMsgId> _scrollToItemRequests;
+	rpl::event_stream<FullReplyTo> _jumpToItemRequests;
 
 	std::optional<Ui::RoundRect> _backgroundRect;
 

@@ -791,9 +791,11 @@ void RepliesWidget::setupComposeControls() {
 		sendInlineResult(chosen.result, chosen.bot, chosen.options, localId);
 	}, lifetime());
 
-	_composeControls->scrollRequests(
-	) | rpl::start_with_next([=](Data::MessagePosition pos) {
-		showAtPosition(pos);
+	_composeControls->jumpToItemRequests(
+	) | rpl::start_with_next([=](FullReplyTo to) {
+		if (const auto item = session().data().message(to.messageId)) {
+			JumpToMessageClickHandler(item, {}, to.quote)->onClick({});
+		}
 	}, lifetime());
 
 	_composeControls->scrollKeyEvents(

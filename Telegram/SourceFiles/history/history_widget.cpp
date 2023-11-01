@@ -6279,6 +6279,8 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		} else {
 			_forwardPanel->editOptions(controller()->uiShow());
 		}
+	} else if (_replyTo && (e->modifiers() & Qt::ControlModifier)) {
+		jumpToReply(_replyTo);
 	} else if (_replyTo) {
 		editDraftOptions();
 	} else if (_kbReplyTo) {
@@ -6307,12 +6309,9 @@ void HistoryWidget::editDraftOptions() {
 		_preview->apply(webpage);
 	};
 	const auto replyToId = reply.messageId;
-	const auto highlight = [=] {
-		controller()->showPeerHistory(
-			replyToId.peer,
-			Window::SectionShow::Way::Forward,
-			replyToId.msg);
-	};
+	const auto highlight = crl::guard(this, [=](FullReplyTo to) {
+		jumpToReply(to);
+	});
 
 	using namespace HistoryView::Controls;
 	EditDraftOptions({
@@ -6326,6 +6325,12 @@ void HistoryWidget::editDraftOptions() {
 		.highlight = highlight,
 		.clearOldDraft = [=] { ClearDraftReplyTo(history, 0, replyToId); },
 	});
+}
+
+void HistoryWidget::jumpToReply(FullReplyTo to) {
+	if (const auto item = session().data().message(to.messageId)) {
+		JumpToMessageClickHandler(item, {}, to.quote)->onClick({});
+	}
 }
 
 void HistoryWidget::keyPressEvent(QKeyEvent *e) {

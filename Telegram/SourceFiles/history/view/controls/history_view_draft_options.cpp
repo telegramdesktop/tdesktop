@@ -673,7 +673,9 @@ void DraftOptionsBox(
 			tr::lng_reply_show_in_chat(),
 			st::settingsButton,
 			{ &st::menuIconShowInChat }
-		)->setClickedCallback(highlight);
+		)->setClickedCallback([=] {
+			highlight(resolveReply());
+		});
 
 		Settings::AddButton(
 			bottom,

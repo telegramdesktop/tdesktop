@@ -550,6 +550,7 @@ private:
 
 	void setupPreview();
 	void editDraftOptions();
+	void jumpToReply(FullReplyTo to);
 
 	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
