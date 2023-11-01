@@ -61,6 +61,7 @@ public:
 	Panel(not_null<Call*> call);
 	~Panel();
 
+	[[nodiscard]] bool isVisible() const;
 	[[nodiscard]] bool isActive() const;
 	void showAndActivate();
 	void minimize();

@@ -89,8 +89,10 @@ public:
 	[[nodiscard]] rpl::producer<GroupCall*> currentGroupCallValue() const;
 	[[nodiscard]] bool inCall() const;
 	[[nodiscard]] bool inGroupCall() const;
+	[[nodiscard]] bool hasVisiblePanel(
+		Main::Session *session = nullptr) const;
 	[[nodiscard]] bool hasActivePanel(
-		not_null<Main::Session*> session) const;
+		Main::Session *session = nullptr) const;
 	bool activateCurrentCall(const QString &joinHash = QString());
 	bool minimizeCurrentActiveCall();
 	bool toggleFullScreenCurrentActiveCall();
