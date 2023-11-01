@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/widgets/checkbox.h"
 #include "styles/style_boxes.h"
-#include "styles/style_statistics.h"
+#include "styles/style_giveaway.h"
 
 namespace Giveaway {
 
@@ -28,7 +28,7 @@ GiveawayTypeRow::GiveawayTypeRow(
 , _type(type)
 , _st((_type == Type::SpecificUsers || _type == Type::Random)
 	? st::giveawayTypeListItem
-	: st::defaultPeerListItem)
+	: st::giveawayGiftCodeMembersPeerList.item)
 , _userpic(
 	Ui::EmptyUserpic::UserpicColor((_type == Type::SpecificUsers)
 		? kColorIndexSpecific
@@ -112,9 +112,10 @@ void GiveawayTypeRow::addRadio(
 		_type,
 		QString(),
 		st);
-	radio->moveToLeft(
-		st::giveawayRadioPosition.x(),
-		st::giveawayRadioPosition.y());
+	const auto pos = (_type == Type::SpecificUsers || _type == Type::Random)
+		? st::giveawayRadioPosition
+		: st::giveawayRadioMembersPosition;
+	radio->moveToLeft(pos.x(), pos.y());
 	radio->setAttribute(Qt::WA_TransparentForMouseEvents);
 	radio->show();
 }

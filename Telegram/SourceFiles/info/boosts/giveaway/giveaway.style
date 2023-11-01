@@ -8,6 +8,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 using "boxes/boxes.style";
 using "ui/effects/premium.style";
+using "statistics/statistics.style";
+
+giveawayTypeListItem: PeerListItem(defaultPeerListItem) {
+	height: 52px;
+	photoPosition: point(58px, 6px);
+	namePosition: point(110px, 8px);
+	statusPosition: point(110px, 28px);
+	photoSize: 42px;
+}
+giveawayUserpic: icon {{ "boosts/filled_gift", windowFgActive }};
+giveawayUserpicSkip: 1px;
+giveawayUserpicGroup: icon {{ "limits/groups", windowFgActive }};
+giveawayRadioPosition: point(21px, 16px);
+
+giveawayGiftCodeCountryButton: SettingsButton(reportReasonButton) {
+}
+giveawayGiftCodeCountrySelect: MultiSelect(defaultMultiSelect) {
+}
+
+giveawayGiftCodeChannelDeleteIcon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
+giveawayGiftCodeChannelDeleteIconOver: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFgOver }};
 
 giveawayLoadingLabel: FlatLabel(membersAbout) {
 }
@@ -94,6 +115,33 @@ giveawayGiftCodeCover: PremiumCover(userPremiumCover) {
 		}
 	}
 }
+giveawayGiftCodeCoverClosePosition: point(5px, 0px);
+giveawayGiftCodeCoverDividerPadding: margins(0px, 11px, 0px, 5px);
+giveawayGiftCodeTypeDividerPadding: margins(0px, 7px, 0px, 5px);
+giveawayGiftCodeSliderPadding: margins(0px, 24px, 0px, 10px);
+giveawayGiftCodeSliderFloatSkip: 6px;
+giveawayGiftCodeChannelsSubsectionPadding: margins(0px, -1px, 0px, -4px);
+
+giveawayGiftCodeChannelsPeerList: PeerList(boostsListBox) {
+	padding: margins(0px, 7px, 0px, 0px);
+}
+giveawayGiftCodeMembersPeerList: PeerList(defaultPeerList) {
+	item: PeerListItem(defaultPeerListItem) {
+		height: 50px;
+		namePosition: point(62px, 7px);
+		statusPosition: point(62px, 27px);
+	}
+}
+giveawayRadioMembersPosition: point(21px, 14px);
+
+giveawayGiftCodeChannelsAddButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	padding: margins(70px, 10px, 22px, 8px);
+	iconLeft: 28px;
+}
+giveawayGiftCodeChannelsDividerPadding: margins(0px, 5px, 0px, 5px);
+
 giveawayGiftCodeFooter: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	textFg: windowBoldFg;

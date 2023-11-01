@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
-#include "styles/style_statistics.h"
+#include "styles/style_giveaway.h"
 
 namespace Giveaway {
 namespace {
@@ -53,9 +53,10 @@ QSize ChannelRow::rightActionSize() const {
 }
 
 QMargins ChannelRow::rightActionMargins() const {
+	const auto itemHeight = st::giveawayGiftCodeChannelsPeerList.item.height;
 	return QMargins(
 		0,
-		(st::defaultPeerListItem.height - rightActionSize().height()) / 2,
+		(itemHeight - rightActionSize().height()) / 2,
 		st::giveawayRadioPosition.x() / 2,
 		0);
 }
@@ -239,6 +240,8 @@ std::unique_ptr<PeerListRow> MyChannelsListController::createRow(
 SelectedChannelsListController::SelectedChannelsListController(
 	not_null<PeerData*> peer)
 : _peer(peer) {
+	PeerListController::setStyleOverrides(
+		&st::giveawayGiftCodeChannelsPeerList);
 }
 
 void SelectedChannelsListController::setTopStatus(rpl::producer<QString> s) {

@@ -73,19 +73,20 @@ void CreateGiveawayBox(
 		bar->setMinimumHeight(st::infoLayerTopBarHeight);
 		bar->resize(bar->width(), bar->maximumHeight());
 
-		Settings::AddSkip(box->verticalLayout());
-		Settings::AddDivider(box->verticalLayout());
-		Settings::AddSkip(box->verticalLayout());
+		const auto container = box->verticalLayout();
+		const auto &padding = st::giveawayGiftCodeCoverDividerPadding;
+		Settings::AddSkip(container, padding.top());
+		Settings::AddDivider(container);
+		Settings::AddSkip(container, padding.bottom());
 
 		const auto close = Ui::CreateChild<Ui::IconButton>(
-			box->verticalLayout().get(),
+			container.get(),
 			st::boxTitleClose);
-		close->setClickedCallback([=] {
-			box->closeBox();
-		});
+		close->setClickedCallback([=] { box->closeBox(); });
 		box->widthValue(
 		) | rpl::start_with_next([=](int) {
-			close->moveToRight(0, 0);
+			const auto &pos = st::giveawayGiftCodeCoverClosePosition;
+			close->moveToRight(pos.x(), pos.y());
 		}, box->lifetime());
 	}
 
@@ -197,9 +198,12 @@ void CreateGiveawayBox(
 		});
 	}
 
-	Settings::AddSkip(contentWrap->entity());
-	Settings::AddDivider(contentWrap->entity());
-	Settings::AddSkip(contentWrap->entity());
+	{
+		const auto &padding = st::giveawayGiftCodeTypeDividerPadding;
+		Settings::AddSkip(contentWrap->entity(), padding.top());
+		Settings::AddDivider(contentWrap->entity());
+		Settings::AddSkip(contentWrap->entity(), padding.bottom());
+	}
 
 	const auto randomWrap = contentWrap->entity()->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -245,12 +249,12 @@ void CreateGiveawayBox(
 			rightLabel->moveToRight(st::boxRowPadding.right(), p.y());
 		}, rightLabel->lifetime());
 
-		Settings::AddSkip(sliderContainer);
-		Settings::AddSkip(sliderContainer);
+		const auto &padding = st::giveawayGiftCodeSliderPadding;
+		Settings::AddSkip(sliderContainer, padding.top());
 		const auto slider = sliderContainer->add(
 			object_ptr<Ui::MediaSlider>(sliderContainer, st::settingsScale),
 			st::boxRowPadding);
-		Settings::AddSkip(sliderContainer);
+		Settings::AddSkip(sliderContainer, padding.bottom());
 		slider->resize(slider->width(), st::settingsScale.seekSize.height());
 		slider->setPseudoDiscrete(
 			availablePresets.size(),
@@ -275,7 +279,9 @@ void CreateGiveawayBox(
 							+ x
 							+ st::settingsScale.seekSize.width() / 2
 							- floatLabel->width() / 2,
-						slider->y() - floatLabel->height());
+						slider->y()
+							- floatLabel->height()
+							- st::giveawayGiftCodeSliderFloatSkip);
 					break;
 				}
 			}
@@ -295,7 +301,8 @@ void CreateGiveawayBox(
 			object_ptr<Ui::VerticalLayout>(randomWrap));
 		Settings::AddSubsectionTitle(
 			channelsContainer,
-			tr::lng_giveaway_channels_title());
+			tr::lng_giveaway_channels_title(),
+			st::giveawayGiftCodeChannelsSubsectionPadding);
 
 		struct ListState final {
 			ListState(not_null<PeerData*> p) : controller(p) {
@@ -326,7 +333,7 @@ void CreateGiveawayBox(
 		Settings::AddButton(
 			channelsContainer,
 			tr::lng_giveaway_channels_add(),
-			st::settingsButtonActive,
+			st::giveawayGiftCodeChannelsAddButton,
 			{ &st::settingsIconAdd, IconType::Round, &st::windowBgActive }
 		)->setClickedCallback([=] {
 			auto initBox = [=](not_null<PeerListBox*> peersBox) {
@@ -352,56 +359,12 @@ void CreateGiveawayBox(
 				Ui::LayerOption::KeepOther);
 		});
 
-		Settings::AddSkip(channelsContainer);
+		const auto &padding = st::giveawayGiftCodeChannelsDividerPadding;
+		Settings::AddSkip(channelsContainer, padding.top());
 		Settings::AddDividerText(
 			channelsContainer,
 			tr::lng_giveaway_channels_about());
-		Settings::AddSkip(channelsContainer);
-	}
-
-	{
-		const auto dateContainer = randomWrap->entity()->add(
-			object_ptr<Ui::VerticalLayout>(randomWrap));
-		Settings::AddSubsectionTitle(
-			dateContainer,
-			tr::lng_giveaway_date_title());
-
-		state->dateValue = ThreeDaysAfterToday().toSecsSinceEpoch();
-		const auto button = Settings::AddButtonWithLabel(
-			dateContainer,
-			tr::lng_giveaway_date(),
-			state->dateValue.value() | rpl::map(
-				base::unixtime::parse
-			) | rpl::map(Ui::FormatDateTime),
-			st::defaultSettingsButton);
-
-		button->setClickedCallback([=] {
-			constexpr auto kSevenDays = 3600 * 24 * 7;
-			box->uiShow()->showBox(Box([=](not_null<Ui::GenericBox*> b) {
-				Ui::ChooseDateTimeBox(b, {
-					.title = tr::lng_giveaway_date_select(),
-					.submit = tr::lng_settings_save(),
-					.done = [=](TimeId time) {
-						state->dateValue = time;
-						b->closeBox();
-					},
-					.min = QDateTime::currentSecsSinceEpoch,
-					.time = state->dateValue.current(),
-					.max = [=] {
-						return QDateTime::currentSecsSinceEpoch()
-							+ kSevenDays;
-					},
-				});
-			}));
-		});
-
-		Settings::AddSkip(dateContainer);
-		Settings::AddDividerText(
-			dateContainer,
-			tr::lng_giveaway_date_about(
-				lt_count,
-				state->sliderValue.value() | tr::to_count()));
-		Settings::AddSkip(dateContainer);
+		Settings::AddSkip(channelsContainer, padding.bottom());
 	}
 
 	const auto membersGroup = std::make_shared<GiveawayGroup>();
@@ -488,6 +451,52 @@ void CreateGiveawayBox(
 		Settings::AddSkip(countriesContainer);
 	}
 
+	{
+		const auto dateContainer = randomWrap->entity()->add(
+			object_ptr<Ui::VerticalLayout>(randomWrap));
+		Settings::AddSubsectionTitle(
+			dateContainer,
+			tr::lng_giveaway_date_title(),
+			st::giveawayGiftCodeChannelsSubsectionPadding);
+
+		state->dateValue = ThreeDaysAfterToday().toSecsSinceEpoch();
+		const auto button = Settings::AddButtonWithLabel(
+			dateContainer,
+			tr::lng_giveaway_date(),
+			state->dateValue.value() | rpl::map(
+				base::unixtime::parse
+			) | rpl::map(Ui::FormatDateTime),
+			st::defaultSettingsButton);
+
+		button->setClickedCallback([=] {
+			constexpr auto kSevenDays = 3600 * 24 * 7;
+			box->uiShow()->showBox(Box([=](not_null<Ui::GenericBox*> b) {
+				Ui::ChooseDateTimeBox(b, {
+					.title = tr::lng_giveaway_date_select(),
+					.submit = tr::lng_settings_save(),
+					.done = [=](TimeId time) {
+						state->dateValue = time;
+						b->closeBox();
+					},
+					.min = QDateTime::currentSecsSinceEpoch,
+					.time = state->dateValue.current(),
+					.max = [=] {
+						return QDateTime::currentSecsSinceEpoch()
+							+ kSevenDays;
+					},
+				});
+			}));
+		});
+
+		Settings::AddSkip(dateContainer);
+		Settings::AddDividerText(
+			dateContainer,
+			tr::lng_giveaway_date_about(
+				lt_count,
+				state->sliderValue.value() | tr::to_count()));
+		Settings::AddSkip(dateContainer);
+	}
+
 	const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);
 	const auto listOptions = contentWrap->entity()->add(
 		object_ptr<Ui::VerticalLayout>(box));
@@ -499,13 +508,16 @@ void CreateGiveawayBox(
 			listOptions,
 			tr::lng_giveaway_duration_title(
 				lt_count,
-				rpl::single(amountUsers) | tr::to_count()));
+				rpl::single(amountUsers) | tr::to_count()),
+			st::giveawayGiftCodeChannelsSubsectionPadding);
 		Ui::Premium::AddGiftOptions(
 			listOptions,
 			durationGroup,
 			state->apiOptions.options(amountUsers),
 			st::giveawayGiftCodeGiftOption,
 			true);
+
+		Settings::AddSkip(listOptions);
 
 		auto terms = object_ptr<Ui::FlatLabel>(
 			listOptions,
