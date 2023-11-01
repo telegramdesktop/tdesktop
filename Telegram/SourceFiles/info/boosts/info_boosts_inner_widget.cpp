@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/boosts/info_boosts_inner_widget.h"
 
+#include "api/api_premium.h"
 #include "api/api_statistics.h"
 #include "boxes/peers/edit_peer_invite_link.h"
 #include "info/boosts/create_giveaway_box.h"
@@ -182,6 +183,10 @@ void FillGetBoostsButton(
 		not_null<Controller*> controller,
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer) {
+	if (!Api::PremiumGiftCodeOptions(peer).giveawayGiftsPurchaseAvailable()) {
+		return;
+	}
+	::Settings::AddSkip(content);
 	const auto &st = st::getBoostsButton;
 	const auto &icon = st::getBoostsButtonIcon;
 	const auto button = content->add(
@@ -199,6 +204,8 @@ void FillGetBoostsButton(
 			st::infoSharedMediaButtonIconPosition.x(),
 			(st.height + rect::m::sum::v(st.padding) - icon.height()) / 2,
 		})->show();
+	::Settings::AddSkip(content);
+	::Settings::AddDividerText(content, tr::lng_boosts_get_boosts_subtext());
 }
 
 } // namespace
@@ -293,10 +300,7 @@ void InnerWidget::fill() {
 	::Settings::AddSkip(inner);
 	::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());
 
-	::Settings::AddSkip(inner);
 	FillGetBoostsButton(inner, _controller, _show, _peer);
-	::Settings::AddSkip(inner);
-	::Settings::AddDividerText(inner, tr::lng_boosts_get_boosts_subtext());
 
 	resizeToWidth(width());
 	crl::on_main([=]{ fakeShowed->fire({}); });

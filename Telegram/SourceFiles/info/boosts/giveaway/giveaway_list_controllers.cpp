@@ -112,7 +112,13 @@ AwardMembersListController::AwardMembersListController(
 }
 
 void AwardMembersListController::rowClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListSetRowChecked(row, !row->checked());
+	const auto checked = !row->checked();
+	if (checked
+		&& _checkErrorCallback
+		&& _checkErrorCallback(delegate()->peerListSelectedRowsCount())) {
+		return;
+	}
+	delegate()->peerListSetRowChecked(row, checked);
 }
 
 std::unique_ptr<PeerListRow> AwardMembersListController::createRow(
@@ -128,6 +134,10 @@ base::unique_qptr<Ui::PopupMenu> AwardMembersListController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
 	return nullptr;
+}
+
+void AwardMembersListController::setCheckError(Fn<bool(int)> callback) {
+	_checkErrorCallback = std::move(callback);
 }
 
 MyChannelsListController::MyChannelsListController(
@@ -160,6 +170,11 @@ std::unique_ptr<PeerListRow> MyChannelsListController::createRestoredRow(
 void MyChannelsListController::rowClicked(not_null<PeerListRow*> row) {
 	const auto channel = row->peer()->asChannel();
 	const auto checked = !row->checked();
+	if (checked
+		&& _checkErrorCallback
+		&& _checkErrorCallback(delegate()->peerListSelectedRowsCount())) {
+		return;
+	}
 	if (checked && channel && channel->username().isEmpty()) {
 		_show->showBox(Box(Ui::ConfirmBox, Ui::ConfirmBoxArgs{
 			.text = tr::lng_giveaway_channels_confirm_about(),
@@ -222,6 +237,10 @@ void MyChannelsListController::prepare() {
 		delegate()->peerListRefreshRows();
 		_selected.clear();
 	}).send();
+}
+
+void MyChannelsListController::setCheckError(Fn<bool(int)> callback) {
+	_checkErrorCallback = std::move(callback);
 }
 
 std::unique_ptr<PeerListRow> MyChannelsListController::createRow(

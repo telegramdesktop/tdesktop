@@ -51,6 +51,18 @@ namespace {
 	return dateNow;
 }
 
+[[nodiscard]] Fn<bool(int)> CreateErrorCallback(
+		int max,
+		tr::phrase<lngtag_count> phrase) {
+	return [=](int count) {
+		const auto error = (count >= max);
+		if (error) {
+			Ui::Toast::Show(phrase(tr::now, lt_count, max));
+		}
+		return error;
+	};
+}
+
 } // namespace
 
 void CreateGiveawayBox(
@@ -188,11 +200,16 @@ void CreateGiveawayBox(
 				}, peersBox->lifetime());
 			};
 
+			using Controller = Giveaway::AwardMembersListController;
+			auto listController = std::make_unique<Controller>(
+				controller,
+				peer);
+			listController->setCheckError(CreateErrorCallback(
+				state->apiOptions.giveawayAddPeersMax(),
+				tr::lng_giveaway_maximum_users_error));
 			box->uiShow()->showBox(
 				Box<PeerListBox>(
-					std::make_unique<Giveaway::AwardMembersListController>(
-						controller,
-						peer),
+					std::move(listController),
 					std::move(initBox)),
 				Ui::LayerOption::KeepOther);
 		});
@@ -349,13 +366,16 @@ void CreateGiveawayBox(
 				});
 			};
 
+			using Controller = Giveaway::MyChannelsListController;
+			auto controller = std::make_unique<Controller>(
+				peer,
+				box->uiShow(),
+				state->selectedToSubscribe);
+			controller->setCheckError(CreateErrorCallback(
+				state->apiOptions.giveawayAddPeersMax(),
+				tr::lng_giveaway_maximum_channels_error));
 			box->uiShow()->showBox(
-				Box<PeerListBox>(
-					std::make_unique<Giveaway::MyChannelsListController>(
-						peer,
-						box->uiShow(),
-						state->selectedToSubscribe),
-					std::move(initBox)),
+				Box<PeerListBox>(std::move(controller), std::move(initBox)),
 				Ui::LayerOption::KeepOther);
 		});
 
@@ -394,18 +414,9 @@ void CreateGiveawayBox(
 			auto done = [=](std::vector<QString> list) {
 				state->countriesValue = std::move(list);
 			};
-			auto error = [=](int count) {
-				const auto max = state->apiOptions.giveawayCountriesMax();
-				const auto error = (count >= max);
-				if (error) {
-					Ui::Toast::Show(tr::lng_giveaway_maximum_countries_error(
-						tr::now,
-						lt_count,
-						max));
-				}
-				return error;
-			};
-
+			auto error = CreateErrorCallback(
+				state->apiOptions.giveawayCountriesMax(),
+				tr::lng_giveaway_maximum_countries_error);
 			box->uiShow()->showBox(Box(
 				Ui::SelectCountriesBox,
 				state->countriesValue.current(),
@@ -469,7 +480,6 @@ void CreateGiveawayBox(
 			st::defaultSettingsButton);
 
 		button->setClickedCallback([=] {
-			constexpr auto kSevenDays = 3600 * 24 * 7;
 			box->uiShow()->showBox(Box([=](not_null<Ui::GenericBox*> b) {
 				Ui::ChooseDateTimeBox(b, {
 					.title = tr::lng_giveaway_date_select(),
@@ -482,7 +492,7 @@ void CreateGiveawayBox(
 					.time = state->dateValue.current(),
 					.max = [=] {
 						return QDateTime::currentSecsSinceEpoch()
-							+ kSevenDays;
+							+ state->apiOptions.giveawayPeriodMax();;
 					},
 				});
 			}));

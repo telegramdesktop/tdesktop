@@ -435,18 +435,38 @@ Data::SubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 	}
 }
 
-[[nodiscard]] int PremiumGiftCodeOptions::giveawayBoostsPerPremium() const {
+int PremiumGiftCodeOptions::giveawayBoostsPerPremium() const {
 	constexpr auto kFallbackCount = 4;
 	return _peer->session().account().appConfig().get<int>(
 		u"giveaway_boosts_per_premium"_q,
 		kFallbackCount);
 }
 
-[[nodiscard]] int PremiumGiftCodeOptions::giveawayCountriesMax() const {
+int PremiumGiftCodeOptions::giveawayCountriesMax() const {
 	constexpr auto kFallbackCount = 10;
 	return _peer->session().account().appConfig().get<int>(
 		u"giveaway_countries_max"_q,
 		kFallbackCount);
+}
+
+int PremiumGiftCodeOptions::giveawayAddPeersMax() const {
+	constexpr auto kFallbackCount = 10;
+	return _peer->session().account().appConfig().get<int>(
+		u"giveaway_add_peers_max"_q,
+		kFallbackCount);
+}
+
+int PremiumGiftCodeOptions::giveawayPeriodMax() const {
+	constexpr auto kFallbackCount = 3600 * 24 * 7;
+	return _peer->session().account().appConfig().get<int>(
+		u"giveaway_period_max"_q,
+		kFallbackCount);
+}
+
+bool PremiumGiftCodeOptions::giveawayGiftsPurchaseAvailable() const {
+	return _peer->session().account().appConfig().get<bool>(
+		u"giveaway_gifts_purchase_available"_q,
+		false);
 }
 
 } // namespace Api

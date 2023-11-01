@@ -158,6 +158,9 @@ public:
 
 	[[nodiscard]] int giveawayBoostsPerPremium() const;
 	[[nodiscard]] int giveawayCountriesMax() const;
+	[[nodiscard]] int giveawayAddPeersMax() const;
+	[[nodiscard]] int giveawayPeriodMax() const;
+	[[nodiscard]] bool giveawayGiftsPurchaseAvailable() const;
 
 private:
 	struct Token final {

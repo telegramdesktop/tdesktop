@@ -29,12 +29,17 @@ public:
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer);
 
+	void setCheckError(Fn<bool(int)> callback);
+
 	void rowClicked(not_null<PeerListRow*> row) override;
 	std::unique_ptr<PeerListRow> createRow(
 		not_null<PeerData*> participant) const override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) override;
+
+private:
+	Fn<bool(int)> _checkErrorCallback;
 
 };
 
@@ -44,6 +49,8 @@ public:
 		not_null<PeerData*> peer,
 		std::shared_ptr<Ui::Show> show,
 		std::vector<not_null<PeerData*>> selected);
+
+	void setCheckError(Fn<bool(int)> callback);
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -60,6 +67,8 @@ private:
 
 	const not_null<PeerData*> _peer;
 	const std::shared_ptr<Ui::Show> _show;
+
+	Fn<bool(int)> _checkErrorCallback;
 
 	std::vector<not_null<PeerData*>> _selected;
 
