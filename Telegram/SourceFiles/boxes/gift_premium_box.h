@@ -25,6 +25,7 @@ class GenericBox;
 
 namespace Window {
 class SessionController;
+class SessionNavigation;
 } // namespace Window
 
 class GiftPremiumValidator final {
@@ -47,14 +48,14 @@ private:
 
 void GiftCodeBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Window::SessionController*> controller,
+	not_null<Window::SessionNavigation*> controller,
 	const QString &slug);
 void ResolveGiftCode(
-	not_null<Window::SessionController*> controller,
+	not_null<Window::SessionNavigation*> controller,
 	const QString &slug);
 
 void ResolveGiveawayInfo(
-	not_null<Window::SessionController*> controller,
+	not_null<Window::SessionNavigation*> controller,
 	not_null<PeerData*> peer,
 	MsgId messageId,
 	Data::Giveaway giveaway);
