@@ -1540,7 +1540,7 @@ void AttachWebView::confirmAddToMenu(
 		const auto disclaimer = !disclaimerAccepted(bot);
 		const auto done = [=](Fn<void()> close) {
 			const auto state = (disclaimer
-				|| (*allowed) && (*allowed)->checked())
+				|| ((*allowed) && (*allowed)->checked()))
 				? ToggledState::AllowedToWrite
 				: ToggledState::Added;
 			toggleInMenu(bot.user, state, [=] {
