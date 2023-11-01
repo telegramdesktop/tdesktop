@@ -148,3 +148,9 @@ getBoostsButton: SettingsButton(reportReasonButton) {
 	textFgOver: lightButtonFg;
 }
 getBoostsButtonIcon: icon {{ "menu/gift_premium", lightButtonFg }};
+
+boostsListMiniIcon: icon{{ "boosts/boost_mini2", premiumButtonFg }};
+boostsListMiniIconSkip: 1px;
+boostsListBadgeTextPadding: margins(16px, 1px, 6px, 0px);
+boostsListBadgePadding: margins(4px, 1px, 4px, 0px);
+boostsListBadgeHeight: 16px;

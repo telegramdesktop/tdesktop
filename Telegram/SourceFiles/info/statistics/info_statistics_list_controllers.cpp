@@ -321,6 +321,99 @@ void PublicForwardsController::appendRow(
 	return;
 }
 
+class BoostRow final : public PeerListRow {
+public:
+	using PeerListRow::PeerListRow;
+
+	void setMultiplier(int multiplier);
+
+	int paintNameIconGetWidth(
+		Painter &p,
+		Fn<void()> repaint,
+		crl::time now,
+		int nameLeft,
+		int nameTop,
+		int nameWidth,
+		int availableWidth,
+		int outerWidth,
+		bool selected) override;
+
+private:
+	QImage _badge;
+
+};
+
+void BoostRow::setMultiplier(int multiplier) {
+	if (!multiplier) {
+		_badge = QImage();
+		return;
+	}
+	auto badgeText = Ui::Text::String(
+		st::statisticsDetailsBottomCaptionStyle,
+		QString::number(multiplier));
+	const auto badgeTextWidth = badgeText.maxWidth();
+	const auto badgex = 0;
+	const auto badgey = 0;
+	const auto badgeh = 0 + st::boostsListBadgeHeight;
+	const auto badgew = badgeTextWidth
+		+ rect::m::sum::h(st::boostsListBadgeTextPadding);
+	auto result = QImage(
+		QSize(badgew, badgeh) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+	{
+		auto p = Painter(&result);
+
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::premiumButtonBg2);
+
+		const auto r = QRect(badgex, badgey, badgew, badgeh);
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.drawRoundedRect(r, badgeh / 2, badgeh / 2);
+		}
+
+		p.setPen(st::premiumButtonFg);
+		p.setBrush(Qt::NoBrush);
+		badgeText.drawLeftElided(
+			p,
+			r.x() + st::boostsListBadgeTextPadding.left(),
+			badgey + st::boostsListBadgeTextPadding.top(),
+			badgew,
+			badgew * 2);
+
+		st::boostsListMiniIcon.paint(
+			p,
+			QPoint(r.x() + st::boostsListMiniIconSkip, r.y()),
+			badgew * 2);
+	}
+	_badge = std::move(result);
+}
+
+int BoostRow::paintNameIconGetWidth(
+		Painter &p,
+		Fn<void()> repaint,
+		crl::time now,
+		int nameLeft,
+		int nameTop,
+		int nameWidth,
+		int availableWidth,
+		int outerWidth,
+		bool selected) {
+	if (_badge.isNull()) {
+		return 0;
+	}
+	const auto badgew = _badge.width() / style::DevicePixelRatio();
+	const auto nameTooLarge = (nameWidth > availableWidth);
+	const auto &padding = st::boostsListBadgePadding;
+	const auto left = nameTooLarge
+		? ((nameLeft + availableWidth) - badgew - padding.left())
+		: (nameLeft + nameWidth + padding.right());
+	p.drawImage(left, nameTop + padding.top(), _badge);
+	return badgew + (nameTooLarge ? padding.left() : 0);
+}
+
 class BoostsController final : public PeerListController {
 public:
 	explicit BoostsController(BoostsDescriptor d);
@@ -393,7 +486,8 @@ void BoostsController::applySlice(const Data::BoostsListSlice &slice) {
 		if (delegate()->peerListFindRow(user->id.value)) {
 			continue;
 		}
-		auto row = std::make_unique<PeerListRow>(user);
+		auto row = std::make_unique<BoostRow>(user);
+		row->setMultiplier(item.multiplier);
 		row->setCustomStatus(tr::lng_boosts_list_status(
 			tr::now,
 			lt_date,
