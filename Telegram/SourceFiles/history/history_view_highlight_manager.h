@@ -68,7 +68,6 @@ private:
 		explicit operator bool() const {
 			return itemId.operator bool();
 		}
-		friend inline auto operator<=>(Highlight, Highlight) = default;
 		friend inline bool operator==(Highlight, Highlight) = default;
 	};
 
