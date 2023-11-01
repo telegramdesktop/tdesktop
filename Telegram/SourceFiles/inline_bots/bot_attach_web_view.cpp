@@ -828,6 +828,19 @@ void AttachWebView::requestWithOptionalConfirm(
 void AttachWebView::request(const WebViewButton &button) {
 	Expects(_context != nullptr && _bot != nullptr);
 
+	if (button.fromAttachMenu) {
+		const auto bot = ranges::find(
+			_attachBots,
+			not_null{ _bot },
+			&AttachWebViewBot::user);
+		if (bot == end(_attachBots) || bot->inactive) {
+			requestAddToMenu(_bot, AddToMenuOpenAttach{
+				.startCommand = button.startCommand,
+			});
+			return;
+		}
+	}
+
 	_startCommand = button.startCommand;
 	const auto &action = _context->action;
 
