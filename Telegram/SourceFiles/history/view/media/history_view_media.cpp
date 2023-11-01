@@ -181,12 +181,21 @@ Storage::SharedMediaTypesMask Media::sharedMediaTypes() const {
 	return {};
 }
 
+bool Media::allowTextSelectionByHandler(
+		const ClickHandlerPtr &handler) const {
+	return false;
+}
+
 not_null<Element*> Media::parent() const {
 	return _parent;
 }
 
 not_null<History*> Media::history() const {
 	return _parent->history();
+}
+
+SelectedQuote Media::selectedQuote(TextSelection selection) const {
+	return {};
 }
 
 bool Media::isDisplayed() const {

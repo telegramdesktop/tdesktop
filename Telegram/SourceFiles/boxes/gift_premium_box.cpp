@@ -281,7 +281,7 @@ struct GiftCodeLink {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePeerTableValue(
 		not_null<QWidget*> parent,
-		not_null<Window::SessionController*> controller,
+		not_null<Window::SessionNavigation*> controller,
 		PeerId id) {
 	auto result = object_ptr<Ui::AbstractButton>(parent);
 	const auto raw = result.data();
@@ -309,7 +309,7 @@ struct GiftCodeLink {
 	label->setTextColorOverride(st::windowActiveTextFg->c);
 
 	raw->setClickedCallback([=] {
-		controller->show(PrepareShortInfoBox(peer, controller));
+		controller->uiShow()->showBox(PrepareShortInfoBox(peer, controller));
 	});
 
 	return result;
@@ -350,7 +350,7 @@ not_null<Ui::FlatLabel*> AddTableRow(
 void AddTableRow(
 		not_null<Ui::TableLayout*> table,
 		rpl::producer<QString> label,
-		not_null<Window::SessionController*> controller,
+		not_null<Window::SessionNavigation*> controller,
 		PeerId id) {
 	if (!id) {
 		return;
@@ -416,7 +416,7 @@ QString GiftDuration(int months) {
 
 void GiftCodeBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		not_null<Window::SessionNavigation*> controller,
 		const QString &slug) {
 	struct State {
 		rpl::variable<Api::GiftCode> data;
@@ -552,7 +552,7 @@ void GiftCodeBox(
 		st::giveawayGiftCodeFooterMargin);
 	footer->setClickHandlerFilter([=](const auto &...) {
 		const auto chosen = [=](not_null<Data::Thread*> thread) {
-			const auto content = controller->content();
+			const auto content = controller->parentController()->content();
 			return content->shareUrl(
 				thread,
 				MakeGiftCodeLink(&controller->session(), slug).link,
@@ -608,13 +608,13 @@ void GiftCodeBox(
 }
 
 void ResolveGiftCode(
-		not_null<Window::SessionController*> controller,
+		not_null<Window::SessionNavigation*> controller,
 		const QString &slug) {
 	const auto done = [=](Api::GiftCode code) {
 		if (!code) {
 			controller->showToast(tr::lng_gift_link_expired(tr::now));
 		} else {
-			controller->show(Box(GiftCodeBox, controller, slug));
+			controller->uiShow()->showBox(Box(GiftCodeBox, controller, slug));
 		}
 	};
 	controller->session().api().premium().checkGiftCode(
@@ -624,7 +624,7 @@ void ResolveGiftCode(
 
 void GiveawayInfoBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		not_null<Window::SessionNavigation*> controller,
 		Data::Giveaway giveaway,
 		Api::GiveawayInfo info) {
 	using State = Api::GiveawayState;
@@ -784,7 +784,7 @@ void GiveawayInfoBox(
 }
 
 void ResolveGiveawayInfo(
-		not_null<Window::SessionController*> controller,
+		not_null<Window::SessionNavigation*> controller,
 		not_null<PeerData*> peer,
 		MsgId messageId,
 		Data::Giveaway giveaway) {
@@ -793,7 +793,7 @@ void ResolveGiveawayInfo(
 			controller->showToast(
 				tr::lng_confirm_phone_link_invalid(tr::now));
 		} else {
-			controller->show(
+			controller->uiShow()->showBox(
 				Box(GiveawayInfoBox, controller, giveaway, info));
 		}
 	};

@@ -32,7 +32,7 @@ struct EditDraftOptionsArgs {
 	std::vector<MessageLinkRange> links;
 	std::shared_ptr<WebpageResolver> resolver;
 	Fn<void(FullReplyTo, Data::WebPageDraft)> done;
-	Fn<void()> highlight;
+	Fn<void(FullReplyTo)> highlight;
 	Fn<void()> clearOldDraft;
 };
 

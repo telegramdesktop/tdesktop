@@ -155,7 +155,7 @@ bool WebPage::HasButton(not_null<WebPageData*> webpage) {
 }
 
 QSize WebPage::countOptimalSize() {
-	if (_data->pendingTill) {
+	if (_data->pendingTill || _data->failed) {
 		return { 0, 0 };
 	}
 
@@ -366,7 +366,7 @@ QSize WebPage::countOptimalSize() {
 }
 
 QSize WebPage::countCurrentSize(int newWidth) {
-	if (_data->pendingTill) {
+	if (_data->pendingTill || _data->failed) {
 		return { newWidth, minHeight() };
 	}
 
@@ -891,6 +891,7 @@ void WebPage::playAnimation(bool autoplay) {
 bool WebPage::isDisplayed() const {
 	const auto item = _parent->data();
 	return !_data->pendingTill
+		&& !_data->failed
 		&& !item->Has<HistoryMessageLogEntryOriginal>();
 }
 
@@ -901,6 +902,11 @@ QString WebPage::additionalInfoString() const {
 bool WebPage::toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const {
 	return _attach && _attach->toggleSelectionByHandlerClick(p);
+}
+
+bool WebPage::allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const {
+	return (p == _openl);
 }
 
 bool WebPage::dragItemByHandler(const ClickHandlerPtr &p) const {

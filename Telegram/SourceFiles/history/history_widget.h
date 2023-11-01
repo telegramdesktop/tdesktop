@@ -75,6 +75,7 @@ class SpoilerAnimation;
 enum class ReportReason;
 class ChooseThemeController;
 class ContinuousScroll;
+struct ChatPaintHighlight;
 } // namespace Ui
 
 namespace Window {
@@ -146,7 +147,9 @@ public:
 	void loadMessages();
 	void loadMessagesDown();
 	void firstLoadMessages();
-	void delayedShowAt(MsgId showAtMsgId);
+	void delayedShowAt(
+		MsgId showAtMsgId,
+		const TextWithEntities &highlightPart);
 
 	bool updateReplaceMediaButton();
 	void updateFieldPlaceholder();
@@ -160,7 +163,9 @@ public:
 
 	History *history() const;
 	PeerData *peer() const;
-	void setMsgId(MsgId showAtMsgId);
+	void setMsgId(
+		MsgId showAtMsgId,
+		const TextWithEntities &highlightPart = {});
 	MsgId msgId() const;
 
 	bool hasTopBarShadow() const {
@@ -177,8 +182,10 @@ public:
 
 	bool touchScroll(const QPoint &delta);
 
-	void enqueueMessageHighlight(not_null<HistoryView::Element*> view);
-	[[nodiscard]] float64 highlightOpacity(
+	void enqueueMessageHighlight(
+		not_null<HistoryView::Element*> view,
+		const TextWithEntities &part);
+	[[nodiscard]] Ui::ChatPaintHighlight itemHighlight(
 		not_null<const HistoryItem*> item) const;
 
 	MessageIdsList getSelectedItems() const;
@@ -218,7 +225,10 @@ public:
 	void fastShowAtEnd(not_null<History*> history);
 	bool applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
-	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
+	void showHistory(
+		const PeerId &peer,
+		MsgId showAtMsgId,
+		const TextWithEntities &highlightPart);
 	void setChooseReportMessagesDetails(
 		Ui::ReportReason reason,
 		Fn<void(MessageIdsList)> callback);
@@ -541,6 +551,7 @@ private:
 
 	void setupPreview();
 	void editDraftOptions();
+	void jumpToReply(FullReplyTo to);
 
 	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
@@ -685,12 +696,14 @@ private:
 	bool _canSendMessages = false;
 	bool _canSendTexts = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
+	TextWithEntities _showAtMsgHighlightPart;
 
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
 	int _preloadRequest = 0; // Not real mtpRequestId.
 	int _preloadDownRequest = 0; // Not real mtpRequestId.
 
 	MsgId _delayedShowAtMsgId = -1;
+	TextWithEntities _delayedShowAtMsgHighlightPart;
 	int _delayedShowAtRequest = 0; // Not real mtpRequestId.
 
 	History *_supportPreloadHistory = nullptr;
@@ -801,6 +814,7 @@ private:
 	int _itemsRevealHeight = 0;
 
 	bool _sponsoredMessagesStateKnown = false;
+	bool _justMarkingAsRead = false;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;

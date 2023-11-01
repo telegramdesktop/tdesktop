@@ -39,6 +39,11 @@ void Tray::create() {
 		}
 	}, _tray.lifetime());
 
+	Core::App().settings().trayIconMonochromeChanges(
+	) | rpl::start_with_next([=] {
+		updateIconCounters();
+	}, _tray.lifetime());
+
 	Core::App().passcodeLockChanges(
 	) | rpl::start_with_next([=] {
 		rebuildMenu();

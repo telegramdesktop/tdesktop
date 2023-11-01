@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "history/view/history_view_top_bar_widget.h"
 
+#include <QtGui/QPainterPath>
+
 struct ClickContext;
 struct ClickHandlerContext;
 
@@ -33,6 +35,7 @@ class EmptyPainter;
 class Element;
 class TranslateTracker;
 struct PinnedId;
+struct SelectedQuote;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
@@ -136,8 +139,6 @@ public:
 		int from,
 		int till) const;
 	void elementStartStickerLoop(not_null<const Element*> view);
-	[[nodiscard]] float64 elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const;
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context);
@@ -314,7 +315,7 @@ private:
 
 	QPoint mapPointToItem(QPoint p, const Element *view) const;
 	QPoint mapPointToItem(QPoint p, const HistoryItem *item) const;
-	[[nodiscard]] TextWithEntities selectedQuote(
+	[[nodiscard]] HistoryView::SelectedQuote selectedQuote(
 		not_null<HistoryItem*> item) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
@@ -462,6 +463,7 @@ private:
 	std::optional<Ui::ReportReason> _chooseForReportReason;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	QPainterPath _highlightPathCache;
 	bool _isChatWide = false;
 
 	base::flat_set<not_null<const HistoryItem*>> _animatedStickersPlayed;

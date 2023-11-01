@@ -258,10 +258,13 @@ not_null<GroupCall*> Panel::call() const {
 	return _call;
 }
 
-bool Panel::isActive() const {
-	return window()->isActiveWindow()
-		&& window()->isVisible()
+bool Panel::isVisible() const {
+	return window()->isVisible()
 		&& !(window()->windowState() & Qt::WindowMinimized);
+}
+
+bool Panel::isActive() const {
+	return window()->isActiveWindow() && isVisible();
 }
 
 base::weak_ptr<Ui::Toast::Instance> Panel::showToast(

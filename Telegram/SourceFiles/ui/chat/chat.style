@@ -146,6 +146,7 @@ outReplyTextPaletteSelected: TextPalette(outTextPaletteSelected) {
 }
 imgReplyTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgImgReplyBarColor;
+	monoFg: msgImgReplyBarColor;
 }
 inSemiboldPalette: TextPalette(inTextPalette) {
 	linkFg: msgInServiceFg;

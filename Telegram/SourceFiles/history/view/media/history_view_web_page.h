@@ -50,6 +50,8 @@ public:
 
 	bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const override;
+	bool allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const override;
 	bool dragItemByHandler(const ClickHandlerPtr &p) const override;
 
 	TextForMimeData selectedText(TextSelection selection) const override;

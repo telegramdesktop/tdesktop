@@ -239,6 +239,7 @@ struct ReplyFields {
 	MsgId topMessageId = 0;
 	StoryId storyId = 0;
 	bool topicPost = false;
+	bool manualQuote = false;
 };
 
 [[nodiscard]] ReplyFields ReplyFieldsFromMTP(
@@ -273,6 +274,7 @@ struct HistoryMessageReply
 	// Must be called before destructor.
 	void clearData(not_null<HistoryItem*> holder);
 
+	[[nodiscard]] bool external() const;
 	[[nodiscard]] PeerData *sender(not_null<HistoryItem*> holder) const;
 	[[nodiscard]] QString senderName(not_null<HistoryItem*> holder) const;
 	[[nodiscard]] QString senderName(not_null<PeerData*> peer) const;
@@ -300,6 +302,9 @@ struct HistoryMessageReply
 		bool inBubble) const;
 	void unloadPersistentAnimation();
 
+	[[nodiscard]] ReplyFields fields() const {
+		return _fields;
+	}
 	[[nodiscard]] PeerId externalPeerId() const {
 		return _fields.externalPeerId;
 	}
@@ -320,6 +325,9 @@ struct HistoryMessageReply
 	}
 	[[nodiscard]] bool topicPost() const {
 		return _fields.topicPost;
+	}
+	[[nodiscard]] bool manualQuote() const {
+		return _fields.manualQuote;
 	}
 	[[nodiscard]] QString statePhrase() const;
 

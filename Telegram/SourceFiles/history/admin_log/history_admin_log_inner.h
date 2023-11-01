@@ -93,8 +93,6 @@ public:
 	HistoryView::Context elementContext() override;
 	bool elementUnderCursor(
 		not_null<const HistoryView::Element*> view) override;
-	[[nodiscard]] float64 elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const override;
 	bool elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const HistoryView::Element*> view,

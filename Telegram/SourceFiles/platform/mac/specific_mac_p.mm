@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "calls/calls_instance.h"
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -175,7 +176,11 @@ ApplicationDelegate *_sharedDelegate = nil;
 			Core::App().handleAppActivated();
 			if (const auto window = Core::App().activeWindow()) {
 				if (window->widget()->isHidden()) {
-					window->widget()->showFromTray();
+					if (Core::App().calls().hasVisiblePanel()) {
+						Core::App().calls().activateCurrentCall();
+					} else {
+						window->widget()->showFromTray();
+					}
 				}
 			}
 		}

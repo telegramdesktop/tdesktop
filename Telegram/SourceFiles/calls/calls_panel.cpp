@@ -106,10 +106,13 @@ Panel::Panel(not_null<Call*> call)
 
 Panel::~Panel() = default;
 
-bool Panel::isActive() const {
-	return window()->isActiveWindow()
-		&& window()->isVisible()
+bool Panel::isVisible() const {
+	return window()->isVisible()
 		&& !(window()->windowState() & Qt::WindowMinimized);
+}
+
+bool Panel::isActive() const {
+	return window()->isActiveWindow() && isVisible();
 }
 
 void Panel::showAndActivate() {
