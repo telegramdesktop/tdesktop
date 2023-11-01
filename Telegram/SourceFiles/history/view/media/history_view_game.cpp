@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/cached_round_corners.h"
 #include "ui/chat/chat_style.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "core/ui_integration.h"
@@ -226,6 +227,13 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 	Ui::Text::ValidateQuotePaintCache(*cache, _st);
 	Ui::Text::FillQuotePaint(p, outer, *cache, _st);
 
+	if (_ripple) {
+		_ripple->paint(p, outer.x(), outer.y(), width(), &cache->bg);
+		if (_ripple->empty()) {
+			_ripple = nullptr;
+		}
+	}
+
 	auto lineHeight = UnitedLineHeight();
 	if (_titleLines) {
 		p.setPen(cache->icon);
@@ -322,7 +330,6 @@ TextState Game::textState(QPoint point, StateRequest request) const {
 	auto tshift = inner.top();
 	auto paintw = inner.width();
 
-	auto inThumb = false;
 	auto symbolAdd = 0;
 	auto lineHeight = UnitedLineHeight();
 	if (_titleLines) {
@@ -353,11 +360,7 @@ TextState Game::textState(QPoint point, StateRequest request) const {
 		}
 		tshift += _descriptionLines * lineHeight;
 	}
-	if (inThumb) {
-		if (_parent->data()->isHistoryEntry()) {
-			result.link = _openl;
-		}
-	} else if (_attach) {
+	if (_attach) {
 		auto attachAtTop = !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
@@ -375,6 +378,12 @@ TextState Game::textState(QPoint point, StateRequest request) const {
 			}
 		}
 	}
+	if (_parent->data()->isHistoryEntry()) {
+		if (!result.link && outer.contains(point)) {
+			result.link = _openl;
+		}
+	}
+	_lastPoint = point - outer.topLeft();
 
 	result.symbol += symbolAdd;
 	return result;
@@ -399,9 +408,39 @@ void Game::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 }
 
 void Game::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	if (p == _openl) {
+		if (pressed) {
+			if (!_ripple) {
+				const auto full = QRect(0, 0, width(), height());
+				const auto outer = full.marginsRemoved(inBubblePadding());
+				const auto owner = &parent()->history()->owner();
+				_ripple = std::make_unique<Ui::RippleAnimation>(
+					st::defaultRippleAnimation,
+					Ui::RippleAnimation::RoundRectMask(
+						outer.size(),
+						_st.radius),
+					[=] { owner->requestViewRepaint(parent()); });
+			}
+			_ripple->add(_lastPoint);
+		} else if (_ripple) {
+			_ripple->lastStop();
+		}
+	}
 	if (_attach) {
 		_attach->clickHandlerPressedChanged(p, pressed);
 	}
+}
+
+bool Game::toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const {
+	return _attach && _attach->toggleSelectionByHandlerClick(p);
+}
+
+bool Game::allowTextSelectionByHandler(const ClickHandlerPtr &p) const {
+	return (p == _openl);
+}
+
+bool Game::dragItemByHandler(const ClickHandlerPtr &p) const {
+	return _attach && _attach->dragItemByHandler(p);
 }
 
 TextForMimeData Game::selectedText(TextSelection selection) const {

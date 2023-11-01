@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ReplyMarkupClickHandler;
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace HistoryView {
 
 class Game : public Media {
@@ -35,12 +39,11 @@ public:
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
 
-	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
-		return _attach && _attach->toggleSelectionByHandlerClick(p);
-	}
-	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
-		return _attach && _attach->dragItemByHandler(p);
-	}
+	bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const override;
+	bool allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const override;
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override;
 
 	TextForMimeData selectedText(TextSelection selection) const override;
 
@@ -102,7 +105,9 @@ private:
 	const not_null<GameData*> _data;
 	std::shared_ptr<ReplyMarkupClickHandler> _openl;
 	std::unique_ptr<Media> _attach;
+	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
+	mutable QPoint _lastPoint;
 	int _gameTagWidth = 0;
 	int _descriptionLines = 0;
 	int _titleLines = 0;

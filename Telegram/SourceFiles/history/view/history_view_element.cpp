@@ -1424,7 +1424,12 @@ HistoryMessageReply *Element::displayedReply() const {
 }
 
 bool Element::toggleSelectionByHandlerClick(
-	const ClickHandlerPtr &handler) const {
+		const ClickHandlerPtr &handler) const {
+	return false;
+}
+
+bool Element::allowTextSelectionByHandler(
+		const ClickHandlerPtr &handler) const {
 	return false;
 }
 

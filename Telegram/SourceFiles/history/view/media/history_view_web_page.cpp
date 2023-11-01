@@ -904,6 +904,11 @@ bool WebPage::toggleSelectionByHandlerClick(
 	return _attach && _attach->toggleSelectionByHandlerClick(p);
 }
 
+bool WebPage::allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const {
+	return (p == _openl);
+}
+
 bool WebPage::dragItemByHandler(const ClickHandlerPtr &p) const {
 	return _attach && _attach->dragItemByHandler(p);
 }

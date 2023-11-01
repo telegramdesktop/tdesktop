@@ -462,6 +462,8 @@ public:
 	}
 	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &handler) const;
+	[[nodiscard]] virtual bool allowTextSelectionByHandler(
+		const ClickHandlerPtr &handler) const;
 
 	struct VerticalRepaintRange {
 		int top = 0;

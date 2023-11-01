@@ -1673,7 +1673,10 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 		Ui::MarkInactivePress(_controller->widget(), false);
 	}
 
-	if (ClickHandler::getPressed()) {
+	const auto pressed = ClickHandler::getPressed();
+	if (pressed
+		&& (!Element::Hovered()
+			|| !Element::Hovered()->allowTextSelectionByHandler(pressed))) {
 		_mouseAction = MouseAction::PrepareDrag;
 	} else if (inSelectionMode()) {
 		if (_dragStateItem
@@ -3836,6 +3839,10 @@ void HistoryInner::mouseActionUpdate() {
 					if (const auto view = viewByItem(_mouseActionItem)) {
 						selState = view->adjustSelection(selState, _mouseSelectType);
 					}
+				}
+				if (!selState.empty()) {
+					// We started selecting text in web page preview.
+					ClickHandler::unpressed();
 				}
 				if (_selected[_mouseActionItem] != selState) {
 					_selected[_mouseActionItem] = selState;

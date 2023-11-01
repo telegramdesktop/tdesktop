@@ -181,6 +181,11 @@ Storage::SharedMediaTypesMask Media::sharedMediaTypes() const {
 	return {};
 }
 
+bool Media::allowTextSelectionByHandler(
+		const ClickHandlerPtr &handler) const {
+	return false;
+}
+
 not_null<Element*> Media::parent() const {
 	return _parent;
 }

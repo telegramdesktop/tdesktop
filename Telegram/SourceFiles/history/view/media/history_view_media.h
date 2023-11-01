@@ -136,6 +136,8 @@ public:
 	// toggle selection instead of activating the pressed link
 	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const = 0;
+	[[nodiscard]] virtual bool allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const;
 
 	[[nodiscard]] virtual TextSelection adjustSelection(
 			TextSelection selection,
