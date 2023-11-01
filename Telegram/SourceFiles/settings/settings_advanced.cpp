@@ -549,7 +549,7 @@ void SetupSystemIntegrationContent(
 	}, warnBeforeQuit->lifetime());
 
 #ifndef OS_MAC_STORE
-	const auto enabled = [] {
+	const auto enabled = [=] {
 		const auto digest = base::Platform::CurrentCustomAppIconDigest();
 		return digest && (settings->macRoundIconDigest() == digest);
 	};

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_statistics.h"
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/history_item.h"
@@ -28,9 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
@@ -42,6 +45,39 @@ struct Descriptor final {
 	not_null<Api::Statistics*> api;
 	not_null<QWidget*> toastParent;
 };
+
+void AddContextMenu(
+		not_null<Ui::RpWidget*> button,
+		not_null<Controller*> controller,
+		not_null<HistoryItem*> item) {
+	const auto fullId = item->fullId();
+	const auto contextMenu = button->lifetime()
+		.make_state<base::unique_qptr<Ui::PopupMenu>>();
+	const auto showMenu = [=] {
+		*contextMenu = base::make_unique_q<Ui::PopupMenu>(
+			button,
+			st::popupMenuWithIcons);
+		const auto go = [=] {
+			const auto &session = controller->parentController();
+			if (const auto item = session->session().data().message(fullId)) {
+				session->showMessage(item);
+			}
+		};
+		contextMenu->get()->addAction(
+			tr::lng_context_to_msg(tr::now),
+			crl::guard(controller, go),
+			&st::menuIconShowInChat);
+		contextMenu->get()->popup(QCursor::pos());
+	};
+
+	base::install_event_filter(button, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu) {
+			showMenu();
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+}
 
 void ProcessZoom(
 		const Descriptor &d,
@@ -544,7 +580,9 @@ void InnerWidget::fill() {
 	if (_state.stats.message) {
 		if (const auto i = _peer->owner().message(_contextId)) {
 			::Settings::AddSkip(inner);
-			inner->add(object_ptr<MessagePreview>(this, i, -1, -1, QImage()));
+			const auto preview = inner->add(
+				object_ptr<MessagePreview>(this, i, -1, -1, QImage()));
+			AddContextMenu(preview, _controller, i);
 			::Settings::AddSkip(inner);
 			::Settings::AddDivider(inner);
 		}
@@ -638,6 +676,8 @@ void InnerWidget::fillRecentPosts() {
 			info.viewsCount,
 			info.forwardsCount,
 			std::move(cachedPreview));
+
+		AddContextMenu(button, _controller, item);
 
 		_messagePreviews.push_back(raw);
 		raw->show();
