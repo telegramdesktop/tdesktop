@@ -1393,9 +1393,7 @@ void HistoryWidget::updateInlineBotQuery() {
 			_inlineBotResolveRequestId = _api.request(MTPcontacts_ResolveUsername(
 				MTP_string(username)
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
-				Expects(result.type() == mtpc_contacts_resolvedPeer);
-
-				const auto &data = result.c_contacts_resolvedPeer();
+				const auto &data = result.data();
 				const auto resolvedBot = [&]() -> UserData* {
 					if (const auto user = session().data().processUsers(
 							data.vusers())) {
@@ -5198,7 +5196,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 	if (!_editMsgId && _inlineBot && !_inlineLookingUpBot) {
 		_field->setPlaceholder(
 			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
-			_inlineBot->username().size() + 2);
+			_inlineBotUsername.size() + 2);
 		return;
 	}
 
