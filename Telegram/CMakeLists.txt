@@ -1599,24 +1599,17 @@ elseif (APPLE)
         COMMAND cp ${CMAKE_BINARY_DIR}/lib_ui.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
         COMMAND cp ${CMAKE_BINARY_DIR}/lib_spellcheck.rcc $<TARGET_FILE_DIR:Telegram>/../Resources
     )
-    if (NOT build_macstore)
+    if (NOT build_macstore AND NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
+        if (DESKTOP_APP_MAC_ARCH STREQUAL "x86_64" OR DESKTOP_APP_MAC_ARCH STREQUAL "arm64")
+            set(crashpad_dir_part ".${DESKTOP_APP_MAC_ARCH}")
+        else()
+            set(crashpad_dir_part "")
+        endif()
         add_custom_command(TARGET Telegram
         PRE_LINK
-            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
-            COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
+            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
+            COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>${crashpad_dir_part}/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
         )
-        if (NOT DESKTOP_APP_DISABLE_CRASH_REPORTS)
-            if (DESKTOP_APP_MAC_ARCH STREQUAL "x86_64" OR DESKTOP_APP_MAC_ARCH STREQUAL "arm64")
-                set(crashpad_dir_part ".${DESKTOP_APP_MAC_ARCH}")
-            else()
-                set(crashpad_dir_part "")
-            endif()
-            add_custom_command(TARGET Telegram
-            PRE_LINK
-                COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Helpers
-                COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>${crashpad_dir_part}/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
-            )
-        endif()
     endif()
 else()
     target_link_libraries(Telegram
@@ -1757,7 +1750,7 @@ endif()
 
 target_prepare_qrc(Telegram)
 
-if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT build_winstore)
+if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
     init_non_host_target(Updater)
 
@@ -1795,6 +1788,12 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
         else()
             target_link_options(Updater PRIVATE -municode)
         endif()
+    elseif (APPLE)
+        add_custom_command(TARGET Updater
+        PRE_LINK
+            COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks
+            COMMAND cp $<TARGET_FILE:Updater> $<TARGET_FILE_DIR:Telegram>/../Frameworks/
+        )
     endif()
 
     if (DESKTOP_APP_SPECIAL_TARGET)

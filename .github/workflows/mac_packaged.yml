@@ -1,0 +1,158 @@
+name: MacOS Packaged.
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/mac_packaged.yml'
+      - 'lib/xdg/**'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/linux/**'
+      - 'Telegram/configure.bat'
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+      - '.github/**'
+      - '!.github/workflows/mac_packaged.yml'
+      - 'lib/xdg/**'
+      - 'snap/**'
+      - 'Telegram/build/**'
+      - 'Telegram/Resources/uwp/**'
+      - 'Telegram/Resources/winrc/**'
+      - 'Telegram/SourceFiles/platform/win/**'
+      - 'Telegram/SourceFiles/platform/linux/**'
+      - 'Telegram/configure.bat'
+
+jobs:
+
+  macos:
+    name: MacOS
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        defines:
+          - ""
+
+    env:
+      GIT: "https://github.com"
+      OPENALDIR: "/usr/local/opt/openal-soft"
+      UPLOAD_ARTIFACT: "false"
+      ONLY_CACHE: "false"
+      MANUAL_CACHING: "1"
+      AUTO_CACHING: "1"
+
+    steps:
+      - name: Get repository name.
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v3.1.0
+        with:
+          submodules: recursive
+          path: ${{ env.REPO_NAME }}
+
+      - name: First set up.
+        run: |
+          brew install autoconf automake boost cmake ffmpeg openal-soft openssl opus ninja pkg-config python qt yasm xz
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+          xcodebuild -version > CACHE_KEY.txt
+          echo $MANUAL_CACHING >> CACHE_KEY.txt
+          echo "$GITHUB_WORKSPACE" >> CACHE_KEY.txt
+          if [ "$AUTO_CACHING" = "1" ]; then
+            thisFile=$REPO_NAME/.github/workflows/mac_packaged.yml
+            echo `md5 -q $thisFile` >> CACHE_KEY.txt
+          fi
+          echo "CACHE_KEY=`md5 -q CACHE_KEY.txt`" >> $GITHUB_ENV
+
+          echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
+
+          curl -o tg_owt-version.json https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master
+
+      - name: RNNoise.
+        run: |
+          cd $LibrariesPath
+
+          git clone --depth=1 https://gitlab.xiph.org/xiph/rnnoise.git
+          cd rnnoise
+          ./autogen.sh
+          ./configure --disable-examples --disable-doc
+          make -j$(sysctl -n hw.logicalcpu)
+          make install
+
+      - name: WebRTC cache.
+        id: cache-webrtc
+        uses: actions/cache@v3.0.11
+        with:
+          path: ${{ env.LibrariesPath }}/tg_owt
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}-${{ hashFiles('**/tg_owt-version.json') }}
+      - name: WebRTC.
+        if: steps.cache-webrtc.outputs.cache-hit != 'true'
+        run: |
+          cd $LibrariesPath
+
+          git clone --recursive --depth=1 $GIT/desktop-app/tg_owt.git
+          cd tg_owt
+
+          cmake -B build . -GNinja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --parallel
+
+      - name: Telegram Desktop build.
+        if: env.ONLY_CACHE == 'false'
+        env:
+          tg_owt_DIR: ${{ env.LibrariesPath }}/tg_owt/build
+        run: |
+          cd $REPO_NAME
+
+          DEFINE=""
+          if [ -n "${{ matrix.defines }}" ]; then
+            DEFINE="-D ${{ matrix.defines }}=ON"
+            echo Define from matrix: $DEFINE
+            echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
+          else
+            echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
+          fi
+
+          cmake -Bbuild -GNinja . \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_FIND_FRAMEWORK=LAST \
+          -DTDESKTOP_API_TEST=ON \
+          -DDESKTOP_APP_USE_PACKAGED_LAZY=ON \
+          $DEFINE
+
+          cmake --build build --parallel
+
+          cd build
+          macdeployqt Telegram.app
+          codesign --remove-signature Telegram.app
+
+          mkdir dmgsrc
+          mv Telegram.app dmgsrc
+          hdiutil create -volname Telegram -srcfolder dmgsrc -ov -format UDZO Telegram.dmg
+
+      - name: Move artifact.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          cd $REPO_NAME/build
+          mkdir artifact
+          mv Telegram.dmg artifact/
+      - uses: actions/upload-artifact@master
+        if: env.UPLOAD_ARTIFACT == 'true'
+        name: Upload artifact.
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.REPO_NAME }}/build/artifact/
