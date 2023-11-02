@@ -55,6 +55,7 @@ public:
 		rpl::producer<DefaultIcon> value,
 		Fn<void()> repaint);
 
+	int width() override;
 	QString entityData() override;
 
 	void paint(QPainter &p, const Context &context) override;
@@ -78,6 +79,10 @@ DefaultIconEmoji::DefaultIconEmoji(
 		_image = QImage();
 		repaint();
 	}, _lifetime);
+}
+
+int DefaultIconEmoji::width() {
+	return st::emojiSize + 2 * st::emojiPadding;
 }
 
 QString DefaultIconEmoji::entityData() {

@@ -25,6 +25,10 @@ struct PeerUserpicView;
 class SpoilerAnimation;
 } // namespace Ui
 
+namespace Ui::Text {
+struct GeometryDescriptor;
+} // namespace Ui::Text
+
 namespace Data {
 class Session;
 class Story;
@@ -296,6 +300,8 @@ struct HistoryMessageReply
 		not_null<HistoryItem*> holder,
 		not_null<Data::Story*> removed);
 
+	bool expand();
+
 	void paint(
 		Painter &p,
 		not_null<const HistoryView::Element*> holder,
@@ -353,6 +359,11 @@ struct HistoryMessageReply
 
 private:
 	[[nodiscard]] bool hasQuoteIcon() const;
+	[[nodiscard]] Ui::Text::GeometryDescriptor textGeometry(
+		int available,
+		int firstLineSkip,
+		not_null<int*> line,
+		not_null<bool*> outElided) const;
 	[[nodiscard]] QSize countMultilineOptimalSize(
 		int firstLineSkip) const;
 
@@ -368,7 +379,9 @@ private:
 	uint8 _unavailable : 1 = 0;
 	uint8 _displaying : 1 = 0;
 	uint8 _multiline : 1 = 0;
-	uint8 _expandable : 1 = 0;
+	mutable uint8 _expandable : 1 = 0;
+	uint8 _expanded : 1 = 0;
+	mutable uint8 _nameTwoLines : 1 = 0;
 
 };
 

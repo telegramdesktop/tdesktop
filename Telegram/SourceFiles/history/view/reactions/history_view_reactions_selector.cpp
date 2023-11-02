@@ -47,6 +47,7 @@ public:
 		QPoint shift,
 		int index);
 
+	int width() override;
 	QString entityData() override;
 	void paint(QPainter &p, const Context &context) override;
 	void unload() override;
@@ -71,6 +72,10 @@ StripEmoji::StripEmoji(
 , _strip(strip)
 , _shift(shift)
 , _index(index) {
+}
+
+int StripEmoji::width() {
+	return _wrapped->width();
 }
 
 QString StripEmoji::entityData() {
