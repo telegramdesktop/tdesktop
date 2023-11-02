@@ -538,6 +538,7 @@ ItemPreview Media::toGroupPreview(
 	auto videoCount = 0;
 	auto audioCount = 0;
 	auto fileCount = 0;
+	auto manyCaptions = false;
 	for (const auto &item : items) {
 		if (const auto media = item->media()) {
 			if (media->photo()) {
@@ -571,12 +572,12 @@ ItemPreview Media::toGroupPreview(
 				if (result.text.text.isEmpty()) {
 					result.text = original;
 				} else {
-					result.text = {};
+					manyCaptions = true;
 				}
 			}
 		}
 	}
-	if (result.text.text.isEmpty()) {
+	if (manyCaptions || result.text.text.isEmpty()) {
 		const auto mediaCount = photoCount + videoCount;
 		auto genericText = (photoCount && videoCount)
 			? tr::lng_in_dlg_media_count(tr::now, lt_count, mediaCount)

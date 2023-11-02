@@ -493,10 +493,7 @@ InlineBotQuery ParseInlineBotQuery(
 					result.lookingUpBot = true;
 				}
 			}
-			if (result.lookingUpBot) {
-				result.query = QString();
-				return result;
-			} else if (result.bot
+			if (result.bot
 				&& (!result.bot->isBot()
 					|| result.bot->botInfo->inlinePlaceholder.isEmpty())) {
 				result.bot = nullptr;

@@ -48,6 +48,7 @@ struct ContextMenuRequest {
 	SelectedItems selectedItems;
 	TextForMimeData selectedText;
 	TextWithEntities quote;
+	HistoryItem *quoteItem = nullptr;
 	bool overSelection = false;
 	PointState pointState = PointState();
 };

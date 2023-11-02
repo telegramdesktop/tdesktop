@@ -707,8 +707,12 @@ bool ListWidget::isBelowPosition(Data::MessagePosition position) const {
 	return _items.front()->data()->position() > position;
 }
 
-void ListWidget::highlightMessage(FullMsgId itemId) {
-	_highlighter.highlight(itemId);
+void ListWidget::highlightMessage(
+		FullMsgId itemId,
+		const TextWithEntities &part) {
+	if (const auto view = viewForItem(itemId)) {
+		_highlighter.highlight(view, part);
+	}
 }
 
 void ListWidget::showAroundPosition(
@@ -741,12 +745,12 @@ bool ListWidget::jumpToBottomInsteadOfUnread() const {
 
 void ListWidget::showAtPosition(
 		Data::MessagePosition position,
-		anim::type animated,
+		const Window::SectionShow &params,
 		Fn<void(bool found)> done) {
 	const auto showAtUnread = (position == Data::UnreadMessagePosition);
 
 	if (showAtUnread && jumpToBottomInsteadOfUnread()) {
-		showAtPosition(Data::MaxMessagePosition, animated, std::move(done));
+		showAtPosition(Data::MaxMessagePosition, params, std::move(done));
 		return;
 	}
 
@@ -766,24 +770,24 @@ void ListWidget::showAtPosition(
 				_bar = {};
 			}
 			checkUnreadBarCreation();
-			return showAtPositionNow(position, animated, done);
+			return showAtPositionNow(position, params, done);
 		});
-	} else if (!showAtPositionNow(position, animated, done)) {
+	} else if (!showAtPositionNow(position, params, done)) {
 		showAroundPosition(position, [=] {
-			return showAtPositionNow(position, animated, done);
+			return showAtPositionNow(position, params, done);
 		});
 	}
 }
 
 bool ListWidget::showAtPositionNow(
 		Data::MessagePosition position,
-		anim::type animated,
+		const Window::SectionShow &params,
 		Fn<void(bool found)> done) {
 	if (const auto scrollTop = scrollTopForPosition(position)) {
-		computeScrollTo(*scrollTop, position, animated);
+		computeScrollTo(*scrollTop, position, params.animated);
 		if (position != Data::MaxMessagePosition
 			&& position != Data::UnreadMessagePosition) {
-			highlightMessage(position.fullId);
+			highlightMessage(position.fullId, params.highlightPart);
 		}
 		if (done) {
 			const auto found = !position.fullId.peer
@@ -1655,11 +1659,6 @@ bool ListWidget::elementUnderCursor(
 	return (_overElement == view);
 }
 
-float64 ListWidget::elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const {
-	return _highlighter.progress(item);
-}
-
 bool ListWidget::elementInSelectionMode() {
 	return inSelectionMode();
 }
@@ -2088,6 +2087,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	});
 
 	auto context = preparePaintContext(clip);
+	context.highlightPathCache = &_highlightPathCache;
 	if (from == end(_items)) {
 		_delegate->listPaintEmpty(p, context);
 		return;
@@ -2108,6 +2108,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				= _reactionsManager->currentReactionPaintInfo();
 			context.outbg = view->hasOutLayout();
 			context.selection = itemRenderSelection(view);
+			context.highlight = _highlighter.state(item);
 			view->draw(p, context);
 		}
 		if (_translateTracker) {
@@ -2142,7 +2143,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			} else if (item->isUnreadMention()
 				&& !item->isUnreadMedia()) {
 				readContents.insert(item);
-				_highlighter.enqueue(view);
+				_highlighter.enqueue(view, {});
 			}
 		}
 		session->data().reactions().poll(item, context.now);
@@ -2576,7 +2577,6 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		: _overElement
 		? _overElement->data().get()
 		: nullptr;
-	const auto overItemView = viewForItem(overItem);
 	const auto clickedReaction = link
 		? link->property(
 			kReactionsCountEmojiProperty).value<Data::ReactionId>()
@@ -2603,9 +2603,12 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	request.view = _overElement;
 	request.item = overItem;
 	request.pointState = _overState.pointState;
-	request.quote = (overItemView && _selectedTextItem == overItem)
-		? overItemView->selectedQuote(_selectedTextRange)
-		: TextWithEntities();
+	const auto quote = (_overElement
+		&& _selectedTextItem == _overElement->data())
+		? _overElement->selectedQuote(_selectedTextRange)
+		: SelectedQuote();
+	request.quote = quote.text;
+	request.quoteItem = quote.item;
 	request.selectedText = _selectedText;
 	request.selectedItems = collectSelectedItems();
 	const auto hasSelection = !request.selectedItems.empty()

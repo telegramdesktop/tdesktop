@@ -828,6 +828,19 @@ void AttachWebView::requestWithOptionalConfirm(
 void AttachWebView::request(const WebViewButton &button) {
 	Expects(_context != nullptr && _bot != nullptr);
 
+	if (button.fromAttachMenu) {
+		const auto bot = ranges::find(
+			_attachBots,
+			not_null{ _bot },
+			&AttachWebViewBot::user);
+		if (bot == end(_attachBots) || bot->inactive) {
+			requestAddToMenu(_bot, AddToMenuOpenAttach{
+				.startCommand = button.startCommand,
+			});
+			return;
+		}
+	}
+
 	_startCommand = button.startCommand;
 	const auto &action = _context->action;
 
@@ -1524,8 +1537,10 @@ void AttachWebView::confirmAddToMenu(
 	}
 	_confirmAddBox = active->show(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto allowed = std::make_shared<Ui::Checkbox*>();
+		const auto disclaimer = !disclaimerAccepted(bot);
 		const auto done = [=](Fn<void()> close) {
-			const auto state = ((*allowed) && (*allowed)->checked())
+			const auto state = (disclaimer
+				|| ((*allowed) && (*allowed)->checked()))
 				? ToggledState::AllowedToWrite
 				: ToggledState::Added;
 			toggleInMenu(bot.user, state, [=] {
@@ -1538,13 +1553,22 @@ void AttachWebView::confirmAddToMenu(
 			});
 			close();
 		};
-		const auto disclaimer = !disclaimerAccepted(bot);
 		if (disclaimer) {
 			FillDisclaimerBox(box, [=] {
 				_disclaimerAccepted.emplace(bot.user);
 				_attachBotsUpdates.fire({});
 				done([] {});
 			});
+			box->addRow(object_ptr<Ui::FixedHeightWidget>(
+				box,
+				st::boxRowPadding.left()));
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_bot_will_be_added(
+					lt_bot,
+					rpl::single(Ui::Text::Bold(bot.name)),
+					Ui::Text::WithEntities),
+				st::boxLabel));
 		} else {
 			Ui::ConfirmBox(box, {
 				(bot.inMainMenu
@@ -1556,40 +1580,26 @@ void AttachWebView::confirmAddToMenu(
 						Ui::Text::WithEntities),
 				done,
 			});
-		}
-		if (bot.requestWriteAccess) {
-			(*allowed) = box->addRow(
-				object_ptr<Ui::Checkbox>(
-					box,
-					tr::lng_url_auth_allow_messages(
-						tr::now,
-						lt_bot,
-						Ui::Text::Bold(bot.name),
-						Ui::Text::WithEntities),
-					true,
-					st::urlAuthCheckbox),
-				style::margins(
-					st::boxRowPadding.left(),
-					(disclaimer
-						? st::boxPhotoCaptionSkip
-						: st::boxRowPadding.left()),
-					st::boxRowPadding.right(),
-					st::boxRowPadding.left()));
-			(*allowed)->setAllowTextLines();
-		}
-		if (disclaimer) {
-			if (!bot.requestWriteAccess) {
-				box->addRow(object_ptr<Ui::FixedHeightWidget>(
-					box,
-					st::boxRowPadding.left()));
+			if (bot.requestWriteAccess) {
+				(*allowed) = box->addRow(
+					object_ptr<Ui::Checkbox>(
+						box,
+						tr::lng_url_auth_allow_messages(
+							tr::now,
+							lt_bot,
+							Ui::Text::Bold(bot.name),
+							Ui::Text::WithEntities),
+						true,
+						st::urlAuthCheckbox),
+					style::margins(
+						st::boxRowPadding.left(),
+						(disclaimer
+							? st::boxPhotoCaptionSkip
+							: st::boxRowPadding.left()),
+						st::boxRowPadding.right(),
+						st::boxRowPadding.left()));
+				(*allowed)->setAllowTextLines();
 			}
-			box->addRow(object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_bot_will_be_added(
-					lt_bot,
-					rpl::single(Ui::Text::Bold(bot.name)),
-					Ui::Text::WithEntities),
-				st::boxLabel));
 		}
 	}));
 }

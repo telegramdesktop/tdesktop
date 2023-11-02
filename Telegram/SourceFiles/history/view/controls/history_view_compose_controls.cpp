@@ -112,6 +112,7 @@ public:
 		std::shared_ptr<ChatHelpers::Show> show);
 
 	void setHistory(const SetHistoryArgs &args);
+	void updateTopicRootId(MsgId topicRootId);
 	void init();
 
 	void editMessage(FullMsgId id, bool photoEditAllowed = false);
@@ -129,7 +130,7 @@ public:
 	[[nodiscard]] FullReplyTo replyingToMessage() const;
 	[[nodiscard]] FullMsgId editMsgId() const;
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
-	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> jumpToItemRequests() const;
 	[[nodiscard]] rpl::producer<> editPhotoRequests() const;
 	[[nodiscard]] rpl::producer<> editOptionsRequests() const;
 	[[nodiscard]] MessageToEdit queryToEdit();
@@ -205,7 +206,7 @@ private:
 	QRect _shownMessagePreviewRect;
 
 	rpl::event_stream<bool> _visibleChanged;
-	rpl::event_stream<FullMsgId> _scrollToItemRequests;
+	rpl::event_stream<FullReplyTo> _jumpToItemRequests;
 	rpl::event_stream<> _editOptionsRequests;
 	rpl::event_stream<> _editPhotoRequests;
 
@@ -227,6 +228,10 @@ FieldHeader::FieldHeader(
 void FieldHeader::setHistory(const SetHistoryArgs &args) {
 	_history = *args.history;
 	_topicRootId = args.topicRootId;
+}
+
+void FieldHeader::updateTopicRootId(MsgId topicRootId) {
+	_topicRootId = topicRootId;
 }
 
 void FieldHeader::init() {
@@ -367,9 +372,14 @@ void FieldHeader::init() {
 				if (_preview.parsed) {
 					_editOptionsRequests.fire({});
 				} else if (isEditingMessage()) {
-					_scrollToItemRequests.fire(_editMsgId.current());
+					_jumpToItemRequests.fire(FullReplyTo{
+						.messageId = _editMsgId.current()
+					});
 				} else if (readyToForward()) {
 					_forwardPanel->editOptions(_show);
+				} else if (reply
+					&& (e->modifiers() & Qt::ControlModifier)) {
+					_jumpToItemRequests.fire_copy(reply);
 				} else if (reply) {
 					_editOptionsRequests.fire({});
 				}
@@ -724,8 +734,8 @@ rpl::producer<FullMsgId> FieldHeader::editMsgIdValue() const {
 	return _editMsgId.value();
 }
 
-rpl::producer<FullMsgId> FieldHeader::scrollToItemRequests() const {
-	return _scrollToItemRequests.events();
+rpl::producer<FullReplyTo> FieldHeader::jumpToItemRequests() const {
+	return _jumpToItemRequests.events();
 }
 
 rpl::producer<> FieldHeader::editPhotoRequests() const {
@@ -853,6 +863,11 @@ ComposeControls::~ComposeControls() {
 
 Main::Session &ComposeControls::session() const {
 	return _show->session();
+}
+
+void ComposeControls::updateTopicRootId(MsgId topicRootId) {
+	_topicRootId = topicRootId;
+	_header->updateTopicRootId(_topicRootId);
 }
 
 void ComposeControls::setHistory(SetHistoryArgs &&args) {
@@ -1332,6 +1347,7 @@ void ComposeControls::init() {
 	_header->editOptionsRequests(
 	) | rpl::start_with_next([=] {
 		const auto history = _history;
+		const auto topicRootId = _topicRootId;
 		const auto reply = _header->replyingToMessage();
 		const auto webpage = _preview->draft();
 
@@ -1344,10 +1360,11 @@ void ComposeControls::init() {
 				cancelReplyMessage();
 			}
 			_preview->apply(webpage);
+			_field->setFocus();
 		};
 		const auto replyToId = reply.messageId;
-		const auto highlight = crl::guard(_wrap.get(), [=] {
-			_scrollToItemRequests.fire_copy(replyToId);
+		const auto highlight = crl::guard(_wrap.get(), [=](FullReplyTo to) {
+			_jumpToItemRequests.fire_copy(to);
 		});
 
 		using namespace HistoryView::Controls;
@@ -1360,7 +1377,10 @@ void ComposeControls::init() {
 			.resolver = _preview->resolver(),
 			.done = done,
 			.highlight = highlight,
-			.clearOldDraft = [=] { ClearDraftReplyTo(history, replyToId); },
+			.clearOldDraft = [=] { ClearDraftReplyTo(
+				history,
+				topicRootId,
+				replyToId); },
 		});
 	}, _wrap->lifetime());
 
@@ -2874,16 +2894,10 @@ Data::WebPageDraft ComposeControls::webPageDraft() const {
 	return _preview ? _preview->draft() : Data::WebPageDraft();
 }
 
-rpl::producer<Data::MessagePosition> ComposeControls::scrollRequests() const {
+rpl::producer<FullReplyTo> ComposeControls::jumpToItemRequests() const {
 	return rpl::merge(
-		_header->scrollToItemRequests(),
-		_scrollToItemRequests.events()
-	) | rpl::map([=](FullMsgId id) -> Data::MessagePosition {
-		if (const auto item = session().data().message(id)) {
-			return item->position();
-		}
-		return {};
-	});
+		_header->jumpToItemRequests(),
+		_jumpToItemRequests.events());
 }
 
 bool ComposeControls::isEditingMessage() const {

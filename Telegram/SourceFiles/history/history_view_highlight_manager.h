@@ -16,6 +16,10 @@ namespace Data {
 class Session;
 } // namespace Data
 
+namespace Ui {
+struct ChatPaintHighlight;
+} // namespace Ui
+
 namespace HistoryView {
 
 class Element;
@@ -29,40 +33,59 @@ public:
 		ViewForItem viewForItem,
 		RepaintView repaintView);
 
-	void enqueue(not_null<Element*> view);
-	void highlight(FullMsgId itemId);
+	void enqueue(not_null<Element*> view, const TextWithEntities &part);
+	void highlight(not_null<Element*> view, const TextWithEntities &part);
 	void clear();
 
-	[[nodiscard]] float64 progress(not_null<const HistoryItem*> item) const;
+	[[nodiscard]] Ui::ChatPaintHighlight state(
+		not_null<const HistoryItem*> item) const;
 	[[nodiscard]] MsgId latestSingleHighlightedMsgId() const;
 
 private:
-	void checkNextHighlight();
-	void repaintHighlightedItem(not_null<const Element*> view);
-	void updateMessage();
-
 	class AnimationManager final {
 	public:
 		AnimationManager(ElementHighlighter &parent);
 		[[nodiscard]] bool animating() const;
-		[[nodiscard]] float64 progress() const;
-		void start();
+		[[nodiscard]] Ui::ChatPaintHighlight state() const;
+		void start(bool withTextPart);
 		void cancel();
 
 	private:
 		ElementHighlighter &_parent;
 		Ui::Animations::Simple _simple;
 		std::optional<base::Timer> _timer;
+		bool _withTextPart = false;
+		bool _collapsing = false;
+		bool _collapsed = false;
+		bool _fadingOut = false;
 
 	};
+
+	struct Highlight {
+		FullMsgId itemId;
+		TextSelection part;
+
+		explicit operator bool() const {
+			return itemId.operator bool();
+		}
+		friend inline bool operator==(Highlight, Highlight) = default;
+	};
+
+	[[nodiscard]] Highlight computeHighlight(
+		not_null<const Element*> view,
+		const TextWithEntities &part);
+	void highlight(Highlight data);
+	void checkNextHighlight();
+	void repaintHighlightedItem(not_null<const Element*> view);
+	void updateMessage();
 
 	const not_null<Data::Session*> _data;
 	const ViewForItem _viewForItem;
 	const RepaintView _repaintView;
 
-	FullMsgId _highlightedMessageId;
+	Highlight _highlighted;
 	FullMsgId _lastHighlightedMessageId;
-	std::deque<FullMsgId> _queue;
+	std::deque<Highlight> _queue;
 
 	AnimationManager _animation;
 

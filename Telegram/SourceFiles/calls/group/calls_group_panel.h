@@ -91,6 +91,7 @@ public:
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 	[[nodiscard]] not_null<GroupCall*> call() const;
+	[[nodiscard]] bool isVisible() const;
 	[[nodiscard]] bool isActive() const;
 
 	base::weak_ptr<Ui::Toast::Instance> showToast(

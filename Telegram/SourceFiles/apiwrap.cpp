@@ -3383,7 +3383,6 @@ void ApiWrap::sendSharedContact(
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 	}
-	const auto replyHeader = NewMessageReplyHeader(action);
 	FillMessagePostFlags(action, peer, flags);
 	if (action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -3587,14 +3586,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	action.generateLocal = true;
 	sendAction(action);
 
-	const auto replyTo = action.replyTo.messageId
-		? peer->owner().message(action.replyTo.messageId)
-		: nullptr;
-	const auto topicRootId = replyTo
-		? replyTo->topicRootId()
-		: action.replyTo.topicRootId
-		? action.replyTo.topicRootId
-		: Data::ForumTopic::kGeneralId;
+	const auto clearCloudDraft = action.clearDraft;
+	const auto topicRootId = action.replyTo.topicRootId;
 	const auto topic = peer->forumTopicFor(topicRootId);
 	if (!(topic ? Data::CanSendTexts(topic) : Data::CanSendTexts(peer))
 		|| Api::SendDice(message)) {
@@ -3648,7 +3641,6 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		const auto manualWebPage = exactWebPage
 			&& !ignoreWebPage
 			&& (message.webPage.manual || (isLast && !isFirst));
-		const auto replyHeader = NewMessageReplyHeader(action);
 		MTPMessageMedia media = MTP_messageMediaEmpty();
 		if (ignoreWebPage) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
@@ -3692,8 +3684,6 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_entities;
 		}
-		const auto clearCloudDraft = action.clearDraft;
-		const auto topicRootId = action.replyTo.topicRootId;
 		if (clearCloudDraft) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;

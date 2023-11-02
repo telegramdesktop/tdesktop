@@ -581,7 +581,7 @@ bool AddReplyToMessageAction(
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
 	const auto context = list->elementContext();
-	const auto item = request.item;
+	const auto item = request.quoteItem ? request.quoteItem : request.item;
 	const auto topic = item ? item->topic() : nullptr;
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
@@ -592,15 +592,7 @@ bool AddReplyToMessageAction(
 	const auto canSendReply = topic
 		? Data::CanSendAnything(topic)
 		: Data::CanSendAnything(peer);
-	const auto canReply = canSendReply || [&] {
-		const auto peer = item->history()->peer;
-		if (const auto chat = peer->asChat()) {
-			return !chat->isForbidden();
-		} else if (const auto channel = peer->asChannel()) {
-			return !channel->isForbidden();
-		}
-		return true;
-	}();
+	const auto canReply = canSendReply || item->allowsForward();
 	if (!canReply) {
 		return false;
 	}

@@ -716,6 +716,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				_parent->width());
 			top += botTop->height;
 		}
+		auto highlightRequest = context.computeHighlightCache();
 		_caption.draw(p, {
 			.position = QPoint(st::msgPadding.left(), top),
 			.availableWidth = captionw,
@@ -728,6 +729,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.selection = context.selection,
+			.highlight = highlightRequest ? &*highlightRequest : nullptr,
 		});
 	} else if (!inWebPage && !skipDrawingSurrounding) {
 		auto fullRight = paintx + usex + usew;
@@ -1203,13 +1205,14 @@ TextForMimeData Gif::selectedText(TextSelection selection) const {
 	return _caption.toTextForMimeData(selection);
 }
 
-TextWithEntities Gif::selectedQuote(TextSelection selection) const {
-	return parent()->selectedQuote(_caption, selection);
+SelectedQuote Gif::selectedQuote(TextSelection selection) const {
+	return Element::FindSelectedQuote(_caption, selection, _realParent);
 }
 
 TextSelection Gif::selectionFromQuote(
+		not_null<HistoryItem*> item,
 		const TextWithEntities &quote) const {
-	return parent()->selectionFromQuote(_caption, quote);
+	return Element::FindSelectionFromQuote(_caption, item, quote);
 }
 
 bool Gif::fullFeaturedGrouped(RectParts sides) const {

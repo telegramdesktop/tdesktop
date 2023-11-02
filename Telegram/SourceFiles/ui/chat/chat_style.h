@@ -142,6 +142,12 @@ struct BackgroundEmojiData {
 		uint8 colorIndexPlusOne);
 };
 
+struct ChatPaintHighlight {
+	float64 opacity = 0.;
+	float64 collapsion = 0.;
+	TextSelection range;
+};
+
 struct ChatPaintContext {
 	not_null<const ChatStyle*> st;
 	const BubblePattern *bubblesPattern = nullptr;
@@ -149,11 +155,15 @@ struct ChatPaintContext {
 	QRect viewport;
 	QRect clip;
 	TextSelection selection;
+	ChatPaintHighlight highlight;
+	QPainterPath *highlightPathCache = nullptr;
+	mutable QRect highlightInterpolateTo;
 	crl::time now = 0;
 
 	void translate(int x, int y) {
 		viewport.translate(x, y);
 		clip.translate(x, y);
+		highlightInterpolateTo.translate(x, y);
 	}
 	void translate(QPoint point) {
 		translate(point.x(), point.y());
@@ -181,6 +191,19 @@ struct ChatPaintContext {
 		result.selection = selection;
 		return result;
 	}
+	[[nodiscard]] auto computeHighlightCache() const
+	-> std::optional<Ui::Text::HighlightInfoRequest> {
+		if (highlight.range.empty() || highlight.collapsion <= 0.) {
+			return {};
+		}
+		return Ui::Text::HighlightInfoRequest{
+			.range = highlight.range,
+			.interpolateTo = highlightInterpolateTo,
+			.interpolateProgress = (1. - highlight.collapsion),
+			.outPath = highlightPathCache,
+		};
+	};
+
 
 	// This is supported only in unwrapped media for now.
 	enum class SkipDrawingParts {

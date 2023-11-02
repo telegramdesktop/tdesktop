@@ -128,10 +128,12 @@ rpl::producer<Ui::MessageBarContent> RootViewContent(
 RepliesMemento::RepliesMemento(
 	not_null<History*> history,
 	MsgId rootId,
-	MsgId highlightId)
+	MsgId highlightId,
+	const TextWithEntities &highlightPart)
 : _history(history)
 , _rootId(rootId)
-, _highlightId(highlightId) {
+, _highlightId(highlightId)
+, _highlightPart(highlightPart) {
 	if (highlightId) {
 		_list.setAroundPosition({
 			.fullId = FullMsgId(_history->peer->id, highlightId),
@@ -328,6 +330,7 @@ RepliesWidget::RepliesWidget(
 			Controls::ShowReplyToChatBox(controller->uiShow(), { fullId });
 		} else {
 			replyToMessage(fullId);
+			_composeControls->focus();
 		}
 	}, _inner->lifetime());
 
@@ -490,6 +493,7 @@ void RepliesWidget::setupTopicViewer() {
 	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
 		if (_rootId == change.oldId) {
 			_rootId = change.newId.msg;
+			_composeControls->updateTopicRootId(_rootId);
 			_sendAction = owner->sendActionManager().repliesPainter(
 				_history,
 				_rootId);
@@ -787,9 +791,11 @@ void RepliesWidget::setupComposeControls() {
 		sendInlineResult(chosen.result, chosen.bot, chosen.options, localId);
 	}, lifetime());
 
-	_composeControls->scrollRequests(
-	) | rpl::start_with_next([=](Data::MessagePosition pos) {
-		showAtPosition(pos);
+	_composeControls->jumpToItemRequests(
+	) | rpl::start_with_next([=](FullReplyTo to) {
+		if (const auto item = session().data().message(to.messageId)) {
+			JumpToMessageClickHandler(item, {}, to.quote)->onClick({});
+		}
 	}, lifetime());
 
 	_composeControls->scrollKeyEvents(
@@ -1861,14 +1867,20 @@ void RepliesWidget::finishSending() {
 
 void RepliesWidget::showAtPosition(
 		Data::MessagePosition position,
+		FullMsgId originItemId) {
+	showAtPosition(position, originItemId, {});
+}
+
+void RepliesWidget::showAtPosition(
+		Data::MessagePosition position,
 		FullMsgId originItemId,
-		anim::type animated) {
+		const Window::SectionShow &params) {
 	_lastShownAt = position.fullId;
 	controller()->setActiveChatEntry(activeChat());
 	const auto ignore = (position.fullId.msg == _rootId);
 	_inner->showAtPosition(
 		position,
-		animated,
+		params,
 		_cornerButtons.doneJumpFrom(position.fullId, originItemId, ignore));
 }
 
@@ -1960,7 +1972,7 @@ bool RepliesWidget::showInternal(
 		if (logMemento->getHistory() == history()
 			&& logMemento->getRootId() == _rootId) {
 			restoreState(logMemento);
-			if (!logMemento->getHighlightId()) {
+			if (!logMemento->highlightId()) {
 				showAtPosition(Data::UnreadMessagePosition);
 			}
 			if (params.reapplyLocalDraft) {
@@ -2008,7 +2020,7 @@ bool RepliesWidget::showMessage(
 	}
 	const auto id = FullMsgId(_history->peer->id, messageId);
 	const auto message = _history->owner().message(id);
-	if (!message) {
+	if (!message || !message->inThread(_rootId)) {
 		return false;
 	}
 	const auto originMessage = [&]() -> HistoryItem* {
@@ -2024,13 +2036,13 @@ bool RepliesWidget::showMessage(
 		}
 		return nullptr;
 	}();
-	if (!originMessage) {
-		return false;
-	}
-	const auto originItemId = (_cornerButtons.replyReturn() != originMessage)
+	const auto currentReplyReturn = _cornerButtons.replyReturn();
+	const auto originItemId = !originMessage
+		? FullMsgId()
+		: (currentReplyReturn != originMessage)
 		? originMessage->fullId()
 		: FullMsgId();
-	showAtPosition(message->position(), originItemId);
+	showAtPosition(message->position(), originItemId, params);
 	return true;
 }
 
@@ -2132,11 +2144,15 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	}
 	_cornerButtons.setReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());
-	if (const auto highlight = memento->getHighlightId()) {
+	if (const auto highlight = memento->highlightId()) {
+		auto params = Window::SectionShow(
+			Window::SectionShow::Way::Forward,
+			anim::type::instant);
+		params.highlightPart = memento->highlightPart();
 		showAtPosition(Data::MessagePosition{
 			.fullId = FullMsgId(_history->peer->id, highlight),
 			.date = TimeId(0),
-		}, {}, anim::type::instant);
+		}, {}, params);
 	}
 }
 

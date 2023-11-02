@@ -94,6 +94,42 @@ Element *MousedElement/* = nullptr*/;
 	return session->tryResolveWindow();
 }
 
+[[nodiscard]] bool CheckQuoteEntities(
+		const EntitiesInText &quoteEntities,
+		const TextWithEntities &original,
+		TextSelection selection) {
+	auto left = quoteEntities;
+	const auto allowed = std::array{
+		EntityType::Bold,
+		EntityType::Italic,
+		EntityType::Underline,
+		EntityType::StrikeOut,
+		EntityType::Spoiler,
+		EntityType::CustomEmoji,
+	};
+	for (const auto &entity : original.entities) {
+		const auto from = entity.offset();
+		const auto till = from + entity.length();
+		if (till <= selection.from || from >= selection.to) {
+			continue;
+		}
+		const auto quoteFrom = std::max(from, int(selection.from));
+		const auto quoteTill = std::min(till, int(selection.to));
+		const auto cut = EntityInText(
+			entity.type(),
+			quoteFrom - int(selection.from),
+			quoteTill - quoteFrom,
+			entity.data());
+		const auto i = ranges::find(left, cut);
+		if (i != left.end()) {
+			left.erase(i);
+		} else if (ranges::contains(allowed, cut.type())) {
+			return false;
+		}
+	}
+	return left.empty();
+};
+
 } // namespace
 
 std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
@@ -109,11 +145,6 @@ std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
 bool DefaultElementDelegate::elementUnderCursor(
 		not_null<const Element*> view) {
 	return false;
-}
-
-float64 DefaultElementDelegate::elementHighlightOpacity(
-		not_null<const HistoryItem*> item) const {
-	return 0.;
 }
 
 bool DefaultElementDelegate::elementInSelectionMode() {
@@ -590,6 +621,9 @@ void Element::paintHighlight(
 		Painter &p,
 		const PaintContext &context,
 		int geometryHeight) const {
+	if (context.highlight.opacity == 0.) {
+		return;
+	}
 	const auto top = marginTop();
 	const auto bottom = marginBottom();
 	const auto fill = qMin(top, bottom);
@@ -605,18 +639,9 @@ void Element::paintCustomHighlight(
 		int y,
 		int height,
 		not_null<const HistoryItem*> item) const {
-	const auto opacity = delegate()->elementHighlightOpacity(item);
-	if (opacity == 0.) {
-		return;
-	}
 	const auto o = p.opacity();
-	p.setOpacity(o * opacity);
-	p.fillRect(
-		0,
-		y,
-		width(),
-		height,
-		context.st->msgSelectOverlay());
+	p.setOpacity(o * context.highlight.opacity);
+	p.fillRect(0, y, width(), height, context.st->msgSelectOverlay());
 	p.setOpacity(o);
 }
 
@@ -1399,7 +1424,12 @@ HistoryMessageReply *Element::displayedReply() const {
 }
 
 bool Element::toggleSelectionByHandlerClick(
-	const ClickHandlerPtr &handler) const {
+		const ClickHandlerPtr &handler) const {
+	return false;
+}
+
+bool Element::allowTextSelectionByHandler(
+		const ClickHandlerPtr &handler) const {
 	return false;
 }
 
@@ -1567,6 +1597,105 @@ TextSelection Element::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
 	return selection;
+}
+
+SelectedQuote Element::FindSelectedQuote(
+		const Ui::Text::String &text,
+		TextSelection selection,
+		not_null<HistoryItem*> item) {
+	if (selection.to > text.length()) {
+		return {};
+	}
+	auto modified = selection;
+	for (const auto &modification : text.modifications()) {
+		if (modification.position >= selection.to) {
+			break;
+		} else if (modification.position <= selection.from) {
+			modified.from += modification.skipped;
+			if (modification.added
+				&& modification.position < selection.from) {
+				--modified.from;
+			}
+		}
+		modified.to += modification.skipped;
+		if (modification.added && modified.to > modified.from) {
+			--modified.to;
+		}
+	}
+	auto result = item->originalText();
+	if (modified.empty() || modified.to > result.text.size()) {
+		return {};
+	}
+	result.text = result.text.mid(
+		modified.from,
+		modified.to - modified.from);
+	const auto allowed = std::array{
+		EntityType::Bold,
+		EntityType::Italic,
+		EntityType::Underline,
+		EntityType::StrikeOut,
+		EntityType::Spoiler,
+		EntityType::CustomEmoji,
+	};
+	for (auto i = result.entities.begin(); i != result.entities.end();) {
+		const auto offset = i->offset();
+		const auto till = offset + i->length();
+		if ((till <= modified.from)
+			|| (offset >= modified.to)
+			|| !ranges::contains(allowed, i->type())) {
+			i = result.entities.erase(i);
+		} else {
+			if (till > modified.to) {
+				i->shrinkFromRight(till - modified.to);
+			}
+			i->shiftLeft(modified.from);
+			++i;
+		}
+	}
+	return { item, result };
+}
+
+TextSelection Element::FindSelectionFromQuote(
+		const Ui::Text::String &text,
+		not_null<HistoryItem*> item,
+		const TextWithEntities &quote) {
+	if (quote.empty()) {
+		return {};
+	}
+	const auto &original = item->originalText();
+	auto result = TextSelection();
+	auto offset = 0;
+	while (true) {
+		const auto i = original.text.indexOf(quote.text, offset);
+		if (i < 0) {
+			return {};
+		}
+		auto selection = TextSelection{
+			uint16(i),
+			uint16(i + quote.text.size()),
+		};
+		if (CheckQuoteEntities(quote.entities, original, selection)) {
+			result = selection;
+			break;
+		}
+		offset = i + 1;
+	}
+	//for (const auto &modification : text.modifications()) {
+	//	if (modification.position >= selection.to) {
+	//		break;
+	//	} else if (modification.position <= selection.from) {
+	//		modified.from += modification.skipped;
+	//		if (modification.added
+	//			&& modification.position < selection.from) {
+	//			--modified.from;
+	//		}
+	//	}
+	//	modified.to += modification.skipped;
+	//	if (modification.added && modified.to > modified.from) {
+	//		--modified.to;
+	//	}
+	//}
+	return result;
 }
 
 Reactions::ButtonParameters Element::reactionButtonParameters(

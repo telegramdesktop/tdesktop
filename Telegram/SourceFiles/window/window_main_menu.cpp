@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_config.h"
+#include "data/data_document_media.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -205,6 +206,9 @@ void SetupMenuBots(
 	const auto wrap = container->add(
 		object_ptr<Ui::VerticalLayout>(container));
 	const auto bots = &controller->session().attachWebView();
+	const auto iconLoadLifetime = wrap->lifetime().make_state<
+		rpl::lifetime
+	>();
 
 	rpl::single(
 		rpl::empty
@@ -214,7 +218,20 @@ void SetupMenuBots(
 		const auto width = container->widthNoMargins();
 		wrap->clear();
 		for (const auto &bot : bots->attachBots()) {
-			if (!bot.inMainMenu) {
+			const auto user = bot.user;
+			if (!bot.inMainMenu || !bot.media) {
+				continue;
+			} else if (const auto media = bot.media; !media->loaded()) {
+				if (!*iconLoadLifetime) {
+					auto &session = user->session();
+					*iconLoadLifetime = session.downloaderTaskFinished(
+					) | rpl::start_with_next([=] {
+						if (media->loaded()) {
+							iconLoadLifetime->destroy();
+							bots->notifyBotIconLoaded();
+						}
+					});
+				}
 				continue;
 			}
 			const auto button = Settings::AddButton(
@@ -233,7 +250,6 @@ void SetupMenuBots(
 					st::mainMenuButton.iconLeft,
 					(height - icon->height()) / 2);
 			}, button->lifetime());
-			const auto user = bot.user;
 			const auto weak = Ui::MakeWeak(container);
 			button->setAcceptBoth(true);
 			button->clicks(

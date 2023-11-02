@@ -221,18 +221,19 @@ void Tray::updateIcon() {
 		: !controller->sessionController()
 		? nullptr
 		: &controller->sessionController()->session();
+	const auto monochrome = Core::App().settings().trayIconMonochrome();
 	const auto supportMode = session && session->supportMode();
 	const auto iconSizeWidth = GetSystemMetrics(SM_CXSMICON);
 
 	auto iconSmallPixmap16 = Tray::IconWithCounter(
 		CounterLayerArgs(16, counter, muted),
 		true,
-		true,
+		monochrome,
 		supportMode);
 	auto iconSmallPixmap32 = Tray::IconWithCounter(
 		CounterLayerArgs(32, counter, muted),
 		true,
-		true,
+		monochrome,
 		supportMode);
 	auto iconSmall = QIcon();
 	iconSmall.addPixmap(iconSmallPixmap16);
@@ -339,8 +340,15 @@ QPixmap Tray::IconWithCounter(
 		bool smallIcon,
 		bool monochrome,
 		bool supportMode) {
-	return Ui::PixmapFromImage(
-		ImageIconWithCounter(std::move(args), supportMode, smallIcon, monochrome));
+	return Ui::PixmapFromImage(ImageIconWithCounter(
+		std::move(args),
+		supportMode,
+		smallIcon,
+		monochrome));
+}
+
+bool HasMonochromeSetting() {
+	return IsDarkTaskbar().has_value();
 }
 
 } // namespace Platform

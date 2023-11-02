@@ -166,6 +166,7 @@ struct SectionShow {
 		return copy;
 	}
 
+	TextWithEntities highlightPart;
 	Way way = Way::Forward;
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
@@ -317,9 +318,11 @@ private:
 	void replaceBoostConfirm(
 		not_null<PeerData*> from,
 		not_null<ChannelData*> channel,
+		int slot,
 		Fn<void(bool)> done);
 	void applyBoostChecked(
 		not_null<ChannelData*> channel,
+		int slot,
 		Fn<void(bool)> done);
 
 	const not_null<Main::Session*> _session;

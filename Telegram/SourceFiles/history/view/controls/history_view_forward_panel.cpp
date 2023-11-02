@@ -400,13 +400,6 @@ void ForwardPanel::paint(
 	});
 }
 
-void ClearDraftReplyTo(not_null<Data::Thread*> thread, FullMsgId equalTo) {
-	ClearDraftReplyTo(
-		thread->owningHistory(),
-		thread->topicRootId(),
-		equalTo);
-}
-
 void ClearDraftReplyTo(
 		not_null<History*> history,
 		MsgId topicRootId,

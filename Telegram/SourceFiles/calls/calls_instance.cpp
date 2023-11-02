@@ -712,13 +712,24 @@ void Instance::destroyCurrentCall() {
 	}
 }
 
-bool Instance::hasActivePanel(not_null<Main::Session*> session) const {
+bool Instance::hasVisiblePanel(Main::Session *session) const {
 	if (inCall()) {
-		return (&_currentCall->user()->session() == session)
-			&& _currentCallPanel->isActive();
+		return _currentCallPanel->isVisible()
+			&& (!session || (&_currentCall->user()->session() == session));
 	} else if (inGroupCall()) {
-		return (&_currentGroupCall->peer()->session() == session)
-			&& _currentGroupCallPanel->isActive();
+		return _currentGroupCallPanel->isVisible()
+			&& (!session || (&_currentGroupCall->peer()->session() == session));
+	}
+	return false;
+}
+
+bool Instance::hasActivePanel(Main::Session *session) const {
+	if (inCall()) {
+		return _currentCallPanel->isActive()
+			&& (!session || (&_currentCall->user()->session() == session));
+	} else if (inGroupCall()) {
+		return _currentGroupCallPanel->isActive()
+			&& (!session || (&_currentGroupCall->peer()->session() == session));
 	}
 	return false;
 }
