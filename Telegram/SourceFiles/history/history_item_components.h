@@ -276,8 +276,12 @@ struct HistoryMessageReply
 
 	[[nodiscard]] bool external() const;
 	[[nodiscard]] PeerData *sender(not_null<HistoryItem*> holder) const;
-	[[nodiscard]] QString senderName(not_null<HistoryItem*> holder) const;
-	[[nodiscard]] QString senderName(not_null<PeerData*> peer) const;
+	[[nodiscard]] QString senderName(
+		not_null<HistoryItem*> holder,
+		bool shorten) const;
+	[[nodiscard]] QString senderName(
+		not_null<PeerData*> peer,
+		bool shorten) const;
 	[[nodiscard]] bool isNameUpdated(not_null<HistoryItem*> holder) const;
 	void updateName(
 		not_null<HistoryItem*> holder,
@@ -340,7 +344,6 @@ struct HistoryMessageReply
 	WebPageId replyToWebPageId = 0;
 	ReplyToMessagePointer resolvedMessage;
 	ReplyToStoryPointer resolvedStory;
-	std::unique_ptr<HistoryMessageVia> originalVia;
 	std::unique_ptr<Ui::SpoilerAnimation> spoiler;
 
 	struct {
@@ -349,6 +352,10 @@ struct HistoryMessageReply
 	} ripple;
 
 private:
+	[[nodiscard]] bool hasQuoteIcon() const;
+	[[nodiscard]] QSize countMultilineOptimalSize(
+		int firstLineSkip) const;
+
 	ReplyFields _fields;
 	ClickHandlerPtr _link;
 	mutable Ui::Text::String _name;
@@ -359,6 +366,9 @@ private:
 	mutable int _height = 0;
 	mutable int _nameVersion = 0;
 	uint8 _unavailable : 1 = 0;
+	uint8 _displaying : 1 = 0;
+	uint8 _multiline : 1 = 0;
+	uint8 _expandable : 1 = 0;
 
 };
 

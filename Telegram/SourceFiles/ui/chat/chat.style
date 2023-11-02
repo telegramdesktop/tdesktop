@@ -32,6 +32,12 @@ historyReplyBottom: 2px;
 historyReplyPreview: 32px;
 historyReplyPreviewMargin: margins(7px, 4px, 4px, 4px);
 historyReplyPadding: margins(11px, 2px, 6px, 2px);
+historyReplyUser: icon {{ "chat/reply_type_user", windowFg }};
+historyReplyUserPadding: margins(0px, 4px, 4px, 0px);
+historyReplyGroup: icon {{ "chat/reply_type_group", windowFg }};
+historyReplyGroupPadding: margins(0px, 4px, 4px, 0px);
+historyReplyChannel: icon {{ "chat/reply_type_channel", windowFg }};
+historyReplyChannelPadding: margins(0px, 5px, 4px, 0px);
 
 msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);

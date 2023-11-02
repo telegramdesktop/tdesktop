@@ -771,13 +771,9 @@ QSize Message::performCountOptimalSize() {
 				accumulate_max(maxWidth, namew);
 			}
 			if (reply) {
-				auto replyw = st::msgPadding.left()
+				const auto replyw = st::msgPadding.left()
 					+ reply->maxWidth()
 					+ st::msgPadding.right();
-				if (reply->originalVia) {
-					replyw += st::msgServiceFont->spacew
-						+ reply->originalVia->maxWidth;
-				}
 				accumulate_max(maxWidth, replyw);
 			}
 			if (entry) {

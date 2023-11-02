@@ -89,6 +89,10 @@ private:
 		: FrameSizeFromTag(tag);
 }
 
+[[nodiscard]] QString InternalPrefix() {
+	return u"internal:"_q;
+}
+
 } // namespace
 
 class CustomEmojiLoader final
@@ -514,6 +518,9 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		Fn<void()> update,
 		SizeTag tag,
 		int sizeOverride) {
+	if (data.startsWith(InternalPrefix())) {
+		return internal(data);
+	}
 	const auto parsed = ParseCustomEmojiData(data);
 	return parsed
 		? create(parsed, std::move(update), tag, sizeOverride)
@@ -538,6 +545,18 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 	return create(document->id, std::move(update), tag, sizeOverride, [&] {
 		return createLoaderWithSetId(document, tag, sizeOverride);
 	});
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::internal(
+		QStringView data) {
+	const auto index = data.mid(InternalPrefix().size()).toInt();
+	Assert(index >= 0 && index < _internalEmoji.size());
+
+	auto &info = _internalEmoji[index];
+	return std::make_unique<Ui::CustomEmoji::Internal>(
+		data.toString(),
+		info.image,
+		info.textColor);
 }
 
 void CustomEmojiManager::resolve(
@@ -883,6 +902,34 @@ Session &CustomEmojiManager::owner() const {
 
 uint64 CustomEmojiManager::coloredSetId() const {
 	return _coloredSetId;
+}
+
+QString CustomEmojiManager::registerInternalEmoji(
+		QImage emoji,
+		bool textColor) {
+	_internalEmoji.push_back({ std::move(emoji), textColor });
+	return InternalPrefix() + QString::number(_internalEmoji.size() - 1);
+}
+
+QString CustomEmojiManager::registerInternalEmoji(
+		const style::icon &icon,
+		bool textColor) {
+	const auto i = _iconEmoji.find(&icon);
+	if (i != end(_iconEmoji)) {
+		return i->second;
+	}
+	auto image = QImage(
+		icon.size() * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	image.fill(Qt::transparent);
+	image.setDevicePixelRatio(style::DevicePixelRatio());
+	auto p = QPainter(&image);
+	icon.paint(p, 0, 0, icon.width());
+	p.end();
+
+	const auto result = registerInternalEmoji(std::move(image), textColor);
+	_iconEmoji.emplace(&icon, result);
+	return result;
 }
 
 int FrameSizeFromTag(SizeTag tag) {
