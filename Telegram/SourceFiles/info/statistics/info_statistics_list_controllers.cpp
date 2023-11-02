@@ -35,6 +35,58 @@ using BoostCallback = Fn<void(const Data::Boost &)>;
 constexpr auto kColorIndexUnclaimed = int(3);
 constexpr auto kColorIndexPending = int(4);
 
+[[nodiscard]] QImage Badge(
+		const style::TextStyle &textStyle,
+		const QString &text,
+		int badgeHeight,
+		const style::margins &textPadding,
+		const style::color &bg,
+		const style::color &fg,
+		float64 bgOpacity,
+		const style::margins &iconPadding,
+		const style::icon &icon) {
+	auto badgeText = Ui::Text::String(textStyle, text);
+	const auto badgeTextWidth = badgeText.maxWidth();
+	const auto badgex = 0;
+	const auto badgey = 0;
+	const auto badgeh = 0 + badgeHeight;
+	const auto badgew = badgeTextWidth
+		+ rect::m::sum::h(textPadding);
+	auto result = QImage(
+		QSize(badgew, badgeh) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+	{
+		auto p = Painter(&result);
+
+		p.setPen(Qt::NoPen);
+		p.setBrush(bg);
+
+		const auto r = QRect(badgex, badgey, badgew, badgeh);
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			auto o = ScopedPainterOpacity(p, bgOpacity);
+			p.drawRoundedRect(r, badgeh / 2, badgeh / 2);
+		}
+
+		p.setPen(fg);
+		p.setBrush(Qt::NoBrush);
+		badgeText.drawLeftElided(
+			p,
+			r.x() + textPadding.left(),
+			badgey + textPadding.top(),
+			badgew,
+			badgew * 2);
+
+		icon.paint(
+			p,
+			QPoint(r.x() + iconPadding.left(), r.y() + iconPadding.top()),
+			badgew * 2);
+	}
+	return result;
+}
+
 void AddArrow(not_null<Ui::RpWidget*> parent) {
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	arrow->paintRequest(
@@ -348,13 +400,25 @@ public:
 		int outerWidth,
 		bool selected) override;
 
+	QSize rightActionSize() const override;
+	QMargins rightActionMargins() const override;
+	bool rightActionDisabled() const override;
+	void rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+
 private:
 	void init();
-	void setMultiplier(int multiplier);
+	void invalidateBadges();
 
 	const Data::Boost _boost;
 	Ui::EmptyUserpic _userpic;
 	QImage _badge;
+	QImage _rightBadge;
 
 };
 
@@ -377,7 +441,7 @@ BoostRow::BoostRow(const Data::Boost &boost)
 }
 
 void BoostRow::init() {
-	setMultiplier(_boost.multiplier);
+	invalidateBadges();
 	constexpr auto kMonthsDivider = int(30 * 86400);
 	const auto months = (_boost.expiresAt - _boost.date.toSecsSinceEpoch())
 		/ kMonthsDivider;
@@ -415,52 +479,66 @@ PaintRoundImageCallback BoostRow::generatePaintUserpicCallback(bool force) {
 	};
 }
 
-void BoostRow::setMultiplier(int multiplier) {
-	if (!multiplier) {
-		_badge = QImage();
-		return;
+void BoostRow::invalidateBadges() {
+	_badge = _boost.multiplier
+		? Badge(
+			st::statisticsDetailsBottomCaptionStyle,
+			QString::number(_boost.multiplier),
+			st::boostsListBadgeHeight,
+			st::boostsListBadgeTextPadding,
+			st::premiumButtonBg2,
+			st::premiumButtonFg,
+			1.,
+			st::boostsListMiniIconPadding,
+			st::boostsListMiniIcon)
+		: QImage();
+
+	constexpr auto kBadgeBgOpacity = 0.2;
+	const auto &rightColor = _boost.isGiveaway
+		? st::historyPeer4UserpicBg2
+		: st::historyPeer8UserpicBg2;
+	const auto &rightIcon = _boost.isGiveaway
+		? st::boostsListGiveawayMiniIcon
+		: st::boostsListGiftMiniIcon;
+	_rightBadge = (_boost.isGift || _boost.isGiveaway)
+		? Badge(
+			st::boostsListRightBadgeTextStyle,
+			_boost.isGiveaway
+				? tr::lng_gift_link_reason_giveaway(tr::now)
+				: tr::lng_gift_link_label_gift(tr::now),
+			st::boostsListRightBadgeHeight,
+			st::boostsListRightBadgeTextPadding,
+			rightColor,
+			rightColor,
+			kBadgeBgOpacity,
+			st::boostsListGiftMiniIconPadding,
+			rightIcon)
+		: QImage();
+}
+
+
+QSize BoostRow::rightActionSize() const {
+	return _rightBadge.size() / style::DevicePixelRatio();
+}
+
+QMargins BoostRow::rightActionMargins() const {
+	return st::boostsListRightBadgePadding;
+}
+
+bool BoostRow::rightActionDisabled() const {
+	return true;
+}
+
+void BoostRow::rightActionPaint(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (!_rightBadge.isNull()) {
+		p.drawImage(x, y, _rightBadge);
 	}
-	auto badgeText = Ui::Text::String(
-		st::statisticsDetailsBottomCaptionStyle,
-		QString::number(multiplier));
-	const auto badgeTextWidth = badgeText.maxWidth();
-	const auto badgex = 0;
-	const auto badgey = 0;
-	const auto badgeh = 0 + st::boostsListBadgeHeight;
-	const auto badgew = badgeTextWidth
-		+ rect::m::sum::h(st::boostsListBadgeTextPadding);
-	auto result = QImage(
-		QSize(badgew, badgeh) * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	result.fill(Qt::transparent);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
-	{
-		auto p = Painter(&result);
-
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::premiumButtonBg2);
-
-		const auto r = QRect(badgex, badgey, badgew, badgeh);
-		{
-			auto hq = PainterHighQualityEnabler(p);
-			p.drawRoundedRect(r, badgeh / 2, badgeh / 2);
-		}
-
-		p.setPen(st::premiumButtonFg);
-		p.setBrush(Qt::NoBrush);
-		badgeText.drawLeftElided(
-			p,
-			r.x() + st::boostsListBadgeTextPadding.left(),
-			badgey + st::boostsListBadgeTextPadding.top(),
-			badgew,
-			badgew * 2);
-
-		st::boostsListMiniIcon.paint(
-			p,
-			QPoint(r.x() + st::boostsListMiniIconSkip, r.y()),
-			badgew * 2);
-	}
-	_badge = std::move(result);
 }
 
 int BoostRow::paintNameIconGetWidth(

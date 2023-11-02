@@ -150,7 +150,18 @@ getBoostsButton: SettingsButton(reportReasonButton) {
 getBoostsButtonIcon: icon {{ "menu/gift_premium", lightButtonFg }};
 
 boostsListMiniIcon: icon{{ "boosts/boost_mini2", premiumButtonFg }};
+boostsListMiniIconPadding: margins(1px, 0px, 0px, 0px);
 boostsListMiniIconSkip: 1px;
 boostsListBadgeTextPadding: margins(16px, 1px, 6px, 0px);
 boostsListBadgePadding: margins(4px, 1px, 4px, 0px);
 boostsListBadgeHeight: 16px;
+
+boostsListRightBadgeTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+boostsListRightBadgeTextPadding: margins(16px, 1px, 6px, 0px);
+boostsListRightBadgePadding: margins(4px, 5px, 8px, 0px);
+boostsListRightBadgeHeight: 20px;
+boostsListGiftMiniIconPadding: margins(1px, 2px, 0px, 0px);
+boostsListGiftMiniIcon: icon{{ "boosts/boost_mini2", historyPeer8UserpicBg2 }};
+boostsListGiveawayMiniIcon: icon{{ "boosts/boost_mini2", historyPeer4UserpicBg2 }};
