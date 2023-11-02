@@ -1,3 +1,9 @@
+4.11.3 (02.11.23)
+
+- Fix adding a link to media captions in scheduled / comments.
+- Fix crash in link preview options saving.
+- Fix possible crash in statistics.
+
 4.11.2 (01.11.23)
 
 - Highlight quoted parts in jump-to-message from replies.
