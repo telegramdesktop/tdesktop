@@ -27,7 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/invite_link_label.h"
 #include "ui/rect.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/slide_wrap.h"
 #include "styles/style_info.h"
 #include "styles/style_statistics.h"
 
@@ -271,7 +273,9 @@ void InnerWidget::fill() {
 	::Settings::AddDivider(inner);
 	::Settings::AddSkip(inner);
 
-	if (status.firstSliceBoosts.multipliedTotal > 0) {
+	const auto hasBoosts = (status.firstSliceBoosts.multipliedTotal > 0);
+	const auto hasGifts = (status.firstSliceGifts.multipliedTotal > 0);
+	if (hasBoosts || hasGifts) {
 		auto boostClicked = [=](const Data::Boost &boost) {
 			if (!boost.giftCodeLink.slug.isEmpty()) {
 				ResolveGiftCode(_controller, boost.giftCodeLink.slug);
@@ -285,28 +289,73 @@ void InnerWidget::fill() {
 			}
 		};
 
-		::Settings::AddSkip(inner);
-		const auto header = inner->add(
-			object_ptr<Statistic::Header>(inner),
-			st::statisticsLayerMargins
-				+ st::boostsChartHeaderPadding);
-		header->resizeToWidth(header->width());
-		header->setTitle(tr::lng_boosts_list_title(
+#ifdef _DEBUG
+		const auto hasOneTab = false;
+#else
+		const auto hasOneTab = (hasBoosts != hasGifts);
+#endif
+		const auto boostsTabText = tr::lng_boosts_list_title(
 			tr::now,
 			lt_count,
-			status.firstSliceBoosts.total));
-		header->setSubTitle({});
+			status.firstSliceBoosts.multipliedTotal);
+		const auto giftsTabText = tr::lng_boosts_list_tab_gifts(
+			tr::now,
+			lt_count,
+			status.firstSliceGifts.multipliedTotal);
+		if (hasOneTab) {
+			::Settings::AddSkip(inner);
+			const auto header = inner->add(
+				object_ptr<Statistic::Header>(inner),
+				st::statisticsLayerMargins
+					+ st::boostsChartHeaderPadding);
+			header->resizeToWidth(header->width());
+			header->setTitle(hasBoosts ? boostsTabText : giftsTabText);
+			header->setSubTitle({});
+		}
+
+		const auto slider = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::SettingsSlider>>(
+				inner,
+				object_ptr<Ui::SettingsSlider>(
+					inner,
+					st::defaultTabsSlider)));
+		slider->toggle(!hasOneTab, anim::type::instant);
+		slider->entity()->addSection(boostsTabText);
+		slider->entity()->addSection(giftsTabText);
+
+		const auto boostsWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		const auto giftsWrap = inner->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				inner,
+				object_ptr<Ui::VerticalLayout>(inner)));
+		boostsWrap->toggle(hasOneTab ? true : hasBoosts, anim::type::instant);
+		giftsWrap->toggle(hasOneTab ? false : hasGifts, anim::type::instant);
+
+		slider->entity()->sectionActivated(
+		) | rpl::start_with_next([=](int index) {
+			boostsWrap->toggle(!index, anim::type::instant);
+			giftsWrap->toggle(index, anim::type::instant);
+		}, inner->lifetime());
+
 		Statistics::AddBoostsList(
 			status.firstSliceBoosts,
-			inner,
+			boostsWrap->entity(),
+			boostClicked,
+			_peer,
+			tr::lng_boosts_title());
+		Statistics::AddBoostsList(
+			status.firstSliceGifts,
+			giftsWrap->entity(),
 			std::move(boostClicked),
 			_peer,
 			tr::lng_boosts_title());
+
 		::Settings::AddSkip(inner);
-		::Settings::AddDividerText(
-			inner,
-			tr::lng_boosts_list_subtext());
 		::Settings::AddSkip(inner);
+		::Settings::AddDividerText(inner, tr::lng_boosts_list_subtext());
 	}
 
 	::Settings::AddSkip(inner);

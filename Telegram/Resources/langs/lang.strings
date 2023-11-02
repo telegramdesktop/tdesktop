@@ -4331,6 +4331,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boosts_list_unclaimed" = "Unclaimed";
 "lng_boosts_list_pending" = "To be distributed";
 "lng_boosts_list_pending_about" = "The recipient will be selected when the giveaway ends.";
+"lng_boosts_list_tab_gifts#one" = "{count} Gifts";
+"lng_boosts_list_tab_gifts#other" = "{count} Gifts";
 
 // Wnd specific
 

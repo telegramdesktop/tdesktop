@@ -29,7 +29,7 @@ public:
 	void setActiveSectionFast(int index);
 	void finishAnimating();
 
-	auto sectionActivated() const {
+	[[nodiscard]] rpl::producer<int> sectionActivated() const {
 		return _sectionActivated.events();
 	}
 
