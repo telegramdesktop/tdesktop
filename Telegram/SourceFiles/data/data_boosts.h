@@ -42,16 +42,18 @@ struct Boost final {
 struct BoostsListSlice final {
 	struct OffsetToken final {
 		QString next;
+		bool gifts = false;
 	};
 	std::vector<Boost> list;
-	int total = 0;
+	int multipliedTotal = 0;
 	bool allLoaded = false;
 	OffsetToken token;
 };
 
 struct BoostStatus final {
 	BoostsOverview overview;
-	BoostsListSlice firstSlice;
+	BoostsListSlice firstSliceBoosts;
+	BoostsListSlice firstSliceGifts;
 	QString link;
 };
 

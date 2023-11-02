@@ -271,7 +271,7 @@ void InnerWidget::fill() {
 	::Settings::AddDivider(inner);
 	::Settings::AddSkip(inner);
 
-	if (status.firstSlice.total > 0) {
+	if (status.firstSliceBoosts.multipliedTotal > 0) {
 		auto boostClicked = [=](const Data::Boost &boost) {
 			if (!boost.giftCodeLink.slug.isEmpty()) {
 				ResolveGiftCode(_controller, boost.giftCodeLink.slug);
@@ -294,10 +294,10 @@ void InnerWidget::fill() {
 		header->setTitle(tr::lng_boosts_list_title(
 			tr::now,
 			lt_count,
-			status.firstSlice.total));
+			status.firstSliceBoosts.total));
 		header->setSubTitle({});
 		Statistics::AddBoostsList(
-			status.firstSlice,
+			status.firstSliceBoosts,
 			inner,
 			std::move(boostClicked),
 			_peer,

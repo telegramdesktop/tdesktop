@@ -757,7 +757,7 @@ void AddBoostsList(
 		BoostCallback boostClickedCallback,
 		not_null<PeerData*> peer,
 		rpl::producer<QString> title) {
-	const auto max = firstSlice.total;
+	const auto max = firstSlice.multipliedTotal;
 	struct State final {
 		State(BoostsDescriptor d) : controller(std::move(d)) {
 		}
