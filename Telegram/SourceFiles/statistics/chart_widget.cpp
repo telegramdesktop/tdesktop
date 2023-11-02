@@ -1018,9 +1018,9 @@ void ChartWidget::updateBottomDates() {
 	const auto k = _chartArea->width() / d;
 	const auto stepRaw = int(k / 6);
 
+	const auto by = int(_chartArea->width() / float64(_chartData.x.size()));
 	_bottomLine.captionIndicesOffset = 0
-		+ st::statisticsChartBottomCaptionMaxWidth
-			/ int(_chartArea->width() / float64(_chartData.x.size()));
+		+ st::statisticsChartBottomCaptionMaxWidth / std::max(by, 1);
 
 	const auto isCurrentNull = (_bottomLine.current.stepMinFast == 0);
 	if (!isCurrentNull

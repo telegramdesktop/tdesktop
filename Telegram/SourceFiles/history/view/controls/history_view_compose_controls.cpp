@@ -1940,6 +1940,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_header->replyToMessage({});
 		if (_preview) {
 			_preview->apply({ .removed = true });
+			_preview->setDisabled(false);
 		}
 		_canReplaceMedia = false;
 		_photoEditMedia = nullptr;
@@ -1978,6 +1979,7 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 					_preview->apply(
 						Data::WebPageDraft::FromItem(item),
 						false);
+					_preview->setDisabled(media && !media->webpage());
 				}
 				return true;
 			}
@@ -2009,6 +2011,9 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			cancelForward();
 		}
 		_header->editMessage({});
+		if (_preview) {
+			_preview->setDisabled(false);
+		}
 	}
 }
 
