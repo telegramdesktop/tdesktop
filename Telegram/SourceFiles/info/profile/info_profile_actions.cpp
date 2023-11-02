@@ -558,11 +558,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			).text->setLinksTrusted();
 		}
 
-		const auto about = addInfoLine(
-			tr::lng_info_about_label(),
-			_topic ? rpl::single(TextWithEntities()) : AboutValue(_peer));
+		const auto about = addInfoLine(tr::lng_info_about_label(), _topic
+			? rpl::single(TextWithEntities())
+			: AboutWithIdValue(_peer));
 		if (!_topic) {
-			addTranslateToMenu(about.text, AboutValue(_peer));
+			addTranslateToMenu(about.text, AboutWithIdValue(_peer));
 		}
 	}
 	if (!_peer->isSelf()) {
