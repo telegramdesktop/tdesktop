@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_icon.h"
+#include "info/statistics/info_statistics_inner_widget.h" // FillLoading.
 #include "info/statistics/info_statistics_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
@@ -229,12 +230,18 @@ InnerWidget::InnerWidget(
 void InnerWidget::load() {
 	const auto api = lifetime().make_state<Api::Boosts>(_peer);
 
+	Info::Statistics::FillLoading(
+		this,
+		_loaded.events_starting_with(false) | rpl::map(!rpl::mappers::_1),
+		_showFinished.events());
+
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
 		api->request(
 		) | rpl::start_with_error_done([](const QString &error) {
 		}, [=] {
 			_state = api->boostStatus();
+			_loaded.fire(true);
 			fill();
 		}, lifetime());
 	}, lifetime());

@@ -247,50 +247,6 @@ void FillStatistic(
 	}
 }
 
-void FillLoading(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<bool> toggleOn,
-		rpl::producer<> showFinished) {
-	const auto emptyWrap = container->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
-	emptyWrap->toggleOn(std::move(toggleOn), anim::type::instant);
-
-	const auto content = emptyWrap->entity();
-	auto icon = ::Settings::CreateLottieIcon(
-		content,
-		{ .name = u"stats"_q, .sizeOverride = Size(st::changePhoneIconSize) },
-		st::settingsBlockedListIconPadding);
-
-	(
-		std::move(showFinished) | rpl::take(1)
-	) | rpl::start_with_next([animate = std::move(icon.animate)] {
-		animate(anim::repeat::loop);
-	}, icon.widget->lifetime());
-	content->add(std::move(icon.widget));
-
-	content->add(
-		object_ptr<Ui::CenterWrap<>>(
-			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				tr::lng_stats_loading(),
-				st::changePhoneTitle)),
-		st::changePhoneTitlePadding + st::boxRowPadding);
-
-	content->add(
-		object_ptr<Ui::CenterWrap<>>(
-			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				tr::lng_stats_loading_subtext(),
-				st::statisticsLoadingSubtext)),
-		st::changePhoneDescriptionPadding + st::boxRowPadding);
-
-	::Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
-}
-
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
 		tr::phrase<> text,
@@ -506,6 +462,50 @@ void FillOverview(
 }
 
 } // namespace
+
+void FillLoading(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<bool> toggleOn,
+		rpl::producer<> showFinished) {
+	const auto emptyWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	emptyWrap->toggleOn(std::move(toggleOn), anim::type::instant);
+
+	const auto content = emptyWrap->entity();
+	auto icon = ::Settings::CreateLottieIcon(
+		content,
+		{ .name = u"stats"_q, .sizeOverride = Size(st::changePhoneIconSize) },
+		st::settingsBlockedListIconPadding);
+
+	(
+		std::move(showFinished) | rpl::take(1)
+	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+		animate(anim::repeat::loop);
+	}, icon.widget->lifetime());
+	content->add(std::move(icon.widget));
+
+	content->add(
+		object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_stats_loading(),
+				st::changePhoneTitle)),
+		st::changePhoneTitlePadding + st::boxRowPadding);
+
+	content->add(
+		object_ptr<Ui::CenterWrap<>>(
+			content,
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_stats_loading_subtext(),
+				st::statisticsLoadingSubtext)),
+		st::changePhoneDescriptionPadding + st::boxRowPadding);
+
+	::Settings::AddSkip(content, st::settingsBlockedListIconPadding.top());
+}
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
