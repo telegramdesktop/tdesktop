@@ -295,11 +295,11 @@ MTPInputInvoice Form::inputInvoice() const {
 		return MTP_inputInvoicePremiumGiftCode(
 			MTP_inputStorePaymentPremiumGiftCode(
 				MTP_flags(users->boostPeer ? Flag::f_boost_peer : Flag()),
-				MTP_vector<MTPInputUser>(ranges::views::all(
+				MTP_vector_from_range(ranges::views::all(
 					users->users
 				) | ranges::views::transform([](not_null<UserData*> user) {
 					return MTPInputUser(user->inputUser);
-				}) | ranges::to<QVector>),
+				})),
 				users->boostPeer ? users->boostPeer->input : MTPInputPeer(),
 				MTP_string(giftCode.currency),
 				MTP_long(giftCode.amount)),
@@ -321,16 +321,16 @@ MTPInputInvoice Form::inputInvoice() const {
 						? Flag()
 						: Flag::f_countries_iso2)),
 				giveaway.boostPeer->input,
-				MTP_vector<MTPInputPeer>(ranges::views::all(
+				MTP_vector_from_range(ranges::views::all(
 					giveaway.additionalChannels
 				) | ranges::views::transform([](not_null<ChannelData*> c) {
 					return MTPInputPeer(c->input);
-				}) | ranges::to<QVector>()),
-				MTP_vector<MTPstring>(ranges::views::all(
+				})),
+				MTP_vector_from_range(ranges::views::all(
 					giveaway.countries
 				) | ranges::views::transform([](QString value) {
 					return MTP_string(value);
-				}) | ranges::to<QVector>()),
+				})),
 				MTP_long(giftCode.randomId),
 				MTP_int(giveaway.untilDate),
 				MTP_string(giftCode.currency),
