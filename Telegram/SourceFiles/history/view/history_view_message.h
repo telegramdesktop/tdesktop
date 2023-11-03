@@ -137,7 +137,6 @@ public:
 	[[nodiscard]] ClickHandlerPtr rightActionLink(
 		std::optional<QPoint> pressPoint) const override;
 	[[nodiscard]] TimeId displayedEditDate() const override;
-	[[nodiscard]] HistoryMessageReply *displayedReply() const override;
 	[[nodiscard]] bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &handler) const override;
 	[[nodiscard]] bool allowTextSelectionByHandler(
@@ -308,8 +307,9 @@ private:
 	mutable std::unique_ptr<FromNameStatus> _fromNameStatus;
 	Ui::Text::String _rightBadge;
 	mutable int _fromNameVersion = 0;
-	uint32 _bubbleWidthLimit : 31 = 0;
+	uint32 _bubbleWidthLimit : 30 = 0;
 	uint32 _invertMedia : 1 = 0;
+	uint32 _hideReply : 1 = 0;
 
 	BottomInfo _bottomInfo;
 

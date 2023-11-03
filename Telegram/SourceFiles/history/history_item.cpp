@@ -723,7 +723,7 @@ HistoryItem::HistoryItem(
 HistoryItem::~HistoryItem() {
 	_media = nullptr;
 	clearSavedMedia();
-	if (auto reply = Get<HistoryMessageReply>()) {
+	if (const auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}
 	clearDependencyMessage();
@@ -1674,7 +1674,6 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	setForwardsCount(data.vforwards().value_or(-1));
 	if (const auto reply = data.vreply_to()) {
 		reply->match([&](const MTPDmessageReplyHeader &data) {
-			// #TODO replies
 			const auto replyToPeer = data.vreply_to_peer_id()
 				? peerFromMTP(*data.vreply_to_peer_id())
 				: PeerId();
@@ -1980,9 +1979,6 @@ void HistoryItem::setRealId(MsgId newId) {
 	_history->owner().requestItemResize(this);
 
 	if (const auto reply = Get<HistoryMessageReply>()) {
-		if (reply->link()) {
-			reply->setLinkFrom(this);
-		}
 		incrementReplyToTopCounter();
 	}
 }

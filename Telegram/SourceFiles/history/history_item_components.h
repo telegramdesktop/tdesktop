@@ -22,7 +22,6 @@ namespace Ui {
 struct ChatPaintContext;
 class ChatStyle;
 struct PeerUserpicView;
-class SpoilerAnimation;
 } // namespace Ui
 
 namespace Ui::Text {
@@ -264,8 +263,6 @@ struct HistoryMessageReply
 	HistoryMessageReply &operator=(HistoryMessageReply &&other);
 	~HistoryMessageReply();
 
-	static constexpr auto kBarAlpha = 230. / 255.;
-
 	void set(ReplyFields fields);
 
 	void updateFields(
@@ -279,20 +276,6 @@ struct HistoryMessageReply
 	void clearData(not_null<HistoryItem*> holder);
 
 	[[nodiscard]] bool external() const;
-	[[nodiscard]] PeerData *sender(not_null<HistoryItem*> holder) const;
-	[[nodiscard]] QString senderName(
-		not_null<HistoryItem*> holder,
-		bool shorten) const;
-	[[nodiscard]] QString senderName(
-		not_null<PeerData*> peer,
-		bool shorten) const;
-	[[nodiscard]] bool isNameUpdated(not_null<HistoryItem*> holder) const;
-	void updateName(
-		not_null<HistoryItem*> holder,
-		std::optional<PeerData*> resolvedSender = std::nullopt) const;
-	[[nodiscard]] int resizeToWidth(int width) const;
-	[[nodiscard]] int height() const;
-	[[nodiscard]] QMargins margins() const;
 	void itemRemoved(
 		not_null<HistoryItem*> holder,
 		not_null<HistoryItem*> removed);
@@ -300,19 +283,7 @@ struct HistoryMessageReply
 		not_null<HistoryItem*> holder,
 		not_null<Data::Story*> removed);
 
-	bool expand();
-
-	void paint(
-		Painter &p,
-		not_null<const HistoryView::Element*> holder,
-		const Ui::ChatPaintContext &context,
-		int x,
-		int y,
-		int w,
-		bool inBubble) const;
-	void unloadPersistentAnimation();
-
-	[[nodiscard]] ReplyFields fields() const {
+	[[nodiscard]] const ReplyFields &fields() const {
 		return _fields;
 	}
 	[[nodiscard]] PeerId externalPeerId() const {
@@ -327,21 +298,22 @@ struct HistoryMessageReply
 	[[nodiscard]] MsgId topMessageId() const {
 		return _fields.topMessageId;
 	}
-	[[nodiscard]] int maxWidth() const {
-		return _maxWidth;
-	}
-	[[nodiscard]] ClickHandlerPtr link() const {
-		return _link;
-	}
 	[[nodiscard]] bool topicPost() const {
 		return _fields.topicPost;
 	}
 	[[nodiscard]] bool manualQuote() const {
 		return _fields.manualQuote;
 	}
-	[[nodiscard]] QString statePhrase() const;
+	[[nodiscard]] bool unavailable() const {
+		return _unavailable;
+	}
+	[[nodiscard]] bool displaying() const {
+		return _displaying;
+	}
+	[[nodiscard]] bool multiline() const {
+		return _multiline;
+	}
 
-	void setLinkFrom(not_null<HistoryItem*> holder);
 	void setTopMessageId(MsgId topMessageId);
 
 	void refreshReplyToMedia();
@@ -350,38 +322,12 @@ struct HistoryMessageReply
 	WebPageId replyToWebPageId = 0;
 	ReplyToMessagePointer resolvedMessage;
 	ReplyToStoryPointer resolvedStory;
-	std::unique_ptr<Ui::SpoilerAnimation> spoiler;
-
-	struct {
-		mutable std::unique_ptr<Ui::RippleAnimation> animation;
-		QPoint lastPoint;
-	} ripple;
 
 private:
-	[[nodiscard]] bool hasQuoteIcon() const;
-	[[nodiscard]] Ui::Text::GeometryDescriptor textGeometry(
-		int available,
-		int firstLineSkip,
-		not_null<int*> line,
-		not_null<bool*> outElided) const;
-	[[nodiscard]] QSize countMultilineOptimalSize(
-		int firstLineSkip) const;
-
 	ReplyFields _fields;
-	ClickHandlerPtr _link;
-	mutable Ui::Text::String _name;
-	mutable Ui::Text::String _text;
-	mutable PeerData *_externalSender = nullptr;
-	mutable int _maxWidth = 0;
-	mutable int _minHeight = 0;
-	mutable int _height = 0;
-	mutable int _nameVersion = 0;
 	uint8 _unavailable : 1 = 0;
 	uint8 _displaying : 1 = 0;
 	uint8 _multiline : 1 = 0;
-	mutable uint8 _expandable : 1 = 0;
-	uint8 _expanded : 1 = 0;
-	mutable uint8 _nameTwoLines : 1 = 0;
 
 };
 

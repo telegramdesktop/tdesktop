@@ -37,6 +37,7 @@ enum class Error;
 
 namespace HistoryView {
 
+class Reply;
 class TranscribeButton;
 
 class Gif final : public File {
@@ -176,8 +177,8 @@ private:
 	[[nodiscard]] bool needInfoDisplay() const;
 	[[nodiscard]] bool needCornerStatusDisplay() const;
 	[[nodiscard]] int additionalWidth(
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 	[[nodiscard]] int additionalWidth() const;
 	[[nodiscard]] bool isUnwrapped() const;

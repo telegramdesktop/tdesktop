@@ -17,6 +17,7 @@ struct HistoryMessageForwarded;
 
 namespace HistoryView {
 
+class Reply;
 struct TopicButton;
 
 class UnwrappedMedia final : public Media {
@@ -120,8 +121,8 @@ private:
 	};
 	[[nodiscard]] SurroundingInfo surroundingInfo(
 		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded,
 		int outerw) const;
 	void drawSurrounding(
@@ -129,8 +130,8 @@ private:
 		const QRect &inner,
 		const PaintContext &context,
 		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 
 	QSize countOptimalSize() override;
@@ -139,8 +140,8 @@ private:
 	bool needInfoDisplay() const;
 	int additionalWidth(
 		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
 
 	int calculateFullRight(const QRect &inner) const;

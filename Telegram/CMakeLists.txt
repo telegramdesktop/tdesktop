@@ -770,6 +770,8 @@ PRIVATE
     history/view/history_view_quick_action.h
     history/view/history_view_replies_section.cpp
     history/view/history_view_replies_section.h
+    history/view/history_view_reply.cpp
+    history/view/history_view_reply.h
     history/view/history_view_requests_bar.cpp
     history/view/history_view_requests_bar.h
     history/view/history_view_schedule_box.cpp

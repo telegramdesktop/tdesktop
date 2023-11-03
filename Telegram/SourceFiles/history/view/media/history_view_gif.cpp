@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_reply.h"
 #include "history/view/history_view_transcribe_button.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_spoiler.h"
@@ -217,12 +218,12 @@ QSize Gif::countOptimalSize() {
 	} else if (isUnwrapped()) {
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
-		auto reply = _parent->displayedReply();
+		auto reply = _parent->Get<Reply>();
 		auto forwarded = item->Get<HistoryMessageForwarded>();
 		if (forwarded) {
 			forwarded->create(via);
 		}
-		maxWidth += additionalWidth(via, reply, forwarded);
+		maxWidth += additionalWidth(reply, via, forwarded);
 		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());
 	}
 	return { maxWidth, minHeight };
@@ -274,10 +275,10 @@ QSize Gif::countCurrentSize(int newWidth) {
 
 		const auto item = _parent->data();
 		auto via = item->Get<HistoryMessageVia>();
-		auto reply = _parent->displayedReply();
+		auto reply = _parent->Get<Reply>();
 		auto forwarded = item->Get<HistoryMessageForwarded>();
 		if (via || reply || forwarded) {
-			auto additional = additionalWidth(via, reply, forwarded);
+			auto additional = additionalWidth(reply, via, forwarded);
 			newWidth += additional;
 			accumulate_min(newWidth, availableWidth);
 			auto usew = maxWidth() - additional;
@@ -385,13 +386,13 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	auto usex = 0, usew = paintw;
 	const auto unwrapped = isUnwrapped();
 	const auto via = unwrapped ? item->Get<HistoryMessageVia>() : nullptr;
-	const auto reply = unwrapped ? _parent->displayedReply() : nullptr;
+	const auto reply = unwrapped ? _parent->Get<Reply>() : nullptr;
 	const auto forwarded = unwrapped ? item->Get<HistoryMessageForwarded>() : nullptr;
 	const auto rightAligned = unwrapped
 		&& outbg
 		&& !_parent->delegate()->elementIsChatWide();
 	if (via || reply || forwarded) {
-		usew = maxWidth() - additionalWidth(via, reply, forwarded);
+		usew = maxWidth() - additionalWidth(reply, via, forwarded);
 		if (rightAligned) {
 			usex = width() - usew;
 		}
@@ -1013,13 +1014,13 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 	const auto item = _parent->data();
 	auto usew = paintw, usex = 0;
 	const auto via = unwrapped ? item->Get<HistoryMessageVia>() : nullptr;
-	const auto reply = unwrapped ? _parent->displayedReply() : nullptr;
+	const auto reply = unwrapped ? _parent->Get<Reply>() : nullptr;
 	const auto forwarded = unwrapped ? item->Get<HistoryMessageForwarded>() : nullptr;
 	const auto rightAligned = unwrapped
 		&& outbg
 		&& !_parent->delegate()->elementIsChatWide();
 	if (via || reply || forwarded) {
-		usew = maxWidth() - additionalWidth(via, reply, forwarded);
+		usew = maxWidth() - additionalWidth(reply, via, forwarded);
 		if (rightAligned) {
 			usex = width() - usew;
 		}
@@ -1094,15 +1095,8 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			const auto replyRect = QRect(rectx, recty, rectw, recth);
 			if (replyRect.contains(point)) {
 				result.link = reply->link();
-				reply->ripple.lastPoint = point - replyRect.topLeft();
-				if (!reply->ripple.animation) {
-					reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
-						st::defaultRippleAnimation,
-						Ui::RippleAnimation::RoundRectMask(
-							replyRect.size(),
-							st::messageQuoteStyle.radius),
-						[=] { item->history()->owner().requestItemRepaint(item); });
-				}
+				reply->saveRipplePoint(point - replyRect.topLeft());
+				reply->createRippleAnimation(_parent, replyRect.size());
 				return result;
 			}
 		}
@@ -1520,7 +1514,7 @@ bool Gif::needsBubble() const {
 	return item->repliesAreComments()
 		|| item->externalReply()
 		|| item->viaBot()
-		|| _parent->displayedReply()
+		|| _parent->displayReply()
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName()
 		|| _parent->displayedTopicButton();
@@ -1542,10 +1536,10 @@ QRect Gif::contentRectForReactions() const {
 		&& !_parent->delegate()->elementIsChatWide();
 	const auto item = _parent->data();
 	const auto via = item->Get<HistoryMessageVia>();
-	const auto reply = _parent->displayedReply();
+	const auto reply = _parent->Get<Reply>();
 	const auto forwarded = item->Get<HistoryMessageForwarded>();
 	if (via || reply || forwarded) {
-		usew = maxWidth() - additionalWidth(via, reply, forwarded);
+		usew = maxWidth() - additionalWidth(reply, via, forwarded);
 	}
 	accumulate_max(usew, _parent->reactionsOptimalWidth());
 	if (rightAligned) {
@@ -1602,8 +1596,8 @@ QPoint Gif::resolveCustomInfoRightBottom() const {
 int Gif::additionalWidth() const {
 	const auto item = _parent->data();
 	return additionalWidth(
+		_parent->Get<Reply>(),
 		item->Get<HistoryMessageVia>(),
-		item->Get<HistoryMessageReply>(),
 		item->Get<HistoryMessageForwarded>());
 }
 
@@ -1763,7 +1757,10 @@ void Gif::refreshCaption() {
 	_caption = createCaption(_parent->data());
 }
 
-int Gif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {
+int Gif::additionalWidth(
+		const Reply *reply,
+		const HistoryMessageVia *via,
+		const HistoryMessageForwarded *forwarded) const {
 	int result = 0;
 	if (forwarded) {
 		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + forwarded->text.maxWidth() + st::msgReplyPadding.right());

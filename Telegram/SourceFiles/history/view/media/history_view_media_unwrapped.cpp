@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_reply.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "lottie/lottie_single_player.h"
@@ -54,13 +55,13 @@ QSize UnwrappedMedia::countOptimalSize() {
 	if (_parent->media() == this) {
 		const auto item = _parent->data();
 		const auto via = item->Get<HistoryMessageVia>();
-		const auto reply = _parent->displayedReply();
+		const auto reply = _parent->Get<Reply>();
 		const auto topic = _parent->displayedTopicButton();
 		const auto forwarded = getDisplayedForwardedInfo();
 		if (forwarded) {
 			forwarded->create(via);
 		}
-		maxWidth += additionalWidth(topic, via, reply, forwarded);
+		maxWidth += additionalWidth(topic, reply, via, forwarded);
 		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());
 		if (const auto size = _parent->rightActionSize()) {
 			minHeight = std::max(
@@ -93,11 +94,11 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	accumulate_max(newWidth, _parent->reactionsOptimalWidth());
 	_topAdded = 0;
 	const auto via = item->Get<HistoryMessageVia>();
-	const auto reply = _parent->displayedReply();
+	const auto reply = _parent->Get<Reply>();
 	const auto topic = _parent->displayedTopicButton();
 	const auto forwarded = getDisplayedForwardedInfo();
 	if (topic || via || reply || forwarded) {
-		const auto additional = additionalWidth(topic, via, reply, forwarded);
+		const auto additional = additionalWidth(topic, reply, via, forwarded);
 		const auto optimalw = maxWidth() - additional;
 		const auto additionalMinWidth = std::min(additional, st::msgReplyPadding.left() + st::msgMinWidth / 2);
 		_additionalOnTop = (optimalw + additionalMinWidth) > newWidth;
@@ -107,7 +108,7 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		if (reply) {
 			[[maybe_unused]] auto h = reply->resizeToWidth(surroundingWidth);
 		}
-		const auto surrounding = surroundingInfo(topic, via, reply, forwarded, surroundingWidth);
+		const auto surrounding = surroundingInfo(topic, reply, via, forwarded, surroundingWidth);
 		if (_additionalOnTop) {
 			_topAdded = surrounding.height + st::msgMargin.bottom();
 			newHeight += _topAdded;
@@ -166,17 +167,17 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 	if (!inWebPage && (context.skipDrawingParts
 			!= PaintContext::SkipDrawingParts::Surrounding)) {
 		const auto via = inWebPage ? nullptr : item->Get<HistoryMessageVia>();
-		const auto reply = inWebPage ? nullptr : _parent->displayedReply();
+		const auto reply = inWebPage ? nullptr : _parent->Get<Reply>();
 		const auto topic = inWebPage ? nullptr : _parent->displayedTopicButton();
 		const auto forwarded = inWebPage ? nullptr : getDisplayedForwardedInfo();
-		drawSurrounding(p, inner, context, topic, via, reply, forwarded);
+		drawSurrounding(p, inner, context, topic, reply, via, forwarded);
 	}
 }
 
 UnwrappedMedia::SurroundingInfo UnwrappedMedia::surroundingInfo(
 		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded,
 		int outerw) const {
 	if (!topic && !via && !reply && !forwarded) {
@@ -242,8 +243,8 @@ void UnwrappedMedia::drawSurrounding(
 		const QRect &inner,
 		const PaintContext &context,
 		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const {
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
@@ -263,9 +264,9 @@ void UnwrappedMedia::drawSurrounding(
 	}
 	auto replyRight = 0;
 	auto rectw = _additionalOnTop
-		? std::min(width() - st::msgReplyPadding.left(), additionalWidth(topic, via, reply, forwarded))
+		? std::min(width() - st::msgReplyPadding.left(), additionalWidth(topic, reply, via, forwarded))
 		: (width() - inner.width() - st::msgReplyPadding.left());
-	if (const auto surrounding = surroundingInfo(topic, via, reply, forwarded, rectw)) {
+	if (const auto surrounding = surroundingInfo(topic, reply, via, forwarded, rectw)) {
 		auto recth = surrounding.panelHeight;
 		if (!surrounding.topicSize.isEmpty()) {
 			auto rectw = surrounding.topicSize.width();
@@ -416,14 +417,14 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 
 	if (_parent->media() == this) {
 		const auto via = inWebPage ? nullptr : item->Get<HistoryMessageVia>();
-		const auto reply = inWebPage ? nullptr : _parent->displayedReply();
+		const auto reply = inWebPage ? nullptr : _parent->Get<Reply>();
 		const auto topic = inWebPage ? nullptr : _parent->displayedTopicButton();
 		const auto forwarded = inWebPage ? nullptr : getDisplayedForwardedInfo();
 		auto replyRight = 0;
 		auto rectw = _additionalOnTop
-			? std::min(width() - st::msgReplyPadding.left(), additionalWidth(topic, via, reply, forwarded))
+			? std::min(width() - st::msgReplyPadding.left(), additionalWidth(topic, reply, via, forwarded))
 			: (width() - inner.width() - st::msgReplyPadding.left());
-		if (const auto surrounding = surroundingInfo(topic, via, reply, forwarded, rectw)) {
+		if (const auto surrounding = surroundingInfo(topic, reply, via, forwarded, rectw)) {
 			auto recth = surrounding.panelHeight;
 			if (!surrounding.topicSize.isEmpty()) {
 				auto rectw = surrounding.topicSize.width();
@@ -486,16 +487,8 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 					const auto replyRect = QRect(rectx, recty, rectw, recth);
 					if (replyRect.contains(point)) {
 						result.link = reply->link();
-						reply->ripple.lastPoint = point - replyRect.topLeft();
-						if (!reply->ripple.animation) {
-							reply->ripple.animation = std::make_unique<Ui::RippleAnimation>(
-								st::defaultRippleAnimation,
-								Ui::RippleAnimation::RoundRectMask(
-									replyRect.size(),
-									st::messageQuoteStyle.radius),
-								[=] { item->history()->owner().requestItemRepaint(item); });
-						}
-						return result;
+						reply->saveRipplePoint(point - replyRect.topLeft());
+						reply->createRippleAnimation(_parent, replyRect.size());
 					}
 				}
 				replyRight = rectx + rectw - st::msgReplyPadding.right();
@@ -542,7 +535,7 @@ bool UnwrappedMedia::hasTextForCopy() const {
 }
 
 bool UnwrappedMedia::dragItemByHandler(const ClickHandlerPtr &p) const {
-	const auto reply = _parent->displayedReply();
+	const auto reply = _parent->Get<Reply>();
 	return !reply || (reply->link() != p);
 }
 
@@ -649,8 +642,8 @@ bool UnwrappedMedia::needInfoDisplay() const {
 
 int UnwrappedMedia::additionalWidth(
 		const TopicButton *topic,
+		const Reply *reply,
 		const HistoryMessageVia *via,
-		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const {
 	auto result = st::msgReplyPadding.left() + _parent->infoWidth() + 2 * st::msgDateImgPadding.x();
 	if (topic) {
