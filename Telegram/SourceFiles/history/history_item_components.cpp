@@ -537,7 +537,7 @@ bool HistoryMessageReply::updateData(
 
 	const auto displaying = resolvedMessage
 		|| resolvedStory
-		|| (external && (!_fields.messageId || force));
+		|| (!_fields.quote.empty() && (!_fields.messageId || force));
 	_displaying = displaying ? 1 : 0;
 
 	const auto unavailable = !resolvedMessage
@@ -581,7 +581,7 @@ bool HistoryMessageReply::updateData(
 	}
 	return resolvedMessage
 		|| resolvedStory
-		|| (external && !_fields.messageId)
+		|| (external && !_fields.messageId && !_fields.storyId)
 		|| _unavailable;
 }
 
@@ -1086,7 +1086,7 @@ void HistoryMessageReply::paint(
 		+ st::historyReplyPadding.top()
 		+ (st::msgServiceNameFont->height * (_nameTwoLines ? 2 : 1));
 	if (w > st::historyReplyPadding.left()) {
-		if (resolvedMessage || resolvedStory || !_text.isEmpty()) {
+		if (_displaying) {
 			const auto media = resolvedMessage ? resolvedMessage->media() : nullptr;
 			if (hasPreview) {
 				const auto image = media
@@ -1187,11 +1187,13 @@ void HistoryMessageReply::paint(
 			p.setPen(cache->icon);
 			p.drawTextLeft(
 				textLeft,
-				y + st::historyReplyPadding.top() + (st::msgDateFont->height / 2),
+				(y
+					+ st::historyReplyPadding.top()
+					+ (st::msgDateFont->height / 2)),
 				w + 2 * x,
 				st::msgDateFont->elided(
 					statePhrase(),
-					w - textLeft - st::historyReplyPadding.right()));
+					x + w - textLeft - st::historyReplyPadding.right()));
 		}
 	}
 }
