@@ -63,6 +63,14 @@ void BoostBox(
 		data.boost,
 		st::boxRowPadding);
 
+	{
+		const auto &d = data.boost;
+		if (!d.nextLevelBoosts
+			|| ((d.thisLevelBoosts == d.boosts) && d.mine)) {
+			--data.boost.level;
+		}
+	}
+
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
 	const auto name = data.name;
