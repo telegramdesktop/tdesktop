@@ -574,7 +574,9 @@ public:
 	void loadMoreRows() override;
 
 	[[nodiscard]] bool skipRequest() const;
-	void setLimit(int limit);
+	void requestNext();
+
+	[[nodiscard]] rpl::producer<int> totalBoostsValue() const;
 
 private:
 	void applySlice(const Data::BoostsListSlice &slice);
@@ -586,10 +588,10 @@ private:
 	Data::BoostsListSlice _firstSlice;
 	Data::BoostsListSlice::OffsetToken _apiToken;
 
-	int _limit = 0;
-
 	bool _allLoaded = false;
 	bool _requesting = false;
+
+	rpl::variable<int> _totalBoosts;
 
 };
 
@@ -609,8 +611,7 @@ bool BoostsController::skipRequest() const {
 	return _requesting || _allLoaded;
 }
 
-void BoostsController::setLimit(int limit) {
-	_limit = limit;
+void BoostsController::requestNext() {
 	_requesting = true;
 	_api.requestBoosts(_apiToken, [=](const Data::BoostsListSlice &slice) {
 		_requesting = false;
@@ -630,7 +631,9 @@ void BoostsController::applySlice(const Data::BoostsListSlice &slice) {
 	_allLoaded = slice.allLoaded;
 	_apiToken = slice.token;
 
+	auto sumFromSlice = 0;
 	for (const auto &item : slice.list) {
+		sumFromSlice += item.multiplier ? item.multiplier : 1;
 		auto row = [&] {
 			if (item.userId && !item.isUnclaimed) {
 				const auto user = session().data().user(item.userId);
@@ -642,6 +645,7 @@ void BoostsController::applySlice(const Data::BoostsListSlice &slice) {
 		delegate()->peerListAppendRow(std::move(row));
 	}
 	delegate()->peerListRefreshRows();
+	_totalBoosts = _totalBoosts.current() + sumFromSlice;
 }
 
 void BoostsController::rowClicked(not_null<PeerListRow*> row) {
@@ -649,6 +653,10 @@ void BoostsController::rowClicked(not_null<PeerListRow*> row) {
 		_boostClickedCallback(
 			static_cast<const BoostRow*>(row.get())->boost());
 	}
+}
+
+rpl::producer<int> BoostsController::totalBoostsValue() const {
+	return _totalBoosts.value();
 }
 
 } // namespace
@@ -763,7 +771,6 @@ void AddBoostsList(
 		}
 		PeerListContentDelegateSimple delegate;
 		BoostsController controller;
-		int limit = Api::Boosts::kFirstSlice;
 	};
 	auto d = BoostsDescriptor{ firstSlice, boostClickedCallback, peer };
 	const auto state = container->lifetime().make_state<State>(std::move(d));
@@ -772,35 +779,35 @@ void AddBoostsList(
 		object_ptr<PeerListContent>(container, &state->controller)));
 	state->controller.setDelegate(&state->delegate);
 
-	if (max <= state->limit) {
-		return;
-	}
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
 			object_ptr<Ui::SettingsButton>(
 				container,
-				tr::lng_boosts_show_more(),
+				(firstSlice.token.gifts
+					? tr::lng_boosts_show_more_gifts
+					: tr::lng_boosts_show_more_boosts)(
+						lt_count,
+						state->controller.totalBoostsValue(
+						) | rpl::map(
+							max - rpl::mappers::_1
+						) | tr::to_count()),
 				st::statisticsShowMoreButton)),
 		{ 0, -st::settingsButton.padding.top(), 0, 0 });
 	const auto button = wrap->entity();
 	AddArrow(button);
 
 	const auto showMore = [=] {
-		if (state->controller.skipRequest()) {
-			return;
+		if (!state->controller.skipRequest()) {
+			state->controller.requestNext();
+			container->resizeToWidth(container->width());
 		}
-		state->limit = std::min(int(max), state->limit + Api::Boosts::kLimit);
-		state->controller.setLimit(state->limit);
-		if (state->limit == max) {
-			wrap->toggle(false, anim::type::instant);
-		}
-		container->resizeToWidth(container->width());
 	};
+	wrap->toggleOn(
+		state->controller.totalBoostsValue(
+		) | rpl::map(rpl::mappers::_1 > 0 && rpl::mappers::_1 < max),
+		anim::type::instant);
 	button->setClickedCallback(showMore);
-	if (state->limit == max) {
-		wrap->toggle(false, anim::type::instant);
-	}
 }
 
 } // namespace Info::Statistics

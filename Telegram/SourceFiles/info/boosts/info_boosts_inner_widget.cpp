@@ -67,11 +67,12 @@ void FillOverview(
 		object_ptr<Ui::RpWidget>(content),
 		st::statisticsLayerMargins);
 
-	const auto addPrimary = [&](float64 v) {
+	const auto addPrimary = [&](float64 v, bool approximately = false) {
 		return Ui::CreateChild<Ui::FlatLabel>(
 			container,
 			(v >= 0)
-				? Lang::FormatCountToShort(v).string
+				? (approximately && v ? QChar(0x2248) : QChar())
+					+ Lang::FormatCountToShort(v).string
 				: QString(),
 			st::statisticsOverviewValue);
 	};
@@ -109,7 +110,7 @@ void FillOverview(
 
 
 	const auto topLeftLabel = addPrimary(stats.level);
-	const auto topRightLabel = addPrimary(stats.premiumMemberCount);
+	const auto topRightLabel = addPrimary(stats.premiumMemberCount, true);
 	const auto bottomLeftLabel = addPrimary(stats.boostCount);
 	const auto bottomRightLabel = addPrimary(std::max(
 		stats.nextLevelBoostCount - stats.boostCount,
