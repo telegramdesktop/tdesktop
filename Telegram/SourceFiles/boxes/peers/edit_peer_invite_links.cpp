@@ -32,8 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h" // st::settingsDividerLabelPadding
 #include "styles/style_menu_icons.h"
 
-#include <xxhash.h>
-
 namespace {
 
 enum class Color {
@@ -112,12 +110,8 @@ private:
 
 };
 
-[[nodiscard]] uint64 ComputeRowId(const QString &link) {
-	return XXH64(link.data(), link.size() * sizeof(ushort), 0);
-}
-
 [[nodiscard]] uint64 ComputeRowId(const InviteLinkData &data) {
-	return ComputeRowId(data.link);
+	return UniqueRowIdFromString(data.link);
 }
 
 [[nodiscard]] float64 ComputeProgress(
@@ -628,7 +622,8 @@ void LinksController::updateRow(const InviteLinkData &data, TimeId now) {
 }
 
 bool LinksController::removeRow(const QString &link) {
-	if (const auto row = delegate()->peerListFindRow(ComputeRowId(link))) {
+	const auto id = UniqueRowIdFromString(link);
+	if (const auto row = delegate()->peerListFindRow(id)) {
 		delegate()->peerListRemoveRow(row);
 		return true;
 	}

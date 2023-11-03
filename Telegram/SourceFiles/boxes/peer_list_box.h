@@ -54,6 +54,8 @@ using PaintRoundImageCallback = Fn<void(
 
 using PeerListRowId = uint64;
 
+[[nodiscard]] PeerListRowId UniqueRowIdFromString(const QString &d);
+
 class PeerListRow {
 public:
 	enum class State {

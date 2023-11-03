@@ -37,8 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
-#include <xxhash.h>
-
 namespace {
 
 constexpr auto kMaxLinkTitleLength = 32;
@@ -223,14 +221,6 @@ private:
 
 };
 
-[[nodiscard]] uint64 ComputeRowId(const QString &link) {
-	return XXH64(link.data(), link.size() * sizeof(ushort), 0);
-}
-
-[[nodiscard]] uint64 ComputeRowId(const InviteLinkData &data) {
-	return ComputeRowId(data.url);
-}
-
 [[nodiscard]] Color ComputeColor(const InviteLinkData &link) {
 	return Color::Permanent;
 }
@@ -242,7 +232,7 @@ private:
 LinkRow::LinkRow(
 	not_null<LinkRowDelegate*> delegate,
 	const InviteLinkData &data)
-: PeerListRow(ComputeRowId(data))
+: PeerListRow(UniqueRowIdFromString(data.url))
 , _delegate(delegate)
 , _data(data)
 , _color(ComputeColor(data)) {
