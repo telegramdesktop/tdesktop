@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_story.h"
 #include "data/data_user.h"
+#include "history/view/history_view_item_preview.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
@@ -176,6 +177,7 @@ void Reply::update(
 	const auto &fields = data->fields();
 	const auto message = data->resolvedMessage.get();
 	const auto story = data->resolvedStory.get();
+	const auto externalMedia = fields.externalMedia.get();
 	if (!_externalSender) {
 		if (const auto id = fields.externalSenderId) {
 			_externalSender = view->history()->owner().peer(id);
@@ -195,7 +197,8 @@ void Reply::update(
 	const auto hasPreview = (story && story->hasReplyPreview())
 		|| (message
 			&& message->media()
-			&& message->media()->hasReplyPreview());
+			&& message->media()->hasReplyPreview())
+		|| (externalMedia && externalMedia->hasReplyPreview());
 	_hasPreview = hasPreview ? 1 : 0;
 	_displaying = data->displaying() ? 1 : 0;
 	_multiline = data->multiline() ? 1 : 0;
@@ -213,6 +216,15 @@ void Reply::update(
 		? message->inReplyText()
 		: story
 		? story->inReplyText()
+		: externalMedia
+		? externalMedia->toPreview({
+			.hideSender = true,
+			.hideCaption = true,
+			.ignoreMessageText = true,
+			.generateImages = false,
+			.ignoreGroup = true,
+			.ignoreTopic = true,
+		}).text
 		: TextWithEntities();
 	const auto repaint = [=] { item->customEmojiRepaint(); };
 	const auto context = Core::MarkedTextContext{
@@ -222,7 +234,7 @@ void Reply::update(
 	_text.setMarkedText(
 		st::defaultTextStyle,
 		text,
-		Ui::DialogTextOptions(),
+		_multiline ? Ui::ItemTextDefaultOptions() : Ui::DialogTextOptions(),
 		context);
 
 	updateName(view, data);
@@ -388,7 +400,9 @@ void Reply::updateName(
 	const auto externalPeer = fields.externalPeerId
 		? view->history()->owner().peer(fields.externalPeerId).get()
 		: nullptr;
-	const auto groupNameAdded = (externalPeer && externalPeer != sender);
+	const auto groupNameAdded = externalPeer
+		&& (externalPeer != sender)
+		&& (externalPeer->isChat() || externalPeer->isMegagroup());
 	const auto shorten = !viaBotUsername.isEmpty() || groupNameAdded;
 	const auto name = sender
 		? senderName(sender, shorten)
@@ -508,10 +522,16 @@ int Reply::resizeToWidth(int width) const {
 	auto elided = false;
 	const auto texth = _text.countDimensions(
 		textGeometry(innerw, firstLineSkip, &lineCounter, &elided)).height;
+	const auto useh = elided
+		? (kNonExpandedLinesLimit * st::normalFont->height)
+		: std::max(texth, st::normalFont->height);
+	if (!texth) {
+		int a = 0;
+	}
 	_expandable = (_multiline && elided) ? 1 : 0;
 	_height = st::historyReplyPadding.top()
 		+ nameh
-		+ (elided ? kNonExpandedLinesLimit * st::normalFont->height : texth)
+		+ useh
 		+ st::historyReplyPadding.bottom();
 	return height();
 }
@@ -551,7 +571,10 @@ QSize Reply::countMultilineOptimalSize(
 	const auto max = previewSkip + _text.maxWidth();
 	const auto result = _text.countDimensions(
 		textGeometry(max, previewSkip, &lineCounter, &elided));
-	return { result.width, result.height };
+	return {
+		result.width,
+		std::max(result.height, st::normalFont->height),
+	};
 }
 
 void Reply::paint(
@@ -663,6 +686,8 @@ void Reply::paint(
 					? nullptr
 					: data->resolvedStory
 					? data->resolvedStory->replyPreview()
+					: data->fields().externalMedia
+					? data->fields().externalMedia->replyPreview()
 					: nullptr;
 				if (image) {
 					auto to = style::rtlrect(

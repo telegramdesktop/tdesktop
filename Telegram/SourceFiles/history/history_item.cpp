@@ -451,7 +451,7 @@ HistoryItem::HistoryItem(
 	config.reply.topicPost = (topicRootId != 0);
 	if (const auto originalReply = original->Get<HistoryMessageReply>()) {
 		if (originalReply->external()) {
-			config.reply = originalReply->fields();
+			config.reply = originalReply->fields().clone(this);
 			if (!config.reply.externalPeerId) {
 				config.reply.messageId = 0;
 			}
@@ -3133,7 +3133,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 	UpdateComponents(mask);
 
 	if (const auto reply = Get<HistoryMessageReply>()) {
-		reply->set(config.reply);
+		reply->set(std::move(config.reply));
 		if (!reply->updateData(this)) {
 			if (const auto messageId = reply->messageId()) {
 				RequestDependentMessageItem(
@@ -3456,7 +3456,7 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 		});
 	}
 	if (const auto reply = data.vreply_to()) {
-		config.reply = ReplyFieldsFromMTP(history(), *reply);
+		config.reply = ReplyFieldsFromMTP(this, *reply);
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
 	config.viewsCount = data.vviews().value_or(-1);

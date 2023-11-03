@@ -270,15 +270,33 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	}
 }
 
+ReplyFields ReplyFields::clone(not_null<HistoryItem*> parent) const {
+	return {
+		.quote = quote,
+		.externalMedia = (externalMedia
+			? externalMedia->clone(parent)
+			: nullptr),
+		.externalSenderId = externalSenderId,
+		.externalSenderName = externalSenderName,
+		.externalPostAuthor = externalPostAuthor,
+		.externalPeerId = externalPeerId,
+		.messageId = messageId,
+		.topMessageId = topMessageId,
+		.storyId = storyId,
+		.topicPost = topicPost,
+		.manualQuote = manualQuote,
+	};
+}
+
 ReplyFields ReplyFieldsFromMTP(
-		not_null<History*> history,
+		not_null<HistoryItem*> item,
 		const MTPMessageReplyHeader &reply) {
 	return reply.match([&](const MTPDmessageReplyHeader &data) {
 		auto result = ReplyFields();
 		if (const auto peer = data.vreply_to_peer_id()) {
 			result.externalPeerId = peerFromMTP(*peer);
 		}
-		const auto owner = &history->owner();
+		const auto owner = &item->history()->owner();
 		if (const auto id = data.vreply_to_msg_id().value_or_empty()) {
 			result.messageId = data.is_reply_to_scheduled()
 				? owner->scheduledMessages().localMessageId(id)
@@ -296,6 +314,9 @@ ReplyFields ReplyFieldsFromMTP(
 				: PeerId();
 			result.externalSenderName
 				= qs(data.vfrom_name().value_or_empty());
+		}
+		if (const auto media = data.vreply_media()) {
+			result.externalMedia = HistoryItem::CreateMedia(item, *media);
 		}
 		result.quote = TextWithEntities{
 			qs(data.vquote_text().value_or_empty()),
@@ -357,6 +378,7 @@ HistoryMessageReply &HistoryMessageReply::operator=(
 HistoryMessageReply::~HistoryMessageReply() {
 	// clearData() should be called by holder.
 	Expects(resolvedMessage.empty());
+	_fields.externalMedia = nullptr;
 }
 
 bool HistoryMessageReply::updateData(
@@ -407,7 +429,8 @@ bool HistoryMessageReply::updateData(
 
 	const auto displaying = resolvedMessage
 		|| resolvedStory
-		|| (!_fields.quote.empty() && (!_fields.messageId || force));
+		|| ((!_fields.quote.empty() || _fields.externalMedia)
+			&& (!_fields.messageId || force));
 	_displaying = displaying ? 1 : 0;
 
 	const auto unavailable = !resolvedMessage

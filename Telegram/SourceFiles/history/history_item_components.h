@@ -233,7 +233,10 @@ private:
 };
 
 struct ReplyFields {
+	ReplyFields clone(not_null<HistoryItem*> parent) const;
+
 	TextWithEntities quote;
+	std::unique_ptr<Data::Media> externalMedia;
 	PeerId externalSenderId = 0;
 	QString externalSenderName;
 	QString externalPostAuthor;
@@ -246,7 +249,7 @@ struct ReplyFields {
 };
 
 [[nodiscard]] ReplyFields ReplyFieldsFromMTP(
-	not_null<History*> history,
+	not_null<HistoryItem*> item,
 	const MTPMessageReplyHeader &reply);
 
 [[nodiscard]] FullReplyTo ReplyToFromMTP(

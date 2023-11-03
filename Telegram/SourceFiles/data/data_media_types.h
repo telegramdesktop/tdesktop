@@ -623,6 +623,7 @@ public:
 private:
 	const FullStoryId _storyId;
 	const bool _mention = false;
+	bool _viewMayExist = false;
 	bool _expired = false;
 
 };

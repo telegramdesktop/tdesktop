@@ -86,9 +86,16 @@ struct FileReferenceAccumulator {
 		}, [](const auto &data) {
 		});
 	}
+	void push(const MTPMessageReplyHeader &data) {
+		data.match([&](const MTPDmessageReplyHeader &data) {
+			push(data.vreply_media());
+		}, [](const MTPDmessageReplyStoryHeader &data) {
+		});
+	}
 	void push(const MTPMessage &data) {
 		data.match([&](const MTPDmessage &data) {
 			push(data.vmedia());
+			push(data.vreply_to());
 		}, [&](const MTPDmessageService &data) {
 			data.vaction().match(
 			[&](const MTPDmessageActionChatEditPhoto &data) {
@@ -99,6 +106,7 @@ struct FileReferenceAccumulator {
 				push(data.vwallpaper());
 			}, [](const auto &data) {
 			});
+			push(data.vreply_to());
 		}, [](const MTPDmessageEmpty &data) {
 		});
 	}
