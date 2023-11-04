@@ -1294,23 +1294,23 @@ release:
 """)
 
 if buildQt5:
-    stage('qt_5_15_10', """
-    git clone https://github.com/qt/qt5.git qt_5_15_10
-    cd qt_5_15_10
+    stage('qt_5_15_11', """
+    git clone https://github.com/qt/qt5.git qt_5_15_11
+    cd qt_5_15_11
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-    git checkout v5.15.10-lts-lgpl
+    git checkout v5.15.11-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
-depends:patches/qtbase_5.15.10/*.patch
+depends:patches/qtbase_5.15.11/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5.15.10\\*) do git apply %%i
+    for /r %%i in (..\\..\\patches\\qtbase_5.15.11\\*) do git apply %%i -v
     cd ..
 
     SET CONFIGURATIONS=-debug
 release:
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.10\"") + """
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.11\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1318,7 +1318,7 @@ win:
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.10" ^
+    configure -prefix "%LIBS_DIR%\\Qt-5.15.11" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1353,14 +1353,14 @@ win:
     jom -j16
     jom -j16 install
 mac:
-    find ../../patches/qtbase_5.15.10 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5.15.11 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.10" \
+    ./configure -prefix "$USED_PREFIX/Qt-5.15.11" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \

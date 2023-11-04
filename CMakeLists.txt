@@ -59,7 +59,7 @@ include(cmake/options.cmake)
 
 if (NOT DESKTOP_APP_USE_PACKAGED)
     if (WIN32)
-        set(qt_version 5.15.10)
+        set(qt_version 5.15.11)
     elseif (APPLE)
         set(qt_version 6.2.6)
     endif()
