@@ -415,19 +415,22 @@ void Reply::updateName(
 			- st::historyReplyPadding.left())
 		: 0;
 	const auto peerIcon = [](PeerData *peer) {
+		using namespace std;
 		return !peer
-			? &st::historyReplyUser
+			? pair(&st::historyReplyUser, st::historyReplyUserPadding)
 			: peer->isBroadcast()
-			? &st::historyReplyChannel
+			? pair(&st::historyReplyChannel, st::historyReplyChannelPadding)
 			: (peer->isChannel() || peer->isChat())
-			? &st::historyReplyGroup
-			: &st::historyReplyUser;
+			? pair(&st::historyReplyGroup, st::historyReplyGroupPadding)
+			: pair(&st::historyReplyUser, st::historyReplyUserPadding);
 	};
 	const auto peerEmoji = [&](PeerData *peer) {
 		const auto owner = &view->history()->owner();
+		const auto icon = peerIcon(peer);
 		return Ui::Text::SingleCustomEmoji(
 			owner->customEmojiManager().registerInternalEmoji(
-				*peerIcon(peer)));
+				*icon.first,
+				icon.second));
 	};
 	auto nameFull = TextWithEntities();
 	if (!groupNameAdded && data->external() && !fields.storyId) {
@@ -435,7 +438,7 @@ void Reply::updateName(
 	}
 	nameFull.append(name);
 	if (groupNameAdded) {
-		nameFull.append(peerEmoji(externalPeer));
+		nameFull.append(' ').append(peerEmoji(externalPeer));
 		nameFull.append(externalPeer->name());
 	}
 	if (!viaBotUsername.isEmpty()) {

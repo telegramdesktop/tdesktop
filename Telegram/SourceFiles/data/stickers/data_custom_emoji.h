@@ -85,9 +85,11 @@ public:
 
 	[[nodiscard]] QString registerInternalEmoji(
 		QImage emoji,
+		QMargins padding = {},
 		bool textColor = true);
 	[[nodiscard]] QString registerInternalEmoji(
 		const style::icon &icon,
+		QMargins padding = {},
 		bool textColor = true);
 
 	[[nodiscard]] uint64 coloredSetId() const;

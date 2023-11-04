@@ -93,6 +93,14 @@ private:
 	return u"internal:"_q;
 }
 
+[[nodiscard]] QString InternalPadding(QMargins value) {
+	return value.isNull() ? QString() : QString(",%1,%2,%3,%4"
+	).arg(value.left()
+	).arg(value.top()
+	).arg(value.right()
+	).arg(value.bottom());
+}
+
 } // namespace
 
 class CustomEmojiLoader final
@@ -549,13 +557,21 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 
 std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::internal(
 		QStringView data) {
-	const auto index = data.mid(InternalPrefix().size()).toInt();
+	const auto v = data.mid(InternalPrefix().size()).split(',');
+	if (v.size() != 5 && v.size() != 1) {
+		return nullptr;
+	}
+	const auto index = v[0].toInt();
 	Assert(index >= 0 && index < _internalEmoji.size());
 
 	auto &info = _internalEmoji[index];
+	const auto padding = (v.size() == 5)
+		? QMargins(v[1].toInt(), v[2].toInt(), v[3].toInt(), v[4].toInt())
+		: QMargins();
 	return std::make_unique<Ui::CustomEmoji::Internal>(
 		data.toString(),
 		info.image,
+		padding,
 		info.textColor);
 }
 
@@ -906,17 +922,21 @@ uint64 CustomEmojiManager::coloredSetId() const {
 
 QString CustomEmojiManager::registerInternalEmoji(
 		QImage emoji,
+		QMargins padding,
 		bool textColor) {
 	_internalEmoji.push_back({ std::move(emoji), textColor });
-	return InternalPrefix() + QString::number(_internalEmoji.size() - 1);
+	return InternalPrefix()
+		+ QString::number(_internalEmoji.size() - 1)
+		+ InternalPadding(padding);
 }
 
 QString CustomEmojiManager::registerInternalEmoji(
 		const style::icon &icon,
+		QMargins padding,
 		bool textColor) {
 	const auto i = _iconEmoji.find(&icon);
 	if (i != end(_iconEmoji)) {
-		return i->second;
+		return i->second + InternalPadding(padding);
 	}
 	auto image = QImage(
 		icon.size() * style::DevicePixelRatio(),
@@ -927,9 +947,12 @@ QString CustomEmojiManager::registerInternalEmoji(
 	icon.paint(p, 0, 0, icon.width());
 	p.end();
 
-	const auto result = registerInternalEmoji(std::move(image), textColor);
+	const auto result = registerInternalEmoji(
+		std::move(image),
+		QMargins{},
+		textColor);
 	_iconEmoji.emplace(&icon, result);
-	return result;
+	return result + InternalPadding(padding);
 }
 
 int FrameSizeFromTag(SizeTag tag) {
