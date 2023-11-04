@@ -501,7 +501,7 @@ release:
 
 stage('xz', """
 !win:
-    git clone -b v5.2.9 https://git.tukaani.org/xz.git
+    git clone -b v5.4.5 https://git.tukaani.org/xz.git
     cd xz
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
@@ -513,7 +513,7 @@ stage('xz', """
 """)
 
 stage('zlib', """
-    git clone -b v1.2.11 https://github.com/madler/zlib.git
+    git clone -b v1.3 https://github.com/madler/zlib.git
     cd zlib
 win:
     cmake . ^
@@ -534,7 +534,7 @@ mac:
 """)
 
 stage('mozjpeg', """
-    git clone -b v4.1.3 https://github.com/mozilla/mozjpeg.git
+    git clone -b v4.1.5 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
 win:
     cmake . ^
@@ -900,9 +900,8 @@ depends:yasm/yasm
 """)
 
 stage('libwebp', """
-    git clone https://github.com/webmproject/libwebp.git
+    git clone -b v1.3.2 https://github.com/webmproject/libwebp.git
     cd libwebp
-    git checkout chrome-m116-5845
 win:
     nmake /f Makefile.vc CFG=debug-static OBJDIR=out RTLIBCFG=static all
     nmake /f Makefile.vc CFG=release-static OBJDIR=out RTLIBCFG=static all
