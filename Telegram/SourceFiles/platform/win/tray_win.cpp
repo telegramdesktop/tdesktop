@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <qpa/qplatformtheme.h>
 #include <private/qguiapplication_p.h>
 #include <private/qhighdpiscaling_p.h>
+#include <QSvgRenderer>
 
 namespace Platform {
 
@@ -61,6 +63,49 @@ constexpr auto kTooltipDelay = crl::time(10000);
 	return (value == 0);
 }
 
+[[nodiscard]] QImage MonochromeIconFor(int size, bool darkMode) {
+	Expects(size > 0);
+
+	static const auto Content = [&] {
+		auto f = QFile(u":/gui/icons/tray/monochrome.svg"_q);
+		f.open(QIODevice::ReadOnly);
+		return f.readAll();
+	}();
+	static auto Mask = QImage();
+	static auto Size = 0;
+	if (Mask.isNull() || Size != size) {
+		Size = size;
+		Mask = QImage(size, size, QImage::Format_ARGB32_Premultiplied);
+		Mask.fill(Qt::transparent);
+		auto p = QPainter(&Mask);
+		QSvgRenderer(Content).render(&p, QRectF(0, 0, size, size));
+	}
+	static auto Colored = QImage();
+	static auto ColoredDark = QImage();
+	auto &use = darkMode ? ColoredDark : Colored;
+	if (use.size() != Mask.size()) {
+		const auto color = darkMode ? 255 : 0;
+		const auto alpha = darkMode ? 255 : 228;
+		use = style::colorizeImage(Mask, { color, color, color, alpha });
+	}
+	return use;
+}
+
+[[nodiscard]] QImage MonochromeWithDot(QImage image, style::color color) {
+	auto p = QPainter(&image);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto xm = image.width() / 16.;
+	const auto ym = image.height() / 16.;
+	p.setBrush(color);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(QRectF( // cx=3.9, cy=12.7, r=2.2
+		1.7 * xm,
+		10.5 * ym,
+		4.4 * xm,
+		4.4 * ym));
+	return image;
+}
+
 [[nodiscard]] QImage ImageIconWithCounter(
 		Window::CounterLayerArgs &&args,
 		bool supportMode,
@@ -83,42 +128,16 @@ constexpr auto kTooltipDelay = crl::time(10000);
 	auto result = [&] {
 		if (const auto it = scaled.find(args.size); it != scaled.end()) {
 			return it->second;
-		} else {
-			if (monochrome && darkMode) {
-				const auto withColor = [&](QColor color) -> std::pair<QImage, int> {
-					if (args.size <= 16) {
-						return { st::macTrayIcon.instance(color, 100 / cIntRetinaFactor()), 3 };
-					} else if (args.size <= 32) {
-						return { st::macTrayIcon.instance(color, 200 / cIntRetinaFactor()), 6 };
-					} else {
-						return { st::macTrayIcon.instance(color, 300 / cIntRetinaFactor()), 9 };
-					}
-				};
-				const auto result = *darkMode
-					? withColor({ 255, 255, 255 })
-					: withColor({ 0, 0, 0, 228 });
-				auto &image = scaled.emplace(
-					args.size,
-					result.first.copy(
-						QRect(
-							QPoint(result.second, result.second),
-							result.first.size()
-								- QSize(result.second * 2, result.second * 2)
-						)
-					).scaledToWidth(args.size, Qt::SmoothTransformation)
-				).first->second;
-				image.setDevicePixelRatio(1);
-				return image;
-			} else {
-				return scaled.emplace(
-					args.size,
-					(smallIcon
-						? Window::LogoNoMargin()
-						: Window::Logo()
-					).scaledToWidth(args.size, Qt::SmoothTransformation)
-				).first->second;
-			}
+		} else if (monochrome && darkMode) {
+			return MonochromeIconFor(args.size, *darkMode);
 		}
+		return scaled.emplace(
+			args.size,
+			(smallIcon
+				? Window::LogoNoMargin()
+				: Window::Logo()
+			).scaledToWidth(args.size, Qt::SmoothTransformation)
+		).first->second;
 	}();
 	if ((!monochrome || !darkMode) && supportMode) {
 		Window::ConvertIconToBlack(result);
@@ -126,6 +145,9 @@ constexpr auto kTooltipDelay = crl::time(10000);
 	if (!args.count) {
 		return result;
 	} else if (smallIcon) {
+		if (monochrome && darkMode) {
+			return MonochromeWithDot(std::move(result), args.bg);
+		}
 		return Window::WithSmallCounter(std::move(result), std::move(args));
 	}
 	QPainter p(&result);
