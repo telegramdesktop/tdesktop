@@ -418,7 +418,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 81a81ffb5a
+    git checkout f603f4f986
 """)
 
 stage('msys64', """
@@ -1381,14 +1381,14 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_2_5', """
+    stage('qt_6_2_6', """
 mac:
-    git clone -b v6.2.5-lts-lgpl https://code.qt.io/qt/qt5.git qt_6_2_5
-    cd qt_6_2_5
+    git clone -b v6.2.6-lts-lgpl https://code.qt.io/qt/qt5.git qt_6_2_6
+    cd qt_6_2_6
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-depends:patches/qtbase_6.2.5/*.patch
+depends:patches/qtbase_6.2.6/*.patch
     cd qtbase
-    find ../../patches/qtbase_6.2.5 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_6.2.6 -type f -print0 | sort -z | xargs -0 git apply -v
     cd ..
     sed -i.bak 's/tqtc-//' {qtimageformats,qtsvg}/dependencies.yaml
 
@@ -1396,7 +1396,7 @@ depends:patches/qtbase_6.2.5/*.patch
 release:
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.2.5" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.2.6" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
