@@ -272,8 +272,7 @@ void SetupPowerSavingButton(
 
 void SetupLanguageButton(
 		not_null<Window::Controller*> window,
-		not_null<Ui::VerticalLayout*> container,
-		bool icon) {
+		not_null<Ui::VerticalLayout*> container) {
 	const auto button = AddButtonWithLabel(
 		container,
 		tr::lng_settings_language(),
@@ -282,8 +281,8 @@ void SetupLanguageButton(
 		) | rpl::then(
 			Lang::GetInstance().idChanges()
 		) | rpl::map([] { return Lang::GetInstance().nativeName(); }),
-		icon ? st::settingsButton : st::settingsButtonNoIcon,
-		{ icon ? &st::menuIconTranslate : nullptr });
+		st::settingsButton,
+		{ &st::menuIconTranslate });
 	const auto guard = Ui::CreateChild<base::binary_guard>(button.get());
 	button->addClickHandler([=] {
 		const auto m = button->clickModifiers();
