@@ -110,7 +110,13 @@ void ItemSticker::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
-	p->drawImage(contentRect().toRect(), _image);
+	const auto rect = contentRect();
+	const auto imageSize = QSizeF(_image.size() / style::DevicePixelRatio())
+		.scaled(rect.size(), Qt::KeepAspectRatio);
+	const auto resultRect = QRectF(rect.topLeft(), imageSize).translated(
+		(rect.width() - imageSize.width()) / 2.,
+		(rect.height() - imageSize.height()) / 2.);
+	p->drawImage(resultRect, _image);
 	ItemBase::paint(p, option, w);
 }
 
