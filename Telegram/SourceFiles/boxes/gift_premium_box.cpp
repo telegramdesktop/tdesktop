@@ -689,7 +689,8 @@ void GiveawayInfoBox(
 		text.append(' ').append(tr::lng_prizes_end_activated(
 			tr::now,
 			lt_count,
-			info.activatedCount));
+			info.activatedCount,
+			Ui::Text::RichLangValue));
 	}
 	if (!info.giftCode.isEmpty()) {
 		text.append("\n\n");
