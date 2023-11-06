@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/boosts/giveaway/giveaway_list_controllers.h"
 #include "info/boosts/giveaway/giveaway_type_row.h"
 #include "info/boosts/giveaway/select_countries_box.h"
+#include "info/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "payments/payments_checkout_process.h" // Payments::CheckoutProcess
 #include "payments/payments_form.h" // Payments::InvoicePremiumGiftCode
@@ -39,6 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace {
+
+constexpr auto kDoneTooltipDuration = 5 * crl::time(1000);
 
 [[nodiscard]] QDateTime ThreeDaysAfterToday() {
 	auto dateNow = QDateTime::currentDateTime();
@@ -70,6 +74,8 @@ void CreateGiveawayBox(
 		not_null<Info::Controller*> controller,
 		not_null<PeerData*> peer) {
 	box->setWidth(st::boxWideWidth);
+
+	const auto weakWindow = base::make_weak(controller->parentController());
 
 	const auto bar = box->verticalLayout()->add(
 		object_ptr<Ui::Premium::TopBar>(
@@ -624,12 +630,44 @@ void CreateGiveawayBox(
 				};
 			}
 			state->confirmButtonBusy = true;
-			Payments::CheckoutProcess::Start(
-				std::move(invoice),
-				crl::guard(box, [=](auto) {
+			const auto show = box->uiShow();
+			const auto weak = Ui::MakeWeak(box.get());
+			const auto done = [=](Payments::CheckoutResult result) {
+				if (const auto strong = weak.data()) {
 					state->confirmButtonBusy = false;
-					box->window()->setFocus();
-				}));
+					strong->window()->setFocus();
+					strong->closeBox();
+				}
+				if (result == Payments::CheckoutResult::Paid) {
+					const auto filter = [=](const auto &...) {
+						if (const auto window = weakWindow.get()) {
+							window->showSection(Info::Boosts::Make(peer));
+						}
+						return false;
+					};
+					const auto title = isSpecific
+						? tr::lng_giveaway_awarded_title
+						: tr::lng_giveaway_created_title;
+					const auto body = isSpecific
+						? tr::lng_giveaway_awarded_body
+						: tr::lng_giveaway_created_body;
+					show->showToast({
+						.text = Ui::Text::Bold(
+							title(tr::now)).append('\n').append(
+								body(
+									tr::now,
+									lt_link,
+									Ui::Text::Link(
+										tr::lng_giveaway_created_link(
+											tr::now)),
+									Ui::Text::WithEntities)),
+						.duration = kDoneTooltipDuration,
+						.adaptive = true,
+						.filter = filter,
+					});
+				}
+			};
+			Payments::CheckoutProcess::Start(std::move(invoice), done);
 		});
 		box->addButton(std::move(button));
 	}
