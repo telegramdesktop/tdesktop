@@ -3580,7 +3580,14 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	sendAction(action);
 
 	const auto clearCloudDraft = action.clearDraft;
-	const auto topicRootId = action.replyTo.topicRootId;
+	const auto replyTo = action.replyTo.messageId
+		? peer->owner().message(action.replyTo.messageId)
+		: nullptr;
+	const auto topicRootId = action.replyTo.topicRootId
+		? action.replyTo.topicRootId
+		: replyTo
+		? replyTo->topicRootId()
+		: Data::ForumTopic::kGeneralId;
 	const auto topic = peer->forumTopicFor(topicRootId);
 	if (!(topic ? Data::CanSendTexts(topic) : Data::CanSendTexts(peer))
 		|| Api::SendDice(message)) {
