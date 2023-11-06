@@ -1,3 +1,11 @@
+4.11.5 (06.11.23)
+
+- Giveaway phrases and sticker fixes.
+- Show quoted part in channel comments.
+- Show replies with icons and multiline preview.
+- Send correct replies in topics and channel comments.
+- In monochrome Windows tray icon use dot instead of counter.
+
 4.11.4 beta (06.11.23)
 
 - Show quoted part in channel comments.
