@@ -540,7 +540,6 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 					_boostStatus.firstSliceGifts = std::move(s);
 					consumer.put_done();
 				});
-				consumer.put_done();
 			});
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());

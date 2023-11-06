@@ -365,10 +365,9 @@ void InnerWidget::fill() {
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				inner,
 				object_ptr<Ui::VerticalLayout>(inner)));
-		boostsWrap->toggle(hasOneTab ? true : hasBoosts, anim::type::instant);
-		giftsWrap->toggle(hasOneTab ? false : hasGifts, anim::type::instant);
 
-		slider->entity()->sectionActivated(
+		rpl::single(hasGifts ? 1 : 0) | rpl::then(
+			slider->entity()->sectionActivated()
 		) | rpl::start_with_next([=](int index) {
 			boostsWrap->toggle(!index, anim::type::instant);
 			giftsWrap->toggle(index, anim::type::instant);
@@ -403,7 +402,7 @@ void InnerWidget::fill() {
 	FillGetBoostsButton(inner, _controller, _show, _peer);
 
 	resizeToWidth(width());
-	crl::on_main([=]{ fakeShowed->fire({}); });
+	crl::on_main(this, [=]{ fakeShowed->fire({}); });
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
