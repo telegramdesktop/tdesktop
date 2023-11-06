@@ -48,14 +48,17 @@ MTPInputReplyTo ReplyToForMTP(
 		}
 	} else if (replyTo.messageId || replyTo.topicRootId) {
 		const auto to = LookupReplyTo(history, replyTo.messageId);
+		const auto replyingToTopic = replyTo.topicRootId
+			? history->peer->forumTopicFor(replyTo.topicRootId)
+			: nullptr;
 		const auto replyingToTopicId = replyTo.topicRootId
-			? replyTo.topicRootId
-			: Data::ForumTopic::kGeneralId;
-		const auto replyToTopicId = !to
-			? replyingToTopicId
-			: to->topicRootId()
+			? (replyingToTopic
+				? replyingToTopic->rootId()
+				: Data::ForumTopic::kGeneralId)
+			: (to ? to->topicRootId() : Data::ForumTopic::kGeneralId);
+		const auto replyToTopicId = to
 			? to->topicRootId()
-			: Data::ForumTopic::kGeneralId;
+			: replyingToTopicId;
 		const auto external = replyTo.messageId
 			&& (replyTo.messageId.peer != history->peer->id
 				|| replyingToTopicId != replyToTopicId);
