@@ -420,7 +420,7 @@ void PaintRow(
 			.now = context.now,
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-			.elisionOneLine = true,
+			.elisionLines = 1,
 		});
 	} else if (draft
 		|| (supportMode
@@ -514,7 +514,7 @@ void PaintRow(
 				.now = context.now,
 				.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 				.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
-				.elisionOneLine = true,
+				.elisionLines = 1,
 			});
 		}
 	} else if (!item) {

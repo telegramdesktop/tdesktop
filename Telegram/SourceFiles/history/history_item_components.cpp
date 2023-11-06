@@ -424,12 +424,14 @@ bool HistoryMessageReply::updateData(
 		}
 	}
 
-	const auto external = this->external();
-	_multiline = !_fields.storyId && (external || !_fields.quote.empty());
+	const auto asExternal = displayAsExternal(holder);
+	const auto nonEmptyQuote = !_fields.quote.empty()
+		&& (asExternal || _fields.manualQuote);
+	_multiline = !_fields.storyId && (asExternal || nonEmptyQuote);
 
 	const auto displaying = resolvedMessage
 		|| resolvedStory
-		|| ((!_fields.quote.empty() || _fields.externalMedia)
+		|| ((nonEmptyQuote || _fields.externalMedia)
 			&& (!_fields.messageId || force));
 	_displaying = displaying ? 1 : 0;
 
@@ -446,7 +448,7 @@ bool HistoryMessageReply::updateData(
 	}
 	return resolvedMessage
 		|| resolvedStory
-		|| (external && !_fields.messageId && !_fields.storyId)
+		|| (!_fields.messageId && !_fields.storyId && external())
 		|| _unavailable;
 }
 
@@ -506,6 +508,15 @@ bool HistoryMessageReply::external() const {
 	return _fields.externalPeerId
 		|| _fields.externalSenderId
 		|| !_fields.externalSenderName.isEmpty();
+}
+
+bool HistoryMessageReply::displayAsExternal(
+		not_null<HistoryItem*> holder) const {
+	// Don't display replies that could be local as external.
+	return external()
+		&& (!resolvedMessage
+			|| (holder->history() != resolvedMessage->history())
+			|| (holder->topicRootId() != resolvedMessage->topicRootId()));
 }
 
 void HistoryMessageReply::itemRemoved(

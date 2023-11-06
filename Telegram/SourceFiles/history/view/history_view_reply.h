@@ -67,8 +67,7 @@ private:
 	[[nodiscard]] Ui::Text::GeometryDescriptor textGeometry(
 		int available,
 		int firstLineSkip,
-		not_null<int*> line,
-		not_null<bool*> outElided) const;
+		bool *outElided = nullptr) const;
 	[[nodiscard]] QSize countMultilineOptimalSize(
 		int firstLineSkip) const;
 	void setLinkFrom(
@@ -101,11 +100,12 @@ private:
 	mutable int _minHeight = 0;
 	mutable int _height = 0;
 	mutable int _nameVersion = 0;
-	uint8 _hiddenSenderColorIndexPlusOne = 0;
+	uint8 _hiddenSenderColorIndexPlusOne : 7 = 0;
 	uint8 _hasQuoteIcon : 1 = 0;
 	uint8 _replyToStory : 1 = 0;
 	uint8 _expanded : 1 = 0;
 	mutable uint8 _expandable : 1 = 0;
+	mutable uint8 _minHeightExpandable : 1 = 0;
 	mutable uint8 _nameTwoLines : 1 = 0;
 	mutable uint8 _hasPreview : 1 = 0;
 	mutable uint8 _displaying : 1 = 0;

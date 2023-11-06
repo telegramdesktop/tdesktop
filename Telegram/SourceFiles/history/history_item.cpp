@@ -3349,13 +3349,15 @@ void HistoryItem::createComponentsHelper(
 			: (replyTo.messageId.peer == history()->peer->id)
 			? replyTo.messageId.msg
 			: MsgId();
+		const auto forum = _history->asForum();
+		const auto topic = forum
+			? forum->topicFor(replyTo.topicRootId)
+			: nullptr;
 		if (!config.reply.externalPeerId
-			&& to
-			&& config.reply.topicPost
-			&& replyTo.topicRootId != to->topicRootId()) {
+			&& topic
+			&& topic->rootId() != to->topicRootId()) {
 			config.reply.externalPeerId = replyTo.messageId.peer;
 		}
-		const auto forum = _history->asForum();
 		config.reply.topicPost = config.reply.externalPeerId
 			? (replyTo.topicRootId
 				&& (replyTo.topicRootId != Data::ForumTopic::kGeneralId))

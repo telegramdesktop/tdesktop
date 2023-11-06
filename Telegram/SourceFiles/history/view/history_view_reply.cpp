@@ -210,10 +210,10 @@ void Reply::update(
 
 	const auto text = (!_displaying && data->unavailable())
 		? TextWithEntities()
+		: (message && (fields.quote.empty() || !fields.manualQuote))
+		? message->inReplyText()
 		: !fields.quote.empty()
 		? fields.quote
-		: message
-		? message->inReplyText()
 		: story
 		? story->inReplyText()
 		: externalMedia
@@ -400,7 +400,9 @@ void Reply::updateName(
 	const auto externalPeer = fields.externalPeerId
 		? view->history()->owner().peer(fields.externalPeerId).get()
 		: nullptr;
-	const auto groupNameAdded = externalPeer
+	const auto displayAsExternal = data->displayAsExternal(view->data());
+	const auto groupNameAdded = displayAsExternal
+		&& externalPeer
 		&& (externalPeer != sender)
 		&& (externalPeer->isChat() || externalPeer->isMegagroup());
 	const auto shorten = !viaBotUsername.isEmpty() || groupNameAdded;
@@ -433,7 +435,7 @@ void Reply::updateName(
 				icon.second));
 	};
 	auto nameFull = TextWithEntities();
-	if (!groupNameAdded && data->external() && !fields.storyId) {
+	if (displayAsExternal && !groupNameAdded && !fields.storyId) {
 		nameFull.append(peerEmoji(sender));
 	}
 	nameFull.append(name);
@@ -509,7 +511,7 @@ int Reply::resizeToWidth(int width) const {
 		: 0;
 	if (width >= _maxWidth || !_multiline) {
 		_nameTwoLines = 0;
-		_expandable = 0;
+		_expandable = _minHeightExpandable;
 		_height = _minHeight;
 		return height();
 	}
@@ -521,20 +523,13 @@ int Reply::resizeToWidth(int width) const {
 	_nameTwoLines = (desiredNameHeight > st::semiboldFont->height) ? 1 : 0;
 	const auto nameh = (_nameTwoLines ? 2 : 1) * st::semiboldFont->height;
 	const auto firstLineSkip = _nameTwoLines ? 0 : previewSkip;
-	auto lineCounter = 0;
 	auto elided = false;
 	const auto texth = _text.countDimensions(
-		textGeometry(innerw, firstLineSkip, &lineCounter, &elided)).height;
-	const auto useh = elided
-		? (kNonExpandedLinesLimit * st::normalFont->height)
-		: std::max(texth, st::normalFont->height);
-	if (!texth) {
-		int a = 0;
-	}
-	_expandable = (_multiline && elided) ? 1 : 0;
+		textGeometry(innerw, firstLineSkip, &elided)).height;
+	_expandable = elided ? 1 : 0;
 	_height = st::historyReplyPadding.top()
 		+ nameh
-		+ useh
+		+ std::max(texth, st::normalFont->height)
 		+ st::historyReplyPadding.bottom();
 	return height();
 }
@@ -542,21 +537,17 @@ int Reply::resizeToWidth(int width) const {
 Ui::Text::GeometryDescriptor Reply::textGeometry(
 		int available,
 		int firstLineSkip,
-		not_null<int*> line,
-		not_null<bool*> outElided) const {
-	return { .layout = [=](Ui::Text::LineGeometry in) {
-		const auto skip = (*line ? 0 : firstLineSkip);
-		++*line;
-		*outElided = *outElided
-			|| !_multiline
-			|| (!_expanded
-				&& (*line == kNonExpandedLinesLimit)
-				&& in.width > available - skip);
-		in.width = available - skip;
-		in.left += skip;
-		in.elided = *outElided;
-		return in;
-	} };
+		bool *outElided) const {
+	return { .layout = [=](int line) {
+		const auto skip = (line ? 0 : firstLineSkip);
+		const auto elided = !_multiline
+			|| (!_expanded && (line + 1 >= kNonExpandedLinesLimit));
+		return Ui::Text::LineGeometry{
+			.left = skip,
+			.width = available - skip,
+			.elided = elided,
+		};
+	}, .outElided = outElided };
 }
 
 int Reply::height() const {
@@ -570,10 +561,10 @@ QMargins Reply::margins() const {
 QSize Reply::countMultilineOptimalSize(
 		int previewSkip) const {
 	auto elided = false;
-	auto lineCounter = 0;
 	const auto max = previewSkip + _text.maxWidth();
 	const auto result = _text.countDimensions(
-		textGeometry(max, previewSkip, &lineCounter, &elided));
+		textGeometry(max, previewSkip, &elided));
+	_minHeightExpandable = elided ? 1 : 0;
 	return {
 		result.width,
 		std::max(result.height, st::normalFont->height),
@@ -767,18 +758,16 @@ void Reply::paint(
 					copy->linkFg = owned->color();
 					replyToTextPalette = &*copy;
 				}
-				auto l = 0;
-				auto e = false;
 				_text.draw(p, {
 					.position = { textLeft, textTop },
-					.geometry = textGeometry(textw, firstLineSkip, &l, &e),
+					.geometry = textGeometry(textw, firstLineSkip),
 					.palette = replyToTextPalette,
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
 					.now = context.now,
 					.pausedEmoji = (context.paused
 						|| On(PowerSaving::kEmojiChat)),
 					.pausedSpoiler = pausedSpoiler,
-					.elisionOneLine = true,
+					.elisionLines = 1,
 				});
 				p.setTextPalette(stm->textPalette);
 			}

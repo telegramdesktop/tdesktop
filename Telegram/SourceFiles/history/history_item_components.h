@@ -279,6 +279,8 @@ struct HistoryMessageReply
 	void clearData(not_null<HistoryItem*> holder);
 
 	[[nodiscard]] bool external() const;
+	[[nodiscard]] bool displayAsExternal(
+		not_null<HistoryItem*> holder) const;
 	void itemRemoved(
 		not_null<HistoryItem*> holder,
 		not_null<HistoryItem*> removed);

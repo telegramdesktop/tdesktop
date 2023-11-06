@@ -388,7 +388,7 @@ void Giveaway::paintChannels(
 			.align = style::al_left,
 			.palette = &stm->textPalette,
 			.now = context.now,
-			.elisionOneLine = true,
+			.elisionLines = 1,
 			.elisionBreakEverywhere = true,
 		});
 	}
