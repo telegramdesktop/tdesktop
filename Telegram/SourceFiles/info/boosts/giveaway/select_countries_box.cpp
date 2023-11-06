@@ -93,7 +93,6 @@ void SelectCountriesBox(
 	buttons.reserve(countries.size());
 	for (const auto &country : countries) {
 		const auto flag = Countries::Instance().flagEmojiByISO2(country.iso2);
-		const auto asd = Ui::Emoji::Find(flag);
 		if (!Ui::Emoji::Find(flag)) {
 			continue;
 		}

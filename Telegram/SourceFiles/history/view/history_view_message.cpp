@@ -1829,7 +1829,6 @@ void Message::toggleReplyRipple(bool pressed) {
 		if (!unwrapped()) {
 			const auto &padding = st::msgPadding;
 			const auto geometry = countGeometry();
-			const auto item = data();
 			const auto margins = reply->margins();
 			const auto size = QSize(
 				geometry.width() - padding.left() - padding.right(),

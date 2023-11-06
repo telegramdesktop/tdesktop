@@ -388,7 +388,6 @@ void Reply::updateName(
 		not_null<HistoryMessageReply*> data,
 		std::optional<PeerData*> resolvedSender) const {
 	auto viaBotUsername = QString();
-	const auto story = data->resolvedStory.get();
 	const auto message = data->resolvedMessage.get();
 	if (message && !message->Has<HistoryMessageForwarded>()) {
 		if (const auto bot = message->viaBot()) {
