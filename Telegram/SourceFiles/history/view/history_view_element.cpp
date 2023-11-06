@@ -498,7 +498,8 @@ Element::Element(
 	| Flag::NeedsResize
 	| (IsItemScheduledUntilOnline(data)
 		? Flag::ScheduledUntilOnline
-		: Flag()))
+		: Flag())
+	| (countIsTopicRootReply() ? Flag::TopicRootReply : Flag()))
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia(replacing);
@@ -1258,15 +1259,6 @@ QSize Element::countCurrentSize(int newWidth) {
 		initDimensions();
 	}
 	return performCountCurrentSize(newWidth);
-}
-
-void Element::refreshIsTopicRootReply() {
-	const auto topicRootReply = countIsTopicRootReply();
-	if (topicRootReply) {
-		_flags |= Flag::TopicRootReply;
-	} else {
-		_flags &= ~Flag::TopicRootReply;
-	}
 }
 
 bool Element::countIsTopicRootReply() const {

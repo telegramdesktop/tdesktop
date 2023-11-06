@@ -597,7 +597,11 @@ void PinnedWidget::listUpdateDateLink(
 }
 
 bool PinnedWidget::listElementHideReply(not_null<const Element*> view) {
-	return (view->data()->replyToId() == _thread->topicRootId());
+	if (const auto reply = view->data()->Get<HistoryMessageReply>()) {
+		return !reply->fields().manualQuote
+			&& (reply->messageId() == _thread->topicRootId());
+	}
+	return false;
 }
 
 bool PinnedWidget::listElementShownUnread(not_null<const Element*> view) {

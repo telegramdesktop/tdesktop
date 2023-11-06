@@ -565,7 +565,6 @@ protected:
 
 	void clearSpecialOnlyEmoji();
 	void checkSpecialOnlyEmoji();
-	void refreshIsTopicRootReply();
 
 private:
 	// This should be called only from previousInBlocksChanged()

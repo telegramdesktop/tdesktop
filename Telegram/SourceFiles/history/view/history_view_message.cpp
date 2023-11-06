@@ -601,7 +601,7 @@ QSize Message::performCountOptimalSize() {
 	const auto item = data();
 
 	const auto replyData = item->Get<HistoryMessageReply>();
-	if (replyData) {
+	if (replyData && !_hideReply) {
 		AddComponents(Reply::Bit());
 	} else {
 		RemoveComponents(Reply::Bit());
@@ -616,7 +616,6 @@ QSize Message::performCountOptimalSize() {
 			: 2;
 	};
 	const auto oldKey = reactionsKey();
-	refreshIsTopicRootReply();
 	validateText();
 	validateInlineKeyboard(markup);
 	updateViewButtonExistence();
