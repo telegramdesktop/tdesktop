@@ -2159,10 +2159,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_prizes_end_when_finish" = "On {date}, Telegram automatically selected {winners}.";
 "lng_prizes_end_activated#one" = "**{count}** of the winners already used their gift link.";
 "lng_prizes_end_activated#other" = "**{count}** of the winners already used their gift links.";
-"lng_prizes_winners_all_of_one#one" = "{count} random subscribers of {channel}.";
-"lng_prizes_winners_all_of_one#other" = "{count} random subscribers of {channel}.";
-"lng_prizes_winners_all_of_many#one" = "{count} random subscribers of {channel} and other listed channels.";
-"lng_prizes_winners_all_of_many#other" = "{count} random subscribers of {channel} and other listed channels.";
+"lng_prizes_winners_all_of_one#one" = "{count} random subscribers of {channel}";
+"lng_prizes_winners_all_of_one#other" = "{count} random subscribers of {channel}";
+"lng_prizes_winners_all_of_many#one" = "{count} random subscribers of {channel} and other listed channels";
+"lng_prizes_winners_all_of_many#other" = "{count} random subscribers of {channel} and other listed channels";
 "lng_prizes_winners_new_of_one#one" = "{count} random user that joined {channel} after {start_date}";
 "lng_prizes_winners_new_of_one#other" = "{count} random users that joined {channel} after {start_date}";
 "lng_prizes_winners_new_of_many#one" = "{count} random user that joined {channel} and other listed channels after {start_date}";
