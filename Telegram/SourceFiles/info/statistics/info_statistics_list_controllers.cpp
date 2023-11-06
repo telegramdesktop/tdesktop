@@ -476,6 +476,11 @@ PaintRoundImageCallback BoostRow::generatePaintUserpicCallback(bool force) {
 	}
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		_userpic.paintCircle(p, x, y, outerWidth, size);
+		(_boost.isUnclaimed
+			? st::boostsListUnclaimedIcon
+			: st::boostsListUnknownIcon).paintInCenter(
+				p,
+				{ x, y, size, size });
 	};
 }
 

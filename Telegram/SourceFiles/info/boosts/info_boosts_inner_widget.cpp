@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "statistics/widgets/chart_header_widget.h"
 #include "ui/boxes/boost_box.h"
-#include "ui/controls/invite_link_buttons.h"
 #include "ui/controls/invite_link_label.h"
 #include "ui/rect.h"
 #include "ui/widgets/buttons.h"
@@ -181,8 +180,35 @@ void FillShareLink(
 	) | rpl::start_with_next(copyLink, label->lifetime());
 	const auto copyShareWrap = content->add(
 		object_ptr<Ui::VerticalLayout>(content));
-	Ui::AddCopyShareLinkButtons(copyShareWrap, copyLink, shareLink);
-	copyShareWrap->widgetAt(0)->showChildren();
+	{
+		const auto wrap = content->add(
+			object_ptr<Ui::FixedHeightWidget>(
+				content,
+				st::inviteLinkButton.height),
+			st::inviteLinkButtonsPadding);
+		const auto copy = CreateChild<Ui::RoundButton>(
+			wrap,
+			tr::lng_group_invite_context_copy(),
+			st::inviteLinkCopy);
+		copy->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		copy->setClickedCallback(copyLink);
+		const auto share = CreateChild<Ui::RoundButton>(
+			wrap,
+			tr::lng_group_invite_context_share(),
+			st::inviteLinkShare);
+		share->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+		share->setClickedCallback(shareLink);
+
+		wrap->widthValue(
+		) | rpl::start_with_next([=](int width) {
+			const auto buttonWidth = (width - st::inviteLinkButtonsSkip) / 2;
+			copy->setFullWidth(buttonWidth);
+			share->setFullWidth(buttonWidth);
+			copy->moveToLeft(0, 0, width);
+			share->moveToRight(0, 0, width);
+		}, wrap->lifetime());
+		wrap->showChildren();
+	}
 	::Settings::AddSkip(content, st::boostsLinkFieldPadding.bottom());
 }
 
@@ -366,6 +392,7 @@ void InnerWidget::fill() {
 		::Settings::AddDividerText(inner, tr::lng_boosts_list_subtext());
 	}
 
+	::Settings::AddSkip(inner);
 	::Settings::AddSkip(inner);
 	AddHeader(inner, tr::lng_boosts_link_title);
 	::Settings::AddSkip(inner, st::boostsLinkSkip);

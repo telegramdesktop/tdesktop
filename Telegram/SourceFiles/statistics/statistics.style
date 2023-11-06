@@ -159,9 +159,11 @@ boostsListBadgeHeight: 16px;
 boostsListRightBadgeTextStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }
-boostsListRightBadgeTextPadding: margins(16px, 1px, 6px, 0px);
-boostsListRightBadgePadding: margins(4px, 5px, 8px, 0px);
+boostsListRightBadgeTextPadding: margins(22px, 1px, 8px, 0px);
+boostsListRightBadgePadding: margins(4px, 5px, 12px, 0px);
 boostsListRightBadgeHeight: 20px;
-boostsListGiftMiniIconPadding: margins(1px, 2px, 0px, 0px);
-boostsListGiftMiniIcon: icon{{ "boosts/boost_mini2", historyPeer8UserpicBg2 }};
-boostsListGiveawayMiniIcon: icon{{ "boosts/boost_mini2", historyPeer4UserpicBg2 }};
+boostsListGiftMiniIconPadding: margins(4px, 2px, 0px, 0px);
+boostsListGiftMiniIcon: icon{{ "boosts/mini_gift", historyPeer8UserpicBg2 }};
+boostsListGiveawayMiniIcon: icon{{ "boosts/mini_giveaway", historyPeer4UserpicBg2 }};
+boostsListUnclaimedIcon: icon{{ "boosts/boost_unknown", premiumButtonFg }};
+boostsListUnknownIcon: icon{{ "boosts/boost_unclaimed", premiumButtonFg }};
