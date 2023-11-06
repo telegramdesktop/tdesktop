@@ -1,3 +1,10 @@
+4.11.4 beta (06.11.23)
+
+- Show quoted part in channel comments.
+- Show replies with icons and multiline preview.
+- Send correct replies in topics and channel comments.
+- In monochrome Windows tray icon use dot instead of counter.
+
 4.11.3 (02.11.23)
 
 - Fix adding a link to media captions in scheduled / comments.
