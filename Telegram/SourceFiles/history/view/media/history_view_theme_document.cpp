@@ -418,13 +418,6 @@ bool ThemeDocument::isReadyForOpen() const {
 	return !_data || _dataMedia->loaded();
 }
 
-QString ThemeDocument::additionalInfoString() const {
-	// This will force message info (time) to be displayed below
-	// this attachment in WebPage media.
-	static auto result = QString(" ");
-	return result;
-}
-
 bool ThemeDocument::hasHeavyPart() const {
 	return (_dataMedia != nullptr);
 }

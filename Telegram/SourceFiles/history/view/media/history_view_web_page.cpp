@@ -710,7 +710,6 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	auto inner = outer.marginsRemoved(innerMargin());
 	auto tshift = inner.top();
 	auto paintw = inner.width();
-	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
 
 	auto lineHeight = UnitedLineHeight();
 	auto inThumb = false;

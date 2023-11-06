@@ -624,7 +624,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		== PaintContext::SkipDrawingParts::Surrounding;
 
 	if (!unwrapped && !skipDrawingSurrounding) {
-		drawCornerStatus(p, context, QPoint());
+		if (!isRound || !inWebPage) {
+			drawCornerStatus(p, context, QPoint());
+		}
 	} else if (!skipDrawingSurrounding) {
 		if (isRound) {
 			const auto mediaUnread = item->hasUnreadMediaFlag();

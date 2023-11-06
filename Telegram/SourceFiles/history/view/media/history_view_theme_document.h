@@ -46,7 +46,6 @@ public:
 		return true;
 	}
 	bool isReadyForOpen() const override;
-	QString additionalInfoString() const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;

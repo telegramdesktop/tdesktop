@@ -683,6 +683,10 @@ QSize Message::performCountOptimalSize() {
 				std::min(st::msgMaxWidth, reactionsMaxWidth));
 			if (!mediaDisplayed || _viewButton) {
 				minHeight += st::mediaInBubbleSkip;
+			} else if (!media->additionalInfoString().isEmpty()) {
+				// In round videos in a web page status text is painted
+				// in the bottom left corner, reactions should be below.
+				minHeight += st::msgDateFont->height;
 			}
 			if (maxWidth >= reactionsMaxWidth) {
 				minHeight += _reactions->minHeight();
