@@ -121,7 +121,7 @@ void TopBarAbstract::paintEdges(QPainter &p, const QBrush &brush) const {
 
 void TopBarAbstract::paintEdges(QPainter &p) const {
 	paintEdges(p, st::boxBg);
-	if (isDark()) {
+	if (isDark() && st().additionalShadowForDarkThemes) {
 		paintEdges(p, st::shadowFg);
 		paintEdges(p, st::shadowFg);
 	}
