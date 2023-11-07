@@ -228,7 +228,8 @@ void AddPremiumTopBarWithDefaultTitleBar(
 void CreateGiveawayBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Info::Controller*> controller,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		Fn<void()> reloadOnDone) {
 	box->setWidth(st::boxWideWidth);
 
 	const auto weakWindow = base::make_weak(controller->parentController());
@@ -790,12 +791,15 @@ void CreateGiveawayBox(
 			const auto show = box->uiShow();
 			const auto weak = Ui::MakeWeak(box.get());
 			const auto done = [=](Payments::CheckoutResult result) {
-				if (const auto strong = weak.data()) {
-					state->confirmButtonBusy = false;
-					strong->window()->setFocus();
-					strong->closeBox();
+				const auto isPaid = result == Payments::CheckoutResult::Paid;
+				if (result == Payments::CheckoutResult::Pending || isPaid) {
+					if (const auto strong = weak.data()) {
+						strong->window()->setFocus();
+						strong->closeBox();
+					}
 				}
-				if (result == Payments::CheckoutResult::Paid) {
+				if (isPaid) {
+					reloadOnDone();
 					const auto filter = [=](const auto &...) {
 						if (const auto window = weakWindow.get()) {
 							window->showSection(Info::Boosts::Make(peer));
@@ -822,6 +826,8 @@ void CreateGiveawayBox(
 						.adaptive = true,
 						.filter = filter,
 					});
+				} else {
+					state->confirmButtonBusy = false;
 				}
 			};
 			Payments::CheckoutProcess::Start(std::move(invoice), done);

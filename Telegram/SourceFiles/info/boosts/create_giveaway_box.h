@@ -20,4 +20,5 @@ class GenericBox;
 void CreateGiveawayBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Info::Controller*> controller,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	Fn<void()> reloadOnDone);

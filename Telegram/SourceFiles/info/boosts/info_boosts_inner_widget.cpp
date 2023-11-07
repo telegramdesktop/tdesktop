@@ -216,7 +216,8 @@ void FillGetBoostsButton(
 		not_null<Ui::VerticalLayout*> content,
 		not_null<Controller*> controller,
 		std::shared_ptr<Ui::Show> show,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		Fn<void()> reloadOnDone) {
 	if (!Api::PremiumGiftCodeOptions(peer).giveawayGiftsPurchaseAvailable()) {
 		return;
 	}
@@ -229,7 +230,7 @@ void FillGetBoostsButton(
 			tr::lng_boosts_get_boosts(),
 			st));
 	button->setClickedCallback([=] {
-		show->showBox(Box(CreateGiveawayBox, controller, peer));
+		show->showBox(Box(CreateGiveawayBox, controller, peer, reloadOnDone));
 	});
 	Ui::CreateChild<Info::Profile::FloatingIcon>(
 		button,
@@ -428,7 +429,13 @@ void InnerWidget::fill() {
 	::Settings::AddSkip(inner);
 	::Settings::AddDividerText(inner, tr::lng_boosts_link_subtext());
 
-	FillGetBoostsButton(inner, _controller, _show, _peer);
+	const auto reloadOnDone = crl::guard(this, [=] {
+		while (Ui::VerticalLayout::count()) {
+			delete Ui::VerticalLayout::widgetAt(0);
+		}
+		load();
+	});
+	FillGetBoostsButton(inner, _controller, _show, _peer, reloadOnDone);
 
 	resizeToWidth(width());
 	crl::on_main(this, [=]{ fakeShowed->fire({}); });
