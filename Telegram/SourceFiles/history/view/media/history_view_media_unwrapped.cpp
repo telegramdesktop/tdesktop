@@ -325,7 +325,7 @@ void UnwrappedMedia::drawSurrounding(
 				recty += skip;
 			} else if (via) {
 				p.setFont(st::msgDateFont);
-				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * textx + textw, via->text);
+				p.drawTextLeft(textx, recty + st::msgReplyPadding.top(), 2 * textx + textw, via->text);
 
 				const auto skip = st::msgServiceNameFont->height
 					+ (reply ? st::msgReplyPadding.top() : 0);
