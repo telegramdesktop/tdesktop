@@ -110,6 +110,8 @@ PRIVATE
     info/userpic/info_userpic_emoji_builder_layer.cpp
     info/userpic/info_userpic_emoji_builder_layer.h
 
+    info/boosts/giveaway/boost_badge.cpp
+    info/boosts/giveaway/boost_badge.h
     info/boosts/giveaway/giveaway_type_row.cpp
     info/boosts/giveaway/giveaway_type_row.h
     info/boosts/giveaway/select_countries_box.cpp
