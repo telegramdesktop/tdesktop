@@ -155,13 +155,14 @@ TopBar::TopBar(
 	Fn<QVariant()> clickContextOther,
 	rpl::producer<QString> title,
 	rpl::producer<TextWithEntities> about,
-	bool light)
+	bool light,
+	bool optimizeMinistars)
 : TopBarAbstract(parent, st)
 , _light(light)
 , _titleFont(st.titleFont)
 , _titlePadding(st.titlePadding)
 , _about(this, std::move(about), st.about)
-, _ministars(this) {
+, _ministars(this, optimizeMinistars) {
 	std::move(
 		title
 	) | rpl::start_with_next([=](QString text) {

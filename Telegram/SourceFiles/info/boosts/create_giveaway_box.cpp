@@ -171,7 +171,8 @@ void AddPremiumTopBarWithDefaultTitleBar(
 		nullptr,
 		tr::lng_giveaway_new_title(),
 		tr::lng_giveaway_new_about(Ui::Text::RichLangValue),
-		true);
+		true,
+		false);
 	bar->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	box->addRow(

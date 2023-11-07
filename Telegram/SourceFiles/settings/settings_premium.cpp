@@ -523,7 +523,7 @@ TopBarUser::TopBarUser(
 , _content(this)
 , _title(_content, st::settingsPremiumUserTitle)
 , _about(_content, st::userPremiumCover.about)
-, _ministars(_content)
+, _ministars(_content, true)
 , _smallTop({
 	.widget = object_ptr<Ui::RpWidget>(this),
 	.text = Ui::Text::String(

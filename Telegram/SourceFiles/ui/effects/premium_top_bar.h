@@ -72,7 +72,8 @@ public:
 		Fn<QVariant()> clickContextOther,
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> about,
-		bool light = false);
+		bool light = false,
+		bool optimizeMinistars = true);
 	~TopBar();
 
 	void setPaused(bool paused) override;

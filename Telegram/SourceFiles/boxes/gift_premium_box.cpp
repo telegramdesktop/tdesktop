@@ -95,7 +95,7 @@ void GiftBox(
 			+ st::defaultUserpicButton.size.height()));
 
 	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
-	const auto stars = box->lifetime().make_state<ColoredMiniStars>(top);
+	const auto stars = box->lifetime().make_state<ColoredMiniStars>(top, true);
 
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 		top,

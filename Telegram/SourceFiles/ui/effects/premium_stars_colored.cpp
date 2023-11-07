@@ -13,10 +13,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace Premium {
 
-ColoredMiniStars::ColoredMiniStars(not_null<Ui::RpWidget*> parent)
-: _ministars([=](const QRect &r) {
-	parent->update(r.translated(_position));
-}, true) {
+ColoredMiniStars::ColoredMiniStars(
+	not_null<Ui::RpWidget*> parent,
+	bool optimizeUpdate)
+: _ministars(
+	optimizeUpdate
+		? Fn<void(const QRect &)>([=](const QRect &r) {
+			parent->update(r.translated(_position));
+		})
+		: Fn<void(const QRect &)>([=](const QRect &) { parent->update(); }),
+	true) {
 }
 
 void ColoredMiniStars::setSize(const QSize &size) {
