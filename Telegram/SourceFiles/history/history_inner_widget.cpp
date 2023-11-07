@@ -3088,6 +3088,8 @@ void HistoryInner::recountHistoryGeometry() {
 		accumulate_max(oldHistoryPaddingTop, _botAbout->height);
 	}
 
+	updateBotInfo(false);
+
 	_history->resizeToWidth(_contentWidth);
 	if (_migrated) {
 		_migrated->resizeToWidth(_contentWidth);
@@ -3111,7 +3113,6 @@ void HistoryInner::recountHistoryGeometry() {
 		}
 	}
 
-	updateBotInfo(false);
 	if (const auto view = _botAbout ? _botAbout->view() : nullptr) {
 		_botAbout->height = view->resizeGetHeight(_contentWidth);
 		_botAbout->top = qMin(
