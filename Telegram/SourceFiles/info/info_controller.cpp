@@ -284,7 +284,8 @@ bool Controller::validateMementoPeer(
 	return memento->peer() == peer()
 		&& memento->migratedPeerId() == migratedPeerId()
 		&& memento->settingsSelf() == settingsSelf()
-		&& memento->storiesPeer() == storiesPeer();
+		&& memento->storiesPeer() == storiesPeer()
+		&& memento->statisticsPeer() == statisticsPeer();
 }
 
 void Controller::setSection(not_null<ContentMemento*> memento) {
