@@ -11,6 +11,10 @@ namespace style {
 struct TextStyle;
 } // namespace style
 
+namespace Ui {
+class RpWidget;
+} // namespace Ui
+
 namespace Info::Statistics {
 
 [[nodiscard]] QImage CreateBadge(
@@ -23,5 +27,15 @@ namespace Info::Statistics {
 	float64 bgOpacity,
 	const style::margins &iconPadding,
 	const style::icon &icon);
+
+[[nodiscard]] not_null<Ui::RpWidget*> InfiniteRadialAnimationWidget(
+	not_null<Ui::RpWidget*> parent,
+	int size);
+
+void AddLabelWithBadgeToButton(
+	not_null<Ui::RpWidget*> parent,
+	rpl::producer<QString> text,
+	rpl::producer<int> number,
+	rpl::producer<bool> shown);
 
 } // namespace Info::Statistics

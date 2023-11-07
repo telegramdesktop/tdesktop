@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "countries/countries_instance.h"
 #include "data/data_peer.h"
+#include "info/boosts/giveaway/boost_badge.h"
 #include "info/boosts/giveaway/giveaway_list_controllers.h"
 #include "info/boosts/giveaway/giveaway_type_row.h"
 #include "info/boosts/giveaway/select_countries_box.h"
@@ -253,7 +254,7 @@ void CreateGiveawayBox(
 		rpl::variable<TimeId> dateValue;
 		rpl::variable<std::vector<QString>> countriesValue;
 
-		bool confirmButtonBusy = false;
+		rpl::variable<bool> confirmButtonBusy = true;
 	};
 	const auto state = box->lifetime().make_state<State>(peer);
 	const auto typeGroup = std::make_shared<GiveawayGroup>();
@@ -726,17 +727,41 @@ void CreateGiveawayBox(
 		}, box->lifetime());
 	}
 	{
-		// TODO mini-icon.
+		using namespace Info::Statistics;
 		const auto &stButton = st::startGiveawayBox;
 		box->setStyle(stButton);
 		auto button = object_ptr<Ui::RoundButton>(
 			box,
+			rpl::never<QString>(),
+			st::giveawayGiftCodeStartButton);
+
+		AddLabelWithBadgeToButton(
+			button,
 			rpl::conditional(
 				state->typeValue.value(
 				) | rpl::map(rpl::mappers::_1 == GiveawayType::Random),
 				tr::lng_giveaway_start(),
 				tr::lng_giveaway_award()),
-			st::giveawayGiftCodeStartButton);
+			state->sliderValue.value(
+			) | rpl::map([=](int v) -> int {
+				return state->apiOptions.giveawayBoostsPerPremium() * v;
+			}),
+			state->confirmButtonBusy.value() | rpl::map(!rpl::mappers::_1));
+
+		{
+			const auto loadingAnimation = InfiniteRadialAnimationWidget(
+				button,
+				st::giveawayGiftCodeStartButton.height / 2);
+			button->sizeValue(
+			) | rpl::start_with_next([=](const QSize &s) {
+				const auto size = loadingAnimation->size();
+				loadingAnimation->moveToLeft(
+					(s.width() - size.width()) / 2,
+					(s.height() - size.height()) / 2);
+			}, loadingAnimation->lifetime());
+			loadingAnimation->showOn(state->confirmButtonBusy.value());
+		}
+
 		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		state->typeValue.value(
 		) | rpl::start_with_next([=, raw = button.data()] {
@@ -745,7 +770,7 @@ void CreateGiveawayBox(
 				- stButton.buttonPadding.right());
 		}, button->lifetime());
 		button->setClickedCallback([=] {
-			if (state->confirmButtonBusy) {
+			if (state->confirmButtonBusy.current()) {
 				return;
 			}
 			const auto type = typeGroup->value();
@@ -847,6 +872,7 @@ void CreateGiveawayBox(
 		}, [=] {
 			state->lifetimeApi.destroy();
 			loading->toggle(false, anim::type::instant);
+			state->confirmButtonBusy = false;
 			fillSliderContainer();
 			rebuildListOptions(1);
 			contentWrap->toggle(true, anim::type::instant);

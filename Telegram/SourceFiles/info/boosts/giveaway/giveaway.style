@@ -178,3 +178,19 @@ startGiveawayCover: PremiumCover(giveawayGiftCodeCover) {
 	bg: boxDividerBg;
 	additionalShadowForDarkThemes: false;
 }
+
+startGiveawayButtonLabelSimple: LabelSimple {
+	font: semiboldFont;
+	textFg: activeButtonFg;
+}
+startGiveawayButtonMiniIcon: icon{{ "boosts/boost_mini2", activeButtonBg }};
+startGiveawayButtonMiniIconSkip: 5px;
+startGiveawayButtonBadgeTextPadding: margins(16px, -1px, 6px, 0px);
+startGiveawayButtonTextStyle: TextStyle(defaultTextStyle) {
+	font: semiboldFont;
+}
+
+startGiveawayButtonLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: activeButtonFg;
+	thickness: 2px;
+}
