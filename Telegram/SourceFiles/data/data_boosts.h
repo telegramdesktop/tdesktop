@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 
 struct BoostsOverview final {
-	bool isBoosted = false;
+	int mine = 0;
 	int level = 0;
 	int boostCount = 0;
 	int currentLevelBoostCount = 0;

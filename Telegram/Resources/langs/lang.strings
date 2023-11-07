@@ -2030,6 +2030,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_gift_terms_link" = "here";
 
 "lng_boost_channel_button" = "Boost Channel";
+"lng_boost_again_button" = "Boost Again";
 "lng_boost_level#one" = "Level {count}";
 "lng_boost_level#other" = "Level {count}";
 "lng_boost_channel_title_first" = "Enable stories for channel";
@@ -2060,6 +2061,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boost_error_flood_text" = "You can change the channel you boost only once a day. Next time you can boost is in {left}.";
 "lng_boost_now_instead" = "You currently boost {channel}. Do you want to boost {other} instead?";
 "lng_boost_now_replace" = "Replace";
+"lng_boost_reassign_title" = "Reassign boost";
+"lng_boost_reassign_text" = "To boost {channel}, reassign a previous boost from another channel.";
+"lng_boost_remove_title" = "Remove your boost from";
+"lng_boost_reassign_button" = "Reassign";
+"lng_boost_available_in" = "available in {duration}";
+"lng_boost_available_in_toast#one" = "Wait until the boost is available or get **{count}** more boost by gifting a **Telegram Premium** subscription.";
+"lng_boost_available_in_toast#other" = "Wait until the boost is available or get **{count}** more boosts by gifting a **Telegram Premium** subscription.";
 
 "lng_boost_channel_title_color" = "Enable colors";
 "lng_boost_channel_needs_level_color#one" = "Your channel needs to reach **Level {count}** to change channel color.";

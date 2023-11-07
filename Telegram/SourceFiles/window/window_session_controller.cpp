@@ -267,6 +267,19 @@ Fn<bool()> PausedIn(
 	return [=] { return IsPaused(controller, level); };
 }
 
+Ui::BoostCounters ParseBoostCounters(
+		const MTPpremium_BoostsStatus &status) {
+	const auto &data = status.data();
+	const auto slots = data.vmy_boost_slots();
+	return {
+		.level = data.vlevel().v,
+		.boosts = data.vboosts().v,
+		.thisLevelBoosts = data.vcurrent_level_boosts().v,
+		.nextLevelBoosts = data.vnext_level_boosts().value_or_empty(),
+		.mine = slots ? slots->v.size() : 0,
+	};
+}
+
 bool operator==(const PeerThemeOverride &a, const PeerThemeOverride &b) {
 	return (a.peer == b.peer) && (a.theme == b.theme);
 }
@@ -629,20 +642,12 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 		channel->input
 	)).done([=](const MTPpremium_BoostsStatus &result) {
 		_boostStateResolving = nullptr;
-		const auto &data = result.data();
-		const auto submit = [=](Fn<void(bool)> done) {
+		const auto submit = [=](Fn<void(Ui::BoostCounters)> done) {
 			applyBoost(channel, done);
 		};
-		const auto next = data.vnext_level_boosts().value_or_empty();
 		uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
 			.name = channel->name(),
-			.boost = {
-				.level = data.vlevel().v,
-				.boosts = data.vboosts().v,
-				.thisLevelBoosts = data.vcurrent_level_boosts().v,
-				.nextLevelBoosts = next,
-				.mine = data.is_my_boost(),
-			},
+			.boost = ParseBoostCounters(result),
 		}, submit));
 	}).fail([=](const MTP::Error &error) {
 		_boostStateResolving = nullptr;
@@ -652,7 +657,7 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 
 void SessionNavigation::applyBoost(
 		not_null<ChannelData*> channel,
-		Fn<void(bool)> done) {
+		Fn<void(Ui::BoostCounters)> done) {
 	_api.request(MTPpremium_GetMyBoosts(
 	)).done([=](const MTPpremium_MyBoosts &result) {
 		const auto &data = result.data();
@@ -682,7 +687,7 @@ void SessionNavigation::applyBoost(
 					.inform = true,
 				}));
 			}
-			done(false);
+			done({});
 			return;
 		}
 		auto slot = int();
@@ -725,7 +730,7 @@ void SessionNavigation::applyBoost(
 					.title = tr::lng_boost_error_flood_title(),
 					.inform = true,
 				}));
-				done(false);
+				done({});
 			} else {
 				const auto peer = _session->data().peer(different);
 				replaceBoostConfirm(peer, channel, slot, done);
@@ -737,12 +742,12 @@ void SessionNavigation::applyBoost(
 				.title = tr::lng_boost_error_already_title(),
 				.inform = true,
 			}));
-			done(false);
+			done({});
 		}
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
 		showToast(u"Error: "_q + type);
-		done(false);
+		done({});
 	}).handleFloodErrors().send();
 }
 
@@ -750,7 +755,7 @@ void SessionNavigation::replaceBoostConfirm(
 		not_null<PeerData*> from,
 		not_null<ChannelData*> channel,
 		int slot,
-		Fn<void(bool)> done) {
+		Fn<void(Ui::BoostCounters)> done) {
 	const auto forwarded = std::make_shared<bool>(false);
 	const auto confirmed = [=](Fn<void()> close) {
 		*forwarded = true;
@@ -777,23 +782,30 @@ void SessionNavigation::replaceBoostConfirm(
 	box->boxClosing() | rpl::filter([=] {
 		return !*forwarded;
 	}) | rpl::start_with_next([=] {
-		done(false);
+		done({});
 	}, box->lifetime());
 }
 
 void SessionNavigation::applyBoostChecked(
 		not_null<ChannelData*> channel,
 		int slot,
-		Fn<void(bool)> done) {
+		Fn<void(Ui::BoostCounters)> done) {
 	_api.request(MTPpremium_ApplyBoost(
 		MTP_flags(MTPpremium_ApplyBoost::Flag::f_slots),
 		MTP_vector<MTPint>({ MTP_int(slot) }),
 		channel->input
 	)).done([=](const MTPpremium_MyBoosts &result) {
-		done(true);
+		_api.request(MTPpremium_GetBoostsStatus(
+			channel->input
+		)).done([=](const MTPpremium_BoostsStatus &result) {
+			done(ParseBoostCounters(result));
+		}).fail([=](const MTP::Error &error) {
+			showToast(u"Error: "_q + error.type());
+			done({});
+		}).send();
 	}).fail([=](const MTP::Error &error) {
 		showToast(u"Error: "_q + error.type());
-		done(false);
+		done({});
 	}).send();
 }
 

@@ -302,17 +302,16 @@ void InnerWidget::fill() {
 		auto dividerContent = object_ptr<Ui::VerticalLayout>(inner);
 		Ui::FillBoostLimit(
 			fakeShowed->events(),
-			rpl::single(status.overview.isBoosted),
 			dividerContent.data(),
-			Ui::BoostCounters{
+			rpl::single(Ui::BoostCounters{
 				.level = status.overview.level,
 				.boosts = status.overview.boostCount,
 				.thisLevelBoosts
 					= status.overview.currentLevelBoostCount,
 				.nextLevelBoosts
 					= status.overview.nextLevelBoostCount,
-				.mine = status.overview.isBoosted,
-			},
+				.mine = status.overview.mine,
+			}),
 			st::statisticsLimitsLinePadding);
 		inner->add(object_ptr<Ui::DividerLabel>(
 			inner,

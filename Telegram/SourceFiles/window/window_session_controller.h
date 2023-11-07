@@ -68,6 +68,7 @@ struct ChatPaintContext;
 struct ChatThemeBackground;
 struct ChatThemeBackgroundData;
 class MessageSendingAnimationController;
+struct BoostCounters;
 } // namespace Ui
 
 namespace Data {
@@ -314,16 +315,18 @@ private:
 		const PeerByLinkInfo &info);
 
 	void resolveBoostState(not_null<ChannelData*> channel);
-	void applyBoost(not_null<ChannelData*> channel, Fn<void(bool)> done);
+	void applyBoost(
+		not_null<ChannelData*> channel,
+		Fn<void(Ui::BoostCounters)> done);
 	void replaceBoostConfirm(
 		not_null<PeerData*> from,
 		not_null<ChannelData*> channel,
 		int slot,
-		Fn<void(bool)> done);
+		Fn<void(Ui::BoostCounters)> done);
 	void applyBoostChecked(
 		not_null<ChannelData*> channel,
 		int slot,
-		Fn<void(bool)> done);
+		Fn<void(Ui::BoostCounters)> done);
 
 	const not_null<Main::Session*> _session;
 
@@ -751,5 +754,8 @@ void ActivateWindow(not_null<SessionController*> controller);
 [[nodiscard]] Fn<bool()> PausedIn(
 	not_null<SessionController*> controller,
 	GifPauseReason level);
+
+[[nodiscard]] Ui::BoostCounters ParseBoostCounters(
+	const MTPpremium_BoostsStatus &status);
 
 } // namespace Window

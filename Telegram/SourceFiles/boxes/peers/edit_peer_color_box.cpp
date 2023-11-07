@@ -514,21 +514,17 @@ void Apply(
 				close();
 				return;
 			}
-			const auto next = data.vnext_level_boosts().value_or_empty();
 			const auto openStatistics = [=] {
 				if (const auto controller = show->resolveWindow(
 						ChatHelpers::WindowUsage::PremiumPromo)) {
 					controller->showSection(Info::Boosts::Make(peer));
 				}
 			};
+			auto counters = Window::ParseBoostCounters(result);
+			counters.mine = 0; // Don't show current level as just-reached.
 			show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
 				.link = qs(data.vboost_url()),
-				.boost = {
-					.level = data.vlevel().v,
-					.boosts = data.vboosts().v,
-					.thisLevelBoosts = data.vcurrent_level_boosts().v,
-					.nextLevelBoosts = next,
-				},
+				.boost = counters,
 				.requiredLevel = required,
 			}, openStatistics, nullptr));
 			cancel();

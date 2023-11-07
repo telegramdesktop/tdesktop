@@ -519,7 +519,9 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 				: 0;
 
 			_boostStatus.overview = Data::BoostsOverview{
-				.isBoosted = data.is_my_boost(),
+				.mine = (data.vmy_boost_slots()
+					? data.vmy_boost_slots()->v.size()
+					: 0),
 				.level = std::max(data.vlevel().v, 0),
 				.boostCount = std::max(
 					data.vboosts().v,
