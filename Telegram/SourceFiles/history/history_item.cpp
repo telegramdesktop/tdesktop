@@ -3355,6 +3355,7 @@ void HistoryItem::createComponentsHelper(
 			: nullptr;
 		if (!config.reply.externalPeerId
 			&& topic
+			&& to
 			&& topic->rootId() != to->topicRootId()) {
 			config.reply.externalPeerId = replyTo.messageId.peer;
 		}
