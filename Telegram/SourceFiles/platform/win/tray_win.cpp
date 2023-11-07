@@ -38,7 +38,7 @@ constexpr auto kTooltipDelay = crl::time(10000);
 		QOperatingSystemVersion::Windows,
 		10,
 		0,
-		17763);
+		18282);
 	static const auto kSupported = (kSystemVersion >= kDarkModeAddedVersion);
 	if (!kSupported) {
 		return std::nullopt;
