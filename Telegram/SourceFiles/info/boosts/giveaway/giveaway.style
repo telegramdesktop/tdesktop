@@ -163,3 +163,18 @@ giveawayRefundedLabel: FlatLabel(boxLabel) {
 	textFg: attentionButtonFg;
 }
 giveawayRefundedPadding: margins(8px, 10px, 8px, 10px);
+
+startGiveawayBox: Box(premiumGiftBox) {
+	shadowIgnoreTopSkip: true;
+}
+startGiveawayScrollArea: ScrollArea(boxScroll) {
+	deltax: 3px;
+	deltat: 50px;
+}
+startGiveawayBoxTitleClose: IconButton(boxTitleClose) {
+	ripple: universalRippleAnimation;
+}
+startGiveawayCover: PremiumCover(giveawayGiftCodeCover) {
+	bg: boxDividerBg;
+	additionalShadowForDarkThemes: false;
+}

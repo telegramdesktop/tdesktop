@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -67,6 +69,159 @@ constexpr auto kDoneTooltipDuration = 5 * crl::time(1000);
 	};
 }
 
+[[nodiscard]] QWidget *FindFirstShadowInBox(not_null<Ui::BoxContent*> box) {
+	for (const auto &child : box->children()) {
+		if (child && child->isWidgetType()) {
+			const auto w = static_cast<QWidget*>(child);
+			if (w->height() == st::lineWidth) {
+				return w;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void AddPremiumTopBarWithDefaultTitleBar(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<> showFinished,
+		rpl::producer<QString> titleText) {
+	struct State final {
+		Ui::Animations::Simple animation;
+		Ui::Text::String title;
+
+		Ui::RpWidget close;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	box->setNoContentMargin(true);
+
+	std::move(
+		titleText
+	) | rpl::start_with_next([=](const QString &s) {
+		state->title.setText(st::startGiveawayBox.title.style, s);
+	}, box->lifetime());
+
+	const auto hPadding = rect::m::sum::h(st::boxRowPadding);
+	const auto titlePaintContext = Ui::Text::PaintContext{
+		.position = st::boxTitlePosition,
+		.outerWidth = (st::boxWideWidth - hPadding),
+		.availableWidth = (st::boxWideWidth - hPadding),
+	};
+
+	const auto isCloseBarShown = [=] { return box->scrollTop() > 0; };
+
+	const auto closeTopBar = box->setPinnedToTopContent(
+		object_ptr<Ui::RpWidget>(box));
+	closeTopBar->resize(box->width(), st::boxTitleHeight);
+	closeTopBar->paintRequest(
+	) | rpl::start_with_next([=](const QRect &r) {
+		auto p = Painter(closeTopBar);
+		const auto radius = st::boxRadius;
+		const auto progress = state->animation.value(isCloseBarShown()
+			? 1.
+			: 0.);
+		const auto resultRect = r + QMargins{ 0, 0, 0, radius };
+		{
+			auto hq = PainterHighQualityEnabler(p);
+
+			if (progress < 1.) {
+				auto path = QPainterPath();
+				path.addRect(resultRect);
+				path.addRect(
+					st::boxRowPadding.left(),
+					0,
+					resultRect.width() - hPadding,
+					resultRect.height());
+				p.setClipPath(path);
+				PainterHighQualityEnabler hq(p);
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::boxDividerBg);
+				p.drawRoundedRect(resultRect, radius, radius);
+			}
+			if (progress > 0.) {
+				p.setOpacity(progress);
+
+				p.setClipping(false);
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::boxBg);
+				p.drawRoundedRect(resultRect, radius, radius);
+
+				p.setPen(st::startGiveawayBox.title.textFg);
+				p.setBrush(Qt::NoBrush);
+				state->title.draw(p, titlePaintContext);
+			}
+		}
+	}, closeTopBar->lifetime());
+
+	{
+		const auto close = Ui::CreateChild<Ui::IconButton>(
+			closeTopBar.get(),
+			st::startGiveawayBoxTitleClose);
+		close->setClickedCallback([=] { box->closeBox(); });
+		closeTopBar->widthValue(
+		) | rpl::start_with_next([=](int w) {
+			const auto &pos = st::giveawayGiftCodeCoverClosePosition;
+			close->moveToRight(pos.x(), pos.y());
+		}, box->lifetime());
+		close->show();
+	}
+
+	const auto bar = Ui::CreateChild<Ui::Premium::TopBar>(
+		box.get(),
+		st::startGiveawayCover,
+		nullptr,
+		tr::lng_giveaway_new_title(),
+		tr::lng_giveaway_new_about(Ui::Text::RichLangValue),
+		true);
+	bar->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	box->addRow(
+		object_ptr<Ui::BoxContentDivider>(
+			box.get(),
+			st::giveawayGiftCodeTopHeight
+				- st::boxTitleHeight
+				+ st::boxDividerHeight
+				+ st::settingsSectionSkip,
+			st::boxDividerBg,
+			RectPart::Bottom),
+		{});
+	bar->setPaused(true);
+	bar->setRoundEdges(false);
+	bar->setMaximumHeight(st::giveawayGiftCodeTopHeight);
+	bar->setMinimumHeight(st::infoLayerTopBarHeight);
+	bar->resize(bar->width(), bar->maximumHeight());
+	box->widthValue(
+	) | rpl::start_with_next([=](int w) {
+		bar->resizeToWidth(w - hPadding);
+		bar->moveToLeft(st::boxRowPadding.left(), bar->y());
+	}, box->lifetime());
+
+	std::move(
+		showFinished
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		closeTopBar->raise();
+		if (const auto shadow = FindFirstShadowInBox(box)) {
+			bar->stackUnder(shadow);
+		}
+		bar->setPaused(false);
+		box->scrolls(
+		) | rpl::map(isCloseBarShown) | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](bool showBar) {
+			state->animation.stop();
+			state->animation.start(
+				[=] { closeTopBar->update(); },
+				showBar ? 0. : 1.,
+				showBar ? 1. : 0.,
+				st::slideWrapDuration);
+		}, box->lifetime());
+		box->scrolls(
+		) | rpl::start_with_next([=] {
+			bar->moveToLeft(bar->x(), -box->scrollTop());
+		}, box->lifetime());
+	}, box->lifetime());
+
+	bar->show();
+}
+
 } // namespace
 
 void CreateGiveawayBox(
@@ -76,37 +231,6 @@ void CreateGiveawayBox(
 	box->setWidth(st::boxWideWidth);
 
 	const auto weakWindow = base::make_weak(controller->parentController());
-
-	const auto bar = box->verticalLayout()->add(
-		object_ptr<Ui::Premium::TopBar>(
-			box,
-			st::giveawayGiftCodeCover,
-			nullptr,
-			tr::lng_giveaway_new_title(),
-			tr::lng_giveaway_new_about(Ui::Text::RichLangValue),
-			true));
-	{
-		bar->setPaused(true);
-		bar->setMaximumHeight(st::giveawayGiftCodeTopHeight);
-		bar->setMinimumHeight(st::infoLayerTopBarHeight);
-		bar->resize(bar->width(), bar->maximumHeight());
-
-		const auto container = box->verticalLayout();
-		const auto &padding = st::giveawayGiftCodeCoverDividerPadding;
-		Settings::AddSkip(container, padding.top());
-		Settings::AddDivider(container);
-		Settings::AddSkip(container, padding.bottom());
-
-		const auto close = Ui::CreateChild<Ui::IconButton>(
-			container.get(),
-			st::boxTitleClose);
-		close->setClickedCallback([=] { box->closeBox(); });
-		box->widthValue(
-		) | rpl::start_with_next([=](int) {
-			const auto &pos = st::giveawayGiftCodeCoverClosePosition;
-			close->moveToRight(pos.x(), pos.y());
-		}, box->lifetime());
-	}
 
 	using GiveawayType = Giveaway::GiveawayTypeRow::Type;
 	using GiveawayGroup = Ui::RadioenumGroup<GiveawayType>;
@@ -131,6 +255,20 @@ void CreateGiveawayBox(
 	};
 	const auto state = box->lifetime().make_state<State>(peer);
 	const auto typeGroup = std::make_shared<GiveawayGroup>();
+
+	auto showFinished = Ui::BoxShowFinishes(box);
+	AddPremiumTopBarWithDefaultTitleBar(
+		box,
+		rpl::duplicate(showFinished),
+		rpl::conditional(
+			state->typeValue.value(
+			) | rpl::map(rpl::mappers::_1 == GiveawayType::Random),
+			tr::lng_giveaway_start(),
+			tr::lng_giveaway_award()));
+	{
+		const auto &padding = st::giveawayGiftCodeCoverDividerPadding;
+		Settings::AddSkip(box->verticalLayout(), padding.bottom());
+	}
 
 	const auto loading = box->addRow(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -587,7 +725,7 @@ void CreateGiveawayBox(
 	}
 	{
 		// TODO mini-icon.
-		const auto &stButton = st::premiumGiftBox;
+		const auto &stButton = st::startGiveawayBox;
 		box->setStyle(stButton);
 		auto button = object_ptr<Ui::RoundButton>(
 			box,
@@ -691,11 +829,12 @@ void CreateGiveawayBox(
 	}
 	state->typeValue.force_assign(GiveawayType::Random);
 
-	box->setShowFinishedCallback([=] {
+	std::move(
+		showFinished
+	) | rpl::take(1) | rpl::start_with_next([=] {
 		if (!loading->toggled()) {
 			return;
 		}
-		bar->setPaused(false);
 		state->lifetimeApi = state->apiOptions.request(
 		) | rpl::start_with_error_done([=](const QString &error) {
 		}, [=] {
@@ -706,5 +845,5 @@ void CreateGiveawayBox(
 			contentWrap->toggle(true, anim::type::instant);
 			contentWrap->resizeToWidth(box->width());
 		});
-	});
+	}, box->lifetime());
 }
