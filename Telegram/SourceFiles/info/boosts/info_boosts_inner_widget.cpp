@@ -315,9 +315,23 @@ void InnerWidget::fill() {
 				ResolveGiftCode(_controller, boost.giftCodeLink.slug);
 			} else if (boost.userId) {
 				const auto user = _peer->owner().user(boost.userId);
-				crl::on_main(this, [=] {
-					_controller->showPeerInfo(user);
-				});
+				if (boost.isGift || boost.isGiveaway) {
+					constexpr auto kMonthsDivider = int(30 * 86400);
+					const auto date = TimeId(boost.date.toSecsSinceEpoch());
+					const auto months = (boost.expiresAt - date)
+						/ kMonthsDivider;
+					const auto d = Api::GiftCode{
+						.from = _peer->id,
+						.to = user->id,
+						.date = date,
+						.months = int(months),
+					};
+					_show->showBox(Box(GiftCodePendingBox, _controller, d));
+				} else {
+					crl::on_main(this, [=] {
+						_controller->showPeerInfo(user);
+					});
+				}
 			} else if (!boost.isUnclaimed) {
 				_show->showToast(tr::lng_boosts_list_pending_about(tr::now));
 			}

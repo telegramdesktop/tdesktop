@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/gift_premium_box.h"
 
-#include "apiwrap.h"
 #include "api/api_premium.h"
 #include "api/api_premium_option.h"
+#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "base/weak_ptr.h"
 #include "boxes/peers/prepare_short_info_box.h"
@@ -31,7 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/premium_top_bar.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/layers/generic_box.h"
+#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/gradient_round_button.h"
@@ -358,6 +360,73 @@ void AddTableRow(
 		st::giveawayGiftCodePeerMargin);
 }
 
+void AddTable(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionNavigation*> controller,
+		const Api::GiftCode &current,
+		bool skipReason) {
+	auto table = container->add(
+		object_ptr<Ui::TableLayout>(
+			container,
+			st::giveawayGiftCodeTable),
+		st::giveawayGiftCodeTableMargin);
+	AddTableRow(
+		table,
+		tr::lng_gift_link_label_from(),
+		controller,
+		current.from);
+	if (current.to) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_to(),
+			controller,
+			current.to);
+	} else {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_to(),
+			tr::lng_gift_link_label_to_unclaimed(Ui::Text::WithEntities));
+	}
+	AddTableRow(
+		table,
+		tr::lng_gift_link_label_gift(),
+		tr::lng_gift_link_gift_premium(
+			lt_duration,
+			GiftDurationValue(current.months) | Ui::Text::ToWithEntities(),
+			Ui::Text::WithEntities));
+	if (!skipReason) {
+		const auto reason = AddTableRow(
+			table,
+			tr::lng_gift_link_label_reason(),
+			(current.giveawayId
+				? ((current.to
+					? tr::lng_gift_link_reason_giveaway
+					: tr::lng_gift_link_reason_unclaimed)(
+						) | Ui::Text::ToLink())
+				: current.giveaway
+				? ((current.to
+					? tr::lng_gift_link_reason_giveaway
+					: tr::lng_gift_link_reason_unclaimed)(
+						Ui::Text::WithEntities
+					) | rpl::type_erased())
+				: tr::lng_gift_link_reason_chosen(Ui::Text::WithEntities)));
+		reason->setClickHandlerFilter([=](const auto &...) {
+			controller->showPeerHistory(
+				current.from,
+				Window::SectionShow::Way::Forward,
+				current.giveawayId);
+			return false;
+		});
+	}
+	if (current.date) {
+		AddTableRow(
+			table,
+			tr::lng_gift_link_label_date(),
+			rpl::single(Ui::Text::WithEntities(
+				langDateTime(base::unixtime::parse(current.date)))));
+	}
+}
+
 } // namespace
 
 GiftPremiumValidator::GiftPremiumValidator(
@@ -462,65 +531,7 @@ void GiftCodeBox(
 			MakeLinkCopyIcon(box)),
 		st::giveawayGiftCodeLinkMargin);
 
-	auto table = box->addRow(
-		object_ptr<Ui::TableLayout>(
-			box,
-			st::giveawayGiftCodeTable),
-		st::giveawayGiftCodeTableMargin);
-	const auto current = state->data.current();
-	AddTableRow(
-		table,
-		tr::lng_gift_link_label_from(),
-		controller,
-		current.from);
-	if (current.to) {
-		AddTableRow(
-			table,
-			tr::lng_gift_link_label_to(),
-			controller,
-			current.to);
-	} else {
-		AddTableRow(
-			table,
-			tr::lng_gift_link_label_to(),
-			tr::lng_gift_link_label_to_unclaimed(Ui::Text::WithEntities));
-	}
-	AddTableRow(
-		table,
-		tr::lng_gift_link_label_gift(),
-		tr::lng_gift_link_gift_premium(
-			lt_duration,
-			GiftDurationValue(current.months) | Ui::Text::ToWithEntities(),
-			Ui::Text::WithEntities));
-	const auto reason = AddTableRow(
-		table,
-		tr::lng_gift_link_label_reason(),
-		(current.giveawayId
-			? ((current.to
-				? tr::lng_gift_link_reason_giveaway
-				: tr::lng_gift_link_reason_unclaimed)(
-					) | Ui::Text::ToLink())
-			: current.giveaway
-			? ((current.to
-				? tr::lng_gift_link_reason_giveaway
-				: tr::lng_gift_link_reason_unclaimed)(
-					Ui::Text::WithEntities
-				) | rpl::type_erased())
-			: tr::lng_gift_link_reason_chosen(Ui::Text::WithEntities)));
-	reason->setClickHandlerFilter([=](const auto &...) {
-		controller->showPeerHistory(
-			current.from,
-			Window::SectionShow::Way::Forward,
-			current.giveawayId);
-		return false;
-	});
-	if (current.date) {
-		AddTableRow(
-			table,
-			tr::lng_gift_link_label_date(),
-			rpl::single(Ui::Text::WithEntities(
-				langDateTime(base::unixtime::parse(current.date)))));
-	}
+	AddTable(box->verticalLayout(), controller, state->data.current(), false);
 
 	auto shareLink = tr::lng_gift_link_also_send_link(
 	) | rpl::map([](const QString &text) {
@@ -592,6 +603,113 @@ void GiftCodeBox(
 			controller->session().api().premium().applyGiftCode(slug, done);
 		}
 	});
+	const auto buttonPadding = st::giveawayGiftCodeBox.buttonPadding;
+	const auto buttonWidth = st::boxWideWidth
+		- buttonPadding.left()
+		- buttonPadding.right();
+	button->widthValue() | rpl::filter([=] {
+		return (button->widthNoMargins() != buttonWidth);
+	}) | rpl::start_with_next([=] {
+		button->resizeToWidth(buttonWidth);
+	}, button->lifetime());
+}
+
+
+void GiftCodePendingBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionNavigation*> controller,
+		const Api::GiftCode &data) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
+
+	{
+		const auto peerTo = controller->session().data().peer(data.to);
+		const auto clickContext = [=, weak = base::make_weak(controller)] {
+			if (const auto strong = weak.get()) {
+				strong->uiShow()->showBox(
+					PrepareShortInfoBox(peerTo, strong));
+			}
+			return QVariant();
+		};
+		const auto &st = st::giveawayGiftCodeCover;
+		const auto resultToName = st.about.style.font->elided(
+			peerTo->shortName(),
+			st.about.minWidth / 2,
+			Qt::ElideMiddle);
+		const auto bar = box->setPinnedToTopContent(
+			object_ptr<Ui::Premium::TopBar>(
+				box,
+				st,
+				clickContext,
+				tr::lng_gift_link_title(),
+				tr::lng_gift_link_pending_about(
+					lt_user,
+					rpl::single(Ui::Text::Link(resultToName)),
+					Ui::Text::RichLangValue),
+				true));
+
+		const auto max = st::giveawayGiftCodeTopHeight;
+		bar->setMaximumHeight(max);
+		bar->setMinimumHeight(st::infoLayerTopBarHeight);
+
+		bar->resize(bar->width(), bar->maximumHeight());
+	}
+
+	{
+		const auto linkLabel = box->addRow(
+			Ui::MakeLinkLabel(box, nullptr, nullptr, nullptr, nullptr),
+			st::giveawayGiftCodeLinkMargin);
+		const auto spoiler = Ui::CreateChild<Ui::AbstractButton>(linkLabel);
+		spoiler->lifetime().make_state<Ui::Animations::Basic>([=] {
+			spoiler->update();
+		})->start();
+		linkLabel->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			spoiler->setGeometry(Rect(s));
+		}, spoiler->lifetime());
+		const auto spoilerCached = Ui::SpoilerMessCached(
+			Ui::DefaultTextSpoilerMask(),
+			st::giveawayGiftCodeLink.textFg->c);
+		const auto textHeight = st::giveawayGiftCodeLink.style.font->height;
+		spoiler->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(spoiler);
+			const auto rect = spoiler->rect();
+			const auto r = rect
+				- QMargins(
+					st::boxRowPadding.left(),
+					(rect.height() - textHeight) / 2,
+					st::boxRowPadding.right(),
+					(rect.height() - textHeight) / 2);
+			Ui::FillSpoilerRect(p, r, spoilerCached.frame());
+		}, spoiler->lifetime());
+		spoiler->setClickedCallback([show = box->uiShow()] {
+			show->showToast(tr::lng_gift_link_pending_toast(tr::now));
+		});
+		spoiler->show();
+	}
+
+	AddTable(box->verticalLayout(), controller, data, true);
+
+	const auto footer = box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_gift_link_pending_footer(),
+			st::giveawayGiftCodeFooter),
+		st::giveawayGiftCodeFooterMargin);
+
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		box.get(),
+		st::boxTitleClose);
+	const auto closeCallback = [=] { box->closeBox(); };
+	close->setClickedCallback(closeCallback);
+	box->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		close->moveToRight(0, 0);
+	}, box->lifetime());
+
+	const auto button = box->addButton(tr::lng_close(), closeCallback);
 	const auto buttonPadding = st::giveawayGiftCodeBox.buttonPadding;
 	const auto buttonWidth = st::boxWideWidth
 		- buttonPadding.left()
