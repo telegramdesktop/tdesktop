@@ -4325,8 +4325,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_boosts_existing" = "Existing boosts";
 "lng_boosts_premium_audience" = "Premium subscribers";
 "lng_boosts_next_level" = "Boosts to level up";
-"lng_boosts_list_title#one" = "{count} booster";
-"lng_boosts_list_title#other" = "{count} boosters";
+"lng_boosts_list_title#one" = "{count} Boost";
+"lng_boosts_list_title#other" = "{count} Boosts";
 "lng_boosts_list_subtext" = "Your channel is currently boosted by these users.";
 "lng_boosts_show_more_boosts#one" = "Show {count} More Boosts";
 "lng_boosts_show_more_boosts#other" = "Show {count} More Boosts";

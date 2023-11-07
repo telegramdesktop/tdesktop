@@ -352,10 +352,25 @@ void InnerWidget::fill() {
 				inner,
 				object_ptr<Ui::SettingsSlider>(
 					inner,
-					st::defaultTabsSlider)));
+					st::defaultTabsSlider)),
+			st::boxRowPadding);
 		slider->toggle(!hasOneTab, anim::type::instant);
+
 		slider->entity()->addSection(boostsTabText);
 		slider->entity()->addSection(giftsTabText);
+
+		{
+			const auto &st = st::defaultTabsSlider;
+			const auto sliderWidth = st.labelStyle.font->width(boostsTabText)
+				+ st.labelStyle.font->width(giftsTabText)
+				+ rect::m::sum::h(st::boxRowPadding);
+			fakeShowed->events() | rpl::take(1) | rpl::map_to(-1) | rpl::then(
+				slider->entity()->widthValue()
+			) | rpl::distinct_until_changed(
+			) | rpl::start_with_next([=](int) {
+				slider->entity()->resizeToWidth(sliderWidth);
+			}, slider->lifetime());
+		}
 
 		const auto boostsWrap = inner->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
