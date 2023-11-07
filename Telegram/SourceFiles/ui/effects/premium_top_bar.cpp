@@ -120,7 +120,7 @@ void TopBarAbstract::paintEdges(QPainter &p, const QBrush &brush) const {
 }
 
 void TopBarAbstract::paintEdges(QPainter &p) const {
-	paintEdges(p, st::boxBg);
+	paintEdges(p, st().bg);
 	if (isDark() && st().additionalShadowForDarkThemes) {
 		paintEdges(p, st::shadowFg);
 		paintEdges(p, st::shadowFg);
@@ -144,7 +144,7 @@ bool TopBarAbstract::isDark() const {
 
 void TopBarAbstract::computeIsDark() {
 	const auto contrast = CountContrast(
-		st::boxBg->c,
+		st().bg->c,
 		st::premiumButtonFg->c);
 	_isDark = (contrast > kMinAcceptableContrast);
 }

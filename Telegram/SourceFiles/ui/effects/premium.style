@@ -27,6 +27,7 @@ PremiumBubble {
 	font: font;
 }
 PremiumCover {
+	bg: color;
 	starSize: size;
 	starTopSkip: pixels;
 	titlePadding: margins;
@@ -41,6 +42,7 @@ premiumAboutTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 18px;
 }
 defaultPremiumCover: PremiumCover {
+	bg: boxBg;
 	starSize: size(84px, 81px);
 	starTopSkip: 37px;
 	titlePadding: margins(0px, 18px, 0px, 11px);
