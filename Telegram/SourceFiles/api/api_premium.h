@@ -152,9 +152,13 @@ public:
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> request();
 	[[nodiscard]] Data::SubscriptionOptions options(int amount);
 	[[nodiscard]] const std::vector<int> &availablePresets() const;
+	[[nodiscard]] int monthsFromPreset(int monthsIndex);
 	[[nodiscard]] Payments::InvoicePremiumGiftCode invoice(
 		int users,
-		int monthsIndex);
+		int months);
+	[[nodiscard]] rpl::producer<rpl::no_value, QString> applyPrepaid(
+		const Payments::InvoicePremiumGiftCode &invoice,
+		uint64 prepaidId);
 
 	[[nodiscard]] int giveawayBoostsPerPremium() const;
 	[[nodiscard]] int giveawayCountriesMax() const;

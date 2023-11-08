@@ -50,10 +50,18 @@ struct BoostsListSlice final {
 	OffsetToken token;
 };
 
+struct BoostPrepaidGiveaway final {
+	int months = 0;
+	uint64 id = 0;
+	int quantity = 0;
+	QDateTime date;
+};
+
 struct BoostStatus final {
 	BoostsOverview overview;
 	BoostsListSlice firstSliceBoosts;
 	BoostsListSlice firstSliceGifts;
+	std::vector<BoostPrepaidGiveaway> prepaidGiveaway;
 	QString link;
 };
 

@@ -533,6 +533,20 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 			};
 			_boostStatus.link = qs(data.vboost_url());
 
+			if (data.vprepaid_giveaways()) {
+				_boostStatus.prepaidGiveaway = ranges::views::all(
+					data.vprepaid_giveaways()->v
+				) | ranges::views::transform([](const MTPPrepaidGiveaway &r) {
+					return Data::BoostPrepaidGiveaway{
+						.months = r.data().vmonths().v,
+						.id = r.data().vid().v,
+						.quantity = r.data().vquantity().v,
+						.date = QDateTime::fromSecsSinceEpoch(
+							r.data().vdate().v),
+					};
+				}) | ranges::to_vector;
+			}
+
 			using namespace Data;
 			requestBoosts({ .gifts = false }, [=](BoostsListSlice &&slice) {
 				_boostStatus.firstSliceBoosts = std::move(slice);

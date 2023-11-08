@@ -390,18 +390,44 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 	};
 }
 
+rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
+		const Payments::InvoicePremiumGiftCode &invoice,
+		uint64 prepaidId) {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto channel = _peer->asChannel();
+		if (!channel) {
+			return lifetime;
+		}
+
+		_api.request(MTPpayments_LaunchPrepaidGiveaway(
+			_peer->input,
+			MTP_long(prepaidId),
+			Payments::InvoicePremiumGiftCodeGiveawayToTL(invoice)
+		)).done([=](const MTPUpdates &result) {
+			_peer->session().api().applyUpdates(result);
+			consumer.put_done();
+		}).fail([=](const MTP::Error &error) {
+			consumer.put_error_copy(error.type());
+		}).send();
+
+		return lifetime;
+	};
+}
+
 const std::vector<int> &PremiumGiftCodeOptions::availablePresets() const {
 	return _availablePresets;
 }
 
+[[nodiscard]] int PremiumGiftCodeOptions::monthsFromPreset(int monthsIndex) {
+	return _optionsForOnePerson.months[monthsIndex];
+}
+
 Payments::InvoicePremiumGiftCode PremiumGiftCodeOptions::invoice(
 		int users,
-		int monthsIndex) {
+		int months) {
 	const auto randomId = base::RandomValue<uint64>();
-	const auto token = Token{
-		users,
-		_optionsForOnePerson.months[monthsIndex],
-	};
+	const auto token = Token{ users, months };
 	const auto &store = _stores[token];
 	return Payments::InvoicePremiumGiftCode{
 		.randomId = randomId,

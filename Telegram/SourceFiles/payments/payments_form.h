@@ -219,6 +219,9 @@ struct InvoiceId {
 
 [[nodiscard]] not_null<Main::Session*> SessionFromId(const InvoiceId &id);
 
+[[nodiscard]] MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
+	const InvoicePremiumGiftCode &invoice);
+
 class Form final : public base::has_weak_ptr {
 public:
 	Form(InvoiceId id, bool receipt);
