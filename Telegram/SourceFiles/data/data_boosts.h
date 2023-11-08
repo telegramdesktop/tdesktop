@@ -34,7 +34,8 @@ struct Boost final {
 	UserId userId = UserId(0);
 	FullMsgId giveawayMessage;
 	QDateTime date;
-	crl::time expiresAt = 0;
+	QDateTime expiresAt;
+	int expiresAfterMonths = 0;
 	GiftCodeLink giftCodeLink;
 	int multiplier = 0;
 };

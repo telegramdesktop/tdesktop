@@ -391,19 +391,16 @@ BoostRow::BoostRow(const Data::Boost &boost)
 
 void BoostRow::init() {
 	invalidateBadges();
-	constexpr auto kMonthsDivider = int(30 * 86400);
-	const auto months = (_boost.expiresAt - _boost.date.toSecsSinceEpoch())
-		/ kMonthsDivider;
 	auto status = !PeerListRow::special()
 		? tr::lng_boosts_list_status(
 			tr::now,
 			lt_date,
-			langDateTime(_boost.date))
-		: tr::lng_months_tiny(tr::now, lt_count, months)
+			langDayOfMonth(_boost.expiresAt.date()))
+		: tr::lng_months_tiny(tr::now, lt_count, _boost.expiresAfterMonths)
 			+ ' '
 			+ QChar(0x2022)
 			+ ' '
-			+ langDateTime(_boost.date);
+			+ langDayOfMonth(_boost.date.date());
 	PeerListRow::setCustomStatus(std::move(status));
 }
 

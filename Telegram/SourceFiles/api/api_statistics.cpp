@@ -587,6 +587,7 @@ void Boosts::requestBoosts(
 
 		auto list = std::vector<Data::Boost>();
 		list.reserve(data.vboosts().v.size());
+		constexpr auto kMonthsDivider = int(30 * 86400);
 		for (const auto &boost : data.vboosts().v) {
 			const auto &data = boost.data();
 			const auto path = data.vused_gift_slug()
@@ -609,7 +610,8 @@ void Boosts::requestBoosts(
 					? FullMsgId{ _peer->id, data.vgiveaway_msg_id()->v }
 					: FullMsgId(),
 				QDateTime::fromSecsSinceEpoch(data.vdate().v),
-				data.vexpires().v,
+				QDateTime::fromSecsSinceEpoch(data.vexpires().v),
+				(data.vexpires().v - data.vdate().v) / kMonthsDivider,
 				std::move(giftCodeLink),
 				data.vmultiplier().value_or_empty(),
 			});

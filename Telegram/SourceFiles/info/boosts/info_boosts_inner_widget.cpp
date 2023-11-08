@@ -365,15 +365,11 @@ void InnerWidget::fill() {
 			} else if (boost.userId) {
 				const auto user = _peer->owner().user(boost.userId);
 				if (boost.isGift || boost.isGiveaway) {
-					constexpr auto kMonthsDivider = int(30 * 86400);
-					const auto date = TimeId(boost.date.toSecsSinceEpoch());
-					const auto months = (boost.expiresAt - date)
-						/ kMonthsDivider;
 					const auto d = Api::GiftCode{
 						.from = _peer->id,
 						.to = user->id,
-						.date = date,
-						.months = int(months),
+						.date = TimeId(boost.date.toSecsSinceEpoch()),
+						.months = boost.expiresAfterMonths,
 					};
 					_show->showBox(Box(GiftCodePendingBox, _controller, d));
 				} else {
