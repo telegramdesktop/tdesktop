@@ -27,7 +27,10 @@ class AwardMembersListController : public ParticipantsBoxController {
 public:
 	AwardMembersListController(
 		not_null<Window::SessionNavigation*> navigation,
-		not_null<PeerData*> peer);
+		not_null<PeerData*> peer,
+		std::vector<not_null<PeerData*>> selected);
+
+	void prepare() override;
 
 	void setCheckError(Fn<bool(int)> callback);
 
@@ -40,6 +43,8 @@ public:
 
 private:
 	Fn<bool(int)> _checkErrorCallback;
+
+	std::vector<not_null<PeerData*>> _selected;
 
 };
 

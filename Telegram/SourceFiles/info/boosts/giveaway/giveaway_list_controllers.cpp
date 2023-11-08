@@ -107,8 +107,16 @@ void ChannelRow::rightActionStopLastRipple() {
 
 AwardMembersListController::AwardMembersListController(
 	not_null<Window::SessionNavigation*> navigation,
-	not_null<PeerData*> peer)
-: ParticipantsBoxController(navigation, peer, ParticipantsRole::Members) {
+	not_null<PeerData*> peer,
+	std::vector<not_null<PeerData*>> selected)
+: ParticipantsBoxController(navigation, peer, ParticipantsRole::Members)
+, _selected(std::move(selected)) {
+}
+
+void AwardMembersListController::prepare() {
+	ParticipantsBoxController::prepare();
+	delegate()->peerListAddSelectedPeers(base::take(_selected));
+	delegate()->peerListRefreshRows();
 }
 
 void AwardMembersListController::rowClicked(not_null<PeerListRow*> row) {

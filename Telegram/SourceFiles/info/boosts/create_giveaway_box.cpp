@@ -367,7 +367,8 @@ void CreateGiveawayBox(
 			using Controller = Giveaway::AwardMembersListController;
 			auto listController = std::make_unique<Controller>(
 				controller,
-				peer);
+				peer,
+				state->selectedToAward);
 			listController->setCheckError(CreateErrorCallback(
 				state->apiOptions.giveawayAddPeersMax(),
 				tr::lng_giveaway_maximum_users_error));
