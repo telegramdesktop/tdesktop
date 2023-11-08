@@ -168,7 +168,7 @@ void Controller::choose(not_null<ChannelData*> chat) {
 		const auto onstack = _callback;
 		onstack(chat);
 	};
-	delegate()->peerListShowBox(Ui::MakeConfirmBox({
+	delegate()->peerListUiShow()->showBox(Ui::MakeConfirmBox({
 		.text = text,
 		.confirmed = sure,
 		.confirmText = tr::lng_manage_discussion_group_link(tr::now),
@@ -199,7 +199,7 @@ void Controller::choose(not_null<ChatData*> chat) {
 		};
 		chat->session().api().migrateChat(chat, crl::guard(this, done));
 	};
-	delegate()->peerListShowBox(Ui::MakeConfirmBox({
+	delegate()->peerListUiShow()->showBox(Ui::MakeConfirmBox({
 		.text = text,
 		.confirmed = sure,
 		.confirmText = tr::lng_manage_discussion_group_link(tr::now),

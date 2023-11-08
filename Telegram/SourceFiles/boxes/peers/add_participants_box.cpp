@@ -366,7 +366,7 @@ bool AddParticipantsBoxController::needsInviteLinkButton() {
 QPointer<Ui::BoxContent> AddParticipantsBoxController::showBox(
 		object_ptr<Ui::BoxContent> box) const {
 	const auto weak = Ui::MakeWeak(box.data());
-	delegate()->peerListShowBox(std::move(box));
+	delegate()->peerListUiShow()->showBox(std::move(box));
 	return weak;
 }
 
@@ -668,7 +668,7 @@ void AddSpecialBoxController::migrate(
 QPointer<Ui::BoxContent> AddSpecialBoxController::showBox(
 		object_ptr<Ui::BoxContent> box) const {
 	const auto weak = Ui::MakeWeak(box.data());
-	delegate()->peerListShowBox(std::move(box));
+	delegate()->peerListUiShow()->showBox(std::move(box));
 	return weak;
 }
 

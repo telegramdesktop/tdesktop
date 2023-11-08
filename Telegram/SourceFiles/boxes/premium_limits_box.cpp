@@ -115,10 +115,6 @@ public:
 	void peerListFinishSelectedRowsBunch() override;
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
-	void peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
-	void peerListHideLayer() override;
 	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 	void peerListSetRowChecked(
 		not_null<PeerListRow*> row,
@@ -181,14 +177,6 @@ void InactiveDelegate::peerListFinishSelectedRowsBunch() {
 void InactiveDelegate::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
 	description.destroy();
-}
-
-void InactiveDelegate::peerListShowBox(
-	object_ptr<Ui::BoxContent> content,
-	Ui::LayerOptions options) {
-}
-
-void InactiveDelegate::peerListHideLayer() {
 }
 
 std::shared_ptr<Main::SessionShow> InactiveDelegate::peerListUiShow() {

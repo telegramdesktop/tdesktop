@@ -372,16 +372,6 @@ void PeerListsBox::Delegate::peerListFinishSelectedRowsBunch() {
 	_box->_select->entity()->finishItemsBunch();
 }
 
-void PeerListsBox::Delegate::peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) {
-	_show->showBox(std::move(content), options);
-}
-
-void PeerListsBox::Delegate::peerListHideLayer() {
-	_show->hideLayer();
-}
-
 auto PeerListsBox::Delegate::peerListUiShow()
 -> std::shared_ptr<Main::SessionShow> {
 	return _show;

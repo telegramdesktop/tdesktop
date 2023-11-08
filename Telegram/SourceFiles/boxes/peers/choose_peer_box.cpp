@@ -433,7 +433,7 @@ void ChoosePeerBoxController::rowClicked(not_null<PeerListRow*> row) {
 	if (const auto user = peer->asUser()) {
 		done();
 	} else {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			MakeConfirmBox(_bot, peer, _query, done));
 	}
 }

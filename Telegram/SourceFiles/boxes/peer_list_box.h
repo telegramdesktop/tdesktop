@@ -332,10 +332,6 @@ public:
 	virtual std::optional<QPoint> peerListLastRowMousePosition() = 0;
 	virtual void peerListSortRows(Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
 	virtual int peerListPartitionRows(Fn<bool(const PeerListRow &a)> border) = 0;
-	virtual void peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) = 0;
-	virtual void peerListHideLayer() = 0;
 	virtual std::shared_ptr<Main::SessionShow> peerListUiShow() = 0;
 
 	template <typename PeerDataRange>
@@ -1007,14 +1003,6 @@ public:
 			object_ptr<Ui::FlatLabel> description) override {
 		description.destroy();
 	}
-	void peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override {
-		Unexpected("...DelegateSimple::peerListShowBox");
-	}
-	void peerListHideLayer() override {
-		Unexpected("...DelegateSimple::peerListHideLayer");
-	}
 	std::shared_ptr<Main::SessionShow> peerListUiShow() override {
 		Unexpected("...DelegateSimple::peerListUiShow");
 	}
@@ -1025,10 +1013,6 @@ class PeerListContentDelegateShow : public PeerListContentDelegateSimple {
 public:
 	explicit PeerListContentDelegateShow(
 		std::shared_ptr<Main::SessionShow> show);
-	void peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
-	void peerListHideLayer() override;
 	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 
 private:
@@ -1064,10 +1048,6 @@ public:
 	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
 	int peerListSelectedRowsCount() override;
 	void peerListScrollToTop() override;
-	void peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
-	void peerListHideLayer() override;
 	std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 
 	void setAddedTopScrollSkip(int skip);

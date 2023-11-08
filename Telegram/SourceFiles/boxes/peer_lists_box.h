@@ -54,10 +54,6 @@ private:
 			_box->addSelectItem(row, anim::type::instant);
 		}
 		void peerListFinishSelectedRowsBunch() override;
-		void peerListShowBox(
-			object_ptr<Ui::BoxContent> content,
-			Ui::LayerOptions options = Ui::LayerOption::KeepOther) override;
-		void peerListHideLayer() override;
 		std::shared_ptr<Main::SessionShow> peerListUiShow() override;
 
 	private:

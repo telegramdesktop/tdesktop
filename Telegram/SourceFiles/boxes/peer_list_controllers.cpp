@@ -685,7 +685,7 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 				}, box->lifetime());
 			});
 		*weak = owned.data();
-		delegate()->peerListShowBox(std::move(owned));
+		delegate()->peerListUiShow()->showBox(std::move(owned));
 		return;
 	}
 	const auto history = peer->owner().history(peer);

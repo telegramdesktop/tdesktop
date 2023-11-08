@@ -1975,14 +1975,6 @@ void Members::peerListSetDescription(
 	description.destroy();
 }
 
-void Members::peerListShowBox(
-	object_ptr<Ui::BoxContent> content,
-	Ui::LayerOptions options) {
-}
-
-void Members::peerListHideLayer() {
-}
-
 std::shared_ptr<Main::SessionShow> Members::peerListUiShow() {
 	Unexpected("...Members::peerListUiShow");
 }

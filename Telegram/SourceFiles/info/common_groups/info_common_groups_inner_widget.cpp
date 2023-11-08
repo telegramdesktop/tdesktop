@@ -281,16 +281,6 @@ void InnerWidget::peerListSetDescription(
 	description.destroy();
 }
 
-void InnerWidget::peerListShowBox(
-		object_ptr<Ui::BoxContent> content,
-		Ui::LayerOptions options) {
-	_show->showBox(std::move(content), options);
-}
-
-void InnerWidget::peerListHideLayer() {
-	_show->hideLayer();
-}
-
 std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
 	return _show;
 }

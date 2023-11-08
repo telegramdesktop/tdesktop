@@ -575,19 +575,19 @@ void LinkController::addLinkBlock(not_null<Ui::VerticalLayout*> container) {
 		CopyInviteLink(delegate()->peerListUiShow(), link);
 	});
 	const auto shareLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			ShareInviteLinkBox(&_window->session(), link));
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()));
 	});
 	const auto editLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			Box(ChatFilterLinkBox, &_window->session(), _data));
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(DeleteLinkBox(_window, _data));
+		delegate()->peerListUiShow()->showBox(DeleteLinkBox(_window, _data));
 	});
 
 	const auto createMenu = [=] {
@@ -846,7 +846,7 @@ void LinksController::rebuild(const std::vector<InviteLinkData> &rows) {
 
 void LinksController::rowClicked(not_null<PeerListRow*> row) {
 	const auto link = static_cast<LinkRow*>(row.get())->data();
-	delegate()->peerListShowBox(
+	delegate()->peerListUiShow()->showBox(
 		ShowLinkBox(_window, _currentFilter(), link));
 }
 
@@ -881,19 +881,19 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		CopyInviteLink(delegate()->peerListUiShow(), link);
 	};
 	const auto shareLink = [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			ShareInviteLinkBox(&_window->session(), link));
 	};
 	const auto getLinkQr = [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			InviteLinkQrBox(link, tr::lng_filters_link_qr_about()));
 	};
 	const auto editLink = [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			Box(ChatFilterLinkBox, &_window->session(), data));
 	};
 	const auto deleteLink = [=] {
-		delegate()->peerListShowBox(DeleteLinkBox(_window, data));
+		delegate()->peerListUiShow()->showBox(DeleteLinkBox(_window, data));
 	};
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,

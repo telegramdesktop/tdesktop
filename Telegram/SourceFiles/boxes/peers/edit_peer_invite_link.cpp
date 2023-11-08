@@ -347,21 +347,24 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto copyLink = crl::guard(weak, [=] {
 		CopyInviteLink(delegate()->peerListUiShow(), link);
 	});
-	const auto shareLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(ShareInviteLinkBox(_peer, link));
+	const auto shareLink = crl::guard(weak, [=, peer = _peer] {
+		delegate()->peerListUiShow()->showBox(ShareInviteLinkBox(peer, link));
 	});
 	const auto getLinkQr = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(
+		delegate()->peerListUiShow()->showBox(
 			InviteLinkQrBox(link, tr::lng_group_invite_qr_about()));
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(RevokeLinkBox(_peer, admin, link));
+		delegate()->peerListUiShow()->showBox(
+			RevokeLinkBox(_peer, admin, link));
 	});
 	const auto editLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(EditLinkBox(_peer, _data.current()));
+		delegate()->peerListUiShow()->showBox(
+			EditLinkBox(_peer, _data.current()));
 	});
 	const auto deleteLink = crl::guard(weak, [=] {
-		delegate()->peerListShowBox(DeleteLinkBox(_peer, admin, link));
+		delegate()->peerListUiShow()->showBox(
+			DeleteLinkBox(_peer, admin, link));
 	});
 
 	const auto createMenu = [=] {

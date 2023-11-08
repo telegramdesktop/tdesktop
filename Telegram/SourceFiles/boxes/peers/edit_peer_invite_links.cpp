@@ -537,7 +537,7 @@ void LinksController::appendSlice(const InviteLinksSlice &slice) {
 }
 
 void LinksController::rowClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListShowBox(
+	delegate()->peerListUiShow()->showBox(
 		ShowInviteLinkBox(_peer, static_cast<Row*>(row.get())->data()));
 }
 
@@ -573,25 +573,27 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		st::popupMenuWithIcons);
 	if (data.revoked) {
 		result->addAction(tr::lng_group_invite_context_delete(tr::now), [=] {
-			delegate()->peerListShowBox(DeleteLinkBox(_peer, _admin, link));
+			delegate()->peerListUiShow()->showBox(
+				DeleteLinkBox(_peer, _admin, link));
 		}, &st::menuIconDelete);
 	} else {
 		result->addAction(tr::lng_group_invite_context_copy(tr::now), [=] {
 			CopyInviteLink(delegate()->peerListUiShow(), link);
 		}, &st::menuIconCopy);
 		result->addAction(tr::lng_group_invite_context_share(tr::now), [=] {
-			delegate()->peerListShowBox(
+			delegate()->peerListUiShow()->showBox(
 				ShareInviteLinkBox(_peer, link));
 		}, &st::menuIconShare);
 		result->addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
-			delegate()->peerListShowBox(
+			delegate()->peerListUiShow()->showBox(
 				InviteLinkQrBox(link, tr::lng_group_invite_qr_about()));
 		}, &st::menuIconQrCode);
 		result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {
-			delegate()->peerListShowBox(EditLinkBox(_peer, data));
+			delegate()->peerListUiShow()->showBox(EditLinkBox(_peer, data));
 		}, &st::menuIconEdit);
 		result->addAction(tr::lng_group_invite_context_revoke(tr::now), [=] {
-			delegate()->peerListShowBox(RevokeLinkBox(_peer, _admin, link));
+			delegate()->peerListUiShow()->showBox(
+				RevokeLinkBox(_peer, _admin, link));
 		}, &st::menuIconRemove);
 	}
 	return result;
@@ -799,7 +801,7 @@ void AdminsController::loadMoreRows() {
 }
 
 void AdminsController::rowClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListShowBox(
+	delegate()->peerListUiShow()->showBox(
 		Box(ManageInviteLinksBox, _peer, row->peer()->asUser(), 0, 0));
 }
 
