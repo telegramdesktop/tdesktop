@@ -9,9 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "data/data_channel.h"
+#include "data/data_folder.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "dialogs/dialogs_indexed_list.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
@@ -156,7 +159,26 @@ MyChannelsListController::MyChannelsListController(
 	std::make_unique<PeerListGlobalSearchController>(&peer->session()))
 , _peer(peer)
 , _show(show)
-, _selected(std::move(selected)) {
+, _selected(std::move(selected))
+, _otherChannels(std::make_unique<std::vector<not_null<ChannelData*>>>()) {
+	{
+		const auto addList = [&](not_null<Dialogs::IndexedList*> list) {
+			for (const auto &row : list->all()) {
+				if (const auto history = row->history()) {
+					const auto channel = history->peer->asChannel();
+					if (channel && !channel->isMegagroup()) {
+						_otherChannels->push_back(channel);
+					}
+				}
+			}
+		};
+		auto &data = _peer->owner();
+		addList(data.chatsList()->indexed());
+		if (const auto folder = data.folderLoaded(Data::Folder::kId)) {
+			addList(folder->chatsList()->indexed());
+		}
+		addList(data.contactsNoChatsList());
+	}
 }
 
 std::unique_ptr<PeerListRow> MyChannelsListController::createSearchRow(
@@ -173,6 +195,24 @@ std::unique_ptr<PeerListRow> MyChannelsListController::createRestoredRow(
 		return createRow(channel);
 	}
 	return nullptr;
+}
+
+void MyChannelsListController::loadMoreRows() {
+	if (_apiLifetime || !_otherChannels) {
+		return;
+	} else if (_lastAddedIndex >= _otherChannels->size()) {
+		_otherChannels.release();
+		return;
+	}
+	constexpr auto kPerPage = int(40);
+	const auto till = std::min(
+		int(_otherChannels->size()),
+		_lastAddedIndex + kPerPage);
+	while (_lastAddedIndex < till) {
+		delegate()->peerListAppendRow(
+			createRow(_otherChannels->at(_lastAddedIndex++)));
+	}
+	delegate()->peerListRefreshRows();
 }
 
 void MyChannelsListController::rowClicked(not_null<PeerListRow*> row) {
