@@ -141,6 +141,9 @@ public:
 	}
 	virtual void rightActionStopLastRipple() {
 	}
+	[[nodiscard]] virtual float64 opacity() {
+		return 1.;
+	}
 
 	// By default elements code falls back to a simple right action code.
 	virtual int elementsCount() const;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/boost_box.h"
 
 #include "lang/lang_keys.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/effects/fireworks_animation.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
@@ -177,9 +178,10 @@ void BoostBox(
 		(st::boxRowPadding
 			+ QMargins(0, st::boostTextSkip, 0, st::boostBottomSkip)));
 
+	const auto allowMulti = data.allowMulti;
 	auto submit = state->data.value(
 	) | rpl::map([=](BoostCounters counters) {
-		return !counters.nextLevelBoosts
+		return (!counters.nextLevelBoosts || (counters.mine && !allowMulti))
 			? tr::lng_box_ok()
 			: (counters.mine > 0)
 			? tr::lng_boost_again_button()
@@ -189,7 +191,8 @@ void BoostBox(
 	const auto button = box->addButton(rpl::duplicate(submit), [=] {
 		if (state->submitted) {
 			return;
-		} else if (state->data.current().nextLevelBoosts > 0) {
+		} else if (state->data.current().nextLevelBoosts > 0
+			&& (allowMulti || !state->data.current().mine)) {
 			state->submitted = true;
 			const auto was = state->data.current().mine;
 
@@ -344,6 +347,49 @@ object_ptr<Ui::RpWidget> MakeLinkLabel(
 	});
 
 	return result;
+}
+
+void BoostBoxAlready(not_null<GenericBox*> box) {
+	ConfirmBox(box, {
+		.text = tr::lng_boost_error_already_text(Text::RichLangValue),
+		.title = tr::lng_boost_error_already_title(),
+		.inform = true,
+	});
+}
+
+void GiftForBoostsBox(
+		not_null<GenericBox*> box,
+		QString channel,
+		int receive,
+		bool again) {
+	ConfirmBox(box, {
+		.text = (again
+			? tr::lng_boost_need_more_again
+			: tr::lng_boost_need_more_text)(
+				lt_count,
+				rpl::single(receive) | tr::to_count(),
+				lt_channel,
+				rpl::single(TextWithEntities{ channel }),
+				Text::RichLangValue),
+		.title = tr::lng_boost_need_more(),
+		.inform = true,
+	});
+}
+
+void GiftedNoBoostsBox(not_null<GenericBox*> box) {
+	InformBox(box, {
+		.text = tr::lng_boost_error_gifted_text(Text::RichLangValue),
+		.title = tr::lng_boost_error_gifted_title(),
+	});
+}
+
+void PremiumForBoostsBox(not_null<GenericBox*> box, Fn<void()> buyPremium) {
+	ConfirmBox(box, {
+		.text = tr::lng_boost_error_premium_text(Text::RichLangValue),
+		.confirmed = buyPremium,
+		.confirmText = tr::lng_boost_error_premium_yes(),
+		.title = tr::lng_boost_error_premium_title(),
+	});
 }
 
 void AskBoostBox(

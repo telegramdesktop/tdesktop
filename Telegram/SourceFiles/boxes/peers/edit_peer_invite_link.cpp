@@ -1335,7 +1335,7 @@ object_ptr<Ui::BoxContent> ShowInviteLinkBox(
 	auto data = rpl::single(link) | rpl::then(std::move(updates));
 
 	auto initBox = [=, data = rpl::duplicate(data)](
-			not_null<Ui::BoxContent*> box) {
+		not_null<Ui::BoxContent*> box) {
 		rpl::duplicate(
 			data
 		) | rpl::start_with_next([=](const LinkData &link) {

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/unixtime.h"
+#include "boxes/peers/replace_boost_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
@@ -520,7 +521,7 @@ void Apply(
 					controller->showSection(Info::Boosts::Make(peer));
 				}
 			};
-			auto counters = Window::ParseBoostCounters(result);
+			auto counters = ParseBoostCounters(result);
 			counters.mine = 0; // Don't show current level as just-reached.
 			show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
 				.link = qs(data.vboost_url()),

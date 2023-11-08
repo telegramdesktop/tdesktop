@@ -247,7 +247,6 @@ boostTitleSkip: 32px;
 boostTitle: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	textFg: windowBoldFg;
-	align: align(top);
 	maxHeight: 24px;
 	style: TextStyle(boxTextStyle) {
 		font: font(17px semibold);
@@ -255,6 +254,10 @@ boostTitle: FlatLabel(defaultFlatLabel) {
 }
 boostTextSkip: 5px;
 boostText: FlatLabel(defaultFlatLabel) {
+	minWidth: 40px;
+	align: align(top);
+}
+boostReassignText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;
 	align: align(top);
 }
@@ -271,11 +274,12 @@ boostBox: Box(premiumPreviewDoubledLimitsBox) {
 
 boostReplaceUserpicsPadding: margins(0px, 18px, 0px, 20px);
 boostReplaceUserpicsSkip: 42px;
+boostReplaceUserpicsShift: 24px;
 boostReplaceUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(60px, 60px);
 	photoSize: 60px;
 }
-boostReplaceIcon: icon{{ "stories/boost_mini", windowBg }};
+boostReplaceIcon: icon{{ "stories/boost_mini", premiumButtonFg }};
 boostReplaceIconSkip: 3px;
 boostReplaceIconOutline: 2px;
 boostReplaceIconAdd: point(4px, 2px);
