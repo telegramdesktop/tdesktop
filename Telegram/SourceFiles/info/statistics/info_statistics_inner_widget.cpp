@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_statistics.h"
 #include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -697,25 +698,53 @@ void InnerWidget::fillRecentPosts() {
 		}
 	};
 
-	auto foundLoaded = false;
-	for (const auto &recent : stats.recentMessageInteractions) {
-		const auto messageWrap = content->add(
-			object_ptr<Ui::VerticalLayout>(content));
-		const auto msgId = recent.messageId;
-		if (const auto item = _peer->owner().message(_peer, msgId)) {
-			addMessage(messageWrap, item, recent);
-			foundLoaded = true;
-			continue;
+	const auto buttonWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+			container,
+			object_ptr<Ui::SettingsButton>(
+				container,
+				tr::lng_stories_show_more())));
+
+	constexpr auto kPerPage = int(10);
+	const auto max = stats.recentMessageInteractions.size();
+	if (_state.recentPostsExpanded) {
+		_state.recentPostsExpanded = std::max(
+			_state.recentPostsExpanded - kPerPage,
+			0);
+	}
+	const auto showMore = [=] {
+		const auto from = _state.recentPostsExpanded;
+		_state.recentPostsExpanded = std::min(
+			int(max),
+			_state.recentPostsExpanded + kPerPage);
+		if (_state.recentPostsExpanded == max) {
+			buttonWrap->toggle(false, anim::type::instant);
 		}
-		const auto callback = crl::guard(content, [=] {
+		for (auto i = from; i < _state.recentPostsExpanded; i++) {
+			const auto &recent = stats.recentMessageInteractions[i];
+			const auto messageWrap = content->add(
+				object_ptr<Ui::VerticalLayout>(content));
+			const auto msgId = recent.messageId;
 			if (const auto item = _peer->owner().message(_peer, msgId)) {
 				addMessage(messageWrap, item, recent);
-				content->resizeToWidth(content->width());
+				continue;
 			}
-		});
-		_peer->session().api().requestMessageData(_peer, msgId, callback);
-	}
-	if (!foundLoaded) {
+			const auto callback = crl::guard(content, [=] {
+				if (const auto item = _peer->owner().message(_peer, msgId)) {
+					addMessage(messageWrap, item, recent);
+					content->resizeToWidth(content->width());
+				}
+			});
+			_peer->session().api().requestMessageData(_peer, msgId, callback);
+		}
+		container->resizeToWidth(container->width());
+	};
+	const auto delay = st::defaultRippleAnimation.hideDuration;
+	buttonWrap->entity()->setClickedCallback([=] {
+		base::call_delayed(delay, crl::guard(container, showMore));
+	});
+	showMore();
+	if (_messagePreviews.empty()) {
 		wrap->toggle(false, anim::type::instant);
 	}
 }

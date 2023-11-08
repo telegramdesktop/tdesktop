@@ -15,6 +15,7 @@ struct SavedState final {
 	Data::AnyStatistics stats;
 	base::flat_map<MsgId, QImage> recentPostPreviews;
 	Data::PublicForwardsSlice publicForwardsFirstSlice;
+	int recentPostsExpanded = 0;
 };
 
 } // namespace Info::Statistics

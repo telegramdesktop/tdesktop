@@ -215,6 +215,7 @@ void MessagePreview::paintEvent(QPaintEvent *e) {
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
 		.now = crl::now(),
 		.elisionHeight = st::statisticsDetailsPopupHeaderStyle.font->height,
+		.elisionLines = 1,
 	});
 	_views.draw(p, {
 		.position = { width() - _viewsWidth, topTextTop },

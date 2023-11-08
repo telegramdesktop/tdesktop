@@ -696,7 +696,6 @@ void AddMembersList(
 				container,
 				tr::lng_stories_show_more())),
 		{ 0, -st::settingsButton.padding.top(), 0, 0 });
-	const auto button = wrap->entity();
 
 	const auto showMore = [=] {
 		state->limit = std::min(int(max), state->limit + kPerPage);
@@ -706,7 +705,7 @@ void AddMembersList(
 		}
 		container->resizeToWidth(container->width());
 	};
-	button->setClickedCallback(showMore);
+	wrap->entity()->setClickedCallback(showMore);
 	showMore();
 }
 
