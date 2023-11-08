@@ -410,12 +410,25 @@ void InnerWidget::fill() {
 			header->setSubTitle({});
 		}
 
+		class Slider final : public Ui::SettingsSlider {
+		public:
+			using Ui::SettingsSlider::SettingsSlider;
+			void setNaturalWidth(int w) {
+				_naturalWidth = w;
+			}
+			int naturalWidth() const override {
+				return _naturalWidth;
+			}
+
+		private:
+			int _naturalWidth = 0;
+
+		};
+
 		const auto slider = inner->add(
-			object_ptr<Ui::SlideWrap<Ui::SettingsSlider>>(
+			object_ptr<Ui::SlideWrap<Slider>>(
 				inner,
-				object_ptr<Ui::SettingsSlider>(
-					inner,
-					st::defaultTabsSlider)),
+				object_ptr<Slider>(inner, st::defaultTabsSlider)),
 			st::boxRowPadding);
 		slider->toggle(!hasOneTab, anim::type::instant);
 
@@ -424,15 +437,10 @@ void InnerWidget::fill() {
 
 		{
 			const auto &st = st::defaultTabsSlider;
-			const auto sliderWidth = st.labelStyle.font->width(boostsTabText)
+			slider->entity()->setNaturalWidth(0
+				+ st.labelStyle.font->width(boostsTabText)
 				+ st.labelStyle.font->width(giftsTabText)
-				+ rect::m::sum::h(st::boxRowPadding);
-			fakeShowed->events() | rpl::take(1) | rpl::map_to(-1) | rpl::then(
-				slider->entity()->widthValue()
-			) | rpl::distinct_until_changed(
-			) | rpl::start_with_next([=](int) {
-				slider->entity()->resizeToWidth(sliderWidth);
-			}, slider->lifetime());
+				+ rect::m::sum::h(st::boxRowPadding));
 		}
 
 		const auto boostsWrap = inner->add(
@@ -444,7 +452,7 @@ void InnerWidget::fill() {
 				inner,
 				object_ptr<Ui::VerticalLayout>(inner)));
 
-		rpl::single(hasGifts ? 1 : 0) | rpl::then(
+		rpl::single(hasOneTab ? (hasGifts ? 1 : 0) : 0) | rpl::then(
 			slider->entity()->sectionActivated()
 		) | rpl::start_with_next([=](int index) {
 			boostsWrap->toggle(!index, anim::type::instant);
