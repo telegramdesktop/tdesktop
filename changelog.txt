@@ -1,3 +1,9 @@
+4.11.6 (09.11.23)
+
+- Support multiple boosts and reassignment.
+- Improve giveaway creation flow.
+- Fix crash in topics creation.
+
 4.11.5 (06.11.23)
 
 - Giveaway phrases and sticker fixes.
