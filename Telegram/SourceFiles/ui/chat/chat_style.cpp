@@ -505,6 +505,10 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		&MessageImageStyle::historyVideoMessageMute,
 		st::historyVideoMessageMute,
 		st::historyVideoMessageMuteSelected);
+	make(
+		&MessageImageStyle::historyPageEnlarge,
+		st::historyPageEnlarge,
+		st::historyPageEnlargeSelected);
 
 	updateDarkValue();
 }

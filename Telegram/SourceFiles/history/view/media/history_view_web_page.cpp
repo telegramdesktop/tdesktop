@@ -783,7 +783,11 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 			auto attachTop = tshift - bubble.top();
 			if (rtl()) attachLeft = width() - attachLeft - _attach->width();
 			result = _attach->textState(point - QPoint(attachLeft, attachTop), request);
-			result.link = replaceAttachLink(result.link);
+			if (result.cursor == CursorState::Enlarge) {
+				result.cursor = CursorState::None;
+			} else {
+				result.link = replaceAttachLink(result.link);
+			}
 		}
 	}
 	if (!result.link && outer.contains(point)) {

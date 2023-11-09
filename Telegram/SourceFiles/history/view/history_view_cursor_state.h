@@ -22,6 +22,7 @@ enum class CursorState : char {
 	None,
 	Text,
 	Date,
+	Enlarge,
 	Forwarded,
 };
 

@@ -640,6 +640,12 @@ historyPageButtonLine: 1px;
 historyPageButtonHeight: 36px;
 historyPageButtonPadding: margins(13px, 8px, 13px, 8px);
 
+historyPageEnlarge: icon{{ "chat/link_photo_enlarge", historyFileThumbRadialFg }};
+historyPageEnlargeSelected: icon{{ "chat/link_photo_enlarge", historyFileThumbRadialFgSelected }};
+historyPageEnlargeSize: 36px;
+historyPageEnlargeSkip: 4px;
+historyPageEnlargeRadius: 8px;
+
 historyCommentsButtonHeight: 40px;
 historyCommentsSkipLeft: 9px;
 historyCommentsSkipText: 10px;

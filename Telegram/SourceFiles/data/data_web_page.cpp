@@ -391,3 +391,7 @@ bool WebPageData::computeDefaultSmallMedia() const {
 	}
 	return false;
 }
+
+bool WebPageData::suggestEnlargePhoto() const {
+	return !siteName.isEmpty() || !title.isEmpty() || !description.empty();
+}

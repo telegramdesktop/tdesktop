@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_auto_download.h"
+#include "data/data_web_page.h"
 #include "core/application.h"
 #include "styles/style_chat.h"
 
@@ -242,6 +243,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 		maxWidth());
 	newWidth = qMax(pix.width(), minWidth);
 	auto newHeight = qMax(pix.height(), st::minPhotoSize);
+	auto imageHeight = newHeight;
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
 		auto captionMaxWidth = st::msgPadding.left()
 			+ _caption.maxWidth()
@@ -252,7 +254,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 		}
 		const auto maxWithCaption = qMin(st::msgMaxWidth, captionMaxWidth);
 		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
-		newHeight = adjustHeightForLessCrop(
+		imageHeight = newHeight = adjustHeightForLessCrop(
 			dimensions,
 			{ newWidth, newHeight });
 		const auto captionw = newWidth
@@ -266,6 +268,15 @@ QSize Photo::countCurrentSize(int newWidth) {
 			newHeight += st::msgPadding.bottom();
 		}
 	}
+	const auto enlargeInner = st::historyPageEnlargeSize;
+	const auto enlargeOuter = 2 * st::historyPageEnlargeSkip + enlargeInner;
+	const auto showEnlarge = (_parent->media() != this)
+		&& _parent->data()->media()
+		&& _parent->data()->media()->webpage()
+		&& _parent->data()->media()->webpage()->suggestEnlargePhoto()
+		&& (newWidth >= enlargeOuter)
+		&& (imageHeight >= enlargeOuter);
+	_showEnlarge = showEnlarge ? 1 : 0;
 	return { newWidth, newHeight };
 }
 
@@ -351,15 +362,16 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			fillImageOverlay(p, rthumb, rounding, context);
 		}
 	}
-	if (radial || (!loaded && !_data->loading())) {
-		const auto radialOpacity = (radial && loaded && !_data->uploading())
-			? _animation->radial.opacity() :
-			1.;
-		const auto innerSize = st::msgFileLayout.thumbSize;
-		QRect inner(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
+
+	const auto showEnlarge = loaded && _showEnlarge;
+	const auto paintInCenter = (radial || (!loaded && !_data->loading()));
+	if (paintInCenter || showEnlarge) {
 		p.setPen(Qt::NoPen);
 		if (context.selected()) {
 			p.setBrush(st->msgDateImgBgSelected());
+		} else if (showEnlarge) {
+			const auto over = ClickHandler::showAsActive(_openl);
+			p.setBrush(over ? st->msgDateImgBgOver() : st->msgDateImgBg());
 		} else if (isThumbAnimation()) {
 			const auto over = _animation->a_thumbOver.value(1.);
 			p.setBrush(anim::brush(st->msgDateImgBg(), st->msgDateImgBgOver(), over));
@@ -367,6 +379,13 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			const auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
 			p.setBrush(over ? st->msgDateImgBgOver() : st->msgDateImgBg());
 		}
+	}
+	if (paintInCenter) {
+		const auto radialOpacity = (radial && loaded && !_data->uploading())
+			? _animation->radial.opacity() :
+			1.;
+		const auto innerSize = st::msgFileLayout.thumbSize;
+		QRect inner(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 
 		p.setOpacity(radialOpacity * p.opacity());
 
@@ -385,6 +404,13 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, sti->historyFileThumbRadialFg);
 		}
+	}
+	if (showEnlarge) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto rect = enlargeRect();
+		const auto radius = st::historyPageEnlargeRadius;
+		p.drawRoundedRect(rect, radius, radius);
+		sti->historyPageEnlarge.paintInCenter(p, rect);
 	}
 
 	// date
@@ -631,6 +657,18 @@ QSize Photo::photoSize() const {
 	return QSize(_data->width(), _data->height());
 }
 
+QRect Photo::enlargeRect() const {
+	const auto skip = st::historyPageEnlargeSkip;
+	const auto enlargeInner = st::historyPageEnlargeSize;
+	const auto enlargeOuter = 2 * skip + enlargeInner;
+	return {
+	   width() - enlargeOuter + skip,
+	   skip,
+	   enlargeInner,
+	   enlargeInner,
+	};
+}
+
 TextState Photo::textState(QPoint point, StateRequest request) const {
 	auto result = TextState(_parent);
 
@@ -673,6 +711,11 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 			: _data->loading()
 			? _cancell
 			: _savel;
+		if (_showEnlarge
+			&& result.link == _openl
+			&& enlargeRect().contains(point)) {
+			result.cursor = CursorState::Enlarge;
+		}
 	}
 	if (_caption.isEmpty() && _parent->media() == this) {
 		auto fullRight = paintx + paintw;
