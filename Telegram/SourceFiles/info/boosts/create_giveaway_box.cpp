@@ -648,6 +648,24 @@ void CreateGiveawayBox(
 		Settings::AddSkip(countriesContainer);
 	}
 
+	const auto addTerms = [=](not_null<Ui::VerticalLayout*> c) {
+		auto terms = object_ptr<Ui::FlatLabel>(
+			c,
+			tr::lng_premium_gift_terms(
+				lt_link,
+				tr::lng_premium_gift_terms_link(
+				) | rpl::map([](const QString &t) {
+					return Ui::Text::Link(t, 1);
+				}),
+				Ui::Text::WithEntities),
+			st::boxDividerLabel);
+		terms->setLink(1, std::make_shared<LambdaClickHandler>([=] {
+			box->closeBox();
+			Settings::ShowPremium(&peer->session(), QString());
+		}));
+		c->add(std::move(terms));
+	};
+
 	{
 		const auto dateContainer = randomWrap->entity()->add(
 			object_ptr<Ui::VerticalLayout>(randomWrap));
@@ -685,12 +703,29 @@ void CreateGiveawayBox(
 		});
 
 		Settings::AddSkip(dateContainer);
-		Settings::AddDividerText(
-			dateContainer,
-			tr::lng_giveaway_date_about(
-				lt_count,
-				state->sliderValue.value() | tr::to_count()));
-		Settings::AddSkip(dateContainer);
+		if (prepaid) {
+			auto terms = object_ptr<Ui::VerticalLayout>(dateContainer);
+			terms->add(object_ptr<Ui::FlatLabel>(
+				terms,
+				tr::lng_giveaway_date_about(
+					lt_count,
+					state->sliderValue.value() | tr::to_count()),
+				st::boxDividerLabel));
+			Settings::AddSkip(terms.data());
+			Settings::AddSkip(terms.data());
+			addTerms(terms.data());
+			dateContainer->add(object_ptr<Ui::DividerLabel>(
+				dateContainer,
+				std::move(terms),
+				st::settingsDividerLabelPadding));
+		} else {
+			Settings::AddDividerText(
+				dateContainer,
+				tr::lng_giveaway_date_about(
+					lt_count,
+					state->sliderValue.value() | tr::to_count()));
+			Settings::AddSkip(dateContainer);
+		}
 	}
 
 	const auto durationGroup = std::make_shared<Ui::RadiobuttonGroup>(0);
@@ -718,23 +753,11 @@ void CreateGiveawayBox(
 
 		Settings::AddSkip(listOptions);
 
-		auto terms = object_ptr<Ui::FlatLabel>(
-			listOptions,
-			tr::lng_premium_gift_terms(
-				lt_link,
-				tr::lng_premium_gift_terms_link(
-				) | rpl::map([](const QString &t) {
-					return Ui::Text::Link(t, 1);
-				}),
-				Ui::Text::WithEntities),
-			st::boxDividerLabel);
-		terms->setLink(1, std::make_shared<LambdaClickHandler>([=] {
-			box->closeBox();
-			Settings::ShowPremium(&peer->session(), QString());
-		}));
+		auto termsContainer = object_ptr<Ui::VerticalLayout>(listOptions);
+		addTerms(termsContainer.data());
 		listOptions->add(object_ptr<Ui::DividerLabel>(
 			listOptions,
-			std::move(terms),
+			std::move(termsContainer),
 			st::settingsDividerLabelPadding));
 
 		box->verticalLayout()->resizeToWidth(box->width());
