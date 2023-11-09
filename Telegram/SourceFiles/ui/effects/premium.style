@@ -252,6 +252,12 @@ boostTitle: FlatLabel(defaultFlatLabel) {
 		font: font(17px semibold);
 	}
 }
+boostTitleBadge: FlatLabel(defaultFlatLabel) {
+	margin: margins(4px, 2px, 4px, 2px);
+	style: semiboldTextStyle;
+	textFg: premiumButtonFg;
+}
+boostTitleBadgeSkip: 6px;
 boostTextSkip: 5px;
 boostText: FlatLabel(defaultFlatLabel) {
 	minWidth: 40px;

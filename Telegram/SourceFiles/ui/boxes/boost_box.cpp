@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
+#include "ui/painter.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
@@ -43,6 +44,69 @@ namespace {
 			data.boosts + 1);
 	}
 	return data;
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeTitle(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> title,
+		rpl::producer<QString> repeated) {
+	auto result = object_ptr<Ui::RpWidget>(box);
+
+	struct State {
+		not_null<Ui::FlatLabel*> title;
+		not_null<Ui::FlatLabel*> repeated;
+	};
+	const auto notEmpty = [](const QString &text) {
+		return !text.isEmpty();
+	};
+	const auto state = box->lifetime().make_state<State>(State{
+		.title = Ui::CreateChild<Ui::FlatLabel>(
+			result.data(),
+			rpl::duplicate(title),
+			st::boostTitle),
+		.repeated = Ui::CreateChild<Ui::FlatLabel>(
+			result.data(),
+			rpl::duplicate(repeated) | rpl::filter(notEmpty),
+			st::boostTitleBadge),
+	});
+	state->title->show();
+	state->repeated->showOn(std::move(repeated) | rpl::map(notEmpty));
+
+	result->resize(result->width(), st::boostTitle.style.font->height);
+
+	rpl::combine(
+		result->widthValue(),
+		rpl::duplicate(title),
+		state->repeated->shownValue(),
+		state->repeated->widthValue()
+	) | rpl::start_with_next([=](int outer, auto&&, bool shown, int badge) {
+		const auto repeated = shown ? badge : 0;
+		const auto skip = st::boostTitleBadgeSkip;
+		const auto available = outer - repeated - skip;
+		const auto use = std::min(state->title->textMaxWidth(), available);
+		state->title->resizeToWidth(use);
+		const auto left = (outer - use - skip - repeated) / 2;
+		state->title->moveToLeft(left, 0);
+		const auto mleft = st::boostTitleBadge.margin.left();
+		const auto mtop = st::boostTitleBadge.margin.top();
+		state->repeated->moveToLeft(left + use + skip + mleft, mtop);
+	}, result->lifetime());
+
+	const auto badge = state->repeated;
+	badge->paintRequest() | rpl::start_with_next([=] {
+		auto p = QPainter(badge);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = std::min(badge->width(), badge->height()) / 2;
+		p.setPen(Qt::NoPen);
+		auto brush = QLinearGradient(
+			QPointF(badge->width(), badge->height()),
+			QPointF());
+		brush.setStops(Ui::Premium::ButtonGradientStops());
+		p.setBrush(brush);
+		p.drawRoundedRect(badge->rect(), radius, radius);
+	}, badge->lifetime());
+
+	return result;
 }
 
 } // namespace
@@ -111,6 +175,10 @@ void BoostBox(
 			? tr::lng_boost_channel_title_first()
 			: tr::lng_boost_channel_title_more();
 	}) | rpl::flatten_latest();
+	auto repeated = state->data.value(
+	) | rpl::map([=](BoostCounters counters) {
+		return (counters.mine > 1) ? u"x%1"_q.arg(counters.mine) : u""_q;
+	});
 
 	auto text = state->data.value(
 	) | rpl::map([=](BoostCounters counters) {
@@ -164,10 +232,7 @@ void BoostBox(
 	}) | rpl::flatten_latest();
 
 	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			std::move(title),
-			st::boostTitle),
+		MakeTitle(box, std::move(title), std::move(repeated)),
 		st::boxRowPadding + QMargins(0, st::boostTitleSkip, 0, 0));
 
 	box->addRow(
