@@ -312,7 +312,8 @@ void CreateGiveawayBox(
 					lt_duration,
 					tr::lng_premium_gift_duration_months(
 						lt_count,
-						rpl::single(prepaid->months) | tr::to_count())))
+						rpl::single(prepaid->months) | tr::to_count())),
+				QImage())
 		)->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 	if (!prepaid) {

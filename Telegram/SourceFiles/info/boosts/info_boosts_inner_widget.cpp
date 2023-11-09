@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/boosts/create_giveaway_box.h"
+#include "info/boosts/giveaway/boost_badge.h"
 #include "info/boosts/giveaway/giveaway_type_row.h"
 #include "info/boosts/info_boosts_widget.h"
 #include "info/info_controller.h"
@@ -326,6 +327,8 @@ void InnerWidget::fill() {
 	::Settings::AddSkip(inner);
 
 	if (!status.prepaidGiveaway.empty()) {
+		const auto multiplier = Api::PremiumGiftCodeOptions(_peer)
+			.giveawayBoostsPerPremium();
 		::Settings::AddSkip(inner);
 		AddHeader(inner, tr::lng_boosts_prepaid_giveaway_title);
 		::Settings::AddSkip(inner);
@@ -340,7 +343,17 @@ void InnerWidget::fill() {
 					rpl::single(g.quantity) | tr::to_count()),
 				tr::lng_boosts_prepaid_giveaway_moths(
 					lt_count,
-					rpl::single(g.months) | tr::to_count())));
+					rpl::single(g.months) | tr::to_count()),
+				Info::Statistics::CreateBadge(
+					st::statisticsDetailsBottomCaptionStyle,
+					QString::number(g.quantity * multiplier),
+					st::boostsListBadgeHeight,
+					st::boostsListBadgeTextPadding,
+					st::premiumButtonBg2,
+					st::premiumButtonFg,
+					1.,
+					st::boostsListMiniIconPadding,
+					st::boostsListMiniIcon)));
 			button->setClickedCallback([=] {
 				_controller->uiShow()->showBox(Box(
 					CreateGiveawayBox,

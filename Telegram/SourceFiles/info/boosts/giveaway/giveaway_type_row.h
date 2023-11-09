@@ -39,7 +39,8 @@ public:
 		Type type,
 		int colorIndex,
 		rpl::producer<QString> title,
-		rpl::producer<QString> subtitle);
+		rpl::producer<QString> subtitle,
+		QImage badge);
 
 	void addRadio(std::shared_ptr<Ui::RadioenumGroup<Type>> typeGroup);
 
@@ -55,6 +56,8 @@ private:
 	Ui::EmptyUserpic _userpic;
 	Ui::Text::String _status;
 	Ui::Text::String _name;
+
+	QImage _badge;
 
 };
 

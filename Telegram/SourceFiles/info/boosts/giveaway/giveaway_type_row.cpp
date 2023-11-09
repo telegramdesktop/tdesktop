@@ -36,7 +36,8 @@ GiveawayTypeRow::GiveawayTypeRow(
 		: (type == Type::AllMembers)
 		? tr::lng_giveaway_users_all()
 		: tr::lng_giveaway_users_new(),
-	std::move(subtitle)) {
+	std::move(subtitle),
+	QImage()) {
 }
 
 GiveawayTypeRow::GiveawayTypeRow(
@@ -44,7 +45,8 @@ GiveawayTypeRow::GiveawayTypeRow(
 	Type type,
 	int colorIndex,
 	rpl::producer<QString> title,
-	rpl::producer<QString> subtitle)
+	rpl::producer<QString> subtitle,
+	QImage badge)
 : RippleButton(parent, st::defaultRippleAnimation)
 , _type(type)
 , _st((_type == Type::SpecificUsers || _type == Type::Random)
@@ -54,7 +56,8 @@ GiveawayTypeRow::GiveawayTypeRow(
 	: st::giveawayGiftCodeMembersPeerList.item)
 , _userpic(
 	Ui::EmptyUserpic::UserpicColor(Ui::EmptyUserpic::ColorIndex(colorIndex)),
-	QString()) {
+	QString())
+, _badge(std::move(badge)) {
 	std::move(
 		subtitle
 	) | rpl::start_with_next([=] (const QString &s) {
@@ -111,8 +114,19 @@ void GiveawayTypeRow::paintEvent(QPaintEvent *e) {
 	const auto namey = _st.namePosition.y();
 	const auto namew = outerWidth - namex - skipRight;
 
+	const auto badgew = _badge.width() / style::DevicePixelRatio();
+
 	p.setPen(_st.nameFg);
-	_name.drawLeftElided(p, namex, namey, namew, width());
+	_name.drawLeftElided(p, namex, namey, namew - badgew, width());
+
+	if (!_badge.isNull()) {
+		p.drawImage(
+			std::min(
+				namex + _name.maxWidth() + st::boostsListBadgePadding.left(),
+				outerWidth - badgew - skipRight),
+			namey + st::boostsListMiniIconSkip,
+			_badge);
+	}
 
 	const auto statusx = _st.statusPosition.x();
 	const auto statusy = _st.statusPosition.y();
