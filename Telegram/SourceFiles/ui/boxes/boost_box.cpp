@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-[[nodiscrd]] BoostCounters AdjustByReached(BoostCounters data) {
+[[nodiscard]] BoostCounters AdjustByReached(BoostCounters data) {
 	const auto exact = (data.boosts == data.thisLevelBoosts);
 	const auto reached = !data.nextLevelBoosts || (exact && data.mine > 0);
 	if (reached) {
@@ -464,11 +464,6 @@ void AskBoostBox(
 		Fn<void()> startGiveaway) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::boostBox);
-
-	struct State {
-		bool submitted = false;
-	};
-	const auto state = box->lifetime().make_state<State>();
 
 	FillBoostLimit(
 		BoxShowFinishes(box),

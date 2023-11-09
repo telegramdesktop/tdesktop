@@ -184,8 +184,6 @@ void FillShareLink(
 
 	label->clicks(
 	) | rpl::start_with_next(copyLink, label->lifetime());
-	const auto copyShareWrap = content->add(
-		object_ptr<Ui::VerticalLayout>(content));
 	{
 		const auto wrap = content->add(
 			object_ptr<Ui::FixedHeightWidget>(

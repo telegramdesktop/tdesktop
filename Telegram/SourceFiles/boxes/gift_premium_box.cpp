@@ -692,7 +692,7 @@ void GiftCodePendingBox(
 
 	AddTable(box->verticalLayout(), controller, data, true);
 
-	const auto footer = box->addRow(
+	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			tr::lng_gift_link_pending_footer(),
