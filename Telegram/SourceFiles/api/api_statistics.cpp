@@ -518,10 +518,9 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 				? (100. * premiumMemberCount / participantCount)
 				: 0;
 
+			const auto slots = data.vmy_boost_slots();
 			_boostStatus.overview = Data::BoostsOverview{
-				.mine = (data.vmy_boost_slots()
-					? data.vmy_boost_slots()->v.size()
-					: 0),
+				.mine = slots ? int(slots->v.size()) : 0,
 				.level = std::max(data.vlevel().v, 0),
 				.boostCount = std::max(
 					data.vboosts().v,

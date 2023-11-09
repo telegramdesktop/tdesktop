@@ -2116,6 +2116,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_giveaway_users_about" = "Choose if you want to limit the giveaway only to those who joined the channel after the giveaway started or to users from specific countries.";
 "lng_giveaway_start" = "Start Giveaway";
 "lng_giveaway_award" = "Gift Premium";
+"lng_giveaway_start_sure" = "Are you sure you want to start this prepaid giveaway now? This action cannot be undone.";
 "lng_giveaway_date_title" = "Date when giveaway ends";
 "lng_giveaway_date" = "Date and Time";
 "lng_giveaway_date_about#one" = "Choose when {count} subscriber	of your channel will be randomly selected to receive Telegram Premium.";

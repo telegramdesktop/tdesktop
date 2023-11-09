@@ -413,7 +413,7 @@ Ui::BoostCounters ParseBoostCounters(
 		.boosts = data.vboosts().v,
 		.thisLevelBoosts = data.vcurrent_level_boosts().v,
 		.nextLevelBoosts = data.vnext_level_boosts().value_or_empty(),
-		.mine = slots ? slots->v.size() : 0,
+		.mine = slots ? int(slots->v.size()) : 0,
 	};
 }
 

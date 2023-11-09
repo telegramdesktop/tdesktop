@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h" // Settings::ShowPremium
 #include "ui/boxes/choose_date_time.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
@@ -908,18 +909,37 @@ void CreateGiveawayBox(
 					state->confirmButtonBusy = false;
 				}
 			};
-			if (prepaid) {
+			const auto startPrepaid = [=](Fn<void()> close) {
+				if (!weak) {
+					close();
+					return;
+				}
 				state->apiOptions.applyPrepaid(
 					invoice,
 					prepaid->id
 				) | rpl::start_with_error_done([=](const QString &error) {
 					if (const auto window = weakWindow.get()) {
 						window->uiShow()->showToast(error);
+						close();
 						done(Payments::CheckoutResult::Cancelled);
 					}
 				}, [=] {
+					close();
 					done(Payments::CheckoutResult::Paid);
 				}, box->lifetime());
+			};
+			if (prepaid) {
+				const auto cancel = [=](Fn<void()> close) {
+					if (weak) {
+						state->confirmButtonBusy = false;
+					}
+					close();
+				};
+				show->show(Ui::MakeConfirmBox({
+					.text = tr::lng_giveaway_start_sure(tr::now),
+					.confirmed = startPrepaid,
+					.cancelled = cancel,
+				}));
 			} else {
 				Payments::CheckoutProcess::Start(std::move(invoice), done);
 			}
