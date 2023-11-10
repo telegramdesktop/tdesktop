@@ -98,11 +98,7 @@ namespace {
 		auto hq = PainterHighQualityEnabler(p);
 		const auto radius = std::min(badge->width(), badge->height()) / 2;
 		p.setPen(Qt::NoPen);
-		auto brush = QLinearGradient(
-			QPointF(badge->width(), badge->height()),
-			QPointF());
-		brush.setStops(Ui::Premium::ButtonGradientStops());
-		p.setBrush(brush);
+		p.setBrush(st::premiumButtonBg2);
 		p.drawRoundedRect(badge->rect(), radius, radius);
 	}, badge->lifetime());
 
