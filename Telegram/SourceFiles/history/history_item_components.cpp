@@ -283,8 +283,9 @@ ReplyFields ReplyFields::clone(not_null<HistoryItem*> parent) const {
 		.messageId = messageId,
 		.topMessageId = topMessageId,
 		.storyId = storyId,
-		.topicPost = topicPost,
+		.quoteOffset = quoteOffset,
 		.manualQuote = manualQuote,
+		.topicPost = topicPost,
 	};
 }
 
@@ -303,7 +304,7 @@ ReplyFields ReplyFieldsFromMTP(
 				: id;
 			result.topMessageId
 				= data.vreply_to_top_id().value_or(id);
-			result.topicPost = data.is_forum_topic();
+			result.topicPost = data.is_forum_topic() ? 1 : 0;
 		}
 		if (const auto header = data.vreply_from()) {
 			const auto &data = header->data();
@@ -324,7 +325,8 @@ ReplyFields ReplyFieldsFromMTP(
 				&owner->session(),
 				data.vquote_entities().value_or_empty()),
 		};
-		result.manualQuote = data.is_quote();
+		result.quoteOffset = data.vquote_offset().value_or_empty();
+		result.manualQuote = data.is_quote() ? 1 : 0;
 		return result;
 	}, [&](const MTPDmessageReplyStoryHeader &data) {
 		return ReplyFields{
@@ -357,6 +359,7 @@ FullReplyTo ReplyToFromMTP(
 				&history->session(),
 				data.vquote_entities().value_or_empty()),
 		};
+		result.quoteOffset = data.vquote_offset().value_or_empty();
 		return result;
 	}, [&](const MTPDinputReplyToStory &data) {
 		if (const auto parsed = Data::UserFromInputMTP(
@@ -461,7 +464,7 @@ void HistoryMessageReply::updateFields(
 		MsgId messageId,
 		MsgId topMessageId,
 		bool topicPost) {
-	_fields.topicPost = topicPost;
+	_fields.topicPost = topicPost ? 1 : 0;
 	if ((_fields.messageId != messageId)
 		&& !IsServerMsgId(_fields.messageId)) {
 		_fields.messageId = messageId;

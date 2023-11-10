@@ -1205,10 +1205,8 @@ SelectedQuote Gif::selectedQuote(TextSelection selection) const {
 	return Element::FindSelectedQuote(_caption, selection, _realParent);
 }
 
-TextSelection Gif::selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const {
-	return Element::FindSelectionFromQuote(_caption, item, quote);
+TextSelection Gif::selectionFromQuote(const SelectedQuote &quote) const {
+	return Element::FindSelectionFromQuote(_caption, quote);
 }
 
 bool Gif::fullFeaturedGrouped(RectParts sides) const {

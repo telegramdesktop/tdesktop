@@ -168,6 +168,7 @@ struct SectionShow {
 	}
 
 	TextWithEntities highlightPart;
+	int highlightPartOffsetHint = 0;
 	Way way = Way::Forward;
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;

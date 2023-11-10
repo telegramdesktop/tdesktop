@@ -270,19 +270,22 @@ bool IsItemScheduledUntilOnline(not_null<const HistoryItem*> item) {
 ClickHandlerPtr JumpToMessageClickHandler(
 		not_null<HistoryItem*> item,
 		FullMsgId returnToId,
-		TextWithEntities highlightPart) {
+		TextWithEntities highlightPart,
+		int highlightPartOffsetHint) {
 	return JumpToMessageClickHandler(
 		item->history()->peer,
 		item->id,
 		returnToId,
-		std::move(highlightPart));
+		std::move(highlightPart),
+		highlightPartOffsetHint);
 }
 
 ClickHandlerPtr JumpToMessageClickHandler(
 		not_null<PeerData*> peer,
 		MsgId msgId,
 		FullMsgId returnToId,
-		TextWithEntities highlightPart) {
+		TextWithEntities highlightPart,
+		int highlightPartOffsetHint) {
 	return std::make_shared<LambdaClickHandler>([=] {
 		const auto separate = Core::App().separateWindowForPeer(peer);
 		const auto controller = separate
@@ -293,6 +296,7 @@ ClickHandlerPtr JumpToMessageClickHandler(
 				Window::SectionShow::Way::Forward
 			};
 			params.highlightPart = highlightPart;
+			params.highlightPartOffsetHint = highlightPartOffsetHint;
 			params.origin = Window::SectionShow::OriginMessage{
 				returnToId
 			};
@@ -392,8 +396,11 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 			MTP_flags(Flag::f_reply_to_msg_id
 				| (replyToTop ? Flag::f_reply_to_top_id : Flag())
 				| (externalPeerId ? Flag::f_reply_to_peer_id : Flag())
-				| (replyTo.quote.empty() ? Flag() : Flag::f_quote)
-				| (replyTo.quote.empty() ? Flag() : Flag::f_quote_text)
+				| (replyTo.quote.empty()
+					? Flag()
+					: (Flag::f_quote
+						| Flag::f_quote_text
+						| Flag::f_quote_offset))
 				| (quoteEntities.v.empty()
 					? Flag()
 					: Flag::f_quote_entities)),
@@ -403,7 +410,8 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 			MTPMessageMedia(), // reply_media
 			MTP_int(replyToTop),
 			MTP_string(replyTo.quote.text),
-			quoteEntities);
+			quoteEntities,
+			MTP_int(replyTo.quoteOffset));
 	}
 	return MTPMessageReplyHeader();
 }

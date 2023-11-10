@@ -78,6 +78,20 @@ constexpr auto kPinnedMessageTextLimit = 16;
 
 using ItemPreview = HistoryView::ItemPreview;
 
+template <typename T>
+[[nodiscard]] PreparedServiceText PrepareEmptyText(const T &) {
+	return PreparedServiceText();
+};
+
+template <typename T>
+[[nodiscard]] PreparedServiceText PrepareErrorText(const T &data) {
+	if constexpr (!std::is_same_v<T, MTPDmessageActionEmpty>) {
+		const auto name = QString::fromUtf8(typeid(data).name());
+		LOG(("API Error: %1 received.").arg(name));
+	}
+	return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
+}
+
 [[nodiscard]] TextWithEntities SpoilerLoginCode(TextWithEntities text) {
 	const auto r = QRegularExpression(u"([\\d\\-]{5,7})"_q);
 	const auto m = r.match(text.text);
@@ -449,7 +463,7 @@ HistoryItem::HistoryItem(
 	const auto originalMedia = original->media();
 	const auto dropForwardInfo = original->computeDropForwardedInfo();
 	config.reply.messageId = config.reply.topMessageId = topicRootId;
-	config.reply.topicPost = (topicRootId != 0);
+	config.reply.topicPost = (topicRootId != 0) ? 1 : 0;
 	if (const auto originalReply = original->Get<HistoryMessageReply>()) {
 		if (originalReply->external()) {
 			config.reply = originalReply->fields().clone(this);
@@ -3371,13 +3385,15 @@ void HistoryItem::createComponentsHelper(
 			&& topic->rootId() != to->topicRootId()) {
 			config.reply.externalPeerId = replyTo.messageId.peer;
 		}
-		config.reply.topicPost = config.reply.externalPeerId
+		const auto topicPost = config.reply.externalPeerId
 			? (replyTo.topicRootId
 				&& (replyTo.topicRootId != Data::ForumTopic::kGeneralId))
 			: (LookupReplyIsTopicPost(to)
 				|| (to && to->Has<HistoryServiceTopicInfo>())
 				|| (forum && forum->creating(config.reply.topMessageId)));
-		config.reply.manualQuote = !replyTo.quote.empty();
+		config.reply.topicPost = topicPost ? 1 : 0;
+		config.reply.manualQuote = replyTo.quote.empty() ? 0 : 1;
+		config.reply.quoteOffset = replyTo.quoteOffset;
 		config.reply.quote = std::move(replyTo.quote);
 	}
 	config.markup = std::move(markup);
@@ -3696,8 +3712,12 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 				}
 			}, call->lifetime);
 		}
-	} else if (type == mtpc_messageActionSetSameChatWallPaper) {
-		UpdateComponents(HistoryServiceSameBackground::Bit());
+	} else if (type == mtpc_messageActionSetChatWallPaper) {
+		if (action.c_messageActionSetChatWallPaper().is_same()) {
+			UpdateComponents(HistoryServiceSameBackground::Bit());
+		} else {
+			RemoveComponents(HistoryServiceSameBackground::Bit());
+		}
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -3877,7 +3897,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareChatDeletePhoto = [this] {
+	auto prepareChatDeletePhoto = [&](const MTPDmessageActionChatDeletePhoto &action) {
 		auto result = PreparedServiceText();
 		if (isPost()) {
 			result.text = tr::lng_action_removed_photo_channel(
@@ -3956,7 +3976,23 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareScreenshotTaken = [this] {
+	auto preparePinMessage = [&](const MTPDmessageActionPinMessage &) {
+		return preparePinnedText();
+	};
+
+	auto prepareGameScore = [&](const MTPDmessageActionGameScore &) {
+		return prepareGameScoreText();
+	};
+
+	auto preparePhoneCall = [&](const MTPDmessageActionPhoneCall &) -> PreparedServiceText {
+		Unexpected("PhoneCall type in setServiceMessageFromMtp.");
+	};
+
+	auto preparePaymentSent = [&](const MTPDmessageActionPaymentSent &) {
+		return preparePaymentSentText();
+	};
+
+	auto prepareScreenshotTaken = [this](const MTPDmessageActionScreenshotTaken &) {
 		auto result = PreparedServiceText();
 		if (out()) {
 			result.text = tr::lng_action_you_took_screenshot(
@@ -4055,7 +4091,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareContactSignUp = [this] {
+	auto prepareContactSignUp = [this](const MTPDmessageActionContactSignUp &data) {
 		auto result = PreparedServiceText();
 		result.links.push_back(fromLink());
 		result.text = tr::lng_action_user_registered(
@@ -4256,6 +4292,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			}
 		}
 		return result;
+	};
+
+	auto prepareGroupCallScheduled = [&](const MTPDmessageActionGroupCallScheduled &data) {
+		return prepareCallScheduledText(data.vschedule_date().v);
 	};
 
 	auto prepareSetChatTheme = [this](const MTPDmessageActionSetChatTheme &action) {
@@ -4459,28 +4499,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareSetChatWallPaper = [&](
 			const MTPDmessageActionSetChatWallPaper &action) {
 		const auto isSelf = (_from->id == _from->session().userPeerId());
-		const auto peer = isSelf ? history()->peer : _from;
-		const auto user = peer->asUser();
-		const auto name = (user && !user->firstName.isEmpty())
-			? user->firstName
-			: peer->name();
-		auto result = PreparedServiceText{};
-		result.links.push_back(peer->createOpenLink());
-		result.text = isSelf
-			? tr::lng_action_set_wallpaper_me(
-				tr::now,
-				Ui::Text::WithEntities)
-			: tr::lng_action_set_wallpaper(
-				tr::now,
-				lt_user,
-				Ui::Text::Link(name, 1), // Link 1.
-				Ui::Text::WithEntities);
-		return result;
-	};
-
-	auto prepareSetSameChatWallPaper = [&](
-			const MTPDmessageActionSetSameChatWallPaper &action) {
-		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto same = action.is_same();
 		const auto peer = isSelf ? history()->peer : _from;
 		const auto user = peer->asUser();
 		const auto name = (user && !user->firstName.isEmpty())
@@ -4491,14 +4510,18 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			result.links.push_back(peer->createOpenLink());
 		}
 		result.text = isSelf
-			? tr::lng_action_set_same_wallpaper_me(
-				tr::now,
-				Ui::Text::WithEntities)
-			: tr::lng_action_set_same_wallpaper(
-				tr::now,
-				lt_user,
-				Ui::Text::Link(name, 1), // Link 1.
-				Ui::Text::WithEntities);
+			? (same
+				? tr::lng_action_set_same_wallpaper_me
+				: tr::lng_action_set_wallpaper_me)(
+					tr::now,
+					Ui::Text::WithEntities)
+			: (same
+				? tr::lng_action_set_same_wallpaper
+				: tr::lng_action_set_wallpaper)(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(name, 1), // Link 1.
+					Ui::Text::WithEntities);
 		return result;
 	};
 
@@ -4532,93 +4555,65 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	setServiceText(action.match([&](
-			const MTPDmessageActionChatAddUser &data) {
-		return prepareChatAddUserText(data);
-	}, [&](const MTPDmessageActionChatJoinedByLink &data) {
-		return prepareChatJoinedByLink(data);
-	}, [&](const MTPDmessageActionChatCreate &data) {
-		return prepareChatCreate(data);
-	}, [](const MTPDmessageActionChatMigrateTo &) {
-		return PreparedServiceText();
-	}, [](const MTPDmessageActionChannelMigrateFrom &) {
-		return PreparedServiceText();
-	}, [](const MTPDmessageActionHistoryClear &) {
-		return PreparedServiceText();
-	}, [&](const MTPDmessageActionChannelCreate &data) {
-		return prepareChannelCreate(data);
-	}, [&](const MTPDmessageActionChatDeletePhoto &) {
-		return prepareChatDeletePhoto();
-	}, [&](const MTPDmessageActionChatDeleteUser &data) {
-		return prepareChatDeleteUser(data);
-	}, [&](const MTPDmessageActionChatEditPhoto &data) {
-		return prepareChatEditPhoto(data);
-	}, [&](const MTPDmessageActionChatEditTitle &data) {
-		return prepareChatEditTitle(data);
-	}, [&](const MTPDmessageActionPinMessage &) {
-		return preparePinnedText();
-	}, [&](const MTPDmessageActionGameScore &) {
-		return prepareGameScoreText();
-	}, [&](const MTPDmessageActionPhoneCall &) -> PreparedServiceText {
-		Unexpected("PhoneCall type in setServiceMessageFromMtp.");
-	}, [&](const MTPDmessageActionPaymentSent &) {
-		return preparePaymentSentText();
-	}, [&](const MTPDmessageActionScreenshotTaken &) {
-		return prepareScreenshotTaken();
-	}, [&](const MTPDmessageActionCustomAction &data) {
-		return prepareCustomAction(data);
-	}, [&](const MTPDmessageActionBotAllowed &data) {
-		return prepareBotAllowed(data);
-	}, [&](const MTPDmessageActionSecureValuesSent &data) {
-		return prepareSecureValuesSent(data);
-	}, [&](const MTPDmessageActionContactSignUp &data) {
-		return prepareContactSignUp();
-	}, [&](const MTPDmessageActionGeoProximityReached &data) {
-		return prepareProximityReached(data);
-	}, [](const MTPDmessageActionPaymentSentMe &) {
-		LOG(("API Error: messageActionPaymentSentMe received."));
-		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
-	}, [](const MTPDmessageActionSecureValuesSentMe &) {
-		LOG(("API Error: messageActionSecureValuesSentMe received."));
-		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
-	}, [&](const MTPDmessageActionGroupCall &data) {
-		return prepareGroupCall(data);
-	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
-		return prepareInviteToGroupCall(data);
-	}, [&](const MTPDmessageActionSetMessagesTTL &data) {
-		return prepareSetMessagesTTL(data);
-	}, [&](const MTPDmessageActionGroupCallScheduled &data) {
-		return prepareCallScheduledText(data.vschedule_date().v);
-	}, [&](const MTPDmessageActionSetChatTheme &data) {
-		return prepareSetChatTheme(data);
-	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
-		return prepareChatJoinedByRequest(data);
-	}, [&](const MTPDmessageActionWebViewDataSent &data) {
-		return prepareWebViewDataSent(data);
-	}, [&](const MTPDmessageActionGiftPremium &data) {
-		return prepareGiftPremium(data);
-	}, [&](const MTPDmessageActionTopicCreate &data) {
-		return prepareTopicCreate(data);
-	}, [&](const MTPDmessageActionTopicEdit &data) {
-		return prepareTopicEdit(data);
-	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
-		LOG(("API Error: messageActionWebViewDataSentMe received."));
-		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
-	}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
-		return prepareSuggestProfilePhoto(data);
-	}, [&](const MTPDmessageActionRequestedPeer &data) {
-		return prepareRequestedPeer(data);
-	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
-		return prepareSetChatWallPaper(data);
-	}, [&](const MTPDmessageActionSetSameChatWallPaper &data) {
-		return prepareSetSameChatWallPaper(data);
-	}, [&](const MTPDmessageActionGiftCode &data) {
-		return prepareGiftCode(data);
-	}, [&](const MTPDmessageActionGiveawayLaunch &data) {
-		return prepareGiveawayLaunch(data);
-	}, [](const MTPDmessageActionEmpty &) {
-		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
-	}));
+	auto prepareGiveawayResults = [&](const MTPDmessageActionGiveawayResults &action) {
+		auto result = PreparedServiceText();
+		const auto winners = action.vwinners_count().v;
+		const auto unclaimed = action.vunclaimed_count().v;
+		result.text = {
+			(!winners
+				? tr::lng_action_giveaway_results_none(tr::now)
+				: unclaimed
+				? tr::lng_action_giveaway_results_some(tr::now)
+				: tr::lng_action_giveaway_results(
+					tr::now,
+					lt_count,
+					winners))
+		};
+		return result;
+	};
+
+	setServiceText(action.match(
+		prepareChatAddUserText,
+		prepareChatJoinedByLink,
+		prepareChatCreate,
+		PrepareEmptyText<MTPDmessageActionChatMigrateTo>,
+		PrepareEmptyText<MTPDmessageActionChannelMigrateFrom>,
+		PrepareEmptyText<MTPDmessageActionHistoryClear>,
+		prepareChannelCreate,
+		prepareChatDeletePhoto,
+		prepareChatDeleteUser,
+		prepareChatEditPhoto,
+		prepareChatEditTitle,
+		preparePinMessage,
+		prepareGameScore,
+		preparePhoneCall,
+		preparePaymentSent,
+		prepareScreenshotTaken,
+		prepareCustomAction,
+		prepareBotAllowed,
+		prepareSecureValuesSent,
+		prepareContactSignUp,
+		prepareProximityReached,
+		PrepareErrorText<MTPDmessageActionPaymentSentMe>,
+		PrepareErrorText<MTPDmessageActionSecureValuesSentMe>,
+		prepareGroupCall,
+		prepareInviteToGroupCall,
+		prepareSetMessagesTTL,
+		prepareGroupCallScheduled,
+		prepareSetChatTheme,
+		prepareChatJoinedByRequest,
+		prepareWebViewDataSent,
+		prepareGiftPremium,
+		prepareTopicCreate,
+		prepareTopicEdit,
+		PrepareErrorText<MTPDmessageActionWebViewDataSentMe>,
+		prepareSuggestProfilePhoto,
+		prepareRequestedPeer,
+		prepareSetChatWallPaper,
+		prepareGiftCode,
+		prepareGiveawayLaunch,
+		prepareGiveawayResults,
+		PrepareErrorText<MTPDmessageActionEmpty>));
 
 	// Additional information.
 	applyAction(action);
@@ -4680,10 +4675,13 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 		}, [](const MTPDphotoEmpty &) {
 		});
 	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
-		const auto session = &history()->session();
-		const auto &attached = data.vwallpaper();
-		if (const auto paper = Data::WallPaper::Create(session, attached)) {
-			_media = std::make_unique<Data::MediaWallPaper>(this, *paper);
+		if (!data.is_same()) {
+			using namespace Data;
+			const auto session = &history()->session();
+			const auto &attached = data.vwallpaper();
+			if (const auto paper = WallPaper::Create(session, attached)) {
+				_media = std::make_unique<MediaWallPaper>(this, *paper);
+			}
 		}
 	}, [&](const MTPDmessageActionGiftCode &data) {
 		const auto boostedId = data.vboost_peer()

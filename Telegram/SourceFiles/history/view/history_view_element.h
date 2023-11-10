@@ -270,6 +270,7 @@ struct TopicButton {
 struct SelectedQuote {
 	HistoryItem *item = nullptr;
 	TextWithEntities text;
+	int offset = 0;
 
 	explicit operator bool() const {
 		return item && !text.empty();
@@ -401,8 +402,7 @@ public:
 	virtual SelectedQuote selectedQuote(
 		TextSelection selection) const = 0;
 	virtual TextSelection selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const = 0;
+		const SelectedQuote &quote) const = 0;
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const;
@@ -413,8 +413,7 @@ public:
 		not_null<HistoryItem*> item);
 	[[nodiscard]] static TextSelection FindSelectionFromQuote(
 		const Ui::Text::String &text,
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote);
+		const SelectedQuote &quote);
 
 	[[nodiscard]] virtual auto reactionButtonParameters(
 		QPoint position,

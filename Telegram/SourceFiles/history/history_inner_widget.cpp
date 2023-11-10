@@ -1144,7 +1144,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			} else if (item->isUnreadMention()
 				&& !item->isUnreadMedia()) {
 				readContents.insert(item);
-				_widget->enqueueMessageHighlight(view, {});
+				_widget->enqueueMessageHighlight({ item });
 			}
 		}
 		session().data().reactions().poll(item, context.now);
@@ -2410,17 +2410,25 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			const auto replyToItem = selected.item ? selected.item : item;
 			const auto itemId = replyToItem->fullId();
 			const auto quote = selected.text;
+			const auto quoteOffset = selected.offset;
 			text.replace('&', u"&&"_q);
 			_menu->addAction(text, [=] {
 				if (canSendReply) {
-					_widget->replyToMessage({ itemId, quote });
+					_widget->replyToMessage({
+						.messageId = itemId,
+						.quote = quote,
+						.quoteOffset = quoteOffset,
+					});
 					if (!quote.empty()) {
 						_widget->clearSelected();
 					}
 				} else {
-					HistoryView::Controls::ShowReplyToChatBox(
-						controller->uiShow(),
-						{ itemId, quote });
+					const auto show = controller->uiShow();
+					HistoryView::Controls::ShowReplyToChatBox(show, {
+						.messageId = itemId,
+						.quote = quote,
+						.quoteOffset = quoteOffset,
+					});
 				}
 			}, &st::menuIconReply);
 		}

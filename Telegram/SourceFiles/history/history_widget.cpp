@@ -1075,7 +1075,7 @@ void HistoryWidget::initTabbedSelector() {
 		if (!data.recipientOverride) {
 			return true;
 		} else if (data.recipientOverride != _peer) {
-			showHistory(data.recipientOverride->id, ShowAtTheEndMsgId, {});
+			showHistory(data.recipientOverride->id, ShowAtTheEndMsgId);
 		}
 		return (data.recipientOverride == _peer);
 	}) | rpl::start_with_next([=](ChatHelpers::InlineChosen data) {
@@ -1270,9 +1270,8 @@ void HistoryWidget::scrollToAnimationCallback(
 }
 
 void HistoryWidget::enqueueMessageHighlight(
-		not_null<HistoryView::Element*> view,
-		const TextWithEntities &part) {
-	_highlighter.enqueue(view, part);
+		const HistoryView::SelectedQuote &quote) {
+	_highlighter.enqueue(quote);
 }
 
 Ui::ChatPaintHighlight HistoryWidget::itemHighlight(
@@ -1973,10 +1972,12 @@ bool HistoryWidget::insideJumpToEndInsteadOfToUnread() const {
 void HistoryWidget::showHistory(
 		const PeerId &peerId,
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart) {
+		const TextWithEntities &highlightPart,
+		int highlightPartOffsetHint) {
 	_pinnedClickedId = FullMsgId();
 	_minPinnedId = std::nullopt;
 	_showAtMsgHighlightPart = {};
+	_showAtMsgHighlightPartOffsetHint = 0;
 
 	const auto wasDialogsEntryState = computeDialogsEntryState();
 	const auto startBot = (showAtMsgId == ShowAndStartBotMsgId);
@@ -2024,10 +2025,16 @@ void HistoryWidget::showHistory(
 						).arg(_history->inboxReadTillId().bare
 						).arg(Logs::b(_history->loadedAtBottom())
 						).arg(showAtMsgId.bare));
-					delayedShowAt(showAtMsgId, highlightPart);
+					delayedShowAt(
+						showAtMsgId,
+						highlightPart,
+						highlightPartOffsetHint);
 				} else if (_showAtMsgId != showAtMsgId) {
 					clearAllLoadRequests();
-					setMsgId(showAtMsgId, highlightPart);
+					setMsgId(
+						showAtMsgId,
+						highlightPart,
+						highlightPartOffsetHint);
 					firstLoadMessages();
 					doneShow();
 				}
@@ -2047,7 +2054,10 @@ void HistoryWidget::showHistory(
 					_cornerButtons.skipReplyReturn(skipId);
 				}
 
-				setMsgId(showAtMsgId, highlightPart);
+				setMsgId(
+					showAtMsgId,
+					highlightPart,
+					highlightPartOffsetHint);
 				if (_historyInited) {
 					DEBUG_LOG(("JumpToEnd(%1, %2, %3): "
 						"Showing instant at %4."
@@ -2151,6 +2161,7 @@ void HistoryWidget::showHistory(
 
 	_showAtMsgId = showAtMsgId;
 	_showAtMsgHighlightPart = highlightPart;
+	_showAtMsgHighlightPartOffsetHint = highlightPartOffsetHint;
 	_historyInited = false;
 	_contactStatus = nullptr;
 
@@ -3305,7 +3316,10 @@ void HistoryWidget::messagesReceived(
 		}
 
 		_delayedShowAtRequest = 0;
-		setMsgId(_delayedShowAtMsgId, _delayedShowAtMsgHighlightPart);
+		setMsgId(
+			_delayedShowAtMsgId,
+			_delayedShowAtMsgHighlightPart,
+			_delayedShowAtMsgHighlightPartOffsetHint);
 		historyLoaded();
 	}
 	if (session().supportMode()) {
@@ -3529,13 +3543,15 @@ void HistoryWidget::loadMessagesDown() {
 
 void HistoryWidget::delayedShowAt(
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart) {
+		const TextWithEntities &highlightPart,
+		int highlightPartOffsetHint) {
 	if (!_history) {
 		return;
 	}
 	if (_delayedShowAtMsgHighlightPart != highlightPart) {
 		_delayedShowAtMsgHighlightPart = highlightPart;
 	}
+	_delayedShowAtMsgHighlightPartOffsetHint = highlightPartOffsetHint;
 	if (_delayedShowAtRequest && _delayedShowAtMsgId == showAtMsgId) {
 		return;
 	}
@@ -4120,10 +4136,12 @@ PeerData *HistoryWidget::peer() const {
 // Sometimes _showAtMsgId is set directly.
 void HistoryWidget::setMsgId(
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart) {
+		const TextWithEntities &highlightPart,
+		int highlightPartOffsetHint) {
 	if (_showAtMsgHighlightPart != highlightPart) {
 		_showAtMsgHighlightPart = highlightPart;
 	}
+	_showAtMsgHighlightPartOffsetHint = highlightPartOffsetHint;
 	if (_showAtMsgId != showAtMsgId) {
 		_showAtMsgId = showAtMsgId;
 		if (_history) {
@@ -4244,11 +4262,11 @@ void HistoryWidget::cornerButtonsShowAtPosition(
 			).arg(_history->peer->name()
 			).arg(_history->inboxReadTillId().bare
 			).arg(Logs::b(_history->loadedAtBottom())));
-		showHistory(_peer->id, ShowAtUnreadMsgId, {});
+		showHistory(_peer->id, ShowAtUnreadMsgId);
 	} else if (_peer && position.fullId.peer == _peer->id) {
-		showHistory(_peer->id, position.fullId.msg, {});
+		showHistory(_peer->id, position.fullId.msg);
 	} else if (_migrated && position.fullId.peer == _migrated->peer->id) {
-		showHistory(_peer->id, -position.fullId.msg, {});
+		showHistory(_peer->id, -position.fullId.msg);
 	}
 }
 
@@ -5700,9 +5718,11 @@ int HistoryWidget::countInitialScrollTop() {
 			const auto view = item->mainView();
 			Assert(view != nullptr);
 
-			enqueueMessageHighlight(
-				view,
-				base::take(_showAtMsgHighlightPart));
+			enqueueMessageHighlight({
+				item,
+				base::take(_showAtMsgHighlightPart),
+				base::take(_showAtMsgHighlightPartOffsetHint),
+			});
 			const auto result = itemTopForHighlight(view);
 			createUnreadBarIfBelowVisibleArea(result);
 			return result;
@@ -6386,8 +6406,7 @@ void HistoryWidget::handlePeerMigration() {
 	if (_peer != channel) {
 		showHistory(
 			channel->id,
-			(_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId,
-			{});
+			(_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId);
 		channel->session().api().chatParticipants().requestCountDelayed(
 			channel);
 	} else {
@@ -6483,7 +6502,7 @@ bool HistoryWidget::showSlowmodeError() {
 			if (const auto item = _history->latestSendingMessage()) {
 				if (const auto view = item->mainView()) {
 					animatedScrollToItem(item->id);
-					enqueueMessageHighlight(view, {});
+					enqueueMessageHighlight({ item });
 				}
 				return tr::lng_slowmode_no_many(tr::now);
 			}
@@ -7149,7 +7168,7 @@ void HistoryWidget::replyToMessage(
 	if (isJoinChannel()) {
 		return;
 	}
-	_processingReplyTo = { .messageId = item->fullId(), .quote = quote};
+	_processingReplyTo = { .messageId = item->fullId(), .quote = quote };
 	_processingReplyItem = item;
 	processReply();
 }

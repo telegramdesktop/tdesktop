@@ -95,6 +95,7 @@ class Element;
 class PinnedTracker;
 class TranslateBar;
 class ComposeSearch;
+struct SelectedQuote;
 } // namespace HistoryView
 
 namespace HistoryView::Controls {
@@ -149,7 +150,8 @@ public:
 	void firstLoadMessages();
 	void delayedShowAt(
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart);
+		const TextWithEntities &highlightPart,
+		int highlightPartOffsetHint);
 
 	bool updateReplaceMediaButton();
 	void updateFieldPlaceholder();
@@ -165,7 +167,8 @@ public:
 	PeerData *peer() const;
 	void setMsgId(
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart = {});
+		const TextWithEntities &highlightPart = {},
+		int highlightPartOffsetHint = 0);
 	MsgId msgId() const;
 
 	bool hasTopBarShadow() const {
@@ -182,9 +185,7 @@ public:
 
 	bool touchScroll(const QPoint &delta);
 
-	void enqueueMessageHighlight(
-		not_null<HistoryView::Element*> view,
-		const TextWithEntities &part);
+	void enqueueMessageHighlight(const HistoryView::SelectedQuote &quote);
 	[[nodiscard]] Ui::ChatPaintHighlight itemHighlight(
 		not_null<const HistoryItem*> item) const;
 
@@ -228,7 +229,8 @@ public:
 	void showHistory(
 		const PeerId &peer,
 		MsgId showAtMsgId,
-		const TextWithEntities &highlightPart);
+		const TextWithEntities &highlightPart = {},
+		int highlightPartOffsetHint = 0);
 	void setChooseReportMessagesDetails(
 		Ui::ReportReason reason,
 		Fn<void(MessageIdsList)> callback);
@@ -693,6 +695,7 @@ private:
 	bool _canSendTexts = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
 	TextWithEntities _showAtMsgHighlightPart;
+	int _showAtMsgHighlightPartOffsetHint = 0;
 
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
 	int _preloadRequest = 0; // Not real mtpRequestId.
@@ -700,6 +703,7 @@ private:
 
 	MsgId _delayedShowAtMsgId = -1;
 	TextWithEntities _delayedShowAtMsgHighlightPart;
+	int _delayedShowAtMsgHighlightPartOffsetHint = 0;
 	int _delayedShowAtRequest = 0; // Not real mtpRequestId.
 
 	History *_supportPreloadHistory = nullptr;

@@ -130,11 +130,13 @@ RepliesMemento::RepliesMemento(
 	not_null<History*> history,
 	MsgId rootId,
 	MsgId highlightId,
-	const TextWithEntities &highlightPart)
+	const TextWithEntities &highlightPart,
+	int highlightPartOffsetHint)
 : _history(history)
 , _rootId(rootId)
-, _highlightId(highlightId)
-, _highlightPart(highlightPart) {
+, _highlightPart(highlightPart)
+, _highlightPartOffsetHint(highlightPartOffsetHint)
+, _highlightId(highlightId) {
 	if (highlightId) {
 		_list.setAroundPosition({
 			.fullId = FullMsgId(_history->peer->id, highlightId),
@@ -2149,6 +2151,7 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 			Window::SectionShow::Way::Forward,
 			anim::type::instant);
 		params.highlightPart = memento->highlightPart();
+		params.highlightPartOffsetHint = memento->highlightPartOffsetHint();
 		showAtPosition(Data::MessagePosition{
 			.fullId = FullMsgId(_history->peer->id, highlight),
 			.date = TimeId(0),

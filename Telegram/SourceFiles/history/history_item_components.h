@@ -233,7 +233,7 @@ private:
 };
 
 struct ReplyFields {
-	ReplyFields clone(not_null<HistoryItem*> parent) const;
+	[[nodiscard]] ReplyFields clone(not_null<HistoryItem*> parent) const;
 
 	TextWithEntities quote;
 	std::unique_ptr<Data::Media> externalMedia;
@@ -244,8 +244,9 @@ struct ReplyFields {
 	MsgId messageId = 0;
 	MsgId topMessageId = 0;
 	StoryId storyId = 0;
-	bool topicPost = false;
-	bool manualQuote = false;
+	uint32 quoteOffset : 30 = 0;
+	uint32 manualQuote : 1 = 0;
+	uint32 topicPost : 1 = 0;
 };
 
 [[nodiscard]] ReplyFields ReplyFieldsFromMTP(

@@ -92,8 +92,7 @@ public:
 	[[nodiscard]] virtual SelectedQuote selectedQuote(
 		TextSelection selection) const;
 	[[nodiscard]] virtual TextSelection selectionFromQuote(
-			not_null<HistoryItem*> item,
-			const TextWithEntities &quote) const {
+			const SelectedQuote &quote) const {
 		return {};
 	}
 

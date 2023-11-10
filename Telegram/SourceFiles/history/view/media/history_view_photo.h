@@ -59,8 +59,7 @@ public:
 	TextForMimeData selectedText(TextSelection selection) const override;
 	SelectedQuote selectedQuote(TextSelection selection) const override;
 	TextSelection selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const override;
+		const SelectedQuote &quote) const override;
 
 	PhotoData *getPhoto() const override {
 		return _data;

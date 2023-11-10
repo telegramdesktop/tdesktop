@@ -622,19 +622,20 @@ SelectedQuote GroupedMedia::selectedQuote(TextSelection selection) const {
 }
 
 TextSelection GroupedMedia::selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const {
+		const SelectedQuote &quote) const {
+	Expects(quote.item != nullptr);
+
 	if (_mode != Mode::Column) {
-		return (_captionItem == item)
-			? Element::FindSelectionFromQuote(_caption, item, quote)
+		return (_captionItem == quote.item)
+			? Element::FindSelectionFromQuote(_caption, quote)
 			: TextSelection();
 	}
-	const auto i = ranges::find(_parts, item, &Part::item);
+	const auto i = ranges::find(_parts, not_null(quote.item), &Part::item);
 	if (i == end(_parts)) {
 		return {};
 	}
 	const auto index = int(i - begin(_parts));
-	auto result = i->content->selectionFromQuote(item, quote);
+	auto result = i->content->selectionFromQuote(quote);
 	if (result.empty()) {
 		return AddGroupItemSelection({}, index);
 	}

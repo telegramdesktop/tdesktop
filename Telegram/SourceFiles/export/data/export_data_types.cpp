@@ -1316,9 +1316,9 @@ ServiceAction ParseServiceAction(
 	}, [&](const MTPDmessageActionSetChatWallPaper &data) {
 		auto content = ActionSetChatWallPaper();
 		// #TODO wallpapers
+		content.same = data.is_same();
+		content.both = data.is_for_both();
 		result.content = content;
-	}, [&](const MTPDmessageActionSetSameChatWallPaper &data) {
-		result.content = ActionSetSameChatWallPaper();
 	}, [&](const MTPDmessageActionRequestedPeer &data) {
 		auto content = ActionRequestedPeer();
 		content.peerId = ParsePeerId(data.vpeer());
@@ -1334,8 +1334,13 @@ ServiceAction ParseServiceAction(
 		content.months = data.vmonths().v;
 		content.code = data.vslug().v;
 		result.content = content;
-	}, [&](const MTPDmessageActionGiveawayLaunch &) {
+	}, [&](const MTPDmessageActionGiveawayLaunch &data) {
 		auto content = ActionGiveawayLaunch();
+		result.content = content;
+	}, [&](const MTPDmessageActionGiveawayResults &data) {
+		auto content = ActionGiveawayResults();
+		content.winners = data.vwinners_count().v;
+		content.unclaimed = data.vunclaimed_count().v;
 		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;

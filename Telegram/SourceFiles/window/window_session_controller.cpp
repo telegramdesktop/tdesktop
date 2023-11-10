@@ -806,7 +806,8 @@ void SessionNavigation::showRepliesForMessage(
 				history,
 				rootId,
 				commentId,
-				params.highlightPart);
+				params.highlightPart,
+				params.highlightPartOffsetHint);
 			memento->setFromTopic(topic);
 			showSection(std::move(memento), params);
 			return;

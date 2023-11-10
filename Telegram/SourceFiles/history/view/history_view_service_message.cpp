@@ -674,8 +674,7 @@ SelectedQuote Service::selectedQuote(TextSelection selection) const {
 }
 
 TextSelection Service::selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const {
+		const SelectedQuote &quote) const {
 	return {};
 }
 

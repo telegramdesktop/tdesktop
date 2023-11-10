@@ -1647,29 +1647,30 @@ SelectedQuote Element::FindSelectedQuote(
 			++i;
 		}
 	}
-	return { item, result };
+	return { item, result, modified.from };
 }
 
 TextSelection Element::FindSelectionFromQuote(
 		const Ui::Text::String &text,
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) {
-	if (quote.empty()) {
+		const SelectedQuote &quote) {
+	Expects(quote.item != nullptr);
+
+	if (quote.text.empty()) {
 		return {};
 	}
-	const auto &original = item->originalText();
+	const auto &original = quote.item->originalText();
 	auto result = TextSelection();
 	auto offset = 0;
 	while (true) {
-		const auto i = original.text.indexOf(quote.text, offset);
+		const auto i = original.text.indexOf(quote.text.text, offset);
 		if (i < 0) {
 			return {};
 		}
 		auto selection = TextSelection{
 			uint16(i),
-			uint16(i + quote.text.size()),
+			uint16(i + quote.text.text.size()),
 		};
-		if (CheckQuoteEntities(quote.entities, original, selection)) {
+		if (CheckQuoteEntities(quote.text.entities, original, selection)) {
 			result = selection;
 			break;
 		}

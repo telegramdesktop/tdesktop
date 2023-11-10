@@ -2684,11 +2684,13 @@ SelectedQuote Message::selectedQuote(TextSelection selection) const {
 }
 
 TextSelection Message::selectionFromQuote(
-		not_null<HistoryItem*> item,
-		const TextWithEntities &quote) const {
-	if (quote.empty()) {
+		const SelectedQuote &quote) const {
+	Expects(quote.item != nullptr);
+
+	if (quote.text.empty()) {
 		return {};
 	}
+	const auto item = quote.item;
 	const auto &translated = item->translatedText();
 	const auto &original = item->originalText();
 	if (&translated != &original) {
@@ -2697,11 +2699,11 @@ TextSelection Message::selectionFromQuote(
 		const auto media = this->media();
 		const auto mediaDisplayed = media && media->isDisplayed();
 		const auto mediaBefore = mediaDisplayed && invertMedia();
-		const auto result = FindSelectionFromQuote(text(), item, quote);
+		const auto result = FindSelectionFromQuote(text(), quote);
 		return mediaBefore ? media->unskipSelection(result) : result;
 	} else if (const auto media = this->media()) {
 		if (media->isDisplayed() || isHiddenByGroup()) {
-			return media->selectionFromQuote(item, quote);
+			return media->selectionFromQuote(quote);
 		}
 	}
 	return {};

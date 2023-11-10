@@ -124,11 +124,13 @@ struct SendingErrorRequest {
 	not_null<PeerData*> peer,
 	MsgId msgId,
 	FullMsgId returnToId = FullMsgId(),
-	TextWithEntities highlightPart = {});
+	TextWithEntities highlightPart = {},
+	int highlightPartOffsetHint = 0);
 [[nodiscard]] ClickHandlerPtr JumpToMessageClickHandler(
 	not_null<HistoryItem*> item,
 	FullMsgId returnToId = FullMsgId(),
-	TextWithEntities highlightPart = {});
+	TextWithEntities highlightPart = {},
+	int highlightPartOffsetHint = 0);
 [[nodiscard]] ClickHandlerPtr JumpToStoryClickHandler(
 	not_null<Data::Story*> story);
 ClickHandlerPtr JumpToStoryClickHandler(
