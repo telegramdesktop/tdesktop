@@ -95,42 +95,6 @@ Element *MousedElement/* = nullptr*/;
 	return session->tryResolveWindow();
 }
 
-[[nodiscard]] bool CheckQuoteEntities(
-		const EntitiesInText &quoteEntities,
-		const TextWithEntities &original,
-		TextSelection selection) {
-	auto left = quoteEntities;
-	const auto allowed = std::array{
-		EntityType::Bold,
-		EntityType::Italic,
-		EntityType::Underline,
-		EntityType::StrikeOut,
-		EntityType::Spoiler,
-		EntityType::CustomEmoji,
-	};
-	for (const auto &entity : original.entities) {
-		const auto from = entity.offset();
-		const auto till = from + entity.length();
-		if (till <= selection.from || from >= selection.to) {
-			continue;
-		}
-		const auto quoteFrom = std::max(from, int(selection.from));
-		const auto quoteTill = std::min(till, int(selection.to));
-		const auto cut = EntityInText(
-			entity.type(),
-			quoteFrom - int(selection.from),
-			quoteTill - quoteFrom,
-			entity.data());
-		const auto i = ranges::find(left, cut);
-		if (i != left.end()) {
-			left.erase(i);
-		} else if (ranges::contains(allowed, cut.type())) {
-			return false;
-		}
-	}
-	return left.empty();
-};
-
 } // namespace
 
 std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
@@ -1662,13 +1626,10 @@ TextSelection Element::FindSelectionFromQuote(
 	const auto length = int(original.text.size());
 	const auto qlength = int(quote.text.text.size());
 	const auto checkAt = [&](int offset) {
-		const auto selection = TextSelection{
+		return TextSelection{
 			uint16(offset),
 			uint16(offset + qlength),
 		};
-		return CheckQuoteEntities(quote.text.entities, original, selection)
-			? selection
-			: TextSelection{ uint16(offset + 1), uint16(offset + 1) };
 	};
 	const auto findOneAfter = [&](int offset) {
 		if (offset > length - qlength) {
