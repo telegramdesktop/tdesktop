@@ -1673,21 +1673,27 @@ TextSelection Element::FindSelectionFromQuote(
 		}
 		offset = i + 1;
 	}
-	//for (const auto &modification : text.modifications()) {
-	//	if (modification.position >= selection.to) {
-	//		break;
-	//	} else if (modification.position <= selection.from) {
-	//		modified.from += modification.skipped;
-	//		if (modification.added
-	//			&& modification.position < selection.from) {
-	//			--modified.from;
-	//		}
-	//	}
-	//	modified.to += modification.skipped;
-	//	if (modification.added && modified.to > modified.from) {
-	//		--modified.to;
-	//	}
-	//}
+	for (const auto &modification : text.modifications()) {
+		if (modification.position >= result.to) {
+			break;
+		}
+		if (modification.added) {
+			++result.to;
+		}
+		const auto shiftTo = std::min(
+			int(modification.skipped),
+			result.to - modification.position);
+		result.to -= shiftTo;
+		if (modification.position <= result.from) {
+			if (modification.added) {
+				++result.from;
+			}
+			const auto shiftFrom = std::min(
+				int(modification.skipped),
+				result.from - modification.position);
+			result.from -= shiftFrom;
+		}
+	}
 	return result;
 }
 
