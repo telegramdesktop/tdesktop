@@ -601,7 +601,11 @@ void DraftOptionsBox(
 		rpl::lifetime resolveLifetime;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->quote = SelectedQuote{ replyItem, draft.reply.quote };
+	state->quote = SelectedQuote{
+		replyItem,
+		draft.reply.quote,
+		draft.reply.quoteOffset,
+	};
 	state->webpage = draft.webpage;
 	state->preview = previewData;
 	state->shown = previewData ? Section::Link : Section::Reply;

@@ -2929,6 +2929,7 @@ FullReplyTo HistoryItem::replyTo() const {
 		if (const auto id = fields.messageId) {
 			result.messageId = { replyToPeer, id };
 			result.quote = fields.quote;
+			result.quoteOffset = fields.quoteOffset;
 		}
 		if (const auto id = fields.storyId) {
 			result.storyId = { replyToPeer, id };

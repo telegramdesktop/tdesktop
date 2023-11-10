@@ -797,7 +797,12 @@ void RepliesWidget::setupComposeControls() {
 	_composeControls->jumpToItemRequests(
 	) | rpl::start_with_next([=](FullReplyTo to) {
 		if (const auto item = session().data().message(to.messageId)) {
-			JumpToMessageClickHandler(item, {}, to.quote)->onClick({});
+			JumpToMessageClickHandler(
+				item,
+				{},
+				to.quote,
+				to.quoteOffset
+			)->onClick({});
 		}
 	}, lifetime());
 

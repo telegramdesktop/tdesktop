@@ -270,6 +270,7 @@ void Reply::setLinkFrom(
 	const auto quote = fields.manualQuote
 		? fields.quote
 		: TextWithEntities();
+	const auto quoteOffset = fields.quoteOffset;
 	const auto returnToId = view->data()->fullId();
 	const auto externalLink = [=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -292,7 +293,8 @@ void Reply::setLinkFrom(
 							channel,
 							messageId,
 							returnToId,
-							quote
+							quote,
+							quoteOffset
 						)->onClick(context);
 					} else {
 						controller->showPeerInfo(channel);
@@ -313,7 +315,7 @@ void Reply::setLinkFrom(
 	const auto message = data->resolvedMessage.get();
 	const auto story = data->resolvedStory.get();
 	_link = message
-		? JumpToMessageClickHandler(message, returnToId, quote)
+		? JumpToMessageClickHandler(message, returnToId, quote, quoteOffset)
 		: story
 		? JumpToStoryClickHandler(story)
 		: (data->external()

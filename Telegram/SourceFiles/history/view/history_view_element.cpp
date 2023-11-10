@@ -1659,22 +1659,71 @@ TextSelection Element::FindSelectionFromQuote(
 		return {};
 	}
 	const auto &original = quote.item->originalText();
-	auto result = TextSelection();
-	auto offset = 0;
-	while (true) {
-		const auto i = original.text.indexOf(quote.text.text, offset);
-		if (i < 0) {
-			return {};
-		}
-		auto selection = TextSelection{
-			uint16(i),
-			uint16(i + quote.text.text.size()),
+	const auto length = int(original.text.size());
+	const auto qlength = int(quote.text.text.size());
+	const auto checkAt = [&](int offset) {
+		const auto selection = TextSelection{
+			uint16(offset),
+			uint16(offset + qlength),
 		};
-		if (CheckQuoteEntities(quote.text.entities, original, selection)) {
-			result = selection;
-			break;
+		return CheckQuoteEntities(quote.text.entities, original, selection)
+			? selection
+			: TextSelection{ uint16(offset + 1), uint16(offset + 1) };
+	};
+	const auto findOneAfter = [&](int offset) {
+		if (offset > length - qlength) {
+			return TextSelection();
 		}
-		offset = i + 1;
+		const auto i = original.text.indexOf(quote.text.text, offset);
+		return (i >= 0) ? checkAt(i) : TextSelection();
+	};
+	const auto findOneBefore = [&](int offset) {
+		if (!offset) {
+			return TextSelection();
+		}
+		const auto end = std::min(offset + qlength - 1, length);
+		const auto from = end - length - 1;
+		const auto i = original.text.lastIndexOf(quote.text.text, from);
+		return (i >= 0) ? checkAt(i) : TextSelection();
+	};
+	const auto findAfter = [&](int offset) {
+		while (true) {
+			const auto result = findOneAfter(offset);
+			if (!result.empty() || result == TextSelection()) {
+				return result;
+			}
+			offset = result.from;
+		}
+	};
+	const auto findBefore = [&](int offset) {
+		while (true) {
+			const auto result = findOneBefore(offset);
+			if (!result.empty() || result == TextSelection()) {
+				return result;
+			}
+			offset = result.from - 2;
+			if (offset < 0) {
+				return result;
+			}
+		}
+	};
+	const auto findTwoWays = [&](int offset) {
+		const auto after = findAfter(offset);
+		if (after.empty()) {
+			return findBefore(offset);
+		} else if (after.from == offset) {
+			return after;
+		}
+		const auto before = findBefore(offset);
+		return before.empty()
+			? after
+			: (offset - before.from < after.from - offset)
+			? before
+			: after;
+	};
+	auto result = findTwoWays(quote.offset);
+	if (result.empty()) {
+		return {};
 	}
 	for (const auto &modification : text.modifications()) {
 		if (modification.position >= result.to) {

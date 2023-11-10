@@ -6331,7 +6331,12 @@ void HistoryWidget::editDraftOptions() {
 
 void HistoryWidget::jumpToReply(FullReplyTo to) {
 	if (const auto item = session().data().message(to.messageId)) {
-		JumpToMessageClickHandler(item, {}, to.quote)->onClick({});
+		JumpToMessageClickHandler(
+			item,
+			{},
+			to.quote,
+			to.quoteOffset
+		)->onClick({});
 	}
 }
 
@@ -7158,17 +7163,22 @@ void HistoryWidget::clearFieldText(
 
 void HistoryWidget::replyToMessage(FullReplyTo id) {
 	if (const auto item = session().data().message(id.messageId)) {
-		replyToMessage(item, id.quote);
+		replyToMessage(item, id.quote, id.quoteOffset);
 	}
 }
 
 void HistoryWidget::replyToMessage(
 		not_null<HistoryItem*> item,
-		TextWithEntities quote) {
+		TextWithEntities quote,
+		int quoteOffset) {
 	if (isJoinChannel()) {
 		return;
 	}
-	_processingReplyTo = { .messageId = item->fullId(), .quote = quote };
+	_processingReplyTo = {
+		.messageId = item->fullId(),
+		.quote = quote,
+		.quoteOffset = quoteOffset,
+	};
 	_processingReplyItem = item;
 	processReply();
 }
