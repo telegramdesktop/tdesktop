@@ -2904,11 +2904,22 @@ FullStoryId HistoryItem::replyToStory() const {
 }
 
 FullReplyTo HistoryItem::replyTo() const {
-	return {
-		.messageId = replyToFullId(),
-		.storyId = replyToStory(),
+	auto result = FullReplyTo{
 		.topicRootId = topicRootId(),
 	};
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		const auto &fields = reply->fields();
+		const auto peer = fields.externalPeerId;
+		const auto replyToPeer = peer ? peer : _history->peer->id;
+		if (const auto id = fields.messageId) {
+			result.messageId = { replyToPeer, id };
+			result.quote = fields.quote;
+		}
+		if (const auto id = fields.storyId) {
+			result.storyId = { replyToPeer, id };
+		}
+	}
+	return result;
 }
 
 void HistoryItem::setText(const TextWithEntities &textWithEntities) {
