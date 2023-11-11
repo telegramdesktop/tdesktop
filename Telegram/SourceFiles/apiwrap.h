@@ -369,6 +369,9 @@ public:
 
 	void saveSelfBio(const QString &text);
 
+	void registerStatsRequest(MTP::DcId dcId, mtpRequestId id);
+	void unregisterStatsRequest(MTP::DcId dcId, mtpRequestId id);
+
 	[[nodiscard]] Api::Authorizations &authorizations();
 	[[nodiscard]] Api::AttachedStickers &attachedStickers();
 	[[nodiscard]] Api::BlockedPeers &blockedPeers();
@@ -547,6 +550,8 @@ private:
 		not_null<ChannelData*> channel);
 	void migrateFail(not_null<PeerData*> peer, const QString &error);
 
+	void checkStatsSessions();
+
 	const not_null<Main::Session*> _session;
 
 	base::flat_map<QString, int> _modifyRequests;
@@ -682,6 +687,9 @@ private:
 		mtpRequestId requestId = 0;
 		QString requestedText;
 	} _bio;
+
+	base::flat_map<MTP::DcId, base::flat_set<mtpRequestId>> _statsRequests;
+	base::Timer _statsSessionKillTimer;
 
 	const std::unique_ptr<Api::Authorizations> _authorizations;
 	const std::unique_ptr<Api::AttachedStickers> _attachedStickers;

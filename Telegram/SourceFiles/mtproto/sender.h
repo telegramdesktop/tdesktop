@@ -130,6 +130,9 @@ class Sender {
 		void setToDC(ShiftedDcId dcId) noexcept {
 			_dcId = dcId;
 		}
+		void setOverrideRequestId(mtpRequestId id) noexcept {
+			_overrideRequestId = id;
+		}
 		void setCanWait(crl::time ms) noexcept {
 			_canWait = ms;
 		}
@@ -147,16 +150,16 @@ class Sender {
 			_afterRequestId = requestId;
 		}
 
-		ShiftedDcId takeDcId() const noexcept {
+		[[nodiscard]] ShiftedDcId takeDcId() const noexcept {
 			return _dcId;
 		}
-		crl::time takeCanWait() const noexcept {
+		[[nodiscard]] crl::time takeCanWait() const noexcept {
 			return _canWait;
 		}
-		DoneHandler takeOnDone() noexcept {
+		[[nodiscard]] DoneHandler takeOnDone() noexcept {
 			return std::move(_done);
 		}
-		FailHandler takeOnFail() {
+		[[nodiscard]] FailHandler takeOnFail() {
 			return v::match(_fail, [&](auto &value) {
 				return MakeFailHandler(
 					_sender,
@@ -164,11 +167,14 @@ class Sender {
 					_failSkipPolicy);
 			});
 		}
-		mtpRequestId takeAfter() const noexcept {
+		[[nodiscard]] mtpRequestId takeAfter() const noexcept {
 			return _afterRequestId;
 		}
+		[[nodiscard]] mtpRequestId takeOverrideRequestId() const noexcept {
+			return _overrideRequestId;
+		}
 
-		not_null<Sender*> sender() const noexcept {
+		[[nodiscard]] not_null<Sender*> sender() const noexcept {
 			return _sender;
 		}
 		void registerRequest(mtpRequestId requestId) {
@@ -187,6 +193,7 @@ class Sender {
 			FailFullHandler> _fail;
 		FailSkipPolicy _failSkipPolicy = FailSkipPolicy::Simple;
 		mtpRequestId _afterRequestId = 0;
+		mtpRequestId _overrideRequestId = 0;
 
 	};
 
@@ -207,15 +214,20 @@ public:
 		: RequestBuilder(sender)
 		, _request(std::move(request)) {
 		}
-		SpecificRequestBuilder(SpecificRequestBuilder &&other) = default;
 
 	public:
+		SpecificRequestBuilder(SpecificRequestBuilder &&other) = default;
+
 		[[nodiscard]] SpecificRequestBuilder &toDC(ShiftedDcId dcId) noexcept {
 			setToDC(dcId);
 			return *this;
 		}
 		[[nodiscard]] SpecificRequestBuilder &afterDelay(crl::time ms) noexcept {
 			setCanWait(ms);
+			return *this;
+		}
+		[[nodiscard]] SpecificRequestBuilder &overrideId(mtpRequestId id) noexcept {
+			setOverrideRequestId(id);
 			return *this;
 		}
 
@@ -295,7 +307,8 @@ public:
 				takeOnFail(),
 				takeDcId(),
 				takeCanWait(),
-				takeAfter());
+				takeAfter(),
+				takeOverrideRequestId());
 			registerRequest(id);
 			return id;
 		}
@@ -345,6 +358,13 @@ public:
 		for (auto &request : base::take(_requests)) {
 			request.handled();
 		}
+	}
+
+	[[nodiscard]] mtpRequestId allocateRequestId() noexcept {
+		return details::GetNextRequestId();
+	}
+	[[nodiscard]] bool pending(mtpRequestId requestId) noexcept {
+		return _requests.contains(requestId);
 	}
 
 private:

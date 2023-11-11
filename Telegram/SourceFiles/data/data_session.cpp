@@ -4537,8 +4537,12 @@ MTP::DcId Session::statsDcId(not_null<ChannelData*> channel) {
 	return (it == end(_channelStatsDcIds)) ? MTP::DcId(0) : it->second;
 }
 
-void Session::applyStatsDcId(not_null<ChannelData*> channel, MTP::DcId dcId) {
-	_channelStatsDcIds[channel] = dcId;
+void Session::applyStatsDcId(
+		not_null<ChannelData*> channel,
+		MTP::DcId dcId) {
+	if (dcId != channel->session().mainDcId()) {
+		_channelStatsDcIds[channel] = dcId;
+	}
 }
 
 void Session::webViewResultSent(WebViewResultSent &&sent) {
