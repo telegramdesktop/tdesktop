@@ -1120,6 +1120,10 @@ void ApplyChannelUpdate(
 		channel,
 		update.vnotify_settings());
 
+	if (update.vstats_dc()) {
+		channel->owner().applyStatsDcId(channel, update.vstats_dc()->v);
+	}
+
 	if (const auto sendAs = update.vdefault_send_as()) {
 		session->sendAsPeers().setChosen(channel, peerFromMTP(*sendAs));
 	} else {

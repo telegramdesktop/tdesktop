@@ -4532,6 +4532,15 @@ uint64 Session::wallpapersHash() const {
 	return _wallpapersHash;
 }
 
+MTP::DcId Session::statsDcId(not_null<ChannelData*> channel) {
+	const auto it = _channelStatsDcIds.find(channel);
+	return (it == end(_channelStatsDcIds)) ? MTP::DcId(0) : it->second;
+}
+
+void Session::applyStatsDcId(not_null<ChannelData*> channel, MTP::DcId dcId) {
+	_channelStatsDcIds[channel] = dcId;
+}
+
 void Session::webViewResultSent(WebViewResultSent &&sent) {
 	return _webViewResultSent.fire(std::move(sent));
 }

@@ -91,7 +91,6 @@ void ProcessZoom(
 	widget->zoomRequests(
 	) | rpl::start_with_next([=](float64 x) {
 		d.api->requestZoom(
-			d.peer,
 			zoomToken,
 			x
 		) | rpl::start_with_next_error_done([=](
@@ -144,7 +143,6 @@ void FillStatistic(
 				m);
 
 			descriptor.api->requestZoom(
-				descriptor.peer,
 				graphData.zoomToken,
 				0
 			) | rpl::start_with_next_error_done([=, graphPtr = &graphData](
@@ -524,7 +522,7 @@ void InnerWidget::load() {
 
 	const auto descriptor = Descriptor{
 		_peer,
-		lifetime().make_state<Api::Statistics>(&_peer->session().api()),
+		lifetime().make_state<Api::Statistics>(_peer->asChannel()),
 		_controller->uiShow()->toastParent(),
 	};
 
@@ -543,7 +541,6 @@ void InnerWidget::load() {
 	) | rpl::take(1) | rpl::start_with_next([=] {
 		if (!_contextId) {
 			descriptor.api->request(
-				descriptor.peer
 			) | rpl::start_with_done([=] {
 				_state.stats = Data::AnyStatistics{
 					descriptor.api->channelStats(),
@@ -575,7 +572,7 @@ void InnerWidget::fill() {
 	const auto inner = this;
 	const auto descriptor = Descriptor{
 		_peer,
-		lifetime().make_state<Api::Statistics>(&_peer->session().api()),
+		lifetime().make_state<Api::Statistics>(_peer->asChannel()),
 		_controller->uiShow()->toastParent(),
 	};
 	if (_state.stats.message) {

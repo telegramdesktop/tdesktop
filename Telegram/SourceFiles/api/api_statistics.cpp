@@ -187,40 +187,37 @@ namespace {
 
 } // namespace
 
-Statistics::Statistics(not_null<ApiWrap*> api)
-: _api(&api->instance()) {
+Statistics::Statistics(not_null<ChannelData*> channel)
+: _channel(channel)
+, _api(&channel->session().api().instance()) {
 }
 
-rpl::producer<rpl::no_value, QString> Statistics::request(
-		not_null<PeerData*> peer) {
+rpl::producer<rpl::no_value, QString> Statistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
-		const auto channel = peer->asChannel();
-		if (!channel) {
-			return lifetime;
-		}
 
-		if (!channel->isMegagroup()) {
+		const auto dcId = _channel->owner().statsDcId(_channel);
+		if (!_channel->isMegagroup()) {
 			_api.request(MTPstats_GetBroadcastStats(
 				MTP_flags(MTPstats_GetBroadcastStats::Flags(0)),
-				channel->inputChannel
+				_channel->inputChannel
 			)).done([=](const MTPstats_BroadcastStats &result) {
 				_channelStats = ChannelStatisticsFromTL(result.data());
 				consumer.put_done();
 			}).fail([=](const MTP::Error &error) {
 				consumer.put_error_copy(error.type());
-			}).send();
+			}).toDC(MTP::ShiftDcId(dcId, MTP::kStatsDcShift)).send();
 		} else {
 			_api.request(MTPstats_GetMegagroupStats(
 				MTP_flags(MTPstats_GetMegagroupStats::Flags(0)),
-				channel->inputChannel
+				_channel->inputChannel
 			)).done([=](const MTPstats_MegagroupStats &result) {
 				_supergroupStats = SupergroupStatisticsFromTL(result.data());
-				peer->owner().processUsers(result.data().vusers());
+				_channel->owner().processUsers(result.data().vusers());
 				consumer.put_done();
 			}).fail([=](const MTP::Error &error) {
 				consumer.put_error_copy(error.type());
-			}).send();
+			}).toDC(MTP::ShiftDcId(dcId, MTP::kStatsDcShift)).send();
 		}
 
 		return lifetime;
@@ -228,15 +225,11 @@ rpl::producer<rpl::no_value, QString> Statistics::request(
 }
 
 Statistics::GraphResult Statistics::requestZoom(
-		not_null<PeerData*> peer,
 		const QString &token,
 		float64 x) {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
-		const auto channel = peer->asChannel();
-		if (!channel) {
-			return lifetime;
-		}
+		const auto dcId = _channel->owner().statsDcId(_channel);
 		const auto wasEmpty = _zoomDeque.empty();
 		_zoomDeque.push_back([=] {
 			_api.request(MTPstats_LoadAsyncGraph(
@@ -256,37 +249,11 @@ Statistics::GraphResult Statistics::requestZoom(
 				}
 			}).fail([=](const MTP::Error &error) {
 				consumer.put_error_copy(error.type());
-			}).send();
+			}).toDC(MTP::ShiftDcId(dcId, MTP::kStatsDcShift)).send();
 		});
 		if (wasEmpty) {
 			_zoomDeque.front()();
 		}
-
-		return lifetime;
-	};
-}
-
-Statistics::GraphResult Statistics::requestMessage(
-		not_null<PeerData*> peer,
-		MsgId msgId) {
-	return [=](auto consumer) {
-		auto lifetime = rpl::lifetime();
-		const auto channel = peer->asChannel();
-		if (!channel) {
-			return lifetime;
-		}
-
-		_api.request(MTPstats_GetMessageStats(
-			MTP_flags(MTPstats_GetMessageStats::Flags(0)),
-			channel->inputChannel,
-			MTP_int(msgId.bare)
-		)).done([=](const MTPstats_MessageStats &result) {
-			consumer.put_next(
-				StatisticalGraphFromTL(result.data().vviews_graph()));
-			consumer.put_done();
-		}).fail([=](const MTP::Error &error) {
-			consumer.put_error_copy(error.type());
-		}).send();
 
 		return lifetime;
 	};
@@ -314,6 +281,7 @@ void PublicForwards::request(
 	if (_requestId) {
 		return;
 	}
+	const auto dcId = _channel->owner().statsDcId(_channel);
 	const auto offsetPeer = _channel->owner().peer(token.fullId.peer);
 	const auto tlOffsetPeer = offsetPeer
 		? offsetPeer->input
@@ -396,7 +364,7 @@ void PublicForwards::request(
 		});
 	}).fail([=] {
 		_requestId = 0;
-	}).send();
+	}).toDC(MTP::ShiftDcId(dcId, MTP::kStatsDcShift)).send();
 }
 
 MessageStatistics::MessageStatistics(
@@ -416,6 +384,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 	if (_channel->isMegagroup()) {
 		return;
 	}
+	const auto dcId = _channel->owner().statsDcId(_channel);
 
 	const auto requestFirstPublicForwards = [=](
 			const Data::StatisticalGraph &messageGraph,
@@ -484,7 +453,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 			StatisticalGraphFromTL(result.data().vviews_graph()));
 	}).fail([=](const MTP::Error &error) {
 		requestPrivateForwards({});
-	}).send();
+	}).toDC(MTP::ShiftDcId(dcId, MTP::kStatsDcShift)).send();
 
 }
 
