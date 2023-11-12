@@ -40,7 +40,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QTextEdit>
 #include <QtGui/QClipboard>
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
 #include <qpa/qwindowsysteminterface.h>
+#endif // Qt < 6.6.0
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -52,7 +55,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 - (id) init:(MainWindow::Private*)window;
 - (void) activeSpaceDidChange:(NSNotification *)aNotification;
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
 - (void) darkModeChanged:(NSNotification *)aNotification;
+#endif // Qt < 6.6.0
 - (void) screenIsLocked:(NSNotification *)aNotification;
 - (void) screenIsUnlocked:(NSNotification *)aNotification;
 
@@ -113,6 +118,7 @@ private:
 - (void) activeSpaceDidChange:(NSNotification *)aNotification {
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
 - (void) darkModeChanged:(NSNotification *)aNotification {
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
@@ -122,6 +128,7 @@ private:
 #endif // Qt < 6.5.0
 	});
 }
+#endif // Qt < 6.6.0
 
 - (void) screenIsLocked:(NSNotification *)aNotification {
 	Core::App().setScreenIsLocked(true);
@@ -156,10 +163,12 @@ void ForceDisabled(QAction *action, bool disabled) {
 	}
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
 QString strNotificationAboutThemeChange() {
 	const uint32 letters[] = { 0x75E86256, 0xD03E11B1, 0x4D92201D, 0xA2144987, 0x99D5B34F, 0x037589C3, 0x38ED2A7C, 0xD2371ABC, 0xDC98BB02, 0x27964E1B, 0x01748AED, 0xE06679F8, 0x761C9580, 0x4F2595BF, 0x6B5FCBF4, 0xE4D9C24E, 0xBA2F6AB5, 0xE6E3FA71, 0xF2CFC255, 0x56A50C19, 0x43AE1239, 0x77CA4254, 0x7D189A89, 0xEA7663EE, 0x84CEB554, 0xA0ADF236, 0x886512D4, 0x7D3FBDAF, 0x85C4BE4F, 0x12C8255E, 0x9AD8BD41, 0xAC154683, 0xB117598B, 0xDFD9F947, 0x63F06C7B, 0x6340DCD6, 0x3AAE6B3E, 0x26CB125A };
 	return Platform::MakeFromLetters(letters);
 }
+#endif // Qt < 6.6.0
 
 QString strNotificationAboutScreenLocked() {
 	const uint32 letters[] = { 0x34B47F28, 0x47E95179, 0x73D05C42, 0xB4E2A933, 0x924F22D1, 0x4265D8EA, 0x9E4D2CC2, 0x02E8157B, 0x35BF7525, 0x75901A41, 0xB0400FCC, 0xE801169D, 0x4E04B589, 0xC1CEF054, 0xAB2A7EB0, 0x5C67C4F6, 0xA4E2B954, 0xB35E12D2, 0xD598B22B, 0x4E3B8AAB, 0xBEA5E439, 0xFDA8AA3C, 0x1632DBA8, 0x88FE8965 };
@@ -181,7 +190,9 @@ MainWindow::Private::Private(not_null<MainWindow*> window)
 	@autoreleasepool {
 
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:_observer selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(darkModeChanged:) name:Q2NSString(strNotificationAboutThemeChange()) object:nil];
+#endif // Qt < 6.6.0
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(screenIsLocked:) name:Q2NSString(strNotificationAboutScreenLocked()) object:nil];
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(screenIsUnlocked:) name:Q2NSString(strNotificationAboutScreenUnlocked()) object:nil];
 
