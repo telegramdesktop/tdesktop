@@ -163,7 +163,7 @@ void LinearChartView::paintSelectedXIndex(
 				+ c.rect.topLeft();
 		}
 
-		if (!linePainted) {
+		if (!linePainted && lineAlpha) {
 			[[maybe_unused]] const auto o = ScopedPainterOpacity(
 				p,
 				p.opacity() * progress * kRulerLineAlpha);
