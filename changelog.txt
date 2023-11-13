@@ -1,3 +1,11 @@
+4.11.7 (13.11.23)
+
+- Fix sending media files with quote replies.
+- Fix quoted text highlighting in some cases.
+- Fix loading statistics for some channels.
+- Fix Ctrl+Shift+. shortcut on X11.
+- Fix a crash in statistics.
+
 4.11.6 (09.11.23)
 
 - Support multiple boosts and reassignment.
